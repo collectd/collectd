@@ -44,6 +44,9 @@
 #if HAVE_SYS_FS_TYPES_H   /* Ultrix. */
 #include <sys/fs_types.h>
 #endif
+#if HAVE_SYS_MNTENT_H
+#include <sys/mntent.h>
+#endif
 #if HAVE_SYS_MNTTAB_H   /* SVR4. */
 #include <sys/mnttab.h>
 #endif
@@ -53,7 +56,9 @@
 #if HAVE_SYS_VFSTAB_H
 #include <sys/vfstab.h>
 #endif
+#if HAVE_SYS_QUOTA_H
 #include <sys/quota.h>
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -153,7 +158,9 @@ get_label_uuid(const char *device, char **label, char *uuid)
 	int fd, rv = 1;
 	size_t namesize;
 	struct ext2_super_block e2sb;
+#if HAVE_XFS_XQM_H
 	struct xfs_super_block xfsb;
+#endif
 	struct reiserfs_super_block reisersb;
 
 	fd = open(device, O_RDONLY);
@@ -259,7 +266,7 @@ uuidcache_init(void)
 
 			for(s = ptname; *s; s++);
 
-			if(isdigit(s[-1])) {
+			if(isdigit((int)s[-1])) {
 			/*
 			* Note: this is a heuristic only - there is no reason
 			* why these devices should live in /dev.
@@ -284,9 +291,9 @@ uuidcache_init(void)
 static unsigned char
 fromhex(char c)
 {
-	if(isdigit(c)) {
+	if(isdigit((int)c)) {
 		return (c - '0');
-	} else if(islower(c)) {
+	} else if(islower((int)c)) {
 		return (c - 'a' + 10);
 	} else {
 		return (c - 'A' + 10);
@@ -334,7 +341,7 @@ get_spec_by_uuid(const char *s)
 		if(*s == '-') {
 			s++;
 		}
-		if(!isxdigit(s[0]) || !isxdigit(s[1])) {
+		if(!isxdigit((int)s[0]) || !isxdigit((int)s[1])) {
 			goto bad_uuid;
 		}
 		uuid[i] = ((fromhex(s[0]) << 4) | fromhex(s[1]));
@@ -371,22 +378,6 @@ get_device_name(const char *item)
 		DBG("Error checking device name: %s", item);
 	}
 	return rc;
-}
-
-/* Return if given option has nonempty argument */
-char *
-hasmntoptarg(struct mntent *mnt, char *opt)
-{
-	char *p = hasmntopt(mnt, opt);
-
-	if(!p) {
-		return NULL;
-	}
-	p += strlen(opt);
-	if(*p == '=' && p[1] != ',') {
-		return p+1;
-	}
-	return NULL;
 }
 
 /*
@@ -473,45 +464,6 @@ static int hasxfsquota(struct mntent *mnt, int type)
 	return ret;
 }
 #endif /* HAVE_XFS_XQM_H */
-
-/*
- * Check to see if a particular quota is to be enabled (filesystem mounted
- * with proper option)
- */
-int
-hasquota(struct mntent *mnt, int type)
-{
-	if(!correct_fstype(mnt->mnt_type) || hasmntopt(mnt, MNTOPT_NOQUOTA)) {
-		return 0;
-	}
-#if HAVE_XFS_XQM_H
-	if(!strcmp(mnt->mnt_type, MNTTYPE_XFS)) {
-		return hasxfsquota(mnt, type);
-	}
-#endif
-	if(nfs_fstype(mnt->mnt_type)) {
-		/* NFS always has quota or better there is
-		   no good way how to detect it */
-		return 1;
-	}
-
-	if((type == USRQUOTA) && (hasmntopt(mnt, MNTOPT_USRQUOTA)
-	|| hasmntoptarg(mnt, MNTOPT_USRJQUOTA))) {
-		return 1;
-	}
-	if((type == GRPQUOTA) && (hasmntopt(mnt, MNTOPT_GRPQUOTA)
-	|| hasmntoptarg(mnt, MNTOPT_GRPJQUOTA))) {
-		return 1;
-	}
-	if((type == USRQUOTA) && hasmntopt(mnt, MNTOPT_QUOTA)) {
-		return 1;
-	}
-
-	return 0;
-}
-
-/* END stolen from quota-3.13 (quota-tools) */
-
 
 
 #if HAVE_LISTMNTENT

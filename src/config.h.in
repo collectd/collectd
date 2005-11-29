@@ -195,11 +195,17 @@
 /* Define to 1 if you have the <sys/fs_types.h> header file. */
 #undef HAVE_SYS_FS_TYPES_H
 
+/* Define to 1 if you have the <sys/mntent.h> header file. */
+#undef HAVE_SYS_MNTENT_H
+
 /* Define to 1 if you have the <sys/mnttab.h> header file. */
 #undef HAVE_SYS_MNTTAB_H
 
 /* Define to 1 if you have the <sys/mount.h> header file. */
 #undef HAVE_SYS_MOUNT_H
+
+/* Define to 1 if you have the <sys/quota.h> header file. */
+#undef HAVE_SYS_QUOTA_H
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #undef HAVE_SYS_RESOURCE_H
