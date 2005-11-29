@@ -1,0 +1,114 @@
+ collectd - System information collection daemon
+=================================================
+http://verplant.org/collectd/
+
+About
+-----
+
+  collectd is a small daemon which collects statistics about a computer's
+  usage and writes then into RRD files.
+
+
+Features
+--------
+
+  * collectd is able to collect the following data:
+
+    - CPU utilization
+      (Time spent in system, user, nice and idle)
+
+    - Disk utilization
+      (Sectors read/written, number of read/write actions, time spent doing IO)
+
+    - Quota
+      (User/group block/inode usage/quota/limit/grace/timeleft per filesystem.)
+
+    - Harddisk temperatures
+      (Uhm, yeah, temperature of harddisks that is ;)
+
+    - System load
+      (Load average over the last 1, 5 and 15 minutes)
+
+    - Memory utilization
+      (Memory occupied by running processes, page cache, buffer cache and free)
+
+    - NFS Procedures
+      (Which NFS command were called how often. Only NFSv2 and NFSv3 right now)
+
+    - Ping latency
+      (Time to reach the default gateway or another given host)
+
+    - Serial
+      (RX and TX of serial interfaces)
+
+    - Sensors
+      (System temperatured and fan rotation speeds)
+
+    - Swap
+      (Pages swapped out onto harddisk or whatever is called `swap' by the OS..)
+
+    - Tape
+      (Read and write bytes and operations on tape devices)
+
+    - Traffic
+      (In/Outbound traffic on the interfaces)
+
+  * Performance: Running as a daemon collectd doesn't spend much time in
+    startup. Since collectd links against libping, librrd and libsensors it
+    doesn't need to start any other processes.
+
+  * Hardly any maintenance neccessary and setup is trivial.
+
+  * Extremely easy and failsafe network operation possible.
+
+
+Operation
+---------
+
+  * When running collectd writes system statistics in RRD-files. Per default
+    they reside in `/var/lib/collectd'.
+
+  * collectd needs to run as user root, since only root can craft ICMP
+    packages needed to ping other hosts. collectd should NOT be installed
+    setui root since it can be used to overwrite valuable files..
+
+  * Sample scripts to generate graphs reside in `contrib/' in the source
+    package or somewhere near `/usr/share/doc/collectd' in most distributions.
+    Please be aware that those script are meant as a starting point for your
+    own experiments.. Some of them require the `RRDs' Perl module.
+    (`librrds-perl' on Debian)
+
+  * The RRD-files that collectd creates hold the following data. Use ``rrdtool
+    resize'' if you want to cover longer/shorter periods of time.
+
+    Resolution | Data points |  Timespan
+    -----------+-------------+----------
+    60 seconds |        1500 |  25 hours
+    30 minutes |        1680 |  35 days
+     6 hours   |        1520 | 380 days
+
+  * Use `-c' to start in client-, `-s' to start in server-mode. Read the
+    manpage for details.
+
+
+Prerequisites
+-------------
+
+  To compile collectd from source you will need:
+
+  * Usual suspects: C compiler, linker, preprocessor, make, ...
+
+  * rrdtool (headers and library; rrdtool 1.0 and 1.2 both work fine)
+
+  * lm-sensors (optional)
+
+  * libstatgrab may be used to collect statistics on systems other than Linux
+    and/or Solaris. Note that CPU- and disk-statistics, while being provided by
+    this library, are not supported in collectd right now..
+    <http://www.i-scream.org/libstatgrab/> 
+
+Author
+------
+
+  Florian octo Forster <octo at verplant.org>
+

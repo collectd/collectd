@@ -39,8 +39,10 @@ AC_CHECK_HEADERS(dlfcn.h)
 AC_CHECK_HEADERS(paths.h)
 AC_CHECK_HEADERS(mntent.h)
 AC_CHECK_HEADERS(sys/fs_types.h)
+AC_CHECK_HEADERS(sys/mntent.h)
 AC_CHECK_HEADERS(sys/mnttab.h)
 AC_CHECK_HEADERS(sys/mount.h)
+AC_CHECK_HEADERS(sys/quota.h)
 AC_CHECK_HEADERS(sys/vfstab.h)
 AC_CHECK_HEADERS(xfs/xqm.h)
 
@@ -60,7 +62,8 @@ AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp strncmp)
-AC_CHECK_FUNCS(getfsent getvfsent getmntent listmntent)
+AC_CHECK_FUNCS(getfsent getvfsent listmntent)
+AC_FUNC_GETMNTENT
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
