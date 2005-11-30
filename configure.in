@@ -64,6 +64,7 @@ AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp strncmp)
 AC_CHECK_FUNCS(getfsent getvfsent listmntent)
 AC_FUNC_GETMNTENT
+AC_CHECK_FUNCS(quotactl)
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in

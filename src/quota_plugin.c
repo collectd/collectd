@@ -85,12 +85,16 @@ static void
 quota_read(void)
 {
 	quota_mnt_t *list = NULL, *l = NULL;
-	quota_t q = {
-		name: "test",
+	quota_t *quota = NULL, *q = NULL;
+	quota_t q_def = {
+		type: "usrquota",
+		name: "500",
+		dir: "/",
 		blocks: 0, bquota: -1, blimit: -1,
 		bgrace: 0, btimeleft: 0,
 		inodes: 0, iquota: -1, ilimit: -1,
 		igrace: 0, itimeleft: 0,
+		next: NULL,
 	};
 
 	l = quota_mnt_getlist(&list);
@@ -111,7 +115,29 @@ quota_read(void)
 		}
 	}
 	DBG("\t== ");
-	quota_submit(&q);
+
+	q = quota_fs_getquota(&quota, list);
+	DBG("quotas:");
+	while(q != NULL) {
+		DBG("\ttype: %s", q->type);
+		DBG("\tname: %s", q->name);
+		DBG("\tdir: %s", q->dir);
+		DBG("\tblocks: %llu (%lld/%lld) %llu %llu",
+			q->blocks, q->bquota, q->blimit,
+			q->bgrace, q->btimeleft);
+		DBG("\tinodes: %llu (%lld/%lld) %llu %llu",
+			q->inodes, q->iquota, q->ilimit,
+			q->igrace, q->itimeleft);
+		q = q->next;
+		if(q != NULL) {
+			DBG("\t-- ");
+		}
+	}
+	DBG("\t== ");
+
+	quota_submit(&q_def);
+
+	quota_fs_freequota(quota);
 	quota_mnt_freelist(list);
 }
 

@@ -27,6 +27,7 @@
 #include "common.h"
 
 #define QUOTA_PLUGIN_DEBUG 1
+#define QUOTA_PLUGIN_DEBUG_FILE "collectd_quota.log"
 
 #if QUOTA_PLUGIN_DEBUG
 	#include <stdio.h>
@@ -43,7 +44,7 @@
 	}
 	#define DBG_INIT(...) \
 	{ \
-		QUOTA_DBG_FILE = fopen("collectd.log", "a"); \
+		QUOTA_DBG_FILE = fopen(QUOTA_PLUGIN_DEBUG_FILE, "a"); \
 		if(QUOTA_DBG_FILE == NULL) { \
 			/* stderr is redirected to /dev/null, so you \
 			   will not see anything */ \

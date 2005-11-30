@@ -129,6 +129,9 @@
 /* Define to 1 if you have the <paths.h> header file. */
 #undef HAVE_PATHS_H
 
+/* Define to 1 if you have the `quotactl' function. */
+#undef HAVE_QUOTACTL
+
 /* Define to 1 if you have the <rrd.h> header file. */
 #undef HAVE_RRD_H
 

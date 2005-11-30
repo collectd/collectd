@@ -26,6 +26,7 @@
 
 #include "common.h"
 
+/* Quota Mount Options */
 #define QMO_NONE     (0)
 #define QMO_USRQUOTA (1)
 #define QMO_GRPQUOTA (2)
@@ -34,6 +35,7 @@ typedef struct _quota_mnt_t quota_mnt_t;
 struct _quota_mnt_t {
 	char *dir;
 	char *device;
+	char *type;
 	int opts;
 	quota_mnt_t *next;
 };

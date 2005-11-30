@@ -26,15 +26,19 @@
 
 #include "common.h"
 
-typedef struct {
+typedef struct _quota_t quota_t;
+struct _quota_t {
+	char *type;
 	char *name;
+	char *dir;
 	unsigned long long blocks;
 	long long bquota, blimit;
 	unsigned long long bgrace, btimeleft;
 	unsigned long long inodes;
 	long long iquota, ilimit;
 	unsigned long long igrace, itimeleft;
-} quota_t;
+	quota_t *next;
+};
 
 void module_register(void);
 

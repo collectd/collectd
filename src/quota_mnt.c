@@ -381,40 +381,6 @@ get_device_name(const char *item)
 }
 
 /*
- *      Check whether give filesystem type is supported
- */
-static int
-correct_fstype(char *type)
-{
-	char *mtype = sstrdup(type), *next;
-
-	type = mtype;
-	do {
-		next = strchr(type, ',');
-		if(next) {
-			*next = 0;
-		}
-		if(!strcmp(type, MNTTYPE_EXT2)
-		|| !strcmp(type, MNTTYPE_EXT3)
-		|| !strcmp(type, MNTTYPE_JFS)
-		|| !strcmp(type, MNTTYPE_MINIX)
-		|| !strcmp(type, MNTTYPE_UFS)
-		|| !strcmp(type, MNTTYPE_UDF)
-		|| !strcmp(type, MNTTYPE_REISER)
-		|| !strcmp(type, MNTTYPE_XFS)
-		|| !strcmp(type, MNTTYPE_NFS)
-		|| !strcmp(type, MNTTYPE_NFS4))
-		{
-			free(mtype);
-			return 1;
-		}
-		type = next+1;
-	} while(next);
-	free(mtype);
-	return 0;
-}
-
-/*
  *      Check for various kinds of NFS filesystem
  */
 int
@@ -427,7 +393,8 @@ nfs_fstype(char *type)
 /*
  *      Check for XFS filesystem with quota accounting enabled
  */
-static int hasxfsquota(struct mntent *mnt, int type)
+static int
+hasxfsquota(struct mntent *mnt, int type)
 {
 	int ret = 0;
 	u_int16_t sbflags;
@@ -528,17 +495,33 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 			free((char *)devname);
 			continue;
 		}
-		if(hasmntopt(mnt, MNTOPT_QUOTA) == NULL
-		&& hasmntopt(mnt, MNTOPT_USRQUOTA) == NULL
-		&& hasmntopt(mnt, MNTOPT_GRPQUOTA) == NULL
-		&& quota_fs_isnfs(mnt->mnt_type) == EXIT_FAILURE)
-		{
-			DBG("neither quota/usrquota/grpquota option"
-				" nor nfs fs (%s) %s (%s): ignored",
-				mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
-			free((char *)devname);
-			continue;
+#if HAVE_XFS_XQM_H
+		if(!strcmp(mnt->mnt_type, MNTTYPE_XFS)) {
+			if(hasxfsquota(mnt, USRQUOTA) == 0
+			&& hasxfsquota(mnt, GRPQUOTA) == 0)
+			{
+				DBG("no quota on fs (%s) %s (%s): ignored",
+					mnt->mnt_type, mnt->mnt_dir,
+					mnt->mnt_fsname);
+				free((char *)devname);
+				continue;
+			}
+		} else {
+#endif /* HAVE_XFS_XQM_H */
+			if(hasmntopt(mnt, MNTOPT_QUOTA) == NULL
+			&& hasmntopt(mnt, MNTOPT_USRQUOTA) == NULL
+			&& hasmntopt(mnt, MNTOPT_GRPQUOTA) == NULL
+			&& quota_fs_isnfs(mnt->mnt_type) == EXIT_FAILURE)
+			{
+				DBG("neither quota/usrquota/grpquota option"
+					" nor nfs fs (%s) %s (%s): ignored",
+					mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
+				free((char *)devname);
+				continue;
+			}
+#if HAVE_XFS_XQM_H
 		}
+#endif /* HAVE_XFS_XQM_H */
 		if(quota_fs_issupported(mnt->mnt_type) == EXIT_FAILURE)
 		{
 			DBG("unsupportet fs (%s) %s (%s): ignored",
@@ -552,7 +535,11 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 		*list = (quota_mnt_t *)smalloc(sizeof(quota_mnt_t));
 		(*list)->dir = sstrdup(mnt->mnt_dir);
 		(*list)->device = sstrdup(mnt->mnt_fsname);
+		(*list)->type = sstrdup(mnt->mnt_type);
 		(*list)->opts = QMO_NONE;
+/* TODO: this is not sufficient for XFS! */
+/* TODO: maybe we should anyway NOT rely on the option in the mountfile...
+   ... maybe the fs should be asked direktly all time! */
 		if(hasmntopt(mnt, MNTOPT_QUOTA) != NULL
 		|| hasmntopt(mnt, MNTOPT_USRQUOTA) != NULL) {
 			(*list)->opts |= QMO_USRQUOTA;
@@ -672,6 +659,6 @@ quota_mnt_freelist(quota_mnt_t *list)
 		} else {
 			l = NULL;
 		}
-	}
-}
+	} /* while(l != NULL) */
+} /* void quota_mnt_freelist(quota_mnt_t *list) */
 

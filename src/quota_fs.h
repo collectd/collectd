@@ -25,9 +25,23 @@
 #define COLLECTD_QUOTA_FS_H 1
 
 #include "common.h"
+#include "quota_plugin.h"
+#include "quota_mnt.h"
+
+/* Quota Filesystem Type */
+#define QFT_NONE (0)
+#define QFT_EXT2 (1)
+#define QFT_EXT3 (2)
+#define QFT_XFS  (3)
+#define QFT_UFS  (4)
+#define QFT_VXFS (5)
+#define QFT_ZFS  (6)
 
 int quota_fs_issupported(const char *fsname);
 int quota_fs_isnfs(const char *fsname);
+
+quota_t *quota_fs_getquota(quota_t **quota, quota_mnt_t *m);
+void quota_fs_freequota(quota_t *quota);
 
 #endif /* !COLLECTD_QUOTA_FS_H */
 
