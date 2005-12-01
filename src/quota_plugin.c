@@ -25,6 +25,7 @@
 #include "plugin.h"
 
 #include "quota_debug.h"
+#include "quota_common.h"
 #include "quota_mnt.h"
 #include "quota_fs.h"
 #include "quota_plugin.h"
@@ -33,20 +34,20 @@
 
 /* *** *** ***   local constants   *** *** *** */
 
-static const char *quota_filename_template = "quota-%s.rrd";
+static const char *quota_filename_template = MODULE_NAME "-%s.rrd";
 
 static char *quota_ds_def[] =
 {
 	"DS:blocks:GAUGE:25:0:U",
 	"DS:block_quota:GAUGE:25:-1:U",
 	"DS:block_limit:GAUGE:25:-1:U",
-	"DS:block_grace:GAUGE:25:0:U",
-	"DS:block_timeleft:GAUGE:25:0:U",
+	"DS:block_grace:GAUGE:25:-1:U",
+	"DS:block_timeleft:GAUGE:25:-1:U",
 	"DS:inodes:GAUGE:25:0:U",
 	"DS:inode_quota:GAUGE:25:-1:U",
 	"DS:inode_limit:GAUGE:25:-1:U",
-	"DS:inode_grace:GAUGE:25:0:U",
-	"DS:inode_timeleft:GAUGE:25:0:U",
+	"DS:inode_grace:GAUGE:25:-1:U",
+	"DS:inode_timeleft:GAUGE:25:-1:U",
 	NULL
 };
 static const int quota_ds_num = 10;
@@ -59,6 +60,7 @@ quota_submit(quota_t *q)
 {
 	char buf[BUFSIZE];
 	int r;
+	char *name, *n;
 
 	r = snprintf(buf, BUFSIZE,
 		"%u:%llu:%lld:%lld:%llu:%llu:%llu:%lld:%lld:%llu:%llu",
@@ -69,7 +71,33 @@ quota_submit(quota_t *q)
 		DBG("failed");
 		return;
 	}
-	plugin_submit(MODULE_NAME, q->name, buf);
+	n = name = (char *)smalloc(strlen(q->type) + 1 + strlen(q->dir)
+	+ 1 + strlen(q->name) + 1 + strlen(q->id));
+	sstrncpy(n, q->type, strlen(q->type)+1);
+	n += strlen(q->type);
+	sstrncpy(n, "-", 1+1);
+	n += 1;
+	sstrncpy(n, q->name, strlen(q->name)+1);
+	n += strlen(q->name);
+	sstrncpy(n, "-", 1+1);
+	n += 1;
+	sstrncpy(n, q->id, strlen(q->id)+1);
+	n += strlen(q->id);
+	sstrncpy(n, "-", 1+1);
+	n += 1;
+	sstrncpy(n, q->dir, strlen(q->dir)+1);
+	n += strlen(q->dir);
+	n = name;
+	/* translate '/' -> '_' */
+	while(*n != '\0') {
+		if(*n == '/') {
+			*n = '_';
+		}
+		n++;
+	}
+
+	DBG("rrd file: %s-%s", MODULE_NAME, name);
+	plugin_submit(MODULE_NAME, name, buf);
 }
 #undef BUFSIZE
 
@@ -86,16 +114,6 @@ quota_read(void)
 {
 	quota_mnt_t *list = NULL, *l = NULL;
 	quota_t *quota = NULL, *q = NULL;
-	quota_t q_def = {
-		type: "usrquota",
-		name: "500",
-		dir: "/",
-		blocks: 0, bquota: -1, blimit: -1,
-		bgrace: 0, btimeleft: 0,
-		inodes: 0, iquota: -1, ilimit: -1,
-		igrace: 0, itimeleft: 0,
-		next: NULL,
-	};
 
 	l = quota_mnt_getlist(&list);
 	DBG("local mountpoints:");
@@ -121,6 +139,7 @@ quota_read(void)
 	while(q != NULL) {
 		DBG("\ttype: %s", q->type);
 		DBG("\tname: %s", q->name);
+		DBG("\tid: %s", q->id);
 		DBG("\tdir: %s", q->dir);
 		DBG("\tblocks: %llu (%lld/%lld) %llu %llu",
 			q->blocks, q->bquota, q->blimit,
@@ -128,14 +147,13 @@ quota_read(void)
 		DBG("\tinodes: %llu (%lld/%lld) %llu %llu",
 			q->inodes, q->iquota, q->ilimit,
 			q->igrace, q->itimeleft);
+		quota_submit(q);
 		q = q->next;
 		if(q != NULL) {
 			DBG("\t-- ");
 		}
 	}
 	DBG("\t== ");
-
-	quota_submit(&q_def);
 
 	quota_fs_freequota(quota);
 	quota_mnt_freelist(list);
@@ -153,6 +171,11 @@ quota_write(char *host, char *inst, char *val)
 		return;
 	}
 
+	DBG("host: %s", host);
+	DBG("file: %s", file);
+	DBG("val: %s", val);
+	DBG("quota_ds_def: %s", *quota_ds_def);
+	DBG("quota_ds_num: %d", quota_ds_num);
 	rrd_update_file(host, file, val, quota_ds_def, quota_ds_num);
 }
 

@@ -23,6 +23,7 @@
 
 #include "common.h"
 #include "quota_debug.h"
+#include "quota_common.h"
 #include "quota_fs.h"
 #include "quota_mnt.h"
 
@@ -119,35 +120,6 @@ struct reiserfs_super_block {
 	unsigned char s_uuid[16];
 	char s_volume_name[16];
 };
-
-void
-sstrncpy(char *d, const char *s, int len)
-{
-	strncpy(d, s, len);
-	d[len - 1] = 0;
-}
-
-char *
-sstrdup(const char *s)
-{
-	char *r = strdup(s);
-	if(r == NULL) {
-		DBG("Not enough memory.");
-		exit(3);
-	}
-	return r;
-}
-
-void *
-smalloc(size_t size)
-{
-	void *ret = malloc(size);
-	if(ret == NULL) {
-		DBG("Not enough memory.");
-		exit(3);
-	}
-	return ret;
-}
 
 /* for now, only ext2 and xfs are supported */
 static int

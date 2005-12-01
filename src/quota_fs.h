@@ -25,7 +25,6 @@
 #define COLLECTD_QUOTA_FS_H 1
 
 #include "common.h"
-#include "quota_plugin.h"
 #include "quota_mnt.h"
 
 /* Quota Filesystem Type */
@@ -36,6 +35,21 @@
 #define QFT_UFS  (4)
 #define QFT_VXFS (5)
 #define QFT_ZFS  (6)
+
+typedef struct _quota_t quota_t;
+struct _quota_t {
+	char *type;
+	char *name;
+	char *id;
+	char *dir;
+	unsigned long long blocks;
+	long long bquota, blimit;
+	unsigned long long bgrace, btimeleft;
+	unsigned long long inodes;
+	long long iquota, ilimit;
+	unsigned long long igrace, itimeleft;
+	quota_t *next;
+};
 
 int quota_fs_issupported(const char *fsname);
 int quota_fs_isnfs(const char *fsname);
