@@ -4,7 +4,7 @@ AM_INIT_AUTOMAKE(collectd, 3.4.0-quota)
 AM_CONFIG_HEADER(src/config.h src/libping/config.h)
 AC_LANG(C)
 
-#AC_PREFIX_DEFAULT("/opt/collectd-3.4.0")
+AC_PREFIX_DEFAULT("/opt/collectd")
 
 dnl Checks for programs.
 AC_PROG_CC
