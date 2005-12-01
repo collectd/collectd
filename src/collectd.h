@@ -77,8 +77,20 @@
 #define DEBUG 0
 #endif
 
+#ifndef LOCALSTATEDIR
+#define LOCALSTATEDIR "/opt/collectd/var"
+#endif
+
+#ifndef DATADIR
+#define DATADIR LOCALSTATEDIR"/lib/collectd"
+#endif
+
 #ifndef PLUGINDIR
-#define PLUGINDIR "/usr/lib/collectd"
+#define PLUGINDIR "/opt/collectd/lib/collectd"
+#endif
+
+#ifndef PIDFILE
+#define PIDFILE LOCALSTATEDIR"/run/collectd.pid"
 #endif
 
 #define MODE_SERVER 0x01

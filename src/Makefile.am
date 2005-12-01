@@ -9,7 +9,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   multicast.c multicast.h \
 		   plugin.c plugin.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
-collectd_CPPFLAGS += -DLOCALSTATEDIR="$(localstatedir)"
+collectd_CPPFLAGS = -DLOCALSTATEDIR='"$(localstatedir)"' -DPLUGINDIR='"$(pkglibdir)"'
 collectd_LDFLAGS = -dlopen self
 if BUILD_WITH_RRDTOOL
 collectd_LDFLAGS += -lrrd
