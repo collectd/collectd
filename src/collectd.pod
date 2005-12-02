@@ -1,0 +1,346 @@
+=head1 NAME
+
+collectd - System statistics collection daemon
+
+=head1 SYNOPSIS
+
+collectd I<[options]>
+
+=head1 DESCRIPTION
+
+collectd is a daemon that collects various system statistics periodically and
+stores them into RRD-files. Which data is collected depends on compile-time
+settings. The following features may be available:
+
+=over 4
+
+=item
+
+CPU utilization (I<cpu>)
+
+=item
+
+Disk and partition usage/throughput (I<disk>)
+
+=item
+
+Harddisk temperatures (I<hddtemp>)
+
+=item
+
+System load averages (I<load>)
+
+=item
+
+Memory usage (I<memory>)
+
+=item
+
+NFS utilization (I<nfs>, Linux only)
+
+=item
+
+Network latency (I<ping>)
+
+=item
+
+Number of processes (I<processes>, Linux only)
+
+=item
+
+lm_sensors information (I<sensors>, Linux only)
+
+=item
+
+Serial port traffic (I<serial>, Linux only)
+
+=item
+
+Swap usage (I<swap>)
+
+=item
+
+Tape drive usage (I<tape>, Solaris only)
+
+=item
+
+Network traffic (I<traffic>)
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-c>
+
+Start in client (transmitter) mode. Data will be sent to the multicast group.
+See L<"MODES">.
+
+=item B<-d> I<E<lt>directoryE<gt>>
+
+Sets the directory collectd should work in. All F<.rrd>-files are created in
+this directory. Per default this is F</var/lib/collectd/>.
+
+=item B<-f>
+
+Don't fork to the background. I<collectd> will also B<not> close standard file
+descriptors, detach from the session nor write a pid file. This is mainly
+thought for 'supervisioning' init replacements such as I<runit>.
+
+=item B<-h>
+
+Output usage information and exit.
+
+=item B<-l>
+
+Start in local mode. This is the default. No data will be sent or read to/from
+the network. Information will be read and written by the same process. See
+L<"MODES">.
+
+=item B<-p> I<E<lt>hostE<gt>>
+
+Sets the host to ping periodically. This option may be given more than once to
+ping multiple hosts. If this option is not given at least once no host will be
+pinged.
+
+=item B<-s>
+
+Start in server (receiver) mode. Data sent to the multicast group will be read
+and stored in RRD files. See L<"MODES">.
+
+=back
+
+=head1 RRD FILES
+
+The RRD files are created automatically with the following RRAs:
+
+  RRA:AVERAGE:0.2:6:1500
+  RRA:AVERAGE:0.1:180:1680
+  RRA:AVERAGE:0.1:2160:1520
+  RRA:MIN:0.2:6:1500
+  RRA:MIN:0.1:180:1680
+  RRA:MIN:0.1:2160:1520
+  RRA:MAX:0.2:6:1500
+  RRA:MAX:0.1:180:1680
+  RRA:MAX:0.1:2160:1520
+
+Since collectd uses a 10 second I<step> the RRAs contain the following
+timespans:
+
+  Resolution | Data points |  Timespan
+  -----------+-------------+----------
+  60 seconds |        1500 |  25 hours
+  30 minutes |        1680 |  35 days
+   6 hours   |        1520 | 380 days
+
+The DS'es depend on the module creating the RRD files:
+
+=over 4
+
+=item CPU (F<cpu-I<E<lt>numE<gt>>.rrd>)
+
+  DS:user:COUNTER:25:0:100
+  DS:nice:COUNTER:25:0:100
+  DS:syst:COUNTER:25:0:100
+  DS:idle:COUNTER:25:0:100
+  DS:wait:COUNTER:25:0:100
+
+=item Diskstats (F<disk-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
+
+  DS:rcount:COUNTER:25:0:
+  DS:rmerged:COUNTER:25:0:U
+  DS:rbytes:COUNTER:25:0:U
+  DS:rtime:COUNTER:25:0:U
+  DS:wcount:COUNTER:25:0:U
+  DS:wmerged:COUNTER:25:0:U
+  DS:wbytes:COUNTER:25:0:U
+  DS:wtime:COUNTER:25:0:U
+
+=item Diskstats (F<partition-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
+
+  DS:rcount:COUNTER:25:0:U
+  DS:rbytes:COUNTER:25:0:U
+  DS:wcount:COUNTER:25:0:U
+  DS:wbytes:COUNTER:25:0:U
+
+=item HDD Temperature (F<hddtemp-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
+
+  DS:value:GAUGE:25:U:U
+
+=item System load (F<load.rrd>)
+
+  DS:shortterm:GAUGE:25:0:100
+  DS:midterm:GAUGE:25:0:100
+  DS:longterm:GAUGE:25:0:100
+
+=item Memory usage (F<memory.rrd>)
+
+  DS:used:GAUGE:25:0:9223372036854775807
+  DS:free:GAUGE:25:0:9223372036854775807
+  DS:buffers:GAUGE:25:0:9223372036854775807
+  DS:cached:GAUGE:25:0:9223372036854775807
+
+=item NFSv2 Procedures (F<nfs2_procedures-I<(client|server)>.rrd>)
+
+  DS:null:COUNTER:25:0:U
+  DS:getattr:COUNTER:25:0:U
+  DS:setattr:COUNTER:25:0:U
+  DS:root:COUNTER:25:0:U
+  DS:lookup:COUNTER:25:0:U
+  DS:readlink:COUNTER:25:0:U
+  DS:read:COUNTER:25:0:U
+  DS:wrcache:COUNTER:25:0:U
+  DS:write:COUNTER:25:0:U
+  DS:create:COUNTER:25:0:U
+  DS:remove:COUNTER:25:0:U
+  DS:rename:COUNTER:25:0:U
+  DS:link:COUNTER:25:0:U
+  DS:symlink:COUNTER:25:0:U
+  DS:mkdir:COUNTER:25:0:U
+  DS:rmdir:COUNTER:25:0:U
+  DS:readdir:COUNTER:25:0:U
+  DS:fsstat:COUNTER:25:0:U
+
+=item NFSv3 Procedures (F<nfs3_procedures-I<(client|server)>.rrd>)
+
+  DS:null:COUNTER:25:0:U
+  DS:getattr:COUNTER:25:0:U
+  DS:setattr:COUNTER:25:0:U
+  DS:lookup:COUNTER:25:0:U
+  DS:access:COUNTER:25:0:U
+  DS:readlink:COUNTER:25:0:U
+  DS:read:COUNTER:25:0:U
+  DS:write:COUNTER:25:0:U
+  DS:create:COUNTER:25:0:U
+  DS:mkdir:COUNTER:25:0:U
+  DS:symlink:COUNTER:25:0:U
+  DS:mknod:COUNTER:25:0:U
+  DS:remove:COUNTER:25:0:U
+  DS:rmdir:COUNTER:25:0:U
+  DS:rename:COUNTER:25:0:U
+  DS:link:COUNTER:25:0:U
+  DS:readdir:COUNTER:25:0:U
+  DS:readdirplus:COUNTER:25:0:U
+  DS:fsstat:COUNTER:25:0:U
+  DS:fsinfo:COUNTER:25:0:U
+  DS:pathconf:COUNTER:25:0:U
+  DS:commit:COUNTER:25:0:U
+
+=item Network latency / Ping (F<ping-I<E<lt>hostnameE<gt>>.rrd>)
+
+  DS:ping:GAUGE:25:0:65535
+
+=item Processes (F<processes.rrd>)
+
+  DS:running:GAUGE:25:0:65535
+  DS:sleeping:GAUGE:25:0:65535
+  DS:zombies:GAUGE:25:0:65535
+  DS:stopped:GAUGE:25:0:65535
+  DS:paging:GAUGE:25:0:65535
+  DS:blocked:GAUGE:25:0:65535
+
+=item lm_sensors (F<sensors-I<E<lt>chipE<gt>>-I<E<lt>featureE<gt>>.rrd>)
+
+  DS:value:GAUGE:25:U:U
+
+=item Serial port traffic (F<serial-I<E<lt>numE<gt>>.rrd>)
+
+  DS:incoming:COUNTER:25:0:U
+  DS:outgoing:COUNTER:25:0:U
+
+=item Swap usage (F<swap.rrd>)
+
+  DS:used:GAUGE:25:0:1099511627776
+  DS:free:GAUGE:25:0:1099511627776
+  DS:cached:GAUGE:25:0:1099511627776
+  DS:resv:GAUGE:25:0:1099511627776
+
+=item Tape drive usage (F<tape-I<E<lt>nameE<gt>>.rrd>)
+
+  DS:rcount:COUNTER:25:0:
+  DS:rmerged:COUNTER:25:0:U
+  DS:rbytes:COUNTER:25:0:U
+  DS:rtime:COUNTER:25:0:U
+  DS:wcount:COUNTER:25:0:U
+  DS:wmerged:COUNTER:25:0:U
+  DS:wbytes:COUNTER:25:0:U
+  DS:wtime:COUNTER:25:0:U
+
+=item Network traffic (F<traffic-I<E<lt>nameE<gt>>.rrd>)
+
+  DS:incoming:COUNTER:25:0:U
+  DS:outgoing:COUNTER:25:0:U
+
+=back
+
+=head1 MODES
+
+By default collectd starts in the so called I<local mode> which is not very
+interesting. It collects data and writes it into RRD files in
+F</var/lib/collectd>. There's nothing special so I won't discuss that in more
+detail..
+
+Please be aware that B<client-, local- and server-mode are mutual exclusive>. A
+later declaration overrides earlier ones. I<collectd -l -c -s> will start in
+server-mode. If you want statistics of the server too you will have to start a
+client process as well.
+
+Starting with version 3 collectd may send data over a network. As common with
+network stuff there are two modes: A I<sender> and a I<listener>. Since one
+usually has many senders and only a few listeners the sender is also called
+I<client> (using the option B<-c>) and the listener is called I<server> (using
+the option B<-s>).
+
+Communication happends using the (IPv4) multicast group B<239.192.74.66> and
+packets sent to the port B<25826/udp>. Every ten seconds the I<client> queries
+all the modules and sends the collected data to the multicast group. The
+I<server> subscribes to the multicast group upon startup and then waits for
+incoming packets. As it receives the packets it checks wether it has the
+neccessary module and, if found, writes the data to an RRD file, creating
+directories and files as needed.
+
+The multicast group used is within the I<Organization Local Scope> as defined
+by L<RFC2365>. Addresses within that space are meant to be routed within an AS
+but not to the outside. However collectd cannot control this and won't try. So
+it's totally up to you to secure your net.
+
+The UDP port used has been checked to not be assigned by the IANA.
+
+=head1 SPECIAL MODULES
+
+=head2 cpufreq
+
+This module reads F</sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq> (for
+the first CPU installed) to get the current CPU frequency. If this file does
+not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
+similar tool is installed.
+
+=head2 sensors
+
+The B<sensors> module uses lm_sensors to retrieve sensor-values. This means
+that all the needed modules have to be loaded and lm_sensors has to be
+configured (most likely by editing F</etc/sensors.conf>. Read
+L<sensors.conf(5)> for details.
+
+The B<lm_sensors> homepage can be found at
+L<http://secure.netroedge.com/~lm78/>.
+
+=head2 hddtemp
+
+To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
+port B<7634/tcp>. hddtemp has to be running to work correctly. If hddtemp is
+not running timeouts may appear which may interfere with other statistics..
+
+The B<hddtemp> homepage can be found at
+L<http://www.guzu.net/linux/hddtemp.php>.
+
+=head1 SEE ALSO
+
+L<rrdtool(1)>, L<sensors(1)>, L<hddtemp(8)>, L<kstat(3KSTAT)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut
