@@ -36,6 +36,8 @@ struct _quota_mnt_t {
 	char *dir;
 	char *device;
 	char *type;
+	char *usrjquota;
+	char *grpjquota;
 	int opts;
 	quota_mnt_t *next;
 };

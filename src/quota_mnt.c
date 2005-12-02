@@ -73,7 +73,18 @@
 
 #include "quota_mntopt.h"
 
+
+
+/* *** *** ***   prototypes   *** *** *** */
+
+static char *getmountopt(char *line, char *keyword);
+static char *checkmountopt(char *line, char *keyword, int full);
+
+
+
 /* *** *** ***   local functions   *** *** *** */
+
+
 
 /* stolen from quota-3.13 (quota-tools) */
 
@@ -332,10 +343,10 @@ get_spec_by_volume_label(const char *s)
         return get_spec_by_x(VOL, s);
 }
 
-const char *
+static char *
 get_device_name(const char *item)
 {
-	const char *rc;
+	char *rc;
 
 	if(!strncmp(item, "UUID=", 5)) {
 		DBG("TODO: check UUID= code!");
@@ -399,7 +410,7 @@ hasxfsquota(struct mntent *mnt, int type)
 			ret = 1;
 		#endif /* XFS_ROOTHACK */
 	}
-	free((char *)dev);
+	sfree((char *)dev);
 	return ret;
 }
 #endif /* HAVE_XFS_XQM_H */
@@ -436,7 +447,73 @@ quota_mnt_getvfsmnt(FILE *mntf, quota_mnt_t **list)
 }
 #endif /* HAVE_GETVFSENT */
 
+static char *
+checkmountopt(char *line, char *keyword, int full)
+{
+	char *line2, *l2;
+	int l = strlen(keyword);
+	char *p1, *p2;
 
+	if(line == NULL || keyword == NULL) {
+		return NULL;
+	}
+	if(full != 0) {
+		full = 1;
+	}
+
+	line2 = sstrdup(line);
+	l2 = line2;
+	while(*l2 != '\0') {
+		if(*l2 == ',') {
+			*l2 = '\0';
+		}
+		l2++;
+	}
+
+	p1 = line - 1;
+	p2 = strchr(line, ',');
+	do {
+		if(strncmp(line2+(p1-line)+1, keyword, l+full) == 0) {
+			free(line2);
+			return p1+1;
+		}
+		p1 = p2;
+		if(p1 != NULL) {
+			p2 = strchr(p1+1, ',');
+		}
+	} while(p1 != NULL);
+
+	free(line2);
+	return NULL;
+} /* static char *checkmountopt(char *line, char *keyword, int full) */
+
+static char *
+getmountopt(char *line, char *keyword)
+{
+	char *r;
+
+	r = checkmountopt(line, keyword, 0);
+	if(r != NULL) {
+		char *p;
+		r += strlen(keyword);
+		p = strchr(r, ',');
+		if(p == NULL) {
+			if(strlen(r) == 0) {
+				return NULL;
+			}
+			return sstrdup(r);
+		} else {
+			char *m;
+			if((p-r) == 1) {
+				return NULL;
+			}
+			m = (char *)smalloc(p-r+1);
+			sstrncpy(m, r, p-r+1);
+			return m;
+		}
+	}
+	return r;
+} /* static char *getmountopt(char *line, char *keyword) */
 
 #if HAVE_GETMNTENT
 static void
@@ -445,7 +522,9 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 	struct mntent *mnt;
 
 	while((mnt = getmntent(mntf)) != NULL) {
-		const char *devname;
+		char *loop = NULL, *device = NULL;
+		char *usrjquota = NULL;
+		char *grpjquota = NULL;
 
 #if 0
 		DBG("------------------");
@@ -456,17 +535,42 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 		DBG("mnt->mnt_freq   %d", mnt->mnt_freq);
 		DBG("mnt->mnt_passno %d", mnt->mnt_passno);
 #endif
-		if(!(devname = get_device_name(mnt->mnt_fsname))) {
-			DBG("can't get devicename for fs (%s) %s (%s): ignored",
+
+		if(quota_fs_issupported(mnt->mnt_type) == EXIT_FAILURE)
+		{
+			DBG("unsupportet fs (%s) %s (%s): ignored",
 				mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
 			continue;
 		}
-		if(hasmntopt(mnt, MNTOPT_NOQUOTA) != NULL) {
+
+		if(checkmountopt(mnt->mnt_opts, MNTOPT_NOQUOTA, 1) != NULL) {
 			DBG("noquota option on fs (%s) %s (%s): ignored",
 				mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
-			free((char *)devname);
 			continue;
 		}
+
+		if(checkmountopt(mnt->mnt_opts, "bind", 1) != NULL) {
+			DBG("bind mount on fs (%s) %s (%s): ignored",
+				mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
+			continue;
+		}
+
+		loop = getmountopt(mnt->mnt_opts, "loop=");
+		if(loop == NULL) {   /* no loop= mount */
+			device = get_device_name(mnt->mnt_fsname);
+			if(device == NULL) {
+				DBG("can't get devicename for fs (%s) %s (%s)"
+					": ignored", mnt->mnt_type,
+					mnt->mnt_dir, mnt->mnt_fsname);
+				continue;
+			}
+		} else {
+			device = loop;
+		}
+
+		usrjquota = getmountopt(mnt->mnt_opts, "usrjquota=");
+		grpjquota = getmountopt(mnt->mnt_opts, "grpjquota=");
+
 #if HAVE_XFS_XQM_H
 		if(!strcmp(mnt->mnt_type, MNTTYPE_XFS)) {
 			if(hasxfsquota(mnt, USRQUOTA) == 0
@@ -475,48 +579,50 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 				DBG("no quota on fs (%s) %s (%s): ignored",
 					mnt->mnt_type, mnt->mnt_dir,
 					mnt->mnt_fsname);
-				free((char *)devname);
+				sfree(loop);
+				sfree(usrjquota);
+				sfree(grpjquota);
 				continue;
 			}
 		} else {
 #endif /* HAVE_XFS_XQM_H */
-			if(hasmntopt(mnt, MNTOPT_QUOTA) == NULL
-			&& hasmntopt(mnt, MNTOPT_USRQUOTA) == NULL
-			&& hasmntopt(mnt, MNTOPT_GRPQUOTA) == NULL
+			if(checkmountopt(mnt->mnt_opts, MNTOPT_QUOTA, 1)
+				== NULL
+			&& checkmountopt(mnt->mnt_opts, MNTOPT_USRQUOTA, 1)
+				== NULL
+			&& checkmountopt(mnt->mnt_opts, MNTOPT_GRPQUOTA, 1)
+				== NULL
 			&& quota_fs_isnfs(mnt->mnt_type) == EXIT_FAILURE)
 			{
 				DBG("neither quota/usrquota/grpquota option"
 					" nor nfs fs (%s) %s (%s): ignored",
 					mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
-				free((char *)devname);
+				sfree(loop);
+				sfree(usrjquota);
+				sfree(grpjquota);
 				continue;
 			}
 #if HAVE_XFS_XQM_H
 		}
 #endif /* HAVE_XFS_XQM_H */
-		if(quota_fs_issupported(mnt->mnt_type) == EXIT_FAILURE)
-		{
-			DBG("unsupportet fs (%s) %s (%s): ignored",
-				mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
-			free((char *)devname);
-			continue;
-		}
 #if 0
 		DBG("------------------ OK");
 #endif
 		*list = (quota_mnt_t *)smalloc(sizeof(quota_mnt_t));
 		(*list)->dir = sstrdup(mnt->mnt_dir);
-		(*list)->device = sstrdup(mnt->mnt_fsname);
+		(*list)->device = device;
+		(*list)->usrjquota = usrjquota;
+		(*list)->grpjquota = grpjquota;
 		(*list)->type = sstrdup(mnt->mnt_type);
 		(*list)->opts = QMO_NONE;
 /* TODO: this is not sufficient for XFS! */
 /* TODO: maybe we should anyway NOT rely on the option in the mountfile...
    ... maybe the fs should be asked direktly all time! */
-		if(hasmntopt(mnt, MNTOPT_QUOTA) != NULL
-		|| hasmntopt(mnt, MNTOPT_USRQUOTA) != NULL) {
+		if(checkmountopt(mnt->mnt_opts, MNTOPT_QUOTA, 1) != NULL
+		|| checkmountopt(mnt->mnt_opts, MNTOPT_USRQUOTA, 1) != NULL) {
 			(*list)->opts |= QMO_USRQUOTA;
 		}
-		if(hasmntopt(mnt, MNTOPT_GRPQUOTA) != NULL) {
+		if(checkmountopt(mnt->mnt_opts, MNTOPT_GRPQUOTA, 1) != NULL) {
 			(*list)->opts |= QMO_GRPQUOTA;
 		}
 		(*list)->next = NULL;
@@ -622,9 +728,12 @@ quota_mnt_freelist(quota_mnt_t *list)
 		if(p != NULL) {
 			p->next = NULL;
 		}
-		free(l->dir);
-		free(l->device);
-		free(l);
+		sfree(l->dir);
+		sfree(l->device);
+		sfree(l->type);
+		sfree(l->usrjquota);
+		sfree(l->grpjquota);
+		sfree(l);
 		p = NULL;
 		if(l != list) {
 			l = list;

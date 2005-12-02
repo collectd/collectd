@@ -63,16 +63,16 @@ quota_submit(quota_t *q)
 	char *name, *n;
 
 	r = snprintf(buf, BUFSIZE,
-		"%u:%llu:%lld:%lld:%llu:%llu:%llu:%lld:%lld:%llu:%llu",
-                (unsigned int)curtime,
+		"%ld:%llu:%lld:%lld:%lld:%lld:%llu:%lld:%lld:%lld:%lld",
+                (signed long)curtime,
                 q->blocks, q->bquota, q->blimit, q->bgrace, q->btimeleft,
                 q->inodes, q->iquota, q->ilimit, q->igrace, q->itimeleft);
 	if(r < 1 || r >= BUFSIZE) {
 		DBG("failed");
 		return;
 	}
-	n = name = (char *)smalloc(strlen(q->type) + 1 + strlen(q->dir)
-	+ 1 + strlen(q->name) + 1 + strlen(q->id));
+	n = name = (char *)smalloc(strlen(q->type) + 1 + strlen(q->name)
+	+ 1 + strlen(q->id) + 1 + strlen(q->dir) + 1);
 	sstrncpy(n, q->type, strlen(q->type)+1);
 	n += strlen(q->type);
 	sstrncpy(n, "-", 1+1);
@@ -86,7 +86,6 @@ quota_submit(quota_t *q)
 	sstrncpy(n, "-", 1+1);
 	n += 1;
 	sstrncpy(n, q->dir, strlen(q->dir)+1);
-	n += strlen(q->dir);
 	n = name;
 	/* translate '/' -> '_' */
 	while(*n != '\0') {
@@ -94,11 +93,12 @@ quota_submit(quota_t *q)
 			*n = '_';
 		}
 		n++;
-	}
+	} /* while(*n != '\0') */
 
 	DBG("rrd file: %s-%s", MODULE_NAME, name);
 	plugin_submit(MODULE_NAME, name, buf);
-}
+	free(name);
+} /* static void quota_submit(quota_t *q) */
 #undef BUFSIZE
 
 /* *** *** ***   local plugin functions   *** *** *** */
@@ -120,6 +120,9 @@ quota_read(void)
 	while(l != NULL) {
 		DBG("\tdir: %s", l->dir);
 		DBG("\tdevice: %s", l->device);
+		DBG("\ttype: %s", l->type);
+		DBG("\tusrjquota: %s", l->usrjquota);
+		DBG("\tgrpjquota: %s", l->grpjquota);
 		DBG("\topts: %s (0x%04x)",
 			(l->opts == QMO_NONE) ? "-"
 			: (l->opts == QMO_USRQUOTA) ? "USRQUOTA"
@@ -141,10 +144,10 @@ quota_read(void)
 		DBG("\tname: %s", q->name);
 		DBG("\tid: %s", q->id);
 		DBG("\tdir: %s", q->dir);
-		DBG("\tblocks: %llu (%lld/%lld) %llu %llu",
+		DBG("\tblocks: %llu (%lld/%lld) %lld %lld",
 			q->blocks, q->bquota, q->blimit,
 			q->bgrace, q->btimeleft);
-		DBG("\tinodes: %llu (%lld/%lld) %llu %llu",
+		DBG("\tinodes: %llu (%lld/%lld) %lld %lld",
 			q->inodes, q->iquota, q->ilimit,
 			q->igrace, q->itimeleft);
 		quota_submit(q);

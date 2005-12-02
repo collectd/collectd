@@ -31,18 +31,25 @@
 # include <sys/quota.h>
 #endif
 
+
+
 /* *** *** ***   prototypes of local functions   *** *** *** */
+
+
 
 static int qft(const char *type);
 static quota_t *getquota_ext3(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_ext3_v1(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_ext3_v2(quota_t **quota, quota_mnt_t *m);
-static quota_t *getquota_ext2(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_ufs(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_vxfs(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_zfs(quota_t **quota, quota_mnt_t *m);
 
+
+
 /* *** *** ***   local functions   *** *** *** */
+
+
 
 static int
 qft(const char *type)
@@ -54,6 +61,8 @@ qft(const char *type)
 	if(strcmp(type, "zfs")  == 0) return QFT_ZFS;
 	return QFT_NONE;
 } /* static int qft(const char *type) */
+
+
 
 static quota_t *
 getquota_ext3(quota_t **quota, quota_mnt_t *m)
@@ -81,6 +90,8 @@ getquota_ext3(quota_t **quota, quota_mnt_t *m)
 	return NULL;
 } /* static quota_t *getquota_ext3(quota_t **quota, quota_mnt_t *m) */
 
+
+
 static quota_t *
 getquota_ext3_v1(quota_t **quota, quota_mnt_t *m)
 {
@@ -94,16 +105,30 @@ getquota_ext3_v1(quota_t **quota, quota_mnt_t *m)
 	if(quotactl(QCMD(Q_GETINFO, USRQUOTA), m->device,
 		0, (void *)&dqi_usr) == -1)
 	{
-		DBG("quotactl (Q_GETINFO, USRQUOTA) returned -1: %s",
-			strerror(errno));
+		DBG("quotactl (Q_GETINFO, USRQUOTA) returned -1 on"
+			" %s: %s", m->device, strerror(errno));
+		*quota = NULL;
+		return NULL;
+	}
+	if(quotactl(QCMD(Q_SYNC, USRQUOTA), m->device, 0, NULL) == -1)
+	{
+		DBG("quotactl (Q_SYNC, USRQUOTA) returned -1 on"
+			" %s: %s", m->device, strerror(errno));
 		*quota = NULL;
 		return NULL;
 	}
 	if(quotactl(QCMD(Q_GETINFO, GRPQUOTA), m->device,
 		0, (void *)&dqi_grp) == -1)
 	{
-		DBG("quotactl (Q_GETINFO, GRPQUOTA) returned -1: %s",
-			strerror(errno));
+		DBG("quotactl (Q_GETINFO, GRPQUOTA) returned -1 on"
+			" %s: %s", m->device, strerror(errno));
+		*quota = NULL;
+		return NULL;
+	}
+	if(quotactl(QCMD(Q_SYNC, GRPQUOTA), m->device, 0, NULL) == -1)
+	{
+		DBG("quotactl (Q_SYNC, GRPQUOTA) returned -1 on"
+			" %s: %s", m->device, strerror(errno));
 		*quota = NULL;
 		return NULL;
 	}
@@ -112,11 +137,11 @@ getquota_ext3_v1(quota_t **quota, quota_mnt_t *m)
 	q = *quota = (quota_t *)smalloc(sizeof(quota_t));
 
 	q->type = (char *)sstrdup("usrquota");
-#if HAVE_GRP_H
-/* struct group *getgrid((gid_t)500) */
+#if HAVE_GETPWUID
+/* struct group *getpwuid((uid_t)500) */
 	q->name = (char *)sstrdup("niki");
 #else
-	q->name = (char *)sstrdup("");
+	q->name = (char *)sstrdup("500");
 #endif
 	q->id = (char *)sstrdup("500");
 	q->dir = (char *)sstrdup(m->dir);
@@ -124,22 +149,22 @@ getquota_ext3_v1(quota_t **quota, quota_mnt_t *m)
 	q->bquota = 100;
 	q->blimit = 180;
 	q->bgrace = dqi_usr.dqi_bgrace;
-	q->btimeleft = 0;
+	q->btimeleft = -1;
 	q->inodes = 5;
 	q->iquota = 100;
 	q->ilimit = 180;
 	q->igrace = dqi_usr.dqi_igrace;
-	q->itimeleft = 0;
+	q->itimeleft = -1;
 	q->next = NULL;
 
 	q->next = (quota_t *)smalloc(sizeof(quota_t));
 	q = q->next;
 	q->type = (char *)sstrdup("grpquota");
-#if HAVE_GRP_H
-/* struct group *getgrid((gid_t)500) */
+#if HAVE_GETGRGID
+/* struct group *getgrgid((gid_t)100) */
 	q->name = (char *)sstrdup("users");
 #else
-	q->name = (char *)sstrdup("");
+	q->name = (char *)sstrdup("100");
 #endif
 	q->id = (char *)sstrdup("100");
 	q->dir = (char *)sstrdup(m->dir);
@@ -147,16 +172,18 @@ getquota_ext3_v1(quota_t **quota, quota_mnt_t *m)
 	q->bquota = 100;
 	q->blimit = 180;
 	q->bgrace = dqi_grp.dqi_bgrace;
-	q->btimeleft = 0;
+	q->btimeleft = -1;
 	q->inodes = 5;
 	q->iquota = 100;
 	q->ilimit = 180;
 	q->igrace = dqi_grp.dqi_igrace;
-	q->itimeleft = 0;
+	q->itimeleft = -1;
 	q->next = NULL;
 
 	return *quota;
 }
+
+
 
 static quota_t *
 getquota_ext3_v2(quota_t **quota, quota_mnt_t *m)
@@ -165,11 +192,7 @@ getquota_ext3_v2(quota_t **quota, quota_mnt_t *m)
 	return getquota_ext3_v1(quota, m);
 }
 
-static quota_t *
-getquota_ext2(quota_t **quota, quota_mnt_t *m)
-{
-	return NULL;
-}
+
 
 static quota_t *
 getquota_ufs(quota_t **quota, quota_mnt_t *m)
@@ -177,11 +200,15 @@ getquota_ufs(quota_t **quota, quota_mnt_t *m)
 	return NULL;
 }
 
+
+
 static quota_t *
 getquota_vxfs(quota_t **quota, quota_mnt_t *m)
 {
 	return NULL;
 }
+
+
 
 static quota_t *
 getquota_zfs(quota_t **quota, quota_mnt_t *m)
@@ -189,7 +216,33 @@ getquota_zfs(quota_t **quota, quota_mnt_t *m)
 	return NULL;
 }
 
+
+
 /* *** *** ***   global functions   *** *** *** */
+
+
+
+#if QUOTA_PLUGIN_DEBUG
+void
+quota_fs_printquota_dbg(quota_t *q)
+{
+	while(q != NULL) {
+		DBG("\ttype: %s", q->type);
+		DBG("\tname: %s", q->name);
+		DBG("\tid: %s", q->id);
+		DBG("\tdir: %s", q->dir);
+		DBG("\tblocks: %llu (%lld/%lld) %lld %lld",
+			q->blocks, q->bquota, q->blimit,
+			q->bgrace, q->btimeleft);
+		DBG("\tinodes: %llu (%lld/%lld) %lld %lld",
+			q->inodes, q->iquota, q->ilimit,
+			q->igrace, q->itimeleft);
+		q = q->next;
+	} /* while(q != NULL) */
+} /* void quota_fs_printquota_dbg(quota_t *quota) */
+#endif /* QUOTA_PLUGIN_DEBUG */
+
+
 
 int
 quota_fs_issupported(const char *fsname)
@@ -209,6 +262,8 @@ quota_fs_issupported(const char *fsname)
 	}
 } /* int quota_fs_issupported(const char *fsname) */
 
+
+
 int
 quota_fs_isnfs(const char *fsname)
 {
@@ -219,12 +274,13 @@ quota_fs_isnfs(const char *fsname)
 	}
 } /* int quota_fs_isnfs(const char *fsname) */
 
+
+
 void
 quota_fs_freequota(quota_t *quota)
 {
 	quota_t *q = quota, *prev = NULL;
 
-DBG("x");
 	while(q != NULL) {
 		while(q->next != NULL) {
 			prev = q;
@@ -247,6 +303,8 @@ DBG("x");
 	} /* while(q != NULL) */
 } /* void quota_fs_freequota(quota_t *quota) */
 
+
+
 quota_t *
 quota_fs_getquota(quota_t **quota, quota_mnt_t *mnt)
 {
@@ -256,11 +314,9 @@ quota_fs_getquota(quota_t **quota, quota_mnt_t *mnt)
 	*quota = NULL;
 	while(m != NULL) {
 		switch(qft(m->type)) {
+		  case QFT_EXT2:
 		  case QFT_EXT3: 
 			q = getquota_ext3(&q, m);
-			break;
-		  case QFT_EXT2:
-			q = getquota_ext2(&q, m);
 			break;
 		  case QFT_UFS:
 			q = getquota_ufs(&q, m);
@@ -273,32 +329,17 @@ quota_fs_getquota(quota_t **quota, quota_mnt_t *mnt)
 			break;
 		}
 		if(q != NULL) {   /* found some quotas */
-			DBG("\ttype: %s", (*quota)->type);
-			DBG("\tname: %s", (*quota)->name);
-			DBG("\tid: %s", (*quota)->id);
-			DBG("\tdir: %s", (*quota)->dir);
-			DBG("\tblocks: %llu (%lld/%lld) %llu %llu",
-				(*quota)->blocks, (*quota)->bquota, (*quota)->blimit,
-				(*quota)->bgrace, (*quota)->btimeleft);
-			DBG("\tinodes: %llu (%lld/%lld) %llu %llu",
-				(*quota)->inodes, (*quota)->iquota, (*quota)->ilimit,
-				(*quota)->igrace, (*quota)->itimeleft);
-
 			if(*quota == NULL) {   /* not init yet */
-DBG("a");
 				*quota = q;    /* init */
 			} else {   /* we have some quotas already */
-DBG("b");
 				quota_t *t = *quota;
 				/* goto last entry */
 				while(t->next != NULL) {
 					t = t->next;
-DBG("c");
 				}
 				t->next = q;   /* set next pointer */
 			}
-		}
-DBG("z");
+		} /* if(q != NULL) */
 		m = m->next;
 	} /* while(m != NULL) */
 

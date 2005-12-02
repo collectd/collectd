@@ -25,6 +25,7 @@
 #define COLLECTD_QUOTA_FS_H 1
 
 #include "common.h"
+#include "quota_debug.h"
 #include "quota_mnt.h"
 
 /* Quota Filesystem Type */
@@ -44,15 +45,19 @@ struct _quota_t {
 	char *dir;
 	unsigned long long blocks;
 	long long bquota, blimit;
-	unsigned long long bgrace, btimeleft;
+	long long bgrace, btimeleft;
 	unsigned long long inodes;
 	long long iquota, ilimit;
-	unsigned long long igrace, itimeleft;
+	long long igrace, itimeleft;
 	quota_t *next;
 };
 
 int quota_fs_issupported(const char *fsname);
 int quota_fs_isnfs(const char *fsname);
+
+#if QUOTA_PLUGIN_DEBUG
+void quota_fs_printquota_dbg(quota_t *quota);
+#endif
 
 quota_t *quota_fs_getquota(quota_t **quota, quota_mnt_t *m);
 void quota_fs_freequota(quota_t *quota);

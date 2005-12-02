@@ -60,11 +60,17 @@
 /* Define to 1 if you have the `getfsent' function. */
 #undef HAVE_GETFSENT
 
+/* Define to 1 if you have the `getgrgid' function. */
+#undef HAVE_GETGRGID
+
 /* Define to 1 if you have the `gethostbyname' function. */
 #undef HAVE_GETHOSTBYNAME
 
 /* Define to 1 if you have the `getmntent' function. */
 #undef HAVE_GETMNTENT
+
+/* Define to 1 if you have the `getpwuid' function. */
+#undef HAVE_GETPWUID
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
