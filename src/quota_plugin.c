@@ -151,10 +151,10 @@ quota_read(void)
 			q->inodes, q->iquota, q->ilimit,
 			q->igrace, q->itimeleft);
 		quota_submit(q);
-		q = q->next;
-		if(q != NULL) {
+		if(q->next != NULL) {
 			DBG("\t-- ");
 		}
+		q = q->next;
 	}
 	DBG("\t== ");
 

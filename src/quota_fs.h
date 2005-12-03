@@ -29,13 +29,8 @@
 #include "quota_mnt.h"
 
 /* Quota Filesystem Type */
-#define QFT_NONE (0)
-#define QFT_EXT2 (1)
-#define QFT_EXT3 (2)
-#define QFT_XFS  (3)
-#define QFT_UFS  (4)
-#define QFT_VXFS (5)
-#define QFT_ZFS  (6)
+#define QFT_USRQUOTA "usrquota"
+#define QFT_GRPQUOTA "grpquota"
 
 typedef struct _quota_t quota_t;
 struct _quota_t {
@@ -55,11 +50,42 @@ struct _quota_t {
 int quota_fs_issupported(const char *fsname);
 int quota_fs_isnfs(const char *fsname);
 
-#if QUOTA_PLUGIN_DEBUG
-void quota_fs_printquota_dbg(quota_t *quota);
-#endif
+/*
+  DESCRIPTION
+	The quota_fs_printquota_dbg() function prints
+	the quota list to the log.
 
+	If debugging is switched off in quota_debug.h
+	then this function does nothing.
+*/
+void quota_fs_printquota_dbg(quota_t *quota);
+
+/*
+  DESCRIPTION
+	The quota_fs_getquota() function goes through the mount
+	list m and gets the quotas for all mountpoints.
+
+	If *quota is NULL, a new list is created and *quota is
+	set to point to the first entry.
+
+	If *quota is set, the list is appended and *quota is
+	not changed.
+
+  RETURN VALUE
+	The quota_fs_getquota() function returns a pointer to
+	the last entry of the list, or NULL if an error occurs.
+
+  NOTES
+	In case of an error, quota is not modified.
+*/
 quota_t *quota_fs_getquota(quota_t **quota, quota_mnt_t *m);
+
+/*
+  DESCRIPTION
+	The quota_fs_freequota() function goes through all entries
+	and frees all allocated memory of all data and structures
+	not NULL.
+*/
 void quota_fs_freequota(quota_t *quota);
 
 #endif /* !COLLECTD_QUOTA_FS_H */

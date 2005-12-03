@@ -26,6 +26,15 @@
 
 #include "common.h"
 
+/* Quota Mount Type */
+#define QMT_UNKNOWN (0)
+#define QMT_EXT2    (1)
+#define QMT_EXT3    (2)
+#define QMT_XFS     (3)
+#define QMT_UFS     (4)
+#define QMT_VXFS    (5)
+#define QMT_ZFS     (6)
+
 /* Quota Mount Options */
 #define QMO_NONE     (0)
 #define QMO_USRQUOTA (1)
@@ -41,6 +50,8 @@ struct _quota_mnt_t {
 	int opts;
 	quota_mnt_t *next;
 };
+
+int quota_mnt_type(const char *type);
 
 quota_mnt_t *quota_mnt_getlist(quota_mnt_t **list);
 void quota_mnt_freelist(quota_mnt_t *list);
