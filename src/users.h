@@ -28,7 +28,11 @@
 #include "config.h"
 
 #ifndef COLLECT_USERS
+#if defined(HAVE_UTMPX_H) && defined(HAVE_GETUTXENT)
 #define COLLECT_USERS 1
+#else
+#define COLLECT_USERS 0
+#endif
 #endif /* ! defined(COLLECT_USERS) */
 
 void users_init(void);
