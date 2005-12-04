@@ -103,6 +103,12 @@ traffic_la_SOURCES = traffic.c traffic.h
 traffic_la_LDFLAGS = -module
 endif
 
+if BUILD_MODULE_USERS
+pkglib_LTLIBRARIES += users.la
+users_la_SOURCES = users.c users.h
+users_la_LDFLAGS = -module
+endif
+
 man_MANS = collectd.1
 #collectd_1_SOURCES = collectd.pod
 

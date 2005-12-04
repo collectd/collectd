@@ -1,0 +1,31 @@
+This package was written by:
+  Florian octo Forster <octo@verplant.org>
+
+cpufreq module by:
+  Peter Holik <peter@holik.at>
+
+hddtemp module by:
+  Vincent Stehlé <vincent.stehle@free.fr>
+
+nfs module by:
+  Jason Pepas <cell@ices.utexas.edu>
+
+processes module by:
+  Lyonel Vincent <lyonel@ezix.org>
+
+serial module by:
+  David Bacher <drbacher@gmail.com>
+
+tape module by:
+  Scott Garrett <sgarrett@technomancer.com>
+
+users module by:
+  Sebastian Harl <sh@tokkee.org>
+
+don't-fork-patch by:
+  Alvaro Barcellos <alvaro.barcellos@gmail.com>
+
+collectd is available at:
+  <http://verplant.org/collectd/>
+
+Enjoy :)

@@ -66,6 +66,10 @@ Tape drive usage (I<tape>, Solaris only)
 
 Network traffic (I<traffic>)
 
+=item
+
+Number of users logged into the system (I<users>)
+
 =back
 
 =head1 OPTIONS
@@ -81,6 +85,11 @@ See L<"MODES">.
 
 Sets the directory collectd should work in. All F<.rrd>-files are created in
 this directory. Per default this is F</var/lib/collectd/>.
+
+=item B<-P> I<E<lt>directoryE<gt>>
+
+Sets the directory collectd should look for plugins in. Per default this is
+F</usr/lib/collectd>.
 
 =item B<-f>
 
@@ -271,6 +280,10 @@ The DS'es depend on the module creating the RRD files:
 
   DS:incoming:COUNTER:25:0:U
   DS:outgoing:COUNTER:25:0:U
+
+=item Users
+
+  DS:users:GAUGE:25:0:65535
 
 =back
 

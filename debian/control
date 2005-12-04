@@ -94,3 +94,9 @@ Architecture: any
 Depends: collectd (= ${Source-Version})
 Description: collectd module for network traffic.
  collectd module to collect network traffic counters.
+
+Package: collectd-users
+Architecture: any
+Depends: collectd (= ${Source-Version})
+Description: collectd module for user count.
+ collectd module to collect the number of users logged into the system.
