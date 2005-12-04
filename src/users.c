@@ -30,7 +30,7 @@
 #include "plugin.h"
 #include "common.h"
 
-#include <utmp.h>
+#include <utmpx.h>
 
 static char *rrd_file = "users.rrd";
 
@@ -51,17 +51,16 @@ void users_init(void)
 void users_read(void)
 {
     unsigned int users = 0;
-    unsigned int root  = 0;
-    struct utmp *entry = NULL;
+    struct utmpx *entry = NULL;
 
     /* according to the *utent(3) man page none of the functions sets errno in
      * case of an error, so we cannot do any error-checking here */
-    setutent();
+    setutxent();
 
-    while (NULL != (entry = getutent()))
+    while (NULL != (entry = getutxent()))
         if (USER_PROCESS == entry->ut_type)
             ++users;
-    endutent();
+    endutxent();
 
     users_submit(users);
     return;
