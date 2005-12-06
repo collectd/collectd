@@ -6,7 +6,9 @@ AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
 
-dnl Checks for programs.
+#
+# Checks for programs.
+#
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_INSTALL
@@ -19,7 +21,9 @@ AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 #AC_PROG_RANLIB
 
-dnl Checks for header files.
+#
+# Checks for header files.
+#
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h unistd.h)
@@ -31,30 +35,46 @@ AC_CHECK_HEADERS(sys/time.h sys/times.h)
 AC_CHECK_HEADERS(sys/types.h)
 AC_CHECK_HEADERS(sys/resource.h)
 AC_CHECK_HEADERS(errno.h)
+AC_CHECK_HEADERS(syslog.h)
+AC_CHECK_HEADERS(dlfcn.h)
+
+# For load module
+AC_CHECK_HEADERS(sys/loadavg.h)
+
+# For ping module
 AC_CHECK_HEADERS(arpa/inet.h)
 AC_CHECK_HEADERS(netinet/in.h)
 AC_CHECK_HEADERS(netdb.h)
-AC_CHECK_HEADERS(syslog.h)
-AC_CHECK_HEADERS(dlfcn.h)
+
+# For users module
 AC_CHECK_HEADERS(utmp.h)
 AC_CHECK_HEADERS(utmpx.h)
 
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
 
-dnl Checks for typedefs, structures, and compiler characteristics.
+#
+# Checks for typedefs, structures, and compiler characteristics.
+#
 AC_C_CONST
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_HEADER_TIME
 
-dnl Checks for library functions.
+#
+# Checks for library functions.
+#
 AC_PROG_GCC_TRADITIONAL
 AC_CHECK_FUNCS(gettimeofday select socket strdup strstr strtol)
 AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp strncmp)
+
+# For load module
+AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
+
+# For users module
 AC_CHECK_FUNCS(getutent getutxent)
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
@@ -235,7 +255,7 @@ AM_CONDITIONAL(BUILD_MODULE_HDDTEMP, test "x$enable_hddtemp" = "xyes")
 AC_ARG_ENABLE(load, AC_HELP_STRING([--disable-load], [Disable system load statistics]),, [enable_load="yes"])
 if test "x$enable_load" != "xno"
 then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$with_libstatgrab" = "xyes"
+	if test "x$have_getloadavg" = "xyes" -o "x$ac_system" = "xLinux" -o "x$with_libstatgrab" = "xyes"
 	then
 		enable_load="yes"
 	else
