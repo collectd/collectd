@@ -36,6 +36,7 @@ AC_CHECK_HEADERS(netinet/in.h)
 AC_CHECK_HEADERS(netdb.h)
 AC_CHECK_HEADERS(syslog.h)
 AC_CHECK_HEADERS(dlfcn.h)
+AC_CHECK_HEADERS(utmp.h)
 AC_CHECK_HEADERS(utmpx.h)
 
 dnl Checking for libraries
@@ -54,7 +55,7 @@ AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp strncmp)
-AC_CHECK_FUNCS(getutxent)
+AC_CHECK_FUNCS(getutent getutxent)
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in

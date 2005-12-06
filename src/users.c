@@ -30,7 +30,11 @@
 #include "plugin.h"
 #include "common.h"
 
+#ifdef HAVE_UTMPX_H
 #include <utmpx.h>
+#elif defined(HAVE_UTMP_H)
+#include <utmp.h>
+#endif
 
 static char *rrd_file = "users.rrd";
 
@@ -50,6 +54,7 @@ void users_init(void)
 
 void users_read(void)
 {
+#ifdef HAVE_GETUTXENT
     unsigned int users = 0;
     struct utmpx *entry = NULL;
 
@@ -63,7 +68,25 @@ void users_read(void)
     endutxent();
 
     users_submit(users);
-    return;
+/* #endif HAVE_GETUTXENT */
+
+#elif defined(HAVE_GETUTENT)
+    unsigned int users = 0;
+    struct utmp *entry = NULL;
+
+    /* according to the *utent(3) man page none of the functions sets errno in
+     * case of an error, so we cannot do any error-checking here */
+    setutent();
+
+    while (NULL != (entry = getutent()))
+        if (USER_PROCESS == entry->ut_type)
+            ++users;
+    endutent();
+
+    users_submit(users);
+#endif
+
+	return;
 }
 
 /* I don't like this temporary macro definition - well it's used everywhere

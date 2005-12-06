@@ -63,6 +63,9 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* Define to 1 if you have the `getutent' function. */
+#undef HAVE_GETUTENT
+
 /* Define to 1 if you have the `getutxent' function. */
 #undef HAVE_GETUTXENT
 
@@ -206,6 +209,9 @@
 
 /* Define to 1 if you have the <utmpx.h> header file. */
 #undef HAVE_UTMPX_H
+
+/* Define to 1 if you have the <utmp.h> header file. */
+#undef HAVE_UTMP_H
 
 /* True if program is to be compiled for a Linux kernel */
 #undef KERNEL_LINUX

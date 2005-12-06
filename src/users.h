@@ -27,8 +27,18 @@
 
 #include "config.h"
 
+#if !defined(HAVE_UTMPX_H) || !defined(HAVE_GETUTXENT)
+#undef HAVE_UTMPX_H
+#undef HAVE_GETUTXENT
+#endif
+
+#if !defined(HAVE_UTMP_H) || !defined(HAVE_GETUTENT)
+#undef HAVE_UTMPX_H
+#undef HAVE_GETUTXENT
+#endif
+
 #ifndef COLLECT_USERS
-#if defined(HAVE_UTMPX_H) && defined(HAVE_GETUTXENT)
+#if defined(HAVE_UTMPX_H) || defined(HAVE_UTMP_H)
 #define COLLECT_USERS 1
 #else
 #define COLLECT_USERS 0
@@ -39,8 +49,6 @@ void users_init(void);
 void users_read(void);
 void users_submit(unsigned int);
 void users_write(char *, char *, char *);
-
-void module_register(void);
 
 #endif /* ! defined(USERS_H) */
 
