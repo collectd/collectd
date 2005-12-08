@@ -45,8 +45,8 @@
 
 
 static quota_t *getquota_ext3(quota_t **quota, quota_mnt_t *m);
-static quota_t *getquota_ext3_v1(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_ext3_v2(quota_t **quota, quota_mnt_t *m);
+static quota_t *getquota_ext3_v1(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_ufs(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_vxfs(quota_t **quota, quota_mnt_t *m);
 static quota_t *getquota_zfs(quota_t **quota, quota_mnt_t *m);
@@ -72,8 +72,10 @@ getquota_ext3(quota_t **quota, quota_mnt_t *m)
 		return NULL;
 	}
 	if(fmt == 1) {
+		DBG("EXT2/3 QUOTAv1");
 		return getquota_ext3_v1(quota, m);
 	} else if(fmt == 2) {
+		DBG("EXT2/3 QUOTAv2");
 		return getquota_ext3_v2(quota, m);
 	} else {
 		DBG("unknown quota format: 0x%08x", fmt);
@@ -87,7 +89,7 @@ getquota_ext3(quota_t **quota, quota_mnt_t *m)
 
 
 static quota_t *
-getquota_ext3_v1(quota_t **quota, quota_mnt_t *m)
+getquota_ext3_v2(quota_t **quota, quota_mnt_t *m)
 {
 	quota_t *q = *quota;
 	int i;
@@ -151,7 +153,45 @@ DBG("start");
 
 #if HAVE_QUOTACTL
 	if(m->opts & QMO_USRQUOTA) {
-		for(i=0; i<1000; i++) {
+#if 0
+		FILE *qf = NULL;
+#endif
+		char *qfname = NULL;
+		if(m->usrjquota == NULL) {
+			char *qfn;
+			qfname = (char *)smalloc(strlen(m->dir)
+				+ 1 + strlen("aquota.user") + 1);
+			qfn = qfname;
+			sstrncpy(qfn, m->dir, strlen(m->dir) + 1);
+			qfn += strlen(m->dir);
+			if(qfn[-1] != '/') {
+				sstrncpy(qfn, "/", 2);
+				qfn += 1;
+			}
+			sstrncpy(qfn, "aquota.user", strlen("aquota.user") + 1);
+		} else {
+			char *qfn;
+			qfname = (char *)smalloc(strlen(m->dir)
+				+ 1 + strlen(m->usrjquota) + 1);
+			qfn = qfname;
+			sstrncpy(qfn, m->dir, strlen(m->dir) + 1);
+			qfn += strlen(m->dir);
+			if(qfn[-1] != '/') {
+				sstrncpy(qfn, "/", 2);
+				qfn += 1;
+			}
+			sstrncpy(qfn, m->usrjquota, strlen(m->usrjquota) + 1);
+		}
+		DBG("quota file name + path = %s", qfname);
+#if 0
+		qf = fopen(qfname, "r");
+#endif
+		sfree(qfname);
+#if 0
+		(void)fclose(qf);
+#endif
+
+		for(i=0; i<0x1000; i++) {
 			struct dqblk dqb;
 			if(quotactl(QCMD(Q_GETQUOTA, USRQUOTA),
 				m->device, i, (void *)&dqb) == -1)
@@ -194,11 +234,11 @@ DBG("start");
 			q->igrace = dqiusr.dqi_igrace;
 			q->itimeleft = dqb.dqb_itime;
 			q->next = NULL;
-		} /* for(i=0; i<1000; i++) */
+		} /* for(i=0; i<0x1000; i++) */
 	} /* if(m->opts & QMO_USRQUOTA) */
 
 	if(m->opts & QMO_GRPQUOTA) {
-		for(i=0; i<1000; i++) {
+		for(i=0; i<0x1000; i++) {
 			struct dqblk dqb;
 			if(quotactl(QCMD(Q_GETQUOTA, GRPQUOTA),
 				m->device, i, (void *)&dqb) == -1)
@@ -241,7 +281,7 @@ DBG("start");
 			q->igrace = dqigrp.dqi_igrace;
 			q->itimeleft = dqb.dqb_itime;
 			q->next = NULL;
-		} /* for(i=0; i<1000; i++) */
+		} /* for(i=0; i<0x1000; i++) */
 	} /* if(m->opts & QMO_GRPQUOTA) */
 #endif /* HAVE_QUOTACTL */
 
@@ -252,9 +292,9 @@ DBG("end");
 
 
 static quota_t *
-getquota_ext3_v2(quota_t **quota, quota_mnt_t *m)
+getquota_ext3_v1(quota_t **quota, quota_mnt_t *m)
 {
-	return getquota_ext3_v1(quota, m);
+	return getquota_ext3_v2(quota, m);
 }
 
 

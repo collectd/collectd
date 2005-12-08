@@ -123,6 +123,7 @@ quota_read(void)
 		DBG("\ttype: %s", l->type);
 		DBG("\tusrjquota: %s", l->usrjquota);
 		DBG("\tgrpjquota: %s", l->grpjquota);
+		DBG("\tjqfmt: %s", l->jqfmt);
 		DBG("\topts: %s (0x%04x)",
 			(l->opts == QMO_NONE) ? "-"
 			: (l->opts == QMO_USRQUOTA) ? "USRQUOTA"
@@ -138,8 +139,11 @@ quota_read(void)
 	DBG("\t== ");
 
 	q = quota_fs_getquota(&quota, list);
+#if 0
 	DBG("quotas:");
+#endif
 	while(q != NULL) {
+#if 0
 		DBG("\ttype: %s", q->type);
 		DBG("\tname: %s", q->name);
 		DBG("\tid: %s", q->id);
@@ -150,13 +154,18 @@ quota_read(void)
 		DBG("\tinodes: %llu (%lld/%lld) %lld %lld",
 			q->inodes, q->iquota, q->ilimit,
 			q->igrace, q->itimeleft);
+#endif
 		quota_submit(q);
+#if 0
 		if(q->next != NULL) {
 			DBG("\t-- ");
 		}
+#endif
 		q = q->next;
 	}
+#if 0
 	DBG("\t== ");
+#endif
 
 	quota_fs_freequota(quota);
 	quota_mnt_freelist(list);
@@ -174,11 +183,6 @@ quota_write(char *host, char *inst, char *val)
 		return;
 	}
 
-	DBG("host: %s", host);
-	DBG("file: %s", file);
-	DBG("val: %s", val);
-	DBG("quota_ds_def: %s", *quota_ds_def);
-	DBG("quota_ds_num: %d", quota_ds_num);
 	rrd_update_file(host, file, val, quota_ds_def, quota_ds_num);
 }
 

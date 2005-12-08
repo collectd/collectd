@@ -14,29 +14,32 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 
 dnl configure libtool
+#AC_PROG_RANLIB
 AC_DISABLE_STATIC
+AC_LIBLTDL_CONVENIENCE
+AC_SUBST(LTDLINCL)
+AC_SUBST(LIBLTDL)
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
-#AC_PROG_RANLIB
+AC_CONFIG_SUBDIRS(libltdl)
 
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h unistd.h)
+AC_CHECK_HEADERS(fcntl.h)
 AC_CHECK_HEADERS(signal.h)
+AC_CHECK_HEADERS(limits.h)
 AC_CHECK_HEADERS(sys/socket.h)
 AC_CHECK_HEADERS(sys/select.h)
-AC_CHECK_HEADERS(netdb.h)
-AC_CHECK_HEADERS(sys/time.h sys/times.h)
-AC_CHECK_HEADERS(sys/types.h)
+AC_HEADER_TIME
 AC_CHECK_HEADERS(sys/resource.h)
 AC_CHECK_HEADERS(errno.h)
 AC_CHECK_HEADERS(arpa/inet.h)
 AC_CHECK_HEADERS(netinet/in.h)
 AC_CHECK_HEADERS(netdb.h)
 AC_CHECK_HEADERS(syslog.h)
-AC_CHECK_HEADERS(dlfcn.h)
 AC_CHECK_HEADERS(grp.h pwd.h)
+AC_CHECK_HEADERS(ctype.h)
 AC_CHECK_HEADERS(paths.h)
 AC_CHECK_HEADERS(mntent.h)
 AC_CHECK_HEADERS(sys/fs_types.h)
@@ -44,6 +47,7 @@ AC_CHECK_HEADERS(sys/mntent.h)
 AC_CHECK_HEADERS(sys/mnttab.h)
 AC_CHECK_HEADERS(sys/mount.h)
 AC_CHECK_HEADERS(sys/quota.h)
+AC_CHECK_HEADERS(sys/vfs.h)
 AC_CHECK_HEADERS(sys/vfstab.h)
 AC_CHECK_HEADERS(xfs/xqm.h)
 
@@ -54,19 +58,100 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
 
 dnl Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
-AC_CHECK_FUNCS(gettimeofday select socket strdup strstr strtol)
+AC_CHECK_FUNCS(gettimeofday select strdup strtol)
 AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
-AC_CHECK_FUNCS(strncasecmp strcasecmp strncmp)
-AC_CHECK_FUNCS(getfsent getvfsent listmntent)
-AC_FUNC_GETMNTENT
+AC_CHECK_FUNCS(strncasecmp strcasecmp)
 AC_CHECK_FUNCS(quotactl)
 AC_CHECK_FUNCS(getgrgid getpwuid)
+AC_CHECK_FUNCS(getfsent getvfsent listmntent)
+AC_FUNC_GETMNTENT
+
+def_mnt_includes="\
+/* if sthg is changed here also change it in src/quota_mnt.c!!! */
+#if HAVE_MNTENT_H
+# include <mntent.h>
+#endif
+#if HAVE_MNTTAB_H
+# include <mnttab.h>
+#endif
+#if HAVE_PATHS_H
+# include <paths.h>
+#endif
+#if HAVE_SYS_FS_TYPES_H
+# include <sys/fs_types.h>
+#endif
+#if HAVE_SYS_MNTENT_H
+# include <sys/mntent.h>
+#endif
+#if HAVE_SYS_MNTTAB_H
+# include <sys/mnttab.h>
+#endif
+#if HAVE_SYS_MOUNT_H
+# include <sys/mount.h>
+#endif
+#if HAVE_SYS_VFSTAB_H
+# include <sys/vfstab.h>
+#endif
+#if HAVE_SYS_QUOTA_H
+# include <sys/quota.h>
+#endif
+#if HAVE_SYS_VFS_H
+# include <sys/vfs.h>
+#endif
+/* END if sthg is changed here also change it in src/quota_mnt.c!!! */"
+
+if test "x$ac_cv_func_getmntent" = 'xyes'; then
+	saveCFLAGS="$CFLAGS"
+	CFLAGS="-Wall -Werror $CFLAGS"
+	AC_CACHE_CHECK([whether getmntent takes one argument],
+		[fu_cv_getmntent1],
+		AC_COMPILE_IFELSE(
+			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+					$def_mnt_includes]],
+				[[(void)getmntent((FILE *)NULL);]]
+			),
+			[fu_cv_getmntent1=yes],
+			[fu_cv_getmntent1=no]
+		)
+	)
+	if test "x$fu_cv_getmntent1" = 'xno'; then
+		AC_CACHE_CHECK([whether getmntent takes two arguments],
+			[fu_cv_getmntent2],
+			AC_COMPILE_IFELSE(
+				AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+						$def_mnt_includes]],
+					[[(void)getmntent((FILE *)NULL,
+						(struct mnttab *)NULL);]]
+				),
+				[fu_cv_getmntent2=yes],
+				[fu_cv_getmntent2=no]
+			)
+		)
+	fi
+	CFLAGS="$saveCFLAGS"
+fi
+if test "x$fu_cv_getmntent1" = 'xyes'; then
+	AC_DEFINE(HAVE_GETMNTENT1,
+		1,
+		[Define if there is a function named getmntent
+			for reading the list of mounted filesystems, and
+			that function takes a single argument. (4.3BSD,
+			SunOS, HP-UX, Dynix, Irix, Linux)]
+		)
+fi
+if test "x$fu_cv_getmntent2" = 'xyes'; then
+	AC_DEFINE(HAVE_GETMNTENT2,
+		1,
+		[Define if there is a function named getmntent
+			for reading the list of mounted filesystems, and
+			that function takes two arguments. (SVR4)]
+		)
+fi
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
@@ -86,7 +171,6 @@ AC_MSG_RESULT([$ac_system])
 dnl Checks for libraries.
 AC_CHECK_LIB(socket, socket)
 AC_CHECK_LIB(resolv, res_search)
-AC_CHECK_LIB(dl, dlopen)
 
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 AC_ARG_WITH(rrdtool, AC_HELP_STRING([--with-rrdtool=PFX], [Path to rrdtool.]),

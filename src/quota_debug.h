@@ -30,7 +30,6 @@
 #define QUOTA_PLUGIN_DEBUG_FILE "collectd_quota.log"
 
 #if QUOTA_PLUGIN_DEBUG
-	#include <stdio.h>
 	extern FILE *QUOTA_DBG_FILE;
 	#define DBG(...) \
 	{ \

@@ -27,44 +27,41 @@
 #include "quota_fs.h"
 #include "quota_mnt.h"
 
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <limits.h>
+
+/* if sthg is changed here also change it in configure.in!!! */
 #if HAVE_MNTENT_H   /* 4.3BSD, SunOS, HP-UX, Dynix, Irix. */
-#include <mntent.h>
+# include <mntent.h>
 #endif
 #if HAVE_MNTTAB_H   /* SVR2, SVR3. */
-#include <mnttab.h>
+# include <mnttab.h>
 #endif
 #if HAVE_PATHS_H
-#include <paths.h>
+# include <paths.h>
 #endif
-#include <stdlib.h>
-#include <string.h>
 #if HAVE_SYS_FS_TYPES_H   /* Ultrix. */
-#include <sys/fs_types.h>
+# include <sys/fs_types.h>
 #endif
 #if HAVE_SYS_MNTENT_H
-#include <sys/mntent.h>
+# include <sys/mntent.h>
 #endif
 #if HAVE_SYS_MNTTAB_H   /* SVR4. */
-#include <sys/mnttab.h>
+# include <sys/mnttab.h>
 #endif
 #if HAVE_SYS_MOUNT_H   /* 4.4BSD, Ultrix. */
-#include <sys/mount.h>
+# include <sys/mount.h>
 #endif
 #if HAVE_SYS_VFSTAB_H
-#include <sys/vfstab.h>
+# include <sys/vfstab.h>
 #endif
 #if HAVE_SYS_QUOTA_H
-#include <sys/quota.h>
+# include <sys/quota.h>
 #endif
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/vfs.h>
+#if HAVE_SYS_VFS_H
+# include <sys/vfs.h>
+#endif
+/* END if sthg is changed here also change it in configure.in!!! */
 #if HAVE_XFS_XQM_H
-#include <xfs/xqm.h>
+# include <xfs/xqm.h>
 #define xfs_mem_dqinfo  fs_quota_stat
 #define Q_XFS_GETQSTAT  Q_XGETQSTAT
 #define XFS_SUPER_MAGIC_STR "XFSB"
@@ -525,6 +522,7 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 		char *loop = NULL, *device = NULL;
 		char *usrjquota = NULL;
 		char *grpjquota = NULL;
+		char *jqfmt = NULL;
 
 #if 0
 		DBG("------------------");
@@ -570,6 +568,7 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 
 		usrjquota = getmountopt(mnt->mnt_opts, "usrjquota=");
 		grpjquota = getmountopt(mnt->mnt_opts, "grpjquota=");
+		jqfmt = getmountopt(mnt->mnt_opts, "jqfmt=");
 
 #if HAVE_XFS_XQM_H
 		if(!strcmp(mnt->mnt_type, MNTTYPE_XFS)) {
@@ -582,6 +581,7 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 				sfree(loop);
 				sfree(usrjquota);
 				sfree(grpjquota);
+				sfree(jqfmt);
 				continue;
 			}
 		} else {
@@ -600,6 +600,7 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 				sfree(loop);
 				sfree(usrjquota);
 				sfree(grpjquota);
+				sfree(jqfmt);
 				continue;
 			}
 #if HAVE_XFS_XQM_H
@@ -613,6 +614,7 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 		(*list)->device = device;
 		(*list)->usrjquota = usrjquota;
 		(*list)->grpjquota = grpjquota;
+		(*list)->jqfmt = jqfmt;
 		(*list)->type = sstrdup(mnt->mnt_type);
 		(*list)->opts = QMO_NONE;
 /* TODO: this is not sufficient for XFS! */
@@ -733,6 +735,7 @@ quota_mnt_freelist(quota_mnt_t *list)
 		sfree(l->type);
 		sfree(l->usrjquota);
 		sfree(l->grpjquota);
+		sfree(l->jqfmt);
 		sfree(l);
 		p = NULL;
 		if(l != list) {

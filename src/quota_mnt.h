@@ -47,6 +47,7 @@ struct _quota_mnt_t {
 	char *type;
 	char *usrjquota;
 	char *grpjquota;
+	char *jqfmt;
 	int opts;
 	quota_mnt_t *next;
 };

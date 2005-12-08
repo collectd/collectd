@@ -17,6 +17,9 @@ Features
     - CPU utilization
       (Time spent in system, user, nice and idle)
 
+    - CPU frequency
+      (For laptops with speed step or a similar technology)
+
     - Disk utilization
       (Sectors read/written, number of read/write actions, time spent doing IO)
 
@@ -99,6 +102,8 @@ Prerequisites
   * Usual suspects: C compiler, linker, preprocessor, make, ...
 
   * rrdtool (headers and library; rrdtool 1.0 and 1.2 both work fine)
+    If built without `librrd' the resulting binary will be `client only', i.e.
+    will send it's values via multicast and not create any RRD files itself.
 
   * lm-sensors (optional)
 
