@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/collectd.c)
-AM_INIT_AUTOMAKE(collectd, 3.5.alpha0)
+AM_INIT_AUTOMAKE(collectd, 3.5.alpha1)
 AM_CONFIG_HEADER(src/config.h src/libping/config.h)
 AC_LANG(C)
 
@@ -38,6 +38,9 @@ AC_CHECK_HEADERS(errno.h)
 AC_CHECK_HEADERS(syslog.h)
 AC_CHECK_HEADERS(dlfcn.h)
 
+# For cpu modules
+AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
+
 # For load module
 AC_CHECK_HEADERS(sys/loadavg.h)
 
@@ -70,6 +73,9 @@ AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp strncmp)
+
+# For cpu module
+AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
 
 # For load module
 AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
@@ -151,6 +157,8 @@ AC_ARG_WITH(libstatgrab, AC_HELP_STRING([--with-libstatgrab@<:@=PFX@:>@], [Path 
 ])
 if test "x$with_libstatgrab" = "xyes"
 then
+	AC_CHECK_LIB(devstat, getdevs)
+	AC_CHECK_LIB(kvm, kvm_getargv)
 	AC_CHECK_LIB(statgrab, sg_init,, [with_libstatgrab="no (not found)"])
 	AC_CHECK_HEADERS(statgrab.h,,    [with_libstatgrab="no (not found)"])
 fi
@@ -201,7 +209,7 @@ fi
 AC_ARG_ENABLE(cpu, AC_HELP_STRING([--disable-cpu], [Disable CPU usage statistics]),, [enable_cpu="yes"])
 if test "x$enable_cpu" != "xno"
 then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$with_libstatgrab" = "xyes"
+	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$have_sysctlbyname" = "xyes"
 	then
 		enable_cpu="yes"
 	else
