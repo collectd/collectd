@@ -72,13 +72,6 @@
 
 
 
-/* *** *** ***   prototypes   *** *** *** */
-
-static char *getmountopt(char *line, char *keyword);
-static char *checkmountopt(char *line, char *keyword, int full);
-
-
-
 /* *** *** ***   local functions   *** *** *** */
 
 
@@ -444,8 +437,8 @@ quota_mnt_getvfsmnt(FILE *mntf, quota_mnt_t **list)
 }
 #endif /* HAVE_GETVFSENT */
 
-static char *
-checkmountopt(char *line, char *keyword, int full)
+char *
+quota_mnt_checkmountopt(char *line, char *keyword, int full)
 {
 	char *line2, *l2;
 	int l = strlen(keyword);
@@ -482,14 +475,14 @@ checkmountopt(char *line, char *keyword, int full)
 
 	free(line2);
 	return NULL;
-} /* static char *checkmountopt(char *line, char *keyword, int full) */
+} /* char *quota_mnt_checkmountopt(char *line, char *keyword, int full) */
 
-static char *
-getmountopt(char *line, char *keyword)
+char *
+quota_mnt_getmountopt(char *line, char *keyword)
 {
 	char *r;
 
-	r = checkmountopt(line, keyword, 0);
+	r = quota_mnt_checkmountopt(line, keyword, 0);
 	if(r != NULL) {
 		char *p;
 		r += strlen(keyword);
@@ -510,7 +503,7 @@ getmountopt(char *line, char *keyword)
 		}
 	}
 	return r;
-} /* static char *getmountopt(char *line, char *keyword) */
+} /* char *quota_mnt_getmountopt(char *line, char *keyword) */
 
 #if HAVE_GETMNTENT
 static void
@@ -541,19 +534,19 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 			continue;
 		}
 
-		if(checkmountopt(mnt->mnt_opts, MNTOPT_NOQUOTA, 1) != NULL) {
+		if(quota_mnt_checkmountopt(mnt->mnt_opts, MNTOPT_NOQUOTA, 1) != NULL) {
 			DBG("noquota option on fs (%s) %s (%s): ignored",
 				mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
 			continue;
 		}
 
-		if(checkmountopt(mnt->mnt_opts, "bind", 1) != NULL) {
+		if(quota_mnt_checkmountopt(mnt->mnt_opts, "bind", 1) != NULL) {
 			DBG("bind mount on fs (%s) %s (%s): ignored",
 				mnt->mnt_type, mnt->mnt_dir, mnt->mnt_fsname);
 			continue;
 		}
 
-		loop = getmountopt(mnt->mnt_opts, "loop=");
+		loop = quota_mnt_getmountopt(mnt->mnt_opts, "loop=");
 		if(loop == NULL) {   /* no loop= mount */
 			device = get_device_name(mnt->mnt_fsname);
 			if(device == NULL) {
@@ -566,9 +559,9 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 			device = loop;
 		}
 
-		usrjquota = getmountopt(mnt->mnt_opts, "usrjquota=");
-		grpjquota = getmountopt(mnt->mnt_opts, "grpjquota=");
-		jqfmt = getmountopt(mnt->mnt_opts, "jqfmt=");
+		usrjquota = quota_mnt_getmountopt(mnt->mnt_opts, "usrjquota=");
+		grpjquota = quota_mnt_getmountopt(mnt->mnt_opts, "grpjquota=");
+		jqfmt = quota_mnt_getmountopt(mnt->mnt_opts, "jqfmt=");
 
 #if HAVE_XFS_XQM_H
 		if(!strcmp(mnt->mnt_type, MNTTYPE_XFS)) {
@@ -586,11 +579,11 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 			}
 		} else {
 #endif /* HAVE_XFS_XQM_H */
-			if(checkmountopt(mnt->mnt_opts, MNTOPT_QUOTA, 1)
+			if(quota_mnt_checkmountopt(mnt->mnt_opts, MNTOPT_QUOTA, 1)
 				== NULL
-			&& checkmountopt(mnt->mnt_opts, MNTOPT_USRQUOTA, 1)
+			&& quota_mnt_checkmountopt(mnt->mnt_opts, MNTOPT_USRQUOTA, 1)
 				== NULL
-			&& checkmountopt(mnt->mnt_opts, MNTOPT_GRPQUOTA, 1)
+			&& quota_mnt_checkmountopt(mnt->mnt_opts, MNTOPT_GRPQUOTA, 1)
 				== NULL
 			&& quota_fs_isnfs(mnt->mnt_type) == EXIT_FAILURE)
 			{
@@ -620,11 +613,11 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 /* TODO: this is not sufficient for XFS! */
 /* TODO: maybe we should anyway NOT rely on the option in the mountfile...
    ... maybe the fs should be asked direktly all time! */
-		if(checkmountopt(mnt->mnt_opts, MNTOPT_QUOTA, 1) != NULL
-		|| checkmountopt(mnt->mnt_opts, MNTOPT_USRQUOTA, 1) != NULL) {
+		if(quota_mnt_checkmountopt(mnt->mnt_opts, MNTOPT_QUOTA, 1) != NULL
+		|| quota_mnt_checkmountopt(mnt->mnt_opts, MNTOPT_USRQUOTA, 1) != NULL) {
 			(*list)->opts |= QMO_USRQUOTA;
 		}
-		if(checkmountopt(mnt->mnt_opts, MNTOPT_GRPQUOTA, 1) != NULL) {
+		if(quota_mnt_checkmountopt(mnt->mnt_opts, MNTOPT_GRPQUOTA, 1) != NULL) {
 			(*list)->opts |= QMO_GRPQUOTA;
 		}
 		(*list)->next = NULL;

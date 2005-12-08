@@ -42,9 +42,9 @@
 
 typedef struct _quota_mnt_t quota_mnt_t;
 struct _quota_mnt_t {
-	char *dir;
-	char *device;
-	char *type;
+	char *dir;         /* "/sys" or "/" */
+	char *device;      /* "none" or "/dev/hda1" */
+	char *type;        /* "sysfs" or "ext3"*/
 	char *usrjquota;
 	char *grpjquota;
 	char *jqfmt;
@@ -53,6 +53,9 @@ struct _quota_mnt_t {
 };
 
 int quota_mnt_type(const char *type);
+
+char *quota_mnt_getmountopt(char *line, char *keyword);
+char *quota_mnt_checkmountopt(char *line, char *keyword, int full);
 
 quota_mnt_t *quota_mnt_getlist(quota_mnt_t **list);
 void quota_mnt_freelist(quota_mnt_t *list);
