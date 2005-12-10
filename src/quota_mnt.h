@@ -44,10 +44,11 @@ typedef struct _quota_mnt_t quota_mnt_t;
 struct _quota_mnt_t {
 	char *dir;         /* "/sys" or "/" */
 	char *device;      /* "none" or "/dev/hda1" */
-	char *type;        /* "sysfs" or "ext3"*/
-	char *usrjquota;
-	char *grpjquota;
-	char *jqfmt;
+	char *type;        /* "sysfs" or "ext3" */
+	char *options;     /* "rw,noatime,commit=600,quota,grpquota" */
+	char *usrjquota;   /* "q.u" */
+	char *grpjquota;   /* "q.g" */
+	char *jqfmt;       /* "TODO" */
 	int opts;
 	quota_mnt_t *next;
 };
@@ -57,6 +58,24 @@ int quota_mnt_type(const char *type);
 char *quota_mnt_getmountopt(char *line, char *keyword);
 char *quota_mnt_checkmountopt(char *line, char *keyword, int full);
 
+/*
+  DESCRIPTION
+	The quota_mnt_getlist() function creates a list
+	of all mountpoints.
+
+	If *list is NULL, a new list is created and *list is
+	set to point to the first entry.
+
+	If *list is set, the list is appended and *list is
+	not changed.
+
+  RETURN VALUE
+	The quota_mnt_getlist() function returns a pointer to
+	the last entry of the list, or NULL if an error occured.
+
+  NOTES
+	In case of an error, *list is not modified.
+*/
 quota_mnt_t *quota_mnt_getlist(quota_mnt_t **list);
 void quota_mnt_freelist(quota_mnt_t *list);
 

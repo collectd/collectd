@@ -115,12 +115,14 @@ quota_read(void)
 	quota_mnt_t *list = NULL, *l = NULL;
 	quota_t *quota = NULL, *q = NULL;
 
-	l = quota_mnt_getlist(&list);
+	(void)quota_mnt_getlist(&list);
+	l = list;
 	DBG("local mountpoints:");
 	while(l != NULL) {
 		DBG("\tdir: %s", l->dir);
 		DBG("\tdevice: %s", l->device);
 		DBG("\ttype: %s", l->type);
+		DBG("\toptions: %s", l->options);
 		DBG("\tusrjquota: %s", l->usrjquota);
 		DBG("\tgrpjquota: %s", l->grpjquota);
 		DBG("\tjqfmt: %s", l->jqfmt);
@@ -138,7 +140,8 @@ quota_read(void)
 	}
 	DBG("\t== ");
 
-	q = quota_fs_getquota(&quota, list);
+	(void)quota_fs_getquota(&quota, list);
+	q = quota;
 #if 0
 	DBG("quotas:");
 #endif

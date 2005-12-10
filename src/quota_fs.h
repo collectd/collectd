@@ -73,10 +73,10 @@ void quota_fs_printquota_dbg(quota_t *quota);
 
   RETURN VALUE
 	The quota_fs_getquota() function returns a pointer to
-	the last entry of the list, or NULL if an error occurs.
+	the last entry of the list, or NULL if an error occued.
 
   NOTES
-	In case of an error, quota is not modified.
+	In case of an error, *quota is not modified.
 */
 quota_t *quota_fs_getquota(quota_t **quota, quota_mnt_t *m);
 
