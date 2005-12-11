@@ -22,8 +22,7 @@
 **/
 
 #include "common.h"
-#include "quota_debug.h"
-#include "quota_common.h"
+#include "utils_debug.h"
 #include "quota_mnt.h"
 #include "quota_fs.h"
 
@@ -64,11 +63,11 @@ getquota_ext3(quota_t **quota, quota_mnt_t *m)
 	uint32_t fmt;
 #endif
 #if HAVE_QUOTACTL
-	if(quotactl(QCMD(Q_GETFMT, USRQUOTA), m->device,
+	if(quotactl(QCMD(Q_GETFMT, USRQUOTA), m->m->device,
 		0, (void *)&fmt) == -1)
 	{
 		DBG("quotactl (Q_GETFMT, USRQUOTA) returned -1 on"
-			" %s: %s", m->device, strerror(errno));
+			" %s: %s", m->m->device, strerror(errno));
 		return NULL;
 	}
 	if(fmt == 1) {
@@ -108,39 +107,39 @@ DBG("start");
 
 #if HAVE_QUOTACTL
 	if(m->opts & QMO_USRQUOTA) {
-		if(quotactl(QCMD(Q_GETINFO, USRQUOTA), m->device,
+		if(quotactl(QCMD(Q_GETINFO, USRQUOTA), m->m->device,
 			0, (void *)&dqiusr) == -1)
 		{
 			DBG("quotactl (Q_GETINFO, USRQUOTA) returned -1 on"
-				" %s: %s", m->device, strerror(errno));
+				" %s: %s", m->m->device, strerror(errno));
 			m->opts &= ~QMO_USRQUOTA;
 			DBG("\tusrquota switched off");
 		}
 	}
 	if(m->opts & QMO_USRQUOTA) {
-		if(quotactl(QCMD(Q_SYNC, USRQUOTA), m->device, 0, NULL) == -1)
+		if(quotactl(QCMD(Q_SYNC, USRQUOTA), m->m->device, 0, NULL) == -1)
 		{
 			DBG("quotactl (Q_SYNC, USRQUOTA) returned -1 on"
-				" %s: %s", m->device, strerror(errno));
+				" %s: %s", m->m->device, strerror(errno));
 			m->opts &= ~QMO_USRQUOTA;
 			DBG("\tusrquota switched off");
 		}
 	}
 	if(m->opts & QMO_GRPQUOTA) {
-		if(quotactl(QCMD(Q_GETINFO, GRPQUOTA), m->device,
+		if(quotactl(QCMD(Q_GETINFO, GRPQUOTA), m->m->device,
 			0, (void *)&dqigrp) == -1)
 		{
 			DBG("quotactl (Q_GETINFO, GRPQUOTA) returned -1 on"
-				" %s: %s", m->device, strerror(errno));
+				" %s: %s", m->m->device, strerror(errno));
 			m->opts &= ~QMO_GRPQUOTA;
 			DBG("\tgrpquota switched off");
 		}
 	}
 	if(m->opts & QMO_GRPQUOTA) {
-		if(quotactl(QCMD(Q_SYNC, GRPQUOTA), m->device, 0, NULL) == -1)
+		if(quotactl(QCMD(Q_SYNC, GRPQUOTA), m->m->device, 0, NULL) == -1)
 		{
 			DBG("quotactl (Q_SYNC, GRPQUOTA) returned -1 on"
-				" %s: %s", m->device, strerror(errno));
+				" %s: %s", m->m->device, strerror(errno));
 			m->opts &= ~QMO_GRPQUOTA;
 			DBG("\tgrpquota switched off");
 		}
@@ -159,11 +158,11 @@ DBG("start");
 		char *qfname = NULL;
 		if(m->usrjquota == NULL) {
 			char *qfn;
-			qfname = (char *)smalloc(strlen(m->dir)
+			qfname = (char *)smalloc(strlen(m->m->dir)
 				+ 1 + strlen("aquota.user") + 1);
 			qfn = qfname;
-			sstrncpy(qfn, m->dir, strlen(m->dir) + 1);
-			qfn += strlen(m->dir);
+			sstrncpy(qfn, m->m->dir, strlen(m->m->dir) + 1);
+			qfn += strlen(m->m->dir);
 			if(qfn[-1] != '/') {
 				sstrncpy(qfn, "/", 2);
 				qfn += 1;
@@ -171,11 +170,11 @@ DBG("start");
 			sstrncpy(qfn, "aquota.user", strlen("aquota.user") + 1);
 		} else {
 			char *qfn;
-			qfname = (char *)smalloc(strlen(m->dir)
+			qfname = (char *)smalloc(strlen(m->m->dir)
 				+ 1 + strlen(m->usrjquota) + 1);
 			qfn = qfname;
-			sstrncpy(qfn, m->dir, strlen(m->dir) + 1);
-			qfn += strlen(m->dir);
+			sstrncpy(qfn, m->m->dir, strlen(m->m->dir) + 1);
+			qfn += strlen(m->m->dir);
 			if(qfn[-1] != '/') {
 				sstrncpy(qfn, "/", 2);
 				qfn += 1;
@@ -194,18 +193,18 @@ DBG("start");
 		for(i=0; i<0x1000; i++) {
 			struct dqblk dqb;
 			if(quotactl(QCMD(Q_GETQUOTA, USRQUOTA),
-				m->device, i, (void *)&dqb) == -1)
+				m->m->device, i, (void *)&dqb) == -1)
 			{
 #if 0
 				DBG("quotactl (Q_GETQUOTA, USRQUOTA)"
 					" returned -1 on %d %s: %s",
-					i, m->device, strerror(errno));
+					i, m->m->device, strerror(errno));
 #endif
 				continue;
 			}
 			DBG("quotactl (Q_GETQUOTA, USRQUOTA)"
 				" returned ok on %d %s",
-				i, m->device);
+				i, m->m->device);
 			if(*quota == NULL) {
 				*quota = (quota_t *)smalloc(sizeof(quota_t));
 				q = *quota;
@@ -222,7 +221,7 @@ DBG("start");
 			q->name = sstrdup(buf);
 #endif
 			q->id = sstrdup(buf);
-			q->dir = sstrdup(m->dir);
+			q->dir = sstrdup(m->m->dir);
 			q->blocks = dqb.dqb_curspace;
 			q->bquota = dqb.dqb_bsoftlimit << 10;
 			q->blimit = dqb.dqb_bhardlimit << 10;
@@ -241,18 +240,18 @@ DBG("start");
 		for(i=0; i<0x1000; i++) {
 			struct dqblk dqb;
 			if(quotactl(QCMD(Q_GETQUOTA, GRPQUOTA),
-				m->device, i, (void *)&dqb) == -1)
+				m->m->device, i, (void *)&dqb) == -1)
 			{
 #if 0
 				DBG("quotactl (Q_GETQUOTA, GRPQUOTA)"
 					" returned -1 on %d %s: %s",
-					i, m->device, strerror(errno));
+					i, m->m->device, strerror(errno));
 #endif
 				continue;
 			}
 			DBG("quotactl (Q_GETQUOTA, GRPQUOTA)"
 				" returned ok on %d %s",
-				i, m->device);
+				i, m->m->device);
 			if(*quota == NULL) {
 				*quota = (quota_t *)smalloc(sizeof(quota_t));
 				q = *quota;
@@ -269,7 +268,7 @@ DBG("start");
 			q->name = sstrdup(buf);
 #endif
 			q->id = sstrdup(buf);
-			q->dir = sstrdup(m->dir);
+			q->dir = sstrdup(m->m->dir);
 			q->blocks = dqb.dqb_curspace;
 			q->bquota = dqb.dqb_bsoftlimit << 10;
 			q->blimit = dqb.dqb_bhardlimit << 10;
@@ -424,7 +423,7 @@ quota_fs_getquota(quota_t **quota, quota_mnt_t *mnt)
 	quota_t *q = NULL, *qlast = NULL;
 
 	while(m != NULL) {
-		switch(quota_mnt_type(m->type)) {
+		switch(quota_mnt_type(m->m->type)) {
 		  case QMT_EXT2:
 		  case QMT_EXT3: 
 			qlast = getquota_ext3(&q, m);

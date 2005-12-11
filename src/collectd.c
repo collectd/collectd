@@ -211,7 +211,9 @@ int pidfile_remove (void)
 int main (int argc, char **argv)
 {
 	struct sigaction sigIntAction, sigChldAction;
+#if COLLECTD_DAEMON
 	pid_t pid;
+#endif
 
 	char *plugindir = NULL;
 	char *basedir = DATADIR;
@@ -314,7 +316,7 @@ int main (int argc, char **argv)
 	/*
 	 * fork off child
 	 */
-#if DEBUG == 0
+#if COLLECTD_DAEMON
 	if (daemonize)
 	{
 		if ((pid = fork ()) == -1)
@@ -358,7 +360,7 @@ int main (int argc, char **argv)
 			return (1);
 		}
 	} /* if (daemonize) */
-#endif
+#endif /* COLLECTD_DAEMON */
 
 	/*
 	 * run the actual loops

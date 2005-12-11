@@ -25,7 +25,7 @@
 #define COLLECTD_QUOTA_FS_H 1
 
 #include "common.h"
-#include "quota_debug.h"
+#include "utils_debug.h"
 #include "quota_mnt.h"
 
 /* Quota Filesystem Type */

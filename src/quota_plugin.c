@@ -23,9 +23,8 @@
 
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
 
-#include "quota_debug.h"
-#include "quota_common.h"
 #include "quota_mnt.h"
 #include "quota_fs.h"
 #include "quota_plugin.h"
@@ -106,7 +105,7 @@ quota_submit(quota_t *q)
 static void
 quota_init(void)
 {
-	DBG_INIT("quota debug file opened.");
+	DBG_STARTFILE("quota debug file opened.");
 }
 
 static void
@@ -119,10 +118,11 @@ quota_read(void)
 	l = list;
 	DBG("local mountpoints:");
 	while(l != NULL) {
-		DBG("\tdir: %s", l->dir);
-		DBG("\tdevice: %s", l->device);
-		DBG("\ttype: %s", l->type);
-		DBG("\toptions: %s", l->options);
+		DBG("\tdir: %s", l->m->dir);
+		DBG("\tspec_device: %s", l->m->spec_device);
+		DBG("\tdevice: %s", l->m->device);
+		DBG("\ttype: %s", l->m->type);
+		DBG("\toptions: %s", l->m->options);
 		DBG("\tusrjquota: %s", l->usrjquota);
 		DBG("\tgrpjquota: %s", l->grpjquota);
 		DBG("\tjqfmt: %s", l->jqfmt);

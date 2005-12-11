@@ -5,6 +5,9 @@
 # include "config.h"
 #endif
 
+#if HAVE_STDARG_H
+# include <stdarg.h>
+#endif
 #include <stdio.h>
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -101,10 +104,6 @@
 
 #ifdef HAVE_LIBSTATGRAB
 #include <statgrab.h>
-#endif
-
-#ifndef DEBUG
-#define DEBUG 0
 #endif
 
 #ifndef LOCALSTATEDIR

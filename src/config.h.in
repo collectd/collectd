@@ -6,6 +6,12 @@
 /* Wether or not to collect cpu frequency statistics */
 #undef COLLECT_CPUFREQ
 
+/* Wether or not to enable daemon mode */
+#undef COLLECT_DAEMON
+
+/* Wether or not to enable debugging */
+#undef COLLECT_DEBUG
+
 /* Wether or not to collect diskstats */
 #undef COLLECT_DISK
 
@@ -27,7 +33,10 @@
 /* Wether or not to collect processes statistics */
 #undef COLLECT_PROCESSES
 
-/* Wether or not to collect quotastats */
+/* Wether or not to use pth (portable threads) library */
+#undef COLLECT_PTH
+
+/* Wether or not to collect quota statistics */
 #undef COLLECT_QUOTA
 
 /* Wether or not to collect lm_sensors statistics */
@@ -111,6 +120,9 @@
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 #undef HAVE_LIBNSL
 
+/* Define to 1 if you have the `pth' library (-lpth). */
+#undef HAVE_LIBPTH
+
 /* Define to 1 if you have the `resolv' library (-lresolv). */
 #undef HAVE_LIBRESOLV
 
@@ -150,6 +162,9 @@
 /* Define to 1 if you have the <paths.h> header file. */
 #undef HAVE_PATHS_H
 
+/* Define to 1 if you have the <pth.h> header file. */
+#undef HAVE_PTH_H
+
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
 
@@ -173,6 +188,9 @@
 
 /* Define to 1 if you have the <statgrab.h> header file. */
 #undef HAVE_STATGRAB_H
+
+/* Define to 1 if you have the <stdarg.h> header file. */
+#undef HAVE_STDARG_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H

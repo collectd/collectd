@@ -5,12 +5,15 @@ endif
 sbin_PROGRAMS = collectd
 
 collectd_SOURCES = collectd.c collectd.h \
+		   utils_debug.c utils_debug.h \
+		   utils_mount.c utils_mount.h \
 		   common.c common.h \
 		   multicast.c multicast.h \
 		   plugin.c plugin.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
 collectd_CPPFLAGS = -DLOCALSTATEDIR='"$(localstatedir)"' -DPLUGINDIR='"$(pkglibdir)"'
 collectd_LDFLAGS = -export-dynamic
+collectd_CFLAGS = -Werror
 collectd_LDADD = $(LIBLTDL) "-dlopen" self
 collectd_DEPENDENCIES = $(LIBLTDL)
 if BUILD_WITH_RRDTOOL
@@ -46,10 +49,8 @@ endif
 if BUILD_MODULE_QUOTA
 pkglib_LTLIBRARIES += quota.la
 quota_la_SOURCES = quota_plugin.c quota_plugin.h
-quota_la_SOURCES += quota_common.c quota_common.h
-quota_la_SOURCES += quota_debug.c quota_debug.h
-quota_la_SOURCES += quota_mnt.c quota_mnt.h quota_mntopt.h
 quota_la_SOURCES += quota_fs.c quota_fs.h
+quota_la_SOURCES += quota_mnt.c quota_mnt.h
 quota_la_LDFLAGS = -module -avoid-version
 quota_la_CFLAGS = -Werror
 collectd_LDADD += "-dlopen" quota.la

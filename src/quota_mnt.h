@@ -25,6 +25,7 @@
 #define COLLECTD_QUOTA_MNT_H 1
 
 #include "common.h"
+#include "utils_mount.h"
 
 /* Quota Mount Type */
 #define QMT_UNKNOWN (0)
@@ -42,10 +43,7 @@
 
 typedef struct _quota_mnt_t quota_mnt_t;
 struct _quota_mnt_t {
-	char *dir;         /* "/sys" or "/" */
-	char *device;      /* "none" or "/dev/hda1" */
-	char *type;        /* "sysfs" or "ext3" */
-	char *options;     /* "rw,noatime,commit=600,quota,grpquota" */
+	cu_mount_t *m;
 	char *usrjquota;   /* "q.u" */
 	char *grpjquota;   /* "q.g" */
 	char *jqfmt;       /* "TODO" */
