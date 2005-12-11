@@ -32,7 +32,7 @@
 #define DBG_STOPFILE(...) cu_debug_stopfile(__FILE__, __LINE__, \
 	__func__, __VA_ARGS__)
 
-#define DBG_SETFILE(file) cu_debug_setfile(__FILE__, __LINE__, __func__, \
+#define DBG_RESETFILE(file) cu_debug_resetfile(__FILE__, __LINE__, __func__, \
 	filename)
 
 void cu_debug(const char *file, int line, const char *func,
@@ -43,7 +43,7 @@ int cu_debug_startfile(const char *file, int line, const char *func,
 int cu_debug_stopfile(const char *file, int line, const char *func,
 	const char *format, ...);
 
-int cu_debug_setfile(const char *file, int line, const char *func,
+int cu_debug_resetfile(const char *file, int line, const char *func,
 	char *filename);
 
 #endif /* !COLLECTD_UTILS_DEBUG_H */

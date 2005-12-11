@@ -187,7 +187,7 @@ cu_debug_stopfile(const char *file, int line, const char *func, char *format, ..
 	return EXIT_SUCCESS;
 }
 int
-cu_debug_setfile(const char *file, int line, const char *func, char *filename)
+cu_debug_resetfile(const char *file, int line, const char *func, char *filename)
 {
 	return EXIT_SUCCESS;
 }
