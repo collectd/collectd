@@ -66,6 +66,10 @@ Tape drive usage (I<tape>, Solaris only)
 
 Network traffic (I<traffic>)
 
+=item
+
+Number of users logged into the system (I<users>)
+
 =back
 
 =head1 OPTIONS
@@ -81,6 +85,11 @@ See L<"MODES">.
 
 Sets the directory collectd should work in. All F<.rrd>-files are created in
 this directory. Per default this is F</var/lib/collectd/>.
+
+=item B<-P> I<E<lt>directoryE<gt>>
+
+Sets the directory collectd should look for plugins in. Per default this is
+F</usr/lib/collectd>.
 
 =item B<-f>
 
@@ -148,7 +157,7 @@ The DS'es depend on the module creating the RRD files:
 
 =item Diskstats (F<disk-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
 
-  DS:rcount:COUNTER:25:0:
+  DS:rcount:COUNTER:25:0:U
   DS:rmerged:COUNTER:25:0:U
   DS:rbytes:COUNTER:25:0:U
   DS:rtime:COUNTER:25:0:U
@@ -272,6 +281,10 @@ The DS'es depend on the module creating the RRD files:
   DS:incoming:COUNTER:25:0:U
   DS:outgoing:COUNTER:25:0:U
 
+=item Users (F<users.rrd>)
+
+  DS:users:GAUGE:25:0:65535
+
 =back
 
 =head1 MODES
@@ -306,6 +319,10 @@ but not to the outside. However collectd cannot control this and won't try. So
 it's totally up to you to secure your net.
 
 The UDP port used has been checked to not be assigned by the IANA.
+
+On multi-homed machines you may need to add a route to the multicast net
+(B<224.0.0.0/4>) if multicast packages take the wrong interface. The listener
+on the other hand listens on B<all> interfaces.
 
 =head1 SPECIAL MODULES
 

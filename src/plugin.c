@@ -63,7 +63,6 @@ void plugin_load (char *name)
 	void (*reg_handle) (void);
 
 	lt_dlinit ();
-
 	lt_dlerror (); /* clear errors */
 
 	if ((dlh = lt_dlopen (name)) == NULL)

@@ -1,0 +1,34 @@
+#!/bin/sh
+
+FILE="/var/lib/collectd/users.rrd"
+HOST=""
+
+if [ -n "$SERVER_NAME" ]; then
+    HOST=$SERVER_NAME
+    echo "Content-Type: image/png";
+    echo "";
+else
+    HOST=`hostname -f`
+fi
+
+rrdtool graph - -a PNG -t "$HOST users" -v "Users" \
+    -c "BACK#000000" \
+    -c "SHADEA#000000" \
+    -c "SHADEB#000000" \
+    -c "FONT#dddddd" \
+    -c "CANVAS#202020" \
+    -c "GRID#666666" \
+    -c "MGRID#aaaaaa" \
+    -c "FRAME#202020" \
+    -c "ARROW#ffffff" \
+    "DEF:users_avg=$FILE:users:AVERAGE" \
+    "DEF:users_min=$FILE:users:MIN" \
+    "DEF:users_max=$FILE:users:MAX" \
+    "AREA:users_max#804040" \
+    "AREA:users_min#202020" \
+    "LINE1:users_avg#ff0000:Users" \
+    "GPRINT:users_min:MIN:%4.1lf Min," \
+    "GPRINT:users_avg:AVERAGE:%4.1lf Average," \
+    "GPRINT:users_max:MAX:%4.1lf Max," \
+    "GPRINT:users_avg:LAST:%4.1lf Last\l"
+

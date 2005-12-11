@@ -1,0 +1,1211 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+no warnings ('qw');
+
+use CGI;
+use RRDs;
+use Fcntl (qw(:flock));
+use Carp (qw(carp cluck confess croak));
+
+our $Config = read_config ();
+
+our $AbsDir;
+our $RelDir;
+our $Type;
+our $Inst;
+our $TimeSpan;
+
+for (qw(Red Green Blue Yellow Cyan Magenta))
+{
+	$Config->{'Colors'}{"Half$_"} = color_calculate_transparent ($Config->{'Colors'}{'Alpha'},
+		$Config->{'Colors'}{'Canvas'}, $Config->{'Colors'}{"Full$_"});
+}
+
+$Config->{'Colors'}{'HalfBlueGreen'} = color_calculate_transparent ($Config->{'Colors'}{'Alpha'},
+	$Config->{'Colors'}{'Canvas'}, $Config->{'Colors'}{'FullGreen'}, $Config->{'Colors'}{'FullBlue'});
+$Config->{'Colors'}{'HalfRedBlue'} = color_calculate_transparent ($Config->{'Colors'}{'Alpha'},
+	$Config->{'Colors'}{'Canvas'}, $Config->{'Colors'}{'FullBlue'}, $Config->{'Colors'}{'FullRed'});
+
+our $GraphDefs;
+{
+	my $Alpha  = $Config->{'Colors'}{'Alpha'};
+	my $Canvas = $Config->{'Colors'}{'Canvas'};
+
+	my $FullRed    = $Config->{'Colors'}{'FullRed'};
+	my $FullGreen  = $Config->{'Colors'}{'FullGreen'};
+	my $FullBlue   = $Config->{'Colors'}{'FullBlue'};
+	my $FullYellow = $Config->{'Colors'}{'FullYellow'};
+	my $FullCyan   = $Config->{'Colors'}{'FullCyan'};
+	my $FullMagenta= $Config->{'Colors'}{'FullMagenta'};
+
+	my $HalfRed    = $Config->{'Colors'}{'HalfRed'};
+	my $HalfGreen  = $Config->{'Colors'}{'HalfGreen'};
+	my $HalfBlue   = $Config->{'Colors'}{'HalfBlue'};
+	my $HalfYellow = $Config->{'Colors'}{'HalfYellow'};
+	my $HalfCyan   = $Config->{'Colors'}{'HalfCyan'};
+	my $HalfMagenta= $Config->{'Colors'}{'HalfMagenta'};
+
+	my $HalfBlueGreen = $Config->{'Colors'}{'HalfBlueGreen'};
+	my $HalfRedBlue   = $Config->{'Colors'}{'HalfRedBlue'};
+	
+	$GraphDefs =
+	{
+		cpu => ['DEF:user_avg={file}:user:AVERAGE',
+			'DEF:user_min={file}:user:MIN',
+			'DEF:user_max={file}:user:MAX',
+			'DEF:nice_avg={file}:nice:AVERAGE',
+			'DEF:nice_min={file}:nice:MIN',
+			'DEF:nice_max={file}:nice:MAX',
+			'DEF:syst_avg={file}:syst:AVERAGE',
+			'DEF:syst_min={file}:syst:MIN',
+			'DEF:syst_max={file}:syst:MAX',
+			'DEF:wait_avg={file}:wait:AVERAGE',
+			'DEF:wait_min={file}:wait:MIN',
+			'DEF:wait_max={file}:wait:MAX',
+			'CDEF:user_avg_notnull=user_avg,UN,0,user_avg,IF',
+			'CDEF:nice_avg_notnull=nice_avg,UN,0,nice_avg,IF',
+			'CDEF:syst_avg_notnull=syst_avg,UN,0,syst_avg,IF',
+			'CDEF:wait_avg_notnull=wait_avg,UN,0,wait_avg,IF',
+			'CDEF:nice_acc=syst_avg,wait_avg_notnull,user_avg,nice_avg_notnull,+,+,+',
+			'CDEF:user_acc=syst_avg,wait_avg_notnull,user_avg,+,+',
+			'CDEF:wait_acc=syst_avg,wait_avg_notnull,+',
+			'CDEF:syst_acc=syst_avg',
+			"AREA:nice_acc#$HalfGreen",
+			"AREA:user_acc#$HalfBlue",
+			"AREA:wait_acc#$HalfYellow",
+			"AREA:syst_acc#$HalfRed",
+			"LINE1:nice_acc#$FullGreen:Nice   ",
+			'GPRINT:nice_min:MIN:%5.1lf%% Min,',
+			'GPRINT:nice_avg:AVERAGE:%5.1lf%% Avg,',
+			'GPRINT:nice_max:MAX:%5.1lf%% Max,',
+			'GPRINT:nice_avg:LAST:%5.1lf%% Last\l',
+			"LINE1:user_acc#$FullBlue:User   ",
+			'GPRINT:user_min:MIN:%5.1lf%% Min,',
+			'GPRINT:user_avg:AVERAGE:%5.1lf%% Avg,',
+			'GPRINT:user_max:MAX:%5.1lf%% Max,',
+			'GPRINT:user_avg:LAST:%5.1lf%% Last\l',
+			"LINE1:wait_acc#$FullYellow:Wait-IO",
+			'GPRINT:wait_min:MIN:%5.1lf%% Min,',
+			'GPRINT:wait_avg:AVERAGE:%5.1lf%% Avg,',
+			'GPRINT:wait_max:MAX:%5.1lf%% Max,',
+			'GPRINT:wait_avg:LAST:%5.1lf%% Last\l',
+			"LINE1:syst_acc#$FullRed:System ",
+			'GPRINT:syst_min:MIN:%5.1lf%% Min,',
+			'GPRINT:syst_avg:AVERAGE:%5.1lf%% Avg,',
+			'GPRINT:syst_max:MAX:%5.1lf%% Max,',
+			'GPRINT:syst_avg:LAST:%5.1lf%% Last\l'
+		],
+		disk => [
+			'DEF:rtime_avg={file}:rtime:AVERAGE',
+			'DEF:rtime_min={file}:rtime:MIN',
+			'DEF:rtime_max={file}:rtime:MAX',
+			'DEF:wtime_avg={file}:wtime:AVERAGE',
+			'DEF:wtime_min={file}:wtime:MIN',
+			'DEF:wtime_max={file}:wtime:MAX',
+			'CDEF:rtime_avg_ms=rtime_avg,1000,/',
+			'CDEF:rtime_min_ms=rtime_min,1000,/',
+			'CDEF:rtime_max_ms=rtime_max,1000,/',
+			'CDEF:wtime_avg_ms=wtime_avg,1000,/',
+			'CDEF:wtime_min_ms=wtime_min,1000,/',
+			'CDEF:wtime_max_ms=wtime_max,1000,/',
+			'CDEF:total_avg_ms=rtime_avg_ms,wtime_avg_ms,+',
+			'CDEF:total_min_ms=rtime_min_ms,wtime_min_ms,+',
+			'CDEF:total_max_ms=rtime_max_ms,wtime_max_ms,+',
+			"AREA:total_max_ms#$HalfRed",
+			"AREA:total_min_ms#$Canvas",
+			"LINE1:wtime_avg_ms#$FullGreen:Write",
+			'GPRINT:wtime_min_ms:MIN:%5.1lf%s Min,',
+			'GPRINT:wtime_avg_ms:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:wtime_max_ms:MAX:%5.1lf%s Max,',
+			'GPRINT:wtime_avg_ms:LAST:%5.1lf%s Last\n',
+			"LINE1:rtime_avg_ms#$FullBlue:Read ",
+			'GPRINT:rtime_min_ms:MIN:%5.1lf%s Min,',
+			'GPRINT:rtime_avg_ms:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:rtime_max_ms:MAX:%5.1lf%s Max,',
+			'GPRINT:rtime_avg_ms:LAST:%5.1lf%s Last\n',
+			"LINE1:total_avg_ms#$FullRed:Total",
+			'GPRINT:total_min_ms:MIN:%5.1lf%s Min,',
+			'GPRINT:total_avg_ms:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:total_max_ms:MAX:%5.1lf%s Max,',
+			'GPRINT:total_avg_ms:LAST:%5.1lf%s Last'
+		],
+		hddtemp => [
+			'DEF:temp_avg={file}:value:AVERAGE',
+			'DEF:temp_min={file}:value:MIN',
+			'DEF:temp_max={file}:value:MAX',
+			"AREA:temp_max#$HalfBlue",
+			"AREA:temp_min#$Canvas",
+			"LINE1:temp_avg#$FullBlue:Temperature",
+			'GPRINT:temp_min:MIN:%4.1lf Min,',
+			'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
+			'GPRINT:temp_max:MAX:%4.1lf Max,',
+			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
+		],
+		load => ['DEF:s_avg={file}:shortterm:AVERAGE',
+			'DEF:s_min={file}:shortterm:MIN',
+			'DEF:s_max={file}:shortterm:MAX',
+			'DEF:m_avg={file}:midterm:AVERAGE',
+			'DEF:m_min={file}:midterm:MIN',
+			'DEF:m_max={file}:midterm:MAX',
+			'DEF:l_avg={file}:longterm:AVERAGE',
+			'DEF:l_min={file}:longterm:MIN',
+			'DEF:l_max={file}:longterm:MAX',
+			"AREA:s_max#$HalfGreen",
+			"AREA:s_min#$Canvas",
+			"LINE1:s_avg#$FullGreen: 1m average",
+			'GPRINT:s_min:MIN:%4.2lf Min,',
+			'GPRINT:s_avg:AVERAGE:%4.2lf Avg,',
+			'GPRINT:s_max:MAX:%4.2lf Max,',
+			'GPRINT:s_avg:LAST:%4.2lf Last\n',
+			"LINE1:m_avg#$FullBlue: 5m average",
+			'GPRINT:m_min:MIN:%4.2lf Min,',
+			'GPRINT:m_avg:AVERAGE:%4.2lf Avg,',
+			'GPRINT:m_max:MAX:%4.2lf Max,',
+			'GPRINT:m_avg:LAST:%4.2lf Last\n',
+			"LINE1:l_avg#$FullRed:15m average",
+			'GPRINT:l_min:MIN:%4.2lf Min,',
+			'GPRINT:l_avg:AVERAGE:%4.2lf Avg,',
+			'GPRINT:l_max:MAX:%4.2lf Max,',
+			'GPRINT:l_avg:LAST:%4.2lf Last'
+		],
+		mails => ['DEF:rawgood={file}:good:AVERAGE',
+			'DEF:rawspam={file}:spam:AVERAGE',
+			'CDEF:good=rawgood,UN,0,rawgood,IF',
+			'CDEF:spam=rawspam,UN,0,rawspam,IF',
+			'CDEF:negspam=spam,-1,*',
+			"AREA:good#$HalfGreen",
+			"LINE1:good#$FullGreen:Good mails",
+			'GPRINT:good:AVERAGE:%4.1lf Avg,',
+			'GPRINT:good:MAX:%4.1lf Max,',
+			'GPRINT:good:LAST:%4.1lf Last\n',
+			"AREA:negspam#$HalfRed",
+			"LINE1:negspam#$FullRed:Spam mails",
+			'GPRINT:spam:AVERAGE:%4.1lf Avg,',
+			'GPRINT:spam:MAX:%4.1lf Max,',
+			'GPRINT:spam:LAST:%4.1lf Last',
+			'HRULE:0#000000'],
+		memory => [
+			'DEF:used_avg={file}:used:AVERAGE',
+			'DEF:free_avg={file}:free:AVERAGE',
+			'DEF:buffers_avg={file}:buffers:AVERAGE',
+			'DEF:cached_avg={file}:cached:AVERAGE',
+			'DEF:used_min={file}:used:MIN',
+			'DEF:free_min={file}:free:MIN',
+			'DEF:buffers_min={file}:buffers:MIN',
+			'DEF:cached_min={file}:cached:MIN',
+			'DEF:used_max={file}:used:MAX',
+			'DEF:free_max={file}:free:MAX',
+			'DEF:buffers_max={file}:buffers:MAX',
+			'DEF:cached_max={file}:cached:MAX',
+			'CDEF:free_cached_buffers_used=free_avg,cached_avg,+,buffers_avg,+,used_avg,+',
+			'CDEF:cached_buffers_used=cached_avg,buffers_avg,+,used_avg,+',
+			'CDEF:buffers_used=buffers_avg,used_avg,+',
+			"AREA:free_cached_buffers_used#$HalfGreen",
+			"AREA:cached_buffers_used#$HalfBlue",
+			"AREA:buffers_used#$HalfYellow",
+			"AREA:used_avg#$HalfRed",
+			"LINE1:free_cached_buffers_used#$FullGreen:Free        ",
+			'GPRINT:free_min:MIN:%5.1lf%s Min,',
+			'GPRINT:free_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:free_max:MAX:%5.1lf%s Max,',
+			'GPRINT:free_avg:LAST:%5.1lf%s Last\n',
+			"LINE1:cached_buffers_used#$FullBlue:Page cache  ",
+			'GPRINT:cached_min:MIN:%5.1lf%s Min,',
+			'GPRINT:cached_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:cached_max:MAX:%5.1lf%s Max,',
+			'GPRINT:cached_avg:LAST:%5.1lf%s Last\n',
+			"LINE1:buffers_used#$FullYellow:Buffer cache",
+			'GPRINT:buffers_min:MIN:%5.1lf%s Min,',
+			'GPRINT:buffers_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:buffers_max:MAX:%5.1lf%s Max,',
+			'GPRINT:buffers_avg:LAST:%5.1lf%s Last\n',
+			"LINE1:used_avg#$FullRed:Used        ",
+			'GPRINT:used_min:MIN:%5.1lf%s Min,',
+			'GPRINT:used_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:used_max:MAX:%5.1lf%s Max,',
+			'GPRINT:used_avg:LAST:%5.1lf%s Last'
+		],
+		nfs3_procedures => [
+			"DEF:null_avg={file}:null:AVERAGE",
+			"DEF:getattr_avg={file}:getattr:AVERAGE",
+			"DEF:setattr_avg={file}:setattr:AVERAGE",
+			"DEF:lookup_avg={file}:lookup:AVERAGE",
+			"DEF:access_avg={file}:access:AVERAGE",
+			"DEF:readlink_avg={file}:readlink:AVERAGE",
+			"DEF:read_avg={file}:read:AVERAGE",
+			"DEF:write_avg={file}:write:AVERAGE",
+			"DEF:create_avg={file}:create:AVERAGE",
+			"DEF:mkdir_avg={file}:mkdir:AVERAGE",
+			"DEF:symlink_avg={file}:symlink:AVERAGE",
+			"DEF:mknod_avg={file}:mknod:AVERAGE",
+			"DEF:remove_avg={file}:remove:AVERAGE",
+			"DEF:rmdir_avg={file}:rmdir:AVERAGE",
+			"DEF:rename_avg={file}:rename:AVERAGE",
+			"DEF:link_avg={file}:link:AVERAGE",
+			"DEF:readdir_avg={file}:readdir:AVERAGE",
+			"DEF:readdirplus_avg={file}:readdirplus:AVERAGE",
+			"DEF:fsstat_avg={file}:fsstat:AVERAGE",
+			"DEF:fsinfo_avg={file}:fsinfo:AVERAGE",
+			"DEF:pathconf_avg={file}:pathconf:AVERAGE",
+			"DEF:commit_avg={file}:commit:AVERAGE",
+			"DEF:null_max={file}:null:MAX",
+			"DEF:getattr_max={file}:getattr:MAX",
+			"DEF:setattr_max={file}:setattr:MAX",
+			"DEF:lookup_max={file}:lookup:MAX",
+			"DEF:access_max={file}:access:MAX",
+			"DEF:readlink_max={file}:readlink:MAX",
+			"DEF:read_max={file}:read:MAX",
+			"DEF:write_max={file}:write:MAX",
+			"DEF:create_max={file}:create:MAX",
+			"DEF:mkdir_max={file}:mkdir:MAX",
+			"DEF:symlink_max={file}:symlink:MAX",
+			"DEF:mknod_max={file}:mknod:MAX",
+			"DEF:remove_max={file}:remove:MAX",
+			"DEF:rmdir_max={file}:rmdir:MAX",
+			"DEF:rename_max={file}:rename:MAX",
+			"DEF:link_max={file}:link:MAX",
+			"DEF:readdir_max={file}:readdir:MAX",
+			"DEF:readdirplus_max={file}:readdirplus:MAX",
+			"DEF:fsstat_max={file}:fsstat:MAX",
+			"DEF:fsinfo_max={file}:fsinfo:MAX",
+			"DEF:pathconf_max={file}:pathconf:MAX",
+			"DEF:commit_max={file}:commit:MAX",
+			"CDEF:other_avg=null_avg,readlink_avg,create_avg,mkdir_avg,symlink_avg,mknod_avg,remove_avg,rmdir_avg,rename_avg,link_avg,readdir_avg,readdirplus_avg,fsstat_avg,fsinfo_avg,pathconf_avg,+,+,+,+,+,+,+,+,+,+,+,+,+,+",
+			"CDEF:other_max=null_max,readlink_max,create_max,mkdir_max,symlink_max,mknod_max,remove_max,rmdir_max,rename_max,link_max,readdir_max,readdirplus_max,fsstat_max,fsinfo_max,pathconf_max,+,+,+,+,+,+,+,+,+,+,+,+,+,+",
+			"CDEF:stack_read=read_avg",
+			"CDEF:stack_getattr=stack_read,getattr_avg,+",
+			"CDEF:stack_access=stack_getattr,access_avg,+",
+			"CDEF:stack_lookup=stack_access,lookup_avg,+",
+			"CDEF:stack_write=stack_lookup,write_avg,+",
+			"CDEF:stack_commit=stack_write,commit_avg,+",
+			"CDEF:stack_setattr=stack_commit,setattr_avg,+",
+			"CDEF:stack_other=stack_setattr,other_avg,+",
+			"AREA:stack_other#$HalfRed",
+			"AREA:stack_setattr#$HalfGreen",
+			"AREA:stack_commit#$HalfYellow",
+			"AREA:stack_write#$HalfGreen",
+			"AREA:stack_lookup#$HalfBlue",
+			"AREA:stack_access#$HalfMagenta",
+			"AREA:stack_getattr#$HalfCyan",
+			"AREA:stack_read#$HalfBlue",
+			"LINE1:stack_other#$FullRed:Other  ",
+			'GPRINT:other_max:MAX:%5.1lf Max,',
+			'GPRINT:other_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:other_avg:LAST:%5.1lf Last\l',
+			"LINE1:stack_setattr#$FullGreen:setattr",
+			'GPRINT:setattr_max:MAX:%5.1lf Max,',
+			'GPRINT:setattr_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:setattr_avg:LAST:%5.1lf Last\l',
+			"LINE1:stack_commit#$FullYellow:commit ",
+			'GPRINT:commit_max:MAX:%5.1lf Max,',
+			'GPRINT:commit_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:commit_avg:LAST:%5.1lf Last\l',
+			"LINE1:stack_write#$FullGreen:write  ",
+			'GPRINT:write_max:MAX:%5.1lf Max,',
+			'GPRINT:write_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:write_avg:LAST:%5.1lf Last\l',
+			"LINE1:stack_lookup#$FullBlue:lookup ",
+			'GPRINT:lookup_max:MAX:%5.1lf Max,',
+			'GPRINT:lookup_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:lookup_avg:LAST:%5.1lf Last\l',
+			"LINE1:stack_access#$FullMagenta:access ",
+			'GPRINT:access_max:MAX:%5.1lf Max,',
+			'GPRINT:access_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:access_avg:LAST:%5.1lf Last\l',
+			"LINE1:stack_getattr#$FullCyan:getattr",
+			'GPRINT:getattr_max:MAX:%5.1lf Max,',
+			'GPRINT:getattr_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:getattr_avg:LAST:%5.1lf Last\l',
+			"LINE1:stack_read#$FullBlue:read   ",
+			'GPRINT:read_max:MAX:%5.1lf Max,',
+			'GPRINT:read_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:read_avg:LAST:%5.1lf Last\l'
+		],
+		partition => [
+			"DEF:rbyte_avg={file}:rbytes:AVERAGE",
+			"DEF:rbyte_min={file}:rbytes:MIN",
+			"DEF:rbyte_max={file}:rbytes:MAX",
+			"DEF:wbyte_avg={file}:wbytes:AVERAGE",
+			"DEF:wbyte_min={file}:wbytes:MIN",
+			"DEF:wbyte_max={file}:wbytes:MAX",
+			'CDEF:overlap=wbyte_avg,rbyte_avg,GT,rbyte_avg,wbyte_avg,IF',
+			"AREA:wbyte_avg#$HalfGreen",
+			"AREA:rbyte_avg#$HalfBlue",
+			"AREA:overlap#$HalfBlueGreen",
+			"LINE1:wbyte_avg#$FullGreen:Write",
+			'GPRINT:wbyte_min:MIN:%5.1lf%s Min,',
+			'GPRINT:wbyte_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:wbyte_max:MAX:%5.1lf%s Max,',
+			'GPRINT:wbyte_avg:LAST:%5.1lf%s Last\l',
+			"LINE1:rbyte_avg#$FullBlue:Read ",
+			'GPRINT:rbyte_min:MIN:%5.1lf%s Min,',
+			'GPRINT:rbyte_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:rbyte_max:MAX:%5.1lf%s Max,',
+			'GPRINT:rbyte_avg:LAST:%5.1lf%s Last\l'
+		],
+		ping => ['DEF:ping_avg={file}:ping:AVERAGE',
+			'DEF:ping_min={file}:ping:MIN',
+			'DEF:ping_max={file}:ping:MAX',
+			"AREA:ping_max#$HalfBlue",
+			"AREA:ping_min#$Canvas",
+			"LINE1:ping_avg#$FullBlue:Ping",
+			'GPRINT:ping_min:MIN:%4.1lf ms Min,',
+			'GPRINT:ping_avg:AVERAGE:%4.1lf ms Avg,',
+			'GPRINT:ping_max:MAX:%4.1lf ms Max,',
+			'GPRINT:ping_avg:LAST:%4.1lf ms Last'],
+		processes => [
+			"DEF:running_avg={file}:running:AVERAGE",
+			"DEF:running_min={file}:running:MIN",
+			"DEF:running_max={file}:running:MAX",
+			"DEF:sleeping_avg={file}:sleeping:AVERAGE",
+			"DEF:sleeping_min={file}:sleeping:MIN",
+			"DEF:sleeping_max={file}:sleeping:MAX",
+			"DEF:zombies_avg={file}:zombies:AVERAGE",
+			"DEF:zombies_min={file}:zombies:MIN",
+			"DEF:zombies_max={file}:zombies:MAX",
+			"DEF:stopped_avg={file}:stopped:AVERAGE",
+			"DEF:stopped_min={file}:stopped:MIN",
+			"DEF:stopped_max={file}:stopped:MAX",
+			"DEF:paging_avg={file}:paging:AVERAGE",
+			"DEF:paging_min={file}:paging:MIN",
+			"DEF:paging_max={file}:paging:MAX",
+			"DEF:blocked_avg={file}:blocked:AVERAGE",
+			"DEF:blocked_min={file}:blocked:MIN",
+			"DEF:blocked_max={file}:blocked:MAX",
+			'CDEF:paging_acc=sleeping_avg,running_avg,stopped_avg,zombies_avg,blocked_avg,paging_avg,+,+,+,+,+',
+			'CDEF:blocked_acc=sleeping_avg,running_avg,stopped_avg,zombies_avg,blocked_avg,+,+,+,+',
+			'CDEF:zombies_acc=sleeping_avg,running_avg,stopped_avg,zombies_avg,+,+,+',
+			'CDEF:stopped_acc=sleeping_avg,running_avg,stopped_avg,+,+',
+			'CDEF:running_acc=sleeping_avg,running_avg,+',
+			'CDEF:sleeping_acc=sleeping_avg',
+			"AREA:paging_acc#$HalfYellow",
+			"AREA:blocked_acc#$HalfCyan",
+			"AREA:zombies_acc#$HalfRed",
+			"AREA:stopped_acc#$HalfMagenta",
+			"AREA:running_acc#$HalfGreen",
+			"AREA:sleeping_acc#$HalfBlue",
+			"LINE1:paging_acc#$FullYellow:Paging  ",
+			'GPRINT:paging_min:MIN:%5.1lf Min,',
+			'GPRINT:paging_avg:AVERAGE:%5.1lf Average,',
+			'GPRINT:paging_max:MAX:%5.1lf Max,',
+			'GPRINT:paging_avg:LAST:%5.1lf Last\l',
+			"LINE1:blocked_acc#$FullCyan:Blocked ",
+			'GPRINT:blocked_min:MIN:%5.1lf Min,',
+			'GPRINT:blocked_avg:AVERAGE:%5.1lf Average,',
+			'GPRINT:blocked_max:MAX:%5.1lf Max,',
+			'GPRINT:blocked_avg:LAST:%5.1lf Last\l',
+			"LINE1:zombies_acc#$FullRed:Zombies ",
+			'GPRINT:zombies_min:MIN:%5.1lf Min,',
+			'GPRINT:zombies_avg:AVERAGE:%5.1lf Average,',
+			'GPRINT:zombies_max:MAX:%5.1lf Max,',
+			'GPRINT:zombies_avg:LAST:%5.1lf Last\l',
+			"LINE1:stopped_acc#$FullMagenta:Stopped ",
+			'GPRINT:stopped_min:MIN:%5.1lf Min,',
+			'GPRINT:stopped_avg:AVERAGE:%5.1lf Average,',
+			'GPRINT:stopped_max:MAX:%5.1lf Max,',
+			'GPRINT:stopped_avg:LAST:%5.1lf Last\l',
+			"LINE1:running_acc#$FullGreen:Running ",
+			'GPRINT:running_min:MIN:%5.1lf Min,',
+			'GPRINT:running_avg:AVERAGE:%5.1lf Average,',
+			'GPRINT:running_max:MAX:%5.1lf Max,',
+			'GPRINT:running_avg:LAST:%5.1lf Last\l',
+			"LINE1:sleeping_acc#$FullBlue:Sleeping",
+			'GPRINT:sleeping_min:MIN:%5.1lf Min,',
+			'GPRINT:sleeping_avg:AVERAGE:%5.1lf Average,',
+			'GPRINT:sleeping_max:MAX:%5.1lf Max,',
+			'GPRINT:sleeping_avg:LAST:%5.1lf Last\l'
+		],
+		sensors => [
+			'DEF:temp_avg={file}:value:AVERAGE',
+			'DEF:temp_min={file}:value:MIN',
+			'DEF:temp_max={file}:value:MAX',
+			"AREA:temp_max#$HalfBlue",
+			"AREA:temp_min#$Canvas",
+			"LINE1:temp_avg#$FullBlue:Value",
+			'GPRINT:temp_min:MIN:%4.1lf Min,',
+			'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
+			'GPRINT:temp_max:MAX:%4.1lf Max,',
+			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
+		],
+		swap => [
+			'DEF:used_avg={file}:used:AVERAGE',
+			'DEF:used_min={file}:used:MIN',
+			'DEF:used_max={file}:used:MAX',
+			'DEF:free_avg={file}:free:AVERAGE',
+			'DEF:free_min={file}:free:MIN',
+			'DEF:free_max={file}:free:MAX',
+			'DEF:cach_avg={file}:cached:AVERAGE',
+			'DEF:cach_min={file}:cached:MIN',
+			'DEF:cach_max={file}:cached:MAX',
+			'DEF:resv_avg={file}:resv:AVERAGE',
+			'DEF:resv_min={file}:resv:MIN',
+			'DEF:resv_max={file}:resv:MAX',
+			'CDEF:cach_avg_notnull=cach_avg,UN,0,cach_avg,IF',
+			'CDEF:resv_avg_notnull=resv_avg,UN,0,resv_avg,IF',
+			'CDEF:used_acc=used_avg',
+			'CDEF:resv_acc=used_acc,resv_avg_notnull,+',
+			'CDEF:cach_acc=resv_acc,cach_avg_notnull,+',
+			'CDEF:free_acc=cach_acc,free_avg,+',
+			"AREA:free_acc#$HalfGreen",
+			"AREA:cach_acc#$HalfBlue",
+			"AREA:resv_acc#$HalfYellow",
+			"AREA:used_acc#$HalfRed",
+			"LINE1:free_acc#$FullGreen:Free    ",
+			'GPRINT:free_min:MIN:%5.1lf%s Min,',
+			'GPRINT:free_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:free_max:MAX:%5.1lf%s Max,',
+			'GPRINT:free_avg:LAST:%5.1lf%s Last\n',
+			"LINE1:cach_acc#$FullBlue:Cached  ",
+			'GPRINT:cach_min:MIN:%5.1lf%s Min,',
+			'GPRINT:cach_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:cach_max:MAX:%5.1lf%s Max,',
+			'GPRINT:cach_avg:LAST:%5.1lf%s Last\l',
+			"LINE1:resv_acc#$FullYellow:Reserved",
+			'GPRINT:resv_min:MIN:%5.1lf%s Min,',
+			'GPRINT:resv_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:resv_max:MAX:%5.1lf%s Max,',
+			'GPRINT:resv_avg:LAST:%5.1lf%s Last\n',
+			"LINE1:used_acc#$FullRed:Used    ",
+			'GPRINT:used_min:MIN:%5.1lf%s Min,',
+			'GPRINT:used_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:used_max:MAX:%5.1lf%s Max,',
+			'GPRINT:used_avg:LAST:%5.1lf%s Last\l'
+		],
+		traffic => ['DEF:out_min_raw={file}:outgoing:MIN',
+			'DEF:out_avg_raw={file}:outgoing:AVERAGE',
+			'DEF:out_max_raw={file}:outgoing:MAX',
+			'DEF:inc_min_raw={file}:incoming:MIN',
+			'DEF:inc_avg_raw={file}:incoming:AVERAGE',
+			'DEF:inc_max_raw={file}:incoming:MAX',
+			'CDEF:out_min=out_min_raw,8,*',
+			'CDEF:out_avg=out_avg_raw,8,*',
+			'CDEF:out_max=out_max_raw,8,*',
+			'CDEF:inc_min=inc_min_raw,8,*',
+			'CDEF:inc_avg=inc_avg_raw,8,*',
+			'CDEF:inc_max=inc_max_raw,8,*',
+			'CDEF:overlap=out_avg,inc_avg,GT,inc_avg,out_avg,IF',
+			'CDEF:mytime=out_avg_raw,TIME,TIME,IF',
+			'CDEF:sample_len_raw=mytime,PREV(mytime),-',
+			'CDEF:sample_len=sample_len_raw,UN,0,sample_len_raw,IF',
+			'CDEF:out_avg_sample=out_avg_raw,UN,0,out_avg_raw,IF,sample_len,*',
+			'CDEF:out_avg_sum=PREV,UN,0,PREV,IF,out_avg_sample,+',
+			'CDEF:inc_avg_sample=inc_avg_raw,UN,0,inc_avg_raw,IF,sample_len,*',
+			'CDEF:inc_avg_sum=PREV,UN,0,PREV,IF,inc_avg_sample,+',
+			"AREA:out_avg#$HalfGreen",
+			"AREA:inc_avg#$HalfBlue",
+			"AREA:overlap#$HalfBlueGreen",
+			"LINE1:out_avg#$FullGreen:Outgoing",
+			'GPRINT:out_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:out_max:MAX:%5.1lf%s Max,',
+			'GPRINT:out_avg:LAST:%5.1lf%s Last',
+			'GPRINT:out_avg_sum:LAST:(ca. %5.1lf%sB Total)\l',
+			"LINE1:inc_avg#$FullBlue:Incoming",
+			#'GPRINT:inc_min:MIN:%5.1lf %s Min,',
+			'GPRINT:inc_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:inc_max:MAX:%5.1lf%s Max,',
+			'GPRINT:inc_avg:LAST:%5.1lf%s Last',
+			'GPRINT:inc_avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
+		],
+                cpufreq => [
+                        'DEF:cpufreq_avg={file}:value:AVERAGE',
+                        'DEF:cpufreq_min={file}:value:MIN',
+                        'DEF:cpufreq_max={file}:value:MAX',
+                        "AREA:cpufreq_max#$HalfBlue",
+                        "AREA:cpufreq_min#$Canvas",
+                        "LINE1:cpufreq_avg#$FullBlue:Frequency",
+                        'GPRINT:cpufreq_min:MIN:%5.1lf%s Min,',
+                        'GPRINT:cpufreq_avg:AVERAGE:%5.1lf%s Avg,',
+                        'GPRINT:cpufreq_max:MAX:%5.1lf%s Max,',
+                        'GPRINT:cpufreq_avg:LAST:%5.1lf%s Last\l'
+                ],
+        users => [
+            'DEF:users_avg={file}:users:AVERAGE',
+            'DEF:users_min={file}:users:MIN',
+            'DEF:users_max={file}:users:MAX',
+            "AREA:users_max#$HalfBlue",
+            "AREA:users_min#$Canvas",
+            "LINE1:users_avg#$FullBlue:Users",
+            'GPRINT:users_min:MIN:%4.1lf Min,',
+            'GPRINT:users_avg:AVERAGE:%4.1lf Average,',
+            'GPRINT:users_max:MAX:%4.1lf Max,',
+            'GPRINT:users_avg:LAST:%4.1lf Last\l'
+        ],
+	};
+	$GraphDefs->{'disk'} = $GraphDefs->{'partition'};
+	$GraphDefs->{'meminfo'} = $GraphDefs->{'memory'};
+}
+
+our $GraphArgs =
+{
+	cpu => ['-t', '{host} cpu{inst} usage', '-v', 'Percent', '-l', '0'],
+	cpufreq => ['-t', '{host} cpu{inst} usage', '-v', 'Mhz'],
+	#disk => ['-t', '{host} disk {inst} IO wait', '-v', 'Seconds'],
+	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
+	hddtemp => ['-t', '{host} hdd temperature {inst}', '-v', '°Celsius'],
+	load => ['-t', '{host} load average', '-v', 'System load', '-X', '0'],
+	mails   => ['-t', '{host} mail count', '-v', 'Amount', '-X', '0'],
+	memory => ['-t', '{host} memory usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
+	nfs3_procedures => ['-t', '{host} NFSv3 {inst} procedures', '-v', 'Procedures/s' ],
+	partition => ['-t', '{host} partition {inst} usage', '-v', 'Byte/s'],
+	ping => ['-t', '{host} ping to {inst}', '-v', 'ms'],
+	processes => ['-t', '{host} processes', '-v', 'Processes'],
+	sensors => ['-t', '{host} sensor {inst}', '-v', '°Celsius'],
+	swap => ['-t', '{host} swap usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
+	traffic => ['-t', '{host} {inst} traffic', '-v', 'Bit/s'],
+    users => ['-t', '{host} users', '-v', 'Users'],
+};
+
+our $GraphMulti =
+{
+	cpu	=> \&output_graph_cpu,
+	cpufreq => 1,
+	disk	=> 1,
+	load	=> 0,
+	mails	=> 0,
+	memory	=> 0,
+	partition => 1,
+	ping	=> \&output_graph_ping,
+	sensors	=> 1,
+	traffic	=> 1,
+    users => 1
+};
+
+our @Info;
+if (defined ($ENV{'GATEWAY_INTERFACE'}))
+{
+	@Info = ($ENV{'PATH_INFO'} || '') =~ m#([\w\-\.]+)#g;
+}
+else
+{
+	@Info = @ARGV;
+}
+
+parse_pathinfo (@Info);
+
+if ($TimeSpan)
+{
+	output_graph ();
+}
+else
+{
+	output_page ();
+}
+
+exit (0);
+
+sub output_graph_cpu
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	for (@inst)
+	{
+		push (@ret,
+			"DEF:user_avg_$_=$AbsDir/cpu-$_.rrd:user:AVERAGE",
+			"DEF:user_min_$_=$AbsDir/cpu-$_.rrd:user:MIN",
+			"DEF:user_max_$_=$AbsDir/cpu-$_.rrd:user:MAX",
+			"DEF:nice_avg_$_=$AbsDir/cpu-$_.rrd:nice:AVERAGE",
+			"DEF:nice_min_$_=$AbsDir/cpu-$_.rrd:nice:MIN",
+			"DEF:nice_max_$_=$AbsDir/cpu-$_.rrd:nice:MAX",
+			"DEF:syst_avg_$_=$AbsDir/cpu-$_.rrd:syst:AVERAGE",
+			"DEF:syst_min_$_=$AbsDir/cpu-$_.rrd:syst:MIN",
+			"DEF:syst_max_$_=$AbsDir/cpu-$_.rrd:syst:MAX",
+			"DEF:wait_avg_$_=$AbsDir/cpu-$_.rrd:wait:AVERAGE",
+			"DEF:wait_min_$_=$AbsDir/cpu-$_.rrd:wait:MIN",
+			"DEF:wait_max_$_=$AbsDir/cpu-$_.rrd:wait:MAX");
+	}
+
+	for (qw(user nice syst wait))
+	{
+		my $def = $_;
+		my $cdef;
+
+		my $default_value = ($def eq 'user' or $def eq 'syst') ? 'UNKN' : '0';
+
+		for (qw(avg min max))
+		{
+			my $cf = $_;
+
+			for (@inst)
+			{
+				push (@ret, "CDEF:${def}_${cf}_notnull_${_}=${def}_${cf}_${_},UN,0,${def}_${cf}_${_},IF");
+				push (@ret, "CDEF:${def}_${cf}_defined_${_}=${def}_${cf}_${_},UN,0,1,IF");
+			}
+
+			$cdef = "CDEF:${def}_${cf}_num=" . join (',', map { "${def}_${cf}_defined_${_}" } (@inst));
+			$cdef .= ',+' x (scalar (@inst) - 1);
+			push (@ret, $cdef);
+
+			$cdef = "CDEF:${def}_${cf}=${def}_${cf}_num," . join (',', map { "${def}_${cf}_notnull_${_}" } (@inst));
+			$cdef .= ',+' x (scalar (@inst) - 1);
+			$cdef .= ",${def}_${cf}_num,${def}_${cf}_num,1,IF,/,$default_value,IF";
+			push (@ret, $cdef);
+			push (@ret, "CDEF:${def}_${cf}_notnull=${def}_${cf},UN,0,${def}_${cf},IF");
+		}
+	}
+
+	push (@ret,
+		"CDEF:nice_acc=syst_avg_notnull,wait_avg_notnull,user_avg_notnull,nice_avg_notnull,+,+,+",
+		"CDEF:user_acc=syst_avg_notnull,wait_avg_notnull,user_avg_notnull,+,+",
+		"CDEF:wait_acc=syst_avg_notnull,wait_avg_notnull,+",
+		"CDEF:syst_acc=syst_avg_notnull");
+
+	push (@ret, grep { $_ !~ m/^C?DEF/ } (@{$GraphDefs->{'cpu'}}));
+
+	return (@ret);
+}
+
+sub output_graph_ping
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/ping-$inst.rrd:ping:AVERAGE",
+			"DEF:min_$i=$AbsDir/ping-$inst.rrd:ping:MIN",
+			"DEF:max_$i=$AbsDir/ping-$inst.rrd:ping:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+
+		if (length ($inst) > 15)
+		{
+			$inst = substr ($inst, 0, 12) . '...';
+		}
+		else
+		{
+			$inst = sprintf ('%-15s', $inst);
+		}
+
+		push (@ret,
+			"LINE1:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%4.1lf ms Min,",
+			"GPRINT:avg_$i:AVERAGE:%4.1lf ms Avg,",
+			"GPRINT:max_$i:MAX:%4.1lf ms Max,",
+			"GPRINT:avg_$i:LAST:%4.1lf ms Last\\l");
+	}
+
+	return (@ret);
+}
+
+sub output_graph
+{
+	die unless (defined ($GraphDefs->{$Type}));
+
+	my $host;
+	my @cmd = ();
+	my $file = $AbsDir . '/';
+	my $files = get_all_files ($AbsDir);
+
+	#
+	# get hostname
+	#
+	if ($RelDir =~ m#([^/]+)$#)
+	{
+		$host = $1;
+	}
+	else
+	{
+		$host = $Config->{'HostName'};
+	}
+
+	#
+	# get timespan
+	#
+	if ($TimeSpan =~ m/(\d+)/)
+	{
+		$TimeSpan = -1 * int ($1);
+	}
+	else
+	{
+		my %t = (hour => -3600, day => -86400, week => -604800, month => -2678400, year => -31622400);
+		die unless (defined ($t{$TimeSpan}));
+		$TimeSpan = $t{$TimeSpan};
+	}
+
+	if (scalar (@{$files->{$Type}}) == 1)
+	{
+		$Inst = $files->{$Type}[0];
+	}
+
+	push (@cmd, '-', '-a', 'PNG', '-s', $TimeSpan);
+	push (@cmd, @{$GraphArgs->{$Type}}) if (defined ($GraphArgs->{$Type}));
+
+	for (qw(Back ShadeA ShadeB Font Canvas Grid MGrid Frame Arrow))
+	{
+		push (@cmd, '-c', uc ($_) . '#' . $Config->{'Colors'}{$_});
+	}
+
+	if ((length ($Inst) == 0) and (ref ($GraphMulti->{$Type}) eq 'CODE'))
+	{
+		push (@cmd, $GraphMulti->{$Type}->(@{$files->{$Type}}));
+	}
+	else
+	{
+		if (length ("$Inst"))
+		{
+			$file .= "$Type-$Inst.rrd";
+		}
+		else
+		{
+			$file .= "$Type.rrd";
+		}
+
+		die ("File not found: $file") unless (-e $file);
+
+		push (@cmd, @{$GraphDefs->{$Type}});
+	}
+
+	for (@cmd)
+	{
+		$_ =~ s/{file}/$file/g;
+		$_ =~ s/{host}/$host/g;
+		$_ =~ s/{inst}/$Inst/g;
+		$_ =~ s/{type}/$Type/g;
+	}
+
+	$| = 1;
+
+	print STDOUT <<HEADER if (defined ($ENV{'GATEWAY_INTERFACE'}));
+Content-Type: image/png
+Cache-Control: no-cache
+
+HEADER
+
+	if (1)
+	{
+		my $fh;
+		open ($fh, ">/tmp/collection.log") or die ("open: $!");
+		flock ($fh, LOCK_EX) or die ("flock: $!");
+
+		print $fh join ("\n\t", @cmd) . "\n";
+
+		close ($fh);
+	}
+
+	RRDs::graph (@cmd);
+
+	die ('RRDs::error: ' . RRDs::error ()) if (RRDs::error ());
+}
+
+sub output_page
+{
+	my $files = get_all_files ($AbsDir);
+	my $dirs  = get_all_dirs  ($AbsDir);
+
+	print STDOUT <<HEADER if (defined ($ENV{'GATEWAY_INTERFACE'}));
+Content-Type: text/html
+Cache-Control: no-cache
+
+<html>
+	<head>
+		<title>Collection: $RelDir</title>
+		<style type="text/css">
+			img { border: none; display: block; }
+		</style>
+	</head>
+
+	<body>
+HEADER
+
+	my $MySelf = defined ($ENV{'GATEWAY_INTERFACE'}) ? $ENV{'SCRIPT_NAME'} : $0;
+
+	if ((length ($Type) != 0) and (length ($Inst) == 0) and (ref ($GraphMulti->{$Type}) eq 'CODE') and (scalar (@{$files->{$Type}}) > 1))
+	{
+		print qq(\t\t<div><a href="$MySelf$RelDir">Go up</a></div>\n);
+
+		print "\t\t<ul>\n";
+		for (@{$files->{$Type}})
+		{
+			print qq(\t\t\t<li><a href="$MySelf$RelDir/$Type/$_">$_</a></li>\n);
+		}
+		print <<HTML;
+		</ul>
+
+		<h3>Daily</h3>
+		<div><img src="$MySelf$RelDir/$Type/day" /></div>
+		<h3>Weekly</h3>
+		<div><img src="$MySelf$RelDir/$Type/week" /></div>
+		<h3>Monthly</h3>
+		<div><img src="$MySelf$RelDir/$Type/month" /></div>
+		<h3>Yearly</h3>
+		<div><img src="$MySelf$RelDir/$Type/year" /></div>
+HTML
+	}
+	elsif (length ($Type) != 0)
+	{
+		my $ext = length ($Inst) ? "$Type/$Inst" : $Type;
+
+		if ((ref ($GraphMulti->{$Type}) eq 'CODE') and (scalar (@{$files->{$Type}}) > 1))
+		{
+			print qq(<div><a href="$MySelf$RelDir/$Type">Go up</a></div>\n);
+		}
+		else
+		{
+			print qq(<div><a href="$MySelf$RelDir">Go up</a></div>\n);
+		}
+
+		print <<HTML;
+		<h3>Daily</h3>
+		<div><img src="$MySelf$RelDir/$ext/day" /></div>
+		<h3>Weekly</h3>
+		<div><img src="$MySelf$RelDir/$ext/week" /></div>
+		<h3>Monthly</h3>
+		<div><img src="$MySelf$RelDir/$ext/month" /></div>
+		<h3>Yearly</h3>
+		<div><img src="$MySelf$RelDir/$ext/year" /></div>
+HTML
+	}
+	else
+	{
+		if ($RelDir)
+		{
+			my ($up) = $RelDir =~ m#(.*)/[^/]+$#;
+			print qq(\t\t<div><a href="$MySelf$up">Go up</a></div>\n);
+		}
+
+		if (@$dirs)
+		{
+			print "<ul>\n";
+			for (@$dirs)
+			{
+				print qq(<li>$AbsDir/<a href="$MySelf$RelDir/$_">$_</a></li>\n);
+			}
+			print "</ul>\n";
+		}
+
+		for (sort (keys %$files))
+		{
+			my $type = $_;
+
+			if (ref ($GraphMulti->{$type}) eq 'CODE')
+			{
+				print qq(\t\t<a href="$MySelf$RelDir/$type" />),
+				qq(<img src="$MySelf$RelDir/$type/day" /></a>\n);
+				next;
+			}
+
+			for (@{$files->{$type}})
+			{
+				my $inst = "$_";
+
+				if (length ($inst))
+				{
+					print qq(\t\t<a href="$MySelf$RelDir/$type/$inst" />),
+					qq(<img src="$MySelf$RelDir/$type/$inst/day" /></a>\n);
+				}
+				else
+				{
+					print qq(\t\t<a href="$MySelf$RelDir/$type" />),
+					qq(<img src="$MySelf$RelDir/$type/day" /></a>\n);
+				}
+			}
+		}
+	}
+
+	print STDOUT <<FOOTER if (defined ($ENV{'GATEWAY_INTERFACE'}));
+	</body>
+</html>
+FOOTER
+}
+
+sub output_xml
+{
+	my $files = get_all_files ();
+
+	print STDOUT <<HEADER if (defined ($ENV{'GATEWAY_INTERFACE'}));
+Content-Type: text/xml
+Cache-Control: no-cache
+
+HEADER
+	print STDOUT pl2xml ($files);
+}
+
+sub read_config
+{
+	my $file = @_ ? shift : '/etc/collection.conf';
+	my $conf;
+	my $fh;
+
+#	if (open ($fh, "< $file"))
+#	{
+#		my $xml;
+#		local $/ = undef;
+#		$xml = <$fh>;
+#
+#		eval
+#		{
+#			$conf = xml2pl ($xml);
+#		};
+#		close ($fh);
+#	}
+
+	if (!$conf)
+	{
+		return ({
+				Colors =>
+				{
+					Back	=> 'FFFFFF',
+					ShadeA	=> 'FFFFFF',
+					ShadeB	=> 'FFFFFF',
+					Font	=> '000000',
+					Canvas	=> 'F5F5F5',
+					Grid	=> 'D0D0D0',
+					MGrid	=> 'A0A0A0',
+					Frame	=> '646464',
+					Arrow	=> 'FF0000',
+
+					FullRed		=> 'FF0000',
+					FullBlue	=> '0000FF',
+					FullGreen	=> '00E000',
+					FullYellow	=> 'F0A000',
+					FullCyan	=> '00A0FF',
+					FullMagenta	=> 'A000FF',
+					Alpha		=> 0.25,
+					HalfRed		=> 'F8B8B8',
+					HalfBlue	=> 'B8B8F8',
+					HalfGreen	=> 'B8F0B8',
+					HalfYellow	=> 'F4F4B8'
+				},
+				Directory => '/var/lib/collectd',
+				HostName  => (defined ($ENV{'SERVER_NAME'}) ? $ENV{'SERVER_NAME'} : 'localhost')
+			});
+	}
+	else
+	{
+		return ($conf);
+	}
+}
+
+sub parse_pathinfo
+{
+	my @info = @_;
+
+	$AbsDir = $Config->{'Directory'};
+	$RelDir = '';
+
+	while (@info and -d $AbsDir . '/' . $Info[0])
+	{
+		my $new = shift (@info);
+		next if ($new =~ m/^\./);
+
+		$AbsDir .= '/' . $new;
+		$RelDir .= '/' . $new;
+	}
+
+	$Type = '';
+	$Inst = '';
+	$TimeSpan = '';
+
+	confess ("parse_pathinfo: too many elements in pathinfo") if (scalar (@info) > 3);
+	return unless (@info);
+
+	$Type = shift (@info);
+	return unless (@info);
+
+	if ($info[-1] =~ m/^(hour|day|week|month|year)$/i)
+	{
+		$TimeSpan = pop (@info);
+	}
+
+	$Inst = shift (@info) if (@info);
+
+	confess ("unrecognized elements in pathinfo") if (@info);
+}
+
+sub get_all_files
+{
+	my $dir = @_ ? shift : $Config->{'Directory'};
+	my $hash = {};
+	my $dh;
+
+	if (opendir ($dh, $dir))
+	{
+		while (my $thing = readdir ($dh))
+		{
+			next if ($thing =~ m/^\./);
+
+			my $type;
+			my $inst;
+
+			if ($thing =~ m/^(\w+)-([\w\-\.]+)\.rrd$/)
+			{
+				$type = $1;
+				$inst = $2;
+			}
+			elsif ($thing =~ m/^(\w+)\.rrd$/)
+			{
+				$type = $1;
+				$inst = '';
+			}
+			else
+			{
+				next;
+			}
+
+			$hash->{$type} = [] unless (defined ($hash->{$type}));
+			push (@{$hash->{$type}}, $inst);
+		}
+
+		closedir ($dh);
+	}
+
+	return ($hash);
+}
+
+sub get_all_dirs
+{
+	my $dir = @_ ? shift : $Config->{'Directory'};
+	my @ret = ();
+	my $dh;
+
+	if (opendir ($dh, $dir))
+	{
+		while (my $thing = readdir ($dh))
+		{
+			next if ($thing =~ m/^\./);
+
+			next if (!-d "$dir/$thing");
+
+			push (@ret, $thing);
+		}
+
+		closedir ($dh);
+	}
+
+	return (@ret) if (wantarray ());
+	return (\@ret);
+}
+
+sub color_hex2rgb
+{
+	my $color = shift;
+
+	my ($red, $green, $blue) = map { ord (pack ("H2", $_)) } ($color =~ m/([A-Fa-f0-9]{2})/g);
+	#print STDERR "$color -> rgb($red,$green,$blue)\n";
+
+	return ($red, $green, $blue);
+}
+
+sub color_rgb2hex
+{
+	croak unless (scalar (@_) == 3);
+	
+	my ($red, $green, $blue) = @_;
+
+	my $ret = sprintf ("%02X%02X%02X", $red, $green, $blue);
+	#print STDERR "rgb($red,$green,$blue) -> $ret\n";
+
+	return ($ret);
+}
+
+sub color_calculate_transparent
+{
+	my $alpha = shift;
+	my $canvas = [color_hex2rgb (shift)];
+	my @colors = map { [color_hex2rgb ($_)] } (@_);
+
+	if (($alpha < 0.0) or ($alpha > 1.0))
+	{
+		$alpha = 1.0;
+	}
+
+	if ($alpha == 0.0)
+	{
+		return (color_rgb2hex (@$canvas));
+	}
+	if ($alpha == 1.0)
+	{
+		return (color_rgb2hex (@{$colors[-1]}));
+	}
+
+	my $ret = _color_calculate_transparent ($alpha, $canvas, @colors);
+
+	return (color_rgb2hex (@$ret));
+}
+
+sub _color_calculate_transparent
+{
+	my $alpha = shift;
+	my $canvas = shift;
+	my $color = shift;
+	my @colors = @_ ? shift : ();
+	my $ret = [0, 0, 0];
+
+	for (my $i = 0; $i < 3; $i++)
+	{
+		$ret->[$i] = ($alpha * $color->[$i]) + ((1 - $alpha) * $canvas->[$i]);
+	}
+
+	return (_color_calculate_transparent ($alpha, $ret, @colors)) if (@colors);
+	return ($ret);
+}
+
+sub get_n_colors
+{
+	my $num = shift;
+	my @ret = ();
+
+	for (my $i = 0; $i < $num; $i++)
+	{
+		my $pos = 6 * $i / $num;
+		my $n = int ($pos);
+		my $p = $pos - $n;
+		my $q = 1 - $p;
+
+		my $red   = 0;
+		my $green = 0;
+		my $blue  = 0;
+
+		if ($n == 0)
+		{
+			$red  = 255;
+			$blue = 255 * $p;
+		}
+		elsif ($n == 1)
+		{
+			$red  = 255 * $q;
+			$blue = 255;
+		}
+		elsif ($n == 2)
+		{
+			$green = 255 * $p;
+			$blue  = 255;
+		}
+		elsif ($n == 3)
+		{
+			$green = 255;
+			$blue  = 255 * $q;
+		}
+		elsif ($n == 4)
+		{
+			$red   = 255 * $p;
+			$green = 255;
+		}
+		elsif ($n == 5)
+		{
+			$red   = 255;
+			$green = 255 * $q;
+		}
+		else { die; }
+
+		push (@ret, sprintf ("%02x%02x%02x", $red, $green, $blue));
+	}
+
+	return (@ret);
+}

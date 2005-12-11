@@ -148,6 +148,14 @@ collectd_LDADD += "-dlopen" traffic.la
 collectd_DEPENDENCIES += traffic.la
 endif
 
+if BUILD_MODULE_USERS
+pkglib_LTLIBRARIES += users.la
+users_la_SOURCES = users.c users.h
+users_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" users.la
+collectd_DEPENDENCIES += users.la
+endif
+
 man_MANS = collectd.1
 #collectd_1_SOURCES = collectd.pod
 

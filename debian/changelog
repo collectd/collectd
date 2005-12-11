@@ -1,0 +1,117 @@
+collectd (3.5.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Wed, 07 Dec 2005 11:50:17 +0200
+
+collectd (3.4.0-1) unstable; urgency=low
+
+  * New upstream version
+  * The package has been split up into one binary package and many many plugin
+    packages
+
+ -- Florian Forster <octo@verplant.org>  Sat, 26 Nov 2005 13:14:22 +0200
+
+collectd (3.3.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sat, 05 Nov 2005 12:02:50 +0200
+
+collectd (3.2.0-1) unstable; urgency=low
+
+  * New upstream version
+  * Problems with the debian init.d file have been fixed.
+  * Added `processes.so*' to the main package
+
+ -- Florian Forster <octo@verplant.org>  Tue, 25 Oct 2005 09:34:29 +0200
+
+collectd (3.1.0-1) unstable; urgency=low
+
+  * New upstream version
+  * Added package `collectd-hddtemp'
+
+ -- Florian Forster <octo@verplant.org>  Fri, 14 Oct 2005 19:32:59 +0200
+
+collectd (3.0.0-1) unstable; urgency=low
+
+  * New upstream version
+  * Split the package into `collectd' and `collectd-sensors'
+
+ -- Florian Forster <octo@verplant.org>  Fri, 30 Sep 2005 14:15:15 +0200
+
+collectd (2.1.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Fri, 16 Sep 2005 21:24:10 +0200
+
+collectd (2.0.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sat, 10 Sep 2005 16:11:37 +0200
+
+collectd (1.8.1-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Mon, 01 Sep 2005 21:27:16 +0200
+
+collectd (1.8.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Mon, 29 Aug 2005 12:09:20 +0200
+
+collectd (1.7.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sun, 25 Aug 2005 10:50:08 +0200
+
+collectd (1.6.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sun, 21 Aug 2005 19:03:02 +0200
+
+collectd (1.5.1-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sun, 17 Jul 2005 11:56:50 +0200
+
+collectd (1.5-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sun, 17 Jul 2005 11:56:50 +0200
+
+collectd (1.4.2-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Mon, 11 Jul 2005 10:40:20 +0200
+
+collectd (1.4.1-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Fri, 10 Jul 2005 11:34:45 +0200
+
+collectd (1.4-1) unstable; urgency=low
+
+  * New upstream version
+  * Added examples from the contrib/ directory
+  * Added /etc/default/collectd for easy configuration
+  * Added libsensors3 to the dependencies
+
+ -- Florian Forster <octo@verplant.org>  Fri,  9 Jul 2005 01:01:32 +0200
+
+collectd (1.3-1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Florian Forster <octo@verplant.org>  Fri,  8 Jul 2005 19:05:16 +0200
+

@@ -56,6 +56,9 @@ Features
     - Traffic
       (In/Outbound traffic on the interfaces)
 
+    - Users
+      (Currently logged in users)
+
   * Performance: Running as a daemon collectd doesn't spend much time in
     startup. Since collectd links against libping, librrd and libsensors it
     doesn't need to start any other processes.
