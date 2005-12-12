@@ -1,0 +1,5 @@
+For version 3.*:
+* Port nfs module to solaris
+* Port tape module to Linux
+* Maybe look into porting the serial module
+* Ping bug (disabled)
