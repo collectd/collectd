@@ -46,16 +46,16 @@ collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
 
-if BUILD_MODULE_QUOTA
-pkglib_LTLIBRARIES += quota.la
-quota_la_SOURCES = quota_plugin.c quota_plugin.h
-quota_la_SOURCES += quota_fs.c quota_fs.h
-quota_la_SOURCES += quota_mnt.c quota_mnt.h
-quota_la_LDFLAGS = -module -avoid-version
-quota_la_CFLAGS = -Werror
-collectd_LDADD += "-dlopen" quota.la
-collectd_DEPENDENCIES += quota.la
-endif
+#if BUILD_MODULE_QUOTA
+#pkglib_LTLIBRARIES += quota.la
+#quota_la_SOURCES = quota_plugin.c quota_plugin.h
+#quota_la_SOURCES += quota_fs.c quota_fs.h
+#quota_la_SOURCES += quota_mnt.c quota_mnt.h
+#quota_la_LDFLAGS = -module -avoid-version
+#quota_la_CFLAGS = -Werror
+#collectd_LDADD += "-dlopen" quota.la
+#collectd_DEPENDENCIES += quota.la
+#endif
 
 if BUILD_MODULE_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la

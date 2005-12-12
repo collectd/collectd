@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 3.5.alpha1-quota)
+AC_INIT(collectd, 3.5.alpha2)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -400,26 +400,6 @@ then
 fi
 AM_CONDITIONAL(BUILD_MODULE_DISK, test "x$enable_disk" = "xyes")
 
-AC_ARG_ENABLE(quota, AC_HELP_STRING([--enable-quota],
-	[Enable quota statistics (experimental, disabled by default)]),
-	[], [enable_quota="no"])
-if test "x$enable_quota" = "xno"
-then
-	collect_quota=0
-else
-	if test "x$enable_quota" = "xyes"
-	then
-		collect_quota=1
-	else
-		AC_MSG_NOTICE([Please specify either --enable-quota or --disable-quota; Enabling quota statistics.])
-		collect_quota=1
-		enable_quota="yes"
-	fi
-fi
-AC_DEFINE_UNQUOTED(COLLECT_QUOTA, [$collect_quota],
-	[Wether or not to collect quota statistics])
-AM_CONDITIONAL(BUILD_MODULE_QUOTA, test "x$enable_quota" = "xyes")
-
 AC_ARG_ENABLE(hddtemp, AC_HELP_STRING([--disable-hddtemp], [Disable hdd temperature statistics]),, [enable_hddtemp="yes"])
 if test "x$enable_hddtemp" = "xno"
 then
@@ -501,6 +481,26 @@ then
 	AC_DEFINE(COLLECT_PROCESSES, 0, [Wether or not to collect processes statistics])
 fi
 AM_CONDITIONAL(BUILD_MODULE_PROCESSES, test "x$enable_processes" = "xyes")
+
+#AC_ARG_ENABLE(quota, AC_HELP_STRING([--enable-quota],
+#	[Enable quota statistics (experimental, disabled by default)]),
+#	[], [enable_quota="no"])
+#if test "x$enable_quota" = "xno"
+#then
+#	collect_quota=0
+#else
+#	if test "x$enable_quota" = "xyes"
+#	then
+#		collect_quota=1
+#	else
+#		AC_MSG_NOTICE([Please specify either --enable-quota or --disable-quota; Enabling quota statistics.])
+#		collect_quota=1
+#		enable_quota="yes"
+#	fi
+#fi
+#AC_DEFINE_UNQUOTED(COLLECT_QUOTA, [$collect_quota],
+#	[Wether or not to collect quota statistics])
+#AM_CONDITIONAL(BUILD_MODULE_QUOTA, test "x$enable_quota" = "xyes")
 
 AC_ARG_ENABLE(sensors, AC_HELP_STRING([--disable-sensors], [Disable lm_sensors statistics]),, [enable_sensors=$with_lm_sensors])
 if test "x$enable_sensors" != "xno"
@@ -617,7 +617,6 @@ Configuration:
     cpu . . . . . . . . $enable_cpu
     cpufreq . . . . . . $enable_cpufreq
     disk  . . . . . . . $enable_disk
-    quota . . . . . . . $enable_quota (experimental)
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
     memory  . . . . . . $enable_memory
