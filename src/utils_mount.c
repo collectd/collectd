@@ -26,8 +26,6 @@
 #include "common.h"
 #if HAVE_XFS_XQM_H
 # include <xfs/xqm.h>
-#define xfs_mem_dqinfo  fs_quota_stat
-#define Q_XFS_GETQSTAT  Q_XGETQSTAT
 #define XFS_SUPER_MAGIC_STR "XFSB"
 #define XFS_SUPER_MAGIC2_STR "BSFX"
 #endif
@@ -36,7 +34,9 @@
 
 
 
-/* *** *** ***   local functions   *** *** *** */
+/* *** *** *** ********************************************* *** *** *** */
+/* *** *** *** *** *** ***   private functions   *** *** *** *** *** *** */
+/* *** *** *** ********************************************* *** *** *** */
 
 
 
@@ -46,8 +46,6 @@
 #define DEVLABELDIR     "/dev"
 #define UUID   1
 #define VOL    2
-
-#define AUTOFS_DIR_MAX 64       /* Maximum number of autofs directories */
 
 static struct uuidCache_s {
 	struct uuidCache_s *next;
@@ -317,26 +315,6 @@ get_device_name(const char *item)
 	return rc;
 }
 
-#if HAVE_LISTMNTENT
-static void
-cu_mount_listmntent(struct tabmntent *mntlist, cu_mount_t **list)
-{
-	struct *p;
-	struct mntent *mnt;
-
-	for(p = mntlist; p; p = p->next) {
-		mnt = p->ment;
-		*list = smalloc(sizeof(cu_mount_t));
-		list->device = strdup(mnt->mnt_fsname);
-		list->name = strdup(mnt->mnt_dir);
-		list->type = strdup(mnt->mnt_type);
-		list->next = NULL;
-		list = &(ist->next);
-	}
-	freemntlist(mntlist);
-}
-#endif /* HAVE_LISTMNTENT */
-
 
 
 #if HAVE_GETVFSENT
@@ -348,8 +326,289 @@ cu_mount_getvfsmnt(FILE *mntf, cu_mount_t **list)
 }
 #endif /* HAVE_GETVFSENT */
 
+
+
+#if HAVE_LISTMNTENT
+static cu_mount_t *
+cu_mount_listmntent(struct tabmntent *mntlist, cu_mount_t **list)
+{
+	cu_mount_t *last = *list;
+	struct tabmntent *p;
+	struct mntent *mnt;
+
+	for(p = mntlist; p; p = p->next) {
+		char *loop = NULL, *device = NULL;
+
+		mnt = p->ment;
+		loop = cu_mount_getoptionvalue(mnt->mnt_opts, "loop=");
+		if(loop == NULL) {   /* no loop= mount */
+			device = get_device_name(mnt->mnt_fsname);
+			if(device == NULL) {
+				DBG("can't get devicename for fs (%s) %s (%s)"
+					": ignored", mnt->mnt_type,
+					mnt->mnt_dir, mnt->mnt_fsname);
+				continue;
+			}
+		} else {
+			device = loop;
+		}
+		if(*list == NULL) {
+			*list = (cu_mount_t *)smalloc(sizeof(cu_mount_t));
+			last = *list;
+		} else {
+			while(last->next != NULL) { /* is last really last? */
+				last = last->next;
+			}
+			last->next = (cu_mount_t *)smalloc(sizeof(cu_mount_t));
+			last = last->next;
+		}
+		last->dir = sstrdup(mnt->mnt_dir);
+		last->spec_device = sstrdup(mnt->mnt_fsname);
+		last->device = device;
+		last->type = sstrdup(mnt->mnt_type);
+		last->options = sstrdup(mnt->mnt_opts);
+		last->next = NULL;
+	} /* for(p = mntlist; p; p = p->next) */
+
+	return(last);
+} /* static cu_mount_t *cu_mount_listmntent(struct tabmntent *mntlist,
+	cu_mount_t **list) */
+#endif /* HAVE_LISTMNTENT */
+
+
+
+#if HAVE_GETMNTENT
+static cu_mount_t *
+cu_mount_getmntent(FILE *mntf, cu_mount_t **list)
+{
+	cu_mount_t *last = *list;
+#if HAVE_GETMNTENT1
+	struct mntent *mnt = NULL;
+#endif
+#if HAVE_GETMNTENT2
+	struct mntent real_mnt;
+	struct mntent *mnt = &real_mnt;
+#endif
+
+#if HAVE_GETMNTENT1
+	while((mnt = getmntent(mntf)) != NULL) {
+#endif
+#if HAVE_GETMNTENT2
+	while(getmntent(mntf, &real_mnt) == 0) {
+#endif
+		char *loop = NULL, *device = NULL;
+
+#if 0
+		DBG("------------------ BEGIN");
+		DBG("mnt->mnt_fsname %s", mnt->mnt_fsname);
+		DBG("mnt->mnt_dir    %s", mnt->mnt_dir);
+		DBG("mnt->mnt_type   %s", mnt->mnt_type);
+		DBG("mnt->mnt_opts   %s", mnt->mnt_opts);
+		DBG("mnt->mnt_freq   %d", mnt->mnt_freq);
+		DBG("mnt->mnt_passno %d", mnt->mnt_passno);
+#endif
+
+		loop = cu_mount_getoptionvalue(mnt->mnt_opts, "loop=");
+		if(loop == NULL) {   /* no loop= mount */
+			device = get_device_name(mnt->mnt_fsname);
+			if(device == NULL) {
+				DBG("can't get devicename for fs (%s) %s (%s)"
+					": ignored", mnt->mnt_type,
+					mnt->mnt_dir, mnt->mnt_fsname);
+				continue;
+			}
+		} else {
+			device = loop;
+		}
+
+#if 0
+		DBG("device: %s", device);
+		DBG("------------------ END");
+#endif
+		if(*list == NULL) {
+			*list = (cu_mount_t *)smalloc(sizeof(cu_mount_t));
+			last = *list;
+		} else {
+			while(last->next != NULL) { /* is last really last? */
+				last = last->next;
+			}
+			last->next = (cu_mount_t *)smalloc(sizeof(cu_mount_t));
+			last = last->next;
+		}
+		last->dir = sstrdup(mnt->mnt_dir);
+		last->spec_device = sstrdup(mnt->mnt_fsname);
+		last->device = device;
+		last->type = sstrdup(mnt->mnt_type);
+		last->options = sstrdup(mnt->mnt_opts);
+		last->next = NULL;
+#if HAVE_GETMNTENT2
+	} /* while(getmntent(mntf, &real_mnt) == 0) */
+#endif
+#if HAVE_GETMNTENT1
+	} /* while((mnt = getmntent(mntf)) != NULL) */
+#endif
+
+	return last;
+} /* static cu_mount_t *cu_mount_getmntent(FILE *mntf, cu_mount_t **list) */
+#endif /* HAVE_GETMNTENT */
+
+
+
+/* *** *** *** ******************************************** *** *** *** */
+/* *** *** *** *** *** ***   public functions   *** *** *** *** *** *** */
+/* *** *** *** ******************************************** *** *** *** */
+
+
+
+cu_mount_t *
+cu_mount_getlist(cu_mount_t **list)
+{
+	cu_mount_t *last = NULL;
+
+	/* see lib/mountlist.c of coreutils for all (ugly) details! */
+
+/*
+   there are two implementations of getmntent():
+     * one argument getmntent:
+           FILE *setmntent(const char *filename, const char *type);
+           struct mntent *getmntent(FILE *fp);
+           int endmntent(FILE *fp);
+     * two argument getmntent:
+           FILE *fopen(const char *path, const char *mode);
+           int getmntent(FILE *fp, struct mnttab *mnt);
+           int fclose(FILE *fp);
+   and a third (linux/gnu style) version called getmntent_r, which is not used
+   here (enough trouble with the two versions above).
+*/
+#if HAVE_GETMNTENT
+# if HAVE_GETMNTENT1
+#  define setmntent setmntent
+#  define endmntent endmntent
+# else
+#  if HAVE_GETMNTENT2
+#   define setmntent fopen
+#   define endmntent fclose
+#  else
+#   error HAVE_GETMNTENT defined, but neither HAVE_GETMNTENT1 nor HAVE_GETMNTENT2
+#  endif /* HAVE_GETMNTENT2 */
+# endif /* HAVE_GETMNTENT1 */
+#endif /* HAVE_GETMNTENT */
+
+	/* the indentation is wrong. is there a better way to do this? */
+
+#if HAVE_GETMNTENT && defined(_PATH_MOUNTED)
+	{
+	FILE *mntf = NULL;
+	if((mntf = setmntent(_PATH_MOUNTED, "r")) == NULL) {
+		DBG("opening %s failed: %s", _PATH_MOUNTED, strerror(errno));
+#endif
+#if HAVE_GETMNTENT && defined(MNT_MNTTAB)
+	{
+	FILE *mntf = NULL;
+	if((mntf = setmntent(MNT_MNTTAB, "r")) == NULL) {
+		DBG("opening %s failed: %s", MNT_MNTTAB, strerror(errno));
+#endif
+#if HAVE_GETMNTENT && defined(MNTTABNAME)
+	{
+	FILE *mntf = NULL;
+	if((mntf = setmntent(MNTTABNAME, "r")) == NULL) {
+		DBG("opening %s failed: %s", MNTTABNAME, strerror(errno));
+#endif
+#if HAVE_LISTMNTENT
+	{
+	struct tabmntent *mntlist;
+	if(listmntent(&mntlist, KMTAB, NULL, NULL) < 0) {
+		DBG("calling listmntent() failed: %s", strerror(errno));
+#endif
+#if HAVE_GETVFSENT && defined(VFSTAB)
+	/* this is as bad as the next one, read next comment */
+	{
+	FILE *mntf = NULL;
+	if((mntf = fopen(VFSTAB, "r")) == NULL) {
+		DBG("opening %s failed: %s", VFSTAB, strerror(errno));
+#endif
+#if HAVE_GETMNTENT && defined(_PATH_MNTTAB)
+	/* _PATH_MNTTAB is usually /etc/fstab and so this should be really
+	   the very last thing to try, because it does not provide a list
+	   of currently mounted filesystems... */
+	{
+	FILE *mntf = NULL;
+	if((mntf = setmntent(_PATH_MNTTAB, "r")) == NULL) {
+		DBG("opening %s failed: %s", _PATH_MNTTAB, strerror(errno));
+#endif
+
+	/* give up */
+	DBG("failed get local mountpoints");
+	return(NULL);
+
+#if HAVE_GETMNTENT && defined(_PATH_MNTTAB)
+	} else { last = cu_mount_getmntent(mntf, list); }
+	(void)endmntent(mntf);
+	}
+#endif
+#if HAVE_GETVFSENT && defined(VFSTAB)
+	} else { last = cu_mount_getvfsmnt(mntf, list); }
+	(void)fclose(mntf);
+	}
+#endif
+#if HAVE_LISTMNTENT
+	} else { last = cu_mount_listmntent(mntlist, list); }
+	freemntlist(mntlist);
+	}
+#endif
+#if HAVE_GETMNTENT && defined(MNTTABNAME)
+	} else { last = cu_mount_getmntent(mntf, list); }
+	(void)endmntent(mntf);
+	}
+#endif
+#if HAVE_GETMNTENT && defined(MNT_MNTTAB)
+	} else { last = cu_mount_getmntent(mntf, list); }
+	(void)endmntent(mntf);
+	}
+#endif
+#if HAVE_GETMNTENT && defined(_PATH_MOUNTED)
+	} else { last = cu_mount_getmntent(mntf, list); }
+	(void)endmntent(mntf);
+	}
+#endif
+	return(last);
+} /* cu_mount_t *cu_mount_getlist(cu_mount_t **list) */
+
+
+
+void
+cu_mount_freelist(cu_mount_t *list)
+{
+	cu_mount_t *l = list, *p = NULL;
+
+	while(l != NULL) {
+		while(l->next != NULL) {
+			p = l;
+			l = l->next;
+		}
+		if(p != NULL) {
+			p->next = NULL;
+		}
+		sfree(l->dir);
+		sfree(l->spec_device);
+		sfree(l->device);
+		sfree(l->type);
+		sfree(l->options);
+		p = NULL;
+		if(l != list) {
+			sfree(l);
+			l = list;
+		} else {
+			sfree(l);
+			l = NULL; /* done by sfree already */
+		}
+	} /* while(l != NULL) */
+} /* void cu_mount_freelist(cu_mount_t *list) */
+
+
+
 char *
-cu_mount_checkmountopt(char *line, char *keyword, int full)
+cu_mount_checkoption(char *line, char *keyword, int full)
 {
 	char *line2, *l2;
 	int l = strlen(keyword);
@@ -386,14 +645,16 @@ cu_mount_checkmountopt(char *line, char *keyword, int full)
 
 	free(line2);
 	return NULL;
-} /* char *cu_mount_checkmountopt(char *line, char *keyword, int full) */
+} /* char *cu_mount_checkoption(char *line, char *keyword, int full) */
+
+
 
 char *
-cu_mount_getmountopt(char *line, char *keyword)
+cu_mount_getoptionvalue(char *line, char *keyword)
 {
 	char *r;
 
-	r = cu_mount_checkmountopt(line, keyword, 0);
+	r = cu_mount_checkoption(line, keyword, 0);
 	if(r != NULL) {
 		char *p;
 		r += strlen(keyword);
@@ -414,178 +675,9 @@ cu_mount_getmountopt(char *line, char *keyword)
 		}
 	}
 	return r;
-} /* char *cu_mount_getmountopt(char *line, char *keyword) */
-
-#if HAVE_GETMNTENT
-static cu_mount_t *
-cu_mount_getmntent(FILE *mntf, cu_mount_t **list)
-{
-	cu_mount_t *last = *list;
-	struct mntent *mnt;
-
-#if HAVE_GETMNTENT1
-	while((mnt = getmntent(mntf)) != NULL) {
-#endif /* HAVE_GETMNTENT1 */
-		char *loop = NULL, *device = NULL;
-
-#if 1
-		DBG("------------------ BEGIN");
-		DBG("mnt->mnt_fsname %s", mnt->mnt_fsname);
-		DBG("mnt->mnt_dir    %s", mnt->mnt_dir);
-		DBG("mnt->mnt_type   %s", mnt->mnt_type);
-		DBG("mnt->mnt_opts   %s", mnt->mnt_opts);
-		DBG("mnt->mnt_freq   %d", mnt->mnt_freq);
-		DBG("mnt->mnt_passno %d", mnt->mnt_passno);
-#endif
-
-		loop = cu_mount_getmountopt(mnt->mnt_opts, "loop=");
-		if(loop == NULL) {   /* no loop= mount */
-			device = get_device_name(mnt->mnt_fsname);
-			if(device == NULL) {
-				DBG("can't get devicename for fs (%s) %s (%s)"
-					": ignored", mnt->mnt_type,
-					mnt->mnt_dir, mnt->mnt_fsname);
-				continue;
-			}
-		} else {
-			device = loop;
-		}
-
-#if 1
-		DBG("device          %s", device);
-		DBG("------------------ END");
-#endif
-		if(*list == NULL) {
-			*list = (cu_mount_t *)smalloc(sizeof(cu_mount_t));
-			last = *list;
-		} else {
-			last->next = (cu_mount_t *)smalloc(sizeof(cu_mount_t));
-			last = last->next;
-		}
-		last->dir = sstrdup(mnt->mnt_dir);
-		last->spec_device = sstrdup(mnt->mnt_fsname);
-		last->device = device;
-		last->type = sstrdup(mnt->mnt_type);
-		last->options = sstrdup(mnt->mnt_opts);
-		last->next = NULL;
-	} /* while((mnt = getmntent(mntf)) != NULL) */
-
-	return last;
-} /* static cu_mount_t *cu_mount_getmntent(FILE *mntf, cu_mount_t **list) */
-#endif /* HAVE_GETMNTENT */
+} /* char *cu_mount_getoptionvalue(char *line, char *keyword) */
 
 
-
-cu_mount_t *
-cu_mount_getlist(cu_mount_t **list)
-{
-	cu_mount_t *last = NULL;
-
-	/* yes, i know that the indentation is wrong.
-	   but show me a better way to do this... */
-	/* see lib/mountlist.c of coreutils for all
-	   gory details! */
-#if HAVE_GETMNTENT && defined(_PATH_MOUNTED)
-	{
-	FILE *mntf = NULL;
-	if((mntf = setmntent(_PATH_MOUNTED, "r")) == NULL) {
-		DBG("opening %s failed: %s", _PATH_MOUNTED, strerror(errno));
-#endif
-#if HAVE_GETMNTENT && defined(MNT_MNTTAB)
-	{
-	FILE *mntf = NULL;
-	if((mntf = setmntent(MNT_MNTTAB, "r")) == NULL) {
-		DBG("opening %s failed: %s", MNT_MNTTAB, strerror(errno));
-#endif
-#if HAVE_GETMNTENT && defined(MNTTABNAME)
-	{
-	FILE *mntf = NULL;
-	if((mntf = setmntent(MNTTABNAME, "r")) == NULL) {
-		DBG("opening %s failed: %s", MNTTABNAME, strerror(errno));
-#endif
-#if HAVE_GETMNTENT && defined(_PATH_MNTTAB)
-	{
-	FILE *mntf = NULL;
-	if((mntf = setmntent(_PATH_MNTTAB, "r")) == NULL) {
-		DBG("opening %s failed: %s", _PATH_MNTTAB, strerror(errno));
-#endif
-#if HAVE_GETVFSENT && defined(VFSTAB)
-	{
-	FILE *mntf = NULL;
-	if((mntf = fopen(VFSTAB, "r")) == NULL) {
-		DBG("opening %s failed: %s", VFSTAB, strerror(errno));
-#endif
-#if HAVE_LISTMNTENT
-	{
-	struct tabmntent *mntlist;
-
-	if(listmntent(&mntlist, KMTAB, NULL, NULL) < 0) {
-		DBG("calling listmntent() failed: %s", strerror(errno));
-#endif
-		/* give up */
-		DBG("failed get local mountpoints");
-		return(NULL);
-
-#if HAVE_LISTMNTENT
-	} else { last = cu_mount_listmntent(mntlist, list); }
-	freemntlist(mntlist);
-	}
-#endif
-#if HAVE_GETVFSENT && defined(VFSTAB)
-	} else { last = cu_mount_getvfsmnt(mntf, list); }
-	(void)fclose(mntf);
-	}
-#endif
-#if HAVE_GETMNTENT && defined(_PATH_MNTTAB)
-	} else { last = cu_mount_getmntent(mntf, list); }
-	(void)endmntent(mntf);
-	}
-#endif
-#if HAVE_GETMNTENT && defined(MNTTABNAME)
-	} else { last = cu_mount_getmntent(mntf, list); }
-	(void)endmntent(mntf);
-	}
-#endif
-#if HAVE_GETMNTENT && defined(MNT_MNTTAB)
-	} else { last = cu_mount_getmntent(mntf, list); }
-	(void)endmntent(mntf);
-	}
-#endif
-#if HAVE_GETMNTENT && defined(_PATH_MOUNTED)
-	} else { last = cu_mount_getmntent(mntf, list); }
-	(void)endmntent(mntf);
-	}
-#endif
-	return(last);
-} /* cu_mount_t *cu_mount_getlist(cu_mount_t **list) */
-
-void
-cu_mount_freelist(cu_mount_t *list)
-{
-	cu_mount_t *l = list, *p = NULL;
-
-	while(l != NULL) {
-		while(l->next != NULL) {
-			p = l;
-			l = l->next;
-		}
-		if(p != NULL) {
-			p->next = NULL;
-		}
-		sfree(l->dir);
-		sfree(l->spec_device);
-		sfree(l->device);
-		sfree(l->type);
-		sfree(l->options);
-		sfree(l);
-		p = NULL;
-		if(l != list) {
-			l = list;
-		} else {
-			l = NULL;
-		}
-	} /* while(l != NULL) */
-} /* void cu_mount_freelist(cu_mount_t *list) */
 
 int
 cu_mount_type(const char *type)

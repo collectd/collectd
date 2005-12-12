@@ -1,7 +1,6 @@
 #include "collectd.h"
 
 #include <ltdl.h>
-#include <dirent.h>
 
 #include "plugin.h"
 #include "multicast.h"

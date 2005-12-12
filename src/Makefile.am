@@ -1,5 +1,5 @@
 if BUILD_MODULE_PING
-SUBDIRS = libping
+SUBDIRS = libping .
 endif
 
 sbin_PROGRAMS = collectd

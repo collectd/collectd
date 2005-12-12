@@ -25,7 +25,7 @@
 #ifndef USERS_H
 #define USERS_H 1
 
-#include "config.h"
+#include <config.h>
 
 #if !defined(HAVE_UTMPX_H) || !defined(HAVE_GETUTXENT)
 #undef HAVE_UTMPX_H

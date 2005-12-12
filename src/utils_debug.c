@@ -177,17 +177,17 @@ cu_debug(const char *file, int line, const char *func, const char *format, ...)
 {
 }
 int
-cu_debug_startfile(const char *file, int line, const char *func, char *format, ...)
+cu_debug_startfile(const char *file, int line, const char *func, const char *format, ...)
 {
 	return EXIT_SUCCESS;
 }
 int
-cu_debug_stopfile(const char *file, int line, const char *func, char *format, ...)
+cu_debug_stopfile(const char *file, int line, const char *func, const char *format, ...)
 {
 	return EXIT_SUCCESS;
 }
 int
-cu_debug_resetfile(const char *file, int line, const char *func, char *filename)
+cu_debug_resetfile(const char *file, int line, const char *func, const char *filename)
 {
 	return EXIT_SUCCESS;
 }

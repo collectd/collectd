@@ -23,6 +23,7 @@
 
 #include "common.h"
 #include "utils_debug.h"
+#include "utils_mount.h"
 #include "quota_mnt.h"
 #include "quota_fs.h"
 
@@ -31,6 +32,9 @@
 #endif
 #if HAVE_GRP_H
 # include <grp.h>
+#endif
+#if HAVE_SYS_UCRED_H
+# include <sys/ucred.h>
 #endif
 #if HAVE_SYS_QUOTA_H
 # include <sys/quota.h>
@@ -366,9 +370,6 @@ quota_fs_issupported(const char *fsname)
 	{
 		return EXIT_SUCCESS;
 	} else {
-#if 0
-		DBG("%s filesystem not supported", fsname);
-#endif
 		return EXIT_FAILURE;
 	}
 } /* int quota_fs_issupported(const char *fsname) */
@@ -423,7 +424,7 @@ quota_fs_getquota(quota_t **quota, quota_mnt_t *mnt)
 	quota_t *q = NULL, *qlast = NULL;
 
 	while(m != NULL) {
-		switch(quota_mnt_type(m->m->type)) {
+		switch(cu_mount_type(m->m->type)) {
 		  case QMT_EXT2:
 		  case QMT_EXT3: 
 			qlast = getquota_ext3(&q, m);

@@ -51,21 +51,17 @@ struct _quota_mnt_t {
 	quota_mnt_t *next;
 };
 
-int quota_mnt_type(const char *type);
-
-char *quota_mnt_getmountopt(char *line, char *keyword);
-char *quota_mnt_checkmountopt(char *line, char *keyword, int full);
-
+quota_mnt_t *quota_mnt_getlist(quota_mnt_t **list);
 /*
   DESCRIPTION
 	The quota_mnt_getlist() function creates a list
-	of all mountpoints.
+	of all quota-relevant mountpoints.
 
 	If *list is NULL, a new list is created and *list is
 	set to point to the first entry.
 
-	If *list is set, the list is appended and *list is
-	not changed.
+	If *list is not NULL, the list of mountpoints is appended
+	and *list is not changed.
 
   RETURN VALUE
 	The quota_mnt_getlist() function returns a pointer to
@@ -74,8 +70,13 @@ char *quota_mnt_checkmountopt(char *line, char *keyword, int full);
   NOTES
 	In case of an error, *list is not modified.
 */
-quota_mnt_t *quota_mnt_getlist(quota_mnt_t **list);
+
 void quota_mnt_freelist(quota_mnt_t *list);
+/*
+  DESCRIPTION
+	The quota_mnt_freelist() function free()s all memory
+	allocated by *list and *list itself as well.
+*/
 
 #endif /* !COLLECTD_QUOTA_MNT_H */
 

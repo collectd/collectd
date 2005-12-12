@@ -50,6 +50,7 @@ struct _quota_t {
 int quota_fs_issupported(const char *fsname);
 int quota_fs_isnfs(const char *fsname);
 
+void quota_fs_printquota_dbg(quota_t *quota);
 /*
   DESCRIPTION
 	The quota_fs_printquota_dbg() function prints
@@ -58,8 +59,8 @@ int quota_fs_isnfs(const char *fsname);
 	If debugging is switched off in quota_debug.h
 	then this function does nothing.
 */
-void quota_fs_printquota_dbg(quota_t *quota);
 
+quota_t *quota_fs_getquota(quota_t **quota, quota_mnt_t *m);
 /*
   DESCRIPTION
 	The quota_fs_getquota() function goes through the mount
@@ -78,15 +79,14 @@ void quota_fs_printquota_dbg(quota_t *quota);
   NOTES
 	In case of an error, *quota is not modified.
 */
-quota_t *quota_fs_getquota(quota_t **quota, quota_mnt_t *m);
 
+void quota_fs_freequota(quota_t *quota);
 /*
   DESCRIPTION
 	The quota_fs_freequota() function goes through all entries
 	and frees all allocated memory of all data and structures
 	not NULL.
 */
-void quota_fs_freequota(quota_t *quota);
 
 #endif /* !COLLECTD_QUOTA_FS_H */
 

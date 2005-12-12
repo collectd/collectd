@@ -23,48 +23,12 @@
 
 #include "common.h"
 #include "utils_debug.h"
+#include "utils_mount.h"
 #include "quota_fs.h"
 #include "quota_mnt.h"
 
-
-/* if sthg is changed here also change it in configure.in!!! */
-#if HAVE_MNTENT_H   /* 4.3BSD, SunOS, HP-UX, Dynix, Irix. */
-# include <mntent.h>
-#endif
-#if HAVE_MNTTAB_H   /* SVR2, SVR3. */
-# include <mnttab.h>
-#endif
-#if HAVE_PATHS_H
-# include <paths.h>
-#endif
-#if HAVE_SYS_FS_TYPES_H   /* Ultrix. */
-# include <sys/fs_types.h>
-#endif
-#if HAVE_SYS_MNTENT_H
-# include <sys/mntent.h>
-#endif
-#if HAVE_SYS_MNTTAB_H   /* SVR4. */
-# include <sys/mnttab.h>
-#endif
-#if HAVE_SYS_MOUNT_H   /* 4.4BSD, Ultrix. */
-# include <sys/mount.h>
-#endif
-#if HAVE_SYS_VFSTAB_H
-# include <sys/vfstab.h>
-#endif
 #if HAVE_SYS_QUOTA_H
 # include <sys/quota.h>
-#endif
-#if HAVE_SYS_VFS_H
-# include <sys/vfs.h>
-#endif
-/* END if sthg is changed here also change it in configure.in!!! */
-#if HAVE_XFS_XQM_H
-# include <xfs/xqm.h>
-#define xfs_mem_dqinfo  fs_quota_stat
-#define Q_XFS_GETQSTAT  Q_XGETQSTAT
-#define XFS_SUPER_MAGIC_STR "XFSB"
-#define XFS_SUPER_MAGIC2_STR "BSFX"
 #endif
 
 
@@ -208,6 +172,22 @@ quota_mnt_getmntent(FILE *mntf, quota_mnt_t **list)
 #endif
 
 
+
+static int
+is_relevant(cu_mount_t *m)
+{
+	if(cu_mount_checkoption(m->options, "noquota", 1) != NULL) {
+		return EXIT_FAILURE;
+	}
+	if(quota_fs_issupported(m->type) == EXIT_FAILURE) {
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
+} /* static int is_relevant(cu_mount_t *m) */
+
+
+
 quota_mnt_t *
 quota_mnt_getlist(quota_mnt_t **list)
 {
@@ -215,15 +195,21 @@ quota_mnt_getlist(quota_mnt_t **list)
 	quota_mnt_t *last = NULL;
 
 	(void)cu_mount_getlist(&fulllist);
-	fl = fulllist;
-	while(fl != NULL) {
-
-		fl = fl->next;
-	} /* while(fl != NULL) */
+	for(fl=fulllist; fl!=NULL; fl=fl->next) {
+		if(is_relevant(fl) != EXIT_SUCCESS) {
+			DBG("not relevant: %s on %s type %s (%s)",
+				fl->device, fl->dir, fl->type, fl->options);
+			continue;
+		}
+		DBG("relevant: %s on %s type %s (%s)",
+			fl->device, fl->dir, fl->type, fl->options);
+	} /* for(fl=fulllist; fl!=NULL; fl=fl->next) */
 	cu_mount_freelist(fulllist);
 
 	return(last);
 } /* quota_mnt_t *quota_mnt_getlist(quota_mnt_t **list) */
+
+
 
 void
 quota_mnt_freelist(quota_mnt_t *list)
@@ -245,14 +231,16 @@ quota_mnt_freelist(quota_mnt_t *list)
 		sfree(l->usrjquota);
 		sfree(l->grpjquota);
 		sfree(l->jqfmt);
-		sfree(l);
 		p = NULL;
 		if(l != list) {
+			sfree(l);
 			l = list;
 		} else {
+			sfree(l);
 			l = NULL;
 		}
 	} /* while(l != NULL) */
 } /* void quota_mnt_freelist(quota_mnt_t *list) */
+
 
 
