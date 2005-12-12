@@ -1,6 +1,5 @@
-AUTOMAKE_OPTIONS = dist-bzip2
-
-SUBDIRS = src
+SUBDIRS = libltdl src
+INCLUDES = $(LTDLINCL)
 
 EXTRA_DIST = collectd.spec contrib debian
 

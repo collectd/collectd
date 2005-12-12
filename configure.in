@@ -1,7 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(src/collectd.c)
-AM_INIT_AUTOMAKE(collectd, 3.5.alpha1)
-AM_CONFIG_HEADER(src/config.h src/libping/config.h)
+AC_INIT(collectd, 3.5.alpha1-quota)
+AC_CONFIG_SRCDIR(src/collectd.c)
+AC_CONFIG_HEADERS(src/config.h)
+AM_INIT_AUTOMAKE(dist-bzip2)
 AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
@@ -17,26 +18,27 @@ AC_PROG_MAKE_SET
 
 dnl configure libtool
 AC_DISABLE_STATIC
+AC_LIBLTDL_CONVENIENCE
+AC_SUBST(LTDLINCL)
+AC_SUBST(LIBLTDL)
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 #AC_PROG_RANLIB
+AC_CONFIG_SUBDIRS(libltdl)
 
 #
 # Checks for header files.
 #
-AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h unistd.h)
+AC_HEADER_DIRENT
+AC_CHECK_HEADERS(fcntl.h)
 AC_CHECK_HEADERS(signal.h)
 AC_CHECK_HEADERS(sys/socket.h)
 AC_CHECK_HEADERS(sys/select.h)
 AC_CHECK_HEADERS(netdb.h)
-AC_CHECK_HEADERS(sys/time.h sys/times.h)
-AC_CHECK_HEADERS(sys/types.h)
 AC_CHECK_HEADERS(sys/resource.h)
 AC_CHECK_HEADERS(errno.h)
 AC_CHECK_HEADERS(syslog.h)
-AC_CHECK_HEADERS(dlfcn.h)
 
 # For cpu modules
 AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
@@ -47,11 +49,35 @@ AC_CHECK_HEADERS(sys/loadavg.h)
 # For ping module
 AC_CHECK_HEADERS(arpa/inet.h)
 AC_CHECK_HEADERS(netinet/in.h)
-AC_CHECK_HEADERS(netdb.h)
 
 # For users module
 AC_CHECK_HEADERS(utmp.h)
 AC_CHECK_HEADERS(utmpx.h)
+
+# For quota module
+AC_CHECK_HEADERS(grp.h pwd.h sys/ucred.h)
+AC_CHECK_HEADERS(ctype.h)
+AC_CHECK_HEADERS(limits.h)
+AC_CHECK_HEADERS(sys/quota.h)
+AC_CHECK_HEADERS(xfs/xqm.h)
+
+# For mount interface
+AC_CHECK_HEADERS(fs_info.h)
+AC_CHECK_HEADERS(fshelp.h)
+AC_CHECK_HEADERS(paths.h)
+AC_CHECK_HEADERS(mntent.h)
+AC_CHECK_HEADERS(mnttab.h)
+AC_CHECK_HEADERS(sys/fstyp.h)
+AC_CHECK_HEADERS(sys/fs_types.h)
+AC_CHECK_HEADERS(sys/mntent.h)
+AC_CHECK_HEADERS(sys/mnttab.h)
+AC_CHECK_HEADERS(sys/mount.h)
+AC_CHECK_HEADERS(sys/statfs.h)
+AC_CHECK_HEADERS(sys/vfs.h)
+AC_CHECK_HEADERS(sys/vfstab.h)
+
+# For debugging interface (variable number of arguments)
+AC_CHECK_HEADERS(stdarg.h)
 
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
@@ -68,11 +94,11 @@ AC_HEADER_TIME
 # Checks for library functions.
 #
 AC_PROG_GCC_TRADITIONAL
-AC_CHECK_FUNCS(gettimeofday select socket strdup strstr strtol)
+AC_CHECK_FUNCS(gettimeofday select strdup strtol)
 AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
-AC_CHECK_FUNCS(strncasecmp strcasecmp strncmp)
+AC_CHECK_FUNCS(strncasecmp strcasecmp)
 
 # For cpu module
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
@@ -83,6 +109,61 @@ AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
 # For users module
 have_getutent="no"
 AC_CHECK_FUNCS(getutent getutxent, [have_getutent="yes"])
+
+# For quota module
+AC_CHECK_FUNCS(quotactl)
+AC_CHECK_FUNCS(getgrgid getpwuid)
+
+# For mount interface
+AC_CHECK_FUNCS(getfsent getvfsent listmntent)
+AC_FUNC_GETMNTENT
+if test "x$ac_cv_func_getmntent" = 'xyes'; then
+	saveCFLAGS="$CFLAGS"
+	CFLAGS="-Wall -Werror $CFLAGS"
+	AC_CACHE_CHECK([whether getmntent takes one argument],
+		[fu_cv_getmntent1],
+		AC_COMPILE_IFELSE(
+			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+#include "$srcdir/src/utils_mount.h"]],
+				[[(void)getmntent((FILE *)NULL);]]
+			),
+			[fu_cv_getmntent1=yes],
+			[fu_cv_getmntent1=no]
+		)
+	)
+	if test "x$fu_cv_getmntent1" = 'xno'; then
+		AC_CACHE_CHECK([whether getmntent takes two arguments],
+			[fu_cv_getmntent2],
+			AC_COMPILE_IFELSE(
+				AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+#include "$srcdir/src/utils_mount.h"]],
+					[[(void)getmntent((FILE *)NULL,
+						(struct mnttab *)NULL);]]
+				),
+				[fu_cv_getmntent2=yes],
+				[fu_cv_getmntent2=no]
+			)
+		)
+	fi
+	CFLAGS="$saveCFLAGS"
+fi
+if test "x$fu_cv_getmntent1" = 'xyes'; then
+	AC_DEFINE(HAVE_GETMNTENT1,
+		1,
+		[Define if there is a function named getmntent
+			for reading the list of mounted filesystems, and
+			that function takes a single argument. (4.3BSD,
+			SunOS, HP-UX, Dynix, Irix, Linux)]
+		)
+fi
+if test "x$fu_cv_getmntent2" = 'xyes'; then
+	AC_DEFINE(HAVE_GETMNTENT2,
+		1,
+		[Define if there is a function named getmntent
+			for reading the list of mounted filesystems, and
+			that function takes two arguments. (SVR4)]
+		)
+fi
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
@@ -102,7 +183,6 @@ AC_MSG_RESULT([$ac_system])
 dnl Checks for libraries.
 AC_CHECK_LIB(socket, socket)
 AC_CHECK_LIB(resolv, res_search)
-AC_CHECK_LIB(dl, dlopen)
 
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 AC_ARG_WITH(rrdtool, AC_HELP_STRING([--with-rrdtool=PFX], [Path to rrdtool.]),
@@ -122,6 +202,32 @@ then
 	AC_CHECK_HEADERS(rrd.h,, [with_rrdtool="no"])
 fi
 AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
+
+#AC_ARG_WITH(pth, AC_HELP_STRING([--with-pth=PFX], [Path to pth (experimental).]),
+#[	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+#	then
+#		LDFLAGS="$LDFLAGS -L$withval/lib"
+#		CPPFLAGS="$CPPFLAGS -I$withval/include"
+#		with_pth="yes"
+#	fi
+#], [with_pth="no"])
+#if test "x$with_pth" = "xyes"
+#then
+#	AC_CHECK_LIB(pth, pth_init,, [with_pth="no"], [])
+#fi
+#if test "x$with_pth" = "xyes"
+#then
+#	AC_CHECK_HEADERS(pth.h,, [with_pth="no"])
+#fi
+#if test "x$with_pth" = "xyes"
+#then
+#	collect_pth=1
+#else
+#	collect_pth=0
+#fi
+#AC_DEFINE_UNQUOTED(COLLECT_PTH, [$collect_pth],
+#	[Wether or not to use pth (portable threads) library])
+#AM_CONDITIONAL(BUILD_WITH_PTH, test "x$with_pth" = "xyes")
 
 if test "$ac_system" = "Solaris"
 then
@@ -206,6 +312,46 @@ fi
 #
 # Check for enabled/disabled features
 #
+AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
+	[Enable debugging (disabled by default)]),
+	[], [enable_debug="no"])
+if test "x$enable_debug" = "xno"
+then
+	collect_debug=0
+else
+	if test "x$enable_debug" = "xyes"
+	then
+		collect_debug=1
+	else
+		AC_MSG_NOTICE([Please specify either --enable-debug or --disable-debug; Enabling debugging.])
+		collect_debug=1
+		enable_debug="yes"
+	fi
+fi
+AC_DEFINE_UNQUOTED(COLLECT_DEBUG, [$collect_debug],
+	[Wether or not to enable debugging])
+AM_CONDITIONAL(BUILD_DEBUG, test "x$enable_debug" = "xyes")
+
+AC_ARG_ENABLE(daemon, AC_HELP_STRING([--disable-daemon],
+	[Disable daemon mode (enabled by default)]),
+	[], [enable_daemon="yes"])
+if test "x$enable_daemon" = "xno"
+then
+	collect_daemon=0
+else
+	if test "x$enable_daemon" = "xyes"
+	then
+		collect_daemon=1
+	else
+		AC_MSG_NOTICE([Please specify either --enable-daemon or --disable-daemon; Enabling daemon mode.])
+		collect_daemon=1
+		enable_daemon="yes"
+	fi
+fi
+AC_DEFINE_UNQUOTED(COLLECT_DAEMON, [$collect_daemon],
+	[Wether or not to enable daemon mode])
+AM_CONDITIONAL(BUILD_DAEMON, test "x$enable_daemon" = "xyes")
+
 AC_ARG_ENABLE(cpu, AC_HELP_STRING([--disable-cpu], [Disable CPU usage statistics]),, [enable_cpu="yes"])
 if test "x$enable_cpu" != "xno"
 then
@@ -253,6 +399,26 @@ then
 	AC_DEFINE(COLLECT_DISK, 0, [Wether or not to collect diskstats])
 fi
 AM_CONDITIONAL(BUILD_MODULE_DISK, test "x$enable_disk" = "xyes")
+
+AC_ARG_ENABLE(quota, AC_HELP_STRING([--enable-quota],
+	[Enable quota statistics (experimental, disabled by default)]),
+	[], [enable_quota="no"])
+if test "x$enable_quota" = "xno"
+then
+	collect_quota=0
+else
+	if test "x$enable_quota" = "xyes"
+	then
+		collect_quota=1
+	else
+		AC_MSG_NOTICE([Please specify either --enable-quota or --disable-quota; Enabling quota statistics.])
+		collect_quota=1
+		enable_quota="yes"
+	fi
+fi
+AC_DEFINE_UNQUOTED(COLLECT_QUOTA, [$collect_quota],
+	[Wether or not to collect quota statistics])
+AM_CONDITIONAL(BUILD_MODULE_QUOTA, test "x$enable_quota" = "xyes")
 
 AC_ARG_ENABLE(hddtemp, AC_HELP_STRING([--disable-hddtemp], [Disable hdd temperature statistics]),, [enable_hddtemp="yes"])
 if test "x$enable_hddtemp" = "xno"
@@ -444,9 +610,14 @@ Configuration:
     libkstat  . . . . . $with_kstat
 
   Features:
+    debug . . . . . . . $enable_debug
+    daemon mode . . . . $enable_daemon
+
+  Modules:
     cpu . . . . . . . . $enable_cpu
     cpufreq . . . . . . $enable_cpufreq
     disk  . . . . . . . $enable_disk
+    quota . . . . . . . $enable_quota (experimental)
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
     memory  . . . . . . $enable_memory

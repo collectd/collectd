@@ -25,6 +25,10 @@ users module by:
 don't-fork-patch by:
   Alvaro Barcellos <alvaro.barcellos@gmail.com>
 
+many autotools related fixes, libltdl code, getmnt-wizardry and much help has
+contributed:
+  Niki W. Waibel <niki.waibel@newlogic.com>
+
 collectd is available at:
   <http://verplant.org/collectd/>
 
