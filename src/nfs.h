@@ -1,6 +1,6 @@
 /**
- * collectd - src/load.h
- * Copyright (C) 2005  Florian octo Forster
+ * collectd - src/nfs.h
+ * Copyright (C) 2005  Jason Pepas
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,21 +17,21 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Jason Pepas <cell at ices.utexas.edu>
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef NFS_H
+#define NFS_H
 
 #include "collectd.h"
-#include "common.h"
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
+#ifndef COLLECT_NFS
+#if defined(KERNEL_LINUX)
+#define COLLECT_NFS 1
 #else
-#define COLLECT_LOAD 0
+#define COLLECT_NFS 0
 #endif
-#endif /* !defined(COLLECT_LOAD) */
+#endif /* !defined(COLLECT_NFS) */
 
-#endif /* LOAD_H */
+#endif /* NFS_H */

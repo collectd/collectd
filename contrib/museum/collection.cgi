@@ -521,18 +521,18 @@ our $GraphDefs;
                         'GPRINT:cpufreq_max:MAX:%5.1lf%s Max,',
                         'GPRINT:cpufreq_avg:LAST:%5.1lf%s Last\l'
                 ],
-        users => [
-            'DEF:users_avg={file}:users:AVERAGE',
-            'DEF:users_min={file}:users:MIN',
-            'DEF:users_max={file}:users:MAX',
-            "AREA:users_max#$HalfBlue",
-            "AREA:users_min#$Canvas",
-            "LINE1:users_avg#$FullBlue:Users",
-            'GPRINT:users_min:MIN:%4.1lf Min,',
-            'GPRINT:users_avg:AVERAGE:%4.1lf Average,',
-            'GPRINT:users_max:MAX:%4.1lf Max,',
-            'GPRINT:users_avg:LAST:%4.1lf Last\l'
-        ],
+		users => [
+			    'DEF:users_avg={file}:users:AVERAGE',
+			    'DEF:users_min={file}:users:MIN',
+			    'DEF:users_max={file}:users:MAX',
+			    "AREA:users_max#$HalfBlue",
+			    "AREA:users_min#$Canvas",
+			    "LINE1:users_avg#$FullBlue:Users",
+			    'GPRINT:users_min:MIN:%4.1lf Min,',
+			    'GPRINT:users_avg:AVERAGE:%4.1lf Average,',
+			    'GPRINT:users_max:MAX:%4.1lf Max,',
+			    'GPRINT:users_avg:LAST:%4.1lf Last\l'
+		],
 	};
 	$GraphDefs->{'disk'} = $GraphDefs->{'partition'};
 	$GraphDefs->{'meminfo'} = $GraphDefs->{'memory'};
@@ -1057,6 +1057,9 @@ sub get_all_files
 			{
 				next;
 			}
+
+			# Only load RRD files we can actually display..
+			next unless (defined ($GraphDefs->{$type}));
 
 			$hash->{$type} = [] unless (defined ($hash->{$type}));
 			push (@{$hash->{$type}}, $inst);

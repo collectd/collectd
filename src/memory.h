@@ -1,5 +1,5 @@
 /**
- * collectd - src/load.h
+ * collectd - src/memory.h
  * Copyright (C) 2005  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,18 +20,18 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef MEMINFO_H
+#define MEMINFO_H
 
 #include "collectd.h"
 #include "common.h"
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
+#ifndef COLLECT_MEMORY
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_LIBSTATGRAB)
+#define COLLECT_MEMORY 1
 #else
-#define COLLECT_LOAD 0
+#define COLLECT_MEMORY 0
 #endif
-#endif /* !defined(COLLECT_LOAD) */
+#endif /* !defined(COLLECT_MEMORY) */
 
-#endif /* LOAD_H */
+#endif /* MEMINFO_H */

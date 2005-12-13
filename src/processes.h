@@ -1,6 +1,6 @@
 /**
- * collectd - src/load.h
- * Copyright (C) 2005  Florian octo Forster
+ * collectd - src/processes.h
+ * Copyright (C) 2005  Lyonel Vincent
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,21 +17,22 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Lyonel Vincent <lyonel at ezix.org>
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef PROCESSES_H
+#define PROCESSES_H
 
 #include "collectd.h"
 #include "common.h"
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
+#ifndef COLLECT_PROCESSES
+#if defined(KERNEL_LINUX)
+#define COLLECT_PROCESSES 1
 #else
-#define COLLECT_LOAD 0
+#define COLLECT_PROCESSES 0
 #endif
-#endif /* !defined(COLLECT_LOAD) */
+#endif /* !defined(COLLECT_PROCESSES) */
 
-#endif /* LOAD_H */
+#endif /* PROCESSES_H */

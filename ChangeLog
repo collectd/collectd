@@ -2,6 +2,10 @@
 	* A bug in the `load' module under Solaris has been fixed.
 	* The `users' module has been contributed by Sebastian Harl. It counts
 	  currently logged in users.
+	* The CPU module now works under FreeBSD without the use of
+	  `libstatgrab', however SMP support is missing.
+	* The default directories for the RRD files and the PID file now
+	  depend on the compile time setting of `localstatedir'.
 
 2005-11-15, Version 3.4.0 (Revision 236)
 	* A PID-file is written to /var/run upon startup. Thanks to `Tommie'
