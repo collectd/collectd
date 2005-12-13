@@ -2,7 +2,7 @@
 #define RSK_COMPAT_H
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 #ifdef __WIN32__
 #include "win32.h"
@@ -12,15 +12,6 @@
 #define LC_LINEBUF_LEN 1024
 #endif
 
-#ifndef HAVE_GETUID
-#include "getuid.h"
-#endif
-#ifndef HAVE_STRTOLL
-#include "strtoll.h"
-#endif
-#ifndef HAVE_STRSEP
-#include "strsep.h"
-#endif
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif

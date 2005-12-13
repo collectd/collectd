@@ -24,7 +24,7 @@ AC_SUBST(LIBLTDL)
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 #AC_PROG_RANLIB
-AC_CONFIG_SUBDIRS(libltdl)
+AC_CONFIG_SUBDIRS(libltdl src/libconfig)
 
 #
 # Checks for header files.
@@ -88,6 +88,7 @@ AC_CHECK_LIB(m, ext)
 AC_C_CONST
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
+AC_TYPE_UID_T
 AC_HEADER_TIME
 
 #
@@ -598,7 +599,7 @@ then
 fi
 AM_CONDITIONAL(BUILD_MODULE_USERS, test "x$enable_users" = "xyes")
 
-AC_OUTPUT(Makefile src/libping/Makefile src/Makefile)
+AC_OUTPUT(Makefile src/libconfig/Makefile src/libping/Makefile src/Makefile)
 
 cat <<EOF;
 

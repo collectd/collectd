@@ -2,6 +2,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 noinst_LTLIBRARIES = libconfig.la
 
+libconfig_la_CFLAGS =
 libconfig_la_LDFLAGS = -avoid-version
 libconfig_la_SOURCES = \
 	libconfig.c libconfig.h \
