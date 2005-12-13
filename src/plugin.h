@@ -1,5 +1,5 @@
 /**
- * collectd - src/load.h
+ * collectd - src/plugin.h
  * Copyright (C) 2005  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,18 +20,20 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef PLUGIN_H
+#define PLUGIN_H
 
-#include "collectd.h"
-#include "common.h"
+int  plugin_load_all (char *dir);
+void plugin_init_all (void);
+void plugin_read_all (void);
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
-#else
-#define COLLECT_LOAD 0
-#endif
-#endif /* !defined(COLLECT_LOAD) */
+void plugin_register (char *type,
+		void (*init) (void),
+		void (*read) (void),
+		void (*write) (char *, char *, char *));
+#ifdef HAVE_LIBRRD
+void plugin_write    (char *host, char *type, char *inst, char *val);
+#endif /* HAVE_LIBRRD */
+void plugin_submit   (char *type, char *inst, char *val);
 
-#endif /* LOAD_H */
+#endif /* PLUGIN_H */

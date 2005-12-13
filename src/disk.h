@@ -1,5 +1,5 @@
 /**
- * collectd - src/load.h
+ * collectd - src/disk.h
  * Copyright (C) 2005  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,18 +20,18 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef DISKSTATS_H
+#define DISKSTATS_H
 
 #include "collectd.h"
 #include "common.h"
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
+#ifndef COLLECT_DISK
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+#define COLLECT_DISK 1
 #else
-#define COLLECT_LOAD 0
+#define COLLECT_DISK 0
 #endif
-#endif /* !defined(COLLECT_LOAD) */
+#endif /* !defined(COLLECT_DISK) */
 
-#endif /* LOAD_H */
+#endif /* DISKSTATS_H */

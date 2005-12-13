@@ -1,5 +1,5 @@
 /**
- * collectd - src/load.h
+ * collectd - src/ping.h
  * Copyright (C) 2005  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,18 +20,23 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef COLLECTD_PING_H
+#define COLLECTD_PING_H
 
 #include "collectd.h"
 #include "common.h"
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
+#ifndef COLLECT_PING
+#if defined(HAVE_NETINET_IN_H)
+#define COLLECT_PING 1
 #else
-#define COLLECT_LOAD 0
-#endif
-#endif /* !defined(COLLECT_LOAD) */
+#define COLLECT_PING 0
+#endif /* defined(HAVE_NETINET_IN_H) */
+#endif /* !defined(COLLECT_PING) */
 
-#endif /* LOAD_H */
+#if COLLECT_PING
+
+#define MAX_PINGHOSTS 32
+
+#endif /* COLLECT_PING */
+#endif

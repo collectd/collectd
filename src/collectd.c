@@ -18,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
 #include "collectd.h"

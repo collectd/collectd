@@ -1,6 +1,6 @@
 /**
- * collectd - src/load.h
- * Copyright (C) 2005  Florian octo Forster
+ * collectd - src/cpufreq.c
+ * Copyright (C) 2005  Peter Holik
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,21 +17,21 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Peter Holik <peter at holik.at>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef CPUFREQ_H
+#define CPUFREQ_H
 
 #include "collectd.h"
 #include "common.h"
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
+#ifndef COLLECT_CPUFREQ
+#if defined(KERNEL_LINUX)
+#define COLLECT_CPUFREQ 1
 #else
-#define COLLECT_LOAD 0
+#define COLLECT_CPUFREQ 0
 #endif
-#endif /* !defined(COLLECT_LOAD) */
+#endif /* !defined(COLLECT_CPUFREQ) */
 
-#endif /* LOAD_H */
+#endif /* CPUFREQ_H */

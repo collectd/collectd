@@ -1,6 +1,6 @@
 /**
- * collectd - src/load.h
- * Copyright (C) 2005  Florian octo Forster
+ * collectd - src/hddtemp.c
+ * Copyright (C) 2005  Vincent Stehlé
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,21 +17,18 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Vincent Stehlé <vincent.stehle at free.fr>
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef LOAD_H
-#define LOAD_H
+#ifndef HDDTEMP_H
+#define HDDTEMP_H
 
 #include "collectd.h"
 #include "common.h"
 
-#ifndef COLLECT_LOAD
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-#define COLLECT_LOAD 1
-#else
-#define COLLECT_LOAD 0
+#ifndef COLLECT_HDDTEMP
+#define COLLECT_HDDTEMP 1
 #endif
-#endif /* !defined(COLLECT_LOAD) */
 
-#endif /* LOAD_H */
+#endif /* HDDTEMP_H */
