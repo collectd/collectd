@@ -14,7 +14,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   plugin.c plugin.h \
 		   configfile.c configfile.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
-collectd_CPPFLAGS = -DLOCALSTATEDIR='"$(localstatedir)"' -DPLUGINDIR='"$(pkglibdir)"'
+collectd_CPPFLAGS = -DLOCALSTATEDIR='"$(localstatedir)"' -DSYSCONFDIR='"$(sysconfdir)"' -DPLUGINDIR='"$(pkglibdir)"'
 collectd_LDFLAGS = -export-dynamic
 collectd_CFLAGS = -Werror
 collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self

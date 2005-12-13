@@ -74,6 +74,18 @@ plugin_t *plugin_search (char *type)
 }
 
 /*
+ * Returns true if the plugin is loaded (i.e. `exists') and false otherwise.
+ * This is used in `configfile.c' to skip sections that are not needed..
+ */
+bool plugin_exists (char *type)
+{
+	if (plugin_search (type) == NULL)
+		return (false);
+	else
+		return (true);
+}
+
+/*
  * (Try to) load the shared object `name'. Won't complain if it isn't a shared
  * object, but it will bitch about a shared object not having a
  * ``module_register'' symbol..

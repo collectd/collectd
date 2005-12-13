@@ -162,6 +162,14 @@
 #define PIDFILE LOCALSTATEDIR"/run/collectd.pid"
 #endif
 
+#ifndef SYSCONFDIR
+#define SYSCONFDIR "/opt/collectd/etc"
+#endif
+
+#ifndef CONFIGFILE
+#define CONFIGFILE SYSCONFDIR"/collectd.conf"
+#endif
+
 #define MODE_SERVER 0x01
 #define MODE_CLIENT 0x02
 #define MODE_LOCAL  0x03
