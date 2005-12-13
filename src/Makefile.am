@@ -1,6 +1,8 @@
+SUBDIRS = libconfig
 if BUILD_MODULE_PING
-SUBDIRS = libping .
+SUBDIRS += libping
 endif
+#SUBDIRS += .
 
 sbin_PROGRAMS = collectd
 
@@ -9,13 +11,14 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_mount.c utils_mount.h \
 		   common.c common.h \
 		   multicast.c multicast.h \
-		   plugin.c plugin.h
+		   plugin.c plugin.h \
+		   configfile.c configfile.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
 collectd_CPPFLAGS = -DLOCALSTATEDIR='"$(localstatedir)"' -DPLUGINDIR='"$(pkglibdir)"'
-collectd_LDFLAGS = -export-dynamic
+collectd_LDFLAGS = -export-dynamic -lconfig
 collectd_CFLAGS = -Werror
-collectd_LDADD = $(LIBLTDL) "-dlopen" self
-collectd_DEPENDENCIES = $(LIBLTDL)
+collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self
+collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
 if BUILD_WITH_RRDTOOL
 collectd_LDADD += -lrrd
 endif
