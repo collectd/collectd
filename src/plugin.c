@@ -77,12 +77,12 @@ plugin_t *plugin_search (char *type)
  * Returns true if the plugin is loaded (i.e. `exists') and false otherwise.
  * This is used in `configfile.c' to skip sections that are not needed..
  */
-bool plugin_exists (char *type)
+int plugin_exists (char *type)
 {
 	if (plugin_search (type) == NULL)
-		return (false);
+		return (0);
 	else
-		return (true);
+		return (1);
 }
 
 /*

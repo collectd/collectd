@@ -27,7 +27,7 @@ int  plugin_load_all (char *dir);
 void plugin_init_all (void);
 void plugin_read_all (void);
 
-bool plugin_exists (char *type);
+int plugin_exists (char *type);
 void plugin_register (char *type,
 		void (*init) (void),
 		void (*read) (void),
