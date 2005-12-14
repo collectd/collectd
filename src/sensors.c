@@ -48,8 +48,6 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
-extern time_t curtime;
-
 void collectd_sensors_init (void)
 {
 	FILE *fh;

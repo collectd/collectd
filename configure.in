@@ -312,6 +312,8 @@ fi
 #
 # Check for enabled/disabled features
 #
+m4_divert_once([HELP_ENABLE], [
+collectd features:])
 AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
 	[Enable debugging (disabled by default)]),
 	[], [enable_debug="no"])
@@ -352,6 +354,8 @@ AC_DEFINE_UNQUOTED(COLLECT_DAEMON, [$collect_daemon],
 	[Wether or not to enable daemon mode])
 AM_CONDITIONAL(BUILD_DAEMON, test "x$enable_daemon" = "xyes")
 
+m4_divert_once([HELP_ENABLE], [
+collectd modules:])
 AC_ARG_ENABLE(cpu, AC_HELP_STRING([--disable-cpu], [Disable CPU usage statistics]),, [enable_cpu="yes"])
 if test "x$enable_cpu" != "xno"
 then

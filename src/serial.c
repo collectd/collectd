@@ -63,7 +63,6 @@ void serial_submit (char *device,
 		unsigned long long outgoing)
 {
 	char buf[BUFSIZE];
-        time_t curtime = time(NULL);
         
 	if (snprintf (buf, BUFSIZE, "%u:%llu:%llu", (unsigned int) curtime,
 				incoming, outgoing) >= BUFSIZE)

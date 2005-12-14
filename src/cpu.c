@@ -76,8 +76,6 @@ static char *ds_def[] =
 };
 static int ds_num = 5;
 
-extern time_t curtime;
-
 void cpu_init (void)
 {
 #ifdef HAVE_LIBKSTAT

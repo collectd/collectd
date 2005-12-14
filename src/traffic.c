@@ -45,8 +45,6 @@ static char *ds_def[] =
 };
 static int ds_num = 2;
 
-extern time_t curtime;
-
 void traffic_init (void)
 {
 #ifdef HAVE_LIBKSTAT
