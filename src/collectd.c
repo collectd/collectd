@@ -70,12 +70,12 @@ int change_basedir (char *dir)
 		{
 			if (mkdir (dir, 0755) == -1)
 			{
-				syslog (LOG_ERR, "mkdir: %s", strerror (errno));
+				syslog (LOG_ERR, "mkdir (%s): %s", dir, strerror (errno));
 				return (-1);
 			}
 			else if (chdir (dir) == -1)
 			{
-				syslog (LOG_ERR, "chdir: %s", strerror (errno));
+				syslog (LOG_ERR, "chdir (%s): %s", dir, strerror (errno));
 				return (-1);
 			}
 		}

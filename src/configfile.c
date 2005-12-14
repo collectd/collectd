@@ -321,7 +321,7 @@ int cf_callback_loadmodule (const char *shortvar, const char *var,
 		return (LC_CBRET_ERROR);
 	}
 
-	if (plugin_load (shortvar))
+	if (plugin_load (value))
 		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", shortvar);
 
 	/* Return `okay' even if there was an error, because it's not a syntax
