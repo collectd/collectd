@@ -184,8 +184,11 @@ dnl Checks for libraries.
 AC_CHECK_LIB(socket, socket)
 AC_CHECK_LIB(resolv, res_search)
 
+m4_divert_once([HELP_WITH], [
+collectd additional packages:])
+
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
-AC_ARG_WITH(rrdtool, AC_HELP_STRING([--with-rrdtool=PFX], [Path to rrdtool.]),
+AC_ARG_WITH(rrdtool, AS_HELP_STRING([--with-rrdtool=PFX], [Path to rrdtool.]),
 [	if test "x$withval" != "xno" -a "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
@@ -203,7 +206,7 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 
-AC_ARG_WITH(pth, AC_HELP_STRING([--with-pth=PFX], [Path to pth (experimental).]),
+AC_ARG_WITH(pth, AS_HELP_STRING([--with-pth=PFX], [Path to pth (experimental).]),
 [	if test "x$withval" != "xno" -a "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
@@ -239,7 +242,7 @@ else
 	with_kstat="no (Solaris only)"
 fi
 
-AC_ARG_WITH(libstatgrab, AC_HELP_STRING([--with-libstatgrab@<:@=PFX@:>@], [Path to libstatgrab.]),
+AC_ARG_WITH(libstatgrab, AS_HELP_STRING([--with-libstatgrab@<:@=PFX@:>@], [Path to libstatgrab.]),
 [
 	# given..
 	if test "x$withval" != "xno"
@@ -269,7 +272,7 @@ then
 	AC_CHECK_HEADERS(statgrab.h,,    [with_libstatgrab="no (not found)"])
 fi
 
-AC_ARG_WITH(lm-sensors, AC_HELP_STRING([--with-lm-sensors@<:@=PFX@:>@], [Path to lm_sensors.]),
+AC_ARG_WITH(lm-sensors, AS_HELP_STRING([--with-lm-sensors@<:@=PFX@:>@], [Path to lm_sensors.]),
 [
 	# given..
 	if test "x$withval" != "xno"
@@ -312,291 +315,92 @@ fi
 #
 # Check for enabled/disabled features
 #
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
-	[Enable debugging (disabled by default)]),
-	[], [enable_debug="no"])
-if test "x$enable_debug" = "xno"
+
+# AC_COLLECTD(name, enable/disable, info-text, feature/module)
+# ------------------------------------------------------------
+dnl
+m4_define([my_toupper], [m4_translit([$1], m4_defn([m4_cr_letters]), m4_defn([m4_cr_LETTERS]))])
+dnl
+AC_DEFUN(
+	[AC_COLLECTD],
+	[
+	m4_if([$1], [], [AC_FATAL([AC_COLLECTD([$1], [$2], [$3], [$4]): 1st argument must not be empty])])dnl
+	m4_if(
+		[$2],
+		[enable],
+		[dnl
+		m4_define([EnDis],[disabled])dnl
+		m4_define([YesNo],[no])dnl
+		],dnl
+		[m4_if(
+			[$2],
+			[disable],
+			[dnl
+			m4_define([EnDis],[enabled])dnl
+			m4_define([YesNo],[yes])dnl
+			],
+			[dnl
+			AC_FATAL([AC_COLLECTD([$1], [$2], [$3], [$4]): 2nd argument must be either enable or disable])dnl
+			]dnl
+		)]dnl
+	)dnl
+	m4_if([$3], [feature], [],
+		[m4_if(
+			[$3], [module], [],
+			[dnl
+			AC_FATAL([AC_COLLECTD([$1], [$2], [$3], [$4]): 3rd argument must be either feature or disable])dnl
+			]dnl
+		)]dnl
+	)dnl
+	AC_ARG_ENABLE(
+		[$1],
+		AS_HELP_STRING([--$2-$1], [$2 $4 (EnDis by def)]),
+		[],
+		enable_$1='[YesNo]'dnl
+	)# AC_ARG_ENABLE
+if test "x$enable_$1" = 'xno'
 then
-	collect_debug=0
+	collectd_$1=0
 else
-	if test "x$enable_debug" = "xyes"
+	if test "x$enable_$1" = 'xyes'
 	then
-		collect_debug=1
+		collectd_$1=1
 	else
-		AC_MSG_NOTICE([Please specify either --enable-debug or --disable-debug; Enabling debugging.])
-		collect_debug=1
-		enable_debug="yes"
+		AC_MSG_NOTICE([please specify either --enable-$1 or --disable-$1; enabling $1.])
+		collectd_$1=1
+		enable_$1='yes'
 	fi
 fi
-AC_DEFINE_UNQUOTED(COLLECT_DEBUG, [$collect_debug],
-	[Wether or not to enable debugging])
-AM_CONDITIONAL(BUILD_DEBUG, test "x$enable_debug" = "xyes")
+	AC_DEFINE_UNQUOTED([COLLECT_]my_toupper([$1]), [$collectd_$1], [wether or not to enable $3 $4])
+	AM_CONDITIONAL([BUILD_]my_toupper([$3])[_]my_toupper([$1]), [test "x$enable_$1" = "xyes"])dnl
+	]dnl
+)# COLLECTD(name, enable/disable, info-text, feature/module)
 
-AC_ARG_ENABLE(daemon, AC_HELP_STRING([--disable-daemon],
-	[Disable daemon mode (enabled by default)]),
-	[], [enable_daemon="yes"])
-if test "x$enable_daemon" = "xno"
-then
-	collect_daemon=0
-else
-	if test "x$enable_daemon" = "xyes"
-	then
-		collect_daemon=1
-	else
-		AC_MSG_NOTICE([Please specify either --enable-daemon or --disable-daemon; Enabling daemon mode.])
-		collect_daemon=1
-		enable_daemon="yes"
-	fi
-fi
-AC_DEFINE_UNQUOTED(COLLECT_DAEMON, [$collect_daemon],
-	[Wether or not to enable daemon mode])
-AM_CONDITIONAL(BUILD_DAEMON, test "x$enable_daemon" = "xyes")
 
-AC_ARG_ENABLE(cpu, AC_HELP_STRING([--disable-cpu], [Disable CPU usage statistics]),, [enable_cpu="yes"])
-if test "x$enable_cpu" != "xno"
-then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$have_sysctlbyname" = "xyes"
-	then
-		enable_cpu="yes"
-	else
-		enable_cpu="no"
-	fi
-fi
-if test "x$enable_cpu" = "xno"
-then
-	AC_DEFINE(COLLECT_CPU, 0, [Wether or not to collect CPU usage statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_CPU, test "x$enable_cpu" = "xyes")
 
-AC_ARG_ENABLE(cpufreq, AC_HELP_STRING([--disable-cpufreq], [Disable system cpu frequency statistics]),, [enable_cpufreq="yes"])
-if test "x$enable_cpufreq" != "xno"
-then
-	if test "x$ac_system" = "xLinux"
-	then
-		enable_cpufreq="yes"
-	else
-		enable_cpufreq="no"
-	fi
-fi
-if test "x$enable_cpufreq" = "xno"
-then
-	AC_DEFINE(COLLECT_CPUFREQ, 0, [Wether or not to collect cpu frequency statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_CPUFREQ, test "x$enable_cpufreq" = "xyes")
+m4_divert_once([HELP_ENABLE], [
+collectd features:])
+AC_COLLECTD([debug],     [enable],  [feature], [debugging])
+AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 
-AC_ARG_ENABLE(disk, AC_HELP_STRING([--disable-disk], [Disable disk/partition statistics]),, [enable_disk="yes"])
-if test "x$enable_disk" != "xno"
-then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes"
-	then
-		enable_disk="yes"
-	else
-		enable_disk="no"
-	fi
-fi
-if test "x$enable_disk" = "xno"
-then
-	AC_DEFINE(COLLECT_DISK, 0, [Wether or not to collect diskstats])
-fi
-AM_CONDITIONAL(BUILD_MODULE_DISK, test "x$enable_disk" = "xyes")
-
-AC_ARG_ENABLE(quota, AC_HELP_STRING([--enable-quota],
-	[Enable quota statistics (experimental, disabled by default)]),
-	[], [enable_quota="no"])
-if test "x$enable_quota" = "xno"
-then
-	collect_quota=0
-else
-	if test "x$enable_quota" = "xyes"
-	then
-		collect_quota=1
-	else
-		AC_MSG_NOTICE([Please specify either --enable-quota or --disable-quota; Enabling quota statistics.])
-		collect_quota=1
-		enable_quota="yes"
-	fi
-fi
-AC_DEFINE_UNQUOTED(COLLECT_QUOTA, [$collect_quota],
-	[Wether or not to collect quota statistics])
-AM_CONDITIONAL(BUILD_MODULE_QUOTA, test "x$enable_quota" = "xyes")
-
-AC_ARG_ENABLE(hddtemp, AC_HELP_STRING([--disable-hddtemp], [Disable hdd temperature statistics]),, [enable_hddtemp="yes"])
-if test "x$enable_hddtemp" = "xno"
-then
-	AC_DEFINE(COLLECT_HDDTEMP, 0, [Wether or not to collect hdd temperature statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_HDDTEMP, test "x$enable_hddtemp" = "xyes")
-
-AC_ARG_ENABLE(load, AC_HELP_STRING([--disable-load], [Disable system load statistics]),, [enable_load="yes"])
-if test "x$enable_load" != "xno"
-then
-	if test "x$have_getloadavg" = "xyes" -o "x$ac_system" = "xLinux" -o "x$with_libstatgrab" = "xyes"
-	then
-		enable_load="yes"
-	else
-		enable_load="no"
-	fi
-fi
-if test "x$enable_load" = "xno"
-then
-	AC_DEFINE(COLLECT_LOAD, 0, [Wether or not to collect system load statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_LOAD, test "x$enable_load" = "xyes")
-
-AC_ARG_ENABLE(memory, AC_HELP_STRING([--disable-memory], [Disable memory statistics]),, [enable_memory="yes"])
-if test "x$enable_memory" != "xno"
-then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$with_libstatgrab" = "xyes"
-	then
-		enable_memory="yes"
-	else
-		enable_memory="no"
-	fi
-fi
-if test "x$enable_memory" = "xno"
-then
-	AC_DEFINE(COLLECT_MEMORY, 0, [Wether or not to collect memory statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_MEMORY, test "x$enable_memory" = "xyes")
-
-AC_ARG_ENABLE(nfs, AC_HELP_STRING([--disable-nfs], [Disable nfs statistics]),, [enable_nfs="yes"])
-if test "x$enable_nfs" != "xno"
-then
-	if test "x$ac_system" = "xLinux"
-	then
-		enable_nfs="yes"
-	else
-		enable_nfs="no"
-	fi
-fi
-if test "x$enable_nfs" = "xno"
-then
-	AC_DEFINE(COLLECT_NFS, 0, [Wether or not to collect nfs statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_NFS, test "x$enable_nfs" = "xyes")
-
-AC_ARG_ENABLE(ping, AC_HELP_STRING([--disable-ping], [Disable ping statistics]),, [enable_ping="yes"])
-if test "x$enable_ping" != "xno"
-then
-	enable_ping="yes"
-fi
-if test "x$enable_ping" = "xno"
-then
-	AC_DEFINE(COLLECT_PING, 0, [Wether or not to collect ping statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_PING, test "x$enable_ping" = "xyes")
-
-AC_ARG_ENABLE(processes, AC_HELP_STRING([--disable-processes], [Disable processes statistics]),, [enable_processes="yes"])
-if test "x$enable_processes" != "xno"
-then
-	if test "x$ac_system" = "xLinux" 
-	then
-		enable_processes="yes"
-	else
-		enable_processes="no"
-	fi
-fi
-if test "x$enable_processes" = "xno"
-then
-	AC_DEFINE(COLLECT_PROCESSES, 0, [Wether or not to collect processes statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_PROCESSES, test "x$enable_processes" = "xyes")
-
-AC_ARG_ENABLE(sensors, AC_HELP_STRING([--disable-sensors], [Disable lm_sensors statistics]),, [enable_sensors=$with_lm_sensors])
-if test "x$enable_sensors" != "xno"
-then
-	if test "x$with_lm_sensors" = "xyes"
-	then
-		enable_sensors="yes"
-	else
-		enable_sensors="no"
-	fi
-fi
-if test "x$enable_sensors" = "xno"
-then
-	AC_DEFINE(COLLECT_SENSORS, 0, [Wether or not to collect lm_sensors statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_SENSORS, test "x$enable_sensors" = "xyes")
-
-AC_ARG_ENABLE(serial, AC_HELP_STRING([--disable-serial], [Disable serial statistics]),, [enable_serial="yes"])
-if test "x$enable_serial" != "xno"
-then
-	if test "x$ac_system" = "xLinux"
-	then
-		enable_serial="yes"
-	else
-		enable_serial="no"
-	fi
-fi
-if test "x$enable_serial" = "xno"
-then
-	AC_DEFINE(COLLECT_SERIAL, 0, [Wether or not to collect serial statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_SERIAL, test "x$enable_serial" = "xyes")
-
-AC_ARG_ENABLE(swap, AC_HELP_STRING([--disable-swap], [Disable swap statistics]),, [enable_swap="yes"])
-if test "x$enable_swap" != "xno"
-then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$with_libstatgrab" = "xyes"
-	then
-		enable_swap="yes"
-	else
-		enable_swap="no"
-	fi
-fi
-if test "x$enable_swap" = "xno"
-then
-	AC_DEFINE(COLLECT_SWAP, 0, [Wether or not to collect swap statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_SWAP, test "x$enable_swap" = "xyes")
-
-AC_ARG_ENABLE(tape, AC_HELP_STRING([--disable-tape], [Disable tape statistics]),, [enable_tape="yes"])
-if test "x$enable_tape" != "xno"
-then
-	if test "x$with_kstat" = "xyes"
-	then
-		enable_tape="yes"
-	else
-		enable_tape="no"
-	fi
-fi
-if test "x$enable_tape" = "xno"
-then
-	AC_DEFINE(COLLECT_TAPE, 0, [Wether or not to collect tape statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_TAPE, test "x$enable_tape" = "xyes")
-
-AC_ARG_ENABLE(traffic, AC_HELP_STRING([--disable-traffic], [Disable system traffic statistics]),, [enable_traffic="yes"])
-if test "x$enable_traffic" != "xno"
-then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$with_libstatgrab" = "xyes"
-	then
-		enable_traffic="yes"
-	else
-		enable_traffic="no"
-	fi
-fi
-if test "x$enable_traffic" = "xno"
-then
-	AC_DEFINE(COLLECT_TRAFFIC, 0, [Wether or not to collect network traffic statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_TRAFFIC, test "x$enable_traffic" = "xyes")
-
-AC_ARG_ENABLE(users, AC_HELP_STRING([--disable-users], [Disable user count statistics]),, [enable_users="yes"])
-if test "x$enable_users" != "xno"
-then
-       if test "x$have_getutent" = "xyes"
-       then
-               enable_users="yes"
-       else
-               enable_users="no"
-       fi
-fi
-if test "x$enable_users" = "xno"
-then
-       AC_DEFINE(COLLECT_USERS, 0, [Wether or not to collect user count statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_USERS, test "x$enable_users" = "xyes")
+m4_divert_once([HELP_ENABLE], [
+collectd modules:])
+AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
+AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
+AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
+AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
+AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
+AC_COLLECTD([load],      [disable], [module], [system load statistics])
+AC_COLLECTD([memory],    [disable], [module], [memory statistics])
+AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
+AC_COLLECTD([ping],      [disable], [module], [ping statistics])
+AC_COLLECTD([processes], [disable], [module], [processes statistics])
+AC_COLLECTD([sensors],   [disable], [module], [lm_sensors statistics])
+AC_COLLECTD([serial],    [disable], [module], [serial statistics])
+AC_COLLECTD([swap],      [disable], [module], [swap statistics])
+AC_COLLECTD([tape],      [disable], [module], [tape statistics])
+AC_COLLECTD([traffic],   [disable], [module], [system traffic statistics])
+AC_COLLECTD([users],     [disable], [module], [user count statistics])
 
 AC_OUTPUT(Makefile src/libping/Makefile src/Makefile)
 
