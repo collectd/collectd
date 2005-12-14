@@ -32,6 +32,7 @@ void plugin_register (char *type,
 		void (*init) (void),
 		void (*read) (void),
 		void (*write) (char *, char *, char *));
+
 #ifdef HAVE_LIBRRD
 void plugin_write    (char *host, char *type, char *inst, char *val);
 #endif /* HAVE_LIBRRD */
