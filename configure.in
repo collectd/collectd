@@ -374,7 +374,7 @@ fi
 	AC_DEFINE_UNQUOTED([COLLECT_]my_toupper([$1]), [$collectd_$1], [wether or not to enable $3 $4])
 	AM_CONDITIONAL([BUILD_]my_toupper([$3])[_]my_toupper([$1]), [test "x$enable_$1" = "xyes"])dnl
 	]dnl
-)# COLLECTD(name, enable/disable, info-text, feature/module)
+)# AC_COLLECTD(name, enable/disable, info-text, feature/module)
 
 
 
