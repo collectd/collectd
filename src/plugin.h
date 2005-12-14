@@ -86,7 +86,7 @@ int plugin_exists (char *type);
  * NOTES
  *  No attempt is made to re-load an already loaded module.
  */
-int  plugin_load (char *type);
+int  plugin_load (const char *type);
 
 int  plugin_load_all (char *dir);
 void plugin_init_all (void);

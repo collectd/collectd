@@ -30,6 +30,7 @@
 
 #include "libconfig/libconfig.h"
 
+#include "plugin.h"
 #include "configfile.h"
 #include "utils_debug.h"
 
@@ -39,6 +40,12 @@
 #define ERR_SECTION_ONLY "`%s' can only be used as section.\n"
 #define ERR_NEEDS_ARG "Section `%s' needs an argument.\n"
 #define ERR_NEEDS_SECTION "`%s' can only be used within a section.\n"
+
+#ifdef HAVE_LIBRRD
+extern int operating_mode;
+#else
+static int operating_mode = MODE_LOCAL;
+#endif
 
 typedef struct cf_callback
 {
@@ -314,13 +321,11 @@ int cf_callback_loadmodule (const char *shortvar, const char *var,
 		return (LC_CBRET_ERROR);
 	}
 
-	/*
-	 * TODO:
-	 * - Write wrapper around `plugin_load' to resolve path/filename
-	 * - Call this new, public function here
-	 */
-	DBG ("Implement me, idiot!");
+	if (plugin_load (shortvar))
+		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", shortvar);
 
+	/* Return `okay' even if there was an error, because it's not a syntax
+	 * problem.. */
 	return (LC_CBRET_OKAY);
 }
 
@@ -345,9 +350,7 @@ int cf_read (char *filename)
 
 	if (lc_process_file ("collectd", filename, LC_CONF_APACHE))
 	{
-		/* FIXME: Use syslog here */
-		fprintf (stderr, "Error loading config file `%s': %s\n",
-				filename, lc_geterrstr ());
+		syslog (LOG_ERR, "lc_process_file (%s): %s", filename, lc_geterrstr ());
 		return (-1);
 	}
 

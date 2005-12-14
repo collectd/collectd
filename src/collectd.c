@@ -25,6 +25,7 @@
 
 #include "multicast.h"
 #include "plugin.h"
+#include "configfile.h"
 
 #include "ping.h"
 
@@ -240,6 +241,7 @@ int main (int argc, char **argv)
 
 	char *plugindir = NULL;
 	char *basedir = DATADIR;
+	char *configfile = NULL;
 
 	int daemonize = 1;
 
@@ -312,15 +314,21 @@ int main (int argc, char **argv)
 	}
 
 	/*
-	 * Load plugins and change to output directory
-	 * Loading plugins is done first so relative paths work as expected..
+	 * Read the config file. This will load any modules automagically.
 	 */
-	if (plugin_load_all (plugindir) < 1)
+	plugin_set_dir (plugindir);
+
+	if (cf_read (configfile))
 	{
-		fprintf (stderr, "Error: No plugins found.\n");
+		fprintf (stderr, "Error: Reading the config file failed!\n"
+				"Read the syslog for details.\n");
 		return (1);
 	}
 
+	/*
+	 * Change directory. We do this _after_ reading the config and loading
+	 * modules to relative paths work as expected.
+	 */
 	if (change_basedir (basedir))
 	{
 		fprintf (stderr, "Error: Unable to change to directory `%s'.\n", basedir);

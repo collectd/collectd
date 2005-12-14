@@ -80,7 +80,7 @@ int plugin_count (void)
 /*
  * Returns the plugins with the type `type' or NULL if it's not found.
  */
-plugin_t *plugin_search (char *type)
+plugin_t *plugin_search (const char *type)
 {
 	plugin_t *ret;
 
@@ -136,7 +136,7 @@ int plugin_load_file (char *file)
 }
 
 #define BUFSIZE 512
-int plugin_load (char *type)
+int plugin_load (const char *type)
 {
 	DIR  *dh;
 	char *dir;
@@ -171,7 +171,7 @@ int plugin_load (char *type)
 
 	while ((de = readdir (dh)) != NULL)
 	{
-		if (strncmp (de->d_name, typename, typename_len))
+		if (strncasecmp (de->d_name, typename, typename_len))
 			continue;
 
 		if (snprintf (filename, BUFSIZE, "%s/%s", dir, de->d_name) >= BUFSIZE)
