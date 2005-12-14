@@ -23,11 +23,75 @@
 #ifndef PLUGIN_H
 #define PLUGIN_H
 
+/*
+ * NAME
+ *  plugin_set_dir
+ *
+ * DESCRIPTION
+ *  Sets the current `plugindir'
+ *
+ * ARGUMENTS
+ *  `dir'       Path to the plugin directory
+ *
+ * NOTES
+ *  If `dir' is NULL the compiled in default `PLUGINDIR' is used.
+ */
+void plugin_set_dir (char *dir);
+
+/*
+ * NAME
+ *  plugin_count
+ *
+ * DESCRIPTION
+ *  trivial
+ *
+ * RETURN VALUE
+ *  The number of currently loaded plugins
+ */
+int plugin_count (void);
+
+/*
+ * NAME
+ *  plugin_exists
+ *
+ * DESCRIPTION
+ *  trivial
+ *
+ * ARGUMENTS
+ *  `type'      Name of the plugin.
+ *
+ * RETURN VALUE
+ *  Returns non-zero if a plugin with the name $type is found and zero
+ *  otherwise.
+ */
+int plugin_exists (char *type);
+
+/*
+ * NAME
+ *  plugin_load
+ *
+ * DESCRIPTION
+ *  Searches the current `plugindir' (see `plugin_set_dir') for the plugin
+ *  named $type and loads it. Afterwards the plugin's `module_register'
+ *  function is called, which then calls `plugin_register' to register callback
+ *  functions.
+ *
+ * ARGUMENTS
+ *  `type'      Name of the plugin to load.
+ *
+ * RETURN VALUE
+ *  Returns zero upon success, a value greater than zero if no plugin was found
+ *  and a value below zero if an error occurs.
+ *
+ * NOTES
+ *  No attempt is made to re-load an already loaded module.
+ */
+int  plugin_load (char *type);
+
 int  plugin_load_all (char *dir);
 void plugin_init_all (void);
 void plugin_read_all (void);
 
-int plugin_exists (char *type);
 void plugin_register (char *type,
 		void (*init) (void),
 		void (*read) (void),
