@@ -94,8 +94,6 @@ void ps_read (void)
 		return;
 	}
 
-	int strsplit (char *string, char **fields, size_t size);
-
 	while ((ent = readdir (proc)) != NULL)
 	{
 		if (!isdigit (ent->d_name[0]))
