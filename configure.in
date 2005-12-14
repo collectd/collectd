@@ -419,21 +419,28 @@ Configuration:
     daemon mode . . . . $enable_daemon
 
   Modules:
-    cpu . . . . . . . . $enable_cpu
-    cpufreq . . . . . . $enable_cpufreq
-    disk  . . . . . . . $enable_disk
-    quota . . . . . . . $enable_quota (experimental)
-    hddtemp . . . . . . $enable_hddtemp
-    load  . . . . . . . $enable_load
-    memory  . . . . . . $enable_memory
-    nfs . . . . . . . . $enable_nfs
-    ping  . . . . . . . $enable_ping
-    processes . . . . . $enable_processes
-    sensors . . . . . . $enable_sensors
-    serial  . . . . . . $enable_serial
-    swap  . . . . . . . $enable_swap
-    tape  . . . . . . . $enable_tape
-    traffic . . . . . . $enable_traffic
-    users . . . . . . . $enable_users
-
+    cpu . . . . . LKC . $enable_cpu
+    cpufreq . . . L   . $enable_cpufreq
+    disk  . . . . LK  . $enable_disk
+    quota . . . .   A . $enable_quota (experimental)
+    hddtemp . . .   A . $enable_hddtemp
+    load  . . . . LGE . $enable_load
+    memory  . . . LKG . $enable_memory
+    nfs . . . . . L   . $enable_nfs
+    ping  . . . .   A . $enable_ping
+    processes . . L   . $enable_processes
+    sensors . . . S   . $enable_sensors
+    serial  . . . L   . $enable_serial
+    swap  . . . . LKG . $enable_swap
+    tape  . . . . K   . $enable_tape
+    traffic . . . LKG . $enable_traffic
+    users . . . . U   . $enable_users
+       A ... all systems
+       L ... Linux
+       K ... libkstat (Solaris)
+       G ... libstatgrab
+       S ... libsensors
+       C ... sysctlbyname()
+       E ... getloadavg()
+       U ... getutent()
 EOF
