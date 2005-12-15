@@ -31,10 +31,10 @@
 
 #define MODULE_NAME "quota"
 
-/* *** *** ***   local constants   *** *** *** */
+/* *** *** *** ********************* *** *** *** */
+/* *** *** ***   private constants   *** *** *** */
 
 static const char *quota_filename_template = MODULE_NAME "-%s.rrd";
-
 static char *quota_ds_def[] =
 {
 	"DS:blocks:GAUGE:25:0:U",
@@ -51,7 +51,13 @@ static char *quota_ds_def[] =
 };
 static const int quota_ds_num = 10;
 
-/* *** *** ***   local functions   *** *** *** */
+static void quota_submit(quota_t *q);
+static void quota_init(void);
+static void quota_read(void);
+static void quota_write(char *host, char *inst, char *val);
+
+/* *** *** *** ********************* *** *** *** */
+/* *** *** ***   private functions   *** *** *** */
 
 #define BUFSIZE 1024
 static void
@@ -70,6 +76,9 @@ quota_submit(quota_t *q)
 		DBG("failed");
 		return;
 	}
+	/* quota-<type>-<name>-<id>-<path> */
+	/* quota-usrquota-niki-500-_img.rrd */
+	/* the '/' are converted to '_'... */
 	n = name = (char *)smalloc(strlen(q->type) + 1 + strlen(q->name)
 	+ 1 + strlen(q->id) + 1 + strlen(q->dir) + 1);
 	sstrncpy(n, q->type, strlen(q->type)+1);
@@ -100,13 +109,14 @@ quota_submit(quota_t *q)
 } /* static void quota_submit(quota_t *q) */
 #undef BUFSIZE
 
-/* *** *** ***   local plugin functions   *** *** *** */
+/* *** *** *** **************************** *** *** *** */
+/* *** *** ***   private plugin functions   *** *** *** */
 
 static void
 quota_init(void)
 {
 	DBG_STARTFILE("quota debug file opened.");
-}
+} /* static void quota_init(void) */
 
 static void
 quota_read(void)
@@ -172,7 +182,7 @@ quota_read(void)
 
 	quota_fs_freequota(quota);
 	quota_mnt_freelist(list);
-}
+} /* static void quota_read(void) */
 
 static void
 quota_write(char *host, char *inst, char *val)
@@ -187,13 +197,14 @@ quota_write(char *host, char *inst, char *val)
 	}
 
 	rrd_update_file(host, file, val, quota_ds_def, quota_ds_num);
-}
+} /* static void quota_write(char *host, char *inst, char *val) */
 
-/* *** *** ***   global functions   *** *** *** */
+/* *** *** *** ******************** *** *** *** */
+/* *** *** ***   public functions   *** *** *** */
 
 void
 module_register(void)
 {
 	plugin_register(MODULE_NAME, quota_init, quota_read, quota_write);
-}
+} /* void module_register(void) */
 

@@ -23,7 +23,6 @@
 #include "common.h"
 #include "utils_debug.h"
 
-/* *** *** ***   global variables   *** *** *** */
 #if COLLECT_DEBUG
 
 #define DEFAULT_FILENAME "collectd.log"
@@ -32,7 +31,7 @@ static void cu_vdebug(const char *file, int line, const char *func,
 	const char *format, va_list ap);
 
 /* if preemptive threads are used, these vars need some sort of locking! */
-/* pth is non-preemptive, so no locking is necessary (?) */
+/* pth is non-preemptive, so no locking is necessary */
 static FILE *cu_debug_file = NULL;
 static char *cu_debug_filename = NULL;
 

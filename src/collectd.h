@@ -97,6 +97,24 @@
 # include <ctype.h>
 #endif
 
+#if HAVE_SYSLOG
+# define syslog(...) syslog(__VA_ARGS__)
+# if HAVE_OPENLOG
+#  define openlog(...) openlog(__VA_ARGS__)
+# else
+#  define openlog(...) /**/
+# endif
+# if HAVE_CLOSELOG
+#  define closelog(...) closelog(__VA_ARGS__)
+# else
+#  define closelog(...) /**/
+# endif
+#else
+# define syslog(...) /**/
+# define openlog(...) /**/
+# define closelog(...) /**/
+#endif
+
 #ifndef HAVE_RRD_H
 #undef HAVE_LIBRRD
 #endif
@@ -122,22 +140,6 @@
 
 #ifdef HAVE_LIBSTATGRAB
 #include <statgrab.h>
-#endif
-
-#ifndef LOCALSTATEDIR
-#define LOCALSTATEDIR "/opt/collectd/var"
-#endif
-
-#ifndef DATADIR
-#define DATADIR LOCALSTATEDIR"/lib/collectd"
-#endif
-
-#ifndef PLUGINDIR
-#define PLUGINDIR "/opt/collectd/lib/collectd"
-#endif
-
-#ifndef PIDFILE
-#define PIDFILE LOCALSTATEDIR"/run/collectd.pid"
 #endif
 
 #define MODE_SERVER 0x01

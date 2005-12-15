@@ -11,7 +11,11 @@ collectd_SOURCES = collectd.c collectd.h \
 		   multicast.c multicast.h \
 		   plugin.c plugin.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
-collectd_CPPFLAGS = -DLOCALSTATEDIR='"$(localstatedir)"' -DPLUGINDIR='"$(pkglibdir)"'
+collectd_CPPFLAGS =
+collectd_CPPFLAGS += -DSYSCONFDIR='"${sysconfdir}"'
+collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/${PACKAGE_NAME}"'
+collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
+collectd_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 collectd_LDFLAGS = -export-dynamic
 collectd_CFLAGS = -Werror
 collectd_LDADD = $(LIBLTDL) "-dlopen" self
@@ -152,6 +156,7 @@ if BUILD_MODULE_USERS
 pkglib_LTLIBRARIES += users.la
 users_la_SOURCES = users.c users.h
 users_la_LDFLAGS = -module -avoid-version
+users_la_CFLAGS = -Werror
 collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
 endif

@@ -24,8 +24,6 @@
 #if !COLLECTD_QUOTA_PLUGIN_H
 #define COLLECTD_QUOTA_PLUGIN_H 1
 
-#include "common.h"
-
 void module_register(void);
 
 #endif /* !COLLECTD_QUOTA_PLUGIN_H */
