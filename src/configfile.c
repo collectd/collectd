@@ -109,7 +109,10 @@ int cf_dispatch (char *type, const char *orig_key, const char *orig_value)
 	for (i = 0; i < cf_cb->keys_num; i++)
 	{
 		if (strcasecmp (cf_cb->keys[i], key) == 0)
+		{
 			ret = (*cf_cb->callback) (key, value);
+			break;
+		}
 	}
 
 	if (i >= cf_cb->keys_num)
@@ -165,7 +168,7 @@ void cf_register (char *type,
 
 	for (i = 0; i < keys_num; i++)
 	{
-		if (snprintf (buf, 64, "Module.%s", keys[i]) < 64)
+		if (snprintf (buf, 64, "Plugin.%s", keys[i]) < 64)
 		{
 			/* This may be called multiple times for the same
 			 * `key', but apparently `lc_register_*' can handle
@@ -336,7 +339,7 @@ int cf_read (char *filename)
 
 	lc_register_callback ("Mode", SHORTOPT_NONE, LC_VAR_SECTION,
 			cf_callback_section_mode, NULL);
-	lc_register_callback ("Module", SHORTOPT_NONE, LC_VAR_SECTION,
+	lc_register_callback ("Plugin", SHORTOPT_NONE, LC_VAR_SECTION,
 			cf_callback_section_module, NULL);
 
 	/*
@@ -344,7 +347,7 @@ int cf_read (char *filename)
 	 * - Add more directives, such as `DefaultMode', `DataDir', `PIDFile', ...
 	 */
 
-	lc_register_callback ("Mode.LoadModule", SHORTOPT_NONE,
+	lc_register_callback ("Mode.LoadPlugin", SHORTOPT_NONE,
 			LC_VAR_STRING, cf_callback_loadmodule,
 			NULL);
 
