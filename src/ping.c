@@ -44,8 +44,6 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
-extern time_t curtime;
-
 void ping_init (void)
 {
 	int i;

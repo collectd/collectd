@@ -51,8 +51,6 @@ static char *ds_def[] =
 };
 static int ds_num = 3;
 
-extern time_t curtime;
-
 void load_init (void)
 {
 	return;

@@ -141,8 +141,6 @@ static kstat_t *nfs4_ksp_server;
 
 /* Possibly TODO: NFSv4 statistics */
 
-extern time_t curtime;
-
 void nfs_init (void)
 {
 #ifdef HAVE_LIBKSTAT

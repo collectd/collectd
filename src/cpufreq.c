@@ -43,8 +43,6 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
-extern time_t curtime;
-
 #define BUFSIZE 256
 
 void cpufreq_init (void)

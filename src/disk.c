@@ -80,8 +80,6 @@ static char *part_ds_def[] =
 };
 static int part_ds_num = 4;
 
-extern time_t curtime;
-
 void disk_init (void)
 {
 #ifdef HAVE_LIBKSTAT

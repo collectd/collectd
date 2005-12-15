@@ -46,8 +46,6 @@ static int pagesize;
 static kstat_t *ksp;
 #endif /* HAVE_LIBKSTAT */
 
-extern time_t curtime;
-
 void memory_init (void)
 {
 #ifdef HAVE_LIBKSTAT
