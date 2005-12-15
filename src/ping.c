@@ -52,8 +52,6 @@ static char *config_keys[] =
 };
 static int config_keys_num = 1;
 
-extern time_t curtime;
-
 void ping_init (void)
 {
 	int i;

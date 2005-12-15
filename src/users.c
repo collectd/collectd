@@ -42,8 +42,6 @@ static char *ds_def[] = {
 };
 static int ds_num = 1;
 
-extern time_t curtime;
-
 void users_init(void)
 {
     /* we have nothing to do here :-) */

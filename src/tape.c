@@ -52,8 +52,6 @@ static char *tape_ds_def[] =
 };
 static int tape_ds_num = 8;
 
-extern time_t curtime;
-
 void tape_init (void)
 {
 #ifdef HAVE_LIBKSTAT

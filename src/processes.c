@@ -43,8 +43,6 @@ static char *ds_def[] =
 };
 static int ds_num = 6;
 
-extern time_t curtime;
-
 void ps_init (void)
 {
 }
