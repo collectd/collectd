@@ -99,6 +99,7 @@ AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(gethostbyname, , AC_CHECK_LIB(nsl, gethostbyname))
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp)
+AC_CHECK_FUNCS(openlog syslog closelog)
 
 # For cpu module
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
@@ -107,8 +108,7 @@ AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"]
 AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
 
 # For users module
-have_getutent="no"
-AC_CHECK_FUNCS(getutent getutxent, [have_getutent="yes"])
+AC_CHECK_FUNCS(getutent getutxent)
 
 # For quota module
 AC_CHECK_FUNCS(quotactl)
@@ -434,7 +434,7 @@ Configuration:
     swap  . . . . LKG . $enable_swap
     tape  . . . . K   . $enable_tape
     traffic . . . LKG . $enable_traffic
-    users . . . . U   . $enable_users
+    users . . . .   A . $enable_users
        A ... all systems
        L ... Linux
        K ... libkstat (Solaris)
@@ -442,5 +442,4 @@ Configuration:
        S ... libsensors
        C ... sysctlbyname()
        E ... getloadavg()
-       U ... getutent()
 EOF
