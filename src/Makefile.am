@@ -14,7 +14,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   plugin.c plugin.h \
 		   configfile.c configfile.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
-collectd_CPPFLAGS =
+collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
 collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
