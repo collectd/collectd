@@ -144,7 +144,7 @@ void exit_usage (char *name)
 			"\n%s %s, http://verplant.org/collectd/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n",
-			PACKAGE, CONFIGFILE, PIDFILE, PLUGINDIR, PKGLOCALSTATEDIR, PACKAGE, VERSION);
+			PACKAGE, /* CONFIGFILE, */ PIDFILE, PLUGINDIR, PKGLOCALSTATEDIR, PACKAGE, VERSION);
 	exit (0);
 }
 
