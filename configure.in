@@ -296,19 +296,14 @@ AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
 
 AC_ARG_WITH(lm-sensors, AC_HELP_STRING([--with-lm-sensors@<:@=PFX@:>@], [Path to lm_sensors.]),
 [
-	# given..
-	if test "x$withval" != "xno"
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		if test "x$withval" != "xyes"
-		then
-			LDFLAGS="$LDFLAGS -L$withval/lib"
-			CPPFLAGS="$CPPFLAGS -I$withval/include"
-			with_lm_sensors="yes"
-		fi
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_lm_sensors="yes"
 	fi
 ],
 [
-	# not given..
 	if test "x$ac_system" = "xLinux"
 	then
 		with_lm_sensors="yes"
@@ -320,17 +315,24 @@ if test "x$with_lm_sensors" = "xyes"
 then
 	AC_CHECK_LIB(sensors, sensors_init,
 	[
-		with_lm_sensors="yes"
 		AC_DEFINE(HAVE_LIBSENSORS, 1, [Define to 1 if you have the sensors library (-lsensors).])
 	],
-	[with_lm_sensors="no (not found)"])
+	[with_lm_sensors="no (libsensors not found)"])
 	AC_CHECK_HEADERS(sensors/sensors.h,
 	[
-		with_lm_sensors="yes"
 		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
 	],
-	[with_lm_sensors="no (not found)"])
+	[with_lm_sensors="no (sensors/sensors.h not found)"])
 fi
+if test "x$with_lm_sensors" = "xyes"
+then
+	collect_lm_sensors=1
+else
+	collect_lm_sensors=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_LM_SENSORS, [$collect_lm_sensors],
+	[Wether or not to use sensors library])
+AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_lm_sensors" = "xyes")
 
 
 
