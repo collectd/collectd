@@ -76,20 +76,21 @@ Number of users logged into the system (I<users>)
 
 =over 4
 
+=item B<-l>
+
+Start in local mode. This is the default. No data will be sent or read to/from
+the network. Information will be read and written by the same process. See
+L<"MODES">.
+
 =item B<-c>
 
 Start in client (transmitter) mode. Data will be sent to the multicast group.
 See L<"MODES">.
 
-=item B<-d> I<E<lt>directoryE<gt>>
+=item B<-s>
 
-Sets the directory collectd should work in. All F<.rrd>-files are created in
-this directory. Per default this is F</var/lib/collectd/>.
-
-=item B<-P> I<E<lt>directoryE<gt>>
-
-Sets the directory collectd should look for plugins in. Per default this is
-F</usr/lib/collectd>.
+Start in server (receiver) mode. Data sent to the multicast group will be read
+and stored in RRD files. See L<"MODES">.
 
 =item B<-f>
 
@@ -97,26 +98,29 @@ Don't fork to the background. I<collectd> will also B<not> close standard file
 descriptors, detach from the session nor write a pid file. This is mainly
 thought for 'supervisioning' init replacements such as I<runit>.
 
+=item B<-D> I<E<lt>directoryE<gt>>
+
+Sets the directory collectd should work in. All F<.rrd>-files are created in
+this directory. Per default this is F</var/lib/collectd/>.
+
+=item B<-M> I<E<lt>directoryE<gt>>
+
+Sets the directory collectd should look for plugins in. Per default this is
+F</usr/lib/collectd>.
+
+=item B<-P> I<E<lt>fileE<gt>>
+
+Sets the PID-file.
+
 =item B<-h>
 
 Output usage information and exit.
-
-=item B<-l>
-
-Start in local mode. This is the default. No data will be sent or read to/from
-the network. Information will be read and written by the same process. See
-L<"MODES">.
 
 =item B<-p> I<E<lt>hostE<gt>>
 
 Sets the host to ping periodically. This option may be given more than once to
 ping multiple hosts. If this option is not given at least once no host will be
 pinged.
-
-=item B<-s>
-
-Start in server (receiver) mode. Data sent to the multicast group will be read
-and stored in RRD files. See L<"MODES">.
 
 =back
 
