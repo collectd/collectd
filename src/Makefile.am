@@ -12,8 +12,8 @@ collectd_SOURCES = collectd.c collectd.h \
 		   plugin.c plugin.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
 collectd_CPPFLAGS =
-collectd_CPPFLAGS += -DSYSCONFDIR='"${sysconfdir}"'
-collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/${PACKAGE_NAME}"'
+collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
+collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 collectd_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 collectd_LDFLAGS = -export-dynamic

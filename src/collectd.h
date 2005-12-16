@@ -164,6 +164,34 @@
 #include <statgrab.h>
 #endif
 
+#ifndef PACKAGE_NAME
+#define PACKAGE_NAME "collectd"
+#endif
+
+#ifndef PREFIX
+#define PREFIX "/opt/" PACKAGE_NAME
+#endif
+
+#ifndef SYSCONFDIR
+#define SYSCONFDIR PREFIX "/etc"
+#endif
+
+#ifndef CONFIGFILE
+#define CONFIGFILE SYSCONFDIR"/collectd.conf"
+#endif
+
+#ifndef PKGLOCALSTATEDIR
+#define PKGLOCALSTATEDIR PREFIX "/var/lib/" PACKAGE_NAME
+#endif
+
+#ifndef PIDFILE
+#define PIDFILE PREFIX "/var/run/" PACKAGE_NAME ".pid"
+#endif
+
+#ifndef PLUGINDIR
+#define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
+#endif
+
 #define MODE_SERVER 0x01
 #define MODE_CLIENT 0x02
 #define MODE_LOCAL  0x03
