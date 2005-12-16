@@ -120,8 +120,10 @@ void exit_usage (char *name)
 			
 			"Available options:\n"
 			"  General:\n"
+			/*
 			"    -C <dir>        Configuration file.\n"
 			"                    Default: %s\n"
+			*/
 			"    -P <file>       PID File.\n"
 			"                    Default: %s\n"
 			"    -M <dir>        Module/Plugin directory.\n"
