@@ -215,13 +215,16 @@ int start_server (void)
 }
 #endif /* HAVE_LIBRRD */
 
-int pidfile_create (void)
+int pidfile_create (char *file)
 {
 	FILE *fh;
 
-	if ((fh = fopen (PIDFILE, "w")) == NULL)
+	if (file == NULL)
+		file = PIDFILE;
+
+	if ((fh = fopen (file, "w")) == NULL)
 	{
-		syslog (LOG_ERR, "fopen (pidfile): %s", strerror (errno));
+		syslog (LOG_ERR, "fopen (%s): %s", file, strerror (errno));
 		return (1);
 	}
 
@@ -373,7 +376,7 @@ int main (int argc, char **argv)
 		setsid ();
 
 		/* Write pidfile */
-		if (pidfile_create ())
+		if (pidfile_create (pidfile))
 			exit (2);
 
 		/* close standard descriptors */
