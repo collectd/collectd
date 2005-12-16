@@ -242,7 +242,7 @@ int main (int argc, char **argv)
 	pid_t pid;
 #endif
 
-	char *configfile = CONFIGFILE
+	char *configfile = CONFIGFILE;
 	char *pidfile    = PIDFILE;
 	char *plugindir  = PLUGINDIR;
 	char *datadir    = PKGLOCALSTATEDIR;
