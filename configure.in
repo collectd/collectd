@@ -186,6 +186,9 @@ dnl Checks for libraries.
 AC_CHECK_LIB(socket, socket)
 AC_CHECK_LIB(resolv, res_search)
 
+m4_divert_once([HELP_WITH], [
+collectd additional packages:])
+
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 AC_ARG_WITH(rrdtool, AC_HELP_STRING([--with-rrdtool=PFX], [Path to rrdtool.]),
 [	if test "x$withval" != "xno" -a "x$withval" != "xyes"
