@@ -20,35 +20,10 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
-#ifndef USERS_H
-#define USERS_H 1
+#if !COLLECTD_USERS_H
+#define COLLECTD_USERS_H 1
 
-#if HAVE_CONFIG_H
-#include <config.h>
-#endif
+void module_register(void);
 
-#if !defined(HAVE_UTMPX_H) || !defined(HAVE_GETUTXENT)
-#undef HAVE_UTMPX_H
-#undef HAVE_GETUTXENT
-#endif
-
-#if !defined(HAVE_UTMP_H) || !defined(HAVE_GETUTENT)
-#undef HAVE_UTMPX_H
-#undef HAVE_GETUTXENT
-#endif
-
-#ifndef COLLECT_USERS
-#if defined(HAVE_UTMPX_H) || defined(HAVE_UTMP_H)
-#define COLLECT_USERS 1
-#else
-#define COLLECT_USERS 0
-#endif
-#endif /* ! defined(COLLECT_USERS) */
-
-void users_init(void);
-void users_read(void);
-void users_submit(unsigned int);
-void users_write(char *, char *, char *);
-
-#endif /* ! defined(USERS_H) */
+#endif /* !COLLECTD_USERS_H) */
 
