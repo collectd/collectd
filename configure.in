@@ -109,8 +109,7 @@ AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"]
 AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
 
 # For users module
-have_getutent="no"
-AC_CHECK_FUNCS(getutent getutxent, [have_getutent="yes"])
+AC_CHECK_FUNCS(getutent getutxent)
 
 # For quota module
 AC_CHECK_FUNCS(quotactl)
@@ -206,6 +205,14 @@ if test "x$with_rrdtool" = "xyes"
 then
 	AC_CHECK_HEADERS(rrd.h,, [with_rrdtool="no"])
 fi
+if test "x$with_rrdtool" = "xyes"
+then
+	collect_rrdtool=1
+else
+	collect_rrdtool=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_RRDTOOL, [$collect_rrdtool],
+	[Wether or not to use rrdtool library])
 AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 
 #AC_ARG_WITH(pth, AC_HELP_STRING([--with-pth=PFX], [Path to pth (experimental).]),
@@ -237,12 +244,21 @@ AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 if test "$ac_system" = "Solaris"
 then
 	with_kstat="yes"
-	AC_CHECK_LIB(kstat, kstat_open,, [with_kstat="no (not found)"])
+	AC_CHECK_LIB(kstat, kstat_open,, [with_kstat="no (libkstat not found)"])
 	AC_CHECK_LIB(devinfo, di_init)
 	AC_CHECK_HEADERS(kstat.h,, [with_kstat="no (kstat.h not found)"])
 else
 	with_kstat="no (Solaris only)"
 fi
+if test "x$with_kstat" = "xyes"
+then
+	collect_kstat=1
+else
+	collect_kstat=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_KSTAT, [$collect_kstat],
+	[Wether or not to use kstat library (Solaris)])
+AM_CONDITIONAL(BUILD_WITH_KSTAT, test "x$with_kstat" = "xyes")
 
 AC_ARG_WITH(libstatgrab, AC_HELP_STRING([--with-libstatgrab@<:@=PFX@:>@], [Path to libstatgrab.]),
 [
