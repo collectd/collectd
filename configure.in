@@ -262,7 +262,6 @@ AM_CONDITIONAL(BUILD_WITH_KSTAT, test "x$with_kstat" = "xyes")
 
 AC_ARG_WITH(libstatgrab, AC_HELP_STRING([--with-libstatgrab@<:@=PFX@:>@], [Path to libstatgrab.]),
 [
-	# given..
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
@@ -271,12 +270,11 @@ AC_ARG_WITH(libstatgrab, AC_HELP_STRING([--with-libstatgrab@<:@=PFX@:>@], [Path 
 	fi
 ],
 [
-	# not given..
-	if test "x$ac_system" != "xunknown"
+	if test "x$ac_system" == "xunknown"
 	then
-		with_libstatgrab="no"
-	else
 		with_libstatgrab="yes"
+	else
+		with_libstatgrab="no"
 	fi
 ])
 if test "x$with_libstatgrab" = "xyes"
