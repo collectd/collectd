@@ -281,9 +281,18 @@ if test "x$with_libstatgrab" = "xyes"
 then
 	AC_CHECK_LIB(devstat, getdevs)
 	AC_CHECK_LIB(kvm, kvm_getargv)
-	AC_CHECK_LIB(statgrab, sg_init,, [with_libstatgrab="no (not found)"])
-	AC_CHECK_HEADERS(statgrab.h,,    [with_libstatgrab="no (not found)"])
+	AC_CHECK_LIB(statgrab, sg_init,, [with_libstatgrab="no (libstatgrab not found)"])
+	AC_CHECK_HEADERS(statgrab.h,,    [with_libstatgrab="no (statgrab.h not found)"])
 fi
+if test "x$with_libstatgrab" = "xyes"
+then
+	collect_libstatgrab=1
+else
+	collect_libstatgrab=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_LIBSTATGRAB, [$collect_libstatgrab],
+	[Wether or not to use statgrab library])
+AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
 
 AC_ARG_WITH(lm-sensors, AC_HELP_STRING([--with-lm-sensors@<:@=PFX@:>@], [Path to lm_sensors.]),
 [
