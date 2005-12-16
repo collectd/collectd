@@ -191,7 +191,7 @@ collectd additional packages:])
 
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 AC_ARG_WITH(rrdtool, AC_HELP_STRING([--with-rrdtool=PFX], [Path to rrdtool.]),
-[	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
@@ -209,7 +209,7 @@ fi
 AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 
 #AC_ARG_WITH(pth, AC_HELP_STRING([--with-pth=PFX], [Path to pth (experimental).]),
-#[	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+#[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 #	then
 #		LDFLAGS="$LDFLAGS -L$withval/lib"
 #		CPPFLAGS="$CPPFLAGS -I$withval/include"
@@ -247,14 +247,11 @@ fi
 AC_ARG_WITH(libstatgrab, AC_HELP_STRING([--with-libstatgrab@<:@=PFX@:>@], [Path to libstatgrab.]),
 [
 	# given..
-	if test "x$withval" != "xno"
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		if test "x$withval" != "xyes"
-		then
-			LDFLAGS="$LDFLAGS -L$withval/lib"
-			CPPFLAGS="$CPPFLAGS -I$withval/include"
-			with_libstatgrab="yes"
-		fi
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libstatgrab="yes"
 	fi
 ],
 [
