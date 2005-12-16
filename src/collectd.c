@@ -121,15 +121,19 @@ void exit_usage (char *name)
 			
 			"Available options:\n"
 			"  General:\n"
-			"    -d <dir>        Base directory to use.\n"
+			"    -C <dir>        Configuration directory.\n"
 			"                    Default: %s\n"
-			"    -P <dir>        Set the plugin-directory\n"
+			"    -P <file>       PID File.\n"
 			"                    Default: %s\n"
-			"    -f              Don't fork to the background\n"
+			"    -M <dir>        Module/Plugin directory.\n"
+			"                    Default: %s\n"
+			"    -D <dir>        Data storage directory.\n"
+			"                    Default: %s\n"
+			"    -f              Don't fork to the background.\n"
 #ifdef HAVE_LIBRRD
-			"    -l              Start in local mode (no network)\n"
-			"    -c              Start in client (sender) mode\n"
-			"    -s              Start in server (listener) mode\n"
+			"    -l              Start in local mode (no network).\n"
+			"    -c              Start in client (sender) mode.\n"
+			"    -s              Start in server (listener) mode.\n"
 #endif /* HAVE_LIBRRD */
 #if COLLECT_PING
 			"  Ping:\n"
@@ -139,7 +143,7 @@ void exit_usage (char *name)
 			"\n%s %s, http://verplant.org/collectd/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n",
-			PACKAGE, DATADIR, PLUGINDIR, PACKAGE, VERSION);
+			PACKAGE, SYSCONFDIR, PIDFILE, PLUGINDIR, PKGLOCALSTATEDIR, PACKAGE, VERSION);
 	exit (0);
 }
 
@@ -239,9 +243,10 @@ int main (int argc, char **argv)
 	pid_t pid;
 #endif
 
-	char *plugindir = NULL;
-	char *basedir = DATADIR;
-	char *configfile = NULL;
+ 	char *confdir = SYSCONFDIR;
+ 	char *pidfile =  PIDFILE;
+ 	char *plugindir = PLUGINDIR;
+ 	char *datadir = PKGLOCALSTATEDIR;
 
 	int daemonize = 1;
 
@@ -249,19 +254,15 @@ int main (int argc, char **argv)
 	operating_mode = MODE_LOCAL;
 #endif
 	
-	/*
-	 * open syslog
-	 */
+	/* open syslog */
 	openlog (PACKAGE, LOG_CONS | LOG_PID, LOG_DAEMON);
 
-	/*
-	 * read options
-	 */
+	/* read options */
 	while (1)
 	{
 		int c;
 
-		c = getopt (argc, argv, "d:fP:h"
+		c = getopt (argc, argv, "C:P:M:D:fh"
 #if HAVE_LIBRRD
 				"csl"
 #endif /* HAVE_LIBRRD */
@@ -288,8 +289,17 @@ int main (int argc, char **argv)
 				operating_mode = MODE_LOCAL;
 				break;
 #endif /* HAVE_LIBRRD */
-			case 'd':
-				basedir = optarg;
+			case 'C':
+				confdir = optarg;
+				break;
+			case 'P':
+				pidfile = optarg;
+				break;
+			case 'M':
+				plugindir = optarg;
+				break;
+			case 'D':
+				datadir = optarg;
 				break;
 			case 'f':
 				daemonize = 0;
@@ -302,10 +312,6 @@ int main (int argc, char **argv)
 					fprintf (stderr, "Maximum of %i ping hosts reached.\n", MAX_PINGHOSTS);
 				break;
 #endif /* COLLECT_PING */
-			case 'P':
-				plugindir = optarg;
-				break;
-
 			case 'h':
 			default:
 				exit_usage (argv[0]);
@@ -329,9 +335,9 @@ int main (int argc, char **argv)
 	 * Change directory. We do this _after_ reading the config and loading
 	 * modules to relative paths work as expected.
 	 */
-	if (change_basedir (basedir))
+	if (change_basedir (datadir))
 	{
-		fprintf (stderr, "Error: Unable to change to directory `%s'.\n", basedir);
+		fprintf (stderr, "Error: Unable to change to directory `%s'.\n", datadir);
 		return (1);
 	}
 
@@ -403,9 +409,7 @@ int main (int argc, char **argv)
 #endif
 		start_client ();
 
-	/*
-	 * close syslog
-	 */
+	/* close syslog */
 	syslog (LOG_INFO, "Exiting normally");
 	closelog ();
 
