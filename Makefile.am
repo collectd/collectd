@@ -9,4 +9,3 @@ dist-hook:
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/run
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/lib/$(PACKAGE_NAME)
-	#$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
