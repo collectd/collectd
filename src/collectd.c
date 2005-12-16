@@ -121,7 +121,7 @@ void exit_usage (char *name)
 			
 			"Available options:\n"
 			"  General:\n"
-			"    -C <dir>        Configuration directory.\n"
+			"    -C <dir>        Configuration file.\n"
 			"                    Default: %s\n"
 			"    -P <file>       PID File.\n"
 			"                    Default: %s\n"
@@ -143,7 +143,7 @@ void exit_usage (char *name)
 			"\n%s %s, http://verplant.org/collectd/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n",
-			PACKAGE, SYSCONFDIR, PIDFILE, PLUGINDIR, PKGLOCALSTATEDIR, PACKAGE, VERSION);
+			PACKAGE, CONFIGFILE, PIDFILE, PLUGINDIR, PKGLOCALSTATEDIR, PACKAGE, VERSION);
 	exit (0);
 }
 
@@ -243,10 +243,10 @@ int main (int argc, char **argv)
 	pid_t pid;
 #endif
 
- 	char *confdir = SYSCONFDIR;
- 	char *pidfile =  PIDFILE;
- 	char *plugindir = PLUGINDIR;
- 	char *datadir = PKGLOCALSTATEDIR;
+ 	char *configfile = CONFIGFILE;
+ 	char *pidfile    = PIDFILE;
+ 	char *plugindir  = PLUGINDIR;
+ 	char *datadir    = PKGLOCALSTATEDIR;
 
 	int daemonize = 1;
 
@@ -290,7 +290,7 @@ int main (int argc, char **argv)
 				break;
 #endif /* HAVE_LIBRRD */
 			case 'C':
-				confdir = optarg;
+				configfile = optarg;
 				break;
 			case 'P':
 				pidfile = optarg;
