@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Source function library.
+. /etc/init.d/functions
+
+RETVAL=0
+ARGS=""
+prog="collectd"
+
+if [ -r /etc/default/$prog ]; then
+	. /etc/default/$prog
+fi
+
+if [ -n "$DATA_DIR" ]; then
+	ARGS="-D $DATA_DIR"
+fi
+
+if [ -n "$PING_HOST" ]; then
+	for HOST in $PING_HOST
+	do
+		ARGS="$ARGS -p $HOST"
+	done
+fi
+
+start () {
+	if [ "x$START_SERVER" = "xyes" ]
+	then
+		echo -n $"Starting $prog (server): "
+		daemon /usr/sbin/collectd -s $ARGS
+		RETVAL=$?
+		echo
+		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+	fi
+	if [ "x$START_CLIENT" = "xyes" ]
+	then
+		echo -n $"Starting $prog (client): "
+		daemon /usr/sbin/collectd -c $ARGS
+		RETVAL=$?
+		echo
+		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+	fi
+	if [ "x$START_SERVER" != "xyes" -a "x$START_CLIENT" != "xyes" ]
+	then
+		echo -n $"Starting $prog: "
+		daemon /usr/sbin/collectd -l $ARGS
+		RETVAL=$?
+		echo
+		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+	fi
+}
+stop () {
+	echo -n $"Stopping $prog: "
+	killproc $prog
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+}
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	status $prog
+	;;
+  restart|reload)
+	stop
+	start
+	;;
+  condrestart)
+	[ -f /var/lock/subsys/$prog ] && restart || :
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|status|restart|reload|condrestart}"
+	exit 1
+esac
+
+exit $?
+
+# vim:syntax=sh
