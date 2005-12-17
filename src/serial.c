@@ -21,13 +21,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "serial.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_SERIAL
 #define MODULE_NAME "serial"
 
-#include "plugin.h"
-#include "common.h"
+#if defined(KERNEL_LINUX)
+# define SERIAL_HAVE_READ 1
+#else
+# define SERIAL_HAVE_READ 0
+#endif
 
 static char *serial_filename_template = "serial-%s.rrd";
 
@@ -39,11 +43,12 @@ static char *ds_def[] =
 };
 static int ds_num = 2;
 
-void serial_init (void)
+static void serial_init (void)
 {
+	return;
 }
 
-void serial_write (char *host, char *inst, char *val)
+static void serial_write (char *host, char *inst, char *val)
 {
 	char file[512];
 	int status;
@@ -58,7 +63,7 @@ void serial_write (char *host, char *inst, char *val)
 }
 
 #define BUFSIZE 512
-void serial_submit (char *device,
+static void serial_submit (char *device,
 		unsigned long long incoming,
 		unsigned long long outgoing)
 {
@@ -72,7 +77,8 @@ void serial_submit (char *device,
 }
 #undef BUFSIZE
 
-void serial_read (void)
+#if SERIAL_HAVE_READ
+static void serial_read (void)
 {
 #ifdef KERNEL_LINUX
 
@@ -95,6 +101,13 @@ void serial_read (void)
 	while (fgets (buffer, 1024, fh) != NULL)
 	{
 		int have_rx = 0, have_tx = 0;
+
+		/* stupid compiler:
+		 * serial.c:87: warning: 'incoming' may be used uninitialized in this function
+		 * serial.c:87: warning: 'outgoing' may be used uninitialized in this function
+		 */
+		incoming = 0ULL;
+		outgoing = 0ULL;
 
 		numfields = strsplit (buffer, fields, 16);
 
@@ -139,11 +152,17 @@ void serial_read (void)
 	fclose (fh);
 #endif /* KERNEL_LINUX */
 }
+#endif /* SERIAL_HAVE_READ */
 
 void module_register (void)
 {
-   plugin_register (MODULE_NAME, serial_init, serial_read, serial_write);
+   plugin_register (MODULE_NAME, serial_init,
+#if SERIAL_HAVE_READ
+		   serial_read,
+#else
+		   NULL,
+#endif
+		   serial_write);
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_SERIAL */

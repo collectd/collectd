@@ -20,9 +20,9 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
+#include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "users.h"
 
 #if HAVE_UTMPX_H
 # include <utmpx.h>
@@ -33,6 +33,12 @@
 #endif /* HAVE_UTMPX_H */
 
 #define MODULE_NAME "users"
+
+#if HAVE_GETUTXENT || HAVE_GETUTENT
+# define USERS_HAVE_READ 1
+#else
+# define USERS_HAVE_READ 0
+#endif
 
 static char *rrd_file = "users.rrd";
 static char *ds_def[] =
@@ -72,6 +78,7 @@ static void users_submit (unsigned int users)
 } /* static void users_submit(unsigned int users) */
 #undef BUFSIZE
 
+#if USERS_HAVE_READ
 static void users_read (void)
 {
 #if HAVE_GETUTXENT
@@ -112,6 +119,9 @@ static void users_read (void)
 
 	return;
 } /* static void users_read(void) */
+#else
+# define users_read NULL
+#endif /* USERS_HAVE_READ */
 
 void module_register (void)
 {

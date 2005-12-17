@@ -20,20 +20,17 @@
  *   Scott Garrett <sgarrett at technomancer.com>
  **/
 
-#include "tape.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_TAPE
 #define MODULE_NAME "tape"
 
-#include "plugin.h"
-#include "common.h"
-
 #if defined(HAVE_LIBKSTAT)
-#define MAX_NUMTAPE 256
-extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMTAPE];
-static int numtape = 0;
-#endif /* HAVE_LIBKSTAT */
+# define TAPE_HAVE_READ 1
+#else
+# define TAPE_HAVE_READ 0
+#endif
 
 static char *tape_filename_template = "tape-%s.rrd";
 
@@ -52,7 +49,14 @@ static char *tape_ds_def[] =
 };
 static int tape_ds_num = 8;
 
-void tape_init (void)
+#if defined(HAVE_LIBKSTAT)
+#define MAX_NUMTAPE 256
+extern kstat_ctl_t *kc;
+static kstat_t *ksp[MAX_NUMTAPE];
+static int numtape = 0;
+#endif /* HAVE_LIBKSTAT */
+
+static void tape_init (void)
 {
 #ifdef HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
@@ -77,7 +81,7 @@ void tape_init (void)
 	return;
 }
 
-void tape_write (char *host, char *inst, char *val)
+static void tape_write (char *host, char *inst, char *val)
 {
 	char file[512];
 	int status;
@@ -93,7 +97,7 @@ void tape_write (char *host, char *inst, char *val)
 
 
 #define BUFSIZE 512
-void tape_submit (char *tape_name,
+static void tape_submit (char *tape_name,
 		unsigned long long read_count,
 		unsigned long long read_merged,
 		unsigned long long read_bytes,
@@ -118,6 +122,7 @@ void tape_submit (char *tape_name,
 
 #undef BUFSIZE
 
+#if TAPE_HAVE_READ
 void tape_read (void)
 {
 
@@ -140,6 +145,9 @@ void tape_read (void)
 	}
 #endif /* defined(HAVE_LIBKSTAT) */
 }
+#else
+# define tape_read NULL
+#endif /* TAPE_HAVE_READ */
 
 void module_register (void)
 {
@@ -147,4 +155,3 @@ void module_register (void)
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_TAPE */

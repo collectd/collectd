@@ -20,17 +20,21 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "swap.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_SWAP
 #define MODULE_NAME "swap"
+
+#if defined(KERNEL_LINUX) || defined(KERNEL_SOLARIS) || defined(HAVE_LIBSTATGRAB)
+# define SWAP_HAVE_READ 1
+#else
+# define SWAP_HAVE_READ 0
+#endif
 
 #ifdef KERNEL_SOLARIS
 #include <sys/swap.h>
 #endif /* KERNEL_SOLARIS */
-
-#include "plugin.h"
-#include "common.h"
 
 #undef  MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -53,7 +57,7 @@ static int pagesize;
 static kstat_t *ksp;
 #endif /* KERNEL_SOLARIS */
 
-void module_init (void)
+static void module_init (void)
 {
 #ifdef KERNEL_SOLARIS
 	/* getpagesize(3C) tells me this does not fail.. */
@@ -65,12 +69,12 @@ void module_init (void)
 	return;
 }
 
-void module_write (char *host, char *inst, char *val)
+static void module_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, swap_file, val, ds_def, ds_num);
 }
 
-void module_submit (unsigned long long swap_used,
+static void module_submit (unsigned long long swap_used,
 		unsigned long long swap_free,
 		unsigned long long swap_cached,
 		unsigned long long swap_resv)
@@ -84,7 +88,8 @@ void module_submit (unsigned long long swap_used,
 	plugin_submit (MODULE_NAME, "-", buffer);
 }
 
-void module_read (void)
+#if SWAP_HAVE_READ
+static void module_read (void)
 {
 #ifdef KERNEL_LINUX
 	FILE *fh;
@@ -186,6 +191,9 @@ void module_read (void)
 		module_submit (swap->used, swap->free, -1LL, -1LL);
 #endif /* HAVE_LIBSTATGRAB */
 }
+#else
+# define module_read NULL
+#endif /* SWAP_HAVE_READ */
 
 void module_register (void)
 {
@@ -193,4 +201,3 @@ void module_register (void)
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_SWAP */

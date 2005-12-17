@@ -20,20 +20,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "traffic.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_TRAFFIC
 #define MODULE_NAME "traffic"
 
-#include "plugin.h"
-#include "common.h"
-
-#ifdef HAVE_LIBKSTAT
-#define MAX_NUMIF 256
-extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMIF];
-static int numif = 0;
-#endif /* HAVE_LIBKSTAT */
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_LIBSTATGRAB)
+# define TRAFFIC_HAVE_READ 1
+#else
+# define TRAFFIC_HAVE_READ 0
+#endif
 
 static char *traffic_filename_template = "traffic-%s.rrd";
 
@@ -44,6 +41,13 @@ static char *ds_def[] =
 	NULL
 };
 static int ds_num = 2;
+
+#ifdef HAVE_LIBKSTAT
+#define MAX_NUMIF 256
+extern kstat_ctl_t *kc;
+static kstat_t *ksp[MAX_NUMIF];
+static int numif = 0;
+#endif /* HAVE_LIBKSTAT */
 
 void traffic_init (void)
 {
@@ -102,6 +106,7 @@ void traffic_submit (char *device,
 }
 #undef BUFSIZE
 
+#if TRAFFIC_HAVE_READ
 void traffic_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -179,6 +184,9 @@ void traffic_read (void)
 		traffic_submit (ios[i].interface_name, ios[i].rx, ios[i].tx);
 #endif /* HAVE_LIBSTATGRAB */
 }
+#else
+#define traffic_read NULL
+#endif /* TRAFFIC_HAVE_READ */
 
 void module_register (void)
 {
@@ -186,4 +194,3 @@ void module_register (void)
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_TRAFFIC */

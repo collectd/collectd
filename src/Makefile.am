@@ -141,6 +141,7 @@ if BUILD_MODULE_SERIAL
 pkglib_LTLIBRARIES += serial.la
 serial_la_SOURCES = serial.c serial.h
 serial_la_LDFLAGS = -module -avoid-version
+serial_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" serial.la
 collectd_DEPENDENCIES += serial.la
 endif
@@ -149,6 +150,7 @@ if BUILD_MODULE_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c swap.h
 swap_la_LDFLAGS = -module -avoid-version
+swap_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" swap.la
 collectd_DEPENDENCIES += swap.la
 endif
@@ -157,6 +159,7 @@ if BUILD_MODULE_TAPE
 pkglib_LTLIBRARIES += tape.la
 tape_la_SOURCES = tape.c tape.h
 tape_la_LDFLAGS = -module -avoid-version
+tape_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
 endif
@@ -165,6 +168,7 @@ if BUILD_MODULE_TRAFFIC
 pkglib_LTLIBRARIES += traffic.la
 traffic_la_SOURCES = traffic.c traffic.h
 traffic_la_LDFLAGS = -module -avoid-version
+traffic_la_CFLAGS = -Wall -Werror
 collectd_LDADD += "-dlopen" traffic.la
 collectd_DEPENDENCIES += traffic.la
 endif
