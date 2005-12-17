@@ -35,8 +35,8 @@
 # include <sys/stat.h>
 #endif
 #if STDC_HEADERS
-#include <stdlib.h>
-#include <stddef.h>
+# include <stdlib.h>
+# include <stddef.h>
 #else
 # if HAVE_STDLIB_H
 #  include <stdlib.h>
@@ -118,6 +118,9 @@
 #if HAVE_CTYPE_H
 # include <ctype.h>
 #endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
 
 #if HAVE_SYSLOG
 # define syslog(...) syslog(__VA_ARGS__)
@@ -137,31 +140,21 @@
 # define closelog(...) /**/
 #endif
 
-#ifndef HAVE_RRD_H
-#undef HAVE_LIBRRD
+#if HAVE_KSTAT_H
+# include <kstat.h>
 #endif
 
-#ifdef HAVE_LIBRRD
-#include <rrd.h>
-#endif /* HAVE_LIBRRD */
-
-/* Won't work without the header file */
-#ifndef HAVE_KSTAT_H
-#undef HAVE_LIBKSTAT
+#if HAVE_RRD_H
+# include <rrd.h>
 #endif
-
-#ifdef HAVE_LIBKSTAT
-#include <kstat.h>
-#include <sys/param.h>
-#endif /* HAVE_LIBKSTAT */
-
-/* Won't work without the header file */
-#ifndef HAVE_STATGRAB_H
-#undef HAVE_LIBSTATGRAB
+#if HAVE_PTH_H
+# include <pth.h>
 #endif
-
-#ifdef HAVE_LIBSTATGRAB
-#include <statgrab.h>
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+#if HAVE_SENSORS_SENSORS_H
+# include <sensors/sensors.h>
 #endif
 
 #ifndef PACKAGE_NAME
