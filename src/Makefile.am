@@ -14,15 +14,17 @@ collectd_SOURCES = collectd.c collectd.h \
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
 collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
+if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
+endif
 collectd_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
+if BUILD_FEATURE_DEBUG
+collectd_CPPFLAGS += -DLOGFILE='"${localstatedir}/log/${PACKAGE_NAME}/collectd.log"'
+endif
 collectd_LDFLAGS = -export-dynamic
 collectd_CFLAGS = -Werror
 collectd_LDADD = $(LIBLTDL) "-dlopen" self
 collectd_DEPENDENCIES = $(LIBLTDL)
-if BUILD_WITH_RRDTOOL
-collectd_LDADD += -lrrd
-endif
 
 pkglib_LTLIBRARIES = 
 
