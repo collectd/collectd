@@ -13,7 +13,6 @@ collectd_SOURCES = collectd.c collectd.h \
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
-collectd_CPPFLAGS += -DCONFIGDIR='"${sysconfdir}/${PACKAGE_NAME}.d"'
 collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'

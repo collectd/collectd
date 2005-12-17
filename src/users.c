@@ -32,31 +32,32 @@
 # endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
 
-
-
 #define MODULE_NAME "users"
 
 static char *rrd_file = "users.rrd";
-static char *ds_def[] = {
+static char *ds_def[] =
+{
 	"DS:users:GAUGE:25:0:65535",
 	NULL
 };
 static int ds_num = 1;
 
+static void users_init (void)
+{
+	/* we have nothing to do here :-) */
+	return;
+} /* static void users_init(void) */
 
-
-static void users_submit(unsigned int users);
-static void users_init(void);
-static void users_read(void);
-static void users_write(char *host, char *inst, char *val);
-
-
+static void users_write (char *host, char *inst, char *val)
+{
+	rrd_update_file(host, rrd_file, val, ds_def, ds_num);
+	return;
+} /* static void users_write(char *host, char *inst, char *val) */
 
 /* I don't like this temporary macro definition - well it's used everywhere
    else in the collectd-sources, so I will just stick with it...  */
 #define BUFSIZE 256
-static void
-users_submit(unsigned int users)
+static void users_submit (unsigned int users)
 {
 	char buf[BUFSIZE] = "";
 
@@ -71,17 +72,7 @@ users_submit(unsigned int users)
 } /* static void users_submit(unsigned int users) */
 #undef BUFSIZE
 
-
-
-static void
-users_init(void)
-{
-	/* we have nothing to do here :-) */
-	return;
-} /* static void users_init(void) */
-
-static void
-users_read(void)
+static void users_read (void)
 {
 #if HAVE_GETUTXENT
 	unsigned int users = 0;
@@ -98,9 +89,10 @@ users_read(void)
 	}
 	endutxent();
 
-	users_submit(users);
-#else /* !HAVE_GETUTXENT */
-# if HAVE_GETUTENT
+	users_submit (users);
+/* #endif HAVE_GETUTXENT */
+	
+#elif HAVE_GETUTENT
 	unsigned int users = 0;
 	struct utmp *entry = NULL;
 
@@ -116,25 +108,13 @@ users_read(void)
 	endutent();
 
 	users_submit(users);
-# endif /* HAVE_GETUTENT */
-#endif /* HAVE_GETUTXENT */
+#endif /* HAVE_GETUTENT */
 
 	return;
 } /* static void users_read(void) */
 
-static void
-users_write(char *host, char *inst, char *val)
+void module_register (void)
 {
-	rrd_update_file(host, rrd_file, val, ds_def, ds_num);
-	return;
-} /* static void users_write(char *host, char *inst, char *val) */
-
-
-
-void
-module_register(void)
-{
-	plugin_register(MODULE_NAME, users_init, users_read, users_write);
+	plugin_register (MODULE_NAME, users_init, users_read, users_write);
 	return;
 } /* void module_register(void) */
-

@@ -3,3 +3,4 @@ For version 3.*:
 * Port tape module to Linux
 * Maybe look into porting the serial module
 * Ping bug (disabled)
+* Handle sigterm
