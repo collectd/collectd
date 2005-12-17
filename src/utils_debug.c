@@ -23,16 +23,13 @@
 #include "common.h"
 #include "utils_debug.h"
 
-/* *** *** ***   global variables   *** *** *** */
 #if COLLECT_DEBUG
-
-#define DEFAULT_FILENAME "collectd.log"
 
 static void cu_vdebug(const char *file, int line, const char *func,
 	const char *format, va_list ap);
 
 /* if preemptive threads are used, these vars need some sort of locking! */
-/* pth is non-preemptive, so no locking is necessary (?) */
+/* pth is non-preemptive, so no locking is necessary */
 static FILE *cu_debug_file = NULL;
 static char *cu_debug_filename = NULL;
 
@@ -71,7 +68,7 @@ cu_debug(const char *file, int line, const char *func,
 
 int
 cu_debug_startfile(const char *file, int line, const char *func,
-	const char *format, ...)
+	const char *filename, const char *format, ...)
 {
 	va_list ap;
 
@@ -82,7 +79,7 @@ cu_debug_startfile(const char *file, int line, const char *func,
 	}
 
 	if(cu_debug_filename == NULL) {
-		cu_debug_filename = sstrdup(DEFAULT_FILENAME);
+		cu_debug_filename = sstrdup(filename);
 	}
 
 	cu_debug_file = fopen(cu_debug_filename, "a");
@@ -168,28 +165,6 @@ cu_debug_resetfile(const char *file, int line, const char *func,
 	return EXIT_SUCCESS;
 } /* int cu_debug_resetfile(const char *file, int line, const char *func,
         const char *filename) */
-
-#else /* !COLLECT_DEBUG */
-
-void
-cu_debug(const char *file, int line, const char *func, const char *format, ...)
-{
-}
-int
-cu_debug_startfile(const char *file, int line, const char *func, const char *format, ...)
-{
-	return EXIT_SUCCESS;
-}
-int
-cu_debug_stopfile(const char *file, int line, const char *func, const char *format, ...)
-{
-	return EXIT_SUCCESS;
-}
-int
-cu_debug_resetfile(const char *file, int line, const char *func, const char *filename)
-{
-	return EXIT_SUCCESS;
-}
 
 #endif /* COLLECT_DEBUG */
 

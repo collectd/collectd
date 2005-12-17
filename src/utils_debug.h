@@ -21,14 +21,19 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
 **/
 
+/* BUG: at the moment you can use DBG_STARTFILE only ONCE in
+   your program. more then one logfile is not supported. */
+
 #if !COLLECTD_UTILS_DEBUG_H
 #define COLLECTD_UTILS_DEBUG_H 1
+
+#if COLLECT_DEBUG
 
 #define DBG(...) cu_debug(__FILE__, __LINE__, __func__, \
 	__VA_ARGS__)
 
-#define DBG_STARTFILE(...) cu_debug_startfile(__FILE__, __LINE__, \
-	__func__, __VA_ARGS__)
+#define DBG_STARTFILE(file, ...) cu_debug_startfile(__FILE__, __LINE__, \
+	__func__, file, __VA_ARGS__)
 #define DBG_STOPFILE(...) cu_debug_stopfile(__FILE__, __LINE__, \
 	__func__, __VA_ARGS__)
 
@@ -39,12 +44,21 @@ void cu_debug(const char *file, int line, const char *func,
 	const char *format, ...);
 
 int cu_debug_startfile(const char *file, int line, const char *func,
-	const char *format, ...);
+	const char *filename, const char *format, ...);
 int cu_debug_stopfile(const char *file, int line, const char *func,
 	const char *format, ...);
 
 int cu_debug_resetfile(const char *file, int line, const char *func,
 	const char *filename);
+
+#else /* !COLLECT_DEBUG */
+
+#define DBG(...)                   /* DBG(...) */
+#define DBG_STARTFILE(file, ...)   /* DBG_STARTFILE(file, ...) */
+#define DBG_STOPFILE(...)          /* DBG_STOPFILE(...) */
+#define DBG_RESETFILE(file)        /* DBG_RESETFILE(file) */
+
+#endif /* COLLECT_DEBUG */
 
 #endif /* !COLLECTD_UTILS_DEBUG_H */
 
