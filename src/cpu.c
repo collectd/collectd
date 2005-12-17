@@ -21,8 +21,16 @@
  **/
 
 #include "collectd.h"
-#include "plugin.h"
 #include "common.h"
+#include "plugin.h"
+
+#define MODULE_NAME "cpu"
+
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
+# define CPU_HAVE_READ 1
+#else
+# define CPU_HAVE_READ 0
+#endif
 
 #ifdef HAVE_LIBKSTAT
 # include <sys/sysinfo.h>
@@ -58,8 +66,6 @@ static int numcpu;
 #ifdef HAVE_SYSCTLBYNAME
 static int numcpu;
 #endif /* HAVE_SYSCTLBYNAME */
-
-#define MODULE_NAME "cpu"
 
 static char *cpu_filename = "cpu-%s.rrd";
 
@@ -141,6 +147,7 @@ static void cpu_submit (int cpu_num, unsigned long long user,
 }
 #undef BUFSIZE
 
+#if CPU_HAVE_READ
 static void cpu_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -222,7 +229,7 @@ static void cpu_read (void)
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
 
-#elif defined (HAVE_SYSCTLBYNAME)
+#elif defined(HAVE_SYSCTLBYNAME)
 	long cpuinfo[CPUSTATES];
 	size_t cpuinfo_size;
 
@@ -242,10 +249,17 @@ static void cpu_read (void)
 
 	return;
 }
+#endif /* CPU_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, cpu_init, cpu_read, cpu_write);
+	plugin_register (MODULE_NAME, cpu_init,
+#if CPU_HAVE_READ
+			cpu_read,
+#else
+			NULL,
+#endif
+			cpu_write);
 }
 
 #undef MODULE_NAME

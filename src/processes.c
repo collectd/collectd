@@ -21,13 +21,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "processes.h"
-
-#if COLLECT_PROCESSES
-#define MODULE_NAME "processes"
-
+#include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
+#define MODULE_NAME "processes"
+
+#ifdef KERNEL_LINUX
+# define PROCESSES_HAVE_READ 1
+#else
+# define PROCESSES_HAVE_READ 0
+#endif
 
 static char *ps_file = "processes.rrd";
 
@@ -71,6 +75,7 @@ void ps_submit (unsigned int running,
 	plugin_submit (MODULE_NAME, "-", buf);
 }
 
+#if PROCESSES_HAVE_READ
 void ps_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -133,12 +138,18 @@ void ps_read (void)
 	ps_submit (running, sleeping, zombies, stopped, paging, blocked);
 #endif /* defined(KERNEL_LINUX) */
 }
+#endif /* PROCESSES_HAVE_READ */
 #undef BUFSIZE
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
+	plugin_register (MODULE_NAME, ps_init,
+#if PROCESSES_HAVE_READ
+			ps_read,
+#else
+			NULL,
+#endif
+			ps_write);
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_PROCESSES */

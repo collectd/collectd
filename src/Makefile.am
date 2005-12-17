@@ -34,6 +34,7 @@ if BUILD_MODULE_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c cpu.h
 cpu_la_LDFLAGS = -module -avoid-version
+cpu_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" cpu.la
 collectd_DEPENDENCIES += cpu.la
 endif
@@ -42,6 +43,7 @@ if BUILD_MODULE_CPUFREQ
 pkglib_LTLIBRARIES += cpufreq.la
 cpufreq_la_SOURCES = cpufreq.c cpufreq.h
 cpufreq_la_LDFLAGS = -module -avoid-version
+cpufreq_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" cpufreq.la
 collectd_DEPENDENCIES += cpufreq.la
 endif
@@ -50,6 +52,7 @@ if BUILD_MODULE_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c disk.h
 disk_la_LDFLAGS = -module -avoid-version
+disk_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
@@ -69,6 +72,7 @@ if BUILD_MODULE_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c hddtemp.h
 hddtemp_la_LDFLAGS = -module -avoid-version
+hddtemp_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
 endif
@@ -77,6 +81,7 @@ if BUILD_MODULE_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = load.c load.h
 load_la_LDFLAGS = -module -avoid-version
+load_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" load.la
 collectd_DEPENDENCIES += load.la
 endif
@@ -85,6 +90,7 @@ if BUILD_MODULE_MEMORY
 pkglib_LTLIBRARIES += memory.la
 memory_la_SOURCES = memory.c memory.h
 memory_la_LDFLAGS = -module -avoid-version
+memory_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" memory.la
 collectd_DEPENDENCIES += memory.la
 endif
@@ -93,6 +99,7 @@ if BUILD_MODULE_NFS
 pkglib_LTLIBRARIES += nfs.la
 nfs_la_SOURCES = nfs.c nfs.h
 nfs_la_LDFLAGS = -module -avoid-version
+nfs_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" nfs.la
 collectd_DEPENDENCIES += nfs.la
 endif
@@ -103,6 +110,7 @@ ping_la_SOURCES = ping.c ping.h
 ping_la_LDFLAGS = -module -avoid-version
 ping_la_LIBADD  = libping/libping.la
 ping_la_DEPENDENCIES = libping/libping.la
+ping_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif
@@ -111,6 +119,7 @@ if BUILD_MODULE_PROCESSES
 pkglib_LTLIBRARIES += processes.la
 processes_la_SOURCES = processes.c processes.h
 processes_la_LDFLAGS = -module -avoid-version
+processes_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" processes.la
 collectd_DEPENDENCIES += processes.la
 endif
@@ -118,8 +127,12 @@ endif
 if BUILD_MODULE_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = sensors.c sensors.h
-sensors_la_LDFLAGS = -module -avoid-version -lsensors
+sensors_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LM_SENSORS
+sensors_la_LDFLAGS += -lsensors
+endif
 sensors_la_LIBADD = -lsensors
+sensors_la_CFLAGS  = -Wall -Werror
 collectd_LDADD += "-dlopen" sensors.la
 collectd_DEPENDENCIES += sensors.la
 endif

@@ -21,24 +21,16 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "hddtemp.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_HDDTEMP
 #define MODULE_NAME "hddtemp"
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <string.h>
-#include <errno.h>
-#include <syslog.h>
-#include <stdlib.h>
-#include <string.h>
 #include <libgen.h> /* for basename */
-
-#include "plugin.h"
-#include "common.h"
 
 /* LOCALHOST_ADDR
    The ip address 127.0.0.1, as a 32 bit. */
@@ -71,23 +63,28 @@ typedef struct hddname
 
 static hddname_t *first_hddname = NULL;
 
-/* hddtemp_query_daemon
-   Connect to the hddtemp daemon and receive data.
-
-   Parameters:
-     buffer:      the buffer where we put the received ascii string.
-     buffer_size: size of the buffer
-
-   Return value:
-     >= 0 if ok, < 0 otherwise.
-
-   Example of possible strings, as received from daemon:
-
-	   |/dev/hda|ST340014A|36|C|
-	   |/dev/hda|ST380011A|46|C||/dev/hdd|ST340016A|SLP|*|
-
-   FIXME: we need to create a new socket each time. Is there another way? */
-
+/*
+ * NAME
+ *  hddtemp_query_daemon
+ *
+ * DESCRIPTION
+ * Connect to the hddtemp daemon and receive data.
+ *
+ * ARGUMENTS:
+ *  `buffer'            The buffer where we put the received ascii string.
+ *  `buffer_size'       Size of the buffer
+ *
+ * RETURN VALUE:
+ *   >= 0 if ok, < 0 otherwise.
+ *
+ * NOTES:
+ *  Example of possible strings, as received from daemon:
+ *    |/dev/hda|ST340014A|36|C|
+ *    |/dev/hda|ST380011A|46|C||/dev/hdd|ST340016A|SLP|*|
+ *
+ * FIXME:
+ *  we need to create a new socket each time. Is there another way?
+ */
 static int hddtemp_query_daemon (char *buffer, int buffer_size)
 {
 	int sock;
@@ -368,5 +365,3 @@ void module_register (void)
 {
 	plugin_register (MODULE_NAME, hddtemp_init, hddtemp_read, hddtemp_write);
 }
-
-#endif /* COLLECT_HDDTEMP */

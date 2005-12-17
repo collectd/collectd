@@ -20,24 +20,23 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "sensors.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_SENSORS
 #define MODULE_NAME "sensors"
 
-#include <sensors/sensors.h>
+#if defined(HAVE_SENSORS_SENSORS_H)
+# include <sensors/sensors.h>
+#else
+# undef HAVE_LIBSENSORS
+#endif
 
-#include "plugin.h"
-#include "common.h"
-
-typedef struct featurelist
-{
-	const sensors_chip_name    *chip;
-	const sensors_feature_data *data;
-	struct featurelist         *next;
-} featurelist_t;
-
-featurelist_t *first_feature = NULL;
+#if defined(HAVE_LIBSENSORS)
+# define SENSORS_HAVE_READ 1
+#else
+# define SENSORS_HAVE_READ 0
+#endif
 
 static char *filename_format = "sensors-%s.rrd";
 
@@ -48,8 +47,20 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
-void collectd_sensors_init (void)
+#ifdef HAVE_LIBSENSORS
+typedef struct featurelist
 {
+	const sensors_chip_name    *chip;
+	const sensors_feature_data *data;
+	struct featurelist         *next;
+} featurelist_t;
+
+featurelist_t *first_feature = NULL;
+#endif /* defined (HAVE_LIBSENSORS) */
+
+static void collectd_sensors_init (void)
+{
+#ifdef HAVE_LIBSENSORS
 	FILE *fh;
 	featurelist_t *last_feature = NULL;
 	featurelist_t *new_feature;
@@ -131,24 +142,27 @@ void collectd_sensors_init (void)
 
 	if (first_feature == NULL)
 		sensors_cleanup ();
+#endif /* defined(HAVE_LIBSENSORS) */
+
+	return;
 }
 
-void sensors_write (char *host, char *inst, char *val)
+#define BUFSIZE 512
+static void sensors_write (char *host, char *inst, char *val)
 {
-	char file[512];
+	char file[BUFSIZE];
 	int status;
 
-	status = snprintf (file, 512, filename_format, inst);
+	status = snprintf (file, BUFSIZE, filename_format, inst);
 	if (status < 1)
 		return;
-	else if (status >= 512)
+	else if (status >= BUFSIZE)
 		return;
 
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
-#define BUFSIZE 512
-void sensors_submit (const char *feat_name, const char *chip_prefix, double value)
+static void sensors_submit (const char *feat_name, const char *chip_prefix, double value)
 {
 	char buf[BUFSIZE];
 	char inst[BUFSIZE];
@@ -163,7 +177,8 @@ void sensors_submit (const char *feat_name, const char *chip_prefix, double valu
 }
 #undef BUFSIZE
 
-void sensors_read (void)
+#if SENSORS_HAVE_READ
+static void sensors_read (void)
 {
 	featurelist_t *feature;
 	double value;
@@ -176,12 +191,17 @@ void sensors_read (void)
 		sensors_submit (feature->data->name, feature->chip->prefix, value);
 	}
 }
+#endif /* SENSORS_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, collectd_sensors_init, sensors_read,
+	plugin_register (MODULE_NAME, collectd_sensors_init,
+#if SENSORS_HAVE_READ
+			sensors_read,
+#else
+			NULL,
+#endif
 			sensors_write);
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_SENSORS */

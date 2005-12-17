@@ -20,13 +20,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "memory.h"
-
-#if COLLECT_MEMORY
-#define MODULE_NAME "memory"
-
-#include "plugin.h"
+#include "collectd.h"
 #include "common.h"
+#include "plugin.h"
+
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+# define MEMORY_HAVE_READ 1
+#else
+# define MEMORY_HAVE_READ 0
+#endif
+
+#define MODULE_NAME "memory"
 
 static char *memory_file = "memory.rrd";
 
@@ -78,6 +82,7 @@ void memory_submit (long long mem_used, long long mem_buffered,
 }
 #undef BUFSIZE
 
+#if MEMORY_HAVE_READ
 void memory_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -163,11 +168,17 @@ void memory_read (void)
 		memory_submit (ios->used, 0LL, ios->cache, ios->free);
 #endif /* HAVE_LIBSTATGRAB */
 }
+#endif /* MEMORY_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, memory_init, memory_read, memory_write);
+	plugin_register (MODULE_NAME, memory_init,
+#if MEMORY_HAVE_READ
+			memory_read,
+#else
+			NULL,
+#endif
+			memory_write);
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_MEMORY */

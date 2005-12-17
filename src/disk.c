@@ -20,37 +20,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "disk.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_DISK
 #define MODULE_NAME "disk"
 
-#include "plugin.h"
-#include "common.h"
-
-#ifdef KERNEL_LINUX
-typedef struct diskstats
-{
-	char *name;
-
-	unsigned int read_sectors;
-	unsigned int write_sectors;
-
-	unsigned long long read_bytes;
-	unsigned long long write_bytes;
-
-	struct diskstats *next;
-} diskstats_t;
-
-static diskstats_t *disklist;
-/* KERNEL_LINUX */
-
-#elif defined(HAVE_LIBKSTAT)
-#define MAX_NUMDISK 256
-extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMDISK];
-static int numdisk = 0;
-#endif /* HAVE_LIBKSTAT */
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+# define DISK_HAVE_READ 1
+#else
+# define DISK_HAVE_READ 0
+#endif
 
 static char *disk_filename_template = "disk-%s.rrd";
 static char *part_filename_template = "partition-%s.rrd";
@@ -80,7 +60,31 @@ static char *part_ds_def[] =
 };
 static int part_ds_num = 4;
 
-void disk_init (void)
+#ifdef KERNEL_LINUX
+typedef struct diskstats
+{
+	char *name;
+
+	unsigned int read_sectors;
+	unsigned int write_sectors;
+
+	unsigned long long read_bytes;
+	unsigned long long write_bytes;
+
+	struct diskstats *next;
+} diskstats_t;
+
+static diskstats_t *disklist;
+/* #endif defined(KERNEL_LINUX) */
+
+#elif defined(HAVE_LIBKSTAT)
+#define MAX_NUMDISK 256
+extern kstat_ctl_t *kc;
+static kstat_t *ksp[MAX_NUMDISK];
+static int numdisk = 0;
+#endif /* HAVE_LIBKSTAT */
+
+static void disk_init (void)
 {
 #ifdef HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
@@ -106,7 +110,7 @@ void disk_init (void)
 	return;
 }
 
-void disk_write (char *host, char *inst, char *val)
+static void disk_write (char *host, char *inst, char *val)
 {
 	char file[512];
 	int status;
@@ -120,7 +124,7 @@ void disk_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, disk_ds_def, disk_ds_num);
 }
 
-void partition_write (char *host, char *inst, char *val)
+static void partition_write (char *host, char *inst, char *val)
 {
 	char file[512];
 	int status;
@@ -135,7 +139,7 @@ void partition_write (char *host, char *inst, char *val)
 }
 
 #define BUFSIZE 512
-void disk_submit (char *disk_name,
+static void disk_submit (char *disk_name,
 		unsigned long long read_count,
 		unsigned long long read_merged,
 		unsigned long long read_bytes,
@@ -157,7 +161,7 @@ void disk_submit (char *disk_name,
 	plugin_submit (MODULE_NAME, disk_name, buf);
 }
 
-void partition_submit (char *part_name,
+static void partition_submit (char *part_name,
 		unsigned long long read_count,
 		unsigned long long read_bytes,
 		unsigned long long write_count,
@@ -175,7 +179,8 @@ void partition_submit (char *part_name,
 }
 #undef BUFSIZE
 
-void disk_read (void)
+#if DISK_HAVE_READ
+static void disk_read (void)
 {
 #ifdef KERNEL_LINUX
 	FILE *fh;
@@ -331,13 +336,19 @@ void disk_read (void)
 					kio.writes,kio.nwritten);
 	}
 #endif /* defined(HAVE_LIBKSTAT) */
-}
+} /* static void disk_read (void) */
+#endif /* DISK_HAVE_READ */
 
 void module_register (void)
 {
 	plugin_register ("partition", NULL, NULL, partition_write);
-	plugin_register (MODULE_NAME, disk_init, disk_read, disk_write);
+	plugin_register (MODULE_NAME, disk_init,
+#if DISK_HAVE_READ
+			disk_read,
+#else
+			NULL,
+#endif
+			disk_write);
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_DISK */

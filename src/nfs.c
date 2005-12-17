@@ -21,13 +21,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "nfs.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_NFS
 #define MODULE_NAME "nfs"
 
-#include "plugin.h"
-#include "common.h"
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+# define NFS_HAVE_READ 1
+#else
+# define NFS_HAVE_READ 0
+#endif
 
 static char *nfs2_procedures_file  = "nfs2_procedures-%s.rrd";
 static char *nfs3_procedures_file  = "nfs3_procedures-%s.rrd";
@@ -351,6 +355,7 @@ void nfs2_read_kstat (kstat_t *ksp, char *inst)
 }
 #endif
 
+#if NFS_HAVE_READ
 void nfs_read (void)
 {
 #if defined(KERNEL_LINUX)
@@ -377,13 +382,19 @@ void nfs_read (void)
 		nfs2_read_kstat (nfs2_ksp_server, "server");
 #endif /* defined(HAVE_LIBKSTAT) */
 }
+#endif /* NFS_HAVE_READ */
 
 void module_register (void)
 {
-    plugin_register (MODULE_NAME, nfs_init, nfs_read, NULL);
-    plugin_register ("nfs2_procedures", NULL, NULL, nfs2_procedures_write);
-    plugin_register ("nfs3_procedures", NULL, NULL, nfs3_procedures_write);
+	plugin_register (MODULE_NAME, nfs_init,
+#if NFS_HAVE_READ
+			nfs_read,
+#else
+			NULL,
+#endif
+			NULL);
+	plugin_register ("nfs2_procedures", NULL, NULL, nfs2_procedures_write);
+	plugin_register ("nfs3_procedures", NULL, NULL, nfs3_procedures_write);
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_LOAD */

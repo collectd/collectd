@@ -20,17 +20,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "ping.h"
-
-#if COLLECT_PING
-#define MODULE_NAME "ping"
-
-#include "plugin.h"
+#include "collectd.h"
 #include "common.h"
+#include "plugin.h"
 #include "configfile.h"
+
+#define MODULE_NAME "ping"
 
 #include <netinet/in.h>
 #include "libping/ping.h"
+
+#define MAX_PINGHOSTS 32
 
 extern char *pinghosts[MAX_PINGHOSTS];
 extern int   num_pinghosts;
@@ -163,4 +163,3 @@ void module_register (void)
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_PING */

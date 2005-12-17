@@ -20,19 +20,11 @@
  *   Peter Holik <peter at holik.at>
  **/
 
-#include "cpufreq.h"
-
-/*
- * Originally written by Peter Holik
- */
-
-#if COLLECT_CPUFREQ
-#define MODULE_NAME "cpufreq"
-
-#include "plugin.h"
+#include "collectd.h"
 #include "common.h"
+#include "plugin.h"
 
-static int num_cpu = 0;
+#define MODULE_NAME "cpufreq"
 
 static char *cpufreq_file = "cpufreq-%s.rrd";
 
@@ -43,10 +35,15 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
+#ifdef KERNEL_LINUX
+static int num_cpu = 0;
+#endif
+
 #define BUFSIZE 256
 
-void cpufreq_init (void)
+static void cpufreq_init (void)
 {
+#ifdef KERNEL_LINUX
         int status;
 	char filename[BUFSIZE];
 
@@ -65,9 +62,12 @@ void cpufreq_init (void)
 	}
 
 	syslog (LOG_INFO, MODULE_NAME" found %d cpu(s)", num_cpu);
+#endif /* defined(KERNEL_LINUX) */
+
+	return;
 }
 
-void cpufreq_write (char *host, char *inst, char *val)
+static void cpufreq_write (char *host, char *inst, char *val)
 {
         int status;
         char file[BUFSIZE];
@@ -79,7 +79,7 @@ void cpufreq_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
-void cpufreq_submit (int cpu_num, unsigned long long val)
+static void cpufreq_submit (int cpu_num, unsigned long long val)
 {
 	char buf[BUFSIZE];
 	char cpu[16];
@@ -91,8 +91,9 @@ void cpufreq_submit (int cpu_num, unsigned long long val)
 	plugin_submit (MODULE_NAME, cpu, buf);
 }
 
-void cpufreq_read (void)
+static void cpufreq_read (void)
 {
+#ifdef KERNEL_LINUX
         int status;
 	unsigned long long val;
 	int i = 0;
@@ -126,6 +127,9 @@ void cpufreq_read (void)
 
 		cpufreq_submit (i, val);
 	}
+#endif /* defined(KERNEL_LINUX) */
+
+	return;
 }
 #undef BUFSIZE
 
@@ -135,4 +139,3 @@ void module_register (void)
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_CPUFREQ */

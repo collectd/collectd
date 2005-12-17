@@ -20,13 +20,17 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "load.h"
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
 
-#if COLLECT_LOAD
 #define MODULE_NAME "load"
 
-#include "plugin.h"
-#include "common.h"
+#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
+# define LOAD_HAVE_READ 1
+#else
+# define LOAD_HAVE_READ 0
+#endif
 
 #ifdef HAVE_SYS_LOADAVG_H
 #include <sys/loadavg.h>
@@ -74,6 +78,7 @@ void load_submit (double snum, double mnum, double lnum)
 }
 #undef BUFSIZE
 
+#if LOAD_HAVE_READ
 void load_read (void)
 {
 #if defined(HAVE_GETLOADAVG)
@@ -134,11 +139,17 @@ void load_read (void)
 	load_submit (snum, mnum, lnum);
 #endif /* HAVE_LIBSTATGRAB */
 }
+#endif /* LOAD_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, load_init, load_read, load_write);
+	plugin_register (MODULE_NAME, load_init,
+#if LOAD_HAVE_READ
+			load_read,
+#else
+			NULL,
+#endif
+			load_write);
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_LOAD */
