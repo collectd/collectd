@@ -39,7 +39,7 @@
 
 #define BUFSIZE 512
 
-static char *host;
+static char *host = "localhost";
 static char *user;
 static char *pass;
 static char *db = NULL;
@@ -126,7 +126,10 @@ static void init (void)
 	if (getconnection () != NULL)
 		init_suceeded = 1;
 	else
+	{
+		syslog (LOG_ERR, "The `mysql' plugin will be disabled because `init' failed to connect to `%s'", host);
 		init_suceeded = 0;
+	}
 #endif /* MYSQL_HAVE_READ */
 
 	return;

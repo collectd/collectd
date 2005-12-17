@@ -55,6 +55,11 @@ static void sigIntHandler (int signal)
 	loop++;
 }
 
+static void sigTermHandler (int signal)
+{
+	loop++;
+}
+
 static int change_basedir (char *dir)
 {
 	int dirlen = strlen (dir);
@@ -256,7 +261,9 @@ static int pidfile_remove (const char *file)
 
 int main (int argc, char **argv)
 {
-	struct sigaction sigIntAction, sigChldAction;
+	struct sigaction sigIntAction;
+	struct sigaction sigTermAction;
+	struct sigaction sigChldAction;
 	char *configfile = CONFIGFILE;
 	char *plugindir  = PLUGINDIR;
 	char *datadir    = PKGLOCALSTATEDIR;
@@ -379,6 +386,9 @@ int main (int argc, char **argv)
 	 */
 	sigIntAction.sa_handler = sigIntHandler;
 	sigaction (SIGINT, &sigIntAction, NULL);
+
+	sigIntAction.sa_handler = sigTermHandler;
+	sigaction (SIGTERM, &sigTermAction, NULL);
 
 	sigChldAction.sa_handler = SIG_IGN;
 	sigaction (SIGCHLD, &sigChldAction, NULL);
