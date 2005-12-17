@@ -47,17 +47,17 @@ static char *ds_def[] =
 };
 static int ds_num = 6;
 
-void ps_init (void)
+static void ps_init (void)
 {
 }
 
-void ps_write (char *host, char *inst, char *val)
+static void ps_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, ps_file, val, ds_def, ds_num);
 }
 
 #define BUFSIZE 256
-void ps_submit (unsigned int running,
+static void ps_submit (unsigned int running,
 		unsigned int sleeping,
 		unsigned int zombies,
 		unsigned int stopped,
@@ -76,7 +76,7 @@ void ps_submit (unsigned int running,
 }
 
 #if PROCESSES_HAVE_READ
-void ps_read (void)
+static void ps_read (void)
 {
 #ifdef KERNEL_LINUX
 	unsigned int running, sleeping, zombies, stopped, paging, blocked;
@@ -138,18 +138,14 @@ void ps_read (void)
 	ps_submit (running, sleeping, zombies, stopped, paging, blocked);
 #endif /* defined(KERNEL_LINUX) */
 }
+#else
+# define ps_read NULL
 #endif /* PROCESSES_HAVE_READ */
 #undef BUFSIZE
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, ps_init,
-#if PROCESSES_HAVE_READ
-			ps_read,
-#else
-			NULL,
-#endif
-			ps_write);
+	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
 }
 
 #undef MODULE_NAME

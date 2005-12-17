@@ -123,7 +123,7 @@ static void tape_submit (char *tape_name,
 #undef BUFSIZE
 
 #if TAPE_HAVE_READ
-void tape_read (void)
+static void tape_read (void)
 {
 
 #if defined(HAVE_LIBKSTAT)

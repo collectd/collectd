@@ -26,12 +26,6 @@
 
 #define MODULE_NAME "cpu"
 
-#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
-# define CPU_HAVE_READ 1
-#else
-# define CPU_HAVE_READ 0
-#endif
-
 #ifdef HAVE_LIBKSTAT
 # include <sys/sysinfo.h>
 #endif /* HAVE_LIBKSTAT */
@@ -44,6 +38,12 @@
 # ifdef HAVE_SYS_DKSTAT_H
 #  include <sys/dkstat.h>
 # endif
+
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
+# define CPU_HAVE_READ 1
+#else
+# define CPU_HAVE_READ 0
+#endif
 
 # if !defined(CP_USER) || !defined(CP_NICE) || !defined(CP_SYS) || !defined(CP_INTR) || !defined(CP_IDLE) || !defined(CPUSTATES)
 #  define CP_USER   0
@@ -80,7 +80,7 @@ static char *ds_def[] =
 };
 static int ds_num = 5;
 
-void cpu_init (void)
+static void cpu_init (void)
 {
 #ifdef HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
@@ -116,7 +116,7 @@ void cpu_init (void)
 	return;
 }
 
-void cpu_write (char *host, char *inst, char *val)
+static void cpu_write (char *host, char *inst, char *val)
 {
 	char file[512];
 	int status;
@@ -249,17 +249,13 @@ static void cpu_read (void)
 
 	return;
 }
+#else
+# define cpu_read NULL
 #endif /* CPU_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, cpu_init,
-#if CPU_HAVE_READ
-			cpu_read,
-#else
-			NULL,
-#endif
-			cpu_write);
+	plugin_register (MODULE_NAME, cpu_init, cpu_read, cpu_write);
 }
 
 #undef MODULE_NAME

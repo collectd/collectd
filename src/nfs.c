@@ -145,7 +145,7 @@ static kstat_t *nfs4_ksp_server;
 
 /* Possibly TODO: NFSv4 statistics */
 
-void nfs_init (void)
+static void nfs_init (void)
 {
 #ifdef HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
@@ -184,7 +184,7 @@ void nfs_init (void)
 }
 
 #define BUFSIZE 1024
-void nfs2_procedures_write (char *host, char *inst, char *val)
+static void nfs2_procedures_write (char *host, char *inst, char *val)
 {
 	char filename[BUFSIZE];
 
@@ -195,7 +195,7 @@ void nfs2_procedures_write (char *host, char *inst, char *val)
 			nfs2_procedures_ds_num);
 }
 
-void nfs3_procedures_write (char *host, char *inst, char *val)
+static void nfs3_procedures_write (char *host, char *inst, char *val)
 {
 	char filename[BUFSIZE];
 
@@ -206,7 +206,7 @@ void nfs3_procedures_write (char *host, char *inst, char *val)
 			nfs3_procedures_ds_num);
 }
 
-void nfs2_procedures_submit (unsigned long long *val, char *inst)
+static void nfs2_procedures_submit (unsigned long long *val, char *inst)
 {
 	char buf[BUFSIZE];
 	int retval = 0;
@@ -231,7 +231,7 @@ void nfs2_procedures_submit (unsigned long long *val, char *inst)
 	plugin_submit ("nfs2_procedures", inst, buf);
 }
 
-void nfs3_procedures_submit (unsigned long long *val, char *inst)
+static void nfs3_procedures_submit (unsigned long long *val, char *inst)
 {
 	char buf[BUFSIZE];
 	int retval = 0;
@@ -257,7 +257,7 @@ void nfs3_procedures_submit (unsigned long long *val, char *inst)
 }
 
 #if defined(KERNEL_LINUX)
-void nfs_read_stats_file (FILE *fh, char *inst)
+static void nfs_read_stats_file (FILE *fh, char *inst)
 {
 	char buffer[BUFSIZE];
 
@@ -328,7 +328,7 @@ void nfs_read_stats_file (FILE *fh, char *inst)
 #undef BUFSIZE
 
 #ifdef HAVE_LIBKSTAT
-void nfs2_read_kstat (kstat_t *ksp, char *inst)
+static void nfs2_read_kstat (kstat_t *ksp, char *inst)
 {
 	unsigned long long values[18];
 
@@ -356,7 +356,7 @@ void nfs2_read_kstat (kstat_t *ksp, char *inst)
 #endif
 
 #if NFS_HAVE_READ
-void nfs_read (void)
+static void nfs_read (void)
 {
 #if defined(KERNEL_LINUX)
 	FILE *fh;
@@ -382,17 +382,13 @@ void nfs_read (void)
 		nfs2_read_kstat (nfs2_ksp_server, "server");
 #endif /* defined(HAVE_LIBKSTAT) */
 }
+#else
+# define nfs_read NULL
 #endif /* NFS_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, nfs_init,
-#if NFS_HAVE_READ
-			nfs_read,
-#else
-			NULL,
-#endif
-			NULL);
+	plugin_register (MODULE_NAME, nfs_init, nfs_read, NULL);
 	plugin_register ("nfs2_procedures", NULL, NULL, nfs2_procedures_write);
 	plugin_register ("nfs3_procedures", NULL, NULL, nfs3_procedures_write);
 }

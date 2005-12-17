@@ -152,17 +152,13 @@ static void serial_read (void)
 	fclose (fh);
 #endif /* KERNEL_LINUX */
 }
+#else
+# define serial_read NULL
 #endif /* SERIAL_HAVE_READ */
 
 void module_register (void)
 {
-   plugin_register (MODULE_NAME, serial_init,
-#if SERIAL_HAVE_READ
-		   serial_read,
-#else
-		   NULL,
-#endif
-		   serial_write);
+   plugin_register (MODULE_NAME, serial_init, serial_read, serial_write);
 }
 
 #undef MODULE_NAME

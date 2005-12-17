@@ -57,7 +57,7 @@ static int pagesize;
 static kstat_t *ksp;
 #endif /* KERNEL_SOLARIS */
 
-static void module_init (void)
+static void swap_init (void)
 {
 #ifdef KERNEL_SOLARIS
 	/* getpagesize(3C) tells me this does not fail.. */
@@ -69,12 +69,12 @@ static void module_init (void)
 	return;
 }
 
-static void module_write (char *host, char *inst, char *val)
+static void swap_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, swap_file, val, ds_def, ds_num);
 }
 
-static void module_submit (unsigned long long swap_used,
+static void swap_submit (unsigned long long swap_used,
 		unsigned long long swap_free,
 		unsigned long long swap_cached,
 		unsigned long long swap_resv)
@@ -89,7 +89,7 @@ static void module_submit (unsigned long long swap_used,
 }
 
 #if SWAP_HAVE_READ
-static void module_read (void)
+static void swap_read (void)
 {
 #ifdef KERNEL_LINUX
 	FILE *fh;
@@ -138,7 +138,7 @@ static void module_read (void)
 
 	swap_used = swap_total - (swap_free + swap_cached);
 
-	module_submit (swap_used, swap_free, swap_cached, -1LL);
+	swap_submit (swap_used, swap_free, swap_cached, -1LL);
 /* #endif defined(KERNEL_LINUX) */
 
 #elif defined(KERNEL_SOLARIS)
@@ -181,23 +181,23 @@ static void module_read (void)
 	swap_avail = pagesize * (MAX(ai.ani_max - ai.ani_resv, 0) + (availrmem - swapfs_minfree));
 	/* swap_free  = pagesize * (ai.ani_free + (availrmem - swapfs_minfree)); */
 
-	module_submit (swap_alloc, swap_avail, -1LL, swap_resv - swap_alloc);
+	swap_submit (swap_alloc, swap_avail, -1LL, swap_resv - swap_alloc);
 /* #endif defined(KERNEL_SOLARIS) */
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_swap_stats *swap;
 
 	if ((swap = sg_get_swap_stats ()) != NULL)
-		module_submit (swap->used, swap->free, -1LL, -1LL);
+		swap_submit (swap->used, swap->free, -1LL, -1LL);
 #endif /* HAVE_LIBSTATGRAB */
 }
 #else
-# define module_read NULL
+# define swap_read NULL
 #endif /* SWAP_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, module_init, module_read, module_write);
+	plugin_register (MODULE_NAME, swap_init, swap_read, swap_write);
 }
 
 #undef MODULE_NAME

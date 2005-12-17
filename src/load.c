@@ -55,18 +55,18 @@ static char *ds_def[] =
 };
 static int ds_num = 3;
 
-void load_init (void)
+static void load_init (void)
 {
 	return;
 }
 
-void load_write (char *host, char *inst, char *val)
+static void load_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, load_file, val, ds_def, ds_num);
 }
 
 #define BUFSIZE 256
-void load_submit (double snum, double mnum, double lnum)
+static void load_submit (double snum, double mnum, double lnum)
 {
 	char buf[BUFSIZE];
 
@@ -79,7 +79,7 @@ void load_submit (double snum, double mnum, double lnum)
 #undef BUFSIZE
 
 #if LOAD_HAVE_READ
-void load_read (void)
+static void load_read (void)
 {
 #if defined(HAVE_GETLOADAVG)
 	double load[3];
@@ -139,17 +139,13 @@ void load_read (void)
 	load_submit (snum, mnum, lnum);
 #endif /* HAVE_LIBSTATGRAB */
 }
+#else
+# define load_read NULL
 #endif /* LOAD_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, load_init,
-#if LOAD_HAVE_READ
-			load_read,
-#else
-			NULL,
-#endif
-			load_write);
+	plugin_register (MODULE_NAME, load_init, load_read, load_write);
 }
 
 #undef MODULE_NAME

@@ -50,7 +50,7 @@ static int pagesize;
 static kstat_t *ksp;
 #endif /* HAVE_LIBKSTAT */
 
-void memory_init (void)
+static void memory_init (void)
 {
 #ifdef HAVE_LIBKSTAT
 	/* getpagesize(3C) tells me this does not fail.. */
@@ -62,13 +62,13 @@ void memory_init (void)
 	return;
 }
 
-void memory_write (char *host, char *inst, char *val)
+static void memory_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, memory_file, val, ds_def, ds_num);
 }
 
 #define BUFSIZE 512
-void memory_submit (long long mem_used, long long mem_buffered,
+static void memory_submit (long long mem_used, long long mem_buffered,
 		long long mem_cached, long long mem_free)
 {
 	char buf[BUFSIZE];
@@ -83,7 +83,7 @@ void memory_submit (long long mem_used, long long mem_buffered,
 #undef BUFSIZE
 
 #if MEMORY_HAVE_READ
-void memory_read (void)
+static void memory_read (void)
 {
 #ifdef KERNEL_LINUX
 	FILE *fh;
@@ -168,17 +168,13 @@ void memory_read (void)
 		memory_submit (ios->used, 0LL, ios->cache, ios->free);
 #endif /* HAVE_LIBSTATGRAB */
 }
+#else
+# define memory_read NULL
 #endif /* MEMORY_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, memory_init,
-#if MEMORY_HAVE_READ
-			memory_read,
-#else
-			NULL,
-#endif
-			memory_write);
+	plugin_register (MODULE_NAME, memory_init, memory_read, memory_write);
 }
 
 #undef MODULE_NAME

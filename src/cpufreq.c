@@ -26,6 +26,12 @@
 
 #define MODULE_NAME "cpufreq"
 
+#if defined(KERNEL_LINUX)
+# define CPUFREQ_HAVE_READ 1
+#else
+# define CPUFREQ_HAVE_READ 0
+#endif
+
 static char *cpufreq_file = "cpufreq-%s.rrd";
 
 static char *ds_def[] =
@@ -91,6 +97,7 @@ static void cpufreq_submit (int cpu_num, unsigned long long val)
 	plugin_submit (MODULE_NAME, cpu, buf);
 }
 
+#if CPUFREQ_HAVE_READ
 static void cpufreq_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -131,6 +138,9 @@ static void cpufreq_read (void)
 
 	return;
 }
+#else
+#define cpufreq_read NULL
+#endif
 #undef BUFSIZE
 
 void module_register (void)

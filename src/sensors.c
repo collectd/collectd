@@ -191,17 +191,13 @@ static void sensors_read (void)
 		sensors_submit (feature->data->name, feature->chip->prefix, value);
 	}
 }
+#else
+# define sensors_read NULL
 #endif /* SENSORS_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, collectd_sensors_init,
-#if SENSORS_HAVE_READ
-			sensors_read,
-#else
-			NULL,
-#endif
-			sensors_write);
+	plugin_register (MODULE_NAME, collectd_sensors_init, sensors_read, sensors_write);
 }
 
 #undef MODULE_NAME

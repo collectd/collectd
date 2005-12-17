@@ -52,7 +52,7 @@ static char *config_keys[] =
 };
 static int config_keys_num = 1;
 
-void ping_init (void)
+static void ping_init (void)
 {
 	int i;
 
@@ -62,7 +62,7 @@ void ping_init (void)
 	return;
 }
 
-int ping_config (char *key, char *value)
+static int ping_config (char *key, char *value)
 {
 	if (strcasecmp (key, "host"))
 	{
@@ -84,7 +84,7 @@ int ping_config (char *key, char *value)
 	}
 }
 
-void ping_write (char *host, char *inst, char *val)
+static void ping_write (char *host, char *inst, char *val)
 {
 	char file[512];
 	int status;
@@ -99,7 +99,7 @@ void ping_write (char *host, char *inst, char *val)
 }
 
 #define BUFSIZE 256
-void ping_submit (int ping_time, char *host)
+static void ping_submit (int ping_time, char *host)
 {
 	char buf[BUFSIZE];
 
@@ -110,7 +110,7 @@ void ping_submit (int ping_time, char *host)
 }
 #undef BUFSIZE
 
-void ping_read (void)
+static void ping_read (void)
 {
 	int ping;
 	int i;

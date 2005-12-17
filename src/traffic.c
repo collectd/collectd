@@ -49,7 +49,7 @@ static kstat_t *ksp[MAX_NUMIF];
 static int numif = 0;
 #endif /* HAVE_LIBKSTAT */
 
-void traffic_init (void)
+static void traffic_init (void)
 {
 #ifdef HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
@@ -78,7 +78,7 @@ void traffic_init (void)
 #endif /* HAVE_LIBKSTAT */
 }
 
-void traffic_write (char *host, char *inst, char *val)
+static void traffic_write (char *host, char *inst, char *val)
 {
 	char file[512];
 	int status;
@@ -93,7 +93,7 @@ void traffic_write (char *host, char *inst, char *val)
 }
 
 #define BUFSIZE 512
-void traffic_submit (char *device,
+static void traffic_submit (char *device,
 		unsigned long long incoming,
 		unsigned long long outgoing)
 {
@@ -107,7 +107,7 @@ void traffic_submit (char *device,
 #undef BUFSIZE
 
 #if TRAFFIC_HAVE_READ
-void traffic_read (void)
+static void traffic_read (void)
 {
 #ifdef KERNEL_LINUX
 	FILE *fh;

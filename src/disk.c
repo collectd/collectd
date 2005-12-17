@@ -337,18 +337,14 @@ static void disk_read (void)
 	}
 #endif /* defined(HAVE_LIBKSTAT) */
 } /* static void disk_read (void) */
+#else
+# define disk_read NULL
 #endif /* DISK_HAVE_READ */
 
 void module_register (void)
 {
 	plugin_register ("partition", NULL, NULL, partition_write);
-	plugin_register (MODULE_NAME, disk_init,
-#if DISK_HAVE_READ
-			disk_read,
-#else
-			NULL,
-#endif
-			disk_write);
+	plugin_register (MODULE_NAME, disk_init, disk_read, disk_write);
 }
 
 #undef MODULE_NAME

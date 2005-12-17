@@ -365,3 +365,5 @@ void module_register (void)
 {
 	plugin_register (MODULE_NAME, hddtemp_init, hddtemp_read, hddtemp_write);
 }
+
+#undef MODULE_NAME
