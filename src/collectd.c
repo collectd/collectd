@@ -21,7 +21,8 @@
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
-#include "collectd.h"
+#include "common.h"
+#include "utils_debug.h"
 
 #include "multicast.h"
 #include "plugin.h"
@@ -48,12 +49,12 @@ time_t curtime;
 int operating_mode;
 #endif
 
-void sigIntHandler (int signal)
+static void sigIntHandler (int signal)
 {
 	loop++;
 }
 
-int change_basedir (char *dir)
+static int change_basedir (char *dir)
 {
 	int dirlen = strlen (dir);
 	
@@ -86,10 +87,10 @@ int change_basedir (char *dir)
 	}
 
 	return (0);
-}
+} /* static int change_basedir (char *dir) */
 
 #ifdef HAVE_LIBKSTAT
-void update_kstat (void)
+static void update_kstat (void)
 {
 	if (kc == NULL)
 	{
@@ -111,27 +112,35 @@ void update_kstat (void)
 	}
 
 	return;
-}
+} /* static void update_kstat (void) */
 #endif /* HAVE_LIBKSTAT */
 
-void exit_usage (char *name)
+static void exit_usage (char *name)
 {
-	printf ("Usage: %s [OPTIONS]\n\n"
+	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
 			
 			"Available options:\n"
 			"  General:\n"
 			/*
-			"    -C <dir>        Configuration file.\n"
-			"                    Default: %s\n"
+			"    -C <file>       Configuration file.\n"
+			"                    Default: "CONFIGFILE"\n"
 			*/
-			"    -P <file>       PID File.\n"
-			"                    Default: %s\n"
+#if COLLECT_DAEMON
+			"    -P <file>       PID file.\n"
+			"                    Default: "PIDFILE"\n"
+#endif
 			"    -M <dir>        Module/Plugin directory.\n"
-			"                    Default: %s\n"
+			"                    Default: "PLUGINDIR"\n"
 			"    -D <dir>        Data storage directory.\n"
-			"                    Default: %s\n"
+			"                    Default: "PKGLOCALSTATEDIR"\n"
+#if COLLECT_DEBUG
+			"    -L <file>       Log file.\n"
+			"                    Default: "LOGFILE"\n"
+#endif
+#if COLLECT_DAEMON
 			"    -f              Don't fork to the background.\n"
-#ifdef HAVE_LIBRRD
+#endif
+#if HAVE_LIBRRD
 			"    -l              Start in local mode (no network).\n"
 			"    -c              Start in client (sender) mode.\n"
 			"    -s              Start in server (listener) mode.\n"
@@ -141,14 +150,13 @@ void exit_usage (char *name)
 			"    -p <host>       Host to ping periodically, may be repeated to ping\n"
 			"                    more than one host.\n"
 #endif /* COLLECT_PING */
-			"\n%s %s, http://verplant.org/collectd/\n"
+			"\n"PACKAGE" "VERSION", http://verplant.org/collectd/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
-			"for contributions see `AUTHORS'\n",
-			PACKAGE, /* CONFIGFILE, */ PIDFILE, PLUGINDIR, PKGLOCALSTATEDIR, PACKAGE, VERSION);
+			"for contributions see `AUTHORS'\n");
 	exit (0);
-}
+} /* static void exit_usage (char *name) */
 
-int start_client (void)
+static int start_client (void)
 {
 	int sleepingtime;
 
@@ -191,10 +199,10 @@ int start_client (void)
 	}
 
 	return (0);
-}
+} /* static int start_client (void) */
 
 #ifdef HAVE_LIBRRD
-int start_server (void)
+static int start_server (void)
 {
 	char *host;
 	char *type;
@@ -213,10 +221,11 @@ int start_server (void)
 	}
 	
 	return (0);
-}
+} /* static int start_server (void) */
 #endif /* HAVE_LIBRRD */
 
-int pidfile_create (char *file)
+#if COLLECT_DAEMON
+static int pidfile_create (char *file)
 {
 	FILE *fh;
 
@@ -233,31 +242,35 @@ int pidfile_create (char *file)
 	fclose(fh);
 
 	return (0);
-}
+} /* static int pidfile_create (char *file) */
+#endif /* COLLECT_DAEMON */
 
-int pidfile_remove (void)
+#if COLLECT_DAEMON
+static int pidfile_remove (void)
 {
       return (unlink (PIDFILE));
-}
+} /* static int pidfile_remove (void) */
+#endif /* COLLECT_DAEMON */
 
 int main (int argc, char **argv)
 {
 	struct sigaction sigIntAction, sigChldAction;
-#if COLLECT_DAEMON
-	pid_t pid;
-#endif
-
 	char *configfile = CONFIGFILE;
-	char *pidfile    = PIDFILE;
 	char *plugindir  = PLUGINDIR;
 	char *datadir    = PKGLOCALSTATEDIR;
-
+#if COLLECT_DAEMON
+	char *pidfile    = PIDFILE;
+	pid_t pid;
 	int daemonize = 1;
+#endif
+#if COLLECT_DEBUG
+	char *logfile    = LOGFILE;
+#endif
 
 #ifdef HAVE_LIBRRD
 	operating_mode = MODE_LOCAL;
 #endif
-	
+
 	/* open syslog */
 	openlog (PACKAGE, LOG_CONS | LOG_PID, LOG_DAEMON);
 
@@ -266,7 +279,13 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		c = getopt (argc, argv, "C:P:M:D:fh"
+		c = getopt (argc, argv, "C:M:D:h"
+#if COLLECT_DAEMON
+				"fP:"
+#endif
+#if COLLECT_DEBUG
+				"L:"
+#endif
 #if HAVE_LIBRRD
 				"csl"
 #endif /* HAVE_LIBRRD */
@@ -296,18 +315,25 @@ int main (int argc, char **argv)
 			case 'C':
 				configfile = optarg;
 				break;
+#if COLLECT_DAEMON
 			case 'P':
 				pidfile = optarg;
 				break;
+			case 'f':
+				daemonize = 0;
+				break;
+#endif /* COLLECT_DAEMON */
 			case 'M':
 				plugindir = optarg;
 				break;
 			case 'D':
 				datadir = optarg;
 				break;
-			case 'f':
-				daemonize = 0;
+#if COLLECT_DEBUG
+			case 'L':
+				logfile = optarg;
 				break;
+#endif
 #if COLLECT_PING
 			case 'p':
 				if (num_pinghosts < MAX_PINGHOSTS)
@@ -319,9 +345,10 @@ int main (int argc, char **argv)
 			case 'h':
 			default:
 				exit_usage (argv[0]);
-		}
-				
-	}
+		} /* switch (c) */
+	} /* while (1) */
+
+	DBG_STARTFILE(logfile, "debug file opened.");
 
 	/*
 	 * Load plugins and change to output directory
@@ -407,12 +434,16 @@ int main (int argc, char **argv)
 #endif
 		start_client ();
 
+	DBG_STOPFILE("debug file closed.");
+
 	/* close syslog */
 	syslog (LOG_INFO, "Exiting normally");
 	closelog ();
 
+#if COLLECT_DAEMON
 	if (daemonize)
 		pidfile_remove();
+#endif /* COLLECT_DAEMON */
 
 	return (0);
 }
