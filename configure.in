@@ -347,7 +347,35 @@ AC_DEFINE_UNQUOTED(COLLECT_LM_SENSORS, [$collect_lm_sensors],
 	[Wether or not to use sensors library])
 AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_lm_sensors" = "xyes")
 
-
+AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to libmysql.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libmysql="yes"
+	fi
+],
+[
+	with_libmysql="yes"
+])
+if test "x$with_libmysql" = "xyes"
+then
+	AC_CHECK_LIB(mysqlclient, mysql_init,, [with_libmysql="no (libmysql not found)"])
+fi
+if test "x$with_libmysql" = "xyes"
+then
+	AC_CHECK_HEADERS(mysql/mysql.h,, [with_libmysql="no (mysql/mysql.h not found)"])
+fi
+if test "x$with_libmysql" = "xyes"
+then
+	collect_libmysql=1
+else
+	collect_libmysql=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_LIBMYSQL, [$collect_libmysql],
+	[Wether or not to use mysql library])
+AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 
 #
 # Check for enabled/disabled features
@@ -427,6 +455,7 @@ AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
+AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
 AC_COLLECTD([processes], [disable], [module], [processes statistics])
@@ -663,6 +692,7 @@ Configuration:
     lm_sensors  . . . . $with_lm_sensors
     libstatgrab . . . . $with_libstatgrab
     libkstat  . . . . . $with_kstat
+    libmysql  . . . . . $with_libmysql
 
   Features:
     debug . . . . . . . $enable_debug

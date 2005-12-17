@@ -95,6 +95,19 @@ collectd_LDADD += "-dlopen" memory.la
 collectd_DEPENDENCIES += memory.la
 endif
 
+if BUILD_MODULE_MYSQL
+pkglib_LTLIBRARIES += mysql.la
+mysql_la_SOURCES = mysql.c mysql.h
+mysql_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBMYSQL
+mysql_la_LDFLAGS += -lmysqlclient
+endif
+#mysql_la_LIBADD = -lmysqlclient
+mysql_la_CFLAGS  = -Wall -Werror
+collectd_LDADD += "-dlopen" mysql.la
+collectd_DEPENDENCIES += mysql.la
+endif
+
 if BUILD_MODULE_NFS
 pkglib_LTLIBRARIES += nfs.la
 nfs_la_SOURCES = nfs.c nfs.h

@@ -289,6 +289,12 @@ void plugin_register (char *type,
 	if (plugin_search (type) != NULL)
 		return;
 
+#ifdef HAVE_LIBRRD
+	if ((operating_mode == MODE_LOCAL) || (operating_mode == MODE_CLIENT))
+#endif
+		if (read == NULL)
+			syslog (LOG_NOTICE, "Plugin `%s' doesn't provide a read function.", type);
+
 	if ((p = (plugin_t *) malloc (sizeof (plugin_t))) == NULL)
 		return;
 
