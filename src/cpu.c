@@ -39,12 +39,6 @@
 #  include <sys/dkstat.h>
 # endif
 
-#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
-# define CPU_HAVE_READ 1
-#else
-# define CPU_HAVE_READ 0
-#endif
-
 # if !defined(CP_USER) || !defined(CP_NICE) || !defined(CP_SYS) || !defined(CP_INTR) || !defined(CP_IDLE) || !defined(CPUSTATES)
 #  define CP_USER   0
 #  define CP_NICE   1
@@ -54,6 +48,12 @@
 #  define CPUSTATES 5
 # endif
 #endif /* HAVE_SYSCTLBYNAME */
+
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
+# define CPU_HAVE_READ 1
+#else
+# define CPU_HAVE_READ 0
+#endif
 
 #ifdef HAVE_LIBKSTAT
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so CPUs.. */
@@ -130,6 +130,7 @@ static void cpu_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
+#if CPU_HAVE_READ
 #define BUFSIZE 512
 static void cpu_submit (int cpu_num, unsigned long long user,
 		unsigned long long nice, unsigned long long syst,
@@ -147,7 +148,6 @@ static void cpu_submit (int cpu_num, unsigned long long user,
 }
 #undef BUFSIZE
 
-#if CPU_HAVE_READ
 static void cpu_read (void)
 {
 #ifdef KERNEL_LINUX

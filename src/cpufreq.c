@@ -85,6 +85,7 @@ static void cpufreq_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
+#if CPUFREQ_HAVE_READ
 static void cpufreq_submit (int cpu_num, unsigned long long val)
 {
 	char buf[BUFSIZE];
@@ -97,7 +98,6 @@ static void cpufreq_submit (int cpu_num, unsigned long long val)
 	plugin_submit (MODULE_NAME, cpu, buf);
 }
 
-#if CPUFREQ_HAVE_READ
 static void cpufreq_read (void)
 {
 #ifdef KERNEL_LINUX

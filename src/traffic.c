@@ -32,6 +32,8 @@
 # define TRAFFIC_HAVE_READ 0
 #endif
 
+#define BUFSIZE 512
+
 static char *traffic_filename_template = "traffic-%s.rrd";
 
 static char *ds_def[] =
@@ -80,19 +82,19 @@ static void traffic_init (void)
 
 static void traffic_write (char *host, char *inst, char *val)
 {
-	char file[512];
+	char file[BUFSIZE];
 	int status;
 
-	status = snprintf (file, 512, traffic_filename_template, inst);
+	status = snprintf (file, BUFSIZE, traffic_filename_template, inst);
 	if (status < 1)
 		return;
-	else if (status >= 512)
+	else if (status >= BUFSIZE)
 		return;
 
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
-#define BUFSIZE 512
+#if TRAFFIC_HAVE_READ
 static void traffic_submit (char *device,
 		unsigned long long incoming,
 		unsigned long long outgoing)
@@ -104,9 +106,7 @@ static void traffic_submit (char *device,
 
 	plugin_submit (MODULE_NAME, device, buf);
 }
-#undef BUFSIZE
 
-#if TRAFFIC_HAVE_READ
 static void traffic_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -193,4 +193,5 @@ void module_register (void)
 	plugin_register (MODULE_NAME, traffic_init, traffic_read, traffic_write);
 }
 
+#undef BUFSIZE
 #undef MODULE_NAME

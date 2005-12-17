@@ -38,6 +38,8 @@
 # define SENSORS_HAVE_READ 0
 #endif
 
+#define BUFSIZE 512
+
 static char *filename_format = "sensors-%s.rrd";
 
 static char *ds_def[] =
@@ -147,7 +149,6 @@ static void collectd_sensors_init (void)
 	return;
 }
 
-#define BUFSIZE 512
 static void sensors_write (char *host, char *inst, char *val)
 {
 	char file[BUFSIZE];
@@ -162,6 +163,7 @@ static void sensors_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
+#if SENSORS_HAVE_READ
 static void sensors_submit (const char *feat_name, const char *chip_prefix, double value)
 {
 	char buf[BUFSIZE];
@@ -175,9 +177,7 @@ static void sensors_submit (const char *feat_name, const char *chip_prefix, doub
 
 	plugin_submit (MODULE_NAME, inst, buf);
 }
-#undef BUFSIZE
 
-#if SENSORS_HAVE_READ
 static void sensors_read (void)
 {
 	featurelist_t *feature;
@@ -200,4 +200,5 @@ void module_register (void)
 	plugin_register (MODULE_NAME, collectd_sensors_init, sensors_read, sensors_write);
 }
 
+#undef BUFSIZE
 #undef MODULE_NAME

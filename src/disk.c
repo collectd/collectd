@@ -161,6 +161,7 @@ static void disk_submit (char *disk_name,
 	plugin_submit (MODULE_NAME, disk_name, buf);
 }
 
+#if DISK_HAVE_READ
 static void partition_submit (char *part_name,
 		unsigned long long read_count,
 		unsigned long long read_bytes,
@@ -179,7 +180,6 @@ static void partition_submit (char *part_name,
 }
 #undef BUFSIZE
 
-#if DISK_HAVE_READ
 static void disk_read (void)
 {
 #ifdef KERNEL_LINUX

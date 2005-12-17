@@ -206,6 +206,7 @@ static void nfs3_procedures_write (char *host, char *inst, char *val)
 			nfs3_procedures_ds_num);
 }
 
+#if NFS_HAVE_READ
 static void nfs2_procedures_submit (unsigned long long *val, char *inst)
 {
 	char buf[BUFSIZE];
@@ -255,6 +256,7 @@ static void nfs3_procedures_submit (unsigned long long *val, char *inst)
 
 	plugin_submit("nfs3_procedures", inst, buf);
 }
+#endif /* NFS_HAVE_READ */
 
 #if defined(KERNEL_LINUX)
 static void nfs_read_stats_file (FILE *fh, char *inst)

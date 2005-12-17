@@ -33,6 +33,8 @@
 # define PROCESSES_HAVE_READ 0
 #endif
 
+#define BUFSIZE 256
+
 static char *ps_file = "processes.rrd";
 
 static char *ds_def[] =
@@ -56,7 +58,7 @@ static void ps_write (char *host, char *inst, char *val)
 	rrd_update_file (host, ps_file, val, ds_def, ds_num);
 }
 
-#define BUFSIZE 256
+#if PROCESSES_HAVE_READ
 static void ps_submit (unsigned int running,
 		unsigned int sleeping,
 		unsigned int zombies,
@@ -75,7 +77,6 @@ static void ps_submit (unsigned int running,
 	plugin_submit (MODULE_NAME, "-", buf);
 }
 
-#if PROCESSES_HAVE_READ
 static void ps_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -83,7 +84,7 @@ static void ps_read (void)
 
 	char buf[BUFSIZE];
 	char filename[20]; /* need 17 bytes */
-	char *fields[256];
+	char *fields[BUFSIZE];
 
 	struct dirent *ent;
 	DIR *proc;
@@ -119,7 +120,7 @@ static void ps_read (void)
 
 		fclose (fh);
 
-		if (strsplit (buf, fields, 256) < 3)
+		if (strsplit (buf, fields, BUFSIZE) < 3)
 			continue;
 
 		switch (fields[2][0])
@@ -141,11 +142,11 @@ static void ps_read (void)
 #else
 # define ps_read NULL
 #endif /* PROCESSES_HAVE_READ */
-#undef BUFSIZE
 
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
 }
 
+#undef BUFSIZE
 #undef MODULE_NAME

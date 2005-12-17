@@ -74,6 +74,7 @@ static void swap_write (char *host, char *inst, char *val)
 	rrd_update_file (host, swap_file, val, ds_def, ds_num);
 }
 
+#if SWAP_HAVE_READ
 static void swap_submit (unsigned long long swap_used,
 		unsigned long long swap_free,
 		unsigned long long swap_cached,
@@ -88,7 +89,6 @@ static void swap_submit (unsigned long long swap_used,
 	plugin_submit (MODULE_NAME, "-", buffer);
 }
 
-#if SWAP_HAVE_READ
 static void swap_read (void)
 {
 #ifdef KERNEL_LINUX

@@ -67,6 +67,7 @@ static void memory_write (char *host, char *inst, char *val)
 	rrd_update_file (host, memory_file, val, ds_def, ds_num);
 }
 
+#if MEMORY_HAVE_READ
 #define BUFSIZE 512
 static void memory_submit (long long mem_used, long long mem_buffered,
 		long long mem_cached, long long mem_free)
@@ -82,7 +83,6 @@ static void memory_submit (long long mem_used, long long mem_buffered,
 }
 #undef BUFSIZE
 
-#if MEMORY_HAVE_READ
 static void memory_read (void)
 {
 #ifdef KERNEL_LINUX

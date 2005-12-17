@@ -96,6 +96,7 @@ static void tape_write (char *host, char *inst, char *val)
 }
 
 
+#if TAPE_HAVE_READ
 #define BUFSIZE 512
 static void tape_submit (char *tape_name,
 		unsigned long long read_count,
@@ -122,7 +123,6 @@ static void tape_submit (char *tape_name,
 
 #undef BUFSIZE
 
-#if TAPE_HAVE_READ
 static void tape_read (void)
 {
 

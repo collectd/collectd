@@ -62,6 +62,7 @@ static void serial_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
+#if SERIAL_HAVE_READ
 #define BUFSIZE 512
 static void serial_submit (char *device,
 		unsigned long long incoming,
@@ -77,7 +78,6 @@ static void serial_submit (char *device,
 }
 #undef BUFSIZE
 
-#if SERIAL_HAVE_READ
 static void serial_read (void)
 {
 #ifdef KERNEL_LINUX

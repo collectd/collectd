@@ -65,6 +65,7 @@ static void load_write (char *host, char *inst, char *val)
 	rrd_update_file (host, load_file, val, ds_def, ds_num);
 }
 
+#if LOAD_HAVE_READ
 #define BUFSIZE 256
 static void load_submit (double snum, double mnum, double lnum)
 {
@@ -78,7 +79,6 @@ static void load_submit (double snum, double mnum, double lnum)
 }
 #undef BUFSIZE
 
-#if LOAD_HAVE_READ
 static void load_read (void)
 {
 #if defined(HAVE_GETLOADAVG)

@@ -60,6 +60,7 @@ static void users_write (char *host, char *inst, char *val)
 	return;
 } /* static void users_write(char *host, char *inst, char *val) */
 
+#if USERS_HAVE_READ
 /* I don't like this temporary macro definition - well it's used everywhere
    else in the collectd-sources, so I will just stick with it...  */
 #define BUFSIZE 256
@@ -78,7 +79,6 @@ static void users_submit (unsigned int users)
 } /* static void users_submit(unsigned int users) */
 #undef BUFSIZE
 
-#if USERS_HAVE_READ
 static void users_read (void)
 {
 #if HAVE_GETUTXENT
