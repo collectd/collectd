@@ -263,7 +263,7 @@ pidfile_remove (const char *file)
 	if (file == NULL) {
 		file = PIDFILE;
 	}
-      return (unlink (file));
+	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
 
