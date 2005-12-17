@@ -26,6 +26,7 @@
 
 #include "multicast.h"
 #include "plugin.h"
+#include "configfile.h"
 
 #include "ping.h"
 
@@ -70,12 +71,12 @@ static int change_basedir (char *dir)
 		{
 			if (mkdir (dir, 0755) == -1)
 			{
-				syslog (LOG_ERR, "mkdir: %s", strerror (errno));
+				syslog (LOG_ERR, "mkdir (%s): %s", dir, strerror (errno));
 				return (-1);
 			}
 			else if (chdir (dir) == -1)
 			{
-				syslog (LOG_ERR, "chdir: %s", strerror (errno));
+				syslog (LOG_ERR, "chdir (%s): %s", dir, strerror (errno));
 				return (-1);
 			}
 		}
@@ -352,15 +353,21 @@ int main (int argc, char **argv)
 	DBG_STARTFILE(logfile, "debug file opened.");
 
 	/*
-	 * Load plugins and change to output directory
-	 * Loading plugins is done first so relative paths work as expected..
+	 * Read the config file. This will load any modules automagically.
 	 */
-	if (plugin_load_all (plugindir) < 1)
+	plugin_set_dir (plugindir);
+
+	if (cf_read (configfile))
 	{
-		fprintf (stderr, "Error: No plugins found.\n");
+		fprintf (stderr, "Error: Reading the config file failed!\n"
+				"Read the syslog for details.\n");
 		return (1);
 	}
 
+	/*
+	 * Change directory. We do this _after_ reading the config and loading
+	 * modules to relative paths work as expected.
+	 */
 	if (change_basedir (datadir))
 	{
 		fprintf (stderr, "Error: Unable to change to directory `%s'.\n", datadir);

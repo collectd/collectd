@@ -105,13 +105,13 @@ int check_create_dir (char *dir)
 		{
 			if (mkdir (dir, 0755) == -1)
 			{
-				syslog (LOG_ERR, "mkdir %s: %s", dir, strerror (errno));
+				syslog (LOG_ERR, "mkdir (%s): %s", dir, strerror (errno));
 				return (-1);
 			}
 		}
 		else
 		{
-			syslog (LOG_ERR, "stat %s: %s", dir, strerror (errno));
+			syslog (LOG_ERR, "stat (%s): %s", dir, strerror (errno));
 			return (-1);
 		}
 	}

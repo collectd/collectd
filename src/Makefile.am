@@ -1,5 +1,6 @@
+SUBDIRS = libconfig
 if BUILD_MODULE_PING
-SUBDIRS = libping .
+SUBDIRS += libping
 endif
 
 sbin_PROGRAMS = collectd
@@ -9,7 +10,8 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_mount.c utils_mount.h \
 		   common.c common.h \
 		   multicast.c multicast.h \
-		   plugin.c plugin.h
+		   plugin.c plugin.h \
+		   configfile.c configfile.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
@@ -22,9 +24,9 @@ if BUILD_FEATURE_DEBUG
 collectd_CPPFLAGS += -DLOGFILE='"${localstatedir}/log/${PACKAGE_NAME}/collectd.log"'
 endif
 collectd_LDFLAGS = -export-dynamic
-collectd_CFLAGS = -Werror
-collectd_LDADD = $(LIBLTDL) "-dlopen" self
-collectd_DEPENDENCIES = $(LIBLTDL)
+collectd_CFLAGS = -Wall -Werror
+collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self
+collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
 
 pkglib_LTLIBRARIES = 
 
@@ -158,7 +160,7 @@ if BUILD_MODULE_USERS
 pkglib_LTLIBRARIES += users.la
 users_la_SOURCES = users.c users.h
 users_la_LDFLAGS = -module -avoid-version
-users_la_CFLAGS = -Werror
+users_la_CFLAGS = -Wall -Werror
 collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
 endif

@@ -27,6 +27,7 @@
 
 #include "plugin.h"
 #include "common.h"
+#include "configfile.h"
 
 #include <netinet/in.h>
 #include "libping/ping.h"
@@ -44,6 +45,13 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
+static char *config_keys[] =
+{
+	"Host",
+	NULL
+};
+static int config_keys_num = 1;
+
 void ping_init (void)
 {
 	int i;
@@ -52,6 +60,28 @@ void ping_init (void)
 		pingerrors[i] = 0;
 
 	return;
+}
+
+int ping_config (char *key, char *value)
+{
+	if (strcasecmp (key, "host"))
+	{
+		return (-1);
+	}
+	else if (num_pinghosts >= MAX_PINGHOSTS)
+	{
+		return (1);
+	}
+	else if ((pinghosts[num_pinghosts] = strdup (value)) == NULL)
+	{
+		return (2);
+	}
+	else
+	{
+		pingerrors[num_pinghosts] = 0;
+		num_pinghosts++;
+		return (0);
+	}
 }
 
 void ping_write (char *host, char *inst, char *val)
@@ -129,6 +159,7 @@ void ping_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, ping_init, ping_read, ping_write);
+	cf_register (MODULE_NAME, ping_config, config_keys, config_keys_num);
 }
 
 #undef MODULE_NAME

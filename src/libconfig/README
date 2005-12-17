@@ -1,0 +1,19 @@
+                                libconfig 0.1.21
+
+Release information:
+  pkg:  libconfig version 0.1.21
+  url:  http://www.rkeene.org/files/oss/libconfig/devel/libconfig-0.1.21.tar.gz
+  web:  http://www.rkeene.org/oss/libconfig/
+  date: Tue Oct 18 16:03:55 CDT 2005
+  mail: libconfig@rkeene.org
+--------------------------------------------------------------------------
+
+Tested platforms:
+  Mac OS X 10.1
+  HP-UX 11.11
+  NetBSD 1.6.1
+  FreeBSD 4.8
+  OpenBSD 3.4
+  SunOS 5.9
+  Linux (Slackware, RedHat, Fedora Core, Debian)
+  IRIX 6.5
