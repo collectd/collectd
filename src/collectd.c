@@ -31,7 +31,7 @@
 
 static int loop = 0;
 
-#ifdef HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
 #endif /* HAVE_LIBKSTAT */
 
@@ -45,7 +45,7 @@ int   num_pinghosts = 0;
  */
 time_t curtime;
 
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 int operating_mode;
 #endif
 
@@ -91,7 +91,7 @@ change_basedir (char *dir)
 	return (0);
 } /* static int change_basedir (char *dir) */
 
-#ifdef HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT
 static void
 update_kstat (void)
 {
@@ -169,12 +169,12 @@ start_client (void)
 {
 	int sleepingtime;
 
-#ifdef HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT
 	kc = NULL;
 	update_kstat ();
 #endif
 
-#ifdef HAVE_LIBSTATGRAB
+#if HAVE_LIBSTATGRAB
 	if (sg_init ())
 	{
 		syslog (LOG_ERR, "sg_init: %s", sg_str_error (sg_get_error ()));
@@ -193,7 +193,7 @@ start_client (void)
 	while (loop == 0)
 	{
 		curtime = time (NULL);
-#ifdef HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT
 		update_kstat ();
 #endif
 		plugin_read_all ();
@@ -210,7 +210,7 @@ start_client (void)
 	return (0);
 } /* static int start_client (void) */
 
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 static int
 start_server (void)
 {
@@ -284,7 +284,7 @@ main (int argc, char **argv)
 	char *logfile    = LOGFILE;
 #endif
 
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 	operating_mode = MODE_LOCAL;
 #endif
 
@@ -316,7 +316,7 @@ main (int argc, char **argv)
 
 		switch (c)
 		{
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 			case 'c':
 				operating_mode = MODE_CLIENT;
 				break;
@@ -445,7 +445,7 @@ main (int argc, char **argv)
 	/*
 	 * run the actual loops
 	 */
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 	if (operating_mode == MODE_SERVER)
 		start_server ();
 	else /* if (operating_mode == MODE_CLIENT || operating_mode == MODE_LOCAL) */
