@@ -192,4 +192,6 @@
 extern time_t curtime;
 extern int operating_mode;
 
+int main (int argc, char **argv);
+
 #endif /* COLLECTD_H */

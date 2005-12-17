@@ -49,12 +49,14 @@ time_t curtime;
 int operating_mode;
 #endif
 
-static void sigIntHandler (int signal)
+static void
+sigIntHandler (int signal)
 {
 	loop++;
 }
 
-static int change_basedir (char *dir)
+static int
+change_basedir (char *dir)
 {
 	int dirlen = strlen (dir);
 	
@@ -90,7 +92,8 @@ static int change_basedir (char *dir)
 } /* static int change_basedir (char *dir) */
 
 #ifdef HAVE_LIBKSTAT
-static void update_kstat (void)
+static void
+update_kstat (void)
 {
 	if (kc == NULL)
 	{
@@ -115,15 +118,20 @@ static void update_kstat (void)
 } /* static void update_kstat (void) */
 #endif /* HAVE_LIBKSTAT */
 
-static void exit_usage (char *name)
+static void
+exit_usage (char *name)
 {
 	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
 			
 			"Available options:\n"
 			"  General:\n"
-			/*
 			"    -C <file>       Configuration file.\n"
 			"                    Default: "CONFIGFILE"\n"
+			/* sure you want a configFILE?
+			   what about a configDIR? - niki */
+			/*
+			"    -C <dir>        Configuration directory.\n"
+			"                    Default: "CONFIGDIR"\n"
 			*/
 #if COLLECT_DAEMON
 			"    -P <file>       PID file.\n"
@@ -156,7 +164,8 @@ static void exit_usage (char *name)
 	exit (0);
 } /* static void exit_usage (char *name) */
 
-static int start_client (void)
+static int
+start_client (void)
 {
 	int sleepingtime;
 
@@ -202,7 +211,8 @@ static int start_client (void)
 } /* static int start_client (void) */
 
 #ifdef HAVE_LIBRRD
-static int start_server (void)
+static int
+start_server (void)
 {
 	char *host;
 	char *type;
@@ -225,7 +235,8 @@ static int start_server (void)
 #endif /* HAVE_LIBRRD */
 
 #if COLLECT_DAEMON
-static int pidfile_create (char *file)
+static int
+pidfile_create (const char *file)
 {
 	FILE *fh;
 
@@ -242,20 +253,26 @@ static int pidfile_create (char *file)
 	fclose(fh);
 
 	return (0);
-} /* static int pidfile_create (char *file) */
+} /* static int pidfile_create (const char *file) */
 #endif /* COLLECT_DAEMON */
 
 #if COLLECT_DAEMON
-static int pidfile_remove (void)
+static int
+pidfile_remove (const char *file)
 {
-      return (unlink (PIDFILE));
-} /* static int pidfile_remove (void) */
+	if (file == NULL) {
+		file = PIDFILE;
+	}
+      return (unlink (file));
+} /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
 
-int main (int argc, char **argv)
+int
+main (int argc, char **argv)
 {
 	struct sigaction sigIntAction, sigChldAction;
 	char *configfile = CONFIGFILE;
+/* or	char *configdir = CONFIGDIR; */
 	char *plugindir  = PLUGINDIR;
 	char *datadir    = PKGLOCALSTATEDIR;
 #if COLLECT_DAEMON
@@ -314,6 +331,7 @@ int main (int argc, char **argv)
 #endif /* HAVE_LIBRRD */
 			case 'C':
 				configfile = optarg;
+				/* configdir = optarg; */
 				break;
 #if COLLECT_DAEMON
 			case 'P':
@@ -442,8 +460,8 @@ int main (int argc, char **argv)
 
 #if COLLECT_DAEMON
 	if (daemonize)
-		pidfile_remove();
+		pidfile_remove(pidfile);
 #endif /* COLLECT_DAEMON */
 
 	return (0);
-}
+} /* int main (int argc, char **argv) */
