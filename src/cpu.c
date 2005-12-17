@@ -20,40 +20,36 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#include "cpu.h"
-
-#if COLLECT_CPU
-#define MODULE_NAME "cpu"
-
-#ifdef HAVE_LIBKSTAT
-#include <sys/sysinfo.h>
-#endif /* HAVE_LIBKSTAT */
-
-#ifdef HAVE_SYSCTLBYNAME
-#ifdef HAVE_SYS_SYSCTL_H
-#include <sys/sysctl.h>
-#endif
-
-#ifdef HAVE_SYS_DKSTAT_H
-#include <sys/dkstat.h>
-#endif
-
-#if !defined(CP_USER) || !defined(CP_NICE) || !defined(CP_SYS) || !defined(CP_INTR) || !defined(CP_IDLE) || !defined(CPUSTATES)
-#define CP_USER   0
-#define CP_NICE   1
-#define CP_SYS    2
-#define CP_INTR   3
-#define CP_IDLE   4
-#define CPUSTATES 5
-#endif
-#endif /* HAVE_SYSCTLBYNAME */
-
+#include "collectd.h"
 #include "plugin.h"
 #include "common.h"
 
 #ifdef HAVE_LIBKSTAT
+# include <sys/sysinfo.h>
+#endif /* HAVE_LIBKSTAT */
+
+#ifdef HAVE_SYSCTLBYNAME
+# ifdef HAVE_SYS_SYSCTL_H
+#  include <sys/sysctl.h>
+# endif
+
+# ifdef HAVE_SYS_DKSTAT_H
+#  include <sys/dkstat.h>
+# endif
+
+# if !defined(CP_USER) || !defined(CP_NICE) || !defined(CP_SYS) || !defined(CP_INTR) || !defined(CP_IDLE) || !defined(CPUSTATES)
+#  define CP_USER   0
+#  define CP_NICE   1
+#  define CP_SYS    2
+#  define CP_INTR   3
+#  define CP_IDLE   4
+#  define CPUSTATES 5
+# endif
+#endif /* HAVE_SYSCTLBYNAME */
+
+#ifdef HAVE_LIBKSTAT
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so CPUs.. */
-#define MAX_NUMCPU 256
+# define MAX_NUMCPU 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMCPU];
 static int numcpu;
@@ -62,6 +58,8 @@ static int numcpu;
 #ifdef HAVE_SYSCTLBYNAME
 static int numcpu;
 #endif /* HAVE_SYSCTLBYNAME */
+
+#define MODULE_NAME "cpu"
 
 static char *cpu_filename = "cpu-%s.rrd";
 
@@ -127,7 +125,8 @@ void cpu_write (char *host, char *inst, char *val)
 }
 
 #define BUFSIZE 512
-void cpu_submit (int cpu_num, unsigned long long user, unsigned long long nice, unsigned long long syst,
+static void cpu_submit (int cpu_num, unsigned long long user,
+		unsigned long long nice, unsigned long long syst,
 		unsigned long long idle, unsigned long long wait)
 {
 	char buf[BUFSIZE];
@@ -142,7 +141,7 @@ void cpu_submit (int cpu_num, unsigned long long user, unsigned long long nice, 
 }
 #undef BUFSIZE
 
-void cpu_read (void)
+static void cpu_read (void)
 {
 #ifdef KERNEL_LINUX
 #define BUFSIZE 1024
@@ -240,6 +239,8 @@ void cpu_read (void)
 	/* FIXME: Instance is always `0' */
 	cpu_submit (0, cpuinfo[CP_USER], cpuinfo[CP_NICE], cpuinfo[CP_SYS], cpuinfo[CP_IDLE], 0LL);
 #endif
+
+	return;
 }
 
 void module_register (void)
@@ -248,4 +249,3 @@ void module_register (void)
 }
 
 #undef MODULE_NAME
-#endif /* COLLECT_CPU */

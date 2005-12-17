@@ -444,21 +444,22 @@ AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 
 m4_divert_once([HELP_ENABLE], [
 collectd modules:])
-AC_ARG_ENABLE(cpu, AC_HELP_STRING([--disable-cpu], [Disable CPU usage statistics]),, [enable_cpu="yes"])
-if test "x$enable_cpu" != "xno"
-then
-	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$have_sysctlbyname" = "xyes"
-	then
-		enable_cpu="yes"
-	else
-		enable_cpu="no"
-	fi
-fi
-if test "x$enable_cpu" = "xno"
-then
-	AC_DEFINE(COLLECT_CPU, 0, [Wether or not to collect CPU usage statistics])
-fi
-AM_CONDITIONAL(BUILD_MODULE_CPU, test "x$enable_cpu" = "xyes")
+AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
+#AC_ARG_ENABLE(cpu, AC_HELP_STRING([--disable-cpu], [Disable CPU usage statistics]),, [enable_cpu="yes"])
+#if test "x$enable_cpu" != "xno"
+#then
+#	if test "x$ac_system" = "xLinux" -o "x$with_kstat" = "xyes" -o "x$have_sysctlbyname" = "xyes"
+#	then
+#		enable_cpu="yes"
+#	else
+#		enable_cpu="no"
+#	fi
+#fi
+#if test "x$enable_cpu" = "xno"
+#then
+#	AC_DEFINE(COLLECT_CPU, 0, [Wether or not to collect CPU usage statistics])
+#fi
+#AM_CONDITIONAL(BUILD_MODULE_CPU, test "x$enable_cpu" = "xyes")
 
 AC_ARG_ENABLE(cpufreq, AC_HELP_STRING([--disable-cpufreq], [Disable system cpu frequency statistics]),, [enable_cpufreq="yes"])
 if test "x$enable_cpufreq" != "xno"

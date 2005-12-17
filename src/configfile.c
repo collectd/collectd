@@ -297,7 +297,7 @@ int cf_callback_section_module (const char *shortvar, const char *var,
 		if (current_module != NULL)
 		{
 			free (current_module);
-			current_module == NULL;
+			current_module = NULL;
 		}
 
 		nesting_depth--;
