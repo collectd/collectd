@@ -53,6 +53,11 @@ static void sigIntHandler (int signal)
 	loop++;
 }
 
+static void sigTermHandler (int signal)
+{
+	loop++;
+}
+
 static int change_basedir (char *dir)
 {
 	int dirlen = strlen (dir);
@@ -249,8 +254,10 @@ static int pidfile_remove (const char *file)
 
 int main (int argc, char **argv)
 {
-	struct sigaction sigIntAction, sigChldAction;
+	struct sigaction sigIntAction;
+	struct sigaction sigTermAction;
 #if COLLECT_DAEMON
+	struct sigaction sigChldAction;
 	pid_t pid;
 #endif
 
@@ -347,18 +354,12 @@ int main (int argc, char **argv)
 	}
 
 	/*
-	 * install signal handlers
-	 */
-	sigIntAction.sa_handler = sigIntHandler;
-	sigaction (SIGINT, &sigIntAction, NULL);
-
-	sigChldAction.sa_handler = SIG_IGN;
-	sigaction (SIGCHLD, &sigChldAction, NULL);
-
-	/*
 	 * fork off child
 	 */
 #if COLLECT_DAEMON
+	sigChldAction.sa_handler = SIG_IGN;
+	sigaction (SIGCHLD, &sigChldAction, NULL);
+
 	if (daemonize)
 	{
 		if ((pid = fork ()) == -1)
@@ -403,6 +404,15 @@ int main (int argc, char **argv)
 		}
 	} /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
+
+	/*
+	 * install signal handlers
+	 */
+	sigIntAction.sa_handler = sigIntHandler;
+	sigaction (SIGINT, &sigIntAction, NULL);
+
+	sigIntAction.sa_handler = sigTermHandler;
+	sigaction (SIGTERM, &sigTermAction, NULL);
 
 	/*
 	 * run the actual loops
