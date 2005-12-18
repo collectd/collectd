@@ -44,16 +44,16 @@ int   num_pinghosts = 0;
  */
 time_t curtime;
 
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 int operating_mode;
 #endif
 
-void sigIntHandler (int signal)
+static void sigIntHandler (int signal)
 {
 	loop++;
 }
 
-int change_basedir (char *dir)
+static int change_basedir (char *dir)
 {
 	int dirlen = strlen (dir);
 	
@@ -213,10 +213,11 @@ int start_server (void)
 	}
 	
 	return (0);
-}
+} /* static int start_server (void) */
 #endif /* HAVE_LIBRRD */
 
-int pidfile_create (char *file)
+#if COLLECT_DAEMON
+static int pidfile_create (const char *file)
 {
 	FILE *fh;
 
@@ -233,12 +234,18 @@ int pidfile_create (char *file)
 	fclose(fh);
 
 	return (0);
-}
+} /* static int pidfile_create (const char *file) */
+#endif /* COLLECT_DAEMON */
 
-int pidfile_remove (void)
+#if COLLECT_DAEMON
+static int pidfile_remove (const char *file)
 {
-      return (unlink (PIDFILE));
-}
+	if (file == NULL) {
+		file = PIDFILE;
+	}
+	return (unlink (file));
+} /* static int pidfile_remove (const char *file) */
+#endif /* COLLECT_DAEMON */
 
 int main (int argc, char **argv)
 {
@@ -254,10 +261,10 @@ int main (int argc, char **argv)
 
 	int daemonize = 1;
 
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 	operating_mode = MODE_LOCAL;
 #endif
-	
+
 	/* open syslog */
 	openlog (PACKAGE, LOG_CONS | LOG_PID, LOG_DAEMON);
 
@@ -400,7 +407,7 @@ int main (int argc, char **argv)
 	/*
 	 * run the actual loops
 	 */
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 	if (operating_mode == MODE_SERVER)
 		start_server ();
 	else /* if (operating_mode == MODE_CLIENT || operating_mode == MODE_LOCAL) */
@@ -411,8 +418,10 @@ int main (int argc, char **argv)
 	syslog (LOG_INFO, "Exiting normally");
 	closelog ();
 
+#if COLLECT_DAEMON
 	if (daemonize)
-		pidfile_remove();
+		pidfile_remove(pidfile);
+#endif /* COLLECT_DAEMON */
 
 	return (0);
-}
+} /* int main (int argc, char **argv) */
