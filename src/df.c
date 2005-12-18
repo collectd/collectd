@@ -97,6 +97,7 @@ static void df_read (void)
 	unsigned long long blocksize;
 	unsigned long long df_free;
 	unsigned long long df_used;
+	char mnt_name[BUFSIZE];
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
@@ -107,7 +108,6 @@ static void df_read (void)
 
 	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
-
 		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
 		{
 			syslog (LOG_ERR, "statv?fs failed: %s", strerror (errno));
@@ -121,8 +121,23 @@ static void df_read (void)
 		df_free = statbuf.f_bfree * blocksize;
 		df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
 
-		syslog (LOG_INFO, "blocksize = %llu, free = %llu, used = %llu, dir = %s", blocksize, df_free, df_used, mnt_ptr->dir);
-		df_submit ("blahfoo", df_used, df_free);
+		if (strcmp (mnt_ptr->dir, "/") == 0)
+		{
+			strncpy (mnt_name, "root", BUFSIZE);
+		}
+		else
+		{
+			int i, len;
+
+			strncpy (mnt_name, mnt_ptr->dir + 1, BUFSIZE);
+			len = strlen (mnt_name);
+
+			for (i = 0; i < len; i++)
+				if (mnt_name[i] == '/')
+					mnt_name[i] = '-';
+		}
+
+		df_submit (mnt_name, df_used, df_free);
 	}
 
 	cu_mount_freelist (mnt_list);
