@@ -262,9 +262,11 @@ static int pidfile_remove (const char *file)
 
 int main (int argc, char **argv)
 {
+#if COLLECT_DAEMON
+	struct sigaction sigChldAction;
+#endif
 	struct sigaction sigIntAction;
 	struct sigaction sigTermAction;
-	struct sigaction sigChldAction;
 	char *configfile = CONFIGFILE;
 	char *plugindir  = PLUGINDIR;
 	char *datadir    = PKGLOCALSTATEDIR;
@@ -383,21 +385,12 @@ int main (int argc, char **argv)
 	}
 
 	/*
-	 * install signal handlers
-	 */
-	sigIntAction.sa_handler = sigIntHandler;
-	sigaction (SIGINT, &sigIntAction, NULL);
-
-	sigIntAction.sa_handler = sigTermHandler;
-	sigaction (SIGTERM, &sigTermAction, NULL);
-
-	sigChldAction.sa_handler = SIG_IGN;
-	sigaction (SIGCHLD, &sigChldAction, NULL);
-
-	/*
 	 * fork off child
 	 */
 #if COLLECT_DAEMON
+	sigChldAction.sa_handler = SIG_IGN;
+	sigaction (SIGCHLD, &sigChldAction, NULL);
+
 	if (daemonize)
 	{
 		if ((pid = fork ()) == -1)
@@ -442,6 +435,15 @@ int main (int argc, char **argv)
 		}
 	} /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
+
+	/*
+	 * install signal handlers
+	 */
+	sigIntAction.sa_handler = sigIntHandler;
+	sigaction (SIGINT, &sigIntAction, NULL);
+
+	sigIntAction.sa_handler = sigTermHandler;
+	sigaction (SIGTERM, &sigTermAction, NULL);
 
 	/*
 	 * run the actual loops
