@@ -1,8 +1,10 @@
 2005-12-17, Version 3.6.0
 	* A config file has been added. This allows for loading only specific
 	  plugins.
+	* A `df' plugin has been added.
 	* A `mysql' plugin has been added.
-	* A signal handler for SIGTERM has been added.
+	* A signal handler for SIGTERM has been added. Signal handlers have
+	  been improved, too.
 
 2005-12-07, Version 3.5.0 (Revision 326)
 	* A bug in the `load' module under Solaris has been fixed.
