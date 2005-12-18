@@ -74,6 +74,7 @@ AC_CHECK_HEADERS(sys/mntent.h)
 AC_CHECK_HEADERS(sys/mnttab.h)
 AC_CHECK_HEADERS(sys/mount.h)
 AC_CHECK_HEADERS(sys/statfs.h)
+AC_CHECK_HEADERS(sys/statvfs.h)
 AC_CHECK_HEADERS(sys/vfs.h)
 AC_CHECK_HEADERS(sys/vfstab.h)
 
@@ -105,6 +106,9 @@ AC_CHECK_FUNCS(openlog syslog closelog)
 
 # For cpu module
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
+
+# For df module
+AC_CHECK_FUNCS(statfs statvfs)
 
 # For load module
 AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
@@ -451,6 +455,7 @@ collectd modules:])
 AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
 AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
 AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
+AC_COLLECTD([df],        [disable], [module], [df statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
@@ -701,6 +706,7 @@ Configuration:
   Modules:
     cpu . . . . . . . . $enable_cpu
     cpufreq . . . . . . $enable_cpufreq
+    df  . . . . . . . . $enable_df
     disk  . . . . . . . $enable_disk
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load

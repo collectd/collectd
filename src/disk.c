@@ -138,6 +138,7 @@ static void partition_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, part_ds_def, part_ds_num);
 }
 
+#if DISK_HAVE_READ
 #define BUFSIZE 512
 static void disk_submit (char *disk_name,
 		unsigned long long read_count,
@@ -161,7 +162,6 @@ static void disk_submit (char *disk_name,
 	plugin_submit (MODULE_NAME, disk_name, buf);
 }
 
-#if DISK_HAVE_READ
 static void partition_submit (char *part_name,
 		unsigned long long read_count,
 		unsigned long long read_bytes,

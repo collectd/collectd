@@ -48,6 +48,15 @@ collectd_LDADD += "-dlopen" cpufreq.la
 collectd_DEPENDENCIES += cpufreq.la
 endif
 
+if BUILD_MODULE_DF
+pkglib_LTLIBRARIES += df.la
+df_la_SOURCES = df.c
+df_la_LDFLAGS = -module -avoid-version
+df_la_CFLAGS  = -Wall -Werror
+collectd_LDADD += "-dlopen" df.la
+collectd_DEPENDENCIES += df.la
+endif
+
 if BUILD_MODULE_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c disk.h
