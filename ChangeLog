@@ -1,4 +1,8 @@
-2005-12-07, Version 3.5.0 (Revision 326)
+2005-12-18, Version 3.5.1
+	* The PID-file is now deleted correctly when shutting down the daemon.
+	* SIGINT and SIGTERM are now handled correctly.
+
+2005-12-16, Version 3.5.0 (Revision 326)
 	* A bug in the `load' module under Solaris has been fixed.
 	* The `users' module has been contributed by Sebastian Harl. It counts
 	  currently logged in users.
