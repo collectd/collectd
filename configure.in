@@ -705,6 +705,7 @@ Configuration:
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
     memory  . . . . . . $enable_memory
+    mysql . . . . . . . $enable_mysql
     nfs . . . . . . . . $enable_nfs
     ping  . . . . . . . $enable_ping
     processes . . . . . $enable_processes

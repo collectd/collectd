@@ -97,7 +97,7 @@ endif
 
 if BUILD_MODULE_MYSQL
 pkglib_LTLIBRARIES += mysql.la
-mysql_la_SOURCES = mysql.c mysql.h
+mysql_la_SOURCES = mysql.c
 mysql_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBMYSQL
 mysql_la_LDFLAGS += -lmysqlclient

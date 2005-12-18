@@ -11,4 +11,5 @@ libconfig_la_SOURCES = \
 	conf_equal.c conf_equal.h \
 	conf_section.c conf_section.h \
 	conf_space.c conf_space.h \
-	conf_xml.c conf_xml.h
+	conf_xml.c conf_xml.h \
+	compat.h libconfig_private.h
