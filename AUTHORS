@@ -1,33 +1,36 @@
 This package was written by:
-  Florian octo Forster <octo@verplant.org>
+  Florian octo Forster <octo at verplant.org>
 
 cpufreq module by:
-  Peter Holik <peter@holik.at>
+  Peter Holik <peter at holik.at>
 
 hddtemp module by:
-  Vincent Stehlé <vincent.stehle@free.fr>
+  Vincent Stehlé <vincent.stehle at free.fr>
 
 nfs module by:
-  Jason Pepas <cell@ices.utexas.edu>
+  Jason Pepas <cell at ices.utexas.edu>
 
 processes module by:
-  Lyonel Vincent <lyonel@ezix.org>
+  Lyonel Vincent <lyonel at ezix.org>
 
 serial module by:
-  David Bacher <drbacher@gmail.com>
+  David Bacher <drbacher at gmail.com>
 
 tape module by:
-  Scott Garrett <sgarrett@technomancer.com>
+  Scott Garrett <sgarrett at technomancer.com>
 
 users module by:
-  Sebastian Harl <sh@tokkee.org>
+  Sebastian Harl <sh at tokkee.org>
+
+PID-file patch by:
+  Tommie Gannert <d00-tga at d.kth.se>
 
 don't-fork-patch by:
-  Alvaro Barcellos <alvaro.barcellos@gmail.com>
+  Alvaro Barcellos <alvaro.barcellos at gmail.com>
 
 many autotools related fixes, libltdl code, getmnt-wizardry and much help has
 contributed:
-  Niki W. Waibel <niki.waibel@newlogic.com>
+  Niki W. Waibel <niki.waibel at newlogic.com>
 
 collectd is available at:
   <http://verplant.org/collectd/>
