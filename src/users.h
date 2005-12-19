@@ -25,5 +25,5 @@
 
 void module_register(void);
 
-#endif /* !COLLECTD_USERS_H) */
+#endif /* !COLLECTD_USERS_H */
 
