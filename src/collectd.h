@@ -187,7 +187,7 @@
 
 #define MODE_SERVER 0x01
 #define MODE_CLIENT 0x02
-#define MODE_LOCAL  0x03
+#define MODE_LOCAL  0x04
 
 extern time_t curtime;
 extern int operating_mode;

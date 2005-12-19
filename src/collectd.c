@@ -268,7 +268,7 @@ int main (int argc, char **argv)
 	struct sigaction sigIntAction;
 	struct sigaction sigTermAction;
 	char *configfile = CONFIGFILE;
-	char *plugindir  = PLUGINDIR;
+	char *plugindir  = NULL;
 	char *datadir    = PKGLOCALSTATEDIR;
 #if COLLECT_DAEMON
 	char *pidfile    = PIDFILE;
@@ -361,6 +361,12 @@ int main (int argc, char **argv)
 	} /* while (1) */
 
 	DBG_STARTFILE(logfile, "debug file opened.");
+
+	/* FIXME this is the wrong place to call this function, because
+	 * `cf_read' is called below. We'll need an extra callback for this.
+	 * Right now though I'm to tired to do this. G'night. -octo */
+	if ((plugindir == NULL) && ((plugindir = cf_get_mode_option ("PluginDir")) == NULL))
+		plugindir = PLUGINDIR;
 
 	/*
 	 * Read the config file. This will load any modules automagically.

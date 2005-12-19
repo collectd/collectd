@@ -63,6 +63,20 @@ void cf_register (char *type,
 
 /*
  * DESCRIPTION
+ *  `cf_get_mode_option' returns options from the <Mode> section(s).
+ *
+ * PARAMETERS
+ *  `key'       Name of the option to query.
+ *
+ * RETURN VALUE
+ *  The pointer returned is part of an internal structure and may not be
+ *  changed. If the option is not found for whatever reason (wrong key, option
+ *  not allowed for currently selected mode, ...) `NULL' is returned.
+ */
+char *cf_get_mode_option (const char *key);
+
+/*
+ * DESCRIPTION
  *  `cf_read' reads the config file `filename' and dispatches the read
  *  information to functions/variables. Most important: Is calls `plugin_load'
  *  to load specific plugins, depending on the current mode of operation.

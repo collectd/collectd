@@ -20,12 +20,6 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-/*
- * FIXME:
- * - remove all (I mean *ALL*) calls to `fprintf': `stderr' will have been
- *   closed.
- */
-
 #include "collectd.h"
 
 #include "libconfig/libconfig.h"
@@ -44,7 +38,7 @@
 #ifdef HAVE_LIBRRD
 extern int operating_mode;
 #else
-static int operating_mode = MODE_LOCAL;
+static int operating_mode = MODE_CLIENT;
 #endif
 
 typedef struct cf_callback
@@ -58,15 +52,33 @@ typedef struct cf_callback
 
 static cf_callback_t *first_callback = NULL;
 
+typedef struct cf_mode_item
+{
+	char *key;
+	char *value;
+	int   mode;
+} cf_mode_item_t;
+
+static cf_mode_item_t cf_mode_list[] =
+{
+	{"Server",      NULL, MODE_CLIENT                           },
+	{"Port",        NULL, MODE_CLIENT | MODE_SERVER             },
+	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
+	{"DataDir",     NULL, MODE_SERVER |               MODE_LOCAL},
+	{"PluginDir",   NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL}
+};
+static int cf_mode_num = 5;
+
 static int nesting_depth = 0;
 static char *current_module = NULL;
 
 /* cf_register needs this prototype */
-int cf_callback_general (const char *, const char *, const char *,
+int cf_callback_dispatch (const char *, const char *, const char *,
 		const char *, lc_flags_t, void *);
 
 /*
- * Functions to handle register/unregister, search, ...
+ * Functions to handle register/unregister, search, and other plugin related
+ * stuff
  */
 cf_callback_t *cf_search (char *type)
 {
@@ -92,7 +104,7 @@ int cf_dispatch (char *type, const char *orig_key, const char *orig_value)
 
 	if ((cf_cb = cf_search (type)) == NULL)
 	{
-		fprintf (stderr, "Plugin `%s' did not register a callback.\n", type);
+		syslog (LOG_WARNING, "Plugin `%s' did not register a callback.\n", type);
 		return (-1);
 	}
 
@@ -116,7 +128,7 @@ int cf_dispatch (char *type, const char *orig_key, const char *orig_value)
 	}
 
 	if (i >= cf_cb->keys_num)
-		fprintf (stderr, "Plugin `%s' did not register for value `%s'.\n", type, key);
+		syslog (LOG_WARNING, "Plugin `%s' did not register for value `%s'.\n", type, key);
 
 	free (key);
 	free (value);
@@ -174,7 +186,7 @@ void cf_register (char *type,
 			 * `key', but apparently `lc_register_*' can handle
 			 * it.. */
 			lc_register_callback (buf, SHORTOPT_NONE,
-					LC_VAR_STRING, cf_callback_general,
+					LC_VAR_STRING, cf_callback_dispatch,
 					NULL);
 		}
 		else
@@ -184,10 +196,29 @@ void cf_register (char *type,
 	}
 }
 
+/*
+ * Other query functions
+ */
+char *cf_get_mode_option (const char *key)
+{
+	int i;
+
+	for (i = 0; i < cf_mode_num; i++)
+	{
+		if ((cf_mode_list[i].mode & operating_mode) == 0)
+			continue;
+
+		if (strcasecmp (cf_mode_list[i].key, key) == 0)
+			return (cf_mode_list[i].value);
+	}
+
+	return (NULL);
+}
+
 /* 
  * Functions for the actual parsing
  */
-int cf_callback_general (const char *shortvar, const char *var,
+int cf_callback_dispatch (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -203,6 +234,47 @@ int cf_callback_general (const char *shortvar, const char *var,
 	/* Send the data to the plugin */
 	if (cf_dispatch (current_module, shortvar, value) < 0)
 		return (LC_CBRET_ERROR);
+
+	return (LC_CBRET_OKAY);
+}
+
+int cf_callback_options_mode (const char *shortvar, const char *var,
+		const char *arguments, const char *value, lc_flags_t flags,
+		void *extra)
+{
+	cf_mode_item_t *item;
+
+	if (extra == NULL)
+	{
+		fprintf (stderr, "No extra..?\n");
+		return (LC_CBRET_ERROR);
+	}
+
+	item = (cf_mode_item_t *) extra;
+
+	if (strcasecmp (item->key, shortvar))
+	{
+		fprintf (stderr, "Wrong extra..\n");
+		return (LC_CBRET_ERROR);
+	}
+
+	if ((operating_mode & item->mode) == 0)
+	{
+		fprintf (stderr, "Option `%s' is not valid in this mode!\n", shortvar);
+		return (LC_CBRET_ERROR);
+	}
+
+	if (item->value != NULL)
+	{
+		free (item->value);
+		item->value = NULL;
+	}
+
+	if ((item->value = strdup (value)) == NULL)
+	{
+		perror ("strdup");
+		return (LC_CBRET_ERROR);
+	}
 
 	return (LC_CBRET_OKAY);
 }
@@ -334,6 +406,8 @@ int cf_callback_loadmodule (const char *shortvar, const char *var,
 
 int cf_read (char *filename)
 {
+	int i;
+
 	if (filename == NULL)
 		filename = CONFIGFILE;
 
@@ -342,14 +416,23 @@ int cf_read (char *filename)
 	lc_register_callback ("Plugin", SHORTOPT_NONE, LC_VAR_SECTION,
 			cf_callback_section_module, NULL);
 
-	/*
-	 * TODO:
-	 * - Add more directives, such as `DefaultMode', `DataDir', `PIDFile', ...
-	 */
-
 	lc_register_callback ("Mode.LoadPlugin", SHORTOPT_NONE,
 			LC_VAR_STRING, cf_callback_loadmodule,
 			NULL);
+
+	for (i = 0; i < cf_mode_num; i++)
+	{
+		char            longvar[256];
+		cf_mode_item_t *item;
+
+		item = &cf_mode_list[i];
+
+		if (snprintf (longvar, 256, "Mode.%s", item->key) >= 256)
+			continue;
+
+		lc_register_callback (longvar, SHORTOPT_NONE, LC_VAR_STRING,
+				cf_callback_options_mode, (void *) item);
+	}
 
 	if (lc_process_file ("collectd", filename, LC_CONF_APACHE))
 	{
