@@ -65,6 +65,9 @@ typedef struct diskstats
 {
 	char *name;
 
+	/* This overflows in roughly 1361 year */
+	unsigned int poll_count;
+
 	unsigned int read_sectors;
 	unsigned int write_sectors;
 
@@ -300,6 +303,10 @@ static void disk_read (void)
 		read_bytes  = ds->read_bytes;
 		write_bytes = ds->write_bytes;
 
+		/* Don't write to the RRDs if we've just started.. */
+		ds->poll_count++;
+		if (ds->poll_count <= 6)
+			continue;
 
 		if ((read_count == 0) && (write_count == 0))
 			continue;
