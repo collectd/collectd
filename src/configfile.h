@@ -37,7 +37,7 @@ void cf_unregister (char *type);
  * DESCRIPTION
  *  `cf_register' is called by plugins that wish to receive config keys. The
  *  plugin will then receive all keys it registered for if they're found in a
- *  `<Moudle $type>' section.
+ *  `<Module $type>' section.
  *
  * PARAMETERS
  *  `type'      Name of the plugin (must be the same as passed to
