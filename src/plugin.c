@@ -52,7 +52,7 @@ char *plugin_get_dir (void)
 		return (plugindir);
 }
 
-void plugin_set_dir (char *dir)
+void plugin_set_dir (const char *dir)
 {
 	if (plugindir != NULL)
 		free (plugindir);

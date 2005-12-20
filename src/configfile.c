@@ -64,16 +64,15 @@ static cf_mode_item_t cf_mode_list[] =
 	{"Server",      NULL, MODE_CLIENT                           },
 	{"Port",        NULL, MODE_CLIENT | MODE_SERVER             },
 	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
-	{"DataDir",     NULL, MODE_SERVER |               MODE_LOCAL},
-	{"PluginDir",   NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL}
+	{"DataDir",     NULL, MODE_SERVER |               MODE_LOCAL}
 };
-static int cf_mode_num = 5;
+static int cf_mode_num = 4;
 
 static int nesting_depth = 0;
 static char *current_module = NULL;
 
-/* cf_register needs this prototype */
-int cf_callback_dispatch (const char *, const char *, const char *,
+/* `cf_register' needs this prototype */
+int cf_callback_plugin_dispatch (const char *, const char *, const char *,
 		const char *, lc_flags_t, void *);
 
 /*
@@ -186,7 +185,7 @@ void cf_register (char *type,
 			 * `key', but apparently `lc_register_*' can handle
 			 * it.. */
 			lc_register_callback (buf, SHORTOPT_NONE,
-					LC_VAR_STRING, cf_callback_dispatch,
+					LC_VAR_STRING, cf_callback_plugin_dispatch,
 					NULL);
 		}
 		else
@@ -215,71 +214,19 @@ char *cf_get_mode_option (const char *key)
 	return (NULL);
 }
 
-/* 
- * Functions for the actual parsing
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Functions for the actual parsing                                    *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+ * `cf_callback_mode'
+ *   Start/end the `mode' section
+ *
+ * <Mode `arguments'>
+ *   ...
+ * </Mode>
  */
-int cf_callback_dispatch (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
-
-	if ((nesting_depth == 0) || (current_module == NULL))
-	{
-		fprintf (stderr, ERR_NEEDS_SECTION, shortvar);
-		return (LC_CBRET_ERROR);
-	}
-
-	/* Send the data to the plugin */
-	if (cf_dispatch (current_module, shortvar, value) < 0)
-		return (LC_CBRET_ERROR);
-
-	return (LC_CBRET_OKAY);
-}
-
-int cf_callback_options_mode (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	cf_mode_item_t *item;
-
-	if (extra == NULL)
-	{
-		fprintf (stderr, "No extra..?\n");
-		return (LC_CBRET_ERROR);
-	}
-
-	item = (cf_mode_item_t *) extra;
-
-	if (strcasecmp (item->key, shortvar))
-	{
-		fprintf (stderr, "Wrong extra..\n");
-		return (LC_CBRET_ERROR);
-	}
-
-	if ((operating_mode & item->mode) == 0)
-	{
-		fprintf (stderr, "Option `%s' is not valid in this mode!\n", shortvar);
-		return (LC_CBRET_ERROR);
-	}
-
-	if (item->value != NULL)
-	{
-		free (item->value);
-		item->value = NULL;
-	}
-
-	if ((item->value = strdup (value)) == NULL)
-	{
-		perror ("strdup");
-		return (LC_CBRET_ERROR);
-	}
-
-	return (LC_CBRET_OKAY);
-}
-
-int cf_callback_section_mode (const char *shortvar, const char *var,
+int cf_callback_mode (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -330,7 +277,131 @@ int cf_callback_section_mode (const char *shortvar, const char *var,
 
 }
 
-int cf_callback_section_module (const char *shortvar, const char *var,
+/*
+ * `cf_callback_mode_plugindir'
+ *   Change the plugin directory
+ *
+ * <Mode xxx>
+ *   PluginDir `value'
+ * </Mode>
+ */
+int cf_callback_mode_plugindir (const char *shortvar, const char *var,
+		const char *arguments, const char *value, lc_flags_t flags,
+		void *extra)
+{
+	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
+			shortvar, var, arguments, value);
+
+	plugin_set_dir (value);
+
+	return (LC_CBRET_OKAY);
+}
+
+int cf_callback_mode_option (const char *shortvar, const char *var,
+		const char *arguments, const char *value, lc_flags_t flags,
+		void *extra)
+{
+	cf_mode_item_t *item;
+
+	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
+			shortvar, var, arguments, value);
+
+	if (extra == NULL)
+	{
+		fprintf (stderr, "No extra..?\n");
+		return (LC_CBRET_ERROR);
+	}
+
+	item = (cf_mode_item_t *) extra;
+
+	if (strcasecmp (item->key, shortvar))
+	{
+		fprintf (stderr, "Wrong extra..\n");
+		return (LC_CBRET_ERROR);
+	}
+
+	if ((operating_mode & item->mode) == 0)
+	{
+		fprintf (stderr, "Option `%s' is not valid in this mode!\n", shortvar);
+		return (LC_CBRET_ERROR);
+	}
+
+	if (item->value != NULL)
+	{
+		free (item->value);
+		item->value = NULL;
+	}
+
+	if ((item->value = strdup (value)) == NULL)
+	{
+		perror ("strdup");
+		return (LC_CBRET_ERROR);
+	}
+
+	return (LC_CBRET_OKAY);
+}
+
+/*
+ * `cf_callback_mode_loadmodule':
+ *   Load a plugin.
+ *
+ * <Mode xxx>
+ *   LoadPlugin `value'
+ * </Mode>
+ */
+int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
+		const char *arguments, const char *value, lc_flags_t flags,
+		void *extra)
+{
+	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
+			shortvar, var, arguments, value);
+
+	if (nesting_depth == 0)
+	{
+		fprintf (stderr, ERR_NEEDS_SECTION, shortvar);
+		return (LC_CBRET_ERROR);
+	}
+
+	if (plugin_load (value))
+		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", value);
+
+	/* Return `okay' even if there was an error, because it's not a syntax
+	 * problem.. */
+	return (LC_CBRET_OKAY);
+}
+
+/* XXX think about how to do the command line stuff */
+int cf_callback_mode_switch (const char *shortvar, const char *var,
+		const char *arguments, const char *value, lc_flags_t flags,
+		void *extra)
+{
+	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
+			shortvar, var, arguments, value);
+
+	if (strcasecmp (shortvar, "Client") == 0)
+		operating_mode = MODE_CLIENT;
+	else if (strcasecmp (shortvar, "Local") == 0)
+		operating_mode = MODE_LOCAL;
+	else if (strcasecmp (shortvar, "Server") == 0)
+		operating_mode = MODE_SERVER;
+	else
+	{
+		fprintf (stderr, "cf_callback_mode_switch: Wrong mode!\n");
+		return (LC_CBRET_ERROR);
+	}
+
+	return (LC_CBRET_OKAY);
+}
+
+/*
+ * `cf_callback_plugin'
+ *   Start/end section `plugin'
+ *
+ * <Plugin `arguments'>
+ *   ...
+ * </Plugin>
+ */
+int cf_callback_plugin (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -383,24 +454,31 @@ int cf_callback_section_module (const char *shortvar, const char *var,
 	}
 }
 
-int cf_callback_loadmodule (const char *shortvar, const char *var,
+/*
+ * `cf_callback_plugin_dispatch'
+ *   Send options within `plugin' sections to the plugin that requests it.
+ *
+ * <Plugin `current_module'>
+ *   `var' `value'
+ * </Plugin>
+ */
+int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
 			shortvar, var, arguments, value);
 
-	if (nesting_depth == 0)
+	if ((nesting_depth == 0) || (current_module == NULL))
 	{
 		fprintf (stderr, ERR_NEEDS_SECTION, shortvar);
 		return (LC_CBRET_ERROR);
 	}
 
-	if (plugin_load (value))
-		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", shortvar);
+	/* Send the data to the plugin */
+	if (cf_dispatch (current_module, shortvar, value) < 0)
+		return (LC_CBRET_ERROR);
 
-	/* Return `okay' even if there was an error, because it's not a syntax
-	 * problem.. */
 	return (LC_CBRET_OKAY);
 }
 
@@ -411,14 +489,22 @@ int cf_read (char *filename)
 	if (filename == NULL)
 		filename = CONFIGFILE;
 
-	lc_register_callback ("Mode", SHORTOPT_NONE, LC_VAR_SECTION,
-			cf_callback_section_mode, NULL);
-	lc_register_callback ("Plugin", SHORTOPT_NONE, LC_VAR_SECTION,
-			cf_callback_section_module, NULL);
+	lc_register_callback ("Client", 'c', LC_VAR_NONE,
+			cf_callback_mode_switch, NULL);
+	lc_register_callback ("Local", 'l', LC_VAR_NONE,
+			cf_callback_mode_switch, NULL);
+	lc_register_callback ("Server", 's', LC_VAR_NONE,
+			cf_callback_mode_switch, NULL);
 
+	lc_register_callback ("Mode", SHORTOPT_NONE, LC_VAR_SECTION,
+			cf_callback_mode, NULL);
+	lc_register_callback ("Plugin", SHORTOPT_NONE, LC_VAR_SECTION,
+			cf_callback_plugin, NULL);
+
+	lc_register_callback ("Mode.PluginDir", 'P',
+			LC_VAR_STRING, cf_callback_mode_plugindir, NULL);
 	lc_register_callback ("Mode.LoadPlugin", SHORTOPT_NONE,
-			LC_VAR_STRING, cf_callback_loadmodule,
-			NULL);
+			LC_VAR_STRING, cf_callback_mode_loadmodule, NULL);
 
 	for (i = 0; i < cf_mode_num; i++)
 	{
@@ -431,7 +517,7 @@ int cf_read (char *filename)
 			continue;
 
 		lc_register_callback (longvar, SHORTOPT_NONE, LC_VAR_STRING,
-				cf_callback_options_mode, (void *) item);
+				cf_callback_mode_option, (void *) item);
 	}
 
 	if (lc_process_file ("collectd", filename, LC_CONF_APACHE))

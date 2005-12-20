@@ -36,7 +36,7 @@
  * NOTES
  *  If `dir' is NULL the compiled in default `PLUGINDIR' is used.
  */
-void plugin_set_dir (char *dir);
+void plugin_set_dir (const char *dir);
 
 /*
  * NAME
