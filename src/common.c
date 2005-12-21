@@ -94,31 +94,171 @@ int strsplit (char *string, char **fields, size_t size)
 	return (i);
 }
 
+int strjoin (char *dst, size_t dst_len,
+		char **fields, size_t fields_num,
+		const char *sep)
+{
+	int field_len;
+	int sep_len;
+	int i;
+
+	memset (dst, '\0', dst_len);
+
+	if (fields_num <= 0)
+		return (-1);
+
+	sep_len = 0;
+	if (sep != NULL)
+		sep_len = strlen (sep);
+
+	for (i = 0; i < fields_num; i++)
+	{
+		if ((i > 0) && (sep_len > 0))
+		{
+			if (dst_len <= sep_len)
+				return (-1);
+
+			strncat (dst, sep, dst_len);
+			dst_len -= sep_len;
+		}
+
+		field_len = strlen (fields[i]);
+
+		if (dst_len <= field_len)
+			return (-1);
+
+		strncat (dst, fields[i], dst_len);
+		dst_len -= field_len;
+	}
+
+	return (strlen (dst));
+}
+
+int escape_slashes (char *buf, int buf_len)
+{
+	int i;
+
+	if (strcmp (buf, "/") == 0)
+	{
+		if (buf_len < 5)
+			return (-1);
+
+		strncpy (buf, "root", buf_len);
+		return (0);
+	}
+
+	/* Move one to the left */
+	memmove (buf, buf + 1, buf_len - 1);
+
+	for (i = 0; i < buf_len - 1; i++)
+	{
+		if (buf[i] == '\0')
+			break;
+		else if (buf[i] == '/')
+			buf[i] = '_';
+	}
+	buf[i] = '\0';
+
+	return (0);
+}
+
 #ifdef HAVE_LIBRRD
-int check_create_dir (char *dir)
+int check_create_dir (const char *file_orig)
 {
 	struct stat statbuf;
 
-	if (stat (dir, &statbuf) == -1)
+	char  file_copy[512];
+	char  dir[512];
+	int   dir_len = 512;
+	char *fields[16];
+	int   fields_num;
+	char *ptr;
+	int   last_is_file = 1;
+	int   len;
+	int   i;
+
+	/*
+	 * Sanity checks first
+	 */
+	if (file_orig == NULL)
+		return (-1);
+
+	if ((len = strlen (file_orig)) < 1)
+		return (-1);
+	else if (len >= 512)
+		return (-1);
+
+	/*
+	 * If `file_orig' ends in a slash the last component is a directory,
+	 * otherwise it's a file. Act accordingly..
+	 */
+	if (file_orig[len - 1] == '/')
+		last_is_file = 0;
+
+	/*
+	 * Create a copy for `strtok' to destroy
+	 */
+	strncpy (file_copy, file_orig, 512);
+	file_copy[511] = '\0';
+
+	/*
+	 * Break into components. This will eat up several slashes in a row and
+	 * remove leading and trailing slashes..
+	 */
+	ptr = file_copy;
+	fields_num = 0;
+	while ((fields[fields_num] = strtok (ptr, "/")) != NULL)
 	{
-		if (errno == ENOENT)
+		ptr = NULL;
+		fields_num++;
+
+		if (fields_num >= 16)
+			break;
+	}
+
+	/*
+	 * For each component, do..
+	 */
+	for (i = 0; i < (fields_num - last_is_file); i++)
+	{
+		/*
+		 * Join the components together again
+		 */
+		if (strjoin (dir, dir_len, fields, i + 1, "/") < 0)
+			return (-1);
+
+		/*
+		 * Do not create directories that start with a dot. This
+		 * prevents `../../' attacks and other likely malicious
+		 * behavior.
+		 */
+		if (fields[i][0] == '.')
 		{
-			if (mkdir (dir, 0755) == -1)
+			syslog (LOG_ERR, "Cowardly refusing to create a directory that begins with a `.' (dot): `%s'", dir);
+			return (-2);
+		}
+
+		if (stat (dir, &statbuf) == -1)
+		{
+			if (errno == ENOENT)
 			{
-				syslog (LOG_ERR, "mkdir (%s): %s", dir, strerror (errno));
+				if (mkdir (dir, 0755) == -1)
+				{
+					syslog (LOG_ERR, "mkdir (%s): %s", dir, strerror (errno));
+					return (-1);
+				}
+			}
+			else
+			{
+				syslog (LOG_ERR, "stat (%s): %s", dir, strerror (errno));
 				return (-1);
 			}
 		}
-		else
+		else if (!S_ISDIR (statbuf.st_mode))
 		{
-			syslog (LOG_ERR, "stat (%s): %s", dir, strerror (errno));
+			syslog (LOG_ERR, "stat (%s): Not a directory!", dir);
 			return (-1);
 		}
-	}
-	else if (!S_ISDIR (statbuf.st_mode))
-	{
-		syslog (LOG_ERR, "stat %s: Not a directory!", dir);
-		return (-1);
 	}
 
 	return (0);
