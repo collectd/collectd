@@ -222,20 +222,23 @@ int check_create_dir (const char *file_orig)
 	for (i = 0; i < (fields_num - last_is_file); i++)
 	{
 		/*
-		 * Join the components together again
-		 */
-		if (strjoin (dir, dir_len, fields, i + 1, "/") < 0)
-			return (-1);
-
-		/*
 		 * Do not create directories that start with a dot. This
 		 * prevents `../../' attacks and other likely malicious
 		 * behavior.
 		 */
 		if (fields[i][0] == '.')
 		{
-			syslog (LOG_ERR, "Cowardly refusing to create a directory that begins with a `.' (dot): `%s'", dir);
+			syslog (LOG_ERR, "Cowardly refusing to create a directory that begins with a `.' (dot): `%s'", file_orig);
 			return (-2);
+		}
+
+		/*
+		 * Join the components together again
+		 */
+		if (strjoin (dir, dir_len, fields, i + 1, "/") < 0)
+		{
+			syslog (LOG_ERR, "strjoin failed: `%s', component #%i", file_orig, i);
+			return (-1);
 		}
 
 		if (stat (dir, &statbuf) == -1)
@@ -270,6 +273,9 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 	int argc;
 	int i, j;
 	int status = 0;
+
+	if (check_create_dir (filename))
+		return (-1);
 
 	argc = ds_num + rra_num + 4;
 
@@ -316,9 +322,6 @@ int rrd_update_file (char *host, char *file, char *values,
 	/* host == NULL => local mode */
 	if (host != NULL)
 	{
-		if (check_create_dir (host))
-			return (-1);
-
 		if (snprintf (full_file, 1024, "%s/%s", host, file) >= 1024)
 			return (-1);
 	}
