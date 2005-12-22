@@ -469,7 +469,7 @@ int main (int argc, char **argv)
 
 #if COLLECT_DAEMON
 	if (daemonize)
-		pidfile_remove(pidfile);
+		pidfile_remove (pidfile);
 #endif /* COLLECT_DAEMON */
 
 	return (0);
