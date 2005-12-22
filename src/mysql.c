@@ -46,19 +46,15 @@ static char *db = NULL;
 
 static char  init_suceeded = 0;
 
-static char *commands_file = "mysql_commands.rrd";
-static char *traffic_file  = "mysql_traffic.rrd";
+static char *commands_file = "mysql/mysql_commands-%s.rrd";
+static char *traffic_file  = "traffic-mysql.rrd";
 
 static char *commands_ds_def[] =
 {
-	"DS:insert:COUNTER:25:0:U",
-	"DS:select:COUNTER:25:0:U",
-	"DS:show:COUNTER:25:0:U",
-	"DS:update:COUNTER:25:0:U",
-	"DS:other:COUNTER:25:0:U",
+	"DS:value:COUNTER:25:0:U",
 	NULL
 };
-static int commands_ds_num = 5;
+static int commands_ds_num = 1;
 
 static char *traffic_ds_def[] =
 {
@@ -151,7 +147,12 @@ static int config (char *key, char *value)
 
 static void commands_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, commands_file, val, commands_ds_def, commands_ds_num);
+	char buf[BUFSIZE];
+
+	if (snprintf (buf, BUFSIZE, commands_file, inst) >= BUFSIZE)
+		return;
+
+	rrd_update_file (host, buf, val, commands_ds_def, commands_ds_num);
 }
 
 static void traffic_write (char *host, char *inst, char *val)
@@ -160,17 +161,12 @@ static void traffic_write (char *host, char *inst, char *val)
 }
 
 #if MYSQL_HAVE_READ
-static void commands_submit (unsigned long long insert,
-		unsigned long long select,
-		unsigned long long show,
-		unsigned long long update,
-		unsigned long long other)
+static void commands_submit (char *inst, unsigned long long value)
 {
 	char buf[BUFSIZE];
 	int  status;
 
-	status = snprintf (buf, BUFSIZE, "%u:%llu:%llu:%llu:%llu:%llu", (unsigned int) curtime,
-			insert, select, show, update, other);
+	status = snprintf (buf, BUFSIZE, "%u:%llu", (unsigned int) curtime, value);
 
 	if (status < 0)
 	{
@@ -183,7 +179,7 @@ static void commands_submit (unsigned long long insert,
 		return;
 	}
 
-	plugin_submit ("mysql_commands", "-", buf);
+	plugin_submit ("mysql_commands", inst, buf);
 }
 
 static void traffic_submit (unsigned long long incoming,
@@ -217,12 +213,6 @@ static void mysql_read (void)
 	char      *query;
 	int        query_len;
 	int        field_num;
-
-	unsigned long long cmd_insert = 0LL;
-	unsigned long long cmd_select = 0LL;
-	unsigned long long cmd_show   = 0LL;
-	unsigned long long cmd_update = 0LL;
-	unsigned long long cmd_other  = 0LL;
 
 	unsigned long long traffic_incoming = 0LL;
 	unsigned long long traffic_outgoing = 0LL;
@@ -260,30 +250,20 @@ static void mysql_read (void)
 
 		if (strncmp (key, "Com_", 4) == 0)
 		{
-			if (strncmp (key, "Com_insert", 10) == 0)
-				cmd_insert += val;
-			else if (strncmp (key, "Com_select", 10) == 0)
-				cmd_select += val;
-			else if (strncmp (key, "Com_show", 8) == 0)
-				cmd_show += val;
-			else if (strncmp (key, "Com_update", 10) == 0)
-				cmd_update += val;
-			else if (strncmp (key, "Com_stmt_", 9) == 0)
-			{ /* do nothing */ }
-			else
-				cmd_other += val;
+			/* Ignore `prepared statements' */
+			if (strncmp (key, "Com_stmt_", 9) != 0)
+				commands_submit (key + 4, val);
 		}
 		else if (strncmp (key, "Bytes_", 6) == 0)
 		{
-			if (strncmp (key, "Bytes_received", 14) == 0)
+			if (strcmp (key, "Bytes_received") == 0)
 				traffic_incoming += val;
-			else if (strncmp (key, "Bytes_sent", 10) == 0)
+			else if (strcmp (key, "Bytes_sent") == 0)
 				traffic_outgoing += val;
 		}
 	}
 	mysql_free_result (res); res = NULL;
 
-	commands_submit (cmd_insert, cmd_select, cmd_show, cmd_update, cmd_other);
 	traffic_submit  (traffic_incoming, traffic_outgoing);
 
 	/* mysql_close (con); */
