@@ -47,6 +47,7 @@ static char *db = NULL;
 static char  init_suceeded = 0;
 
 static char *commands_file = "mysql/mysql_commands-%s.rrd";
+static char *handler_file = "mysql/mysql_handler-%s.rrd";
 static char *traffic_file  = "traffic-mysql.rrd";
 
 static char *commands_ds_def[] =
@@ -55,6 +56,13 @@ static char *commands_ds_def[] =
 	NULL
 };
 static int commands_ds_num = 1;
+
+static char *handler_ds_def[] =
+{
+	"DS:value:COUNTER:25:0:U",
+	NULL
+};
+static int handler_ds_num = 1;
 
 static char *traffic_ds_def[] =
 {
@@ -155,6 +163,16 @@ static void commands_write (char *host, char *inst, char *val)
 	rrd_update_file (host, buf, val, commands_ds_def, commands_ds_num);
 }
 
+static void handler_write (char *host, char *inst, char *val)
+{
+	char buf[BUFSIZE];
+
+	if (snprintf (buf, BUFSIZE, handler_file, inst) >= BUFSIZE)
+		return;
+
+	rrd_update_file (host, buf, val, handler_ds_def, handler_ds_num);
+}
+
 static void traffic_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, traffic_file, val, traffic_ds_def, traffic_ds_num);
@@ -180,6 +198,27 @@ static void commands_submit (char *inst, unsigned long long value)
 	}
 
 	plugin_submit ("mysql_commands", inst, buf);
+}
+
+static void handler_submit (char *inst, unsigned long long value)
+{
+	char buf[BUFSIZE];
+	int  status;
+
+	status = snprintf (buf, BUFSIZE, "%u:%llu", (unsigned int) curtime, value);
+
+	if (status < 0)
+	{
+		syslog (LOG_ERR, "snprintf failed");
+		return;
+	}
+	else if (status >= BUFSIZE)
+	{
+		syslog (LOG_WARNING, "snprintf was truncated");
+		return;
+	}
+
+	plugin_submit ("mysql_handler", inst, buf);
 }
 
 static void traffic_submit (unsigned long long incoming,
@@ -248,11 +287,18 @@ static void mysql_read (void)
 		key = row[0];
 		val = atoll (row[1]);
 
+		if (val == 0ULL)
+			continue;
+
 		if (strncmp (key, "Com_", 4) == 0)
 		{
 			/* Ignore `prepared statements' */
 			if (strncmp (key, "Com_stmt_", 9) != 0)
 				commands_submit (key + 4, val);
+		}
+		else if (strncmp (key, "Handler_", 8) == 0)
+		{
+			handler_submit (key + 8, val);
 		}
 		else if (strncmp (key, "Bytes_", 6) == 0)
 		{
@@ -278,6 +324,7 @@ void module_register (void)
 {
 	plugin_register (MODULE_NAME, init, mysql_read, NULL);
 	plugin_register ("mysql_commands", NULL, NULL, commands_write);
+	plugin_register ("mysql_handler", NULL, NULL, handler_write);
 	plugin_register ("mysql_traffic", NULL, NULL, traffic_write);
 	cf_register (MODULE_NAME, config, config_keys, config_keys_num);
 }
