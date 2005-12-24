@@ -111,6 +111,31 @@ our $GraphDefs;
 			'GPRINT:syst_max:MAX:%5.1lf%% Max,',
 			'GPRINT:syst_avg:LAST:%5.1lf%% Last\l'
 		],
+		df => [
+			'DEF:free_avg={file}:free:AVERAGE',
+			'DEF:free_min={file}:free:MIN',
+			'DEF:free_max={file}:free:MAX',
+			'DEF:used_avg={file}:used:AVERAGE',
+			'DEF:used_min={file}:used:MIN',
+			'DEF:used_max={file}:used:MAX',
+			'CDEF:total=free_avg,used_avg,+',
+			'CDEF:free_pct=100,free_avg,*,total,/',
+			'CDEF:used_pct=100,used_avg,*,total,/',
+			'CDEF:free_acc=free_pct,used_pct,+',
+			'CDEF:used_acc=used_pct',
+			"AREA:free_acc#$HalfGreen",
+			"AREA:used_acc#$HalfRed",
+			"LINE1:free_acc#$FullGreen:Free",
+			'GPRINT:free_min:MIN:%5.1lf%sB Min,',
+			'GPRINT:free_avg:AVERAGE:%5.1lf%sB Avg,',
+			'GPRINT:free_max:MAX:%5.1lf%sB Max,',
+			'GPRINT:free_avg:LAST:%5.1lf%sB Last\l',
+			"LINE1:used_acc#$FullRed:Used",
+			'GPRINT:used_min:MIN:%5.1lf%sB Min,',
+			'GPRINT:used_avg:AVERAGE:%5.1lf%sB Avg,',
+			'GPRINT:used_max:MAX:%5.1lf%sB Max,',
+			'GPRINT:used_avg:LAST:%5.1lf%sB Last\l'
+		],
 		disk => [
 			'DEF:rtime_avg={file}:rtime:AVERAGE',
 			'DEF:rtime_min={file}:rtime:MIN',
@@ -240,6 +265,30 @@ our $GraphDefs;
 			'GPRINT:used_avg:AVERAGE:%5.1lf%s Avg,',
 			'GPRINT:used_max:MAX:%5.1lf%s Max,',
 			'GPRINT:used_avg:LAST:%5.1lf%s Last'
+		],
+		mysql_commands => [
+			"DEF:val_avg={file}:value:AVERAGE",
+			"DEF:val_min={file}:value:MIN",
+			"DEF:val_max={file}:value:MAX",
+			"AREA:val_max#$HalfBlue",
+			"AREA:val_min#$Canvas",
+			"LINE1:val_avg#$FullBlue:{inst}",
+			'GPRINT:val_min:MIN:%5.2lf Min,',
+			'GPRINT:val_avg:AVERAGE:%5.2lf Avg,',
+			'GPRINT:val_max:MAX:%5.2lf Max,',
+			'GPRINT:val_avg:LAST:%5.2lf Last'
+		],
+		mysql_handler => [
+			"DEF:val_avg={file}:value:AVERAGE",
+			"DEF:val_min={file}:value:MIN",
+			"DEF:val_max={file}:value:MAX",
+			"AREA:val_max#$HalfBlue",
+			"AREA:val_min#$Canvas",
+			"LINE1:val_avg#$FullBlue:{inst}",
+			'GPRINT:val_min:MIN:%5.2lf Min,',
+			'GPRINT:val_avg:AVERAGE:%5.2lf Avg,',
+			'GPRINT:val_max:MAX:%5.2lf Max,',
+			'GPRINT:val_avg:LAST:%5.2lf Last'
 		],
 		nfs3_procedures => [
 			"DEF:null_avg={file}:null:AVERAGE",
@@ -556,11 +605,14 @@ our $GraphArgs =
 	cpu => ['-t', '{host} cpu{inst} usage', '-v', 'Percent', '-l', '0'],
 	cpufreq => ['-t', '{host} cpu{inst} usage', '-v', 'Mhz'],
 	#disk => ['-t', '{host} disk {inst} IO wait', '-v', 'Seconds'],
+	df => ['-t', '{host}:{inst} usage', '-v', 'Percent', '-l', '0'],
 	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
 	hddtemp => ['-t', '{host} hdd temperature {inst}', '-v', '°Celsius'],
 	load => ['-t', '{host} load average', '-v', 'System load', '-X', '0'],
 	mails   => ['-t', '{host} mail count', '-v', 'Amount', '-X', '0'],
 	memory => ['-t', '{host} memory usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
+	mysql_commands => ['-t', 'mysql command {inst}', '-v', 'Issues/s' ],
+	mysql_handler => ['-t', 'mysql handler {inst}', '-v', 'Issues/s' ],
 	nfs3_procedures => ['-t', '{host} NFSv3 {inst} procedures', '-v', 'Procedures/s' ],
 	partition => ['-t', '{host} partition {inst} usage', '-v', 'Byte/s'],
 	ping => ['-t', '{host} ping to {inst}', '-v', 'ms'],
@@ -579,6 +631,8 @@ our $GraphMulti =
 	load	=> 0,
 	mails	=> 0,
 	memory	=> 0,
+	mysql_commands => \&output_graph_mysql_commands,
+	mysql_handler => \&output_graph_mysql_handler,
 	partition => 1,
 	ping	=> \&output_graph_ping,
 	sensors	=> 1,
@@ -711,6 +765,92 @@ sub output_graph_ping
 			"GPRINT:avg_$i:AVERAGE:%4.1lf ms Avg,",
 			"GPRINT:max_$i:MAX:%4.1lf ms Max,",
 			"GPRINT:avg_$i:LAST:%4.1lf ms Last\\l");
+	}
+
+	return (@ret);
+}
+
+sub output_graph_mysql_commands
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/mysql_commands-$inst.rrd:value:AVERAGE",
+			"DEF:min_$i=$AbsDir/mysql_commands-$inst.rrd:value:MIN",
+			"DEF:max_$i=$AbsDir/mysql_commands-$inst.rrd:value:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+
+		if (length ($inst) > 18)
+		{
+			$inst = substr ($inst, 0, 15) . '...';
+		}
+		else
+		{
+			$inst = sprintf ('%-18s', $inst);
+		}
+
+		push (@ret,
+			"LINE1:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%6.1lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%6.1lf Avg,",
+			"GPRINT:max_$i:MAX:%6.1lf Max,",
+			"GPRINT:avg_$i:LAST:%6.1lf Last\\l");
+	}
+
+	return (@ret);
+}
+
+sub output_graph_mysql_handler
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/mysql_handler-$inst.rrd:value:AVERAGE",
+			"DEF:min_$i=$AbsDir/mysql_handler-$inst.rrd:value:MIN",
+			"DEF:max_$i=$AbsDir/mysql_handler-$inst.rrd:value:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+
+		if (length ($inst) > 18)
+		{
+			$inst = substr ($inst, 0, 15) . '...';
+		}
+		else
+		{
+			$inst = sprintf ('%-18s', $inst);
+		}
+
+		push (@ret,
+			"LINE1:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%6.1lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%6.1lf Avg,",
+			"GPRINT:max_$i:MAX:%6.1lf Max,",
+			"GPRINT:avg_$i:LAST:%6.1lf Last\\l");
 	}
 
 	return (@ret);
