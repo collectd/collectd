@@ -61,10 +61,10 @@ typedef struct cf_mode_item
 
 static cf_mode_item_t cf_mode_list[] =
 {
-	{"Server",      NULL, MODE_CLIENT                           },
-	{"Port",        NULL, MODE_CLIENT | MODE_SERVER             },
-	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
-	{"DataDir",     NULL, MODE_SERVER |               MODE_LOCAL}
+	{"Server",      NULL,             MODE_CLIENT                           },
+	{"Port",        NULL,             MODE_CLIENT | MODE_SERVER             },
+	{"PIDFile",     PIDFILE,          MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
+	{"DataDir",     PKGLOCALSTATEDIR, MODE_SERVER |               MODE_LOCAL}
 };
 static int cf_mode_num = 4;
 
@@ -100,6 +100,8 @@ int cf_dispatch (char *type, const char *orig_key, const char *orig_value)
 	char *value;
 	int ret;
 	int i;
+
+	DBG ("type = %s, key = %s, value = %s", type, orig_key, orig_value);
 
 	if ((cf_cb = cf_search (type)) == NULL)
 	{
@@ -213,6 +215,47 @@ char *cf_get_mode_option (const char *key)
 
 	return (NULL);
 }
+
+int cf_callback_usage (const char *shortvar, const char *var,
+		const char *arguments, const char *value, lc_flags_t flags,
+		void *extra)
+{
+	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
+			shortvar, var, arguments, value);
+
+	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
+			
+			"Available options:\n"
+#if COLLECT_DAEMON
+			"    -P <file>       PID file.\n"
+			"                    Default: "PIDFILE"\n"
+#endif
+			"    -M <dir>        Module/Plugin directory.\n"
+			"                    Default: "PLUGINDIR"\n"
+			"    -D <dir>        Data storage directory.\n"
+			"                    Default: "PKGLOCALSTATEDIR"\n"
+#if COLLECT_DEBUG
+			"    -L <file>       Log file.\n"
+			"                    Default: "LOGFILE"\n"
+#endif
+#if COLLECT_DAEMON
+			"    -f              Don't fork to the background.\n"
+#endif
+#if HAVE_LIBRRD
+			"    -l              Start in local mode (no network).\n"
+			"    -c              Start in client (sender) mode.\n"
+			"    -s              Start in server (listener) mode.\n"
+#endif /* HAVE_LIBRRD */
+#if COLLECT_PING
+			"  Ping:\n"
+			"    -p <host>       Host to ping periodically, may be repeated to ping\n"
+			"                    more than one host.\n"
+#endif /* COLLECT_PING */
+			"\n"PACKAGE" "VERSION", http://verplant.org/collectd/\n"
+			"by Florian octo Forster <octo@verplant.org>\n"
+			"for contributions see `AUTHORS'\n");
+	exit (0);
+} /* exit_usage */
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Functions for the actual parsing                                    *
@@ -482,12 +525,17 @@ int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
 	return (LC_CBRET_OKAY);
 }
 
-int cf_read (char *filename)
+void cf_init (void)
 {
+	static int run_once = 0;
 	int i;
 
-	if (filename == NULL)
-		filename = CONFIGFILE;
+	if (run_once != 0)
+		return;
+	run_once = 1;
+
+	lc_register_callback ("Help", 'h', LC_VAR_NONE,
+			cf_callback_usage, NULL);
 
 	lc_register_callback ("Client", 'c', LC_VAR_NONE,
 			cf_callback_mode_switch, NULL);
@@ -519,8 +567,16 @@ int cf_read (char *filename)
 		lc_register_callback (longvar, SHORTOPT_NONE, LC_VAR_STRING,
 				cf_callback_mode_option, (void *) item);
 	}
+}
 
-	if (lc_process_file ("collectd", filename, LC_CONF_APACHE))
+int cf_read (int argc, char **argv, char *filename)
+{
+	cf_init ();
+
+	if (filename == NULL)
+		filename = CONFIGFILE;
+
+	if (lc_process (argc, argv, "collectd", LC_CONF_APACHE, filename))
 	{
 		syslog (LOG_ERR, "lc_process_file (%s): %s", filename, lc_geterrstr ());
 		return (-1);
