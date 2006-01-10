@@ -59,6 +59,10 @@ typedef struct cf_mode_item
 	int   mode;
 } cf_mode_item_t;
 
+/* TODO
+ * - LogFile
+ * - DontFork
+ */
 static cf_mode_item_t cf_mode_list[] =
 {
 	{"Server",      NULL,             MODE_CLIENT                           },
@@ -413,7 +417,14 @@ int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
 	return (LC_CBRET_OKAY);
 }
 
-/* XXX think about how to do the command line stuff */
+/*
+ * `cf_callback_mode_switch'
+ *   Change the contents of the global variable `operating_mode'
+ *
+ *   This should be command line options. One *can* do this in the config
+ *   files, but I will not document this. Don't whine abount it not working as
+ *   you expect if you do it anyways.
+ */
 int cf_callback_mode_switch (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)

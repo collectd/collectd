@@ -46,34 +46,50 @@ static char *rra_def[] =
 static int rra_num = 9;
 #endif /* HAVE_LIBRRD */
 
-void
-sstrncpy(char *d, const char *s, int len)
+void sstrncpy (char *d, const char *s, int len)
 {
-	strncpy(d, s, len);
-	d[len - 1] = 0;
+	strncpy (d, s, len);
+	d[len - 1] = '\0';
 }
 
-char *
-sstrdup(const char *s)
+char *sstrdup (const char *s)
 {
-	char *r = strdup(s);
-	if(r == NULL) {
+	char *r;
+
+	if((r = strdup (s)) == NULL)
+	{
+		DBG ("Not enough memory.");
+		exit(3);
+	}
+
+	return (r);
+}
+
+void *smalloc (size_t size)
+{
+	void *r;
+
+	if ((r = malloc (size)) == NULL)
+	{
 		DBG("Not enough memory.");
 		exit(3);
 	}
+
 	return r;
 }
 
-void *
-smalloc(size_t size)
+#if 0
+void sfree (void **ptr)
 {
-	void *r = malloc(size);
-	if(r == NULL) {
-		DBG("Not enough memory.");
-		exit(3);
-	}
-	return r;
+	if (ptr == NULL)
+		return;
+
+	if (*ptr != NULL)
+		free (*ptr);
+
+	*ptr = NULL;
 }
+#endif
 
 int strsplit (char *string, char **fields, size_t size)
 {
