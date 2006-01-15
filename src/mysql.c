@@ -44,7 +44,9 @@ static char *user;
 static char *pass;
 static char *db = NULL;
 
+#if MYSQL_HAVE_READ
 static char  init_suceeded = 0;
+#endif
 
 static char *commands_file = "mysql/mysql_commands-%s.rrd";
 static char *handler_file = "mysql/mysql_handler-%s.rrd";

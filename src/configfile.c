@@ -20,6 +20,9 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+/* TODO
+ * make internal-only functions `static' */
+
 #include "collectd.h"
 
 #include "libconfig/libconfig.h"
@@ -61,14 +64,14 @@ typedef struct cf_mode_item
 
 /* TODO
  * - LogFile
- * - DontFork
  */
 static cf_mode_item_t cf_mode_list[] =
 {
 	{"Server",      NULL,             MODE_CLIENT                           },
 	{"Port",        NULL,             MODE_CLIENT | MODE_SERVER             },
 	{"PIDFile",     PIDFILE,          MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
-	{"DataDir",     PKGLOCALSTATEDIR, MODE_SERVER |               MODE_LOCAL}
+	{"DataDir",     PKGLOCALSTATEDIR, MODE_SERVER |               MODE_LOCAL},
+	{"LogFile",     LOGFILE,          MODE_SERVER | MODE_SERVER | MODE_LOCAL},
 };
 static int cf_mode_num = 4;
 
@@ -220,58 +223,15 @@ char *cf_get_mode_option (const char *key)
 	return (NULL);
 }
 
-int cf_callback_usage (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
-
-	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
-			
-			"Available options:\n"
-#if COLLECT_DAEMON
-			"    -P <file>       PID file.\n"
-			"                    Default: "PIDFILE"\n"
-#endif
-			"    -M <dir>        Module/Plugin directory.\n"
-			"                    Default: "PLUGINDIR"\n"
-			"    -D <dir>        Data storage directory.\n"
-			"                    Default: "PKGLOCALSTATEDIR"\n"
-#if COLLECT_DEBUG
-			"    -L <file>       Log file.\n"
-			"                    Default: "LOGFILE"\n"
-#endif
-#if COLLECT_DAEMON
-			"    -f              Don't fork to the background.\n"
-#endif
-#if HAVE_LIBRRD
-			"    -l              Start in local mode (no network).\n"
-			"    -c              Start in client (sender) mode.\n"
-			"    -s              Start in server (listener) mode.\n"
-#endif /* HAVE_LIBRRD */
-#if COLLECT_PING
-			"  Ping:\n"
-			"    -p <host>       Host to ping periodically, may be repeated to ping\n"
-			"                    more than one host.\n"
-#endif /* COLLECT_PING */
-			"\n"PACKAGE" "VERSION", http://verplant.org/collectd/\n"
-			"by Florian octo Forster <octo@verplant.org>\n"
-			"for contributions see `AUTHORS'\n");
-	exit (0);
-} /* exit_usage */
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Functions for the actual parsing                                    *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * `cf_callback_mode'
- *   Start/end the `mode' section
+ *   Chose the `operating_mode'
  *
- * <Mode `arguments'>
- *   ...
- * </Mode>
+ * Mode `value'
  */
 int cf_callback_mode (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
@@ -280,48 +240,19 @@ int cf_callback_mode (const char *shortvar, const char *var,
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
 			shortvar, var, arguments, value);
 
-	if (flags == LC_FLAGS_SECTIONSTART)
-	{
-		if (nesting_depth != 0)
-		{
-			fprintf (stderr, ERR_NOT_NESTED);
-			return (LC_CBRET_ERROR);
-		}
-
-		if (arguments == NULL)
-		{
-			fprintf (stderr, ERR_NEEDS_ARG, shortvar);
-			return (LC_CBRET_ERROR);
-		}
-
-		nesting_depth++;
-
-		if (((operating_mode == MODE_CLIENT)
-					&& (strcasecmp (arguments, "Client") == 0))
-				|| ((operating_mode == MODE_SERVER)
-					&& (strcasecmp (arguments, "Server") == 0))
-				|| ((operating_mode == MODE_LOCAL)
-					&& (strcasecmp (arguments, "Local") == 0)))
-		{
-			return (LC_CBRET_OKAY);
-		}
-		else
-		{
-			return (LC_CBRET_IGNORESECTION);
-		}
-	}
-	else if (flags == LC_FLAGS_SECTIONEND)
-	{
-		nesting_depth--;
-
-		return (LC_CBRET_OKAY);
-	}
+	if (strcasecmp (value, "Client") == 0)
+		operating_mode = MODE_CLIENT;
+	else if (strcasecmp (value, "Server") == 0)
+		operating_mode = MODE_SERVER;
+	else if (strcasecmp (value, "Local") == 0)
+		operating_mode = MODE_LOCAL;
 	else
 	{
-		fprintf (stderr, ERR_SECTION_ONLY, shortvar);
+		syslog (LOG_ERR, "Invalid value for config option `Mode': `%s'", value);
 		return (LC_CBRET_ERROR);
 	}
 
+	return (LC_CBRET_OKAY);
 }
 
 /*
@@ -402,12 +333,6 @@ int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
 {
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
 			shortvar, var, arguments, value);
-
-	if (nesting_depth == 0)
-	{
-		fprintf (stderr, ERR_NEEDS_SECTION, shortvar);
-		return (LC_CBRET_ERROR);
-	}
 
 	if (plugin_load (value))
 		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", value);
@@ -545,24 +470,21 @@ void cf_init (void)
 		return;
 	run_once = 1;
 
-	lc_register_callback ("Help", 'h', LC_VAR_NONE,
-			cf_callback_usage, NULL);
-
-	lc_register_callback ("Client", 'c', LC_VAR_NONE,
+	lc_register_callback ("Client", SHORTOPT_NONE, LC_VAR_NONE,
 			cf_callback_mode_switch, NULL);
-	lc_register_callback ("Local", 'l', LC_VAR_NONE,
+	lc_register_callback ("Local", SHORTOPT_NONE, LC_VAR_NONE,
 			cf_callback_mode_switch, NULL);
-	lc_register_callback ("Server", 's', LC_VAR_NONE,
+	lc_register_callback ("Server", SHORTOPT_NONE, LC_VAR_NONE,
 			cf_callback_mode_switch, NULL);
 
-	lc_register_callback ("Mode", SHORTOPT_NONE, LC_VAR_SECTION,
+	lc_register_callback ("Mode", SHORTOPT_NONE, LC_VAR_STRING,
 			cf_callback_mode, NULL);
 	lc_register_callback ("Plugin", SHORTOPT_NONE, LC_VAR_SECTION,
 			cf_callback_plugin, NULL);
 
-	lc_register_callback ("Mode.PluginDir", 'P',
+	lc_register_callback ("PluginDir", SHORTOPT_NONE,
 			LC_VAR_STRING, cf_callback_mode_plugindir, NULL);
-	lc_register_callback ("Mode.LoadPlugin", SHORTOPT_NONE,
+	lc_register_callback ("LoadPlugin", SHORTOPT_NONE,
 			LC_VAR_STRING, cf_callback_mode_loadmodule, NULL);
 
 	for (i = 0; i < cf_mode_num; i++)
@@ -580,18 +502,23 @@ void cf_init (void)
 	}
 }
 
-int cf_read (int argc, char **argv, char *filename)
+int cf_read (char *filename)
 {
 	cf_init ();
 
 	if (filename == NULL)
 		filename = CONFIGFILE;
 
-	if (lc_process (argc, argv, "collectd", LC_CONF_APACHE, filename))
+	DBG ("Starting to parse file `%s'", filename);
+
+	/* int lc_process_file(const char *appname, const char *pathname, lc_conf_type_t type); */
+	if (lc_process_file ("collectd", filename, LC_CONF_APACHE))
 	{
 		syslog (LOG_ERR, "lc_process_file (%s): %s", filename, lc_geterrstr ());
 		return (-1);
 	}
+
+	DBG ("Done parsing file `%s'", filename);
 
 	/* free memory and stuff */
 	lc_cleanup ();

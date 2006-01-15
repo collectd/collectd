@@ -82,8 +82,6 @@ char *cf_get_mode_option (const char *key);
  *  to load specific plugins, depending on the current mode of operation.
  *
  * PARAMETERS
- *  `argc'      Same as `argc' passed to `main'
- *  `argv'      Same as `argv' passed to `main'
  *  `filename'  An additional filename to look for. This function calls
  *              `lc_process' which already searches many standard locations..
  *              If set to NULL will use the `CONFIGFILE' define.
@@ -92,6 +90,6 @@ char *cf_get_mode_option (const char *key);
  *  Returns zero upon success and non-zero otherwise. A error-message will have
  *  been printed in this case.
  */
-int cf_read (int argc, char **argv, char *filename);
+int cf_read (char *filename);
 
 #endif /* defined(CONFIGFILE_H) */

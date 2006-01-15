@@ -122,6 +122,26 @@ static void update_kstat (void)
 } /* static void update_kstat (void) */
 #endif /* HAVE_LIBKSTAT */
 
+/* TODO
+ * Remove all settings but `-f' and `-C'
+ */
+static void exit_usage (char *name)
+{
+	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
+			
+			"Available options:\n"
+			"  General:\n"
+			"    -C <file>       Configuration file.\n"
+			"                    Default: "CONFIGFILE"\n"
+#if COLLECT_DAEMON
+			"    -f              Don't fork to the background.\n"
+#endif
+			"\n"PACKAGE" "VERSION", http://verplant.org/collectd/\n"
+			"by Florian octo Forster <octo@verplant.org>\n"
+			"for contributions see `AUTHORS'\n");
+	exit (0);
+} /* static void exit_usage (char *name) */
+
 static int start_client (void)
 {
 	int sleepingtime;
@@ -223,13 +243,12 @@ static int pidfile_remove (const char *file)
 
 int main (int argc, char **argv)
 {
-#if COLLECT_DAEMON
-	struct sigaction sigChldAction;
-#endif
 	struct sigaction sigIntAction;
 	struct sigaction sigTermAction;
-	char *datadir;
+	char *datadir    = PKGLOCALSTATEDIR;
+	char *configfile = CONFIGFILE;
 #if COLLECT_DAEMON
+	struct sigaction sigChldAction;
 	char *pidfile    = PIDFILE;
 	pid_t pid;
 	int daemonize    = 1;
@@ -245,7 +264,41 @@ int main (int argc, char **argv)
 	/* open syslog */
 	openlog (PACKAGE, LOG_CONS | LOG_PID, LOG_DAEMON);
 
-	DBG_STARTFILE(logfile, "Debug file opened.");
+	/* read options */
+	while (1)
+	{
+		int c;
+
+		/* FIXME */
+		c = getopt (argc, argv, "C:"
+#if COLLECT_DAEMON
+				"f"
+#endif
+		);
+
+		if (c == -1)
+			break;
+
+		switch (c)
+		{
+			case 'C':
+				configfile = optarg;
+				break;
+#if COLLECT_DAEMON
+			case 'f':
+				daemonize = 0;
+				break;
+#endif /* COLLECT_DAEMON */
+			case 'h':
+			default:
+				exit_usage (argv[0]);
+		} /* switch (c) */
+	} /* while (1) */
+
+#if COLLECT_DEBUG
+	if ((logfile = cf_get_mode_option ("LogFile")) != NULL)
+		DBG_STARTFILE (logfile, "Debug file opened.");
+#endif
 
 	/*
 	 * Read options from the config file, the environment and the command
@@ -253,7 +306,7 @@ int main (int argc, char **argv)
 	 * general).
 	 * Also, this will automatically load modules.
 	 */
-	if (cf_read (argc, argv, CONFIGFILE))
+	if (cf_read (configfile))
 	{
 		fprintf (stderr, "Error: Reading the config file failed!\n"
 				"Read the syslog for details.\n");
@@ -352,7 +405,10 @@ int main (int argc, char **argv)
 #endif
 		start_client ();
 
-	DBG_STOPFILE("debug file closed.");
+#if COLLECT_DEBUG
+	if (logfile != NULL)
+		DBG_STOPFILE("debug file closed.");
+#endif
 
 	/* close syslog */
 	syslog (LOG_INFO, "Exiting normally");

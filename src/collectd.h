@@ -181,6 +181,10 @@
 #define PIDFILE PREFIX "/var/run/" PACKAGE_NAME ".pid"
 #endif
 
+#ifndef LOGFILE
+#define LOGFILE PREFIX"/var/log/"PACKAGE_NAME"/"PACKAGE_NAME".log"
+#endif
+
 #ifndef PLUGINDIR
 #define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
 #endif
