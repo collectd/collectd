@@ -63,17 +63,18 @@ void cf_register (char *type,
 
 /*
  * DESCRIPTION
- *  `cf_get_mode_option' returns options from the <Mode> section(s).
+ *  `cf_get_option' returns various general options.
  *
  * PARAMETERS
  *  `key'       Name of the option to query.
+ *  `def'       Pointer to return as default value.
  *
  * RETURN VALUE
  *  The pointer returned is part of an internal structure and may not be
  *  changed. If the option is not found for whatever reason (wrong key, option
  *  not allowed for currently selected mode, ...) `NULL' is returned.
  */
-char *cf_get_mode_option (const char *key);
+char *cf_get_option (const char *key, char *def);
 
 /*
  * DESCRIPTION

@@ -67,13 +67,13 @@ typedef struct cf_mode_item
  */
 static cf_mode_item_t cf_mode_list[] =
 {
-	{"Server",      NULL,             MODE_CLIENT                           },
-	{"Port",        NULL,             MODE_CLIENT | MODE_SERVER             },
-	{"PIDFile",     PIDFILE,          MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
-	{"DataDir",     PKGLOCALSTATEDIR, MODE_SERVER |               MODE_LOCAL},
-	{"LogFile",     LOGFILE,          MODE_SERVER | MODE_SERVER | MODE_LOCAL},
+	{"Server",      NULL, MODE_CLIENT                           },
+	{"Port",        NULL, MODE_CLIENT | MODE_SERVER             },
+	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
+	{"DataDir",     NULL, MODE_SERVER |               MODE_LOCAL},
+	{"LogFile",     NULL, MODE_SERVER | MODE_SERVER | MODE_LOCAL}
 };
-static int cf_mode_num = 4;
+static int cf_mode_num = 5;
 
 static int nesting_depth = 0;
 static char *current_module = NULL;
@@ -207,7 +207,7 @@ void cf_register (char *type,
 /*
  * Other query functions
  */
-char *cf_get_mode_option (const char *key)
+char *cf_get_option (const char *key, char *def)
 {
 	int i;
 
@@ -216,8 +216,12 @@ char *cf_get_mode_option (const char *key)
 		if ((cf_mode_list[i].mode & operating_mode) == 0)
 			continue;
 
-		if (strcasecmp (cf_mode_list[i].key, key) == 0)
+		if (strcasecmp (cf_mode_list[i].key, key) != 0)
+			continue;
+
+		if (cf_mode_list[i].value != NULL)
 			return (cf_mode_list[i].value);
+		return (def);
 	}
 
 	return (NULL);
@@ -470,13 +474,6 @@ void cf_init (void)
 		return;
 	run_once = 1;
 
-	lc_register_callback ("Client", SHORTOPT_NONE, LC_VAR_NONE,
-			cf_callback_mode_switch, NULL);
-	lc_register_callback ("Local", SHORTOPT_NONE, LC_VAR_NONE,
-			cf_callback_mode_switch, NULL);
-	lc_register_callback ("Server", SHORTOPT_NONE, LC_VAR_NONE,
-			cf_callback_mode_switch, NULL);
-
 	lc_register_callback ("Mode", SHORTOPT_NONE, LC_VAR_STRING,
 			cf_callback_mode, NULL);
 	lc_register_callback ("Plugin", SHORTOPT_NONE, LC_VAR_SECTION,
@@ -489,15 +486,11 @@ void cf_init (void)
 
 	for (i = 0; i < cf_mode_num; i++)
 	{
-		char            longvar[256];
 		cf_mode_item_t *item;
 
 		item = &cf_mode_list[i];
 
-		if (snprintf (longvar, 256, "Mode.%s", item->key) >= 256)
-			continue;
-
-		lc_register_callback (longvar, SHORTOPT_NONE, LC_VAR_STRING,
+		lc_register_callback (item->key, SHORTOPT_NONE, LC_VAR_STRING,
 				cf_callback_mode_option, (void *) item);
 	}
 }

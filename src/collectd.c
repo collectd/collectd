@@ -296,7 +296,7 @@ int main (int argc, char **argv)
 	} /* while (1) */
 
 #if COLLECT_DEBUG
-	if ((logfile = cf_get_mode_option ("LogFile")) != NULL)
+	if ((logfile = cf_get_option ("LogFile", LOGFILE)) != NULL)
 		DBG_STARTFILE (logfile, "Debug file opened.");
 #endif
 
@@ -317,7 +317,7 @@ int main (int argc, char **argv)
 	 * Change directory. We do this _after_ reading the config and loading
 	 * modules to relative paths work as expected.
 	 */
-	if ((datadir = cf_get_mode_option ("DataDir")) == NULL)
+	if ((datadir = cf_get_option ("DataDir", PKGLOCALSTATEDIR)) == NULL)
 	{
 		fprintf (stderr, "Don't have a datadir to use. This should not happen. Ever.");
 		return (1);
@@ -335,7 +335,7 @@ int main (int argc, char **argv)
 	sigChldAction.sa_handler = SIG_IGN;
 	sigaction (SIGCHLD, &sigChldAction, NULL);
 
-	if ((pidfile = cf_get_mode_option ("PIDFile")) == NULL)
+	if ((pidfile = cf_get_option ("PIDFile", PIDFILE)) == NULL)
 	{
 		fprintf (stderr, "Cannot obtain pidfile. This shoud not happen. Ever.");
 		return (1);
