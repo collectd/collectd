@@ -358,7 +358,8 @@ L<http://www.guzu.net/linux/hddtemp.php>.
 
 =head1 SEE ALSO
 
-L<rrdtool(1)>, L<sensors(1)>, L<hddtemp(8)>, L<kstat(3KSTAT)>
+L<collectd.conf(5)>, L<rrdtool(1)>, L<sensors(1)>, L<hddtemp(8)>,
+L<kstat(3KSTAT)>
 
 =head1 AUTHOR
 

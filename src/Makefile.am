@@ -204,10 +204,13 @@ collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
 endif
 
-man_MANS = collectd.1
+man_MANS = collectd.1 collectd.conf.5
 #collectd_1_SOURCES = collectd.pod
 
 EXTRA_DIST = $(man_MANS)
 
 .pod.1:
 	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >$@
+
+.pod.5:
+	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< >$@

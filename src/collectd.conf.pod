@@ -1,0 +1,103 @@
+=head1 NAME
+
+collectd.conf - Configuration for the system statistics collection daemon B<collectd>
+
+=head1 SYNOPSIS
+
+  Mode Client
+  DataDir /path/to/data/
+  PIDFile /path/to/pidfile/collectd.pid
+  LogFile /path/to/logfile/collectd.log
+  Server  123.123.123.123
+  Port    12345
+
+  LoadPlugin cpu
+  LoadPlugin load
+  LoadPlugin ping
+
+  <Plugin ping>
+    Host example.org
+    Host provider.net
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The syntax of collectd's config file is similar to the config file of the famos
+I<Apache Webserver>. Each line either ... FIXME
+
+=head1 OPTIONS
+
+The available options.. Blah blah blah
+
+=head2 Glocal Options
+
+=over 4
+
+=item B<Mode> (B<Local>|B<Client>|B<Server>)
+
+Sets the operating mode. See the section B<MODES> in L<collectd(1)> for a
+description. This option determines which other options are allowed.
+
+=item B<LoadPlugin> I<Plugin>
+
+Loads the plugin I<Plugin>. There must be at least one such line or B<collectd>
+will be mostly useless. The names of the plugins are listed in L<collectd(1)>.
+
+=item B<PIDFile> I<File>
+
+Sets where to write the PID file to. This file is overwritten when it exists
+and deleted when the program ist stopped. Available in B<all modes>.
+
+=item B<DataDir> I<Directory>
+
+Sets the data directory. This is the directory beneath all RRD-files are
+created. Possibly more subdirectories are created. This is also the working
+directory for the daemon. Available in B<all modes>, though the B<Server> mode
+won't write to this directory.
+
+=item B<LogFile> I<File>
+
+Sets the file to write debugging output to. This is only used if compiled with
+debugging enabled. It's ignored otherwise. Available in B<all modes>.
+
+=item B<Server> I<Hostname or IP-address>
+
+The server to send data to. B<This is not yet implemented!> Maybe a better name
+for this was B<Receiver>, since I plan on detecting multicast groups
+automatically. On the other hand a extra MulticastGroup-option would be of
+interest for the server process. Anyhow, right now this is available for the
+B<Client> mode only.
+
+=item B<Port> I<Port number>
+
+(UDP-)Port to send packages to or to bind to and wait for packages. This option
+is available in the B<Client> and B<Server> mode.
+
+=back
+
+=head2 Plugin options
+
+=over
+
+=item B<ping>-Plugin
+
+=over 4
+
+=item B<Host> I<Hostname or IP-address>
+
+Host to ping periodically. This option may be repeated several times to ping
+multiple hosts.
+
+=back
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut

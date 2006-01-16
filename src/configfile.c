@@ -70,7 +70,7 @@ static cf_mode_item_t cf_mode_list[] =
 	{"Server",      NULL, MODE_CLIENT                           },
 	{"Port",        NULL, MODE_CLIENT | MODE_SERVER             },
 	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
-	{"DataDir",     NULL, MODE_SERVER |               MODE_LOCAL},
+	{"DataDir",     NULL, MODE_SERVER | MODE_SERVER | MODE_LOCAL},
 	{"LogFile",     NULL, MODE_SERVER | MODE_SERVER | MODE_LOCAL}
 };
 static int cf_mode_num = 5;
