@@ -4,7 +4,7 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 
 =head1 SYNOPSIS
 
-  Mode Client
+  Mode    Client
   DataDir /path/to/data/
   PIDFile /path/to/pidfile/collectd.pid
   LogFile /path/to/logfile/collectd.log
@@ -22,21 +22,25 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 
 =head1 DESCRIPTION
 
-The syntax of collectd's config file is similar to the config file of the famos
-I<Apache Webserver>. Each line either ... FIXME
+This config file controls how the system statistics collection daemon
+B<collectd> behaves. The most significant options are B<Mode>, which controlls
+if the daemon will act as client, server or will be independent in local mode,
+and B<LoadPlugin> which controls which plugins to load.
 
-=head1 OPTIONS
+The syntax of this config file is similar to the config file of the famos
+B<Apache Webserver>. Each line containes either a key-value-pair or a
+section-start or -end. Empty lines and everything after the hash-symbol `#' is
+ignored.
 
-The available options.. Blah blah blah
-
-=head2 Glocal Options
+=head1 GLOBAL OPTIONS
 
 =over 4
 
 =item B<Mode> (B<Local>|B<Client>|B<Server>)
 
 Sets the operating mode. See the section B<MODES> in L<collectd(1)> for a
-description. This option determines which other options are allowed.
+description. This option determines which other options are allowed. Defaults
+to B<Local>.
 
 =item B<LoadPlugin> I<Plugin>
 
@@ -60,7 +64,7 @@ won't write to this directory.
 Sets the file to write debugging output to. This is only used if compiled with
 debugging enabled. It's ignored otherwise. Available in B<all modes>.
 
-=item B<Server> I<Hostname or IP-address>
+=item B<Server> I<IP-address>
 
 The server to send data to. B<This is not yet implemented!> Maybe a better name
 for this was B<Receiver>, since I plan on detecting multicast groups
@@ -68,27 +72,26 @@ automatically. On the other hand a extra MulticastGroup-option would be of
 interest for the server process. Anyhow, right now this is available for the
 B<Client> mode only.
 
-=item B<Port> I<Port number>
+=item B<Port> I<Port-number>
 
 (UDP-)Port to send packages to or to bind to and wait for packages. This option
 is available in the B<Client> and B<Server> mode.
 
 =back
 
-=head2 Plugin options
+=head1 PLUGIN OPTIONS
 
-=over
+Some Plugins may register own options. These options must be inclosed in a
+C<Plugin>-Section. Which options exist depends on the plugin used:
 
-=item B<ping>-Plugin
+=head2 Plugin C<ping>
 
 =over 4
 
-=item B<Host> I<Hostname or IP-address>
+=item B<Host> I<IP-address>
 
 Host to ping periodically. This option may be repeated several times to ping
 multiple hosts.
-
-=back
 
 =back
 
