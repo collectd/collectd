@@ -20,6 +20,9 @@ Features
     - CPU frequency
       (For laptops with speed step or a similar technology)
 
+    - Mountpoint usage
+      (Basically the values `df(1)' delivers)
+
     - Disk utilization
       (Sectors read/written, number of read/write actions, time spent doing IO)
 
@@ -31,6 +34,9 @@ Features
 
     - Memory utilization
       (Memory occupied by running processes, page cache, buffer cache and free)
+
+    - MySQL server statistics
+      (Commands issued, handlers triggered and traffic sent/received)
 
     - NFS Procedures
       (Which NFS command were called how often. Only NFSv2 and NFSv3 right now)
@@ -68,12 +74,17 @@ Features
 Operation
 ---------
 
+  * collectd's configuration file can be found at `sysconfdir'/collectd.conf.
+    Run `collectd -h' for a list of builtin defaults. See `collectd.conf(5)'
+    for a list of options and a syntax description.
+
   * When running collectd writes system statistics in RRD-files. Per default
     they reside in `/var/lib/collectd'.
 
-  * collectd needs to run as user root, since only root can craft ICMP
-    packages needed to ping other hosts. collectd should NOT be installed
-    setui root since it can be used to overwrite valuable files..
+  * When using the `ping' plugin collectd needs to run as user root, since only
+    root can craft ICMP packages needed to ping other hosts. collectd should
+    NOT be installed setuid root since it can be used to overwrite valuable
+    files..
 
   * Sample scripts to generate graphs reside in `contrib/' in the source
     package or somewhere near `/usr/share/doc/collectd' in most distributions.
@@ -90,9 +101,6 @@ Operation
     30 minutes |        1680 |  35 days
      6 hours   |        1520 | 380 days
 
-  * Use `-c' to start in client-, `-s' to start in server-mode. Read the
-    manpage for details.
-
 
 Prerequisites
 -------------
@@ -104,6 +112,8 @@ Prerequisites
   * rrdtool (headers and library; rrdtool 1.0 and 1.2 both work fine)
     If built without `librrd' the resulting binary will be `client only', i.e.
     will send it's values via multicast and not create any RRD files itself.
+
+  * libmysqlclient (optional)
 
   * lm-sensors (optional)
 

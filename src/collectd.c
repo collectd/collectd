@@ -136,6 +136,13 @@ static void exit_usage (char *name)
 #if COLLECT_DAEMON
 			"    -f              Don't fork to the background.\n"
 #endif
+			"\nBuiltin defaults:\n"
+			"  Config-File       "CONFIGFILE"\n"
+			"  PID-File          "PIDFILE"\n"
+			"  Data-Directory    "PKGLOCALSTATEDIR"\n"
+#if COLLECT_DEBUG
+			"  Log-File          "LOGFILE"\n"
+#endif
 			"\n"PACKAGE" "VERSION", http://verplant.org/collectd/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n");
@@ -269,8 +276,7 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		/* FIXME */
-		c = getopt (argc, argv, "C:"
+		c = getopt (argc, argv, "hC:"
 #if COLLECT_DAEMON
 				"f"
 #endif

@@ -20,6 +20,10 @@ CPU utilization (I<cpu>)
 
 =item
 
+Mountpoint usage (I<df>)
+
+=item
+
 Disk and partition usage/throughput (I<disk>)
 
 =item
@@ -33,6 +37,10 @@ System load averages (I<load>)
 =item
 
 Memory usage (I<memory>)
+
+=item
+
+MySQL statistics (I<mysql>)
 
 =item
 
@@ -129,6 +137,11 @@ The DS'es depend on the module creating the RRD files:
   DS:idle:COUNTER:25:0:100
   DS:wait:COUNTER:25:0:100
 
+=item Mountpoints (F<df-I<E<lt>pathE<gt>>.rrd>)
+
+  DS:used:GAUGE:25:0:U
+  DS:free:GAUGE:25:0:U
+
 =item Diskstats (F<disk-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
 
   DS:rcount:COUNTER:25:0:U
@@ -163,6 +176,10 @@ The DS'es depend on the module creating the RRD files:
   DS:free:GAUGE:25:0:9223372036854775807
   DS:buffers:GAUGE:25:0:9223372036854775807
   DS:cached:GAUGE:25:0:9223372036854775807
+
+=item MySQL statistics (F<mysql_commands-I<E<lt>commandE<gt>>.rrd> and F<mysql_handler-I<E<lt>handlerE<gt>>.rrd>)
+
+  DS:value:COUNTER:25:0:U
 
 =item NFSv2 Procedures (F<nfs2_procedures-I<(client|server)>.rrd>)
 
@@ -298,7 +315,7 @@ On multi-homed machines you may need to add a route to the multicast net
 (B<224.0.0.0/4>) if multicast packages take the wrong interface. The listener
 on the other hand listens on B<all> interfaces.
 
-=head1 SPECIAL MODULES
+=head1 SPECIAL PLUGINS
 
 =head2 cpufreq
 
@@ -306,6 +323,19 @@ This module reads F</sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq> (for
 the first CPU installed) to get the current CPU frequency. If this file does
 not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
 similar tool is installed.
+
+=head2 mysql
+
+Requires B<mysqlclient> to be installed. It connects to the database when
+started and keeps the connection up as long as possible. When the connection is
+interrupted for whatever reason it will try to re-connect. The syslog will
+contain loud complaints in case anything goes wrong.
+
+This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
+C<Com_*> and C<Handler_*> which correspond to F<traffic-mysql.rrd>,
+F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Please refer to the B<MySQL
+reference manual>, I<5.2.4. Server Status Variables> for an explanation of
+these values.
 
 =head2 sensors
 

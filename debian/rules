@@ -18,7 +18,7 @@ DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
 CFLAGS = -Wall -g
 
-PLUGINS = cpu cpufreq disk hddtemp load memory nfs ping processes sensors serial swap traffic users
+PLUGINS = hddtemp mysql sensors
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0

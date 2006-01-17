@@ -2,38 +2,19 @@ Source: collectd
 Section: utils
 Priority: optional
 Maintainer: Florian Forster <octo@verplant.org>
-Build-Depends: debhelper (>= 4.0.0), autotools-dev, librrd0-dev | librrd2-dev, libsensors-dev
+Build-Depends: debhelper (>= 4.0.0), autotools-dev, librrd0-dev | librrd2-dev, libsensors-dev, libmysqlclient14-dev
 Standards-Version: 3.6.1
 
 Package: collectd
 Architecture: any
 Depends: libc6, librrd0 | librrd2
-Suggests: collectd-sensors
+Suggests: collectd-hddtemp, collectd-mysql, collectd-sensors
 Description: Statistics collection daemon for filling RRD files.
  collectd is a small daemon written in C for performance. It reads various
- system statistics and updates RRD files, creating them if neccessary.
- Since the daemon doesn't need to startup every time it wants to update
- the files it's very fast and easy on the system. Also, the statistics are
- very fine grained since the files are updated every 10 seconds.
-
-Package: collectd-cpu
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for cpu usage.
- collectd module to collect CPU usage information.
-
-Package: collectd-cpufreq
-Architecture: any
-Depends: collectd (= ${Source-Version}), cpufreqd | powernowd | cpudyn
-Description: collectd module for cpu frequency collection.
- collectd module to collect current CPU frequency (when using SpeedStep or
- something like that).
-
-Package: collectd-disk
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for disk usage.
- collectd module to collect disk usage information.
+ system statistics and updates RRD files, creating them if neccessary. Since
+ the daemon doesn't need to startup every time it wants to update the files
+ it's very fast and easy on the system. Also, the statistics are very fine
+ grained since the files are updated every 10 seconds.
 
 Package: collectd-hddtemp
 Architecture: any
@@ -41,62 +22,15 @@ Depends: collectd (= ${Source-Version}), hddtemp
 Description: collectd module for harddisk temperatures.
  collectd module to collect harddisk temperatures using hddtemp.
 
-Package: collectd-load
+Package: collectd-mysql
 Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for system load.
- collectd module to collect the system load.
-
-Package: collectd-memory
-Architecture: any
-Depends: collectd (= ${Source-Version})
+Depends: collectd (= ${Source-Version}), libmysqlclient14
 Description: collectd module for memory utilization.
- collectd module to collect memory utilization.
-
-Package: collectd-nfs
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for NFS procedures.
- collectd module to collect NFS procedures counters.
-
-Package: collectd-ping
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for network latency.
- collectd module to collect ping roundtrip times.
-
-Package: collectd-processes
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for running processes.
- collectd module to collect the number of currently running processes.
+ collectd module to collect MySQL statistics. It links against
+ `libmysqlclient14' though other versions should do, too.
 
 Package: collectd-sensors
 Architecture: any
 Depends: collectd (= ${Source-Version}), libsensors3
 Description: collectd module for libsensors.
  collectd module to collect system temperatures.
-
-Package: collectd-serial
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for serial traffic.
- collectd module to collect traffic on the serial interfaces.
-
-Package: collectd-swap
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for swap usage.
- collectd module to collect swap usage information.
-
-Package: collectd-traffic
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for network traffic.
- collectd module to collect network traffic counters.
-
-Package: collectd-users
-Architecture: any
-Depends: collectd (= ${Source-Version})
-Description: collectd module for user count.
- collectd module to collect the number of users logged into the system.

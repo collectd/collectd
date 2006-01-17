@@ -1,4 +1,4 @@
-2005-12-17, Version 3.6.0
+2006-01-17, Version 3.6.0
 	* A config file has been added. This allows for loading only specific
 	  plugins.
 	* A `df' plugin has been added.

@@ -1,3 +1,18 @@
+collectd (3.6.0-1) unstable; urgency=low
+
+  * New upstream version
+  * New module `mysql'
+  * Removed all modules but `sensors' and `hddtemp' since they can be
+    (de)activated using the config file.
+
+ -- Florian Forster <octo@verplant.org>  Tue, 17 Jan 2006 12:50:28 +0200
+
+collectd (3.5.1-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sun, 18 Dec 2005 23:09:11 +0200
+
 collectd (3.5.0-1) unstable; urgency=low
 
   * New upstream version
