@@ -84,6 +84,29 @@ is available in the B<Client> and B<Server> mode.
 Some Plugins may register own options. These options must be inclosed in a
 C<Plugin>-Section. Which options exist depends on the plugin used:
 
+=head2 Plugin C<mysql>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the database server. Defaults to B<localhost>.
+
+=item B<User> I<Username>
+
+Username to use when connecting to the database.
+
+=item B<Password> I<Password>
+
+Password needed to log into the database.
+
+=item B<Database> I<Database>
+
+Select this database. Defaults to I<no database> which is a perfecly reasonable
+option for what this plugin does.
+
+=back
+
 =head2 Plugin C<ping>
 
 =over 4
