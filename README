@@ -44,6 +44,9 @@ Features
     - Ping latency
       (Time to reach the default gateway or another given host)
 
+    - Process counts
+      (Number of running, sleeping, zombie, ... processes)
+
     - Serial
       (RX and TX of serial interfaces)
 
