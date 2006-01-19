@@ -13,6 +13,7 @@ NAME=collectd
 DAEMON=/usr/sbin/$NAME
 SCRIPTNAME=/etc/init.d/$NAME
 ARGS=""
+CONFIG=/etc/collectd.conf
 
 # Gracefully exit if the package has been removed.
 test -x $DAEMON || exit 0
@@ -22,32 +23,13 @@ then
 	. /etc/default/$NAME
 fi
 
-if [ -n "$DATA_DIR" ]; then
-	ARGS="-D $DATA_DIR"
-fi
-
-if [ -n "$PING_HOST" ]; then
-	for HOST in $PING_HOST
-	do
-		ARGS="$ARGS -p $HOST"
-	done
-fi
-
 #
 #	Function that starts the daemon/service.
 #
 d_start() {
-	if [ "x$START_SERVER" = "xyes" ]
+	if [ -e "$CONFIG" ]
 	then
-		$DAEMON -s $ARGS
-	fi
-	if [ "x$START_CLIENT" = "xyes" ]
-	then
-		$DAEMON -c $ARGS
-	fi
-	if [ "x$START_SERVER" != "xyes" -a "x$START_CLIENT" != "xyes" ]
-	then
-		start-stop-daemon --start --quiet --exec $DAEMON -- -l $ARGS
+		start-stop-daemon --start --quiet --exec $DAEMON -- -C "$CONFIG"
 	fi
 }
 
