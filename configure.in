@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 3.6.0)
+AC_INIT(collectd, 3.6.1)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -365,11 +365,17 @@ AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to
 ])
 if test "x$with_libmysql" = "xyes"
 then
-	AC_CHECK_LIB(mysqlclient, mysql_init,, [with_libmysql="no (libmysql not found)"])
+	AC_CHECK_LIB(mysqlclient, mysql_init,
+	[
+		AC_DEFINE(HAVE_LIBMYSQLCLIENT, 1, [Define to 1 if you have the mysqlclient library (-lmysqlclient).])
+	], [with_libmysql="no (libmysql not found)"])
 fi
 if test "x$with_libmysql" = "xyes"
 then
-	AC_CHECK_HEADERS(mysql/mysql.h,, [with_libmysql="no (mysql/mysql.h not found)"])
+	AC_CHECK_HEADERS(mysql/mysql.h,
+	[
+		AC_DEFINE(HAVE_MYSQL_MYSQL_H, 1, [Define to 1 if you have the <mysql/mysql.h> header file.])
+	], [with_libmysql="no (mysql/mysql.h not found)"])
 fi
 if test "x$with_libmysql" = "xyes"
 then
