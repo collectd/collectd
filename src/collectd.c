@@ -37,11 +37,6 @@ static int loop = 0;
 kstat_ctl_t *kc;
 #endif /* HAVE_LIBKSTAT */
 
-#if COLLECT_PING
-char *pinghosts[MAX_PINGHOSTS];
-int   num_pinghosts = 0;
-#endif
-
 /*
  * exported variables
  */

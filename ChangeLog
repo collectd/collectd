@@ -3,6 +3,9 @@
 	  plugins.
 	* A `df' plugin has been added.
 	* A `mysql' plugin has been added.
+	* The `plugin' module doesn't entirely give up hope when a socket
+	  error occured, but will back of and increase the intervals between
+	  tries.
 
 2005-12-18, Version 3.5.1
 	* The PID-file is now deleted correctly when shutting down the daemon.
