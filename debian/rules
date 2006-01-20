@@ -72,6 +72,8 @@ install: build
 
 	# Add here commands to install the package into debian/collectd.
 	$(MAKE) DESTDIR=$(CURDIR)/debian/collectd install
+	mkdir -p $(CURDIR)/debian/collectd/etc
+	cp contrib/collectd.conf $(CURDIR)/debian/collectd/etc/
 	rm $(CURDIR)/debian/collectd/usr/lib/collectd/*.a  || true
 	rm $(CURDIR)/debian/collectd/usr/lib/collectd/*.la || true
 

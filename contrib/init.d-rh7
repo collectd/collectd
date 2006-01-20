@@ -6,43 +6,17 @@
 RETVAL=0
 ARGS=""
 prog="collectd"
+CONFIG=/etc/collectd.conf
 
 if [ -r /etc/default/$prog ]; then
 	. /etc/default/$prog
 fi
 
-if [ -n "$DATA_DIR" ]; then
-	ARGS="-D $DATA_DIR"
-fi
-
-if [ -n "$PING_HOST" ]; then
-	for HOST in $PING_HOST
-	do
-		ARGS="$ARGS -p $HOST"
-	done
-fi
-
 start () {
-	if [ "x$START_SERVER" = "xyes" ]
+	echo -n $"Starting $prog: "
+	if [ -r "$CONFIG" ]
 	then
-		echo -n $"Starting $prog (server): "
-		daemon /usr/sbin/collectd -s $ARGS
-		RETVAL=$?
-		echo
-		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
-	fi
-	if [ "x$START_CLIENT" = "xyes" ]
-	then
-		echo -n $"Starting $prog (client): "
-		daemon /usr/sbin/collectd -c $ARGS
-		RETVAL=$?
-		echo
-		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
-	fi
-	if [ "x$START_SERVER" != "xyes" -a "x$START_CLIENT" != "xyes" ]
-	then
-		echo -n $"Starting $prog: "
-		daemon /usr/sbin/collectd -l $ARGS
+		daemon /usr/sbin/collectd -C "$CONFIG"
 		RETVAL=$?
 		echo
 		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog

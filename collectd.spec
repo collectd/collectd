@@ -1,12 +1,12 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	3.5.0
+Version:	3.6.0
 Release:	1
 Source:		http://verplant.org/collectd/%{name}-%{version}.tar.gz
 License:	GPL
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildPrereq:	lm_sensors-devel, rrdtool-devel
+BuildPrereq:	lm_sensors-devel, mysqlclient10-devel | mysql-devel, rrdtool-devel
 Requires:	rrdtool
 Packager:	Florian octo Forster <octo@verplant.org>
 Vendor:		Florian octo Forster <octo@verplant.org>
@@ -18,14 +18,6 @@ Since the daemon doesn't need to startup every time it wants to update the
 files it's very fast and easy on the system. Also, the statistics are very
 fine grained since the files are updated every 10 seconds.
 
-%package sensors
-Summary:	libsensors-module for collectd.
-Group:		System Environment/Daemons
-Requires:	collectd = %{version}, lm_sensors
-%description sensors
-This  plugin  for  collectd  provides  querying  of sensors  supported  by
-lm_sensors.
-
 %package hddtemp
 Summary:	hddtemp-module for collectd.
 Group:		System Environment/Daemons
@@ -33,6 +25,22 @@ Requires:	collectd = %{version}, hddtemp >= 0.3
 %description hddtemp
 This plugin for  collectd provides querying  the hddtemp-daemon.  For more
 information see hddtemp's homepage:  http://www.guzu.net/linux/hddtemp.php
+
+%package mysql
+Summary:	mysql-module for collectd.
+Group:		System Environment/Daemons
+Requires:	collectd = %{version}, mysqlclient10 | mysql
+%description mysql
+MySQL  querying  plugin.  This plugins  provides data of  issued commands,
+called handlers and database traffic.
+
+%package sensors
+Summary:	libsensors-module for collectd.
+Group:		System Environment/Daemons
+Requires:	collectd = %{version}, lm_sensors
+%description sensors
+This  plugin  for  collectd  provides  querying  of sensors  supported  by
+lm_sensors.
 
 %prep
 rm -rf $RPM_BUILD_ROOT
@@ -44,9 +52,8 @@ make
 
 %install
 make install DESTDIR=$RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/etc/default
-cp debian/collectd.default $RPM_BUILD_ROOT/etc/default/collectd
 mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
+cp contrib/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
 cp contrib/init.d-rh7 $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
 mkdir -p $RPM_BUILD_ROOT/var/lib/collectd
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.a
@@ -59,12 +66,14 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
 %doc contrib
-%config /etc/default/collectd
+%config /etc/collectd.conf
 %attr(0755,root,root) /etc/rc.d/init.d/collectd
 %attr(0755,root,root) %{_sbindir}/collectd
 %attr(0444,root,root) %{_mandir}/man1/*
+%attr(0444,root,root) %{_mandir}/man5/*
 %attr(0444,root,root) %{_libdir}/%{name}/cpu.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpufreq.so*
+%attr(0444,root,root) %{_libdir}/%{name}/df.so*
 %attr(0444,root,root) %{_libdir}/%{name}/disk.so*
 %attr(0444,root,root) %{_libdir}/%{name}/load.so*
 %attr(0444,root,root) %{_libdir}/%{name}/memory.so*
@@ -77,13 +86,21 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/users.so*
 %dir /var/lib/collectd
 
-%files sensors
-%attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
-
 %files hddtemp
 %attr(0444,root,root) %{_libdir}/%{name}/hddtemp.so*
 
+%files mysql
+%attr(0444,root,root) %{_libdir}/%{name}/mysql.so*
+
+%files sensors
+%attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
+
 %changelog
+* Fri Jan 20 2006 Florian octo Forster <octo@verplant.org> 3.6.0-1
+- New upstream version
+- Added config file, `collectd.conf(5)', `df.so'
+- Added package `collectd-mysql', dependency on `mysqlclient10 | mysql'
+
 * Wed Dec 07 2005 Florian octo Forster <octo@verplant.org> 3.5.0-1
 - New upstream version
 
