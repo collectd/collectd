@@ -31,9 +31,11 @@
 #include <netinet/in.h>
 #include "libping/ping.h"
 
-extern char *pinghosts[MAX_PINGHOSTS];
-extern int   num_pinghosts;
-static int   pingerrors[MAX_PINGHOSTS];
+static char *hosts[MAX_PINGHOSTS];
+static int   hosts_flags[MAX_PINGHOSTS];
+static int   hosts_disable[MAX_PINGHOSTS];
+static int   hosts_backoff[MAX_PINGHOSTS];
+static int   num_pinghosts;
 
 static char *file_template = "ping-%s.rrd";
 
@@ -48,8 +50,12 @@ void ping_init (void)
 {
 	int i;
 
-	for (i = 0; i < num_pinghosts; i++)
-		pingerrors[i] = 0;
+	for (i = 0; i < MAX_PINGHOSTS; i++)
+	{
+		hosts_flags[i] = 0;
+		hosts_disable[i] = 0;
+		hosts_backoff[i] = 1;
+	}
 
 	return;
 }
@@ -87,41 +93,49 @@ void ping_read (void)
 
 	for (i = 0; i < num_pinghosts; i++)
 	{
-		if (pingerrors[i] & 0x30)
+		if (hosts_disable[i] > 0)
+		{
+			hosts_disable[i]--;
 			continue;
+		}
 		
-		ping = tpinghost (pinghosts[i]);
+		ping = tpinghost (hosts[i]);
 
 		switch (ping)
 		{
 			case 0:
-				if (!(pingerrors[i] & 0x01))
-					syslog (LOG_WARNING, "ping %s: Connection timed out.", pinghosts[i]);
-				pingerrors[i] |= 0x01;
+				if (!(hosts_flags[i] & 0x01))
+					syslog (LOG_WARNING, "ping %s: Connection timed out.", hosts[i]);
+				hosts_flags[i] |= 0x01;
 				break;
 
 			case -1:
-				if (!(pingerrors[i] & 0x02))
-					syslog (LOG_WARNING, "ping %s: Host or service is not reachable.", pinghosts[i]);
-				pingerrors[i] |= 0x02;
+				if (!(hosts_flags[i] & 0x02))
+					syslog (LOG_WARNING, "ping %s: Host or service is not reachable.", hosts[i]);
+				hosts_flags[i] |= 0x02;
 				break;
 
 			case -2:
-				syslog (LOG_ERR, "ping %s: Socket error. Ping will be disabled.", pinghosts[i]);
-				pingerrors[i] |= 0x10;
+				syslog (LOG_ERR, "ping %s: Socket error. Ping will be disabled for %i iteration(s).",
+						hosts[i], hosts_backoff[i]);
+				hosts_disable[i] = hosts_backoff[i];
+				if (hosts_backoff[i] < 8192) /* 22 3/4 hours */
+					hosts_backoff[i] *= 2;
+				hosts_flags[i] |= 0x10;
 				break;
 
 			case -3:
-				if (!(pingerrors[i] & 0x04))
-					syslog (LOG_WARNING, "ping %s: Connection refused.", pinghosts[i]);
-				pingerrors[i] |= 0x04;
+				if (!(hosts_flags[i] & 0x04))
+					syslog (LOG_WARNING, "ping %s: Connection refused.", hosts[i]);
+				hosts_flags[i] |= 0x04;
 				break;
 
 			default:
-				if (pingerrors[i] != 0x00)
-					syslog (LOG_NOTICE, "ping %s: Back to normal: %ims.", pinghosts[i], ping);
-				pingerrors[i] = 0x00;
-				ping_submit (ping, pinghosts[i]);
+				if (hosts_flags[i] != 0x00)
+					syslog (LOG_NOTICE, "ping %s: Back to normal: %ims.", hosts[i], ping);
+				hosts_flags[i] = 0x00;
+				hosts_backoff[i] = 1;
+				ping_submit (ping, hosts[i]);
 		} /* switch (ping) */
 	} /* for (i = 0; i < num_pinghosts; i++) */
 }

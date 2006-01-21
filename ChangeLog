@@ -1,3 +1,8 @@
+2006-01-21, Version 3.5.2
+	* Fixed yet another bug in the signal handling.. Stupid typo..
+	* Improved the ping plugin to not give up on socket errors (backport
+	  from 3.6.0).
+
 2005-12-18, Version 3.5.1
 	* The PID-file is now deleted correctly when shutting down the daemon.
 	* SIGINT and SIGTERM are now handled correctly.

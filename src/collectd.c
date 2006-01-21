@@ -411,7 +411,7 @@ int main (int argc, char **argv)
 	sigIntAction.sa_handler = sigIntHandler;
 	sigaction (SIGINT, &sigIntAction, NULL);
 
-	sigIntAction.sa_handler = sigTermHandler;
+	sigTermAction.sa_handler = sigTermHandler;
 	sigaction (SIGTERM, &sigTermAction, NULL);
 
 	/*
