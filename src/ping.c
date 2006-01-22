@@ -31,11 +31,11 @@
 #include <netinet/in.h>
 #include "libping/ping.h"
 
-static char *hosts[MAX_PINGHOSTS];
+extern char *pinghosts[MAX_PINGHOSTS];
+extern int   num_pinghosts;
 static int   hosts_flags[MAX_PINGHOSTS];
 static int   hosts_disable[MAX_PINGHOSTS];
 static int   hosts_backoff[MAX_PINGHOSTS];
-static int   num_pinghosts;
 
 static char *file_template = "ping-%s.rrd";
 
@@ -99,25 +99,25 @@ void ping_read (void)
 			continue;
 		}
 		
-		ping = tpinghost (hosts[i]);
+		ping = tpinghost (pinghosts[i]);
 
 		switch (ping)
 		{
 			case 0:
 				if (!(hosts_flags[i] & 0x01))
-					syslog (LOG_WARNING, "ping %s: Connection timed out.", hosts[i]);
+					syslog (LOG_WARNING, "ping %s: Connection timed out.", pinghosts[i]);
 				hosts_flags[i] |= 0x01;
 				break;
 
 			case -1:
 				if (!(hosts_flags[i] & 0x02))
-					syslog (LOG_WARNING, "ping %s: Host or service is not reachable.", hosts[i]);
+					syslog (LOG_WARNING, "ping %s: Host or service is not reachable.", pinghosts[i]);
 				hosts_flags[i] |= 0x02;
 				break;
 
 			case -2:
 				syslog (LOG_ERR, "ping %s: Socket error. Ping will be disabled for %i iteration(s).",
-						hosts[i], hosts_backoff[i]);
+						pinghosts[i], hosts_backoff[i]);
 				hosts_disable[i] = hosts_backoff[i];
 				if (hosts_backoff[i] < 8192) /* 22 3/4 hours */
 					hosts_backoff[i] *= 2;
@@ -126,16 +126,16 @@ void ping_read (void)
 
 			case -3:
 				if (!(hosts_flags[i] & 0x04))
-					syslog (LOG_WARNING, "ping %s: Connection refused.", hosts[i]);
+					syslog (LOG_WARNING, "ping %s: Connection refused.", pinghosts[i]);
 				hosts_flags[i] |= 0x04;
 				break;
 
 			default:
 				if (hosts_flags[i] != 0x00)
-					syslog (LOG_NOTICE, "ping %s: Back to normal: %ims.", hosts[i], ping);
+					syslog (LOG_NOTICE, "ping %s: Back to normal: %ims.", pinghosts[i], ping);
 				hosts_flags[i] = 0x00;
 				hosts_backoff[i] = 1;
-				ping_submit (ping, hosts[i]);
+				ping_submit (ping, pinghosts[i]);
 		} /* switch (ping) */
 	} /* for (i = 0; i < num_pinghosts; i++) */
 }
