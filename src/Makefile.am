@@ -30,6 +30,15 @@ collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
 
 pkglib_LTLIBRARIES = 
 
+if BUILD_MODULE_BATTERY
+pkglib_LTLIBRARIES += battery.la
+battery_la_SOURCES = battery.c battery.h
+battery_la_LDFLAGS = -module -avoid-version
+battery_la_CFLAGS  = -Wall -Werror
+collectd_LDADD += "-dlopen" battery.la
+collectd_DEPENDENCIES += battery.la
+endif
+
 if BUILD_MODULE_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c cpu.h
