@@ -33,20 +33,22 @@
 # define BATTERY_HAVE_READ 0
 #endif
 
+#define INVALID_VALUE 47841.29
+
 static char *battery_current_file = "battery-%s/current.rrd";
 static char *battery_voltage_file = "battery-%s/voltage.rrd";
 static char *battery_charge_file  = "battery-%s/charge.rrd";
 
 static char *ds_def_current[] =
 {
-	"DS:current:GAUGE:25:0:U",
+	"DS:current:GAUGE:25:U:U",
 	NULL
 };
 static int ds_num_current = 1;
 
 static char *ds_def_voltage[] =
 {
-	"DS:voltage:GAUGE:25:0:U",
+	"DS:voltage:GAUGE:25:U:U",
 	NULL
 };
 static int ds_num_voltage = 1;
@@ -122,38 +124,45 @@ static void battery_charge_write (char *host, char *inst, char *val)
 }
 
 #if BATTERY_HAVE_READ
-static void battery_submit (int batnum, double current, double voltage, double charge)
+static void battery_submit (char *inst, double current, double voltage, double charge)
 {
 	int len;
 	char buffer[BUFSIZE];
-	char batnum_str[BUFSIZE];
 
-	len = snprintf (batnum_str, BUFSIZE, "%i", batnum);
-	if ((len >= BUFSIZE) || (len < 0))
-		return;
-
-	if (current > 0.0)
+	if (current != INVALID_VALUE)
 	{
 		len = snprintf (buffer, BUFSIZE, "N:%.3f", current);
 
 		if ((len > 0) && (len < BUFSIZE))
-			plugin_submit ("battery_current", batnum_str, buffer);
+			plugin_submit ("battery_current", inst, buffer);
+	}
+	else
+	{
+		plugin_submit ("battery_current", inst, "N:U");
 	}
 
-	if (voltage > 0.0)
+	if (voltage != INVALID_VALUE)
 	{
 		len = snprintf (buffer, BUFSIZE, "N:%.3f", voltage);
 
 		if ((len > 0) && (len < BUFSIZE))
-			plugin_submit ("battery_voltage", batnum_str, buffer);
+			plugin_submit ("battery_voltage", inst, buffer);
+	}
+	else
+	{
+		plugin_submit ("battery_voltage", inst, "N:U");
 	}
 
-	if (charge > 0.0)
+	if (charge != INVALID_VALUE)
 	{
 		len = snprintf (buffer, BUFSIZE, "N:%.3f", charge);
 
 		if ((len > 0) && (len < BUFSIZE))
-			plugin_submit ("battery_charge", batnum_str, buffer);
+			plugin_submit ("battery_charge", inst, buffer);
+	}
+	else
+	{
+		plugin_submit ("battery_charge", inst, "N:U");
 	}
 }
 
@@ -172,12 +181,17 @@ static void battery_read (void)
 
 	for (i = 0; i < battery_pmu_num; i++)
 	{
-		double current = 0.0;
-		double voltage = 0.0;
-		double charge  = 0.0;
+		char    batnum_str[BUFSIZE];
+		double  current = INVALID_VALUE;
+		double  voltage = INVALID_VALUE;
+		double  charge  = INVALID_VALUE;
+		double *valptr = NULL;
 
 		len = snprintf (filename, BUFSIZE, battery_pmu_file, i);
+		if ((len >= BUFSIZE) || (len < 0))
+			continue;
 
+		len = snprintf (batnum_str, BUFSIZE, "%i", i);
 		if ((len >= BUFSIZE) || (len < 0))
 			continue;
 
@@ -192,15 +206,32 @@ static void battery_read (void)
 				continue;
 
 			if (strcmp ("current", fields[0]) == 0)
-				current = atof (fields[2]) / 1000;
+				valptr = &current;
 			else if (strcmp ("voltage", fields[0]) == 0)
-				voltage = atof (fields[2]) / 1000;
+				valptr = &voltage;
 			else if (strcmp ("charge", fields[0]) == 0)
-				charge = atof (fields[2]) / 1000;
+				valptr = &charge;
+			else
+				valptr = NULL;
+
+			if (valptr != NULL)
+			{
+				char *endptr;
+
+				endptr = NULL;
+				errno  = 0;
+
+				*valptr = strtod (fields[2], &endptr) / 1000.0;
+
+				if ((fields[2] == endptr) || (errno != 0))
+					*valptr = INVALID_VALUE;
+			}
 		}
 
-		if ((current != 0.0) || (voltage != 0.0) || (charge != 0.0))
-			battery_submit (i, current, voltage, charge);
+		if ((current != INVALID_VALUE)
+				|| (voltage != INVALID_VALUE)
+				|| (charge  != INVALID_VALUE))
+			battery_submit (batnum_str, current, voltage, charge);
 
 		fclose (fh);
 		fh = NULL;
@@ -208,16 +239,96 @@ static void battery_read (void)
 
 	if (access ("/proc/acpi/battery", R_OK | X_OK) == 0)
 	{
-		/*
-		 * [11:00] <@tokkee> $ cat /proc/acpi/battery/BAT1/state
-		 * [11:00] <@tokkee> present:                 yes
-		 * [11:00] <@tokkee> capacity state:          ok
-		 * [11:00] <@tokkee> charging state:          charging
-		 * [11:00] <@tokkee> present rate:            1724 mA
-		 * [11:00] <@tokkee> remaining capacity:      4136 mAh
-		 * [11:00] <@tokkee> present voltage:         12428 mV
-		 */
-		syslog (LOG_DEBUG, "Found directory `/proc/acpi/battery'");
+		double  current = INVALID_VALUE;
+		double  voltage = INVALID_VALUE;
+		double  charge  = INVALID_VALUE;
+		double *valptr = NULL;
+		int charging = 0;
+
+		struct dirent *ent;
+		DIR *dh;
+
+		if ((dh = opendir ("/proc/acpi/battery")) == NULL)
+		{
+			syslog (LOG_ERR, "Cannot open `/proc/acpi/battery': %s", strerror (errno));
+			return;
+		}
+
+		while ((ent = readdir (dh)) != NULL)
+		{
+			len = snprintf (filename, BUFSIZE, "/proc/acpi/battery/%s/state", ent->d_name);
+			if ((len >= BUFSIZE) || (len < 0))
+				continue;
+
+			if ((fh = fopen (filename, "r")) == NULL)
+			{
+				syslog (LOG_ERR, "Cannot open `%s': %s", filename, strerror (errno));
+				continue;
+			}
+
+			/*
+			 * [11:00] <@tokkee> $ cat /proc/acpi/battery/BAT1/state
+			 * [11:00] <@tokkee> present:                 yes
+			 * [11:00] <@tokkee> capacity state:          ok
+			 * [11:00] <@tokkee> charging state:          charging
+			 * [11:00] <@tokkee> present rate:            1724 mA
+			 * [11:00] <@tokkee> remaining capacity:      4136 mAh
+			 * [11:00] <@tokkee> present voltage:         12428 mV
+			 */
+			while (fgets (buffer, BUFSIZE, fh) == NULL)
+			{
+				numfields = strsplit (buffer, fields, 8);
+
+				if (numfields < 3)
+					continue;
+
+				if ((strcmp (fields[0], "present"))
+						&& (strcmp (fields[1], "rate:")))
+					valptr = &current;
+				else if ((strcmp (fields[0], "remaining"))
+						&& (strcmp (fields[1], "capacity:")))
+					valptr = &charge;
+				else if ((strcmp (fields[0], "present"))
+						&& (strcmp (fields[1], "voltage:")))
+					valptr = &voltage;
+				else
+					valptr = NULL;
+
+				if ((strcmp (fields[0], "charging"))
+						&& (strcmp (fields[1], "state:")))
+				{
+					if (strcmp (fields[2], "charging"))
+						charging = 1;
+					else
+						charging = 0;
+				}
+
+				if (valptr != NULL)
+				{
+					char *endptr;
+
+					endptr = NULL;
+					errno  = 0;
+
+					*valptr = strtod (fields[2], &endptr) / 1000.0;
+
+					if ((fields[2] == endptr) || (errno != 0))
+						*valptr = INVALID_VALUE;
+				}
+			}
+
+			if ((current != INVALID_VALUE) && (charging == 0))
+					current *= -1;
+
+			if ((current != INVALID_VALUE)
+					|| (voltage != INVALID_VALUE)
+					|| (charge  != INVALID_VALUE))
+				battery_submit (ent->d_name, current, voltage, charge);
+
+			fclose (fh);
+		}
+
+		closedir (dh);
 	}
 #endif /* KERNEL_LINUX */
 }
