@@ -84,19 +84,40 @@ static void battery_init (void)
 
 static void battery_current_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, battery_current_file, val,
+	char filename[BUFSIZE];
+	int len;
+
+	len = snprintf (filename, BUFSIZE, battery_current_file, inst);
+	if ((len >= BUFSIZE) || (len < 0))
+		return;
+
+	rrd_update_file (host, filename, val,
 			ds_def_current, ds_num_current);
 }
 
 static void battery_voltage_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, battery_voltage_file, val,
+	char filename[BUFSIZE];
+	int len;
+
+	len = snprintf (filename, BUFSIZE, battery_voltage_file, inst);
+	if ((len >= BUFSIZE) || (len < 0))
+		return;
+
+	rrd_update_file (host, filename, val,
 			ds_def_voltage, ds_num_voltage);
 }
 
 static void battery_charge_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, battery_charge_file, val,
+	char filename[BUFSIZE];
+	int len;
+
+	len = snprintf (filename, BUFSIZE, battery_charge_file, inst);
+	if ((len >= BUFSIZE) || (len < 0))
+		return;
+
+	rrd_update_file (host, filename, val,
 			ds_def_charge, ds_num_charge);
 }
 
@@ -183,6 +204,20 @@ static void battery_read (void)
 
 		fclose (fh);
 		fh = NULL;
+	}
+
+	if (access ("/proc/acpi/battery", R_OK | X_OK) == 0)
+	{
+		/*
+		 * [11:00] <@tokkee> $ cat /proc/acpi/battery/BAT1/state
+		 * [11:00] <@tokkee> present:                 yes
+		 * [11:00] <@tokkee> capacity state:          ok
+		 * [11:00] <@tokkee> charging state:          charging
+		 * [11:00] <@tokkee> present rate:            1724 mA
+		 * [11:00] <@tokkee> remaining capacity:      4136 mAh
+		 * [11:00] <@tokkee> present voltage:         12428 mV
+		 */
+		syslog (LOG_DEBUG, "Found directory `/proc/acpi/battery'");
 	}
 #endif /* KERNEL_LINUX */
 }
