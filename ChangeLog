@@ -1,3 +1,7 @@
+2006-01-24, Version 3.6.2
+	* Due to a bug in the configfile handling collectd wouldn't start in
+	  client mode. This released fixes this.
+
 2006-01-20, Version 3.6.1
 	* Due to a bug in `configure.in' all modules and the binary were
 	  linked against `libmysqlclient'. This issue is solved by this
@@ -11,6 +15,11 @@
 	* The `plugin' module doesn't entirely give up hope when a socket
 	  error occured, but will back of and increase the intervals between
 	  tries.
+
+2006-01-21, Version 3.5.2
+	* Fixed yet another bug in the signal handling.. Stupid typo..
+	* Improved the ping plugin to not give up on socket errors (backport
+	  from 3.6.0).
 
 2005-12-18, Version 3.5.1
 	* The PID-file is now deleted correctly when shutting down the daemon.

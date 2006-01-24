@@ -1,6 +1,6 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	3.6.1
+Version:	3.6.2
 Release:	1
 Source:		http://verplant.org/collectd/%{name}-%{version}.tar.gz
 License:	GPL
@@ -96,6 +96,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
+* Tue Jan 24 2006 Florian octo Forster <octo@verplant.org> 3.6.2-1
+- New upstream version
+
 * Fri Jan 20 2006 Florian octo Forster <octo@verplant.org> 3.6.1-1
 - New upstream version
 
