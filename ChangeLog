@@ -2,6 +2,10 @@
 	* The `battery' plugin has been added. It collects information about
 	  laptop batteries..
 
+2006-01-24, Version 3.6.2
+	* Due to a bug in the configfile handling collectd wouldn't start in
+	  client mode. This released fixes this.
+
 2006-01-20, Version 3.6.1
 	* Due to a bug in `configure.in' all modules and the binary were
 	  linked against `libmysqlclient'. This issue is solved by this
