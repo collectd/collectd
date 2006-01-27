@@ -77,17 +77,18 @@ static char *qcache_ds_def[] =
 	"DS:hits:COUNTER:25:0:U",
 	"DS:inserts:COUNTER:25:0:U",
 	"DS:not_cached:COUNTER:25:0:U",
+	"DS:lowmem_prunes:COUNTER:25:0:U",
 	"DS:queries_in_cache:GAUGE:25:0:U",
 	NULL
 };
-static int qcache_ds_num = 4;
+static int qcache_ds_num = 5;
 
 static char *threads_ds_def[] =
 {
 	"DS:running:GAUGE:25:0:U",
 	"DS:connected:GAUGE:25:0:U",
 	"DS:cached:GAUGE:25:0:U",
-	"DS:created:COUNTER:25:0:u",
+	"DS:created:COUNTER:25:0:U",
 	NULL
 };
 static int threads_ds_num = 4;
@@ -201,6 +202,12 @@ static void handler_write (char *host, char *inst, char *val)
 	rrd_update_file (host, buf, val, handler_ds_def, handler_ds_num);
 }
 
+static void qcache_write (char *host, char *inst, char *val)
+{
+	rrd_update_file (host, qcache_file, val,
+			qcache_ds_def, qcache_ds_num);
+}
+
 static void threads_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, threads_file, val,
@@ -211,12 +218,6 @@ static void traffic_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, traffic_file, val,
 			traffic_ds_def, traffic_ds_num);
-}
-
-static void qcache_write (char *host, char *inst, char *val)
-{
-	rrd_update_file (host, qcache_file, val,
-			qcache_ds_def, qcache_ds_num);
 }
 
 #if MYSQL_HAVE_READ
@@ -263,14 +264,15 @@ static void handler_submit (char *inst, unsigned long long value)
 }
 
 static void qcache_submit (unsigned long long hits, unsigned long long inserts,
-		unsigned long long not_cached, int queries_in_cache)
+		unsigned long long not_cached, unsigned long long lowmem_prunes,
+		int queries_in_cache)
 {
 	char buf[BUFSIZE];
 	int  status;
 
-	status = snprintf (buf, BUFSIZE, "%u:%llu:%llu:%llu:%i",
+	status = snprintf (buf, BUFSIZE, "%u:%llu:%llu:%llu:%llu:%i",
 			(unsigned int) curtime, hits, inserts, not_cached,
-			queries_in_cache);
+			lowmem_prunes, queries_in_cache);
 
 	if (status < 0)
 	{
@@ -342,9 +344,10 @@ static void mysql_read (void)
 	int        query_len;
 	int        field_num;
 
-	unsigned long long qcache_hits       = 0ULL;
-	unsigned long long qcache_inserts    = 0ULL;
-	unsigned long long qcache_not_cached = 0ULL;
+	unsigned long long qcache_hits          = 0ULL;
+	unsigned long long qcache_inserts       = 0ULL;
+	unsigned long long qcache_not_cached    = 0ULL;
+	unsigned long long qcache_lowmem_prunes = 0ULL;
 	int qcache_queries_in_cache = -1;
 
 	int threads_running   = -1;
@@ -412,6 +415,8 @@ static void mysql_read (void)
 				qcache_inserts = val;
 			else if (strcmp (key, "Qcache_not_cached") == 0)
 				qcache_not_cached = val;
+			else if (strcmp (key, "Qcache_lowmem_prunes") == 0)
+				qcache_lowmem_prunes = val;
 			else if (strcmp (key, "Qcache_queries_in_cache") == 0)
 				qcache_queries_in_cache = (int) val;
 		}
@@ -438,9 +443,10 @@ static void mysql_read (void)
 
 	if ((qcache_hits != 0ULL)
 			|| (qcache_inserts != 0ULL)
-			|| (qcache_not_cached != 0ULL))
+			|| (qcache_not_cached != 0ULL)
+			|| (qcache_lowmem_prunes != 0ULL))
 		qcache_submit (qcache_hits, qcache_inserts, qcache_not_cached,
-				qcache_queries_in_cache);
+				qcache_lowmem_prunes, qcache_queries_in_cache);
 
 	if (threads_created != 0ULL)
 		threads_submit (threads_running, threads_connected,
