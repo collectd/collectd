@@ -50,6 +50,7 @@ static char  init_suceeded = 0;
 
 static char *commands_file = "mysql/mysql_commands-%s.rrd";
 static char *handler_file = "mysql/mysql_handler-%s.rrd";
+static char *threads_file = "mysql/mysql_threads.rrd";
 static char *traffic_file  = "traffic-mysql.rrd";
 
 static char *commands_ds_def[] =
@@ -65,6 +66,15 @@ static char *handler_ds_def[] =
 	NULL
 };
 static int handler_ds_num = 1;
+
+static char *threads_ds_def[] =
+{
+	"DS:running:GAUGE:25:0:U",
+	"DS:connected:GAUGE:25:0:U",
+	"DS:cached:GAUGE:25:0:U",
+	NULL
+};
+static int threads_ds_num = 3;
 
 static char *traffic_ds_def[] =
 {
@@ -175,9 +185,16 @@ static void handler_write (char *host, char *inst, char *val)
 	rrd_update_file (host, buf, val, handler_ds_def, handler_ds_num);
 }
 
+static void threads_write (char *host, char *inst, char *val)
+{
+	rrd_update_file (host, threads_file, val,
+			threads_ds_def, threads_ds_num);
+}
+
 static void traffic_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, traffic_file, val, traffic_ds_def, traffic_ds_num);
+	rrd_update_file (host, traffic_file, val,
+			traffic_ds_def, traffic_ds_num);
 }
 
 #if MYSQL_HAVE_READ
@@ -223,6 +240,28 @@ static void handler_submit (char *inst, unsigned long long value)
 	plugin_submit ("mysql_handler", inst, buf);
 }
 
+static void threads_submit (int running, int connected, int cached)
+{
+	char buf[BUFSIZE];
+	int  status;
+
+	status = snprintf (buf, BUFSIZE, "%u:%i:%i:%i", (unsigned int) curtime,
+			running, connected, cached);
+
+	if (status < 0)
+	{
+		syslog (LOG_ERR, "snprintf failed");
+		return;
+	}
+	else if (status >= BUFSIZE)
+	{
+		syslog (LOG_WARNING, "snprintf was truncated");
+		return;
+	}
+
+	plugin_submit ("mysql_threads", "-", buf);
+}
+
 static void traffic_submit (unsigned long long incoming,
 		unsigned long long outgoing)
 {
@@ -255,6 +294,10 @@ static void mysql_read (void)
 	int        query_len;
 	int        field_num;
 
+	int threads_running   = -1;
+	int threads_connected = -1;
+	int threads_cached    = -1;
+
 	unsigned long long traffic_incoming = 0LL;
 	unsigned long long traffic_outgoing = 0LL;
 
@@ -270,13 +313,15 @@ static void mysql_read (void)
 
 	if (mysql_real_query (con, query, query_len))
 	{
-		syslog (LOG_ERR, "mysql_real_query failed: %s\n", mysql_error (con));
+		syslog (LOG_ERR, "mysql_real_query failed: %s\n",
+				mysql_error (con));
 		return;
 	}
 
 	if ((res = mysql_store_result (con)) == NULL)
 	{
-		syslog (LOG_ERR, "mysql_store_result failed: %s\n", mysql_error (con));
+		syslog (LOG_ERR, "mysql_store_result failed: %s\n",
+				mysql_error (con));
 		return;
 	}
 
@@ -309,9 +354,19 @@ static void mysql_read (void)
 			else if (strcmp (key, "Bytes_sent") == 0)
 				traffic_outgoing += val;
 		}
+		else if (strncmp (key, "Threads_", 8) == 0)
+		{
+			if (strcmp (key, "Threads_running") == 0)
+				threads_running = (int) val;
+			else if (strcmp (key, "Threads_connected") == 0)
+				threads_connected = (int) val;
+			else if (strcmp (key, "Threads_cached") == 0)
+				threads_cached = (int) val;
+		}
 	}
 	mysql_free_result (res); res = NULL;
 
+	threads_submit  (threads_running, threads_connected, threads_cached);
 	traffic_submit  (traffic_incoming, traffic_outgoing);
 
 	/* mysql_close (con); */
@@ -327,6 +382,7 @@ void module_register (void)
 	plugin_register (MODULE_NAME, init, mysql_read, NULL);
 	plugin_register ("mysql_commands", NULL, NULL, commands_write);
 	plugin_register ("mysql_handler", NULL, NULL, handler_write);
+	plugin_register ("mysql_threads", NULL, NULL, threads_write);
 	plugin_register ("mysql_traffic", NULL, NULL, traffic_write);
 	cf_register (MODULE_NAME, config, config_keys, config_keys_num);
 }

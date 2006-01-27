@@ -2,10 +2,8 @@
 
 set -x
 
-true \
-&& autoheader --force \
-&& aclocal --force \
-&& libtoolize --ltdl --force --copy \
+autoheader \
+&& aclocal \
+&& libtoolize --ltdl --copy --force \
 && automake --add-missing --copy \
-&& autoconf --force
-
+&& autoconf
