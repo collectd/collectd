@@ -8,7 +8,7 @@ Standards-Version: 3.6.1
 Package: collectd
 Architecture: any
 Depends: libc6, librrd0 | librrd2
-Suggests: collectd-hddtemp, collectd-mysql, collectd-sensors
+Suggests: collectd-mysql, collectd-sensors
 Description: Statistics collection daemon for filling RRD files.
  collectd is a small daemon written in C for performance. It reads various
  system statistics and updates RRD files, creating them if neccessary. Since
@@ -16,16 +16,10 @@ Description: Statistics collection daemon for filling RRD files.
  it's very fast and easy on the system. Also, the statistics are very fine
  grained since the files are updated every 10 seconds.
 
-Package: collectd-hddtemp
-Architecture: any
-Depends: collectd (= ${Source-Version}), hddtemp
-Description: collectd module for harddisk temperatures.
- collectd module to collect harddisk temperatures using hddtemp.
-
 Package: collectd-mysql
 Architecture: any
 Depends: collectd (= ${Source-Version}), libmysqlclient14
-Description: collectd module for memory utilization.
+Description: collectd plugin for MySQL-statistics
  collectd module to collect MySQL statistics. It links against
  `libmysqlclient14' though other versions should do, too.
 
