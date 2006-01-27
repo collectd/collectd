@@ -110,7 +110,7 @@ static void cpufreq_read (void)
 
 	for (i = 0; i < num_cpu; i++)
 	{
-		status = snprintf (filename, BUFSIZE, "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_cur_freq", i);
+		status = snprintf (filename, BUFSIZE, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
     		if (status < 1 || status >= BUFSIZE)
 			return;
 
