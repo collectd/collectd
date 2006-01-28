@@ -36,7 +36,8 @@ Features
       (Memory occupied by running processes, page cache, buffer cache and free)
 
     - MySQL server statistics
-      (Commands issued, handlers triggered and traffic sent/received)
+      (Commands issued, handlers triggered, thread usage, query cache
+      utilization and traffic sent/received)
 
     - NFS Procedures
       (Which NFS command were called how often. Only NFSv2 and NFSv3 right now)

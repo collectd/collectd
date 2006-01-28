@@ -1,6 +1,8 @@
 2006-01-23, Version 3.7.0
 	* The `battery' plugin has been added. It collects information about
 	  laptop batteries..
+	* The MySQL plugin has been improved: It now writes two more RRD
+	  files, `mysql_qcache.rrd' and `mysql_threads.rrd'.
 
 2006-01-24, Version 3.6.2
 	* Due to a bug in the configfile handling collectd wouldn't start in
