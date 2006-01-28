@@ -256,6 +256,9 @@ static void battery_read (void)
 
 		while ((ent = readdir (dh)) != NULL)
 		{
+			if (ent->d_name[0] == '.')
+				continue;
+
 			len = snprintf (filename, BUFSIZE, "/proc/acpi/battery/%s/state", ent->d_name);
 			if ((len >= BUFSIZE) || (len < 0))
 				continue;
