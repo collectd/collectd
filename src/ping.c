@@ -32,11 +32,16 @@
 
 #define MAX_PINGHOSTS 32
 
-static char *hosts[MAX_PINGHOSTS];
-static int   hosts_flags[MAX_PINGHOSTS];
-static int   hosts_disable[MAX_PINGHOSTS];
-static int   hosts_backoff[MAX_PINGHOSTS];
-static int   num_pinghosts;
+typedef struct
+{
+	char *name;
+	int   flags;
+	int   disable; /* How long (how many iterations) this host is still disabled */
+	int   backoff; /* How long the host will be disabled, if it failes again */
+} pinghost_t;
+
+static pinghost_t hosts[MAX_PINGHOSTS];
+static int        num_pinghosts;
 
 static char *file_template = "ping-%s.rrd";
 
@@ -60,9 +65,9 @@ static void ping_init (void)
 
 	for (i = 0; i < MAX_PINGHOSTS; i++)
 	{
-		hosts_flags[i] = 0;
-		hosts_disable[i] = 0;
-		hosts_backoff[i] = 1;
+		hosts[i].flags = 0;
+		hosts[i].disable = 0;
+		hosts[i].backoff = 1;
 	}
 
 	return;
@@ -78,13 +83,12 @@ static int ping_config (char *key, char *value)
 	{
 		return (1);
 	}
-	else if ((hosts[num_pinghosts] = strdup (value)) == NULL)
+	else if ((hosts[num_pinghosts].name = strdup (value)) == NULL)
 	{
 		return (2);
 	}
 	else
 	{
-		hosts_flags[num_pinghosts] = 0;
 		num_pinghosts++;
 		return (0);
 	}
@@ -109,7 +113,7 @@ static void ping_submit (int ping_time, char *host)
 {
 	char buf[BUFSIZE];
 
-	if (snprintf (buf, BUFSIZE, "%u:%u", (unsigned int) curtime, ping_time) >= BUFSIZE)
+	if (snprintf (buf, BUFSIZE, "%u:%i", (unsigned int) curtime, ping_time) >= BUFSIZE)
 		return;
 
 	plugin_submit (MODULE_NAME, host, buf);
@@ -123,49 +127,49 @@ static void ping_read (void)
 
 	for (i = 0; i < num_pinghosts; i++)
 	{
-		if (hosts_disable[i] > 0)
+		if (hosts[i].disable > 0)
 		{
-			hosts_disable[i]--;
+			hosts[i].disable--;
 			continue;
 		}
 		
-		ping = tpinghost (hosts[i]);
+		ping = tpinghost (hosts[i].name);
 
 		switch (ping)
 		{
 			case 0:
-				if (!(hosts_flags[i] & 0x01))
-					syslog (LOG_WARNING, "ping %s: Connection timed out.", hosts[i]);
-				hosts_flags[i] |= 0x01;
+				if (!(hosts[i].flags & 0x01))
+					syslog (LOG_WARNING, "ping %s: Connection timed out.", hosts[i].name);
+				hosts[i].flags |= 0x01;
 				break;
 
 			case -1:
-				if (!(hosts_flags[i] & 0x02))
-					syslog (LOG_WARNING, "ping %s: Host or service is not reachable.", hosts[i]);
-				hosts_flags[i] |= 0x02;
+				if (!(hosts[i].flags & 0x02))
+					syslog (LOG_WARNING, "ping %s: Host or service is not reachable.", hosts[i].name);
+				hosts[i].flags |= 0x02;
 				break;
 
 			case -2:
 				syslog (LOG_ERR, "ping %s: Socket error. Ping will be disabled for %i iteration(s).",
-						hosts[i], hosts_backoff[i]);
-				hosts_disable[i] = hosts_backoff[i];
-				if (hosts_backoff[i] < 8192) /* 22 3/4 hours */
-					hosts_backoff[i] *= 2;
-				hosts_flags[i] |= 0x10;
+						hosts[i].name, hosts[i].backoff);
+				hosts[i].disable = hosts[i].backoff;
+				if (hosts[i].backoff < 8192) /* 22 3/4 hours */
+					hosts[i].backoff *= 2;
+				hosts[i].flags |= 0x10;
 				break;
 
 			case -3:
-				if (!(hosts_flags[i] & 0x04))
-					syslog (LOG_WARNING, "ping %s: Connection refused.", hosts[i]);
-				hosts_flags[i] |= 0x04;
+				if (!(hosts[i].flags & 0x04))
+					syslog (LOG_WARNING, "ping %s: Connection refused.", hosts[i].name);
+				hosts[i].flags |= 0x04;
 				break;
 
 			default:
-				if (hosts_flags[i] != 0x00)
-					syslog (LOG_NOTICE, "ping %s: Back to normal: %ims.", hosts[i], ping);
-				hosts_flags[i] = 0x00;
-				hosts_backoff[i] = 1;
-				ping_submit (ping, hosts[i]);
+				if (hosts[i].flags != 0x00)
+					syslog (LOG_NOTICE, "ping %s: Back to normal: %ims.", hosts[i].name, ping);
+				hosts[i].flags = 0x00;
+				hosts[i].backoff = 1;
+				ping_submit (ping, hosts[i].name);
 		} /* switch (ping) */
 	} /* for (i = 0; i < num_pinghosts; i++) */
 }

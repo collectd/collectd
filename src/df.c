@@ -44,7 +44,6 @@
 
 static char *filename_template = "df-%s.rrd";
 
-/* 104857600 == 100 MB */
 static char *ds_def[] =
 {
 	"DS:used:GAUGE:25:0:U",
