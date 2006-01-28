@@ -24,14 +24,17 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "configfile.h"
 
 #define MODULE_NAME "hddtemp"
 
+#include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <libgen.h> /* for basename */
 
+#if 0
 /* LOCALHOST_ADDR
    The ip address 127.0.0.1, as a 32 bit. */
 #define LOCALHOST_ADDR 0x7F000001
@@ -39,6 +42,10 @@
 /* HDDTEMP_PORT
    The tcp port the hddtemp daemon is listening on. */
 #define HDDTEMP_PORT 7634
+#endif
+
+#define HDDTEMP_DEF_HOST "127.0.0.1"
+#define HDDTEMP_DEF_PORT 7634
 
 /* BUFFER_SIZE
    Size of the buffer we use to receive from the hddtemp daemon. */
@@ -53,6 +60,14 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
+static char *config_keys[] =
+{
+	"Host",
+	"Port",
+	NULL
+};
+static int config_keys_num = 2;
+
 typedef struct hddname
 {
 	int major;
@@ -62,6 +77,8 @@ typedef struct hddname
 } hddname_t;
 
 static hddname_t *first_hddname = NULL;
+static char *hddtemp_host = NULL;
+static int   hddtemp_port = 0;
 
 /*
  * NAME
@@ -88,59 +105,112 @@ static hddname_t *first_hddname = NULL;
 static int hddtemp_query_daemon (char *buffer, int buffer_size)
 {
 	int sock;
-	ssize_t size;
-	const struct sockaddr_in addr =
+	ssize_t status;
+	int buffer_fill;
+
+	char *host;
+	int   port;
+
+	struct hostent     *srv_ent;
+	struct sockaddr_in  srv_addr;
+
+	host = hddtemp_host;
+	if (host == NULL)
+		host = HDDTEMP_DEF_HOST;
+
+	port = hddtemp_port;
+	if (port == 0)
+		port = HDDTEMP_DEF_PORT;
+
+	/*
+	 * Resolve `host' address and set up `srv_addr'
+	 */
+	memset (&srv_addr, '\0', sizeof (srv_addr));
+
+	if ((srv_ent = gethostbyname (host)) == NULL)
 	{
-		AF_INET,			/* sin_family */
-		htons(HDDTEMP_PORT),		/* sin_port */
-		{				/* sin_addr */
-			htonl(LOCALHOST_ADDR),	/* s_addr */
-		}
-	};
+		syslog (LOG_WARNING, "hddtemp: Could not resolve hostname `%s'",
+				host);
+		return (-1);
+	}
+	
+	memcpy (&srv_addr.sin_addr.s_addr, srv_ent->h_addr, srv_ent->h_length);
+	srv_addr.sin_port   = htons (port);
+	srv_addr.sin_family = AF_INET;
 
 	/* create our socket descriptor */
 	if ((sock = socket (PF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		syslog (LOG_ERR, "hddtemp: could not create socket: %s", strerror (errno));
+		syslog (LOG_ERR, "hddtemp: could not create socket: %s",
+				strerror (errno));
 		return (-1);
 	}
 
 	/* connect to the hddtemp daemon */
-	if (connect (sock, (const struct sockaddr *) &addr, sizeof (addr)))
+	if (connect (sock, (struct sockaddr *) &srv_addr, sizeof (srv_addr)))
 	{
-		syslog (LOG_ERR, "hddtemp: Could not connect to the hddtemp daemon: %s", strerror (errno));
+		syslog (LOG_ERR, "hddtemp: Could not connect to the hddtemp "
+				"daemon at %s:%i: %s",
+				host, port, strerror (errno));
 		close (sock);
 		return (-1);
 	}
 
 	/* receive data from the hddtemp daemon */
 	memset (buffer, '\0', buffer_size);
-	size = recv (sock, buffer, buffer_size, 0);
 
-	if (size >= buffer_size)
+	buffer_fill = 0;
+	while ((status = read (sock, buffer + buffer_fill, buffer_size - buffer_fill)) != 0)
 	{
+		if (status == -1)
+		{
+			if ((errno == EAGAIN) || (errno == EINTR))
+				continue;
+
+			syslog (LOG_ERR, "hddtemp: Error reading from socket: %s",
+						strerror (errno));
+			return (-1);
+		}
+		buffer_fill += status;
+
+		if (buffer_fill >= buffer_size)
+			break;
+	}
+
+	if (buffer_fill >= buffer_size)
+	{
+		buffer[buffer_size - 1] = '\0';
 		syslog (LOG_WARNING, "hddtemp: Message from hddtemp has been truncated.");
-		close (sock);
-		return (-1);
 	}
-	/* FIXME: Since the server closes the connection this returns zero. At
-	 * least my machine does. -octo */
-	/*
-	else if (size == 0)
+	else if (buffer_fill == 0)
 	{
-		syslog (LOG_WARNING, "hddtemp: Peer has unexpectedly shut down the socket. Buffer: `%s'", buffer);
-		close (sock);
-		return (-1);
-	}
-	*/
-	else if (size < 0)
-	{
-		syslog (LOG_ERR, "hddtemp: Could not receive from the hddtemp daemon: %s", strerror (errno));
+		syslog (LOG_WARNING, "hddtemp: Peer has unexpectedly shut down the socket. "
+				"Buffer: `%s'", buffer);
 		close (sock);
 		return (-1);
 	}
 
 	close (sock);
+	return (0);
+}
+
+static int hddtemp_config (char *key, char *value)
+{
+	if (strcasecmp (key, "host") == 0)
+	{
+		if (hddtemp_host != NULL)
+			free (hddtemp_host);
+		hddtemp_host = strdup (value);
+	}
+	else if (strcasecmp (key, "port") == 0)
+	{
+		hddtemp_port = atoi (value);
+	}
+	else
+	{
+		return (-1);
+	}
+
 	return (0);
 }
 
@@ -364,6 +434,7 @@ static void hddtemp_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, hddtemp_init, hddtemp_read, hddtemp_write);
+	cf_register (MODULE_NAME, hddtemp_config, config_keys, config_keys_num);
 }
 
 #undef MODULE_NAME
