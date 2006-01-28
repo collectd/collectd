@@ -350,7 +350,7 @@ on the other hand listens on B<all> interfaces.
 
 =head2 cpufreq
 
-This module reads F</sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq> (for
+This module reads F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for
 the first CPU installed) to get the current CPU frequency. If this file does
 not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
 similar tool is installed.

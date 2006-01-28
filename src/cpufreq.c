@@ -57,7 +57,7 @@ static void cpufreq_init (void)
 
 	while (1)
 	{
-		status = snprintf (filename, BUFSIZE, "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_cur_freq", num_cpu);
+		status = snprintf (filename, BUFSIZE, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", num_cpu);
     		if (status < 1 || status >= BUFSIZE)
 			break;
 
