@@ -16,6 +16,10 @@ settings. The following features may be available:
 
 =item
 
+Battery status (I<battery>)
+
+=item
+
 CPU utilization (I<cpu>)
 
 =item
@@ -128,6 +132,18 @@ timespans:
 The DS'es depend on the module creating the RRD files:
 
 =over 4
+
+=item Battery charge (F<battery-I<E<lt>nameE<gt>>/charge.rrd>)
+
+  DS:charge:GAUGE:25:0:U
+
+=item Battery current (F<battery-I<E<lt>nameE<gt>>/current.rrd>)
+
+  DS:current:GAUGE:25:U:U
+
+=item Battery voltage (F<battery-I<E<lt>nameE<gt>>/voltage.rrd>)
+
+  DS:voltage:GAUGE:25:U:U
 
 =item CPU (F<cpu-I<E<lt>numE<gt>>.rrd>)
 
@@ -333,9 +349,10 @@ contain loud complaints in case anything goes wrong.
 
 This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
 C<Com_*> and C<Handler_*> which correspond to F<traffic-mysql.rrd>,
-F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Please refer to the B<MySQL
-reference manual>, I<5.2.4. Server Status Variables> for an explanation of
-these values.
+F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Also, the values of
+C<Qcache_*> are put in F<mysql_qcache.rrd> and values of C<Threads_*> are put
+in F<mysql_threads.rrd>. Please refer to the B<MySQL reference manual>,
+I<5.2.4. Server Status Variables> for an explanation of these values.
 
 =head2 sensors
 
