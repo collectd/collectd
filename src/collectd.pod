@@ -382,8 +382,10 @@ L<http://secure.netroedge.com/~lm78/>.
 =head2 hddtemp
 
 To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
-port B<7634/tcp>. hddtemp has to be running to work correctly. If hddtemp is
-not running timeouts may appear which may interfere with other statistics..
+port B<7634/tcp>. The B<Host> and B<Port> options can be used to change these
+default values. See L<collectd.conf(5)> for details. C<hddtemp> has to be
+running to work correctly. If C<hddtemp> is not running timeouts may appear
+which may interfere with other statistics..
 
 The B<hddtemp> homepage can be found at
 L<http://www.guzu.net/linux/hddtemp.php>.

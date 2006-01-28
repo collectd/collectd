@@ -84,6 +84,20 @@ is available in the B<Client> and B<Server> mode.
 Some Plugins may register own options. These options must be inclosed in a
 C<Plugin>-Section. Which options exist depends on the plugin used:
 
+=head2 Plugin C<hddtemp>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname to connect to. Defaults to B<127.0.0.1>.
+
+=item B<Port> I<Port>
+
+TCP-Port to connect to. Defaults to B<7634>.
+
+=back
+
 =head2 Plugin C<mysql>
 
 =over 4
