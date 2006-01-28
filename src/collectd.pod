@@ -193,9 +193,24 @@ The DS'es depend on the module creating the RRD files:
   DS:buffers:GAUGE:25:0:9223372036854775807
   DS:cached:GAUGE:25:0:9223372036854775807
 
-=item MySQL statistics (F<mysql_commands-I<E<lt>commandE<gt>>.rrd> and F<mysql_handler-I<E<lt>handlerE<gt>>.rrd>)
+=item MySQL commands and handlers (F<mysql_commands-I<E<lt>commandE<gt>>.rrd> and F<mysql_handler-I<E<lt>handlerE<gt>>.rrd>)
 
   DS:value:COUNTER:25:0:U
+
+=item MySQL query cache (F<mysql_qcache.rrd>)
+
+  DS:hits:COUNTER:25:0:U
+  DS:inserts:COUNTER:25:0:U
+  DS:not_cached:COUNTER:25:0:U
+  DS:lowmem_prunes:COUNTER:25:0:U
+  DS:queries_in_cache:GAUGE:25:0:U
+
+=item MySQL threads (F<mysql_threads.rrd>)
+
+  DS:running:GAUGE:25:0:U
+  DS:connected:GAUGE:25:0:U
+  DS:cached:GAUGE:25:0:U
+  DS:created:COUNTER:25:0:U
 
 =item NFSv2 Procedures (F<nfs2_procedures-I<(client|server)>.rrd>)
 
