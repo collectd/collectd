@@ -95,6 +95,12 @@
 # endif
 #endif
 
+#if HAVE_ASSERT_H
+# include <assert.h>
+#else
+# define assert(...) /* nop */
+#endif
+
 #if HAVE_DIRENT_H
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)

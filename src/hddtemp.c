@@ -127,6 +127,10 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	 */
 	memset (&srv_addr, '\0', sizeof (srv_addr));
 
+	/*
+	 * FIXME
+	 * use `getaddrinfo'
+	 */
 	if ((srv_ent = gethostbyname (host)) == NULL)
 	{
 		syslog (LOG_WARNING, "hddtemp: Could not resolve hostname `%s'",
