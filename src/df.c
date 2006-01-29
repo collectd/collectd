@@ -34,9 +34,15 @@
 #endif
 
 #if HAVE_STATVFS
+# if HAVE_SYS_STATVFS_H
+#  include <sys/statvfs.h>
+# endif
 # define STATANYFS statvfs
 # define BLOCKSIZE(s) ((s).f_frsize ? (s).f_frsize : (s).f_bsize)
 #elif HAVE_STATFS
+# if HAVE_SYS_STATFS_H
+#  include <sys/statfs.h>
+# endif
 # define STATANYFS statfs
 # define BLOCKSIZE(s) (s).f_bsize
 #endif
@@ -88,7 +94,12 @@ static void df_submit (char *df_name,
 
 static void df_read (void)
 {
-	struct STATANYFS statbuf;
+#if HAVE_STATVFS
+	struct statvfs statbuf;
+#elif HAVE_STATFS
+	struct statfs statbuf;
+#endif
+	/* struct STATANYFS statbuf; */
 	cu_mount_t *mnt_list;
 	cu_mount_t *mnt_ptr;
 

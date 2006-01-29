@@ -8,6 +8,7 @@
 	  to read the old file, but not to read the new one.
 	* The `hddtemp' plugin can now be configured to connect to another
 	  address and/or port than localhost.
+	* The `df' plugin now prefers `statvfs' over `statfs'.
 
 2006-01-24, Version 3.6.2
 	* Due to a bug in the configfile handling collectd wouldn't start in
