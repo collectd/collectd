@@ -115,7 +115,6 @@ mysql_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBMYSQL
 mysql_la_LDFLAGS += -lmysqlclient
 endif
-#mysql_la_LIBADD = -lmysqlclient
 collectd_LDADD += "-dlopen" mysql.la
 collectd_DEPENDENCIES += mysql.la
 endif
@@ -153,7 +152,6 @@ sensors_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LM_SENSORS
 sensors_la_LDFLAGS += -lsensors
 endif
-sensors_la_LIBADD = -lsensors
 collectd_LDADD += "-dlopen" sensors.la
 collectd_DEPENDENCIES += sensors.la
 endif
