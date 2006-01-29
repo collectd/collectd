@@ -25,7 +25,7 @@
 #include <ltdl.h>
 
 #include "plugin.h"
-#include "multicast.h"
+#include "network.h"
 
 typedef struct plugin
 {
@@ -333,7 +333,7 @@ void plugin_write (char *host, char *type, char *inst, char *val)
 
 /*
  * Receive data from the plugin/module and get it somehow to ``plugin_write'':
- * Either using ``multicast_send'' (when in network/client mode) or call it
+ * Either using ``network_send'' (when in network/client mode) or call it
  * directly (in local mode).
  */
 void plugin_submit (char *type, char *inst, char *val)
@@ -342,10 +342,10 @@ void plugin_submit (char *type, char *inst, char *val)
 	if (operating_mode == MODE_LOCAL)
 		plugin_write (NULL, type, inst, val);
 	else if (operating_mode == MODE_CLIENT)
-		multicast_send (type, inst, val);
+		network_send (type, inst, val);
 	else /* operating_mode == MODE_SERVER */
 		syslog (LOG_ERR, "WTF is the server doing in ``plugin_submit''?!?\n");
 #else
-	multicast_send (type, inst, val);
+	network_send (type, inst, val);
 #endif
 }

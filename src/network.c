@@ -36,21 +36,6 @@
 #include "common.h"
 #include "utils_debug.h"
 
-/*
- * From RFC2365:
- *
- * The IPv4 Organization Local Scope -- 239.192.0.0/14
- *
- * 239.192.0.0/14 is defined to be the IPv4 Organization Local Scope, and is
- * the space from which an organization should allocate sub-ranges when
- * defining scopes for private use.
- *
- * Port 25826 is not assigned as of 2005-09-12
- */
-
-#define IPV4_MCAST_GROUP "239.192.74.66"
-#define UDP_PORT 25826
-
 /* 1500 - 40 - 8  =  Ethernet packet - IPv6 header - UDP header */
 /* #define BUFF_SIZE 1452 */
 
@@ -65,6 +50,7 @@ static int operating_mode = MODE_CLIENT;
 typedef struct sockent
 {
 	int                      fd;
+	int                      mode;
 	struct sockaddr_storage *addr;
 	socklen_t                addrlen;
 	struct sockent          *next;
@@ -75,6 +61,8 @@ static sockent_t *socklist_head = NULL;
 static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
 	int loop = 1;
+
+	DBG ("fd = %i; calling `bind'", se->fd);
 
 	if (bind (se->fd, ai->ai_addr, ai->ai_addrlen) == -1)
 	{
@@ -88,6 +76,8 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 		if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
 		{
 			struct ip_mreq mreq;
+
+			DBG ("fd = %i; IPv4 multicast address found", se->fd);
 
 			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
 			mreq.imr_interface.s_addr = htonl (INADDR_ANY);
@@ -114,6 +104,8 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 		if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
 		{
 			struct ipv6_mreq mreq;
+
+			DBG ("fd = %i; IPv6 multicast address found", se->fd);
 
 			memcpy (&mreq.ipv6mr_multiaddr,
 					&addr->sin6_addr,
@@ -205,6 +197,7 @@ int network_create_socket (const char *node, const char *service)
 		memcpy (se->addr, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
 		se->addrlen = ai_ptr->ai_addrlen;
 
+		se->mode = operating_mode;
 		se->fd   = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
 		se->next = NULL;
 
@@ -226,7 +219,8 @@ int network_create_socket (const char *node, const char *service)
 
 		if (socklist_tail == NULL)
 		{
-			socklist_head = socklist_tail = se;
+			socklist_head = se;
+			socklist_tail = se;
 		}
 		else
 		{
@@ -246,6 +240,29 @@ int network_create_socket (const char *node, const char *service)
 	return (num_added);
 }
 
+static int network_connect_default (void)
+{
+	int ret;
+
+	if (socklist_head != NULL)
+		return (0);
+
+	DBG ("socklist_head is NULL");
+
+	ret = 0;
+
+	if (network_create_socket (NET_DEFAULT_V4_ADDR, NET_DEFAULT_PORT) > 0)
+		ret++;
+
+	if (network_create_socket (NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT) > 0)
+		ret++;
+
+	if (ret == 0)
+		ret = -1;
+
+	return (ret);
+}
+
 static int network_get_listen_socket (void)
 {
 	int fd;
@@ -255,12 +272,18 @@ static int network_get_listen_socket (void)
 	fd_set readfds;
 	sockent_t *se;
 
+	if (socklist_head == NULL)
+		network_connect_default ();
+
 	while (1)
 	{
 		FD_ZERO (&readfds);
 		max_fd = -1;
 		for (se = socklist_head; se != NULL; se = se->next)
 		{
+			if (se->mode != operating_mode)
+				continue;
+
 			FD_SET (se->fd, &readfds);
 			if (se->fd >= max_fd)
 				max_fd = se->fd + 1;
@@ -287,11 +310,16 @@ static int network_get_listen_socket (void)
 
 	fd = -1;
 	for (se = socklist_head; se != NULL; se = se->next)
+	{
+		if (se->mode != operating_mode)
+			continue;
+
 		if (FD_ISSET (se->fd, &readfds))
 		{
 			fd = se->fd;
 			break;
 		}
+	}
 
 	if (fd == -1)
 		syslog (LOG_WARNING, "No socket ready..?");
@@ -403,9 +431,15 @@ int network_send (char *type, char *inst, char *value)
 	buf[buflen] = '\0';
 	buflen++;
 
+	if (socklist_head == NULL)
+		network_connect_default ();
+
 	ret = 0;
 	for (se = socklist_head; se != NULL; se = se->next)
 	{
+		if (se->mode != operating_mode)
+			continue;
+
 		DBG ("fd = %i", se->fd);
 
 		while (1)

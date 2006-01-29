@@ -25,7 +25,7 @@
 #include "common.h"
 #include "utils_debug.h"
 
-#include "multicast.h"
+#include "network.h"
 #include "plugin.h"
 #include "configfile.h"
 
@@ -192,6 +192,7 @@ static int start_client (void)
 #if HAVE_LIBRRD
 static int start_server (void)
 {
+	/* FIXME use stack here! */
 	char *host;
 	char *type;
 	char *instance;
@@ -199,7 +200,7 @@ static int start_server (void)
 
 	while (loop == 0)
 	{
-		if (multicast_receive (&host, &type, &instance, &values) == 0)
+		if (network_receive (&host, &type, &instance, &values) == 0)
 			plugin_write (host, type, instance, values);
 
 		if (host     != NULL) free (host);     host     = NULL;
