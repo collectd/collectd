@@ -64,18 +64,31 @@ won't write to this directory.
 Sets the file to write debugging output to. This is only used if compiled with
 debugging enabled. It's ignored otherwise. Available in B<all modes>.
 
-=item B<Server> I<IP-address>
+=item B<Listen> I<Host> [I<Port>]
 
-The server to send data to. B<This is not yet implemented!> Maybe a better name
-for this was B<Receiver>, since I plan on detecting multicast groups
-automatically. On the other hand a extra MulticastGroup-option would be of
-interest for the server process. Anyhow, right now this is available for the
-B<Client> mode only.
+=item B<Server> I<Host> [I<Port>]
 
-=item B<Port> I<Port-number>
+In B<client mode> the B<Server> statement sets the server to send datagrams to.
+The statement may occur multiple times to send each datagram to multiple
+destinations.
 
-(UDP-)Port to send packages to or to bind to and wait for packages. This option
-is available in the B<Client> and B<Server> mode.
+In B<server mode> the B<Listen> statement sets the interfaces to bind to. When
+multiple statements are found the daemon will bind to multiple interfaces.
+
+The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. If
+the argument is a multicast address the daemon will join that multicast group.
+
+If no B<Listen> statement is found the server tries join both, the IPv6
+multicast group and the IPv4 multicast group. If no B<Server> statement is
+found the client will try to send data to the IPv6 multicast group first. If
+that failes the client will try the IPv4 multicast group.
+
+The default IPv6 multicast group is C<ff18::efc0:4a42>. The default IPv4
+multicast group is C<239.192.74.66>.
+
+The optional I<Port> argument sets the port to use. It can either be given
+using a numeric port number or a service name. If the argument is omited the
+default port B<25826> is assumed.
 
 =back
 

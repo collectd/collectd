@@ -106,6 +106,72 @@ Output usage information and exit.
 
 =back
 
+=head1 MODES
+
+collectd can operate in three different operating modes. The modes are
+described below.
+
+The simplest mode is the so called B<local mode>. Data is collected locally and
+written in RRD files that reside in I<DataDir>. This is the default mode when
+collectd is linked against C<librrd>.
+
+The other two modes, B<client mode> and B<server mode>, are used to send data
+over a network and receive it again.
+
+In B<client mode> the daemon collectd the data locally and send it's result to
+one or more network addresses. No RRD files are written in this case. This is
+the only mode available if collectd is not linked against C<librrd>.
+
+If started in B<server mode> the daemon will listen on one or more interfaces
+and write the data it receives to RRD files. No data is collected locally.
+
+Please refer to L<collectd.conf(5)> for the configuration options and default
+values.
+
+=head1 SPECIAL PLUGINS
+
+=head2 cpufreq
+
+This module reads F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for
+the first CPU installed) to get the current CPU frequency. If this file does
+not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
+similar tool is installed.
+
+=head2 mysql
+
+Requires B<mysqlclient> to be installed. It connects to the database when
+started and keeps the connection up as long as possible. When the connection is
+interrupted for whatever reason it will try to re-connect. The syslog will
+contain loud complaints in case anything goes wrong.
+
+This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
+C<Com_*> and C<Handler_*> which correspond to F<traffic-mysql.rrd>,
+F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Also, the values of
+C<Qcache_*> are put in F<mysql_qcache.rrd> and values of C<Threads_*> are put
+in F<mysql_threads.rrd>. Please refer to the B<MySQL reference manual>,
+I<5.2.4. Server Status Variables> for an explanation of these values.
+
+=head2 sensors
+
+The B<sensors> module uses lm_sensors to retrieve sensor-values. This means
+that all the needed modules have to be loaded and lm_sensors has to be
+configured (most likely by editing F</etc/sensors.conf>. Read
+L<sensors.conf(5)> for details.
+
+The B<lm_sensors> homepage can be found at
+L<http://secure.netroedge.com/~lm78/>.
+
+=head2 hddtemp
+
+To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
+port B<7634/tcp>. The B<Host> and B<Port> options can be used to change these
+default values. See L<collectd.conf(5)> for details. C<hddtemp> has to be
+running to work correctly. If C<hddtemp> is not running timeouts may appear
+which may interfere with other statistics..
+
+The B<hddtemp> homepage can be found at
+L<http://www.guzu.net/linux/hddtemp.php>.
+
 =head1 RRD FILES
 
 The RRD files are created automatically with the following RRAs:
@@ -308,87 +374,6 @@ The DS'es depend on the module creating the RRD files:
   DS:users:GAUGE:25:0:65535
 
 =back
-
-=head1 MODES
-
-By default collectd starts in the so called I<local mode> which is not very
-interesting. It collects data and writes it into RRD files in
-F</var/lib/collectd>. There's nothing special so I won't discuss that in more
-detail..
-
-Please be aware that B<client-, local- and server-mode are mutual exclusive>. A
-later declaration overrides earlier ones. I<collectd -l -c -s> will start in
-server-mode. If you want statistics of the server too you will have to start a
-client process as well.
-
-Starting with version 3 collectd may send data over a network. As common with
-network stuff there are two modes: A I<sender> and a I<listener>. Since one
-usually has many senders and only a few listeners the sender is also called
-I<client> (using the option B<-c>) and the listener is called I<server> (using
-the option B<-s>).
-
-Communication happends using the (IPv4) multicast group B<239.192.74.66> and
-packets sent to the port B<25826/udp>. Every ten seconds the I<client> queries
-all the modules and sends the collected data to the multicast group. The
-I<server> subscribes to the multicast group upon startup and then waits for
-incoming packets. As it receives the packets it checks wether it has the
-neccessary module and, if found, writes the data to an RRD file, creating
-directories and files as needed.
-
-The multicast group used is within the I<Organization Local Scope> as defined
-by L<RFC2365>. Addresses within that space are meant to be routed within an AS
-but not to the outside. However collectd cannot control this and won't try. So
-it's totally up to you to secure your net.
-
-The UDP port used has been checked to not be assigned by the IANA.
-
-On multi-homed machines you may need to add a route to the multicast net
-(B<224.0.0.0/4>) if multicast packages take the wrong interface. The listener
-on the other hand listens on B<all> interfaces.
-
-=head1 SPECIAL PLUGINS
-
-=head2 cpufreq
-
-This module reads F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for
-the first CPU installed) to get the current CPU frequency. If this file does
-not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
-similar tool is installed.
-
-=head2 mysql
-
-Requires B<mysqlclient> to be installed. It connects to the database when
-started and keeps the connection up as long as possible. When the connection is
-interrupted for whatever reason it will try to re-connect. The syslog will
-contain loud complaints in case anything goes wrong.
-
-This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
-C<Com_*> and C<Handler_*> which correspond to F<traffic-mysql.rrd>,
-F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Also, the values of
-C<Qcache_*> are put in F<mysql_qcache.rrd> and values of C<Threads_*> are put
-in F<mysql_threads.rrd>. Please refer to the B<MySQL reference manual>,
-I<5.2.4. Server Status Variables> for an explanation of these values.
-
-=head2 sensors
-
-The B<sensors> module uses lm_sensors to retrieve sensor-values. This means
-that all the needed modules have to be loaded and lm_sensors has to be
-configured (most likely by editing F</etc/sensors.conf>. Read
-L<sensors.conf(5)> for details.
-
-The B<lm_sensors> homepage can be found at
-L<http://secure.netroedge.com/~lm78/>.
-
-=head2 hddtemp
-
-To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
-port B<7634/tcp>. The B<Host> and B<Port> options can be used to change these
-default values. See L<collectd.conf(5)> for details. C<hddtemp> has to be
-running to work correctly. If C<hddtemp> is not running timeouts may appear
-which may interfere with other statistics..
-
-The B<hddtemp> homepage can be found at
-L<http://www.guzu.net/linux/hddtemp.php>.
 
 =head1 SEE ALSO
 
