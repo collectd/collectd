@@ -251,10 +251,14 @@ static int network_connect_default (void)
 
 	ret = 0;
 
-	if (network_create_socket (NET_DEFAULT_V4_ADDR, NET_DEFAULT_PORT) > 0)
+	if (network_create_socket (NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT) > 0)
 		ret++;
 
-	if (network_create_socket (NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT) > 0)
+	/* Don't use IPv4 and IPv6 in parallel by default.. */
+	if ((operating_mode == MODE_CLIENT) && (ret != 0))
+		return (ret);
+
+	if (network_create_socket (NET_DEFAULT_V4_ADDR, NET_DEFAULT_PORT) > 0)
 		ret++;
 
 	if (ret == 0)
@@ -275,38 +279,32 @@ static int network_get_listen_socket (void)
 	if (socklist_head == NULL)
 		network_connect_default ();
 
-	while (1)
+	FD_ZERO (&readfds);
+	max_fd = -1;
+	for (se = socklist_head; se != NULL; se = se->next)
 	{
-		FD_ZERO (&readfds);
-		max_fd = -1;
-		for (se = socklist_head; se != NULL; se = se->next)
-		{
-			if (se->mode != operating_mode)
-				continue;
-
-			FD_SET (se->fd, &readfds);
-			if (se->fd >= max_fd)
-				max_fd = se->fd + 1;
-		}
-
-		if (max_fd == -1)
-		{
-			syslog (LOG_WARNING, "No listen sockets found!");
-			return (-1);
-		}
-
-		status = select (max_fd, &readfds, NULL, NULL, NULL);
-
-		if ((status == -1) && (errno == EINTR))
+		if (se->mode != operating_mode)
 			continue;
-		else if (status == -1)
-		{
+
+		FD_SET (se->fd, &readfds);
+		if (se->fd >= max_fd)
+			max_fd = se->fd + 1;
+	}
+
+	if (max_fd == -1)
+	{
+		syslog (LOG_WARNING, "No listen sockets found!");
+		return (-1);
+	}
+
+	status = select (max_fd, &readfds, NULL, NULL, NULL);
+
+	if (status == -1)
+	{
+		if (errno != EINTR)
 			syslog (LOG_ERR, "select: %s", strerror (errno));
-			return (-1);
-		}
-		else
-			break;
-	} /* while (true) */
+		return (-1);
+	}
 
 	fd = -1;
 	for (se = socklist_head; se != NULL; se = se->next)
@@ -457,6 +455,7 @@ int network_send (char *type, char *inst, char *value)
 				else
 				{
 					syslog (LOG_ERR, "sendto: %s", strerror (errno));
+					ret = -1;
 					break;
 				}
 			}
