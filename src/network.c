@@ -30,6 +30,7 @@
 #include <arpa/inet.h>
 #include <syslog.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "network.h"
 #include "common.h"
@@ -52,36 +53,104 @@
 /* 1500 - 40 - 8  =  Ethernet packet - IPv6 header - UDP header */
 #define BUFF_SIZE 1452
 
-typedef struct socklist
+#define BUFF_SIZE 4096
+
+#ifdef HAVE_LIBRRD
+extern int operating_mode;
+#else
+static int operating_mode = MODE_CLIENT;
+#endif
+
+typedef struct sockent
 {
-	int              fd;
-	struct socklist *next;
-} socklist_t;
+	int                      fd;
+	struct sockaddr_storage *addr;
+	socklen_t                addrlen;
+	struct sockent          *next;
+} sockent_t;
 
-static socklist_t *listen_socks_head = NULL;
+static sockent_t *socklist_head = NULL;
 
-uint16_t get_port (void)
+static int network_bind_socket (int fd, const struct addrinfo *ai, const sockent_t *se)
 {
-	char *port_str;
-	int   port_int;
-	uint16_t ret;
+	int loop = 1;
 
-	port_str = cf_get_option ("Port", NULL);
-	port_int = 0;
+	if (bind (fd, ai->ai_addr, ai->ai_addrlen) == -1)
+	{
+		syslog (LOG_ERR, "bind: %s", strerror (errno));
+		return (-1);
+	}
 
-	if (port_str != NULL)
-		port_int = atoi (port_str);
+	if (ai->ai_family == AF_INET)
+	{
+		struct sockaddr_in *addr = (struct sockaddr_in *) ai->ai_addr;
+		if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
+		{
+			struct ip_mreq mreq;
 
-	if (port_int == 0)
-		port_int = UDP_PORT;
+			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
+			mreq.imr_interface.s_addr = htonl (INADDR_ANY);
 
-	ret = htons (port_int);
-	return (ret);
+			if (setsockopt (se->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
+						&loop, sizeof (loop)) == -1)
+			{
+				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				return (-1);
+			}
+
+			if (setsockopt (se->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+						&mreq, sizeof (mreq)) == -1)
+			{
+				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				return (-1);
+			}
+		}
+	}
+	else if (ai->ai_family == AF_INET6)
+	{
+		/* Useful example: http://gsyc.escet.urjc.es/~eva/IPv6-web/examples/mcast.html */
+		struct sockaddr_in6 *addr = (struct sockaddr_in6 *) ai->ai_addr;
+		if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
+		{
+			struct ipv6_mreq mreq;
+
+			memcpy (&mreq.ipv6mr_multiaddr,
+					&addr->sin6_addr,
+					sizeof (addr->sin6_addr));
+
+			/* http://developer.apple.com/documentation/Darwin/Reference/ManPages/man4/ip6.4.html
+			 * ipv6mr_interface may be set to zeroes to
+			 * choose the default multicast interface or to
+			 * the index of a particular multicast-capable
+			 * interface if the host is multihomed.
+			 * Membership is associ-associated with a
+			 * single interface; programs running on
+			 * multihomed hosts may need to join the same
+			 * group on more than one interface.*/
+			mreq6.ipv6mr_interface = 0;
+
+			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
+						&loop, sizeof (loop)) == -1)
+			{
+				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				return (-1);
+			}
+
+			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
+						&mreq, sizeof (mreq)) == -1)
+			{
+				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				return (-1);
+			}
+		}
+	}
+
+	return (0);
 }
 
-int network_create_listen_socket (const char *node, const char *service)
+int network_create_socket (const char *node, const char *service)
 {
-	socklist_t *socklist_tail;
+	sockent_t *socklist_tail;
 
 	struct addrinfo  ai_hints;
 	struct addrinfo *ai_list, *ai_ptr;
@@ -89,15 +158,20 @@ int network_create_listen_socket (const char *node, const char *service)
 
 	int num_added = 0;
 
-	socklist_tail = listen_socks_head;
+	DBG ("node = %s, service = %s", node, service);
+
+	if (operating_mode == MODE_LOCAL)
+		return (-1);
+
+	socklist_tail = socklist_head;
 	while ((socklist_tail != NULL) && (socklist_tail->next != NULL))
 		socklist_tail = socklist_tail->next;
 
 	memset (&ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_flags    = AI_PASSIVE | AI_ADDRCONFIG;
-	ai_hints.ai_family   = AF_UNSPEC;
+	ai_hints.ai_family   = PF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_DGRAM;
-	ai_hints.ai_protocol = IPPROTO_UDP;
+	ai_hints.ai_protocol = IPPROTO_UDP; /* XXX is this right here?!? */
 
 	if ((ai_return = getaddrinfo (node, service, &ai_hints, &ai_list)) != 0)
 	{
@@ -110,89 +184,60 @@ int network_create_listen_socket (const char *node, const char *service)
 
 	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
-		socklist_t *socklist_ent;
+		sockent_t *se;
 
-		if ((socklist_ent = (socklist_t *) malloc (sizeof (socklist_t))) == NULL)
+		if ((se = (sockent_t *) malloc (sizeof (sockent_t))) == NULL)
 		{
 			syslog (LOG_EMERG, "malloc: %s", strerror (errno));
 			continue;
 		}
 
-		socklist_ent->fd   = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
-		socklist_ent->next = NULL;
+		if ((se->addr = (struct sockaddr_storage *) malloc (sizeof (struct sockaddr_storage))) == NULL)
+		{
+			syslog (LOG_EMERG, "malloc: %s", strerror (errno));
+			free (se);
+			continue;
+		}
 
-		if (socklist_ent->fd == -1)
+		assert (sizeof (struct sockaddr_storage) >= ai_ptr->addrlen);
+		memset (se->addr, '\0', sizeof (struct sockaddr_storage));
+		memcpy (se->addr, ai_ptr->ai_addr, ai_ptr->addrlen);
+		se->addrlen = ai_ptr->addrlen;
+
+		se->fd   = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+		se->next = NULL;
+
+		if (se->fd == -1)
 		{
 			syslog (LOG_ERR, "socket: %s", strerror (errno));
-			free (socklist_ent);
+			free (se->addr);
+			free (se);
 			continue;
 		}
 
-		if (bind (socklist_ent->fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen) == -1)
-		{
-			syslog (LOG_ERR, "bind: %s", strerror (errno));
-			close (socklist_ent->fd);
-			free (socklist_ent);
-			continue;
-		}
-
-		if (ai_ptr->ai_family == AF_INET)
-		{
-			struct sockaddr_in *addr = (struct sockaddr_in *) ai_ptr->ai_addr;
-			if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
+		if (operating_mode == MODE_SERVER)
+			if (network_bind_socket (se->fd, ai_ptr, se->addr) != 0)
 			{
-				struct ip_mreq mreq;
-
-				mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-				mreq.imr_interface.s_addr = htonl (INADDR_ANY);
-
-				if (setsockopt (socklist_ent->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-							&mreq, sizeof (mreq)) == -1)
-				{
-					syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
-					close (socklist_ent->fd);
-					free (socklist_ent);
-					continue;
-				}
+				free (se->addr);
+				free (se);
+				continue;
 			}
-		}
-		else if (ai_ptr->ai_family == AF_INET6)
-		{
-			/* Useful example: http://gsyc.escet.urjc.es/~eva/IPv6-web/examples/mcast.html */
-			struct sockaddr_in6 *addr = (struct sockaddr_in6 *) ai_ptr->ai_addr;
-			if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
-			{
-				struct ipv6_mreq mreq;
-
-				memcpy (&mreq.ipv6mr_multiaddr,
-						&addr->sin6_addr,
-						sizeof (addr->sin6_addr));
-
-				/* FIXME What do I need here? `netdevice(7)'
-				 * doesn't tell me either.. */
-				mreq6.ipv6mr_interface = 0;
-
-				if (setsockopt (socklist_ent->fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
-							&mreq, sizeof (mreq)) == -1)
-				{
-					syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
-					close (socklist_ent->fd);
-					free (socklist_ent);
-					continue;
-				}
-			}
-		}
 
 		if (socklist_tail == NULL)
 		{
-			listen_socks_head = socklist_tail = socklist_ent;
+			socklist_head = socklist_tail = se;
 		}
 		else
 		{
-			socklist_tail->next = socklist_ent;
-			socklist_tail = socklist_ent;
+			socklist_tail->next = se;
+			socklist_tail = se;
 		}
+
 		num_added++;
+
+		/* We don't open more than one write-socket per node/service pair.. */
+		if (operating_mode == MODE_CLIENT)
+			break;
 	}
 
 	freeaddrinfo (ai_list);
@@ -200,103 +245,192 @@ int network_create_listen_socket (const char *node, const char *service)
 	return (num_added);
 }
 
-int get_write_socket (void)
+static int network_get_listen_socket (void)
 {
-	static int sd = -1;
+	int    fd;
+	int    max_fd;
 
-	if (sd != -1)
-		return (sd);
+	fd_set readfds;
+	sockent_t *se;
 
-	if ((sd = socket (AF_INET, SOCK_DGRAM, 0)) == -1)
+	while (1)
 	{
-		syslog (LOG_ERR, "socket: %s", strerror (errno));
-		return (-1);
-	}
+		FD_ZERO (&readfds);
+		max_fd = -1;
+		for (se = socklist_head; se != NULL; se = se->next)
+		{
+			FD_SET (se->fd, &readfds);
+			if (se->fd >= max_fd)
+				max_fd = se->fd + 1;
+		}
 
-	return (sd);
+		if (max_fd == -1)
+		{
+			syslog (LOG_WARNING, "No listen sockets found!");
+			return (-1);
+		}
+
+		status = select (max_fd, &readfds, NULL, NULL, NULL);
+
+		if ((status == -1) && (errno == EINTR))
+			continue;
+		else if (status == -1)
+		{
+			syslog (LOG_ERR, "select: %s", strerror (errno));
+			return (-1);
+		}
+		else
+			break;
+	} /* while (true) */
+
+	fd = -1;
+	for (se = socklist_head; se != NULL; se = se->next)
+		if (FD_ISSET (se->fd, &readfds))
+		{
+			fd = se->fd;
+			break;
+		}
+
+	if (fd == -1)
+		syslog (LOG_WARNING, "No socket ready..?");
+
+	DBG ("fd = %i", fd);
+	return (fd);
 }
 
-char *addr_to_host (struct sockaddr_in *addr)
+int network_receive (char **host, char **type, char **inst, char **value)
 {
-	char *host;
-	struct hostent *he;
-
-	if ((he = gethostbyaddr ((char *) &addr->sin_addr, sizeof (addr->sin_addr), AF_INET)) != NULL)
-	{
-		host = strdup (he->h_name);
-	}
-	else
-	{
-		char *tmp = inet_ntoa (addr->sin_addr);
-		host = strdup (tmp);
-	}
-
-	return (host);
-}
-
-int network_receive (char **host, char **type, char **instance, char **value)
-{
-	int sd = get_read_socket ();
-
+	int fd;
 	char buffer[BUFF_SIZE];
 
-	struct sockaddr_in addr;
-	socklen_t addr_size;
+	struct sockaddr_storage addr;
+	int status;
 
 	char *fields[4];
 
-	*host     = NULL;
-	*type     = NULL;
-	*instance = NULL;
-	*value    = NULL;
+	assert (operating_mode == MODE_SERVER);
 
-	if (sd == -1)
+	*host  = NULL;
+	*type  = NULL;
+	*inst  = NULL;
+	*value = NULL;
+
+	if ((fd = network_get_listen_socket ()) < 0)
 		return (-1);
 
-	addr_size = sizeof (addr);
-
-	if (recvfrom (sd, buffer, BUFF_SIZE, 0, (struct sockaddr *) &addr, &addr_size) == -1)
+	if (recvfrom (fd, buffer, BUFF_SIZE, 0, (struct sockaddr *) &addr, sizeof (addr)) == -1)
 	{
 		syslog (LOG_ERR, "recvfrom: %s", strerror (errno));
 		return (-1);
 	}
 
+	if ((*host = (char *) malloc (BUFF_SIZE)) == NULL)
+	{
+		syslog (LOG_EMERG, "malloc: %s", strerror (errno));
+		return (-1);
+	}
+
+	status = getnameinfo ((struct sockaddr *) &addr, sizeof (addr),
+			*host, BUFF_SIZE, NULL, 0, 0);
+	if (status != 0)
+	{
+		free (*host); *host = NULL;
+		syslog (LOG_ERR, "getnameinfo: %s",
+				status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
+		return (-1);
+	}
+
 	if (strsplit (buffer, fields, 4) != 3)
+	{
+		syslog (LOG_WARNING, "Invalid message from `%s'", *host);
+		free (*host); *host = NULL;
 		return (-1);
+	}
 
-	*host     = addr_to_host (&addr);
-	*type     = strdup (fields[0]);
-	*instance = strdup (fields[1]);
-	*value    = strdup (fields[2]);
-
-	if (*host == NULL || *type == NULL || *instance == NULL || *value == NULL)
+	if ((*type = strdup (fields[0])) == NULL)
+	{
+		syslog (LOG_EMERG, "strdup: %s", strerror ());
+		free (*host); *host = NULL;
 		return (-1);
+	}
+
+	if ((*inst = strdup (fields[1])) == NULL)
+	{
+		syslog (LOG_EMERG, "strdup: %s", strerror ());
+		free (*host); *host = NULL;
+		free (*type); *type = NULL;
+		return (-1);
+	}
+
+	if ((*value = strdup (fields[2])) == NULL)
+	{
+		syslog (LOG_EMERG, "strdup: %s", strerror ());
+		free (*host); *host = NULL;
+		free (*type); *type = NULL;
+		free (*inst); *inst = NULL;
+		return (-1);
+	}
+
+	DBG ("host = %s, type = %s, inst = %s, value = %s",
+			*host, *type, *inst, *value);
 
 	return (0);
 }
 
-int network_send (char *type, char *instance, char *value)
+int network_send (char *type, char *inst, char *value)
 {
-	int sd = get_write_socket ();
-	struct sockaddr_in addr;
-
 	char buf[BUFF_SIZE];
 	int buflen;
 
-	if (sd == -1)
-		return (-1);
+	sockent_t *se;
 
-	if ((buflen = snprintf (buf, BUFF_SIZE, "%s %s %s", type, instance, value)) >= BUFF_SIZE)
+	int ret;
+	int status;
+
+	DBG ("type = %s, inst = %s, value = %s", type, inst, value);
+
+	assert (operating_mode == MODE_CLIENT);
+
+	buflen = snprintf (buf, BUFF_SIZE, "%s %s %s", type, inst, value);
+	if ((buflen >= BUFF_SIZE) || (buflen < 1))
 	{
-		syslog (LOG_WARNING, "network_send: Output truncated..");
+		syslog (LOG_WARNING, "network_send: snprintf failed..");
 		return (-1);
 	}
-	buf[buflen++] = '\0';
+	buf[buflen] = '\0';
+	buflen++;
 
-	memset(&addr, '\0', sizeof (addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = inet_addr (IPV4_MCAST_GROUP);
-	addr.sin_port = get_port ();
+	ret = 0;
+	for (se = socklist_head; se != NULL; se = se->next)
+	{
+		DBG ("fd = %i", se->fd);
 
-	return (sendto (sd, buf, buflen, 0, (struct sockaddr *) &addr, sizeof (addr)));
+		while (1)
+		{
+			status = sendto (se->fd, buf, buflen, 0,
+					(struct sockaddr *) se->addr, se->addrlen);
+
+			if (status == -1)
+			{
+				if (errno == EINTR)
+				{
+					DBG ("sendto was interrupted");
+					continue;
+				}
+				else
+				{
+					syslog (LOG_ERR, "sendto: %s", strerror (errno));
+					break;
+				}
+			}
+			else if (ret >= 0)
+				ret++;
+			break;
+		}
+	}
+
+	if (ret == 0)
+		syslog (LOG_WARNING, "Message wasn't sent to anybody..");
+
+	return (ret);
 }
