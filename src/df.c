@@ -33,13 +33,12 @@
 # define DF_HAVE_READ 0
 #endif
 
-#if HAVE_STATFS
-#define STATANYFS statfs
-#define BLOCKSIZE(s) (s).f_bsize
-
-#elif HAVE_STATVFS
-#define STATANYFS statvfs
-#define BLOCKSIZE(s) ((s).f_frsize ? (s).f_frsize : (s).f_bsize)
+#if HAVE_STATVFS
+# define STATANYFS statvfs
+# define BLOCKSIZE(s) ((s).f_frsize ? (s).f_frsize : (s).f_bsize)
+#elif HAVE_STATFS
+# define STATANYFS statfs
+# define BLOCKSIZE(s) (s).f_bsize
 #endif
 
 static char *filename_template = "df-%s.rrd";
