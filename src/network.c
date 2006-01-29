@@ -34,6 +34,7 @@
 
 #include "network.h"
 #include "common.h"
+#include "utils_debug.h"
 
 /*
  * From RFC2365:
@@ -51,7 +52,7 @@
 #define UDP_PORT 25826
 
 /* 1500 - 40 - 8  =  Ethernet packet - IPv6 header - UDP header */
-#define BUFF_SIZE 1452
+/* #define BUFF_SIZE 1452 */
 
 #define BUFF_SIZE 4096
 
@@ -71,11 +72,11 @@ typedef struct sockent
 
 static sockent_t *socklist_head = NULL;
 
-static int network_bind_socket (int fd, const struct addrinfo *ai, const sockent_t *se)
+static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
 	int loop = 1;
 
-	if (bind (fd, ai->ai_addr, ai->ai_addrlen) == -1)
+	if (bind (se->fd, ai->ai_addr, ai->ai_addrlen) == -1)
 	{
 		syslog (LOG_ERR, "bind: %s", strerror (errno));
 		return (-1);
@@ -127,7 +128,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const sockent
 			 * single interface; programs running on
 			 * multihomed hosts may need to join the same
 			 * group on more than one interface.*/
-			mreq6.ipv6mr_interface = 0;
+			mreq.ipv6mr_interface = 0;
 
 			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
@@ -199,10 +200,10 @@ int network_create_socket (const char *node, const char *service)
 			continue;
 		}
 
-		assert (sizeof (struct sockaddr_storage) >= ai_ptr->addrlen);
+		assert (sizeof (struct sockaddr_storage) >= ai_ptr->ai_addrlen);
 		memset (se->addr, '\0', sizeof (struct sockaddr_storage));
-		memcpy (se->addr, ai_ptr->ai_addr, ai_ptr->addrlen);
-		se->addrlen = ai_ptr->addrlen;
+		memcpy (se->addr, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+		se->addrlen = ai_ptr->ai_addrlen;
 
 		se->fd   = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
 		se->next = NULL;
@@ -216,7 +217,7 @@ int network_create_socket (const char *node, const char *service)
 		}
 
 		if (operating_mode == MODE_SERVER)
-			if (network_bind_socket (se->fd, ai_ptr, se->addr) != 0)
+			if (network_bind_socket (se, ai_ptr) != 0)
 			{
 				free (se->addr);
 				free (se);
@@ -247,8 +248,9 @@ int network_create_socket (const char *node, const char *service)
 
 static int network_get_listen_socket (void)
 {
-	int    fd;
-	int    max_fd;
+	int fd;
+	int max_fd;
+	int status;
 
 	fd_set readfds;
 	sockent_t *se;
@@ -304,6 +306,7 @@ int network_receive (char **host, char **type, char **inst, char **value)
 	char buffer[BUFF_SIZE];
 
 	struct sockaddr_storage addr;
+	socklen_t               addrlen;
 	int status;
 
 	char *fields[4];
@@ -318,7 +321,7 @@ int network_receive (char **host, char **type, char **inst, char **value)
 	if ((fd = network_get_listen_socket ()) < 0)
 		return (-1);
 
-	if (recvfrom (fd, buffer, BUFF_SIZE, 0, (struct sockaddr *) &addr, sizeof (addr)) == -1)
+	if (recvfrom (fd, buffer, BUFF_SIZE, 0, (struct sockaddr *) &addr, &addrlen) == -1)
 	{
 		syslog (LOG_ERR, "recvfrom: %s", strerror (errno));
 		return (-1);
@@ -330,7 +333,7 @@ int network_receive (char **host, char **type, char **inst, char **value)
 		return (-1);
 	}
 
-	status = getnameinfo ((struct sockaddr *) &addr, sizeof (addr),
+	status = getnameinfo ((struct sockaddr *) &addr, addrlen,
 			*host, BUFF_SIZE, NULL, 0, 0);
 	if (status != 0)
 	{
@@ -349,14 +352,14 @@ int network_receive (char **host, char **type, char **inst, char **value)
 
 	if ((*type = strdup (fields[0])) == NULL)
 	{
-		syslog (LOG_EMERG, "strdup: %s", strerror ());
+		syslog (LOG_EMERG, "strdup: %s", strerror (errno));
 		free (*host); *host = NULL;
 		return (-1);
 	}
 
 	if ((*inst = strdup (fields[1])) == NULL)
 	{
-		syslog (LOG_EMERG, "strdup: %s", strerror ());
+		syslog (LOG_EMERG, "strdup: %s", strerror (errno));
 		free (*host); *host = NULL;
 		free (*type); *type = NULL;
 		return (-1);
@@ -364,7 +367,7 @@ int network_receive (char **host, char **type, char **inst, char **value)
 
 	if ((*value = strdup (fields[2])) == NULL)
 	{
-		syslog (LOG_EMERG, "strdup: %s", strerror ());
+		syslog (LOG_EMERG, "strdup: %s", strerror (errno));
 		free (*host); *host = NULL;
 		free (*type); *type = NULL;
 		free (*inst); *inst = NULL;

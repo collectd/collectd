@@ -10,6 +10,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_mount.c utils_mount.h \
 		   common.c common.h \
 		   multicast.c multicast.h \
+		   network.c network.h \
 		   plugin.c plugin.h \
 		   configfile.c configfile.h
 #collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
