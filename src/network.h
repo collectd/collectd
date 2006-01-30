@@ -54,6 +54,7 @@
 #define NET_DEFAULT_V4_ADDR "239.192.74.66"
 #define NET_DEFAULT_V6_ADDR "ff18::efc0:4a42"
 #define NET_DEFAULT_PORT    "25826"
+#define NET_DEFAULT_MC_TTL  1
 
 int network_create_socket (const char *node, const char *service);
 int network_receive (char **host, char **type, char **instance, char **value);

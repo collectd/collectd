@@ -69,15 +69,12 @@ typedef struct cf_mode_item
  */
 static cf_mode_item_t cf_mode_list[] =
 {
-	/*
-	{"Server",      NULL, MODE_CLIENT                           },
-	{"Port",        NULL, MODE_CLIENT | MODE_SERVER             },
-	*/
+	{"MulticastTTL",NULL, MODE_CLIENT                           },
 	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
 	{"DataDir",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
 	{"LogFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL}
 };
-static int cf_mode_num = 3;
+static int cf_mode_num = 4;
 
 static int nesting_depth = 0;
 static char *current_module = NULL;

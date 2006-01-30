@@ -33,6 +33,7 @@
 
 #include "network.h"
 #include "common.h"
+#include "configfile.h"
 #include "utils_debug.h"
 
 /* 1500 - 40 - 8  =  Ethernet packet - IPv6 header - UDP header */
@@ -61,6 +62,16 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
 	int loop = 1;
 
+	char *ttl_str;
+	int   ttl_int;
+
+	ttl_str = cf_get_option ("MulticastTTL", NULL);
+	ttl_int = 0;
+	if (ttl_str != NULL)
+		ttl_int = atoi (ttl_str);
+	if ((ttl_int < 1) || (ttl_int > 255))
+		ttl_int = NET_DEFAULT_MC_TTL;
+
 	DBG ("fd = %i; calling `bind'", se->fd);
 
 	if (bind (se->fd, ai->ai_addr, ai->ai_addrlen) == -1)
@@ -83,6 +94,14 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 
 			if (setsockopt (se->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
+			{
+				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				return (-1);
+			}
+
+			/* IP_MULTICAST_TTL */
+			if (setsockopt (se->fd, IPPROTO_IP, IP_MULTICAST_TTL,
+						&ttl_int, sizeof (ttl_int)) == -1)
 			{
 				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
 				return (-1);
@@ -123,6 +142,13 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 
 			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
+			{
+				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				return (-1);
+			}
+
+			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS,
+						&ttl_int, sizeof (ttl_int)) == -1)
 			{
 				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
 				return (-1);
