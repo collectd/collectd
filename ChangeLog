@@ -1,4 +1,4 @@
-2006-01-28, Version 3.7.0
+2006-01-30, Version 3.7.0
 	* The `battery' plugin has been added. It collects information about
 	  laptop batteries..
 	* The MySQL plugin has been improved: It now writes two more RRD
@@ -9,6 +9,9 @@
 	* The `hddtemp' plugin can now be configured to connect to another
 	  address and/or port than localhost.
 	* The `df' plugin now prefers `statvfs' over `statfs'.
+	* The network code has been rewritten. collectd now supports unicast
+	  and multicast, and IPv4 and IPv6. Also, the TTL of multicast packets
+	  can be set in the configfile.
 
 2006-01-24, Version 3.6.2
 	* Due to a bug in the configfile handling collectd wouldn't start in

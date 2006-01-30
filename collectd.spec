@@ -1,6 +1,6 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	3.6.1
+Version:	3.7.0
 Release:	1
 Source:		http://verplant.org/collectd/%{name}-%{version}.tar.gz
 License:	GPL
@@ -17,14 +17,6 @@ system  statistics  and updates  RRD files,  creating  them if neccessary.
 Since the daemon doesn't need to startup every time it wants to update the
 files it's very fast and easy on the system. Also, the statistics are very
 fine grained since the files are updated every 10 seconds.
-
-%package hddtemp
-Summary:	hddtemp-module for collectd.
-Group:		System Environment/Daemons
-Requires:	collectd = %{version}, hddtemp >= 0.3
-%description hddtemp
-This plugin for  collectd provides querying  the hddtemp-daemon.  For more
-information see hddtemp's homepage:  http://www.guzu.net/linux/hddtemp.php
 
 %package mysql
 Summary:	mysql-module for collectd.
@@ -71,10 +63,12 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) %{_sbindir}/collectd
 %attr(0444,root,root) %{_mandir}/man1/*
 %attr(0444,root,root) %{_mandir}/man5/*
+%attr(0444,root,root) %{_libdir}/%{name}/battery.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpu.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpufreq.so*
 %attr(0444,root,root) %{_libdir}/%{name}/df.so*
 %attr(0444,root,root) %{_libdir}/%{name}/disk.so*
+%attr(0444,root,root) %{_libdir}/%{name}/hddtemp.so*
 %attr(0444,root,root) %{_libdir}/%{name}/load.so*
 %attr(0444,root,root) %{_libdir}/%{name}/memory.so*
 %attr(0444,root,root) %{_libdir}/%{name}/nfs.so*
@@ -86,9 +80,6 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/users.so*
 %dir /var/lib/collectd
 
-%files hddtemp
-%attr(0444,root,root) %{_libdir}/%{name}/hddtemp.so*
-
 %files mysql
 %attr(0444,root,root) %{_libdir}/%{name}/mysql.so*
 
@@ -96,6 +87,13 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
+* Mon Jan 30 2006 Florian octo Forster <octo@verplant.org> 3.7.0-1
+- New upstream version
+- Removed the extra `hddtemp' package
+
+* Tue Jan 24 2006 Florian octo Forster <octo@verplant.org> 3.6.2-1
+- New upstream version
+
 * Fri Jan 20 2006 Florian octo Forster <octo@verplant.org> 3.6.1-1
 - New upstream version
 

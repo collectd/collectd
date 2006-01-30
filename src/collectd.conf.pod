@@ -90,6 +90,10 @@ The optional I<Port> argument sets the port to use. It can either be given
 using a numeric port number or a service name. If the argument is omited the
 default port B<25826> is assumed.
 
+=item B<MulticastTTL> I<1-255>
+
+Set the time-to-live of multicast packets. The default is a TTL of C<1>.
+
 =back
 
 =head1 PLUGIN OPTIONS

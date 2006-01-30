@@ -34,16 +34,6 @@
 #include <netinet/tcp.h>
 #include <libgen.h> /* for basename */
 
-#if 0
-/* LOCALHOST_ADDR
-   The ip address 127.0.0.1, as a 32 bit. */
-#define LOCALHOST_ADDR 0x7F000001
-
-/* HDDTEMP_PORT
-   The tcp port the hddtemp daemon is listening on. */
-#define HDDTEMP_PORT 7634
-#endif
-
 #define HDDTEMP_DEF_HOST "127.0.0.1"
 #define HDDTEMP_DEF_PORT "7634"
 
@@ -101,6 +91,7 @@ static char *hddtemp_port = NULL;
  *
  * FIXME:
  *  we need to create a new socket each time. Is there another way?
+ *  Hm, maybe we can re-use the `sockaddr' structure? -octo
  */
 static int hddtemp_query_daemon (char *buffer, int buffer_size)
 {
