@@ -20,9 +20,6 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-/* TODO
- * make internal-only functions `static' */
-
 #include "collectd.h"
 
 #include "libconfig/libconfig.h"
@@ -80,14 +77,14 @@ static int nesting_depth = 0;
 static char *current_module = NULL;
 
 /* `cf_register' needs this prototype */
-int cf_callback_plugin_dispatch (const char *, const char *, const char *,
-		const char *, lc_flags_t, void *);
+static int cf_callback_plugin_dispatch (const char *, const char *,
+		const char *, const char *, lc_flags_t, void *);
 
 /*
  * Functions to handle register/unregister, search, and other plugin related
  * stuff
  */
-cf_callback_t *cf_search (char *type)
+static cf_callback_t *cf_search (char *type)
 {
 	cf_callback_t *cf_cb;
 
@@ -101,7 +98,7 @@ cf_callback_t *cf_search (char *type)
 	return (cf_cb);
 }
 
-int cf_dispatch (char *type, const char *orig_key, const char *orig_value)
+static int cf_dispatch (char *type, const char *orig_key, const char *orig_value)
 {
 	cf_callback_t *cf_cb;
 	char *key;
@@ -238,7 +235,7 @@ char *cf_get_option (const char *key, char *def)
  *
  * Mode `value'
  */
-int cf_callback_mode (const char *shortvar, const char *var,
+static int cf_callback_mode (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -268,7 +265,7 @@ int cf_callback_mode (const char *shortvar, const char *var,
  *   PluginDir `value'
  * </Mode>
  */
-int cf_callback_mode_plugindir (const char *shortvar, const char *var,
+static int cf_callback_mode_plugindir (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -280,7 +277,7 @@ int cf_callback_mode_plugindir (const char *shortvar, const char *var,
 	return (LC_CBRET_OKAY);
 }
 
-int cf_callback_mode_option (const char *shortvar, const char *var,
+static int cf_callback_mode_option (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -332,7 +329,7 @@ int cf_callback_mode_option (const char *shortvar, const char *var,
  *   LoadPlugin `value'
  * </Mode>
  */
-int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
+static int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -347,37 +344,7 @@ int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
 	return (LC_CBRET_OKAY);
 }
 
-/*
- * `cf_callback_mode_switch'
- *   Change the contents of the global variable `operating_mode'
- *
- *   This should be command line options. One *can* do this in the config
- *   files, but I will not document this. Don't whine abount it not working as
- *   you expect if you do it anyways.
- */
-int cf_callback_mode_switch (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
-
-	if (strcasecmp (shortvar, "Client") == 0)
-		operating_mode = MODE_CLIENT;
-	else if (strcasecmp (shortvar, "Local") == 0)
-		operating_mode = MODE_LOCAL;
-	else if (strcasecmp (shortvar, "Server") == 0)
-		operating_mode = MODE_SERVER;
-	else
-	{
-		fprintf (stderr, "cf_callback_mode_switch: Wrong mode!\n");
-		return (LC_CBRET_ERROR);
-	}
-
-	return (LC_CBRET_OKAY);
-}
-
-int cf_callback_socket (const char *shortvar, const char *var,
+static int cf_callback_socket (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -428,7 +395,7 @@ int cf_callback_socket (const char *shortvar, const char *var,
  *   ...
  * </Plugin>
  */
-int cf_callback_plugin (const char *shortvar, const char *var,
+static int cf_callback_plugin (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -489,7 +456,7 @@ int cf_callback_plugin (const char *shortvar, const char *var,
  *   `var' `value'
  * </Plugin>
  */
-int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
+static int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
@@ -509,7 +476,7 @@ int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
 	return (LC_CBRET_OKAY);
 }
 
-void cf_init (void)
+static void cf_init (void)
 {
 	static int run_once = 0;
 	int i;
