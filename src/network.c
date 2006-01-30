@@ -163,7 +163,7 @@ int network_create_socket (const char *node, const char *service)
 	ai_hints.ai_flags    = AI_PASSIVE | AI_ADDRCONFIG;
 	ai_hints.ai_family   = PF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_DGRAM;
-	ai_hints.ai_protocol = IPPROTO_UDP; /* XXX is this right here?!? */
+	ai_hints.ai_protocol = IPPROTO_UDP;
 
 	if ((ai_return = getaddrinfo (node, service, &ai_hints, &ai_list)) != 0)
 	{
@@ -346,6 +346,7 @@ int network_receive (char **host, char **type, char **inst, char **value)
 	if ((fd = network_get_listen_socket ()) < 0)
 		return (-1);
 
+	addrlen = sizeof (addr);
 	if (recvfrom (fd, buffer, BUFF_SIZE, 0, (struct sockaddr *) &addr, &addrlen) == -1)
 	{
 		syslog (LOG_ERR, "recvfrom: %s", strerror (errno));
