@@ -45,7 +45,7 @@
 #endif
 
 #define HDDTEMP_DEF_HOST "127.0.0.1"
-#define HDDTEMP_DEF_PORT 7634
+#define HDDTEMP_DEF_PORT "7634"
 
 /* BUFFER_SIZE
    Size of the buffer we use to receive from the hddtemp daemon. */
@@ -78,7 +78,7 @@ typedef struct hddname
 
 static hddname_t *first_hddname = NULL;
 static char *hddtemp_host = NULL;
-static int   hddtemp_port = 0;
+static char *hddtemp_port = NULL;
 
 /*
  * NAME
@@ -104,67 +104,71 @@ static int   hddtemp_port = 0;
  */
 static int hddtemp_query_daemon (char *buffer, int buffer_size)
 {
-	int sock;
+	int fd;
 	ssize_t status;
 	int buffer_fill;
 
 	char *host;
-	int   port;
+	char *port;
 
-	struct hostent     *srv_ent;
-	struct sockaddr_in  srv_addr;
+	struct addrinfo  ai_hints;
+	struct addrinfo *ai_list, *ai_ptr;
+	int              ai_return;
+
+	memset (&ai_hints, '\0', sizeof (ai_hints));
+	ai_hints.ai_flags    = AI_ADDRCONFIG;
+	ai_hints.ai_family   = PF_UNSPEC;
+	ai_hints.ai_socktype = SOCK_STREAM;
+	ai_hints.ai_protocol = IPPROTO_TCP;
 
 	host = hddtemp_host;
 	if (host == NULL)
 		host = HDDTEMP_DEF_HOST;
 
 	port = hddtemp_port;
-	if (port == 0)
+	if (port == NULL)
 		port = HDDTEMP_DEF_PORT;
 
-	/*
-	 * Resolve `host' address and set up `srv_addr'
-	 */
-	memset (&srv_addr, '\0', sizeof (srv_addr));
-
-	/*
-	 * FIXME
-	 * use `getaddrinfo'
-	 */
-	if ((srv_ent = gethostbyname (host)) == NULL)
+	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
-		syslog (LOG_WARNING, "hddtemp: Could not resolve hostname `%s'",
-				host);
-		return (-1);
-	}
-	
-	memcpy (&srv_addr.sin_addr.s_addr, srv_ent->h_addr, srv_ent->h_length);
-	srv_addr.sin_port   = htons (port);
-	srv_addr.sin_family = AF_INET;
-
-	/* create our socket descriptor */
-	if ((sock = socket (PF_INET, SOCK_STREAM, 0)) < 0)
-	{
-		syslog (LOG_ERR, "hddtemp: could not create socket: %s",
-				strerror (errno));
+		syslog (LOG_ERR, "hddtemp: getaddrinfo (%s, %s): %s",
+				host, port,
+				ai_return == EAI_SYSTEM ? strerror (errno) : gai_strerror (ai_return));
 		return (-1);
 	}
 
-	/* connect to the hddtemp daemon */
-	if (connect (sock, (struct sockaddr *) &srv_addr, sizeof (srv_addr)))
+	fd = -1;
+	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
-		syslog (LOG_ERR, "hddtemp: Could not connect to the hddtemp "
-				"daemon at %s:%i: %s",
-				host, port, strerror (errno));
-		close (sock);
-		return (-1);
+		/* create our socket descriptor */
+		if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0)
+		{
+			syslog (LOG_ERR, "hddtemp: socket: %s",
+					strerror (errno));
+			continue;
+		}
+
+		/* connect to the hddtemp daemon */
+		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
+		{
+			syslog (LOG_ERR, "hddtemp: connect (%s, %s): %s",
+					host, port, strerror (errno));
+			close (fd);
+			fd = -1;
+			continue;
+		}
 	}
+
+	freeaddrinfo (ai_list);
+
+	if (fd < 0)
+		return (-1);
 
 	/* receive data from the hddtemp daemon */
 	memset (buffer, '\0', buffer_size);
 
 	buffer_fill = 0;
-	while ((status = read (sock, buffer + buffer_fill, buffer_size - buffer_fill)) != 0)
+	while ((status = read (fd, buffer + buffer_fill, buffer_size - buffer_fill)) != 0)
 	{
 		if (status == -1)
 		{
@@ -190,11 +194,11 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	{
 		syslog (LOG_WARNING, "hddtemp: Peer has unexpectedly shut down the socket. "
 				"Buffer: `%s'", buffer);
-		close (sock);
+		close (fd);
 		return (-1);
 	}
 
-	close (sock);
+	close (fd);
 	return (0);
 }
 
@@ -208,7 +212,9 @@ static int hddtemp_config (char *key, char *value)
 	}
 	else if (strcasecmp (key, "port") == 0)
 	{
-		hddtemp_port = atoi (value);
+		if (hddtemp_port != NULL)
+			free (hddtemp_port);
+		hddtemp_port = strdup (value);
 	}
 	else
 	{
