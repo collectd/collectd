@@ -187,10 +187,21 @@ case $host_os in
 esac
 AC_MSG_RESULT([$ac_system])
 
-dnl Checks for libraries.
-# FIXME don't link all plugins against these libraries!
-AC_CHECK_LIB(socket, socket)
-AC_CHECK_LIB(resolv, res_search)
+with_libsocket="yes"
+AC_CHECK_LIB(socket, socket,
+[
+	AC_DEFINE(HAVE_LIBSOCKET, 1, [Define to 1 if you have the 'socket' library (-lsocket).])
+],
+[with_libsocket="no"])
+AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$with_libsocket" = "xyes")
+
+with_libresolv="yes"
+AC_CHECK_LIB(resolv, res_search,
+[
+	AC_DEFINE(HAVE_LIBRESOLV, 1, [Define to 1 if you have the 'resolv' library (-lresolv).])
+],
+[with_libresolv="no"])
+AM_CONDITIONAL(BUILD_WITH_LIBRESOLV, test "x$with_libresolv" = "xyes")
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
@@ -206,7 +217,11 @@ AC_ARG_WITH(rrdtool, [AS_HELP_STRING([--with-rrdtool@<:@=PREFIX@:>@], [Path to r
 ], [with_rrdtool="yes"])
 if test "x$with_rrdtool" = "xyes"
 then
-	AC_CHECK_LIB(rrd, rrd_update,, [with_rrdtool="no (librrd not found)"], [-lm])
+	AC_CHECK_LIB(rrd, rrd_update,
+	[
+		AC_DEFINE(HAVE_LIBRRD, 1, [Define to 1 if you have the rrd library (-lrrd).])
+	],
+	[with_rrdtool="no (librrd not found)"], [-lm])
 fi
 if test "x$with_rrdtool" = "xyes"
 then

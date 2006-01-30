@@ -16,7 +16,6 @@ collectd_SOURCES = collectd.c collectd.h \
 		   network.c network.h \
 		   plugin.c plugin.h \
 		   configfile.c configfile.h
-#collectd_CFLAGS = -DPLUGINDIR='"$(pkglibdir)"'
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
 collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
@@ -27,7 +26,19 @@ collectd_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 if BUILD_FEATURE_DEBUG
 collectd_CPPFLAGS += -DLOGFILE='"${localstatedir}/log/${PACKAGE_NAME}/collectd.log"'
 endif
+
+# Link to these libraries..
 collectd_LDFLAGS = -export-dynamic
+if BUILD_WITH_RRDTOOL
+collectd_LDFLAGS += -lm -lrrd
+endif
+if BUILD_WITH_LIBSOCKET
+collectd_LDFLAGS += -lsocket
+endif
+if BUILD_WITH_LIBRESOLV
+collectd_LDFLAGS += -lresolv
+endif
+
 collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self
 collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
 
