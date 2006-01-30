@@ -10,8 +10,8 @@
 	  address and/or port than localhost.
 	* The `df' plugin now prefers `statvfs' over `statfs'.
 	* The network code has been rewritten. collectd now supports unicast
-	  and multicast, and IPv4 and IPv6. Also, the TTL of multicast packets
-	  can be set in the configfile.
+	  and multicast, and IPv4 and IPv6. Also, the TTL of sent packages can
+	  be set in the configfile.
 
 2006-01-24, Version 3.6.2
 	* Due to a bug in the configfile handling collectd wouldn't start in

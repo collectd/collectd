@@ -66,7 +66,7 @@ typedef struct cf_mode_item
  */
 static cf_mode_item_t cf_mode_list[] =
 {
-	{"MulticastTTL",NULL, MODE_CLIENT                           },
+	{"TimeToLive",  NULL, MODE_CLIENT                           },
 	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
 	{"DataDir",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
 	{"LogFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL}

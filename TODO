@@ -1,9 +1,4 @@
-For version 3.6:
-* Fix RPM package
-
 For version 3.*:
 * Port nfs module to solaris
 * Port tape module to Linux
 * Maybe look into porting the serial module
-* Ping bug (disabled)
-* Write battery status, using /proc/pmu/battery_%i

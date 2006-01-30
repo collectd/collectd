@@ -58,19 +58,66 @@ typedef struct sockent
 
 static sockent_t *socklist_head = NULL;
 
-static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
+static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 {
-	int loop = 1;
-
 	char *ttl_str;
 	int   ttl_int;
 
-	ttl_str = cf_get_option ("MulticastTTL", NULL);
-	ttl_int = 0;
-	if (ttl_str != NULL)
-		ttl_int = atoi (ttl_str);
+	ttl_str = cf_get_option ("TimeToLive", NULL);
+	if (ttl_str == NULL)
+		return (-1);
+
+	ttl_int = atoi (ttl_str);
 	if ((ttl_int < 1) || (ttl_int > 255))
-		ttl_int = NET_DEFAULT_MC_TTL;
+	{
+		syslog (LOG_WARNING, "A TTL value of %i is invalid.", ttl_int);
+		return (-1);
+	}
+
+	DBG ("ttl = %i", ttl_int);
+
+	if (ai->ai_family == AF_INET)
+	{
+		struct sockaddr_in *addr = (struct sockaddr_in *) ai->ai_addr;
+		int optname;
+
+		if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
+			optname = IP_MULTICAST_TTL;
+		else
+			optname = IP_TTL;
+
+		if (setsockopt (se->fd, IPPROTO_IP, optname,
+					&ttl_int, sizeof (ttl_int)) == -1)
+		{
+			syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+			return (-1);
+		}
+	}
+	else if (ai->ai_family == AF_INET6)
+	{
+		/* Useful example: http://gsyc.escet.urjc.es/~eva/IPv6-web/examples/mcast.html */
+		struct sockaddr_in6 *addr = (struct sockaddr_in6 *) ai->ai_addr;
+		int optname;
+
+		if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
+			optname = IPV6_MULTICAST_HOPS;
+		else
+			optname = IPV6_UNICAST_HOPS;
+
+		if (setsockopt (se->fd, IPPROTO_IPV6, optname,
+					&ttl_int, sizeof (ttl_int)) == -1)
+		{
+			syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+			return (-1);
+		}
+	}
+
+	return (0);
+}
+
+static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
+{
+	int loop = 1;
 
 	DBG ("fd = %i; calling `bind'", se->fd);
 
@@ -94,14 +141,6 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 
 			if (setsockopt (se->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
-			{
-				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
-				return (-1);
-			}
-
-			/* IP_MULTICAST_TTL */
-			if (setsockopt (se->fd, IPPROTO_IP, IP_MULTICAST_TTL,
-						&ttl_int, sizeof (ttl_int)) == -1)
 			{
 				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
 				return (-1);
@@ -142,13 +181,6 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 
 			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
-			{
-				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
-				return (-1);
-			}
-
-			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS,
-						&ttl_int, sizeof (ttl_int)) == -1)
 			{
 				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
 				return (-1);
@@ -235,12 +267,18 @@ int network_create_socket (const char *node, const char *service)
 		}
 
 		if (operating_mode == MODE_SERVER)
+		{
 			if (network_bind_socket (se, ai_ptr) != 0)
 			{
 				free (se->addr);
 				free (se);
 				continue;
 			}
+		}
+		else if (operating_mode == MODE_CLIENT)
+		{
+			network_set_ttl (se, ai_ptr);
+		}
 
 		if (socklist_tail == NULL)
 		{
