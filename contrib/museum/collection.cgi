@@ -53,6 +53,18 @@ our $GraphDefs;
 	
 	$GraphDefs =
 	{
+		charge => [
+			'DEF:avg={file}:charge:AVERAGE',
+			'DEF:min={file}:charge:MIN',
+			'DEF:max={file}:charge:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Charge",
+			'GPRINT:min:MIN:%5.1lf%sAh Min,',
+			'GPRINT:avg:AVERAGE:%5.1lf%sAh Avg,',
+			'GPRINT:max:MAX:%5.1lf%sAh Max,',
+			'GPRINT:avg:LAST:%5.1lf%sAh Last\l'
+		],
 		cpu => ['DEF:user_avg={file}:user:AVERAGE',
 			'DEF:user_min={file}:user:MIN',
 			'DEF:user_max={file}:user:MAX',
@@ -110,6 +122,18 @@ our $GraphDefs;
 			'GPRINT:syst_avg:AVERAGE:%5.1lf%% Avg,',
 			'GPRINT:syst_max:MAX:%5.1lf%% Max,',
 			'GPRINT:syst_avg:LAST:%5.1lf%% Last\l'
+		],
+		current => [
+			'DEF:avg={file}:current:AVERAGE',
+			'DEF:min={file}:current:MIN',
+			'DEF:max={file}:current:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Current",
+			'GPRINT:min:MIN:%5.1lf%sA Min,',
+			'GPRINT:avg:AVERAGE:%5.1lf%sA Avg,',
+			'GPRINT:max:MAX:%5.1lf%sA Max,',
+			'GPRINT:avg:LAST:%5.1lf%sA Last\l'
 		],
 		df => [
 			'DEF:free_avg={file}:free:AVERAGE',
@@ -682,6 +706,18 @@ our $GraphDefs;
 			    'GPRINT:users_avg:AVERAGE:%4.1lf Average,',
 			    'GPRINT:users_max:MAX:%4.1lf Max,',
 			    'GPRINT:users_avg:LAST:%4.1lf Last\l'
+		],
+		voltage => [
+			'DEF:avg={file}:voltage:AVERAGE',
+			'DEF:min={file}:voltage:MIN',
+			'DEF:max={file}:voltage:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Voltage",
+			'GPRINT:min:MIN:%5.1lf%sV Min,',
+			'GPRINT:avg:AVERAGE:%5.1lf%sV Avg,',
+			'GPRINT:max:MAX:%5.1lf%sV Max,',
+			'GPRINT:avg:LAST:%5.1lf%sV Last\l'
 		]
 	};
 	$GraphDefs->{'disk'} = $GraphDefs->{'partition'};
@@ -690,8 +726,10 @@ our $GraphDefs;
 
 our $GraphArgs =
 {
+	charge => ['-t', '{host} charge', '-v', 'Ampere hours'],
 	cpu => ['-t', '{host} cpu{inst} usage', '-v', 'Percent', '-l', '0'],
 	cpufreq => ['-t', '{host} cpu{inst} usage', '-v', 'Mhz'],
+	current => ['-t', '{host} current', '-v', 'Ampere'],
 	#disk => ['-t', '{host} disk {inst} IO wait', '-v', 'Seconds'],
 	df => ['-t', '{host}:{inst} usage', '-v', 'Percent', '-l', '0'],
 	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
@@ -710,7 +748,8 @@ our $GraphArgs =
 	sensors => ['-t', '{host} sensor {inst}', '-v', '°Celsius'],
 	swap => ['-t', '{host} swap usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
 	traffic => ['-t', '{host} {inst} traffic', '-v', 'Bit/s'],
-    users => ['-t', '{host} users', '-v', 'Users'],
+	users => ['-t', '{host} users', '-v', 'Users'],
+	voltage => ['-t', '{host} voltage', '-v', 'Volts']
 };
 
 our $GraphMulti =
