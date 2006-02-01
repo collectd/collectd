@@ -207,6 +207,16 @@ collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
 endif
 
+if BUILD_MODULE_WIRELESS
+pkglib_LTLIBRARIES += wireless.la
+wireless_la_SOURCES = wireless.c
+wireless_la_LDFLAGS = -module -avoid-version
+# FIXME Make `-lm' conditional
+wireless_la_LDFLAGS += -lm
+collectd_LDADD += "-dlopen" wireless.la
+collectd_DEPENDENCIES += wireless.la
+endif
+
 man_MANS = collectd.1 collectd.conf.5
 #collectd_1_SOURCES = collectd.pod
 
