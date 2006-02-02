@@ -218,7 +218,13 @@ int network_create_socket (const char *node, const char *service)
 		socklist_tail = socklist_tail->next;
 
 	memset (&ai_hints, '\0', sizeof (ai_hints));
-	ai_hints.ai_flags    = AI_PASSIVE | AI_ADDRCONFIG;
+	ai_hints.ai_flags    = 0;
+#ifdef AI_PASSIVE
+	ai_hints.ai_flags |= AI_PASSIVE;
+#endif
+#ifdef AI_ADDRCONFIG
+	ai_hints.ai_flags |= AI_ADDRCONFIG;
+#endif
 	ai_hints.ai_family   = PF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_DGRAM;
 	ai_hints.ai_protocol = IPPROTO_UDP;
