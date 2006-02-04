@@ -1,0 +1,836 @@
+/**
+ * Object oriented C module to send ICMP and ICMPv6 `echo's.
+ * Copyright (C) 2006  Florian octo Forster <octo at verplant.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
+#include <assert.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/icmp6.h>
+
+#include <sys/time.h>
+#include <time.h>
+
+#include "liboping.h"
+
+#if DEBUG
+# define dprintf(...) printf ("%s[%4i]: %-20s: ", __FILE__, __LINE__, __FUNCTION__); printf (__VA_ARGS__)
+#else
+# define dprintf(format, ...) /**/
+#endif
+
+#define PING_DATA "Florian Forster <octo@verplant.org> http://verplant.org/"
+
+static int ping_timeval_sub (struct timeval *tv1, struct timeval *tv2,
+		struct timeval *res)
+{
+
+	if ((tv1->tv_sec < tv2->tv_sec)
+			|| ((tv1->tv_sec == tv2->tv_sec)
+				&& (tv1->tv_usec < tv2->tv_usec)))
+		return (-1);
+
+	res->tv_sec  = tv1->tv_sec  - tv2->tv_sec;
+	res->tv_usec = tv1->tv_usec - tv2->tv_usec;
+
+	assert ((res->tv_sec > 0) || ((res->tv_sec == 0) && (res->tv_usec > 0)));
+
+	while (res->tv_usec < 0)
+	{
+		res->tv_usec += 1000000;
+		res->tv_sec--;
+	}
+
+	return (0);
+}
+
+static uint16_t ping_icmp4_checksum (char *buf, size_t len)
+{
+	uint32_t sum = 0;
+	uint16_t ret = 0;
+
+	uint16_t *ptr;
+
+	for (ptr = (uint16_t *) buf; len > 1; ptr++, len -= 2)
+		sum += *ptr;
+
+	if (len == 1)
+	{
+		*(char *) &ret = *(char *) ptr;
+		sum += ret;
+	}
+
+	/* Do this twice to get all possible carries.. */
+	sum = (sum >> 16) + (sum & 0xFFFF);
+	sum = (sum >> 16) + (sum & 0xFFFF);
+
+	ret = ~sum;
+
+	return (ret);
+}
+
+static pinghost_t *ping_receive_ipv4 (pinghost_t *ph, char *buffer, size_t buffer_len)
+{
+	struct ip *ip_hdr;
+	struct icmphdr *icmp_hdr;
+
+	size_t ip_hdr_len;
+
+	uint16_t recv_checksum;
+	uint16_t calc_checksum;
+
+	uint16_t ident;
+	uint16_t seq;
+
+	pinghost_t *ptr;
+
+	if (buffer_len < sizeof (struct ip))
+		return (NULL);
+
+	ip_hdr     = (struct ip *) buffer;
+	ip_hdr_len = ip_hdr->ip_hl << 2;
+
+	if (buffer_len < ip_hdr_len)
+		return (NULL);
+
+	buffer     += ip_hdr_len;
+	buffer_len -= ip_hdr_len;
+
+	if (buffer_len < sizeof (struct icmphdr))
+		return (NULL);
+
+	icmp_hdr = (struct icmphdr *) buffer;
+	buffer     += sizeof (struct icmphdr);
+	buffer_len -= sizeof (struct icmphdr);
+
+	if (icmp_hdr->type != ICMP_ECHOREPLY)
+	{
+		dprintf ("Unexpected ICMP type: %i\n", icmp_hdr->type);
+		return (NULL);
+	}
+
+	recv_checksum = icmp_hdr->checksum;
+	icmp_hdr->checksum = 0;
+	calc_checksum = ping_icmp4_checksum ((char *) icmp_hdr,
+			sizeof (struct icmphdr) + buffer_len);
+
+	if (recv_checksum != calc_checksum)
+	{
+		dprintf ("Checksum missmatch: Got 0x%04x, calculated 0x%04x\n",
+				recv_checksum, calc_checksum);
+		return (NULL);
+	}
+
+	ident = ntohs (icmp_hdr->un.echo.id);
+	seq   = ntohs (icmp_hdr->un.echo.sequence);
+
+	for (ptr = ph; ptr != NULL; ptr = ptr->next)
+	{
+		dprintf ("hostname = %s, ident = 0x%04x, seq = %i\n",
+				ptr->hostname, ptr->ident, ptr->sequence - 1);
+
+		if (ptr->addrfamily != AF_INET)
+			continue;
+
+		if (!timerisset (ptr->timer))
+			continue;
+
+		if (ptr->ident != ident)
+			continue;
+
+		if ((ptr->sequence - 1) != seq)
+			continue;
+
+		dprintf ("Match found: hostname = %s, ident = 0x%04x, seq = %i\n",
+				ptr->hostname, ident, seq);
+
+		break;
+	}
+
+	if (ptr == NULL)
+	{
+		dprintf ("No match found for ident = 0x%04x, seq = %i\n",
+				ident, seq);
+	}
+
+	return (ptr);
+}
+
+static pinghost_t *ping_receive_ipv6 (pinghost_t *ph, char *buffer, size_t buffer_len)
+{
+	struct icmp6_hdr *icmp_hdr;
+
+	uint16_t ident;
+	uint16_t seq;
+
+	pinghost_t *ptr;
+
+	if (buffer_len < sizeof (struct icmp6_hdr))
+		return (NULL);
+
+	icmp_hdr = (struct icmp6_hdr *) buffer;
+	buffer     += sizeof (struct icmphdr);
+	buffer_len -= sizeof (struct icmphdr);
+
+	if (icmp_hdr->icmp6_type != ICMP6_ECHO_REPLY)
+	{
+		dprintf ("Unexpected ICMP type: %02x\n", icmp_hdr->icmp6_type);
+		return (NULL);
+	}
+
+	if (icmp_hdr->icmp6_code != 0)
+	{
+		dprintf ("Unexpected ICMP code: %02x\n", icmp_hdr->icmp6_code);
+		return (NULL);
+	}
+
+	ident = ntohs (icmp_hdr->icmp6_id);
+	seq   = ntohs (icmp_hdr->icmp6_seq);
+
+	for (ptr = ph; ptr != NULL; ptr = ptr->next)
+	{
+		dprintf ("hostname = %s, ident = 0x%04x, seq = %i\n",
+				ptr->hostname, ptr->ident, ptr->sequence - 1);
+
+		if (ptr->addrfamily != AF_INET6)
+			continue;
+
+		if (!timerisset (ptr->timer))
+			continue;
+
+		if (ptr->ident != ident)
+			continue;
+
+		if ((ptr->sequence - 1) != seq)
+			continue;
+
+		dprintf ("Match found: hostname = %s, ident = 0x%04x, seq = %i\n",
+				ptr->hostname, ident, seq);
+
+		break;
+	}
+
+	if (ptr == NULL)
+	{
+		dprintf ("No match found for ident = 0x%04x, seq = %i\n",
+				ident, seq);
+	}
+
+	return (ptr);
+}
+
+static void ping_receive_one (int fd, pinghost_t *ph)
+{
+	char   buffer[4096];
+	size_t buffer_len;
+
+	struct timeval now;
+	struct timeval diff;
+
+	pinghost_t *host = NULL;
+
+	struct sockaddr_storage sa;
+	socklen_t               sa_len;
+
+	sa_len = sizeof (sa);
+
+	buffer_len = recvfrom (fd, buffer, sizeof (buffer), 0,
+			(struct sockaddr *) &sa, &sa_len);
+	if (buffer_len == -1)
+	{
+		dprintf ("recvfrom: %s\n", strerror (errno));
+		return;
+	}
+
+	dprintf ("Read %i bytes from fd = %i\n", buffer_len, fd);
+
+	if (sa.ss_family == AF_INET)
+	{
+		if ((host = ping_receive_ipv4 (ph, buffer, buffer_len)) == NULL)
+			return;
+	}
+	else if (sa.ss_family == AF_INET6)
+	{
+		if ((host = ping_receive_ipv6 (ph, buffer, buffer_len)) == NULL)
+			return;
+	}
+
+	if (gettimeofday (&now, NULL) == -1)
+	{
+		dprintf ("gettimeofday: %s\n", strerror (errno));
+		timerclear (host->timer);
+		return;
+	}
+
+	dprintf ("sent: %12i.%06i\n",
+			(int) host->timer->tv_sec,
+			(int) host->timer->tv_usec);
+	dprintf ("rcvd: %12i.%06i\n",
+			(int) now.tv_sec,
+			(int) now.tv_usec);
+
+	if (ping_timeval_sub (&now, host->timer, &diff) < 0)
+	{
+		timerclear (host->timer);
+		return;
+	}
+
+	dprintf ("diff: %12i.%06i\n",
+			(int) diff.tv_sec,
+			(int) diff.tv_usec);
+
+	host->latency  = ((double) diff.tv_usec) / 1000.0;
+	host->latency += ((double) diff.tv_sec)  * 1000.0;
+
+	timerclear (host->timer);
+}
+
+static int ping_receive_all (pinghost_t *ph)
+{
+	fd_set readfds;
+	int num_readfds;
+	int max_readfds;
+
+	pinghost_t *ptr;
+
+	struct timeval endtime;
+	struct timeval nowtime;
+	struct timeval timeout;
+	int status;
+
+	if (gettimeofday (&endtime, NULL) == -1)
+		return (-1);
+	endtime.tv_sec += 1;
+
+	for (ptr = ph; ptr != NULL; ptr = ptr->next)
+		ptr->latency = -1.0;
+
+	while (1)
+	{
+		FD_ZERO (&readfds);
+		num_readfds =  0;
+		max_readfds = -1;
+
+		if (gettimeofday (&nowtime, NULL) == -1)
+			return (-1);
+
+		if (ping_timeval_sub (&endtime, &nowtime, &timeout) == -1)
+			return (0);
+
+		for (ptr = ph; ptr != NULL; ptr = ptr->next)
+		{
+			if (!timerisset (ptr->timer))
+				continue;
+
+			FD_SET (ptr->fd, &readfds);
+			num_readfds++;
+
+			if (max_readfds < ptr->fd)
+				max_readfds = ptr->fd;
+		}
+
+		if (num_readfds == 0)
+			break;
+
+		dprintf ("Waiting on %i sockets for %i.%06i seconds\n", num_readfds,
+				(int) timeout.tv_sec,
+				(int) timeout.tv_usec);
+
+		status = select (max_readfds + 1, &readfds, NULL, NULL, &timeout);
+		
+		if (status == EINTR)
+		{
+			dprintf ("select was interrupted by signal..\n");
+			break; /* XXX */
+			continue;
+		}
+		else if (status < 0)
+		{
+			dprintf ("select: %s\n", strerror (errno));
+			break;
+		}
+		else if (status == 0)
+		{
+			dprintf ("select timed out\n");
+			break;
+		}
+
+		for (ptr = ph; ptr != NULL; ptr = ptr->next)
+		{
+			if (FD_ISSET (ptr->fd, &readfds))
+				ping_receive_one (ptr->fd, ph);
+		}
+	}
+	
+	/* FIXME - return correct status */
+	return (0);
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Sending functions:                                                        *
+ *                                                                           *
+ * ping_send_all                                                             *
+ * +-> ping_send_one_ipv4                                                    *
+ * `-> ping_send_one_ipv6                                                    *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+static int ping_send_one_ipv4 (pinghost_t *ph)
+{
+	struct icmphdr *icmp4;
+	int status;
+
+	char buf[4096];
+	int  buflen;
+
+	char *data;
+	int   datalen;
+
+	dprintf ("ph->hostname = %s\n", ph->hostname);
+
+	memset (buf, '\0', sizeof (buf));
+	icmp4 = (struct icmphdr *) buf;
+	data  = (char *) (icmp4 + 1);
+
+	icmp4->type             = ICMP_ECHO;
+	icmp4->code             = 0;
+	/* The checksum will be calculated by the TCP/IP stack.  */
+	icmp4->checksum         = 0;
+	icmp4->un.echo.id       = htons (ph->ident);
+	icmp4->un.echo.sequence = htons (ph->sequence);
+
+	strcpy (data, PING_DATA);
+	datalen = strlen (data);
+
+	buflen = datalen + sizeof (struct icmphdr);
+
+	icmp4->checksum = ping_icmp4_checksum (buf, buflen);
+
+	dprintf ("Sending ICMPv4 package with ID 0x%04x\n", ph->ident);
+
+	status = sendto (ph->fd, buf, buflen, 0,
+			(struct sockaddr *) ph->addr, ph->addrlen);
+	if (status < 0)
+	{
+		perror ("sendto");
+		return (-1);
+	}
+
+	dprintf ("sendto: status = %i\n", status);
+
+	return (0);
+}
+
+static int ping_send_one_ipv6 (pinghost_t *ph)
+{
+	struct icmp6_hdr *icmp6;
+	int status;
+
+	char buf[4096];
+	int  buflen;
+
+	char *data;
+	int   datalen;
+
+	dprintf ("ph->hostname = %s\n", ph->hostname);
+
+	memset (buf, '\0', sizeof (buf));
+	icmp6 = (struct icmp6_hdr *) buf;
+	data  = (char *) (icmp6 + 1);
+
+	icmp6->icmp6_type  = ICMP6_ECHO_REQUEST;
+	icmp6->icmp6_code  = 0;
+	/* The checksum will be calculated by the TCP/IP stack.  */
+	icmp6->icmp6_cksum = 0;
+	icmp6->icmp6_id    = htons (ph->ident);
+	icmp6->icmp6_seq   = htons (ph->sequence);
+
+	strcpy (data, PING_DATA);
+	datalen = strlen (data);
+
+	buflen = datalen + sizeof (struct icmp6_hdr);
+
+	dprintf ("Sending ICMPv6 package with ID 0x%04x\n", ph->ident);
+
+	status = sendto (ph->fd, buf, buflen, 0,
+			(struct sockaddr *) ph->addr, ph->addrlen);
+	if (status < 0)
+	{
+		perror ("sendto");
+		return (-1);
+	}
+
+	dprintf ("sendto: status = %i\n", status);
+
+	return (0);
+}
+
+static int ping_send_all (pinghost_t *ph)
+{
+	pinghost_t *ptr;
+
+	for (ptr = ph; ptr != NULL; ptr = ptr->next)
+	{
+		/* start timer.. The GNU `ping6' starts the timer before
+		 * sending the packet, so I will do that too */
+		if (gettimeofday (ptr->timer, NULL) == -1)
+		{
+			dprintf ("gettimeofday: %s\n", strerror (errno));
+			timerclear (ptr->timer);
+			continue;
+		}
+		else
+		{
+			dprintf ("timer set for hostname = %s\n", ptr->hostname);
+		}
+
+		if (ptr->addrfamily == AF_INET6)
+		{	
+			dprintf ("Sending ICMPv6 echo request to `%s'\n", ptr->hostname);
+			if (ping_send_one_ipv6 (ptr) != 0)
+			{
+				timerclear (ptr->timer);
+				continue;
+			}
+		}
+		else if (ptr->addrfamily == AF_INET)
+		{
+			dprintf ("Sending ICMPv4 echo request to `%s'\n", ptr->hostname);
+			if (ping_send_one_ipv4 (ptr) != 0)
+			{
+				timerclear (ptr->timer);
+				continue;
+			}
+		}
+		else /* this should not happen */
+		{
+			dprintf ("Unknown address family: %i\n", ptr->addrfamily);
+			timerclear (ptr->timer);
+			continue;
+		}
+
+		ptr->sequence++;
+	}
+
+	/* FIXME */
+	return (0);
+}
+
+static int ping_get_ident (void)
+{
+	int fd;
+	static int did_seed = 0;
+
+	int retval;
+
+	if (did_seed == 0)
+	{
+		if ((fd = open ("/dev/urandom", O_RDONLY)) != -1)
+		{
+			unsigned int seed;
+
+			if (read (fd, &seed, sizeof (seed)) != -1)
+			{
+				did_seed = 1;
+				dprintf ("Random seed: %i\n", seed);
+				srandom (seed);
+			}
+
+			close (fd);
+		}
+		else
+		{
+			dprintf ("open (/dev/urandom): %s\n", strerror (errno));
+		}
+	}
+
+	retval = (int) random ();
+
+	dprintf ("Random number: %i\n", retval);
+	
+	return (retval);
+}
+
+static pinghost_t *ping_alloc (void)
+{
+	pinghost_t *ph;
+	size_t      ph_size;
+
+	ph_size = sizeof (pinghost_t)
+		+ sizeof (struct sockaddr_storage)
+		+ sizeof (struct timeval);
+
+	ph = (pinghost_t *) malloc (ph_size);
+	if (ph == NULL)
+		return (NULL);
+
+	memset (ph, '\0', ph_size);
+
+	ph->timer   = (struct timeval *) (ph + 1);
+	ph->addr    = (struct sockaddr_storage *) (ph->timer + 1);
+
+	ph->addrlen = sizeof (struct sockaddr_storage);
+	ph->latency = -1.0;
+	ph->ident   = ping_get_ident () & 0xFFFF;
+
+	return (ph);
+}
+
+static void ping_free (pinghost_t *ph)
+{
+	if (ph->hostname != NULL)
+		free (ph->hostname);
+
+	free (ph);
+}
+
+/*
+ * public methods
+ */
+pingobj_t *ping_construct (int flags)
+{
+	pingobj_t *obj;
+
+	if ((obj = (pingobj_t *) malloc (sizeof (pingobj_t))) == NULL)
+		return (NULL);
+
+	obj->flags = flags;
+	obj->head = NULL;
+
+	return (obj);
+}
+
+void ping_destroy (pingobj_t *obj)
+{
+	pinghost_t *current;
+	pinghost_t *next;
+
+	current = obj->head;
+	next = NULL;
+
+	while (current != NULL)
+	{
+		next = current->next;
+		ping_free (current);
+		current = next;
+	}
+
+	free (obj);
+
+	return;
+}
+
+int ping_send (pingobj_t *obj)
+{
+	if (ping_send_all (obj->head) < 0)
+		return (-1);
+
+	if (ping_receive_all (obj->head) < 0)
+		return (-2);
+
+	return (0);
+}
+
+static pinghost_t *ping_host_search (pinghost_t *ph, const char *host)
+{
+	while (ph != NULL)
+	{
+		if (strcasecmp (ph->hostname, host) == 0)
+			break;
+
+		ph = ph->next;
+	}
+
+	return (ph);
+}
+
+int ping_host_add (pingobj_t *obj, const char *host)
+{
+	pinghost_t *ph;
+
+	struct sockaddr_storage sockaddr;
+	socklen_t               sockaddr_len;
+
+	struct addrinfo  ai_hints;
+	struct addrinfo *ai_list, *ai_ptr;
+	int              ai_return;
+
+	dprintf ("host = %s\n", host);
+
+	if (ping_host_search (obj->head, host) != NULL)
+		return (0);
+
+	memset (&ai_hints, '\0', sizeof (ai_hints));
+	ai_hints.ai_flags    = AI_ADDRCONFIG;
+	ai_hints.ai_family   = PF_UNSPEC;
+	ai_hints.ai_socktype = SOCK_RAW;
+
+	if ((ph = ping_alloc ()) == NULL)
+	{
+		dprintf ("Out of memory!\n");
+		return (-1);
+	}
+
+	if ((ph->hostname = strdup (host)) == NULL)
+	{
+		dprintf ("Out of memory!\n");
+		ping_free (ph);
+		return (-1);
+	}
+
+	if ((ai_return = getaddrinfo (host, NULL, &ai_hints, &ai_list)) != 0)
+	{
+		dprintf ("getaddrinfo failed\n");
+		ping_free (ph);
+		return (-1);
+	}
+
+	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	{
+		ph->fd = -1;
+
+		sockaddr_len = sizeof (sockaddr);
+		memset (&sockaddr, '\0', sockaddr_len);
+
+		if (ai_ptr->ai_family == AF_INET)
+		{
+			struct sockaddr_in *si;
+
+			si = (struct sockaddr_in *) &sockaddr;
+			si->sin_family = AF_INET;
+			si->sin_port   = htons (ph->ident);
+			si->sin_addr.s_addr = htonl (INADDR_ANY);
+
+			ai_ptr->ai_protocol = IPPROTO_ICMP;
+		}
+		else if (ai_ptr->ai_family == AF_INET6)
+		{
+			struct sockaddr_in6 *si;
+
+			si = (struct sockaddr_in6 *) &sockaddr;
+			si->sin6_family = AF_INET6;
+			si->sin6_port   = htons (ph->ident);
+			si->sin6_addr   = in6addr_any;
+
+			ai_ptr->ai_protocol = IPPROTO_ICMPV6;
+		}
+		else
+		{
+			dprintf ("Unknown `ai_family': %i\n", ai_ptr->ai_family);
+			continue;
+		}
+
+		ph->fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+		if (ph->fd == -1)
+		{
+			dprintf ("socket: %s\n", strerror (errno));
+			continue;
+		}
+
+		if (bind (ph->fd, (struct sockaddr *) &sockaddr, sockaddr_len) == -1)
+		{
+			dprintf ("bind: %s\n", strerror (errno));
+			close (ph->fd);
+			ph->fd = -1;
+			continue;
+		}
+
+		assert (sizeof (struct sockaddr_storage) >= ai_ptr->ai_addrlen);
+		memset (ph->addr, '\0', sizeof (struct sockaddr_storage));
+		memcpy (ph->addr, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+		ph->addrlen = ai_ptr->ai_addrlen;
+		ph->addrfamily = ai_ptr->ai_family;
+
+		break;
+	}
+
+	freeaddrinfo (ai_list);
+
+	if (ph->fd < 0)
+	{
+		free (ph->hostname);
+		free (ph);
+		return (-1);
+	}
+
+	ph->next  = obj->head;
+	obj->head = ph;
+
+	return (0);
+}
+
+int ping_host_remove (pingobj_t *obj, const char *host)
+{
+	pinghost_t *pre, *cur;
+
+	pre = NULL;
+	cur = obj->head;
+
+	while (cur != NULL)
+	{
+		if (strcasecmp (host, cur->hostname))
+			break;
+
+		pre = cur;
+		cur = cur->next;
+	}
+
+	if (cur == NULL)
+		return (-1);
+
+	if (pre == NULL)
+		obj->head = cur->next;
+	else
+		pre->next = cur->next;
+	
+	if (cur->fd >= 0)
+		close (cur->fd);
+
+	ping_free (cur);
+
+	return (0);
+}
+
+pingobj_iter_t *ping_iterator_get (pingobj_t *obj)
+{
+	return ((pingobj_iter_t *) obj->head);
+}
+
+pingobj_iter_t *ping_iterator_next (pingobj_iter_t *iter)
+{
+	return ((pingobj_iter_t *) iter->next);
+}
+
+const char *ping_iterator_get_host (pingobj_iter_t *iter)
+{
+	return (iter->hostname);
+}
+
+double ping_iterator_get_latency (pingobj_iter_t *iter)
+{
+	return (iter->latency);
+}
