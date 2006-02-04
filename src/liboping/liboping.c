@@ -364,10 +364,9 @@ static int ping_receive_all (pinghost_t *ph)
 
 		status = select (max_readfds + 1, &readfds, NULL, NULL, &timeout);
 		
-		if (status == EINTR)
+		if ((status == -1) && (errno == EINTR))
 		{
 			dprintf ("select was interrupted by signal..\n");
-			break; /* XXX */
 			continue;
 		}
 		else if (status < 0)
