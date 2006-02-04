@@ -1,3 +1,9 @@
+2006-02-04, Version 3.7.1
+	* The new network code has been improved to build with older versions
+	  of glibc.
+	* Fix in `libping' sets the ICMP sequence on outgoing packets. Thanks
+	  to Tommie Gannert for this patch.
+
 2006-01-30, Version 3.7.0
 	* The `battery' plugin has been added. It collects information about
 	  laptop batteries..
