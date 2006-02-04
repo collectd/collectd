@@ -42,11 +42,14 @@
 #if DEBUG
 # define dprintf(...) printf ("%s[%4i]: %-20s: ", __FILE__, __LINE__, __FUNCTION__); printf (__VA_ARGS__)
 #else
-# define dprintf(format, ...) /**/
+# define dprintf(...) /**/
 #endif
 
 #define PING_DATA "Florian Forster <octo@verplant.org> http://verplant.org/"
 
+/*
+ * private (static) functions
+ */
 static int ping_timeval_sub (struct timeval *tv1, struct timeval *tv2,
 		struct timeval *res)
 {
@@ -245,7 +248,7 @@ static pinghost_t *ping_receive_ipv6 (pinghost_t *ph, char *buffer, size_t buffe
 	return (ptr);
 }
 
-static void ping_receive_one (int fd, pinghost_t *ph)
+static int ping_receive_one (int fd, pinghost_t *ph)
 {
 	char   buffer[4096];
 	size_t buffer_len;
@@ -265,7 +268,7 @@ static void ping_receive_one (int fd, pinghost_t *ph)
 	if (buffer_len == -1)
 	{
 		dprintf ("recvfrom: %s\n", strerror (errno));
-		return;
+		return (-1);
 	}
 
 	dprintf ("Read %i bytes from fd = %i\n", buffer_len, fd);
@@ -273,19 +276,19 @@ static void ping_receive_one (int fd, pinghost_t *ph)
 	if (sa.ss_family == AF_INET)
 	{
 		if ((host = ping_receive_ipv4 (ph, buffer, buffer_len)) == NULL)
-			return;
+			return (-1);
 	}
 	else if (sa.ss_family == AF_INET6)
 	{
 		if ((host = ping_receive_ipv6 (ph, buffer, buffer_len)) == NULL)
-			return;
+			return (-1);
 	}
 
 	if (gettimeofday (&now, NULL) == -1)
 	{
 		dprintf ("gettimeofday: %s\n", strerror (errno));
 		timerclear (host->timer);
-		return;
+		return (-1);
 	}
 
 	dprintf ("sent: %12i.%06i\n",
@@ -298,7 +301,7 @@ static void ping_receive_one (int fd, pinghost_t *ph)
 	if (ping_timeval_sub (&now, host->timer, &diff) < 0)
 	{
 		timerclear (host->timer);
-		return;
+		return (-1);
 	}
 
 	dprintf ("diff: %12i.%06i\n",
@@ -309,6 +312,8 @@ static void ping_receive_one (int fd, pinghost_t *ph)
 	host->latency += ((double) diff.tv_sec)  * 1000.0;
 
 	timerclear (host->timer);
+
+	return (0);
 }
 
 static int ping_receive_all (pinghost_t *ph)
@@ -323,6 +328,10 @@ static int ping_receive_all (pinghost_t *ph)
 	struct timeval nowtime;
 	struct timeval timeout;
 	int status;
+
+	int ret;
+
+	ret = 0;
 
 	if (gettimeofday (&endtime, NULL) == -1)
 		return (-1);
@@ -383,12 +392,12 @@ static int ping_receive_all (pinghost_t *ph)
 		for (ptr = ph; ptr != NULL; ptr = ptr->next)
 		{
 			if (FD_ISSET (ptr->fd, &readfds))
-				ping_receive_one (ptr->fd, ph);
+				if (ping_receive_one (ptr->fd, ph) == 0)
+					ret++;
 		}
 	}
 	
-	/* FIXME - return correct status */
-	return (0);
+	return (ret);
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -610,14 +619,13 @@ static void ping_free (pinghost_t *ph)
 /*
  * public methods
  */
-pingobj_t *ping_construct (int flags)
+pingobj_t *ping_construct (void)
 {
 	pingobj_t *obj;
 
 	if ((obj = (pingobj_t *) malloc (sizeof (pingobj_t))) == NULL)
 		return (NULL);
 
-	obj->flags = flags;
 	obj->head = NULL;
 
 	return (obj);
@@ -643,15 +651,60 @@ void ping_destroy (pingobj_t *obj)
 	return;
 }
 
+int ping_setopt (pingobj_t *obj, int option, void *value)
+{
+	int ret = 0;
+
+	switch (option)
+	{
+		case PING_OPT_TIMEOUT:
+			obj->timeout = *((double *) value);
+			if (obj->timeout < 0.0)
+			{
+				obj->timeout = PING_DEF_TIMEOUT;
+				ret = -1;
+			}
+			break;
+
+		case PING_OPT_TTL:
+			obj->ttl = *((int *) value);
+			if ((obj->ttl < 1) || (obj->ttl > 255))
+			{
+				obj->ttl = PING_DEF_TTL;
+				ret = -1;
+			}
+			break;
+
+		case PING_OPT_AF:
+			obj->addrfamily = *((int *) value);
+			if ((obj->addrfamily != AF_UNSPEC)
+					&& (obj->addrfamily != AF_INET)
+					&& (obj->addrfamily != AF_INET6))
+			{
+				obj->addrfamily = PING_DEF_AF;
+				ret = -1;
+			}
+			break;
+
+		default:
+			ret = -2;
+	} /* switch (option) */
+
+	return (ret);
+} /* int ping_setopt */
+
+
 int ping_send (pingobj_t *obj)
 {
+	int ret;
+
 	if (ping_send_all (obj->head) < 0)
 		return (-1);
 
-	if (ping_receive_all (obj->head) < 0)
+	if ((ret = ping_receive_all (obj->head)) < 0)
 		return (-2);
 
-	return (0);
+	return (ret);
 }
 
 static pinghost_t *ping_host_search (pinghost_t *ph, const char *host)
@@ -684,9 +737,12 @@ int ping_host_add (pingobj_t *obj, const char *host)
 		return (0);
 
 	memset (&ai_hints, '\0', sizeof (ai_hints));
-	ai_hints.ai_flags    = AI_ADDRCONFIG;
-	ai_hints.ai_family   = PF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_RAW;
+	ai_hints.ai_flags     = 0;
+#ifdef AI_ADDRCONFIG
+	ai_hints.ai_flags    |= AI_ADDRCONFIG;
+#endif
+	ai_hints.ai_family    = PF_UNSPEC;
+	ai_hints.ai_socktype  = SOCK_RAW;
 
 	if ((ph = ping_alloc ()) == NULL)
 	{

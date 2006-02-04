@@ -20,29 +20,8 @@
 #ifndef OCTO_PING_H
 #define OCTO_PING_H 1
 
-#ifndef AI_ADDRCONFIG
-#define AI_ADDRCONFIG 0
-#endif
-
 #include <stdlib.h>
-#include <sys/types.h>
-
-/* FIXME BEGIN */
-#include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
-
-#include <assert.h>
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/icmp6.h>
-
-#include <sys/time.h>
-#include <time.h>
-/* FIXME END */
 
 /*
  * Type definitions
@@ -58,22 +37,36 @@ typedef struct pinghost
 	int                      sequence;
 	struct timeval          *timer;
 	double                   latency;
+
 	struct pinghost         *next;
 } pinghost_t;
 
-typedef struct
+typedef pinghost_t pingobj_iter_t;
+
+typedef struct pingobj
 {
-	int         flags;
+	double      timeout;
+	int         ttl;
+	int         addrfamily;
+
 	pinghost_t *head;
 } pingobj_t;
 
-typedef pinghost_t pingobj_iter_t;
+#define PING_OPT_TIMEOUT 0x01
+#define PING_OPT_TTL     0x02
+#define PING_OPT_AF      0x04
+
+#define PING_DEF_TIMEOUT 1.0
+#define PING_DEF_TTL     255
+#define PING_DEF_AF      AF_UNSPEC
 
 /*
  * Method definitions
  */
-pingobj_t *ping_construct (int flags);
+pingobj_t *ping_construct (void);
 void ping_destroy (pingobj_t *obj);
+
+int ping_setopt (pingobj_t *obj, int option, void *value);
 
 int ping_send (pingobj_t *obj);
 

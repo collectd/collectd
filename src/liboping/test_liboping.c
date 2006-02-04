@@ -16,7 +16,7 @@ int main (int argc, char **argv)
 		return (1);
 	}
 
-	if ((ping = ping_construct (0)) == NULL)
+	if ((ping = ping_construct ()) == NULL)
 	{
 		fprintf (stderr, "ping_construct failed\n");
 		return (-1);
