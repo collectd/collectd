@@ -248,12 +248,11 @@ static pinghost_t *ping_receive_ipv6 (pinghost_t *ph, char *buffer, size_t buffe
 	return (ptr);
 }
 
-static int ping_receive_one (int fd, pinghost_t *ph)
+static int ping_receive_one (int fd, pinghost_t *ph, struct timeval *now)
 {
 	char   buffer[4096];
 	size_t buffer_len;
 
-	struct timeval now;
 	struct timeval diff;
 
 	pinghost_t *host = NULL;
@@ -284,21 +283,14 @@ static int ping_receive_one (int fd, pinghost_t *ph)
 			return (-1);
 	}
 
-	if (gettimeofday (&now, NULL) == -1)
-	{
-		dprintf ("gettimeofday: %s\n", strerror (errno));
-		timerclear (host->timer);
-		return (-1);
-	}
-
+	dprintf ("rcvd: %12i.%06i\n",
+			(int) now->tv_sec,
+			(int) now->tv_usec);
 	dprintf ("sent: %12i.%06i\n",
 			(int) host->timer->tv_sec,
 			(int) host->timer->tv_usec);
-	dprintf ("rcvd: %12i.%06i\n",
-			(int) now.tv_sec,
-			(int) now.tv_usec);
 
-	if (ping_timeval_sub (&now, host->timer, &diff) < 0)
+	if (ping_timeval_sub (now, host->timer, &diff) < 0)
 	{
 		timerclear (host->timer);
 		return (-1);
@@ -333,24 +325,18 @@ static int ping_receive_all (pinghost_t *ph)
 
 	ret = 0;
 
+	for (ptr = ph; ptr != NULL; ptr = ptr->next)
+		ptr->latency = -1.0;
+
 	if (gettimeofday (&endtime, NULL) == -1)
 		return (-1);
 	endtime.tv_sec += 1;
-
-	for (ptr = ph; ptr != NULL; ptr = ptr->next)
-		ptr->latency = -1.0;
 
 	while (1)
 	{
 		FD_ZERO (&readfds);
 		num_readfds =  0;
 		max_readfds = -1;
-
-		if (gettimeofday (&nowtime, NULL) == -1)
-			return (-1);
-
-		if (ping_timeval_sub (&endtime, &nowtime, &timeout) == -1)
-			return (0);
 
 		for (ptr = ph; ptr != NULL; ptr = ptr->next)
 		{
@@ -367,11 +353,20 @@ static int ping_receive_all (pinghost_t *ph)
 		if (num_readfds == 0)
 			break;
 
+		if (gettimeofday (&nowtime, NULL) == -1)
+			return (-1);
+
+		if (ping_timeval_sub (&endtime, &nowtime, &timeout) == -1)
+			break;
+
 		dprintf ("Waiting on %i sockets for %i.%06i seconds\n", num_readfds,
 				(int) timeout.tv_sec,
 				(int) timeout.tv_usec);
 
 		status = select (max_readfds + 1, &readfds, NULL, NULL, &timeout);
+
+		if (gettimeofday (&nowtime, NULL) == -1)
+			return (-1);
 		
 		if ((status == -1) && (errno == EINTR))
 		{
@@ -392,10 +387,10 @@ static int ping_receive_all (pinghost_t *ph)
 		for (ptr = ph; ptr != NULL; ptr = ptr->next)
 		{
 			if (FD_ISSET (ptr->fd, &readfds))
-				if (ping_receive_one (ptr->fd, ph) == 0)
+				if (ping_receive_one (ptr->fd, ph, &nowtime) == 0)
 					ret++;
 		}
-	}
+	} /* while (1) */
 	
 	return (ret);
 }
@@ -407,6 +402,22 @@ static int ping_receive_all (pinghost_t *ph)
  * +-> ping_send_one_ipv4                                                    *
  * `-> ping_send_one_ipv6                                                    *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ssize_t ping_sendto (pinghost_t *ph, const void *buf, size_t buflen)
+{
+	ssize_t ret;
+
+	if (gettimeofday (ph->timer, NULL) == -1)
+	{
+		timerclear (ph->timer);
+		return (-1);
+	}
+
+	ret = sendto (ph->fd, buf, buflen, 0,
+			(struct sockaddr *) ph->addr, ph->addrlen);
+
+	return (ret);
+}
+
 static int ping_send_one_ipv4 (pinghost_t *ph)
 {
 	struct icmphdr *icmp4;
@@ -440,11 +451,10 @@ static int ping_send_one_ipv4 (pinghost_t *ph)
 
 	dprintf ("Sending ICMPv4 package with ID 0x%04x\n", ph->ident);
 
-	status = sendto (ph->fd, buf, buflen, 0,
-			(struct sockaddr *) ph->addr, ph->addrlen);
+	status = ping_sendto (ph, buf, buflen);
 	if (status < 0)
 	{
-		perror ("sendto");
+		perror ("ping_sendto");
 		return (-1);
 	}
 
@@ -484,11 +494,10 @@ static int ping_send_one_ipv6 (pinghost_t *ph)
 
 	dprintf ("Sending ICMPv6 package with ID 0x%04x\n", ph->ident);
 
-	status = sendto (ph->fd, buf, buflen, 0,
-			(struct sockaddr *) ph->addr, ph->addrlen);
+	status = ping_sendto (ph, buf, buflen);
 	if (status < 0)
 	{
-		perror ("sendto");
+		perror ("ping_sendto");
 		return (-1);
 	}
 
