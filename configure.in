@@ -712,7 +712,7 @@ AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
 
 #AC_COLLECTD([users],     [disable], [module], [user count statistics])
 
-AC_OUTPUT(Makefile src/libconfig/Makefile src/libping/Makefile src/Makefile)
+AC_OUTPUT(Makefile src/libconfig/Makefile src/liboping/Makefile src/Makefile)
 
 cat <<EOF;
 

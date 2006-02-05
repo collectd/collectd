@@ -1,6 +1,6 @@
 SUBDIRS = libconfig
 if BUILD_MODULE_PING
-SUBDIRS += libping
+SUBDIRS += liboping
 endif
 
 if COMPILER_IS_GCC
@@ -142,8 +142,8 @@ if BUILD_MODULE_PING
 pkglib_LTLIBRARIES += ping.la
 ping_la_SOURCES = ping.c ping.h
 ping_la_LDFLAGS = -module -avoid-version
-ping_la_LIBADD  = libping/libping.la
-ping_la_DEPENDENCIES = libping/libping.la
+ping_la_LIBADD  = liboping/liboping.la
+ping_la_DEPENDENCIES = liboping/liboping.la
 collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif

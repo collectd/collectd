@@ -28,20 +28,9 @@
 #define MODULE_NAME "ping"
 
 #include <netinet/in.h>
-#include "libping/ping.h"
+#include "liboping/liboping.h"
 
-#define MAX_PINGHOSTS 32
-
-typedef struct
-{
-	char *name;
-	int   flags;
-	int   disable; /* How long (how many iterations) this host is still disabled */
-	int   backoff; /* How long the host will be disabled, if it failes again */
-} pinghost_t;
-
-static pinghost_t hosts[MAX_PINGHOSTS];
-static int        num_pinghosts;
+static pingobj_t *pingobj = NULL;
 
 static char *file_template = "ping-%s.rrd";
 
@@ -61,15 +50,6 @@ static int config_keys_num = 1;
 
 static void ping_init (void)
 {
-	int i;
-
-	for (i = 0; i < MAX_PINGHOSTS; i++)
-	{
-		hosts[i].flags = 0;
-		hosts[i].disable = 0;
-		hosts[i].backoff = 1;
-	}
-
 	return;
 }
 
@@ -79,19 +59,23 @@ static int ping_config (char *key, char *value)
 	{
 		return (-1);
 	}
-	else if (num_pinghosts >= MAX_PINGHOSTS)
+
+	if (pingobj == NULL)
 	{
-		return (1);
+		if ((pingobj = ping_construct ()) == NULL)
+		{
+			syslog (LOG_ERR, "ping: `ping_construct' failed.\n");
+			return (-1);
+		}
 	}
-	else if ((hosts[num_pinghosts].name = strdup (value)) == NULL)
+
+	if (ping_host_add (pingobj, value) < 0)
 	{
-		return (2);
+		syslog (LOG_ERR, "ping: `ping_host_add' failed.\n");
+		return (-1);
 	}
-	else
-	{
-		num_pinghosts++;
-		return (0);
-	}
+
+	return (0);
 }
 
 static void ping_write (char *host, char *inst, char *val)
@@ -109,11 +93,11 @@ static void ping_write (char *host, char *inst, char *val)
 }
 
 #define BUFSIZE 256
-static void ping_submit (int ping_time, char *host)
+static void ping_submit (char *host, double latency)
 {
 	char buf[BUFSIZE];
 
-	if (snprintf (buf, BUFSIZE, "%u:%i", (unsigned int) curtime, ping_time) >= BUFSIZE)
+	if (snprintf (buf, BUFSIZE, "%u:%f", (unsigned int) curtime, latency) >= BUFSIZE)
 		return;
 
 	plugin_submit (MODULE_NAME, host, buf);
@@ -122,56 +106,35 @@ static void ping_submit (int ping_time, char *host)
 
 static void ping_read (void)
 {
-	int ping;
-	int i;
+	pingobj_iter_t *iter;
 
-	for (i = 0; i < num_pinghosts; i++)
+	char   *host;
+	double  latency;
+
+	if (pingobj == NULL)
+		return;
+
+	if (ping_send (pingobj) < 0)
 	{
-		if (hosts[i].disable > 0)
-		{
-			hosts[i].disable--;
+		syslog (LOG_ERR, "ping: `ping_send' failed.");
+		return;
+	}
+
+	for (iter = ping_iterator_get (pingobj); iter != NULL; iter = ping_iterator_next (iter))
+	{
+		const char *tmp;
+
+		if ((tmp = ping_iterator_get_host (iter)) == NULL)
 			continue;
-		}
-		
-		ping = tpinghost (hosts[i].name);
+		if ((host = strdup (tmp)) == NULL)
+			continue;
 
-		switch (ping)
-		{
-			case 0:
-				if (!(hosts[i].flags & 0x01))
-					syslog (LOG_WARNING, "ping %s: Connection timed out.", hosts[i].name);
-				hosts[i].flags |= 0x01;
-				break;
+		latency = ping_iterator_get_latency (iter);
 
-			case -1:
-				if (!(hosts[i].flags & 0x02))
-					syslog (LOG_WARNING, "ping %s: Host or service is not reachable.", hosts[i].name);
-				hosts[i].flags |= 0x02;
-				break;
+		ping_submit (host, latency);
 
-			case -2:
-				syslog (LOG_ERR, "ping %s: Socket error. Ping will be disabled for %i iteration(s).",
-						hosts[i].name, hosts[i].backoff);
-				hosts[i].disable = hosts[i].backoff;
-				if (hosts[i].backoff < 8192) /* 22 3/4 hours */
-					hosts[i].backoff *= 2;
-				hosts[i].flags |= 0x10;
-				break;
-
-			case -3:
-				if (!(hosts[i].flags & 0x04))
-					syslog (LOG_WARNING, "ping %s: Connection refused.", hosts[i].name);
-				hosts[i].flags |= 0x04;
-				break;
-
-			default:
-				if (hosts[i].flags != 0x00)
-					syslog (LOG_NOTICE, "ping %s: Back to normal: %ims.", hosts[i].name, ping);
-				hosts[i].flags = 0x00;
-				hosts[i].backoff = 1;
-				ping_submit (ping, hosts[i].name);
-		} /* switch (ping) */
-	} /* for (i = 0; i < num_pinghosts; i++) */
+		free (host); host = NULL;
+	}
 }
 
 void module_register (void)

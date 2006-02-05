@@ -178,7 +178,7 @@ send_ping( const char *host, struct sockaddr_in *taddr, struct ping_priv * datum
   icp->icmp_code  = 0;
   icp->icmp_cksum = 0;
   icp->icmp_id    = getpid() & 0xFFFF;
-  icp->icmp_seq   = icp->icmp_id;
+  icp->icmp_seq   = icp->icmp_id; /* FIXME this is not nice.. */
   icp->icmp_cksum = in_checksum((u_short *)icp, len );
 
   if(( ss = sendto( datum->sock, buf, sizeof( buf ), 0, 
