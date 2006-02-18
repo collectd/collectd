@@ -278,7 +278,7 @@ static void battery_read (void)
 			 * [11:00] <@tokkee> remaining capacity:      4136 mAh
 			 * [11:00] <@tokkee> present voltage:         12428 mV
 			 */
-			while (fgets (buffer, BUFSIZE, fh) == NULL)
+			while (fgets (buffer, BUFSIZE, fh) != NULL)
 			{
 				numfields = strsplit (buffer, fields, 8);
 
