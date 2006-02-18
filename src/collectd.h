@@ -200,7 +200,10 @@
 #define MODE_LOCAL  0x04
 
 extern time_t curtime;
+
+#ifdef HAVE_LIBRRD
 extern int operating_mode;
+#endif
 
 /* int main (int argc, char **argv); */
 
