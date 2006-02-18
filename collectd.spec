@@ -76,6 +76,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/processes.so*
 %attr(0444,root,root) %{_libdir}/%{name}/serial.so*
 %attr(0444,root,root) %{_libdir}/%{name}/swap.so*
+%attr(0444,root,root) %{_libdir}/%{name}/tape.so*
 %attr(0444,root,root) %{_libdir}/%{name}/traffic.so*
 %attr(0444,root,root) %{_libdir}/%{name}/users.so*
 %dir /var/lib/collectd
@@ -87,6 +88,13 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
+* Sat Feb 18 2006 Florian octo Forster <octo@verplant.org> 3.7.2-1
+- Include `tape.so' so the build doesn't terminate because of missing files..
+- New upstream version
+
+* Sat Feb 04 2006 Florian octo Forster <octo@verplant.org> 3.7.1-1
+- New upstream version
+
 * Mon Jan 30 2006 Florian octo Forster <octo@verplant.org> 3.7.0-1
 - New upstream version
 - Removed the extra `hddtemp' package
