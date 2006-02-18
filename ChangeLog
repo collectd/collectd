@@ -2,6 +2,8 @@
 	* A simple bug in the `battery' plugin has been fixed. It should now
 	  work with ACPI based batteries as well. Thankt to Sebastian for
 	  fixing this.
+	* Fixing a bug that prevented collectd to be built without librrd.
+	  Thanks to Werner Heuser for reporting it.
 
 2006-02-04, Version 3.7.1
 	* The new network code has been improved to build with older versions
