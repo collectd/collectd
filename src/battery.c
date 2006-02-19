@@ -300,7 +300,7 @@ static void battery_read (void)
 				if ((strcmp (fields[0], "charging") == 0)
 						&& (strcmp (fields[1], "state:") == 0))
 				{
-					if (strcmp (fields[2], "charging"))
+					if (strcmp (fields[2], "charging") == 0)
 						charging = 1;
 					else
 						charging = 0;
