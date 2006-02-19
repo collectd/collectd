@@ -285,20 +285,20 @@ static void battery_read (void)
 				if (numfields < 3)
 					continue;
 
-				if ((strcmp (fields[0], "present"))
-						&& (strcmp (fields[1], "rate:")))
+				if ((strcmp (fields[0], "present") == 0)
+						&& (strcmp (fields[1], "rate:") == 0))
 					valptr = &current;
-				else if ((strcmp (fields[0], "remaining"))
-						&& (strcmp (fields[1], "capacity:")))
+				else if ((strcmp (fields[0], "remaining") == 0)
+						&& (strcmp (fields[1], "capacity:") == 0))
 					valptr = &charge;
-				else if ((strcmp (fields[0], "present"))
-						&& (strcmp (fields[1], "voltage:")))
+				else if ((strcmp (fields[0], "present") == 0)
+						&& (strcmp (fields[1], "voltage:") == 0))
 					valptr = &voltage;
 				else
 					valptr = NULL;
 
-				if ((strcmp (fields[0], "charging"))
-						&& (strcmp (fields[1], "state:")))
+				if ((strcmp (fields[0], "charging") == 0)
+						&& (strcmp (fields[1], "state:") == 0))
 				{
 					if (strcmp (fields[2], "charging"))
 						charging = 1;
