@@ -24,6 +24,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_debug.h"
 
 #define MODULE_NAME "ping"
 
@@ -131,6 +132,7 @@ static void ping_read (void)
 
 		latency = ping_iterator_get_latency (iter);
 
+		DBG ("host = %s, latency = %f", host, latency);
 		ping_submit (host, latency);
 
 		free (host); host = NULL;
