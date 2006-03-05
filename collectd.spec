@@ -1,6 +1,6 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	3.7.0
+Version:	3.7.2
 Release:	1
 Source:		http://verplant.org/collectd/%{name}-%{version}.tar.gz
 License:	GPL
