@@ -3,6 +3,8 @@
 # collectd	Initscript for collectd
 #		http://verplant.org/collectd/
 # Author:	Florian Forster <octo@verplant.org>
+# Extended to support multiple running instances of collectd:
+#		Sebastian Harl <sh@tokkee.org>
 #
 
 set -e
@@ -13,7 +15,10 @@ NAME=collectd
 DAEMON=/usr/sbin/$NAME
 SCRIPTNAME=/etc/init.d/$NAME
 ARGS=""
-CONFIG=/etc/collectd.conf
+
+CONFIGDIR=/etc/collectd
+# for backward compatibility
+FALLBACKCONF=/etc/collectd.conf
 
 # Gracefully exit if the package has been removed.
 test -x $DAEMON || exit 0
@@ -27,9 +32,31 @@ fi
 #	Function that starts the daemon/service.
 #
 d_start() {
-	if [ -e "$CONFIG" ]
+	i=1
+	
+	if [[ ! -d "$CONFIGDIR" && -e "$FALLBACKCONF" ]]
 	then
-		start-stop-daemon --start --quiet --exec $DAEMON -- -C "$CONFIG"
+		start-stop-daemon --start --quiet --exec $DAEMON \
+			-- -C "$FALLBACKCONF"
+	else
+		echo -n " ("
+		for CONFIG in `cd $CONFIGDIR; ls *.conf 2> /dev/null`; do
+			CONF="$CONFIGDIR/$CONFIG"
+			NAME=${CONFIG%%.conf}
+			PIDFILE=$( grep PIDFile $CONF | awk '{print $2}' )
+
+			if [ 1 != $i ]; then
+				echo -n " "
+			fi
+
+			start-stop-daemon --start --quiet \
+				--pidfile $PIDFILE --startas $DAEMON \
+				-- -C "$CONFIGDIR/$CONFIG"
+			echo -n "$NAME"
+
+			let i++
+		done
+		echo -n ")"
 	fi
 }
 
