@@ -56,7 +56,7 @@ and deleted when the program ist stopped. Available in B<all modes>.
 
 Sets the data directory. This is the directory beneath all RRD-files are
 created. Possibly more subdirectories are created. This is also the working
-directory for the daemon. Available in B<all modes>, though the B<Server> mode
+directory for the daemon. Available in B<all modes>, though the B<Client> mode
 won't write to this directory.
 
 =item B<LogFile> I<File>
