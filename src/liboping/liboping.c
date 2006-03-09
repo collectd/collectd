@@ -31,7 +31,16 @@
 
 #include <sys/socket.h>
 #include <netdb.h>
+
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#ifdef HAVE_NETINET_IP_VAR_H
+# include <netinet/ip_var.h>
+#endif
+
+#include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 
 #include <sys/time.h>
@@ -101,7 +110,7 @@ static uint16_t ping_icmp4_checksum (char *buf, size_t len)
 static pinghost_t *ping_receive_ipv4 (pinghost_t *ph, char *buffer, size_t buffer_len)
 {
 	struct ip *ip_hdr;
-	struct icmphdr *icmp_hdr;
+	struct icmp *icmp_hdr;
 
 	size_t ip_hdr_len;
 
@@ -125,23 +134,23 @@ static pinghost_t *ping_receive_ipv4 (pinghost_t *ph, char *buffer, size_t buffe
 	buffer     += ip_hdr_len;
 	buffer_len -= ip_hdr_len;
 
-	if (buffer_len < sizeof (struct icmphdr))
+	if (buffer_len < sizeof (struct icmp))
 		return (NULL);
 
-	icmp_hdr = (struct icmphdr *) buffer;
-	buffer     += sizeof (struct icmphdr);
-	buffer_len -= sizeof (struct icmphdr);
+	icmp_hdr = (struct icmp *) buffer;
+	buffer     += sizeof (struct icmp);
+	buffer_len -= sizeof (struct icmp);
 
-	if (icmp_hdr->type != ICMP_ECHOREPLY)
+	if (icmp_hdr->icmp_type != ICMP_ECHOREPLY)
 	{
-		dprintf ("Unexpected ICMP type: %i\n", icmp_hdr->type);
+		dprintf ("Unexpected ICMP type: %i\n", icmp_hdr->icmp_type);
 		return (NULL);
 	}
 
-	recv_checksum = icmp_hdr->checksum;
-	icmp_hdr->checksum = 0;
+	recv_checksum = icmp_hdr->icmp_cksum;
+	icmp_hdr->icmp_cksum = 0;
 	calc_checksum = ping_icmp4_checksum ((char *) icmp_hdr,
-			sizeof (struct icmphdr) + buffer_len);
+			sizeof (struct icmp) + buffer_len);
 
 	if (recv_checksum != calc_checksum)
 	{
@@ -150,8 +159,8 @@ static pinghost_t *ping_receive_ipv4 (pinghost_t *ph, char *buffer, size_t buffe
 		return (NULL);
 	}
 
-	ident = ntohs (icmp_hdr->un.echo.id);
-	seq   = ntohs (icmp_hdr->un.echo.sequence);
+	ident = ntohs (icmp_hdr->icmp_id);
+	seq   = ntohs (icmp_hdr->icmp_seq);
 
 	for (ptr = ph; ptr != NULL; ptr = ptr->next)
 	{
@@ -198,8 +207,8 @@ static pinghost_t *ping_receive_ipv6 (pinghost_t *ph, char *buffer, size_t buffe
 		return (NULL);
 
 	icmp_hdr = (struct icmp6_hdr *) buffer;
-	buffer     += sizeof (struct icmphdr);
-	buffer_len -= sizeof (struct icmphdr);
+	buffer     += sizeof (struct icmp);
+	buffer_len -= sizeof (struct icmp);
 
 	if (icmp_hdr->icmp6_type != ICMP6_ECHO_REPLY)
 	{
@@ -420,7 +429,7 @@ ssize_t ping_sendto (pinghost_t *ph, const void *buf, size_t buflen)
 
 static int ping_send_one_ipv4 (pinghost_t *ph)
 {
-	struct icmphdr *icmp4;
+	struct icmp *icmp4;
 	int status;
 
 	char buf[4096];
@@ -432,22 +441,21 @@ static int ping_send_one_ipv4 (pinghost_t *ph)
 	dprintf ("ph->hostname = %s\n", ph->hostname);
 
 	memset (buf, '\0', sizeof (buf));
-	icmp4 = (struct icmphdr *) buf;
+	icmp4 = (struct icmp *) buf;
 	data  = (char *) (icmp4 + 1);
 
-	icmp4->type             = ICMP_ECHO;
-	icmp4->code             = 0;
-	/* The checksum will be calculated by the TCP/IP stack.  */
-	icmp4->checksum         = 0;
-	icmp4->un.echo.id       = htons (ph->ident);
-	icmp4->un.echo.sequence = htons (ph->sequence);
+	icmp4->icmp_type  = ICMP_ECHO;
+	icmp4->icmp_code  = 0;
+	icmp4->icmp_cksum = 0;
+	icmp4->icmp_id    = htons (ph->ident);
+	icmp4->icmp_seq   = htons (ph->sequence);
 
 	strcpy (data, PING_DATA);
 	datalen = strlen (data);
 
-	buflen = datalen + sizeof (struct icmphdr);
+	buflen = datalen + sizeof (struct icmp);
 
-	icmp4->checksum = ping_icmp4_checksum (buf, buflen);
+	icmp4->icmp_cksum = ping_icmp4_checksum (buf, buflen);
 
 	dprintf ("Sending ICMPv4 package with ID 0x%04x\n", ph->ident);
 
