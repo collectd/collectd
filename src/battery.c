@@ -60,8 +60,10 @@ static char *ds_def_charge[] =
 };
 static int ds_num_charge = 1;
 
+#if BATTERY_HAVE_READ
 static int   battery_pmu_num = 0;
 static char *battery_pmu_file = "/proc/pmu/battery_%i";
+#endif
 
 static void battery_init (void)
 {
