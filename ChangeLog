@@ -1,3 +1,8 @@
+2006-03-09, Version 3.8.0
+	* The `ping' plugin no longer uses `libping' but a self written
+	  library named `liboping'. With this library it's possible to ping
+	  multiple IPv4 and IPv6 addresses and hostnames - in parallel.
+
 2006-02-18, Version 3.7.2
 	* A simple bug in the `battery' plugin has been fixed. It should now
 	  work with ACPI based batteries as well. Thankt to Sebastian for

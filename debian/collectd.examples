@@ -1,12 +1,2 @@
-contrib/cpu
-contrib/load
-contrib/iobytes
-contrib/iowait
-contrib/load
-contrib/memory
-contrib/ping
-contrib/swap
-contrib/temperature
-contrib/traffic
-contrib/users
-contrib/museum
+contrib/collectd2html.pl
+contrib/collection.cgi

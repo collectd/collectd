@@ -88,6 +88,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
+* Thu Mar 09 2006 Florian octo Forster <octo@verplant.org> 3.8.0-1
+- New upstream version
+
 * Sat Feb 18 2006 Florian octo Forster <octo@verplant.org> 3.7.2-1
 - Include `tape.so' so the build doesn't terminate because of missing files..
 - New upstream version

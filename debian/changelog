@@ -1,3 +1,9 @@
+collectd (3.8.0-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Thu, 09 Mar 2006 18:18:10 +0200
+
 collectd (3.7.2-1) unstable; urgency=low
 
   * New upstream version
