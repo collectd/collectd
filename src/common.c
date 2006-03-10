@@ -56,6 +56,9 @@ char *sstrdup (const char *s)
 {
 	char *r;
 
+	if (s == NULL)
+		return (NULL);
+
 	if((r = strdup (s)) == NULL)
 	{
 		DBG ("Not enough memory.");
