@@ -20,8 +20,19 @@
 #ifndef OCTO_PING_H
 #define OCTO_PING_H 1
 
-#include <stdlib.h>
-#include <unistd.h>
+#if HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#if HAVE_STDLIB_H
+# include <stdlib.h>
+#endif
+#if HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
 
 /*
  * Type definitions
