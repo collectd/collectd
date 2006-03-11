@@ -1,9 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 #
 # collectd	Initscript for collectd
 #		http://verplant.org/collectd/
-# Author:	Florian Forster <octo@verplant.org>
-# Extended to support multiple running instances of collectd:
+# Authors:	Florian Forster <octo@verplant.org>
 #		Sebastian Harl <sh@tokkee.org>
 #
 
@@ -32,31 +31,41 @@ fi
 #	Function that starts the daemon/service.
 #
 d_start() {
-	i=1
+	i=0
 	
-	if [[ ! -d "$CONFIGDIR" && -e "$FALLBACKCONF" ]]
+	if [ ! -d "$CONFIGDIR" -a -e "$FALLBACKCONF" ]
 	then
 		start-stop-daemon --start --quiet --exec $DAEMON \
 			-- -C "$FALLBACKCONF"
 	else
-		echo -n " ("
-		for CONFIG in `cd $CONFIGDIR; ls *.conf 2> /dev/null`; do
-			CONF="$CONFIGDIR/$CONFIG"
-			NAME=${CONFIG%%.conf}
-			PIDFILE=$( grep PIDFile $CONF | awk '{print $2}' )
+		for FILE in `ls $CONFIGDIR/*.conf 2>/dev/null`
+		do
+			NAME=`basename "$FILE" .conf`
 
-			if [ 1 != $i ]; then
-				echo -n " "
+			if [ $i == 0 ]
+			then
+				echo -n " (";
+			else
+				echo -n ", ";
+			fi
+			
+			$DAEMON -C "$FILE" 2>/dev/null
+			if [ $? == 0 ]
+			then
+				echo -n "$NAME";
+			else
+				echo -n "$NAME failed";
 			fi
 
-			start-stop-daemon --start --quiet \
-				--pidfile $PIDFILE --startas $DAEMON \
-				-- -C "$CONFIGDIR/$CONFIG"
-			echo -n "$NAME"
-
-			let i++
+			i=$(($i+1))
 		done
-		echo -n ")"
+
+		if [ $i == 0 ]
+		then
+			echo -n "[no config found]";
+		else
+			echo -n ")"
+		fi
 	fi
 }
 
