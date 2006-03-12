@@ -66,6 +66,9 @@ Features
     - Users
       (Currently logged in users)
 
+    - VServer
+      (System ressources used by vservers)
+
   * Performance: Running as a daemon collectd doesn't spend much time in
     startup. Since collectd links against libping, librrd and libsensors it
     doesn't need to start any other processes.

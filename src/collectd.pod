@@ -82,6 +82,10 @@ Network traffic (I<traffic>)
 
 Number of users logged into the system (I<users>)
 
+=item
+
+System ressources used by VServers (I<vserver>)
+
 =back
 
 =head1 OPTIONS
@@ -171,6 +175,16 @@ which may interfere with other statistics..
 
 The B<hddtemp> homepage can be found at
 L<http://www.guzu.net/linux/hddtemp.php>.
+
+=head2 vserver
+
+B<VServer> support is only available for Linux. It cannot yet be found in a 
+vanilla kernel, though. To make use of this plugin you need a kernel that has 
+B<VServer> support built in, i.e. you need to apply the patches and compile 
+your own kernel, which will then provide the /proc/virtual filesystem that is
+required by this plugin.
+
+The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
 =head1 RRD FILES
 
@@ -372,6 +386,43 @@ The DS'es depend on the module creating the RRD files:
 =item Users (F<users.rrd>)
 
   DS:users:GAUGE:25:0:65535
+
+=item VServer socket msg. accounting (F<vserver-I<E<lt>xidE<gt>>/socket.rrd>)
+
+  DS:unix_in:COUNTER:25:0:9223372036854775807
+  DS:unix_out:COUNTER:25:0:9223372036854775807
+  DS:inet_in:COUNTER:25:0:9223372036854775807
+  DS:inet_out:COUNTER:25:0:9223372036854775807
+  DS:inet6_in:COUNTER:25:0:9223372036854775807
+  DS:inet6_out:COUNTER:25:0:9223372036854775807
+  DS:other_in:COUNTER:25:0:9223372036854775807
+  DS:other_out:COUNTER:25:0:9223372036854775807
+  DS:unspec_in:COUNTER:25:0:9223372036854775807
+  DS:unspec_out:COUNTER:25:0:9223372036854775807
+
+=item VServer threads (F<vserver-I<E<lt>xidE<gt>>/threads.rrd>)
+
+  DS:total:GAUGE:25:0:65535
+  DS:running:GAUGE:25:0:65535
+  DS:uninterruptible:GAUGE:25:0:65535
+  DS:onhold:GAUGE:25:0:65535
+
+=item VServer load (F<vserver-I<E<lt>xidE<gt>>/load.rrd>)
+
+  DS:avg1:GAUGE:25:0:100
+  DS:avg5:GAUGE:25:0:100
+  DS:avg15:GAUGE:25:0:100
+
+=item VServer processes (F<vserver-I<E<lt>xidE<gt>>/processes.rrd>)
+
+  DS:total:GAUGE:25:0:65535
+
+=item VServer memory usage (F<vserver-I<E<lt>xidE<gt>>/memory.rrd>)
+
+  DS:vm:GAUGE:25:0:9223372036854775807
+  DS:vml:GAUGE:25:0:9223372036854775807
+  DS:rss:GAUGE:25:0:9223372036854775807
+  DS:anon:GAUGE:25:0:9223372036854775807
 
 =back
 

@@ -207,6 +207,14 @@ collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
 endif
 
+if BUILD_MODULE_VSERVER
+pkglib_LTLIBRARIES += vserver.la
+vserver_la_SOURCES = vserver.c vserver.h
+vserver_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" vserver.la
+collectd_DEPENDENCIES += vserver.la
+endif
+
 if BUILD_MODULE_WIRELESS
 pkglib_LTLIBRARIES += wireless.la
 wireless_la_SOURCES = wireless.c

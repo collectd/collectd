@@ -599,6 +599,7 @@ AC_COLLECTD([swap],      [disable], [module], [swap statistics])
 AC_COLLECTD([tape],      [disable], [module], [tape statistics])
 AC_COLLECTD([traffic],   [disable], [module], [system traffic statistics])
 AC_COLLECTD([users],     [disable], [module], [user count statistics])
+AC_COLLECTD([vserver],   [disable], [module], [vserver statistics])
 AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
 
 #m4_divert_once([HELP_ENABLE], [
@@ -852,6 +853,7 @@ Configuration:
     tape  . . . . . . . $enable_tape
     traffic . . . . . . $enable_traffic
     users . . . . . . . $enable_users
+    vserver . . . . . . $enable_vserver
     wireless  . . . . . $enable_wireless
 
 EOF
