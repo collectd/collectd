@@ -209,7 +209,7 @@ endif
 
 if BUILD_MODULE_VSERVER
 pkglib_LTLIBRARIES += vserver.la
-vserver_la_SOURCES = vserver.c vserver.h
+vserver_la_SOURCES = vserver.c
 vserver_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" vserver.la
 collectd_DEPENDENCIES += vserver.la
