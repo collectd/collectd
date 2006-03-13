@@ -122,9 +122,9 @@ collectd is linked against C<librrd>.
 The other two modes, B<client mode> and B<server mode>, are used to send data
 over a network and receive it again.
 
-In B<client mode> the daemon collectd the data locally and send it's result to
-one or more network addresses. No RRD files are written in this case. This is
-the only mode available if collectd is not linked against C<librrd>.
+In B<client mode> the daemon collects the data locally and sends it's results
+to one or more network addresses. No RRD files are written in this case. This
+is the only mode available if collectd is not linked against C<librrd>.
 
 If started in B<server mode> the daemon will listen on one or more interfaces
 and write the data it receives to RRD files. No data is collected locally.
