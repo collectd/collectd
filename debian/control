@@ -8,7 +8,7 @@ Standards-Version: 3.6.1
 Package: collectd
 Architecture: any
 Depends: libc6, librrd0 | librrd2
-Suggests: collectd-mysql, collectd-sensors
+Suggests: collectd-mysql, collectd-sensors, librrds-perl
 Description: Statistics collection daemon for filling RRD files.
  collectd is a small daemon written in C for performance. It reads various
  system statistics and updates RRD files, creating them if neccessary. Since

@@ -19,7 +19,7 @@ case "$1" in
 	configure)
 		[ -d /etc/collectd ] || mkdir -p /etc/collectd
 		
-		if [ -e /etc/collectd.conf && ! -e /etc/collectd/default.conf ]; then
+		if [ -e /etc/collectd.conf -a ! -e /etc/collectd/default.conf ]; then
 			mv /etc/collectd.conf /etc/collectd/default.conf
 		fi
 	;;
