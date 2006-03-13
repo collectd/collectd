@@ -39,6 +39,14 @@
 /* 1500 - 40 - 8  =  Ethernet packet - IPv6 header - UDP header */
 /* #define BUFF_SIZE 1452 */
 
+#ifndef IPV6_ADD_MEMBERSHIP
+# ifdef IPV6_JOIN_GROUP
+#  define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
+# else
+#  error "Neither IP_ADD_MEMBERSHIP nor IPV6_JOIN_GROUP is defined"
+# endif
+#endif /* !IP_ADD_MEMBERSHIP */
+
 #define BUFF_SIZE 4096
 
 #ifdef HAVE_LIBRRD
