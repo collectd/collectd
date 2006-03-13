@@ -20,8 +20,6 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
-#include "vserver.h"
-
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -33,6 +31,11 @@
 #include <syslog.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define BUFSIZE 512
+
+#define MODULE_NAME "vserver"
+#define PROCDIR "/proc/virtual"
 
 #if defined(KERNEL_LINUX)
 # define VSERVER_HAVE_READ 1
