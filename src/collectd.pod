@@ -387,18 +387,11 @@ The DS'es depend on the module creating the RRD files:
 
   DS:users:GAUGE:25:0:65535
 
-=item VServer socket msg. accounting (F<vserver-I<E<lt>xidE<gt>>/socket.rrd>)
+=item VServer load (F<vserver-I<E<lt>xidE<gt>>/load.rrd>)
 
-  DS:unix_in:COUNTER:25:0:9223372036854775807
-  DS:unix_out:COUNTER:25:0:9223372036854775807
-  DS:inet_in:COUNTER:25:0:9223372036854775807
-  DS:inet_out:COUNTER:25:0:9223372036854775807
-  DS:inet6_in:COUNTER:25:0:9223372036854775807
-  DS:inet6_out:COUNTER:25:0:9223372036854775807
-  DS:other_in:COUNTER:25:0:9223372036854775807
-  DS:other_out:COUNTER:25:0:9223372036854775807
-  DS:unspec_in:COUNTER:25:0:9223372036854775807
-  DS:unspec_out:COUNTER:25:0:9223372036854775807
+  DS:shortterm:GAUGE:25:0:100
+  DS:midterm:GAUGE:25:0:100
+  DS:longterm:GAUGE:25:0:100
 
 =item VServer threads (F<vserver-I<E<lt>xidE<gt>>/threads.rrd>)
 
@@ -407,17 +400,17 @@ The DS'es depend on the module creating the RRD files:
   DS:uninterruptible:GAUGE:25:0:65535
   DS:onhold:GAUGE:25:0:65535
 
-=item VServer load (F<vserver-I<E<lt>xidE<gt>>/load.rrd>)
+=item VServer network traffic (F<vserver-I<E<lt>xidE<gt>>/traffic-I<E<lt>nameE<gt>>.rrd>)
 
-  DS:avg1:GAUGE:25:0:100
-  DS:avg5:GAUGE:25:0:100
-  DS:avg15:GAUGE:25:0:100
+  DS:incoming:COUNTER:25:0:9223372036854775807
+  DS:outgoing:COUNTER:25:0:9223372036854775807
+  DS:failed:COUNTER:25:0:9223372036854775807
 
-=item VServer processes (F<vserver-I<E<lt>xidE<gt>>/processes.rrd>)
+=item VServer processes (F<vserver-I<E<lt>xidE<gt>>/vs_processes.rrd>)
 
   DS:total:GAUGE:25:0:65535
 
-=item VServer memory usage (F<vserver-I<E<lt>xidE<gt>>/memory.rrd>)
+=item VServer memory usage (F<vserver-I<E<lt>xidE<gt>>/vs_memory.rrd>)
 
   DS:vm:GAUGE:25:0:9223372036854775807
   DS:vml:GAUGE:25:0:9223372036854775807

@@ -23,6 +23,11 @@
 #if !COLLECTD_VSERVER_H
 #define COLLECTD_VSERVER_H 1
 
+#define BUFSIZE 512
+
+#define MODULE_NAME "vserver"
+#define PROCDIR "/proc/virtual"
+
 void module_register(void);
 
 #endif /* !COLLECTD_VSERVER_H */
