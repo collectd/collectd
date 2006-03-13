@@ -1,3 +1,7 @@
+2006-03-13, Version 3.8.1
+	* Fixes for building collectd unter FreeBSD, Mac OS X and Solaris.
+	* Fixes in the debian `postinst' and `init.d' scripts.
+
 2006-03-09, Version 3.8.0
 	* The `ping' plugin no longer uses `libping' but a self written
 	  library named `liboping'. With this library it's possible to ping

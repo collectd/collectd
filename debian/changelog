@@ -1,8 +1,14 @@
+collectd (3.8.1-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Mon, 13 Mar 2006 21:09:09 +0200
+
 collectd (3.8.0-2) unstable; urgency=low
 
   * Much improved init script. Thanks to Sebastian for his work :)
 
- -- Florian Forster <octo@verplant.org>  Set, 11 Mar 2006 16:09:44 +0200
+ -- Florian Forster <octo@verplant.org>  Sat, 11 Mar 2006 16:09:44 +0200
 
 collectd (3.8.0-1) unstable; urgency=low
 
