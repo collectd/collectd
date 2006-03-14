@@ -29,6 +29,7 @@
 #define XFS_SUPER_MAGIC_STR "XFSB"
 #define XFS_SUPER_MAGIC2_STR "BSFX"
 #endif
+
 #include "utils_debug.h"
 #include "utils_mount.h"
 
@@ -51,18 +52,26 @@
 #  include <sys/mnttab.h>
 #endif
 
-#ifndef MNTTAB
-#  if defined(_PATH_MOUNTED)
-#    define MNTTAB _PATH_MOUNTED
-#  elif defined(MNT_MNTTAB)
-#    define MNTTAB MNT_MNTTAB
-#  elif defined(MNTTABNAME)
-#    define MNTTAB MNTTABNAME
-#  elif defined(KMTAB)
-#    define MNTTAB KMTAB
-#  else
-#    define MNTTAB "/etc/mnttab"
-#  endif
+#if HAVE_PATHS_H
+#  include <paths.h>
+#endif
+
+#ifdef COLLECTD_MNTTAB
+#  undef COLLECTD_MNTTAB
+#endif
+
+#if defined(_PATH_MOUNTED) /* glibc */
+#  define COLLECTD_MNTTAB _PATH_MOUNTED
+#elif defined(MNTTAB) /* Solaris */
+#  define COLLECTD_MNTTAB MNTTAB
+#elif defined(MNT_MNTTAB)
+#  define COLLECTD_MNTTAB MNT_MNTTAB
+#elif defined(MNTTABNAME)
+#  define COLLECTD_MNTTAB MNTTABNAME
+#elif defined(KMTAB)
+#  define COLLECTD_MNTTAB KMTAB
+#else
+#  define COLLECTD_MNTTAB "/etc/mnttab"
 #endif
 
 /* *** *** *** ********************************************* *** *** *** */
@@ -362,7 +371,7 @@ static cu_mount_t *cu_mount_listmntent (void)
 	struct mntent *mnt;
 
 	struct tabmntent *mntlist;
-	if(listmntent(&mntlist, MNTTAB, NULL, NULL) < 0) {
+	if(listmntent(&mntlist, COLLECTD_MNTTAB, NULL, NULL) < 0) {
 		DBG("calling listmntent() failed: %s", strerror(errno));
 	}
 
@@ -477,8 +486,13 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 	cu_mount_t *last  = NULL;
 	cu_mount_t *new   = NULL;
 
-	if ((fp = fopen (MNTTAB, "r")) == NULL)
+	DBG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
+
+	if ((fp = fopen (COLLECTD_MNTTAB, "r")) == NULL)
+	{
+		syslog (LOG_ERR, "fopen (%s): %s", COLLECTD_MNTTAB, strerror (errno));
 		return (NULL);
+	}
 
 	while (getmntent (fp, &mt) == 0)
 	{
@@ -531,8 +545,13 @@ static cu_mount_t *cu_mount_getmntent (void)
 	cu_mount_t *last  = NULL;
 	cu_mount_t *new   = NULL;
 
-	if ((fp = setmntent (MNTTAB, "r")) == NULL)
+	DBG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
+
+	if ((fp = setmntent (COLLECTD_MNTTAB, "r")) == NULL)
+	{
+		syslog (LOG_ERR, "setmntent (%s): %s", COLLECTD_MNTTAB, strerror (errno));
 		return (NULL);
+	}
 
 	while ((me = getmntent (fp)) != NULL)
 	{
@@ -548,6 +567,9 @@ static cu_mount_t *cu_mount_getmntent (void)
 		new->device      = get_device_name (new->options);
 		new->next        = NULL;
 
+		DBG ("new = {dir = %s, spec_device = %s, type = %s, options = %s, device = %s}",
+				new->dir, new->spec_device, new->type, new->options, new->device);
+
 		/* Append to list */
 		if (first == NULL)
 		{
@@ -562,6 +584,8 @@ static cu_mount_t *cu_mount_getmntent (void)
 	}
 
 	endmntent (fp);
+
+	DBG ("return (0x%p)", (void *) first);
 
 	return (first);
 }
@@ -621,6 +645,8 @@ void cu_mount_freelist (cu_mount_t *list)
 {
 	cu_mount_t *this;
 	cu_mount_t *next;
+
+	DBG ("(list = 0x%p)", (void *) list);
 
 	for (this = list; this != NULL; this = next)
 	{
