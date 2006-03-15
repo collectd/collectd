@@ -307,7 +307,7 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 	argv[0] = "create";
 	argv[1] = filename;
 	argv[2] = "-s";
-	argv[3] = "10";
+	argv[3] = COLLECTD_STEP;
 
 	j = 4;
 	for (i = 0; i < ds_num; i++)

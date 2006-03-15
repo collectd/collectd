@@ -138,6 +138,8 @@ static void exit_usage (char *name)
 #if COLLECT_DEBUG
 			"  Log-File          "LOGFILE"\n"
 #endif
+			"  Step              "COLLECTD_STEP" seconds\n"
+			"  Heartbeat         "COLLECTD_HEARTBEAT" seconds\n"
 			"\n"PACKAGE" "VERSION", http://verplant.org/collectd/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n");
@@ -147,6 +149,11 @@ static void exit_usage (char *name)
 static int start_client (void)
 {
 	int sleepingtime;
+	int step;
+
+	step = atoi (COLLECTD_STEP);
+	if (step <= 0)
+		step = 10;
 
 #if HAVE_LIBKSTAT
 	kc = NULL;
@@ -177,7 +184,7 @@ static int start_client (void)
 #endif
 		plugin_read_all ();
 
-		sleepingtime = 10;
+		sleepingtime = step;
 		while (sleepingtime != 0)
 		{
 			if (loop != 0)
