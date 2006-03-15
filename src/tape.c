@@ -37,14 +37,14 @@ static char *tape_filename_template = "tape-%s.rrd";
 /* 104857600 == 100 MB */
 static char *tape_ds_def[] =
 {
-	"DS:rcount:COUNTER:25:0:U",
-	"DS:rmerged:COUNTER:25:0:U",
-	"DS:rbytes:COUNTER:25:0:U",
-	"DS:rtime:COUNTER:25:0:U",
-	"DS:wcount:COUNTER:25:0:U",
-	"DS:wmerged:COUNTER:25:0:U",
-	"DS:wbytes:COUNTER:25:0:U",
-	"DS:wtime:COUNTER:25:0:U",
+	"DS:rcount:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:rmerged:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:rbytes:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:rtime:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wcount:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wmerged:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wbytes:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wtime:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int tape_ds_num = 8;

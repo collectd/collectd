@@ -60,43 +60,43 @@ static char *traffic_file  = "traffic-mysql.rrd";
 
 static char *commands_ds_def[] =
 {
-	"DS:value:COUNTER:25:0:U",
+	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int commands_ds_num = 1;
 
 static char *handler_ds_def[] =
 {
-	"DS:value:COUNTER:25:0:U",
+	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int handler_ds_num = 1;
 
 static char *qcache_ds_def[] =
 {
-	"DS:hits:COUNTER:25:0:U",
-	"DS:inserts:COUNTER:25:0:U",
-	"DS:not_cached:COUNTER:25:0:U",
-	"DS:lowmem_prunes:COUNTER:25:0:U",
-	"DS:queries_in_cache:GAUGE:25:0:U",
+	"DS:hits:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:inserts:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:not_cached:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:lowmem_prunes:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:queries_in_cache:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int qcache_ds_num = 5;
 
 static char *threads_ds_def[] =
 {
-	"DS:running:GAUGE:25:0:U",
-	"DS:connected:GAUGE:25:0:U",
-	"DS:cached:GAUGE:25:0:U",
-	"DS:created:COUNTER:25:0:U",
+	"DS:running:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:connected:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:cached:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:created:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int threads_ds_num = 4;
 
 static char *traffic_ds_def[] =
 {
-	"DS:incoming:COUNTER:25:0:U",
-	"DS:outgoing:COUNTER:25:0:U",
+	"DS:incoming:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:outgoing:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int traffic_ds_num = 2;

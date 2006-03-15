@@ -38,24 +38,24 @@ static char *part_filename_template = "partition-%s.rrd";
 /* 104857600 == 100 MB */
 static char *disk_ds_def[] =
 {
-	"DS:rcount:COUNTER:25:0:U",
-	"DS:rmerged:COUNTER:25:0:U",
-	"DS:rbytes:COUNTER:25:0:104857600",
-	"DS:rtime:COUNTER:25:0:U",
-	"DS:wcount:COUNTER:25:0:U",
-	"DS:wmerged:COUNTER:25:0:U",
-	"DS:wbytes:COUNTER:25:0:104857600",
-	"DS:wtime:COUNTER:25:0:U",
+	"DS:rcount:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:rmerged:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:rbytes:COUNTER:"COLLECTD_HEARTBEAT":0:104857600",
+	"DS:rtime:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wcount:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wmerged:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wbytes:COUNTER:"COLLECTD_HEARTBEAT":0:104857600",
+	"DS:wtime:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int disk_ds_num = 8;
 
 static char *part_ds_def[] =
 {
-	"DS:rcount:COUNTER:25:0:U",
-	"DS:rbytes:COUNTER:25:0:104857600",
-	"DS:wcount:COUNTER:25:0:U",
-	"DS:wbytes:COUNTER:25:0:104857600",
+	"DS:rcount:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:rbytes:COUNTER:"COLLECTD_HEARTBEAT":0:104857600",
+	"DS:wcount:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wbytes:COUNTER:"COLLECTD_HEARTBEAT":0:104857600",
 	NULL
 };
 static int part_ds_num = 4;

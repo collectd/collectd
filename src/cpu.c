@@ -71,11 +71,11 @@ static char *cpu_filename = "cpu-%s.rrd";
 
 static char *ds_def[] =
 {
-	"DS:user:COUNTER:25:0:U",
-	"DS:nice:COUNTER:25:0:U",
-	"DS:syst:COUNTER:25:0:U",
-	"DS:idle:COUNTER:25:0:U",
-	"DS:wait:COUNTER:25:0:U",
+	"DS:user:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:nice:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:syst:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:idle:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:wait:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int ds_num = 5;

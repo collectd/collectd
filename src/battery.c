@@ -41,21 +41,21 @@ static char *battery_charge_file  = "battery-%s/charge.rrd";
 
 static char *ds_def_current[] =
 {
-	"DS:current:GAUGE:25:U:U",
+	"DS:current:GAUGE:"COLLECTD_HEARTBEAT":U:U",
 	NULL
 };
 static int ds_num_current = 1;
 
 static char *ds_def_voltage[] =
 {
-	"DS:voltage:GAUGE:25:U:U",
+	"DS:voltage:GAUGE:"COLLECTD_HEARTBEAT":U:U",
 	NULL
 };
 static int ds_num_voltage = 1;
 
 static char *ds_def_charge[] =
 {
-	"DS:charge:GAUGE:25:0:U",
+	"DS:charge:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int ds_num_charge = 1;

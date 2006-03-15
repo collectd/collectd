@@ -38,8 +38,8 @@ static char *traffic_filename_template = "traffic-%s.rrd";
 
 static char *ds_def[] =
 {
-	"DS:incoming:COUNTER:25:0:U",
-	"DS:outgoing:COUNTER:25:0:U",
+	"DS:incoming:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:outgoing:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int ds_num = 2;

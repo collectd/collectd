@@ -39,12 +39,12 @@ static char *ps_file = "processes.rrd";
 
 static char *ds_def[] =
 {
-	"DS:running:GAUGE:25:0:65535",
-	"DS:sleeping:GAUGE:25:0:65535",
-	"DS:zombies:GAUGE:25:0:65535",
-	"DS:stopped:GAUGE:25:0:65535",
-	"DS:paging:GAUGE:25:0:65535",
-	"DS:blocked:GAUGE:25:0:65535",
+	"DS:running:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
+	"DS:sleeping:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
+	"DS:zombies:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
+	"DS:stopped:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
+	"DS:paging:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
+	"DS:blocked:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
 	NULL
 };
 static int ds_num = 6;

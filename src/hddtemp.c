@@ -45,7 +45,7 @@ static char *filename_format = "hddtemp-%s.rrd";
 
 static char *ds_def[] =
 {
-	"DS:value:GAUGE:25:U:U",
+	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
 	NULL
 };
 static int ds_num = 1;

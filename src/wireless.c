@@ -41,9 +41,9 @@ static char *filename_template = "wireless-%s.rrd";
 
 static char *ds_def[] =
 {
-	"DS:quality:GAUGE:25:0:U",
-	"DS:power:GAUGE:25:0:U",
-	"DS:noise:GAUGE:25:0:U",
+	"DS:quality:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:power:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:noise:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int ds_num = 3;

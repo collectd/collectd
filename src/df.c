@@ -51,8 +51,8 @@ static char *filename_template = "df-%s.rrd";
 
 static char *ds_def[] =
 {
-	"DS:used:GAUGE:25:0:U",
-	"DS:free:GAUGE:25:0:U",
+	"DS:used:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:free:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int ds_num = 2;
