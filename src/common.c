@@ -25,6 +25,10 @@
 #include "common.h"
 #include "utils_debug.h"
 
+#ifdef HAVE_MATH_H
+#  include <math.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
@@ -47,6 +51,26 @@ static char *rra_def[] =
 		NULL
 };
 static int rra_num = 12;
+
+static int rra_timespans[] =
+{
+	3600,
+	86400,
+	604800,
+	2678400,
+	31622400,
+	0
+};
+static int rra_timespans_num = 5;
+
+static char *rra_types[] =
+{
+	"AVERAGE",
+	"MIN",
+	"MAX",
+	NULL
+};
+static int rra_types_num = 3;
 #endif /* HAVE_LIBRRD */
 
 void sstrncpy (char *d, const char *s, int len)
@@ -289,6 +313,87 @@ int check_create_dir (const char *file_orig)
 	return (0);
 }
 
+/* * * * *
+ * Magic *
+ * * * * */
+int rra_get (char ***ret)
+{
+	static char **rra_def = NULL;
+	static int rra_num = 0;
+
+	int rra_max = rra_timespans_num * rra_types_num;
+
+	int step;
+	int rows;
+	int span;
+
+	int cdp_num;
+	int cdp_len;
+	int i, j;
+
+	char buffer[64];
+
+	if ((rra_num != 0) && (rra_def != NULL))
+	{
+		*ret = rra_def;
+		return (rra_num);
+	}
+
+	if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
+		return (-1);
+	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
+
+	step = atoi (COLLECTD_STEP);
+	rows = atoi (COLLECTD_ROWS);
+
+	if ((step <= 0) || (rows <= 0))
+	{
+		*ret = NULL;
+		return (-1);
+	}
+
+	cdp_len = 0;
+	for (i = 0; i < rra_timespans_num; i++)
+	{
+		span = rra_timespans[i];
+
+		if ((span / step) < rows)
+			continue;
+
+		if (cdp_len == 0)
+			cdp_len = 1;
+		else
+			cdp_len = (int) floor (((double) span) / ((double) (rows * step)));
+
+		cdp_num = (int) ceil (((double) span) / ((double) (cdp_len * step)));
+
+		for (j = 0; j < rra_types_num; j++)
+		{
+			if (rra_num >= rra_max)
+				break;
+
+			if (snprintf (buffer, sizeof(buffer), "RRA:%s:%3.1f:%u:%u",
+						rra_types[j], COLLECTD_XFF,
+						cdp_len, cdp_num) >= sizeof (buffer))
+			{
+				syslog (LOG_ERR, "rra_get: Buffer would have been truncated.");
+				continue;
+			}
+
+			rra_def[rra_num++] = sstrdup (buffer);
+		}
+	}
+
+#if COLLECT_DEBUG
+	DBG ("rra_num = %i", rra_num);
+	for (i = 0; i < rra_num; i++)
+		DBG ("  %s", rra_def[i]);
+#endif
+
+	*ret = rra_def;
+	return (rra_num);
+}
+
 int rrd_create_file (char *filename, char **ds_def, int ds_num)
 {
 	char **argv;
@@ -298,6 +403,8 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 
 	if (check_create_dir (filename))
 		return (-1);
+
+	rra_get (&argv); /* FIXME */
 
 	argc = ds_num + rra_num + 4;
 

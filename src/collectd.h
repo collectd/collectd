@@ -207,6 +207,14 @@
 #  define COLLECTD_HEARTBEAT "25"
 #endif
 
+#ifndef COLLECTD_ROWS
+#  define COLLECTD_ROWS "1200"
+#endif
+
+#ifndef COLLECTD_XFF
+#  define COLLECTD_XFF 0.1
+#endif
+
 extern time_t curtime;
 
 #ifdef HAVE_LIBRRD
