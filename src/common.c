@@ -32,18 +32,21 @@ extern kstat_ctl_t *kc;
 #ifdef HAVE_LIBRRD
 static char *rra_def[] =
 {
+		"RRA:AVERAGE:0.0:1:1500",
 		"RRA:AVERAGE:0.2:6:1500",
 		"RRA:AVERAGE:0.1:180:1680",
 		"RRA:AVERAGE:0.1:2160:1520",
+		"RRA:MIN:0.0:1:1500",
 		"RRA:MIN:0.2:6:1500",
 		"RRA:MIN:0.1:180:1680",
 		"RRA:MIN:0.1:2160:1520",
+		"RRA:MAX:0.0:1:1500",
 		"RRA:MAX:0.2:6:1500",
 		"RRA:MAX:0.1:180:1680",
 		"RRA:MAX:0.1:2160:1520",
 		NULL
 };
-static int rra_num = 9;
+static int rra_num = 12;
 #endif /* HAVE_LIBRRD */
 
 void sstrncpy (char *d, const char *s, int len)
