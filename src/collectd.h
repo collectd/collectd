@@ -200,7 +200,7 @@
 #define MODE_LOCAL  0x04
 
 #ifndef COLLECTD_STEP
-#  define COLLECTD_STEP 10
+#  define COLLECTD_STEP "10"
 #endif
 
 #ifndef COLLECTD_HEARTBEAT

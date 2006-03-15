@@ -538,7 +538,7 @@ AC_ARG_WITH(heartbeat, [AS_HELP_STRING([--with-heartbeat=SECONDS], [Heartbeat of
 
 if test $collectd_step -ne 10
 then
-	AC_DEFINE_UNQUOTED(COLLECTD_STEP, $collectd_step, [Interval in which plugins are queried.])
+	AC_DEFINE_UNQUOTED(COLLECTD_STEP, "$collectd_step", [Interval in which plugins are queried.])
 fi
 if test $collectd_heartbeat -ne 25
 then
