@@ -49,7 +49,7 @@ static char *rrd_inet6	= "vserver-%s/traffic-inet6.rrd";
 static char *rrd_other	= "vserver-%s/traffic-other.rrd";
 static char *rrd_unspec	= "vserver-%s/traffic-unspec.rrd";
 
-static char *rrd_thread	= "vserver-%s/threads.rrd";
+static char *rrd_thread	= "vserver-%s/vs_threads.rrd";
 
 static char *rrd_load	= "vserver-%s/load.rrd";
 
