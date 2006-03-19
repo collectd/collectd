@@ -92,6 +92,21 @@
 /*
  * private (static) functions
  */
+static int ping_timeval_add (struct timeval *tv1, struct timeval *tv2,
+		struct timeval *res)
+{
+	res->tv_sec  = tv1->tv_sec  + tv2->tv_sec;
+	res->tv_usec = tv1->tv_usec + tv2->tv_usec;
+
+	while (res->tv_usec > 1000000)
+	{
+		res->tv_usec -= 1000000;
+		res->tv_sec++;
+	}
+
+	return (0);
+}
+
 static int ping_timeval_sub (struct timeval *tv1, struct timeval *tv2,
 		struct timeval *res)
 {
@@ -350,12 +365,13 @@ static int ping_receive_one (int fd, pinghost_t *ph, struct timeval *now)
 	return (0);
 }
 
-static int ping_receive_all (pinghost_t *ph)
+static int ping_receive_all (pingobj_t *obj)
 {
 	fd_set readfds;
 	int num_readfds;
 	int max_readfds;
 
+	pinghost_t *ph;
 	pinghost_t *ptr;
 
 	struct timeval endtime;
@@ -365,14 +381,24 @@ static int ping_receive_all (pinghost_t *ph)
 
 	int ret;
 
+	ph = obj->head;
 	ret = 0;
 
 	for (ptr = ph; ptr != NULL; ptr = ptr->next)
 		ptr->latency = -1.0;
 
-	if (gettimeofday (&endtime, NULL) == -1)
+	if (gettimeofday (&nowtime, NULL) == -1)
 		return (-1);
-	endtime.tv_sec += 1;
+
+	/* Set up timeout */
+	timeout.tv_sec = (time_t) obj->timeout;
+	timeout.tv_usec = (suseconds_t) (1000000 * (obj->timeout - ((double) timeout.tv_sec)));
+
+	dprintf ("Set timeout to %i.%06i seconds\n",
+			(int) timeout.tv_sec,
+			(int) timeout.tv_usec);
+
+	ping_timeval_add (&nowtime, &timeout, &endtime);
 
 	while (1)
 	{
@@ -598,6 +624,25 @@ static int ping_send_all (pinghost_t *ph)
 	return (0);
 }
 
+/*
+ * Set the TTL of a socket protocol independently.
+ */
+static int ping_set_ttl (pinghost_t *ph, int ttl)
+{
+	int ret = -2;
+
+	if (ph->addrfamily == AF_INET)
+	{
+		ret = setsockopt (ph->fd, IPPROTO_IP, IP_TTL, &ttl, sizeof (ttl));
+	}
+	else if (ph->addrfamily == AF_INET6)
+	{
+		ret = setsockopt (ph->fd, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof (ttl));
+	}
+
+	return (ret);
+}
+
 static int ping_get_ident (void)
 {
 	int fd;
@@ -751,7 +796,7 @@ int ping_send (pingobj_t *obj)
 	if (ping_send_all (obj->head) < 0)
 		return (-1);
 
-	if ((ret = ping_receive_all (obj->head)) < 0)
+	if ((ret = ping_receive_all (obj)) < 0)
 		return (-2);
 
 	return (ret);
@@ -791,7 +836,7 @@ int ping_host_add (pingobj_t *obj, const char *host)
 #ifdef AI_ADDRCONFIG
 	ai_hints.ai_flags    |= AI_ADDRCONFIG;
 #endif
-	ai_hints.ai_family    = PF_UNSPEC;
+	ai_hints.ai_family    = obj->addrfamily;
 	ai_hints.ai_socktype  = SOCK_RAW;
 
 	if ((ph = ping_alloc ()) == NULL)
@@ -884,6 +929,8 @@ int ping_host_add (pingobj_t *obj, const char *host)
 
 	ph->next  = obj->head;
 	obj->head = ph;
+
+	ping_set_ttl (ph, obj->ttl);
 
 	return (0);
 }
