@@ -72,8 +72,7 @@ static int ping_config (char *key, char *value)
 
 	if (ping_host_add (pingobj, value) < 0)
 	{
-		syslog (LOG_ERR, "ping: `ping_host_add' failed.\n");
-		return (-1);
+		syslog (LOG_WARNING, "ping: `ping_host_add' failed.\n");
 	}
 
 	return (0);
