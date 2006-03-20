@@ -24,8 +24,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <math.h>
-
 #define MODULE_NAME "wireless"
 #define BUFSIZE 1024
 
@@ -42,8 +40,8 @@ static char *filename_template = "wireless-%s.rrd";
 static char *ds_def[] =
 {
 	"DS:quality:GAUGE:25:0:U",
-	"DS:power:GAUGE:25:0:U",
-	"DS:noise:GAUGE:25:0:U",
+	"DS:power:GAUGE:25:U:0",
+	"DS:noise:GAUGE:25:U:0",
 	NULL
 };
 static int ds_num = 3;
@@ -79,6 +77,7 @@ static void wireless_write (char *host, char *inst, char *val)
 }
 
 #if WIRELESS_HAVE_READ
+#if 0
 static double wireless_dbm_to_watt (double dbm)
 {
 	double watt;
@@ -92,6 +91,7 @@ static double wireless_dbm_to_watt (double dbm)
 
 	return (watt);
 }
+#endif
 
 static void wireless_submit (char *device,
 		double quality, double power, double noise)
@@ -154,18 +154,15 @@ static void wireless_read (void)
 		power   = atof (fields[3]);
 		noise   = atof (fields[4]);
 
+		/* Fill in invalid values when conversion failed.. */
 		if (quality == 0.0)
-			quality = -1.0;
+			quality = -1.0; /* quality >= 0 */
 
-		if (power >= 0.0)
-			power = -1.0;
-		else
-			power = wireless_dbm_to_watt (power);
+		if (power == 0.0)
+			power = 1.0; /* power <= 0 */
 
-		if (noise >= 0.0)
-			noise = -1.0;
-		else
-			noise = wireless_dbm_to_watt (noise);
+		if (noise == 0.0)
+			noise = 1.0; /* noise <= 0 */
 
 		wireless_submit (device, quality, power, noise);
 	}
@@ -179,7 +176,7 @@ static void wireless_read (void)
 
 void module_register (void)
 {
-   plugin_register (MODULE_NAME, wireless_init, wireless_read, wireless_write);
+	plugin_register (MODULE_NAME, wireless_init, wireless_read, wireless_write);
 }
 
 #undef BUFSIZE
