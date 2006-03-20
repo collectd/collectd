@@ -72,7 +72,7 @@ static int scoreboard_ds_num = 1;
 
 static char *config_keys[] =
 {
-	"URI",
+	"URL",
 	"User",
 	"Password",
 	NULL
@@ -115,8 +115,8 @@ static int config_set (char **var, char *value)
 
 static int config (char *key, char *value)
 {
-	if (strcasecmp (key, "uri") == 0)
-		return (config_set (&key, value));
+	if (strcasecmp (key, "url") == 0)
+		return (config_set (&url, value));
 	else if (strcasecmp (key, "user") == 0)
 		return (config_set (&user, value));
 	else if (strcasecmp (key, "password") == 0)
