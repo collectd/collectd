@@ -99,7 +99,7 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *
 	return (len);
 }
 
-static void config_set (char **var, char *value)
+static int config_set (char **var, char *value)
 {
 	if (*var != NULL)
 	{
@@ -128,14 +128,14 @@ static int config (char *key, char *value)
 static void init (void)
 {
 #if APACHE_HAVE_READ
-	static credentials[1024];
+	static char credentials[1024];
 
 	if (curl != NULL)
 	{
 		curl_easy_cleanup (curl);
 	}
 
-	if ((curl = curl_easy_init (CURL_GLOBAL_NOTHING)) == NULL)
+	if ((curl = curl_easy_init ()) == NULL)
 	{
 		syslog (LOG_ERR, "apache: `curl_easy_init' failed.");
 		return;
@@ -255,9 +255,8 @@ static void submit_scoreboard (char *buf)
 	submit ("apache_scoreboard", "idle_cleanup", idle_cleanup);
 }
 
-static void read (void)
+static void apache_read (void)
 {
-	CURLcode status;
 	int i;
 
 	char *ptr;
@@ -274,7 +273,7 @@ static void read (void)
 
 	if (curl_easy_perform (curl) != 0)
 	{
-		syslog (LOG_WARN, "apache: curl_easy_perform failed: %s", apache_curl_error);
+		syslog (LOG_WARNING, "apache: curl_easy_perform failed: %s", apache_curl_error);
 		return;
 	}
 
@@ -311,12 +310,12 @@ static void read (void)
 	apache_buffer_len = 0;
 }
 #else
-#  define read NULL
+#  define apache_read NULL
 #endif /* APACHE_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, init, read, NULL);
+	plugin_register (MODULE_NAME, init, apache_read, NULL);
 	plugin_register ("apache_requests",   NULL, NULL, requests_write);
 	plugin_register ("apache_bytes",      NULL, NULL, bytes_write);
 	plugin_register ("apache_scoreboard", NULL, NULL, scoreboard_write);
