@@ -44,6 +44,17 @@ collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
 
 pkglib_LTLIBRARIES = 
 
+if BUILD_MODULE_APACHE
+pkglib_LTLIBRARIES += apache.la
+apache_la_SOURCES = apache.c
+apache_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBCURL
+apache_la_LDFLAGS += -lcurl
+endif
+collectd_LDADD += "-dlopen" apache.la
+collectd_DEPENDENCIES += apache.la
+endif
+
 if BUILD_MODULE_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c
@@ -219,8 +230,6 @@ if BUILD_MODULE_WIRELESS
 pkglib_LTLIBRARIES += wireless.la
 wireless_la_SOURCES = wireless.c
 wireless_la_LDFLAGS = -module -avoid-version
-# FIXME Make `-lm' conditional
-wireless_la_LDFLAGS += -lm
 collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif

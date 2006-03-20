@@ -142,6 +142,9 @@ AC_CHECK_HEADERS(sys/loadavg.h)
 AC_CHECK_HEADERS(utmp.h)
 AC_CHECK_HEADERS(utmpx.h)
 
+# For apache plugin
+AC_CHECK_HEADERS(curl/curl.h)
+
 # For quota module
 AC_CHECK_HEADERS(grp.h pwd.h sys/ucred.h)
 AC_CHECK_HEADERS(ctype.h)
@@ -307,6 +310,14 @@ AC_CHECK_LIB(resolv, res_search,
 ],
 [with_libresolv="no"])
 AM_CONDITIONAL(BUILD_WITH_LIBRESOLV, test "x$with_libresolv" = "xyes")
+
+with_libcurl="yes"
+AC_CHECK_LIB(curl, curl_easy_init,
+[
+	AC_DEFINE(HAVE_LIBCURL, 1, [Define to 1 if you have the 'curl' library (-lcurl).])
+],
+[with_libcurl="no"])
+AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
@@ -580,6 +591,7 @@ AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 
 m4_divert_once([HELP_ENABLE], [
 collectd modules:])
+AC_COLLECTD([apache],    [disable], [module], [Apache httpd statistics])
 AC_COLLECTD([battery],   [disable], [module], [battery statistics])
 AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
 AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
@@ -824,6 +836,7 @@ cat <<EOF;
 
 Configuration:
   Libraries:
+    libcurl . . . . . . $with_libcurl
     librrd  . . . . . . $with_rrdtool
     lm_sensors  . . . . $with_lm_sensors
     libstatgrab . . . . $with_libstatgrab
