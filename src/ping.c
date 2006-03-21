@@ -37,7 +37,7 @@ static char *file_template = "ping-%s.rrd";
 
 static char *ds_def[] = 
 {
-	"DS:ping:GAUGE:25:0:65535",
+	"DS:ping:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
 	NULL
 };
 static int ds_num = 1;

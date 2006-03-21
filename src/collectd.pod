@@ -190,24 +190,29 @@ The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
 The RRD files are created automatically with the following RRAs:
 
+  RRA:AVERAGE:0.0:1:1500
   RRA:AVERAGE:0.2:6:1500
   RRA:AVERAGE:0.1:180:1680
   RRA:AVERAGE:0.1:2160:1520
+  RRA:MIN:0.0:1:1500
   RRA:MIN:0.2:6:1500
   RRA:MIN:0.1:180:1680
   RRA:MIN:0.1:2160:1520
+  RRA:MAX:0.0:1:1500
   RRA:MAX:0.2:6:1500
   RRA:MAX:0.1:180:1680
   RRA:MAX:0.1:2160:1520
 
-Since collectd uses a 10 second I<step> the RRAs contain the following
-timespans:
+By default collectd uses a 10 second I<step>. Thus the RRAs contain the
+following timespans. If you've changed the I<step> at compile time you will
+have calculate resolution and timespan yourself.
 
-  Resolution | Data points |  Timespan
-  -----------+-------------+----------
-  60 seconds |        1500 |  25 hours
-  30 minutes |        1680 |  35 days
-   6 hours   |        1520 | 380 days
+  PDP per CDP | Resolution | Data points |  Timespan
+  ------------+------------+-------------+----------
+            1 | 10 seconds !        1500 !   4 hours
+            6 |  1 minute  |        1500 |  25 hours
+          180 | 30 minutes |        1680 |  35 days
+         2160 |  6 hours   |        1520 | 380 days
 
 The DS'es depend on the module creating the RRD files:
 

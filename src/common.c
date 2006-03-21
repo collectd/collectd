@@ -25,25 +25,54 @@
 #include "common.h"
 #include "utils_debug.h"
 
+#ifdef HAVE_MATH_H
+#  include <math.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
 
 #ifdef HAVE_LIBRRD
+#if 0
 static char *rra_def[] =
 {
+		"RRA:AVERAGE:0.0:1:1500",
 		"RRA:AVERAGE:0.2:6:1500",
 		"RRA:AVERAGE:0.1:180:1680",
 		"RRA:AVERAGE:0.1:2160:1520",
+		"RRA:MIN:0.0:1:1500",
 		"RRA:MIN:0.2:6:1500",
 		"RRA:MIN:0.1:180:1680",
 		"RRA:MIN:0.1:2160:1520",
+		"RRA:MAX:0.0:1:1500",
 		"RRA:MAX:0.2:6:1500",
 		"RRA:MAX:0.1:180:1680",
 		"RRA:MAX:0.1:2160:1520",
 		NULL
 };
-static int rra_num = 9;
+static int rra_num = 12;
+#endif
+
+static int rra_timespans[] =
+{
+	3600,
+	86400,
+	604800,
+	2678400,
+	31622400,
+	0
+};
+static int rra_timespans_num = 5;
+
+static char *rra_types[] =
+{
+	"AVERAGE",
+	"MIN",
+	"MAX",
+	NULL
+};
+static int rra_types_num = 3;
 #endif /* HAVE_LIBRRD */
 
 void sstrncpy (char *d, const char *s, int len)
@@ -181,6 +210,29 @@ int escape_slashes (char *buf, int buf_len)
 	return (0);
 }
 
+int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct timespec *ret)
+{
+	if ((tv0 == NULL) || (tv1 == NULL) || (ret == NULL))
+		return (-2);
+
+	if ((tv0->tv_sec < tv1->tv_sec)
+			|| ((tv0->tv_sec == tv1->tv_sec) && (tv0->tv_usec < tv1->tv_usec)))
+		return (-1);
+
+	ret->tv_sec  = tv0->tv_sec - tv1->tv_sec;
+	ret->tv_nsec = 1000 * ((long) (tv0->tv_usec - tv1->tv_usec));
+
+	if (ret->tv_nsec < 0)
+	{
+		assert (ret->tv_sec > 0);
+
+		ret->tv_nsec += 1000000000;
+		ret->tv_sec  -= 1;
+	}
+
+	return (0);
+}
+
 #ifdef HAVE_LIBRRD
 int check_create_dir (const char *file_orig)
 {
@@ -286,15 +338,104 @@ int check_create_dir (const char *file_orig)
 	return (0);
 }
 
+/* * * * *
+ * Magic *
+ * * * * */
+int rra_get (char ***ret)
+{
+	static char **rra_def = NULL;
+	static int rra_num = 0;
+
+	int rra_max = rra_timespans_num * rra_types_num;
+
+	int step;
+	int rows;
+	int span;
+
+	int cdp_num;
+	int cdp_len;
+	int i, j;
+
+	char buffer[64];
+
+	if ((rra_num != 0) && (rra_def != NULL))
+	{
+		*ret = rra_def;
+		return (rra_num);
+	}
+
+	if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
+		return (-1);
+	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
+
+	step = atoi (COLLECTD_STEP);
+	rows = atoi (COLLECTD_ROWS);
+
+	if ((step <= 0) || (rows <= 0))
+	{
+		*ret = NULL;
+		return (-1);
+	}
+
+	cdp_len = 0;
+	for (i = 0; i < rra_timespans_num; i++)
+	{
+		span = rra_timespans[i];
+
+		if ((span / step) < rows)
+			continue;
+
+		if (cdp_len == 0)
+			cdp_len = 1;
+		else
+			cdp_len = (int) floor (((double) span) / ((double) (rows * step)));
+
+		cdp_num = (int) ceil (((double) span) / ((double) (cdp_len * step)));
+
+		for (j = 0; j < rra_types_num; j++)
+		{
+			if (rra_num >= rra_max)
+				break;
+
+			if (snprintf (buffer, sizeof(buffer), "RRA:%s:%3.1f:%u:%u",
+						rra_types[j], COLLECTD_XFF,
+						cdp_len, cdp_num) >= sizeof (buffer))
+			{
+				syslog (LOG_ERR, "rra_get: Buffer would have been truncated.");
+				continue;
+			}
+
+			rra_def[rra_num++] = sstrdup (buffer);
+		}
+	}
+
+#if COLLECT_DEBUG
+	DBG ("rra_num = %i", rra_num);
+	for (i = 0; i < rra_num; i++)
+		DBG ("  %s", rra_def[i]);
+#endif
+
+	*ret = rra_def;
+	return (rra_num);
+}
+
 int rrd_create_file (char *filename, char **ds_def, int ds_num)
 {
 	char **argv;
 	int argc;
+	char **rra_def;
+	int rra_num;
 	int i, j;
 	int status = 0;
 
 	if (check_create_dir (filename))
 		return (-1);
+
+	if ((rra_num = rra_get (&rra_def)) < 1)
+	{
+		syslog (LOG_ERR, "rra_create failed: Could not calculate RRAs");
+		return (-1);
+	}
 
 	argc = ds_num + rra_num + 4;
 
@@ -307,7 +448,7 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 	argv[0] = "create";
 	argv[1] = filename;
 	argv[2] = "-s";
-	argv[3] = "10";
+	argv[3] = COLLECTD_STEP;
 
 	j = 4;
 	for (i = 0; i < ds_num; i++)

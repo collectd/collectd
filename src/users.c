@@ -43,7 +43,7 @@
 static char *rrd_file = "users.rrd";
 static char *ds_def[] =
 {
-	"DS:users:GAUGE:25:0:65535",
+	"DS:users:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
 	NULL
 };
 static int ds_num = 1;

@@ -36,7 +36,7 @@ static char *cpufreq_file = "cpufreq-%s.rrd";
 
 static char *ds_def[] =
 {
-	"DS:value:GAUGE:25:0:U",
+	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int ds_num = 1;

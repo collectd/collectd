@@ -199,6 +199,22 @@
 #define MODE_CLIENT 0x02
 #define MODE_LOCAL  0x04
 
+#ifndef COLLECTD_STEP
+#  define COLLECTD_STEP "10"
+#endif
+
+#ifndef COLLECTD_HEARTBEAT
+#  define COLLECTD_HEARTBEAT "25"
+#endif
+
+#ifndef COLLECTD_ROWS
+#  define COLLECTD_ROWS "1200"
+#endif
+
+#ifndef COLLECTD_XFF
+#  define COLLECTD_XFF 0.1
+#endif
+
 extern time_t curtime;
 
 #ifdef HAVE_LIBRRD

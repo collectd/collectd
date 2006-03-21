@@ -48,9 +48,9 @@ static char *load_file = "load.rrd";
 
 static char *ds_def[] =
 {
-	"DS:shortterm:GAUGE:25:0:100",
-	"DS:midterm:GAUGE:25:0:100",
-	"DS:longterm:GAUGE:25:0:100",
+	"DS:shortterm:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	"DS:midterm:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	"DS:longterm:GAUGE:"COLLECTD_HEARTBEAT":0:100",
 	NULL
 };
 static int ds_num = 3;

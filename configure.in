@@ -35,6 +35,7 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 AC_CHECK_HEADERS(stdint.h)
 AC_CHECK_HEADERS(errno.h)
+AC_CHECK_HEADERS(math.h)
 AC_CHECK_HEADERS(syslog.h)
 AC_CHECK_HEADERS(fcntl.h)
 AC_CHECK_HEADERS(signal.h)
@@ -530,6 +531,42 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBMYSQL, [$collect_libmysql],
 	[Wether or not to use mysql library])
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 
+# Define `step' and `hearbeat' values..
+declare -i collectd_step=10
+declare -i collectd_heartbeat=25
+AC_ARG_WITH(step, [AS_HELP_STRING([--with-step=SECONDS], [Interval in which plugins are queried.])],
+[
+	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	then
+		declare -i tmp_collectd_step="$withval"
+		if test $tmp_collectd_step -gt 0
+		then
+			collectd_step=$tmp_collectd_step
+			let "collectd_heartbeat=$collectd_step*2"
+		fi
+	fi
+], [])
+AC_ARG_WITH(heartbeat, [AS_HELP_STRING([--with-heartbeat=SECONDS], [Heartbeat of the DS in generated RRD files.])],
+[
+	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	then
+		declare -i tmp_collectd_heartbeat="$withval"
+		if test $tmp_collectd_heartbeat -gt 0
+		then
+			collectd_heartbeat=$tmp_collectd_heartbeat
+		fi
+	fi
+], [])
+
+if test $collectd_step -ne 10
+then
+	AC_DEFINE_UNQUOTED(COLLECTD_STEP, "$collectd_step", [Interval in which plugins are queried.])
+fi
+if test $collectd_heartbeat -ne 25
+then
+	AC_DEFINE_UNQUOTED(COLLECTD_HEARTBEAT, "$collectd_heartbeat", [Interval in which plugins are queried.])
+fi
+
 #
 # Check for enabled/disabled features
 #
@@ -856,6 +893,8 @@ Configuration:
   Features:
     debug . . . . . . . $enable_debug
     daemon mode . . . . $enable_daemon
+    step  . . . . . . . $collectd_step seconds
+    heartbeat . . . . . $collectd_heartbeat seconds
 
   Modules:
     battery . . . . . . $enable_battery

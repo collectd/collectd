@@ -44,10 +44,10 @@ static char *swap_file = "swap.rrd";
 /* 1099511627776 == 1TB ought to be enough for anyone ;) */
 static char *ds_def[] =
 {
-	"DS:used:GAUGE:25:0:1099511627776",
-	"DS:free:GAUGE:25:0:1099511627776",
-	"DS:cached:GAUGE:25:0:1099511627776",
-	"DS:resv:GAUGE:25:0:1099511627776",
+	"DS:used:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
+	"DS:free:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
+	"DS:cached:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
+	"DS:resv:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
 	NULL
 };
 static int ds_num = 4;
