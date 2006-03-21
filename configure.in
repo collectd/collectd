@@ -319,6 +319,16 @@ AC_CHECK_LIB(curl, curl_easy_init,
 [with_libcurl="no"])
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 
+if test "x$with_libcurl" = "xyes"
+then
+	with_libcurl_libs=`curl-config --libs`
+	if test "x$with_libcurl_libs" != "x"
+	then
+		BUILD_WITH_LIBCURL_LIBS="$with_libcurl_libs";
+		AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
+	fi
+fi
+
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
 

@@ -49,7 +49,7 @@ pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = apache.c
 apache_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBCURL
-apache_la_LDFLAGS += -lcurl
+apache_la_LDFLAGS += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 collectd_LDADD += "-dlopen" apache.la
 collectd_DEPENDENCIES += apache.la
