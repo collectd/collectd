@@ -148,8 +148,11 @@ static void exit_usage (char *name)
 
 static int start_client (void)
 {
-	int sleepingtime;
 	int step;
+
+	struct timeval tv_now;
+	struct timeval tv_next;
+	struct timespec ts_wait;
 
 	step = atoi (COLLECTD_STEP);
 	if (step <= 0)
@@ -178,18 +181,37 @@ static int start_client (void)
 
 	while (loop == 0)
 	{
-		curtime = time (NULL);
+		if (gettimeofday (&tv_next, NULL) < 0)
+		{
+			syslog (LOG_ERR, "gettimeofday failed: %s", strerror (errno));
+			return (-1);
+		}
+		tv_next.tv_sec += step;
+
 #if HAVE_LIBKSTAT
 		update_kstat ();
 #endif
 		plugin_read_all ();
 
-		sleepingtime = step;
-		while (sleepingtime != 0)
+		if (gettimeofday (&tv_now, NULL) < 0)
 		{
-			if (loop != 0)
+			syslog (LOG_ERR, "gettimeofday failed: %s", strerror (errno));
+			return (-1);
+		}
+
+		if (timeval_sub_timespec (&tv_next, &tv_now, &ts_wait) != 0)
+		{
+			syslog (LOG_WARNING, "No sleeping because `timeval_sub_timespec' returned non-zero!");
+			continue;
+		}
+
+		while (nanosleep (&ts_wait, &ts_wait) == -1)
+		{
+			if (errno != EINTR)
+			{
+				syslog (LOG_ERR, "nanosleep failed: %s", strerror (errno));
 				break;
-			sleepingtime = sleep (sleepingtime);
+			}
 		}
 	}
 
