@@ -49,7 +49,7 @@ static char apache_curl_error[CURL_ERROR_SIZE];
 static char *bytes_file = "apache/apache_bytes.rrd";
 static char *bytes_ds_def[] =
 {
-	"DS:count:COUNTER:25:0:U",
+	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int bytes_ds_num = 1;
@@ -57,7 +57,7 @@ static int bytes_ds_num = 1;
 static char *requests_file = "apache/apache_requests.rrd";
 static char *requests_ds_def[] =
 {
-	"DS:count:COUNTER:25:0:U",
+	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int requests_ds_num = 1;
@@ -65,7 +65,7 @@ static int requests_ds_num = 1;
 static char *scoreboard_file = "apache/apache_scoreboard-%s.rrd";
 static char *scoreboard_ds_def[] =
 {
-	"DS:count:GAUGE:25:0:U",
+	"DS:count:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
 static int scoreboard_ds_num = 1;
