@@ -1,3 +1,8 @@
+Near future:
+* Update the RPM specfile to
+  - build `collectd-apache'
+  - be free of syntax erros.
+
 For version 3.*:
 * Port nfs module to solaris
 * Port tape module to Linux
