@@ -134,12 +134,29 @@ values.
 
 =head1 SPECIAL PLUGINS
 
+=head2 apache
+
+This module connects to an Apache webserver and expects the output produced by
+B<mod_status.c>. If requires B<libcurl> to set up the HTTP connection and issue
+the request(s). The following is a sample config for the Apache webserver. The
+use of C<ExtendedStatus on> is mandatory.
+
+  ExtendedStatus on
+  <IfModule mod_status.c>
+    <Location /mod_status>
+      SetHandler server-status
+    </Location>
+  </IfModule>
+
+This plugin requires further configuration. Please read L<collectd.conf(5)>.
+
 =head2 cpufreq
 
 This module reads F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for
 the first CPU installed) to get the current CPU frequency. If this file does
 not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
-similar tool is installed.
+similar tool is installed and an "cpu governor" (that's kernel module) is
+loaded.
 
 =head2 mysql
 
@@ -188,31 +205,33 @@ The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
 =head1 RRD FILES
 
-The RRD files are created automatically with the following RRAs:
+The RRD files are created automatically. The size of the RRAs depend on the
+compile time settings of I<step> and I<width>. With the default values (I<step>
+= B<10>, I<width> = B<1200>) the following RRAs are created:
 
-  RRA:AVERAGE:0.0:1:1500
-  RRA:AVERAGE:0.2:6:1500
-  RRA:AVERAGE:0.1:180:1680
-  RRA:AVERAGE:0.1:2160:1520
-  RRA:MIN:0.0:1:1500
-  RRA:MIN:0.2:6:1500
-  RRA:MIN:0.1:180:1680
-  RRA:MIN:0.1:2160:1520
-  RRA:MAX:0.0:1:1500
-  RRA:MAX:0.2:6:1500
-  RRA:MAX:0.1:180:1680
-  RRA:MAX:0.1:2160:1520
+  RRA:AVERAGE:0.1:1:8640
+  RRA:AVERAGE:0.1:50:1210
+  RRA:AVERAGE:0.1:223:1202
+  RRA:AVERAGE:0.1:2635:1201
+  RRA:MIN:0.1:1:8640
+  RRA:MIN:0.1:50:1210
+  RRA:MIN:0.1:223:1202
+  RRA:MIN:0.1:2635:1201
+  RRA:MAX:0.1:1:8640
+  RRA:MAX:0.1:50:1210
+  RRA:MAX:0.1:223:1202
+  RRA:MAX:0.1:2635:1201
 
 By default collectd uses a 10 second I<step>. Thus the RRAs contain the
 following timespans. If you've changed the I<step> at compile time you will
 have calculate resolution and timespan yourself.
 
-  PDP per CDP | Resolution | Data points |  Timespan
-  ------------+------------+-------------+----------
-            1 | 10 seconds !        1500 !   4 hours
-            6 |  1 minute  |        1500 |  25 hours
-          180 | 30 minutes |        1680 |  35 days
-         2160 |  6 hours   |        1520 | 380 days
+  PDP per CDP |  Resolution  | Data points | Timespan
+  ------------+--------------+-------------+---------
+            1 | 10.0 seconds !        8640 ! 1 day
+           50 |  8.3 minutes |        1210 | 1 week
+          223 | 37.2 minutes |        1202 | 1 month
+         2635 |  7.3 hours   |        1201 | 1 year
 
 The DS'es depend on the module creating the RRD files:
 
