@@ -53,6 +53,36 @@ our $GraphDefs;
 	
 	$GraphDefs =
 	{
+		apache_bytes => ['DEF:min_raw={file}:count:MIN',
+			'DEF:avg_raw={file}:count:AVERAGE',
+			'DEF:max_raw={file}:count:MAX',
+			'CDEF:min=min_raw,8,*',
+			'CDEF:avg=avg_raw,8,*',
+			'CDEF:max=max_raw,8,*',
+			'CDEF:mytime=avg_raw,TIME,TIME,IF',
+			'CDEF:sample_len_raw=mytime,PREV(mytime),-',
+			'CDEF:sample_len=sample_len_raw,UN,0,sample_len_raw,IF',
+			'CDEF:avg_sample=avg_raw,UN,0,avg_raw,IF,sample_len,*',
+			'CDEF:avg_sum=PREV,UN,0,PREV,IF,avg_sample,+',
+			"AREA:avg#$HalfGreen",
+			"LINE1:avg#$FullGreen:Bit/s",
+			'GPRINT:avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:max:MAX:%5.1lf%s Max,',
+			'GPRINT:avg:LAST:%5.1lf%s Last',
+			'GPRINT:avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
+		],
+		apache_requests => ['DEF:min_raw={file}:count:MIN',
+			'DEF:avg_raw={file}:count:AVERAGE',
+			'DEF:max_raw={file}:count:MAX',
+			'CDEF:min=min_raw,8,*',
+			'CDEF:avg=avg_raw,8,*',
+			'CDEF:max=max_raw,8,*',
+			"AREA:avg#$HalfGreen",
+			"LINE1:avg#$FullGreen:Requests/s",
+			'GPRINT:avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:max:MAX:%5.1lf%s Max,',
+			'GPRINT:avg:LAST:%5.1lf%s Last'
+		],
 		charge => [
 			'DEF:avg={file}:charge:AVERAGE',
 			'DEF:min={file}:charge:MIN',
@@ -806,6 +836,8 @@ our $GraphDefs;
 
 our $GraphArgs =
 {
+	apache_bytes => ['-t', '{host} apache traffic', '-v', 'Bit/s'],
+	apache_requests => ['-t', '{host} apache requests', '-v', 'Requests/s'],
 	charge => ['-t', '{host} charge', '-v', 'Ampere hours'],
 	cpu => ['-t', '{host} cpu{inst} usage', '-v', 'Percent', '-l', '0'],
 	cpufreq => ['-t', '{host} cpu{inst} usage', '-v', 'Mhz'],
