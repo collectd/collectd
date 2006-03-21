@@ -34,6 +34,7 @@ extern kstat_ctl_t *kc;
 #endif
 
 #ifdef HAVE_LIBRRD
+#if 0
 static char *rra_def[] =
 {
 		"RRA:AVERAGE:0.0:1:1500",
@@ -51,6 +52,7 @@ static char *rra_def[] =
 		NULL
 };
 static int rra_num = 12;
+#endif
 
 static int rra_timespans[] =
 {
@@ -204,6 +206,29 @@ int escape_slashes (char *buf, int buf_len)
 			buf[i] = '_';
 	}
 	buf[i] = '\0';
+
+	return (0);
+}
+
+int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct timespec *ret)
+{
+	if ((tv0 == NULL) || (tv1 == NULL) || (ret == NULL))
+		return (-2);
+
+	if ((tv0->tv_sec < tv1->tv_sec)
+			|| ((tv0->tv_sec == tv1->tv_sec) && (tv0->tv_usec < tv1->tv_usec)))
+		return (-1);
+
+	ret->tv_sec  = tv0->tv_sec - tv1->tv_sec;
+	ret->tv_nsec = 1000 * ((long) (tv0->tv_usec - tv1->tv_usec));
+
+	if (ret->tv_nsec < 0)
+	{
+		assert (ret->tv_sec > 0);
+
+		ret->tv_nsec += 1000000000;
+		ret->tv_sec  -= 1;
+	}
 
 	return (0);
 }
@@ -398,13 +423,19 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 {
 	char **argv;
 	int argc;
+	char **rra_def;
+	int rra_num;
 	int i, j;
 	int status = 0;
 
 	if (check_create_dir (filename))
 		return (-1);
 
-	rra_get (&argv); /* FIXME */
+	if ((rra_num = rra_get (&rra_def)) < 1)
+	{
+		syslog (LOG_ERR, "rra_create failed: Could not calculate RRAs");
+		return (-1);
+	}
 
 	argc = ds_num + rra_num + 4;
 
