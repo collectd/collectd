@@ -64,24 +64,35 @@ our $GraphDefs;
 			'CDEF:sample_len=sample_len_raw,UN,0,sample_len_raw,IF',
 			'CDEF:avg_sample=avg_raw,UN,0,avg_raw,IF,sample_len,*',
 			'CDEF:avg_sum=PREV,UN,0,PREV,IF,avg_sample,+',
-			"AREA:avg#$HalfGreen",
-			"LINE1:avg#$FullGreen:Bit/s",
+			"AREA:avg#$HalfBlue",
+			"LINE1:avg#$FullBlue:Bit/s",
+			'GPRINT:min:MIN:%5.1lf%s Min,',
 			'GPRINT:avg:AVERAGE:%5.1lf%s Avg,',
 			'GPRINT:max:MAX:%5.1lf%s Max,',
 			'GPRINT:avg:LAST:%5.1lf%s Last',
 			'GPRINT:avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
 		],
-		apache_requests => ['DEF:min_raw={file}:count:MIN',
-			'DEF:avg_raw={file}:count:AVERAGE',
-			'DEF:max_raw={file}:count:MAX',
-			'CDEF:min=min_raw,8,*',
-			'CDEF:avg=avg_raw,8,*',
-			'CDEF:max=max_raw,8,*',
-			"AREA:avg#$HalfGreen",
-			"LINE1:avg#$FullGreen:Requests/s",
-			'GPRINT:avg:AVERAGE:%5.1lf%s Avg,',
-			'GPRINT:max:MAX:%5.1lf%s Max,',
-			'GPRINT:avg:LAST:%5.1lf%s Last'
+		apache_requests => ['DEF:min={file}:count:MIN',
+			'DEF:avg={file}:count:AVERAGE',
+			'DEF:max={file}:count:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Requests/s",
+			'GPRINT:min:MIN:%6.2lf Min,',
+			'GPRINT:avg:AVERAGE:%6.2lf Avg,',
+			'GPRINT:max:MAX:%6.2lf Max,',
+			'GPRINT:avg:LAST:%6.2lf Last'
+		],
+		apache_scoreboard => ['DEF:min={file}:count:MIN',
+			'DEF:avg={file}:count:AVERAGE',
+			'DEF:max={file}:count:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Processes",
+			'GPRINT:min:MIN:%6.2lf Min,',
+			'GPRINT:avg:AVERAGE:%6.2lf Avg,',
+			'GPRINT:max:MAX:%6.2lf Max,',
+			'GPRINT:avg:LAST:%6.2lf Last'
 		],
 		charge => [
 			'DEF:avg={file}:charge:AVERAGE',
@@ -836,8 +847,9 @@ our $GraphDefs;
 
 our $GraphArgs =
 {
-	apache_bytes => ['-t', '{host} apache traffic', '-v', 'Bit/s'],
-	apache_requests => ['-t', '{host} apache requests', '-v', 'Requests/s'],
+	apache_bytes => ['-t', 'apache traffic', '-v', 'Bit/s'],
+	apache_requests => ['-t', 'apache requests', '-v', 'Requests/s'],
+	apache_scoreboard => ['-t', 'apache scoreboard {inst}', '-v', 'Processes'],
 	charge => ['-t', '{host} charge', '-v', 'Ampere hours'],
 	cpu => ['-t', '{host} cpu{inst} usage', '-v', 'Percent', '-l', '0'],
 	cpufreq => ['-t', '{host} cpu{inst} usage', '-v', 'Mhz'],
@@ -869,6 +881,7 @@ our $GraphArgs =
 
 our $GraphMulti =
 {
+	apache_scoreboard => \&output_graph_apache_scoreboard,
 	cpu	=> \&output_graph_cpu,
 	cpufreq => 1,
 	disk	=> 1,
@@ -967,6 +980,49 @@ sub output_graph_cpu
 		"CDEF:syst_acc=syst_avg_notnull");
 
 	push (@ret, grep { $_ !~ m/^C?DEF/ } (@{$GraphDefs->{'cpu'}}));
+
+	return (@ret);
+}
+
+sub output_graph_apache_scoreboard
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/apache_scoreboard-$inst.rrd:count:AVERAGE",
+			"DEF:min_$i=$AbsDir/apache_scoreboard-$inst.rrd:count:MIN",
+			"DEF:max_$i=$AbsDir/apache_scoreboard-$inst.rrd:count:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+
+		if (length ($inst) > 15)
+		{
+			$inst = substr ($inst, 0, 12) . '...';
+		}
+		else
+		{
+			$inst = sprintf ('%-15s', $inst);
+		}
+
+		push (@ret,
+			"LINE1:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%6.2lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%6.2lf Avg,",
+			"GPRINT:max_$i:MAX:%6.2lf Max,",
+			"GPRINT:avg_$i:LAST:%6.2lf Last\\l");
+	}
 
 	return (@ret);
 }
