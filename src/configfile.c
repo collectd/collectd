@@ -110,7 +110,7 @@ static int cf_dispatch (char *type, const char *orig_key, const char *orig_value
 
 	if ((cf_cb = cf_search (type)) == NULL)
 	{
-		syslog (LOG_WARNING, "Plugin `%s' did not register a callback.\n", type);
+		syslog (LOG_WARNING, "Plugin `%s' did not register a callback.", type);
 		return (-1);
 	}
 
@@ -134,10 +134,12 @@ static int cf_dispatch (char *type, const char *orig_key, const char *orig_value
 	}
 
 	if (i >= cf_cb->keys_num)
-		syslog (LOG_WARNING, "Plugin `%s' did not register for value `%s'.\n", type, key);
+		syslog (LOG_WARNING, "Plugin `%s' did not register for value `%s'.", type, key);
 
 	free (key);
 	free (value);
+
+	DBG ("return (%i)", ret);
 
 	return (ret);
 }
