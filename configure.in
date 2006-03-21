@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 3.8.2)
+AC_INIT(collectd, 3.9.0)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -318,17 +318,24 @@ AC_CHECK_LIB(curl, curl_easy_init,
 	AC_DEFINE(HAVE_LIBCURL, 1, [Define to 1 if you have the 'curl' library (-lcurl).])
 ],
 [with_libcurl="no"])
-AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
-
 if test "x$with_libcurl" = "xyes"
 then
-	with_libcurl_libs=`curl-config --libs`
-	if test "x$with_libcurl_libs" != "x"
+	with_libcurl_libs=`curl-config --libs 2>/dev/null`
+	curl_config_status=$?
+
+	BUILD_WITH_LIBCURL_LIBS="-lcurl"
+	if test $curl_config_status -ne 0
 	then
-		BUILD_WITH_LIBCURL_LIBS="$with_libcurl_libs";
-		AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
+		with_libcurl="no"
+	else
+		if test "x$with_libcurl_libs" != "x"
+		then
+			BUILD_WITH_LIBCURL_LIBS="$with_libcurl_libs";
+		fi
 	fi
+	AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
 fi
+AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
