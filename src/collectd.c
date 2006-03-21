@@ -191,6 +191,11 @@ static int start_client (void)
 #if HAVE_LIBKSTAT
 		update_kstat ();
 #endif
+		/* `curtime' is used by many (all?) plugins as the
+		 * data-sample-time passed to RRDTool */
+		curtime = time (NULL);
+
+		/* Issue all plugins */
 		plugin_read_all ();
 
 		if (gettimeofday (&tv_now, NULL) < 0)
