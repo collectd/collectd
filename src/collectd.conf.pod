@@ -170,6 +170,10 @@ option for what this plugin does.
 Host to ping periodically. This option may be repeated several times to ping
 multiple hosts.
 
+=item B<TTL> I<0-255>
+
+Sets the Time-To-Live of generated ICMP packets.
+
 =back
 
 =head1 SEE ALSO

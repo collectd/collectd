@@ -9,6 +9,7 @@
 	* An option to compile collectd with different `step' and `hearbeat'
 	  settings has been added. The size of RRAs is no longer static but
 	  calculated based on the settings for `step' and `width'.
+	* The `ping' plugin can now be configured to use a certain TTL.
 
 2006-03-14, Version 3.8.2
 	* `utils_mount.c' has been changed to not use the `MNTTAB' defined by

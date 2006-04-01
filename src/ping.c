@@ -45,9 +45,10 @@ static int ds_num = 1;
 static char *config_keys[] =
 {
 	"Host",
+	"TTL",
 	NULL
 };
-static int config_keys_num = 1;
+static int config_keys_num = 2;
 
 static void ping_init (void)
 {
@@ -56,23 +57,35 @@ static void ping_init (void)
 
 static int ping_config (char *key, char *value)
 {
-	if (strcasecmp (key, "host"))
-	{
-		return (-1);
-	}
-
 	if (pingobj == NULL)
 	{
 		if ((pingobj = ping_construct ()) == NULL)
 		{
 			syslog (LOG_ERR, "ping: `ping_construct' failed.\n");
-			return (-1);
+			return (1);
 		}
 	}
 
-	if (ping_host_add (pingobj, value) < 0)
+	if (strcasecmp (key, "host") == 0)
 	{
-		syslog (LOG_WARNING, "ping: `ping_host_add' failed.\n");
+		if (ping_host_add (pingobj, value) < 0)
+		{
+			syslog (LOG_WARNING, "ping: `ping_host_add' failed.");
+			return (1);
+		}
+	}
+	else if (strcasecmp (key, "ttl") == 0)
+	{
+		int ttl = atoi (value);
+		if (ping_setopt (pingobj, PING_DEF_TIMEOUT, (void *) &ttl))
+		{
+			syslog (LOG_WARNING, "ping: liboping did not accept the TTL value %i", ttl);
+			return (1);
+		}
+	}
+	else
+	{
+		return (-1);
 	}
 
 	return (0);
