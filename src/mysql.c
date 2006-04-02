@@ -366,6 +366,9 @@ static void mysql_read (void)
 		return;
 
 	query = "SHOW STATUS";
+	if (mysql_get_server_version (con) >= 50002)
+		query = "SHOW GLOBAL STATUS";
+
 	query_len = strlen (query);
 
 	if (mysql_real_query (con, query, query_len))
