@@ -24,10 +24,15 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
+
+#if HAVE_SYS_SYSCTL_H
+# include <sys/sysctl.h>
+#endif
 
 #define MODULE_NAME "processes"
 
-#ifdef KERNEL_LINUX
+#if defined(KERNEL_LINUX) || defined(HAVE_SYSCTLBYNAME)
 # define PROCESSES_HAVE_READ 1
 #else
 # define PROCESSES_HAVE_READ 0
@@ -137,7 +142,112 @@ static void ps_read (void)
 	closedir(proc);
 
 	ps_submit (running, sleeping, zombies, stopped, paging, blocked);
-#endif /* defined(KERNEL_LINUX) */
+/* #endif defined(KERNEL_LINUX) */
+
+#elif HAVE_SYSCTLBYNAME
+	int mib[3];
+	size_t len;
+	size_t num;
+	int i;
+	int tries;
+	struct kinfo_proc *kp;
+
+	unsigned int state_idle   = 0;
+	unsigned int state_run    = 0;
+	unsigned int state_sleep  = 0;
+	unsigned int state_stop   = 0;
+	unsigned int state_zombie = 0;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_ALL;
+
+	tries = 0;
+	kp    = NULL;
+	while (1)
+	{
+		if (tries >= 3)
+			return;
+		tries++;
+
+		len = 0;
+		if (sysctl(mib, 3, NULL, &len, NULL, 0) != 0)
+		{
+			syslog (LOG_ERR, "processes: sysctl failed: %s",
+					strerror (errno));
+			return;
+		}
+
+		if ((kp = (struct kinfo_proc *) malloc (len)) == NULL)
+		{
+			syslog (LOG_ERR, "processes: malloc failed: %s",
+					strerror (errno));
+			return;
+		}
+
+		if (sysctl(mib, 3, (void *) kp, &len, NULL, 0) != 0)
+		{
+			syslog (LOG_WARNING, "processes: sysctl failed: %s",
+					strerror (errno));
+			free (kp);
+			kp = NULL;
+			continue;
+		}
+
+		break;
+	} /* while true */
+
+	/* If we get past the while-loop, `kp' containes a valid `struct
+	 * kinfo_proc'. */
+
+	num = len / sizeof (struct kinfo_proc);
+
+	for (i = 0; i < num; i++)
+	{
+		DBG ("%3i: Process %i is in state %i", i,
+				(int) kp[i].kp_proc.p_pid,
+			       	(int) kp[i].kp_proc.p_stat);
+
+		switch (kp[i].kp_proc.p_stat)
+		{
+			case SIDL:
+				state_idle++;
+				break;
+
+			case SRUN:
+				state_run++;
+				break;
+
+			case SSLEEP:
+#ifdef P_SINTR
+				if ((kp[i].kp_proc.p_flag & P_SINTR) == 0)
+					state_sleep++; /* TODO change this to `state_blocked' or something.. */
+				else
+#endif /* P_SINTR */
+					state_sleep++;
+				break;
+
+			case SSTOP:
+				state_stop++;
+				break;
+
+			case SZOMB:
+				state_zombie++;
+				break;
+
+			default:
+				syslog (LOG_WARNING, "processes: PID %i in unknown state 0x%2x",
+						(int) kp[i].kp_proc.p_pid,
+						(int) kp[i].kp_proc.p_stat);
+		} /* switch (state) */
+	} /* for (i = 0 .. num-1) */
+
+	free (kp);
+
+	if (state_run || state_idle || state_sleep || state_zombie)
+		ps_submit (state_run, state_idle + state_sleep, state_zombie,
+				state_stop, -1, -1);
+#endif /* HAVE_SYSCTLBYNAME */
 }
 #else
 # define ps_read NULL
