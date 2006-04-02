@@ -29,8 +29,6 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#include "ping.h"
-
 static int loop = 0;
 
 #if HAVE_LIBKSTAT

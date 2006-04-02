@@ -34,6 +34,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 AC_CHECK_HEADERS(stdint.h)
+AC_CHECK_HEADERS(stdio.h)
 AC_CHECK_HEADERS(errno.h)
 AC_CHECK_HEADERS(math.h)
 AC_CHECK_HEADERS(syslog.h)
@@ -312,30 +313,6 @@ AC_CHECK_LIB(resolv, res_search,
 [with_libresolv="no"])
 AM_CONDITIONAL(BUILD_WITH_LIBRESOLV, test "x$with_libresolv" = "xyes")
 
-with_libcurl="yes"
-AC_CHECK_LIB(curl, curl_easy_init,
-[
-	AC_DEFINE(HAVE_LIBCURL, 1, [Define to 1 if you have the 'curl' library (-lcurl).])
-],
-[with_libcurl="no"])
-if test "x$with_libcurl" = "xyes"
-then
-	with_libcurl_libs=`curl-config --libs 2>/dev/null`
-	curl_config_status=$?
-
-	BUILD_WITH_LIBCURL_LIBS="-lcurl"
-	if test $curl_config_status -ne 0
-	then
-		with_libcurl="no"
-	else
-		if test "x$with_libcurl_libs" != "x"
-		then
-			BUILD_WITH_LIBCURL_LIBS="$with_libcurl_libs";
-		fi
-	fi
-	AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
@@ -422,9 +399,78 @@ AC_DEFINE_UNQUOTED(COLLECT_KSTAT, [$collect_kstat],
 	[Wether or not to use kstat library (Solaris)])
 AM_CONDITIONAL(BUILD_WITH_KSTAT, test "x$with_kstat" = "xyes")
 
+### BEGIN of check for libcurl ###
+with_curl_config="curl-config"
+with_curl_prefix=0
+with_curl_libs=""
+AC_ARG_WITH(libcurl, [AS_HELP_STRING([--with-libcurl@<:@=PREFIX@:>@], [Path to libcurl.])],
+[
+	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	then
+		if test -x "$withval/bin/curl-config"
+		then
+			with_curl_config="$withval/bin/curl-config"
+			with_curl_prefix=1
+		fi
+	fi
+	if test "x$withval" = "xno"
+	then
+		with_libcurl="no"
+	else
+		with_libcurl="yes"
+	fi
+],
+[
+	with_libcurl="yes"
+])
+if test "x$with_libcurl" = "xyes"
+then
+	with_curl_libs=`$with_curl_config --libs 2>/dev/null`
+	curl_config_status=$?
+
+	if test $curl_config_status -ne 0
+	then
+		with_libcurl="no"
+	else
+		AC_CHECK_LIB(curl, curl_easy_init,
+		[
+			BUILD_WITH_LIBCURL_LIBS="$with_curl_libs"
+			AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
+		],
+		[
+			with_libcurl="no"
+		],
+		[$with_curl_libs])
+	fi
+fi
+if test "x$with_libcurl" = "xyes" -a $with_curl_prefix -ne 0
+then
+	with_curl_prefix=`$with_curl_config --libs 2>/dev/null`
+	curl_config_status=$?
+
+	if test $curl_config_status -ne 0
+	then
+		with_libcurl="no"
+	else
+		if test -d "$with_curl_prefix/include"
+		then
+			CPPFLAGS="$CPPFLAGS -I$with_curl_prefix/include"
+		fi
+	fi
+fi
+
+with_libcurl_numeric=0
+if test "x$with_libcurl" = "xyes"
+then
+	with_libcurl_numeric=1
+fi
+AC_DEFINE_UNQUOTED(HAVE_LIBCURL, [$with_libcurl_numeric], [Define to 1 if you have the 'curl' library (-lcurl).])
+AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
+### END of check for libcurl ###
+
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" != "xno" -a "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"

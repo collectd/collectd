@@ -73,7 +73,7 @@ endif
 
 if BUILD_MODULE_CPUFREQ
 pkglib_LTLIBRARIES += cpufreq.la
-cpufreq_la_SOURCES = cpufreq.c cpufreq.h
+cpufreq_la_SOURCES = cpufreq.c
 cpufreq_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" cpufreq.la
 collectd_DEPENDENCIES += cpufreq.la
@@ -89,7 +89,7 @@ endif
 
 if BUILD_MODULE_DISK
 pkglib_LTLIBRARIES += disk.la
-disk_la_SOURCES = disk.c disk.h
+disk_la_SOURCES = disk.c
 disk_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
@@ -108,7 +108,7 @@ endif
 
 if BUILD_MODULE_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
-hddtemp_la_SOURCES = hddtemp.c hddtemp.h
+hddtemp_la_SOURCES = hddtemp.c
 hddtemp_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
@@ -116,7 +116,7 @@ endif
 
 if BUILD_MODULE_LOAD
 pkglib_LTLIBRARIES += load.la
-load_la_SOURCES = load.c load.h
+load_la_SOURCES = load.c
 load_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" load.la
 collectd_DEPENDENCIES += load.la
@@ -124,7 +124,7 @@ endif
 
 if BUILD_MODULE_MEMORY
 pkglib_LTLIBRARIES += memory.la
-memory_la_SOURCES = memory.c memory.h
+memory_la_SOURCES = memory.c
 memory_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" memory.la
 collectd_DEPENDENCIES += memory.la
@@ -143,7 +143,7 @@ endif
 
 if BUILD_MODULE_NFS
 pkglib_LTLIBRARIES += nfs.la
-nfs_la_SOURCES = nfs.c nfs.h
+nfs_la_SOURCES = nfs.c
 nfs_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" nfs.la
 collectd_DEPENDENCIES += nfs.la
@@ -151,7 +151,7 @@ endif
 
 if BUILD_MODULE_PING
 pkglib_LTLIBRARIES += ping.la
-ping_la_SOURCES = ping.c ping.h
+ping_la_SOURCES = ping.c
 ping_la_LDFLAGS = -module -avoid-version
 ping_la_LIBADD  = liboping/liboping.la
 ping_la_DEPENDENCIES = liboping/liboping.la
@@ -161,7 +161,7 @@ endif
 
 if BUILD_MODULE_PROCESSES
 pkglib_LTLIBRARIES += processes.la
-processes_la_SOURCES = processes.c processes.h
+processes_la_SOURCES = processes.c
 processes_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" processes.la
 collectd_DEPENDENCIES += processes.la
@@ -169,7 +169,7 @@ endif
 
 if BUILD_MODULE_SENSORS
 pkglib_LTLIBRARIES += sensors.la
-sensors_la_SOURCES = sensors.c sensors.h
+sensors_la_SOURCES = sensors.c
 sensors_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LM_SENSORS
 sensors_la_LDFLAGS += -lsensors
@@ -180,7 +180,7 @@ endif
 
 if BUILD_MODULE_SERIAL
 pkglib_LTLIBRARIES += serial.la
-serial_la_SOURCES = serial.c serial.h
+serial_la_SOURCES = serial.c
 serial_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" serial.la
 collectd_DEPENDENCIES += serial.la
@@ -188,7 +188,7 @@ endif
 
 if BUILD_MODULE_SWAP
 pkglib_LTLIBRARIES += swap.la
-swap_la_SOURCES = swap.c swap.h
+swap_la_SOURCES = swap.c
 swap_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" swap.la
 collectd_DEPENDENCIES += swap.la
@@ -196,7 +196,7 @@ endif
 
 if BUILD_MODULE_TAPE
 pkglib_LTLIBRARIES += tape.la
-tape_la_SOURCES = tape.c tape.h
+tape_la_SOURCES = tape.c
 tape_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
@@ -204,7 +204,7 @@ endif
 
 if BUILD_MODULE_TRAFFIC
 pkglib_LTLIBRARIES += traffic.la
-traffic_la_SOURCES = traffic.c traffic.h
+traffic_la_SOURCES = traffic.c
 traffic_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" traffic.la
 collectd_DEPENDENCIES += traffic.la
@@ -212,7 +212,7 @@ endif
 
 if BUILD_MODULE_USERS
 pkglib_LTLIBRARIES += users.la
-users_la_SOURCES = users.c users.h
+users_la_SOURCES = users.c
 users_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
