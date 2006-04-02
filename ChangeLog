@@ -1,4 +1,4 @@
-2006-03-21, Version 3.9.0
+2006-04-02, Version 3.9.0
 	* A plugin to monitor the Apache webserver has been added.
 	  <http://httpd.apache.org/>
 	* A plugin to collect statistics about virtual servers using VServer.
@@ -10,6 +10,10 @@
 	  settings has been added. The size of RRAs is no longer static but
 	  calculated based on the settings for `step' and `width'.
 	* The `ping' plugin can now be configured to use a certain TTL.
+
+2006-04-02, Version 3.8.3
+	* Applied a patch by XXX: The MySQL plugin was not working with MySQL
+	  5.0.2 or later.
 
 2006-03-14, Version 3.8.2
 	* `utils_mount.c' has been changed to not use the `MNTTAB' defined by
