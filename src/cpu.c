@@ -26,6 +26,22 @@
 
 #define MODULE_NAME "cpu"
 
+#ifdef HAVE_MACH_KERN_RETURN_H
+# include <mach/kern_return.h>
+#endif
+#ifdef HAVE_MACH_MACH_INIT_H
+# include <mach/mach_init.h>
+#endif
+#ifdef HAVE_MACH_HOST_PRIV_H
+# include <mach/host_priv.h>
+#endif
+#ifdef HAVE_MACH_PROCESSOR_INFO_H
+# include <mach/processor_info.h>
+#endif
+#ifdef HAVE_MACH_PROCESSOR_H
+# include <mach/processor.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 # include <sys/sysinfo.h>
 #endif /* HAVE_LIBKSTAT */
@@ -49,10 +65,16 @@
 # endif
 #endif /* HAVE_SYSCTLBYNAME */
 
-#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
+#if defined(PROCESSOR_CPU_LOAD_INFO) || defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
 # define CPU_HAVE_READ 1
 #else
 # define CPU_HAVE_READ 0
+#endif
+
+#ifdef PROCESSOR_CPU_LOAD_INFO
+static mach_port_t port_host;
+static processor_port_array_t cpu_list;
+static mach_msg_type_number_t cpu_list_len;
 #endif
 
 #ifdef HAVE_LIBKSTAT
@@ -82,7 +104,21 @@ static int ds_num = 5;
 
 static void cpu_init (void)
 {
-#ifdef HAVE_LIBKSTAT
+#ifdef PROCESSOR_CPU_LOAD_INFO
+	port_host = mach_host_self ();
+
+	if ((status = host_processors (port_host, &cpu_list, &cpu_list_len)) != KERN_SUCCESS)
+	{
+		fprintf (stderr, "host_processors returned %i\n", (int) status);
+		cpu_list_len = 0;
+		return (-1);
+	}
+
+	DBG ("host_processors returned %i %s", (int) list_len, list_len == 1 ? "processor" : "processors");
+	syslog (LOG_INFO, "Plugin `cpu' found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
+/* #endif PROCESSOR_CPU_LOAD_INFO */
+
+#elif defined(HAVE_LIBKSTAT)
 	kstat_t *ksp_chain;
 
 	numcpu = 0;
@@ -150,8 +186,47 @@ static void cpu_submit (int cpu_num, unsigned long long user,
 
 static void cpu_read (void)
 {
-#ifdef KERNEL_LINUX
-#define BUFSIZE 1024
+#ifdef PROCESSOR_CPU_LOAD_INFO
+	int cpu;
+
+	kern_return_t status;
+	
+	processor_cpu_load_info_data_t cpu_info;
+	processor_cpu_load_info_t      cpu_info_ptr;
+	mach_msg_type_number_t         cpu_info_len;
+
+	host_t cpu_host;
+
+	for (cpu = 0; cpu < cpu_list_len; cpu++)
+	{
+		cpu_host = 0
+		cpu_info_ptr = &cpu_info;
+		cpu_info_len = sizeof (cpu_info);
+
+		if ((status = processor_info (list[i],
+						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
+						(processor_info_t) cpu_info_ptr, &cpu_info_len)) != KERN_SUCCESS)
+		{
+			syslog (LOG_ERR, "processor_info failed with status %i\n", (int) status);
+			continue;
+		}
+
+		if (cpu_info_len < CPU_STATE_MAX)
+		{
+			syslog (LOG_ERR, "processor_info returned only %i elements..\n", cpu_info_len);
+			continue;
+		}
+
+		cpu_submit (i, cpu_info.cpu_ticks[CPU_STATE_USER],
+				cpu_info.cpu_ticks[CPU_STATE_NICE],
+				cpu_info.cpu_ticks[CPU_STATE_SYSTEM],
+				cpu_info.cpu_ticks[CPU_STATE_IDLE],
+				0ULL);
+	}
+/* #endif PROCESSOR_CPU_LOAD_INFO */
+
+#elif defined(KERNEL_LINUX)
+# define BUFSIZE 1024
 	int cpu;
 	unsigned long long user, nice, syst, idle;
 	unsigned long long wait, intr, sitr; /* sitr == soft interrupt */
