@@ -23,6 +23,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
 
 #define MODULE_NAME "cpu"
 
@@ -75,17 +76,21 @@
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
 static mach_msg_type_number_t cpu_list_len;
-#endif
+/* #endif PROCESSOR_CPU_LOAD_INFO */
 
-#ifdef HAVE_LIBKSTAT
+#elif defined(KERNEL_LINUX)
+/* no variables needed */
+/* #endif KERNEL_LINUX */
+
+#elif defined(HAVE_LIBKSTAT)
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so CPUs.. */
 # define MAX_NUMCPU 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMCPU];
 static int numcpu;
-#endif /* HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
 
-#ifdef HAVE_SYSCTLBYNAME
+#elif defined(HAVE_SYSCTLBYNAME)
 static int numcpu;
 #endif /* HAVE_SYSCTLBYNAME */
 
@@ -105,17 +110,19 @@ static int ds_num = 5;
 static void cpu_init (void)
 {
 #ifdef PROCESSOR_CPU_LOAD_INFO
+	kern_return_t status;
+
 	port_host = mach_host_self ();
 
 	if ((status = host_processors (port_host, &cpu_list, &cpu_list_len)) != KERN_SUCCESS)
 	{
-		fprintf (stderr, "host_processors returned %i\n", (int) status);
+		syslog (LOG_ERR, "cpu-plugin: host_processors returned %i\n", (int) status);
 		cpu_list_len = 0;
-		return (-1);
+		return;
 	}
 
-	DBG ("host_processors returned %i %s", (int) list_len, list_len == 1 ? "processor" : "processors");
-	syslog (LOG_INFO, "Plugin `cpu' found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
+	DBG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
+	syslog (LOG_INFO, "cpu-plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
@@ -199,11 +206,11 @@ static void cpu_read (void)
 
 	for (cpu = 0; cpu < cpu_list_len; cpu++)
 	{
-		cpu_host = 0
+		cpu_host = 0;
 		cpu_info_ptr = &cpu_info;
 		cpu_info_len = sizeof (cpu_info);
 
-		if ((status = processor_info (list[i],
+		if ((status = processor_info (cpu_list[cpu],
 						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
 						(processor_info_t) cpu_info_ptr, &cpu_info_len)) != KERN_SUCCESS)
 		{
@@ -217,7 +224,7 @@ static void cpu_read (void)
 			continue;
 		}
 
-		cpu_submit (i, cpu_info.cpu_ticks[CPU_STATE_USER],
+		cpu_submit (cpu, cpu_info.cpu_ticks[CPU_STATE_USER],
 				cpu_info.cpu_ticks[CPU_STATE_NICE],
 				cpu_info.cpu_ticks[CPU_STATE_SYSTEM],
 				cpu_info.cpu_ticks[CPU_STATE_IDLE],
