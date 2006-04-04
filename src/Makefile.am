@@ -65,7 +65,7 @@ endif
 
 if BUILD_MODULE_CPU
 pkglib_LTLIBRARIES += cpu.la
-cpu_la_SOURCES = cpu.c cpu.h
+cpu_la_SOURCES = cpu.c
 cpu_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" cpu.la
 collectd_DEPENDENCIES += cpu.la
