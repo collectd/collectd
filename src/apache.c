@@ -46,18 +46,21 @@ static int  apache_buffer_len = 0;
 static char apache_curl_error[CURL_ERROR_SIZE];
 #endif
 
+/* Limit to 2^27 bytes/s. That's what a gigabit-ethernet link can handle, in
+ * theory. */
 static char *bytes_file = "apache/apache_bytes.rrd";
 static char *bytes_ds_def[] =
 {
-	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:134217728",
 	NULL
 };
 static int bytes_ds_num = 1;
 
+/* Limit to 2^20 requests/s */
 static char *requests_file = "apache/apache_requests.rrd";
 static char *requests_ds_def[] =
 {
-	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:1048576",
 	NULL
 };
 static int requests_ds_num = 1;
