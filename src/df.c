@@ -110,10 +110,7 @@ static void df_read (void)
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
-	{
-		syslog (LOG_WARNING, "cu_mount_getlist returned `NULL'");
 		return;
-	}
 
 	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
