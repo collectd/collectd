@@ -114,6 +114,7 @@ static void cpu_init (void)
 
 	port_host = mach_host_self ();
 
+	/* FIXME: Free `cpu_list' if it's not NULL */
 	if ((status = host_processors (port_host, &cpu_list, &cpu_list_len)) != KERN_SUCCESS)
 	{
 		syslog (LOG_ERR, "cpu-plugin: host_processors returned %i\n", (int) status);
@@ -199,7 +200,6 @@ static void cpu_read (void)
 	kern_return_t status;
 	
 	processor_cpu_load_info_data_t cpu_info;
-	processor_cpu_load_info_t      cpu_info_ptr;
 	mach_msg_type_number_t         cpu_info_len;
 
 	host_t cpu_host;
@@ -207,12 +207,11 @@ static void cpu_read (void)
 	for (cpu = 0; cpu < cpu_list_len; cpu++)
 	{
 		cpu_host = 0;
-		cpu_info_ptr = &cpu_info;
 		cpu_info_len = sizeof (cpu_info);
 
 		if ((status = processor_info (cpu_list[cpu],
 						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
-						(processor_info_t) cpu_info_ptr, &cpu_info_len)) != KERN_SUCCESS)
+						(processor_info_t) &cpu_info, &cpu_info_len)) != KERN_SUCCESS)
 		{
 			syslog (LOG_ERR, "processor_info failed with status %i\n", (int) status);
 			continue;
