@@ -24,15 +24,20 @@
 #include "common.h"
 #include "plugin.h"
 
-/* TODO #include <mach/vm-stuff*> */
 #ifdef HAVE_MACH_KERN_RETURN_H
 # include <mach/kern_return.h>
 #endif
 #ifdef HAVE_MACH_MACH_INIT_H
 # include <mach/mach_init.h>
 #endif
+#ifdef HAVE_MACH_MACH_HOST_H
+# include <mach/mach_host.h>
+#endif
 #ifdef HAVE_MACH_HOST_PRIV_H
 # include <mach/host_priv.h>
+#endif
+#ifdef MACH_VM_STATISTICS_H
+# include <mach/vm_statistics.h>
 #endif
 
 #if defined (HOST_VM_INFO) || defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
@@ -75,7 +80,7 @@ static void memory_init (void)
 {
 #if defined(HOST_VM_INFO)
 	port_host = mach_host_self ();
-	host_page_size(port_host, &pagesize);
+	host_page_size (port_host, &pagesize);
 /* #endif HOST_VM_INFO */
 
 #elif defined(KERNEL_LINUX)
@@ -160,7 +165,7 @@ static void memory_read (void)
 	wired    = vm_data.wire_count     * pagesize;
 	active   = vm_data.active_count   * pagesize;
 	inactive = vm_data.inactive_count * pagesize;
-	free     = vm_stat.free_count     * pagesize;
+	free     = vm_data.free_count     * pagesize;
 
 	memory_submit (wired + active, -1, inactive, free);
 /* #endif HOST_VM_INFO */
