@@ -24,7 +24,18 @@
 #include "common.h"
 #include "plugin.h"
 
-#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+/* TODO #include <mach/vm-stuff*> */
+#ifdef HAVE_MACH_KERN_RETURN_H
+# include <mach/kern_return.h>
+#endif
+#ifdef HAVE_MACH_MACH_INIT_H
+# include <mach/mach_init.h>
+#endif
+#ifdef HAVE_MACH_HOST_PRIV_H
+# include <mach/host_priv.h>
+#endif
+
+#if defined (HOST_VM_INFO) || defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
 # define MEMORY_HAVE_READ 1
 #else
 # define MEMORY_HAVE_READ 0
@@ -45,14 +56,33 @@ static char *ds_def[] =
 };
 static int ds_num = 4;
 
-#ifdef HAVE_LIBKSTAT
+/* vm_statistics_data_t */
+#if defined(HOST_VM_INFO)
+static mach_port_t port_host;
+static vm_size_t pagesize;
+/* #endif HOST_VM_INFO */
+
+#elif defined(KERNEL_LINUX)
+/* no global variables */
+/* #endif KERNEL_LINUX */
+
+#elif defined(HAVE_LIBKSTAT)
 static int pagesize;
 static kstat_t *ksp;
 #endif /* HAVE_LIBKSTAT */
 
 static void memory_init (void)
 {
-#ifdef HAVE_LIBKSTAT
+#if defined(HOST_VM_INFO)
+	port_host = mach_host_self ();
+	host_page_size(port_host, &pagesize);
+/* #endif HOST_VM_INFO */
+
+#elif defined(KERNEL_LINUX)
+/* no init stuff */
+/* #endif KERNEL_LINUX */
+
+#elif defined(HAVE_LIBKSTAT)
 	/* getpagesize(3C) tells me this does not fail.. */
 	pagesize = getpagesize ();
 	if (get_kstat (&ksp, "unix", 0, "system_pages"))
@@ -85,7 +115,57 @@ static void memory_submit (long long mem_used, long long mem_buffered,
 
 static void memory_read (void)
 {
-#ifdef KERNEL_LINUX
+#if defined(HOST_VM_INFO)
+	kern_return_t status;
+	vm_statistics_data_t   vm_data;
+	mach_msg_type_number_t vm_data_len;
+
+	long long wired;
+	long long active;
+	long long inactive;
+	long long free;
+
+	if (!port_host || !pagesize)
+		return;
+
+	vm_data_len = sizeof (vm_data) / sizeof (natural_t);
+	if ((status = host_statistics (port_host, HOST_VM_INFO,
+					(host_info_t) &vm_data,
+					&vm_data_len)) != KERN_SUCCESS)
+	{
+		syslog (LOG_ERR, "memory-plugin: host_statistics failed and returned the value %i", (int) status);
+		return;
+	}
+
+	/*
+	 * From <http://docs.info.apple.com/article.html?artnum=107918>:
+	 *
+	 * Wired memory
+	 *   This information can't be cached to disk, so it must stay in RAM.
+	 *   The amount depends on what applications you are using.
+	 *
+	 * Active memory
+	 *   This information is currently in RAM and actively being used.
+	 *
+	 * Inactive memory
+	 *   This information is no longer being used and has been cached to
+	 *   disk, but it will remain in RAM until another application needs
+	 *   the space. Leaving this information in RAM is to your advantage if
+	 *   you (or a client of your computer) come back to it later.
+	 *
+	 * Free memory
+	 *   This memory is not being used.
+	 */
+
+	wired    = vm_data.wire_count     * pagesize;
+	active   = vm_data.active_count   * pagesize;
+	inactive = vm_data.inactive_count * pagesize;
+	free     = vm_stat.free_count     * pagesize;
+
+	memory_submit (wired + active, -1, inactive, free);
+/* #endif HOST_VM_INFO */
+
+#elif defined(KERNEL_LINUX)
 	FILE *fh;
 	char buffer[1024];
 	
