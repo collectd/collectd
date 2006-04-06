@@ -1196,6 +1196,7 @@ sub output_graph
 		$Inst = $files->{$Type}[0];
 	}
 
+	#push (@cmd, '-', '-a', 'PNG', '-s', $TimeSpan, '-w', 800, '-h', 150);
 	push (@cmd, '-', '-a', 'PNG', '-s', $TimeSpan);
 	push (@cmd, @{$GraphArgs->{$Type}}) if (defined ($GraphArgs->{$Type}));
 
@@ -1290,6 +1291,8 @@ HEADER
 		print <<HTML;
 		</ul>
 
+		<h3>Hourly</h3>
+		<div><img src="$MySelf$RelDir/$Type/hour" /></div>
 		<h3>Daily</h3>
 		<div><img src="$MySelf$RelDir/$Type/day" /></div>
 		<h3>Weekly</h3>
@@ -1314,6 +1317,8 @@ HTML
 		}
 
 		print <<HTML;
+		<h3>Hourly</h3>
+		<div><img src="$MySelf$RelDir/$ext/hour" /></div>
 		<h3>Daily</h3>
 		<div><img src="$MySelf$RelDir/$ext/day" /></div>
 		<h3>Weekly</h3>
