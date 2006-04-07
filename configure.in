@@ -151,6 +151,31 @@ AC_CHECK_HEADERS(sys/loadavg.h)
 AC_CHECK_HEADERS(utmp.h)
 AC_CHECK_HEADERS(utmpx.h)
 
+# For traffic plugin
+AC_CHECK_HEADERS(net/if.h)
+AC_CHECK_HEADERS(ifaddrs.h)
+AC_CHECK_HEADERS(linux/if.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+])
+AC_CHECK_HEADERS(linux/netdevice.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+#if HAVE_LINUX_IF_H
+# include <linux/if.h>
+#endif
+])
+
 # For apache plugin
 AC_CHECK_HEADERS(curl/curl.h)
 
@@ -218,6 +243,9 @@ AC_CHECK_FUNCS(getutent getutxent)
 # For quota module
 AC_CHECK_FUNCS(quotactl)
 AC_CHECK_FUNCS(getgrgid getpwuid)
+
+# For traffic module
+AC_CHECK_FUNCS(getifaddrs)
 
 # For mount interface
 AC_CHECK_FUNCS(getfsent getvfsent listmntent)
@@ -288,6 +316,21 @@ if test "x$fu_cv_getmntent2" = "xyes"; then
 			that function takes two arguments. (SVR4)]
 		)
 fi
+
+# Check for structures
+AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_obytes],
+	[AC_DEFINE(HAVE_STRUCT_IF_DATA, 1, [Define if struct if_data exists and is usable.])],
+	[],
+	[#include <net/if.h>])
+AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_bytes],
+	[AC_DEFINE(HAVE_STRUCT_NET_DEVICE_STATS, 1, [Define if struct net_device_stats exists and is usable.])],
+	[],
+	[
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <linux/if.h>
+	#include <linux/netdevice.h>
+	])
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in

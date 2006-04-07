@@ -24,9 +24,30 @@
 #include "common.h"
 #include "plugin.h"
 
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+
+/* One cannot include both. This sucks. */
+#if HAVE_LINUX_IF_H
+#  include <linux/if.h>
+#elif HAVE_NET_IF_H
+#  include <net/if.h>
+#endif
+
+#if HAVE_LINUX_NETDEVICE_H
+#  include <linux/netdevice.h>
+#endif
+#if HAVE_IFADDRS_H
+#  include <ifaddrs.h>
+#endif
+
 #define MODULE_NAME "traffic"
 
-#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_LIBSTATGRAB)
+#if HAVE_GETIFADDRS || defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_LIBSTATGRAB)
 # define TRAFFIC_HAVE_READ 1
 #else
 # define TRAFFIC_HAVE_READ 0
@@ -53,7 +74,15 @@ static int numif = 0;
 
 static void traffic_init (void)
 {
-#ifdef HAVE_LIBKSTAT
+#if HAVE_GETIFADDRS
+	/* nothing */
+/* #endif HAVE_GETIFADDRS */
+
+#elif KERNEL_LINUX
+	/* nothing */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
 	unsigned long long val;
 
@@ -76,7 +105,13 @@ static void traffic_init (void)
 			continue;
 		ksp[numif++] = ksp_chain;
 	}
-#endif /* HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_LIBSTATG
+	/* nothing */
+#endif /* HAVE_LIBSTATG */
+
+	return;
 }
 
 static void traffic_write (char *host, char *inst, char *val)
@@ -108,7 +143,41 @@ static void traffic_submit (char *device,
 
 static void traffic_read (void)
 {
-#ifdef KERNEL_LINUX
+#if HAVE_GETIFADDRS
+	struct ifaddrs *if_list;
+	struct ifaddrs *if_ptr;
+
+#if HAVE_STRUCT_IF_DATA
+#  define IFA_DATA if_data
+#  define IFA_INCOMING ifi_ibytes
+#  define IFA_OUTGOING ifi_obytes
+#elif HAVE_STRUCT_NET_DEVICE_STATS
+#  define IFA_DATA net_device_stats
+#  define IFA_INCOMING rx_bytes
+#  define IFA_OUTGOING tx_bytes
+#else
+#  error "No suitable type for `struct ifaddrs->ifa_data' found."
+#endif
+
+	struct IFA_DATA *if_data;
+
+	if (getifaddrs (&if_list) != 0)
+		return;
+
+	for (if_ptr = if_list; if_ptr != NULL; if_ptr = if_ptr->ifa_next)
+	{
+		if ((if_data = (struct IFA_DATA *) if_ptr->ifa_data) == NULL)
+			continue;
+
+		traffic_submit (if_ptr->ifa_name,
+				if_data->IFA_INCOMING,
+				if_data->IFA_OUTGOING);
+	}
+
+	freeifaddrs (if_list);
+/* #endif HAVE_GETIFADDRS */
+
+#elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
 	unsigned long long incoming, outgoing;
