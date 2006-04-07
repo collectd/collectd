@@ -152,8 +152,16 @@ AC_CHECK_HEADERS(utmp.h)
 AC_CHECK_HEADERS(utmpx.h)
 
 # For traffic plugin
-AC_CHECK_HEADERS(net/if.h)
 AC_CHECK_HEADERS(ifaddrs.h)
+AC_CHECK_HEADERS(net/if.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+])
 AC_CHECK_HEADERS(linux/if.h, [], [],
 [
 #if HAVE_SYS_TYPES_H
@@ -321,7 +329,11 @@ fi
 AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_obytes],
 	[AC_DEFINE(HAVE_STRUCT_IF_DATA, 1, [Define if struct if_data exists and is usable.])],
 	[],
-	[#include <net/if.h>])
+	[
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <net/if.h>
+	])
 AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_bytes],
 	[AC_DEFINE(HAVE_STRUCT_NET_DEVICE_STATS, 1, [Define if struct net_device_stats exists and is usable.])],
 	[],
