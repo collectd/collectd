@@ -1,6 +1,7 @@
 /**
  * collectd - src/processes.c
  * Copyright (C) 2005  Lyonel Vincent
+ * Copyright (C) 2006  Florian Forster (Mach code)
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -69,7 +70,7 @@
 
 #define MODULE_NAME "processes"
 
-#if HAVE_THREAD_INFO || defined(KERNEL_LINUX)
+#if HAVE_THREAD_INFO || KERNEL_LINUX
 # define PROCESSES_HAVE_READ 1
 #else
 # define PROCESSES_HAVE_READ 0
