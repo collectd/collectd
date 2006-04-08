@@ -1,6 +1,6 @@
 /**
  * collectd - src/hddtemp.c
- * Copyright (C) 2005  Vincent Stehlé
+ * Copyright (C) 2005-2006  Vincent Stehlé
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,12 +19,18 @@
  * Authors:
  *   Vincent Stehlé <vincent.stehle at free.fr>
  *   Florian octo Forster <octo at verplant.org>
+ *
+ * TODO:
+ *   Do a pass, some day, and spare some memory. We consume too much for now
+ *   in string buffers and the like.
+ *
  **/
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_debug.h"
 
 #define MODULE_NAME "hddtemp"
 
@@ -33,6 +39,10 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <libgen.h> /* for basename */
+
+#ifdef KERNEL_LINUX
+# include <linux/major.h>
+#endif
 
 #define HDDTEMP_DEF_HOST "127.0.0.1"
 #define HDDTEMP_DEF_PORT "7634"
@@ -99,8 +109,8 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	ssize_t status;
 	int buffer_fill;
 
-	char *host;
-	char *port;
+	const char *host;
+	const char *port;
 
 	struct addrinfo  ai_hints;
 	struct addrinfo *ai_list, *ai_ptr;
@@ -119,6 +129,8 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	port = hddtemp_port;
 	if (port == NULL)
 		port = HDDTEMP_DEF_PORT;
+
+    DBG ("Connect to %s:%s", host, port);
 
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
@@ -152,8 +164,10 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 	freeaddrinfo (ai_list);
 
-	if (fd < 0)
+	if (fd < 0){
+		syslog (LOG_ERR, "hddtemp: Could not connect to daemon?");
 		return (-1);
+    }
 
 	/* receive data from the hddtemp daemon */
 	memset (buffer, '\0', buffer_size);
@@ -243,12 +257,21 @@ static void hddtemp_init (void)
 
 	if ((fh = fopen ("/proc/partitions", "r")) != NULL)
 	{
+        DBG ("Looking at /proc/partitions...");
+
 		while (fgets (buf, BUFFER_SIZE, fh) != NULL)
 		{
 			/* Delete trailing newlines */
 			buflen = strlen (buf);
+
 			while ((buflen > 0) && ((buf[buflen-1] == '\n') || (buf[buflen-1] == '\r')))
 				buf[--buflen] = '\0';
+
+            /* We want lines of the form:
+             *
+             *     3     1   77842926 hda1
+             *
+             * ...so, skip everything else. */
 			if (buflen == 0)
 				continue;
 			
@@ -260,22 +283,90 @@ static void hddtemp_init (void)
 			major = atoi (fields[0]);
 			minor = atoi (fields[1]);
 
-			/* I know that this makes `minor' redundant, but I want
-			 * to be able to change this beavior in the future..
-			 * And 4 or 8 bytes won't hurt anybody.. -octo */
-			if (major == 0)
-				continue;
-			if (minor != 0)
-				continue;
+            /* We try to keep only entries, which may correspond to
+             * physical disks and that may have a corresponding entry
+             * in the hddtemp daemon. Basically, this means IDE and SCSI. */
+            switch(major){
+#           ifdef KERNEL_LINUX
 
-			if ((name = strdup (fields[3])) == NULL)
+            /* SCSI. */
+            case SCSI_DISK0_MAJOR:
+            case SCSI_DISK1_MAJOR:
+            case SCSI_DISK2_MAJOR:
+            case SCSI_DISK3_MAJOR:
+            case SCSI_DISK4_MAJOR:
+            case SCSI_DISK5_MAJOR:
+            case SCSI_DISK6_MAJOR:
+            case SCSI_DISK7_MAJOR:
+            case SCSI_DISK8_MAJOR:
+            case SCSI_DISK9_MAJOR:
+            case SCSI_DISK10_MAJOR:
+            case SCSI_DISK11_MAJOR:
+            case SCSI_DISK12_MAJOR:
+            case SCSI_DISK13_MAJOR:
+            case SCSI_DISK14_MAJOR:
+            case SCSI_DISK15_MAJOR:
+                /* SCSI disks minors are multiples of 16.
+                 * Keep only those. */
+                if(minor % 16)
+                    continue;
+
+                break;
+
+            /* IDE. */
+            case IDE0_MAJOR:
+            case IDE1_MAJOR:
+            case IDE2_MAJOR:
+            case IDE3_MAJOR:
+            case IDE4_MAJOR:
+            case IDE5_MAJOR:
+            case IDE6_MAJOR:
+            case IDE7_MAJOR:
+            case IDE8_MAJOR:
+            case IDE9_MAJOR:
+                /* IDE disks minors can only be 0 or 64.
+                 * Keep only those. */
+			    if(minor != 0 && minor != 64)
+                    continue;
+
+                break;
+
+            /* Skip all other majors. */
+            default:
+                continue;
+
+#           else   /* not KERNEL_LINUX */
+
+            /* VS: Do we need this on other systems?
+                   We tried to open /proc/partitions at first anyway,
+                   so maybe we know we are under Linux always? */
+			case 0:
+			    /* I know that this makes `minor' redundant, but I want
+			     * to be able to change this beavior in the future..
+			     * And 4 or 8 bytes won't hurt anybody.. -octo */
+			    continue;
+
+            /* Unknown major. Keep for now.
+             * VS: refine as more cases are precisely known. */
+            default:
+                break;
+
+#           endif   /* KERNEL_LINUX */
+            }
+
+			if ((name = strdup (fields[3])) == NULL){
+		        syslog (LOG_ERR, "hddtemp: NULL strdup(%s)!", fields[3]);
 				continue;
+            }
 
 			if ((entry = (hddname_t *) malloc (sizeof (hddname_t))) == NULL)
 			{
+		        syslog (LOG_ERR, "hddtemp: NULL malloc(%u)!", sizeof (hddname_t));
 				free (name);
 				continue;
 			}
+
+            DBG ("Found disk: %s (%u:%u).", name, major, minor);
 
 			entry->major = major;
 			entry->minor = minor;
@@ -292,9 +383,8 @@ static void hddtemp_init (void)
 				first_hddname = entry;
 			}
 		}
-	}
-
-	return;
+	} else
+        DBG ("Could not open /proc/partitions.");
 }
 
 static void hddtemp_write (char *host, char *inst, char *val)
@@ -312,6 +402,14 @@ static void hddtemp_write (char *host, char *inst, char *val)
 	rrd_update_file (host, filename, val, ds_def, ds_num);
 }
 
+/*
+ * hddtemp_get_name
+ *
+ * Description:
+ *   Try to "cook" a bit the drive name as returned
+ *   by the hddtemp daemon. The intend is to transform disk
+ *   names into <major>-<minor> when possible.
+ */
 static char *hddtemp_get_name (char *drive)
 {
 	hddname_t *list;
@@ -321,8 +419,10 @@ static char *hddtemp_get_name (char *drive)
 		if (strcmp (drive, list->name) == 0)
 			break;
 
-	if (list == NULL)
+	if (list == NULL){
+        DBG ("Don't know %s, keeping name as-is.", drive);
 		return (strdup (drive));
+    }
 
 	if ((ret = (char *) malloc (128 * sizeof (char))) == NULL)
 		return (NULL);
@@ -340,7 +440,8 @@ static void hddtemp_submit (char *inst, double temperature)
 {
 	char buf[BUFFER_SIZE];
 
-	if (snprintf (buf, BUFFER_SIZE, "%u:%.3f", (unsigned int) curtime, temperature) >= BUFFER_SIZE)
+	if (snprintf (buf, BUFFER_SIZE, "%u:%.3f", (unsigned int) curtime, temperature)
+            >= BUFFER_SIZE)
 		return;
 
 	plugin_submit (MODULE_NAME, inst, buf);
@@ -385,6 +486,8 @@ static void hddtemp_read (void)
 		wait_left = 0;
 	}
 
+    DBG ("Received: %s", buf);
+
 	/* NB: strtok will eat up "||" and leading "|"'s */
 	num_fields = 0;
 	ptr = buf;
@@ -406,12 +509,14 @@ static void hddtemp_read (void)
 		char *mode;
 
 		mode = fields[4*i + 3];
+		name = basename (fields[4*i + 0]);
 
 		/* Skip non-temperature information */
-		if (mode[0] != 'C' && mode[0] != 'F')
+		if (mode[0] != 'C' && mode[0] != 'F'){
+            DBG ("No temp. for %s", name);
 			continue;
+        }
 
-		name = basename (fields[4*i + 0]);
 		temperature = atof (fields[4*i + 2]);
 
 		/* Convert farenheit to celsius */
