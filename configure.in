@@ -136,13 +136,23 @@ AC_CHECK_HEADERS(netinet/icmp6.h, [], [],
 
 # For cpu modules
 AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
-AC_CHECK_HEADERS(mach/kern_return.h)
 AC_CHECK_HEADERS(mach/mach_init.h)
-AC_CHECK_HEADERS(mach/mach_host.h)
 AC_CHECK_HEADERS(mach/host_priv.h)
-AC_CHECK_HEADERS(mach/processor_info.h)
+AC_CHECK_HEADERS(mach/host_error.h)
+AC_CHECK_HEADERS(mach/mach_host.h)
+AC_CHECK_HEADERS(mach/mach_port.h)
+AC_CHECK_HEADERS(mach/mach_types.h)
+AC_CHECK_HEADERS(mach/message.h)
+AC_CHECK_HEADERS(mach/processor_set.h)
 AC_CHECK_HEADERS(mach/processor.h)
+AC_CHECK_HEADERS(mach/processor_info.h)
+AC_CHECK_HEADERS(mach/task.h)
+AC_CHECK_HEADERS(mach/thread_act.h)
+AC_CHECK_HEADERS(mach/vm_region.h)
+AC_CHECK_HEADERS(mach/vm_map.h)
+AC_CHECK_HEADERS(mach/vm_prot.h)
 AC_CHECK_HEADERS(mach/vm_statistics.h)
+AC_CHECK_HEADERS(mach/kern_return.h)
 
 # For load module
 AC_CHECK_HEADERS(sys/loadavg.h)
