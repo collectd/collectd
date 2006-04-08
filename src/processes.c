@@ -331,6 +331,8 @@ static void ps_read (void)
 					mach_error_string (status));
 		}
 	} /* for (pset_list) */
+
+	ps_submit (running, sleeping, zombies, stopped, -1, blocked);
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
