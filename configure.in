@@ -138,7 +138,7 @@ AC_CHECK_HEADERS(netinet/icmp6.h, [], [],
 AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
 AC_CHECK_HEADERS(mach/mach_init.h)
 AC_CHECK_HEADERS(mach/host_priv.h)
-AC_CHECK_HEADERS(mach/host_error.h)
+AC_CHECK_HEADERS(mach/mach_error.h)
 AC_CHECK_HEADERS(mach/mach_host.h)
 AC_CHECK_HEADERS(mach/mach_port.h)
 AC_CHECK_HEADERS(mach/mach_types.h)
