@@ -429,15 +429,21 @@ static cu_mount_t *cu_mount_getfsstat (void)
 
 	/* Get the number of mounted file systems */
 	if ((bufsize = getfsstat (NULL, 0, MNT_NOWAIT)) < 1)
+	{
+		DBG ("getfsstat failed: %s", strerror (errno));
 		return (NULL);
+	}
 
-	if ((buf = (struct statfs *) malloc (bufsize * sizeof (struct statfs))) == NULL)
+	if ((buf = (struct statfs *) malloc (bufsize * sizeof (struct statfs)))
+			== NULL)
 		return (NULL);
 	memset (buf, '\0', bufsize * sizeof (struct statfs));
 
-	/* FIXME: If `bufsize' in bytes or structures? */
-	if ((num = getfsstat (buf, bufsize, MNT_NOWAIT)) < 1)
+	/* The bufsize needs to be passed in bytes. Really. This is not in the
+	 * manpage.. -octo */
+	if ((num = getfsstat (buf, bufsize * sizeof (struct statfs), MNT_NOWAIT)) < 1)
 	{
+		DBG ("getfsstat failed: %s", strerror (errno));
 		free (buf);
 		return (NULL);
 	}
