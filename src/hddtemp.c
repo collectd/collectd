@@ -40,7 +40,7 @@
 #include <netinet/tcp.h>
 #include <libgen.h> /* for basename */
 
-#ifdef KERNEL_LINUX
+#if HAVE_LINUX_MAJOR_H
 # include <linux/major.h>
 #endif
 
@@ -130,8 +130,6 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	if (port == NULL)
 		port = HDDTEMP_DEF_PORT;
 
-    DBG ("Connect to %s:%s", host, port);
-
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
 		syslog (LOG_ERR, "hddtemp: getaddrinfo (%s, %s): %s",
@@ -154,8 +152,8 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 		/* connect to the hddtemp daemon */
 		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
 		{
-			syslog (LOG_ERR, "hddtemp: connect (%s, %s): %s",
-					host, port, strerror (errno));
+			DBG ("hddtemp: connect (%s, %s): %s", host, port,
+					strerror (errno));
 			close (fd);
 			fd = -1;
 			continue;
@@ -164,10 +162,11 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 	freeaddrinfo (ai_list);
 
-	if (fd < 0){
-		syslog (LOG_ERR, "hddtemp: Could not connect to daemon?");
+	if (fd < 0)
+	{
+		syslog (LOG_ERR, "hddtemp: Could not connect to daemon.");
 		return (-1);
-    }
+	}
 
 	/* receive data from the hddtemp daemon */
 	memset (buffer, '\0', buffer_size);
@@ -229,8 +228,12 @@ static int hddtemp_config (char *key, char *value)
 	return (0);
 }
 
+/* In the init-function we initialize the `hddname_t' list used to translate
+ * disk-names. Under Linux that's done using `/proc/partitions'. Under other
+ * operating-systems, it's not done at all. */
 static void hddtemp_init (void)
 {
+#if KERNEL_LINUX
 	FILE *fh;
 	char buf[BUFFER_SIZE];
 	int buflen;
@@ -257,7 +260,7 @@ static void hddtemp_init (void)
 
 	if ((fh = fopen ("/proc/partitions", "r")) != NULL)
 	{
-        DBG ("Looking at /proc/partitions...");
+		DBG ("Looking at /proc/partitions...");
 
 		while (fgets (buf, BUFFER_SIZE, fh) != NULL)
 		{
@@ -267,11 +270,11 @@ static void hddtemp_init (void)
 			while ((buflen > 0) && ((buf[buflen-1] == '\n') || (buf[buflen-1] == '\r')))
 				buf[--buflen] = '\0';
 
-            /* We want lines of the form:
-             *
-             *     3     1   77842926 hda1
-             *
-             * ...so, skip everything else. */
+			/* We want lines of the form:
+			 *
+			 *     3     1   77842926 hda1
+			 *
+			 * ...so, skip everything else. */
 			if (buflen == 0)
 				continue;
 			
@@ -283,90 +286,72 @@ static void hddtemp_init (void)
 			major = atoi (fields[0]);
 			minor = atoi (fields[1]);
 
-            /* We try to keep only entries, which may correspond to
-             * physical disks and that may have a corresponding entry
-             * in the hddtemp daemon. Basically, this means IDE and SCSI. */
-            switch(major){
-#           ifdef KERNEL_LINUX
+			/* We try to keep only entries, which may correspond to
+			 * physical disks and that may have a corresponding
+			 * entry in the hddtemp daemon. Basically, this means
+			 * IDE and SCSI. */
+			switch (major)
+			{
+				/* SCSI. */
+				case SCSI_DISK0_MAJOR:
+				case SCSI_DISK1_MAJOR:
+				case SCSI_DISK2_MAJOR:
+				case SCSI_DISK3_MAJOR:
+				case SCSI_DISK4_MAJOR:
+				case SCSI_DISK5_MAJOR:
+				case SCSI_DISK6_MAJOR:
+				case SCSI_DISK7_MAJOR:
+				case SCSI_DISK8_MAJOR:
+				case SCSI_DISK9_MAJOR:
+				case SCSI_DISK10_MAJOR:
+				case SCSI_DISK11_MAJOR:
+				case SCSI_DISK12_MAJOR:
+				case SCSI_DISK13_MAJOR:
+				case SCSI_DISK14_MAJOR:
+				case SCSI_DISK15_MAJOR:
+					/* SCSI disks minors are multiples of 16.
+					 * Keep only those. */
+					if (minor % 16)
+						continue;
+					break;
 
-            /* SCSI. */
-            case SCSI_DISK0_MAJOR:
-            case SCSI_DISK1_MAJOR:
-            case SCSI_DISK2_MAJOR:
-            case SCSI_DISK3_MAJOR:
-            case SCSI_DISK4_MAJOR:
-            case SCSI_DISK5_MAJOR:
-            case SCSI_DISK6_MAJOR:
-            case SCSI_DISK7_MAJOR:
-            case SCSI_DISK8_MAJOR:
-            case SCSI_DISK9_MAJOR:
-            case SCSI_DISK10_MAJOR:
-            case SCSI_DISK11_MAJOR:
-            case SCSI_DISK12_MAJOR:
-            case SCSI_DISK13_MAJOR:
-            case SCSI_DISK14_MAJOR:
-            case SCSI_DISK15_MAJOR:
-                /* SCSI disks minors are multiples of 16.
-                 * Keep only those. */
-                if(minor % 16)
-                    continue;
+				/* IDE. */
+				case IDE0_MAJOR:
+				case IDE1_MAJOR:
+				case IDE2_MAJOR:
+				case IDE3_MAJOR:
+				case IDE4_MAJOR:
+				case IDE5_MAJOR:
+				case IDE6_MAJOR:
+				case IDE7_MAJOR:
+				case IDE8_MAJOR:
+				case IDE9_MAJOR:
+					/* IDE disks minors can only be 0 or 64.
+					 * Keep only those. */
+					if(minor != 0 && minor != 64)
+						continue;
+					break;
 
-                break;
+				/* Skip all other majors. */
+				default:
+					DBG ("Skipping unknown major %i", major);
+					continue;
+			} /* switch (major) */
 
-            /* IDE. */
-            case IDE0_MAJOR:
-            case IDE1_MAJOR:
-            case IDE2_MAJOR:
-            case IDE3_MAJOR:
-            case IDE4_MAJOR:
-            case IDE5_MAJOR:
-            case IDE6_MAJOR:
-            case IDE7_MAJOR:
-            case IDE8_MAJOR:
-            case IDE9_MAJOR:
-                /* IDE disks minors can only be 0 or 64.
-                 * Keep only those. */
-			    if(minor != 0 && minor != 64)
-                    continue;
-
-                break;
-
-            /* Skip all other majors. */
-            default:
-                continue;
-
-#           else   /* not KERNEL_LINUX */
-
-            /* VS: Do we need this on other systems?
-                   We tried to open /proc/partitions at first anyway,
-                   so maybe we know we are under Linux always? */
-			case 0:
-			    /* I know that this makes `minor' redundant, but I want
-			     * to be able to change this beavior in the future..
-			     * And 4 or 8 bytes won't hurt anybody.. -octo */
-			    continue;
-
-            /* Unknown major. Keep for now.
-             * VS: refine as more cases are precisely known. */
-            default:
-                break;
-
-#           endif   /* KERNEL_LINUX */
-            }
-
-			if ((name = strdup (fields[3])) == NULL){
-		        syslog (LOG_ERR, "hddtemp: NULL strdup(%s)!", fields[3]);
+			if ((name = strdup (fields[3])) == NULL)
+			{
+				syslog (LOG_ERR, "hddtemp: strdup(%s) == NULL", fields[3]);
 				continue;
-            }
+			}
 
 			if ((entry = (hddname_t *) malloc (sizeof (hddname_t))) == NULL)
 			{
-		        syslog (LOG_ERR, "hddtemp: NULL malloc(%u)!", sizeof (hddname_t));
+				syslog (LOG_ERR, "hddtemp: malloc (%u) == NULL", sizeof (hddname_t));
 				free (name);
 				continue;
 			}
 
-            DBG ("Found disk: %s (%u:%u).", name, major, minor);
+			DBG ("Found disk: %s (%u:%u).", name, major, minor);
 
 			entry->major = major;
 			entry->minor = minor;
@@ -383,8 +368,11 @@ static void hddtemp_init (void)
 				first_hddname = entry;
 			}
 		}
-	} else
-        DBG ("Could not open /proc/partitions.");
+	}
+	else
+		DBG ("Could not open /proc/partitions: %s",
+				strerror (errno));
+#endif /* KERNEL_LINUX */
 }
 
 static void hddtemp_write (char *host, char *inst, char *val)
@@ -419,10 +407,11 @@ static char *hddtemp_get_name (char *drive)
 		if (strcmp (drive, list->name) == 0)
 			break;
 
-	if (list == NULL){
-        DBG ("Don't know %s, keeping name as-is.", drive);
+	if (list == NULL)
+	{
+		DBG ("Don't know %s, keeping name as-is.", drive);
 		return (strdup (drive));
-    }
+	}
 
 	if ((ret = (char *) malloc (128 * sizeof (char))) == NULL)
 		return (NULL);
@@ -486,8 +475,6 @@ static void hddtemp_read (void)
 		wait_left = 0;
 	}
 
-    DBG ("Received: %s", buf);
-
 	/* NB: strtok will eat up "||" and leading "|"'s */
 	num_fields = 0;
 	ptr = buf;
@@ -512,10 +499,8 @@ static void hddtemp_read (void)
 		name = basename (fields[4*i + 0]);
 
 		/* Skip non-temperature information */
-		if (mode[0] != 'C' && mode[0] != 'F'){
-            DBG ("No temp. for %s", name);
+		if (mode[0] != 'C' && mode[0] != 'F')
 			continue;
-        }
 
 		temperature = atof (fields[4*i + 2]);
 
