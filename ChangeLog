@@ -1,6 +1,10 @@
+2006-04-09, Version 3.8.4
+	* Applied patch by Vincent Stehlé which improves the disk-name
+	  resolution in the `hddtemp' plugin for Linux systems.
+
 2006-04-02, Version 3.8.3
-	* Applied a patch by XXX: The MySQL plugin was not working with MySQL
-	  5.0.2 or later.
+	* Applied a patch by James Byers: The MySQL plugin was not working
+	  with MySQL 5.0.2 or later.
 
 2006-03-14, Version 3.8.2
 	* `utils_mount.c' has been changed to not use the `MNTTAB' defined by
