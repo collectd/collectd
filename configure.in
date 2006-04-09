@@ -135,6 +135,9 @@ AC_CHECK_HEADERS(netinet/icmp6.h, [], [],
 # For cpu modules
 AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
 
+# For hddtemp module
+AC_CHECK_HEADERS(linux/major.h)
+
 # For load module
 AC_CHECK_HEADERS(sys/loadavg.h)
 
