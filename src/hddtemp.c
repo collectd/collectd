@@ -233,7 +233,7 @@ static int hddtemp_config (char *key, char *value)
  * operating-systems, it's not done at all. */
 static void hddtemp_init (void)
 {
-#if KERNEL_LINUX
+#if defined(KERNEL_LINUX)
 	FILE *fh;
 	char buf[BUFFER_SIZE];
 	int buflen;
