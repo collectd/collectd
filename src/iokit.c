@@ -27,6 +27,9 @@
 
 #define MODULE_NAME "iokit"
 
+#if HAVE_CTYPE_H
+#  include <ctype.h>
+#endif
 #if HAVE_MACH_MACH_TYPES_H
 #  include <mach/mach_types.h>
 #endif
@@ -91,11 +94,11 @@ static void temperature_write (char *host, char *inst, char *val)
 }
 
 #if IOKIT_HAVE_READ
-static void iokit_submit (char *type, char *inst, int value)
+static void iokit_submit (char *type, char *inst, double value)
 {
 	char buf[128];
 
-	if (snprintf (buf, 1024, "%u:%i", (unsigned int) curtime,
+	if (snprintf (buf, 1024, "%u:%f", (unsigned int) curtime,
 				value) >= 128)
 		return;
 
@@ -110,9 +113,11 @@ static void iokit_read (void)
 	CFMutableDictionaryRef prop_dict;
 	CFTypeRef       property;
 
-	char type[128];
-	char inst[128];
-	int   value;
+	char   type[128];
+	char   inst[128];
+	int    value_int;
+	double value_double;
+	int    i;
 
 	if (!io_master_port || (io_master_port == MACH_PORT_NULL))
 		return;
@@ -168,6 +173,15 @@ static void iokit_read (void)
 					kCFStringEncodingASCII))
 			continue;
 		inst[127] = '\0';
+		for (i = 0; i < 128; i++)
+		{
+			if (inst[i] == '\0')
+				break;
+			else if (isalnum (inst[i]))
+				inst[i] = (char) tolower (inst[i]);
+			else
+				inst[i] = '_';
+		}
 
 		/* Get the actual value. Some computation, based on the `type'
 		 * is neccessary. */
@@ -180,13 +194,24 @@ static void iokit_read (void)
 			continue;
 		if (!CFNumberGetValue (property,
 				       	kCFNumberIntType,
-				       	&value))
+				       	&value_int))
 			continue;
 
+		if ((strcmp (type, "temperature") == 0)
+				|| (strcmp (type, "fanspeed") == 0)
+				|| (strcmp (type, "voltage") == 0))
+		{
+			value_double = ((double) value_int) / 65536.0;
+		}
+		else
+		{
+			value_double = (double) value_int;
+		}
+
 		/* Do stuff */
-		DBG ("type = %s, inst = %s, value = %i",
-				type, inst, value);
-		iokit_submit (type, inst, value);
+		DBG ("type = %s, inst = %s, value_int = %i, value_double = %f",
+				type, inst, value_int, value_double);
+		iokit_submit (type, inst, value_double);
 
 		CFRelease (prop_dict);
 		IOObjectRelease (io_obj);
