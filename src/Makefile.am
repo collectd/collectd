@@ -70,6 +70,9 @@ if BUILD_MODULE_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c
 battery_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBIOKIT
+battery_la_LDFLAGS += -lIOKit
+endif
 collectd_LDADD += "-dlopen" battery.la
 collectd_DEPENDENCIES += battery.la
 endif
