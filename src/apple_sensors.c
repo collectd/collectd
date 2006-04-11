@@ -30,6 +30,7 @@
 #if HAVE_CTYPE_H
 #  include <ctype.h>
 #endif
+
 #if HAVE_MACH_MACH_TYPES_H
 #  include <mach/mach_types.h>
 #endif
@@ -38,6 +39,9 @@
 #endif
 #if HAVE_MACH_MACH_ERROR_H
 #  include <mach/mach_error.h>
+#endif
+#if HAVE_MACH_MACH_PORT_H
+#  include <mach/mach_port.h>
 #endif
 #if HAVE_COREFOUNDATION_COREFOUNDATION_H
 #  include <CoreFoundation/CoreFoundation.h>
@@ -55,8 +59,8 @@
 # define IOKIT_HAVE_READ 0
 #endif
 
-#if IOKIT_HAVE_READ
-static mach_port_t io_master_port;
+#if HAVE_IOKIT_IOKITLIB_H
+static mach_port_t io_master_port = MACH_PORT_NULL;
 #endif
 
 static char *temperature_file = "apple_sensors/temperature-%s.rrd";
@@ -74,7 +78,12 @@ static void as_init (void)
 #if IOKIT_HAVE_READ
 	kern_return_t status;
 	
-	/* FIXME: de-allocate port if it's defined */
+	if (io_master_port != MACH_PORT_NULL)
+	{
+		mach_port_deallocate (mach_task_self (),
+				io_master_port);
+		io_master_port = MACH_PORT_NULL;
+	}
 
 	status = IOMasterPort (MACH_PORT_NULL, &io_master_port);
 	if (status != kIOReturnSuccess)
@@ -84,7 +93,7 @@ static void as_init (void)
 		io_master_port = MACH_PORT_NULL;
 		return;
 	}
-#endif
+#endif /* IOKIT_HAVE_READ */
 
 	return;
 }
