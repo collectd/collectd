@@ -162,6 +162,18 @@ AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h)
 AC_CHECK_HEADERS(IOKit/IOKitLib.h)
 AC_CHECK_HEADERS(IOKit/IOTypes.h)
 
+# For the battery plugin
+AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
+[
+#if HAVE_IOKIT_IOKITLIB_H
+#  include <IOKit/IOKitLib.h>
+#endif
+#if HAVE_IOKIT_IOTYPES_H
+#  include <IOKit/IOTypes.h>
+#endif
+])
+AC_CHECK_HEADERS(IOKit/ps/IOPSKeys.h)
+
 # For load module
 AC_CHECK_HEADERS(sys/loadavg.h)
 
@@ -1049,13 +1061,14 @@ Configuration:
     heartbeat . . . . . $collectd_heartbeat seconds
 
   Modules:
+    apache  . . . . . . $enable_apache
+    apple_sensors . . . $enable_apple_sensors
     battery . . . . . . $enable_battery
     cpu . . . . . . . . $enable_cpu
     cpufreq . . . . . . $enable_cpufreq
     df  . . . . . . . . $enable_df
     disk  . . . . . . . $enable_disk
     hddtemp . . . . . . $enable_hddtemp
-    iokit . . . . . . . $enable_iokit
     load  . . . . . . . $enable_load
     memory  . . . . . . $enable_memory
     mysql . . . . . . . $enable_mysql
