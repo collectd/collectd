@@ -516,8 +516,6 @@ int network_send (char *type, char *inst, char *value)
 		if (se->mode != operating_mode)
 			continue;
 
-		DBG ("fd = %i", se->fd);
-
 		while (1)
 		{
 			status = sendto (se->fd, buf, buflen, 0,
