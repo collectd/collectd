@@ -23,11 +23,37 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
 
 #define MODULE_NAME "battery"
 #define BUFSIZE 512
 
-#if defined(KERNEL_LINUX)
+#if HAVE_MACH_MACH_TYPES_H
+#  include <mach/mach_types.h>
+#endif
+#if HAVE_MACH_MACH_INIT_H
+#  include <mach/mach_init.h>
+#endif
+#if HAVE_MACH_MACH_ERROR_H
+#  include <mach/mach_error.h>
+#endif
+#if HAVE_COREFOUNDATION_COREFOUNDATION_H
+#  include <CoreFoundation/CoreFoundation.h>
+#endif
+#if HAVE_IOKIT_IOKITLIB_H
+#  include <IOKit/IOKitLib.h>
+#endif
+#if HAVE_IOKIT_IOTYPES_H
+#  include <IOKit/IOTypes.h>
+#endif
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H
+#  include <IOKit/ps/IOPowerSources.h>
+#endif
+#if HAVE_IOKIT_PS_IOPSKEYS_H
+#  include <IOKit/ps/IOPSKeys.h>
+#endif
+
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H || KERNEL_LINUX
 # define BATTERY_HAVE_READ 1
 #else
 # define BATTERY_HAVE_READ 0
@@ -60,14 +86,22 @@ static char *ds_def_charge[] =
 };
 static int ds_num_charge = 1;
 
-#if BATTERY_HAVE_READ
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H
+	/* No global variables */
+/* #endif HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+
+#elif KERNEL_LINUX
 static int   battery_pmu_num = 0;
 static char *battery_pmu_file = "/proc/pmu/battery_%i";
-#endif
+#endif /* KERNEL_LINUX */
 
 static void battery_init (void)
 {
-#if BATTERY_HAVE_READ
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H
+	/* No init neccessary */
+/* #endif HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+
+#elif KERNEL_LINUX
 	int len;
 	char filename[BUFSIZE];
 
@@ -81,7 +115,7 @@ static void battery_init (void)
 		if (access (filename, R_OK))
 			break;
 	}
-#endif
+#endif /* KERNEL_LINUX */
 
 	return;
 }
@@ -170,7 +204,134 @@ static void battery_submit (char *inst, double current, double voltage, double c
 
 static void battery_read (void)
 {
-#ifdef KERNEL_LINUX
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H
+	CFTypeRef       ps_raw;
+	CFArrayRef      ps_array;
+	int             ps_array_len;
+	CFDictionaryRef ps_dict;
+	CFTypeRef       ps_obj;
+	CFTypeRef       ps_value;
+
+	int i;
+
+	char   name[128];
+	double charge  = INVALID_VALUE;
+	double current = INVALID_VALUE;
+	double voltage = INVALID_VALUE;
+
+	ps_raw       = IOPSCopyPowerSourcesInfo ();
+	ps_array     = IOPSCopyPowerSourcesList (ps_raw);
+	ps_array_len = CFArrayGetCount (ps_array);
+
+	DBG ("ps_array_len == %i", ps_array_len);
+
+	for (i = 0; i < ps_array_len; i++)
+	{
+		ps_obj  = CFArrayGetValueAtIndex (ps_array, i);
+		ps_dict = IOPSGetPowerSourceDescription (ps_raw, ps_obj);
+
+		if (CFGetTypeID (ps_dict) != CFDictionaryGetTypeID ())
+		{
+			DBG ("IOPSGetPowerSourceDescription did not return a CFDictionaryRef");
+			continue;
+		}
+
+		if (ps_dict != NULL)
+		{
+			/* Get the current capacity/charge */
+			ps_value = NULL;
+			charge   = INVALID_VALUE;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSCurrentCapacityKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFNumberGetTypeID ())
+					CFNumberGetValue (ps_value,
+							kCFNumberDoubleType,
+							&charge);
+				else
+					DBG ("kIOPSCurrentCapacityKey: Not a CFNumber");
+
+				DBG ("charge = %f", charge);
+			}
+			else
+				DBG ("`%s' does not exist", kIOPSCurrentCapacityKey);
+
+			/* Get the current */
+			ps_value = NULL;
+			current  = INVALID_VALUE;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSCurrentKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFNumberGetTypeID ())
+					CFNumberGetValue (ps_value,
+							kCFNumberDoubleType,
+							&current);
+				else
+					DBG ("kIOPSCurrentKey: Not a CFNumber");
+				DBG ("current = %f", current);
+			}
+			else
+				DBG ("`%s' does not exist", kIOPSCurrentKey);
+
+			/* Get the voltage */
+			ps_value = NULL;
+			voltage  = INVALID_VALUE;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSVoltageKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFNumberGetTypeID ())
+					CFNumberGetValue (ps_value,
+							kCFNumberDoubleType,
+							&voltage);
+				else
+					DBG ("kIOPSVoltageKey: Not a CFNumber");
+				DBG ("voltage = %f", voltage);
+			}
+			else
+				DBG ("`%s' does not exist", kIOPSVoltageKey);
+
+			/* Get the name of the device.. */
+			ps_value = NULL;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSNameKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFStringGetTypeID ())
+					if (!CFStringGetCString (ps_value,
+								name, 128,
+								kCFStringEncodingASCII))
+						continue;
+				else
+					DBG ("kIOPSNameKey: Not a CFStringGetTypeID");
+				DBG ("Original string: `%s'", name);
+			}
+			else
+			{
+				strncpy (name, "unknown", 128);
+			}
+			name[127] = '\0';
+			for (i = 0; i < 128; i++)
+			{
+				if (name[i] == '\0')
+					break;
+				else if (isalnum (name[i]))
+					name[i] = (char) tolower (name[i]);
+				else
+					name[i] = '_';
+			}
+
+			battery_submit (name, current, voltage, charge);
+		}
+	}
+
+	CFRelease(ps_array);
+	CFRelease(ps_raw);
+/* #endif HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+
+#elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[BUFSIZE];
 	char filename[BUFSIZE];
