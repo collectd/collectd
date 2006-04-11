@@ -36,11 +36,17 @@
 #ifdef HAVE_MACH_HOST_PRIV_H
 # include <mach/host_priv.h>
 #endif
+#if HAVE_MACH_MACH_ERROR_H
+#  include <mach/mach_error.h>
+#endif
 #ifdef HAVE_MACH_PROCESSOR_INFO_H
 # include <mach/processor_info.h>
 #endif
 #ifdef HAVE_MACH_PROCESSOR_H
 # include <mach/processor.h>
+#endif
+#ifdef HAVE_MACH_VM_MAP_H
+# include <mach/vm_map.h>
 #endif
 
 #ifdef HAVE_LIBKSTAT
@@ -109,7 +115,7 @@ static int ds_num = 5;
 
 static void cpu_init (void)
 {
-#ifdef PROCESSOR_CPU_LOAD_INFO
+#if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
 	kern_return_t status;
 
 	port_host = mach_host_self ();
@@ -194,20 +200,27 @@ static void cpu_submit (int cpu_num, unsigned long long user,
 
 static void cpu_read (void)
 {
-#ifdef PROCESSOR_CPU_LOAD_INFO
+#if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
 	int cpu;
 
 	kern_return_t status;
 	
+#if PROCESSOR_CPU_LOAD_INFO
 	processor_cpu_load_info_data_t cpu_info;
 	mach_msg_type_number_t         cpu_info_len;
+#endif
+#if PROCESSOR_TEMPERATURE
+	processor_info_data_t          cpu_temp;
+	mach_msg_type_number_t         cpu_temp_len;
+#endif
 
 	host_t cpu_host;
 
 	for (cpu = 0; cpu < cpu_list_len; cpu++)
 	{
+#if PROCESSOR_CPU_LOAD_INFO
 		cpu_host = 0;
-		cpu_info_len = sizeof (cpu_info);
+		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
 
 		if ((status = processor_info (cpu_list[cpu],
 						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
@@ -228,6 +241,30 @@ static void cpu_read (void)
 				cpu_info.cpu_ticks[CPU_STATE_SYSTEM],
 				cpu_info.cpu_ticks[CPU_STATE_IDLE],
 				0ULL);
+#endif /* PROCESSOR_CPU_LOAD_INFO */
+#if PROCESSOR_TEMPERATURE
+		cpu_temp_len = PROCESSOR_INFO_MAX;
+
+		status = processor_info (cpu_list[cpu],
+				PROCESSOR_TEMPERATURE,
+				&cpu_host,
+				cpu_temp, &cpu_temp_len);
+		if (status != KERN_SUCCESS)
+		{
+			syslog (LOG_ERR, "processor_info failed: %s",
+					mach_error_string (status));
+			continue;
+		}
+
+		if (cpu_temp_len != 1)
+		{
+			DBG ("processor_info (PROCESSOR_TEMPERATURE) returned %i elements..?",
+				       	(int) cpu_temp_len);
+			continue;
+		}
+
+		DBG ("cpu_temp = %i", (int) cpu_temp);
+#endif /* PROCESSOR_TEMPERATURE */
 	}
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
