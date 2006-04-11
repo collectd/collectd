@@ -114,6 +114,17 @@ collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
 endif
 
+if BUILD_MODULE_IOKIT
+pkglib_LTLIBRARIES += iokit.la
+iokit_la_SOURCES = iokit.c
+iokit_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBIOKIT
+iokit_la_LDFLAGS += -lIOKit
+endif
+collectd_LDADD += "-dlopen" iokit.la
+collectd_DEPENDENCIES += iokit.la
+endif
+
 if BUILD_MODULE_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = load.c
