@@ -26,6 +26,7 @@
 
 #include "plugin.h"
 #include "network.h"
+#include "utils_debug.h"
 
 typedef struct plugin
 {
@@ -116,11 +117,19 @@ int plugin_load_file (char *file)
 	lt_dlhandle dlh;
 	void (*reg_handle) (void);
 
+	DBG ("file = %s", file);
+
 	lt_dlinit ();
 	lt_dlerror (); /* clear errors */
 
 	if ((dlh = lt_dlopen (file)) == NULL)
+	{
+		const char *error = lt_dlerror ();
+
+		syslog (LOG_ERR, "lt_dlopen failed: %s", error);
+		DBG ("lt_dlopen failed: %s", error);
 		return (1);
+	}
 
 	if ((reg_handle = lt_dlsym (dlh, "module_register")) == NULL)
 	{
@@ -146,6 +155,8 @@ int plugin_load (const char *type)
 	int   ret;
 	struct stat    statbuf;
 	struct dirent *de;
+
+	DBG ("type = %s", type);
 
 	dir = plugin_get_dir ();
 	ret = 1;
