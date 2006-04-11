@@ -61,7 +61,6 @@ static mach_port_t io_master_port;
 
 static char *temperature_file = "apple_sensors/temperature-%s.rrd";
 static char *fanspeed_file    = "apple_sensors/fanspeed-%s.rrd";
-static char *voltage_file     = "apple_sensors/temperature-%s.rrd";
 
 static char *ds_def[] =
 {
@@ -110,11 +109,6 @@ static void temperature_write (char *host, char *inst, char *val)
 static void fanspeed_write (char *host, char *inst, char *val)
 {
 	as_write (host, inst, val, fanspeed_file);
-}
-
-static void voltage_write (char *host, char *inst, char *val)
-{
-	as_write (host, inst, val, voltage_file);
 }
 
 #if IOKIT_HAVE_READ
@@ -233,8 +227,8 @@ static void as_read (void)
 		}
 		else if (strcmp (type, "voltage") == 0)
 		{
-			value_double = ((double) value_int) / 65536.0;
-			strncpy (type, "apple_voltage", 128);
+			/* Leave this to the battery plugin. */
+			continue;
 		}
 		else
 		{
@@ -260,7 +254,6 @@ void module_register (void)
 	plugin_register (MODULE_NAME, as_init, as_read, NULL);
 	plugin_register ("apple_temperature", NULL, NULL, temperature_write);
 	plugin_register ("apple_fanspeed",    NULL, NULL, fanspeed_write);
-	plugin_register ("apple_voltage",     NULL, NULL, voltage_write);
 }
 
 #undef MODULE_NAME
