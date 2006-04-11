@@ -55,6 +55,17 @@ collectd_LDADD += "-dlopen" apache.la
 collectd_DEPENDENCIES += apache.la
 endif
 
+if BUILD_MODULE_APPLE_SENSORS
+pkglib_LTLIBRARIES += apple_sensors.la
+apple_sensors_la_SOURCES = apple_sensors.c
+apple_sensors_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBIOKIT
+apple_sensors_la_LDFLAGS += -lIOKit
+endif
+collectd_LDADD += "-dlopen" apple_sensors.la
+collectd_DEPENDENCIES += apple_sensors.la
+endif
+
 if BUILD_MODULE_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c
@@ -112,17 +123,6 @@ hddtemp_la_SOURCES = hddtemp.c
 hddtemp_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
-endif
-
-if BUILD_MODULE_IOKIT
-pkglib_LTLIBRARIES += iokit.la
-iokit_la_SOURCES = iokit.c
-iokit_la_LDFLAGS = -module -avoid-version
-if BUILD_WITH_LIBIOKIT
-iokit_la_LDFLAGS += -lIOKit
-endif
-collectd_LDADD += "-dlopen" iokit.la
-collectd_DEPENDENCIES += iokit.la
 endif
 
 if BUILD_MODULE_LOAD

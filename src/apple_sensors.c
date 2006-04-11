@@ -1,5 +1,5 @@
 /**
- * collectd - src/iokit.c
+ * collectd - src/apple_sensors.c
  * Copyright (C) 2006  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 #include "plugin.h"
 #include "utils_debug.h"
 
-#define MODULE_NAME "iokit"
+#define MODULE_NAME "apple_sensors"
 
 #if HAVE_CTYPE_H
 #  include <ctype.h>
@@ -59,7 +59,9 @@
 static mach_port_t io_master_port;
 #endif
 
-static char *temperature_file = "temperature-%s.rrd";
+static char *temperature_file = "apple_sensors/temperature-%s.rrd";
+static char *fanspeed_file    = "apple_sensors/fanspeed-%s.rrd";
+static char *voltage_file     = "apple_sensors/temperature-%s.rrd";
 
 static char *ds_def[] =
 {
@@ -68,7 +70,7 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
-static void iokit_init (void)
+static void as_init (void)
 {
 #if IOKIT_HAVE_READ
 	kern_return_t status;
@@ -88,13 +90,35 @@ static void iokit_init (void)
 	return;
 }
 
+static void as_write (char *host, char *inst, char *val, const char *template)
+{
+	char filename[256];
+	int  status;
+
+	status = snprintf (filename, 256, template, inst);
+	if ((status < 1) || (status >= 256))
+		return;
+
+	rrd_update_file (host, filename, val, ds_def, ds_num);
+}
+
 static void temperature_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, temperature_file, val, ds_def, ds_num);
+	as_write (host, inst, val, temperature_file);
+}
+
+static void fanspeed_write (char *host, char *inst, char *val)
+{
+	as_write (host, inst, val, fanspeed_file);
+}
+
+static void voltage_write (char *host, char *inst, char *val)
+{
+	as_write (host, inst, val, voltage_file);
 }
 
 #if IOKIT_HAVE_READ
-static void iokit_submit (char *type, char *inst, double value)
+static void as_submit (char *type, char *inst, double value)
 {
 	char buf[128];
 
@@ -105,7 +129,7 @@ static void iokit_submit (char *type, char *inst, double value)
 	plugin_submit (type, inst, buf);
 }
 
-static void iokit_read (void)
+static void as_read (void)
 {
 	kern_return_t   status;
 	io_iterator_t   iterator;
@@ -197,21 +221,29 @@ static void iokit_read (void)
 				       	&value_int))
 			continue;
 
-		if ((strcmp (type, "temperature") == 0)
-				|| (strcmp (type, "fanspeed") == 0)
-				|| (strcmp (type, "voltage") == 0))
+		if (strcmp (type, "temperature") == 0)
 		{
 			value_double = ((double) value_int) / 65536.0;
+			strncpy (type, "apple_temperature", 128);
+		}
+		else if (strcmp (type, "fanspeed") == 0)
+		{
+			value_double = ((double) value_int) / 65536.0;
+			strncpy (type, "apple_fanspeed", 128);
+		}
+		else if (strcmp (type, "voltage") == 0)
+		{
+			value_double = ((double) value_int) / 65536.0;
+			strncpy (type, "apple_voltage", 128);
 		}
 		else
 		{
+			DBG ("apple_sensors: Read unknown sensor type: %s",
+					type);
 			value_double = (double) value_int;
 		}
 
-		/* Do stuff */
-		DBG ("type = %s, inst = %s, value_int = %i, value_double = %f",
-				type, inst, value_int, value_double);
-		iokit_submit (type, inst, value_double);
+		as_submit (type, inst, value_double);
 
 		CFRelease (prop_dict);
 		IOObjectRelease (io_obj);
@@ -220,15 +252,15 @@ static void iokit_read (void)
 	IOObjectRelease (iterator);
 }
 #else
-# define iokit_read NULL
+# define as_read NULL
 #endif /* IOKIT_HAVE_READ */
 
 void module_register (void)
 {
-	DBG ("IOKIT_HAVE_READ = %i", IOKIT_HAVE_READ);
-
-	plugin_register (MODULE_NAME, iokit_init, iokit_read, NULL);
-	plugin_register ("iokit-temperature", NULL, NULL, temperature_write);
+	plugin_register (MODULE_NAME, as_init, as_read, NULL);
+	plugin_register ("apple_temperature", NULL, NULL, temperature_write);
+	plugin_register ("apple_fanspeed",    NULL, NULL, fanspeed_write);
+	plugin_register ("apple_voltage",     NULL, NULL, voltage_write);
 }
 
 #undef MODULE_NAME

@@ -157,7 +157,7 @@ AC_CHECK_HEADERS(mach/kern_return.h)
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h)
 
-# For the iokit module
+# For the apple_sensors module
 AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h)
 AC_CHECK_HEADERS(IOKit/IOKitLib.h)
 AC_CHECK_HEADERS(IOKit/IOTypes.h)
@@ -789,6 +789,7 @@ AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 m4_divert_once([HELP_ENABLE], [
 collectd modules:])
 AC_COLLECTD([apache],    [disable], [module], [Apache httpd statistics])
+AC_COLLECTD([apple_sensors], [disable], [module], [Apple's hardware sensors])
 AC_COLLECTD([battery],   [disable], [module], [battery statistics])
 AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
 AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
@@ -796,7 +797,6 @@ AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
 AC_COLLECTD([df],        [disable], [module], [df statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
-AC_COLLECTD([iokit],     [disable], [module], [Apple's iokit hardware sensors])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
 AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
