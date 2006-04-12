@@ -1,3 +1,7 @@
+src/apple_sensors.c: Check for more sensor types.
+src/battery.c: commend not working code.
+general: build Darwin package
+
 Near future:
 * Update the RPM specfile to
   - build `collectd-apache'
@@ -7,3 +11,8 @@ For version 3.*:
 * Port nfs module to solaris
 * Port tape module to Linux
 * Maybe look into porting the serial module
+
+http://developer.apple.com/documentation/DeviceDrivers/Conceptual/AccessingHardware/AH_IOKitLib_API/chapter_5_section_1.html
+http://developer.apple.com/documentation/DeviceDrivers/Conceptual/IOKitFundamentals/index.html#//apple_ref/doc/uid/TP0000011
+http://www.gauchosoft.com/Software/X%20Resource%20Graph/
+http://johannes.sipsolutions.net/PowerBook/Apple_Motion_Sensor_Specification/
