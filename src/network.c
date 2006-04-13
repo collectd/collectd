@@ -49,11 +49,7 @@
 
 #define BUFF_SIZE 4096
 
-#ifdef HAVE_LIBRRD
 extern int operating_mode;
-#else
-static int operating_mode = MODE_CLIENT;
-#endif
 
 typedef struct sockent
 {
@@ -218,7 +214,7 @@ int network_create_socket (const char *node, const char *service)
 
 	DBG ("node = %s, service = %s", node, service);
 
-	if (operating_mode == MODE_LOCAL)
+	if (operating_mode == MODE_LOCAL || operating_mode == MODE_LOG)
 		return (-1);
 
 	socklist_tail = socklist_head;

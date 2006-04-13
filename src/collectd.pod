@@ -115,15 +115,18 @@ The simplest mode is the so called B<local mode>. Data is collected locally and
 written in RRD files that reside in I<DataDir>. This is the default mode when
 collectd is linked against C<librrd>.
 
-The other two modes, B<client mode> and B<server mode>, are used to send data
-over a network and receive it again.
+The other modes, B<client mode> and B<server mode>, are used to send data over
+a network and receive it again.
 
-In B<client mode> the daemon collects the data locally and sends it's results
+In B<client mode> the daemon collects the data locally and sends its results
 to one or more network addresses. No RRD files are written in this case. This
 is the only mode available if collectd is not linked against C<librrd>.
 
 If started in B<server mode> the daemon will listen on one or more interfaces
 and write the data it receives to RRD files. No data is collected locally.
+
+In the last mode, B<log mode>, data is collected locally and written in
+text files that reside in I<DataDir>.
 
 Please refer to L<collectd.conf(5)> for the configuration options and default
 values.
