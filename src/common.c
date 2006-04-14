@@ -363,7 +363,8 @@ static int check_create_dir (const char *file_orig)
 /* * * * *
  * Magic *
  * * * * */
-int rra_get (char ***ret)
+#if HAVE_LIBRRD
+static int rra_get (char ***ret)
 {
 	static char **rra_def = NULL;
 	static int rra_num = 0;
@@ -440,11 +441,15 @@ int rra_get (char ***ret)
 	*ret = rra_def;
 	return (rra_num);
 }
+#endif /* HAVE_LIBRRD */
 
 static int log_create_file (char *filename, char **ds_def, int ds_num)
 {
 	FILE *log;
 	int i;
+
+	if (check_create_dir (filename))
+		return (-1);
 
 	log = fopen (filename, "w");
 	if (log == NULL)
