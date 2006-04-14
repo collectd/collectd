@@ -135,7 +135,7 @@ static void exit_usage (char *name)
 #endif
 			"  Step              "COLLECTD_STEP" seconds\n"
 			"  Heartbeat         "COLLECTD_HEARTBEAT" seconds\n"
-			"\n"PACKAGE" "VERSION", http://verplant.org/collectd/\n"
+			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n");
 	exit (0);

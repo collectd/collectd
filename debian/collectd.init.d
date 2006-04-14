@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # collectd	Initscript for collectd
-#		http://verplant.org/collectd/
+#		http://collectd.org/
 # Authors:	Florian Forster <octo@verplant.org>
 #		Sebastian Harl <sh@tokkee.org>
 #
