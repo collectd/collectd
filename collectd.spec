@@ -6,7 +6,7 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildPrereq:	lm_sensors-devel, mysqlclient10-devel | mysql-devel, rrdtool-devel
+BuildPrereq:	lm_sensors-devel, mysql-devel, rrdtool-devel
 Requires:	rrdtool
 Packager:	Florian octo Forster <octo@verplant.org>
 Vendor:		Florian octo Forster <octo@verplant.org>
@@ -18,10 +18,17 @@ Since the daemon doesn't need to startup every time it wants to update the
 files it's very fast and easy on the system. Also, the statistics are very
 fine grained since the files are updated every 10 seconds.
 
+%package apache
+Summary:	apache-plugin for collectd.
+Group:		System Environment/Daemons
+Requires:	collectd = %{version}, libcurl3
+%description apache
+This plugin collectd data provided by Apache's `mod_status'.
+
 %package mysql
 Summary:	mysql-module for collectd.
 Group:		System Environment/Daemons
-Requires:	collectd = %{version}, mysqlclient10 | mysql
+Requires:	collectd = %{version}, mysql
 %description mysql
 MySQL  querying  plugin.  This plugins  provides data of  issued commands,
 called handlers and database traffic.
@@ -63,6 +70,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) %{_sbindir}/collectd
 %attr(0444,root,root) %{_mandir}/man1/*
 %attr(0444,root,root) %{_mandir}/man5/*
+%attr(0444,root,root) %{_libdir}/%{name}/apple_sensors.so*
 %attr(0444,root,root) %{_libdir}/%{name}/battery.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpu.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpufreq.so*
@@ -83,6 +91,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/wireless.so*
 %dir /var/lib/collectd
 
+%files apache
+%attr(0444,root,root) %{_libdir}/%{name}/apache.so*
+
 %files mysql
 %attr(0444,root,root) %{_libdir}/%{name}/mysql.so*
 
@@ -90,8 +101,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
-* Thu Mar 21 2006 Florian octo Forster <octo@verplant.org> 3.9.0-1
+* Fri Apr 14 2006 Florian octo Forster <octo@verplant.org> 3.9.0-1
 - New upstream version
+- Added the `apache' package.
 
 * Thu Mar 14 2006 Florian octo Forster <octo@verplant.org> 3.8.2-1
 - New upstream version
