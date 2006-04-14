@@ -1,8 +1,22 @@
 collectd (3.9.0-1) unstable; urgency=low
 
   * New upstream version
+  * Added the `apache' plugin in an extra package. It links against
+    `libcurl3'.
 
- -- Florian Forster <octo@verplant.org>  Tue, 21 Mar 2006 22:52:54 +0200
+ -- Florian Forster <octo@verplant.org>  Fri, 14 Apr 2006 19:31:05 +0200
+
+collectd (3.8.4-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sun,  9 Apr 2006 16:01:11 +0200
+
+collectd (3.8.3-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Florian Forster <octo@verplant.org>  Sun,  2 Apr 2006 10:34:05 +0200
 
 collectd (3.8.2-1) unstable; urgency=low
 
