@@ -14,6 +14,8 @@
 	  added.
 	* The plugins `cpu', `memory', `processes' and `traffic' have been
 	  ported to Mach/Darwin (Mac OS X).
+	* The `log mode' has been contributed by Christophe Kalt. It writes
+	  the data into text files rather than RRD files.
 
 2006-04-09, Version 3.8.4
 	* Applied patch by Vincent Stehlé which improves the disk-name
