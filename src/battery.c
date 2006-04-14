@@ -300,12 +300,16 @@ static void battery_read (void)
 						&ps_value))
 			{
 				if (CFGetTypeID (ps_value) != CFStringGetTypeID ())
+				{
 					if (!CFStringGetCString (ps_value,
 								name, 128,
 								kCFStringEncodingASCII))
 						continue;
+				}
 				else
+				{
 					DBG ("kIOPSNameKey: Not a CFStringGetTypeID");
+				}
 				DBG ("Original string: `%s'", name);
 			}
 			else
