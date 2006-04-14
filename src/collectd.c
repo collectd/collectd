@@ -41,8 +41,7 @@ kstat_ctl_t *kc;
  * exported variables
  */
 time_t curtime;
-
-int operating_mode;
+int    operating_mode;
 
 static void sigIntHandler (int signal)
 {

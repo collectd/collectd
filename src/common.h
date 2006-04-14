@@ -103,8 +103,8 @@ int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const 
  */
 int escape_slashes (char *buf, int buf_len);
 
-int rrd_update_file (char *host, char *file, char *values, char **ds_def,
-		int ds_num);
+int rrd_update_file (char *host, char *file, char *values,
+		char **ds_def, int ds_num);
 
 #ifdef HAVE_LIBKSTAT
 int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name);

@@ -236,8 +236,7 @@ static int cf_callback_mode (const char *shortvar, const char *var,
 		void *extra)
 {
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-             shortvar, var, (arguments) ? arguments : "<NULL>",
-             (value) ? value : "?");
+			shortvar, var, arguments, value);
 
 	if (strcasecmp (value, "Client") == 0)
 		operating_mode = MODE_CLIENT;
@@ -271,8 +270,7 @@ static int cf_callback_mode_plugindir (const char *shortvar, const char *var,
 		void *extra)
 {
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-             shortvar, var, (arguments) ? arguments : "<NULL>",
-             (value) ? value : "?");
+			shortvar, var, arguments, value);
 
 	plugin_set_dir (value);
 
@@ -286,8 +284,7 @@ static int cf_callback_mode_option (const char *shortvar, const char *var,
 	cf_mode_item_t *item;
 
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-             shortvar, var, (arguments) ? arguments : "<NULL>",
-             (value) ? value : "?");
+			shortvar, var, arguments, value);
 
 	if (extra == NULL)
 	{
@@ -337,8 +334,7 @@ static int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
 		void *extra)
 {
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-             shortvar, var, (arguments) ? arguments : "<NULL>",
-             (value) ? value : "?");
+			shortvar, var, arguments, value);
 
 	if (plugin_load (value))
 		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", value);
@@ -361,8 +357,7 @@ static int cf_callback_socket (const char *shortvar, const char *var,
 	char *service = NET_DEFAULT_PORT;
 
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-             shortvar, var, (arguments) ? arguments : "<NULL>",
-             (value) ? value : "?");
+			shortvar, var, arguments, value);
 
 	buffer = strdup (value);
 	if (buffer == NULL)
@@ -405,8 +400,7 @@ static int cf_callback_plugin (const char *shortvar, const char *var,
 		void *extra)
 {
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-             shortvar, var, (arguments) ? arguments : "<NULL>",
-             (value) ? value : "?");
+			shortvar, var, arguments, value);
 
 	if (flags == LC_FLAGS_SECTIONSTART)
 	{
@@ -467,8 +461,7 @@ static int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
 		void *extra)
 {
 	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-             shortvar, var, (arguments) ? arguments : "<NULL>",
-             (value) ? value : "?");
+			shortvar, var, arguments, value);
 
 	if ((nesting_depth == 0) || (current_module == NULL))
 	{

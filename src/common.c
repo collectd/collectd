@@ -183,7 +183,7 @@ int escape_slashes (char *buf, int buf_len)
 	return (0);
 }
 
-int check_create_dir (const char *file_orig)
+static int check_create_dir (const char *file_orig)
 {
 	struct stat statbuf;
 
@@ -287,7 +287,7 @@ int check_create_dir (const char *file_orig)
 	return (0);
 }
 
-int log_create_file (char *filename, char **ds_def, int ds_num)
+static int log_create_file (char *filename, char **ds_def, int ds_num)
 {
 	FILE *log;
 	int i;
@@ -336,7 +336,7 @@ int log_create_file (char *filename, char **ds_def, int ds_num)
 	return 0;
 }
 
-int log_update_file (char *host, char *file, char *values,
+static int log_update_file (char *host, char *file, char *values,
 		char **ds_def, int ds_num)
 {
 	char *tmp;
@@ -411,9 +411,9 @@ int log_update_file (char *host, char *file, char *values,
 	return (0);
 } /* int log_update_file */
 
-int rrd_create_file (char *filename, char **ds_def, int ds_num)
+#if HAVE_LIBRRD
+static int rrd_create_file (char *filename, char **ds_def, int ds_num)
 {
-#ifdef HAVE_LIBRRD
 	char **argv;
 	int argc;
 	int i, j;
@@ -453,17 +453,17 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 	free (argv);
 
 	return (status);
-#else
-	return (1);
-#endif /* HAVE_LIBRRD */
 }
+#endif /* HAVE_LIBRRD */
 
 int rrd_update_file (char *host, char *file, char *values,
 		char **ds_def, int ds_num)
 {
+#if HAVE_LIBRRD
 	struct stat statbuf;
 	char full_file[1024];
 	char *argv[4] = { "update", full_file, values, NULL };
+#endif /* HAVE_LIBRRD */
 
 	/* I'd rather have a function `common_update_file' to make this
 	 * decission, but for that we'd need to touch all plugins.. */
@@ -471,6 +471,7 @@ int rrd_update_file (char *host, char *file, char *values,
 		return (log_update_file (host, file, values,
 					ds_def, ds_num));
 
+#if HAVE_LIBRRD
 	/* host == NULL => local mode */
 	if (host != NULL)
 	{
@@ -502,7 +503,6 @@ int rrd_update_file (char *host, char *file, char *values,
 		return (-1);
 	}
 
-#ifdef HAVE_LIBRRD
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
 	if (rrd_update (3, argv) == -1)
@@ -510,8 +510,13 @@ int rrd_update_file (char *host, char *file, char *values,
 		syslog (LOG_WARNING, "rrd_update failed: %s: %s", full_file, rrd_get_error ());
 		return (-1);
 	}
-#endif /* HAVE_LIBRRD */
 	return (0);
+/* #endif HAVE_LIBRRD */
+
+#else
+	syslog (LOG_ERR, "`rrd_update_file' was called, but collectd isn't linked against librrd!");
+	return (-1);
+#endif
 }
 
 #ifdef HAVE_LIBKSTAT
