@@ -97,9 +97,24 @@ void plugin_register (char *type,
 		void (*read) (void),
 		void (*write) (char *, char *, char *));
 
-#ifdef HAVE_LIBRRD
+/*
+ * NAME
+ *  plugin_write
+ *
+ * DESCRIPTION
+ *  Searches the plugin for `type' in the plugin-list. If found, and a `write'
+ *  function is registered, it's called. If either the plugin is not found or
+ *  the plugin doesn't provide a `write' function this function will return
+ *  without further notice.
+ *
+ * ARGUMENTS
+ *  `host'      Host(name) from which the data originates.
+ *  `type'      Name of the plugin.
+ *  `inst'      Instance (passed to the plugin's `write' function.
+ *  `val'       Values for the RRD files. Also passed to the plugin.
+ */
 void plugin_write    (char *host, char *type, char *inst, char *val);
-#endif /* HAVE_LIBRRD */
+
 void plugin_submit   (char *type, char *inst, char *val);
 
 #endif /* PLUGIN_H */
