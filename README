@@ -1,6 +1,6 @@
  collectd - System information collection daemon
 =================================================
-http://verplant.org/collectd/
+http://collectd.org/
 
 About
 -----
@@ -112,14 +112,9 @@ Operation
     own experiments.. Some of them require the `RRDs' Perl module.
     (`librrds-perl' on Debian)
 
-  * The RRD-files that collectd creates hold the following data. Use ``rrdtool
-    resize'' if you want to cover longer/shorter periods of time.
-
-    Resolution | Data points |  Timespan
-    -----------+-------------+----------
-    60 seconds |        1500 |  25 hours
-    30 minutes |        1680 |  35 days
-     6 hours   |        1520 | 380 days
+  * The RRAs of the automatically created RRD files depend on the `step'
+    and `heartbeat' settings given on compile time. For a list of the
+    default RRAs take a look in the collectd(1) manpage.
 
 
 Prerequisites
@@ -141,6 +136,13 @@ Prerequisites
     and/or Solaris. Note that CPU- and disk-statistics, while being provided by
     this library, are not supported in collectd right now..
     <http://www.i-scream.org/libstatgrab/> 
+
+  * libcurl (optional)
+    If you want to use the `apache' plugin
+
+  * CoreFoundation.framework and IOKit.framework
+    For copiling on darwin in general and the `apple_sensors' plugin in
+    particular.
 
 Author
 ------
