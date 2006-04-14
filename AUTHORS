@@ -32,6 +32,9 @@ many autotools related fixes, libltdl code, getmnt-wizardry and much help has
 contributed:
   Niki W. Waibel <niki.waibel at newlogic.com>
 
+The `log' mode has been written by:
+  Christophe Kalt <collectd at klb.taranis.org>
+
 collectd is available at:
   <http://verplant.org/collectd/>
 
