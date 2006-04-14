@@ -1,6 +1,6 @@
 /**
  * collectd - src/cpufreq.c
- * Copyright (C) 2005  Peter Holik
+ * Copyright (C) 2005,2006  Peter Holik
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_debug.c
- * Copyright (C) 2005  Niki W. Waibel
+ * Copyright (C) 2005,2006  Niki W. Waibel
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

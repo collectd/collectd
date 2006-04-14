@@ -1,6 +1,6 @@
 /**
  * collectd - src/tape.c
- * Copyright (C) 2005  Scott Garrett
+ * Copyright (C) 2005,2006  Scott Garrett
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
