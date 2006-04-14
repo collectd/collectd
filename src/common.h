@@ -106,8 +106,8 @@ int escape_slashes (char *buf, int buf_len);
 /* FIXME: `timeval_sub_timespec' needs a description */
 int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct timespec *ret);
 
-int rrd_update_file (char *host, char *file, char *values, char **ds_def,
-		int ds_num);
+int rrd_update_file (char *host, char *file, char *values,
+		char **ds_def, int ds_num);
 
 #ifdef HAVE_LIBKSTAT
 int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name);

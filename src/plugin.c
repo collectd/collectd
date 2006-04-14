@@ -39,9 +39,7 @@ typedef struct plugin
 
 static plugin_t *first_plugin = NULL;
 
-#ifdef HAVE_LIBRRD
 extern int operating_mode;
-#endif
 
 static char *plugindir = NULL;
 
@@ -301,7 +299,7 @@ void plugin_register (char *type,
 		return;
 
 #ifdef HAVE_LIBRRD
-	if ((operating_mode == MODE_LOCAL) || (operating_mode == MODE_CLIENT))
+	if (operating_mode != MODE_SERVER)
 #endif
 		if ((init != NULL) && (read == NULL))
 			syslog (LOG_NOTICE, "Plugin `%s' doesn't provide a read function.", type);
@@ -327,7 +325,6 @@ void plugin_register (char *type,
  * Send received data back to the plugin/module which will append DS
  * definitions and pass it on to ``rrd_update_file''.
  */
-#ifdef HAVE_LIBRRD
 void plugin_write (char *host, char *type, char *inst, char *val)
 {
 	plugin_t *p;
@@ -340,7 +337,6 @@ void plugin_write (char *host, char *type, char *inst, char *val)
 
 	(*p->write) (host, inst, val);
 }
-#endif /* HAVE_LIBRRD */
 
 /*
  * Receive data from the plugin/module and get it somehow to ``plugin_write'':
@@ -349,14 +345,8 @@ void plugin_write (char *host, char *type, char *inst, char *val)
  */
 void plugin_submit (char *type, char *inst, char *val)
 {
-#ifdef HAVE_LIBRRD
-	if (operating_mode == MODE_LOCAL)
-		plugin_write (NULL, type, inst, val);
-	else if (operating_mode == MODE_CLIENT)
+        if (operating_mode == MODE_CLIENT)
 		network_send (type, inst, val);
-	else /* operating_mode == MODE_SERVER */
-		syslog (LOG_ERR, "WTF is the server doing in ``plugin_submit''?!?\n");
-#else
-	network_send (type, inst, val);
-#endif
+	else
+		plugin_write (NULL, type, inst, val);
 }

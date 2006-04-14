@@ -39,10 +39,7 @@ kstat_ctl_t *kc;
  * exported variables
  */
 time_t curtime;
-
-#if HAVE_LIBRRD
-int operating_mode;
-#endif
+int    operating_mode;
 
 static void sigIntHandler (int signal)
 {
@@ -435,7 +432,7 @@ int main (int argc, char **argv)
 #if HAVE_LIBRRD
 	if (operating_mode == MODE_SERVER)
 		start_server ();
-	else /* if (operating_mode == MODE_CLIENT || operating_mode == MODE_LOCAL) */
+	else /* if (operating_mode == MODE_CLIENT || operating_mode == MODE_LOCAL || operating_mode == MODE_LOG) */
 #endif
 		start_client ();
 

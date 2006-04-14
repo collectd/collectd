@@ -36,7 +36,7 @@ ignored.
 
 =over 4
 
-=item B<Mode> (B<Local>|B<Client>|B<Server>)
+=item B<Mode> (B<Local>|B<Client>|B<Server>|B<Log>)
 
 Sets the operating mode. See the section B<MODES> in L<collectd(1)> for a
 description. This option determines which other options are allowed. Defaults

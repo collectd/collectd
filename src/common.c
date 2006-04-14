@@ -29,6 +29,8 @@
 #  include <math.h>
 #endif
 
+extern int operating_mode;
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
@@ -182,6 +184,27 @@ int strjoin (char *dst, size_t dst_len,
 	return (strlen (dst));
 }
 
+int strsubstitute (char *str, char c_from, char c_to)
+{
+	int ret;
+
+	if (str == NULL)
+		return (-1);
+
+	ret = 0;
+	while (*str != '\0')
+	{
+		if (*str == c_from)
+		{
+			*str = c_to;
+			ret++;
+		}
+		str++;
+	}
+
+	return (ret);
+}
+
 int escape_slashes (char *buf, int buf_len)
 {
 	int i;
@@ -233,8 +256,7 @@ int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct times
 	return (0);
 }
 
-#ifdef HAVE_LIBRRD
-int check_create_dir (const char *file_orig)
+static int check_create_dir (const char *file_orig)
 {
 	struct stat statbuf;
 
@@ -419,7 +441,138 @@ int rra_get (char ***ret)
 	return (rra_num);
 }
 
-int rrd_create_file (char *filename, char **ds_def, int ds_num)
+static int log_create_file (char *filename, char **ds_def, int ds_num)
+{
+	FILE *log;
+	int i;
+
+	log = fopen (filename, "w");
+	if (log == NULL)
+	{
+		syslog (LOG_WARNING, "Failed to create %s: %s", filename,
+				strerror(errno));
+		return (-1);
+	}
+
+	fprintf (log, "epoch");
+	for (i = 0; i < ds_num; i++)
+	{
+		char *name;
+		char *tmp;
+
+		name = strchr (ds_def[i], ':');
+		if (name == NULL)
+		{
+			syslog (LOG_WARNING, "Invalid DS definition '%s' for %s",
+					ds_def[i], filename);
+			fclose(log);
+			remove(filename);
+			return (-1);
+		}
+
+		name += 1;
+		tmp = strchr (name, ':');
+		if (tmp == NULL)
+		{
+			syslog (LOG_WARNING, "Invalid DS definition '%s' for %s",
+					ds_def[i], filename);
+			fclose(log);
+			remove(filename);
+			return (-1);
+		}
+
+		/* The `%.*s' is needed because there is no null-byte behind
+		 * the name. */
+		fprintf(log, ",%.*s", (tmp - name), name);
+	}
+	fprintf(log, "\n");
+	fclose(log);
+
+	return 0;
+}
+
+static int log_update_file (char *host, char *file, char *values,
+		char **ds_def, int ds_num)
+{
+	char *tmp;
+	FILE *fp;
+	struct stat statbuf;
+	char full_file[1024];
+
+	/* Cook the values a bit: Substitute colons with commas */
+	strsubstitute (values, ':', ',');
+
+	/* host == NULL => local mode */
+	if (host != NULL)
+	{
+		if (snprintf (full_file, 1024, "%s/%s", host, file) >= 1024)
+			return (-1);
+	}
+	else
+	{
+		if (snprintf (full_file, 1024, "%s", file) >= 1024)
+			return (-1);
+	}
+
+	strncpy (full_file, file, 1024);
+
+	tmp = full_file + strlen (full_file) - 4;
+	assert (tmp > 0);
+
+	/* Change the filename for logfiles. */
+	if (strncmp (tmp, ".rrd", 4) == 0)
+	{
+		time_t now;
+		struct tm *tm;
+
+		/* TODO: Find a way to minimize the calls to `localtime', since
+		 * they are pretty expensive.. */
+		now = time (NULL);
+		tm = localtime (&now);
+
+		strftime (tmp, 1024 - (tmp - full_file), "-%Y-%m-%d", tm);
+
+		/* `localtime(3)' returns a pointer to static data,
+		 * therefore the pointer may not be free'd. */
+	}
+	else
+		DBG ("The filename ends with `%s' which is unexpected.", tmp);
+
+	if (stat (full_file, &statbuf) == -1)
+	{
+		if (errno == ENOENT)
+		{
+			if (log_create_file (full_file, ds_def, ds_num))
+				return (-1);
+		}
+		else
+		{
+			syslog (LOG_ERR, "stat %s: %s", full_file, strerror (errno));
+			return (-1);
+		}
+	}
+	else if (!S_ISREG (statbuf.st_mode))
+	{
+		syslog (LOG_ERR, "stat %s: Not a regular file!", full_file);
+		return (-1);
+	}
+
+
+	fp = fopen (full_file, "a");
+	if (fp == NULL)
+	{
+		syslog (LOG_WARNING, "Failed to append to %s: %s", full_file,
+				strerror(errno));
+		return (-1);
+	}
+	fprintf(fp, "%s\n", values);
+	fclose(fp);
+
+	return (0);
+} /* int log_update_file */
+
+#if HAVE_LIBRRD
+static int rrd_create_file (char *filename, char **ds_def, int ds_num)
 {
 	char **argv;
 	int argc;
@@ -466,7 +619,7 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 	}
 
 	free (argv);
-	
+
 	return (status);
 }
 #endif /* HAVE_LIBRRD */
@@ -474,11 +627,19 @@ int rrd_create_file (char *filename, char **ds_def, int ds_num)
 int rrd_update_file (char *host, char *file, char *values,
 		char **ds_def, int ds_num)
 {
-#ifdef HAVE_LIBRRD
+#if HAVE_LIBRRD
 	struct stat statbuf;
 	char full_file[1024];
 	char *argv[4] = { "update", full_file, values, NULL };
+#endif /* HAVE_LIBRRD */
 
+	/* I'd rather have a function `common_update_file' to make this
+	 * decission, but for that we'd need to touch all plugins.. */
+	if (operating_mode == MODE_LOG)
+		return (log_update_file (host, file, values,
+					ds_def, ds_num));
+
+#if HAVE_LIBRRD
 	/* host == NULL => local mode */
 	if (host != NULL)
 	{
@@ -517,9 +678,13 @@ int rrd_update_file (char *host, char *file, char *values,
 		syslog (LOG_WARNING, "rrd_update failed: %s: %s", full_file, rrd_get_error ());
 		return (-1);
 	}
-#endif /* HAVE_LIBRRD */
-
 	return (0);
+/* #endif HAVE_LIBRRD */
+
+#else
+	syslog (LOG_ERR, "`rrd_update_file' was called, but collectd isn't linked against librrd!");
+	return (-1);
+#endif
 }
 
 #ifdef HAVE_LIBKSTAT

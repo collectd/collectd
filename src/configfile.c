@@ -37,11 +37,7 @@
 #define ERR_NEEDS_ARG "Section `%s' needs an argument.\n"
 #define ERR_NEEDS_SECTION "`%s' can only be used within a section.\n"
 
-#ifdef HAVE_LIBRRD
 extern int operating_mode;
-#else
-static int operating_mode = MODE_CLIENT;
-#endif
 
 typedef struct cf_callback
 {
@@ -67,9 +63,9 @@ typedef struct cf_mode_item
 static cf_mode_item_t cf_mode_list[] =
 {
 	{"TimeToLive",  NULL, MODE_CLIENT                           },
-	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
-	{"DataDir",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL},
-	{"LogFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL}
+	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL | MODE_LOG },
+	{"DataDir",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL | MODE_LOG },
+	{"LogFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL | MODE_LOG }
 };
 static int cf_mode_num = 4;
 
@@ -246,10 +242,14 @@ static int cf_callback_mode (const char *shortvar, const char *var,
 
 	if (strcasecmp (value, "Client") == 0)
 		operating_mode = MODE_CLIENT;
+#if HAVE_LIBRRD
 	else if (strcasecmp (value, "Server") == 0)
 		operating_mode = MODE_SERVER;
 	else if (strcasecmp (value, "Local") == 0)
 		operating_mode = MODE_LOCAL;
+#endif
+	else if (strcasecmp (value, "Log") == 0)
+		operating_mode = MODE_LOG;
 	else
 	{
 		syslog (LOG_ERR, "Invalid value for config option `Mode': `%s'", value);
