@@ -155,6 +155,27 @@ int strjoin (char *dst, size_t dst_len,
 	return (strlen (dst));
 }
 
+int strsubstitute (char *str, char c_from, char c_to)
+{
+	int ret;
+
+	if (str == NULL)
+		return (-1);
+
+	ret = 0;
+	while (*str != '\0')
+	{
+		if (*str == c_from)
+		{
+			*str = c_to;
+			ret++;
+		}
+		str++;
+	}
+
+	return (ret);
+}
+
 int escape_slashes (char *buf, int buf_len)
 {
 	int i;
@@ -300,12 +321,13 @@ static int log_create_file (char *filename, char **ds_def, int ds_num)
 		return (-1);
 	}
 
+	fprintf (log, "epoch");
 	for (i = 0; i < ds_num; i++)
 	{
 		char *name;
 		char *tmp;
 
-		name = index (ds_def[i], ':');
+		name = strchr (ds_def[i], ':');
 		if (name == NULL)
 		{
 			syslog (LOG_WARNING, "Invalid DS definition '%s' for %s",
@@ -316,7 +338,7 @@ static int log_create_file (char *filename, char **ds_def, int ds_num)
 		}
 
 		name += 1;
-		tmp = index(name, ':');
+		tmp = strchr (name, ':');
 		if (tmp == NULL)
 		{
 			syslog (LOG_WARNING, "Invalid DS definition '%s' for %s",
@@ -326,9 +348,9 @@ static int log_create_file (char *filename, char **ds_def, int ds_num)
 			return (-1);
 		}
 
-		if (i != 0)
-			fprintf (log, ":");
-		fprintf(log, "%.*s", (tmp - name), name);
+		/* The `%.*s' is needed because there is no null-byte behind
+		 * the name. */
+		fprintf(log, ",%.*s", (tmp - name), name);
 	}
 	fprintf(log, "\n");
 	fclose(log);
@@ -343,6 +365,9 @@ static int log_update_file (char *host, char *file, char *values,
 	FILE *fp;
 	struct stat statbuf;
 	char full_file[1024];
+
+	/* Cook the values a bit: Substitute colons with commas */
+	strsubstitute (values, ':', ',');
 
 	/* host == NULL => local mode */
 	if (host != NULL)
@@ -367,6 +392,8 @@ static int log_update_file (char *host, char *file, char *values,
 		time_t now;
 		struct tm *tm;
 
+		/* TODO: Find a way to minimize the calls to `localtime', since
+		 * they are pretty expensive.. */
 		now = time (NULL);
 		tm = localtime (&now);
 
