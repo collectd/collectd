@@ -224,9 +224,15 @@ static void as_read (void)
 				       	&value_int))
 			continue;
 
+		/* Found e.g. in the 1.5GHz PowerBooks */
 		if (strcmp (type, "temperature") == 0)
 		{
 			value_double = ((double) value_int) / 65536.0;
+			strncpy (type, "apple_temperature", 128);
+		}
+		else if (strcmp (type, "temp") == 0)
+		{
+			value_double = ((double) value_int) / 10.0;
 			strncpy (type, "apple_temperature", 128);
 		}
 		else if (strcmp (type, "fanspeed") == 0)
@@ -238,6 +244,11 @@ static void as_read (void)
 		{
 			/* Leave this to the battery plugin. */
 			continue;
+		}
+		else if (strcmp (type, "adc") == 0)
+		{
+			value_double = ((double) value_int) / 10.0;
+			strncpy (type, "apple_temperature", 128);
 		}
 		else
 		{

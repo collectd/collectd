@@ -1,4 +1,3 @@
-src/apple_sensors.c: Check for more sensor types.
 src/battery.c: commend not working code.
 general: build Darwin package
 
