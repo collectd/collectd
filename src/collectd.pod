@@ -16,6 +16,14 @@ settings. The following features may be available:
 
 =item
 
+Apache server stats (I<apache>)
+
+=item
+
+Apple hardware sensors (I<apple_sensors>, Darwin only)
+
+=item
+
 Battery status (I<battery>)
 
 =item
@@ -85,6 +93,10 @@ Number of users logged into the system (I<users>)
 =item
 
 System ressources used by VServers (I<vserver>)
+
+=item
+
+Wireless network stats (I<wireless>)
 
 =back
 
