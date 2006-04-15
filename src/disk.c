@@ -23,6 +23,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
 
 #define MODULE_NAME "disk"
 
@@ -46,6 +47,12 @@
 #endif
 #if HAVE_IOKIT_IOTYPES_H
 #  include <IOKit/IOTypes.h>
+#endif
+#if HAVE_IOKIT_STORAGE_IOBLOCKSTORAGEDRIVER_H
+#  include <IOKit/storage/IOBlockStorageDriver.h>
+#endif
+#if HAVE_IOKIT_IOBSD_H
+#  include <IOKit/IOBSD.h>
 #endif
 
 #if HAVE_IOKIT_IOKITLIB_H || KERNEL_LINUX || HAVE_LIBKSTAT
@@ -215,6 +222,7 @@ static void disk_submit (char *disk_name,
 	plugin_submit (MODULE_NAME, disk_name, buf);
 }
 
+#if KERNEL_LINUX || HAVE_LIBKSTAT
 static void partition_submit (char *part_name,
 		unsigned long long read_count,
 		unsigned long long read_bytes,
@@ -231,6 +239,7 @@ static void partition_submit (char *part_name,
 
 	plugin_submit ("partition", part_name, buf);
 }
+#endif /* KERNEL_LINUX || HAVE_LIBKSTAT */
 #undef BUFSIZE
 
 #if HAVE_IOKIT_IOKITLIB_H
@@ -238,12 +247,26 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 {
 	signed long long val_int;
 	CFNumberRef      val_obj;
+	CFStringRef      key_obj;
+
+	CFStringRef CFStringCreateWithCString (
+			CFAllocatorRef alloc,
+			const char *cStr,
+			CFStringEncoding encoding
+			);
+
+	/* `key_obj' needs to be released. */
+	key_obj = CFStringCreateWithCString (kCFAllocatorDefault, key,
+		       	kCFStringEncodingASCII);
+	if (key_obj == NULL)
+		return (-1LL);
 	
 	/* get => we don't need to release (== free) the object */
-	val_obj = (CFNumberRef) CFDictionaryGetValue (dict,
-			CFSTR (key));
+	val_obj = (CFNumberRef) CFDictionaryGetValue (dict, key_obj);
 
-	if (number == NULL)
+	CFRelease (key_obj);
+
+	if (val_obj == NULL)
 		return (-1LL);
 
 	if (CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int)
@@ -257,10 +280,12 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 static void disk_read (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H
+	io_registry_entry_t	disk;
+	io_registry_entry_t	disk_child;
+	io_iterator_t		disk_list;
 	CFDictionaryRef		props_dict;
 	CFDictionaryRef		stats_dict;
-	io_registry_entry_t	disk;
-	io_iterator_t		disk_list;
+	CFDictionaryRef		child_dict;
 
 	signed long long read_ops;
 	signed long long read_byt;
@@ -268,6 +293,10 @@ static void disk_read (void)
 	signed long long write_ops;
 	signed long long write_byt;
 	signed long long write_tme;
+
+	int  disk_major;
+	int  disk_minor;
+	char disk_name[64];
 
 	/* Get the list of all disk objects. */
 	if (IOServiceGetMatchingServices (io_master_port,
@@ -278,10 +307,11 @@ static void disk_read (void)
 		return;
 	}
 
-	while ((disk = IOIteratorNext (disk_list)) != NULL)
+	while ((disk = IOIteratorNext (disk_list)) != 0)
 	{
 		props_dict = NULL;
 		stats_dict = NULL;
+		child_dict = NULL;
 
 		/* We create `props_dict' => we need to release it later */
 		if (IORegistryEntryCreateCFProperties (disk,
@@ -291,21 +321,56 @@ static void disk_read (void)
 				!= kIOReturnSuccess)
 		{
 			syslog (LOG_ERR, "disk-plugin: IORegistryEntryCreateCFProperties failed.");
+			IOObjectRelease (disk);
 			continue;
 		}
 
 		if (props_dict == NULL)
+		{
+			DBG ("IORegistryEntryCreateCFProperties (disk) failed.");
+			IOObjectRelease (disk);
 			continue;
+		}
 
 		stats_dict = (CFDictionaryRef) CFDictionaryGetValue (props_dict,
 				CFSTR (kIOBlockStorageDriverStatisticsKey));
 
 		if (stats_dict == NULL)
 		{
+			DBG ("CFDictionaryGetValue (%s) failed.",
+				       	kIOBlockStorageDriverStatisticsKey);
 			CFRelease (props_dict);
+			IOObjectRelease (disk);
 			continue;
 		}
 
+		/* `disk_child' must be released */
+		if (IORegistryEntryGetChildEntry (disk, kIOServicePlane, &disk_child)
+			       	!= kIOReturnSuccess)
+		{
+			DBG ("IORegistryEntryGetChildEntry (disk) failed.");
+			CFRelease (props_dict);
+			IOObjectRelease (disk);
+			continue;
+		}
+
+		if (IORegistryEntryCreateCFProperties (disk_child,
+					(CFMutableDictionaryRef *) &child_dict,
+					kCFAllocatorDefault,
+					kNilOptions)
+				!= kIOReturnSuccess)
+		{
+			DBG ("IORegistryEntryCreateCFProperties (disk_child) failed.");
+			IOObjectRelease (disk_child);
+			CFRelease (props_dict);
+			IOObjectRelease (disk);
+			continue;
+		}
+
+		disk_major = (int) dict_get_value (child_dict,
+			       	kIOBSDMajorKey);
+		disk_minor = (int) dict_get_value (child_dict,
+			       	kIOBSDMinorKey);
 		read_ops  = dict_get_value (stats_dict,
 				kIOBlockStorageDriverStatisticsReadsKey);
 		read_byt  = dict_get_value (stats_dict,
@@ -319,16 +384,28 @@ static void disk_read (void)
 		write_tme = dict_get_value (stats_dict,
 				kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
 
+		if (snprintf (disk_name, 64, "%i-%i", disk_major, disk_minor) >= 64)
+		{
+			DBG ("snprintf (major, minor) failed.");
+			CFRelease (child_dict);
+			IOObjectRelease (disk_child);
+			CFRelease (props_dict);
+			IOObjectRelease (disk);
+			continue;
+		}
+
 		if ((read_ops != -1LL)
 				|| (read_byt != -1LL)
 				|| (read_tme != -1LL)
 				|| (write_ops != -1LL)
 				|| (write_byt != -1LL)
 				|| (write_tme != -1LL))
-			disk_submit (kIOBlockStorageDriverClass, /* FIXME */
+			disk_submit (disk_name,
 					read_ops, 0ULL, read_byt, read_tme,
 					write_ops, 0ULL, write_byt, write_tme);
 
+		CFRelease (child_dict);
+		IOObjectRelease (disk_child);
 		CFRelease (props_dict);
 		IOObjectRelease (disk);
 	}
