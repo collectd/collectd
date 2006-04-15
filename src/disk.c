@@ -26,7 +26,29 @@
 
 #define MODULE_NAME "disk"
 
-#if KERNEL_LINUX || HAVE_LIBKSTAT
+#if HAVE_MACH_MACH_TYPES_H
+#  include <mach/mach_types.h>
+#endif
+#if HAVE_MACH_MACH_INIT_H
+#  include <mach/mach_init.h>
+#endif
+#if HAVE_MACH_MACH_ERROR_H
+#  include <mach/mach_error.h>
+#endif
+#if HAVE_MACH_MACH_PORT_H
+#  include <mach/mach_port.h>
+#endif
+#if HAVE_COREFOUNDATION_COREFOUNDATION_H
+#  include <CoreFoundation/CoreFoundation.h>
+#endif
+#if HAVE_IOKIT_IOKITLIB_H
+#  include <IOKit/IOKitLib.h>
+#endif
+#if HAVE_IOKIT_IOTYPES_H
+#  include <IOKit/IOTypes.h>
+#endif
+
+#if HAVE_IOKIT_IOKITLIB_H || KERNEL_LINUX || HAVE_LIBKSTAT
 # define DISK_HAVE_READ 1
 #else
 # define DISK_HAVE_READ 0
@@ -60,7 +82,11 @@ static char *part_ds_def[] =
 };
 static int part_ds_num = 4;
 
-#if KERNEL_LINUX
+#if HAVE_IOKIT_IOKITLIB_H
+static mach_port_t io_master_port = MACH_PORT_NULL;
+/* #endif HAVE_IOKIT_IOKITLIB_H */
+
+#elif KERNEL_LINUX
 typedef struct diskstats
 {
 	char *name;
@@ -89,7 +115,27 @@ static int numdisk = 0;
 
 static void disk_init (void)
 {
-#if KERNEL_LINUX
+#if HAVE_IOKIT_IOKITLIB_H
+	kern_return_t status;
+	
+	if (io_master_port != MACH_PORT_NULL)
+	{
+		mach_port_deallocate (mach_task_self (),
+				io_master_port);
+		io_master_port = MACH_PORT_NULL;
+	}
+
+	status = IOMasterPort (MACH_PORT_NULL, &io_master_port);
+	if (status != kIOReturnSuccess)
+	{
+		syslog (LOG_ERR, "IOMasterPort failed: %s",
+				mach_error_string (status));
+		io_master_port = MACH_PORT_NULL;
+		return;
+	}
+/* #endif HAVE_IOKIT_IOKITLIB_H */
+
+#elif KERNEL_LINUX
 	/* No init needed */
 /* #endif KERNEL_LINUX */
 
@@ -187,9 +233,109 @@ static void partition_submit (char *part_name,
 }
 #undef BUFSIZE
 
+#if HAVE_IOKIT_IOKITLIB_H
+static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
+{
+	signed long long val_int;
+	CFNumberRef      val_obj;
+	
+	/* get => we don't need to release (== free) the object */
+	val_obj = (CFNumberRef) CFDictionaryGetValue (dict,
+			CFSTR (key));
+
+	if (number == NULL)
+		return (-1LL);
+
+	if (CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int)
+			!= kIOReturnSuccess)
+		return (-1LL);
+
+	return (val_int);
+}
+#endif /* HAVE_IOKIT_IOKITLIB_H */
+
 static void disk_read (void)
 {
-#if KERNEL_LINUX
+#if HAVE_IOKIT_IOKITLIB_H
+	CFDictionaryRef		props_dict;
+	CFDictionaryRef		stats_dict;
+	io_registry_entry_t	disk;
+	io_iterator_t		disk_list;
+
+	signed long long read_ops;
+	signed long long read_byt;
+	signed long long read_tme;
+	signed long long write_ops;
+	signed long long write_byt;
+	signed long long write_tme;
+
+	/* Get the list of all disk objects. */
+	if (IOServiceGetMatchingServices (io_master_port,
+				IOServiceMatching (kIOBlockStorageDriverClass),
+				&disk_list) != kIOReturnSuccess)
+	{
+		syslog (LOG_ERR, "disk-plugin: IOServiceGetMatchingServices failed.");
+		return;
+	}
+
+	while ((disk = IOIteratorNext (disk_list)) != NULL)
+	{
+		props_dict = NULL;
+		stats_dict = NULL;
+
+		/* We create `props_dict' => we need to release it later */
+		if (IORegistryEntryCreateCFProperties (disk,
+					(CFMutableDictionaryRef *) &props_dict,
+					kCFAllocatorDefault,
+					kNilOptions)
+				!= kIOReturnSuccess)
+		{
+			syslog (LOG_ERR, "disk-plugin: IORegistryEntryCreateCFProperties failed.");
+			continue;
+		}
+
+		if (props_dict == NULL)
+			continue;
+
+		stats_dict = (CFDictionaryRef) CFDictionaryGetValue (props_dict,
+				CFSTR (kIOBlockStorageDriverStatisticsKey));
+
+		if (stats_dict == NULL)
+		{
+			CFRelease (props_dict);
+			continue;
+		}
+
+		read_ops  = dict_get_value (stats_dict,
+				kIOBlockStorageDriverStatisticsReadsKey);
+		read_byt  = dict_get_value (stats_dict,
+				kIOBlockStorageDriverStatisticsBytesReadKey);
+		read_tme  = dict_get_value (stats_dict,
+				kIOBlockStorageDriverStatisticsTotalReadTimeKey);
+		write_ops = dict_get_value (stats_dict,
+				kIOBlockStorageDriverStatisticsWritesKey);
+		write_byt = dict_get_value (stats_dict,
+				kIOBlockStorageDriverStatisticsBytesWrittenKey);
+		write_tme = dict_get_value (stats_dict,
+				kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
+
+		if ((read_ops != -1LL)
+				|| (read_byt != -1LL)
+				|| (read_tme != -1LL)
+				|| (write_ops != -1LL)
+				|| (write_byt != -1LL)
+				|| (write_tme != -1LL))
+			disk_submit (kIOBlockStorageDriverClass, /* FIXME */
+					read_ops, 0ULL, read_byt, read_tme,
+					write_ops, 0ULL, write_byt, write_tme);
+
+		CFRelease (props_dict);
+		IOObjectRelease (disk);
+	}
+	IOObjectRelease (disk_list);
+/* #endif HAVE_IOKIT_IOKITLIB_H */
+
+#elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
 	char disk_name[128];
