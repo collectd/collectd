@@ -105,6 +105,9 @@ if BUILD_MODULE_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
 disk_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBIOKIT
+disk_la_LDFLAGS += -lIOKit
+endif
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
