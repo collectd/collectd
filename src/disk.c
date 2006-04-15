@@ -26,7 +26,7 @@
 
 #define MODULE_NAME "disk"
 
-#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+#if KERNEL_LINUX || HAVE_LIBKSTAT
 # define DISK_HAVE_READ 1
 #else
 # define DISK_HAVE_READ 0
@@ -60,7 +60,7 @@ static char *part_ds_def[] =
 };
 static int part_ds_num = 4;
 
-#ifdef KERNEL_LINUX
+#if KERNEL_LINUX
 typedef struct diskstats
 {
 	char *name;
@@ -78,9 +78,9 @@ typedef struct diskstats
 } diskstats_t;
 
 static diskstats_t *disklist;
-/* #endif defined(KERNEL_LINUX) */
+/* #endif KERNEL_LINUX */
 
-#elif defined(HAVE_LIBKSTAT)
+#elif HAVE_LIBKSTAT
 #define MAX_NUMDISK 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
@@ -89,7 +89,11 @@ static int numdisk = 0;
 
 static void disk_init (void)
 {
-#ifdef HAVE_LIBKSTAT
+#if KERNEL_LINUX
+	/* No init needed */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
 
 	numdisk = 0;
@@ -108,7 +112,7 @@ static void disk_init (void)
 			continue;
 		ksp[numdisk++] = ksp_chain;
 	}
-#endif
+#endif /* HAVE_LIBKSTAT */
 
 	return;
 }
@@ -185,7 +189,7 @@ static void partition_submit (char *part_name,
 
 static void disk_read (void)
 {
-#ifdef KERNEL_LINUX
+#if KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
 	char disk_name[128];
@@ -321,7 +325,7 @@ static void disk_read (void)
 	fclose (fh);
 /* #endif defined(KERNEL_LINUX) */
 
-#elif defined(HAVE_LIBKSTAT)
+#elif HAVE_LIBKSTAT
 	static kstat_io_t kio;
 	int i;
 
