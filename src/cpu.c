@@ -82,6 +82,12 @@
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
 static mach_msg_type_number_t cpu_list_len;
+
+#if PROCESSOR_TEMPERATURE
+static int cpu_temp_retry_counter = 0;
+static int cpu_temp_retry_step    = 1;
+static int cpu_temp_retry_max     = 1;
+#endif /* PROCESSOR_TEMPERATURE */
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
@@ -117,6 +123,7 @@ static void cpu_init (void)
 {
 #if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
 	kern_return_t status;
+	int collectd_step;
 
 	port_host = mach_host_self ();
 
@@ -130,6 +137,11 @@ static void cpu_init (void)
 
 	DBG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
 	syslog (LOG_INFO, "cpu-plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
+
+	collectd_step = atoi (COLLECTD_STEP);
+	if ((collectd_step > 0) && (collectd_step <= 86400))
+		cpu_temp_retry_max = 86400 / collectd_step;
+		
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
@@ -226,13 +238,13 @@ static void cpu_read (void)
 						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
 						(processor_info_t) &cpu_info, &cpu_info_len)) != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "processor_info failed with status %i\n", (int) status);
+			syslog (LOG_ERR, "cpu-plugin: processor_info failed with status %i\n", (int) status);
 			continue;
 		}
 
 		if (cpu_info_len < CPU_STATE_MAX)
 		{
-			syslog (LOG_ERR, "processor_info returned only %i elements..\n", cpu_info_len);
+			syslog (LOG_ERR, "cpu-plugin: processor_info returned only %i elements..\n", cpu_info_len);
 			continue;
 		}
 
@@ -243,6 +255,18 @@ static void cpu_read (void)
 				0ULL);
 #endif /* PROCESSOR_CPU_LOAD_INFO */
 #if PROCESSOR_TEMPERATURE
+		/*
+		 * Not all Apple computers do have this ability. To minimize
+		 * the messages sent to the syslog we do an exponential
+		 * stepback if `processor_info' fails. We still try ~once a day
+		 * though..
+		 */
+		if (cpu_temp_retry_counter > 0)
+		{
+			cpu_temp_retry_counter--;
+			continue;
+		}
+
 		cpu_temp_len = PROCESSOR_INFO_MAX;
 
 		status = processor_info (cpu_list[cpu],
@@ -251,8 +275,14 @@ static void cpu_read (void)
 				cpu_temp, &cpu_temp_len);
 		if (status != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "processor_info failed: %s",
+			syslog (LOG_ERR, "cpu-plugin: processor_info failed: %s",
 					mach_error_string (status));
+
+			cpu_temp_retry_counter = cpu_temp_retry_step;
+			cpu_temp_retry_step *= 2;
+			if (cpu_temp_retry_step > cpu_temp_retry_max)
+				cpu_temp_retry_step = cpu_temp_retry_max;
+
 			continue;
 		}
 
@@ -262,6 +292,9 @@ static void cpu_read (void)
 				       	(int) cpu_temp_len);
 			continue;
 		}
+
+		cpu_temp_retry_counter = 0;
+		cpu_temp_retry_step    = 1;
 
 		DBG ("cpu_temp = %i", (int) cpu_temp);
 #endif /* PROCESSOR_TEMPERATURE */
