@@ -219,7 +219,7 @@ double dict_get_double (CFDictionaryRef dict, char *key_string)
 
 	if ((val_obj = CFDictionaryGetValue (dict, key_obj)) == NULL)
 	{
-		DBG ("CFDictionaryGetValue (%s) failed.\n", key_string);
+		DBG ("CFDictionaryGetValue (%s) failed.", key_string);
 		CFRelease (key_obj);
 		return (INVALID_VALUE);
 	}
@@ -243,7 +243,7 @@ double dict_get_double (CFDictionaryRef dict, char *key_string)
 	}
 	else
 	{
-		DBG ("CFGetTypeID (val_obj) = %i\n", (int) CFGetTypeID (val_obj));
+		DBG ("CFGetTypeID (val_obj) = %i", (int) CFGetTypeID (val_obj));
 		return (INVALID_VALUE);
 	}
 
@@ -291,19 +291,13 @@ static void get_via_io_power_sources (double *ret_charge,
 
 		if (*ret_charge == INVALID_VALUE)
 		{
-			double current_charge;
-			double total_charge;
-
-			current_charge = dict_get_double (ps_dict,
+			/* This is the charge in percent. */
+			temp_double = dict_get_double (ps_dict,
 					kIOPSCurrentCapacityKey);
-			total_charge = dict_get_double (ps_dict,
-					kIOPSMaxCapacityKey);
-
-			if ((current_charge != INVALID_VALUE)
-				       	&& (total_charge != INVALID_VALUE)
-					&& (current_charge >= 0.0)
-					&& (current_charge <= 100.0))
-				*ret_charge = total_charge * current_charge / 100.0;
+			if ((temp_double != INVALID_VALUE)
+					&& (temp_double >= 0.0)
+					&& (temp_double <= 100.0))
+				*ret_charge = temp_double;
 		}
 
 		if (*ret_current == INVALID_VALUE)
@@ -381,6 +375,14 @@ static void get_via_generic_iokit (double *ret_charge,
 		{
 			bat_info_dict = (CFDictionaryRef) CFArrayGetValueAtIndex (bat_info_arry, bat_info_arry_pos);
 
+			if (*ret_charge == INVALID_VALUE)
+			{
+				temp_double = dict_get_double (bat_info_dict,
+						"Capacity");
+				if (temp_double != INVALID_VALUE)
+					*ret_charge = temp_double / 1000.0;
+			}
+
 			if (*ret_current == INVALID_VALUE)
 			{
 				temp_double = dict_get_double (bat_info_dict,
@@ -408,25 +410,27 @@ static void get_via_generic_iokit (double *ret_charge,
 static void battery_read (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
-	double charge  = INVALID_VALUE;
-	double current = INVALID_VALUE;
-	double voltage = INVALID_VALUE;
+	double charge  = INVALID_VALUE; /* Current charge in Ah */
+	double current = INVALID_VALUE; /* Current in A */
+	double voltage = INVALID_VALUE; /* Voltage in V */
+
+	double charge_rel = INVALID_VALUE; /* Current charge in percent */
+	double charge_abs = INVALID_VALUE; /* Total capacity */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H
-	get_via_io_power_sources (&charge, &current, &voltage);
+	get_via_io_power_sources (&charge_rel, &current, &voltage);
+#endif
+#if HAVE_IOKIT_IOKITLIB_H
+	get_via_generic_iokit (&charge_abs, &current, &voltage);
 #endif
 
-#if HAVE_IOKIT_IOKITLIB_H
-	if ((charge == INVALID_VALUE)
-		       	|| (current == INVALID_VALUE)
-		       	|| (voltage == INVALID_VALUE))
-	       	get_via_generic_iokit (&charge, &current, &voltage);
-#endif
+	if ((charge_rel != INVALID_VALUE) && (charge_abs != INVALID_VALUE))
+		charge = charge_abs * charge_rel / 100.0;
 
 	if ((charge != INVALID_VALUE)
 		       	|| (current != INVALID_VALUE)
 		       	|| (voltage != INVALID_VALUE))
-		battery_submit ("battery", current, voltage, charge);
+		battery_submit ("0", current, voltage, charge);
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
