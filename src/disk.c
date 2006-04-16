@@ -259,7 +259,10 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 	key_obj = CFStringCreateWithCString (kCFAllocatorDefault, key,
 		       	kCFStringEncodingASCII);
 	if (key_obj == NULL)
+	{
+		DBG ("CFStringCreateWithCString (%s) failed.", key);
 		return (-1LL);
+	}
 	
 	/* get => we don't need to release (== free) the object */
 	val_obj = (CFNumberRef) CFDictionaryGetValue (dict, key_obj);
@@ -267,11 +270,16 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 	CFRelease (key_obj);
 
 	if (val_obj == NULL)
+	{
+		DBG ("CFDictionaryGetValue (%s) failed.", key);
 		return (-1LL);
+	}
 
-	if (CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int)
-			!= kIOReturnSuccess)
+	if (!CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int))
+	{
+		DBG ("CFNumberGetValue (%s) failed.", key);
 		return (-1LL);
+	}
 
 	return (val_int);
 }
@@ -286,6 +294,7 @@ static void disk_read (void)
 	CFDictionaryRef		props_dict;
 	CFDictionaryRef		stats_dict;
 	CFDictionaryRef		child_dict;
+	kern_return_t           status;
 
 	signed long long read_ops;
 	signed long long read_byt;
@@ -313,6 +322,16 @@ static void disk_read (void)
 		stats_dict = NULL;
 		child_dict = NULL;
 
+		/* `disk_child' must be released */
+		if ((status = IORegistryEntryGetChildEntry (disk, kIOServicePlane, &disk_child))
+			       	!= kIOReturnSuccess)
+		{
+			/* This fails for example for DVD/CD drives.. */
+			DBG ("IORegistryEntryGetChildEntry (disk) failed: 0x%08x", status);
+			IOObjectRelease (disk);
+			continue;
+		}
+
 		/* We create `props_dict' => we need to release it later */
 		if (IORegistryEntryCreateCFProperties (disk,
 					(CFMutableDictionaryRef *) &props_dict,
@@ -321,6 +340,7 @@ static void disk_read (void)
 				!= kIOReturnSuccess)
 		{
 			syslog (LOG_ERR, "disk-plugin: IORegistryEntryCreateCFProperties failed.");
+			IOObjectRelease (disk_child);
 			IOObjectRelease (disk);
 			continue;
 		}
@@ -328,6 +348,7 @@ static void disk_read (void)
 		if (props_dict == NULL)
 		{
 			DBG ("IORegistryEntryCreateCFProperties (disk) failed.");
+			IOObjectRelease (disk_child);
 			IOObjectRelease (disk);
 			continue;
 		}
@@ -340,16 +361,7 @@ static void disk_read (void)
 			DBG ("CFDictionaryGetValue (%s) failed.",
 				       	kIOBlockStorageDriverStatisticsKey);
 			CFRelease (props_dict);
-			IOObjectRelease (disk);
-			continue;
-		}
-
-		/* `disk_child' must be released */
-		if (IORegistryEntryGetChildEntry (disk, kIOServicePlane, &disk_child)
-			       	!= kIOReturnSuccess)
-		{
-			DBG ("IORegistryEntryGetChildEntry (disk) failed.");
-			CFRelease (props_dict);
+			IOObjectRelease (disk_child);
 			IOObjectRelease (disk);
 			continue;
 		}
@@ -393,6 +405,7 @@ static void disk_read (void)
 			IOObjectRelease (disk);
 			continue;
 		}
+		DBG ("disk_name = %s", disk_name);
 
 		if ((read_ops != -1LL)
 				|| (read_byt != -1LL)
