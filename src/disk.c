@@ -249,12 +249,6 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 	CFNumberRef      val_obj;
 	CFStringRef      key_obj;
 
-	CFStringRef CFStringCreateWithCString (
-			CFAllocatorRef alloc,
-			const char *cStr,
-			CFStringEncoding encoding
-			);
-
 	/* `key_obj' needs to be released. */
 	key_obj = CFStringCreateWithCString (kCFAllocatorDefault, key,
 		       	kCFStringEncodingASCII);
