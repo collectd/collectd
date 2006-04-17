@@ -72,4 +72,6 @@ pingobj_iter_t *ping_iterator_next (pingobj_iter_t *iter);
 const char *ping_iterator_get_host (pingobj_iter_t *iter);
 double ping_iterator_get_latency (pingobj_iter_t *iter);
 
+const char *ping_get_error (pingobj_t *obj);
+
 #endif /* OCTO_PING_H */
