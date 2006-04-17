@@ -89,6 +89,30 @@
 
 #define PING_DATA "Florian Forster <octo@verplant.org> http://verplant.org/"
 
+struct pinghost
+{
+	char                    *hostname;
+	struct sockaddr_storage *addr;
+	socklen_t                addrlen;
+	int                      addrfamily;
+	int                      fd;
+	int                      ident;
+	int                      sequence;
+	struct timeval          *timer;
+	double                   latency;
+
+	struct pinghost         *next;
+};
+
+struct pingobj
+{
+	double      timeout;
+	int         ttl;
+	int         addrfamily;
+
+	pinghost_t *head;
+};
+
 /*
  * private (static) functions
  */
