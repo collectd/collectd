@@ -912,6 +912,9 @@ int ping_host_add (pingobj_t *obj, const char *host)
 		return (-1);
 	}
 
+	if (ai_list == NULL)
+		ping_set_error (obj, "getaddrinfo", "No hosts returned");
+
 	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		ph->fd = -1;
@@ -928,6 +931,7 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			si->sin_port   = htons (ph->ident);
 			si->sin_addr.s_addr = htonl (INADDR_ANY);
 
+			ai_ptr->ai_socktype = SOCK_RAW;
 			ai_ptr->ai_protocol = IPPROTO_ICMP;
 		}
 		else if (ai_ptr->ai_family == AF_INET6)
@@ -939,11 +943,18 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			si->sin6_port   = htons (ph->ident);
 			si->sin6_addr   = in6addr_any;
 
+			ai_ptr->ai_socktype = SOCK_RAW;
 			ai_ptr->ai_protocol = IPPROTO_ICMPV6;
 		}
 		else
 		{
-			dprintf ("Unknown `ai_family': %i\n", ai_ptr->ai_family);
+			char errmsg[PING_ERRMSG_LEN];
+
+			snprintf (errmsg, PING_ERRMSG_LEN, "Unknown `ai_family': %i", ai_ptr->ai_family);
+			errmsg[PING_ERRMSG_LEN - 1] = '\0';
+
+			dprintf (errmsg);
+			ping_set_error (obj, "getaddrinfo", errmsg);
 			continue;
 		}
 
@@ -951,12 +962,14 @@ int ping_host_add (pingobj_t *obj, const char *host)
 		if (ph->fd == -1)
 		{
 			dprintf ("socket: %s\n", strerror (errno));
+			ping_set_error (obj, "socket", strerror (errno));
 			continue;
 		}
 
 		if (bind (ph->fd, (struct sockaddr *) &sockaddr, sockaddr_len) == -1)
 		{
 			dprintf ("bind: %s\n", strerror (errno));
+			ping_set_error (obj, "bind", strerror (errno));
 			close (ph->fd);
 			ph->fd = -1;
 			continue;
@@ -977,7 +990,6 @@ int ping_host_add (pingobj_t *obj, const char *host)
 	{
 		free (ph->hostname);
 		free (ph);
-		ping_set_error (obj, "ping_host_add", "Unable to open socket");
 		return (-1);
 	}
 
