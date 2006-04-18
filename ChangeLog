@@ -1,6 +1,3 @@
-	* The `disk' plugin has been ported to Darwin.
-	* The `battery' plugin should work on many Apple computers now.
-
 2006-04-02, Version 3.9.0
 	* A plugin to monitor the Apache webserver has been added.
 	  <http://httpd.apache.org/>
@@ -9,6 +6,7 @@
 	  this plugin :)
 	* A plugin for wireless LAN cards has been added. It monitors signal
 	  strength, link quality and noise ratio..
+	* A plugin for Apple hardware sensors has been added.
 	* An option to compile collectd with different `step' and `hearbeat'
 	  settings has been added. The size of RRAs is no longer static but
 	  calculated based on the settings for `step' and `width'.
