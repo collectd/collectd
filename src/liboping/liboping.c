@@ -771,6 +771,10 @@ pingobj_t *ping_construct (void)
 		return (NULL);
 	memset (obj, '\0', sizeof (pingobj_t));
 
+	obj->timeout    = PING_DEF_TIMEOUT;
+	obj->ttl        = PING_DEF_TTL;
+	obj->addrfamily = PING_DEF_AF;
+
 	return (obj);
 }
 
