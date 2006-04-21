@@ -202,6 +202,7 @@ static void battery_submit (char *inst, double current, double voltage, double c
 	}
 }
 
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H
 double dict_get_double (CFDictionaryRef dict, char *key_string)
 {
 	double      val_double;
@@ -249,6 +250,7 @@ double dict_get_double (CFDictionaryRef dict, char *key_string)
 
 	return (val_double);
 }
+#endif /* HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H
 static void get_via_io_power_sources (double *ret_charge,
