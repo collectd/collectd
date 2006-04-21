@@ -82,8 +82,8 @@ static void swap_submit (unsigned long long swap_used,
 {
 	char buffer[512];
 
-	if (snprintf (buffer, 512, "N:%llu:%llu:%llu:%llu", swap_used,
-				swap_free, swap_cached, swap_resv) >= 512)
+	if (snprintf (buffer, 512, "%u:%llu:%llu:%llu:%llu", (unsigned int) curtime,
+				swap_used, swap_free, swap_cached, swap_resv) >= 512)
 		return;
 
 	plugin_submit (MODULE_NAME, "-", buffer);
