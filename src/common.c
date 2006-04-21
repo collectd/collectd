@@ -522,7 +522,7 @@ static int log_update_file (char *host, char *file, char *values,
 	strncpy (full_file, file, 1024);
 
 	tmp = full_file + strlen (full_file) - 4;
-	assert (tmp > 0);
+	assert ((tmp != NULL) && (tmp > full_file));
 
 	/* Change the filename for logfiles. */
 	if (strncmp (tmp, ".rrd", 4) == 0)
