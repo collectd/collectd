@@ -32,6 +32,9 @@ collectd_LDFLAGS = -export-dynamic
 if BUILD_WITH_RRDTOOL
 collectd_LDFLAGS += -lm -lrrd
 endif
+if BUILD_WITH_LIBRT
+collectd_LDFLAGS += -lrt
+endif
 if BUILD_WITH_LIBSOCKET
 collectd_LDFLAGS += -lsocket
 endif
