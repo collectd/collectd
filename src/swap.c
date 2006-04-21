@@ -32,9 +32,9 @@
 # define SWAP_HAVE_READ 0
 #endif
 
-#ifdef KERNEL_SOLARIS
-#include <sys/swap.h>
-#endif /* KERNEL_SOLARIS */
+#if HAVE_SYS_SWAP_H
+# include <sys/swap.h>
+#endif
 
 #undef  MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
