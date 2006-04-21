@@ -41,6 +41,12 @@ endif
 if BUILD_WITH_LIBRESOLV
 collectd_LDFLAGS += -lresolv
 endif
+if BUILD_WITH_LIBKSTAT
+collectd_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+collectd_LDFLAGS += -ldevinfo
+endif
 
 collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self
 collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
@@ -84,6 +90,12 @@ if BUILD_MODULE_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c
 cpu_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBKSTAT
+cpu_la_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+cpu_la_LDFLAGS += -ldevinfo
+endif
 collectd_LDADD += "-dlopen" cpu.la
 collectd_DEPENDENCIES += cpu.la
 endif
@@ -108,6 +120,12 @@ if BUILD_MODULE_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
 disk_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBKSTAT
+disk_la_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+disk_la_LDFLAGS += -ldevinfo
+endif
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
@@ -127,6 +145,9 @@ if BUILD_MODULE_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
 hddtemp_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBSOCKET
+hddtemp_la_LDFLAGS += -lsocket
+endif
 collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
 endif
@@ -143,6 +164,12 @@ if BUILD_MODULE_MEMORY
 pkglib_LTLIBRARIES += memory.la
 memory_la_SOURCES = memory.c
 memory_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBKSTAT
+memory_la_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+memory_la_LDFLAGS += -ldevinfo
+endif
 collectd_LDADD += "-dlopen" memory.la
 collectd_DEPENDENCIES += memory.la
 endif
@@ -207,6 +234,12 @@ if BUILD_MODULE_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c
 swap_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBKSTAT
+swap_la_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+swap_la_LDFLAGS += -ldevinfo
+endif
 collectd_LDADD += "-dlopen" swap.la
 collectd_DEPENDENCIES += swap.la
 endif
@@ -215,6 +248,12 @@ if BUILD_MODULE_TAPE
 pkglib_LTLIBRARIES += tape.la
 tape_la_SOURCES = tape.c
 tape_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBKSTAT
+tape_la_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+tape_la_LDFLAGS += -ldevinfo
+endif
 collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
 endif
@@ -223,6 +262,12 @@ if BUILD_MODULE_TRAFFIC
 pkglib_LTLIBRARIES += traffic.la
 traffic_la_SOURCES = traffic.c
 traffic_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBKSTAT
+traffic_la_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+traffic_la_LDFLAGS += -ldevinfo
+endif
 collectd_LDADD += "-dlopen" traffic.la
 collectd_DEPENDENCIES += traffic.la
 endif
