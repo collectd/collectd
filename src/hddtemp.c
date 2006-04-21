@@ -346,7 +346,8 @@ static void hddtemp_init (void)
 
 			if ((entry = (hddname_t *) malloc (sizeof (hddname_t))) == NULL)
 			{
-				syslog (LOG_ERR, "hddtemp: malloc (%u) == NULL", sizeof (hddname_t));
+				syslog (LOG_ERR, "hddtemp: malloc (%u) == NULL",
+						(unsigned int) sizeof (hddname_t));
 				free (name);
 				continue;
 			}

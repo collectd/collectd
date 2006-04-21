@@ -488,7 +488,7 @@ static int log_create_file (char *filename, char **ds_def, int ds_num)
 
 		/* The `%.*s' is needed because there is no null-byte behind
 		 * the name. */
-		fprintf(log, ",%.*s", (tmp - name), name);
+		fprintf(log, ",%.*s", (int) (tmp - name), name);
 	}
 	fprintf(log, "\n");
 	fclose(log);

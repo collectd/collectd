@@ -32,6 +32,9 @@ collectd_LDFLAGS = -export-dynamic
 if BUILD_WITH_RRDTOOL
 collectd_LDFLAGS += -lm -lrrd
 endif
+if BUILD_WITH_LIBRT
+collectd_LDFLAGS += -lrt
+endif
 if BUILD_WITH_LIBSOCKET
 collectd_LDFLAGS += -lsocket
 endif
@@ -105,9 +108,6 @@ if BUILD_MODULE_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
 disk_la_LDFLAGS = -module -avoid-version
-if BUILD_WITH_LIBIOKIT
-disk_la_LDFLAGS += -lIOKit
-endif
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif

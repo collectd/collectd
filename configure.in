@@ -174,10 +174,6 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 ])
 AC_CHECK_HEADERS(IOKit/ps/IOPSKeys.h)
 
-# For the `disk' plugin
-AC_CHECK_HEADERS(IOKit/IOBSD.h)
-AC_CHECK_HEADERS(IOKit/storage/IOBlockStorageDriver.h)
-
 # For load module
 AC_CHECK_HEADERS(sys/loadavg.h)
 
@@ -269,6 +265,10 @@ AC_CHECK_FUNCS(getaddrinfo getnameinfo)
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp)
 AC_CHECK_FUNCS(openlog syslog closelog)
+
+nanosleep_needs_rt="no"
+AC_CHECK_FUNCS(nanosleep, [], AC_CHECK_LIB(rt, nanosleep, [nanosleep_needs_rt="yes"], AC_MSG_ERROR(cannot find nanosleep)))
+AM_CONDITIONAL(BUILD_WITH_LIBRT, test "x$nanosleep_needs_rt" = "xyes")
 
 # For cpu module
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
