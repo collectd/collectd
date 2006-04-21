@@ -27,7 +27,8 @@
 
 #define MODULE_NAME "nfs"
 
-#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+/* #if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) */
+#if KERNEL_LINUX
 # define NFS_HAVE_READ 1
 #else
 # define NFS_HAVE_READ 0
@@ -133,7 +134,7 @@ static char *nfs3_procedures_ds_def[] =
 };
 static int nfs3_procedures_ds_num = 22;
 
-#ifdef HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT && 0
 extern kstat_ctl_t *kc;
 static kstat_t *nfs2_ksp_client;
 static kstat_t *nfs2_ksp_server;
@@ -147,7 +148,7 @@ static kstat_t *nfs4_ksp_server;
 
 static void nfs_init (void)
 {
-#ifdef HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT && 0
 	kstat_t *ksp_chain;
 
 	nfs2_ksp_client = NULL;
@@ -258,7 +259,7 @@ static void nfs3_procedures_submit (unsigned long long *val, char *inst)
 }
 #endif /* NFS_HAVE_READ */
 
-#if defined(KERNEL_LINUX)
+#if KERNEL_LINUX
 static void nfs_read_stats_file (FILE *fh, char *inst)
 {
 	char buffer[BUFSIZE];
@@ -329,7 +330,7 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 #endif /* defined(KERNEL_LINUX) */
 #undef BUFSIZE
 
-#ifdef HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT && 0
 static void nfs2_read_kstat (kstat_t *ksp, char *inst)
 {
 	unsigned long long values[18];
@@ -360,7 +361,7 @@ static void nfs2_read_kstat (kstat_t *ksp, char *inst)
 #if NFS_HAVE_READ
 static void nfs_read (void)
 {
-#if defined(KERNEL_LINUX)
+#if KERNEL_LINUX
 	FILE *fh;
 
 	if ((fh = fopen ("/proc/net/rpc/nfs", "r")) != NULL)
@@ -377,7 +378,7 @@ static void nfs_read (void)
 
 /* #endif defined(KERNEL_LINUX) */
 
-#elif defined(HAVE_LIBKSTAT)
+#elif HAVE_LIBKSTAT && 0
 	if (nfs2_ksp_client != NULL)
 		nfs2_read_kstat (nfs2_ksp_client, "client");
 	if (nfs2_ksp_server != NULL)
