@@ -264,11 +264,14 @@ AC_HEADER_TIME
 #
 AC_PROG_GCC_TRADITIONAL
 AC_CHECK_FUNCS(gettimeofday select strdup strtol)
-AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(getaddrinfo getnameinfo)
 AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp)
 AC_CHECK_FUNCS(openlog syslog closelog)
+
+socket_needs_socket="no"
+AC_CHECK_FUNCS(socket, [], AC_CHECK_LIB(socket, socket, [socket_needs_socket="yes"], AC_MSG_ERROR(cannot find socket)))
+AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$socket_needs_socket" = "xyes")
 
 nanosleep_needs_rt="no"
 AC_CHECK_FUNCS(nanosleep, [], AC_CHECK_LIB(rt, nanosleep, [nanosleep_needs_rt="yes"], AC_MSG_ERROR(cannot find nanosleep)))
@@ -400,14 +403,6 @@ case $host_os in
 esac
 AC_MSG_RESULT([$ac_system])
 
-with_libsocket="yes"
-AC_CHECK_LIB(socket, socket,
-[
-	AC_DEFINE(HAVE_LIBSOCKET, 1, [Define to 1 if you have the 'socket' library (-lsocket).])
-],
-[with_libsocket="no"])
-AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$with_libsocket" = "xyes")
-
 with_libresolv="yes"
 AC_CHECK_LIB(resolv, res_search,
 [
@@ -480,16 +475,19 @@ AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 if test "$ac_system" = "Solaris"
 then
 	with_kstat="yes"
+	with_devinfo="yes"
 else
 	with_kstat="no (Solaris only)"
+	with_devinfo="no (Solaris only)"
+fi
+
+if test "x$with_kstat" = "xyes"
+then
+	AC_CHECK_LIB(kstat, kstat_open, [with_kstat="yes"], [with_kstat="no (libkstat not found)"])
 fi
 if test "x$with_kstat" = "xyes"
 then
-	AC_CHECK_LIB(kstat, kstat_open,, [with_kstat="no (libkstat not found)"])
-fi
-if test "x$with_kstat" = "xyes"
-then
-	AC_CHECK_LIB(devinfo, di_init)
+	AC_CHECK_LIB(devinfo, di_init, [with_devinfo="yes"], [with_devinfo="no (not found)"])
 	AC_CHECK_HEADERS(kstat.h,, [with_kstat="no (kstat.h not found)"])
 fi
 if test "x$with_kstat" = "xyes"
@@ -500,7 +498,8 @@ else
 fi
 AC_DEFINE_UNQUOTED(COLLECT_KSTAT, [$collect_kstat],
 	[Wether or not to use kstat library (Solaris)])
-AM_CONDITIONAL(BUILD_WITH_KSTAT, test "x$with_kstat" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
 ### BEGIN of check for libcurl ###
 with_curl_config="curl-config"
