@@ -129,7 +129,7 @@ int plugin_load_file (char *file)
 		return (1);
 	}
 
-	if ((reg_handle = lt_dlsym (dlh, "module_register")) == NULL)
+	if ((reg_handle = (void (*) (void)) lt_dlsym (dlh, "module_register")) == NULL)
 	{
 		syslog (LOG_WARNING, "Couldn't find symbol ``module_register'' in ``%s'': %s\n",
 				file, lt_dlerror ());
