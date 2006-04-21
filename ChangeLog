@@ -3,6 +3,7 @@
 	  resolved.
 	* Problems when building the `apache'-plugin without `libcurl' have
 	  been resolved.
+	* A bug in the `ping' plugin has been fixed. Sorry folks.
 
 2006-04-15, Version 3.9.0
 	* A plugin to monitor the Apache webserver has been added.
