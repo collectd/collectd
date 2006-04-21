@@ -38,13 +38,13 @@ static char *url  = NULL;
 static char *user = NULL;
 static char *pass = NULL;
 
-#if APACHE_HAVE_READ
+#if HAVE_LIBCURL
 static CURL *curl = NULL;
 
 static char apache_buffer[4096];
 static int  apache_buffer_len = 0;
 static char apache_curl_error[CURL_ERROR_SIZE];
-#endif
+#endif /* HAVE_LIBCURL */
 
 /* Limit to 2^27 bytes/s. That's what a gigabit-ethernet link can handle, in
  * theory. */
@@ -82,7 +82,7 @@ static char *config_keys[] =
 };
 static int config_keys_num = 3;
 
-
+#if HAVE_LIBCURL
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *stream)
 {
 	size_t len = size * nmemb;
@@ -101,6 +101,7 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *
 
 	return (len);
 }
+#endif /* HAVE_LIBCURL */
 
 static int config_set (char **var, char *value)
 {
@@ -130,7 +131,7 @@ static int config (char *key, char *value)
 
 static void init (void)
 {
-#if APACHE_HAVE_READ
+#if HAVE_LIBCURL
 	static char credentials[1024];
 
 	if (curl != NULL)
@@ -163,7 +164,7 @@ static void init (void)
 	{
 		curl_easy_setopt (curl, CURLOPT_URL, url);
 	}
-#endif /* APACHE_HAVE_READ */
+#endif /* HAVE_LIBCURL */
 }
 
 static void bytes_write (char *host, char *inst, char *val)
