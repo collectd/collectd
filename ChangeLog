@@ -1,4 +1,10 @@
-2006-04-02, Version 3.9.0
+2006-04-21, Version 3.9.1
+	* Build issues with Solaris and possible other architectures have been
+	  resolved.
+	* Problems when building the `apache'-plugin without `libcurl' have
+	  been resolved.
+
+2006-04-15, Version 3.9.0
 	* A plugin to monitor the Apache webserver has been added.
 	  <http://httpd.apache.org/>
 	* A plugin to collect statistics about virtual servers using VServer.
