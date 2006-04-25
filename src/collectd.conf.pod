@@ -106,6 +106,20 @@ C<Plugin>-Section. Which options exist depends on the plugin used:
 
 =head2 Plugin C<apache>
 
+To configure the C<apache>-plugin you first need to configure the Apache
+webserver correctly. The Apache-plugin C<mod_status> needs to be loaded and
+working and the C<ExtendedStatus> directive needs to be B<enabled>. You can use
+the following snipped to base your Apache config upon:
+
+  ExtendedStatus on
+  <IfModule mod_status.c>
+    <Location /mod_status>
+      SetHandler server-status
+    </Location>
+  </IfModule>
+
+The following options are accepted by the C<apache>-plugin:
+
 =over 4
 
 =item B<URL> I<http://host/mod_status?auto>
@@ -121,6 +135,12 @@ Optional user name needed for authentication.
 =item B<Password> I<Password>
 
 Optional password needed for authentication.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use HTTPS you will
+possibly need this option. What CA certificates come bundeled with C<libcurl>
+and are checked by default depends on the distribution you use.
 
 =back
 
