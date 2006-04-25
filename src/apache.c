@@ -34,9 +34,10 @@
 #  define APACHE_HAVE_READ 0
 #endif
 
-static char *url  = NULL;
-static char *user = NULL;
-static char *pass = NULL;
+static char *url    = NULL;
+static char *user   = NULL;
+static char *pass   = NULL;
+static char *cacert = NULL;
 
 #if HAVE_LIBCURL
 static CURL *curl = NULL;
@@ -78,9 +79,10 @@ static char *config_keys[] =
 	"URL",
 	"User",
 	"Password",
+	"CACert",
 	NULL
 };
-static int config_keys_num = 3;
+static int config_keys_num = 4;
 
 #if HAVE_LIBCURL
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *stream)
@@ -125,6 +127,8 @@ static int config (char *key, char *value)
 		return (config_set (&user, value));
 	else if (strcasecmp (key, "password") == 0)
 		return (config_set (&pass, value));
+	else if (strcasecmp (key, "cacert") == 0)
+		return (config_set (&cacert, value));
 	else
 		return (-1);
 }
@@ -163,6 +167,11 @@ static void init (void)
 	if (url != NULL)
 	{
 		curl_easy_setopt (curl, CURLOPT_URL, url);
+	}
+
+	if (cacert != NULL)
+	{
+		curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
 	}
 #endif /* HAVE_LIBCURL */
 }
