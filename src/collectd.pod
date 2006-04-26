@@ -274,23 +274,23 @@ The DS'es depend on the module creating the RRD files:
 
 =item Battery charge (F<battery-I<E<lt>nameE<gt>>/charge.rrd>)
 
-  DS:charge:GAUGE:25:0:U
+  DS:charge:GAUGE:HEARTBEAT:0:U
 
 =item Battery current (F<battery-I<E<lt>nameE<gt>>/current.rrd>)
 
-  DS:current:GAUGE:25:U:U
+  DS:current:GAUGE:HEARTBEAT:U:U
 
 =item Battery voltage (F<battery-I<E<lt>nameE<gt>>/voltage.rrd>)
 
-  DS:voltage:GAUGE:25:U:U
+  DS:voltage:GAUGE:HEARTBEAT:U:U
 
 =item CPU (F<cpu-I<E<lt>numE<gt>>.rrd>)
 
-  DS:user:COUNTER:25:0:100
-  DS:nice:COUNTER:25:0:100
-  DS:syst:COUNTER:25:0:100
-  DS:idle:COUNTER:25:0:100
-  DS:wait:COUNTER:25:0:100
+  DS:user:COUNTER:HEARTBEAT:0:100
+  DS:nice:COUNTER:HEARTBEAT:0:100
+  DS:syst:COUNTER:HEARTBEAT:0:100
+  DS:idle:COUNTER:HEARTBEAT:0:100
+  DS:wait:COUNTER:HEARTBEAT:0:100
 
 =item CPU frequency (F<cpufreq-I<E<lt>numE<gt>>.rrd>)
 
@@ -298,153 +298,153 @@ The DS'es depend on the module creating the RRD files:
 
 =item Mountpoints (F<df-I<E<lt>pathE<gt>>.rrd>)
 
-  DS:used:GAUGE:25:0:U
-  DS:free:GAUGE:25:0:U
+  DS:used:GAUGE:HEARTBEAT:0:U
+  DS:free:GAUGE:HEARTBEAT:0:U
 
 =item Diskstats (F<disk-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
 
-  DS:rcount:COUNTER:25:0:U
-  DS:rmerged:COUNTER:25:0:U
-  DS:rbytes:COUNTER:25:0:U
-  DS:rtime:COUNTER:25:0:U
-  DS:wcount:COUNTER:25:0:U
-  DS:wmerged:COUNTER:25:0:U
-  DS:wbytes:COUNTER:25:0:U
-  DS:wtime:COUNTER:25:0:U
+  DS:rcount:COUNTER:HEARTBEAT:0:U
+  DS:rmerged:COUNTER:HEARTBEAT:0:U
+  DS:rbytes:COUNTER:HEARTBEAT:0:U
+  DS:rtime:COUNTER:HEARTBEAT:0:U
+  DS:wcount:COUNTER:HEARTBEAT:0:U
+  DS:wmerged:COUNTER:HEARTBEAT:0:U
+  DS:wbytes:COUNTER:HEARTBEAT:0:U
+  DS:wtime:COUNTER:HEARTBEAT:0:U
 
 =item Diskstats (F<partition-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
 
-  DS:rcount:COUNTER:25:0:U
-  DS:rbytes:COUNTER:25:0:U
-  DS:wcount:COUNTER:25:0:U
-  DS:wbytes:COUNTER:25:0:U
+  DS:rcount:COUNTER:HEARTBEAT:0:U
+  DS:rbytes:COUNTER:HEARTBEAT:0:U
+  DS:wcount:COUNTER:HEARTBEAT:0:U
+  DS:wbytes:COUNTER:HEARTBEAT:0:U
 
 =item HDD Temperature (F<hddtemp-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
 
-  DS:value:GAUGE:25:U:U
+  DS:value:GAUGE:HEARTBEAT:U:U
 
 =item System load (F<load.rrd>)
 
-  DS:shortterm:GAUGE:25:0:100
-  DS:midterm:GAUGE:25:0:100
-  DS:longterm:GAUGE:25:0:100
+  DS:shortterm:GAUGE:HEARTBEAT:0:100
+  DS:midterm:GAUGE:HEARTBEAT:0:100
+  DS:longterm:GAUGE:HEARTBEAT:0:100
 
 =item Memory usage (F<memory.rrd>)
 
-  DS:used:GAUGE:25:0:9223372036854775807
-  DS:free:GAUGE:25:0:9223372036854775807
-  DS:buffers:GAUGE:25:0:9223372036854775807
-  DS:cached:GAUGE:25:0:9223372036854775807
+  DS:used:GAUGE:HEARTBEAT:0:9223372036854775807
+  DS:free:GAUGE:HEARTBEAT:0:9223372036854775807
+  DS:buffers:GAUGE:HEARTBEAT:0:9223372036854775807
+  DS:cached:GAUGE:HEARTBEAT:0:9223372036854775807
 
 =item MySQL commands and handlers (F<mysql_commands-I<E<lt>commandE<gt>>.rrd> and F<mysql_handler-I<E<lt>handlerE<gt>>.rrd>)
 
-  DS:value:COUNTER:25:0:U
+  DS:value:COUNTER:HEARTBEAT:0:U
 
 =item MySQL query cache (F<mysql_qcache.rrd>)
 
-  DS:hits:COUNTER:25:0:U
-  DS:inserts:COUNTER:25:0:U
-  DS:not_cached:COUNTER:25:0:U
-  DS:lowmem_prunes:COUNTER:25:0:U
-  DS:queries_in_cache:GAUGE:25:0:U
+  DS:hits:COUNTER:HEARTBEAT:0:U
+  DS:inserts:COUNTER:HEARTBEAT:0:U
+  DS:not_cached:COUNTER:HEARTBEAT:0:U
+  DS:lowmem_prunes:COUNTER:HEARTBEAT:0:U
+  DS:queries_in_cache:GAUGE:HEARTBEAT:0:U
 
 =item MySQL threads (F<mysql_threads.rrd>)
 
-  DS:running:GAUGE:25:0:U
-  DS:connected:GAUGE:25:0:U
-  DS:cached:GAUGE:25:0:U
-  DS:created:COUNTER:25:0:U
+  DS:running:GAUGE:HEARTBEAT:0:U
+  DS:connected:GAUGE:HEARTBEAT:0:U
+  DS:cached:GAUGE:HEARTBEAT:0:U
+  DS:created:COUNTER:HEARTBEAT:0:U
 
 =item NFSv2 Procedures (F<nfs2_procedures-I<(client|server)>.rrd>)
 
-  DS:null:COUNTER:25:0:U
-  DS:getattr:COUNTER:25:0:U
-  DS:setattr:COUNTER:25:0:U
-  DS:root:COUNTER:25:0:U
-  DS:lookup:COUNTER:25:0:U
-  DS:readlink:COUNTER:25:0:U
-  DS:read:COUNTER:25:0:U
-  DS:wrcache:COUNTER:25:0:U
-  DS:write:COUNTER:25:0:U
-  DS:create:COUNTER:25:0:U
-  DS:remove:COUNTER:25:0:U
-  DS:rename:COUNTER:25:0:U
-  DS:link:COUNTER:25:0:U
-  DS:symlink:COUNTER:25:0:U
-  DS:mkdir:COUNTER:25:0:U
-  DS:rmdir:COUNTER:25:0:U
-  DS:readdir:COUNTER:25:0:U
-  DS:fsstat:COUNTER:25:0:U
+  DS:null:COUNTER:HEARTBEAT:0:U
+  DS:getattr:COUNTER:HEARTBEAT:0:U
+  DS:setattr:COUNTER:HEARTBEAT:0:U
+  DS:root:COUNTER:HEARTBEAT:0:U
+  DS:lookup:COUNTER:HEARTBEAT:0:U
+  DS:readlink:COUNTER:HEARTBEAT:0:U
+  DS:read:COUNTER:HEARTBEAT:0:U
+  DS:wrcache:COUNTER:HEARTBEAT:0:U
+  DS:write:COUNTER:HEARTBEAT:0:U
+  DS:create:COUNTER:HEARTBEAT:0:U
+  DS:remove:COUNTER:HEARTBEAT:0:U
+  DS:rename:COUNTER:HEARTBEAT:0:U
+  DS:link:COUNTER:HEARTBEAT:0:U
+  DS:symlink:COUNTER:HEARTBEAT:0:U
+  DS:mkdir:COUNTER:HEARTBEAT:0:U
+  DS:rmdir:COUNTER:HEARTBEAT:0:U
+  DS:readdir:COUNTER:HEARTBEAT:0:U
+  DS:fsstat:COUNTER:HEARTBEAT:0:U
 
 =item NFSv3 Procedures (F<nfs3_procedures-I<(client|server)>.rrd>)
 
-  DS:null:COUNTER:25:0:U
-  DS:getattr:COUNTER:25:0:U
-  DS:setattr:COUNTER:25:0:U
-  DS:lookup:COUNTER:25:0:U
-  DS:access:COUNTER:25:0:U
-  DS:readlink:COUNTER:25:0:U
-  DS:read:COUNTER:25:0:U
-  DS:write:COUNTER:25:0:U
-  DS:create:COUNTER:25:0:U
-  DS:mkdir:COUNTER:25:0:U
-  DS:symlink:COUNTER:25:0:U
-  DS:mknod:COUNTER:25:0:U
-  DS:remove:COUNTER:25:0:U
-  DS:rmdir:COUNTER:25:0:U
-  DS:rename:COUNTER:25:0:U
-  DS:link:COUNTER:25:0:U
-  DS:readdir:COUNTER:25:0:U
-  DS:readdirplus:COUNTER:25:0:U
-  DS:fsstat:COUNTER:25:0:U
-  DS:fsinfo:COUNTER:25:0:U
-  DS:pathconf:COUNTER:25:0:U
-  DS:commit:COUNTER:25:0:U
+  DS:null:COUNTER:HEARTBEAT:0:U
+  DS:getattr:COUNTER:HEARTBEAT:0:U
+  DS:setattr:COUNTER:HEARTBEAT:0:U
+  DS:lookup:COUNTER:HEARTBEAT:0:U
+  DS:access:COUNTER:HEARTBEAT:0:U
+  DS:readlink:COUNTER:HEARTBEAT:0:U
+  DS:read:COUNTER:HEARTBEAT:0:U
+  DS:write:COUNTER:HEARTBEAT:0:U
+  DS:create:COUNTER:HEARTBEAT:0:U
+  DS:mkdir:COUNTER:HEARTBEAT:0:U
+  DS:symlink:COUNTER:HEARTBEAT:0:U
+  DS:mknod:COUNTER:HEARTBEAT:0:U
+  DS:remove:COUNTER:HEARTBEAT:0:U
+  DS:rmdir:COUNTER:HEARTBEAT:0:U
+  DS:rename:COUNTER:HEARTBEAT:0:U
+  DS:link:COUNTER:HEARTBEAT:0:U
+  DS:readdir:COUNTER:HEARTBEAT:0:U
+  DS:readdirplus:COUNTER:HEARTBEAT:0:U
+  DS:fsstat:COUNTER:HEARTBEAT:0:U
+  DS:fsinfo:COUNTER:HEARTBEAT:0:U
+  DS:pathconf:COUNTER:HEARTBEAT:0:U
+  DS:commit:COUNTER:HEARTBEAT:0:U
 
 =item Network latency / Ping (F<ping-I<E<lt>hostnameE<gt>>.rrd>)
 
-  DS:ping:GAUGE:25:0:65535
+  DS:ping:GAUGE:HEARTBEAT:0:65535
 
 =item Processes (F<processes.rrd>)
 
-  DS:running:GAUGE:25:0:65535
-  DS:sleeping:GAUGE:25:0:65535
-  DS:zombies:GAUGE:25:0:65535
-  DS:stopped:GAUGE:25:0:65535
-  DS:paging:GAUGE:25:0:65535
-  DS:blocked:GAUGE:25:0:65535
+  DS:running:GAUGE:HEARTBEAT:0:65535
+  DS:sleeping:GAUGE:HEARTBEAT:0:65535
+  DS:zombies:GAUGE:HEARTBEAT:0:65535
+  DS:stopped:GAUGE:HEARTBEAT:0:65535
+  DS:paging:GAUGE:HEARTBEAT:0:65535
+  DS:blocked:GAUGE:HEARTBEAT:0:65535
 
 =item lm_sensors (F<sensors-I<E<lt>chipE<gt>>-I<E<lt>featureE<gt>>.rrd>)
 
-  DS:value:GAUGE:25:U:U
+  DS:value:GAUGE:HEARTBEAT:U:U
 
 =item Serial port traffic (F<serial-I<E<lt>numE<gt>>.rrd>)
 
-  DS:incoming:COUNTER:25:0:U
-  DS:outgoing:COUNTER:25:0:U
+  DS:incoming:COUNTER:HEARTBEAT:0:U
+  DS:outgoing:COUNTER:HEARTBEAT:0:U
 
 =item Swap usage (F<swap.rrd>)
 
-  DS:used:GAUGE:25:0:1099511627776
-  DS:free:GAUGE:25:0:1099511627776
-  DS:cached:GAUGE:25:0:1099511627776
-  DS:resv:GAUGE:25:0:1099511627776
+  DS:used:GAUGE:HEARTBEAT:0:1099511627776
+  DS:free:GAUGE:HEARTBEAT:0:1099511627776
+  DS:cached:GAUGE:HEARTBEAT:0:1099511627776
+  DS:resv:GAUGE:HEARTBEAT:0:1099511627776
 
 =item Tape drive usage (F<tape-I<E<lt>nameE<gt>>.rrd>)
 
-  DS:rcount:COUNTER:25:0:
-  DS:rmerged:COUNTER:25:0:U
-  DS:rbytes:COUNTER:25:0:U
-  DS:rtime:COUNTER:25:0:U
-  DS:wcount:COUNTER:25:0:U
-  DS:wmerged:COUNTER:25:0:U
-  DS:wbytes:COUNTER:25:0:U
-  DS:wtime:COUNTER:25:0:U
+  DS:rcount:COUNTER:HEARTBEAT:0:
+  DS:rmerged:COUNTER:HEARTBEAT:0:U
+  DS:rbytes:COUNTER:HEARTBEAT:0:U
+  DS:rtime:COUNTER:HEARTBEAT:0:U
+  DS:wcount:COUNTER:HEARTBEAT:0:U
+  DS:wmerged:COUNTER:HEARTBEAT:0:U
+  DS:wbytes:COUNTER:HEARTBEAT:0:U
+  DS:wtime:COUNTER:HEARTBEAT:0:U
 
 =item Network traffic (F<traffic-I<E<lt>interfaceE<gt>>.rrd>)
 
-  DS:incoming:COUNTER:25:0:U
-  DS:outgoing:COUNTER:25:0:U
+  DS:incoming:COUNTER:HEARTBEAT:0:U
+  DS:outgoing:COUNTER:HEARTBEAT:0:U
 
 =item Interface packets (F<if_packets-I<E<lt>interfaceE<gt>>.rrd>)
 
@@ -458,37 +458,37 @@ The DS'es depend on the module creating the RRD files:
 
 =item Users (F<users.rrd>)
 
-  DS:users:GAUGE:25:0:65535
+  DS:users:GAUGE:HEARTBEAT:0:65535
 
 =item VServer load (F<vserver-I<E<lt>xidE<gt>>/load.rrd>)
 
-  DS:shortterm:GAUGE:25:0:100
-  DS:midterm:GAUGE:25:0:100
-  DS:longterm:GAUGE:25:0:100
+  DS:shortterm:GAUGE:HEARTBEAT:0:100
+  DS:midterm:GAUGE:HEARTBEAT:0:100
+  DS:longterm:GAUGE:HEARTBEAT:0:100
 
 =item VServer threads (F<vserver-I<E<lt>xidE<gt>>/threads.rrd>)
 
-  DS:total:GAUGE:25:0:65535
-  DS:running:GAUGE:25:0:65535
-  DS:uninterruptible:GAUGE:25:0:65535
-  DS:onhold:GAUGE:25:0:65535
+  DS:total:GAUGE:HEARTBEAT:0:65535
+  DS:running:GAUGE:HEARTBEAT:0:65535
+  DS:uninterruptible:GAUGE:HEARTBEAT:0:65535
+  DS:onhold:GAUGE:HEARTBEAT:0:65535
 
 =item VServer network traffic (F<vserver-I<E<lt>xidE<gt>>/traffic-I<E<lt>nameE<gt>>.rrd>)
 
-  DS:incoming:COUNTER:25:0:9223372036854775807
-  DS:outgoing:COUNTER:25:0:9223372036854775807
-  DS:failed:COUNTER:25:0:9223372036854775807
+  DS:incoming:COUNTER:HEARTBEAT:0:9223372036854775807
+  DS:outgoing:COUNTER:HEARTBEAT:0:9223372036854775807
+  DS:failed:COUNTER:HEARTBEAT:0:9223372036854775807
 
 =item VServer processes (F<vserver-I<E<lt>xidE<gt>>/vs_processes.rrd>)
 
-  DS:total:GAUGE:25:0:65535
+  DS:total:GAUGE:HEARTBEAT:0:65535
 
 =item VServer memory usage (F<vserver-I<E<lt>xidE<gt>>/vs_memory.rrd>)
 
-  DS:vm:GAUGE:25:0:9223372036854775807
-  DS:vml:GAUGE:25:0:9223372036854775807
-  DS:rss:GAUGE:25:0:9223372036854775807
-  DS:anon:GAUGE:25:0:9223372036854775807
+  DS:vm:GAUGE:HEARTBEAT:0:9223372036854775807
+  DS:vml:GAUGE:HEARTBEAT:0:9223372036854775807
+  DS:rss:GAUGE:HEARTBEAT:0:9223372036854775807
+  DS:anon:GAUGE:HEARTBEAT:0:9223372036854775807
 
 =item Wireless link quality (F<wireless-I<E<lt>interfaceE<gt>>.rrd>)
 
