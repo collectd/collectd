@@ -441,10 +441,20 @@ The DS'es depend on the module creating the RRD files:
   DS:wbytes:COUNTER:25:0:U
   DS:wtime:COUNTER:25:0:U
 
-=item Network traffic (F<traffic-I<E<lt>nameE<gt>>.rrd>)
+=item Network traffic (F<traffic-I<E<lt>interfaceE<gt>>.rrd>)
 
   DS:incoming:COUNTER:25:0:U
   DS:outgoing:COUNTER:25:0:U
+
+=item Interface packets (F<if_packets-I<E<lt>interfaceE<gt>>.rrd>)
+
+  DS:rx:COUNTER:HEARTBEAT:0:U
+  DS:tx:COUNTER:HEARTBEAT:0:U
+
+=item Interface errors (F<if_errors-I<E<lt>interfaceE<gt>>.rrd>)
+
+  DS:rx:COUNTER:HEARTBEAT:0:U
+  DS:tx:COUNTER:HEARTBEAT:0:U
 
 =item Users (F<users.rrd>)
 
