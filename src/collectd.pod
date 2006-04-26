@@ -264,6 +264,14 @@ The DS'es depend on the module creating the RRD files:
 
   DS:count:GAUGE:HEARTBEAT:0:U
 
+=item Apple temperature sensor (F<apple_sensors/temperature-I<E<lt>nameE<gt>>.rrd>)
+
+  DS:value:GAUGE:HEARTBEAT:U:U
+
+=item Apple fanspeed sensor (F<apple_sensors/fanspeed-I<E<lt>nameE<gt>>.rrd>)
+
+  DS:value:GAUGE:HEARTBEAT:U:U
+
 =item Battery charge (F<battery-I<E<lt>nameE<gt>>/charge.rrd>)
 
   DS:charge:GAUGE:25:0:U
