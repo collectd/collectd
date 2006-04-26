@@ -292,6 +292,10 @@ The DS'es depend on the module creating the RRD files:
   DS:idle:COUNTER:25:0:100
   DS:wait:COUNTER:25:0:100
 
+=item CPU frequency (F<cpufreq-I<E<lt>numE<gt>>.rrd>)
+
+  DS:value:GAUGE:HEARTBEAT:0:U
+
 =item Mountpoints (F<df-I<E<lt>pathE<gt>>.rrd>)
 
   DS:used:GAUGE:25:0:U
