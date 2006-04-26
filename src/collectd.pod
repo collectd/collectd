@@ -252,6 +252,18 @@ The DS'es depend on the module creating the RRD files:
 
 =over 4
 
+=item Apache traffic (F<apache/apache_bytes.rrd>)
+
+  DS:count:COUNTER:HEARTBEAT:0:134217728
+
+=item Apache requests (F<apache/apache_requests.rrd>)
+
+  DS:count:COUNTER:HEARTBEAT:0:1048576
+
+=item Apache scoreboard (F<apache/apache_scoreboard-I<E<lt>nameE<gt>>.rrd>)
+
+  DS:count:GAUGE:HEARTBEAT:0:U
+
 =item Battery charge (F<battery-I<E<lt>nameE<gt>>/charge.rrd>)
 
   DS:charge:GAUGE:25:0:U
