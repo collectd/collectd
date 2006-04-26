@@ -47,7 +47,7 @@
 
 #define MODULE_NAME "traffic"
 
-#if HAVE_GETIFADDRS || defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_LIBSTATGRAB)
+#if HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT || HAVE_LIBSTATGRAB
 # define TRAFFIC_HAVE_READ 1
 #else
 # define TRAFFIC_HAVE_READ 0
@@ -55,15 +55,33 @@
 
 #define BUFSIZE 512
 
-static char *traffic_filename_template = "traffic-%s.rrd";
+static char *bytes_file   = "traffic-%s.rrd";
+static char *packets_file = "interface-%s/packets.rrd";
+static char *errors_file  = "interface-%s/errors.rrd";
 
-static char *ds_def[] =
+static char *bytes_ds_def[] =
 {
 	"DS:incoming:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	"DS:outgoing:COUNTER:"COLLECTD_HEARTBEAT":0:U",
 	NULL
 };
-static int ds_num = 2;
+static int bytes_ds_num = 2;
+
+static char *packets_ds_def[] =
+{
+	"DS:rx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:tx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	NULL
+};
+static int packets_ds_num = 2;
+
+static char *errors_ds_def[] =
+{
+	"DS:rx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:tx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	NULL
+};
+static int errors_ds_num = 2;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
@@ -114,22 +132,39 @@ static void traffic_init (void)
 	return;
 }
 
-static void traffic_write (char *host, char *inst, char *val)
+static void generic_write (char *host, char *inst, char *val,
+		char *file_template,
+		char **ds_def, int ds_num)
 {
-	char file[BUFSIZE];
+	char file[512];
 	int status;
 
-	status = snprintf (file, BUFSIZE, traffic_filename_template, inst);
+	status = snprintf (file, BUFSIZE, file_template, inst);
 	if (status < 1)
 		return;
-	else if (status >= BUFSIZE)
+	else if (status >= 512)
 		return;
 
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
+static void bytes_write (char *host, char *inst, char *val)
+{
+	generic_write (host, inst, val, bytes_file, bytes_ds_def, bytes_ds_num);
+}
+
+static void packets_write (char *host, char *inst, char *val)
+{
+	generic_write (host, inst, val, packets_file, packets_ds_def, packets_ds_num);
+}
+
+static void errors_write (char *host, char *inst, char *val)
+{
+	generic_write (host, inst, val, errors_file, errors_ds_def, errors_ds_num);
+}
+
 #if TRAFFIC_HAVE_READ
-static void traffic_submit (char *device,
+static void bytes_submit (char *device,
 		unsigned long long incoming,
 		unsigned long long outgoing)
 {
@@ -141,20 +176,63 @@ static void traffic_submit (char *device,
 	plugin_submit (MODULE_NAME, device, buf);
 }
 
+#if HAVE_GETIFADDRS
+static void packets_submit (char *dev,
+		unsigned long long rx,
+		unsigned long long tx)
+{
+	char buf[512];
+	int  status;
+
+	status = snprintf (buf, 512, "%u:%lld:%lld",
+			(unsigned int) curtime,
+			rx, tx);
+	if ((status >= 512) || (status < 1))
+		return;
+	plugin_submit ("if_packets", dev, buf);
+}
+
+static void errors_submit (char *dev,
+		unsigned long long rx,
+		unsigned long long tx)
+{
+	char buf[512];
+	int  status;
+
+	status = snprintf (buf, 512, "%u:%lld:%lld",
+			(unsigned int) curtime,
+			rx, tx);
+	if ((status >= 512) || (status < 1))
+		return;
+	plugin_submit ("if_errors", dev, buf);
+}
+#endif /* HAVE_GETIFADDRS */
+
 static void traffic_read (void)
 {
 #if HAVE_GETIFADDRS
 	struct ifaddrs *if_list;
 	struct ifaddrs *if_ptr;
 
+/* Darin/Mac OS X and possible other *BSDs */
 #if HAVE_STRUCT_IF_DATA
 #  define IFA_DATA if_data
-#  define IFA_INCOMING ifi_ibytes
-#  define IFA_OUTGOING ifi_obytes
+#  define IFA_RX_BYTES ifi_ibytes
+#  define IFA_TX_BYTES ifi_obytes
+#  define IFA_RX_PACKT ifi_ipackets
+#  define IFA_TX_PACKT ifi_opackets
+#  define IFA_RX_ERROR ifi_ierrors
+#  define IFA_TX_ERROR ifi_oerrors
+/* #endif HAVE_STRUCT_IF_DATA */
+
 #elif HAVE_STRUCT_NET_DEVICE_STATS
 #  define IFA_DATA net_device_stats
-#  define IFA_INCOMING rx_bytes
-#  define IFA_OUTGOING tx_bytes
+#  define IFA_RX_BYTES rx_bytes
+#  define IFA_TX_BYTES tx_bytes
+#  define IFA_RX_PACKT rx_packets
+#  define IFA_TX_PACKT tx_packets
+#  define IFA_RX_ERROR rx_errors
+#  define IFA_TX_ERROR tx_errors
 #else
 #  error "No suitable type for `struct ifaddrs->ifa_data' found."
 #endif
@@ -169,9 +247,15 @@ static void traffic_read (void)
 		if ((if_data = (struct IFA_DATA *) if_ptr->ifa_data) == NULL)
 			continue;
 
-		traffic_submit (if_ptr->ifa_name,
-				if_data->IFA_INCOMING,
-				if_data->IFA_OUTGOING);
+		bytes_submit (if_ptr->ifa_name,
+				if_data->IFA_RX_BYTES,
+				if_data->IFA_TX_BYTES);
+		packets_submit (if_ptr->ifa_name,
+				if_data->IFA_RX_PACKT,
+				if_data->IFA_TX_PACKT);
+		errors_submit (if_ptr->ifa_name,
+				if_data->IFA_RX_ERROR,
+				if_data->IFA_TX_ERROR);
 	}
 
 	freeifaddrs (if_list);
@@ -215,7 +299,7 @@ static void traffic_read (void)
 		incoming = atoll (fields[0]);
 		outgoing = atoll (fields[8]);
 
-		traffic_submit (device, incoming, outgoing);
+		bytes_submit (device, incoming, outgoing);
 	}
 
 	fclose (fh);
@@ -238,7 +322,7 @@ static void traffic_read (void)
 		if ((outgoing = get_kstat_value (ksp[i], "obytes")) == -1LL)
 			continue;
 
-		traffic_submit (ksp[i]->ks_name, incoming, outgoing);
+		bytes_submit (ksp[i]->ks_name, incoming, outgoing);
 	}
 /* #endif HAVE_LIBKSTAT */
 
@@ -249,7 +333,7 @@ static void traffic_read (void)
 	ios = sg_get_network_io_stats (&num);
 
 	for (i = 0; i < num; i++)
-		traffic_submit (ios[i].interface_name, ios[i].rx, ios[i].tx);
+		bytes_submit (ios[i].interface_name, ios[i].rx, ios[i].tx);
 #endif /* HAVE_LIBSTATGRAB */
 }
 #else
@@ -258,7 +342,9 @@ static void traffic_read (void)
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, traffic_init, traffic_read, traffic_write);
+	plugin_register (MODULE_NAME, traffic_init, traffic_read, bytes_write);
+	plugin_register ("if_packets", NULL, NULL, packets_write);
+	plugin_register ("if_errors",  NULL, NULL, errors_write);
 }
 
 #undef BUFSIZE

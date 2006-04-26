@@ -373,7 +373,7 @@ if test "x$fu_cv_getmntent2" = "xyes"; then
 fi
 
 # Check for structures
-AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_obytes],
+AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_opackets, struct if_data.ifi_ierrors],
 	[AC_DEFINE(HAVE_STRUCT_IF_DATA, 1, [Define if struct if_data exists and is usable.])],
 	[],
 	[
@@ -381,7 +381,7 @@ AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_obytes],
 	#include <sys/socket.h>
 	#include <net/if.h>
 	])
-AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_bytes],
+AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_packets, struct net_device_stats.rx_errors],
 	[AC_DEFINE(HAVE_STRUCT_NET_DEVICE_STATS, 1, [Define if struct net_device_stats exists and is usable.])],
 	[],
 	[
