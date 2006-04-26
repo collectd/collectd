@@ -55,9 +55,10 @@
 
 #define BUFSIZE 512
 
+/* TODO: Move this to `interface-%s/<blah>.rrd' in version 4. */
 static char *bytes_file   = "traffic-%s.rrd";
-static char *packets_file = "interface-%s/packets.rrd";
-static char *errors_file  = "interface-%s/errors.rrd";
+static char *packets_file = "if_packets-%s.rrd";
+static char *errors_file  = "if_errors-%s.rrd";
 
 static char *bytes_ds_def[] =
 {
