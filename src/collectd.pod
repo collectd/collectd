@@ -480,6 +480,12 @@ The DS'es depend on the module creating the RRD files:
   DS:rss:GAUGE:25:0:9223372036854775807
   DS:anon:GAUGE:25:0:9223372036854775807
 
+=item Wireless link quality (F<wireless-I<E<lt>interfaceE<gt>>.rrd>)
+
+  DS:quality:GAUGE:HEARTBEAT:0:U
+  DS:power:GAUGE:HEARTBEAT:U:0
+  DS:noise:GAUGE:HEARTBEAT:U:0
+
 =back
 
 =head1 SEE ALSO
