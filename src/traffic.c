@@ -59,6 +59,7 @@
 static char *bytes_file   = "traffic-%s.rrd";
 static char *packets_file = "if_packets-%s.rrd";
 static char *errors_file  = "if_errors-%s.rrd";
+/* TODO: Maybe implement multicast and broadcast counters */
 
 static char *bytes_ds_def[] =
 {
@@ -177,7 +178,7 @@ static void bytes_submit (char *device,
 	plugin_submit (MODULE_NAME, device, buf);
 }
 
-#if HAVE_GETIFADDRS
+#if HAVE_GETIFADDRS || HAVE_LIBKSTAT
 static void packets_submit (char *dev,
 		unsigned long long rx,
 		unsigned long long tx)
@@ -207,7 +208,7 @@ static void errors_submit (char *dev,
 		return;
 	plugin_submit ("if_errors", dev, buf);
 }
-#endif /* HAVE_GETIFADDRS */
+#endif /* HAVE_GETIFADDRS || HAVE_LIBKSTAT */
 
 static void traffic_read (void)
 {
@@ -306,9 +307,10 @@ static void traffic_read (void)
 	fclose (fh);
 /* #endif KERNEL_LINUX */
 
-#elif defined(HAVE_LIBKSTAT)
+#elif HAVE_LIBKSTAT
 	int i;
-	unsigned long long incoming, outgoing;
+	unsigned long long rx;
+	unsigned long long tx;
 
 	if (kc == NULL)
 		return;
@@ -318,12 +320,20 @@ static void traffic_read (void)
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
 
-		if ((incoming = get_kstat_value (ksp[i], "rbytes")) == -1LL)
-			continue;
-		if ((outgoing = get_kstat_value (ksp[i], "obytes")) == -1LL)
-			continue;
+		rx = get_kstat_value (ksp[i], "rbytes");
+		tx = get_kstat_value (ksp[i], "obytes");
+		if ((rx != -1LL) || (tx != -1LL))
+			bytes_submit (ksp[i]->ks_name, rx, tx);
 
-		bytes_submit (ksp[i]->ks_name, incoming, outgoing);
+		rx = get_kstat_value (ksp[i], "ipackets");
+		tx = get_kstat_value (ksp[i], "opackets");
+		if ((rx != -1LL) || (tx != -1LL))
+			packets_submit (ksp[i]->ks_name, rx, tx);
+
+		rx = get_kstat_value (ksp[i], "ierrors");
+		tx = get_kstat_value (ksp[i], "oerrors");
+		if ((rx != -1LL) || (tx != -1LL))
+			errors_submit (ksp[i]->ks_name, rx, tx);
 	}
 /* #endif HAVE_LIBKSTAT */
 
