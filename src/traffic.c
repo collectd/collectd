@@ -281,9 +281,10 @@ static void traffic_read (void)
 
 	while (fgets (buffer, 1024, fh) != NULL)
 	{
-		if (buffer[6] != ':')
+		if (!(dummy = strchr(buffer, ':')))
 			continue;
-		buffer[6] = '\0';
+		dummy[0] = '\0';
+		dummy++;
 
 		device = buffer;
 		while (device[0] == ' ')
@@ -292,7 +293,6 @@ static void traffic_read (void)
 		if (device[0] == '\0')
 			continue;
 		
-		dummy = buffer + 7;
 		numfields = strsplit (dummy, fields, 16);
 
 		if (numfields < 9)
