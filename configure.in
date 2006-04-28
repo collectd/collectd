@@ -587,6 +587,9 @@ AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
 AC_DEFINE_UNQUOTED(COLLECT_LIBIOKIT, [$collect_libiokit], [Wether or not to use the IOKit library])
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
+with_libstatgrab="yes"
+with_libdevstat="no"
+with_libkvm="no"
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
 [
 	if test "x$withval" != "xno" -a "x$withval" != "xyes"
@@ -606,13 +609,16 @@ AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [P
 ])
 if test "x$with_libstatgrab" = "xyes"
 then
-	AC_CHECK_LIB(devstat, getdevs)
-	AC_CHECK_LIB(kvm, kvm_getargv)
-	AC_CHECK_LIB(statgrab, sg_init,, [with_libstatgrab="no (libstatgrab not found)"])
+	AC_CHECK_LIB(statgrab, sg_init, [with_libstatgrab="yes"], [with_libstatgrab="no (libstatgrab not found)"])
 fi
 if test "x$with_libstatgrab" = "xyes"
 then
 	AC_CHECK_HEADERS(statgrab.h,,    [with_libstatgrab="no (statgrab.h not found)"])
+fi
+if test "x$with_libstatgrab" = "xyes"
+then
+	AC_CHECK_LIB(devstat, getdevs, [with_libdevstat="yes"], [with_libdevstat="no"])
+	AC_CHECK_LIB(kvm, kvm_getargv, [with_libkvm="yes"],     [with_libkvm="no"])
 fi
 if test "x$with_libstatgrab" = "xyes"
 then
@@ -623,6 +629,8 @@ fi
 AC_DEFINE_UNQUOTED(COLLECT_LIBSTATGRAB, [$collect_libstatgrab],
 	[Wether or not to use statgrab library])
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBDEVSTAT,  test "x$with_libdevstat"  = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBKVM,      test "x$with_libkvm"      = "xyes")
 
 AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
 [

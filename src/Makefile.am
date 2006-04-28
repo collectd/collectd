@@ -48,6 +48,17 @@ if BUILD_WITH_LIBDEVINFO
 collectd_LDFLAGS += -ldevinfo
 endif
 
+if BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_LIBKVM
+collectd_LDFLAGS += -lkvm
+endif
+if BUILD_WITH_LIBDEVSTAT
+collectd_LDFLAGS += -ldevstat
+endif
+collectd_LDFLAGS += -lstatgrab
+endif
+
+
 collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self
 collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
 
@@ -161,20 +172,38 @@ load_la_SOURCES = load.c
 load_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" load.la
 collectd_DEPENDENCIES += load.la
+if BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_LIBKVM
+load_la_LDFLAGS += -lkvm
+endif
+if BUILD_WITH_LIBDEVSTAT
+load_la_LDFLAGS += -ldevstat
+endif
+load_la_LDFLAGS += -lstatgrab
+endif
 endif
 
 if BUILD_MODULE_MEMORY
 pkglib_LTLIBRARIES += memory.la
 memory_la_SOURCES = memory.c
 memory_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" memory.la
+collectd_DEPENDENCIES += memory.la
 if BUILD_WITH_LIBKSTAT
 memory_la_LDFLAGS += -lkstat
 endif
 if BUILD_WITH_LIBDEVINFO
 memory_la_LDFLAGS += -ldevinfo
 endif
-collectd_LDADD += "-dlopen" memory.la
-collectd_DEPENDENCIES += memory.la
+if BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_LIBKVM
+memory_la_LDFLAGS += -lkvm
+endif
+if BUILD_WITH_LIBDEVSTAT
+memory_la_LDFLAGS += -ldevstat
+endif
+memory_la_LDFLAGS += -lstatgrab
+endif
 endif
 
 if BUILD_MODULE_MYSQL
@@ -237,14 +266,23 @@ if BUILD_MODULE_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c
 swap_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" swap.la
+collectd_DEPENDENCIES += swap.la
 if BUILD_WITH_LIBKSTAT
 swap_la_LDFLAGS += -lkstat
 endif
 if BUILD_WITH_LIBDEVINFO
 swap_la_LDFLAGS += -ldevinfo
 endif
-collectd_LDADD += "-dlopen" swap.la
-collectd_DEPENDENCIES += swap.la
+if BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_LIBKVM
+swap_la_LDFLAGS += -lkvm
+endif
+if BUILD_WITH_LIBDEVSTAT
+swap_la_LDFLAGS += -ldevstat
+endif
+swap_la_LDFLAGS += -lstatgrab
+endif
 endif
 
 if BUILD_MODULE_TAPE
@@ -265,14 +303,23 @@ if BUILD_MODULE_TRAFFIC
 pkglib_LTLIBRARIES += traffic.la
 traffic_la_SOURCES = traffic.c
 traffic_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" traffic.la
+collectd_DEPENDENCIES += traffic.la
 if BUILD_WITH_LIBKSTAT
 traffic_la_LDFLAGS += -lkstat
 endif
 if BUILD_WITH_LIBDEVINFO
 traffic_la_LDFLAGS += -ldevinfo
 endif
-collectd_LDADD += "-dlopen" traffic.la
-collectd_DEPENDENCIES += traffic.la
+if BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_LIBKVM
+traffic_la_LDFLAGS += -lkvm
+endif
+if BUILD_WITH_LIBDEVSTAT
+traffic_la_LDFLAGS += -ldevstat
+endif
+traffic_la_LDFLAGS += -lstatgrab
+endif
 endif
 
 if BUILD_MODULE_USERS
