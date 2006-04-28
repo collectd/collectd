@@ -227,8 +227,7 @@ static void swap_read (void)
 	if (sysctl (mib, 2, &sw_usage, &sw_usage_len, NULL, 0) != 0)
 		return;
 
-	/* FIXME: If this doesn't return the right values, try multiplying it
-	 * with sw_usage.xsu_pagesize.  -octo */
+	/* The returned values are bytes. */
 	swap_submit (sw_usage.xsu_used, sw_usage.xsu_avail, -1LL, -1LL);
 /* #endif HAVE_SYS_SYSCTL_H */
 
