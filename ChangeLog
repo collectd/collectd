@@ -1,5 +1,14 @@
 	* The `disk' plugin has been ported to Darwin.
 	* The `battery' plugin should work on many Apple computers now.
+	* The `traffic' plugin can now ignore certain interfaces. Also,
+	  statistics for sent/received packets and errors have been added.
+
+2006-04-21, Version 3.9.1
+	* Build issues with Solaris and possible other architectures have been
+	  resolved.
+	* Problems when building the `apache'-plugin without `libcurl' have
+	  been resolved.
+	* A bug in the `ping' plugin has been fixed. Sorry folks.
 
 2006-04-02, Version 3.9.0
 	* A plugin to monitor the Apache webserver has been added.
