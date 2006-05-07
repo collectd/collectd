@@ -18,11 +18,13 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Sune Marcher <sm at flork.dk>
  **/
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "configfile.h"
 
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -55,11 +57,21 @@
 
 #define BUFSIZE 512
 
+/*
+ * (Module-)Global variables
+ */
 /* TODO: Move this to `interface-%s/<blah>.rrd' in version 4. */
 static char *bytes_file   = "traffic-%s.rrd";
 static char *packets_file = "if_packets-%s.rrd";
 static char *errors_file  = "if_errors-%s.rrd";
 /* TODO: Maybe implement multicast and broadcast counters */
+
+static char *config_keys[] =
+{
+	"Ignore",
+	NULL
+};
+static int config_keys_num = 1;
 
 static char *bytes_ds_def[] =
 {
@@ -85,12 +97,42 @@ static char *errors_ds_def[] =
 };
 static int errors_ds_num = 2;
 
+static char **if_ignore_list = NULL;
+static int    if_ignore_list_num = 0;
+
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
 static int numif = 0;
 #endif /* HAVE_LIBKSTAT */
+
+static int traffic_config (char *key, char *value)
+{
+	char **temp;
+
+	if (strcasecmp (key, "Ignore") != 0)
+		return (-1);
+
+	temp = (char **) realloc (if_ignore_list, (if_ignore_list_num + 1) * sizeof (char *));
+	if (temp == NULL)
+	{
+		syslog (LOG_EMERG, "Cannot allocate more memory.");
+		return (1);
+	}
+	if_ignore_list = temp;
+
+	if ((if_ignore_list[if_ignore_list_num] = strdup (value)) == NULL)
+	{
+		syslog (LOG_EMERG, "Cannot allocate memory.");
+		return (1);
+	}
+	if_ignore_list_num++;
+
+	syslog (LOG_NOTICE, "traffic: Ignoring interface `%s'", value);
+
+	return (0);
+}
 
 static void traffic_init (void)
 {
@@ -134,12 +176,30 @@ static void traffic_init (void)
 	return;
 }
 
+/*
+ * Check if this interface/instance should be ignored. This is called from
+ * both, `submit' and `write' to give client and server the ability to ignore
+ * certain stuff..
+ */
+static int check_ignore_if (const char *interface)
+{
+	int i;
+
+	for (i = 0; i < if_ignore_list_num; i++)
+		if (strcasecmp (interface, if_ignore_list[i]) == 0)
+			return (1);
+	return (0);
+}
+
 static void generic_write (char *host, char *inst, char *val,
 		char *file_template,
 		char **ds_def, int ds_num)
 {
 	char file[512];
 	int status;
+
+	if (check_ignore_if (inst))
+		return;
 
 	status = snprintf (file, BUFSIZE, file_template, inst);
 	if (status < 1)
@@ -166,16 +226,23 @@ static void errors_write (char *host, char *inst, char *val)
 }
 
 #if TRAFFIC_HAVE_READ
-static void bytes_submit (char *device,
-		unsigned long long incoming,
-		unsigned long long outgoing)
+static void bytes_submit (char *dev,
+		unsigned long long rx,
+		unsigned long long tx)
 {
-	char buf[BUFSIZE];
+	char buf[512];
+	int  status;
 
-	if (snprintf (buf, BUFSIZE, "%u:%lld:%lld", (unsigned int) curtime, incoming, outgoing) >= BUFSIZE)
+	if (check_ignore_if (dev))
 		return;
 
-	plugin_submit (MODULE_NAME, device, buf);
+	status = snprintf (buf, 512, "%u:%lld:%lld",
+				(unsigned int) curtime,
+				rx, tx);
+	if ((status >= 512) || (status < 1))
+		return;
+
+	plugin_submit (MODULE_NAME, dev, buf);
 }
 
 #if HAVE_GETIFADDRS || HAVE_LIBKSTAT
@@ -185,6 +252,9 @@ static void packets_submit (char *dev,
 {
 	char buf[512];
 	int  status;
+
+	if (check_ignore_if (dev))
+		return;
 
 	status = snprintf (buf, 512, "%u:%lld:%lld",
 			(unsigned int) curtime,
@@ -200,6 +270,9 @@ static void errors_submit (char *dev,
 {
 	char buf[512];
 	int  status;
+
+	if (check_ignore_if (dev))
+		return;
 
 	status = snprintf (buf, 512, "%u:%lld:%lld",
 			(unsigned int) curtime,
@@ -356,6 +429,7 @@ void module_register (void)
 	plugin_register (MODULE_NAME, traffic_init, traffic_read, bytes_write);
 	plugin_register ("if_packets", NULL, NULL, packets_write);
 	plugin_register ("if_errors",  NULL, NULL, errors_write);
+	cf_register (MODULE_NAME, traffic_config, config_keys, config_keys_num);
 }
 
 #undef BUFSIZE
