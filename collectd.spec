@@ -101,6 +101,12 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
+* Tue May 09 2006 Florian octo Forster <octo@verplant.org> 3.8.5-1
+- New upstream version
+
+* Fri Apr 21 2006 Florian octo Forster <octo@verplant.org> 3.9.1-1
+- New upstream version
+
 * Fri Apr 14 2006 Florian octo Forster <octo@verplant.org> 3.9.0-1
 - New upstream version
 - Added the `apache' package.
