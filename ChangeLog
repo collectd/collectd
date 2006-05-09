@@ -1,3 +1,8 @@
+2006-05-09, Version 3.9.2
+	* Applied a patch to the `liboping' library. Due to a bug in the
+	  sequence checking the `ping' plugin stopped working after
+	  approximately 7.6 days.
+
 2006-04-21, Version 3.9.1
 	* Build issues with Solaris and possible other architectures have been
 	  resolved.
