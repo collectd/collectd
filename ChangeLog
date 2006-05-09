@@ -1,3 +1,8 @@
+2006-05-09, Version 3.8.5
+	* Applied a patch to the `liboping' library. Due to a bug in the
+	  sequence checking the `ping' plugin stopped working after
+	  approximately 7.6 days.
+
 2006-04-09, Version 3.8.4
 	* Applied patch by Vincent Stehlé which improves the disk-name
 	  resolution in the `hddtemp' plugin for Linux systems.
