@@ -766,7 +766,7 @@ our $GraphMulti =
 	ping	=> \&output_graph_ping,
 	sensors	=> 1,
 	traffic	=> 1,
-    users => 1
+	users => 1
 };
 
 our @Info;
@@ -1281,7 +1281,7 @@ sub parse_pathinfo
 	$AbsDir = $Config->{'Directory'};
 	$RelDir = '';
 
-	while (@info and -d $AbsDir . '/' . $Info[0])
+	while (@info and -d $AbsDir . '/' . $info[0])
 	{
 		my $new = shift (@info);
 		next if ($new =~ m/^\./);
