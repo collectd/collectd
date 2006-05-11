@@ -774,7 +774,7 @@ our $GraphDefs;
 			'GPRINT:max:MAX:%5.1lf%sV Max,',
 			'GPRINT:avg:LAST:%5.1lf%sV Last\l'
 		],
-		threads => [
+		vs_threads => [
 			"DEF:total_avg={file}:total:AVERAGE",
 			"DEF:total_min={file}:total:MIN",
 			"DEF:total_max={file}:total:MAX",
@@ -891,7 +891,7 @@ our $GraphArgs =
 	traffic => ['-t', '{host} {inst} traffic', '-v', 'Bit/s'],
 	users => ['-t', '{host} users', '-v', 'Users'],
 	voltage => ['-t', '{host} voltage', '-v', 'Volts'],
-	threads => ['-t', '{host} threads', '-v', 'Threads'],
+	vs_threads => ['-t', '{host} threads', '-v', 'Threads'],
 	vs_memory => ['-t', '{host} memory usage', '-v', 'Bytes'],
 	vs_processes => ['-t', '{host} processes', '-v', 'Processes'],
 };
