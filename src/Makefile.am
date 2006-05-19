@@ -75,6 +75,17 @@ collectd_LDADD += "-dlopen" apache.la
 collectd_DEPENDENCIES += apache.la
 endif
 
+if BUILD_MODULE_APCUPS
+pkglib_LTLIBRARIES += apcups.la
+apcups_la_SOURCES = apcups.c
+apcups_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBSOCKET
+apcups_la_LDFLAGS += -lsocket
+endif
+collectd_LDADD += "-dlopen" apcups.la
+collectd_DEPENDENCIES += apcups.la
+endif
+
 if BUILD_MODULE_APPLE_SENSORS
 pkglib_LTLIBRARIES += apple_sensors.la
 apple_sensors_la_SOURCES = apple_sensors.c

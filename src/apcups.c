@@ -1,6 +1,8 @@
- /*
+/*
+ * collectd - src/apcups.c
+ * Copyright (C) 2006 Anthony Gialluca <tonyabg at charter.net>
  * Copyright (C) 2000-2004 Kern Sibbald
- * Copyright (C) 1996-99 Andre M. Hedrick <andre@suse.com>
+ * Copyright (C) 1996-99 Andre M. Hedrick <andre at suse.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General
@@ -15,12 +17,19 @@
  * License along with this program; if not, write to the Free
  * Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
- */
+ *
+ * Authors:
+ *   Anthony Gialluca <tonyabg at charter.net>
+ **/
 
-# include <stdio.h>
-# include <stdlib.h>
-# include <stdarg.h>
-# include <unistd.h>
+#include "collectd.h"
+#include "common.h" /* rrd_update_file */
+#include "plugin.h" /* plugin_register, plugin_submit */
+#include "configfile.h" /* cf_register */
+
+/* FIXME: Check defines before including anything! */
+#include <stdarg.h>
+#include <unistd.h>
 #include <string.h>
 #include <strings.h>
 #include <signal.h>
@@ -35,51 +44,41 @@
 #include <termios.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
-#  include <sys/ipc.h>
-#  include <sys/sem.h>
-#  include <sys/shm.h>
-# include <sys/socket.h>
-# include <sys/types.h>
-# include <sys/time.h>
-# include <time.h>
-# include <sys/wait.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <time.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-#include "collectd.h"
-#include "common.h" /* rrd_update_file */
-#include "plugin.h" /* plugin_register, plugin_submit */
-#include "configfile.h" /* cf_register */
 
 #define NISPORT 3551
 #define _(String) (String)
 #define N_(String) (String)
 #define MAXSTRING               256
-#define Error_abort0(fmd) error_out(__FILE__, __LINE__, fmd)
+#define Error_abort0(fmd) generic_error_out(__FILE__, __LINE__, fmd)
 #define MODULE_NAME "apcups"
 
 
 /* Prototypes */
-void generic_error_out(const char *, int , const char *, ...);
+static void generic_error_out(const char *, int , const char *, ...);
 
 /* Default values for contacting daemon */
 static char *host = "localhost";
 static int port = NISPORT;
 
-char argvalue[MAXSTRING];
-
-struct sockaddr_in tcp_serv_addr;  /* socket information */
-int net_errno = 0;                 /* error number -- not yet implemented */
-char *net_errmsg = NULL;           /* pointer to error message */
-char net_errbuf[256];              /* error message buffer for messages */
-
-void (*error_out) (const char *file, int line, const char *fmt, ...) = generic_error_out;
-void (*error_cleanup) (void) = NULL;
+static struct sockaddr_in tcp_serv_addr;  /* socket information */
+static int net_errno = 0;                 /* error number -- not yet implemented */
+static char *net_errmsg = NULL;           /* pointer to error message */
+static char net_errbuf[256];              /* error message buffer for messages */
 
 /* 
- * The following are only if not compiled to test the module with
- * its own main.
+ * The following are only if not compiled to test the module with its own main.
 */
+/* FIXME: Rename DSes to be more generic and follow established conventions. */
 #ifndef APCMAIN
 static char *volt_file_template = "apcups_volt-%s.rrd";
 static char *volt_ds_def[] = 
@@ -142,116 +141,38 @@ static int config_keys_num = 2;
 
 #endif /* ifndef APCMAIN */
 
-struct apc_detail_s {
-  float linev;
-  float loadpct;
-  float bcharge;
-  float timeleft;
-  float outputv;
-  float itemp;
-  float battv;
-  float linefreq;
+struct apc_detail_s
+{
+	float linev;
+	float loadpct;
+	float bcharge;
+	float timeleft;
+	float outputv;
+	float itemp;
+	float battv;
+	float linefreq;
 };
 
-/* Guarantee that the string is properly terminated */
-char *astrncpy(char *dest, const char *src, int maxlen)
-{
-   strncpy(dest, src, maxlen - 1);
-   dest[maxlen - 1] = 0;
-   return dest;
-}
-
-
-#define BIG_BUF 5000
-
-/* Implement snprintf */
-int asnprintf(char *str, size_t size, const char *fmt, ...)
-{
-#ifdef HAVE_VSNPRINTF
-   va_list arg_ptr;
-   int len;
-
-   va_start(arg_ptr, fmt);
-   len = vsnprintf(str, size, fmt, arg_ptr);
-   va_end(arg_ptr);
-
-   str[size - 1] = 0;
-   return len;
-
-#else
-
-   va_list arg_ptr;
-   int len;
-   char *buf;
-
-   buf = (char *)malloc(BIG_BUF);
-
-   va_start(arg_ptr, fmt);
-   len = vsprintf(buf, fmt, arg_ptr);
-   va_end(arg_ptr);
-
-   if (len >= BIG_BUF)
-      Error_abort0(_("Buffer overflow.\n"));
-
-   memcpy(str, buf, size);
-   str[size - 1] = 0;
-
-   free(buf);
-   return len;
-#endif
-}
-
-/* Implement vsnprintf() */
-int avsnprintf(char *str, size_t size, const char *format, va_list ap)
-{
-#ifdef HAVE_VSNPRINTF
-   int len;
-
-   len = vsnprintf(str, size, format, ap);
-   str[size - 1] = 0;
-
-   return len;
-
-#else
-
-   int len;
-   char *buf;
-
-   buf = (char *)malloc(BIG_BUF);
-
-   len = vsprintf(buf, format, ap);
-   if (len >= BIG_BUF)
-      Error_abort0(_("Buffer overflow.\n"));
-
-   memcpy(str, buf, size);
-   str[size - 1] = 0;
-
-   free(buf);
-   return len;
-#endif
-}
+#define BIG_BUF 4096
 
 /*
  * Subroutine normally called by macro error_abort() to print
  * FATAL ERROR message and supplied error message
  */
-void generic_error_out(const char *file, int line, const char *fmt, ...)
+static void generic_error_out(const char *file, int line, const char *fmt, ...)
 {
-   char buf[256];
-   va_list arg_ptr;
-   int i;
+	char buf[256];
+	va_list arg_ptr;
+	int i;
 
-   asnprintf(buf, sizeof(buf), _("FATAL ERROR in %s at line %d\n"), file, line);
-   i = strlen(buf);
-   va_start(arg_ptr, fmt);
-   avsnprintf((char *)&buf[i], sizeof(buf) - i, (char *)fmt, arg_ptr);
-   va_end(arg_ptr);
-   fprintf(stdout, "%s", buf);
+	snprintf(buf, sizeof(buf), _("FATAL ERROR in %s at line %d\n"), file, line);
+	i = strlen(buf);
+	va_start(arg_ptr, fmt);
+	vsnprintf((char *)&buf[i], sizeof(buf) - i, (char *)fmt, arg_ptr);
+	va_end(arg_ptr);
+	fprintf(stdout, "%s", buf);
 
-   if (error_cleanup)
-      error_cleanup();
-
-   exit(1);
+	exit(1);
 }
 
 /*
@@ -261,28 +182,26 @@ void generic_error_out(const char *file, int line, const char *fmt, ...)
  */
 static int read_nbytes(int fd, char *ptr, int nbytes)
 {
-   int nleft, nread;
+	int nleft, nread;
 
+	nleft = nbytes;
 
-   nleft = nbytes;
+	while (nleft > 0) {
+		do {
+			nread = read(fd, ptr, nleft);
+		} while (nread == -1 && (errno == EINTR || errno == EAGAIN));
 
-   while (nleft > 0) {
-      do {
-         nread = read(fd, ptr, nleft);
-      } while (nread == -1 && (errno == EINTR || errno == EAGAIN));
+		if (nread <= 0) {
+			net_errno = errno;
+			return (nread);           /* error, or EOF */
+		}
 
-      if (nread <= 0) {
-         net_errno = errno;
-         return (nread);           /* error, or EOF */
-      }
+		nleft -= nread;
+		ptr += nread;
+	}
 
-      nleft -= nread;
-      ptr += nread;
-   }
-
-   return (nbytes - nleft);        /* return >= 0 */
+	return (nbytes - nleft);        /* return >= 0 */
 }
-
 
 /*
  * Write nbytes to the network.
@@ -290,33 +209,32 @@ static int read_nbytes(int fd, char *ptr, int nbytes)
  */
 static int write_nbytes(int fd, char *ptr, int nbytes)
 {
-   int nleft, nwritten;
+	int nleft, nwritten;
 
-   nleft = nbytes;
-   while (nleft > 0) {
-      nwritten = write(fd, ptr, nleft);
+	nleft = nbytes;
+	while (nleft > 0) {
+		nwritten = write(fd, ptr, nleft);
 
-      if (nwritten <= 0) {
-         net_errno = errno;
-         return (nwritten);        /* error */
-      }
+		if (nwritten <= 0) {
+			net_errno = errno;
+			return (nwritten);        /* error */
+		}
 
-      nleft -= nwritten;
-      ptr += nwritten;
-   }
+		nleft -= nwritten;
+		ptr += nwritten;
+	}
 
-   return (nbytes - nleft);
+	return (nbytes - nleft);
 }
 
-
 /* Close the network connection */
-void net_close(int sockfd)
+void net_close (int sockfd)
 {
-   short pktsiz = 0;
+	short pktsiz = 0;
 
-   /* send EOF sentinel */
-   write_nbytes(sockfd, (char *)&pktsiz, sizeof(short));
-   close(sockfd);
+	/* send EOF sentinel */
+	write_nbytes(sockfd, (char *) &pktsiz, sizeof(short));
+	close (sockfd);
 }
 
 
@@ -327,64 +245,61 @@ void net_close(int sockfd)
  */
 int net_open(char *host, char *service, int port)
 {
-   int sockfd;
-   struct hostent *hp;
-   unsigned int inaddr;            /* Careful here to use unsigned int for */
-                                   /* compatibility with Alpha */
+	int sockfd;
+	struct hostent *hp;
+	unsigned int inaddr; /* Careful here to use unsigned int for */
+	                     /* compatibility with Alpha */
 
-   /* 
-    * Fill in the structure serv_addr with the address of
-    * the server that we want to connect with.
-    */
-   memset((char *)&tcp_serv_addr, 0, sizeof(tcp_serv_addr));
-   tcp_serv_addr.sin_family = AF_INET;
-   tcp_serv_addr.sin_port = htons(port);
+	/* 
+	 * Fill in the structure serv_addr with the address of the server that
+	 * we want to connect with.
+	 */
+	memset((char *)&tcp_serv_addr, 0, sizeof(tcp_serv_addr));
+	tcp_serv_addr.sin_family = AF_INET;
+	tcp_serv_addr.sin_port = htons(port);
 
-   if ((inaddr = inet_addr(host)) != INADDR_NONE) {
-      tcp_serv_addr.sin_addr.s_addr = inaddr;
-   } else {
-      if ((hp = gethostbyname(host)) == NULL) {
-         net_errmsg = "tcp_open: hostname error\n";
-         return -1;
-      }
+	if ((inaddr = inet_addr(host)) != INADDR_NONE) {
+		tcp_serv_addr.sin_addr.s_addr = inaddr;
+	} else {
+		if ((hp = gethostbyname(host)) == NULL) {
+			net_errmsg = "tcp_open: hostname error\n";
+			return -1;
+		}
 
-      if (hp->h_length != sizeof(inaddr) || hp->h_addrtype != AF_INET) {
-         net_errmsg = "tcp_open: funny gethostbyname value\n";
-         return -1;
-      }
+		if (hp->h_length != sizeof(inaddr) || hp->h_addrtype != AF_INET) {
+			net_errmsg = "tcp_open: funny gethostbyname value\n";
+			return -1;
+		}
 
-      tcp_serv_addr.sin_addr.s_addr = *(unsigned int *)hp->h_addr;
-   }
+		tcp_serv_addr.sin_addr.s_addr = *(unsigned int *)hp->h_addr;
+	}
 
+	/* Open a TCP socket */
+	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		net_errmsg = "tcp_open: cannot open stream socket\n";
+		return -1;
+	}
 
-   /* Open a TCP socket */
-   if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-      net_errmsg = "tcp_open: cannot open stream socket\n";
-      return -1;
-   }
-
-   /* connect to server */
+	/* connect to server */
 #if defined HAVE_OPENBSD_OS || defined HAVE_FREEBSD_OS
-   /* 
-    * Work around a bug in OpenBSD & FreeBSD userspace pthreads
-    * implementations. Rationale is the same as described above.
-    */
-   fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL));
+	/* 
+	 * Work around a bug in OpenBSD & FreeBSD userspace pthreads
+	 * implementations. Rationale is the same as described above.
+	 */
+	fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL));
 #endif
 
-   if (connect(sockfd, (struct sockaddr *)&tcp_serv_addr, sizeof(tcp_serv_addr)) < 0) {
-      asnprintf(net_errbuf, sizeof(net_errbuf),
-         _("tcp_open: cannot connect to server %s on port %d.\n"
-        "ERR=%s\n"), host, port, strerror(errno));
-      net_errmsg = net_errbuf;
-      close(sockfd);
-      return -1;
-   }
+	if (connect(sockfd, (struct sockaddr *)&tcp_serv_addr, sizeof(tcp_serv_addr)) < 0) {
+		snprintf(net_errbuf, sizeof(net_errbuf),
+				_("tcp_open: cannot connect to server %s on port %d.\n"
+					"ERR=%s\n"), host, port, strerror(errno));
+		net_errmsg = net_errbuf;
+		close(sockfd);
+		return -1;
+	}
 
-   return sockfd;
-}
-
-
+	return sockfd;
+} /* int net_open(char *host, char *service, int port) */
 
 /* 
  * Receive a message from the other end. Each message consists of
