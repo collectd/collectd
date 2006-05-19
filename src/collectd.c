@@ -201,7 +201,7 @@ static int start_client (void)
 
 		if (timeval_sub_timespec (&tv_next, &tv_now, &ts_wait) != 0)
 		{
-			syslog (LOG_WARNING, "No sleeping because `timeval_sub_timespec' returned non-zero!");
+			syslog (LOG_WARNING, "Not sleeping because `timeval_sub_timespec' returned non-zero!");
 			continue;
 		}
 

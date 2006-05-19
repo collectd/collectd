@@ -284,6 +284,7 @@ static void apache_read (void)
 	if (url == NULL)
 		return;
 
+	apache_buffer_len = 0;
 	if (curl_easy_perform (curl) != 0)
 	{
 		syslog (LOG_WARNING, "apache: curl_easy_perform failed: %s", apache_curl_error);
