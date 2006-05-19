@@ -59,7 +59,6 @@
 #define _(String) (String)
 #define N_(String) (String)
 #define MAXSTRING               256
-#define Error_abort0(fmd) generic_error_out(__FILE__, __LINE__, fmd)
 #define MODULE_NAME "apcups"
 
 
@@ -71,7 +70,6 @@ static char *host = "localhost";
 static int port = NISPORT;
 
 static struct sockaddr_in tcp_serv_addr;  /* socket information */
-static int net_errno = 0;                 /* error number -- not yet implemented */
 static char *net_errmsg = NULL;           /* pointer to error message */
 static char net_errbuf[256];              /* error message buffer for messages */
 
@@ -192,7 +190,6 @@ static int read_nbytes(int fd, char *ptr, int nbytes)
 		} while (nread == -1 && (errno == EINTR || errno == EAGAIN));
 
 		if (nread <= 0) {
-			net_errno = errno;
 			return (nread);           /* error, or EOF */
 		}
 
@@ -207,24 +204,31 @@ static int read_nbytes(int fd, char *ptr, int nbytes)
  * Write nbytes to the network.
  * It may require several writes.
  */
-static int write_nbytes(int fd, char *ptr, int nbytes)
+static int write_nbytes(int fd, void *buf, int buflen)
 {
-	int nleft, nwritten;
+	int nleft;
+	int nwritten;
+	char *ptr;
 
-	nleft = nbytes;
-	while (nleft > 0) {
+	ptr = (char *) buf;
+
+	nleft = buflen;
+	while (nleft > 0)
+	{
 		nwritten = write(fd, ptr, nleft);
 
-		if (nwritten <= 0) {
-			net_errno = errno;
-			return (nwritten);        /* error */
+		if (nwritten <= 0)
+		{
+			syslog (LOG_ERR, "Writing to socket failed: %s", strerror (errno));
+			return (nwritten);
 		}
 
 		nleft -= nwritten;
 		ptr += nwritten;
 	}
 
-	return (nbytes - nleft);
+	/* If we get here, (nleft <= 0) is true */
+	return (buflen);
 }
 
 /* Close the network connection */
@@ -233,7 +237,7 @@ static void net_close (int sockfd)
 	short pktsiz = 0;
 
 	/* send EOF sentinel */
-	write_nbytes(sockfd, (char *) &pktsiz, sizeof(short));
+	write_nbytes (sockfd, &pktsiz, sizeof(short));
 	close (sockfd);
 }
 
@@ -348,32 +352,28 @@ static int net_recv(int sockfd, char *buff, int maxlen)
  * Send a message over the network. The send consists of
  * two network packets. The first is sends a short containing
  * the length of the data packet which follows.
- * Returns number of bytes sent
- * Returns -1 on error
+ * Returns zero on success
+ * Returns non-zero on error
  */
 static int net_send(int sockfd, char *buff, int len)
 {
 	int rc;
-	short pktsiz;
+	short packet_size;
 
 	/* send short containing size of data packet */
-	pktsiz = htons((short)len);
-	rc = write_nbytes(sockfd, (char *)&pktsiz, sizeof(short));
-	if (rc != sizeof(short)) {
-		net_errmsg = "net_send: write_nbytes error of length prefix\n";
-		return -1;
-	}
+	packet_size = htons ((short) len);
+
+	rc = write_nbytes(sockfd, &packet_size, sizeof (packet_size));
+	if (rc != sizeof(packet_size))
+		return (-1);
 
 	/* send data packet */
-	rc = write_nbytes(sockfd, buff, len);
-	if (rc != len) {
-		net_errmsg = "net_send: write_nbytes error\n";
-		return -1;
-	}
+	rc = write_nbytes (sockfd, buff, len);
+	if (rc != len)
+		return (-1);
 
-	return rc;
+	return (0);
 }
-
 
 /* Get and print status from apcupsd NIS server */
 static int do_pthreads_status(char *host, int port, struct apc_detail_s *apcups_detail)
@@ -441,10 +441,13 @@ static int do_pthreads_status(char *host, int port, struct apc_detail_s *apcups_
 		} /* while (tokptr != NULL) */
 	}
 
-	if (n < 0)
-		Error_abort0(net_errmsg);
+	net_close (sockfd);
 
-	net_close(sockfd);
+	if (n < 0)
+	{
+		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
+		return (-1);
+	}
 
 	return (0);
 }
