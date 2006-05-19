@@ -59,20 +59,38 @@
 #define _(String) (String)
 #define N_(String) (String)
 #define MAXSTRING               256
+<<<<<<< .mine
+=======
+#define Error_abort0(fmd) generic_error_out(__FILE__, __LINE__, fmd)
+>>>>>>> .r733
 #define MODULE_NAME "apcups"
 
 
 /* Prototypes */
+<<<<<<< .mine
+=======
 static void generic_error_out(const char *, int , const char *, ...);
+>>>>>>> .r733
 
 /* Default values for contacting daemon */
 static char *host = "localhost";
 static int port = NISPORT;
 
 static struct sockaddr_in tcp_serv_addr;  /* socket information */
+static int net_errno = 0;                 /* error number -- not yet implemented */
 static char *net_errmsg = NULL;           /* pointer to error message */
 static char net_errbuf[256];              /* error message buffer for messages */
 
+<<<<<<< .mine
+struct sockaddr_in tcp_serv_addr;  /* socket information */
+int net_errno = 0;                 /* error number -- not yet implemented */
+char *net_errmsg = NULL;           /* pointer to error message */
+char net_errbuf[256];              /* error message buffer for messages */
+
+void (*error_cleanup) (void) = NULL;
+
+=======
+>>>>>>> .r733
 /* 
  * The following are only if not compiled to test the module with its own main.
 */
@@ -139,6 +157,18 @@ static int config_keys_num = 2;
 
 #endif /* ifndef APCMAIN */
 
+<<<<<<< .mine
+struct apc_detail_s {
+  int connected;
+  float linev;
+  float loadpct;
+  float bcharge;
+  float timeleft;
+  float outputv;
+  float itemp;
+  float battv;
+  float linefreq;
+=======
 struct apc_detail_s
 {
 	float linev;
@@ -149,11 +179,91 @@ struct apc_detail_s
 	float itemp;
 	float battv;
 	float linefreq;
+>>>>>>> .r733
 };
 
 #define BIG_BUF 4096
 
+<<<<<<< .mine
+
+#define BIG_BUF 5000
+
+/* Implement snprintf */
+int asnprintf(char *str, size_t size, const char *fmt, ...)
+{
+#ifdef HAVE_VSNPRINTF
+   va_list arg_ptr;
+   int len;
+
+   va_start(arg_ptr, fmt);
+   len = vsnprintf(str, size, fmt, arg_ptr);
+   va_end(arg_ptr);
+
+   str[size - 1] = 0;
+   return len;
+
+#else
+
+   va_list arg_ptr;
+   int len;
+   char *buf;
+
+   buf = (char *)malloc(BIG_BUF);
+
+   va_start(arg_ptr, fmt);
+   len = vsprintf(buf, fmt, arg_ptr);
+   va_end(arg_ptr);
+
+   if (len >= BIG_BUF){
+     syslog(LOG_ERR, "apcups: asnprintf(): Buffer overflow");
+     return(0);
+   }
+
+   memcpy(str, buf, size);
+   str[size - 1] = 0;
+
+   free(buf);
+   return len;
+#endif
+}
+
+/* Implement vsnprintf() */
+int avsnprintf(char *str, size_t size, const char *format, va_list ap)
+{
+#ifdef HAVE_VSNPRINTF
+   int len;
+
+   len = vsnprintf(str, size, format, ap);
+   str[size - 1] = 0;
+
+   return len;
+
+#else
+
+   int len;
+   char *buf;
+
+   buf = (char *)malloc(BIG_BUF);
+
+   len = vsprintf(buf, format, ap);
+   if (len >= BIG_BUF){
+     syslog(LOG_ERR, "apcups: avsnprintf(): Buffer overflow");
+     return(0);
+   }
+
+  memcpy(str, buf, size);
+   str[size - 1] = 0;
+
+   free(buf);
+   return len;
+#endif
+}
+
+=======
+>>>>>>> .r733
 /*
+<<<<<<< .mine
+=======
  * Subroutine normally called by macro error_abort() to print
  * FATAL ERROR message and supplied error message
  */
@@ -174,6 +284,7 @@ static void generic_error_out(const char *file, int line, const char *fmt, ...)
 }
 
 /*
+>>>>>>> .r733
  * Read nbytes from the network.
  * It is possible that the total bytes require in several
  * read requests
@@ -190,6 +301,7 @@ static int read_nbytes(int fd, char *ptr, int nbytes)
 		} while (nread == -1 && (errno == EINTR || errno == EAGAIN));
 
 		if (nread <= 0) {
+			net_errno = errno;
 			return (nread);           /* error, or EOF */
 		}
 
@@ -204,31 +316,24 @@ static int read_nbytes(int fd, char *ptr, int nbytes)
  * Write nbytes to the network.
  * It may require several writes.
  */
-static int write_nbytes(int fd, void *buf, int buflen)
+static int write_nbytes(int fd, char *ptr, int nbytes)
 {
-	int nleft;
-	int nwritten;
-	char *ptr;
+	int nleft, nwritten;
 
-	ptr = (char *) buf;
-
-	nleft = buflen;
-	while (nleft > 0)
-	{
+	nleft = nbytes;
+	while (nleft > 0) {
 		nwritten = write(fd, ptr, nleft);
 
-		if (nwritten <= 0)
-		{
-			syslog (LOG_ERR, "Writing to socket failed: %s", strerror (errno));
-			return (nwritten);
+		if (nwritten <= 0) {
+			net_errno = errno;
+			return (nwritten);        /* error */
 		}
 
 		nleft -= nwritten;
 		ptr += nwritten;
 	}
 
-	/* If we get here, (nleft <= 0) is true */
-	return (buflen);
+	return (nbytes - nleft);
 }
 
 /* Close the network connection */
@@ -237,7 +342,7 @@ static void net_close (int sockfd)
 	short pktsiz = 0;
 
 	/* send EOF sentinel */
-	write_nbytes (sockfd, &pktsiz, sizeof(short));
+	write_nbytes(sockfd, (char *) &pktsiz, sizeof(short));
 	close (sockfd);
 }
 
@@ -352,32 +457,56 @@ static int net_recv(int sockfd, char *buff, int maxlen)
  * Send a message over the network. The send consists of
  * two network packets. The first is sends a short containing
  * the length of the data packet which follows.
- * Returns zero on success
- * Returns non-zero on error
+ * Returns number of bytes sent
+ * Returns -1 on error
  */
 static int net_send(int sockfd, char *buff, int len)
 {
 	int rc;
-	short packet_size;
+	short pktsiz;
 
 	/* send short containing size of data packet */
-	packet_size = htons ((short) len);
-
-	rc = write_nbytes(sockfd, &packet_size, sizeof (packet_size));
-	if (rc != sizeof(packet_size))
-		return (-1);
+	pktsiz = htons((short)len);
+	rc = write_nbytes(sockfd, (char *)&pktsiz, sizeof(short));
+	if (rc != sizeof(short)) {
+		net_errmsg = "net_send: write_nbytes error of length prefix\n";
+		return -1;
+	}
 
 	/* send data packet */
-	rc = write_nbytes (sockfd, buff, len);
-	if (rc != len)
-		return (-1);
+	rc = write_nbytes(sockfd, buff, len);
+	if (rc != len) {
+		net_errmsg = "net_send: write_nbytes error\n";
+		return -1;
+	}
 
-	return (0);
+	return rc;
 }
+
 
 /* Get and print status from apcupsd NIS server */
 static int do_pthreads_status(char *host, int port, struct apc_detail_s *apcups_detail)
 {
+<<<<<<< .mine
+  int sockfd, n;
+  char recvline[MAXSTRING + 1];
+  char *tokptr;
+
+  if ((sockfd = net_open(host, NULL, port)) < 0){
+    syslog(LOG_ERR, "apcups: Cannot open connection: %s",
+	   net_errmsg);
+    net_errmsg = NULL;
+    return;
+  }
+  
+  net_send(sockfd, "status", 6);
+  
+  while ((n = net_recv(sockfd, recvline, sizeof(recvline))) > 0) {
+    recvline[n] = 0;
+#ifdef APCMAIN
+    fputs(recvline, stdout);
+#endif /* ifdef APCMAIN */
+=======
 	int     sockfd;
 	int     n;
 	char    recvline[MAXSTRING + 1];
@@ -389,14 +518,93 @@ static int do_pthreads_status(char *host, int port, struct apc_detail_s *apcups_
 #else
 # define PRINT_VALUE(name, val) /**/
 #endif
+>>>>>>> .r733
 
+<<<<<<< .mine
+    tokptr = strtok(recvline,":");
+    while(tokptr != NULL) {
+      /* Look for Limit_Add */
+      if(strncmp("LINEV",tokptr,5) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found LINEV.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->linev = atof (tokptr);
+      }else if(strncmp("BATTV",tokptr,5) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found BATTV.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->battv = atof (tokptr);
+      }else if(strncmp("ITEMP",tokptr,5) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found ITEMP.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->itemp = atof (tokptr);
+      }else if(strncmp("LOADPCT",tokptr,7) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found LOADPCT.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->loadpct = atof (tokptr);
+      }else if(strncmp("BCHARGE",tokptr,7) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found BCHARGE.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->bcharge = atof (tokptr);
+      }else if(strncmp("OUTPUTV",tokptr,7) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found OUTPUTV.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->outputv = atof (tokptr);
+      }else if(strncmp("LINEFREQ",tokptr,8) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found LINEFREQ.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->linefreq = atof (tokptr);
+      }else if(strncmp("TIMELEFT",tokptr,8) == 0) { 
+#ifdef APCMAIN
+	fprintf(stdout,"  Found TIMELEFT.\n");
+#endif /* ifdef APCMAIN */
+	tokptr = strtok(NULL," \t");
+	if(tokptr == NULL) continue;
+	apcups_detail->timeleft = atof (tokptr);
+      } /* */
+      tokptr = strtok(NULL,":");
+    }
+  }
+=======
 	/* TODO: Keep the socket open, if possible */
 	if ((sockfd = net_open (host, NULL, port)) < 0)
 	{
 		syslog (LOG_ERR, "apcups plugin: Connecting to the apcupsd failed.");
 		return (-1);
 	}
+>>>>>>> .r733
 
+<<<<<<< .mine
+  if (n < 0) {
+    syslog(LOG_ERR, "apcups: Error recieving data: %s",
+	   net_errmsg);
+    net_errmsg = NULL;
+    return;
+  }
+  /* signal that we did in fact connect. */
+  apcups_detail->connected = 1;
+  
+  net_close(sockfd);
+=======
 	net_send (sockfd, "status", 6);
 
 	while ((n = net_recv (sockfd, recvline, sizeof (recvline))) > 0)
@@ -441,15 +649,13 @@ static int do_pthreads_status(char *host, int port, struct apc_detail_s *apcups_
 		} /* while (tokptr != NULL) */
 	}
 
-	net_close (sockfd);
-
 	if (n < 0)
-	{
-		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
-		return (-1);
-	}
+		Error_abort0(net_errmsg);
+
+	net_close(sockfd);
 
 	return (0);
+>>>>>>> .r733
 }
 
 #ifdef APCMAIN
@@ -458,12 +664,23 @@ int main(int argc, char **argv)
 	/* we are not really going to use this */
 	struct apc_detail_s apcups_detail;
 
+<<<<<<< .mine
+  openlog("apcups",LOG_PID | LOG_NDELAY | LOG_LOCAL1);
+
+  if (!*host || strcmp(host, "0.0.0.0") == 0)
+    host = "localhost";
+  
+  do_pthreads_status(host, port, &apcups_detail);
+  
+  return 0;
+=======
 	if (!*host || strcmp(host, "0.0.0.0") == 0)
 		host = "localhost";
 
 	do_pthreads_status(host, port, &apcups_detail);
 
 	return 0;
+>>>>>>> .r733
 }
 #else
 static void apcups_init (void)
@@ -605,6 +822,7 @@ static void apcups_read (void)
   apcups_detail.itemp = 0.0;
   apcups_detail.battv = 0.0;
   apcups_detail.linefreq = 0.0;
+  apcups_detail.connected = 0;
 
   
   if (!*host || strcmp(host, "0.0.0.0") == 0)
@@ -612,6 +830,12 @@ static void apcups_read (void)
   
   do_pthreads_status(host, port, &apcups_detail);
  
+  /*
+   * if we did not connect then do not bother submitting
+   * zeros. We want rrd files to have NAN.
+  */
+  if(!apcups_detail.connected) return;
+
   apcups_submit (host, &apcups_detail);
   apc_bvolt_submit (host, &apcups_detail);
   apc_load_submit (host, &apcups_detail);
