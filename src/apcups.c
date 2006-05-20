@@ -61,8 +61,8 @@
 #define MODULE_NAME "apcups"
 
 /* Default values for contacting daemon */
-static char *host = "localhost";
-static int   port = NISPORT;
+static char *global_host = NULL;
+static int   global_port = NISPORT;
 
 /* 
  * The following are only if not compiled to test the module with its own main.
@@ -141,7 +141,7 @@ struct apc_detail_s
  * It is possible that the total bytes require in several
  * read requests
  */
-static int read_nbytes(int fd, char *ptr, int nbytes)
+static int read_nbytes (int fd, char *ptr, int nbytes)
 {
 	int nleft, nread;
 
@@ -149,7 +149,7 @@ static int read_nbytes(int fd, char *ptr, int nbytes)
 
 	while (nleft > 0) {
 		do {
-			nread = read(fd, ptr, nleft);
+			nread = read (fd, ptr, nleft);
 		} while (nread == -1 && (errno == EINTR || errno == EAGAIN));
 
 		if (nread <= 0) {
@@ -167,7 +167,7 @@ static int read_nbytes(int fd, char *ptr, int nbytes)
  * Write nbytes to the network.
  * It may require several writes.
  */
-static int write_nbytes(int fd, void *buf, int buflen)
+static int write_nbytes (int fd, void *buf, int buflen)
 {
 	int nleft;
 	int nwritten;
@@ -178,7 +178,7 @@ static int write_nbytes(int fd, void *buf, int buflen)
 	nleft = buflen;
 	while (nleft > 0)
 	{
-		nwritten = write(fd, ptr, nleft);
+		nwritten = write (fd, ptr, nleft);
 
 		if (nwritten <= 0)
 		{
@@ -265,7 +265,7 @@ static int net_open (char *host, char *service, int port)
 	}
 
 	return (sd);
-} /* int net_open(char *host, char *service, int port) */
+} /* int net_open (char *host, char *service, int port) */
 
 /* 
  * Receive a message from the other end. Each message consists of
@@ -288,7 +288,7 @@ static int net_recv (int sockfd, char *buf, int buflen)
 	if (nbytes != sizeof (short))
 		return (-2);
 
-	pktsiz = ntohs(pktsiz);
+	pktsiz = ntohs (pktsiz);
 	if (pktsiz > buflen)
 	{
 		DBG ("record length too large");
@@ -323,8 +323,8 @@ static int net_send (int sockfd, char *buff, int len)
 	/* send short containing size of data packet */
 	packet_size = htons ((short) len);
 
-	rc = write_nbytes(sockfd, &packet_size, sizeof (packet_size));
-	if (rc != sizeof(packet_size))
+	rc = write_nbytes (sockfd, &packet_size, sizeof (packet_size));
+	if (rc != sizeof (packet_size))
 		return (-1);
 
 	/* send data packet */
@@ -336,7 +336,7 @@ static int net_send (int sockfd, char *buff, int len)
 }
 
 /* Get and print status from apcupsd NIS server */
-static int do_pthreads_status (char *host, int port,
+static int apc_query_server (char *host, int port,
 		struct apc_detail_s *apcups_detail)
 {
 	int     sockfd;
@@ -414,45 +414,46 @@ static int do_pthreads_status (char *host, int port,
 }
 
 #ifdef APCMAIN
-int main(int argc, char **argv)
+int main (int argc, char **argv)
 {
 	/* we are not really going to use this */
 	struct apc_detail_s apcups_detail;
 
-	if (!*host || strcmp(host, "0.0.0.0") == 0)
+	if (!*host || strcmp (host, "0.0.0.0") == 0)
 		host = "localhost";
 
-	do_pthreads_status(host, port, &apcups_detail);
+	apc_query_server (global_host, global_port, &apcups_detail);
 
 	return 0;
 }
 #else
 static int apcups_config (char *key, char *value)
 {
-  static char lhost[126];
-  
-  if (strcasecmp (key, "host") == 0)
-    {
-      lhost[0] = '\0';
-      strcpy(lhost,key);
-      host = lhost;
-    }
-  else if (strcasecmp (key, "Port") == 0)
-    {
-      int port_tmp = atoi (value);
-      if(port_tmp < 1 || port_tmp > 65535) {
-	syslog (LOG_WARNING, "apcups: `port' failed: %s",
-		value);
-	return (1);
-      } else {
-	port = port_tmp;
-      }
-    }
-  else
-    {
-      return (-1);
-    }
-  return(0);
+	if (strcasecmp (key, "host") == 0)
+	{
+		if (global_host != NULL)
+		{
+			free (global_host);
+			global_host = NULL;
+		}
+		if ((global_host = strdup (value)) == NULL)
+			return (1);
+	}
+	else if (strcasecmp (key, "Port") == 0)
+	{
+		int port_tmp = atoi (value);
+		if (port_tmp < 1 || port_tmp > 65535)
+		{
+			syslog (LOG_WARNING, "apcups plugin: Invalid port: %i", port_tmp);
+			return (1);
+		}
+		global_port = port_tmp;
+	}
+	else
+	{
+		return (-1);
+	}
+	return (0);
 }
 
 static void apcups_init (void)
@@ -535,7 +536,7 @@ static void apcups_read (void)
 	struct apc_detail_s apcups_detail;
 	int status;
 
-	if (host == NULL)
+	if (global_host == NULL)
 		return;
 	
 	apcups_detail.linev    =   -1.0;
@@ -547,7 +548,7 @@ static void apcups_read (void)
 	apcups_detail.itemp    = -300.0;
 	apcups_detail.linefreq =   -1.0;
   
-	status = do_pthreads_status(host, port, &apcups_detail);
+	status = apc_query_server (global_host, global_port, &apcups_detail);
  
 	/*
 	 * if we did not connect then do not bother submitting
