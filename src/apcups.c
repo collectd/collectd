@@ -26,6 +26,7 @@
 #include "common.h" /* rrd_update_file */
 #include "plugin.h" /* plugin_register, plugin_submit */
 #include "configfile.h" /* cf_register */
+#include "utils_debug.h"
 
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -61,11 +62,7 @@
 
 /* Default values for contacting daemon */
 static char *host = "localhost";
-static int port = NISPORT;
-
-static struct sockaddr_in tcp_serv_addr; /* socket information */
-static char *net_errmsg = NULL; /* pointer to error message */
-static char  net_errbuf[256];   /* error message buffer for messages */
+static int   port = NISPORT;
 
 /* 
  * The following are only if not compiled to test the module with its own main.
@@ -221,62 +218,61 @@ static void net_close (int sockfd)
  * Returns -1 on error
  * Returns socket file descriptor otherwise
  */
-static int net_open(char *host, char *service, int port)
+static int net_open (char *host, char *service, int port)
 {
-	int sockfd;
-	struct hostent *hp;
-	unsigned int inaddr; /* Careful here to use unsigned int for */
-	                     /* compatibility with Alpha */
+	int              sd;
+	int              status;
+	char             port_str[8];
+	struct addrinfo  ai_hints;
+	struct addrinfo *ai_return;
+	struct addrinfo *ai_list;
 
-	/* 
-	 * Fill in the structure serv_addr with the address of the server that
-	 * we want to connect with.
-	 */
-	memset((char *)&tcp_serv_addr, 0, sizeof(tcp_serv_addr));
-	tcp_serv_addr.sin_family = AF_INET;
-	tcp_serv_addr.sin_port = htons(port);
+	assert ((port > 0x00000000) && (port <= 0x0000FFFF));
 
-	if ((inaddr = inet_addr(host)) != INADDR_NONE) {
-		tcp_serv_addr.sin_addr.s_addr = inaddr;
-	} else {
-		if ((hp = gethostbyname(host)) == NULL) {
-			net_errmsg = "tcp_open: hostname error\n";
-			return -1;
-		}
+	/* Convert the port to a string */
+	snprintf (port_str, 8, "%i", port);
+	port_str[7] = '\0';
 
-		if (hp->h_length != sizeof(inaddr) || hp->h_addrtype != AF_INET) {
-			net_errmsg = "tcp_open: funny gethostbyname value\n";
-			return -1;
-		}
+	/* Resolve name */
+	memset ((void *) &ai_hints, '\0', sizeof (ai_hints));
+	ai_hints.ai_family   = AF_INET; /* XXX: Change this to `AF_UNSPEC' if apcupsd can handle IPv6 */
+	ai_hints.ai_socktype = SOCK_STREAM;
 
-		tcp_serv_addr.sin_addr.s_addr = *(unsigned int *)hp->h_addr;
+	status = getaddrinfo (host, port_str, &ai_hints, &ai_return);
+	if (status != 0)
+	{
+		DBG ("getaddrinfo failed: %s", status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
+		return (-1);
 	}
 
-	/* Open a TCP socket */
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		net_errmsg = "tcp_open: cannot open stream socket\n";
-		return -1;
+	/* Create socket */
+	sd = -1;
+	for (ai_list = ai_return; ai_list != NULL; ai_list = ai_list->ai_next)
+	{
+		sd = socket (ai_list->ai_family, ai_list->ai_socktype, ai_list->ai_protocol);
+		if (sd >= 0)
+			break;
+	}
+	/* `ai_list' still holds the current description of the socket.. */
+
+	if (sd < 0)
+	{
+		DBG ("Unable to open a socket");
+		freeaddrinfo (ai_return);
+		return (-1);
 	}
 
-	/* connect to server */
-#if defined HAVE_OPENBSD_OS || defined HAVE_FREEBSD_OS
-	/* 
-	 * Work around a bug in OpenBSD & FreeBSD userspace pthreads
-	 * implementations. Rationale is the same as described above.
-	 */
-	fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL));
-#endif
+	status = connect (sd, ai_list->ai_addr, ai_list->ai_addrlen);
 
-	if (connect(sockfd, (struct sockaddr *)&tcp_serv_addr, sizeof(tcp_serv_addr)) < 0) {
-		snprintf(net_errbuf, sizeof(net_errbuf),
-				_("tcp_open: cannot connect to server %s on port %d.\n"
-					"ERR=%s\n"), host, port, strerror(errno));
-		net_errmsg = net_errbuf;
-		close(sockfd);
-		return -1;
+	freeaddrinfo (ai_return);
+
+	if (status != 0) /* `connect(2)' failed */
+	{
+		DBG ("connect failed: %s", strerror (errno));
+		return (-1);
 	}
 
-	return sockfd;
+	return (sd);
 } /* int net_open(char *host, char *service, int port) */
 
 /* 
@@ -288,39 +284,37 @@ static int net_open(char *host, char *service, int port)
  * Returns -1 on hard end of file (i.e. network connection close)
  * Returns -2 on error
  */
-static int net_recv(int sockfd, char *buff, int maxlen)
+static int net_recv (int sockfd, char *buf, int buflen)
 {
-	int nbytes;
+	int   nbytes;
 	short pktsiz;
 
 	/* get data size -- in short */
-	if ((nbytes = read_nbytes(sockfd, (char *)&pktsiz, sizeof(short))) <= 0) {
-		/* probably pipe broken because client died */
-		return -1;                   /* assume hard EOF received */
-	}
-	if (nbytes != sizeof(short))
-		return -2;
+	if ((nbytes = read_nbytes (sockfd, (char *) &pktsiz, sizeof (short))) <= 0)
+		return (-1);
 
-	pktsiz = ntohs(pktsiz);         /* decode no. of bytes that follow */
-	if (pktsiz > maxlen) {
-		net_errmsg = "net_recv: record length too large\n";
-		return -2;
+	if (nbytes != sizeof (short))
+		return (-2);
+
+	pktsiz = ntohs(pktsiz);
+	if (pktsiz > buflen)
+	{
+		DBG ("record length too large");
+		return (-2);
 	}
+
 	if (pktsiz == 0)
-		return 0;                    /* soft EOF */
+		return (0);
 
 	/* now read the actual data */
-	if ((nbytes = read_nbytes(sockfd, buff, pktsiz)) <= 0) {
-		net_errmsg = "net_recv: read_nbytes error\n";
-		return -2;
-	}
-	if (nbytes != pktsiz) {
-		net_errmsg = "net_recv: error in read_nbytes\n";
-		return -2;
-	}
+	if ((nbytes = read_nbytes (sockfd, buf, pktsiz)) <= 0)
+		return (-2);
 
-	return (nbytes);                /* return actual length of message */
-}
+	if (nbytes != pktsiz)
+		return (-2);
+
+	return (nbytes);
+} /* static int net_recv (int sockfd, char *buf, int buflen) */
 
 /*
  * Send a message over the network. The send consists of
