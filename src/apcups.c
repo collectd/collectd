@@ -427,11 +427,6 @@ int main(int argc, char **argv)
 	return 0;
 }
 #else
-static void apcups_init (void)
-{
-	return;
-}
-
 static int apcups_config (char *key, char *value)
 {
   static char lhost[126];
@@ -460,62 +455,10 @@ static int apcups_config (char *key, char *value)
   return(0);
 }
 
-#define BUFSIZE 256
-static void apc_submit_generic (char *type, char *inst,
-		double value)
+static void apcups_init (void)
 {
-	char buf[512];
-	int  status;
-
-	status = snprintf (buf, 512, "%u:%f",
-			(unsigned int) curtime, value);
-	if ((status < 1) || (status >= 512))
-		return;
-
-	plugin_submit (type, inst, buf);
+	return;
 }
-
-static void apc_submit (struct apc_detail_s *apcups_detail)
-{
-	apc_submit_generic ("apcups_voltage",    "input",   apcups_detail->linev);
-	apc_submit_generic ("apcups_voltage",    "output",  apcups_detail->outputv);
-	apc_submit_generic ("apcups_voltage",    "battery", apcups_detail->battv);
-	apc_submit_generic ("apcups_charge",     "-",       apcups_detail->bcharge);
-	apc_submit_generic ("apcups_charge_pct", "-",       apcups_detail->loadpct);
-	apc_submit_generic ("apcups_timeleft",   "-",       apcups_detail->timeleft);
-	apc_submit_generic ("apcups_temp",       "-",       apcups_detail->itemp);
-	apc_submit_generic ("apcups_frequency",  "input",   apcups_detail->linefreq);
-}
-#undef BUFSIZE
-
-static void apcups_read (void)
-{
-	struct apc_detail_s apcups_detail;
-	int status;
-
-	if (host == NULL)
-		return;
-	
-	apcups_detail.linev    =   -1.0;
-	apcups_detail.outputv  =   -1.0;
-	apcups_detail.battv    =   -1.0;
-	apcups_detail.loadpct  =   -1.0;
-	apcups_detail.bcharge  =   -1.0;
-	apcups_detail.timeleft =   -1.0;
-	apcups_detail.itemp    = -300.0;
-	apcups_detail.linefreq =   -1.0;
-  
-	status = do_pthreads_status(host, port, &apcups_detail);
- 
-	/*
-	 * if we did not connect then do not bother submitting
-	 * zeros. We want rrd files to have NAN.
-	 */
-	if (status != 0)
-		return;
-
-	apc_submit (&apcups_detail);
-} /* apcups_read */
 
 static void apc_write_voltage (char *host, char *inst, char *val)
 {
@@ -560,6 +503,61 @@ static void apc_write_frequency (char *host, char *inst, char *val)
 
 	rrd_update_file (host, file, val, freq_ds_def, freq_ds_num);
 }
+
+static void apc_submit_generic (char *type, char *inst,
+		double value)
+{
+	char buf[512];
+	int  status;
+
+	status = snprintf (buf, 512, "%u:%f",
+			(unsigned int) curtime, value);
+	if ((status < 1) || (status >= 512))
+		return;
+
+	plugin_submit (type, inst, buf);
+}
+
+static void apc_submit (struct apc_detail_s *apcups_detail)
+{
+	apc_submit_generic ("apcups_voltage",    "input",   apcups_detail->linev);
+	apc_submit_generic ("apcups_voltage",    "output",  apcups_detail->outputv);
+	apc_submit_generic ("apcups_voltage",    "battery", apcups_detail->battv);
+	apc_submit_generic ("apcups_charge",     "-",       apcups_detail->bcharge);
+	apc_submit_generic ("apcups_charge_pct", "-",       apcups_detail->loadpct);
+	apc_submit_generic ("apcups_timeleft",   "-",       apcups_detail->timeleft);
+	apc_submit_generic ("apcups_temp",       "-",       apcups_detail->itemp);
+	apc_submit_generic ("apcups_frequency",  "input",   apcups_detail->linefreq);
+}
+
+static void apcups_read (void)
+{
+	struct apc_detail_s apcups_detail;
+	int status;
+
+	if (host == NULL)
+		return;
+	
+	apcups_detail.linev    =   -1.0;
+	apcups_detail.outputv  =   -1.0;
+	apcups_detail.battv    =   -1.0;
+	apcups_detail.loadpct  =   -1.0;
+	apcups_detail.bcharge  =   -1.0;
+	apcups_detail.timeleft =   -1.0;
+	apcups_detail.itemp    = -300.0;
+	apcups_detail.linefreq =   -1.0;
+  
+	status = do_pthreads_status(host, port, &apcups_detail);
+ 
+	/*
+	 * if we did not connect then do not bother submitting
+	 * zeros. We want rrd files to have NAN.
+	 */
+	if (status != 0)
+		return;
+
+	apc_submit (&apcups_detail);
+} /* apcups_read */
 
 void module_register (void)
 {
