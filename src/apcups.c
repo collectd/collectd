@@ -40,11 +40,11 @@
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
+
+#if 0
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h> /* inet_addr */
 #endif
-
-#if 0
 #include <pwd.h>
 #include <setjmp.h> /* FIXME: Is this really neccessary? */
 #include <termios.h> /* FIXME: Is this really neccessary? */
@@ -69,54 +69,46 @@ static int   port = NISPORT;
 */
 /* FIXME: Rename DSes to be more generic and follow established conventions. */
 #ifndef APCMAIN
-static char *volt_file_template = "apcups_volt-%s.rrd";
-static char *volt_ds_def[] = 
-{
-	"DS:linev:GAUGE:"COLLECTD_HEARTBEAT":0:250",
-	"DS:outputv:GAUGE:"COLLECTD_HEARTBEAT":0:250",
-	NULL
-};
-static int volt_ds_num = 2;
-
-static char *bvolt_file_template = "apcups_bvolt-%s.rrd";
+static char *bvolt_file_template = "apcups/voltage-%s.rrd";
 static char *bvolt_ds_def[] = 
 {
-	"DS:battv:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	"DS:voltage:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 };
 static int bvolt_ds_num = 1;
 
-static char *load_file_template = "apcups_load-%s.rrd";
+static char *load_file_template = "apcups/charge_percent.rrd";
 static char *load_ds_def[] = 
 {
-	"DS:loadpct:GAUGE:"COLLECTD_HEARTBEAT":0:120",
+	"DS:percent:GAUGE:"COLLECTD_HEARTBEAT":0:100",
 };
 static int load_ds_num = 1;
 
-static char *charge_file_template = "apcups_charge-%s.rrd";
+static char *charge_file_template = "apcups/charge.rrd";
 static char *charge_ds_def[] = 
 {
-	"DS:bcharge:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	"DS:charge:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 };
 static int charge_ds_num = 1;
 
-static char *time_file_template = "apcups_time-%s.rrd";
+static char *time_file_template = "apcups/time.rrd";
 static char *time_ds_def[] = 
 {
 	"DS:timeleft:GAUGE:"COLLECTD_HEARTBEAT":0:100",
 };
 static int time_ds_num = 1;
 
-static char *temp_file_template = "apcups_temp-%s.rrd";
+static char *temp_file_template = "apcups/temperature.rrd";
 static char *temp_ds_def[] = 
 {
-	"DS:itemp:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	/* -273.15 is absolute zero */
+	"DS:temperature:GAUGE:"COLLECTD_HEARTBEAT":-274:U",
 };
 static int temp_ds_num = 1;
 
-static char *freq_file_template = "apcups_freq-%s.rrd";
+static char *freq_file_template = "apcups/frequency-%s.rrd";
 static char *freq_ds_def[] = 
 {
-	"DS:linefreq:GAUGE:"COLLECTD_HEARTBEAT":0:65",
+	"DS:frequency:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 };
 static int freq_ds_num = 1;
 
@@ -132,14 +124,14 @@ static int config_keys_num = 2;
 
 struct apc_detail_s
 {
-	float linev;
-	float loadpct;
-	float bcharge;
-	float timeleft;
-	float outputv;
-	float itemp;
-	float battv;
-	float linefreq;
+	double linev;
+	double loadpct;
+	double bcharge;
+	double timeleft;
+	double outputv;
+	double itemp;
+	double battv;
+	double linefreq;
 };
 
 #define BIG_BUF 4096
@@ -469,243 +461,115 @@ static int apcups_config (char *key, char *value)
 }
 
 #define BUFSIZE 256
-static void apcups_submit (char *host,
-			   struct apc_detail_s *apcups_detail)
+static void apc_submit_generic (char *type, char *inst,
+		double value)
 {
-	char buf[BUFSIZE];
+	char buf[512];
+	int  status;
 
-	if (snprintf (buf, BUFSIZE, "%u:%f:%f",
-		      (unsigned int) curtime,
-		      apcups_detail->linev,
-		      apcups_detail->outputv) >= BUFSIZE)
-	  return;
-	
-	plugin_submit (MODULE_NAME, host, buf);
+	status = snprintf (buf, 512, "%u:%f",
+			(unsigned int) curtime, value);
+	if ((status < 1) || (status >= 512))
+		return;
+
+	plugin_submit (type, inst, buf);
 }
 
-static void apc_bvolt_submit (char *host,
-			   struct apc_detail_s *apcups_detail)
+static void apc_submit (struct apc_detail_s *apcups_detail)
 {
-	char buf[BUFSIZE];
-
-	if (snprintf (buf, BUFSIZE, "%u:%f",
-		      (unsigned int) curtime,
-		      apcups_detail->battv) >= BUFSIZE)
-	  return;
-	
-	plugin_submit ("apcups_bvolt", host, buf);
-}
-
-static void apc_load_submit (char *host,
-			   struct apc_detail_s *apcups_detail)
-{
-	char buf[BUFSIZE];
-
-	if (snprintf (buf, BUFSIZE, "%u:%f",
-		      (unsigned int) curtime,
-		      apcups_detail->loadpct) >= BUFSIZE)
-	  return;
-	
-	plugin_submit ("apcups_load", host, buf);
-}
-
-static void apc_charge_submit (char *host,
-			   struct apc_detail_s *apcups_detail)
-{
-	char buf[BUFSIZE];
-
-	if (snprintf (buf, BUFSIZE, "%u:%f",
-		      (unsigned int) curtime,
-		      apcups_detail->bcharge) >= BUFSIZE)
-	  return;
-	
-	plugin_submit ("apcups_charge", host, buf);
-}
-
-static void apc_temp_submit (char *host,
-			   struct apc_detail_s *apcups_detail)
-{
-	char buf[BUFSIZE];
-
-	if (snprintf (buf, BUFSIZE, "%u:%f",
-		      (unsigned int) curtime,
-		      apcups_detail->itemp) >= BUFSIZE)
-	  return;
-	
-	plugin_submit ("apcups_temp", host, buf);
-}
-
-static void apc_time_submit (char *host,
-			   struct apc_detail_s *apcups_detail)
-{
-	char buf[BUFSIZE];
-
-	if (snprintf (buf, BUFSIZE, "%u:%f",
-		      (unsigned int) curtime,
-		      apcups_detail->timeleft) >= BUFSIZE)
-	  return;
-	
-	plugin_submit ("apcups_time", host, buf);
-}
-
-static void apc_freq_submit (char *host,
-			   struct apc_detail_s *apcups_detail)
-{
-	char buf[BUFSIZE];
-
-	if (snprintf (buf, BUFSIZE, "%u:%f",
-		      (unsigned int) curtime,
-		      apcups_detail->linefreq) >= BUFSIZE)
-	  return;
-	
-	plugin_submit ("apcups_freq", host, buf);
+	apc_submit_generic ("apcups_voltage",    "input",   apcups_detail->linev);
+	apc_submit_generic ("apcups_voltage",    "output",  apcups_detail->outputv);
+	apc_submit_generic ("apcups_voltage",    "battery", apcups_detail->battv);
+	apc_submit_generic ("apcups_charge",     "-",       apcups_detail->bcharge);
+	apc_submit_generic ("apcups_charge_pct", "-",       apcups_detail->loadpct);
+	apc_submit_generic ("apcups_timeleft",   "-",       apcups_detail->timeleft);
+	apc_submit_generic ("apcups_temp",       "-",       apcups_detail->itemp);
+	apc_submit_generic ("apcups_frequency",  "input",   apcups_detail->linefreq);
 }
 #undef BUFSIZE
 
 static void apcups_read (void)
 {
-  struct apc_detail_s apcups_detail;
-  int status;
+	struct apc_detail_s apcups_detail;
+	int status;
+
+	if (host == NULL)
+		return;
 	
-  apcups_detail.linev = 0.0;
-  apcups_detail.loadpct = 0.0;
-  apcups_detail.bcharge = 0.0;
-  apcups_detail.timeleft = 0.0;
-  apcups_detail.outputv = 0.0;
-  apcups_detail.itemp = 0.0;
-  apcups_detail.battv = 0.0;
-  apcups_detail.linefreq = 0.0;
-
+	apcups_detail.linev    =   -1.0;
+	apcups_detail.outputv  =   -1.0;
+	apcups_detail.battv    =   -1.0;
+	apcups_detail.loadpct  =   -1.0;
+	apcups_detail.bcharge  =   -1.0;
+	apcups_detail.timeleft =   -1.0;
+	apcups_detail.itemp    = -300.0;
+	apcups_detail.linefreq =   -1.0;
   
-  if (!*host || strcmp(host, "0.0.0.0") == 0)
-    host = "localhost";
-  
-  status = do_pthreads_status(host, port, &apcups_detail);
+	status = do_pthreads_status(host, port, &apcups_detail);
  
-  /*
-   * if we did not connect then do not bother submitting
-   * zeros. We want rrd files to have NAN.
-  */
-  if (status != 0)
-	  return;
+	/*
+	 * if we did not connect then do not bother submitting
+	 * zeros. We want rrd files to have NAN.
+	 */
+	if (status != 0)
+		return;
 
-  apcups_submit (host, &apcups_detail);
-  apc_bvolt_submit (host, &apcups_detail);
-  apc_load_submit (host, &apcups_detail);
-  apc_charge_submit (host, &apcups_detail);
-  apc_temp_submit (host, &apcups_detail);
-  apc_time_submit (host, &apcups_detail);
-  apc_freq_submit (host, &apcups_detail);
+	apc_submit (&apcups_detail);
+} /* apcups_read */
+
+static void apc_write_voltage (char *host, char *inst, char *val)
+{
+	char file[512];
+	int  status;
+
+	status = snprintf (file, 512, bvolt_file_template, inst);
+	if ((status < 1) || (status >= 512))
+		return;
+
+	rrd_update_file (host, file, val, bvolt_ds_def, bvolt_ds_num);
 }
 
-
-static void apcups_write (char *host, char *inst, char *val)
+static void apc_write_charge (char *host, char *inst, char *val)
 {
-  char file[512];
-  int status;
-  
-  status = snprintf (file, 512, volt_file_template, inst);
-  if (status < 1)
-    return;
-  else if (status >= 512)
-    return;
-  
-  rrd_update_file (host, file, val, volt_ds_def, volt_ds_num);
+	rrd_update_file (host, charge_file_template, val, charge_ds_def, charge_ds_num);
 }
 
-static void apc_bvolt_write (char *host, char *inst, char *val)
+static void apc_write_percent (char *host, char *inst, char *val)
 {
-  char file[512];
-  int status;
-  
-  status = snprintf (file, 512, bvolt_file_template, inst);
-  if (status < 1)
-    return;
-  else if (status >= 512)
-    return;
-  
-  rrd_update_file (host, file, val, bvolt_ds_def, bvolt_ds_num);
+	rrd_update_file (host, load_file_template, val, load_ds_def, load_ds_num);
 }
 
-static void apc_load_write (char *host, char *inst, char *val)
+static void apc_write_timeleft (char *host, char *inst, char *val)
 {
-  char file[512];
-  int status;
-  
-  status = snprintf (file, 512, load_file_template, inst);
-  if (status < 1)
-    return;
-  else if (status >= 512)
-    return;
-  
-  rrd_update_file (host, file, val, load_ds_def, load_ds_num);
+	rrd_update_file (host, time_file_template, val, time_ds_def, time_ds_num);
 }
 
-static void apc_charge_write (char *host, char *inst, char *val)
+static void apc_write_temperature (char *host, char *inst, char *val)
 {
-  char file[512];
-  int status;
-  
-  status = snprintf (file, 512, charge_file_template, inst);
-  if (status < 1)
-    return;
-  else if (status >= 512)
-    return;
-  
-  rrd_update_file (host, file, val, charge_ds_def, charge_ds_num);
+	rrd_update_file (host, temp_file_template, val, temp_ds_def, temp_ds_num);
 }
 
-static void apc_temp_write (char *host, char *inst, char *val)
+static void apc_write_frequency (char *host, char *inst, char *val)
 {
-  char file[512];
-  int status;
-  
-  status = snprintf (file, 512, temp_file_template, inst);
-  if (status < 1)
-    return;
-  else if (status >= 512)
-    return;
-  
-  rrd_update_file (host, file, val, temp_ds_def, temp_ds_num);
-}
+	char file[512];
+	int  status;
 
-static void apc_time_write (char *host, char *inst, char *val)
-{
-  char file[512];
-  int status;
-  
-  status = snprintf (file, 512, time_file_template, inst);
-  if (status < 1)
-    return;
-  else if (status >= 512)
-    return;
-  
-  rrd_update_file (host, file, val, time_ds_def, time_ds_num);
-}
+	status = snprintf (file, 512, freq_file_template, inst);
+	if ((status < 1) || (status >= 512))
+		return;
 
-static void apc_freq_write (char *host, char *inst, char *val)
-{
-  char file[512];
-  int status;
-  
-  status = snprintf (file, 512, freq_file_template, inst);
-  if (status < 1)
-    return;
-  else if (status >= 512)
-    return;
-  
-  rrd_update_file (host, file, val, freq_ds_def, freq_ds_num);
+	rrd_update_file (host, file, val, freq_ds_def, freq_ds_num);
 }
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, apcups_init, apcups_read, apcups_write);
-	plugin_register ("apcups_bvolt", NULL, NULL, apc_bvolt_write);
-	plugin_register ("apcups_load", NULL, NULL, apc_load_write);
-	plugin_register ("apcups_charge", NULL, NULL, apc_charge_write);
-	plugin_register ("apcups_temp", NULL, NULL, apc_temp_write);
-	plugin_register ("apcups_time", NULL, NULL, apc_time_write);
-	plugin_register ("apcups_freq", NULL, NULL, apc_freq_write);
+	plugin_register (MODULE_NAME, apcups_init, apcups_read, NULL);
+	plugin_register ("apcups_voltage",    NULL, NULL, apc_write_voltage);
+	plugin_register ("apcups_charge",     NULL, NULL, apc_write_charge);
+	plugin_register ("apcups_charge_pct", NULL, NULL, apc_write_percent);
+	plugin_register ("apcups_timeleft",   NULL, NULL, apc_write_timeleft);
+	plugin_register ("apcups_temp",       NULL, NULL, apc_write_temperature);
+	plugin_register ("apcups_frequency",  NULL, NULL, apc_write_frequency);
 	cf_register (MODULE_NAME, apcups_config, config_keys, config_keys_num);
 }
 
