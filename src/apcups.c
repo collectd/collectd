@@ -22,12 +22,27 @@
  *   Anthony Gialluca <tonyabg at charter.net>
  **/
 
+/*
+ * FIXME: Don't know why but without this here atof() was not returning
+ * correct values for me. This is behavior that I don't understand and
+ * should be examined in closer detail.
+ */
+#include <stdlib.h>
+
 #include "collectd.h"
-#include "common.h" /* rrd_update_file */
-#include "plugin.h" /* plugin_register, plugin_submit */
-#include "configfile.h" /* cf_register */
+#include "common.h"      /* rrd_update_file */
+#include "plugin.h"      /* plugin_register, plugin_submit */
+#include "configfile.h"  /* cf_register */
 #include "utils_debug.h"
 
+<<<<<<< .mine
+#include <string.h>
+#include <errno.h>
+#include <netdb.h>
+#include <sys/socket.h>			/* Used for socket connections */
+#include <netinet/in.h>			/* Used for socket connections */
+#include <arpa/inet.h>			/* Used for socket connections */
+=======
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -53,6 +68,9 @@
 #include <sys/sem.h> /* FIXME: Is this really neccessary? */
 #include <sys/shm.h> /* FIXME: Is this really neccessary? */
 #endif
+>>>>>>> .r743
+
+
 
 #define NISPORT 3551
 #define _(String) (String)
@@ -60,14 +78,41 @@
 #define MAXSTRING               256
 #define MODULE_NAME "apcups"
 
+<<<<<<< .mine
+
+=======
+>>>>>>> .r743
 /* Default values for contacting daemon */
+<<<<<<< .mine
+static char *host = "localhost";	/* the default host to connect to */
+static int port = NISPORT;		/* the default port to connect to */
+=======
 static char *global_host = NULL;
 static int   global_port = NISPORT;
+>>>>>>> .r743
 
+<<<<<<< .mine
+/*
+ * This is used in do_apc_status() to track the last connection state.
+ * We do not want the read function spitting out an error every "step"
+ * seconds (usually 10 secs).
+ */
+static int apcConnStatus = 0;
+
+static struct sockaddr_in tcp_serv_addr;  /* socket information */
+static char *net_errmsg = NULL;           /* pointer to error message */
+static char net_errbuf[256];              /* error message buffer for messages */
+
+=======
+>>>>>>> .r743
 /* 
- * The following are only if not compiled to test the module with its own main.
-*/
-/* FIXME: Rename DSes to be more generic and follow established conventions. */
+ * The following are normally compiled, when the module is compiled with its
+ * own main for testing these are ifdef'd out.
+ */
+/* 
+ * FIXME: Rename DSes to be more generic and follow established conventions.
+ *  However, they currently match the values put out by apcupsd.
+ */
 #ifndef APCMAIN
 static char *bvolt_file_template = "apcups/voltage-%s.rrd";
 static char *bvolt_ds_def[] = 
@@ -124,6 +169,17 @@ static int config_keys_num = 2;
 
 struct apc_detail_s
 {
+<<<<<<< .mine
+        int connected;
+	float linev;
+	float loadpct;
+	float bcharge;
+	float timeleft;
+	float outputv;
+	float itemp;
+	float battv;
+	float linefreq;
+=======
 	double linev;
 	double loadpct;
 	double bcharge;
@@ -132,10 +188,14 @@ struct apc_detail_s
 	double itemp;
 	double battv;
 	double linefreq;
+>>>>>>> .r743
 };
 
+<<<<<<< .mine
+=======
 #define BIG_BUF 4096
 
+>>>>>>> .r743
 /*
  * Read nbytes from the network.
  * It is possible that the total bytes require in several
@@ -175,6 +235,10 @@ static int write_nbytes (int fd, void *buf, int buflen)
 
 	ptr = (char *) buf;
 
+<<<<<<< .mine
+		if (nwritten <= 0) {
+			return (nwritten);        /* error */
+=======
 	nleft = buflen;
 	while (nleft > 0)
 	{
@@ -184,6 +248,7 @@ static int write_nbytes (int fd, void *buf, int buflen)
 		{
 			syslog (LOG_ERR, "Writing to socket failed: %s", strerror (errno));
 			return (nwritten);
+>>>>>>> .r743
 		}
 
 		nleft -= nwritten;
@@ -335,36 +400,68 @@ static int net_send (int sockfd, char *buff, int len)
 	return (0);
 }
 
+<<<<<<< .mine
+/* 
+ * Get and print status from apcupsd NIS server if APCMAIN is defined. 
+ * Poplate apcups_detail structure for plugin submit().
+ */
+static int do_apc_status(char *host, int port, struct apc_detail_s *apcups_detail)
+=======
 /* Get and print status from apcupsd NIS server */
 static int apc_query_server (char *host, int port,
 		struct apc_detail_s *apcups_detail)
+>>>>>>> .r743
 {
 	int     sockfd;
 	int     n;
 	char    recvline[MAXSTRING + 1];
 	char   *tokptr;
 	char   *key;
-	double  value;
+	float  value;
 #if APCMAIN
 # define PRINT_VALUE(name, val) printf("  Found property: name = %s; value = %f;\n", name, val)
 #else
 # define PRINT_VALUE(name, val) /**/
 #endif
 
+<<<<<<< .mine
+	/* 
+	 * TODO: Keep the socket open, if possible.
+	 * Can open socket in module init, but without a corresponding module
+	 * uninit there is no place to gracefully close the socket.
+	 */
+=======
 	/* TODO: Keep the socket open, if possible */
+>>>>>>> .r743
 	if ((sockfd = net_open (host, NULL, port)) < 0)
 	{
-		syslog (LOG_ERR, "apcups plugin: Connecting to the apcupsd failed.");
+		/* 
+		 * When the integer apcConnStatus rolls over it will print out
+		 * again, if we haven't connected by then.
+		 */
+		if (apcConnStatus++ == 0)
+			syslog (LOG_ERR, "apcups plugin: Connecting to the apcupsd failed: %s",
+				net_errmsg);
+		return (-1);
+	} else apcConnStatus = 0;
+
+	if (net_send (sockfd, "status", 6) < 0)
+	{
+		syslog (LOG_ERR, "apcups plugin: sending to the apcupsd failed: %s",
+			net_errmsg);
 		return (-1);
 	}
 
+<<<<<<< .mine
+=======
 	net_send (sockfd, "status", 6);
 
+>>>>>>> .r743
 	while ((n = net_recv (sockfd, recvline, sizeof (recvline))) > 0)
 	{
-		recvline[n] = '\0';
+		recvline[n-1] = '\0';
 #if APCMAIN
-		printf ("net_recv = `%s';\n", recvline);
+		printf ("net_recv = \"%s\"\n", recvline);
 #endif /* if APCMAIN */
 
 		tokptr = strtok (recvline, ":");
@@ -372,36 +469,54 @@ static int apc_query_server (char *host, int port,
 		{
 			key = tokptr;
 			if ((tokptr = strtok (NULL, " \t")) == NULL)
-				continue;
-			value = atof (tokptr);
-			PRINT_VALUE (key, value);
+				continue; 
 
-			if (strcmp ("LINEV", key) == 0)
+			if (strncmp ("LINEV", key,5) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->linev = value;
-			else if (strcmp ("BATTV", tokptr) == 0)
+			} else if (strncmp ("BATTV", key,5) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->battv = value;
-			else if (strcmp ("ITEMP", tokptr) == 0)
+			} else if (strncmp ("ITEMP", key,5) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->itemp = value;
-			else if (strcmp ("LOADPCT", tokptr) == 0)
+			} else if (strncmp ("LOADPCT", key,7) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->loadpct = value;
-			else if (strcmp ("BCHARGE", tokptr) == 0)
+			} else if (strncmp ("BCHARGE", key,7) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->bcharge = value;
-			else if (strcmp ("OUTPUTV", tokptr) == 0)
+			} else if (strncmp ("OUTPUTV", key,7) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->outputv = value;
-			else if (strcmp ("LINEFREQ", tokptr) == 0)
+			} else if (strncmp ("LINEFREQ", key,8) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->linefreq = value;
-			else if (strcmp ("TIMELEFT", tokptr) == 0)
+			} else if (strncmp ("TIMELEFT", key,8) == 0) {
+				value = atof (tokptr);
+				PRINT_VALUE (key, value);
 				apcups_detail->timeleft = value;
-			else
-			{
-				syslog (LOG_WARNING, "apcups plugin: Received unknown property from apcupsd: `%s' = %f",
-						key, value);
-			}
+			} 
 
 			tokptr = strtok (NULL, ":");
 		} /* while (tokptr != NULL) */
 	}
 
+<<<<<<< .mine
+	if (n < 0) {
+	  syslog(LOG_ERR, "apcups plugin: Error recieving data: %s",
+		 net_errmsg);
+	  net_errmsg = NULL;
+	  return(-1);
+	}
+=======
 	net_close (sockfd);
 
 	if (n < 0)
@@ -409,26 +524,86 @@ static int apc_query_server (char *host, int port,
 		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
 		return (-1);
 	}
+>>>>>>> .r743
 
+<<<<<<< .mine
+	/* signal that we did in fact connect. */
+	apcups_detail->connected = 1;
+
+	net_close(sockfd);
+
+=======
+>>>>>>> .r743
 	return (0);
 }
 
 #ifdef APCMAIN
+<<<<<<< .mine
+/*
+ * This is used for testing apcups in a standalone mode.
+ * Usefull for debugging.
+ */
+int main(int argc, char **argv)
+=======
 int main (int argc, char **argv)
+>>>>>>> .r743
 {
 	/* we are not really going to use this */
 	struct apc_detail_s apcups_detail;
 
+<<<<<<< .mine
+	openlog("apcups",LOG_PID | LOG_NDELAY | LOG_LOCAL1);
+
+	if (!*host || strcmp(host, "0.0.0.0") == 0)
+=======
 	if (!*host || strcmp (host, "0.0.0.0") == 0)
+>>>>>>> .r743
 		host = "localhost";
 
+<<<<<<< .mine
+	if(do_apc_status(host, port, &apcups_detail) < 0) {
+		printf("apcups: Failed...\n");
+		return(-1);
+	}
+=======
 	apc_query_server (global_host, global_port, &apcups_detail);
+>>>>>>> .r743
 
 	return 0;
 }
 #else
 static int apcups_config (char *key, char *value)
 {
+<<<<<<< .mine
+  static char lhost[126];
+  
+  if (strcasecmp (key, "host") == 0)
+    {
+      lhost[0] = '\0';
+      strcpy(lhost,key);
+      host = lhost;
+    }
+  else if (strcasecmp (key, "Port") == 0)
+    {
+      int port_tmp = atoi (value);
+      if(port_tmp < 1 || port_tmp > 65535) {
+	syslog (LOG_WARNING, "apcups: `port' failed: %s",
+		value);
+	return (1);
+      } else {
+	port = port_tmp;
+      }
+    }
+  else
+    {
+      return (-1);
+    }
+
+  if (strcmp(host, "0.0.0.0") == 0)
+	host = "localhost";
+
+  return(0);
+=======
 	if (strcasecmp (key, "host") == 0)
 	{
 		if (global_host != NULL)
@@ -454,6 +629,7 @@ static int apcups_config (char *key, char *value)
 		return (-1);
 	}
 	return (0);
+>>>>>>> .r743
 }
 
 static void apcups_init (void)
@@ -495,32 +671,127 @@ static void apc_write_temperature (char *host, char *inst, char *val)
 
 static void apc_write_frequency (char *host, char *inst, char *val)
 {
+<<<<<<< .mine
+	struct apc_detail_s apcups_detail;
+	
+	apcups_detail.linev     = 0.0;
+	apcups_detail.loadpct   = 0.0;
+	apcups_detail.bcharge   = 0.0;
+	apcups_detail.timeleft  = 0.0;
+	apcups_detail.outputv   = 0.0;
+	apcups_detail.itemp     = 0.0;
+	apcups_detail.battv     = 0.0;
+	apcups_detail.linefreq  = 0.0;
+	apcups_detail.connected = 0;
+=======
 	char file[512];
 	int  status;
+>>>>>>> .r743
 
+<<<<<<< .mine
+  
+	if (!*host || strcmp(host, "0.0.0.0") == 0)
+		host = "localhost";
+  
+	if(do_apc_status(host, port, &apcups_detail) < 0) return;
+ 
+	/*
+ 	 * if we did not connect then do not bother submitting
+ 	 * zeros. We want rrd files to have NAN.
+	 */
+	if(!apcups_detail.connected) return;
+=======
 	status = snprintf (file, 512, freq_file_template, inst);
 	if ((status < 1) || (status >= 512))
 		return;
+>>>>>>> .r743
 
+<<<<<<< .mine
+	apcups_submit     (host, &apcups_detail);
+	apc_bvolt_submit  (host, &apcups_detail);
+	apc_load_submit   (host, &apcups_detail);
+	apc_charge_submit (host, &apcups_detail);
+	apc_temp_submit   (host, &apcups_detail);
+	apc_time_submit   (host, &apcups_detail);
+	apc_freq_submit   (host, &apcups_detail);
+=======
 	rrd_update_file (host, file, val, freq_ds_def, freq_ds_num);
+>>>>>>> .r743
 }
 
 static void apc_submit_generic (char *type, char *inst,
 		double value)
 {
+<<<<<<< .mine
+	char file[512];
+	int status;
+
+	status = snprintf (file, 512, volt_file_template, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+
+	rrd_update_file (host, file, val, volt_ds_def, volt_ds_num);
+}
+=======
 	char buf[512];
 	int  status;
+>>>>>>> .r743
 
+<<<<<<< .mine
+static void apc_bvolt_write (char *host, char *inst, char *val)
+{
+	char file[512];
+	int status;
+
+	status = snprintf (file, 512, bvolt_file_template, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+	return;
+
+	rrd_update_file (host, file, val, bvolt_ds_def, bvolt_ds_num);
+}
+=======
 	status = snprintf (buf, 512, "%u:%f",
 			(unsigned int) curtime, value);
 	if ((status < 1) || (status >= 512))
 		return;
+>>>>>>> .r743
 
+<<<<<<< .mine
+static void apc_load_write (char *host, char *inst, char *val)
+{
+	char file[512];
+	int status;
+  
+	status = snprintf (file, 512, load_file_template, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+	
+	rrd_update_file (host, file, val, load_ds_def, load_ds_num);
+=======
 	plugin_submit (type, inst, buf);
+>>>>>>> .r743
 }
 
 static void apc_submit (struct apc_detail_s *apcups_detail)
 {
+<<<<<<< .mine
+	char file[512];
+	int status;
+  
+	status = snprintf (file, 512, charge_file_template, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+  
+	rrd_update_file (host, file, val, charge_ds_def, charge_ds_num);
+=======
 	apc_submit_generic ("apcups_voltage",    "input",   apcups_detail->linev);
 	apc_submit_generic ("apcups_voltage",    "output",  apcups_detail->outputv);
 	apc_submit_generic ("apcups_voltage",    "battery", apcups_detail->battv);
@@ -529,13 +800,34 @@ static void apc_submit (struct apc_detail_s *apcups_detail)
 	apc_submit_generic ("apcups_timeleft",   "-",       apcups_detail->timeleft);
 	apc_submit_generic ("apcups_temp",       "-",       apcups_detail->itemp);
 	apc_submit_generic ("apcups_frequency",  "input",   apcups_detail->linefreq);
+>>>>>>> .r743
 }
 
 static void apcups_read (void)
 {
+<<<<<<< .mine
+	char file[512];
+	int status;
+  
+	status = snprintf (file, 512, temp_file_template, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+  
+	rrd_update_file (host, file, val, temp_ds_def, temp_ds_num);
+}
+=======
 	struct apc_detail_s apcups_detail;
 	int status;
+>>>>>>> .r743
 
+<<<<<<< .mine
+static void apc_time_write (char *host, char *inst, char *val)
+{
+	char file[512];
+	int status;
+=======
 	if (global_host == NULL)
 		return;
 	
@@ -547,7 +839,18 @@ static void apcups_read (void)
 	apcups_detail.timeleft =   -1.0;
 	apcups_detail.itemp    = -300.0;
 	apcups_detail.linefreq =   -1.0;
+>>>>>>> .r743
   
+<<<<<<< .mine
+	status = snprintf (file, 512, time_file_template, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+  
+	rrd_update_file (host, file, val, time_ds_def, time_ds_num);
+}
+=======
 	status = apc_query_server (global_host, global_port, &apcups_detail);
  
 	/*
@@ -556,9 +859,26 @@ static void apcups_read (void)
 	 */
 	if (status != 0)
 		return;
+>>>>>>> .r743
 
+<<<<<<< .mine
+static void apc_freq_write (char *host, char *inst, char *val)
+{
+	char file[512];
+	int status;
+  
+	status = snprintf (file, 512, freq_file_template, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+  
+	rrd_update_file (host, file, val, freq_ds_def, freq_ds_num);
+}
+=======
 	apc_submit (&apcups_detail);
 } /* apcups_read */
+>>>>>>> .r743
 
 void module_register (void)
 {
@@ -574,3 +894,5 @@ void module_register (void)
 
 #endif /* ifdef APCMAIN */
 #undef MODULE_NAME
+#undef MAXSTRING
+#undef NISPORT
