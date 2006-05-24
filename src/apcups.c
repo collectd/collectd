@@ -63,7 +63,7 @@ static int   global_port = NISPORT;
 /* 
  * The following are only if not compiled to test the module with its own main.
 */
-#if APCMAIN
+#if !APCMAIN
 static char *bvolt_file_template = "apcups/voltage-%s.rrd";
 static char *bvolt_ds_def[] = 
 {
@@ -136,49 +136,65 @@ struct apc_detail_s
  * It is possible that the total bytes require in several
  * read requests
  */
-static int read_nbytes (int fd, char *ptr, int nbytes)
+static int read_nbytes (int *fd, char *ptr, int nbytes)
 {
-	int nleft, nread;
+	int nleft;
+	int nread;
 
 	nleft = nbytes;
+	nread = -1;
 
-	while (nleft > 0) {
-		do {
-			nread = read (fd, ptr, nleft);
-		} while (nread == -1 && (errno == EINTR || errno == EAGAIN));
+	assert (*fd >= 0);
 
-		if (nread <= 0) {
-			return (nread);           /* error, or EOF */
+	while ((nleft > 0) && (nread != 0))
+	{
+		nread = read (*fd, ptr, nleft);
+
+		if (nread == -1 && (errno == EINTR || errno == EAGAIN))
+			continue;
+
+		if (nread == -1)
+		{
+			*fd = -1;
+			syslog (LOG_ERR, "apcups plugin: write failed: %s", strerror (errno));
+			return (-1);
 		}
 
 		nleft -= nread;
 		ptr += nread;
 	}
 
-	return (nbytes - nleft);        /* return >= 0 */
+	return (nbytes - nleft);
 }
 
 /*
  * Write nbytes to the network.
  * It may require several writes.
  */
-static int write_nbytes (int fd, void *buf, int buflen)
+static int write_nbytes (int *fd, void *buf, int buflen)
 {
 	int nleft;
 	int nwritten;
 	char *ptr;
+
+	assert (buflen > 0);
+	assert (*fd >= 0);
 
 	ptr = (char *) buf;
 
 	nleft = buflen;
 	while (nleft > 0)
 	{
-		nwritten = write (fd, ptr, nleft);
+		nwritten = write (*fd, ptr, nleft);
 
-		if (nwritten <= 0)
+		if ((nwritten == -1) && ((errno == EAGAIN) || (errno == EINTR)))
+			continue;
+
+		if (nwritten == -1)
 		{
 			syslog (LOG_ERR, "Writing to socket failed: %s", strerror (errno));
-			return (nwritten);
+			*fd = -1;
+			return (-1);
 		}
 
 		nleft -= nwritten;
@@ -189,15 +205,21 @@ static int write_nbytes (int fd, void *buf, int buflen)
 	return (buflen);
 }
 
+#if 0
 /* Close the network connection */
-static void net_close (int sockfd)
+static void net_close (int *fd)
 {
 	short pktsiz = 0;
 
+	assert (*fd >= 0);
+
 	/* send EOF sentinel */
-	write_nbytes (sockfd, &pktsiz, sizeof (short));
-	close (sockfd);
+	write_nbytes (fd, &pktsiz, sizeof (short));
+
+	close (*fd);
+	*fd = -1;
 }
+#endif
 
 
 /*     
@@ -271,7 +293,7 @@ static int net_open (char *host, char *service, int port)
  * Returns -1 on hard end of file (i.e. network connection close)
  * Returns -2 on error
  */
-static int net_recv (int sockfd, char *buf, int buflen)
+static int net_recv (int *sockfd, char *buf, int buflen)
 {
 	int   nbytes;
 	short pktsiz;
@@ -310,10 +332,12 @@ static int net_recv (int sockfd, char *buf, int buflen)
  * Returns zero on success
  * Returns non-zero on error
  */
-static int net_send (int sockfd, char *buff, int len)
+static int net_send (int *sockfd, char *buff, int len)
 {
 	int rc;
 	short packet_size;
+
+	assert (len > 0);
 
 	/* send short containing size of data packet */
 	packet_size = htons ((short) len);
@@ -334,13 +358,13 @@ static int net_send (int sockfd, char *buff, int len)
 static int apc_query_server (char *host, int port,
 		struct apc_detail_s *apcups_detail)
 {
-	int     sockfd;
 	int     n;
 	char    recvline[1024];
 	char   *tokptr;
 	char   *key;
 	double  value;
 
+	static int sockfd   = -1;
 	static int complain = 0;
 
 #if APCMAIN
@@ -349,28 +373,30 @@ static int apc_query_server (char *host, int port,
 # define PRINT_VALUE(name, val) /**/
 #endif
 
-	/* TODO: Keep the socket open, if possible */
-	if ((sockfd = net_open (host, NULL, port)) < 0)
+	if (sockfd < 0)
 	{
-		/* Complain once every six hours. */
-		int complain_step = 21600 / atoi (COLLECTD_STEP);
+		if ((sockfd = net_open (host, NULL, port)) < 0)
+		{
+			/* Complain once every six hours. */
+			int complain_step = 21600 / atoi (COLLECTD_STEP);
 
-		if ((complain % complain_step) == 0)
-			syslog (LOG_ERR, "apcups plugin: Connecting to the apcupsd failed.");
-		complain++;
+			if ((complain % complain_step) == 0)
+				syslog (LOG_ERR, "apcups plugin: Connecting to the apcupsd failed.");
+			complain++;
 
-		return (-1);
+			return (-1);
+		}
+		complain = 0;
 	}
-	complain = 0;
 
-	if (net_send (sockfd, "status", 6) < 0)
+	if (net_send (&sockfd, "status", 6) < 0)
 	{
 		syslog (LOG_ERR, "apcups plugin: Writing to the socket failed.");
 		return (-1);
 	}
 
  	/* XXX: Do we read `n' or `n-1' bytes? */
-	while ((n = net_recv (sockfd, recvline, sizeof (recvline) - 1)) > 0)
+	while ((n = net_recv (&sockfd, recvline, sizeof (recvline) - 1)) > 0)
 	{
 		assert (n < sizeof (recvline));
 		recvline[n] = '\0';
@@ -412,8 +438,6 @@ static int apc_query_server (char *host, int port,
 			tokptr = strtok (NULL, ":");
 		} /* while (tokptr != NULL) */
 	}
-
-	net_close (sockfd);
 
 	if (n < 0)
 	{
