@@ -48,6 +48,10 @@
 # include <netinet/in.h>
 #endif
 
+#ifndef APCMAIN
+# define APCMAIN 0
+#endif
+
 #define NISPORT 3551
 #define MAXSTRING               256
 #define MODULE_NAME "apcups"
@@ -59,8 +63,7 @@ static int   global_port = NISPORT;
 /* 
  * The following are only if not compiled to test the module with its own main.
 */
-/* FIXME: Rename DSes to be more generic and follow established conventions. */
-#ifndef APCMAIN
+#if APCMAIN
 static char *bvolt_file_template = "apcups/voltage-%s.rrd";
 static char *bvolt_ds_def[] = 
 {
@@ -112,7 +115,7 @@ static char *config_keys[] =
 };
 static int config_keys_num = 2;
 
-#endif /* ifndef APCMAIN */
+#endif /* if APCMAIN */
 
 struct apc_detail_s
 {
@@ -421,7 +424,7 @@ static int apc_query_server (char *host, int port,
 	return (0);
 }
 
-#ifdef APCMAIN
+#if APCMAIN
 /*
  * This is used for testing apcups in a standalone mode.
  * Usefull for debugging.
@@ -592,5 +595,5 @@ void module_register (void)
 	cf_register (MODULE_NAME, apcups_config, config_keys, config_keys_num);
 }
 
-#endif /* ifdef APCMAIN */
+#endif /* if APCMAIN */
 #undef MODULE_NAME
