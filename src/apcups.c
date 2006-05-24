@@ -349,7 +349,7 @@ static int apc_query_server (char *host, int port,
 	/* TODO: Keep the socket open, if possible */
 	if ((sockfd = net_open (host, NULL, port)) < 0)
 	{
-		/* Complain once every six hours.
+		/* Complain once every six hours. */
 		int complain_step = 21600 / atoi (COLLECTD_STEP);
 
 		if ((complain % complain_step) == 0)
