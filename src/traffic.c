@@ -49,6 +49,18 @@
 
 #define MODULE_NAME "traffic"
 
+/*
+ * Various people have reported problems with `getifaddrs' and varying versions
+ * of `glibc'. That's why it's disabled by default. Since more statistics are
+ * available this way one may enable it using the `--enable-getifaddrs' option
+ * of the configure script. -octo
+ */
+#if KERNEL_LINUX
+# if !COLLECT_GETIFADDRS
+#  undef HAVE_GETIFADDRS
+# endif /* !COLLECT_GETIFADDRS */
+#endif /* KERNEL_LINUX */
+
 #if HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT || HAVE_LIBSTATGRAB
 # define TRAFFIC_HAVE_READ 1
 #else
