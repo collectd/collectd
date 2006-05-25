@@ -196,6 +196,17 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =back
 
+=head2 Plugin C<traffic>
+
+=over 4
+
+=item B<Ignore> I<Interface>
+
+Ignore the given interface. Use this to get rid of loopback- or
+IPv6-in-IPv4-tunnel-interface statistics.
+
+=back
+
 =head1 SEE ALSO
 
 L<collectd(1)>
