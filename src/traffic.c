@@ -380,13 +380,20 @@ static void traffic_read (void)
 		
 		numfields = strsplit (dummy, fields, 16);
 
-		if (numfields < 9)
+		if (numfields < 11)
 			continue;
 
 		incoming = atoll (fields[0]);
 		outgoing = atoll (fields[8]);
-
 		bytes_submit (device, incoming, outgoing);
+
+		incoming = atoll (fields[1]);
+		incoming = atoll (fields[9]);
+		packets_submit (device, incoming, outgoing);
+
+		incoming = atoll (fields[2]);
+		incoming = atoll (fields[10]);
+		errors_submit (device, incoming, outgoing);
 	}
 
 	fclose (fh);
