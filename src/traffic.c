@@ -257,7 +257,7 @@ static void bytes_submit (char *dev,
 	plugin_submit (MODULE_NAME, dev, buf);
 }
 
-#if HAVE_GETIFADDRS || HAVE_LIBKSTAT
+#if HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT
 static void packets_submit (char *dev,
 		unsigned long long rx,
 		unsigned long long tx)
@@ -293,7 +293,7 @@ static void errors_submit (char *dev,
 		return;
 	plugin_submit ("if_errors", dev, buf);
 }
-#endif /* HAVE_GETIFADDRS || HAVE_LIBKSTAT */
+#endif /* HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT */
 
 static void traffic_read (void)
 {
