@@ -47,6 +47,9 @@
 #if HAVE_NETINET_TCP_H
 # include <netinet/tcp.h>
 #endif
+#if HAVE_SYS_POLL_H
+# include <sys/poll.h>
+#endif
 
 /* drift */
 static char *time_offset_file = "ntpd/time_offset-%s.rrd";
@@ -145,6 +148,9 @@ struct resp_pkt
 #define	INFO_MBZ(mbz_itemsize)	((ntohs(mbz_itemsize)>>12)&0xf)
 #define	INFO_ITEMSIZE(mbz_itemsize)	((u_short)(ntohs(mbz_itemsize)&0xfff))
 #define	MBZ_ITEMSIZE(itemsize)	(htons((u_short)(itemsize)))
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * End of the copied stuff..                                         *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 static void ntpd_init (void)
 {
@@ -167,6 +173,31 @@ static void ntpd_submit (double snum, double mnum, double lnum)
 		return;
 
 	plugin_submit (MODULE_NAME, "-", buf);
+}
+
+/* returns `tv0 - tv1' in milliseconds or 0 if `tv1 > tv0' */
+static int timeval_sub (const struct timeval *tv0, const struct timeval *tv1)
+{
+	int sec;
+	int usec;
+
+	if ((tv0->tv_sec < tv1->tv_sec)
+			|| ((tv0->tv_sec == tv1->tv_sec) && (tv0->tv_usec < tv1->tv_usec)))
+		return (0);
+
+	sec  = tv0->tv_sec  - tv1->tv_sec;
+	usec = tv0->tv_usec - tv1->tv_usec;
+
+	while (usec < 0)
+	{
+		usec += 1000000;
+		sec  -= 1;
+	}
+
+	if (sec < 0)
+		return (0);
+
+	return ((sec * 1000) + ((usec + 500) / 1000));
 }
 
 static int ntpd_connect (void)
@@ -236,13 +267,18 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		char **res_data, int res_item_size)
 {
 	int              sd;
+	struct pollfd    poll_s;
 	struct resp_pkt  res;
-	ssize_t          status;
+	int              status;
 	int              done;
 	int              i;
 
 	char            *items;
 	size_t           items_num;
+
+	struct timeval   time_end;
+	struct timeval   time_now;
+	int              timeout;
 
 	int              pkt_item_num;        /* items in this packet */
 	int              pkt_item_len;        /* size of the items in this packet */
@@ -266,11 +302,46 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 	*res_size  = 0;
 	*res_data  = NULL;
 
+	if (gettimeofday (&time_end, NULL) < 0)
+	{
+		syslog (LOG_ERR, "ntpd plugin: gettimeofday failed: %s",
+				strerror (errno));
+		return (-1);
+	}
+	time_end.tv_sec++; /* wait for a most one second */
+
 	done = 0;
 	while (done == 0)
 	{
-		/* TODO calculate time */
-		/* TODO poll(2) */
+		if (gettimeofday (&time_now, NULL) < 0)
+		{
+			syslog (LOG_ERR, "ntpd plugin: gettimeofday failed: %s",
+					strerror (errno));
+			return (-1);
+		}
+
+		/* timeout reached */
+		if ((timeout = timeval_sub (&time_end, &time_now)) == 0)
+			break;
+
+		poll_s.fd      = sd;
+		poll_s.events  = POLLIN | POLLPRI;
+		poll_s.revents = 0;
+		
+		status = poll (&poll_s, 1, timeout);
+
+		if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+			continue;
+
+		if (status < 0)
+		{
+			syslog (LOG_ERR, "ntpd plugin: poll failed: %s",
+					strerror (errno));
+			return (-1);
+		}
+
+		if (status == 0) /* timeout */
+			break;
 
 		memset ((void *) &res, '\0', sizeof (res));
 		status = recv (sd, (void *) &res, sizeof (res), 0 /* no flags */);
