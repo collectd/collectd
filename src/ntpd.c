@@ -24,8 +24,6 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#include "ntp_request.h"
-
 #define MODULE_NAME "ntpd"
 
 #if HAVE_SYS_SOCKET_H
@@ -34,6 +32,9 @@
 # define NTPD_HAVE_READ 0
 #endif
 
+#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
@@ -72,6 +73,79 @@ static char *ntpd_host = NULL;
 static char *ntpd_port = NULL;
 #endif
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * The following definitions were copied from the NTPd distribution  *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#define MAXFILENAME 128
+#define MAXSEQ  127
+#define MODE_PRIVATE 7
+#define NTP_OLDVERSION ((u_char) 1) /* oldest credible version */
+#define IMPL_XNTPD 3
+
+/* This structure is missing the message authentication code, since collectd
+ * doesn't use it. */
+struct req_pkt
+{
+	uint8_t  rm_vn_mode;
+	uint8_t  auth_seq;
+	uint8_t  implementation;		/* implementation number */
+	uint8_t  request;			/* request number */
+	uint16_t err_nitems;		/* error code/number of data items */
+	uint16_t mbz_itemsize;		/* item size */
+	char     data[MAXFILENAME + 48];	/* data area [32 prev](176 byte max) */
+					/* struct conf_peer must fit */
+};
+#define REQ_LEN_NOMAC (sizeof(struct req_pkt))
+
+/*
+ * A response packet.  The length here is variable, this is a
+ * maximally sized one.  Note that this implementation doesn't
+ * authenticate responses.
+ */
+#define	RESP_HEADER_SIZE	(8)
+#define	RESP_DATA_SIZE		(500)
+
+struct resp_pkt
+{
+	uint8_t  rm_vn_mode;           /* response, more, version, mode */
+	uint8_t  auth_seq;             /* key, sequence number */
+	uint8_t  implementation;       /* implementation number */
+	uint8_t  request;              /* request number */
+	uint16_t err_nitems;           /* error code/number of data items */
+	uint16_t mbz_itemsize;         /* item size */
+	char     data[RESP_DATA_SIZE]; /* data area */
+};
+
+/*
+ * Bit setting macros for multifield items.
+ */
+#define	RESP_BIT	0x80
+#define	MORE_BIT	0x40
+
+#define	ISRESPONSE(rm_vn_mode)	(((rm_vn_mode)&RESP_BIT)!=0)
+#define	ISMORE(rm_vn_mode)	(((rm_vn_mode)&MORE_BIT)!=0)
+#define INFO_VERSION(rm_vn_mode) ((u_char)(((rm_vn_mode)>>3)&0x7))
+#define	INFO_MODE(rm_vn_mode)	((rm_vn_mode)&0x7)
+
+#define	RM_VN_MODE(resp, more, version)		\
+				((u_char)(((resp)?RESP_BIT:0)\
+				|((more)?MORE_BIT:0)\
+				|((version?version:(NTP_OLDVERSION+1))<<3)\
+				|(MODE_PRIVATE)))
+
+#define	INFO_IS_AUTH(auth_seq)	(((auth_seq) & 0x80) != 0)
+#define	INFO_SEQ(auth_seq)	((auth_seq)&0x7f)
+#define	AUTH_SEQ(auth, seq)	((u_char)((((auth)!=0)?0x80:0)|((seq)&0x7f)))
+
+#define	INFO_ERR(err_nitems)	((u_short)((ntohs(err_nitems)>>12)&0xf))
+#define	INFO_NITEMS(err_nitems)	((u_short)(ntohs(err_nitems)&0xfff))
+#define	ERR_NITEMS(err, nitems)	(htons((u_short)((((u_short)(err)<<12)&0xf000)\
+				|((u_short)(nitems)&0xfff))))
+
+#define	INFO_MBZ(mbz_itemsize)	((ntohs(mbz_itemsize)>>12)&0xf)
+#define	INFO_ITEMSIZE(mbz_itemsize)	((u_short)(ntohs(mbz_itemsize)&0xfff))
+#define	MBZ_ITEMSIZE(itemsize)	(htons((u_short)(itemsize)))
+
 static void ntpd_init (void)
 {
 	return;
@@ -79,7 +153,8 @@ static void ntpd_init (void)
 
 static void ntpd_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, ntpd_file, val, ds_def, ds_num);
+	rrd_update_file (host, time_offset_file, val,
+			time_offset_ds_def, time_offset_ds_num); /* FIXME filename incorrect */
 }
 
 #if NTPD_HAVE_READ
@@ -94,7 +169,7 @@ static void ntpd_submit (double snum, double mnum, double lnum)
 	plugin_submit (MODULE_NAME, "-", buf);
 }
 
-static void ntpd_connect (void)
+static int ntpd_connect (void)
 {
 	char *host;
 	char *port;
@@ -164,6 +239,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 	struct resp_pkt  res;
 	ssize_t          status;
 	int              done;
+	int              i;
 
 	char            *items;
 	size_t           items_num;
@@ -245,7 +321,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		}
 
 		/* Check for error code */
-		if (INFO_ERR (res.err_nitems) != INFO_OKAY)
+		if (INFO_ERR (res.err_nitems) != 0)
 		{
 			syslog (LOG_ERR, "ntpd plugin: Received error code %i",
 					(int) INFO_ERR(res.err_nitems));
@@ -377,13 +453,13 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 	assert (((req_data != NULL) && (req_data_len > 0))
 			|| ((req_data == NULL) && (req_items == 0) && (req_size == 0)));
 
-	req.err_nitems   = ERR_NITEMS (0, qitems);
-	req.mbz_itemsize = MBZ_ITEMSIZE (qsize);
+	req.err_nitems   = ERR_NITEMS (0, req_items);
+	req.mbz_itemsize = MBZ_ITEMSIZE (req_size);
 	
 	if (req_data != NULL)
 		memcpy ((void *) req.data, (const void *) req_data, req_data_len);
 
-	status = swrite (fd, (const char *) &req, REQ_LEN_NOMAC);
+	status = swrite (sd, (const char *) &req, REQ_LEN_NOMAC);
 	if (status < 0)
 		return (status);
 
@@ -420,16 +496,7 @@ static int ntpd_do_query (int req_code, int req_items, int req_size, char *req_d
 
 static void ntpd_read (void)
 {
-	static sd = -1;
-	struct req_pkt req;
-
-	ntpd_connect (&sd);
-	if (sd < 0)
-		return;
-
-	memset ((void *) &req, '\0', sizeof (req));
-	req.rm_vn_mode = RM_VN_MODE (0, 0, 0); /* response, more, version, mode */
-	req.implementation = IMPL_XNTPD;
+	return;
 }
 #else
 # define ntpd_read NULL
