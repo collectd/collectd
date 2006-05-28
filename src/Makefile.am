@@ -236,6 +236,17 @@ collectd_LDADD += "-dlopen" nfs.la
 collectd_DEPENDENCIES += nfs.la
 endif
 
+if BUILD_MODULE_NTPD
+pkglib_LTLIBRARIES += ntpd.la
+ntpd_la_SOURCES = ntpd.c
+ntpd_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBSOCKET
+ntpd_la_LDFLAGS += -lsocket
+endif
+collectd_LDADD += "-dlopen" ntpd.la
+collectd_DEPENDENCIES += ntpd.la
+endif
+
 if BUILD_MODULE_PING
 pkglib_LTLIBRARIES += ping.la
 ping_la_SOURCES = ping.c

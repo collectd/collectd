@@ -833,6 +833,7 @@ AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
 AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
+AC_COLLECTD([ntpd],      [disable], [module], [nfs statistics])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
 AC_COLLECTD([processes], [disable], [module], [processes statistics])
 AC_COLLECTD([sensors],   [disable], [module], [lm_sensors statistics])
@@ -878,6 +879,7 @@ Configuration:
     memory  . . . . . . $enable_memory
     mysql . . . . . . . $enable_mysql
     nfs . . . . . . . . $enable_nfs
+    ntpd  . . . . . . . $enable_ntpd
     ping  . . . . . . . $enable_ping
     processes . . . . . $enable_processes
     sensors . . . . . . $enable_sensors
