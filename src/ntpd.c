@@ -23,6 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_debug.h"
 
 #define MODULE_NAME "ntpd"
 
@@ -84,6 +85,7 @@ static char *ntpd_port = NULL;
 #define MODE_PRIVATE 7
 #define NTP_OLDVERSION ((u_char) 1) /* oldest credible version */
 #define IMPL_XNTPD 3
+#define FP_FRAC 65536.0
 
 /* This structure is missing the message authentication code, since collectd
  * doesn't use it. */
@@ -148,6 +150,32 @@ struct resp_pkt
 #define	INFO_MBZ(mbz_itemsize)	((ntohs(mbz_itemsize)>>12)&0xf)
 #define	INFO_ITEMSIZE(mbz_itemsize)	((u_short)(ntohs(mbz_itemsize)&0xfff))
 #define	MBZ_ITEMSIZE(itemsize)	(htons((u_short)(itemsize)))
+
+#define REQ_SYS_INFO 4
+struct info_sys
+{
+	uint32_t peer;           /* system peer address (v4) */
+	uint8_t  peer_mode;      /* mode we are syncing to peer in */
+	uint8_t  leap;           /* system leap bits */
+	uint8_t  stratum;        /* our stratum */
+	int8_t   precision;      /* local clock precision */
+	int32_t  rootdelay;      /* distance from sync source */
+	uint32_t rootdispersion; /* dispersion from sync source */
+	uint32_t refid;          /* reference ID of sync source */
+	uint64_t reftime;        /* system reference time */
+	uint32_t poll;           /* system poll interval */
+	uint8_t  flags;          /* system flags */
+	uint8_t  unused1;        /* unused */
+	uint8_t  unused2;        /* unused */
+	uint8_t  unused3;        /* unused */
+	int32_t  bdelay;         /* default broadcast offset */
+	int32_t  frequency;      /* frequency residual (scaled ppm)  */
+	uint64_t authdelay;      /* default authentication delay */
+	uint32_t stability;      /* clock stability (scaled ppm) */
+	int32_t  v6_flag;        /* is this v6 or not */
+	int32_t  unused4;        /* unused, padding for peer6 */
+	struct in6_addr peer6;   /* system peer address (v6) */
+};
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -157,22 +185,44 @@ static void ntpd_init (void)
 	return;
 }
 
-static void ntpd_write (char *host, char *inst, char *val)
+static void ntpd_write_time_offset (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, time_offset_file, val,
-			time_offset_ds_def, time_offset_ds_num); /* FIXME filename incorrect */
+	char buf[256];
+	int  status;
+
+	status = snprintf (buf, 256, time_offset_file, inst);
+	if ((status < 1) || (status >= 256))
+		return;
+
+	rrd_update_file (host, buf, val,
+			time_offset_ds_def, time_offset_ds_num);
+}
+
+static void ntpd_write_frequency_offset (char *host, char *inst, char *val)
+{
+	char buf[256];
+	int  status;
+
+	status = snprintf (buf, 256, frequency_offset_file, inst);
+	if ((status < 1) || (status >= 256))
+		return;
+
+	rrd_update_file (host, buf, val,
+			frequency_offset_ds_def, frequency_offset_ds_num);
 }
 
 #if NTPD_HAVE_READ
-static void ntpd_submit (double snum, double mnum, double lnum)
+static void ntpd_submit (char *type, char *inst, double value)
 {
 	char buf[256];
 
-	if (snprintf (buf, 256, "%u:%.2f:%.2f:%.2f", (unsigned int) curtime,
-				snum, mnum, lnum) >= 256)
+	if (snprintf (buf, 256, "%u:%.2f", (unsigned int) curtime, value) >= 256)
 		return;
 
-	plugin_submit (MODULE_NAME, "-", buf);
+	DBG ("type = %s; inst = %s; value = %s;",
+			type, inst, buf);
+
+	plugin_submit (type, inst, buf);
 }
 
 /* returns `tv0 - tv1' in milliseconds or 0 if `tv1 > tv0' */
@@ -211,7 +261,10 @@ static int ntpd_connect (void)
 	int              status;
 
 	if (sock_descr >= 0)
+	{
+		DBG ("A socket already exists.");
 		return (sock_descr);
+	}
 
 	host = ntpd_host;
 	if (host == NULL)
@@ -229,6 +282,9 @@ static int ntpd_connect (void)
 
 	if ((status = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
+		DBG ("getaddrinfo (%s, %s): %s",
+				host, port,
+				status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
 		syslog (LOG_ERR, "ntpd plugin: getaddrinfo (%s, %s): %s",
 				host, port,
 				status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
@@ -257,7 +313,10 @@ static int ntpd_connect (void)
 	freeaddrinfo (ai_list);
 
 	if (sock_descr < 0)
+	{
+		DBG ("Unable to connect to server.");
 		syslog (LOG_ERR, "ntpd plugin: Unable to connect to server.");
+	}
 
 	return (sock_descr);
 }
@@ -350,7 +409,10 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 			continue;
 
 		if (status < 0)
+		{
+			DBG ("recv(2) failed: %s", strerror (errno));
 			return (-1);
+		}
 
 		/* 
 		 * Do some sanity checks first
@@ -384,10 +446,10 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 					"MBZ field!");
 			continue;
 		}
-		if (res.implementation != req_code)
+		if (res.implementation != IMPL_XNTPD)
 		{
 			syslog (LOG_WARNING, "ntpd plugin: Asked for request of type %i, "
-					"got %i", (int) req_code, (int) res.implementation);
+					"got %i", (int) IMPL_XNTPD, (int) res.implementation);
 			continue;
 		}
 
@@ -565,8 +627,47 @@ static int ntpd_do_query (int req_code, int req_items, int req_size, char *req_d
 	return (status);
 }
 
+static double ntpd_read_fp (int32_t val_int)
+{
+	double val_double;
+
+	val_double = ((double) (ntohl (val_int))) / FP_FRAC;
+
+	return (val_double);
+}
+
 static void ntpd_read (void)
 {
+	struct info_sys *is;
+	int              is_num;
+	int              is_size;
+	int              status;
+
+	is      = NULL;
+	is_num  = 0;
+	is_size = 0;
+
+	status = ntpd_do_query (REQ_SYS_INFO,
+			0, 0, NULL, /* request data */
+			&is_num, &is_size, (char **) ((void *) &is), sizeof (struct info_sys)); /* response data */
+
+	if (status != 0)
+	{
+		DBG ("ntpd_do_query failed with status %i", status);
+		return;
+	}
+	if ((is == NULL) || (is_num == 0) || (is_size == 0))
+	{
+		DBG ("ntpd_do_query returned: is = %p; is_num = %i; is_size = %i;",
+				(void *) is, is_num, is_size);
+		return;
+	}
+
+	ntpd_submit ("ntpd_frequency_offset", "loop", ntpd_read_fp (is->frequency));
+
+	free (is);
+	is = NULL;
+
 	return;
 }
 #else
@@ -575,7 +676,9 @@ static void ntpd_read (void)
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, ntpd_init, ntpd_read, ntpd_write);
+	plugin_register (MODULE_NAME, ntpd_init, ntpd_read, NULL);
+	plugin_register ("ntpd_time_offset", NULL, NULL, ntpd_write_time_offset);
+	plugin_register ("ntpd_frequency_offset", NULL, NULL, ntpd_write_frequency_offset);
 }
 
 #undef MODULE_NAME
