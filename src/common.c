@@ -161,7 +161,7 @@ ssize_t swrite (int fd, const void *buf, size_t count)
 	ssize_t     status;
 
 	ptr   = (const char *) buf;
-	nleft = buflen;
+	nleft = count;
 
 	while (nleft > 0)
 	{
