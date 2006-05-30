@@ -56,7 +56,7 @@
 static char *time_offset_file = "ntpd/time_offset-%s.rrd";
 static char *time_offset_ds_def[] =
 {
-	"DS:ms:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	"DS:ms:GAUGE:"COLLECTD_HEARTBEAT":-1000000:1000000",
 	NULL
 };
 static int time_offset_ds_num = 1;
@@ -64,7 +64,7 @@ static int time_offset_ds_num = 1;
 static char *frequency_offset_file = "ntpd/frequency_offset-%s.rrd";
 static char *frequency_offset_ds_def[] =
 {
-	"DS:ppm:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	"DS:ppm:GAUGE:"COLLECTD_HEARTBEAT":-1000000:1000000",
 	NULL
 };
 static int frequency_offset_ds_num = 1;
@@ -150,6 +150,54 @@ struct resp_pkt
 #define	INFO_MBZ(mbz_itemsize)	((ntohs(mbz_itemsize)>>12)&0xf)
 #define	INFO_ITEMSIZE(mbz_itemsize)	((u_short)(ntohs(mbz_itemsize)&0xfff))
 #define	MBZ_ITEMSIZE(itemsize)	(htons((u_short)(itemsize)))
+
+/* negate a long float type */
+#define M_NEG(v_i, v_f) \
+	do { \
+		if ((v_f) == 0) \
+		(v_i) = -((uint32_t)(v_i)); \
+		else { \
+			(v_f) = -((uint32_t)(v_f)); \
+			(v_i) = ~(v_i); \
+		} \
+	} while(0)
+/* l_fp to double */
+#define M_LFPTOD(r_i, r_uf, d) \
+	do { \
+		register int32_t  i; \
+		register uint32_t f; \
+		\
+		i = (r_i); \
+		f = (r_uf); \
+		if (i < 0) { \
+			M_NEG(i, f); \
+			(d) = -((double) i + ((double) f) / 4294967296.0); \
+		} else { \
+			(d) = (double) i + ((double) f) / 4294967296.0; \
+		} \
+	} while (0)
+
+#define REQ_PEER_LIST_SUM 1
+struct info_peer_summary
+{
+	uint32_t dstadr;         /* local address (zero for undetermined) */
+	uint32_t srcadr;         /* source address */
+	uint16_t srcport;        /* source port */
+	uint8_t stratum;         /* stratum of peer */
+	int8_t hpoll;            /* host polling interval */
+	int8_t ppoll;            /* peer polling interval */
+	uint8_t reach;           /* reachability register */
+	uint8_t flags;           /* flags, from above */
+	uint8_t hmode;           /* peer mode */
+	int32_t  delay;          /* peer.estdelay; s_fp */
+	int32_t  offset_int;     /* peer.estoffset; integral part */
+	int32_t  offset_frc;     /* peer.estoffset; fractional part */
+	uint32_t dispersion;     /* peer.estdisp; u_fp */
+	uint32_t v6_flag;        /* is this v6 or not */
+	uint32_t unused1;        /* (unused) padding for dstadr6 */
+	struct in6_addr dstadr6; /* local address (v6) */
+	struct in6_addr srcadr6; /* source address (v6) */
+};
 
 #define REQ_SYS_INFO 4
 struct info_sys
@@ -683,7 +731,13 @@ static void ntpd_read (void)
 	struct info_kernel *ik;
 	int                 ik_num;
 	int                 ik_size;
-	int                 status;
+
+	struct info_peer_summary *ps;
+	int                       ps_num;
+	int                       ps_size;
+
+	int status;
+	int i;
 
 	ik      = NULL;
 	ik_num  = 0;
@@ -701,7 +755,7 @@ static void ntpd_read (void)
 	}
 	if ((ik == NULL) || (ik_num == 0) || (ik_size == 0))
 	{
-		DBG ("ntpd_do_query returned: is = %p; ik_num = %i; ik_size = %i;",
+		DBG ("ntpd_do_query returned: ik = %p; ik_num = %i; ik_size = %i;",
 				(void *) ik, ik_num, ik_size);
 		return;
 	}
@@ -716,10 +770,59 @@ static void ntpd_read (void)
 			ntpd_read_fp (ik->freq),
 			ntpd_read_fp (ik->esterror));
 
-	ntpd_submit ("ntpd_frequency_offset", "loop", ntpd_read_fp (ik->freq));
+	ntpd_submit ("ntpd_frequency_offset", "loop",  ntpd_read_fp (ik->freq));
+	ntpd_submit ("ntpd_time_offset",      "loop",  ntpd_read_fp (ik->offset));
+	ntpd_submit ("ntpd_time_offset",      "error", ntpd_read_fp (ik->esterror));
 
 	free (ik);
 	ik = NULL;
+
+	status = ntpd_do_query (REQ_PEER_LIST_SUM,
+			0, 0, NULL, /* request data */
+			&ps_num, &ps_size, (char **) ((void *) &ps), /* response data */
+			sizeof (struct info_peer_summary));
+	if (status != 0)
+	{
+		DBG ("ntpd_do_query failed with status %i", status);
+		return;
+	}
+	if ((ps == NULL) || (ps_num == 0) || (ps_size == 0))
+	{
+		DBG ("ntpd_do_query returned: ps = %p; ps_num = %i; ps_size = %i;",
+				(void *) ps, ps_num, ps_size);
+		return;
+	}
+
+	for (i = 0; i < ps_num; i++)
+	{
+		struct info_peer_summary *ptr;
+		double offset;
+		ptr = ps + i;
+
+		if (((ntohl (ptr->dstadr) & 0x7F000000) == 0x7F000000) || (ptr->dstadr == 0))
+			continue;
+
+		/* Convert the `long floating point' offset value to double */
+		M_LFPTOD (ntohl (ptr->offset_int), ntohl (ptr->offset_frc), offset);
+
+		DBG ("peer %i:\n"
+				"  srcadr     = 0x%08x\n"
+				"  delay      = %f\n"
+				"  offset_int = %i\n"
+				"  offset_frc = %i\n"
+				"  offset     = %f\n"
+				"  dispersion = %f\n",
+				i,
+				ntohl (ptr->srcadr),
+				ntpd_read_fp (ptr->delay),
+				ntohl (ptr->offset_int),
+				ntohl (ptr->offset_frc),
+				offset,
+				ntpd_read_fp (ptr->dispersion));
+	}
+
+	free (ps);
+	ps = NULL;
 
 	return;
 }
