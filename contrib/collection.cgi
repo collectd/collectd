@@ -247,6 +247,18 @@ our $GraphDefs;
 			'GPRINT:temp_max:MAX:%4.1lf Max,',
 			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
 		],
+		frequency_offset => [ # NTPd
+			'DEF:ppm_avg={file}:ppm:AVERAGE',
+			'DEF:ppm_min={file}:ppm:MIN',
+			'DEF:ppm_max={file}:ppm:MAX',
+			"AREA:ppm_max#$HalfBlue",
+			"AREA:ppm_min#$Canvas",
+			"LINE1:ppm_avg#$FullBlue:{inst}",
+			'GPRINT:ppm_min:MIN:%5.2lf Min,',
+			'GPRINT:ppm_avg:AVERAGE:%5.2lf Avg,',
+			'GPRINT:ppm_max:MAX:%5.2lf Max,',
+			'GPRINT:ppm_avg:LAST:%5.2lf Last'
+		],
 		hddtemp => [
 			'DEF:temp_avg={file}:value:AVERAGE',
 			'DEF:temp_min={file}:value:MIN',
@@ -703,6 +715,18 @@ our $GraphDefs;
 			'GPRINT:temp_max:MAX:%4.1lf Max,',
 			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
 		],
+		time_offset => [ # NTPd
+			'DEF:ms_avg={file}:ms:AVERAGE',
+			'DEF:ms_min={file}:ms:MIN',
+			'DEF:ms_max={file}:ms:MAX',
+			"AREA:ms_max#$HalfBlue",
+			"AREA:ms_min#$Canvas",
+			"LINE1:ms_avg#$FullBlue:{inst}",
+			'GPRINT:ms_min:MIN:%10.8lf Min,',
+			'GPRINT:ms_avg:AVERAGE:%10.8lf Avg,',
+			'GPRINT:ms_max:MAX:%10.8lf Max,',
+			'GPRINT:ms_avg:LAST:%10.8lf Last'
+		],
 		traffic => ['DEF:out_min_raw={file}:outgoing:MIN',
 			'DEF:out_avg_raw={file}:outgoing:AVERAGE',
 			'DEF:out_max_raw={file}:outgoing:MAX',
@@ -873,6 +897,7 @@ our $GraphArgs =
 	df => ['-t', '{host}:{inst} usage', '-v', 'Percent', '-l', '0'],
 	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
 	fanspeed => ['-t', '{host} fanspeed {inst}', '-v', 'rpm'],
+	frequency_offset => ['-t', 'NTPd frequency offset ({inst})', '-v', 'Parts per million'],
 	hddtemp => ['-t', '{host} hdd temperature {inst}', '-v', '°Celsius'],
 	load => ['-t', '{host} load average', '-v', 'System load', '-X', '0'],
 	mails   => ['-t', '{host} mail count', '-v', 'Amount', '-X', '0'],
@@ -888,6 +913,7 @@ our $GraphArgs =
 	sensors => ['-t', '{host} sensor {inst}', '-v', '°Celsius'],
 	swap => ['-t', '{host} swap usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
 	temperature => ['-t', '{host} temperature {inst}', '-v', '°Celsius'],
+	time_offset => ['-t', 'NTPd time offset ({inst})', '-v', 'ms'],
 	traffic => ['-t', '{host} {inst} traffic', '-v', 'Bit/s'],
 	users => ['-t', '{host} users', '-v', 'Users'],
 	voltage => ['-t', '{host} voltage', '-v', 'Volts'],
