@@ -176,6 +176,28 @@ struct info_sys
 	int32_t  unused4;        /* unused, padding for peer6 */
 	struct in6_addr peer6;   /* system peer address (v6) */
 };
+
+#define REQ_GET_KERNEL 38
+struct info_kernel
+{
+	int32_t  offset;
+	int32_t  freq;
+	int32_t  maxerror;
+	int32_t  esterror;
+	uint16_t status;
+	uint16_t shift;
+	int32_t  constant;
+	int32_t  precision;
+	int32_t  tolerance;
+	/* pps stuff */
+	int32_t  ppsfreq;
+	int32_t  jitter;
+	int32_t  stabil;
+	int32_t  jitcnt;
+	int32_t  calcnt;
+	int32_t  errcnt;
+	int32_t  stbcnt;
+};
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -216,7 +238,7 @@ static void ntpd_submit (char *type, char *inst, double value)
 {
 	char buf[256];
 
-	if (snprintf (buf, 256, "%u:%.2f", (unsigned int) curtime, value) >= 256)
+	if (snprintf (buf, 256, "%u:%.8f", (unsigned int) curtime, value) >= 256)
 		return;
 
 	DBG ("type = %s; inst = %s; value = %s;",
@@ -261,10 +283,9 @@ static int ntpd_connect (void)
 	int              status;
 
 	if (sock_descr >= 0)
-	{
-		DBG ("A socket already exists.");
 		return (sock_descr);
-	}
+
+	DBG ("Opening a new socket");
 
 	host = ntpd_host;
 	if (host == NULL)
@@ -387,6 +408,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		poll_s.events  = POLLIN | POLLPRI;
 		poll_s.revents = 0;
 		
+		DBG ("Polling for %ims", timeout);
 		status = poll (&poll_s, 1, timeout);
 
 		if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
@@ -394,13 +416,17 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 		if (status < 0)
 		{
+			DBG ("poll failed: %s", strerror (errno));
 			syslog (LOG_ERR, "ntpd plugin: poll failed: %s",
 					strerror (errno));
 			return (-1);
 		}
 
 		if (status == 0) /* timeout */
+		{
+			DBG ("timeout reached.");
 			break;
+		}
 
 		memset ((void *) &res, '\0', sizeof (res));
 		status = recv (sd, (void *) &res, sizeof (res), 0 /* no flags */);
@@ -413,6 +439,8 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 			DBG ("recv(2) failed: %s", strerror (errno));
 			return (-1);
 		}
+
+		DBG ("recv'd %i bytes", status);
 
 		/* 
 		 * Do some sanity checks first
@@ -464,6 +492,8 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		/* extract number of items in this packet and the size of these items */
 		pkt_item_num = INFO_NITEMS (res.err_nitems);
 		pkt_item_len = INFO_ITEMSIZE (res.mbz_itemsize);
+		DBG ("pkt_item_num = %i; pkt_item_len = %i;",
+				pkt_item_num, pkt_item_len);
 
 		/* Check if the reported items fit in the packet */
 		if ((pkt_item_num * pkt_item_len) > (status - RESP_HEADER_SIZE))
@@ -480,10 +510,13 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		 * items have the same size. Discard invalid packets. */
 		if (items_num == 0) /* first packet */
 		{
+			DBG ("*res_size = %i", pkt_item_len);
 			*res_size = pkt_item_len;
 		}
 		else if (*res_size != pkt_item_len)
 		{
+			DBG ("Error: *res_size = %i; pkt_item_len = %i;",
+					*res_size, pkt_item_len);
 			syslog (LOG_ERR, "Item sizes differ.");
 			continue;
 		}
@@ -492,6 +525,8 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		pkt_padding = 0;
 		if (res_item_size > pkt_item_len)
 			pkt_padding = res_item_size - pkt_item_len;
+		DBG ("res_item_size = %i; pkt_padding = %i;",
+				res_item_size, pkt_padding);
 
 		/* Extract the sequence number */
 		pkt_sequence = INFO_SEQ (res.auth_seq);
@@ -522,12 +557,15 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 				continue;
 			}
 			pkt_lastseq = pkt_sequence;
+			DBG ("Last sequence = %i;", pkt_lastseq);
 		}
 
 		/*
 		 * Enough with the checks. Copy the data now.
 		 * We start by allocating some more memory.
 		 */
+		DBG ("realloc (%p, %i)", (void *) *res_data,
+				(items_num + pkt_item_num) * res_item_size);
 		items = realloc ((void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
 		if (items == NULL)
@@ -592,6 +630,9 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 	if (req_data != NULL)
 		memcpy ((void *) req.data, (const void *) req_data, req_data_len);
 
+	DBG ("req_items = %i; req_size = %i; req_data = %p;",
+			req_items, req_size, (void *) req_data);
+
 	status = swrite (sd, (const char *) &req, REQ_LEN_NOMAC);
 	if (status < 0)
 		return (status);
@@ -631,42 +672,54 @@ static double ntpd_read_fp (int32_t val_int)
 {
 	double val_double;
 
-	val_double = ((double) (ntohl (val_int))) / FP_FRAC;
+	val_int = ntohl (val_int);
+	val_double = ((double) val_int) / FP_FRAC;
 
 	return (val_double);
 }
 
 static void ntpd_read (void)
 {
-	struct info_sys *is;
-	int              is_num;
-	int              is_size;
-	int              status;
+	struct info_kernel *ik;
+	int                 ik_num;
+	int                 ik_size;
+	int                 status;
 
-	is      = NULL;
-	is_num  = 0;
-	is_size = 0;
+	ik      = NULL;
+	ik_num  = 0;
+	ik_size = 0;
 
-	status = ntpd_do_query (REQ_SYS_INFO,
+	status = ntpd_do_query (REQ_GET_KERNEL,
 			0, 0, NULL, /* request data */
-			&is_num, &is_size, (char **) ((void *) &is), sizeof (struct info_sys)); /* response data */
+			&ik_num, &ik_size, (char **) ((void *) &ik), /* response data */
+			sizeof (struct info_kernel));
 
 	if (status != 0)
 	{
 		DBG ("ntpd_do_query failed with status %i", status);
 		return;
 	}
-	if ((is == NULL) || (is_num == 0) || (is_size == 0))
+	if ((ik == NULL) || (ik_num == 0) || (ik_size == 0))
 	{
-		DBG ("ntpd_do_query returned: is = %p; is_num = %i; is_size = %i;",
-				(void *) is, is_num, is_size);
+		DBG ("ntpd_do_query returned: is = %p; ik_num = %i; ik_size = %i;",
+				(void *) ik, ik_num, ik_size);
 		return;
 	}
 
-	ntpd_submit ("ntpd_frequency_offset", "loop", ntpd_read_fp (is->frequency));
+	/* kerninfo -> estimated error */
 
-	free (is);
-	is = NULL;
+	DBG ("info_kernel:\n"
+			"  pll offset    = %.8f\n"
+			"  pll frequency = %.8f\n" /* drift compensation */
+			"  est error     = %.8f\n",
+			ntpd_read_fp (ik->offset),
+			ntpd_read_fp (ik->freq),
+			ntpd_read_fp (ik->esterror));
+
+	ntpd_submit ("ntpd_frequency_offset", "loop", ntpd_read_fp (ik->freq));
+
+	free (ik);
+	ik = NULL;
 
 	return;
 }
