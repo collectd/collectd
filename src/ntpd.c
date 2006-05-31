@@ -55,6 +55,14 @@
 # include <sys/poll.h>
 #endif
 
+static char *config_keys[] =
+{
+	"Host",
+	"Port",
+	NULL
+};
+static int config_keys_num = 2;
+
 /* drift */
 static char *time_offset_file = "ntpd/time_offset-%s.rrd";
 static char *time_offset_ds_def[] =
@@ -252,6 +260,30 @@ struct info_kernel
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+static int ntpd_config (char *key, char *value)
+{
+	if (strcasecmp (key, "host") == 0)
+	{
+		if (ntpd_host != NULL)
+			free (ntpd_host);
+		if ((ntpd_host = strdup (value)) == NULL)
+			return (1);
+	}
+	else if (strcasecmp (key, "port") == 0)
+	{
+		if (ntpd_port != NULL)
+			free (ntpd_port);
+		if ((ntpd_port = strdup (value)) == NULL)
+			return (1);
+	}
+	else
+	{
+		return (-1);
+	}
+
+	return (0);
+}
 
 static void ntpd_init (void)
 {
@@ -882,6 +914,7 @@ void module_register (void)
 	plugin_register (MODULE_NAME, ntpd_init, ntpd_read, NULL);
 	plugin_register ("ntpd_time_offset", NULL, NULL, ntpd_write_time_offset);
 	plugin_register ("ntpd_frequency_offset", NULL, NULL, ntpd_write_frequency_offset);
+	cf_register (MODULE_NAME, ntpd_config, config_keys, config_keys_num);
 }
 
 #undef MODULE_NAME
