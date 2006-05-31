@@ -719,13 +719,16 @@ our $GraphDefs;
 			'DEF:ms_avg={file}:ms:AVERAGE',
 			'DEF:ms_min={file}:ms:MIN',
 			'DEF:ms_max={file}:ms:MAX',
-			"AREA:ms_max#$HalfBlue",
-			"AREA:ms_min#$Canvas",
-			"LINE1:ms_avg#$FullBlue:{inst}",
-			'GPRINT:ms_min:MIN:%10.8lf Min,',
-			'GPRINT:ms_avg:AVERAGE:%10.8lf Avg,',
-			'GPRINT:ms_max:MAX:%10.8lf Max,',
-			'GPRINT:ms_avg:LAST:%10.8lf Last'
+			'CDEF:s_avg=ms_avg,1000,/',
+			'CDEF:s_min=ms_min,1000,/',
+			'CDEF:s_max=ms_max,1000,/',
+			"AREA:s_max#$HalfBlue",
+			"AREA:s_min#$Canvas",
+			"LINE1:s_avg#$FullBlue:{inst}",
+			'GPRINT:s_min:MIN:%7.3lf%s Min,',
+			'GPRINT:s_avg:AVERAGE:%7.3lf%s Avg,',
+			'GPRINT:s_max:MAX:%7.3lf%s Max,',
+			'GPRINT:s_avg:LAST:%7.3lf%s Last'
 		],
 		traffic => ['DEF:out_min_raw={file}:outgoing:MIN',
 			'DEF:out_avg_raw={file}:outgoing:AVERAGE',
@@ -882,6 +885,9 @@ our $GraphDefs;
 	$GraphDefs->{'disk'} = $GraphDefs->{'partition'};
 	$GraphDefs->{'meminfo'} = $GraphDefs->{'memory'};
 	$GraphDefs->{'sensors'} = $GraphDefs->{'temperature'};
+
+	$GraphDefs->{'delay'}           = $GraphDefs->{'time_offset'};
+	$GraphDefs->{'time_dispersion'} = $GraphDefs->{'time_offset'};
 }
 
 our $GraphArgs =
@@ -894,6 +900,7 @@ our $GraphArgs =
 	cpufreq => ['-t', '{host} cpu{inst} usage', '-v', 'Mhz'],
 	current => ['-t', '{host} current', '-v', 'Ampere'],
 	#disk => ['-t', '{host} disk {inst} IO wait', '-v', 'Seconds'],
+	delay => ['-t', 'NTPd peer delay ({inst})', '-v', 'Seconds'],
 	df => ['-t', '{host}:{inst} usage', '-v', 'Percent', '-l', '0'],
 	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
 	fanspeed => ['-t', '{host} fanspeed {inst}', '-v', 'rpm'],
@@ -913,7 +920,8 @@ our $GraphArgs =
 	sensors => ['-t', '{host} sensor {inst}', '-v', '°Celsius'],
 	swap => ['-t', '{host} swap usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
 	temperature => ['-t', '{host} temperature {inst}', '-v', '°Celsius'],
-	time_offset => ['-t', 'NTPd time offset ({inst})', '-v', 'ms'],
+	time_offset => ['-t', 'NTPd time offset ({inst})', '-v', 'Seconds'],
+	time_dispersion => ['-t', 'NTPd time dispersion ({inst})', '-v', 'Seconds'],
 	traffic => ['-t', '{host} {inst} traffic', '-v', 'Bit/s'],
 	users => ['-t', '{host} users', '-v', 'Users'],
 	voltage => ['-t', '{host} voltage', '-v', 'Volts'],
