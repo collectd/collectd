@@ -64,13 +64,17 @@ static char *config_keys[] =
 static int config_keys_num = 2;
 
 /* drift */
-static char *time_offset_file = "ntpd/time_offset-%s.rrd";
-static char *time_offset_ds_def[] =
+static char *time_offset_file     = "ntpd/time_offset-%s.rrd";
+static char *time_dispersion_file = "ntpd/time_dispersion-%s.rrd";
+static char *time_delay_file      = "ntpd/delay-%s.rrd";
+
+/* used for `time_offset', `time_dispersion', and `delay' */
+static char *ms_ds_def[] =
 {
 	"DS:ms:GAUGE:"COLLECTD_HEARTBEAT":-1000000:1000000",
 	NULL
 };
-static int time_offset_ds_num = 1;
+static int ms_ds_num = 1;
 
 static char *frequency_offset_file = "ntpd/frequency_offset-%s.rrd";
 static char *frequency_offset_ds_def[] =
@@ -311,17 +315,32 @@ static void ntpd_init (void)
 	return;
 }
 
-static void ntpd_write_time_offset (char *host, char *inst, char *val)
+static void ntpd_write_ms (char *host, char *inst, char *val, char *file)
 {
 	char buf[256];
 	int  status;
 
-	status = snprintf (buf, 256, time_offset_file, inst);
+	status = snprintf (buf, 256, file, inst);
 	if ((status < 1) || (status >= 256))
 		return;
 
 	rrd_update_file (host, buf, val,
-			time_offset_ds_def, time_offset_ds_num);
+			ms_ds_def, ms_ds_num);
+}
+
+static void ntpd_write_time_offset (char *host, char *inst, char *val)
+{
+	ntpd_write_ms (host, inst, val, time_offset_file);
+}
+
+static void ntpd_write_time_dispersion (char *host, char *inst, char *val)
+{
+	ntpd_write_ms (host, inst, val, time_dispersion_file);
+}
+
+static void ntpd_write_delay (char *host, char *inst, char *val)
+{
+	ntpd_write_ms (host, inst, val, time_delay_file);
 }
 
 static void ntpd_write_frequency_offset (char *host, char *inst, char *val)
@@ -855,8 +874,10 @@ static void ntpd_read (void)
 		double offset;
 
 		char peername[512];
+		int refclock_id;
 		
 		ptr = ps + i;
+		refclock_id = 0;
 
 		/*
 		if (((ntohl (ptr->dstadr) & 0xFFFFFF00) == 0x7F000000) || (ptr->dstadr == 0))
@@ -886,7 +907,7 @@ static void ntpd_read (void)
 			struct in_addr  addr_obj;
 			char *addr_str;
 
-			int refclock_id = (ntohl (ptr->srcadr) >> 8) & 0x000000FF;
+			refclock_id = (ntohl (ptr->srcadr) >> 8) & 0x000000FF;
 
 			if (refclock_id < refclock_names_num)
 			{
@@ -941,7 +962,11 @@ static void ntpd_read (void)
 				offset,
 				ntpd_read_fp (ptr->dispersion));
 
-		ntpd_submit ("ntpd_time_offset", peername, offset);
+		if (refclock_id != 1) /* not the system clock (offset will always be zero.. */
+			ntpd_submit ("ntpd_time_offset", peername, offset);
+		ntpd_submit ("ntpd_time_dispersion", peername, ntpd_read_fp (ptr->dispersion));
+		if (refclock_id == 0) /* not a reference clock */
+			ntpd_submit ("ntpd_delay", peername, ntpd_read_fp (ptr->delay));
 	}
 
 	free (ps);
@@ -957,6 +982,8 @@ void module_register (void)
 {
 	plugin_register (MODULE_NAME, ntpd_init, ntpd_read, NULL);
 	plugin_register ("ntpd_time_offset", NULL, NULL, ntpd_write_time_offset);
+	plugin_register ("ntpd_time_dispersion", NULL, NULL, ntpd_write_time_dispersion);
+	plugin_register ("ntpd_delay", NULL, NULL, ntpd_write_delay);
 	plugin_register ("ntpd_frequency_offset", NULL, NULL, ntpd_write_frequency_offset);
 	cf_register (MODULE_NAME, ntpd_config, config_keys, config_keys_num);
 }
