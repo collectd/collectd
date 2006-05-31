@@ -98,6 +98,9 @@ static char *ntpd_port = NULL;
 #define IMPL_XNTPD 3
 #define FP_FRAC 65536.0
 
+#define REFCLOCK_ADDR 0x7f7f0000 /* 127.127.0.0 */
+#define REFCLOCK_MASK 0xffff0000 /* 255.255.0.0 */
+
 /* This structure is missing the message authentication code, since collectd
  * doesn't use it. */
 struct req_pkt
@@ -257,6 +260,24 @@ struct info_kernel
 	int32_t  errcnt;
 	int32_t  stbcnt;
 };
+
+/* List of reference clock names */
+static char *refclock_names[] =
+{
+	"UNKNOWN",    "LOCAL",        "GPS_TRAK",   "WWV_PST",     /*  0- 3 */
+	"SPECTRACOM", "TRUETIME",     "IRIG_AUDIO", "CHU_AUDIO",   /*  4- 7 */
+	"GENERIC",    "GPS_MX4200",   "GPS_AS2201", "GPS_ARBITER", /*  8-11 */
+	"IRIG_TPRO",  "ATOM_LEITCH",  "MSF_EES",    "GPSTM_TRUE",  /* 12-15 */
+	"GPS_BANC",   "GPS_DATUM",    "ACTS_NIST",  "WWV_HEATH",   /* 16-19 */
+	"GPS_NMEA",   "GPS_VME",      "PPS",        "ACTS_PTB",    /* 20-23 */
+	"ACTS_USNO",  "TRUETIME",     "GPS_HP",     "MSF_ARCRON",  /* 24-27 */
+	"SHM",        "GPS_PALISADE", "GPS_ONCORE", "GPS_JUPITER", /* 28-31 */
+	"CHRONOLOG",  "DUMBCLOCK",    "ULINK_M320", "PCF",         /* 32-35 */
+	"WWV_AUDIO",  "GPS_FG",       "HOPF_S",     "HOPF_P",      /* 36-39 */
+	"JJY",        "TT_IRIG",      "GPS_ZYFER",  "GPS_RIPENCC", /* 40-43 */
+	"NEOCLK4X",   NULL                                         /* 44    */
+};
+static int refclock_names_num = 45;
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -837,8 +858,10 @@ static void ntpd_read (void)
 		
 		ptr = ps + i;
 
-		if (((ntohl (ptr->dstadr) & 0xFF000000) == 0x7F000000) || (ptr->dstadr == 0))
+		/*
+		if (((ntohl (ptr->dstadr) & 0xFFFFFF00) == 0x7F000000) || (ptr->dstadr == 0))
 			continue;
+			*/
 
 		/* Convert the `long floating point' offset value to double */
 		M_LFPTOD (ntohl (ptr->offset_int), ntohl (ptr->offset_frc), offset);
@@ -856,6 +879,27 @@ static void ntpd_read (void)
 						? strerror (errno)
 						: gai_strerror (status));
 				continue;
+			}
+		}
+		else if ((ntohl (ptr->srcadr) & REFCLOCK_MASK) == REFCLOCK_ADDR)
+		{
+			struct in_addr  addr_obj;
+			char *addr_str;
+
+			int refclock_id = (ntohl (ptr->srcadr) >> 8) & 0x000000FF;
+
+			if (refclock_id < refclock_names_num)
+			{
+				strncpy (peername, refclock_names[refclock_id],
+						sizeof (peername));
+			}
+			else
+			{
+				memset ((void *) &addr_obj, '\0', sizeof (addr_obj));
+				addr_obj.s_addr = ptr->srcadr;
+				addr_str = inet_ntoa (addr_obj);
+
+				strncpy (peername, addr_str, sizeof (peername));
 			}
 		}
 		else /* IPv4 */
