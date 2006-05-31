@@ -45,6 +45,9 @@
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
+#if HAVE_ARPA_INET_H
+# include <arpa/inet.h> /* inet_ntoa */
+#endif
 #if HAVE_NETINET_TCP_H
 # include <netinet/tcp.h>
 #endif
@@ -797,15 +800,56 @@ static void ntpd_read (void)
 	{
 		struct info_peer_summary *ptr;
 		double offset;
+
+		char peername[512];
+		
 		ptr = ps + i;
 
-		if (((ntohl (ptr->dstadr) & 0x7F000000) == 0x7F000000) || (ptr->dstadr == 0))
+		if (((ntohl (ptr->dstadr) & 0xFF000000) == 0x7F000000) || (ptr->dstadr == 0))
 			continue;
 
 		/* Convert the `long floating point' offset value to double */
 		M_LFPTOD (ntohl (ptr->offset_int), ntohl (ptr->offset_frc), offset);
 
+		if (ptr->v6_flag)
+		{
+			status = getnameinfo ((const struct sockaddr *) &ptr->srcadr6,
+					sizeof (ptr->srcadr6),
+					peername, sizeof (peername),
+					NULL, 0, 0 /* no flags */);
+			if (status != 0)
+			{
+				syslog (LOG_ERR, "ntpd plugin: getnameinfo failed: %s",
+						status == EAI_SYSTEM
+						? strerror (errno)
+						: gai_strerror (status));
+				continue;
+			}
+		}
+		else /* IPv4 */
+		{
+			struct in_addr  addr_obj;
+			struct hostent *addr_he;
+			char           *addr_str;
+
+			memset ((void *) &addr_obj, '\0', sizeof (addr_obj));
+			addr_obj.s_addr = ptr->srcadr;
+			addr_str = inet_ntoa (addr_obj);
+
+			addr_he = gethostbyaddr ((const void *) &addr_obj,
+					sizeof (addr_obj), AF_INET);
+			if (addr_he != NULL)
+			{
+				strncpy (peername, addr_he->h_name, sizeof (peername));
+			}
+			else
+			{
+				strncpy (peername, addr_str, sizeof (peername));
+			}
+		}
+
 		DBG ("peer %i:\n"
+				"  peername   = %s\n"
 				"  srcadr     = 0x%08x\n"
 				"  delay      = %f\n"
 				"  offset_int = %i\n"
@@ -813,12 +857,15 @@ static void ntpd_read (void)
 				"  offset     = %f\n"
 				"  dispersion = %f\n",
 				i,
+				peername,
 				ntohl (ptr->srcadr),
 				ntpd_read_fp (ptr->delay),
 				ntohl (ptr->offset_int),
 				ntohl (ptr->offset_frc),
 				offset,
 				ntpd_read_fp (ptr->dispersion));
+
+		ntpd_submit ("ntpd_time_offset", peername, offset);
 	}
 
 	free (ps);
