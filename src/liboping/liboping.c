@@ -904,6 +904,7 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			continue;
 		}
 
+#if 0
 		if (bind (ph->fd, (struct sockaddr *) &sockaddr, sockaddr_len) == -1)
 		{
 			dprintf ("bind: %s\n", strerror (errno));
@@ -911,6 +912,7 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			ph->fd = -1;
 			continue;
 		}
+#endif
 
 		assert (sizeof (struct sockaddr_storage) >= ai_ptr->ai_addrlen);
 		memset (ph->addr, '\0', sizeof (struct sockaddr_storage));
