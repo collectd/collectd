@@ -560,6 +560,9 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		if (status < 0)
 		{
 			DBG ("recv(2) failed: %s", strerror (errno));
+			DBG ("Closing socket #%i", sd);
+			close (sd);
+			sock_descr = sd = -1;
 			return (-1);
 		}
 
@@ -758,7 +761,12 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 
 	status = swrite (sd, (const char *) &req, REQ_LEN_NOMAC);
 	if (status < 0)
+	{
+		DBG ("`swrite' failed. Closing socket #%i", sd);
+		close (sd);
+		sock_descr = sd = -1;
 		return (status);
+	}
 
 	return (0);
 }
