@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 3.9.3)
+AC_INIT(collectd, 3.10.0-alpha3)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -726,6 +726,59 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBMYSQL, [$collect_libmysql],
 	[Wether or not to use mysql library])
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 
+#with_liboping="yes"
+with_own_liboping="no"
+liboping_LDFLAGS="$LDFLAGS"
+liboping_CPPFLAGS="$CPPFLAGS"
+AC_ARG_WITH(liboping, [AS_HELP_STRING([--with-liboping@<:@=PREFIX@:>@], [Path to liboping.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		if test -d "$withval/lib"
+		then
+			liboping_LDFLAGS="$LDFLAGS -L$withval/lib"
+		fi
+		if test -d "$withval/include"
+		then
+			liboping_CPPFLAGS="$CPPFLAGS -I$withval/include"
+		fi
+	fi
+	if test "x$withval" = "xno"
+	then
+		with_liboping="no"
+		with_own_liboping="no"
+	fi
+],
+[
+ 	#753
+	with_liboping="yes"
+])
+
+if test "x$with_liboping" = "xyes"
+then
+	save_LDFLAGS="$LDFLAGS"
+	save_CPPFLAGS="$CPPFLAGS"
+	LDFLAGS="$liboping_LDFLAGS"
+	CPPFLAGS="$liboping_CPPFLAGS"
+	AC_CHECK_LIB(oping, ping_construct,
+	[
+		with_liboping="yes"
+		with_own_liboping="no"
+	],
+	[
+		with_liboping="yes"
+		with_own_liboping="yes"
+		LDFLAGS="$save_LDFLAGS"
+		CPPFLAGS="$save_CPPFLAGS"
+	])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBOPING, test "x$with_liboping" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBOPING, test "x$with_own_liboping" = "xyes")
+if test "x$with_liboping" = "xyes" -a "x$with_own_liboping" = "xyes"
+then
+	with_liboping="yes (shipped version)"
+fi
+
 # Define `step' and `hearbeat' values..
 declare -i collectd_step=10
 declare -i collectd_heartbeat=25
@@ -859,7 +912,7 @@ AC_COLLECTD([users],     [disable], [module], [user count statistics])
 AC_COLLECTD([vserver],   [disable], [module], [vserver statistics])
 AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
 
-AC_OUTPUT(Makefile src/libconfig/Makefile src/liboping/Makefile src/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/libconfig/Makefile src/liboping/Makefile)
 
 cat <<EOF;
 
@@ -867,6 +920,7 @@ Configuration:
   Libraries:
     libcurl . . . . . . $with_libcurl
     libiokit  . . . . . $with_libiokit
+    liboping  . . . . . $with_liboping
     librrd  . . . . . . $with_rrdtool
     lm_sensors  . . . . $with_lm_sensors
     libstatgrab . . . . $with_libstatgrab
