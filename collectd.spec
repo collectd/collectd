@@ -71,6 +71,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_mandir}/man1/*
 %attr(0444,root,root) %{_mandir}/man5/*
 %attr(0444,root,root) %{_libdir}/%{name}/apple_sensors.so*
+%attr(0444,root,root) %{_libdir}/%{name}/apcups.so*
 %attr(0444,root,root) %{_libdir}/%{name}/battery.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpu.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpufreq.so*
