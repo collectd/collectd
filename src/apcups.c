@@ -34,7 +34,6 @@
 #include "plugin.h"      /* plugin_register, plugin_submit */
 #include "configfile.h"  /* cf_register */
 #include "utils_debug.h"
-#include <errno.h>
 
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -58,8 +57,10 @@
 #define MAXSTRING               256
 #define MODULE_NAME "apcups"
 
+#define APCUPS_DEFAULT_HOST "localhost"
+
 /* Default values for contacting daemon */
-static char *global_host = "localhost";
+static char *global_host = NULL;
 static int   global_port = NISPORT;
 
 /* 
@@ -377,19 +378,20 @@ static int apc_query_server (char *host, int port,
 	{
 		if ((sockfd = net_open (host, NULL, port)) < 0)
 		{
-			/* Complain first time and once every six hours. */
+			/* Complain once every six hours. */
 			int complain_step = 21600 / atoi (COLLECTD_STEP);
 
-			if (complain == 0 || (complain % complain_step) == 0)
+			if ((complain % complain_step) == 0)
 				syslog (LOG_ERR, "apcups plugin: Connecting to the apcupsd failed.");
 			complain++;
 
 			return (-1);
-		} else {
-			if(complain > 1)
-				syslog (LOG_ERR, "apcups plugin: Connection re-established to the apcupsd.");
 		}
-		complain = 0;
+		else if (complain > 1)
+		{
+			syslog (LOG_NOTICE, "apcups plugin: Connection re-established to the apcupsd.");
+			complain = 0;
+		}
 	}
 
 	if (net_send (&sockfd, "status", 6) < 0)
@@ -398,7 +400,6 @@ static int apc_query_server (char *host, int port,
 		return (-1);
 	}
 
- 	/* XXX: Do we read `n' or `n-1' bytes? */
 	while ((n = net_recv (&sockfd, recvline, sizeof (recvline) - 1)) > 0)
 	{
 		assert (n < sizeof (recvline));
@@ -416,21 +417,21 @@ static int apc_query_server (char *host, int port,
 			value = atof (tokptr);
 			PRINT_VALUE (key, value);
 
-			if (strncmp ("LINEV", key,5) == 0)
+			if (strcmp ("LINEV", key) == 0)
 				apcups_detail->linev = value;
-			else if (strncmp ("BATTV", key,5) == 0) 
+			else if (strcmp ("BATTV", key) == 0) 
 				apcups_detail->battv = value;
-			else if (strncmp ("ITEMP", key,5) == 0)
+			else if (strcmp ("ITEMP", key) == 0)
 				apcups_detail->itemp = value;
-			else if (strncmp ("LOADPCT", key,7) == 0)
+			else if (strcmp ("LOADPCT", key) == 0)
 				apcups_detail->loadpct = value;
-			else if (strncmp ("BCHARGE", key,7) == 0)
+			else if (strcmp ("BCHARGE", key) == 0)
 				apcups_detail->bcharge = value;
-			else if (strncmp ("OUTPUTV", key,7) == 0)
+			else if (strcmp ("OUTPUTV", key) == 0)
 				apcups_detail->outputv = value;
-			else if (strncmp ("LINEFREQ", key,8) == 0)
+			else if (strcmp ("LINEFREQ", key) == 0)
 				apcups_detail->linefreq = value;
-			else if (strncmp ("TIMELEFT", key,8) == 0)
+			else if (strcmp ("TIMELEFT", key) == 0)
 				apcups_detail->timeleft = value;
 
 			tokptr = strtok (NULL, ":");
@@ -582,9 +583,6 @@ static void apcups_read (void)
 	struct apc_detail_s apcups_detail;
 	int status;
 
-	if (global_host == NULL)
-		return;
-	
 	apcups_detail.linev    =   -1.0;
 	apcups_detail.outputv  =   -1.0;
 	apcups_detail.battv    =   -1.0;
@@ -594,7 +592,10 @@ static void apcups_read (void)
 	apcups_detail.itemp    = -300.0;
 	apcups_detail.linefreq =   -1.0;
   
-	status = apc_query_server (global_host, global_port, &apcups_detail);
+	status = apc_query_server (global_host == NULL
+			? APCUPS_DEFAULT_HOST
+			: global_host,
+			global_port, &apcups_detail);
  
 	/*
 	 * if we did not connect then do not bother submitting
