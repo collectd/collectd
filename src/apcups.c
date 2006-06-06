@@ -34,6 +34,7 @@
 #include "plugin.h"      /* plugin_register, plugin_submit */
 #include "configfile.h"  /* cf_register */
 #include "utils_debug.h"
+#include <errno.h>
 
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -44,6 +45,7 @@
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
+
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
@@ -57,7 +59,7 @@
 #define MODULE_NAME "apcups"
 
 /* Default values for contacting daemon */
-static char *global_host = NULL;
+static char *global_host = "localhost";
 static int   global_port = NISPORT;
 
 /* 
@@ -74,7 +76,7 @@ static int bvolt_ds_num = 1;
 static char *load_file_template = "apcups/charge_percent.rrd";
 static char *load_ds_def[] = 
 {
-	"DS:percent:GAUGE:"COLLECTD_HEARTBEAT":0:100",
+	"DS:percent:GAUGE:"COLLECTD_HEARTBEAT":0:110",
 };
 static int load_ds_num = 1;
 
@@ -205,7 +207,6 @@ static int write_nbytes (int *fd, void *buf, int buflen)
 	return (buflen);
 }
 
-#if 0
 /* Close the network connection */
 static void net_close (int *fd)
 {
@@ -219,7 +220,6 @@ static void net_close (int *fd)
 	close (*fd);
 	*fd = -1;
 }
-#endif
 
 
 /*     
@@ -365,7 +365,7 @@ static int apc_query_server (char *host, int port,
 	double  value;
 
 	static int sockfd   = -1;
-	static int complain = 0;
+	static unsigned int complain = 0;
 
 #if APCMAIN
 # define PRINT_VALUE(name, val) printf("  Found property: name = %s; value = %f;\n", name, val)
@@ -377,14 +377,17 @@ static int apc_query_server (char *host, int port,
 	{
 		if ((sockfd = net_open (host, NULL, port)) < 0)
 		{
-			/* Complain once every six hours. */
+			/* Complain first time and once every six hours. */
 			int complain_step = 21600 / atoi (COLLECTD_STEP);
 
-			if ((complain % complain_step) == 0)
+			if (complain == 0 || (complain % complain_step) == 0)
 				syslog (LOG_ERR, "apcups plugin: Connecting to the apcupsd failed.");
 			complain++;
 
 			return (-1);
+		} else {
+			if(complain > 1)
+				syslog (LOG_ERR, "apcups plugin: Connection re-established to the apcupsd.");
 		}
 		complain = 0;
 	}
@@ -429,21 +432,20 @@ static int apc_query_server (char *host, int port,
 				apcups_detail->linefreq = value;
 			else if (strcmp ("TIMELEFT", tokptr) == 0)
 				apcups_detail->timeleft = value;
-			else
-			{
-				syslog (LOG_WARNING, "apcups plugin: Received unknown property from apcupsd: `%s' = %f",
-						key, value);
-			}
 
 			tokptr = strtok (NULL, ":");
 		} /* while (tokptr != NULL) */
 	}
-
+	
 	if (n < 0)
 	{
 		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
 		return (-1);
+	} else {
+		/* close the opened socket */
+		net_close(&sockfd);
 	}
+
 
 	return (0);
 }
@@ -458,18 +460,16 @@ int main (int argc, char **argv)
 	/* we are not really going to use this */
 	struct apc_detail_s apcups_detail;
 
-	openlog ("apcups", LOG_PID | LOG_NDELAY | LOG_LOCAL1);
+	openlog ("apcups", LOG_PID | LOG_NDELAY | LOG_LOCAL1, LOG_USER);
 
-	if (!*host || strcmp (host, "0.0.0.0") == 0)
-		host = "localhost";
+	if (global_host == NULL || strcmp (global_host, "0.0.0.0") == 0)
+		global_host = "localhost";
 
-	if(do_apc_status (host, port, &apcups_detail) < 0)
+	if(apc_query_server (global_host, global_port, &apcups_detail) < 0)
 	{
 		printf("apcups: Failed...\n");
 		return(-1);
 	}
-
-	apc_query_server (global_host, global_port, &apcups_detail);
 
 	return 0;
 }
