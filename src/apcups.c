@@ -416,21 +416,21 @@ static int apc_query_server (char *host, int port,
 			value = atof (tokptr);
 			PRINT_VALUE (key, value);
 
-			if (strcmp ("LINEV", key) == 0)
+			if (strncmp ("LINEV", key,5) == 0)
 				apcups_detail->linev = value;
-			else if (strcmp ("BATTV", tokptr) == 0)
+			else if (strncmp ("BATTV", key,5) == 0) 
 				apcups_detail->battv = value;
-			else if (strcmp ("ITEMP", tokptr) == 0)
+			else if (strncmp ("ITEMP", key,5) == 0)
 				apcups_detail->itemp = value;
-			else if (strcmp ("LOADPCT", tokptr) == 0)
+			else if (strncmp ("LOADPCT", key,7) == 0)
 				apcups_detail->loadpct = value;
-			else if (strcmp ("BCHARGE", tokptr) == 0)
+			else if (strncmp ("BCHARGE", key,7) == 0)
 				apcups_detail->bcharge = value;
-			else if (strcmp ("OUTPUTV", tokptr) == 0)
+			else if (strncmp ("OUTPUTV", key,7) == 0)
 				apcups_detail->outputv = value;
-			else if (strcmp ("LINEFREQ", tokptr) == 0)
+			else if (strncmp ("LINEFREQ", key,8) == 0)
 				apcups_detail->linefreq = value;
-			else if (strcmp ("TIMELEFT", tokptr) == 0)
+			else if (strncmp ("TIMELEFT", key,8) == 0)
 				apcups_detail->timeleft = value;
 
 			tokptr = strtok (NULL, ":");
@@ -445,7 +445,6 @@ static int apc_query_server (char *host, int port,
 		/* close the opened socket */
 		net_close(&sockfd);
 	}
-
 
 	return (0);
 }
