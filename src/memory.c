@@ -44,11 +44,7 @@
 # include <mach/vm_statistics.h>
 #endif
 
-#if !defined(VM_TOTAL) && defined(VM_METER)
-# define VM_TOTAL VM_METER
-#endif
-
-#if defined (HOST_VM_INFO) || defined(VM_TOTAL) || KERNEL_LINUX || HAVE_LIBKSTAT
+#if defined (HOST_VM_INFO) || HAVE_SYSCTLBYNAME || KERNEL_LINUX || HAVE_LIBKSTAT
 # define MEMORY_HAVE_READ 1
 #else
 # define MEMORY_HAVE_READ 0
@@ -75,9 +71,9 @@ static mach_port_t port_host;
 static vm_size_t pagesize;
 /* #endif HOST_VM_INFO */
 
-#elif defined(VM_TOTAL)
+#elif HAVE_SYSCTLBYNAME
 /* no global variables */
-/* #endif VM_METER */
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
 /* no global variables */
@@ -95,9 +91,9 @@ static void memory_init (void)
 	host_page_size (port_host, &pagesize);
 /* #endif HOST_VM_INFO */
 
-#elif defined(VM_TOTAL)
+#elif HAVE_SYSCTLBYNAME
 /* no init stuff */
-/* #endif VM_TOTAL */
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
 /* no init stuff */
@@ -186,7 +182,7 @@ static void memory_read (void)
 	memory_submit (wired + active, -1, inactive, free);
 /* #endif HOST_VM_INFO */
 
-#elif defined(VM_TOTAL)
+#elif HAVE_SYSCTLBYNAME
 	/*
 	 * vm.stats.vm.v_page_size: 4096
 	 * vm.stats.vm.v_page_count: 246178
@@ -196,47 +192,46 @@ static void memory_read (void)
 	 * vm.stats.vm.v_inactive_count: 113730
 	 * vm.stats.vm.v_cache_count: 10809
 	 */
-	int            page_size;
-	int            page_count;
-	int            free_count;
-	int            wire_count;
-	int            active_count;
-	int            inactive_count;
-	int            cache_count;
-	size_t         data_len;
-
-	int            status;
-
-	data_len = sizeof (page_size);
-	if ((status = sysctlbyname ("vm.stats.vm.v_page_size",
-					(void *) &page_size, data_len,
-					NULL, 0)) < 0)
+	char *sysctl_keys[8] =
 	{
-		syslog (LOG_ERR, "memory plugin: sysctlbyname failed: %s",
-				strerror (status));
-		return;
-	}
+		"vm.stats.vm.v_page_size",
+		"vm.stats.vm.v_page_count",
+		"vm.stats.vm.v_free_count",
+		"vm.stats.vm.v_wire_count",
+		"vm.stats.vm.v_active_count",
+		"vm.stats.vm.v_inactive_count",
+		"vm.stats.vm.v_cache_count",
+		NULL
+	};
+	int sysctl_vals[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
-	...
+	size_t len;
+	int    i;
+	int    status;
 
-	status = sysctl (mib, sizeof (mib),
-			(void *) &data, &data_len,
-			NULL, 0); /* new value pointer */
-	if (status < 0)
+	for (i = 0; sysctl_keys[i] != NULL; i++)
 	{
-		DBG ("sysctl failed: %s", strerror (errno));
-		return;
-	}
+		len = sizeof (int);
+		if ((status = sysctlbyname (sysctl_keys[i],
+						(void *) &sysctl_vals[i], len,
+						NULL, 0)) < 0)
+		{
+			syslog (LOG_ERR, "memory plugin: sysctlbyname (%s): %s",
+					sysctl_keys[i], strerror (status));
+			return;
+		}
+		DBG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
+	} /* for i */
 
-	if (data_len != sizeof (data))
-	{
-		DBG ("data_len = %u; sizeof (data) = %u;",
-				(unsigned int) data_len,
-				(unsigned int) sizeof (data));
-		return;
-	}
+	/* multiply all all page counts with the pagesize */
+	for (i = 1; sysctl_keys[i] != NULL; i++)
+		sysctl_vals[i] = sysctl_vals[i] * sysctl_vals[0];
 
-/* #endif VM_TOTAL */
+	memory_submit (sysctl_vals[3] + sysctl_vals[4], /* wired + active */
+			sysctl_vals[6],                 /* cache */
+			sysctl_vals[5],                 /* inactive */
+			sysctl_vals[2]);                /* free */
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
 	FILE *fh;
