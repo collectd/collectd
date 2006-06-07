@@ -217,7 +217,7 @@ static void memory_read (void)
 						NULL, 0)) < 0)
 		{
 			syslog (LOG_ERR, "memory plugin: sysctlbyname (%s): %s",
-					sysctl_keys[i], strerror (status));
+					sysctl_keys[i], strerror (errno));
 			return;
 		}
 		DBG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
