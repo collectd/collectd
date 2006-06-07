@@ -36,7 +36,7 @@
 #ifdef HAVE_MACH_HOST_PRIV_H
 # include <mach/host_priv.h>
 #endif
-#ifdef MACH_VM_STATISTICS_H
+#ifdef HAVE_MACH_VM_STATISTICS_H
 # include <mach/vm_statistics.h>
 #endif
 
