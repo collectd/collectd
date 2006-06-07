@@ -215,16 +215,29 @@ static void swap_read (void)
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYS_SYSCTL_H
-	int mib[2];
+	int              mib[3];
+	size_t           mib_len;
 	struct xsw_usage sw_usage;
 	size_t           sw_usage_len;
+	int              status;
 
-	mib[0] = CTL_VM;
-	mib[1] = VM_SWAPUSAGE;
+#if defined(VM_SWAPUSAGE)
+	mib_len = 2;
+	mib[0]  = CTL_VM;
+	mib[1]  = VM_SWAPUSAGE;
+#else
+	mib_len = 3;
+	if ((status = sysctlnametomib ("vm.swap_info", mib, &mib_len)) < 0)
+	{
+		syslog (LOG_WARN, "swap plugin: sysctlnametomib failed: %s",
+				strerror (errno));
+		return;
+	}
+#endif
 
 	sw_usage_len = sizeof (struct xsw_usage);
 
-	if (sysctl (mib, 2, &sw_usage, &sw_usage_len, NULL, 0) != 0)
+	if (sysctl (mib, mib_len, &sw_usage, &sw_usage_len, NULL, 0) != 0)
 		return;
 
 	/* The returned values are bytes. */
