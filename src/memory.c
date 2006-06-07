@@ -213,7 +213,7 @@ static void memory_read (void)
 	{
 		len = sizeof (int);
 		if ((status = sysctlbyname (sysctl_keys[i],
-						(void *) &sysctl_vals[i], len,
+						(void *) &sysctl_vals[i], &len,
 						NULL, 0)) < 0)
 		{
 			syslog (LOG_ERR, "memory plugin: sysctlbyname (%s): %s",
