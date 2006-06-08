@@ -88,7 +88,7 @@ static char *charge_ds_def[] =
 };
 static int charge_ds_num = 1;
 
-static char *time_file_template = "apcups/time.rrd";
+static char *time_file_template = "apcups/timeleft.rrd";
 static char *time_ds_def[] = 
 {
 	"DS:timeleft:GAUGE:"COLLECTD_HEARTBEAT":0:100",
@@ -282,6 +282,8 @@ static int net_open (char *host, char *service, int port)
 		return (-1);
 	}
 
+	DBG ("Done opening a socket: %i", sd);
+
 	return (sd);
 } /* int net_open (char *host, char *service, int port) */
 
@@ -408,14 +410,16 @@ static int apc_query_server (char *host, int port,
 		printf ("net_recv = `%s';\n", recvline);
 #endif /* if APCMAIN */
 
-		tokptr = strtok (recvline, ":");
+		tokptr = strtok (recvline, " :\t");
 		while (tokptr != NULL)
 		{
 			key = tokptr;
-			if ((tokptr = strtok (NULL, " \t")) == NULL)
+			if ((tokptr = strtok (NULL, " :\t")) == NULL)
 				continue;
 			value = atof (tokptr);
+
 			PRINT_VALUE (key, value);
+			DBG ("key = %s; value = %f;", key, value);
 
 			if (strcmp ("LINEV", key) == 0)
 				apcups_detail->linev = value;
@@ -563,6 +567,7 @@ static void apc_submit_generic (char *type, char *inst,
 	if ((status < 1) || (status >= 512))
 		return;
 
+	DBG ("plugin_submit (%s, %s, %s);", type, inst, buf);
 	plugin_submit (type, inst, buf);
 }
 
@@ -602,7 +607,14 @@ static void apcups_read (void)
 	 * zeros. We want rrd files to have NAN.
 	 */
 	if (status != 0)
+	{
+		DBG ("apc_query_server (%s, %i) = %i",
+				global_host == NULL
+				? APCUPS_DEFAULT_HOST
+				: global_host,
+				global_port, status);
 		return;
+	}
 
 	apc_submit (&apcups_detail);
 } /* apcups_read */
