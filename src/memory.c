@@ -23,6 +23,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
 
 #ifdef HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
