@@ -33,10 +33,13 @@
 #if HAVE_SYS_SYSCTL_H
 #  include <sys/sysctl.h>
 #endif
+#if HAVE_KVM_H
+#  include <kvm.h>
+#endif
 
 #define MODULE_NAME "swap"
 
-#if KERNEL_LINUX || HAVE_LIBKSTAT || HAVE_SYS_SYSCTL_H || HAVE_LIBSTATGRAB
+#if KERNEL_LINUX || HAVE_LIBKSTAT || defined(VM_SWAPUSAGE) || HAVE_LIBKVM || HAVE_LIBSTATGRAB
 # define SWAP_HAVE_READ 1
 #else
 # define SWAP_HAVE_READ 0
@@ -67,9 +70,14 @@ static int pagesize;
 static kstat_t *ksp;
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYS_SYSCTL_H
+#elif defined(VM_SWAPUSAGE)
 /* No global variables */
-/* #endif HAVE_SYS_SYSCTL_H */
+/* #endif defined(VM_SWAPUSAGE) */
+
+#elif HAVE_LIBKVM
+static kvm_t *kvm_obj = NULL;
+int kvm_pagesize;
+/* #endif HAVE_LIBKVM */
 
 #elif HAVE_LIBSTATGRAB
 /* No global variables */
@@ -88,9 +96,30 @@ static void swap_init (void)
 		ksp = NULL;
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYS_SYSCTL_H
+#elif defined(VM_SWAPUSAGE)
 	/* No init stuff */
-/* #endif HAVE_SYS_SYSCTL_H */
+/* #endif defined(VM_SWAPUSAGE) */
+
+#elif HAVE_LIBKVM
+	if (kvm_obj != NULL)
+	{
+		kvm_close (kvm_obj);
+		kvm_obj = NULL;
+	}
+
+	kvm_pagesize = getpagesize ();
+
+	if ((kvm_obj = kvm_open (NULL, /* execfile */
+					NULL, /* corefile */
+					NULL, /* swapfile */
+					O_RDONLY, /* flags */
+					NULL)) /* errstr */
+			== NULL)
+	{
+		syslog (LOG_ERR, "swap plugin: kvm_open failed.");
+		return;
+	}
+/* #endif HAVE_LIBKVM */
 
 #elif HAVE_LIBSTATGRAB
 	/* No init stuff */
@@ -214,26 +243,16 @@ static void swap_read (void)
 	swap_submit (swap_alloc, swap_avail, -1LL, swap_resv - swap_alloc);
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYS_SYSCTL_H
+#elif defined(VM_SWAPUSAGE)
 	int              mib[3];
 	size_t           mib_len;
 	struct xsw_usage sw_usage;
 	size_t           sw_usage_len;
 	int              status;
 
-#if defined(VM_SWAPUSAGE)
 	mib_len = 2;
 	mib[0]  = CTL_VM;
 	mib[1]  = VM_SWAPUSAGE;
-#else
-	mib_len = 3;
-	if ((status = sysctlnametomib ("vm.swap_info", mib, &mib_len)) < 0)
-	{
-		syslog (LOG_WARN, "swap plugin: sysctlnametomib failed: %s",
-				strerror (errno));
-		return;
-	}
-#endif
 
 	sw_usage_len = sizeof (struct xsw_usage);
 
@@ -242,7 +261,34 @@ static void swap_read (void)
 
 	/* The returned values are bytes. */
 	swap_submit (sw_usage.xsu_used, sw_usage.xsu_avail, -1LL, -1LL);
-/* #endif HAVE_SYS_SYSCTL_H */
+/* #endif VM_SWAPUSAGE */
+
+#elif HAVE_LIBKVM
+	struct kvm_swap data_s;
+	int             status;
+
+	unsigned long long used;
+	unsigned long long free;
+	unsigned long long total;
+
+	if (kvm_obj == NULL)
+		return;
+
+	/* only one structure => only get the grand total, no details */
+	status = kvm_getswapinfo (kvm_obj, &data_s, 1, 0);
+	if (status == -1)
+		return;
+
+	total = (unsigned long long) data_s.ksw_total;
+	used  = (unsigned long long) data_s.ksw_used;
+
+	total *= (unsigned long long) kvm_pagesize;
+	used  *= (unsigned long long) kvm_pagesize;
+
+	free = total - used;
+
+	swap_submit (used, free, -1LL, -1LL);
+/* #endif HAVE_LIBKVM */
 
 #elif HAVE_LIBSTATGRAB
 	sg_swap_stats *swap;
