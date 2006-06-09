@@ -99,7 +99,7 @@ static char *temp_file_template = "apcups/temperature.rrd";
 static char *temp_ds_def[] = 
 {
 	/* -273.15 is absolute zero */
-	"DS:temperature:GAUGE:"COLLECTD_HEARTBEAT":-274:U",
+	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":-274:U",
 };
 static int temp_ds_num = 1;
 
