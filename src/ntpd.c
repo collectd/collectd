@@ -69,12 +69,12 @@ static char *time_dispersion_file = "ntpd/time_dispersion-%s.rrd";
 static char *time_delay_file      = "ntpd/delay-%s.rrd";
 
 /* used for `time_offset', `time_dispersion', and `delay' */
-static char *ms_ds_def[] =
+static char *sec_ds_def[] =
 {
-	"DS:ms:GAUGE:"COLLECTD_HEARTBEAT":-1000000:1000000",
+	"DS:seconds:GAUGE:"COLLECTD_HEARTBEAT":-1000000:1000000",
 	NULL
 };
-static int ms_ds_num = 1;
+static int sec_ds_num = 1;
 
 static char *frequency_offset_file = "ntpd/frequency_offset-%s.rrd";
 static char *frequency_offset_ds_def[] =
@@ -315,7 +315,7 @@ static void ntpd_init (void)
 	return;
 }
 
-static void ntpd_write_ms (char *host, char *inst, char *val, char *file)
+static void ntpd_write_sec (char *host, char *inst, char *val, char *file)
 {
 	char buf[256];
 	int  status;
@@ -325,22 +325,22 @@ static void ntpd_write_ms (char *host, char *inst, char *val, char *file)
 		return;
 
 	rrd_update_file (host, buf, val,
-			ms_ds_def, ms_ds_num);
+			sec_ds_def, sec_ds_num);
 }
 
 static void ntpd_write_time_offset (char *host, char *inst, char *val)
 {
-	ntpd_write_ms (host, inst, val, time_offset_file);
+	ntpd_write_sec (host, inst, val, time_offset_file);
 }
 
 static void ntpd_write_time_dispersion (char *host, char *inst, char *val)
 {
-	ntpd_write_ms (host, inst, val, time_dispersion_file);
+	ntpd_write_sec (host, inst, val, time_dispersion_file);
 }
 
 static void ntpd_write_delay (char *host, char *inst, char *val)
 {
-	ntpd_write_ms (host, inst, val, time_delay_file);
+	ntpd_write_sec (host, inst, val, time_delay_file);
 }
 
 static void ntpd_write_frequency_offset (char *host, char *inst, char *val)
