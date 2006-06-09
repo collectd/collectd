@@ -74,17 +74,17 @@ static char *bvolt_ds_def[] =
 };
 static int bvolt_ds_num = 1;
 
-static char *load_file_template = "apcups/charge_percent.rrd";
+static char *load_file_template = "apcups/load_percent.rrd";
 static char *load_ds_def[] = 
 {
 	"DS:percent:GAUGE:"COLLECTD_HEARTBEAT":0:110",
 };
 static int load_ds_num = 1;
 
-static char *charge_file_template = "apcups/charge.rrd";
+static char *charge_file_template = "apcups/charge_percent.rrd";
 static char *charge_ds_def[] = 
 {
-	"DS:charge:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:percent:GAUGE:"COLLECTD_HEARTBEAT":0:110",
 };
 static int charge_ds_num = 1;
 
