@@ -125,6 +125,61 @@ void sfree (void **ptr)
 }
 #endif
 
+ssize_t sread (int fd, void *buf, size_t count)
+{
+	char    *ptr;
+	size_t   nleft;
+	ssize_t  status;
+
+	ptr   = (char *) buf;
+	nleft = count;
+
+	while (nleft > 0)
+	{
+		status = read (fd, (void *) ptr, nleft);
+
+		if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+			continue;
+
+		if (status < 0)
+			return (status);
+
+		assert (nleft >= status);
+
+		nleft = nleft - status;
+		ptr   = ptr   + status;
+	}
+
+	return (0);
+}
+
+
+ssize_t swrite (int fd, const void *buf, size_t count)
+{
+	const char *ptr;
+	size_t      nleft;
+	ssize_t     status;
+
+	ptr   = (const char *) buf;
+	nleft = count;
+
+	while (nleft > 0)
+	{
+		status = write (fd, (const void *) ptr, nleft);
+
+		if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+			continue;
+
+		if (status < 0)
+			return (status);
+
+		nleft = nleft - status;
+		ptr   = ptr   + status;
+	}
+
+	return (0);
+}
+
 int strsplit (char *string, char **fields, size_t size)
 {
 	size_t i;
