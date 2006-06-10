@@ -1,0 +1,58 @@
+# svn stuff:
+.svn
+contrib/.svn
+debian/.svn
+src/.svn
+src/libconfig/.svn
+src/liboping/.svn
+
+# build.sh stuff:
+INSTALL
+Makefile.in
+aclocal.m4
+autom4te.cache
+compile
+config.guess
+config.sub
+configure
+depcomp
+install-sh
+libltdl
+ltmain.sh
+missing
+src/Makefile.in
+src/config.h.in
+src/libconfig/Makefile.in
+src/liboping/Makefile.in
+
+# configure stuff:
+Makefile
+config.log
+config.status
+libtool
+src/.deps
+src/Makefile
+src/config.h
+src/libconfig/Makefile
+src/liboping/Makefile
+src/stamp-h1
+
+# make stuff:
+src/.libs
+src/*.la
+src/*.lo
+src/*.o
+src/collectd
+src/collectd.1
+src/collectd.conf.5
+src/config.h.in~
+src/libconfig/.libs
+src/libconfig/*.la
+src/libconfig/*.lo
+src/liboping/.libs
+src/liboping/*.la
+src/liboping/*.lo
+
+# make dist stuff:
+collectd-*.tar.gz
+collectd-*.tar.bz2
