@@ -153,14 +153,23 @@ static int read_nbytes (int *fd, char *ptr, int nbytes)
 	{
 		nread = read (*fd, ptr, nleft);
 
-		if (nread == -1 && (errno == EINTR || errno == EAGAIN))
+		if ((nread < 0) && (errno == EINTR || errno == EAGAIN))
 			continue;
 
-		if (nread == -1)
+		if (nread < 0)
 		{
 			*fd = -1;
-			syslog (LOG_ERR, "apcups plugin: write failed: %s", strerror (errno));
+			DBG ("Reading from socket failed failed: %s; *fd = -1;", strerror (errno));
+			syslog (LOG_ERR, "apcups plugin: Reading from socket failed failed: %s", strerror (errno));
 			return (-1);
+		}
+
+		if (nread == 0)
+		{
+			DBG ("Received EOF. Closing socket %i.", *fd);
+			close (*fd);
+			*fd = -1;
+			return (nbytes - nleft);
 		}
 
 		nleft -= nread;
@@ -190,13 +199,14 @@ static int write_nbytes (int *fd, void *buf, int buflen)
 	{
 		nwritten = write (*fd, ptr, nleft);
 
-		if ((nwritten == -1) && ((errno == EAGAIN) || (errno == EINTR)))
+		if ((nwritten < 0) && ((errno == EAGAIN) || (errno == EINTR)))
 			continue;
 
-		if (nwritten == -1)
+		if (nwritten < 0)
 		{
-			syslog (LOG_ERR, "Writing to socket failed: %s", strerror (errno));
 			*fd = -1;
+			DBG ("Writing to socket failed: %s; *fd = -1;", strerror (errno));
+			syslog (LOG_ERR, "apcups plugin: Writing to socket failed: %s", strerror (errno));
 			return (-1);
 		}
 
@@ -215,13 +225,14 @@ static void net_close (int *fd)
 
 	assert (*fd >= 0);
 
+	DBG ("Gracefully shutting down socket %i.", *fd);
+
 	/* send EOF sentinel */
 	write_nbytes (fd, &pktsiz, sizeof (short));
 
 	close (*fd);
 	*fd = -1;
 }
-
 
 /*     
  * Open a TCP connection to the UPS network server
@@ -282,7 +293,7 @@ static int net_open (char *host, char *service, int port)
 		return (-1);
 	}
 
-	DBG ("Done opening a socket: %i", sd);
+	DBG ("Done opening a socket %i", sd);
 
 	return (sd);
 } /* int net_open (char *host, char *service, int port) */
@@ -341,6 +352,7 @@ static int net_send (int *sockfd, char *buff, int len)
 	short packet_size;
 
 	assert (len > 0);
+	assert (*sockfd >= 0);
 
 	/* send short containing size of data packet */
 	packet_size = htons ((short) len);
@@ -419,7 +431,6 @@ static int apc_query_server (char *host, int port,
 			value = atof (tokptr);
 
 			PRINT_VALUE (key, value);
-			DBG ("key = %s; value = %f;", key, value);
 
 			if (strcmp ("LINEV", key) == 0)
 				apcups_detail->linev = value;
@@ -446,9 +457,11 @@ static int apc_query_server (char *host, int port,
 	{
 		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
 		return (-1);
-	} else {
+	}
+	else
+	{
 		/* close the opened socket */
-		net_close(&sockfd);
+		net_close (&sockfd);
 	}
 
 	return (0);
