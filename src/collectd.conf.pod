@@ -158,6 +158,20 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =back
 
+=head2 Plugin C<ntpd>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the host running B<ntpd>. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+UDP-Port to connect to. Default to B<123>.
+
+=back
+
 =head2 Plugin C<mysql>
 
 =over 4
