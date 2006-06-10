@@ -218,6 +218,7 @@ static int write_nbytes (int *fd, void *buf, int buflen)
 	return (buflen);
 }
 
+#if APCMAIN
 /* Close the network connection */
 static void net_close (int *fd)
 {
@@ -233,6 +234,7 @@ static void net_close (int *fd)
 	close (*fd);
 	*fd = -1;
 }
+#endif /* APCMAIN */
 
 /*     
  * Open a TCP connection to the UPS network server
@@ -458,11 +460,13 @@ static int apc_query_server (char *host, int port,
 		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
 		return (-1);
 	}
+#if APCMAIN
 	else
 	{
 		/* close the opened socket */
 		net_close (&sockfd);
 	}
+#endif /* APCMAIN */
 
 	return (0);
 }
