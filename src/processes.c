@@ -92,6 +92,20 @@ static char *ds_def[] =
 };
 static int ds_num = 6;
 
+typedef struct procstat
+{
+#define PROCSTAT_NAME_LEN 256
+	char         name[PROCSTAT_NAME_LEN];
+	unsigned int num_proc;
+	unsigned int num_lwp;
+	unsigned int vmem_rss;
+	unsigned int vmem_minflt;
+	unsigned int vmem_majflt;
+	unsigned int cpu_user;
+	unsigned int cpu_system;
+	struct procstat *next;
+} procstat_t;
+
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
 static mach_port_t port_task_self;
@@ -103,6 +117,45 @@ static mach_msg_type_number_t     pset_list_len;
 #elif KERNEL_LINUX
 /* No global variables */
 #endif /* KERNEL_LINUX */
+
+static void ps_list_add (procstat_t *list, procstat_t *entry)
+{
+	procstat_t *ptr;
+
+	ptr = list;
+	while ((ptr != NULL) && (strcmp (ptr->name, entry->name) != 0))
+		ptr = ptr->next;
+
+	if (ptr == NULL)
+		return;
+
+	ptr->num_proc    += entry->num_proc;
+	ptr->num_lwp     += entry->num_lwp;
+	ptr->vmem_rss    += entry->vmem_rss;
+	ptr->vmem_minflt += entry->vmem_minflt;
+	ptr->vmem_maxflt += entry->vmem_maxflt;
+	ptr->cpu_user    += entry->cpu_user;
+	ptr->cpu_system  += entry->cpu_system;
+}
+
+static void ps_list_reset (procstat_t *ps)
+{
+	while (ps != NULL)
+	{
+		ps->num_proc    = 0;
+		ps->num_lwp     = 0;
+		ps->vmem_rss    = 0;
+		ps->vmem_minflt = 0;
+		ps->vmem_maxflt = 0;
+		ps->cpu_user    = 0;
+		ps->cpu_system  = 0;
+		ps = ps->next;
+	}
+}
+
+static int ps_config (char *key, char *value)
+{
+}
 
 static void ps_init (void)
 {
