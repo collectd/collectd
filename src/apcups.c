@@ -74,21 +74,21 @@ static char *bvolt_ds_def[] =
 };
 static int bvolt_ds_num = 1;
 
-static char *load_file_template = "apcups/charge_percent.rrd";
+static char *load_file_template = "apcups/load_percent.rrd";
 static char *load_ds_def[] = 
 {
 	"DS:percent:GAUGE:"COLLECTD_HEARTBEAT":0:110",
 };
 static int load_ds_num = 1;
 
-static char *charge_file_template = "apcups/charge.rrd";
+static char *charge_file_template = "apcups/charge_percent.rrd";
 static char *charge_ds_def[] = 
 {
-	"DS:charge:GAUGE:"COLLECTD_HEARTBEAT":0:U",
+	"DS:percent:GAUGE:"COLLECTD_HEARTBEAT":0:110",
 };
 static int charge_ds_num = 1;
 
-static char *time_file_template = "apcups/time.rrd";
+static char *time_file_template = "apcups/timeleft.rrd";
 static char *time_ds_def[] = 
 {
 	"DS:timeleft:GAUGE:"COLLECTD_HEARTBEAT":0:100",
@@ -99,7 +99,7 @@ static char *temp_file_template = "apcups/temperature.rrd";
 static char *temp_ds_def[] = 
 {
 	/* -273.15 is absolute zero */
-	"DS:temperature:GAUGE:"COLLECTD_HEARTBEAT":-274:U",
+	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":-274:U",
 };
 static int temp_ds_num = 1;
 
@@ -153,14 +153,23 @@ static int read_nbytes (int *fd, char *ptr, int nbytes)
 	{
 		nread = read (*fd, ptr, nleft);
 
-		if (nread == -1 && (errno == EINTR || errno == EAGAIN))
+		if ((nread < 0) && (errno == EINTR || errno == EAGAIN))
 			continue;
 
-		if (nread == -1)
+		if (nread < 0)
 		{
 			*fd = -1;
-			syslog (LOG_ERR, "apcups plugin: write failed: %s", strerror (errno));
+			DBG ("Reading from socket failed failed: %s; *fd = -1;", strerror (errno));
+			syslog (LOG_ERR, "apcups plugin: Reading from socket failed failed: %s", strerror (errno));
 			return (-1);
+		}
+
+		if (nread == 0)
+		{
+			DBG ("Received EOF. Closing socket %i.", *fd);
+			close (*fd);
+			*fd = -1;
+			return (nbytes - nleft);
 		}
 
 		nleft -= nread;
@@ -190,13 +199,14 @@ static int write_nbytes (int *fd, void *buf, int buflen)
 	{
 		nwritten = write (*fd, ptr, nleft);
 
-		if ((nwritten == -1) && ((errno == EAGAIN) || (errno == EINTR)))
+		if ((nwritten < 0) && ((errno == EAGAIN) || (errno == EINTR)))
 			continue;
 
-		if (nwritten == -1)
+		if (nwritten < 0)
 		{
-			syslog (LOG_ERR, "Writing to socket failed: %s", strerror (errno));
 			*fd = -1;
+			DBG ("Writing to socket failed: %s; *fd = -1;", strerror (errno));
+			syslog (LOG_ERR, "apcups plugin: Writing to socket failed: %s", strerror (errno));
 			return (-1);
 		}
 
@@ -208,6 +218,7 @@ static int write_nbytes (int *fd, void *buf, int buflen)
 	return (buflen);
 }
 
+#if APCMAIN
 /* Close the network connection */
 static void net_close (int *fd)
 {
@@ -215,13 +226,15 @@ static void net_close (int *fd)
 
 	assert (*fd >= 0);
 
+	DBG ("Gracefully shutting down socket %i.", *fd);
+
 	/* send EOF sentinel */
 	write_nbytes (fd, &pktsiz, sizeof (short));
 
 	close (*fd);
 	*fd = -1;
 }
-
+#endif /* APCMAIN */
 
 /*     
  * Open a TCP connection to the UPS network server
@@ -282,6 +295,8 @@ static int net_open (char *host, char *service, int port)
 		return (-1);
 	}
 
+	DBG ("Done opening a socket %i", sd);
+
 	return (sd);
 } /* int net_open (char *host, char *service, int port) */
 
@@ -339,6 +354,7 @@ static int net_send (int *sockfd, char *buff, int len)
 	short packet_size;
 
 	assert (len > 0);
+	assert (*sockfd >= 0);
 
 	/* send short containing size of data packet */
 	packet_size = htons ((short) len);
@@ -408,13 +424,14 @@ static int apc_query_server (char *host, int port,
 		printf ("net_recv = `%s';\n", recvline);
 #endif /* if APCMAIN */
 
-		tokptr = strtok (recvline, ":");
+		tokptr = strtok (recvline, " :\t");
 		while (tokptr != NULL)
 		{
 			key = tokptr;
-			if ((tokptr = strtok (NULL, " \t")) == NULL)
+			if ((tokptr = strtok (NULL, " :\t")) == NULL)
 				continue;
 			value = atof (tokptr);
+
 			PRINT_VALUE (key, value);
 
 			if (strcmp ("LINEV", key) == 0)
@@ -442,10 +459,14 @@ static int apc_query_server (char *host, int port,
 	{
 		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
 		return (-1);
-	} else {
-		/* close the opened socket */
-		net_close(&sockfd);
 	}
+#if APCMAIN
+	else
+	{
+		/* close the opened socket */
+		net_close (&sockfd);
+	}
+#endif /* APCMAIN */
 
 	return (0);
 }
@@ -563,6 +584,7 @@ static void apc_submit_generic (char *type, char *inst,
 	if ((status < 1) || (status >= 512))
 		return;
 
+	DBG ("plugin_submit (%s, %s, %s);", type, inst, buf);
 	plugin_submit (type, inst, buf);
 }
 
@@ -602,7 +624,14 @@ static void apcups_read (void)
 	 * zeros. We want rrd files to have NAN.
 	 */
 	if (status != 0)
+	{
+		DBG ("apc_query_server (%s, %i) = %i",
+				global_host == NULL
+				? APCUPS_DEFAULT_HOST
+				: global_host,
+				global_port, status);
 		return;
+	}
 
 	apc_submit (&apcups_detail);
 } /* apcups_read */
