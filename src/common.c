@@ -144,6 +144,15 @@ ssize_t sread (int fd, void *buf, size_t count)
 		if (status < 0)
 			return (status);
 
+		if (status == 0)
+		{
+			DBG ("Received EOF from fd %i. "
+					"Closing fd and returning error.",
+					fd);
+			close (fd);
+			return (-1);
+		}
+
 		assert (nleft >= status);
 
 		nleft = nleft - status;

@@ -43,7 +43,8 @@ void *smalloc(size_t size);
  *
  * DESCRIPTION
  *   Reads exactly `n' bytes or failes. Syntax and other behavior is analogous
- *   to `read(2)'.
+ *   to `read(2)'. If EOF is received the file descriptor is closed and an
+ *   error is returned.
  *
  * PARAMETERS
  *   `fd'          File descriptor to write to.
