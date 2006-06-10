@@ -107,6 +107,7 @@ static void load_read (void)
 	if (fgets (buffer, 16, loadavg) == NULL)
 	{
 		syslog (LOG_WARNING, "load: fgets: %s", strerror (errno));
+		fclose (loadavg);
 		return;
 	}
 

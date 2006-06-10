@@ -123,6 +123,7 @@ static void cpufreq_read (void)
 		if (fgets (buffer, 16, fp) == NULL)
 		{
 			syslog (LOG_WARNING, "cpufreq: fgets: %s", strerror (errno));
+			fclose (fp);
 			return;
 		}
 

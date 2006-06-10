@@ -185,6 +185,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 			syslog (LOG_ERR, "hddtemp: Error reading from socket: %s",
 						strerror (errno));
+			close (fd);
 			return (-1);
 		}
 		buffer_fill += status;
@@ -373,6 +374,7 @@ static void hddtemp_init (void)
 				first_hddname = entry;
 			}
 		}
+		fclose (fh);
 	}
 	else
 		DBG ("Could not open /proc/partitions: %s",
