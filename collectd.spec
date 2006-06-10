@@ -1,6 +1,6 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	3.9.0
+Version:	3.9.3
 Release:	1
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
@@ -71,6 +71,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_mandir}/man1/*
 %attr(0444,root,root) %{_mandir}/man5/*
 %attr(0444,root,root) %{_libdir}/%{name}/apple_sensors.so*
+%attr(0444,root,root) %{_libdir}/%{name}/apcups.so*
 %attr(0444,root,root) %{_libdir}/%{name}/battery.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpu.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpufreq.so*
@@ -101,6 +102,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
+* Tue Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
+- New upstream version
+
 * Tue May 09 2006 Florian octo Forster <octo@verplant.org> 3.9.2-1
 - New upstream version
 

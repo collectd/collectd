@@ -39,6 +39,44 @@ void *smalloc(size_t size);
 
 /*
  * NAME
+ *   sread
+ *
+ * DESCRIPTION
+ *   Reads exactly `n' bytes or failes. Syntax and other behavior is analogous
+ *   to `read(2)'.
+ *
+ * PARAMETERS
+ *   `fd'          File descriptor to write to.
+ *   `buf'         Buffer that is to be written.
+ *   `count'       Numver of bytes in the buffer.
+ *
+ * RETURN VALUE
+ *   Zero upon success or non-zero if an error occured. `errno' is set in this
+ *   case.
+ */
+ssize_t sread (int fd, void *buf, size_t count);
+
+/*
+ * NAME
+ *   swrite
+ *
+ * DESCRIPTION
+ *   Writes exactly `n' bytes or failes. Syntax and other behavior is analogous
+ *   to `write(2)'.
+ *
+ * PARAMETERS
+ *   `fd'          File descriptor to write to.
+ *   `buf'         Buffer that is to be written.
+ *   `count'       Numver of bytes in the buffer.
+ *
+ * RETURN VALUE
+ *   Zero upon success or non-zero if an error occured. `errno' is set in this
+ *   case.
+ */
+ssize_t swrite (int fd, const void *buf, size_t count);
+
+/*
+ * NAME
  *   strsplit
  *
  * DESCRIPTION

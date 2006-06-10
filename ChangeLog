@@ -2,6 +2,18 @@
 	* The `battery' plugin should work on many Apple computers now.
 	* The `traffic' plugin can now ignore certain interfaces. Also,
 	  statistics for sent/received packets and errors have been added.
+	* A plugin to monitor APC UPSes using `apcupsd' has been added. Thanks
+	  to Anthony Gialluca for contributing this plugin and providing me
+	  with a test environment :)
+	* A plugin for moniroting an NTP instance and the local clock drift
+	  has been added.
+
+2006-06-01, Version 3.9.3
+	* Fixed the ping-plugin under FreeBSD and Mac OS X. Potentially other
+	  operating systems also profit from the changes, but I wasn't able to
+	  check that.
+	* Changed the build system to find the netinet-includes under FreeBSD
+	  and therefore successfully build the `liboping' library there.
 
 2006-05-09, Version 3.9.2
 	* Applied a patch to the `liboping' library. Due to a bug in the

@@ -1,4 +1,5 @@
 SUBDIRS = libltdl src
+
 INCLUDES = $(LTDLINCL)
 
 EXTRA_DIST = collectd.spec contrib debian

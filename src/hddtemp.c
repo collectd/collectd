@@ -158,6 +158,10 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 			fd = -1;
 			continue;
 		}
+
+		/* A socket could be opened and connecting succeeded. We're
+		 * done. */
+		break;
 	}
 
 	freeaddrinfo (ai_list);
