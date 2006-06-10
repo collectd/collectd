@@ -135,51 +135,6 @@ struct apc_detail_s
 #define BIG_BUF 4096
 
 /*
- * Read nbytes from the network.
- * It is possible that the total bytes require in several
- * read requests
- */
-static int read_nbytes (int *fd, char *ptr, int nbytes)
-{
-	int nleft;
-	int nread;
-
-	nleft = nbytes;
-	nread = -1;
-
-	assert (*fd >= 0);
-
-	while ((nleft > 0) && (nread != 0))
-	{
-		nread = read (*fd, ptr, nleft);
-
-		if ((nread < 0) && (errno == EINTR || errno == EAGAIN))
-			continue;
-
-		if (nread < 0)
-		{
-			*fd = -1;
-			DBG ("Reading from socket failed failed: %s; *fd = -1;", strerror (errno));
-			syslog (LOG_ERR, "apcups plugin: Reading from socket failed failed: %s", strerror (errno));
-			return (-1);
-		}
-
-		if (nread == 0)
-		{
-			DBG ("Received EOF. Closing socket %i.", *fd);
-			close (*fd);
-			*fd = -1;
-			return (nbytes - nleft);
-		}
-
-		nleft -= nread;
-		ptr += nread;
-	}
-
-	return (nbytes - nleft);
-}
-
-/*
  * Write nbytes to the network.
  * It may require several writes.
  */
@@ -315,8 +270,11 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	short pktsiz;
 
 	/* get data size -- in short */
-	if ((nbytes = read_nbytes (sockfd, (char *) &pktsiz, sizeof (short))) <= 0)
+	if ((nbytes = sread (*sockfd, (void *) &pktsiz, sizeof (short))) <= 0)
+	{
+		*sockfd = -1;
 		return (-1);
+	}
 
 	if (nbytes != sizeof (short))
 		return (-2);
@@ -332,14 +290,17 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 		return (0);
 
 	/* now read the actual data */
-	if ((nbytes = read_nbytes (sockfd, buf, pktsiz)) <= 0)
-		return (-2);
+	if ((nbytes = sread (*sockfd, (void *) buf, pktsiz)) <= 0)
+	{
+		*sockfd = -1;
+		return (-1);
+	}
 
 	if (nbytes != pktsiz)
 		return (-2);
 
 	return (nbytes);
-} /* static int net_recv (int sockfd, char *buf, int buflen) */
+} /* static int net_recv (int *sockfd, char *buf, int buflen) */
 
 /*
  * Send a message over the network. The send consists of
