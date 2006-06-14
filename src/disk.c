@@ -101,8 +101,8 @@ typedef struct diskstats
 	/* This overflows in roughly 1361 year */
 	unsigned int poll_count;
 
-	unsigned int read_sectors;
-	unsigned int write_sectors;
+	unsigned long long read_sectors;
+	unsigned long long write_sectors;
 
 	unsigned long long read_bytes;
 	unsigned long long write_bytes;
@@ -111,6 +111,7 @@ typedef struct diskstats
 } diskstats_t;
 
 static diskstats_t *disklist;
+static int min_poll_count;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -143,7 +144,17 @@ static void disk_init (void)
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
-	/* No init needed */
+	int step;
+	int heartbeat;
+
+	step = atoi (COLLECTD_STEP);
+	heartbeat = atoi (COLLECTD_HEARTBEAT);
+
+	assert (step > 0);
+	assert (heartbeat >= step);
+
+	min_poll_count = 1 + (heartbeat / step);
+	DBG ("min_poll_count = %i;", min_poll_count);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -218,6 +229,9 @@ static void disk_submit (char *disk_name,
 				write_count, write_merged, write_bytes,
 				write_time) >= BUFSIZE)
 		return;
+
+	DBG ("disk_name = %s; buf = %s;",
+			disk_name, buf);
 
 	plugin_submit (MODULE_NAME, disk_name, buf);
 }
@@ -431,17 +445,17 @@ static void disk_read (void)
 	int major = 0;
 	int minor = 0;
 
-	unsigned int read_sectors;
-	unsigned int write_sectors;
+	unsigned long long read_sectors  = 0ULL;
+	unsigned long long write_sectors = 0ULL;
 
-	unsigned long long read_count    = 0;
-	unsigned long long read_merged   = 0;
-	unsigned long long read_bytes    = 0;
-	unsigned long long read_time     = 0;
-	unsigned long long write_count   = 0;
-	unsigned long long write_merged  = 0;
-	unsigned long long write_bytes   = 0;
-	unsigned long long write_time    = 0;
+	unsigned long long read_count    = 0ULL;
+	unsigned long long read_merged   = 0ULL;
+	unsigned long long read_bytes    = 0ULL;
+	unsigned long long read_time     = 0ULL;
+	unsigned long long write_count   = 0ULL;
+	unsigned long long write_merged  = 0ULL;
+	unsigned long long write_bytes   = 0ULL;
+	unsigned long long write_time    = 0ULL;
 	int is_disk = 0;
 
 	diskstats_t *ds, *pre_ds;
@@ -495,17 +509,17 @@ static void disk_read (void)
 		{
 			/* Kernel 2.6, Partition */
 			read_count    = atoll (fields[3]);
-			read_sectors  = atoi  (fields[4]);
+			read_sectors  = atoll (fields[4]);
 			write_count   = atoll (fields[5]);
-			write_sectors = atoi  (fields[6]);
+			write_sectors = atoll (fields[6]);
 		}
 		else if (numfields == (14 + fieldshift))
 		{
 			read_count  =  atoll (fields[3 + fieldshift]);
 			write_count =  atoll (fields[7 + fieldshift]);
 
-			read_sectors  = atoi (fields[5 + fieldshift]);
-			write_sectors = atoi (fields[9 + fieldshift]);
+			read_sectors  = atoll (fields[5 + fieldshift]);
+			write_sectors = atoll (fields[9 + fieldshift]);
 
 			if ((fieldshift == 0) || (minor == 0))
 			{
@@ -518,19 +532,20 @@ static void disk_read (void)
 		}
 		else
 		{
+			DBG ("numfields = %i; => unknown file format.", numfields);
 			continue;
 		}
 
-
-		if (read_sectors >= ds->read_sectors)
+		/* If the counter wraps around, it's only 32 bits.. */
+		if (read_sectors < ds->read_sectors)
+			ds->read_bytes += 512 * ((0xFFFFFFFF - ds->read_sectors) + read_sectors);
+		else
 			ds->read_bytes += 512 * (read_sectors - ds->read_sectors);
-		else
-			ds->read_bytes += 512 * ((UINT_MAX - ds->read_sectors) + read_sectors);
 
-		if (write_sectors >= ds->write_sectors)
-			ds->write_bytes += 512 * (write_sectors - ds->write_sectors);
+		if (write_sectors < ds->write_sectors)
+			ds->write_bytes += 512 * ((0xFFFFFFFF - ds->write_sectors) + write_sectors);
 		else
-			ds->write_bytes += 512 * ((UINT_MAX - ds->write_sectors) + write_sectors);
+			ds->write_bytes += 512 * (write_sectors - ds->write_sectors);
 
 		ds->read_sectors  = read_sectors;
 		ds->write_sectors = write_sectors;
@@ -539,11 +554,18 @@ static void disk_read (void)
 
 		/* Don't write to the RRDs if we've just started.. */
 		ds->poll_count++;
-		if (ds->poll_count <= 6)
+		if (ds->poll_count <= min_poll_count)
+		{
+			DBG ("(ds->poll_count = %i) <= (min_poll_count = %i); => Not writing.",
+					ds->poll_count, min_poll_count);
 			continue;
+		}
 
 		if ((read_count == 0) && (write_count == 0))
+		{
+			DBG ("((read_count == 0) && (write_count == 0)); => Not writing.");
 			continue;
+		}
 
 		if (is_disk)
 			disk_submit (disk_name, read_count, read_merged, read_bytes, read_time,
