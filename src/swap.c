@@ -149,7 +149,11 @@ static void swap_read (void)
 	struct anoninfo ai;
 
 	if (swapctl (SC_AINFO, &ai) == -1)
+	{
+		syslog (LOG_ERR, "swap plugin: swapctl failed: %s",
+				strerror (errno));
 		return;
+	}
 
 	/*
 	 * Calculations from:
