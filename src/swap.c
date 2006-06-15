@@ -53,7 +53,7 @@ static char *ds_def[] =
 static int ds_num = 4;
 
 #ifdef KERNEL_SOLARIS
-static int pagesize;
+static unsigned long long pagesize;
 static kstat_t *ksp;
 #endif /* KERNEL_SOLARIS */
 
@@ -61,7 +61,7 @@ static void swap_init (void)
 {
 #ifdef KERNEL_SOLARIS
 	/* getpagesize(3C) tells me this does not fail.. */
-	pagesize = getpagesize ();
+	pagesize = (unsigned long long) getpagesize ();
 	if (get_kstat (&ksp, "unix", 0, "system_pages"))
 		ksp = NULL;
 #endif /* KERNEL_SOLARIS */
