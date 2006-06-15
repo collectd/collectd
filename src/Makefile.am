@@ -302,10 +302,10 @@ endif
 if BUILD_WITH_LIBDEVINFO
 swap_la_LDFLAGS += -ldevinfo
 endif
-if BUILD_WITH_LIBSTATGRAB
 if BUILD_WITH_LIBKVM
 swap_la_LDFLAGS += -lkvm
 endif
+if BUILD_WITH_LIBSTATGRAB
 if BUILD_WITH_LIBDEVSTAT
 swap_la_LDFLAGS += -ldevstat
 endif

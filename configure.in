@@ -263,6 +263,9 @@ AC_CHECK_HEADERS(sys/statvfs.h)
 AC_CHECK_HEADERS(sys/vfs.h)
 AC_CHECK_HEADERS(sys/vfstab.h)
 
+# For the swap plugin, FreeBSD
+AC_CHECK_HEADERS(kvm.h)
+
 # For debugging interface (variable number of arguments)
 AC_CHECK_HEADERS(stdarg.h)
 
@@ -605,7 +608,6 @@ AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 with_libstatgrab="yes"
 with_libdevstat="no"
-with_libkvm="no"
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
 [
 	if test "x$withval" != "xno" -a "x$withval" != "xyes"
@@ -634,7 +636,6 @@ fi
 if test "x$with_libstatgrab" = "xyes"
 then
 	AC_CHECK_LIB(devstat, getdevs, [with_libdevstat="yes"], [with_libdevstat="no"])
-	AC_CHECK_LIB(kvm, kvm_getargv, [with_libkvm="yes"],     [with_libkvm="no"])
 fi
 if test "x$with_libstatgrab" = "xyes"
 then
@@ -646,7 +647,13 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBSTATGRAB, [$collect_libstatgrab],
 	[Wether or not to use statgrab library])
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_LIBDEVSTAT,  test "x$with_libdevstat"  = "xyes")
-AM_CONDITIONAL(BUILD_WITH_LIBKVM,      test "x$with_libkvm"      = "xyes")
+
+AC_CHECK_LIB(kvm, kvm_getswapinfo, [with_libkvm="yes"], [with_libkvm="no"])
+if test "x$with_libkvm" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBKVM, 1, [Define to 1 if you have the 'kvm' library (-lkvm)])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBKVM, test "x$with_libkvm" = "xyes")
 
 AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
 [
