@@ -66,7 +66,7 @@ static int ds_num = 4;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-static int pagesize;
+static unsigned long long pagesize;
 static kstat_t *ksp;
 /* #endif HAVE_LIBKSTAT */
 
@@ -91,7 +91,7 @@ static void swap_init (void)
 
 #elif HAVE_LIBKSTAT
 	/* getpagesize(3C) tells me this does not fail.. */
-	pagesize = getpagesize ();
+	pagesize = (unsigned long long) getpagesize ();
 	if (get_kstat (&ksp, "unix", 0, "system_pages"))
 		ksp = NULL;
 /* #endif HAVE_LIBKSTAT */
@@ -204,41 +204,43 @@ static void swap_read (void)
 	unsigned long long swap_alloc;
 	unsigned long long swap_resv;
 	unsigned long long swap_avail;
-	/* unsigned long long swap_free; */
-
-	long long availrmem;
-	long long swapfs_minfree;
 
 	struct anoninfo ai;
 
 	if (swapctl (SC_AINFO, &ai) == -1)
+	{
+		syslog (LOG_ERR, "swap plugin: swapctl failed: %s",
+				strerror (errno));
 		return;
+	}
 
-	availrmem      = get_kstat_value (ksp, "availrmem");
-	swapfs_minfree = get_kstat_value (ksp, "minfree");
-
-	if ((availrmem < 0LL) || (swapfs_minfree < 0LL))
-		return;
-
-	/* 
-	 * Calculations learned by reading
-	 * http://www.itworld.com/Comp/2377/UIR980701perf/
+	/*
+	 * Calculations from:
+	 * http://cvs.opensolaris.org/source/xref/on/usr/src/cmd/swap/swap.c
+	 * Also see:
+	 * http://www.itworld.com/Comp/2377/UIR980701perf/ (outdated?)
+	 * /usr/include/vm/anon.h
 	 *
-	 * swap_resv += ani_resv
-	 * swap_alloc += MAX(ani_resv, ani_max) - ani_free
-	 * swap_avail += MAX(ani_max - ani_resv, 0) + (availrmem - swapfs_minfree)
-	 * swap_free += ani_free + (availrmem - swapfs_minfree)
+	 * In short, swap -s shows: allocated + reserved = used, available
 	 *
-	 * To clear up the terminology a bit:
-	 * resv  = reserved (but not neccessarily used)
-	 * alloc = used     (neccessarily reserved)
-	 * avail = not reserved  (neccessarily free)
-	 * free  = not allocates (possibly reserved)
+	 * However, Solaris does not allow to allocated/reserved more than the
+	 * available swap (physical memory + disk swap), so the pedant may
+	 * prefer: allocated + unallocated = reserved, available
+	 * 
+	 * We map the above to: used + resv = n/a, free
+	 *
+	 * Does your brain hurt yet?  - Christophe Kalt
+	 *
+	 * Oh, and in case you wonder,
+	 * swap_alloc = pagesize * ( ai.ani_max - ai.ani_free );
+	 * can suffer from a 32bit overflow.
 	 */
-	swap_resv  = pagesize * ai.ani_resv;
-	swap_alloc = pagesize * (MAX(ai.ani_resv, ai.ani_max) - ai.ani_free);
-	swap_avail = pagesize * (MAX(ai.ani_max - ai.ani_resv, 0) + (availrmem - swapfs_minfree));
-	/* swap_free  = pagesize * (ai.ani_free + (availrmem - swapfs_minfree)); */
+	swap_alloc  = ai.ani_max - ai.ani_free;
+	swap_alloc *= pagesize;
+	swap_resv   = ai.ani_resv + ai.ani_free - ai.ani_max;
+	swap_resv  *= pagesize;
+	swap_avail  = ai.ani_max - ai.ani_resv;
+	swap_avail *= pagesize;
 
 	swap_submit (swap_alloc, swap_avail, -1LL, swap_resv - swap_alloc);
 /* #endif HAVE_LIBKSTAT */
