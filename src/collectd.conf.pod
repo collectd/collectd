@@ -144,6 +144,22 @@ and are checked by default depends on the distribution you use.
 
 =back
 
+=head2 Plugin C<apcups>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the host running B<apcupsd>. Defaults to B<localhost>. Please note
+that IPv6 support has been disabled unless someone can confirm or decline that
+B<apcupsd> can handle it.
+
+=item B<Port> I<Port>
+
+TCP-Port to connect to. Defaults to B<3551>.
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 =over 4
@@ -155,6 +171,20 @@ Hostname to connect to. Defaults to B<127.0.0.1>.
 =item B<Port> I<Port>
 
 TCP-Port to connect to. Defaults to B<7634>.
+
+=back
+
+=head2 Plugin C<ntpd>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the host running B<ntpd>. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+UDP-Port to connect to. Defaults to B<123>.
 
 =back
 
