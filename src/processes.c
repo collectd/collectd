@@ -26,6 +26,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_debug.h"
+#include "configfile.h"
 
 /* Include header files for the mach system, if they exist.. */
 #if HAVE_MACH_MACH_INIT_H
@@ -92,6 +93,13 @@ static char *ds_def[] =
 };
 static int ds_num = 6;
 
+static char *config_keys[] =
+{
+	"CollectName",
+	NULL
+};
+static int config_keys_num = 1;
+
 typedef struct procstat
 {
 #define PROCSTAT_NAME_LEN 256
@@ -106,6 +114,8 @@ typedef struct procstat
 	struct procstat *next;
 } procstat_t;
 
+static procstat_t *list_head_g = NULL;
+
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
 static mach_port_t port_task_self;
@@ -117,6 +127,26 @@ static mach_msg_type_number_t     pset_list_len;
 #elif KERNEL_LINUX
 /* No global variables */
 #endif /* KERNEL_LINUX */
+
+static procstat_t *ps_list_append (procstat_t *list, const char *name)
+{
+	procstat_t *new;
+	procstat_t *ptr;
+
+	if ((new = (procstat_t *) malloc (sizeof (procstat_t))) == NULL)
+		return (NULL);
+	memset (new, 0, sizeof (procstat_t));
+	strncpy (new->name, name, PROCSTAT_NAME_LEN);
+
+	for (ptr = list; ptr != NULL; ptr = ptr->next)
+		if (ptr->next == NULL)
+			break;
+
+	if (ptr != NULL)
+		ptr->next = new;
+
+	return (new);
+}
 
 static void ps_list_add (procstat_t *list, procstat_t *entry)
 {
@@ -133,7 +163,7 @@ static void ps_list_add (procstat_t *list, procstat_t *entry)
 	ptr->num_lwp     += entry->num_lwp;
 	ptr->vmem_rss    += entry->vmem_rss;
 	ptr->vmem_minflt += entry->vmem_minflt;
-	ptr->vmem_maxflt += entry->vmem_maxflt;
+	ptr->vmem_majflt += entry->vmem_majflt;
 	ptr->cpu_user    += entry->cpu_user;
 	ptr->cpu_system  += entry->cpu_system;
 }
@@ -146,7 +176,7 @@ static void ps_list_reset (procstat_t *ps)
 		ps->num_lwp     = 0;
 		ps->vmem_rss    = 0;
 		ps->vmem_minflt = 0;
-		ps->vmem_maxflt = 0;
+		ps->vmem_majflt = 0;
 		ps->cpu_user    = 0;
 		ps->cpu_system  = 0;
 		ps = ps->next;
@@ -155,6 +185,25 @@ static void ps_list_reset (procstat_t *ps)
 
 static int ps_config (char *key, char *value)
 {
+	if (strcasecmp (key, "CollectName") == 0)
+	{
+		procstat_t *entry;
+
+		entry = ps_list_append (list_head_g, value);
+		if (entry == NULL)
+		{
+			syslog (LOG_ERR, "processes plugin: ps_list_append failed.");
+			return (1);
+		}
+		if (list_head_g != NULL)
+			list_head_g = entry;
+	}
+	else
+	{
+		return (-1);
+	}
+
+	return (0);
 }
 
 static void ps_init (void)
@@ -218,6 +267,12 @@ static void ps_submit (int running,
 			running, sleeping, zombies, stopped, paging, blocked);
 
 	plugin_submit (MODULE_NAME, "-", buf);
+}
+
+static int *ps_read_tasks (int pid)
+{
+	int *list;
+	/* TODO */
 }
 
 static void ps_read (void)
@@ -469,6 +524,7 @@ static void ps_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
+	cf_register (MODULE_NAME, ps_config, config_keys, config_keys_num);
 }
 
 #undef BUFSIZE
