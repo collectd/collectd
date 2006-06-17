@@ -134,102 +134,18 @@ struct apc_detail_s
 
 #define BIG_BUF 4096
 
-/*
- * Read nbytes from the network.
- * It is possible that the total bytes require in several
- * read requests
- */
-static int read_nbytes (int *fd, char *ptr, int nbytes)
-{
-	int nleft;
-	int nread;
-
-	nleft = nbytes;
-	nread = -1;
-
-	assert (*fd >= 0);
-
-	while ((nleft > 0) && (nread != 0))
-	{
-		nread = read (*fd, ptr, nleft);
-
-		if ((nread < 0) && (errno == EINTR || errno == EAGAIN))
-			continue;
-
-		if (nread < 0)
-		{
-			*fd = -1;
-			DBG ("Reading from socket failed failed: %s; *fd = -1;", strerror (errno));
-			syslog (LOG_ERR, "apcups plugin: Reading from socket failed failed: %s", strerror (errno));
-			return (-1);
-		}
-
-		if (nread == 0)
-		{
-			DBG ("Received EOF. Closing socket %i.", *fd);
-			close (*fd);
-			*fd = -1;
-			return (nbytes - nleft);
-		}
-
-		nleft -= nread;
-		ptr += nread;
-	}
-
-	return (nbytes - nleft);
-}
-
-/*
- * Write nbytes to the network.
- * It may require several writes.
- */
-static int write_nbytes (int *fd, void *buf, int buflen)
-{
-	int nleft;
-	int nwritten;
-	char *ptr;
-
-	assert (buflen > 0);
-	assert (*fd >= 0);
-
-	ptr = (char *) buf;
-
-	nleft = buflen;
-	while (nleft > 0)
-	{
-		nwritten = write (*fd, ptr, nleft);
-
-		if ((nwritten < 0) && ((errno == EAGAIN) || (errno == EINTR)))
-			continue;
-
-		if (nwritten < 0)
-		{
-			*fd = -1;
-			DBG ("Writing to socket failed: %s; *fd = -1;", strerror (errno));
-			syslog (LOG_ERR, "apcups plugin: Writing to socket failed: %s", strerror (errno));
-			return (-1);
-		}
-
-		nleft -= nwritten;
-		ptr += nwritten;
-	}
-
-	/* If we get here, (nleft <= 0) is true */
-	return (buflen);
-}
-
 #if APCMAIN
 /* Close the network connection */
 static void net_close (int *fd)
 {
-	short pktsiz = 0;
+	uint16_t packet_size = 0;
 
 	assert (*fd >= 0);
 
 	DBG ("Gracefully shutting down socket %i.", *fd);
 
 	/* send EOF sentinel */
-	write_nbytes (fd, &pktsiz, sizeof (short));
+	swrite (*fd, (void *) &packet_size, sizeof (packet_size));
 
 	close (*fd);
 	*fd = -1;
@@ -311,35 +227,34 @@ static int net_open (char *host, char *service, int port)
  */
 static int net_recv (int *sockfd, char *buf, int buflen)
 {
-	int   nbytes;
-	short pktsiz;
+	uint16_t packet_size;
 
 	/* get data size -- in short */
-	if ((nbytes = read_nbytes (sockfd, (char *) &pktsiz, sizeof (short))) <= 0)
+	if (sread (*sockfd, (void *) &packet_size, sizeof (packet_size)) != 0)
+	{
+		*sockfd = -1;
 		return (-1);
+	}
 
-	if (nbytes != sizeof (short))
-		return (-2);
-
-	pktsiz = ntohs (pktsiz);
-	if (pktsiz > buflen)
+	packet_size = ntohs (packet_size);
+	if (packet_size > buflen)
 	{
 		DBG ("record length too large");
 		return (-2);
 	}
 
-	if (pktsiz == 0)
+	if (packet_size == 0)
 		return (0);
 
 	/* now read the actual data */
-	if ((nbytes = read_nbytes (sockfd, buf, pktsiz)) <= 0)
-		return (-2);
+	if (sread (*sockfd, (void *) buf, packet_size) != 0)
+	{
+		*sockfd = -1;
+		return (-1);
+	}
 
-	if (nbytes != pktsiz)
-		return (-2);
-
-	return (nbytes);
-} /* static int net_recv (int sockfd, char *buf, int buflen) */
+	return ((int) packet_size);
+} /* static int net_recv (int *sockfd, char *buf, int buflen) */
 
 /*
  * Send a message over the network. The send consists of
@@ -350,23 +265,26 @@ static int net_recv (int *sockfd, char *buf, int buflen)
  */
 static int net_send (int *sockfd, char *buff, int len)
 {
-	int rc;
-	short packet_size;
+	uint16_t packet_size;
 
 	assert (len > 0);
 	assert (*sockfd >= 0);
 
 	/* send short containing size of data packet */
-	packet_size = htons ((short) len);
+	packet_size = htons ((uint16_t) len);
 
-	rc = write_nbytes (sockfd, &packet_size, sizeof (packet_size));
-	if (rc != sizeof (packet_size))
+	if (swrite (*sockfd, (void *) &packet_size, sizeof (packet_size)) != 0)
+	{
+		*sockfd = -1;
 		return (-1);
+	}
 
 	/* send data packet */
-	rc = write_nbytes (sockfd, buff, len);
-	if (rc != len)
-		return (-1);
+	if (swrite (*sockfd, (void *) buff, len) != 0)
+	{
+		*sockfd = -1;
+		return (-2);
+	}
 
 	return (0);
 }

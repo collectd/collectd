@@ -23,6 +23,11 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
+
+#ifdef HAVE_SYS_SYSCTL_H
+# include <sys/sysctl.h>
+#endif
 
 #ifdef HAVE_MACH_KERN_RETURN_H
 # include <mach/kern_return.h>
@@ -40,7 +45,7 @@
 # include <mach/vm_statistics.h>
 #endif
 
-#if defined (HOST_VM_INFO) || defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
+#if defined (HOST_VM_INFO) || HAVE_SYSCTLBYNAME || KERNEL_LINUX || HAVE_LIBKSTAT
 # define MEMORY_HAVE_READ 1
 #else
 # define MEMORY_HAVE_READ 0
@@ -67,11 +72,15 @@ static mach_port_t port_host;
 static vm_size_t pagesize;
 /* #endif HOST_VM_INFO */
 
-#elif defined(KERNEL_LINUX)
+#elif HAVE_SYSCTLBYNAME
+/* no global variables */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif KERNEL_LINUX
 /* no global variables */
 /* #endif KERNEL_LINUX */
 
-#elif defined(HAVE_LIBKSTAT)
+#elif HAVE_LIBKSTAT
 static int pagesize;
 static kstat_t *ksp;
 #endif /* HAVE_LIBKSTAT */
@@ -82,6 +91,10 @@ static void memory_init (void)
 	port_host = mach_host_self ();
 	host_page_size (port_host, &pagesize);
 /* #endif HOST_VM_INFO */
+
+#elif HAVE_SYSCTLBYNAME
+/* no init stuff */
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
 /* no init stuff */
@@ -169,6 +182,57 @@ static void memory_read (void)
 
 	memory_submit (wired + active, -1, inactive, free);
 /* #endif HOST_VM_INFO */
+
+#elif HAVE_SYSCTLBYNAME
+	/*
+	 * vm.stats.vm.v_page_size: 4096
+	 * vm.stats.vm.v_page_count: 246178
+	 * vm.stats.vm.v_free_count: 28760
+	 * vm.stats.vm.v_wire_count: 37526
+	 * vm.stats.vm.v_active_count: 55239
+	 * vm.stats.vm.v_inactive_count: 113730
+	 * vm.stats.vm.v_cache_count: 10809
+	 */
+	char *sysctl_keys[8] =
+	{
+		"vm.stats.vm.v_page_size",
+		"vm.stats.vm.v_page_count",
+		"vm.stats.vm.v_free_count",
+		"vm.stats.vm.v_wire_count",
+		"vm.stats.vm.v_active_count",
+		"vm.stats.vm.v_inactive_count",
+		"vm.stats.vm.v_cache_count",
+		NULL
+	};
+	int sysctl_vals[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+
+	size_t len;
+	int    i;
+	int    status;
+
+	for (i = 0; sysctl_keys[i] != NULL; i++)
+	{
+		len = sizeof (int);
+		if ((status = sysctlbyname (sysctl_keys[i],
+						(void *) &sysctl_vals[i], &len,
+						NULL, 0)) < 0)
+		{
+			syslog (LOG_ERR, "memory plugin: sysctlbyname (%s): %s",
+					sysctl_keys[i], strerror (errno));
+			return;
+		}
+		DBG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
+	} /* for i */
+
+	/* multiply all all page counts with the pagesize */
+	for (i = 1; sysctl_keys[i] != NULL; i++)
+		sysctl_vals[i] = sysctl_vals[i] * sysctl_vals[0];
+
+	memory_submit (sysctl_vals[3] + sysctl_vals[4], /* wired + active */
+			sysctl_vals[6],                 /* cache */
+			sysctl_vals[5],                 /* inactive */
+			sysctl_vals[2]);                /* free */
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
 	FILE *fh;

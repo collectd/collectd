@@ -388,11 +388,11 @@ static void traffic_read (void)
 		bytes_submit (device, incoming, outgoing);
 
 		incoming = atoll (fields[1]);
-		incoming = atoll (fields[9]);
+		outgoing = atoll (fields[9]);
 		packets_submit (device, incoming, outgoing);
 
 		incoming = atoll (fields[2]);
-		incoming = atoll (fields[10]);
+		outgoing = atoll (fields[10]);
 		errors_submit (device, incoming, outgoing);
 	}
 

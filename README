@@ -18,6 +18,9 @@ Features
       (Number of bytes transfered, number of requests handled and detailed
       scoreboard statistics)
 
+    - APC UPS Daemon
+      (UPS charge, load, input/output/battery voltage, etc)
+
     - Apple Sensors
       (Temperature, fanspeed and voltage sensors of apple computers)
 
@@ -51,6 +54,9 @@ Features
 
     - NFS Procedures
       (Which NFS command were called how often. Only NFSv2 and NFSv3 right now)
+
+    - NTP Daemon
+      (Local clock drift, offset to peers, etc)
 
     - Ping latency
       (Time to reach the default gateway or another given host)
