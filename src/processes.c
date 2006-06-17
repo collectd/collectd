@@ -214,6 +214,9 @@ static void ps_submit (int running,
 				blocked) >= BUFSIZE)
 		return;
 
+	DBG ("running = %i; sleeping = %i; zombies = %i; stopped = %i; paging = %i; blocked = %i;",
+			running, sleeping, zombies, stopped, paging, blocked);
+
 	plugin_submit (MODULE_NAME, "-", buf);
 }
 
@@ -422,12 +425,15 @@ static void ps_read (void)
 
 		if ((fh = fopen (filename, "r")) == NULL)
 		{
-			syslog (LOG_ERR, "Cannot open `%s': %s", filename, strerror (errno));
+			syslog (LOG_NOTICE, "Cannot open `%s': %s", filename,
+					strerror (errno));
 			continue;
 		}
 
 		if (fgets (buf, BUFSIZE, fh) == NULL)
 		{
+			syslog (LOG_NOTICE, "Unable to read from `%s': %s",
+					filename, strerror (errno));
 			fclose (fh);
 			continue;
 		}
@@ -435,7 +441,10 @@ static void ps_read (void)
 		fclose (fh);
 
 		if (strsplit (buf, fields, BUFSIZE) < 3)
+		{
+			DBG ("Line has less than three fields.");
 			continue;
+		}
 
 		switch (fields[2][0])
 		{
@@ -448,7 +457,7 @@ static void ps_read (void)
 		}
 	}
 
-	closedir(proc);
+	closedir (proc);
 
 	ps_submit (running, sleeping, zombies, stopped, paging, blocked);
 #endif /* KERNEL_LINUX */
