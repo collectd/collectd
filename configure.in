@@ -197,6 +197,9 @@ AC_CHECK_HEADERS(IOKit/storage/IOBlockStorageDriver.h)
 # For load module
 AC_CHECK_HEADERS(sys/loadavg.h)
 
+# For the processes plugin
+AC_CHECK_HEADERS(linux/config.h)
+
 # For the swap module
 AC_CHECK_HEADERS(sys/swap.h)
 
