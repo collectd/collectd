@@ -29,45 +29,56 @@
 #include "configfile.h"
 
 /* Include header files for the mach system, if they exist.. */
-#if HAVE_MACH_MACH_INIT_H
-#  include <mach/mach_init.h>
-#endif
-#if HAVE_MACH_HOST_PRIV_H
-#  include <mach/host_priv.h>
-#endif
-#if HAVE_MACH_MACH_ERROR_H
-#  include <mach/mach_error.h>
-#endif
-#if HAVE_MACH_MACH_HOST_H
-#  include <mach/mach_host.h>
-#endif
-#if HAVE_MACH_MACH_PORT_H
-#  include <mach/mach_port.h>
-#endif
-#if HAVE_MACH_MACH_TYPES_H
-#  include <mach/mach_types.h>
-#endif
-#if HAVE_MACH_MESSAGE_H
-#  include <mach/message.h>
-#endif
-#if HAVE_MACH_PROCESSOR_SET_H
-#  include <mach/processor_set.h>
-#endif
-#if HAVE_MACH_TASK_H
-#  include <mach/task.h>
-#endif
-#if HAVE_MACH_THREAD_ACT_H
-#  include <mach/thread_act.h>
-#endif
-#if HAVE_MACH_VM_REGION_H
-#  include <mach/vm_region.h>
-#endif
-#if HAVE_MACH_VM_MAP_H
-#  include <mach/vm_map.h>
-#endif
-#if HAVE_MACH_VM_PROT_H
-#  include <mach/vm_prot.h>
-#endif
+#if HAVE_THREAD_INFO
+#  if HAVE_MACH_MACH_INIT_H
+#    include <mach/mach_init.h>
+#  endif
+#  if HAVE_MACH_HOST_PRIV_H
+#    include <mach/host_priv.h>
+#  endif
+#  if HAVE_MACH_MACH_ERROR_H
+#    include <mach/mach_error.h>
+#  endif
+#  if HAVE_MACH_MACH_HOST_H
+#    include <mach/mach_host.h>
+#  endif
+#  if HAVE_MACH_MACH_PORT_H
+#    include <mach/mach_port.h>
+#  endif
+#  if HAVE_MACH_MACH_TYPES_H
+#    include <mach/mach_types.h>
+#  endif
+#  if HAVE_MACH_MESSAGE_H
+#    include <mach/message.h>
+#  endif
+#  if HAVE_MACH_PROCESSOR_SET_H
+#    include <mach/processor_set.h>
+#  endif
+#  if HAVE_MACH_TASK_H
+#    include <mach/task.h>
+#  endif
+#  if HAVE_MACH_THREAD_ACT_H
+#    include <mach/thread_act.h>
+#  endif
+#  if HAVE_MACH_VM_REGION_H
+#    include <mach/vm_region.h>
+#  endif
+#  if HAVE_MACH_VM_MAP_H
+#    include <mach/vm_map.h>
+#  endif
+#  if HAVE_MACH_VM_PROT_H
+#    include <mach/vm_prot.h>
+#  endif
+/* #endif HAVE_THREAD_INFO */
+
+#elif KERNEL_LINUX
+#  if HAVE_LINUX_CONFIG_H
+#    include <linux/config.h>
+#  endif
+#  ifndef CONFIG_HZ
+#    define CONFIG_HZ 100
+#  endif
+#endif /* KERNEL_LINUX */
 
 #define MODULE_NAME "processes"
 
@@ -79,9 +90,8 @@
 
 #define BUFSIZE 256
 
-static char *ps_file = "processes.rrd";
-
-static char *ds_def[] =
+static char *processes_file = "processes.rrd";
+static char *processes_ds_def[] =
 {
 	"DS:running:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
 	"DS:sleeping:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
@@ -91,7 +101,7 @@ static char *ds_def[] =
 	"DS:blocked:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
 	NULL
 };
-static int ds_num = 6;
+static int processes_ds_num = 6;
 
 static char *config_keys[] =
 {
@@ -103,15 +113,15 @@ static int config_keys_num = 1;
 typedef struct procstat
 {
 #define PROCSTAT_NAME_LEN 256
-	char         name[PROCSTAT_NAME_LEN];
-	unsigned int num_proc;
-	unsigned int num_lwp;
-	unsigned int vmem_rss;
-	unsigned int vmem_minflt;
-	unsigned int vmem_majflt;
-	unsigned int cpu_user;
-	unsigned int cpu_system;
-	struct procstat *next;
+	char               name[PROCSTAT_NAME_LEN];
+	unsigned int       num_proc;
+	unsigned int       num_lwp;
+	unsigned long      vmem_rss;
+	unsigned long      vmem_minflt;
+	unsigned long      vmem_majflt;
+	unsigned long long cpu_user;
+	unsigned long long cpu_system;
+	struct procstat   *next;
 } procstat_t;
 
 static procstat_t *list_head_g = NULL;
@@ -244,7 +254,8 @@ static void ps_init (void)
 
 static void ps_write (char *host, char *inst, char *val)
 {
-	rrd_update_file (host, ps_file, val, ds_def, ds_num);
+	rrd_update_file (host, processes_file, val,
+			processes_ds_def, processes_ds_num);
 }
 
 #if PROCESSES_HAVE_READ
@@ -422,11 +433,16 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (0);
 	}
 
-	ps->vmem_minflt = atoi (fields[9]);
-	ps->vmem_majflt = atoi (fields[11]);
-	ps->cpu_user    = atoi (fields[13]);
-	ps->cpu_system  = atoi (fields[14]);
-	ps->vmem_rss    = atoi (fields[23]) * pagesize_g;
+	ps->vmem_minflt = atol  (fields[9]);
+	ps->vmem_majflt = atol  (fields[11]);
+	ps->cpu_user    = atoll (fields[13]);
+	ps->cpu_system  = atoll (fields[14]);
+	ps->vmem_rss    = atol  (fields[23]);
+	
+	/* Convert jiffies to useconds */
+	ps->cpu_user   = ps->cpu_user   * 1000000 / CONFIG_HZ;
+	ps->cpu_system = ps->cpu_system * 1000000 / CONFIG_HZ;
+	ps->vmem_rss   = ps->vmem_rss * pagesize_g;
 
 	*state = fields[2][0];
 
