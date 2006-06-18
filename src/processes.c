@@ -112,6 +112,16 @@ static char *ps_rss_ds_def[] =
 };
 static int ps_rss_ds_num = 1;
 
+static char *ps_cputime_file = "processes/ps_cputime-%s.rrd";
+static char *ps_cputime_ds_def[] =
+{
+	/* 1 second in user-mode per second ought to be enough.. */
+	"DS:user:COUNTER:"COLLECTD_HEARTBEAT":0:1000000",
+	"DS:syst:COUNTER:"COLLECTD_HEARTBEAT":0:1000000",
+	NULL
+};
+static int ps_cputime_ds_num = 2;
+
 static char *config_keys[] =
 {
 	"CollectName",
@@ -281,6 +291,21 @@ static void ps_rss_write (char *host, char *inst, char *val)
 	rrd_update_file (host, filename, val, ps_rss_ds_def, ps_rss_ds_num);
 }
 
+static void ps_cputime_write (char *host, char *inst, char *val)
+{
+	char filename[256];
+	int status;
+
+	status = snprintf (filename, 256, ps_cputime_file, inst);
+	if ((status < 1) || (status >= 256))
+		return;
+
+	DBG ("host = %s; filename = %s; val = %s;",
+			host, filename, val);
+	rrd_update_file (host, filename, val,
+			ps_cputime_ds_def, ps_cputime_ds_num);
+}
+
 #if PROCESSES_HAVE_READ
 static void ps_submit (int running,
 		int sleeping,
@@ -315,6 +340,14 @@ static void ps_submit_proc (procstat_t *ps)
 			ps->vmem_rss);
 	buffer[63] = '\0';
 	plugin_submit ("ps_rss", ps->name, buffer);
+
+	snprintf (buffer, 64, "%u:%u:%u",
+			(unsigned int) curtime,
+			/* Make the counter overflow */
+			(unsigned int) (ps->cpu_user   & 0xFFFFFFFF),
+			(unsigned int) (ps->cpu_system & 0xFFFFFFFF));
+	buffer[63] = '\0';
+	plugin_submit ("ps_cputime", ps->name, buffer);
 
 	DBG ("name = %s; num_proc = %i; num_lwp = %i; vmem_rss = %i; "
 			"vmem_minflt = %i; vmem_majflt = %i; "
@@ -726,6 +759,7 @@ void module_register (void)
 {
 	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
 	plugin_register ("ps_rss", NULL, NULL, ps_rss_write);
+	plugin_register ("ps_cputime", NULL, NULL, ps_cputime_write);
 	cf_register (MODULE_NAME, ps_config, config_keys, config_keys_num);
 }
 
