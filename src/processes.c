@@ -103,6 +103,15 @@ static char *processes_ds_def[] =
 };
 static int processes_ds_num = 6;
 
+static char *ps_rss_file = "processes/ps_rss-%s.rrd";
+static char *ps_rss_ds_def[] =
+{
+	/* max = 2^63 - 1 */
+	"DS:byte:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
+	NULL
+};
+static int ps_rss_ds_num = 1;
+
 static char *config_keys[] =
 {
 	"CollectName",
@@ -247,6 +256,8 @@ static void ps_init (void)
 
 #elif KERNEL_LINUX
 	pagesize_g = sysconf(_SC_PAGESIZE);
+	DBG ("pagesize_g = %li; CONFIG_HZ = %i;",
+			pagesize_g, CONFIG_HZ);
 #endif /* KERNEL_LINUX */
 
 	return;
@@ -256,6 +267,18 @@ static void ps_write (char *host, char *inst, char *val)
 {
 	rrd_update_file (host, processes_file, val,
 			processes_ds_def, processes_ds_num);
+}
+
+static void ps_rss_write (char *host, char *inst, char *val)
+{
+	char filename[256];
+	int status;
+
+	status = snprintf (filename, 256, ps_rss_file, inst);
+	if ((status < 1) || (status >= 256))
+		return;
+
+	rrd_update_file (host, filename, val, ps_rss_ds_def, ps_rss_ds_num);
 }
 
 #if PROCESSES_HAVE_READ
@@ -282,8 +305,16 @@ static void ps_submit (int running,
 
 static void ps_submit_proc (procstat_t *ps)
 {
+	char buffer[64];
+
 	if (ps == NULL)
 		return;
+
+	snprintf (buffer, 64, "%u:%lu",
+			(unsigned int) curtime,
+			ps->vmem_rss);
+	buffer[63] = '\0';
+	plugin_submit ("ps_rss", ps->name, buffer);
 
 	DBG ("name = %s; num_proc = %i; num_lwp = %i; vmem_rss = %i; "
 			"vmem_minflt = %i; vmem_majflt = %i; "
@@ -291,6 +322,7 @@ static void ps_submit_proc (procstat_t *ps)
 			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
 			ps->vmem_minflt, ps->vmem_majflt, ps->cpu_user,
 			ps->cpu_system);
+
 }
 
 #if KERNEL_LINUX
@@ -693,6 +725,7 @@ static void ps_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
+	plugin_register ("ps_rss", NULL, NULL, ps_rss_write);
 	cf_register (MODULE_NAME, ps_config, config_keys, config_keys_num);
 }
 
