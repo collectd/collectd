@@ -125,7 +125,7 @@ static mach_msg_type_number_t     pset_list_len;
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
-/* No global variables */
+static long pagesize_g;
 #endif /* KERNEL_LINUX */
 
 static procstat_t *ps_list_append (procstat_t *list, const char *name)
@@ -195,7 +195,7 @@ static int ps_config (char *key, char *value)
 			syslog (LOG_ERR, "processes plugin: ps_list_append failed.");
 			return (1);
 		}
-		if (list_head_g != NULL)
+		if (list_head_g == NULL)
 			list_head_g = entry;
 	}
 	else
@@ -236,7 +236,7 @@ static void ps_init (void)
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
-	/* No init */
+	pagesize_g = sysconf(_SC_PAGESIZE);
 #endif /* KERNEL_LINUX */
 
 	return;
@@ -269,11 +269,171 @@ static void ps_submit (int running,
 	plugin_submit (MODULE_NAME, "-", buf);
 }
 
+static void ps_submit_proc (procstat_t *ps)
+{
+	if (ps == NULL)
+		return;
+
+	DBG ("name = %s; num_proc = %i; num_lwp = %i; vmem_rss = %i; "
+			"vmem_minflt = %i; vmem_majflt = %i; "
+			"cpu_user = %i; cpu_system = %i;",
+			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
+			ps->vmem_minflt, ps->vmem_majflt, ps->cpu_user,
+			ps->cpu_system);
+}
+
+#if KERNEL_LINUX
 static int *ps_read_tasks (int pid)
 {
-	int *list;
-	/* TODO */
+	int *list = NULL;
+	int  list_size = 1; /* size of allocated space, in elements */
+	int  list_len = 0;  /* number of currently used elements */
+
+	char           dirname[64];
+	DIR           *dh;
+	struct dirent *ent;
+
+	snprintf (dirname, 64, "/proc/%i/task", pid);
+	dirname[63] = '\0';
+
+	if ((dh = opendir (dirname)) == NULL)
+	{
+		syslog (LOG_NOTICE, "processes plugin: Failed to open directory `%s'",
+				dirname);
+		return (NULL);
+	}
+
+	while ((ent = readdir (dh)) != NULL)
+	{
+		if (!isdigit (ent->d_name[0]))
+			continue;
+
+		if ((list_len + 1) >= list_size)
+		{
+			int *new_ptr;
+			int  new_size = 2 * list_size;
+			/* Comes in sizes: 2, 4, 8, 16, ... */
+
+			new_ptr = (int *) realloc (list, (size_t) (sizeof (int) * new_size));
+			if (new_ptr == NULL)
+			{
+				if (list != NULL)
+					free (list);
+				syslog (LOG_ERR, "processes plugin: "
+						"Failed to allocate more memory.");
+				return (NULL);
+			}
+
+			list = new_ptr;
+			list_size = new_size;
+
+			memset (list + list_len, 0, sizeof (int) * (list_size - list_len));
+		}
+
+		list[list_len] = atoi (ent->d_name);
+		if (list[list_len] != 0)
+			list_len++;
+	}
+
+	closedir (dh);
+
+	assert (list_len < list_size);
+	assert (list[list_len] == 0);
+
+	return (list);
 }
+
+int ps_read_process (int pid, procstat_t *ps, char *state)
+{
+	char  filename[64];
+	char  buffer[1024];
+	FILE *fh;
+
+	char *fields[64];
+	char  fields_len;
+
+	int  *tasks;
+	int   i;
+
+	int   ppid;
+	int   name_len;
+
+	memset (ps, 0, sizeof (procstat_t));
+
+	snprintf (filename, 64, "/proc/%i/stat", pid);
+	filename[63] = '\0';
+
+	if ((fh = fopen (filename, "r")) == NULL)
+		return (-1);
+
+	if (fgets (buffer, 1024, fh) == NULL)
+	{
+		fclose (fh);
+		return (-1);
+	}
+
+	fclose (fh);
+
+	fields_len = strsplit (buffer, fields, 64);
+	if (fields_len < 24)
+	{
+		DBG ("`%s' has only %i fields..",
+				filename, fields_len);
+		return (-1);
+	}
+	else if (fields_len != 41)
+	{
+		DBG ("WARNING: (fields_len = %i) != 41", fields_len);
+	}
+
+	/* copy the name, strip brackets in the process */
+	name_len = strlen (fields[1]) - 2;
+	if ((fields[1][0] != '(') || (fields[1][name_len + 1] != ')'))
+	{
+		DBG ("No brackets found in process name: `%s'", fields[1]);
+		return (-1);
+	}
+	fields[1] = fields[1] + 1;
+	fields[1][name_len] = '\0';
+	strncpy (ps->name, fields[1], PROCSTAT_NAME_LEN);
+
+	ppid = atoi (fields[3]);
+
+	if ((tasks = ps_read_tasks (pid)) == NULL)
+	{
+		DBG ("ps_read_tasks (%i) failed.", pid);
+		return (-1);
+	}
+
+	*state = '\0';
+	ps->num_lwp  = 0;
+	ps->num_proc = 1;
+	for (i = 0; tasks[i] != 0; i++)
+		ps->num_lwp++;
+
+	free (tasks);
+	tasks = NULL;
+
+	/* Leave the rest at zero if this is only an LWP */
+	if (ps->num_proc == 0)
+	{
+		DBG ("This is only an LWP: pid = %i; name = %s;",
+				pid, ps->name);
+		return (0);
+	}
+
+	ps->vmem_minflt = atoi (fields[9]);
+	ps->vmem_majflt = atoi (fields[11]);
+	ps->cpu_user    = atoi (fields[13]);
+	ps->cpu_system  = atoi (fields[14]);
+	ps->vmem_rss    = atoi (fields[23]) * pagesize_g;
+
+	*state = fields[2][0];
+
+	/* success */
+	return (0);
+} /* int ps_read_process (...) */
+#endif /* KERNEL_LINUX */
 
 static void ps_read (void)
 {
@@ -454,15 +614,18 @@ static void ps_read (void)
 	int paging   = 0;
 	int blocked  = 0;
 
-	char buf[BUFSIZE];
-	char filename[20]; /* need 17 bytes */
-	char *fields[BUFSIZE];
-
 	struct dirent *ent;
-	DIR *proc;
-	FILE *fh;
+	DIR           *proc;
+	int            pid;
+
+	int        status;
+	procstat_t ps;
+	char       state;
+
+	procstat_t *ps_ptr;
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
+	ps_list_reset (list_head_g);
 
 	if ((proc = opendir ("/proc")) == NULL)
 	{
@@ -475,33 +638,17 @@ static void ps_read (void)
 		if (!isdigit (ent->d_name[0]))
 			continue;
 
-		if (snprintf (filename, 20, "/proc/%s/stat", ent->d_name) >= 20)
+		if ((pid = atoi (ent->d_name)) < 1)
 			continue;
 
-		if ((fh = fopen (filename, "r")) == NULL)
+		status = ps_read_process (pid, &ps, &state);
+		if (status != 0)
 		{
-			syslog (LOG_NOTICE, "Cannot open `%s': %s", filename,
-					strerror (errno));
+			DBG ("ps_read_process failed: %i", status);
 			continue;
 		}
 
-		if (fgets (buf, BUFSIZE, fh) == NULL)
-		{
-			syslog (LOG_NOTICE, "Unable to read from `%s': %s",
-					filename, strerror (errno));
-			fclose (fh);
-			continue;
-		}
-
-		fclose (fh);
-
-		if (strsplit (buf, fields, BUFSIZE) < 3)
-		{
-			DBG ("Line has less than three fields.");
-			continue;
-		}
-
-		switch (fields[2][0])
+		switch (state)
 		{
 			case 'R': running++;  break;
 			case 'S': sleeping++; break;
@@ -510,11 +657,17 @@ static void ps_read (void)
 			case 'T': stopped++;  break;
 			case 'W': paging++;   break;
 		}
+
+		if (list_head_g != NULL)
+			ps_list_add (list_head_g, &ps);
 	}
 
 	closedir (proc);
 
 	ps_submit (running, sleeping, zombies, stopped, paging, blocked);
+
+	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+		ps_submit_proc (ps_ptr);
 #endif /* KERNEL_LINUX */
 }
 #else
