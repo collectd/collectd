@@ -53,7 +53,7 @@
 #  include <IOKit/ps/IOPSKeys.h>
 #endif
 
-#if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H || KERNEL_LINUX
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H || KERNEL_LINUX
 # define BATTERY_HAVE_READ 1
 #else
 # define BATTERY_HAVE_READ 0
@@ -86,9 +86,9 @@ static char *ds_def_charge[] =
 };
 static int ds_num_charge = 1;
 
-#if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	/* No global variables */
-/* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+/* #endif HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
 static int   battery_pmu_num = 0;
@@ -97,9 +97,9 @@ static char *battery_pmu_file = "/proc/pmu/battery_%i";
 
 static void battery_init (void)
 {
-#if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
+#if HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	/* No init neccessary */
-/* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+/* #endif HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
 	int len;
@@ -202,67 +202,22 @@ static void battery_submit (char *inst, double current, double voltage, double c
 	}
 }
 
-double dict_get_double (CFDictionaryRef dict, char *key_string)
+static void battery_read (void)
 {
-	double      val_double;
-	long long   val_int;
-	CFNumberRef val_obj;
-	CFStringRef key_obj;
-
-	key_obj = CFStringCreateWithCString (kCFAllocatorDefault, key_string,
-		       	kCFStringEncodingASCII);
-	if (key_obj == NULL)
-	{
-		DBG ("CFStringCreateWithCString (%s) failed.\n", key_string);
-		return (INVALID_VALUE);
-	}
-
-	if ((val_obj = CFDictionaryGetValue (dict, key_obj)) == NULL)
-	{
-		DBG ("CFDictionaryGetValue (%s) failed.", key_string);
-		CFRelease (key_obj);
-		return (INVALID_VALUE);
-	}
-	CFRelease (key_obj);
-
-	if (CFGetTypeID (val_obj) == CFNumberGetTypeID ())
-	{
-		if (CFNumberIsFloatType (val_obj))
-		{
-			CFNumberGetValue (val_obj,
-					kCFNumberDoubleType,
-					&val_double);
-		}
-		else
-		{
-			CFNumberGetValue (val_obj,
-					kCFNumberLongLongType,
-					&val_int);
-			val_double = val_int;
-		}
-	}
-	else
-	{
-		DBG ("CFGetTypeID (val_obj) = %i", (int) CFGetTypeID (val_obj));
-		return (INVALID_VALUE);
-	}
-
-	return (val_double);
-}
-
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H
-static void get_via_io_power_sources (double *ret_charge,
-		double *ret_current,
-		double *ret_voltage)
-{
 	CFTypeRef       ps_raw;
 	CFArrayRef      ps_array;
 	int             ps_array_len;
 	CFDictionaryRef ps_dict;
 	CFTypeRef       ps_obj;
+	CFTypeRef       ps_value;
 
-	double temp_double;
 	int i;
+
+	char   name[128];
+	double charge  = INVALID_VALUE;
+	double current = INVALID_VALUE;
+	double voltage = INVALID_VALUE;
 
 	ps_raw       = IOPSCopyPowerSourcesInfo ();
 	ps_array     = IOPSCopyPowerSourcesList (ps_raw);
@@ -275,163 +230,110 @@ static void get_via_io_power_sources (double *ret_charge,
 		ps_obj  = CFArrayGetValueAtIndex (ps_array, i);
 		ps_dict = IOPSGetPowerSourceDescription (ps_raw, ps_obj);
 
-		if (ps_dict == NULL)
-		{
-			DBG ("IOPSGetPowerSourceDescription failed.");
-			continue;
-		}
-
 		if (CFGetTypeID (ps_dict) != CFDictionaryGetTypeID ())
 		{
 			DBG ("IOPSGetPowerSourceDescription did not return a CFDictionaryRef");
 			continue;
 		}
 
-		/* FIXME: Check if this is really an internal battery */
-
-		if (*ret_charge == INVALID_VALUE)
+		if (ps_dict != NULL)
 		{
-			/* This is the charge in percent. */
-			temp_double = dict_get_double (ps_dict,
-					kIOPSCurrentCapacityKey);
-			if ((temp_double != INVALID_VALUE)
-					&& (temp_double >= 0.0)
-					&& (temp_double <= 100.0))
-				*ret_charge = temp_double;
-		}
+			/* Get the current capacity/charge */
+			ps_value = NULL;
+			charge   = INVALID_VALUE;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSCurrentCapacityKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFNumberGetTypeID ())
+					CFNumberGetValue (ps_value,
+							kCFNumberDoubleType,
+							&charge);
+				else
+					DBG ("kIOPSCurrentCapacityKey: Not a CFNumber");
 
-		if (*ret_current == INVALID_VALUE)
-		{
-			temp_double = dict_get_double (ps_dict,
-					kIOPSCurrentKey);
-			if (temp_double != INVALID_VALUE)
-				*ret_current = temp_double / 1000.0;
-		}
+				DBG ("charge = %f", charge);
+			}
+			else
+				DBG ("`%s' does not exist", kIOPSCurrentCapacityKey);
 
-		if (*ret_voltage == INVALID_VALUE)
-		{
-			temp_double = dict_get_double (ps_dict,
-					kIOPSVoltageKey);
-			if (temp_double != INVALID_VALUE)
-				*ret_voltage = temp_double / 1000.0;
+			/* Get the current */
+			ps_value = NULL;
+			current  = INVALID_VALUE;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSCurrentKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFNumberGetTypeID ())
+					CFNumberGetValue (ps_value,
+							kCFNumberDoubleType,
+							&current);
+				else
+					DBG ("kIOPSCurrentKey: Not a CFNumber");
+				DBG ("current = %f", current);
+			}
+			else
+				DBG ("`%s' does not exist", kIOPSCurrentKey);
+
+			/* Get the voltage */
+			ps_value = NULL;
+			voltage  = INVALID_VALUE;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSVoltageKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFNumberGetTypeID ())
+					CFNumberGetValue (ps_value,
+							kCFNumberDoubleType,
+							&voltage);
+				else
+					DBG ("kIOPSVoltageKey: Not a CFNumber");
+				DBG ("voltage = %f", voltage);
+			}
+			else
+				DBG ("`%s' does not exist", kIOPSVoltageKey);
+
+			/* Get the name of the device.. */
+			ps_value = NULL;
+			if (CFDictionaryGetValueIfPresent (ps_dict,
+						CFSTR (kIOPSNameKey),
+						&ps_value))
+			{
+				if (CFGetTypeID (ps_value) != CFStringGetTypeID ())
+				{
+					if (!CFStringGetCString (ps_value,
+								name, 128,
+								kCFStringEncodingASCII))
+						continue;
+				}
+				else
+				{
+					DBG ("kIOPSNameKey: Not a CFStringGetTypeID");
+				}
+				DBG ("Original string: `%s'", name);
+			}
+			else
+			{
+				strncpy (name, "unknown", 128);
+			}
+			name[127] = '\0';
+			for (i = 0; i < 128; i++)
+			{
+				if (name[i] == '\0')
+					break;
+				else if (isalnum (name[i]))
+					name[i] = (char) tolower (name[i]);
+				else
+					name[i] = '_';
+			}
+
+			battery_submit (name, current, voltage, charge);
 		}
 	}
 
 	CFRelease(ps_array);
 	CFRelease(ps_raw);
-}
-#endif /* HAVE_IOKIT_PS_IOPOWERSOURCES_H */
-
-#if HAVE_IOKIT_IOKITLIB_H
-static void get_via_generic_iokit (double *ret_charge,
-		double *ret_current,
-		double *ret_voltage)
-{
-	kern_return_t   status;
-	io_iterator_t   iterator;
-	io_object_t     io_obj;
-
-	CFDictionaryRef bat_root_dict;
-	CFArrayRef      bat_info_arry;
-	CFIndex         bat_info_arry_len;
-	CFIndex         bat_info_arry_pos;
-	CFDictionaryRef bat_info_dict;
-
-	double temp_double;
-
-	status = IOServiceGetMatchingServices (kIOMasterPortDefault,
-			IOServiceNameMatching ("battery"),
-			&iterator);
-	if (status != kIOReturnSuccess)
-	{
-		DBG ("IOServiceGetMatchingServices failed.");
-		return;
-	}
-
-	while ((io_obj = IOIteratorNext (iterator)))
-	{
-		status = IORegistryEntryCreateCFProperties (io_obj,
-				(CFMutableDictionaryRef *) &bat_root_dict,
-				kCFAllocatorDefault,
-				kNilOptions);
-		if (status != kIOReturnSuccess)
-		{
-			DBG ("IORegistryEntryCreateCFProperties failed.");
-			continue;
-		}
-
-		bat_info_arry = (CFArrayRef) CFDictionaryGetValue (bat_root_dict,
-				CFSTR ("IOBatteryInfo"));
-		if (bat_info_arry == NULL)
-		{
-			CFRelease (bat_root_dict);
-			continue;
-		}
-		bat_info_arry_len = CFArrayGetCount (bat_info_arry);
-
-		for (bat_info_arry_pos = 0;
-			       	bat_info_arry_pos < bat_info_arry_len;
-			       	bat_info_arry_pos++)
-		{
-			bat_info_dict = (CFDictionaryRef) CFArrayGetValueAtIndex (bat_info_arry, bat_info_arry_pos);
-
-			if (*ret_charge == INVALID_VALUE)
-			{
-				temp_double = dict_get_double (bat_info_dict,
-						"Capacity");
-				if (temp_double != INVALID_VALUE)
-					*ret_charge = temp_double / 1000.0;
-			}
-
-			if (*ret_current == INVALID_VALUE)
-			{
-				temp_double = dict_get_double (bat_info_dict,
-						"Current");
-				if (temp_double != INVALID_VALUE)
-					*ret_current = temp_double / 1000.0;
-			}
-
-			if (*ret_voltage == INVALID_VALUE)
-			{
-				temp_double = dict_get_double (bat_info_dict,
-						"Voltage");
-				if (temp_double != INVALID_VALUE)
-					*ret_voltage = temp_double / 1000.0;
-			}
-		}
-		
-		CFRelease (bat_root_dict);
-	}
-
-	IOObjectRelease (iterator);
-}
-#endif /* HAVE_IOKIT_IOKITLIB_H */
-
-static void battery_read (void)
-{
-#if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
-	double charge  = INVALID_VALUE; /* Current charge in Ah */
-	double current = INVALID_VALUE; /* Current in A */
-	double voltage = INVALID_VALUE; /* Voltage in V */
-
-	double charge_rel = INVALID_VALUE; /* Current charge in percent */
-	double charge_abs = INVALID_VALUE; /* Total capacity */
-
-#if HAVE_IOKIT_PS_IOPOWERSOURCES_H
-	get_via_io_power_sources (&charge_rel, &current, &voltage);
-#endif
-#if HAVE_IOKIT_IOKITLIB_H
-	get_via_generic_iokit (&charge_abs, &current, &voltage);
-#endif
-
-	if ((charge_rel != INVALID_VALUE) && (charge_abs != INVALID_VALUE))
-		charge = charge_abs * charge_rel / 100.0;
-
-	if ((charge != INVALID_VALUE)
-		       	|| (current != INVALID_VALUE)
-		       	|| (voltage != INVALID_VALUE))
-		battery_submit ("0", current, voltage, charge);
-/* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+/* #endif HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
 	FILE *fh;

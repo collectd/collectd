@@ -23,39 +23,10 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #define MODULE_NAME "disk"
 
-#if HAVE_MACH_MACH_TYPES_H
-#  include <mach/mach_types.h>
-#endif
-#if HAVE_MACH_MACH_INIT_H
-#  include <mach/mach_init.h>
-#endif
-#if HAVE_MACH_MACH_ERROR_H
-#  include <mach/mach_error.h>
-#endif
-#if HAVE_MACH_MACH_PORT_H
-#  include <mach/mach_port.h>
-#endif
-#if HAVE_COREFOUNDATION_COREFOUNDATION_H
-#  include <CoreFoundation/CoreFoundation.h>
-#endif
-#if HAVE_IOKIT_IOKITLIB_H
-#  include <IOKit/IOKitLib.h>
-#endif
-#if HAVE_IOKIT_IOTYPES_H
-#  include <IOKit/IOTypes.h>
-#endif
-#if HAVE_IOKIT_STORAGE_IOBLOCKSTORAGEDRIVER_H
-#  include <IOKit/storage/IOBlockStorageDriver.h>
-#endif
-#if HAVE_IOKIT_IOBSD_H
-#  include <IOKit/IOBSD.h>
-#endif
-
-#if HAVE_IOKIT_IOKITLIB_H || KERNEL_LINUX || HAVE_LIBKSTAT
+#if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT)
 # define DISK_HAVE_READ 1
 #else
 # define DISK_HAVE_READ 0
@@ -89,11 +60,7 @@ static char *part_ds_def[] =
 };
 static int part_ds_num = 4;
 
-#if HAVE_IOKIT_IOKITLIB_H
-static mach_port_t io_master_port = MACH_PORT_NULL;
-/* #endif HAVE_IOKIT_IOKITLIB_H */
-
-#elif KERNEL_LINUX
+#ifdef KERNEL_LINUX
 typedef struct diskstats
 {
 	char *name;
@@ -111,9 +78,9 @@ typedef struct diskstats
 } diskstats_t;
 
 static diskstats_t *disklist;
-/* #endif KERNEL_LINUX */
+/* #endif defined(KERNEL_LINUX) */
 
-#elif HAVE_LIBKSTAT
+#elif defined(HAVE_LIBKSTAT)
 #define MAX_NUMDISK 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
@@ -122,31 +89,7 @@ static int numdisk = 0;
 
 static void disk_init (void)
 {
-#if HAVE_IOKIT_IOKITLIB_H
-	kern_return_t status;
-	
-	if (io_master_port != MACH_PORT_NULL)
-	{
-		mach_port_deallocate (mach_task_self (),
-				io_master_port);
-		io_master_port = MACH_PORT_NULL;
-	}
-
-	status = IOMasterPort (MACH_PORT_NULL, &io_master_port);
-	if (status != kIOReturnSuccess)
-	{
-		syslog (LOG_ERR, "IOMasterPort failed: %s",
-				mach_error_string (status));
-		io_master_port = MACH_PORT_NULL;
-		return;
-	}
-/* #endif HAVE_IOKIT_IOKITLIB_H */
-
-#elif KERNEL_LINUX
-	/* No init needed */
-/* #endif KERNEL_LINUX */
-
-#elif HAVE_LIBKSTAT
+#ifdef HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
 
 	numdisk = 0;
@@ -165,7 +108,7 @@ static void disk_init (void)
 			continue;
 		ksp[numdisk++] = ksp_chain;
 	}
-#endif /* HAVE_LIBKSTAT */
+#endif
 
 	return;
 }
@@ -222,7 +165,6 @@ static void disk_submit (char *disk_name,
 	plugin_submit (MODULE_NAME, disk_name, buf);
 }
 
-#if KERNEL_LINUX || HAVE_LIBKSTAT
 static void partition_submit (char *part_name,
 		unsigned long long read_count,
 		unsigned long long read_bytes,
@@ -239,187 +181,11 @@ static void partition_submit (char *part_name,
 
 	plugin_submit ("partition", part_name, buf);
 }
-#endif /* KERNEL_LINUX || HAVE_LIBKSTAT */
 #undef BUFSIZE
-
-#if HAVE_IOKIT_IOKITLIB_H
-static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
-{
-	signed long long val_int;
-	CFNumberRef      val_obj;
-	CFStringRef      key_obj;
-
-	/* `key_obj' needs to be released. */
-	key_obj = CFStringCreateWithCString (kCFAllocatorDefault, key,
-		       	kCFStringEncodingASCII);
-	if (key_obj == NULL)
-	{
-		DBG ("CFStringCreateWithCString (%s) failed.", key);
-		return (-1LL);
-	}
-	
-	/* get => we don't need to release (== free) the object */
-	val_obj = (CFNumberRef) CFDictionaryGetValue (dict, key_obj);
-
-	CFRelease (key_obj);
-
-	if (val_obj == NULL)
-	{
-		DBG ("CFDictionaryGetValue (%s) failed.", key);
-		return (-1LL);
-	}
-
-	if (!CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int))
-	{
-		DBG ("CFNumberGetValue (%s) failed.", key);
-		return (-1LL);
-	}
-
-	return (val_int);
-}
-#endif /* HAVE_IOKIT_IOKITLIB_H */
 
 static void disk_read (void)
 {
-#if HAVE_IOKIT_IOKITLIB_H
-	io_registry_entry_t	disk;
-	io_registry_entry_t	disk_child;
-	io_iterator_t		disk_list;
-	CFDictionaryRef		props_dict;
-	CFDictionaryRef		stats_dict;
-	CFDictionaryRef		child_dict;
-	kern_return_t           status;
-
-	signed long long read_ops;
-	signed long long read_byt;
-	signed long long read_tme;
-	signed long long write_ops;
-	signed long long write_byt;
-	signed long long write_tme;
-
-	int  disk_major;
-	int  disk_minor;
-	char disk_name[64];
-
-	/* Get the list of all disk objects. */
-	if (IOServiceGetMatchingServices (io_master_port,
-				IOServiceMatching (kIOBlockStorageDriverClass),
-				&disk_list) != kIOReturnSuccess)
-	{
-		syslog (LOG_ERR, "disk-plugin: IOServiceGetMatchingServices failed.");
-		return;
-	}
-
-	while ((disk = IOIteratorNext (disk_list)) != 0)
-	{
-		props_dict = NULL;
-		stats_dict = NULL;
-		child_dict = NULL;
-
-		/* `disk_child' must be released */
-		if ((status = IORegistryEntryGetChildEntry (disk, kIOServicePlane, &disk_child))
-			       	!= kIOReturnSuccess)
-		{
-			/* This fails for example for DVD/CD drives.. */
-			DBG ("IORegistryEntryGetChildEntry (disk) failed: 0x%08x", status);
-			IOObjectRelease (disk);
-			continue;
-		}
-
-		/* We create `props_dict' => we need to release it later */
-		if (IORegistryEntryCreateCFProperties (disk,
-					(CFMutableDictionaryRef *) &props_dict,
-					kCFAllocatorDefault,
-					kNilOptions)
-				!= kIOReturnSuccess)
-		{
-			syslog (LOG_ERR, "disk-plugin: IORegistryEntryCreateCFProperties failed.");
-			IOObjectRelease (disk_child);
-			IOObjectRelease (disk);
-			continue;
-		}
-
-		if (props_dict == NULL)
-		{
-			DBG ("IORegistryEntryCreateCFProperties (disk) failed.");
-			IOObjectRelease (disk_child);
-			IOObjectRelease (disk);
-			continue;
-		}
-
-		stats_dict = (CFDictionaryRef) CFDictionaryGetValue (props_dict,
-				CFSTR (kIOBlockStorageDriverStatisticsKey));
-
-		if (stats_dict == NULL)
-		{
-			DBG ("CFDictionaryGetValue (%s) failed.",
-				       	kIOBlockStorageDriverStatisticsKey);
-			CFRelease (props_dict);
-			IOObjectRelease (disk_child);
-			IOObjectRelease (disk);
-			continue;
-		}
-
-		if (IORegistryEntryCreateCFProperties (disk_child,
-					(CFMutableDictionaryRef *) &child_dict,
-					kCFAllocatorDefault,
-					kNilOptions)
-				!= kIOReturnSuccess)
-		{
-			DBG ("IORegistryEntryCreateCFProperties (disk_child) failed.");
-			IOObjectRelease (disk_child);
-			CFRelease (props_dict);
-			IOObjectRelease (disk);
-			continue;
-		}
-
-		disk_major = (int) dict_get_value (child_dict,
-			       	kIOBSDMajorKey);
-		disk_minor = (int) dict_get_value (child_dict,
-			       	kIOBSDMinorKey);
-		read_ops  = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsReadsKey);
-		read_byt  = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsBytesReadKey);
-		read_tme  = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsTotalReadTimeKey);
-		write_ops = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsWritesKey);
-		write_byt = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsBytesWrittenKey);
-		write_tme = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
-
-		if (snprintf (disk_name, 64, "%i-%i", disk_major, disk_minor) >= 64)
-		{
-			DBG ("snprintf (major, minor) failed.");
-			CFRelease (child_dict);
-			IOObjectRelease (disk_child);
-			CFRelease (props_dict);
-			IOObjectRelease (disk);
-			continue;
-		}
-		DBG ("disk_name = %s", disk_name);
-
-		if ((read_ops != -1LL)
-				|| (read_byt != -1LL)
-				|| (read_tme != -1LL)
-				|| (write_ops != -1LL)
-				|| (write_byt != -1LL)
-				|| (write_tme != -1LL))
-			disk_submit (disk_name,
-					read_ops, 0ULL, read_byt, read_tme,
-					write_ops, 0ULL, write_byt, write_tme);
-
-		CFRelease (child_dict);
-		IOObjectRelease (disk_child);
-		CFRelease (props_dict);
-		IOObjectRelease (disk);
-	}
-	IOObjectRelease (disk_list);
-/* #endif HAVE_IOKIT_IOKITLIB_H */
-
-#elif KERNEL_LINUX
+#ifdef KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
 	char disk_name[128];
@@ -555,7 +321,7 @@ static void disk_read (void)
 	fclose (fh);
 /* #endif defined(KERNEL_LINUX) */
 
-#elif HAVE_LIBKSTAT
+#elif defined(HAVE_LIBKSTAT)
 	static kstat_io_t kio;
 	int i;
 

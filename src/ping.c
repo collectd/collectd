@@ -61,8 +61,7 @@ static int ping_config (char *key, char *value)
 	{
 		if ((pingobj = ping_construct ()) == NULL)
 		{
-			syslog (LOG_ERR, "ping: `ping_construct' failed: %s",
-				       	ping_get_error (pingobj));
+			syslog (LOG_ERR, "ping: `ping_construct' failed.\n");
 			return (1);
 		}
 	}
@@ -71,8 +70,7 @@ static int ping_config (char *key, char *value)
 	{
 		if (ping_host_add (pingobj, value) < 0)
 		{
-			syslog (LOG_WARNING, "ping: `ping_host_add' failed: %s",
-				       	ping_get_error (pingobj));
+			syslog (LOG_WARNING, "ping: `ping_host_add' failed.");
 			return (1);
 		}
 	}
@@ -131,8 +129,7 @@ static void ping_read (void)
 
 	if (ping_send (pingobj) < 0)
 	{
-		syslog (LOG_ERR, "ping: `ping_send' failed: %s",
-				ping_get_error (pingobj));
+		syslog (LOG_ERR, "ping: `ping_send' failed.");
 		return;
 	}
 
