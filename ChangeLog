@@ -8,6 +8,14 @@
 	* A plugin for moniroting an NTP instance and the local clock drift
 	  has been added.
 
+2006-06-18, Version 3.9.4
+	* The Solaris code in the `swap' plugin has been changed to reflect
+	  the numbers returned by `swap -s'. Thanks to Christophe Kalt for
+	  working this out.
+	* The debugging system has been fixed to work with the Sun libc.
+	* When built without librrd the variable `operating_mode' could be
+	  uninitialized. Thanks to David Elliot for reporting the bug.
+
 2006-06-01, Version 3.9.3
 	* Fixed the ping-plugin under FreeBSD and Mac OS X. Potentially other
 	  operating systems also profit from the changes, but I wasn't able to
