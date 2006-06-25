@@ -1,0 +1,4 @@
+usr/lib/collectd
+usr/sbin
+etc/init.d
+var/lib/collectd
