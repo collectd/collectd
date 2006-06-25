@@ -37,13 +37,31 @@
 /*
  * Type definitions
  */
-struct pinghost;
-typedef struct pinghost pinghost_t;
+typedef struct pinghost
+{
+	char                    *hostname;
+	struct sockaddr_storage *addr;
+	socklen_t                addrlen;
+	int                      addrfamily;
+	int                      fd;
+	int                      ident;
+	int                      sequence;
+	struct timeval          *timer;
+	double                   latency;
+
+	struct pinghost         *next;
+} pinghost_t;
 
 typedef pinghost_t pingobj_iter_t;
 
-struct pingobj;
-typedef struct pingobj pingobj_t;
+typedef struct pingobj
+{
+	double      timeout;
+	int         ttl;
+	int         addrfamily;
+
+	pinghost_t *head;
+} pingobj_t;
 
 #define PING_OPT_TIMEOUT 0x01
 #define PING_OPT_TTL     0x02
@@ -71,7 +89,5 @@ pingobj_iter_t *ping_iterator_next (pingobj_iter_t *iter);
 
 const char *ping_iterator_get_host (pingobj_iter_t *iter);
 double ping_iterator_get_latency (pingobj_iter_t *iter);
-
-const char *ping_get_error (pingobj_t *obj);
 
 #endif /* OCTO_PING_H */
