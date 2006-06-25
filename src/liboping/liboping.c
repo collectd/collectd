@@ -87,46 +87,11 @@
 # define dprintf(...) /**/
 #endif
 
-#define PING_ERRMSG_LEN 256
-
 #define PING_DATA "Florian Forster <octo@verplant.org> http://verplant.org/"
-
-struct pinghost
-{
-	char                    *hostname;
-	struct sockaddr_storage *addr;
-	socklen_t                addrlen;
-	int                      addrfamily;
-	int                      fd;
-	int                      ident;
-	int                      sequence;
-	struct timeval          *timer;
-	double                   latency;
-
-	struct pinghost         *next;
-};
-
-struct pingobj
-{
-	double      timeout;
-	int         ttl;
-	int         addrfamily;
-
-	char        errmsg[PING_ERRMSG_LEN];
-
-	pinghost_t *head;
-};
 
 /*
  * private (static) functions
  */
-static void ping_set_error (pingobj_t *obj, const char *function,
-	       	const char *message)
-{
-	snprintf (obj->errmsg, PING_ERRMSG_LEN, "%s: %s", function, message);
-	obj->errmsg[PING_ERRMSG_LEN - 1] = '\0';
-}
-
 static int ping_timeval_add (struct timeval *tv1, struct timeval *tv2,
 		struct timeval *res)
 {
@@ -423,10 +388,7 @@ static int ping_receive_all (pingobj_t *obj)
 		ptr->latency = -1.0;
 
 	if (gettimeofday (&nowtime, NULL) == -1)
-	{
-		ping_set_error (obj, "gettimeofday", strerror (errno));
 		return (-1);
-	}
 
 	/* Set up timeout */
 	timeout.tv_sec = (time_t) obj->timeout;
@@ -460,10 +422,7 @@ static int ping_receive_all (pingobj_t *obj)
 			break;
 
 		if (gettimeofday (&nowtime, NULL) == -1)
-		{
-			ping_set_error (obj, "gettimeofday", strerror (errno));
 			return (-1);
-		}
 
 		if (ping_timeval_sub (&endtime, &nowtime, &timeout) == -1)
 			break;
@@ -475,10 +434,7 @@ static int ping_receive_all (pingobj_t *obj)
 		status = select (max_readfds + 1, &readfds, NULL, NULL, &timeout);
 
 		if (gettimeofday (&nowtime, NULL) == -1)
-		{
-			ping_set_error (obj, "gettimeofday", strerror (errno));
 			return (-1);
-		}
 		
 		if ((status == -1) && (errno == EINTR))
 		{
@@ -514,7 +470,7 @@ static int ping_receive_all (pingobj_t *obj)
  * +-> ping_send_one_ipv4                                                    *
  * `-> ping_send_one_ipv6                                                    *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-static ssize_t ping_sendto (pinghost_t *ph, const void *buf, size_t buflen)
+ssize_t ping_sendto (pinghost_t *ph, const void *buf, size_t buflen)
 {
 	ssize_t ret;
 
@@ -758,18 +714,14 @@ static void ping_free (pinghost_t *ph)
 /*
  * public methods
  */
-const char *ping_get_error (pingobj_t *obj)
-{
-	return (obj->errmsg);
-}
-
 pingobj_t *ping_construct (void)
 {
 	pingobj_t *obj;
 
 	if ((obj = (pingobj_t *) malloc (sizeof (pingobj_t))) == NULL)
 		return (NULL);
-	memset (obj, '\0', sizeof (pingobj_t));
+
+	obj->head = NULL;
 
 	return (obj);
 }
@@ -896,7 +848,6 @@ int ping_host_add (pingobj_t *obj, const char *host)
 	if ((ph->hostname = strdup (host)) == NULL)
 	{
 		dprintf ("Out of memory!\n");
-		ping_set_error (obj, "strdup", strerror (errno));
 		ping_free (ph);
 		return (-1);
 	}
@@ -904,16 +855,9 @@ int ping_host_add (pingobj_t *obj, const char *host)
 	if ((ai_return = getaddrinfo (host, NULL, &ai_hints, &ai_list)) != 0)
 	{
 		dprintf ("getaddrinfo failed\n");
-		ping_set_error (obj, "getaddrinfo",
-			       	(ai_return == EAI_SYSTEM)
-				? strerror (errno)
-				: gai_strerror (ai_return));
 		ping_free (ph);
 		return (-1);
 	}
-
-	if (ai_list == NULL)
-		ping_set_error (obj, "getaddrinfo", "No hosts returned");
 
 	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
@@ -931,7 +875,6 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			si->sin_port   = htons (ph->ident);
 			si->sin_addr.s_addr = htonl (INADDR_ANY);
 
-			ai_ptr->ai_socktype = SOCK_RAW;
 			ai_ptr->ai_protocol = IPPROTO_ICMP;
 		}
 		else if (ai_ptr->ai_family == AF_INET6)
@@ -943,18 +886,11 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			si->sin6_port   = htons (ph->ident);
 			si->sin6_addr   = in6addr_any;
 
-			ai_ptr->ai_socktype = SOCK_RAW;
 			ai_ptr->ai_protocol = IPPROTO_ICMPV6;
 		}
 		else
 		{
-			char errmsg[PING_ERRMSG_LEN];
-
-			snprintf (errmsg, PING_ERRMSG_LEN, "Unknown `ai_family': %i", ai_ptr->ai_family);
-			errmsg[PING_ERRMSG_LEN - 1] = '\0';
-
-			dprintf (errmsg);
-			ping_set_error (obj, "getaddrinfo", errmsg);
+			dprintf ("Unknown `ai_family': %i\n", ai_ptr->ai_family);
 			continue;
 		}
 
@@ -962,14 +898,12 @@ int ping_host_add (pingobj_t *obj, const char *host)
 		if (ph->fd == -1)
 		{
 			dprintf ("socket: %s\n", strerror (errno));
-			ping_set_error (obj, "socket", strerror (errno));
 			continue;
 		}
 
 		if (bind (ph->fd, (struct sockaddr *) &sockaddr, sockaddr_len) == -1)
 		{
 			dprintf ("bind: %s\n", strerror (errno));
-			ping_set_error (obj, "bind", strerror (errno));
 			close (ph->fd);
 			ph->fd = -1;
 			continue;
@@ -1018,10 +952,7 @@ int ping_host_remove (pingobj_t *obj, const char *host)
 	}
 
 	if (cur == NULL)
-	{
-		ping_set_error (obj, "ping_host_remove", "Host not found");
 		return (-1);
-	}
 
 	if (pre == NULL)
 		obj->head = cur->next;
