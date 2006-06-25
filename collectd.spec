@@ -102,7 +102,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
-* Tue Jun 18 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
+* Tue Jun 25 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
 - New upstream version
 
 * Tue Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
