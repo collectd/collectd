@@ -235,18 +235,6 @@ our $GraphDefs;
 			'GPRINT:total_max_ms:MAX:%5.1lf%s Max,',
 			'GPRINT:total_avg_ms:LAST:%5.1lf%s Last'
 		],
-		fanspeed => [
-			'DEF:temp_avg={file}:value:AVERAGE',
-			'DEF:temp_min={file}:value:MIN',
-			'DEF:temp_max={file}:value:MAX',
-			"AREA:temp_max#$HalfBlue",
-			"AREA:temp_min#$Canvas",
-			"LINE1:temp_avg#$FullBlue:RPM",
-			'GPRINT:temp_min:MIN:%4.1lf Min,',
-			'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
-			'GPRINT:temp_max:MAX:%4.1lf Max,',
-			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
-		],
 		hddtemp => [
 			'DEF:temp_avg={file}:value:AVERAGE',
 			'DEF:temp_min={file}:value:MIN',
@@ -647,6 +635,18 @@ our $GraphDefs;
 			'GPRINT:sleeping_max:MAX:%5.1lf Max,',
 			'GPRINT:sleeping_avg:LAST:%5.1lf Last\l'
 		],
+		sensors => [
+			'DEF:temp_avg={file}:value:AVERAGE',
+			'DEF:temp_min={file}:value:MIN',
+			'DEF:temp_max={file}:value:MAX',
+			"AREA:temp_max#$HalfBlue",
+			"AREA:temp_min#$Canvas",
+			"LINE1:temp_avg#$FullBlue:Value",
+			'GPRINT:temp_min:MIN:%4.1lf Min,',
+			'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
+			'GPRINT:temp_max:MAX:%4.1lf Max,',
+			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
+		],
 		swap => [
 			'DEF:used_avg={file}:used:AVERAGE',
 			'DEF:used_min={file}:used:MIN',
@@ -690,18 +690,6 @@ our $GraphDefs;
 			'GPRINT:used_avg:AVERAGE:%5.1lf%s Avg,',
 			'GPRINT:used_max:MAX:%5.1lf%s Max,',
 			'GPRINT:used_avg:LAST:%5.1lf%s Last\l'
-		],
-		temperature => [
-			'DEF:temp_avg={file}:value:AVERAGE',
-			'DEF:temp_min={file}:value:MIN',
-			'DEF:temp_max={file}:value:MAX',
-			"AREA:temp_max#$HalfBlue",
-			"AREA:temp_min#$Canvas",
-			"LINE1:temp_avg#$FullBlue:Value",
-			'GPRINT:temp_min:MIN:%4.1lf Min,',
-			'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
-			'GPRINT:temp_max:MAX:%4.1lf Max,',
-			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
 		],
 		traffic => ['DEF:out_min_raw={file}:outgoing:MIN',
 			'DEF:out_avg_raw={file}:outgoing:AVERAGE',
@@ -857,7 +845,6 @@ our $GraphDefs;
 	};
 	$GraphDefs->{'disk'} = $GraphDefs->{'partition'};
 	$GraphDefs->{'meminfo'} = $GraphDefs->{'memory'};
-	$GraphDefs->{'sensors'} = $GraphDefs->{'temperature'};
 }
 
 our $GraphArgs =
@@ -872,7 +859,6 @@ our $GraphArgs =
 	#disk => ['-t', '{host} disk {inst} IO wait', '-v', 'Seconds'],
 	df => ['-t', '{host}:{inst} usage', '-v', 'Percent', '-l', '0'],
 	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
-	fanspeed => ['-t', '{host} fanspeed {inst}', '-v', 'rpm'],
 	hddtemp => ['-t', '{host} hdd temperature {inst}', '-v', '°Celsius'],
 	load => ['-t', '{host} load average', '-v', 'System load', '-X', '0'],
 	mails   => ['-t', '{host} mail count', '-v', 'Amount', '-X', '0'],
@@ -887,7 +873,6 @@ our $GraphArgs =
 	processes => ['-t', '{host} processes', '-v', 'Processes'],
 	sensors => ['-t', '{host} sensor {inst}', '-v', '°Celsius'],
 	swap => ['-t', '{host} swap usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
-	temperature => ['-t', '{host} temperature {inst}', '-v', '°Celsius'],
 	traffic => ['-t', '{host} {inst} traffic', '-v', 'Bit/s'],
 	users => ['-t', '{host} users', '-v', 'Users'],
 	voltage => ['-t', '{host} voltage', '-v', 'Volts'],
@@ -911,7 +896,7 @@ our $GraphMulti =
 	ping	=> \&output_graph_ping,
 	sensors	=> 1,
 	traffic	=> 1,
-	users => 1
+    users => 1
 };
 
 our @Info;
@@ -1474,7 +1459,7 @@ sub parse_pathinfo
 	$AbsDir = $Config->{'Directory'};
 	$RelDir = '';
 
-	while (@info and -d $AbsDir . '/' . $info[0])
+	while (@info and -d $AbsDir . '/' . $Info[0])
 	{
 		my $new = shift (@info);
 		next if ($new =~ m/^\./);
