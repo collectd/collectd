@@ -2,7 +2,7 @@ collectd (3.9.4) unstable; urgency=low
 
   * New upstream version 
 
- -- Florian Forster <octo@leeloo.home.verplant.org>  Sun, 18 Jun 2006 19:50:44 +0200
+ -- Florian Forster <octo@leeloo.home.verplant.org>  Sun, 25 Jun 2006 19:50:44 +0200
 
 collectd (3.9.3) unstable; urgency=low
 

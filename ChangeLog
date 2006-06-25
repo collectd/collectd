@@ -1,4 +1,4 @@
-2006-06-18, Version 3.9.4
+2006-06-25, Version 3.9.4
 	* The Solaris code in the `swap' plugin has been changed to reflect
 	  the numbers returned by `swap -s'. Thanks to Christophe Kalt for
 	  working this out.
