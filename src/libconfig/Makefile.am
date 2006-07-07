@@ -1,5 +1,7 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
+EXTRA_DIST = AUTHORS LICENSE README TODO
+
 noinst_LTLIBRARIES = libconfig.la
 
 libconfig_la_CFLAGS =
