@@ -48,6 +48,12 @@
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
+#else
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
 #endif
 
 #if HAVE_SYS_SOCKET_H
@@ -79,17 +85,15 @@
 # include <netinet/icmp6.h>
 #endif
 
-#include "liboping.h"
+#include "oping.h"
 
-#if DEBUG
+#if WITH_DEBUG
 # define dprintf(...) printf ("%s[%4i]: %-20s: ", __FILE__, __LINE__, __FUNCTION__); printf (__VA_ARGS__)
 #else
 # define dprintf(...) /**/
 #endif
 
 #define PING_ERRMSG_LEN 256
-
-#define PING_DATA "Florian Forster <octo@verplant.org> http://verplant.org/"
 
 struct pinghost
 {
@@ -102,6 +106,9 @@ struct pinghost
 	int                      sequence;
 	struct timeval          *timer;
 	double                   latency;
+	char                    *data;
+
+	void                    *context;
 
 	struct pinghost         *next;
 };
@@ -111,6 +118,7 @@ struct pingobj
 	double      timeout;
 	int         ttl;
 	int         addrfamily;
+	char       *data;
 
 	char        errmsg[PING_ERRMSG_LEN];
 
@@ -362,7 +370,7 @@ static int ping_receive_one (int fd, pinghost_t *ph, struct timeval *now)
 		return (-1);
 	}
 
-	dprintf ("Read %i bytes from fd = %i\n", buffer_len, fd);
+	dprintf ("Read %u bytes from fd = %i\n", (unsigned int) buffer_len, fd);
 
 	if (sa.ss_family == AF_INET)
 	{
@@ -514,7 +522,8 @@ static int ping_receive_all (pingobj_t *obj)
  * +-> ping_send_one_ipv4                                                    *
  * `-> ping_send_one_ipv6                                                    *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-static ssize_t ping_sendto (pinghost_t *ph, const void *buf, size_t buflen)
+static ssize_t ping_sendto (pingobj_t *obj, pinghost_t *ph,
+		const void *buf, size_t buflen)
 {
 	ssize_t ret;
 
@@ -527,10 +536,13 @@ static ssize_t ping_sendto (pinghost_t *ph, const void *buf, size_t buflen)
 	ret = sendto (ph->fd, buf, buflen, 0,
 			(struct sockaddr *) ph->addr, ph->addrlen);
 
+	if (ret < 0)
+		ping_set_error (obj, "sendto", strerror (errno));
+
 	return (ret);
 }
 
-static int ping_send_one_ipv4 (pinghost_t *ph)
+static int ping_send_one_ipv4 (pingobj_t *obj, pinghost_t *ph)
 {
 	struct icmp *icmp4;
 	int status;
@@ -553,7 +565,8 @@ static int ping_send_one_ipv4 (pinghost_t *ph)
 	icmp4->icmp_id    = htons (ph->ident);
 	icmp4->icmp_seq   = htons (ph->sequence);
 
-	strcpy (data, PING_DATA);
+	buflen = 4096 - sizeof (struct icmp);
+	strncpy (data, ph->data, buflen);
 	datalen = strlen (data);
 
 	buflen = datalen + sizeof (struct icmp);
@@ -562,7 +575,7 @@ static int ping_send_one_ipv4 (pinghost_t *ph)
 
 	dprintf ("Sending ICMPv4 package with ID 0x%04x\n", ph->ident);
 
-	status = ping_sendto (ph, buf, buflen);
+	status = ping_sendto (obj, ph, buf, buflen);
 	if (status < 0)
 	{
 		perror ("ping_sendto");
@@ -574,7 +587,7 @@ static int ping_send_one_ipv4 (pinghost_t *ph)
 	return (0);
 }
 
-static int ping_send_one_ipv6 (pinghost_t *ph)
+static int ping_send_one_ipv6 (pingobj_t *obj, pinghost_t *ph)
 {
 	struct icmp6_hdr *icmp6;
 	int status;
@@ -594,18 +607,20 @@ static int ping_send_one_ipv6 (pinghost_t *ph)
 	icmp6->icmp6_type  = ICMP6_ECHO_REQUEST;
 	icmp6->icmp6_code  = 0;
 	/* The checksum will be calculated by the TCP/IP stack.  */
+	/* FIXME */
 	icmp6->icmp6_cksum = 0;
 	icmp6->icmp6_id    = htons (ph->ident);
 	icmp6->icmp6_seq   = htons (ph->sequence);
 
-	strcpy (data, PING_DATA);
+	buflen = 4096 - sizeof (struct icmp6_hdr);
+	strncpy (data, ph->data, buflen);
 	datalen = strlen (data);
 
 	buflen = datalen + sizeof (struct icmp6_hdr);
 
 	dprintf ("Sending ICMPv6 package with ID 0x%04x\n", ph->ident);
 
-	status = ping_sendto (ph, buf, buflen);
+	status = ping_sendto (obj, ph, buf, buflen);
 	if (status < 0)
 	{
 		perror ("ping_sendto");
@@ -617,9 +632,15 @@ static int ping_send_one_ipv6 (pinghost_t *ph)
 	return (0);
 }
 
-static int ping_send_all (pinghost_t *ph)
+static int ping_send_all (pingobj_t *obj)
 {
+	pinghost_t *ph;
 	pinghost_t *ptr;
+
+	int ret;
+
+	ret = 0;
+	ph = obj->head;
 
 	for (ptr = ph; ptr != NULL; ptr = ptr->next)
 	{
@@ -629,6 +650,7 @@ static int ping_send_all (pinghost_t *ph)
 		{
 			dprintf ("gettimeofday: %s\n", strerror (errno));
 			timerclear (ptr->timer);
+			ret--;
 			continue;
 		}
 		else
@@ -639,18 +661,20 @@ static int ping_send_all (pinghost_t *ph)
 		if (ptr->addrfamily == AF_INET6)
 		{	
 			dprintf ("Sending ICMPv6 echo request to `%s'\n", ptr->hostname);
-			if (ping_send_one_ipv6 (ptr) != 0)
+			if (ping_send_one_ipv6 (obj, ptr) != 0)
 			{
 				timerclear (ptr->timer);
+				ret--;
 				continue;
 			}
 		}
 		else if (ptr->addrfamily == AF_INET)
 		{
 			dprintf ("Sending ICMPv4 echo request to `%s'\n", ptr->hostname);
-			if (ping_send_one_ipv4 (ptr) != 0)
+			if (ping_send_one_ipv4 (obj, ptr) != 0)
 			{
 				timerclear (ptr->timer);
+				ret--;
 				continue;
 			}
 		}
@@ -658,14 +682,14 @@ static int ping_send_all (pinghost_t *ph)
 		{
 			dprintf ("Unknown address family: %i\n", ptr->addrfamily);
 			timerclear (ptr->timer);
+			ret--;
 			continue;
 		}
 
 		ptr->sequence++;
 	}
 
-	/* FIXME */
-	return (0);
+	return (ret);
 }
 
 /*
@@ -752,6 +776,9 @@ static void ping_free (pinghost_t *ph)
 	if (ph->hostname != NULL)
 		free (ph->hostname);
 
+	if (ph->data != NULL)
+		free (ph->data);
+
 	free (ph);
 }
 
@@ -774,6 +801,7 @@ pingobj_t *ping_construct (void)
 	obj->timeout    = PING_DEF_TIMEOUT;
 	obj->ttl        = PING_DEF_TTL;
 	obj->addrfamily = PING_DEF_AF;
+	obj->data       = strdup (PING_DEF_DATA);
 
 	return (obj);
 }
@@ -792,6 +820,9 @@ void ping_destroy (pingobj_t *obj)
 		ping_free (current);
 		current = next;
 	}
+
+	if (obj->data != NULL)
+		free (obj->data);
 
 	free (obj);
 
@@ -833,6 +864,15 @@ int ping_setopt (pingobj_t *obj, int option, void *value)
 			}
 			break;
 
+		case PING_OPT_DATA:
+			if (obj->data != NULL)
+			{
+				free (obj->data);
+				obj->data = NULL;
+			}
+			obj->data = strdup ((const char *) value);
+			break;
+
 		default:
 			ret = -2;
 	} /* switch (option) */
@@ -845,7 +885,7 @@ int ping_send (pingobj_t *obj)
 {
 	int ret;
 
-	if (ping_send_all (obj->head) < 0)
+	if (ping_send_all (obj) < 0)
 		return (-1);
 
 	if ((ret = ping_receive_all (obj)) < 0)
@@ -898,6 +938,15 @@ int ping_host_add (pingobj_t *obj, const char *host)
 	}
 
 	if ((ph->hostname = strdup (host)) == NULL)
+	{
+		dprintf ("Out of memory!\n");
+		ping_set_error (obj, "strdup", strerror (errno));
+		ping_free (ph);
+		return (-1);
+	}
+
+	/* obj->data is not garuanteed to be != NULL */
+	if ((ph->data = strdup (obj->data == NULL ? PING_DEF_DATA : obj->data)) == NULL)
 	{
 		dprintf ("Out of memory!\n");
 		ping_set_error (obj, "strdup", strerror (errno));
@@ -962,6 +1011,8 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			continue;
 		}
 
+		/* TODO: Move this to a static function `ping_open_socket' and
+		 * call it whenever the socket dies. */
 		ph->fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
 		if (ph->fd == -1)
 		{
@@ -970,6 +1021,11 @@ int ping_host_add (pingobj_t *obj, const char *host)
 			continue;
 		}
 
+/*
+ * The majority vote of operating systems has decided that you don't need to
+ * bind here. This code should be reactivated to bind to a specific address,
+ * though. See the `-I' option of `ping(1)' (GNU).  -octo
+ */
 #if 0
 		if (bind (ph->fd, (struct sockaddr *) &sockaddr, sockaddr_len) == -1)
 		{
@@ -999,8 +1055,26 @@ int ping_host_add (pingobj_t *obj, const char *host)
 		return (-1);
 	}
 
-	ph->next  = obj->head;
-	obj->head = ph;
+	/*
+	 * Adding in the front is much easier, but then the iterator will
+	 * return the host that was added last as first host. That's just not
+	 * nice. -octo
+	 */
+	if (obj->head == NULL)
+	{
+		obj->head = ph;
+	}
+	else
+	{
+		pinghost_t *hptr;
+
+		hptr = obj->head;
+		while (hptr->next != NULL)
+			hptr = hptr->next;
+
+		assert ((hptr != NULL) && (hptr->next == NULL));
+		hptr->next = ph;
+	}
 
 	ping_set_ttl (ph, obj->ttl);
 
@@ -1052,12 +1126,105 @@ pingobj_iter_t *ping_iterator_next (pingobj_iter_t *iter)
 	return ((pingobj_iter_t *) iter->next);
 }
 
-const char *ping_iterator_get_host (pingobj_iter_t *iter)
+int ping_iterator_get_info (pingobj_iter_t *iter, int info,
+		void *buffer, size_t *buffer_len)
 {
-	return (iter->hostname);
+	int ret = EINVAL;
+
+	size_t orig_buffer_len = *buffer_len;
+
+	switch (info)
+	{
+		case PING_INFO_HOSTNAME:
+			ret = ENOMEM;
+			*buffer_len = strlen (iter->hostname);
+			if (orig_buffer_len <= *buffer_len)
+				break;
+			/* Since (orig_buffer_len > *buffer_len) `strncpy'
+			 * will copy `*buffer_len' and pad the rest of
+			 * `buffer' with null-bytes */
+			strncpy (buffer, iter->hostname, orig_buffer_len);
+			ret = 0;
+			break;
+
+		case PING_INFO_ADDRESS:
+			ret = getnameinfo ((struct sockaddr *) iter->addr,
+					iter->addrlen,
+					(char *) buffer,
+					*buffer_len,
+					NULL, 0,
+					NI_NUMERICHOST);
+			if (ret != 0)
+			{
+				if ((ret == EAI_MEMORY)
+#ifdef EAI_OVERFLOW
+						|| (ret == EAI_OVERFLOW)
+#endif
+				   )
+					ret = ENOMEM;
+				else if (ret == EAI_SYSTEM)
+					/* XXX: Not thread-safe! */
+					ret = errno;
+				else
+					ret = EINVAL;
+			}
+			break;
+
+		case PING_INFO_FAMILY:
+			ret = ENOMEM;
+			*buffer_len = sizeof (int);
+			if (orig_buffer_len < sizeof (int))
+				break;
+			*((int *) buffer) = iter->addrfamily;
+			ret = 0;
+			break;
+
+		case PING_INFO_LATENCY:
+			ret = ENOMEM;
+			*buffer_len = sizeof (double);
+			if (orig_buffer_len < sizeof (double))
+				break;
+			*((double *) buffer) = iter->latency;
+			ret = 0;
+			break;
+
+		case PING_INFO_SEQUENCE:
+			ret = ENOMEM;
+			*buffer_len = sizeof (unsigned int);
+			if (orig_buffer_len < sizeof (unsigned int))
+				break;
+			*((unsigned int *) buffer) = (unsigned int) iter->sequence;
+			ret = 0;
+			break;
+
+		case PING_INFO_IDENT:
+			ret = ENOMEM;
+			*buffer_len = sizeof (uint16_t);
+			if (orig_buffer_len < sizeof (uint16_t))
+				break;
+			*((uint16_t *) buffer) = (uint16_t) iter->ident;
+			ret = 0;
+			break;
+
+		case PING_INFO_DATA:
+			ret = ENOMEM;
+			*buffer_len = strlen (iter->data);
+			if (orig_buffer_len < *buffer_len)
+				break;
+			strncpy ((char *) buffer, iter->data, orig_buffer_len);
+			ret = 0;
+			break;
+	}
+
+	return (ret);
 }
 
-double ping_iterator_get_latency (pingobj_iter_t *iter)
+void *ping_iterator_get_context (pingobj_iter_t *iter)
 {
-	return (iter->latency);
+	return (iter->context);
+}
+
+void ping_iterator_set_context (pingobj_iter_t *iter, void *context)
+{
+	iter->context = context;
 }
