@@ -4,6 +4,8 @@ if COMPILER_IS_GCC
 AM_CFLAGS = -Wall -Werror
 endif
 
+EXTRA_DIST = AUTHORS COPYING ChangeLog README
+
 noinst_LTLIBRARIES = liboping.la
 
 #liboping_la_CFLAGS = 
