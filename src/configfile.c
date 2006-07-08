@@ -37,6 +37,15 @@
 #define ERR_NEEDS_ARG "Section `%s' needs an argument.\n"
 #define ERR_NEEDS_SECTION "`%s' can only be used within a section.\n"
 
+#define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
+
+#define DEBUG_CALLBACK(shortvar, var, arguments, value) \
+	DBG("shortvar = %s, var = %s, arguments = %s, value = %s, ...", \
+			ESCAPE_NULL(shortvar), \
+			ESCAPE_NULL(var), \
+			ESCAPE_NULL(arguments), \
+			ESCAPE_NULL(value))
+
 extern int operating_mode;
 
 typedef struct cf_callback
@@ -102,7 +111,10 @@ static int cf_dispatch (char *type, const char *orig_key, const char *orig_value
 	int ret;
 	int i;
 
-	DBG ("type = %s, key = %s, value = %s", type, orig_key, orig_value);
+	DBG ("type = %s, key = %s, value = %s",
+			ESCAPE_NULL(type),
+			ESCAPE_NULL(orig_key),
+			ESCAPE_NULL(orig_value));
 
 	if ((cf_cb = cf_search (type)) == NULL)
 	{
@@ -195,7 +207,7 @@ void cf_register (char *type,
 		}
 		else
 		{
-			DBG ("Key was truncated: `%s'", keys[i]);
+			DBG ("Key was truncated: `%s'", ESCAPE_NULL(keys[i]));
 		}
 	}
 }
@@ -237,8 +249,7 @@ static int cf_callback_mode (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
+	DEBUG_CALLBACK (shortvar, var, arguments, value);
 
 	if (strcasecmp (value, "Client") == 0)
 		operating_mode = MODE_CLIENT;
@@ -247,6 +258,27 @@ static int cf_callback_mode (const char *shortvar, const char *var,
 		operating_mode = MODE_SERVER;
 	else if (strcasecmp (value, "Local") == 0)
 		operating_mode = MODE_LOCAL;
+#else /* !HAVE_LIBRRD */
+	else if (strcasecmp (value, "Server") == 0)
+	{
+		fprintf (stderr, "Invalid mode `Server': "
+				"You need to link against librrd for this "
+				"mode to be available.\n");
+		syslog (LOG_ERR, "Invalid mode `Server': "
+				"You need to link against librrd for this "
+				"mode to be available.");
+		return (LC_CBRET_ERROR);
+	}
+	else if (strcasecmp (value, "Local") == 0)
+	{
+		fprintf (stderr, "Invalid mode `Local': "
+				"You need to link against librrd for this "
+				"mode to be available.\n");
+		syslog (LOG_ERR, "Invalid mode `Local': "
+				"You need to link against librrd for this "
+				"mode to be available.");
+		return (LC_CBRET_ERROR);
+	}
 #endif
 	else if (strcasecmp (value, "Log") == 0)
 		operating_mode = MODE_LOG;
@@ -271,8 +303,7 @@ static int cf_callback_mode_plugindir (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
+	DEBUG_CALLBACK (shortvar, var, arguments, value);
 
 	plugin_set_dir (value);
 
@@ -285,8 +316,7 @@ static int cf_callback_mode_option (const char *shortvar, const char *var,
 {
 	cf_mode_item_t *item;
 
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
+	DEBUG_CALLBACK (shortvar, var, arguments, value);
 
 	if (extra == NULL)
 	{
@@ -335,8 +365,7 @@ static int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
+	DEBUG_CALLBACK (shortvar, var, arguments, value);
 
 	if (plugin_load (value))
 		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", value);
@@ -358,8 +387,7 @@ static int cf_callback_socket (const char *shortvar, const char *var,
 	char *node;
 	char *service = NET_DEFAULT_PORT;
 
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
+	DEBUG_CALLBACK (shortvar, var, arguments, value);
 
 	buffer = strdup (value);
 	if (buffer == NULL)
@@ -401,8 +429,7 @@ static int cf_callback_plugin (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
+	DEBUG_CALLBACK (shortvar, var, arguments, value);
 
 	if (flags == LC_FLAGS_SECTIONSTART)
 	{
@@ -462,8 +489,7 @@ static int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
 		const char *arguments, const char *value, lc_flags_t flags,
 		void *extra)
 {
-	DBG ("shortvar = %s, var = %s, arguments = %s, value = %s, ...",
-			shortvar, var, arguments, value);
+	DEBUG_CALLBACK (shortvar, var, arguments, value);
 
 	if ((nesting_depth == 0) || (current_module == NULL))
 	{

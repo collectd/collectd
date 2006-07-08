@@ -1,0 +1,31 @@
+2006-06-05, Version 0.2.2
+	* The `oping' application didn't exit if no hosts could be resolved.
+	  This release fixes it's behavior.
+
+2006-06-01, Version 0.2.1
+	* Fix the behavior for non GNU-Linux systems. liboping tried to
+	  `bind(2)' to the raw-socket it uses to send ICMP packets. Apparently
+	  (decided by majority vote ;) this is not the right thing to do.
+	  GNU/Linux never complained about it, but works find without the bind.
+	  Other operating systems don't work at all with the bind.
+	* Build fixes for non-GNU/Linux platforms: Mac OS X doesn't define
+	  `size_t' as `unsigned int' and therefore needs casting and FreeBSD
+	  needs to have `sys/types.h' included before `netinet/*.h'
+
+2006-05-29, Version 0.2.0
+	* It's now possible to set the data to be send to the remote host and
+	  to get the data received from the host.
+	* The `oping' binary now calculates the standard deviation. Also, it
+	  displays the number of byes that were received and other output
+	  changes.
+	* Hosts are now returned in the same order as they were added by
+	  `ping_host_add'. This is not guaranteed, but makes `oping' prettier.
+
+2006-05-12, Version 0.1.1
+	* A bug in the library has been fixed: When the sequence got higher
+	  than 2^16 the counter in the packets wrapped around, but the
+	  internal counter didn't, causing the library to ignore all further
+	  ICMP packets. This affected both, ICMPv4 and ICMPv6.
+
+2006-05-08, Version 0.1.0
+	* Initial release.

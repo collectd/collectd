@@ -291,6 +291,8 @@ int main (int argc, char **argv)
 
 #if HAVE_LIBRRD
 	operating_mode = MODE_LOCAL;
+#else
+	operating_mode = MODE_CLIENT;
 #endif
 
 	/* open syslog */
