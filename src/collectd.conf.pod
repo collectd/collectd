@@ -230,10 +230,20 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =over 4
 
-=item B<Ignore> I<Interface>
+=item B<Interface> I<Interface>
 
-Ignore the given interface. Use this to get rid of loopback- or
-IPv6-in-IPv4-tunnel-interface statistics.
+Select this interface. By default these interfaces will then be collected. For a more detailed description see B<IgnoreSelected> below.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+If no configuration if given, the B<traffic>-plugin will collect data from
+all interfaces. This may not be practical, especially for loopback- and
+similar interfaces. Thus, you can use the B<Interface>-option to pick the
+interfaces you're interested in. Sometimes, however, it's easier/prefered
+to collect all interfaces I<except> a few ones. This option enables you to
+do that: By setting B<IgnoreSelected> to I<true> the effect of
+B<Interface> is inversed: All selected interfaces are ignored and all
+other interfaces are collected.
 
 =back
 
