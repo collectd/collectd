@@ -80,10 +80,11 @@ static char *errors_file  = "if_errors-%s.rrd";
 
 static char *config_keys[] =
 {
-	"Ignore",
+	"Interface",
+	"IgnoreSelected",
 	NULL
 };
-static int config_keys_num = 1;
+static int config_keys_num = 2;
 
 static char *bytes_ds_def[] =
 {
@@ -109,8 +110,14 @@ static char *errors_ds_def[] =
 };
 static int errors_ds_num = 2;
 
-static char **if_ignore_list = NULL;
-static int    if_ignore_list_num = 0;
+static char **if_list = NULL;
+static int    if_list_num = 0;
+/* 
+ * if_list_action:
+ * 0 => default is to collect selected interface
+ * 1 => ignore selcted interfaces
+ */
+static int    if_list_action = 0;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
@@ -123,25 +130,36 @@ static int traffic_config (char *key, char *value)
 {
 	char **temp;
 
-	if (strcasecmp (key, "Ignore") != 0)
+	if (strcasecmp (key, "Interface") == 0)
+	{
+		temp = (char **) realloc (if_list, (if_list_num + 1) * sizeof (char *));
+		if (temp == NULL)
+		{
+			syslog (LOG_EMERG, "Cannot allocate more memory.");
+			return (1);
+		}
+		if_list = temp;
+
+		if ((if_list[if_list_num] = strdup (value)) == NULL)
+		{
+			syslog (LOG_EMERG, "Cannot allocate memory.");
+			return (1);
+		}
+		if_list_num++;
+	}
+	else if (strcasecmp (key, "IgnoreSelected") == 0)
+	{
+		if ((strcasecmp (value, "True") == 0)
+				|| (strcasecmp (value, "Yes") == 0)
+				|| (strcasecmp (value, "On") == 0))
+			if_list_action = 1;
+		else
+			if_list_action = 0;
+	}
+	else
+	{
 		return (-1);
-
-	temp = (char **) realloc (if_ignore_list, (if_ignore_list_num + 1) * sizeof (char *));
-	if (temp == NULL)
-	{
-		syslog (LOG_EMERG, "Cannot allocate more memory.");
-		return (1);
 	}
-	if_ignore_list = temp;
-
-	if ((if_ignore_list[if_ignore_list_num] = strdup (value)) == NULL)
-	{
-		syslog (LOG_EMERG, "Cannot allocate memory.");
-		return (1);
-	}
-	if_ignore_list_num++;
-
-	syslog (LOG_NOTICE, "traffic: Ignoring interface `%s'", value);
 
 	return (0);
 }
@@ -190,17 +208,22 @@ static void traffic_init (void)
 
 /*
  * Check if this interface/instance should be ignored. This is called from
- * both, `submit' and `write' to give client and server the ability to ignore
- * certain stuff..
+ * both, `submit' and `write' to give client and server the ability to
+ * ignore certain stuff..
  */
 static int check_ignore_if (const char *interface)
 {
 	int i;
 
-	for (i = 0; i < if_ignore_list_num; i++)
-		if (strcasecmp (interface, if_ignore_list[i]) == 0)
-			return (1);
-	return (0);
+	/* If no interfaces are given collect all interfaces. Mostly to be
+	 * backwards compatible, but also because this is much easier. */
+	if (if_list_num < 1)
+		return (0);
+
+	for (i = 0; i < if_list_num; i++)
+		if (strcasecmp (interface, if_list[i]) == 0)
+			return (if_list_action);
+	return (1 - if_list_action);
 }
 
 static void generic_write (char *host, char *inst, char *val,
