@@ -1,0 +1,78 @@
+#
+# Config file for collectd(1).
+# Please read collectd.conf(5) for a list of options.
+# http://collectd.org/
+#
+
+# Select one of the following modes:
+@BUILD_WITH_RRDTOOL_TRUE@Mode Local
+#Mode Server
+@BUILD_WITH_RRDTOOL_FALSE@Mode Client
+#Mode Log
+
+#DataDir   /opt/collectd/var/lib/collectd
+#PIDFile   /opt/collectd/var/run/collectd.pid
+#PluginDir /opt/collectd/lib/collectd
+
+@BUILD_MODULE_APACHE_TRUE@LoadPlugin apache
+@BUILD_MODULE_APCUPS_TRUE@LoadPlugin apcups
+@BUILD_MODULE_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
+@BUILD_MODULE_BATTERY_TRUE@LoadPlugin battery
+@BUILD_MODULE_CPU_TRUE@LoadPlugin cpu
+@BUILD_MODULE_CPUFREQ_TRUE@LoadPlugin cpufreq
+@BUILD_MODULE_DF_TRUE@LoadPlugin df
+@BUILD_MODULE_DISK_TRUE@LoadPlugin disk
+@BUILD_MODULE_HDDTEMP_TRUE@LoadPlugin hddtemp
+@BUILD_MODULE_LOAD_TRUE@LoadPlugin load
+@BUILD_MODULE_MEMORY_TRUE@LoadPlugin memory
+@BUILD_MODULE_MYSQL_TRUE@LoadPlugin mysql
+@BUILD_MODULE_NFS_TRUE@LoadPlugin nfs
+@BUILD_MODULE_NTPD_TRUE@LoadPlugin ntpd
+@BUILD_MODULE_PING_TRUE@LoadPlugin ping
+@BUILD_MODULE_PROCESSES_TRUE@LoadPlugin processes
+@BUILD_MODULE_SENSORS_TRUE@LoadPlugin sensors
+@BUILD_MODULE_SERIAL_TRUE@LoadPlugin serial
+@BUILD_MODULE_SWAP_TRUE@LoadPlugin swap
+@BUILD_MODULE_TAPE_TRUE@LoadPlugin tape
+@BUILD_MODULE_TRAFFIC_TRUE@LoadPlugin traffic
+@BUILD_MODULE_USERS_TRUE@LoadPlugin users
+@BUILD_MODULE_VSERVER_TRUE@LoadPlugin vserver
+@BUILD_MODULE_WIRELESS_TRUE@LoadPlugin wireless
+
+#<Plugin apache>
+#	URL http://localhost/status?auto
+#	User www-user
+#	Password secret
+#	CACert /etc/ssl/ca.crt
+#</Plugin>
+
+#<Plugin apcups>
+#	Host localhost
+#	Port 3551
+#</Plugin>
+
+#<Plugin hddtemp>
+#	Host 127.0.0.1
+#	Port 7634
+#</Plugin>
+
+#<Plugin ntpd>
+#	Host localhost
+#	Port 123
+#</Plugin>
+
+#<Plugin mysql>
+#	Host database.serv.er
+#	User db_user
+#	Password secret
+#	Database db_name
+#</Plugin>
+
+#<Plugin ping>
+#	Host host.foo.bar
+#</Plugin>
+
+#<Plugin traffic>
+#	Interface eth0
+#	IgnoreSelected false
+#</Plugin>
