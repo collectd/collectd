@@ -215,7 +215,11 @@ int network_create_socket (const char *node, const char *service)
 	DBG ("node = %s, service = %s", node, service);
 
 	if (operating_mode == MODE_LOCAL || operating_mode == MODE_LOG)
+	{
+		syslog (LOG_WARNING, "network_create_socket: There is no point opening a socket when you are in mode `%s'.",
+				operating_mode == MODE_LOCAL ? "Local" : "Log");
 		return (-1);
+	}
 
 	socklist_tail = socklist_head;
 	while ((socklist_tail != NULL) && (socklist_tail->next != NULL))
