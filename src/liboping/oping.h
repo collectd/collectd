@@ -48,10 +48,12 @@ typedef struct pingobj pingobj_t;
 #define PING_OPT_TIMEOUT 0x01
 #define PING_OPT_TTL     0x02
 #define PING_OPT_AF      0x04
+#define PING_OPT_DATA    0x08
 
 #define PING_DEF_TIMEOUT 1.0
 #define PING_DEF_TTL     255
 #define PING_DEF_AF      AF_UNSPEC
+#define PING_DEF_DATA    "Florian Forster <octo@verplant.org> http://verplant.org/"
 
 /*
  * Method definitions
@@ -69,9 +71,19 @@ int ping_host_remove (pingobj_t *obj, const char *host);
 pingobj_iter_t *ping_iterator_get (pingobj_t *obj);
 pingobj_iter_t *ping_iterator_next (pingobj_iter_t *iter);
 
-const char *ping_iterator_get_host (pingobj_iter_t *iter);
-double ping_iterator_get_latency (pingobj_iter_t *iter);
+#define PING_INFO_HOSTNAME 1
+#define PING_INFO_ADDRESS  2
+#define PING_INFO_FAMILY   3
+#define PING_INFO_LATENCY  4
+#define PING_INFO_SEQUENCE 5
+#define PING_INFO_IDENT    6
+#define PING_INFO_DATA     7
+int ping_iterator_get_info (pingobj_iter_t *iter, int info,
+		void *buffer, size_t *buffer_len);
 
 const char *ping_get_error (pingobj_t *obj);
+
+void *ping_iterator_get_context (pingobj_iter_t *iter);
+void  ping_iterator_set_context (pingobj_iter_t *iter, void *context);
 
 #endif /* OCTO_PING_H */
