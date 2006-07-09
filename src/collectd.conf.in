@@ -4,7 +4,12 @@
 # http://collectd.org/
 #
 
-Mode    Local
+# Select one of the following modes:
+@BUILD_WITH_RRDTOOL_TRUE@Mode Local
+#Mode Server
+@BUILD_WITH_RRDTOOL_FALSE@Mode Client
+#Mode Log
+
 #DataDir   /opt/collectd/var/lib/collectd
 #PIDFile   /opt/collectd/var/run/collectd.pid
 #PluginDir /opt/collectd/lib/collectd
