@@ -70,8 +70,8 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) %{_sbindir}/collectd
 %attr(0444,root,root) %{_mandir}/man1/*
 %attr(0444,root,root) %{_mandir}/man5/*
-%attr(0444,root,root) %{_libdir}/%{name}/apple_sensors.so*
 %attr(0444,root,root) %{_libdir}/%{name}/apcups.so*
+%attr(0444,root,root) %{_libdir}/%{name}/apple_sensors.so*
 %attr(0444,root,root) %{_libdir}/%{name}/battery.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpu.so*
 %attr(0444,root,root) %{_libdir}/%{name}/cpufreq.so*
@@ -81,6 +81,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/load.so*
 %attr(0444,root,root) %{_libdir}/%{name}/memory.so*
 %attr(0444,root,root) %{_libdir}/%{name}/nfs.so*
+%attr(0444,root,root) %{_libdir}/%{name}/ntpd.so*
 %attr(0444,root,root) %{_libdir}/%{name}/ping.so*
 %attr(0444,root,root) %{_libdir}/%{name}/processes.so*
 %attr(0444,root,root) %{_libdir}/%{name}/serial.so*
