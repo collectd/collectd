@@ -374,13 +374,22 @@ collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif
 
-man_MANS = collectd.1 collectd.conf.5
+dist_man_MANS = collectd.1 collectd.conf.5
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = $(man_MANS)
+#EXTRA_DIST = $(man_MANS)
 
 .pod.1:
 	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >$@
 
 .pod.5:
 	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< >$@
+
+install-exec-hook:
+	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
+	if test -e $(DESTDIR)$(sysconfdir)/collectd.conf; \
+	then \
+		$(INSTALL_DATA) collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
+	else \
+		$(INSTALL_DATA) collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
+	fi

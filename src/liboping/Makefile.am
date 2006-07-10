@@ -13,4 +13,4 @@ liboping_la_LDFLAGS = -avoid-version
 if BUILD_WITH_LIBSOCKET
 liboping_la_LDFLAGS += -lsocket
 endif
-liboping_la_SOURCES = liboping.h liboping.c
+liboping_la_SOURCES = liboping.c oping.h

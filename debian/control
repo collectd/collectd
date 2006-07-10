@@ -2,7 +2,7 @@ Source: collectd
 Section: utils
 Priority: optional
 Maintainer: Florian Forster <octo@verplant.org>
-Build-Depends: debhelper (>= 4.0.0), autotools-dev, librrd0-dev | librrd2-dev, libsensors-dev, libmysqlclient14-dev, libcurl3-dev
+Build-Depends: debhelper (>= 4.0.0), autotools-dev, librrd0-dev | librrd2-dev, libsensors-dev, libmysqlclient14-dev, libcurl3-dev, liboping-dev
 Standards-Version: 3.6.1
 
 Package: collectd

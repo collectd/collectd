@@ -74,8 +74,8 @@
  */
 /* TODO: Move this to `interface-%s/<blah>.rrd' in version 4. */
 static char *bytes_file   = "traffic-%s.rrd";
-static char *packets_file = "if_packets-%s.rrd";
-static char *errors_file  = "if_errors-%s.rrd";
+static char *packets_file = "interface-%s/if_packets.rrd";
+static char *errors_file  = "interface-%s/if_errors.rrd";
 /* TODO: Maybe implement multicast and broadcast counters */
 
 static char *config_keys[] =
