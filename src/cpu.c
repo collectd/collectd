@@ -312,11 +312,18 @@ static void cpu_read (void)
 	char *fields[9];
 	int numfields;
 
+	static complain_t complain_obj;
+
 	if ((fh = fopen ("/proc/stat", "r")) == NULL)
 	{
-		syslog (LOG_WARNING, "cpu: fopen: %s", strerror (errno));
+		plugin_complain (LOG_ERR, &complain_obj, "cpu plugin: "
+				"fopen (/proc/stat) failed: %s",
+				strerror (errno));
 		return;
 	}
+
+	plugin_relief (LOG_NOTICE, &complain_obj, "cpu plugin: "
+			"fopen (/proc/stat) succeeded.");
 
 	while (fgets (buf, BUFSIZE, fh) != NULL)
 	{
@@ -384,13 +391,20 @@ static void cpu_read (void)
 	long cpuinfo[CPUSTATES];
 	size_t cpuinfo_size;
 
+	static complain_t complain_obj;
+
 	cpuinfo_size = sizeof (cpuinfo);
 
 	if (sysctlbyname("kern.cp_time", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
 	{
-		syslog (LOG_WARNING, "cpu: sysctlbyname: %s", strerror (errno));
+		plugin_complain (LOG_ERR, &complain_obj, "cpu plugin: "
+				"sysctlbyname failed: %s.",
+				strerror (errno));
 		return;
 	}
+
+	plugin_relief (LOG_NOTICE, &complain_obj, "cpu plugin: "
+			"sysctlbyname succeeded.");
 
 	cpuinfo[CP_SYS] += cpuinfo[CP_INTR];
 
