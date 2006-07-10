@@ -343,11 +343,17 @@ static void vserver_read (void)
 	DIR 			*proc;
 	struct dirent 	*dent; /* 42 */
 
+	static complain_t complain_obj;
+
 	errno = 0;
-	if (NULL == (proc = opendir (PROCDIR))) {
-		syslog (LOG_ERR, "Cannot open '%s': %s", PROCDIR, strerror (errno));
+	if (NULL == (proc = opendir (PROCDIR)))
+	{
+		plugin_complain (LOG_ERR, &complain_obj, "vserver plugin: "
+				"fopen (%s) failed: %s", PROCDIR, strerror (errno));
 		return;
 	}
+	plugin_relief (LOG_NOTICE, &complain_obj, "vserver plugin: "
+			"fopen (%s) succeeded.", PROCDIR);
 
 	while (NULL != (dent = readdir (proc))) {
 		int  len;
