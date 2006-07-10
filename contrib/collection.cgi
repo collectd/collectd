@@ -304,13 +304,13 @@ our $GraphDefs;
 			'GPRINT:tx_avg:AVERAGE:%5.1lf%s Avg,',
 			'GPRINT:tx_max:MAX:%5.1lf%s Max,',
 			'GPRINT:tx_avg:LAST:%5.1lf%s Last',
-			'GPRINT:tx_avg_sum:LAST:(ca. %.0lf Total)\l',
+			'GPRINT:tx_avg_sum:LAST:(ca. %4.0lf%s Total)\l',
 			"LINE1:rx_avg#$FullBlue:RX",
 			#'GPRINT:rx_min:MIN:%5.1lf %s Min,',
 			'GPRINT:rx_avg:AVERAGE:%5.1lf%s Avg,',
 			'GPRINT:rx_max:MAX:%5.1lf%s Max,',
 			'GPRINT:rx_avg:LAST:%5.1lf%s Last',
-			'GPRINT:rx_avg_sum:LAST:(ca. %.0lf Total)\l'
+			'GPRINT:rx_avg_sum:LAST:(ca. %4.0lf%s Total)\l'
 		],
 		load => ['DEF:s_avg={file}:shortterm:AVERAGE',
 			'DEF:s_min={file}:shortterm:MIN',
