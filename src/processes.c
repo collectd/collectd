@@ -148,18 +148,45 @@ static char *config_keys[] =
 };
 static int config_keys_num = 1;
 
+typedef struct procstat_entry_s
+{
+	unsigned long id;
+	unsigned long age;
+
+	unsigned long num_proc;
+	unsigned long num_lwp;
+	unsigned long vmem_rss;
+
+	unsigned long vmem_minflt;
+	unsigned long vmem_majflt;
+	unsigned long vmem_minflt_counter;
+	unsigned long vmem_majflt_counter;
+
+	unsigned long cpu_user;
+	unsigned long cpu_system;
+	unsigned long cpu_user_counter;
+	unsigned long cpu_system_counter;
+
+	struct procstat_entry_s *next;
+} procstat_entry_t;
+
+#define PROCSTAT_NAME_LEN 256
 typedef struct procstat
 {
-#define PROCSTAT_NAME_LEN 256
-	char               name[PROCSTAT_NAME_LEN];
-	unsigned int       num_proc;
-	unsigned int       num_lwp;
-	unsigned long      vmem_rss;
-	unsigned long      vmem_minflt;
-	unsigned long      vmem_majflt;
-	unsigned long long cpu_user;
-	unsigned long long cpu_system;
+	char          name[PROCSTAT_NAME_LEN];
+
+	unsigned long num_proc;
+	unsigned long num_lwp;
+	unsigned long vmem_rss;
+
+	unsigned long vmem_minflt_counter;
+	unsigned long vmem_majflt_counter;
+
+	unsigned long cpu_user_counter;
+	unsigned long cpu_system_counter;
+
 	struct procstat   *next;
+	struct procstat_entry_s *instances;
 } procstat_t;
 
 static procstat_t *list_head_g = NULL;
@@ -176,75 +203,208 @@ static mach_msg_type_number_t     pset_list_len;
 static long pagesize_g;
 #endif /* KERNEL_LINUX */
 
-static procstat_t *ps_list_append (procstat_t *list, const char *name)
+static void ps_list_register (const char *name)
 {
 	procstat_t *new;
 	procstat_t *ptr;
 
 	if ((new = (procstat_t *) malloc (sizeof (procstat_t))) == NULL)
-		return (NULL);
+		return;
 	memset (new, 0, sizeof (procstat_t));
 	strncpy (new->name, name, PROCSTAT_NAME_LEN);
 
-	for (ptr = list; ptr != NULL; ptr = ptr->next)
+	for (ptr = list_head_g; ptr != NULL; ptr = ptr->next)
+	{
+		if (strcmp (ptr->name, name) == 0)
+			return;
 		if (ptr->next == NULL)
 			break;
+	}
 
-	if (ptr != NULL)
+	if (ptr == NULL)
+		list_head_g = new;
+	else
 		ptr->next = new;
-
-	return (new);
 }
 
-static void ps_list_add (procstat_t *list, procstat_t *entry)
+static procstat_t *ps_list_search (const char *name)
 {
 	procstat_t *ptr;
 
-	ptr = list;
-	while ((ptr != NULL) && (strcmp (ptr->name, entry->name) != 0))
-		ptr = ptr->next;
+	for (ptr = list_head_g; ptr != NULL; ptr = ptr->next)
+		if (strcmp (ptr->name, name) == 0)
+			break;
 
-	if (ptr == NULL)
-		return;
-
-	ptr->num_proc    += entry->num_proc;
-	ptr->num_lwp     += entry->num_lwp;
-	ptr->vmem_rss    += entry->vmem_rss;
-	ptr->vmem_minflt += entry->vmem_minflt;
-	ptr->vmem_majflt += entry->vmem_majflt;
-	ptr->cpu_user    += entry->cpu_user;
-	ptr->cpu_system  += entry->cpu_system;
+	return (ptr);
 }
 
-static void ps_list_reset (procstat_t *ps)
+static void ps_list_add (const char *name, procstat_entry_t *entry)
 {
-	while (ps != NULL)
+	procstat_t *ps;
+	procstat_entry_t *pse;
+
+	if (entry->id == 0)
+		return;
+
+	if ((ps = ps_list_search (name)) == NULL)
+		return;
+
+	for (pse = ps->instances; pse != NULL; pse = pse->next)
+		if ((pse->id == entry->id) || (pse->next == NULL))
+			break;
+
+	if ((pse == NULL) || (pse->id != entry->id))
+	{
+		procstat_entry_t *new;
+
+		new = (procstat_entry_t *) malloc (sizeof (procstat_entry_t));
+		if (new == NULL)
+			return;
+		memset (new, 0, sizeof (procstat_entry_t));
+		new->id = entry->id;
+
+		if (pse == NULL)
+			ps->instances = new;
+		else
+			pse->next = new;
+
+		pse = new;
+	}
+
+	pse->age = 0;
+	pse->num_proc = entry->num_proc;
+	pse->num_lwp  = entry->num_lwp;
+	pse->vmem_rss = entry->vmem_rss;
+
+	ps->num_proc += pse->num_proc;
+	ps->num_lwp  += pse->num_lwp;
+	ps->vmem_rss += pse->vmem_rss;
+
+	if ((entry->vmem_minflt_counter == 0)
+			&& (entry->vmem_majflt_counter == 0))
+	{
+		pse->vmem_minflt_counter += entry->vmem_minflt;
+		pse->vmem_minflt = entry->vmem_minflt;
+
+		pse->vmem_majflt_counter += entry->vmem_majflt;
+		pse->vmem_majflt = entry->vmem_majflt;
+	}
+	else
+	{
+		if (entry->vmem_minflt_counter < pse->vmem_minflt_counter)
+		{
+			pse->vmem_minflt = entry->vmem_minflt_counter
+				+ (ULONG_MAX - pse->vmem_minflt_counter);
+		}
+		else
+		{
+			pse->vmem_minflt = entry->vmem_minflt_counter - pse->vmem_minflt_counter;
+		}
+		pse->vmem_minflt_counter = entry->vmem_minflt_counter;
+
+		if (entry->vmem_majflt_counter < pse->vmem_majflt_counter)
+		{
+			pse->vmem_majflt = entry->vmem_majflt_counter
+				+ (ULONG_MAX - pse->vmem_majflt_counter);
+		}
+		else
+		{
+			pse->vmem_majflt = entry->vmem_majflt_counter - pse->vmem_majflt_counter;
+		}
+		pse->vmem_majflt_counter = entry->vmem_majflt_counter;
+	}
+
+	ps->vmem_minflt_counter += pse->vmem_minflt;
+	ps->vmem_majflt_counter += pse->vmem_majflt;
+
+	if ((entry->cpu_user_counter == 0)
+			&& (entry->cpu_system_counter == 0))
+	{
+		pse->cpu_user_counter += entry->cpu_user;
+		pse->cpu_user = entry->cpu_user;
+
+		pse->cpu_system_counter += entry->cpu_system;
+		pse->cpu_system = entry->cpu_system;
+	}
+	else
+	{
+		if (entry->cpu_user_counter < pse->cpu_user_counter)
+		{
+			pse->cpu_user = entry->cpu_user_counter
+				+ (ULONG_MAX - pse->cpu_user_counter);
+		}
+		else
+		{
+			pse->cpu_user = entry->cpu_user_counter - pse->cpu_user_counter;
+		}
+		pse->cpu_user_counter = entry->cpu_user_counter;
+
+		if (entry->cpu_system_counter < pse->cpu_system_counter)
+		{
+			pse->cpu_system = entry->cpu_system_counter
+				+ (ULONG_MAX - pse->cpu_system_counter);
+		}
+		else
+		{
+			pse->cpu_system = entry->cpu_system_counter - pse->cpu_system_counter;
+		}
+		pse->cpu_system_counter = entry->cpu_system_counter;
+	}
+
+	ps->cpu_user_counter   += pse->cpu_user;
+	ps->cpu_system_counter += pse->cpu_system;
+}
+
+static void ps_list_reset (void)
+{
+	procstat_t *ps;
+	procstat_entry_t *pse;
+	procstat_entry_t *pse_prev;
+
+	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
 		ps->num_proc    = 0;
 		ps->num_lwp     = 0;
 		ps->vmem_rss    = 0;
-		ps->vmem_minflt = 0;
-		ps->vmem_majflt = 0;
-		ps->cpu_user    = 0;
-		ps->cpu_system  = 0;
-		ps = ps->next;
-	}
+
+		pse_prev = NULL;
+		pse = ps->instances;
+		while (pse != NULL)
+		{
+			if (pse->age > 10)
+			{
+				DBG ("Removing this procstat entry cause it's too old: "
+						"id = %lu; name = %s;",
+						pse->id, ps->name);
+
+				if (pse_prev == NULL)
+				{
+					ps->instances = pse->next;
+					free (pse);
+					pse = ps->instances;
+				}
+				else
+				{
+					pse_prev->next = pse->next;
+					free (pse);
+					pse = pse_prev->next;
+				}
+			}
+			else
+			{
+				pse->age++;
+				pse_prev = pse;
+				pse = pse->next;
+			}
+		} /* while (pse != NULL) */
+	} /* for (ps = list_head_g; ps != NULL; ps = ps->next) */
 }
 
 static int ps_config (char *key, char *value)
 {
 	if (strcasecmp (key, "CollectName") == 0)
 	{
-		procstat_t *entry;
-
-		entry = ps_list_append (list_head_g, value);
-		if (entry == NULL)
-		{
-			syslog (LOG_ERR, "processes plugin: ps_list_append failed.");
-			return (1);
-		}
-		if (list_head_g == NULL)
-			list_head_g = entry;
+		ps_list_register (value);
 	}
 	else
 	{
@@ -377,7 +537,7 @@ static void ps_submit (int running,
 	plugin_submit (MODULE_NAME, "-", buf);
 }
 
-static void ps_submit_proc (procstat_t *ps)
+static void ps_submit_proc_list (procstat_t *ps)
 {
 	char buffer[64];
 
@@ -393,12 +553,12 @@ static void ps_submit_proc (procstat_t *ps)
 	snprintf (buffer, 64, "%u:%u:%u",
 			(unsigned int) curtime,
 			/* Make the counter overflow */
-			(unsigned int) (ps->cpu_user   & 0xFFFFFFFF),
-			(unsigned int) (ps->cpu_system & 0xFFFFFFFF));
+			(unsigned int) (ps->cpu_user_counter   & 0xFFFFFFFF),
+			(unsigned int) (ps->cpu_system_counter & 0xFFFFFFFF));
 	buffer[63] = '\0';
 	plugin_submit ("ps_cputime", ps->name, buffer);
 
-	snprintf (buffer, 64, "%u:%u:%u",
+	snprintf (buffer, 64, "%u:%lu:%lu",
 			(unsigned int) curtime,
 			ps->num_proc, ps->num_lwp);
 	buffer[63] = '\0';
@@ -406,16 +566,16 @@ static void ps_submit_proc (procstat_t *ps)
 
 	snprintf (buffer, 64, "%u:%lu:%lu",
 			(unsigned int) curtime,
-			ps->vmem_minflt, ps->vmem_majflt);
+			ps->vmem_minflt_counter, ps->vmem_majflt_counter);
 	buffer[63] = '\0';
 	plugin_submit ("ps_pagefaults", ps->name, buffer);
 
-	DBG ("name = %s; num_proc = %i; num_lwp = %i; vmem_rss = %i; "
-			"vmem_minflt = %i; vmem_majflt = %i; "
-			"cpu_user = %i; cpu_system = %i;",
+	DBG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
+			"vmem_minflt_counter = %i; vmem_majflt_counter = %i; "
+			"cpu_user_counter = %i; cpu_system_counter = %i;",
 			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
-			ps->vmem_minflt, ps->vmem_majflt, ps->cpu_user,
-			ps->cpu_system);
+			ps->vmem_minflt_counter, ps->vmem_majflt_counter, ps->cpu_user_counter,
+			ps->cpu_system_counter);
 
 }
 
@@ -495,6 +655,10 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	int   ppid;
 	int   name_len;
 
+	long long unsigned cpu_user_counter;
+	long long unsigned cpu_system_counter;
+	long long unsigned vmem_rss;
+
 	memset (ps, 0, sizeof (procstat_t));
 
 	snprintf (filename, 64, "/proc/%i/stat", pid);
@@ -538,18 +702,23 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	if ((tasks = ps_read_tasks (pid)) == NULL)
 	{
+		/* This happends for zombied, e.g. */
 		DBG ("ps_read_tasks (%i) failed.", pid);
-		return (-1);
+		*state = 'Z';
+		ps->num_lwp  = 0;
+		ps->num_proc = 0;
 	}
+	else
+	{
+		*state = '\0';
+		ps->num_lwp  = 0;
+		ps->num_proc = 1;
+		for (i = 0; tasks[i] != 0; i++)
+			ps->num_lwp++;
 
-	*state = '\0';
-	ps->num_lwp  = 0;
-	ps->num_proc = 1;
-	for (i = 0; tasks[i] != 0; i++)
-		ps->num_lwp++;
-
-	free (tasks);
-	tasks = NULL;
+		free (tasks);
+		tasks = NULL;
+	}
 
 	/* Leave the rest at zero if this is only an LWP */
 	if (ps->num_proc == 0)
@@ -559,16 +728,20 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (0);
 	}
 
-	ps->vmem_minflt = atol  (fields[9]);
-	ps->vmem_majflt = atol  (fields[11]);
-	ps->cpu_user    = atoll (fields[13]);
-	ps->cpu_system  = atoll (fields[14]);
-	ps->vmem_rss    = atol  (fields[23]);
+	cpu_user_counter   = atoll (fields[13]);
+	cpu_system_counter = atoll (fields[14]);
+	vmem_rss = atoll (fields[23]);
+	ps->vmem_minflt_counter = atol (fields[9]);
+	ps->vmem_majflt_counter = atol (fields[11]);
 	
 	/* Convert jiffies to useconds */
-	ps->cpu_user   = ps->cpu_user   * 1000000 / CONFIG_HZ;
-	ps->cpu_system = ps->cpu_system * 1000000 / CONFIG_HZ;
-	ps->vmem_rss   = ps->vmem_rss * pagesize_g;
+	cpu_user_counter   = cpu_user_counter   * 1000000 / CONFIG_HZ;
+	cpu_system_counter = cpu_system_counter * 1000000 / CONFIG_HZ;
+	vmem_rss = vmem_rss * pagesize_g;
+
+	ps->cpu_user_counter = (unsigned long) cpu_user_counter;
+	ps->cpu_system_counter = (unsigned long) cpu_system_counter;
+	ps->vmem_rss = (unsigned long) vmem_rss;
 
 	*state = fields[2][0];
 
@@ -762,12 +935,13 @@ static void ps_read (void)
 
 	int        status;
 	procstat_t ps;
+	procstat_entry_t pse;
 	char       state;
 
 	procstat_t *ps_ptr;
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
-	ps_list_reset (list_head_g);
+	ps_list_reset ();
 
 	if ((proc = opendir ("/proc")) == NULL)
 	{
@@ -790,6 +964,23 @@ static void ps_read (void)
 			continue;
 		}
 
+		pse.id       = pid;
+		pse.age      = 0;
+
+		pse.num_proc = ps.num_proc;
+		pse.num_lwp  = ps.num_lwp;
+		pse.vmem_rss = ps.vmem_rss;
+
+		pse.vmem_minflt = 0;
+		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
+		pse.vmem_majflt = 0;
+		pse.vmem_majflt_counter = ps.vmem_majflt_counter;
+
+		pse.cpu_user = 0;
+		pse.cpu_user_counter = ps.cpu_user_counter;
+		pse.cpu_system = 0;
+		pse.cpu_system_counter = ps.cpu_system_counter;
+
 		switch (state)
 		{
 			case 'R': running++;  break;
@@ -800,8 +991,7 @@ static void ps_read (void)
 			case 'W': paging++;   break;
 		}
 
-		if (list_head_g != NULL)
-			ps_list_add (list_head_g, &ps);
+		ps_list_add (ps.name, &pse);
 	}
 
 	closedir (proc);
@@ -809,7 +999,7 @@ static void ps_read (void)
 	ps_submit (running, sleeping, zombies, stopped, paging, blocked);
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-		ps_submit_proc (ps_ptr);
+		ps_submit_proc_list (ps_ptr);
 #endif /* KERNEL_LINUX */
 }
 #else
