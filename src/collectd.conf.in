@@ -72,6 +72,10 @@
 #	Host host.foo.bar
 #</Plugin>
 
+#<Plugin processes>
+#	Process name
+#</Plugin>
+
 #<Plugin traffic>
 #	Interface eth0
 #	IgnoreSelected false

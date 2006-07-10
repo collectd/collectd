@@ -143,7 +143,7 @@ static int ps_pagefaults_ds_num = 2;
 
 static char *config_keys[] =
 {
-	"CollectName",
+	"Process",
 	NULL
 };
 static int config_keys_num = 1;
@@ -402,7 +402,7 @@ static void ps_list_reset (void)
 
 static int ps_config (char *key, char *value)
 {
-	if (strcasecmp (key, "CollectName") == 0)
+	if (strcasecmp (key, "Process") == 0)
 	{
 		ps_list_register (value);
 	}
