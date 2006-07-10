@@ -122,6 +122,15 @@ static char *ps_cputime_ds_def[] =
 };
 static int ps_cputime_ds_num = 2;
 
+static char *ps_count_file = "processes/ps_count-%s.rrd";
+static char *ps_count_ds_def[] =
+{
+	"DS:processes:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
+	"DS:threads:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
+	NULL
+};
+static int ps_count_ds_num = 2;
+
 static char *config_keys[] =
 {
 	"CollectName",
@@ -306,6 +315,21 @@ static void ps_cputime_write (char *host, char *inst, char *val)
 			ps_cputime_ds_def, ps_cputime_ds_num);
 }
 
+static void ps_count_write (char *host, char *inst, char *val)
+{
+	char filename[256];
+	int status;
+
+	status = snprintf (filename, 256, ps_count_file, inst);
+	if ((status < 1) || (status >= 256))
+		return;
+
+	DBG ("host = %s; filename = %s; val = %s;",
+			host, filename, val);
+	rrd_update_file (host, filename, val,
+			ps_count_ds_def, ps_count_ds_num);
+}
+
 #if PROCESSES_HAVE_READ
 static void ps_submit (int running,
 		int sleeping,
@@ -348,6 +372,12 @@ static void ps_submit_proc (procstat_t *ps)
 			(unsigned int) (ps->cpu_system & 0xFFFFFFFF));
 	buffer[63] = '\0';
 	plugin_submit ("ps_cputime", ps->name, buffer);
+
+	snprintf (buffer, 64, "%u:%u:%u",
+			(unsigned int) curtime,
+			ps->num_proc, ps->num_lwp);
+	buffer[63] = '\0';
+	plugin_submit ("ps_count", ps->name, buffer);
 
 	DBG ("name = %s; num_proc = %i; num_lwp = %i; vmem_rss = %i; "
 			"vmem_minflt = %i; vmem_majflt = %i; "
@@ -760,6 +790,7 @@ void module_register (void)
 	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
 	plugin_register ("ps_rss", NULL, NULL, ps_rss_write);
 	plugin_register ("ps_cputime", NULL, NULL, ps_cputime_write);
+	plugin_register ("ps_count", NULL, NULL, ps_count_write);
 	cf_register (MODULE_NAME, ps_config, config_keys, config_keys_num);
 }
 
