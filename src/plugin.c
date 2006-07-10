@@ -350,3 +350,54 @@ void plugin_submit (char *type, char *inst, char *val)
 	else
 		plugin_write (NULL, type, inst, val);
 }
+
+void plugin_complain (int level, complain_t *c, const char *format, ...)
+{
+	char message[512];
+	va_list ap;
+	int step;
+
+	if (c->delay > 0)
+	{
+		c->delay--;
+		return;
+	}
+
+	step = atoi (COLLECTD_STEP);
+	assert (step > 0);
+
+	if (c->interval < step)
+		c->interval = step;
+	else
+		c->interval *= 2;
+
+	if (c->interval > 86400)
+		c->interval = 86400;
+
+	c->delay = c->interval / step;
+
+	va_start (ap, format);
+	vsnprintf (message, 512, format, ap);
+	message[511] = '\0';
+	va_end (ap);
+
+	syslog (level, message);
+}
+
+void plugin_relief (int level, complain_t *c, const char *format, ...)
+{
+	char message[512];
+	va_list ap;
+
+	if (c->interval == 0)
+		return;
+
+	c->interval = 0;
+
+	va_start (ap, format);
+	vsnprintf (message, 512, format, ap);
+	message[511] = '\0';
+	va_end (ap);
+
+	syslog (level, message);
+}
