@@ -135,8 +135,8 @@ static char *ps_pagefaults_file = "processes/ps_pagefaults-%s.rrd";
 static char *ps_pagefaults_ds_def[] =
 {
 	/* max = 2^63 - 1 */
-	"DS:minflt:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	"DS:majflt:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
+	"DS:minflt:COUNTER:"COLLECTD_HEARTBEAT":0:9223372036854775807",
+	"DS:majflt:COUNTER:"COLLECTD_HEARTBEAT":0:9223372036854775807",
 	NULL
 };
 static int ps_pagefaults_ds_num = 2;
