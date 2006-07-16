@@ -537,7 +537,17 @@ static ssize_t ping_sendto (pingobj_t *obj, pinghost_t *ph,
 			(struct sockaddr *) ph->addr, ph->addrlen);
 
 	if (ret < 0)
+	{
+#if defined(EHOSTUNREACH)
+		if (errno == EHOSTUNREACH)
+			return (0);
+#endif
+#if defined(ENETUNREACH)
+		if (errno == ENETUNREACH)
+			return (0);
+#endif
 		ping_set_error (obj, "sendto", strerror (errno));
+	}
 
 	return (ret);
 }
