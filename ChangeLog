@@ -1,3 +1,8 @@
+2006-07-19, Version 3.10.1
+	* A bug in the apcups plugin was fixed: Is the plugin is loaded, but
+	  the apcups cannot be reached, unconnected sockets will pile up and
+	  eventually lead to `Too many open files' errors.
+
 2006-07-09, Version 3.10.0
 	* The `disk' plugin has been ported to Darwin.
 	* The `battery' plugin should work on many Apple computers now.
