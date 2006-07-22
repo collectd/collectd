@@ -8,8 +8,7 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   DataDir /path/to/data/
   PIDFile /path/to/pidfile/collectd.pid
   LogFile /path/to/logfile/collectd.log
-  Server  123.123.123.123
-  Port    12345
+  Server  123.123.123.123 12345
 
   LoadPlugin cpu
   LoadPlugin load
