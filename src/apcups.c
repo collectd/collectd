@@ -208,6 +208,7 @@ static int net_open (char *host, char *service, int port)
 	if (status != 0) /* `connect(2)' failed */
 	{
 		DBG ("connect failed: %s", strerror (errno));
+		close (sd);
 		return (-1);
 	}
 
