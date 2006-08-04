@@ -217,6 +217,14 @@ memory_la_LDFLAGS += -lstatgrab
 endif
 endif
 
+if BUILD_MODULE_MULTIMETER
+pkglib_LTLIBRARIES += multimeter.la
+multimeter_la_SOURCES = multimeter.c
+multimeter_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" multimeter.la
+collectd_DEPENDENCIES += multimeter.la
+endif
+
 if BUILD_MODULE_MYSQL
 pkglib_LTLIBRARIES += mysql.la
 mysql_la_SOURCES = mysql.c

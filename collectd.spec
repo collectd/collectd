@@ -80,6 +80,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/hddtemp.so*
 %attr(0444,root,root) %{_libdir}/%{name}/load.so*
 %attr(0444,root,root) %{_libdir}/%{name}/memory.so*
+%attr(0444,root,root) %{_libdir}/%{name}/multimeter.so*
 %attr(0444,root,root) %{_libdir}/%{name}/nfs.so*
 %attr(0444,root,root) %{_libdir}/%{name}/ntpd.so*
 %attr(0444,root,root) %{_libdir}/%{name}/ping.so*

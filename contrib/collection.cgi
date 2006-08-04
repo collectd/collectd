@@ -918,6 +918,18 @@ our $GraphDefs;
                         'GPRINT:cpufreq_max:MAX:%5.1lf%s Max,',
                         'GPRINT:cpufreq_avg:LAST:%5.1lf%s Last\l'
                 ],
+		multimeter => [
+			    'DEF:multimeter_avg={file}:value:AVERAGE',
+			    'DEF:multimeter_min={file}:value:MIN',
+			    'DEF:multimeter_max={file}:value:MAX',
+			    "AREA:multimeter_max#$HalfBlue",
+			    "AREA:multimeter_min#$Canvas",
+			    "LINE1:multimeter_avg#$FullBlue:Multimeter",
+			    'GPRINT:multimeter_min:MIN:%4.1lf Min,',
+			    'GPRINT:multimeter_avg:AVERAGE:%4.1lf Average,',
+			    'GPRINT:multimeter_max:MAX:%4.1lf Max,',
+			    'GPRINT:multimeter_avg:LAST:%4.1lf Last\l'
+		],
 		users => [
 			    'DEF:users_avg={file}:users:AVERAGE',
 			    'DEF:users_min={file}:users:MIN',
@@ -1075,6 +1087,7 @@ our $GraphArgs =
 	time_dispersion => ['-t', 'NTPd time dispersion ({inst})', '-v', 'Seconds'],
 	traffic => ['-t', '{host} {inst} traffic', '-v', 'Bit/s'],
 	users => ['-t', '{host} users', '-v', 'Users'],
+	multimeter => ['-t', '{host} multimeter', '-v', 'Value'],
 	voltage => ['-t', '{host} voltage', '-v', 'Volts'],
 	vs_threads => ['-t', '{host} threads', '-v', 'Threads'],
 	vs_memory => ['-t', '{host} memory usage', '-v', 'Bytes'],
@@ -1096,7 +1109,8 @@ our $GraphMulti =
 	ping	=> \&output_graph_ping,
 	sensors	=> 1,
 	traffic	=> 1,
-	users => 1
+	users => 1,
+	multimeter => 1
 };
 
 our @Info;
