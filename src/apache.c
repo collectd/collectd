@@ -42,7 +42,8 @@ static char *cacert = NULL;
 #if HAVE_LIBCURL
 static CURL *curl = NULL;
 
-static char apache_buffer[4096];
+#define ABUFFER_SIZE 16384
+static char apache_buffer[ABUFFER_SIZE];
 static int  apache_buffer_len = 0;
 static char apache_curl_error[CURL_ERROR_SIZE];
 #endif /* HAVE_LIBCURL */
@@ -89,9 +90,9 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *
 {
 	size_t len = size * nmemb;
 
-	if ((apache_buffer_len + len) >= 4096)
+	if ((apache_buffer_len + len) >= ABUFFER_SIZE)
 	{
-		len = 4095 - apache_buffer_len;
+		len = (ABUFFER_SIZE - 1) - apache_buffer_len;
 	}
 
 	if (len <= 0)
