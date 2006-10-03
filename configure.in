@@ -272,6 +272,9 @@ AC_CHECK_HEADERS(kvm.h)
 # For debugging interface (variable number of arguments)
 AC_CHECK_HEADERS(stdarg.h)
 
+# For the named plugin
+AC_CHECK_HEADERS(arpa/nameser.h)
+
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
 
@@ -790,6 +793,42 @@ then
 	with_liboping="yes (shipped version)"
 fi
 
+AC_ARG_WITH(libpcap, [AS_HELP_STRING([--with-libpcap@<:@=PREFIX@:>@], [Path to libpcap.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libpcap="yes"
+	fi
+],
+[
+	with_libpcap="yes"
+])
+if test "x$with_libpcap" = "xyes"
+then
+	AC_CHECK_LIB(pcap, pcap_open_live,
+	[
+		AC_DEFINE(HAVE_LIBPCAP, 1, [Define to 1 if you have the pcap library (-lpcap).])
+	], [with_libpcap="no (libpcap not found)"])
+fi
+if test "x$with_libpcap" = "xyes"
+then
+	AC_CHECK_HEADERS(pcap.h,
+	[
+		AC_DEFINE(HAVE_PCAP_H, 1, [Define to 1 if you have the <pcap.h> header file.])
+	], [with_libpcap="no (pcap.h not found)"])
+fi
+if test "x$with_libpcap" = "xyes"
+then
+	collect_libpcap=1
+else
+	collect_libpcap=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_LIBMYSQL, [$collect_libpcap],
+	[Wether or not to use the pcap library])
+AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libpcap" = "xyes")
+
 # Define `step' and `hearbeat' values..
 declare -i collectd_step=10
 declare -i collectd_heartbeat=25
@@ -912,6 +951,7 @@ AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
 AC_COLLECTD([multimeter],[disable], [module], [multimeter statistics])
 AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
+AC_COLLECTD([named],     [disable], [module], [named statistics])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
 AC_COLLECTD([ntpd],      [disable], [module], [nfs statistics])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
@@ -939,6 +979,7 @@ Configuration:
     libstatgrab . . . . $with_libstatgrab
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
+    libpcap . . . . . . $with_libpcap
 
   Features:
     debug . . . . . . . $enable_debug
@@ -960,6 +1001,7 @@ Configuration:
     memory  . . . . . . $enable_memory
     multimeter  . . . . $enable_multimeter
     mysql . . . . . . . $enable_mysql
+    named . . . . . . . $enable_named
     nfs . . . . . . . . $enable_nfs
     ntpd  . . . . . . . $enable_ntpd
     ping  . . . . . . . $enable_ping
