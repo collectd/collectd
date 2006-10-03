@@ -31,6 +31,10 @@
  *   Florian octo Forster <octo at verplant.org>
  */
 
+#include <arpa/nameser.h>
+#include <pcap.h>
+
+#define T_MAX 65536
 extern int qtype_counts[T_MAX];
 
 void handle_pcap (u_char * udata, const struct pcap_pkthdr *hdr, const u_char * pkt);

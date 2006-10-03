@@ -154,7 +154,6 @@ typedef int (printer)(const char *, ...);
  * flags/features for non-interactive mode
  */
 
-#define T_MAX 65536
 #ifndef T_A6
 #define T_A6 38
 #endif
