@@ -825,9 +825,9 @@ then
 else
 	collect_libpcap=0
 fi
-AC_DEFINE_UNQUOTED(COLLECT_LIBMYSQL, [$collect_libpcap],
+AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
 	[Wether or not to use the pcap library])
-AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libpcap" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 
 # Define `step' and `hearbeat' values..
 declare -i collectd_step=10
