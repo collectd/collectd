@@ -23,6 +23,12 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "configfile.h"
+#include "utils_debug.h"
+
+#if HAVE_SYS_POLL_H
+# include <sys/poll.h>
+#endif
 
 #define MODULE_NAME "named"
 
@@ -39,7 +45,7 @@
 # define NAMED_HAVE_READ 0
 #endif
 
-static char qtype_file = "named/qtype-%s.rrd";
+static char *qtype_file = "named/qtype-%s.rrd";
 
 static char *qtype_ds_def[] =
 {
@@ -60,12 +66,13 @@ static int config_keys_num = 1;
 #endif /* NAMED_HAVE_CONFIG */
 
 #if HAVE_LIBPCAP
+#define PCAP_SNAPLEN 1460
 static char   *pcap_device = NULL;
 static int     pipe_fd;
 #endif
 
 #if NAMED_HAVE_CONFIG
-static int traffic_config (char *key, char *value)
+static int named_config (char *key, char *value)
 {
 #if HAVE_LIBPCAP
 	if (strcasecmp (key, "Interface") == 0)
@@ -128,8 +135,11 @@ static void named_child_loop (void)
 	int status;
 
 	/* Passing `pcap_device == NULL' is okay and the same as passign "any" */
-	pcap_obj = pcap_open_live (pcap_device, /* Not promiscuous */ 0,
-			/* no read timeout */ 0, pcap_error);
+	pcap_obj = pcap_open_live (pcap_device,
+			PCAP_SNAPLEN,
+			0 /* Not promiscuous */,
+			0 /* no read timeout */,
+			pcap_error);
 	if (pcap_obj == NULL)
 	{
 		syslog (LOG_ERR, "named plugin: Opening interface `%s' failed: %s",
@@ -163,7 +173,7 @@ static void named_child_loop (void)
 			syslog (LOG_NOTICE, "named plugin: Pipe closed. Exiting.");
 			break;
 		}
-		else if (poss_fds[0].revents & POLLOUT)
+		else if (poll_fds[0].revents & POLLOUT)
 		{
 			if (named_child_send_data () < 0)
 			{
@@ -217,7 +227,6 @@ static void named_init (void)
 				strerror (errno));
 		close (pipe_fds[0]);
 		close (pipe_fds[1]);
-		pcap_close (pcap_obj);
 		return;
 	}
 	else if (pid_child != 0)
