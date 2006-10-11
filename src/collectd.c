@@ -282,6 +282,7 @@ int main (int argc, char **argv)
 #if COLLECT_DAEMON
 	struct sigaction sigChldAction;
 	char *pidfile    = PIDFILE;
+	int have_pidfile = 0;
 	pid_t pid;
 	int daemonize    = 1;
 #endif
@@ -305,7 +306,7 @@ int main (int argc, char **argv)
 
 		c = getopt (argc, argv, "hC:"
 #if COLLECT_DAEMON
-				"f"
+				"fP:"
 #endif
 		);
 
@@ -318,6 +319,10 @@ int main (int argc, char **argv)
 				configfile = optarg;
 				break;
 #if COLLECT_DAEMON
+			case 'P':
+				pidfile      = optarg;
+				have_pidfile = 1;
+				break;
 			case 'f':
 				daemonize = 0;
 				break;
@@ -368,7 +373,8 @@ int main (int argc, char **argv)
 	sigChldAction.sa_handler = SIG_IGN;
 	sigaction (SIGCHLD, &sigChldAction, NULL);
 
-	if ((pidfile = cf_get_option ("PIDFile", PIDFILE)) == NULL)
+	if ((1 != have_pidfile)
+			&& ((pidfile = cf_get_option ("PIDFile", PIDFILE)) == NULL))
 	{
 		fprintf (stderr, "Cannot obtain pidfile. This shoud not happen. Ever.");
 		return (1);
