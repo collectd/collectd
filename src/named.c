@@ -68,7 +68,7 @@ static int config_keys_num = 1;
 #if HAVE_LIBPCAP
 #define PCAP_SNAPLEN 1460
 static char   *pcap_device = NULL;
-static int     pipe_fd;
+static int     pipe_fd = -1;
 #endif
 
 #if NAMED_HAVE_CONFIG
@@ -98,6 +98,9 @@ static int named_child_send_data (void)
 	int values_num;
 	int i;
 
+	if (pipe_fd < 0)
+		return (-1);
+
 	values_num = 0;
 	for (i = 0; i < T_MAX; i++)
 	{
@@ -109,15 +112,22 @@ static int named_child_send_data (void)
 		}
 	}
 
+	DBG ("swrite (pipe_fd = %i, values_num = %i)", pipe_fd, values_num);
 	if (swrite (pipe_fd, (const void *) &values_num, sizeof (values_num)) != 0)
 	{
+		DBG ("Writing to pipe failed: %s", strerror (errno));
 		syslog (LOG_ERR, "named plugin: Writing to pipe failed: %s",
 				strerror (errno));
 		return (-1);
 	}
 
+	if (values_num == 0)
+		return (0);
+
+	DBG ("swrite (pipe_fd = %i, values = %p, size = %i)", pipe_fd, (void *) values, (int) (sizeof (int) * values_num));
 	if (swrite (pipe_fd, (const void *) values, 2 * sizeof (int) * values_num) != 0)
 	{
+		DBG ("Writing to pipe failed: %s", strerror (errno));
 		syslog (LOG_ERR, "named plugin: Writing to pipe failed: %s",
 				strerror (errno));
 		return (-1);
@@ -130,11 +140,13 @@ static void named_child_loop (void)
 {
 	pcap_t *pcap_obj;
 	char    pcap_error[PCAP_ERRBUF_SIZE];
+	struct  bpf_program fp;
 
 	struct pollfd poll_fds[2];
 	int status;
 
 	/* Passing `pcap_device == NULL' is okay and the same as passign "any" */
+	DBG ("Creating PCAP object..");
 	pcap_obj = pcap_open_live (pcap_device,
 			PCAP_SNAPLEN,
 			0 /* Not promiscuous */,
@@ -146,8 +158,30 @@ static void named_child_loop (void)
 				(pcap_device != NULL) ? pcap_device : "any",
 				pcap_error);
 		close (pipe_fd);
+		pipe_fd = -1;
 		return;
 	}
+	pcap = pcap_obj; /* FIXME: This is used by `handle_pcap' */
+
+	memset (&fp, 0, sizeof (fp));
+	if (pcap_compile (pcap_obj, &fp, "udp dst port 53", 1, 0) < 0)
+	{
+		DBG ("pcap_compile failed");
+		syslog (LOG_ERR, "named plugin: pcap_compile failed");
+		close (pipe_fd);
+		pipe_fd = -1;
+		return;
+	}
+	if (pcap_setfilter (pcap_obj, &fp) < 0)
+	{
+		DBG ("pcap_setfilter failed");
+		syslog (LOG_ERR, "named plugin: pcap_setfilter failed");
+		close (pipe_fd);
+		pipe_fd = -1;
+		return;
+	}
+
+	DBG ("PCAP object created.");
 
 	/* Set up pipe end */
 	poll_fds[0].fd = pipe_fd;
@@ -159,6 +193,7 @@ static void named_child_loop (void)
 
 	while (42)
 	{
+		DBG ("poll (...)");
 		status = poll (poll_fds, 2, -1 /* wait forever for a change */);
 
 		if (status < 0)
@@ -170,11 +205,13 @@ static void named_child_loop (void)
 
 		if (poll_fds[0].revents & (POLLERR | POLLHUP | POLLNVAL))
 		{
+			DBG ("Pipe closed. Exiting.");
 			syslog (LOG_NOTICE, "named plugin: Pipe closed. Exiting.");
 			break;
 		}
 		else if (poll_fds[0].revents & POLLOUT)
 		{
+			DBG ("Calling `named_child_send_data'");
 			if (named_child_send_data () < 0)
 			{
 				break;
@@ -183,6 +220,7 @@ static void named_child_loop (void)
 
 		if (poll_fds[1].revents & (POLLERR | POLLHUP | POLLNVAL))
 		{
+			DBG ("pcap-device closed. Exiting.");
 			syslog (LOG_ERR, "named plugin: pcap-device closed. Exiting.");
 			break;
 		}
@@ -190,11 +228,12 @@ static void named_child_loop (void)
 		{
 			/* TODO: Read and analyse packet */
 			status = pcap_dispatch (pcap_obj,
-					10 /* Only handle 10 packets at a time */,
+					1 /* Only handle 10 packets at a time */,
 					handle_pcap /* callback */,
 					NULL /* Whatever this means.. */);
 			if (status < 0)
 			{
+				DBG ("pcap_dispatch failed: %s", pcap_geterr (pcap_obj));
 				syslog (LOG_ERR, "named plugin: pcap_dispatch failed: %s",
 						pcap_geterr (pcap_obj));
 				break;
@@ -202,7 +241,10 @@ static void named_child_loop (void)
 		}
 	} /* while (42) */
 
+	DBG ("child is exiting");
+
 	close (pipe_fd);
+	pipe_fd = -1;
 	pcap_close (pcap_obj);
 } /* static void named_child_loop (void) */
 
@@ -245,8 +287,37 @@ static void named_init (void)
 		exit (0);
 	}
 
-	fcntl (pipe_fd, F_SETFL, O_NONBLOCK);
+	/* fcntl (pipe_fd, F_SETFL, O_NONBLOCK); */
 #endif
+}
+
+static void qtype_write (char *host, char *inst, char *val)
+{
+	char file[512];
+	int status;
+
+	status = snprintf (file, 512, qtype_file, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+
+	rrd_update_file (host, file, val, qtype_ds_def, qtype_ds_num);
+}
+
+static void qtype_submit (int qtype_int, unsigned int counter)
+{
+	char *qtype_char;
+	char  buffer[32];
+	int   status;
+
+	qtype_char = qtype_str (qtype_int);
+
+	status = snprintf (buffer, 32, "N:%i", counter);
+	if ((status < 1) || (status >= 32))
+		return;
+
+	plugin_submit ("named_qtype", qtype_char, buffer);
 }
 
 #if NAMED_HAVE_READ
@@ -258,19 +329,32 @@ static void named_read (void)
 	int counter;
 	int i;
 
+	if (pipe_fd < 0)
+		return;
+
+	DBG ("Reading from pipe_fd = %i..", pipe_fd);
 	if (sread (pipe_fd, (void *) &values_num, sizeof (values_num)) != 0)
 	{
 		syslog (LOG_ERR, "named plugin: Reading from the pipe failed: %s",
 				strerror (errno));
+		pipe_fd = -1;
 		return;
 	}
 
 	assert ((values_num >= 0) && (values_num <= T_MAX));
 
+	if (values_num == 0)
+	{
+		DBG ("No values available; returning");
+		return;
+	}
+
+	DBG ("Reading %i qtype/values from pipe_fd = %i..", values_num, pipe_fd);
 	if (sread (pipe_fd, (void *) values, 2 * sizeof (int) * values_num) != 0)
 	{
 		syslog (LOG_ERR, "named plugin: Reading from the pipe failed: %s",
 				strerror (errno));
+		pipe_fd = -1;
 		return;
 	}
 
@@ -280,6 +364,7 @@ static void named_read (void)
 		counter = values[(2 * i) + 1];
 
 		DBG ("qtype = %i; counter = %i;", qtype, counter);
+		qtype_submit (qtype, counter);
 	}
 }
 #else /* if !NAMED_HAVE_READ */
@@ -289,6 +374,7 @@ static void named_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, named_init, named_read, NULL);
+	plugin_register ("named_qtype", NULL, NULL, qtype_write);
 	/* TODO */
 	cf_register (MODULE_NAME, named_config, config_keys, config_keys_num);
 }

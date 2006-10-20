@@ -166,22 +166,10 @@ typedef int (printer)(const char *, ...);
 /*
  * Global variables
  */
-static int interactive = 1;
-static char *device = NULL;
+pcap_t *pcap = NULL;
 static struct in_addr ignore_addr;
-static pcap_t *pcap = NULL;
-static char *bpf_program_str = "udp dst port 53 and udp[10:2] & 0x8000 = 0";
-static WINDOW *w;
-static unsigned short port53;
-static void (*SubReport) (void) = NULL;
-static int (*handle_datalink) (const u_char * pkt, int len) = NULL;
-static int Quit = 0;
-static char *progname = NULL;
-static int anon_flag = 0;
 static int sld_flag = 0;
 static int nld_flag = 0;
-static int promisc_flag = 1;
-static AnonMap *Anons = NULL;
 
 static int query_count_intvl = 0;
 static int query_count_total = 0;
@@ -200,47 +188,6 @@ static struct bpf_timeval last_ts;
 #else
 static struct timeval last_ts;
 #endif
-
-/* Prototypes */
-static void SldBySource_report(void);
-static void NldBySource_report(void);
-static void Sources_report(void);
-static void Destinatioreport(void);
-static void Qtypes_report(void);
-static void Opcodes_report(void);
-static void Tld_report(void);
-static void Sld_report(void);
-static void Nld_report(void);
-static void Help_report(void);
-static void ResetCounters(void);
-
-static Filter_t UnknownTldFilter;
-static Filter_t AforAFilter;
-static Filter_t RFC1918PtrFilter;
-static Filter_t *Filter = NULL;
-
-static printer *print_func = (printer *) printw;
-
-static struct in_addr
-AnonMap_lookup_or_add(AnonMap ** headP, struct in_addr real)
-{
-    AnonMap **T;
-    for (T = headP; (*T); T = &(*T)->next)
-	if ((*T)->real.s_addr == real.s_addr)
-	    return (*T)->anon;
-    (*T) = calloc(1, sizeof(**T));
-    (*T)->real = real;
-    (*T)->anon.s_addr = random();
-    return (*T)->anon;
-}
-
-static char *
-anon_inet_ntoa(struct in_addr a)
-{
-    if (anon_flag)
-	a = AnonMap_lookup_or_add(&Anons, a);
-    return inet_ntoa(a);
-}
 
 static AgentAddr *
 AgentAddr_lookup_or_add(AgentAddr ** headP, struct in_addr a)
@@ -278,97 +225,6 @@ StringAddrCounter_lookup_or_add(StringAddrCounter ** headP, struct in_addr a, co
     (*T)->str = strdup(str);
     (*T)->src = a;
     return (*T);
-}
-
-static int
-foo_cmp(const void *A, const void *B)
-{
-    const foo *a = A;
-    const foo *b = B;
-    if (a->cnt < b->cnt)
-	return 1;
-    if (a->cnt > b->cnt)
-	return -1;
-    if (a->ptr < b->ptr)
-	return 1;
-    if (a->ptr > b->ptr)
-	return -1;
-    return 0;
-}
-
-static void
-AgentAddr_sort(AgentAddr ** headP)
-{
-    foo *sortme;
-    int n_agents = 0;
-    int i;
-    AgentAddr *a;
-    for (a = *headP; a; a = a->next)
-	n_agents++;
-    sortme = calloc(n_agents, sizeof(foo));
-    n_agents = 0;
-    for (a = *headP; a; a = a->next) {
-	sortme[n_agents].cnt = a->count;
-	sortme[n_agents].ptr = a;
-	n_agents++;
-    }
-    qsort(sortme, n_agents, sizeof(foo), foo_cmp);
-    for (i = 0; i < n_agents; i++) {
-	*headP = sortme[i].ptr;
-	headP = &(*headP)->next;
-    }
-    free(sortme);
-    *headP = NULL;
-}
-
-static void
-StringCounter_sort(StringCounter ** headP)
-{
-    foo *sortme;
-    int n_things = 0;
-    int i;
-    StringCounter *sc;
-    for (sc = *headP; sc; sc = sc->next)
-	n_things++;
-    sortme = calloc(n_things, sizeof(foo));
-    n_things = 0;
-    for (sc = *headP; sc; sc = sc->next) {
-	sortme[n_things].cnt = sc->count;
-	sortme[n_things].ptr = sc;
-	n_things++;
-    }
-    qsort(sortme, n_things, sizeof(foo), foo_cmp);
-    for (i = 0; i < n_things; i++) {
-	*headP = sortme[i].ptr;
-	headP = &(*headP)->next;
-    }
-    free(sortme);
-    *headP = NULL;
-}
-
-static void
-StringAddrCounter_sort(StringAddrCounter ** headP)
-{
-    foo *sortme;
-    int n_things = 0;
-    int i;
-    StringAddrCounter *ssc;
-    for (ssc = *headP; ssc; ssc = ssc->next)
-	n_things++;
-    sortme = calloc(n_things, sizeof(foo));
-    n_things = 0;
-    for (ssc = *headP; ssc; ssc = ssc->next) {
-	sortme[n_things].cnt = ssc->count;
-	sortme[n_things].ptr = ssc;
-	n_things++;
-    }
-    qsort(sortme, n_things, sizeof(foo), foo_cmp);
-    for (i = 0; i < n_things; i++) {
-	*headP = sortme[i].ptr;
-	headP = &(*headP)->next;
-    }
-    free(sortme);
-    *headP = NULL;
 }
 
 #define RFC1035_MAXLABELSZ 63
@@ -460,6 +316,9 @@ handle_dns(const char *buf, int len, const struct in_addr sip, const struct in_a
     StringCounter *sc;
     StringAddrCounter *ssc;
 
+    fprintf (stderr, "handle_dns (buf = %p, len = %i)\n",
+		    (void *) buf, len);
+
     if (len < sizeof(qh))
 	return 0;
 
@@ -507,8 +366,7 @@ handle_dns(const char *buf, int len, const struct in_addr sip, const struct in_a
     memcpy(&us, buf + offset + 2, 2);
     qclass = ntohs(us);
 
-    if (Filter && 0 == Filter(qtype, qclass, qname, sip, dip))
-	return 0;
+    fprintf (stderr, "qtype = %hu\n", qtype);
 
     /* gather stats */
     qtype_counts[qtype]++;
@@ -546,7 +404,9 @@ static int
 handle_udp(const struct udphdr *udp, int len, struct in_addr sip, struct in_addr dip)
 {
     char buf[PCAP_SNAPLEN];
-    if (port53 != udp->uh_dport)
+    fprintf (stderr, "handle_udp (udp = %p, len = %i)\n",
+		    (void *) udp, len);
+    if (ntohs (udp->uh_dport) != 53)
 	return 0;
     memcpy(buf, udp + 1, len - sizeof(*udp));
     if (0 == handle_dns(buf, len - sizeof(*udp), sip, dip))
@@ -561,6 +421,8 @@ handle_ip(const struct ip *ip, int len)
     int offset = ip->ip_hl << 2;
     AgentAddr *clt;
     AgentAddr *srv;
+    fprintf (stderr, "handle_ip (ip = %p, len = %i)\n",
+		    (void *) ip, len);
     if (ignore_addr.s_addr)
 	if (ip->ip_src.s_addr == ignore_addr.s_addr)
 	    return 0;
@@ -647,6 +509,8 @@ handle_ether(const u_char * pkt, int len)
     char buf[PCAP_SNAPLEN];
     struct ether_header *e = (void *) pkt;
     unsigned short etype = ntohs(e->ether_type);
+    fprintf (stderr, "handle_ether (pkt = %p, len = %i)\n",
+		    (void *) pkt, len);
     if (len < ETHER_HDR_LEN)
 	return 0;
     pkt += ETHER_HDR_LEN;
@@ -666,6 +530,10 @@ handle_ether(const u_char * pkt, int len)
 void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
     int status;
+
+    fprintf (stderr, "handle_pcap (udata = %p, hdr = %p, pkt = %p): hdr->caplen = %i\n",
+		    (void *) udata, (void *) hdr, (void *) pkt,
+		    hdr->caplen);
 
     if (hdr->caplen < ETHER_HDR_LEN)
 	return;
@@ -709,147 +577,61 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
     last_ts = hdr->ts;
 }
 
-static void
-cron_pre(void)
-{
-    AgentAddr_sort(&Sources);
-    AgentAddr_sort(&Destinations);
-    StringCounter_sort(&Tlds);
-    StringCounter_sort(&Slds);
-    StringCounter_sort(&Nlds);
-    StringAddrCounter_sort(&SSC2);
-    StringAddrCounter_sort(&SSC3);
-}
-
-static void
-cron_post(void)
-{
-    query_count_intvl = 0;
-}
-
-static void
-keyboard(void)
-{
-    int ch;
-    ch = getch() & 0xff;
-    if (ch >= 'A' && ch <= 'Z')
-	ch += 'a' - 'A';
-    switch (ch) {
-    case 's':
-	SubReport = Sources_report;
-	break;
-    case 'd':
-	SubReport = Destinatioreport;
-	break;
-    case '1':
-	SubReport = Tld_report;
-	break;
-    case '2':
-	SubReport = Sld_report;
-	break;
-    case '3':
-	SubReport = Nld_report;
-	break;
-    case 'c':
-    case '@':
-	SubReport = SldBySource_report;
-	break;
-    case '#':
-	SubReport = NldBySource_report;
-	break;
-    case 't':
-	SubReport = Qtypes_report;
-	break;
-    case 'o':
-	SubReport = Opcodes_report;
-	break;
-    case 030:
-	Quit = 1;
-	break;
-    case 022:
-	ResetCounters();
-	break;
-    case '?':
-	SubReport = Help_report;
-	break;
-    default:
-	break;
-    }
-}
-
-static void
-Help_report(void)
-{
-    print_func(" s - Sources list\n");
-    print_func(" d - Destinations list\n");
-    print_func(" t - Query types\n");
-    print_func(" o - Opcodes\n");
-    print_func(" 1 - TLD list\n");
-    print_func(" 2 - SLD list\n");
-    print_func(" 3 - 3LD list\n");
-    print_func(" @ - SLD+Sources list\n");
-    print_func(" # - 3LD+Sources list\n");
-    print_func("^R - Reset counters\n");
-    print_func("^X - Exit\n");
-    print_func("\n");
-    print_func("? - this\n");
-}
-
-static char *
+char *
 qtype_str(int t)
 {
     static char buf[30];
     switch (t) {
     case T_A:
-	return "A?";
+	return "A";
 	break;
     case T_NS:
-	return "NS?";
+	return "NS";
 	break;
     case T_CNAME:
-	return "CNAME?";
+	return "CNAME";
 	break;
     case T_SOA:
-	return "SOA?";
+	return "SOA";
 	break;
     case T_PTR:
-	return "PTR?";
+	return "PTR";
 	break;
     case T_MX:
-	return "MX?";
+	return "MX";
 	break;
     case T_TXT:
-	return "TXT?";
+	return "TXT";
 	break;
     case T_SIG:
-	return "SIG?";
+	return "SIG";
 	break;
     case T_KEY:
-	return "KEY?";
+	return "KEY";
 	break;
     case T_AAAA:
-	return "AAAA?";
+	return "AAAA";
 	break;
     case T_LOC:
-	return "LOC?";
+	return "LOC";
 	break;
     case T_SRV:
-	return "SRV?";
+	return "SRV";
 	break;
     case T_A6:
-	return "A6?";
+	return "A6";
 	break;
     case T_ANY:
-	return "ANY?";
+	return "ANY";
 	break;
     default:
-	snprintf(buf, 30, "#%d?", t);
+	snprintf(buf, 30, "#%d", t);
 	return buf;
     }
     /* NOTREACHED */
 }
 
-static char *
+char *
 opcode_str(int o)
 {
     static char buf[30];
@@ -874,358 +656,6 @@ opcode_str(int o)
 	return buf;
     }
     /* NOTREACHED */
-}
-
-static int
-get_nlines(void)
-{
-	if (interactive)
-		return getmaxy(w) - 6;
-	else
-		return 50;
-}
-
-static void
-StringCounter_report(StringCounter * list, char *what)
-{
-    StringCounter *sc;
-    int nlines = get_nlines();
-    print_func("%-30s %9s %6s\n", what, "count", "%");
-    print_func("%-30s %9s %6s\n",
-	"------------------------------", "---------", "------");
-    for (sc = list; sc; sc = sc->next) {
-	print_func("%-30.30s %9d %6.1f\n",
-	    sc->s,
-	    sc->count,
-	    100.0 * sc->count / query_count_total);
-	if (0 == --nlines)
-	    break;
-    }
-}
-
-static void
-StringCounter_free(StringCounter ** headP)
-{
-    StringCounter *sc;
-    void *next;
-    for (sc = *headP; sc; sc = next) {
-	next = sc->next;
-	free(sc->s);
-	free(sc);
-    }
-    *headP = NULL;
-}
-
-static void
-StringAddrCounter_free(StringAddrCounter ** headP)
-{
-    StringAddrCounter *ssc;
-    void *next;
-    for (ssc = *headP; ssc; ssc = next) {
-	next = ssc->next;
-	free(ssc->str);
-	free(ssc);
-    }
-    *headP = NULL;
-}
-
-static void
-Tld_report(void)
-{
-    StringCounter_report(Tlds, "TLD");
-}
-
-static void
-Sld_report(void)
-{
-    if (0 == sld_flag) {
-	print_func("\tYou must start %s with the -s option\n", progname);
-	print_func("\tto collect 2nd level domain stats.\n", progname);
-    } else {
-	StringCounter_report(Slds, "SLD");
-    }
-}
-
-static void
-Nld_report(void)
-{
-    if (0 == nld_flag) {
-	print_func("\tYou must start %s with the -t option\n", progname);
-	print_func("\tto collect 3nd level domain stats.\n", progname);
-    } else {
-	StringCounter_report(Nlds, "3LD");
-    }
-}
-
-static void
-Qtypes_report(void)
-{
-    int type;
-    int nlines = get_nlines();
-    print_func("%-10s %9s %6s\n", "Query Type", "count", "%");
-    print_func("%-10s %9s %6s\n", "----------", "---------", "------");
-    for (type = 0; type < T_MAX; type++) {
-	if (0 == qtype_counts[type])
-	    continue;
-	print_func("%-10s %9d %6.1f\n",
-	    qtype_str(type),
-	    qtype_counts[type],
-	    100.0 * qtype_counts[type] / query_count_total);
-	if (0 == --nlines)
-	    break;
-    }
-}
-
-static void
-Opcodes_report(void)
-{
-    int op;
-    int nlines = get_nlines();
-    print_func("%-10s %9s %6s\n", "Opcode    ", "count", "%");
-    print_func("%-10s %9s %6s\n", "----------", "---------", "------");
-    for (op = 0; op < OP_MAX; op++) {
-	if (0 == opcode_counts[op])
-	    continue;
-	print_func("%-10s %9d %6.1f\n",
-	    opcode_str(op),
-	    opcode_counts[op],
-	    100.0 * opcode_counts[op] / query_count_total);
-	if (0 == --nlines)
-	    break;
-    }
-}
-
-static void
-AgentAddr_report(AgentAddr * list, const char *what)
-{
-    AgentAddr *agent;
-    int nlines = get_nlines();
-    print_func("%-16s %9s %6s\n", what, "count", "%");
-    print_func("%-16s %9s %6s\n", "----------------", "---------", "------");
-    for (agent = list; agent; agent = agent->next) {
-	print_func("%-16s %9d %6.1f\n",
-	    anon_inet_ntoa(agent->src),
-	    agent->count,
-	    100.0 * agent->count / query_count_total);
-	if (0 == --nlines)
-	    break;
-    }
-}
-
-static void
-Combo_report(StringAddrCounter * list, char *what1, char *what2)
-{
-    StringAddrCounter *ssc;
-    int nlines = get_nlines();
-    print_func("%-16s %-32s %9s %6s\n", what1, what2, "count", "%");
-    print_func("%-16s %-32s %9s %6s\n",
-	"----------------", "--------------------", "---------", "------");
-    for (ssc = list; ssc; ssc = ssc->next) {
-	print_func("%-16s %-32s %9d %6.1f\n",
-	    anon_inet_ntoa(ssc->src),
-	    ssc->str,
-	    ssc->count,
-	    100.0 * ssc->count / query_count_total);
-	if (0 == --nlines)
-	    break;
-    }
-}
-
-static void
-SldBySource_report(void)
-{
-    if (0 == sld_flag) {
-	print_func("\tYou must start %s with the -s option\n", progname);
-	print_func("\tto collect 2nd level domain stats.\n", progname);
-    } else {
-	Combo_report(SSC2, "Source", "SLD");
-    }
-}
-
-static void
-NldBySource_report(void)
-{
-    if (0 == nld_flag) {
-	print_func("\tYou must start %s with the -t option\n", progname);
-	print_func("\tto collect 3nd level domain stats.\n", progname);
-    } else {
-	Combo_report(SSC3, "Source", "3LD");
-    }
-}
-
-
-static void
-AgentAddr_free(AgentAddr ** headP)
-{
-    AgentAddr *aa;
-    void *next;
-    for (aa = *headP; aa; aa = next) {
-	next = aa->next;
-	free(aa);
-    }
-    *headP = NULL;
-}
-
-static void
-Sources_report(void)
-{
-    AgentAddr_report(Sources, "Sources");
-}
-
-static void
-Destinatioreport(void)
-{
-    AgentAddr_report(Destinations, "Destinations");
-}
-
-static void
-report(void)
-{
-    move(0, 0);
-    print_func("%d new queries, %d total queries",
-	query_count_intvl, query_count_total);
-    clrtoeol();
-    if (last_ts.tv_sec) {
-	time_t t = (time_t) last_ts.tv_sec;
-	move(0, 50);
-	print_func("%s", ctime(&t));
-    }
-    move(2, 0);
-    clrtobot();
-    if (SubReport)
-	SubReport();
-    refresh();
-}
-
-/*
- * === BEGIN FILTERS ==========================================================
- */
-
-#include "known_tlds.h"
-
-static int
-UnknownTldFilter(unsigned short qt, unsigned short qc, const char *qn, const struct in_addr sip, const struct in_addr dip)
-{
-    const char *tld = QnameToNld(qn, 1);
-    unsigned int i;
-    if (NULL == tld)
-	return 1;		/* tld is unknown */
-    for (i = 0; KnownTLDS[i]; i++)
-	if (0 == strcmp(KnownTLDS[i], tld))
-	    return 0;		/* tld is known */
-    return 1;			/* tld is unknown */
-}
-
-static int
-AforAFilter(unsigned short qt, unsigned short qc, const char *qn, const struct in_addr sip, const struct in_addr dip)
-{
-    struct in_addr a;
-    if (qt != T_A)
-	return 0;  
-    return inet_aton(qn, &a);
-}
-
-static int
-RFC1918PtrFilter(unsigned short qt, unsigned short qc, const char *qn, const struct in_addr sip, const struct in_addr dip)
-{
-    char *t;
-    char q[128];   
-    unsigned int i = 0;
-    if (qt != T_PTR)
-	return 0;  
-    strncpy(q, qn, sizeof(q)-1);
-    q[sizeof(q)-1] = '\0';
-    t = strstr(q, ".in-addr.arpa");
-    if (NULL == t)
-	return 0;
-    *t = '\0';
-    for (t = strtok(q, "."); t; t = strtok(NULL, ".")) {
-	i >>= 8;
-	i |= ((atoi(t) & 0xff) << 24);
-    }
-    if ((i & 0xff000000) == 0x0a000000)
-	return 1;
-    if ((i & 0xfff00000) == 0xac100000)
-	return 1;
-    if ((i & 0xffff0000) == 0xc0a80000)
-	return 1;
-    return 0;
-}
-
-static void
-set_filter(const char *fn)
-{
-	if (0 == strcmp(fn, "unknown-tlds"))
-		Filter = UnknownTldFilter;
-	else if (0 == strcmp(fn, "A-for-A"))
-		Filter = AforAFilter;
-	else if (0 == strcmp(fn, "rfc1918-ptr"))
-		Filter = RFC1918PtrFilter;
-	else
-		Filter = NULL;
-}
-
-/*
- * === END FILTERS ==========================================================
- */
-
-static void
-init_curses(void)
-{
-    w = initscr();
-    cbreak();
-    noecho();
-    nodelay(w, 1);
-}
-
-static void
-ResetCounters(void)
-{
-    query_count_intvl = 0;
-    query_count_total = 0;
-    memset(qtype_counts, '\0', sizeof(qtype_counts));
-    memset(qclass_counts, '\0', sizeof(qclass_counts));
-    memset(opcode_counts, '\0', sizeof(opcode_counts));
-    AgentAddr_free(&Sources);
-    AgentAddr_free(&Destinations);
-    StringCounter_free(&Tlds);
-    StringCounter_free(&Slds);
-    StringCounter_free(&Nlds);
-    StringAddrCounter_free(&SSC2);
-    StringAddrCounter_free(&SSC3);
-    memset(&last_ts, '\0', sizeof(last_ts));
-}
-
-static void
-usage(void)
-{
-    fprintf(stderr, "usage: %s [opts] netdevice|savefile\n",
-	progname);
-    fprintf(stderr, "\t-a\tAnonymize IP Addrs\n");
-    fprintf(stderr, "\t-b expr\tBPF program code\n");
-    fprintf(stderr, "\t-i addr\tIgnore this source IP address\n");
-    fprintf(stderr, "\t-p\tDon't put interface in promiscuous mode\n");
-    fprintf(stderr, "\t-s\tEnable 2nd level domain stats collection\n");
-    fprintf(stderr, "\t-t\tEnable 3nd level domain stats collection\n");
-    fprintf(stderr, "\t-f\tfilter-name\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Available filters:\n");
-    fprintf(stderr, "\tunknown-tlds\n");
-    fprintf(stderr, "\tA-for-A\n");
-    fprintf(stderr, "\trfc1918-ptr\n");
-    exit(1);
-}
-
-static int
-pcap_select(pcap_t * p, int sec, int usec)
-{
-    fd_set R;
-    struct timeval to;
-    FD_ZERO(&R);
-    FD_SET(pcap_fileno(p), &R);
-    to.tv_sec = sec;
-    to.tv_usec = usec;
-    return select(pcap_fileno(p) + 1, &R, NULL, NULL, &to);
 }
 
 #if 0
