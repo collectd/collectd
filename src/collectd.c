@@ -123,6 +123,8 @@ static void exit_usage (char *name)
 			"  General:\n"
 			"    -C <file>       Configuration file.\n"
 			"                    Default: "CONFIGFILE"\n"
+			"    -P <file>       PID-file.\n"
+			"                    Default: "PIDFILE"\n"
 #if COLLECT_DAEMON
 			"    -f              Don't fork to the background.\n"
 #endif
@@ -281,8 +283,7 @@ int main (int argc, char **argv)
 	char *configfile = CONFIGFILE;
 #if COLLECT_DAEMON
 	struct sigaction sigChldAction;
-	char *pidfile    = PIDFILE;
-	int have_pidfile = 0;
+	char *pidfile    = NULL;
 	pid_t pid;
 	int daemonize    = 1;
 #endif
@@ -320,8 +321,7 @@ int main (int argc, char **argv)
 				break;
 #if COLLECT_DAEMON
 			case 'P':
-				pidfile      = optarg;
-				have_pidfile = 1;
+				pidfile = optarg;
 				break;
 			case 'f':
 				daemonize = 0;
@@ -373,7 +373,7 @@ int main (int argc, char **argv)
 	sigChldAction.sa_handler = SIG_IGN;
 	sigaction (SIGCHLD, &sigChldAction, NULL);
 
-	if ((1 != have_pidfile)
+	if ((pidfile == NULL)
 			&& ((pidfile = cf_get_option ("PIDFile", PIDFILE)) == NULL))
 	{
 		fprintf (stderr, "Cannot obtain pidfile. This shoud not happen. Ever.");

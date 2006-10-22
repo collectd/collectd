@@ -113,7 +113,9 @@ directory.
 =item B<-P> I<E<lt>pid-fileE<gt>>
 
 Specify an alternative pid file. This overwrites any settings in the config 
-file.
+file. This is thought for init-scripts that require the PID-file in a certain
+directory to work correctly. For everyday-usage use the B<PIDFile>
+config-option.
 
 =item B<-f>
 
