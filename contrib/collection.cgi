@@ -803,6 +803,18 @@ our $GraphDefs;
 			'GPRINT:max:MAX:%9.3lf Max,',
 			'GPRINT:avg:LAST:%9.3lf Last\l'
 		],
+		rcode => [
+			'DEF:avg={file}:value:AVERAGE',
+			'DEF:min={file}:value:MIN',
+			'DEF:max={file}:value:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Queries/s",
+			'GPRINT:min:MIN:%9.3lf Min,',
+			'GPRINT:avg:AVERAGE:%9.3lf Average,',
+			'GPRINT:max:MAX:%9.3lf Max,',
+			'GPRINT:avg:LAST:%9.3lf Last\l'
+		],
 		swap => [
 			'DEF:used_avg={file}:used:AVERAGE',
 			'DEF:used_min={file}:used:MIN',
@@ -1092,6 +1104,7 @@ our $GraphArgs =
 	ps_count => ['-t', '{host} process {inst} count', '-v', 'Threads/Processes'],
 	ps_pagefaults => ['-t', '{host} process {inst} pagefaults', '-v', 'Pagefaults/s'],
 	qtype => ['-t', 'QType {inst}', '-v', 'Queries/s'],
+	rcode => ['-t', 'RCode {inst}', '-v', 'Queries/s'],
 	sensors => ['-t', '{host} sensor {inst}', '-v', '°Celsius'],
 	swap => ['-t', '{host} swap usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
 	temperature => ['-t', '{host} temperature {inst}', '-v', '°Celsius'],
@@ -1121,6 +1134,7 @@ our $GraphMulti =
 	partition => 1,
 	ping	=> \&output_graph_ping,
 	qtype => \&output_graph_named_qtype,
+	rcode => \&output_graph_named_rcode,
 	sensors	=> 1,
 	traffic	=> 1,
 	users => 1,
@@ -1417,6 +1431,50 @@ sub output_graph_named_qtype
 		else
 		{
 			$inst = sprintf ('%-5s', $inst);
+		}
+
+		push (@ret,
+			"$type:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%9.3lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%9.3lf Avg,",
+			"GPRINT:max_$i:MAX:%9.3lf Max,",
+			"GPRINT:avg_$i:LAST:%9.3lf Last\\l");
+	}
+
+	return (@ret);
+}
+
+sub output_graph_named_rcode
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/rcode-$inst.rrd:value:AVERAGE",
+			"DEF:min_$i=$AbsDir/rcode-$inst.rrd:value:MIN",
+			"DEF:max_$i=$AbsDir/rcode-$inst.rrd:value:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+		my $type = ($i == 0) ? 'AREA' : 'STACK';
+
+		if (length ($inst) > 8)
+		{
+			$inst = substr ($inst, 0, 6) . '..';
+		}
+		else
+		{
+			$inst = sprintf ('%-8s', $inst);
 		}
 
 		push (@ret,
