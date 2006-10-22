@@ -110,6 +110,13 @@ Specify an alternative config file. This is the place to go when you wish to
 change B<collectd>'s behavior. The path may be relative to the current working
 directory.
 
+=item B<-P> I<E<lt>pid-fileE<gt>>
+
+Specify an alternative pid file. This overwrites any settings in the config 
+file. This is thought for init-scripts that require the PID-file in a certain
+directory to work correctly. For everyday-usage use the B<PIDFile>
+config-option.
+
 =item B<-f>
 
 Don't fork to the background. I<collectd> will also B<not> close standard file
