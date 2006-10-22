@@ -1,6 +1,6 @@
 /*
  * collectd - src/dnstop.c
- * Copyright (C) 2006  Florian octo Forster
+ * Modifications Copyright (C) 2006  Florian octo Forster
  * Copyright (C) 2002  The Measurement Factory, Inc.
  * All rights reserved.
  * 
@@ -62,26 +62,34 @@
 
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/udp.h>
 
+#include <netdb.h>
+
 #define PCAP_SNAPLEN 1460
-#define MAX_QNAME_SZ 512
 #ifndef ETHER_HDR_LEN
 #define ETHER_ADDR_LEN 6
 #define ETHER_TYPE_LEN 2
 #define ETHER_HDR_LEN (ETHER_ADDR_LEN * 2 + ETHER_TYPE_LEN)
 #endif
 #ifndef ETHERTYPE_8021Q
-#define ETHERTYPE_8021Q 0x8100
+# define ETHERTYPE_8021Q 0x8100
+#endif
+#ifndef ETHERTYPE_IPV6
+# define ETHERTYPE_IPV6 0x86DD
 #endif
 
-#if USE_PPP
 #include <net/if_ppp.h>
-#define PPP_ADDRESS_VAL       0xff	/* The address byte value */
-#define PPP_CONTROL_VAL       0x03	/* The control byte value */
+#ifndef PPP_ADDRESS_VAL
+# define PPP_ADDRESS_VAL 0xff	/* The address byte value */
+#endif
+#ifndef PPP_CONTROL_VAL
+# define PPP_CONTROL_VAL 0x03	/* The control byte value */
 #endif
 
 #ifdef __linux__
+#define uh_sport source
 #define uh_dport dest
 #endif
 
@@ -90,63 +98,13 @@
 /*
  * Type definitions
  */
-typedef struct _AgentAddr AgentAddr;
-struct _AgentAddr {
-    struct in_addr src;
-    int count;
-    AgentAddr *next;
+struct ip_list_s
+{
+    struct in6_addr addr;
+    void *data;
+    struct ip_list_s *next;
 };
-
-typedef struct _StringCounter StringCounter;
-struct _StringCounter {
-    char *s;
-    int count;
-    StringCounter *next;
-};
-
-/* This struct cobbles together Source and Sld */
-typedef struct _StringAddrCounter StringAddrCounter;
-struct _StringAddrCounter {
-    struct in_addr src;
-    char *str;
-    int count;
-    StringAddrCounter *next;
-};
-
-typedef struct _foo foo;
-struct _foo {
-    int cnt;
-    void *ptr;
-};
-
-typedef struct _rfc1035_header rfc1035_header;
-struct _rfc1035_header {
-    unsigned short id;
-    unsigned int qr:1;
-    unsigned int opcode:4;
-    unsigned int aa:1;
-    unsigned int tc:1;
-    unsigned int rd:1;
-    unsigned int ra:1;
-    unsigned int rcode:4;
-    unsigned short qdcount;
-    unsigned short ancount;
-    unsigned short nscount;
-    unsigned short arcount;
-};
-
-typedef struct _AnonMap AnonMap;
-struct _AnonMap {
-    struct in_addr real;
-    struct in_addr anon;
-    AnonMap *next;
-};
-
-typedef int Filter_t(unsigned short,
-	unsigned short,
-	const char *,
-	const struct in_addr,
-	const struct in_addr);
+typedef struct ip_list_s ip_list_t;
 
 typedef int (printer)(const char *, ...);
 
@@ -160,71 +118,128 @@ typedef int (printer)(const char *, ...);
 #ifndef T_SRV
 #define T_SRV 33
 #endif
-#define C_MAX 65536
-#define OP_MAX 16
 
 /*
  * Global variables
  */
-pcap_t *pcap = NULL;
-static struct in_addr ignore_addr;
-static int sld_flag = 0;
-static int nld_flag = 0;
+int qtype_counts[T_MAX];
+int opcode_counts[OP_MAX];
+int qclass_counts[C_MAX];
+
+static pcap_t *pcap_obj = NULL;
+
+static ip_list_t *IgnoreList = NULL;
+
+static void (*Callback) (const rfc1035_header_t *) = NULL;
 
 static int query_count_intvl = 0;
 static int query_count_total = 0;
-int qtype_counts[T_MAX];
-static int opcode_counts[OP_MAX];
-static int qclass_counts[C_MAX];
-static AgentAddr *Sources = NULL;
-static AgentAddr *Destinations = NULL;
-static StringCounter *Tlds = NULL;
-static StringCounter *Slds = NULL;
-static StringCounter *Nlds = NULL;
-static StringAddrCounter *SSC2 = NULL;
-static StringAddrCounter *SSC3 = NULL;
 #ifdef __OpenBSD__
 static struct bpf_timeval last_ts;
 #else
 static struct timeval last_ts;
 #endif
 
-static AgentAddr *
-AgentAddr_lookup_or_add(AgentAddr ** headP, struct in_addr a)
+static int cmp_in6_addr (const struct in6_addr *a,
+	const struct in6_addr *b)
 {
-    AgentAddr **T;
-    for (T = headP; (*T); T = &(*T)->next)
-	if ((*T)->src.s_addr == a.s_addr)
-	    return (*T);
-    (*T) = calloc(1, sizeof(**T));
-    (*T)->src = a;
-    return (*T);
+    int i;
+
+    for (i = 0; i < 4; i++)
+	if (a->s6_addr32[i] != b->s6_addr32[i])
+	    break;
+
+    if (i >= 4)
+	return (0);
+
+    return (a->s6_addr32[i] > b->s6_addr32[i] ? 1 : -1);
+} /* int cmp_addrinfo */
+
+static inline int ignore_list_match (const struct in6_addr *addr)
+{
+    ip_list_t *ptr;
+
+    for (ptr = IgnoreList; ptr != NULL; ptr = ptr->next)
+	if (cmp_in6_addr (addr, &ptr->addr) == 0)
+	    return (1);
+    return (0);
+} /* int ignore_list_match */
+
+static void ignore_list_add (const struct in6_addr *addr)
+{
+    ip_list_t *new;
+
+    if (ignore_list_match (addr) != 0)
+	return;
+
+    new = malloc (sizeof (ip_list_t));
+    if (new == NULL)
+    {
+	perror ("malloc");
+	return;
+    }
+
+    memcpy (&new->addr, addr, sizeof (struct in6_addr));
+    new->next = IgnoreList;
+
+    IgnoreList = new;
+} /* void ignore_list_add */
+
+void ignore_list_add_name (const char *name)
+{
+    struct addrinfo *ai_list;
+    struct addrinfo *ai_ptr;
+    struct in6_addr  addr;
+    int status;
+
+    status = getaddrinfo (name, NULL, NULL, &ai_list);
+    if (status != 0)
+	return;
+
+    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    {
+	if (ai_ptr->ai_family == AF_INET)
+	{
+	    addr.s6_addr32[0] = 0;
+	    addr.s6_addr32[1] = 0;
+	    addr.s6_addr32[2] = htonl (0x0000FFFF);
+	    addr.s6_addr32[3] = ((struct sockaddr_in *) ai_ptr->ai_addr)->sin_addr.s_addr;
+
+	    ignore_list_add (&addr);
+	}
+	else
+	{
+	    ignore_list_add (&((struct sockaddr_in6 *) ai_ptr->ai_addr)->sin6_addr);
+	}
+    } /* for */
+
+    freeaddrinfo (ai_list);
 }
 
-static StringCounter *
-StringCounter_lookup_or_add(StringCounter ** headP, const char *s)
+static void in6_addr_from_buffer (struct in6_addr *ia,
+	const void *buf, size_t buf_len,
+	int family)
 {
-    StringCounter **T;
-    for (T = headP; (*T); T = &(*T)->next)
-	if (0 == strcmp((*T)->s, s))
-	    return (*T);
-    (*T) = calloc(1, sizeof(**T));
-    (*T)->s = strdup(s);
-    return (*T);
+    memset (ia, 0, sizeof (struct in6_addr));
+    if ((AF_INET == family) && (sizeof (uint32_t) == buf_len))
+    {
+	ia->s6_addr32[2] = htonl (0x0000FFFF);
+	ia->s6_addr32[3] = *((uint32_t *) buf);
+    }
+    else if ((AF_INET6 == family) && (sizeof (struct in6_addr) == buf_len))
+    {
+	memcpy (ia, buf, buf_len);
+    }
+} /* void in6_addr_from_buffer */
+
+void dnstop_set_pcap_obj (pcap_t *po)
+{
+	pcap_obj = po;
 }
 
-static StringAddrCounter *
-StringAddrCounter_lookup_or_add(StringAddrCounter ** headP, struct in_addr a, const char *str)
+void dnstop_set_callback (void (*cb) (const rfc1035_header_t *))
 {
-    StringAddrCounter **T;
-    for (T = headP; (*T); T = &(*T)->next)
-	if (0 == strcmp((*T)->str, str))
-	    if ((*T)->src.s_addr == a.s_addr)
-		return (*T);
-    (*T) = calloc(1, sizeof(**T));
-    (*T)->str = strdup(str);
-    (*T)->src = a;
-    return (*T);
+	Callback = cb;
 }
 
 #define RFC1035_MAXLABELSZ 63
@@ -282,57 +297,36 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
     return 0;
 }
 
-static const char *
-QnameToNld(const char *qname, int nld)
-{
-    const char *t = strrchr(qname, '.');
-    int dotcount = 1;
-    if (NULL == t)
-	t = qname;
-    if (0 == strcmp(t, ".arpa"))
-	dotcount--;
-    while (t > qname && dotcount < nld) {
-	t--;
-	if ('.' == *t)
-	    dotcount++;
-    }
-    if (t > qname)
-	t++;
-    return t;
-}
-
 static int
-handle_dns(const char *buf, int len, const struct in_addr sip, const struct in_addr dip)
+handle_dns(const char *buf, int len,
+	const struct in6_addr *s_addr,
+	const struct in6_addr *d_addr)
 {
-    rfc1035_header qh;
-    unsigned short us;
-    char qname[MAX_QNAME_SZ];
-    unsigned short qtype;
-    unsigned short qclass;
+    rfc1035_header_t qh;
+    uint16_t us;
     off_t offset;
     char *t;
-    const char *s;
     int x;
-    StringCounter *sc;
-    StringAddrCounter *ssc;
 
-    fprintf (stderr, "handle_dns (buf = %p, len = %i)\n",
-		    (void *) buf, len);
-
-    if (len < sizeof(qh))
+    /* The DNS header is 12 bytes long */
+    if (len < 12)
 	return 0;
 
-    memcpy(&us, buf + 00, 2);
+    memcpy(&us, buf + 0, 2);
     qh.id = ntohs(us);
 
     memcpy(&us, buf + 2, 2);
     us = ntohs(us);
+    fprintf (stderr, "Bytes 0, 1: 0x%04hx\n", us);
     qh.qr = (us >> 15) & 0x01;
     qh.opcode = (us >> 11) & 0x0F;
     qh.aa = (us >> 10) & 0x01;
     qh.tc = (us >> 9) & 0x01;
     qh.rd = (us >> 8) & 0x01;
     qh.ra = (us >> 7) & 0x01;
+    qh.z  = (us >> 6) & 0x01;
+    qh.ad = (us >> 5) & 0x01;
+    qh.cd = (us >> 4) & 0x01;
     qh.rcode = us & 0x0F;
 
     memcpy(&us, buf + 4, 2);
@@ -347,98 +341,145 @@ handle_dns(const char *buf, int len, const struct in_addr sip, const struct in_a
     memcpy(&us, buf + 10, 2);
     qh.arcount = ntohs(us);
 
-    offset = sizeof(qh);
-    memset(qname, '\0', MAX_QNAME_SZ);
-    x = rfc1035NameUnpack(buf, len, &offset, qname, MAX_QNAME_SZ);
+    offset = 12;
+    memset(qh.qname, '\0', MAX_QNAME_SZ);
+    x = rfc1035NameUnpack(buf, len, &offset, qh.qname, MAX_QNAME_SZ);
     if (0 != x)
 	return 0;
-    if ('\0' == qname[0])
-	strcpy(qname, ".");
-    while ((t = strchr(qname, '\n')))
+    if ('\0' == qh.qname[0])
+	strcpy(qh.qname, ".");
+    while ((t = strchr(qh.qname, '\n')))
 	*t = ' ';
-    while ((t = strchr(qname, '\r')))
+    while ((t = strchr(qh.qname, '\r')))
 	*t = ' ';
-    for (t = qname; *t; t++)
+    for (t = qh.qname; *t; t++)
 	*t = tolower(*t);
 
     memcpy(&us, buf + offset, 2);
-    qtype = ntohs(us);
+    qh.qtype = ntohs(us);
     memcpy(&us, buf + offset + 2, 2);
-    qclass = ntohs(us);
+    qh.qclass = ntohs(us);
 
-    fprintf (stderr, "qtype = %hu\n", qtype);
+    qh.length = (uint16_t) len;
 
     /* gather stats */
-    qtype_counts[qtype]++;
-    qclass_counts[qclass]++;
+    qtype_counts[qh.qtype]++;
+    qclass_counts[qh.qclass]++;
     opcode_counts[qh.opcode]++;
 
-    s = QnameToNld(qname, 1);
-    sc = StringCounter_lookup_or_add(&Tlds, s);
-    sc->count++;
+    if (Callback != NULL)
+	    Callback (&qh);
 
-    if (sld_flag) {
-	s = QnameToNld(qname, 2);
-	sc = StringCounter_lookup_or_add(&Slds, s);
-	sc->count++;
-
-	/* increment StringAddrCounter */
-	ssc = StringAddrCounter_lookup_or_add(&SSC2, sip, s);
-	ssc->count++;
-
-    }
-    if (nld_flag) {
-	s = QnameToNld(qname, 3);
-	sc = StringCounter_lookup_or_add(&Nlds, s);
-	sc->count++;
-
-	/* increment StringAddrCounter */
-	ssc = StringAddrCounter_lookup_or_add(&SSC3, sip, s);
-	ssc->count++;
-
-    }
     return 1;
 }
 
 static int
-handle_udp(const struct udphdr *udp, int len, struct in_addr sip, struct in_addr dip)
+handle_udp(const struct udphdr *udp, int len,
+	const struct in6_addr *s_addr,
+	const struct in6_addr *d_addr)
 {
     char buf[PCAP_SNAPLEN];
-    fprintf (stderr, "handle_udp (udp = %p, len = %i)\n",
-		    (void *) udp, len);
-    if (ntohs (udp->uh_dport) != 53)
+    if ((ntohs (udp->uh_dport) != 53)
+		    && (ntohs (udp->uh_sport) != 53))
 	return 0;
     memcpy(buf, udp + 1, len - sizeof(*udp));
-    if (0 == handle_dns(buf, len - sizeof(*udp), sip, dip))
+    if (0 == handle_dns(buf, len - sizeof(*udp), s_addr, d_addr))
 	return 0;
     return 1;
 }
+
+static int
+handle_ipv6 (struct ip6_hdr *ipv6, int len)
+{
+    char buf[PCAP_SNAPLEN];
+    int offset;
+    int nexthdr;
+
+    struct in6_addr s_addr;
+    struct in6_addr d_addr;
+    uint16_t payload_len;
+
+    offset = sizeof (struct ip6_hdr);
+    nexthdr = ipv6->ip6_nxt;
+    s_addr = ipv6->ip6_src;
+    d_addr = ipv6->ip6_dst;
+    payload_len = ntohs (ipv6->ip6_plen);
+
+    if (ignore_list_match (&s_addr))
+	    return (0);
+
+    /* Parse extension headers. This only handles the standard headers, as
+     * defined in RFC 2460, correctly. Fragments are discarded. */
+    while ((IPPROTO_ROUTING == nexthdr) /* routing header */
+	    || (IPPROTO_HOPOPTS == nexthdr) /* Hop-by-Hop options. */
+	    || (IPPROTO_FRAGMENT == nexthdr) /* fragmentation header. */
+	    || (IPPROTO_DSTOPTS == nexthdr) /* destination options. */
+	    || (IPPROTO_DSTOPTS == nexthdr) /* destination options. */
+	    || (IPPROTO_AH == nexthdr) /* destination options. */
+	    || (IPPROTO_ESP == nexthdr)) /* encapsulating security payload. */
+    {
+	struct ip6_ext ext_hdr;
+	uint16_t ext_hdr_len;
+
+	/* Catch broken packets */
+	if ((offset + sizeof (struct ip6_ext)) > len)
+	    return (0);
+
+	/* Cannot handle fragments. */
+	if (IPPROTO_FRAGMENT == nexthdr)
+	    return (0);
+
+	memcpy (&ext_hdr, (char *) ipv6 + offset, sizeof (struct ip6_ext));
+	nexthdr = ext_hdr.ip6e_nxt;
+	ext_hdr_len = (8 * (ntohs (ext_hdr.ip6e_len) + 1));
+
+	/* This header is longer than the packets payload.. WTF? */
+	if (ext_hdr_len > payload_len)
+	    return (0);
+
+	offset += ext_hdr_len;
+	payload_len -= ext_hdr_len;
+    } /* while */
+
+    /* Catch broken and empty packets */
+    if (((offset + payload_len) > len)
+	    || (payload_len == 0)
+	    || (payload_len > PCAP_SNAPLEN))
+	return (0);
+
+    if (IPPROTO_UDP != nexthdr)
+	return (0);
+
+    memcpy (buf, (char *) ipv6 + offset, payload_len);
+    if (handle_udp ((struct udphdr *) buf, payload_len, &s_addr, &d_addr) == 0)
+	return (0);
+
+    return (1); /* Success */
+} /* int handle_ipv6 */
 
 static int
 handle_ip(const struct ip *ip, int len)
 {
     char buf[PCAP_SNAPLEN];
     int offset = ip->ip_hl << 2;
-    AgentAddr *clt;
-    AgentAddr *srv;
-    fprintf (stderr, "handle_ip (ip = %p, len = %i)\n",
-		    (void *) ip, len);
-    if (ignore_addr.s_addr)
-	if (ip->ip_src.s_addr == ignore_addr.s_addr)
-	    return 0;
+    struct in6_addr s_addr;
+    struct in6_addr d_addr;
+
+    if (ip->ip_v == 6)
+	return (handle_ipv6 ((struct ip6_hdr *) ip, len));
+
+    in6_addr_from_buffer (&s_addr, &ip->ip_src.s_addr, sizeof (ip->ip_src.s_addr), AF_INET);
+    in6_addr_from_buffer (&d_addr, &ip->ip_dst.s_addr, sizeof (ip->ip_dst.s_addr), AF_INET);
+    if (ignore_list_match (&s_addr))
+	    return (0);
     if (IPPROTO_UDP != ip->ip_p)
 	return 0;
     memcpy(buf, (void *) ip + offset, len - offset);
-    if (0 == handle_udp((struct udphdr *) buf, len - offset, ip->ip_src, ip->ip_dst))
+    if (0 == handle_udp((struct udphdr *) buf, len - offset, &s_addr, &d_addr))
 	return 0;
-    clt = AgentAddr_lookup_or_add(&Sources, ip->ip_src);
-    clt->count++;
-    srv = AgentAddr_lookup_or_add(&Destinations, ip->ip_dst);
-    srv->count++;
     return 1;
 }
 
-#if USE_PPP
 static int
 handle_ppp(const u_char * pkt, int len)
 {
@@ -468,8 +509,6 @@ handle_ppp(const u_char * pkt, int len)
     memcpy(buf, pkt, len);
     return handle_ip((struct ip *) buf, len);
 }
-
-#endif
 
 static int
 handle_null(const u_char * pkt, int len)
@@ -509,8 +548,6 @@ handle_ether(const u_char * pkt, int len)
     char buf[PCAP_SNAPLEN];
     struct ether_header *e = (void *) pkt;
     unsigned short etype = ntohs(e->ether_type);
-    fprintf (stderr, "handle_ether (pkt = %p, len = %i)\n",
-		    (void *) pkt, len);
     if (len < ETHER_HDR_LEN)
 	return 0;
     pkt += ETHER_HDR_LEN;
@@ -520,10 +557,14 @@ handle_ether(const u_char * pkt, int len)
 	pkt += 4;
 	len -= 4;
     }
-    if (ETHERTYPE_IP != etype)
+    if ((ETHERTYPE_IP != etype)
+	    && (ETHERTYPE_IPV6 != etype))
 	return 0;
     memcpy(buf, pkt, len);
-    return handle_ip((struct ip *) buf, len);
+    if (ETHERTYPE_IPV6 == etype)
+	return (handle_ipv6 ((struct ip6_hdr *) buf, len));
+    else
+	return handle_ip((struct ip *) buf, len);
 }
 
 /* public function */
@@ -538,16 +579,14 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
     if (hdr->caplen < ETHER_HDR_LEN)
 	return;
 
-    switch (pcap_datalink (pcap))
+    switch (pcap_datalink (pcap_obj))
     {
 	case DLT_EN10MB:
 	    status = handle_ether (pkt, hdr->caplen);
 	    break;
-#if USE_PPP
 	case DLT_PPP:
 	    status = handle_ppp (pkt, hdr->caplen);
 	    break;
-#endif
 #ifdef DLT_LOOP
 	case DLT_LOOP:
 	    status = handle_loop (pkt, hdr->caplen);
@@ -564,10 +603,10 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
 
 	default:
 	    fprintf (stderr, "unsupported data link type %d\n",
-		    pcap_datalink(pcap));
+		    pcap_datalink(pcap_obj));
 	    status = 0;
 	    break;
-    } /* switch (pcap_datalink(pcap)) */
+    } /* switch (pcap_datalink(pcap_obj)) */
 
     if (0 == status)
 	return;
@@ -577,62 +616,68 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
     last_ts = hdr->ts;
 }
 
-char *
-qtype_str(int t)
+const char *qtype_str(int t)
 {
-    static char buf[30];
+    static char buf[32];
     switch (t) {
-    case T_A:
-	return "A";
-	break;
-    case T_NS:
-	return "NS";
-	break;
-    case T_CNAME:
-	return "CNAME";
-	break;
-    case T_SOA:
-	return "SOA";
-	break;
-    case T_PTR:
-	return "PTR";
-	break;
-    case T_MX:
-	return "MX";
-	break;
-    case T_TXT:
-	return "TXT";
-	break;
-    case T_SIG:
-	return "SIG";
-	break;
-    case T_KEY:
-	return "KEY";
-	break;
-    case T_AAAA:
-	return "AAAA";
-	break;
-    case T_LOC:
-	return "LOC";
-	break;
-    case T_SRV:
-	return "SRV";
-	break;
-    case T_A6:
-	return "A6";
-	break;
-    case T_ANY:
-	return "ANY";
-	break;
-    default:
-	snprintf(buf, 30, "#%d", t);
-	return buf;
-    }
+	    case ns_t_a:        return ("A");
+	    case ns_t_ns:       return ("NS");
+	    case ns_t_md:       return ("MD");
+	    case ns_t_mf:       return ("MF");
+	    case ns_t_cname:    return ("CNAME");
+	    case ns_t_soa:      return ("SOA");
+	    case ns_t_mb:       return ("MB");
+	    case ns_t_mg:       return ("MG");
+	    case ns_t_mr:       return ("MR");
+	    case ns_t_null:     return ("NULL");
+	    case ns_t_wks:      return ("WKS");
+	    case ns_t_ptr:      return ("PTR");
+	    case ns_t_hinfo:    return ("HINFO");
+	    case ns_t_minfo:    return ("MINFO");
+	    case ns_t_mx:       return ("MX");
+	    case ns_t_txt:      return ("TXT");
+	    case ns_t_rp:       return ("RP");
+	    case ns_t_afsdb:    return ("AFSDB");
+	    case ns_t_x25:      return ("X25");
+	    case ns_t_isdn:     return ("ISDN");
+	    case ns_t_rt:       return ("RT");
+	    case ns_t_nsap:     return ("NSAP");
+	    case ns_t_nsap_ptr: return ("NSAP-PTR");
+	    case ns_t_sig:      return ("SIG");
+	    case ns_t_key:      return ("KEY");
+	    case ns_t_px:       return ("PX");
+	    case ns_t_gpos:     return ("GPOS");
+	    case ns_t_aaaa:     return ("AAAA");
+	    case ns_t_loc:      return ("LOC");
+	    case ns_t_nxt:      return ("NXT");
+	    case ns_t_eid:      return ("EID");
+	    case ns_t_nimloc:   return ("NIMLOC");
+	    case ns_t_srv:      return ("SRV");
+	    case ns_t_atma:     return ("ATMA");
+	    case ns_t_naptr:    return ("NAPTR");
+	    case ns_t_kx:       return ("KX");
+	    case ns_t_cert:     return ("CERT");
+	    case ns_t_a6:       return ("A6");
+	    case ns_t_dname:    return ("DNAME");
+	    case ns_t_sink:     return ("SINK");
+	    case ns_t_opt:      return ("OPT");
+	    case ns_t_tsig:     return ("TSIG");
+	    case ns_t_ixfr:     return ("IXFR");
+	    case ns_t_axfr:     return ("AXFR");
+	    case ns_t_mailb:    return ("MAILB");
+	    case ns_t_maila:    return ("MAILA");
+	    case ns_t_any:      return ("ANY");
+	    case ns_t_zxfr:     return ("ZXFR");
+	    default:
+		    snprintf (buf, 32, "#%i", t);
+		    buf[31] = '\0';
+		    return (buf);
+    }; /* switch (t) */
     /* NOTREACHED */
+    return (NULL);
 }
 
-char *
-opcode_str(int o)
+const char *opcode_str (int o)
 {
     static char buf[30];
     switch (o) {
@@ -657,6 +702,35 @@ opcode_str(int o)
     }
     /* NOTREACHED */
 }
+
+const char *rcode_str (int rcode)
+{
+	static char buf[32];
+	switch (rcode)
+	{
+		case ns_r_noerror:  return ("NOERROR");
+		case ns_r_formerr:  return ("FORMERR");
+		case ns_r_servfail: return ("SERVFAIL");
+		case ns_r_nxdomain: return ("NXDOMAIN");
+		case ns_r_notimpl:  return ("NOTIMPL");
+		case ns_r_refused:  return ("REFUSED");
+		case ns_r_yxdomain: return ("YXDOMAIN");
+		case ns_r_yxrrset:  return ("YXRRSET");
+		case ns_r_nxrrset:  return ("NXRRSET");
+		case ns_r_notauth:  return ("NOTAUTH");
+		case ns_r_notzone:  return ("NOTZONE");
+		case ns_r_max:      return ("MAX");
+		case ns_r_badsig:   return ("BADSIG");
+		case ns_r_badkey:   return ("BADKEY");
+		case ns_r_badtime:  return ("BADTIME");
+		default:
+			snprintf (buf, 32, "RCode%i", rcode);
+			buf[31] = '\0';
+			return (buf);
+	}
+	/* Never reached */
+	return (NULL);
+} /* const char *rcode_str (int rcode) */
 
 #if 0
 static int
@@ -713,11 +787,11 @@ main(int argc, char *argv[])
     if (0 == stat(device, &sb))
 	readfile_state = 1;
     if (readfile_state) {
-	pcap = pcap_open_offline(device, errbuf);
+	pcap_obj = pcap_open_offline(device, errbuf);
     } else {
-	pcap = pcap_open_live(device, PCAP_SNAPLEN, promisc_flag, 1000, errbuf);
+	pcap_obj = pcap_open_live(device, PCAP_SNAPLEN, promisc_flag, 1000, errbuf);
     }
-    if (NULL == pcap) {
+    if (NULL == pcap_obj) {
 	fprintf(stderr, "pcap_open_*: %s\n", errbuf);
 	exit(1);
     }
@@ -732,12 +806,12 @@ main(int argc, char *argv[])
     }
 
     memset(&fp, '\0', sizeof(fp));
-    x = pcap_compile(pcap, &fp, bpf_program_str, 1, 0);
+    x = pcap_compile(pcap_obj, &fp, bpf_program_str, 1, 0);
     if (x < 0) {
 	fprintf(stderr, "pcap_compile failed\n");
 	exit(1);
     }
-    x = pcap_setfilter(pcap, &fp);
+    x = pcap_setfilter(pcap_obj, &fp);
     if (x < 0) {
 	fprintf(stderr, "pcap_setfilter failed\n");
 	exit(1);
@@ -747,13 +821,13 @@ main(int argc, char *argv[])
      * non-blocking call added for Mac OS X bugfix.  Sent by Max Horn.
      * ref http://www.tcpdump.org/lists/workers/2002/09/msg00033.html
      */
-    x = pcap_setnonblock(pcap, 1, errbuf);
+    x = pcap_setnonblock(pcap_obj, 1, errbuf);
     if (x < 0) {
 	fprintf(stderr, "pcap_setnonblock failed: %s\n", errbuf);
 	exit(1);
     }
 
-    switch (pcap_datalink(pcap)) {
+    switch (pcap_datalink(pcap_obj)) {
     case DLT_EN10MB:
 	handle_datalink = handle_ether;
 	break;
@@ -777,7 +851,7 @@ main(int argc, char *argv[])
 	break;
     default:
 	fprintf(stderr, "unsupported data link type %d\n",
-	    pcap_datalink(pcap));
+	    pcap_datalink(pcap_obj));
 	return 1;
 	break;
     }
@@ -792,8 +866,8 @@ main(int argc, char *argv[])
 		 * anyway.
 		 */
 		if (0 == readfile_state) 	/* interactive */
-		    pcap_select(pcap, 1, 0);
-		x = pcap_dispatch(pcap, 50, handle_pcap, NULL);
+		    pcap_select(pcap_obj, 1, 0);
+		x = pcap_dispatch(pcap_obj, 50, handle_pcap, NULL);
 	    }
 	    if (0 == x && 1 == readfile_state) {
 		/* block on keyboard until user quits */
@@ -807,7 +881,7 @@ main(int argc, char *argv[])
 	}
 	endwin();		/* klin, Thu Nov 28 08:56:51 2002 */
     } else {
-	while (pcap_dispatch(pcap, 50, handle_pcap, NULL))
+	while (pcap_dispatch(pcap_obj, 50, handle_pcap, NULL))
 		(void) 0;
 	cron_pre();
 	Sources_report(); print_func("\n");
@@ -820,7 +894,7 @@ main(int argc, char *argv[])
 	SldBySource_report();
     }
 
-    pcap_close(pcap);
+    pcap_close(pcap_obj);
     return 0;
 } /* static int main(int argc, char *argv[]) */
 #endif

@@ -1,3 +1,5 @@
+#ifndef COLLECTD_DNSTOP
+#define COLLECTD_DNSTOP 1
 /*
  * collectd - src/dnstop.c
  * Copyright (C) 2006  Florian octo Forster
@@ -35,6 +37,45 @@
 #include <pcap.h>
 
 #define T_MAX 65536
-extern int qtype_counts[T_MAX];
+#define OP_MAX 16
+#define C_MAX 65536
+#define MAX_QNAME_SZ 512
 
+struct rfc1035_header_s {
+    uint16_t id;
+    unsigned int qr:1;
+    unsigned int opcode:4;
+    unsigned int aa:1;
+    unsigned int tc:1;
+    unsigned int rd:1;
+    unsigned int ra:1;
+    unsigned int z:1;
+    unsigned int ad:1;
+    unsigned int cd:1;
+    unsigned int rcode:4;
+    uint16_t qdcount;
+    uint16_t ancount;
+    uint16_t nscount;
+    uint16_t arcount;
+    uint16_t qtype;
+    uint16_t qclass;
+    char     qname[MAX_QNAME_SZ];
+    uint16_t length;
+};
+typedef struct rfc1035_header_s rfc1035_header_t;
+
+extern int qtype_counts[T_MAX];
+extern int opcode_counts[OP_MAX];
+extern int qclass_counts[C_MAX];
+
+void dnstop_set_pcap_obj (pcap_t *po);
+void dnstop_set_callback (void (*cb) (const rfc1035_header_t *));
+
+void ignore_list_add_name (const char *name);
 void handle_pcap (u_char * udata, const struct pcap_pkthdr *hdr, const u_char * pkt);
+
+const char *qtype_str(int t);
+const char *opcode_str(int o);
+const char *rcode_str (int r);
+
+#endif /* !COLLECTD_DNSTOP */

@@ -45,23 +45,48 @@
 # define NAMED_HAVE_READ 0
 #endif
 
-static char *qtype_file = "named/qtype-%s.rrd";
+struct counter_list_s
+{
+	unsigned int key;
+	unsigned int value;
+	struct counter_list_s *next;
+};
+typedef struct counter_list_s counter_list_t;
+
+static char *qtype_file   = "named/qtype-%s.rrd";
+static char *opcode_file  = "named/opcode-%s.rrd";
+static char *rcode_file   = "named/rcode-%s.rrd";
 
 static char *qtype_ds_def[] =
 {
-	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:65535",
 	NULL
 };
 static int qtype_ds_num = 1;
+
+static char *opcode_ds_def[] =
+{
+	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:65535",
+	NULL
+};
+static int opcode_ds_num = 1;
+
+static char *rcode_ds_def[] =
+{
+	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:65535",
+	NULL
+};
+static int rcode_ds_num = 1;
 
 #if NAMED_HAVE_CONFIG
 #if HAVE_LIBPCAP
 static char *config_keys[] =
 {
 	"Interface",
+	"IgnoreSource",
 	NULL
 };
-static int config_keys_num = 1;
+static int config_keys_num = 2;
 #endif /* HAVE_LIBPCAP */
 #endif /* NAMED_HAVE_CONFIG */
 
@@ -69,8 +94,127 @@ static int config_keys_num = 1;
 #define PCAP_SNAPLEN 1460
 static char   *pcap_device = NULL;
 static int     pipe_fd = -1;
+
+static counter_list_t *qtype_list;
+static counter_list_t *opcode_list;
+static counter_list_t *rcode_list;
 #endif
 
+static counter_list_t *counter_list_search (counter_list_t **list, unsigned int key)
+{
+	counter_list_t *entry;
+
+	DBG ("counter_list_search (list = %p, key = %u)",
+			(void *) *list, key);
+
+	for (entry = *list; entry != NULL; entry = entry->next)
+		if (entry->key == key)
+			break;
+
+	DBG ("return (%p)", (void *) entry);
+	return (entry);
+}
+
+static counter_list_t *counter_list_create (counter_list_t **list,
+		unsigned int key, unsigned int value)
+{
+	counter_list_t *entry;
+
+	DBG ("counter_list_create (list = %p, key = %u, value = %u)",
+			(void *) *list, key, value);
+
+	entry = (counter_list_t *) malloc (sizeof (counter_list_t));
+	if (entry == NULL)
+		return (NULL);
+
+	memset (entry, 0, sizeof (counter_list_t));
+	entry->key = key;
+	entry->value = value;
+
+	if (*list == NULL)
+	{
+		*list = entry;
+	}
+	else
+	{
+		counter_list_t *last;
+
+		last = *list;
+		while (last->next != NULL)
+			last = last->next;
+
+		last->next = entry;
+	}
+
+	DBG ("return (%p)", (void *) entry);
+	return (entry);
+}
+
+static void counter_list_add (counter_list_t **list,
+		unsigned int key, unsigned int increment)
+{
+	counter_list_t *entry;
+
+	DBG ("counter_list_add (list = %p, key = %u, increment = %u)",
+			(void *) *list, key, increment);
+
+	entry = counter_list_search (list, key);
+
+	if (entry != NULL)
+	{
+		entry->value += increment;
+	}
+	else
+	{
+		counter_list_create (list, key, increment);
+	}
+	DBG ("return ()");
+}
+
+static int counter_list_send (counter_list_t *list, int fd)
+{
+	counter_list_t *cl;
+	unsigned int values[2 * T_MAX];
+	unsigned int values_num;
+
+	if (fd < 0)
+		return (-1);
+
+	values_num = 0;
+
+	for (cl = list;
+			(cl != NULL) && (values_num < T_MAX);
+			cl = cl->next)
+	{
+		values[2 * values_num] = cl->key;
+		values[(2 * values_num) + 1] = cl->value;
+		values_num++;
+	}
+
+	DBG ("swrite (fd = %i, values_num = %i)", fd, values_num);
+	if (swrite (fd, (const void *) &values_num, sizeof (values_num)) != 0)
+	{
+		DBG ("Writing to fd failed: %s", strerror (errno));
+		syslog (LOG_ERR, "named plugin: Writing to fd failed: %s",
+				strerror (errno));
+		return (-1);
+	}
+
+	if (values_num == 0)
+		return (0);
+
+	DBG ("swrite (fd = %i, values = %p, size = %i)",
+			fd, (void *) values, (int) (sizeof (int) * values_num));
+	if (swrite (fd, (const void *) values, 2 * sizeof (int) * values_num) != 0)
+	{
+		DBG ("Writing to pipe failed: %s", strerror (errno));
+		syslog (LOG_ERR, "named plugin: Writing to pipe failed: %s",
+				strerror (errno));
+		return (-1);
+	}
+
+	return (values_num);
+}
 #if NAMED_HAVE_CONFIG
 static int named_config (char *key, char *value)
 {
@@ -82,6 +226,11 @@ static int named_config (char *key, char *value)
 		if ((pcap_device = strdup (value)) == NULL)
 			return (1);
 	}
+	else if (strcasecmp (key, "IgnoreSource") == 0)
+	{
+		if (value != NULL)
+			ignore_list_add_name (value);
+	}
 	else
 	{
 		return (-1);
@@ -92,48 +241,21 @@ static int named_config (char *key, char *value)
 }
 #endif /* NAMED_HAVE_CONFIG */
 
-static int named_child_send_data (void)
+static void named_child_callback (const rfc1035_header_t *dns)
 {
-	int values[2 * T_MAX];
-	int values_num;
-	int i;
-
-	if (pipe_fd < 0)
-		return (-1);
-
-	values_num = 0;
-	for (i = 0; i < T_MAX; i++)
+	if (dns->qr == 0)
 	{
-		if (qtype_counts[i] != 0)
-		{
-			values[2 * values_num] = i;
-			values[(2 * values_num) + 1] = qtype_counts[i];
-			values_num++;
-		}
+		/* This is a query */
+		counter_list_add (&qtype_list,  dns->qtype,  1);
+	}
+	else
+	{
+		/* This is a reply */
+		counter_list_add (&rcode_list,  dns->rcode,  1);
 	}
 
-	DBG ("swrite (pipe_fd = %i, values_num = %i)", pipe_fd, values_num);
-	if (swrite (pipe_fd, (const void *) &values_num, sizeof (values_num)) != 0)
-	{
-		DBG ("Writing to pipe failed: %s", strerror (errno));
-		syslog (LOG_ERR, "named plugin: Writing to pipe failed: %s",
-				strerror (errno));
-		return (-1);
-	}
-
-	if (values_num == 0)
-		return (0);
-
-	DBG ("swrite (pipe_fd = %i, values = %p, size = %i)", pipe_fd, (void *) values, (int) (sizeof (int) * values_num));
-	if (swrite (pipe_fd, (const void *) values, 2 * sizeof (int) * values_num) != 0)
-	{
-		DBG ("Writing to pipe failed: %s", strerror (errno));
-		syslog (LOG_ERR, "named plugin: Writing to pipe failed: %s",
-				strerror (errno));
-		return (-1);
-	}
-
-	return (values_num);
+	/* FIXME: Are queries, replies or both interesting? */
+	counter_list_add (&opcode_list, dns->opcode, 1);
 }
 
 static void named_child_loop (void)
@@ -161,10 +283,9 @@ static void named_child_loop (void)
 		pipe_fd = -1;
 		return;
 	}
-	pcap = pcap_obj; /* FIXME: This is used by `handle_pcap' */
 
 	memset (&fp, 0, sizeof (fp));
-	if (pcap_compile (pcap_obj, &fp, "udp dst port 53", 1, 0) < 0)
+	if (pcap_compile (pcap_obj, &fp, "udp port 53", 1, 0) < 0)
 	{
 		DBG ("pcap_compile failed");
 		syslog (LOG_ERR, "named plugin: pcap_compile failed");
@@ -183,6 +304,9 @@ static void named_child_loop (void)
 
 	DBG ("PCAP object created.");
 
+	dnstop_set_pcap_obj (pcap_obj);
+	dnstop_set_callback (named_child_callback);
+
 	/* Set up pipe end */
 	poll_fds[0].fd = pipe_fd;
 	poll_fds[0].events = POLLOUT;
@@ -191,7 +315,7 @@ static void named_child_loop (void)
 	poll_fds[1].fd = pcap_fileno (pcap_obj);
 	poll_fds[1].events = POLLIN | POLLPRI;
 
-	while (42)
+	while (pipe_fd > 0)
 	{
 		DBG ("poll (...)");
 		status = poll (poll_fds, 2, -1 /* wait forever for a change */);
@@ -211,11 +335,10 @@ static void named_child_loop (void)
 		}
 		else if (poll_fds[0].revents & POLLOUT)
 		{
-			DBG ("Calling `named_child_send_data'");
-			if (named_child_send_data () < 0)
-			{
-				break;
-			}
+			DBG ("Sending data..");
+			counter_list_send (qtype_list, pipe_fd);
+			counter_list_send (opcode_list, pipe_fd);
+			counter_list_send (rcode_list, pipe_fd);
 		}
 
 		if (poll_fds[1].revents & (POLLERR | POLLHUP | POLLNVAL))
@@ -226,9 +349,8 @@ static void named_child_loop (void)
 		}
 		else if (poll_fds[1].revents & (POLLIN | POLLPRI))
 		{
-			/* TODO: Read and analyse packet */
 			status = pcap_dispatch (pcap_obj,
-					1 /* Only handle 10 packets at a time */,
+					10 /* Only handle 10 packets at a time */,
 					handle_pcap /* callback */,
 					NULL /* Whatever this means.. */);
 			if (status < 0)
@@ -305,66 +427,147 @@ static void qtype_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, qtype_ds_def, qtype_ds_num);
 }
 
-static void qtype_submit (int qtype_int, unsigned int counter)
+static void rcode_write (char *host, char *inst, char *val)
 {
-	char *qtype_char;
-	char  buffer[32];
-	int   status;
+	char file[512];
+	int status;
 
-	qtype_char = qtype_str (qtype_int);
+	status = snprintf (file, 512, rcode_file, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
 
-	status = snprintf (buffer, 32, "N:%i", counter);
+	rrd_update_file (host, file, val, rcode_ds_def, rcode_ds_num);
+}
+
+static void opcode_write (char *host, char *inst, char *val)
+{
+	char file[512];
+	int status;
+
+	status = snprintf (file, 512, opcode_file, inst);
+	if (status < 1)
+		return;
+	else if (status >= 512)
+		return;
+
+	rrd_update_file (host, file, val, opcode_ds_def, opcode_ds_num);
+}
+
+static void qtype_submit (int qtype, unsigned int counter)
+{
+	char inst[32];
+	char buffer[32];
+	int  status;
+
+	strncpy (inst, qtype_str (qtype), 32);
+	inst[31] = '\0';
+
+	status = snprintf (buffer, 32, "N:%u", counter);
 	if ((status < 1) || (status >= 32))
 		return;
 
-	plugin_submit ("named_qtype", qtype_char, buffer);
+	plugin_submit ("named_qtype", inst, buffer);
+}
+
+static void rcode_submit (int rcode, unsigned int counter)
+{
+	char inst[32];
+	char buffer[32];
+	int  status;
+
+	strncpy (inst, rcode_str (rcode), 32);
+	inst[31] = '\0';
+
+	status = snprintf (buffer, 32, "N:%u", counter);
+	if ((status < 1) || (status >= 32))
+		return;
+
+	plugin_submit ("named_rcode", inst, buffer);
+}
+
+static void opcode_submit (int opcode, unsigned int counter)
+{
+	char inst[32];
+	char buffer[32];
+	int  status;
+
+	strncpy (inst, opcode_str (opcode), 32);
+	inst[31] = '\0';
+
+	status = snprintf (buffer, 32, "N:%u", counter);
+	if ((status < 1) || (status >= 32))
+		return;
+
+	plugin_submit ("named_opcode", inst, buffer);
 }
 
 #if NAMED_HAVE_READ
+static unsigned int named_read_array (unsigned int *values)
+{
+	unsigned int values_num;
+
+	if (pipe_fd < 0)
+		return (0);
+
+	if (sread (pipe_fd, (void *) &values_num, sizeof (values_num)) != 0)
+	{
+		DBG ("Reading from the pipe failed: %s",
+				strerror (errno));
+		syslog (LOG_ERR, "named plugin: Reading from the pipe failed: %s",
+				strerror (errno));
+		pipe_fd = -1;
+		return (0);
+	}
+	DBG ("sread (pipe_fd = %i, values_num = %u)", pipe_fd, values_num);
+
+	assert (values_num <= T_MAX);
+
+	if (values_num == 0)
+		return (0);
+
+	if (sread (pipe_fd, (void *) values, 2 * sizeof (unsigned int) * values_num) != 0)
+	{
+		DBG ("Reading from the pipe failed: %s",
+				strerror (errno));
+		syslog (LOG_ERR, "named plugin: Reading from the pipe failed: %s",
+				strerror (errno));
+		pipe_fd = -1;
+		return (0);
+	}
+
+	return (values_num);
+}
+
 static void named_read (void)
 {
-	int values[2 * T_MAX];
-	int values_num;
-	int qtype;
-	int counter;
+	unsigned int values[2 * T_MAX];
+	unsigned int values_num;
 	int i;
 
 	if (pipe_fd < 0)
 		return;
 
-	DBG ("Reading from pipe_fd = %i..", pipe_fd);
-	if (sread (pipe_fd, (void *) &values_num, sizeof (values_num)) != 0)
-	{
-		syslog (LOG_ERR, "named plugin: Reading from the pipe failed: %s",
-				strerror (errno));
-		pipe_fd = -1;
-		return;
-	}
-
-	assert ((values_num >= 0) && (values_num <= T_MAX));
-
-	if (values_num == 0)
-	{
-		DBG ("No values available; returning");
-		return;
-	}
-
-	DBG ("Reading %i qtype/values from pipe_fd = %i..", values_num, pipe_fd);
-	if (sread (pipe_fd, (void *) values, 2 * sizeof (int) * values_num) != 0)
-	{
-		syslog (LOG_ERR, "named plugin: Reading from the pipe failed: %s",
-				strerror (errno));
-		pipe_fd = -1;
-		return;
-	}
-
+	values_num = named_read_array (values);
 	for (i = 0; i < values_num; i++)
 	{
-		qtype = values[2 * i];
-		counter = values[(2 * i) + 1];
+		DBG ("qtype = %u; counter = %u;", values[2 * i], values[(2 * i) + 1]);
+		qtype_submit (values[2 * i], values[(2 * i) + 1]);
+	}
 
-		DBG ("qtype = %i; counter = %i;", qtype, counter);
-		qtype_submit (qtype, counter);
+	values_num = named_read_array (values);
+	for (i = 0; i < values_num; i++)
+	{
+		DBG ("opcode = %u; counter = %u;", values[2 * i], values[(2 * i) + 1]);
+		opcode_submit (values[2 * i], values[(2 * i) + 1]);
+	}
+
+	values_num = named_read_array (values);
+	for (i = 0; i < values_num; i++)
+	{
+		DBG ("rcode = %u; counter = %u;", values[2 * i], values[(2 * i) + 1]);
+		rcode_submit (values[2 * i], values[(2 * i) + 1]);
 	}
 }
 #else /* if !NAMED_HAVE_READ */
@@ -375,7 +578,8 @@ void module_register (void)
 {
 	plugin_register (MODULE_NAME, named_init, named_read, NULL);
 	plugin_register ("named_qtype", NULL, NULL, qtype_write);
-	/* TODO */
+	plugin_register ("named_rcode", NULL, NULL, rcode_write);
+	plugin_register ("named_opcode", NULL, NULL, opcode_write);
 	cf_register (MODULE_NAME, named_config, config_keys, config_keys_num);
 }
 
