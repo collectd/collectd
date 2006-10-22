@@ -31,7 +31,17 @@
 #include <netinet/in.h>
 #include "liboping/oping.h"
 
+struct hostlist_s
+{
+	char *host;
+	int   wait_time;
+	int   wait_left;
+	struct hostlist_s *next;
+};
+typedef struct hostlist_s hostlist_t;
+
 static pingobj_t *pingobj = NULL;
+static hostlist_t *hosts = NULL;
 
 static char *file_template = "ping-%s.rrd";
 
@@ -50,9 +60,59 @@ static char *config_keys[] =
 };
 static int config_keys_num = 2;
 
+static void add_hosts (void)
+{
+	hostlist_t *hl_this;
+	hostlist_t *hl_prev;
+
+	int step = atoi (COLLECTD_STEP);
+
+	hl_this = hosts;
+	hl_prev = NULL;
+	while (hl_this != NULL)
+	{
+		DBG ("host = %s, wait_left = %i, wait_time = %i, next = %p",
+				hl_this->host, hl_this->wait_left, hl_this->wait_time, (void *) hl_this->next);
+
+		if (hl_this->wait_left <= 0)
+		{
+			if (ping_host_add (pingobj, hl_this->host) == 0)
+			{
+				DBG ("Successfully added host %s", hl_this->host);
+				/* Remove the host from the linked list */
+				if (hl_prev != NULL)
+					hl_prev->next = hl_this->next;
+				else
+					hosts = hl_this->next;
+				free (hl_this->host);
+				free (hl_this);
+				hl_this = (hl_prev != NULL) ? hl_prev : hosts;
+			}
+			else
+			{
+				hl_this->wait_left = hl_this->wait_time;
+				hl_this->wait_time *= 2;
+				if (hl_this->wait_time > 86400)
+					hl_this->wait_time = 86400;
+			}
+		}
+		else
+		{
+			hl_this->wait_left -= step;
+		}
+
+		if (hl_this != NULL)
+		{
+			hl_prev = hl_this;
+			hl_this = hl_this->next;
+		}
+	}
+}
+
 static void ping_init (void)
 {
-	return;
+	if (hosts != NULL)
+		add_hosts ();
 }
 
 static int ping_config (char *key, char *value)
@@ -69,12 +129,29 @@ static int ping_config (char *key, char *value)
 
 	if (strcasecmp (key, "host") == 0)
 	{
-		if (ping_host_add (pingobj, value) < 0)
+		hostlist_t *hl;
+		char *host;
+		int step = atoi (COLLECTD_STEP);
+
+		if ((hl = (hostlist_t *) malloc (sizeof (hostlist_t))) == NULL)
 		{
-			syslog (LOG_WARNING, "ping: `ping_host_add' failed: %s",
-				       	ping_get_error (pingobj));
+			syslog (LOG_ERR, "ping plugin: malloc failed: %s",
+					strerror (errno));
 			return (1);
 		}
+		if ((host = strdup (value)) == NULL)
+		{
+			free (hl);
+			syslog (LOG_ERR, "ping plugin: strdup failed: %s",
+					strerror (errno));
+			return (1);
+		}
+
+		hl->host = host;
+		hl->wait_time = 2 * step;
+		hl->wait_left = 0;
+		hl->next = hosts;
+		hosts = hl;
 	}
 	else if (strcasecmp (key, "ttl") == 0)
 	{
@@ -129,6 +206,9 @@ static void ping_read (void)
 
 	if (pingobj == NULL)
 		return;
+
+	if (hosts != NULL)
+		add_hosts ();
 
 	if (ping_send (pingobj) < 0)
 	{
