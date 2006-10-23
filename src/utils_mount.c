@@ -450,7 +450,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	/* Get the number of mounted file systems */
 	if ((bufsize = CMD_STATFS (NULL, 0, FLAGS_STATFS)) < 1)
 	{
-		DBG (CMD_STATFS" failed: %s", strerror (errno));
+		DBG ("getv?fsstat failed: %s", strerror (errno));
 		return (NULL);
 	}
 
@@ -463,7 +463,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	 * manpage.. -octo */
 	if ((num = CMD_STATFS (buf, bufsize * sizeof (STRUCT_STATFS), FLAGS_STATFS)) < 1)
 	{
-		DBG (CMD_STATFS" failed: %s", strerror (errno));
+		DBG ("getv?fsstat failed: %s", strerror (errno));
 		free (buf);
 		return (NULL);
 	}
