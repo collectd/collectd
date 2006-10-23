@@ -250,7 +250,6 @@ static void swap_read (void)
 	size_t           mib_len;
 	struct xsw_usage sw_usage;
 	size_t           sw_usage_len;
-	int              status;
 
 	mib_len = 2;
 	mib[0]  = CTL_VM;
