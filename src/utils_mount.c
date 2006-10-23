@@ -33,7 +33,16 @@
 #include "utils_debug.h"
 #include "utils_mount.h"
 
-#if HAVE_GETFSSTAT
+#if HAVE_GETVFSSTAT
+#  if HAVE_SYS_TYPES_H
+#    include <sys/types.h>
+#  endif
+#  if HAVE_SYS_STATVFS_H
+#    include <sys/statvfs.h>
+#  endif
+/* #endif HAVE_GETVFSSTAT */
+
+#elif HAVE_GETFSSTAT
 #  if HAVE_SYS_PARAM_H
 #    include <sys/param.h>
 #  endif
@@ -43,15 +52,7 @@
 #  if HAVE_SYS_MOUNT_H
 #    include <sys/mount.h>
 #  endif
-/* #endif HAVE_GETFSSTAT */
-#elif HAVE_GETVFSSTAT
-#  if HAVE_SYS_TYPES_H
-#    include <sys/types.h>
-#  endif
-#  if HAVE_SYS_STATVFS_H
-#    include <sys/statvfs.h>
-#  endif
-#endif /* HAVE_GETVFSSTAT */
+#endif /* HAVE_GETFSSTAT */
 
 #if HAVE_MNTENT_H
 #  include <mntent.h>
@@ -422,19 +423,19 @@ static cu_mount_t *cu_mount_listmntent (void)
 /* #endif HAVE_LISTMNTENT */
 
 /* 4.4BSD and Mac OS X (getfsstat) or NetBSD (getvfsstat) */
-#elif HAVE_GETFSSTAT || HAVE_GETVFSSTAT
+#elif HAVE_GETVFSSTAT || HAVE_GETFSSTAT
 static cu_mount_t *cu_mount_getfsstat (void)
 {
-#if HAVE_GETFSSTAT
-#  define STRUCT_STATFS struct statfs
-#  define CMD_STATFS    getfsstat
-#  define FLAGS_STATFS  MNT_NOWAIT
-/* #endif HAVE_GETFSSTAT */
-#elif HAVE_GETVFSSTAT
+#if HAVE_GETVFSSTAT
 #  define STRUCT_STATFS struct statvfs
 #  define CMD_STATFS    getvfsstat
 #  define FLAGS_STATFS  ST_NOWAIT
-#endif /* HAVE_GETVFSSTAT */
+/* #endif HAVE_GETVFSSTAT */
+#elif HAVE_GETFSSTAT
+#  define STRUCT_STATFS struct statfs
+#  define CMD_STATFS    getfsstat
+#  define FLAGS_STATFS  MNT_NOWAIT
+#endif /* HAVE_GETFSSTAT */
 
 	int bufsize;
 	STRUCT_STATFS *buf;
@@ -498,7 +499,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 
 	return (first);
 }
-/* #endif HAVE_GETFSSTAT */
+/* #endif HAVE_GETVFSSTAT || HAVE_GETFSSTAT */
 
 /* Solaris (SunOS 10): int getmntent(FILE *fp, struct mnttab *mp); */
 #elif HAVE_GEN_GETMNTENT
@@ -639,7 +640,7 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list)
 
 #if HAVE_LISTMNTENT && 0
 	new = cu_mount_listmntent ();
-#elif HAVE_GETFSSTAT
+#elif HAVE_GETVFSSTAT || HAVE_GETFSSTAT
 	new = cu_mount_getfsstat ();
 #elif HAVE_GEN_GETMNTENT
 	new = cu_mount_gen_getmntent ();
