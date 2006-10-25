@@ -53,9 +53,19 @@ struct counter_list_s
 };
 typedef struct counter_list_s counter_list_t;
 
+static char *traffic_file   = "dns/dns_traffic.rrd";
 static char *qtype_file   = "dns/qtype-%s.rrd";
 static char *opcode_file  = "dns/opcode-%s.rrd";
 static char *rcode_file   = "dns/rcode-%s.rrd";
+
+static char *traffic_ds_def[] =
+{
+	/* Limit to 1GBit/s */
+	"DS:queries:COUNTER:"COLLECTD_HEARTBEAT":0:125000000",
+	"DS:responses:COUNTER:"COLLECTD_HEARTBEAT":0:125000000",
+	NULL
+};
+static int traffic_ds_num = 2;
 
 static char *qtype_ds_def[] =
 {
@@ -439,6 +449,12 @@ static void dns_init (void)
 #endif
 }
 
+static void traffic_write (char *host, char *inst, char *val)
+{
+	rrd_update_file (host, traffic_file, val,
+			traffic_ds_def, traffic_ds_num);
+}
+
 static void qtype_write (char *host, char *inst, char *val)
 {
 	char file[512];
@@ -479,6 +495,18 @@ static void opcode_write (char *host, char *inst, char *val)
 		return;
 
 	rrd_update_file (host, file, val, opcode_ds_def, opcode_ds_num);
+}
+
+static void traffic_submit (unsigned int queries, unsigned int replies)
+{
+	char buffer[64];
+	int  status;
+
+	status = snprintf (buffer, 64, "N:%u:%u", queries, replies);
+	if ((status < 1) || (status >= 64))
+		return;
+
+	plugin_submit ("dns_traffic", "-", buffer);
 }
 
 static void qtype_submit (int qtype, unsigned int counter)
@@ -597,6 +625,8 @@ static void dns_read (void)
 	}
 	DBG ("sread (pipe_fd = %i, tr_responses = %u)", pipe_fd, tr_responses);
 
+	traffic_submit (tr_queries, tr_responses);
+
 	values_num = dns_read_array (values);
 	for (i = 0; i < values_num; i++)
 	{
@@ -625,6 +655,7 @@ static void dns_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, dns_init, dns_read, NULL);
+	plugin_register ("dns_traffic", NULL, NULL, traffic_write);
 	plugin_register ("dns_qtype", NULL, NULL, qtype_write);
 	plugin_register ("dns_rcode", NULL, NULL, rcode_write);
 	plugin_register ("dns_opcode", NULL, NULL, opcode_write);
