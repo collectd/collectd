@@ -95,6 +95,8 @@ static int config_keys_num = 2;
 static char   *pcap_device = NULL;
 static int     pipe_fd = -1;
 
+static unsigned int    tr_queries;
+static unsigned int    tr_responses;
 static counter_list_t *qtype_list;
 static counter_list_t *opcode_list;
 static counter_list_t *rcode_list;
@@ -246,11 +248,13 @@ static void dns_child_callback (const rfc1035_header_t *dns)
 	if (dns->qr == 0)
 	{
 		/* This is a query */
+		tr_queries += dns->length;
 		counter_list_add (&qtype_list,  dns->qtype,  1);
 	}
 	else
 	{
 		/* This is a reply */
+		tr_responses += dns->length;
 		counter_list_add (&rcode_list,  dns->rcode,  1);
 	}
 
@@ -336,6 +340,25 @@ static void dns_child_loop (void)
 		else if (poll_fds[0].revents & POLLOUT)
 		{
 			DBG ("Sending data..");
+
+			DBG ("swrite (pipe_fd = %i, tr_queries = %i)", pipe_fd, tr_queries);
+			if (swrite (pipe_fd, (const void *) &tr_queries, sizeof (tr_queries)) != 0)
+			{
+				DBG ("Writing to pipe_fd failed: %s", strerror (errno));
+				syslog (LOG_ERR, "dns plugin: Writing to pipe_fd failed: %s",
+						strerror (errno));
+				return;
+			}
+
+			DBG ("swrite (pipe_fd = %i, tr_responses = %i)", pipe_fd, tr_responses);
+			if (swrite (pipe_fd, (const void *) &tr_responses, sizeof (tr_responses)) != 0)
+			{
+				DBG ("Writing to pipe_fd failed: %s", strerror (errno));
+				syslog (LOG_ERR, "dns plugin: Writing to pipe_fd failed: %s",
+						strerror (errno));
+				return;
+			}
+
 			counter_list_send (qtype_list, pipe_fd);
 			counter_list_send (opcode_list, pipe_fd);
 			counter_list_send (rcode_list, pipe_fd);
@@ -375,6 +398,9 @@ static void dns_init (void)
 #if HAVE_LIBPCAP
 	int pipe_fds[2];
 	pid_t pid_child;
+
+	tr_queries   = 0;
+	tr_responses = 0;
 
 	if (pipe (pipe_fds) != 0)
 	{
@@ -548,6 +574,28 @@ static void dns_read (void)
 
 	if (pipe_fd < 0)
 		return;
+
+	if (sread (pipe_fd, (void *) &tr_queries, sizeof (tr_queries)) != 0)
+	{
+		DBG ("Reading from the pipe failed: %s",
+				strerror (errno));
+		syslog (LOG_ERR, "dns plugin: Reading from the pipe failed: %s",
+				strerror (errno));
+		pipe_fd = -1;
+		return;
+	}
+	DBG ("sread (pipe_fd = %i, tr_queries = %u)", pipe_fd, tr_queries);
+
+	if (sread (pipe_fd, (void *) &tr_responses, sizeof (tr_responses)) != 0)
+	{
+		DBG ("Reading from the pipe failed: %s",
+				strerror (errno));
+		syslog (LOG_ERR, "dns plugin: Reading from the pipe failed: %s",
+				strerror (errno));
+		pipe_fd = -1;
+		return;
+	}
+	DBG ("sread (pipe_fd = %i, tr_responses = %u)", pipe_fd, tr_responses);
 
 	values_num = dns_read_array (values);
 	for (i = 0; i < values_num; i++)
