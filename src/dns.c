@@ -39,7 +39,7 @@
 #endif
 
 #if HAVE_LIBPCAP
-# include "dnstop.h"
+# include "utils_dns.h"
 # define NAMED_HAVE_READ 1
 #else
 # define NAMED_HAVE_READ 0

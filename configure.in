@@ -272,7 +272,7 @@ AC_CHECK_HEADERS(kvm.h)
 # For debugging interface (variable number of arguments)
 AC_CHECK_HEADERS(stdarg.h)
 
-# For the named plugin
+# For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
 
 dnl Checking for libraries
@@ -945,13 +945,13 @@ AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
 AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
 AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
 AC_COLLECTD([df],        [disable], [module], [df statistics])
+AC_COLLECTD([dns],       [disable], [module], [dns statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
 AC_COLLECTD([multimeter],[disable], [module], [multimeter statistics])
 AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
-AC_COLLECTD([named],     [disable], [module], [named statistics])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
 AC_COLLECTD([ntpd],      [disable], [module], [nfs statistics])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
@@ -996,12 +996,12 @@ Configuration:
     cpufreq . . . . . . $enable_cpufreq
     df  . . . . . . . . $enable_df
     disk  . . . . . . . $enable_disk
+    dns . . . . . . . . $enable_dns
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
     memory  . . . . . . $enable_memory
     multimeter  . . . . $enable_multimeter
     mysql . . . . . . . $enable_mysql
-    named . . . . . . . $enable_named
     nfs . . . . . . . . $enable_nfs
     ntpd  . . . . . . . $enable_ntpd
     ping  . . . . . . . $enable_ping

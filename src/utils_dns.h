@@ -1,7 +1,7 @@
-#ifndef COLLECTD_DNSTOP
-#define COLLECTD_DNSTOP 1
+#ifndef COLLECTD_UTILS_DNS_H
+#define COLLECTD_UTILS_DNS_H 1
 /*
- * collectd - src/dnstop.c
+ * collectd - src/utils_dns.h
  * Copyright (C) 2006  Florian octo Forster
  * All rights reserved.
  * 
@@ -78,4 +78,4 @@ const char *qtype_str(int t);
 const char *opcode_str(int o);
 const char *rcode_str (int r);
 
-#endif /* !COLLECTD_DNSTOP */
+#endif /* !COLLECTD_UTILS_DNS_H */

@@ -1,5 +1,5 @@
 /*
- * collectd - src/dnstop.c
+ * collectd - src/utils_dns.c
  * Modifications Copyright (C) 2006  Florian octo Forster
  * Copyright (C) 2002  The Measurement Factory, Inc.
  * All rights reserved.
@@ -93,7 +93,7 @@
 #define uh_dport dest
 #endif
 
-#include "dnstop.h"
+#include "utils_dns.h"
 
 /*
  * Type definitions
