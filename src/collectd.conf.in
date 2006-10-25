@@ -83,6 +83,30 @@
 #	Process name
 #</Plugin>
 
+#<Plugin sensors>
+## Collect required sensors.
+## 
+## Default sensors and .rrd files names
+## compatible with old .rrd files (temp and fan).
+#
+#	ExtendedSensorNaming false
+#	Sensor it8712-temp1
+#	Sensor it8712-fan3
+#	Sensor it8712-in8
+##
+## Extended sensors and .rrd files names break compatibility
+## with previous naming and .rrd files,
+## see collectd.conf(5) for detailed information.
+#
+#	ExtendedSensorNaming true
+#	Sensor it8712-isa-0290/temperature_sensor-temp1
+#	Sensor it8712-isa-0290/fanspeed_sensor-fan3
+#	Sensor it8712-isa-0290/voltage_sensor-in8
+##
+## Reverse sensors sellection?
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin traffic>
 #	Interface eth0
 #	IgnoreSelected false

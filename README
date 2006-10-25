@@ -65,7 +65,7 @@ Features
       (Number of running, sleeping, zombie, ... processes)
 
     - Sensors
-      (System temperatured and fan rotation speeds)
+      (lm_sensors voltages, temperatures and fan rotation speeds)
 
     - Serial
       (RX and TX of serial interfaces)
