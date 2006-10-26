@@ -421,9 +421,17 @@ The DS'es depend on the module creating the RRD files:
   DS:paging:GAUGE:HEARTBEAT:0:65535
   DS:blocked:GAUGE:HEARTBEAT:0:65535
 
-=item lm_sensors (F<sensors-I<E<lt>chipE<gt>>-I<E<lt>featureE<gt>>.rrd>) and lm_sensors (F<lm_sensors-IE<lt><chipE<gt>>-I<E<lt>busE<gt>>-I<E<lt>addressE<gt>>/I<E<lt>typeE<gt>>-I<E<lt>featureE<gt>>.rrd>)
+=item lm_sensors fanspeed sensor (F<sensors-I<E<lt>instE<gt>>.rrd> or F<lm_sensors-I<E<lt>chipE<gt>>/fanspeed-I<E<lt>instE<gt>>.rrd>)
 
   DS:value:GAUGE:HEARTBEAT:U:U
+
+=item lm_sensors temperature sensor (F<sensors-I<E<lt>instE<gt>>.rrd> or F<lm_sensors-I<E<lt>chipE<gt>>/temperature-I<E<lt>instE<gt>>.rrd>)
+
+  DS:value:GAUGE:HEARTBEAT:U:U
+
+=item lm_sensors voltage sensor (F<sensors-I<E<lt>instE<gt>>.rrd> or F<lm_sensors-I<E<lt>chipE<gt>>/voltage-I<E<lt>instE<gt>>.rrd>)
+
+  DS:voltage:GAUGE:HEARTBEAT:U:U
 
 =item Serial port traffic (F<serial-I<E<lt>numE<gt>>.rrd>)
 
