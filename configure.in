@@ -326,7 +326,7 @@ AC_CHECK_FUNCS(getifaddrs)
 
 # For mount interface
 AC_CHECK_FUNCS(getfsent getvfsent listmntent)
-AC_CHECK_FUNCS(getfsstat)
+AC_CHECK_FUNCS(getfsstat getvfsstat)
 
 # Check for different versions of `getmntent' here..
 AC_FUNC_GETMNTENT
