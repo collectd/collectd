@@ -841,7 +841,7 @@ our $GraphDefs;
 			'DEF:temp_max={file}:value:MAX',
 			"AREA:temp_max#$HalfRed",
 			"AREA:temp_min#$Canvas",
-			"LINE1:temp_avg#$FullRed:Value",
+			"LINE1:temp_avg#$FullRed:Temperature",
 			'GPRINT:temp_min:MIN:%4.1lf Min,',
 			'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
 			'GPRINT:temp_max:MAX:%4.1lf Max,',
