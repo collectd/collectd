@@ -110,6 +110,13 @@ Specify an alternative config file. This is the place to go when you wish to
 change B<collectd>'s behavior. The path may be relative to the current working
 directory.
 
+=item B<-P> I<E<lt>pid-fileE<gt>>
+
+Specify an alternative pid file. This overwrites any settings in the config 
+file. This is thought for init-scripts that require the PID-file in a certain
+directory to work correctly. For everyday-usage use the B<PIDFile>
+config-option.
+
 =item B<-f>
 
 Don't fork to the background. I<collectd> will also B<not> close standard file
@@ -124,19 +131,19 @@ Output usage information and exit.
 
 =head1 MODES
 
-collectd can operate in three different operating modes. The modes are
-described below.
+collectd can operate in four different operating modes. The modes are described
+below.
 
 The simplest mode is the so called B<local mode>. Data is collected locally and
 written in RRD files that reside in I<DataDir>. This is the default mode when
 collectd is linked against C<librrd>.
 
-The other modes, B<client mode> and B<server mode>, are used to send data over
-a network and receive it again.
+The modes B<client mode> and B<server mode> are used to send data over a
+network and receive it again.
 
 In B<client mode> the daemon collects the data locally and sends its results
-to one or more network addresses. No RRD files are written in this case. This
-is the only mode available if collectd is not linked against C<librrd>.
+to one or more network addresses. No RRD files are written locally in this
+case. If collectd is not linked against C<librrd> this is the default mode.
 
 If started in B<server mode> the daemon will listen on one or more interfaces
 and write the data it receives to RRD files. No data is collected locally.
