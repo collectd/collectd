@@ -19,7 +19,7 @@
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
  *   
- *   Lubos Stanek <lubek at users.sourceforge.net> Wed Oct 25, 2006
+ *   Lubos Stanek <lubek at users.sourceforge.net> Wed Oct 27, 2006
  *   - config ExtendedSensorNaming option
  *   - precise sensor feature selection (chip-bus-address/type-feature)
  *     with ExtendedSensorNaming
@@ -36,6 +36,7 @@
 #include "utils_debug.h"
 
 #define MODULE_NAME "sensors"
+#define MODULE_NAME_VOLTAGE MODULE_NAME"_voltage"
 
 #if defined(HAVE_SENSORS_SENSORS_H)
 # include <sensors/sensors.h>
@@ -51,6 +52,7 @@
 
 #define BUFSIZE 512
 
+/** temperature and fan sensors */
 static char *ds_def[] =
 {
 	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
@@ -58,19 +60,20 @@ static char *ds_def[] =
 };
 static int ds_num = 1;
 
-/* old naming */
-static char *filename_format = "sensors-%s.rrd";
-/* end old naming */
-
-/* new naming */
-static char *sensor_filename_format = "lm_sensors-%s.rrd";
-
+/* voltage sensors */
 static char *sensor_voltage_ds_def[] = 
 {
 	"DS:voltage:GAUGE:"COLLECTD_HEARTBEAT":U:U",
 	NULL
 };
 static int sensor_voltage_ds_num = 1;
+
+/* old naming */
+static char *filename_format = "sensors-%s.rrd";
+/* end old naming */
+
+/* new naming <chip-bus-address/type-feature */
+static char *sensor_filename_format = "lm_sensors-%s.rrd";
 
 #define SENSOR_TYPE_UNKNOWN 0
 #define SENSOR_TYPE_VOLTAGE 1
@@ -79,69 +82,78 @@ static int sensor_voltage_ds_num = 1;
 
 static char *sensor_type_prefix[] =
 {
-    "/unknown",
-    "/voltage",
-    "/fanspeed",
-    "/temperature",
-    NULL
+	"unknown",
+	"voltage",
+	"fanspeed",
+	"temperature",
+	NULL
 };
 
 typedef struct sensors_labeltypes {
-    char *label;
-    int type;
+	char *label;
+	int type;
 } sensors_labeltypes;
 
-/* finite list of known labels
+/*
+ * finite list of known labels extracted from lm_sensors
  * sorted reverse by the length for the same type
  * because strncmp must match "temp1" before "temp"
  */
 static sensors_labeltypes known_features[] = 
 {
-    { "fan7", SENSOR_TYPE_FANSPEED },
-    { "fan6", SENSOR_TYPE_FANSPEED },
-    { "fan5", SENSOR_TYPE_FANSPEED },
-    { "fan4", SENSOR_TYPE_FANSPEED },
-    { "fan3", SENSOR_TYPE_FANSPEED },
-    { "fan2", SENSOR_TYPE_FANSPEED },
-    { "fan1", SENSOR_TYPE_FANSPEED },
-    { "in8", SENSOR_TYPE_VOLTAGE },
-    { "in7", SENSOR_TYPE_VOLTAGE },
-    { "in6", SENSOR_TYPE_VOLTAGE },
-    { "in5", SENSOR_TYPE_VOLTAGE },
-    { "in4", SENSOR_TYPE_VOLTAGE },
-    { "in3", SENSOR_TYPE_VOLTAGE },
-    { "in2", SENSOR_TYPE_VOLTAGE },
-    { "in0", SENSOR_TYPE_VOLTAGE },
-    { "remote_temp", SENSOR_TYPE_TEMPERATURE },
-    { "temp7", SENSOR_TYPE_TEMPERATURE },
-    { "temp6", SENSOR_TYPE_TEMPERATURE },
-    { "temp5", SENSOR_TYPE_TEMPERATURE },
-    { "temp4", SENSOR_TYPE_TEMPERATURE },
-    { "temp3", SENSOR_TYPE_TEMPERATURE },
-    { "temp2", SENSOR_TYPE_TEMPERATURE },
-    { "temp1", SENSOR_TYPE_TEMPERATURE },
-    { "temp", SENSOR_TYPE_TEMPERATURE },
-    { "Vccp2", SENSOR_TYPE_VOLTAGE },
-    { "Vccp1", SENSOR_TYPE_VOLTAGE },
-    { "vdd", SENSOR_TYPE_VOLTAGE },
-    { "vid4", SENSOR_TYPE_VOLTAGE },
-    { "vid3", SENSOR_TYPE_VOLTAGE },
-    { "vid2", SENSOR_TYPE_VOLTAGE },
-    { "vid1", SENSOR_TYPE_VOLTAGE },
-    { "vid", SENSOR_TYPE_VOLTAGE },
-    { "vin4", SENSOR_TYPE_VOLTAGE },
-    { "vin3", SENSOR_TYPE_VOLTAGE },
-    { "vin2", SENSOR_TYPE_VOLTAGE },
-    { "vin1", SENSOR_TYPE_VOLTAGE },
-    { "voltbatt", SENSOR_TYPE_VOLTAGE },
-    { "volt12", SENSOR_TYPE_VOLTAGE },
-    { "volt5", SENSOR_TYPE_VOLTAGE },
-    { "vrm", SENSOR_TYPE_VOLTAGE },
-    { "12V", SENSOR_TYPE_VOLTAGE },
-    { "2.5V", SENSOR_TYPE_VOLTAGE },
-    { "3.3V", SENSOR_TYPE_VOLTAGE },
-    { "5V", SENSOR_TYPE_VOLTAGE },
-    { 0, -1 }
+	{ "fan7", SENSOR_TYPE_FANSPEED },
+	{ "fan6", SENSOR_TYPE_FANSPEED },
+	{ "fan5", SENSOR_TYPE_FANSPEED },
+	{ "fan4", SENSOR_TYPE_FANSPEED },
+	{ "fan3", SENSOR_TYPE_FANSPEED },
+	{ "fan2", SENSOR_TYPE_FANSPEED },
+	{ "fan1", SENSOR_TYPE_FANSPEED },
+	{ "AIN2", SENSOR_TYPE_VOLTAGE },
+	{ "AIN1", SENSOR_TYPE_VOLTAGE },
+	{ "in10", SENSOR_TYPE_VOLTAGE },
+	{ "in9", SENSOR_TYPE_VOLTAGE },
+	{ "in8", SENSOR_TYPE_VOLTAGE },
+	{ "in7", SENSOR_TYPE_VOLTAGE },
+	{ "in6", SENSOR_TYPE_VOLTAGE },
+	{ "in5", SENSOR_TYPE_VOLTAGE },
+	{ "in4", SENSOR_TYPE_VOLTAGE },
+	{ "in3", SENSOR_TYPE_VOLTAGE },
+	{ "in2", SENSOR_TYPE_VOLTAGE },
+	{ "in0", SENSOR_TYPE_VOLTAGE },
+	{ "CPU_Temp", SENSOR_TYPE_TEMPERATURE },
+	{ "remote_temp", SENSOR_TYPE_TEMPERATURE },
+	{ "temp7", SENSOR_TYPE_TEMPERATURE },
+	{ "temp6", SENSOR_TYPE_TEMPERATURE },
+	{ "temp5", SENSOR_TYPE_TEMPERATURE },
+	{ "temp4", SENSOR_TYPE_TEMPERATURE },
+	{ "temp3", SENSOR_TYPE_TEMPERATURE },
+	{ "temp2", SENSOR_TYPE_TEMPERATURE },
+	{ "temp1", SENSOR_TYPE_TEMPERATURE },
+	{ "temp", SENSOR_TYPE_TEMPERATURE },
+	{ "Vccp2", SENSOR_TYPE_VOLTAGE },
+	{ "Vccp1", SENSOR_TYPE_VOLTAGE },
+	{ "vdd", SENSOR_TYPE_VOLTAGE },
+	{ "vid5", SENSOR_TYPE_VOLTAGE },
+	{ "vid4", SENSOR_TYPE_VOLTAGE },
+	{ "vid3", SENSOR_TYPE_VOLTAGE },
+	{ "vid2", SENSOR_TYPE_VOLTAGE },
+	{ "vid1", SENSOR_TYPE_VOLTAGE },
+	{ "vid", SENSOR_TYPE_VOLTAGE },
+	{ "vin4", SENSOR_TYPE_VOLTAGE },
+	{ "vin3", SENSOR_TYPE_VOLTAGE },
+	{ "vin2", SENSOR_TYPE_VOLTAGE },
+	{ "vin1", SENSOR_TYPE_VOLTAGE },
+	{ "voltbatt", SENSOR_TYPE_VOLTAGE },
+	{ "volt12", SENSOR_TYPE_VOLTAGE },
+	{ "volt5", SENSOR_TYPE_VOLTAGE },
+	{ "vrm", SENSOR_TYPE_VOLTAGE },
+	{ "5.0V", SENSOR_TYPE_VOLTAGE },
+	{ "5V", SENSOR_TYPE_VOLTAGE },
+	{ "3.3V", SENSOR_TYPE_VOLTAGE },
+	{ "2.5V", SENSOR_TYPE_VOLTAGE },
+	{ "2.0V", SENSOR_TYPE_VOLTAGE },
+	{ "12V", SENSOR_TYPE_VOLTAGE },
+	{ 0, -1 }
 };
 /* end new naming */
 
@@ -174,7 +186,7 @@ typedef struct featurelist
 {
 	const sensors_chip_name    *chip;
 	const sensors_feature_data *data;
-	int		    	    type;
+	int                         type;
 	struct featurelist         *next;
 } featurelist_t;
 
@@ -306,7 +318,7 @@ static void collectd_sensors_init (void)
 					/* skip ignored in sensors.conf */
 					if (sensors_get_ignored(*chip, data->number) == 0)
 					{
-					    break;
+						break;
 					}
 
 					if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
@@ -315,7 +327,7 @@ static void collectd_sensors_init (void)
 						break;
 					}
 
-					DBG ("Adding feature: %s/%s/%i", chip->prefix, data->name, known_features[i].type);
+					DBG ("Adding feature: %s-%s-%s", chip->prefix, sensor_type_prefix[known_features[i].type], data->name);
 					new_feature->chip = chip;
 					new_feature->data = data;
 					new_feature->type = known_features[i].type;
@@ -347,45 +359,54 @@ static void collectd_sensors_init (void)
 	return;
 }
 
-static void sensors_write (char *host, char *inst, char *val)
+static void sensors_voltage_write (char *host, char *inst, char *val)
 {
 	char file[BUFSIZE];
 	int status;
-	char *typestart;
 
 	/* skip ignored in our config */
 	if (config_get_ignored (inst))
-	    return;
+		return;
 
 	/* extended sensor naming */
 	if(sensor_extended_naming)
-	    status = snprintf (file, BUFSIZE, sensor_filename_format, inst);
+		status = snprintf (file, BUFSIZE, sensor_filename_format, inst);
 	else
-	    status = snprintf (file, BUFSIZE, filename_format, inst);
+		status = snprintf (file, BUFSIZE, filename_format, inst);
+
 	if (status < 1)
 		return;
 	else if (status >= BUFSIZE)
 		return;
 
-	if(sensor_extended_naming)
-	{
-	    typestart = strrchr(inst, '/');
-	    if(typestart != NULL)
-	    {
-		if(strncmp(typestart, sensor_type_prefix[SENSOR_TYPE_VOLTAGE], strlen(sensor_type_prefix[SENSOR_TYPE_VOLTAGE])) == 0)
-		    rrd_update_file (host, file, val, sensor_voltage_ds_def, sensor_voltage_ds_num);
-		else
-		    rrd_update_file (host, file, val, ds_def, ds_num);
-	    }
-	    else
+	rrd_update_file (host, file, val, sensor_voltage_ds_def, sensor_voltage_ds_num);
+}
+
+static void sensors_write (char *host, char *inst, char *val)
+{
+	char file[BUFSIZE];
+	int status;
+
+	/* skip ignored in our config */
+	if (config_get_ignored (inst))
 		return;
-	}
+
+	/* extended sensor naming */
+	if(sensor_extended_naming)
+		status = snprintf (file, BUFSIZE, sensor_filename_format, inst);
 	else
-	    rrd_update_file (host, file, val, ds_def, ds_num);
+		status = snprintf (file, BUFSIZE, filename_format, inst);
+
+	if (status < 1)
+		return;
+	else if (status >= BUFSIZE)
+		return;
+
+	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
 #if SENSORS_HAVE_READ
-static void sensors_submit (const char *feat_name, const char *chip_prefix, double value)
+static void sensors_submit (const char *feat_name, const char *chip_prefix, double value, int type)
 {
 	char buf[BUFSIZE];
 	char inst[BUFSIZE];
@@ -395,13 +416,21 @@ static void sensors_submit (const char *feat_name, const char *chip_prefix, doub
 
 	/* skip ignored in our config */
 	if (config_get_ignored (inst))
-	    return;
+		return;
 
 	if (snprintf (buf, BUFSIZE, "%u:%.3f", (unsigned int) curtime, value) >= BUFSIZE)
 		return;
 
-	DBG ("%s, %s", inst, buf);
-	plugin_submit (MODULE_NAME, inst, buf);
+	if (type == SENSOR_TYPE_VOLTAGE)
+	{
+		DBG ("%s: %s/%s, %s", MODULE_NAME_VOLTAGE, sensor_type_prefix[type], inst, buf);
+		plugin_submit (MODULE_NAME_VOLTAGE, inst, buf);
+	}
+	else
+	{
+		DBG ("%s: %s/%s, %s", MODULE_NAME, sensor_type_prefix[type], inst, buf);
+		plugin_submit (MODULE_NAME, inst, buf);
+	}
 }
 
 static void sensors_read (void)
@@ -412,33 +441,48 @@ static void sensors_read (void)
 
 	for (feature = first_feature; feature != NULL; feature = feature->next)
 	{
-	    if (sensors_get_feature (*feature->chip, feature->data->number, &value) < 0)
-		continue;
+		if (sensors_get_feature (*feature->chip, feature->data->number, &value) < 0)
+			continue;
 
-	    if(sensor_extended_naming)
-	    {
-		/* full chip name logic borrowed from lm_sensors */
-		if (feature->chip->bus == SENSORS_CHIP_NAME_BUS_ISA)
+		if(sensor_extended_naming)
 		{
-		    if (snprintf (chip_fullprefix, BUFSIZE, "%s-isa-%04x%s", feature->chip->prefix, feature->chip->addr, sensor_type_prefix[feature->type]) >= BUFSIZE)
-			continue;
-		}
-		else if (feature->chip->bus == SENSORS_CHIP_NAME_BUS_DUMMY)
-		{
-		    if (snprintf (chip_fullprefix, BUFSIZE, "%s-%s-%04x%s", feature->chip->prefix, feature->chip->busname, feature->chip->addr, sensor_type_prefix[feature->type]) >= BUFSIZE)
-			continue;
+			/* full chip name logic borrowed from lm_sensors */
+			if (feature->chip->bus == SENSORS_CHIP_NAME_BUS_ISA)
+			{
+				if (snprintf (chip_fullprefix, BUFSIZE, "%s-isa-%04x/%s",
+							feature->chip->prefix,
+							feature->chip->addr,
+							sensor_type_prefix[feature->type])
+						>= BUFSIZE)
+					continue;
+			}
+			else if (feature->chip->bus == SENSORS_CHIP_NAME_BUS_DUMMY)
+			{
+				if (snprintf (chip_fullprefix, BUFSIZE, "%s-%s-%04x/%s",
+							feature->chip->prefix,
+							feature->chip->busname,
+							feature->chip->addr,
+							sensor_type_prefix[feature->type])
+						>= BUFSIZE)
+					continue;
+			}
+			else
+			{
+				if (snprintf (chip_fullprefix, BUFSIZE, "%s-i2c-%d-%02x/%s",
+							feature->chip->prefix,
+							feature->chip->bus,
+							feature->chip->addr,
+							sensor_type_prefix[feature->type])
+						>= BUFSIZE)
+					continue;
+			}
+
+			sensors_submit (feature->data->name, (const char *)chip_fullprefix, value, feature->type);
 		}
 		else
 		{
-		    if (snprintf (chip_fullprefix, BUFSIZE, "%s-i2c-%d-%02x%s", feature->chip->prefix, feature->chip->bus, feature->chip->addr, sensor_type_prefix[feature->type]) >= BUFSIZE)
-			continue;
+			sensors_submit (feature->data->name, feature->chip->prefix, value, feature->type);
 		}
-		sensors_submit (feature->data->name, (const char *)chip_fullprefix, value);
-	    }
-	    else
-	    {
-		sensors_submit (feature->data->name, feature->chip->prefix, value);
-	    }
 	}
 }
 #else
@@ -448,6 +492,7 @@ static void sensors_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, collectd_sensors_init, sensors_read, sensors_write);
+	plugin_register (MODULE_NAME_VOLTAGE, NULL, NULL, sensors_voltage_write);
 	cf_register (MODULE_NAME, sensors_config, config_keys, config_keys_num);
 }
 
