@@ -1,0 +1,41 @@
+collectd on Debian
+==================
+
+General notes:
+--------------
+
+- This package is split up into several packages to prevent you from having to
+  install dependencies (or recommended packages) that you don't actually need.
+  Any plugin that has dependencies other than libc gets its own package.
+
+Configuring collectd:
+---------------------
+
+- collectd uses a similar configuration layout as openvpn does. That is to
+  say that one daemon process is started for each configuration file found in
+  /etc/collectd/.
+
+- See collectd.conf(5) for details about configuring collectd.
+
+Building your own plugins:
+--------------------------
+
+- If you want to contribute plugins to the official distribution you should
+  read http://collectd.org/dev-info.shtml.
+
+- If you want to build plugins for your personal use only simply install the
+  collectd-dev package and use /usr/share/doc/collectd-dev/examples/myplugin.c
+  as a starting point (Note: This is already a working example, though it does
+  not collect any useful data).
+  
+  The resulting file can be compiled as follows:
+
+    gcc -shared -o myplugin.so myplugin.c
+
+  Copy myplugin.so to /usr/lib/collectd and add the following line to your
+  collectd config file:
+
+    LoadPlugin myplugin
+
+  Restart collectd and you're done.
+

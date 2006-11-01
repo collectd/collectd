@@ -1,3 +1,17 @@
+2006-11-01, Version 3.10.2
+	* The sample config file has been improved.
+	* Errors in the manpages have been corrected.
+	* The ping-plugin now adds hosts during initialization, not during
+	  startup. This speeds up starup when no network connectivity is
+	  available. Also, the hosts are being added later when the network is
+	  available.
+	* Improved BSD-support for the df-plugin.
+	* Fixed syntax errors in the swap-plugin for Mac OS X.
+	* Fix a wrong structure being passed to `getnameinfo' in the ntpd-
+	  plugin.
+	* Don't disable the mysql-plugin if connecting to the database fails
+	  during initialization. Instead, try again in increasing intervals.
+
 2006-07-19, Version 3.10.1
 	* A bug in the apcups plugin was fixed: Is the plugin is loaded, but
 	  the apcups cannot be reached, unconnected sockets will pile up and

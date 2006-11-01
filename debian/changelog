@@ -1,252 +1,62 @@
-collectd (3.10.1-0octo1) unstable; urgency=low
+collectd (3.10.2-0octo1) unstable; urgency=low
 
-  * New upstream version
+  * New upstream release.
 
- -- Florian Forster <octo@verplant.org>  Wed, 19 Jul 2006 18:49:16 +0200
+ -- Florian Forster <octo@leeloo.home.verplant.org>  Wed,  1 Nov 2006 16:16:49 +0100
+
+collectd (3.10.1-4) unstable; urgency=low
+
+  * Changed collectd-dbg's section and priority to "devel" and "extra"
+    respectively.
+  * Set init start sequence code to 95 to be sure to start after any daemons
+    that data is collected from.
+
+ -- Sebastian Harl <sh@tokkee.org>  Thu,  5 Oct 2006 10:25:07 +0000
+
+collectd (3.10.1-3) unstable; urgency=low
+
+  * Added --oknodo to start-stop-daemon in the init script (Closes: #379703).
+
+ -- Sebastian Harl <sh@tokkee.org>  Tue, 25 Jul 2006 18:34:55 +0200
+
+collectd (3.10.1-2) unstable; urgency=low
+
+  * Added collectd-dbg package.
+
+ -- Sebastian Harl <sh@tokkee.org>  Sun, 23 Jul 2006 23:39:42 +0200
+
+collectd (3.10.1-1) unstable; urgency=low
+
+  * New upstream release.
+  * Dynamically link against external liboping.
+    - New binary package collectd-ping.
+    - Added collectd-ping to suggested packages.
+  * Moved config file from /usr/share/doc/collectd/examples/ to
+    /etc/collectd/.
+
+ -- Sebastian Harl <sh@tokkee.org>  Sat, 22 Jul 2006 21:43:37 +0200
 
 collectd (3.10.0-1) unstable; urgency=low
 
-  * New upstream version
-
- -- Florian Forster <octo@leeloo.home.verplant.org>  Sun,  9 Jul 2006 12:53:01 +0200
-
-collectd (3.9.4) unstable; urgency=low
-
-  * New upstream version 
-
- -- Florian Forster <octo@leeloo.home.verplant.org>  Sun, 25 Jun 2006 19:50:44 +0200
-
-collectd (3.9.3) unstable; urgency=low
-
-  * New upstream version 
-
- -- Florian Forster <octo@leeloo.home.verplant.org>  Thu,  1 Jun 2006 22:41:55 +0200
-
-collectd (3.9.2-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Tue,  9 May 2006 11:12:00 +0200
-
-collectd (3.8.5-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Tue,  9 May 2006 10:56:00 +0200
-
-collectd (3.9.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Fri, 21 Apr 2006 17:38:08 +0200
-
-collectd (3.9.0-1) unstable; urgency=low
-
-  * New upstream version
-  * Added the `apache' plugin in an extra package. It links against
-    `libcurl3'.
-
- -- Florian Forster <octo@verplant.org>  Fri, 14 Apr 2006 19:31:05 +0200
-
-collectd (3.8.4-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sun,  9 Apr 2006 16:01:11 +0200
-
-collectd (3.8.3-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sun,  2 Apr 2006 10:34:05 +0200
-
-collectd (3.8.2-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Tue, 14 Mar 2006 09:47:00 +0200
-
-collectd (3.8.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Mon, 13 Mar 2006 21:09:09 +0200
-
-collectd (3.8.0-2) unstable; urgency=low
-
-  * Much improved init script. Thanks to Sebastian for his work :)
-
- -- Florian Forster <octo@verplant.org>  Sat, 11 Mar 2006 16:09:44 +0200
-
-collectd (3.8.0-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Thu, 09 Mar 2006 18:18:10 +0200
-
-collectd (3.7.2-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sat, 18 Feb 2006 12:36:09 +0200
-
-collectd (3.7.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sat, 04 Feb 2006 10:44:05 +0200
-
-collectd (3.7.0-1) unstable; urgency=low
-
-  * New upstream version
-  * Removed package `collectd-hddtemp'
-
- -- Florian Forster <octo@verplant.org>  Mon, 30 Jan 2006 21:19:19 +0200
-
-collectd (3.6.2-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Tue, 24 Jan 2006 10:48:22 +0200
-
-collectd (3.6.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Fri, 20 Jan 2006 12:56:12 +0200
-
-collectd (3.6.0-1) unstable; urgency=low
-
-  * New upstream version
-  * New module `mysql'
-  * Removed all modules but `sensors' and `hddtemp' since they can be
-    (de)activated using the config file.
-
- -- Florian Forster <octo@verplant.org>  Tue, 17 Jan 2006 12:50:28 +0200
-
-collectd (3.5.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sun, 18 Dec 2005 23:09:11 +0200
-
-collectd (3.5.0-1) unstable; urgency=low
-
-  * New upstream version
-  * Added dependency to `cpufreqd | powernowd | cpudyn' to `collectd-cpufreq' 
-  * Added `collectd-users'
-  * Added `--localstatedir=/var' to `./configure'
-
- -- Florian Forster <octo@verplant.org>  Fri, 16 Dec 2005 13:06:43 +0200
-
-collectd (3.4.0-1) unstable; urgency=low
-
-  * New upstream version
-  * The package has been split up into one binary package and many many plugin
-    packages
-
- -- Florian Forster <octo@verplant.org>  Sat, 26 Nov 2005 13:14:22 +0200
-
-collectd (3.3.0-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sat, 05 Nov 2005 12:02:50 +0200
-
-collectd (3.2.0-1) unstable; urgency=low
-
-  * New upstream version
-  * Problems with the debian init.d file have been fixed.
-  * Added `processes.so*' to the main package
-
- -- Florian Forster <octo@verplant.org>  Tue, 25 Oct 2005 09:34:29 +0200
-
-collectd (3.1.0-1) unstable; urgency=low
-
-  * New upstream version
-  * Added package `collectd-hddtemp'
-
- -- Florian Forster <octo@verplant.org>  Fri, 14 Oct 2005 19:32:59 +0200
-
-collectd (3.0.0-1) unstable; urgency=low
-
-  * New upstream version
-  * Split the package into `collectd' and `collectd-sensors'
-
- -- Florian Forster <octo@verplant.org>  Fri, 30 Sep 2005 14:15:15 +0200
-
-collectd (2.1.0-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Fri, 16 Sep 2005 21:24:10 +0200
-
-collectd (2.0.0-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sat, 10 Sep 2005 16:11:37 +0200
-
-collectd (1.8.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Mon, 01 Sep 2005 21:27:16 +0200
-
-collectd (1.8.0-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Mon, 29 Aug 2005 12:09:20 +0200
-
-collectd (1.7.0-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sun, 25 Aug 2005 10:50:08 +0200
-
-collectd (1.6.0-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sun, 21 Aug 2005 19:03:02 +0200
-
-collectd (1.5.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sun, 17 Jul 2005 11:56:50 +0200
-
-collectd (1.5-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Sun, 17 Jul 2005 11:56:50 +0200
-
-collectd (1.4.2-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Mon, 11 Jul 2005 10:40:20 +0200
-
-collectd (1.4.1-1) unstable; urgency=low
-
-  * New upstream version
-
- -- Florian Forster <octo@verplant.org>  Fri, 10 Jul 2005 11:34:45 +0200
-
-collectd (1.4-1) unstable; urgency=low
-
-  * New upstream version
-  * Added examples from the contrib/ directory
-  * Added /etc/default/collectd for easy configuration
-  * Added libsensors3 to the dependencies
-
- -- Florian Forster <octo@verplant.org>  Fri,  9 Jul 2005 01:01:32 +0200
-
-collectd (1.3-1) unstable; urgency=low
-
-  * Initial release.
-
- -- Florian Forster <octo@verplant.org>  Fri,  8 Jul 2005 19:05:16 +0200
+  * New upstream release.
+    New plugins:
+    - APC UPS's charge, load, input/output/battery voltage, etc.: apcups
+    - NTP daemon's local clock drift, offset to peers, etc.: ntpd
+  * Upstream no longer provides a debian/ directory. Thus no repackaging is
+    required any longer.
+  * Not using getifaddrs() is now the default in upstream. getifaddrs.dpatch
+    no longer needed.
+  * Added collectd-hddtemp as a suggestion to the collectd package.
+
+ -- Sebastian Harl <sh@tokkee.org>  Sun,  9 Jul 2006 21:52:13 +0200
+
+collectd (3.9.4+debian-1) unstable; urgency=low
+
+  * Initial release (Closes: #373008).
+  * Removed upstream's debian/ directory from .orig.tar.gz.
+  * getifaddrs.dpatch: Patching src/traffic.c to read data from /proc instead
+    of using getifaddrs(). getifaddrs() does not seem to work correctly on 
+    AMD64.
+
+ -- Sebastian Harl <sh@tokkee.org>  Fri,  7 Jul 2006 15:49:42 +0200
 

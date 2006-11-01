@@ -502,7 +502,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 /* #endif HAVE_GETVFSSTAT || HAVE_GETFSSTAT */
 
 /* Solaris (SunOS 10): int getmntent(FILE *fp, struct mnttab *mp); */
-#elif HAVE_GEN_GETMNTENT
+#elif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT
 static cu_mount_t *cu_mount_gen_getmntent (void)
 {
 	struct mnttab mt;
@@ -551,17 +551,13 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 
 	return (first);
 } /* static cu_mount_t *cu_mount_gen_getmntent (void) */
-/* #endif HAVE_GEN_GETMNTENT */
+/* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"
 /* #endif HAVE_SEQ_GETMNTENT */
 
-#elif HAVE_SUN_GETMNTENT
-#warn "This version of `getmntent' hat not yet been implemented!"
-/* #endif HAVE_SUN_GETMNTENT */
-
-#elif HAVE_GETMNTENT
+#elif HAVE_ONE_GETMNTENT
 static cu_mount_t *cu_mount_getmntent (void)
 {
 	FILE *fp;
@@ -615,7 +611,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	return (first);
 }
-#endif /* HAVE_GETMNTENT */
+#endif /* HAVE_ONE_GETMNTENT */
 
 /* *** *** *** ******************************************** *** *** *** */
 /* *** *** *** *** *** ***   public functions   *** *** *** *** *** *** */
@@ -644,7 +640,7 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list)
 	new = cu_mount_getfsstat ();
 #elif HAVE_GEN_GETMNTENT
 	new = cu_mount_gen_getmntent ();
-#elif HAVE_GETMNTENT
+#elif HAVE_ONE_GETMNTENT
 	new = cu_mount_getmntent ();
 #else
 	new = NULL;
