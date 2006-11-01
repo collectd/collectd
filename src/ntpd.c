@@ -897,8 +897,15 @@ static void ntpd_read (void)
 
 		if (ptr->v6_flag)
 		{
-			status = getnameinfo ((const struct sockaddr *) &ptr->srcadr6,
-					sizeof (ptr->srcadr6),
+			struct sockaddr_in6 sa;
+
+			memset (&sa, 0, sizeof (sa));
+			sa.sin6_family = AF_INET6;
+			sa.sin6_port = htons (123);
+			memcpy (&sa.sin6_addr, &ptr->srcadr6, sizeof (struct in6_addr));
+
+			status = getnameinfo ((const struct sockaddr *) &sa,
+					sizeof (sa),
 					peername, sizeof (peername),
 					NULL, 0, 0 /* no flags */);
 			if (status != 0)
