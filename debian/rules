@@ -1,24 +1,17 @@
 #!/usr/bin/make -f
-# -*- makefile -*-
-# Sample debian/rules that uses debhelper.
-# This file was originally written by Joey Hess and Craig Small.
-# As a special exception, when this file is copied by dh-make into a
-# dh-make output file, you may use that output file without restriction.
-# This special exception was added by Craig Small in version 0.37 of dh-make.
+# debian/rules for collectd
+#
+# Written by Sebastian Harl <sh@tokkee.org>.
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
-
 
 # These are used for cross-compiling and for saving the configure script
 # from having to guess our platform (since we know it already)
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-
 CFLAGS = -Wall -g
-
-PLUGINS = apache mysql sensors
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
@@ -28,92 +21,91 @@ endif
 
 config.status: configure
 	dh_testdir
-	# Add here commands to configure the package.
-	CFLAGS="$(CFLAGS)" ./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
-	       --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info \
-	       --localstatedir=/var --sysconfdir=/etc
+	CFLAGS="$(CFLAGS)" ./configure --host=$(DEB_HOST_GNU_TYPE) \
+			--build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr \
+			--mandir=\$${prefix}/share/man \
+			--localstatedir=/var --sysconfdir=/etc
 
 build: build-stamp
 
-build-stamp:  config.status
+build-stamp: config.status
 	dh_testdir
-
-	# Add here commands to compile the package.
+	
 	$(MAKE)
-	#docbook-to-man debian/collectd.sgml > collectd.1
-
+	
 	touch build-stamp
 
 clean:
 	dh_testdir
 	dh_testroot
-	rm -f build-stamp 
-
-	# Add here commands to clean up after the build process.
+	rm -f build-stamp
+	
 	-$(MAKE) distclean
-ifneq "$(wildcard /usr/share/misc/config.sub)" ""
-	cp -f /usr/share/misc/config.sub config.sub
-endif
-ifneq "$(wildcard /usr/share/misc/config.guess)" ""
-	cp -f /usr/share/misc/config.guess config.guess
-endif
-
-
+	
 	dh_clean 
 
-install: build
+install-indep:
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs -i
+	
+	include_dir=$(CURDIR)/debian/collectd-dev/usr/include/collectd/ \
+		&& mkdir -p $$include_dir \
+		&& cp src/*.h $$include_dir
+
+install-arch: build
 	dh_testdir
 	dh_testroot
 	dh_clean -k 
-	dh_installdirs
+	dh_installdirs -a
+	
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/collectd
+	
+	rm -f $(CURDIR)/debian/collectd/usr/lib/collectd/*.la
+	
+	rm -f $(CURDIR)/debian/collectd/etc/collectd.conf
+	install -D -m 0644 $(CURDIR)/debian/collectd.conf \
+		$(CURDIR)/debian/collectd/etc/collectd/collectd.conf
+	
+	for PLUGIN in apache hddtemp mysql ping sensors; do \
+		plugin_dir=$(CURDIR)/debian/collectd-$$PLUGIN/usr/lib/collectd/; \
+		mkdir -p $$plugin_dir; \
+		mv $(CURDIR)/debian/collectd/usr/lib/collectd/$$PLUGIN.so \
+			$$plugin_dir; \
+	done	
 
-	for PLUGIN in $(PLUGINS); do \
-		mkdir -p $(CURDIR)/debian/collectd-$${PLUGIN}/usr/lib/collectd; \
-	done
-
-	# Add here commands to install the package into debian/collectd.
-	$(MAKE) DESTDIR=$(CURDIR)/debian/collectd install
-	rm $(CURDIR)/debian/collectd/usr/lib/collectd/*.a  || true
-	rm $(CURDIR)/debian/collectd/usr/lib/collectd/*.la || true
-
-	for PLUGIN in $(PLUGINS); do \
-		mv $(CURDIR)/debian/collectd/usr/lib/collectd/$${PLUGIN}.* $(CURDIR)/debian/collectd-$${PLUGIN}/usr/lib/collectd; \
-	done
-
-# Build architecture-independent files here.
-binary-indep: build install
-# We have nothing to do by default.
-
-# Build architecture-dependent files here.
-binary-arch: build install
+binary-indep: install-indep
 	dh_testdir
 	dh_testroot
-	dh_installchangelogs ChangeLog
-	dh_installdocs
-	dh_installexamples
-#	dh_install
-#	dh_installmenu
-#	dh_installdebconf	
-#	dh_installlogrotate
-#	dh_installemacsen
-#	dh_installpam
-#	dh_installmime
-	dh_installinit
-#	dh_installcron
-#	dh_installinfo
-	dh_installman
-	dh_link
-	dh_strip
-	dh_compress
-	dh_fixperms
-#	dh_perl
-#	dh_python
-#	dh_makeshlibs
-	dh_installdeb
-#	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+	dh_installchangelogs -i ChangeLog
+	dh_installdocs -A -i debian/README.Debian AUTHORS README TODO
+	dh_installexamples -i debian/examples/myplugin.c
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
 
-binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install 
+binary-arch: build install-arch
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs -a ChangeLog
+	dh_installdocs -A -a debian/README.Debian AUTHORS README TODO
+	dh_installexamples -a contrib/collectd2html.pl contrib/collection.cgi
+	dh_installinit -a -- defaults 95
+	dh_installman -a src/collectd.1 src/collectd.conf.5
+	dh_link -a
+	dh_strip -a --dbg-package=collectd-dbg
+	dh_compress -a
+	dh_fixperms -a
+	dh_installdeb -a
+	dh_shlibdeps -a
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+binary: binary-arch binary-indep
+.PHONY: build clean binary-indep binary-arch binary install-indep install-arch
+
