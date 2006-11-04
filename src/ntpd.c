@@ -694,6 +694,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 				(items_num + pkt_item_num) * res_item_size);
 		items = realloc ((void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
+		items_num += pkt_item_num;
 		if (items == NULL)
 		{
 			items = *res_data;
