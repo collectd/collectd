@@ -694,6 +694,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 				(items_num + pkt_item_num) * res_item_size);
 		items = realloc ((void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
+		items_num += pkt_item_num;
 		if (items == NULL)
 		{
 			items = *res_data;
@@ -881,7 +882,7 @@ static void ntpd_read (void)
 		struct info_peer_summary *ptr;
 		double offset;
 
-		char peername[512];
+		char peername[NI_MAXHOST];
 		int refclock_id;
 		
 		ptr = ps + i;
