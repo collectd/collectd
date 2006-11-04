@@ -882,7 +882,7 @@ static void ntpd_read (void)
 		struct info_peer_summary *ptr;
 		double offset;
 
-		char peername[512];
+		char peername[NI_MAXHOST];
 		int refclock_id;
 		
 		ptr = ps + i;
