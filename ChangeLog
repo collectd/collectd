@@ -1,3 +1,9 @@
+2006-11-04, Version 3.10.3
+	* Lubos Stanek has identified a bug in the ntpd-plugin: When the
+	  ntpd's reply was sent in more than one packet, the buffer size was
+	  calculated incorrectly, resulting in the reading of uninitialized or
+	  freed memory.
+
 2006-11-01, Version 3.10.2
 	* The sample config file has been improved.
 	* Errors in the manpages have been corrected.
