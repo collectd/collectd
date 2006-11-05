@@ -52,7 +52,7 @@
 
 #define BUFSIZE 512
 
-/** temperature and fan sensors */
+/* temperature and fan sensors */
 static char *ds_def[] =
 {
 	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
@@ -69,11 +69,11 @@ static char *sensor_voltage_ds_def[] =
 static int sensor_voltage_ds_num = 1;
 
 /* old naming */
-static char *filename_format = "sensors-%s.rrd";
+static char *old_filename_format = "sensors-%s.rrd";
 /* end old naming */
 
 /* new naming <chip-bus-address/type-feature */
-static char *sensor_filename_format = "lm_sensors-%s.rrd";
+static char *extended_filename_format = "lm_sensors-%s.rrd";
 
 #define SENSOR_TYPE_UNKNOWN 0
 #define SENSOR_TYPE_VOLTAGE 1
@@ -96,18 +96,16 @@ typedef struct sensors_labeltypes {
 
 /*
  * finite list of known labels extracted from lm_sensors
- * sorted reverse by the length for the same type
- * because strncmp must match "temp1" before "temp"
  */
 static sensors_labeltypes known_features[] = 
 {
-	{ "fan7", SENSOR_TYPE_FANSPEED },
-	{ "fan6", SENSOR_TYPE_FANSPEED },
-	{ "fan5", SENSOR_TYPE_FANSPEED },
-	{ "fan4", SENSOR_TYPE_FANSPEED },
-	{ "fan3", SENSOR_TYPE_FANSPEED },
-	{ "fan2", SENSOR_TYPE_FANSPEED },
 	{ "fan1", SENSOR_TYPE_FANSPEED },
+	{ "fan2", SENSOR_TYPE_FANSPEED },
+	{ "fan3", SENSOR_TYPE_FANSPEED },
+	{ "fan4", SENSOR_TYPE_FANSPEED },
+	{ "fan5", SENSOR_TYPE_FANSPEED },
+	{ "fan6", SENSOR_TYPE_FANSPEED },
+	{ "fan7", SENSOR_TYPE_FANSPEED },
 	{ "AIN2", SENSOR_TYPE_VOLTAGE },
 	{ "AIN1", SENSOR_TYPE_VOLTAGE },
 	{ "in10", SENSOR_TYPE_VOLTAGE },
@@ -122,13 +120,13 @@ static sensors_labeltypes known_features[] =
 	{ "in0", SENSOR_TYPE_VOLTAGE },
 	{ "CPU_Temp", SENSOR_TYPE_TEMPERATURE },
 	{ "remote_temp", SENSOR_TYPE_TEMPERATURE },
-	{ "temp7", SENSOR_TYPE_TEMPERATURE },
-	{ "temp6", SENSOR_TYPE_TEMPERATURE },
-	{ "temp5", SENSOR_TYPE_TEMPERATURE },
-	{ "temp4", SENSOR_TYPE_TEMPERATURE },
-	{ "temp3", SENSOR_TYPE_TEMPERATURE },
-	{ "temp2", SENSOR_TYPE_TEMPERATURE },
 	{ "temp1", SENSOR_TYPE_TEMPERATURE },
+	{ "temp2", SENSOR_TYPE_TEMPERATURE },
+	{ "temp3", SENSOR_TYPE_TEMPERATURE },
+	{ "temp4", SENSOR_TYPE_TEMPERATURE },
+	{ "temp5", SENSOR_TYPE_TEMPERATURE },
+	{ "temp6", SENSOR_TYPE_TEMPERATURE },
+	{ "temp7", SENSOR_TYPE_TEMPERATURE },
 	{ "temp", SENSOR_TYPE_TEMPERATURE },
 	{ "Vccp2", SENSOR_TYPE_VOLTAGE },
 	{ "Vccp1", SENSOR_TYPE_VOLTAGE },
@@ -291,7 +289,8 @@ static void collectd_sensors_init (void)
 	if (sensors_init (fh))
 	{
 		fclose (fh);
-		syslog (LOG_ERR, "sensors: Cannot initialize sensors. Data will not be collected.");
+		syslog (LOG_ERR, "sensors: Cannot initialize sensors. "
+				"Data will not be collected.");
 		return;
 	}
 
@@ -303,54 +302,60 @@ static void collectd_sensors_init (void)
 		data = NULL;
 		data_num0 = data_num1 = 0;
 
-		while ((data = sensors_get_all_features (*chip, &data_num0, &data_num1)) != NULL)
+		while ((data = sensors_get_all_features (*chip, &data_num0, &data_num1))
+				!= NULL)
 		{
+			int i;
+
 			/* "master features" only */
 			if (data->mapping != SENSORS_NO_MAPPING)
 				continue;
 
 			/* Only known features */
-			int i = 0;
-			while (known_features[i].type >= 0)
+			for (i = 0; known_features[i].type >= 0; i++)
 			{
-				if(strncmp(data->name, known_features[i].label, strlen(known_features[i].label)) == 0)
+				if (strcmp (data->name, known_features[i].label) != 0)
+					continue;
+
+				/* skip ignored in sensors.conf */
+				if (sensors_get_ignored (*chip, data->number) == 0)
+					break;
+
+				DBG ("Adding feature: %s-%s-%s",
+						chip->prefix,
+						sensor_type_prefix[known_features[i].type],
+						data->name);
+
+				if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
 				{
-					/* skip ignored in sensors.conf */
-					if (sensors_get_ignored(*chip, data->number) == 0)
-					{
-						break;
-					}
-
-					if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
-					{
-						perror ("malloc");
-						break;
-					}
-
-					DBG ("Adding feature: %s-%s-%s", chip->prefix, sensor_type_prefix[known_features[i].type], data->name);
-					new_feature->chip = chip;
-					new_feature->data = data;
-					new_feature->type = known_features[i].type;
-					new_feature->next = NULL;
-
-					if (first_feature == NULL)
-					{
-						first_feature = new_feature;
-						last_feature  = new_feature;
-					}
-					else
-					{
-						last_feature->next = new_feature;
-						last_feature = new_feature;
-					}
-
-					/* stop searching known features at first found */
+					DBG ("sensors plugin: malloc: %s",
+							strerror (errno));
+					syslog (LOG_ERR, "sensors plugin: malloc: %s",
+							strerror (errno));
 					break;
 				}
-				i++;
-			}
-		}
-	}
+
+				new_feature->chip = chip;
+				new_feature->data = data;
+				new_feature->type = known_features[i].type;
+				new_feature->next = NULL;
+
+				if (first_feature == NULL)
+				{
+					first_feature = new_feature;
+					last_feature  = new_feature;
+				}
+				else
+				{
+					last_feature->next = new_feature;
+					last_feature = new_feature;
+				}
+
+				/* stop searching known features at first found */
+				break;
+			} /* for i */
+		} /* while sensors_get_all_features */
+	} /* while sensors_get_detected_chips */
 
 	if (first_feature == NULL)
 		sensors_cleanup ();
@@ -370,13 +375,11 @@ static void sensors_voltage_write (char *host, char *inst, char *val)
 
 	/* extended sensor naming */
 	if(sensor_extended_naming)
-		status = snprintf (file, BUFSIZE, sensor_filename_format, inst);
+		status = snprintf (file, BUFSIZE, extended_filename_format, inst);
 	else
-		status = snprintf (file, BUFSIZE, filename_format, inst);
+		status = snprintf (file, BUFSIZE, old_filename_format, inst);
 
-	if (status < 1)
-		return;
-	else if (status >= BUFSIZE)
+	if ((status < 1) || (status >= BUFSIZE))
 		return;
 
 	rrd_update_file (host, file, val, sensor_voltage_ds_def, sensor_voltage_ds_num);
@@ -392,43 +395,46 @@ static void sensors_write (char *host, char *inst, char *val)
 		return;
 
 	/* extended sensor naming */
-	if(sensor_extended_naming)
-		status = snprintf (file, BUFSIZE, sensor_filename_format, inst);
+	if (sensor_extended_naming)
+		status = snprintf (file, BUFSIZE, extended_filename_format, inst);
 	else
-		status = snprintf (file, BUFSIZE, filename_format, inst);
+		status = snprintf (file, BUFSIZE, old_filename_format, inst);
 
-	if (status < 1)
-		return;
-	else if (status >= BUFSIZE)
+	if ((status < 1) || (status >= BUFSIZE))
 		return;
 
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
 #if SENSORS_HAVE_READ
-static void sensors_submit (const char *feat_name, const char *chip_prefix, double value, int type)
+static void sensors_submit (const char *feat_name,
+		const char *chip_prefix, double value, int type)
 {
 	char buf[BUFSIZE];
 	char inst[BUFSIZE];
 
-	if (snprintf (inst, BUFSIZE, "%s-%s", chip_prefix, feat_name) >= BUFSIZE)
+	if (snprintf (inst, BUFSIZE, "%s-%s", chip_prefix, feat_name)
+			>= BUFSIZE)
 		return;
 
 	/* skip ignored in our config */
 	if (config_get_ignored (inst))
 		return;
 
-	if (snprintf (buf, BUFSIZE, "%u:%.3f", (unsigned int) curtime, value) >= BUFSIZE)
+	if (snprintf (buf, BUFSIZE, "%u:%.3f", (unsigned int) curtime,
+				value) >= BUFSIZE)
 		return;
 
 	if (type == SENSOR_TYPE_VOLTAGE)
 	{
-		DBG ("%s: %s/%s, %s", MODULE_NAME_VOLTAGE, sensor_type_prefix[type], inst, buf);
+		DBG ("%s: %s/%s, %s", MODULE_NAME_VOLTAGE,
+				sensor_type_prefix[type], inst, buf);
 		plugin_submit (MODULE_NAME_VOLTAGE, inst, buf);
 	}
 	else
 	{
-		DBG ("%s: %s/%s, %s", MODULE_NAME, sensor_type_prefix[type], inst, buf);
+		DBG ("%s: %s/%s, %s", MODULE_NAME,
+				sensor_type_prefix[type], inst, buf);
 		plugin_submit (MODULE_NAME, inst, buf);
 	}
 }
@@ -444,7 +450,7 @@ static void sensors_read (void)
 		if (sensors_get_feature (*feature->chip, feature->data->number, &value) < 0)
 			continue;
 
-		if(sensor_extended_naming)
+		if (sensor_extended_naming)
 		{
 			/* full chip name logic borrowed from lm_sensors */
 			if (feature->chip->bus == SENSORS_CHIP_NAME_BUS_ISA)
@@ -477,11 +483,15 @@ static void sensors_read (void)
 					continue;
 			}
 
-			sensors_submit (feature->data->name, (const char *)chip_fullprefix, value, feature->type);
+			sensors_submit (feature->data->name,
+					chip_fullprefix,
+					value, feature->type);
 		}
 		else
 		{
-			sensors_submit (feature->data->name, feature->chip->prefix, value, feature->type);
+			sensors_submit (feature->data->name,
+					feature->chip->prefix,
+					value, feature->type);
 		}
 	}
 }
