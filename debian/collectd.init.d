@@ -33,10 +33,19 @@ fi
 d_start() {
 	i=0
 	
-	if [ ! -d "$CONFIGDIR" -a -e "$FALLBACKCONF" ]
+	if [ ! -d "$CONFIGDIR" ]
 	then
-		start-stop-daemon --start --quiet --exec $DAEMON \
-			-- -C "$FALLBACKCONF"
+		if [ -e "$FALLBACKCONF" ]
+		then
+			$DAEMON -C "$FALLBACKCONF" 2> /dev/null
+		else
+			echo ""
+			echo "This package is not configured yet. Please refer"
+			echo "to /usr/share/doc/collectd/README.Debian for"
+			echo "details."
+			echo ""
+			exit 0
+		fi
 	else
 		for FILE in `ls $CONFIGDIR/*.conf 2>/dev/null`
 		do
@@ -44,17 +53,17 @@ d_start() {
 
 			if [ $i == 0 ]
 			then
-				echo -n " (";
+				echo -n " ("
 			else
-				echo -n ", ";
+				echo -n ", "
 			fi
 			
-			$DAEMON -C "$FILE" 2>/dev/null
+			$DAEMON -C "$FILE" 2> /dev/null
 			if [ $? == 0 ]
 			then
-				echo -n "$NAME";
+				echo -n "$NAME"
 			else
-				echo -n "$NAME failed";
+				echo -n "$NAME failed"
 			fi
 
 			i=$(($i+1))
@@ -62,7 +71,8 @@ d_start() {
 
 		if [ $i == 0 ]
 		then
-			echo -n "[no config found]";
+			echo -n "[no config found]"
+			exit 1
 		else
 			echo -n ")"
 		fi
@@ -73,7 +83,7 @@ d_start() {
 #	Function that stops the daemon/service.
 #
 d_stop() {
-	start-stop-daemon --stop --quiet --exec $DAEMON
+	start-stop-daemon --stop --quiet --oknodo --exec $DAEMON
 }
 
 case "$1" in
@@ -102,4 +112,4 @@ esac
 
 exit 0
 
-# vim:syntax=sh
+# vim: syntax=sh noexpandtab sw=8 ts=8 :

@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 3.10.1)
+AC_INIT(collectd, 3.10.3)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -328,73 +328,88 @@ AC_CHECK_FUNCS(getgrgid getpwuid)
 AC_CHECK_FUNCS(getifaddrs)
 
 # For mount interface
-AC_CHECK_FUNCS(getfsent getvfsent listmntent)
-AC_CHECK_FUNCS(getfsstat getvfsstat)
+#AC_CHECK_FUNCS(getfsent getvfsent)
+
+have_getfsstat="no"
+AC_CHECK_FUNCS(getfsstat, [have_getfsstat="yes"])
+have_getvfsstat="no"
+AC_CHECK_FUNCS(getvfsstat, [have_getvfsstat="yes"])
+have_listmntent="no"
+AC_CHECK_FUNCS(listmntent, [have_listmntent="yes"])
+
+have_getmntent="no"
+AC_CHECK_FUNCS(getmntent, [have_getmntent="c"])
+if test "x$have_getmntent" = "xno"; then
+	AC_CHECK_LIB(sun, getmntent, [have_getmntent="sun"])
+fi
+if test "x$have_getmntent" = "xno"; then
+	AC_CHECK_LIB(seq, getmntent, [have_getmntent="seq"])
+fi
+if test "x$have_getmntent" = "xno"; then
+	AC_CHECK_LIB(gen, getmntent, [have_getmntent="gen"])
+fi
+
+if test "x$have_getmntent" = "xc"; then
+	AC_CACHE_CHECK([whether getmntent takes one argument],
+		[have_one_getmntent],
+		AC_COMPILE_IFELSE(
+			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+#include <mntent.h>
+#include "$srcdir/src/utils_mount.h"]],
+				[[
+				 FILE *fh;
+				 struct mntent *me;
+				 fh = setmntent ("/etc/mtab", "r");
+				 me = getmntent (fh);
+				]]
+			),
+			[have_one_getmntent="yes"],
+			[have_one_getmntent="no"]
+		)
+	)
+	AC_CACHE_CHECK([whether getmntent takes two arguments],
+		[have_two_getmntent],
+		AC_COMPILE_IFELSE(
+			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+#include <sys/mnttab.h>
+#include "$srcdir/src/utils_mount.h"]],
+				[[
+				 FILE *fh;
+				 struct mnttab mt;
+				 int status;
+				 fh = fopen ("/etc/mnttab", "r");
+				 status = getmntent (fh, &mt);
+				]]
+			),
+			[have_two_getmntent="yes"],
+			[have_two_getmntent="no"]
+		)
+	)
+fi
 
 # Check for different versions of `getmntent' here..
-AC_FUNC_GETMNTENT
-if test "x$ac_cv_lib_sun_getmntent" = "xyes"
-then
+
+if test "x$have_getmntent" = "xc"; then
+	if test "x$have_one_getmntent" = "xyes"; then
+		AC_DEFINE(HAVE_ONE_GETMNTENT, 1,
+			  [Define if the function getmntent exists and takes one argument.])
+	fi
+	if test "x$have_two_getmntent" = "xyes"; then
+		AC_DEFINE(HAVE_TWO_GETMNTENT, 1,
+			  [Define if the function getmntent exists and takes two arguments.])
+	fi
+fi
+if test "x$have_getmntent" = "xsun"; then
 	AC_DEFINE(HAVE_SUN_GETMNTENT, 1,
 		  [Define if the function getmntent exists. It's the version from libsun.])
 fi
-if test "x$ac_cv_lib_seq_getmntent" = "xyes"
-then
+if test "x$have_getmntent" = "xseq"; then
 	AC_DEFINE(HAVE_SEQ_GETMNTENT, 1,
 		  [Define if the function getmntent exists. It's the version from libseq.])
 fi
-if test "x$ac_cv_lib_gen_getmntent" = "xyes"
-then
+if test "x$have_getmntent" = "xgen"; then
 	AC_DEFINE(HAVE_GEN_GETMNTENT, 1,
 		  [Define if the function getmntent exists. It's the version from libgen.])
-fi
-
-if test "x$ac_cv_func_getmntent" = "xyes"; then
-	saveCFLAGS="$CFLAGS"
-	CFLAGS="-Wall -Werror $CFLAGS"
-	AC_CACHE_CHECK([whether getmntent takes one argument],
-		[fu_cv_getmntent1],
-		AC_COMPILE_IFELSE(
-			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include "$srcdir/src/utils_mount.h"]],
-				[[(void)getmntent((FILE *)NULL);]]
-			),
-			[fu_cv_getmntent1=yes],
-			[fu_cv_getmntent1=no]
-		)
-	)
-	if test "x$fu_cv_getmntent1" = "xno"; then
-		AC_CACHE_CHECK([whether getmntent takes two arguments],
-			[fu_cv_getmntent2],
-			AC_COMPILE_IFELSE(
-				AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include "$srcdir/src/utils_mount.h"]],
-					[[(void)getmntent((FILE *)NULL,
-						(struct mnttab *)NULL);]]
-				),
-				[fu_cv_getmntent2=yes],
-				[fu_cv_getmntent2=no]
-			)
-		)
-	fi
-	CFLAGS="$saveCFLAGS"
-fi
-if test "x$fu_cv_getmntent1" = "xyes"; then
-	AC_DEFINE(HAVE_GETMNTENT1,
-		1,
-		[Define if there is a function named getmntent
-			for reading the list of mounted filesystems, and
-			that function takes a single argument. (4.3BSD,
-			SunOS, HP-UX, Dynix, Irix, Linux)]
-		)
-fi
-if test "x$fu_cv_getmntent2" = "xyes"; then
-	AC_DEFINE(HAVE_GETMNTENT2,
-		1,
-		[Define if there is a function named getmntent
-			for reading the list of mounted filesystems, and
-			that function takes two arguments. (SVR4)]
-		)
 fi
 
 # Check for structures
