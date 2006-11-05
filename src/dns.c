@@ -281,6 +281,10 @@ static void dns_child_loop (void)
 	struct pollfd poll_fds[2];
 	int status;
 
+	/* Don't catch these signals */
+	signal (SIGINT, SIG_DFL);
+	signal (SIGTERM, SIG_DFL);
+
 	/* Passing `pcap_device == NULL' is okay and the same as passign "any" */
 	DBG ("Creating PCAP object..");
 	pcap_obj = pcap_open_live (pcap_device,
@@ -333,6 +337,14 @@ static void dns_child_loop (void)
 	{
 		DBG ("poll (...)");
 		status = poll (poll_fds, 2, -1 /* wait forever for a change */);
+
+		/* Signals are not caught, but this is very handy when
+		 * attaching to the process with a debugger. -octo */
+		if ((status < 0) && (errno == EINTR))
+		{
+			errno = 0;
+			continue;
+		}
 
 		if (status < 0)
 		{
