@@ -203,6 +203,11 @@ static mach_msg_type_number_t     pset_list_len;
 static long pagesize_g;
 #endif /* KERNEL_LINUX */
 
+#if HAVE_THREAD_INFO
+/* ps_list_* not used yet */
+/* #endif HAVE_THREAD_INFO */
+
+#elif KERNEL_LINUX
 static void ps_list_register (const char *name)
 {
 	procstat_t *new;
@@ -399,6 +404,7 @@ static void ps_list_reset (void)
 		} /* while (pse != NULL) */
 	} /* for (ps = list_head_g; ps != NULL; ps = ps->next) */
 }
+#endif /* KERNEL_LINUX */
 
 static int ps_config (char *key, char *value)
 {
