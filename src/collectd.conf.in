@@ -83,27 +83,20 @@
 #	Process name
 #</Plugin>
 
+## There are two different naming schemes for the sensors plugin, to preserver
+## backwards compatibility. The `extended naming' is prefered, but not the
+## default for this reason. See `collectd.conf(5)' for more information.
 #<Plugin sensors>
-## Collect only required sensors.
-## 
-## Default sensors and .rrd files names
-## compatible with old .rrd files (temp and fan).
-##
 #	ExtendedSensorNaming false
 #	Sensor it8712-temp1
 #	Sensor it8712-fan3
 #	Sensor it8712-in8
-##
-## Extended sensors and .rrd files names break compatibility
-## with previous naming and .rrd files,
-## see collectd.conf(5) for detailed information.
-##
+## -- OR --
 #	ExtendedSensorNaming true
 #	Sensor it8712-isa-0290/temperature-temp1
 #	Sensor it8712-isa-0290/fanspeed-fan3
 #	Sensor it8712-isa-0290/voltage-in8
-##
-## Reverse sensors sellection?
+#
 #	IgnoreSelected false
 #</Plugin>
 
