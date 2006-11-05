@@ -33,7 +33,16 @@
 #include "utils_debug.h"
 #include "utils_mount.h"
 
-#if HAVE_GETFSSTAT
+#if HAVE_GETVFSSTAT
+#  if HAVE_SYS_TYPES_H
+#    include <sys/types.h>
+#  endif
+#  if HAVE_SYS_STATVFS_H
+#    include <sys/statvfs.h>
+#  endif
+/* #endif HAVE_GETVFSSTAT */
+
+#elif HAVE_GETFSSTAT
 #  if HAVE_SYS_PARAM_H
 #    include <sys/param.h>
 #  endif
@@ -43,7 +52,7 @@
 #  if HAVE_SYS_MOUNT_H
 #    include <sys/mount.h>
 #  endif
-#endif /* HAVE_GETMNTINFO */
+#endif /* HAVE_GETFSSTAT */
 
 #if HAVE_MNTENT_H
 #  include <mntent.h>
@@ -413,12 +422,23 @@ static cu_mount_t *cu_mount_listmntent (void)
 } /* cu_mount_t *cu_mount_listmntent(void) */
 /* #endif HAVE_LISTMNTENT */
 
-/* 4.4BSD and Mac OS X */
-#elif HAVE_GETFSSTAT
+/* 4.4BSD and Mac OS X (getfsstat) or NetBSD (getvfsstat) */
+#elif HAVE_GETVFSSTAT || HAVE_GETFSSTAT
 static cu_mount_t *cu_mount_getfsstat (void)
 {
+#if HAVE_GETVFSSTAT
+#  define STRUCT_STATFS struct statvfs
+#  define CMD_STATFS    getvfsstat
+#  define FLAGS_STATFS  ST_NOWAIT
+/* #endif HAVE_GETVFSSTAT */
+#elif HAVE_GETFSSTAT
+#  define STRUCT_STATFS struct statfs
+#  define CMD_STATFS    getfsstat
+#  define FLAGS_STATFS  MNT_NOWAIT
+#endif /* HAVE_GETFSSTAT */
+
 	int bufsize;
-	struct statfs *buf;
+	STRUCT_STATFS *buf;
 
 	int num;
 	int i;
@@ -428,22 +448,22 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	cu_mount_t *new   = NULL;
 
 	/* Get the number of mounted file systems */
-	if ((bufsize = getfsstat (NULL, 0, MNT_NOWAIT)) < 1)
+	if ((bufsize = CMD_STATFS (NULL, 0, FLAGS_STATFS)) < 1)
 	{
-		DBG ("getfsstat failed: %s", strerror (errno));
+		DBG ("getv?fsstat failed: %s", strerror (errno));
 		return (NULL);
 	}
 
-	if ((buf = (struct statfs *) malloc (bufsize * sizeof (struct statfs)))
+	if ((buf = (STRUCT_STATFS *) malloc (bufsize * sizeof (STRUCT_STATFS)))
 			== NULL)
 		return (NULL);
-	memset (buf, '\0', bufsize * sizeof (struct statfs));
+	memset (buf, '\0', bufsize * sizeof (STRUCT_STATFS));
 
 	/* The bufsize needs to be passed in bytes. Really. This is not in the
 	 * manpage.. -octo */
-	if ((num = getfsstat (buf, bufsize * sizeof (struct statfs), MNT_NOWAIT)) < 1)
+	if ((num = CMD_STATFS (buf, bufsize * sizeof (STRUCT_STATFS), FLAGS_STATFS)) < 1)
 	{
-		DBG ("getfsstat failed: %s", strerror (errno));
+		DBG ("getv?fsstat failed: %s", strerror (errno));
 		free (buf);
 		return (NULL);
 	}
@@ -479,10 +499,10 @@ static cu_mount_t *cu_mount_getfsstat (void)
 
 	return (first);
 }
-/* #endif HAVE_GETFSSTAT */
+/* #endif HAVE_GETVFSSTAT || HAVE_GETFSSTAT */
 
 /* Solaris (SunOS 10): int getmntent(FILE *fp, struct mnttab *mp); */
-#elif HAVE_GEN_GETMNTENT
+#elif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT
 static cu_mount_t *cu_mount_gen_getmntent (void)
 {
 	struct mnttab mt;
@@ -531,17 +551,13 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 
 	return (first);
 } /* static cu_mount_t *cu_mount_gen_getmntent (void) */
-/* #endif HAVE_GEN_GETMNTENT */
+/* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"
 /* #endif HAVE_SEQ_GETMNTENT */
 
-#elif HAVE_SUN_GETMNTENT
-#warn "This version of `getmntent' hat not yet been implemented!"
-/* #endif HAVE_SUN_GETMNTENT */
-
-#elif HAVE_GETMNTENT
+#elif HAVE_ONE_GETMNTENT
 static cu_mount_t *cu_mount_getmntent (void)
 {
 	FILE *fp;
@@ -595,7 +611,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	return (first);
 }
-#endif /* HAVE_GETMNTENT */
+#endif /* HAVE_ONE_GETMNTENT */
 
 /* *** *** *** ******************************************** *** *** *** */
 /* *** *** *** *** *** ***   public functions   *** *** *** *** *** *** */
@@ -620,11 +636,11 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list)
 
 #if HAVE_LISTMNTENT && 0
 	new = cu_mount_listmntent ();
-#elif HAVE_GETFSSTAT
+#elif HAVE_GETVFSSTAT || HAVE_GETFSSTAT
 	new = cu_mount_getfsstat ();
 #elif HAVE_GEN_GETMNTENT
 	new = cu_mount_gen_getmntent ();
-#elif HAVE_GETMNTENT
+#elif HAVE_ONE_GETMNTENT
 	new = cu_mount_getmntent ();
 #else
 	new = NULL;

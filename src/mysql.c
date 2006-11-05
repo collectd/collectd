@@ -44,10 +44,6 @@ static char *user;
 static char *pass;
 static char *db = NULL;
 
-#if MYSQL_HAVE_READ
-static char  init_suceeded = 0;
-#endif
-
 /* TODO
  * understand `Select_*' and possibly do that stuff as well..
  */
@@ -117,6 +113,11 @@ static MYSQL *getconnection (void)
 	static MYSQL *con;
 	static int    state;
 
+	static int wait_for = 0;
+	static int wait_increase = 60;
+
+	int step;
+
 	if (state != 0)
 	{
 		int err;
@@ -131,6 +132,19 @@ static MYSQL *getconnection (void)
 			return (con);
 		}
 	}
+
+	step = atoi (COLLECTD_STEP);
+
+	if (wait_for > 0)
+	{
+		wait_for -= step;
+		return (NULL);
+	}
+
+	wait_for = wait_increase;
+	wait_increase *= 2;
+	if (wait_increase > 86400)
+		wait_increase = 86400;
 
 	if ((con = mysql_init (con)) == NULL)
 	{
@@ -148,6 +162,8 @@ static MYSQL *getconnection (void)
 	else
 	{
 		state = 1;
+		wait_for = 0;
+		wait_increase = 60;
 		return (con);
 	}
 } /* static MYSQL *getconnection (void) */
@@ -155,16 +171,6 @@ static MYSQL *getconnection (void)
 
 static void init (void)
 {
-#if MYSQL_HAVE_READ
-	if (getconnection () != NULL)
-		init_suceeded = 1;
-	else
-	{
-		syslog (LOG_ERR, "The `mysql' plugin will be disabled because `init' failed to connect to `%s'", host);
-		init_suceeded = 0;
-	}
-#endif /* MYSQL_HAVE_READ */
-
 	return;
 }
 
@@ -357,9 +363,6 @@ static void mysql_read (void)
 
 	unsigned long long traffic_incoming = 0ULL;
 	unsigned long long traffic_outgoing = 0ULL;
-
-	if (init_suceeded == 0)
-		return;
 
 	/* An error message will have been printed in this case */
 	if ((con = getconnection ()) == NULL)

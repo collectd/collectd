@@ -41,6 +41,10 @@ contributed:
 The `log' mode has been written by:
   Christophe Kalt <collectd at klb.taranis.org>
 
+Much time and effort to find a nasty bug in the ntpd-plugin has been
+contributed by:
+  Lubos Stanek <lubek at users.sourceforge.net>
+
 collectd is available at:
   <http://collectd.org/>
 
