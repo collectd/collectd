@@ -276,11 +276,11 @@ void plugin_init_all (void)
 /*
  * Call `read' on all plugins (if given)
  */
-void plugin_read_all (void)
+void plugin_read_all (const int *loop)
 {
 	plugin_t *p;
 
-	for (p = first_plugin; p != NULL; p = p->next)
+	for (p = first_plugin; (*loop == 0) && (p != NULL); p = p->next)
 		if (p->read != NULL)
 			(*p->read) ();
 }

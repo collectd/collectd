@@ -99,7 +99,7 @@ int  plugin_load (const char *type);
 
 int  plugin_load_all (char *dir);
 void plugin_init_all (void);
-void plugin_read_all (void);
+void plugin_read_all (const int *loop);
 
 void plugin_register (char *type,
 		void (*init) (void),

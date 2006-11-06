@@ -193,7 +193,7 @@ static int start_client (void)
 		curtime = time (NULL);
 
 		/* Issue all plugins */
-		plugin_read_all ();
+		plugin_read_all (&loop);
 
 		if (gettimeofday (&tv_now, NULL) < 0)
 		{
