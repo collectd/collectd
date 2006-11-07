@@ -207,7 +207,7 @@ static int start_client (void)
 			continue;
 		}
 
-		while (nanosleep (&ts_wait, &ts_wait) == -1)
+		while ((loop == 0) && (nanosleep (&ts_wait, &ts_wait) == -1))
 		{
 			if (errno != EINTR)
 			{
