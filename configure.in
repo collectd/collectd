@@ -841,7 +841,39 @@ then
 	AC_DEFINE_UNQUOTED(COLLECTD_HEARTBEAT, "$collectd_heartbeat", [Interval in which plugins are queried.])
 fi
 
-#
+dnl Check for regex
+AC_ARG_WITH(regex, [AS_HELP_STRING([--with-regex], [Use POSIX regular expression in config.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_regex="yes"
+	fi
+],
+[
+	with_regex="no"
+])
+if test "x$with_regex" = "xyes"
+then
+	AC_CHECK_FUNCS([regcomp regexec],
+	[with_regfuncs="yes"],
+	[with_regfuncs="no (regcomp & regexec not found)"])
+fi
+if test "x$with_regex" = "xyes"
+then
+	AC_CHECK_HEADERS(regex.h,
+	[with_regexh="yes"],
+	[with_regexh="no (regex.h not found)"])
+fi
+if test "x$with_regex" = "xyes" -a "x$with_regfuncs" = "xyes" -a "x$with_regexh"  = "xyes"
+then
+	collect_regex=1
+else
+	collect_regex=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_REGEX, [$collect_regex],
+	[Wether or not to use regular expressions])
+AM_CONDITIONAL(BUILD_WITH_REGEX, test "x$with_regex" = "xyes")
+
 # Check for enabled/disabled features
 #
 
@@ -954,6 +986,7 @@ Configuration:
     libstatgrab . . . . $with_libstatgrab
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
+    regex . . . . . . . $with_regex
 
   Features:
     debug . . . . . . . $enable_debug

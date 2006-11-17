@@ -33,6 +33,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "config_list.h"
 #include "utils_debug.h"
 
 #define MODULE_NAME "sensors"
@@ -164,14 +165,8 @@ static char *config_keys[] =
 };
 static int config_keys_num = 3;
 
-static char **sensor_list = NULL;
-static int sensor_list_num = 0;
-/* 
- * sensor_list_action:
- * 0 => default is to collect selected sensors
- * 1 => ignore selected sensors
- */
-static int sensor_list_action = 0;
+static configlist_t *sensor_list;
+
 /* 
  * sensor_extended_naming:
  * 0 => default is to create chip-feature
@@ -193,33 +188,23 @@ featurelist_t *first_feature = NULL;
 
 static int sensors_config (char *key, char *value)
 {
-	char **temp;
+	if (sensor_list == NULL)
+		sensor_list = configlist_init();
 
 	if (strcasecmp (key, "Sensor") == 0)
 	{
-		temp = (char **) realloc (sensor_list, (sensor_list_num + 1) * sizeof (char *));
-		if (temp == NULL)
+		if (!configlist_add (sensor_list, value))
 		{
-			syslog (LOG_EMERG, "Cannot allocate more memory.");
+			syslog (LOG_EMERG, "Cannot add value.");
 			return (1);
 		}
-		sensor_list = temp;
-
-		if ((sensor_list[sensor_list_num] = strdup (value)) == NULL)
-		{
-			syslog (LOG_EMERG, "Cannot allocate memory.");
-			return (1);
-		}
-		sensor_list_num++;
 	}
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
 	{
 		if ((strcasecmp (value, "True") == 0)
 				|| (strcasecmp (value, "Yes") == 0)
 				|| (strcasecmp (value, "On") == 0))
-			sensor_list_action = 1;
-		else
-			sensor_list_action = 0;
+			configlist_ignore (sensor_list, 1);
 	}
 	else if (strcasecmp (key, "ExtendedSensorNaming") == 0)
 	{
@@ -236,25 +221,6 @@ static int sensors_config (char *key, char *value)
 	}
 
 	return (0);
-}
-
-/*
- * Check if this feature should be ignored. This is called from
- * both, `submit' and `write' to give client and server
- *  the ability to ignore certain stuff...
- */
-static int config_get_ignored (const char *inst)
-{
-	int i;
-
-	/* If no ignored are given collect all features. */
-	if (sensor_list_num < 1)
-		return (0);
-
-	for (i = 0; i < sensor_list_num; i++)
-		if (strcasecmp (inst, sensor_list[i]) == 0)
-			return (sensor_list_action);
-	return (1 - sensor_list_action);
 }
 
 static void collectd_sensors_init (void)
@@ -370,7 +336,7 @@ static void sensors_voltage_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (config_get_ignored (inst))
+	if (configlist_ignored (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -391,7 +357,7 @@ static void sensors_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (config_get_ignored (inst))
+	if (configlist_ignored (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -418,7 +384,7 @@ static void sensors_submit (const char *feat_name,
 		return;
 
 	/* skip ignored in our config */
-	if (config_get_ignored (inst))
+	if (configlist_ignored (sensor_list, inst))
 		return;
 
 	if (snprintf (buf, BUFSIZE, "%u:%.3f", (unsigned int) curtime,
