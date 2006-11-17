@@ -27,12 +27,12 @@
 /**
  * Usage:
  * 
- * Define plugin's global variable of type configlist_t:
+ * Define plugin's global pointer variable of type configlist_t:
  *   configlist_t *myconfig_ignore;
- * If you know the state of global ignore (IgnoreSelected),
+ * If you know the state of the global ignore (IgnoreSelected),
  * allocate the variable with:
  *   myconfig_ignore = configlist_create (YourKnownIgnore);
- * If you do not know the state of the global ignore  (IgnoreSelected),
+ * If you do not know the state of the global ignore,
  * initialize the global variable and set the ignore flag later:
  *   myconfig_ignore = configlist_init ();
  * Append single entries in your cf_register'ed callback function:
@@ -40,7 +40,7 @@
  * When you hit the IgnoreSelected config option,
  * offer it to the list:
  *   configlist_ignore (myconfig_ignore, instantly_got_value_of_ignore);
- * That ia all for the configlist initialization.
+ * That is all for the configlist initialization.
  * Later during read and write (plugin's registered functions) get
  * the information whether this entry would be collected or not:
  *   if (configlist_ignored (myconfig_ignore, thisentry))
@@ -50,8 +50,6 @@
 #include "common.h"
 #include "utils_debug.h"
 #include "config_list.h"
-
-#define BUFSIZE 512
 
 /* private prototypes */
 
@@ -82,14 +80,14 @@ static int configlist_regappend(configlist_t *conflist, const char *entry)
 {
 	int rcompile;
 	regex_t *regtemp;
-	char regerr[BUFSIZE];
+	int errsize;
+	char *regerr = NULL;
 	configentry_t *new;
 
 	/* create buffer */
 	if ((regtemp = malloc(sizeof(regex_t))) == NULL)
 	{
 		syslog (LOG_ERR, "cannot allocate new config entry");
-		regfree (regtemp);
 		return (0);
 	}
 	memset (regtemp, '\0', sizeof(regex_t));
@@ -97,12 +95,19 @@ static int configlist_regappend(configlist_t *conflist, const char *entry)
 	/* compile regex */
 	if ((rcompile = regcomp (regtemp, entry, REG_EXTENDED)) != 0)
 	{
-		if (regerror(rcompile, regtemp, regerr, sizeof(regerr)))
+		/* prepare message buffer */
+		errsize = regerror(rcompile, regtemp, NULL, 0);
+		if (errsize)
+			regerr = smalloc(errsize);
+		/* get error message */
+		if (regerror(rcompile, regtemp, regerr, errsize))
 			syslog (LOG_ERR, "cannot compile regex %s: %i/%s",
 					entry, rcompile, regerr);
 		else
 			syslog (LOG_ERR, "cannot compile regex %s: %i",
 					entry, rcompile);
+		if (errsize)
+			sfree (regerr);
 		regfree (regtemp);
 		return (0);
 	}
@@ -117,9 +122,7 @@ static int configlist_regappend(configlist_t *conflist, const char *entry)
 	}
 	memset (new, '\0', sizeof(configentry_t));
 	new->rmatch = regtemp;
-#if COLLECTD_DEBUG
-	new->smatch = sstrdup(entry);
-#endif
+
 	/* append new entry */
 	if (conflist->next == NULL)
 	{
@@ -336,8 +339,8 @@ int configlist_add (configlist_t *conflist, const char *entry)
 	}
 
 #if HAVE_REGEX_H
-	/* regex string is enclosed in "|...|" */
-	if (entry[0] == '|' && strlen(entry) > 2 && entry[strlen(entry) - 1] == '|')
+	/* regex string is enclosed in "/.../" */
+	if (entry[0] == '/' && strlen(entry) > 2 && entry[strlen(entry) - 1] == '/')
 	{
 		entrytemp = smalloc(strlen(entry) - 2);
 		sstrncpy(entrytemp, &entry[1], strlen(entry) - 1);
