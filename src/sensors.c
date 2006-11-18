@@ -33,7 +33,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "config_list.h"
+#include "utils_ignorelist.h"
 #include "utils_debug.h"
 
 #define MODULE_NAME "sensors"
@@ -165,7 +165,7 @@ static char *config_keys[] =
 };
 static int config_keys_num = 3;
 
-static configlist_t *sensor_list;
+static ignorelist_t *sensor_list;
 
 /* 
  * sensor_extended_naming:
@@ -189,11 +189,11 @@ featurelist_t *first_feature = NULL;
 static int sensors_config (char *key, char *value)
 {
 	if (sensor_list == NULL)
-		sensor_list = configlist_init();
+		sensor_list = ignorelist_init();
 
 	if (strcasecmp (key, "Sensor") == 0)
 	{
-		if (!configlist_add (sensor_list, value))
+		if (!ignorelist_add (sensor_list, value))
 		{
 			syslog (LOG_EMERG, "Cannot add value.");
 			return (1);
@@ -204,7 +204,7 @@ static int sensors_config (char *key, char *value)
 		if ((strcasecmp (value, "True") == 0)
 				|| (strcasecmp (value, "Yes") == 0)
 				|| (strcasecmp (value, "On") == 0))
-			configlist_ignore (sensor_list, 1);
+			ignorelist_ignore (sensor_list, 1);
 	}
 	else if (strcasecmp (key, "ExtendedSensorNaming") == 0)
 	{
@@ -336,7 +336,7 @@ static void sensors_voltage_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (configlist_ignored (sensor_list, inst))
+	if (ignorelist_ignored (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -357,7 +357,7 @@ static void sensors_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (configlist_ignored (sensor_list, inst))
+	if (ignorelist_ignored (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -384,7 +384,7 @@ static void sensors_submit (const char *feat_name,
 		return;
 
 	/* skip ignored in our config */
-	if (configlist_ignored (sensor_list, inst))
+	if (ignorelist_ignored (sensor_list, inst))
 		return;
 
 	if (snprintf (buf, BUFSIZE, "%u:%.3f", (unsigned int) curtime,

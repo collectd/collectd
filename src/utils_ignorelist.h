@@ -21,12 +21,12 @@
  *   Lubos Stanek <lubek at users.sourceforge.net>
  **/
 /**
- * configlist handles plugin's list of configured collectable
+ * ignorelist handles plugin's list of configured collectable
  * entries with global ignore action
  **/
 
-#if !CONFIG_LIST_H
-#define CONFIG_LIST_H 1
+#ifndef UTILS_IGNORELIST_H
+#define UTILS_IGNORELIST_H 1
 
 #include "common.h"
 
@@ -36,47 +36,46 @@
 
 /* public prototypes */
 
-struct configlist_s;
-typedef struct configlist_s configlist_t;
+struct ignorelist_s;
+typedef struct ignorelist_s ignorelist_t;
 
 /*
- * create the configlist_t with known ignore state
- * return pointer to configlist_t
+ * create the ignorelist_t with known ignore state
+ * return pointer to ignorelist_t
  */
-configlist_t *configlist_create (int ignore);
+ignorelist_t *ignorelist_create (int ignore);
 
 /*
- * create configlist_t and initialize the ignore state to 0
- * return pointer to configlist_t
+ * create ignorelist_t and initialize the ignore state to 0
+ * return pointer to ignorelist_t
  */
-configlist_t *configlist_init (void);
+ignorelist_t *ignorelist_init (void);
 
 /*
- * free memory used by configlist_t
+ * free memory used by ignorelist_t
  */
-void configlist_free (configlist_t *conflist);
+void ignorelist_free (ignorelist_t *conflist);
 
 /*
- * set ignore state of the configlist_t
+ * set ignore state of the ignorelist_t
  */
-void configlist_ignore (configlist_t *conflist, int ignore);
+void ignorelist_ignore (ignorelist_t *conflist, int ignore);
 /*
- * get number of entries in the configlist_t
+ * get number of entries in the ignorelist_t
  * return int number
  */
-int configlist_num (configlist_t *conflist);
+int ignorelist_num (ignorelist_t *conflist);
 
 /*
- * append entry to configlist_t
+ * append entry to ignorelist_t
  * return 1 for success
  */
-int configlist_add (configlist_t *conflist, const char *entry);
+int ignorelist_add (ignorelist_t *conflist, const char *entry);
 
 /*
  * check list for entry
  * return 1 for ignored entry
  */
-int configlist_ignored (configlist_t *conflist, const char *entry);
+int ignorelist_ignored (ignorelist_t *conflist, const char *entry);
 
-#endif /* !CONFIG_LIST_H */
-
+#endif /* UTILS_IGNORELIST_H */

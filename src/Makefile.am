@@ -12,11 +12,11 @@ sbin_PROGRAMS = collectd
 collectd_SOURCES = collectd.c collectd.h \
 		   utils_debug.c utils_debug.h \
 		   utils_mount.c utils_mount.h \
+		   utils_ignorelist.c utils_ignorelist.h \
 		   common.c common.h \
 		   network.c network.h \
 		   plugin.c plugin.h \
-		   configfile.c configfile.h \
-		   config_list.c config_list.h
+		   configfile.c configfile.h
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
 collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'

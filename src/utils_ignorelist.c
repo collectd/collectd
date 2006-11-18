@@ -21,68 +21,68 @@
  *   Lubos Stanek <lubek at users.sourceforge.net>
  **/
 /**
- * configlist handles plugin's list of configured collectable
+ * ignorelist handles plugin's list of configured collectable
  * entries with global ignore action
  **/
 /**
  * Usage:
  * 
- * Define plugin's global pointer variable of type configlist_t:
- *   configlist_t *myconfig_ignore;
+ * Define plugin's global pointer variable of type ignorelist_t:
+ *   ignorelist_t *myconfig_ignore;
  * If you know the state of the global ignore (IgnoreSelected),
  * allocate the variable with:
- *   myconfig_ignore = configlist_create (YourKnownIgnore);
+ *   myconfig_ignore = ignorelist_create (YourKnownIgnore);
  * If you do not know the state of the global ignore,
  * initialize the global variable and set the ignore flag later:
- *   myconfig_ignore = configlist_init ();
+ *   myconfig_ignore = ignorelist_init ();
  * Append single entries in your cf_register'ed callback function:
- *   configlist_add (myconfig_ignore, newentry);
+ *   ignorelist_add (myconfig_ignore, newentry);
  * When you hit the IgnoreSelected config option,
  * offer it to the list:
- *   configlist_ignore (myconfig_ignore, instantly_got_value_of_ignore);
- * That is all for the configlist initialization.
+ *   ignorelist_ignore (myconfig_ignore, instantly_got_value_of_ignore);
+ * That is all for the ignorelist initialization.
  * Later during read and write (plugin's registered functions) get
  * the information whether this entry would be collected or not:
- *   if (configlist_ignored (myconfig_ignore, thisentry))
+ *   if (ignorelist_ignored (myconfig_ignore, thisentry))
  *     return;
  **/
 
 #include "common.h"
 #include "utils_debug.h"
-#include "config_list.h"
+#include "utils_ignorelist.h"
 
-/* private prototypes */
-
-struct configentry_s;
-typedef struct configentry_s configentry_t;
-
-struct configlist_s {
-	int ignore;		/* ignore entries */
-	int num;		/* number of entries */
-	configentry_t *next;	/* pointer to the first entry */
-};
-
-struct configentry_s {
+/*
+ * private prototypes
+ */
+struct ignorelist_item_s
+{
 #if HAVE_REGEX_H
 	regex_t *rmatch;	/* regular expression entry identification */
 #endif
 	char *smatch;		/* string entry identification */
-	configentry_t *next;
+	struct ignorelist_item_s *next;
 };
+typedef struct ignorelist_item_s ignorelist_item_t;
 
+struct ignorelist_s
+{
+	int ignore;		/* ignore entries */
+	int num;		/* number of entries */
+	ignorelist_item_t *next;	/* pointer to the first entry */
+};
 
 /* *** *** *** ********************************************* *** *** *** */
 /* *** *** *** *** *** ***   private functions   *** *** *** *** *** *** */
 /* *** *** *** ********************************************* *** *** *** */
 
 #if HAVE_REGEX_H
-static int configlist_regappend(configlist_t *conflist, const char *entry)
+static int ignorelist_regappend(ignorelist_t *conflist, const char *entry)
 {
 	int rcompile;
 	regex_t *regtemp;
 	int errsize;
 	char *regerr = NULL;
-	configentry_t *new;
+	ignorelist_item_t *new;
 
 	/* create buffer */
 	if ((regtemp = malloc(sizeof(regex_t))) == NULL)
@@ -114,13 +114,13 @@ static int configlist_regappend(configlist_t *conflist, const char *entry)
 	DBG("regex compiled: %s - %i", entry, rcompile);
 
 	/* create new entry */
-	if ((new = malloc(sizeof(configentry_t))) == NULL)
+	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL)
 	{
 		syslog (LOG_ERR, "cannot allocate new config entry");
 		regfree (regtemp);
 		return (0);
 	}
-	memset (new, '\0', sizeof(configentry_t));
+	memset (new, '\0', sizeof(ignorelist_item_t));
 	new->rmatch = regtemp;
 
 	/* append new entry */
@@ -135,20 +135,20 @@ static int configlist_regappend(configlist_t *conflist, const char *entry)
 	}
 	conflist->num++;
 	return (1);
-} /* int configlist_regappend(configlist_t *conflist, const char *entry) */
+} /* int ignorelist_regappend(ignorelist_t *conflist, const char *entry) */
 #endif
 
-static int configlist_strappend(configlist_t *conflist, const char *entry)
+static int ignorelist_strappend(ignorelist_t *conflist, const char *entry)
 {
-	configentry_t *new;
+	ignorelist_item_t *new;
 
 	/* create new entry */
-	if ((new = malloc(sizeof(configentry_t))) == NULL )
+	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL )
 	{
 		syslog (LOG_ERR, "cannot allocate new entry");
 		return (0);
 	}
-	memset (new, '\0', sizeof(configentry_t));
+	memset (new, '\0', sizeof(ignorelist_item_t));
 	new->smatch = sstrdup(entry);
 
 	/* append new entry */
@@ -163,14 +163,14 @@ static int configlist_strappend(configlist_t *conflist, const char *entry)
 	}
 	conflist->num++;
 	return (1);
-} /* int configlist_strappend(configlist_t *conflist, const char *entry) */
+} /* int ignorelist_strappend(ignorelist_t *conflist, const char *entry) */
 
 #if HAVE_REGEX_H
 /*
  * check list for entry regex match
  * return 1 if found
  */
-static int configentry_rmatch (configentry_t *confentry, const char *entry)
+static int ignorelist_item_rmatch (ignorelist_item_t *confentry, const char *entry)
 {
 	if (confentry == NULL)
 		return (0);
@@ -186,14 +186,14 @@ static int configentry_rmatch (configentry_t *confentry, const char *entry)
 		return (1);
 
 	return (0);
-} /* int configentry_rmatch (configentry_t *confentry, const char *entry) */
+} /* int ignorelist_item_rmatch (ignorelist_item_t *confentry, const char *entry) */
 #endif
 
 /*
  * check list for entry string match
  * return 1 if found
  */
-static int configentry_smatch (configentry_t *confentry, const char *entry)
+static int ignorelist_item_smatch (ignorelist_item_t *confentry, const char *entry)
 {
 	if (confentry == NULL)
 		return (0);
@@ -205,7 +205,7 @@ static int configentry_smatch (configentry_t *confentry, const char *entry)
 		return (1);
 
 	return (0);
-} /* int configentry_smatch (configentry_t *confentry, const char *entry) */
+} /* int ignorelist_item_smatch (ignorelist_item_t *confentry, const char *entry) */
 
 
 /* *** *** *** ******************************************** *** *** *** */
@@ -213,44 +213,44 @@ static int configentry_smatch (configentry_t *confentry, const char *entry)
 /* *** *** *** ******************************************** *** *** *** */
 
 /*
- * create the configlist_t with known ignore state
- * return pointer to configlist_t
+ * create the ignorelist_t with known ignore state
+ * return pointer to ignorelist_t
  */
-configlist_t *configlist_create (int ignore)
+ignorelist_t *ignorelist_create (int ignore)
 {
-	configlist_t *conflist;
+	ignorelist_t *conflist;
 
-	if ((conflist = smalloc (sizeof (configlist_t))) == NULL)
+	if ((conflist = smalloc (sizeof (ignorelist_t))) == NULL)
 	{
-		syslog(LOG_ERR, "not enough memory to allocate configlist");
+		syslog(LOG_ERR, "not enough memory to allocate ignorelist");
 		return (NULL);
 	}
-	DBG("configlist created 0x%p, ignore %i", (void *) conflist, ignore);
-	memset (conflist, '\0', sizeof (configlist_t));
+	DBG("ignorelist created 0x%p, ignore %i", (void *) conflist, ignore);
+	memset (conflist, '\0', sizeof (ignorelist_t));
 
 	if (ignore)
 		conflist->ignore = ignore;
 
 	return (conflist);
-} /* configlist_t *configlist_create (int ignore) */
+} /* ignorelist_t *ignorelist_create (int ignore) */
 
 /*
- * create configlist_t and initialize the ignore state to 0
- * return pointer to configlist_t
+ * create ignorelist_t and initialize the ignore state to 0
+ * return pointer to ignorelist_t
  */
-configlist_t *configlist_init (void)
+ignorelist_t *ignorelist_init (void)
 {
-	return (configlist_create (0));
-} /* configlist_t *configlist_init (void)  */
+	return (ignorelist_create (0));
+} /* ignorelist_t *ignorelist_init (void)  */
 
 
 /*
- * free memory used by configlist_t
+ * free memory used by ignorelist_t
  */
-void configlist_free (configlist_t *conflist)
+void ignorelist_free (ignorelist_t *conflist)
 {
-	configentry_t *this;
-	configentry_t *next;
+	ignorelist_item_t *this;
+	ignorelist_item_t *next;
 
 	DBG ("(conflist = 0x%p)", (void *) conflist);
 
@@ -283,42 +283,42 @@ void configlist_free (configlist_t *conflist)
 	conflist->num = 0;
 	sfree (conflist);
 	conflist = NULL;
-} /* void configlist_destroy (configlist_t *conflist) */
+} /* void ignorelist_destroy (ignorelist_t *conflist) */
 
 /*
- * set ignore state of the configlist_t
+ * set ignore state of the ignorelist_t
  */
-void configlist_ignore (configlist_t *conflist, int ignore)
+void ignorelist_ignore (ignorelist_t *conflist, int ignore)
 {
 	if (conflist == NULL)
 	{
-		DBG("ignore call with configlist_t == NULL");
+		DBG("ignore call with ignorelist_t == NULL");
 		return;
 	}
 
 	conflist->ignore = ignore;
-} /* void configlist_ignore (configlist_t *conflist, int ignore) */
+} /* void ignorelist_ignore (ignorelist_t *conflist, int ignore) */
 
 /*
- * get number of entries in the configlist_t
+ * get number of entries in the ignorelist_t
  * return int number
  */
-int configlist_num (configlist_t *conflist)
+int ignorelist_num (ignorelist_t *conflist)
 {
 	if (conflist == NULL)
 	{
-		DBG("get num called with configlist_t == NULL");
+		DBG("get num called with ignorelist_t == NULL");
 		return (0);
 	}
 
 	return (conflist->num);
-} /* int configlist_num (configlist_t *conflist) */
+} /* int ignorelist_num (ignorelist_t *conflist) */
 
 /*
- * append entry into configlist_t
+ * append entry into ignorelist_t
  * return 1 for success
  */
-int configlist_add (configlist_t *conflist, const char *entry)
+int ignorelist_add (ignorelist_t *conflist, const char *entry)
 {
 #if HAVE_REGEX_H
 	char *entrytemp;
@@ -327,7 +327,7 @@ int configlist_add (configlist_t *conflist, const char *entry)
 
 	if (conflist == NULL)
 	{
-		DBG("add called with configlist_t == NULL");
+		DBG("add called with ignorelist_t == NULL");
 		return (0);
 	}
 
@@ -345,28 +345,28 @@ int configlist_add (configlist_t *conflist, const char *entry)
 		entrytemp = smalloc(strlen(entry) - 2);
 		sstrncpy(entrytemp, &entry[1], strlen(entry) - 1);
 		DBG("to add regex entry: %s", entrytemp);
-		restemp = configlist_regappend(conflist, entrytemp);
+		restemp = ignorelist_regappend(conflist, entrytemp);
 		sfree (entrytemp);
 	}
 	else
 #endif
 	{
 		DBG("to add entry: %s", entry);
-		restemp = configlist_strappend(conflist, entry);
+		restemp = ignorelist_strappend(conflist, entry);
 	}
 	return (restemp);
-} /* int configlist_add (configlist_t *conflist, const char *entry) */
+} /* int ignorelist_add (ignorelist_t *conflist, const char *entry) */
 
 /*
  * check list for entry
  * return 1 for ignored entry
  */
-int configlist_ignored (configlist_t *conflist, const char *entry)
+int ignorelist_ignored (ignorelist_t *conflist, const char *entry)
 {
-	configentry_t *traverse;
+	ignorelist_item_t *traverse;
 
 	/* if no entries, collect all */
-	if (configlist_num(conflist) == 0)
+	if (ignorelist_num(conflist) == 0)
 		return (0);
 
 	/* traverse list and check entries */
@@ -376,18 +376,18 @@ int configlist_ignored (configlist_t *conflist, const char *entry)
 #if HAVE_REGEX_H
 		if (traverse->rmatch != NULL)
 		{
-			if (configentry_rmatch (traverse, entry))
+			if (ignorelist_item_rmatch (traverse, entry))
 				return (conflist->ignore);
 		}
 		else
 #endif
 		{
-			if (configentry_smatch (traverse, entry))
+			if (ignorelist_item_smatch (traverse, entry))
 				return (conflist->ignore);
 		}
 		traverse = traverse->next;
 	}
 
 	return (1 - conflist->ignore);
-} /* int configlist_ignored (configlist_t *conflist, const char *entry) */
+} /* int ignorelist_ignored (ignorelist_t *conflist, const char *entry) */
 
