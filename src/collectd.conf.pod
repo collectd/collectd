@@ -160,6 +160,31 @@ TCP-Port to connect to. Defaults to B<3551>.
 
 =back
 
+=head2 Plugin C<df>
+
+=over 4
+
+=item B<Device> I<Device>
+
+Select partitions based on the devicename.
+
+=item B<MountPoint> I<Directory>
+
+Select partitions based on the mountpoint.
+
+=item B<FSType> I<FSType>
+
+Select partitions based on the filesystem type.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+Invert the selection: If set to true, all partitions B<except> the ones that
+match any one of the criteria are collected. By default only selected
+partitions are collected if a selection is made. If no selection is conifured
+at all, B<all> partitions are selected.
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 =over 4
@@ -285,6 +310,8 @@ B<Sensor> is inversed: All selected sensors are ignored and all
 other sensors are collected.
 
 back
+
+=back
 
 =head2 Plugin C<traffic>
 
