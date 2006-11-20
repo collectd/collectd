@@ -333,8 +333,13 @@ int ignorelist_match (ignorelist_t *il, const char *entry)
 {
 	ignorelist_item_t *traverse;
 
+	assert (il != NULL);
+
 	/* if no entries, collect all */
 	if (il->head == NULL)
+		return (0);
+
+	if ((entry == NULL) || (strlen (entry) == 0))
 		return (0);
 
 	/* traverse list and check entries */
