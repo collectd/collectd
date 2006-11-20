@@ -28,7 +28,7 @@
 #ifndef UTILS_IGNORELIST_H
 #define UTILS_IGNORELIST_H 1
 
-#include "common.h"
+#include "collectd.h"
 
 #if HAVE_REGEX_H
 # include <regex.h>
@@ -43,39 +43,33 @@ typedef struct ignorelist_s ignorelist_t;
  * create the ignorelist_t with known ignore state
  * return pointer to ignorelist_t
  */
-ignorelist_t *ignorelist_create (int ignore);
-
-/*
- * create ignorelist_t and initialize the ignore state to 0
- * return pointer to ignorelist_t
- */
-ignorelist_t *ignorelist_init (void);
+ignorelist_t *ignorelist_create (int invert);
 
 /*
  * free memory used by ignorelist_t
  */
-void ignorelist_free (ignorelist_t *conflist);
+void ignorelist_free (ignorelist_t *il);
 
 /*
  * set ignore state of the ignorelist_t
  */
-void ignorelist_ignore (ignorelist_t *conflist, int ignore);
+void ignorelist_set_invert (ignorelist_t *il, int invert);
 /*
  * get number of entries in the ignorelist_t
  * return int number
  */
-int ignorelist_num (ignorelist_t *conflist);
+int ignorelist_num (ignorelist_t *il);
 
 /*
  * append entry to ignorelist_t
- * return 1 for success
+ * returns zero on success, non-zero upon failure.
  */
-int ignorelist_add (ignorelist_t *conflist, const char *entry);
+int ignorelist_add (ignorelist_t *il, const char *entry);
 
 /*
  * check list for entry
  * return 1 for ignored entry
  */
-int ignorelist_ignored (ignorelist_t *conflist, const char *entry);
+int ignorelist_match (ignorelist_t *il, const char *entry);
 
 #endif /* UTILS_IGNORELIST_H */

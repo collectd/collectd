@@ -43,7 +43,7 @@
  * That is all for the ignorelist initialization.
  * Later during read and write (plugin's registered functions) get
  * the information whether this entry would be collected or not:
- *   if (ignorelist_ignored (myconfig_ignore, thisentry))
+ *   if (ignorelist_match (myconfig_ignore, thisentry))
  *     return;
  **/
 
@@ -68,15 +68,25 @@ struct ignorelist_s
 {
 	int ignore;		/* ignore entries */
 	int num;		/* number of entries */
-	ignorelist_item_t *next;	/* pointer to the first entry */
+	ignorelist_item_t *head;	/* pointer to the first entry */
 };
 
 /* *** *** *** ********************************************* *** *** *** */
 /* *** *** *** *** *** ***   private functions   *** *** *** *** *** *** */
 /* *** *** *** ********************************************* *** *** *** */
 
+static inline void ignorelist_append (ignorelist_t *il, ignorelist_item_t *item)
+{
+	assert ((il != NULL) && (item != NULL));
+
+	item->next = il->head;
+	il->head = item;
+
+	il->num++;
+}
+
 #if HAVE_REGEX_H
-static int ignorelist_regappend(ignorelist_t *conflist, const char *entry)
+static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
 {
 	int rcompile;
 	regex_t *regtemp;
@@ -88,7 +98,7 @@ static int ignorelist_regappend(ignorelist_t *conflist, const char *entry)
 	if ((regtemp = malloc(sizeof(regex_t))) == NULL)
 	{
 		syslog (LOG_ERR, "cannot allocate new config entry");
-		return (0);
+		return (1);
 	}
 	memset (regtemp, '\0', sizeof(regex_t));
 
@@ -100,16 +110,25 @@ static int ignorelist_regappend(ignorelist_t *conflist, const char *entry)
 		if (errsize)
 			regerr = smalloc(errsize);
 		/* get error message */
-		if (regerror(rcompile, regtemp, regerr, errsize))
-			syslog (LOG_ERR, "cannot compile regex %s: %i/%s",
+		if (regerror (rcompile, regtemp, regerr, errsize))
+		{
+			fprintf (stderr, "Cannot compile regex %s: %i/%s",
 					entry, rcompile, regerr);
+			syslog (LOG_ERR, "Cannot compile regex %s: %i/%s",
+					entry, rcompile, regerr);
+		}
 		else
-			syslog (LOG_ERR, "cannot compile regex %s: %i",
+		{
+			fprintf (stderr, "Cannot compile regex %s: %i",
 					entry, rcompile);
+			syslog (LOG_ERR, "Cannot compile regex %s: %i",
+					entry, rcompile);
+		}
+
 		if (errsize)
 			sfree (regerr);
 		regfree (regtemp);
-		return (0);
+		return (1);
 	}
 	DBG("regex compiled: %s - %i", entry, rcompile);
 
@@ -118,27 +137,19 @@ static int ignorelist_regappend(ignorelist_t *conflist, const char *entry)
 	{
 		syslog (LOG_ERR, "cannot allocate new config entry");
 		regfree (regtemp);
-		return (0);
+		return (1);
 	}
 	memset (new, '\0', sizeof(ignorelist_item_t));
 	new->rmatch = regtemp;
 
 	/* append new entry */
-	if (conflist->next == NULL)
-	{
-		conflist->next=new;
-	}
-	else
-	{
-		new->next=conflist->next;
-		conflist->next=new;		
-	}
-	conflist->num++;
-	return (1);
-} /* int ignorelist_regappend(ignorelist_t *conflist, const char *entry) */
+	ignorelist_append (il, new);
+
+	return (0);
+} /* int ignorelist_append_regex(ignorelist_t *il, const char *entry) */
 #endif
 
-static int ignorelist_strappend(ignorelist_t *conflist, const char *entry)
+static int ignorelist_append_string(ignorelist_t *il, const char *entry)
 {
 	ignorelist_item_t *new;
 
@@ -146,66 +157,49 @@ static int ignorelist_strappend(ignorelist_t *conflist, const char *entry)
 	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL )
 	{
 		syslog (LOG_ERR, "cannot allocate new entry");
-		return (0);
+		return (1);
 	}
 	memset (new, '\0', sizeof(ignorelist_item_t));
 	new->smatch = sstrdup(entry);
 
 	/* append new entry */
-	if (conflist->next == NULL)
-	{
-		conflist->next=new;
-	}
-	else
-	{
-		new->next=conflist->next;
-		conflist->next=new;		
-	}
-	conflist->num++;
-	return (1);
-} /* int ignorelist_strappend(ignorelist_t *conflist, const char *entry) */
+	ignorelist_append (il, new);
+
+	return (0);
+} /* int ignorelist_append_string(ignorelist_t *il, const char *entry) */
 
 #if HAVE_REGEX_H
 /*
  * check list for entry regex match
  * return 1 if found
  */
-static int ignorelist_item_rmatch (ignorelist_item_t *confentry, const char *entry)
+static int ignorelist_match_regex (ignorelist_item_t *item, const char *entry)
 {
-	if (confentry == NULL)
-		return (0);
-
-	if (strlen (entry) == 0)
-		return (0);
-
-	if (confentry->rmatch == NULL)
-		return (0);
+	assert ((item != NULL) && (item->rmatch != NULL)
+			&& (entry != NULL) && (strlen (entry) > 0));
 
 	/* match regex */
-	if (regexec (confentry->rmatch, entry, 0, NULL, 0) == 0)
+	if (regexec (item->rmatch, entry, 0, NULL, 0) == 0)
 		return (1);
 
 	return (0);
-} /* int ignorelist_item_rmatch (ignorelist_item_t *confentry, const char *entry) */
+} /* int ignorelist_match_regex (ignorelist_item_t *item, const char *entry) */
 #endif
 
 /*
  * check list for entry string match
  * return 1 if found
  */
-static int ignorelist_item_smatch (ignorelist_item_t *confentry, const char *entry)
+static int ignorelist_match_string (ignorelist_item_t *item, const char *entry)
 {
-	if (confentry == NULL)
-		return (0);
+	assert ((item != NULL) && (item->smatch != NULL)
+			&& (entry != NULL) && (strlen (entry) > 0));
 
-	if (strlen (entry) == 0)
-		return (0);
-
-	if ((confentry->smatch != NULL && strcmp (entry, confentry->smatch) == 0))
+	if (strcmp (entry, item->smatch) == 0)
 		return (1);
 
 	return (0);
-} /* int ignorelist_item_smatch (ignorelist_item_t *confentry, const char *entry) */
+} /* int ignorelist_match_string (ignorelist_item_t *item, const char *entry) */
 
 
 /* *** *** *** ******************************************** *** *** *** */
@@ -216,52 +210,45 @@ static int ignorelist_item_smatch (ignorelist_item_t *confentry, const char *ent
  * create the ignorelist_t with known ignore state
  * return pointer to ignorelist_t
  */
-ignorelist_t *ignorelist_create (int ignore)
+ignorelist_t *ignorelist_create (int invert)
 {
-	ignorelist_t *conflist;
+	ignorelist_t *il;
 
-	if ((conflist = smalloc (sizeof (ignorelist_t))) == NULL)
-	{
-		syslog(LOG_ERR, "not enough memory to allocate ignorelist");
-		return (NULL);
-	}
-	DBG("ignorelist created 0x%p, ignore %i", (void *) conflist, ignore);
-	memset (conflist, '\0', sizeof (ignorelist_t));
+	/* smalloc exits if it failes */
+	il = (ignorelist_t *) smalloc (sizeof (ignorelist_t));
+	DBG("Ignorelist created 0x%p, default is %s",
+			(void *) il,
+			invert ? "collect" : "ignore");
 
-	if (ignore)
-		conflist->ignore = ignore;
+	memset (il, '\0', sizeof (ignorelist_t));
 
-	return (conflist);
+	/*
+	 * ->ignore == 0  =>  collect
+	 * ->ignore == 1  =>  ignore
+	 */
+	il->ignore = invert ? 0 : 1;
+
+	return (il);
 } /* ignorelist_t *ignorelist_create (int ignore) */
-
-/*
- * create ignorelist_t and initialize the ignore state to 0
- * return pointer to ignorelist_t
- */
-ignorelist_t *ignorelist_init (void)
-{
-	return (ignorelist_create (0));
-} /* ignorelist_t *ignorelist_init (void)  */
-
 
 /*
  * free memory used by ignorelist_t
  */
-void ignorelist_free (ignorelist_t *conflist)
+void ignorelist_free (ignorelist_t *il)
 {
 	ignorelist_item_t *this;
 	ignorelist_item_t *next;
 
-	DBG ("(conflist = 0x%p)", (void *) conflist);
+	DBG ("(il = 0x%p)", (void *) il);
 
-	if (conflist == NULL)
+	if (il == NULL)
 		return;
 
-	for (this = conflist->next; this != NULL; this = next)
+	for (this = il->head; this != NULL; this = next)
 	{
-		DBG ("free - confentry = 0x%p, numlist %i", (void *) this, conflist->num);
+		DBG ("free - item = 0x%p, numlist %i", (void *) this, il->num);
 		next = this->next;
-		conflist->num--;
+		il->num--;
 #if HAVE_REGEX_H
 		if (this->rmatch != NULL)
 		{
@@ -277,62 +264,63 @@ void ignorelist_free (ignorelist_t *conflist)
 		sfree (this);
 	}
 #if COLLECTD_DEBUG
-	if (conflist->num != 0)
-		DBG ("after free numlist: %i", conflist->num);
+	if (il->num != 0)
+		DBG ("after free numlist: %i", il->num);
 #endif
-	conflist->num = 0;
-	sfree (conflist);
-	conflist = NULL;
-} /* void ignorelist_destroy (ignorelist_t *conflist) */
+	il->num = 0;
+	sfree (il);
+	il = NULL;
+} /* void ignorelist_destroy (ignorelist_t *il) */
 
 /*
  * set ignore state of the ignorelist_t
  */
-void ignorelist_ignore (ignorelist_t *conflist, int ignore)
+void ignorelist_set_invert (ignorelist_t *il, int invert)
 {
-	if (conflist == NULL)
+	if (il == NULL)
 	{
 		DBG("ignore call with ignorelist_t == NULL");
 		return;
 	}
 
-	conflist->ignore = ignore;
-} /* void ignorelist_ignore (ignorelist_t *conflist, int ignore) */
+	il->ignore = invert ? 0 : 1;
+} /* void ignorelist_set_invert (ignorelist_t *il, int ignore) */
 
 /*
  * get number of entries in the ignorelist_t
  * return int number
  */
-int ignorelist_num (ignorelist_t *conflist)
+int ignorelist_num (ignorelist_t *il)
 {
-	if (conflist == NULL)
+	if (il == NULL)
 	{
 		DBG("get num called with ignorelist_t == NULL");
 		return (0);
 	}
 
-	return (conflist->num);
-} /* int ignorelist_num (ignorelist_t *conflist) */
+	return (il->num);
+} /* int ignorelist_num (ignorelist_t *il) */
 
 /*
  * append entry into ignorelist_t
  * return 1 for success
  */
-int ignorelist_add (ignorelist_t *conflist, const char *entry)
+int ignorelist_add (ignorelist_t *il, const char *entry)
 {
-#if HAVE_REGEX_H
-	char *entrytemp;
-#endif
-	int restemp;
+	int ret;
+	size_t entry_len;
+	char *entry_copy;
 
-	if (conflist == NULL)
+	if (il == NULL)
 	{
-		DBG("add called with ignorelist_t == NULL");
-		return (0);
+		DBG ("add called with ignorelist_t == NULL");
+		return (1);
 	}
 
-	/* append nothing, report success */
-	if (strlen(entry) == 0)
+	entry_len = strlen (entry);
+
+	/* append nothing */
+	if (entry_len == 0)
 	{
 		DBG("not appending: empty entry");
 		return (1);
@@ -340,54 +328,56 @@ int ignorelist_add (ignorelist_t *conflist, const char *entry)
 
 #if HAVE_REGEX_H
 	/* regex string is enclosed in "/.../" */
-	if (entry[0] == '/' && strlen(entry) > 2 && entry[strlen(entry) - 1] == '/')
+	if ((entry_len > 2) && (entry[0] == '/') && entry[entry_len - 1] == '/')
 	{
-		entrytemp = smalloc(strlen(entry) - 2);
-		sstrncpy(entrytemp, &entry[1], strlen(entry) - 1);
-		DBG("to add regex entry: %s", entrytemp);
-		restemp = ignorelist_regappend(conflist, entrytemp);
-		sfree (entrytemp);
+		/* We need to copy `entry' since it's const */
+		entry_copy = smalloc (entry_len);
+		memset (entry_copy, '\0', entry_len);
+		strncpy (entry_copy, entry + 1, entry_len - 2);
+
+		DBG("I'm about to add regex entry: %s", entry_copy);
+		ret = ignorelist_append_regex(il, entry_copy);
+		sfree (entry_copy);
 	}
 	else
 #endif
 	{
 		DBG("to add entry: %s", entry);
-		restemp = ignorelist_strappend(conflist, entry);
+		ret = ignorelist_append_string(il, entry);
 	}
-	return (restemp);
-} /* int ignorelist_add (ignorelist_t *conflist, const char *entry) */
+
+	return (ret);
+} /* int ignorelist_add (ignorelist_t *il, const char *entry) */
 
 /*
  * check list for entry
  * return 1 for ignored entry
  */
-int ignorelist_ignored (ignorelist_t *conflist, const char *entry)
+int ignorelist_match (ignorelist_t *il, const char *entry)
 {
 	ignorelist_item_t *traverse;
 
 	/* if no entries, collect all */
-	if (ignorelist_num(conflist) == 0)
+	if (ignorelist_num(il) == 0)
 		return (0);
 
 	/* traverse list and check entries */
-	traverse = conflist->next;
-	while (traverse != NULL)
+	for (traverse = il->head; traverse != NULL; traverse = traverse->next)
 	{
 #if HAVE_REGEX_H
 		if (traverse->rmatch != NULL)
 		{
-			if (ignorelist_item_rmatch (traverse, entry))
-				return (conflist->ignore);
+			if (ignorelist_match_regex (traverse, entry))
+				return (il->ignore);
 		}
 		else
 #endif
 		{
-			if (ignorelist_item_smatch (traverse, entry))
-				return (conflist->ignore);
+			if (ignorelist_match_string (traverse, entry))
+				return (il->ignore);
 		}
-		traverse = traverse->next;
-	}
+	} /* for traverse */
 
-	return (1 - conflist->ignore);
-} /* int ignorelist_ignored (ignorelist_t *conflist, const char *entry) */
+	return (1 - il->ignore);
+} /* int ignorelist_match (ignorelist_t *il, const char *entry) */
 

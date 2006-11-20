@@ -189,22 +189,23 @@ featurelist_t *first_feature = NULL;
 static int sensors_config (char *key, char *value)
 {
 	if (sensor_list == NULL)
-		sensor_list = ignorelist_init();
+		sensor_list = ignorelist_create (1);
 
 	if (strcasecmp (key, "Sensor") == 0)
 	{
-		if (!ignorelist_add (sensor_list, value))
+		if (ignorelist_add (sensor_list, value))
 		{
-			syslog (LOG_EMERG, "Cannot add value.");
+			syslog (LOG_EMERG, "Cannot add value to ignorelist.");
 			return (1);
 		}
 	}
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
 	{
+		ignorelist_set_invert (sensor_list, 1);
 		if ((strcasecmp (value, "True") == 0)
 				|| (strcasecmp (value, "Yes") == 0)
 				|| (strcasecmp (value, "On") == 0))
-			ignorelist_ignore (sensor_list, 1);
+			ignorelist_set_invert (sensor_list, 0);
 	}
 	else if (strcasecmp (key, "ExtendedSensorNaming") == 0)
 	{
@@ -336,7 +337,7 @@ static void sensors_voltage_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (ignorelist_ignored (sensor_list, inst))
+	if (ignorelist_match (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -357,7 +358,7 @@ static void sensors_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (ignorelist_ignored (sensor_list, inst))
+	if (ignorelist_match (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -384,7 +385,7 @@ static void sensors_submit (const char *feat_name,
 		return;
 
 	/* skip ignored in our config */
-	if (ignorelist_ignored (sensor_list, inst))
+	if (ignorelist_match (sensor_list, inst))
 		return;
 
 	if (snprintf (buf, BUFSIZE, "%u:%.3f", (unsigned int) curtime,
