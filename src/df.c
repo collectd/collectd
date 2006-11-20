@@ -23,7 +23,9 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "configfile.h"
 #include "utils_mount.h"
+#include "utils_ignorelist.h"
 
 #define MODULE_NAME "df"
 
@@ -57,11 +59,75 @@ static char *ds_def[] =
 };
 static int ds_num = 2;
 
+static char *config_keys[] =
+{
+	"Device",
+	"MountPoint",
+	"FSType",
+	"IgnoreSelected",
+	NULL
+};
+static int config_keys_num = 4;
+
+static ignorelist_t *il_device = NULL;
+static ignorelist_t *il_mountpoint = NULL;
+static ignorelist_t *il_fstype = NULL;
+
 #define BUFSIZE 512
 
 static void df_init (void)
 {
+	if (il_device == NULL)
+		il_device = ignorelist_create (1);
+	if (il_mountpoint == NULL)
+		il_mountpoint = ignorelist_create (1);
+	if (il_fstype == NULL)
+		il_fstype = ignorelist_create (1);
+
 	return;
+}
+
+static int df_config (char *key, char *value)
+{
+	df_init ();
+
+	if (strcasecmp (key, "Device") == 0)
+	{
+		if (ignorelist_add (il_device, value))
+			return (1);
+		return (0);
+	}
+	else if (strcasecmp (key, "MountPoint") == 0)
+	{
+		if (ignorelist_add (il_mountpoint, value))
+			return (1);
+		return (0);
+	}
+	else if (strcasecmp (key, "FSType") == 0)
+	{
+		if (ignorelist_add (il_fstype, value))
+			return (1);
+		return (0);
+	}
+	else if (strcasecmp (key, "IgnoreSelected") == 0)
+	{
+		if ((strcasecmp (value, "True") == 0)
+				|| (strcasecmp (value, "Yes") == 0)
+				|| (strcasecmp (value, "On") == 0))
+		{
+			ignorelist_set_invert (il_device, 0);
+			ignorelist_set_invert (il_mountpoint, 0);
+			ignorelist_set_invert (il_fstype, 0);
+		}
+		else
+		{
+			ignorelist_set_invert (il_device, 1);
+			ignorelist_set_invert (il_mountpoint, 1);
+			ignorelist_set_invert (il_fstype, 1);
+		}
+	}
+
+	return (-1);
 }
 
 static void df_write (char *host, char *inst, char *val)
@@ -143,6 +209,13 @@ static void df_read (void)
 					mnt_name[i] = '-';
 		}
 
+		if (ignorelist_match (il_device, mnt_ptr->device))
+			continue;
+		if (ignorelist_match (il_mountpoint, mnt_ptr->dir))
+			continue;
+		if (ignorelist_match (il_fstype, mnt_ptr->type))
+			continue;
+
 		df_submit (mnt_name, df_used, df_free);
 	}
 
@@ -155,6 +228,7 @@ static void df_read (void)
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, df_init, df_read, df_write);
+	cf_register (MODULE_NAME, df_config, config_keys, config_keys_num);
 }
 
 #undef BUFSIZE
