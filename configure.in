@@ -272,6 +272,9 @@ AC_CHECK_HEADERS(kvm.h)
 # For debugging interface (variable number of arguments)
 AC_CHECK_HEADERS(stdarg.h)
 
+# Regular expressions for the ignorelist.
+AC_CHECK_HEADERS(regex.h)
+
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
 
@@ -301,6 +304,9 @@ AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$socket_needs_socket" = "xyes")
 nanosleep_needs_rt="no"
 AC_CHECK_FUNCS(nanosleep, [], AC_CHECK_LIB(rt, nanosleep, [nanosleep_needs_rt="yes"], AC_MSG_ERROR(cannot find nanosleep)))
 AM_CONDITIONAL(BUILD_WITH_LIBRT, test "x$nanosleep_needs_rt" = "xyes")
+
+# Regular expressions for the ignorelist.
+AC_CHECK_FUNCS(regcomp regerror regexec regfree)
 
 # For cpu module
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
@@ -841,39 +847,6 @@ then
 	AC_DEFINE_UNQUOTED(COLLECTD_HEARTBEAT, "$collectd_heartbeat", [Interval in which plugins are queried.])
 fi
 
-dnl Check for regex
-AC_ARG_WITH(regex, [AS_HELP_STRING([--with-regex], [Use POSIX regular expression in config.])],
-[
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		with_regex="yes"
-	fi
-],
-[
-	with_regex="no"
-])
-if test "x$with_regex" = "xyes"
-then
-	AC_CHECK_FUNCS([regcomp regexec],
-	[with_regfuncs="yes"],
-	[with_regfuncs="no (regcomp & regexec not found)"])
-fi
-if test "x$with_regex" = "xyes"
-then
-	AC_CHECK_HEADERS(regex.h,
-	[with_regexh="yes"],
-	[with_regexh="no (regex.h not found)"])
-fi
-if test "x$with_regex" = "xyes" -a "x$with_regfuncs" = "xyes" -a "x$with_regexh"  = "xyes"
-then
-	collect_regex=1
-else
-	collect_regex=0
-fi
-AC_DEFINE_UNQUOTED(COLLECT_REGEX, [$collect_regex],
-	[Wether or not to use regular expressions])
-AM_CONDITIONAL(BUILD_WITH_REGEX, test "x$with_regex" = "xyes")
-
 # Check for enabled/disabled features
 #
 
@@ -986,7 +959,6 @@ Configuration:
     libstatgrab . . . . $with_libstatgrab
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
-    regex . . . . . . . $with_regex
 
   Features:
     debug . . . . . . . $enable_debug
