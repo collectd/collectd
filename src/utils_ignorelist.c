@@ -1,5 +1,5 @@
 /**
- * collectd - src/config_list.c
+ * collectd - src/utils_ignorelist.c
  * Copyright (C) 2006 Lubos Stanek <lubek at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/
@@ -67,7 +67,6 @@ typedef struct ignorelist_item_s ignorelist_item_t;
 struct ignorelist_s
 {
 	int ignore;		/* ignore entries */
-	int num;		/* number of entries */
 	ignorelist_item_t *head;	/* pointer to the first entry */
 };
 
@@ -81,8 +80,6 @@ static inline void ignorelist_append (ignorelist_t *il, ignorelist_item_t *item)
 
 	item->next = il->head;
 	il->head = item;
-
-	il->num++;
 }
 
 #if HAVE_REGEX_H
@@ -246,9 +243,7 @@ void ignorelist_free (ignorelist_t *il)
 
 	for (this = il->head; this != NULL; this = next)
 	{
-		DBG ("free - item = 0x%p, numlist %i", (void *) this, il->num);
 		next = this->next;
-		il->num--;
 #if HAVE_REGEX_H
 		if (this->rmatch != NULL)
 		{
@@ -263,11 +258,7 @@ void ignorelist_free (ignorelist_t *il)
 		}
 		sfree (this);
 	}
-#if COLLECTD_DEBUG
-	if (il->num != 0)
-		DBG ("after free numlist: %i", il->num);
-#endif
-	il->num = 0;
+
 	sfree (il);
 	il = NULL;
 } /* void ignorelist_destroy (ignorelist_t *il) */
@@ -285,21 +276,6 @@ void ignorelist_set_invert (ignorelist_t *il, int invert)
 
 	il->ignore = invert ? 0 : 1;
 } /* void ignorelist_set_invert (ignorelist_t *il, int ignore) */
-
-/*
- * get number of entries in the ignorelist_t
- * return int number
- */
-int ignorelist_num (ignorelist_t *il)
-{
-	if (il == NULL)
-	{
-		DBG("get num called with ignorelist_t == NULL");
-		return (0);
-	}
-
-	return (il->num);
-} /* int ignorelist_num (ignorelist_t *il) */
 
 /*
  * append entry into ignorelist_t
@@ -358,7 +334,7 @@ int ignorelist_match (ignorelist_t *il, const char *entry)
 	ignorelist_item_t *traverse;
 
 	/* if no entries, collect all */
-	if (ignorelist_num(il) == 0)
+	if (il->head == NULL)
 		return (0);
 
 	/* traverse list and check entries */

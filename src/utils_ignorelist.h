@@ -1,5 +1,5 @@
 /**
- * collectd - src/config_list.h
+ * collectd - src/utils_ignorelist.h
  * Copyright (C) 2006 Lubos Stanek <lubek at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/
@@ -54,11 +54,6 @@ void ignorelist_free (ignorelist_t *il);
  * set ignore state of the ignorelist_t
  */
 void ignorelist_set_invert (ignorelist_t *il, int invert);
-/*
- * get number of entries in the ignorelist_t
- * return int number
- */
-int ignorelist_num (ignorelist_t *il);
 
 /*
  * append entry to ignorelist_t
