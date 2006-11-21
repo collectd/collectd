@@ -86,6 +86,8 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 		if (height_new == n->height)
 			break;
 
+		n->height = height_new;
+
 		cmp = height_right - height_left;
 		if (cmp < -1)
 		{
@@ -100,8 +102,22 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 			n->parent = l;
 			n->left = lr;
 
-			if (n == t->root)
+			if (lr != NULL)
+				lr->parent = n;
+
+			if (l->parent == NULL)
+			{
+				assert (t->root == n);
 				t->root = l;
+			}
+			else
+			{
+				assert ((l->parent->left == n) || (l->parent->right == n));
+				if (l->parent->left == n)
+					l->parent->left = l;
+				else
+					l->parent->right = l;
+			}
 		}
 		else if (cmp > 1)
 		{
@@ -116,13 +132,31 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 			n->parent = r;
 			n->right = rl;
 
-			if (n == t->root)
+			if (rl != NULL)
+				rl->parent = n;
+
+			if (r->parent == NULL)
+			{
+				assert (t->root == n);
 				t->root = r;
+			}
+			else
+			{
+				assert ((r->parent->left == n) || (r->parent->right == n));
+				if (r->parent->left == n)
+					r->parent->left = r;
+				else
+					r->parent->right = r;
+			}
 		}
 		else
 		{
 			n = n->parent;
 		}
+
+		assert ((n == NULL) || (n->parent == NULL)
+				|| (n->parent->left == n)
+				|| (n->parent->right == n));
 	} /* while (n != NULL) */
 } /* void rebalance */
 
@@ -200,7 +234,7 @@ void *avl_node_prev (avl_tree_t *t, avl_node_t *n)
 	return (r);
 }
 
-static void *remove (avl_tree_t *t, avl_node_t *n)
+static void *_remove (avl_tree_t *t, avl_node_t *n)
 {
 	void *ret;
 
@@ -224,6 +258,8 @@ static void *remove (avl_tree_t *t, avl_node_t *n)
 				n->parent->left = NULL;
 			else
 				n->parent->right = NULL;
+
+			rebalance (t, n->parent);
 		}
 
 		free_node (n);
@@ -244,11 +280,11 @@ static void *remove (avl_tree_t *t, avl_node_t *n)
 		n->key   = r->key;
 		n->value = r->value;
 
-		remove (t, r);
+		_remove (t, r);
 	}
 
 	return (ret);
-} /* void *remove */
+} /* void *_remove */
 
 /*
  * public functions
@@ -283,7 +319,7 @@ int avl_insert (avl_tree_t *t, void *key, void *value)
 
 	new->key = key;
 	new->value = value;
-	new->height = 0;
+	new->height = 1;
 	new->left = NULL;
 	new->right = NULL;
 
@@ -335,7 +371,9 @@ int avl_insert (avl_tree_t *t, void *key, void *value)
 		}
 	} /* while (42) */
 
-	rebalance (t, new->parent);
+	assert ((new->parent != NULL)
+			&& ((new->parent->left == new)
+				|| (new->parent->right == new)));
 
 	return (0);
 } /* int avl_insert */
@@ -350,7 +388,7 @@ void *avl_remove (avl_tree_t *t, void *key)
 	if (n == NULL)
 		return (NULL);
 
-	return (remove (t, n));
+	return (_remove (t, n));
 } /* void *avl_remove */
 
 void *avl_get (avl_tree_t *t, void *key)
