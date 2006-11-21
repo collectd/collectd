@@ -210,7 +210,10 @@ static void df_read (void)
 					mnt_name[i] = '-';
 		}
 
-		if (ignorelist_match (il_device, mnt_ptr->device))
+		if (ignorelist_match (il_device,
+					(mnt_ptr->spec_device != NULL)
+					? mnt_ptr->spec_device
+					: mnt_ptr->device))
 			continue;
 		if (ignorelist_match (il_mountpoint, mnt_ptr->dir))
 			continue;
