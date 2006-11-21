@@ -125,6 +125,7 @@ static int df_config (char *key, char *value)
 			ignorelist_set_invert (il_mountpoint, 1);
 			ignorelist_set_invert (il_fstype, 1);
 		}
+		return (0);
 	}
 
 	return (-1);
