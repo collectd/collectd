@@ -81,6 +81,7 @@ static char *extended_filename_format = "lm_sensors-%s.rrd";
 #define SENSOR_TYPE_FANSPEED 2
 #define SENSOR_TYPE_TEMPERATURE 3
 
+#if SENSORS_HAVE_READ
 static char *sensor_type_prefix[] =
 {
 	"unknown",
@@ -89,6 +90,7 @@ static char *sensor_type_prefix[] =
 	"temperature",
 	NULL
 };
+#endif
 
 typedef struct sensors_labeltypes {
 	char *label;
@@ -98,6 +100,7 @@ typedef struct sensors_labeltypes {
 /*
  * finite list of known labels extracted from lm_sensors
  */
+#if SENSORS_HAVE_READ
 static sensors_labeltypes known_features[] = 
 {
 	{ "fan1", SENSOR_TYPE_FANSPEED },
@@ -154,6 +157,7 @@ static sensors_labeltypes known_features[] =
 	{ "12V", SENSOR_TYPE_VOLTAGE },
 	{ 0, -1 }
 };
+#endif
 /* end new naming */
 
 static char *config_keys[] =
