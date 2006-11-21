@@ -69,6 +69,9 @@
 #  if HAVE_MACH_VM_PROT_H
 #    include <mach/vm_prot.h>
 #  endif
+#  if HAVE_SYS_SYSCTL_H
+#    include <sys/sysctl.h>
+#  endif
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
@@ -203,11 +206,7 @@ static mach_msg_type_number_t     pset_list_len;
 static long pagesize_g;
 #endif /* KERNEL_LINUX */
 
-#if HAVE_THREAD_INFO
-/* ps_list_* not used yet */
-/* #endif HAVE_THREAD_INFO */
-
-#elif KERNEL_LINUX
+#if HAVE_THREAD_INFO | KERNEL_LINUX
 static void ps_list_register (const char *name)
 {
 	procstat_t *new;
@@ -404,7 +403,7 @@ static void ps_list_reset (void)
 		} /* while (pse != NULL) */
 	} /* for (ps = list_head_g; ps != NULL; ps = ps->next) */
 }
-#endif /* KERNEL_LINUX */
+#endif /* HAVE_THREAD_INFO | KERNEL_LINUX */
 
 static int ps_config (char *key, char *value)
 {
@@ -577,8 +576,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	plugin_submit ("ps_pagefaults", ps->name, buffer);
 
 	DBG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
-			"vmem_minflt_counter = %i; vmem_majflt_counter = %i; "
-			"cpu_user_counter = %i; cpu_system_counter = %i;",
+			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "
+			"cpu_user_counter = %lu; cpu_system_counter = %lu;",
 			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter, ps->cpu_user_counter,
 			ps->cpu_system_counter);
@@ -756,6 +755,42 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 } /* int ps_read_process (...) */
 #endif /* KERNEL_LINUX */
 
+#if HAVE_THREAD_INFO
+static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_len)
+{
+	int mib[4];
+
+	struct kinfo_proc kp;
+	size_t            kp_size;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+
+	if (pid_for_task (t, pid) != KERN_SUCCESS)
+		return (-1);
+	mib[3] = *pid;
+
+	kp_size = sizeof (kp);
+	if (sysctl (mib, 4, &kp, &kp_size, NULL, 0) != 0)
+		return (-1);
+
+	if (name_max_len > (MAXCOMLEN + 1))
+		name_max_len = MAXCOMLEN + 1;
+
+	strncpy (name, kp.kp_proc.p_comm, name_max_len - 1);
+	name[name_max_len - 1] = '\0';
+
+	DBG ("pid = %i; name = %s;", *pid, name);
+
+	/* We don't do the special handling for `p_comm == "LaunchCFMApp"' as
+	 * `top' does it, because it is a lot of work and only used when
+	 * debugging. -octo */
+
+	return (0);
+}
+#endif /* HAVE_THREAD_INFO */
+
 static void ps_read (void)
 {
 #if HAVE_THREAD_INFO
@@ -768,6 +803,9 @@ static void ps_read (void)
 	task_array_t             task_list;
 	mach_msg_type_number_t   task_list_len;
 
+	int                      task_pid;
+	char                     task_name[MAXCOMLEN + 1];
+
 	int                      thread;
 	thread_act_array_t       thread_list;
 	mach_msg_type_number_t   thread_list_len;
@@ -779,6 +817,11 @@ static void ps_read (void)
 	int zombies  = 0;
 	int stopped  = 0;
 	int blocked  = 0;
+
+	procstat_t *ps;
+	procstat_entry_t pse;
+
+	ps_list_reset ();
 
 	/*
 	 * The Mach-concept is a little different from the traditional UNIX
@@ -811,6 +854,71 @@ static void ps_read (void)
 
 		for (task = 0; task < task_list_len; task++)
 		{
+			ps = NULL;
+			if (mach_get_task_name (task_list[task],
+						&task_pid,
+						task_name, PROCSTAT_NAME_LEN) == 0)
+				ps = ps_list_search (task_name);
+
+			/* Collect more detailed statistics for this process */
+			if (ps != NULL)
+			{
+				task_basic_info_data_t        task_basic_info;
+				mach_msg_type_number_t        task_basic_info_len;
+				task_events_info_data_t       task_events_info;
+				mach_msg_type_number_t        task_events_info_len;
+				task_absolutetime_info_data_t task_absolutetime_info;
+				mach_msg_type_number_t        task_absolutetime_info_len;
+
+				memset (&pse, '\0', sizeof (pse));
+				pse.id = task_pid;
+
+				task_basic_info_len = TASK_BASIC_INFO_COUNT;
+				status = task_info (task_list[task],
+						TASK_BASIC_INFO,
+						(task_info_t) &task_basic_info,
+						&task_basic_info_len);
+				if (status != KERN_SUCCESS)
+				{
+					syslog (LOG_ERR, "task_info failed: %s",
+							mach_error_string (status));
+					continue; /* with next thread_list */
+				}
+
+				task_events_info_len = TASK_EVENTS_INFO_COUNT;
+				status = task_info (task_list[task],
+						TASK_EVENTS_INFO,
+						(task_info_t) &task_events_info,
+						&task_events_info_len);
+				if (status != KERN_SUCCESS)
+				{
+					syslog (LOG_ERR, "task_info failed: %s",
+							mach_error_string (status));
+					continue; /* with next thread_list */
+				}
+
+				task_absolutetime_info_len = TASK_ABSOLUTETIME_INFO_COUNT;
+				status = task_info (task_list[task],
+						TASK_ABSOLUTETIME_INFO,
+						(task_info_t) &task_absolutetime_info,
+						&task_absolutetime_info_len);
+				if (status != KERN_SUCCESS)
+				{
+					syslog (LOG_ERR, "task_info failed: %s",
+							mach_error_string (status));
+					continue; /* with next thread_list */
+				}
+
+				pse.num_proc++;
+				pse.vmem_rss = task_basic_info.resident_size;
+
+				pse.vmem_minflt_counter = task_events_info.cow_faults;
+				pse.vmem_majflt_counter = task_events_info.faults;
+
+				pse.cpu_user_counter = task_absolutetime_info.total_user;
+				pse.cpu_system_counter = task_absolutetime_info.total_system;
+			}
+
 			status = task_threads (task_list[task], &thread_list,
 					&thread_list_len);
 			if (status != KERN_SUCCESS)
@@ -837,13 +945,16 @@ static void ps_read (void)
 						&thread_data_len);
 				if (status != KERN_SUCCESS)
 				{
-					syslog (LOG_ERR, "thread_info failed: %s\n",
+					syslog (LOG_ERR, "thread_info failed: %s",
 							mach_error_string (status));
 					if (task_list[task] != port_task_self)
 						mach_port_deallocate (port_task_self,
 								thread_list[thread]);
 					continue; /* with next thread_list */
 				}
+
+				if (ps != NULL)
+					pse.num_lwp++;
 
 				switch (thread_data.run_state)
 				{
@@ -904,6 +1015,9 @@ static void ps_read (void)
 					syslog (LOG_ERR, "mach_port_deallocate failed: %s",
 							mach_error_string (status));
 			}
+
+			if (ps != NULL)
+				ps_list_add (task_name, &pse);
 		} /* for (task_list) */
 
 		if ((status = vm_deallocate (port_task_self,
@@ -925,6 +1039,9 @@ static void ps_read (void)
 	} /* for (pset_list) */
 
 	ps_submit (running, sleeping, zombies, stopped, -1, blocked);
+
+	for (ps = list_head_g; ps != NULL; ps = ps->next)
+		ps_submit_proc_list (ps);
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
