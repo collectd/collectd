@@ -247,6 +247,41 @@ our $GraphDefs;
 			'GPRINT:total_max_ms:MAX:%5.1lf%s Max,',
 			'GPRINT:total_avg_ms:LAST:%5.1lf%s Last'
 		],
+		dns_traffic => ['DEF:rsp_min_raw={file}:responses:MIN',
+			'DEF:rsp_avg_raw={file}:responses:AVERAGE',
+			'DEF:rsp_max_raw={file}:responses:MAX',
+			'DEF:qry_min_raw={file}:queries:MIN',
+			'DEF:qry_avg_raw={file}:queries:AVERAGE',
+			'DEF:qry_max_raw={file}:queries:MAX',
+			'CDEF:rsp_min=rsp_min_raw,8,*',
+			'CDEF:rsp_avg=rsp_avg_raw,8,*',
+			'CDEF:rsp_max=rsp_max_raw,8,*',
+			'CDEF:qry_min=qry_min_raw,8,*',
+			'CDEF:qry_avg=qry_avg_raw,8,*',
+			'CDEF:qry_max=qry_max_raw,8,*',
+			'CDEF:overlap=rsp_avg,qry_avg,GT,qry_avg,rsp_avg,IF',
+			'CDEF:mytime=rsp_avg_raw,TIME,TIME,IF',
+			'CDEF:sample_len_raw=mytime,PREV(mytime),-',
+			'CDEF:sample_len=sample_len_raw,UN,0,sample_len_raw,IF',
+			'CDEF:rsp_avg_sample=rsp_avg_raw,UN,0,rsp_avg_raw,IF,sample_len,*',
+			'CDEF:rsp_avg_sum=PREV,UN,0,PREV,IF,rsp_avg_sample,+',
+			'CDEF:qry_avg_sample=qry_avg_raw,UN,0,qry_avg_raw,IF,sample_len,*',
+			'CDEF:qry_avg_sum=PREV,UN,0,PREV,IF,qry_avg_sample,+',
+			"AREA:rsp_avg#$HalfGreen",
+			"AREA:qry_avg#$HalfBlue",
+			"AREA:overlap#$HalfBlueGreen",
+			"LINE1:rsp_avg#$FullGreen:Responses",
+			'GPRINT:rsp_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:rsp_max:MAX:%5.1lf%s Max,',
+			'GPRINT:rsp_avg:LAST:%5.1lf%s Last',
+			'GPRINT:rsp_avg_sum:LAST:(ca. %5.1lf%sB Total)\l',
+			"LINE1:qry_avg#$FullBlue:Queries  ",
+			#'GPRINT:qry_min:MIN:%5.1lf %s Min,',
+			'GPRINT:qry_avg:AVERAGE:%5.1lf%s Avg,',
+			'GPRINT:qry_max:MAX:%5.1lf%s Max,',
+			'GPRINT:qry_avg:LAST:%5.1lf%s Last',
+			'GPRINT:qry_avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
+		],
 		fanspeed => [
 			'DEF:temp_avg={file}:value:AVERAGE',
 			'DEF:temp_min={file}:value:MIN',
@@ -791,6 +826,30 @@ our $GraphDefs;
 			'GPRINT:major_max:MAX:%5.1lf%s Max,',
 			'GPRINT:major_avg:LAST:%5.1lf%s Last\l'
 		],
+		qtype => [
+			'DEF:avg={file}:value:AVERAGE',
+			'DEF:min={file}:value:MIN',
+			'DEF:max={file}:value:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Queries/s",
+			'GPRINT:min:MIN:%9.3lf Min,',
+			'GPRINT:avg:AVERAGE:%9.3lf Average,',
+			'GPRINT:max:MAX:%9.3lf Max,',
+			'GPRINT:avg:LAST:%9.3lf Last\l'
+		],
+		rcode => [
+			'DEF:avg={file}:value:AVERAGE',
+			'DEF:min={file}:value:MIN',
+			'DEF:max={file}:value:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Queries/s",
+			'GPRINT:min:MIN:%9.3lf Min,',
+			'GPRINT:avg:AVERAGE:%9.3lf Average,',
+			'GPRINT:max:MAX:%9.3lf Max,',
+			'GPRINT:avg:LAST:%9.3lf Last\l'
+		],
 		swap => [
 			'DEF:used_avg={file}:used:AVERAGE',
 			'DEF:used_min={file}:used:MIN',
@@ -1058,6 +1117,7 @@ our $GraphArgs =
 	delay => ['-t', 'NTPd peer delay ({inst})', '-v', 'Seconds'],
 	df => ['-t', '{host}:{inst} usage', '-v', 'Percent', '-l', '0'],
 	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
+	dns_traffic => ['-t', '{host} DNS traffic', '-v', 'Bit/s'],
 	fanspeed => ['-t', '{host} fanspeed {inst}', '-v', 'RPM'],
 	frequency_offset => ['-t', 'NTPd frequency offset ({inst})', '-v', 'Parts per million'],
 	hddtemp => ['-t', '{host} hdd temperature {inst}', '-v', '°Celsius'],
@@ -1079,6 +1139,8 @@ our $GraphArgs =
 	ps_cputime => ['-t', '{host} process {inst} CPU usage', '-v', 'Seconds'],
 	ps_count => ['-t', '{host} process {inst} count', '-v', 'Threads/Processes'],
 	ps_pagefaults => ['-t', '{host} process {inst} pagefaults', '-v', 'Pagefaults/s'],
+	qtype => ['-t', 'QType {inst}', '-v', 'Queries/s'],
+	rcode => ['-t', 'RCode {inst}', '-v', 'Queries/s'],
 	sensors => ['-t', '{host} sensor {inst}', '-v', '°Celsius'],
 	swap => ['-t', '{host} swap usage', '-v', 'Bytes', '-b', '1024', '-l', '0'],
 	temperature => ['-t', '{host} temperature {inst}', '-v', '°Celsius'],
@@ -1107,6 +1169,8 @@ our $GraphMulti =
 	mysql_handler => \&output_graph_mysql_handler,
 	partition => 1,
 	ping	=> \&output_graph_ping,
+	qtype => \&output_graph_named_qtype,
+	rcode => \&output_graph_named_rcode,
 	sensors	=> 1,
 	traffic	=> 1,
 	users => 1,
@@ -1372,6 +1436,93 @@ sub output_graph_mysql_handler
 	return (@ret);
 }
 
+sub output_graph_named_qtype
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/qtype-$inst.rrd:value:AVERAGE",
+			"DEF:min_$i=$AbsDir/qtype-$inst.rrd:value:MIN",
+			"DEF:max_$i=$AbsDir/qtype-$inst.rrd:value:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+		my $type = ($i == 0) ? 'AREA' : 'STACK';
+
+		if (length ($inst) > 5)
+		{
+			$inst = substr ($inst, 0, 5);
+		}
+		else
+		{
+			$inst = sprintf ('%-5s', $inst);
+		}
+
+		push (@ret,
+			"$type:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%9.3lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%9.3lf Avg,",
+			"GPRINT:max_$i:MAX:%9.3lf Max,",
+			"GPRINT:avg_$i:LAST:%9.3lf Last\\l");
+	}
+
+	return (@ret);
+}
+
+sub output_graph_named_rcode
+{
+	my @inst = @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/rcode-$inst.rrd:value:AVERAGE",
+			"DEF:min_$i=$AbsDir/rcode-$inst.rrd:value:MIN",
+			"DEF:max_$i=$AbsDir/rcode-$inst.rrd:value:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+		my $type = ($i == 0) ? 'AREA' : 'STACK';
+
+		if (length ($inst) > 8)
+		{
+			$inst = substr ($inst, 0, 6) . '..';
+		}
+		else
+		{
+			$inst = sprintf ('%-8s', $inst);
+		}
+
+		push (@ret,
+			"$type:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%9.3lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%9.3lf Avg,",
+			"GPRINT:max_$i:MAX:%9.3lf Max,",
+			"GPRINT:avg_$i:LAST:%9.3lf Last\\l");
+	}
+
+	return (@ret);
+}
 sub output_graph
 {
 	die unless (defined ($GraphDefs->{$Type}));

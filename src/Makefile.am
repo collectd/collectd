@@ -237,6 +237,17 @@ collectd_LDADD += "-dlopen" mysql.la
 collectd_DEPENDENCIES += mysql.la
 endif
 
+if BUILD_MODULE_DNS
+pkglib_LTLIBRARIES += dns.la
+dns_la_SOURCES = dns.c utils_dns.c
+dns_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBPCAP
+dns_la_LDFLAGS += -lpcap
+endif
+collectd_LDADD += "-dlopen" dns.la
+collectd_DEPENDENCIES += dns.la
+endif
+
 if BUILD_MODULE_NFS
 pkglib_LTLIBRARIES += nfs.la
 nfs_la_SOURCES = nfs.c
