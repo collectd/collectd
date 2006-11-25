@@ -49,7 +49,7 @@ static void free_node (avl_node_t *n)
 	free (n);
 }
 
-static avl_node_t *search (avl_tree_t *t, void *key)
+static avl_node_t *search (avl_tree_t *t, const void *key)
 {
 	avl_node_t *n;
 	int cmp;
@@ -234,13 +234,9 @@ void *avl_node_prev (avl_tree_t *t, avl_node_t *n)
 	return (r);
 }
 
-static void *_remove (avl_tree_t *t, avl_node_t *n)
+static int _remove (avl_tree_t *t, avl_node_t *n)
 {
-	void *ret;
-
 	assert ((t != NULL) && (n != NULL));
-
-	ret = n->value;
 
 	if ((n->left == NULL) && (n->right == NULL))
 	{
@@ -283,7 +279,7 @@ static void *_remove (avl_tree_t *t, avl_node_t *n)
 		_remove (t, r);
 	}
 
-	return (ret);
+	return (0);
 } /* void *_remove */
 
 /*
@@ -378,7 +374,7 @@ int avl_insert (avl_tree_t *t, void *key, void *value)
 	return (0);
 } /* int avl_insert */
 
-void *avl_remove (avl_tree_t *t, void *key)
+int avl_remove (avl_tree_t *t, void *key, void **rkey, void **rvalue)
 {
 	avl_node_t *n;
 
@@ -386,20 +382,29 @@ void *avl_remove (avl_tree_t *t, void *key)
 
 	n = search (t, key);
 	if (n == NULL)
-		return (NULL);
+		return (-1);
+
+	if (rkey != NULL)
+		*rkey = n->key;
+	if (rvalue != NULL)
+		*rvalue = n->value;
 
 	return (_remove (t, n));
 } /* void *avl_remove */
 
-void *avl_get (avl_tree_t *t, void *key)
+int avl_get (avl_tree_t *t, const void *key, void **value)
 {
 	avl_node_t *n;
 
+	assert (value != NULL);
+
 	n = search (t, key);
 	if (n == NULL)
-		return (NULL);
+		return (-1);
 
-	return (n->value);
+	*value = n->value;
+
+	return (0);
 }
 
 avl_iterator_t *avl_get_iterator (avl_tree_t *t)

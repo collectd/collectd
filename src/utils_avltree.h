@@ -7,13 +7,19 @@ typedef struct avl_tree_s avl_tree_t;
 struct avl_iterator_s;
 typedef struct avl_iterator_s avl_iterator_t;
 
+struct avl_keyval_s
+{
+	void *key;
+	void *value;
+};
+
 avl_tree_t *avl_create (int (*compare) (const void *, const void *));
 void avl_destroy (avl_tree_t *t);
 
 int avl_insert (avl_tree_t *t, void *key, void *value);
-void *avl_remove (avl_tree_t *t, void *key);
+int avl_remove (avl_tree_t *t, void *key, void **rkey, void **rvalue);
 
-void *avl_get (avl_tree_t *t, void *key);
+int avl_get (avl_tree_t *t, const void *key, void **value);
 
 avl_iterator_t *avl_get_iterator (avl_tree_t *t);
 void *avl_iterator_next (avl_iterator_t *iter);
