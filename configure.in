@@ -269,6 +269,15 @@ AC_CHECK_HEADERS(sys/vfstab.h)
 # For the swap plugin, FreeBSD
 AC_CHECK_HEADERS(kvm.h)
 
+# For the email plugin
+AC_CHECK_HEADERS(linux/un.h, [], [],
+[
+#if HAVE_SYS_SOCKET_H
+#	include <sys/socket.h>
+#endif
+])
+AC_CHECK_HEADERS(sys/un.h)
+
 # For debugging interface (variable number of arguments)
 AC_CHECK_HEADERS(stdarg.h)
 
@@ -953,6 +962,7 @@ AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
 AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
 AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
 AC_COLLECTD([df],        [disable], [module], [df statistics])
+AC_COLLECTD([email],     [disable], [module], [email statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
@@ -1003,6 +1013,7 @@ Configuration:
     cpufreq . . . . . . $enable_cpufreq
     df  . . . . . . . . $enable_df
     disk  . . . . . . . $enable_disk
+    email . . . . . . . $enable_email
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
     memory  . . . . . . $enable_memory

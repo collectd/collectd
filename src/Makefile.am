@@ -156,6 +156,14 @@ collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
 
+if BUILD_MODULE_EMAIL
+pkglib_LTLIBRARIES += email.la
+email_la_SOURCES = email.c
+email_la_LDFLAGS = -module -avoid-version -lpthread
+collectd_LDADD += "-dlopen" email.la
+collectd_DEPENDENCIES += email.la
+endif
+
 #if BUILD_MODULE_QUOTA
 #pkglib_LTLIBRARIES += quota.la
 #quota_la_SOURCES = quota_plugin.c quota_plugin.h
