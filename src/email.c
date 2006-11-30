@@ -55,6 +55,10 @@
 #	include <sys/un.h>
 #endif /* HAVE_LINUX_UN_H | HAVE_SYS_UN_H */
 
+#if HAVE_GRP_H
+#	include <grp.h>
+#endif /* HAVE_GRP_H */
+
 #define MODULE_NAME "email"
 
 /* 256 bytes ought to be enough for anybody ;-) */
@@ -482,6 +486,29 @@ static void *open_connection (void *arg)
 		disabled = 1;
 		syslog (LOG_ERR, "listen() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
+	}
+
+	if ((uid_t)0 == geteuid ()) {
+		struct group *grp;
+
+		errno = 0;
+		if (NULL != (grp = getgrnam (COLLECTD_GRP_NAME))) {
+			errno = 0;
+			if (0 != chown (SOCK_PATH, (uid_t)-1, grp->gr_gid)) {
+				syslog (LOG_WARNING, "chown() failed: %s", strerror (errno));
+			}
+		}
+		else {
+			syslog (LOG_WARNING, "getgrnam() failed: %s", strerror (errno));
+		}
+	}
+	else {
+		syslog (LOG_WARNING, "not running as root");
+	}
+
+	errno = 0;
+	if (0 != chmod (SOCK_PATH, S_IRWXU | S_IRWXG)) {
+		syslog (LOG_WARNING, "chmod() failed: %s", strerror (errno));
 	}
 
 	{ /* initialize queue of available threads */

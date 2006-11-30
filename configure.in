@@ -277,6 +277,7 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #endif
 ])
 AC_CHECK_HEADERS(sys/un.h)
+AC_CHECK_HEADERS(grp.h)
 
 # For debugging interface (variable number of arguments)
 AC_CHECK_HEADERS(stdarg.h)
