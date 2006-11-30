@@ -361,8 +361,9 @@ static void *collect (void *arg)
 		}
 
 		if ('e' == line[0]) { /* e:<type>:<bytes> */
-			char *type = strtok (line + 2, ":");
-			char *tmp  = strtok (NULL, ":");
+			char *ptr  = NULL;
+			char *type = strtok_r (line + 2, ":", &ptr);
+			char *tmp  = strtok_r (NULL, ":", &ptr);
 			int  bytes = 0;
 
 			if (NULL == tmp) {
@@ -389,13 +390,14 @@ static void *collect (void *arg)
 			pthread_mutex_unlock (&score_mutex);
 		}
 		else if ('c' == line[0]) { /* c:<type1>[,<type2>,...] */
-			char *type = strtok (line + 2, ",");
+			char *ptr  = NULL;
+			char *type = strtok_r (line + 2, ",", &ptr);
 
 			do {
 				pthread_mutex_lock (&check_mutex);
 				type_list_incr (&check, type, 1);
 				pthread_mutex_unlock (&check_mutex);
-			} while (NULL != (type = strtok (NULL, ",")));
+			} while (NULL != (type = strtok_r (NULL, ",", &ptr)));
 		}
 		else {
 			syslog (LOG_ERR, "email: unknown type '%c'", line[0]);
