@@ -23,7 +23,7 @@
 /*
  * This plugin communicates with a spam filter, a virus scanner or similar
  * software using a UNIX socket and a very simple protocol:
- * 
+ *
  * e-mail type (e.g. ham, spam, virus, ...) and size
  * e:<type>:<bytes>
  *
@@ -123,7 +123,7 @@ static pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 static type_list_t count;
 
 #define SIZE_FILE  "email/email_size-%s.rrd"
-static char *size_ds_def[] = 
+static char *size_ds_def[] =
 {
 	"DS:size:GAUGE:"COLLECTD_HEARTBEAT":0:U",
 	NULL
@@ -267,8 +267,8 @@ char *read_line (collector_t *src)
 
 		do {
 			errno = 0;
-			if (0 > (len = read (src->socket, 
-							(void *)(&(src->buffer[0]) + src->idx), 
+			if (0 > (len = read (src->socket,
+							(void *)(&(src->buffer[0]) + src->idx),
 							BUFSIZE - src->idx))) {
 				if (EINTR != errno) {
 					syslog (LOG_ERR, "read() failed: %s", strerror (errno));
@@ -379,7 +379,7 @@ static void *collect (void *arg)
 		}
 		else if ('s' == line[0]) { /* s:<value> */
 			pthread_mutex_lock (&score_mutex);
-			score = (score * (double)score_count + atof (line + 2)) 
+			score = (score * (double)score_count + atof (line + 2))
 					/ (double)(score_count + 1);
 			++score_count;
 			pthread_mutex_unlock (&score_mutex);
@@ -470,7 +470,7 @@ static void *open_connection (void *arg)
 
 	errno = 0;
 	if (-1 == bind (local, (struct sockaddr *)&addr,
-				offsetof (struct sockaddr_un, sun_path) 
+				offsetof (struct sockaddr_un, sun_path)
 					+ strlen(addr.sun_path))) {
 		disabled = 1;
 		syslog (LOG_ERR, "bind() failed: %s", strerror (errno));
@@ -553,7 +553,7 @@ static void *open_connection (void *arg)
 		pthread_attr_init (&ptattr);
 		pthread_attr_setdetachstate (&ptattr, PTHREAD_CREATE_DETACHED);
 
-		if (0 == (err = pthread_create (&collector->thread, &ptattr, collect, 
+		if (0 == (err = pthread_create (&collector->thread, &ptattr, collect,
 				(void *)collector))) {
 			pthread_mutex_lock (&active_mutex);
 
@@ -595,7 +595,7 @@ static void email_init (void)
 {
 	int err = 0;
 
-	if (0 != (err = pthread_create (&connector, NULL, 
+	if (0 != (err = pthread_create (&connector, NULL,
 				open_connection, NULL))) {
 		disabled = 1;
 		syslog (LOG_ERR, "pthread_create() failed: %s", strerror (err));
@@ -662,7 +662,6 @@ static void type_submit (char *plugin, char *inst, int value)
 		return;
 
 	plugin_submit (plugin, inst, buf);
-fprintf(stderr, "plugin_submit (\"%s\", \"%s\", \"%s\")\n", plugin, inst, buf);
 	return;
 } /* static void type_submit (char *, char *, int) */
 
@@ -679,7 +678,6 @@ static void score_submit (double value)
 		return;
 
 	plugin_submit ("email_spam_score", NULL, buf);
-fprintf(stderr, "plugin_submit (\"%s\", \"%s\", \"%s\")\n", "email_spam_score", "\0", buf);
 	return;
 }
 
