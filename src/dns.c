@@ -263,10 +263,12 @@ static void *dns_child_loop (void *dummy)
 	struct pollfd poll_fds[1];
 	int status;
 
-	/* Don't catch these signals */
-	/* FIXME: Really? */
-	signal (SIGINT, SIG_DFL);
-	signal (SIGTERM, SIG_DFL);
+	/* Don't block any signals */
+	{
+		sigset_t sigmask;
+		sigemptyset (&sigmask);
+		pthread_sigmask (SIG_SETMASK, &sigmask, NULL);
+	}
 
 	/* Passing `pcap_device == NULL' is okay and the same as passign "any" */
 	DBG ("Creating PCAP object..");
