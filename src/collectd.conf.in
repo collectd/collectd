@@ -28,6 +28,7 @@
 @BUILD_MODULE_CPUFREQ_TRUE@LoadPlugin cpufreq
 @BUILD_MODULE_DF_TRUE@LoadPlugin df
 @BUILD_MODULE_DISK_TRUE@LoadPlugin disk
+@BUILD_MODULE_DNS_TRUE@LoadPlugin dns
 @BUILD_MODULE_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_MODULE_LOAD_TRUE@LoadPlugin load
 @BUILD_MODULE_MEMORY_TRUE@LoadPlugin memory
@@ -56,6 +57,11 @@
 #<Plugin apcups>
 #	Host localhost
 #	Port 3551
+#</Plugin>
+
+#<Plugin dns>
+#	Interface eth0
+#	IgnoreSource 192.168.0.1
 #</Plugin>
 
 #<Plugin hddtemp>
