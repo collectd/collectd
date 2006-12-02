@@ -25,26 +25,23 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_debug.h"
-
-#if HAVE_SYS_POLL_H
-# include <sys/poll.h>
-#endif
+#include "utils_dns.h"
 
 #define MODULE_NAME "dns"
 
-#if HAVE_LIBPCAP
-# define NAMED_HAVE_CONFIG 1
+#if HAVE_LIBPCAP && HAVE_LIBPTHREAD
+# include <pthread.h>
+# include <pcap.h>
+# include <sys/poll.h>
+# define DNS_HAVE_READ 1
 #else
-# define NAMED_HAVE_CONFIG 0
+# define DNS_HAVE_READ 0
 #endif
 
-#if HAVE_LIBPCAP
-# include "utils_dns.h"
-# define NAMED_HAVE_READ 1
-#else
-# define NAMED_HAVE_READ 0
-#endif
-
+/*
+ * Private data types
+ */
+#if DNS_HAVE_READ
 struct counter_list_s
 {
 	unsigned int key;
@@ -52,7 +49,11 @@ struct counter_list_s
 	struct counter_list_s *next;
 };
 typedef struct counter_list_s counter_list_t;
+#endif
 
+/*
+ * Private variables
+ */
 static char *traffic_file   = "dns/dns_traffic.rrd";
 static char *qtype_file   = "dns/qtype-%s.rrd";
 static char *opcode_file  = "dns/opcode-%s.rrd";
@@ -88,8 +89,7 @@ static char *rcode_ds_def[] =
 };
 static int rcode_ds_num = 1;
 
-#if NAMED_HAVE_CONFIG
-#if HAVE_LIBPCAP
+#if DNS_HAVE_READ
 static char *config_keys[] =
 {
 	"Interface",
@@ -97,21 +97,29 @@ static char *config_keys[] =
 	NULL
 };
 static int config_keys_num = 2;
-#endif /* HAVE_LIBPCAP */
-#endif /* NAMED_HAVE_CONFIG */
 
-#if HAVE_LIBPCAP
 #define PCAP_SNAPLEN 1460
 static char   *pcap_device = NULL;
-static int     pipe_fd = -1;
 
 static unsigned int    tr_queries;
 static unsigned int    tr_responses;
 static counter_list_t *qtype_list;
 static counter_list_t *opcode_list;
 static counter_list_t *rcode_list;
-#endif
 
+static pthread_t       listen_thread;
+static int             listen_thread_init = 0;
+/* The `traffic' mutex if for `tr_queries' and `tr_responses' */
+static pthread_mutex_t traffic_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t qtype_mutex   = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t opcode_mutex  = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t rcode_mutex   = PTHREAD_MUTEX_INITIALIZER;
+#endif /* DNS_HAVE_READ */
+
+/*
+ * Private functions
+ */
+#if DNS_HAVE_READ
 static counter_list_t *counter_list_search (counter_list_t **list, unsigned int key)
 {
 	counter_list_t *entry;
@@ -183,54 +191,8 @@ static void counter_list_add (counter_list_t **list,
 	DBG ("return ()");
 }
 
-static int counter_list_send (counter_list_t *list, int fd)
-{
-	counter_list_t *cl;
-	unsigned int values[2 * T_MAX];
-	unsigned int values_num;
-
-	if (fd < 0)
-		return (-1);
-
-	values_num = 0;
-
-	for (cl = list;
-			(cl != NULL) && (values_num < T_MAX);
-			cl = cl->next)
-	{
-		values[2 * values_num] = cl->key;
-		values[(2 * values_num) + 1] = cl->value;
-		values_num++;
-	}
-
-	DBG ("swrite (fd = %i, values_num = %i)", fd, values_num);
-	if (swrite (fd, (const void *) &values_num, sizeof (values_num)) != 0)
-	{
-		DBG ("Writing to fd failed: %s", strerror (errno));
-		syslog (LOG_ERR, "dns plugin: Writing to fd failed: %s",
-				strerror (errno));
-		return (-1);
-	}
-
-	if (values_num == 0)
-		return (0);
-
-	DBG ("swrite (fd = %i, values = %p, size = %i)",
-			fd, (void *) values, (int) (sizeof (int) * values_num));
-	if (swrite (fd, (const void *) values, 2 * sizeof (int) * values_num) != 0)
-	{
-		DBG ("Writing to pipe failed: %s", strerror (errno));
-		syslog (LOG_ERR, "dns plugin: Writing to pipe failed: %s",
-				strerror (errno));
-		return (-1);
-	}
-
-	return (values_num);
-}
-#if NAMED_HAVE_CONFIG
 static int dns_config (char *key, char *value)
 {
-#if HAVE_LIBPCAP
 	if (strcasecmp (key, "Interface") == 0)
 	{
 		if (pcap_device != NULL)
@@ -249,41 +211,54 @@ static int dns_config (char *key, char *value)
 	}
 
 	return (0);
-#endif /* HAVE_LIBPCAP */
 }
-#endif /* NAMED_HAVE_CONFIG */
 
 static void dns_child_callback (const rfc1035_header_t *dns)
 {
 	if (dns->qr == 0)
 	{
 		/* This is a query */
+		pthread_mutex_lock (&traffic_mutex);
 		tr_queries += dns->length;
+		pthread_mutex_unlock (&traffic_mutex);
+
+		pthread_mutex_lock (&qtype_mutex);
 		counter_list_add (&qtype_list,  dns->qtype,  1);
+		pthread_mutex_unlock (&qtype_mutex);
 	}
 	else
 	{
 		/* This is a reply */
+		pthread_mutex_lock (&traffic_mutex);
 		tr_responses += dns->length;
+		pthread_mutex_unlock (&traffic_mutex);
+
+		pthread_mutex_lock (&rcode_mutex);
 		counter_list_add (&rcode_list,  dns->rcode,  1);
+		pthread_mutex_unlock (&rcode_mutex);
 	}
 
 	/* FIXME: Are queries, replies or both interesting? */
+	pthread_mutex_lock (&opcode_mutex);
 	counter_list_add (&opcode_list, dns->opcode, 1);
+	pthread_mutex_unlock (&opcode_mutex);
 }
 
-static void dns_child_loop (void)
+static void *dns_child_loop (void *dummy)
 {
 	pcap_t *pcap_obj;
 	char    pcap_error[PCAP_ERRBUF_SIZE];
 	struct  bpf_program fp;
 
-	struct pollfd poll_fds[2];
+	struct pollfd poll_fds[1];
 	int status;
 
-	/* Don't catch these signals */
-	signal (SIGINT, SIG_DFL);
-	signal (SIGTERM, SIG_DFL);
+	/* Don't block any signals */
+	{
+		sigset_t sigmask;
+		sigemptyset (&sigmask);
+		pthread_sigmask (SIG_SETMASK, &sigmask, NULL);
+	}
 
 	/* Passing `pcap_device == NULL' is okay and the same as passign "any" */
 	DBG ("Creating PCAP object..");
@@ -294,12 +269,11 @@ static void dns_child_loop (void)
 			pcap_error);
 	if (pcap_obj == NULL)
 	{
-		syslog (LOG_ERR, "dns plugin: Opening interface `%s' failed: %s",
+		syslog (LOG_ERR, "dns plugin: Opening interface `%s' "
+				"failed: %s",
 				(pcap_device != NULL) ? pcap_device : "any",
 				pcap_error);
-		close (pipe_fd);
-		pipe_fd = -1;
-		return;
+		return (NULL);
 	}
 
 	memset (&fp, 0, sizeof (fp));
@@ -307,17 +281,13 @@ static void dns_child_loop (void)
 	{
 		DBG ("pcap_compile failed");
 		syslog (LOG_ERR, "dns plugin: pcap_compile failed");
-		close (pipe_fd);
-		pipe_fd = -1;
-		return;
+		return (NULL);
 	}
 	if (pcap_setfilter (pcap_obj, &fp) < 0)
 	{
 		DBG ("pcap_setfilter failed");
 		syslog (LOG_ERR, "dns plugin: pcap_setfilter failed");
-		close (pipe_fd);
-		pipe_fd = -1;
-		return;
+		return (NULL);
 	}
 
 	DBG ("PCAP object created.");
@@ -325,18 +295,14 @@ static void dns_child_loop (void)
 	dnstop_set_pcap_obj (pcap_obj);
 	dnstop_set_callback (dns_child_callback);
 
-	/* Set up pipe end */
-	poll_fds[0].fd = pipe_fd;
-	poll_fds[0].events = POLLOUT;
+	/* Set up poll object */
+	poll_fds[0].fd = pcap_fileno (pcap_obj);
+	poll_fds[0].events = POLLIN | POLLPRI;
 
-	/* Set up pcap device */
-	poll_fds[1].fd = pcap_fileno (pcap_obj);
-	poll_fds[1].events = POLLIN | POLLPRI;
-
-	while (pipe_fd > 0)
+	while (42)
 	{
 		DBG ("poll (...)");
-		status = poll (poll_fds, 2, -1 /* wait forever for a change */);
+		status = poll (poll_fds, 1, -1 /* wait forever for a change */);
 
 		/* Signals are not caught, but this is very handy when
 		 * attaching to the process with a debugger. -octo */
@@ -355,44 +321,11 @@ static void dns_child_loop (void)
 
 		if (poll_fds[0].revents & (POLLERR | POLLHUP | POLLNVAL))
 		{
-			DBG ("Pipe closed. Exiting.");
-			syslog (LOG_NOTICE, "dns plugin: Pipe closed. Exiting.");
-			break;
-		}
-		else if (poll_fds[0].revents & POLLOUT)
-		{
-			DBG ("Sending data..");
-
-			DBG ("swrite (pipe_fd = %i, tr_queries = %i)", pipe_fd, tr_queries);
-			if (swrite (pipe_fd, (const void *) &tr_queries, sizeof (tr_queries)) != 0)
-			{
-				DBG ("Writing to pipe_fd failed: %s", strerror (errno));
-				syslog (LOG_ERR, "dns plugin: Writing to pipe_fd failed: %s",
-						strerror (errno));
-				return;
-			}
-
-			DBG ("swrite (pipe_fd = %i, tr_responses = %i)", pipe_fd, tr_responses);
-			if (swrite (pipe_fd, (const void *) &tr_responses, sizeof (tr_responses)) != 0)
-			{
-				DBG ("Writing to pipe_fd failed: %s", strerror (errno));
-				syslog (LOG_ERR, "dns plugin: Writing to pipe_fd failed: %s",
-						strerror (errno));
-				return;
-			}
-
-			counter_list_send (qtype_list, pipe_fd);
-			counter_list_send (opcode_list, pipe_fd);
-			counter_list_send (rcode_list, pipe_fd);
-		}
-
-		if (poll_fds[1].revents & (POLLERR | POLLHUP | POLLNVAL))
-		{
 			DBG ("pcap-device closed. Exiting.");
 			syslog (LOG_ERR, "dns plugin: pcap-device closed. Exiting.");
 			break;
 		}
-		else if (poll_fds[1].revents & (POLLIN | POLLPRI))
+		else if (poll_fds[0].revents & (POLLIN | POLLPRI))
 		{
 			status = pcap_dispatch (pcap_obj,
 					10 /* Only handle 10 packets at a time */,
@@ -410,55 +343,38 @@ static void dns_child_loop (void)
 
 	DBG ("child is exiting");
 
-	close (pipe_fd);
-	pipe_fd = -1;
 	pcap_close (pcap_obj);
+	pthread_exit (NULL);
+
+	return (NULL);
 } /* static void dns_child_loop (void) */
+#endif /* DNS_HAVE_READ */
 
 static void dns_init (void)
 {
-#if HAVE_LIBPCAP
-	int pipe_fds[2];
-	pid_t pid_child;
+#if DNS_HAVE_READ
+	/* clean up an old thread */
+	int status;
 
+	pthread_mutex_lock (&traffic_mutex);
 	tr_queries   = 0;
 	tr_responses = 0;
+	pthread_mutex_unlock (&traffic_mutex);
 
-	if (pipe (pipe_fds) != 0)
+	if (listen_thread_init != 0)
+		return;
+
+	status = pthread_create (&listen_thread, NULL, dns_child_loop,
+			(void *) 0);
+	if (status != 0)
 	{
-		syslog (LOG_ERR, "dns plugin: pipe(2) failed: %s",
-				strerror (errno));
+		syslog (LOG_ERR, "dns plugin: pthread_create failed: %s",
+				strerror (status));
 		return;
 	}
 
-	/* Fork off child */
-	pid_child = fork ();
-	if (pid_child < 0)
-	{
-		syslog (LOG_ERR, "dns plugin: fork(2) failed: %s",
-				strerror (errno));
-		close (pipe_fds[0]);
-		close (pipe_fds[1]);
-		return;
-	}
-	else if (pid_child != 0)
-	{
-		/* parent: Close the writing end, keep the reading end. */
-		pipe_fd = pipe_fds[0];
-		close (pipe_fds[1]);
-	}
-	else
-	{
-		/* child: Close the reading end, keep the writing end. */
-		pipe_fd = pipe_fds[1];
-		close (pipe_fds[0]);
-
-		dns_child_loop ();
-		exit (0);
-	}
-
-	/* fcntl (pipe_fd, F_SETFL, O_NONBLOCK); */
-#endif
+	listen_thread_init = 1;
+#endif /* DNS_HAVE_READ */
 }
 
 static void traffic_write (char *host, char *inst, char *val)
@@ -509,6 +425,7 @@ static void opcode_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, opcode_ds_def, opcode_ds_num);
 }
 
+#if DNS_HAVE_READ
 static void traffic_submit (unsigned int queries, unsigned int replies)
 {
 	char buffer[64];
@@ -569,98 +486,70 @@ static void opcode_submit (int opcode, unsigned int counter)
 	plugin_submit ("dns_opcode", inst, buffer);
 }
 
-#if NAMED_HAVE_READ
-static unsigned int dns_read_array (unsigned int *values)
-{
-	unsigned int values_num;
-
-	if (pipe_fd < 0)
-		return (0);
-
-	if (sread (pipe_fd, (void *) &values_num, sizeof (values_num)) != 0)
-	{
-		DBG ("Reading from the pipe failed: %s",
-				strerror (errno));
-		syslog (LOG_ERR, "dns plugin: Reading from the pipe failed: %s",
-				strerror (errno));
-		pipe_fd = -1;
-		return (0);
-	}
-	DBG ("sread (pipe_fd = %i, values_num = %u)", pipe_fd, values_num);
-
-	assert (values_num <= T_MAX);
-
-	if (values_num == 0)
-		return (0);
-
-	if (sread (pipe_fd, (void *) values, 2 * sizeof (unsigned int) * values_num) != 0)
-	{
-		DBG ("Reading from the pipe failed: %s",
-				strerror (errno));
-		syslog (LOG_ERR, "dns plugin: Reading from the pipe failed: %s",
-				strerror (errno));
-		pipe_fd = -1;
-		return (0);
-	}
-
-	return (values_num);
-}
-
 static void dns_read (void)
 {
-	unsigned int values[2 * T_MAX];
-	unsigned int values_num;
+	unsigned int keys[T_MAX];
+	unsigned int values[T_MAX];
+	int len;
 	int i;
 
-	if (pipe_fd < 0)
-		return;
+	counter_list_t *ptr;
 
-	if (sread (pipe_fd, (void *) &tr_queries, sizeof (tr_queries)) != 0)
+	pthread_mutex_lock (&traffic_mutex);
+	values[0] = tr_queries;
+	values[1] = tr_responses;
+	pthread_mutex_unlock (&traffic_mutex);
+	traffic_submit (values[0], values[1]);
+
+	pthread_mutex_lock (&qtype_mutex);
+	for (ptr = qtype_list, len = 0;
+		       	(ptr != NULL) && (len < T_MAX);
+		       	ptr = ptr->next, len++)
 	{
-		DBG ("Reading from the pipe failed: %s",
-				strerror (errno));
-		syslog (LOG_ERR, "dns plugin: Reading from the pipe failed: %s",
-				strerror (errno));
-		pipe_fd = -1;
-		return;
+		keys[len]   = ptr->key;
+		values[len] = ptr->value;
 	}
-	DBG ("sread (pipe_fd = %i, tr_queries = %u)", pipe_fd, tr_queries);
+	pthread_mutex_unlock (&qtype_mutex);
 
-	if (sread (pipe_fd, (void *) &tr_responses, sizeof (tr_responses)) != 0)
+	for (i = 0; i < len; i++)
 	{
-		DBG ("Reading from the pipe failed: %s",
-				strerror (errno));
-		syslog (LOG_ERR, "dns plugin: Reading from the pipe failed: %s",
-				strerror (errno));
-		pipe_fd = -1;
-		return;
-	}
-	DBG ("sread (pipe_fd = %i, tr_responses = %u)", pipe_fd, tr_responses);
-
-	traffic_submit (tr_queries, tr_responses);
-
-	values_num = dns_read_array (values);
-	for (i = 0; i < values_num; i++)
-	{
-		DBG ("qtype = %u; counter = %u;", values[2 * i], values[(2 * i) + 1]);
-		qtype_submit (values[2 * i], values[(2 * i) + 1]);
+		DBG ("qtype = %u; counter = %u;", keys[i], values[i]);
+		qtype_submit (keys[i], values[i]);
 	}
 
-	values_num = dns_read_array (values);
-	for (i = 0; i < values_num; i++)
+	pthread_mutex_lock (&opcode_mutex);
+	for (ptr = opcode_list, len = 0;
+		       	(ptr != NULL) && (len < T_MAX);
+		       	ptr = ptr->next, len++)
 	{
-		DBG ("opcode = %u; counter = %u;", values[2 * i], values[(2 * i) + 1]);
-		opcode_submit (values[2 * i], values[(2 * i) + 1]);
+		keys[len]   = ptr->key;
+		values[len] = ptr->value;
+	}
+	pthread_mutex_unlock (&opcode_mutex);
+
+	for (i = 0; i < len; i++)
+	{
+		DBG ("opcode = %u; counter = %u;", keys[i], values[i]);
+		opcode_submit (keys[i], values[i]);
 	}
 
-	values_num = dns_read_array (values);
-	for (i = 0; i < values_num; i++)
+	pthread_mutex_lock (&rcode_mutex);
+	for (ptr = rcode_list, len = 0;
+		       	(ptr != NULL) && (len < T_MAX);
+		       	ptr = ptr->next, len++)
 	{
-		DBG ("rcode = %u; counter = %u;", values[2 * i], values[(2 * i) + 1]);
-		rcode_submit (values[2 * i], values[(2 * i) + 1]);
+		keys[len]   = ptr->key;
+		values[len] = ptr->value;
+	}
+	pthread_mutex_unlock (&rcode_mutex);
+
+	for (i = 0; i < len; i++)
+	{
+		DBG ("rcode = %u; counter = %u;", keys[i], values[i]);
+		rcode_submit (keys[i], values[i]);
 	}
 }
-#else /* if !NAMED_HAVE_READ */
+#else /* if !DNS_HAVE_READ */
 # define dns_read NULL
 #endif
 
@@ -671,7 +560,9 @@ void module_register (void)
 	plugin_register ("dns_qtype", NULL, NULL, qtype_write);
 	plugin_register ("dns_rcode", NULL, NULL, rcode_write);
 	plugin_register ("dns_opcode", NULL, NULL, opcode_write);
+#if DNS_HAVE_READ
 	cf_register (MODULE_NAME, dns_config, config_keys, config_keys_num);
+#endif
 }
 
 #undef MODULE_NAME

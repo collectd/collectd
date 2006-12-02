@@ -156,6 +156,28 @@ collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
 
+if BUILD_MODULE_DNS
+pkglib_LTLIBRARIES += dns.la
+dns_la_SOURCES = dns.c utils_dns.c
+dns_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBPCAP
+dns_la_LDFLAGS += -lpcap
+endif
+if BUILD_WITH_LIBPTHREAD
+dns_la_LDFLAGS += -lpthread
+endif
+collectd_LDADD += "-dlopen" dns.la
+collectd_DEPENDENCIES += dns.la
+endif
+
+if BUILD_MODULE_EMAIL
+pkglib_LTLIBRARIES += email.la
+email_la_SOURCES = email.c
+email_la_LDFLAGS = -module -avoid-version -lpthread
+collectd_LDADD += "-dlopen" email.la
+collectd_DEPENDENCIES += email.la
+endif
+
 #if BUILD_MODULE_QUOTA
 #pkglib_LTLIBRARIES += quota.la
 #quota_la_SOURCES = quota_plugin.c quota_plugin.h
@@ -235,17 +257,6 @@ mysql_la_LDFLAGS += -lmysqlclient
 endif
 collectd_LDADD += "-dlopen" mysql.la
 collectd_DEPENDENCIES += mysql.la
-endif
-
-if BUILD_MODULE_DNS
-pkglib_LTLIBRARIES += dns.la
-dns_la_SOURCES = dns.c utils_dns.c
-dns_la_LDFLAGS = -module -avoid-version
-if BUILD_WITH_LIBPCAP
-dns_la_LDFLAGS += -lpcap
-endif
-collectd_LDADD += "-dlopen" dns.la
-collectd_DEPENDENCIES += dns.la
 endif
 
 if BUILD_MODULE_NFS

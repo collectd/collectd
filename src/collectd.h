@@ -200,6 +200,10 @@
 #define MODE_LOCAL  0x04
 #define MODE_LOG    0x08
 
+#ifndef COLLECTD_GRP_NAME
+#	define COLLECTD_GRP_NAME "collectd"
+#endif
+
 #ifndef COLLECTD_STEP
 #  define COLLECTD_STEP "10"
 #endif

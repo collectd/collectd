@@ -269,6 +269,16 @@ AC_CHECK_HEADERS(sys/vfstab.h)
 # For the swap plugin, FreeBSD
 AC_CHECK_HEADERS(kvm.h)
 
+# For the email plugin
+AC_CHECK_HEADERS(linux/un.h, [], [],
+[
+#if HAVE_SYS_SOCKET_H
+#	include <sys/socket.h>
+#endif
+])
+AC_CHECK_HEADERS(sys/un.h)
+AC_CHECK_HEADERS(grp.h)
+
 # For debugging interface (variable number of arguments)
 AC_CHECK_HEADERS(stdarg.h)
 
@@ -276,7 +286,12 @@ AC_CHECK_HEADERS(stdarg.h)
 AC_CHECK_HEADERS(regex.h)
 
 # For the dns plugin
-AC_CHECK_HEADERS(arpa/nameser.h)
+AC_CHECK_HEADERS(arpa/nameser.h arpa/nameser_compat.h)
+
+AC_CHECK_HEADERS(net/if_arp.h)
+AC_CHECK_HEADERS(net/if_ppp.h)
+AC_CHECK_HEADERS(netinet/if_ether.h)
+AC_CHECK_HEADERS(netinet/udp.h)
 
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
@@ -495,31 +510,36 @@ AC_DEFINE_UNQUOTED(COLLECT_RRDTOOL, [$collect_rrdtool],
 	[Wether or not to use rrdtool library])
 AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 
-#AC_ARG_WITH(pth, [AS_HELP_STRING([--with-pth=@<:@=PREFIX@:>@], [Path to pth (experimental).]),
-#[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-#	then
-#		LDFLAGS="$LDFLAGS -L$withval/lib"
-#		CPPFLAGS="$CPPFLAGS -I$withval/include"
-#		with_pth="yes"
-#	fi
-#], [with_pth="no"])
-#if test "x$with_pth" = "xyes"
-#then
-#	AC_CHECK_LIB(pth, pth_init,, [with_pth="no (libpth not found)"], [])
-#fi
-#if test "x$with_pth" = "xyes"
-#then
-#	AC_CHECK_HEADERS(pth.h,, [with_pth="no (pth.h not found)"])
-#fi
-#if test "x$with_pth" = "xyes"
-#then
-#	collect_pth=1
-#else
-#	collect_pth=0
-#fi
-#AC_DEFINE_UNQUOTED(COLLECT_PTH, [$collect_pth],
-#	[Wether or not to use pth (portable threads) library])
-#AM_CONDITIONAL(BUILD_WITH_PTH, test "x$with_pth" = "xyes")
+AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
+[	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libpthread="yes"
+	else
+		if test "x$withval" = "xno"
+		then
+			with_libpthread="no (disabled)"
+		fi
+	fi
+], [with_libpthread="no"])
+if test "x$with_libpthread" = "xyes"
+then
+	AC_CHECK_LIB(pthread, pthread_create, [with_libpthread="yes"], [with_libpthread="no (libpthread not found)"], [])
+fi
+if test "x$with_libpthread" = "xyes"
+then
+	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
+fi
+if test "x$with_libpthread" = "xyes"
+then
+	collect_pthread=1
+else
+	collect_pthread=0
+fi
+AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
+	[Wether or not to use pthread (POSIX threads) library])
+AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 
 if test "$ac_system" = "Solaris"
 then
@@ -966,6 +986,7 @@ AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
 AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
 AC_COLLECTD([df],        [disable], [module], [df statistics])
 AC_COLLECTD([dns],       [disable], [module], [dns statistics])
+AC_COLLECTD([email],     [disable], [module], [email statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
@@ -999,7 +1020,9 @@ Configuration:
     libstatgrab . . . . $with_libstatgrab
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
+    regex . . . . . . . $with_regex
     libpcap . . . . . . $with_libpcap
+    libpthread  . . . . $with_libpthread
 
   Features:
     debug . . . . . . . $enable_debug
@@ -1017,6 +1040,7 @@ Configuration:
     df  . . . . . . . . $enable_df
     disk  . . . . . . . $enable_disk
     dns . . . . . . . . $enable_dns
+    email . . . . . . . $enable_email
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
     memory  . . . . . . $enable_memory

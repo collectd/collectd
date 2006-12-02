@@ -33,8 +33,13 @@
  *   Florian octo Forster <octo at verplant.org>
  */
 
+#include "config.h"
+
 #include <arpa/nameser.h>
-#include <pcap.h>
+
+#if HAVE_PCAP_H
+# include <pcap.h>
+#endif
 
 #define T_MAX 65536
 #define OP_MAX 16
@@ -68,11 +73,15 @@ extern int qtype_counts[T_MAX];
 extern int opcode_counts[OP_MAX];
 extern int qclass_counts[C_MAX];
 
+#if HAVE_PCAP_H
 void dnstop_set_pcap_obj (pcap_t *po);
+#endif
 void dnstop_set_callback (void (*cb) (const rfc1035_header_t *));
 
 void ignore_list_add_name (const char *name);
+#if HAVE_PCAP_H
 void handle_pcap (u_char * udata, const struct pcap_pkthdr *hdr, const u_char * pkt);
+#endif
 
 const char *qtype_str(int t);
 const char *opcode_str(int o);
