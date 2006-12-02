@@ -33,39 +33,62 @@
  *   Florian octo Forster <octo at verplant.org>
  */
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/stat.h>
+#include "collectd.h"
 
-#include <netinet/in.h>
-
-#include <pcap.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <time.h>
-#include <ctype.h>
-#include <curses.h>
-#include <assert.h>
-#include <arpa/inet.h>
-#include <arpa/nameser.h>
-#ifdef __APPLE__
-#include <arpa/nameser_compat.h>
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_PCAP_H
+# include <pcap.h>
+#endif
+#if HAVE_ARPA_INET_H
+# include <arpa/inet.h>
 #endif
 
-#include <sys/socket.h>
-#include <net/if_arp.h>
-#include <net/if.h>
-#include <netinet/if_ether.h>
+#if HAVE_ARPA_NAMESER_H
+# include <arpa/nameser.h>
+#elif HAVE_ARPA_NAMESER_COMPAT_H
+# include <arpa/nameser_compat.h>
+#endif
 
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip6.h>
-#include <netinet/udp.h>
+#if HAVE_NET_IF_ARP_H
+# include <net/if_arp.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#if HAVE_NETINET_IF_ETHER_H
+# include <netinet/if_ether.h>
+#endif
+#if HAVE_NET_IF_PPP_H
+# include <net/if_ppp.h>
+#endif
 
-#include <netdb.h>
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NETDB_H
+# include <netdb.h>
+#endif
+
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP_H
+# include <netinet/ip.h>
+#endif
+#ifdef HAVE_NETINET_IP_VAR_H
+# include <netinet/ip_var.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+#if HAVE_NETINET_UDP_H
+# include <netinet/udp.h>
+#endif
 
 #define PCAP_SNAPLEN 1460
 #ifndef ETHER_HDR_LEN
@@ -80,7 +103,6 @@
 # define ETHERTYPE_IPV6 0x86DD
 #endif
 
-#include <net/if_ppp.h>
 #ifndef PPP_ADDRESS_VAL
 # define PPP_ADDRESS_VAL 0xff	/* The address byte value */
 #endif
@@ -126,7 +148,9 @@ int qtype_counts[T_MAX];
 int opcode_counts[OP_MAX];
 int qclass_counts[C_MAX];
 
+#if HAVE_PCAP_H
 static pcap_t *pcap_obj = NULL;
+#endif
 
 static ip_list_t *IgnoreList = NULL;
 
@@ -232,10 +256,12 @@ static void in6_addr_from_buffer (struct in6_addr *ia,
     }
 } /* void in6_addr_from_buffer */
 
+#if HAVE_PCAP_H
 void dnstop_set_pcap_obj (pcap_t *po)
 {
 	pcap_obj = po;
 }
+#endif
 
 void dnstop_set_callback (void (*cb) (const rfc1035_header_t *))
 {
@@ -568,6 +594,7 @@ handle_ether(const u_char * pkt, int len)
 }
 
 /* public function */
+#if HAVE_PCAP_H
 void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
     int status;
@@ -615,6 +642,7 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
     query_count_total++;
     last_ts = hdr->ts;
 }
+#endif
 
 const char *qtype_str(int t)
 {

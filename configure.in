@@ -276,9 +276,13 @@ AC_CHECK_HEADERS(stdarg.h)
 AC_CHECK_HEADERS(regex.h)
 
 # For the dns plugin
+AC_CHECK_HEADERS(arpa/nameser.h arpa/nameser_compat.h)
 AC_CHECK_HEADERS(arpa/nameser.h)
-AC_CHECK_HEADERS(pthread.h)
+
+AC_CHECK_HEADERS(net/if_arp.h)
 AC_CHECK_HEADERS(net/if_ppp.h)
+AC_CHECK_HEADERS(netinet/if_ether.h)
+AC_CHECK_HEADERS(netinet/udp.h)
 
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
@@ -497,24 +501,28 @@ AC_DEFINE_UNQUOTED(COLLECT_RRDTOOL, [$collect_rrdtool],
 	[Wether or not to use rrdtool library])
 AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 
-with_pthread="yes"
-AC_ARG_WITH(pthread, [AS_HELP_STRING([--with-pthread=@<:@=PREFIX@:>@], [Path to pthread (experimental).])],
-[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
+[	if test "x$withval" != "xno" -a "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
-		with_pthread="yes"
+		with_libpthread="yes"
+	else
+		if test "x$withval" = "xno"
+		then
+			with_libpthread="no (disabled)"
+		fi
 	fi
-], [with_pthread="no"])
-if test "x$with_pthread" = "xyes"
+], [with_libpthread="no"])
+if test "x$with_libpthread" = "xyes"
 then
-	AC_CHECK_LIB(pthread, pthread_create, [with_pthread="yes"], [with_pthread="no (libpthread not found)"], [])
+	AC_CHECK_LIB(pthread, pthread_create, [with_libpthread="yes"], [with_libpthread="no (libpthread not found)"], [])
 fi
-if test "x$with_pthread" = "xyes"
+if test "x$with_libpthread" = "xyes"
 then
-	AC_CHECK_HEADERS(pthread.h,, [with_pthread="no (pthread.h not found)"])
+	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
 fi
-if test "x$with_pthread" = "xyes"
+if test "x$with_libpthread" = "xyes"
 then
 	collect_pthread=1
 else
@@ -522,7 +530,7 @@ else
 fi
 AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
 	[Wether or not to use pthread (POSIX threads) library])
-AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_pthread" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 
 if test "$ac_system" = "Solaris"
 then
@@ -1003,6 +1011,7 @@ Configuration:
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
     libpcap . . . . . . $with_libpcap
+    libpthread  . . . . $with_libpthread
 
   Features:
     debug . . . . . . . $enable_debug

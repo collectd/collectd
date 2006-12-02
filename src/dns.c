@@ -25,30 +25,23 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_debug.h"
-
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-
-#if HAVE_SYS_POLL_H
-# include <sys/poll.h>
-#endif
+#include "utils_dns.h"
 
 #define MODULE_NAME "dns"
 
-#if HAVE_LIBPCAP
-# define NAMED_HAVE_CONFIG 1
+#if HAVE_LIBPCAP && HAVE_LIBPTHREAD
+# include <pthread.h>
+# include <pcap.h>
+# include <sys/poll.h>
+# define DNS_HAVE_READ 1
 #else
-# define NAMED_HAVE_CONFIG 0
+# define DNS_HAVE_READ 0
 #endif
 
-#if HAVE_LIBPCAP && HAVE_PTHREAD_H
-# include "utils_dns.h"
-# define NAMED_HAVE_READ 1
-#else
-# define NAMED_HAVE_READ 0
-#endif
-
+/*
+ * Private data types
+ */
+#if DNS_HAVE_READ
 struct counter_list_s
 {
 	unsigned int key;
@@ -56,7 +49,11 @@ struct counter_list_s
 	struct counter_list_s *next;
 };
 typedef struct counter_list_s counter_list_t;
+#endif
 
+/*
+ * Private variables
+ */
 static char *traffic_file   = "dns/dns_traffic.rrd";
 static char *qtype_file   = "dns/qtype-%s.rrd";
 static char *opcode_file  = "dns/opcode-%s.rrd";
@@ -92,9 +89,7 @@ static char *rcode_ds_def[] =
 };
 static int rcode_ds_num = 1;
 
-/* FIXME: Wouldn't other defines be better? -octo */
-#if NAMED_HAVE_CONFIG
-#if HAVE_LIBPCAP
+#if DNS_HAVE_READ
 static char *config_keys[] =
 {
 	"Interface",
@@ -102,10 +97,7 @@ static char *config_keys[] =
 	NULL
 };
 static int config_keys_num = 2;
-#endif /* HAVE_LIBPCAP */
-#endif /* NAMED_HAVE_CONFIG */
 
-#if HAVE_LIBPCAP
 #define PCAP_SNAPLEN 1460
 static char   *pcap_device = NULL;
 
@@ -114,9 +106,7 @@ static unsigned int    tr_responses;
 static counter_list_t *qtype_list;
 static counter_list_t *opcode_list;
 static counter_list_t *rcode_list;
-#endif
 
-#if HAVE_PTHREAD_H
 static pthread_t       listen_thread;
 static int             listen_thread_init = 0;
 /* The `traffic' mutex if for `tr_queries' and `tr_responses' */
@@ -124,8 +114,12 @@ static pthread_mutex_t traffic_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t qtype_mutex   = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t opcode_mutex  = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t rcode_mutex   = PTHREAD_MUTEX_INITIALIZER;
-#endif
+#endif /* DNS_HAVE_READ */
 
+/*
+ * Private functions
+ */
+#if DNS_HAVE_READ
 static counter_list_t *counter_list_search (counter_list_t **list, unsigned int key)
 {
 	counter_list_t *entry;
@@ -197,10 +191,8 @@ static void counter_list_add (counter_list_t **list,
 	DBG ("return ()");
 }
 
-#if NAMED_HAVE_CONFIG
 static int dns_config (char *key, char *value)
 {
-#if HAVE_LIBPCAP
 	if (strcasecmp (key, "Interface") == 0)
 	{
 		if (pcap_device != NULL)
@@ -219,9 +211,7 @@ static int dns_config (char *key, char *value)
 	}
 
 	return (0);
-#endif /* HAVE_LIBPCAP */
 }
-#endif /* NAMED_HAVE_CONFIG */
 
 static void dns_child_callback (const rfc1035_header_t *dns)
 {
@@ -358,11 +348,11 @@ static void *dns_child_loop (void *dummy)
 
 	return (NULL);
 } /* static void dns_child_loop (void) */
+#endif /* DNS_HAVE_READ */
 
 static void dns_init (void)
 {
-#if HAVE_LIBPCAP
-#if HAVE_PTHREAD_H
+#if DNS_HAVE_READ
 	/* clean up an old thread */
 	int status;
 
@@ -384,8 +374,7 @@ static void dns_init (void)
 	}
 
 	listen_thread_init = 1;
-#endif
-#endif
+#endif /* DNS_HAVE_READ */
 }
 
 static void traffic_write (char *host, char *inst, char *val)
@@ -436,6 +425,7 @@ static void opcode_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, opcode_ds_def, opcode_ds_num);
 }
 
+#if DNS_HAVE_READ
 static void traffic_submit (unsigned int queries, unsigned int replies)
 {
 	char buffer[64];
@@ -496,7 +486,6 @@ static void opcode_submit (int opcode, unsigned int counter)
 	plugin_submit ("dns_opcode", inst, buffer);
 }
 
-#if NAMED_HAVE_READ
 static void dns_read (void)
 {
 	unsigned int keys[T_MAX];
@@ -560,7 +549,7 @@ static void dns_read (void)
 		rcode_submit (keys[i], values[i]);
 	}
 }
-#else /* if !NAMED_HAVE_READ */
+#else /* if !DNS_HAVE_READ */
 # define dns_read NULL
 #endif
 
@@ -571,7 +560,9 @@ void module_register (void)
 	plugin_register ("dns_qtype", NULL, NULL, qtype_write);
 	plugin_register ("dns_rcode", NULL, NULL, rcode_write);
 	plugin_register ("dns_opcode", NULL, NULL, opcode_write);
+#if DNS_HAVE_READ
 	cf_register (MODULE_NAME, dns_config, config_keys, config_keys_num);
+#endif
 }
 
 #undef MODULE_NAME
