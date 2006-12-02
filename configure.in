@@ -277,6 +277,8 @@ AC_CHECK_HEADERS(regex.h)
 
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
+AC_CHECK_HEADERS(pthread.h)
+AC_CHECK_HEADERS(net/if_ppp.h)
 
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
@@ -495,31 +497,32 @@ AC_DEFINE_UNQUOTED(COLLECT_RRDTOOL, [$collect_rrdtool],
 	[Wether or not to use rrdtool library])
 AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
 
-#AC_ARG_WITH(pth, [AS_HELP_STRING([--with-pth=@<:@=PREFIX@:>@], [Path to pth (experimental).]),
-#[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-#	then
-#		LDFLAGS="$LDFLAGS -L$withval/lib"
-#		CPPFLAGS="$CPPFLAGS -I$withval/include"
-#		with_pth="yes"
-#	fi
-#], [with_pth="no"])
-#if test "x$with_pth" = "xyes"
-#then
-#	AC_CHECK_LIB(pth, pth_init,, [with_pth="no (libpth not found)"], [])
-#fi
-#if test "x$with_pth" = "xyes"
-#then
-#	AC_CHECK_HEADERS(pth.h,, [with_pth="no (pth.h not found)"])
-#fi
-#if test "x$with_pth" = "xyes"
-#then
-#	collect_pth=1
-#else
-#	collect_pth=0
-#fi
-#AC_DEFINE_UNQUOTED(COLLECT_PTH, [$collect_pth],
-#	[Wether or not to use pth (portable threads) library])
-#AM_CONDITIONAL(BUILD_WITH_PTH, test "x$with_pth" = "xyes")
+with_pthread="yes"
+AC_ARG_WITH(pthread, [AS_HELP_STRING([--with-pthread=@<:@=PREFIX@:>@], [Path to pthread (experimental).])],
+[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_pthread="yes"
+	fi
+], [with_pthread="no"])
+if test "x$with_pthread" = "xyes"
+then
+	AC_CHECK_LIB(pthread, pthread_create, [with_pthread="yes"], [with_pthread="no (libpthread not found)"], [])
+fi
+if test "x$with_pthread" = "xyes"
+then
+	AC_CHECK_HEADERS(pthread.h,, [with_pthread="no (pthread.h not found)"])
+fi
+if test "x$with_pthread" = "xyes"
+then
+	collect_pthread=1
+else
+	collect_pthread=0
+fi
+AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
+	[Wether or not to use pthread (POSIX threads) library])
+AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_pthread" = "xyes")
 
 if test "$ac_system" = "Solaris"
 then
