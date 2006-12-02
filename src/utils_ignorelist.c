@@ -285,7 +285,6 @@ int ignorelist_add (ignorelist_t *il, const char *entry)
 {
 	int ret;
 	size_t entry_len;
-	char *entry_copy;
 
 	if (il == NULL)
 	{
@@ -306,6 +305,8 @@ int ignorelist_add (ignorelist_t *il, const char *entry)
 	/* regex string is enclosed in "/.../" */
 	if ((entry_len > 2) && (entry[0] == '/') && entry[entry_len - 1] == '/')
 	{
+		char *entry_copy;
+
 		/* We need to copy `entry' since it's const */
 		entry_copy = smalloc (entry_len);
 		memset (entry_copy, '\0', entry_len);
