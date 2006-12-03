@@ -1,3 +1,27 @@
+pending, Version 3.11.0
+	* collectd: The new command line option `-P' makes it easier for
+	  distributors to change the location of PID-files.
+	* collectd: The daemon shuts down faster now which makes it easier to
+	  write init.d-scripts for it.
+	* apache plugin: Increase the buffersize to 16k, because the 4k buffer
+	  caused problems every now and then.
+	* df plugin: New config options allow to ignore certain mountpoints,
+	  filesystem types or devices.
+	* dns plugin: The new dns plugin uses `libpcap' to capture DNS traffic
+	  and interprets it. It collects traffic as well as qtype, opcode and
+	  rcode counts.
+	* email plugin: Sebastian Harl has contributed this plugin which
+	  counts received mails in categories (e. g. ham, spam, virus), spam
+	  score (as given by SpamAssassin) and check types.
+	* processes plugin: Collect detailed statistics for configured
+	  processes, that's process and thread count, CPU usage, resident
+	  segment size and pagefaults.
+	* multimeter plugin: Peter Holik contributed a new plugin which
+	  queries multimeters.
+	* sensors plugin: Lubos Stanek has put much effort into improving this
+	  plugin, including `extended naming', collection of voltage values
+	  and the possibility to ignore certain values.
+
 2006-11-04, Version 3.10.3
 	* Lubos Stanek has identified a bug in the ntpd-plugin: When the
 	  ntpd's reply was sent in more than one packet, the buffer size was
