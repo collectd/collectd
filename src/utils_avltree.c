@@ -86,6 +86,18 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 		if (height_new == n->height)
 			break;
 
+		/* FIXME */
+		if (n->left != NULL)
+		{
+			cmp = BALANCE(n->left);
+			assert ((cmp >= -1) && (cmp <= 1));
+		}
+		if (n->right != NULL)
+		{
+			cmp = BALANCE(n->right);
+			assert ((cmp >= -1) && (cmp <= 1));
+		}
+
 		n->height = height_new;
 
 		cmp = height_right - height_left;
@@ -118,6 +130,24 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 				else
 					l->parent->right = l;
 			}
+
+			height_left = (n->left == NULL) ? 0 : n->left->height;
+			height_right = (n->right == NULL) ? 0 : n->right->height;
+			height_new = 1 + ((height_left > height_right) ? height_left : height_right);
+			cmp = BALANCE(n);
+			assert (height_new < n->height);
+			assert ((cmp >= -1) || (cmp <= 1));
+			n->height = height_new;
+
+			height_left = (l->left == NULL) ? 0 : l->left->height;
+			height_right = (l->right == NULL) ? 0 : l->right->height;
+			height_new = 1 + ((height_left > height_right) ? height_left : height_right);
+			cmp = BALANCE(l);
+			assert (height_new >= l->height);
+			assert ((cmp >= -1) || (cmp <= 1));
+			l->height = height_new;
+
+			n = l->parent;
 		}
 		else if (cmp > 1)
 		{
@@ -148,6 +178,24 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 				else
 					r->parent->right = r;
 			}
+
+			height_left = (n->left == NULL) ? 0 : n->left->height;
+			height_right = (n->right == NULL) ? 0 : n->right->height;
+			height_new = 1 + ((height_left > height_right) ? height_left : height_right);
+			cmp = BALANCE(n);
+			assert (height_new < n->height);
+			assert ((cmp >= -1) || (cmp <= 1));
+			n->height = height_new;
+
+			height_left = (r->left == NULL) ? 0 : r->left->height;
+			height_right = (r->right == NULL) ? 0 : r->right->height;
+			height_new = 1 + ((height_left > height_right) ? height_left : height_right);
+			cmp = BALANCE(r);
+			assert (height_new >= r->height);
+			assert ((cmp >= -1) || (cmp <= 1));
+			r->height = height_new;
+
+			n = r->parent;
 		}
 		else
 		{
