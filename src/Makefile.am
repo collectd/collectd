@@ -173,7 +173,10 @@ endif
 if BUILD_MODULE_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c
-email_la_LDFLAGS = -module -avoid-version -lpthread
+email_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBPTHREAD
+email_la_LDFLAGS += -lpthread
+endif
 collectd_LDADD += "-dlopen" email.la
 collectd_DEPENDENCIES += email.la
 endif

@@ -38,7 +38,12 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <pthread.h>
+#if HAVE_LIBPTHREAD
+# include <pthread.h>
+# define EMAIL_HAVE_READ 1
+#else
+# define EMAIL_HAVE_READ 0
+#endif
 
 #if HAVE_SYS_SELECT_H
 #	include <sys/select.h>
@@ -67,6 +72,10 @@
 #define SOCK_PATH "/tmp/.collectd-email"
 #define MAX_CONNS 5
 
+/*
+ * Private data structures
+ */
+#if EMAIL_HAVE_READ
 /* linked list of email and check types */
 typedef struct type {
 	char        *name;
@@ -97,7 +106,12 @@ typedef struct {
 	collector_t *head;
 	collector_t *tail;
 } collector_list_t;
+#endif /* EMAIL_HAVE_READ */
 
+/*
+ * Private variables
+ */
+#if EMAIL_HAVE_READ
 /* state of the plugin */
 static int disabled = 0;
 
@@ -115,6 +129,20 @@ static collector_list_t active;
 static pthread_mutex_t available_mutex = PTHREAD_MUTEX_INITIALIZER;
 static collector_list_t available;
 
+static pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
+static type_list_t count;
+
+static pthread_mutex_t size_mutex = PTHREAD_MUTEX_INITIALIZER;
+static type_list_t size;
+
+static pthread_mutex_t score_mutex = PTHREAD_MUTEX_INITIALIZER;
+static double score;
+static int score_count;
+
+static pthread_mutex_t check_mutex = PTHREAD_MUTEX_INITIALIZER;
+static type_list_t check;
+#endif /* EMAIL_HAVE_READ */
+
 #define COUNT_FILE "email/email-%s.rrd"
 static char *count_ds_def[] =
 {
@@ -122,9 +150,6 @@ static char *count_ds_def[] =
 	NULL
 };
 static int count_ds_num = 1;
-
-static pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
-static type_list_t count;
 
 #define SIZE_FILE  "email/email_size-%s.rrd"
 static char *size_ds_def[] =
@@ -134,9 +159,6 @@ static char *size_ds_def[] =
 };
 static int size_ds_num = 1;
 
-static pthread_mutex_t size_mutex = PTHREAD_MUTEX_INITIALIZER;
-static type_list_t size;
-
 #define SCORE_FILE "email/spam_score.rrd"
 static char *score_ds_def[] =
 {
@@ -144,10 +166,6 @@ static char *score_ds_def[] =
 	NULL
 };
 static int score_ds_num = 1;
-
-static pthread_mutex_t score_mutex = PTHREAD_MUTEX_INITIALIZER;
-static double score;
-static int score_count;
 
 #define CHECK_FILE "email/spam_check-%s.rrd"
 static char *check_ds_def[] =
@@ -157,9 +175,7 @@ static char *check_ds_def[] =
 };
 static int check_ds_num = 1;
 
-static pthread_mutex_t check_mutex = PTHREAD_MUTEX_INITIALIZER;
-static type_list_t check;
-
+#if EMAIL_HAVE_READ
 /* Increment the value of the given name in the given list by incr. */
 static void type_list_incr (type_list_t *list, char *name, int incr)
 {
@@ -619,9 +635,11 @@ static void *open_connection (void *arg)
 	}
 	pthread_exit ((void *)0);
 } /* void *open_connection (void *) */
+#endif /* EMAIL_HAVE_READ */
 
 static void email_init (void)
 {
+#if EMAIL_HAVE_READ
 	int err = 0;
 
 	if (0 != (err = pthread_create (&connector, NULL,
@@ -630,6 +648,7 @@ static void email_init (void)
 		syslog (LOG_ERR, "pthread_create() failed: %s", strerror (err));
 		return;
 	}
+#endif /* EMAIL_HAVE_READ */
 	return;
 } /* static void email_init (void) */
 
@@ -678,6 +697,7 @@ static void check_write (char *host, char *inst, char *val)
 	return;
 } /* static void check_write (char *host, char *inst, char *val) */
 
+#if EMAIL_HAVE_READ
 static void type_submit (char *plugin, char *inst, int value)
 {
 	char buf[BUFSIZE] = "";
@@ -753,6 +773,9 @@ static void email_read (void)
 	pthread_mutex_unlock (&check_mutex);
 	return;
 } /* static void read (void) */
+#else /* if !EMAIL_HAVE_READ */
+# define email_read NULL
+#endif
 
 void module_register (void)
 {
