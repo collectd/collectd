@@ -38,6 +38,8 @@
 #include "common.h"
 #include "plugin.h"
 
+#include "configfile.h"
+
 #if HAVE_LIBPTHREAD
 # include <pthread.h>
 # define EMAIL_HAVE_READ 1
@@ -112,6 +114,21 @@ typedef struct {
  * Private variables
  */
 #if EMAIL_HAVE_READ
+/* valid configuration file keys */
+static char *config_keys[] =
+{
+	"SocketGroup",
+	"SocketPerms",
+	"MaxConns",
+	NULL
+};
+static int config_keys_num = 3;
+
+/* socket configuration */
+static char *sock_group = COLLECTD_GRP_NAME;
+static int  sock_perms  = S_IRWXU | S_IRWXG;
+static int  max_conns   = MAX_CONNS;
+
 /* state of the plugin */
 static int disabled = 0;
 
@@ -176,6 +193,31 @@ static char *check_ds_def[] =
 static int check_ds_num = 1;
 
 #if EMAIL_HAVE_READ
+static int email_config (char *key, char *value)
+{
+	if (0 == strcasecmp (key, "SocketGroup")) {
+		sock_group = sstrdup (value);
+	}
+	else if (0 == strcasecmp (key, "SocketPerms")) {
+		/* the user is responsible for providing reasonable values */
+		sock_perms = (int)strtol (value, NULL, 0);
+	}
+	else if (0 == strcasecmp (key, "MaxConns")) {
+		long int tmp = strtol (value, NULL, 0);
+
+		if (INT_MAX < tmp) {
+			max_conns = INT_MAX;
+		}
+		else {
+			max_conns = (int)tmp;
+		}
+	}
+	else {
+		return -1;
+	}
+	return 0;
+} /* static int email_config (char *, char *) */
+
 /* Increment the value of the given name in the given list by incr. */
 static void type_list_incr (type_list_t *list, char *name, int incr)
 {
@@ -510,7 +552,7 @@ static void *open_connection (void *arg)
 		struct group *grp;
 
 		errno = 0;
-		if (NULL != (grp = getgrnam (COLLECTD_GRP_NAME))) {
+		if (NULL != (grp = getgrnam (sock_group))) {
 			errno = 0;
 			if (0 != chown (SOCK_PATH, (uid_t)-1, grp->gr_gid)) {
 				syslog (LOG_WARNING, "chown() failed: %s", strerror (errno));
@@ -525,7 +567,7 @@ static void *open_connection (void *arg)
 	}
 
 	errno = 0;
-	if (0 != chmod (SOCK_PATH, S_IRWXU | S_IRWXG)) {
+	if (0 != chmod (SOCK_PATH, sock_perms)) {
 		syslog (LOG_WARNING, "chmod() failed: %s", strerror (errno));
 	}
 
@@ -543,7 +585,7 @@ static void *open_connection (void *arg)
 
 		last = available.head;
 
-		for (i = 1; i < MAX_CONNS; ++i) {
+		for (i = 1; i < max_conns; ++i) {
 			last->next = (collector_t *)smalloc (sizeof (collector_t));
 			last = last->next;
 			available.tail = last;
@@ -784,6 +826,9 @@ void module_register (void)
 	plugin_register ("email_size", NULL, NULL, size_write);
 	plugin_register ("email_spam_score", NULL, NULL, score_write);
 	plugin_register ("email_spam_check", NULL, NULL, check_write);
+#if EMAIL_HAVE_READ
+	cf_register (MODULE_NAME, email_config, config_keys, config_keys_num);
+#endif /* EMAIL_HAVE_READ */
 	return;
 } /* void module_register (void) */
 
