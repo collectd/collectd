@@ -154,15 +154,17 @@ static pcap_t *pcap_obj = NULL;
 
 static ip_list_t *IgnoreList = NULL;
 
+#if HAVE_PCAP_H
 static void (*Callback) (const rfc1035_header_t *) = NULL;
 
 static int query_count_intvl = 0;
 static int query_count_total = 0;
-#ifdef __OpenBSD__
+# ifdef __OpenBSD__
 static struct bpf_timeval last_ts;
-#else
+# else
 static struct timeval last_ts;
-#endif
+# endif /* __OpenBSD__ */
+#endif /* HAVE_PCAP_H */
 
 static int cmp_in6_addr (const struct in6_addr *a,
 	const struct in6_addr *b)
@@ -240,6 +242,7 @@ void ignore_list_add_name (const char *name)
     freeaddrinfo (ai_list);
 }
 
+#if HAVE_PCAP_H
 static void in6_addr_from_buffer (struct in6_addr *ia,
 	const void *buf, size_t buf_len,
 	int family)
@@ -256,12 +259,10 @@ static void in6_addr_from_buffer (struct in6_addr *ia,
     }
 } /* void in6_addr_from_buffer */
 
-#if HAVE_PCAP_H
 void dnstop_set_pcap_obj (pcap_t *po)
 {
 	pcap_obj = po;
 }
-#endif
 
 void dnstop_set_callback (void (*cb) (const rfc1035_header_t *))
 {
@@ -594,7 +595,6 @@ handle_ether(const u_char * pkt, int len)
 }
 
 /* public function */
-#if HAVE_PCAP_H
 void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
     int status;
@@ -642,7 +642,7 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
     query_count_total++;
     last_ts = hdr->ts;
 }
-#endif
+#endif /* HAVE_PCAP_H */
 
 const char *qtype_str(int t)
 {
