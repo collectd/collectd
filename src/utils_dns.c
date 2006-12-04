@@ -171,14 +171,16 @@ static int cmp_in6_addr (const struct in6_addr *a,
 {
     int i;
 
-    for (i = 0; i < 4; i++)
-	if (a->s6_addr32[i] != b->s6_addr32[i])
+    assert (sizeof (struct in6_addr) == 16);
+
+    for (i = 0; i < 16; i++)
+	if (a->s6_addr[i] != b->s6_addr[i])
 	    break;
 
-    if (i >= 4)
+    if (i >= 16)
 	return (0);
 
-    return (a->s6_addr32[i] > b->s6_addr32[i] ? 1 : -1);
+    return (a->s6_addr[i] > b->s6_addr[i] ? 1 : -1);
 } /* int cmp_addrinfo */
 
 static inline int ignore_list_match (const struct in6_addr *addr)
@@ -226,10 +228,10 @@ void ignore_list_add_name (const char *name)
     {
 	if (ai_ptr->ai_family == AF_INET)
 	{
-	    addr.s6_addr32[0] = 0;
-	    addr.s6_addr32[1] = 0;
-	    addr.s6_addr32[2] = htonl (0x0000FFFF);
-	    addr.s6_addr32[3] = ((struct sockaddr_in *) ai_ptr->ai_addr)->sin_addr.s_addr;
+	    memset (&addr, '\0', sizeof (addr));
+	    addr.s6_addr[10] = 0xFF;
+	    addr.s6_addr[11] = 0xFF;
+	    memcpy (addr.s6_addr + 12, &((struct sockaddr_in *) ai_ptr->ai_addr)->sin_addr, 4);
 
 	    ignore_list_add (&addr);
 	}
@@ -250,8 +252,9 @@ static void in6_addr_from_buffer (struct in6_addr *ia,
     memset (ia, 0, sizeof (struct in6_addr));
     if ((AF_INET == family) && (sizeof (uint32_t) == buf_len))
     {
-	ia->s6_addr32[2] = htonl (0x0000FFFF);
-	ia->s6_addr32[3] = *((uint32_t *) buf);
+	ia->s6_addr[10] = 0xFF;
+	ia->s6_addr[11] = 0xFF;
+	memcpy (ia->s6_addr + 12, buf, buf_len);
     }
     else if ((AF_INET6 == family) && (sizeof (struct in6_addr) == buf_len))
     {
@@ -507,6 +510,7 @@ handle_ip(const struct ip *ip, int len)
     return 1;
 }
 
+#if HAVE_NET_IF_PPP_H
 static int
 handle_ppp(const u_char * pkt, int len)
 {
@@ -536,6 +540,7 @@ handle_ppp(const u_char * pkt, int len)
     memcpy(buf, pkt, len);
     return handle_ip((struct ip *) buf, len);
 }
+#endif /* HAVE_NET_IF_PPP_H */
 
 static int
 handle_null(const u_char * pkt, int len)
@@ -611,9 +616,11 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
 	case DLT_EN10MB:
 	    status = handle_ether (pkt, hdr->caplen);
 	    break;
+#if HAVE_NET_IF_PPP_H
 	case DLT_PPP:
 	    status = handle_ppp (pkt, hdr->caplen);
 	    break;
+#endif
 #ifdef DLT_LOOP
 	case DLT_LOOP:
 	    status = handle_loop (pkt, hdr->caplen);
@@ -859,7 +866,7 @@ main(int argc, char *argv[])
     case DLT_EN10MB:
 	handle_datalink = handle_ether;
 	break;
-#if USE_PPP
+#if HAVE_NET_IF_PPP_H
     case DLT_PPP:
 	handle_datalink = handle_ppp;
 	break;
@@ -926,3 +933,6 @@ main(int argc, char *argv[])
     return 0;
 } /* static int main(int argc, char *argv[]) */
 #endif
+/*
+ * vim:shiftwidth=4:tabstop=8:softtabstop=4
+ */
