@@ -71,7 +71,11 @@
 /* 256 bytes ought to be enough for anybody ;-) */
 #define BUFSIZE 256
 
-#define SOCK_PATH "/tmp/.collectd-email"
+#ifndef COLLECTD_SOCKET_PREFIX
+# define COLLECTD_SOCKET_PREFIX "/tmp/.collectd-"
+#endif /* COLLECTD_SOCKET_PREFIX */
+
+#define SOCK_PATH COLLECTD_SOCKET_PREFIX"email"
 #define MAX_CONNS 5
 #define MAX_CONNS_LIMIT 16384
 
