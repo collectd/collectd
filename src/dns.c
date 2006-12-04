@@ -250,7 +250,6 @@ static void *dns_child_loop (void *dummy)
 	char    pcap_error[PCAP_ERRBUF_SIZE];
 	struct  bpf_program fp;
 
-	struct pollfd poll_fds[1];
 	int status;
 
 	/* Don't block any signals */
@@ -265,7 +264,7 @@ static void *dns_child_loop (void *dummy)
 	pcap_obj = pcap_open_live (pcap_device,
 			PCAP_SNAPLEN,
 			0 /* Not promiscuous */,
-			0 /* no read timeout */,
+			atoi (COLLECTD_STEP),
 			pcap_error);
 	if (pcap_obj == NULL)
 	{
@@ -295,55 +294,18 @@ static void *dns_child_loop (void *dummy)
 	dnstop_set_pcap_obj (pcap_obj);
 	dnstop_set_callback (dns_child_callback);
 
-	/* Set up poll object */
-	poll_fds[0].fd = pcap_fileno (pcap_obj);
-	poll_fds[0].events = POLLIN | POLLPRI;
-
-	while (42)
-	{
-		DBG ("poll (...)");
-		status = poll (poll_fds, 1, -1 /* wait forever for a change */);
-
-		/* Signals are not caught, but this is very handy when
-		 * attaching to the process with a debugger. -octo */
-		if ((status < 0) && (errno == EINTR))
-		{
-			errno = 0;
-			continue;
-		}
-
-		if (status < 0)
-		{
-			syslog (LOG_ERR, "dns plugin: poll(2) failed: %s",
-					strerror (errno));
-			break;
-		}
-
-		if (poll_fds[0].revents & (POLLERR | POLLHUP | POLLNVAL))
-		{
-			DBG ("pcap-device closed. Exiting.");
-			syslog (LOG_ERR, "dns plugin: pcap-device closed. Exiting.");
-			break;
-		}
-		else if (poll_fds[0].revents & (POLLIN | POLLPRI))
-		{
-			status = pcap_dispatch (pcap_obj,
-					10 /* Only handle 10 packets at a time */,
-					handle_pcap /* callback */,
-					NULL /* Whatever this means.. */);
-			if (status < 0)
-			{
-				DBG ("pcap_dispatch failed: %s", pcap_geterr (pcap_obj));
-				syslog (LOG_ERR, "dns plugin: pcap_dispatch failed: %s",
-						pcap_geterr (pcap_obj));
-				break;
-			}
-		}
-	} /* while (42) */
+	status = pcap_loop (pcap_obj,
+			-1 /* loop forever */,
+			handle_pcap /* callback */,
+			NULL /* Whatever this means.. */);
+	if (status < 0)
+		syslog (LOG_ERR, "dns plugin: Listener thread is exiting "
+				"abnormally: %s", pcap_geterr (pcap_obj));
 
 	DBG ("child is exiting");
 
 	pcap_close (pcap_obj);
+	listen_thread_init = 0;
 	pthread_exit (NULL);
 
 	return (NULL);
