@@ -62,6 +62,11 @@
 #	include <sys/un.h>
 #endif /* HAVE_LINUX_UN_H | HAVE_SYS_UN_H */
 
+/* some systems (e.g. Darwin) seem to not define UNIX_PATH_MAX at all */
+#ifndef UNIX_PATH_MAX
+# define UNIX_PATH_MAX sizeof (((struct sockaddr_un *)0)->sun_path)
+#endif /* UNIX_PATH_MAX */
+
 #if HAVE_GRP_H
 #	include <grp.h>
 #endif /* HAVE_GRP_H */
