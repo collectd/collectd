@@ -522,7 +522,7 @@ AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Pa
 			with_libpthread="no (disabled)"
 		fi
 	fi
-], [with_libpthread="no"])
+], [with_libpthread="yes"])
 if test "x$with_libpthread" = "xyes"
 then
 	AC_CHECK_LIB(pthread, pthread_create, [with_libpthread="yes"], [with_libpthread="no (libpthread not found)"], [])
@@ -1020,7 +1020,6 @@ Configuration:
     libstatgrab . . . . $with_libstatgrab
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
-    regex . . . . . . . $with_regex
     libpcap . . . . . . $with_libpcap
     libpthread  . . . . $with_libpthread
 
