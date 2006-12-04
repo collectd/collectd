@@ -101,10 +101,14 @@ int  plugin_load_all (char *dir);
 void plugin_init_all (void);
 void plugin_read_all (const int *loop);
 
+void plugin_shutdown_all (void);
+
 void plugin_register (char *type,
 		void (*init) (void),
 		void (*read) (void),
 		void (*write) (char *, char *, char *));
+
+int plugin_register_shutdown (char *, void (*) (void));
 
 /*
  * NAME

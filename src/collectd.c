@@ -444,6 +444,8 @@ int main (int argc, char **argv)
 #endif
 		start_client ();
 
+	plugin_shutdown_all ();
+
 #if COLLECT_DEBUG
 	if (logfile != NULL)
 		DBG_STOPFILE("debug file closed.");

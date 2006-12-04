@@ -34,6 +34,7 @@ typedef struct plugin
 	void (*init) (void);
 	void (*read) (void);
 	void (*write) (char *host, char *inst, char *val);
+	void (*shutdown) (void);
 	struct plugin *next;
 } plugin_t;
 
@@ -286,6 +287,19 @@ void plugin_read_all (const int *loop)
 }
 
 /*
+ * Call `shutdown' on all plugins (if given)
+ */
+void plugin_shutdown_all (void)
+{
+	plugin_t *p;
+
+	for (p = first_plugin; NULL != p; p = p->next)
+		if (NULL != p->shutdown)
+			(*p->shutdown) ();
+	return;
+}
+
+/*
  * Add plugin to the linked list of registered plugins.
  */
 void plugin_register (char *type,
@@ -317,8 +331,24 @@ void plugin_register (char *type,
 	p->read  = read;
 	p->write = write;
 
+	p->shutdown = NULL;
+
 	p->next = first_plugin;
 	first_plugin = p;
+}
+
+/*
+ * Register the shutdown function (optional).
+ */
+int plugin_register_shutdown (char *type, void (*shutdown) (void))
+{
+	plugin_t *p = plugin_search (type);
+
+	if (NULL == p)
+		return -1;
+
+	p->shutdown = shutdown;
+	return 0;
 }
 
 /*
