@@ -135,6 +135,7 @@ static int disabled = 0;
 
 /* thread managing "client" connections */
 static pthread_t connector;
+static int connector_socket;
 
 /* tell the connector thread that a collector is available */
 static pthread_cond_t collector_available = PTHREAD_COND_INITIALIZER;
@@ -524,13 +525,11 @@ static void *collect (void *arg)
 
 static void *open_connection (void *arg)
 {
-	int local = 0;
-
 	struct sockaddr_un addr;
 
 	/* create UNIX socket */
 	errno = 0;
-	if (-1 == (local = socket (PF_UNIX, SOCK_STREAM, 0))) {
+	if (-1 == (connector_socket = socket (PF_UNIX, SOCK_STREAM, 0))) {
 		disabled = 1;
 		syslog (LOG_ERR, "socket() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
@@ -543,7 +542,7 @@ static void *open_connection (void *arg)
 	unlink (addr.sun_path);
 
 	errno = 0;
-	if (-1 == bind (local, (struct sockaddr *)&addr,
+	if (-1 == bind (connector_socket, (struct sockaddr *)&addr,
 				offsetof (struct sockaddr_un, sun_path)
 					+ strlen(addr.sun_path))) {
 		disabled = 1;
@@ -552,7 +551,7 @@ static void *open_connection (void *arg)
 	}
 
 	errno = 0;
-	if (-1 == listen (local, 5)) {
+	if (-1 == listen (connector_socket, 5)) {
 		disabled = 1;
 		syslog (LOG_ERR, "listen() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
@@ -619,7 +618,7 @@ static void *open_connection (void *arg)
 
 		do {
 			errno = 0;
-			if (-1 == (remote = accept (local, NULL, NULL))) {
+			if (-1 == (remote = accept (connector_socket, NULL, NULL))) {
 				if (EINTR != errno) {
 					disabled = 1;
 					syslog (LOG_ERR, "accept() failed: %s", strerror (errno));
@@ -703,6 +702,31 @@ static void email_init (void)
 #endif /* EMAIL_HAVE_READ */
 	return;
 } /* static void email_init (void) */
+
+#if EMAIL_HAVE_READ
+static void email_shutdown (void)
+{
+	collector_t *ptr;
+
+	if (disabled)
+		return;
+
+	close (connector_socket);
+	pthread_kill (connector, SIGTERM);
+
+	pthread_mutex_lock (&active_mutex);
+
+	for (ptr = active.head; NULL != ptr; ptr = ptr->next) {
+		close (ptr->socket);
+		pthread_kill (ptr->thread, SIGTERM);
+	}
+
+	pthread_mutex_unlock (&active_mutex);
+
+	unlink (SOCK_PATH);
+	return;
+} /* static void email_shutdown (void) */
+#endif /* EMAIL_HAVE_READ */
 
 static void count_write (char *host, char *inst, char *val)
 {
@@ -837,6 +861,7 @@ void module_register (void)
 	plugin_register ("email_spam_score", NULL, NULL, score_write);
 	plugin_register ("email_spam_check", NULL, NULL, check_write);
 #if EMAIL_HAVE_READ
+	plugin_register_shutdown (MODULE_NAME, email_shutdown);
 	cf_register (MODULE_NAME, email_config, config_keys, config_keys_num);
 #endif /* EMAIL_HAVE_READ */
 	return;
