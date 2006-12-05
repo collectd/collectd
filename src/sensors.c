@@ -342,6 +342,7 @@ static void sensors_shutdown (void)
 
 	ignorelist_free (sensor_list);
 
+#if SENSORS_HAVE_READ
 	while (thisft != NULL)
 	{
 		nextft = thisft->next;
@@ -350,6 +351,7 @@ static void sensors_shutdown (void)
 	}
 
 	sensors_cleanup ();
+#endif /* if SENSORS_HAVE_READ */
 }
 
 static void sensors_voltage_write (char *host, char *inst, char *val)
