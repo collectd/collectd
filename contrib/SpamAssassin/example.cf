@@ -1,0 +1,2 @@
+collectd_buffersize 256
+collectd_socket /tmp/.collectd-email
