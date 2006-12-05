@@ -337,12 +337,10 @@ static void collectd_sensors_init (void)
 
 static void sensors_shutdown (void)
 {
+#if SENSORS_HAVE_READ
 	featurelist_t *thisft = first_feature;
 	featurelist_t *nextft;
 
-	ignorelist_free (sensor_list);
-
-#if SENSORS_HAVE_READ
 	while (thisft != NULL)
 	{
 		nextft = thisft->next;
@@ -352,6 +350,8 @@ static void sensors_shutdown (void)
 
 	sensors_cleanup ();
 #endif /* if SENSORS_HAVE_READ */
+
+	ignorelist_free (sensor_list);
 }
 
 static void sensors_voltage_write (char *host, char *inst, char *val)
