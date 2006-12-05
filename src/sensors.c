@@ -335,6 +335,23 @@ static void collectd_sensors_init (void)
 	return;
 }
 
+static void sensors_shutdown (void)
+{
+	featurelist_t *thisft = first_feature;
+	featurelist_t *nextft;
+
+	ignorelist_free (sensor_list);
+
+	while (thisft != NULL)
+	{
+		nextft = thisft->next;
+		sfree (thisft);
+		thisft = nextft;
+	}
+
+	sensors_cleanup ();
+}
+
 static void sensors_voltage_write (char *host, char *inst, char *val)
 {
 	char file[BUFSIZE];
@@ -474,6 +491,7 @@ void module_register (void)
 {
 	plugin_register (MODULE_NAME, collectd_sensors_init, sensors_read, sensors_write);
 	plugin_register (MODULE_NAME_VOLTAGE, NULL, NULL, sensors_voltage_write);
+	plugin_register_shutdown (MODULE_NAME, sensors_shutdown);
 	cf_register (MODULE_NAME, sensors_config, config_keys, config_keys_num);
 }
 
