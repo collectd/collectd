@@ -178,7 +178,7 @@ static ignorelist_t *sensor_list;
  */
 static int sensor_extended_naming = 0;
 
-#ifdef HAVE_LIBSENSORS
+#if SENSORS_HAVE_READ
 typedef struct featurelist
 {
 	const sensors_chip_name    *chip;
@@ -188,7 +188,7 @@ typedef struct featurelist
 } featurelist_t;
 
 featurelist_t *first_feature = NULL;
-#endif /* defined (HAVE_LIBSENSORS) */
+#endif /* if SENSORS_HAVE_READ */
 
 static int sensors_config (char *key, char *value)
 {
@@ -230,7 +230,7 @@ static int sensors_config (char *key, char *value)
 
 static void collectd_sensors_init (void)
 {
-#ifdef HAVE_LIBSENSORS
+#if SENSORS_HAVE_READ
 	FILE *fh;
 	featurelist_t *last_feature = NULL;
 	featurelist_t *new_feature;
@@ -330,7 +330,7 @@ static void collectd_sensors_init (void)
 
 	if (first_feature == NULL)
 		sensors_cleanup ();
-#endif /* defined(HAVE_LIBSENSORS) */
+#endif /* if SENSORS_HAVE_READ */
 
 	return;
 }
