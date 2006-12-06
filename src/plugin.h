@@ -66,7 +66,6 @@ struct data_set_s
 	char           type[DATA_MAX_NAME_LEN];
 	int            ds_num;
 	data_source_t *ds;
-	char          *filename;
 };
 typedef struct data_set_s data_set_t;
 

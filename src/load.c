@@ -44,14 +44,14 @@
 #endif
 #endif /* defined(HAVE_GETLOADAVG) */
 
-data_source_t dsrc[3] =
+static data_source_t dsrc[3] =
 {
 	{"shortterm", DS_TYPE_GAUGE, 0.0, 100.0},
 	{"midterm",   DS_TYPE_GAUGE, 0.0, 100.0},
 	{"longterm",  DS_TYPE_GAUGE, 0.0, 100.0}
 };
 
-data_set_t ds =
+static data_set_t ds =
 {
 	"load", 3, dsrc
 };
