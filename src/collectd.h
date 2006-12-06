@@ -201,7 +201,7 @@
 #define MODE_LOG    0x08
 
 #ifndef COLLECTD_GRP_NAME
-#	define COLLECTD_GRP_NAME "collectd"
+# define COLLECTD_GRP_NAME "collectd"
 #endif
 
 #ifndef COLLECTD_STEP

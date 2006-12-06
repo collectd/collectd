@@ -42,6 +42,9 @@ Features
     - DNS traffic
       (query types, response codes, opcodes and traffic)
 
+    - Email statistics
+      (count, traffic, spam scores and checks)
+
     - Harddisk temperatures
       (Uhm, yeah, temperature of harddisks that is ;)
 

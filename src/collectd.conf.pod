@@ -160,23 +160,6 @@ TCP-Port to connect to. Defaults to B<3551>.
 
 =back
 
-=head2 Plugin C<dns>
-
-=over 4
-
-=item B<Interface> I<Interface>
-
-The dns plugin uses B<libpcap> to capture dns traffic and analyses it. This
-option sets the interface that should be used. If this option is not set, or
-set to "any", the plugin will try to get packets from B<all> interfaces. This
-may not work on certain platforms, such as MacE<nbsp>OSE<nbsp>X.
-
-=item B<IgnoreSource> I<IP-address>
-
-Ignore packets that originate from this address.
-
-=back
-
 =head2 Plugin C<df>
 
 =over 4
@@ -199,6 +182,46 @@ Invert the selection: If set to true, all partitions B<except> the ones that
 match any one of the criteria are collected. By default only selected
 partitions are collected if a selection is made. If no selection is conifured
 at all, B<all> partitions are selected.
+
+=back
+
+=head2 Plugin C<dns>
+
+=over 4
+
+=item B<Interface> I<Interface>
+
+The dns plugin uses B<libpcap> to capture dns traffic and analyses it. This
+option sets the interface that should be used. If this option is not set, or
+set to "any", the plugin will try to get packets from B<all> interfaces. This
+may not work on certain platforms, such as MacE<nbsp>OSE<nbsp>X.
+
+=item B<IgnoreSource> I<IP-address>
+
+Ignore packets that originate from this address.
+
+=back
+
+=head2 Plugin C<email>
+
+=over 4
+
+=item B<SocketGroup> I<Group>
+
+Change the group of the UNIX-socket after it has been created.
+
+=item B<SocketPerms> I<Permissions>
+
+Change the file permissions of the UNIX-socket after it has been created. The
+permissions must be given as a numeric, octal value as you would pass to
+L<chmod(1)>. Defaults to B<0770>.
+
+=item B<MaxConns> I<Number>
+
+Sets the maximum number of connections that can be handeled in parallel. Since
+this many threads will be started immediately setting this to a very high
+value will waste valuable resources. Defaults to B<5> and will be forced to be
+at most B<16384> to prevent typos and dumb mistakes.
 
 =back
 

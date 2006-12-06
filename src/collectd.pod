@@ -44,6 +44,10 @@ DNS traffic (I<dns>)
 
 =item
 
+Email usage (I<email>)
+
+=item
+
 Harddisk temperatures (I<hddtemp>)
 
 =item

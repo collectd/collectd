@@ -211,7 +211,7 @@ static int email_config (char *key, char *value)
 	}
 	else if (0 == strcasecmp (key, "SocketPerms")) {
 		/* the user is responsible for providing reasonable values */
-		sock_perms = (int)strtol (value, NULL, 0);
+		sock_perms = (int)strtol (value, NULL, 8);
 	}
 	else if (0 == strcasecmp (key, "MaxConns")) {
 		long int tmp = strtol (value, NULL, 0);
