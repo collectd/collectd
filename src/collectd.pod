@@ -40,6 +40,10 @@ Disk and partition usage/throughput (I<disk>)
 
 =item
 
+DNS traffic (I<dns>)
+
+=item
+
 Harddisk temperatures (I<hddtemp>)
 
 =item
