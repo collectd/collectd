@@ -44,42 +44,39 @@
 #endif
 #endif /* defined(HAVE_GETLOADAVG) */
 
-static char *load_file = "load.rrd";
-
-static char *ds_def[] =
+data_source_t dsrc[3] =
 {
-	"DS:shortterm:GAUGE:"COLLECTD_HEARTBEAT":0:100",
-	"DS:midterm:GAUGE:"COLLECTD_HEARTBEAT":0:100",
-	"DS:longterm:GAUGE:"COLLECTD_HEARTBEAT":0:100",
-	NULL
+	{"shortterm", DS_TYPE_GAUGE, 0.0, 100.0},
+	{"midterm",   DS_TYPE_GAUGE, 0.0, 100.0},
+	{"longterm",  DS_TYPE_GAUGE, 0.0, 100.0}
 };
-static int ds_num = 3;
 
-static void load_init (void)
+data_set_t ds =
 {
-	return;
-}
-
-static void load_write (char *host, char *inst, char *val)
-{
-	rrd_update_file (host, load_file, val, ds_def, ds_num);
-}
+	"load", 3, dsrc
+};
 
 #if LOAD_HAVE_READ
-#define BUFSIZE 256
 static void load_submit (double snum, double mnum, double lnum)
 {
-	char buf[BUFSIZE];
+	value_t values[3];
+	value_list_t vl;
 
-	if (snprintf (buf, BUFSIZE, "%u:%.2f:%.2f:%.2f", (unsigned int) curtime,
-				snum, mnum, lnum) >= BUFSIZE)
-		return;
+	values[0].gauge = snum;
+	values[1].gauge = mnum;
+	values[2].gauge = lnum;
 
-	plugin_submit (MODULE_NAME, "-", buf);
+	vl.values = values;
+	vl.values_len = 3;
+	strcpy (vl.host, "localhost"); /* FIXME */
+	strcpy (vl.plugin, "load");
+	strcpy (vl.plugin_instance, "");
+	strcpy (vl.type_instance, "");
+
+	plugin_dispatch_values ("load", &vl);
 }
-#undef BUFSIZE
 
-static void load_read (void)
+static int load_read (void)
 {
 #if defined(HAVE_GETLOADAVG)
 	double load[3];
@@ -139,14 +136,17 @@ static void load_read (void)
 
 	load_submit (snum, mnum, lnum);
 #endif /* HAVE_LIBSTATGRAB */
+
+	return (0);
 }
-#else
-# define load_read NULL
 #endif /* LOAD_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, load_init, load_read, load_write);
+	plugin_register_data_set (&ds);
+#if LOAD_HAVE_READ
+	plugin_register_read ("load", load_read);
+#endif
 }
 
 #undef MODULE_NAME
