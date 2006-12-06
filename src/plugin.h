@@ -45,6 +45,7 @@ struct value_list_s
 {
 	value_t *values;
 	int      values_len;
+	char     host[DATA_MAX_NAME_LEN];
 	char     plugin[DATA_MAX_NAME_LEN];
 	char     plugin_instance[DATA_MAX_NAME_LEN];
 	char     type_instance[DATA_MAX_NAME_LEN];

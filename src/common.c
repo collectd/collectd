@@ -35,48 +35,6 @@ extern int operating_mode;
 extern kstat_ctl_t *kc;
 #endif
 
-#ifdef HAVE_LIBRRD
-#if 0
-static char *rra_def[] =
-{
-		"RRA:AVERAGE:0.0:1:1500",
-		"RRA:AVERAGE:0.2:6:1500",
-		"RRA:AVERAGE:0.1:180:1680",
-		"RRA:AVERAGE:0.1:2160:1520",
-		"RRA:MIN:0.0:1:1500",
-		"RRA:MIN:0.2:6:1500",
-		"RRA:MIN:0.1:180:1680",
-		"RRA:MIN:0.1:2160:1520",
-		"RRA:MAX:0.0:1:1500",
-		"RRA:MAX:0.2:6:1500",
-		"RRA:MAX:0.1:180:1680",
-		"RRA:MAX:0.1:2160:1520",
-		NULL
-};
-static int rra_num = 12;
-#endif
-
-static int rra_timespans[] =
-{
-	3600,
-	86400,
-	604800,
-	2678400,
-	31622400,
-	0
-};
-static int rra_timespans_num = 5;
-
-static char *rra_types[] =
-{
-	"AVERAGE",
-	"MIN",
-	"MAX",
-	NULL
-};
-static int rra_types_num = 3;
-#endif /* HAVE_LIBRRD */
-
 void sstrncpy (char *d, const char *s, int len)
 {
 	strncpy (d, s, len);
@@ -320,7 +278,7 @@ int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct times
 	return (0);
 }
 
-static int check_create_dir (const char *file_orig)
+int check_create_dir (const char *file_orig)
 {
 	struct stat statbuf;
 
@@ -424,89 +382,6 @@ static int check_create_dir (const char *file_orig)
 	return (0);
 }
 
-/* * * * *
- * Magic *
- * * * * */
-#if HAVE_LIBRRD
-static int rra_get (char ***ret)
-{
-	static char **rra_def = NULL;
-	static int rra_num = 0;
-
-	int rra_max = rra_timespans_num * rra_types_num;
-
-	int step;
-	int rows;
-	int span;
-
-	int cdp_num;
-	int cdp_len;
-	int i, j;
-
-	char buffer[64];
-
-	if ((rra_num != 0) && (rra_def != NULL))
-	{
-		*ret = rra_def;
-		return (rra_num);
-	}
-
-	if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
-		return (-1);
-	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
-
-	step = atoi (COLLECTD_STEP);
-	rows = atoi (COLLECTD_ROWS);
-
-	if ((step <= 0) || (rows <= 0))
-	{
-		*ret = NULL;
-		return (-1);
-	}
-
-	cdp_len = 0;
-	for (i = 0; i < rra_timespans_num; i++)
-	{
-		span = rra_timespans[i];
-
-		if ((span / step) < rows)
-			continue;
-
-		if (cdp_len == 0)
-			cdp_len = 1;
-		else
-			cdp_len = (int) floor (((double) span) / ((double) (rows * step)));
-
-		cdp_num = (int) ceil (((double) span) / ((double) (cdp_len * step)));
-
-		for (j = 0; j < rra_types_num; j++)
-		{
-			if (rra_num >= rra_max)
-				break;
-
-			if (snprintf (buffer, sizeof(buffer), "RRA:%s:%3.1f:%u:%u",
-						rra_types[j], COLLECTD_XFF,
-						cdp_len, cdp_num) >= sizeof (buffer))
-			{
-				syslog (LOG_ERR, "rra_get: Buffer would have been truncated.");
-				continue;
-			}
-
-			rra_def[rra_num++] = sstrdup (buffer);
-		}
-	}
-
-#if COLLECT_DEBUG
-	DBG ("rra_num = %i", rra_num);
-	for (i = 0; i < rra_num; i++)
-		DBG ("  %s", rra_def[i]);
-#endif
-
-	*ret = rra_def;
-	return (rra_num);
-}
-#endif /* HAVE_LIBRRD */
-
 static int log_create_file (char *filename, char **ds_def, int ds_num)
 {
 	FILE *log;
@@ -560,7 +435,7 @@ static int log_create_file (char *filename, char **ds_def, int ds_num)
 	return 0;
 }
 
-static int log_update_file (char *host, char *file, char *values,
+int log_update_file (char *host, char *file, char *values,
 		char **ds_def, int ds_num)
 {
 	char *tmp;
@@ -640,121 +515,6 @@ static int log_update_file (char *host, char *file, char *values,
 	return (0);
 } /* int log_update_file */
 
-#if HAVE_LIBRRD
-static int rrd_create_file (char *filename, char **ds_def, int ds_num)
-{
-	char **argv;
-	int argc;
-	char **rra_def;
-	int rra_num;
-	int i, j;
-	int status = 0;
-
-	if (check_create_dir (filename))
-		return (-1);
-
-	if ((rra_num = rra_get (&rra_def)) < 1)
-	{
-		syslog (LOG_ERR, "rra_create failed: Could not calculate RRAs");
-		return (-1);
-	}
-
-	argc = ds_num + rra_num + 4;
-
-	if ((argv = (char **) malloc (sizeof (char *) * (argc + 1))) == NULL)
-	{
-		syslog (LOG_ERR, "rrd_create failed: %s", strerror (errno));
-		return (-1);
-	}
-
-	argv[0] = "create";
-	argv[1] = filename;
-	argv[2] = "-s";
-	argv[3] = COLLECTD_STEP;
-
-	j = 4;
-	for (i = 0; i < ds_num; i++)
-		argv[j++] = ds_def[i];
-	for (i = 0; i < rra_num; i++)
-		argv[j++] = rra_def[i];
-	argv[j] = NULL;
-
-	optind = 0; /* bug in librrd? */
-	rrd_clear_error ();
-	if (rrd_create (argc, argv) == -1)
-	{
-		syslog (LOG_ERR, "rrd_create failed: %s: %s", filename, rrd_get_error ());
-		status = -1;
-	}
-
-	free (argv);
-
-	return (status);
-}
-#endif /* HAVE_LIBRRD */
-
-int rrd_update_file (char *host, char *file, char *values,
-		char **ds_def, int ds_num)
-{
-#if HAVE_LIBRRD
-	struct stat statbuf;
-	char full_file[1024];
-	char *argv[4] = { "update", full_file, values, NULL };
-#endif /* HAVE_LIBRRD */
-
-	/* I'd rather have a function `common_update_file' to make this
-	 * decission, but for that we'd need to touch all plugins.. */
-	if (operating_mode == MODE_LOG)
-		return (log_update_file (host, file, values,
-					ds_def, ds_num));
-
-#if HAVE_LIBRRD
-	/* host == NULL => local mode */
-	if (host != NULL)
-	{
-		if (snprintf (full_file, 1024, "%s/%s", host, file) >= 1024)
-			return (-1);
-	}
-	else
-	{
-		if (snprintf (full_file, 1024, "%s", file) >= 1024)
-			return (-1);
-	}
-
-	if (stat (full_file, &statbuf) == -1)
-	{
-		if (errno == ENOENT)
-		{
-			if (rrd_create_file (full_file, ds_def, ds_num))
-				return (-1);
-		}
-		else
-		{
-			syslog (LOG_ERR, "stat %s: %s", full_file, strerror (errno));
-			return (-1);
-		}
-	}
-	else if (!S_ISREG (statbuf.st_mode))
-	{
-		syslog (LOG_ERR, "stat %s: Not a regular file!", full_file);
-		return (-1);
-	}
-
-	optind = 0; /* bug in librrd? */
-	rrd_clear_error ();
-	if (rrd_update (3, argv) == -1)
-	{
-		syslog (LOG_WARNING, "rrd_update failed: %s: %s", full_file, rrd_get_error ());
-		return (-1);
-	}
-	return (0);
-/* #endif HAVE_LIBRRD */
-
-#else
-	syslog (LOG_ERR, "`rrd_update_file' was called, but collectd isn't linked against librrd!");
-	return (-1);
-#endif
-}
 
 #ifdef HAVE_LIBKSTAT
 int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name)

@@ -31,9 +31,6 @@ endif
 
 # Link to these libraries..
 collectd_LDFLAGS = -export-dynamic
-if BUILD_WITH_RRDTOOL
-collectd_LDFLAGS += -lm -lrrd
-endif
 if BUILD_WITH_LIBRT
 collectd_LDFLAGS += -lrt
 endif
@@ -304,6 +301,14 @@ processes_la_SOURCES = processes.c
 processes_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" processes.la
 collectd_DEPENDENCIES += processes.la
+endif
+
+if BUILD_WITH_RRDTOOL
+pkglib_LTLIBRARIES += rrdtool.la
+rrdtool_la_SOURCES = rrdtool.c
+rrdtool_la_LDFLAGS = -module -avoid-version -lrrd
+collectd_LDADD += "-dlopen" rrdtool.la
+collectd_DEPENDENCIES += rrdtool.la
 endif
 
 if BUILD_MODULE_SENSORS
