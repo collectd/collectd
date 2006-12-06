@@ -653,6 +653,18 @@ our $GraphDefs;
 			'GPRINT:read_avg:AVERAGE:%5.1lf Avg,',
 			'GPRINT:read_avg:LAST:%5.1lf Last\l'
 		],
+		opcode => [
+			'DEF:avg={file}:value:AVERAGE',
+			'DEF:min={file}:value:MIN',
+			'DEF:max={file}:value:MAX',
+			"AREA:max#$HalfBlue",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullBlue:Queries/s",
+			'GPRINT:min:MIN:%9.3lf Min,',
+			'GPRINT:avg:AVERAGE:%9.3lf Average,',
+			'GPRINT:max:MAX:%9.3lf Max,',
+			'GPRINT:avg:LAST:%9.3lf Last\l'
+		],
 		partition => [
 			"DEF:rbyte_avg={file}:rbytes:AVERAGE",
 			"DEF:rbyte_min={file}:rbytes:MIN",
@@ -1132,6 +1144,7 @@ our $GraphArgs =
 	mysql_qcache => ['-t', 'mysql query cache', '-v', 'Queries/s' ],
 	mysql_threads => ['-t', 'mysql threads', '-v', 'Threads' ],
 	nfs3_procedures => ['-t', '{host} NFSv3 {inst} procedures', '-v', 'Procedures/s' ],
+	opcode => ['-t', 'OpCode {inst}', '-v', 'Queries/s'],
 	partition => ['-t', '{host} partition {inst} usage', '-v', 'Byte/s'],
 	ping => ['-t', '{host} ping to {inst}', '-v', 'ms'],
 	processes => ['-t', '{host} processes', '-v', 'Processes'],
