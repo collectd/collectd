@@ -31,7 +31,7 @@
  *  `type'      Name of the plugin (must be the same as passed to
  *              `plugin_register'
  */
-void cf_unregister (char *type);
+void cf_unregister (const char *type);
 
 /*
  * DESCRIPTION
@@ -57,9 +57,9 @@ void cf_unregister (char *type);
  *  exists for each `type' at any time. This means that `cf_register' may be
  *  called multiple times, but only the last call will have an effect.
  */
-void cf_register (char *type,
-		int (*callback) (char *, char *),
-		char **keys, int keys_num);
+void cf_register (const char *type,
+		int (*callback) (const char *, const char *),
+		const char **keys, int keys_num);
 
 /*
  * DESCRIPTION

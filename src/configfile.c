@@ -50,9 +50,9 @@ extern int operating_mode;
 
 typedef struct cf_callback
 {
-	char  *type;
-	int  (*callback) (char *, char *);
-	char **keys;
+	const char  *type;
+	int  (*callback) (const char *, const char *);
+	const char **keys;
 	int    keys_num;
 	struct cf_callback *next;
 } cf_callback_t;
@@ -152,7 +152,7 @@ static int cf_dispatch (char *type, const char *orig_key, const char *orig_value
 	return (ret);
 }
 
-void cf_unregister (char *type)
+void cf_unregister (const char *type)
 {
 	cf_callback_t *this, *prev;
 
@@ -171,9 +171,9 @@ void cf_unregister (char *type)
 		}
 }
 
-void cf_register (char *type,
-		int (*callback) (char *, char *),
-		char **keys, int keys_num)
+void cf_register (const char *type,
+		int (*callback) (const char *, const char *),
+		const char **keys, int keys_num)
 {
 	cf_callback_t *cf_cb;
 	char buf[64];

@@ -25,26 +25,25 @@
 #include <ltdl.h>
 
 #include "plugin.h"
-#include "network.h"
+#include "configfile.h"
+#include "utils_llist.h"
 #include "utils_debug.h"
 
-typedef struct plugin
-{
-	char *type;
-	void (*init) (void);
-	void (*read) (void);
-	void (*write) (char *host, char *inst, char *val);
-	void (*shutdown) (void);
-	struct plugin *next;
-} plugin_t;
-
-static plugin_t *first_plugin = NULL;
-
-extern int operating_mode;
+/*
+ * Private variables
+ */
+static llist_t *list_init;
+static llist_t *list_read;
+static llist_t *list_write;
+static llist_t *list_shutdown;
+static llist_t *list_data_set;
 
 static char *plugindir = NULL;
 
-char *plugin_get_dir (void)
+/*
+ * Static functions
+ */
+static const char *plugin_get_dir (void)
 {
 	if (plugindir == NULL)
 		return (PLUGINDIR);
@@ -52,66 +51,37 @@ char *plugin_get_dir (void)
 		return (plugindir);
 }
 
-void plugin_set_dir (const char *dir)
+static int register_callback (llist_t **list, const char *name, void *callback)
 {
-	if (plugindir != NULL)
-		free (plugindir);
+	llentry_t *le;
 
-	if (dir == NULL)
-		plugindir = NULL;
-	else if ((plugindir = strdup (dir)) == NULL)
-		syslog (LOG_ERR, "strdup: %s", strerror (errno));
-}
+	if ((*list == NULL)
+			&& ((*list = llist_create ()) == NULL))
+		return (-1);
 
-/*
- * Returns the number of plugins registered
- */
-int plugin_count (void)
-{
-	int i;
-	plugin_t *p;
+	le = llist_search (*list, name);
+	if (le == NULL)
+	{
+		le = llentry_create (name, callback);
+		if (le == NULL)
+			return (-1);
 
-	for (i = 0, p = first_plugin; p != NULL; p = p->next)
-		i++;
-
-	return (i);
-}
-
-/*
- * Returns the plugins with the type `type' or NULL if it's not found.
- */
-plugin_t *plugin_search (const char *type)
-{
-	plugin_t *ret;
-
-	if (type == NULL)
-		return (NULL);
-
-	for (ret = first_plugin; ret != NULL; ret = ret->next)
-		if (strcmp (ret->type, type) == 0)
-			break;
-
-	return (ret);
-}
-
-/*
- * Returns true if the plugin is loaded (i.e. `exists') and false otherwise.
- * This is used in `configfile.c' to skip sections that are not needed..
- */
-int plugin_exists (char *type)
-{
-	if (plugin_search (type) == NULL)
-		return (0);
+		llist_append (*list, le);
+	}
 	else
-		return (1);
-}
+	{
+		le->value = callback;
+	}
+
+	return (0);
+} /* int register_callback */
 
 /*
  * (Try to) load the shared object `file'. Won't complain if it isn't a shared
  * object, but it will bitch about a shared object not having a
  * ``module_register'' symbol..
  */
-int plugin_load_file (char *file)
+static int plugin_load_file (char *file)
 {
 	lt_dlhandle dlh;
 	void (*reg_handle) (void);
@@ -143,11 +113,25 @@ int plugin_load_file (char *file)
 	return (0);
 }
 
+/*
+ * Public functions
+ */
+void plugin_set_dir (const char *dir)
+{
+	if (plugindir != NULL)
+		free (plugindir);
+
+	if (dir == NULL)
+		plugindir = NULL;
+	else if ((plugindir = strdup (dir)) == NULL)
+		syslog (LOG_ERR, "strdup failed: %s", strerror (errno));
+}
+
 #define BUFSIZE 512
 int plugin_load (const char *type)
 {
 	DIR  *dh;
-	char *dir;
+	const char *dir;
 	char  filename[BUFSIZE];
 	char  typename[BUFSIZE];
 	int   typename_len;
@@ -159,10 +143,6 @@ int plugin_load (const char *type)
 
 	dir = plugin_get_dir ();
 	ret = 1;
-
-	/* don't load twice */
-	if (plugin_search (type) != NULL)
-		return (0);
 
 	/* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
 	 * type when matching the filename */
@@ -215,170 +195,124 @@ int plugin_load (const char *type)
 }
 
 /*
- * (Try to) load all plugins in `dir'. Returns the number of loaded plugins..
+ * The `register_*' functions follow
  */
-int plugin_load_all (char *dir)
+int plugin_register_config (const char *name,
+		int (*callback) (const char *key, const char *val),
+		const char **keys, int keys_num)
 {
-	DIR *dh;
-	struct dirent *de;
-	char filename[BUFSIZE];
-	struct stat statbuf;
+	cf_register (name, callback, keys, keys_num);
+	return (0);
+} /* int plugin_register_config */
 
-	if (dir == NULL)
-		dir = plugin_get_dir ();
-	else
-		plugin_set_dir (dir);
+int plugin_register_init (const char *name,
+		int (*callback) (void))
+{
+	return (register_callback (&list_init, name, (void *) callback));
+} /* plugin_register_init */
 
-	if ((dh = opendir (dir)) == NULL)
-	{
-		syslog (LOG_ERR, "opendir (%s): %s", dir, strerror (errno));
-		return (0);
-	}
+int plugin_register_read (const char *name,
+		int (*callback) (void))
+{
+	return (register_callback (&list_read, name, (void *) callback));
+} /* int plugin_register_read */
 
-	while ((de = readdir (dh)) != NULL)
-	{
-		if (snprintf (filename, BUFSIZE, "%s/%s", dir, de->d_name) >= BUFSIZE)
-		{
-			syslog (LOG_WARNING, "snprintf: truncated: %s/%s", dir, de->d_name);
-			continue;
-		}
+int plugin_register_write (const char *name,
+		int (*callback) (const data_set_t *ds, const value_list_t *vl))
+{
+	return (register_callback (&list_write, name, (void *) callback));
+} /* int plugin_register_write */
 
-		if (lstat (filename, &statbuf) == -1)
-		{
-			syslog (LOG_WARNING, "stat %s: %s", filename, strerror (errno));
-			continue;
-		}
-		else if (!S_ISREG (statbuf.st_mode))
-		{
-			continue;
-		}
+int plugin_register_shutdown (char *name,
+		int (*callback) (void))
+{
+	return (register_callback (&list_shutdown, name, (void *) callback));
+} /* int plugin_register_shutdown */
 
-		plugin_load_file (filename);
-	}
+int plugin_register_data_set (const data_set_t *ds)
+{
+	return (register_callback (&list_data_set, ds->type, (void *) ds));
+} /* int plugin_register_data_set */
 
-	closedir (dh);
-
-	return (plugin_count ());
-}
-#undef BUFSIZE
-
-/*
- * Call `init' on all plugins (if given)
- */
 void plugin_init_all (void)
 {
-	plugin_t *p;
+	int (*callback) (void);
+	llentry_t *le;
 
-	for (p = first_plugin; p != NULL; p = p->next)
-		if (p->init != NULL)
-			(*p->init) ();
-}
+	if (list_init == NULL)
+		return;
 
-/*
- * Call `read' on all plugins (if given)
- */
+	le = llist_head (list_init);
+	while (le != NULL)
+	{
+		callback = le->value;
+		(*callback) ();
+
+		le = le->next;
+	}
+} /* void plugin_init_all */
+
 void plugin_read_all (const int *loop)
 {
-	plugin_t *p;
+	int (*callback) (void);
+	llentry_t *le;
 
-	for (p = first_plugin; (*loop == 0) && (p != NULL); p = p->next)
-		if (p->read != NULL)
-			(*p->read) ();
-}
+	if (list_read == NULL)
+		return;
 
-/*
- * Call `shutdown' on all plugins (if given)
- */
+	le = llist_head (list_read);
+	while ((*loop == 0) && (le != NULL))
+	{
+		callback = le->value;
+		(*callback) ();
+
+		le = le->next;
+	}
+} /* void plugin_read_all */
+
 void plugin_shutdown_all (void)
 {
-	plugin_t *p;
+	int (*callback) (void);
+	llentry_t *le;
 
-	for (p = first_plugin; NULL != p; p = p->next)
-		if (NULL != p->shutdown)
-			(*p->shutdown) ();
-	return;
-}
-
-/*
- * Add plugin to the linked list of registered plugins.
- */
-void plugin_register (char *type,
-		void (*init) (void),
-		void (*read) (void),
-		void (*write) (char *, char *, char *))
-{
-	plugin_t *p;
-
-	if (plugin_search (type) != NULL)
+	if (list_shutdown == NULL)
 		return;
 
-#ifdef HAVE_LIBRRD
-	if (operating_mode != MODE_SERVER)
-#endif
-		if ((init != NULL) && (read == NULL))
-			syslog (LOG_NOTICE, "Plugin `%s' doesn't provide a read function.", type);
-
-	if ((p = (plugin_t *) malloc (sizeof (plugin_t))) == NULL)
-		return;
-
-	if ((p->type = strdup (type)) == NULL)
+	le = llist_head (list_shutdown);
+	while (le != NULL)
 	{
-		free (p);
-		return;
+		callback = le->value;
+		(*callback) ();
+
+		le = le->next;
+	}
+} /* void plugin_shutdown_all */
+
+int plugin_dispatch_values (const char *name, const value_list_t *vl)
+{
+	int (*callback) (const data_set_t *, const value_list_t *);
+	data_set_t *ds;
+	llentry_t *le;
+
+	if (list_write == NULL)
+		return (-1);
+
+	le = llist_search (list_data_set, name);
+	if (le == NULL)
+		return (-1);
+
+	ds = (data_set_t *) le->value;
+
+	le = llist_head (list_write);
+	while (le != NULL)
+	{
+		callback = le->value;
+		(*callback) (ds, vl);
+
+		le = le->next;
 	}
 
-	p->init  = init;
-	p->read  = read;
-	p->write = write;
-
-	p->shutdown = NULL;
-
-	p->next = first_plugin;
-	first_plugin = p;
-}
-
-/*
- * Register the shutdown function (optional).
- */
-int plugin_register_shutdown (char *type, void (*shutdown) (void))
-{
-	plugin_t *p = plugin_search (type);
-
-	if (NULL == p)
-		return -1;
-
-	p->shutdown = shutdown;
-	return 0;
-}
-
-/*
- * Send received data back to the plugin/module which will append DS
- * definitions and pass it on to ``rrd_update_file''.
- */
-void plugin_write (char *host, char *type, char *inst, char *val)
-{
-	plugin_t *p;
-
-	if ((p = plugin_search (type)) == NULL)
-		return;
-
-	if (p->write == NULL)
-		return;
-
-	(*p->write) (host, inst, val);
-}
-
-/*
- * Receive data from the plugin/module and get it somehow to ``plugin_write'':
- * Either using ``network_send'' (when in network/client mode) or call it
- * directly (in local mode).
- */
-void plugin_submit (char *type, char *inst, char *val)
-{
-        if (operating_mode == MODE_CLIENT)
-		network_send (type, inst, val);
-	else
-		plugin_write (NULL, type, inst, val);
+	return (0);
 }
 
 void plugin_complain (int level, complain_t *c, const char *format, ...)

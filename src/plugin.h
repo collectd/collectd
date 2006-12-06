@@ -23,9 +23,52 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+#define DATA_MAX_NAME_LEN 64
+
+#define DS_TYPE_COUNTER 0
+#define DS_TYPE_GAUGE   1
+
 /*
- *
+ * Public data types
  */
+typedef unsigned long long counter_t;
+typedef double gauge_t;
+
+union value_u
+{
+	counter_t counter;
+	gauge_t   gauge;
+};
+typedef union value_u value_t;
+
+struct value_list_s
+{
+	value_t *values;
+	int      values_len;
+	char     plugin[DATA_MAX_NAME_LEN];
+	char     plugin_instance[DATA_MAX_NAME_LEN];
+	char     type_instance[DATA_MAX_NAME_LEN];
+};
+typedef struct value_list_s value_list_t;
+
+struct data_source_s
+{
+	char   name[DATA_MAX_NAME_LEN];
+	int    type;
+	double min;
+	double max;
+};
+typedef struct data_source_s data_source_t;
+
+struct data_set_s
+{
+	char           type[DATA_MAX_NAME_LEN];
+	int            ds_num;
+	data_source_t *ds;
+	char          *filename;
+};
+typedef struct data_set_s data_set_t;
+
 typedef struct complain_s
 {
 	unsigned int interval; /* how long we wait for reporting this error again */
@@ -49,34 +92,6 @@ void plugin_set_dir (const char *dir);
 
 /*
  * NAME
- *  plugin_count
- *
- * DESCRIPTION
- *  trivial
- *
- * RETURN VALUE
- *  The number of currently loaded plugins
- */
-int plugin_count (void);
-
-/*
- * NAME
- *  plugin_exists
- *
- * DESCRIPTION
- *  trivial
- *
- * ARGUMENTS
- *  `type'      Name of the plugin.
- *
- * RETURN VALUE
- *  Returns non-zero if a plugin with the name $type is found and zero
- *  otherwise.
- */
-int plugin_exists (char *type);
-
-/*
- * NAME
  *  plugin_load
  *
  * DESCRIPTION
@@ -95,42 +110,48 @@ int plugin_exists (char *type);
  * NOTES
  *  No attempt is made to re-load an already loaded module.
  */
-int  plugin_load (const char *type);
+int  plugin_load (const char *name);
 
-int  plugin_load_all (char *dir);
 void plugin_init_all (void);
 void plugin_read_all (const int *loop);
-
 void plugin_shutdown_all (void);
 
-void plugin_register (char *type,
-		void (*init) (void),
-		void (*read) (void),
-		void (*write) (char *, char *, char *));
-
-int plugin_register_shutdown (char *, void (*) (void));
+/*
+ * The `plugin_register_*' functions are used to make `config', `init',
+ * `read', `write' and `shutdown' functions known to the plugin
+ * infrastructure. Also, the data-formats are made public like this.
+ */
+int plugin_register_config (const char *name,
+		int (*callback) (const char *key, const char *val),
+		const char **keys, int keys_num);
+int plugin_register_init (const char *name,
+		int (*callback) (void));
+int plugin_register_read (const char *name,
+		int (*callback) (void));
+int plugin_register_write (const char *name,
+		int (*callback) (const data_set_t *ds, const value_list_t *vl));
+int plugin_register_shutdown (char *name,
+		int (*callback) (void));
+int plugin_register_data_set (const data_set_t *ds);
 
 /*
  * NAME
- *  plugin_write
+ *  plugin_dispatch_values
  *
  * DESCRIPTION
- *  Searches the plugin for `type' in the plugin-list. If found, and a `write'
- *  function is registered, it's called. If either the plugin is not found or
- *  the plugin doesn't provide a `write' function this function will return
- *  without further notice.
+ *  This function is called by reading processes with the values they've
+ *  aquired. The function fetches the data-set definition (that has been
+ *  registered using `plugin_register_data_set') and calls _all_ registered
+ *  write-functions.
  *
  * ARGUMENTS
- *  `host'      Host(name) from which the data originates.
- *  `type'      Name of the plugin.
- *  `inst'      Instance (passed to the plugin's `write' function.
- *  `val'       Values for the RRD files. Also passed to the plugin.
+ *  `name'      Name/type of the data-set that describe the values in `vl'.
+ *  `vl'        Value list of the values that have been read by a `read'
+ *              function.
  */
-void plugin_write    (char *host, char *type, char *inst, char *val);
+int plugin_dispatch_values (const char *name, const value_list_t *vl);
 
-void plugin_submit   (char *type, char *inst, char *val);
-
-
+/* TODO: Move plugin_{complain,relief} into `utils_complain.[ch]'. -octo */
 void plugin_complain (int level, complain_t *c, const char *format, ...);
 void plugin_relief (int level, complain_t *c, const char *format, ...);
 

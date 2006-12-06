@@ -224,6 +224,8 @@ static int start_client (void)
 static int start_server (void)
 {
 	/* FIXME use stack here! */
+	/* FIXME */
+#if 0
 	char *host;
 	char *type;
 	char *instance;
@@ -240,6 +242,7 @@ static int start_server (void)
 		if (values   != NULL) free (values);   values   = NULL;
 	}
 	
+#endif
 	return (0);
 } /* static int start_server (void) */
 #endif /* HAVE_LIBRRD */
