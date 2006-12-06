@@ -160,6 +160,23 @@ TCP-Port to connect to. Defaults to B<3551>.
 
 =back
 
+=head2 Plugin C<dns>
+
+=over 4
+
+=item B<Interface> I<Interface>
+
+The dns plugin uses B<libpcap> to capture dns traffic and analyses it. This
+option sets the interface that should be used. If this option is not set, or
+set to "any", the plugin will try to get packets from B<all> interfaces. This
+may not work on certain platforms, such as MacE<nbsp>OSE<nbsp>X.
+
+=item B<IgnoreSource> I<IP-address>
+
+Ignore packets that originate from this address.
+
+=back
+
 =head2 Plugin C<df>
 
 =over 4
