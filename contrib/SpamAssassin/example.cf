@@ -1,2 +1,3 @@
 collectd_buffersize 256
 collectd_socket /tmp/.collectd-email
+collectd_timeout 2

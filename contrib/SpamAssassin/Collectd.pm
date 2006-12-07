@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: Collectd.pm 4 2006-12-02 15:18:14Z formorer $
+# $Id: Collectd.pm 7 2006-12-07 06:13:12Z formorer $
 
 =head1 NAME
 
@@ -48,15 +48,17 @@ Alexander Wirt <formorer@formorer.de>
 
  Copyright 2006 Alexander Wirt <formorer@formorer.de> 
  
- Licensed under the Apache License,  Version 2.0 (the "License"); 
- you may not use this file except in compliance
- with the License. You may obtain a copy of the License at
- http://www.apache.org/licenses/LICENSE-2.0 Unless required 
- by applicable law or agreed to in writing, software distributed 
- under the License is distributed on an "AS IS" BASIS, WITHOUT 
- WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- See the License for the specific language governing permissions 
- and limitations under the License.
+ This program is free software; you can redistribute it and/or modify 
+ it under the the terms of either: 
+
+ a) the Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+ or
+
+ b) the "Artistic License" which comes with perl
+ (http://www.perl.com/pub/a/language/misc/Artistic.html) 
+
+ use whatever you like more. 
 
 =cut
 
@@ -104,6 +106,13 @@ sub set_config {
 	    type => $Mail::SpamAssassin::Conf::CONF_TYPE_STRING,
     });
 
+	push (@cmds, {
+			setting => 'collectd_timeout',
+			default => 2,
+			type =>
+			$Mail::SpamAssassin::Conf::CONF_TYPE_NUMERIC,
+	});
+
     $conf->{parser}->register_commands(\@cmds);
 }
 
@@ -111,56 +120,68 @@ sub check_end {
     my ($self, $params) = @_;
     my $message_status = $params->{permsgstatus};
 	#create  new connection to our socket
-	my $sock = new IO::Socket::UNIX ( $self->{main}->{conf}->{collectd_socket});
-	# debug some informations if collectd is not running or anything else went
-	# wrong
-	if ( ! $sock ) {
-		dbg("collect: could not connect to " .
-			$self->{main}->{conf}->{collectd_socket} . ": $! - collectd plugin
-			disabled"); 
-		return 0; 
-	}
-	$sock->autoflush(1);
+	eval {
+		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
+		die "alarm\n";
+		#generate a timeout
+		alarm $self->{main}->{conf}->{collectd_timeout};
 
-	my $score = $message_status->{score};
-	#get the size of the message 
-	my $body = $message_status->{msg}->{pristine_body};
-
-	my $len = length($body);
-
-	if ($message_status->{score} >= $self->{main}->{conf}->{required_score} ) {
-		#hey we have spam
-		print $sock "e:spam:$len\n";
-	} else {
-		print $sock "e:ham:$len\n";
-	}
-	print $sock "s:$score\n";
-	my @tmp_array; 
-	my @tests = @{$message_status->{test_names_hit}};
-
-	my $buffersize = $self->{main}->{conf}->{collectd_buffersize}; 
-	dbg("collectd: buffersize: $buffersize"); 
-
-	while  (scalar(@tests) > 0) {
-	 push (@tmp_array, pop(@tests)); 
-		if (length(join(',', @tmp_array) . '\n') > $buffersize) {
-			push (@tests, pop(@tmp_array)); 
-				if (length(join(',', @tmp_array) . '\n') > $buffersize or scalar(@tmp_array) == 0) {
-					dbg("collectd: this shouldn't happen. Do you have tests"
-						." with names that have more than ~ $buffersize Bytes?");
-					return 1; 
-				} else {
-					dbg ( "collectd: c:" . join(',', @tmp_array) . "\n" ); 
-					print $sock "c:" . join(',', @tmp_array) . "\n"; 
-					#clean the array
-					@tmp_array = ();
-				} 
-		} elsif ( scalar(@tests) == 0 ) {
-			dbg ( "collectd: c:" . join(',', @tmp_array) . '\n' );
-			print $sock "c:" . join(',', @tmp_array) . "\n";
+		my $sock = new IO::Socket::UNIX ( $self->{main}->{conf}->{collectd_socket});
+		# debug some informations if collectd is not running or anything else went
+		# wrong
+		if ( ! $sock ) {
+			dbg("collect: could not connect to " .
+				$self->{main}->{conf}->{collectd_socket} . ": $! - collectd plugin
+				disabled"); 
+			return 0; 
 		}
+		$sock->autoflush(1);
+
+		my $score = $message_status->{score};
+		#get the size of the message 
+		my $body = $message_status->{msg}->{pristine_body};
+
+		my $len = length($body);
+
+		if ($message_status->{score} >= $self->{main}->{conf}->{required_score} ) {
+			#hey we have spam
+			print $sock "e:spam:$len\n";
+		} else {
+			print $sock "e:ham:$len\n";
+		}
+		print $sock "s:$score\n";
+		my @tmp_array; 
+		my @tests = @{$message_status->{test_names_hit}};
+
+		my $buffersize = $self->{main}->{conf}->{collectd_buffersize}; 
+		dbg("collectd: buffersize: $buffersize"); 
+
+		while  (scalar(@tests) > 0) {
+		push (@tmp_array, pop(@tests)); 
+			if (length(join(',', @tmp_array) . '\n') > $buffersize) {
+				push (@tests, pop(@tmp_array)); 
+					if (length(join(',', @tmp_array) . '\n') > $buffersize or scalar(@tmp_array) == 0) {
+						dbg("collectd: this shouldn't happen. Do you have tests"
+							." with names that have more than ~ $buffersize Bytes?");
+						return 1; 
+					} else {
+						dbg ( "collectd: c:" . join(',', @tmp_array) . "\n" ); 
+						print $sock "c:" . join(',', @tmp_array) . "\n"; 
+						#clean the array
+						@tmp_array = ();
+					} 
+			} elsif ( scalar(@tests) == 0 ) {
+				dbg ( "collectd: c:" . join(',', @tmp_array) . '\n' );
+				print $sock "c:" . join(',', @tmp_array) . "\n";
+			}
+		}
+		close($sock); 
+		alarm 0; 
+	};
+	if ($@ eq "alarm\n") {
+		info("Connection to collectd timed out");
+		return -1; 
 	}
-	close($sock); 
 }
 
 1;
