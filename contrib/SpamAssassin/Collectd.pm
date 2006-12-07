@@ -55,8 +55,7 @@ Alexander Wirt <formorer@formorer.de>
 
  or
 
- b) the "Artistic License" which comes with perl
- (http://www.perl.com/pub/a/language/misc/Artistic.html) 
+ b) the GPL (http://www.gnu.org/copyleft/gpl.html)  
 
  use whatever you like more. 
 
@@ -122,7 +121,7 @@ sub check_end {
 	#create  new connection to our socket
 	eval {
 		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
-		die "alarm\n";
+
 		#generate a timeout
 		alarm $self->{main}->{conf}->{collectd_timeout};
 
