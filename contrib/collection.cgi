@@ -282,6 +282,54 @@ our $GraphDefs;
 			'GPRINT:qry_avg:LAST:%5.1lf%s Last',
 			'GPRINT:qry_avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
 		],
+		email => [
+			'DEF:avg={file}:count:AVERAGE',
+			'DEF:min={file}:count:MIN',
+			'DEF:max={file}:count:MAX',
+			"AREA:max#$HalfMagenta",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullMagenta:Count ",
+			'GPRINT:min:MIN:%4.1lf Min,',
+			'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+			'GPRINT:max:MAX:%4.1lf Max,',
+			'GPRINT:avg:LAST:%4.1lf Last\l'
+		],
+		email_size => [
+			'DEF:avg={file}:size:AVERAGE',
+			'DEF:min={file}:size:MIN',
+			'DEF:max={file}:size:MAX',
+			"AREA:max#$HalfMagenta",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullMagenta:Count ",
+			'GPRINT:min:MIN:%4.1lf Min,',
+			'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+			'GPRINT:max:MAX:%4.1lf Max,',
+			'GPRINT:avg:LAST:%4.1lf Last\l'
+		],
+		spam_score => [
+			'DEF:avg={file}:score:AVERAGE',
+			'DEF:min={file}:score:MIN',
+			'DEF:max={file}:score:MAX',
+			"AREA:max#$HalfMagenta",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullMagenta:Count ",
+			'GPRINT:min:MIN:%4.1lf Min,',
+			'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+			'GPRINT:max:MAX:%4.1lf Max,',
+			'GPRINT:avg:LAST:%4.1lf Last\l'
+		],
+		spam_check => [
+			'DEF:avg={file}:hits:AVERAGE',
+			'DEF:min={file}:hits:MIN',
+			'DEF:max={file}:hits:MAX',
+			"AREA:max#$HalfMagenta",
+			"AREA:min#$Canvas",
+			"LINE1:avg#$FullMagenta:Count ",
+			'GPRINT:min:MIN:%4.1lf Min,',
+			'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+			'GPRINT:max:MAX:%4.1lf Max,',
+			'GPRINT:avg:LAST:%4.1lf Last\l'
+		],
 		fanspeed => [
 			'DEF:temp_avg={file}:value:AVERAGE',
 			'DEF:temp_min={file}:value:MIN',
@@ -1130,6 +1178,10 @@ our $GraphArgs =
 	df => ['-t', '{host}:{inst} usage', '-v', 'Percent', '-l', '0'],
 	disk => ['-t', '{host} disk {inst} usage', '-v', 'Byte/s'],
 	dns_traffic => ['-t', '{host} DNS traffic', '-v', 'Bit/s'],
+	email => ['-t', '{host} E-Mail {inst} count', '-v', 'E-Mails'],
+	email_size => ['-t', '{host} E-Mail {inst} size', '-v', 'Bytes'],
+	spam_score => ['-t', '{host} spam score', '-v', 'score'],
+	spam_check => ['-t', '{host} spam checks {inst}', '-v', 'hits'],
 	fanspeed => ['-t', '{host} fanspeed {inst}', '-v', 'RPM'],
 	frequency_offset => ['-t', 'NTPd frequency offset ({inst})', '-v', 'Parts per million'],
 	hddtemp => ['-t', '{host} hdd temperature {inst}', '-v', '°Celsius'],
@@ -1175,6 +1227,10 @@ our $GraphMulti =
 	cpu	=> \&output_graph_cpu,
 	cpufreq => 1,
 	disk	=> 1,
+	email	=> \&output_graph_email_count,
+	email_size => \&output_graph_email_size,
+	spam_score => 1,
+	spam_check => \&output_graph_spam_check,
 	load	=> 0,
 	mails	=> 0,
 	memory	=> 0,
@@ -1361,6 +1417,114 @@ sub output_graph_ping
 	}
 
 	return (@ret);
+}
+
+sub output_graph_email_count
+{
+	my @inst = @_;
+	my @ret  = ();
+
+	my $c = scalar @inst;
+
+	my @colors = get_n_colors ($c);
+
+	for (my $i = 0; $i < $c; ++$i) {
+		push @ret,
+			"DEF:min_$i=$AbsDir/email-$inst[$i].rrd:count:MIN",
+			"DEF:avg_$i=$AbsDir/email-$inst[$i].rrd:count:AVERAGE",
+			"DEF:max_$i=$AbsDir/email-$inst[$i].rrd:count:MAX";
+	}
+
+	for (my $i = 0; $i < $c; ++$i) {
+		my $s = "";
+
+		if (length $inst[$i] > 10) {
+			$s = substr ($inst[$i], 0, 7) . '...';
+		}
+		else {
+			$s = sprintf '%-10s', $inst[$i];
+		}
+
+		push @ret,
+			"LINE1:avg_$i#$colors[$i]:$s",
+			"GPRINT:min_$i:MIN:%4.1lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%4.1lf Avg,",
+			"GPRINT:max_$i:MAX:%4.1lf Max,",
+			"GPRINT:avg_$i:LAST:%4.1lf Last\\l";
+	}
+	return @ret;
+}
+
+sub output_graph_email_size
+{
+	my @inst = @_;
+	my @ret  = ();
+
+	my $c = scalar @inst;
+
+	my @colors = get_n_colors ($c);
+
+	for (my $i = 0; $i < $c; ++$i) {
+		push @ret,
+			"DEF:min_$i=$AbsDir/email_size-$inst[$i].rrd:size:MIN",
+			"DEF:avg_$i=$AbsDir/email_size-$inst[$i].rrd:size:AVERAGE",
+			"DEF:max_$i=$AbsDir/email_size-$inst[$i].rrd:size:MAX";
+	}
+
+	for (my $i = 0; $i < $c; ++$i) {
+		my $s = "";
+
+		if (length $inst[$i] > 10) {
+			$s = substr ($inst[$i], 0, 7) . '...';
+		}
+		else {
+			$s = sprintf '%-10s', $inst[$i];
+		}
+
+		push @ret,
+			"LINE1:avg_$i#$colors[$i]:$s",
+			"GPRINT:min_$i:MIN:%4.1lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%4.1lf Avg,",
+			"GPRINT:max_$i:MAX:%4.1lf Max,",
+			"GPRINT:avg_$i:LAST:%4.1lf Last\\l";
+	}
+	return @ret;
+}
+
+sub output_graph_spam_check
+{
+	my @inst = sort @_;
+	my @ret  = ();
+
+	my $c = scalar @inst;
+
+	my @colors = get_n_colors ($c);
+
+	for (my $i = 0; $i < $c; ++$i) {
+		push @ret,
+			"DEF:min_$i=$AbsDir/spam_check-$inst[$i].rrd:hits:MIN",
+			"DEF:avg_$i=$AbsDir/spam_check-$inst[$i].rrd:hits:AVERAGE",
+			"DEF:max_$i=$AbsDir/spam_check-$inst[$i].rrd:hits:MAX";
+	}
+
+	for (my $i = 0; $i < $c; ++$i) {
+		my $s = "";
+
+		if (length $inst[$i] > 25) {
+			$s = substr ($inst[$i], 0, 22) . '...';
+		}
+		else {
+			$s = sprintf '%-25s', $inst[$i];
+		}
+
+		push @ret,
+			"LINE1:avg_$i#$colors[$i]:$s",
+			"GPRINT:min_$i:MIN:%4.1lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%4.1lf Avg,",
+			"GPRINT:max_$i:MAX:%4.1lf Max,",
+			"GPRINT:avg_$i:LAST:%4.1lf Last\\l";
+	}
+	return @ret;
 }
 
 sub output_graph_mysql_commands
