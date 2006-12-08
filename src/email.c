@@ -115,7 +115,8 @@ typedef struct conn {
 
 	/* buffer to read data to */
 	char *buffer;
-	int  idx; /* current position in buffer */
+	int  idx; /* current write position in buffer */
+	int  length; /* length of the current line, i.e. index of '\0' */
 
 	struct conn *next;
 } conn_t;
@@ -322,8 +323,7 @@ char read_char (conn_t *src)
 /* Read a single line (terminated by '\n') from the the socket.
  *
  * The return value is zero terminated and does not contain any newline
- * characters. In case that no complete line is available (non-blocking mode
- * should be enabled) an empty string is returned.
+ * characters.
  *
  * If an error occurs or end-of-file is reached return NULL.
  *
@@ -333,10 +333,16 @@ char read_char (conn_t *src)
  * acceptable in this case ;-) */
 char *read_line (conn_t *src)
 {
-	int  i = 0;
-	char *ret;
+	int i = 0;
 
-	assert (BUFSIZE > src->idx);
+	assert ((BUFSIZE >= src->idx) && (src->idx >= 0));
+	assert ((src->idx > src->length) || (src->length == 0));
+
+	if (src->length > 0) { /* remove old line */
+		src->idx -= (src->length + 1);
+		memmove (src->buffer, src->buffer + src->length + 1, src->idx);
+		src->length = 0;
+	}
 
 	for (i = 0; i < src->idx; ++i) {
 		if ('\n' == src->buffer[i])
@@ -381,9 +387,7 @@ char *read_line (conn_t *src)
 		}
 
 		if (i == src->idx) {
-			ret = (char *)smalloc (1);
-
-			ret[0] = '\0';
+			src->length = 0;
 
 			if (BUFSIZE == src->idx) { /* no space left in buffer */
 				while ('\n' != read_char (src))
@@ -391,21 +395,14 @@ char *read_line (conn_t *src)
 
 				src->idx = 0;
 			}
-			return ret;
+			return read_line (src);
 		}
 	}
 
-	ret = (char *)smalloc (i + 1);
-	memcpy (ret, src->buffer, i + 1);
-	ret[i] = '\0';
+	src->buffer[i] = '\0';
+	src->length    = i;
 
-	src->idx -= (i + 1);
-
-	if (0 == src->idx)
-		src->buffer[0] = '\0';
-	else
-		memmove (src->buffer, src->buffer + i + 1, src->idx);
-	return ret;
+	return src->buffer;
 } /* char *read_line (conn_t *) */
 
 static void *collect (void *arg)
@@ -438,6 +435,7 @@ static void *collect (void *arg)
 
 		connection->buffer = buffer;
 		connection->idx    = 0;
+		connection->length = 0;
 
 		{ /* put the socket in non-blocking mode */
 			int flags = 0;
@@ -463,14 +461,8 @@ static void *collect (void *arg)
 				break;
 			}
 
-			if ('\0' == line[0]) {
-				free (line);
-				continue;
-			}
-
 			if (':' != line[1]) {
 				syslog (LOG_ERR, "email: syntax error in line '%s'", line);
-				free (line);
 				continue;
 			}
 
@@ -482,7 +474,6 @@ static void *collect (void *arg)
 
 				if (NULL == tmp) {
 					syslog (LOG_ERR, "email: syntax error in line '%s'", line);
-					free (line);
 					continue;
 				}
 
@@ -516,8 +507,6 @@ static void *collect (void *arg)
 			else {
 				syslog (LOG_ERR, "email: unknown type '%c'", line[0]);
 			}
-
-			free (line);
 		} /* while (loop) */
 
 		close (connection->socket);
