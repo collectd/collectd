@@ -332,7 +332,7 @@ char *read_line (collector_t *src)
 			break;
 	}
 
-	if ('\n' != src->buffer[i]) {
+	if (i == src->idx) {
 		fd_set fdset;
 	
 		ssize_t len = 0;
@@ -369,7 +369,7 @@ char *read_line (collector_t *src)
 				break;
 		}
 
-		if ('\n' != src->buffer[i]) {
+		if (i == src->idx) {
 			ret = (char *)smalloc (1);
 
 			ret[0] = '\0';
