@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# $Id: Collectd.pm 7 2006-12-07 06:13:12Z formorer $
 
 =head1 NAME
 
@@ -68,6 +67,7 @@ use Mail::SpamAssassin::Logger;
 use strict;
 use bytes; 
 use warnings;
+use Time::HiRes qw(usleep);
 use IO::Socket;
 
 use vars qw(@ISA);
@@ -112,6 +112,14 @@ sub set_config {
 			$Mail::SpamAssassin::Conf::CONF_TYPE_NUMERIC,
 	});
 
+	push (@cmds, {
+			setting => 'collectd_retries',
+			default => 3,
+			type =>
+			$Mail::SpamAssassin::Conf::CONF_TYPE_NUMERIC,
+	});
+
+
     $conf->{parser}->register_commands(\@cmds);
 }
 
@@ -120,20 +128,25 @@ sub check_end {
     my $message_status = $params->{permsgstatus};
 	#create  new connection to our socket
 	eval {
-		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
+		local $SIG{ALRM} = sub { die "Sending to collectd timed out.\n" }; # NB: \n required
 
 		#generate a timeout
 		alarm $self->{main}->{conf}->{collectd_timeout};
 
-		my $sock = new IO::Socket::UNIX ( $self->{main}->{conf}->{collectd_socket});
-		# debug some informations if collectd is not running or anything else went
-		# wrong
-		if ( ! $sock ) {
-			dbg("collect: could not connect to " .
-				$self->{main}->{conf}->{collectd_socket} . ": $! - collectd plugin
-				disabled"); 
-			return 0; 
+		my $sock;
+		#try at least $self->{main}->{conf}->{collectd_retries} to get a
+		#connection
+		for (my $i = 0; $i < $self->{main}->{conf}->{collectd_retries} ; ++$i) {
+			last if $sock = new IO::Socket::UNIX
+				($self->{main}->{conf}->{collectd_socket});
+			#sleep a random value between 0 and 50 microsecs to try for a new
+			#thread
+			usleep(int(rand(50))); 
 		}
+
+		die("could not connect to " .
+				$self->{main}->{conf}->{collectd_socket} . ": $! - collectd plugin disabled") unless $sock; 
+
 		$sock->autoflush(1);
 
 		my $score = $message_status->{score};
@@ -177,8 +190,10 @@ sub check_end {
 		close($sock); 
 		alarm 0; 
 	};
-	if ($@ eq "alarm\n") {
-		info("Connection to collectd timed out");
+	if ($@) {
+		my $message = $@; 
+		chomp($message); 
+		info("collectd: $message");
 		return -1; 
 	}
 }
