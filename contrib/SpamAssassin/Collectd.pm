@@ -32,6 +32,21 @@ If you have changed this setting please get it in sync with the SA Plugin
 config. 
 
 =cut 
+
+=item collectd_timeout [ sec ] (default: 2) 
+
+if sending data to to collectd takes too long the connection will be aborted. 
+
+=cut
+
+=item collectd_retries [ tries ] (default: 3)
+
+the collectd plugin uses a tread pool, if this is empty the connection fails,
+the SA Plugin then tries to reconnect. With this variable you can indicate how
+often it should try. 
+
+=cut
+
 =head1 DESCRIPTION
 
 This modules uses the email plugin of collectd from Sebastian Harl to
