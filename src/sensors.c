@@ -179,6 +179,12 @@ static ignorelist_t *sensor_list;
 static int sensor_extended_naming = 0;
 
 #if SENSORS_HAVE_READ
+#ifndef SENSORS_CONF_PATH
+# define SENSORS_CONF_PATH "/etc/sensors.conf"
+#endif
+static const char *conffile = SENSORS_CONF_PATH;
+/* SENSORS_CONF_PATH */
+
 typedef struct featurelist
 {
 	const sensors_chip_name    *chip;
@@ -254,7 +260,7 @@ static void collectd_sensors_init (void)
 	assert (last_feature == NULL);
 #endif
 
-	if ((fh = fopen ("/etc/sensors.conf", "r")) == NULL)
+	if ((fh = fopen (conffile, "r")) == NULL)
 		return;
 
 	if (sensors_init (fh))
