@@ -600,8 +600,7 @@ static int *ps_read_tasks (int pid)
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
-		syslog (LOG_NOTICE, "processes plugin: Failed to open directory `%s'",
-				dirname);
+		DBG ("Failed to open directory `%s'", dirname);
 		return (NULL);
 	}
 
