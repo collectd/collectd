@@ -199,7 +199,7 @@ static int sensors_config (char *key, char *value)
 	{
 		if (ignorelist_add (sensor_list, value))
 		{
-			syslog (LOG_EMERG, "Cannot add value to ignorelist.");
+			syslog (LOG_EMERG, MODULE_NAME": Cannot add value to ignorelist.");
 			return (1);
 		}
 	}
@@ -260,7 +260,7 @@ static void collectd_sensors_init (void)
 	if (sensors_init (fh))
 	{
 		fclose (fh);
-		syslog (LOG_ERR, "sensors: Cannot initialize sensors. "
+		syslog (LOG_ERR, MODULE_NAME": Cannot initialize sensors. "
 				"Data will not be collected.");
 		return;
 	}
@@ -299,9 +299,8 @@ static void collectd_sensors_init (void)
 
 				if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
 				{
-					DBG ("sensors plugin: malloc: %s",
-							strerror (errno));
-					syslog (LOG_ERR, "sensors plugin: malloc: %s",
+					DBG ("malloc: %s", strerror (errno));
+					syslog (LOG_ERR, MODULE_NAME":  malloc: %s",
 							strerror (errno));
 					break;
 				}
