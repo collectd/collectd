@@ -185,6 +185,12 @@ static int sensor_extended_naming = 0;
 static const char *conffile = SENSORS_CONF_PATH;
 /* SENSORS_CONF_PATH */
 
+/*
+ * remember stat of the loaded config
+ */
+static struct stat sensors_conf_stat;
+static int sensors_conf_loaded = 0;
+
 typedef struct featurelist
 {
 	const sensors_chip_name    *chip;
@@ -234,9 +240,28 @@ static int sensors_config (char *key, char *value)
 	return (0);
 }
 
-static void collectd_sensors_init (void)
-{
 #if SENSORS_HAVE_READ
+void sensors_free_features (void)
+{
+	featurelist_t *thisft;
+	featurelist_t *nextft;
+
+	if (sensors_conf_loaded)
+	{
+		sensors_cleanup ();
+		sensors_conf_loaded = 0;
+	}
+
+	for (thisft = first_feature; thisft != NULL; thisft = nextft)
+	{
+		nextft = thisft->next;
+		sfree (thisft);
+	}
+	first_feature = NULL;
+}
+
+static void sensors_load_conf (int firsttime)
+{
 	FILE *fh;
 	featurelist_t *last_feature = NULL;
 	featurelist_t *new_feature;
@@ -247,13 +272,8 @@ static void collectd_sensors_init (void)
 	const sensors_feature_data *data;
 	int data_num0, data_num1;
 	
+	sensors_free_features ();
 	new_feature = first_feature;
-	while (new_feature != NULL)
-	{
-		last_feature = new_feature->next;
-		free (new_feature);
-		new_feature = last_feature;
-	}
 
 #ifdef assert
 	assert (new_feature == NULL);
@@ -261,13 +281,26 @@ static void collectd_sensors_init (void)
 #endif
 
 	if ((fh = fopen (conffile, "r")) == NULL)
+	{
+		syslog (LOG_ERR, MODULE_NAME": cannot open %s: %s. "
+				"Data will not be collected.", conffile, strerror(errno));
 		return;
+	}
 
 	if (sensors_init (fh))
 	{
 		fclose (fh);
 		syslog (LOG_ERR, MODULE_NAME": Cannot initialize sensors. "
 				"Data will not be collected.");
+		return;
+	}
+
+	/* remember file status to detect changes */
+	if (fstat (fileno (fh), &sensors_conf_stat) == -1)
+	{
+		fclose (fh);
+		syslog (LOG_ERR, MODULE_NAME": cannot fstat %s: %s "
+				"Data will not be collected.", conffile, strerror(errno));
 		return;
 	}
 
@@ -333,27 +366,32 @@ static void collectd_sensors_init (void)
 		} /* while sensors_get_all_features */
 	} /* while sensors_get_detected_chips */
 
+	if (!firsttime)
+		syslog (LOG_INFO, MODULE_NAME": lm_sensors' configuration reloaded.");
+
 	if (first_feature == NULL)
+	{
 		sensors_cleanup ();
+		sensors_conf_loaded = 0;
+		syslog (LOG_INFO, MODULE_NAME": lm_sensors reports no features. "
+			"Data will not be collected.");
+	}
+	else
+		sensors_conf_loaded = 1;
+}
 #endif /* if SENSORS_HAVE_READ */
 
-	return;
+static void collectd_sensors_init (void)
+{
+#if SENSORS_HAVE_READ
+	sensors_load_conf (1);
+#endif /* if SENSORS_HAVE_READ */
 }
 
 static void sensors_shutdown (void)
 {
 #if SENSORS_HAVE_READ
-	featurelist_t *thisft = first_feature;
-	featurelist_t *nextft;
-
-	while (thisft != NULL)
-	{
-		nextft = thisft->next;
-		sfree (thisft);
-		thisft = nextft;
-	}
-
-	sensors_cleanup ();
+	sensors_free_features ();
 #endif /* if SENSORS_HAVE_READ */
 
 	ignorelist_free (sensor_list);
@@ -439,6 +477,31 @@ static void sensors_read (void)
 	featurelist_t *feature;
 	double value;
 	char chip_fullprefix[BUFSIZE];
+	struct stat changedbuf;
+
+	/* check sensors.conf for changes */
+	if (sensors_conf_loaded)
+	{
+		if (stat (conffile, &changedbuf) == -1)
+		{
+			syslog (LOG_ERR, MODULE_NAME": cannot stat %s: %s",
+					conffile, strerror(errno));
+			/*
+			 * sensors.conf does not exist,
+			 * throw away previous conf
+			 */
+			sensors_load_conf (0);
+		}
+		else
+		{
+			if ((changedbuf.st_size != sensors_conf_stat.st_size) ||
+					(changedbuf.st_mtime != sensors_conf_stat.st_mtime) ||
+					(changedbuf.st_ino != sensors_conf_stat.st_ino))
+			{
+				sensors_load_conf (0);
+			}
+		}
+	}
 
 	for (feature = first_feature; feature != NULL; feature = feature->next)
 	{
