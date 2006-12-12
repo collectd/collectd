@@ -84,6 +84,9 @@
 #define MAX_CONNS 5
 #define MAX_CONNS_LIMIT 16384
 
+#define log_err(...) syslog (LOG_ERR, MODULE_NAME": "__VA_ARGS__)
+#define log_warn(...) syslog (LOG_WARNING, MODULE_NAME": "__VA_ARGS__)
+
 /*
  * Private data structures
  */
@@ -297,7 +300,7 @@ char read_char (conn_t *src)
 	FD_SET (src->socket, &fdset);
 
 	if (-1 == select (src->socket + 1, &fdset, NULL, NULL, NULL)) {
-		syslog (LOG_ERR, "select() failed: %s", strerror (errno));
+		log_err ("select() failed: %s", strerror (errno));
 		return '\0';
 	}
 
@@ -309,7 +312,7 @@ char read_char (conn_t *src)
 		errno = 0;
 		if (0 > (len = read (src->socket, (void *)&ret, 1))) {
 			if (EINTR != errno) {
-				syslog (LOG_ERR, "read() failed: %s", strerror (errno));
+				log_err ("read() failed: %s", strerror (errno));
 				return '\0';
 			}
 		}
@@ -358,7 +361,7 @@ char *read_line (conn_t *src)
 		FD_SET (src->socket, &fdset);
 
 		if (-1 == select (src->socket + 1, &fdset, NULL, NULL, NULL)) {
-			syslog (LOG_ERR, "select() failed: %s", strerror (errno));
+			log_err ("select() failed: %s", strerror (errno));
 			return NULL;
 		}
 
@@ -370,7 +373,7 @@ char *read_line (conn_t *src)
 							(void *)(src->buffer + src->idx),
 							BUFSIZE - src->idx))) {
 				if (EINTR != errno) {
-					syslog (LOG_ERR, "read() failed: %s", strerror (errno));
+					log_err ("read() failed: %s", strerror (errno));
 					return NULL;
 				}
 			}
@@ -442,13 +445,13 @@ static void *collect (void *arg)
 
 			errno = 0;
 			if (-1 == fcntl (connection->socket, F_GETFL, &flags)) {
-				syslog (LOG_ERR, "fcntl() failed: %s", strerror (errno));
+				log_err ("fcntl() failed: %s", strerror (errno));
 				loop = 0;
 			}
 
 			errno = 0;
 			if (-1 == fcntl (connection->socket, F_SETFL, flags | O_NONBLOCK)) {
-				syslog (LOG_ERR, "fcntl() failed: %s", strerror (errno));
+				log_err ("fcntl() failed: %s", strerror (errno));
 				loop = 0;
 			}
 		}
@@ -462,7 +465,7 @@ static void *collect (void *arg)
 			}
 
 			if (':' != line[1]) {
-				syslog (LOG_ERR, "email: syntax error in line '%s'", line);
+				log_err ("syntax error in line '%s'", line);
 				continue;
 			}
 
@@ -473,7 +476,7 @@ static void *collect (void *arg)
 				int  bytes = 0;
 
 				if (NULL == tmp) {
-					syslog (LOG_ERR, "email: syntax error in line '%s'", line);
+					log_err ("syntax error in line '%s'", line);
 					continue;
 				}
 
@@ -505,7 +508,7 @@ static void *collect (void *arg)
 				} while (NULL != (type = strtok_r (NULL, ",", &ptr)));
 			}
 			else {
-				syslog (LOG_ERR, "email: unknown type '%c'", line[0]);
+				log_err ("unknown type '%c'", line[0]);
 			}
 		} /* while (loop) */
 
@@ -532,7 +535,7 @@ static void *open_connection (void *arg)
 	errno = 0;
 	if (-1 == (connector_socket = socket (PF_UNIX, SOCK_STREAM, 0))) {
 		disabled = 1;
-		syslog (LOG_ERR, "socket() failed: %s", strerror (errno));
+		log_err ("socket() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
 	}
 
@@ -547,14 +550,14 @@ static void *open_connection (void *arg)
 				offsetof (struct sockaddr_un, sun_path)
 					+ strlen(addr.sun_path))) {
 		disabled = 1;
-		syslog (LOG_ERR, "bind() failed: %s", strerror (errno));
+		log_err ("bind() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
 	}
 
 	errno = 0;
 	if (-1 == listen (connector_socket, 5)) {
 		disabled = 1;
-		syslog (LOG_ERR, "listen() failed: %s", strerror (errno));
+		log_err ("listen() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
 	}
 
@@ -565,20 +568,20 @@ static void *open_connection (void *arg)
 		if (NULL != (grp = getgrnam (sock_group))) {
 			errno = 0;
 			if (0 != chown (SOCK_PATH, (uid_t)-1, grp->gr_gid)) {
-				syslog (LOG_WARNING, "chown() failed: %s", strerror (errno));
+				log_warn ("chown() failed: %s", strerror (errno));
 			}
 		}
 		else {
-			syslog (LOG_WARNING, "getgrnam() failed: %s", strerror (errno));
+			log_warn ("getgrnam() failed: %s", strerror (errno));
 		}
 	}
 	else {
-		syslog (LOG_WARNING, "not running as root");
+		log_warn ("not running as root");
 	}
 
 	errno = 0;
 	if (0 != chmod (SOCK_PATH, sock_perms)) {
-		syslog (LOG_WARNING, "chmod() failed: %s", strerror (errno));
+		log_warn ("chmod() failed: %s", strerror (errno));
 	}
 
 	{ /* initialize collector threads */
@@ -604,8 +607,7 @@ static void *open_connection (void *arg)
 
 			if (0 != (err = pthread_create (&collectors[i]->thread, &ptattr,
 							collect, collectors[i]))) {
-				syslog (LOG_ERR, "pthread_create() failed: %s",
-						strerror (err));
+				log_err ("pthread_create() failed: %s", strerror (err));
 			}
 		}
 
@@ -632,7 +634,7 @@ static void *open_connection (void *arg)
 			if (-1 == (remote = accept (connector_socket, NULL, NULL))) {
 				if (EINTR != errno) {
 					disabled = 1;
-					syslog (LOG_ERR, "accept() failed: %s", strerror (errno));
+					log_err ("accept() failed: %s", strerror (errno));
 					pthread_exit ((void *)1);
 				}
 			}
@@ -670,7 +672,7 @@ static void email_init (void)
 	if (0 != (err = pthread_create (&connector, NULL,
 				open_connection, NULL))) {
 		disabled = 1;
-		syslog (LOG_ERR, "pthread_create() failed: %s", strerror (err));
+		log_err ("pthread_create() failed: %s", strerror (err));
 		return;
 	}
 #endif /* EMAIL_HAVE_READ */
