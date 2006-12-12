@@ -685,15 +685,15 @@ static void email_shutdown (void)
 	if (disabled)
 		return;
 
-	close (connector_socket);
 	pthread_kill (connector, SIGTERM);
+	close (connector_socket);
 
 	/* don't allow any more connections to be processed */
 	pthread_mutex_lock (&conns_mutex);
 
 	for (i = 0; i < max_conns; ++i) {
-		close (collectors[i]->socket);
 		pthread_kill (collectors[i]->thread, SIGTERM);
+		close (collectors[i]->socket);
 	}
 
 	pthread_mutex_unlock (&conns_mutex);
