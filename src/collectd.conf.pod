@@ -208,7 +208,8 @@ Ignore packets that originate from this address.
 
 =item B<SocketGroup> I<Group>
 
-Change the group of the UNIX-socket after it has been created.
+If running as root change the group of the UNIX-socket after it has been 
+created. Defaults to B<collectd>.
 
 =item B<SocketPerms> I<Permissions>
 
@@ -218,7 +219,7 @@ L<chmod(1)>. Defaults to B<0770>.
 
 =item B<MaxConns> I<Number>
 
-Sets the maximum number of connections that can be handeled in parallel. Since
+Sets the maximum number of connections that can be handled in parallel. Since
 this many threads will be started immediately setting this to a very high
 value will waste valuable resources. Defaults to B<5> and will be forced to be
 at most B<16384> to prevent typos and dumb mistakes.
