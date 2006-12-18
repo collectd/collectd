@@ -756,9 +756,6 @@ static void type_submit (char *plugin, char *inst, int value)
 	char buf[BUFSIZE] = "";
 	int  len          = 0;
 
-	if (0 == value)
-		return;
-
 	len = snprintf (buf, BUFSIZE, "%u:%i", (unsigned int)curtime, value);
 	if ((len < 0) || (len >= BUFSIZE))
 		return;
@@ -771,9 +768,6 @@ static void score_submit (double value)
 {
 	char buf[BUFSIZE] = "";
 	int  len          = 0;
-
-	if (0.0 == value)
-		return;
 
 	len = snprintf (buf, BUFSIZE, "%u:%.2f", (unsigned int)curtime, value);
 	if ((len < 0) || (len >= BUFSIZE))
