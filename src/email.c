@@ -290,7 +290,7 @@ static void type_list_incr (type_list_t *list, char *name, int incr)
 
 /* Read a single character from the socket. If an error occurs or end-of-file
  * is reached return '\0'. */
-char read_char (conn_t *src)
+static char read_char (conn_t *src)
 {
 	char ret = '\0';
 
@@ -321,7 +321,7 @@ char read_char (conn_t *src)
 			return '\0';
 	} while (EINTR == errno);
 	return ret;
-} /* char read_char (conn_t *) */
+} /* static char read_char (conn_t *) */
 
 /* Read a single line (terminated by '\n') from the the socket.
  *
@@ -334,7 +334,7 @@ char read_char (conn_t *src)
  * characters of the input stream, the line will will be ignored! By
  * definition we should not get any longer input lines, thus this is
  * acceptable in this case ;-) */
-char *read_line (conn_t *src)
+static char *read_line (conn_t *src)
 {
 	int i = 0;
 
@@ -406,7 +406,7 @@ char *read_line (conn_t *src)
 	src->length    = i;
 
 	return src->buffer;
-} /* char *read_line (conn_t *) */
+} /* static char *read_line (conn_t *) */
 
 static void *collect (void *arg)
 {
@@ -525,7 +525,7 @@ static void *collect (void *arg)
 
 	free (buffer);
 	pthread_exit ((void *)0);
-} /* void *collect (void *) */
+} /* static void *collect (void *) */
 
 static void *open_connection (void *arg)
 {
@@ -661,7 +661,7 @@ static void *open_connection (void *arg)
 		pthread_cond_signal (&conn_available);
 	}
 	pthread_exit ((void *)0);
-} /* void *open_connection (void *) */
+} /* static void *open_connection (void *) */
 #endif /* EMAIL_HAVE_READ */
 
 static void email_init (void)
@@ -775,7 +775,7 @@ static void score_submit (double value)
 
 	plugin_submit ("email_spam_score", NULL, buf);
 	return;
-}
+} /* static void score_submit (double) */
 
 static void email_read (void)
 {
