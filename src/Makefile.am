@@ -220,6 +220,17 @@ load_la_LDFLAGS += -lstatgrab
 endif
 endif
 
+if BUILD_MODULE_MBMON
+pkglib_LTLIBRARIES += mbmon.la
+mbmon_la_SOURCES = mbmon.c
+mbmon_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBSOCKET
+mbmon_la_LDFLAGS += -lsocket
+endif
+collectd_LDADD += "-dlopen" mbmon.la
+collectd_DEPENDENCIES += mbmon.la
+endif
+
 if BUILD_MODULE_MEMORY
 pkglib_LTLIBRARIES += memory.la
 memory_la_SOURCES = memory.c

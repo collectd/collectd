@@ -11,7 +11,7 @@ Package: collectd
 Architecture: any
 Depends: ${shlibs:Depends}
 Suggests: collectd-apache, collectd-mysql, collectd-sensors, collectd-dev,
- collectd-hddtemp, collectd-ping, librrds-perl
+ collectd-hddtemp, collectd-mbmon, collectd-ping, librrds-perl
 Description: statistics collection daemon
  collectd is a small daemon written in C for performance. It reads various
  system statistics and updates RRD files, creating them if necessary. Since
@@ -81,6 +81,20 @@ Description: statistics collection daemon (hddtemp plugin)
  grained since the files are updated every 10 seconds.
  .
  This package contains the hddtemp plugin which collects harddisk temperatures.
+
+Package: collectd-mbmon
+Architecture: any
+Depends: collectd (= ${Source-Version}), ${shlibs:Depends}
+Recommends: mbmon (>= 2.01)
+Description: statistics collection daemon (mbmon plugin)
+ collectd is a small daemon written in C for performance. It reads various
+ system statistics and updates RRD files, creating them if necessary. Since
+ the daemon doesn't need to startup every time it wants to update the files
+ it's very fast and easy on the system. Also, the statistics are very fine
+ grained since the files are updated every 10 seconds.
+ .
+ This package contains the mbmon plugin which collects motherboard status
+ information: temperatures, voltages and cooling fan speeds.
 
 Package: collectd-mysql
 Architecture: any

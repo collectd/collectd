@@ -46,6 +46,9 @@ License:
 	File src/hddtemp.c
 	Copyright (C) 2005, 2006 Vincent Stehlé <vincent.stehle@free.fr>
 
+	File src/mbmon.c
+	Copyright (C) 2006 Flavio Stanchina <flavio@stanchina.net>
+
 	File src/nfs.c
 	Copyright (C) 2005, 2006 Jason Pepas <cell@ices.utexas.edu>
 
