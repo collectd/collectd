@@ -451,7 +451,7 @@ int network_receive (char **host, char **type, char **inst, char **value)
 	{
 		syslog (LOG_WARNING, "Invalid message from `%s'", *host);
 		free (*host); *host = NULL;
-		return (-1);
+		return (1);
 	}
 
 	if ((*type = strdup (fields[0])) == NULL)
