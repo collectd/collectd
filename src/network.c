@@ -284,6 +284,7 @@ int network_create_socket (const char *node, const char *service)
 		{
 			if (network_bind_socket (se, ai_ptr) != 0)
 			{
+				close (se->fd);
 				free (se->addr);
 				free (se);
 				continue;
@@ -451,7 +452,7 @@ int network_receive (char **host, char **type, char **inst, char **value)
 	{
 		syslog (LOG_WARNING, "Invalid message from `%s'", *host);
 		free (*host); *host = NULL;
-		return (-1);
+		return (1);
 	}
 
 	if ((*type = strdup (fields[0])) == NULL)
