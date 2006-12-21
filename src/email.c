@@ -777,47 +777,115 @@ static void score_submit (double value)
 	return;
 } /* static void score_submit (double) */
 
+/* Copy list l1 to list l2. l2 may partly exist already, but it is assumed
+ * that neither the order nor the name of any element of either list is
+ * changed and no elements are deleted. The values of l1 are reset to zero
+ * after they have been copied to l2. */
+static void copy_type_list (type_list_t *l1, type_list_t *l2)
+{
+	type_t *ptr1;
+	type_t *ptr2;
+
+	type_t *last = NULL;
+
+	for (ptr1 = l1->head, ptr2 = l2->head; NULL != ptr1;
+			ptr1 = ptr1->next, last = ptr2, ptr2 = ptr2->next) {
+		if (NULL == ptr2) {
+			ptr2 = (type_t *)smalloc (sizeof (type_t));
+			ptr2->name = NULL;
+			ptr2->next = NULL;
+
+			if (NULL == last) {
+				l2->head = ptr2;
+			}
+			else {
+				last->next = ptr2;
+			}
+
+			l2->tail = ptr2;
+		}
+
+		if (NULL == ptr2->name) {
+			ptr2->name = sstrdup (ptr1->name);
+		}
+
+		ptr2->value = ptr1->value;
+		ptr1->value = 0;
+	}
+	return;
+}
+
 static void email_read (void)
 {
 	type_t *ptr;
 
+	double sc;
+
+	static type_list_t *cnt;
+	static type_list_t *sz;
+	static type_list_t *chk;
+
 	if (disabled)
 		return;
 
+	if (NULL == cnt) {
+		cnt = (type_list_t *)smalloc (sizeof (type_list_t));
+		cnt->head = NULL;
+	}
+
+	if (NULL == sz) {
+		sz = (type_list_t *)smalloc (sizeof (type_list_t));
+		sz->head = NULL;
+	}
+
+	if (NULL == chk) {
+		chk = (type_list_t *)smalloc (sizeof (type_list_t));
+		chk->head = NULL;
+	}
+
+	/* email count */
 	pthread_mutex_lock (&count_mutex);
 
-	for (ptr = count.head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_count", ptr->name, ptr->value);
-		ptr->value = 0;
-	}
+	copy_type_list (&count, cnt);
 
 	pthread_mutex_unlock (&count_mutex);
 
+	for (ptr = cnt->head; NULL != ptr; ptr = ptr->next) {
+		type_submit ("email_count", ptr->name, ptr->value);
+	}
+
+	/* email size */
 	pthread_mutex_lock (&size_mutex);
 
-	for (ptr = size.head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_size", ptr->name, ptr->value);
-		ptr->value = 0;
-	}
+	copy_type_list (&size, sz);
 
 	pthread_mutex_unlock (&size_mutex);
 
+	for (ptr = sz->head; NULL != ptr; ptr = ptr->next) {
+		type_submit ("email_size", ptr->name, ptr->value);
+	}
+
+	/* spam score */
 	pthread_mutex_lock (&score_mutex);
 
-	score_submit (score);
+	sc = score;
 	score = 0.0;
 	score_count = 0;
 
 	pthread_mutex_unlock (&score_mutex);
 
+	score_submit (sc);
+
+	/* spam checks */
 	pthread_mutex_lock (&check_mutex);
 
-	for (ptr = check.head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_spam_check", ptr->name, ptr->value);
-		ptr->value = 0;
-	}
+	copy_type_list (&check, chk);
 
 	pthread_mutex_unlock (&check_mutex);
+
+	for (ptr = chk->head; NULL != ptr; ptr = ptr->next) {
+		type_submit ("email_spam_check", ptr->name, ptr->value);
+	}
 	return;
 } /* static void read (void) */
 #else /* if !EMAIL_HAVE_READ */
