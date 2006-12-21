@@ -19,7 +19,6 @@
  *
  * Authors:
  *   Flavio Stanchina <flavio at stanchina.net>
- *
  **/
 
 #include "collectd.h"
@@ -42,14 +41,25 @@
    Size of the buffer we use to receive from the mbmon daemon. */
 #define BUFFER_SIZE 1024
 
-static char *filename_format = "mbmon-%s.rrd";
+static char *filename_temperature = "mbmon/temperature-%s.rrd";
+static char *filename_fanspeed = "mbmon/fanspeed-%s.rrd";
+static char *filename_voltage = "mbmon/voltage-%s.rrd";
 
+/* temperature and fan sensors */
 static char *ds_def[] =
 {
 	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
 	NULL
 };
 static int ds_num = 1;
+
+/* voltage sensors */
+static char *voltage_ds_def[] = 
+{
+	"DS:voltage:GAUGE:"COLLECTD_HEARTBEAT":U:U",
+	NULL
+};
+static int voltage_ds_num = 1;
 
 static char *config_keys[] =
 {
@@ -226,22 +236,46 @@ static void mbmon_init (void)
 	return;
 }
 
-static void mbmon_write (char *host, char *inst, char *val)
+static void mbmon_write_temperature (char *host, char *inst, char *val)
 {
 	char filename[BUFFER_SIZE];
 	int status;
 
 	/* construct filename */
-	status = snprintf (filename, BUFFER_SIZE, filename_format, inst);
-	if (status < 1)
-		return;
-	else if (status >= BUFFER_SIZE)
+	status = snprintf (filename, BUFFER_SIZE, filename_temperature, inst);
+	if ((status < 1) || (status >= BUFFER_SIZE))
 		return;
 
 	rrd_update_file (host, filename, val, ds_def, ds_num);
 }
 
-static void mbmon_submit (char *inst, double value)
+static void mbmon_write_fanspeed (char *host, char *inst, char *val)
+{
+	char filename[BUFFER_SIZE];
+	int status;
+
+	/* construct filename */
+	status = snprintf (filename, BUFFER_SIZE, filename_fanspeed, inst);
+	if ((status < 1) || (status >= BUFFER_SIZE))
+		return;
+
+	rrd_update_file (host, filename, val, ds_def, ds_num);
+}
+
+static void mbmon_write_voltage (char *host, char *inst, char *val)
+{
+	char filename[BUFFER_SIZE];
+	int status;
+
+	/* construct filename */
+	status = snprintf (filename, BUFFER_SIZE, filename_voltage, inst);
+	if ((status < 1) || (status >= BUFFER_SIZE))
+		return;
+
+	rrd_update_file (host, filename, val, voltage_ds_def, voltage_ds_num);
+}
+
+static void mbmon_submit (char *type, char *inst, double value)
 {
 	char buf[BUFFER_SIZE];
 
@@ -249,7 +283,7 @@ static void mbmon_submit (char *inst, double value)
             >= BUFFER_SIZE)
 		return;
 
-	plugin_submit (MODULE_NAME, inst, buf);
+	plugin_submit (type, inst, buf);
 }
 
 /* Trim trailing whitespace from a string. */
@@ -302,6 +336,9 @@ static void mbmon_read (void)
 		double value;
 		char *nextc;
 
+		char *type;
+		char *inst;
+
 		*t++ = '\0';
 		trim_spaces (s);
 
@@ -312,20 +349,43 @@ static void mbmon_read (void)
 			break;
 		}
 
-		mbmon_submit (s, value);
+		if (strncmp (s, "TEMP", 4) == 0)
+		{
+			inst = s + 4;
+			type = "mbmon_temperature";
+		}
+		else if (strncmp (s, "FAN", 3) == 0)
+		{
+			inst = s + 3;
+			type = "mbmon_fanspeed";
+		}
+		else if (strncmp (s, "V", 1) == 0)
+		{
+			inst = s + 1;
+			type = "mbmon_voltage";
+		}
+		else
+		{
+			continue;
+		}
+
+		mbmon_submit (type, inst, value);
 
 		if (*nextc == '\0')
 			break;
 
 		s = nextc + 1;
 	}
-}
+} /* void mbmon_read */
 
 /* module_register
    Register collectd plugin. */
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, mbmon_init, mbmon_read, mbmon_write);
+	plugin_register (MODULE_NAME, mbmon_init, mbmon_read, NULL);
+	plugin_register ("mbmon_temperature", NULL, NULL, mbmon_write_temperature);
+	plugin_register ("mbmon_fanspeed", NULL, NULL, mbmon_write_fanspeed);
+	plugin_register ("mbmon_voltage", NULL, NULL, mbmon_write_voltage);
 	cf_register (MODULE_NAME, mbmon_config, config_keys, config_keys_num);
 }
 
