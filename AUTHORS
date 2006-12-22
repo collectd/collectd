@@ -10,6 +10,9 @@ cpufreq and multimeter module by:
 hddtemp module by:
   Vincent Stehlé <vincent.stehle at free.fr>
 
+mbmon plugin by:
+  Flavio Stanchina <flavio at stanchina.net>
+
 nfs module by:
   Jason Pepas <cell at ices.utexas.edu>
 

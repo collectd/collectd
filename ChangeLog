@@ -13,6 +13,8 @@ pending, Version 3.11.0
 	* email plugin: Sebastian Harl has contributed this plugin which
 	  counts received mails in categories (e. g. ham, spam, virus), spam
 	  score (as given by SpamAssassin) and check types.
+	* mbmon plugin: Flavio Stanchina has contributed this plugin which
+	  uses `mbmon' to gather information from sensors on the motherboard.
 	* processes plugin: Collect detailed statistics for configured
 	  processes, that's process and thread count, CPU usage, resident
 	  segment size and pagefaults.
