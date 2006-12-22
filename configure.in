@@ -990,6 +990,7 @@ AC_COLLECTD([email],     [disable], [module], [email statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
+AC_COLLECTD([mbmon],     [disable], [module], [motherboard monitor statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
 AC_COLLECTD([multimeter],[disable], [module], [multimeter statistics])
 AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
@@ -1042,6 +1043,7 @@ Configuration:
     email . . . . . . . $enable_email
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
+    mbmon . . . . . . . $enable_mbmon
     memory  . . . . . . $enable_memory
     multimeter  . . . . $enable_multimeter
     mysql . . . . . . . $enable_mysql

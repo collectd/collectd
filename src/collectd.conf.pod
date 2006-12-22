@@ -240,6 +240,20 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =back
 
+=head2 Plugin C<mbmon>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname to connect to. Defaults to B<127.0.0.1>.
+
+=item B<Port> I<Port>
+
+TCP-Port to connect to. Defaults to B<411>.
+
+=back
+
 =head2 Plugin C<ntpd>
 
 =over 4
