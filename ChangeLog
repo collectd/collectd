@@ -1,4 +1,4 @@
-pending, Version 3.11.0
+2006-12-22, Version 3.11.0
 	* collectd: The new command line option `-P' makes it easier for
 	  distributors to change the location of PID-files.
 	* collectd: The daemon shuts down faster now which makes it easier to
