@@ -393,7 +393,8 @@ static void sensors_shutdown (void)
 	sensors_free_features ();
 #endif /* if SENSORS_HAVE_READ */
 
-	ignorelist_free (sensor_list);
+	if (NULL != sensor_list)
+		ignorelist_free (sensor_list);
 }
 
 static void sensors_voltage_write (char *host, char *inst, char *val)
@@ -402,7 +403,7 @@ static void sensors_voltage_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (ignorelist_match (sensor_list, inst))
+	if ((NULL != sensor_list) && ignorelist_match (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -423,7 +424,7 @@ static void sensors_write (char *host, char *inst, char *val)
 	int status;
 
 	/* skip ignored in our config */
-	if (ignorelist_match (sensor_list, inst))
+	if ((NULL != sensor_list) && ignorelist_match (sensor_list, inst))
 		return;
 
 	/* extended sensor naming */
@@ -450,7 +451,7 @@ static void sensors_submit (const char *feat_name,
 		return;
 
 	/* skip ignored in our config */
-	if (ignorelist_match (sensor_list, inst))
+	if ((NULL != sensor_list) && ignorelist_match (sensor_list, inst))
 		return;
 
 	if (snprintf (buf, BUFSIZE, "%u:%.3f", (unsigned int) curtime,
