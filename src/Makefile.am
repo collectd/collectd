@@ -15,7 +15,6 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_llist.c utils_llist.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   common.c common.h \
-		   network.c network.h \
 		   plugin.c plugin.h \
 		   configfile.c configfile.h
 collectd_CPPFLAGS = $(LTDLINCL)
@@ -258,6 +257,17 @@ mysql_la_LDFLAGS += -lmysqlclient
 endif
 collectd_LDADD += "-dlopen" mysql.la
 collectd_DEPENDENCIES += mysql.la
+endif
+
+if BUILD_MODULE_NETWORK
+pkglib_LTLIBRARIES += network.la
+network_la_SOURCES = network.c
+network_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBSOCKET
+network_la_LDFLAGS += -lsocket
+endif
+collectd_LDADD += "-dlopen" network.la
+collectd_DEPENDENCIES += network.la
 endif
 
 if BUILD_MODULE_NFS

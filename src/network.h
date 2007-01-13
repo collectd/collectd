@@ -4,8 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -55,8 +54,11 @@
 #define NET_DEFAULT_V6_ADDR "ff18::efc0:4a42"
 #define NET_DEFAULT_PORT    "25826"
 
-int network_create_socket (const char *node, const char *service);
-int network_receive (char **host, char **type, char **instance, char **value);
-int network_send (char *type, char *instance, char *value);
+#define TYPE_HOST            0x0000
+#define TYPE_PLUGIN          0x0001
+#define TYPE_PLUGIN_INSTANCE 0x0002
+#define TYPE_TYPE            0x0003
+#define TYPE_TYPE_INSTANCE   0x0004
+#define TYPE_VALUES          0x0005
 
 #endif /* NETWORK_H */

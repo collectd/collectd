@@ -44,7 +44,7 @@ AC_CHECK_HEADERS(assert.h)
 AC_CHECK_HEADERS(sys/types.h)
 AC_CHECK_HEADERS(sys/socket.h)
 AC_CHECK_HEADERS(sys/select.h)
-AC_CHECK_HEADERS(sys/poll.h)
+AC_CHECK_HEADERS(poll.h)
 AC_CHECK_HEADERS(netdb.h)
 AC_CHECK_HEADERS(arpa/inet.h)
 AC_CHECK_HEADERS(sys/resource.h)
@@ -993,6 +993,7 @@ AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
 AC_COLLECTD([multimeter],[disable], [module], [multimeter statistics])
 AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
+AC_COLLECTD([network],   [disable], [module], [network functionality])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
 AC_COLLECTD([ntpd],      [disable], [module], [nfs statistics])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
@@ -1045,6 +1046,7 @@ Configuration:
     memory  . . . . . . $enable_memory
     multimeter  . . . . $enable_multimeter
     mysql . . . . . . . $enable_mysql
+    network . . . . . . $enable_network
     nfs . . . . . . . . $enable_nfs
     ntpd  . . . . . . . $enable_ntpd
     ping  . . . . . . . $enable_ping
