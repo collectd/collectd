@@ -102,6 +102,21 @@ typedef struct part_string_s part_string_t;
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  * +-------------------------------+-------------------------------+
  * ! Type                          ! Length                        !
+ * +-------------------------------+-------------------------------+
+ * : (Length - 4 == 2 || 4 || 8) Bytes                             :
+ * +---------------------------------------------------------------+
+ */
+struct part_number_s
+{
+	part_header_t *head;
+	uint64_t *value;
+};
+typedef struct part_number_s part_number_t;
+
+/*                      1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-------------------------------+-------------------------------+
+ * ! Type                          ! Length                        !
  * +-------------------------------+---------------+---------------+
  * ! Num of values                 ! Type0         ! Type1         !
  * +-------------------------------+---------------+---------------+
@@ -183,6 +198,27 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 	return (0);
 } /* int write_part_values */
 
+static int write_part_number (char **ret_buffer, int *ret_buffer_len,
+		int type, uint64_t value)
+{
+	part_number_t pn;
+
+	if (*ret_buffer_len < 12)
+		return (-1);
+
+	pn.head = (part_header_t *) *ret_buffer;
+	pn.value = (uint64_t *) (pn.head + 1);
+
+	pn.head->type = htons (type);
+	pn.head->length = htons (12);
+	*pn.value = htonll (value);
+
+	*ret_buffer = (char *) (pn.value + 1);
+	*ret_buffer_len -= 12;
+
+	return (0);
+} /* int write_part_number */
+
 static int write_part_string (char **ret_buffer, int *ret_buffer_len,
 		int type, const char *str, int str_len)
 {
@@ -201,10 +237,10 @@ static int write_part_string (char **ret_buffer, int *ret_buffer_len,
 	ps.value = (char *) (ps.head + 1);
 
 	ps.head->type = htons ((uint16_t) type);
-	ps.head->length = htons ((uint16_t) str_len + 4);
+	ps.head->length = htons ((uint16_t) str_len + 5);
 	memcpy (ps.value, str, str_len);
 	ps.value[str_len] = '\0';
-	*ret_buffer = (void *) (ps.value + str_len);
+	*ret_buffer = (void *) (ps.value + (str_len + 1));
 
 	return (0);
 } /* int write_part_string */
@@ -214,83 +250,121 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 {
 	char *buffer = *ret_buffer;
 	int   buffer_len = *ret_buffer_len;
-	part_values_t *pvalues;
+	part_values_t pv;
 	int   i;
+
+	uint16_t h_length;
+	uint16_t h_type;
+	uint16_t h_num;
 
 	if (buffer_len < (15))
 	{
-		DBG ("packet is too short");
+		DBG ("packet is too short: buffer_len = %i", buffer_len);
 		return (-1);
 	}
 
-	pvalues = (part_values_t *) malloc (sizeof (part_values_t));
-	if (pvalues == NULL)
-		return (-1);
+	pv.head = (part_header_t *) buffer;
+	h_length = ntohs (pv.head->length);
+	h_type = ntohs (pv.head->type);
 
-	pvalues->head = (part_header_t *) buffer;
-	assert (pvalues->head->type == htons (TYPE_VALUES));
+	assert (h_type == TYPE_VALUES);
 
-	pvalues->num_values = (uint16_t *) (buffer + 4);
-	if (ntohs (*pvalues->num_values)
-			!= ((ntohs (pvalues->head->length) - 6) / 9))
+	pv.num_values = (uint16_t *) (pv.head + 1);
+	h_num = ntohs (*pv.num_values);
+
+	if (h_num != ((h_length - 6) / 9))
 	{
 		DBG ("`length' and `num of values' don't match");
-		free (pvalues);
 		return (-1);
 	}
 
-	pvalues->values_types = (uint8_t *) (buffer + 6);
-	pvalues->values = (value_t *) (buffer + 6 + *pvalues->num_values);
+	pv.values_types = (uint8_t *) (pv.num_values + 1);
+	pv.values = (value_t *) (pv.values_types + h_num);
 
-	for (i = 0; i < *pvalues->num_values; i++)
-		if (pvalues->values_types[i] == DS_TYPE_COUNTER)
-			pvalues->values[i].counter = ntohll (pvalues->values[i].counter);
+	for (i = 0; i < h_num; i++)
+		if (pv.values_types[i] == DS_TYPE_COUNTER)
+			pv.values[i].counter = ntohll (pv.values[i].counter);
 
-	*ret_buffer     = (void *) buffer;
-	*ret_buffer_len = buffer_len - pvalues->head->length;
-	*ret_num_values = *pvalues->num_values;
-	*ret_values     = pvalues->values;
-
-	free (pvalues);
+	*ret_buffer     = (void *) (pv.values + h_num);
+	*ret_buffer_len = buffer_len - h_length;
+	*ret_num_values = h_num;
+	*ret_values     = pv.values;
 
 	return (0);
 } /* int parse_part_values */
+
+static int parse_part_number (void **ret_buffer, int *ret_buffer_len,
+		uint64_t *value)
+{
+	part_number_t pn;
+	uint16_t len;
+
+	pn.head = (part_header_t *) *ret_buffer;
+	pn.value = (uint64_t *) (pn.head + 1);
+
+	len = ntohs (pn.head->length);
+	if (len != 12)
+		return (-1);
+	if (len > *ret_buffer_len)
+		return (-1);
+	*value = ntohll (*pn.value);
+
+	*ret_buffer = (void *) (pn.value + 1);
+	*ret_buffer_len -= len;
+
+	return (0);
+} /* int parse_part_number */
 
 static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 		char *output, int output_len)
 {
 	char *buffer = *ret_buffer;
 	int   buffer_len = *ret_buffer_len;
-	part_string_t part_string;
+	part_string_t ps;
 
-	part_string.head = (part_header_t *) buffer;
-	if (buffer_len < part_string.head->length)
+	uint16_t h_length;
+	uint16_t h_type;
+
+	DBG ("ret_buffer = %p; ret_buffer_len = %i; output = %p; output_len = %i;",
+			*ret_buffer, *ret_buffer_len,
+			(void *) output, output_len);
+
+	ps.head = (part_header_t *) buffer;
+
+	h_length = ntohs (ps.head->length);
+	h_type = ntohs (ps.head->type);
+
+	DBG ("length = %hu; type = %hu;", h_length, h_type);
+
+	if (buffer_len < h_length)
 	{
 		DBG ("packet is too short");
 		return (-1);
 	}
-	assert ((part_string.head->type == htons (TYPE_HOST))
-			|| (part_string.head->type == htons (TYPE_PLUGIN))
-			|| (part_string.head->type == htons (TYPE_PLUGIN_INSTANCE))
-			|| (part_string.head->type == htons (TYPE_TYPE))
-			|| (part_string.head->type == htons (TYPE_TYPE_INSTANCE)));
+	assert ((h_type == TYPE_HOST)
+			|| (h_type == TYPE_PLUGIN)
+			|| (h_type == TYPE_PLUGIN_INSTANCE)
+			|| (h_type == TYPE_TYPE)
+			|| (h_type == TYPE_TYPE_INSTANCE));
 
-	part_string.value = buffer + 4;
-	if (part_string.value[part_string.head->length - 5] != '\0')
+	ps.value = buffer + 4;
+	if (ps.value[h_length - 5] != '\0')
 	{
 		DBG ("String does not end with a nullbyte");
 		return (-1);
 	}
 
-	if (output_len < (part_string.head->length - 4))
+	if (output_len < (h_length - 4))
 	{
 		DBG ("output buffer is too small");
 		return (-1);
 	}
-	strcpy (output, part_string.value);
+	strcpy (output, ps.value);
 
-	*ret_buffer = (void *) (buffer + part_string.head->length);
-	*ret_buffer_len = buffer_len - part_string.head->length;
+	DBG ("output = %s", output);
+
+	*ret_buffer = (void *) (buffer + h_length);
+	*ret_buffer_len = buffer_len - h_length;
 
 	return (0);
 } /* int parse_part_string */
@@ -303,48 +377,71 @@ static int parse_packet (void *buffer, int buffer_len)
 	value_list_t vl;
 	char type[DATA_MAX_NAME_LEN];
 
+	DBG ("buffer = %p; buffer_len = %i;", buffer, buffer_len);
+
 	memset (&vl, '\0', sizeof (vl));
 	memset (&type, '\0', sizeof (type));
+	status = 0;
 
-	while (buffer_len > sizeof (part_header_t))
+	while ((status == 0) && (buffer_len > sizeof (part_header_t)))
 	{
 		header = (part_header_t *) buffer;
 
-		if (header->length > buffer_len)
+		if (ntohs (header->length) > buffer_len)
 			break;
 
-		if (header->type == TYPE_VALUES)
+		if (header->type == htons (TYPE_VALUES))
 		{
 			status = parse_part_values (&buffer, &buffer_len,
 					&vl.values, &vl.values_len);
 
-			if ((status == 0)
+			if (status != 0)
+			{
+				DBG ("parse_part_values failed.");
+				break;
+			}
+
+			if ((vl.time > 0)
 					&& (strlen (vl.host) > 0)
 					&& (strlen (vl.plugin) > 0)
 					&& (strlen (type) > 0))
+			{
+				DBG ("dispatching values");
 				plugin_dispatch_values (type, &vl);
+			}
+			else
+			{
+				DBG ("NOT dispatching values");
+			}
 		}
-		else if (header->type == TYPE_HOST)
+		else if (header->type == ntohs (TYPE_TIME))
+		{
+			uint64_t tmp = 0;
+			status = parse_part_number (&buffer, &buffer_len, &tmp);
+			if (status == 0)
+				vl.time = (time_t) tmp;
+		}
+		else if (header->type == ntohs (TYPE_HOST))
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.host, sizeof (vl.host));
 		}
-		else if (header->type == TYPE_PLUGIN)
+		else if (header->type == ntohs (TYPE_PLUGIN))
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin, sizeof (vl.plugin));
 		}
-		else if (header->type == TYPE_PLUGIN_INSTANCE)
+		else if (header->type == ntohs (TYPE_PLUGIN_INSTANCE))
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin_instance, sizeof (vl.plugin_instance));
 		}
-		else if (header->type == TYPE_TYPE)
+		else if (header->type == ntohs (TYPE_TYPE))
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					type, sizeof (type));
 		}
-		else if (header->type == TYPE_TYPE_INSTANCE)
+		else if (header->type == ntohs (TYPE_TYPE_INSTANCE))
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.type_instance, sizeof (vl.type_instance));
@@ -841,13 +938,20 @@ static int network_write (const data_set_t *ds, const value_list_t *vl)
 
 	sockent_t *se;
 
-	DBG ("host = %s; plugin = %s; plugin_instance = %s; type = %s; type_instance = %s;",
-			vl->host, vl->plugin, vl->plugin_instance, ds->type, vl->type_instance);
+	DBG ("time = %u; host = %s; "
+			"plugin = %s; plugin_instance = %s; "
+			"type = %s; type_instance = %s;",
+			(unsigned int) vl->time, vl->host,
+			vl->plugin, vl->plugin_instance,
+			ds->type, vl->type_instance);
 
 	buf_len = sizeof (buf);
 	buf_ptr = buf;
 	if (write_part_string (&buf_ptr, &buf_len, TYPE_HOST,
 				vl->host, strlen (vl->host)) != 0)
+		return (-1);
+	if (write_part_number (&buf_ptr, &buf_len, TYPE_TIME,
+				(uint64_t) vl->time))
 		return (-1);
 	if (write_part_string (&buf_ptr, &buf_len, TYPE_PLUGIN,
 				vl->plugin, strlen (vl->plugin)) != 0)
