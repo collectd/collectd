@@ -305,8 +305,11 @@ static int value_list_to_string (char *buffer, int buffer_len,
 	int i;
 
 	memset (buffer, '\0', sizeof (buffer_len));
-	buffer[0] = 'N';
-	offset = 1;
+
+	status = snprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
+	if ((status < 1) || (status >= buffer_len))
+		return (-1);
+	offset = status;
 
 	for (i = 0; i < ds->ds_num; i++)
 	{
@@ -398,6 +401,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 				filename);
 		return (-1);
 	}
+
+	DBG ("rrd_update (%s, %s, %s)", argv[0], argv[1], argv[2]);
 
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
