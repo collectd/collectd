@@ -277,6 +277,9 @@ network_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBSOCKET
 network_la_LDFLAGS += -lsocket
 endif
+if BUILD_WITH_LIBPTHREAD
+network_la_LDFLAGS += -lpthread
+endif
 collectd_LDADD += "-dlopen" network.la
 collectd_DEPENDENCIES += network.la
 endif
