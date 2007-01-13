@@ -302,6 +302,13 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 
 	ds = (data_set_t *) le->value;
 
+	DBG ("time = %u; host = %s; "
+			"plugin = %s; plugin_instance = %s; "
+			"type = %s; type_instance = %s;",
+			(unsigned int) vl->time, vl->host,
+			vl->plugin, vl->plugin_instance,
+			ds->type, vl->type_instance);
+
 	le = llist_head (list_write);
 	while (le != NULL)
 	{
