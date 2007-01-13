@@ -8,13 +8,19 @@ cpufreq and multimeter module by:
   Peter Holik <peter at holik.at>
 
 hddtemp module by:
-  Vincent Stehl� <vincent.stehle at free.fr>
+  Vincent Stehlé <vincent.stehle at free.fr>
+
+mbmon plugin by:
+  Flavio Stanchina <flavio at stanchina.net>
 
 nfs module by:
   Jason Pepas <cell at ices.utexas.edu>
 
 processes module by:
   Lyonel Vincent <lyonel at ezix.org>
+
+sensors plugin has been improved by:
+  Luboš Staněk <kolektor at atlas.cz>
 
 serial module by:
   David Bacher <drbacher at gmail.com>
@@ -43,7 +49,7 @@ The `log' mode has been written by:
 
 Much time and effort to find a nasty bug in the ntpd-plugin has been
 contributed by:
-  Lubos Stanek <lubek at users.sourceforge.net>
+  Luboš Staněk <lubek at users.sourceforge.net>
 
 collectd is available at:
   <http://collectd.org/>

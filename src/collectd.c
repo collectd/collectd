@@ -222,7 +222,6 @@ static int start_client (void)
 #if HAVE_LIBRRD
 static int start_server (void)
 {
-	/* FIXME use stack here! */
 	/* FIXME */
 #if 0
 	char *host;
@@ -230,10 +229,22 @@ static int start_server (void)
 	char *instance;
 	char *values;
 
-	while (loop == 0)
+	int  error_counter = 0;
+	int  status;
+
+	while ((loop == 0) && (error_counter < 3))
 	{
-		if (network_receive (&host, &type, &instance, &values) == 0)
-			plugin_write (host, type, instance, values);
+		status = network_receive (&host, &type, &instance, &values);
+
+		if (status != 0)
+		{
+			if (status < 0)
+				error_counter++;
+			continue;
+		}
+		error_counter = 0;
+
+		plugin_write (host, type, instance, values);
 
 		if (host     != NULL) free (host);     host     = NULL;
 		if (type     != NULL) free (type);     type     = NULL;

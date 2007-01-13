@@ -1,3 +1,16 @@
+collectd (3.11.0-0octo1) unstable; urgency=low
+
+  * New upstream release.
+  * The package collectd-mbmon has been added.
+
+ -- Florian octo Forster <octo@alice.lan.home.verplant.org>  Fri, 22 Dec 2006 15:10:37 +0100
+
+collectd (3.10.4-0octo1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Florian Forster <octo@leeloo.home.verplant.org>  Thu, 21 Dec 2006 20:36:37 +0100
+
 collectd (3.10.3-0octo1) unstable; urgency=low
 
   * New upstream release.

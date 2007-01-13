@@ -179,6 +179,18 @@ static ignorelist_t *sensor_list;
 static int sensor_extended_naming = 0;
 
 #if SENSORS_HAVE_READ
+#  ifndef SENSORS_CONF_PATH
+#    define SENSORS_CONF_PATH "/etc/sensors.conf"
+#  endif
+
+static const char *conffile = SENSORS_CONF_PATH;
+/* SENSORS_CONF_PATH */
+
+/*
+ * remember stat of the loaded config
+ */
+static time_t sensors_config_mtime = 0;
+
 typedef struct featurelist
 {
 	const sensors_chip_name    *chip;
@@ -199,7 +211,7 @@ static int sensors_config (char *key, char *value)
 	{
 		if (ignorelist_add (sensor_list, value))
 		{
-			syslog (LOG_EMERG, "Cannot add value to ignorelist.");
+			syslog (LOG_EMERG, MODULE_NAME": Cannot add value to ignorelist.");
 			return (1);
 		}
 	}
@@ -228,44 +240,78 @@ static int sensors_config (char *key, char *value)
 	return (0);
 }
 
-static void collectd_sensors_init (void)
-{
 #if SENSORS_HAVE_READ
+void sensors_free_features (void)
+{
+	featurelist_t *thisft;
+	featurelist_t *nextft;
+
+	if (first_feature == NULL)
+		return;
+
+	sensors_cleanup ();
+
+	for (thisft = first_feature; thisft != NULL; thisft = nextft)
+	{
+		nextft = thisft->next;
+		sfree (thisft);
+	}
+	first_feature = NULL;
+}
+
+static void sensors_load_conf (void)
+{
 	FILE *fh;
 	featurelist_t *last_feature = NULL;
-	featurelist_t *new_feature;
+	featurelist_t *new_feature = NULL;
 	
 	const sensors_chip_name *chip;
 	int chip_num;
 
 	const sensors_feature_data *data;
 	int data_num0, data_num1;
+
+	struct stat statbuf;
+	int status;
 	
-	new_feature = first_feature;
-	while (new_feature != NULL)
+	status = stat (conffile, &statbuf);
+	if (status != 0)
 	{
-		last_feature = new_feature->next;
-		free (new_feature);
-		new_feature = last_feature;
+		syslog (LOG_ERR, MODULE_NAME": stat(%s) failed: %s",
+				conffile, strerror (errno));
+		sensors_config_mtime = 0;
 	}
 
-#ifdef assert
-	assert (new_feature == NULL);
-	assert (last_feature == NULL);
-#endif
-
-	if ((fh = fopen ("/etc/sensors.conf", "r")) == NULL)
+	if ((sensors_config_mtime != 0)
+			&& (sensors_config_mtime == statbuf.st_mtime))
 		return;
 
-	if (sensors_init (fh))
+	if (sensors_config_mtime != 0)
 	{
-		fclose (fh);
-		syslog (LOG_ERR, "sensors: Cannot initialize sensors. "
+		syslog (LOG_NOTICE, MODULE_NAME": Reloading config from %s",
+				conffile);
+		sensors_free_features ();
+		sensors_config_mtime = 0;
+	}
+
+	fh = fopen (conffile, "r");
+	if (fh == NULL)
+	{
+		syslog (LOG_ERR, MODULE_NAME": fopen(%s) failed: %s",
+				conffile, strerror(errno));
+		return;
+	}
+
+	status = sensors_init (fh);
+	fclose (fh);
+	if (status != 0)
+	{
+		syslog (LOG_ERR, MODULE_NAME": Cannot initialize sensors. "
 				"Data will not be collected.");
 		return;
 	}
 
-	fclose (fh);
+	sensors_config_mtime = statbuf.st_mtime;
 
 	chip_num = 0;
 	while ((chip = sensors_get_detected_chips (&chip_num)) != NULL)
@@ -299,9 +345,8 @@ static void collectd_sensors_init (void)
 
 				if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
 				{
-					DBG ("sensors plugin: malloc: %s",
-							strerror (errno));
-					syslog (LOG_ERR, "sensors plugin: malloc: %s",
+					DBG ("malloc: %s", strerror (errno));
+					syslog (LOG_ERR, MODULE_NAME":  malloc: %s",
 							strerror (errno));
 					break;
 				}
@@ -329,26 +374,23 @@ static void collectd_sensors_init (void)
 	} /* while sensors_get_detected_chips */
 
 	if (first_feature == NULL)
+	{
 		sensors_cleanup ();
+		syslog (LOG_INFO, MODULE_NAME": lm_sensors reports no features. "
+			"Data will not be collected.");
+	}
+} /* void sensors_load_conf */
 #endif /* if SENSORS_HAVE_READ */
 
+static void collectd_sensors_init (void)
+{
 	return;
 }
 
 static void sensors_shutdown (void)
 {
 #if SENSORS_HAVE_READ
-	featurelist_t *thisft = first_feature;
-	featurelist_t *nextft;
-
-	while (thisft != NULL)
-	{
-		nextft = thisft->next;
-		sfree (thisft);
-		thisft = nextft;
-	}
-
-	sensors_cleanup ();
+	sensors_free_features ();
 #endif /* if SENSORS_HAVE_READ */
 
 	ignorelist_free (sensor_list);
@@ -435,6 +477,8 @@ static void sensors_read (void)
 	double value;
 	char chip_fullprefix[BUFSIZE];
 
+	sensors_load_conf ();
+
 	for (feature = first_feature; feature != NULL; feature = feature->next)
 	{
 		if (sensors_get_feature (*feature->chip, feature->data->number, &value) < 0)
@@ -483,8 +527,8 @@ static void sensors_read (void)
 					feature->chip->prefix,
 					value, feature->type);
 		}
-	}
-}
+	} /* for feature = first_feature .. NULL */
+} /* void sensors_read */
 #else
 # define sensors_read NULL
 #endif /* SENSORS_HAVE_READ */

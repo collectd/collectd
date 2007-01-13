@@ -62,6 +62,11 @@
 #	include <sys/un.h>
 #endif /* HAVE_LINUX_UN_H | HAVE_SYS_UN_H */
 
+/* some systems (e.g. Darwin) seem to not define UNIX_PATH_MAX at all */
+#ifndef UNIX_PATH_MAX
+# define UNIX_PATH_MAX sizeof (((struct sockaddr_un *)0)->sun_path)
+#endif /* UNIX_PATH_MAX */
+
 #if HAVE_GRP_H
 #	include <grp.h>
 #endif /* HAVE_GRP_H */
@@ -79,6 +84,9 @@
 #define MAX_CONNS 5
 #define MAX_CONNS_LIMIT 16384
 
+#define log_err(...) syslog (LOG_ERR, MODULE_NAME": "__VA_ARGS__)
+#define log_warn(...) syslog (LOG_WARNING, MODULE_NAME": "__VA_ARGS__)
+
 /*
  * Private data structures
  */
@@ -95,24 +103,31 @@ typedef struct {
 	type_t *tail;
 } type_list_t;
 
-/* linked list of collector thread control information */
+/* collector thread control information */
 typedef struct collector {
 	pthread_t thread;
 
+	/* socket descriptor of the current/last connection */
+	int socket;
+} collector_t;
+
+/* linked list of pending connections */
+typedef struct conn {
 	/* socket to read data from */
 	int socket;
 
 	/* buffer to read data to */
-	char buffer[BUFSIZE];
-	int  idx; /* current position in buffer */
+	char *buffer;
+	int  idx; /* current write position in buffer */
+	int  length; /* length of the current line, i.e. index of '\0' */
 
-	struct collector *next;
-} collector_t;
+	struct conn *next;
+} conn_t;
 
 typedef struct {
-	collector_t *head;
-	collector_t *tail;
-} collector_list_t;
+	conn_t *head;
+	conn_t *tail;
+} conn_list_t;
 #endif /* EMAIL_HAVE_READ */
 
 /*
@@ -141,16 +156,21 @@ static int disabled = 0;
 static pthread_t connector;
 static int connector_socket;
 
+/* tell the collector threads that a new connection is available */
+static pthread_cond_t conn_available = PTHREAD_COND_INITIALIZER;
+
+/* connections that are waiting to be processed */
+static pthread_mutex_t conns_mutex = PTHREAD_MUTEX_INITIALIZER;
+static conn_list_t conns;
+
 /* tell the connector thread that a collector is available */
 static pthread_cond_t collector_available = PTHREAD_COND_INITIALIZER;
 
-/* collector threads that are in use */
-static pthread_mutex_t active_mutex = PTHREAD_MUTEX_INITIALIZER;
-static collector_list_t active;
+/* collector threads */
+static collector_t **collectors;
 
-/* collector threads that are available for use */
 static pthread_mutex_t available_mutex = PTHREAD_MUTEX_INITIALIZER;
-static collector_list_t available;
+static int available_collectors;
 
 static pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 static type_list_t count;
@@ -206,7 +226,7 @@ static int email_config (char *key, char *value)
 	}
 	else if (0 == strcasecmp (key, "SocketPerms")) {
 		/* the user is responsible for providing reasonable values */
-		sock_perms = (int)strtol (value, NULL, 0);
+		sock_perms = (int)strtol (value, NULL, 8);
 	}
 	else if (0 == strcasecmp (key, "MaxConns")) {
 		long int tmp = strtol (value, NULL, 0);
@@ -270,7 +290,7 @@ static void type_list_incr (type_list_t *list, char *name, int incr)
 
 /* Read a single character from the socket. If an error occurs or end-of-file
  * is reached return '\0'. */
-char read_char (collector_t *src)
+static char read_char (conn_t *src)
 {
 	char ret = '\0';
 
@@ -280,7 +300,7 @@ char read_char (collector_t *src)
 	FD_SET (src->socket, &fdset);
 
 	if (-1 == select (src->socket + 1, &fdset, NULL, NULL, NULL)) {
-		syslog (LOG_ERR, "select() failed: %s", strerror (errno));
+		log_err ("select() failed: %s", strerror (errno));
 		return '\0';
 	}
 
@@ -292,7 +312,7 @@ char read_char (collector_t *src)
 		errno = 0;
 		if (0 > (len = read (src->socket, (void *)&ret, 1))) {
 			if (EINTR != errno) {
-				syslog (LOG_ERR, "read() failed: %s", strerror (errno));
+				log_err ("read() failed: %s", strerror (errno));
 				return '\0';
 			}
 		}
@@ -301,13 +321,12 @@ char read_char (collector_t *src)
 			return '\0';
 	} while (EINTR == errno);
 	return ret;
-} /* char read_char (collector_t *) */
+} /* static char read_char (conn_t *) */
 
 /* Read a single line (terminated by '\n') from the the socket.
  *
  * The return value is zero terminated and does not contain any newline
- * characters. In case that no complete line is available (non-blocking mode
- * should be enabled) an empty string is returned.
+ * characters.
  *
  * If an error occurs or end-of-file is reached return NULL.
  *
@@ -315,28 +334,34 @@ char read_char (collector_t *src)
  * characters of the input stream, the line will will be ignored! By
  * definition we should not get any longer input lines, thus this is
  * acceptable in this case ;-) */
-char *read_line (collector_t *src)
+static char *read_line (conn_t *src)
 {
-	int  i = 0;
-	char *ret;
+	int i = 0;
 
-	assert (BUFSIZE > src->idx);
+	assert ((BUFSIZE >= src->idx) && (src->idx >= 0));
+	assert ((src->idx > src->length) || (src->length == 0));
+
+	if (src->length > 0) { /* remove old line */
+		src->idx -= (src->length + 1);
+		memmove (src->buffer, src->buffer + src->length + 1, src->idx);
+		src->length = 0;
+	}
 
 	for (i = 0; i < src->idx; ++i) {
 		if ('\n' == src->buffer[i])
 			break;
 	}
 
-	if ('\n' != src->buffer[i]) {
+	if (i == src->idx) {
 		fd_set fdset;
-	
+
 		ssize_t len = 0;
 
 		FD_ZERO (&fdset);
 		FD_SET (src->socket, &fdset);
 
 		if (-1 == select (src->socket + 1, &fdset, NULL, NULL, NULL)) {
-			syslog (LOG_ERR, "select() failed: %s", strerror (errno));
+			log_err ("select() failed: %s", strerror (errno));
 			return NULL;
 		}
 
@@ -345,10 +370,10 @@ char *read_line (collector_t *src)
 		do {
 			errno = 0;
 			if (0 > (len = read (src->socket,
-							(void *)(&(src->buffer[0]) + src->idx),
+							(void *)(src->buffer + src->idx),
 							BUFSIZE - src->idx))) {
 				if (EINTR != errno) {
-					syslog (LOG_ERR, "read() failed: %s", strerror (errno));
+					log_err ("read() failed: %s", strerror (errno));
 					return NULL;
 				}
 			}
@@ -364,10 +389,8 @@ char *read_line (collector_t *src)
 				break;
 		}
 
-		if ('\n' != src->buffer[i]) {
-			ret = (char *)smalloc (1);
-
-			ret[0] = '\0';
+		if (i == src->idx) {
+			src->length = 0;
 
 			if (BUFSIZE == src->idx) { /* no space left in buffer */
 				while ('\n' != read_char (src))
@@ -375,157 +398,134 @@ char *read_line (collector_t *src)
 
 				src->idx = 0;
 			}
-			return ret;
+			return read_line (src);
 		}
 	}
 
-	ret = (char *)smalloc (i + 1);
-	memcpy (ret, &(src->buffer[0]), i + 1);
-	ret[i] = '\0';
+	src->buffer[i] = '\0';
+	src->length    = i;
 
-	src->idx -= (i + 1);
-
-	if (0 == src->idx)
-		src->buffer[0] = '\0';
-	else
-		memmove (&(src->buffer[0]), &(src->buffer[i + 1]), src->idx);
-	return ret;
-} /* char *read_line (collector_t *) */
+	return src->buffer;
+} /* static char *read_line (conn_t *) */
 
 static void *collect (void *arg)
 {
 	collector_t *this = (collector_t *)arg;
-	
-	int loop = 1;
 
-	{ /* put the socket in non-blocking mode */
-		int flags = 0;
+	char *buffer = (char *)smalloc (BUFSIZE);
 
-		errno = 0;
-		if (-1 == fcntl (this->socket, F_GETFL, &flags)) {
-			syslog (LOG_ERR, "fcntl() failed: %s", strerror (errno));
-			loop = 0;
+	while (1) {
+		int loop = 1;
+
+		conn_t *connection;
+
+		pthread_mutex_lock (&conns_mutex);
+
+		while (NULL == conns.head) {
+			pthread_cond_wait (&conn_available, &conns_mutex);
 		}
 
-		errno = 0;
-		if (-1 == fcntl (this->socket, F_SETFL, flags | O_NONBLOCK)) {
-			syslog (LOG_ERR, "fcntl() failed: %s", strerror (errno));
-			loop = 0;
-		}
-	}
+		connection = conns.head;
+		conns.head = conns.head->next;
 
-	while (loop) {
-		char *line = read_line (this);
-
-		if (NULL == line) {
-			loop = 0;
-			break;
+		if (NULL == conns.head) {
+			conns.tail = NULL;
 		}
 
-		if ('\0' == line[0]) {
-			free (line);
-			continue;
+		this->socket = connection->socket;
+
+		pthread_mutex_unlock (&conns_mutex);
+
+		connection->buffer = buffer;
+		connection->idx    = 0;
+		connection->length = 0;
+
+		{ /* put the socket in non-blocking mode */
+			int flags = 0;
+
+			errno = 0;
+			if (-1 == fcntl (connection->socket, F_GETFL, &flags)) {
+				log_err ("fcntl() failed: %s", strerror (errno));
+				loop = 0;
+			}
+
+			errno = 0;
+			if (-1 == fcntl (connection->socket, F_SETFL, flags | O_NONBLOCK)) {
+				log_err ("fcntl() failed: %s", strerror (errno));
+				loop = 0;
+			}
 		}
 
-		if (':' != line[1]) {
-			syslog (LOG_ERR, "email: syntax error in line '%s'", line);
-			free (line);
-			continue;
-		}
+		while (loop) {
+			char *line = read_line (connection);
 
-		if ('e' == line[0]) { /* e:<type>:<bytes> */
-			char *ptr  = NULL;
-			char *type = strtok_r (line + 2, ":", &ptr);
-			char *tmp  = strtok_r (NULL, ":", &ptr);
-			int  bytes = 0;
+			if (NULL == line) {
+				loop = 0;
+				break;
+			}
 
-			if (NULL == tmp) {
-				syslog (LOG_ERR, "email: syntax error in line '%s'", line);
-				free (line);
+			if (':' != line[1]) {
+				log_err ("syntax error in line '%s'", line);
 				continue;
 			}
 
-			bytes = atoi (tmp);
+			if ('e' == line[0]) { /* e:<type>:<bytes> */
+				char *ptr  = NULL;
+				char *type = strtok_r (line + 2, ":", &ptr);
+				char *tmp  = strtok_r (NULL, ":", &ptr);
+				int  bytes = 0;
 
-			pthread_mutex_lock (&count_mutex);
-			type_list_incr (&count, type, 1);
-			pthread_mutex_unlock (&count_mutex);
+				if (NULL == tmp) {
+					log_err ("syntax error in line '%s'", line);
+					continue;
+				}
 
-			pthread_mutex_lock (&size_mutex);
-			type_list_incr (&size, type, bytes);
-			pthread_mutex_unlock (&size_mutex);
-		}
-		else if ('s' == line[0]) { /* s:<value> */
-			pthread_mutex_lock (&score_mutex);
-			score = (score * (double)score_count + atof (line + 2))
-					/ (double)(score_count + 1);
-			++score_count;
-			pthread_mutex_unlock (&score_mutex);
-		}
-		else if ('c' == line[0]) { /* c:<type1>[,<type2>,...] */
-			char *ptr  = NULL;
-			char *type = strtok_r (line + 2, ",", &ptr);
+				bytes = atoi (tmp);
 
-			do {
-				pthread_mutex_lock (&check_mutex);
-				type_list_incr (&check, type, 1);
-				pthread_mutex_unlock (&check_mutex);
-			} while (NULL != (type = strtok_r (NULL, ",", &ptr)));
-		}
-		else {
-			syslog (LOG_ERR, "email: unknown type '%c'", line[0]);
-		}
+				pthread_mutex_lock (&count_mutex);
+				type_list_incr (&count, type, 1);
+				pthread_mutex_unlock (&count_mutex);
 
-		free (line);
-	}
-
-	/* put this thread back into the available list */
-	pthread_mutex_lock (&active_mutex);
-	{
-		collector_t *last;
-		collector_t *ptr;
-
-		last = NULL;
-
-		for (ptr = active.head; NULL != ptr; last = ptr, ptr = ptr->next) {
-			if (0 != pthread_equal (ptr->thread, this->thread))
-				break;
-		}
-
-		/* the current thread _has_ to be in the active list */
-		assert (NULL != ptr);
-
-		if (NULL == last) {
-			active.head = ptr->next;
-		}
-		else {
-			last->next = ptr->next;
-
-			if (NULL == last->next) {
-				active.tail = last;
+				pthread_mutex_lock (&size_mutex);
+				type_list_incr (&size, type, bytes);
+				pthread_mutex_unlock (&size_mutex);
 			}
-		}
-	}
-	pthread_mutex_unlock (&active_mutex);
+			else if ('s' == line[0]) { /* s:<value> */
+				pthread_mutex_lock (&score_mutex);
+				score = (score * (double)score_count + atof (line + 2))
+						/ (double)(score_count + 1);
+				++score_count;
+				pthread_mutex_unlock (&score_mutex);
+			}
+			else if ('c' == line[0]) { /* c:<type1>[,<type2>,...] */
+				char *ptr  = NULL;
+				char *type = strtok_r (line + 2, ",", &ptr);
 
-	this->next = NULL;
+				do {
+					pthread_mutex_lock (&check_mutex);
+					type_list_incr (&check, type, 1);
+					pthread_mutex_unlock (&check_mutex);
+				} while (NULL != (type = strtok_r (NULL, ",", &ptr)));
+			}
+			else {
+				log_err ("unknown type '%c'", line[0]);
+			}
+		} /* while (loop) */
 
-	pthread_mutex_lock (&available_mutex);
+		close (connection->socket);
 
-	if (NULL == available.head) {
-		available.head = this;
-		available.tail = this;
-	}
-	else {
-		available.tail->next = this;
-		available.tail = this;
-	}
+		free (connection);
 
-	pthread_mutex_unlock (&available_mutex);
+		pthread_mutex_lock (&available_mutex);
+		++available_collectors;
+		pthread_mutex_unlock (&available_mutex);
 
-	pthread_cond_signal (&collector_available);
+		pthread_cond_signal (&collector_available);
+	} /* while (1) */
+
+	free (buffer);
 	pthread_exit ((void *)0);
-} /* void *collect (void *) */
+} /* static void *collect (void *) */
 
 static void *open_connection (void *arg)
 {
@@ -535,7 +535,7 @@ static void *open_connection (void *arg)
 	errno = 0;
 	if (-1 == (connector_socket = socket (PF_UNIX, SOCK_STREAM, 0))) {
 		disabled = 1;
-		syslog (LOG_ERR, "socket() failed: %s", strerror (errno));
+		log_err ("socket() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
 	}
 
@@ -550,14 +550,14 @@ static void *open_connection (void *arg)
 				offsetof (struct sockaddr_un, sun_path)
 					+ strlen(addr.sun_path))) {
 		disabled = 1;
-		syslog (LOG_ERR, "bind() failed: %s", strerror (errno));
+		log_err ("bind() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
 	}
 
 	errno = 0;
 	if (-1 == listen (connector_socket, 5)) {
 		disabled = 1;
-		syslog (LOG_ERR, "listen() failed: %s", strerror (errno));
+		log_err ("listen() failed: %s", strerror (errno));
 		pthread_exit ((void *)1);
 	}
 
@@ -568,56 +568,65 @@ static void *open_connection (void *arg)
 		if (NULL != (grp = getgrnam (sock_group))) {
 			errno = 0;
 			if (0 != chown (SOCK_PATH, (uid_t)-1, grp->gr_gid)) {
-				syslog (LOG_WARNING, "chown() failed: %s", strerror (errno));
+				log_warn ("chown() failed: %s", strerror (errno));
 			}
 		}
 		else {
-			syslog (LOG_WARNING, "getgrnam() failed: %s", strerror (errno));
+			log_warn ("getgrnam() failed: %s", strerror (errno));
 		}
 	}
 	else {
-		syslog (LOG_WARNING, "not running as root");
+		log_warn ("not running as root");
 	}
 
 	errno = 0;
 	if (0 != chmod (SOCK_PATH, sock_perms)) {
-		syslog (LOG_WARNING, "chmod() failed: %s", strerror (errno));
+		log_warn ("chmod() failed: %s", strerror (errno));
 	}
 
-	{ /* initialize queue of available threads */
-		int i = 0;
+	{ /* initialize collector threads */
+		int i   = 0;
+		int err = 0;
 
-		collector_t *last;
+		pthread_attr_t ptattr;
 
-		active.head = NULL;
-		active.tail = NULL;
+		conns.head = NULL;
+		conns.tail = NULL;
 
-		available.head = (collector_t *)smalloc (sizeof (collector_t));
-		available.tail = available.head;
-		available.tail->next = NULL;
+		pthread_attr_init (&ptattr);
+		pthread_attr_setdetachstate (&ptattr, PTHREAD_CREATE_DETACHED);
 
-		last = available.head;
+		available_collectors = max_conns;
 
-		for (i = 1; i < max_conns; ++i) {
-			last->next = (collector_t *)smalloc (sizeof (collector_t));
-			last = last->next;
-			available.tail = last;
-			available.tail->next = NULL;
+		collectors =
+			(collector_t **)smalloc (max_conns * sizeof (collector_t *));
+
+		for (i = 0; i < max_conns; ++i) {
+			collectors[i] = (collector_t *)smalloc (sizeof (collector_t));
+			collectors[i]->socket = 0;
+
+			if (0 != (err = pthread_create (&collectors[i]->thread, &ptattr,
+							collect, collectors[i]))) {
+				log_err ("pthread_create() failed: %s", strerror (err));
+			}
 		}
+
+		pthread_attr_destroy (&ptattr);
 	}
 
 	while (1) {
 		int remote = 0;
-		int err    = 0;
 
-		collector_t *collector;
-
-		pthread_attr_t ptattr;
+		conn_t *connection;
 
 		pthread_mutex_lock (&available_mutex);
-		while (NULL == available.head) {
+
+		while (0 == available_collectors) {
 			pthread_cond_wait (&collector_available, &available_mutex);
 		}
+
+		--available_collectors;
+
 		pthread_mutex_unlock (&available_mutex);
 
 		do {
@@ -625,71 +634,34 @@ static void *open_connection (void *arg)
 			if (-1 == (remote = accept (connector_socket, NULL, NULL))) {
 				if (EINTR != errno) {
 					disabled = 1;
-					syslog (LOG_ERR, "accept() failed: %s", strerror (errno));
+					log_err ("accept() failed: %s", strerror (errno));
 					pthread_exit ((void *)1);
 				}
 			}
 		} while (EINTR == errno);
 
-		/* assign connection to next available thread */
-		pthread_mutex_lock (&available_mutex);
+		connection = (conn_t *)smalloc (sizeof (conn_t));
 
-		collector = available.head;
-		collector->socket = remote;
+		connection->socket = remote;
+		connection->next   = NULL;
 
-		if (available.head == available.tail) {
-			available.head = NULL;
-			available.tail = NULL;
+		pthread_mutex_lock (&conns_mutex);
+
+		if (NULL == conns.head) {
+			conns.head = connection;
+			conns.tail = connection;
 		}
 		else {
-			available.head = available.head->next;
+			conns.tail->next = connection;
+			conns.tail = conns.tail->next;
 		}
 
-		pthread_mutex_unlock (&available_mutex);
+		pthread_mutex_unlock (&conns_mutex);
 
-		collector->idx  = 0;
-		collector->next = NULL;
-
-		pthread_attr_init (&ptattr);
-		pthread_attr_setdetachstate (&ptattr, PTHREAD_CREATE_DETACHED);
-
-		if (0 == (err = pthread_create (&collector->thread, &ptattr, collect,
-				(void *)collector))) {
-			pthread_mutex_lock (&active_mutex);
-
-			if (NULL == active.head) {
-				active.head = collector;
-				active.tail = collector;
-			}
-			else {
-				active.tail->next = collector;
-				active.tail = collector;
-			}
-
-			pthread_mutex_unlock (&active_mutex);
-		}
-		else {
-			pthread_mutex_lock (&available_mutex);
-
-			if (NULL == available.head) {
-				available.head = collector;
-				available.tail = collector;
-			}
-			else {
-				available.tail->next = collector;
-				available.tail = collector;
-			}
-
-			pthread_mutex_unlock (&available_mutex);
-
-			close (remote);
-			syslog (LOG_ERR, "pthread_create() failed: %s", strerror (err));
-		}
-
-		pthread_attr_destroy (&ptattr);
+		pthread_cond_signal (&conn_available);
 	}
 	pthread_exit ((void *)0);
-} /* void *open_connection (void *) */
+} /* static void *open_connection (void *) */
 #endif /* EMAIL_HAVE_READ */
 
 static void email_init (void)
@@ -700,7 +672,7 @@ static void email_init (void)
 	if (0 != (err = pthread_create (&connector, NULL,
 				open_connection, NULL))) {
 		disabled = 1;
-		syslog (LOG_ERR, "pthread_create() failed: %s", strerror (err));
+		log_err ("pthread_create() failed: %s", strerror (err));
 		return;
 	}
 #endif /* EMAIL_HAVE_READ */
@@ -710,22 +682,23 @@ static void email_init (void)
 #if EMAIL_HAVE_READ
 static void email_shutdown (void)
 {
-	collector_t *ptr;
+	int i = 0;
 
 	if (disabled)
 		return;
 
-	close (connector_socket);
 	pthread_kill (connector, SIGTERM);
+	close (connector_socket);
 
-	pthread_mutex_lock (&active_mutex);
+	/* don't allow any more connections to be processed */
+	pthread_mutex_lock (&conns_mutex);
 
-	for (ptr = active.head; NULL != ptr; ptr = ptr->next) {
-		close (ptr->socket);
-		pthread_kill (ptr->thread, SIGTERM);
+	for (i = 0; i < max_conns; ++i) {
+		pthread_kill (collectors[i]->thread, SIGTERM);
+		close (collectors[i]->socket);
 	}
 
-	pthread_mutex_unlock (&active_mutex);
+	pthread_mutex_unlock (&conns_mutex);
 
 	unlink (SOCK_PATH);
 	return;
@@ -783,9 +756,6 @@ static void type_submit (char *plugin, char *inst, int value)
 	char buf[BUFSIZE] = "";
 	int  len          = 0;
 
-	if (0 == value)
-		return;
-
 	len = snprintf (buf, BUFSIZE, "%u:%i", (unsigned int)curtime, value);
 	if ((len < 0) || (len >= BUFSIZE))
 		return;
@@ -799,14 +769,49 @@ static void score_submit (double value)
 	char buf[BUFSIZE] = "";
 	int  len          = 0;
 
-	if (0.0 == value)
-		return;
-
 	len = snprintf (buf, BUFSIZE, "%u:%.2f", (unsigned int)curtime, value);
 	if ((len < 0) || (len >= BUFSIZE))
 		return;
 
 	plugin_submit ("email_spam_score", NULL, buf);
+	return;
+} /* static void score_submit (double) */
+
+/* Copy list l1 to list l2. l2 may partly exist already, but it is assumed
+ * that neither the order nor the name of any element of either list is
+ * changed and no elements are deleted. The values of l1 are reset to zero
+ * after they have been copied to l2. */
+static void copy_type_list (type_list_t *l1, type_list_t *l2)
+{
+	type_t *ptr1;
+	type_t *ptr2;
+
+	type_t *last = NULL;
+
+	for (ptr1 = l1->head, ptr2 = l2->head; NULL != ptr1;
+			ptr1 = ptr1->next, last = ptr2, ptr2 = ptr2->next) {
+		if (NULL == ptr2) {
+			ptr2 = (type_t *)smalloc (sizeof (type_t));
+			ptr2->name = NULL;
+			ptr2->next = NULL;
+
+			if (NULL == last) {
+				l2->head = ptr2;
+			}
+			else {
+				last->next = ptr2;
+			}
+
+			l2->tail = ptr2;
+		}
+
+		if (NULL == ptr2->name) {
+			ptr2->name = sstrdup (ptr1->name);
+		}
+
+		ptr2->value = ptr1->value;
+		ptr1->value = 0;
+	}
 	return;
 }
 
@@ -814,43 +819,73 @@ static void email_read (void)
 {
 	type_t *ptr;
 
+	double sc;
+
+	static type_list_t *cnt;
+	static type_list_t *sz;
+	static type_list_t *chk;
+
 	if (disabled)
 		return;
 
+	if (NULL == cnt) {
+		cnt = (type_list_t *)smalloc (sizeof (type_list_t));
+		cnt->head = NULL;
+	}
+
+	if (NULL == sz) {
+		sz = (type_list_t *)smalloc (sizeof (type_list_t));
+		sz->head = NULL;
+	}
+
+	if (NULL == chk) {
+		chk = (type_list_t *)smalloc (sizeof (type_list_t));
+		chk->head = NULL;
+	}
+
+	/* email count */
 	pthread_mutex_lock (&count_mutex);
 
-	for (ptr = count.head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_count", ptr->name, ptr->value);
-		ptr->value = 0;
-	}
+	copy_type_list (&count, cnt);
 
 	pthread_mutex_unlock (&count_mutex);
 
+	for (ptr = cnt->head; NULL != ptr; ptr = ptr->next) {
+		type_submit ("email_count", ptr->name, ptr->value);
+	}
+
+	/* email size */
 	pthread_mutex_lock (&size_mutex);
 
-	for (ptr = size.head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_size", ptr->name, ptr->value);
-		ptr->value = 0;
-	}
+	copy_type_list (&size, sz);
 
 	pthread_mutex_unlock (&size_mutex);
 
+	for (ptr = sz->head; NULL != ptr; ptr = ptr->next) {
+		type_submit ("email_size", ptr->name, ptr->value);
+	}
+
+	/* spam score */
 	pthread_mutex_lock (&score_mutex);
 
-	score_submit (score);
+	sc = score;
 	score = 0.0;
 	score_count = 0;
 
 	pthread_mutex_unlock (&score_mutex);
 
+	score_submit (sc);
+
+	/* spam checks */
 	pthread_mutex_lock (&check_mutex);
 
-	for (ptr = check.head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_spam_check", ptr->name, ptr->value);
-		ptr->value = 0;
-	}
+	copy_type_list (&check, chk);
 
 	pthread_mutex_unlock (&check_mutex);
+
+	for (ptr = chk->head; NULL != ptr; ptr = ptr->next) {
+		type_submit ("email_spam_check", ptr->name, ptr->value);
+	}
 	return;
 } /* static void read (void) */
 #else /* if !EMAIL_HAVE_READ */

@@ -31,6 +31,7 @@
 @BUILD_MODULE_DNS_TRUE@LoadPlugin dns
 @BUILD_MODULE_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_MODULE_LOAD_TRUE@LoadPlugin load
+@BUILD_MODULE_MBMON_TRUE@LoadPlugin mbmon
 @BUILD_MODULE_MEMORY_TRUE@LoadPlugin memory
 @BUILD_MODULE_MULTIMETER_TRUE@LoadPlugin multimeter
 @BUILD_MODULE_MYSQL_TRUE@LoadPlugin mysql
@@ -67,6 +68,11 @@
 #<Plugin hddtemp>
 #	Host 127.0.0.1
 #	Port 7634
+#</Plugin>
+
+#<Plugin mbmon>
+#	Host 127.0.0.1
+#	Port 411
 #</Plugin>
 
 #<Plugin ntpd>

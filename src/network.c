@@ -587,6 +587,7 @@ static sockent_t *network_create_socket (const char *node,
 		{
 			if (network_bind_socket (se, ai_ptr) != 0)
 			{
+				close (se->fd);
 				free (se->addr);
 				free (se);
 				continue;

@@ -127,19 +127,7 @@
 # include <sys/param.h>
 #endif
 
-#if HAVE_SYSLOG
-# define syslog(...) syslog(__VA_ARGS__)
-# if HAVE_OPENLOG
-#  define openlog(...) openlog(__VA_ARGS__)
-# else
-#  define openlog(...) /**/
-# endif
-# if HAVE_CLOSELOG
-#  define closelog(...) closelog(__VA_ARGS__)
-# else
-#  define closelog(...) /**/
-# endif
-#else
+#if !HAVE_SYSLOG
 # define syslog(...) /**/
 # define openlog(...) /**/
 # define closelog(...) /**/
@@ -200,7 +188,7 @@
 #define MODE_LOG    0x08
 
 #ifndef COLLECTD_GRP_NAME
-#	define COLLECTD_GRP_NAME "collectd"
+# define COLLECTD_GRP_NAME "collectd"
 #endif
 
 #ifndef COLLECTD_STEP

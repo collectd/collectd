@@ -40,11 +40,23 @@ Disk and partition usage/throughput (I<disk>)
 
 =item
 
+DNS traffic (I<dns>)
+
+=item
+
+Email usage (I<email>)
+
+=item
+
 Harddisk temperatures (I<hddtemp>)
 
 =item
 
 System load averages (I<load>)
+
+=item
+
+Motherboard monitor (I<mbmon>)
 
 =item
 
@@ -180,6 +192,27 @@ not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
 similar tool is installed and an "cpu governor" (that's kernel module) is
 loaded.
 
+=head2 email
+
+This plugin collects data indirectly by providing a UNIX socket that external
+programs can connect to. A simple line based protocol is used to communicate
+with the plugin:
+
+E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
+
+  e:<type>:<size>
+
+Spam score:
+
+  s:<value>
+
+Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
+
+  c:<type1>[,<type2>,...]
+
+Each line is limited to 256 characters (including the newline character). 
+Longer lines will be ignored.
+
 =head2 mysql
 
 Requires B<mysqlclient> to be installed. It connects to the database when
@@ -203,6 +236,20 @@ L<sensors.conf(5)> for details.
 
 The B<lm_sensors> homepage can be found at
 L<http://secure.netroedge.com/~lm78/>.
+
+=head2 mbmon
+
+The B<mbmon> module uses mbmon to retrieve temperature, voltage, etc.
+
+collectd connects to B<localhost> (127.0.0.1), port B<411/tcp>.
+The B<Host> and B<Port> options can be used to change these
+default values. See L<collectd.conf(5)> for details. C<mbmon> has to be
+running to work correctly. If C<mbmon> is not running timeouts may appear
+which may interfere with other statistics..
+
+C<mbmon> must be run with the -r option ("print TAG and Value format");
+Debian's /etc/init.d/mbmon script already does this, other people
+will need to ensure that this is the case.
 
 =head2 hddtemp
 
@@ -326,6 +373,14 @@ The DS'es depend on the module creating the RRD files:
   DS:wcount:COUNTER:HEARTBEAT:0:U
   DS:wbytes:COUNTER:HEARTBEAT:0:U
 
+=item E-Mail count (F<email/email-I<E<lt>typeE<gt>>.rrd>)
+
+  DS:count:GAUGE:HEARTBEAT:0:U
+
+=item E-Mail size (F<email/email_size-I<E<lt>typeE<gt>>.rrd>)
+
+  DS:size:GAUGE:HEARTBEAT:0:U
+
 =item HDD Temperature (F<hddtemp-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
 
   DS:value:GAUGE:HEARTBEAT:U:U
@@ -438,6 +493,14 @@ The DS'es depend on the module creating the RRD files:
   DS:incoming:COUNTER:HEARTBEAT:0:U
   DS:outgoing:COUNTER:HEARTBEAT:0:U
 
+=item Spam score (F<email/spam_score.rrd>)
+
+  DS:score:GAUGE:HEARTBEAT:0:U
+
+=item Spam checks (F<email/spam_check-I<E<lt>typeE<gt>>.rrd>)
+
+  DS:hits:GAUGE:HEARTBEAT:0:U
+
 =item Swap usage (F<swap.rrd>)
 
   DS:used:GAUGE:HEARTBEAT:0:1099511627776
@@ -516,6 +579,7 @@ The DS'es depend on the module creating the RRD files:
 =head1 SEE ALSO
 
 L<collectd.conf(5)>, L<rrdtool(1)>, L<sensors(1)>, L<hddtemp(8)>,
+L<mbmon(1)>,
 L<kstat(3KSTAT)>
 
 =head1 AUTHOR

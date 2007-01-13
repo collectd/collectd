@@ -155,7 +155,7 @@ endif
 
 if BUILD_MODULE_DNS
 pkglib_LTLIBRARIES += dns.la
-dns_la_SOURCES = dns.c utils_dns.c
+dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
 dns_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBPCAP
 dns_la_LDFLAGS += -lpcap
@@ -215,6 +215,17 @@ load_la_LDFLAGS += -ldevstat
 endif
 load_la_LDFLAGS += -lstatgrab
 endif
+endif
+
+if BUILD_MODULE_MBMON
+pkglib_LTLIBRARIES += mbmon.la
+mbmon_la_SOURCES = mbmon.c
+mbmon_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBSOCKET
+mbmon_la_LDFLAGS += -lsocket
+endif
+collectd_LDADD += "-dlopen" mbmon.la
+collectd_DEPENDENCIES += mbmon.la
 endif
 
 if BUILD_MODULE_MEMORY
