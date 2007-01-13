@@ -29,6 +29,11 @@
 #  include <math.h>
 #endif
 
+/* for ntohl and htonl */
+#if HAVE_ARPA_INET_H
+# include <arpa/inet.h>
+#endif
+
 extern int operating_mode;
 
 #ifdef HAVE_LIBKSTAT
@@ -601,3 +606,21 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 	return (retval);
 }
 #endif /* HAVE_LIBKSTAT */
+
+unsigned long long ntohll (unsigned long long n)
+{
+#if __BYTE_ORDER == __BIG_ENDIAN
+	return (n);
+#else
+	return (((unsigned long long) ntohl (n)) << 32) + ntohl (n >> 32);
+#endif
+}
+
+unsigned long long htonll (unsigned long long n)
+{
+#if __BYTE_ORDER == __BIG_ENDIAN
+	return (n);
+#else
+	return (((unsigned long long) htonl (n)) << 32) + htonl (n >> 32);
+#endif
+}

@@ -152,4 +152,7 @@ int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name);
 long long get_kstat_value (kstat_t *ksp, char *name);
 #endif
 
+unsigned long long ntohll (unsigned long long n);
+unsigned long long htonll (unsigned long long n);
+
 #endif /* COMMON_H */
