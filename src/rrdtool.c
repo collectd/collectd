@@ -4,8 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -23,6 +22,7 @@
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
+#include "utils_debug.h"
 
 /*
  * This weird macro cascade forces the glibc to define `NAN'. I don't know
@@ -158,6 +158,8 @@ static int ds_get (char ***ret, const data_set_t *ds)
 	char max[32];
 	char buffer[128];
 
+	DBG ("ds->ds_num = %i", ds->ds_num);
+
 	ds_def = (char **) malloc (ds->ds_num * sizeof (char *));
 	if (ds_def == NULL)
 	{
@@ -192,7 +194,7 @@ static int ds_get (char ***ret, const data_set_t *ds)
 		}
 		else
 		{
-			snprintf (buffer, sizeof (min), "%lf", d->min);
+			snprintf (min, sizeof (min), "%lf", d->min);
 			min[sizeof (min) - 1] = '\0';
 		}
 
@@ -202,7 +204,7 @@ static int ds_get (char ***ret, const data_set_t *ds)
 		}
 		else
 		{
-			snprintf (buffer, sizeof (max), "%lf", d->max);
+			snprintf (max, sizeof (max), "%lf", d->max);
 			max[sizeof (max) - 1] = '\0';
 		}
 
@@ -214,8 +216,16 @@ static int ds_get (char ***ret, const data_set_t *ds)
 			break;
 
 		ds_def[ds_num] = sstrdup (buffer);
-		ds_num++;
 	} /* for ds_num = 0 .. ds->ds_num */
+
+#if COLLECT_DEBUG
+{
+	int i;
+	DBG ("ds_num = %i", ds_num);
+	for (i = 0; i < ds_num; i++)
+		DBG ("  %s", ds_def[i]);
+}
+#endif
 
 	if (ds_num != ds->ds_num)
 	{
