@@ -72,43 +72,47 @@
 /*
  * (Module-)Global variables
  */
-/* TODO: Move this to `interface-%s/<blah>.rrd' in version 4. */
-static char *bytes_file   = "traffic-%s.rrd";
-static char *packets_file = "interface-%s/if_packets.rrd";
-static char *errors_file  = "interface-%s/if_errors.rrd";
-/* TODO: Maybe implement multicast and broadcast counters */
+/* 2^32 = 4294967296 = ~4.2GByte/s = ~34GBit/s */
+static data_source_t octets_dsrc[2] =
+{
+	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
+};
 
-static char *config_keys[] =
+static data_set_t octets_ds =
+{
+	"if_octets", 2, octets_dsrc
+};
+
+static data_source_t packets_dsrc[2] =
+{
+	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
+};
+
+static data_set_t packets_ds =
+{
+	"if_packets", 2, packets_dsrc
+};
+
+static data_source_t errors_dsrc[2] =
+{
+	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
+};
+
+static data_set_t errors_ds =
+{
+	"if_errors", 2, errors_dsrc
+};
+
+static const char *config_keys[] =
 {
 	"Interface",
 	"IgnoreSelected",
 	NULL
 };
 static int config_keys_num = 2;
-
-static char *bytes_ds_def[] =
-{
-	"DS:incoming:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:outgoing:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int bytes_ds_num = 2;
-
-static char *packets_ds_def[] =
-{
-	"DS:rx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:tx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int packets_ds_num = 2;
-
-static char *errors_ds_def[] =
-{
-	"DS:rx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:tx:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int errors_ds_num = 2;
 
 static char **if_list = NULL;
 static int    if_list_num = 0;
@@ -126,7 +130,7 @@ static kstat_t *ksp[MAX_NUMIF];
 static int numif = 0;
 #endif /* HAVE_LIBKSTAT */
 
-static int traffic_config (char *key, char *value)
+static int interface_config (const char *key, const char *value)
 {
 	char **temp;
 
@@ -164,24 +168,17 @@ static int traffic_config (char *key, char *value)
 	return (0);
 }
 
-static void traffic_init (void)
+#if HAVE_LIBKSTAT
+static int traffic_init (void)
 {
-#if HAVE_GETIFADDRS
-	/* nothing */
-/* #endif HAVE_GETIFADDRS */
-
-#elif KERNEL_LINUX
-	/* nothing */
-/* #endif KERNEL_LINUX */
-
-#elif HAVE_LIBKSTAT
+#if HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
 	unsigned long long val;
 
 	numif = 0;
 
 	if (kc == NULL)
-		return;
+		return (-1);
 
 	for (numif = 0, ksp_chain = kc->kc_chain;
 			(numif < MAX_NUMIF) && (ksp_chain != NULL);
@@ -197,14 +194,11 @@ static void traffic_init (void)
 			continue;
 		ksp[numif++] = ksp_chain;
 	}
-/* #endif HAVE_LIBKSTAT */
+#endif /* HAVE_LIBKSTAT */
 
-#elif HAVE_LIBSTATG
-	/* nothing */
-#endif /* HAVE_LIBSTATG */
-
-	return;
-}
+	return (0);
+} /* int traffic_init */
+#endif /* HAVE_LIBKSTAT */
 
 /*
  * Check if this interface/instance should be ignored. This is called from
@@ -224,101 +218,41 @@ static int check_ignore_if (const char *interface)
 		if (strcasecmp (interface, if_list[i]) == 0)
 			return (if_list_action);
 	return (1 - if_list_action);
-}
-
-static void generic_write (char *host, char *inst, char *val,
-		char *file_template,
-		char **ds_def, int ds_num)
-{
-	char file[512];
-	int status;
-
-	if (check_ignore_if (inst))
-		return;
-
-	status = snprintf (file, BUFSIZE, file_template, inst);
-	if (status < 1)
-		return;
-	else if (status >= 512)
-		return;
-
-	rrd_update_file (host, file, val, ds_def, ds_num);
-}
-
-static void bytes_write (char *host, char *inst, char *val)
-{
-	generic_write (host, inst, val, bytes_file, bytes_ds_def, bytes_ds_num);
-}
-
-static void packets_write (char *host, char *inst, char *val)
-{
-	generic_write (host, inst, val, packets_file, packets_ds_def, packets_ds_num);
-}
-
-static void errors_write (char *host, char *inst, char *val)
-{
-	generic_write (host, inst, val, errors_file, errors_ds_def, errors_ds_num);
-}
+} /* int check_ignore_if */
 
 #if TRAFFIC_HAVE_READ
-static void bytes_submit (char *dev,
+static void if_submit (const char *dev, const char *type,
 		unsigned long long rx,
 		unsigned long long tx)
 {
-	char buf[512];
-	int  status;
+	value_t values[2];
+	value_list_t vl;
 
 	if (check_ignore_if (dev))
 		return;
 
-	status = snprintf (buf, 512, "%u:%lld:%lld",
-				(unsigned int) curtime,
-				rx, tx);
-	if ((status >= 512) || (status < 1))
+	values[0].counter = rx;
+	values[1].counter = tx;
+
+	vl.values = values;
+	vl.values_len = 2;
+	vl.time = time (NULL);
+
+	/* FIXME: do this globally */
+	if (gethostname (vl.host, sizeof (vl.host)) != 0)
+	{
+		syslog (LOG_ERR, "load plugin: gethostname failed: %s",
+				strerror (errno));
 		return;
+	}
+	strcpy (vl.plugin, "interface");
+	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type_instance, dev, sizeof (vl.type_instance));
 
-	plugin_submit (MODULE_NAME, dev, buf);
-}
+	plugin_dispatch_values (type, &vl);
+} /* void if_submit */
 
-#if HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT
-static void packets_submit (char *dev,
-		unsigned long long rx,
-		unsigned long long tx)
-{
-	char buf[512];
-	int  status;
-
-	if (check_ignore_if (dev))
-		return;
-
-	status = snprintf (buf, 512, "%u:%lld:%lld",
-			(unsigned int) curtime,
-			rx, tx);
-	if ((status >= 512) || (status < 1))
-		return;
-	plugin_submit ("if_packets", dev, buf);
-}
-
-static void errors_submit (char *dev,
-		unsigned long long rx,
-		unsigned long long tx)
-{
-	char buf[512];
-	int  status;
-
-	if (check_ignore_if (dev))
-		return;
-
-	status = snprintf (buf, 512, "%u:%lld:%lld",
-			(unsigned int) curtime,
-			rx, tx);
-	if ((status >= 512) || (status < 1))
-		return;
-	plugin_submit ("if_errors", dev, buf);
-}
-#endif /* HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT */
-
-static void traffic_read (void)
+static int traffic_read (void)
 {
 #if HAVE_GETIFADDRS
 	struct ifaddrs *if_list;
@@ -357,13 +291,13 @@ static void traffic_read (void)
 		if ((if_data = (struct IFA_DATA *) if_ptr->ifa_data) == NULL)
 			continue;
 
-		bytes_submit (if_ptr->ifa_name,
+		if_submit (if_ptr->ifa_name, "if_octets",
 				if_data->IFA_RX_BYTES,
 				if_data->IFA_TX_BYTES);
-		packets_submit (if_ptr->ifa_name,
+		if_submit (if_ptr->ifa_name, "if_packets",
 				if_data->IFA_RX_PACKT,
 				if_data->IFA_TX_PACKT);
-		errors_submit (if_ptr->ifa_name,
+		if_submit (if_ptr->ifa_name, "if_errors",
 				if_data->IFA_RX_ERROR,
 				if_data->IFA_TX_ERROR);
 	}
@@ -384,7 +318,7 @@ static void traffic_read (void)
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
 		syslog (LOG_WARNING, "traffic: fopen: %s", strerror (errno));
-		return;
+		return (-1);
 	}
 
 	while (fgets (buffer, 1024, fh) != NULL)
@@ -408,15 +342,15 @@ static void traffic_read (void)
 
 		incoming = atoll (fields[0]);
 		outgoing = atoll (fields[8]);
-		bytes_submit (device, incoming, outgoing);
+		if_submit (device, "if_octets", incoming, outgoing);
 
 		incoming = atoll (fields[1]);
 		outgoing = atoll (fields[9]);
-		packets_submit (device, incoming, outgoing);
+		if_submit (device, "if_packets", incoming, outgoing);
 
 		incoming = atoll (fields[2]);
 		outgoing = atoll (fields[10]);
-		errors_submit (device, incoming, outgoing);
+		if_submit (device, "if_errors", incoming, outgoing);
 	}
 
 	fclose (fh);
@@ -438,17 +372,17 @@ static void traffic_read (void)
 		rx = get_kstat_value (ksp[i], "rbytes");
 		tx = get_kstat_value (ksp[i], "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
-			bytes_submit (ksp[i]->ks_name, rx, tx);
+			if_submit (ksp[i]->ks_name, "if_octets", rx, tx);
 
 		rx = get_kstat_value (ksp[i], "ipackets");
 		tx = get_kstat_value (ksp[i], "opackets");
 		if ((rx != -1LL) || (tx != -1LL))
-			packets_submit (ksp[i]->ks_name, rx, tx);
+			if_submit (ksp[i]->ks_name, "if_packets", rx, tx);
 
 		rx = get_kstat_value (ksp[i], "ierrors");
 		tx = get_kstat_value (ksp[i], "oerrors");
 		if ((rx != -1LL) || (tx != -1LL))
-			errors_submit (ksp[i]->ks_name, rx, tx);
+			if_submit (ksp[i]->ks_name, "if_errors", rx, tx);
 	}
 /* #endif HAVE_LIBKSTAT */
 
@@ -459,19 +393,29 @@ static void traffic_read (void)
 	ios = sg_get_network_io_stats (&num);
 
 	for (i = 0; i < num; i++)
-		bytes_submit (ios[i].interface_name, ios[i].rx, ios[i].tx);
+		if_submit (ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
 #endif /* HAVE_LIBSTATGRAB */
-}
-#else
-#define traffic_read NULL
+
+	return (0);
+} /* int traffic_read */
 #endif /* TRAFFIC_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, traffic_init, traffic_read, bytes_write);
-	plugin_register ("if_packets", NULL, NULL, packets_write);
-	plugin_register ("if_errors",  NULL, NULL, errors_write);
-	cf_register (MODULE_NAME, traffic_config, config_keys, config_keys_num);
+	plugin_register_data_set (&octets_ds);
+	plugin_register_data_set (&packets_ds);
+	plugin_register_data_set (&errors_ds);
+
+	plugin_register_config ("interface", interface_config,
+			config_keys, config_keys_num);
+
+#if HAVE_LIBKSTAT
+	plugin_register_init ("interface", traffic_init);
+#endif
+
+#if TRAFFIC_HAVE_READ
+	plugin_register_read ("interface", traffic_read);
+#endif
 }
 
 #undef BUFSIZE
