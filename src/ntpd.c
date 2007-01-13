@@ -51,8 +51,8 @@
 #if HAVE_NETINET_TCP_H
 # include <netinet/tcp.h>
 #endif
-#if HAVE_SYS_POLL_H
-# include <sys/poll.h>
+#if HAVE_POLL_H
+# include <poll.h>
 #endif
 
 static char *config_keys[] =

@@ -32,7 +32,7 @@
 #if HAVE_LIBPCAP && HAVE_LIBPTHREAD
 # include <pthread.h>
 # include <pcap.h>
-# include <sys/poll.h>
+# include <poll.h>
 # define DNS_HAVE_READ 1
 #else
 # define DNS_HAVE_READ 0
