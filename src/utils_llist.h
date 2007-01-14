@@ -49,6 +49,7 @@ void llentry_destroy (llentry_t *e);
 
 void llist_append (llist_t *l, llentry_t *e);
 void llist_prepend (llist_t *l, llentry_t *e);
+void llist_remove (llist_t *l, llentry_t *e);
 
 llentry_t *llist_search (llist_t *l, const char *key);
 

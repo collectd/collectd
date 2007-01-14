@@ -110,6 +110,22 @@ void llist_prepend (llist_t *l, llentry_t *e)
 	l->head = e;
 }
 
+void llist_remove (llist_t *l, llentry_t *e)
+{
+	llentry_t *prev;
+
+	prev = l->head;
+	while ((prev != NULL) && (prev->next != e))
+		prev = prev->next;
+
+	if (prev != NULL)
+		prev->next = e->next;
+	if (l->head == e)
+		l->head = e->next;
+	if (l->tail == e)
+		l->tail = prev;
+}
+
 llentry_t *llist_search (llist_t *l, const char *key)
 {
 	llentry_t *e;
