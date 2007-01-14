@@ -306,6 +306,20 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =back
 
+=head2 Plugin C<rrdtool>
+
+=over 4
+
+=item B<CacheTimeout> I<Seconds>
+
+If this option is set to a value greater than zero, the C<rrdtool>-plugin will
+write values every I<Seconds> seconds to the RRD-files. Writing multiple values
+at once reduces IO-operations and thus lessens the load produced by updating
+the files. The tradeoff is that the graphs kind of "drag behind" and that more
+memory is used.
+
+=back
+
 =head2 Plugin C<sensors>
 
 =over 4
