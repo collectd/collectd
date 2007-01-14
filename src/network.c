@@ -865,7 +865,7 @@ int network_receive (void)
 
 static void *receive_thread (void *arg)
 {
-	return ((void *) network_receive ());
+	return (network_receive () ? (void *) 1 : (void *) 0);
 } /* void *receive_thread */
 
 #if 0
