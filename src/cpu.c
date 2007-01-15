@@ -4,8 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,8 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_debug.h"
-
-#define MODULE_NAME "cpu"
 
 #ifdef HAVE_MACH_KERN_RETURN_H
 # include <mach/kern_return.h>
@@ -78,6 +75,21 @@
 # define CPU_HAVE_READ 0
 #endif
 
+static data_source_t dsrc[5] =
+{
+	{"user", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"nice", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"syst", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"idle", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"wait", DS_TYPE_COUNTER, 0, 4294967295.0}
+};
+
+static data_set_t ds =
+{
+	"cpu", 5, dsrc
+};
+
+#if CPU_HAVE_READ
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
@@ -106,20 +118,7 @@ static int numcpu;
 static int numcpu;
 #endif /* HAVE_SYSCTLBYNAME */
 
-static char *cpu_filename = "cpu-%s.rrd";
-
-static char *ds_def[] =
-{
-	"DS:user:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:nice:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:syst:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:idle:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:wait:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int ds_num = 5;
-
-static void cpu_init (void)
+static int init (void)
 {
 #if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
 	kern_return_t status;
@@ -132,7 +131,7 @@ static void cpu_init (void)
 	{
 		syslog (LOG_ERR, "cpu-plugin: host_processors returned %i\n", (int) status);
 		cpu_list_len = 0;
-		return;
+		return (-1);
 	}
 
 	DBG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
@@ -150,7 +149,7 @@ static void cpu_init (void)
 	numcpu = 0;
 
 	if (kc == NULL)
-		return;
+		return (-1);
 
 	/* Solaris doesn't count linear.. *sigh* */
 	for (numcpu = 0, ksp_chain = kc->kc_chain;
@@ -168,49 +167,43 @@ static void cpu_init (void)
 	if (sysctlbyname ("hw.ncpu", &numcpu, &numcpu_size, NULL, 0) < 0)
 	{
 		syslog (LOG_WARNING, "cpu: sysctlbyname: %s", strerror (errno));
-		return;
+		return (-1);
 	}
 
 	if (numcpu != 1)
 		syslog (LOG_NOTICE, "cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
 #endif
 
-	return;
-}
+	return (0);
+} /* int init */
 
-static void cpu_write (char *host, char *inst, char *val)
-{
-	char file[512];
-	int status;
-
-	status = snprintf (file, 512, cpu_filename, inst);
-	if (status < 1)
-		return;
-	else if (status >= 512)
-		return;
-
-	rrd_update_file (host, file, val, ds_def, ds_num);
-}
-
-#if CPU_HAVE_READ
-#define BUFSIZE 512
-static void cpu_submit (int cpu_num, unsigned long long user,
+static void submit (int cpu_num, unsigned long long user,
 		unsigned long long nice, unsigned long long syst,
 		unsigned long long idle, unsigned long long wait)
 {
-	char buf[BUFSIZE];
-	char cpu[16];
+	value_t values[5];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	if (snprintf (buf, BUFSIZE, "%u:%llu:%llu:%llu:%llu:%llu", (unsigned int) curtime,
-				user, nice, syst, idle, wait) >= BUFSIZE)
-		return;
-	snprintf (cpu, 16, "%i", cpu_num);
+	values[0].counter = user;
+	values[1].counter = nice;
+	values[2].counter = syst;
+	values[3].counter = idle;
+	values[4].counter = wait;
 
-	plugin_submit (MODULE_NAME, cpu, buf);
+	vl.values = values;
+	vl.values_len = 2;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "cpu");
+	strcpy (vl.plugin_instance, "");
+	snprintf (vl.type_instance, sizeof (vl.type_instance),
+			"%i", cpu_num);
+	vl.type_instance[DATA_MAX_NAME_LEN - 1] = '\0';
+
+	plugin_dispatch_values ("cpu", &vl);
 }
-#undef BUFSIZE
 
-static void cpu_read (void)
+static int cpu_read (void)
 {
 #if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
 	int cpu;
@@ -238,7 +231,7 @@ static void cpu_read (void)
 						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
 						(processor_info_t) &cpu_info, &cpu_info_len)) != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "cpu-plugin: processor_info failed with status %i\n", (int) status);
+			syslog (LOG_ERR, "cpu plugin: processor_info failed with status %i\n", (int) status);
 			continue;
 		}
 
@@ -248,7 +241,7 @@ static void cpu_read (void)
 			continue;
 		}
 
-		cpu_submit (cpu, cpu_info.cpu_ticks[CPU_STATE_USER],
+		submit (cpu, cpu_info.cpu_ticks[CPU_STATE_USER],
 				cpu_info.cpu_ticks[CPU_STATE_NICE],
 				cpu_info.cpu_ticks[CPU_STATE_SYSTEM],
 				cpu_info.cpu_ticks[CPU_STATE_IDLE],
@@ -302,12 +295,11 @@ static void cpu_read (void)
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
-# define BUFSIZE 1024
 	int cpu;
 	unsigned long long user, nice, syst, idle;
 	unsigned long long wait, intr, sitr; /* sitr == soft interrupt */
 	FILE *fh;
-	char buf[BUFSIZE];
+	char buf[1024];
 
 	char *fields[9];
 	int numfields;
@@ -319,13 +311,13 @@ static void cpu_read (void)
 		plugin_complain (LOG_ERR, &complain_obj, "cpu plugin: "
 				"fopen (/proc/stat) failed: %s",
 				strerror (errno));
-		return;
+		return (-1);
 	}
 
 	plugin_relief (LOG_NOTICE, &complain_obj, "cpu plugin: "
 			"fopen (/proc/stat) succeeded.");
 
-	while (fgets (buf, BUFSIZE, fh) != NULL)
+	while (fgets (buf, 1024, fh) != NULL)
 	{
 		if (strncmp (buf, "cpu", 3))
 			continue;
@@ -357,11 +349,10 @@ static void cpu_read (void)
 			wait = 0LL;
 		}
 
-		cpu_submit (cpu, user, nice, syst, idle, wait);
+		submit (cpu, user, nice, syst, idle, wait);
 	}
 
 	fclose (fh);
-#undef BUFSIZE
 /* #endif defined(KERNEL_LINUX) */
 
 #elif defined(HAVE_LIBKSTAT)
@@ -382,7 +373,7 @@ static void cpu_read (void)
 		syst = (unsigned long long) cs.cpu_sysinfo.cpu[CPU_KERNEL];
 		wait = (unsigned long long) cs.cpu_sysinfo.cpu[CPU_WAIT];
 
-		cpu_submit (ksp[cpu]->ks_instance,
+		submit (ksp[cpu]->ks_instance,
 				user, 0LL, syst, idle, wait);
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
@@ -409,18 +400,19 @@ static void cpu_read (void)
 	cpuinfo[CP_SYS] += cpuinfo[CP_INTR];
 
 	/* FIXME: Instance is always `0' */
-	cpu_submit (0, cpuinfo[CP_USER], cpuinfo[CP_NICE], cpuinfo[CP_SYS], cpuinfo[CP_IDLE], 0LL);
+	submit (0, cpuinfo[CP_USER], cpuinfo[CP_NICE], cpuinfo[CP_SYS], cpuinfo[CP_IDLE], 0LL);
 #endif
 
-	return;
+	return (0);
 }
-#else
-# define cpu_read NULL
 #endif /* CPU_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, cpu_init, cpu_read, cpu_write);
-}
+	plugin_register_data_set (&ds);
 
-#undef MODULE_NAME
+#if CPU_HAVE_READ
+	plugin_register_init ("cpu", init);
+	plugin_register_read ("cpu", cpu_read);
+#endif /* CPU_HAVE_READ */
+}
