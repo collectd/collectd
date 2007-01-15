@@ -374,7 +374,7 @@ static int parse_packet (void *buffer, int buffer_len)
 	part_header_t *header;
 	int status;
 
-	value_list_t vl;
+	value_list_t vl = VALUE_LIST_INIT;
 	char type[DATA_MAX_NAME_LEN];
 
 	DBG ("buffer = %p; buffer_len = %i;", buffer, buffer_len);

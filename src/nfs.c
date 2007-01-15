@@ -199,7 +199,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 	       	unsigned long long *val, const char **names, int len)
 {
 	value_t values[1];
-	value_list_t vl;
+	value_list_t vl = VALUE_LIST_INIT;
 	int i;
 
 	vl.values = values;

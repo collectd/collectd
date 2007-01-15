@@ -60,7 +60,7 @@ static data_set_t ds =
 static void load_submit (double snum, double mnum, double lnum)
 {
 	value_t values[3];
-	value_list_t vl;
+	value_list_t vl = VALUE_LIST_INIT;
 
 	values[0].gauge = snum;
 	values[1].gauge = mnum;

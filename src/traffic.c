@@ -226,7 +226,7 @@ static void if_submit (const char *dev, const char *type,
 		unsigned long long tx)
 {
 	value_t values[2];
-	value_list_t vl;
+	value_list_t vl = VALUE_LIST_INIT;
 
 	if (check_ignore_if (dev))
 		return;

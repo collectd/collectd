@@ -52,6 +52,8 @@ struct value_list_s
 };
 typedef struct value_list_s value_list_t;
 
+#define VALUE_LIST_INIT { NULL, 0, 0, "localhost", "", "", "" }
+
 struct data_source_s
 {
 	char   name[DATA_MAX_NAME_LEN];
