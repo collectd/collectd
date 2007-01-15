@@ -39,6 +39,7 @@
 @BUILD_MODULE_NTPD_TRUE@LoadPlugin ntpd
 @BUILD_MODULE_PING_TRUE@LoadPlugin ping
 @BUILD_MODULE_PROCESSES_TRUE@LoadPlugin processes
+@BUILD_WITH_RRDTOOL_TRUE@LoadPlugin rrdtool
 @BUILD_MODULE_SENSORS_TRUE@LoadPlugin sensors
 @BUILD_MODULE_SERIAL_TRUE@LoadPlugin serial
 @BUILD_MODULE_SWAP_TRUE@LoadPlugin swap
@@ -93,6 +94,10 @@
 
 #<Plugin processes>
 #	Process name
+#</Plugin>
+
+#<Plugin rrdtool>
+#	CacheTimeout 120
 #</Plugin>
 
 ## There are two different naming schemes for the sensors plugin, to preserver
