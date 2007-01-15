@@ -205,13 +205,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	/* FIXME: do this globally */
-	if (gethostname (vl.host, sizeof (vl.host)) != 0)
-	{
-		syslog (LOG_ERR, "load plugin: gethostname failed: %s",
-				strerror (errno));
-		return;
-	}
+	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, "nfs");
 	strncpy (vl.plugin_instance, plugin_instance,
 		       	sizeof (vl.plugin_instance));
