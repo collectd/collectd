@@ -4,8 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -47,8 +46,6 @@
 #  include <ifaddrs.h>
 #endif
 
-#define MODULE_NAME "traffic"
-
 /*
  * Various people have reported problems with `getifaddrs' and varying versions
  * of `glibc'. That's why it's disabled by default. Since more statistics are
@@ -66,8 +63,6 @@
 #else
 # define TRAFFIC_HAVE_READ 0
 #endif
-
-#define BUFSIZE 512
 
 /*
  * (Module-)Global variables
@@ -410,6 +405,3 @@ void module_register (void)
 	plugin_register_read ("interface", traffic_read);
 #endif
 }
-
-#undef BUFSIZE
-#undef MODULE_NAME
