@@ -4,8 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,8 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-
-#define MODULE_NAME "apache"
+#include "utils_debug.h"
 
 #if HAVE_LIBCURL && HAVE_CURL_CURL_H
 #  define APACHE_HAVE_READ 1
@@ -34,48 +32,53 @@
 #  define APACHE_HAVE_READ 0
 #endif
 
+/* Limit to 2^27 bytes/s. That's what a gigabit-ethernet link can handle, in
+ * theory. */
+static data_source_t apache_bytes_dsrc[1] =
+{
+	{"count", DS_TYPE_COUNTER, 0, 134217728.0},
+};
+
+static data_set_t apache_bytes_ds =
+{
+	"apache_bytes", 1, apache_bytes_dsrc
+};
+
+/* Limit to 2^20 requests/s */
+static data_source_t apache_requests_dsrc[1] =
+{
+	{"count", DS_TYPE_COUNTER, 0, 134217728.0},
+};
+
+static data_set_t apache_requests_ds =
+{
+	"apache_requests", 1, apache_requests_dsrc
+};
+
+static data_source_t apache_scoreboard_dsrc[1] =
+{
+	{"count", DS_TYPE_GAUGE, 0, 65535.0},
+};
+
+static data_set_t apache_scoreboard_ds =
+{
+	"apache_scoreboard", 1, apache_scoreboard_dsrc
+};
+
+#if APACHE_HAVE_READ
 static char *url    = NULL;
 static char *user   = NULL;
 static char *pass   = NULL;
 static char *cacert = NULL;
 
-#if HAVE_LIBCURL
 static CURL *curl = NULL;
 
 #define ABUFFER_SIZE 16384
 static char apache_buffer[ABUFFER_SIZE];
 static int  apache_buffer_len = 0;
 static char apache_curl_error[CURL_ERROR_SIZE];
-#endif /* HAVE_LIBCURL */
 
-/* Limit to 2^27 bytes/s. That's what a gigabit-ethernet link can handle, in
- * theory. */
-static char *bytes_file = "apache/apache_bytes.rrd";
-static char *bytes_ds_def[] =
-{
-	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:134217728",
-	NULL
-};
-static int bytes_ds_num = 1;
-
-/* Limit to 2^20 requests/s */
-static char *requests_file = "apache/apache_requests.rrd";
-static char *requests_ds_def[] =
-{
-	"DS:count:COUNTER:"COLLECTD_HEARTBEAT":0:1048576",
-	NULL
-};
-static int requests_ds_num = 1;
-
-static char *scoreboard_file = "apache/apache_scoreboard-%s.rrd";
-static char *scoreboard_ds_def[] =
-{
-	"DS:count:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int scoreboard_ds_num = 1;
-
-static char *config_keys[] =
+static const char *config_keys[] =
 {
 	"URL",
 	"User",
@@ -85,7 +88,6 @@ static char *config_keys[] =
 };
 static int config_keys_num = 4;
 
-#if HAVE_LIBCURL
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *stream)
 {
 	size_t len = size * nmemb;
@@ -104,9 +106,8 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *
 
 	return (len);
 }
-#endif /* HAVE_LIBCURL */
 
-static int config_set (char **var, char *value)
+static int config_set (char **var, const char *value)
 {
 	if (*var != NULL)
 	{
@@ -120,7 +121,7 @@ static int config_set (char **var, char *value)
 		return (0);
 }
 
-static int config (char *key, char *value)
+static int config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "url") == 0)
 		return (config_set (&url, value));
@@ -134,9 +135,8 @@ static int config (char *key, char *value)
 		return (-1);
 }
 
-static void init (void)
+static int init (void)
 {
-#if HAVE_LIBCURL
 	static char credentials[1024];
 
 	if (curl != NULL)
@@ -147,7 +147,7 @@ static void init (void)
 	if ((curl = curl_easy_init ()) == NULL)
 	{
 		syslog (LOG_ERR, "apache: `curl_easy_init' failed.");
-		return;
+		return (-1);
 	}
 
 	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, apache_curl_callback);
@@ -159,7 +159,7 @@ static void init (void)
 		if (snprintf (credentials, 1024, "%s:%s", user, pass == NULL ? "" : pass) >= 1024)
 		{
 			syslog (LOG_ERR, "apache: Credentials would have been truncated.");
-			return;
+			return (-1);
 		}
 
 		curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
@@ -174,49 +174,53 @@ static void init (void)
 	{
 		curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
 	}
-#endif /* HAVE_LIBCURL */
-}
 
-static void bytes_write (char *host, char *inst, char *val)
+	return (0);
+} /* int init */
+
+static void submit_counter (const char *type, const char *type_instance,
+		unsigned long long value)
 {
-	rrd_update_file (host, bytes_file, val, bytes_ds_def, bytes_ds_num);
-}
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-static void requests_write (char *host, char *inst, char *val)
+	DBG ("type = %s; type_instance = %s; value = %llu;",
+			type, type_instance, value);
+
+	values[0].counter = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "apache");
+	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (type, &vl);
+} /* void submit_counter */
+
+static void submit_gauge (const char *type, const char *type_instance,
+		double value)
 {
-	rrd_update_file (host, requests_file, val, requests_ds_def, requests_ds_num);
-}
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-static void scoreboard_write (char *host, char *inst, char *val)
-{
-	char buf[1024];
+	DBG ("type = %s; type_instance = %s; value = %lf;",
+			type, type_instance, value);
 
-	if (snprintf (buf, 1024, scoreboard_file, inst) >= 1024)
-		return;
+	values[0].gauge = value;
 
-	rrd_update_file (host, buf, val, scoreboard_ds_def, scoreboard_ds_num);
-}
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "apache");
+	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-#if APACHE_HAVE_READ
-static void submit (char *type, char *inst, long long value)
-{
-	char buf[1024];
-	int  status;
-
-	status = snprintf (buf, 1024, "%u:%lli", (unsigned int) curtime, value);
-	if (status < 0)
-	{
-		syslog (LOG_ERR, "apache: bytes_submit: snprintf failed");
-		return;
-	}
-	else if (status >= 1024)
-	{
-		syslog (LOG_WARNING, "apache: bytes_submit: snprintf was truncated");
-		return;
-	}
-
-	plugin_submit (type, inst, buf);
-}
+	plugin_dispatch_values (type, &vl);
+} /* void submit_counter */
 
 static void submit_scoreboard (char *buf)
 {
@@ -256,20 +260,20 @@ static void submit_scoreboard (char *buf)
 		else if (buf[i] == 'I') idle_cleanup++;
 	}
 
-	submit ("apache_scoreboard", "open"     , open);
-	submit ("apache_scoreboard", "waiting"  , waiting);
-	submit ("apache_scoreboard", "starting" , starting);
-	submit ("apache_scoreboard", "reading"  , reading);
-	submit ("apache_scoreboard", "sending"  , sending);
-	submit ("apache_scoreboard", "keepalive", keepalive);
-	submit ("apache_scoreboard", "dnslookup", dnslookup);
-	submit ("apache_scoreboard", "closing"  , closing);
-	submit ("apache_scoreboard", "logging"  , logging);
-	submit ("apache_scoreboard", "finishing", finishing);
-	submit ("apache_scoreboard", "idle_cleanup", idle_cleanup);
+	submit_gauge ("apache_scoreboard", "open"     , open);
+	submit_gauge ("apache_scoreboard", "waiting"  , waiting);
+	submit_gauge ("apache_scoreboard", "starting" , starting);
+	submit_gauge ("apache_scoreboard", "reading"  , reading);
+	submit_gauge ("apache_scoreboard", "sending"  , sending);
+	submit_gauge ("apache_scoreboard", "keepalive", keepalive);
+	submit_gauge ("apache_scoreboard", "dnslookup", dnslookup);
+	submit_gauge ("apache_scoreboard", "closing"  , closing);
+	submit_gauge ("apache_scoreboard", "logging"  , logging);
+	submit_gauge ("apache_scoreboard", "finishing", finishing);
+	submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup);
 }
 
-static void apache_read (void)
+static int apache_read (void)
 {
 	int i;
 
@@ -281,15 +285,16 @@ static void apache_read (void)
 	int   fields_num;
 
 	if (curl == NULL)
-		return;
+		return (-1);
 	if (url == NULL)
-		return;
+		return (-1);
 
 	apache_buffer_len = 0;
 	if (curl_easy_perform (curl) != 0)
 	{
-		syslog (LOG_WARNING, "apache: curl_easy_perform failed: %s", apache_curl_error);
-		return;
+		syslog (LOG_ERR, "apache: curl_easy_perform failed: %s",
+				apache_curl_error);
+		return (-1);
 	}
 
 	ptr = apache_buffer;
@@ -310,10 +315,12 @@ static void apache_read (void)
 		{
 			if ((strcmp (fields[0], "Total") == 0)
 					&& (strcmp (fields[1], "Accesses:") == 0))
-				submit ("apache_requests", NULL, atoll (fields[2]));
+				submit_counter ("apache_requests", "",
+						atoll (fields[2]));
 			else if ((strcmp (fields[0], "Total") == 0)
 					&& (strcmp (fields[1], "kBytes:") == 0))
-				submit ("apache_bytes", NULL, 1024LL * atoll (fields[2]));
+				submit_counter ("apache_bytes", "",
+						1024LL * atoll (fields[2]));
 		}
 		else if (fields_num == 2)
 		{
@@ -323,18 +330,21 @@ static void apache_read (void)
 	}
 
 	apache_buffer_len = 0;
-}
-#else
-#  define apache_read NULL
+
+	return (0);
+} /* int apache_read */
 #endif /* APACHE_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, init, apache_read, NULL);
-	plugin_register ("apache_requests",   NULL, NULL, requests_write);
-	plugin_register ("apache_bytes",      NULL, NULL, bytes_write);
-	plugin_register ("apache_scoreboard", NULL, NULL, scoreboard_write);
-	cf_register (MODULE_NAME, config, config_keys, config_keys_num);
-}
+	plugin_register_data_set (&apache_bytes_ds);
+	plugin_register_data_set (&apache_requests_ds);
+	plugin_register_data_set (&apache_scoreboard_ds);
 
-#undef MODULE_NAME
+#if APACHE_HAVE_READ
+	plugin_register_config ("apache", config,
+			config_keys, config_keys_num);
+	plugin_register_init ("apache", init);
+	plugin_register_read ("apache", apache_read);
+#endif
+}
