@@ -60,7 +60,7 @@ static data_set_t ds =
 static void load_submit (double snum, double mnum, double lnum)
 {
 	value_t values[3];
-	value_list_t vl;
+	value_list_t vl = VALUE_LIST_INIT;
 
 	values[0].gauge = snum;
 	values[1].gauge = mnum;
@@ -69,13 +69,7 @@ static void load_submit (double snum, double mnum, double lnum)
 	vl.values = values;
 	vl.values_len = 3;
 	vl.time = time (NULL);
-	/* FIXME: do this globally */
-	if (gethostname (vl.host, sizeof (vl.host)) != 0)
-	{
-		syslog (LOG_ERR, "load plugin: gethostname failed: %s",
-				strerror (errno));
-		return;
-	}
+	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, "load");
 	strcpy (vl.plugin_instance, "");
 	strcpy (vl.type_instance, "");

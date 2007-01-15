@@ -39,6 +39,8 @@ static llist_t *list_data_set;
 
 static char *plugindir = NULL;
 
+char hostname[DATA_MAX_NAME_LEN] = "localhost";
+
 /*
  * Static functions
  */
@@ -238,6 +240,8 @@ void plugin_init_all (void)
 	int (*callback) (void);
 	llentry_t *le;
 
+	gethostname (hostname, sizeof (hostname));
+
 	if (list_init == NULL)
 		return;
 
@@ -298,7 +302,10 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 
 	le = llist_search (list_data_set, name);
 	if (le == NULL)
+	{
+		DBG ("No such dataset registered: %s", name);
 		return (-1);
+	}
 
 	ds = (data_set_t *) le->value;
 

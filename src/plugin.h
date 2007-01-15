@@ -52,6 +52,8 @@ struct value_list_s
 };
 typedef struct value_list_s value_list_t;
 
+#define VALUE_LIST_INIT { NULL, 0, 0, "localhost", "", "", "" }
+
 struct data_source_s
 {
 	char   name[DATA_MAX_NAME_LEN];
@@ -74,6 +76,8 @@ typedef struct complain_s
 	unsigned int interval; /* how long we wait for reporting this error again */
 	unsigned int delay;    /* how many more iterations we still need to wait */
 } complain_t;
+
+extern char hostname[DATA_MAX_NAME_LEN];
 
 /*
  * NAME

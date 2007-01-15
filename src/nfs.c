@@ -4,8 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,6 +23,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_debug.h"
 
 #define MODULE_NAME "nfs"
 
@@ -33,9 +33,6 @@
 #else
 # define NFS_HAVE_READ 0
 #endif
-
-static char *nfs2_procedures_file  = "nfs2_procedures-%s.rrd";
-static char *nfs3_procedures_file  = "nfs3_procedures-%s.rrd";
 
 /*
 see /proc/net/rpc/nfs
@@ -82,57 +79,67 @@ Number      Procedures  Procedures
 21                      commit
 */
 
-static char *nfs2_procedures_ds_def[] =
+static data_source_t procedure_dsrc[1] =
 {
-	"DS:null:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:getattr:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:setattr:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:root:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:lookup:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:readlink:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:read:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:wrcache:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:write:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:create:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:remove:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:rename:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:link:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:symlink:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:mkdir:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:rmdir:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:readdir:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:fsstat:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	NULL
+	{"value", DS_TYPE_COUNTER, 0, 4294967295.0}
 };
-static int nfs2_procedures_ds_num = 18;
 
-static char *nfs3_procedures_ds_def[] =
+static data_set_t procedure_ds =
 {
-	"DS:null:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:getattr:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:setattr:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:lookup:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:access:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:readlink:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:read:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:write:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:create:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:mkdir:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:symlink:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:mknod:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:remove:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:rmdir:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:rename:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:link:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:readdir:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:readdirplus:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:fsstat:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:fsinfo:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:pathconf:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:commit:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"nfs_procedure", 1, procedure_dsrc
+};
+
+static const char *nfs2_procedures_names[] =
+{
+	"null",
+	"getattr",
+	"setattr",
+	"root",
+	"lookup",
+	"readlink",
+	"read",
+	"wrcache",
+	"write",
+	"create",
+	"remove",
+	"rename",
+	"link",
+	"symlink",
+	"mkdir",
+	"rmdir",
+	"readdir",
+	"fsstat",
 	NULL
 };
-static int nfs3_procedures_ds_num = 22;
+static int nfs2_procedures_names_num = 18;
+
+static const char *nfs3_procedures_names[] =
+{
+	"null",
+	"getattr",
+	"setattr",
+	"lookup",
+	"access",
+	"readlink",
+	"read",
+	"write",
+	"create",
+	"mkdir",
+	"symlink",
+	"mknod",
+	"remove",
+	"rmdir",
+	"rename",
+	"link",
+	"readdir",
+	"readdirplus",
+	"fsstat",
+	"fsinfo",
+	"pathconf",
+	"commit",
+	NULL
+};
+static int nfs3_procedures_names_num = 22;
 
 #if HAVE_LIBKSTAT && 0
 extern kstat_ctl_t *kc;
@@ -146,7 +153,8 @@ static kstat_t *nfs4_ksp_server;
 
 /* Possibly TODO: NFSv4 statistics */
 
-static void nfs_init (void)
+#if 0
+static int nfs_init (void)
 {
 #if HAVE_LIBKSTAT && 0
 	kstat_t *ksp_chain;
@@ -181,88 +189,46 @@ static void nfs_init (void)
 	}
 #endif
 
-	return;
-}
+	return (0);
+} /* int nfs_init */
+#endif
 
 #define BUFSIZE 1024
-static void nfs2_procedures_write (char *host, char *inst, char *val)
-{
-	char filename[BUFSIZE];
-
-	if (snprintf (filename, BUFSIZE, nfs2_procedures_file, inst) > BUFSIZE)
-		return;
-
-	rrd_update_file (host, filename, val, nfs2_procedures_ds_def,
-			nfs2_procedures_ds_num);
-}
-
-static void nfs3_procedures_write (char *host, char *inst, char *val)
-{
-	char filename[BUFSIZE];
-
-	if (snprintf (filename, BUFSIZE, nfs3_procedures_file, inst) > BUFSIZE)
-		return;
-
-	rrd_update_file (host, filename, val, nfs3_procedures_ds_def,
-			nfs3_procedures_ds_num);
-}
-
 #if NFS_HAVE_READ
-static void nfs2_procedures_submit (unsigned long long *val, char *inst)
+static void nfs_procedures_submit (const char *plugin_instance,
+	       	unsigned long long *val, const char **names, int len)
 {
-	char buf[BUFSIZE];
-	int retval = 0;
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+	int i;
 
-	retval = snprintf (buf, BUFSIZE, "%u:%llu:%llu:%llu:%llu:%llu:%llu:"
-			"%llu:%llu:%llu:%llu:%llu:%llu:%llu:%llu:%llu:"
-			"%llu:%llu:%llu", /* 18x %llu */
-			(unsigned int) curtime,
-			val[0], val[1], val[2], val[3], val[4], val[5], val[6],
-			val[7], val[8], val[9], val[10], val[11], val[12],
-			val[13], val[14], val[15], val[16], val[17]);
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "nfs");
+	strncpy (vl.plugin_instance, plugin_instance,
+		       	sizeof (vl.plugin_instance));
 
-
-	if (retval >= BUFSIZE)
-		return;
-	else if (retval < 0)
+	for (i = 0; i < len; i++)
 	{
-		syslog (LOG_ERR, "nfs: snprintf's format failed: %s", strerror (errno));
-		return;
+		values[0].counter = val[i];
+		strncpy (vl.type_instance, names[i],
+				sizeof (vl.type_instance));
+		DBG ("%s-%s/nfs_procedure-%s = %llu",
+				vl.plugin, vl.plugin_instance,
+				vl.type_instance, val[i]);
+		plugin_dispatch_values ("nfs_procedure", &vl);
 	}
-
-	plugin_submit ("nfs2_procedures", inst, buf);
-}
-
-static void nfs3_procedures_submit (unsigned long long *val, char *inst)
-{
-	char buf[BUFSIZE];
-	int retval = 0;
-
-	retval = snprintf(buf, BUFSIZE, "%u:%llu:%llu:%llu:%llu:%llu:%llu:"
-			"%llu:%llu:%llu:%llu:%llu:%llu:%llu:%llu:%llu:"
-			"%llu:%llu:%llu:%llu:%llu:%llu:%llu", /* 22x %llu */
-			(unsigned int) curtime,
-			val[0], val[1], val[2], val[3], val[4], val[5], val[6],
-			val[7], val[8], val[9], val[10], val[11], val[12],
-			val[13], val[14], val[15], val[16], val[17], val[18],
-			val[19], val[20], val[21]);
-
-	if (retval >= BUFSIZE)
-		return;
-	else if (retval < 0)
-	{
-		syslog (LOG_ERR, "nfs: snprintf's format failed: %s", strerror (errno));
-		return;
-	}
-
-	plugin_submit("nfs3_procedures", inst, buf);
-}
+} /* void nfs_procedures_submit */
 #endif /* NFS_HAVE_READ */
 
 #if KERNEL_LINUX
 static void nfs_read_stats_file (FILE *fh, char *inst)
 {
 	char buffer[BUFSIZE];
+
+	char plugin_instance[DATA_MAX_NAME_LEN];
 
 	char *fields[48];
 	int numfields = 0;
@@ -274,30 +240,44 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 	{
 		numfields = strsplit (buffer, fields, 48);
 
-		if (numfields < 2)
+		if (((numfields - 2) != nfs2_procedures_names_num)
+				&& ((numfields - 2)
+				       	!= nfs3_procedures_names_num))
 			continue;
 
-		if (strncmp (fields[0], "proc2", 5) == 0)
+		if (strcmp (fields[0], "proc2") == 0)
 		{
 			int i;
 			unsigned long long *values;
 
-			if (numfields - 2 != nfs2_procedures_ds_num)
+			if ((numfields - 2) != nfs2_procedures_names_num)
 			{
-				syslog (LOG_WARNING, "nfs: Wrong number of fields (= %i) for NFS2 statistics.", numfields - 2);
+				syslog (LOG_WARNING, "nfs plugin: Wrong "
+						"number of fields (= %i) "
+						"for NFSv2 statistics.",
+					       	numfields - 2);
 				continue;
 			}
 
-			if ((values = (unsigned long long *) malloc (nfs2_procedures_ds_num * sizeof (unsigned long long))) == NULL)
+			snprintf (plugin_instance, sizeof (plugin_instance),
+					"v2%s", inst);
+			plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
+
+			values = (unsigned long long *) malloc (nfs2_procedures_names_num * sizeof (unsigned long long));
+			if (values == NULL)
 			{
-				syslog (LOG_ERR, "nfs: malloc: %s", strerror (errno));
+				syslog (LOG_ERR, "nfs plugin: malloc "
+						"failed: %s",
+					       	strerror (errno));
 				continue;
 			}
 
-			for (i = 0; i < nfs2_procedures_ds_num; i++)
+			for (i = 0; i < nfs2_procedures_names_num; i++)
 				values[i] = atoll (fields[i + 2]);
 
-			nfs2_procedures_submit (values, inst);
+			nfs_procedures_submit (plugin_instance, values,
+					nfs2_procedures_names,
+					nfs2_procedures_names_num);
 
 			free (values);
 		}
@@ -306,27 +286,39 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 			int i;
 			unsigned long long *values;
 
-			if (numfields - 2 != nfs3_procedures_ds_num)
+			if ((numfields - 2) != nfs3_procedures_names_num)
 			{
-				syslog (LOG_WARNING, "nfs: Wrong number of fields (= %i) for NFS3 statistics.", numfields - 2);
+				syslog (LOG_WARNING, "nfs plugin: Wrong "
+						"number of fields (= %i) "
+						"for NFSv3 statistics.",
+					       	numfields - 2);
 				continue;
 			}
 
-			if ((values = (unsigned long long *) malloc (nfs3_procedures_ds_num * sizeof (unsigned long long))) == NULL)
+			snprintf (plugin_instance, sizeof (plugin_instance),
+					"v3%s", inst);
+			plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
+
+			values = (unsigned long long *) malloc (nfs3_procedures_names_num * sizeof (unsigned long long));
+			if (values == NULL)
 			{
-				syslog (LOG_ERR, "nfs: malloc: %s", strerror (errno));
+				syslog (LOG_ERR, "nfs plugin: malloc "
+						"failed: %s",
+					       	strerror (errno));
 				continue;
 			}
 
-			for (i = 0; i < nfs3_procedures_ds_num; i++)
+			for (i = 0; i < nfs3_procedures_names_num; i++)
 				values[i] = atoll (fields[i + 2]);
 
-			nfs3_procedures_submit (values, inst);
+			nfs_procedures_submit (plugin_instance, values,
+					nfs3_procedures_names,
+					nfs3_procedures_names_num);
 
 			free (values);
 		}
-	}
-}
+	} /* while (fgets (buffer, BUFSIZE, fh) != NULL) */
+} /* void nfs_read_stats_file */
 #endif /* defined(KERNEL_LINUX) */
 #undef BUFSIZE
 
@@ -359,7 +351,7 @@ static void nfs2_read_kstat (kstat_t *ksp, char *inst)
 #endif
 
 #if NFS_HAVE_READ
-static void nfs_read (void)
+static int nfs_read (void)
 {
 #if KERNEL_LINUX
 	FILE *fh;
@@ -384,16 +376,18 @@ static void nfs_read (void)
 	if (nfs2_ksp_server != NULL)
 		nfs2_read_kstat (nfs2_ksp_server, "server");
 #endif /* defined(HAVE_LIBKSTAT) */
+
+	return (0);
 }
-#else
-# define nfs_read NULL
 #endif /* NFS_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, nfs_init, nfs_read, NULL);
-	plugin_register ("nfs2_procedures", NULL, NULL, nfs2_procedures_write);
-	plugin_register ("nfs3_procedures", NULL, NULL, nfs3_procedures_write);
+	plugin_register_data_set (&procedure_ds);
+
+#if NFS_HAVE_READ
+	plugin_register_read ("nfs", nfs_read);
+#endif
 }
 
 #undef MODULE_NAME

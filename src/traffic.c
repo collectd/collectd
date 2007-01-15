@@ -226,7 +226,7 @@ static void if_submit (const char *dev, const char *type,
 		unsigned long long tx)
 {
 	value_t values[2];
-	value_list_t vl;
+	value_list_t vl = VALUE_LIST_INIT;
 
 	if (check_ignore_if (dev))
 		return;
@@ -237,14 +237,7 @@ static void if_submit (const char *dev, const char *type,
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-
-	/* FIXME: do this globally */
-	if (gethostname (vl.host, sizeof (vl.host)) != 0)
-	{
-		syslog (LOG_ERR, "load plugin: gethostname failed: %s",
-				strerror (errno));
-		return;
-	}
+	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, "interface");
 	strcpy (vl.plugin_instance, "");
 	strncpy (vl.type_instance, dev, sizeof (vl.type_instance));
