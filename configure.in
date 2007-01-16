@@ -984,10 +984,10 @@ AC_COLLECTD([battery],   [disable], [module], [battery statistics])
 AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
 AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
 AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
+AC_COLLECTD([csv],       [disable], [module], [csv output plugin])
 AC_COLLECTD([df],        [disable], [module], [df statistics])
 AC_COLLECTD([dns],       [disable], [module], [dns statistics])
 AC_COLLECTD([email],     [disable], [module], [email statistics])
-AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([mbmon],     [disable], [module], [motherboard monitor statistics])
@@ -1038,6 +1038,7 @@ Configuration:
     battery . . . . . . $enable_battery
     cpu . . . . . . . . $enable_cpu
     cpufreq . . . . . . $enable_cpufreq
+    csv . . . . . . . . $enable_csv
     df  . . . . . . . . $enable_df
     disk  . . . . . . . $enable_disk
     dns . . . . . . . . $enable_dns

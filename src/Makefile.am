@@ -128,6 +128,14 @@ collectd_LDADD += "-dlopen" cpufreq.la
 collectd_DEPENDENCIES += cpufreq.la
 endif
 
+if BUILD_MODULE_CSV
+pkglib_LTLIBRARIES += csv.la
+csv_la_SOURCES = csv.c
+csv_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" csv.la
+collectd_DEPENDENCIES += csv.la
+endif
+
 if BUILD_MODULE_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = df.c
