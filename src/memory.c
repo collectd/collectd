@@ -1,11 +1,10 @@
 /**
  * collectd - src/memory.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -51,20 +50,19 @@
 # define MEMORY_HAVE_READ 0
 #endif
 
-#define MODULE_NAME "memory"
-
-static char *memory_file = "memory.rrd";
-
-/* 9223372036854775807 == LLONG_MAX */
-static char *ds_def[] =
+/* 2^48 = 281474976710656 */
+static data_source_t dsrc[4] =
 {
-	"DS:used:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	"DS:free:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	"DS:buffers:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	"DS:cached:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	NULL
+	{"used",    DS_TYPE_GAUGE, 0, 281474976710656.0},
+	{"free",    DS_TYPE_GAUGE, 0, 281474976710656.0},
+	{"buffers", DS_TYPE_GAUGE, 0, 281474976710656.0},
+	{"cached",  DS_TYPE_GAUGE, 0, 281474976710656.0}
 };
-static int ds_num = 4;
+
+static data_set_t ds =
+{
+	"memory", 4, dsrc
+};
 
 /* vm_statistics_data_t */
 #if defined(HOST_VM_INFO)
@@ -85,7 +83,8 @@ static int pagesize;
 static kstat_t *ksp;
 #endif /* HAVE_LIBKSTAT */
 
-static void memory_init (void)
+#if MEMORY_HAVE_READ
+static int memory_init (void)
 {
 #if defined(HOST_VM_INFO)
 	port_host = mach_host_self ();
@@ -107,31 +106,30 @@ static void memory_init (void)
 		ksp = NULL;
 #endif /* HAVE_LIBKSTAT */
 
-	return;
-}
+	return (0);
+} /* int memory_init */
 
-static void memory_write (char *host, char *inst, char *val)
-{
-	rrd_update_file (host, memory_file, val, ds_def, ds_num);
-}
-
-#if MEMORY_HAVE_READ
-#define BUFSIZE 512
 static void memory_submit (long long mem_used, long long mem_buffered,
 		long long mem_cached, long long mem_free)
 {
-	char buf[BUFSIZE];
+	value_t values[4];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	if (snprintf (buf, BUFSIZE, "%u:%lli:%lli:%lli:%lli",
-				(unsigned int) curtime, mem_used, mem_free,
-				mem_buffered, mem_cached) >= BUFSIZE)
-		return;
+	values[0].gauge = mem_used;
+	values[1].gauge = mem_free;
+	values[2].gauge = mem_buffered;
+	values[3].gauge = mem_cached;
 
-	plugin_submit (MODULE_NAME, "-", buf);
+	vl.values = values;
+	vl.values_len = 4;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "memory");
+
+	plugin_dispatch_values ("memory", &vl);
 }
-#undef BUFSIZE
 
-static void memory_read (void)
+static int memory_read (void)
 {
 #if defined(HOST_VM_INFO)
 	kern_return_t status;
@@ -144,7 +142,7 @@ static void memory_read (void)
 	long long free;
 
 	if (!port_host || !pagesize)
-		return;
+		return (-1);
 
 	vm_data_len = sizeof (vm_data) / sizeof (natural_t);
 	if ((status = host_statistics (port_host, HOST_VM_INFO,
@@ -152,7 +150,7 @@ static void memory_read (void)
 					&vm_data_len)) != KERN_SUCCESS)
 	{
 		syslog (LOG_ERR, "memory-plugin: host_statistics failed and returned the value %i", (int) status);
-		return;
+		return (-1);
 	}
 
 	/*
@@ -219,7 +217,7 @@ static void memory_read (void)
 		{
 			syslog (LOG_ERR, "memory plugin: sysctlbyname (%s): %s",
 					sysctl_keys[i], strerror (errno));
-			return;
+			return (-1);
 		}
 		DBG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
 	} /* for i */
@@ -249,7 +247,7 @@ static void memory_read (void)
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
 		syslog (LOG_WARNING, "memory: fopen: %s", strerror (errno));
-		return;
+		return (-1);
 	}
 
 	while (fgets (buffer, 1024, fh) != NULL)
@@ -291,16 +289,16 @@ static void memory_read (void)
 	long long mem_lock;
 
 	if (ksp == NULL)
-		return;
+		return (-1);
 
 	mem_used = get_kstat_value (ksp, "pagestotal");
 	mem_free = get_kstat_value (ksp, "pagesfree");
 	mem_lock = get_kstat_value (ksp, "pageslocked");
 
 	if ((mem_used < 0LL) || (mem_free < 0LL) || (mem_lock < 0LL))
-		return;
+		return (-1);
 	if (mem_used < (mem_free + mem_lock))
-		return;
+		return (-1);
 
 	mem_used -= mem_free + mem_lock;
 	mem_used *= pagesize; /* If this overflows you have some serious */
@@ -316,14 +314,17 @@ static void memory_read (void)
 	if ((ios = sg_get_mem_stats ()) != NULL)
 		memory_submit (ios->used, 0LL, ios->cache, ios->free);
 #endif /* HAVE_LIBSTATGRAB */
+
+	return (0);
 }
-#else
-# define memory_read NULL
 #endif /* MEMORY_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, memory_init, memory_read, memory_write);
-}
+	plugin_register_data_set (&ds);
 
-#undef MODULE_NAME
+#if MEMORY_HAVE_READ
+	plugin_register_init ("memory", memory_init);
+	plugin_register_read ("memory", memory_read);
+#endif /* MEMORY_HAVE_READ */
+}
