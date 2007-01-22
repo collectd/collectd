@@ -89,6 +89,7 @@ static data_set_t procedure_ds =
 	"nfs_procedure", 1, procedure_dsrc
 };
 
+#if NFS_HAVE_READ
 static const char *nfs2_procedures_names[] =
 {
 	"null",
@@ -194,7 +195,6 @@ static int nfs_init (void)
 #endif
 
 #define BUFSIZE 1024
-#if NFS_HAVE_READ
 static void nfs_procedures_submit (const char *plugin_instance,
 	       	unsigned long long *val, const char **names, int len)
 {
@@ -221,7 +221,6 @@ static void nfs_procedures_submit (const char *plugin_instance,
 		plugin_dispatch_values ("nfs_procedure", &vl);
 	}
 } /* void nfs_procedures_submit */
-#endif /* NFS_HAVE_READ */
 
 #if KERNEL_LINUX
 static void nfs_read_stats_file (FILE *fh, char *inst)
@@ -350,7 +349,6 @@ static void nfs2_read_kstat (kstat_t *ksp, char *inst)
 }
 #endif
 
-#if NFS_HAVE_READ
 static int nfs_read (void)
 {
 #if KERNEL_LINUX
