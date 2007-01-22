@@ -1,11 +1,10 @@
 /**
  * collectd - src/sensors.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -29,28 +28,12 @@
  *   - config IgnoreSelected option
  **/
 
-
-
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_ignorelist.h"
 #include "utils_debug.h"
-
-/*
- * This weird macro cascade forces the glibc to define `NAN'. I don't know
- * another way to solve this, so more intelligent solutions are welcome. -octo
- */
-#ifndef __USE_ISOC99
-# define DISABLE__USE_ISOC99 1
-# define __USE_ISOC99 1
-#endif
-#include <math.h>
-#ifdef DISABLE__USE_ISOC99
-# undef DISABLE__USE_ISOC99
-# undef __USE_ISOC99
-#endif
 
 #if defined(HAVE_SENSORS_SENSORS_H)
 # include <sensors/sensors.h>
@@ -64,23 +47,34 @@
 # define SENSORS_HAVE_READ 0
 #endif
 
-static data_source_t data_source[1] =
+static data_source_t data_source_fanspeed[1] =
 {
-	{"value", DS_TYPE_GAUGE, NAN, NAN}
+	{"value", DS_TYPE_GAUGE, 0, NAN}
 };
+
 static data_set_t fanspeed_ds =
 {
-	"fanspeed", 1, data_source
+	"fanspeed", 1, data_source_fanspeed
+};
+
+static data_source_t data_source_temperature[1] =
+{
+	{"value", DS_TYPE_GAUGE, -273.15, NAN}
 };
 
 static data_set_t temperature_ds =
 {
-	"temperature", 1, data_source
+	"temperature", 1, data_source_temperature
+};
+
+static data_source_t data_source_voltage[1] =
+{
+	{"voltage", DS_TYPE_GAUGE, NAN, NAN}
 };
 
 static data_set_t voltage_ds =
 {
-	"voltage", 1, data_source
+	"voltage", 1, data_source_voltage
 };
 
 #if SENSORS_HAVE_READ
