@@ -272,7 +272,7 @@ static int traffic_read (void)
 	struct IFA_DATA *if_data;
 
 	if (getifaddrs (&if_list) != 0)
-		return;
+		return (-1);
 
 	for (if_ptr = if_list; if_ptr != NULL; if_ptr = if_ptr->ifa_next)
 	{
