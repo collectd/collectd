@@ -100,6 +100,20 @@
 # define assert(...) /* nop */
 #endif
 
+/*
+ * This weird macro cascade forces the glibc to define `NAN'. I don't know
+ * another way to solve this, so more intelligent solutions are welcome. -octo
+ */
+#ifndef __USE_ISOC99
+# define DISABLE__USE_ISOC99 1
+# define __USE_ISOC99 1
+#endif
+#include <math.h>
+#ifdef DISABLE__USE_ISOC99
+# undef DISABLE__USE_ISOC99
+# undef __USE_ISOC99
+#endif
+
 #if HAVE_DIRENT_H
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)
