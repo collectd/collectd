@@ -186,6 +186,14 @@ collectd_LDADD += "-dlopen" email.la
 collectd_DEPENDENCIES += email.la
 endif
 
+if BUILD_MODULE_ENTROPY
+pkglib_LTLIBRARIES += entropy.la
+entropy_la_SOURCES = entropy.c
+entropy_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" entropy.la
+collectd_DEPENDENCIES += entropy.la
+endif
+
 #if BUILD_MODULE_QUOTA
 #pkglib_LTLIBRARIES += quota.la
 #quota_la_SOURCES = quota_plugin.c quota_plugin.h
