@@ -1,6 +1,6 @@
 /**
  * collectd - src/cpu.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -129,13 +129,13 @@ static int init (void)
 	/* FIXME: Free `cpu_list' if it's not NULL */
 	if ((status = host_processors (port_host, &cpu_list, &cpu_list_len)) != KERN_SUCCESS)
 	{
-		syslog (LOG_ERR, "cpu-plugin: host_processors returned %i\n", (int) status);
+		syslog (LOG_ERR, "cpu plugin: host_processors returned %i\n", (int) status);
 		cpu_list_len = 0;
 		return (-1);
 	}
 
 	DBG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
-	syslog (LOG_INFO, "cpu-plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
+	syslog (LOG_INFO, "cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
 
 	collectd_step = atoi (COLLECTD_STEP);
 	if ((collectd_step > 0) && (collectd_step <= 86400))
@@ -231,13 +231,13 @@ static int cpu_read (void)
 						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
 						(processor_info_t) &cpu_info, &cpu_info_len)) != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "cpu plugin: processor_info failed with status %i\n", (int) status);
+			syslog (LOG_ERR, "cpu plugin: processor_info failed with status %i", (int) status);
 			continue;
 		}
 
 		if (cpu_info_len < CPU_STATE_MAX)
 		{
-			syslog (LOG_ERR, "cpu-plugin: processor_info returned only %i elements..\n", cpu_info_len);
+			syslog (LOG_ERR, "cpu plugin: processor_info returned only %i elements..", cpu_info_len);
 			continue;
 		}
 
@@ -268,7 +268,7 @@ static int cpu_read (void)
 				cpu_temp, &cpu_temp_len);
 		if (status != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "cpu-plugin: processor_info failed: %s",
+			syslog (LOG_ERR, "cpu plugin: processor_info failed: %s",
 					mach_error_string (status));
 
 			cpu_temp_retry_counter = cpu_temp_retry_step;
