@@ -320,7 +320,7 @@ static void sensors_load_conf (void)
 
 				DBG ("Adding feature: %s-%s-%s",
 						chip->prefix,
-						sensor_type_prefix[known_features[i].type],
+						sensor_to_type[known_features[i].type],
 						data->name);
 
 				if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
@@ -396,7 +396,6 @@ static int sensors_read (void)
 {
 	featurelist_t *feature;
 	double value;
-	char chip_fullprefix[512];
 
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	char type_instance[DATA_MAX_NAME_LEN];
@@ -439,10 +438,12 @@ static int sensors_read (void)
 		strncpy (type_instance, feature->data->name, DATA_MAX_NAME_LEN);
 
 		sensors_submit (plugin_instance,
-				sensor_to_type[feature->type]
+				sensor_to_type[feature->type],
 				type_instance,
 				value);
 	} /* for feature = first_feature .. NULL */
+
+	return (0);
 } /* int sensors_read */
 #endif /* SENSORS_HAVE_READ */
 
