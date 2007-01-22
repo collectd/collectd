@@ -4,8 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -26,11 +25,12 @@
 #include "configfile.h"
 #include "utils_debug.h"
 
-#define MODULE_NAME "ping"
-
 #include <netinet/in.h>
 #include "liboping/oping.h"
 
+/*
+ * Private data types
+ */
 struct hostlist_s
 {
 	char *host;
@@ -40,19 +40,23 @@ struct hostlist_s
 };
 typedef struct hostlist_s hostlist_t;
 
+/*
+ * Private variables
+ */
 static pingobj_t *pingobj = NULL;
 static hostlist_t *hosts = NULL;
 
-static char *file_template = "ping-%s.rrd";
-
-static char *ds_def[] = 
+static data_source_t dsrc[1] =
 {
-	"DS:ping:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	NULL
+	{"ping", DS_TYPE_GAUGE, 0, 65535.0},
 };
-static int ds_num = 1;
 
-static char *config_keys[] =
+static data_set_t ds =
+{
+	"ping", 1, dsrc
+};
+
+static const char *config_keys[] =
 {
 	"Host",
 	"TTL",
@@ -60,6 +64,9 @@ static char *config_keys[] =
 };
 static int config_keys_num = 2;
 
+/*
+ * Private functions
+ */
 static void add_hosts (void)
 {
 	hostlist_t *hl_this;
@@ -109,13 +116,15 @@ static void add_hosts (void)
 	}
 }
 
-static void ping_init (void)
+static int ping_init (void)
 {
 	if (hosts != NULL)
 		add_hosts ();
+
+	return (0);
 }
 
-static int ping_config (char *key, char *value)
+static int ping_config (const char *key, const char *value)
 {
 	if (pingobj == NULL)
 	{
@@ -170,33 +179,25 @@ static int ping_config (char *key, char *value)
 	return (0);
 }
 
-static void ping_write (char *host, char *inst, char *val)
-{
-	char file[512];
-	int status;
-
-	status = snprintf (file, 512, file_template, inst);
-	if (status < 1)
-		return;
-	else if (status >= 512)
-		return;
-
-	rrd_update_file (host, file, val, ds_def, ds_num);
-}
-
-#define BUFSIZE 256
 static void ping_submit (char *host, double latency)
 {
-	char buf[BUFSIZE];
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	if (snprintf (buf, BUFSIZE, "%u:%f", (unsigned int) curtime, latency) >= BUFSIZE)
-		return;
+	values[0].gauge = latency;
 
-	plugin_submit (MODULE_NAME, host, buf);
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "ping");
+	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type_instance, host, sizeof (vl.type_instance));
+
+	plugin_dispatch_values ("ping", &vl);
 }
-#undef BUFSIZE
 
-static void ping_read (void)
+static int ping_read (void)
 {
 	pingobj_iter_t *iter;
 
@@ -205,7 +206,7 @@ static void ping_read (void)
 	size_t buf_len;
 
 	if (pingobj == NULL)
-		return;
+		return (-1);
 
 	if (hosts != NULL)
 		add_hosts ();
@@ -214,7 +215,7 @@ static void ping_read (void)
 	{
 		syslog (LOG_ERR, "ping: `ping_send' failed: %s",
 				ping_get_error (pingobj));
-		return;
+		return (-1);
 	}
 
 	for (iter = ping_iterator_get (pingobj);
@@ -234,12 +235,14 @@ static void ping_read (void)
 		DBG ("host = %s, latency = %f", host, latency);
 		ping_submit (host, latency);
 	}
-}
+
+	return (0);
+} /* int ping_read */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, ping_init, ping_read, ping_write);
-	cf_register (MODULE_NAME, ping_config, config_keys, config_keys_num);
-}
-
-#undef MODULE_NAME
+	plugin_register_data_set (&ds);
+	plugin_register_init ("ping", ping_init);
+	plugin_register_read ("ping", ping_read);
+	plugin_register_config ("ping", ping_config, config_keys, config_keys_num);
+} /* void module_register */
