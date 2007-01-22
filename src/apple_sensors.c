@@ -1,11 +1,10 @@
 /**
  * collectd - src/apple_sensors.c
- * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2006,2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,8 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_debug.h"
-
-#define MODULE_NAME "apple_sensors"
 
 #if HAVE_CTYPE_H
 #  include <ctype.h>
@@ -63,19 +60,29 @@
 static mach_port_t io_master_port = MACH_PORT_NULL;
 #endif
 
-static char *temperature_file = "apple_sensors/temperature-%s.rrd";
-static char *fanspeed_file    = "apple_sensors/fanspeed-%s.rrd";
-
-static char *ds_def[] =
+static data_source_t data_source_fanspeed[1] =
 {
-	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
+	{"value", DS_TYPE_GAUGE, 0, NAN}
 };
-static int ds_num = 1;
 
-static void as_init (void)
+static data_set_t fanspeed_ds =
 {
+	"fanspeed", 1, data_source_fanspeed
+};
+
+static data_source_t data_source_temperature[1] =
+{
+	{"value", DS_TYPE_GAUGE, -273.15, NAN}
+};
+
+static data_set_t temperature_ds =
+{
+	"temperature", 1, data_source_temperature
+};
+
 #if IOKIT_HAVE_READ
+static int as_init (void)
+{
 	kern_return_t status;
 	
 	if (io_master_port != MACH_PORT_NULL)
@@ -91,48 +98,35 @@ static void as_init (void)
 		syslog (LOG_ERR, "IOMasterPort failed: %s",
 				mach_error_string (status));
 		io_master_port = MACH_PORT_NULL;
-		return;
+		return (-1);
 	}
-#endif /* IOKIT_HAVE_READ */
 
-	return;
+	return (0);
 }
 
-static void as_write (char *host, char *inst, char *val, const char *template)
+static void as_submit (const char *type, const char *type_instance,
+		double val)
 {
-	char filename[256];
-	int  status;
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	status = snprintf (filename, 256, template, inst);
-	if ((status < 1) || (status >= 256))
-		return;
+	DBG ("type = %s; type_instance = %s; val = %f;",
+			type, type_instance, val);
 
-	rrd_update_file (host, filename, val, ds_def, ds_num);
+	values[0].gauge = val;
+
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "apple_sensors");
+	strcpy (vl.plugin_instance, "");
+	strcpy (vl.type_instance, type_instance);
+
+	plugin_dispatch_values (type, &vl);
 }
 
-static void temperature_write (char *host, char *inst, char *val)
-{
-	as_write (host, inst, val, temperature_file);
-}
-
-static void fanspeed_write (char *host, char *inst, char *val)
-{
-	as_write (host, inst, val, fanspeed_file);
-}
-
-#if IOKIT_HAVE_READ
-static void as_submit (char *type, char *inst, double value)
-{
-	char buf[128];
-
-	if (snprintf (buf, 1024, "%u:%f", (unsigned int) curtime,
-				value) >= 128)
-		return;
-
-	plugin_submit (type, inst, buf);
-}
-
-static void as_read (void)
+static int as_read (void)
 {
 	kern_return_t   status;
 	io_iterator_t   iterator;
@@ -147,7 +141,7 @@ static void as_read (void)
 	int    i;
 
 	if (!io_master_port || (io_master_port == MACH_PORT_NULL))
-		return;
+		return (-1);
 
 	status = IOServiceGetMatchingServices (io_master_port,
 		       	IOServiceNameMatching("IOHWSensor"),
@@ -156,7 +150,7 @@ static void as_read (void)
        	{
 		syslog (LOG_ERR, "IOServiceGetMatchingServices failed: %s",
 				mach_error_string (status));
-		return;
+		return (-1);
 	}
 
 	while ((io_obj = IOIteratorNext (iterator)))
@@ -228,17 +222,17 @@ static void as_read (void)
 		if (strcmp (type, "temperature") == 0)
 		{
 			value_double = ((double) value_int) / 65536.0;
-			strncpy (type, "apple_temperature", 128);
+			strcpy (type, "temperature");
 		}
 		else if (strcmp (type, "temp") == 0)
 		{
 			value_double = ((double) value_int) / 10.0;
-			strncpy (type, "apple_temperature", 128);
+			strcpy (type, "temperature");
 		}
 		else if (strcmp (type, "fanspeed") == 0)
 		{
 			value_double = ((double) value_int) / 65536.0;
-			strncpy (type, "apple_fanspeed", 128);
+			strcpy (type, "fanspeed");
 		}
 		else if (strcmp (type, "voltage") == 0)
 		{
@@ -248,7 +242,7 @@ static void as_read (void)
 		else if (strcmp (type, "adc") == 0)
 		{
 			value_double = ((double) value_int) / 10.0;
-			strncpy (type, "apple_temperature", 128);
+			strcpy (type, "fanspeed");
 		}
 		else
 		{
@@ -264,16 +258,18 @@ static void as_read (void)
 	} /* while (iterator) */
 
 	IOObjectRelease (iterator);
-}
-#else
-# define as_read NULL
+
+	return (0);
+} /* int as_read */
 #endif /* IOKIT_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, as_init, as_read, NULL);
-	plugin_register ("apple_temperature", NULL, NULL, temperature_write);
-	plugin_register ("apple_fanspeed",    NULL, NULL, fanspeed_write);
-}
+	plugin_register_data_set (&fanspeed_ds);
+	plugin_register_data_set (&temperature_ds);
 
-#undef MODULE_NAME
+#if IOKIT_HAVE_READ
+	plugin_register_init ("apple_sensors", as_init);
+	plugin_register_read ("apple_sensors", as_read);
+#endif /* IOKIT_HAVE_READ */
+}
