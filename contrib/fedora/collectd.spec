@@ -1,7 +1,7 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
 Version:	3.11.0
-Release:	0
+Release:	0.fc0
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
 Group:		System Environment/Daemons
@@ -61,9 +61,8 @@ make install DESTDIR=$RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
 mkdir -p $RPM_BUILD_ROOT/var/www/cgi-bin
 cp src/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
-cp contrib/init.d-fc $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
+cp contrib/fedora/init.d-collectd $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
 cp contrib/collection.cgi $RPM_BUILD_ROOT/var/www/cgi-bin
-#mv contrib/Collectd.pm contrib/Collectd.pm.DISABLED
 mkdir -p $RPM_BUILD_ROOT/var/lib/collectd
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.la
@@ -82,7 +81,6 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
-#%doc contrib
 %config /etc/collectd.conf
 %attr(0755,root,root) /etc/rc.d/init.d/collectd
 %attr(0755,root,root) /var/www/cgi-bin/collection.cgi
