@@ -25,6 +25,13 @@ Requires:	collectd = %{version}, libcurl3
 %description apache
 This plugin collectd data provided by Apache's `mod_status'.
 
+#%package email
+#Summary:	email-plugin for collectd.
+#Group:		System Environment/Daemons
+#Requires:	collectd = %{version}, spamassassin
+#%description email
+#This plugin collectd data provided by spamassassin.
+
 %package mysql
 Summary:	mysql-module for collectd.
 Group:		System Environment/Daemons
@@ -52,8 +59,11 @@ make
 %install
 make install DESTDIR=$RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
+mkdir -p $RPM_BUILD_ROOT/var/www/cgi-bin
 cp src/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
-cp contrib/init.d-rh7 $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
+cp contrib/init.d-fc $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
+cp contrib/collection.cgi $RPM_BUILD_ROOT/var/www/cgi-bin
+#mv contrib/Collectd.pm contrib/Collectd.pm.DISABLED
 mkdir -p $RPM_BUILD_ROOT/var/lib/collectd
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.la
@@ -61,12 +71,21 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.la
 %clean
 rm -rf $RPM_BUILD_ROOT
 
+%post
+/sbin/chkconfig --add collectd
+/sbin/chkconfig collectd on
+
+#%postun
+#/sbin/chkconfig collectd off
+#/sbin/chkconfig --del collectd
+
 %files
 %defattr(-,root,root)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
-%doc contrib
+#%doc contrib
 %config /etc/collectd.conf
 %attr(0755,root,root) /etc/rc.d/init.d/collectd
+%attr(0755,root,root) /var/www/cgi-bin/collection.cgi
 %attr(0755,root,root) %{_sbindir}/collectd
 %attr(0444,root,root) %{_mandir}/man1/*
 %attr(0444,root,root) %{_mandir}/man5/*
@@ -101,6 +120,9 @@ rm -rf $RPM_BUILD_ROOT
 %files apache
 %attr(0444,root,root) %{_libdir}/%{name}/apache.so*
 
+#%files email
+#%attr(0444,root,root) %{_libdir}/%{name}/email.so
+
 %files mysql
 %attr(0444,root,root) %{_libdir}/%{name}/mysql.so*
 
@@ -108,6 +130,11 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/sensors.so*
 
 %changelog
+* Wed Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
+- fixed spec file to build correctly on fedora core
+- added improved init.d script to work with chkconfig
+- added %post and %postun to call chkconfig automatically
+
 * Sun Jul 09 2006 Florian octo Forster <octo@verplant.org> 3.10.0-1
 - New upstream version
 
