@@ -50,6 +50,7 @@ typedef struct value_cache_s
 	int        values_num;
 	gauge_t   *gauge;
 	counter_t *counter;
+	const data_set_t *ds;
 	time_t     time;
 	struct value_cache_s *next;
 } value_cache_t;
@@ -201,6 +202,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 		}
 	}
 	vc->values_num = ds->ds_num;
+	vc->ds = ds;
 
 	vc->next = cache_head;
 	cache_head = vc;
@@ -288,6 +290,7 @@ static int cache_update (const data_set_t *ds, const value_list_t *vl)
 			vc->gauge[i] = NAN;
 	} /* for i = 0 .. ds->ds_num */
 
+	vc->ds = ds;
 	vc->time = vl->time;
 
 	if (vc->time < cache_oldest)
@@ -460,15 +463,26 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 
 	pthread_mutex_lock (&cache_lock);
 
+	DBG ("vc = cache_search (%s)", name);
 	vc = cache_search (name);
 
-	fprintf (fh, "%i", vc->values_num);
-	for (i = 0; i < vc->values_num; i++)
+	if (vc == NULL)
 	{
-		if (vc->gauge[i] == NAN)
-			fprintf (fh, " NaN");
-		else
-			fprintf (fh, " %12e", vc->gauge[i]);
+		DBG ("Did not find cache entry.");
+		fprintf (fh, "-1 No such value");
+	}
+	else
+	{
+		DBG ("Found cache entry.");
+		fprintf (fh, "%i", vc->values_num);
+		for (i = 0; i < vc->values_num; i++)
+		{
+			fprintf (fh, " %s=", vc->ds->ds[i].name);
+			if (vc->gauge[i] == NAN)
+				fprintf (fh, "NaN");
+			else
+				fprintf (fh, "%12e", vc->gauge[i]);
+		}
 	}
 
 	/* Free the mutex as soon as possible and definitely before flushing */
@@ -505,7 +519,17 @@ static void *us_handle_client (void *arg)
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		DBG ("fgets -> buffer = %s", buffer);
+		int len;
+
+		len = strlen (buffer);
+		while ((len > 0)
+				&& ((buffer[len - 1] == '\n') || (buffer[len - 1] == '\r')))
+			buffer[--len] = '\0';
+
+		if (len == 0)
+			continue;
+
+		DBG ("fgets -> buffer = %s; len = %i;", buffer, len);
 
 		fields_num = strsplit (buffer, fields,
 				sizeof (fields) / sizeof (fields[0]));
