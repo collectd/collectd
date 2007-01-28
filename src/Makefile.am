@@ -18,6 +18,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   plugin.c plugin.h \
 		   configfile.c configfile.h
 collectd_CPPFLAGS = $(LTDLINCL)
+collectd_CPPFLAGS += -DPREFIX='"${prefix}"'
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
 collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
 if BUILD_FEATURE_DAEMON
@@ -428,6 +429,17 @@ traffic_la_LDFLAGS += -ldevstat
 endif
 traffic_la_LDFLAGS += -lstatgrab
 endif
+endif
+
+if BUILD_MODULE_UNIXSOCK
+pkglib_LTLIBRARIES += unixsock.la
+unixsock_la_SOURCES = unixsock.c
+unixsock_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBPTHREAD
+unixsock_la_LDFLAGS += -lpthread
+endif
+collectd_LDADD += "-dlopen" unixsock.la
+collectd_DEPENDENCIES += unixsock.la
 endif
 
 if BUILD_MODULE_USERS
