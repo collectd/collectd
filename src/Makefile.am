@@ -8,6 +8,7 @@ AM_CFLAGS = -Wall -Werror
 endif
 
 sbin_PROGRAMS = collectd
+bin_PROGRAMS = collectd-nagios
 
 collectd_SOURCES = collectd.c collectd.h \
 		   utils_debug.c utils_debug.h \
@@ -60,6 +61,8 @@ endif
 
 collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self
 collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
+
+collectd_nagios_SOURCES = collectd-nagios.c
 
 pkglib_LTLIBRARIES = 
 
