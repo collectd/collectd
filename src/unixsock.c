@@ -98,6 +98,7 @@ static value_cache_t *cache_search (const char *name)
 } /* value_cache_t *cache_search */
 
 static int cache_alloc_name (char *ret, int ret_len,
+		const char *hostname,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance)
 {
@@ -109,21 +110,20 @@ static int cache_alloc_name (char *ret, int ret_len,
 	if ((plugin_instance == NULL) || (strlen (plugin_instance) == 0))
 	{
 		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = snprintf (ret, ret_len, "%s/%s",
-					plugin, type);
+			status = snprintf (ret, ret_len, "%s/%s/%s",
+					hostname, plugin, type);
 		else
-			status = snprintf (ret, ret_len, "%s/%s-%s",
-					plugin, type, type_instance);
+			status = snprintf (ret, ret_len, "%s/%s/%s-%s",
+					hostname, plugin, type, type_instance);
 	}
 	else
 	{
 		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = snprintf (ret, ret_len, "%s-%s/%s",
-					plugin, plugin_instance, type);
+			status = snprintf (ret, ret_len, "%s/%s-%s/%s",
+					hostname, plugin, plugin_instance, type);
 		else
-			status = snprintf (ret, ret_len, "%s-%s/%s-%s",
-					plugin, plugin_instance,
-					type, type_instance);
+			status = snprintf (ret, ret_len, "%s/%s-%s/%s-%s",
+					hostname, plugin, plugin_instance, type, type_instance);
 	}
 
 	if ((status < 1) || (status >= ret_len))
@@ -172,7 +172,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	}
 
 	if (cache_alloc_name (vc->name, sizeof (vc->name),
-				vl->plugin, vl->plugin_instance,
+				vl->host, vl->plugin, vl->plugin_instance,
 				ds->type, vl->type_instance) != 0)
 	{
 		pthread_mutex_unlock (&cache_lock);
@@ -222,6 +222,7 @@ static int cache_update (const data_set_t *ds, const value_list_t *vl)
 	int i;
 
 	if (cache_alloc_name (name, sizeof (name),
+				vl->host,
 				vl->plugin, vl->plugin_instance,
 				ds->type, vl->type_instance) != 0)
 		return (-1);
@@ -425,7 +426,8 @@ static int us_open_socket (void)
 
 static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 {
-	char *plugin = fields[1];
+	char *hostname = fields[1];
+	char *plugin;
 	char *plugin_instance;
 	char *type;
 	char *type_instance;
@@ -436,6 +438,11 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 
 	if (fields_num != 2)
 		return (-1);
+
+	plugin = strchr (hostname, '/');
+	if (plugin == NULL)
+		return (-1);
+	*plugin = '\0'; plugin++;
 
 	type = strchr (plugin, '/');
 	if (type == NULL)
@@ -457,7 +464,7 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 	}
 
 	status = cache_alloc_name (name, sizeof (name),
-			plugin, plugin_instance, type, type_instance);
+			hostname, plugin, plugin_instance, type, type_instance);
 	if (status != 0)
 		return (-1);
 

@@ -44,6 +44,8 @@ extern int optind, opterr, optopt;
 
 static char *socket_file_g = NULL;
 static char *value_string_g = NULL;
+static char *hostname_g = NULL;
+
 static range_t range_critical_g;
 static range_t range_warning_g;
 static int consolitation_g = CON_NONE;
@@ -163,7 +165,7 @@ static int get_values (int *ret_values_num, double **ret_values,
 		return (-1);
 	}
 
-	fprintf (fh, "GETVAL %s\n", value_string_g);
+	fprintf (fh, "GETVAL %s/%s\n", hostname_g, value_string_g);
 	fflush (fh);
 
 	if (fgets (buffer, sizeof (buffer), fh) == NULL)
@@ -232,7 +234,7 @@ static int get_values (int *ret_values_num, double **ret_values,
 
 static void usage (const char *name)
 {
-	fprintf (stderr, "Usage: %s <-s socket> <-n value_spec> [options]\n"
+	fprintf (stderr, "Usage: %s <-s socket> <-n value_spec> <-H hostname> [options]\n"
 			"\n"
 			"Valid options are:\n"
 			"  -s <socket>    Path to collectd's UNIX-socket.\n"
@@ -242,6 +244,7 @@ static void usage (const char *name)
 			"                 DSes. By default all DSes are used.\n"
 			"  -g <consol>    Method to use to consolidate several DSes.\n"
 			"                 Valid arguments are `none', `average' and `sum'\n"
+			"  -H <host>      Hostname to query the values for.\n"
 			"  -c <range>     Critical range\n"
 			"  -w <range>     Warning range\n"
 			"\n"
@@ -422,7 +425,7 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		c = getopt (argc, argv, "w:c:s:n:g:d:h");
+		c = getopt (argc, argv, "w:c:s:n:H:g:d:h");
 		if (c < 0)
 			break;
 
@@ -439,6 +442,9 @@ int main (int argc, char **argv)
 				break;
 			case 'n':
 				value_string_g = optarg;
+				break;
+			case 'H':
+				hostname_g = optarg;
 				break;
 			case 'g':
 				if (strcasecmp (optarg, "none") == 0)
@@ -478,7 +484,8 @@ int main (int argc, char **argv)
 		} /* switch (c) */
 	}
 
-	if ((socket_file_g == NULL) || (value_string_g == NULL))
+	if ((socket_file_g == NULL) || (value_string_g == NULL)
+			|| (hostname_g == NULL))
 		usage (argv[0]);
 
 	return (do_check ());
