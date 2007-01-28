@@ -191,7 +191,7 @@ static void submit (int cpu_num, unsigned long long user,
 	values[4].counter = wait;
 
 	vl.values = values;
-	vl.values_len = 2;
+	vl.values_len = 5;
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, "cpu");
