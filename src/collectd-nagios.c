@@ -48,6 +48,23 @@ static range_t range_critical_g;
 static range_t range_warning_g;
 static int consolitation_g = CON_NONE;
 
+static char **match_ds_g = NULL;
+static int    match_ds_num_g = 0;
+
+static int ignore_ds (const char *name)
+{
+	int i;
+
+	if (match_ds_g == NULL)
+		return (0);
+
+	for (i = 0; i < match_ds_num_g; i++)
+		if (strcasecmp (match_ds_g[i], name) == 0)
+			return (0);
+
+	return (1);
+} /* int ignore_ds */
+
 static void parse_range (char *string, range_t *range)
 {
 	char *min_ptr;
@@ -193,6 +210,9 @@ static int get_values (int *ret_values_num, double **ret_values,
 				continue;
 			*value = '\0'; value++;
 
+			if (ignore_ds (key) != 0)
+				continue;
+
 			values_names[i] = strdup (key);
 			values[i] = atof (value);
 
@@ -215,11 +235,23 @@ static void usage (const char *name)
 	fprintf (stderr, "Usage: %s <-s socket> <-n value_spec> [options]\n"
 			"\n"
 			"Valid options are:\n"
-			" -s <socket>   Path to collectd's UNIX-socket\n"
-			" -n <v_spec>   Value specification to get from collectd\n"
-			" -c <range>    Critical range\n"
-			" -w <range>    Range for critical values\n",
-			name);
+			"  -s <socket>    Path to collectd's UNIX-socket.\n"
+			"  -n <v_spec>    Value specification to get from collectd.\n"
+			"                 Format: `plugin-instance/type-instance'\n"
+			"  -d <ds>        Select the DS to examine. May be repeated to examine multiple\n"
+			"                 DSes. By default all DSes are used.\n"
+			"  -g <consol>    Method to use to consolidate several DSes.\n"
+			"                 Valid arguments are `none', `average' and `sum'\n"
+			"  -c <range>     Critical range\n"
+			"  -w <range>     Warning range\n"
+			"\n"
+			"Consolidation functions:\n"
+			"  none:          Apply the warning- and critical-ranges to each data-source\n"
+			"                 individually.\n"
+			"  average:       Calculate the average of all matching DSes and apply the\n"
+			"                 warning- and critical-ranges to the calculated average.\n"
+			"  sum:           Apply the ranges to the sum of all DSes.\n"
+			"\n", name);
 	exit (1);
 } /* void usage */
 
@@ -356,7 +388,6 @@ int do_check (void)
 	double  *values;
 	char   **values_names;
 	int      values_num;
-	int i;
 
 	if (get_values (&values_num, &values, &values_names) != 0)
 	{
@@ -364,15 +395,15 @@ int do_check (void)
 		return (RET_CRITICAL);
 	}
 
-	for (i = 0; i < values_num; i++)
-		printf ("%s=%lf\n", values_names[i], values[i]);
-
 	if (consolitation_g == CON_NONE)
 		return (do_check_con_none (values_num, values, values_names));
 	else if (consolitation_g == CON_AVERAGE)
 		return (do_check_con_average (values_num, values, values_names));
 	else if (consolitation_g == CON_SUM)
 		return (do_check_con_sum (values_num, values, values_names));
+
+	free (values);
+	free (values_names);
 
 	return (RET_UNKNOWN);
 }
@@ -391,7 +422,7 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		c = getopt (argc, argv, "w:c:s:n:g:h");
+		c = getopt (argc, argv, "w:c:s:n:g:d:h");
 		if (c < 0)
 			break;
 
@@ -419,6 +450,29 @@ int main (int argc, char **argv)
 				else
 					usage (argv[0]);
 				break;
+			case 'd':
+			{
+				char **tmp;
+				tmp = (char **) realloc (match_ds_g,
+						(match_ds_num_g + 1)
+						* sizeof (char *));
+				if (tmp == NULL)
+				{
+					fprintf (stderr, "realloc failed: %s\n",
+							strerror (errno));
+					return (RET_UNKNOWN);
+				}
+				match_ds_g = tmp;
+				match_ds_g[match_ds_num_g] = strdup (optarg);
+				if (match_ds_g[match_ds_num_g] == NULL)
+				{
+					fprintf (stderr, "strdup failed: %s\n",
+							strerror (errno));
+					return (RET_UNKNOWN);
+				}
+				match_ds_num_g++;
+				break;
+			}
 			default:
 				usage (argv[0]);
 		} /* switch (c) */
