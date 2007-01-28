@@ -75,18 +75,14 @@
 # define CPU_HAVE_READ 0
 #endif
 
-static data_source_t dsrc[5] =
+static data_source_t dsrc[1] =
 {
-	{"user", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"nice", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"syst", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"idle", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"wait", DS_TYPE_COUNTER, 0, 4294967295.0}
+	{"value", DS_TYPE_COUNTER, 0, 4294967295.0}
 };
 
 static data_set_t ds =
 {
-	"cpu", 5, dsrc
+	"cpu", 1, dsrc
 };
 
 #if CPU_HAVE_READ
@@ -177,28 +173,22 @@ static int init (void)
 	return (0);
 } /* int init */
 
-static void submit (int cpu_num, unsigned long long user,
-		unsigned long long nice, unsigned long long syst,
-		unsigned long long idle, unsigned long long wait)
+static void submit (int cpu_num, const char *type_instance, counter_t value)
 {
-	value_t values[5];
+	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = user;
-	values[1].counter = nice;
-	values[2].counter = syst;
-	values[3].counter = idle;
-	values[4].counter = wait;
+	values[0].counter = value;
 
 	vl.values = values;
-	vl.values_len = 5;
+	vl.values_len = 1;
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, "cpu");
-	strcpy (vl.plugin_instance, "");
-	snprintf (vl.type_instance, sizeof (vl.type_instance),
+	snprintf (vl.plugin_instance, sizeof (vl.type_instance),
 			"%i", cpu_num);
-	vl.type_instance[DATA_MAX_NAME_LEN - 1] = '\0';
+	vl.plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
+	strcpy (vl.type_instance, type_instance);
 
 	plugin_dispatch_values ("cpu", &vl);
 }
@@ -241,11 +231,10 @@ static int cpu_read (void)
 			continue;
 		}
 
-		submit (cpu, cpu_info.cpu_ticks[CPU_STATE_USER],
-				cpu_info.cpu_ticks[CPU_STATE_NICE],
-				cpu_info.cpu_ticks[CPU_STATE_SYSTEM],
-				cpu_info.cpu_ticks[CPU_STATE_IDLE],
-				0ULL);
+		submit (cpu, "user", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
+		submit (cpu, "nice", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
+		submit (cpu, "system", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
+		submit (cpu, "idle", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
 #endif /* PROCESSOR_CPU_LOAD_INFO */
 #if PROCESSOR_TEMPERATURE
 		/*
@@ -296,8 +285,8 @@ static int cpu_read (void)
 
 #elif defined(KERNEL_LINUX)
 	int cpu;
-	unsigned long long user, nice, syst, idle;
-	unsigned long long wait, intr, sitr; /* sitr == soft interrupt */
+	counter_t user, nice, syst, idle;
+	counter_t wait, intr, sitr; /* sitr == soft interrupt */
 	FILE *fh;
 	char buf[1024];
 
@@ -334,22 +323,21 @@ static int cpu_read (void)
 		syst = atoll (fields[3]);
 		idle = atoll (fields[4]);
 
+		submit (cpu, "user", user);
+		submit (cpu, "nice", nice);
+		submit (cpu, "system", syst);
+		submit (cpu, "idle", idle);
+
 		if (numfields >= 8)
 		{
 			wait = atoll (fields[5]);
 			intr = atoll (fields[6]);
 			sitr = atoll (fields[7]);
 
-			/* I doubt anyone cares about the time spent in
-			 * interrupt handlers.. */
-			syst += intr + sitr;
+			submit (cpu, "wait", wait);
+			submit (cpu, "interrupt", intr);
+			submit (cpu, "softirq", sitr);
 		}
-		else
-		{
-			wait = 0LL;
-		}
-
-		submit (cpu, user, nice, syst, idle, wait);
 	}
 
 	fclose (fh);
@@ -357,7 +345,7 @@ static int cpu_read (void)
 
 #elif defined(HAVE_LIBKSTAT)
 	int cpu;
-	unsigned long long user, syst, idle, wait;
+	counter_t user, syst, idle, wait;
 	static cpu_stat_t cs;
 
 	if (kc == NULL)
@@ -368,13 +356,15 @@ static int cpu_read (void)
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
 
-		idle = (unsigned long long) cs.cpu_sysinfo.cpu[CPU_IDLE];
-		user = (unsigned long long) cs.cpu_sysinfo.cpu[CPU_USER];
-		syst = (unsigned long long) cs.cpu_sysinfo.cpu[CPU_KERNEL];
-		wait = (unsigned long long) cs.cpu_sysinfo.cpu[CPU_WAIT];
+		idle = (counter_t) cs.cpu_sysinfo.cpu[CPU_IDLE];
+		user = (counter_t) cs.cpu_sysinfo.cpu[CPU_USER];
+		syst = (counter_t) cs.cpu_sysinfo.cpu[CPU_KERNEL];
+		wait = (counter_t) cs.cpu_sysinfo.cpu[CPU_WAIT];
 
-		submit (ksp[cpu]->ks_instance,
-				user, 0LL, syst, idle, wait);
+		submit (ksp[cpu]->ks_instance, "user", user);
+		submit (ksp[cpu]->ks_instance, "system", syst);
+		submit (ksp[cpu]->ks_instance, "idle", idle);
+		submit (ksp[cpu]->ks_instance, "wait", wait);
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
 
@@ -399,8 +389,10 @@ static int cpu_read (void)
 
 	cpuinfo[CP_SYS] += cpuinfo[CP_INTR];
 
-	/* FIXME: Instance is always `0' */
-	submit (0, cpuinfo[CP_USER], cpuinfo[CP_NICE], cpuinfo[CP_SYS], cpuinfo[CP_IDLE], 0LL);
+	submit (0, "user", cpuinfo[CP_USER]);
+	submit (0, "nice", cpuinfo[CP_NICE]);
+	submit (0, "system", cpuinfo[CP_SYS]);
+	submit (0, "idle", cpuinfo[CP_IDLE]);
 #endif
 
 	return (0);
