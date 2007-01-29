@@ -77,6 +77,20 @@ static int register_callback (llist_t **list, const char *name, void *callback)
 	return (0);
 } /* int register_callback */
 
+static int plugin_unregister (llist_t *list, const char *name)
+{
+	llentry_t *e;
+
+	e = llist_search (list, name);
+
+	if (e == NULL)
+		return (-1);
+
+	llist_remove (list, e);
+
+	return (0);
+} /* int plugin_unregister */
+
 /*
  * (Try to) load the shared object `file'. Won't complain if it isn't a shared
  * object, but it will bitch about a shared object not having a
@@ -234,6 +248,31 @@ int plugin_register_data_set (const data_set_t *ds)
 {
 	return (register_callback (&list_data_set, ds->type, (void *) ds));
 } /* int plugin_register_data_set */
+
+int plugin_unregister_init (const char *name)
+{
+	return (plugin_unregister (list_init, name));
+}
+
+int plugin_unregister_read (const char *name)
+{
+	return (plugin_unregister (list_read, name));
+}
+
+int plugin_unregister_write (const char *name)
+{
+	return (plugin_unregister (list_write, name));
+}
+
+int plugin_unregister_shutdown (const char *name)
+{
+	return (plugin_unregister (list_shutdown, name));
+}
+
+int plugin_unregister_data_set (const char *name)
+{
+	return (plugin_unregister (list_data_set, name));
+}
 
 void plugin_init_all (void)
 {
