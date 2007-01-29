@@ -264,20 +264,12 @@ static int cache_update (const data_set_t *ds, const value_list_t *vl)
 					/ (vl->time - vc->time);
 			}
 
-			DBG ("name = %s; old counter: %llu; new counter: %llu; rate: %lf;",
-					name,
-					vc->counter[i], vl->values[i].counter,
-					vc->gauge[i]);
-
 			vc->counter[i] = vl->values[i].counter;
 		}
 		else if (ds->ds[i].type == DS_TYPE_GAUGE)
 		{
 			vc->gauge[i] = vl->values[i].gauge;
 			vc->counter[i] = 0;
-
-			DBG ("name, %s; gauge: %lf;",
-					name, vc->gauge[i]);
 		}
 		else
 		{
@@ -569,6 +561,7 @@ static void *us_server_thread (void *arg)
 	int  status;
 	int *remote_fd;
 	pthread_t th;
+	pthread_attr_t th_attr;
 
 	if (us_open_socket () != 0)
 		pthread_exit ((void *) 1);
@@ -601,7 +594,10 @@ static void *us_server_thread (void *arg)
 
 		DBG ("Spawning child to handle connection on fd #%i", *remote_fd);
 
-		status = pthread_create (&th, NULL, us_handle_client, (void *) remote_fd);
+		pthread_attr_init (&th_attr);
+		pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
+
+		status = pthread_create (&th, &th_attr, us_handle_client, (void *) remote_fd);
 		if (status != 0)
 		{
 			syslog (LOG_WARNING, "unixsock plugin: pthread_create failed: %s",
