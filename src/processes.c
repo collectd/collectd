@@ -1,7 +1,7 @@
 /**
  * collectd - src/processes.c
  * Copyright (C) 2005  Lyonel Vincent
- * Copyright (C) 2006  Florian Forster (Mach code)
+ * Copyright (C) 2006-2007  Florian Forster (Mach code)
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -93,58 +93,65 @@
 
 #define BUFSIZE 256
 
-static char *processes_file = "processes.rrd";
-static char *processes_ds_def[] =
+static data_source_t state_dsrc[1] =
 {
-	"DS:running:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	"DS:sleeping:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	"DS:zombies:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	"DS:stopped:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	"DS:paging:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	"DS:blocked:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	NULL
+	{"value", DS_TYPE_GAUGE, 0.0, 65535.0}
 };
-static int processes_ds_num = 6;
 
-static char *ps_rss_file = "processes/ps_rss-%s.rrd";
-static char *ps_rss_ds_def[] =
+static data_set_t state_ds =
+{
+	"ps_state", 1, state_dsrc
+};
+
+static data_source_t rss_dsrc[1] =
 {
 	/* max = 2^63 - 1 */
-	"DS:byte:GAUGE:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	NULL
+	{"value", DS_TYPE_GAUGE, 0.0, 9223372036854775807.0}
 };
-static int ps_rss_ds_num = 1;
 
-static char *ps_cputime_file = "processes/ps_cputime-%s.rrd";
-static char *ps_cputime_ds_def[] =
+static data_set_t rss_ds =
+{
+	"ps_rss", 1, rss_dsrc
+};
+
+static data_source_t time_dsrc[2] =
 {
 	/* 1 second in user-mode per second ought to be enough.. */
-	"DS:user:COUNTER:"COLLECTD_HEARTBEAT":0:1000000",
-	"DS:syst:COUNTER:"COLLECTD_HEARTBEAT":0:1000000",
-	NULL
+	{"user", DS_TYPE_COUNTER, 0.0, 1000000.0},
+	{"syst", DS_TYPE_COUNTER, 0.0, 1000000.0}
 };
-static int ps_cputime_ds_num = 2;
 
-static char *ps_count_file = "processes/ps_count-%s.rrd";
-static char *ps_count_ds_def[] =
+static data_set_t time_ds =
 {
-	"DS:processes:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	"DS:threads:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	NULL
+	"ps_cputime", 2, time_dsrc
 };
-static int ps_count_ds_num = 2;
 
-static char *ps_pagefaults_file = "processes/ps_pagefaults-%s.rrd";
-static char *ps_pagefaults_ds_def[] =
+static data_source_t count_dsrc[2] =
+{
+	/* 1 second in user-mode per second ought to be enough.. */
+	{"processes", DS_TYPE_GAUGE, 0.0, 1000000.0},
+	{"threads",   DS_TYPE_GAUGE, 0.0, 1000000.0}
+};
+
+static data_set_t count_ds =
+{
+	"ps_count", 2, count_dsrc
+};
+
+static data_source_t pagefaults_dsrc[2] =
 {
 	/* max = 2^63 - 1 */
-	"DS:minflt:COUNTER:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	"DS:majflt:COUNTER:"COLLECTD_HEARTBEAT":0:9223372036854775807",
-	NULL
+	{"minflt", DS_TYPE_COUNTER, 0.0, 9223372036854775807.0},
+	{"majflt", DS_TYPE_COUNTER, 0.0, 9223372036854775807.0}
 };
-static int ps_pagefaults_ds_num = 2;
 
-static char *config_keys[] =
+static data_set_t pagefaults_ds =
+{
+	"ps_pagefaults", 2, pagefaults_dsrc
+};
+
+#if PROCESSES_HAVE_READ
+static const char *config_keys[] =
 {
 	"Process",
 	NULL
@@ -405,7 +412,7 @@ static void ps_list_reset (void)
 }
 #endif /* HAVE_THREAD_INFO | KERNEL_LINUX */
 
-static int ps_config (char *key, char *value)
+static int ps_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "Process") == 0)
 	{
@@ -419,7 +426,7 @@ static int ps_config (char *key, char *value)
 	return (0);
 }
 
-static void ps_init (void)
+static int ps_init (void)
 {
 #if HAVE_THREAD_INFO
 	kern_return_t status;
@@ -444,7 +451,7 @@ static void ps_init (void)
 			       	mach_error_string (status));
 		pset_list = NULL;
 		pset_list_len = 0;
-		return;
+		return (-1);
 	}
 /* #endif HAVE_THREAD_INFO */
 
@@ -454,135 +461,65 @@ static void ps_init (void)
 			pagesize_g, CONFIG_HZ);
 #endif /* KERNEL_LINUX */
 
-	return;
-}
+	return (0);
+} /* int ps_init */
 
-static void ps_write (char *host, char *inst, char *val)
+static void ps_submit_state (const char *state, double value)
 {
-	rrd_update_file (host, processes_file, val,
-			processes_ds_def, processes_ds_num);
-}
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-static void ps_rss_write (char *host, char *inst, char *val)
-{
-	char filename[256];
-	int status;
+	values[0].gauge = value;
 
-	status = snprintf (filename, 256, ps_rss_file, inst);
-	if ((status < 1) || (status >= 256))
-		return;
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "processes");
+	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type_instance, state, sizeof (vl.type_instance));
 
-	rrd_update_file (host, filename, val, ps_rss_ds_def, ps_rss_ds_num);
-}
-
-static void ps_cputime_write (char *host, char *inst, char *val)
-{
-	char filename[256];
-	int status;
-
-	status = snprintf (filename, 256, ps_cputime_file, inst);
-	if ((status < 1) || (status >= 256))
-		return;
-
-	DBG ("host = %s; filename = %s; val = %s;",
-			host, filename, val);
-	rrd_update_file (host, filename, val,
-			ps_cputime_ds_def, ps_cputime_ds_num);
-}
-
-static void ps_count_write (char *host, char *inst, char *val)
-{
-	char filename[256];
-	int status;
-
-	status = snprintf (filename, 256, ps_count_file, inst);
-	if ((status < 1) || (status >= 256))
-		return;
-
-	DBG ("host = %s; filename = %s; val = %s;",
-			host, filename, val);
-	rrd_update_file (host, filename, val,
-			ps_count_ds_def, ps_count_ds_num);
-}
-
-static void ps_pagefaults_write (char *host, char *inst, char *val)
-{
-	char filename[256];
-	int status;
-
-	status = snprintf (filename, 256, ps_pagefaults_file, inst);
-	if ((status < 1) || (status >= 256))
-		return;
-
-	DBG ("host = %s; filename = %s; val = %s;",
-			host, filename, val);
-	rrd_update_file (host, filename, val,
-			ps_pagefaults_ds_def, ps_pagefaults_ds_num);
-}
-
-#if PROCESSES_HAVE_READ
-static void ps_submit (int running,
-		int sleeping,
-		int zombies,
-		int stopped,
-		int paging,
-		int blocked)
-{
-	char buf[BUFSIZE];
-
-	if (snprintf (buf, BUFSIZE, "%u:%i:%i:%i:%i:%i:%i",
-				(unsigned int) curtime,
-				running, sleeping, zombies, stopped, paging,
-				blocked) >= BUFSIZE)
-		return;
-
-	DBG ("running = %i; sleeping = %i; zombies = %i; stopped = %i; paging = %i; blocked = %i;",
-			running, sleeping, zombies, stopped, paging, blocked);
-
-	plugin_submit (MODULE_NAME, "-", buf);
+	plugin_dispatch_values ("ps_state", &vl);
 }
 
 static void ps_submit_proc_list (procstat_t *ps)
 {
-	char buffer[64];
+	value_t values[2];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	if (ps == NULL)
-		return;
+	vl.values = values;
+	vl.values_len = 2;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "processes");
+	strncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
-	snprintf (buffer, 64, "%u:%lu",
-			(unsigned int) curtime,
-			ps->vmem_rss);
-	buffer[63] = '\0';
-	plugin_submit ("ps_rss", ps->name, buffer);
+	vl.values[0].gauge = ps->vmem_rss;
+	vl.values_len = 1;
+	plugin_dispatch_values ("ps_rss", &vl);
 
-	snprintf (buffer, 64, "%u:%u:%u",
-			(unsigned int) curtime,
-			/* Make the counter overflow */
-			(unsigned int) (ps->cpu_user_counter   & 0xFFFFFFFF),
-			(unsigned int) (ps->cpu_system_counter & 0xFFFFFFFF));
-	buffer[63] = '\0';
-	plugin_submit ("ps_cputime", ps->name, buffer);
+	vl.values[0].counter = ps->cpu_user_counter;
+	vl.values[1].counter = ps->cpu_system_counter;
+	vl.values_len = 2;
+	plugin_dispatch_values ("ps_cputime", &vl);
 
-	snprintf (buffer, 64, "%u:%lu:%lu",
-			(unsigned int) curtime,
-			ps->num_proc, ps->num_lwp);
-	buffer[63] = '\0';
-	plugin_submit ("ps_count", ps->name, buffer);
+	vl.values[0].gauge = ps->num_proc;
+	vl.values[1].gauge = ps->num_lwp;
+	vl.values_len = 2;
+	plugin_dispatch_values ("ps_count", &vl);
 
-	snprintf (buffer, 64, "%u:%lu:%lu",
-			(unsigned int) curtime,
-			ps->vmem_minflt_counter, ps->vmem_majflt_counter);
-	buffer[63] = '\0';
-	plugin_submit ("ps_pagefaults", ps->name, buffer);
+	vl.values[0].counter = ps->vmem_minflt_counter;
+	vl.values[1].counter = ps->vmem_majflt_counter;
+	vl.values_len = 2;
+	plugin_dispatch_values ("ps_pagefaults", &vl);
 
 	DBG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
 			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "
 			"cpu_user_counter = %lu; cpu_system_counter = %lu;",
 			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
-			ps->vmem_minflt_counter, ps->vmem_majflt_counter, ps->cpu_user_counter,
-			ps->cpu_system_counter);
-
-}
+			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
+		       	ps->cpu_user_counter, ps->cpu_system_counter);
+} /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX
 static int *ps_read_tasks (int pid)
@@ -790,7 +727,7 @@ static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_l
 }
 #endif /* HAVE_THREAD_INFO */
 
-static void ps_read (void)
+static int ps_read (void)
 {
 #if HAVE_THREAD_INFO
 	kern_return_t            status;
@@ -1037,7 +974,11 @@ static void ps_read (void)
 		}
 	} /* for (pset_list) */
 
-	ps_submit (running, sleeping, zombies, stopped, -1, blocked);
+	ps_submit_state ("running", running);
+	ps_submit_state ("sleeping", sleeping);
+	ps_submit_state ("zombies", zombies);
+	ps_submit_state ("stopped", stopped);
+	ps_submit_state ("blocked", blocked);
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 		ps_submit_proc_list (ps);
@@ -1068,7 +1009,7 @@ static void ps_read (void)
 	if ((proc = opendir ("/proc")) == NULL)
 	{
 		syslog (LOG_ERR, "Cannot open `/proc': %s", strerror (errno));
-		return;
+		return (-1);
 	}
 
 	while ((ent = readdir (proc)) != NULL)
@@ -1118,25 +1059,34 @@ static void ps_read (void)
 
 	closedir (proc);
 
-	ps_submit (running, sleeping, zombies, stopped, paging, blocked);
+	ps_submit_state ("running",  running);
+	ps_submit_state ("sleeping", sleeping);
+	ps_submit_state ("zombies",  zombies);
+	ps_submit_state ("stopped",  stopped);
+	ps_submit_state ("paging",   paging);
+	ps_submit_state ("blocked",  blocked);
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 #endif /* KERNEL_LINUX */
-}
-#else
-# define ps_read NULL
+
+	return (0);
+} /* int ps_read */
 #endif /* PROCESSES_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, ps_init, ps_read, ps_write);
-	plugin_register ("ps_rss", NULL, NULL, ps_rss_write);
-	plugin_register ("ps_cputime", NULL, NULL, ps_cputime_write);
-	plugin_register ("ps_count", NULL, NULL, ps_count_write);
-	plugin_register ("ps_pagefaults", NULL, NULL, ps_pagefaults_write);
-	cf_register (MODULE_NAME, ps_config, config_keys, config_keys_num);
+	plugin_register_data_set (&state_ds);
+	plugin_register_data_set (&rss_ds);
+	plugin_register_data_set (&time_ds);
+	plugin_register_data_set (&count_ds );
+	plugin_register_data_set (&pagefaults_ds );
+
+#if PROCESSES_HAVE_READ
+	plugin_register_config ("processes", ps_config,
+			config_keys, config_keys_num);
+	plugin_register_init ("processes", ps_init);
+	plugin_register_read ("processes", ps_read);
+#endif /* PROCESSES_HAVE_READ */
 }
 
-#undef BUFSIZE
-#undef MODULE_NAME
