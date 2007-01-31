@@ -660,6 +660,10 @@ static int us_shutdown (void)
 		pthread_join (listen_thread, &ret);
 	}
 
+	plugin_unregister_init ("unixsock");
+	plugin_unregister_write ("unixsock");
+	plugin_unregister_shutdown ("unixsock");
+
 	return (0);
 } /* int us_shutdown */
 
