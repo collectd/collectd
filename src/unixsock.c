@@ -74,7 +74,7 @@ static char *sock_file  = NULL;
 static char *sock_group = NULL;
 static int   sock_perms = S_IRWXU | S_IRWXG;
 
-static pthread_t listen_thread = NULL;
+static pthread_t listen_thread = (pthread_t) 0;
 
 /* Linked list and auxilliary variables for saving values */
 static value_cache_t   *cache_head = NULL;
@@ -654,10 +654,11 @@ static int us_shutdown (void)
 {
 	void *ret;
 
-	if (listen_thread != NULL)
+	if (listen_thread != (pthread_t) 0)
 	{
 		pthread_kill (listen_thread, SIGTERM);
 		pthread_join (listen_thread, &ret);
+		listen_thread = (pthread_t) 0;
 	}
 
 	plugin_unregister_init ("unixsock");
