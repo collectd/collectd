@@ -1,6 +1,6 @@
 /**
  * collectd - src/ntpd.c
- * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2006-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,8 +24,6 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_debug.h"
-
-#define MODULE_NAME "ntpd"
 
 #if HAVE_SYS_SOCKET_H
 # define NTPD_HAVE_READ 1
@@ -55,7 +53,37 @@
 # include <poll.h>
 #endif
 
-static char *config_keys[] =
+static data_source_t seconds_dsrc[1] =
+{
+	{"seconds", DS_TYPE_GAUGE, -1000000.0, 1000000.0}
+};
+
+static data_set_t time_offset_ds =
+{
+	"time_offset", 1, seconds_dsrc
+};
+
+static data_set_t time_dispersion_ds =
+{
+	"time_dispersion", 1, seconds_dsrc
+};
+
+static data_set_t delay_ds =
+{
+	"delay", 1, seconds_dsrc
+};
+
+static data_source_t ppm_dsrc[1] =
+{
+	{"ppm", DS_TYPE_GAUGE, -1000000.0, 1000000.0}
+};
+
+static data_set_t frequency_offset_ds =
+{
+	"frequency_offset", 1, ppm_dsrc
+};
+
+static const char *config_keys[] =
 {
 	"Host",
 	"Port",
@@ -63,34 +91,12 @@ static char *config_keys[] =
 };
 static int config_keys_num = 2;
 
-/* drift */
-static char *time_offset_file     = "ntpd/time_offset-%s.rrd";
-static char *time_dispersion_file = "ntpd/time_dispersion-%s.rrd";
-static char *time_delay_file      = "ntpd/delay-%s.rrd";
-
-/* used for `time_offset', `time_dispersion', and `delay' */
-static char *sec_ds_def[] =
-{
-	"DS:seconds:GAUGE:"COLLECTD_HEARTBEAT":-1000000:1000000",
-	NULL
-};
-static int sec_ds_num = 1;
-
-static char *frequency_offset_file = "ntpd/frequency_offset-%s.rrd";
-static char *frequency_offset_ds_def[] =
-{
-	"DS:ppm:GAUGE:"COLLECTD_HEARTBEAT":-1000000:1000000",
-	NULL
-};
-static int frequency_offset_ds_num = 1;
-
 #if NTPD_HAVE_READ
 # define NTPD_DEFAULT_HOST "localhost"
 # define NTPD_DEFAULT_PORT "123"
 static int   sock_descr = -1;
 static char *ntpd_host = NULL;
 static char *ntpd_port = NULL;
-#endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * The following definitions were copied from the NTPd distribution  *
@@ -286,7 +292,7 @@ static int refclock_names_num = 45;
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-static int ntpd_config (char *key, char *value)
+static int ntpd_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "host") == 0)
 	{
@@ -310,64 +316,22 @@ static int ntpd_config (char *key, char *value)
 	return (0);
 }
 
-static void ntpd_init (void)
+static void ntpd_submit (char *type, char *type_inst, double value)
 {
-	return;
-}
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-static void ntpd_write_sec (char *host, char *inst, char *val, char *file)
-{
-	char buf[256];
-	int  status;
+	values[0].gauge = value;
 
-	status = snprintf (buf, 256, file, inst);
-	if ((status < 1) || (status >= 256))
-		return;
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "ntpd");
+	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
-	rrd_update_file (host, buf, val,
-			sec_ds_def, sec_ds_num);
-}
-
-static void ntpd_write_time_offset (char *host, char *inst, char *val)
-{
-	ntpd_write_sec (host, inst, val, time_offset_file);
-}
-
-static void ntpd_write_time_dispersion (char *host, char *inst, char *val)
-{
-	ntpd_write_sec (host, inst, val, time_dispersion_file);
-}
-
-static void ntpd_write_delay (char *host, char *inst, char *val)
-{
-	ntpd_write_sec (host, inst, val, time_delay_file);
-}
-
-static void ntpd_write_frequency_offset (char *host, char *inst, char *val)
-{
-	char buf[256];
-	int  status;
-
-	status = snprintf (buf, 256, frequency_offset_file, inst);
-	if ((status < 1) || (status >= 256))
-		return;
-
-	rrd_update_file (host, buf, val,
-			frequency_offset_ds_def, frequency_offset_ds_num);
-}
-
-#if NTPD_HAVE_READ
-static void ntpd_submit (char *type, char *inst, double value)
-{
-	char buf[256];
-
-	if (snprintf (buf, 256, "%u:%.8f", (unsigned int) curtime, value) >= 256)
-		return;
-
-	DBG ("type = %s; inst = %s; value = %s;",
-			type, inst, buf);
-
-	plugin_submit (type, inst, buf);
+	plugin_dispatch_values (type, &vl);
 }
 
 /* returns `tv0 - tv1' in milliseconds or 0 if `tv1 > tv0' */
@@ -810,7 +774,7 @@ static double ntpd_read_fp (int32_t val_int)
 	return (val_double);
 }
 
-static void ntpd_read (void)
+static int ntpd_read (void)
 {
 	struct info_kernel *ik;
 	int                 ik_num;
@@ -835,13 +799,13 @@ static void ntpd_read (void)
 	if (status != 0)
 	{
 		DBG ("ntpd_do_query failed with status %i", status);
-		return;
+		return (-1);
 	}
 	if ((ik == NULL) || (ik_num == 0) || (ik_size == 0))
 	{
 		DBG ("ntpd_do_query returned: ik = %p; ik_num = %i; ik_size = %i;",
 				(void *) ik, ik_num, ik_size);
-		return;
+		return (-1);
 	}
 
 	/* kerninfo -> estimated error */
@@ -854,9 +818,9 @@ static void ntpd_read (void)
 			ntpd_read_fp (ik->freq),
 			ntpd_read_fp (ik->esterror));
 
-	ntpd_submit ("ntpd_frequency_offset", "loop",  ntpd_read_fp (ik->freq));
-	ntpd_submit ("ntpd_time_offset",      "loop",  ntpd_read_fp (ik->offset));
-	ntpd_submit ("ntpd_time_offset",      "error", ntpd_read_fp (ik->esterror));
+	ntpd_submit ("frequency_offset", "loop",  ntpd_read_fp (ik->freq));
+	ntpd_submit ("time_offset",      "loop",  ntpd_read_fp (ik->offset));
+	ntpd_submit ("time_offset",      "error", ntpd_read_fp (ik->esterror));
 
 	free (ik);
 	ik = NULL;
@@ -868,13 +832,13 @@ static void ntpd_read (void)
 	if (status != 0)
 	{
 		DBG ("ntpd_do_query failed with status %i", status);
-		return;
+		return (-1);
 	}
 	if ((ps == NULL) || (ps_num == 0) || (ps_size == 0))
 	{
 		DBG ("ntpd_do_query returned: ps = %p; ps_num = %i; ps_size = %i;",
 				(void *) ps, ps_num, ps_size);
-		return;
+		return (-1);
 	}
 
 	for (i = 0; i < ps_num; i++)
@@ -979,29 +943,28 @@ static void ntpd_read (void)
 				ntpd_read_fp (ptr->dispersion));
 
 		if (refclock_id != 1) /* not the system clock (offset will always be zero.. */
-			ntpd_submit ("ntpd_time_offset", peername, offset);
-		ntpd_submit ("ntpd_time_dispersion", peername, ntpd_read_fp (ptr->dispersion));
+			ntpd_submit ("time_offset", peername, offset);
+		ntpd_submit ("time_dispersion", peername, ntpd_read_fp (ptr->dispersion));
 		if (refclock_id == 0) /* not a reference clock */
-			ntpd_submit ("ntpd_delay", peername, ntpd_read_fp (ptr->delay));
+			ntpd_submit ("delay", peername, ntpd_read_fp (ptr->delay));
 	}
 
 	free (ps);
 	ps = NULL;
 
-	return;
-}
-#else
-# define ntpd_read NULL
+	return (0);
+} /* int ntpd_read */
 #endif /* NTPD_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, ntpd_init, ntpd_read, NULL);
-	plugin_register ("ntpd_time_offset", NULL, NULL, ntpd_write_time_offset);
-	plugin_register ("ntpd_time_dispersion", NULL, NULL, ntpd_write_time_dispersion);
-	plugin_register ("ntpd_delay", NULL, NULL, ntpd_write_delay);
-	plugin_register ("ntpd_frequency_offset", NULL, NULL, ntpd_write_frequency_offset);
-	cf_register (MODULE_NAME, ntpd_config, config_keys, config_keys_num);
-}
+	plugin_register_data_set (&time_offset_ds);
+	plugin_register_data_set (&time_dispersion_ds);
+	plugin_register_data_set (&delay_ds);
+	plugin_register_data_set (&frequency_offset_ds);
 
-#undef MODULE_NAME
+#if NTPD_HAVE_READ
+	plugin_register_config ("ntpd", ntpd_config, config_keys, config_keys_num);
+	plugin_register_read ("ntpd", ntpd_read);
+#endif /* NTPD_HAVE_READ */
+}
