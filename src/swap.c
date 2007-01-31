@@ -1,11 +1,10 @@
 /**
  * collectd - src/swap.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,8 +36,6 @@
 #  include <kvm.h>
 #endif
 
-#define MODULE_NAME "swap"
-
 #if KERNEL_LINUX || HAVE_LIBKSTAT || defined(VM_SWAPUSAGE) || HAVE_LIBKVM || HAVE_LIBSTATGRAB
 # define SWAP_HAVE_READ 1
 #else
@@ -48,19 +45,17 @@
 #undef  MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
-static char *swap_file = "swap.rrd";
-
-/* 1099511627776 == 1TB ought to be enough for anyone ;) */
-static char *ds_def[] =
+static data_source_t data_source[1] =
 {
-	"DS:used:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
-	"DS:free:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
-	"DS:cached:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
-	"DS:resv:GAUGE:"COLLECTD_HEARTBEAT":0:1099511627776",
-	NULL
+	{"value", DS_TYPE_GAUGE, 0, 1099511627776.0}
 };
-static int ds_num = 4;
 
+static data_set_t data_set =
+{
+	"swap", 1, data_source
+};
+
+#if SWAP_HAVE_READ
 #if KERNEL_LINUX
 /* No global variables */
 /* #endif KERNEL_LINUX */
@@ -83,7 +78,7 @@ int kvm_pagesize;
 /* No global variables */
 #endif /* HAVE_LIBSTATGRAB */
 
-static void swap_init (void)
+static int swap_init (void)
 {
 #if KERNEL_LINUX
 	/* No init stuff */
@@ -117,7 +112,7 @@ static void swap_init (void)
 			== NULL)
 	{
 		syslog (LOG_ERR, "swap plugin: kvm_open failed.");
-		return;
+		return (-1);
 	}
 /* #endif HAVE_LIBKVM */
 
@@ -125,30 +120,27 @@ static void swap_init (void)
 	/* No init stuff */
 #endif /* HAVE_LIBSTATGRAB */
 
-	return;
+	return (0);
 }
 
-static void swap_write (char *host, char *inst, char *val)
+static void swap_submit (const char *type_instance, double value)
 {
-	rrd_update_file (host, swap_file, val, ds_def, ds_num);
-}
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-#if SWAP_HAVE_READ
-static void swap_submit (unsigned long long swap_used,
-		unsigned long long swap_free,
-		unsigned long long swap_cached,
-		unsigned long long swap_resv)
-{
-	char buffer[512];
+	values[0].gauge = value;
 
-	if (snprintf (buffer, 512, "%u:%llu:%llu:%llu:%llu", (unsigned int) curtime,
-				swap_used, swap_free, swap_cached, swap_resv) >= 512)
-		return;
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "swap");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	plugin_submit (MODULE_NAME, "-", buffer);
-}
+	plugin_dispatch_values ("swap", &vl);
+} /* void swap_submit */
 
-static void swap_read (void)
+static int swap_read (void)
 {
 #if KERNEL_LINUX
 	FILE *fh;
@@ -165,7 +157,7 @@ static void swap_read (void)
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
 		syslog (LOG_WARNING, "memory: fopen: %s", strerror (errno));
-		return;
+		return (-1);
 	}
 
 	while (fgets (buffer, 1024, fh) != NULL)
@@ -193,11 +185,13 @@ static void swap_read (void)
 		syslog (LOG_WARNING, "memory: fclose: %s", strerror (errno));
 
 	if ((swap_total == 0LL) || ((swap_free + swap_cached) > swap_total))
-		return;
+		return (-1);
 
 	swap_used = swap_total - (swap_free + swap_cached);
 
-	swap_submit (swap_used, swap_free, swap_cached, -1LL);
+	swap_submit ("used", swap_used);
+	swap_submit ("free", swap_free);
+	swap_submit ("cached", swap_cached);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -211,7 +205,7 @@ static void swap_read (void)
 	{
 		syslog (LOG_ERR, "swap plugin: swapctl failed: %s",
 				strerror (errno));
-		return;
+		return (-1);
 	}
 
 	/*
@@ -242,7 +236,9 @@ static void swap_read (void)
 	swap_avail  = ai.ani_max - ai.ani_resv;
 	swap_avail *= pagesize;
 
-	swap_submit (swap_alloc, swap_avail, -1LL, swap_resv - swap_alloc);
+	swap_submit ("used", swap_alloc);
+	swap_submit ("free", swap_avail);
+	swap_submit ("reserved", swap_resv - swap_alloc);
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(VM_SWAPUSAGE)
@@ -258,10 +254,11 @@ static void swap_read (void)
 	sw_usage_len = sizeof (struct xsw_usage);
 
 	if (sysctl (mib, mib_len, &sw_usage, &sw_usage_len, NULL, 0) != 0)
-		return;
+		return (-1);
 
 	/* The returned values are bytes. */
-	swap_submit (sw_usage.xsu_used, sw_usage.xsu_avail, -1LL, -1LL);
+	swap_submit ("used", sw_usage.xsu_used);
+	swap_submit ("free", sw_usage.xsu_avail);
 /* #endif VM_SWAPUSAGE */
 
 #elif HAVE_LIBKVM
@@ -273,12 +270,12 @@ static void swap_read (void)
 	unsigned long long total;
 
 	if (kvm_obj == NULL)
-		return;
+		return (-1);
 
 	/* only one structure => only get the grand total, no details */
 	status = kvm_getswapinfo (kvm_obj, &data_s, 1, 0);
 	if (status == -1)
-		return;
+		return (-1);
 
 	total = (unsigned long long) data_s.ksw_total;
 	used  = (unsigned long long) data_s.ksw_used;
@@ -288,23 +285,32 @@ static void swap_read (void)
 
 	free = total - used;
 
-	swap_submit (used, free, -1LL, -1LL);
+	swap_submit ("used", used);
+	swap_submit ("free", free);
 /* #endif HAVE_LIBKVM */
 
 #elif HAVE_LIBSTATGRAB
 	sg_swap_stats *swap;
 
-	if ((swap = sg_get_swap_stats ()) != NULL)
-		swap_submit (swap->used, swap->free, -1LL, -1LL);
+	swap = sg_get_swap_stats ();
+
+	if (swap == NULL)
+		return (-1);
+
+	swap_submit ("used", swap->used);
+	swap_submit ("free", swap->free);
 #endif /* HAVE_LIBSTATGRAB */
-}
-#else
-# define swap_read NULL
+
+	return (0);
+} /* int swap_read */
 #endif /* SWAP_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, swap_init, swap_read, swap_write);
-}
+	plugin_register_data_set (&data_set);
 
-#undef MODULE_NAME
+#if SWAP_HAVE_READ
+	plugin_register_init ("swap", swap_init);
+	plugin_register_read ("swap", swap_read);
+#endif /* SWAP_HAVE_READ */
+}
