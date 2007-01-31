@@ -74,7 +74,7 @@ static char *sock_file  = NULL;
 static char *sock_group = NULL;
 static int   sock_perms = S_IRWXU | S_IRWXG;
 
-static pthread_t listen_thread = -1;
+static pthread_t listen_thread = NULL;
 
 /* Linked list and auxilliary variables for saving values */
 static value_cache_t   *cache_head = NULL;
@@ -654,7 +654,7 @@ static int us_shutdown (void)
 {
 	void *ret;
 
-	if (listen_thread >= 0)
+	if (listen_thread != NULL)
 	{
 		pthread_kill (listen_thread, SIGTERM);
 		pthread_join (listen_thread, &ret);
