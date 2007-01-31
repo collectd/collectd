@@ -129,7 +129,7 @@ static int init (void)
 	/* FIXME: Free `cpu_list' if it's not NULL */
 	if ((status = host_processors (port_host, &cpu_list, &cpu_list_len)) != KERN_SUCCESS)
 	{
-		syslog (LOG_ERR, "cpu plugin: host_processors returned %i\n", (int) status);
+		syslog (LOG_ERR, "cpu plugin: host_processors returned %i", (int) status);
 		cpu_list_len = 0;
 		return (-1);
 	}
