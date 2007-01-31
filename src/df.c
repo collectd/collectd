@@ -1,11 +1,10 @@
 /**
  * collectd - src/df.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,8 +26,6 @@
 #include "utils_mount.h"
 #include "utils_ignorelist.h"
 
-#define MODULE_NAME "df"
-
 #if HAVE_STATFS || HAVE_STATVFS
 # define DF_HAVE_READ 1
 #else
@@ -49,17 +46,20 @@
 # define BLOCKSIZE(s) (s).f_bsize
 #endif
 
-static char *filename_template = "df-%s.rrd";
-
-static char *ds_def[] =
+/* 2^50 - 1 == 1125899906842623 = 1 Petabyte */
+static data_source_t dsrc[2] =
 {
-	"DS:used:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	"DS:free:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	NULL
+	{"free", DS_TYPE_GAUGE, 0, 1125899906842623.0},
+	{"used", DS_TYPE_GAUGE, 0, 1125899906842623.0}
 };
-static int ds_num = 2;
 
-static char *config_keys[] =
+static data_set_t ds =
+{
+	"df", 2, dsrc
+};
+
+#if DF_HAVE_READ
+static const char *config_keys[] =
 {
 	"Device",
 	"MountPoint",
@@ -73,9 +73,7 @@ static ignorelist_t *il_device = NULL;
 static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
 
-#define BUFSIZE 512
-
-static void df_init (void)
+static int df_init (void)
 {
 	if (il_device == NULL)
 		il_device = ignorelist_create (1);
@@ -84,10 +82,10 @@ static void df_init (void)
 	if (il_fstype == NULL)
 		il_fstype = ignorelist_create (1);
 
-	return;
+	return (0);
 }
 
-static int df_config (char *key, char *value)
+static int df_config (const char *key, const char *value)
 {
 	df_init ();
 
@@ -131,35 +129,28 @@ static int df_config (char *key, char *value)
 	return (-1);
 }
 
-static void df_write (char *host, char *inst, char *val)
-{
-	char file[BUFSIZE];
-	int status;
-
-	status = snprintf (file, BUFSIZE, filename_template, inst);
-	if (status < 1)
-		return;
-	else if (status >= BUFSIZE)
-		return;
-
-	rrd_update_file (host, file, val, ds_def, ds_num);
-}
-
-#if DF_HAVE_READ
 static void df_submit (char *df_name,
-		unsigned long long df_used,
-		unsigned long long df_free)
+		gauge_t df_used,
+		gauge_t df_free)
 {
-	char buf[BUFSIZE];
+	value_t values[2];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	if (snprintf (buf, BUFSIZE, "%u:%llu:%llu", (unsigned int) curtime,
-				df_used, df_free) >= BUFSIZE)
-		return;
+	values[0].gauge = df_used;
+	values[1].gauge = df_free;
 
-	plugin_submit (MODULE_NAME, df_name, buf);
-}
+	vl.values = values;
+	vl.values_len = 2;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "df");
+	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
 
-static void df_read (void)
+	plugin_dispatch_values ("df", &vl);
+} /* void df_submit */
+
+static int df_read (void)
 {
 #if HAVE_STATVFS
 	struct statvfs statbuf;
@@ -171,13 +162,13 @@ static void df_read (void)
 	cu_mount_t *mnt_ptr;
 
 	unsigned long long blocksize;
-	unsigned long long df_free;
-	unsigned long long df_used;
-	char mnt_name[BUFSIZE];
+	gauge_t df_free;
+	gauge_t df_used;
+	char mnt_name[256];
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
-		return;
+		return (-1);
 
 	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
@@ -196,13 +187,13 @@ static void df_read (void)
 
 		if (strcmp (mnt_ptr->dir, "/") == 0)
 		{
-			strncpy (mnt_name, "root", BUFSIZE);
+			strncpy (mnt_name, "root", sizeof (mnt_name));
 		}
 		else
 		{
 			int i, len;
 
-			strncpy (mnt_name, mnt_ptr->dir + 1, BUFSIZE);
+			strncpy (mnt_name, mnt_ptr->dir + 1, sizeof (mnt_name));
 			len = strlen (mnt_name);
 
 			for (i = 0; i < len; i++)
@@ -224,16 +215,18 @@ static void df_read (void)
 	}
 
 	cu_mount_freelist (mnt_list);
-} /* static void df_read (void) */
-#else
-# define df_read NULL
+
+	return (0);
+} /* int df_read */
 #endif /* DF_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, df_init, df_read, df_write);
-	cf_register (MODULE_NAME, df_config, config_keys, config_keys_num);
-}
+	plugin_register_data_set (&ds);
 
-#undef BUFSIZE
-#undef MODULE_NAME
+#if DF_HAVE_READ
+	plugin_register_config ("df", df_config, config_keys, config_keys_num);
+	plugin_register_init ("df", df_init);
+	plugin_register_read ("df", df_read);
+#endif
+} /* void module_register */

@@ -29,6 +29,17 @@
 #include "utils_debug.h"
 
 /*
+ * Private structures
+ */
+struct read_func_s
+{
+	int wait_time;
+	int wait_left;
+	int (*callback) (void);
+};
+typedef struct read_func_s read_func_t;
+
+/*
  * Private variables
  */
 static llist_t *list_init;
@@ -76,6 +87,21 @@ static int register_callback (llist_t **list, const char *name, void *callback)
 
 	return (0);
 } /* int register_callback */
+
+static int plugin_unregister (llist_t *list, const char *name)
+{
+	llentry_t *e;
+
+	e = llist_search (list, name);
+
+	if (e == NULL)
+		return (-1);
+
+	llist_remove (list, e);
+	llentry_destroy (e);
+
+	return (0);
+} /* int plugin_unregister */
 
 /*
  * (Try to) load the shared object `file'. Won't complain if it isn't a shared
@@ -215,7 +241,22 @@ int plugin_register_init (const char *name,
 int plugin_register_read (const char *name,
 		int (*callback) (void))
 {
-	return (register_callback (&list_read, name, (void *) callback));
+	read_func_t *rf;
+
+	rf = (read_func_t *) malloc (sizeof (read_func_t));
+	if (rf == NULL)
+	{
+		syslog (LOG_ERR, "plugin_register_read: malloc failed: %s",
+				strerror (errno));
+		return (-1);
+	}
+
+	memset (rf, '\0', sizeof (read_func_t));
+	rf->wait_time = atoi (COLLECTD_STEP);
+	rf->wait_left = 0;
+	rf->callback = callback;
+
+	return (register_callback (&list_read, name, (void *) rf));
 } /* int plugin_register_read */
 
 int plugin_register_write (const char *name,
@@ -234,6 +275,43 @@ int plugin_register_data_set (const data_set_t *ds)
 {
 	return (register_callback (&list_data_set, ds->type, (void *) ds));
 } /* int plugin_register_data_set */
+
+int plugin_unregister_init (const char *name)
+{
+	return (plugin_unregister (list_init, name));
+}
+
+int plugin_unregister_read (const char *name)
+{
+	return (plugin_unregister (list_read, name));
+	llentry_t *e;
+
+	e = llist_search (list_read, name);
+
+	if (e == NULL)
+		return (-1);
+
+	llist_remove (list_read, e);
+	free (e->value);
+	llentry_destroy (e);
+
+	return (0);
+}
+
+int plugin_unregister_write (const char *name)
+{
+	return (plugin_unregister (list_write, name));
+}
+
+int plugin_unregister_shutdown (const char *name)
+{
+	return (plugin_unregister (list_shutdown, name));
+}
+
+int plugin_unregister_data_set (const char *name)
+{
+	return (plugin_unregister (list_data_set, name));
+}
 
 void plugin_init_all (void)
 {
@@ -257,20 +335,49 @@ void plugin_init_all (void)
 
 void plugin_read_all (const int *loop)
 {
-	int (*callback) (void);
-	llentry_t *le;
+	llentry_t   *le;
+	read_func_t *rf;
+	int          status;
+	int          step;
 
 	if (list_read == NULL)
 		return;
 
+	step = atoi (COLLECTD_STEP);
+
 	le = llist_head (list_read);
 	while ((*loop == 0) && (le != NULL))
 	{
-		callback = le->value;
-		(*callback) ();
+		rf = (read_func_t *) le->value;
+
+		if (rf->wait_left > 0)
+			rf->wait_left -= step;
+		if (rf->wait_left > 0)
+		{
+			le = le->next;
+			continue;
+		}
+
+		status = rf->callback ();
+		if (status != 0)
+		{
+			rf->wait_left = rf->wait_time;
+			rf->wait_time = rf->wait_time * 2;
+			if (rf->wait_time > 86400)
+				rf->wait_time = 86400;
+
+			syslog (LOG_NOTICE, "read-function of plugin `%s' "
+					"failed. Will syspend it for %i "
+					"seconds.", le->key, rf->wait_left);
+		}
+		else
+		{
+			rf->wait_left = 0;
+			rf->wait_time = step;
+		}
 
 		le = le->next;
-	}
+	} /* while ((*loop == 0) && (le != NULL)) */
 } /* void plugin_read_all */
 
 void plugin_shutdown_all (void)

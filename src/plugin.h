@@ -138,6 +138,12 @@ int plugin_register_shutdown (char *name,
 		int (*callback) (void));
 int plugin_register_data_set (const data_set_t *ds);
 
+int plugin_unregister_init (const char *name);
+int plugin_unregister_read (const char *name);
+int plugin_unregister_write (const char *name);
+int plugin_unregister_shutdown (const char *name);
+int plugin_unregister_data_set (const char *name);
+
 /*
  * NAME
  *  plugin_dispatch_values

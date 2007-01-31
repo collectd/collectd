@@ -1,11 +1,10 @@
 /**
  * collectd - src/battery.c
- * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2006,2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,9 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_debug.h"
-
-#define MODULE_NAME "battery"
-#define BUFSIZE 512
 
 #if HAVE_MACH_MACH_TYPES_H
 #  include <mach/mach_types.h>
@@ -61,31 +57,37 @@
 
 #define INVALID_VALUE 47841.29
 
-static char *battery_current_file = "battery-%s/current.rrd";
-static char *battery_voltage_file = "battery-%s/voltage.rrd";
-static char *battery_charge_file  = "battery-%s/charge.rrd";
-
-static char *ds_def_current[] =
+static data_source_t data_source_charge[1] =
 {
-	"DS:current:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
+	{"charge", DS_TYPE_GAUGE, 0, NAN}
 };
-static int ds_num_current = 1;
 
-static char *ds_def_voltage[] =
+static data_set_t charge_ds =
 {
-	"DS:voltage:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
+	"charge", 1, data_source_charge
 };
-static int ds_num_voltage = 1;
 
-static char *ds_def_charge[] =
+static data_source_t data_source_current[1] =
 {
-	"DS:charge:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	NULL
+	{"current", DS_TYPE_GAUGE, NAN, NAN}
 };
-static int ds_num_charge = 1;
 
+static data_set_t current_ds =
+{
+	"current", 1, data_source_current
+};
+
+static data_source_t data_source_voltage[1] =
+{
+	{"voltage", DS_TYPE_GAUGE, NAN, NAN}
+};
+
+static data_set_t voltage_ds =
+{
+	"voltage", 1, data_source_voltage
+};
+
+#if BATTERY_HAVE_READ
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	/* No global variables */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
@@ -95,7 +97,7 @@ static int   battery_pmu_num = 0;
 static char *battery_pmu_file = "/proc/pmu/battery_%i";
 #endif /* KERNEL_LINUX */
 
-static void battery_init (void)
+static int battery_init (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	/* No init neccessary */
@@ -103,13 +105,13 @@ static void battery_init (void)
 
 #elif KERNEL_LINUX
 	int len;
-	char filename[BUFSIZE];
+	char filename[128];
 
 	for (battery_pmu_num = 0; ; battery_pmu_num++)
 	{
-		len = snprintf (filename, BUFSIZE, battery_pmu_file, battery_pmu_num);
+		len = snprintf (filename, sizeof (filename), battery_pmu_file, battery_pmu_num);
 
-		if ((len >= BUFSIZE) || (len < 0))
+		if ((len >= sizeof (filename)) || (len < 0))
 			break;
 
 		if (access (filename, R_OK))
@@ -117,90 +119,25 @@ static void battery_init (void)
 	}
 #endif /* KERNEL_LINUX */
 
-	return;
+	return (0);
 }
 
-static void battery_current_write (char *host, char *inst, char *val)
+static void battery_submit (const char *plugin_instance, const char *type, double value)
 {
-	char filename[BUFSIZE];
-	int len;
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	len = snprintf (filename, BUFSIZE, battery_current_file, inst);
-	if ((len >= BUFSIZE) || (len < 0))
-		return;
+	values[0].gauge = value;
 
-	rrd_update_file (host, filename, val,
-			ds_def_current, ds_num_current);
-}
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "battery");
+	strcpy (vl.plugin_instance, plugin_instance);
 
-static void battery_voltage_write (char *host, char *inst, char *val)
-{
-	char filename[BUFSIZE];
-	int len;
-
-	len = snprintf (filename, BUFSIZE, battery_voltage_file, inst);
-	if ((len >= BUFSIZE) || (len < 0))
-		return;
-
-	rrd_update_file (host, filename, val,
-			ds_def_voltage, ds_num_voltage);
-}
-
-static void battery_charge_write (char *host, char *inst, char *val)
-{
-	char filename[BUFSIZE];
-	int len;
-
-	len = snprintf (filename, BUFSIZE, battery_charge_file, inst);
-	if ((len >= BUFSIZE) || (len < 0))
-		return;
-
-	rrd_update_file (host, filename, val,
-			ds_def_charge, ds_num_charge);
-}
-
-#if BATTERY_HAVE_READ
-static void battery_submit (char *inst, double current, double voltage, double charge)
-{
-	int len;
-	char buffer[BUFSIZE];
-
-	if (current != INVALID_VALUE)
-	{
-		len = snprintf (buffer, BUFSIZE, "N:%.3f", current);
-
-		if ((len > 0) && (len < BUFSIZE))
-			plugin_submit ("battery_current", inst, buffer);
-	}
-	else
-	{
-		plugin_submit ("battery_current", inst, "N:U");
-	}
-
-	if (voltage != INVALID_VALUE)
-	{
-		len = snprintf (buffer, BUFSIZE, "N:%.3f", voltage);
-
-		if ((len > 0) && (len < BUFSIZE))
-			plugin_submit ("battery_voltage", inst, buffer);
-	}
-	else
-	{
-		plugin_submit ("battery_voltage", inst, "N:U");
-	}
-
-	if (charge != INVALID_VALUE)
-	{
-		len = snprintf (buffer, BUFSIZE, "N:%.3f", charge);
-
-		if ((len > 0) && (len < BUFSIZE))
-			plugin_submit ("battery_charge", inst, buffer);
-	}
-	else
-	{
-		plugin_submit ("battery_charge", inst, "N:U");
-	}
-}
+	plugin_dispatch_values (type, &vl);
+} /* void battery_submit */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H
 double dict_get_double (CFDictionaryRef dict, char *key_string)
@@ -409,7 +346,7 @@ static void get_via_generic_iokit (double *ret_charge,
 }
 #endif /* HAVE_IOKIT_IOKITLIB_H */
 
-static void battery_read (void)
+static int battery_read (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	double charge  = INVALID_VALUE; /* Current charge in Ah */
@@ -429,16 +366,18 @@ static void battery_read (void)
 	if ((charge_rel != INVALID_VALUE) && (charge_abs != INVALID_VALUE))
 		charge = charge_abs * charge_rel / 100.0;
 
-	if ((charge != INVALID_VALUE)
-		       	|| (current != INVALID_VALUE)
-		       	|| (voltage != INVALID_VALUE))
-		battery_submit ("0", current, voltage, charge);
+	if (charge != INVALID_VALUE)
+		battery_submit ("0", "charge", charge);
+	if (current != INVALID_VALUE)
+		battery_submit ("0", "current", current);
+	if (voltage != INVALID_VALUE)
+		battery_submit ("0", "voltage", voltage);
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
 	FILE *fh;
-	char buffer[BUFSIZE];
-	char filename[BUFSIZE];
+	char buffer[1024];
+	char filename[256];
 	
 	char *fields[8];
 	int numfields;
@@ -448,24 +387,24 @@ static void battery_read (void)
 
 	for (i = 0; i < battery_pmu_num; i++)
 	{
-		char    batnum_str[BUFSIZE];
+		char    batnum_str[256];
 		double  current = INVALID_VALUE;
 		double  voltage = INVALID_VALUE;
 		double  charge  = INVALID_VALUE;
 		double *valptr = NULL;
 
-		len = snprintf (filename, BUFSIZE, battery_pmu_file, i);
-		if ((len >= BUFSIZE) || (len < 0))
+		len = snprintf (filename, sizeof (filename), battery_pmu_file, i);
+		if ((len >= sizeof (filename)) || (len < 0))
 			continue;
 
-		len = snprintf (batnum_str, BUFSIZE, "%i", i);
-		if ((len >= BUFSIZE) || (len < 0))
+		len = snprintf (batnum_str, sizeof (batnum_str), "%i", i);
+		if ((len >= sizeof (batnum_str)) || (len < 0))
 			continue;
 
 		if ((fh = fopen (filename, "r")) == NULL)
 			continue;
 
-		while (fgets (buffer, BUFSIZE, fh) != NULL)
+		while (fgets (buffer, sizeof (buffer), fh) != NULL)
 		{
 			numfields = strsplit (buffer, fields, 8);
 
@@ -495,13 +434,15 @@ static void battery_read (void)
 			}
 		}
 
-		if ((current != INVALID_VALUE)
-				|| (voltage != INVALID_VALUE)
-				|| (charge  != INVALID_VALUE))
-			battery_submit (batnum_str, current, voltage, charge);
-
 		fclose (fh);
 		fh = NULL;
+
+		if (charge != INVALID_VALUE)
+			battery_submit ("0", "charge", charge);
+		if (current != INVALID_VALUE)
+			battery_submit ("0", "current", current);
+		if (voltage != INVALID_VALUE)
+			battery_submit ("0", "voltage", voltage);
 	}
 
 	if (access ("/proc/acpi/battery", R_OK | X_OK) == 0)
@@ -518,7 +459,7 @@ static void battery_read (void)
 		if ((dh = opendir ("/proc/acpi/battery")) == NULL)
 		{
 			syslog (LOG_ERR, "Cannot open `/proc/acpi/battery': %s", strerror (errno));
-			return;
+			return (-1);
 		}
 
 		while ((ent = readdir (dh)) != NULL)
@@ -526,8 +467,10 @@ static void battery_read (void)
 			if (ent->d_name[0] == '.')
 				continue;
 
-			len = snprintf (filename, BUFSIZE, "/proc/acpi/battery/%s/state", ent->d_name);
-			if ((len >= BUFSIZE) || (len < 0))
+			len = snprintf (filename, sizeof (filename),
+					"/proc/acpi/battery/%s/state",
+					ent->d_name);
+			if ((len >= sizeof (filename)) || (len < 0))
 				continue;
 
 			if ((fh = fopen (filename, "r")) == NULL)
@@ -545,7 +488,7 @@ static void battery_read (void)
 			 * [11:00] <@tokkee> remaining capacity:      4136 mAh
 			 * [11:00] <@tokkee> present voltage:         12428 mV
 			 */
-			while (fgets (buffer, BUFSIZE, fh) != NULL)
+			while (fgets (buffer, sizeof (buffer), fh) != NULL)
 			{
 				numfields = strsplit (buffer, fields, 8);
 
@@ -585,34 +528,37 @@ static void battery_read (void)
 					if ((fields[2] == endptr) || (errno != 0))
 						*valptr = INVALID_VALUE;
 				}
-			}
+			} /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
+
+			fclose (fh);
 
 			if ((current != INVALID_VALUE) && (charging == 0))
 					current *= -1;
 
-			if ((current != INVALID_VALUE)
-					|| (voltage != INVALID_VALUE)
-					|| (charge  != INVALID_VALUE))
-				battery_submit (ent->d_name, current, voltage, charge);
-
-			fclose (fh);
+			if (charge != INVALID_VALUE)
+				battery_submit ("0", "charge", charge);
+			if (current != INVALID_VALUE)
+				battery_submit ("0", "current", current);
+			if (voltage != INVALID_VALUE)
+				battery_submit ("0", "voltage", voltage);
 		}
 
 		closedir (dh);
 	}
 #endif /* KERNEL_LINUX */
+
+	return (0);
 }
-#else
-# define battery_read NULL
 #endif /* BATTERY_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, battery_init, battery_read, NULL);
-	plugin_register ("battery_current", NULL, NULL, battery_current_write);
-	plugin_register ("battery_voltage", NULL, NULL, battery_voltage_write);
-	plugin_register ("battery_charge",  NULL, NULL, battery_charge_write);
-}
+	plugin_register_data_set (&charge_ds);
+	plugin_register_data_set (&current_ds);
+	plugin_register_data_set (&voltage_ds);
 
-#undef BUFSIZE
-#undef MODULE_NAME
+#if BATTERY_HAVE_READ
+	plugin_register_init ("battery", battery_init);
+	plugin_register_read ("battery", battery_read);
+#endif /* BATTERY_HAVE_READ */
+}
