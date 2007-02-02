@@ -1819,6 +1819,83 @@ Cache-Control: no-cache
 	</head>
 
 	<body>
+	<script type="text/javascript">
+	  var lastUpdateHour = (new Date ()).getTime () / 1000;
+	  var lastUpdateDay = lastUpdateHour;
+	  var lastUpdateWeek = lastUpdateHour;
+	  var lastUpdateMonth = lastUpdateHour;
+	  var lastUpdateYear = lastUpdateHour;
+
+	  function exchangeImages (origImg, newImg)
+	  {
+	    var parent = origImg.parentNode;
+
+	    if (!newImg.complete)
+	      setTimeout (function () { exchangeImages (origImg, newImg); }, 100);
+	    else
+	      parent.replaceChild (newImg, origImg);
+	  }
+
+	  function updateImage (origImg)
+	  {
+	    var imgSrc = origImg.src;
+	    var newImg = new Image (origImg.width, origImg.height);
+	    var now = (new Date ()).getTime () / 1000;
+
+	    imgSrc = imgSrc.replace (/\\?.*/, "");
+	    imgSrc = imgSrc + "?update=" + now;
+
+	    newImg.className = origImg.className;
+	    newImg.src = imgSrc;
+
+	    exchangeImages (origImg, newImg);
+	  } /* updateImage */
+
+	  function updateImageClass (className)
+	  {
+	    var elems = document.getElementsByTagName ("img");
+	    for (var i = 0; i < elems.length; i++)
+	    {
+	      var img = elems[i];
+	      if (img.className != className)
+	      continue;
+	      updateImage (img);
+	    }
+	  } /* updateImageClass */
+
+	  function doUpdate ()
+	  {
+	    var now = (new Date ()).getTime () / 1000;
+	    if ((now - lastUpdateHour) >= 10)
+	    {
+	      updateImageClass ("hour");
+	      lastUpdateHour = 0 + now;
+	    }
+	    if ((now - lastUpdateDay) >= 120)
+	    {
+	      updateImageClass ("day");
+	      lastUpdateDay = now;
+	    }
+	    if ((now - lastUpdateWeek) >= 600)
+	    {
+	      updateImageClass ("week");
+	      lastUpdateWeek = now;
+	    }
+	    if ((now - lastUpdateMonth) >= 3600)
+	    {
+	      updateImageClass ("month");
+	      lastUpdateMonth = now;
+	    }
+	    if ((now - lastUpdateYear) >= 7200)
+	    {
+	      updateImageClass ("year");
+	      lastUpdateYear = now;
+	    }
+	  } /* doUpdate */
+
+	  /* It's important to save this variable */
+	  var updateInterval = window.setInterval ("doUpdate ()", 10000);
+	</script>
 HEADER
 
 	my $MySelf = defined ($ENV{'GATEWAY_INTERFACE'}) ? $ENV{'SCRIPT_NAME'} : $0;
@@ -1836,15 +1913,15 @@ HEADER
 		</ul>
 
 		<h3>Hourly</h3>
-		<div><img src="$MySelf$RelDir/$Type/hour" /></div>
+		<div><img src="$MySelf$RelDir/$Type/hour" class="hour" /></div>
 		<h3>Daily</h3>
-		<div><img src="$MySelf$RelDir/$Type/day" /></div>
+		<div><img src="$MySelf$RelDir/$Type/day" class=""day /></div>
 		<h3>Weekly</h3>
-		<div><img src="$MySelf$RelDir/$Type/week" /></div>
+		<div><img src="$MySelf$RelDir/$Type/week" class="week" /></div>
 		<h3>Monthly</h3>
-		<div><img src="$MySelf$RelDir/$Type/month" /></div>
+		<div><img src="$MySelf$RelDir/$Type/month" class="month" /></div>
 		<h3>Yearly</h3>
-		<div><img src="$MySelf$RelDir/$Type/year" /></div>
+		<div><img src="$MySelf$RelDir/$Type/year" class="year" /></div>
 HTML
 	}
 	elsif (length ($Type) != 0)
@@ -1862,15 +1939,15 @@ HTML
 
 		print <<HTML;
 		<h3>Hourly</h3>
-		<div><img src="$MySelf$RelDir/$ext/hour" /></div>
+		<div><img src="$MySelf$RelDir/$ext/hour" class="hour" /></div>
 		<h3>Daily</h3>
-		<div><img src="$MySelf$RelDir/$ext/day" /></div>
+		<div><img src="$MySelf$RelDir/$ext/day" class="day" /></div>
 		<h3>Weekly</h3>
-		<div><img src="$MySelf$RelDir/$ext/week" /></div>
+		<div><img src="$MySelf$RelDir/$ext/week" class="week" /></div>
 		<h3>Monthly</h3>
-		<div><img src="$MySelf$RelDir/$ext/month" /></div>
+		<div><img src="$MySelf$RelDir/$ext/month" class="month" /></div>
 		<h3>Yearly</h3>
-		<div><img src="$MySelf$RelDir/$ext/year" /></div>
+		<div><img src="$MySelf$RelDir/$ext/year" class="year" /></div>
 HTML
 	}
 	else
@@ -1898,7 +1975,7 @@ HTML
 			if (ref ($GraphMulti->{$type}) eq 'CODE')
 			{
 				print qq(\t\t<a href="$MySelf$RelDir/$type" />),
-				qq(<img src="$MySelf$RelDir/$type/day" /></a>\n);
+				qq(<img src="$MySelf$RelDir/$type/day" class="day" /></a>\n);
 				next;
 			}
 
