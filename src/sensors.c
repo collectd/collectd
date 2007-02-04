@@ -69,7 +69,7 @@ static data_set_t temperature_ds =
 
 static data_source_t data_source_voltage[1] =
 {
-	{"voltage", DS_TYPE_GAUGE, NAN, NAN}
+	{"value", DS_TYPE_GAUGE, NAN, NAN}
 };
 
 static data_set_t voltage_ds =
