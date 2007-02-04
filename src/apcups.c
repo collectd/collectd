@@ -84,7 +84,7 @@ static int global_sockfd = -1;
 */
 static data_source_t data_source_voltage[1] =
 {
-	{"voltage", DS_TYPE_GAUGE, NAN, NAN}
+	{"value", DS_TYPE_GAUGE, NAN, NAN}
 };
 
 static data_set_t ds_voltage =

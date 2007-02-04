@@ -59,7 +59,7 @@
 
 static data_source_t data_source_charge[1] =
 {
-	{"charge", DS_TYPE_GAUGE, 0, NAN}
+	{"value", DS_TYPE_GAUGE, 0, NAN}
 };
 
 static data_set_t charge_ds =
@@ -69,7 +69,7 @@ static data_set_t charge_ds =
 
 static data_source_t data_source_current[1] =
 {
-	{"current", DS_TYPE_GAUGE, NAN, NAN}
+	{"value", DS_TYPE_GAUGE, NAN, NAN}
 };
 
 static data_set_t current_ds =
@@ -79,7 +79,7 @@ static data_set_t current_ds =
 
 static data_source_t data_source_voltage[1] =
 {
-	{"voltage", DS_TYPE_GAUGE, NAN, NAN}
+	{"value", DS_TYPE_GAUGE, NAN, NAN}
 };
 
 static data_set_t voltage_ds =
