@@ -317,6 +317,7 @@ void plugin_init_all (void)
 {
 	int (*callback) (void);
 	llentry_t *le;
+	int status;
 
 	gethostname (hostname, sizeof (hostname));
 
@@ -327,7 +328,16 @@ void plugin_init_all (void)
 	while (le != NULL)
 	{
 		callback = le->value;
-		(*callback) ();
+		status = (*callback) ();
+
+		if (status != 0)
+		{
+			syslog (LOG_ERR, "Initialization of plugin `%s' "
+					"failed with status %i. "
+					"Plugin will be unloaded. TODO!",
+					le->key, status);
+			plugin_unregister_read (le->key);
+		}
 
 		le = le->next;
 	}
