@@ -1,11 +1,10 @@
 /**
  * collectd - src/wireless.c
- * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2006,2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Free Software Foundation; only version 2 of the License is applicable.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,9 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#define MODULE_NAME "wireless"
-#define BUFSIZE 1024
-
 #if defined(KERNEL_LINUX)
 # define WIRELESS_HAVE_READ 1
 #else
@@ -35,46 +31,30 @@
 
 #define WIRELESS_PROC_FILE "/proc/net/wireless"
 
-static char *filename_template = "wireless-%s.rrd";
-
-static char *ds_def[] =
+static data_source_t data_source_quality[1] =
 {
-	"DS:quality:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	"DS:power:GAUGE:"COLLECTD_HEARTBEAT":U:0",
-	"DS:noise:GAUGE:"COLLECTD_HEARTBEAT":U:0",
-	NULL
+	{"value", DS_TYPE_GAUGE, 0, NAN}
 };
-static int ds_num = 3;
 
-#if WIRELESS_HAVE_READ
-static int proc_file_found = 0;
-#endif
-
-static void wireless_init (void)
+static data_set_t quality_ds =
 {
-#if WIRELESS_HAVE_READ
-	if (access (WIRELESS_PROC_FILE, R_OK) == 0)
-		proc_file_found = 1;
-	else
-		proc_file_found = 0;
-#endif
+	"signal_quality", 1, data_source_quality
+};
 
-	return;
-}
-
-static void wireless_write (char *host, char *inst, char *val)
+static data_source_t data_source_signal[1] =
 {
-	char file[BUFSIZE];
-	int status;
+	{"value", DS_TYPE_GAUGE, NAN, 0}
+};
 
-	status = snprintf (file, BUFSIZE, filename_template, inst);
-	if (status < 1)
-		return;
-	else if (status >= BUFSIZE)
-		return;
+static data_set_t power_ds =
+{
+	"signal_power", 1, data_source_signal
+};
 
-	rrd_update_file (host, file, val, ds_def, ds_num);
-}
+static data_set_t noise_ds =
+{
+	"signal_noise", 1, data_source_signal
+};
 
 #if WIRELESS_HAVE_READ
 #if 0
@@ -93,27 +73,30 @@ static double wireless_dbm_to_watt (double dbm)
 }
 #endif
 
-static void wireless_submit (char *device,
-		double quality, double power, double noise)
+static void wireless_submit (const char *plugin_instance, const char *type,
+		double value)
 {
-	char buf[BUFSIZE];
-	int  status;
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	status = snprintf (buf, BUFSIZE, "%u:%f:%f:%f",
-			(unsigned int) curtime,
-			quality, power, noise);
-	if ((status < 1) || (status >= BUFSIZE))
-		return;
+	values[0].gauge = value;
 
-	plugin_submit (MODULE_NAME, device, buf);
-}
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "wireless");
+	strncpy (vl.plugin_instance, plugin_instance,
+			sizeof (vl.plugin_instance));
 
-static void wireless_read (void)
+	plugin_dispatch_values (type, &vl);
+} /* void wireless_submit */
+
+static int wireless_read (void)
 {
 #ifdef KERNEL_LINUX
-
 	FILE *fh;
-	char buffer[BUFSIZE];
+	char buffer[1024];
 
 	char   *device;
 	double  quality;
@@ -123,19 +106,18 @@ static void wireless_read (void)
 	char *fields[8];
 	int   numfields;
 
+	int devices_found;
 	int len;
-
-	if (!proc_file_found)
-		return;
 
 	/* there are a variety of names for the wireless device */
 	if ((fh = fopen (WIRELESS_PROC_FILE, "r")) == NULL)
 	{
 		syslog (LOG_WARNING, "wireless: fopen: %s", strerror (errno));
-		return;
+		return (-1);
 	}
 
-	while (fgets (buffer, BUFSIZE, fh) != NULL)
+	devices_found = 0;
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		numfields = strsplit (buffer, fields, 8);
 
@@ -164,20 +146,32 @@ static void wireless_read (void)
 		if (noise == 0.0)
 			noise = 1.0; /* noise <= 0 */
 
-		wireless_submit (device, quality, power, noise);
+		wireless_submit (device, "signal_quality", quality);
+		wireless_submit (device, "signal_power", power);
+		wireless_submit (device, "signal_noise", noise);
+
+		devices_found++;
 	}
 
 	fclose (fh);
+
+	/* If no wireless devices are present return an error, so the plugin
+	 * code delays our read function. */
+	if (devices_found == 0)
+		return (-1);
 #endif /* KERNEL_LINUX */
-}
-#else
-# define wireless_read NULL
+
+	return (0);
+} /* int wireless_read */
 #endif /* WIRELESS_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, wireless_init, wireless_read, wireless_write);
-}
+	plugin_register_data_set (&quality_ds);
+	plugin_register_data_set (&power_ds);
+	plugin_register_data_set (&noise_ds);
 
-#undef BUFSIZE
-#undef MODULE_NAME
+#if WIRELESS_HAVE_READ
+	plugin_register_read ("wireless", wireless_read);
+#endif /* WIRELESS_HAVE_READ */
+}
