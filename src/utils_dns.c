@@ -110,7 +110,7 @@
 # define PPP_CONTROL_VAL 0x03	/* The control byte value */
 #endif
 
-#ifdef __linux__
+#ifndef __FAVOR_BSD
 #define uh_sport source
 #define uh_dport dest
 #endif
