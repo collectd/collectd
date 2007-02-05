@@ -299,17 +299,17 @@ static int mbmon_read (void)
 		if (strncmp (s, "TEMP", 4) == 0)
 		{
 			inst = s + 4;
-			type = "mbmon_temperature";
+			type = "temperature";
 		}
 		else if (strncmp (s, "FAN", 3) == 0)
 		{
 			inst = s + 3;
-			type = "mbmon_fanspeed";
+			type = "fanspeed";
 		}
 		else if (strncmp (s, "V", 1) == 0)
 		{
 			inst = s + 1;
-			type = "mbmon_voltage";
+			type = "voltage";
 		}
 		else
 		{
