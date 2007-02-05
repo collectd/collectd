@@ -27,41 +27,50 @@
 #include "configfile.h"
 #include "utils_debug.h"
 
-#define MODULE_NAME "mbmon"
-
-#include <netdb.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#if HAVE_NETDB_H && HAVE_SYS_SOCKET_H && HAVE_NETINET_IN_H && HAVE_NETINET_TCP_H
+# include <netdb.h>
+# include <sys/socket.h>
+# include <netinet/in.h>
+# include <netinet/tcp.h>
+# define MBMON_HAVE_READ 1
+#else
+# define MBMON_HAVE_READ 0
+#endif
 
 #define MBMON_DEF_HOST "127.0.0.1"
 #define MBMON_DEF_PORT "411" /* the default for Debian */
 
-/* BUFFER_SIZE
-   Size of the buffer we use to receive from the mbmon daemon. */
-#define BUFFER_SIZE 1024
-
-static char *filename_temperature = "mbmon/temperature-%s.rrd";
-static char *filename_fanspeed = "mbmon/fanspeed-%s.rrd";
-static char *filename_voltage = "mbmon/voltage-%s.rrd";
-
-/* temperature and fan sensors */
-static char *ds_def[] =
+static data_source_t data_source_fanspeed[1] =
 {
-	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
+	{"value", DS_TYPE_GAUGE, 0, NAN}
 };
-static int ds_num = 1;
 
-/* voltage sensors */
-static char *voltage_ds_def[] = 
+static data_set_t fanspeed_ds =
 {
-	"DS:voltage:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
+	"fanspeed", 1, data_source_fanspeed
 };
-static int voltage_ds_num = 1;
 
-static char *config_keys[] =
+static data_source_t data_source_temperature[1] =
+{
+	{"value", DS_TYPE_GAUGE, -273.15, NAN}
+};
+
+static data_set_t temperature_ds =
+{
+	"temperature", 1, data_source_temperature
+};
+
+static data_source_t data_source_voltage[1] =
+{
+	{"voltage", DS_TYPE_GAUGE, NAN, NAN}
+};
+
+static data_set_t voltage_ds =
+{
+	"voltage", 1, data_source_voltage
+};
+
+static const char *config_keys[] =
 {
 	"Host",
 	"Port",
@@ -69,6 +78,7 @@ static char *config_keys[] =
 };
 static int config_keys_num = 2;
 
+#if MBMON_HAVE_READ
 static char *mbmon_host = NULL;
 static char *mbmon_port = NULL;
 
@@ -209,7 +219,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	return (0);
 }
 
-static int mbmon_config (char *key, char *value)
+static int mbmon_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "host") == 0)
 	{
@@ -231,60 +241,23 @@ static int mbmon_config (char *key, char *value)
 	return (0);
 }
 
-static void mbmon_init (void)
+static void mbmon_submit (const char *type, const char *type_instance,
+		double value)
 {
-	return;
-}
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-static void mbmon_write_temperature (char *host, char *inst, char *val)
-{
-	char filename[BUFFER_SIZE];
-	int status;
+	values[0].gauge = value;
 
-	/* construct filename */
-	status = snprintf (filename, BUFFER_SIZE, filename_temperature, inst);
-	if ((status < 1) || (status >= BUFFER_SIZE))
-		return;
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "mbmon");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	rrd_update_file (host, filename, val, ds_def, ds_num);
-}
-
-static void mbmon_write_fanspeed (char *host, char *inst, char *val)
-{
-	char filename[BUFFER_SIZE];
-	int status;
-
-	/* construct filename */
-	status = snprintf (filename, BUFFER_SIZE, filename_fanspeed, inst);
-	if ((status < 1) || (status >= BUFFER_SIZE))
-		return;
-
-	rrd_update_file (host, filename, val, ds_def, ds_num);
-}
-
-static void mbmon_write_voltage (char *host, char *inst, char *val)
-{
-	char filename[BUFFER_SIZE];
-	int status;
-
-	/* construct filename */
-	status = snprintf (filename, BUFFER_SIZE, filename_voltage, inst);
-	if ((status < 1) || (status >= BUFFER_SIZE))
-		return;
-
-	rrd_update_file (host, filename, val, voltage_ds_def, voltage_ds_num);
-}
-
-static void mbmon_submit (char *type, char *inst, double value)
-{
-	char buf[BUFFER_SIZE];
-
-	if (snprintf (buf, BUFFER_SIZE, "%u:%.3f", (unsigned int) curtime, value)
-            >= BUFFER_SIZE)
-		return;
-
-	plugin_submit (type, inst, buf);
-}
+	plugin_dispatch_values (type, &vl);
+} /* void mbmon_submit */
 
 /* Trim trailing whitespace from a string. */
 static void trim_spaces (char *s)
@@ -295,40 +268,14 @@ static void trim_spaces (char *s)
 		s[l] = '\0';
 }
 
-static void mbmon_read (void)
+static int mbmon_read (void)
 {
-	char buf[BUFFER_SIZE];
+	char buf[1024];
 	char *s, *t;
 
-	static int wait_time = 1;
-	static int wait_left = 0;
-
-	if (wait_left >= 10)
-	{
-		wait_left -= 10;
-		return;
-	}
-
 	/* get data from daemon */
-	if (mbmon_query_daemon (buf, BUFFER_SIZE) < 0)
-	{
-		/* This limit is reached in log2(86400) =~ 17 steps. Since
-		 * there is a 2^n seconds wait between each step it will need
-		 * roughly one day to reach this limit. -octo */
-		
-		wait_time *= 2;
-		if (wait_time > 86400)
-			wait_time = 86400;
-
-		wait_left = wait_time;
-
-		return;
-	}
-	else
-	{
-		wait_time = 1;
-		wait_left = 0;
-	}
+	if (mbmon_query_daemon (buf, sizeof (buf)) < 0)
+		return (-1);
 
 	s = buf;
 	while ((t = strchr (s, ':')) != NULL)
@@ -352,17 +299,17 @@ static void mbmon_read (void)
 		if (strncmp (s, "TEMP", 4) == 0)
 		{
 			inst = s + 4;
-			type = "mbmon_temperature";
+			type = "temperature";
 		}
 		else if (strncmp (s, "FAN", 3) == 0)
 		{
 			inst = s + 3;
-			type = "mbmon_fanspeed";
+			type = "fanspeed";
 		}
 		else if (strncmp (s, "V", 1) == 0)
 		{
 			inst = s + 1;
-			type = "mbmon_voltage";
+			type = "voltage";
 		}
 		else
 		{
@@ -376,17 +323,21 @@ static void mbmon_read (void)
 
 		s = nextc + 1;
 	}
+
+	return (0);
 } /* void mbmon_read */
+#endif /* MBMON_HAVE_READ */
 
 /* module_register
    Register collectd plugin. */
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, mbmon_init, mbmon_read, NULL);
-	plugin_register ("mbmon_temperature", NULL, NULL, mbmon_write_temperature);
-	plugin_register ("mbmon_fanspeed", NULL, NULL, mbmon_write_fanspeed);
-	plugin_register ("mbmon_voltage", NULL, NULL, mbmon_write_voltage);
-	cf_register (MODULE_NAME, mbmon_config, config_keys, config_keys_num);
-}
+	plugin_register_data_set (&fanspeed_ds);
+	plugin_register_data_set (&temperature_ds);
+	plugin_register_data_set (&voltage_ds);
 
-#undef MODULE_NAME
+#if MBMON_HAVE_READ
+	plugin_register_config ("mbmon", mbmon_config, config_keys, config_keys_num);
+	plugin_register_read ("mbmon", mbmon_read);
+#endif /* MBMON_HAVE_READ */
+}

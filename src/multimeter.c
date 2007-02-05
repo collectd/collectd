@@ -20,27 +20,33 @@
  *   Peter Holik <peter at holik.at>
  *
  * Used multimeter: Metex M-4650CR
- *
  **/
 
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <math.h>
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 
-#define MODULE_NAME "multimeter"
+#if HAVE_TERMIOS_H && HAVE_SYS_IOCTL_H && HAVE_MATH_H
+# include <termios.h>
+# include <sys/ioctl.h>
+# include <math.h>
+# define MULTIMETER_HAVE_READ 1
+#else
+# define MULTIMETER_HAVE_READ 0
+# error "multimeter cannot read!"
+#endif
 
-static char *multimeter_file = "multimeter.rrd";
-
-static char *ds_def[] =
+static data_source_t data_source[1] =
 {
-	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
+	{"value", DS_TYPE_GAUGE, NAN, NAN}
 };
-static int ds_num = 1;
 
+static data_set_t data_set =
+{
+	"multimeter", 1, data_source
+};
+
+#if MULTIMETER_HAVE_READ
 static int fd = -1;
 
 static int multimeter_timeval_sub (struct timeval *tv1, struct timeval *tv2,
@@ -75,7 +81,7 @@ static int multimeter_read_value(double *value)
 
 		if (gettimeofday (&time_end, NULL) < 0)
 	        {
-	                syslog (LOG_ERR, MODULE_NAME": gettimeofday failed: %s",
+	                syslog (LOG_ERR, "multimeter plugin: gettimeofday failed: %s",
                                 strerror (errno));
 	                return (-1);
 	        }
@@ -97,8 +103,9 @@ static int multimeter_read_value(double *value)
 
 			if (gettimeofday (&time_now, NULL) < 0)
 	                {
-		                syslog (LOG_ERR, MODULE_NAME": gettimeofday failed: %s",
-                                        strerror (errno));
+		                syslog (LOG_ERR, "multimeter plugin: "
+						"gettimeofday failed: %s",
+						strerror (errno));
 	                        return (-1);
 	                }
 			if (multimeter_timeval_sub (&time_end, &time_now, &timeout) == -1)
@@ -150,17 +157,18 @@ static int multimeter_read_value(double *value)
 			}
 			else /* status == -1 */
             		{
-		                syslog (LOG_ERR, MODULE_NAME": select failed: %s",
-                                        strerror (errno));
+		                syslog (LOG_ERR, "multimeter plugin: "
+						"select failed: %s",
+						strerror (errno));
 	                        break;
 			}
 		}
 	} while (--retry);
 
 	return (-2);  /* no value received */
-}
+} /* int multimeter_read_value */
 
-static void multimeter_init (void)
+static int multimeter_init (void)
 {
 	int i;
 	char device[] = "/dev/ttyS ";
@@ -186,49 +194,74 @@ static void multimeter_init (void)
 			tcsetattr(fd, TCSANOW, &tios);
 			ioctl(fd, TIOCMBIC, &rts);
 			
-    			if (multimeter_read_value(&value) < -1)
+    			if (multimeter_read_value (&value) < -1)
 			{
-				close(fd);
+				close (fd);
 				fd = -1;
 			}
 			else
 			{
-				syslog (LOG_INFO, MODULE_NAME" found (%s)", device);
-				return;
+				syslog (LOG_INFO, "multimeter plugin: Device "
+						"found at %s", device);
+				return (0);
 			}
 		}
 	}
-	syslog (LOG_ERR, MODULE_NAME" not found");
+
+	syslog (LOG_ERR, "multimeter plugin: No device found");
+	return (-1);
 }
 #undef LINE_LENGTH
 
-static void multimeter_write (char *host, char *inst, char *val)
+static void multimeter_submit (double value)
 {
-	rrd_update_file (host, multimeter_file, val, ds_def, ds_num);
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "multimeter");
+
+	plugin_dispatch_values ("multimeter", &vl);
 }
-#define BUFSIZE 128
-static void multimeter_submit (double *value)
-{
-	char buf[BUFSIZE];
 
-	if (snprintf (buf, BUFSIZE, "%u:%f", (unsigned int) curtime, *value) >= BUFSIZE)
-		return;
-
-	plugin_submit (MODULE_NAME, NULL, buf);
-}
-#undef BUFSIZE
-
-static void multimeter_read (void)
+static int multimeter_read (void)
 {
 	double value;
 
-	if (fd > -1 && !(multimeter_read_value(&value)))
-		multimeter_submit (&value);
+	if (fd < 0)
+		return (-1);
+
+	if (multimeter_read_value (&value) != 0)
+		return (-1);
+
+	multimeter_submit (value);
+	return (0);
+} /* int multimeter_read */
+
+static int multimeter_shutdown (void)
+{
+	if (fd >= 0)
+	{
+		close (fd);
+		fd = -1;
+	}
+
+	return (0);
 }
+#endif /* MULTIMETER_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, multimeter_init, multimeter_read, multimeter_write);
-}
+	plugin_register_data_set (&data_set);
 
-#undef MODULE_NAME
+#if MULTIMETER_HAVE_READ
+	plugin_register_init ("multimeter", multimeter_init);
+	plugin_register_read ("multimeter", multimeter_read);
+	plugin_register_shutdown ("multimeter", multimeter_shutdown);
+#endif /* MULTIMETER_HAVE_READ */
+}

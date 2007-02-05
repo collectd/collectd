@@ -25,66 +25,52 @@
 #include "common.h"
 #include "plugin.h"
 
-#define MODULE_NAME "serial"
-
 #if defined(KERNEL_LINUX)
 # define SERIAL_HAVE_READ 1
 #else
 # define SERIAL_HAVE_READ 0
 #endif
 
-static char *serial_filename_template = "serial-%s.rrd";
-
-static char *ds_def[] =
+static data_source_t octets_dsrc[2] =
 {
-	"DS:incoming:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:outgoing:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	NULL
+	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
+	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
 };
-static int ds_num = 2;
 
-static void serial_init (void)
+static data_set_t octets_ds =
 {
-	return;
-}
-
-static void serial_write (char *host, char *inst, char *val)
-{
-	char file[512];
-	int status;
-
-	status = snprintf (file, 512, serial_filename_template, inst);
-	if (status < 1)
-		return;
-	else if (status >= 512)
-		return;
-
-	rrd_update_file (host, file, val, ds_def, ds_num);
-}
+	"serial_octets", 2, octets_dsrc
+};
 
 #if SERIAL_HAVE_READ
-#define BUFSIZE 512
-static void serial_submit (char *device,
-		unsigned long long incoming,
-		unsigned long long outgoing)
+static void serial_submit (const char *type_instance,
+		counter_t rx, counter_t tx)
 {
-	char buf[BUFSIZE];
-        
-	if (snprintf (buf, BUFSIZE, "%u:%llu:%llu", (unsigned int) curtime,
-				incoming, outgoing) >= BUFSIZE)
-		return;
+	value_t values[2];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	plugin_submit (MODULE_NAME, device, buf);
+	values[0].counter = rx;
+	values[1].counter = tx;
+
+	vl.values = values;
+	vl.values_len = 2;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "serial");
+	strncpy (vl.type_instance, type_instance,
+			sizeof (vl.type_instance));
+
+	plugin_dispatch_values ("serial_octets", &vl);
 }
-#undef BUFSIZE
 
-static void serial_read (void)
+static int serial_read (void)
 {
 #ifdef KERNEL_LINUX
-
 	FILE *fh;
 	char buffer[1024];
-	unsigned long long incoming, outgoing;
+
+	counter_t rx = 0;
+	counter_t tx = 0;
 	
 	char *fields[16];
 	int i, numfields;
@@ -95,19 +81,12 @@ static void serial_read (void)
 		(fh = fopen ("/proc/tty/driver/ttyS", "r")) == NULL)
 	{
 		syslog (LOG_WARNING, "serial: fopen: %s", strerror (errno));
-		return;
+		return (-1);
 	}
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		int have_rx = 0, have_tx = 0;
-
-		/* stupid compiler:
-		 * serial.c:87: warning: 'incoming' may be used uninitialized in this function
-		 * serial.c:87: warning: 'outgoing' may be used uninitialized in this function
-		 */
-		incoming = 0ULL;
-		outgoing = 0ULL;
 
 		numfields = strsplit (buffer, fields, 16);
 
@@ -133,12 +112,12 @@ static void serial_read (void)
 
 			if (strncmp (fields[i], "tx:", 3) == 0)
 			{
-				outgoing = atoll (fields[i] + 3);
+				tx = atoll (fields[i] + 3);
 				have_tx++;
 			}
 			else if (strncmp (fields[i], "rx:", 3) == 0)
 			{
-				incoming = atoll (fields[i] + 3);
+				rx = atoll (fields[i] + 3);
 				have_rx++;
 			}
 		}
@@ -146,19 +125,20 @@ static void serial_read (void)
 		if ((have_rx == 0) || (have_tx == 0))
 			continue;
 
-		serial_submit (fields[0], incoming, outgoing);
+		serial_submit (fields[0], rx, tx);
 	}
 
 	fclose (fh);
+	return (0);
 #endif /* KERNEL_LINUX */
-}
-#else
-# define serial_read NULL
+} /* int serial_read */
 #endif /* SERIAL_HAVE_READ */
 
 void module_register (void)
 {
-   plugin_register (MODULE_NAME, serial_init, serial_read, serial_write);
-}
+	plugin_register_data_set (&octets_ds);
 
-#undef MODULE_NAME
+#if SERIAL_HAVE_READ
+	plugin_register_read ("serial", serial_read);
+#endif /* SERIAL_HAVE_READ */
+}
