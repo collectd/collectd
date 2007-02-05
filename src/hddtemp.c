@@ -32,13 +32,17 @@
 #include "configfile.h"
 #include "utils_debug.h"
 
-#define MODULE_NAME "hddtemp"
-
-#include <netdb.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <libgen.h> /* for basename */
+#if HAVE_NETDB_H && HAVE_SYS_SOCKET_H && HAVE_NETINET_IN_H \
+	&& HAVE_NETINET_TCP_H && HAVE_LIBGEN_H
+# include <netdb.h>
+# include <sys/socket.h>
+# include <netinet/in.h>
+# include <netinet/tcp.h>
+# include <libgen.h> /* for basename */
+# define HDDTEMP_HAVE_READ 1
+#else
+# define HDDTEMP_HAVE_READ 0
+#endif
 
 #if HAVE_LINUX_MAJOR_H
 # include <linux/major.h>
@@ -47,20 +51,18 @@
 #define HDDTEMP_DEF_HOST "127.0.0.1"
 #define HDDTEMP_DEF_PORT "7634"
 
-/* BUFFER_SIZE
-   Size of the buffer we use to receive from the hddtemp daemon. */
-#define BUFFER_SIZE 1024
-
-static char *filename_format = "hddtemp-%s.rrd";
-
-static char *ds_def[] =
+static data_source_t data_source_temperature[1] =
 {
-	"DS:value:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
+	{"value", DS_TYPE_GAUGE, -273.15, NAN}
 };
-static int ds_num = 1;
 
-static char *config_keys[] =
+static data_set_t temperature_ds =
+{
+	"temperature", 1, data_source_temperature
+};
+
+#if HDDTEMP_HAVE_READ
+static const char *config_keys[] =
 {
 	"Host",
 	"Port",
@@ -211,7 +213,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	return (0);
 }
 
-static int hddtemp_config (char *key, char *value)
+static int hddtemp_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "host") == 0)
 	{
@@ -236,11 +238,11 @@ static int hddtemp_config (char *key, char *value)
 /* In the init-function we initialize the `hddname_t' list used to translate
  * disk-names. Under Linux that's done using `/proc/partitions'. Under other
  * operating-systems, it's not done at all. */
-static void hddtemp_init (void)
+static int hddtemp_init (void)
 {
 #if KERNEL_LINUX
 	FILE *fh;
-	char buf[BUFFER_SIZE];
+	char buf[1024];
 	int buflen;
 
 	char *fields[16];
@@ -267,7 +269,7 @@ static void hddtemp_init (void)
 	{
 		DBG ("Looking at /proc/partitions...");
 
-		while (fgets (buf, BUFFER_SIZE, fh) != NULL)
+		while (fgets (buf, sizeof (buf), fh) != NULL)
 		{
 			/* Delete trailing newlines */
 			buflen = strlen (buf);
@@ -380,22 +382,9 @@ static void hddtemp_init (void)
 		DBG ("Could not open /proc/partitions: %s",
 				strerror (errno));
 #endif /* KERNEL_LINUX */
-}
 
-static void hddtemp_write (char *host, char *inst, char *val)
-{
-	char filename[BUFFER_SIZE];
-	int status;
-
-	/* construct filename */
-	status = snprintf (filename, BUFFER_SIZE, filename_format, inst);
-	if (status < 1)
-		return;
-	else if (status >= BUFFER_SIZE)
-		return;
-
-	rrd_update_file (host, filename, val, ds_def, ds_num);
-}
+	return (0);
+} /* int hddtemp_init */
 
 /*
  * hddtemp_get_name
@@ -432,55 +421,35 @@ static char *hddtemp_get_name (char *drive)
 	return (ret);
 }
 
-static void hddtemp_submit (char *inst, double temperature)
+static void hddtemp_submit (char *type_instance, double value)
 {
-	char buf[BUFFER_SIZE];
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	if (snprintf (buf, BUFFER_SIZE, "%u:%.3f", (unsigned int) curtime, temperature)
-            >= BUFFER_SIZE)
-		return;
+	values[0].gauge = value;
 
-	plugin_submit (MODULE_NAME, inst, buf);
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "hddtemp");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values ("temperature", &vl);
 }
 
-static void hddtemp_read (void)
+static int hddtemp_read (void)
 {
-	char buf[BUFFER_SIZE];
+	char buf[1024];
 	char *fields[128];
 	char *ptr;
 	int num_fields;
 	int num_disks;
 	int i;
 
-	static int wait_time = 1;
-	static int wait_left = 0;
-
-	if (wait_left >= 10)
-	{
-		wait_left -= 10;
-		return;
-	}
-
 	/* get data from daemon */
-	if (hddtemp_query_daemon (buf, BUFFER_SIZE) < 0)
-	{
-		/* This limit is reached in log2(86400) =~ 17 steps. Since
-		 * there is a 2^n seconds wait between each step it will need
-		 * roughly one day to reach this limit. -octo */
-		
-		wait_time *= 2;
-		if (wait_time > 86400)
-			wait_time = 86400;
-
-		wait_left = wait_time;
-
-		return;
-	}
-	else
-	{
-		wait_time = 1;
-		wait_left = 0;
-	}
+	if (hddtemp_query_daemon (buf, sizeof (buf)) < 0)
+		return (-1);
 
 	/* NB: strtok will eat up "||" and leading "|"'s */
 	num_fields = 0;
@@ -525,14 +494,21 @@ static void hddtemp_read (void)
 			hddtemp_submit (name, temperature);
 		}
 	}
-}
+	
+	return (0);
+} /* int hddtemp_read */
+#endif /* HDDTEMP_HAVE_READ */
 
 /* module_register
    Register collectd plugin. */
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, hddtemp_init, hddtemp_read, hddtemp_write);
-	cf_register (MODULE_NAME, hddtemp_config, config_keys, config_keys_num);
+	plugin_register_data_set (&temperature_ds);
+	
+#if HDDTEMP_HAVE_READ
+	plugin_register_config ("hddtemp", hddtemp_config,
+			config_keys, config_keys_num);
+	plugin_register_init ("hddtemp", hddtemp_init);
+	plugin_register_read ("hddtemp", hddtemp_read);
+#endif /* HDDTEMP_HAVE_READ */
 }
-
-#undef MODULE_NAME
