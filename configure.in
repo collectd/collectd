@@ -294,6 +294,10 @@ AC_CHECK_HEADERS(netinet/if_ether.h)
 AC_CHECK_HEADERS(netinet/tcp.h)
 AC_CHECK_HEADERS(netinet/udp.h)
 
+# For the multimeter plugin
+AC_CHECK_HEADERS(termios.h)
+AC_CHECK_HEADERS(sys/ioctl.h)
+
 dnl Checking for libraries
 AC_CHECK_LIB(m, ext)
 
