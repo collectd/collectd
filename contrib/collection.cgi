@@ -1915,7 +1915,7 @@ HEADER
 		<h3>Hourly</h3>
 		<div><img src="$MySelf$RelDir/$Type/hour" class="hour" /></div>
 		<h3>Daily</h3>
-		<div><img src="$MySelf$RelDir/$Type/day" class=""day /></div>
+		<div><img src="$MySelf$RelDir/$Type/day" class="day" /></div>
 		<h3>Weekly</h3>
 		<div><img src="$MySelf$RelDir/$Type/week" class="week" /></div>
 		<h3>Monthly</h3>
@@ -1986,12 +1986,12 @@ HTML
 				if (length ($inst))
 				{
 					print qq(\t\t<a href="$MySelf$RelDir/$type/$inst" />),
-					qq(<img src="$MySelf$RelDir/$type/$inst/day" /></a>\n);
+					qq(<img src="$MySelf$RelDir/$type/$inst/day" class="day" /></a>\n);
 				}
 				else
 				{
 					print qq(\t\t<a href="$MySelf$RelDir/$type" />),
-					qq(<img src="$MySelf$RelDir/$type/day" /></a>\n);
+					qq(<img src="$MySelf$RelDir/$type/day" class="day" /></a>\n);
 				}
 			}
 		}
