@@ -452,6 +452,21 @@ AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_p
 	#include <linux/netdevice.h>
 	])
 
+#	[AC_DEFINE(HAVE_STRUCT_UDPHDR_BSD, 1, [Define if struct udphdr exists and is the BSD variant.])],
+AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport],
+	[], [],
+	[
+	#include <sys/types.h>
+	#include <netinet/udp.h>
+	])
+#	[AC_DEFINE(HAVE_STRUCT_UDPHDR_GNU, 1, [Define if struct udphdr exists and is the GNU variant.])],
+AC_CHECK_MEMBERS([struct udphdr.dest, struct udphdr.source],
+	[], [],
+	[
+	#include <sys/types.h>
+	#include <netinet/udp.h>
+	])
+
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
 	*linux*)

@@ -144,12 +144,14 @@ static char *ps_pagefaults_ds_def[] =
 };
 static int ps_pagefaults_ds_num = 2;
 
+#if HAVE_THREAD_INFO | KERNEL_LINUX
 static char *config_keys[] =
 {
 	"Process",
 	NULL
 };
 static int config_keys_num = 1;
+#endif
 
 typedef struct procstat_entry_s
 {
@@ -192,7 +194,9 @@ typedef struct procstat
 	struct procstat_entry_s *instances;
 } procstat_t;
 
+#if HAVE_THREAD_INFO | KERNEL_LINUX
 static procstat_t *list_head_g = NULL;
+#endif
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -403,7 +407,6 @@ static void ps_list_reset (void)
 		} /* while (pse != NULL) */
 	} /* for (ps = list_head_g; ps != NULL; ps = ps->next) */
 }
-#endif /* HAVE_THREAD_INFO | KERNEL_LINUX */
 
 static int ps_config (char *key, char *value)
 {
@@ -418,6 +421,7 @@ static int ps_config (char *key, char *value)
 
 	return (0);
 }
+#endif /* HAVE_THREAD_INFO | KERNEL_LINUX */
 
 static void ps_init (void)
 {
@@ -1135,7 +1139,9 @@ void module_register (void)
 	plugin_register ("ps_cputime", NULL, NULL, ps_cputime_write);
 	plugin_register ("ps_count", NULL, NULL, ps_count_write);
 	plugin_register ("ps_pagefaults", NULL, NULL, ps_pagefaults_write);
+#if HAVE_THREAD_INFO | KERNEL_LINUX
 	cf_register (MODULE_NAME, ps_config, config_keys, config_keys_num);
+#endif
 }
 
 #undef BUFSIZE
