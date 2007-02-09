@@ -1,7 +1,7 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	3.10.0
-Release:	1
+Version:	3.11.0
+Release:	0
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
 Group:		System Environment/Daemons
@@ -46,13 +46,13 @@ rm -rf $RPM_BUILD_ROOT
 %setup
 
 %build
-./configure --prefix=%{_prefix} --sbindir=%{_sbindir} --mandir=%{_mandir} --libdir=%{_libdir}
+./configure --prefix=%{_prefix} --sbindir=%{_sbindir} --mandir=%{_mandir} --libdir=%{_libdir} --sysconfdir=%{_sysconfdir}
 make
 
 %install
 make install DESTDIR=$RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
-cp contrib/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
+cp src/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
 cp contrib/init.d-rh7 $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
 mkdir -p $RPM_BUILD_ROOT/var/lib/collectd
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.a
@@ -77,8 +77,11 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/cpufreq.so*
 %attr(0444,root,root) %{_libdir}/%{name}/df.so*
 %attr(0444,root,root) %{_libdir}/%{name}/disk.so*
+%attr(0444,root,root) %{_libdir}/%{name}/dns.so
+%attr(0444,root,root) %{_libdir}/%{name}/email.so
 %attr(0444,root,root) %{_libdir}/%{name}/hddtemp.so*
 %attr(0444,root,root) %{_libdir}/%{name}/load.so*
+%attr(0444,root,root) %{_libdir}/%{name}/mbmon.so
 %attr(0444,root,root) %{_libdir}/%{name}/memory.so*
 %attr(0444,root,root) %{_libdir}/%{name}/multimeter.so*
 %attr(0444,root,root) %{_libdir}/%{name}/nfs.so*
@@ -92,6 +95,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/users.so*
 %attr(0444,root,root) %{_libdir}/%{name}/vserver.so*
 %attr(0444,root,root) %{_libdir}/%{name}/wireless.so*
+
 %dir /var/lib/collectd
 
 %files apache
