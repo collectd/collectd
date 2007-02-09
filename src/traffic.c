@@ -234,7 +234,6 @@ static void if_submit (const char *dev, const char *type,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, "interface");
-	strcpy (vl.plugin_instance, "");
 	strncpy (vl.type_instance, dev, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (type, &vl);
