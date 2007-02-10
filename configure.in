@@ -609,11 +609,11 @@ fi
 
 if test "x$with_kstat" = "xyes"
 then
-	AC_CHECK_LIB(kstat, kstat_open,, [with_kstat="no (libkstat not found)"])
+	AC_CHECK_LIB(kstat, kstat_open, [with_kstat="yes"], [with_kstat="no (libkstat not found)"], [])
 fi
 if test "x$with_kstat" = "xyes"
 then
-	AC_CHECK_LIB(devinfo, di_init,, [with_devinfo="no (not found)"])
+	AC_CHECK_LIB(devinfo, di_init, [with_devinfo="yes"], [with_devinfo="no (not found)"], [])
 	AC_CHECK_HEADERS(kstat.h,, [with_kstat="no (kstat.h not found)"])
 fi
 if test "x$with_kstat" = "xyes"
