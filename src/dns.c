@@ -24,9 +24,9 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_debug.h"
-#include "utils_dns.h"
 
 #if HAVE_LIBPCAP && HAVE_LIBPTHREAD
+# include "utils_dns.h"
 # include <pthread.h>
 # include <pcap.h>
 # include <poll.h>

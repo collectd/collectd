@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 3.11.0)
+AC_INIT(collectd, 3.11.1)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -149,6 +149,40 @@ AC_CHECK_HEADERS(netinet/icmp6.h, [], [],
 # include <netinet/ip6.h>
 #endif
 ])
+AC_CHECK_HEADERS(netinet/tcp.h, [], [],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP_H
+# include <netinet/ip.h>
+#endif
+])
+AC_CHECK_HEADERS(netinet/udp.h, [], [],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP_H
+# include <netinet/ip.h>
+#endif
+])
 
 # For cpu modules
 AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
@@ -291,8 +325,6 @@ AC_CHECK_HEADERS(arpa/nameser.h arpa/nameser_compat.h)
 AC_CHECK_HEADERS(net/if_arp.h)
 AC_CHECK_HEADERS(net/if_ppp.h)
 AC_CHECK_HEADERS(netinet/if_ether.h)
-AC_CHECK_HEADERS(netinet/tcp.h)
-AC_CHECK_HEADERS(netinet/udp.h)
 
 # For the multimeter plugin
 AC_CHECK_HEADERS(termios.h)
@@ -457,6 +489,47 @@ AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_p
 	#include <linux/netdevice.h>
 	])
 
+AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP_H
+# include <netinet/ip.h>
+#endif
+#if HAVE_NETINET_UDP_H
+# include <netinet/udp.h>
+#endif
+])
+AC_CHECK_MEMBERS([struct udphdr.dest, struct udphdr.source], [], [],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP_H
+# include <netinet/ip.h>
+#endif
+#if HAVE_NETINET_UDP_H
+# include <netinet/udp.h>
+#endif
+])
+
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
 	*linux*)
@@ -557,11 +630,11 @@ fi
 
 if test "x$with_kstat" = "xyes"
 then
-	AC_CHECK_LIB(kstat, kstat_open,, [with_kstat="no (libkstat not found)"])
+	AC_CHECK_LIB(kstat, kstat_open, [with_kstat="yes"], [with_kstat="no (libkstat not found)"], [])
 fi
 if test "x$with_kstat" = "xyes"
 then
-	AC_CHECK_LIB(devinfo, di_init,, [with_devinfo="no (not found)"])
+	AC_CHECK_LIB(devinfo, di_init, [with_devinfo="yes"], [with_devinfo="no (not found)"], [])
 	AC_CHECK_HEADERS(kstat.h,, [with_kstat="no (kstat.h not found)"])
 fi
 if test "x$with_kstat" = "xyes"

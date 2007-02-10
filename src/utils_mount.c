@@ -638,8 +638,10 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list)
 	new = cu_mount_listmntent ();
 #elif HAVE_GETVFSSTAT || HAVE_GETFSSTAT
 	new = cu_mount_getfsstat ();
-#elif HAVE_GEN_GETMNTENT
+#elif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT
 	new = cu_mount_gen_getmntent ();
+#elif HAVE_SEQ_GETMNTENT
+# warn "This version of `getmntent' hat not yet been implemented!"
 #elif HAVE_ONE_GETMNTENT
 	new = cu_mount_getmntent ();
 #else

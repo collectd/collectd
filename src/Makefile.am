@@ -167,7 +167,12 @@ endif
 
 if BUILD_MODULE_DNS
 pkglib_LTLIBRARIES += dns.la
-dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
+dns_la_SOURCES = dns.c
+if BUILD_WITH_LIBPCAP
+if BUILD_WITH_LIBPTHREAD
+dns_la_SOURCES += utils_dns.c utils_dns.h
+endif
+endif
 dns_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBPCAP
 dns_la_LDFLAGS += -lpcap
