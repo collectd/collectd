@@ -51,8 +51,14 @@ Features
     - System load
       (Load average over the last 1, 5 and 15 minutes)
 
+    - mbmon - motherboard monitoring
+      (temperature, fanspeed and voltage information)
+
     - Memory utilization
       (Memory occupied by running processes, page cache, buffer cache and free)
+
+    - Multimeter
+      (Information provided by serial multimeters, such as the «Metex M-4650CR»)
 
     - MySQL server statistics
       (Commands issued, handlers triggered, thread usage, query cache
@@ -136,21 +142,30 @@ Prerequisites
 
   * Usual suspects: C compiler, linker, preprocessor, make, ...
 
-  * rrdtool (headers and library; rrdtool 1.0 and 1.2 both work fine)
+  * rrdtool (optional; headers and library; rrdtool 1.0 and 1.2 both work fine)
     If built without `librrd' the resulting binary will be `client only', i.e.
     will send it's values via multicast and not create any RRD files itself.
+    Alternatively you can chose to write CSV-files (Comma Seperated Values)
+    instead.
 
   * libmysqlclient (optional)
 
   * lm-sensors (optional)
 
   * libstatgrab may be used to collect statistics on systems other than Linux
-    and/or Solaris. Note that CPU- and disk-statistics, while being provided by
-    this library, are not supported in collectd right now..
+    and/or Solaris. Note that CPU- and disk-statistics, while being provided
+    by this library, are not supported in collectd right now..
     <http://www.i-scream.org/libstatgrab/> 
 
   * libcurl (optional)
     If you want to use the `apache' plugin
+
+  * librt, libsocket, libkstat, libdevinfo
+    Various standard Solaris libraries which provide system functions.
+
+  * libpthread (optional)
+    For parallelization, especially for plugins that communicate with the
+    outside, e. g. with a socket.
 
   * CoreFoundation.framework and IOKit.framework
     For copiling on darwin in general and the `apple_sensors' plugin in
