@@ -775,7 +775,7 @@ static void score_submit (double value)
 	if ((len < 0) || (len >= BUFSIZE))
 		return;
 
-	plugin_submit ("email_spam_score", NULL, buf);
+	plugin_submit ("email_spam_score", "-", buf);
 	return;
 } /* static void score_submit (double) */
 

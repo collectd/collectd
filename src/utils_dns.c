@@ -35,6 +35,9 @@
 
 #include "collectd.h"
 
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
@@ -71,12 +74,6 @@
 # include <netdb.h>
 #endif
 
-#if HAVE_NETINET_IN_SYSTM_H
-# include <netinet/in_systm.h>
-#endif
-#if HAVE_NETINET_IN_H
-# include <netinet/in.h>
-#endif
 #if HAVE_NETINET_IP_H
 # include <netinet/ip.h>
 #endif
@@ -110,9 +107,14 @@
 # define PPP_CONTROL_VAL 0x03	/* The control byte value */
 #endif
 
-#ifdef __linux__
-#define uh_sport source
-#define uh_dport dest
+#if HAVE_STRUCT_UDPHDR_UH_DPORT && HAVE_STRUCT_UDPHDR_UH_SPORT
+# define UDP_DEST uh_dport
+# define UDP_SRC  uh_dport
+#elif HAVE_STRUCT_UDPHDR_DEST && HAVE_STRUCT_UDPHDR_SOURCE
+# define UDP_DEST dest
+# define UDP_SRC  source
+#else
+# error "`struct udphdr' is unusable."
 #endif
 
 #include "utils_dns.h"
@@ -409,8 +411,8 @@ handle_udp(const struct udphdr *udp, int len,
 	const struct in6_addr *d_addr)
 {
     char buf[PCAP_SNAPLEN];
-    if ((ntohs (udp->uh_dport) != 53)
-		    && (ntohs (udp->uh_sport) != 53))
+    if ((ntohs (udp->UDP_DEST) != 53)
+		    && (ntohs (udp->UDP_SRC) != 53))
 	return 0;
     memcpy(buf, udp + 1, len - sizeof(*udp));
     if (0 == handle_dns(buf, len - sizeof(*udp), s_addr, d_addr))

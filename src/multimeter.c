@@ -214,7 +214,7 @@ static void multimeter_submit (double *value)
 	if (snprintf (buf, BUFSIZE, "%u:%f", (unsigned int) curtime, *value) >= BUFSIZE)
 		return;
 
-	plugin_submit (MODULE_NAME, NULL, buf);
+	plugin_submit (MODULE_NAME, "-", buf);
 }
 #undef BUFSIZE
 

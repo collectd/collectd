@@ -1,3 +1,16 @@
+2007-02-11, Version 3.11.2
+	* plugin: Catch NULL-pointer and try to fix them. Otherwise the
+	  NULL-pointer may have been passed to `printf' which causes a
+	  segfault with some libcs.
+
+2007-02-10, Version 3.11.1
+	* df plugin: Some wrong defines have been fixed so the plugin works
+	  under Solaris again.
+	* dns plugin: The usage of a struct has been fixed to work with
+	  non-GNU libcs.
+	* processes plugin: Some missing defines have been added so the plugin
+	  compiles cleanly under FreeBSD and presumably other UNIXes.
+
 2006-12-22, Version 3.11.0
 	* collectd: The new command line option `-P' makes it easier for
 	  distributors to change the location of PID-files.
