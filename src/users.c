@@ -74,7 +74,7 @@ static void users_submit (unsigned int users)
 		return;
 	}
 
-	plugin_submit(MODULE_NAME, NULL, buf);
+	plugin_submit(MODULE_NAME, "-", buf);
 	return;
 } /* static void users_submit(unsigned int users) */
 #undef BUFSIZE
