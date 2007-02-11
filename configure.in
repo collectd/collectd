@@ -24,7 +24,8 @@ AC_SUBST(LTDLINCL)
 AC_SUBST(LIBLTDL)
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
-#AC_PROG_RANLIB
+AC_PROG_LEX
+AC_PROG_YACC
 AC_CONFIG_SUBDIRS(libltdl)
 
 #
@@ -1088,7 +1089,7 @@ AC_COLLECTD([users],     [disable], [module], [user count statistics])
 AC_COLLECTD([vserver],   [disable], [module], [vserver statistics])
 AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libconfig/Makefile src/liboping/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile)
 
 cat <<EOF;
 

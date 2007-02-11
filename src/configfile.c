@@ -22,7 +22,7 @@
 
 #include "collectd.h"
 
-#include "libconfig/libconfig.h"
+#include "liboconfig/oconfig.h"
 
 #include "common.h"
 #include "plugin.h"
@@ -30,24 +30,11 @@
 #include "network.h"
 #include "utils_debug.h"
 
-#define SHORTOPT_NONE 0
-
-#define ERR_NOT_NESTED "Sections cannot be nested.\n"
-#define ERR_SECTION_ONLY "`%s' can only be used as section.\n"
-#define ERR_NEEDS_ARG "Section `%s' needs an argument.\n"
-#define ERR_NEEDS_SECTION "`%s' can only be used within a section.\n"
-
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
 
-#define DEBUG_CALLBACK(shortvar, var, arguments, value) \
-	DBG("shortvar = %s, var = %s, arguments = %s, value = %s, ...", \
-			ESCAPE_NULL(shortvar), \
-			ESCAPE_NULL(var), \
-			ESCAPE_NULL(arguments), \
-			ESCAPE_NULL(value))
-
-extern int operating_mode;
-
+/*
+ * Private types
+ */
 typedef struct cf_callback
 {
 	const char  *type;
@@ -57,39 +44,52 @@ typedef struct cf_callback
 	struct cf_callback *next;
 } cf_callback_t;
 
-static cf_callback_t *first_callback = NULL;
+typedef struct cf_value_map_s
+{
+	char *key;
+	int (*func) (const oconfig_item_t *);
+} cf_value_map_t;
 
-typedef struct cf_mode_item
+typedef struct cf_global_option_s
 {
 	char *key;
 	char *value;
-	int   mode;
-} cf_mode_item_t;
+	char *def;
+} cf_global_option_t;
 
-/* TODO
- * - LogFile
+/*
+ * Prototypes of callback functions
  */
-static cf_mode_item_t cf_mode_list[] =
+static int dispatch_value_pidfile (const oconfig_item_t *ci);
+static int dispatch_value_plugindir (const oconfig_item_t *ci);
+static int dispatch_value_loadplugin (const oconfig_item_t *ci);
+
+/*
+ * Private variables
+ */
+static cf_callback_t *first_callback = NULL;
+
+static cf_value_map_t cf_value_map[] =
 {
-	{"TimeToLive",  NULL, MODE_CLIENT                           },
-	{"PIDFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL | MODE_LOG },
-	{"DataDir",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL | MODE_LOG },
-	{"LogFile",     NULL, MODE_CLIENT | MODE_SERVER | MODE_LOCAL | MODE_LOG }
+	{"PIDFile",    dispatch_value_pidfile},
+	{"PluginDir",  dispatch_value_plugindir},
+	{"LoadPlugin", dispatch_value_loadplugin}
 };
-static int cf_mode_num = 4;
+static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
 
-static int nesting_depth = 0;
-static char *current_module = NULL;
-
-/* `cf_register' needs this prototype */
-static int cf_callback_plugin_dispatch (const char *, const char *,
-		const char *, const char *, lc_flags_t, void *);
+static cf_global_option_t cf_global_options[] =
+{
+	{"BaseDir", NULL, PKGLOCALSTATEDIR},
+	{"LogFile", NULL, LOGFILE},
+	{"PIDFile", NULL, PIDFILE}
+};
+static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
 
 /*
  * Functions to handle register/unregister, search, and other plugin related
  * stuff
  */
-static cf_callback_t *cf_search (char *type)
+static cf_callback_t *cf_search (const char *type)
 {
 	cf_callback_t *cf_cb;
 
@@ -103,7 +103,8 @@ static cf_callback_t *cf_search (char *type)
 	return (cf_cb);
 }
 
-static int cf_dispatch (char *type, const char *orig_key, const char *orig_value)
+static int cf_dispatch (const char *type, const char *orig_key,
+		const char *orig_value)
 {
 	cf_callback_t *cf_cb;
 	char *key;
@@ -152,6 +153,169 @@ static int cf_dispatch (char *type, const char *orig_key, const char *orig_value
 	return (ret);
 }
 
+static int dispatch_value_pidfile (const oconfig_item_t *ci)
+{
+	assert (strcasecmp (ci->key, "PIDFile") == 0);
+	
+	if (ci->values_num != 1)
+		return (-1);
+	if (ci->values[0].type != OCONFIG_TYPE_STRING)
+		return (-1);
+
+	return (global_option_set ("PIDFile", ci->values[0].value.string));
+}
+
+static int dispatch_value_plugindir (const oconfig_item_t *ci)
+{
+	assert (strcasecmp (ci->key, "PluginDir") == 0);
+	
+	if (ci->values_num != 1)
+		return (-1);
+	if (ci->values[0].type != OCONFIG_TYPE_STRING)
+		return (-1);
+
+	plugin_set_dir (ci->values[0].value.string);
+	return (0);
+}
+
+static int dispatch_value_loadplugin (const oconfig_item_t *ci)
+{
+	assert (strcasecmp (ci->key, "LoadPlugin") == 0);
+
+	if (ci->values_num != 1)
+		return (-1);
+	if (ci->values[0].type != OCONFIG_TYPE_STRING)
+		return (-1);
+
+	return (plugin_load (ci->values[0].value.string));
+} /* int dispatch_value_loadplugin */
+
+static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
+{
+	char  buffer[4096];
+	char *buffer_ptr;
+	int   buffer_free;
+	int i;
+
+	buffer_ptr = buffer;
+	buffer_free = sizeof (buffer);
+
+	for (i = 0; i < ci->values_num; i++)
+	{
+		int status = -1;
+
+		if (ci->values[i].type == OCONFIG_TYPE_STRING)
+			status = snprintf (buffer_ptr, buffer_free, " %s",
+					ci->values[i].value.string);
+		else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
+			status = snprintf (buffer_ptr, buffer_free, " %lf",
+					ci->values[i].value.number);
+		else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
+			status = snprintf (buffer_ptr, buffer_free, " %s",
+					ci->values[i].value.boolean
+					? "true" : "false");
+
+		if ((status < 0) || (status >= buffer_free))
+			return (-1);
+		buffer_free -= status;
+		buffer_ptr  += status;
+	}
+	/* skip the initial space */
+	buffer_ptr = buffer + 1;
+
+	return (cf_dispatch (plugin, ci->key, buffer_ptr));
+} /* int plugin_conf_dispatch */
+
+static int dispatch_value (const oconfig_item_t *ci)
+{
+	int ret = -2;
+	int i;
+
+	for (i = 0; i < cf_value_map_num; i++)
+		if (strcasecmp (cf_value_map[i].key, ci->key) == 0)
+		{
+			ret = cf_value_map[i].func (ci);
+			break;
+		}
+
+	return (ret);
+} /* int dispatch_value */
+
+static int dispatch_block_plugin (oconfig_item_t *ci)
+{
+	int i;
+	char *name;
+
+	if (strcasecmp (ci->key, "Plugin") != 0)
+		return (-1);
+	if (ci->values_num != 1)
+		return (-1);
+	if (ci->values[0].type != OCONFIG_TYPE_STRING)
+		return (-1);
+
+	name = ci->values[0].value.string;
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		if (ci->children[i].children == NULL)
+			dispatch_value_plugin (name, ci->children + i);
+		else
+			{DBG ("No nested config blocks allow for plugins. Yet.");}
+	}
+
+	return (0);
+}
+
+
+static int dispatch_block (oconfig_item_t *ci)
+{
+	if (strcasecmp (ci->key, "Plugin") == 0)
+		return (dispatch_block_plugin (ci));
+
+	return (0);
+}
+
+/* 
+ * Public functions
+ */
+int global_option_set (const char *option, const char *value)
+{
+	int i;
+
+	for (i = 0; i < cf_global_options_num; i++)
+		if (strcasecmp (cf_global_options[i].key, option) == 0)
+			break;
+
+	if (i >= cf_global_options_num)
+		return (-1);
+
+	if (cf_global_options[i].value != NULL)
+		free (cf_global_options[i].value);
+
+	if (value != NULL)
+		cf_global_options[i].value = strdup (value);
+	else
+		cf_global_options[i].value = NULL;
+
+	return (0);
+}
+
+const char *global_option_get (const char *option)
+{
+	int i;
+
+	for (i = 0; i < cf_global_options_num; i++)
+		if (strcasecmp (cf_global_options[i].key, option) == 0)
+			break;
+
+	if (i >= cf_global_options_num)
+		return (NULL);
+	
+	return ((cf_global_options[i].value != NULL)
+			? cf_global_options[i].value
+			: cf_global_options[i].def);
+} /* char *global_option_get */
+
 void cf_unregister (const char *type)
 {
 	cf_callback_t *this, *prev;
@@ -176,8 +340,6 @@ void cf_register (const char *type,
 		const char **keys, int keys_num)
 {
 	cf_callback_t *cf_cb;
-	char buf[64];
-	int i;
 
 	/* Remove this module from the list, if it already exists */
 	cf_unregister (type);
@@ -193,325 +355,27 @@ void cf_register (const char *type,
 
 	cf_cb->next = first_callback;
 	first_callback = cf_cb;
-
-	for (i = 0; i < keys_num; i++)
-	{
-		if (snprintf (buf, 64, "Plugin.%s", keys[i]) < 64)
-		{
-			/* This may be called multiple times for the same
-			 * `key', but apparently `lc_register_*' can handle
-			 * it.. */
-			lc_register_callback (buf, SHORTOPT_NONE,
-					LC_VAR_STRING, cf_callback_plugin_dispatch,
-					NULL);
-		}
-		else
-		{
-			DBG ("Key was truncated: `%s'", ESCAPE_NULL(keys[i]));
-		}
-	}
-}
-
-/*
- * Other query functions
- */
-char *cf_get_option (const char *key, char *def)
-{
-	int i;
-
-	for (i = 0; i < cf_mode_num; i++)
-	{
-		if ((cf_mode_list[i].mode & operating_mode) == 0)
-			continue;
-
-		if (strcasecmp (cf_mode_list[i].key, key) != 0)
-			continue;
-
-		if (cf_mode_list[i].value != NULL)
-			return (cf_mode_list[i].value);
-		return (def);
-	}
-
-	return (NULL);
-}
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Functions for the actual parsing                                    *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-/*
- * `cf_callback_mode'
- *   Chose the `operating_mode'
- *
- * Mode `value'
- */
-static int cf_callback_mode (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DEBUG_CALLBACK (shortvar, var, arguments, value);
-
-	if (strcasecmp (value, "Client") == 0)
-		operating_mode = MODE_CLIENT;
-#if HAVE_LIBRRD
-	else if (strcasecmp (value, "Server") == 0)
-		operating_mode = MODE_SERVER;
-	else if (strcasecmp (value, "Local") == 0)
-		operating_mode = MODE_LOCAL;
-#else /* !HAVE_LIBRRD */
-	else if (strcasecmp (value, "Server") == 0)
-	{
-		fprintf (stderr, "Invalid mode `Server': "
-				"You need to link against librrd for this "
-				"mode to be available.\n");
-		syslog (LOG_ERR, "Invalid mode `Server': "
-				"You need to link against librrd for this "
-				"mode to be available.");
-		return (LC_CBRET_ERROR);
-	}
-	else if (strcasecmp (value, "Local") == 0)
-	{
-		fprintf (stderr, "Invalid mode `Local': "
-				"You need to link against librrd for this "
-				"mode to be available.\n");
-		syslog (LOG_ERR, "Invalid mode `Local': "
-				"You need to link against librrd for this "
-				"mode to be available.");
-		return (LC_CBRET_ERROR);
-	}
-#endif
-	else if (strcasecmp (value, "Log") == 0)
-		operating_mode = MODE_LOG;
-	else
-	{
-		syslog (LOG_ERR, "Invalid value for config option `Mode': `%s'", value);
-		return (LC_CBRET_ERROR);
-	}
-
-	return (LC_CBRET_OKAY);
-}
-
-/*
- * `cf_callback_mode_plugindir'
- *   Change the plugin directory
- *
- * <Mode xxx>
- *   PluginDir `value'
- * </Mode>
- */
-static int cf_callback_mode_plugindir (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DEBUG_CALLBACK (shortvar, var, arguments, value);
-
-	plugin_set_dir (value);
-
-	return (LC_CBRET_OKAY);
-}
-
-static int cf_callback_mode_option (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	cf_mode_item_t *item;
-
-	DEBUG_CALLBACK (shortvar, var, arguments, value);
-
-	if (extra == NULL)
-	{
-		fprintf (stderr, "No extra..?\n");
-		return (LC_CBRET_ERROR);
-	}
-
-	item = (cf_mode_item_t *) extra;
-
-	if (strcasecmp (item->key, shortvar))
-	{
-		fprintf (stderr, "Wrong extra..\n");
-		return (LC_CBRET_ERROR);
-	}
-
-	if ((operating_mode & item->mode) == 0)
-	{
-		fprintf (stderr, "Option `%s' is not valid in this mode!\n", shortvar);
-		return (LC_CBRET_ERROR);
-	}
-
-	if (item->value != NULL)
-	{
-		free (item->value);
-		item->value = NULL;
-	}
-
-	if ((item->value = strdup (value)) == NULL)
-	{
-		perror ("strdup");
-		return (LC_CBRET_ERROR);
-	}
-
-	return (LC_CBRET_OKAY);
-}
-
-/*
- * `cf_callback_mode_loadmodule':
- *   Load a plugin.
- *
- * <Mode xxx>
- *   LoadPlugin `value'
- * </Mode>
- */
-static int cf_callback_mode_loadmodule (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DEBUG_CALLBACK (shortvar, var, arguments, value);
-
-	if (plugin_load (value))
-		syslog (LOG_ERR, "plugin_load (%s): failed to load plugin", value);
-
-	/* Return `okay' even if there was an error, because it's not a syntax
-	 * problem.. */
-	return (LC_CBRET_OKAY);
-}
-
-/*
- * `cf_callback_plugin'
- *   Start/end section `plugin'
- *
- * <Plugin `arguments'>
- *   ...
- * </Plugin>
- */
-static int cf_callback_plugin (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DEBUG_CALLBACK (shortvar, var, arguments, value);
-
-	if (flags == LC_FLAGS_SECTIONSTART)
-	{
-		if (nesting_depth != 0)
-		{
-			fprintf (stderr, ERR_NOT_NESTED);
-			return (LC_CBRET_ERROR);
-		}
-
-		if (arguments == NULL)
-		{
-			fprintf (stderr, ERR_NEEDS_ARG, shortvar);
-			return (LC_CBRET_ERROR);
-		}
-
-		if ((current_module = strdup (arguments)) == NULL)
-		{
-			perror ("strdup");
-			return (LC_CBRET_ERROR);
-		}
-
-		nesting_depth++;
-
-		if (cf_search (current_module) != NULL)
-			return (LC_CBRET_OKAY);
-		else
-			return (LC_CBRET_IGNORESECTION);
-	}
-	else if (flags == LC_FLAGS_SECTIONEND)
-	{
-		if (current_module != NULL)
-		{
-			free (current_module);
-			current_module = NULL;
-		}
-
-		nesting_depth--;
-
-		return (LC_CBRET_OKAY);
-	}
-	else
-	{
-		fprintf (stderr, ERR_SECTION_ONLY, shortvar);
-		return (LC_CBRET_ERROR);
-	}
-}
-
-/*
- * `cf_callback_plugin_dispatch'
- *   Send options within `plugin' sections to the plugin that requests it.
- *
- * <Plugin `current_module'>
- *   `var' `value'
- * </Plugin>
- */
-static int cf_callback_plugin_dispatch (const char *shortvar, const char *var,
-		const char *arguments, const char *value, lc_flags_t flags,
-		void *extra)
-{
-	DEBUG_CALLBACK (shortvar, var, arguments, value);
-
-	if ((nesting_depth == 0) || (current_module == NULL))
-	{
-		fprintf (stderr, ERR_NEEDS_SECTION, shortvar);
-		return (LC_CBRET_ERROR);
-	}
-
-	/* Send the data to the plugin */
-	if (cf_dispatch (current_module, shortvar, value) < 0)
-		return (LC_CBRET_ERROR);
-
-	return (LC_CBRET_OKAY);
-}
-
-static void cf_init (void)
-{
-	static int run_once = 0;
-	int i;
-
-	if (run_once != 0)
-		return;
-	run_once = 1;
-
-	lc_register_callback ("Mode", SHORTOPT_NONE, LC_VAR_STRING,
-			cf_callback_mode, NULL);
-	lc_register_callback ("Plugin", SHORTOPT_NONE, LC_VAR_SECTION,
-			cf_callback_plugin, NULL);
-
-	lc_register_callback ("PluginDir", SHORTOPT_NONE,
-			LC_VAR_STRING, cf_callback_mode_plugindir, NULL);
-	lc_register_callback ("LoadPlugin", SHORTOPT_NONE,
-			LC_VAR_STRING, cf_callback_mode_loadmodule, NULL);
-
-	for (i = 0; i < cf_mode_num; i++)
-	{
-		cf_mode_item_t *item;
-
-		item = &cf_mode_list[i];
-
-		lc_register_callback (item->key, SHORTOPT_NONE, LC_VAR_STRING,
-				cf_callback_mode_option, (void *) item);
-	}
-}
+} /* void cf_register */
 
 int cf_read (char *filename)
 {
-	cf_init ();
+	oconfig_item_t *conf;
+	int i;
 
-	if (filename == NULL)
-		filename = CONFIGFILE;
-
-	DBG ("Starting to parse file `%s'", filename);
-
-	/* int lc_process_file(const char *appname, const char *pathname, lc_conf_type_t type); */
-	if (lc_process_file ("collectd", filename, LC_CONF_APACHE))
+	conf = oconfig_parse_file (filename);
+	if (conf == NULL)
 	{
-		syslog (LOG_ERR, "lc_process_file (%s): %s", filename, lc_geterrstr ());
+		syslog (LOG_ERR, "Unable to read config file %s.", filename);
 		return (-1);
 	}
 
-	DBG ("Done parsing file `%s'", filename);
-
-	/* free memory and stuff */
-	lc_cleanup ();
+	for (i = 0; i < conf->children_num; i++)
+	{
+		if (conf->children[i].children == NULL)
+			dispatch_value (conf->children + i);
+		else
+			dispatch_block (conf->children + i);
+	}
 
 	return (0);
-}
+} /* int cf_read */

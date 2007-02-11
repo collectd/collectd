@@ -1,6 +1,6 @@
 /**
  * collectd - src/collectd.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -50,34 +50,49 @@ static void sigTermHandler (int signal)
 	loop++;
 }
 
-static int change_basedir (char *dir)
+static int change_basedir (const char *orig_dir)
 {
-	int dirlen = strlen (dir);
+	char *dir = strdup (orig_dir);
+	int dirlen;
+	int status;
+
+	if (dir == NULL)
+	{
+		syslog (LOG_ERR, "strdup failed: %s", strerror (errno));
+		return (-1);
+	}
 	
+	dirlen = strlen (dir);
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
 	if (dirlen <= 0)
 		return (-1);
 
-	if (chdir (dir) == -1)
+	status = chdir (dir);
+	free (dir);
+
+	if (status != 0)
 	{
 		if (errno == ENOENT)
 		{
-			if (mkdir (dir, 0755) == -1)
+			if (mkdir (orig_dir, 0755) == -1)
 			{
-				syslog (LOG_ERR, "mkdir (%s): %s", dir, strerror (errno));
+				syslog (LOG_ERR, "mkdir (%s): %s", orig_dir,
+						strerror (errno));
 				return (-1);
 			}
-			else if (chdir (dir) == -1)
+			else if (chdir (orig_dir) == -1)
 			{
-				syslog (LOG_ERR, "chdir (%s): %s", dir, strerror (errno));
+				syslog (LOG_ERR, "chdir (%s): %s", orig_dir,
+						strerror (errno));
 				return (-1);
 			}
 		}
 		else
 		{
-			syslog (LOG_ERR, "chdir: %s", strerror (errno));
+			syslog (LOG_ERR, "chdir (%s): %s", orig_dir,
+					strerror (errno));
 			return (-1);
 		}
 	}
@@ -258,12 +273,10 @@ static int start_server (void)
 #endif /* HAVE_LIBRRD */
 
 #if COLLECT_DAEMON
-static int pidfile_create (const char *file)
+static int pidfile_create (void)
 {
 	FILE *fh;
-
-	if (file == NULL)
-		file = PIDFILE;
+	const char *file = global_option_get ("PIDFile");
 
 	if ((fh = fopen (file, "w")) == NULL)
 	{
@@ -276,14 +289,11 @@ static int pidfile_create (const char *file)
 
 	return (0);
 } /* static int pidfile_create (const char *file) */
-#endif /* COLLECT_DAEMON */
 
-#if COLLECT_DAEMON
-static int pidfile_remove (const char *file)
+static int pidfile_remove (void)
 {
-	if (file == NULL) {
-		file = PIDFILE;
-	}
+	const char *file = global_option_get ("PIDFile");
+
 	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
@@ -292,16 +302,15 @@ int main (int argc, char **argv)
 {
 	struct sigaction sigIntAction;
 	struct sigaction sigTermAction;
-	char *datadir    = PKGLOCALSTATEDIR;
 	char *configfile = CONFIGFILE;
+	const char *datadir;
 #if COLLECT_DAEMON
 	struct sigaction sigChldAction;
-	char *pidfile    = NULL;
 	pid_t pid;
 	int daemonize    = 1;
 #endif
 #if COLLECT_DEBUG
-	char *logfile    = LOGFILE;
+	const char *logfile;
 #endif
 
 #if HAVE_LIBRRD
@@ -334,7 +343,7 @@ int main (int argc, char **argv)
 				break;
 #if COLLECT_DAEMON
 			case 'P':
-				pidfile = optarg;
+				global_option_set ("PIDFile", optarg);
 				break;
 			case 'f':
 				daemonize = 0;
@@ -347,7 +356,7 @@ int main (int argc, char **argv)
 	} /* while (1) */
 
 #if COLLECT_DEBUG
-	if ((logfile = cf_get_option ("LogFile", LOGFILE)) != NULL)
+	if ((logfile = global_option_get ("LogFile")) != NULL)
 		DBG_STARTFILE (logfile, "Debug file opened.");
 #endif
 
@@ -368,7 +377,7 @@ int main (int argc, char **argv)
 	 * Change directory. We do this _after_ reading the config and loading
 	 * modules to relative paths work as expected.
 	 */
-	if ((datadir = cf_get_option ("DataDir", PKGLOCALSTATEDIR)) == NULL)
+	if ((datadir = global_option_get ("BaseDir")) != NULL)
 	{
 		fprintf (stderr, "Don't have a datadir to use. This should not happen. Ever.");
 		return (1);
@@ -385,13 +394,6 @@ int main (int argc, char **argv)
 	 */
 	sigChldAction.sa_handler = SIG_IGN;
 	sigaction (SIGCHLD, &sigChldAction, NULL);
-
-	if ((pidfile == NULL)
-			&& ((pidfile = cf_get_option ("PIDFile", PIDFILE)) == NULL))
-	{
-		fprintf (stderr, "Cannot obtain pidfile. This shoud not happen. Ever.");
-		return (1);
-	}
 
 	if (daemonize)
 	{
@@ -412,7 +414,7 @@ int main (int argc, char **argv)
 		setsid ();
 
 		/* Write pidfile */
-		if (pidfile_create (pidfile))
+		if (pidfile_create ())
 			exit (2);
 
 		/* close standard descriptors */
@@ -470,7 +472,7 @@ int main (int argc, char **argv)
 
 #if COLLECT_DAEMON
 	if (daemonize)
-		pidfile_remove (pidfile);
+		pidfile_remove ();
 #endif /* COLLECT_DAEMON */
 
 	return (0);

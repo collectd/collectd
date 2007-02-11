@@ -221,11 +221,12 @@
 #  define COLLECTD_XFF 0.1
 #endif
 
+#define STATIC_ARRAY_LEN(array) (sizeof (array) / sizeof ((array)[0]))
+
 extern time_t curtime;
 
-#ifdef HAVE_LIBRRD
-extern int operating_mode;
-#endif
+int pidfile_set (const char *file);
+const char *pidfile_get (void);
 
 /* int main (int argc, char **argv); */
 

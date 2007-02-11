@@ -1,4 +1,4 @@
-SUBDIRS = libconfig
+SUBDIRS = liboconfig
 if BUILD_WITH_OWN_LIBOPING
 SUBDIRS += liboping
 endif
@@ -59,8 +59,8 @@ collectd_LDFLAGS += -lstatgrab
 endif
 
 
-collectd_LDADD = $(LIBLTDL) libconfig/libconfig.la "-dlopen" self
-collectd_DEPENDENCIES = $(LIBLTDL) libconfig/libconfig.la
+collectd_LDADD = $(LIBLTDL) liboconfig/liboconfig.la "-dlopen" self
+collectd_DEPENDENCIES = $(LIBLTDL) liboconfig/liboconfig.la
 
 collectd_nagios_SOURCES = collectd-nagios.c
 

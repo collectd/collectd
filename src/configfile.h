@@ -63,21 +63,6 @@ void cf_register (const char *type,
 
 /*
  * DESCRIPTION
- *  `cf_get_option' returns various general options.
- *
- * PARAMETERS
- *  `key'       Name of the option to query.
- *  `def'       Pointer to return as default value.
- *
- * RETURN VALUE
- *  The pointer returned is part of an internal structure and may not be
- *  changed. If the option is not found for whatever reason (wrong key, option
- *  not allowed for currently selected mode, ...) `NULL' is returned.
- */
-char *cf_get_option (const char *key, char *def);
-
-/*
- * DESCRIPTION
  *  `cf_read' reads the config file `filename' and dispatches the read
  *  information to functions/variables. Most important: Is calls `plugin_load'
  *  to load specific plugins, depending on the current mode of operation.
@@ -92,5 +77,8 @@ char *cf_get_option (const char *key, char *def);
  *  been printed in this case.
  */
 int cf_read (char *filename);
+
+int global_option_set (const char *option, const char *value);
+const char *global_option_get (const char *option);
 
 #endif /* defined(CONFIGFILE_H) */
