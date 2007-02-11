@@ -1,3 +1,8 @@
+2007-02-11, Version 3.11.2
+	* plugin: Catch NULL-pointer and try to fix them. Otherwise the
+	  NULL-pointer may have been passed to `printf' which causes a
+	  segfault with some libcs.
+
 2007-02-10, Version 3.11.1
 	* df plugin: Some wrong defines have been fixed so the plugin works
 	  under Solaris again.
