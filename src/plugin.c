@@ -375,6 +375,18 @@ void plugin_write (char *host, char *type, char *inst, char *val)
  */
 void plugin_submit (char *type, char *inst, char *val)
 {
+	if (inst == NULL)
+		inst = "-";
+
+	if ((type == NULL) || (val == NULL))
+	{
+		DBG ("Help! NULL-pointer! type = %s; inst = %s; val = %s;",
+				(type == NULL) ? "(null)" : type,
+				inst,
+				(val == NULL) ? "(null)" : val);
+		return;
+	}
+
         if (operating_mode == MODE_CLIENT)
 		network_send (type, inst, val);
 	else
