@@ -47,29 +47,29 @@
 @BUILD_MODULE_WIRELESS_TRUE@LoadPlugin wireless
 
 #<Plugin apache>
-#	URL http://localhost/status?auto
-#	User www-user
-#	Password secret
-#	CACert /etc/ssl/ca.crt
+#	URL "http://localhost/status?auto"
+#	User "www-user"
+#	Password "secret"
+#	CACert "/etc/ssl/ca.crt"
 #</Plugin>
 
 #<Plugin apcups>
-#	Host localhost
-#	Port 3551
+#	Host "localhost"
+#	Port "3551"
 #</Plugin>
 
 #<Plugin dns>
-#	Interface eth0
-#	IgnoreSource 192.168.0.1
+#	Interface "eth0"
+#	IgnoreSource "192.168.0.1"
 #</Plugin>
 
 #<Plugin hddtemp>
-#	Host 127.0.0.1
+#	Host "127.0.0.1"
 #	Port 7634
 #</Plugin>
 
 #<Plugin mbmon>
-#	Host 127.0.0.1
+#	Host "127.0.0.1"
 #	Port 411
 #</Plugin>
 
@@ -82,23 +82,23 @@
 #</Plugin>
 
 #<Plugin ntpd>
-#	Host localhost
+#	Host "localhost"
 #	Port 123
 #</Plugin>
 
 #<Plugin mysql>
-#	Host database.serv.er
-#	User db_user
-#	Password secret
-#	Database db_name
+#	Host "database.serv.er"
+#	User "db_user"
+#	Password "secret"
+#	Database "db_name"
 #</Plugin>
 
 #<Plugin ping>
-#	Host host.foo.bar
+#	Host "host.foo.bar"
 #</Plugin>
 
 #<Plugin processes>
-#	Process name
+#	Process "name"
 #</Plugin>
 
 #<Plugin rrdtool>
@@ -109,20 +109,14 @@
 ## backwards compatibility. The `extended naming' is prefered, but not the
 ## default for this reason. See `collectd.conf(5)' for more information.
 #<Plugin sensors>
-#	ExtendedSensorNaming false
-#	Sensor it8712-temp1
-#	Sensor it8712-fan3
-#	Sensor it8712-in8
-## -- OR --
-#	ExtendedSensorNaming true
-#	Sensor it8712-isa-0290/temperature-temp1
-#	Sensor it8712-isa-0290/fanspeed-fan3
-#	Sensor it8712-isa-0290/voltage-in8
+#	Sensor "it8712-isa-0290/temperature-temp1"
+#	Sensor "it8712-isa-0290/fanspeed-fan3"
+#	Sensor "it8712-isa-0290/voltage-in8"
 #
 #	IgnoreSelected false
 #</Plugin>
 
 #<Plugin traffic>
-#	Interface eth0
+#	Interface "eth0"
 #	IgnoreSelected false
 #</Plugin>

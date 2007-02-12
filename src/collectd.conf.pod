@@ -4,42 +4,44 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 
 =head1 SYNOPSIS
 
-  Mode    Client
-  DataDir /path/to/data/
-  PIDFile /path/to/pidfile/collectd.pid
-  LogFile /path/to/logfile/collectd.log
-  Server  123.123.123.123 12345
+  BaseDir "/path/to/data/"
+  PIDFile "/path/to/pidfile/collectd.pid"
+  LogFile "/path/to/logfile/collectd.log"
+  Server  "123.123.123.123" 12345
 
   LoadPlugin cpu
   LoadPlugin load
   LoadPlugin ping
 
   <Plugin ping>
-    Host example.org
-    Host provider.net
+    Host "example.org"
+    Host "provider.net"
   </Plugin>
 
 =head1 DESCRIPTION
 
 This config file controls how the system statistics collection daemon
-B<collectd> behaves. The most significant options are B<Mode>, which controlls
-if the daemon will act as client, server or will be independent in local mode,
-and B<LoadPlugin> which controls which plugins to load.
+B<collectd> behaves. The most significant option is B<LoadPlugin>, which
+controls which plugins to load. These plugins ultimately define collectd's
+behavior.
 
 The syntax of this config file is similar to the config file of the famos
 B<Apache Webserver>. Each line containes either a key-value-pair or a
 section-start or -end. Empty lines and everything after the hash-symbol `#' is
-ignored.
+ignored. Values are either string, enclosed in double-quotes,
+(floating-point-)numbers or a boolean extression, i.E<nbsp>e. either B<true> or
+B<false>. String containing of only alphanumeric characters and underscores do
+not need to be quoted.
 
 =head1 GLOBAL OPTIONS
 
 =over 4
 
-=item B<Mode> (B<Local>|B<Client>|B<Server>|B<Log>)
+=item B<BaseDir> I<Directory>
 
-Sets the operating mode. See the section B<MODES> in L<collectd(1)> for a
-description. This option determines which other options are allowed. Defaults
-to B<Local>.
+Sets the base directory. This is the directory beneath all RRD-files are
+created. Possibly more subdirectories are created. This is also the working
+directory for the daemon.
 
 =item B<LoadPlugin> I<Plugin>
 
@@ -50,52 +52,12 @@ will be mostly useless. The names of the plugins are listed in L<collectd(1)>.
 
 Sets where to write the PID file to. This file is overwritten when it exists
 and deleted when the program ist stopped. Some init-scripts might override this
-setting using the B<-P> commandline option. Available in B<all modes>.
-
-=item B<DataDir> I<Directory>
-
-Sets the data directory. This is the directory beneath all RRD-files are
-created. Possibly more subdirectories are created. This is also the working
-directory for the daemon. Available in B<all modes>, though the B<Client> mode
-won't write to this directory.
+setting using the B<-P> commandline option.
 
 =item B<LogFile> I<File>
 
 Sets the file to write debugging output to. This is only used if compiled with
-debugging enabled. It's ignored otherwise. Available in B<all modes>.
-
-=item B<Listen> I<Host> [I<Port>]
-
-=item B<Server> I<Host> [I<Port>]
-
-In B<client mode> the B<Server> statement sets the server to send datagrams to.
-The statement may occur multiple times to send each datagram to multiple
-destinations.
-
-In B<server mode> the B<Listen> statement sets the interfaces to bind to. When
-multiple statements are found the daemon will bind to multiple interfaces.
-
-The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. If
-the argument is a multicast address the daemon will join that multicast group.
-
-If no B<Listen> statement is found the server tries join both, the IPv6
-multicast group and the IPv4 multicast group. If no B<Server> statement is
-found the client will try to send data to the IPv6 multicast group first. If
-that failes the client will try the IPv4 multicast group.
-
-The default IPv6 multicast group is C<ff18::efc0:4a42>. The default IPv4
-multicast group is C<239.192.74.66>.
-
-The optional I<Port> argument sets the port to use. It can either be given
-using a numeric port number or a service name. If the argument is omited the
-default port B<25826> is assumed.
-
-=item B<TimeToLive> I<1-255>
-
-Set the time-to-live of sent packets. This applies to all, unicast and
-multicast, and IPv4 and IPv6 packets. The default is to not change this value.
-That means that multicast packets will be sent with a TTL of C<1> (one) on most
-operating systems.
+debugging enabled. It's ignored otherwise.
 
 =back
 
@@ -254,20 +216,6 @@ TCP-Port to connect to. Defaults to B<411>.
 
 =back
 
-=head2 Plugin C<ntpd>
-
-=over 4
-
-=item B<Host> I<Hostname>
-
-Hostname of the host running B<ntpd>. Defaults to B<localhost>.
-
-=item B<Port> I<Port>
-
-UDP-Port to connect to. Defaults to B<123>.
-
-=back
-
 =head2 Plugin C<mysql>
 
 =over 4
@@ -288,6 +236,58 @@ Password needed to log into the database.
 
 Select this database. Defaults to I<no database> which is a perfecly reasonable
 option for what this plugin does.
+
+=back
+
+=head2 Plugin C<network>
+
+=over 4
+
+=item B<Listen> I<Host> [I<Port>]
+
+=item B<Server> I<Host> [I<Port>]
+
+The B<Server> statement sets the server to send datagrams B<to>.  The statement
+may occur multiple times to send each datagram to multiple destinations.
+
+The B<Listen> statement sets the interfaces to bind to. When multiple
+statements are found the daemon will bind to multiple interfaces.
+
+The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. If
+the argument is a multicast address the daemon will join that multicast group.
+
+If no B<Listen> statement is found the server tries join both, the default IPv6
+multicast group and the default IPv4 multicast group. If no B<Server> statement
+is found the client will try to send data to the IPv6 multicast group first. If
+that failes the client will try the IPv4 multicast group.
+
+The default IPv6 multicast group is C<ff18::efc0:4a42>. The default IPv4
+multicast group is C<239.192.74.66>.
+
+The optional I<Port> argument sets the port to use. It can either be given
+using a numeric port number or a service name. If the argument is omited the
+default port B<25826> is assumed.
+
+=item B<TimeToLive> I<1-255>
+
+Set the time-to-live of sent packets. This applies to all, unicast and
+multicast, and IPv4 and IPv6 packets. The default is to not change this value.
+That means that multicast packets will be sent with a TTL of C<1> (one) on most
+operating systems.
+
+=back
+
+=head2 Plugin C<ntpd>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the host running B<ntpd>. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+UDP-Port to connect to. Defaults to B<123>.
 
 =back
 
