@@ -321,7 +321,7 @@ memory is used.
 =item B<DataDir> I<Directory>
 
 Set the directory to store RRD-files under. Per default RRD-files are generated
-beneath the daemons working directory, i.E<nbsp>e. the B<BaseDir>.
+beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =back
 
@@ -329,61 +329,22 @@ beneath the daemons working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =over 4
 
-=item B<ExtendedSensorNaming> I<true>|I<false>
+=item B<Sensor> I<chip-bus-address/type-feature>
 
-If set to I<true> this option switches on the extended sensors and RRD-files
-naming. This option exists to preserve backwards compatibility. It is
-recommended that you set this option to I<true>. The default is I<false> to
-maintain compatibility only.
-
-Sensors get names like I<chip-bus-address/type-feature> (e.g.
-I<it8712-isa-0290/voltage-in1>) and RRD files are therefore stored in a
-standalone directory inside the B<DataDir> directory and get names like
-I<lm_sensors-chip-bus-address/type-feature.rrd> (e.g.
-I<lm_sensors-it8712-isa-0290/voltage-in1.rrd>).
-
-The B<ExtendedSensorNaming> option breaks the compatibility with previous
-sensors and RRD files naming and the place where RRDs are stored. If you turn
-it on, the plugin will create new RRD files in a standalone directory inside
-the B<DataDir> directory and without previous history. You can rename ``old''
-RRD-files to preserve already collected statistics, because the file layout
-hasn't changed. If you have two chips of the same type, you need to use
-B<ExtendedSensorNaming> in order to collect information from both chips.
-
-If not set or set to I<false>, the extended naming is not active. Sensors get
-names like I<chip-feature> (e.g. I<it8712-in1>) and RRD files are stored in the
-main B<DataDir> directory and get names like I<sensors-chip-feature.rrd> (e.g.
-I<sensors-it8712-in1.rrd>).  You simply continue using the plugin the old way
-and additionally also getting data for newly added sensors in this mode.
-
-=item B<Sensor> I<chip-feature> or B<Sensor> I<chip-bus-address/type-feature>
-
-Both option modes select the name of the sensor which you want to collect.
-The naming scheme is dependent on the state of the B<ExtendedSensorNaming>
-option (see previous option). Both option modes can also deselect the
-sensor according to the B<IgnoreSelected> option (see below).
-
-For example the option "B<Sensor> I<it8712-in1>" will cause the collectd
-to gather data for the voltage sensor I<in1> of the I<it8712> chip in case
-of the B<ExtendedSensorNaming> option is set to I<false>.
-
-And likewise the option "B<Sensor> I<it8712-isa-0290/voltage-in1>" will
-cause the collectd to gather data for the voltage sensor I<in1> of the I<it8712>
-on the isa bus at the address 0290 in case of the B<ExtendedSensorNaming>
-option set to I<true>.
+Selects the name of the sensor which you want to collect or ignore, depending
+on the B<IgnoreSelected> below. For example, the option "B<Sensor>
+I<it8712-isa-0290/voltage-in1>" will cause collectd to gather data for the
+voltage sensor I<in1> of the I<it8712> on the isa bus at the address 0290.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
-If no configuration if given, the B<sensors>-plugin will collect data from
-all sensors. This may not be practical, especially for uninteresting sensors.
-Thus, you can use the B<Sensor>-option to pick the sensors you're
-interested in. Sometimes, however, it's easier/prefered to collect all
-sensors I<except> a few ones. This option enables you to
-do that: By setting B<IgnoreSelected> to I<true> the effect of
-B<Sensor> is inversed: All selected sensors are ignored and all
-other sensors are collected.
-
-back
+If no configuration if given, the B<sensors>-plugin will collect data from all
+sensors. This may not be practical, especially for uninteresting sensors.
+Thus, you can use the B<Sensor>-option to pick the sensors you're interested
+in. Sometimes, however, it's easier/prefered to collect all sensors I<except> a
+few ones. This option enables you to do that: By setting B<IgnoreSelected> to
+I<true> the effect of B<Sensor> is inversed: All selected sensors are ignored
+and all other sensors are collected.
 
 =back
 
