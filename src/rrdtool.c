@@ -76,9 +76,12 @@ static int rra_types_num = 3;
 static const char *config_keys[] =
 {
 	"CacheTimeout",
+	"DataDir",
 	NULL
 };
-static int config_keys_num = 1;
+static int config_keys_num = 2;
+
+static char *datadir = NULL;
 
 static int      cache_timeout = 0;
 static time_t   cache_flush;
@@ -365,6 +368,15 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 	int offset = 0;
 	int status;
 
+	if (datadir != NULL)
+	{
+		status = snprintf (buffer + offset, buffer_len - offset,
+				"%s/", datadir);
+		if ((status < 1) || (status >= buffer_len - offset))
+			return (-1);
+		offset += status;
+	}
+
 	status = snprintf (buffer + offset, buffer_len - offset,
 			"%s/", vl->host);
 	if ((status < 1) || (status >= buffer_len - offset))
@@ -616,6 +628,26 @@ static int rrd_config (const char *key, const char *val)
 			return (1);
 		}
 		cache_timeout = tmp;
+	}
+	else if (strcasecmp ("DataDir", key) == 0)
+	{
+		if (datadir != NULL)
+			free (datadir);
+		datadir = strdup (val);
+		if (datadir != NULL)
+		{
+			int len = strlen (datadir);
+			while ((len > 0) && (datadir[len - 1] == '/'))
+			{
+				len--;
+				datadir[len] = '\0';
+			}
+			if (len <= 0)
+			{
+				free (datadir);
+				datadir = NULL;
+			}
+		}
 	}
 	else
 	{

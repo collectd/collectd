@@ -318,6 +318,11 @@ at once reduces IO-operations and thus lessens the load produced by updating
 the files. The tradeoff is that the graphs kind of "drag behind" and that more
 memory is used.
 
+=item B<DataDir> I<Directory>
+
+Set the directory to store RRD-files under. Per default RRD-files are generated
+beneath the daemons working directory, i.E<nbsp>e. the B<BaseDir>.
+
 =back
 
 =head2 Plugin C<sensors>
