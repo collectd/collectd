@@ -32,8 +32,6 @@
 # include <arpa/inet.h>
 #endif
 
-extern int operating_mode;
-
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
