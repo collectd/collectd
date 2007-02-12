@@ -38,7 +38,6 @@ kstat_ctl_t *kc;
  * exported variables
  */
 time_t curtime;
-int    operating_mode;
 
 static void sigIntHandler (int signal)
 {
@@ -157,18 +156,8 @@ static void exit_usage (char *name)
 	exit (0);
 } /* static void exit_usage (char *name) */
 
-static int start_client (void)
+static int do_init (void)
 {
-	int step;
-
-	struct timeval tv_now;
-	struct timeval tv_next;
-	struct timespec ts_wait;
-
-	step = atoi (COLLECTD_STEP);
-	if (step <= 0)
-		step = 10;
-
 #if HAVE_LIBKSTAT
 	kc = NULL;
 	update_kstat ();
@@ -189,6 +178,22 @@ static int start_client (void)
 #endif
 
 	plugin_init_all ();
+
+	return (0);
+} /* int do_init () */
+
+
+static int do_loop (void)
+{
+	int step;
+
+	struct timeval tv_now;
+	struct timeval tv_next;
+	struct timespec ts_wait;
+
+	step = atoi (COLLECTD_STEP);
+	if (step <= 0)
+		step = 10;
 
 	while (loop == 0)
 	{
@@ -211,13 +216,16 @@ static int start_client (void)
 
 		if (gettimeofday (&tv_now, NULL) < 0)
 		{
-			syslog (LOG_ERR, "gettimeofday failed: %s", strerror (errno));
+			syslog (LOG_ERR, "gettimeofday failed: %s",
+					strerror (errno));
 			return (-1);
 		}
 
 		if (timeval_sub_timespec (&tv_next, &tv_now, &ts_wait) != 0)
 		{
-			syslog (LOG_WARNING, "Not sleeping because `timeval_sub_timespec' returned non-zero!");
+			syslog (LOG_WARNING, "Not sleeping because "
+					"`timeval_sub_timespec' returned "
+					"non-zero!");
 			continue;
 		}
 
@@ -226,51 +234,20 @@ static int start_client (void)
 			if (errno != EINTR)
 			{
 				syslog (LOG_ERR, "nanosleep failed: %s", strerror (errno));
-				break;
+				return (-1);
 			}
 		}
-	}
+	} /* while (loop == 0) */
 
+	DBG ("return (0);");
 	return (0);
-} /* static int start_client (void) */
+} /* int do_loop */
 
-#if HAVE_LIBRRD
-static int start_server (void)
+static int do_shutdown (void)
 {
-	/* FIXME */
-#if 0
-	char *host;
-	char *type;
-	char *instance;
-	char *values;
-
-	int  error_counter = 0;
-	int  status;
-
-	while ((loop == 0) && (error_counter < 3))
-	{
-		status = network_receive (&host, &type, &instance, &values);
-
-		if (status != 0)
-		{
-			if (status < 0)
-				error_counter++;
-			continue;
-		}
-		error_counter = 0;
-
-		plugin_write (host, type, instance, values);
-
-		if (host     != NULL) free (host);     host     = NULL;
-		if (type     != NULL) free (type);     type     = NULL;
-		if (instance != NULL) free (instance); instance = NULL;
-		if (values   != NULL) free (values);   values   = NULL;
-	}
-	
-#endif
+	plugin_shutdown_all ();
 	return (0);
-} /* static int start_server (void) */
-#endif /* HAVE_LIBRRD */
+} /* int do_shutdown */
 
 #if COLLECT_DAEMON
 static int pidfile_create (void)
@@ -294,6 +271,7 @@ static int pidfile_remove (void)
 {
 	const char *file = global_option_get ("PIDFile");
 
+	DBG ("unlink (%s)", (file != NULL) ? file : "<null>");
 	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
@@ -311,12 +289,6 @@ int main (int argc, char **argv)
 #endif
 #if COLLECT_DEBUG
 	const char *logfile;
-#endif
-
-#if HAVE_LIBRRD
-	operating_mode = MODE_LOCAL;
-#else
-	operating_mode = MODE_CLIENT;
 #endif
 
 	/* open syslog */
@@ -377,12 +349,12 @@ int main (int argc, char **argv)
 	 * Change directory. We do this _after_ reading the config and loading
 	 * modules to relative paths work as expected.
 	 */
-	if ((datadir = global_option_get ("BaseDir")) != NULL)
+	if ((datadir = global_option_get ("BaseDir")) == NULL)
 	{
 		fprintf (stderr, "Don't have a datadir to use. This should not happen. Ever.");
 		return (1);
 	}
-	if (change_basedir (datadir))
+	else if (change_basedir (datadir))
 	{
 		fprintf (stderr, "Error: Unable to change to directory `%s'.\n", datadir);
 		return (1);
@@ -392,6 +364,7 @@ int main (int argc, char **argv)
 	/*
 	 * fork off child
 	 */
+	memset (&sigChldAction, '\0', sizeof (sigChldAction));
 	sigChldAction.sa_handler = SIG_IGN;
 	sigaction (SIGCHLD, &sigChldAction, NULL);
 
@@ -443,23 +416,20 @@ int main (int argc, char **argv)
 	/*
 	 * install signal handlers
 	 */
+	memset (&sigIntAction, '\0', sizeof (sigIntAction));
 	sigIntAction.sa_handler = sigIntHandler;
 	sigaction (SIGINT, &sigIntAction, NULL);
 
+	memset (&sigTermAction, '\0', sizeof (sigTermAction));
 	sigTermAction.sa_handler = sigTermHandler;
 	sigaction (SIGTERM, &sigTermAction, NULL);
 
 	/*
 	 * run the actual loops
 	 */
-#if HAVE_LIBRRD
-	if (operating_mode == MODE_SERVER)
-		start_server ();
-	else /* if (operating_mode == MODE_CLIENT || operating_mode == MODE_LOCAL || operating_mode == MODE_LOG) */
-#endif
-		start_client ();
-
-	plugin_shutdown_all ();
+	do_init ();
+	do_loop ();
+	do_shutdown ();
 
 #if COLLECT_DEBUG
 	if (logfile != NULL)
@@ -476,4 +446,4 @@ int main (int argc, char **argv)
 #endif /* COLLECT_DAEMON */
 
 	return (0);
-} /* int main (int argc, char **argv) */
+} /* int main */
