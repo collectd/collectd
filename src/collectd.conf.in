@@ -4,19 +4,13 @@
 # http://collectd.org/
 #
 
-# Select one of the following modes:
-@BUILD_WITH_RRDTOOL_TRUE@Mode Local
-#Mode Server
-@BUILD_WITH_RRDTOOL_FALSE@Mode Client
-#Mode Log
-
 # Set the IP-address(es) and UDP-port(s) to send packets to. `Listen' can be
 # used as a synonym for `Server' to make the config file more readable when in
 # server mode. The port option is optional.
 #Server ff18::efc0:4a42 25826
 #Server 239.192.74.66 25826
 
-#DataDir   /opt/collectd/var/lib/collectd
+#BaseDir   /opt/collectd/var/lib/collectd
 #PIDFile   /opt/collectd/var/run/collectd.pid
 #PluginDir /opt/collectd/lib/collectd
 
@@ -30,12 +24,14 @@
 @BUILD_MODULE_DF_TRUE@LoadPlugin df
 @BUILD_MODULE_DISK_TRUE@LoadPlugin disk
 @BUILD_MODULE_DNS_TRUE@LoadPlugin dns
+@BUILD_MODULE_EMAIL_TRUE@LoadPlugin email
 @BUILD_MODULE_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_MODULE_LOAD_TRUE@LoadPlugin load
 @BUILD_MODULE_MBMON_TRUE@LoadPlugin mbmon
 @BUILD_MODULE_MEMORY_TRUE@LoadPlugin memory
 @BUILD_MODULE_MULTIMETER_TRUE@LoadPlugin multimeter
 @BUILD_MODULE_MYSQL_TRUE@LoadPlugin mysql
+@BUILD_MODULE_NETWORK_TRUE@LoadPlugin network
 @BUILD_MODULE_NFS_TRUE@LoadPlugin nfs
 @BUILD_MODULE_NTPD_TRUE@LoadPlugin ntpd
 @BUILD_MODULE_PING_TRUE@LoadPlugin ping
@@ -75,6 +71,14 @@
 #<Plugin mbmon>
 #	Host 127.0.0.1
 #	Port 411
+#</Plugin>
+
+#<Plugin network>
+#	Server "ff18::efc0:4a42" "25826"
+#	Server "239.192.74.66" "25826"
+#	Listen "ff18::efc0:4a42" "25826"
+#	Listen "239.192.74.66" "25826"
+#	TimeToLive "128"
 #</Plugin>
 
 #<Plugin ntpd>
