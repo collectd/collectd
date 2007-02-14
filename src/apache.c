@@ -1,6 +1,7 @@
 /**
  * collectd - src/apache.c
  * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2007  Florent EppO Monbillard
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,8 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Florent EppO Monbillard <eppo at darox.net>
+ *   - connections/lighttpd extension
  **/
 
 #include "collectd.h"
@@ -74,6 +77,15 @@ static char *scoreboard_ds_def[] =
 	NULL
 };
 static int scoreboard_ds_num = 1;
+
+/* for lighttpd; Limit to 65536 active connections */
+static char *connections_file = "apache/apache_connections.rrd";
+static char *connections_ds_def[] =
+{
+	"DS:connections:GAUGE:"COLLECTD_HEARTBEAT":0:65536", 
+	NULL
+};
+static int connections_ds_num = 1;
 
 static char *config_keys[] =
 {
@@ -195,6 +207,12 @@ static void scoreboard_write (char *host, char *inst, char *val)
 		return;
 
 	rrd_update_file (host, buf, val, scoreboard_ds_def, scoreboard_ds_num);
+}
+
+static void connections_write (char *host, char *inst, char *val)
+{
+	rrd_update_file (host, connections_file, val, connections_ds_def,
+			connections_ds_num);
 }
 
 #if APACHE_HAVE_READ
@@ -319,6 +337,8 @@ static void apache_read (void)
 		{
 			if (strcmp (fields[0], "Scoreboard:") == 0)
 				submit_scoreboard (fields[1]);
+			else if (strcmp (fields[0], "BusyServers:") == 0)
+				submit ("apache_connections", NULL, atol (fields[1]));
 		}
 	}
 
@@ -334,6 +354,7 @@ void module_register (void)
 	plugin_register ("apache_requests",   NULL, NULL, requests_write);
 	plugin_register ("apache_bytes",      NULL, NULL, bytes_write);
 	plugin_register ("apache_scoreboard", NULL, NULL, scoreboard_write);
+	plugin_register ("apache_connections", NULL, NULL, connections_write);
 	cf_register (MODULE_NAME, config, config_keys, config_keys_num);
 }
 
