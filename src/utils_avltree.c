@@ -583,7 +583,7 @@ avl_iterator_t *avl_get_iterator (avl_tree_t *t)
 	return (avl_create_iterator (t, n));
 } /* avl_iterator_t *avl_get_iterator */
 
-int avl_pick (avl_tree_t *, void **key, void **value)
+int avl_pick (avl_tree_t *t, void **key, void **value)
 {
 	avl_node_t *n;
 	avl_node_t *p;
@@ -595,8 +595,8 @@ int avl_pick (avl_tree_t *, void **key, void **value)
 	n = t->root;
 	while ((n->left != NULL) || (n->right != NULL))
 	{
-		int height_left  = (n->left  == NULL) ? 0 : n->left->traffic;
-		int height_right = (n->right == NULL) ? 0 : n->right->traffic;
+		int height_left  = (n->left  == NULL) ? 0 : n->left->height;
+		int height_right = (n->right == NULL) ? 0 : n->right->height;
 
 		if (height_left > height_right)
 			n = n->left;
@@ -616,7 +616,7 @@ int avl_pick (avl_tree_t *, void **key, void **value)
 	*value = n->value;
 
 	free_node (n);
-	rebalance (p);
+	rebalance (t, p);
 
 	return (0);
 } /* int avl_pick */
