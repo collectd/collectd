@@ -12,6 +12,7 @@ bin_PROGRAMS = collectd-nagios
 
 collectd_SOURCES = collectd.c collectd.h \
 		   utils_debug.c utils_debug.h \
+		   utils_avltree.c utils_avltree.h \
 		   utils_mount.c utils_mount.h \
 		   utils_llist.c utils_llist.h \
 		   utils_ignorelist.c utils_ignorelist.h \
