@@ -58,7 +58,7 @@ struct avl_iterator_s
 /*
  * private functions
  */
-#if 1
+#if 0
 static void verify_tree (avl_node_t *n)
 {
 	if (n == NULL)
@@ -230,17 +230,17 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 		{
 			assert (n->right != NULL);
 			b_bottom = BALANCE (n->right);
-			assert ((b_bottom == -1) || (b_bottom == 1));
-			if (b_bottom == -1)
-				n = rotate_left (t, n);
-			else
+			assert ((b_bottom >= -1) || (b_bottom <= 1));
+			if (b_bottom == 1)
 				n = rotate_right_left (t, n);
+			else
+				n = rotate_left (t, n);
 		}
 		else if (b_top == 2)
 		{
 			assert (n->left != NULL);
 			b_bottom = BALANCE (n->left);
-			assert ((b_bottom == -1) || (b_bottom == 1));
+			assert ((b_bottom >= -1) || (b_bottom <= 1));
 			if (b_bottom == -1)
 				n = rotate_left_right (t, n);
 			else
@@ -338,6 +338,32 @@ static int _remove (avl_tree_t *t, avl_node_t *n)
 {
 	assert ((t != NULL) && (n != NULL));
 
+	if ((n->left != NULL) && (n->right != NULL))
+	{
+		avl_node_t *r; /* replacement node */
+		if (BALANCE (n) > 0) /* left subtree is higher */
+		{
+			assert (n->left != NULL);
+			r = avl_node_prev (t, n);
+			
+		}
+		else /* right subtree is higher */
+		{
+			assert (n->right != NULL);
+			r = avl_node_next (t, n);
+		}
+
+		assert ((r->left == NULL) || (r->right == NULL));
+
+		/* copy content */
+		n->key   = r->key;
+		n->value = r->value;
+
+		n = r;
+	}
+
+	assert ((n->left == NULL) || (n->right == NULL));
+
 	if ((n->left == NULL) && (n->right == NULL))
 	{
 		/* Deleting a leave is easy */
@@ -360,25 +386,59 @@ static int _remove (avl_tree_t *t, avl_node_t *n)
 
 		free_node (n);
 	}
-	else
+	else if (n->left == NULL)
 	{
-		avl_node_t *r; /* replacement node */
-		if (BALANCE (n) > 0)
+		assert (BALANCE (n) == -1);
+		assert ((n->parent == NULL) || (n->parent->left == n) || (n->parent->right == n));
+		if (n->parent == NULL)
 		{
-			assert (n->left != NULL);
-			r = avl_node_prev (t, n);
+			assert (t->root == n);
+			t->root = n->right;
+		}
+		else if (n->parent->left == n)
+		{
+			n->parent->left = n->right;
 		}
 		else
 		{
-			assert (n->right != NULL);
-			r = avl_node_next (t, n);
+			n->parent->right = n->right;
 		}
+		n->right->parent = n->parent;
 
-		/* copy content */
-		n->key   = r->key;
-		n->value = r->value;
+		if (n->parent != NULL)
+			rebalance (t, n->parent);
 
-		_remove (t, r);
+		n->right = NULL;
+		free_node (n);
+	}
+	else if (n->right == NULL)
+	{
+		assert (BALANCE (n) == 1);
+		assert ((n->parent == NULL) || (n->parent->left == n) || (n->parent->right == n));
+		if (n->parent == NULL)
+		{
+			assert (t->root == n);
+			t->root = n->left;
+		}
+		else if (n->parent->left == n)
+		{
+			n->parent->left = n->left;
+		}
+		else
+		{
+			n->parent->right = n->left;
+		}
+		n->left->parent = n->parent;
+
+		if (n->parent != NULL)
+			rebalance (t, n->parent);
+
+		n->left = NULL;
+		free_node (n);
+	}
+	else
+	{
+		assert (0);
 	}
 
 	return (0);
