@@ -260,6 +260,8 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 	} /* while (n != NULL) */
 } /* void rebalance */
 
+#if 0
+/* This code disabled until a need arises. */
 static avl_iterator_t *avl_create_iterator (avl_tree_t *t, avl_node_t *n)
 {
 	avl_iterator_t *iter;
@@ -273,8 +275,9 @@ static avl_iterator_t *avl_create_iterator (avl_tree_t *t, avl_node_t *n)
 
 	return (iter);
 }
+#endif
 
-void *avl_node_next (avl_tree_t *t, avl_node_t *n)
+static void *avl_node_next (avl_tree_t *t, avl_node_t *n)
 {
 	avl_node_t *r; /* return node */
 
@@ -304,7 +307,7 @@ void *avl_node_next (avl_tree_t *t, avl_node_t *n)
 	return (r);
 }
 
-void *avl_node_prev (avl_tree_t *t, avl_node_t *n)
+static void *avl_node_prev (avl_tree_t *t, avl_node_t *n)
 {
 	avl_node_t *r; /* return node */
 
@@ -451,6 +454,9 @@ avl_tree_t *avl_create (int (*compare) (const void *, const void *))
 {
 	avl_tree_t *t;
 
+	if (compare == NULL)
+		return (NULL);
+
 	if ((t = (avl_tree_t *) malloc (sizeof (avl_tree_t))) == NULL)
 		return (NULL);
 
@@ -569,26 +575,13 @@ int avl_get (avl_tree_t *t, const void *key, void **value)
 	return (0);
 }
 
-avl_iterator_t *avl_get_iterator (avl_tree_t *t)
-{
-	avl_node_t *n;
-
-	if (t == NULL)
-		return (NULL);
-
-	for (n = t->root; n != NULL; n = n->left)
-		if (n->left == NULL)
-			break;
-
-	return (avl_create_iterator (t, n));
-} /* avl_iterator_t *avl_get_iterator */
-
 int avl_pick (avl_tree_t *t, void **key, void **value)
 {
 	avl_node_t *n;
 	avl_node_t *p;
 
-	assert ((key != NULL) && (value != NULL));
+	if ((key == NULL) || (value == NULL))
+		return (-1);
 	if (t->root == NULL)
 		return (-1);
 
@@ -620,6 +613,22 @@ int avl_pick (avl_tree_t *t, void **key, void **value)
 
 	return (0);
 } /* int avl_pick */
+
+#if 0
+/* This code disabled until a need arises. */
+avl_iterator_t *avl_get_iterator (avl_tree_t *t)
+{
+	avl_node_t *n;
+
+	if (t == NULL)
+		return (NULL);
+
+	for (n = t->root; n != NULL; n = n->left)
+		if (n->left == NULL)
+			break;
+
+	return (avl_create_iterator (t, n));
+} /* avl_iterator_t *avl_get_iterator */
 
 void *avl_iterator_next (avl_iterator_t *iter)
 {
@@ -659,3 +668,4 @@ void avl_iterator_destroy (avl_iterator_t *iter)
 {
 	free (iter);
 }
+#endif /* 0 */
