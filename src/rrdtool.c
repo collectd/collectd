@@ -479,6 +479,8 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 	char *fn;
 	int status;
 
+	int i;
+
 	argc = rc->values_num + 2;
 	argv = (char **) malloc ((argc + 1) * sizeof (char *));
 	if (argv == NULL)
@@ -505,6 +507,9 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 	free (argv);
 	free (fn);
 
+	for (i = 0; i < rc->values_num; i++)
+		free (rc->values[i]);
+
 	free (rc->values);
 	rc->values = NULL;
 	rc->values_num = 0;
@@ -517,7 +522,7 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 	}
 
 	return (0);
-} /* int rrd_update_file */
+} /* int rrd_write_cache_entry */
 
 static void rrd_cache_flush (int timeout)
 {
@@ -570,10 +575,9 @@ static void rrd_cache_flush (int timeout)
 			continue;
 		}
 
+		/* will free `rc' */
 		rrd_write_cache_entry (keys[i], rc);
 		sfree (keys[i]); keys[i] = NULL;
-		sfree (rc->values);
-		sfree (rc);
 	} /* for (i = 0..keys_num) */
 
 	free (keys);
@@ -623,9 +627,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 
 	if (cache == NULL)
 	{
+		/* will free `rc' */
 		rrd_write_cache_entry (filename, rc);
-		free (rc->values);
-		free (rc);
 		return (0);
 	}
 
