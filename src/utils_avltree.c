@@ -21,6 +21,7 @@
  **/
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 
 #include "utils_avltree.h"
@@ -260,24 +261,7 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 	} /* while (n != NULL) */
 } /* void rebalance */
 
-#if 0
-/* This code disabled until a need arises. */
-static avl_iterator_t *avl_create_iterator (avl_tree_t *t, avl_node_t *n)
-{
-	avl_iterator_t *iter;
-
-	iter = (avl_iterator_t *) malloc (sizeof (avl_iterator_t));
-	if (iter == NULL)
-		return (NULL);
-
-	iter->tree = t;
-	iter->node = n;
-
-	return (iter);
-}
-#endif
-
-static void *avl_node_next (avl_tree_t *t, avl_node_t *n)
+static avl_node_t *avl_node_next (avl_tree_t *t, avl_node_t *n)
 {
 	avl_node_t *r; /* return node */
 
@@ -285,16 +269,31 @@ static void *avl_node_next (avl_tree_t *t, avl_node_t *n)
 	{
 		return (NULL);
 	}
-	else if (n->right == NULL)
-	{
 
+	/* If we can't descent any further, we have to backtrack to the first
+	 * parent that's bigger than we, i. e. who's _left_ child we are. */
+	if (n->right == NULL)
+	{
 		r = n->parent;
-		while (r != NULL)
+		while ((r != NULL) && (r->parent != NULL))
 		{
-			/* stop if a bigger node is found */
-			if (t->compare (n, r) < 0) /* n < r */
+			if (r->left == n)
 				break;
-			r = r->parent;
+			n = r;
+			r = n->parent;
+		}
+
+		/* n->right == NULL && r == NULL => t is root and has no next
+		 * r->left != n => r->right = n => r->parent == NULL */
+		if ((r == NULL) || (r->left != n))
+		{
+			assert ((r == NULL) || (r->parent == NULL));
+			return (NULL);
+		}
+		else
+		{
+			assert (r->left == n);
+			return (r);
 		}
 	}
 	else
@@ -305,9 +304,9 @@ static void *avl_node_next (avl_tree_t *t, avl_node_t *n)
 	}
 
 	return (r);
-}
+} /* avl_node_t *avl_node_next */
 
-static void *avl_node_prev (avl_tree_t *t, avl_node_t *n)
+static avl_node_t *avl_node_prev (avl_tree_t *t, avl_node_t *n)
 {
 	avl_node_t *r; /* return node */
 
@@ -315,16 +314,31 @@ static void *avl_node_prev (avl_tree_t *t, avl_node_t *n)
 	{
 		return (NULL);
 	}
-	else if (n->left == NULL)
-	{
 
+	/* If we can't descent any further, we have to backtrack to the first
+	 * parent that's smaller than we, i. e. who's _right_ child we are. */
+	if (n->left == NULL)
+	{
 		r = n->parent;
-		while (r != NULL)
+		while ((r != NULL) && (r->parent != NULL))
 		{
-			/* stop if a smaller node is found */
-			if (t->compare (n, r) > 0) /* n > r */
+			if (r->right == n)
 				break;
-			r = r->parent;
+			n = r;
+			r = n->parent;
+		}
+
+		/* n->left == NULL && r == NULL => t is root and has no next
+		 * r->right != n => r->left = n => r->parent == NULL */
+		if ((r == NULL) || (r->right != n))
+		{
+			assert ((r == NULL) || (r->parent == NULL));
+			return (NULL);
+		}
+		else
+		{
+			assert (r->right == n);
+			return (r);
 		}
 	}
 	else
@@ -335,7 +349,7 @@ static void *avl_node_prev (avl_tree_t *t, avl_node_t *n)
 	}
 
 	return (r);
-} /* void *avl_node_prev */
+} /* avl_node_t *avl_node_prev */
 
 static int _remove (avl_tree_t *t, avl_node_t *n)
 {
@@ -539,7 +553,7 @@ int avl_insert (avl_tree_t *t, void *key, void *value)
 	return (0);
 } /* int avl_insert */
 
-int avl_remove (avl_tree_t *t, void *key, void **rkey, void **rvalue)
+int avl_remove (avl_tree_t *t, const void *key, void **rkey, void **rvalue)
 {
 	avl_node_t *n;
 	int status;
@@ -614,58 +628,81 @@ int avl_pick (avl_tree_t *t, void **key, void **value)
 	return (0);
 } /* int avl_pick */
 
-#if 0
-/* This code disabled until a need arises. */
 avl_iterator_t *avl_get_iterator (avl_tree_t *t)
 {
-	avl_node_t *n;
+	avl_iterator_t *iter;
 
 	if (t == NULL)
 		return (NULL);
 
-	for (n = t->root; n != NULL; n = n->left)
-		if (n->left == NULL)
-			break;
+	iter = (avl_iterator_t *) malloc (sizeof (avl_iterator_t));
+	if (iter == NULL)
+		return (NULL);
+	memset (iter, '\0', sizeof (avl_iterator_t));
+	iter->tree = t;
 
-	return (avl_create_iterator (t, n));
+	return (iter);
 } /* avl_iterator_t *avl_get_iterator */
 
-void *avl_iterator_next (avl_iterator_t *iter)
+int avl_iterator_next (avl_iterator_t *iter, void **key, void **value)
 {
 	avl_node_t *n;
 
-	if ((iter == NULL) || (iter->node == NULL))
-		return (NULL);
+	if ((iter == NULL) || (key == NULL) || (value == NULL))
+		return (-1);
 
-	n = avl_node_next (iter->tree, iter->node);
+	if (iter->node == NULL)
+	{
+		for (n = iter->tree->root; n != NULL; n = n->left)
+			if (n->left == NULL)
+				break;
+		iter->node = n;
+	}
+	else
+	{
+		n = avl_node_next (iter->tree, iter->node);
+	}
 
 	if (n == NULL)
-		return (NULL);
+		return (-1);
 
 	iter->node = n;
-	return (n);
+	*key = n->key;
+	*value = n->value;
 
-}
+	return (0);
+} /* int avl_iterator_next */
 
-void *avl_iterator_prev (avl_iterator_t *iter)
+int avl_iterator_prev (avl_iterator_t *iter, void **key, void **value)
 {
 	avl_node_t *n;
 
-	if ((iter == NULL) || (iter->node == NULL))
-		return (NULL);
+	if ((iter == NULL) || (key == NULL) || (value == NULL))
+		return (-1);
 
-	n = avl_node_prev (iter->tree, iter->node);
+	if (iter->node == NULL)
+	{
+		for (n = iter->tree->root; n != NULL; n = n->left)
+			if (n->right == NULL)
+				break;
+		iter->node = n;
+	}
+	else
+	{
+		n = avl_node_prev (iter->tree, iter->node);
+	}
 
 	if (n == NULL)
-		return (NULL);
+		return (-1);
 
 	iter->node = n;
-	return (n);
+	*key = n->key;
+	*value = n->value;
 
-}
+	return (0);
+} /* int avl_iterator_prev */
 
 void avl_iterator_destroy (avl_iterator_t *iter)
 {
 	free (iter);
 }
-#endif /* 0 */

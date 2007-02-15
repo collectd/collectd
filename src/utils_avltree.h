@@ -96,7 +96,7 @@ int avl_insert (avl_tree_t *t, void *key, void *value);
  * RETURN VALUE
  *   Zero upon success or non-zero if the key isn't found in the tree.
  */
-int avl_remove (avl_tree_t *t, void *key, void **rkey, void **rvalue);
+int avl_remove (avl_tree_t *t, const void *key, void **rkey, void **rvalue);
 
 /*
  * NAME
@@ -136,12 +136,9 @@ int avl_get (avl_tree_t *t, const void *key, void **value);
  */
 int avl_pick (avl_tree_t *t, void **key, void **value);
 
-#if 0
-/* This code disabled until a need arises. */
 avl_iterator_t *avl_get_iterator (avl_tree_t *t);
-void *avl_iterator_next (avl_iterator_t *iter);
-void *avl_iterator_prev (avl_iterator_t *iter);
+int avl_iterator_next (avl_iterator_t *iter, void **key, void **value);
+int avl_iterator_prev (avl_iterator_t *iter, void **key, void **value);
 void avl_iterator_destroy (avl_iterator_t *iter);
-#endif
 
 #endif /* UTILS_AVLTREE_H */
