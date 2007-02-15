@@ -133,6 +133,7 @@ block:
 	 	yyerror ("Block not closed..\n");
 		exit (1);
 	 }
+	 free ($3); $3 = NULL;
 	 $$ = $1;
 	 $$.children = $2.statement;
 	 $$.children_num = $2.statement_num;
