@@ -412,6 +412,7 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		const char *value)
 {
 	rrd_cache_t *rc = NULL;
+	int new_rc = 0;
 
 	if (cache != NULL)
 		avl_get (cache, filename, (void *) &rc);
@@ -424,6 +425,7 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		rc->values_num = 0;
 		rc->values = NULL;
 		rc->first_value = 0;
+		new_rc = 1;
 	}
 
 	rc->values = (char **) realloc ((void *) rc->values,
@@ -450,7 +452,7 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		rc->first_value = time (NULL);
 
 	/* Insert if this is the first value */
-	if ((cache != NULL) && (rc->values_num == 1))
+	if ((cache != NULL) && (new_rc == 1))
 	{
 		void *cache_key = strdup (filename);
 
@@ -458,6 +460,7 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		{
 			syslog (LOG_ERR, "rrdtool plugin: strdup failed: %s",
 					strerror (errno));
+			sfree (rc->values[0]);
 			sfree (rc->values);
 			sfree (rc);
 			return (NULL);
@@ -507,9 +510,9 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 	free (argv);
 	free (fn);
 
+	/* Free the value list of `rc' */
 	for (i = 0; i < rc->values_num; i++)
 		free (rc->values[i]);
-
 	free (rc->values);
 	rc->values = NULL;
 	rc->values_num = 0;
@@ -569,15 +572,17 @@ static void rrd_cache_flush (int timeout)
 	
 	for (i = 0; i < keys_num; i++)
 	{
-		if (avl_remove (cache, keys[i], NULL, (void *) &rc) != 0)
+		if (avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
 		{
 			DBG ("avl_remove (%s) failed.", keys[i]);
 			continue;
 		}
 
-		/* will free `rc' */
 		rrd_write_cache_entry (keys[i], rc);
-		sfree (keys[i]); keys[i] = NULL;
+		/* rc's value-list is free's by `rrd_write_cache_entry' */
+		sfree (rc);
+		sfree (key);
+		keys[i] = NULL;
 	} /* for (i = 0..keys_num) */
 
 	free (keys);
@@ -627,8 +632,9 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 
 	if (cache == NULL)
 	{
-		/* will free `rc' */
 		rrd_write_cache_entry (filename, rc);
+		/* rc's value-list is free's by `rrd_write_cache_entry' */
+		sfree (rc);
 		return (0);
 	}
 
@@ -636,13 +642,13 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 
 	DBG ("age (%s) = %i", filename, now - rc->first_value);
 
+	/* `rc' is not free'd here, because we'll likely reuse it. If not, then
+	 * the next flush will remove this entry.  */
 	if ((now - rc->first_value) >= cache_timeout)
 		rrd_write_cache_entry (filename, rc);
 
 	if ((now - cache_flush_last) >= cache_flush_timeout)
-	{
 		rrd_cache_flush (cache_flush_timeout);
-	}
 
 	return (0);
 } /* int rrd_write */
@@ -701,6 +707,9 @@ static int rrd_config (const char *key, const char *val)
 static int rrd_shutdown (void)
 {
 	rrd_cache_flush (-1);
+	if (cache != NULL)
+		avl_destroy (cache);
+	cache = NULL;
 
 	return (0);
 } /* int rrd_shutdown */
