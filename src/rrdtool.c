@@ -22,7 +22,7 @@
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
-#include "utils_llist.h"
+#include "utils_avltree.h"
 #include "utils_debug.h"
 
 /*
@@ -76,16 +76,18 @@ static int rra_types_num = 3;
 static const char *config_keys[] =
 {
 	"CacheTimeout",
+	"CacheFlush",
 	"DataDir",
 	NULL
 };
-static int config_keys_num = 2;
+static int config_keys_num = 3;
 
 static char *datadir = NULL;
 
-static int      cache_timeout = 0;
-static time_t   cache_flush;
-static llist_t *cache = NULL;
+static int         cache_timeout = 0;
+static int         cache_flush_timeout = 0;
+static time_t      cache_flush_last;
+static avl_tree_t *cache = NULL;
 
 /* * * * * * * * * *
  * WARNING:  Magic *
@@ -410,14 +412,9 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		const char *value)
 {
 	rrd_cache_t *rc = NULL;
-	llentry_t   *le = NULL;
 
 	if (cache != NULL)
-	{
-		le = llist_search (cache, filename);
-		if (le != NULL)
-			rc = (rrd_cache_t *) le->value;
-	}
+		avl_get (cache, filename, (void *) &rc);
 
 	if (rc == NULL)
 	{
@@ -435,12 +432,13 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 	{
 		syslog (LOG_ERR, "rrdtool plugin: realloc failed: %s",
 				strerror (errno));
-		free (rc);
-		if (le != NULL)
+		if (cache != NULL)
 		{
-			llist_remove (cache, le);
-			llentry_destroy (le);
+			void *cache_key = NULL;
+			avl_remove (cache, filename, &cache_key, NULL);
+			sfree (cache_key);
 		}
+		free (rc);
 		return (NULL);
 	}
 
@@ -451,11 +449,21 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 	if (rc->values_num == 1)
 		rc->first_value = time (NULL);
 
-	if ((cache != NULL) && (le == NULL))
+	/* Insert if this is the first value */
+	if ((cache != NULL) && (rc->values_num == 1))
 	{
-		le = llentry_create (filename, (void *) rc);
-		if (le != NULL)
-			llist_prepend (cache, le);
+		void *cache_key = strdup (filename);
+
+		if (cache_key == NULL)
+		{
+			syslog (LOG_ERR, "rrdtool plugin: strdup failed: %s",
+					strerror (errno));
+			sfree (rc->values);
+			sfree (rc);
+			return (NULL);
+		}
+
+		avl_insert (cache, cache_key, rc);
 	}
 
 	DBG ("rrd_cache_insert (%s, %s) = %p", filename, value, (void *) rc);
@@ -513,9 +521,15 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 
 static void rrd_cache_flush (int timeout)
 {
-	llentry_t   *le;
 	rrd_cache_t *rc;
 	time_t       now;
+
+	char **keys = NULL;
+	int    keys_num = 0;
+
+	char *key;
+	avl_iterator_t *iter;
+	int i;
 
 	if (cache == NULL)
 		return;
@@ -524,34 +538,48 @@ static void rrd_cache_flush (int timeout)
 
 	now = time (NULL);
 
-	/* Remove empty entries */
-	le = llist_head (cache);
-	while (le != NULL)
+	/* Build a list of entries to be flushed */
+	iter = avl_get_iterator (cache);
+	while (avl_iterator_next (iter, (void *) &key, (void *) &rc) == 0)
 	{
-		llentry_t *next = le->next;
-		rc = (rrd_cache_t *) le->value;
-		if (rc->values_num == 0)
-		{
-			DBG ("Removing cache entry for `%s'", le->key);
-			free (rc->values);
-			free (rc);
-			llist_remove (cache, le);
-		}
-		le = next;
-	}
-
-	/* Write timed out entries */
-	le = llist_head (cache);
-	while (le != NULL)
-	{
-		rc = (rrd_cache_t *) le->value;
+		DBG ("key = %s; age = %i;", key, now - rc->first_value);
 		if ((now - rc->first_value) >= timeout)
-			rrd_write_cache_entry (le->key, rc);
+		{
+			keys = (char **) realloc ((void *) keys,
+					(keys_num + 1) * sizeof (char *));
+			if (keys == NULL)
+			{
+				DBG ("realloc failed: %s", strerror (errno));
+				syslog (LOG_ERR, "rrdtool plugin: "
+						"realloc failed: %s",
+						strerror (errno));
+				avl_iterator_destroy (iter);
+				return;
+			}
+			keys[keys_num] = key;
+			keys_num++;
+		}
+	} /* while (avl_iterator_next) */
+	avl_iterator_destroy (iter);
+	
+	for (i = 0; i < keys_num; i++)
+	{
+		if (avl_remove (cache, keys[i], NULL, (void *) &rc) != 0)
+		{
+			DBG ("avl_remove (%s) failed.", keys[i]);
+			continue;
+		}
 
-		le = le->next;
-	}
+		rrd_write_cache_entry (keys[i], rc);
+		sfree (keys[i]); keys[i] = NULL;
+		sfree (rc->values);
+		sfree (rc);
+	} /* for (i = 0..keys_num) */
 
-	cache_flush = now;
+	free (keys);
+	DBG ("Flushed %i value(s)", keys_num);
+
+	cache_flush_last = now;
 } /* void rrd_cache_flush */
 
 static int rrd_write (const data_set_t *ds, const value_list_t *vl)
@@ -608,13 +636,13 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	if ((now - rc->first_value) >= cache_timeout)
 		rrd_write_cache_entry (filename, rc);
 
-	if ((time (NULL) - cache_flush) >= cache_timeout)
+	if ((now - cache_flush_last) >= cache_flush_timeout)
 	{
-		rrd_cache_flush (cache_timeout);
+		rrd_cache_flush (cache_flush_timeout);
 	}
 
 	return (0);
-} /* int rrd_dispatch */
+} /* int rrd_write */
 
 static int rrd_config (const char *key, const char *val)
 {
@@ -628,6 +656,17 @@ static int rrd_config (const char *key, const char *val)
 			return (1);
 		}
 		cache_timeout = tmp;
+	}
+	else if (strcasecmp ("CacheFlush", key) == 0)
+	{
+		int tmp = atoi (val);
+		if (tmp < 0)
+		{
+			fprintf (stderr, "rrdtool: `CacheFlush' must "
+					"be greater than 0.\n");
+			return (1);
+		}
+		cache_flush_timeout = tmp;
 	}
 	else if (strcasecmp ("DataDir", key) == 0)
 	{
@@ -668,11 +707,15 @@ static int rrd_init (void)
 	if (cache_timeout < 2)
 	{
 		cache_timeout = 0;
+		cache_flush_timeout = 0;
 	}
 	else
 	{
-		cache = llist_create ();
-		cache_flush = time (NULL);
+		if (cache_flush_timeout < cache_timeout)
+			cache_flush_timeout = 10 * cache_timeout;
+
+		cache = avl_create ((int (*) (const void *, const void *)) strcmp);
+		cache_flush_last = time (NULL);
 		plugin_register_shutdown ("rrdtool", rrd_shutdown);
 	}
 	return (0);
