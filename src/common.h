@@ -31,6 +31,8 @@
 	} \
 	(ptr) = NULL
 
+#define STATIC_ARRAY_SIZE(a) (sizeof (a) / sizeof (*(a)))
+
 void sstrncpy(char *d, const char *s, int len);
 char *sstrdup(const char *s);
 void *smalloc(size_t size);

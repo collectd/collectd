@@ -1068,6 +1068,7 @@ AC_COLLECTD([df],        [disable], [module], [df statistics])
 AC_COLLECTD([dns],       [disable], [module], [dns statistics])
 AC_COLLECTD([email],     [disable], [module], [email statistics])
 AC_COLLECTD([entropy],   [disable], [module], [entropy statistics])
+AC_COLLECTD([exec],      [disable], [module], [exec of external programs])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([mbmon],     [disable], [module], [motherboard monitor statistics])
@@ -1125,6 +1126,7 @@ Configuration:
     dns . . . . . . . . $enable_dns
     email . . . . . . . $enable_email
     entropy . . . . . . $enable_entropy
+    exec  . . . . . . . $enable_exec
     hddtemp . . . . . . $enable_hddtemp
     load  . . . . . . . $enable_load
     mbmon . . . . . . . $enable_mbmon

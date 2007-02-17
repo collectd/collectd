@@ -204,6 +204,17 @@ collectd_LDADD += "-dlopen" entropy.la
 collectd_DEPENDENCIES += entropy.la
 endif
 
+if BUILD_MODULE_EXEC
+pkglib_LTLIBRARIES += exec.la
+exec_la_SOURCES = exec.c
+exec_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBPTHREAD
+exec_la_LDFLAGS += -lpthread
+endif
+collectd_LDADD += "-dlopen" exec.la
+collectd_DEPENDENCIES += exec.la
+endif
+
 #if BUILD_MODULE_QUOTA
 #pkglib_LTLIBRARIES += quota.la
 #quota_la_SOURCES = quota_plugin.c quota_plugin.h
