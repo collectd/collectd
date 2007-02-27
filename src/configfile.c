@@ -60,7 +60,6 @@ typedef struct cf_global_option_s
 /*
  * Prototypes of callback functions
  */
-static int dispatch_value_pidfile (const oconfig_item_t *ci);
 static int dispatch_value_plugindir (const oconfig_item_t *ci);
 static int dispatch_value_loadplugin (const oconfig_item_t *ci);
 
@@ -71,7 +70,6 @@ static cf_callback_t *first_callback = NULL;
 
 static cf_value_map_t cf_value_map[] =
 {
-	{"PIDFile",    dispatch_value_pidfile},
 	{"PluginDir",  dispatch_value_plugindir},
 	{"LoadPlugin", dispatch_value_loadplugin}
 };
@@ -151,18 +149,16 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	DBG ("return (%i)", ret);
 
 	return (ret);
-}
+} /* int cf_dispatch */
 
-static int dispatch_value_pidfile (const oconfig_item_t *ci)
+static int dispatch_global_option (const oconfig_item_t *ci)
 {
-	assert (strcasecmp (ci->key, "PIDFile") == 0);
-	
 	if (ci->values_num != 1)
 		return (-1);
 	if (ci->values[0].type != OCONFIG_TYPE_STRING)
 		return (-1);
 
-	return (global_option_set ("PIDFile", ci->values[0].value.string));
+	return (global_option_set (ci->key, ci->values[0].value.string));
 }
 
 static int dispatch_value_plugindir (const oconfig_item_t *ci)
@@ -235,6 +231,13 @@ static int dispatch_value (const oconfig_item_t *ci)
 		if (strcasecmp (cf_value_map[i].key, ci->key) == 0)
 		{
 			ret = cf_value_map[i].func (ci);
+			break;
+		}
+
+	for (i = 0; i < cf_global_options_num; i++)
+		if (strcasecmp (cf_global_options[i].key, ci->key) == 0)
+		{
+			ret = dispatch_global_option (ci);
 			break;
 		}
 
