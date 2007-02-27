@@ -366,6 +366,16 @@ our $GraphDefs;
 			'GPRINT:temp_max:MAX:%4.1lf Max,',
 			'GPRINT:temp_avg:LAST:%4.1lf Last\l'
 		],
+		irq => ['DEF:irq_avg={file}:irq:AVERAGE',
+			'DEF:irq_min={file}:irq:MIN',
+			'DEF:irq_max={file}:irq:MAX',
+			"AREA:irq_max#$HalfBlue",
+			"AREA:irq_min#$Canvas",
+			"LINE1:irq_avg#$FullBlue:Interrupts",
+			'GPRINT:irq_min:MIN:%5.1lf Min,',
+			'GPRINT:irq_avg:AVERAGE:%5.1lf Avg,',
+			'GPRINT:irq_max:MAX:%5.1lf Max,',
+			'GPRINT:irq_avg:LAST:%5.1lf Last'],
 		if_packets => ['DEF:tx_min={file}:tx:MIN',
 			'DEF:tx_avg={file}:tx:AVERAGE',
 			'DEF:tx_max={file}:tx:MAX',
@@ -1185,6 +1195,7 @@ our $GraphArgs =
 	fanspeed => ['-t', '{host} fanspeed {inst}', '-v', 'RPM'],
 	frequency_offset => ['-t', 'NTPd frequency offset ({inst})', '-v', 'Parts per million'],
 	hddtemp => ['-t', '{host} hdd temperature {inst}', '-v', '°Celsius'],
+	irq => ['-t', '{host} Interrupts {inst}', '-v', 'Ints/s'],
 	if_errors => ['-t', '{host} {inst} errors', '-v', 'Errors/s'],
 	if_packets => ['-t', '{host} {inst} packets', '-v', 'Packets/s'],
 	load => ['-t', '{host} load average', '-v', 'System load', '-X', '0'],
@@ -1229,6 +1240,7 @@ our $GraphMulti =
 	disk	=> 1,
 	email	=> \&output_graph_email_count,
 	email_size => \&output_graph_email_size,
+	irq	=> \&output_graph_irq,
 	spam_score => 1,
 	spam_check => \&output_graph_spam_check,
 	load	=> 0,
@@ -1414,6 +1426,49 @@ sub output_graph_ping
 			"GPRINT:avg_$i:AVERAGE:%4.1lf ms Avg,",
 			"GPRINT:max_$i:MAX:%4.1lf ms Max,",
 			"GPRINT:avg_$i:LAST:%4.1lf ms Last\\l");
+	}
+
+	return (@ret);
+}
+
+sub output_graph_irq
+{
+	my @inst = sort { $a <=> $b } @_;
+	my @ret = ();
+
+	die if (@inst < 2);
+
+	my @colors = get_n_colors (scalar (@inst));
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		push (@ret,
+			"DEF:avg_$i=$AbsDir/irq-$inst.rrd:irq:AVERAGE",
+			"DEF:min_$i=$AbsDir/irq-$inst.rrd:irq:MIN",
+			"DEF:max_$i=$AbsDir/irq-$inst.rrd:irq:MAX");
+	}
+
+	for (my $i = 0; $i < scalar (@inst); $i++)
+	{
+		my $inst = $inst[$i];
+		my $color = $colors[$i];
+
+		if (length ($inst) > 15)
+		{
+			$inst = substr ($inst, 0, 12) . '...';
+		}
+		else
+		{
+			$inst = sprintf ('%-15s', $inst);
+		}
+
+		push (@ret,
+			"LINE1:avg_$i#$color:$inst",
+			"GPRINT:min_$i:MIN:%5.1lf Min,",
+			"GPRINT:avg_$i:AVERAGE:%5.1lf Avg,",
+			"GPRINT:max_$i:MAX:%5.1lf Max,",
+			"GPRINT:avg_$i:LAST:%5.1lf Last\\l");
 	}
 
 	return (@ret);
@@ -1828,7 +1883,7 @@ HEADER
 		print qq(\t\t<div><a href="$MySelf$RelDir">Go up</a></div>\n);
 
 		print "\t\t<ul>\n";
-		for (@{$files->{$Type}})
+		for (sort { $a <=> $b } @{$files->{$Type}})
 		{
 			print qq(\t\t\t<li><a href="$MySelf$RelDir/$Type/$_">$_</a></li>\n);
 		}

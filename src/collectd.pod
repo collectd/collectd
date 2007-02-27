@@ -52,6 +52,10 @@ Harddisk temperatures (I<hddtemp>)
 
 =item
 
+Irq (I<irq>)
+
+=item
+
 System load averages (I<load>)
 
 =item
@@ -264,6 +268,11 @@ which may interfere with other statistics..
 The B<hddtemp> homepage can be found at
 L<http://www.guzu.net/linux/hddtemp.php>.
 
+=head2 irq
+
+The B<irq> modules uses F</proc/interrupts> to retrieve interrupts per second.
+If there is more than one CPU all counters are added for each interrupt.
+
 =head2 vserver
 
 B<VServer> support is only available for Linux. It cannot yet be found in a 
@@ -386,6 +395,10 @@ The DS'es depend on the module creating the RRD files:
 =item HDD Temperature (F<hddtemp-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
 
   DS:value:GAUGE:HEARTBEAT:U:U
+
+=item Irq (F<irq-I<E<lt>irqnumberE<gt>>-I<E<lt>descriptionE<gt>>.rrd>)
+
+  DS:value:COUNTER:HEARTBEAT:U:U
 
 =item System load (F<load.rrd>)
 

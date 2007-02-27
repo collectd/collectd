@@ -208,6 +208,14 @@ collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
 endif
 
+if BUILD_MODULE_IRQ
+pkglib_LTLIBRARIES += irq.la
+irq_la_SOURCES = irq.c
+irq_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" irq.la
+collectd_DEPENDENCIES += irq.la
+endif
+
 if BUILD_MODULE_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = load.c

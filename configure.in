@@ -1046,6 +1046,7 @@ AC_COLLECTD([dns],       [disable], [module], [dns statistics])
 AC_COLLECTD([email],     [disable], [module], [email statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
+AC_COLLECTD([irq],       [disable], [module], [irq statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([mbmon],     [disable], [module], [motherboard monitor statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
@@ -1099,6 +1100,7 @@ Configuration:
     dns . . . . . . . . $enable_dns
     email . . . . . . . $enable_email
     hddtemp . . . . . . $enable_hddtemp
+    irq . . . . . . . . $enable_irq
     load  . . . . . . . $enable_load
     mbmon . . . . . . . $enable_mbmon
     memory  . . . . . . $enable_memory
