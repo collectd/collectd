@@ -310,13 +310,26 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =over 4
 
+=item B<CacheFlush> I<Seconds>
+
+When the C<rrdtool plugin> uses a cache (by setting B<CacheTimeout>, see below)
+it writes all values for a certain RRD-file if the oldest value is older than
+(or equal to) the number of seconds specified. If some RRD-file is not updated
+anymore for some reason (the computer was shut down, the network is broken,
+etc.) some values may still be in the cache. If B<CacheFlush> is set, then the
+entire cache is searched for entries older than B<CacheTimeout> seconds and
+written to disk every I<Seconds> seconds. Since this is kind of expensive and
+does nothing under normal circumstances, this value should not be too small.
+900 seconds might be a good value, though setting this to 7200 seconds doesn't
+normally do much harm either.
+
 =item B<CacheTimeout> I<Seconds>
 
-If this option is set to a value greater than zero, the C<rrdtool>-plugin will
-write values every I<Seconds> seconds to the RRD-files. Writing multiple values
-at once reduces IO-operations and thus lessens the load produced by updating
-the files. The tradeoff is that the graphs kind of "drag behind" and that more
-memory is used.
+If this option is set to a value greater than zero, the C<rrdtool plugin> will
+save values in a cache, as described above. Writing multiple values at once
+reduces IO-operations and thus lessens the load produced by updating the files.
+The tradeoff is that the graphs kind of "drag behind" and that more memory is
+used.
 
 =item B<DataDir> I<Directory>
 

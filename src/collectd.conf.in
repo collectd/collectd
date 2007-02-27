@@ -10,9 +10,9 @@
 #Server ff18::efc0:4a42 25826
 #Server 239.192.74.66 25826
 
-#BaseDir   /opt/collectd/var/lib/collectd
-#PIDFile   /opt/collectd/var/run/collectd.pid
-#PluginDir /opt/collectd/lib/collectd
+#BaseDir   "/opt/collectd/var/lib/collectd"
+#PIDFile   "/opt/collectd/var/run/collectd.pid"
+#PluginDir "/opt/collectd/lib/collectd"
 
 @BUILD_MODULE_APACHE_TRUE@LoadPlugin apache
 @BUILD_MODULE_APCUPS_TRUE@LoadPlugin apcups
@@ -103,6 +103,8 @@
 
 #<Plugin rrdtool>
 #	CacheTimeout 120
+#	CacheFlush   900
+#	DataDir      "/opt/collectd/var/lib/collectd"
 #</Plugin>
 
 ## There are two different naming schemes for the sensors plugin, to preserver
