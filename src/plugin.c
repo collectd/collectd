@@ -50,8 +50,6 @@ static llist_t *list_data_set;
 
 static char *plugindir = NULL;
 
-char hostname[DATA_MAX_NAME_LEN] = "localhost";
-
 /*
  * Static functions
  */
@@ -318,8 +316,6 @@ void plugin_init_all (void)
 	int (*callback) (void);
 	llentry_t *le;
 	int status;
-
-	gethostname (hostname, sizeof (hostname));
 
 	if (list_init == NULL)
 		return;

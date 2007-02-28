@@ -252,7 +252,7 @@ static void mbmon_submit (const char *type, const char *type_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "mbmon");
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 

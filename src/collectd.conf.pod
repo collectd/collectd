@@ -59,6 +59,14 @@ setting using the B<-P> commandline option.
 Sets the file to write debugging output to. This is only used if compiled with
 debugging enabled. It's ignored otherwise.
 
+=item B<Interval> I<Seconds>
+
+Configures the interval in which to query the read plugins. Obviously smaller
+values lead to a higher system load produces by collectd, while higher values
+lead to more coarse statistics. Please note that changing this value may render
+your RRD-files unuseable, if you use the C<rrdtool plugin>. You have been
+warned.
+
 =back
 
 =head1 PLUGIN OPTIONS

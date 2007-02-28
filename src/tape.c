@@ -122,7 +122,7 @@ static void tape_submit (const char *plugin_instance,
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "tape");
 	strncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));

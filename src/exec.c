@@ -136,7 +136,7 @@ static void submit_counter (const char *type_instance, counter_t value)
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strcpy (vl.host, hostname);
+  strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "exec");
   strcpy (vl.plugin_instance, "");
   strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -156,7 +156,7 @@ static void submit_gauge (const char *type_instance, gauge_t value)
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strcpy (vl.host, hostname);
+  strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "exec");
   strcpy (vl.plugin_instance, "");
   strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

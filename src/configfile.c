@@ -77,9 +77,11 @@ static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
 
 static cf_global_option_t cf_global_options[] =
 {
-	{"BaseDir", NULL, PKGLOCALSTATEDIR},
-	{"LogFile", NULL, LOGFILE},
-	{"PIDFile", NULL, PIDFILE}
+	{"BaseDir",   NULL, PKGLOCALSTATEDIR},
+	{"LogFile",   NULL, LOGFILE},
+	{"PIDFile",   NULL, PIDFILE},
+	{"Hostname",  NULL, NULL},
+	{"Interval",  NULL, "10"}
 };
 static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
 
@@ -284,6 +286,8 @@ static int dispatch_block (oconfig_item_t *ci)
 int global_option_set (const char *option, const char *value)
 {
 	int i;
+
+	DBG ("option = %s; value = %s;", option, value);
 
 	for (i = 0; i < cf_global_options_num; i++)
 		if (strcasecmp (cf_global_options[i].key, option) == 0)

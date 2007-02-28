@@ -190,7 +190,7 @@ static void counter_submit (const char *type, const char *type_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "mysql");
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
@@ -213,7 +213,7 @@ static void qcache_submit (counter_t hits, counter_t inserts,
 	vl.values = values;
 	vl.values_len = 5;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "mysql");
 
 	plugin_dispatch_values ("mysql_qcache", &vl);
@@ -233,7 +233,7 @@ static void threads_submit (gauge_t running, gauge_t connected, gauge_t cached,
 	vl.values = values;
 	vl.values_len = 4;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "mysql");
 
 	plugin_dispatch_values ("mysql_threads", &vl);
@@ -250,7 +250,7 @@ static void traffic_submit (counter_t rx, counter_t tx)
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "mysql");
 
 	plugin_dispatch_values ("mysql_octets", &vl);

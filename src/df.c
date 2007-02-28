@@ -142,7 +142,7 @@ static void df_submit (char *df_name,
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "df");
 	strcpy (vl.plugin_instance, "");
 	strncpy (vl.type_instance, df_name, sizeof (vl.type_instance));

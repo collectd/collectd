@@ -384,7 +384,7 @@ static void sensors_submit (const char *plugin_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "sensors");
 	strcpy (vl.plugin_instance, plugin_instance);
 	strcpy (vl.type_instance, type_instance);

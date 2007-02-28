@@ -147,7 +147,7 @@ static void irq_submit (unsigned int irq, counter_t value)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "irq");
 
 	status = snprintf (vl.type_instance, sizeof (vl.type_instance),

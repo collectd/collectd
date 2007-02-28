@@ -478,7 +478,7 @@ static void ps_submit_state (const char *state, double value)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "processes");
 	strcpy (vl.plugin_instance, "");
 	strncpy (vl.type_instance, state, sizeof (vl.type_instance));
@@ -494,7 +494,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "processes");
 	strncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 

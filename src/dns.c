@@ -342,7 +342,7 @@ static void submit_counter (const char *type, const char *type_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "dns");
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
@@ -360,7 +360,7 @@ static void submit_octets (counter_t queries, counter_t responses)
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "dns");
 
 	plugin_dispatch_values ("dns_octets", &vl);

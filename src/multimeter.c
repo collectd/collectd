@@ -223,7 +223,7 @@ static void multimeter_submit (double value)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "multimeter");
 
 	plugin_dispatch_values ("multimeter", &vl);

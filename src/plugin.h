@@ -77,8 +77,6 @@ typedef struct complain_s
 	unsigned int delay;    /* how many more iterations we still need to wait */
 } complain_t;
 
-extern char hostname[DATA_MAX_NAME_LEN];
-
 /*
  * NAME
  *  plugin_set_dir

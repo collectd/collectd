@@ -232,7 +232,7 @@ static void if_submit (const char *dev, const char *type,
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "interface");
 	strncpy (vl.type_instance, dev, sizeof (vl.type_instance));
 

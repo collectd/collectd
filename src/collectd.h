@@ -223,10 +223,8 @@
 
 #define STATIC_ARRAY_LEN(array) (sizeof (array) / sizeof ((array)[0]))
 
-extern time_t curtime;
-
-int pidfile_set (const char *file);
-const char *pidfile_get (void);
+extern char hostname_g[];
+extern int  interval_g;
 
 /* int main (int argc, char **argv); */
 

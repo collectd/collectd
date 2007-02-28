@@ -123,7 +123,7 @@ static void memory_submit (long long mem_used, long long mem_buffered,
 	vl.values = values;
 	vl.values_len = 4;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memory");
 
 	plugin_dispatch_values ("memory", &vl);

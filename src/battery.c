@@ -132,7 +132,7 @@ static void battery_submit (const char *plugin_instance, const char *type, doubl
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "battery");
 	strcpy (vl.plugin_instance, plugin_instance);
 

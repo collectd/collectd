@@ -119,7 +119,8 @@ static int rra_get (char ***ret)
 		return (-1);
 	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
 
-	step = atoi (COLLECTD_STEP);
+	step = interval_g;
+	/* FIXME: Use config here */
 	rows = atoi (COLLECTD_ROWS);
 
 	if ((step <= 0) || (rows <= 0))
@@ -277,6 +278,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 	char **ds_def;
 	int ds_num;
 	int i, j;
+	char step[16];
 	int status = 0;
 
 	if (check_create_dir (filename))
@@ -302,10 +304,17 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 		return (-1);
 	}
 
+	status = snprintf (step, sizeof (step), "%i", interval_g);
+	if ((status < 1) || (status >= sizeof (step)))
+	{
+		syslog (LOG_ERR, "rrdtool plugin: snprintf failed.");
+		return (-1);
+	}
+
 	argv[0] = "create";
 	argv[1] = filename;
 	argv[2] = "-s";
-	argv[3] = COLLECTD_STEP;
+	argv[3] = step;
 
 	j = 4;
 	for (i = 0; i < ds_num; i++)

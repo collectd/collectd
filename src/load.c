@@ -68,7 +68,7 @@ static void load_submit (double snum, double mnum, double lnum)
 	vl.values = values;
 	vl.values_len = 3;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname);
+	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "load");
 	strcpy (vl.plugin_instance, "");
 	strcpy (vl.type_instance, "");
