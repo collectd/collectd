@@ -337,7 +337,48 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =head2 Plugin C<rrdtool>
 
+You can use the settings B<StepSize>, B<HeartBeat>, B<RRARows>, and B<XFF> to
+finetune your RRD-files. Please read L<rrdcreate(1)> if you encounter problems
+using these settings. If you don't want to dive into the depths of RRDTool, you
+can savely ignore these settings.
+
 =over 4
+
+=item B<DataDir> I<Directory>
+
+Set the directory to store RRD-files under. Per default RRD-files are generated
+beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
+
+=item B<StepSize> I<Seconds>
+
+Sets the stepsize of newly created RRD-files. Ideally (and per default) this
+setting is identical to the global B<Interval>-option and should not be
+smaller. If unsure, don't set this option.
+
+=item B<HeartBeat> I<Seconds>
+
+Sets the heartbeat of newly created RRD-files. Ideally (and per default) this
+setting is bigger than the B<Interval>-setting. If unsure, don't set this
+option.
+
+=item B<RRARows> I<NumRows>
+
+The C<rrdtool plugin> calculates the number of PDPs per CDP based on the
+B<StepSize>, this setting and a timespan. This plugin creates RRD-files with
+three times five RRAs, i. e. five RRAs with the CFs B<MIN>, B<AVERAGE>, and
+B<MAX>. The five RRAs are optimized for graphs covering one hour, one day, one
+week, one month, and one year.
+
+So for each timespan, it calculates how many PDPs need to be consolidated into
+one CDP by calculating:
+  number of PDPs = timespan / (stepsize * rrarows)
+
+Bottom line is, set this no smaller than the width of you graphs in pixels.
+
+=item B<XFF> I<Factor>
+
+Set the "XFiles Factor". This is mostly interesting if you set B<StepSize>
+bigger than B<Interval>. If unsure, don't set this option.
 
 =item B<CacheFlush> I<Seconds>
 
@@ -359,11 +400,6 @@ save values in a cache, as described above. Writing multiple values at once
 reduces IO-operations and thus lessens the load produced by updating the files.
 The tradeoff is that the graphs kind of "drag behind" and that more memory is
 used.
-
-=item B<DataDir> I<Directory>
-
-Set the directory to store RRD-files under. Per default RRD-files are generated
-beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =back
 

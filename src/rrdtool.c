@@ -59,30 +59,35 @@ static int rra_timespans[] =
 	86400,
 	604800,
 	2678400,
-	31622400,
-	0
+	31622400
 };
-static int rra_timespans_num = 5;
+static int rra_timespans_num = STATIC_ARRAY_SIZE (rra_timespans);
 
 static char *rra_types[] =
 {
 	"AVERAGE",
 	"MIN",
-	"MAX",
-	NULL
+	"MAX"
 };
-static int rra_types_num = 3;
+static int rra_types_num = STATIC_ARRAY_SIZE (rra_types);
 
 static const char *config_keys[] =
 {
 	"CacheTimeout",
 	"CacheFlush",
 	"DataDir",
-	NULL
+	"StepSize",
+	"HeartBeat",
+	"RRARows",
+	"XFF"
 };
-static int config_keys_num = 3;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static char *datadir = NULL;
+static char   *datadir   = NULL;
+static int     stepsize  = 0;
+static int     heartbeat = 0;
+static int     rrarows   = 1200;
+static double  xff       = 0.1;
 
 static int         cache_timeout = 0;
 static int         cache_flush_timeout = 0;
@@ -99,8 +104,6 @@ static int rra_get (char ***ret)
 
 	int rra_max = rra_timespans_num * rra_types_num;
 
-	int step;
-	int rows;
 	int span;
 
 	int cdp_num;
@@ -119,11 +122,7 @@ static int rra_get (char ***ret)
 		return (-1);
 	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
 
-	step = interval_g;
-	/* FIXME: Use config here */
-	rows = atoi (COLLECTD_ROWS);
-
-	if ((step <= 0) || (rows <= 0))
+	if ((stepsize <= 0) || (rrarows <= 0))
 	{
 		*ret = NULL;
 		return (-1);
@@ -134,23 +133,25 @@ static int rra_get (char ***ret)
 	{
 		span = rra_timespans[i];
 
-		if ((span / step) < rows)
+		if ((span / stepsize) < rrarows)
 			continue;
 
 		if (cdp_len == 0)
 			cdp_len = 1;
 		else
-			cdp_len = (int) floor (((double) span) / ((double) (rows * step)));
+			cdp_len = (int) floor (((double) span)
+					/ ((double) (rrarows * stepsize)));
 
-		cdp_num = (int) ceil (((double) span) / ((double) (cdp_len * step)));
+		cdp_num = (int) ceil (((double) span)
+				/ ((double) (cdp_len * stepsize)));
 
 		for (j = 0; j < rra_types_num; j++)
 		{
 			if (rra_num >= rra_max)
 				break;
 
-			if (snprintf (buffer, sizeof(buffer), "RRA:%s:%3.1f:%u:%u",
-						rra_types[j], COLLECTD_XFF,
+			if (snprintf (buffer, sizeof (buffer), "RRA:%s:%3.1f:%u:%u",
+						rra_types[j], xff,
 						cdp_len, cdp_num) >= sizeof (buffer))
 			{
 				syslog (LOG_ERR, "rra_get: Buffer would have been truncated.");
@@ -241,8 +242,8 @@ static int ds_get (char ***ret, const data_set_t *ds)
 		}
 
 		status = snprintf (buffer, sizeof (buffer),
-				"DS:%s:%s:%s:%s:%s",
-				d->name, type, COLLECTD_HEARTBEAT,
+				"DS:%s:%s:%i:%s:%s",
+				d->name, type, heartbeat,
 				min, max);
 		if ((status < 1) || (status >= sizeof (buffer)))
 			break;
@@ -278,7 +279,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 	char **ds_def;
 	int ds_num;
 	int i, j;
-	char step[16];
+	char stepsize_str[16];
 	int status = 0;
 
 	if (check_create_dir (filename))
@@ -304,8 +305,9 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 		return (-1);
 	}
 
-	status = snprintf (step, sizeof (step), "%i", interval_g);
-	if ((status < 1) || (status >= sizeof (step)))
+	status = snprintf (stepsize_str, sizeof (stepsize_str),
+			"%i", stepsize);
+	if ((status < 1) || (status >= sizeof (stepsize_str)))
 	{
 		syslog (LOG_ERR, "rrdtool plugin: snprintf failed.");
 		return (-1);
@@ -314,7 +316,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 	argv[0] = "create";
 	argv[1] = filename;
 	argv[2] = "-s";
-	argv[3] = step;
+	argv[3] = stepsize_str;
 
 	j = 4;
 	for (i = 0; i < ds_num; i++)
@@ -662,11 +664,11 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	return (0);
 } /* int rrd_write */
 
-static int rrd_config (const char *key, const char *val)
+static int rrd_config (const char *key, const char *value)
 {
 	if (strcasecmp ("CacheTimeout", key) == 0)
 	{
-		int tmp = atoi (val);
+		int tmp = atoi (value);
 		if (tmp < 0)
 		{
 			fprintf (stderr, "rrdtool: `CacheTimeout' must "
@@ -677,7 +679,7 @@ static int rrd_config (const char *key, const char *val)
 	}
 	else if (strcasecmp ("CacheFlush", key) == 0)
 	{
-		int tmp = atoi (val);
+		int tmp = atoi (value);
 		if (tmp < 0)
 		{
 			fprintf (stderr, "rrdtool: `CacheFlush' must "
@@ -690,7 +692,7 @@ static int rrd_config (const char *key, const char *val)
 	{
 		if (datadir != NULL)
 			free (datadir);
-		datadir = strdup (val);
+		datadir = strdup (value);
 		if (datadir != NULL)
 		{
 			int len = strlen (datadir);
@@ -705,6 +707,50 @@ static int rrd_config (const char *key, const char *val)
 				datadir = NULL;
 			}
 		}
+	}
+	else if (strcasecmp ("StepSize", key) == 0)
+	{
+		int tmp = atoi (value);
+		if (tmp <= 0)
+		{
+			fprintf (stderr, "rrdtool: `StepSize' must "
+					"be greater than 0.\n");
+			return (1);
+		}
+		stepsize = tmp;
+	}
+	else if (strcasecmp ("HeartBeat", key) == 0)
+	{
+		int tmp = atoi (value);
+		if (tmp <= 0)
+		{
+			fprintf (stderr, "rrdtool: `HeartBeat' must "
+					"be greater than 0.\n");
+			return (1);
+		}
+		heartbeat = tmp;
+	}
+	else if (strcasecmp ("RRARows", key) == 0)
+	{
+		int tmp = atoi (value);
+		if (tmp <= 0)
+		{
+			fprintf (stderr, "rrdtool: `RRARows' must "
+					"be greater than 0.\n");
+			return (1);
+		}
+		rrarows = tmp;
+	}
+	else if (strcasecmp ("XFF", key) == 0)
+	{
+		double tmp = atof (value);
+		if ((tmp < 0.0) || (tmp >= 1.0))
+		{
+			fprintf (stderr, "rrdtool: `XFF' must "
+					"be in the range 0 to 1 (exclusive).");
+			return (1);
+		}
+		xff = tmp;
 	}
 	else
 	{
@@ -725,6 +771,20 @@ static int rrd_shutdown (void)
 
 static int rrd_init (void)
 {
+	if (stepsize <= 0)
+		stepsize = interval_g;
+	if (heartbeat <= 0)
+		heartbeat = 2 * interval_g;
+
+	if (heartbeat < interval_g)
+		syslog (LOG_WARNING, "rrdtool plugin: Your `heartbeat' is "
+				"smaller than your `interval'. This will "
+				"likely cause problems.");
+	else if (stepsize < interval_g)
+		syslog (LOG_WARNING, "rrdtool plugin: Your `stepsize' is "
+				"smaller than your `interval'. This will "
+				"create needlessly big RRD-files.");
+
 	if (cache_timeout < 2)
 	{
 		cache_timeout = 0;
@@ -739,6 +799,11 @@ static int rrd_init (void)
 		cache_flush_last = time (NULL);
 		plugin_register_shutdown ("rrdtool", rrd_shutdown);
 	}
+
+	DBG ("datadir = %s; stepsize = %i; heartbeat = %i; rrarows = %i; xff = %lf;",
+			(datadir == NULL) ? "(null)" : datadir,
+			stepsize, heartbeat, rrarows, xff);
+
 	return (0);
 } /* int rrd_init */
 
