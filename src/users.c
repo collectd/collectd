@@ -56,8 +56,6 @@ static void users_submit (gauge_t value)
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	DBG ("value = %lf;", value);
-
 	values[0].gauge = value;
 
 	vl.values = values;
