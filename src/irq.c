@@ -38,23 +38,24 @@
 /*
  * (Module-)Global variables
  */
-static char *irq_file   = "irq/irq-%s.rrd";
+static data_source_t dsrc_irq[1] =
+{
+	{"value", DS_TYPE_COUNTER, 0, 65535.0}
+};
 
-static char *config_keys[] =
+static data_set_t ds_irq =
+{
+	"irq", 1, dsrc_irq
+};
+
+static const char *config_keys[] =
 {
 	"Irq",
-	"IgnoreSelected",
-	NULL
+	"IgnoreSelected"
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static char *ds_def[] =
-{
-	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:65535",
-	NULL
-};
-static int ds_num = 1;
-
+#if IRQ_HAVE_READ
 static unsigned int *irq_list;
 static unsigned int irq_list_num;
 
@@ -65,7 +66,7 @@ static unsigned int irq_list_num;
  */
 static int irq_list_action;
 
-static int irq_config (char *key, char *value)
+static int irq_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "Irq") == 0)
 	{
@@ -132,46 +133,32 @@ static int check_ignore_irq (const unsigned int irq)
 	return (1 - irq_list_action);
 }
 
-static void irq_write (char *host, char *inst, char *value)
+static void irq_submit (unsigned int irq, counter_t value)
 {
-	char file[BUFSIZE];
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 	int status;
-
-	if (check_ignore_irq (atoi(inst)))
-		return;
-
-	status = snprintf (file, BUFSIZE, irq_file, inst);
-	if (status < 1)
-		return;
-	else if (status >= BUFSIZE)
-		return;
-
-	rrd_update_file (host, file, value, ds_def, ds_num);
-}
-
-#if IRQ_HAVE_READ
-static void irq_submit (unsigned int irq, unsigned int value)
-{
-	char value_str[32];
-	char type_str[16];
-	int  status;
 
 	if (check_ignore_irq (irq))
 		return;
 
-	status = snprintf (value_str, 32, "%u:%u",
-				(unsigned int) curtime, value);
-	if ((status >= 32) || (status < 1))
+	values[0].counter = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, "irq");
+
+	status = snprintf (vl.type_instance, sizeof (vl.type_instance),
+			"%u", irq);
+	if ((status < 1) || (status >= sizeof (vl.type_instance)))
 		return;
 
-	status = snprintf (type_str, 16, "%u", irq);
-	if ((status >= 16) || (status < 1))
-		return;
-
-	plugin_submit (MODULE_NAME, type_str, value_str);
+	plugin_dispatch_values ("irq", &vl);
 } /* void irq_submit */
 
-static void irq_read (void)
+static int irq_read (void)
 {
 #if KERNEL_LINUX
 
@@ -193,7 +180,7 @@ static void irq_read (void)
 	{
 		syslog (LOG_WARNING, "irq plugin: fopen (/proc/interrupts): %s",
 				strerror (errno));
-		return;
+		return (-1);
 	}
 	while (fgets (buffer, BUFSIZE, fh) != NULL)
 	{
@@ -223,15 +210,20 @@ static void irq_read (void)
 	}
 	fclose (fh);
 #endif /* KERNEL_LINUX */
-} /* void irq_read */
-#else
-#define irq_read NULL
+
+	return (0);
+} /* int irq_read */
 #endif /* IRQ_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, NULL, irq_read, irq_write);
-	cf_register (MODULE_NAME, irq_config, config_keys, config_keys_num);
+	plugin_register_data_set (&ds_irq);
+
+#if IRQ_HAVE_READ
+	plugin_register_config ("irq", irq_config,
+			config_keys, config_keys_num);
+	plugin_register_read ("irq", irq_read);
+#endif /* IRQ_HAVE_READ */
 }
 
 #undef BUFSIZE
