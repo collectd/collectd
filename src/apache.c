@@ -1,6 +1,7 @@
 /**
  * collectd - src/apache.c
  * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2007  Florent EppO Monbillard
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,8 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Florent EppO Monbillard <eppo at darox.net>
+ *   - connections/lighttpd extension
  **/
 
 #include "collectd.h"
@@ -63,6 +66,16 @@ static data_source_t apache_scoreboard_dsrc[1] =
 static data_set_t apache_scoreboard_ds =
 {
 	"apache_scoreboard", 1, apache_scoreboard_dsrc
+};
+
+static data_source_t apache_connections_dsrc[1] =
+{
+	{"count", DS_TYPE_GAUGE, 0, 65535.0},
+};
+
+static data_set_t apache_connections_ds =
+{
+	"apache_connections", 1, apache_connections_dsrc
 };
 
 #if APACHE_HAVE_READ
@@ -217,7 +230,10 @@ static void submit_gauge (const char *type, const char *type_instance,
 	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, "apache");
 	strcpy (vl.plugin_instance, "");
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	if (type_instance != NULL)
+		strncpy (vl.type_instance, type_instance,
+				sizeof (vl.type_instance));
 
 	plugin_dispatch_values (type, &vl);
 } /* void submit_counter */
@@ -326,6 +342,8 @@ static int apache_read (void)
 		{
 			if (strcmp (fields[0], "Scoreboard:") == 0)
 				submit_scoreboard (fields[1]);
+			else if (strcmp (fields[0], "BusyServers:") == 0)
+				submit_gauge ("apache_connections", NULL, atol (fields[1]));
 		}
 	}
 
@@ -340,6 +358,7 @@ void module_register (void)
 	plugin_register_data_set (&apache_bytes_ds);
 	plugin_register_data_set (&apache_requests_ds);
 	plugin_register_data_set (&apache_scoreboard_ds);
+	plugin_register_data_set (&apache_connections_ds);
 
 #if APACHE_HAVE_READ
 	plugin_register_config ("apache", config,

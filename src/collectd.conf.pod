@@ -202,6 +202,27 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =back
 
+=head2 Plugin C<irq>
+
+=over 4
+
+=item B<Irq> I<Irq>
+
+Select this irq. By default these irqs will then be collected. For a more
+detailed description see B<IgnoreSelected> below.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+If no configuration if given, the B<irq>-plugin will collect data from all
+irqs. This may not be practical, especially if no interrupts happen. Thus, you
+can use the B<Irq>-option to pick the interupt you're interested in.
+Sometimes, however, it's easier/prefered to collect all interupts I<except> a
+few ones. This option enables you to do that: By setting B<IgnoreSelected> to
+I<true> the effect of B<Irq> is inversed: All selected interupts are ignored
+and all other interupts are collected.
+
+=back
+
 =head2 Plugin C<mbmon>
 
 =over 4
