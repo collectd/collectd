@@ -30,6 +30,7 @@
 @BUILD_MODULE_DISK_TRUE@LoadPlugin disk
 @BUILD_MODULE_DNS_TRUE@LoadPlugin dns
 @BUILD_MODULE_HDDTEMP_TRUE@LoadPlugin hddtemp
+@BUILD_MODULE_IRQ_TRUE@LoadPlugin irq
 @BUILD_MODULE_LOAD_TRUE@LoadPlugin load
 @BUILD_MODULE_MBMON_TRUE@LoadPlugin mbmon
 @BUILD_MODULE_MEMORY_TRUE@LoadPlugin memory
@@ -68,6 +69,13 @@
 #<Plugin hddtemp>
 #	Host 127.0.0.1
 #	Port 7634
+#</Plugin>
+
+#<Plugin irq>
+#	Irq 7
+#	Irq 8
+#	Irq 9
+#	IgnoreSelected true
 #</Plugin>
 
 #<Plugin mbmon>

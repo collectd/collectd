@@ -97,6 +97,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0444,root,root) %{_libdir}/%{name}/dns.so
 %attr(0444,root,root) %{_libdir}/%{name}/email.so
 %attr(0444,root,root) %{_libdir}/%{name}/hddtemp.so*
+%attr(0444,root,root) %{_libdir}/%{name}/irq.so*
 %attr(0444,root,root) %{_libdir}/%{name}/load.so*
 %attr(0444,root,root) %{_libdir}/%{name}/mbmon.so
 %attr(0444,root,root) %{_libdir}/%{name}/memory.so*
