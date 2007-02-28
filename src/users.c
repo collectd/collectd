@@ -1,6 +1,6 @@
 /**
  * collectd - src/users.c
- * Copyright (C) 2005,2006  Sebastian Harl
+ * Copyright (C) 2005-2007  Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -40,46 +40,36 @@
 # define USERS_HAVE_READ 0
 #endif
 
-static char *rrd_file = "users.rrd";
-static char *ds_def[] =
+static data_source_t dsrc[1] =
 {
-	"DS:users:GAUGE:"COLLECTD_HEARTBEAT":0:65535",
-	NULL
+	{"users",  DS_TYPE_GAUGE, 0.0, 65535.0}
 };
-static int ds_num = 1;
 
-static void users_init (void)
+static data_set_t ds =
 {
-	/* we have nothing to do here :-) */
-	return;
-} /* static void users_init(void) */
-
-static void users_write (char *host, char *inst, char *val)
-{
-	rrd_update_file(host, rrd_file, val, ds_def, ds_num);
-	return;
-} /* static void users_write(char *host, char *inst, char *val) */
+	"users", 1, dsrc
+};
 
 #if USERS_HAVE_READ
-/* I don't like this temporary macro definition - well it's used everywhere
-   else in the collectd-sources, so I will just stick with it...  */
-#define BUFSIZE 256
-static void users_submit (unsigned int users)
+static void users_submit (gauge_t value)
 {
-	char buf[BUFSIZE] = "";
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	if (snprintf(buf, BUFSIZE, "%u:%u", 
-		(unsigned int)curtime, users) >= BUFSIZE)
-	{
-		return;
-	}
+	DBG ("value = %lf;", value);
 
-	plugin_submit(MODULE_NAME, "-", buf);
-	return;
-} /* static void users_submit(unsigned int users) */
-#undef BUFSIZE
+	values[0].gauge = value;
 
-static void users_read (void)
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname_g);
+	strcpy (vl.plugin, "users");
+
+	plugin_dispatch_values ("users", &vl);
+} /* void users_submit */
+
+static int users_read (void)
 {
 #if HAVE_GETUTXENT
 	unsigned int users = 0;
@@ -114,17 +104,16 @@ static void users_read (void)
 	}
 	endutent();
 
-	users_submit(users);
+	users_submit (users);
 #endif /* HAVE_GETUTENT */
 
-	return;
-} /* static void users_read(void) */
-#else
-# define users_read NULL
+	return (0);
+} /* int users_read */
 #endif /* USERS_HAVE_READ */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, users_init, users_read, users_write);
+	plugin_register_data_set (&ds);
+	plugin_register_read ("users", users_read);
 	return;
 } /* void module_register(void) */
