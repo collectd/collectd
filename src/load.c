@@ -56,7 +56,7 @@ static data_set_t ds =
 };
 
 #if LOAD_HAVE_READ
-static void load_submit (double snum, double mnum, double lnum)
+static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
 	value_t values[3];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -66,12 +66,10 @@ static void load_submit (double snum, double mnum, double lnum)
 	values[2].gauge = lnum;
 
 	vl.values = values;
-	vl.values_len = 3;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "load");
-	strcpy (vl.plugin_instance, "");
-	strcpy (vl.type_instance, "");
 
 	plugin_dispatch_values ("load", &vl);
 }
@@ -88,7 +86,7 @@ static int load_read (void)
 /* #endif HAVE_GETLOADAVG */
 
 #elif defined(KERNEL_LINUX)
-	double snum, mnum, lnum;
+	gauge_t snum, mnum, lnum;
 	FILE *loadavg;
 	char buffer[16];
 
@@ -124,7 +122,7 @@ static int load_read (void)
 /* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBSTATGRAB)
-	double snum, mnum, lnum;
+	gauge_t snum, mnum, lnum;
 	sg_load_stats *ls;
 
 	if ((ls = sg_get_load_stats ()) == NULL)
