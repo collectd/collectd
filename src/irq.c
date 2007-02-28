@@ -38,7 +38,7 @@
 /*
  * (Module-)Global variables
  */
-static char *irq_file   = "irq-%s.rrd";
+static char *irq_file   = "irq/irq-%s.rrd";
 
 static char *config_keys[] =
 {
@@ -50,15 +50,13 @@ static int config_keys_num = 2;
 
 static char *ds_def[] =
 {
-	"DS:irq:COUNTER:"COLLECTD_HEARTBEAT":0:U",
+	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:65535",
 	NULL
 };
 static int ds_num = 1;
 
 static unsigned int *irq_list;
 static unsigned int irq_list_num;
-
-static int base = 10;
 
 /* 
  * irq_list_action:
@@ -69,27 +67,31 @@ static int irq_list_action;
 
 static int irq_config (char *key, char *value)
 {
-	unsigned int *temp;
-	unsigned int irq;
-        char *endptr;
-
 	if (strcasecmp (key, "Irq") == 0)
 	{
+		unsigned int *temp;
+		unsigned int irq;
+		char *endptr;
+
 		temp = (unsigned int *) realloc (irq_list, (irq_list_num + 1) * sizeof (unsigned int *));
 		if (temp == NULL)
 		{
-			syslog (LOG_EMERG, "Cannot allocate more memory.");
+			fprintf (stderr, "irq plugin: Cannot allocate more memory.\n");
+			syslog (LOG_ERR, "irq plugin: Cannot allocate more memory.");
 			return (1);
 		}
 		irq_list = temp;
 
-		irq = strtol(value, &endptr, base);
+		/* Clear errno, because we need it to see if an error occured. */
+		errno = 0;
 
-		if (endptr == value ||
-		    (errno == ERANGE && (irq == LONG_MAX || irq == LONG_MIN)) ||
-		    (errno != 0 && irq == 0))
+		irq = strtol(value, &endptr, 10);
+		if ((endptr == value) || (errno != 0))
 		{
-			syslog (LOG_EMERG, "Irq value is not a number.");
+			fprintf (stderr, "irq plugin: Irq value is not a "
+					"number: `%s'\n", value);
+			syslog (LOG_ERR, "irq plugin: Irq value is not a "
+					"number: `%s'", value);
 			return (1);
 		}
 		irq_list[irq_list_num] = irq;
@@ -148,28 +150,26 @@ static void irq_write (char *host, char *inst, char *value)
 }
 
 #if IRQ_HAVE_READ
-static void irq_submit (unsigned int irq, unsigned int value, char *devices)
+static void irq_submit (unsigned int irq, unsigned int value)
 {
-	char buf[BUFSIZE];
-	char desc[BUFSIZE];
+	char value_str[32];
+	char type_str[16];
 	int  status;
 
 	if (check_ignore_irq (irq))
 		return;
 
-	status = snprintf (buf, BUFSIZE, "%u:%u",
+	status = snprintf (value_str, 32, "%u:%u",
 				(unsigned int) curtime, value);
-
-	if ((status >= BUFSIZE) || (status < 1))
+	if ((status >= 32) || (status < 1))
 		return;
 
-	status = snprintf (desc, BUFSIZE, "%d-%s", irq, devices);
-
-	if ((status >= BUFSIZE) || (status < 1))
+	status = snprintf (type_str, 16, "%u", irq);
+	if ((status >= 16) || (status < 1))
 		return;
 
-	plugin_submit (MODULE_NAME, desc, buf);
-}
+	plugin_submit (MODULE_NAME, type_str, value_str);
+} /* void irq_submit */
 
 static void irq_read (void)
 {
@@ -183,59 +183,47 @@ static void irq_read (void)
 	unsigned int irq;
 	unsigned int irq_value;
 	long value;
-	char *ptr, *endptr;
+	char *endptr;
+	int i;
+
+	char *fields[64];
+	int fields_num;
 
 	if ((fh = fopen ("/proc/interrupts", "r")) == NULL)
 	{
-		syslog (LOG_WARNING, "irq: fopen: %s", strerror (errno));
+		syslog (LOG_WARNING, "irq plugin: fopen (/proc/interrupts): %s",
+				strerror (errno));
 		return;
 	}
 	while (fgets (buffer, BUFSIZE, fh) != NULL)
 	{
+		fields_num = strsplit (buffer, fields, 64);
+		if (fields_num < 2)
+			continue;
+
 		errno = 0;    /* To distinguish success/failure after call */
-		irq = strtol(buffer, &endptr, base);
+		irq = strtol (fields[0], &endptr, 10);
 
-		if (endptr == buffer ||
-		    (errno == ERANGE && (irq == LONG_MAX || irq == LONG_MIN)) ||
-		    (errno != 0 && irq == 0)) continue;
-
-		if (*endptr != ':') continue;
-
-                ptr = ++endptr;
+		if ((endptr == fields[0]) || (errno != 0) || (*endptr != ':'))
+			continue;
 
 		irq_value = 0;
-		/* sum irq's for all CPUs */
-		while (1)
+		for (i = 1; i < fields_num; i++)
 		{
 			errno = 0;
-			value = strtol(ptr, &endptr, base);
+			value = strtol (fields[i], &endptr, 10);
 
-			if (endptr == ptr ||
-			    (errno == ERANGE &&
-				(value == LONG_MAX || value == LONG_MIN)) ||
-			    (errno != 0 && value == 0)) break;
+			if ((*endptr != '\0') || (errno != 0))
+				break;
 
 			irq_value += value;
-			ptr = endptr;
-		}
-		while (*ptr == ' ') ptr++;
-		while (*ptr && *ptr != ' ') ptr++;
-		while (*ptr == ' ') ptr++;
+		} /* for (i) */
 
-		if (!*ptr) continue;
-
-		endptr = ptr;
-
-		while (*(++endptr))
-			if (!isalnum(*endptr)) *endptr='_';
-
-		ptr[strlen(ptr)-1] = '\0';
-
-		irq_submit (irq, irq_value, ptr);
+		irq_submit (irq, irq_value);
 	}
 	fclose (fh);
 #endif /* KERNEL_LINUX */
-}
+} /* void irq_read */
 #else
 #define irq_read NULL
 #endif /* IRQ_HAVE_READ */
