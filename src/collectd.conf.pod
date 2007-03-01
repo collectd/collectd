@@ -130,6 +130,17 @@ TCP-Port to connect to. Defaults to B<3551>.
 
 =back
 
+=head2 Plugin C<csv>
+
+=over 4
+
+=item B<DataDir> I<Directory>
+
+Set the directory to store RRD-files under. Per default RRD-files are generated
+beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
+
+=back
+
 =head2 Plugin C<df>
 
 =over 4
@@ -346,7 +357,7 @@ can savely ignore these settings.
 
 =item B<DataDir> I<Directory>
 
-Set the directory to store RRD-files under. Per default RRD-files are generated
+Set the directory to store CSV-files under. Per default CSV-files are generated
 beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =item B<StepSize> I<Seconds>

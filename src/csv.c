@@ -24,6 +24,17 @@
 #include "common.h"
 #include "utils_debug.h"
 
+/*
+ * Private variables
+ */
+static const char *config_keys[] =
+{
+	"DataDir"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static char *datadir   = NULL;
+
 static int value_list_to_string (char *buffer, int buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
 {
@@ -65,6 +76,15 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 {
 	int offset = 0;
 	int status;
+
+	if (datadir != NULL)
+	{
+		status = snprintf (buffer + offset, buffer_len - offset,
+				"%s/", datadir);
+		if ((status < 1) || (status >= buffer_len - offset))
+			return (-1);
+		offset += status;
+	}
 
 	status = snprintf (buffer + offset, buffer_len - offset,
 			"%s/", vl->host);
@@ -137,6 +157,35 @@ static int csv_create_file (const char *filename, const data_set_t *ds)
 	return 0;
 } /* int csv_create_file */
 
+static int csv_config (const char *key, const char *value)
+{
+	if (strcasecmp ("DataDir", key) == 0)
+	{
+		if (datadir != NULL)
+			free (datadir);
+		datadir = strdup (value);
+		if (datadir != NULL)
+		{
+			int len = strlen (datadir);
+			while ((len > 0) && (datadir[len - 1] == '/'))
+			{
+				len--;
+				datadir[len] = '\0';
+			}
+			if (len <= 0)
+			{
+				free (datadir);
+				datadir = NULL;
+			}
+		}
+	}
+	else
+	{
+		return (-1);
+	}
+	return (0);
+} /* int csv_config */
+
 static int csv_write (const data_set_t *ds, const value_list_t *vl)
 {
 	struct stat  statbuf;
@@ -149,6 +198,8 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 
 	if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
 		return (-1);
+
+	DBG ("filename = %s;", filename);
 
 	if (value_list_to_string (values, sizeof (values), ds, vl) != 0)
 		return (-1);
@@ -210,5 +261,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 
 void module_register (void)
 {
+	plugin_register_config ("csv", csv_config,
+			config_keys, config_keys_num);
 	plugin_register_write ("csv", csv_write);
 }
