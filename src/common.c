@@ -290,6 +290,7 @@ int check_create_dir (const char *file_orig)
 	int   fields_num;
 	char *ptr;
 	int   last_is_file = 1;
+	int   path_is_absolute = 0;
 	int   len;
 	int   i;
 
@@ -310,6 +311,8 @@ int check_create_dir (const char *file_orig)
 	 */
 	if (file_orig[len - 1] == '/')
 		last_is_file = 0;
+	if (file_orig[0] == '/')
+		path_is_absolute = 1;
 
 	/*
 	 * Create a copy for `strtok' to destroy
@@ -351,7 +354,9 @@ int check_create_dir (const char *file_orig)
 		/*
 		 * Join the components together again
 		 */
-		if (strjoin (dir, dir_len, fields, i + 1, "/") < 0)
+		dir[0] = '/';
+		if (strjoin (dir + path_is_absolute, dir_len - path_is_absolute,
+					fields, i + 1, "/") < 0)
 		{
 			syslog (LOG_ERR, "strjoin failed: `%s', component #%i", file_orig, i);
 			return (-1);
