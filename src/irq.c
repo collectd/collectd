@@ -48,6 +48,7 @@ static data_set_t ds_irq =
 	"irq", 1, dsrc_irq
 };
 
+#if IRQ_HAVE_READ
 static const char *config_keys[] =
 {
 	"Irq",
@@ -55,7 +56,6 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-#if IRQ_HAVE_READ
 static unsigned int *irq_list;
 static unsigned int irq_list_num;
 
