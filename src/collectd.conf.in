@@ -59,6 +59,10 @@
 #	Port "3551"
 #</Plugin>
 
+#<Plugin csv>
+#	DataDir "/var/lib/collectd/csv"
+#</Plugin>
+
 #<Plugin dns>
 #	Interface "eth0"
 #	IgnoreSource "192.168.0.1"
@@ -110,9 +114,13 @@
 #</Plugin>
 
 #<Plugin rrdtool>
+#	DataDir "/var/lib/collectd/rrd"
+#	StepSize      10
+#	HeartBeat     20
+#	RRARows     1200
+#	XFF            0.1
 #	CacheTimeout 120
 #	CacheFlush   900
-#	DataDir      "/opt/collectd/var/lib/collectd"
 #</Plugin>
 
 ## There are two different naming schemes for the sensors plugin, to preserver
