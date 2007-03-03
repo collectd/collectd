@@ -29,6 +29,12 @@
 # include <libiptc/libiptc.h>
 #endif
 
+#if HAVE_LIBIPTC_LIBIPTC_H
+# define IPTABLES_HAVE_READ 1
+#else
+# define IPTABLES_HAVE_READ 0
+#endif
+
 #define MODULE_NAME "iptables"
 #define BUFSIZE 512
 
@@ -42,6 +48,20 @@
 static char *file_template   = "iptables-%s.rrd";
 
 /*
+ * Removed packet count for now, should have config option if you want to save
+ * them Although other collectd models don't seem to care much for options
+ * eitherway for what to log
+ */
+static char *ds_def[] =
+{
+/*	"DS:packets:COUNTER:"COLLECTD_HEARTBEAT":0:U", */
+	"DS:bytes:DERIVE:"COLLECTD_HEARTBEAT":0:U",
+	NULL
+};
+static int ds_num = 1;
+
+#if IPTABLES_HAVE_READ
+/*
  * Config format should be `Chain table chainname',
  * e. g. `Chain mangle incoming'
  */
@@ -51,18 +71,6 @@ static char *config_keys[] =
 	NULL
 };
 static int config_keys_num = 1;
-/*
-    Removed packet count for now, should have config option if you want to save them
-    Although other collectd models don't seem to care much for options eitherway for what to log
-*/
-static char *ds_def[] =
-{
-//	"DS:packets:COUNTER:"COLLECTD_HEARTBEAT":0:U",
-	"DS:bytes:DERIVE:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int ds_num = 1;
-
 /*
     Each table/chain combo that will be queried goes into this list
 */
@@ -124,6 +132,7 @@ static int iptables_config (char *key, char *value)
 
 	return (0);
 }
+#endif /* IPTABLES_HAVE_READ */
 
 static void iptables_init (void)
 {	
@@ -144,7 +153,7 @@ static void iptables_write (char *host, char *inst, char *val)
 	rrd_update_file (host, file, val, ds_def, ds_num);
 }
 
-
+#if IPTABLES_HAVE_READ
 static int submit_match (const struct ipt_entry_match *match,
 		const struct ipt_entry *entry, const ip_chain_t *chain) 
 {
@@ -208,11 +217,16 @@ static void iptables_read (void) {
 	iptc_free( &handle );
     }
 }
+#else /* !IPTABLES_HAVE_READ */
+# define iptables_read NULL
+#endif
 
 void module_register (void)
 {
 	plugin_register (MODULE_NAME, iptables_init, iptables_read, iptables_write);
+#if IPTABLES_HAVE_READ
 	cf_register (MODULE_NAME, iptables_config, config_keys, config_keys_num);
+#endif
 }
 
 #undef BUFSIZE
