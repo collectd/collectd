@@ -24,7 +24,10 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "libiptc/libiptc.h"
+
+#if HAVE_LIBIPTC_LIBIPTC_H
+# include <libiptc/libiptc.h>
+#endif
 
 #define MODULE_NAME "iptables"
 #define BUFSIZE 512
@@ -34,13 +37,14 @@
  */
 
 /*
-    Files will go into iptables-chain/comment.rrd files
-*/
+ *  Files will go into iptables-chain/comment.rrd files
+ */
 static char *file_template   = "iptables-%s.rrd";
+
 /*
-    Config format should be Chain table chainname 
-    So "Chain mangle incoming"
-*/
+ * Config format should be `Chain table chainname',
+ * e. g. `Chain mangle incoming'
+ */
 static char *config_keys[] =
 {
 	"Chain",
@@ -141,7 +145,8 @@ static void iptables_write (char *host, char *inst, char *val)
 }
 
 
-static int submit_match( const struct ipt_entry_match *match, const struct ipt_entry *entry, const ip_chain_t *chain ) 
+static int submit_match (const struct ipt_entry_match *match,
+		const struct ipt_entry *entry, const ip_chain_t *chain) 
 {
     char name[BUFSIZE];
     char buf[BUFSIZE];
@@ -161,9 +166,9 @@ static int submit_match( const struct ipt_entry_match *match, const struct ipt_e
     if ((status >= BUFSIZE) || (status < 1))
     	return 0;
 
-    status = snprintf (buf, BUFSIZE, "%u:%lld",// ":lld",
+    status = snprintf (buf, BUFSIZE, "%u:%lld", /* ":lld", */
 				(unsigned int) curtime,
-//				entry->counters.pcnt,
+				/* entry->counters.pcnt, */
 				 entry->counters.bcnt );
     if ((status >= BUFSIZE) || (status < 1))
     	return 0;
@@ -171,7 +176,7 @@ static int submit_match( const struct ipt_entry_match *match, const struct ipt_e
     plugin_submit (MODULE_NAME, name, buf);
 
     return 0;
-}
+} /* int submit_match */
 
 static void submit_chain( iptc_handle_t *handle, ip_chain_t *chain ) {
     const struct ipt_entry *entry;
@@ -212,3 +217,7 @@ void module_register (void)
 
 #undef BUFSIZE
 #undef MODULE_NAME
+
+/*
+ * vim:shiftwidth=4:softtabstop=4:tabstop=8
+ */
