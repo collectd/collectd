@@ -1046,6 +1046,7 @@ AC_COLLECTD([dns],       [disable], [module], [dns statistics])
 AC_COLLECTD([email],     [disable], [module], [email statistics])
 AC_COLLECTD([quota],     [enable],  [module], [quota statistics (experimental)])
 AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
+AC_COLLECTD([iptables],  [disable], [module], [IPtables statistics])
 AC_COLLECTD([load],      [disable], [module], [system load statistics])
 AC_COLLECTD([mbmon],     [disable], [module], [motherboard monitor statistics])
 AC_COLLECTD([memory],    [disable], [module], [memory statistics])
@@ -1064,7 +1065,7 @@ AC_COLLECTD([users],     [disable], [module], [user count statistics])
 AC_COLLECTD([vserver],   [disable], [module], [vserver statistics])
 AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libconfig/Makefile src/liboping/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libconfig/Makefile src/liboping/Makefile src/libiptc/Makefile )
 
 cat <<EOF;
 

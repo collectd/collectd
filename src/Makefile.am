@@ -2,6 +2,7 @@ SUBDIRS = libconfig
 if BUILD_WITH_OWN_LIBOPING
 SUBDIRS += liboping
 endif
+SUBDIRS += libiptc
 
 if COMPILER_IS_GCC
 AM_CFLAGS = -Wall -Werror
@@ -206,6 +207,16 @@ hddtemp_la_LDFLAGS += -lsocket
 endif
 collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
+endif
+
+if BUILD_MODULE_IPTABLES
+pkglib_LTLIBRARIES += iptables.la
+iptables_la_SOURCES = iptables.c
+iptables_la_LDFLAGS = -module -avoid-version
+iptables_la_LIBADD  = libiptc/libiptc.la
+iptables_la_DEPENDENCIES = libiptc/libiptc.la
+collectd_LDADD += "-dlopen" iptables.la
+collectd_DEPENDENCIES += iptables.la
 endif
 
 if BUILD_MODULE_LOAD
