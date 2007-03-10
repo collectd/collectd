@@ -166,20 +166,28 @@ static void submit_gauge (const char *type_instance, gauge_t value)
 
 static void exec_child (program_list_t *pl)
 {
-  struct passwd *sp;
   int status;
   int uid;
   char *arg0;
 
-  /* FIXME: Not thread safe! */
-  sp = getpwnam (pl->user);
-  if (sp == NULL)
+  struct passwd *sp_ptr;
+  struct passwd sp;
+  char pwnambuf[2048];
+
+  sp_ptr = NULL;
+  status = getpwnam_r (pl->user, &sp, pwnambuf, sizeof (pwnambuf), &sp_ptr);
+  if (status != 0)
   {
-    syslog (LOG_ERR, "exec plugin: getpwnam failed: %s", strerror (errno));
+    syslog (LOG_ERR, "exec plugin: getpwnam_r failed: %s", strerror (status));
+    exit (-1);
+  }
+  if (sp_ptr == NULL)
+  {
+    syslog (LOG_ERR, "exec plugin: No such user: `%s'", pl->user);
     exit (-1);
   }
 
-  uid = sp->pw_uid;
+  uid = sp.pw_uid;
   if (uid == 0)
   {
     syslog (LOG_ERR, "exec plugin: Cowardly refusing to exec program as root.");
