@@ -1,6 +1,6 @@
 /**
  * collectd - src/email.c
- * Copyright (C) 2006  Sebastian Harl
+ * Copyright (C) 2006,2007  Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -42,9 +42,6 @@
 
 #if HAVE_LIBPTHREAD
 # include <pthread.h>
-# define EMAIL_HAVE_READ 1
-#else
-# define EMAIL_HAVE_READ 0
 #endif
 
 #if HAVE_SYS_SELECT_H
@@ -90,7 +87,6 @@
 /*
  * Private data structures
  */
-#if EMAIL_HAVE_READ
 /* linked list of email and check types */
 typedef struct type {
 	char        *name;
@@ -128,21 +124,48 @@ typedef struct {
 	conn_t *head;
 	conn_t *tail;
 } conn_list_t;
-#endif /* EMAIL_HAVE_READ */
 
 /*
  * Private variables
  */
-#if EMAIL_HAVE_READ
 /* valid configuration file keys */
-static char *config_keys[] =
+static const char *config_keys[] =
 {
 	"SocketGroup",
 	"SocketPerms",
-	"MaxConns",
-	NULL
+	"MaxConns"
 };
-static int config_keys_num = 3;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static data_source_t gauge_dsrc[1] =
+{
+	{"value", DS_TYPE_GAUGE, 0.0, NAN}
+};
+
+static data_set_t email_count_ds =
+{
+	"email_count", 1, gauge_dsrc
+};
+
+static data_set_t email_size_ds =
+{
+	"email_size", 1, gauge_dsrc
+};
+
+static data_set_t spam_check_ds =
+{
+	"spam_check", 1, gauge_dsrc
+};
+
+static data_source_t spam_score_dsrc[1] =
+{
+	{"score", DS_TYPE_GAUGE, NAN, NAN}
+};
+
+static data_set_t spam_score_ds =
+{
+	"spam_score", 1, spam_score_dsrc
+};
 
 /* socket configuration */
 static char *sock_group = COLLECTD_GRP_NAME;
@@ -184,42 +207,11 @@ static int score_count;
 
 static pthread_mutex_t check_mutex = PTHREAD_MUTEX_INITIALIZER;
 static type_list_t check;
-#endif /* EMAIL_HAVE_READ */
 
-#define COUNT_FILE "email/email-%s.rrd"
-static char *count_ds_def[] =
-{
-	"DS:count:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int count_ds_num = 1;
-
-#define SIZE_FILE  "email/email_size-%s.rrd"
-static char *size_ds_def[] =
-{
-	"DS:size:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int size_ds_num = 1;
-
-#define SCORE_FILE "email/spam_score.rrd"
-static char *score_ds_def[] =
-{
-	"DS:score:GAUGE:"COLLECTD_HEARTBEAT":U:U",
-	NULL
-};
-static int score_ds_num = 1;
-
-#define CHECK_FILE "email/spam_check-%s.rrd"
-static char *check_ds_def[] =
-{
-	"DS:hits:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-	NULL
-};
-static int check_ds_num = 1;
-
-#if EMAIL_HAVE_READ
-static int email_config (char *key, char *value)
+/*
+ * Private functions
+ */
+static int email_config (const char *key, const char *value)
 {
 	if (0 == strcasecmp (key, "SocketGroup")) {
 		sock_group = sstrdup (value);
@@ -563,21 +555,33 @@ static void *open_connection (void *arg)
 		pthread_exit ((void *)1);
 	}
 
-	if ((uid_t)0 == geteuid ()) {
+	if ((uid_t) 0 == geteuid ())
+	{
+		struct group sg;
 		struct group *grp;
+		char grbuf[2048];
+		int status;
 
-		errno = 0;
-		if (NULL != (grp = getgrnam (sock_group))) {
-			errno = 0;
-			if (0 != chown (SOCK_PATH, (uid_t)-1, grp->gr_gid)) {
-				log_warn ("chown() failed: %s", strerror (errno));
-			}
+		grp = NULL;
+		status = getgrnam_r (sock_group, &sg, grbuf, sizeof (grbuf), &grp);
+		if (status != 0)
+		{
+			log_warn ("getgrnam_r (%s) failed: %s", sock_group, strerror (status));
 		}
-		else {
-			log_warn ("getgrnam() failed: %s", strerror (errno));
+		else if (grp == NULL)
+		{
+			log_warn ("No such group: `%s'", sock_group);
+		}
+		else
+		{
+			status = chown (SOCK_PATH, (uid_t) -1, grp->gr_gid);
+			if (status != 0)
+				log_warn ("chown (%s, -1, %i) failed: %s",
+						SOCK_PATH, (int) grp->gr_gid, strerror (errno));
 		}
 	}
-	else {
+	else /* geteuid != 0 */
+	{
 		log_warn ("not running as root");
 	}
 
@@ -664,30 +668,27 @@ static void *open_connection (void *arg)
 	}
 	pthread_exit ((void *)0);
 } /* static void *open_connection (void *) */
-#endif /* EMAIL_HAVE_READ */
 
-static void email_init (void)
+static int email_init (void)
 {
-#if EMAIL_HAVE_READ
 	int err = 0;
 
 	if (0 != (err = pthread_create (&connector, NULL,
 				open_connection, NULL))) {
 		disabled = 1;
 		log_err ("pthread_create() failed: %s", strerror (err));
-		return;
+		return (-1);
 	}
-#endif /* EMAIL_HAVE_READ */
-	return;
-} /* static void email_init (void) */
 
-#if EMAIL_HAVE_READ
-static void email_shutdown (void)
+	return (0);
+} /* int email_init */
+
+static int email_shutdown (void)
 {
 	int i = 0;
 
 	if (disabled)
-		return;
+		return (0);
 
 	pthread_kill (connector, SIGTERM);
 	close (connector_socket);
@@ -703,81 +704,26 @@ static void email_shutdown (void)
 	pthread_mutex_unlock (&conns_mutex);
 
 	unlink (SOCK_PATH);
-	return;
+
+	return (0);
 } /* static void email_shutdown (void) */
-#endif /* EMAIL_HAVE_READ */
 
-static void count_write (char *host, char *inst, char *val)
+static void email_submit (const char *type, const char *type_instance, gauge_t value)
 {
-	char file[BUFSIZE] = "";
-	int  len           = 0;
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	len = snprintf (file, BUFSIZE, COUNT_FILE, inst);
-	if ((len < 0) || (len >= BUFSIZE))
-		return;
+	values[0].gauge = value;
 
-	rrd_update_file (host, file, val, count_ds_def, count_ds_num);
-	return;
-} /* static void email_write (char *host, char *inst, char *val) */
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname_g);
+	strcpy (vl.plugin, "email");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-static void size_write (char *host, char *inst, char *val)
-{
-	char file[BUFSIZE] = "";
-	int  len           = 0;
-
-	len = snprintf (file, BUFSIZE, SIZE_FILE, inst);
-	if ((len < 0) || (len >= BUFSIZE))
-		return;
-
-	rrd_update_file (host, file, val, size_ds_def, size_ds_num);
-	return;
-} /* static void size_write (char *host, char *inst, char *val) */
-
-static void score_write (char *host, char *inst, char *val)
-{
-	rrd_update_file (host, SCORE_FILE, val, score_ds_def, score_ds_num);
-	return;
-} /* static void score_write (char *host, char *inst, char *val) */
-
-static void check_write (char *host, char *inst, char *val)
-{
-	char file[BUFSIZE] = "";
-	int  len           = 0;
-
-	len = snprintf (file, BUFSIZE, CHECK_FILE, inst);
-	if ((len < 0) || (len >= BUFSIZE))
-		return;
-
-	rrd_update_file (host, file, val, check_ds_def, check_ds_num);
-	return;
-} /* static void check_write (char *host, char *inst, char *val) */
-
-#if EMAIL_HAVE_READ
-static void type_submit (char *plugin, char *inst, int value)
-{
-	char buf[BUFSIZE] = "";
-	int  len          = 0;
-
-	len = snprintf (buf, BUFSIZE, "%u:%i", (unsigned int)curtime, value);
-	if ((len < 0) || (len >= BUFSIZE))
-		return;
-
-	plugin_submit (plugin, inst, buf);
-	return;
-} /* static void type_submit (char *, char *, int) */
-
-static void score_submit (double value)
-{
-	char buf[BUFSIZE] = "";
-	int  len          = 0;
-
-	len = snprintf (buf, BUFSIZE, "%u:%.2f", (unsigned int)curtime, value);
-	if ((len < 0) || (len >= BUFSIZE))
-		return;
-
-	plugin_submit ("email_spam_score", "-", buf);
-	return;
-} /* static void score_submit (double) */
+	plugin_dispatch_values (type, &vl);
+} /* void email_submit */
 
 /* Copy list l1 to list l2. l2 may partly exist already, but it is assumed
  * that neither the order nor the name of any element of either list is
@@ -817,7 +763,7 @@ static void copy_type_list (type_list_t *l1, type_list_t *l2)
 	return;
 }
 
-static void email_read (void)
+static int email_read (void)
 {
 	type_t *ptr;
 
@@ -828,7 +774,7 @@ static void email_read (void)
 	static type_list_t *chk;
 
 	if (disabled)
-		return;
+		return (-1);
 
 	if (NULL == cnt) {
 		cnt = (type_list_t *)smalloc (sizeof (type_list_t));
@@ -853,7 +799,7 @@ static void email_read (void)
 	pthread_mutex_unlock (&count_mutex);
 
 	for (ptr = cnt->head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_count", ptr->name, ptr->value);
+		email_submit ("email_count", ptr->name, ptr->value);
 	}
 
 	/* email size */
@@ -864,7 +810,7 @@ static void email_read (void)
 	pthread_mutex_unlock (&size_mutex);
 
 	for (ptr = sz->head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_size", ptr->name, ptr->value);
+		email_submit ("email_size", ptr->name, ptr->value);
 	}
 
 	/* spam score */
@@ -876,7 +822,7 @@ static void email_read (void)
 
 	pthread_mutex_unlock (&score_mutex);
 
-	score_submit (sc);
+	email_submit ("spam_score", "", sc);
 
 	/* spam checks */
 	pthread_mutex_lock (&check_mutex);
@@ -885,27 +831,23 @@ static void email_read (void)
 
 	pthread_mutex_unlock (&check_mutex);
 
-	for (ptr = chk->head; NULL != ptr; ptr = ptr->next) {
-		type_submit ("email_spam_check", ptr->name, ptr->value);
-	}
-	return;
-} /* static void read (void) */
-#else /* if !EMAIL_HAVE_READ */
-# define email_read NULL
-#endif
+	for (ptr = chk->head; NULL != ptr; ptr = ptr->next)
+		email_submit ("spam_check", ptr->name, ptr->value);
+
+	return (0);
+} /* int email_read */
 
 void module_register (void)
 {
-	plugin_register (MODULE_NAME, email_init, email_read, NULL);
-	plugin_register ("email_count", NULL, NULL, count_write);
-	plugin_register ("email_size", NULL, NULL, size_write);
-	plugin_register ("email_spam_score", NULL, NULL, score_write);
-	plugin_register ("email_spam_check", NULL, NULL, check_write);
-#if EMAIL_HAVE_READ
-	plugin_register_shutdown (MODULE_NAME, email_shutdown);
-	cf_register (MODULE_NAME, email_config, config_keys, config_keys_num);
-#endif /* EMAIL_HAVE_READ */
-	return;
+	plugin_register_data_set (&email_count_ds);
+	plugin_register_data_set (&email_size_ds);
+	plugin_register_data_set (&spam_check_ds);
+	plugin_register_data_set (&spam_score_ds);
+
+	plugin_register_config ("email", email_config, config_keys, config_keys_num);
+	plugin_register_init ("email", email_init);
+	plugin_register_read ("email", email_read);
+	plugin_register_shutdown ("email", email_shutdown);
 } /* void module_register (void) */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
