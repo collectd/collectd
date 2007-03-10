@@ -387,21 +387,27 @@ static int us_open_socket (void)
 
 	do
 	{
+		char *grpname;
 		struct group *g;
+		struct group sg;
+		char grbuf[2048];
 
-		errno = 0;
-		g = getgrnam ((sock_group != NULL) ? sock_group : COLLECTD_GRP_NAME);
+		grpname = (sock_group != NULL) ? sock_group : COLLECTD_GRP_NAME;
+		g = NULL;
 
-		if (errno != 0)
+		status = getgrnam_r (grpname, &sg, grbuf, sizeof (grbuf), &g);
+		if (status != 0)
 		{
-			syslog (LOG_WARNING, "unixsock plugin: getgrnam (%s) failed: %s",
-					(sock_group != NULL) ? sock_group : COLLECTD_GRP_NAME,
-					strerror (errno));
+			syslog (LOG_WARNING, "unixsock plugin: getgrnam_r (%s) failed: %s",
+					grpname, strerror (status));
 			break;
 		}
-
 		if (g == NULL)
+		{
+			syslog (LOG_WARNING, "unixsock plugin: No such group: `%s'",
+					grpname);
 			break;
+		}
 
 		if (chown ((sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 					(uid_t) -1, g->gr_gid) != 0)
