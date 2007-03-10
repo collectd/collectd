@@ -114,18 +114,19 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 
 	{
 		time_t now;
-		struct tm *tm;
+		struct tm stm;
 
-		/* TODO: Find a way to minimize the calls to `localtime', since
-		 * they are pretty expensive.. */
+		/* TODO: Find a way to minimize the calls to `localtime_r',
+		 * since they are pretty expensive.. */
 		now = time (NULL);
-		tm = localtime (&now);
+		if (localtime_r (&now, &stm) == NULL)
+		{
+			syslog (LOG_ERR, "csv plugin: localtime_r failed");
+			return (1);
+		}
 
 		strftime (buffer + offset, buffer_len - offset,
-				"-%Y-%m-%d", tm);
-
-		/* `localtime(3)' returns a pointer to static data,
-		 * therefore the pointer may not be free'd. */
+				"-%Y-%m-%d", &stm);
 	}
 
 	return (0);
