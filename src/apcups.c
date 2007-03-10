@@ -304,6 +304,7 @@ static int apc_query_server (char *host, int port,
 	int     n;
 	char    recvline[1024];
 	char   *tokptr;
+	char   *toksaveptr;
 	char   *key;
 	double  value;
 
@@ -344,11 +345,12 @@ static int apc_query_server (char *host, int port,
 		printf ("net_recv = `%s';\n", recvline);
 #endif /* if APCMAIN */
 
-		tokptr = strtok (recvline, " :\t");
+		toksaveptr = NULL;
+		tokptr = strtok_r (recvline, " :\t", &toksaveptr);
 		while (tokptr != NULL)
 		{
 			key = tokptr;
-			if ((tokptr = strtok (NULL, " :\t")) == NULL)
+			if ((tokptr = strtok_r (NULL, " :\t", &toksaveptr)) == NULL)
 				continue;
 			value = atof (tokptr);
 
@@ -371,7 +373,7 @@ static int apc_query_server (char *host, int port,
 			else if (strcmp ("TIMELEFT", key) == 0)
 				apcups_detail->timeleft = value;
 
-			tokptr = strtok (NULL, ":");
+			tokptr = strtok_r (NULL, ":", &toksaveptr);
 		} /* while (tokptr != NULL) */
 	}
 	

@@ -152,10 +152,12 @@ int strsplit (char *string, char **fields, size_t size)
 {
 	size_t i;
 	char *ptr;
+	char *saveptr;
 
 	i = 0;
 	ptr = string;
-	while ((fields[i] = strtok (ptr, " \t")) != NULL)
+	saveptr = NULL;
+	while ((fields[i] = strtok_r (ptr, " \t", &saveptr)) != NULL)
 	{
 		ptr = NULL;
 		i++;
@@ -289,6 +291,7 @@ int check_create_dir (const char *file_orig)
 	char *fields[16];
 	int   fields_num;
 	char *ptr;
+	char *saveptr;
 	int   last_is_file = 1;
 	int   path_is_absolute = 0;
 	int   len;
@@ -315,7 +318,7 @@ int check_create_dir (const char *file_orig)
 		path_is_absolute = 1;
 
 	/*
-	 * Create a copy for `strtok' to destroy
+	 * Create a copy for `strtok_r' to destroy
 	 */
 	strncpy (file_copy, file_orig, 512);
 	file_copy[511] = '\0';
@@ -325,8 +328,9 @@ int check_create_dir (const char *file_orig)
 	 * remove leading and trailing slashes..
 	 */
 	ptr = file_copy;
+	saveptr = NULL;
 	fields_num = 0;
-	while ((fields[fields_num] = strtok (ptr, "/")) != NULL)
+	while ((fields[fields_num] = strtok_r (ptr, "/", &saveptr)) != NULL)
 	{
 		ptr = NULL;
 		fields_num++;

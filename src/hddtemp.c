@@ -443,6 +443,7 @@ static int hddtemp_read (void)
 	char buf[1024];
 	char *fields[128];
 	char *ptr;
+	char *saveptr;
 	int num_fields;
 	int num_disks;
 	int i;
@@ -451,10 +452,11 @@ static int hddtemp_read (void)
 	if (hddtemp_query_daemon (buf, sizeof (buf)) < 0)
 		return (-1);
 
-	/* NB: strtok will eat up "||" and leading "|"'s */
+	/* NB: strtok_r will eat up "||" and leading "|"'s */
 	num_fields = 0;
 	ptr = buf;
-	while ((fields[num_fields] = strtok (ptr, "|")) != NULL)
+	saveptr = NULL;
+	while ((fields[num_fields] = strtok_r (ptr, "|", &saveptr)) != NULL)
 	{
 		ptr = NULL;
 		num_fields++;

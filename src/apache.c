@@ -294,6 +294,7 @@ static int apache_read (void)
 	int i;
 
 	char *ptr;
+	char *saveptr;
 	char *lines[16];
 	int   lines_num = 0;
 
@@ -314,7 +315,8 @@ static int apache_read (void)
 	}
 
 	ptr = apache_buffer;
-	while ((lines[lines_num] = strtok (ptr, "\n\r")) != NULL)
+	saveptr = NULL;
+	while ((lines[lines_num] = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
 	{
 		ptr = NULL;
 		lines_num++;
