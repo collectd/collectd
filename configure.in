@@ -386,6 +386,98 @@ AC_CHECK_FUNCS(getgrgid getpwuid)
 # For traffic module
 AC_CHECK_FUNCS(getifaddrs)
 
+# Check for NAN
+nan_type="none"
+if test "x$nan_type" = "xnone"; then
+  AC_CACHE_CHECK([whether NAN is defined by default],
+    [have_nan_default],
+    AC_COMPILE_IFELSE(
+      AC_LANG_PROGRAM(
+      [[
+#include <stdlib.h>
+#include <math.h>
+static float foo = NAN;
+      ]],
+      [[
+       if (isnan (foo))
+        return 0;
+       else
+	return 1;
+      ]]),
+      [have_nan_default="yes"],
+      [have_nan_default="no"]
+    )
+  )
+  if test "x$have_nan_default" = "xyes"
+  then
+   nan_type="default"
+   AC_DEFINE(NAN_STATIC_DEFAULT, 1,
+     [Define if NAN is defined by default and can initialize static variables.])
+  fi
+fi
+if test "x$nan_type" = "xnone"; then
+  AC_CACHE_CHECK([whether NAN is defined by __USE_ISOC99],
+    [have_nan_isoc],
+    AC_COMPILE_IFELSE(
+      AC_LANG_PROGRAM(
+      [[
+#include <stdlib.h>
+#define __USE_ISOC99 1
+#include <math.h>
+static float foo = NAN;
+      ]],
+      [[
+       if (isnan (foo))
+        return 0;
+       else
+	return 1;
+      ]]),
+      [have_nan_isoc="yes"],
+      [have_nan_isoc="no"]
+    )
+  )
+  if test "x$have_nan_isoc" = "xyes"
+  then
+   nan_type="isoc99"
+   AC_DEFINE(NAN_STATIC_ISOC, 1,
+     [Define if NAN is defined by __USE_ISOC99 and can initialize static variables.])
+  fi
+fi
+if test "x$nan_type" = "xnone"; then
+  AC_CACHE_CHECK([whether NAN can be defined by 0/0],
+    [have_nan_zero],
+    AC_RUN_IFELSE(
+      AC_LANG_PROGRAM(
+      [[
+#include <stdlib.h>
+#include <math.h>
+#define NAN (0.0 / 0.0)
+#ifndef isnan
+# define isnan(f) ((f) != (f))
+#endif
+static float foo = NAN;
+      ]],
+      [[
+       if (isnan (foo))
+        return 0;
+       else
+	return 1;
+      ]]),
+      [have_nan_zero="yes"],
+      [have_nan_zero="no"]
+    )
+  )
+  if test "x$have_nan_zero" = "xyes"
+  then
+   nan_type="zero"
+   AC_DEFINE(NAN_ZERO_ZERO, 1,
+     [Define if NAN can be defined as (0.0 / 0.0)])
+  fi
+fi
+if test "x$nan_type" = "xnone"; then
+  AC_MSG_ERROR([Didn't find out how to statically initialize variables to NAN. Sorry.])
+fi
+
 # For mount interface
 #AC_CHECK_FUNCS(getfsent getvfsent)
 
