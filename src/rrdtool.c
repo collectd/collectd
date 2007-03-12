@@ -26,20 +26,6 @@
 #include "utils_debug.h"
 
 /*
- * This weird macro cascade forces the glibc to define `NAN'. I don't know
- * another way to solve this, so more intelligent solutions are welcome. -octo
- */
-#ifndef __USE_ISOC99
-# define DISABLE__USE_ISOC99 1
-# define __USE_ISOC99 1
-#endif
-#include <math.h>
-#ifdef DISABLE__USE_ISOC99
-# undef DISABLE__USE_ISOC99
-# undef __USE_ISOC99
-#endif
-
-/*
  * Private types
  */
 struct rrd_cache_s
@@ -221,7 +207,7 @@ static int ds_get (char ***ret, const data_set_t *ds)
 			break;
 		}
 
-		if (d->min == NAN)
+		if (isnan (d->min))
 		{
 			strcpy (min, "U");
 		}
@@ -231,7 +217,7 @@ static int ds_get (char ***ret, const data_set_t *ds)
 			min[sizeof (min) - 1] = '\0';
 		}
 
-		if (d->max == NAN)
+		if (isnan (d->max))
 		{
 			strcpy (max, "U");
 		}

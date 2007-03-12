@@ -277,9 +277,9 @@ static int cache_update (const data_set_t *ds, const value_list_t *vl)
 			vc->counter[i] = 0;
 		}
 
-		if ((vc->gauge[i] == NAN)
-				|| ((ds->ds[i].min != NAN) && (vc->gauge[i] < ds->ds[i].min))
-				|| ((ds->ds[i].max != NAN) && (vc->gauge[i] > ds->ds[i].max)))
+		if (isnan (vc->gauge[i])
+				|| (!isnan (ds->ds[i].min) && (vc->gauge[i] < ds->ds[i].min))
+				|| (!isnan (ds->ds[i].max) && (vc->gauge[i] > ds->ds[i].max)))
 			vc->gauge[i] = NAN;
 	} /* for i = 0 .. ds->ds_num */
 
@@ -483,7 +483,7 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 		for (i = 0; i < vc->values_num; i++)
 		{
 			fprintf (fh, " %s=", vc->ds->ds[i].name);
-			if (vc->gauge[i] == NAN)
+			if (isnan (vc->gauge[i]))
 				fprintf (fh, "NaN");
 			else
 				fprintf (fh, "%12e", vc->gauge[i]);

@@ -112,9 +112,9 @@ int match_range (range_t *range, double value)
 {
 	int ret = 0;
 
-	if ((range->min != NAN) && (range->min > value))
+	if (!isnan (range->min) && (range->min > value))
 		ret = 1;
-	if ((range->max != NAN) && (range->max < value))
+	if (!isnan (range->max) && (range->max < value))
 		ret = 1;
 
 	return (((ret - range->invert) == 0) ? 0 : 1);
@@ -268,7 +268,7 @@ int do_check_con_none (int values_num, double *values, char **values_names)
 
 	for (i = 0; i < values_num; i++)
 	{
-		if (values[i] == NAN)
+		if (isnan (values[i]))
 			num_warning++;
 		else if (match_range (&range_critical_g, values[i]) != 0)
 			num_critical++;
@@ -309,7 +309,7 @@ int do_check_con_average (int values_num, double *values, char **values_names)
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
-		if (values[i] != NAN)
+		if (!isnan (values[i]))
 		{
 			total += values[i];
 			total_num++;
@@ -354,7 +354,7 @@ int do_check_con_sum (int values_num, double *values, char **values_names)
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
-		if (values[i] != NAN)
+		if (!isnan (values[i]))
 		{
 			total += values[i];
 			total_num++;
