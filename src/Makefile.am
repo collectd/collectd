@@ -422,6 +422,14 @@ swap_la_LDFLAGS += -lstatgrab
 endif
 endif
 
+if BUILD_MODULE_SYSLOG
+pkglib_LTLIBRARIES += syslog.la
+syslog_la_SOURCES = syslog.c
+syslog_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" syslog.la
+collectd_DEPENDENCIES += syslog.la
+endif
+
 if BUILD_MODULE_TAPE
 pkglib_LTLIBRARIES += tape.la
 tape_la_SOURCES = tape.c
