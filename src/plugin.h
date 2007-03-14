@@ -27,6 +27,22 @@
 #define DS_TYPE_COUNTER 0
 #define DS_TYPE_GAUGE   1
 
+#ifndef LOG_ERR
+# define LOG_ERR 3
+#endif
+#ifndef LOG_WARNING
+# define LOG_WARNING 4
+#endif
+#ifndef LOG_NOTICE
+# define LOG_NOTICE 5
+#endif
+#ifndef LOG_INFO
+# define LOG_INFO 6
+#endif
+#ifndef LOG_DEBUG
+# define LOG_DEBUG 7
+#endif
+
 /*
  * Public data types
  */
@@ -135,12 +151,15 @@ int plugin_register_write (const char *name,
 int plugin_register_shutdown (char *name,
 		int (*callback) (void));
 int plugin_register_data_set (const data_set_t *ds);
+int plugin_register_log (char *name,
+		void (*callback) (int, const char *));
 
 int plugin_unregister_init (const char *name);
 int plugin_unregister_read (const char *name);
 int plugin_unregister_write (const char *name);
 int plugin_unregister_shutdown (const char *name);
 int plugin_unregister_data_set (const char *name);
+int plugin_unregister_log (const char *name);
 
 /*
  * NAME
@@ -158,6 +177,13 @@ int plugin_unregister_data_set (const char *name);
  *              function.
  */
 int plugin_dispatch_values (const char *name, const value_list_t *vl);
+
+void plugin_log (int level, const char *format, ...);
+#define ERROR(...)   plugin_log (LOG_ERR,     __VA_ARGS__)
+#define WARNING(...) plugin_log (LOG_WARNING, __VA_ARGS__)
+#define NOTICE(...)  plugin_log (LOG_NOTICE,  __VA_ARGS__)
+#define INFO(...)    plugin_log (LOG_INFO,    __VA_ARGS__)
+#define DEBUG(...)   plugin_log (LOG_DEBUG,   __VA_ARGS__)
 
 /* TODO: Move plugin_{complain,relief} into `utils_complain.[ch]'. -octo */
 void plugin_complain (int level, complain_t *c, const char *format, ...);

@@ -47,6 +47,7 @@ static llist_t *list_read;
 static llist_t *list_write;
 static llist_t *list_shutdown;
 static llist_t *list_data_set;
+static llist_t *list_log;
 
 static char *plugindir = NULL;
 
@@ -274,6 +275,12 @@ int plugin_register_data_set (const data_set_t *ds)
 	return (register_callback (&list_data_set, ds->type, (void *) ds));
 } /* int plugin_register_data_set */
 
+int plugin_register_log (char *name,
+		void (*callback) (int priority, const char *msg))
+{
+	return (register_callback (&list_log, name, (void *) callback));
+} /* int plugin_register_log */
+
 int plugin_unregister_init (const char *name)
 {
 	return (plugin_unregister (list_init, name));
@@ -309,6 +316,11 @@ int plugin_unregister_shutdown (const char *name)
 int plugin_unregister_data_set (const char *name)
 {
 	return (plugin_unregister (list_data_set, name));
+}
+
+int plugin_unregister_log (const char *name)
+{
+	return (plugin_unregister (list_log, name));
 }
 
 void plugin_init_all (void)
@@ -440,6 +452,34 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 
 	return (0);
 }
+
+void plugin_log (int level, const char *format, ...)
+{
+	char msg[512];
+	va_list ap;
+
+	void (*callback) (int, const char *);
+	llentry_t *le;
+
+#if !COLLECT_DEBUG
+	if (level >= LOG_DEBUG)
+		return;
+#endif
+
+	va_start (ap, format);
+	vsnprintf (msg, 512, format, ap);
+	msg[511] = '\0';
+	va_end (ap);
+
+	le = llist_head (list_log);
+	while (le != NULL)
+	{
+		callback = le->value;
+		(*callback) (level, msg);
+
+		le = le->next;
+	}
+} /* void plugin_log */
 
 void plugin_complain (int level, complain_t *c, const char *format, ...)
 {
