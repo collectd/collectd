@@ -49,19 +49,27 @@
  * eitherway for what to log
  */
 /* Limit to ~125MByte/s (~1GBit/s) */
-static char *ds_def[] =
+static data_source_t dsrc[1] =
 {
-	"DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:134217728",
-	NULL
+	{"value",  DS_TYPE_COUNTER, 0.0, 134217728.0}
 };
-static int ds_num = 1;
+
+static data_set_t ipt_bytes_ds =
+{
+	"ipt_bytes", 1, dsrc
+};
+
+static data_set_t ipt_packets_ds =
+{
+	"ipt_packets", 1, dsrc
+};
 
 #if IPTABLES_HAVE_READ
 /*
  * Config format should be `Chain table chainname',
  * e. g. `Chain mangle incoming'
  */
-static char *config_keys[] =
+static const char *config_keys[] =
 {
 	"Chain",
 	NULL
@@ -93,7 +101,7 @@ typedef struct {
 static ip_chain_t **chain_list = NULL;
 static int chain_num = 0;
 
-static int iptables_config (char *key, char *value)
+static int iptables_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "Chain") == 0)
 	{
@@ -112,7 +120,7 @@ static int iptables_config (char *key, char *value)
 		value_copy = strdup (value);
 		if (value_copy == NULL)
 		{
-		    syslog (LOG_ERR, "strdup failed: %s", strerror (errno));
+		    ERROR ("strdup failed: %s", strerror (errno));
 		    return (1);
 		}
 
@@ -130,7 +138,7 @@ static int iptables_config (char *key, char *value)
 		table_len = strlen (table);
 		if (table_len >= sizeof(temp.table))
 		{
-			syslog (LOG_ERR, "Table `%s' too long.", table);
+			ERROR ("Table `%s' too long.", table);
 			free (value_copy);
 			return (1);
 		}
@@ -140,7 +148,7 @@ static int iptables_config (char *key, char *value)
 		chain_len = strlen (chain);
 		if (chain_len >= sizeof(temp.chain))
 		{
-			syslog (LOG_ERR, "Chain `%s' too long.", chain);
+			ERROR ("Chain `%s' too long.", chain);
 			free (value_copy);
 			return (1);
 		}
@@ -180,7 +188,7 @@ static int iptables_config (char *key, char *value)
 		list = (ip_chain_t **) realloc (chain_list, (chain_num + 1) * sizeof (ip_chain_t *));
 		if (list == NULL)
 		{
-			syslog (LOG_ERR, "realloc failed: %s", strerror (errno));
+			ERROR ("realloc failed: %s", strerror (errno));
 			return (1);
 		}
 
@@ -188,14 +196,14 @@ static int iptables_config (char *key, char *value)
 		final = (ip_chain_t *) malloc( sizeof(temp) );
 		if (final == NULL) 
 		{
-			syslog (LOG_ERR, "malloc failed: %s", strerror (errno));
+			ERROR ("malloc failed: %s", strerror (errno));
 			return (1);
 		}
 		memcpy (final, &temp, sizeof (temp));
 		chain_list[chain_num] = final;
 		chain_num++;
 
-		DBG ("Chain #%i: table = %s; chain = %s;", chain_num, final->table, final->chain);
+		DEBUG ("Chain #%i: table = %s; chain = %s;", chain_num, final->table, final->chain);
 	}
 	else 
 	{
@@ -203,70 +211,21 @@ static int iptables_config (char *key, char *value)
 	}
 
 	return (0);
-}
+} /* int iptables_config */
 #endif /* IPTABLES_HAVE_READ */
 
-static void iptables_init (void)
-{	
-    return;
-}
-
-static void iptables_write (char *host, char *orig_inst, char *val, char *type) 
-{
-    char *table;
-    char *inst;
-    char file[256];
-    int status;
-
-    table = strdup (orig_inst);
-    if (table == NULL)
-	return;
-    inst = strchr (table, ',');
-    if (inst == NULL)
-    {
-	free (table);
-	return;
-    }
-
-    *inst = '\0';
-    inst++;
-    if (*inst == '\0')
-    {
-	free (table);
-	return;
-    }
-
-    status = snprintf (file, sizeof (file), "iptables-%s/%s-%s.rrd",
-	    table, type, inst);
-    free (table);
-    if ((status >= sizeof (file)) || (status < 1))
-	return;
-
-    rrd_update_file (host, file, val, ds_def, ds_num);
-} /* void iptables_write */
-
-static void iptables_write_bytes (char *host, char *inst, char *val)
-{
-    iptables_write (host, inst, val, "ipt_bytes");
-}
-
-static void iptables_write_packets (char *host, char *inst, char *val)
-{
-    iptables_write (host, inst, val, "ipt_packets");
-}
-
 #if IPTABLES_HAVE_READ
+/* This needs to return `int' for IPT_MATCH_ITERATE to work. */
 static int submit_match (const struct ipt_entry_match *match,
 		const struct ipt_entry *entry,
 		const ip_chain_t *chain,
 		int rule_num) 
 {
-    char inst[64];
-    char value[64];
     int status;
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
 
-    /* Only log rules that have a comment, although could probably also do
-     * numerical targets sometime */
+    /* Select the rules to collect */
     if (chain->rule_type == RTYPE_NUM)
     {
 	if (chain->rule.num != rule_num)
@@ -275,46 +234,46 @@ static int submit_match (const struct ipt_entry_match *match,
     else
     {
 	if (strcmp (match->u.user.name, "comment") != 0)
-	    return 0;
+	    return (0);
 	if ((chain->rule_type == RTYPE_COMMENT)
 		&& (strcmp (chain->rule.comment, (char *) match->data) != 0))
 	    return (0);
     }
 
+    vl.values = values;
+    vl.values_len = 1;
+    vl.time = time (NULL);
+    strcpy (vl.host, hostname_g);
+    strcpy (vl.plugin, "iptables");
+
+    status = snprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+	    "%s-%s", chain->table, chain->chain);
+    if ((status >= sizeof (vl.plugin_instance)) || (status < 1))
+	return (0);
+
     if (chain->name[0] != '\0')
     {
-	status = snprintf (inst, sizeof (inst), "%s-%s,%s",
-		chain->table, chain->chain, chain->name);
+	strncpy (vl.type_instance, chain->name, sizeof (vl.type_instance));
     }
     else
     {
 	if (chain->rule_type == RTYPE_NUM)
-	    status = snprintf (inst, sizeof (inst), "%s-%s,%i",
-		chain->table, chain->chain, chain->rule.num);
+	    snprintf (vl.type_instance, sizeof (vl.type_instance),
+		    "%i", chain->rule.num);
 	else
-	    status = snprintf (inst, sizeof (inst), "%s-%s,%s",
-		chain->table, chain->chain, match->data);
-
-	if ((status >= sizeof (inst)) || (status < 1))
-	    return (0);
+	    strncpy (vl.type_instance, (char *) match->data,
+		    sizeof (vl.type_instance));
     }
+    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-    status = snprintf (value, sizeof (value), "%u:%lld",
-	    (unsigned int) curtime,
-	    entry->counters.bcnt);
-    if ((status >= sizeof (value)) || (status < 1))
-	return 0;
-    plugin_submit ("ipt_bytes", inst, value);
+    values[0].counter = (counter_t) entry->counters.bcnt;
+    plugin_dispatch_values ("ipt_bytes", &vl);
 
-    status = snprintf (value, sizeof (value), "%u:%lld",
-	    (unsigned int) curtime,
-	    entry->counters.pcnt);
-    if ((status >= sizeof (value)) || (status < 1))
-	return 0;
-    plugin_submit ("ipt_packets", inst, value);
+    values[0].counter = (counter_t) entry->counters.pcnt;
+    plugin_dispatch_values ("ipt_packets", &vl);
 
-    return 0;
-} /* int submit_match */
+    return (0);
+} /* void submit_match */
 
 static void submit_chain( iptc_handle_t *handle, ip_chain_t *chain ) {
     const struct ipt_entry *entry;
@@ -324,7 +283,7 @@ static void submit_chain( iptc_handle_t *handle, ip_chain_t *chain ) {
     entry = iptc_first_rule( chain->chain, handle );
     if (entry == NULL)
     {
-	DBG ("iptc_first_rule failed: %s", iptc_strerror (errno));
+	DEBUG ("iptc_first_rule failed: %s", iptc_strerror (errno));
 	return;
     }
 
@@ -346,7 +305,7 @@ static void submit_chain( iptc_handle_t *handle, ip_chain_t *chain ) {
 }
 
 
-static void iptables_read (void)
+static int iptables_read (void)
 {
     int i;
     static complain_t complaint;
@@ -360,14 +319,14 @@ static void iptables_read (void)
 	chain = chain_list[i];
 	if (!chain)
 	{
-	    DBG ("chain == NULL");
+	    DEBUG ("chain == NULL");
 	    continue;
 	}
 
 	handle = iptc_init( chain->table );
 	if (!handle)
 	{
-	    DBG ("iptc_init (%s) failed: %s", chain->table, iptc_strerror (errno));
+	    DEBUG ("iptc_init (%s) failed: %s", chain->table, iptc_strerror (errno));
 	    plugin_complain (LOG_ERR, &complaint, "iptc_init (%s) failed: %s",
 		    chain->table, iptc_strerror (errno));
 	    continue;
@@ -378,18 +337,32 @@ static void iptables_read (void)
 	submit_chain (&handle, chain);
 	iptc_free (&handle);
     }
-}
-#else /* !IPTABLES_HAVE_READ */
-# define iptables_read NULL
-#endif
+
+    return (0);
+} /* int iptables_read */
+
+static int iptables_shutdown (void)
+{
+    int i;
+
+    for (i = 0; i < chain_num; i++)
+	sfree (chain_list[i]);
+    sfree (chain_list);
+
+    return (0);
+} /* int iptables_shutdown */
+#endif /* IPTABLES_HAVE_READ */
 
 void module_register (void)
 {
-    plugin_register ("ipt_bytes", NULL, NULL, iptables_write_bytes);
-    plugin_register ("ipt_packets", NULL, NULL, iptables_write_packets);
+    plugin_register_data_set (&ipt_bytes_ds);
+    plugin_register_data_set (&ipt_packets_ds);
+
 #if IPTABLES_HAVE_READ
-    plugin_register (MODULE_NAME, iptables_init, iptables_read, NULL);
-    cf_register (MODULE_NAME, iptables_config, config_keys, config_keys_num);
+    plugin_register_config ("iptables", iptables_config,
+	    config_keys, config_keys_num);
+    plugin_register_read ("iptables", iptables_read);
+    plugin_register_shutdown ("iptables", iptables_shutdown);
 #endif
 }
 
