@@ -16,7 +16,7 @@ settings. The following features may be available:
 
 =item
 
-Apache server stats (I<apache>)
+Apache and lighttpd server statistics (I<apache>)
 
 =item
 
@@ -174,10 +174,10 @@ values.
 
 =head2 apache
 
-This module connects to an Apache webserver and expects the output produced by
-B<mod_status.c>. If requires B<libcurl> to set up the HTTP connection and issue
-the request(s). The following is a sample config for the Apache webserver. The
-use of C<ExtendedStatus on> is mandatory.
+This module connects to an Apache or lighttpd webserver and expects the output
+produced by B<mod_status.c>. If requires B<libcurl> to set up the HTTP
+connection and issue the request(s). The following is a sample config for the
+Apache webserver. Under Apache, the use of C<ExtendedStatus on> is mandatory.
 
   ExtendedStatus on
   <IfModule mod_status.c>

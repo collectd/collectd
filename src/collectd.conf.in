@@ -26,6 +26,7 @@
 @BUILD_MODULE_DNS_TRUE@LoadPlugin dns
 @BUILD_MODULE_EMAIL_TRUE@LoadPlugin email
 @BUILD_MODULE_HDDTEMP_TRUE@LoadPlugin hddtemp
+@BUILD_MODULE_IPTABLES_TRUE@LoadPlugin iptables
 @BUILD_MODULE_IRQ_TRUE@LoadPlugin irq
 @BUILD_MODULE_LOAD_TRUE@LoadPlugin load
 @BUILD_MODULE_MBMON_TRUE@LoadPlugin mbmon
@@ -71,6 +72,10 @@
 #<Plugin hddtemp>
 #	Host "127.0.0.1"
 #	Port 7634
+#</Plugin>
+
+#<Plugin iptables>
+#	Chain table chain
 #</Plugin>
 
 #<Plugin irq>
