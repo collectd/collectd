@@ -26,7 +26,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 #if HAVE_LIBCURL && HAVE_CURL_CURL_H
 #  define APACHE_HAVE_READ 1
@@ -159,7 +158,7 @@ static int init (void)
 
 	if ((curl = curl_easy_init ()) == NULL)
 	{
-		syslog (LOG_ERR, "apache: `curl_easy_init' failed.");
+		ERROR ("apache: `curl_easy_init' failed.");
 		return (-1);
 	}
 
@@ -171,7 +170,7 @@ static int init (void)
 	{
 		if (snprintf (credentials, 1024, "%s:%s", user, pass == NULL ? "" : pass) >= 1024)
 		{
-			syslog (LOG_ERR, "apache: Credentials would have been truncated.");
+			ERROR ("apache: Credentials would have been truncated.");
 			return (-1);
 		}
 
@@ -197,7 +196,7 @@ static void submit_counter (const char *type, const char *type_instance,
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	DBG ("type = %s; type_instance = %s; value = %llu;",
+	DEBUG ("type = %s; type_instance = %s; value = %llu;",
 			type, type_instance, value);
 
 	values[0].counter = value;
@@ -219,7 +218,7 @@ static void submit_gauge (const char *type, const char *type_instance,
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	DBG ("type = %s; type_instance = %s; value = %lf;",
+	DEBUG ("type = %s; type_instance = %s; value = %lf;",
 			type, type_instance, value);
 
 	values[0].gauge = value;
@@ -309,7 +308,7 @@ static int apache_read (void)
 	apache_buffer_len = 0;
 	if (curl_easy_perform (curl) != 0)
 	{
-		syslog (LOG_ERR, "apache: curl_easy_perform failed: %s",
+		ERROR ("apache: curl_easy_perform failed: %s",
 				apache_curl_error);
 		return (-1);
 	}

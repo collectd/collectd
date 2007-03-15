@@ -120,7 +120,7 @@ static MYSQL *getconnection (void)
 		int err;
 		if ((err = mysql_ping (con)) != 0)
 		{
-			syslog (LOG_WARNING, "mysql_ping failed: %s", mysql_error (con));
+			WARNING ("mysql_ping failed: %s", mysql_error (con));
 			state = 0;
 		}
 		else
@@ -145,14 +145,14 @@ static MYSQL *getconnection (void)
 
 	if ((con = mysql_init (con)) == NULL)
 	{
-		syslog (LOG_ERR, "mysql_init failed: %s", mysql_error (con));
+		ERROR ("mysql_init failed: %s", mysql_error (con));
 		state = 0;
 		return (NULL);
 	}
 
 	if (mysql_real_connect (con, host, user, pass, db, 0, NULL, 0) == NULL)
 	{
-		syslog (LOG_ERR, "mysql_real_connect failed: %s", mysql_error (con));
+		ERROR ("mysql_real_connect failed: %s", mysql_error (con));
 		state = 0;
 		return (NULL);
 	}
@@ -291,14 +291,14 @@ static int mysql_read (void)
 
 	if (mysql_real_query (con, query, query_len))
 	{
-		syslog (LOG_ERR, "mysql_real_query failed: %s\n",
+		ERROR ("mysql_real_query failed: %s\n",
 				mysql_error (con));
 		return (-1);
 	}
 
 	if ((res = mysql_store_result (con)) == NULL)
 	{
-		syslog (LOG_ERR, "mysql_store_result failed: %s\n",
+		ERROR ("mysql_store_result failed: %s\n",
 				mysql_error (con));
 		return (-1);
 	}

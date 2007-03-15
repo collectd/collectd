@@ -81,8 +81,8 @@
 #define MAX_CONNS 5
 #define MAX_CONNS_LIMIT 16384
 
-#define log_err(...) syslog (LOG_ERR, MODULE_NAME": "__VA_ARGS__)
-#define log_warn(...) syslog (LOG_WARNING, MODULE_NAME": "__VA_ARGS__)
+#define log_err(...) ERROR (MODULE_NAME": "__VA_ARGS__)
+#define log_warn(...) WARNING (MODULE_NAME": "__VA_ARGS__)
 
 /*
  * Private data structures

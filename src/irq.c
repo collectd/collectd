@@ -78,7 +78,7 @@ static int irq_config (const char *key, const char *value)
 		if (temp == NULL)
 		{
 			fprintf (stderr, "irq plugin: Cannot allocate more memory.\n");
-			syslog (LOG_ERR, "irq plugin: Cannot allocate more memory.");
+			ERROR ("irq plugin: Cannot allocate more memory.");
 			return (1);
 		}
 		irq_list = temp;
@@ -91,7 +91,7 @@ static int irq_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "irq plugin: Irq value is not a "
 					"number: `%s'\n", value);
-			syslog (LOG_ERR, "irq plugin: Irq value is not a "
+			ERROR ("irq plugin: Irq value is not a "
 					"number: `%s'", value);
 			return (1);
 		}
@@ -178,7 +178,7 @@ static int irq_read (void)
 
 	if ((fh = fopen ("/proc/interrupts", "r")) == NULL)
 	{
-		syslog (LOG_WARNING, "irq plugin: fopen (/proc/interrupts): %s",
+		WARNING ("irq plugin: fopen (/proc/interrupts): %s",
 				strerror (errno));
 		return (-1);
 	}

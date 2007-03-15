@@ -22,7 +22,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #include <sys/types.h>
 #include <pwd.h>
@@ -129,7 +128,7 @@ static void submit_counter (const char *type_instance, counter_t value)
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  DBG ("type_instance = %s; value = %llu;", type_instance, value);
+  DEBUG ("type_instance = %s; value = %llu;", type_instance, value);
 
   values[0].counter = value;
 
@@ -149,7 +148,7 @@ static void submit_gauge (const char *type_instance, gauge_t value)
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  DBG ("type_instance = %s; value = %lf;", type_instance, value);
+  DEBUG ("type_instance = %s; value = %lf;", type_instance, value);
 
   values[0].gauge = value;
 
@@ -178,26 +177,26 @@ static void exec_child (program_list_t *pl)
   status = getpwnam_r (pl->user, &sp, pwnambuf, sizeof (pwnambuf), &sp_ptr);
   if (status != 0)
   {
-    syslog (LOG_ERR, "exec plugin: getpwnam_r failed: %s", strerror (status));
+    ERROR ("exec plugin: getpwnam_r failed: %s", strerror (status));
     exit (-1);
   }
   if (sp_ptr == NULL)
   {
-    syslog (LOG_ERR, "exec plugin: No such user: `%s'", pl->user);
+    ERROR ("exec plugin: No such user: `%s'", pl->user);
     exit (-1);
   }
 
   uid = sp.pw_uid;
   if (uid == 0)
   {
-    syslog (LOG_ERR, "exec plugin: Cowardly refusing to exec program as root.");
+    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
     exit (-1);
   }
 
   status = setuid (uid);
   if (status != 0)
   {
-    syslog (LOG_ERR, "exec plugin: setuid failed: %s", strerror (errno));
+    ERROR ("exec plugin: setuid failed: %s", strerror (errno));
     exit (-1);
   }
 
@@ -209,7 +208,7 @@ static void exec_child (program_list_t *pl)
 
   status = execlp (pl->exec, arg0, (char *) 0);
 
-  syslog (LOG_ERR, "exec plugin: exec failed: %s", strerror (errno));
+  ERROR ("exec plugin: exec failed: %s", strerror (errno));
   exit (-1);
 } /* void exec_child */
 
@@ -224,14 +223,14 @@ static int fork_child (program_list_t *pl)
   status = pipe (fd_pipe);
   if (status != 0)
   {
-    syslog (LOG_ERR, "exec plugin: pipe failed: %s", strerror (errno));
+    ERROR ("exec plugin: pipe failed: %s", strerror (errno));
     return (-1);
   }
 
   pl->pid = fork ();
   if (pl->pid < 0)
   {
-    syslog (LOG_ERR, "exec plugin: fork failed: %s", strerror (errno));
+    ERROR ("exec plugin: fork failed: %s", strerror (errno));
     return (-1);
   }
   else if (pl->pid == 0)
@@ -270,7 +269,7 @@ static void *exec_read_one (void *arg)
   fh = fdopen (fd, "r");
   if (fh == NULL)
   {
-    syslog (LOG_ERR, "exec plugin: fdopen (%i) failed: %s", fd,
+    ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
 	strerror (errno));
     kill (pl->pid, SIGTERM);
     close (fd);
@@ -284,7 +283,7 @@ static void *exec_read_one (void *arg)
     char *type_instance;
     char *value;
 
-    DBG ("buffer = %s", buffer);
+    DEBUG ("buffer = %s", buffer);
 
     len = strlen (buffer);
     if (len < 5)
@@ -304,7 +303,7 @@ static void *exec_read_one (void *arg)
     if ((strcasecmp ("counter", type) != 0)
 	&& (strcasecmp ("gauge", type) != 0))
     {
-      syslog (LOG_WARNING, "exec plugin: Received invalid type: %s", type);
+      WARNING ("exec plugin: Received invalid type: %s", type);
       continue;
     }
 
@@ -314,7 +313,7 @@ static void *exec_read_one (void *arg)
     *value = '\0';
     value++;
 
-    DBG ("value = %s", value);
+    DEBUG ("value = %s", value);
 
     if (strcasecmp ("counter", type) == 0)
       submit_counter (type_instance, atoll (value));

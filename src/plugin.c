@@ -26,7 +26,6 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_llist.h"
-#include "utils_debug.h"
 
 /*
  * Private structures
@@ -112,7 +111,7 @@ static int plugin_load_file (char *file)
 	lt_dlhandle dlh;
 	void (*reg_handle) (void);
 
-	DBG ("file = %s", file);
+	DEBUG ("file = %s", file);
 
 	lt_dlinit ();
 	lt_dlerror (); /* clear errors */
@@ -121,14 +120,14 @@ static int plugin_load_file (char *file)
 	{
 		const char *error = lt_dlerror ();
 
-		syslog (LOG_ERR, "lt_dlopen failed: %s", error);
-		DBG ("lt_dlopen failed: %s", error);
+		ERROR ("lt_dlopen failed: %s", error);
+		DEBUG ("lt_dlopen failed: %s", error);
 		return (1);
 	}
 
 	if ((reg_handle = (void (*) (void)) lt_dlsym (dlh, "module_register")) == NULL)
 	{
-		syslog (LOG_WARNING, "Couldn't find symbol ``module_register'' in ``%s'': %s\n",
+		WARNING ("Couldn't find symbol ``module_register'' in ``%s'': %s\n",
 				file, lt_dlerror ());
 		lt_dlclose (dlh);
 		return (-1);
@@ -150,7 +149,7 @@ void plugin_set_dir (const char *dir)
 	if (dir == NULL)
 		plugindir = NULL;
 	else if ((plugindir = strdup (dir)) == NULL)
-		syslog (LOG_ERR, "strdup failed: %s", strerror (errno));
+		ERROR ("strdup failed: %s", strerror (errno));
 }
 
 #define BUFSIZE 512
@@ -165,7 +164,7 @@ int plugin_load (const char *type)
 	struct stat    statbuf;
 	struct dirent *de;
 
-	DBG ("type = %s", type);
+	DEBUG ("type = %s", type);
 
 	dir = plugin_get_dir ();
 	ret = 1;
@@ -174,14 +173,14 @@ int plugin_load (const char *type)
 	 * type when matching the filename */
 	if (snprintf (typename, BUFSIZE, "%s.so", type) >= BUFSIZE)
 	{
-		syslog (LOG_WARNING, "snprintf: truncated: `%s.so'", type);
+		WARNING ("snprintf: truncated: `%s.so'", type);
 		return (-1);
 	}
 	typename_len = strlen (typename);
 
 	if ((dh = opendir (dir)) == NULL)
 	{
-		syslog (LOG_ERR, "opendir (%s): %s", dir, strerror (errno));
+		ERROR ("opendir (%s): %s", dir, strerror (errno));
 		return (-1);
 	}
 
@@ -192,13 +191,13 @@ int plugin_load (const char *type)
 
 		if (snprintf (filename, BUFSIZE, "%s/%s", dir, de->d_name) >= BUFSIZE)
 		{
-			syslog (LOG_WARNING, "snprintf: truncated: `%s/%s'", dir, de->d_name);
+			WARNING ("snprintf: truncated: `%s/%s'", dir, de->d_name);
 			continue;
 		}
 
 		if (lstat (filename, &statbuf) == -1)
 		{
-			syslog (LOG_WARNING, "stat %s: %s", filename, strerror (errno));
+			WARNING ("stat %s: %s", filename, strerror (errno));
 			continue;
 		}
 		else if (!S_ISREG (statbuf.st_mode))
@@ -245,7 +244,7 @@ int plugin_register_read (const char *name,
 	rf = (read_func_t *) malloc (sizeof (read_func_t));
 	if (rf == NULL)
 	{
-		syslog (LOG_ERR, "plugin_register_read: malloc failed: %s",
+		ERROR ("plugin_register_read: malloc failed: %s",
 				strerror (errno));
 		return (-1);
 	}
@@ -340,7 +339,7 @@ void plugin_init_all (void)
 
 		if (status != 0)
 		{
-			syslog (LOG_ERR, "Initialization of plugin `%s' "
+			ERROR ("Initialization of plugin `%s' "
 					"failed with status %i. "
 					"Plugin will be unloaded. TODO!",
 					le->key, status);
@@ -384,7 +383,7 @@ void plugin_read_all (const int *loop)
 			if (rf->wait_time > 86400)
 				rf->wait_time = 86400;
 
-			syslog (LOG_NOTICE, "read-function of plugin `%s' "
+			NOTICE ("read-function of plugin `%s' "
 					"failed. Will syspend it for %i "
 					"seconds.", le->key, rf->wait_left);
 		}
@@ -428,13 +427,13 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 	le = llist_search (list_data_set, name);
 	if (le == NULL)
 	{
-		DBG ("No such dataset registered: %s", name);
+		DEBUG ("No such dataset registered: %s", name);
 		return (-1);
 	}
 
 	ds = (data_set_t *) le->value;
 
-	DBG ("time = %u; host = %s; "
+	DEBUG ("time = %u; host = %s; "
 			"plugin = %s; plugin_instance = %s; "
 			"type = %s; type_instance = %s;",
 			(unsigned int) vl->time, vl->host,
@@ -511,7 +510,7 @@ void plugin_complain (int level, complain_t *c, const char *format, ...)
 	message[511] = '\0';
 	va_end (ap);
 
-	syslog (level, message);
+	plugin_log (level, message);
 }
 
 void plugin_relief (int level, complain_t *c, const char *format, ...)
@@ -529,5 +528,5 @@ void plugin_relief (int level, complain_t *c, const char *format, ...)
 	message[511] = '\0';
 	va_end (ap);
 
-	syslog (level, message);
+	plugin_log (level, message);
 }

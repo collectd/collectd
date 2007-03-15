@@ -23,7 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 #include <netinet/in.h>
 #include "liboping/oping.h"
@@ -78,14 +77,14 @@ static void add_hosts (void)
 	hl_prev = NULL;
 	while (hl_this != NULL)
 	{
-		DBG ("host = %s, wait_left = %i, wait_time = %i, next = %p",
+		DEBUG ("host = %s, wait_left = %i, wait_time = %i, next = %p",
 				hl_this->host, hl_this->wait_left, hl_this->wait_time, (void *) hl_this->next);
 
 		if (hl_this->wait_left <= 0)
 		{
 			if (ping_host_add (pingobj, hl_this->host) == 0)
 			{
-				DBG ("Successfully added host %s", hl_this->host);
+				DEBUG ("Successfully added host %s", hl_this->host);
 				/* Remove the host from the linked list */
 				if (hl_prev != NULL)
 					hl_prev->next = hl_this->next;
@@ -130,7 +129,7 @@ static int ping_config (const char *key, const char *value)
 	{
 		if ((pingobj = ping_construct ()) == NULL)
 		{
-			syslog (LOG_ERR, "ping: `ping_construct' failed: %s",
+			ERROR ("ping: `ping_construct' failed: %s",
 				       	ping_get_error (pingobj));
 			return (1);
 		}
@@ -144,14 +143,14 @@ static int ping_config (const char *key, const char *value)
 
 		if ((hl = (hostlist_t *) malloc (sizeof (hostlist_t))) == NULL)
 		{
-			syslog (LOG_ERR, "ping plugin: malloc failed: %s",
+			ERROR ("ping plugin: malloc failed: %s",
 					strerror (errno));
 			return (1);
 		}
 		if ((host = strdup (value)) == NULL)
 		{
 			free (hl);
-			syslog (LOG_ERR, "ping plugin: strdup failed: %s",
+			ERROR ("ping plugin: strdup failed: %s",
 					strerror (errno));
 			return (1);
 		}
@@ -167,7 +166,7 @@ static int ping_config (const char *key, const char *value)
 		int ttl = atoi (value);
 		if (ping_setopt (pingobj, PING_DEF_TIMEOUT, (void *) &ttl))
 		{
-			syslog (LOG_WARNING, "ping: liboping did not accept the TTL value %i", ttl);
+			WARNING ("ping: liboping did not accept the TTL value %i", ttl);
 			return (1);
 		}
 	}
@@ -213,7 +212,7 @@ static int ping_read (void)
 
 	if (ping_send (pingobj) < 0)
 	{
-		syslog (LOG_ERR, "ping: `ping_send' failed: %s",
+		ERROR ("ping: `ping_send' failed: %s",
 				ping_get_error (pingobj));
 		return (-1);
 	}
@@ -232,7 +231,7 @@ static int ping_read (void)
 					&latency, &buf_len))
 			continue;
 
-		DBG ("host = %s, latency = %f", host, latency);
+		DEBUG ("host = %s, latency = %f", host, latency);
 		ping_submit (host, latency);
 	}
 

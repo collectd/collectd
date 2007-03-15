@@ -23,7 +23,6 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_avltree.h"
-#include "utils_debug.h"
 
 /*
  * Private types
@@ -140,7 +139,7 @@ static int rra_get (char ***ret)
 						rra_types[j], xff,
 						cdp_len, cdp_num) >= sizeof (buffer))
 			{
-				syslog (LOG_ERR, "rra_get: Buffer would have been truncated.");
+				ERROR ("rra_get: Buffer would have been truncated.");
 				continue;
 			}
 
@@ -149,9 +148,9 @@ static int rra_get (char ***ret)
 	}
 
 #if COLLECT_DEBUG
-	DBG ("rra_num = %i", rra_num);
+	DEBUG ("rra_num = %i", rra_num);
 	for (i = 0; i < rra_num; i++)
-		DBG ("  %s", rra_def[i]);
+		DEBUG ("  %s", rra_def[i]);
 #endif
 
 	*ret = rra_def;
@@ -177,12 +176,12 @@ static int ds_get (char ***ret, const data_set_t *ds)
 	char max[32];
 	char buffer[128];
 
-	DBG ("ds->ds_num = %i", ds->ds_num);
+	DEBUG ("ds->ds_num = %i", ds->ds_num);
 
 	ds_def = (char **) malloc (ds->ds_num * sizeof (char *));
 	if (ds_def == NULL)
 	{
-		syslog (LOG_ERR, "rrdtool plugin: malloc failed: %s",
+		ERROR ("rrdtool plugin: malloc failed: %s",
 				strerror (errno));
 		return (-1);
 	}
@@ -202,7 +201,7 @@ static int ds_get (char ***ret, const data_set_t *ds)
 			type = "GAUGE";
 		else
 		{
-			syslog (LOG_ERR, "rrdtool plugin: Unknown DS type: %i",
+			ERROR ("rrdtool plugin: Unknown DS type: %i",
 					d->type);
 			break;
 		}
@@ -240,9 +239,9 @@ static int ds_get (char ***ret, const data_set_t *ds)
 #if COLLECT_DEBUG
 {
 	int i;
-	DBG ("ds_num = %i", ds_num);
+	DEBUG ("ds_num = %i", ds_num);
 	for (i = 0; i < ds_num; i++)
-		DBG ("  %s", ds_def[i]);
+		DEBUG ("  %s", ds_def[i]);
 }
 #endif
 
@@ -273,13 +272,13 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 
 	if ((rra_num = rra_get (&rra_def)) < 1)
 	{
-		syslog (LOG_ERR, "rrd_create_file failed: Could not calculate RRAs");
+		ERROR ("rrd_create_file failed: Could not calculate RRAs");
 		return (-1);
 	}
 
 	if ((ds_num = ds_get (&ds_def, ds)) < 1)
 	{
-		syslog (LOG_ERR, "rrd_create_file failed: Could not calculate DSes");
+		ERROR ("rrd_create_file failed: Could not calculate DSes");
 		return (-1);
 	}
 
@@ -287,7 +286,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 
 	if ((argv = (char **) malloc (sizeof (char *) * (argc + 1))) == NULL)
 	{
-		syslog (LOG_ERR, "rrd_create failed: %s", strerror (errno));
+		ERROR ("rrd_create failed: %s", strerror (errno));
 		return (-1);
 	}
 
@@ -295,7 +294,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 			"%i", stepsize);
 	if ((status < 1) || (status >= sizeof (stepsize_str)))
 	{
-		syslog (LOG_ERR, "rrdtool plugin: snprintf failed.");
+		ERROR ("rrdtool plugin: snprintf failed.");
 		return (-1);
 	}
 
@@ -315,7 +314,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 	rrd_clear_error ();
 	if (rrd_create (argc, argv) == -1)
 	{
-		syslog (LOG_ERR, "rrd_create failed: %s: %s", filename, rrd_get_error ());
+		ERROR ("rrd_create failed: %s: %s", filename, rrd_get_error ());
 		status = -1;
 	}
 
@@ -429,7 +428,7 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 			(rc->values_num + 1) * sizeof (char *));
 	if (rc->values == NULL)
 	{
-		syslog (LOG_ERR, "rrdtool plugin: realloc failed: %s",
+		ERROR ("rrdtool plugin: realloc failed: %s",
 				strerror (errno));
 		if (cache != NULL)
 		{
@@ -455,7 +454,7 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 
 		if (cache_key == NULL)
 		{
-			syslog (LOG_ERR, "rrdtool plugin: strdup failed: %s",
+			ERROR ("rrdtool plugin: strdup failed: %s",
 					strerror (errno));
 			sfree (rc->values[0]);
 			sfree (rc->values);
@@ -466,7 +465,7 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		avl_insert (cache, cache_key, rc);
 	}
 
-	DBG ("rrd_cache_insert (%s, %s) = %p", filename, value, (void *) rc);
+	DEBUG ("rrd_cache_insert (%s, %s) = %p", filename, value, (void *) rc);
 
 	return (rc);
 } /* rrd_cache_t *rrd_cache_insert */
@@ -498,7 +497,7 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 	memcpy (argv + 2, rc->values, rc->values_num * sizeof (char *));
 	argv[argc] = NULL;
 
-	DBG ("rrd_update (argc = %i, argv = %p)", argc, (void *) argv);
+	DEBUG ("rrd_update (argc = %i, argv = %p)", argc, (void *) argv);
 
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
@@ -516,7 +515,7 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 
 	if (status != 0)
 	{
-		syslog (LOG_WARNING, "rrd_update failed: %s: %s",
+		WARNING ("rrd_update failed: %s: %s",
 				filename, rrd_get_error ());
 		return (-1);
 	}
@@ -539,7 +538,7 @@ static void rrd_cache_flush (int timeout)
 	if (cache == NULL)
 		return;
 
-	DBG ("Flushing cache, timeout = %i", timeout);
+	DEBUG ("Flushing cache, timeout = %i", timeout);
 
 	now = time (NULL);
 
@@ -547,15 +546,15 @@ static void rrd_cache_flush (int timeout)
 	iter = avl_get_iterator (cache);
 	while (avl_iterator_next (iter, (void *) &key, (void *) &rc) == 0)
 	{
-		DBG ("key = %s; age = %i;", key, now - rc->first_value);
+		DEBUG ("key = %s; age = %i;", key, now - rc->first_value);
 		if ((now - rc->first_value) >= timeout)
 		{
 			keys = (char **) realloc ((void *) keys,
 					(keys_num + 1) * sizeof (char *));
 			if (keys == NULL)
 			{
-				DBG ("realloc failed: %s", strerror (errno));
-				syslog (LOG_ERR, "rrdtool plugin: "
+				DEBUG ("realloc failed: %s", strerror (errno));
+				ERROR ("rrdtool plugin: "
 						"realloc failed: %s",
 						strerror (errno));
 				avl_iterator_destroy (iter);
@@ -571,7 +570,7 @@ static void rrd_cache_flush (int timeout)
 	{
 		if (avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
 		{
-			DBG ("avl_remove (%s) failed.", keys[i]);
+			DEBUG ("avl_remove (%s) failed.", keys[i]);
 			continue;
 		}
 
@@ -583,7 +582,7 @@ static void rrd_cache_flush (int timeout)
 	} /* for (i = 0..keys_num) */
 
 	free (keys);
-	DBG ("Flushed %i value(s)", keys_num);
+	DEBUG ("Flushed %i value(s)", keys_num);
 
 	cache_flush_last = now;
 } /* void rrd_cache_flush */
@@ -611,14 +610,14 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 		}
 		else
 		{
-			syslog (LOG_ERR, "stat(%s) failed: %s",
+			ERROR ("stat(%s) failed: %s",
 					filename, strerror (errno));
 			return (-1);
 		}
 	}
 	else if (!S_ISREG (statbuf.st_mode))
 	{
-		syslog (LOG_ERR, "stat(%s): Not a regular file!",
+		ERROR ("stat(%s): Not a regular file!",
 				filename);
 		return (-1);
 	}
@@ -637,7 +636,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 
 	now = time (NULL);
 
-	DBG ("age (%s) = %i", filename, now - rc->first_value);
+	DEBUG ("age (%s) = %i", filename, now - rc->first_value);
 
 	/* `rc' is not free'd here, because we'll likely reuse it. If not, then
 	 * the next flush will remove this entry.  */
@@ -763,11 +762,11 @@ static int rrd_init (void)
 		heartbeat = 2 * interval_g;
 
 	if (heartbeat < interval_g)
-		syslog (LOG_WARNING, "rrdtool plugin: Your `heartbeat' is "
+		WARNING ("rrdtool plugin: Your `heartbeat' is "
 				"smaller than your `interval'. This will "
 				"likely cause problems.");
 	else if (stepsize < interval_g)
-		syslog (LOG_WARNING, "rrdtool plugin: Your `stepsize' is "
+		WARNING ("rrdtool plugin: Your `stepsize' is "
 				"smaller than your `interval'. This will "
 				"create needlessly big RRD-files.");
 
@@ -786,7 +785,7 @@ static int rrd_init (void)
 		plugin_register_shutdown ("rrdtool", rrd_shutdown);
 	}
 
-	DBG ("datadir = %s; stepsize = %i; heartbeat = %i; rrarows = %i; xff = %lf;",
+	DEBUG ("datadir = %s; stepsize = %i; heartbeat = %i; rrarows = %i; xff = %lf;",
 			(datadir == NULL) ? "(null)" : datadir,
 			stepsize, heartbeat, rrarows, xff);
 

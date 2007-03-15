@@ -134,14 +134,14 @@ static int interface_config (const char *key, const char *value)
 		temp = (char **) realloc (if_list, (if_list_num + 1) * sizeof (char *));
 		if (temp == NULL)
 		{
-			syslog (LOG_EMERG, "Cannot allocate more memory.");
+			ERROR ("Cannot allocate more memory.");
 			return (1);
 		}
 		if_list = temp;
 
 		if ((if_list[if_list_num] = strdup (value)) == NULL)
 		{
-			syslog (LOG_EMERG, "Cannot allocate memory.");
+			ERROR ("Cannot allocate memory.");
 			return (1);
 		}
 		if_list_num++;
@@ -304,7 +304,7 @@ static int traffic_read (void)
 
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
-		syslog (LOG_WARNING, "traffic: fopen: %s", strerror (errno));
+		WARNING ("traffic: fopen: %s", strerror (errno));
 		return (-1);
 	}
 

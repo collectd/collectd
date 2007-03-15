@@ -30,7 +30,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 #if HAVE_NETDB_H && HAVE_SYS_SOCKET_H && HAVE_NETINET_IN_H \
 	&& HAVE_NETINET_TCP_H && HAVE_LIBGEN_H
@@ -134,7 +133,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
-		syslog (LOG_ERR, "hddtemp: getaddrinfo (%s, %s): %s",
+		ERROR ("hddtemp: getaddrinfo (%s, %s): %s",
 				host, port,
 				ai_return == EAI_SYSTEM ? strerror (errno) : gai_strerror (ai_return));
 		return (-1);
@@ -146,7 +145,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 		/* create our socket descriptor */
 		if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0)
 		{
-			syslog (LOG_ERR, "hddtemp: socket: %s",
+			ERROR ("hddtemp: socket: %s",
 					strerror (errno));
 			continue;
 		}
@@ -154,7 +153,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 		/* connect to the hddtemp daemon */
 		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
 		{
-			DBG ("hddtemp: connect (%s, %s): %s", host, port,
+			DEBUG ("hddtemp: connect (%s, %s): %s", host, port,
 					strerror (errno));
 			close (fd);
 			fd = -1;
@@ -170,7 +169,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 	if (fd < 0)
 	{
-		syslog (LOG_ERR, "hddtemp: Could not connect to daemon.");
+		ERROR ("hddtemp: Could not connect to daemon.");
 		return (-1);
 	}
 
@@ -185,7 +184,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 			if ((errno == EAGAIN) || (errno == EINTR))
 				continue;
 
-			syslog (LOG_ERR, "hddtemp: Error reading from socket: %s",
+			ERROR ("hddtemp: Error reading from socket: %s",
 						strerror (errno));
 			close (fd);
 			return (-1);
@@ -199,11 +198,11 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	if (buffer_fill >= buffer_size)
 	{
 		buffer[buffer_size - 1] = '\0';
-		syslog (LOG_WARNING, "hddtemp: Message from hddtemp has been truncated.");
+		WARNING ("hddtemp: Message from hddtemp has been truncated.");
 	}
 	else if (buffer_fill == 0)
 	{
-		syslog (LOG_WARNING, "hddtemp: Peer has unexpectedly shut down the socket. "
+		WARNING ("hddtemp: Peer has unexpectedly shut down the socket. "
 				"Buffer: `%s'", buffer);
 		close (fd);
 		return (-1);
@@ -267,7 +266,7 @@ static int hddtemp_init (void)
 
 	if ((fh = fopen ("/proc/partitions", "r")) != NULL)
 	{
-		DBG ("Looking at /proc/partitions...");
+		DEBUG ("Looking at /proc/partitions...");
 
 		while (fgets (buf, sizeof (buf), fh) != NULL)
 		{
@@ -341,25 +340,25 @@ static int hddtemp_init (void)
 
 				/* Skip all other majors. */
 				default:
-					DBG ("Skipping unknown major %i", major);
+					DEBUG ("Skipping unknown major %i", major);
 					continue;
 			} /* switch (major) */
 
 			if ((name = strdup (fields[3])) == NULL)
 			{
-				syslog (LOG_ERR, "hddtemp: strdup(%s) == NULL", fields[3]);
+				ERROR ("hddtemp: strdup(%s) == NULL", fields[3]);
 				continue;
 			}
 
 			if ((entry = (hddname_t *) malloc (sizeof (hddname_t))) == NULL)
 			{
-				syslog (LOG_ERR, "hddtemp: malloc (%u) == NULL",
+				ERROR ("hddtemp: malloc (%u) == NULL",
 						(unsigned int) sizeof (hddname_t));
 				free (name);
 				continue;
 			}
 
-			DBG ("Found disk: %s (%u:%u).", name, major, minor);
+			DEBUG ("Found disk: %s (%u:%u).", name, major, minor);
 
 			entry->major = major;
 			entry->minor = minor;
@@ -379,7 +378,7 @@ static int hddtemp_init (void)
 		fclose (fh);
 	}
 	else
-		DBG ("Could not open /proc/partitions: %s",
+		DEBUG ("Could not open /proc/partitions: %s",
 				strerror (errno));
 #endif /* KERNEL_LINUX */
 
@@ -405,7 +404,7 @@ static char *hddtemp_get_name (char *drive)
 
 	if (list == NULL)
 	{
-		DBG ("Don't know %s, keeping name as-is.", drive);
+		DEBUG ("Don't know %s, keeping name as-is.", drive);
 		return (strdup (drive));
 	}
 

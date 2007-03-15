@@ -69,7 +69,7 @@ static int cpufreq_init (void)
 		num_cpu++;
 	}
 
-	syslog (LOG_INFO, "cpufreq plugin: Found %d CPU%s", num_cpu,
+	INFO ("cpufreq plugin: Found %d CPU%s", num_cpu,
 			(num_cpu == 1) ? "" : "s");
 
 	if (num_cpu == 0)
@@ -117,19 +117,19 @@ static int cpufreq_read (void)
 
 		if ((fp = fopen (filename, "r")) == NULL)
 		{
-			syslog (LOG_WARNING, "cpufreq: fopen: %s", strerror (errno));
+			WARNING ("cpufreq: fopen: %s", strerror (errno));
 			return (-1);
 		}
 
 		if (fgets (buffer, 16, fp) == NULL)
 		{
-			syslog (LOG_WARNING, "cpufreq: fgets: %s", strerror (errno));
+			WARNING ("cpufreq: fgets: %s", strerror (errno));
 			fclose (fp);
 			return (-1);
 		}
 
 		if (fclose (fp))
-			syslog (LOG_WARNING, "cpufreq: fclose: %s", strerror (errno));
+			WARNING ("cpufreq: fclose: %s", strerror (errno));
 
 		/* You're seeing correctly: The file is reporting kHz values.. */
 		val = atoll (buffer) * 1000;

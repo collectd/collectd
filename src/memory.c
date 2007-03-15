@@ -22,7 +22,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #ifdef HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
@@ -149,7 +148,7 @@ static int memory_read (void)
 					(host_info_t) &vm_data,
 					&vm_data_len)) != KERN_SUCCESS)
 	{
-		syslog (LOG_ERR, "memory-plugin: host_statistics failed and returned the value %i", (int) status);
+		ERROR ("memory-plugin: host_statistics failed and returned the value %i", (int) status);
 		return (-1);
 	}
 
@@ -215,11 +214,11 @@ static int memory_read (void)
 						(void *) &sysctl_vals[i], &len,
 						NULL, 0)) < 0)
 		{
-			syslog (LOG_ERR, "memory plugin: sysctlbyname (%s): %s",
+			ERROR ("memory plugin: sysctlbyname (%s): %s",
 					sysctl_keys[i], strerror (errno));
 			return (-1);
 		}
-		DBG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
+		DEBUG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
 	} /* for i */
 
 	/* multiply all all page counts with the pagesize */
@@ -246,7 +245,7 @@ static int memory_read (void)
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
-		syslog (LOG_WARNING, "memory: fopen: %s", strerror (errno));
+		WARNING ("memory: fopen: %s", strerror (errno));
 		return (-1);
 	}
 
@@ -274,7 +273,7 @@ static int memory_read (void)
 	}
 
 	if (fclose (fh))
-		syslog (LOG_WARNING, "memory: fclose: %s", strerror (errno));
+		WARNING ("memory: fclose: %s", strerror (errno));
 
 	if (mem_used >= (mem_free + mem_buffered + mem_cached))
 	{

@@ -24,7 +24,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 #if HAVE_LIBIPTC_LIBIPTC_H
 # include <libiptc/libiptc.h>

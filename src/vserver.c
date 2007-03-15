@@ -25,12 +25,7 @@
 #include "plugin.h"
 
 #include <dirent.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #define BUFSIZE 512
 
@@ -218,7 +213,7 @@ static int vserver_read (void)
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
-			syslog (LOG_ERR, "Cannot open '%s': %s", file, strerror (errno));
+			ERROR ("Cannot open '%s': %s", file, strerror (errno));
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{
@@ -261,7 +256,7 @@ static int vserver_read (void)
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
-			syslog (LOG_ERR, "Cannot open '%s': %s", file, strerror (errno));
+			ERROR ("Cannot open '%s': %s", file, strerror (errno));
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{
@@ -309,7 +304,7 @@ static int vserver_read (void)
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
-			syslog (LOG_ERR, "Cannot open '%s': %s", file, strerror (errno));
+			ERROR ("Cannot open '%s': %s", file, strerror (errno));
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{

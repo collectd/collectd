@@ -111,7 +111,7 @@ static int swap_init (void)
 					NULL)) /* errstr */
 			== NULL)
 	{
-		syslog (LOG_ERR, "swap plugin: kvm_open failed.");
+		ERROR ("swap plugin: kvm_open failed.");
 		return (-1);
 	}
 /* #endif HAVE_LIBKVM */
@@ -156,7 +156,7 @@ static int swap_read (void)
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
-		syslog (LOG_WARNING, "memory: fopen: %s", strerror (errno));
+		WARNING ("memory: fopen: %s", strerror (errno));
 		return (-1);
 	}
 
@@ -182,7 +182,7 @@ static int swap_read (void)
 	}
 
 	if (fclose (fh))
-		syslog (LOG_WARNING, "memory: fclose: %s", strerror (errno));
+		WARNING ("memory: fclose: %s", strerror (errno));
 
 	if ((swap_total == 0LL) || ((swap_free + swap_cached) > swap_total))
 		return (-1);
@@ -203,7 +203,7 @@ static int swap_read (void)
 
 	if (swapctl (SC_AINFO, &ai) == -1)
 	{
-		syslog (LOG_ERR, "swap plugin: swapctl failed: %s",
+		ERROR ("swap plugin: swapctl failed: %s",
 				strerror (errno));
 		return (-1);
 	}

@@ -30,7 +30,7 @@
 #define XFS_SUPER_MAGIC2_STR "BSFX"
 #endif
 
-#include "utils_debug.h"
+#include "plugin.h"
 #include "utils_mount.h"
 
 #if HAVE_GETVFSSTAT
@@ -332,7 +332,7 @@ get_spec_by_uuid(const char *s)
 	return get_spec_by_x(UUID, uuid);
 
 	bad_uuid:
-		DBG("Found an invalid UUID: %s", s);
+		DEBUG("Found an invalid UUID: %s", s);
 	return NULL;
 }
 
@@ -351,12 +351,12 @@ static char *get_device_name(const char *optstr)
 	}
 	else if (strncmp (optstr, "UUID=", 5) == 0)
 	{
-		DBG ("TODO: check UUID= code!");
+		DEBUG ("TODO: check UUID= code!");
 		rc = get_spec_by_uuid (optstr + 5);
 	}
 	else if (strncmp (optstr, "LABEL=", 6) == 0)
 	{
-		DBG ("TODO: check LABEL= code!");
+		DEBUG ("TODO: check LABEL= code!");
 		rc = get_spec_by_volume_label (optstr + 6);
 	}
 	else
@@ -366,7 +366,7 @@ static char *get_device_name(const char *optstr)
 
 	if(!rc)
 	{
-		DBG ("Error checking device name: optstr = %s", optstr);
+		DEBUG ("Error checking device name: optstr = %s", optstr);
 	}
 	return rc;
 }
@@ -381,7 +381,7 @@ static cu_mount_t *cu_mount_listmntent (void)
 
 	struct tabmntent *mntlist;
 	if(listmntent(&mntlist, COLLECTD_MNTTAB, NULL, NULL) < 0) {
-		DBG("calling listmntent() failed: %s", strerror(errno));
+		DEBUG("calling listmntent() failed: %s", strerror(errno));
 	}
 
 	for(p = mntlist; p; p = p->next) {
@@ -392,7 +392,7 @@ static cu_mount_t *cu_mount_listmntent (void)
 		if(loop == NULL) {   /* no loop= mount */
 			device = get_device_name(mnt->mnt_fsname);
 			if(device == NULL) {
-				DBG("can't get devicename for fs (%s) %s (%s)"
+				DEBUG("can't get devicename for fs (%s) %s (%s)"
 					": ignored", mnt->mnt_type,
 					mnt->mnt_dir, mnt->mnt_fsname);
 				continue;
@@ -450,7 +450,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	/* Get the number of mounted file systems */
 	if ((bufsize = CMD_STATFS (NULL, 0, FLAGS_STATFS)) < 1)
 	{
-		DBG ("getv?fsstat failed: %s", strerror (errno));
+		DEBUG ("getv?fsstat failed: %s", strerror (errno));
 		return (NULL);
 	}
 
@@ -463,7 +463,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	 * manpage.. -octo */
 	if ((num = CMD_STATFS (buf, bufsize * sizeof (STRUCT_STATFS), FLAGS_STATFS)) < 1)
 	{
-		DBG ("getv?fsstat failed: %s", strerror (errno));
+		DEBUG ("getv?fsstat failed: %s", strerror (errno));
 		free (buf);
 		return (NULL);
 	}
@@ -512,11 +512,11 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 	cu_mount_t *last  = NULL;
 	cu_mount_t *new   = NULL;
 
-	DBG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
+	DEBUG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
 
 	if ((fp = fopen (COLLECTD_MNTTAB, "r")) == NULL)
 	{
-		syslog (LOG_ERR, "fopen (%s): %s", COLLECTD_MNTTAB, strerror (errno));
+		ERROR ("fopen (%s): %s", COLLECTD_MNTTAB, strerror (errno));
 		return (NULL);
 	}
 
@@ -567,11 +567,11 @@ static cu_mount_t *cu_mount_getmntent (void)
 	cu_mount_t *last  = NULL;
 	cu_mount_t *new   = NULL;
 
-	DBG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
+	DEBUG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
 
 	if ((fp = setmntent (COLLECTD_MNTTAB, "r")) == NULL)
 	{
-		syslog (LOG_ERR, "setmntent (%s): %s", COLLECTD_MNTTAB, strerror (errno));
+		ERROR ("setmntent (%s): %s", COLLECTD_MNTTAB, strerror (errno));
 		return (NULL);
 	}
 
@@ -589,7 +589,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 		new->device      = get_device_name (new->options);
 		new->next        = NULL;
 
-		DBG ("new = {dir = %s, spec_device = %s, type = %s, options = %s, device = %s}",
+		DEBUG ("new = {dir = %s, spec_device = %s, type = %s, options = %s, device = %s}",
 				new->dir, new->spec_device, new->type, new->options, new->device);
 
 		/* Append to list */
@@ -607,7 +607,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	endmntent (fp);
 
-	DBG ("return (0x%p)", (void *) first);
+	DEBUG ("return (0x%p)", (void *) first);
 
 	return (first);
 }
@@ -670,7 +670,7 @@ void cu_mount_freelist (cu_mount_t *list)
 	cu_mount_t *this;
 	cu_mount_t *next;
 
-	DBG ("(list = 0x%p)", (void *) list);
+	DEBUG ("(list = 0x%p)", (void *) list);
 
 	for (this = list; this != NULL; this = next)
 	{

@@ -23,7 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 /* Folks without pthread will need to disable this plugin. */
 #include <pthread.h>
@@ -137,7 +136,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	value_cache_t *vc;
 	int i;
 
-	DBG ("ds->ds_num = %i; vl->values_len = %i;",
+	DEBUG ("ds->ds_num = %i; vl->values_len = %i;",
 			ds->ds_num, vl->values_len);
 	assert (ds->ds_num == vl->values_len);
 
@@ -145,7 +144,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	if (vc == NULL)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		syslog (LOG_ERR, "unixsock plugin: malloc failed: %s",
+		ERROR ("unixsock plugin: malloc failed: %s",
 				strerror (errno));
 		return (-1);
 	}
@@ -154,7 +153,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	if (vc->gauge == NULL)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		syslog (LOG_ERR, "unixsock plugin: malloc failed: %s",
+		ERROR ("unixsock plugin: malloc failed: %s",
 				strerror (errno));
 		free (vc);
 		return (-1);
@@ -164,7 +163,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	if (vc->counter == NULL)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		syslog (LOG_ERR, "unixsock plugin: malloc failed: %s",
+		ERROR ("unixsock plugin: malloc failed: %s",
 				strerror (errno));
 		free (vc->gauge);
 		free (vc);
@@ -176,7 +175,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 				ds->type, vl->type_instance) != 0)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		syslog (LOG_ERR, "unixsock plugin: cache_alloc_name failed.");
+		ERROR ("unixsock plugin: cache_alloc_name failed.");
 		free (vc->counter);
 		free (vc->gauge);
 		free (vc);
@@ -352,7 +351,7 @@ static int us_open_socket (void)
 	sock_fd = socket (PF_UNIX, SOCK_STREAM, 0);
 	if (sock_fd < 0)
 	{
-		syslog (LOG_ERR, "unixsock plugin: socket failed: %s",
+		ERROR ("unixsock plugin: socket failed: %s",
 				strerror (errno));
 		return (-1);
 	}
@@ -366,9 +365,9 @@ static int us_open_socket (void)
 	status = bind (sock_fd, (struct sockaddr *) &sa, sizeof (sa));
 	if (status != 0)
 	{
-		DBG ("bind failed: %s; sa.sun_path = %s",
+		DEBUG ("bind failed: %s; sa.sun_path = %s",
 				strerror (errno), sa.sun_path);
-		syslog (LOG_ERR, "unixsock plugin: bind failed: %s",
+		ERROR ("unixsock plugin: bind failed: %s",
 				strerror (errno));
 		close (sock_fd);
 		sock_fd = -1;
@@ -378,7 +377,7 @@ static int us_open_socket (void)
 	status = listen (sock_fd, 8);
 	if (status != 0)
 	{
-		syslog (LOG_ERR, "unixsock plugin: listen failed: %s",
+		ERROR ("unixsock plugin: listen failed: %s",
 				strerror (errno));
 		close (sock_fd);
 		sock_fd = -1;
@@ -398,13 +397,13 @@ static int us_open_socket (void)
 		status = getgrnam_r (grpname, &sg, grbuf, sizeof (grbuf), &g);
 		if (status != 0)
 		{
-			syslog (LOG_WARNING, "unixsock plugin: getgrnam_r (%s) failed: %s",
+			WARNING ("unixsock plugin: getgrnam_r (%s) failed: %s",
 					grpname, strerror (status));
 			break;
 		}
 		if (g == NULL)
 		{
-			syslog (LOG_WARNING, "unixsock plugin: No such group: `%s'",
+			WARNING ("unixsock plugin: No such group: `%s'",
 					grpname);
 			break;
 		}
@@ -412,7 +411,7 @@ static int us_open_socket (void)
 		if (chown ((sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 					(uid_t) -1, g->gr_gid) != 0)
 		{
-			syslog (LOG_WARNING, "unixsock plugin: chown (%s, -1, %i) failed: %s",
+			WARNING ("unixsock plugin: chown (%s, -1, %i) failed: %s",
 					(sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 					(int) g->gr_gid,
 					strerror (errno));
@@ -468,17 +467,17 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 
 	pthread_mutex_lock (&cache_lock);
 
-	DBG ("vc = cache_search (%s)", name);
+	DEBUG ("vc = cache_search (%s)", name);
 	vc = cache_search (name);
 
 	if (vc == NULL)
 	{
-		DBG ("Did not find cache entry.");
+		DEBUG ("Did not find cache entry.");
 		fprintf (fh, "-1 No such value");
 	}
 	else
 	{
-		DBG ("Found cache entry.");
+		DEBUG ("Found cache entry.");
 		fprintf (fh, "%i", vc->values_num);
 		for (i = 0; i < vc->values_num; i++)
 		{
@@ -511,12 +510,12 @@ static void *us_handle_client (void *arg)
 	free (arg);
 	arg = NULL;
 
-	DBG ("Reading from fd #%i", fd);
+	DEBUG ("Reading from fd #%i", fd);
 
 	fh = fdopen (fd, "r+");
 	if (fh == NULL)
 	{
-		syslog (LOG_ERR, "unixsock plugin: fdopen failed: %s",
+		ERROR ("unixsock plugin: fdopen failed: %s",
 				strerror (errno));
 		close (fd);
 		pthread_exit ((void *) 1);
@@ -534,7 +533,7 @@ static void *us_handle_client (void *arg)
 		if (len == 0)
 			continue;
 
-		DBG ("fgets -> buffer = %s; len = %i;", buffer, len);
+		DEBUG ("fgets -> buffer = %s; len = %i;", buffer, len);
 
 		fields_num = strsplit (buffer, fields,
 				sizeof (fields) / sizeof (fields[0]));
@@ -556,7 +555,7 @@ static void *us_handle_client (void *arg)
 		}
 	} /* while (fgets) */
 
-	DBG ("Exiting..");
+	DEBUG ("Exiting..");
 	close (fd);
 
 	pthread_exit ((void *) 0);
@@ -574,14 +573,14 @@ static void *us_server_thread (void *arg)
 
 	while (42)
 	{
-		DBG ("Calling accept..");
+		DEBUG ("Calling accept..");
 		status = accept (sock_fd, NULL, NULL);
 		if (status < 0)
 		{
 			if (errno == EINTR)
 				continue;
 
-			syslog (LOG_ERR, "unixsock plugin: accept failed: %s",
+			ERROR ("unixsock plugin: accept failed: %s",
 					strerror (errno));
 			close (sock_fd);
 			sock_fd = -1;
@@ -591,14 +590,14 @@ static void *us_server_thread (void *arg)
 		remote_fd = (int *) malloc (sizeof (int));
 		if (remote_fd == NULL)
 		{
-			syslog (LOG_WARNING, "unixsock plugin: malloc failed: %s",
+			WARNING ("unixsock plugin: malloc failed: %s",
 					strerror (errno));
 			close (status);
 			continue;
 		}
 		*remote_fd = status;
 
-		DBG ("Spawning child to handle connection on fd #%i", *remote_fd);
+		DEBUG ("Spawning child to handle connection on fd #%i", *remote_fd);
 
 		pthread_attr_init (&th_attr);
 		pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
@@ -606,7 +605,7 @@ static void *us_server_thread (void *arg)
 		status = pthread_create (&th, &th_attr, us_handle_client, (void *) remote_fd);
 		if (status != 0)
 		{
-			syslog (LOG_WARNING, "unixsock plugin: pthread_create failed: %s",
+			WARNING ("unixsock plugin: pthread_create failed: %s",
 					strerror (status));
 			close (*remote_fd);
 			free (remote_fd);
@@ -648,7 +647,7 @@ static int us_init (void)
 	status = pthread_create (&listen_thread, NULL, us_server_thread, NULL);
 	if (status != 0)
 	{
-		syslog (LOG_ERR, "unixsock plugin: pthread_create failed: %s",
+		ERROR ("unixsock plugin: pthread_create failed: %s",
 				strerror (status));
 		return (-1);
 	}

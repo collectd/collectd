@@ -23,7 +23,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #define MODULE_NAME "nfs"
 
@@ -215,7 +214,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 		values[0].counter = val[i];
 		strncpy (vl.type_instance, names[i],
 				sizeof (vl.type_instance));
-		DBG ("%s-%s/nfs_procedure-%s = %llu",
+		DEBUG ("%s-%s/nfs_procedure-%s = %llu",
 				vl.plugin, vl.plugin_instance,
 				vl.type_instance, val[i]);
 		plugin_dispatch_values ("nfs_procedure", &vl);
@@ -251,7 +250,7 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 
 			if ((numfields - 2) != nfs2_procedures_names_num)
 			{
-				syslog (LOG_WARNING, "nfs plugin: Wrong "
+				WARNING ("nfs plugin: Wrong "
 						"number of fields (= %i) "
 						"for NFSv2 statistics.",
 					       	numfields - 2);
@@ -265,7 +264,7 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 			values = (unsigned long long *) malloc (nfs2_procedures_names_num * sizeof (unsigned long long));
 			if (values == NULL)
 			{
-				syslog (LOG_ERR, "nfs plugin: malloc "
+				ERROR ("nfs plugin: malloc "
 						"failed: %s",
 					       	strerror (errno));
 				continue;
@@ -287,7 +286,7 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 
 			if ((numfields - 2) != nfs3_procedures_names_num)
 			{
-				syslog (LOG_WARNING, "nfs plugin: Wrong "
+				WARNING ("nfs plugin: Wrong "
 						"number of fields (= %i) "
 						"for NFSv3 statistics.",
 					       	numfields - 2);
@@ -301,7 +300,7 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 			values = (unsigned long long *) malloc (nfs3_procedures_names_num * sizeof (unsigned long long));
 			if (values == NULL)
 			{
-				syslog (LOG_ERR, "nfs plugin: malloc "
+				ERROR ("nfs plugin: malloc "
 						"failed: %s",
 					       	strerror (errno));
 				continue;

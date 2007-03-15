@@ -22,7 +22,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #ifdef HAVE_MACH_KERN_RETURN_H
 # include <mach/kern_return.h>
@@ -125,13 +124,13 @@ static int init (void)
 	/* FIXME: Free `cpu_list' if it's not NULL */
 	if ((status = host_processors (port_host, &cpu_list, &cpu_list_len)) != KERN_SUCCESS)
 	{
-		syslog (LOG_ERR, "cpu plugin: host_processors returned %i", (int) status);
+		ERROR ("cpu plugin: host_processors returned %i", (int) status);
 		cpu_list_len = 0;
 		return (-1);
 	}
 
-	DBG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
-	syslog (LOG_INFO, "cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
+	DEBUG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
+	INFO ("cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
 
 	collectd_step = atoi (COLLECTD_STEP);
 	if ((collectd_step > 0) && (collectd_step <= 86400))
@@ -162,12 +161,12 @@ static int init (void)
 
 	if (sysctlbyname ("hw.ncpu", &numcpu, &numcpu_size, NULL, 0) < 0)
 	{
-		syslog (LOG_WARNING, "cpu: sysctlbyname: %s", strerror (errno));
+		WARNING ("cpu: sysctlbyname: %s", strerror (errno));
 		return (-1);
 	}
 
 	if (numcpu != 1)
-		syslog (LOG_NOTICE, "cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
+		NOTICE ("cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
 #endif
 
 	return (0);
@@ -221,13 +220,13 @@ static int cpu_read (void)
 						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
 						(processor_info_t) &cpu_info, &cpu_info_len)) != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "cpu plugin: processor_info failed with status %i", (int) status);
+			ERROR ("cpu plugin: processor_info failed with status %i", (int) status);
 			continue;
 		}
 
 		if (cpu_info_len < CPU_STATE_MAX)
 		{
-			syslog (LOG_ERR, "cpu plugin: processor_info returned only %i elements..", cpu_info_len);
+			ERROR ("cpu plugin: processor_info returned only %i elements..", cpu_info_len);
 			continue;
 		}
 
@@ -257,7 +256,7 @@ static int cpu_read (void)
 				cpu_temp, &cpu_temp_len);
 		if (status != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "cpu plugin: processor_info failed: %s",
+			ERROR ("cpu plugin: processor_info failed: %s",
 					mach_error_string (status));
 
 			cpu_temp_retry_counter = cpu_temp_retry_step;
@@ -270,7 +269,7 @@ static int cpu_read (void)
 
 		if (cpu_temp_len != 1)
 		{
-			DBG ("processor_info (PROCESSOR_TEMPERATURE) returned %i elements..?",
+			DEBUG ("processor_info (PROCESSOR_TEMPERATURE) returned %i elements..?",
 				       	(int) cpu_temp_len);
 			continue;
 		}
@@ -278,7 +277,7 @@ static int cpu_read (void)
 		cpu_temp_retry_counter = 0;
 		cpu_temp_retry_step    = 1;
 
-		DBG ("cpu_temp = %i", (int) cpu_temp);
+		DEBUG ("cpu_temp = %i", (int) cpu_temp);
 #endif /* PROCESSOR_TEMPERATURE */
 	}
 /* #endif PROCESSOR_CPU_LOAD_INFO */

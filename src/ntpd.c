@@ -23,7 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 #if HAVE_SYS_SOCKET_H
 # define NTPD_HAVE_READ 1
@@ -372,7 +371,7 @@ static int ntpd_connect (void)
 	if (sock_descr >= 0)
 		return (sock_descr);
 
-	DBG ("Opening a new socket");
+	DEBUG ("Opening a new socket");
 
 	host = ntpd_host;
 	if (host == NULL)
@@ -390,10 +389,10 @@ static int ntpd_connect (void)
 
 	if ((status = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
-		DBG ("getaddrinfo (%s, %s): %s",
+		DEBUG ("getaddrinfo (%s, %s): %s",
 				host, port,
 				status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
-		syslog (LOG_ERR, "ntpd plugin: getaddrinfo (%s, %s): %s",
+		ERROR ("ntpd plugin: getaddrinfo (%s, %s): %s",
 				host, port,
 				status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
 		return (-1);
@@ -422,8 +421,8 @@ static int ntpd_connect (void)
 
 	if (sock_descr < 0)
 	{
-		DBG ("Unable to connect to server.");
-		syslog (LOG_ERR, "ntpd plugin: Unable to connect to server.");
+		DEBUG ("Unable to connect to server.");
+		ERROR ("ntpd plugin: Unable to connect to server.");
 	}
 
 	return (sock_descr);
@@ -471,7 +470,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 	if (gettimeofday (&time_end, NULL) < 0)
 	{
-		syslog (LOG_ERR, "ntpd plugin: gettimeofday failed: %s",
+		ERROR ("ntpd plugin: gettimeofday failed: %s",
 				strerror (errno));
 		return (-1);
 	}
@@ -482,7 +481,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 	{
 		if (gettimeofday (&time_now, NULL) < 0)
 		{
-			syslog (LOG_ERR, "ntpd plugin: gettimeofday failed: %s",
+			ERROR ("ntpd plugin: gettimeofday failed: %s",
 					strerror (errno));
 			return (-1);
 		}
@@ -495,7 +494,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		poll_s.events  = POLLIN | POLLPRI;
 		poll_s.revents = 0;
 		
-		DBG ("Polling for %ims", timeout);
+		DEBUG ("Polling for %ims", timeout);
 		status = poll (&poll_s, 1, timeout);
 
 		if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
@@ -503,15 +502,15 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 		if (status < 0)
 		{
-			DBG ("poll failed: %s", strerror (errno));
-			syslog (LOG_ERR, "ntpd plugin: poll failed: %s",
+			DEBUG ("poll failed: %s", strerror (errno));
+			ERROR ("ntpd plugin: poll failed: %s",
 					strerror (errno));
 			return (-1);
 		}
 
 		if (status == 0) /* timeout */
 		{
-			DBG ("timeout reached.");
+			DEBUG ("timeout reached.");
 			break;
 		}
 
@@ -523,50 +522,50 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 		if (status < 0)
 		{
-			DBG ("recv(2) failed: %s", strerror (errno));
-			DBG ("Closing socket #%i", sd);
+			DEBUG ("recv(2) failed: %s", strerror (errno));
+			DEBUG ("Closing socket #%i", sd);
 			close (sd);
 			sock_descr = sd = -1;
 			return (-1);
 		}
 
-		DBG ("recv'd %i bytes", status);
+		DEBUG ("recv'd %i bytes", status);
 
 		/* 
 		 * Do some sanity checks first
 		 */
 		if (status < RESP_HEADER_SIZE)
 		{
-			syslog (LOG_WARNING, "ntpd plugin: Short (%i bytes) packet received",
+			WARNING ("ntpd plugin: Short (%i bytes) packet received",
 					(int) status);
 			continue;
 		}
 		if (INFO_MODE (res.rm_vn_mode) != MODE_PRIVATE)
 		{
-			syslog (LOG_NOTICE, "ntpd plugin: Packet received with mode %i",
+			NOTICE ("ntpd plugin: Packet received with mode %i",
 					INFO_MODE (res.rm_vn_mode));
 			continue;
 		}
 		if (INFO_IS_AUTH (res.auth_seq))
 		{
-			syslog (LOG_NOTICE, "ntpd plugin: Encrypted packet received");
+			NOTICE ("ntpd plugin: Encrypted packet received");
 			continue;
 		}
 		if (!ISRESPONSE (res.rm_vn_mode))
 		{
-			syslog (LOG_NOTICE, "ntpd plugin: Received request packet, "
+			NOTICE ("ntpd plugin: Received request packet, "
 					"wanted response");
 			continue;
 		}
 		if (INFO_MBZ (res.mbz_itemsize))
 		{
-			syslog (LOG_WARNING, "ntpd plugin: Received packet with nonzero "
+			WARNING ("ntpd plugin: Received packet with nonzero "
 					"MBZ field!");
 			continue;
 		}
 		if (res.implementation != IMPL_XNTPD)
 		{
-			syslog (LOG_WARNING, "ntpd plugin: Asked for request of type %i, "
+			WARNING ("ntpd plugin: Asked for request of type %i, "
 					"got %i", (int) IMPL_XNTPD, (int) res.implementation);
 			continue;
 		}
@@ -574,7 +573,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		/* Check for error code */
 		if (INFO_ERR (res.err_nitems) != 0)
 		{
-			syslog (LOG_ERR, "ntpd plugin: Received error code %i",
+			ERROR ("ntpd plugin: Received error code %i",
 					(int) INFO_ERR(res.err_nitems));
 			return ((int) INFO_ERR (res.err_nitems));
 		}
@@ -582,13 +581,13 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		/* extract number of items in this packet and the size of these items */
 		pkt_item_num = INFO_NITEMS (res.err_nitems);
 		pkt_item_len = INFO_ITEMSIZE (res.mbz_itemsize);
-		DBG ("pkt_item_num = %i; pkt_item_len = %i;",
+		DEBUG ("pkt_item_num = %i; pkt_item_len = %i;",
 				pkt_item_num, pkt_item_len);
 
 		/* Check if the reported items fit in the packet */
 		if ((pkt_item_num * pkt_item_len) > (status - RESP_HEADER_SIZE))
 		{
-			syslog (LOG_ERR, "ntpd plugin: %i items * %i bytes > "
+			ERROR ("ntpd plugin: %i items * %i bytes > "
 					"%i bytes - %i bytes header",
 					(int) pkt_item_num, (int) pkt_item_len,
 					(int) status, (int) RESP_HEADER_SIZE);
@@ -600,14 +599,14 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		 * items have the same size. Discard invalid packets. */
 		if (items_num == 0) /* first packet */
 		{
-			DBG ("*res_size = %i", pkt_item_len);
+			DEBUG ("*res_size = %i", pkt_item_len);
 			*res_size = pkt_item_len;
 		}
 		else if (*res_size != pkt_item_len)
 		{
-			DBG ("Error: *res_size = %i; pkt_item_len = %i;",
+			DEBUG ("Error: *res_size = %i; pkt_item_len = %i;",
 					*res_size, pkt_item_len);
-			syslog (LOG_ERR, "Item sizes differ.");
+			ERROR ("Item sizes differ.");
 			continue;
 		}
 
@@ -615,14 +614,14 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		pkt_padding = 0;
 		if (res_item_size > pkt_item_len)
 			pkt_padding = res_item_size - pkt_item_len;
-		DBG ("res_item_size = %i; pkt_padding = %i;",
+		DEBUG ("res_item_size = %i; pkt_padding = %i;",
 				res_item_size, pkt_padding);
 
 		/* Extract the sequence number */
 		pkt_sequence = INFO_SEQ (res.auth_seq);
 		if ((pkt_sequence < 0) || (pkt_sequence > MAXSEQ))
 		{
-			syslog (LOG_ERR, "ntpd plugin: Received packet with sequence %i",
+			ERROR ("ntpd plugin: Received packet with sequence %i",
 					pkt_sequence);
 			continue;
 		}
@@ -630,7 +629,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		/* Check if this sequence has been received before. If so, discard it. */
 		if (pkt_recvd[pkt_sequence] != '\0')
 		{
-			syslog (LOG_NOTICE, "ntpd plugin: Sequence %i received twice",
+			NOTICE ("ntpd plugin: Sequence %i received twice",
 					pkt_sequence);
 			continue;
 		}
@@ -641,20 +640,20 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		{
 			if (pkt_lastseq != -1)
 			{
-				syslog (LOG_ERR, "ntpd plugin: Two packets which both "
+				ERROR ("ntpd plugin: Two packets which both "
 						"claim to be the last one in the "
 						"sequence have been received.");
 				continue;
 			}
 			pkt_lastseq = pkt_sequence;
-			DBG ("Last sequence = %i;", pkt_lastseq);
+			DEBUG ("Last sequence = %i;", pkt_lastseq);
 		}
 
 		/*
 		 * Enough with the checks. Copy the data now.
 		 * We start by allocating some more memory.
 		 */
-		DBG ("realloc (%p, %i)", (void *) *res_data,
+		DEBUG ("realloc (%p, %i)", (void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
 		items = realloc ((void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
@@ -662,7 +661,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		if (items == NULL)
 		{
 			items = *res_data;
-			syslog (LOG_ERR, "ntpd plugin: realloc failed.");
+			ERROR ("ntpd plugin: realloc failed.");
 			continue;
 		}
 		*res_data = items;
@@ -721,13 +720,13 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 	if (req_data != NULL)
 		memcpy ((void *) req.data, (const void *) req_data, req_data_len);
 
-	DBG ("req_items = %i; req_size = %i; req_data = %p;",
+	DEBUG ("req_items = %i; req_size = %i; req_data = %p;",
 			req_items, req_size, (void *) req_data);
 
 	status = swrite (sd, (const char *) &req, REQ_LEN_NOMAC);
 	if (status < 0)
 	{
-		DBG ("`swrite' failed. Closing socket #%i", sd);
+		DEBUG ("`swrite' failed. Closing socket #%i", sd);
 		close (sd);
 		sock_descr = sd = -1;
 		return (status);
@@ -798,19 +797,19 @@ static int ntpd_read (void)
 
 	if (status != 0)
 	{
-		DBG ("ntpd_do_query failed with status %i", status);
+		DEBUG ("ntpd_do_query failed with status %i", status);
 		return (-1);
 	}
 	if ((ik == NULL) || (ik_num == 0) || (ik_size == 0))
 	{
-		DBG ("ntpd_do_query returned: ik = %p; ik_num = %i; ik_size = %i;",
+		DEBUG ("ntpd_do_query returned: ik = %p; ik_num = %i; ik_size = %i;",
 				(void *) ik, ik_num, ik_size);
 		return (-1);
 	}
 
 	/* kerninfo -> estimated error */
 
-	DBG ("info_kernel:\n"
+	DEBUG ("info_kernel:\n"
 			"  pll offset    = %.8f\n"
 			"  pll frequency = %.8f\n" /* drift compensation */
 			"  est error     = %.8f\n",
@@ -831,12 +830,12 @@ static int ntpd_read (void)
 			sizeof (struct info_peer_summary));
 	if (status != 0)
 	{
-		DBG ("ntpd_do_query failed with status %i", status);
+		DEBUG ("ntpd_do_query failed with status %i", status);
 		return (-1);
 	}
 	if ((ps == NULL) || (ps_num == 0) || (ps_size == 0))
 	{
-		DBG ("ntpd_do_query returned: ps = %p; ps_num = %i; ps_size = %i;",
+		DEBUG ("ntpd_do_query returned: ps = %p; ps_num = %i; ps_size = %i;",
 				(void *) ps, ps_num, ps_size);
 		return (-1);
 	}
@@ -875,7 +874,7 @@ static int ntpd_read (void)
 					NULL, 0, 0 /* no flags */);
 			if (status != 0)
 			{
-				syslog (LOG_ERR, "ntpd plugin: getnameinfo failed: %s",
+				ERROR ("ntpd plugin: getnameinfo failed: %s",
 						status == EAI_SYSTEM
 						? strerror (errno)
 						: gai_strerror (status));
@@ -925,7 +924,7 @@ static int ntpd_read (void)
 			}
 		}
 
-		DBG ("peer %i:\n"
+		DEBUG ("peer %i:\n"
 				"  peername   = %s\n"
 				"  srcadr     = 0x%08x\n"
 				"  delay      = %f\n"

@@ -22,7 +22,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #if HAVE_MACH_MACH_TYPES_H
 #  include <mach/mach_types.h>
@@ -152,7 +151,7 @@ static int disk_init (void)
 	status = IOMasterPort (MACH_PORT_NULL, &io_master_port);
 	if (status != kIOReturnSuccess)
 	{
-		syslog (LOG_ERR, "IOMasterPort failed: %s",
+		ERROR ("IOMasterPort failed: %s",
 				mach_error_string (status));
 		io_master_port = MACH_PORT_NULL;
 		return (-1);
@@ -170,7 +169,7 @@ static int disk_init (void)
 	assert (heartbeat >= step);
 
 	min_poll_count = 1 + (heartbeat / step);
-	DBG ("min_poll_count = %i;", min_poll_count);
+	DEBUG ("min_poll_count = %i;", min_poll_count);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -230,7 +229,7 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 		       	kCFStringEncodingASCII);
 	if (key_obj == NULL)
 	{
-		DBG ("CFStringCreateWithCString (%s) failed.", key);
+		DEBUG ("CFStringCreateWithCString (%s) failed.", key);
 		return (-1LL);
 	}
 	
@@ -241,13 +240,13 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 
 	if (val_obj == NULL)
 	{
-		DBG ("CFDictionaryGetValue (%s) failed.", key);
+		DEBUG ("CFDictionaryGetValue (%s) failed.", key);
 		return (-1LL);
 	}
 
 	if (!CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int))
 	{
-		DBG ("CFNumberGetValue (%s) failed.", key);
+		DEBUG ("CFNumberGetValue (%s) failed.", key);
 		return (-1LL);
 	}
 
@@ -305,7 +304,7 @@ static int disk_read (void)
 			       	!= kIOReturnSuccess)
 		{
 			/* This fails for example for DVD/CD drives.. */
-			DBG ("IORegistryEntryGetChildEntry (disk) failed: 0x%08x", status);
+			DEBUG ("IORegistryEntryGetChildEntry (disk) failed: 0x%08x", status);
 			IOObjectRelease (disk);
 			continue;
 		}
@@ -317,7 +316,7 @@ static int disk_read (void)
 					kNilOptions)
 				!= kIOReturnSuccess)
 		{
-			syslog (LOG_ERR, "disk-plugin: IORegistryEntryCreateCFProperties failed.");
+			ERROR ("disk-plugin: IORegistryEntryCreateCFProperties failed.");
 			IOObjectRelease (disk_child);
 			IOObjectRelease (disk);
 			continue;
@@ -325,7 +324,7 @@ static int disk_read (void)
 
 		if (props_dict == NULL)
 		{
-			DBG ("IORegistryEntryCreateCFProperties (disk) failed.");
+			DEBUG ("IORegistryEntryCreateCFProperties (disk) failed.");
 			IOObjectRelease (disk_child);
 			IOObjectRelease (disk);
 			continue;
@@ -336,7 +335,7 @@ static int disk_read (void)
 
 		if (stats_dict == NULL)
 		{
-			DBG ("CFDictionaryGetValue (%s) failed.",
+			DEBUG ("CFDictionaryGetValue (%s) failed.",
 				       	kIOBlockStorageDriverStatisticsKey);
 			CFRelease (props_dict);
 			IOObjectRelease (disk_child);
@@ -350,7 +349,7 @@ static int disk_read (void)
 					kNilOptions)
 				!= kIOReturnSuccess)
 		{
-			DBG ("IORegistryEntryCreateCFProperties (disk_child) failed.");
+			DEBUG ("IORegistryEntryCreateCFProperties (disk_child) failed.");
 			IOObjectRelease (disk_child);
 			CFRelease (props_dict);
 			IOObjectRelease (disk);
@@ -382,14 +381,14 @@ static int disk_read (void)
 
 		if (snprintf (disk_name, 64, "%i-%i", disk_major, disk_minor) >= 64)
 		{
-			DBG ("snprintf (major, minor) failed.");
+			DEBUG ("snprintf (major, minor) failed.");
 			CFRelease (child_dict);
 			IOObjectRelease (disk_child);
 			CFRelease (props_dict);
 			IOObjectRelease (disk);
 			continue;
 		}
-		DBG ("disk_name = %s", disk_name);
+		DEBUG ("disk_name = %s", disk_name);
 
 		if ((read_byt != -1LL) || (write_byt != -1LL))
 			disk_submit (disk_name, "disk_octets", read_byt, write_byt);
@@ -516,7 +515,7 @@ static int disk_read (void)
 		}
 		else
 		{
-			DBG ("numfields = %i; => unknown file format.", numfields);
+			DEBUG ("numfields = %i; => unknown file format.", numfields);
 			continue;
 		}
 
@@ -540,14 +539,14 @@ static int disk_read (void)
 		ds->poll_count++;
 		if (ds->poll_count <= min_poll_count)
 		{
-			DBG ("(ds->poll_count = %i) <= (min_poll_count = %i); => Not writing.",
+			DEBUG ("(ds->poll_count = %i) <= (min_poll_count = %i); => Not writing.",
 					ds->poll_count, min_poll_count);
 			continue;
 		}
 
 		if ((read_count == 0) && (write_count == 0))
 		{
-			DBG ("((read_count == 0) && (write_count == 0)); => Not writing.");
+			DEBUG ("((read_count == 0) && (write_count == 0)); => Not writing.");
 			continue;
 		}
 

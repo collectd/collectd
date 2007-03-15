@@ -48,7 +48,7 @@
  **/
 
 #include "common.h"
-#include "utils_debug.h"
+#include "plugin.h"
 #include "utils_ignorelist.h"
 
 /*
@@ -94,7 +94,7 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
 	/* create buffer */
 	if ((regtemp = malloc(sizeof(regex_t))) == NULL)
 	{
-		syslog (LOG_ERR, "cannot allocate new config entry");
+		ERROR ("cannot allocate new config entry");
 		return (1);
 	}
 	memset (regtemp, '\0', sizeof(regex_t));
@@ -111,14 +111,14 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
 		{
 			fprintf (stderr, "Cannot compile regex %s: %i/%s",
 					entry, rcompile, regerr);
-			syslog (LOG_ERR, "Cannot compile regex %s: %i/%s",
+			ERROR ("Cannot compile regex %s: %i/%s",
 					entry, rcompile, regerr);
 		}
 		else
 		{
 			fprintf (stderr, "Cannot compile regex %s: %i",
 					entry, rcompile);
-			syslog (LOG_ERR, "Cannot compile regex %s: %i",
+			ERROR ("Cannot compile regex %s: %i",
 					entry, rcompile);
 		}
 
@@ -127,12 +127,12 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
 		regfree (regtemp);
 		return (1);
 	}
-	DBG("regex compiled: %s - %i", entry, rcompile);
+	DEBUG("regex compiled: %s - %i", entry, rcompile);
 
 	/* create new entry */
 	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL)
 	{
-		syslog (LOG_ERR, "cannot allocate new config entry");
+		ERROR ("cannot allocate new config entry");
 		regfree (regtemp);
 		return (1);
 	}
@@ -153,7 +153,7 @@ static int ignorelist_append_string(ignorelist_t *il, const char *entry)
 	/* create new entry */
 	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL )
 	{
-		syslog (LOG_ERR, "cannot allocate new entry");
+		ERROR ("cannot allocate new entry");
 		return (1);
 	}
 	memset (new, '\0', sizeof(ignorelist_item_t));
@@ -213,7 +213,7 @@ ignorelist_t *ignorelist_create (int invert)
 
 	/* smalloc exits if it failes */
 	il = (ignorelist_t *) smalloc (sizeof (ignorelist_t));
-	DBG("Ignorelist created 0x%p, default is %s",
+	DEBUG("Ignorelist created 0x%p, default is %s",
 			(void *) il,
 			invert ? "collect" : "ignore");
 
@@ -236,7 +236,7 @@ void ignorelist_free (ignorelist_t *il)
 	ignorelist_item_t *this;
 	ignorelist_item_t *next;
 
-	DBG ("(il = 0x%p)", (void *) il);
+	DEBUG ("(il = 0x%p)", (void *) il);
 
 	if (il == NULL)
 		return;
@@ -270,7 +270,7 @@ void ignorelist_set_invert (ignorelist_t *il, int invert)
 {
 	if (il == NULL)
 	{
-		DBG("ignore call with ignorelist_t == NULL");
+		DEBUG("ignore call with ignorelist_t == NULL");
 		return;
 	}
 
@@ -288,7 +288,7 @@ int ignorelist_add (ignorelist_t *il, const char *entry)
 
 	if (il == NULL)
 	{
-		DBG ("add called with ignorelist_t == NULL");
+		DEBUG ("add called with ignorelist_t == NULL");
 		return (1);
 	}
 
@@ -297,7 +297,7 @@ int ignorelist_add (ignorelist_t *il, const char *entry)
 	/* append nothing */
 	if (entry_len == 0)
 	{
-		DBG("not appending: empty entry");
+		DEBUG("not appending: empty entry");
 		return (1);
 	}
 
@@ -312,14 +312,14 @@ int ignorelist_add (ignorelist_t *il, const char *entry)
 		memset (entry_copy, '\0', entry_len);
 		strncpy (entry_copy, entry + 1, entry_len - 2);
 
-		DBG("I'm about to add regex entry: %s", entry_copy);
+		DEBUG("I'm about to add regex entry: %s", entry_copy);
 		ret = ignorelist_append_regex(il, entry_copy);
 		sfree (entry_copy);
 	}
 	else
 #endif
 	{
-		DBG("to add entry: %s", entry);
+		DEBUG("to add entry: %s", entry);
 		ret = ignorelist_append_string(il, entry);
 	}
 

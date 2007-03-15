@@ -22,7 +22,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #if HAVE_CTYPE_H
 #  include <ctype.h>
@@ -95,7 +94,7 @@ static int as_init (void)
 	status = IOMasterPort (MACH_PORT_NULL, &io_master_port);
 	if (status != kIOReturnSuccess)
 	{
-		syslog (LOG_ERR, "IOMasterPort failed: %s",
+		ERROR ("IOMasterPort failed: %s",
 				mach_error_string (status));
 		io_master_port = MACH_PORT_NULL;
 		return (-1);
@@ -110,7 +109,7 @@ static void as_submit (const char *type, const char *type_instance,
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	DBG ("type = %s; type_instance = %s; val = %f;",
+	DEBUG ("type = %s; type_instance = %s; val = %f;",
 			type, type_instance, val);
 
 	values[0].gauge = val;
@@ -148,7 +147,7 @@ static int as_read (void)
 		       	&iterator);
 	if (status != kIOReturnSuccess)
        	{
-		syslog (LOG_ERR, "IOServiceGetMatchingServices failed: %s",
+		ERROR ("IOServiceGetMatchingServices failed: %s",
 				mach_error_string (status));
 		return (-1);
 	}
@@ -162,7 +161,7 @@ static int as_read (void)
 				kNilOptions);
 		if (status != kIOReturnSuccess)
 		{
-			DBG ("IORegistryEntryCreateCFProperties failed: %s",
+			DEBUG ("IORegistryEntryCreateCFProperties failed: %s",
 					mach_error_string (status));
 			continue;
 		}
@@ -246,7 +245,7 @@ static int as_read (void)
 		}
 		else
 		{
-			DBG ("apple_sensors: Read unknown sensor type: %s",
+			DEBUG ("apple_sensors: Read unknown sensor type: %s",
 					type);
 			value_double = (double) value_int;
 		}

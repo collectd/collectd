@@ -23,7 +23,6 @@
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 #include "network.h"
 
@@ -263,7 +262,7 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 
 	if (buffer_len < (15))
 	{
-		DBG ("packet is too short: buffer_len = %i", buffer_len);
+		DEBUG ("packet is too short: buffer_len = %i", buffer_len);
 		return (-1);
 	}
 
@@ -278,7 +277,7 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 
 	if (h_num != ((h_length - 6) / 9))
 	{
-		DBG ("`length' and `num of values' don't match");
+		DEBUG ("`length' and `num of values' don't match");
 		return (-1);
 	}
 
@@ -329,7 +328,7 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	uint16_t h_length;
 	uint16_t h_type;
 
-	DBG ("ret_buffer = %p; ret_buffer_len = %i; output = %p; output_len = %i;",
+	DEBUG ("ret_buffer = %p; ret_buffer_len = %i; output = %p; output_len = %i;",
 			*ret_buffer, *ret_buffer_len,
 			(void *) output, output_len);
 
@@ -338,11 +337,11 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	h_length = ntohs (ps.head->length);
 	h_type = ntohs (ps.head->type);
 
-	DBG ("length = %hu; type = %hu;", h_length, h_type);
+	DEBUG ("length = %hu; type = %hu;", h_length, h_type);
 
 	if (buffer_len < h_length)
 	{
-		DBG ("packet is too short");
+		DEBUG ("packet is too short");
 		return (-1);
 	}
 	assert ((h_type == TYPE_HOST)
@@ -354,18 +353,18 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	ps.value = buffer + 4;
 	if (ps.value[h_length - 5] != '\0')
 	{
-		DBG ("String does not end with a nullbyte");
+		DEBUG ("String does not end with a nullbyte");
 		return (-1);
 	}
 
 	if (output_len < (h_length - 4))
 	{
-		DBG ("output buffer is too small");
+		DEBUG ("output buffer is too small");
 		return (-1);
 	}
 	strcpy (output, ps.value);
 
-	DBG ("output = %s", output);
+	DEBUG ("output = %s", output);
 
 	*ret_buffer = (void *) (buffer + h_length);
 	*ret_buffer_len = buffer_len - h_length;
@@ -381,7 +380,7 @@ static int parse_packet (void *buffer, int buffer_len)
 	value_list_t vl = VALUE_LIST_INIT;
 	char type[DATA_MAX_NAME_LEN];
 
-	DBG ("buffer = %p; buffer_len = %i;", buffer, buffer_len);
+	DEBUG ("buffer = %p; buffer_len = %i;", buffer, buffer_len);
 
 	memset (&vl, '\0', sizeof (vl));
 	memset (&type, '\0', sizeof (type));
@@ -401,7 +400,7 @@ static int parse_packet (void *buffer, int buffer_len)
 
 			if (status != 0)
 			{
-				DBG ("parse_part_values failed.");
+				DEBUG ("parse_part_values failed.");
 				break;
 			}
 
@@ -410,12 +409,12 @@ static int parse_packet (void *buffer, int buffer_len)
 					&& (strlen (vl.plugin) > 0)
 					&& (strlen (type) > 0))
 			{
-				DBG ("dispatching values");
+				DEBUG ("dispatching values");
 				plugin_dispatch_values (type, &vl);
 			}
 			else
 			{
-				DBG ("NOT dispatching values");
+				DEBUG ("NOT dispatching values");
 			}
 		}
 		else if (header->type == ntohs (TYPE_TIME))
@@ -452,7 +451,7 @@ static int parse_packet (void *buffer, int buffer_len)
 		}
 		else
 		{
-			DBG ("Unknown part type: 0x%0hx", header->type);
+			DEBUG ("Unknown part type: 0x%0hx", header->type);
 			buffer = ((char *) buffer) + header->length;
 		}
 	} /* while (buffer_len > sizeof (part_header_t)) */
@@ -486,7 +485,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 	if ((network_config_ttl < 1) || (network_config_ttl > 255))
 		return (-1);
 
-	DBG ("ttl = %i", network_config_ttl);
+	DEBUG ("ttl = %i", network_config_ttl);
 
 	if (ai->ai_family == AF_INET)
 	{
@@ -502,7 +501,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					&network_config_ttl,
 					sizeof (network_config_ttl)) == -1)
 		{
-			syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+			ERROR ("setsockopt: %s", strerror (errno));
 			return (-1);
 		}
 	}
@@ -521,7 +520,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					&network_config_ttl,
 					sizeof (network_config_ttl)) == -1)
 		{
-			syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+			ERROR ("setsockopt: %s", strerror (errno));
 			return (-1);
 		}
 	}
@@ -533,11 +532,11 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
 	int loop = 1;
 
-	DBG ("fd = %i; calling `bind'", se->fd);
+	DEBUG ("fd = %i; calling `bind'", se->fd);
 
 	if (bind (se->fd, ai->ai_addr, ai->ai_addrlen) == -1)
 	{
-		syslog (LOG_ERR, "bind: %s", strerror (errno));
+		ERROR ("bind: %s", strerror (errno));
 		return (-1);
 	}
 
@@ -548,7 +547,7 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 		{
 			struct ip_mreq mreq;
 
-			DBG ("fd = %i; IPv4 multicast address found", se->fd);
+			DEBUG ("fd = %i; IPv4 multicast address found", se->fd);
 
 			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
 			mreq.imr_interface.s_addr = htonl (INADDR_ANY);
@@ -556,14 +555,14 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 			if (setsockopt (se->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
 			{
-				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				ERROR ("setsockopt: %s", strerror (errno));
 				return (-1);
 			}
 
 			if (setsockopt (se->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 						&mreq, sizeof (mreq)) == -1)
 			{
-				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				ERROR ("setsockopt: %s", strerror (errno));
 				return (-1);
 			}
 		}
@@ -576,7 +575,7 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 		{
 			struct ipv6_mreq mreq;
 
-			DBG ("fd = %i; IPv6 multicast address found", se->fd);
+			DEBUG ("fd = %i; IPv6 multicast address found", se->fd);
 
 			memcpy (&mreq.ipv6mr_multiaddr,
 					&addr->sin6_addr,
@@ -596,14 +595,14 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
 			{
-				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				ERROR ("setsockopt: %s", strerror (errno));
 				return (-1);
 			}
 
 			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
 						&mreq, sizeof (mreq)) == -1)
 			{
-				syslog (LOG_ERR, "setsockopt: %s", strerror (errno));
+				ERROR ("setsockopt: %s", strerror (errno));
 				return (-1);
 			}
 		}
@@ -623,7 +622,7 @@ static sockent_t *network_create_socket (const char *node,
 	sockent_t *se_head = NULL;
 	sockent_t *se_tail = NULL;
 
-	DBG ("node = %s, service = %s", node, service);
+	DEBUG ("node = %s, service = %s", node, service);
 
 	memset (&ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_flags    = 0;
@@ -640,7 +639,7 @@ static sockent_t *network_create_socket (const char *node,
 	ai_return = getaddrinfo (node, service, &ai_hints, &ai_list);
 	if (ai_return != 0)
 	{
-		syslog (LOG_ERR, "getaddrinfo (%s, %s): %s",
+		ERROR ("getaddrinfo (%s, %s): %s",
 				(node == NULL) ? "(null)" : node,
 				(service == NULL) ? "(null)" : service,
 				(ai_return == EAI_SYSTEM)
@@ -655,13 +654,13 @@ static sockent_t *network_create_socket (const char *node,
 
 		if ((se = (sockent_t *) malloc (sizeof (sockent_t))) == NULL)
 		{
-			syslog (LOG_EMERG, "malloc: %s", strerror (errno));
+			ERROR ("malloc: %s", strerror (errno));
 			continue;
 		}
 
 		if ((se->addr = (struct sockaddr_storage *) malloc (sizeof (struct sockaddr_storage))) == NULL)
 		{
-			syslog (LOG_EMERG, "malloc: %s", strerror (errno));
+			ERROR ("malloc: %s", strerror (errno));
 			free (se);
 			continue;
 		}
@@ -678,7 +677,7 @@ static sockent_t *network_create_socket (const char *node,
 
 		if (se->fd == -1)
 		{
-			syslog (LOG_ERR, "socket: %s", strerror (errno));
+			ERROR ("socket: %s", strerror (errno));
 			free (se->addr);
 			free (se);
 			continue;
@@ -828,7 +827,7 @@ int network_receive (void)
 
 	if (listen_sockets_num == 0)
 	{
-		syslog (LOG_ERR, "network: Failed to open a listening socket.");
+		ERROR ("network: Failed to open a listening socket.");
 		return (-1);
 	}
 
@@ -840,7 +839,7 @@ int network_receive (void)
 		{
 			if (errno == EINTR)
 				continue;
-			syslog (LOG_ERR, "poll failed: %s",
+			ERROR ("poll failed: %s",
 					strerror (errno));
 			return (-1);
 		}
@@ -856,7 +855,7 @@ int network_receive (void)
 					0 /* no flags */);
 			if (buffer_len < 0)
 			{
-				syslog (LOG_ERR, "recv failed: %s", strerror (errno));
+				ERROR ("recv failed: %s", strerror (errno));
 				return (-1);
 			}
 
@@ -877,7 +876,7 @@ static void network_send_buffer (const char *buffer, int buffer_len)
 	sockent_t *se;
 	int status;
 
-	DBG ("buffer_len = %i", buffer_len);
+	DEBUG ("buffer_len = %i", buffer_len);
 
 	for (se = sending_sockets; se != NULL; se = se->next)
 	{
@@ -889,7 +888,7 @@ static void network_send_buffer (const char *buffer, int buffer_len)
 			{
 				if (errno == EINTR)
 					continue;
-				syslog (LOG_ERR, "network plugin: sendto failed: %s",
+				ERROR ("network plugin: sendto failed: %s",
 						strerror (errno));
 				break;
 			}
@@ -909,7 +908,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					vl->host, strlen (vl->host)) != 0)
 			return (-1);
 		strcpy (vl_def->host, vl->host);
-		DBG ("host = %s", vl->host);
+		DEBUG ("host = %s", vl->host);
 	}
 
 	if (vl_def->time != vl->time)
@@ -918,7 +917,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					(uint64_t) vl->time))
 			return (-1);
 		vl_def->time = vl->time;
-		DBG ("time = %u", (unsigned int) vl->time);
+		DEBUG ("time = %u", (unsigned int) vl->time);
 	}
 
 	if (strcmp (vl_def->plugin, vl->plugin) != 0)
@@ -927,7 +926,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					vl->plugin, strlen (vl->plugin)) != 0)
 			return (-1);
 		strcpy (vl_def->plugin, vl->plugin);
-		DBG ("plugin = %s", vl->plugin);
+		DEBUG ("plugin = %s", vl->plugin);
 	}
 
 	if (strcmp (vl_def->plugin_instance, vl->plugin_instance) != 0)
@@ -937,7 +936,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					strlen (vl->plugin_instance)) != 0)
 			return (-1);
 		strcpy (vl_def->plugin_instance, vl->plugin_instance);
-		DBG ("plugin_instance = %s", vl->plugin_instance);
+		DEBUG ("plugin_instance = %s", vl->plugin_instance);
 	}
 
 	if (strcmp (type_def, ds->type) != 0)
@@ -946,7 +945,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					ds->type, strlen (ds->type)) != 0)
 			return (-1);
 		strcpy (type_def, ds->type);
-		DBG ("type = %s", ds->type);
+		DEBUG ("type = %s", ds->type);
 	}
 
 	if (strcmp (vl_def->type_instance, vl->type_instance) != 0)
@@ -956,7 +955,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					strlen (vl->type_instance)) != 0)
 			return (-1);
 		strcpy (vl_def->type_instance, vl->type_instance);
-		DBG ("type_instance = %s", vl->type_instance);
+		DEBUG ("type_instance = %s", vl->type_instance);
 	}
 	
 	if (write_part_values (&buffer, &buffer_size, ds, vl) != 0)
@@ -1005,7 +1004,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl)
 
 	if (status < 0)
 	{
-		syslog (LOG_ERR, "network plugin: Unable to append to the "
+		ERROR ("network plugin: Unable to append to the "
 				"buffer for some weird reason");
 	}
 	else if ((sizeof (send_buffer) - send_buffer_fill) < 15)
@@ -1063,7 +1062,7 @@ static int network_config (const char *key, const char *val)
 
 static int network_shutdown (void)
 {
-	DBG ("Shutting down.");
+	DEBUG ("Shutting down.");
 
 	listen_loop++;
 
@@ -1096,7 +1095,7 @@ static int network_init (void)
 				receive_thread, NULL /* no argument */);
 
 		if (status != 0)
-			syslog (LOG_ERR, "network: pthread_create failed: %s",
+			ERROR ("network: pthread_create failed: %s",
 					strerror (errno));
 	}
 	return (0);

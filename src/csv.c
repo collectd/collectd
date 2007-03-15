@@ -22,7 +22,6 @@
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
-#include "utils_debug.h"
 
 /*
  * Private variables
@@ -121,7 +120,7 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 		now = time (NULL);
 		if (localtime_r (&now, &stm) == NULL)
 		{
-			syslog (LOG_ERR, "csv plugin: localtime_r failed");
+			ERROR ("csv plugin: localtime_r failed");
 			return (1);
 		}
 
@@ -143,7 +142,7 @@ static int csv_create_file (const char *filename, const data_set_t *ds)
 	csv = fopen (filename, "w");
 	if (csv == NULL)
 	{
-		syslog (LOG_ERR, "csv plugin: fopen (%s) failed: %s",
+		ERROR ("csv plugin: fopen (%s) failed: %s",
 				filename, strerror(errno));
 		return (-1);
 	}
@@ -200,7 +199,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 	if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
 		return (-1);
 
-	DBG ("filename = %s;", filename);
+	DEBUG ("filename = %s;", filename);
 
 	if (value_list_to_string (values, sizeof (values), ds, vl) != 0)
 		return (-1);
@@ -214,14 +213,14 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 		}
 		else
 		{
-			syslog (LOG_ERR, "stat(%s) failed: %s",
+			ERROR ("stat(%s) failed: %s",
 					filename, strerror (errno));
 			return (-1);
 		}
 	}
 	else if (!S_ISREG (statbuf.st_mode))
 	{
-		syslog (LOG_ERR, "stat(%s): Not a regular file!",
+		ERROR ("stat(%s): Not a regular file!",
 				filename);
 		return (-1);
 	}
@@ -229,7 +228,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 	csv = fopen (filename, "a");
 	if (csv == NULL)
 	{
-		syslog (LOG_ERR, "csv plugin: fopen (%s) failed: %s",
+		ERROR ("csv plugin: fopen (%s) failed: %s",
 				filename, strerror (errno));
 		return (-1);
 	}
@@ -245,7 +244,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 	status = fcntl (csv_fd, F_SETLK, &fl);
 	if (status != 0)
 	{
-		syslog (LOG_ERR, "csv plugin: flock (%s) failed: %s",
+		ERROR ("csv plugin: flock (%s) failed: %s",
 				filename, strerror (errno));
 		fclose (csv);
 		return (-1);

@@ -21,7 +21,7 @@
 **/
 
 #include "common.h"
-#include "utils_debug.h"
+#include "plugin.h"
 
 #ifdef HAVE_MATH_H
 #  include <math.h>
@@ -51,7 +51,7 @@ char *sstrdup (const char *s)
 
 	if((r = strdup (s)) == NULL)
 	{
-		DBG ("Not enough memory.");
+		DEBUG ("Not enough memory.");
 		exit(3);
 	}
 
@@ -64,7 +64,7 @@ void *smalloc (size_t size)
 
 	if ((r = malloc (size)) == NULL)
 	{
-		DBG("Not enough memory.");
+		DEBUG("Not enough memory.");
 		exit(3);
 	}
 
@@ -105,7 +105,7 @@ ssize_t sread (int fd, void *buf, size_t count)
 
 		if (status == 0)
 		{
-			DBG ("Received EOF from fd %i. "
+			DEBUG ("Received EOF from fd %i. "
 					"Closing fd and returning error.",
 					fd);
 			close (fd);
@@ -351,7 +351,7 @@ int check_create_dir (const char *file_orig)
 		 */
 		if (fields[i][0] == '.')
 		{
-			syslog (LOG_ERR, "Cowardly refusing to create a directory that begins with a `.' (dot): `%s'", file_orig);
+			ERROR ("Cowardly refusing to create a directory that begins with a `.' (dot): `%s'", file_orig);
 			return (-2);
 		}
 
@@ -362,7 +362,7 @@ int check_create_dir (const char *file_orig)
 		if (strjoin (dir + path_is_absolute, dir_len - path_is_absolute,
 					fields, i + 1, "/") < 0)
 		{
-			syslog (LOG_ERR, "strjoin failed: `%s', component #%i", file_orig, i);
+			ERROR ("strjoin failed: `%s', component #%i", file_orig, i);
 			return (-1);
 		}
 
@@ -372,19 +372,19 @@ int check_create_dir (const char *file_orig)
 			{
 				if (mkdir (dir, 0755) == -1)
 				{
-					syslog (LOG_ERR, "mkdir (%s): %s", dir, strerror (errno));
+					ERROR ("mkdir (%s): %s", dir, strerror (errno));
 					return (-1);
 				}
 			}
 			else
 			{
-				syslog (LOG_ERR, "stat (%s): %s", dir, strerror (errno));
+				ERROR ("stat (%s): %s", dir, strerror (errno));
 				return (-1);
 			}
 		}
 		else if (!S_ISDIR (statbuf.st_mode))
 		{
-			syslog (LOG_ERR, "stat (%s): Not a directory!", dir);
+			ERROR ("stat (%s): Not a directory!", dir);
 			return (-1);
 		}
 	}
@@ -407,13 +407,13 @@ int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name)
 	{
 		if ((*ksp_ptr = kstat_lookup (kc, module, instance, name)) == NULL)
 		{
-			syslog (LOG_ERR, "Cound not find kstat %s", ident);
+			ERROR ("Cound not find kstat %s", ident);
 			return (-1);
 		}
 
 		if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED)
 		{
-			syslog (LOG_WARNING, "kstat %s has wrong type", ident);
+			WARNING ("kstat %s has wrong type", ident);
 			*ksp_ptr = NULL;
 			return (-1);
 		}
@@ -426,13 +426,13 @@ int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name)
 
 	if (kstat_read (kc, *ksp_ptr, NULL) == -1)
 	{
-		syslog (LOG_WARNING, "kstat %s could not be read", ident);
+		WARNING ("kstat %s could not be read", ident);
 		return (-1);
 	}
 
 	if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED)
 	{
-		syslog (LOG_WARNING, "kstat %s has wrong type", ident);
+		WARNING ("kstat %s has wrong type", ident);
 		return (-1);
 	}
 
@@ -472,7 +472,7 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 	else if (kn->data_type == KSTAT_DATA_UINT64)
 		retval = (long long) kn->value.ui64; /* XXX: Might overflow! */
 	else
-		syslog (LOG_WARNING, "get_kstat_value: Not a numeric value: %s", name);
+		WARNING ("get_kstat_value: Not a numeric value: %s", name);
 		 
 	return (retval);
 }

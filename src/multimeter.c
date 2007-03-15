@@ -81,7 +81,7 @@ static int multimeter_read_value(double *value)
 
 		if (gettimeofday (&time_end, NULL) < 0)
 	        {
-	                syslog (LOG_ERR, "multimeter plugin: gettimeofday failed: %s",
+	                ERROR ("multimeter plugin: gettimeofday failed: %s",
                                 strerror (errno));
 	                return (-1);
 	        }
@@ -103,7 +103,7 @@ static int multimeter_read_value(double *value)
 
 			if (gettimeofday (&time_now, NULL) < 0)
 	                {
-		                syslog (LOG_ERR, "multimeter plugin: "
+		                ERROR ("multimeter plugin: "
 						"gettimeofday failed: %s",
 						strerror (errno));
 	                        return (-1);
@@ -157,7 +157,7 @@ static int multimeter_read_value(double *value)
 			}
 			else /* status == -1 */
             		{
-		                syslog (LOG_ERR, "multimeter plugin: "
+		                ERROR ("multimeter plugin: "
 						"select failed: %s",
 						strerror (errno));
 	                        break;
@@ -201,14 +201,14 @@ static int multimeter_init (void)
 			}
 			else
 			{
-				syslog (LOG_INFO, "multimeter plugin: Device "
+				INFO ("multimeter plugin: Device "
 						"found at %s", device);
 				return (0);
 			}
 		}
 	}
 
-	syslog (LOG_ERR, "multimeter plugin: No device found");
+	ERROR ("multimeter plugin: No device found");
 	return (-1);
 }
 #undef LINE_LENGTH

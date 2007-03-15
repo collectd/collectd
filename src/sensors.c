@@ -33,7 +33,6 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_ignorelist.h"
-#include "utils_debug.h"
 
 #if defined(HAVE_SENSORS_SENSORS_H)
 # include <sensors/sensors.h>
@@ -200,7 +199,7 @@ static int sensors_config (const char *key, const char *value)
 	{
 		if (ignorelist_add (sensor_list, value))
 		{
-			syslog (LOG_ERR, "sensors plugin: "
+			ERROR ("sensors plugin: "
 					"Cannot add value to ignorelist.");
 			return (1);
 		}
@@ -257,7 +256,7 @@ static void sensors_load_conf (void)
 	status = stat (conffile, &statbuf);
 	if (status != 0)
 	{
-		syslog (LOG_ERR, "sensors plugin: stat (%s) failed: %s",
+		ERROR ("sensors plugin: stat (%s) failed: %s",
 				conffile, strerror (errno));
 		sensors_config_mtime = 0;
 	}
@@ -268,7 +267,7 @@ static void sensors_load_conf (void)
 
 	if (sensors_config_mtime != 0)
 	{
-		syslog (LOG_NOTICE, "sensors plugin: Reloading config from %s",
+		NOTICE ("sensors plugin: Reloading config from %s",
 				conffile);
 		sensors_free_features ();
 		sensors_config_mtime = 0;
@@ -277,7 +276,7 @@ static void sensors_load_conf (void)
 	fh = fopen (conffile, "r");
 	if (fh == NULL)
 	{
-		syslog (LOG_ERR, "sensors plugin: fopen(%s) failed: %s",
+		ERROR ("sensors plugin: fopen(%s) failed: %s",
 				conffile, strerror(errno));
 		return;
 	}
@@ -286,7 +285,7 @@ static void sensors_load_conf (void)
 	fclose (fh);
 	if (status != 0)
 	{
-		syslog (LOG_ERR, "sensors plugin: Cannot initialize sensors. "
+		ERROR ("sensors plugin: Cannot initialize sensors. "
 				"Data will not be collected.");
 		return;
 	}
@@ -318,15 +317,15 @@ static void sensors_load_conf (void)
 				if (sensors_get_ignored (*chip, data->number) == 0)
 					break;
 
-				DBG ("Adding feature: %s-%s-%s",
+				DEBUG ("Adding feature: %s-%s-%s",
 						chip->prefix,
 						sensor_to_type[known_features[i].type],
 						data->name);
 
 				if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
 				{
-					DBG ("malloc: %s", strerror (errno));
-					syslog (LOG_ERR, "sensors plugin:  malloc: %s",
+					DEBUG ("malloc: %s", strerror (errno));
+					ERROR ("sensors plugin:  malloc: %s",
 							strerror (errno));
 					break;
 				}
@@ -356,7 +355,7 @@ static void sensors_load_conf (void)
 	if (first_feature == NULL)
 	{
 		sensors_cleanup ();
-		syslog (LOG_INFO, "sensors plugin: lm_sensors reports no "
+		INFO ("sensors plugin: lm_sensors reports no "
 				"features. Data will not be collected.");
 	}
 } /* void sensors_load_conf */

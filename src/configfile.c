@@ -28,7 +28,6 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "network.h"
-#include "utils_debug.h"
 
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
 
@@ -112,14 +111,14 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	int ret;
 	int i;
 
-	DBG ("type = %s, key = %s, value = %s",
+	DEBUG ("type = %s, key = %s, value = %s",
 			ESCAPE_NULL(type),
 			ESCAPE_NULL(orig_key),
 			ESCAPE_NULL(orig_value));
 
 	if ((cf_cb = cf_search (type)) == NULL)
 	{
-		syslog (LOG_WARNING, "Plugin `%s' did not register a callback.", type);
+		WARNING ("Plugin `%s' did not register a callback.", type);
 		return (-1);
 	}
 
@@ -143,12 +142,12 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	}
 
 	if (i >= cf_cb->keys_num)
-		syslog (LOG_WARNING, "Plugin `%s' did not register for value `%s'.", type, key);
+		WARNING ("Plugin `%s' did not register for value `%s'.", type, key);
 
 	free (key);
 	free (value);
 
-	DBG ("return (%i)", ret);
+	DEBUG ("return (%i)", ret);
 
 	return (ret);
 } /* int cf_dispatch */
@@ -265,7 +264,7 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 		if (ci->children[i].children == NULL)
 			dispatch_value_plugin (name, ci->children + i);
 		else
-			{DBG ("No nested config blocks allow for plugins. Yet.");}
+			{DEBUG ("No nested config blocks allow for plugins. Yet.");}
 	}
 
 	return (0);
@@ -287,7 +286,7 @@ int global_option_set (const char *option, const char *value)
 {
 	int i;
 
-	DBG ("option = %s; value = %s;", option, value);
+	DEBUG ("option = %s; value = %s;", option, value);
 
 	for (i = 0; i < cf_global_options_num; i++)
 		if (strcasecmp (cf_global_options[i].key, option) == 0)
@@ -372,7 +371,7 @@ int cf_read (char *filename)
 	conf = oconfig_parse_file (filename);
 	if (conf == NULL)
 	{
-		syslog (LOG_ERR, "Unable to read config file %s.", filename);
+		ERROR ("Unable to read config file %s.", filename);
 		return (-1);
 	}
 

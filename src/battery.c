@@ -22,7 +22,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 
 #if HAVE_MACH_MACH_TYPES_H
 #  include <mach/mach_types.h>
@@ -151,13 +150,13 @@ double dict_get_double (CFDictionaryRef dict, char *key_string)
 		       	kCFStringEncodingASCII);
 	if (key_obj == NULL)
 	{
-		DBG ("CFStringCreateWithCString (%s) failed.\n", key_string);
+		DEBUG ("CFStringCreateWithCString (%s) failed.\n", key_string);
 		return (INVALID_VALUE);
 	}
 
 	if ((val_obj = CFDictionaryGetValue (dict, key_obj)) == NULL)
 	{
-		DBG ("CFDictionaryGetValue (%s) failed.", key_string);
+		DEBUG ("CFDictionaryGetValue (%s) failed.", key_string);
 		CFRelease (key_obj);
 		return (INVALID_VALUE);
 	}
@@ -181,7 +180,7 @@ double dict_get_double (CFDictionaryRef dict, char *key_string)
 	}
 	else
 	{
-		DBG ("CFGetTypeID (val_obj) = %i", (int) CFGetTypeID (val_obj));
+		DEBUG ("CFGetTypeID (val_obj) = %i", (int) CFGetTypeID (val_obj));
 		return (INVALID_VALUE);
 	}
 
@@ -207,7 +206,7 @@ static void get_via_io_power_sources (double *ret_charge,
 	ps_array     = IOPSCopyPowerSourcesList (ps_raw);
 	ps_array_len = CFArrayGetCount (ps_array);
 
-	DBG ("ps_array_len == %i", ps_array_len);
+	DEBUG ("ps_array_len == %i", ps_array_len);
 
 	for (i = 0; i < ps_array_len; i++)
 	{
@@ -216,13 +215,13 @@ static void get_via_io_power_sources (double *ret_charge,
 
 		if (ps_dict == NULL)
 		{
-			DBG ("IOPSGetPowerSourceDescription failed.");
+			DEBUG ("IOPSGetPowerSourceDescription failed.");
 			continue;
 		}
 
 		if (CFGetTypeID (ps_dict) != CFDictionaryGetTypeID ())
 		{
-			DBG ("IOPSGetPowerSourceDescription did not return a CFDictionaryRef");
+			DEBUG ("IOPSGetPowerSourceDescription did not return a CFDictionaryRef");
 			continue;
 		}
 
@@ -283,7 +282,7 @@ static void get_via_generic_iokit (double *ret_charge,
 			&iterator);
 	if (status != kIOReturnSuccess)
 	{
-		DBG ("IOServiceGetMatchingServices failed.");
+		DEBUG ("IOServiceGetMatchingServices failed.");
 		return;
 	}
 
@@ -295,7 +294,7 @@ static void get_via_generic_iokit (double *ret_charge,
 				kNilOptions);
 		if (status != kIOReturnSuccess)
 		{
-			DBG ("IORegistryEntryCreateCFProperties failed.");
+			DEBUG ("IORegistryEntryCreateCFProperties failed.");
 			continue;
 		}
 
@@ -458,7 +457,7 @@ static int battery_read (void)
 
 		if ((dh = opendir ("/proc/acpi/battery")) == NULL)
 		{
-			syslog (LOG_ERR, "Cannot open `/proc/acpi/battery': %s", strerror (errno));
+			ERROR ("Cannot open `/proc/acpi/battery': %s", strerror (errno));
 			return (-1);
 		}
 
@@ -475,7 +474,7 @@ static int battery_read (void)
 
 			if ((fh = fopen (filename, "r")) == NULL)
 			{
-				syslog (LOG_ERR, "Cannot open `%s': %s", filename, strerror (errno));
+				ERROR ("Cannot open `%s': %s", filename, strerror (errno));
 				continue;
 			}
 

@@ -25,7 +25,6 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 #include "configfile.h"
 
 /* Include header files for the mach system, if they exist.. */
@@ -388,7 +387,7 @@ static void ps_list_reset (void)
 		{
 			if (pse->age > 10)
 			{
-				DBG ("Removing this procstat entry cause it's too old: "
+				DEBUG ("Removing this procstat entry cause it's too old: "
 						"id = %lu; name = %s;",
 						pse->id, ps->name);
 
@@ -451,7 +450,7 @@ static int ps_init (void)
 					&pset_list,
 				       	&pset_list_len)) != KERN_SUCCESS)
 	{
-		syslog (LOG_ERR, "host_processor_sets failed: %s\n",
+		ERROR ("host_processor_sets failed: %s\n",
 			       	mach_error_string (status));
 		pset_list = NULL;
 		pset_list_len = 0;
@@ -461,7 +460,7 @@ static int ps_init (void)
 
 #elif KERNEL_LINUX
 	pagesize_g = sysconf(_SC_PAGESIZE);
-	DBG ("pagesize_g = %li; CONFIG_HZ = %i;",
+	DEBUG ("pagesize_g = %li; CONFIG_HZ = %i;",
 			pagesize_g, CONFIG_HZ);
 #endif /* KERNEL_LINUX */
 
@@ -517,7 +516,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.values_len = 2;
 	plugin_dispatch_values ("ps_pagefaults", &vl);
 
-	DBG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
+	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
 			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "
 			"cpu_user_counter = %lu; cpu_system_counter = %lu;",
 			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
@@ -541,7 +540,7 @@ static int *ps_read_tasks (int pid)
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
-		DBG ("Failed to open directory `%s'", dirname);
+		DEBUG ("Failed to open directory `%s'", dirname);
 		return (NULL);
 	}
 
@@ -561,7 +560,7 @@ static int *ps_read_tasks (int pid)
 			{
 				if (list != NULL)
 					free (list);
-				syslog (LOG_ERR, "processes plugin: "
+				ERROR ("processes plugin: "
 						"Failed to allocate more memory.");
 				return (NULL);
 			}
@@ -623,20 +622,20 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	fields_len = strsplit (buffer, fields, 64);
 	if (fields_len < 24)
 	{
-		DBG ("`%s' has only %i fields..",
+		DEBUG ("`%s' has only %i fields..",
 				filename, fields_len);
 		return (-1);
 	}
 	else if (fields_len != 41)
 	{
-		DBG ("WARNING: (fields_len = %i) != 41", fields_len);
+		DEBUG ("WARNING: (fields_len = %i) != 41", fields_len);
 	}
 
 	/* copy the name, strip brackets in the process */
 	name_len = strlen (fields[1]) - 2;
 	if ((fields[1][0] != '(') || (fields[1][name_len + 1] != ')'))
 	{
-		DBG ("No brackets found in process name: `%s'", fields[1]);
+		DEBUG ("No brackets found in process name: `%s'", fields[1]);
 		return (-1);
 	}
 	fields[1] = fields[1] + 1;
@@ -648,7 +647,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	if ((tasks = ps_read_tasks (pid)) == NULL)
 	{
 		/* This happends for zombied, e.g. */
-		DBG ("ps_read_tasks (%i) failed.", pid);
+		DEBUG ("ps_read_tasks (%i) failed.", pid);
 		*state = 'Z';
 		ps->num_lwp  = 0;
 		ps->num_proc = 0;
@@ -668,7 +667,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	/* Leave the rest at zero if this is only an LWP */
 	if (ps->num_proc == 0)
 	{
-		DBG ("This is only an LWP: pid = %i; name = %s;",
+		DEBUG ("This is only an LWP: pid = %i; name = %s;",
 				pid, ps->name);
 		return (0);
 	}
@@ -721,7 +720,7 @@ static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_l
 	strncpy (name, kp.kp_proc.p_comm, name_max_len - 1);
 	name[name_max_len - 1] = '\0';
 
-	DBG ("pid = %i; name = %s;", *pid, name);
+	DEBUG ("pid = %i; name = %s;", *pid, name);
 
 	/* We don't do the special handling for `p_comm == "LaunchCFMApp"' as
 	 * `top' does it, because it is a lot of work and only used when
@@ -777,7 +776,7 @@ static int ps_read (void)
 						pset_list[pset],
 						&port_pset_priv)) != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "host_processor_set_priv failed: %s\n",
+			ERROR ("host_processor_set_priv failed: %s\n",
 					mach_error_string (status));
 			continue;
 		}
@@ -786,7 +785,7 @@ static int ps_read (void)
 						&task_list,
 						&task_list_len)) != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "processor_set_tasks failed: %s\n",
+			ERROR ("processor_set_tasks failed: %s\n",
 					mach_error_string (status));
 			mach_port_deallocate (port_task_self, port_pset_priv);
 			continue;
@@ -820,7 +819,7 @@ static int ps_read (void)
 						&task_basic_info_len);
 				if (status != KERN_SUCCESS)
 				{
-					syslog (LOG_ERR, "task_info failed: %s",
+					ERROR ("task_info failed: %s",
 							mach_error_string (status));
 					continue; /* with next thread_list */
 				}
@@ -832,7 +831,7 @@ static int ps_read (void)
 						&task_events_info_len);
 				if (status != KERN_SUCCESS)
 				{
-					syslog (LOG_ERR, "task_info failed: %s",
+					ERROR ("task_info failed: %s",
 							mach_error_string (status));
 					continue; /* with next thread_list */
 				}
@@ -844,7 +843,7 @@ static int ps_read (void)
 						&task_absolutetime_info_len);
 				if (status != KERN_SUCCESS)
 				{
-					syslog (LOG_ERR, "task_info failed: %s",
+					ERROR ("task_info failed: %s",
 							mach_error_string (status));
 					continue; /* with next thread_list */
 				}
@@ -868,7 +867,7 @@ static int ps_read (void)
 				 * thread is nonsense, since the task/process
 				 * is dead. */
 				zombies++;
-				DBG ("task_threads failed: %s",
+				DEBUG ("task_threads failed: %s",
 						mach_error_string (status));
 				if (task_list[task] != port_task_self)
 					mach_port_deallocate (port_task_self,
@@ -885,7 +884,7 @@ static int ps_read (void)
 						&thread_data_len);
 				if (status != KERN_SUCCESS)
 				{
-					syslog (LOG_ERR, "thread_info failed: %s",
+					ERROR ("thread_info failed: %s",
 							mach_error_string (status));
 					if (task_list[task] != port_task_self)
 						mach_port_deallocate (port_task_self,
@@ -917,8 +916,7 @@ static int ps_read (void)
 					 * There's only zombie tasks, which are
 					 * handled above. */
 					default:
-						syslog (LOG_WARNING,
-								"Unknown thread status: %s",
+						WARNING ("Unknown thread status: %s",
 								thread_data.run_state);
 						break;
 				} /* switch (thread_data.run_state) */
@@ -928,7 +926,7 @@ static int ps_read (void)
 					status = mach_port_deallocate (port_task_self,
 							thread_list[thread]);
 					if (status != KERN_SUCCESS)
-						syslog (LOG_ERR, "mach_port_deallocate failed: %s",
+						ERROR ("mach_port_deallocate failed: %s",
 								mach_error_string (status));
 				}
 			} /* for (thread_list) */
@@ -938,7 +936,7 @@ static int ps_read (void)
 							thread_list_len * sizeof (thread_act_t)))
 					!= KERN_SUCCESS)
 			{
-				syslog (LOG_ERR, "vm_deallocate failed: %s",
+				ERROR ("vm_deallocate failed: %s",
 						mach_error_string (status));
 			}
 			thread_list = NULL;
@@ -952,7 +950,7 @@ static int ps_read (void)
 				status = mach_port_deallocate (port_task_self,
 						task_list[task]);
 				if (status != KERN_SUCCESS)
-					syslog (LOG_ERR, "mach_port_deallocate failed: %s",
+					ERROR ("mach_port_deallocate failed: %s",
 							mach_error_string (status));
 			}
 
@@ -964,7 +962,7 @@ static int ps_read (void)
 				(vm_address_t) task_list,
 				task_list_len * sizeof (task_t))) != KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "vm_deallocate failed: %s",
+			ERROR ("vm_deallocate failed: %s",
 					mach_error_string (status));
 		}
 		task_list = NULL;
@@ -973,7 +971,7 @@ static int ps_read (void)
 		if ((status = mach_port_deallocate (port_task_self, port_pset_priv))
 				!= KERN_SUCCESS)
 		{
-			syslog (LOG_ERR, "mach_port_deallocate failed: %s",
+			ERROR ("mach_port_deallocate failed: %s",
 					mach_error_string (status));
 		}
 	} /* for (pset_list) */
@@ -1012,7 +1010,7 @@ static int ps_read (void)
 
 	if ((proc = opendir ("/proc")) == NULL)
 	{
-		syslog (LOG_ERR, "Cannot open `/proc': %s", strerror (errno));
+		ERROR ("Cannot open `/proc': %s", strerror (errno));
 		return (-1);
 	}
 
@@ -1027,7 +1025,7 @@ static int ps_read (void)
 		status = ps_read_process (pid, &ps, &state);
 		if (status != 0)
 		{
-			DBG ("ps_read_process failed: %i", status);
+			DEBUG ("ps_read_process failed: %i", status);
 			continue;
 		}
 

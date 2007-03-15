@@ -73,7 +73,7 @@ cu_debug_startfile(const char *file, int line, const char *func,
 	va_list ap;
 
 	if(cu_debug_file != NULL) {
-		DBG("Don't call this function more then once without"
+		DBG ("Don't call this function more then once without"
 			" calling cu_debug_stopfile().");
 		return EXIT_FAILURE;
 	}
@@ -84,7 +84,7 @@ cu_debug_startfile(const char *file, int line, const char *func,
 
 	cu_debug_file = fopen(cu_debug_filename, "a");
 	if(cu_debug_file == NULL) {
-		DBG("Cannot open debug file %s: %s.\n",
+		DEBUG("Cannot open debug file %s: %s.\n",
 			cu_debug_filename, strerror(errno));
 		return EXIT_FAILURE;
 	}
@@ -108,13 +108,13 @@ cu_debug_stopfile(const char *file, int line, const char *func,
 	va_end(ap);
 
 	if(cu_debug_file == NULL) {
-		DBG("Don't call this function more then once or without"
+		DEBUG("Don't call this function more then once or without"
 			" calling cu_debug_startfile().");
 		return EXIT_FAILURE;
 	}
 
 	if(fclose(cu_debug_file) != 0) {
-		DBG("Cannot close debug file %s: %s.\n",
+		DEBUG("Cannot close debug file %s: %s.\n",
 			cu_debug_filename, strerror(errno));
 		return EXIT_FAILURE;
 	}
@@ -131,7 +131,7 @@ cu_debug_resetfile(const char *file, int line, const char *func,
 	const char *filename)
 {
 	if(filename == NULL) {
-		DBG("You have to set filename when calling this function!\n");
+		DEBUG("You have to set filename when calling this function!\n");
 		return EXIT_FAILURE;
 	}
 	if(cu_debug_file != NULL) {

@@ -33,7 +33,6 @@
 #include "common.h"      /* rrd_update_file */
 #include "plugin.h"      /* plugin_register, plugin_submit */
 #include "configfile.h"  /* cf_register */
-#include "utils_debug.h"
 
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -148,7 +147,7 @@ static int apcups_shutdown (void)
 	if (global_sockfd < 0)
 		return (0);
 
-	DBG ("Gracefully shutting down socket %i.", global_sockfd);
+	DEBUG ("Gracefully shutting down socket %i.", global_sockfd);
 
 	/* send EOF sentinel */
 	swrite (global_sockfd, (void *) &packet_size, sizeof (packet_size));
@@ -187,7 +186,7 @@ static int net_open (char *host, char *service, int port)
 	status = getaddrinfo (host, port_str, &ai_hints, &ai_return);
 	if (status != 0)
 	{
-		DBG ("getaddrinfo failed: %s", status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
+		DEBUG ("getaddrinfo failed: %s", status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
 		return (-1);
 	}
 
@@ -203,7 +202,7 @@ static int net_open (char *host, char *service, int port)
 
 	if (sd < 0)
 	{
-		DBG ("Unable to open a socket");
+		DEBUG ("Unable to open a socket");
 		freeaddrinfo (ai_return);
 		return (-1);
 	}
@@ -214,12 +213,12 @@ static int net_open (char *host, char *service, int port)
 
 	if (status != 0) /* `connect(2)' failed */
 	{
-		DBG ("connect failed: %s", strerror (errno));
+		DEBUG ("connect failed: %s", strerror (errno));
 		close (sd);
 		return (-1);
 	}
 
-	DBG ("Done opening a socket %i", sd);
+	DEBUG ("Done opening a socket %i", sd);
 
 	return (sd);
 } /* int net_open (char *host, char *service, int port) */
@@ -247,7 +246,7 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	packet_size = ntohs (packet_size);
 	if (packet_size > buflen)
 	{
-		DBG ("record length too large");
+		DEBUG ("record length too large");
 		return (-2);
 	}
 
@@ -333,7 +332,7 @@ static int apc_query_server (char *host, int port,
 
 	if (net_send (&global_sockfd, "status", 6) < 0)
 	{
-		syslog (LOG_ERR, "apcups plugin: Writing to the socket failed.");
+		ERROR ("apcups plugin: Writing to the socket failed.");
 		return (-1);
 	}
 
@@ -379,7 +378,7 @@ static int apc_query_server (char *host, int port,
 	
 	if (n < 0)
 	{
-		syslog (LOG_WARNING, "apcups plugin: Error reading from socket");
+		WARNING ("apcups plugin: Error reading from socket");
 		return (-1);
 	}
 
@@ -403,7 +402,7 @@ static int apcups_config (const char *key, const char *value)
 		int port_tmp = atoi (value);
 		if (port_tmp < 1 || port_tmp > 65535)
 		{
-			syslog (LOG_WARNING, "apcups plugin: Invalid port: %i", port_tmp);
+			WARNING ("apcups plugin: Invalid port: %i", port_tmp);
 			return (1);
 		}
 		conf_port = port_tmp;
@@ -470,7 +469,7 @@ static int apcups_read (void)
 	 */
 	if (status != 0)
 	{
-		DBG ("apc_query_server (%s, %i) = %i",
+		DEBUG ("apc_query_server (%s, %i) = %i",
 				conf_host == NULL
 				? APCUPS_DEFAULT_HOST
 				: conf_host,

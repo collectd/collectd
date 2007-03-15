@@ -22,7 +22,6 @@
 
 #include "collectd.h"
 #include "common.h"
-#include "utils_debug.h"
 
 #include "network.h"
 #include "plugin.h"
@@ -67,7 +66,7 @@ static int init_global_variables (void)
 			return (-1);
 		}
 	}
-	DBG ("hostname_g = %s;", hostname_g);
+	DEBUG ("hostname_g = %s;", hostname_g);
 
 	str = global_option_get ("Interval");
 	if (str == NULL)
@@ -79,7 +78,7 @@ static int init_global_variables (void)
 				"Please check your settings.\n");
 		return (-1);
 	}
-	DBG ("interval_g = %i;", interval_g);
+	DEBUG ("interval_g = %i;", interval_g);
 
 	return (0);
 } /* int init_global_variables */
@@ -92,7 +91,7 @@ static int change_basedir (const char *orig_dir)
 
 	if (dir == NULL)
 	{
-		syslog (LOG_ERR, "strdup failed: %s", strerror (errno));
+		ERROR ("strdup failed: %s", strerror (errno));
 		return (-1);
 	}
 	
@@ -112,20 +111,20 @@ static int change_basedir (const char *orig_dir)
 		{
 			if (mkdir (orig_dir, 0755) == -1)
 			{
-				syslog (LOG_ERR, "mkdir (%s): %s", orig_dir,
+				ERROR ("mkdir (%s): %s", orig_dir,
 						strerror (errno));
 				return (-1);
 			}
 			else if (chdir (orig_dir) == -1)
 			{
-				syslog (LOG_ERR, "chdir (%s): %s", orig_dir,
+				ERROR ("chdir (%s): %s", orig_dir,
 						strerror (errno));
 				return (-1);
 			}
 		}
 		else
 		{
-			syslog (LOG_ERR, "chdir (%s): %s", orig_dir,
+			ERROR ("chdir (%s): %s", orig_dir,
 					strerror (errno));
 			return (-1);
 		}
@@ -140,7 +139,7 @@ static void update_kstat (void)
 	if (kc == NULL)
 	{
 		if ((kc = kstat_open ()) == NULL)
-			syslog (LOG_ERR, "Unable to open kstat control structure");
+			ERROR ("Unable to open kstat control structure");
 	}
 	else
 	{
@@ -148,11 +147,11 @@ static void update_kstat (void)
 		kid = kstat_chain_update (kc);
 		if (kid > 0)
 		{
-			syslog (LOG_INFO, "kstat chain has been updated");
+			INFO ("kstat chain has been updated");
 			plugin_init_all ();
 		}
 		else if (kid < 0)
-			syslog (LOG_ERR, "kstat chain update failed");
+			ERROR ("kstat chain update failed");
 		/* else: everything works as expected */
 	}
 
@@ -201,13 +200,13 @@ static int do_init (void)
 #if HAVE_LIBSTATGRAB
 	if (sg_init ())
 	{
-		syslog (LOG_ERR, "sg_init: %s", sg_str_error (sg_get_error ()));
+		ERROR ("sg_init: %s", sg_str_error (sg_get_error ()));
 		return (-1);
 	}
 
 	if (sg_drop_privileges ())
 	{
-		syslog (LOG_ERR, "sg_drop_privileges: %s", sg_str_error (sg_get_error ()));
+		ERROR ("sg_drop_privileges: %s", sg_str_error (sg_get_error ()));
 		return (-1);
 	}
 #endif
@@ -228,7 +227,7 @@ static int do_loop (void)
 	{
 		if (gettimeofday (&tv_next, NULL) < 0)
 		{
-			syslog (LOG_ERR, "gettimeofday failed: %s", strerror (errno));
+			ERROR ("gettimeofday failed: %s", strerror (errno));
 			return (-1);
 		}
 		tv_next.tv_sec += interval_g;
@@ -242,14 +241,14 @@ static int do_loop (void)
 
 		if (gettimeofday (&tv_now, NULL) < 0)
 		{
-			syslog (LOG_ERR, "gettimeofday failed: %s",
+			ERROR ("gettimeofday failed: %s",
 					strerror (errno));
 			return (-1);
 		}
 
 		if (timeval_sub_timespec (&tv_next, &tv_now, &ts_wait) != 0)
 		{
-			syslog (LOG_WARNING, "Not sleeping because "
+			WARNING ("Not sleeping because "
 					"`timeval_sub_timespec' returned "
 					"non-zero!");
 			continue;
@@ -259,13 +258,13 @@ static int do_loop (void)
 		{
 			if (errno != EINTR)
 			{
-				syslog (LOG_ERR, "nanosleep failed: %s", strerror (errno));
+				ERROR ("nanosleep failed: %s", strerror (errno));
 				return (-1);
 			}
 		}
 	} /* while (loop == 0) */
 
-	DBG ("return (0);");
+	DEBUG ("return (0);");
 	return (0);
 } /* int do_loop */
 
@@ -283,7 +282,7 @@ static int pidfile_create (void)
 
 	if ((fh = fopen (file, "w")) == NULL)
 	{
-		syslog (LOG_ERR, "fopen (%s): %s", file, strerror (errno));
+		ERROR ("fopen (%s): %s", file, strerror (errno));
 		return (1);
 	}
 
@@ -297,7 +296,7 @@ static int pidfile_remove (void)
 {
 	const char *file = global_option_get ("PIDFile");
 
-	DBG ("unlink (%s)", (file != NULL) ? file : "<null>");
+	DEBUG ("unlink (%s)", (file != NULL) ? file : "<null>");
 	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
@@ -313,12 +312,6 @@ int main (int argc, char **argv)
 	pid_t pid;
 	int daemonize    = 1;
 #endif
-#if COLLECT_DEBUG
-	const char *logfile;
-#endif
-
-	/* open syslog */
-	openlog (PACKAGE, LOG_CONS | LOG_PID, LOG_DAEMON);
 
 	/* read options */
 	while (1)
@@ -352,11 +345,6 @@ int main (int argc, char **argv)
 				exit_usage (argv[0]);
 		} /* switch (c) */
 	} /* while (1) */
-
-#if COLLECT_DEBUG
-	if ((logfile = global_option_get ("LogFile")) != NULL)
-		DBG_STARTFILE (logfile, "Debug file opened.");
-#endif
 
 	/*
 	 * Read options from the config file, the environment and the command
@@ -432,17 +420,17 @@ int main (int argc, char **argv)
 
 		if (open ("/dev/null", O_RDWR) != 0)
 		{
-			syslog (LOG_ERR, "Error: Could not connect `STDIN' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDIN' to `/dev/null'");
 			return (1);
 		}
 		if (dup (0) != 1)
 		{
-			syslog (LOG_ERR, "Error: Could not connect `STDOUT' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDOUT' to `/dev/null'");
 			return (1);
 		}
 		if (dup (0) != 2)
 		{
-			syslog (LOG_ERR, "Error: Could not connect `STDERR' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDERR' to `/dev/null'");
 			return (1);
 		}
 	} /* if (daemonize) */
@@ -464,16 +452,11 @@ int main (int argc, char **argv)
 	 */
 	do_init ();
 	do_loop ();
-	do_shutdown ();
-
-#if COLLECT_DEBUG
-	if (logfile != NULL)
-		DBG_STOPFILE("debug file closed.");
-#endif
 
 	/* close syslog */
-	syslog (LOG_INFO, "Exiting normally");
-	closelog ();
+	INFO ("Exiting normally");
+
+	do_shutdown ();
 
 #if COLLECT_DAEMON
 	if (daemonize)

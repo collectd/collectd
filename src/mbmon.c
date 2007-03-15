@@ -25,7 +25,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_debug.h"
 
 #if HAVE_NETDB_H && HAVE_SYS_SOCKET_H && HAVE_NETINET_IN_H && HAVE_NETINET_TCP_H
 # include <netdb.h>
@@ -140,7 +139,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
-		syslog (LOG_ERR, "mbmon: getaddrinfo (%s, %s): %s",
+		ERROR ("mbmon: getaddrinfo (%s, %s): %s",
 				host, port,
 				ai_return == EAI_SYSTEM ? strerror (errno) : gai_strerror (ai_return));
 		return (-1);
@@ -152,7 +151,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 		/* create our socket descriptor */
 		if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0)
 		{
-			syslog (LOG_ERR, "mbmon: socket: %s",
+			ERROR ("mbmon: socket: %s",
 					strerror (errno));
 			continue;
 		}
@@ -160,7 +159,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 		/* connect to the mbmon daemon */
 		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
 		{
-			DBG ("mbmon: connect (%s, %s): %s", host, port,
+			DEBUG ("mbmon: connect (%s, %s): %s", host, port,
 					strerror (errno));
 			close (fd);
 			fd = -1;
@@ -176,7 +175,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 
 	if (fd < 0)
 	{
-		syslog (LOG_ERR, "mbmon: Could not connect to daemon.");
+		ERROR ("mbmon: Could not connect to daemon.");
 		return (-1);
 	}
 
@@ -191,7 +190,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 			if ((errno == EAGAIN) || (errno == EINTR))
 				continue;
 
-			syslog (LOG_ERR, "mbmon: Error reading from socket: %s",
+			ERROR ("mbmon: Error reading from socket: %s",
 						strerror (errno));
 			close (fd);
 			return (-1);
@@ -205,11 +204,11 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	if (buffer_fill >= buffer_size)
 	{
 		buffer[buffer_size - 1] = '\0';
-		syslog (LOG_WARNING, "mbmon: Message from mbmon has been truncated.");
+		WARNING ("mbmon: Message from mbmon has been truncated.");
 	}
 	else if (buffer_fill == 0)
 	{
-		syslog (LOG_WARNING, "mbmon: Peer has unexpectedly shut down the socket. "
+		WARNING ("mbmon: Peer has unexpectedly shut down the socket. "
 				"Buffer: `%s'", buffer);
 		close (fd);
 		return (-1);
@@ -292,7 +291,7 @@ static int mbmon_read (void)
 		value = strtod (t, &nextc);
 		if ((*nextc != '\n') && (*nextc != '\0'))
 		{
-			syslog (LOG_ERR, "mbmon: value for `%s' contains invalid characters: `%s'", s, t);
+			ERROR ("mbmon: value for `%s' contains invalid characters: `%s'", s, t);
 			break;
 		}
 
