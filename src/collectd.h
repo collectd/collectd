@@ -77,9 +77,6 @@
 #if HAVE_ERRNO_H
 # include <errno.h>
 #endif
-#if HAVE_SYSLOG_H
-# include <syslog.h>
-#endif
 #if HAVE_LIMITS_H
 # include <limits.h>
 #endif
@@ -147,12 +144,6 @@
 #endif
 #if HAVE_SYS_PARAM_H
 # include <sys/param.h>
-#endif
-
-#if !HAVE_SYSLOG
-# define syslog(...) /**/
-# define openlog(...) /**/
-# define closelog(...) /**/
 #endif
 
 #if HAVE_KSTAT_H
