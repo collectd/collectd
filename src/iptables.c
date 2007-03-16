@@ -206,11 +206,6 @@ static int iptables_config (char *key, char *value)
 }
 #endif /* IPTABLES_HAVE_READ */
 
-static void iptables_init (void)
-{	
-    return;
-}
-
 static void iptables_write (char *host, char *orig_inst, char *val, char *type) 
 {
     char *table;
@@ -388,7 +383,7 @@ void module_register (void)
     plugin_register ("ipt_bytes", NULL, NULL, iptables_write_bytes);
     plugin_register ("ipt_packets", NULL, NULL, iptables_write_packets);
 #if IPTABLES_HAVE_READ
-    plugin_register (MODULE_NAME, iptables_init, iptables_read, NULL);
+    plugin_register (MODULE_NAME, NULL, iptables_read, NULL);
     cf_register (MODULE_NAME, iptables_config, config_keys, config_keys_num);
 #endif
 }
