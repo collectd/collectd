@@ -51,7 +51,7 @@ static int sl_config (const char *key, const char *value)
 			log_level = LOG_NOTICE;
 		else if (strcasecmp (value, "info") == 0)
 			log_level = LOG_INFO;
-#if COLLECTD_DEBUG
+#if COLLECT_DEBUG
 		else if (strcasecmp (value, "debug") == 0)
 			log_level = LOG_DEBUG;
 #endif

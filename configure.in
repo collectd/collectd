@@ -1217,6 +1217,7 @@ AC_COLLECTD([ping],      [disable], [module], [ping statistics])
 AC_COLLECTD([processes], [disable], [module], [processes statistics])
 AC_COLLECTD([sensors],   [disable], [module], [lm_sensors statistics])
 AC_COLLECTD([serial],    [disable], [module], [serial statistics])
+AC_COLLECTD([stderr],    [disable], [module], [stderr log facility])
 AC_COLLECTD([swap],      [disable], [module], [swap statistics])
 AC_COLLECTD([syslog],    [disable], [module], [syslog log facility])
 AC_COLLECTD([tape],      [disable], [module], [tape statistics])
@@ -1279,6 +1280,7 @@ Configuration:
     processes . . . . . $enable_processes
     sensors . . . . . . $enable_sensors
     serial  . . . . . . $enable_serial
+    stderr  . . . . . . $enable_stderr
     swap  . . . . . . . $enable_swap
     syslog  . . . . . . $enable_syslog
     tape  . . . . . . . $enable_tape
