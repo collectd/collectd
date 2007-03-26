@@ -17,11 +17,14 @@
  *
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
+ *   Florian Forster <octo at verplant.org>
  **/
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
+#include <pthread.h>
 
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;
@@ -29,9 +32,14 @@ static int log_level = LOG_DEBUG;
 static int log_level = LOG_INFO;
 #endif /* COLLECT_DEBUG */
 
+static pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static char *log_file = NULL;
+
 static const char *config_keys[] =
 {
-	"LogLevel"
+	"LogLevel",
+	"File"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -56,6 +64,19 @@ static int stderr_config (const char *key, const char *value)
 		else
 			return 1;
 	}
+	else if (0 == strcasecmp (key, "File")) {
+		sfree (log_file);
+
+		if (access (value, W_OK) == 0)
+			log_file = strdup (value);
+		else {
+			char errbuf[1024];
+			/* We can't use `ERROR' yet.. */
+			fprintf (stderr, "stderr plugin: Access to %s denied: %s\n",
+					value, sstrerror (errno, errbuf, sizeof (errbuf)));
+			return 1;
+		}
+	}
 	else {
 		return -1;
 	}
@@ -64,10 +85,40 @@ static int stderr_config (const char *key, const char *value)
 
 static void stderr_log (int severity, const char *msg)
 {
+	FILE *fh;
+	int do_close = 0;
+
 	if (severity > log_level)
 		return;
 
-	fprintf (stderr, "%s\n", msg);
+	pthread_mutex_lock (&file_lock);
+
+	if ((log_file == NULL) || (strcasecmp (log_file, "stderr") == 0))
+		fh = stderr;
+	else if (strcasecmp (log_file, "stdout") == 0)
+		fh = stdout;
+	else
+	{
+		fh = fopen (log_file, "a");
+		do_close = 1;
+	}
+
+	if (fh == NULL)
+	{
+			char errbuf[1024];
+			fprintf (stderr, "stderr plugin: fopen (%s) failed: %s\n",
+					(log_file == NULL) ? "<null>" : log_file,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
+	else
+	{
+		fprintf (fh, "%s\n", msg);
+		if (do_close != 0)
+			fclose (fh);
+	}
+
+	pthread_mutex_unlock (&file_lock);
+
 	return;
 } /* void stderr_log (int, const char *) */
 
