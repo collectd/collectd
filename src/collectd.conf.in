@@ -25,10 +25,14 @@
 @BUILD_MODULE_DISK_TRUE@LoadPlugin disk
 @BUILD_MODULE_DNS_TRUE@LoadPlugin dns
 @BUILD_MODULE_EMAIL_TRUE@LoadPlugin email
+@BUILD_MODULE_ENTROPY_TRUE@LoadPlugin entropy
+@BUILD_MODULE_EXEC_TRUE@LoadPlugin exec
 @BUILD_MODULE_HDDTEMP_TRUE@LoadPlugin hddtemp
+@BUILD_MODULE_INTERFACE_TRUE@LoadPlugin interface
 @BUILD_MODULE_IPTABLES_TRUE@LoadPlugin iptables
 @BUILD_MODULE_IRQ_TRUE@LoadPlugin irq
 @BUILD_MODULE_LOAD_TRUE@LoadPlugin load
+@BUILD_MODULE_LOGFILE_TRUE@LoadPlugin logfile
 @BUILD_MODULE_MBMON_TRUE@LoadPlugin mbmon
 @BUILD_MODULE_MEMORY_TRUE@LoadPlugin memory
 @BUILD_MODULE_MULTIMETER_TRUE@LoadPlugin multimeter
@@ -42,8 +46,9 @@
 @BUILD_MODULE_SENSORS_TRUE@LoadPlugin sensors
 @BUILD_MODULE_SERIAL_TRUE@LoadPlugin serial
 @BUILD_MODULE_SWAP_TRUE@LoadPlugin swap
+@BUILD_MODULE_SYSLOG_TRUE@LoadPlugin syslog
 @BUILD_MODULE_TAPE_TRUE@LoadPlugin tape
-@BUILD_MODULE_TRAFFIC_TRUE@LoadPlugin traffic
+@BUILD_MODULE_UNIXSOCK_TRUE@LoadPlugin unixsock
 @BUILD_MODULE_USERS_TRUE@LoadPlugin users
 @BUILD_MODULE_VSERVER_TRUE@LoadPlugin vserver
 @BUILD_MODULE_WIRELESS_TRUE@LoadPlugin wireless
@@ -61,7 +66,7 @@
 #</Plugin>
 
 #<Plugin csv>
-#	DataDir "/var/lib/collectd/csv"
+#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
 #</Plugin>
 
 #<Plugin dns>
@@ -74,6 +79,11 @@
 #	Port 7634
 #</Plugin>
 
+#<Plugin interface>
+#	Interface "eth0"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin iptables>
 #	Chain table chain
 #</Plugin>
@@ -83,6 +93,11 @@
 #	Irq 8
 #	Irq 9
 #	IgnoreSelected true
+#</Plugin>
+
+#<Plugin logfile>
+#	LogLevel info
+#	File STDOUT
 #</Plugin>
 
 #<Plugin mbmon>
@@ -119,7 +134,7 @@
 #</Plugin>
 
 #<Plugin rrdtool>
-#	DataDir "/var/lib/collectd/rrd"
+#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
 #	StepSize      10
 #	HeartBeat     20
 #	RRARows     1200
@@ -128,18 +143,19 @@
 #	CacheFlush   900
 #</Plugin>
 
-## There are two different naming schemes for the sensors plugin, to preserver
-## backwards compatibility. The `extended naming' is prefered, but not the
-## default for this reason. See `collectd.conf(5)' for more information.
 #<Plugin sensors>
 #	Sensor "it8712-isa-0290/temperature-temp1"
 #	Sensor "it8712-isa-0290/fanspeed-fan3"
 #	Sensor "it8712-isa-0290/voltage-in8"
-#
 #	IgnoreSelected false
 #</Plugin>
 
-#<Plugin traffic>
-#	Interface "eth0"
-#	IgnoreSelected false
+#<Plugin syslog>
+#	LogLevel info
+#</Plugin>
+
+#<Plugin unixsock>
+#	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-unixsock"
+#	SocketGroup "collectd"
+#	SocketPerms "0660"
 #</Plugin>
