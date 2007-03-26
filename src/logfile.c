@@ -1,5 +1,5 @@
 /**
- * collectd - src/stderr.c
+ * collectd - src/logfile.c
  * Copyright (C) 2007  Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int stderr_config (const char *key, const char *value)
+static int logfile_config (const char *key, const char *value)
 {
 	if (0 == strcasecmp (key, "LogLevel")) {
 		if ((0 == strcasecmp (value, "emerg"))
@@ -72,7 +72,7 @@ static int stderr_config (const char *key, const char *value)
 		else {
 			char errbuf[1024];
 			/* We can't use `ERROR' yet.. */
-			fprintf (stderr, "stderr plugin: Access to %s denied: %s\n",
+			fprintf (stderr, "logfile plugin: Access to %s denied: %s\n",
 					value, sstrerror (errno, errbuf, sizeof (errbuf)));
 			return 1;
 		}
@@ -81,9 +81,9 @@ static int stderr_config (const char *key, const char *value)
 		return -1;
 	}
 	return 0;
-} /* int stderr_config (const char *, const char *) */
+} /* int logfile_config (const char *, const char *) */
 
-static void stderr_log (int severity, const char *msg)
+static void logfile_log (int severity, const char *msg)
 {
 	FILE *fh;
 	int do_close = 0;
@@ -106,7 +106,7 @@ static void stderr_log (int severity, const char *msg)
 	if (fh == NULL)
 	{
 			char errbuf[1024];
-			fprintf (stderr, "stderr plugin: fopen (%s) failed: %s\n",
+			fprintf (stderr, "logfile plugin: fopen (%s) failed: %s\n",
 					(log_file == NULL) ? "<null>" : log_file,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
@@ -120,13 +120,13 @@ static void stderr_log (int severity, const char *msg)
 	pthread_mutex_unlock (&file_lock);
 
 	return;
-} /* void stderr_log (int, const char *) */
+} /* void logfile_log (int, const char *) */
 
 void module_register (void)
 {
-	plugin_register_config ("stderr", stderr_config,
+	plugin_register_config ("logfile", logfile_config,
 			config_keys, config_keys_num);
-	plugin_register_log ("stderr", stderr_log);
+	plugin_register_log ("logfile", logfile_log);
 	return;
 } /* void module_register (void) */
 
