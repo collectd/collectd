@@ -126,7 +126,6 @@ typedef struct diskstats
 } diskstats_t;
 
 static diskstats_t *disklist;
-static int min_poll_count;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -159,17 +158,7 @@ static int disk_init (void)
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
-	int step;
-	int heartbeat;
-
-	step = atoi (COLLECTD_STEP);
-	heartbeat = atoi (COLLECTD_HEARTBEAT);
-
-	assert (step > 0);
-	assert (heartbeat >= step);
-
-	min_poll_count = 1 + (heartbeat / step);
-	DEBUG ("min_poll_count = %i;", min_poll_count);
+	/* do nothing */
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -537,10 +526,10 @@ static int disk_read (void)
 
 		/* Don't write to the RRDs if we've just started.. */
 		ds->poll_count++;
-		if (ds->poll_count <= min_poll_count)
+		if (ds->poll_count <= 2)
 		{
-			DEBUG ("(ds->poll_count = %i) <= (min_poll_count = %i); => Not writing.",
-					ds->poll_count, min_poll_count);
+			DEBUG ("(ds->poll_count = %i) <= (min_poll_count = 2); => Not writing.",
+					ds->poll_count);
 			continue;
 		}
 

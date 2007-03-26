@@ -187,10 +187,6 @@
 #define PIDFILE PREFIX "/var/run/" PACKAGE_NAME ".pid"
 #endif
 
-#ifndef LOGFILE
-#define LOGFILE PREFIX"/var/log/"PACKAGE_NAME"/"PACKAGE_NAME".log"
-#endif
-
 #ifndef PLUGINDIR
 #define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
 #endif
@@ -202,22 +198,6 @@
 
 #ifndef COLLECTD_GRP_NAME
 # define COLLECTD_GRP_NAME "collectd"
-#endif
-
-#ifndef COLLECTD_STEP
-#  define COLLECTD_STEP "10"
-#endif
-
-#ifndef COLLECTD_HEARTBEAT
-#  define COLLECTD_HEARTBEAT "25"
-#endif
-
-#ifndef COLLECTD_ROWS
-#  define COLLECTD_ROWS "1200"
-#endif
-
-#ifndef COLLECTD_XFF
-#  define COLLECTD_XFF 0.1
 #endif
 
 #define STATIC_ARRAY_LEN(array) (sizeof (array) / sizeof ((array)[0]))

@@ -4,12 +4,6 @@
 # http://collectd.org/
 #
 
-# Set the IP-address(es) and UDP-port(s) to send packets to. `Listen' can be
-# used as a synonym for `Server' to make the config file more readable when in
-# server mode. The port option is optional.
-#Server ff18::efc0:4a42 25826
-#Server 239.192.74.66 25826
-
 #BaseDir   "/opt/collectd/var/lib/collectd"
 #PIDFile   "/opt/collectd/var/run/collectd.pid"
 #PluginDir "/opt/collectd/lib/collectd"

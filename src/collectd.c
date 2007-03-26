@@ -70,7 +70,7 @@ static int init_global_variables (void)
 
 	str = global_option_get ("Interval");
 	if (str == NULL)
-		str = COLLECTD_STEP;
+		str = "10";
 	interval_g = atoi (str);
 	if (interval_g <= 0)
 	{
@@ -187,11 +187,6 @@ static void exit_usage (char *name)
 			"  Config-File       "CONFIGFILE"\n"
 			"  PID-File          "PIDFILE"\n"
 			"  Data-Directory    "PKGLOCALSTATEDIR"\n"
-#if COLLECT_DEBUG
-			"  Log-File          "LOGFILE"\n"
-#endif
-			"  Step              "COLLECTD_STEP" seconds\n"
-			"  Heartbeat         "COLLECTD_HEARTBEAT" seconds\n"
 			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n");

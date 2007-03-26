@@ -113,8 +113,6 @@ static MYSQL *getconnection (void)
 	static int wait_for = 0;
 	static int wait_increase = 60;
 
-	int step;
-
 	if (state != 0)
 	{
 		int err;
@@ -130,11 +128,9 @@ static MYSQL *getconnection (void)
 		}
 	}
 
-	step = atoi (COLLECTD_STEP);
-
 	if (wait_for > 0)
 	{
-		wait_for -= step;
+		wait_for -= interval_g;
 		return (NULL);
 	}
 

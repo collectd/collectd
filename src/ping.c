@@ -71,8 +71,6 @@ static void add_hosts (void)
 	hostlist_t *hl_this;
 	hostlist_t *hl_prev;
 
-	int step = atoi (COLLECTD_STEP);
-
 	hl_this = hosts;
 	hl_prev = NULL;
 	while (hl_this != NULL)
@@ -104,7 +102,7 @@ static void add_hosts (void)
 		}
 		else
 		{
-			hl_this->wait_left -= step;
+			hl_this->wait_left -= interval_g;
 		}
 
 		if (hl_this != NULL)
@@ -139,7 +137,6 @@ static int ping_config (const char *key, const char *value)
 	{
 		hostlist_t *hl;
 		char *host;
-		int step = atoi (COLLECTD_STEP);
 
 		if ((hl = (hostlist_t *) malloc (sizeof (hostlist_t))) == NULL)
 		{
@@ -160,7 +157,7 @@ static int ping_config (const char *key, const char *value)
 		}
 
 		hl->host = host;
-		hl->wait_time = 2 * step;
+		hl->wait_time = 2 * interval_g;
 		hl->wait_left = 0;
 		hl->next = hosts;
 		hosts = hl;

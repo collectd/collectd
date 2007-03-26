@@ -256,7 +256,7 @@ static void *dns_child_loop (void *dummy)
 	pcap_obj = pcap_open_live (pcap_device,
 			PCAP_SNAPLEN,
 			0 /* Not promiscuous */,
-			atoi (COLLECTD_STEP),
+			interval_g,
 			pcap_error);
 	if (pcap_obj == NULL)
 	{

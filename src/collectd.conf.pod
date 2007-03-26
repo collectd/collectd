@@ -54,18 +54,11 @@ Sets where to write the PID file to. This file is overwritten when it exists
 and deleted when the program ist stopped. Some init-scripts might override this
 setting using the B<-P> commandline option.
 
-=item B<LogFile> I<File>
-
-Sets the file to write debugging output to. This is only used if compiled with
-debugging enabled. It's ignored otherwise.
-
 =item B<Interval> I<Seconds>
 
 Configures the interval in which to query the read plugins. Obviously smaller
 values lead to a higher system load produces by collectd, while higher values
-lead to more coarse statistics. Please note that changing this value may render
-your RRD-files unuseable, if you use the C<rrdtool plugin>. You have been
-warned.
+lead to more coarse statistics.
 
 =back
 
@@ -372,9 +365,9 @@ smaller. If unsure, don't set this option.
 
 =item B<HeartBeat> I<Seconds>
 
-Sets the heartbeat of newly created RRD-files. Ideally (and per default) this
-setting is bigger than the B<Interval>-setting. If unsure, don't set this
-option.
+Sets the heartbeat of newly created RRD-files. Ideally this setting is bigger
+than the B<Interval>-setting, by default it's twice the B<Interval>-setting. If
+unsure, don't set this option.
 
 =item B<RRARows> I<NumRows>
 
@@ -388,12 +381,12 @@ So for each timespan, it calculates how many PDPs need to be consolidated into
 one CDP by calculating:
   number of PDPs = timespan / (stepsize * rrarows)
 
-Bottom line is, set this no smaller than the width of you graphs in pixels.
+Bottom line is, set this no smaller than the width of you graphs in pixels. The
+default is 1200.
 
 =item B<XFF> I<Factor>
 
-Set the "XFiles Factor". This is mostly interesting if you set B<StepSize>
-bigger than B<Interval>. If unsure, don't set this option.
+Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
 
 =item B<CacheFlush> I<Seconds>
 

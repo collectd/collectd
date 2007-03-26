@@ -26,9 +26,6 @@ if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
 collectd_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
-if BUILD_FEATURE_DEBUG
-collectd_CPPFLAGS += -DLOGFILE='"${localstatedir}/log/${PACKAGE_NAME}/collectd.log"'
-endif
 
 # Link to these libraries..
 collectd_LDFLAGS = -export-dynamic
@@ -213,17 +210,6 @@ endif
 collectd_LDADD += "-dlopen" exec.la
 collectd_DEPENDENCIES += exec.la
 endif
-
-#if BUILD_MODULE_QUOTA
-#pkglib_LTLIBRARIES += quota.la
-#quota_la_SOURCES = quota_plugin.c quota_plugin.h
-#quota_la_SOURCES += quota_fs.c quota_fs.h
-#quota_la_SOURCES += quota_mnt.c quota_mnt.h
-#quota_la_LDFLAGS = -module -avoid-version
-#quota_la_CFLAGS = -Werror
-#collectd_LDADD += "-dlopen" quota.la
-#collectd_DEPENDENCIES += quota.la
-#endif
 
 if BUILD_MODULE_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la

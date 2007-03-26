@@ -260,7 +260,7 @@ int plugin_register_read (const char *name,
 	}
 
 	memset (rf, '\0', sizeof (read_func_t));
-	rf->wait_time = atoi (COLLECTD_STEP);
+	rf->wait_time = interval_g;
 	rf->wait_left = 0;
 	rf->callback = callback;
 
@@ -365,12 +365,9 @@ void plugin_read_all (const int *loop)
 	llentry_t   *le;
 	read_func_t *rf;
 	int          status;
-	int          step;
 
 	if (list_read == NULL)
 		return;
-
-	step = atoi (COLLECTD_STEP);
 
 	le = llist_head (list_read);
 	while ((*loop == 0) && (le != NULL))
@@ -378,7 +375,7 @@ void plugin_read_all (const int *loop)
 		rf = (read_func_t *) le->value;
 
 		if (rf->wait_left > 0)
-			rf->wait_left -= step;
+			rf->wait_left -= interval_g;
 		if (rf->wait_left > 0)
 		{
 			le = le->next;
@@ -400,7 +397,7 @@ void plugin_read_all (const int *loop)
 		else
 		{
 			rf->wait_left = 0;
-			rf->wait_time = step;
+			rf->wait_time = interval_g;
 		}
 
 		le = le->next;
@@ -497,7 +494,6 @@ void plugin_complain (int level, complain_t *c, const char *format, ...)
 {
 	char message[512];
 	va_list ap;
-	int step;
 
 	if (c->delay > 0)
 	{
@@ -505,18 +501,15 @@ void plugin_complain (int level, complain_t *c, const char *format, ...)
 		return;
 	}
 
-	step = atoi (COLLECTD_STEP);
-	assert (step > 0);
-
-	if (c->interval < step)
-		c->interval = step;
+	if (c->interval < interval_g)
+		c->interval = interval_g;
 	else
 		c->interval *= 2;
 
 	if (c->interval > 86400)
 		c->interval = 86400;
 
-	c->delay = c->interval / step;
+	c->delay = c->interval / interval_g;
 
 	va_start (ap, format);
 	vsnprintf (message, 512, format, ap);

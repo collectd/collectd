@@ -77,7 +77,6 @@ static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
 static cf_global_option_t cf_global_options[] =
 {
 	{"BaseDir",   NULL, PKGLOCALSTATEDIR},
-	{"LogFile",   NULL, LOGFILE},
 	{"PIDFile",   NULL, PIDFILE},
 	{"Hostname",  NULL, NULL},
 	{"Interval",  NULL, "10"}
