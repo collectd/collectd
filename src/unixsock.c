@@ -67,6 +67,8 @@ static const char *config_keys[] =
 };
 static int config_keys_num = 3;
 
+static int loop = 0;
+
 /* socket configuration */
 static int   sock_fd    = -1;
 static char *sock_file  = NULL;
@@ -487,16 +489,29 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 	int   i;
 
 	if (fields_num != 2)
+	{
+		DEBUG ("unixsock plugin: Wrong number of fields: %i", fields_num);
+		fprintf (fh, "-1 Wrong number of fields: Got %i, expected 2.\n",
+				fields_num);
+		fflush (fh);
 		return (-1);
+	}
+	DEBUG ("unixsock plugin: Got query for `%s'", fields[1]);
 
 	status = parse_identifier (fields[1], &hostname,
 			&plugin, &plugin_instance,
 			&type, &type_instance);
 	if (status != 0)
+	{
+		DEBUG ("unixsock plugin: Cannot parse `%s'", fields[1]);
+		fprintf (fh, "-1 Cannot parse identifier.\n");
+		fflush (fh);
 		return (-1);
+	}
 
 	status = cache_alloc_name (name, sizeof (name),
 			hostname, plugin, plugin_instance, type, type_instance);
+	/* FIXME: Send some response */
 	if (status != 0)
 		return (-1);
 
@@ -549,24 +564,40 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 	char **value_ptr;
 
 	if (fields_num != 3)
+	{
+		DEBUG ("unixsock plugin: Wrong number of fields: %i", fields_num);
+		fprintf (fh, "-1 Wrong number of fields: Got %i, expected 3.\n",
+				fields_num);
+		fflush (fh);
 		return (-1);
+	}
 
 	status = parse_identifier (fields[1], &hostname,
 			&plugin, &plugin_instance,
 			&type, &type_instance);
 	if (status != 0)
+	{
+		DEBUG ("unixsock plugin: Cannot parse `%s'", fields[1]);
+		fprintf (fh, "-1 Cannot parse identifier.\n");
+		fflush (fh);
 		return (-1);
+	}
 
+	/* FIXME: Send some response */
 	if ((strlen (hostname) > sizeof (vl.host))
 			|| (strlen (plugin) > sizeof (vl.plugin))
-			|| (strlen (plugin_instance) > sizeof (vl.plugin_instance))
-			|| (strlen (type_instance) > sizeof (vl.type_instance)))
+			|| ((plugin_instance != NULL)
+				&& (strlen (plugin_instance) > sizeof (vl.plugin_instance)))
+			|| ((type_instance != NULL)
+				&& (strlen (type_instance) > sizeof (vl.type_instance))))
 		return (-1);
 
 	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, plugin);
-	strcpy (vl.plugin_instance, plugin_instance);
-	strcpy (vl.type_instance, type_instance);
+	if (plugin_instance != NULL)
+		strcpy (vl.plugin_instance, plugin_instance);
+	if (type_instance != NULL)
+		strcpy (vl.type_instance, type_instance);
 
 	{ /* parse the time */
 		char *t = fields[2];
@@ -587,6 +618,7 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 		return (-1);
 
 	value_ptr = (char **) calloc (ds->ds_num, sizeof (char *));
+	/* FIXME: Send some response */
 	if (value_ptr == NULL)
 		return (-1);
 
@@ -613,19 +645,20 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 
 		if (i != ds->ds_num)
 		{
-			free (value_ptr);
+			sfree (value_ptr);
+			/* FIXME: Send some response */
 			return (-1);
 		}
 	} /* done parsing the value-list */
 
-	vl.values_len = fields_num - 2;
+	vl.values_len = ds->ds_num;
 	vl.values = (value_t *) malloc (vl.values_len * sizeof (value_t));
 	if (vl.values == NULL)
 	{
-		free (value_ptr);
+		sfree (value_ptr);
 		return (-1);
 	}
-	vl.values_len = ds->ds_num;
+	DEBUG ("value_ptr = 0x%p; vl.values = 0x%p;", (void *) value_ptr, (void *) vl.values);
 
 	for (i = 0; i < ds->ds_num; i++)
 	{
@@ -636,11 +669,16 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 		else if (ds->ds[i].type == DS_TYPE_GAUGE)
 			vl.values[i].gauge = atof (value_ptr[i]);
 	} /* for (i = 2 .. fields_num) */
-	sfree (value_ptr);
 
 	plugin_dispatch_values (type, &vl);
 
+	DEBUG ("value_ptr = 0x%p; vl.values = 0x%p;", (void *) value_ptr, (void *) vl.values);
+
+	sfree (value_ptr);
 	sfree (vl.values); 
+
+	fprintf (fh, "0 Success\n");
+	fflush (fh);
 
 	return (0);
 } /* int us_handle_putval */
@@ -723,7 +761,7 @@ static void *us_server_thread (void *arg)
 	if (us_open_socket () != 0)
 		pthread_exit ((void *) 1);
 
-	while (42)
+	while (loop != 0)
 	{
 		DEBUG ("Calling accept..");
 		status = accept (sock_fd, NULL, NULL);
@@ -767,7 +805,10 @@ static void *us_server_thread (void *arg)
 			free (remote_fd);
 			continue;
 		}
-	} /* while (42) */
+	} /* while (loop) */
+
+	close (sock_fd);
+	sock_fd = -1;
 
 	return ((void *) 0);
 } /* void *us_server_thread */
@@ -800,6 +841,8 @@ static int us_init (void)
 {
 	int status;
 
+	loop = 1;
+
 	status = pthread_create (&listen_thread, NULL, us_server_thread, NULL);
 	if (status != 0)
 	{
@@ -816,9 +859,13 @@ static int us_shutdown (void)
 {
 	void *ret;
 
+	loop = 0;
+
 	if (listen_thread != (pthread_t) 0)
 	{
+		DEBUG ("unixsock plugin: Sending SIGTERM to listening thread");
 		pthread_kill (listen_thread, SIGTERM);
+		DEBUG ("unixsock plugin: Waiting for thread to terminate");
 		pthread_join (listen_thread, &ret);
 		listen_thread = (pthread_t) 0;
 	}
