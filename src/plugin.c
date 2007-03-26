@@ -470,6 +470,9 @@ void plugin_log (int level, const char *format, ...)
 	void (*callback) (int, const char *);
 	llentry_t *le;
 
+	if (list_log == NULL)
+		return;
+
 #if !COLLECT_DEBUG
 	if (level >= LOG_DEBUG)
 		return;
