@@ -272,6 +272,14 @@ load_la_LDFLAGS += -lstatgrab
 endif
 endif
 
+if BUILD_MODULE_LOGFILE
+pkglib_LTLIBRARIES += logfile.la
+logfile_la_SOURCES = logfile.c
+logfile_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" logfile.la
+collectd_DEPENDENCIES += logfile.la
+endif
+
 if BUILD_MODULE_MBMON
 pkglib_LTLIBRARIES += mbmon.la
 mbmon_la_SOURCES = mbmon.c
@@ -430,14 +438,6 @@ swap_la_LDFLAGS += -ldevstat
 endif
 swap_la_LDFLAGS += -lstatgrab
 endif
-endif
-
-if BUILD_MODULE_STDERR
-pkglib_LTLIBRARIES += stderr.la
-stderr_la_SOURCES = stderr.c
-stderr_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" stderr.la
-collectd_DEPENDENCIES += stderr.la
 endif
 
 if BUILD_MODULE_SYSLOG
