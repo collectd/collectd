@@ -1,5 +1,5 @@
 /**
- * collectd - src/traffic.c
+ * collectd - src/interface.c
  * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -59,9 +59,9 @@
 #endif /* KERNEL_LINUX */
 
 #if HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT || HAVE_LIBSTATGRAB
-# define TRAFFIC_HAVE_READ 1
+# define INTERFACE_HAVE_READ 1
 #else
-# define TRAFFIC_HAVE_READ 0
+# define INTERFACE_HAVE_READ 0
 #endif
 
 /*
@@ -164,7 +164,7 @@ static int interface_config (const char *key, const char *value)
 }
 
 #if HAVE_LIBKSTAT
-static int traffic_init (void)
+static int interface_init (void)
 {
 #if HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
@@ -192,7 +192,7 @@ static int traffic_init (void)
 #endif /* HAVE_LIBKSTAT */
 
 	return (0);
-} /* int traffic_init */
+} /* int interface_init */
 #endif /* HAVE_LIBKSTAT */
 
 /*
@@ -215,7 +215,7 @@ static int check_ignore_if (const char *interface)
 	return (1 - if_list_action);
 } /* int check_ignore_if */
 
-#if TRAFFIC_HAVE_READ
+#if INTERFACE_HAVE_READ
 static void if_submit (const char *dev, const char *type,
 		unsigned long long rx,
 		unsigned long long tx)
@@ -239,7 +239,7 @@ static void if_submit (const char *dev, const char *type,
 	plugin_dispatch_values (type, &vl);
 } /* void if_submit */
 
-static int traffic_read (void)
+static int interface_read (void)
 {
 #if HAVE_GETIFADDRS
 	struct ifaddrs *if_list;
@@ -305,7 +305,7 @@ static int traffic_read (void)
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("traffic: fopen: %s",
+		WARNING ("interface plugin: fopen: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -386,8 +386,8 @@ static int traffic_read (void)
 #endif /* HAVE_LIBSTATGRAB */
 
 	return (0);
-} /* int traffic_read */
-#endif /* TRAFFIC_HAVE_READ */
+} /* int interface_read */
+#endif /* INTERFACE_HAVE_READ */
 
 void module_register (void)
 {
@@ -399,10 +399,10 @@ void module_register (void)
 			config_keys, config_keys_num);
 
 #if HAVE_LIBKSTAT
-	plugin_register_init ("interface", traffic_init);
+	plugin_register_init ("interface", interface_init);
 #endif
 
-#if TRAFFIC_HAVE_READ
-	plugin_register_read ("interface", traffic_read);
+#if INTERFACE_HAVE_READ
+	plugin_register_read ("interface", interface_read);
 #endif
 }

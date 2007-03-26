@@ -236,6 +236,29 @@ collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
 endif
 
+if BUILD_MODULE_INTERFACE
+pkglib_LTLIBRARIES += interface.la
+interface_la_SOURCES = interface.c
+interface_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" interface.la
+collectd_DEPENDENCIES += interface.la
+if BUILD_WITH_LIBKSTAT
+interface_la_LDFLAGS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+interface_la_LDFLAGS += -ldevinfo
+endif
+if BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_LIBKVM
+interface_la_LDFLAGS += -lkvm
+endif
+if BUILD_WITH_LIBDEVSTAT
+interface_la_LDFLAGS += -ldevstat
+endif
+interface_la_LDFLAGS += -lstatgrab
+endif
+endif
+
 if BUILD_MODULE_IPTABLES
 pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
@@ -460,29 +483,6 @@ tape_la_LDFLAGS += -ldevinfo
 endif
 collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
-endif
-
-if BUILD_MODULE_TRAFFIC
-pkglib_LTLIBRARIES += traffic.la
-traffic_la_SOURCES = traffic.c
-traffic_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" traffic.la
-collectd_DEPENDENCIES += traffic.la
-if BUILD_WITH_LIBKSTAT
-traffic_la_LDFLAGS += -lkstat
-endif
-if BUILD_WITH_LIBDEVINFO
-traffic_la_LDFLAGS += -ldevinfo
-endif
-if BUILD_WITH_LIBSTATGRAB
-if BUILD_WITH_LIBKVM
-traffic_la_LDFLAGS += -lkvm
-endif
-if BUILD_WITH_LIBDEVSTAT
-traffic_la_LDFLAGS += -ldevstat
-endif
-traffic_la_LDFLAGS += -lstatgrab
-endif
 endif
 
 if BUILD_MODULE_UNIXSOCK
