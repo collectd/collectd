@@ -381,7 +381,9 @@ static cu_mount_t *cu_mount_listmntent (void)
 
 	struct tabmntent *mntlist;
 	if(listmntent(&mntlist, COLLECTD_MNTTAB, NULL, NULL) < 0) {
-		DEBUG("calling listmntent() failed: %s", strerror(errno));
+		char errbuf[1024];
+		DEBUG("calling listmntent() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
 	for(p = mntlist; p; p = p->next) {
@@ -450,7 +452,9 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	/* Get the number of mounted file systems */
 	if ((bufsize = CMD_STATFS (NULL, 0, FLAGS_STATFS)) < 1)
 	{
-		DEBUG ("getv?fsstat failed: %s", strerror (errno));
+		char errbuf[1024];
+		DEBUG ("getv?fsstat failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (NULL);
 	}
 
@@ -463,7 +467,9 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	 * manpage.. -octo */
 	if ((num = CMD_STATFS (buf, bufsize * sizeof (STRUCT_STATFS), FLAGS_STATFS)) < 1)
 	{
-		DEBUG ("getv?fsstat failed: %s", strerror (errno));
+		char errbuf[1024];
+		DEBUG ("getv?fsstat failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		free (buf);
 		return (NULL);
 	}
@@ -516,7 +522,9 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 
 	if ((fp = fopen (COLLECTD_MNTTAB, "r")) == NULL)
 	{
-		ERROR ("fopen (%s): %s", COLLECTD_MNTTAB, strerror (errno));
+		char errbuf[1024];
+		ERROR ("fopen (%s): %s", COLLECTD_MNTTAB,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (NULL);
 	}
 
@@ -571,7 +579,9 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	if ((fp = setmntent (COLLECTD_MNTTAB, "r")) == NULL)
 	{
-		ERROR ("setmntent (%s): %s", COLLECTD_MNTTAB, strerror (errno));
+		char errbuf[1024];
+		ERROR ("setmntent (%s): %s", COLLECTD_MNTTAB,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (NULL);
 	}
 

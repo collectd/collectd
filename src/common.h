@@ -36,6 +36,7 @@
 void sstrncpy(char *d, const char *s, int len);
 char *sstrdup(const char *s);
 void *smalloc(size_t size);
+char *sstrerror (int errnum, char *buf, size_t buflen);
 
 /*
  * NAME

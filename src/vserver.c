@@ -178,17 +178,14 @@ static int vserver_read (void)
 	DIR 			*proc;
 	struct dirent 	*dent; /* 42 */
 
-	static complain_t complain_obj;
-
 	errno = 0;
 	if (NULL == (proc = opendir (PROCDIR)))
 	{
-		plugin_complain (LOG_ERR, &complain_obj, "vserver plugin: "
-				"fopen (%s) failed: %s", PROCDIR, strerror (errno));
+		char errbuf[1024];
+		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR, 
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	plugin_relief (LOG_NOTICE, &complain_obj, "vserver plugin: "
-			"fopen (%s) succeeded.", PROCDIR);
 
 	while (NULL != (dent = readdir (proc)))
 	{
@@ -213,7 +210,11 @@ static int vserver_read (void)
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
-			ERROR ("Cannot open '%s': %s", file, strerror (errno));
+		{
+			char errbuf[1024];
+			ERROR ("Cannot open '%s': %s", file,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+		}
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{
@@ -256,7 +257,11 @@ static int vserver_read (void)
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
-			ERROR ("Cannot open '%s': %s", file, strerror (errno));
+		{
+			char errbuf[1024];
+			ERROR ("Cannot open '%s': %s", file,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+		}
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{
@@ -304,7 +309,11 @@ static int vserver_read (void)
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
-			ERROR ("Cannot open '%s': %s", file, strerror (errno));
+		{
+			char errbuf[1024];
+			ERROR ("Cannot open '%s': %s", file,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+		}
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{

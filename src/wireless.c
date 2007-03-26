@@ -112,7 +112,9 @@ static int wireless_read (void)
 	/* there are a variety of names for the wireless device */
 	if ((fh = fopen (WIRELESS_PROC_FILE, "r")) == NULL)
 	{
-		WARNING ("wireless: fopen: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("wireless: fopen: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

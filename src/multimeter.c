@@ -81,8 +81,10 @@ static int multimeter_read_value(double *value)
 
 		if (gettimeofday (&time_end, NULL) < 0)
 	        {
+			char errbuf[1024];
 	                ERROR ("multimeter plugin: gettimeofday failed: %s",
-                                strerror (errno));
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 	                return (-1);
 	        }
 	        time_end.tv_sec++;	
@@ -103,9 +105,11 @@ static int multimeter_read_value(double *value)
 
 			if (gettimeofday (&time_now, NULL) < 0)
 	                {
+				char errbuf[1024];
 		                ERROR ("multimeter plugin: "
 						"gettimeofday failed: %s",
-						strerror (errno));
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 	                        return (-1);
 	                }
 			if (multimeter_timeval_sub (&time_end, &time_now, &timeout) == -1)
@@ -157,9 +161,10 @@ static int multimeter_read_value(double *value)
 			}
 			else /* status == -1 */
             		{
+				char errbuf[1024];
 		                ERROR ("multimeter plugin: "
 						"select failed: %s",
-						strerror (errno));
+						sstrerror (errno, errbuf, sizeof (errbuf)));
 	                        break;
 			}
 		}

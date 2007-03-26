@@ -172,12 +172,14 @@ static void exec_child (program_list_t *pl)
   struct passwd *sp_ptr;
   struct passwd sp;
   char pwnambuf[2048];
+  char errbuf[1024];
 
   sp_ptr = NULL;
   status = getpwnam_r (pl->user, &sp, pwnambuf, sizeof (pwnambuf), &sp_ptr);
   if (status != 0)
   {
-    ERROR ("exec plugin: getpwnam_r failed: %s", strerror (status));
+    ERROR ("exec plugin: getpwnam_r failed: %s",
+	sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
   if (sp_ptr == NULL)
@@ -196,7 +198,8 @@ static void exec_child (program_list_t *pl)
   status = setuid (uid);
   if (status != 0)
   {
-    ERROR ("exec plugin: setuid failed: %s", strerror (errno));
+    ERROR ("exec plugin: setuid failed: %s",
+	sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
 
@@ -208,7 +211,8 @@ static void exec_child (program_list_t *pl)
 
   status = execlp (pl->exec, arg0, (char *) 0);
 
-  ERROR ("exec plugin: exec failed: %s", strerror (errno));
+  ERROR ("exec plugin: exec failed: %s",
+      sstrerror (errno, errbuf, sizeof (errbuf)));
   exit (-1);
 } /* void exec_child */
 
@@ -223,14 +227,18 @@ static int fork_child (program_list_t *pl)
   status = pipe (fd_pipe);
   if (status != 0)
   {
-    ERROR ("exec plugin: pipe failed: %s", strerror (errno));
+    char errbuf[1024];
+    ERROR ("exec plugin: pipe failed: %s",
+	sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
 
   pl->pid = fork ();
   if (pl->pid < 0)
   {
-    ERROR ("exec plugin: fork failed: %s", strerror (errno));
+    char errbuf[1024];
+    ERROR ("exec plugin: fork failed: %s",
+	sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
   else if (pl->pid == 0)
@@ -269,8 +277,9 @@ static void *exec_read_one (void *arg)
   fh = fdopen (fd, "r");
   if (fh == NULL)
   {
+    char errbuf[1024];
     ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
-	strerror (errno));
+	sstrerror (errno, errbuf, sizeof (errbuf)));
     kill (pl->pid, SIGTERM);
     close (fd);
     pthread_exit ((void *) 1);

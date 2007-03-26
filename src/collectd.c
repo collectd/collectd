@@ -91,7 +91,9 @@ static int change_basedir (const char *orig_dir)
 
 	if (dir == NULL)
 	{
-		ERROR ("strdup failed: %s", strerror (errno));
+		char errbuf[1024];
+		ERROR ("strdup failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 	
@@ -111,21 +113,27 @@ static int change_basedir (const char *orig_dir)
 		{
 			if (mkdir (orig_dir, 0755) == -1)
 			{
+				char errbuf[1024];
 				ERROR ("mkdir (%s): %s", orig_dir,
-						strerror (errno));
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 			else if (chdir (orig_dir) == -1)
 			{
+				char errbuf[1024];
 				ERROR ("chdir (%s): %s", orig_dir,
-						strerror (errno));
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 		}
 		else
 		{
+			char errbuf[1024];
 			ERROR ("chdir (%s): %s", orig_dir,
-					strerror (errno));
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 	}
@@ -227,7 +235,10 @@ static int do_loop (void)
 	{
 		if (gettimeofday (&tv_next, NULL) < 0)
 		{
-			ERROR ("gettimeofday failed: %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("gettimeofday failed: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 		tv_next.tv_sec += interval_g;
@@ -241,8 +252,10 @@ static int do_loop (void)
 
 		if (gettimeofday (&tv_now, NULL) < 0)
 		{
+			char errbuf[1024];
 			ERROR ("gettimeofday failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 
@@ -258,7 +271,10 @@ static int do_loop (void)
 		{
 			if (errno != EINTR)
 			{
-				ERROR ("nanosleep failed: %s", strerror (errno));
+				char errbuf[1024];
+				ERROR ("nanosleep failed: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 		}
@@ -282,7 +298,9 @@ static int pidfile_create (void)
 
 	if ((fh = fopen (file, "w")) == NULL)
 	{
-		ERROR ("fopen (%s): %s", file, strerror (errno));
+		char errbuf[1024];
+		ERROR ("fopen (%s): %s", file,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (1);
 	}
 
@@ -396,7 +414,10 @@ int main (int argc, char **argv)
 		if ((pid = fork ()) == -1)
 		{
 			/* error */
-			fprintf (stderr, "fork: %s", strerror (errno));
+			char errbuf[1024];
+			fprintf (stderr, "fork: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (1);
 		}
 		else if (pid != 0)

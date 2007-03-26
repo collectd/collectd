@@ -389,12 +389,12 @@ static int ntpd_connect (void)
 
 	if ((status = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
-		DEBUG ("getaddrinfo (%s, %s): %s",
-				host, port,
-				status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
+		char errbuf[1024];
 		ERROR ("ntpd plugin: getaddrinfo (%s, %s): %s",
 				host, port,
-				status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
+				(status == EAI_SYSTEM)
+				? sstrerror (errno, errbuf, sizeof (errbuf))
+				: gai_strerror (status));
 		return (-1);
 	}
 
@@ -470,8 +470,9 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 	if (gettimeofday (&time_end, NULL) < 0)
 	{
+		char errbuf[1024];
 		ERROR ("ntpd plugin: gettimeofday failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 	time_end.tv_sec++; /* wait for a most one second */
@@ -481,8 +482,9 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 	{
 		if (gettimeofday (&time_now, NULL) < 0)
 		{
+			char errbuf[1024];
 			ERROR ("ntpd plugin: gettimeofday failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
 
@@ -502,9 +504,9 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 		if (status < 0)
 		{
-			DEBUG ("poll failed: %s", strerror (errno));
+			char errbuf[1024];
 			ERROR ("ntpd plugin: poll failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
 
@@ -522,7 +524,9 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 		if (status < 0)
 		{
-			DEBUG ("recv(2) failed: %s", strerror (errno));
+			char errbuf[1024];
+			DEBUG ("recv(2) failed: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			DEBUG ("Closing socket #%i", sd);
 			close (sd);
 			sock_descr = sd = -1;
@@ -874,9 +878,10 @@ static int ntpd_read (void)
 					NULL, 0, 0 /* no flags */);
 			if (status != 0)
 			{
+				char errbuf[1024];
 				ERROR ("ntpd plugin: getnameinfo failed: %s",
-						status == EAI_SYSTEM
-						? strerror (errno)
+						(status == EAI_SYSTEM)
+						? sstrerror (errno, errbuf, sizeof (errbuf))
 						: gai_strerror (status));
 				continue;
 			}

@@ -304,7 +304,9 @@ static int traffic_read (void)
 
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
-		WARNING ("traffic: fopen: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("traffic: fopen: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

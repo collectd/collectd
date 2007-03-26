@@ -156,7 +156,9 @@ static int swap_read (void)
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
-		WARNING ("memory: fopen: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("memory: fopen: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -182,7 +184,11 @@ static int swap_read (void)
 	}
 
 	if (fclose (fh))
-		WARNING ("memory: fclose: %s", strerror (errno));
+	{
+		char errbuf[1024];
+		WARNING ("memory: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
 
 	if ((swap_total == 0LL) || ((swap_free + swap_cached) > swap_total))
 		return (-1);
@@ -203,8 +209,9 @@ static int swap_read (void)
 
 	if (swapctl (SC_AINFO, &ai) == -1)
 	{
+		char errbuf[1024];
 		ERROR ("swap plugin: swapctl failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

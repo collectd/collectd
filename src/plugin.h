@@ -189,4 +189,6 @@ void plugin_log (int level, const char *format, ...);
 void plugin_complain (int level, complain_t *c, const char *format, ...);
 void plugin_relief (int level, complain_t *c, const char *format, ...);
 
+const data_set_t *plugin_get_ds (const char *name);
+
 #endif /* PLUGIN_H */

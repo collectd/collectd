@@ -186,7 +186,11 @@ static int net_open (char *host, char *service, int port)
 	status = getaddrinfo (host, port_str, &ai_hints, &ai_return);
 	if (status != 0)
 	{
-		DEBUG ("getaddrinfo failed: %s", status == EAI_SYSTEM ? strerror (errno) : gai_strerror (status));
+		char errbuf[1024];
+		DEBUG ("getaddrinfo failed: %s",
+				(status == EAI_SYSTEM)
+				? sstrerror (errno, errbuf, sizeof (errbuf))
+				: gai_strerror (status));
 		return (-1);
 	}
 
@@ -213,7 +217,9 @@ static int net_open (char *host, char *service, int port)
 
 	if (status != 0) /* `connect(2)' failed */
 	{
-		DEBUG ("connect failed: %s", strerror (errno));
+		char errbuf[1024];
+		DEBUG ("connect failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sd);
 		return (-1);
 	}

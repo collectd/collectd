@@ -174,7 +174,10 @@ static int df_read (void)
 	{
 		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
 		{
-			ERROR ("statv?fs failed: %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("statv?fs failed: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			continue;
 		}
 

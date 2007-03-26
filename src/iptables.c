@@ -119,7 +119,9 @@ static int iptables_config (const char *key, const char *value)
 		value_copy = strdup (value);
 		if (value_copy == NULL)
 		{
-		    ERROR ("strdup failed: %s", strerror (errno));
+		    char errbuf[1024];
+		    ERROR ("strdup failed: %s",
+			    sstrerror (errno, errbuf, sizeof (errbuf)));
 		    return (1);
 		}
 
@@ -187,16 +189,20 @@ static int iptables_config (const char *key, const char *value)
 		list = (ip_chain_t **) realloc (chain_list, (chain_num + 1) * sizeof (ip_chain_t *));
 		if (list == NULL)
 		{
-			ERROR ("realloc failed: %s", strerror (errno));
-			return (1);
+		    char errbuf[1024];
+		    ERROR ("realloc failed: %s",
+			    sstrerror (errno, errbuf, sizeof (errbuf)));
+		    return (1);
 		}
 
 		chain_list = list;
 		final = (ip_chain_t *) malloc( sizeof(temp) );
 		if (final == NULL) 
 		{
-			ERROR ("malloc failed: %s", strerror (errno));
-			return (1);
+		    char errbuf[1024];
+		    ERROR ("malloc failed: %s",
+			    sstrerror (errno, errbuf, sizeof (errbuf)));
+		    return (1);
 		}
 		memcpy (final, &temp, sizeof (temp));
 		chain_list[chain_num] = final;

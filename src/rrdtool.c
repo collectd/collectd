@@ -181,8 +181,9 @@ static int ds_get (char ***ret, const data_set_t *ds)
 	ds_def = (char **) malloc (ds->ds_num * sizeof (char *));
 	if (ds_def == NULL)
 	{
+		char errbuf[1024];
 		ERROR ("rrdtool plugin: malloc failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 	memset (ds_def, '\0', ds->ds_num * sizeof (char *));
@@ -286,7 +287,9 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 
 	if ((argv = (char **) malloc (sizeof (char *) * (argc + 1))) == NULL)
 	{
-		ERROR ("rrd_create failed: %s", strerror (errno));
+		char errbuf[1024];
+		ERROR ("rrd_create failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -428,8 +431,9 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 			(rc->values_num + 1) * sizeof (char *));
 	if (rc->values == NULL)
 	{
+		char errbuf[1024];
 		ERROR ("rrdtool plugin: realloc failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		if (cache != NULL)
 		{
 			void *cache_key = NULL;
@@ -454,8 +458,9 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 
 		if (cache_key == NULL)
 		{
+			char errbuf[1024];
 			ERROR ("rrdtool plugin: strdup failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			sfree (rc->values[0]);
 			sfree (rc->values);
 			sfree (rc);
@@ -553,10 +558,11 @@ static void rrd_cache_flush (int timeout)
 					(keys_num + 1) * sizeof (char *));
 			if (keys == NULL)
 			{
-				DEBUG ("realloc failed: %s", strerror (errno));
+				char errbuf[1024];
 				ERROR ("rrdtool plugin: "
 						"realloc failed: %s",
-						strerror (errno));
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				avl_iterator_destroy (iter);
 				return;
 			}
@@ -610,8 +616,10 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 		}
 		else
 		{
-			ERROR ("stat(%s) failed: %s",
-					filename, strerror (errno));
+			char errbuf[1024];
+			ERROR ("stat(%s) failed: %s", filename,
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 	}

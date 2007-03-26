@@ -23,6 +23,7 @@
 
 #include <ltdl.h>
 
+#include "common.h"
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_llist.h"
@@ -149,7 +150,11 @@ void plugin_set_dir (const char *dir)
 	if (dir == NULL)
 		plugindir = NULL;
 	else if ((plugindir = strdup (dir)) == NULL)
-		ERROR ("strdup failed: %s", strerror (errno));
+	{
+		char errbuf[1024];
+		ERROR ("strdup failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
 }
 
 #define BUFSIZE 512
@@ -180,7 +185,9 @@ int plugin_load (const char *type)
 
 	if ((dh = opendir (dir)) == NULL)
 	{
-		ERROR ("opendir (%s): %s", dir, strerror (errno));
+		char errbuf[1024];
+		ERROR ("opendir (%s): %s", dir,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -197,7 +204,9 @@ int plugin_load (const char *type)
 
 		if (lstat (filename, &statbuf) == -1)
 		{
-			WARNING ("stat %s: %s", filename, strerror (errno));
+			char errbuf[1024];
+			WARNING ("stat %s: %s", filename,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
 		else if (!S_ISREG (statbuf.st_mode))
@@ -244,8 +253,9 @@ int plugin_register_read (const char *name,
 	rf = (read_func_t *) malloc (sizeof (read_func_t));
 	if (rf == NULL)
 	{
+		char errbuf[1024];
 		ERROR ("plugin_register_read: malloc failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -530,3 +540,20 @@ void plugin_relief (int level, complain_t *c, const char *format, ...)
 
 	plugin_log (level, message);
 }
+
+const data_set_t *plugin_get_ds (const char *name)
+{
+	data_set_t *ds;
+	llentry_t *le;
+
+	le = llist_search (list_data_set, name);
+	if (le == NULL)
+	{
+		DEBUG ("No such dataset registered: %s", name);
+		return (NULL);
+	}
+
+	ds = (data_set_t *) le->value;
+
+	return (ds);
+} /* data_set_t *plugin_get_ds */

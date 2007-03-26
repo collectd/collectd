@@ -320,8 +320,9 @@ static int dns_init (void)
 			(void *) 0);
 	if (status != 0)
 	{
+		char errbuf[1024];
 		ERROR ("dns plugin: pthread_create failed: %s",
-				strerror (status));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

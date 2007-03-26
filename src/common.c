@@ -58,6 +58,15 @@ char *sstrdup (const char *s)
 	return (r);
 }
 
+/* Don't use the return value of `strerror_r', because the GNU-people got
+ * inventive there.. -octo */
+char *sstrerror (int errnum, char *buf, size_t buflen)
+{
+	buf[0] = '\0';
+	strerror_r (errnum, buf, buflen);
+	return (buf);
+} /* char *sstrerror */
+
 void *smalloc (size_t size)
 {
 	void *r;
@@ -372,13 +381,19 @@ int check_create_dir (const char *file_orig)
 			{
 				if (mkdir (dir, 0755) == -1)
 				{
-					ERROR ("mkdir (%s): %s", dir, strerror (errno));
+					char errbuf[1024];
+					ERROR ("mkdir (%s): %s", dir,
+							sstrerror (errno,
+								errbuf, sizeof (errbuf)));
 					return (-1);
 				}
 			}
 			else
 			{
-				ERROR ("stat (%s): %s", dir, strerror (errno));
+				char errbuf[1024];
+				ERROR ("stat (%s): %s", dir,
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 		}

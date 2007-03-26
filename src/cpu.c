@@ -161,7 +161,9 @@ static int init (void)
 
 	if (sysctlbyname ("hw.ncpu", &numcpu, &numcpu_size, NULL, 0) < 0)
 	{
-		WARNING ("cpu: sysctlbyname: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("cpu plugin: sysctlbyname: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -296,9 +298,10 @@ static int cpu_read (void)
 
 	if ((fh = fopen ("/proc/stat", "r")) == NULL)
 	{
+		char errbuf[1024];
 		plugin_complain (LOG_ERR, &complain_obj, "cpu plugin: "
 				"fopen (/proc/stat) failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -377,9 +380,10 @@ static int cpu_read (void)
 
 	if (sysctlbyname("kern.cp_time", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
 	{
+		char errbuf[1024];
 		plugin_complain (LOG_ERR, &complain_obj, "cpu plugin: "
 				"sysctlbyname failed: %s.",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return;
 	}
 

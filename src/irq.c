@@ -178,8 +178,9 @@ static int irq_read (void)
 
 	if ((fh = fopen ("/proc/interrupts", "r")) == NULL)
 	{
+		char errbuf[1024];
 		WARNING ("irq plugin: fopen (/proc/interrupts): %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 	while (fgets (buffer, BUFSIZE, fh) != NULL)

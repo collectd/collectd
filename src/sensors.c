@@ -256,8 +256,9 @@ static void sensors_load_conf (void)
 	status = stat (conffile, &statbuf);
 	if (status != 0)
 	{
-		ERROR ("sensors plugin: stat (%s) failed: %s",
-				conffile, strerror (errno));
+		char errbuf[1024];
+		ERROR ("sensors plugin: stat (%s) failed: %s", conffile,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		sensors_config_mtime = 0;
 	}
 
@@ -276,8 +277,9 @@ static void sensors_load_conf (void)
 	fh = fopen (conffile, "r");
 	if (fh == NULL)
 	{
-		ERROR ("sensors plugin: fopen(%s) failed: %s",
-				conffile, strerror(errno));
+		char errbuf[1024];
+		ERROR ("sensors plugin: fopen(%s) failed: %s", conffile,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return;
 	}
 
@@ -324,9 +326,9 @@ static void sensors_load_conf (void)
 
 				if ((new_feature = (featurelist_t *) malloc (sizeof (featurelist_t))) == NULL)
 				{
-					DEBUG ("malloc: %s", strerror (errno));
-					ERROR ("sensors plugin:  malloc: %s",
-							strerror (errno));
+					char errbuf[1024];
+					ERROR ("sensors plugin: malloc: %s",
+							sstrerror (errno, errbuf, sizeof (errbuf)));
 					break;
 				}
 

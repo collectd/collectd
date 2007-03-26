@@ -83,6 +83,52 @@ static unsigned int     cache_oldest = UINT_MAX;
 /*
  * Functions
  */
+static int parse_identifier (char *str, char **ret_host,
+		char **ret_plugin, char **ret_plugin_instance,
+		char **ret_type, char **ret_type_instance)
+{
+	char *hostname = NULL;
+	char *plugin = NULL;
+	char *plugin_instance = NULL;
+	char *type = NULL;
+	char *type_instance = NULL;
+
+	hostname = str;
+	if (hostname == NULL)
+		return (-1);
+
+	plugin = strchr (hostname, '/');
+	if (plugin == NULL)
+		return (-1);
+	*plugin = '\0'; plugin++;
+
+	type = strchr (plugin, '/');
+	if (type == NULL)
+		return (-1);
+	*type = '\0'; type++;
+
+	plugin_instance = strchr (plugin, '-');
+	if (plugin_instance != NULL)
+	{
+		*plugin_instance = '\0';
+		plugin_instance++;
+	}
+
+	type_instance = strchr (type, '-');
+	if (type_instance != NULL)
+	{
+		*type_instance = '\0';
+		type_instance++;
+	}
+
+	*ret_host = hostname;
+	*ret_plugin = plugin;
+	*ret_plugin_instance = plugin_instance;
+	*ret_type = type;
+	*ret_type_instance = type_instance;
+	return (0);
+} /* int parse_identifier */
+
 static value_cache_t *cache_search (const char *name)
 {
 	value_cache_t *vc;
@@ -143,18 +189,20 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	vc = (value_cache_t *) malloc (sizeof (value_cache_t));
 	if (vc == NULL)
 	{
+		char errbuf[1024];
 		pthread_mutex_unlock (&cache_lock);
 		ERROR ("unixsock plugin: malloc failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
 	vc->gauge = (gauge_t *) malloc (sizeof (gauge_t) * vl->values_len);
 	if (vc->gauge == NULL)
 	{
+		char errbuf[1024];
 		pthread_mutex_unlock (&cache_lock);
 		ERROR ("unixsock plugin: malloc failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		free (vc);
 		return (-1);
 	}
@@ -162,9 +210,10 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	vc->counter = (counter_t *) malloc (sizeof (counter_t) * vl->values_len);
 	if (vc->counter == NULL)
 	{
+		char errbuf[1024];
 		pthread_mutex_unlock (&cache_lock);
 		ERROR ("unixsock plugin: malloc failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		free (vc->gauge);
 		free (vc);
 		return (-1);
@@ -351,8 +400,9 @@ static int us_open_socket (void)
 	sock_fd = socket (PF_UNIX, SOCK_STREAM, 0);
 	if (sock_fd < 0)
 	{
+		char errbuf[1024];
 		ERROR ("unixsock plugin: socket failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -365,10 +415,10 @@ static int us_open_socket (void)
 	status = bind (sock_fd, (struct sockaddr *) &sa, sizeof (sa));
 	if (status != 0)
 	{
-		DEBUG ("bind failed: %s; sa.sun_path = %s",
-				strerror (errno), sa.sun_path);
-		ERROR ("unixsock plugin: bind failed: %s",
-				strerror (errno));
+		char errbuf[1024];
+		sstrerror (errno, errbuf, sizeof (errbuf));
+		DEBUG ("bind failed: %s; sa.sun_path = %s", errbuf, sa.sun_path);
+		ERROR ("unixsock plugin: bind failed: %s", errbuf);
 		close (sock_fd);
 		sock_fd = -1;
 		return (-1);
@@ -377,8 +427,9 @@ static int us_open_socket (void)
 	status = listen (sock_fd, 8);
 	if (status != 0)
 	{
+		char errbuf[1024];
 		ERROR ("unixsock plugin: listen failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sock_fd);
 		sock_fd = -1;
 		return (-1);
@@ -397,8 +448,9 @@ static int us_open_socket (void)
 		status = getgrnam_r (grpname, &sg, grbuf, sizeof (grbuf), &g);
 		if (status != 0)
 		{
-			WARNING ("unixsock plugin: getgrnam_r (%s) failed: %s",
-					grpname, strerror (status));
+			char errbuf[1024];
+			WARNING ("unixsock plugin: getgrnam_r (%s) failed: %s", grpname,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			break;
 		}
 		if (g == NULL)
@@ -411,10 +463,11 @@ static int us_open_socket (void)
 		if (chown ((sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 					(uid_t) -1, g->gr_gid) != 0)
 		{
+			char errbuf[1024];
 			WARNING ("unixsock plugin: chown (%s, -1, %i) failed: %s",
 					(sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 					(int) g->gr_gid,
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 		}
 	} while (0);
 
@@ -423,7 +476,7 @@ static int us_open_socket (void)
 
 static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 {
-	char *hostname = fields[1];
+	char *hostname;
 	char *plugin;
 	char *plugin_instance;
 	char *type;
@@ -436,29 +489,11 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 	if (fields_num != 2)
 		return (-1);
 
-	plugin = strchr (hostname, '/');
-	if (plugin == NULL)
+	status = parse_identifier (fields[1], &hostname,
+			&plugin, &plugin_instance,
+			&type, &type_instance);
+	if (status != 0)
 		return (-1);
-	*plugin = '\0'; plugin++;
-
-	type = strchr (plugin, '/');
-	if (type == NULL)
-		return (-1);
-	*type = '\0'; type++;
-
-	plugin_instance = strchr (plugin, '-');
-	if (plugin_instance != NULL)
-	{
-		*plugin_instance = '\0';
-		plugin_instance++;
-	}
-
-	type_instance = strchr (type, '-');
-	if (type_instance != NULL)
-	{
-		*type_instance = '\0';
-		type_instance++;
-	}
 
 	status = cache_alloc_name (name, sizeof (name),
 			hostname, plugin, plugin_instance, type, type_instance);
@@ -498,6 +533,118 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 	return (0);
 } /* int us_handle_getval */
 
+static int us_handle_putval (FILE *fh, char **fields, int fields_num)
+{
+	char *hostname;
+	char *plugin;
+	char *plugin_instance;
+	char *type;
+	char *type_instance;
+	int   status;
+	int   i;
+
+	const data_set_t *ds;
+	value_list_t vl = VALUE_LIST_INIT;
+
+	char **value_ptr;
+
+	if (fields_num != 3)
+		return (-1);
+
+	status = parse_identifier (fields[1], &hostname,
+			&plugin, &plugin_instance,
+			&type, &type_instance);
+	if (status != 0)
+		return (-1);
+
+	if ((strlen (hostname) > sizeof (vl.host))
+			|| (strlen (plugin) > sizeof (vl.plugin))
+			|| (strlen (plugin_instance) > sizeof (vl.plugin_instance))
+			|| (strlen (type_instance) > sizeof (vl.type_instance)))
+		return (-1);
+
+	strcpy (vl.host, hostname);
+	strcpy (vl.plugin, plugin);
+	strcpy (vl.plugin_instance, plugin_instance);
+	strcpy (vl.type_instance, type_instance);
+
+	{ /* parse the time */
+		char *t = fields[2];
+		char *v = strchr (t, ':');
+		if (v == NULL)
+			return (-1);
+		*v = '\0'; v++;
+
+		vl.time = (time_t) atoi (t);
+		if (vl.time == 0)
+			vl.time = time (NULL);
+
+		fields[2] = v;
+	}
+
+	ds = plugin_get_ds (type);
+	if (ds == NULL)
+		return (-1);
+
+	value_ptr = (char **) calloc (ds->ds_num, sizeof (char *));
+	if (value_ptr == NULL)
+		return (-1);
+
+
+	{ /* parse the value-list. It's colon-separated. */
+		char *dummy;
+		char *ptr;
+		char *saveptr;
+
+		i = 0;
+		dummy = fields[2];
+		saveptr = NULL;
+		while ((ptr = strtok_r (dummy, ":", &saveptr)) != NULL)
+		{
+			dummy = NULL;
+			if (i >= ds->ds_num)
+			{
+				i = ds->ds_num + 1;
+				break;
+			}
+			value_ptr[i] = ptr;
+			i++;
+		}
+
+		if (i != ds->ds_num)
+		{
+			free (value_ptr);
+			return (-1);
+		}
+	} /* done parsing the value-list */
+
+	vl.values_len = fields_num - 2;
+	vl.values = (value_t *) malloc (vl.values_len * sizeof (value_t));
+	if (vl.values == NULL)
+	{
+		free (value_ptr);
+		return (-1);
+	}
+	vl.values_len = ds->ds_num;
+
+	for (i = 0; i < ds->ds_num; i++)
+	{
+		if (strcmp (value_ptr[i], "U") == 0)
+			vl.values[i].gauge = NAN;
+		else if (ds->ds[i].type == DS_TYPE_COUNTER)
+			vl.values[i].counter = atoll (value_ptr[i]);
+		else if (ds->ds[i].type == DS_TYPE_GAUGE)
+			vl.values[i].gauge = atof (value_ptr[i]);
+	} /* for (i = 2 .. fields_num) */
+	sfree (value_ptr);
+
+	plugin_dispatch_values (type, &vl);
+
+	sfree (vl.values); 
+
+	return (0);
+} /* int us_handle_putval */
+
 static void *us_handle_client (void *arg)
 {
 	int fd;
@@ -515,8 +662,9 @@ static void *us_handle_client (void *arg)
 	fh = fdopen (fd, "r+");
 	if (fh == NULL)
 	{
+		char errbuf[1024];
 		ERROR ("unixsock plugin: fdopen failed: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (fd);
 		pthread_exit ((void *) 1);
 	}
@@ -548,6 +696,10 @@ static void *us_handle_client (void *arg)
 		{
 			us_handle_getval (fh, fields, fields_num);
 		}
+		else if (strcasecmp (fields[0], "putval") == 0)
+		{
+			us_handle_putval (fh, fields, fields_num);
+		}
 		else
 		{
 			fprintf (fh, "Unknown command: %s\n", fields[0]);
@@ -577,11 +729,13 @@ static void *us_server_thread (void *arg)
 		status = accept (sock_fd, NULL, NULL);
 		if (status < 0)
 		{
+			char errbuf[1024];
+
 			if (errno == EINTR)
 				continue;
 
 			ERROR ("unixsock plugin: accept failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (sock_fd);
 			sock_fd = -1;
 			pthread_exit ((void *) 1);
@@ -590,8 +744,9 @@ static void *us_server_thread (void *arg)
 		remote_fd = (int *) malloc (sizeof (int));
 		if (remote_fd == NULL)
 		{
+			char errbuf[1024];
 			WARNING ("unixsock plugin: malloc failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (status);
 			continue;
 		}
@@ -605,8 +760,9 @@ static void *us_server_thread (void *arg)
 		status = pthread_create (&th, &th_attr, us_handle_client, (void *) remote_fd);
 		if (status != 0)
 		{
+			char errbuf[1024];
 			WARNING ("unixsock plugin: pthread_create failed: %s",
-					strerror (status));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (*remote_fd);
 			free (remote_fd);
 			continue;
@@ -647,8 +803,9 @@ static int us_init (void)
 	status = pthread_create (&listen_thread, NULL, us_server_thread, NULL);
 	if (status != 0)
 	{
+		char errbuf[1024];
 		ERROR ("unixsock plugin: pthread_create failed: %s",
-				strerror (status));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

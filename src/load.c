@@ -82,7 +82,11 @@ static int load_read (void)
 	if (getloadavg (load, 3) == 3)
 		load_submit (load[LOADAVG_1MIN], load[LOADAVG_5MIN], load[LOADAVG_15MIN]);
 	else
-		WARNING ("load: getloadavg failed: %s", strerror (errno));
+	{
+		char errbuf[1024];
+		WARNING ("load: getloadavg failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
 /* #endif HAVE_GETLOADAVG */
 
 #elif defined(KERNEL_LINUX)
@@ -95,19 +99,27 @@ static int load_read (void)
 	
 	if ((loadavg = fopen ("/proc/loadavg", "r")) == NULL)
 	{
-		WARNING ("load: fopen: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("load: fopen: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return;
 	}
 
 	if (fgets (buffer, 16, loadavg) == NULL)
 	{
-		WARNING ("load: fgets: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("load: fgets: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (loadavg);
 		return;
 	}
 
 	if (fclose (loadavg))
-		WARNING ("load: fclose: %s", strerror (errno));
+	{
+		char errbuf[1024];
+		WARNING ("load: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
 
 	numfields = strsplit (buffer, fields, 8);
 

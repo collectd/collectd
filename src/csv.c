@@ -142,8 +142,10 @@ static int csv_create_file (const char *filename, const data_set_t *ds)
 	csv = fopen (filename, "w");
 	if (csv == NULL)
 	{
+		char errbuf[1024];
 		ERROR ("csv plugin: fopen (%s) failed: %s",
-				filename, strerror(errno));
+				filename,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -213,8 +215,10 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 		}
 		else
 		{
-			ERROR ("stat(%s) failed: %s",
-					filename, strerror (errno));
+			char errbuf[1024];
+			ERROR ("stat(%s) failed: %s", filename,
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 	}
@@ -228,8 +232,9 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 	csv = fopen (filename, "a");
 	if (csv == NULL)
 	{
-		ERROR ("csv plugin: fopen (%s) failed: %s",
-				filename, strerror (errno));
+		char errbuf[1024];
+		ERROR ("csv plugin: fopen (%s) failed: %s", filename,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 	csv_fd = fileno (csv);
@@ -244,8 +249,9 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 	status = fcntl (csv_fd, F_SETLK, &fl);
 	if (status != 0)
 	{
-		ERROR ("csv plugin: flock (%s) failed: %s",
-				filename, strerror (errno));
+		char errbuf[1024];
+		ERROR ("csv plugin: flock (%s) failed: %s", filename,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (csv);
 		return (-1);
 	}

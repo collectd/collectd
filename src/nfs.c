@@ -264,9 +264,10 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 			values = (unsigned long long *) malloc (nfs2_procedures_names_num * sizeof (unsigned long long));
 			if (values == NULL)
 			{
+				char errbuf[1024];
 				ERROR ("nfs plugin: malloc "
 						"failed: %s",
-					       	strerror (errno));
+						sstrerror (errno, errbuf, sizeof (errbuf)));
 				continue;
 			}
 
@@ -300,9 +301,10 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 			values = (unsigned long long *) malloc (nfs3_procedures_names_num * sizeof (unsigned long long));
 			if (values == NULL)
 			{
+				char errbuf[1024];
 				ERROR ("nfs plugin: malloc "
 						"failed: %s",
-					       	strerror (errno));
+						sstrerror (errno, errbuf, sizeof (errbuf)));
 				continue;
 			}
 

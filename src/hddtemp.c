@@ -133,9 +133,12 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
+		char errbuf[1024];
 		ERROR ("hddtemp: getaddrinfo (%s, %s): %s",
 				host, port,
-				ai_return == EAI_SYSTEM ? strerror (errno) : gai_strerror (ai_return));
+				(ai_return == EAI_SYSTEM)
+				? sstrerror (errno, errbuf, sizeof (errbuf))
+				: gai_strerror (ai_return));
 		return (-1);
 	}
 
@@ -145,16 +148,18 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 		/* create our socket descriptor */
 		if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0)
 		{
+			char errbuf[1024];
 			ERROR ("hddtemp: socket: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
 
 		/* connect to the hddtemp daemon */
 		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
 		{
+			char errbuf[1024];
 			DEBUG ("hddtemp: connect (%s, %s): %s", host, port,
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
 			fd = -1;
 			continue;
@@ -181,11 +186,13 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	{
 		if (status == -1)
 		{
+			char errbuf[1024];
+
 			if ((errno == EAGAIN) || (errno == EINTR))
 				continue;
 
 			ERROR ("hddtemp: Error reading from socket: %s",
-						strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
 			return (-1);
 		}
@@ -377,9 +384,14 @@ static int hddtemp_init (void)
 		}
 		fclose (fh);
 	}
+#if COLLECT_DEBUG
 	else
+	{
+		char errbuf[1024];
 		DEBUG ("Could not open /proc/partitions: %s",
-				strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
+#endif /* COLLECT_DEBUG */
 #endif /* KERNEL_LINUX */
 
 	return (0);

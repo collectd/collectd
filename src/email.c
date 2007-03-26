@@ -292,7 +292,9 @@ static char read_char (conn_t *src)
 	FD_SET (src->socket, &fdset);
 
 	if (-1 == select (src->socket + 1, &fdset, NULL, NULL, NULL)) {
-		log_err ("select() failed: %s", strerror (errno));
+		char errbuf[1024];
+		log_err ("select() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return '\0';
 	}
 
@@ -304,7 +306,9 @@ static char read_char (conn_t *src)
 		errno = 0;
 		if (0 > (len = read (src->socket, (void *)&ret, 1))) {
 			if (EINTR != errno) {
-				log_err ("read() failed: %s", strerror (errno));
+				char errbuf[1024];
+				log_err ("read() failed: %s",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
 				return '\0';
 			}
 		}
@@ -353,7 +357,9 @@ static char *read_line (conn_t *src)
 		FD_SET (src->socket, &fdset);
 
 		if (-1 == select (src->socket + 1, &fdset, NULL, NULL, NULL)) {
-			log_err ("select() failed: %s", strerror (errno));
+			char errbuf[1024];
+			log_err ("select() failed: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return NULL;
 		}
 
@@ -365,7 +371,9 @@ static char *read_line (conn_t *src)
 							(void *)(src->buffer + src->idx),
 							BUFSIZE - src->idx))) {
 				if (EINTR != errno) {
-					log_err ("read() failed: %s", strerror (errno));
+					char errbuf[1024];
+					log_err ("read() failed: %s",
+							sstrerror (errno, errbuf, sizeof (errbuf)));
 					return NULL;
 				}
 			}
@@ -437,13 +445,17 @@ static void *collect (void *arg)
 
 			errno = 0;
 			if (-1 == fcntl (connection->socket, F_GETFL, &flags)) {
-				log_err ("fcntl() failed: %s", strerror (errno));
+				char errbuf[1024];
+				log_err ("fcntl() failed: %s",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
 				loop = 0;
 			}
 
 			errno = 0;
 			if (-1 == fcntl (connection->socket, F_SETFL, flags | O_NONBLOCK)) {
-				log_err ("fcntl() failed: %s", strerror (errno));
+				char errbuf[1024];
+				log_err ("fcntl() failed: %s",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
 				loop = 0;
 			}
 		}
@@ -528,8 +540,10 @@ static void *open_connection (void *arg)
 	/* create UNIX socket */
 	errno = 0;
 	if (-1 == (connector_socket = socket (PF_UNIX, SOCK_STREAM, 0))) {
+		char errbuf[1024];
 		disabled = 1;
-		log_err ("socket() failed: %s", strerror (errno));
+		log_err ("socket() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
 	}
 
@@ -543,15 +557,19 @@ static void *open_connection (void *arg)
 	if (-1 == bind (connector_socket, (struct sockaddr *)&addr,
 				offsetof (struct sockaddr_un, sun_path)
 					+ strlen(addr.sun_path))) {
+		char errbuf[1024];
 		disabled = 1;
-		log_err ("bind() failed: %s", strerror (errno));
+		log_err ("bind() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
 	}
 
 	errno = 0;
 	if (-1 == listen (connector_socket, 5)) {
+		char errbuf[1024];
 		disabled = 1;
-		log_err ("listen() failed: %s", strerror (errno));
+		log_err ("listen() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
 	}
 
@@ -566,7 +584,9 @@ static void *open_connection (void *arg)
 		status = getgrnam_r (sock_group, &sg, grbuf, sizeof (grbuf), &grp);
 		if (status != 0)
 		{
-			log_warn ("getgrnam_r (%s) failed: %s", sock_group, strerror (status));
+			char errbuf[1024];
+			log_warn ("getgrnam_r (%s) failed: %s", sock_group,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 		}
 		else if (grp == NULL)
 		{
@@ -576,8 +596,12 @@ static void *open_connection (void *arg)
 		{
 			status = chown (SOCK_PATH, (uid_t) -1, grp->gr_gid);
 			if (status != 0)
+			{
+				char errbuf[1024];
 				log_warn ("chown (%s, -1, %i) failed: %s",
-						SOCK_PATH, (int) grp->gr_gid, strerror (errno));
+						SOCK_PATH, (int) grp->gr_gid,
+						sstrerror (errno, errbuf, sizeof (errbuf)));
+			}
 		}
 	}
 	else /* geteuid != 0 */
@@ -587,7 +611,9 @@ static void *open_connection (void *arg)
 
 	errno = 0;
 	if (0 != chmod (SOCK_PATH, sock_perms)) {
-		log_warn ("chmod() failed: %s", strerror (errno));
+		char errbuf[1024];
+		log_warn ("chmod() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
 	{ /* initialize collector threads */
@@ -613,7 +639,9 @@ static void *open_connection (void *arg)
 
 			if (0 != (err = pthread_create (&collectors[i]->thread, &ptattr,
 							collect, collectors[i]))) {
-				log_err ("pthread_create() failed: %s", strerror (err));
+				char errbuf[1024];
+				log_err ("pthread_create() failed: %s",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
 			}
 		}
 
@@ -639,8 +667,10 @@ static void *open_connection (void *arg)
 			errno = 0;
 			if (-1 == (remote = accept (connector_socket, NULL, NULL))) {
 				if (EINTR != errno) {
+					char errbuf[1024];
 					disabled = 1;
-					log_err ("accept() failed: %s", strerror (errno));
+					log_err ("accept() failed: %s",
+							sstrerror (errno, errbuf, sizeof (errbuf)));
 					pthread_exit ((void *)1);
 				}
 			}
@@ -675,8 +705,10 @@ static int email_init (void)
 
 	if (0 != (err = pthread_create (&connector, NULL,
 				open_connection, NULL))) {
+		char errbuf[1024];
 		disabled = 1;
-		log_err ("pthread_create() failed: %s", strerror (err));
+		log_err ("pthread_create() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

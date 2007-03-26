@@ -457,7 +457,9 @@ static int battery_read (void)
 
 		if ((dh = opendir ("/proc/acpi/battery")) == NULL)
 		{
-			ERROR ("Cannot open `/proc/acpi/battery': %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("Cannot open `/proc/acpi/battery': %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
 
@@ -474,7 +476,10 @@ static int battery_read (void)
 
 			if ((fh = fopen (filename, "r")) == NULL)
 			{
-				ERROR ("Cannot open `%s': %s", filename, strerror (errno));
+				char errbuf[1024];
+				ERROR ("Cannot open `%s': %s", filename,
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				continue;
 			}
 

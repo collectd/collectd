@@ -501,7 +501,9 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					&network_config_ttl,
 					sizeof (network_config_ttl)) == -1)
 		{
-			ERROR ("setsockopt: %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("setsockopt: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
 	}
@@ -520,7 +522,10 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					&network_config_ttl,
 					sizeof (network_config_ttl)) == -1)
 		{
-			ERROR ("setsockopt: %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("setsockopt: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 	}
@@ -536,7 +541,9 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 
 	if (bind (se->fd, ai->ai_addr, ai->ai_addrlen) == -1)
 	{
-		ERROR ("bind: %s", strerror (errno));
+		char errbuf[1024];
+		ERROR ("bind: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -555,14 +562,20 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 			if (setsockopt (se->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
 			{
-				ERROR ("setsockopt: %s", strerror (errno));
+				char errbuf[1024];
+				ERROR ("setsockopt: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 
 			if (setsockopt (se->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 						&mreq, sizeof (mreq)) == -1)
 			{
-				ERROR ("setsockopt: %s", strerror (errno));
+				char errbuf[1024];
+				ERROR ("setsockopt: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 		}
@@ -595,14 +608,20 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
 			{
-				ERROR ("setsockopt: %s", strerror (errno));
+				char errbuf[1024];
+				ERROR ("setsockopt: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 
 			if (setsockopt (se->fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
 						&mreq, sizeof (mreq)) == -1)
 			{
-				ERROR ("setsockopt: %s", strerror (errno));
+				char errbuf[1024];
+				ERROR ("setsockopt: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 		}
@@ -639,11 +658,12 @@ static sockent_t *network_create_socket (const char *node,
 	ai_return = getaddrinfo (node, service, &ai_hints, &ai_list);
 	if (ai_return != 0)
 	{
+		char errbuf[1024];
 		ERROR ("getaddrinfo (%s, %s): %s",
 				(node == NULL) ? "(null)" : node,
 				(service == NULL) ? "(null)" : service,
 				(ai_return == EAI_SYSTEM)
-				? strerror (errno)
+				? sstrerror (errno, errbuf, sizeof (errbuf))
 				: gai_strerror (ai_return));
 		return (NULL);
 	}
@@ -654,13 +674,19 @@ static sockent_t *network_create_socket (const char *node,
 
 		if ((se = (sockent_t *) malloc (sizeof (sockent_t))) == NULL)
 		{
-			ERROR ("malloc: %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("malloc: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			continue;
 		}
 
 		if ((se->addr = (struct sockaddr_storage *) malloc (sizeof (struct sockaddr_storage))) == NULL)
 		{
-			ERROR ("malloc: %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("malloc: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			free (se);
 			continue;
 		}
@@ -677,7 +703,10 @@ static sockent_t *network_create_socket (const char *node,
 
 		if (se->fd == -1)
 		{
-			ERROR ("socket: %s", strerror (errno));
+			char errbuf[1024];
+			ERROR ("socket: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			free (se->addr);
 			free (se);
 			continue;
@@ -837,10 +866,11 @@ int network_receive (void)
 
 		if (status <= 0)
 		{
+			char errbuf[1024];
 			if (errno == EINTR)
 				continue;
 			ERROR ("poll failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
 
@@ -855,7 +885,10 @@ int network_receive (void)
 					0 /* no flags */);
 			if (buffer_len < 0)
 			{
-				ERROR ("recv failed: %s", strerror (errno));
+				char errbuf[1024];
+				ERROR ("recv failed: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				return (-1);
 			}
 
@@ -886,10 +919,12 @@ static void network_send_buffer (const char *buffer, int buffer_len)
 					(struct sockaddr *) se->addr, se->addrlen);
 			if (status < 0)
 			{
+				char errbuf[1024];
 				if (errno == EINTR)
 					continue;
 				ERROR ("network plugin: sendto failed: %s",
-						strerror (errno));
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
 				break;
 			}
 
@@ -1095,8 +1130,12 @@ static int network_init (void)
 				receive_thread, NULL /* no argument */);
 
 		if (status != 0)
+		{
+			char errbuf[1024];
 			ERROR ("network: pthread_create failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
+		}
 	}
 	return (0);
 } /* int network_init */

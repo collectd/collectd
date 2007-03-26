@@ -117,19 +117,31 @@ static int cpufreq_read (void)
 
 		if ((fp = fopen (filename, "r")) == NULL)
 		{
-			WARNING ("cpufreq: fopen: %s", strerror (errno));
+			char errbuf[1024];
+			WARNING ("cpufreq: fopen (%s): %s", filename,
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 
 		if (fgets (buffer, 16, fp) == NULL)
 		{
-			WARNING ("cpufreq: fgets: %s", strerror (errno));
+			char errbuf[1024];
+			WARNING ("cpufreq: fgets: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			fclose (fp);
 			return (-1);
 		}
 
 		if (fclose (fp))
-			WARNING ("cpufreq: fclose: %s", strerror (errno));
+		{
+			char errbuf[1024];
+			WARNING ("cpufreq: fclose: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
+		}
+
 
 		/* You're seeing correctly: The file is reporting kHz values.. */
 		val = atoll (buffer) * 1000;

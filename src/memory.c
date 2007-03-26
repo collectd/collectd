@@ -214,8 +214,11 @@ static int memory_read (void)
 						(void *) &sysctl_vals[i], &len,
 						NULL, 0)) < 0)
 		{
+			char errbuf[1024];
 			ERROR ("memory plugin: sysctlbyname (%s): %s",
-					sysctl_keys[i], strerror (errno));
+					sysctl_keys[i],
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (-1);
 		}
 		DEBUG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
@@ -245,7 +248,9 @@ static int memory_read (void)
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
-		WARNING ("memory: fopen: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("memory: fopen: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -273,7 +278,11 @@ static int memory_read (void)
 	}
 
 	if (fclose (fh))
-		WARNING ("memory: fclose: %s", strerror (errno));
+	{
+		char errbuf[1024];
+		WARNING ("memory: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
 
 	if (mem_used >= (mem_free + mem_buffered + mem_cached))
 	{

@@ -143,15 +143,19 @@ static int ping_config (const char *key, const char *value)
 
 		if ((hl = (hostlist_t *) malloc (sizeof (hostlist_t))) == NULL)
 		{
+			char errbuf[1024];
 			ERROR ("ping plugin: malloc failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (1);
 		}
 		if ((host = strdup (value)) == NULL)
 		{
+			char errbuf[1024];
 			free (hl);
 			ERROR ("ping plugin: strdup failed: %s",
-					strerror (errno));
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return (1);
 		}
 

@@ -1010,7 +1010,9 @@ static int ps_read (void)
 
 	if ((proc = opendir ("/proc")) == NULL)
 	{
-		ERROR ("Cannot open `/proc': %s", strerror (errno));
+		char errbuf[1024];
+		ERROR ("Cannot open `/proc': %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

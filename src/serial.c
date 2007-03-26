@@ -80,7 +80,9 @@ static int serial_read (void)
 	if ((fh = fopen ("/proc/tty/driver/serial", "r")) == NULL &&
 		(fh = fopen ("/proc/tty/driver/ttyS", "r")) == NULL)
 	{
-		WARNING ("serial: fopen: %s", strerror (errno));
+		char errbuf[1024];
+		WARNING ("serial: fopen: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
