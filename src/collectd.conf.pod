@@ -6,7 +6,6 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 
   BaseDir "/path/to/data/"
   PIDFile "/path/to/pidfile/collectd.pid"
-  LogFile "/path/to/logfile/collectd.log"
   Server  "123.123.123.123" 12345
 
   LoadPlugin cpu
@@ -218,6 +217,47 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =back
 
+=head2 Plugin C<interface>
+
+=over 4
+
+=item B<Interface> I<Interface>
+
+Select this interface. By default these interfaces will then be collected. For
+a more detailed description see B<IgnoreSelected> below.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+If no configuration if given, the B<traffic>-plugin will collect data from
+all interfaces. This may not be practical, especially for loopback- and
+similar interfaces. Thus, you can use the B<Interface>-option to pick the
+interfaces you're interested in. Sometimes, however, it's easier/prefered
+to collect all interfaces I<except> a few ones. This option enables you to
+do that: By setting B<IgnoreSelected> to I<true> the effect of
+B<Interface> is inversed: All selected interfaces are ignored and all
+other interfaces are collected.
+
+=back
+
+=head2 Plugin C<iptables>
+
+=over 4
+
+=item B<Chain> I<Table> I<Chain> [I<Comment|Number> [I<Name>]]
+
+Select the rules to count. If only I<Table> and I<Chain> are given, this plugin
+will collect the counters of all rules which have a comment-match. The comment
+is then used as type-instance.
+
+If I<Comment> or I<Number> is given, only the rule with the matching comment or
+the I<n>th rule will be collected. Again, the comment (or the number) will be
+used as the type-instance.
+
+If I<Name> is supplied, it will be used as the type-instance instead of the
+comment or the number.
+
+=back
+
 =head2 Plugin C<irq>
 
 =over 4
@@ -236,6 +276,24 @@ Sometimes, however, it's easier/prefered to collect all interupts I<except> a
 few ones. This option enables you to do that: By setting B<IgnoreSelected> to
 I<true> the effect of B<Irq> is inversed: All selected interupts are ignored
 and all other interupts are collected.
+
+=back
+
+=head2 Plugin C<logfile>
+
+=over 4
+
+=item B<LogLevel> B<debug|info|notice|warning|err>
+
+Sets the log-level. If, for example, set to B<notice>, then all events with
+severity B<notice>, B<warning>, or B<err> will be written to the logfile.
+
+=item B<File> I<File>
+
+Sets the file to write log messages to. The special strings B<stdout> and
+B<stderr> can be used to write to the standard output and standard error
+channels, respectively. This, of course, only makes much sense when collectd is
+running in foreground- or non-daemon-mode.
 
 =back
 
@@ -343,6 +401,19 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =back
 
+=head2 Plugin C<processes>
+
+=over 4
+
+=item B<Process> I<Name>
+
+Select more detailed statistics of processes matching this name. The statistics
+collected for these selected processes are size of the resident segment size
+(RSS), user- and system-time used, number of processes and number of threads,
+and minor and major pagefaults.
+
+=back
+
 =head2 Plugin C<rrdtool>
 
 You can use the settings B<StepSize>, B<HeartBeat>, B<RRARows>, and B<XFF> to
@@ -434,24 +505,36 @@ and all other sensors are collected.
 
 =back
 
-=head2 Plugin C<traffic>
+=head2 Plugin C<syslog>
 
 =over 4
 
-=item B<Interface> I<Interface>
+=item B<LogLevel> B<debug|info|notice|warning|err>
 
-Select this interface. By default these interfaces will then be collected. For a more detailed description see B<IgnoreSelected> below.
+Sets the log-level. If, for example, set to B<notice>, then all events with
+severity B<notice>, B<warning>, or B<err> will be submitted to the
+syslog-daemon.
 
-=item B<IgnoreSelected> I<true>|I<false>
+=back
 
-If no configuration if given, the B<traffic>-plugin will collect data from
-all interfaces. This may not be practical, especially for loopback- and
-similar interfaces. Thus, you can use the B<Interface>-option to pick the
-interfaces you're interested in. Sometimes, however, it's easier/prefered
-to collect all interfaces I<except> a few ones. This option enables you to
-do that: By setting B<IgnoreSelected> to I<true> the effect of
-B<Interface> is inversed: All selected interfaces are ignored and all
-other interfaces are collected.
+=head2 Plugin C<unixsock>
+
+=over 4
+
+=item B<SocketFile> I<Path>
+
+Sets the socket-file which is to be created.
+
+=item B<SocketGroup> I<Group>
+
+If running as root change the group of the UNIX-socket after it has been 
+created. Defaults to B<collectd>.
+
+=item B<SocketPerms> I<Permissions>
+
+Change the file permissions of the UNIX-socket after it has been created. The
+permissions must be given as a numeric, octal value as you would pass to
+L<chmod(1)>. Defaults to B<0770>.
 
 =back
 
