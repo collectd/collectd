@@ -863,9 +863,7 @@ static int us_shutdown (void)
 
 	if (listen_thread != (pthread_t) 0)
 	{
-		DEBUG ("unixsock plugin: Sending SIGTERM to listening thread");
 		pthread_kill (listen_thread, SIGTERM);
-		DEBUG ("unixsock plugin: Waiting for thread to terminate");
 		pthread_join (listen_thread, &ret);
 		listen_thread = (pthread_t) 0;
 	}

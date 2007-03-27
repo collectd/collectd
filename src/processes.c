@@ -622,13 +622,10 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	fields_len = strsplit (buffer, fields, 64);
 	if (fields_len < 24)
 	{
-		DEBUG ("`%s' has only %i fields..",
-				filename, fields_len);
+		DEBUG ("processes plugin: ps_read_process (pid = %i):"
+				" `%s' has only %i fields..",
+				(int) pid, filename, fields_len);
 		return (-1);
-	}
-	else if (fields_len != 41)
-	{
-		DEBUG ("WARNING: (fields_len = %i) != 41", fields_len);
 	}
 
 	/* copy the name, strip brackets in the process */
