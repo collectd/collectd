@@ -444,7 +444,8 @@ static int parse_packet (void *buffer, int buffer_len)
 	value_list_t vl = VALUE_LIST_INIT;
 	char type[DATA_MAX_NAME_LEN];
 
-	DEBUG ("buffer = %p; buffer_len = %i;", buffer, buffer_len);
+	DEBUG ("network plugin: parse_packet: buffer = %p; buffer_len = %i;",
+			buffer, buffer_len);
 
 	memset (&vl, '\0', sizeof (vl));
 	memset (&type, '\0', sizeof (type));
@@ -477,12 +478,14 @@ static int parse_packet (void *buffer, int buffer_len)
 					&& (strlen (type) > 0)
 					&& (cache_check (type, &vl) == 0))
 			{
-				DEBUG ("dispatching values");
+				DEBUG ("network plugin: parse_packet:"
+						" dispatching values");
 				plugin_dispatch_values (type, &vl);
 			}
 			else
 			{
-				DEBUG ("NOT dispatching values");
+				DEBUG ("network plugin: parse_packet:"
+						" NOT dispatching values");
 			}
 		}
 		else if (ntohs (header->type) == TYPE_TIME)
@@ -524,7 +527,8 @@ static int parse_packet (void *buffer, int buffer_len)
 		}
 		else
 		{
-			DEBUG ("Unknown part type: 0x%0hx", ntohs (header->type));
+			DEBUG ("network plugin: parse_packet: Unknown part"
+					" type: 0x%0hx", ntohs (header->type));
 			buffer = ((char *) buffer) + ntohs (header->length);
 		}
 	} /* while (buffer_len > sizeof (part_header_t)) */
@@ -608,7 +612,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 
 static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
-	int loop = 1;
+	int loop = 0;
 
 	DEBUG ("fd = %i; calling `bind'", se->fd);
 
@@ -1080,6 +1084,9 @@ static int add_to_buffer (char *buffer, int buffer_size,
 
 static void flush_buffer (void)
 {
+	DEBUG ("network plugin: flush_buffer: send_buffer_fill = %i",
+			send_buffer_fill);
+
 	network_send_buffer (send_buffer, send_buffer_fill);
 	send_buffer_ptr  = send_buffer;
 	send_buffer_fill = 0;
@@ -1181,9 +1188,9 @@ static int network_config (const char *key, const char *val)
 	}
 	else if (strcasecmp ("Forward", key) == 0)
 	{
-		if ((strcasecmp ("true", value) == 0)
-				|| (strcasecmp ("yes", value) == 0)
-				|| (strcasecmp ("on", value) == 0))
+		if ((strcasecmp ("true", val) == 0)
+				|| (strcasecmp ("yes", val) == 0)
+				|| (strcasecmp ("on", val) == 0))
 			network_config_forward = 1;
 		else
 			network_config_forward = 0;
