@@ -24,6 +24,10 @@
 #include "common.h"
 #include "utils_avltree.h"
 
+#if HAVE_PTHREAD_H
+# include <pthread.h>
+#endif
+
 /*
  * Private types
  */
@@ -78,6 +82,7 @@ static int         cache_timeout = 0;
 static int         cache_flush_timeout = 0;
 static time_t      cache_flush_last;
 static avl_tree_t *cache = NULL;
+static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* * * * * * * * * *
  * WARNING:  Magic *
@@ -485,6 +490,9 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 
 	int i;
 
+	if (rc->values_num < 1)
+		return (0);
+
 	argc = rc->values_num + 2;
 	argv = (char **) malloc ((argc + 1) * sizeof (char *));
 	if (argv == NULL)
@@ -507,10 +515,15 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
 	status = rrd_update (argc, argv);
+	if (status != 0)
+	{
+		WARNING ("rrd_update failed: %s: %s",
+				filename, rrd_get_error ());
+		status = -1;
+	}
 
 	free (argv);
 	free (fn);
-
 	/* Free the value list of `rc' */
 	for (i = 0; i < rc->values_num; i++)
 		free (rc->values[i]);
@@ -518,14 +531,7 @@ static int rrd_write_cache_entry (const char *filename, rrd_cache_t *rc)
 	rc->values = NULL;
 	rc->values_num = 0;
 
-	if (status != 0)
-	{
-		WARNING ("rrd_update failed: %s: %s",
-				filename, rrd_get_error ());
-		return (-1);
-	}
-
-	return (0);
+	return (status);
 } /* int rrd_write_cache_entry */
 
 static void rrd_cache_flush (int timeout)
@@ -630,15 +636,20 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 		return (-1);
 	}
 
+	pthread_mutex_lock (&cache_lock);
 	rc = rrd_cache_insert (filename, values);
 	if (rc == NULL)
+	{
+		pthread_mutex_unlock (&cache_lock);
 		return (-1);
+	}
 
 	if (cache == NULL)
 	{
 		rrd_write_cache_entry (filename, rc);
 		/* rc's value-list is free's by `rrd_write_cache_entry' */
 		sfree (rc);
+		pthread_mutex_unlock (&cache_lock);
 		return (0);
 	}
 
@@ -654,6 +665,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	if ((now - cache_flush_last) >= cache_flush_timeout)
 		rrd_cache_flush (cache_flush_timeout);
 
+	pthread_mutex_unlock (&cache_lock);
 	return (0);
 } /* int rrd_write */
 
@@ -754,10 +766,12 @@ static int rrd_config (const char *key, const char *value)
 
 static int rrd_shutdown (void)
 {
+	pthread_mutex_lock (&cache_lock);
 	rrd_cache_flush (-1);
 	if (cache != NULL)
 		avl_destroy (cache);
 	cache = NULL;
+	pthread_mutex_unlock (&cache_lock);
 
 	return (0);
 } /* int rrd_shutdown */
@@ -778,6 +792,7 @@ static int rrd_init (void)
 				"smaller than your `interval'. This will "
 				"create needlessly big RRD-files.");
 
+	pthread_mutex_lock (&cache_lock);
 	if (cache_timeout < 2)
 	{
 		cache_timeout = 0;
@@ -792,8 +807,10 @@ static int rrd_init (void)
 		cache_flush_last = time (NULL);
 		plugin_register_shutdown ("rrdtool", rrd_shutdown);
 	}
+	pthread_mutex_unlock (&cache_lock);
 
-	DEBUG ("datadir = %s; stepsize = %i; heartbeat = %i; rrarows = %i; xff = %lf;",
+	DEBUG ("rrdtool plugin: rrd_init: datadir = %s; stepsize = %i;"
+			" heartbeat = %i; rrarows = %i; xff = %lf;",
 			(datadir == NULL) ? "(null)" : datadir,
 			stepsize, heartbeat, rrarows, xff);
 
