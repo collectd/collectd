@@ -338,7 +338,7 @@ void cf_unregister (const char *type)
 			free (this);
 			break;
 		}
-}
+} /* void cf_unregister */
 
 void cf_register (const char *type,
 		int (*callback) (const char *, const char *),

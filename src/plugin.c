@@ -290,6 +290,12 @@ int plugin_register_log (char *name,
 	return (register_callback (&list_log, name, (void *) callback));
 } /* int plugin_register_log */
 
+int plugin_unregister_config (const char *name)
+{
+	cf_unregister (name);
+	return (0);
+} /* int plugin_unregister_config */
+
 int plugin_unregister_init (const char *name)
 {
 	return (plugin_unregister (list_init, name));

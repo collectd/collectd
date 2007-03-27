@@ -154,6 +154,7 @@ int plugin_register_data_set (const data_set_t *ds);
 int plugin_register_log (char *name,
 		void (*callback) (int, const char *));
 
+int plugin_unregister_config (const char *name);
 int plugin_unregister_init (const char *name);
 int plugin_unregister_read (const char *name);
 int plugin_unregister_write (const char *name);
