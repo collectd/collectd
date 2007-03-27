@@ -1118,13 +1118,24 @@ static int network_shutdown (void)
 
 	listen_loop++;
 
-	pthread_kill (listen_thread, SIGTERM);
-	pthread_join (listen_thread, NULL /* no return value */);
+	if (listen_thread != (pthread_t) 0)
+	{
+		pthread_kill (listen_thread, SIGTERM);
+		pthread_join (listen_thread, NULL /* no return value */);
+		listen_thread = (pthread_t) 0;
+	}
 
 	listen_thread = 0;
 
+	/* TODO: Close `sending_sockets' */
+
+	plugin_unregister_config ("network");
+	plugin_unregister_init ("network");
+	plugin_unregister_write ("network");
+	plugin_unregister_shutdown ("network");
+
 	return (0);
-}
+} /* int network_shutdown */
 
 static int network_init (void)
 {
