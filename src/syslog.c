@@ -71,12 +71,12 @@ static int sl_init (void)
 	return (0);
 }
 
-static void sl_log (int sevetiry, const char *msg)
+static void sl_log (int severity, const char *msg)
 {
-	if (sevetiry > log_level)
+	if (severity > log_level)
 		return;
 
-	syslog (sevetiry, "%s", msg);
+	syslog (severity, "%s", msg);
 } /* void sl_log */
 
 static int sl_shutdown (void)
