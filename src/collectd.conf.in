@@ -63,9 +63,23 @@
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
 #</Plugin>
 
+#<Plugin df>
+#	Device "/dev/hda1"
+#	Device "192.168.0.2:/mnt/nfs"
+#	MountPoint "/home"
+#	FSType "ext3"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin dns>
 #	Interface "eth0"
 #	IgnoreSource "192.168.0.1"
+#</Plugin>
+
+#<Plugin email>
+#	SocketGroup "collectd"
+#	SocketPerms "0770"
+#	MaxConns 5
 #</Plugin>
 
 #<Plugin hddtemp>
@@ -99,6 +113,13 @@
 #	Port 411
 #</Plugin>
 
+#<Plugin mysql>
+#	Host "database.serv.er"
+#	User "db_user"
+#	Password "secret"
+#	Database "db_name"
+#</Plugin>
+
 #<Plugin network>
 #	Server "ff18::efc0:4a42" "25826"
 #	Server "239.192.74.66" "25826"
@@ -110,13 +131,6 @@
 #<Plugin ntpd>
 #	Host "localhost"
 #	Port 123
-#</Plugin>
-
-#<Plugin mysql>
-#	Host "database.serv.er"
-#	User "db_user"
-#	Password "secret"
-#	Database "db_name"
 #</Plugin>
 
 #<Plugin ping>
