@@ -370,6 +370,15 @@ multicast, and IPv4 and IPv6 packets. The default is to not change this value.
 That means that multicast packets will be sent with a TTL of C<1> (one) on most
 operating systems.
 
+=item B<Forward> I<true|false>
+
+If set to I<true>, write packets that were received via the network plugin to
+the sending sockets. This should only be activated when the B<Listen>- and
+B<Server>-statements differ. Otherwise packets may be send multiple times to
+the same multicast group. While this results in more network traffic than
+neccessary it's not a huge problem since the plugin has a duplicate detection,
+so the values will not loop.
+
 =back
 
 =head2 Plugin C<ntpd>
