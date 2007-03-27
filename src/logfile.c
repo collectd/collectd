@@ -67,7 +67,9 @@ static int logfile_config (const char *key, const char *value)
 	else if (0 == strcasecmp (key, "File")) {
 		sfree (log_file);
 
-		if (access (value, W_OK) == 0)
+		if ((strcasecmp (value, "stdout") == 0)
+				|| (strcasecmp (value, "stderr") == 0)
+				|| (access (value, W_OK) == 0))
 			log_file = strdup (value);
 		else {
 			char errbuf[1024];
