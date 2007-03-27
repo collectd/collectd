@@ -156,4 +156,12 @@ long long get_kstat_value (kstat_t *ksp, char *name);
 unsigned long long ntohll (unsigned long long n);
 unsigned long long htonll (unsigned long long n);
 
+int format_name (char *ret, int ret_len,
+		const char *hostname,
+		const char *plugin, const char *plugin_instance,
+		const char *type, const char *type_instance);
+#define FORMAT_VL(ret, ret_len, vl, ds) \
+	format_name (ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance, \
+			(ds)->type, (vl)->type_instance)
+
 #endif /* COMMON_H */
