@@ -153,9 +153,9 @@ static sensors_labeltypes_t known_features[] =
 	{ "3.3V", SENSOR_TYPE_VOLTAGE },
 	{ "2.5V", SENSOR_TYPE_VOLTAGE },
 	{ "2.0V", SENSOR_TYPE_VOLTAGE },
-	{ "12V", SENSOR_TYPE_VOLTAGE },
-	{ (char *) 0, SENSOR_TYPE_UNKNOWN }
+	{ "12V", SENSOR_TYPE_VOLTAGE }
 };
+static int known_features_num = STATIC_ARRAY_SIZE (known_features);
 /* end new naming */
 
 static const char *config_keys[] =
@@ -310,7 +310,7 @@ static void sensors_load_conf (void)
 				continue;
 
 			/* Only known features */
-			for (i = 0; known_features[i].type >= 0; i++)
+			for (i = 0; i < known_features_num; i++)
 			{
 				if (strcmp (data->name, known_features[i].label) != 0)
 					continue;
@@ -377,7 +377,8 @@ static void sensors_submit (const char *plugin_instance,
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	if (ignorelist_match (sensor_list, type_instance))
+	if ((sensor_list != NULL)
+			&& (ignorelist_match (sensor_list, type_instance)))
 		return;
 
 	values[0].gauge = val;
