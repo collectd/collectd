@@ -144,40 +144,6 @@ static value_cache_t *cache_search (const char *name)
 	return (vc);
 } /* value_cache_t *cache_search */
 
-static int cache_alloc_name (char *ret, int ret_len,
-		const char *hostname,
-		const char *plugin, const char *plugin_instance,
-		const char *type, const char *type_instance)
-{
-	int  status;
-
-	assert (plugin != NULL);
-	assert (type != NULL);
-
-	if ((plugin_instance == NULL) || (strlen (plugin_instance) == 0))
-	{
-		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = snprintf (ret, ret_len, "%s/%s/%s",
-					hostname, plugin, type);
-		else
-			status = snprintf (ret, ret_len, "%s/%s/%s-%s",
-					hostname, plugin, type, type_instance);
-	}
-	else
-	{
-		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = snprintf (ret, ret_len, "%s/%s-%s/%s",
-					hostname, plugin, plugin_instance, type);
-		else
-			status = snprintf (ret, ret_len, "%s/%s-%s/%s-%s",
-					hostname, plugin, plugin_instance, type, type_instance);
-	}
-
-	if ((status < 1) || (status >= ret_len))
-		return (-1);
-	return (0);
-} /* int cache_alloc_name */
-
 static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 {
 	/* We're called from `cache_update' so we don't need to lock the mutex */
@@ -221,12 +187,10 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 		return (-1);
 	}
 
-	if (cache_alloc_name (vc->name, sizeof (vc->name),
-				vl->host, vl->plugin, vl->plugin_instance,
-				ds->type, vl->type_instance) != 0)
+	if (FORMAT_VL (vc->name, sizeof (vc->name), vl, ds))
 	{
 		pthread_mutex_unlock (&cache_lock);
-		ERROR ("unixsock plugin: cache_alloc_name failed.");
+		ERROR ("unixsock plugin: FORMAT_VL failed.");
 		free (vc->counter);
 		free (vc->gauge);
 		free (vc);
@@ -271,10 +235,7 @@ static int cache_update (const data_set_t *ds, const value_list_t *vl)
 	value_cache_t *vc;
 	int i;
 
-	if (cache_alloc_name (name, sizeof (name),
-				vl->host,
-				vl->plugin, vl->plugin_instance,
-				ds->type, vl->type_instance) != 0)
+	if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
 		return (-1);
 
 	pthread_mutex_lock (&cache_lock);
@@ -509,7 +470,7 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 		return (-1);
 	}
 
-	status = cache_alloc_name (name, sizeof (name),
+	status = format_name (name, sizeof (name),
 			hostname, plugin, plugin_instance, type, type_instance);
 	/* FIXME: Send some response */
 	if (status != 0)
