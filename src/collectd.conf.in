@@ -127,6 +127,7 @@
 #	Listen "239.192.74.66" "25826"
 #	TimeToLive "128"
 #	Forward false
+#	CacheFlush 1800
 #</Plugin>
 
 #<Plugin ntpd>

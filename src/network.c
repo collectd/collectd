@@ -141,6 +141,7 @@ typedef struct part_values_s part_values_t;
  */
 static const char *config_keys[] =
 {
+	"CacheFlush",
 	"Listen",
 	"Server",
 	"TimeToLive",
@@ -167,10 +168,69 @@ static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static avl_tree_t      *cache_tree = NULL;
 static pthread_mutex_t  cache_lock = PTHREAD_MUTEX_INITIALIZER;
+static time_t           cache_flush_last;
+static int              cache_flush_interval = 1800;
 
 /*
  * Private functions
  */
+static int cache_flush (void)
+{
+	char **keys = NULL;
+	int    keys_num = 0;
+
+	char **tmp;
+	int    i;
+
+	char   *key;
+	time_t *value;
+	avl_iterator_t *iter;
+
+	time_t curtime = time (NULL);
+
+	iter = avl_get_iterator (cache_tree);
+	while (avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
+	{
+		if ((curtime - *value) <= cache_flush_interval)
+			continue;
+		tmp = (char **) realloc (keys,
+				(keys_num + 1) * sizeof (char *));
+		if (tmp == NULL)
+		{
+			sfree (keys);
+			avl_iterator_destroy (iter);
+			ERROR ("network plugin: cache_flush: realloc"
+					" failed.");
+			return (-1);
+		}
+		keys = tmp;
+		keys[keys_num] = key;
+		keys_num++;
+	} /* while (avl_iterator_next) */
+	avl_iterator_destroy (iter);
+
+	for (i = 0; i < keys_num; i++)
+	{
+		if (avl_remove (cache_tree, keys[i], (void *) &key,
+					(void *) &value) != 0)
+		{
+			WARNING ("network plugin: cache_flush: avl_remove"
+					" (%s) failed.", keys[i]);
+			continue;
+		}
+
+		sfree (key);
+		sfree (value);
+	}
+
+	sfree (keys);
+
+	DEBUG ("network plugin: cache_flush: Removed %i %s",
+			keys_num, (keys_num == 1) ? "entry" : "entries");
+	cache_flush_last = curtime;
+	return (0);
+} /* int cache_flush */
+
 static int cache_check (const char *type, const value_list_t *vl)
 {
 	char key[1024];
@@ -217,7 +277,8 @@ static int cache_check (const char *type, const value_list_t *vl)
 		}
 	}
 
-	/* TODO: Flush cache */
+	if ((time (NULL) - cache_flush_last) > cache_flush_interval)
+		cache_flush ();
 
 	pthread_mutex_unlock (&cache_lock);
 
@@ -1195,12 +1256,19 @@ static int network_config (const char *key, const char *val)
 		else
 			network_config_forward = 0;
 	}
+	else if (strcasecmp ("CacheFlush", key) == 0)
+	{
+		int tmp = atoi (val);
+		if (tmp > 0)
+			cache_flush_interval = tmp;
+		else return (1);
+	}
 	else
 	{
 		return (-1);
 	}
 	return (0);
-}
+} /* int network_config */
 
 static int network_shutdown (void)
 {
@@ -1251,6 +1319,7 @@ static int network_init (void)
 	memset (send_buffer_type, '\0', sizeof (send_buffer_type));
 
 	cache_tree = avl_create ((int (*) (const void *, const void *)) strcmp);
+	cache_flush_last = time (NULL);
 
 	/* setup socket(s) and so on */
 	if (sending_sockets != NULL)
