@@ -618,12 +618,9 @@ then
 fi
 if test "x$with_kstat" = "xyes"
 then
-	collect_kstat=1
-else
-	collect_kstat=0
+	AC_DEFINE(HAVE_LIBKSTAT, 1,
+		  [Define to 1 if you have the 'kstat' library (-lkstat)])
 fi
-AC_DEFINE_UNQUOTED(COLLECT_KSTAT, [$collect_kstat],
-	[Wether or not to use kstat library (Solaris)])
 AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
