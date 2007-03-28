@@ -59,6 +59,13 @@ Configures the interval in which to query the read plugins. Obviously smaller
 values lead to a higher system load produces by collectd, while higher values
 lead to more coarse statistics.
 
+=item B<ReadThreads> I<Num>
+
+Number of threads to start for reading plugins. The default value if B<5>, but
+you may want to increase this if you have more than five plugins that take a
+long time to read. Mostly those are plugin that do network-IO. Setting this to
+a value higher than the number of plugins you've loaded is totally useless.
+
 =back
 
 =head1 PLUGIN OPTIONS

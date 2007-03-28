@@ -79,7 +79,8 @@ static cf_global_option_t cf_global_options[] =
 	{"BaseDir",   NULL, PKGLOCALSTATEDIR},
 	{"PIDFile",   NULL, PIDFILE},
 	{"Hostname",  NULL, NULL},
-	{"Interval",  NULL, "10"}
+	{"Interval",  NULL, "10"},
+	{"ReadThreads", NULL, "5"}
 };
 static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
 
@@ -155,11 +156,18 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 {
 	if (ci->values_num != 1)
 		return (-1);
-	if (ci->values[0].type != OCONFIG_TYPE_STRING)
-		return (-1);
+	if (ci->values[0].type == OCONFIG_TYPE_STRING)
+		return (global_option_set (ci->key, ci->values[0].value.string));
+	else if (ci->values[0].type == OCONFIG_TYPE_NUMBER)
+	{
+		char tmp[128];
+		snprintf (tmp, sizeof (tmp), "%lf", ci->values[0].value.number);
+		tmp[127] = '\0';
+		return (global_option_set (ci->key, tmp));
+	}
 
-	return (global_option_set (ci->key, ci->values[0].value.string));
-}
+	return (-1);
+} /* int dispatch_global_option */
 
 static int dispatch_value_plugindir (const oconfig_item_t *ci)
 {
@@ -294,8 +302,7 @@ int global_option_set (const char *option, const char *value)
 	if (i >= cf_global_options_num)
 		return (-1);
 
-	if (cf_global_options[i].value != NULL)
-		free (cf_global_options[i].value);
+	sfree (cf_global_options[i].value);
 
 	if (value != NULL)
 		cf_global_options[i].value = strdup (value);

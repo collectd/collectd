@@ -38,6 +38,9 @@ endif
 if BUILD_WITH_LIBRESOLV
 collectd_LDFLAGS += -lresolv
 endif
+if BUILD_WITH_LIBPTHREAD
+collectd_LDFLAGS += -lpthread
+endif
 if BUILD_WITH_LIBKSTAT
 collectd_LDFLAGS += -lkstat
 endif
