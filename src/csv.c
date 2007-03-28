@@ -201,7 +201,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 	if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
 		return (-1);
 
-	DEBUG ("filename = %s;", filename);
+	DEBUG ("csv plugin: csv_write: filename = %s;", filename);
 
 	if (value_list_to_string (values, sizeof (values), ds, vl) != 0)
 		return (-1);

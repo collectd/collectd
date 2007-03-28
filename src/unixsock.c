@@ -150,7 +150,8 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	value_cache_t *vc;
 	int i;
 
-	DEBUG ("ds->ds_num = %i; vl->values_len = %i;",
+	DEBUG ("unixsock plugin: cache_insert: ds->ds_num = %i;"
+			" vl->values_len = %i;",
 			ds->ds_num, vl->values_len);
 	assert (ds->ds_num == vl->values_len);
 
