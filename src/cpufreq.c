@@ -155,12 +155,16 @@ static int cpufreq_read (void)
 #endif /* CPUFREQ_HAVE_READ */
 #undef BUFSIZE
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&data_set);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&data_set);
 
 #if CPUFREQ_HAVE_READ
-	plugin_register_init ("cpufreq", cpufreq_init);
-	plugin_register_read ("cpufreq", cpufreq_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("cpufreq", cpufreq_init);
+		plugin_register_read ("cpufreq", cpufreq_read);
+	}
 #endif /* CPUFREQ_HAVE_READ */
 }

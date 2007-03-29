@@ -377,16 +377,22 @@ static int mysql_read (void)
 } /* int mysql_read */
 #endif /* MYSQL_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds_commands);
-	plugin_register_data_set (&ds_handler);
-	plugin_register_data_set (&ds_qcache);
-	plugin_register_data_set (&ds_threads);
-	plugin_register_data_set (&ds_octets);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&ds_commands);
+		plugin_register_data_set (&ds_handler);
+		plugin_register_data_set (&ds_qcache);
+		plugin_register_data_set (&ds_threads);
+		plugin_register_data_set (&ds_octets);
+	}
 
 #if MYSQL_HAVE_READ
-	plugin_register_config ("mysql", config, config_keys, config_keys_num);
-	plugin_register_read ("mysql", mysql_read);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("mysql", config, config_keys, config_keys_num);
+		plugin_register_read ("mysql", mysql_read);
+	}
 #endif /* MYSQL_HAVE_READ */
 } /* void module_register */

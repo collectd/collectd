@@ -817,7 +817,7 @@ static int rrd_init (void)
 	return (0);
 } /* int rrd_init */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
 	plugin_register_config ("rrdtool", rrd_config,
 			config_keys, config_keys_num);

@@ -167,13 +167,17 @@ static int wireless_read (void)
 } /* int wireless_read */
 #endif /* WIRELESS_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&quality_ds);
-	plugin_register_data_set (&power_ds);
-	plugin_register_data_set (&noise_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&quality_ds);
+		plugin_register_data_set (&power_ds);
+		plugin_register_data_set (&noise_ds);
+	}
 
 #if WIRELESS_HAVE_READ
-	plugin_register_read ("wireless", wireless_read);
+	if (load & MR_READ)
+		plugin_register_read ("wireless", wireless_read);
 #endif /* WIRELESS_HAVE_READ */
-}
+} /* void module_register */

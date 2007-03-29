@@ -869,18 +869,23 @@ static int email_read (void)
 	return (0);
 } /* int email_read */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&email_count_ds);
-	plugin_register_data_set (&email_size_ds);
-	plugin_register_data_set (&spam_check_ds);
-	plugin_register_data_set (&spam_score_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&email_count_ds);
+		plugin_register_data_set (&email_size_ds);
+		plugin_register_data_set (&spam_check_ds);
+		plugin_register_data_set (&spam_score_ds);
+	}
 
-	plugin_register_config ("email", email_config, config_keys, config_keys_num);
-	plugin_register_init ("email", email_init);
-	plugin_register_read ("email", email_read);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("email", email_config, config_keys, config_keys_num);
+		plugin_register_init ("email", email_init);
+		plugin_register_read ("email", email_read);
+	}
 	plugin_register_shutdown ("email", email_shutdown);
-} /* void module_register (void) */
+} /* void module_register */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-

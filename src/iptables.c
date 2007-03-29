@@ -358,18 +358,24 @@ static int iptables_shutdown (void)
 } /* int iptables_shutdown */
 #endif /* IPTABLES_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-    plugin_register_data_set (&ipt_bytes_ds);
-    plugin_register_data_set (&ipt_packets_ds);
+    if (load & MR_DATASETS)
+    {
+	plugin_register_data_set (&ipt_bytes_ds);
+	plugin_register_data_set (&ipt_packets_ds);
+    }
 
 #if IPTABLES_HAVE_READ
-    plugin_register_config ("iptables", iptables_config,
-	    config_keys, config_keys_num);
-    plugin_register_read ("iptables", iptables_read);
-    plugin_register_shutdown ("iptables", iptables_shutdown);
+    if (load & MR_READ)
+    {
+	plugin_register_config ("iptables", iptables_config,
+		config_keys, config_keys_num);
+	plugin_register_read ("iptables", iptables_read);
+	plugin_register_shutdown ("iptables", iptables_shutdown);
+    }
 #endif
-}
+} /* void module_register */
 
 #undef BUFSIZE
 #undef MODULE_NAME

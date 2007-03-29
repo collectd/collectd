@@ -339,14 +339,20 @@ static int mbmon_read (void)
 
 /* module_register
    Register collectd plugin. */
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&fanspeed_ds);
-	plugin_register_data_set (&temperature_ds);
-	plugin_register_data_set (&voltage_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&fanspeed_ds);
+		plugin_register_data_set (&temperature_ds);
+		plugin_register_data_set (&voltage_ds);
+	}
 
 #if MBMON_HAVE_READ
-	plugin_register_config ("mbmon", mbmon_config, config_keys, config_keys_num);
-	plugin_register_read ("mbmon", mbmon_read);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("mbmon", mbmon_config, config_keys, config_keys_num);
+		plugin_register_read ("mbmon", mbmon_read);
+	}
 #endif /* MBMON_HAVE_READ */
-}
+} /* void module_register */

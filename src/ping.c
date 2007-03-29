@@ -239,10 +239,16 @@ static int ping_read (void)
 	return (0);
 } /* int ping_read */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds);
-	plugin_register_init ("ping", ping_init);
-	plugin_register_read ("ping", ping_read);
-	plugin_register_config ("ping", ping_config, config_keys, config_keys_num);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&ds);
+
+	if (load & MR_READ)
+	{
+		plugin_register_config ("ping", ping_config,
+				config_keys, config_keys_num);
+		plugin_register_init ("ping", ping_init);
+		plugin_register_read ("ping", ping_read);
+	}
 } /* void module_register */

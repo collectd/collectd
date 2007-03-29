@@ -223,13 +223,18 @@ static int df_read (void)
 } /* int df_read */
 #endif /* DF_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&ds);
 
 #if DF_HAVE_READ
-	plugin_register_config ("df", df_config, config_keys, config_keys_num);
-	plugin_register_init ("df", df_init);
-	plugin_register_read ("df", df_read);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("df", df_config,
+				config_keys, config_keys_num);
+		plugin_register_init ("df", df_init);
+		plugin_register_read ("df", df_read);
+	}
 #endif
 } /* void module_register */

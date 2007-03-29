@@ -88,10 +88,13 @@ static int entropy_read (void)
 }
 #endif /* ENTROPY_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&ds);
+
 #if ENTROPY_HAVE_READ
-	plugin_register_read ("entropy", entropy_read);
+	if (load & MR_READ)
+		plugin_register_read ("entropy", entropy_read);
 #endif
-}
+} /* void module_register */

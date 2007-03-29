@@ -25,8 +25,6 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#define MODULE_NAME "irq"
-
 #if KERNEL_LINUX
 # define IRQ_HAVE_READ 1
 #else
@@ -216,16 +214,19 @@ static int irq_read (void)
 } /* int irq_read */
 #endif /* IRQ_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds_irq);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&ds_irq);
 
 #if IRQ_HAVE_READ
-	plugin_register_config ("irq", irq_config,
-			config_keys, config_keys_num);
-	plugin_register_read ("irq", irq_read);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("irq", irq_config,
+				config_keys, config_keys_num);
+		plugin_register_read ("irq", irq_read);
+	}
 #endif /* IRQ_HAVE_READ */
-}
+} /* void module_register */
 
 #undef BUFSIZE
-#undef MODULE_NAME

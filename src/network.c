@@ -1343,9 +1343,9 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
 	plugin_register_config ("network", network_config,
 			config_keys, config_keys_num);
 	plugin_register_init   ("network", network_init);
-}
+} /* void module_register */

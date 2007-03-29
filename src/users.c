@@ -109,9 +109,13 @@ static int users_read (void)
 } /* int users_read */
 #endif /* USERS_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds);
-	plugin_register_read ("users", users_read);
-	return;
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&ds);
+
+#if USERS_HAVE_READ
+	if (load & MR_READ)
+		plugin_register_read ("users", users_read);
+#endif
 } /* void module_register(void) */
