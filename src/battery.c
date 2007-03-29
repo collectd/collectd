@@ -555,14 +555,20 @@ static int battery_read (void)
 }
 #endif /* BATTERY_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&charge_ds);
-	plugin_register_data_set (&current_ds);
-	plugin_register_data_set (&voltage_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&charge_ds);
+		plugin_register_data_set (&current_ds);
+		plugin_register_data_set (&voltage_ds);
+	}
 
 #if BATTERY_HAVE_READ
-	plugin_register_init ("battery", battery_init);
-	plugin_register_read ("battery", battery_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("battery", battery_init);
+		plugin_register_read ("battery", battery_read);
+	}
 #endif /* BATTERY_HAVE_READ */
-}
+} /* void module_register */

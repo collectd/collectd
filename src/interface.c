@@ -389,20 +389,25 @@ static int interface_read (void)
 } /* int interface_read */
 #endif /* INTERFACE_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&octets_ds);
-	plugin_register_data_set (&packets_ds);
-	plugin_register_data_set (&errors_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&octets_ds);
+		plugin_register_data_set (&packets_ds);
+		plugin_register_data_set (&errors_ds);
+	}
 
 	plugin_register_config ("interface", interface_config,
 			config_keys, config_keys_num);
 
+	if (load & MR_READ)
+	{
 #if HAVE_LIBKSTAT
-	plugin_register_init ("interface", interface_init);
+		plugin_register_init ("interface", interface_init);
 #endif
-
 #if INTERFACE_HAVE_READ
-	plugin_register_read ("interface", interface_read);
+		plugin_register_read ("interface", interface_read);
 #endif
-}
+	}
+} /* void module_register */

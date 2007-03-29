@@ -136,11 +136,13 @@ static int serial_read (void)
 } /* int serial_read */
 #endif /* SERIAL_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&octets_ds);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&octets_ds);
 
 #if SERIAL_HAVE_READ
-	plugin_register_read ("serial", serial_read);
+	if (load & MR_READ)
+		plugin_register_read ("serial", serial_read);
 #endif /* SERIAL_HAVE_READ */
-}
+} /* void module_register */

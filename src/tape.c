@@ -162,15 +162,21 @@ static int tape_read (void)
 }
 #endif /* TAPE_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&octets_ds);
-	plugin_register_data_set (&operations_ds);
-	plugin_register_data_set (&merged_ds);
-	plugin_register_data_set (&time_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&octets_ds);
+		plugin_register_data_set (&operations_ds);
+		plugin_register_data_set (&merged_ds);
+		plugin_register_data_set (&time_ds);
+	}
 
 #if TAPE_HAVE_READ
-	plugin_register_init ("tape", tape_init);
-	plugin_register_read ("tape", tape_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("tape", tape_init);
+		plugin_register_read ("tape", tape_read);
+	}
 #endif /* TAPE_HAVE_READ */
 }

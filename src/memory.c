@@ -327,12 +327,16 @@ static int memory_read (void)
 }
 #endif /* MEMORY_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&ds);
 
 #if MEMORY_HAVE_READ
-	plugin_register_init ("memory", memory_init);
-	plugin_register_read ("memory", memory_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("memory", memory_init);
+		plugin_register_read ("memory", memory_read);
+	}
 #endif /* MEMORY_HAVE_READ */
-}
+} /* void module_register */

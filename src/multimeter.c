@@ -260,13 +260,17 @@ static int multimeter_shutdown (void)
 }
 #endif /* MULTIMETER_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&data_set);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&data_set);
 
 #if MULTIMETER_HAVE_READ
-	plugin_register_init ("multimeter", multimeter_init);
-	plugin_register_read ("multimeter", multimeter_read);
-	plugin_register_shutdown ("multimeter", multimeter_shutdown);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("multimeter", multimeter_init);
+		plugin_register_read ("multimeter", multimeter_read);
+		plugin_register_shutdown ("multimeter", multimeter_shutdown);
+	}
 #endif /* MULTIMETER_HAVE_READ */
-}
+} /* void module_register */

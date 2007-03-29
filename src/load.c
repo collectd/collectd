@@ -23,8 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#define MODULE_NAME "load"
-
 #if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
 # define LOAD_HAVE_READ 1
 #else
@@ -151,12 +149,13 @@ static int load_read (void)
 }
 #endif /* LOAD_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds);
-#if LOAD_HAVE_READ
-	plugin_register_read ("load", load_read);
-#endif
-}
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&ds);
 
-#undef MODULE_NAME
+#if LOAD_HAVE_READ
+	if (load & MR_READ)
+		plugin_register_read ("load", load_read);
+#endif
+} /* void module_register */

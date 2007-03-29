@@ -354,17 +354,23 @@ static int apache_read (void)
 } /* int apache_read */
 #endif /* APACHE_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&apache_bytes_ds);
-	plugin_register_data_set (&apache_requests_ds);
-	plugin_register_data_set (&apache_scoreboard_ds);
-	plugin_register_data_set (&apache_connections_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&apache_bytes_ds);
+		plugin_register_data_set (&apache_requests_ds);
+		plugin_register_data_set (&apache_scoreboard_ds);
+		plugin_register_data_set (&apache_connections_ds);
+	}
 
 #if APACHE_HAVE_READ
-	plugin_register_config ("apache", config,
-			config_keys, config_keys_num);
-	plugin_register_init ("apache", init);
-	plugin_register_read ("apache", apache_read);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("apache", config,
+				config_keys, config_keys_num);
+		plugin_register_init ("apache", init);
+		plugin_register_read ("apache", apache_read);
+	}
 #endif
-}
+} /* void module_register */

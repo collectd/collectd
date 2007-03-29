@@ -1075,21 +1075,26 @@ static int ps_read (void)
 } /* int ps_read */
 #endif /* PROCESSES_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&state_ds);
-	plugin_register_data_set (&rss_ds);
-	plugin_register_data_set (&time_ds);
-	plugin_register_data_set (&count_ds );
-	plugin_register_data_set (&pagefaults_ds );
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&state_ds);
+		plugin_register_data_set (&rss_ds);
+		plugin_register_data_set (&time_ds);
+		plugin_register_data_set (&count_ds);
+		plugin_register_data_set (&pagefaults_ds);
+	}
 
 #if PROCESSES_HAVE_READ
+	if (load & MR_READ)
+	{
 #if HAVE_THREAD_INFO | KERNEL_LINUX
-	plugin_register_config ("processes", ps_config,
-			config_keys, config_keys_num);
+		plugin_register_config ("processes", ps_config,
+				config_keys, config_keys_num);
 #endif
-	plugin_register_init ("processes", ps_init);
-	plugin_register_read ("processes", ps_read);
+		plugin_register_init ("processes", ps_init);
+		plugin_register_read ("processes", ps_read);
+	}
 #endif /* PROCESSES_HAVE_READ */
-}
-
+} /* void module_register */

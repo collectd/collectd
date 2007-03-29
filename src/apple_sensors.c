@@ -262,13 +262,19 @@ static int as_read (void)
 } /* int as_read */
 #endif /* IOKIT_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&fanspeed_ds);
-	plugin_register_data_set (&temperature_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&fanspeed_ds);
+		plugin_register_data_set (&temperature_ds);
+	}
 
 #if IOKIT_HAVE_READ
-	plugin_register_init ("apple_sensors", as_init);
-	plugin_register_read ("apple_sensors", as_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("apple_sensors", as_init);
+		plugin_register_read ("apple_sensors", as_read);
+	}
 #endif /* IOKIT_HAVE_READ */
-}
+} /* void module_register */

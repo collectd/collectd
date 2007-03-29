@@ -488,16 +488,22 @@ static int apcups_read (void)
 	return (0);
 } /* apcups_read */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&ds_voltage);
-	plugin_register_data_set (&ds_percent);
-	plugin_register_data_set (&ds_timeleft);
-	plugin_register_data_set (&ds_temperature);
-	plugin_register_data_set (&ds_frequency);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&ds_voltage);
+		plugin_register_data_set (&ds_percent);
+		plugin_register_data_set (&ds_timeleft);
+		plugin_register_data_set (&ds_temperature);
+		plugin_register_data_set (&ds_frequency);
+	}
 
-	plugin_register_config ("apcups", apcups_config, config_keys, config_keys_num);
-
-	plugin_register_read ("apcups", apcups_read);
-	plugin_register_shutdown ("apcups", apcups_shutdown);
-}
+	if (load & MR_READ)
+	{
+		plugin_register_config ("apcups", apcups_config, config_keys,
+				config_keys_num);
+		plugin_register_read ("apcups", apcups_read);
+		plugin_register_shutdown ("apcups", apcups_shutdown);
+	}
+} /* void module_register */

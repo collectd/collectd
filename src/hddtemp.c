@@ -514,14 +514,18 @@ static int hddtemp_read (void)
 
 /* module_register
    Register collectd plugin. */
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&temperature_ds);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&temperature_ds);
 	
 #if HDDTEMP_HAVE_READ
-	plugin_register_config ("hddtemp", hddtemp_config,
-			config_keys, config_keys_num);
-	plugin_register_init ("hddtemp", hddtemp_init);
-	plugin_register_read ("hddtemp", hddtemp_read);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("hddtemp", hddtemp_config,
+				config_keys, config_keys_num);
+		plugin_register_init ("hddtemp", hddtemp_init);
+		plugin_register_read ("hddtemp", hddtemp_read);
+	}
 #endif /* HDDTEMP_HAVE_READ */
 }

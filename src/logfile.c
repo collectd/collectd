@@ -113,12 +113,11 @@ static void logfile_log (int severity, const char *msg)
 	return;
 } /* void logfile_log (int, const char *) */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
 	plugin_register_config ("logfile", logfile_config,
 			config_keys, config_keys_num);
 	plugin_register_log ("logfile", logfile_log);
-	return;
 } /* void module_register (void) */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */

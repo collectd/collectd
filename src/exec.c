@@ -356,12 +356,19 @@ static int exec_read (void)
   return (0);
 } /* int exec_read */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-  plugin_register_data_set (&ds_counter);
-  plugin_register_data_set (&ds_gauge);
-  plugin_register_config ("exec", exec_config, config_keys, config_keys_num);
-  plugin_register_read ("exec", exec_read);
+  if (load & MR_DATASETS)
+  {
+    plugin_register_data_set (&ds_counter);
+    plugin_register_data_set (&ds_gauge);
+  }
+
+  if (load & MR_READ)
+  {
+    plugin_register_config ("exec", exec_config, config_keys, config_keys_num);
+    plugin_register_read ("exec", exec_read);
+  }
 } /* void module_register */
 
 /*

@@ -449,16 +449,22 @@ static int sensors_read (void)
 } /* int sensors_read */
 #endif /* SENSORS_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&fanspeed_ds);
-	plugin_register_data_set (&temperature_ds);
-	plugin_register_data_set (&voltage_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&fanspeed_ds);
+		plugin_register_data_set (&temperature_ds);
+		plugin_register_data_set (&voltage_ds);
+	}
 
 #if SENSORS_HAVE_READ
-	plugin_register_config ("sensors", sensors_config,
-			config_keys, config_keys_num);
-	plugin_register_read ("sensors", sensors_read);
-	plugin_register_shutdown ("sensors", sensors_shutdown);
+	if (load & MR_READ)
+	{
+		plugin_register_config ("sensors", sensors_config,
+				config_keys, config_keys_num);
+		plugin_register_read ("sensors", sensors_read);
+		plugin_register_shutdown ("sensors", sensors_shutdown);
+	}
 #endif
 } /* void module_register */

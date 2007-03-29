@@ -589,15 +589,21 @@ static int disk_read (void)
 } /* int disk_read */
 #endif /* DISK_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&octets_ds);
-	plugin_register_data_set (&operations_ds);
-	plugin_register_data_set (&merged_ds);
-	plugin_register_data_set (&time_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&octets_ds);
+		plugin_register_data_set (&operations_ds);
+		plugin_register_data_set (&merged_ds);
+		plugin_register_data_set (&time_ds);
+	}
 
 #if DISK_HAVE_READ
-	plugin_register_init ("disk", disk_init);
-	plugin_register_read ("disk", disk_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("disk", disk_init);
+		plugin_register_read ("disk", disk_read);
+	}
 #endif /* DISK_HAVE_READ */
-}
+} /* void module_register */

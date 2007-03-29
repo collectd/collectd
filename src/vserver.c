@@ -362,17 +362,23 @@ static int vserver_read (void)
 } /* int vserver_read */
 #endif /* VSERVER_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&octets_ds);
-	plugin_register_data_set (&load_ds);
-	plugin_register_data_set (&threads_ds);
-	plugin_register_data_set (&processes_ds);
-	plugin_register_data_set (&memory_ds);
+	if (load & MR_DATASETS)
+	{
+		plugin_register_data_set (&octets_ds);
+		plugin_register_data_set (&load_ds);
+		plugin_register_data_set (&threads_ds);
+		plugin_register_data_set (&processes_ds);
+		plugin_register_data_set (&memory_ds);
+	}
 
 #if VSERVER_HAVE_READ
-	plugin_register_init ("vserver", vserver_init);
-	plugin_register_read ("vserver", vserver_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("vserver", vserver_init);
+		plugin_register_read ("vserver", vserver_read);
+	}
 #endif /* VSERVER_HAVE_READ */
 } /* void module_register(void) */
 

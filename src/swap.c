@@ -312,12 +312,16 @@ static int swap_read (void)
 } /* int swap_read */
 #endif /* SWAP_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&data_set);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&data_set);
 
 #if SWAP_HAVE_READ
-	plugin_register_init ("swap", swap_init);
-	plugin_register_read ("swap", swap_read);
+	if (load & MR_READ)
+	{
+		plugin_register_init ("swap", swap_init);
+		plugin_register_read ("swap", swap_read);
+	}
 #endif /* SWAP_HAVE_READ */
-}
+} /* void module_register */

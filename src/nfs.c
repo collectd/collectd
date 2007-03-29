@@ -24,8 +24,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#define MODULE_NAME "nfs"
-
 /* #if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) */
 #if KERNEL_LINUX
 # define NFS_HAVE_READ 1
@@ -380,13 +378,13 @@ static int nfs_read (void)
 }
 #endif /* NFS_HAVE_READ */
 
-void module_register (void)
+void module_register (modreg_e load)
 {
-	plugin_register_data_set (&procedure_ds);
+	if (load & MR_DATASETS)
+		plugin_register_data_set (&procedure_ds);
 
 #if NFS_HAVE_READ
-	plugin_register_read ("nfs", nfs_read);
+	if (load & MR_READ)
+		plugin_register_read ("nfs", nfs_read);
 #endif
-}
-
-#undef MODULE_NAME
+} /* void module_register */

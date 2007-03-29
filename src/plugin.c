@@ -118,10 +118,10 @@ static int plugin_unregister (llist_t *list, const char *name)
  * object, but it will bitch about a shared object not having a
  * ``module_register'' symbol..
  */
-static int plugin_load_file (char *file)
+static int plugin_load_file (char *file, modreg_e load)
 {
 	lt_dlhandle dlh;
-	void (*reg_handle) (void);
+	void (*reg_handle) (modreg_e mr);
 
 	DEBUG ("file = %s", file);
 
@@ -137,7 +137,7 @@ static int plugin_load_file (char *file)
 		return (1);
 	}
 
-	if ((reg_handle = (void (*) (void)) lt_dlsym (dlh, "module_register")) == NULL)
+	if ((reg_handle = (void (*) (modreg_e)) lt_dlsym (dlh, "module_register")) == NULL)
 	{
 		WARNING ("Couldn't find symbol ``module_register'' in ``%s'': %s\n",
 				file, lt_dlerror ());
@@ -145,7 +145,7 @@ static int plugin_load_file (char *file)
 		return (-1);
 	}
 
-	(*reg_handle) ();
+	(*reg_handle) (load);
 
 	return (0);
 }
@@ -291,7 +291,7 @@ void plugin_set_dir (const char *dir)
 }
 
 #define BUFSIZE 512
-int plugin_load (const char *type)
+int plugin_load (const char *type, modreg_e mr)
 {
 	DIR  *dh;
 	const char *dir;
@@ -348,7 +348,7 @@ int plugin_load (const char *type)
 			continue;
 		}
 
-		if (plugin_load_file (filename) == 0)
+		if (plugin_load_file (filename, mr) == 0)
 		{
 			/* success */
 			ret = 0;
