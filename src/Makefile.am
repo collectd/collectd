@@ -378,6 +378,20 @@ collectd_LDADD += "-dlopen" ntpd.la
 collectd_DEPENDENCIES += ntpd.la
 endif
 
+if BUILD_MODULE_NUT
+pkglib_LTLIBRARIES += nut.la
+nut_la_SOURCES = nut.c
+nut_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBUPSCLIENT
+nut_la_LDFLAGS += -lupsclient
+if BUILD_WITH_LIBPTHREAD
+nut_la_LDFLAGS += -lpthread
+endif
+endif
+collectd_LDADD += "-dlopen" nut.la
+collectd_DEPENDENCIES += nut.la
+endif
+
 if BUILD_MODULE_PING
 pkglib_LTLIBRARIES += ping.la
 ping_la_SOURCES = ping.c

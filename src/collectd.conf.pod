@@ -426,6 +426,17 @@ UDP-Port to connect to. Defaults to B<123>.
 
 =back
 
+=head2 Plugin C<nut>
+
+=over 4
+
+=item B<UPS> I<upsname>B<@>I<hostname>[B<:>I<port>]
+
+Add a UPS to collect data from. The format is identical to the one accepted by
+L<upsc(8)>.
+
+=back
+
 =head2 Plugin C<ping>
 
 =over 4
