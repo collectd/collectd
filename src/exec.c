@@ -25,6 +25,7 @@
 
 #include <sys/types.h>
 #include <pwd.h>
+#include <signal.h>
 
 #include <pthread.h>
 
@@ -334,6 +335,7 @@ static void *exec_read_one (void *arg)
   pl->pid = 0;
 
   pthread_exit ((void *) 0);
+  return (NULL);
 } /* void *exec_read_one */
 
 static int exec_read (void)
@@ -356,6 +358,32 @@ static int exec_read (void)
   return (0);
 } /* int exec_read */
 
+static int exec_shutdown (void)
+{
+  program_list_t *pl;
+  program_list_t *next;
+
+  pl = pl_head;
+  while (pl != NULL)
+  {
+    next = pl->next;
+
+    if (pl->pid > 0)
+    {
+      kill (pl->pid, SIGTERM);
+      INFO ("exec plugin: Sent SIGTERM to %hu", (unsigned short int) pl->pid);
+    }
+
+    sfree (pl->user);
+    sfree (pl);
+
+    pl = next;
+  } /* while (pl) */
+  pl_head = NULL;
+
+  return (0);
+} /* int exec_shutdown */
+
 void module_register (modreg_e load)
 {
   if (load & MR_DATASETS)
@@ -368,6 +396,7 @@ void module_register (modreg_e load)
   {
     plugin_register_config ("exec", exec_config, config_keys, config_keys_num);
     plugin_register_read ("exec", exec_read);
+    plugin_register_shutdown ("exec", exec_shutdown);
   }
 } /* void module_register */
 
