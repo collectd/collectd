@@ -84,6 +84,10 @@
 #	MaxConns 5
 #</Plugin>
 
+#<Plugin exec>
+#	Exec user "/path/to/exec"
+#</Plugin>
+
 #<Plugin hddtemp>
 #	Host "127.0.0.1"
 #	Port 7634

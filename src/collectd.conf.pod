@@ -210,6 +210,20 @@ at most B<16384> to prevent typos and dumb mistakes.
 
 =back
 
+=head2 Plugin C<exec>
+
+Please make sure to read L<collectd/"SPECIAL PLUGINS"> before using this
+plugin. It containes valueable information on when the executable is executed
+and the output that is expected from it.
+
+=over 4
+
+=item B<Exec> I<User> I<Executable>
+
+Execute the executable I<Executable> as user I<User>.
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 =over 4
