@@ -1082,6 +1082,34 @@ else
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 
+AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], [Path to libupsclient.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libupsclient="yes"
+	fi
+],
+[
+	with_libupsclient="yes"
+])
+if test "x$with_libupsclient" = "xyes"
+then
+	AC_CHECK_LIB(upsclient, upscli_connect,
+	[
+		AC_DEFINE(HAVE_LIBUPSCLIENT, 1, [Define to 1 if you have the upsclient library (-lupsclient).])
+	], [with_libupsclient="no (libupsclient not found)"])
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	AC_CHECK_HEADERS(upsclient.h,
+	[
+		AC_DEFINE(HAVE_UPSCLIENT_H, 1, [Define to 1 if you have the <upsclient.h> header file.])
+	], [with_libupsclient="no (upsclient.h not found)"])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBUPSCLIENT, test "x$with_libupsclient" = "xyes")
+
 # Check for enabled/disabled features
 #
 
@@ -1178,6 +1206,7 @@ AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
 AC_COLLECTD([network],   [disable], [module], [network functionality])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
 AC_COLLECTD([ntpd],      [disable], [module], [ntpd statistics])
+AC_COLLECTD([nut],       [disable], [module], [network UPS tools statistics])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
 AC_COLLECTD([processes], [disable], [module], [processes statistics])
 AC_COLLECTD([sensors],   [disable], [module], [lm_sensors statistics])
@@ -1240,6 +1269,7 @@ Configuration:
     network . . . . . . $enable_network
     nfs . . . . . . . . $enable_nfs
     ntpd  . . . . . . . $enable_ntpd
+    nut . . . . . . . . $enable_nut
     ping  . . . . . . . $enable_ping
     processes . . . . . $enable_processes
     sensors . . . . . . $enable_sensors
