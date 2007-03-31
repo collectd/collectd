@@ -330,7 +330,6 @@ static int nut_read (void)
 
   return ((success != 0) ? 0 : -1);
 } /* int nut_read */
-#endif /* NUT_HAVE_READ */
 
 static int nut_shutdown (void)
 {
@@ -347,6 +346,7 @@ static int nut_shutdown (void)
 
   return (0);
 } /* int nut_shutdown */
+#endif /* NUT_HAVE_READ */
 
 void module_register (modreg_e load)
 {
