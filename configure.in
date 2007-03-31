@@ -1225,19 +1225,20 @@ Configuration:
   Libraries:
     libcurl . . . . . . $with_libcurl
     libiokit  . . . . . $with_libiokit
-    liboping  . . . . . $with_liboping
-    librrd  . . . . . . $with_rrdtool
-    lm_sensors  . . . . $with_lm_sensors
-    libstatgrab . . . . $with_libstatgrab
+    libiptc . . . . . . $with_libiptc
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
+    liboping  . . . . . $with_liboping
     libpcap . . . . . . $with_libpcap
-    libiptc . . . . . . $with_libiptc
     libpthread  . . . . $with_libpthread
+    librrd  . . . . . . $with_rrdtool
+    libsensors  . . . . $with_lm_sensors
+    libstatgrab . . . . $with_libstatgrab
+    libupsclient  . . . $with_libupsclient
 
   Features:
-    debug . . . . . . . $enable_debug
     daemon mode . . . . $enable_daemon
+    debug . . . . . . . $enable_debug
 
   Modules:
     apache  . . . . . . $enable_apache
