@@ -1,6 +1,10 @@
 	* apache plugin: Support for lighttpd's `BusyServers' (aka.
 	connections) field was added by Florent Monbillard.
 
+2007-03-30, Version 3.11.3
+	* configure: Have the configure-script define `HAVE_LIBKSTAT' instead
+	  of the unused `COLLECT_KSTAT'.
+
 2007-02-11, Version 3.11.2
 	* plugin: Catch NULL-pointer and try to fix them. Otherwise the
 	  NULL-pointer may have been passed to `printf' which causes a
