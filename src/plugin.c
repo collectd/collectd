@@ -526,7 +526,10 @@ void plugin_read_all (const int *loop)
 		rf = (read_func_t *) le->value;
 
 		if (rf->needs_read != DONE)
+		{
+			le = le->next;
 			continue;
+		}
 
 		if (rf->wait_left > 0)
 			rf->wait_left -= interval_g;
