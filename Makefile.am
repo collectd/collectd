@@ -2,7 +2,7 @@ SUBDIRS = libltdl src
 
 INCLUDES = $(LTDLINCL)
 
-EXTRA_DIST = collectd.spec contrib
+EXTRA_DIST = contrib
 
 dist-hook:
 	find $(distdir) -type d -name '.svn' | xargs rm -rf
