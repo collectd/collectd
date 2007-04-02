@@ -10,6 +10,9 @@ cpufreq, multimeter and irq module by:
 hddtemp module by:
   Vincent Stehlé <vincent.stehle at free.fr>
 
+iptables module by:
+  Sjoerd van der Berg <harekiet at gmail.com>
+
 mbmon plugin by:
   Flavio Stanchina <flavio at stanchina.net>
 
