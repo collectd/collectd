@@ -1,5 +1,43 @@
+2007-04-02, Version 4.0.0
+	* collectd: The plugin-infrastructure has been changed to allow for
+	  more types of plugins, namely `write' and `log' plugins.
+	* collectd: The read-function has been changed to read many plugins in
+	  parallel, using threads. Thus, plugins generally need to use
+	  thread-safe functions from now on.
+	* csv plugin: The new `csv' plugin handles output to `comma seperated
+	  values'-files.
+	* rrdtool plugin: The new `rrdtool' plugin handles output to
+	  RRD-files. Data can be cached to combine multiple updates into one
+	  write to increase IO-performance.
+	* network plugin: The new `network' plugin handles IO via the network.
+	  It implements a different, much more extensible protocol which can
+	  combine many values in one packet, decreasing the number of UDP-
+	  packets being sent. It can read from and send to the network and
+	  with the appropriate configuration even forward packets to other
+	  networks.
+	* unixsock plugin: The new `unixsock' plugin provides an interface to
+	  communicate with the daemon while it is running. Right now the
+	  commands `GETVAL' and `PUTVAL' are implemented, but more are to
+	  come.
+	* logfile plugin: The new `logfile' plugin writes logmessages to files
+	  or STDOUT or STDERR.
+	* syslog plugin: The new `syslog' plugin sends logmessages to the
+	  system's syslog daemon.
+	* entropy plugin: The new `entropy' plugin collects the amount of
+	  entropy currently being available to the system.
+	* exec plugin: The new `exec' plugin forks child processes and reads
+	  back values provided by the forked processes.
+	* iptables plugin: The new `iptables' plugin reads counters from
+	  iptables rules. Thanks to Sjoerd van der Berg for contributing this
+	  plugin.
+	* irq plugin: The new `irq' plugin collects the IRQ-counters. Thanks
+	  to Peter Holik for contributing this plugin.
+	* nut plugin: The new `nut' plugin connects the the upsd of the
+	  `network ups tools' and reads information about the connected UPS.
 	* apache plugin: Support for lighttpd's `BusyServers' (aka.
-	connections) field was added by Florent Monbillard.
+	  connections) field was added by Florent Monbillard.
+	* collectd-nagios: The new `collectd-nagios' binary queries values
+	  from collectd, parses them and exits according to Nagios-standards.
 
 2007-03-30, Version 3.11.3
 	* configure: Have the configure-script define `HAVE_LIBKSTAT' instead
