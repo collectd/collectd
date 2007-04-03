@@ -113,6 +113,9 @@
 /* #endif NAN_STATIC_ISOC */
 #elif NAN_ZERO_ZERO
 # include <math.h>
+# ifdef NAN
+#  undef NAN
+# endif
 # define NAN (0.0 / 0.0)
 # ifndef isnan
 #  define isnan(f) ((f) != (f))

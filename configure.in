@@ -453,6 +453,9 @@ if test "x$nan_type" = "xnone"; then
       [[
 #include <stdlib.h>
 #include <math.h>
+#ifdef NAN
+# undef NAN
+#endif
 #define NAN (0.0 / 0.0)
 #ifndef isnan
 # define isnan(f) ((f) != (f))
