@@ -572,15 +572,15 @@ static int disk_read (void)
 
 		if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets", kio.reads, kio.writes);
-			disk_submit (ksp[i]->ks_name, "disk_ops", kio.nreads, kio.nwrites);
+			disk_submit (ksp[i]->ks_name, "disk_octets", kio.nread, kio.nwritten);
+			disk_submit (ksp[i]->ks_name, "disk_ops", kio.reads, kio.writes);
 			/* FIXME: Convert this to microseconds if necessary */
 			disk_submit (ksp[i]->ks_name, "disk_time", kio.rtime, kio.wtime);
 		}
 		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets", kio.reads, kio.writes);
-			disk_submit (ksp[i]->ks_name, "disk_ops", kio.nreads, kio.nwrites);
+			disk_submit (ksp[i]->ks_name, "disk_octets", kio.nread, kio.nwritten);
+			disk_submit (ksp[i]->ks_name, "disk_ops", kio.reads, kio.writes);
 		}
 	}
 #endif /* defined(HAVE_LIBKSTAT) */
