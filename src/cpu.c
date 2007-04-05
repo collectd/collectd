@@ -339,6 +339,9 @@ static int cpu_read (void)
 			submit (cpu, "wait", wait);
 			submit (cpu, "interrupt", intr);
 			submit (cpu, "softirq", sitr);
+
+			if (numfields >= 9)
+				submit (cpu, "steal", atoll (fields[8]));
 		}
 	}
 
