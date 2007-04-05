@@ -266,7 +266,7 @@ static void stop_threads (void)
 		{
 			ERROR ("plugin: stop_threads: pthread_join failed.");
 		}
-		read_threads[i] = -1;
+		read_threads[i] = (pthread_t) 0;
 	}
 	sfree (read_threads);
 	read_threads_num = 0;
