@@ -117,7 +117,6 @@ static int init (void)
 {
 #if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
 	kern_return_t status;
-	int collectd_step;
 
 	port_host = mach_host_self ();
 
@@ -132,10 +131,7 @@ static int init (void)
 	DEBUG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
 	INFO ("cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
 
-	collectd_step = atoi (COLLECTD_STEP);
-	if ((collectd_step > 0) && (collectd_step <= 86400))
-		cpu_temp_retry_max = 86400 / collectd_step;
-		
+	cpu_temp_retry_max = 86400 / interval_g;
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
