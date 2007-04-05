@@ -23,7 +23,6 @@
 #include "collectd.h"
 #include "common.h"
 
-#include "network.h"
 #include "plugin.h"
 #include "configfile.h"
 

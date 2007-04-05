@@ -27,7 +27,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "network.h"
 
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
 

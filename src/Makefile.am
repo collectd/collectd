@@ -347,7 +347,7 @@ endif
 
 if BUILD_MODULE_NETWORK
 pkglib_LTLIBRARIES += network.la
-network_la_SOURCES = network.c
+network_la_SOURCES = network.c network.h
 network_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBSOCKET
 network_la_LDFLAGS += -lsocket
