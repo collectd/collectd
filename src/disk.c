@@ -559,6 +559,23 @@ static int disk_read (void)
 /* #endif defined(KERNEL_LINUX) */
 
 #elif HAVE_LIBKSTAT
+# if HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_NWRITES && HAVE_KSTAT_IO_T_WTIME
+#  define KIO_ROCTETS reads
+#  define KIO_WOCTETS writes
+#  define KIO_ROPS    nreads
+#  define KIO_WOPS    nwrites
+#  define KIO_RTIME   rtime
+#  define KIO_WTIME   wtime
+# elif HAVE_KSTAT_IO_T_NWRITTEN && HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_WTIME
+#  define KIO_ROCTETS nread
+#  define KIO_WOCTETS nwritten
+#  define KIO_ROPS    reads
+#  define KIO_WOPS    writes
+#  define KIO_RTIME   rtime
+#  define KIO_WTIME   wtime
+# else
+#  error "kstat_io_t does not have the required members"
+# endif
 	static kstat_io_t kio;
 	int i;
 
@@ -572,15 +589,20 @@ static int disk_read (void)
 
 		if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets", kio.nread, kio.nwritten);
-			disk_submit (ksp[i]->ks_name, "disk_ops", kio.reads, kio.writes);
+			disk_submit (ksp[i]->ks_name, "disk_octets",
+					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
+			disk_submit (ksp[i]->ks_name, "disk_ops",
+					kio.KIO_ROPS, kio.KIO_WOPS);
 			/* FIXME: Convert this to microseconds if necessary */
-			disk_submit (ksp[i]->ks_name, "disk_time", kio.rtime, kio.wtime);
+			disk_submit (ksp[i]->ks_name, "disk_time",
+					kio.KIO_RTIME, kio.KIO_WTIME);
 		}
 		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets", kio.nread, kio.nwritten);
-			disk_submit (ksp[i]->ks_name, "disk_ops", kio.reads, kio.writes);
+			disk_submit (ksp[i]->ks_name, "disk_octets",
+					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
+			disk_submit (ksp[i]->ks_name, "disk_ops",
+					kio.KIO_ROPS, kio.KIO_WOPS);
 		}
 	}
 #endif /* defined(HAVE_LIBKSTAT) */
