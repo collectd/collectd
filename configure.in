@@ -50,6 +50,7 @@ AC_CHECK_HEADERS(netdb.h)
 AC_CHECK_HEADERS(arpa/inet.h)
 AC_CHECK_HEADERS(sys/resource.h)
 AC_CHECK_HEADERS(sys/param.h)
+AC_CHECK_HEADERS(kstat.h)
 
 # For ping library
 AC_CHECK_HEADERS(netinet/in_systm.h, [], [],
@@ -323,9 +324,29 @@ AC_CHECK_HEADERS(regex.h)
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h arpa/nameser_compat.h)
 
-AC_CHECK_HEADERS(net/if_arp.h)
+AC_CHECK_HEADERS(net/if_arp.h, [], [],
+[#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+])
 AC_CHECK_HEADERS(net/if_ppp.h)
-AC_CHECK_HEADERS(netinet/if_ether.h)
+AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+])
 
 # For the multimeter plugin
 AC_CHECK_HEADERS(termios.h)
@@ -627,6 +648,15 @@ AC_CHECK_MEMBERS([struct udphdr.dest, struct udphdr.source], [], [],
 # include <netinet/udp.h>
 #endif
 ])
+
+AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, kstat_io_t.wtime],
+	[],
+	[],
+	[
+#if HAVE_KSTAT_H
+# include <kstat.h>
+#endif
+	])
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in

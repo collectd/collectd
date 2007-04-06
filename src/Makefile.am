@@ -63,6 +63,10 @@ collectd_LDADD = $(LIBLTDL) liboconfig/liboconfig.la "-dlopen" self
 collectd_DEPENDENCIES = $(LIBLTDL) liboconfig/liboconfig.la
 
 collectd_nagios_SOURCES = collectd-nagios.c
+collectd_nagios_LDFLAGS =
+if BUILD_WITH_LIBSOCKET
+collectd_nagios_LDFLAGS += -lsocket
+endif
 
 pkglib_LTLIBRARIES = 
 
