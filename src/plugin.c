@@ -437,7 +437,6 @@ int plugin_unregister_init (const char *name)
 
 int plugin_unregister_read (const char *name)
 {
-	return (plugin_unregister (list_read, name));
 	llentry_t *e;
 
 	e = llist_search (list_read, name);
@@ -494,7 +493,7 @@ void plugin_init_all (void)
 	le = llist_head (list_init);
 	while (le != NULL)
 	{
-		callback = le->value;
+		callback = (int (*) (void)) le->value;
 		status = (*callback) ();
 
 		if (status != 0)
@@ -560,7 +559,7 @@ void plugin_shutdown_all (void)
 	le = llist_head (list_shutdown);
 	while (le != NULL)
 	{
-		callback = le->value;
+		callback = (int (*) (void)) le->value;
 		(*callback) ();
 
 		le = le->next;
@@ -595,7 +594,7 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 	le = llist_head (list_write);
 	while (le != NULL)
 	{
-		callback = le->value;
+		callback = (int (*) (const data_set_t *, const value_list_t *)) le->value;
 		(*callback) (ds, vl);
 
 		le = le->next;
@@ -628,7 +627,7 @@ void plugin_log (int level, const char *format, ...)
 	le = llist_head (list_log);
 	while (le != NULL)
 	{
-		callback = le->value;
+		callback = (void (*) (int, const char *)) le->value;
 		(*callback) (level, msg);
 
 		le = le->next;
