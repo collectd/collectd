@@ -1237,6 +1237,7 @@ AC_COLLECTD([network],   [disable], [module], [network functionality])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
 AC_COLLECTD([ntpd],      [disable], [module], [ntpd statistics])
 AC_COLLECTD([nut],       [disable], [module], [network UPS tools statistics])
+AC_COLLECTD([perl],      [disable], [module], [embedded perl interpreter])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
 AC_COLLECTD([processes], [disable], [module], [processes statistics])
 AC_COLLECTD([sensors],   [disable], [module], [lm_sensors statistics])
@@ -1301,6 +1302,7 @@ Configuration:
     nfs . . . . . . . . $enable_nfs
     ntpd  . . . . . . . $enable_ntpd
     nut . . . . . . . . $enable_nut
+    perl  . . . . . . . $enable_perl
     ping  . . . . . . . $enable_ping
     processes . . . . . $enable_processes
     sensors . . . . . . $enable_sensors

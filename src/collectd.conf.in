@@ -37,6 +37,7 @@
 @BUILD_MODULE_NFS_TRUE@LoadPlugin nfs
 @BUILD_MODULE_NTPD_TRUE@LoadPlugin ntpd
 @BUILD_MODULE_NUT_TRUE@LoadPlugin nut
+@BUILD_MODULE_PERL_TRUE@LoadPlugin perl
 @BUILD_MODULE_PING_TRUE@LoadPlugin ping
 @BUILD_MODULE_PROCESSES_TRUE@LoadPlugin processes
 @BUILD_WITH_RRDTOOL_TRUE@LoadPlugin rrdtool
@@ -144,6 +145,10 @@
 
 #<Plugin nut>
 #	UPS "upsname@hostname:port"
+#</Plugin>
+
+#<Plugin perl>
+#	LoadPlugin foo
 #</Plugin>
 
 #<Plugin ping>
