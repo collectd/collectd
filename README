@@ -45,8 +45,23 @@ Features
     - Email statistics
       (count, traffic, spam scores and checks)
 
+    - Entropy available
+      (Amount of entropy available to the system)
+
+    - Exec
+      (Values gatheres by a custom program or script)
+
     - Harddisk temperatures
       (Uhm, yeah, temperature of harddisks that is ;)
+
+    - Interface traffic
+      (Number of octets, packets and errors for each interface)
+
+    - Iptables' counters
+      (Number of bytes that were matched by a certain iptables rule)
+
+    - IRQ counters
+      (Frequency in which certain interrupts occur)
 
     - System load
       (Load average over the last 1, 5 and 15 minutes)
@@ -70,6 +85,9 @@ Features
     - NTP Daemon
       (Local clock drift, offset to peers, etc)
 
+    - Network UPS tools
+      (UPS current, voltage, power, charge, utilisation, temperature, etc.)
+
     - Ping latency
       (Time to reach the default gateway or another given host)
 
@@ -88,9 +106,6 @@ Features
     - Tape
       (Read and write bytes and operations on tape devices)
 
-    - Traffic
-      (In/Outbound traffic on the interfaces)
-
     - Users
       (Currently logged in users)
 
@@ -99,6 +114,9 @@ Features
 
     - Wireless
       (Link quality of wireless cards)
+
+  * Output to CSV- and RRD-files, send values over the network and/or provide a
+    generic interface for use by other means, e. g. a Nagios-plugin.
 
   * Performance: Running as a daemon collectd doesn't spend much time in
     startup. Since collectd links against libping, librrd and libsensors it
@@ -116,13 +134,13 @@ Operation
     Run `collectd -h' for a list of builtin defaults. See `collectd.conf(5)'
     for a list of options and a syntax description.
 
-  * When running collectd writes system statistics in RRD-files. Per default
-    they reside in `/var/lib/collectd'.
+  * When the `csv' or `rrdtool' plugins are loaded they'll write the values to
+    files. The usual place for these files is beneath `/var/lib/collectd'.
 
-  * When using the `ping' plugin collectd needs to run as user root, since only
-    root can craft ICMP packages needed to ping other hosts. collectd should
-    NOT be installed setuid root since it can be used to overwrite valuable
-    files..
+  * When using some of the plugins, collectd needs to run as user root, since only
+    root can do certain thing, such as craft ICMP packages needed to ping other
+    hosts. collectd should NOT be installed setuid root since it can be used to
+    overwrite valuable files..
 
   * Sample scripts to generate graphs reside in `contrib/' in the source
     package or somewhere near `/usr/share/doc/collectd' in most distributions.
@@ -131,8 +149,8 @@ Operation
     (`librrds-perl' on Debian)
 
   * The RRAs of the automatically created RRD files depend on the `step'
-    and `heartbeat' settings given on compile time. For a list of the
-    default RRAs take a look in the collectd(1) manpage.
+    and `heartbeat' settings given. For a list of the default RRAs take a look
+    in the collectd(1) manpage.
 
 
 Prerequisites
@@ -142,33 +160,49 @@ Prerequisites
 
   * Usual suspects: C compiler, linker, preprocessor, make, ...
 
-  * rrdtool (optional; headers and library; rrdtool 1.0 and 1.2 both work fine)
+  * A POSIX-threads (pthread) implementation.
+    Since gathering some statistics is slow (network connections, slow devices,
+    etc) the collectd is parellelized. The POSIX threads interface is being
+    used and should be found in various implementations for hopefully all
+    platforms.
+
+  * libcurl (optional)
+    If you want to use the `apache' plugin
+
+  * libiptc (optional)
+    For querying iptables counters.
+
+  * libmysqlclient (optional)
+
+  * liboping (optional, if not found a version shipped with this distribution
+    can be used)
+    Used by the `ping' plugin to send and receive ICMP packets.
+
+  * libpcap (optional)
+    Used to capture packets by the `dns' plugin.
+
+  * librrd (optional; headers and library; rrdtool 1.0 and 1.2 both work fine)
     If built without `librrd' the resulting binary will be `client only', i.e.
     will send it's values via multicast and not create any RRD files itself.
     Alternatively you can chose to write CSV-files (Comma Seperated Values)
     instead.
 
-  * libmysqlclient (optional)
-
-  * lm-sensors (optional)
+  * libsensors (optional)
+    To read from `lm_sensors'.
 
   * libstatgrab may be used to collect statistics on systems other than Linux
     and/or Solaris. Note that CPU- and disk-statistics, while being provided
     by this library, are not supported in collectd right now..
     <http://www.i-scream.org/libstatgrab/> 
 
-  * libcurl (optional)
-    If you want to use the `apache' plugin
+  * libupsclient/nut (optional)
+    For the `nut' plugin which queries nut's `upsd'.
 
   * librt, libsocket, libkstat, libdevinfo
     Various standard Solaris libraries which provide system functions.
 
-  * libpthread (optional)
-    For parallelization, especially for plugins that communicate with the
-    outside, e. g. with a socket.
-
   * CoreFoundation.framework and IOKit.framework
-    For copiling on darwin in general and the `apple_sensors' plugin in
+    For compiling on darwin in general and the `apple_sensors' plugin in
     particular.
 
 Author
