@@ -396,6 +396,7 @@ collectd_LDADD += "-dlopen" nut.la
 collectd_DEPENDENCIES += nut.la
 endif
 
+if BUILD_WITH_LIBPERL
 if BUILD_MODULE_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c
@@ -406,6 +407,7 @@ perl_la_LDFLAGS = -module -avoid-version \
 		  $(shell perl -MExtUtils::Embed -e ldopts)
 collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
+endif
 endif
 
 if BUILD_MODULE_PING

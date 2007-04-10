@@ -1073,6 +1073,57 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
 	[Wether or not to use the pcap library])
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 
+AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libperl="yes"
+	fi
+],
+[
+	with_libperl="yes"
+])
+if test "x$with_libperl" = "xyes"
+then
+  SAVE_CFLAGS=$CFLAGS
+  SAVE_LDFLAGS=$LDFLAGS
+  CFLAGS="$CFLAGS `perl -MExtUtils::Embed -e ccopts`"
+  LDFLAGS="$LDFLAGS `perl -MExtUtils::Embed -e ldopts`"
+
+  AC_CACHE_CHECK([for libperl],
+    [have_libperl],
+    AC_LINK_IFELSE(
+      AC_LANG_PROGRAM(
+      [[
+#include <EXTERN.h>
+#include <perl.h>
+#include <XSUB.h>
+      ]],
+      [[
+       PerlInterpreter *perl = NULL;
+       Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
+			 Perl_newSVpvf (perl, "Collectd::Plugin::%s", "foo"),
+			 Nullsv);
+      ]]),
+      [have_libperl="yes"],
+      [have_libperl="no"]
+    )
+  )
+
+  if test "x$have_libperl" = "xyes"
+  then
+	  AC_DEFINE(HAVE_LIBPERL, 1, [Define if libperl is present and usable.])
+  else
+	  with_libperl="no"
+  fi
+
+  CFLAGS=$SAVE_CFLAGS
+  LDFLAGS=$SAVE_LDFLAGS
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBPERL, test "x$with_libperl" = "xyes")
+
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -1253,6 +1304,11 @@ AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile)
 
+if test "x$with_libperl" != "xyes"
+then
+	enable_perl="no (needs libperl)"
+fi
+
 cat <<EOF;
 
 Configuration:
@@ -1264,6 +1320,7 @@ Configuration:
     libmysql  . . . . . $with_libmysql
     liboping  . . . . . $with_liboping
     libpcap . . . . . . $with_libpcap
+    libperl . . . . . . $with_libperl
     libpthread  . . . . $with_libpthread
     librrd  . . . . . . $with_rrdtool
     libsensors  . . . . $with_lm_sensors
