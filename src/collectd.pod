@@ -76,6 +76,10 @@ NFS utilization (I<nfs>, Linux only)
 
 =item
 
+Embedded Perl interpreter (I<perl>)
+
+=item
+
 Network latency (I<ping>)
 
 =item
@@ -269,10 +273,10 @@ I<5.2.4. Server Status Variables> for an explanation of these values.
 =head2 perl
 
 The C<perl plugin> includes a Perl-interpreter in collectd and provides
-Perl-equvalents of the plugin-functions. This makes it possible to write
+Perl-equivalents of the plugin-functions. This makes it possible to write
 plugins in Perl.
 
-There are two more comlex types you need to know about:
+There are two more complex types you need to know about:
 
 =over 4
 
@@ -345,7 +349,7 @@ array-reference which points to an array of hashes. Each hash describes one
 data-source. For the exact layout see B<Data-Set> above.
 
 If the I<type> argument is any of the other types (B<TYPE_INIT>, B<TYPE_READ>,
-...) when I<data> is expected to be a funtion reference. These functions are
+...) then I<data> is expected to be a function reference. These functions are
 called in the various stages of the daemon and are passed the following
 arguments:
 
@@ -388,7 +392,8 @@ registered with the daemon.
 
 =item B<plugin_log> (I<log-level>, I<message>)
 
-TODO.
+Submits a I<message> of level I<log-level> to collectd's logging mechanism.
+The message is passed to all log-callbacks that are registered with collectd.
 
 =back
 
