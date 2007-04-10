@@ -56,6 +56,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register);
 static XS (Collectd_plugin_unregister);
 static XS (Collectd_plugin_dispatch_values);
+static XS (Collectd_plugin_log);
 
 
 /*
@@ -104,6 +105,7 @@ static struct {
 	{ "Collectd::plugin_register",        Collectd_plugin_register },
 	{ "Collectd::plugin_unregister",      Collectd_plugin_unregister },
 	{ "Collectd::plugin_dispatch_values", Collectd_plugin_dispatch_values },
+	{ "Collectd::plugin_log",             Collectd_plugin_log },
 	{ "", NULL }
 };
 
@@ -828,7 +830,6 @@ static XS (Collectd_plugin_dispatch_values)
 
 	dXSARGS;
 
-	items = 2;
 	if (2 != items) {
 		log_err ("Usage: Collectd::plugin_dispatch_values(name, values)");
 		XSRETURN_EMPTY;
@@ -855,6 +856,30 @@ static XS (Collectd_plugin_dispatch_values)
 	else
 		XSRETURN_EMPTY;
 } /* static XS (Collectd_plugin_dispatch_values) */
+
+/*
+ * Collectd::plugin_log (level, message).
+ *
+ * level:
+ *   log level (LOG_DEBUG, ... LOG_ERR)
+ *
+ * message:
+ *   log message
+ */
+static XS (Collectd_plugin_log)
+{
+	dXSARGS;
+
+	if (2 != items) {
+		log_err ("Usage: Collectd::plugin_log(level, message)");
+		XSRETURN_EMPTY;
+	}
+
+	log_debug ("Collectd::plugin_log: level = %i, message = \"%s\"",
+			SvIV (ST (0)), SvPV_nolen (ST (1)));
+	plugin_log (SvIV (ST (0)), SvPV_nolen (ST (1)));
+	XSRETURN_YES;
+} /* static XS (Collectd_plugin_log) */
 
 /*
  * Collectd::bootstrap ().
