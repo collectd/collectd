@@ -148,6 +148,7 @@
 #</Plugin>
 
 #<Plugin perl>
+#	BaseName "Collectd::Plugin"
 #	LoadPlugin foo
 #</Plugin>
 
