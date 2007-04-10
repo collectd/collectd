@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 3.11.3)
+AC_INIT(collectd, 3.11.4)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -305,9 +305,29 @@ AC_CHECK_HEADERS(regex.h)
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h arpa/nameser_compat.h)
 
-AC_CHECK_HEADERS(net/if_arp.h)
+AC_CHECK_HEADERS(net/if_arp.h, [], [],
+[#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+])
 AC_CHECK_HEADERS(net/if_ppp.h)
-AC_CHECK_HEADERS(netinet/if_ether.h)
+AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+])
 
 #
 # Checking for libraries
