@@ -186,6 +186,8 @@ static void *plugin_read_thread (void *args)
 
 			if (status != 0)
 			{
+				if (rf->wait_time < interval_g)
+					rf->wait_time = interval_g;
 				rf->wait_left = rf->wait_time;
 				rf->wait_time = rf->wait_time * 2;
 				if (rf->wait_time > 86400)
@@ -500,8 +502,9 @@ void plugin_init_all (void)
 		{
 			ERROR ("Initialization of plugin `%s' "
 					"failed with status %i. "
-					"Plugin will be unloaded. TODO!",
+					"Plugin will be unloaded.",
 					le->key, status);
+			/* FIXME: Unload _all_ functions */
 			plugin_unregister_read (le->key);
 		}
 

@@ -39,6 +39,10 @@
 	* collectd-nagios: The new `collectd-nagios' binary queries values
 	  from collectd, parses them and exits according to Nagios-standards.
 
+2007-04-10, Version 3.11.4
+	* dns plugin: Change the order of includes to make the plugin compile
+	  under FreeBSD.
+
 2007-03-30, Version 3.11.3
 	* configure: Have the configure-script define `HAVE_LIBKSTAT' instead
 	  of the unused `COLLECT_KSTAT'.

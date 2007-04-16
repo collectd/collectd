@@ -2,11 +2,16 @@ The files in this directory may be used to perform common tasks that aren't
 exactly `collectd's job. They may or may not require in-depth knowlege of RRD
 files and/or `collectd's inner workings. Use at your own risk.
 
+PerlLib/
+--------
+  Perl modules to be used in conjunction with collectd. See the perldoc
+documentation of the .pm-files to find out what they're good for.
+
 add_rra.sh
 ----------
   Before version 3.9.0 collectd used to create a different set of RRAs. The
-most detailed of these old RRAs hat a one minute resolution. This script can be
-used to add three more RRAs: minimum, maximum and average with a ten second
+most detailed of these old RRAs hat a one minute resolution. This script can
+be used to add three more RRAs: minimum, maximum and average with a ten second
 resolution and 2200 rows (~6 hours). This will make houly statistics much more
 interesting. Please note that no sanity- checking whatsoever is performed. You
 can seriously fuck up your RRD files if you don't know what you're doing.
@@ -17,15 +22,28 @@ collectd2html.pl
 `/var/lib/collectd/' and generate an HTML file and a directory containing
 several PNG files which are graphs of the RRD files found.
 
-collectd.conf
--------------
-  A sample config file. Used by the Debian package.
-
 collection.cgi
 --------------
   Sample CGI script that creates graphs on the fly. The Perl module `RRDs' is
 needed (Debian package `librrds-perl').
 
-init.d-rh7
-----------
-  Sample init script. Used by the RPM specfile.
+extractDS.px
+------------
+  Creates a new RRD-file with only one data-source (DS) of the source-RRD-
+file. That is very handy when you realise that you have bundled up DSes in one
+RRD-file that should have been in multiple RRD-files instead. Is is used by
+`migrate-3-4.px' to split up the cpu-, nfs-, swap-files and possibly others.
+
+fedora/
+-------
+  Init-script and Spec-file that can be used when creating RPM-packages for
+Fedora.
+
+migrate-3-4.px
+--------------
+  Migration-script to ease the switch from version 3 to version 4. Many
+RRD-files are expected in a different place, some have been changed (DSes have
+been renamed) and others have bee split up into multiple files. This script
+prints a bash-script to STDOUT which should do most of the work for you. You
+may still need to do some things by hand, read `README.migration' for more
+details.
