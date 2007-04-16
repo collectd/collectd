@@ -75,14 +75,16 @@ static void add_hosts (void)
 	hl_prev = NULL;
 	while (hl_this != NULL)
 	{
-		DEBUG ("host = %s, wait_left = %i, wait_time = %i, next = %p",
-				hl_this->host, hl_this->wait_left, hl_this->wait_time, (void *) hl_this->next);
+		DEBUG ("ping plugin: host = %s, wait_left = %i, "
+				"wait_time = %i, next = %p",
+				hl_this->host, hl_this->wait_left,
+				hl_this->wait_time, (void *) hl_this->next);
 
 		if (hl_this->wait_left <= 0)
 		{
 			if (ping_host_add (pingobj, hl_this->host) == 0)
 			{
-				DEBUG ("Successfully added host %s", hl_this->host);
+				DEBUG ("ping plugin: Successfully added host %s", hl_this->host);
 				/* Remove the host from the linked list */
 				if (hl_prev != NULL)
 					hl_prev->next = hl_this->next;
@@ -94,6 +96,7 @@ static void add_hosts (void)
 			}
 			else
 			{
+				DEBUG ("ping plugin: Failed adding host `%s'", hl_this->host);
 				hl_this->wait_left = hl_this->wait_time;
 				hl_this->wait_time *= 2;
 				if (hl_this->wait_time > 86400)
@@ -204,6 +207,7 @@ static int ping_read (void)
 	char   host[512];
 	double latency;
 	size_t buf_len;
+	int    number_of_hosts;
 
 	if (pingobj == NULL)
 		return (-1);
@@ -218,6 +222,7 @@ static int ping_read (void)
 		return (-1);
 	}
 
+	number_of_hosts = 0;
 	for (iter = ping_iterator_get (pingobj);
 			iter != NULL;
 			iter = ping_iterator_next (iter))
@@ -232,11 +237,12 @@ static int ping_read (void)
 					&latency, &buf_len))
 			continue;
 
-		DEBUG ("host = %s, latency = %f", host, latency);
+		DEBUG ("ping plugin: host = %s, latency = %f", host, latency);
 		ping_submit (host, latency);
+		number_of_hosts++;
 	}
 
-	return (0);
+	return (number_of_hosts == 0 ? -1 : 0);
 } /* int ping_read */
 
 void module_register (modreg_e load)
