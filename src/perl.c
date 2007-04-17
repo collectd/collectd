@@ -91,7 +91,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static PerlInterpreter *perl = NULL;
 
-static char base_name[DATA_MAX_NAME_LEN] = "Collectd::Plugin";
+static char base_name[DATA_MAX_NAME_LEN] = "";
 
 static char *plugin_types[] = { "init", "read", "write", "shutdown" };
 static HV   *plugins[PLUGIN_TYPES];
@@ -317,6 +317,18 @@ static int value_list2hv (value_list_t *vl, data_set_t *ds, HV *hash)
 /*
  * Internal functions.
  */
+
+static char *get_module_name (char *buf, size_t buf_len, const char *module) {
+	int status = 0;
+	if (base_name[0] == '\0')
+		status = snprintf (buf, buf_len, "%s", module);
+	else
+		status = snprintf (buf, buf_len, "%s::%s", base_name, module);
+	if ((status < 0) || (status >= buf_len))
+		return (NULL);
+	buf[buf_len] = '\0';
+	return (buf);
+} /* char *get_module_name */
 
 /*
  * Add a new plugin with the given name.
@@ -689,21 +701,21 @@ static int pplugin_call_all (int type, ...)
 			if (p->wait_time > 86400)
 				p->wait_time = 86400;
 
-			log_warn ("%s::%s->read() failed. Will suspend it for %i seconds.",
-					base_name, plugin, p->wait_left);
+			log_warn ("%s->read() failed. Will suspend it for %i seconds.",
+					plugin, p->wait_left);
 		}
 		else if (PLUGIN_INIT == type) {
 			int i = 0;
 
-			log_err ("%s::%s->init() failed. Plugin will be disabled.",
-					base_name, plugin, status);
+			log_err ("%s->init() failed. Plugin will be disabled.",
+					plugin, status);
 
 			for (i = 0; i < PLUGIN_TYPES; ++i)
 				pplugin_unregister (i, plugin);
 		}
 		else if (PLUGIN_LOG != type) {
-			log_warn ("%s::%s->%s() failed with status %i.",
-					base_name, plugin, plugin_types[type], status);
+			log_warn ("%s->%s() failed with status %i.",
+					plugin, plugin_types[type], status);
 		}
 
 		va_end (ap);
@@ -943,16 +955,23 @@ static int perl_config (const char *key, const char *value)
 	log_debug ("perl_config: key = \"%s\", value=\"%s\"", key, value);
 
 	if (0 == strcasecmp (key, "LoadPlugin")) {
-		log_debug ("perl_config: loading perl plugin \"%s\"", value);
+		char module_name[DATA_MAX_NAME_LEN];
 
+		if (get_module_name (module_name, sizeof (module_name), value)
+				== NULL) {
+			log_err ("Invalid module name %s", value);
+			return (1);
+		} /* if (get_module_name == NULL) */
+
+		log_debug ("perl_config: loading perl plugin \"%s\"", value);
 		Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
-				Perl_newSVpvf (perl, "%s::%s", base_name, value),
+				newSVpv (module_name, strlen (module_name)),
 				Nullsv);
 	}
 	else if (0 == strcasecmp (key, "BaseName")) {
 		log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
-		strncpy (base_name, value, DATA_MAX_NAME_LEN);
-		base_name[DATA_MAX_NAME_LEN - 1] = '\0';
+		strncpy (base_name, value, sizeof (base_name));
+		base_name[sizeof (base_name) - 1] = '\0';
 	}
 	else {
 		return -1;
