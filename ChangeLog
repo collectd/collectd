@@ -19,6 +19,8 @@
 	  communicate with the daemon while it is running. Right now the
 	  commands `GETVAL' and `PUTVAL' are implemented, but more are to
 	  come.
+	* perl plugin: The new `perl' plugin allows you to write extensions
+	  for collectd in the scripting-language Perl.
 	* logfile plugin: The new `logfile' plugin writes logmessages to files
 	  or STDOUT or STDERR.
 	* syslog plugin: The new `syslog' plugin sends logmessages to the
