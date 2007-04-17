@@ -119,7 +119,7 @@ struct nut_ups_s;
 typedef struct nut_ups_s nut_ups_t;
 struct nut_ups_s
 {
-  UPSCONN    conn;
+  UPSCONN   *conn;
   char      *upsname;
   char      *hostname;
   int        port;
@@ -139,10 +139,14 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static void free_nut_ups_t (nut_ups_t *ups)
 {
-    upscli_disconnect (&ups->conn);
-    sfree (ups->hostname);
-    sfree (ups->upsname);
-    sfree (ups);
+  if (ups->conn != NULL)
+  {
+    upscli_disconnect (ups->conn);
+    sfree (ups->conn);
+  }
+  sfree (ups->hostname);
+  sfree (ups->upsname);
+  sfree (ups);
 } /* void free_nut_ups_t */
 
 static int nut_add_ups (const char *name)
@@ -165,16 +169,6 @@ static int nut_add_ups (const char *name)
   if (status != 0)
   {
     ERROR ("nut plugin: nut_add_ups: upscli_splitname (%s) failed.", name);
-    free_nut_ups_t (ups);
-    return (1);
-  }
-
-  status = upscli_connect (&ups->conn, ups->hostname, ups->port,
-      UPSCLI_CONN_TRYSSL);
-  if (status != 0)
-  {
-    ERROR ("nut plugin: nut_add_ups: upscli_connect (%s, %i) failed: %s",
-	ups->hostname, ups->port, upscli_strerror (&ups->conn));
     free_nut_ups_t (ups);
     return (1);
   }
@@ -235,17 +229,43 @@ static int nut_read_one (nut_ups_t *ups)
   unsigned int answer_num;
   int status;
 
+  /* (Re-)Connect if we have no connection */
+  if (ups->conn == NULL)
+  {
+    ups->conn = (UPSCONN *) malloc (sizeof (UPSCONN));
+    if (ups->conn == NULL)
+    {
+      ERROR ("nut plugin: malloc failed.");
+      return (-1);
+    }
+
+    status = upscli_connect (ups->conn, ups->hostname, ups->port,
+	UPSCLI_CONN_TRYSSL);
+    if (status != 0)
+    {
+      ERROR ("nut plugin: nut_read_one: upscli_connect (%s, %i) failed: %s",
+	  ups->hostname, ups->port, upscli_strerror (ups->conn));
+      sfree (ups->conn);
+      return (-1);
+    }
+
+    INFO ("nut plugin: Connection to (%s, %i) established.",
+	ups->hostname, ups->port);
+  } /* if (ups->conn == NULL) */
+
   /* nut plugin: nut_read_one: upscli_list_start (adpos) failed: Protocol
    * error */
-  status = upscli_list_start (&ups->conn, query_num, query);
+  status = upscli_list_start (ups->conn, query_num, query);
   if (status != 0)
   {
     ERROR ("nut plugin: nut_read_one: upscli_list_start (%s) failed: %s",
-	ups->upsname, upscli_strerror (&ups->conn));
+	ups->upsname, upscli_strerror (ups->conn));
+    upscli_disconnect (ups->conn);
+    sfree (ups->conn);
     return (-1);
   }
 
-  while ((status = upscli_list_next (&ups->conn, query_num, query,
+  while ((status = upscli_list_next (ups->conn, query_num, query,
 	  &answer_num, &answer)) == 1)
   {
     char  *key;
