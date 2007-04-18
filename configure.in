@@ -1304,8 +1304,10 @@ AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile)
 
-if test "x$with_libperl" != "xyes"
+if test "x$with_libperl" = "xyes"
 then
+	with_libperl="yes (version `perl -MConfig -e 'print $Config{version};'`)"
+else
 	enable_perl="no (needs libperl)"
 fi
 
