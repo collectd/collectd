@@ -506,6 +506,14 @@ one CDP by calculating:
 Bottom line is, set this no smaller than the width of you graphs in pixels. The
 default is 1200.
 
+=item B<RRATimespan> I<Seconds>
+
+Adds an RRA-timespan, given in seconds. Use this option mulitple times to have
+more then one RRA. If this option is never used, the built-in default of (3600,
+86400, 604800, 2678400, 31622400) is used.
+
+For more information on how RRA-sizes are calculated see B<RRARows> above.
+
 =item B<XFF> I<Factor>
 
 Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
