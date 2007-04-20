@@ -965,7 +965,7 @@ static int perl_config (const char *key, const char *value)
 
 		log_debug ("perl_config: loading perl plugin \"%s\"", value);
 		Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
-				newSVpv (module_name, strlen (module_name)),
+				Perl_newSVpv (perl, module_name, strlen (module_name)),
 				Nullsv);
 	}
 	else if (0 == strcasecmp (key, "BaseName")) {
