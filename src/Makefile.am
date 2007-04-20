@@ -401,10 +401,10 @@ if BUILD_MODULE_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c
 perl_la_CFLAGS  = $(AM_CFLAGS) \
-		  $(shell perl -MExtUtils::Embed -e ccopts) \
+		  $(PERL_CFLAGS) \
 		  -DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
 perl_la_LDFLAGS = -module -avoid-version \
-		  $(shell perl -MExtUtils::Embed -e ldopts)
+		  $(PERL_LDFLAGS)
 collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
 endif
