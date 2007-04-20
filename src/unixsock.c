@@ -243,11 +243,23 @@ static int cache_update (const data_set_t *ds, const value_list_t *vl)
 
 	vc = cache_search (name);
 
+	/* pthread_mutex_lock is called by cache_insert. */
 	if (vc == NULL)
 		return (cache_insert (ds, vl));
 
 	assert (vc->values_num == ds->ds_num);
 	assert (vc->values_num == vl->values_len);
+
+	/* Avoid floating-point exceptions due to division by zero. */
+	if (vc->time >= vl->time)
+	{
+		pthread_mutex_unlock (&cache_lock);
+		ERROR ("unixsock plugin: vc->time >= vl->time. vc->time = %u; "
+				"vl->time = %u; vl = %s;",
+				(unsigned int) vc->time, (unsigned int) vl->time,
+				name);
+		return (-1);
+	} /* if (vc->time >= vl->time) */
 
 	/*
 	 * Update the values. This is possibly a lot more that you'd expect
