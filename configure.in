@@ -1073,12 +1073,14 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
 	[Wether or not to use the pcap library])
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 
+perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		perl_interpreter="$withval/bin/perl"
 		with_libperl="yes"
 	fi
 ],
@@ -1089,8 +1091,10 @@ if test "x$with_libperl" = "xyes"
 then
   SAVE_CFLAGS=$CFLAGS
   SAVE_LDFLAGS=$LDFLAGS
-  CFLAGS="$CFLAGS `perl -MExtUtils::Embed -e ccopts`"
-  LDFLAGS="$LDFLAGS `perl -MExtUtils::Embed -e ldopts`"
+  PERL_CFLAGS=`$perl_interpreter -MExtUtils::Embed -e ccopts`
+  PERL_LDFLAGS=`$perl_interpreter -MExtUtils::Embed -e ldopts`
+  CFLAGS="$CFLAGS $PERL_CFLAGS"
+  LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 
   AC_CACHE_CHECK([for libperl],
     [have_libperl],
@@ -1104,7 +1108,7 @@ then
       [[
        PerlInterpreter *perl = NULL;
        Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
-			 Perl_newSVpvf (perl, "Collectd::Plugin::%s", "foo"),
+			 newSVpv ("Collectd::Plugin::FooBar", 24),
 			 Nullsv);
       ]]),
       [have_libperl="yes"],
@@ -1115,6 +1119,8 @@ then
   if test "x$have_libperl" = "xyes"
   then
 	  AC_DEFINE(HAVE_LIBPERL, 1, [Define if libperl is present and usable.])
+	  AC_SUBST(PERL_CFLAGS)
+	  AC_SUBST(PERL_LDFLAGS)
   else
 	  with_libperl="no"
   fi
