@@ -1,5 +1,31 @@
 package Collectd::Unixsock;
 
+=head1 NAME
+
+Collectd::Unixsock - Abstraction layer for accessing the functionality by collectd's unixsock plugin.
+
+=head1 SYNOPSIS
+
+  use Collectd::Unixsock ();
+
+  my $sock = Collectd::Unixsock->new ($path);
+
+  my $value = $sock->getval (%identifier);
+  $sock->putval (%identifier,
+                 time => time (),
+		 values => [123, 234, 345]);
+
+  $sock->destroy ();
+
+=head1 DESCRIPTION
+
+collectd's unixsock plugin allows external programs to access the values it has
+collected or received and to submit own values. This Perl-module is simply a
+little abstraction layer over this interface to make it even easier for
+programmers to interact with the daemon.
+
+=cut
+
 use strict;
 use warnings;
 
@@ -20,6 +46,20 @@ sub _create_socket
 	}
 	return ($sock);
 } # _create_socket
+
+=head1 VALUE IDENTIFIER
+
+The values in the collectd are identified using an five-tupel (host, plugin,
+plugin-instance, type, type-instance) where only plugin-instance and
+type-instance may be NULL (or undefined). Many functions expect an
+I<%identifier> hash that has at least the members B<host>, B<plugin>, and
+B<type>, possibly completed by B<plugin_instance> and B<type_instance>.
+
+Usually you can pass this hash as follows:
+
+  $obj->method (host => $host, plugin => $plugin, type => $type, %other_args);
+
+=cut
 
 sub _create_identifier
 {
@@ -43,6 +83,19 @@ sub _create_identifier
 	return ("$host/$plugin/$type");
 } # _create_identifier
 
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item I<$obj> = Collectd::Unixsock->B<new> ([I<$path>]);
+
+Creates a new connection to the daemon. The optional I<$path> argument gives
+the path to the UNIX socket of the C<unixsock plugin> and defaults to
+F</var/run/collectd-unixsock>. Returns the newly created object on success and
+false on error.
+
+=cut
+
 sub new
 {
 	my $pkg = shift;
@@ -56,6 +109,14 @@ sub new
 		}, $pkg);
 	return ($obj);
 } # new
+
+=item I<$res> = I<$obj>-E<gt>B<getval> (I<%identifier>);
+
+Requests a value-list from the daemon. On success a hash-ref is returned with
+the name of each data-source as the key and the according value as, well, the
+value. On error false is returned.
+
+=cut
 
 sub getval
 {
@@ -95,6 +156,18 @@ sub getval
 
 	return ($ret);
 } # getval
+
+=item I<$obj>-E<gt>B<putval> (I<%identifier>, B<time> => I<$time>, B<values> => [...]);
+
+Submits a value-list to the daemon. If the B<time> argument is omitted
+C<time()> is used. The requierd argument B<values> is a reference to an array
+of values that is to be submitted. The number of values must match the number
+of values expected for the given B<type> (see L<VALUE IDENTIFIER>), though this
+is checked by the daemon, not the Perl module. Also, gauge data-sources
+(e.E<nbsp>g. system-load) may be C<undef>. Returns true upon success and false
+otherwise.
+
+=cut
 
 sub putval
 {
@@ -136,6 +209,15 @@ sub putval
 	return;
 } # putval
 
+=item I<$obj>-E<gt>destroy ();
+
+Closes the socket before the object is destroyed. This function is also
+automatically called then the object goes out of scope.
+
+=back
+
+=cut
+
 sub destroy
 {
 	my $obj = shift;
@@ -151,3 +233,9 @@ sub DESTROY
 	my $obj = shift;
 	$obj->destroy ();
 }
+
+=head1 AUTHOR
+
+Florian octo Forster E<lt>octo@verplant.orgE<gt>
+
+=cut
