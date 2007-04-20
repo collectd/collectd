@@ -383,7 +383,7 @@ static int cpu_read (void)
 		plugin_complain (LOG_ERR, &complain_obj, "cpu plugin: "
 				"sysctlbyname failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return;
+		return (-1);
 	}
 
 	plugin_relief (LOG_NOTICE, &complain_obj, "cpu plugin: "

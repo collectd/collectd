@@ -52,6 +52,9 @@ static int rra_timespans[] =
 };
 static int rra_timespans_num = STATIC_ARRAY_SIZE (rra_timespans);
 
+static int *rra_timespans_custom = NULL;
+static int rra_timespans_custom_num = 0;
+
 static char *rra_types[] =
 {
 	"AVERAGE",
@@ -68,6 +71,7 @@ static const char *config_keys[] =
 	"StepSize",
 	"HeartBeat",
 	"RRARows",
+	"RRATimespan",
 	"XFF"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -92,7 +96,10 @@ static int rra_get (char ***ret)
 	static char **rra_def = NULL;
 	static int rra_num = 0;
 
-	int rra_max = rra_timespans_num * rra_types_num;
+	int *rts;
+	int  rts_num;
+
+	int rra_max;
 
 	int span;
 
@@ -108,6 +115,20 @@ static int rra_get (char ***ret)
 		return (rra_num);
 	}
 
+	/* Use the configured timespans or fall back to the built-in defaults */
+	if (rra_timespans_custom_num != 0)
+	{
+		rts = rra_timespans_custom;
+		rts_num = rra_timespans_custom_num;
+	}
+	else
+	{
+		rts = rra_timespans;
+		rts_num = rra_timespans_num;
+	}
+
+	rra_max = rts_num * rra_types_num;
+
 	if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
 		return (-1);
 	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
@@ -119,9 +140,9 @@ static int rra_get (char ***ret)
 	}
 
 	cdp_len = 0;
-	for (i = 0; i < rra_timespans_num; i++)
+	for (i = 0; i < rts_num; i++)
 	{
-		span = rra_timespans[i];
+		span = rts[i];
 
 		if ((span / stepsize) < rrarows)
 			continue;
@@ -745,6 +766,32 @@ static int rrd_config (const char *key, const char *value)
 			return (1);
 		}
 		rrarows = tmp;
+	}
+	else if (strcasecmp ("RRATimespan", key) == 0)
+	{
+		char *saveptr = NULL;
+		char *dummy;
+		char *ptr;
+		int *tmp_alloc;
+
+		dummy = value;
+		while ((ptr = strtok_r (dummy, ", \t", &saveptr)) != NULL)
+		{
+			dummy = NULL;
+			
+			tmp_alloc = realloc (rra_timespans_custom,
+					sizeof (int) * (rra_timespans_custom_num + 1));
+			if (tmp_alloc == NULL)
+			{
+				fprintf (stderr, "rrdtool: realloc failed.\n");
+				return (1);
+			}
+			rra_timespans_custom = tmp_alloc;
+			rra_timespans_custom[rra_timespans_custom_num] = atoi (ptr);
+			if (rra_timespans_custom[rra_timespans_custom_num] != 0)
+				rra_timespans_custom_num++;
+		} /* while (strtok_r) */
+
 	}
 	else if (strcasecmp ("XFF", key) == 0)
 	{
