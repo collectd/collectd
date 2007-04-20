@@ -772,9 +772,14 @@ static int rrd_config (const char *key, const char *value)
 		char *saveptr = NULL;
 		char *dummy;
 		char *ptr;
+		char *value_copy;
 		int *tmp_alloc;
 
-		dummy = value;
+		value_copy = strdup (value);
+		if (value_copy == NULL)
+			return (1);
+
+		dummy = value_copy;
 		while ((ptr = strtok_r (dummy, ", \t", &saveptr)) != NULL)
 		{
 			dummy = NULL;
@@ -784,6 +789,7 @@ static int rrd_config (const char *key, const char *value)
 			if (tmp_alloc == NULL)
 			{
 				fprintf (stderr, "rrdtool: realloc failed.\n");
+				free (value_copy);
 				return (1);
 			}
 			rra_timespans_custom = tmp_alloc;
@@ -791,7 +797,7 @@ static int rrd_config (const char *key, const char *value)
 			if (rra_timespans_custom[rra_timespans_custom_num] != 0)
 				rra_timespans_custom_num++;
 		} /* while (strtok_r) */
-
+		free (value_copy);
 	}
 	else if (strcasecmp ("XFF", key) == 0)
 	{
