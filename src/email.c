@@ -176,8 +176,8 @@ static int  max_conns   = MAX_CONNS;
 static int disabled = 0;
 
 /* thread managing "client" connections */
-static pthread_t connector;
-static int connector_socket;
+static pthread_t connector = (pthread_t) 0;
+static int connector_socket = -1;
 
 /* tell the collector threads that a new connection is available */
 static pthread_cond_t conn_available = PTHREAD_COND_INITIALIZER;
@@ -519,8 +519,9 @@ static void *collect (void *arg)
 		} /* while (loop) */
 
 		close (connection->socket);
-
 		free (connection);
+
+		this->socket = -1;
 
 		pthread_mutex_lock (&available_mutex);
 		++available_collectors;
@@ -559,6 +560,7 @@ static void *open_connection (void *arg)
 					+ strlen(addr.sun_path))) {
 		char errbuf[1024];
 		disabled = 1;
+		connector_socket = -1; /* TODO: close? */
 		log_err ("bind() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
@@ -568,6 +570,7 @@ static void *open_connection (void *arg)
 	if (-1 == listen (connector_socket, 5)) {
 		char errbuf[1024];
 		disabled = 1;
+		connector_socket = -1; /* TODO: close? */
 		log_err ("listen() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
@@ -635,13 +638,14 @@ static void *open_connection (void *arg)
 
 		for (i = 0; i < max_conns; ++i) {
 			collectors[i] = (collector_t *)smalloc (sizeof (collector_t));
-			collectors[i]->socket = 0;
+			collectors[i]->socket = -1;
 
 			if (0 != (err = pthread_create (&collectors[i]->thread, &ptattr,
 							collect, collectors[i]))) {
 				char errbuf[1024];
 				log_err ("pthread_create() failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
+				collectors[i]->thread = (pthread_t) 0;
 			}
 		}
 
@@ -669,6 +673,7 @@ static void *open_connection (void *arg)
 				if (EINTR != errno) {
 					char errbuf[1024];
 					disabled = 1;
+					connector_socket = -1; /* TODO: close? */
 					log_err ("accept() failed: %s",
 							sstrerror (errno, errbuf, sizeof (errbuf)));
 					pthread_exit ((void *)1);
@@ -722,15 +727,29 @@ static int email_shutdown (void)
 	if (disabled)
 		return (0);
 
-	pthread_kill (connector, SIGTERM);
-	close (connector_socket);
+	if (connector != ((pthread_t) 0)) {
+		pthread_kill (connector, SIGTERM);
+		connector = (pthread_t) 0;
+	}
+
+	if (connector_socket >= 0) {
+		close (connector_socket);
+		connector_socket = -1;
+	}
 
 	/* don't allow any more connections to be processed */
 	pthread_mutex_lock (&conns_mutex);
 
 	for (i = 0; i < max_conns; ++i) {
-		pthread_kill (collectors[i]->thread, SIGTERM);
-		close (collectors[i]->socket);
+		if (collectors[i]->thread != ((pthread_t) 0)) {
+			pthread_kill (collectors[i]->thread, SIGTERM);
+			collectors[i]->thread = (pthread_t) 0;
+		}
+		
+		if (collectors[i]->socket >= 0) {
+			close (collectors[i]->socket);
+			collectors[i]->socket = -1;
+		}
 	}
 
 	pthread_mutex_unlock (&conns_mutex);
