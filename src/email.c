@@ -190,7 +190,7 @@ static conn_list_t conns;
 static pthread_cond_t collector_available = PTHREAD_COND_INITIALIZER;
 
 /* collector threads */
-static collector_t **collectors;
+static collector_t **collectors = NULL;
 
 static pthread_mutex_t available_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int available_collectors;
@@ -724,9 +724,6 @@ static int email_shutdown (void)
 {
 	int i = 0;
 
-	if (disabled)
-		return (0);
-
 	if (connector != ((pthread_t) 0)) {
 		pthread_kill (connector, SIGTERM);
 		connector = (pthread_t) 0;
@@ -740,21 +737,27 @@ static int email_shutdown (void)
 	/* don't allow any more connections to be processed */
 	pthread_mutex_lock (&conns_mutex);
 
-	for (i = 0; i < max_conns; ++i) {
-		if (collectors[i]->thread != ((pthread_t) 0)) {
-			pthread_kill (collectors[i]->thread, SIGTERM);
-			collectors[i]->thread = (pthread_t) 0;
+	if (collectors != NULL) {
+		for (i = 0; i < max_conns; ++i) {
+			if (collectors[i] == NULL)
+				continue;
+
+			if (collectors[i]->thread != ((pthread_t) 0)) {
+				pthread_kill (collectors[i]->thread, SIGTERM);
+				collectors[i]->thread = (pthread_t) 0;
+			}
+
+			if (collectors[i]->socket >= 0) {
+				close (collectors[i]->socket);
+				collectors[i]->socket = -1;
+			}
 		}
-		
-		if (collectors[i]->socket >= 0) {
-			close (collectors[i]->socket);
-			collectors[i]->socket = -1;
-		}
-	}
+	} /* if (collectors != NULL) */
 
 	pthread_mutex_unlock (&conns_mutex);
 
 	unlink (SOCK_PATH);
+	errno = 0;
 
 	return (0);
 } /* static void email_shutdown (void) */
