@@ -24,10 +24,14 @@
 
 #include "oconfig.h"
 
-/* Functions provided by the scanner */
-void yyset_in  (FILE *);
+extern FILE *yyin;
 
 oconfig_item_t *ci_root;
+
+static void yyset_in  (FILE *fd)
+{
+  yyin = fd;
+} /* void yyset_in */
 
 oconfig_item_t *oconfig_parse_fh (FILE *fh)
 {
