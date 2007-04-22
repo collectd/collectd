@@ -437,6 +437,27 @@ L<upsc(8)>.
 
 =back
 
+=head2 Plugin C<perl>
+
+=over 4
+
+=item B<LoadPlugin> I<Plugin>
+
+Loads the Perl plugin I<Plugin>. This does basically the same as B<use> would
+do in a Perl program.
+
+=item B<BaseName> I<Name>
+
+Prepends I<Name>B<::> to all plugin names loaded after this option. This is
+provided for convenience to keep plugin names short.
+
+=item B<IncludeDir> I<Dir>
+
+Adds I<Dir> to the B<@INC> array. This is the same as using the B<-IDir>
+command line option or B<use lib Dir> in the source code.
+
+=back
+
 =head2 Plugin C<ping>
 
 =over 4

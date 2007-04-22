@@ -149,6 +149,7 @@
 #</Plugin>
 
 #<Plugin perl>
+#	IncludeDir "/my/include/path"
 #	BaseName "Collectd::Plugin"
 #	LoadPlugin foo
 #</Plugin>

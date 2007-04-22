@@ -85,7 +85,7 @@ static const char *config_keys[] =
 {
 	"LoadPlugin",
 	"BaseName",
-	NULL
+	"IncludeDir"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -972,6 +972,11 @@ static int perl_config (const char *key, const char *value)
 		log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
 		strncpy (base_name, value, sizeof (base_name));
 		base_name[sizeof (base_name) - 1] = '\0';
+	}
+	else if (0 == strcasecmp (key, "IncludeDir")) {
+		Perl_av_unshift (perl, GvAVn (PL_incgv), 1);
+		Perl_av_store (perl, GvAVn (PL_incgv),
+				0, Perl_newSVpv (perl, value, strlen (value)));
 	}
 	else {
 		return -1;
