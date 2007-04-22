@@ -52,15 +52,12 @@
 /* 2^48 = 281474976710656 */
 static data_source_t dsrc[4] =
 {
-	{"used",    DS_TYPE_GAUGE, 0, 281474976710656.0},
-	{"free",    DS_TYPE_GAUGE, 0, 281474976710656.0},
-	{"buffers", DS_TYPE_GAUGE, 0, 281474976710656.0},
-	{"cached",  DS_TYPE_GAUGE, 0, 281474976710656.0}
+	{"value",  DS_TYPE_GAUGE, 0, 281474976710656.0}
 };
 
 static data_set_t ds =
 {
-	"memory", 4, dsrc
+	"memory", 1, dsrc
 };
 
 /* vm_statistics_data_t */
@@ -108,22 +105,20 @@ static int memory_init (void)
 	return (0);
 } /* int memory_init */
 
-static void memory_submit (long long mem_used, long long mem_buffered,
-		long long mem_cached, long long mem_free)
+static void memory_submit (const char *type_instance, gauge_t value)
 {
-	value_t values[4];
+	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = mem_used;
-	values[1].gauge = mem_free;
-	values[2].gauge = mem_buffered;
-	values[3].gauge = mem_cached;
+	values[0].gauge = value;
 
 	vl.values = values;
 	vl.values_len = 4;
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memory");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
 	plugin_dispatch_values ("memory", &vl);
 }
@@ -177,7 +172,10 @@ static int memory_read (void)
 	inactive = vm_data.inactive_count * pagesize;
 	free     = vm_data.free_count     * pagesize;
 
-	memory_submit (wired + active, -1, inactive, free);
+	memory_submit ("wired",    wired);
+	memory_submit ("active",   active);
+	memory_submit ("inactive", inactive);
+	memory_submit ("free",     free);
 /* #endif HOST_VM_INFO */
 
 #elif HAVE_SYSCTLBYNAME
@@ -201,37 +199,38 @@ static int memory_read (void)
 		"vm.stats.vm.v_cache_count",
 		NULL
 	};
-	int sysctl_vals[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+	double sysctl_vals[8];
 
 	size_t len;
 	int    i;
-	int    status;
 
 	for (i = 0; sysctl_keys[i] != NULL; i++)
 	{
-		len = sizeof (int);
-		if ((status = sysctlbyname (sysctl_keys[i],
-						(void *) &sysctl_vals[i], &len,
-						NULL, 0)) < 0)
+		int value;
+		size_t value_len = sizeof (value);
+
+		if (sysctlbyname (sysctl_keys[i], (void *) &value, &value_len,
+					NULL, 0) == 0)
 		{
-			char errbuf[1024];
-			ERROR ("memory plugin: sysctlbyname (%s): %s",
-					sysctl_keys[i],
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return (-1);
+			sysctl_vals[i] = value;
+			DEBUG ("memory plugin: %26s: %6i", sysctl_keys[i], sysctl_vals[i]);
 		}
-		DEBUG ("%26s: %6i", sysctl_keys[i], sysctl_vals[i]);
-	} /* for i */
+		else
+		{
+			sysctl_vals[i] = NAN;
+		}
+	} /* for (sysctl_keys) */
 
 	/* multiply all all page counts with the pagesize */
 	for (i = 1; sysctl_keys[i] != NULL; i++)
-		sysctl_vals[i] = sysctl_vals[i] * sysctl_vals[0];
+		if (!isnan (sysctl_vals[i]))
+			sysctl_vals[i] *= sysctl_vals[0];
 
-	memory_submit (sysctl_vals[3] + sysctl_vals[4], /* wired + active */
-			sysctl_vals[6],                 /* cache */
-			sysctl_vals[5],                 /* inactive */
-			sysctl_vals[2]);                /* free */
+	memory_submit ("free",     sysctl_vals[2]);
+	memory_submit ("wired",    sysctl_vals[2]);
+	memory_submit ("active",   sysctl_vals[2]);
+	memory_submit ("inactive", sysctl_vals[2]);
+	memory_submit ("cache",    sysctl_vals[2]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
@@ -287,7 +286,11 @@ static int memory_read (void)
 	if (mem_used >= (mem_free + mem_buffered + mem_cached))
 	{
 		mem_used -= mem_free + mem_buffered + mem_cached;
-		memory_submit (mem_used, mem_buffered, mem_cached, mem_free);
+		memory_submit ("used",     mem_used);
+		memory_submit ("buffered", mem_used);
+		memory_submit ("cached",   mem_used);
+		memory_submit ("free",     mem_used);
+
 	}
 /* #endif defined(KERNEL_LINUX) */
 
@@ -313,14 +316,20 @@ static int memory_read (void)
 	mem_free *= pagesize; /* memory.. Why not call me up and give me */
 	mem_lock *= pagesize; /* some? ;) */
 
-	memory_submit (mem_used, mem_lock, 0LL, mem_free);
+	memory_submit ("used",   mem_used);
+	memory_submit ("free",   mem_free);
+	memory_submit ("locked", mem_locked);
 /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_mem_stats *ios;
 
 	if ((ios = sg_get_mem_stats ()) != NULL)
-		memory_submit (ios->used, 0LL, ios->cache, ios->free);
+	{
+		memory_submit ("used",   ios->used);
+		memory_submit ("cached", ios->cached);
+		memory_submit ("free",   ios->free);
+	}
 #endif /* HAVE_LIBSTATGRAB */
 
 	return (0);
