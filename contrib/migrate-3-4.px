@@ -107,6 +107,7 @@ our %TypeTranslate =
 our %TypeSplit =
 (
 	cpu => { from => [qw(user nice syst idle wait)], to => 'value', type_instance => [qw(user nice system idle wait)] },
+	memory => { from => [qw(used free buffers cached)], to => 'value', type_instance => [qw(used free buffered cached)] },
 	nfs3_procedures => { from => [qw(null getattr lookup access readlink
 		read write create mkdir symlink mknod remove rmdir rename link
 		readdir readdirplus fsstat fsinfo pathconf commit)], to => 'value' },
