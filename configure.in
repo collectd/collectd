@@ -984,6 +984,53 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBMYSQL, [$collect_libmysql],
 	[Wether or not to use mysql library])
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 
+with_own_liboconfig="no"
+liboconfig_LDFLAGS="$LDFLAGS"
+liboconfig_CPPFLAGS="$CPPFLAGS"
+AC_ARG_WITH(liboconfig, [AS_HELP_STRING([--with-liboconfig@<:@=PREFIX@:>@], [Path to liboconfig.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		if test -d "$withval/lib"
+		then
+			liboconfig_LDFLAGS="$LDFLAGS -L$withval/lib"
+		fi
+		if test -d "$withval/include"
+		then
+			liboconfig_CPPFLAGS="$CPPFLAGS -I$withval/include"
+		fi
+	fi
+	if test "x$withval" = "xno"
+	then
+		AC_MSG_ERROR("liboconfig is required")
+	fi
+],
+[
+	with_liboconfig="yes"
+])
+
+save_LDFLAGS="$LDFLAGS"
+save_CPPFLAGS="$CPPFLAGS"
+LDFLAGS="$liboconfig_LDFLAGS"
+CPPFLAGS="$liboconfig_CPPFLAGS"
+AC_CHECK_LIB(oconfig, oconfig_parse_fh,
+[
+	with_liboconfig="yes"
+	with_own_liboconfig="no"
+],
+[
+	with_liboconfig="yes"
+	with_own_liboconfig="yes"
+	LDFLAGS="$save_LDFLAGS"
+	CPPFLAGS="$save_CPPFLAGS"
+])
+
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBOCONFIG, test "x$with_own_liboconfig" = "xyes")
+if test "x$with_own_liboconfig" = "xyes"
+then
+	with_liboconfig="yes (shipped version)"
+fi
+
 #with_liboping="yes"
 with_own_liboping="no"
 liboping_LDFLAGS="$LDFLAGS"
@@ -1326,6 +1373,7 @@ Configuration:
     libiptc . . . . . . $with_libiptc
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
+    liboconfig  . . . . $with_liboconfig
     liboping  . . . . . $with_liboping
     libpcap . . . . . . $with_libpcap
     libperl . . . . . . $with_libperl

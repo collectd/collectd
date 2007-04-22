@@ -1,4 +1,7 @@
-SUBDIRS = liboconfig
+SUBDIRS =
+if BUILD_WITH_OWN_LIBOCONFIG
+SUBDIRS += liboconfig
+endif
 if BUILD_WITH_OWN_LIBOPING
 SUBDIRS += liboping
 endif
@@ -59,8 +62,14 @@ collectd_LDFLAGS += -lstatgrab
 endif
 
 
-collectd_LDADD = $(LIBLTDL) liboconfig/liboconfig.la "-dlopen" self
-collectd_DEPENDENCIES = $(LIBLTDL) liboconfig/liboconfig.la
+collectd_LDADD =
+collectd_DEPENDENCIES =
+if BUILD_WITH_OWN_LIBOCONFIG
+collectd_LDADD += $(LIBLTDL) liboconfig/liboconfig.la
+collectd_DEPENDENCIES += $(LIBLTDL) liboconfig/liboconfig.la
+else
+collectd_LDFLAGS += -loconfig
+endif
 
 collectd_nagios_SOURCES = collectd-nagios.c
 collectd_nagios_LDFLAGS =
