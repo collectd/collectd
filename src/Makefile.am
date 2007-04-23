@@ -509,10 +509,8 @@ endif
 if BUILD_MODULE_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c
-unixsock_la_LDFLAGS = -module -avoid-version
-if BUILD_WITH_LIBPTHREAD
-unixsock_la_LDFLAGS += -lpthread
-endif
+unixsock_la_CPPFLAGS = -DPREFIX='"${prefix}"'
+unixsock_la_LDFLAGS = -module -avoid-version -lpthread
 collectd_LDADD += "-dlopen" unixsock.la
 collectd_DEPENDENCIES += unixsock.la
 endif
