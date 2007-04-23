@@ -9,7 +9,7 @@ EXTRA_DIST = AUTHORS COPYING ChangeLog README
 noinst_LTLIBRARIES = liboping.la
 
 #liboping_la_CFLAGS = 
-liboping_la_LDFLAGS = -avoid-version
+liboping_la_LDFLAGS = -version-info 0:3:0
 if BUILD_WITH_LIBSOCKET
 liboping_la_LDFLAGS += -lsocket
 endif
