@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 #Simple script that sets up some chains in mangle table to do global logging of all 
 #traffic going in and out of an interface
 #Could also use the regular input/output tree but this also catches the forwarded nat traffic
