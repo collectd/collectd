@@ -208,6 +208,7 @@ AC_CHECK_HEADERS(mach/kern_return.h)
 
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h)
+AC_CHECK_HEADERS(libgen.h)
 
 # For the apple_sensors module
 AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h)
