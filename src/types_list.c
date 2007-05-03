@@ -33,7 +33,10 @@ static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
   int   fields_num;
 
   if (buf_len < 11)
+  {
+    ERROR ("parse_ds: (buf_len = %u) < 11", buf_len);
     return (-1);
+  }
 
   if (buf[buf_len - 1] == ',')
   {
@@ -54,7 +57,10 @@ static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
   }
 
   if (fields_num != 4)
+  {
+    ERROR ("parse_ds: (fields_num = %i) != 4", fields_num);
     return (-1);
+  }
 
   strncpy (dsrc->name, fields[0], sizeof (dsrc->name));
   dsrc->name[sizeof (dsrc->name) - 1] = '\0';
@@ -64,7 +70,10 @@ static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
   else if (strcasecmp (fields[1], "COUNTER") == 0)
     dsrc->type = DS_TYPE_COUNTER;
   else
+  {
+    ERROR ("(fields[1] = %s) != (GAUGE || COUNTER)", fields[1]);
     return (-1);
+  }
 
   if (strcasecmp (fields[2], "U") == 0)
     dsrc->min = NAN;
@@ -107,6 +116,8 @@ static void parse_line (char *buf, size_t buf_len)
     if (parse_ds (ds.ds + i, fields[i + 1], strlen (fields[i + 1])) != 0)
     {
       sfree (ds.ds);
+      ERROR ("types_list: parse_line: Cannot parse data source #%i "
+	  "of data set %s", i, ds.type);
       return;
     }
 
@@ -152,7 +163,10 @@ int read_types_list (void)
 
   file = global_option_get ("TypesDB");
   if (file == NULL)
+  {
+    ERROR ("global_option_get (\"TypesDB\") returned NULL.");
     return (-1);
+  }
 
   fh = fopen (file, "r");
   if (fh == NULL)
