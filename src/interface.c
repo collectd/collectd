@@ -67,40 +67,6 @@
 /*
  * (Module-)Global variables
  */
-/* 2^32 = 4294967296 = ~4.2GByte/s = ~34GBit/s */
-static data_source_t octets_dsrc[2] =
-{
-	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t octets_ds =
-{
-	"if_octets", 2, octets_dsrc
-};
-
-static data_source_t packets_dsrc[2] =
-{
-	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t packets_ds =
-{
-	"if_packets", 2, packets_dsrc
-};
-
-static data_source_t errors_dsrc[2] =
-{
-	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t errors_ds =
-{
-	"if_errors", 2, errors_dsrc
-};
-
 static const char *config_keys[] =
 {
 	"Interface",
@@ -389,25 +355,14 @@ static int interface_read (void)
 } /* int interface_read */
 #endif /* INTERFACE_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&octets_ds);
-		plugin_register_data_set (&packets_ds);
-		plugin_register_data_set (&errors_ds);
-	}
-
 	plugin_register_config ("interface", interface_config,
 			config_keys, config_keys_num);
-
-	if (load & MR_READ)
-	{
 #if HAVE_LIBKSTAT
-		plugin_register_init ("interface", interface_init);
+	plugin_register_init ("interface", interface_init);
 #endif
 #if INTERFACE_HAVE_READ
-		plugin_register_read ("interface", interface_read);
+	plugin_register_read ("interface", interface_read);
 #endif
-	}
 } /* void module_register */

@@ -57,52 +57,6 @@
 # define DISK_HAVE_READ 0
 #endif
 
-/* 2^34 = 17179869184 = ~17.2GByte/s */
-static data_source_t octets_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 17179869183.0},
-	{"write", DS_TYPE_COUNTER, 0, 17179869183.0}
-};
-
-static data_set_t octets_ds =
-{
-	"disk_octets", 2, octets_dsrc
-};
-
-static data_source_t operations_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"write", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t operations_ds =
-{
-	"disk_ops", 2, operations_dsrc
-};
-
-static data_source_t merged_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"write", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t merged_ds =
-{
-	"disk_merged", 2, merged_dsrc
-};
-
-/* max is 1000000us per second. */
-static data_source_t time_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 1000000.0},
-	{"write", DS_TYPE_COUNTER, 0, 1000000.0}
-};
-
-static data_set_t time_ds =
-{
-	"disk_time", 2, time_dsrc
-};
-
 #if DISK_HAVE_READ
 #if HAVE_IOKIT_IOKITLIB_H
 static mach_port_t io_master_port = MACH_PORT_NULL;
@@ -611,21 +565,10 @@ static int disk_read (void)
 } /* int disk_read */
 #endif /* DISK_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&octets_ds);
-		plugin_register_data_set (&operations_ds);
-		plugin_register_data_set (&merged_ds);
-		plugin_register_data_set (&time_ds);
-	}
-
 #if DISK_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("disk", disk_init);
-		plugin_register_read ("disk", disk_read);
-	}
+	plugin_register_init ("disk", disk_init);
+	plugin_register_read ("disk", disk_read);
 #endif /* DISK_HAVE_READ */
 } /* void module_register */

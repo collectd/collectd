@@ -1069,7 +1069,7 @@ static void xs_init (pTHX)
 /*
  * Create the perl interpreter and register it with collectd.
  */
-void module_register (modreg_e load)
+void module_register (void)
 {
 	char *embed_argv[] = { "", "-e", "bootstrap Collectd \""VERSION"\"", NULL };
 	int  embed_argc    = 3;
@@ -1103,8 +1103,7 @@ void module_register (modreg_e load)
 	plugin_register_config ("perl", perl_config, config_keys, config_keys_num);
 	plugin_register_init ("perl", perl_init);
 
-	if (load & MR_READ)
-		plugin_register_read ("perl", perl_read);
+	plugin_register_read ("perl", perl_read);
 
 	plugin_register_write ("perl", perl_write);
 	plugin_register_shutdown ("perl", perl_shutdown);

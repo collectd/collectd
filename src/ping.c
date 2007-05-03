@@ -45,16 +45,6 @@ typedef struct hostlist_s hostlist_t;
 static pingobj_t *pingobj = NULL;
 static hostlist_t *hosts = NULL;
 
-static data_source_t dsrc[1] =
-{
-	{"ping", DS_TYPE_GAUGE, 0, 65535.0},
-};
-
-static data_set_t ds =
-{
-	"ping", 1, dsrc
-};
-
 static const char *config_keys[] =
 {
 	"Host",
@@ -259,16 +249,10 @@ static int ping_read (void)
 	return (number_of_hosts == 0 ? -1 : 0);
 } /* int ping_read */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds);
-
-	if (load & MR_READ)
-	{
-		plugin_register_config ("ping", ping_config,
-				config_keys, config_keys_num);
-		plugin_register_init ("ping", ping_init);
-		plugin_register_read ("ping", ping_read);
-	}
+	plugin_register_config ("ping", ping_config,
+			config_keys, config_keys_num);
+	plugin_register_init ("ping", ping_init);
+	plugin_register_read ("ping", ping_read);
 } /* void module_register */

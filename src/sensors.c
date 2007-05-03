@@ -46,36 +46,6 @@
 # define SENSORS_HAVE_READ 0
 #endif
 
-static data_source_t data_source_fanspeed[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t fanspeed_ds =
-{
-	"fanspeed", 1, data_source_fanspeed
-};
-
-static data_source_t data_source_temperature[1] =
-{
-	{"value", DS_TYPE_GAUGE, -273.15, NAN}
-};
-
-static data_set_t temperature_ds =
-{
-	"temperature", 1, data_source_temperature
-};
-
-static data_source_t data_source_voltage[1] =
-{
-	{"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t voltage_ds =
-{
-	"voltage", 1, data_source_voltage
-};
-
 #if SENSORS_HAVE_READ
 #define SENSOR_TYPE_VOLTAGE     0
 #define SENSOR_TYPE_FANSPEED    1
@@ -449,22 +419,12 @@ static int sensors_read (void)
 } /* int sensors_read */
 #endif /* SENSORS_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&fanspeed_ds);
-		plugin_register_data_set (&temperature_ds);
-		plugin_register_data_set (&voltage_ds);
-	}
-
 #if SENSORS_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("sensors", sensors_config,
-				config_keys, config_keys_num);
-		plugin_register_read ("sensors", sensors_read);
-		plugin_register_shutdown ("sensors", sensors_shutdown);
-	}
+	plugin_register_config ("sensors", sensors_config,
+			config_keys, config_keys_num);
+	plugin_register_read ("sensors", sensors_read);
+	plugin_register_shutdown ("sensors", sensors_shutdown);
 #endif
 } /* void module_register */

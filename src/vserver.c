@@ -38,59 +38,6 @@
 # define VSERVER_HAVE_READ 0
 #endif /* defined(KERNEL_LINUX) */
 
-static data_source_t octets_dsrc[2] =
-{
-	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t octets_ds =
-{
-	"if_octets", 2, octets_dsrc
-};
-
-static data_source_t load_dsrc[3] =
-{
-	{"shortterm", DS_TYPE_GAUGE, 0.0, 100.0},
-	{"midterm",   DS_TYPE_GAUGE, 0.0, 100.0},
-	{"longterm",  DS_TYPE_GAUGE, 0.0, 100.0}
-};
-
-static data_set_t load_ds =
-{
-	"load", 3, load_dsrc
-};
-
-static data_source_t threads_dsrc[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0.0, 65535.0}
-};
-
-static data_set_t threads_ds =
-{
-	"vs_threads", 1, threads_dsrc
-};
-
-static data_source_t processes_dsrc[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0.0, 65535.0}
-};
-
-static data_set_t processes_ds =
-{
-	"vs_processes", 1, processes_dsrc
-};
-
-static data_source_t memory_dsrc[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0.0, 9223372036854775807.0}
-};
-
-static data_set_t memory_ds =
-{
-	"vs_memory", 1, memory_dsrc
-};
-
 #if VSERVER_HAVE_READ
 static int pagesize = 0;
 
@@ -362,23 +309,11 @@ static int vserver_read (void)
 } /* int vserver_read */
 #endif /* VSERVER_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&octets_ds);
-		plugin_register_data_set (&load_ds);
-		plugin_register_data_set (&threads_ds);
-		plugin_register_data_set (&processes_ds);
-		plugin_register_data_set (&memory_ds);
-	}
-
 #if VSERVER_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("vserver", vserver_init);
-		plugin_register_read ("vserver", vserver_read);
-	}
+	plugin_register_init ("vserver", vserver_init);
+	plugin_register_read ("vserver", vserver_read);
 #endif /* VSERVER_HAVE_READ */
 } /* void module_register(void) */
 

@@ -47,22 +47,6 @@
  * them Although other collectd models don't seem to care much for options
  * eitherway for what to log
  */
-/* Limit to ~125MByte/s (~1GBit/s) */
-static data_source_t dsrc[1] =
-{
-	{"value",  DS_TYPE_COUNTER, 0.0, 134217728.0}
-};
-
-static data_set_t ipt_bytes_ds =
-{
-	"ipt_bytes", 1, dsrc
-};
-
-static data_set_t ipt_packets_ds =
-{
-	"ipt_packets", 1, dsrc
-};
-
 #if IPTABLES_HAVE_READ
 /*
  * Config format should be `Chain table chainname',
@@ -358,22 +342,13 @@ static int iptables_shutdown (void)
 } /* int iptables_shutdown */
 #endif /* IPTABLES_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-    if (load & MR_DATASETS)
-    {
-	plugin_register_data_set (&ipt_bytes_ds);
-	plugin_register_data_set (&ipt_packets_ds);
-    }
-
 #if IPTABLES_HAVE_READ
-    if (load & MR_READ)
-    {
-	plugin_register_config ("iptables", iptables_config,
-		config_keys, config_keys_num);
-	plugin_register_read ("iptables", iptables_read);
-	plugin_register_shutdown ("iptables", iptables_shutdown);
-    }
+    plugin_register_config ("iptables", iptables_config,
+	    config_keys, config_keys_num);
+    plugin_register_read ("iptables", iptables_read);
+    plugin_register_shutdown ("iptables", iptables_shutdown);
 #endif
 } /* void module_register */
 

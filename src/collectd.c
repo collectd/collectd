@@ -25,6 +25,7 @@
 
 #include "plugin.h"
 #include "configfile.h"
+#include "types_list.h"
 
 /*
  * Global variables
@@ -213,6 +214,7 @@ static int do_init (void)
 	}
 #endif
 
+	read_types_list ();
 	plugin_init_all ();
 
 	return (0);

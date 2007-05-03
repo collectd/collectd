@@ -31,31 +31,6 @@
 
 #define WIRELESS_PROC_FILE "/proc/net/wireless"
 
-static data_source_t data_source_quality[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t quality_ds =
-{
-	"signal_quality", 1, data_source_quality
-};
-
-static data_source_t data_source_signal[1] =
-{
-	{"value", DS_TYPE_GAUGE, NAN, 0}
-};
-
-static data_set_t power_ds =
-{
-	"signal_power", 1, data_source_signal
-};
-
-static data_set_t noise_ds =
-{
-	"signal_noise", 1, data_source_signal
-};
-
 #if WIRELESS_HAVE_READ
 #if 0
 static double wireless_dbm_to_watt (double dbm)
@@ -167,17 +142,9 @@ static int wireless_read (void)
 } /* int wireless_read */
 #endif /* WIRELESS_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&quality_ds);
-		plugin_register_data_set (&power_ds);
-		plugin_register_data_set (&noise_ds);
-	}
-
 #if WIRELESS_HAVE_READ
-	if (load & MR_READ)
-		plugin_register_read ("wireless", wireless_read);
+	plugin_register_read ("wireless", wireless_read);
 #endif /* WIRELESS_HAVE_READ */
 } /* void module_register */

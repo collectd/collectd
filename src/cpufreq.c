@@ -32,16 +32,6 @@
 # define CPUFREQ_HAVE_READ 0
 #endif
 
-static data_source_t data_source[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t data_set =
-{
-	"cpufreq", 1, data_source
-};
-
 #if CPUFREQ_HAVE_READ
 #ifdef KERNEL_LINUX
 static int num_cpu = 0;
@@ -155,16 +145,10 @@ static int cpufreq_read (void)
 #endif /* CPUFREQ_HAVE_READ */
 #undef BUFSIZE
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&data_set);
-
 #if CPUFREQ_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("cpufreq", cpufreq_init);
-		plugin_register_read ("cpufreq", cpufreq_read);
-	}
+	plugin_register_init ("cpufreq", cpufreq_init);
+	plugin_register_read ("cpufreq", cpufreq_read);
 #endif /* CPUFREQ_HAVE_READ */
 }

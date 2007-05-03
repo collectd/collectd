@@ -41,18 +41,6 @@
 #endif
 #endif /* defined(HAVE_GETLOADAVG) */
 
-static data_source_t dsrc[3] =
-{
-	{"shortterm", DS_TYPE_GAUGE, 0.0, 100.0},
-	{"midterm",   DS_TYPE_GAUGE, 0.0, 100.0},
-	{"longterm",  DS_TYPE_GAUGE, 0.0, 100.0}
-};
-
-static data_set_t ds =
-{
-	"load", 3, dsrc
-};
-
 #if LOAD_HAVE_READ
 static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
@@ -149,13 +137,9 @@ static int load_read (void)
 }
 #endif /* LOAD_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds);
-
 #if LOAD_HAVE_READ
-	if (load & MR_READ)
-		plugin_register_read ("load", load_read);
+	plugin_register_read ("load", load_read);
 #endif
 } /* void module_register */

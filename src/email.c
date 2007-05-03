@@ -137,36 +137,6 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static data_source_t gauge_dsrc[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0.0, NAN}
-};
-
-static data_set_t email_count_ds =
-{
-	"email_count", 1, gauge_dsrc
-};
-
-static data_set_t email_size_ds =
-{
-	"email_size", 1, gauge_dsrc
-};
-
-static data_set_t spam_check_ds =
-{
-	"spam_check", 1, gauge_dsrc
-};
-
-static data_source_t spam_score_dsrc[1] =
-{
-	{"score", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t spam_score_ds =
-{
-	"spam_score", 1, spam_score_dsrc
-};
-
 /* socket configuration */
 static char *sock_group = COLLECTD_GRP_NAME;
 static int  sock_perms  = S_IRWXU | S_IRWXG;
@@ -891,22 +861,11 @@ static int email_read (void)
 	return (0);
 } /* int email_read */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&email_count_ds);
-		plugin_register_data_set (&email_size_ds);
-		plugin_register_data_set (&spam_check_ds);
-		plugin_register_data_set (&spam_score_ds);
-	}
-
-	if (load & MR_READ)
-	{
-		plugin_register_config ("email", email_config, config_keys, config_keys_num);
-		plugin_register_init ("email", email_init);
-		plugin_register_read ("email", email_read);
-	}
+	plugin_register_config ("email", email_config, config_keys, config_keys_num);
+	plugin_register_init ("email", email_init);
+	plugin_register_read ("email", email_read);
 	plugin_register_shutdown ("email", email_shutdown);
 } /* void module_register */
 

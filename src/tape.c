@@ -30,52 +30,6 @@
 # define TAPE_HAVE_READ 0
 #endif
 
-/* 2^34 = 17179869184 = ~17.2GByte/s */
-static data_source_t octets_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 17179869183.0},
-	{"write", DS_TYPE_COUNTER, 0, 17179869183.0}
-};
-
-static data_set_t octets_ds =
-{
-	"tape_octets", 2, octets_dsrc
-};
-
-static data_source_t operations_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"write", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t operations_ds =
-{
-	"tape_ops", 2, operations_dsrc
-};
-
-static data_source_t merged_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"write", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t merged_ds =
-{
-	"tape_merged", 2, merged_dsrc
-};
-
-/* max is 1000000us per second. */
-static data_source_t time_dsrc[2] =
-{
-	{"read",  DS_TYPE_COUNTER, 0, 1000000.0},
-	{"write", DS_TYPE_COUNTER, 0, 1000000.0}
-};
-
-static data_set_t time_ds =
-{
-	"tape_time", 2, time_dsrc
-};
-
 #if TAPE_HAVE_READ
 #if defined(HAVE_LIBKSTAT)
 #define MAX_NUMTAPE 256
@@ -182,21 +136,10 @@ static int tape_read (void)
 }
 #endif /* TAPE_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&octets_ds);
-		plugin_register_data_set (&operations_ds);
-		plugin_register_data_set (&merged_ds);
-		plugin_register_data_set (&time_ds);
-	}
-
 #if TAPE_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("tape", tape_init);
-		plugin_register_read ("tape", tape_read);
-	}
+	plugin_register_init ("tape", tape_init);
+	plugin_register_read ("tape", tape_read);
 #endif /* TAPE_HAVE_READ */
 }

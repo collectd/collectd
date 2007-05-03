@@ -46,15 +46,6 @@
 /*
  * Public data types
  */
-enum modreg
-{
-	MR_EVERYTHING = 7,
-	MR_DATASETS   = 1,
-	MR_READ       = 2,
-	MR_WRITE      = 4
-};
-typedef enum modreg modreg_e;
-
 typedef unsigned long long counter_t;
 typedef double gauge_t;
 
@@ -138,7 +129,7 @@ void plugin_set_dir (const char *dir);
  * NOTES
  *  No attempt is made to re-load an already loaded module.
  */
-int plugin_load (const char *name, modreg_e mr);
+int plugin_load (const char *name);
 
 void plugin_init_all (void);
 void plugin_read_all (const int *loop);

@@ -45,16 +45,6 @@
 #undef  MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
-static data_source_t data_source[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0, 1099511627776.0}
-};
-
-static data_set_t data_set =
-{
-	"swap", 1, data_source
-};
-
 #if SWAP_HAVE_READ
 #if KERNEL_LINUX
 /* No global variables */
@@ -312,16 +302,10 @@ static int swap_read (void)
 } /* int swap_read */
 #endif /* SWAP_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&data_set);
-
 #if SWAP_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("swap", swap_init);
-		plugin_register_read ("swap", swap_read);
-	}
+	plugin_register_init ("swap", swap_init);
+	plugin_register_read ("swap", swap_read);
 #endif /* SWAP_HAVE_READ */
 } /* void module_register */

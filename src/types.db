@@ -1,0 +1,66 @@
+apache_bytes		count:COUNTER:0:134217728
+apache_connections	count:GAUGE:0:65535
+apache_requests		count:COUNTER:0:134217728
+apache_scoreboard	count:GAUGE:0:65535
+charge			value:GAUGE:0:U
+counter			value:COUNTER:U:U
+cpu			value:COUNTER:0:4294967295
+cpufreq			value:GAUGE:0:U
+current			value:GAUGE:U:U
+delay			seconds:GAUGE:-1000000:1000000
+df			free:GAUGE:0:1125899906842623, used:GAUGE:0:1125899906842623
+disk_merged		read:COUNTER:0:4294967295, write:COUNTER:0:4294967295
+disk_octets		read:COUNTER:0:17179869183, write:COUNTER:0:17179869183
+disk_ops		read:COUNTER:0:4294967295, write:COUNTER:0:4294967295
+disk_time		read:COUNTER:0:1000000, write:COUNTER:0:1000000
+dns_octets		queries:COUNTER:0:125000000, responses:COUNTER:0:125000000
+dns_opcode		value:COUNTER:0:65535
+dns_qtype		value:COUNTER:0:65535
+dns_rcode		value:COUNTER:0:65535
+email_check		value:GAUGE:0:U
+email_count		value:GAUGE:0:U
+email_size		value:GAUGE:0:U
+entropy			entropy:GAUGE:0:4294967295
+fanspeed		value:GAUGE:0:U
+frequency		frequency:GAUGE:0:U
+frequency_offset	ppm:GAUGE:-1000000:1000000
+gauge			value:GAUGE:U:U
+humitidy		value:GAUGE:0:100
+if_errors		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+if_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+if_packets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+ipt_bytes		value:COUNTER:0:134217728
+ipt_packets		value:COUNTER:0:134217728
+irq			value:COUNTER:U:65535
+load			shortterm:GAUGE:0:100, midterm:GAUGE:0:100, longterm:GAUGE:0:100
+memory			value:GAUGE:0:281474976710656
+multimeter		value:GAUGE:U:U
+mysql_commands		value:COUNTER:0:U
+mysql_handler		value:COUNTER:0:U
+mysql_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
+mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U
+nfs_procedure		value:COUNTER:0:4294967295
+percent			percent:GAUGE:0:100.1
+ping			ping:GAUGE:0:65535
+power			value:GAUGE:0:U
+ps_count		processes:GAUGE:0:1000000, threads:GAUGE:0:1000000
+ps_cputime		user:COUNTER:0:1000000, syst:COUNTER:0:1000000
+ps_pagefaults		minflt:COUNTER:0:9223372036854775807, majflt:COUNTER:0:9223372036854775807
+ps_rss			value:GAUGE:0:9223372036854775807
+ps_state		value:GAUGE:0:65535
+spam_score		value:GAUGE:U:U
+temperature		value:GAUGE:-273.15:U
+time_dispersion		seconds:GAUGE:-1000000:1000000
+time_offset		seconds:GAUGE:-1000000:1000000
+timeleft		timeleft:GAUGE:0:3600
+voltage			value:GAUGE:U:U
+serial_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+swap			value:GAUGE:0:1099511627776
+users			users:GAUGE:0:65535
+vs_threads		value:GAUGE:0:65535
+vs_processes		value:GAUGE:0:65535
+vs_memory		value:GAUGE:0:9223372036854775807
+signal_quality		value:GAUGE:0:U
+signal_power		value:GAUGE:U:0
+signal_noise		value:GAUGE:U:0

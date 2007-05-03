@@ -92,63 +92,6 @@
 
 #define BUFSIZE 256
 
-static data_source_t state_dsrc[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0.0, 65535.0}
-};
-
-static data_set_t state_ds =
-{
-	"ps_state", 1, state_dsrc
-};
-
-static data_source_t rss_dsrc[1] =
-{
-	/* max = 2^63 - 1 */
-	{"value", DS_TYPE_GAUGE, 0.0, 9223372036854775807.0}
-};
-
-static data_set_t rss_ds =
-{
-	"ps_rss", 1, rss_dsrc
-};
-
-static data_source_t time_dsrc[2] =
-{
-	/* 1 second in user-mode per second ought to be enough.. */
-	{"user", DS_TYPE_COUNTER, 0.0, 1000000.0},
-	{"syst", DS_TYPE_COUNTER, 0.0, 1000000.0}
-};
-
-static data_set_t time_ds =
-{
-	"ps_cputime", 2, time_dsrc
-};
-
-static data_source_t count_dsrc[2] =
-{
-	/* 1 second in user-mode per second ought to be enough.. */
-	{"processes", DS_TYPE_GAUGE, 0.0, 1000000.0},
-	{"threads",   DS_TYPE_GAUGE, 0.0, 1000000.0}
-};
-
-static data_set_t count_ds =
-{
-	"ps_count", 2, count_dsrc
-};
-
-static data_source_t pagefaults_dsrc[2] =
-{
-	/* max = 2^63 - 1 */
-	{"minflt", DS_TYPE_COUNTER, 0.0, 9223372036854775807.0},
-	{"majflt", DS_TYPE_COUNTER, 0.0, 9223372036854775807.0}
-};
-
-static data_set_t pagefaults_ds =
-{
-	"ps_pagefaults", 2, pagefaults_dsrc
-};
-
 #if PROCESSES_HAVE_READ
 #if HAVE_THREAD_INFO | KERNEL_LINUX
 static const char *config_keys[] =
@@ -1075,26 +1018,14 @@ static int ps_read (void)
 } /* int ps_read */
 #endif /* PROCESSES_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&state_ds);
-		plugin_register_data_set (&rss_ds);
-		plugin_register_data_set (&time_ds);
-		plugin_register_data_set (&count_ds);
-		plugin_register_data_set (&pagefaults_ds);
-	}
-
 #if PROCESSES_HAVE_READ
-	if (load & MR_READ)
-	{
 #if HAVE_THREAD_INFO | KERNEL_LINUX
-		plugin_register_config ("processes", ps_config,
-				config_keys, config_keys_num);
+	plugin_register_config ("processes", ps_config,
+			config_keys, config_keys_num);
 #endif
-		plugin_register_init ("processes", ps_init);
-		plugin_register_read ("processes", ps_read);
-	}
+	plugin_register_init ("processes", ps_init);
+	plugin_register_read ("processes", ps_read);
 #endif /* PROCESSES_HAVE_READ */
 } /* void module_register */

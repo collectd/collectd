@@ -265,12 +265,9 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 	return (0);
 } /* int csv_write */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_WRITE)
-	{
-		plugin_register_config ("csv", csv_config,
-				config_keys, config_keys_num);
-		plugin_register_write ("csv", csv_write);
-	}
+	plugin_register_config ("csv", csv_config,
+			config_keys, config_keys_num);
+	plugin_register_write ("csv", csv_write);
 } /* void module_register */
