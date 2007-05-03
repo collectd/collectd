@@ -46,18 +46,6 @@
 # define BLOCKSIZE(s) (s).f_bsize
 #endif
 
-/* 2^50 - 1 == 1125899906842623 = 1 Petabyte */
-static data_source_t dsrc[2] =
-{
-	{"free", DS_TYPE_GAUGE, 0, 1125899906842623.0},
-	{"used", DS_TYPE_GAUGE, 0, 1125899906842623.0}
-};
-
-static data_set_t ds =
-{
-	"df", 2, dsrc
-};
-
 #if DF_HAVE_READ
 static const char *config_keys[] =
 {
@@ -223,18 +211,12 @@ static int df_read (void)
 } /* int df_read */
 #endif /* DF_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds);
-
 #if DF_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("df", df_config,
-				config_keys, config_keys_num);
-		plugin_register_init ("df", df_init);
-		plugin_register_read ("df", df_read);
-	}
+	plugin_register_config ("df", df_config,
+			config_keys, config_keys_num);
+	plugin_register_init ("df", df_init);
+	plugin_register_read ("df", df_read);
 #endif
 } /* void module_register */

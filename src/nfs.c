@@ -76,16 +76,6 @@ Number      Procedures  Procedures
 21                      commit
 */
 
-static data_source_t procedure_dsrc[1] =
-{
-	{"value", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t procedure_ds =
-{
-	"nfs_procedure", 1, procedure_dsrc
-};
-
 #if NFS_HAVE_READ
 static const char *nfs2_procedures_names[] =
 {
@@ -378,13 +368,9 @@ static int nfs_read (void)
 }
 #endif /* NFS_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&procedure_ds);
-
 #if NFS_HAVE_READ
-	if (load & MR_READ)
-		plugin_register_read ("nfs", nfs_read);
+	plugin_register_read ("nfs", nfs_read);
 #endif
 } /* void module_register */

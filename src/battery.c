@@ -56,36 +56,6 @@
 
 #define INVALID_VALUE 47841.29
 
-static data_source_t data_source_charge[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t charge_ds =
-{
-	"charge", 1, data_source_charge
-};
-
-static data_source_t data_source_current[1] =
-{
-	{"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t current_ds =
-{
-	"current", 1, data_source_current
-};
-
-static data_source_t data_source_voltage[1] =
-{
-	{"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t voltage_ds =
-{
-	"voltage", 1, data_source_voltage
-};
-
 #if BATTERY_HAVE_READ
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	/* No global variables */
@@ -555,20 +525,10 @@ static int battery_read (void)
 }
 #endif /* BATTERY_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&charge_ds);
-		plugin_register_data_set (&current_ds);
-		plugin_register_data_set (&voltage_ds);
-	}
-
 #if BATTERY_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("battery", battery_init);
-		plugin_register_read ("battery", battery_read);
-	}
+	plugin_register_init ("battery", battery_init);
+	plugin_register_read ("battery", battery_read);
 #endif /* BATTERY_HAVE_READ */
 } /* void module_register */

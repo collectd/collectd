@@ -31,17 +31,6 @@
 # define SERIAL_HAVE_READ 0
 #endif
 
-static data_source_t octets_dsrc[2] =
-{
-	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t octets_ds =
-{
-	"serial_octets", 2, octets_dsrc
-};
-
 #if SERIAL_HAVE_READ
 static void serial_submit (const char *type_instance,
 		counter_t rx, counter_t tx)
@@ -136,13 +125,9 @@ static int serial_read (void)
 } /* int serial_read */
 #endif /* SERIAL_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&octets_ds);
-
 #if SERIAL_HAVE_READ
-	if (load & MR_READ)
-		plugin_register_read ("serial", serial_read);
+	plugin_register_read ("serial", serial_read);
 #endif /* SERIAL_HAVE_READ */
 } /* void module_register */

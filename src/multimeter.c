@@ -36,16 +36,6 @@
 # error "multimeter cannot read!"
 #endif
 
-static data_source_t data_source[1] =
-{
-	{"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t data_set =
-{
-	"multimeter", 1, data_source
-};
-
 #if MULTIMETER_HAVE_READ
 static int fd = -1;
 
@@ -260,17 +250,11 @@ static int multimeter_shutdown (void)
 }
 #endif /* MULTIMETER_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&data_set);
-
 #if MULTIMETER_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("multimeter", multimeter_init);
-		plugin_register_read ("multimeter", multimeter_read);
-		plugin_register_shutdown ("multimeter", multimeter_shutdown);
-	}
+	plugin_register_init ("multimeter", multimeter_init);
+	plugin_register_read ("multimeter", multimeter_read);
+	plugin_register_shutdown ("multimeter", multimeter_shutdown);
 #endif /* MULTIMETER_HAVE_READ */
 } /* void module_register */

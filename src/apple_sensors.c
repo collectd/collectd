@@ -59,26 +59,6 @@
 static mach_port_t io_master_port = MACH_PORT_NULL;
 #endif
 
-static data_source_t data_source_fanspeed[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t fanspeed_ds =
-{
-	"fanspeed", 1, data_source_fanspeed
-};
-
-static data_source_t data_source_temperature[1] =
-{
-	{"value", DS_TYPE_GAUGE, -273.15, NAN}
-};
-
-static data_set_t temperature_ds =
-{
-	"temperature", 1, data_source_temperature
-};
-
 #if IOKIT_HAVE_READ
 static int as_init (void)
 {
@@ -262,14 +242,8 @@ static int as_read (void)
 } /* int as_read */
 #endif /* IOKIT_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&fanspeed_ds);
-		plugin_register_data_set (&temperature_ds);
-	}
-
 #if IOKIT_HAVE_READ
 	if (load & MR_READ)
 	{

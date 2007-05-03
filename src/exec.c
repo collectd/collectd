@@ -45,26 +45,6 @@ struct program_list_s
 /*
  * Private variables
  */
-static data_source_t dsrc_counter[1] =
-{
-  {"value", DS_TYPE_COUNTER, NAN, NAN}
-};
-
-static data_set_t ds_counter =
-{
-  "counter", STATIC_ARRAY_SIZE (dsrc_counter), dsrc_counter
-};
-
-static data_source_t dsrc_gauge[1] =
-{
-  {"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t ds_gauge =
-{
-  "gauge", STATIC_ARRAY_SIZE (dsrc_gauge), dsrc_gauge
-};
-
 static const char *config_keys[] =
 {
   "Exec"
@@ -384,20 +364,11 @@ static int exec_shutdown (void)
   return (0);
 } /* int exec_shutdown */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-  if (load & MR_DATASETS)
-  {
-    plugin_register_data_set (&ds_counter);
-    plugin_register_data_set (&ds_gauge);
-  }
-
-  if (load & MR_READ)
-  {
-    plugin_register_config ("exec", exec_config, config_keys, config_keys_num);
-    plugin_register_read ("exec", exec_read);
-    plugin_register_shutdown ("exec", exec_shutdown);
-  }
+  plugin_register_config ("exec", exec_config, config_keys, config_keys_num);
+  plugin_register_read ("exec", exec_read);
+  plugin_register_shutdown ("exec", exec_shutdown);
 } /* void module_register */
 
 /*

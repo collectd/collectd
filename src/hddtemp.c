@@ -50,16 +50,6 @@
 #define HDDTEMP_DEF_HOST "127.0.0.1"
 #define HDDTEMP_DEF_PORT "7634"
 
-static data_source_t data_source_temperature[1] =
-{
-	{"value", DS_TYPE_GAUGE, -273.15, NAN}
-};
-
-static data_set_t temperature_ds =
-{
-	"temperature", 1, data_source_temperature
-};
-
 #if HDDTEMP_HAVE_READ
 static const char *config_keys[] =
 {
@@ -514,18 +504,12 @@ static int hddtemp_read (void)
 
 /* module_register
    Register collectd plugin. */
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&temperature_ds);
-	
 #if HDDTEMP_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("hddtemp", hddtemp_config,
-				config_keys, config_keys_num);
-		plugin_register_init ("hddtemp", hddtemp_init);
-		plugin_register_read ("hddtemp", hddtemp_read);
-	}
+	plugin_register_config ("hddtemp", hddtemp_config,
+			config_keys, config_keys_num);
+	plugin_register_init ("hddtemp", hddtemp_init);
+	plugin_register_read ("hddtemp", hddtemp_read);
 #endif /* HDDTEMP_HAVE_READ */
 }

@@ -36,16 +36,6 @@
 /*
  * (Module-)Global variables
  */
-static data_source_t dsrc_irq[1] =
-{
-	{"value", DS_TYPE_COUNTER, 0, 65535.0}
-};
-
-static data_set_t ds_irq =
-{
-	"irq", 1, dsrc_irq
-};
-
 #if IRQ_HAVE_READ
 static const char *config_keys[] =
 {
@@ -214,18 +204,12 @@ static int irq_read (void)
 } /* int irq_read */
 #endif /* IRQ_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds_irq);
-
 #if IRQ_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("irq", irq_config,
-				config_keys, config_keys_num);
-		plugin_register_read ("irq", irq_read);
-	}
+	plugin_register_config ("irq", irq_config,
+			config_keys, config_keys_num);
+	plugin_register_read ("irq", irq_read);
 #endif /* IRQ_HAVE_READ */
 } /* void module_register */
 

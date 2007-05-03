@@ -36,59 +36,6 @@
 
 /* TODO: Understand `Select_*' and possibly do that stuff as well.. */
 
-static data_source_t data_source_counter[1] =
-{
-	{"value", DS_TYPE_COUNTER, 0, NAN}
-};
-
-static data_set_t ds_commands =
-{
-	"mysql_commands", 1, data_source_counter
-};
-
-static data_set_t ds_handler =
-{
-	"mysql_handler", 1, data_source_counter
-};
-
-static data_source_t data_source_qcache[5] =
-{
-	{"hits",             DS_TYPE_COUNTER, 0, NAN},
-	{"inserts",          DS_TYPE_COUNTER, 0, NAN},
-	{"not_cached",       DS_TYPE_COUNTER, 0, NAN},
-	{"lowmem_prunes",    DS_TYPE_COUNTER, 0, NAN},
-	{"queries_in_cache", DS_TYPE_GAUGE,   0, NAN}
-};
-
-static data_set_t ds_qcache =
-{
-	"mysql_qcache", 5, data_source_qcache
-};
-
-static data_source_t data_source_threads[4] =
-{
-	{"running",   DS_TYPE_GAUGE,   0, NAN},
-	{"connected", DS_TYPE_GAUGE,   0, NAN},
-	{"cached",    DS_TYPE_GAUGE,   0, NAN},
-	{"created",   DS_TYPE_COUNTER, 0, NAN}
-};
-
-static data_set_t ds_threads =
-{
-	"mysql_threads", 4, data_source_threads
-};
-
-static data_source_t data_source_octets[2] =
-{
-	{"rx", DS_TYPE_COUNTER, 0, 4294967295.0},
-	{"tx", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t ds_octets =
-{
-	"mysql_octets", 2, data_source_octets
-};
-
 #if MYSQL_HAVE_READ
 static const char *config_keys[] =
 {
@@ -377,22 +324,10 @@ static int mysql_read (void)
 } /* int mysql_read */
 #endif /* MYSQL_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&ds_commands);
-		plugin_register_data_set (&ds_handler);
-		plugin_register_data_set (&ds_qcache);
-		plugin_register_data_set (&ds_threads);
-		plugin_register_data_set (&ds_octets);
-	}
-
 #if MYSQL_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("mysql", config, config_keys, config_keys_num);
-		plugin_register_read ("mysql", mysql_read);
-	}
+	plugin_register_config ("mysql", config, config_keys, config_keys_num);
+	plugin_register_read ("mysql", mysql_read);
 #endif /* MYSQL_HAVE_READ */
 } /* void module_register */

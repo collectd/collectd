@@ -857,7 +857,7 @@ static int us_write (const data_set_t *ds, const value_list_t *vl)
 	return (0);
 }
 
-void module_register (modreg_e load)
+void module_register (void)
 {
 	plugin_register_config ("unixsock", us_config,
 			config_keys, config_keys_num);

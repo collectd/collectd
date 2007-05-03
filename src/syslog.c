@@ -86,7 +86,7 @@ static int sl_shutdown (void)
 	return (0);
 }
 
-void module_register (modreg_e load)
+void module_register (void)
 {
 	plugin_register_config ("syslog", sl_config, config_keys, config_keys_num);
 	plugin_register_init ("syslog", sl_init);

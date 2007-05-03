@@ -52,36 +52,6 @@
 # include <poll.h>
 #endif
 
-static data_source_t seconds_dsrc[1] =
-{
-	{"seconds", DS_TYPE_GAUGE, -1000000.0, 1000000.0}
-};
-
-static data_set_t time_offset_ds =
-{
-	"time_offset", 1, seconds_dsrc
-};
-
-static data_set_t time_dispersion_ds =
-{
-	"time_dispersion", 1, seconds_dsrc
-};
-
-static data_set_t delay_ds =
-{
-	"delay", 1, seconds_dsrc
-};
-
-static data_source_t ppm_dsrc[1] =
-{
-	{"ppm", DS_TYPE_GAUGE, -1000000.0, 1000000.0}
-};
-
-static data_set_t frequency_offset_ds =
-{
-	"frequency_offset", 1, ppm_dsrc
-};
-
 static const char *config_keys[] =
 {
 	"Host",
@@ -960,22 +930,11 @@ static int ntpd_read (void)
 } /* int ntpd_read */
 #endif /* NTPD_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&time_offset_ds);
-		plugin_register_data_set (&time_dispersion_ds);
-		plugin_register_data_set (&delay_ds);
-		plugin_register_data_set (&frequency_offset_ds);
-	}
-
 #if NTPD_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("ntpd", ntpd_config,
-				config_keys, config_keys_num);
-		plugin_register_read ("ntpd", ntpd_read);
-	}
+	plugin_register_config ("ntpd", ntpd_config,
+			config_keys, config_keys_num);
+	plugin_register_read ("ntpd", ntpd_read);
 #endif /* NTPD_HAVE_READ */
 } /* void module_register */

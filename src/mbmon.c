@@ -39,36 +39,6 @@
 #define MBMON_DEF_HOST "127.0.0.1"
 #define MBMON_DEF_PORT "411" /* the default for Debian */
 
-static data_source_t data_source_fanspeed[1] =
-{
-	{"value", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t fanspeed_ds =
-{
-	"fanspeed", 1, data_source_fanspeed
-};
-
-static data_source_t data_source_temperature[1] =
-{
-	{"value", DS_TYPE_GAUGE, -273.15, NAN}
-};
-
-static data_set_t temperature_ds =
-{
-	"temperature", 1, data_source_temperature
-};
-
-static data_source_t data_source_voltage[1] =
-{
-	{"voltage", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t voltage_ds =
-{
-	"voltage", 1, data_source_voltage
-};
-
 static const char *config_keys[] =
 {
 	"Host",
@@ -339,20 +309,10 @@ static int mbmon_read (void)
 
 /* module_register
    Register collectd plugin. */
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&fanspeed_ds);
-		plugin_register_data_set (&temperature_ds);
-		plugin_register_data_set (&voltage_ds);
-	}
-
 #if MBMON_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("mbmon", mbmon_config, config_keys, config_keys_num);
-		plugin_register_read ("mbmon", mbmon_read);
-	}
+	plugin_register_config ("mbmon", mbmon_config, config_keys, config_keys_num);
+	plugin_register_read ("mbmon", mbmon_read);
 #endif /* MBMON_HAVE_READ */
 } /* void module_register */

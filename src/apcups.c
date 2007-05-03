@@ -78,59 +78,6 @@ static int   conf_port = NISPORT;
 
 static int global_sockfd = -1;
 
-/* 
- * The following are only if not compiled to test the module with its own main.
-*/
-static data_source_t data_source_voltage[1] =
-{
-	{"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t ds_voltage =
-{
-	"voltage", 1, data_source_voltage
-};
-
-static data_source_t data_source_percent[1] =
-{
-	{"percent", DS_TYPE_GAUGE, 0, 100.1}
-};
-
-static data_set_t ds_percent =
-{
-	"percent", 1, data_source_percent
-};
-
-static data_source_t data_source_timeleft[1] =
-{
-	{"timeleft", DS_TYPE_GAUGE, 0, 100.0}
-};
-
-static data_set_t ds_timeleft =
-{
-	"timeleft", 1, data_source_timeleft
-};
-
-static data_source_t data_source_temperature[1] =
-{
-	{"value", DS_TYPE_GAUGE, -273.15, NAN}
-};
-
-static data_set_t ds_temperature =
-{
-	"temperature", 1, data_source_temperature
-};
-
-static data_source_t data_source_frequency[1] =
-{
-	{"frequency", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t ds_frequency =
-{
-	"frequency", 1, data_source_frequency
-};
-
 static const char *config_keys[] =
 {
 	"Host",
@@ -488,22 +435,10 @@ static int apcups_read (void)
 	return (0);
 } /* apcups_read */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&ds_voltage);
-		plugin_register_data_set (&ds_percent);
-		plugin_register_data_set (&ds_timeleft);
-		plugin_register_data_set (&ds_temperature);
-		plugin_register_data_set (&ds_frequency);
-	}
-
-	if (load & MR_READ)
-	{
-		plugin_register_config ("apcups", apcups_config, config_keys,
-				config_keys_num);
-		plugin_register_read ("apcups", apcups_read);
-		plugin_register_shutdown ("apcups", apcups_shutdown);
-	}
+	plugin_register_config ("apcups", apcups_config, config_keys,
+			config_keys_num);
+	plugin_register_read ("apcups", apcups_read);
+	plugin_register_shutdown ("apcups", apcups_shutdown);
 } /* void module_register */

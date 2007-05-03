@@ -49,17 +49,6 @@
 # define MEMORY_HAVE_READ 0
 #endif
 
-/* 2^48 = 281474976710656 */
-static data_source_t dsrc[4] =
-{
-	{"value",  DS_TYPE_GAUGE, 0, 281474976710656.0}
-};
-
-static data_set_t ds =
-{
-	"memory", 1, dsrc
-};
-
 /* vm_statistics_data_t */
 #if defined(HOST_VM_INFO)
 static mach_port_t port_host;
@@ -336,16 +325,10 @@ static int memory_read (void)
 }
 #endif /* MEMORY_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds);
-
 #if MEMORY_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("memory", memory_init);
-		plugin_register_read ("memory", memory_read);
-	}
+	plugin_register_init ("memory", memory_init);
+	plugin_register_read ("memory", memory_read);
 #endif /* MEMORY_HAVE_READ */
 } /* void module_register */

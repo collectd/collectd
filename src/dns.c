@@ -50,37 +50,6 @@ typedef struct counter_list_s counter_list_t;
 /*
  * Private variables
  */
-static data_source_t octets_dsrc[2] =
-{
-	{"queries",   DS_TYPE_COUNTER, 0, 125000000.0},
-	{"responses", DS_TYPE_COUNTER, 0, 125000000.0}
-};
-
-static data_set_t octets_ds =
-{
-	"dns_octets", 2, octets_dsrc
-};
-
-static data_source_t counter_dsrc[1] =
-{
-	{"value", DS_TYPE_COUNTER, 0, 65535.0}
-};
-
-static data_set_t qtype_ds =
-{
-	"dns_qtype", 1, counter_dsrc
-};
-
-static data_set_t opcode_ds =
-{
-	"dns_opcode", 1, counter_dsrc
-};
-
-static data_set_t rcode_ds =
-{
-	"dns_rcode", 1, counter_dsrc
-};
-
 #if DNS_HAVE_READ
 static const char *config_keys[] =
 {
@@ -433,22 +402,11 @@ static int dns_read (void)
 } /* int dns_read */
 #endif
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&octets_ds);
-		plugin_register_data_set (&qtype_ds);
-		plugin_register_data_set (&opcode_ds);
-		plugin_register_data_set (&rcode_ds);
-	}
-
 #if DNS_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("dns", dns_config, config_keys, config_keys_num);
-		plugin_register_init ("dns", dns_init);
-		plugin_register_read ("dns", dns_read);
-	}
+	plugin_register_config ("dns", dns_config, config_keys, config_keys_num);
+	plugin_register_init ("dns", dns_init);
+	plugin_register_read ("dns", dns_read);
 #endif
 } /* void module_register */

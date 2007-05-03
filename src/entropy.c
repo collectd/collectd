@@ -31,16 +31,6 @@
 
 #define ENTROPY_FILE "/proc/sys/kernel/random/entropy_avail"
 
-static data_source_t dsrc[1] =
-{
-	{"entropy",  DS_TYPE_GAUGE, 0.0, 4294967295.0}
-};
-
-static data_set_t ds =
-{
-	"entropy", 1, dsrc
-};
-
 #if ENTROPY_HAVE_READ
 static void entropy_submit (double entropy)
 {
@@ -88,13 +78,9 @@ static int entropy_read (void)
 }
 #endif /* ENTROPY_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds);
-
 #if ENTROPY_HAVE_READ
-	if (load & MR_READ)
-		plugin_register_read ("entropy", entropy_read);
+	plugin_register_read ("entropy", entropy_read);
 #endif
 } /* void module_register */

@@ -59,7 +59,6 @@ typedef struct cf_global_option_s
  * Prototypes of callback functions
  */
 static int dispatch_value_plugindir (const oconfig_item_t *ci);
-static int dispatch_value_loadds (const oconfig_item_t *ci);
 static int dispatch_value_loadplugin (const oconfig_item_t *ci);
 
 /*
@@ -70,8 +69,7 @@ static cf_callback_t *first_callback = NULL;
 static cf_value_map_t cf_value_map[] =
 {
 	{"PluginDir",  dispatch_value_plugindir},
-	{"LoadPlugin", dispatch_value_loadplugin},
-	{"LoadDS", dispatch_value_loadds}
+	{"LoadPlugin", dispatch_value_loadplugin}
 };
 static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
 
@@ -184,18 +182,6 @@ static int dispatch_value_plugindir (const oconfig_item_t *ci)
 	return (0);
 }
 
-static int dispatch_value_loadds (const oconfig_item_t *ci)
-{
-	assert (strcasecmp (ci->key, "LoadDS") == 0);
-
-	if (ci->values_num != 1)
-		return (-1);
-	if (ci->values[0].type != OCONFIG_TYPE_STRING)
-		return (-1);
-
-	return (plugin_load (ci->values[0].value.string, MR_DATASETS));
-} /* int dispatch_value_loadds */
-
 static int dispatch_value_loadplugin (const oconfig_item_t *ci)
 {
 	assert (strcasecmp (ci->key, "LoadPlugin") == 0);
@@ -205,7 +191,7 @@ static int dispatch_value_loadplugin (const oconfig_item_t *ci)
 	if (ci->values[0].type != OCONFIG_TYPE_STRING)
 		return (-1);
 
-	return (plugin_load (ci->values[0].value.string, MR_EVERYTHING));
+	return (plugin_load (ci->values[0].value.string));
 } /* int dispatch_value_loadplugin */
 
 static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)

@@ -40,16 +40,6 @@
 # define USERS_HAVE_READ 0
 #endif
 
-static data_source_t dsrc[1] =
-{
-	{"users",  DS_TYPE_GAUGE, 0.0, 65535.0}
-};
-
-static data_set_t ds =
-{
-	"users", 1, dsrc
-};
-
 #if USERS_HAVE_READ
 static void users_submit (gauge_t value)
 {
@@ -109,13 +99,9 @@ static int users_read (void)
 } /* int users_read */
 #endif /* USERS_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds);
-
 #if USERS_HAVE_READ
-	if (load & MR_READ)
-		plugin_register_read ("users", users_read);
+	plugin_register_read ("users", users_read);
 #endif
 } /* void module_register(void) */

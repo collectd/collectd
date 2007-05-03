@@ -113,7 +113,7 @@ static void logfile_log (int severity, const char *msg)
 	return;
 } /* void logfile_log (int, const char *) */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
 	plugin_register_config ("logfile", logfile_config,
 			config_keys, config_keys_num);

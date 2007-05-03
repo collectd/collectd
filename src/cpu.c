@@ -74,16 +74,6 @@
 # define CPU_HAVE_READ 0
 #endif
 
-static data_source_t dsrc[1] =
-{
-	{"value", DS_TYPE_COUNTER, 0, 4294967295.0}
-};
-
-static data_set_t ds =
-{
-	"cpu", 1, dsrc
-};
-
 #if CPU_HAVE_READ
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
@@ -401,16 +391,10 @@ static int cpu_read (void)
 }
 #endif /* CPU_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-		plugin_register_data_set (&ds);
-
 #if CPU_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_init ("cpu", init);
-		plugin_register_read ("cpu", cpu_read);
-	}
+	plugin_register_init ("cpu", init);
+	plugin_register_read ("cpu", cpu_read);
 #endif /* CPU_HAVE_READ */
 } /* void module_register */

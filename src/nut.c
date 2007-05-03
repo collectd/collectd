@@ -34,86 +34,6 @@
 # define NUT_HAVE_READ 0
 #endif
 
-static data_source_t data_source_current[1] =
-{
-  {"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t ds_current =
-{
-  "current", 1, data_source_current
-};
-
-static data_source_t data_source_humidity[1] =
-{
-  {"value", DS_TYPE_GAUGE, 0.0, 100.0}
-};
-
-static data_set_t ds_humidity =
-{
-  "humidity", 1, data_source_humidity
-};
-
-static data_source_t data_source_power[1] =
-{
-  {"value", DS_TYPE_GAUGE, 0.0, NAN}
-};
-
-static data_set_t ds_power =
-{
-  "power", 1, data_source_power
-};
-
-static data_source_t data_source_voltage[1] =
-{
-  {"value", DS_TYPE_GAUGE, NAN, NAN}
-};
-
-static data_set_t ds_voltage =
-{
-  "voltage", 1, data_source_voltage
-};
-
-static data_source_t data_source_percent[1] =
-{
-  {"percent", DS_TYPE_GAUGE, 0, 100.1}
-};
-
-static data_set_t ds_percent =
-{
-  "percent", 1, data_source_percent
-};
-
-static data_source_t data_source_timeleft[1] =
-{
-  {"timeleft", DS_TYPE_GAUGE, 0, 100.0}
-};
-
-static data_set_t ds_timeleft =
-{
-  "timeleft", 1, data_source_timeleft
-};
-
-static data_source_t data_source_temperature[1] =
-{
-  {"value", DS_TYPE_GAUGE, -273.15, NAN}
-};
-
-static data_set_t ds_temperature =
-{
-  "temperature", 1, data_source_temperature
-};
-
-static data_source_t data_source_frequency[1] =
-{
-  {"frequency", DS_TYPE_GAUGE, 0, NAN}
-};
-
-static data_set_t ds_frequency =
-{
-  "frequency", 1, data_source_frequency
-};
-
 #if NUT_HAVE_READ
 struct nut_ups_s;
 typedef struct nut_ups_s nut_ups_t;
@@ -368,27 +288,12 @@ static int nut_shutdown (void)
 } /* int nut_shutdown */
 #endif /* NUT_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-  if (load & MR_DATASETS)
-  {
-    plugin_register_data_set (&ds_current);
-    plugin_register_data_set (&ds_humidity);
-    plugin_register_data_set (&ds_power);
-    plugin_register_data_set (&ds_voltage);
-    plugin_register_data_set (&ds_percent);
-    plugin_register_data_set (&ds_timeleft);
-    plugin_register_data_set (&ds_temperature);
-    plugin_register_data_set (&ds_frequency);
-  }
-
 #if NUT_HAVE_READ
-  if (load & MR_READ)
-  {
-    plugin_register_config ("nut", nut_config, config_keys, config_keys_num);
-    plugin_register_read ("nut", nut_read);
-    plugin_register_shutdown ("nut", nut_shutdown);
-  }
+  plugin_register_config ("nut", nut_config, config_keys, config_keys_num);
+  plugin_register_read ("nut", nut_read);
+  plugin_register_shutdown ("nut", nut_shutdown);
 #endif
 } /* void module_register */
 

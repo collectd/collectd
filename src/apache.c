@@ -34,49 +34,6 @@
 #  define APACHE_HAVE_READ 0
 #endif
 
-/* Limit to 2^27 bytes/s. That's what a gigabit-ethernet link can handle, in
- * theory. */
-static data_source_t apache_bytes_dsrc[1] =
-{
-	{"count", DS_TYPE_COUNTER, 0, 134217728.0},
-};
-
-static data_set_t apache_bytes_ds =
-{
-	"apache_bytes", 1, apache_bytes_dsrc
-};
-
-/* Limit to 2^20 requests/s */
-static data_source_t apache_requests_dsrc[1] =
-{
-	{"count", DS_TYPE_COUNTER, 0, 134217728.0},
-};
-
-static data_set_t apache_requests_ds =
-{
-	"apache_requests", 1, apache_requests_dsrc
-};
-
-static data_source_t apache_scoreboard_dsrc[1] =
-{
-	{"count", DS_TYPE_GAUGE, 0, 65535.0},
-};
-
-static data_set_t apache_scoreboard_ds =
-{
-	"apache_scoreboard", 1, apache_scoreboard_dsrc
-};
-
-static data_source_t apache_connections_dsrc[1] =
-{
-	{"count", DS_TYPE_GAUGE, 0, 65535.0},
-};
-
-static data_set_t apache_connections_ds =
-{
-	"apache_connections", 1, apache_connections_dsrc
-};
-
 #if APACHE_HAVE_READ
 static char *url    = NULL;
 static char *user   = NULL;
@@ -354,23 +311,12 @@ static int apache_read (void)
 } /* int apache_read */
 #endif /* APACHE_HAVE_READ */
 
-void module_register (modreg_e load)
+void module_register (void)
 {
-	if (load & MR_DATASETS)
-	{
-		plugin_register_data_set (&apache_bytes_ds);
-		plugin_register_data_set (&apache_requests_ds);
-		plugin_register_data_set (&apache_scoreboard_ds);
-		plugin_register_data_set (&apache_connections_ds);
-	}
-
 #if APACHE_HAVE_READ
-	if (load & MR_READ)
-	{
-		plugin_register_config ("apache", config,
-				config_keys, config_keys_num);
-		plugin_register_init ("apache", init);
-		plugin_register_read ("apache", apache_read);
-	}
+	plugin_register_config ("apache", config,
+			config_keys, config_keys_num);
+	plugin_register_init ("apache", init);
+	plugin_register_read ("apache", apache_read);
 #endif
 } /* void module_register */
