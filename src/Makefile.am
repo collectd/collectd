@@ -567,4 +567,5 @@ install-exec-hook:
 		$(INSTALL) -m 0640 collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
 	else \
 		$(INSTALL) -m 0640 collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
-	fi
+	fi; \
+	cp -f types.db $(DESTDIR)$(pkglibdir)/;
