@@ -20,7 +20,8 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   common.c common.h \
 		   plugin.c plugin.h \
-		   configfile.c configfile.h
+		   configfile.c configfile.h \
+		   types_list.c types_list.h
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DPREFIX='"${prefix}"'
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'

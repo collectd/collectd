@@ -1,0 +1,178 @@
+/**
+ * collectd - src/types_list.c
+ * Copyright (C) 2007  Florian octo Forster
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; only version 2 of the License is applicable.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ *
+ * Authors:
+ *   Florian octo Forster <octo at verplant.org>
+ **/
+
+#include "collectd.h"
+#include "common.h"
+
+#include "plugin.h"
+#include "configfile.h"
+
+static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
+{
+  char *dummy;
+  char *saveptr;
+  char *fields[8];
+  int   fields_num;
+
+  if (buf_len < 11)
+    return (-1);
+
+  if (buf[buf_len - 1] == ',')
+  {
+    buf_len--;
+    buf[buf_len] = '\0';
+  }
+
+  dummy = buf;
+  saveptr = NULL;
+
+  fields_num = 0;
+  while (fields_num < 8)
+  {
+    if ((fields[fields_num] = strtok_r (dummy, ":", &saveptr)) == NULL)
+      break;
+    dummy = NULL;
+    fields_num++;
+  }
+
+  if (fields_num != 4)
+    return (-1);
+
+  strncpy (dsrc->name, fields[0], sizeof (dsrc->name));
+  dsrc->name[sizeof (dsrc->name) - 1] = '\0';
+
+  if (strcasecmp (fields[1], "GAUGE") == 0)
+    dsrc->type = DS_TYPE_GAUGE;
+  else if (strcasecmp (fields[1], "COUNTER") == 0)
+    dsrc->type = DS_TYPE_COUNTER;
+  else
+    return (-1);
+
+  if (strcasecmp (fields[2], "U") == 0)
+    dsrc->min = NAN;
+  else
+    dsrc->min = atof (fields[2]);
+
+  if (strcasecmp (fields[3], "U") == 0)
+    dsrc->max = NAN;
+  else
+    dsrc->max = atof (fields[3]);
+
+  DEBUG ("parse_ds: dsrc = {%s, %i, %lf, %lf};",
+      dsrc->name, dsrc->type, dsrc->min, dsrc->max);
+
+  return (0);
+} /* int parse_ds */
+
+static void parse_line (char *buf, size_t buf_len)
+{
+  char  *fields[64];
+  size_t fields_num;
+  data_set_t ds;
+  int i;
+
+  fields_num = strsplit (buf, fields, 64);
+  if (fields_num < 2)
+    return;
+
+  memset (&ds, '\0', sizeof (ds));
+
+  strncpy (ds.type, fields[0], sizeof (ds.type));
+  ds.type[sizeof (ds.type) - 1] = '\0';
+
+  ds.ds_num = fields_num - 1;
+  ds.ds = (data_source_t *) calloc (ds.ds_num, sizeof (data_source_t));
+  if (ds.ds == NULL)
+    return;
+
+  for (i = 0; i < ds.ds_num; i++)
+    if (parse_ds (ds.ds + i, fields[i + 1], strlen (fields[i + 1])) != 0)
+    {
+      sfree (ds.ds);
+      return;
+    }
+
+  DEBUG ("parse_line: ds = {%s, %i, %p};",
+      ds.type, ds.ds_num, (void *) ds.ds);
+
+  plugin_register_data_set (&ds);
+  sfree (ds.ds);
+} /* void parse_line */
+
+static void parse_file (FILE *fh)
+{
+  char buf[4096];
+  size_t buf_len;
+
+  while (fgets (buf, sizeof (buf), fh) != NULL)
+  {
+    buf_len = strlen (buf);
+
+    if (buf_len >= 4095)
+    {
+      NOTICE ("Skipping line with more than 4095 characters.");
+      do
+      {
+	if (fgets (buf, sizeof (buf), fh) == NULL)
+	  break;
+	buf_len = strlen (buf);
+      } while (buf_len >= 4095);
+      continue;
+    } /* if (buf_len >= 4095) */
+
+    if ((buf_len == 0) || (buf[0] == '#'))
+      continue;
+
+    parse_line (buf, buf_len);
+  } /* while (fgets) */
+} /* void parse_file */
+
+int read_types_list (void)
+{
+  const char *file;
+  FILE *fh;
+
+  file = global_option_get ("TypesDB");
+  if (file == NULL)
+    return (-1);
+
+  fh = fopen (file, "r");
+  if (fh == NULL)
+  {
+    char errbuf[1024];
+    ERROR ("open (%s) failed: %s", 
+	file, sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  parse_file (fh);
+
+  fclose (fh);
+  fh = NULL;
+
+  DEBUG ("Done parsing `%s'", file);
+
+  return (0);
+} /* int read_types_list */
+
+/*
+ * vim: shiftwidth=2:softtabstop=2:tabstop=8
+ */
