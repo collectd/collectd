@@ -80,7 +80,7 @@ static cf_global_option_t cf_global_options[] =
 	{"Hostname",  NULL, NULL},
 	{"Interval",  NULL, "10"},
 	{"ReadThreads", NULL, "5"},
-	{"TypesDS",   NULL, PLUGINDIR"/types.db"} /* FIXME: Configure path */
+	{"TypesDB",   NULL, PLUGINDIR"/types.db"} /* FIXME: Configure path */
 };
 static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
 
