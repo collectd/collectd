@@ -129,8 +129,9 @@ static void parse_line (char *buf, size_t buf_len)
       ds->type, ds->ds_num, (void *) ds->ds);
 
   plugin_register_data_set (ds);
-  /* Do NOT free `ds' and `ds->ds', because it's NOT copied by
-   * `plugin_register_data_set'!. */
+
+  sfree (ds->ds);
+  sfree (ds);
 } /* void parse_line */
 
 static void parse_file (FILE *fh)
