@@ -552,7 +552,7 @@ endif
 dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5
 #collectd_1_SOURCES = collectd.pod
 
-#EXTRA_DIST = $(man_MANS)
+EXTRA_DIST = types.db
 
 .pod.1:
 	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >$@
