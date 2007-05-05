@@ -216,10 +216,10 @@ static int memory_read (void)
 			sysctl_vals[i] *= sysctl_vals[0];
 
 	memory_submit ("free",     sysctl_vals[2]);
-	memory_submit ("wired",    sysctl_vals[2]);
-	memory_submit ("active",   sysctl_vals[2]);
-	memory_submit ("inactive", sysctl_vals[2]);
-	memory_submit ("cache",    sysctl_vals[2]);
+	memory_submit ("wired",    sysctl_vals[3]);
+	memory_submit ("active",   sysctl_vals[4]);
+	memory_submit ("inactive", sysctl_vals[5]);
+	memory_submit ("cache",    sysctl_vals[6]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
