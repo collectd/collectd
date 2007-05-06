@@ -276,10 +276,9 @@ static int memory_read (void)
 	{
 		mem_used -= mem_free + mem_buffered + mem_cached;
 		memory_submit ("used",     mem_used);
-		memory_submit ("buffered", mem_used);
-		memory_submit ("cached",   mem_used);
-		memory_submit ("free",     mem_used);
-
+		memory_submit ("buffered", mem_buffered);
+		memory_submit ("cached",   mem_cached);
+		memory_submit ("free",     mem_free);
 	}
 /* #endif defined(KERNEL_LINUX) */
 
