@@ -420,7 +420,8 @@ int plugin_register_data_set (const data_set_t *ds)
 	data_set_t *ds_copy;
 	int i;
 
-	if (llist_search (list_data_set, ds->type) != NULL)
+	if ((list_data_set != NULL)
+			&& (llist_search (list_data_set, ds->type) != NULL))
 	{
 		NOTICE ("Replacing DS `%s' with another version.", ds->type);
 		plugin_unregister_data_set (ds->type);
@@ -492,6 +493,9 @@ int plugin_unregister_data_set (const char *name)
 {
 	llentry_t  *e;
 	data_set_t *ds;
+
+	if (list_data_set == NULL)
+		return (-1);
 
 	e = llist_search (list_data_set, name);
 
@@ -615,7 +619,7 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 	data_set_t *ds;
 	llentry_t *le;
 
-	if (list_write == NULL)
+	if ((list_write == NULL) || (list_data_set == NULL))
 		return (-1);
 
 	le = llist_search (list_data_set, name);
