@@ -335,7 +335,9 @@ static int iptables_shutdown (void)
     int i;
 
     for (i = 0; i < chain_num; i++)
+    {
 	sfree (chain_list[i]);
+    }
     sfree (chain_list);
 
     return (0);
