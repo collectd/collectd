@@ -149,9 +149,9 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	value_cache_t *vc;
 	int i;
 
-	DEBUG ("unixsock plugin: cache_insert: ds->ds_num = %i;"
+	DEBUG ("unixsock plugin: cache_insert: ds->type = %s; ds->ds_num = %i;"
 			" vl->values_len = %i;",
-			ds->ds_num, vl->values_len);
+			ds->type, ds->ds_num, vl->values_len);
 	assert (ds->ds_num == vl->values_len);
 
 	vc = (value_cache_t *) malloc (sizeof (value_cache_t));
@@ -782,6 +782,15 @@ static void *us_server_thread (void *arg)
 
 	close (sock_fd);
 	sock_fd = -1;
+
+	status = unlink ((sock_file != NULL) ? sock_file : US_DEFAULT_PATH);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		NOTICE ("unixsock plugin: unlink (%s) failed: %s",
+				(sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
 
 	return ((void *) 0);
 } /* void *us_server_thread */

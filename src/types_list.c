@@ -158,6 +158,13 @@ static void parse_file (FILE *fh)
     if ((buf_len == 0) || (buf[0] == '#'))
       continue;
 
+    while ((buf_len > 0) && ((buf[buf_len - 1] == '\n')
+	  || (buf[buf_len - 1] == '\n')))
+      buf[--buf_len] = '\0';
+
+    if (buf_len == 0)
+      continue;
+
     parse_line (buf, buf_len);
   } /* while (fgets) */
 } /* void parse_file */

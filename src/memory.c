@@ -102,7 +102,7 @@ static void memory_submit (const char *type_instance, gauge_t value)
 	values[0].gauge = value;
 
 	vl.values = values;
-	vl.values_len = 4;
+	vl.values_len = 1;
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memory");
