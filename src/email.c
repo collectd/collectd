@@ -44,20 +44,9 @@
 # include <pthread.h>
 #endif
 
-#if HAVE_SYS_SELECT_H
-#	include <sys/select.h>
-#endif /* HAVE_SYS_SELECT_H */
-
-#if HAVE_SYS_SOCKET_H
-#	include <sys/socket.h>
-#endif /* HAVE_SYS_SOCKET_H */
-
-/* *sigh* glibc does not define UNIX_PATH_MAX in sys/un.h ... */
-#if HAVE_LINUX_UN_H
-#	include <linux/un.h>
-#elif HAVE_SYS_UN_H
-#	include <sys/un.h>
-#endif /* HAVE_LINUX_UN_H | HAVE_SYS_UN_H */
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/select.h>
 
 /* some systems (e.g. Darwin) seem to not define UNIX_PATH_MAX at all */
 #ifndef UNIX_PATH_MAX
