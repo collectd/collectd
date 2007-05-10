@@ -29,7 +29,6 @@
 
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/poll.h>
 
 #include <grp.h>
 
