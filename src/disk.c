@@ -51,6 +51,13 @@
 #  include <IOKit/IOBSD.h>
 #endif
 
+#if HAVE_LIMITS_H
+# include <limits.h>
+#endif
+#ifndef UINT_MAX
+#  define UINT_MAX 4294967295U
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H || KERNEL_LINUX || HAVE_LIBKSTAT
 # define DISK_HAVE_READ 1
 #else
@@ -67,7 +74,7 @@ typedef struct diskstats
 {
 	char *name;
 
-	/* This overflows in roughly 1361 year */
+	/* This overflows in roughly 1361 years */
 	unsigned int poll_count;
 
 	counter_t read_sectors;
@@ -75,6 +82,14 @@ typedef struct diskstats
 
 	counter_t read_bytes;
 	counter_t write_bytes;
+
+	counter_t read_ops;
+	counter_t write_ops;
+	counter_t read_time;
+	counter_t write_time;
+
+	counter_t avg_read_time;
+	counter_t avg_write_time;
 
 	struct diskstats *next;
 } diskstats_t;
@@ -364,13 +379,11 @@ static int disk_read (void)
 	counter_t read_sectors  = 0;
 	counter_t write_sectors = 0;
 
-	counter_t read_count    = 0;
+	counter_t read_ops      = 0;
 	counter_t read_merged   = 0;
-	counter_t read_bytes    = 0;
 	counter_t read_time     = 0;
-	counter_t write_count   = 0;
+	counter_t write_ops     = 0;
 	counter_t write_merged  = 0;
-	counter_t write_bytes   = 0;
 	counter_t write_time    = 0;
 	int is_disk = 0;
 
@@ -434,15 +447,15 @@ static int disk_read (void)
 		if (numfields == 7)
 		{
 			/* Kernel 2.6, Partition */
-			read_count    = atoll (fields[3]);
+			read_ops      = atoll (fields[3]);
 			read_sectors  = atoll (fields[4]);
-			write_count   = atoll (fields[5]);
+			write_ops     = atoll (fields[5]);
 			write_sectors = atoll (fields[6]);
 		}
 		else if (numfields == (14 + fieldshift))
 		{
-			read_count  =  atoll (fields[3 + fieldshift]);
-			write_count =  atoll (fields[7 + fieldshift]);
+			read_ops  =  atoll (fields[3 + fieldshift]);
+			write_ops =  atoll (fields[7 + fieldshift]);
 
 			read_sectors  = atoll (fields[5 + fieldshift]);
 			write_sectors = atoll (fields[9 + fieldshift]);
@@ -462,51 +475,114 @@ static int disk_read (void)
 			continue;
 		}
 
+		{
+			counter_t diff_read_sectors;
+			counter_t diff_write_sectors;
+
 		/* If the counter wraps around, it's only 32 bits.. */
-		if (read_sectors < ds->read_sectors)
-			ds->read_bytes += 512 * ((0xFFFFFFFF - ds->read_sectors) + read_sectors);
-		else
-			ds->read_bytes += 512 * (read_sectors - ds->read_sectors);
+			if (read_sectors < ds->read_sectors)
+				diff_read_sectors = 1 + read_sectors
+					+ (UINT_MAX - ds->read_sectors);
+			else
+				diff_read_sectors = read_sectors - ds->read_sectors;
+			if (write_sectors < ds->write_sectors)
+				diff_write_sectors = 1 + write_sectors
+					+ (UINT_MAX - ds->write_sectors);
+			else
+				diff_write_sectors = write_sectors - ds->write_sectors;
 
-		if (write_sectors < ds->write_sectors)
-			ds->write_bytes += 512 * ((0xFFFFFFFF - ds->write_sectors) + write_sectors);
-		else
-			ds->write_bytes += 512 * (write_sectors - ds->write_sectors);
+			ds->read_bytes += 512 * diff_read_sectors;
+			ds->write_bytes += 512 * diff_write_sectors;
+			ds->read_sectors = read_sectors;
+			ds->write_sectors = write_sectors;
+		}
 
-		ds->read_sectors  = read_sectors;
-		ds->write_sectors = write_sectors;
-		read_bytes  = ds->read_bytes;
-		write_bytes = ds->write_bytes;
+		/* Calculate the average time an io-op needs to complete */
+		if (is_disk)
+		{
+			counter_t diff_read_ops;
+			counter_t diff_write_ops;
+			counter_t diff_read_time;
+			counter_t diff_write_time;
+
+			if (read_ops < ds->read_ops)
+				diff_read_ops = 1 + read_ops
+					+ (UINT_MAX - ds->read_ops);
+			else
+				diff_read_ops = read_ops - ds->read_ops;
+			DEBUG ("disk plugin: disk_name = %s; read_ops = %llu; "
+					"ds->read_ops = %llu; diff_read_ops = %llu;",
+					disk_name,
+					read_ops, ds->read_ops, diff_read_ops);
+
+			if (write_ops < ds->write_ops)
+				diff_write_ops = 1 + write_ops
+					+ (UINT_MAX - ds->write_ops);
+			else
+				diff_write_ops = write_ops - ds->write_ops;
+
+			if (read_time < ds->read_time)
+				diff_read_time = 1 + read_time
+					+ (UINT_MAX - ds->read_time);
+			else
+				diff_read_time = read_time - ds->read_time;
+
+			if (write_time < ds->write_time)
+				diff_write_time = 1 + write_time
+					+ (UINT_MAX - ds->write_time);
+			else
+				diff_write_time = write_time - ds->write_time;
+
+			if (diff_read_ops != 0)
+				ds->avg_read_time += (diff_read_time
+						+ (diff_read_ops / 2))
+					/ diff_read_ops;
+			if (diff_write_ops != 0)
+				ds->avg_write_time += (diff_write_time
+						+ (diff_write_ops / 2))
+					/ diff_write_ops;
+
+			ds->read_ops = read_ops;
+			ds->read_time = read_time;
+			ds->write_ops = write_ops;
+			ds->write_time = write_time;
+		} /* if (is_disk) */
 
 		/* Don't write to the RRDs if we've just started.. */
 		ds->poll_count++;
 		if (ds->poll_count <= 2)
 		{
-			DEBUG ("(ds->poll_count = %i) <= (min_poll_count = 2); => Not writing.",
+			DEBUG ("disk plugin: (ds->poll_count = %i) <= "
+					"(min_poll_count = 2); => Not writing.",
 					ds->poll_count);
 			continue;
 		}
 
-		if ((read_count == 0) && (write_count == 0))
+		if ((read_ops == 0) && (write_ops == 0))
 		{
-			DEBUG ("((read_count == 0) && (write_count == 0)); => Not writing.");
+			DEBUG ("disk plugin: ((read_ops == 0) && "
+					"(write_ops == 0)); => Not writing.");
 			continue;
 		}
 
-		if ((read_bytes != -1LL) || (write_bytes != -1LL))
-			disk_submit (disk_name, "disk_octets", read_bytes, write_bytes);
-		if ((read_count != -1LL) || (write_count != -1LL))
-			disk_submit (disk_name, "disk_ops", read_count, write_count);
+		if ((ds->read_bytes != 0) || (ds->write_bytes != 0))
+			disk_submit (disk_name, "disk_octets",
+					ds->read_bytes, ds->write_bytes);
+
+		if ((ds->read_ops != 0) || (ds->write_ops != 0))
+			disk_submit (disk_name, "disk_ops",
+					read_ops, write_ops);
+
+		if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0))
+			disk_submit (disk_name, "disk_time",
+					ds->avg_read_time, ds->avg_write_time);
+
 		if (is_disk)
 		{
 			if ((read_merged != -1LL) || (write_merged != -1LL))
 				disk_submit (disk_name, "disk_merged",
 						read_merged, write_merged);
-			if ((read_time != -1LL) || (write_time != -1LL))
-				disk_submit (disk_name, "disk_time",
-						read_time * 1000,
-						write_time * 1000);
-		}
+		} /* if (is_disk) */
 	} /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
 
 	fclose (fh);
