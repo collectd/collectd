@@ -152,7 +152,17 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	DEBUG ("unixsock plugin: cache_insert: ds->type = %s; ds->ds_num = %i;"
 			" vl->values_len = %i;",
 			ds->type, ds->ds_num, vl->values_len);
+#if COLLECT_DEBUG
 	assert (ds->ds_num == vl->values_len);
+#else
+	if (ds->ds_num != vl->values_len)
+	{
+		ERROR ("unixsock plugin: ds->type = %s: (ds->ds_num = %i) != "
+				"(vl->values_len = %i)",
+				ds->type, ds->ds_num, vl->values_len);
+		return (-1);
+	}
+#endif
 
 	vc = (value_cache_t *) malloc (sizeof (value_cache_t));
 	if (vc == NULL)
