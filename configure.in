@@ -281,7 +281,7 @@ AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 AC_CHECK_HEADERS(curl/curl.h)
 
 # For quota module
-AC_CHECK_HEADERS(grp.h pwd.h sys/ucred.h)
+AC_CHECK_HEADERS(pwd.h sys/ucred.h)
 AC_CHECK_HEADERS(ctype.h)
 AC_CHECK_HEADERS(limits.h)
 AC_CHECK_HEADERS(sys/quota.h)
