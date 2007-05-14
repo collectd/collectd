@@ -7,6 +7,8 @@ AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
 
+AC_SYS_LARGEFILE
+
 #
 # Checks for programs.
 #

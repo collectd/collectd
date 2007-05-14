@@ -21,7 +21,9 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
 **/
 
-
+#if HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include "common.h"
 #if HAVE_XFS_XQM_H

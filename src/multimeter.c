@@ -23,12 +23,13 @@
  *
  **/
 
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <math.h>
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <math.h>
 
 #define MODULE_NAME "multimeter"
 
