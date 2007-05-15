@@ -47,6 +47,10 @@
  *     return;
  **/
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include "common.h"
 #include "utils_debug.h"
 #include "utils_ignorelist.h"

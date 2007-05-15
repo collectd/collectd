@@ -20,6 +20,10 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
