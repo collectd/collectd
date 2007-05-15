@@ -638,6 +638,18 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 			vl->plugin, vl->plugin_instance,
 			ds->type, vl->type_instance);
 
+#if COLLECT_DEBUG
+	assert (ds->ds_num == vl->values_len);
+#else
+	if (ds->ds_num != vl->values_len)
+	{
+		ERROR ("plugin: ds->type = %s: (ds->ds_num = %i) != "
+				"(vl->values_len = %i)",
+				ds->type, ds->ds_num, vl->values_len);
+		return (-1);
+	}
+#endif
+
 	le = llist_head (list_write);
 	while (le != NULL)
 	{
