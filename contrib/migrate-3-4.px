@@ -153,7 +153,11 @@ for (@Files)
 		$OutDirs{$dest_directory} = 1;
 	}
 
-	if (exists ($TypeSplit{$orig->{'type'}}))
+	if (($orig->{'type'} eq 'disk') || ($orig->{'type'} eq 'partition'))
+	{
+		special_disk ($orig_filename, $orig, $dest_filename, $dest);
+	}
+	elsif (exists ($TypeSplit{$orig->{'type'}}))
 	{
 		my $src_dses = $TypeSplit{$orig->{'type'}}->{'from'};
 		my $dst_ds = $TypeSplit{$orig->{'type'}}->{'to'};
@@ -311,11 +315,58 @@ sub find_files
 	return (@files);
 } # find_files
 
-sub special_cpu
+{my $cache;
+sub _special_disk_instance
 {
-	my %file_orig = @_;
-	my %file_dest = %file_orig;
+	my $orig_instance = shift;
 
-	$file_dest{'plugin_instance'} = $file_dest{'type_instance'}
+	if (!defined ($cache))
+	{
+		my $fh;
+		open ($fh, "< /proc/diskstats") or die ("open (/proc/diststats): $!");
 
+		$cache = {};
+		while (my $line = <$fh>)
+		{
+			chomp ($line);
+			my @fields = split (' ', $line);
+			$cache->{$fields[0] . '-' . $fields[1]} = $fields[2];
+		}
+		close ($fh);
+	}
+
+	return (defined ($cache->{$orig_instance})
+		? $cache->{$orig_instance}
+		: $orig_instance);
+}}
+
+sub special_disk
+{
+	my $orig_filename = shift;
+	my $orig = shift;
+	my $dest_filename = shift;
+	my $dest = shift;
+
+	$dest->{'type_instance'} = undef;
+	$dest->{'plugin_instance'} = _special_disk_instance ($orig->{'type_instance'});
+	if ($dest->{'plugin_instance'} eq $orig->{'type_instance'})
+	{
+		print qq(echo "You may need to rename these files" >&2\n);
+	}
+
+	$dest->{'type'} = 'disk_merged';
+	$dest_filename = get_filename ($dest);
+	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rmerged' -s 'wmerged' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+
+	$dest->{'type'} = 'disk_octets';
+	$dest_filename = get_filename ($dest);
+	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rbytes' -s 'wbytes' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+
+	$dest->{'type'} = 'disk_ops';
+	$dest_filename = get_filename ($dest);
+	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rcount' -s 'wcount' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+
+	$dest->{'type'} = 'disk_time';
+	$dest_filename = get_filename ($dest);
+	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rtime' -s 'wtime' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
 }
