@@ -21,6 +21,8 @@
  *   Florian Forster <octo at verplant.org>
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <string.h>
 

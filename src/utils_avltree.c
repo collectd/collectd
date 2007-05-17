@@ -19,6 +19,9 @@
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
  **/
+
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
