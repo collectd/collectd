@@ -26,7 +26,6 @@
 
 #include "collectd.h"
 #include "common.h"
-#include "plugin.h"
 
 #include "configfile.h"
 
@@ -34,6 +33,14 @@
 #include <perl.h>
 
 #include <XSUB.h>
+
+/* Some versions of Perl define their own version of DEBUG... :-/ */
+#ifdef DEBUG
+# undef DEBUG
+#endif /* DEBUG */
+
+/* ... while we want the definition found in plugin.h. */
+#include "plugin.h"
 
 #define PLUGIN_INIT     0
 #define PLUGIN_READ     1
