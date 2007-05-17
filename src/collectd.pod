@@ -8,119 +8,15 @@ collectd I<[options]>
 
 =head1 DESCRIPTION
 
-collectd is a daemon that collects various system statistics periodically and
-stores them into RRD-files. Which data is collected depends on compile-time
-settings. The following features may be available:
-
-=over 4
-
-=item
-
-Apache and lighttpd server statistics (I<apache>)
-
-=item
-
-Apple hardware sensors (I<apple_sensors>, Darwin only)
-
-=item
-
-Battery status (I<battery>)
-
-=item
-
-CPU utilization (I<cpu>)
-
-=item
-
-Mountpoint usage (I<df>)
-
-=item
-
-Disk and partition usage/throughput (I<disk>)
-
-=item
-
-DNS traffic (I<dns>)
-
-=item
-
-Email usage (I<email>)
-
-=item
-
-Harddisk temperatures (I<hddtemp>)
-
-=item
-
-Irq (I<irq>)
-
-=item
-
-System load averages (I<load>)
-
-=item
-
-Motherboard monitor (I<mbmon>)
-
-=item
-
-Memory usage (I<memory>)
-
-=item
-
-MySQL statistics (I<mysql>)
-
-=item
-
-NFS utilization (I<nfs>, Linux only)
-
-=item
-
-Embedded Perl interpreter (I<perl>)
-
-=item
-
-Network latency (I<ping>)
-
-=item
-
-Number of processes (I<processes>, Linux only)
-
-=item
-
-lm_sensors information (I<sensors>, Linux only)
-
-=item
-
-Serial port traffic (I<serial>, Linux only)
-
-=item
-
-Swap usage (I<swap>)
-
-=item
-
-Tape drive usage (I<tape>, Solaris only)
-
-=item
-
-Network traffic (I<traffic>)
-
-=item
-
-Number of users logged into the system (I<users>)
-
-=item
-
-System ressources used by VServers (I<vserver>)
-
-=item
-
-Wireless network stats (I<wireless>)
-
-=back
+collectd is a daemon that receives system statistics and makes them available
+in a number of ways. The main daemon itself doesn't have any real functionality
+appart from loading, querying and submitting to plugins. For a description of
+available plugins please see L</PLUGINS> below.
 
 =head1 OPTIONS
+
+Most of collectd's configuration is done using using a configfile. See
+L<collectd.conf(5)> for an in-depth description of all options.
 
 =over 4
 
@@ -149,30 +45,40 @@ Output usage information and exit.
 
 =back
 
-=head1 MODES
+=head1 PLUGINS
 
-collectd can operate in four different operating modes. The modes are described
-below.
+As noted above, the real power of collectd lies within it's plugins. There are
+two big groups of plugins, B<input> and B<output> plugins:
 
-The simplest mode is the so called B<local mode>. Data is collected locally and
-written in RRD files that reside in I<DataDir>. This is the default mode when
-collectd is linked against C<librrd>.
+=over 4
 
-The modes B<client mode> and B<server mode> are used to send data over a
-network and receive it again.
+=item
 
-In B<client mode> the daemon collects the data locally and sends its results
-to one or more network addresses. No RRD files are written locally in this
-case. If collectd is not linked against C<librrd> this is the default mode.
+Input plugins are queried periodically. They somehow aquire the current value
+of whatever they where designed to work with and submit these values back to
+the daemon, i. e. they "dispatch" the values. As an example, the C<cpu plugin>
+reads the current cpu-counters of time spent in the various modes (user,
+system, nice, ...) and dispatches these counters to the daemon.
 
-If started in B<server mode> the daemon will listen on one or more interfaces
-and write the data it receives to RRD files. No data is collected locally.
+=item
 
-In the last mode, B<log mode>, data is collected locally and written in
-text files that reside in I<DataDir>.
+Output plugins get the dispatched values from the daemon and does something
+with them. Common applications are writing to RRD-files, CSV-files or sending
+the data over a network link to a remote box.
 
-Please refer to L<collectd.conf(5)> for the configuration options and default
-values.
+=back
+
+Of course not all plugins fit neatly into one of the two above categories. The
+C<network plugin>, for example, is able to send (i.E<nbsp>e. "write") B<and>
+receive (i.E<nbsp>e. "dispatch") values. Also, it opens a socket upon
+initialization and dispatches the values when it receives them and isn't
+triggered at the same time the input plugins are being read. You can think if
+the network receive part as working asynchronous if it helps.
+
+In addition to the above, there are "logging plugins". Right now those are the
+C<logfile plugin> and the C<syslog plugin>. With these plugins collectd can
+provide information about issues and significant situations to the user.
+Several loglevels let you suppress uninteresting messages.
 
 =head1 SPECIAL PLUGINS
 
@@ -442,319 +348,12 @@ required by this plugin.
 
 The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
-=head1 RRD FILES
-
-The RRD files are created automatically. The size of the RRAs depend on the
-compile time settings of I<step> and I<width>. With the default values (I<step>
-= B<10>, I<width> = B<1200>) the following RRAs are created:
-
-  RRA:AVERAGE:0.1:1:8640
-  RRA:AVERAGE:0.1:50:1210
-  RRA:AVERAGE:0.1:223:1202
-  RRA:AVERAGE:0.1:2635:1201
-  RRA:MIN:0.1:1:8640
-  RRA:MIN:0.1:50:1210
-  RRA:MIN:0.1:223:1202
-  RRA:MIN:0.1:2635:1201
-  RRA:MAX:0.1:1:8640
-  RRA:MAX:0.1:50:1210
-  RRA:MAX:0.1:223:1202
-  RRA:MAX:0.1:2635:1201
-
-By default collectd uses a 10 second I<step>. Thus the RRAs contain the
-following timespans. If you've changed the I<step> at compile time you will
-have calculate resolution and timespan yourself.
-
-  PDP per CDP |  Resolution  | Data points | Timespan
-  ------------+--------------+-------------+---------
-            1 | 10.0 seconds !        8640 ! 1 day
-           50 |  8.3 minutes |        1210 | 1 week
-          223 | 37.2 minutes |        1202 | 1 month
-         2635 |  7.3 hours   |        1201 | 1 year
-
-The DS'es depend on the module creating the RRD files:
-
-=over 4
-
-=item Apache traffic (F<apache/apache_bytes.rrd>)
-
-  DS:count:COUNTER:HEARTBEAT:0:134217728
-
-=item Apache requests (F<apache/apache_requests.rrd>)
-
-  DS:count:COUNTER:HEARTBEAT:0:1048576
-
-=item Apache scoreboard (F<apache/apache_scoreboard-I<E<lt>nameE<gt>>.rrd>)
-
-  DS:count:GAUGE:HEARTBEAT:0:U
-
-=item Apple temperature sensor (F<apple_sensors/temperature-I<E<lt>nameE<gt>>.rrd>)
-
-  DS:value:GAUGE:HEARTBEAT:U:U
-
-=item Apple fanspeed sensor (F<apple_sensors/fanspeed-I<E<lt>nameE<gt>>.rrd>)
-
-  DS:value:GAUGE:HEARTBEAT:U:U
-
-=item Battery charge (F<battery-I<E<lt>nameE<gt>>/charge.rrd>)
-
-  DS:charge:GAUGE:HEARTBEAT:0:U
-
-=item Battery current (F<battery-I<E<lt>nameE<gt>>/current.rrd>)
-
-  DS:current:GAUGE:HEARTBEAT:U:U
-
-=item Battery voltage (F<battery-I<E<lt>nameE<gt>>/voltage.rrd>)
-
-  DS:voltage:GAUGE:HEARTBEAT:U:U
-
-=item CPU (F<cpu-I<E<lt>numE<gt>>.rrd>)
-
-  DS:user:COUNTER:HEARTBEAT:0:100
-  DS:nice:COUNTER:HEARTBEAT:0:100
-  DS:syst:COUNTER:HEARTBEAT:0:100
-  DS:idle:COUNTER:HEARTBEAT:0:100
-  DS:wait:COUNTER:HEARTBEAT:0:100
-
-=item CPU frequency (F<cpufreq-I<E<lt>numE<gt>>.rrd>)
-
-  DS:value:GAUGE:HEARTBEAT:0:U
-
-=item Mountpoints (F<df-I<E<lt>pathE<gt>>.rrd>)
-
-  DS:used:GAUGE:HEARTBEAT:0:U
-  DS:free:GAUGE:HEARTBEAT:0:U
-
-=item Diskstats (F<disk-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
-
-  DS:rcount:COUNTER:HEARTBEAT:0:U
-  DS:rmerged:COUNTER:HEARTBEAT:0:U
-  DS:rbytes:COUNTER:HEARTBEAT:0:U
-  DS:rtime:COUNTER:HEARTBEAT:0:U
-  DS:wcount:COUNTER:HEARTBEAT:0:U
-  DS:wmerged:COUNTER:HEARTBEAT:0:U
-  DS:wbytes:COUNTER:HEARTBEAT:0:U
-  DS:wtime:COUNTER:HEARTBEAT:0:U
-
-=item Diskstats (F<partition-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
-
-  DS:rcount:COUNTER:HEARTBEAT:0:U
-  DS:rbytes:COUNTER:HEARTBEAT:0:U
-  DS:wcount:COUNTER:HEARTBEAT:0:U
-  DS:wbytes:COUNTER:HEARTBEAT:0:U
-
-=item E-Mail count (F<email/email-I<E<lt>typeE<gt>>.rrd>)
-
-  DS:count:GAUGE:HEARTBEAT:0:U
-
-=item E-Mail size (F<email/email_size-I<E<lt>typeE<gt>>.rrd>)
-
-  DS:size:GAUGE:HEARTBEAT:0:U
-
-=item HDD Temperature (F<hddtemp-I<E<lt>majorE<gt>>-I<E<lt>minorE<gt>>.rrd>)
-
-  DS:value:GAUGE:HEARTBEAT:U:U
-
-=item Irq (F<irq-I<E<lt>irqnumberE<gt>>.rrd>)
-
-  DS:value:COUNTER:HEARTBEAT:0:65535
-
-=item System load (F<load.rrd>)
-
-  DS:shortterm:GAUGE:HEARTBEAT:0:100
-  DS:midterm:GAUGE:HEARTBEAT:0:100
-  DS:longterm:GAUGE:HEARTBEAT:0:100
-
-=item Memory usage (F<memory.rrd>)
-
-  DS:used:GAUGE:HEARTBEAT:0:9223372036854775807
-  DS:free:GAUGE:HEARTBEAT:0:9223372036854775807
-  DS:buffers:GAUGE:HEARTBEAT:0:9223372036854775807
-  DS:cached:GAUGE:HEARTBEAT:0:9223372036854775807
-
-=item MySQL commands and handlers (F<mysql_commands-I<E<lt>commandE<gt>>.rrd> and F<mysql_handler-I<E<lt>handlerE<gt>>.rrd>)
-
-  DS:value:COUNTER:HEARTBEAT:0:U
-
-=item MySQL query cache (F<mysql_qcache.rrd>)
-
-  DS:hits:COUNTER:HEARTBEAT:0:U
-  DS:inserts:COUNTER:HEARTBEAT:0:U
-  DS:not_cached:COUNTER:HEARTBEAT:0:U
-  DS:lowmem_prunes:COUNTER:HEARTBEAT:0:U
-  DS:queries_in_cache:GAUGE:HEARTBEAT:0:U
-
-=item MySQL threads (F<mysql_threads.rrd>)
-
-  DS:running:GAUGE:HEARTBEAT:0:U
-  DS:connected:GAUGE:HEARTBEAT:0:U
-  DS:cached:GAUGE:HEARTBEAT:0:U
-  DS:created:COUNTER:HEARTBEAT:0:U
-
-=item NFSv2 Procedures (F<nfs2_procedures-I<(client|server)>.rrd>)
-
-  DS:null:COUNTER:HEARTBEAT:0:U
-  DS:getattr:COUNTER:HEARTBEAT:0:U
-  DS:setattr:COUNTER:HEARTBEAT:0:U
-  DS:root:COUNTER:HEARTBEAT:0:U
-  DS:lookup:COUNTER:HEARTBEAT:0:U
-  DS:readlink:COUNTER:HEARTBEAT:0:U
-  DS:read:COUNTER:HEARTBEAT:0:U
-  DS:wrcache:COUNTER:HEARTBEAT:0:U
-  DS:write:COUNTER:HEARTBEAT:0:U
-  DS:create:COUNTER:HEARTBEAT:0:U
-  DS:remove:COUNTER:HEARTBEAT:0:U
-  DS:rename:COUNTER:HEARTBEAT:0:U
-  DS:link:COUNTER:HEARTBEAT:0:U
-  DS:symlink:COUNTER:HEARTBEAT:0:U
-  DS:mkdir:COUNTER:HEARTBEAT:0:U
-  DS:rmdir:COUNTER:HEARTBEAT:0:U
-  DS:readdir:COUNTER:HEARTBEAT:0:U
-  DS:fsstat:COUNTER:HEARTBEAT:0:U
-
-=item NFSv3 Procedures (F<nfs3_procedures-I<(client|server)>.rrd>)
-
-  DS:null:COUNTER:HEARTBEAT:0:U
-  DS:getattr:COUNTER:HEARTBEAT:0:U
-  DS:setattr:COUNTER:HEARTBEAT:0:U
-  DS:lookup:COUNTER:HEARTBEAT:0:U
-  DS:access:COUNTER:HEARTBEAT:0:U
-  DS:readlink:COUNTER:HEARTBEAT:0:U
-  DS:read:COUNTER:HEARTBEAT:0:U
-  DS:write:COUNTER:HEARTBEAT:0:U
-  DS:create:COUNTER:HEARTBEAT:0:U
-  DS:mkdir:COUNTER:HEARTBEAT:0:U
-  DS:symlink:COUNTER:HEARTBEAT:0:U
-  DS:mknod:COUNTER:HEARTBEAT:0:U
-  DS:remove:COUNTER:HEARTBEAT:0:U
-  DS:rmdir:COUNTER:HEARTBEAT:0:U
-  DS:rename:COUNTER:HEARTBEAT:0:U
-  DS:link:COUNTER:HEARTBEAT:0:U
-  DS:readdir:COUNTER:HEARTBEAT:0:U
-  DS:readdirplus:COUNTER:HEARTBEAT:0:U
-  DS:fsstat:COUNTER:HEARTBEAT:0:U
-  DS:fsinfo:COUNTER:HEARTBEAT:0:U
-  DS:pathconf:COUNTER:HEARTBEAT:0:U
-  DS:commit:COUNTER:HEARTBEAT:0:U
-
-=item Network latency / Ping (F<ping-I<E<lt>hostnameE<gt>>.rrd>)
-
-  DS:ping:GAUGE:HEARTBEAT:0:65535
-
-=item Processes (F<processes.rrd>)
-
-  DS:running:GAUGE:HEARTBEAT:0:65535
-  DS:sleeping:GAUGE:HEARTBEAT:0:65535
-  DS:zombies:GAUGE:HEARTBEAT:0:65535
-  DS:stopped:GAUGE:HEARTBEAT:0:65535
-  DS:paging:GAUGE:HEARTBEAT:0:65535
-  DS:blocked:GAUGE:HEARTBEAT:0:65535
-
-=item lm_sensors fanspeed sensor (F<sensors-I<E<lt>instE<gt>>.rrd> or F<lm_sensors-I<E<lt>chipE<gt>>/fanspeed-I<E<lt>instE<gt>>.rrd>)
-
-  DS:value:GAUGE:HEARTBEAT:U:U
-
-=item lm_sensors temperature sensor (F<sensors-I<E<lt>instE<gt>>.rrd> or F<lm_sensors-I<E<lt>chipE<gt>>/temperature-I<E<lt>instE<gt>>.rrd>)
-
-  DS:value:GAUGE:HEARTBEAT:U:U
-
-=item lm_sensors voltage sensor (F<sensors-I<E<lt>instE<gt>>.rrd> or F<lm_sensors-I<E<lt>chipE<gt>>/voltage-I<E<lt>instE<gt>>.rrd>)
-
-  DS:voltage:GAUGE:HEARTBEAT:U:U
-
-=item Serial port traffic (F<serial-I<E<lt>numE<gt>>.rrd>)
-
-  DS:incoming:COUNTER:HEARTBEAT:0:U
-  DS:outgoing:COUNTER:HEARTBEAT:0:U
-
-=item Spam score (F<email/spam_score.rrd>)
-
-  DS:score:GAUGE:HEARTBEAT:0:U
-
-=item Spam checks (F<email/spam_check-I<E<lt>typeE<gt>>.rrd>)
-
-  DS:hits:GAUGE:HEARTBEAT:0:U
-
-=item Swap usage (F<swap.rrd>)
-
-  DS:used:GAUGE:HEARTBEAT:0:1099511627776
-  DS:free:GAUGE:HEARTBEAT:0:1099511627776
-  DS:cached:GAUGE:HEARTBEAT:0:1099511627776
-  DS:resv:GAUGE:HEARTBEAT:0:1099511627776
-
-=item Tape drive usage (F<tape-I<E<lt>nameE<gt>>.rrd>)
-
-  DS:rcount:COUNTER:HEARTBEAT:0:
-  DS:rmerged:COUNTER:HEARTBEAT:0:U
-  DS:rbytes:COUNTER:HEARTBEAT:0:U
-  DS:rtime:COUNTER:HEARTBEAT:0:U
-  DS:wcount:COUNTER:HEARTBEAT:0:U
-  DS:wmerged:COUNTER:HEARTBEAT:0:U
-  DS:wbytes:COUNTER:HEARTBEAT:0:U
-  DS:wtime:COUNTER:HEARTBEAT:0:U
-
-=item Network traffic (F<traffic-I<E<lt>interfaceE<gt>>.rrd>)
-
-  DS:incoming:COUNTER:HEARTBEAT:0:U
-  DS:outgoing:COUNTER:HEARTBEAT:0:U
-
-=item Interface packets (F<if_packets-I<E<lt>interfaceE<gt>>.rrd>)
-
-  DS:rx:COUNTER:HEARTBEAT:0:U
-  DS:tx:COUNTER:HEARTBEAT:0:U
-
-=item Interface errors (F<if_errors-I<E<lt>interfaceE<gt>>.rrd>)
-
-  DS:rx:COUNTER:HEARTBEAT:0:U
-  DS:tx:COUNTER:HEARTBEAT:0:U
-
-=item Users (F<users.rrd>)
-
-  DS:users:GAUGE:HEARTBEAT:0:65535
-
-=item VServer load (F<vserver-I<E<lt>xidE<gt>>/load.rrd>)
-
-  DS:shortterm:GAUGE:HEARTBEAT:0:100
-  DS:midterm:GAUGE:HEARTBEAT:0:100
-  DS:longterm:GAUGE:HEARTBEAT:0:100
-
-=item VServer threads (F<vserver-I<E<lt>xidE<gt>>/threads.rrd>)
-
-  DS:total:GAUGE:HEARTBEAT:0:65535
-  DS:running:GAUGE:HEARTBEAT:0:65535
-  DS:uninterruptible:GAUGE:HEARTBEAT:0:65535
-  DS:onhold:GAUGE:HEARTBEAT:0:65535
-
-=item VServer network traffic (F<vserver-I<E<lt>xidE<gt>>/traffic-I<E<lt>nameE<gt>>.rrd>)
-
-  DS:incoming:COUNTER:HEARTBEAT:0:9223372036854775807
-  DS:outgoing:COUNTER:HEARTBEAT:0:9223372036854775807
-  DS:failed:COUNTER:HEARTBEAT:0:9223372036854775807
-
-=item VServer processes (F<vserver-I<E<lt>xidE<gt>>/vs_processes.rrd>)
-
-  DS:total:GAUGE:HEARTBEAT:0:65535
-
-=item VServer memory usage (F<vserver-I<E<lt>xidE<gt>>/vs_memory.rrd>)
-
-  DS:vm:GAUGE:HEARTBEAT:0:9223372036854775807
-  DS:vml:GAUGE:HEARTBEAT:0:9223372036854775807
-  DS:rss:GAUGE:HEARTBEAT:0:9223372036854775807
-  DS:anon:GAUGE:HEARTBEAT:0:9223372036854775807
-
-=item Wireless link quality (F<wireless-I<E<lt>interfaceE<gt>>.rrd>)
-
-  DS:quality:GAUGE:HEARTBEAT:0:U
-  DS:power:GAUGE:HEARTBEAT:U:0
-  DS:noise:GAUGE:HEARTBEAT:U:0
-
-=back
-
 =head1 SEE ALSO
 
 L<collectd.conf(5)>, L<rrdtool(1)>, L<sensors(1)>, L<hddtemp(8)>,
 L<mbmon(1)>,
-L<kstat(3KSTAT)>
+L<kstat(3KSTAT)>,
+L<http://collectd.org/>
 
 =head1 AUTHOR
 
