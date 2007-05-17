@@ -236,8 +236,7 @@ sub extract_ds
 	my $out_fh;
 
 	open ($in_fh,  '-|', 'rrdtool', 'dump', $in_file) or die ("open (rrdtool): $!");
-#	open ($out_fh, '|-', 'rrdtool', 'restore', '-', $out_file) or die ("open (rrdtool): $!");
-	$out_fh = \*STDOUT;
+	open ($out_fh, '|-', 'rrdtool', 'restore', '-', $out_file) or die ("open (rrdtool): $!");
 
 	while (my $line = <$in_fh>)
 	{
