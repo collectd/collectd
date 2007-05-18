@@ -348,7 +348,9 @@ static int dns_read (void)
 	values[0] = tr_queries;
 	values[1] = tr_responses;
 	pthread_mutex_unlock (&traffic_mutex);
-	submit_octets (values[0], values[1]);
+
+	if ((values[0] != 0) || (values[1] != 0))
+		submit_octets (values[0], values[1]);
 
 	pthread_mutex_lock (&qtype_mutex);
 	for (ptr = qtype_list, len = 0;
