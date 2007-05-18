@@ -128,11 +128,6 @@ GetOptions ("indir|i=s" => \$InDir,
 	"hostname=s" => \$Hostname) or exit (1);
 
 die "No such directory: $InDir" if (!-d $InDir);
-if (!-e $OutDir)
-{
-	mkdir ($OutDir) or die ("mkdir ($OutDir): $!");
-}
-die "Not a directory: $OutDir" if (!-d $OutDir);
 
 our @Files = ();
 our %OutDirs = ();

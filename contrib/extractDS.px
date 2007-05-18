@@ -19,7 +19,6 @@ the L<XML::Simple> module.
 =cut
 
 use Getopt::Long ('GetOptions');
-use XML::Simple (qw(xml_in xml_out));
 use Data::Dumper ();
 
 our $InFile;
