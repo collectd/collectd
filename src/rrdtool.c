@@ -36,6 +36,7 @@ struct rrd_cache_s
 	int    values_num;
 	char **values;
 	time_t first_value;
+	time_t last_value;
 };
 typedef struct rrd_cache_s rrd_cache_t;
 
@@ -434,7 +435,7 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 } /* int value_list_to_filename */
 
 static rrd_cache_t *rrd_cache_insert (const char *filename,
-		const char *value)
+		const char *value, time_t value_time)
 {
 	rrd_cache_t *rc = NULL;
 	int new_rc = 0;
@@ -450,7 +451,16 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		rc->values_num = 0;
 		rc->values = NULL;
 		rc->first_value = 0;
+		rc->last_value = 0;
 		new_rc = 1;
+	}
+
+	if (rc->last_value >= value_time)
+	{
+		WARNING ("rrdtool plugin: (rc->last_value = %u) >= (value_time = %u)",
+				(unsigned int) rc->last_value,
+				(unsigned int) value_time);
+		return (NULL);
 	}
 
 	rc->values = (char **) realloc ((void *) rc->values,
@@ -475,7 +485,8 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		rc->values_num++;
 
 	if (rc->values_num == 1)
-		rc->first_value = time (NULL);
+		rc->first_value = value_time;
+	rc->last_value = value_time;
 
 	/* Insert if this is the first value */
 	if ((cache != NULL) && (new_rc == 1))
@@ -496,7 +507,8 @@ static rrd_cache_t *rrd_cache_insert (const char *filename,
 		avl_insert (cache, cache_key, rc);
 	}
 
-	DEBUG ("rrd_cache_insert (%s, %s) = %p", filename, value, (void *) rc);
+	DEBUG ("rrd_cache_insert (%s, %s, %u) = %p", filename, value,
+			(unsigned int) value_time, (void *) rc);
 
 	return (rc);
 } /* rrd_cache_t *rrd_cache_insert */
@@ -658,7 +670,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	}
 
 	pthread_mutex_lock (&cache_lock);
-	rc = rrd_cache_insert (filename, values);
+	rc = rrd_cache_insert (filename, values, vl->time);
 	if (rc == NULL)
 	{
 		pthread_mutex_unlock (&cache_lock);
