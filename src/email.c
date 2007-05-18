@@ -780,7 +780,8 @@ static int email_read (void)
 {
 	type_t *ptr;
 
-	double sc;
+	double score_old;
+	int score_count_old;
 
 	static type_list_t *cnt;
 	static type_list_t *sz;
@@ -829,13 +830,15 @@ static int email_read (void)
 	/* spam score */
 	pthread_mutex_lock (&score_mutex);
 
-	sc = score;
+	score_old = score;
+	score_count_old = score_count;
 	score = 0.0;
 	score_count = 0;
 
 	pthread_mutex_unlock (&score_mutex);
 
-	email_submit ("spam_score", "", sc);
+	if (score_count_old > 0)
+		email_submit ("spam_score", "", score_old);
 
 	/* spam checks */
 	pthread_mutex_lock (&check_mutex);
