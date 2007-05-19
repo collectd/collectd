@@ -341,6 +341,7 @@ sub special_disk
 	my $orig = shift;
 	my $dest_filename = shift;
 	my $dest = shift;
+	my $dest_directory;
 
 	$dest->{'type_instance'} = undef;
 	$dest->{'plugin_instance'} = _special_disk_instance ($orig->{'type_instance'});
@@ -351,6 +352,14 @@ sub special_disk
 
 	$dest->{'type'} = 'disk_merged';
 	$dest_filename = get_filename ($dest);
+
+	$dest_directory = dirname ($dest_filename);
+	if (!exists ($OutDirs{$dest_directory}))
+	{
+		print "[ -d '$OutDir/$dest_directory' ] || mkdir -p '$OutDir/$dest_directory'\n";
+		$OutDirs{$dest_directory} = 1;
+	}
+
 	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rmerged' -s 'wmerged' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
 
 	$dest->{'type'} = 'disk_octets';
