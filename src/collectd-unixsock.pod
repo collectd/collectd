@@ -91,6 +91,13 @@ Commands that return values may use I<Num> to return the number of values that
 follow, such as the B<GETVAL> command. These commands usually return a negative
 value on failure and never return zero.
 
+=head1 ABSTRACTION LAYER
+
+Shipped with the sourcecode comes the Perl-Module L<Collectd::Unixsock> which
+provides an abstraction layer over the actual socket connection. It can be
+found in the directory F<contrib/PerlLib>. If you want to use Perl to
+communicate with the daemon, you're encouraged to use and expand this module.
+
 =head1 SEE ALSO
 
 L<collectd(1)>, L<collectd.conf(5)>, L<unix(7)>
