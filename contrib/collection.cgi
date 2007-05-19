@@ -481,12 +481,12 @@ sub action_show_plugin
       my $instance_html = encode_entities ($instance);
       my $instance_url = uri_escape ($instance);
 
-      print qq#  <div><a href="$url_prefix;type=$type_url;type_instance=$instance_url;type=$type_url;type_instance=$instance_url;action=show_type"><img src="$url_prefix;type=$type_url;type_instance=$instance_url;action=show_graph" /></a></div>\n#;
+      print qq#  <div><a href="$url_prefix;type=$type_url;type_instance=$instance_url;action=show_type"><img src="$url_prefix;type=$type_url;type_instance=$instance_url;action=show_graph" /></a></div>\n#;
     }
 
     if (!@{$types{$type}})
     {
-      print qq#  <div><img src="$url_prefix;type=$type_url;action=show_graph" /></div>\n#;
+      print qq#  <div><a href="$url_prefix;type=$type_url;action=show_type"><img src="$url_prefix;type=$type_url;action=show_graph" /></a></div>\n#;
     }
   }
 } # action_show_plugin
@@ -554,6 +554,39 @@ sub action_show_graph
   }
 } # action_show_graph
 
+sub print_header
+{
+  print <<HEAD;
+Content-Type: application/xhtml+xml; charset=utf-8
+Cache-Control: no-cache
+
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+  <head>
+    <title>collection.cgi, Version 2</title>
+    <style type="text/css">
+      img
+      {
+	border: none;
+      }
+    </style>
+  </head>
+
+  <body>
+HEAD
+} # print_header
+
+sub print_footer
+{
+  print <<FOOT;
+  </body>
+</html>
+FOOT
+} # print_footer
+
 sub main
 {
 	read_config ();
@@ -572,8 +605,7 @@ sub main
 	  return (0);
 	}
 
-	print STDOUT header (-Content_Type => 'text/html');
-	print STDOUT "<pre>", Data::Dumper->Dump ([$Args], ['Args']), "</pre>\n";
+	print_header ();
 
 	if (!$Args->{'host'})
 	{
@@ -594,6 +626,8 @@ sub main
 	    $Args->{'plugin'}, $Args->{'plugin_instance'},
 	    $Args->{'type'}, $Args->{'type_instance'});
 	}
+
+	print_footer ();
 
 	return (0);
 }
