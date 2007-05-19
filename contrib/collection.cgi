@@ -1003,17 +1003,29 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%4.0lfbit Max,',
     'GPRINT:avg:LAST:%4.0lfbit Last\l'
     ],
-    fanspeed => [
-    'DEF:temp_avg={file}:value:AVERAGE',
-    'DEF:temp_min={file}:value:MIN',
-    'DEF:temp_max={file}:value:MAX',
-    "AREA:temp_max#$HalfMagenta",
-    "AREA:temp_min#$Canvas",
-    "LINE1:temp_avg#$FullMagenta:RPM",
-    'GPRINT:temp_min:MIN:%4.1lf Min,',
-    'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
-    'GPRINT:temp_max:MAX:%4.1lf Max,',
-    'GPRINT:temp_avg:LAST:%4.1lf Last\l'
+    fanspeed => ['-v', 'RPM',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfMagenta",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullMagenta:RPM",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
+    ],
+    frequency => ['-v', 'Hertz',
+    'DEF:avg={file}:frequency:AVERAGE',
+    'DEF:min={file}:frequency:MIN',
+    'DEF:max={file}:frequency:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Frequency [Hz]",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
     ],
     frequency_offset => [ # NTPd
     'DEF:ppm_avg={file}:ppm:AVERAGE',
@@ -1475,7 +1487,7 @@ sub load_graph_definitions
     'GPRINT:rbyte_max:MAX:%5.1lf%s Max,',
     'GPRINT:rbyte_avg:LAST:%5.1lf%s Last\l'
     ],
-    percent => [
+    percent => ['-v', 'Percent',
     'DEF:avg={file}:percent:AVERAGE',
     'DEF:min={file}:percent:MIN',
     'DEF:max={file}:percent:MAX',
@@ -1730,7 +1742,7 @@ sub load_graph_definitions
     'GPRINT:used_max:MAX:%5.1lf%s Max,',
     'GPRINT:used_avg:LAST:%5.1lf%s Last\l'
     ],
-    temperature => [
+    temperature => ['-v', 'Celsius',
     'DEF:temp_avg={file}:value:AVERAGE',
     'DEF:temp_min={file}:value:MIN',
     'DEF:temp_max={file}:value:MAX',
@@ -1838,7 +1850,7 @@ sub load_graph_definitions
     'GPRINT:users_max:MAX:%4.1lf Max,',
     'GPRINT:users_avg:LAST:%4.1lf Last\l'
     ],
-    voltage => [
+    voltage => ['-v', 'Voltage',
     'DEF:avg={file}:value:AVERAGE',
     'DEF:min={file}:value:MIN',
     'DEF:max={file}:value:MAX',
