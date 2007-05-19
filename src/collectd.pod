@@ -87,30 +87,6 @@ detail. In particular those are L<collectd-exec(5)>, L<collectd-unixsock(5)>,
 
 =head1 SPECIAL PLUGINS
 
-=head2 apache
-
-This module connects to an Apache or lighttpd webserver and expects the output
-produced by B<mod_status.c>. If requires B<libcurl> to set up the HTTP
-connection and issue the request(s). The following is a sample config for the
-Apache webserver. Under Apache, the use of C<ExtendedStatus on> is mandatory.
-
-  ExtendedStatus on
-  <IfModule mod_status.c>
-    <Location /mod_status>
-      SetHandler server-status
-    </Location>
-  </IfModule>
-
-This plugin requires further configuration. Please read L<collectd.conf(5)>.
-
-=head2 cpufreq
-
-This module reads F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for
-the first CPU installed) to get the current CPU frequency. If this file does
-not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a
-similar tool is installed and an "cpu governor" (that's kernel module) is
-loaded.
-
 =head2 email
 
 This plugin collects data indirectly by providing a UNIX socket that external
@@ -133,20 +109,6 @@ Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
 
 Each line is limited to 256 characters (including the newline character). 
 Longer lines will be ignored.
-
-=head2 mysql
-
-Requires B<mysqlclient> to be installed. It connects to the database when
-started and keeps the connection up as long as possible. When the connection is
-interrupted for whatever reason it will try to re-connect. The syslog will
-contain loud complaints in case anything goes wrong.
-
-This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
-C<Com_*> and C<Handler_*> which correspond to F<traffic-mysql.rrd>,
-F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Also, the values of
-C<Qcache_*> are put in F<mysql_qcache.rrd> and values of C<Threads_*> are put
-in F<mysql_threads.rrd>. Please refer to the B<MySQL reference manual>,
-I<5.2.4. Server Status Variables> for an explanation of these values.
 
 =head2 perl
 
@@ -275,61 +237,11 @@ The message is passed to all log-callbacks that are registered with collectd.
 
 =back
 
-=head2 sensors
-
-The B<sensors> module uses lm_sensors to retrieve sensor-values. This means
-that all the needed modules have to be loaded and lm_sensors has to be
-configured (most likely by editing F</etc/sensors.conf>. Read
-L<sensors.conf(5)> for details.
-
-The B<lm_sensors> homepage can be found at
-L<http://secure.netroedge.com/~lm78/>.
-
-=head2 mbmon
-
-The B<mbmon> module uses mbmon to retrieve temperature, voltage, etc.
-
-collectd connects to B<localhost> (127.0.0.1), port B<411/tcp>.
-The B<Host> and B<Port> options can be used to change these
-default values. See L<collectd.conf(5)> for details. C<mbmon> has to be
-running to work correctly. If C<mbmon> is not running timeouts may appear
-which may interfere with other statistics..
-
-C<mbmon> must be run with the -r option ("print TAG and Value format");
-Debian's /etc/init.d/mbmon script already does this, other people
-will need to ensure that this is the case.
-
-=head2 hddtemp
-
-To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
-port B<7634/tcp>. The B<Host> and B<Port> options can be used to change these
-default values. See L<collectd.conf(5)> for details. C<hddtemp> has to be
-running to work correctly. If C<hddtemp> is not running timeouts may appear
-which may interfere with other statistics..
-
-The B<hddtemp> homepage can be found at
-L<http://www.guzu.net/linux/hddtemp.php>.
-
-=head2 vserver
-
-B<VServer> support is only available for Linux. It cannot yet be found in a 
-vanilla kernel, though. To make use of this plugin you need a kernel that has 
-B<VServer> support built in, i.e. you need to apply the patches and compile 
-your own kernel, which will then provide the /proc/virtual filesystem that is
-required by this plugin.
-
-The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
-
 =head1 SEE ALSO
 
 L<collectd.conf(5)>,
 L<collectd-exec(5)>,
 L<collectd-unixsock(5)>,
-L<hddtemp(8)>,
-L<kstat(3KSTAT)>,
-L<mbmon(1)>,
-L<rrdtool(1)>,
-L<sensors(1)>,
 L<http://collectd.org/>
 
 =head1 AUTHOR

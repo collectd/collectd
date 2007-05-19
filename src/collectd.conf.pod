@@ -79,7 +79,11 @@ a value higher than the number of plugins you've loaded is totally useless.
 =head1 PLUGIN OPTIONS
 
 Some Plugins may register own options. These options must be inclosed in a
-C<Plugin>-Section. Which options exist depends on the plugin used:
+C<Plugin>-Section. Which options exist depends on the plugin used. Some plugins
+require external configuration, too. The C<apache plugin>, for example,
+required C<mod_status> to be configured in the webserver you're going to
+collect data from. These plugins are listed below as well, even if they don't
+require any configuration within collectd's configfile.
 
 =head2 Plugin C<apache>
 
@@ -140,6 +144,14 @@ B<apcupsd> can handle it.
 TCP-Port to connect to. Defaults to B<3551>.
 
 =back
+
+=head2 Plugin C<cpufreq>
+
+This plugin doesn't have any options. It reads
+F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for the first CPU
+installed) to get the current CPU frequency. If this file does not exist make
+sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
+installed and an "cpu governor" (that's a kernel module) is loaded.
 
 =head2 Plugin C<csv>
 
@@ -233,6 +245,15 @@ Execute the executable I<Executable> as user I<User>.
 =back
 
 =head2 Plugin C<hddtemp>
+
+To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
+port B<7634/tcp>. The B<Host> and B<Port> options can be used to change these
+default values, see below. C<hddtemp> has to be running to work correctly. If
+C<hddtemp> is not running timeouts may appear which may interfere with other
+statistics..
+
+The B<hddtemp> homepage can be found at
+L<http://www.guzu.net/linux/hddtemp.php>.
 
 =over 4
 
@@ -328,6 +349,17 @@ running in foreground- or non-daemon-mode.
 
 =head2 Plugin C<mbmon>
 
+The C<mbmon plugin> uses mbmon to retrieve temperature, voltage, etc.
+
+Be default collectd connects to B<localhost> (127.0.0.1), port B<411/tcp>.  The
+B<Host> and B<Port> options can be used to change these values, see below.
+C<mbmon> has to be running to work correctly. If C<mbmon> is not running
+timeouts may appear which may interfere with other statistics..
+
+C<mbmon> must be run with the -r option ("print TAG and Value format");
+Debian's F</etc/init.d/mbmon> script already does this, other people
+will need to ensure that this is the case.
+
 =over 4
 
 =item B<Host> I<Hostname>
@@ -341,6 +373,20 @@ TCP-Port to connect to. Defaults to B<411>.
 =back
 
 =head2 Plugin C<mysql>
+
+The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to the
+database when started and keeps the connection up as long as possible. When the
+connection is interrupted for whatever reason it will try to re-connect. The
+plugin logs loud complaints in case anything goes wrong.
+
+This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
+C<Com_*> and C<Handler_*> which correspond to F<mysql_octets.rrd>,
+F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Also, the values of
+C<Qcache_*> are put in F<mysql_qcache.rrd> and values of C<Threads_*> are put
+in F<mysql_threads.rrd>. Please refer to the B<MySQL reference manual>,
+I<5.2.4. Server Status Variables> for an explanation of these values.
+
+Use the following options to configure the plugin:
 
 =over 4
 
@@ -572,6 +618,14 @@ used.
 
 =head2 Plugin C<sensors>
 
+The C<sensors plugin> uses B<lm_sensors> to retrieve sensor-values. This means
+that all the needed modules have to be loaded and lm_sensors has to be
+configured (most likely by editing F</etc/sensors.conf>. Read
+L<sensors.conf(5)> for details.
+
+The B<lm_sensors> homepage can be found at
+L<http://secure.netroedge.com/~lm78/>.
+
 =over 4
 
 =item B<Sensor> I<chip-bus-address/type-feature>
@@ -626,9 +680,26 @@ L<chmod(1)>. Defaults to B<0770>.
 
 =back
 
+=head2 Plugin C<vserver>
+
+This plugin doesn't have any options. B<VServer> support is only available for
+Linux. It cannot yet be found in a vanilla kernel, though. To make use of this
+plugin you need a kernel that has B<VServer> support built in, i.E<nbsp>e. you
+need to apply the patches and compile your own kernel, which will then provide
+the F</proc/virtual> filesystem that is required by this plugin.
+
+The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
+
 =head1 SEE ALSO
 
-L<collectd(1)>
+L<collectd(1)>,
+L<collectd-exec(5)>,
+L<collectd-unixsock(5)>,
+L<hddtemp(8)>,
+L<kstat(3KSTAT)>,
+L<mbmon(1)>,
+L<rrdtool(1)>,
+L<sensors(1)>
 
 =head1 AUTHOR
 
