@@ -494,9 +494,11 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 
 	status = format_name (name, sizeof (name),
 			hostname, plugin, plugin_instance, type, type_instance);
-	/* FIXME: Send some response */
 	if (status != 0)
+	{
+		fprintf (fh, "-1 format_name failed.\n");
 		return (-1);
+	}
 
 	pthread_mutex_lock (&cache_lock);
 
@@ -566,14 +568,16 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 		return (-1);
 	}
 
-	/* FIXME: Send some response */
 	if ((strlen (hostname) > sizeof (vl.host))
 			|| (strlen (plugin) > sizeof (vl.plugin))
 			|| ((plugin_instance != NULL)
 				&& (strlen (plugin_instance) > sizeof (vl.plugin_instance)))
 			|| ((type_instance != NULL)
 				&& (strlen (type_instance) > sizeof (vl.type_instance))))
+	{
+		fprintf (fh, "-1 Identifier too long.");
 		return (-1);
+	}
 
 	strcpy (vl.host, hostname);
 	strcpy (vl.plugin, plugin);
@@ -586,7 +590,10 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 		char *t = fields[2];
 		char *v = strchr (t, ':');
 		if (v == NULL)
+		{
+			fprintf (fh, "-1 No time found.");
 			return (-1);
+		}
 		*v = '\0'; v++;
 
 		vl.time = (time_t) atoi (t);
@@ -601,10 +608,11 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 		return (-1);
 
 	value_ptr = (char **) calloc (ds->ds_num, sizeof (char *));
-	/* FIXME: Send some response */
 	if (value_ptr == NULL)
+	{
+		fprintf (fh, "-1 calloc failed.");
 		return (-1);
-
+	}
 
 	{ /* parse the value-list. It's colon-separated. */
 		char *dummy;
@@ -629,7 +637,8 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 		if (i != ds->ds_num)
 		{
 			sfree (value_ptr);
-			/* FIXME: Send some response */
+			fprintf (fh, "-1 Number of values incorrect: Got %i, "
+					"expected %i.", i, ds->ds_num);
 			return (-1);
 		}
 	} /* done parsing the value-list */
@@ -639,6 +648,7 @@ static int us_handle_putval (FILE *fh, char **fields, int fields_num)
 	if (vl.values == NULL)
 	{
 		sfree (value_ptr);
+		fprintf (fh, "-1 malloc failed.");
 		return (-1);
 	}
 	DEBUG ("value_ptr = 0x%p; vl.values = 0x%p;", (void *) value_ptr, (void *) vl.values);
@@ -723,7 +733,7 @@ static void *us_handle_client (void *arg)
 		}
 		else
 		{
-			fprintf (fh, "Unknown command: %s\n", fields[0]);
+			fprintf (fh, "-1 Unknown command: %s\n", fields[0]);
 			fflush (fh);
 		}
 	} /* while (fgets) */
