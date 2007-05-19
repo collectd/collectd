@@ -549,7 +549,7 @@ collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif
 
-dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5
+dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5 collectd-exec.5
 #collectd_1_SOURCES = collectd.pod
 
 EXTRA_DIST = types.db

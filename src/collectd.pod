@@ -80,6 +80,10 @@ C<logfile plugin> and the C<syslog plugin>. With these plugins collectd can
 provide information about issues and significant situations to the user.
 Several loglevels let you suppress uninteresting messages.
 
+Please note that some plugins, that provide other means of communicating with
+the daemon, have manpages of their own to describe their functionality in more
+detail. In particular those are L<collectd-exec(5)>, ...
+
 =head1 SPECIAL PLUGINS
 
 =head2 apache
@@ -128,39 +132,6 @@ Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
 
 Each line is limited to 256 characters (including the newline character). 
 Longer lines will be ignored.
-
-=head2 exec
-
-The C<exec> plugin forks of an executable and reads back values that it writes
-to C<STDOUT>. The executable is forked kind of as L<init> does: It is forked
-once and not again until it exits. If it exited, it will be forked again after
-at most I<Interval> seconds. It is perfectly legal for the executable to run
-for a long time and continuously write values to C<STDOUT>.
-
-The forked executable is expected to print values to C<STDOUT>. The expected
-format is as follows:
-
-=over 4
-
-=item
-
-Each line beginning with a C<#> (hash mark) is ignored.
-
-=item
-
-Any other line must be of the form C<I<type>,I<type-instance>,I<value>>, where
-I<type> is either B<counter> or B<gauge>, I<type-instance> may not contain
-C<,> (comma), C</> (slash) and C<\0> (null byte) and I<value> is either an
-integer (if I<type> is B<counter>) or a floating-point number (if I<type> is
-B<gauge>).
-
-=back
-
-The values are always considered to be "fresh", i.E<nbsp>e. the time is set to
-"now".
-
-When collectd exits it sends a B<SIGTERM> to all still running
-child-processes upon which they have to quit.
 
 =head2 mysql
 
@@ -350,9 +321,13 @@ The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
 =head1 SEE ALSO
 
-L<collectd.conf(5)>, L<rrdtool(1)>, L<sensors(1)>, L<hddtemp(8)>,
-L<mbmon(1)>,
+L<collectd.conf(5)>,
+L<collectd-exec(5)>,
+L<hddtemp(8)>,
 L<kstat(3KSTAT)>,
+L<mbmon(1)>,
+L<rrdtool(1)>,
+L<sensors(1)>,
 L<http://collectd.org/>
 
 =head1 AUTHOR
