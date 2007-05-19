@@ -85,6 +85,10 @@ required C<mod_status> to be configured in the webserver you're going to
 collect data from. These plugins are listed below as well, even if they don't
 require any configuration within collectd's configfile.
 
+A list of all plugins and a short summary for each plugin can be found in the
+F<README> file shipped with the sourcecode and hopefully binary packets as
+well.
+
 =head2 Plugin C<apache>
 
 To configure the C<apache>-plugin you first need to configure the Apache

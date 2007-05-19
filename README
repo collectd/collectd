@@ -14,117 +14,182 @@ Features
 
   * collectd is able to collect the following data:
 
-    - Apache server utilization
-      (Number of bytes transfered, number of requests handled and detailed
-      scoreboard statistics)
+    - apache
+      Apache server utilization: Number of bytes transfered, number of
+      requests handled and detailed scoreboard statistics
 
-    - APC UPS Daemon
-      (UPS charge, load, input/output/battery voltage, etc)
+    - apcups
+      APC UPS Daemon: UPS charge, load, input/output/battery voltage, etc.
 
-    - Apple Sensors
-      (Temperature, fanspeed and voltage sensors of apple computers)
+    - apple_sensors
+      Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
+      voltage sensors.
 
-    - Battery
-      (Charge, current and charge of ACPI and PMU based batteries)
+    - battery
+      Batterycharge, -current and volatage of ACPI and PMU based laptop
+      batteries.
 
-    - CPU utilization
-      (Time spent in system, user, nice and idle)
+    - cpu
+      CPU utilization: Time spent in the system, user, nice, idle, and related
+      states.
 
-    - CPU frequency
-      (For laptops with speed step or a similar technology)
+    - cpufreq
+      CPU frequency (For laptops with speed step or a similar technology)
 
-    - Mountpoint usage
-      (Basically the values `df(1)' delivers)
+    - df
+      Mountpoint usage (Basically the values `df(1)' delivers)
 
-    - Disk utilization
-      (Sectors read/written, number of read/write actions, time spent doing IO)
+    - disk
+      Disk utilization: Sectors read/written, number of read/write actions,
+      average time an IO-operation took to complete.
 
-    - DNS traffic
-      (query types, response codes, opcodes and traffic)
+    - dns
+      DNS traffic: Query types, response codes, opcodes and traffic/octets
+      transfered.
 
-    - Email statistics
-      (count, traffic, spam scores and checks)
+    - email
+      Email statistics: Count, traffic, spam scores and checks.
+      See collectd-email(5).
 
-    - Entropy available
-      (Amount of entropy available to the system)
+    - entropy
+      Amount of entropy available to the system.
 
-    - Exec
-      (Values gatheres by a custom program or script)
+    - exec
+      Values gathered by a custom program or script.
+      See collectd-exec(5).
 
-    - Harddisk temperatures
-      (Uhm, yeah, temperature of harddisks that is ;)
+    - hddtemp
+      Harddisk temperatures using hddtempd.
 
-    - Interface traffic
-      (Number of octets, packets and errors for each interface)
+    - interface
+      Interface traffic: Number of octets, packets and errors for each
+      interface.
 
-    - Iptables' counters
-      (Number of bytes that were matched by a certain iptables rule)
+    - iptables
+      Iptables' counters: Number of bytes that were matched by a certain
+      iptables rule.
 
-    - IRQ counters
-      (Frequency in which certain interrupts occur)
+    - irq
+      IRQ counters: Frequency in which certain interrupts occur.
 
-    - System load
-      (Load average over the last 1, 5 and 15 minutes)
+    - load
+      System load average over the last 1, 5 and 15 minutes.
 
-    - mbmon - motherboard monitoring
-      (temperature, fanspeed and voltage information)
+    - mbmon
+      Motherboard sensors: temperature, fanspeed and voltage information,
+      using mbmon(1).
 
-    - Memory utilization
-      (Memory occupied by running processes, page cache, buffer cache and free)
+    - memory
+      Memory utilization: Memory occupied by running processes, page cache,
+      buffer cache and free.
 
-    - Multimeter
-      (Information provided by serial multimeters, such as the «Metex M-4650CR»)
+    - multimeter
+      Information provided by serial multimeters, such as the `Metex
+      M-4650CR'.
 
-    - MySQL server statistics
-      (Commands issued, handlers triggered, thread usage, query cache
-      utilization and traffic sent/received)
+    - mysql
+      MySQL server statistics: Commands issued, handlers triggered, thread
+      usage, query cache utilization and traffic/octets sent and received.
 
-    - NFS Procedures
-      (Which NFS command were called how often. Only NFSv2 and NFSv3 right now)
+    - network
+      Receive values that were collected by other hosts. Large setups will
+      want to collect the data on one dedicated machine, and this is the
+      plugin of choice for that.
 
-    - NTP Daemon
-      (Local clock drift, offset to peers, etc)
+    - nfs
+      NFS Procedures: Which NFS command were called how often. Only NFSv2 and
+      NFSv3 right now.
 
-    - Network UPS tools
-      (UPS current, voltage, power, charge, utilisation, temperature, etc.)
+    - ntp
+      NTP daemon statistics: Local clock drift, offset to peers, etc.
 
-    - Ping latency
-      (Time to reach the default gateway or another given host)
+    - nut
+      Network UPS tools: UPS current, voltage, power, charge, utilisation,
+      temperature, etc. See upsd(8).
 
-    - Process counts
-      (Number of running, sleeping, zombie, ... processes)
+    - perl
+      The perl plugin implements a Perl-interpreter into collectd. You can
+      write your own plugins in Perl and return arbitary values using this
+      API. See collectd-perl(5).
 
-    - Sensors
-      (lm_sensors voltages, temperatures and fan rotation speeds)
+    - ping
+      Network latency: Time to reach the default gateway or another given
+      host.
 
-    - Serial
-      (RX and TX of serial interfaces)
+    - processes
+      Process counts: Number of running, sleeping, zombie, ... processes.
 
-    - Swap
-      (Pages swapped out onto harddisk or whatever is called `swap' by the OS..)
+    - sensors
+      System sensors, accessed using lm_sensors: Voltages, temperatures and
+      fan rotation speeds.
 
-    - Tape
-      (Read and write bytes and operations on tape devices)
+    - serial
+      RX and TX of serial interfaces. Linux only; needs root privileges.
 
-    - Users
-      (Currently logged in users)
+    - swap
+      Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 
-    - VServer
-      (System ressources used by vservers)
+    - tape
+      Bytes and operations read and written on tape devices. Solaris only.
 
-    - Wireless
-      (Link quality of wireless cards)
+    - users
+      Users currently logged in.
 
-  * Output to CSV- and RRD-files, send values over the network and/or provide a
-    generic interface for use by other means, e. g. a Nagios-plugin.
+    - vserver
+      System ressources used by Linux VServers.
+      See <http://linux-vserver.org/>.
 
-  * Performance: Running as a daemon collectd doesn't spend much time in
-    startup. Since collectd links against libping, librrd and libsensors it
-    doesn't need to start any other processes.
+    - wireless
+      Link quality of wireless cards. Linux only.
 
-  * Hardly any maintenance neccessary and setup is trivial.
+  * Output can be written or send to various destinations by the following
+    plugins:
 
-  * Extremely easy and failsafe network operation possible.
+    - csv
+      Write to comma seperated values (CSV) files. This needs lots of
+      diskspace but is extremely portable and can be analysed with almost
+      every program that can analyse anything. Even Microsoft's Excel..
+
+    - network
+      Send the data to a remote host to save the data somehow. This is useful
+      for large setups where the data should be saved by a dedicated machine.
+
+    - perl
+      Of course the values are propagated to plugins written in Perl, too, so
+      you can easily do weird stuff with the plugins we didn't dare think of
+      ;) See collectd-perl(5).
+
+    - rrdtool
+      Output to round-robin-database (RRD) files using librrd. See rrdtool(1).
+      This is likely the most popular destination for such values. Since
+      updates to RRD-files are somewhat expensive this plugin can cache
+      updates to the files and write a bunch of updates at once, which lessens
+      system load a lot.
+
+    - unixsock
+      One can query the values from the unixsock plugin whenever they're
+      needed. Please read collectd-unixsock(5) for a description on how that's
+      done.
+
+  * Logging is, as everything in collectd, provided by plugins. The following
+    plugins keep up informed about what's going on:
+
+    - logfile
+      Writes logmessages to a file or STDOUT/STDERR.
+
+    - syslog
+      Logs to the standard UNIX logging mechanismn, syslog.
+
+  * Performance: Since collectd is running as a daemon it doesn't spend much
+    time starting up again and again. With the exception of the exec plugin no
+    processes are forked. Caching in output plugins, such as the rrdtool and
+    network plugins, makes sure your resources are used efficiently. Also,
+    since collectd is programmed multithreaded it benefits from hyperthreading
+    and multicore processors and makes sure that the daemon isn't idle if only
+    one plugins waits for an IO-operation to complete.
+    
+  * Once set up, hardly any maintenence is neccessary. Setup is kept as easy
+    as possible and the default values should be okay for most users.
 
 
 Operation
@@ -138,19 +203,21 @@ Operation
     files. The usual place for these files is beneath `/var/lib/collectd'.
 
   * When using some of the plugins, collectd needs to run as user root, since only
-    root can do certain thing, such as craft ICMP packages needed to ping other
-    hosts. collectd should NOT be installed setuid root since it can be used to
-    overwrite valuable files..
+    root can do certain things, such as craft ICMP packages needed to ping
+    other hosts. collectd should NOT be installed setuid root since it can be
+    used to overwrite valuable files!
 
   * Sample scripts to generate graphs reside in `contrib/' in the source
     package or somewhere near `/usr/share/doc/collectd' in most distributions.
     Please be aware that those script are meant as a starting point for your
     own experiments.. Some of them require the `RRDs' Perl module.
-    (`librrds-perl' on Debian)
+    (`librrds-perl' on Debian) If you have written a more sophisticated
+    solution please share it with us.
 
   * The RRAs of the automatically created RRD files depend on the `step'
-    and `heartbeat' settings given. For a list of the default RRAs take a look
-    in the collectd(1) manpage.
+    and `heartbeat' settings given. If change these settings you may need to
+    re-create the files, losing all data. Please be aware of that when changing
+    the values and read the rrdtool(1) manpage thoroughly.
 
 
 Prerequisites
@@ -202,11 +269,13 @@ Prerequisites
     Various standard Solaris libraries which provide system functions.
 
   * CoreFoundation.framework and IOKit.framework
-    For compiling on darwin in general and the `apple_sensors' plugin in
+    For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
 
 Author
 ------
 
-  Florian octo Forster <octo at verplant.org>
+  Florian octo Forster <octo at verplant.org>,
+  Sebastian tokkee Hard <sh at tokkee.org>,
+  and many contributors (see `AUTHORS').
 
