@@ -76,9 +76,9 @@ sub _create_identifier
 
 	$host = $args->{'host'};
 	$plugin = $args->{'plugin'};
-	$plugin .= '-' . $args->{'plugin_instance'} if ($args->{'plugin_instance'});
+	$plugin .= '-' . $args->{'plugin_instance'} if (defined ($args->{'plugin_instance'}));
 	$type = $args->{'type'};
-	$type .= '-' . $args->{'type_instance'} if ($args->{'type_instance'});
+	$type .= '-' . $args->{'type_instance'} if (defined ($args->{'type_instance'}));
 
 	return ("$host/$plugin/$type");
 } # _create_identifier
@@ -133,10 +133,12 @@ sub getval
 	$identifier = _create_identifier (\%args) or return;
 
 	$msg = "GETVAL $identifier\n";
+	#print "-> $msg";
 	send ($fh, $msg, 0) or confess ("send: $!");
 
 	$msg = undef;
 	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
+	#print "<- $msg";
 
 	($status, $msg) = split (' ', $msg, 2);
 	if ($status <= 0)
@@ -148,7 +150,11 @@ sub getval
 	for (split (' ', $msg))
 	{
 		my $entry = $_;
-		if ($entry =~ m/^(\w+)=($RE{num}{real})$/)
+		if ($entry =~ m/^(\w+)=NaN$/)
+		{
+			$ret->{$1} = undef;
+		}
+		elsif ($entry =~ m/^(\w+)=($RE{num}{real})$/)
 		{
 			$ret->{$1} = 0.0 + $2;
 		}
@@ -198,9 +204,11 @@ sub putval
 	}
 
 	$msg = "PUTVAL $identifier $values\n";
+	#print "-> $msg";
 	send ($fh, $msg, 0) or confess ("send: $!");
 	$msg = undef;
 	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
+	#print "<- $msg";
 
 	($status, $msg) = split (' ', $msg, 2);
 	return (1) if ($status == 0);
