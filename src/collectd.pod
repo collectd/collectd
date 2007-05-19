@@ -82,7 +82,8 @@ Several loglevels let you suppress uninteresting messages.
 
 Please note that some plugins, that provide other means of communicating with
 the daemon, have manpages of their own to describe their functionality in more
-detail. In particular those are L<collectd-exec(5)>, ...
+detail. In particular those are L<collectd-exec(5)>, L<collectd-unixsock(5)>,
+...
 
 =head1 SPECIAL PLUGINS
 
@@ -323,6 +324,7 @@ The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
 L<collectd.conf(5)>,
 L<collectd-exec(5)>,
+L<collectd-unixsock(5)>,
 L<hddtemp(8)>,
 L<kstat(3KSTAT)>,
 L<mbmon(1)>,

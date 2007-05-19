@@ -1,0 +1,102 @@
+=head1 NAME
+
+collectd-unixsock - Documentation of collectd's C<unixsock plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin unixsock
+  # ...
+  <Plugin unixsock>
+    SocketFile "/path/to/socket"
+    SocketGroup "collectd"
+    SocketPerms "0770"
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<unixsock plugin> opens an UNIX-socket over which one can interact with
+the daemon. This can be used to use the values collected by collectd in other
+applications, such as monitoring, or submit externally collected values to
+collectd.
+
+=head1 COMMANDS
+
+Upon start the C<unixsock plugin> opens a UNIX-socket and waits for
+connections. Once a connection is established the client can send commands to
+the daemon which it will answer, if it understand them.
+
+The following commands are implemented:
+
+=over 4
+
+=item B<GETVAL> I<Identifier>
+
+If the value identified by I<Identifier> (see below) is found the complete
+value-list is returned. The response is a space seperated list of
+name-value-pairs:
+
+I<num> I<name>B<=>I<value>[ I<name>B<=>I<value>[ ...]]
+
+If I<num> is less then zero, an error occured. Otherwise it contains the
+number of values that follow. Each value is of the form I<name>B<=>I<value>.
+Counter-values are converted to a rate, e.E<nbsp>g. bytes per second.
+Undefined values are returned as B<NaN>.
+
+Example:
+  -> | GETVAL myhost/cpu-0/cpu-user
+  <- | 1 value=1.260000e+00
+
+=item B<PUTVAL> I<Identifier> I<Valuelist>
+
+Submits a value (identified by I<Identifier>, see below) to the daemon which
+will dispatch it to all it's write-plugins. The I<Valuelist> is a
+colon-seperated list of values, either an integer if the data-source is a
+counter, of a double if the data-source if of type "gauge". You can submit an
+undefined gauge-value by using B<U>. When submitting B<U> to a counter the
+behavior is undefined.
+
+Example:
+  -> | PUTVAL testhost/interface/if_octets-test0 1179574444:123:456
+  <- | 0 Success
+
+=back
+
+=head2 Identifiers
+
+Value or value-lists are identified in a uniform fassion:
+
+I<Hostname>/I<Plugin>/I<Type>
+
+Where I<Plugin> and I<Type> are both either of type "I<Name>" or
+"I<Name>-I<Instance>". This sounds more complicated than it is, so here are
+some examples:
+
+  myhost/cpu-0/cpu-user
+  myhost/load/load
+  myhost/memory/memory-used
+  myhost/disk-sda/disk_octets
+
+=head2 Return values
+
+Unless otherwise noted the plugin answers with a line of the following form:
+
+I<Num> I<Message>
+
+If I<Num> is zero the message indicates success, if I<Num> is non-zero the
+message indicates failure. I<Message> is a human-readable string that describes
+the return value further.
+
+Commands that return values may use I<Num> to return the number of values that
+follow, such as the B<GETVAL> command. These commands usually return a negative
+value on failure and never return zero.
+
+=head1 SEE ALSO
+
+L<collectd(1)>, L<collectd.conf(5)>, L<unix(7)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut
