@@ -57,6 +57,11 @@ If the executable only writes one value and then exits I will be executed every
 I<Interval> seconds. If I<Interval> is short (the default is 10 seconds) this
 may result in serious system load.
 
+=item
+
+The user, the binary is executed as, may not have root privileges, i.E<nbsp>e.
+must have an UID that is non-zero.
+
 =back
 
 =head1 SEE ALSO

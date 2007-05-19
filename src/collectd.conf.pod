@@ -212,9 +212,9 @@ at most B<16384> to prevent typos and dumb mistakes.
 
 =head2 Plugin C<exec>
 
-Please make sure to read L<collectd/"SPECIAL PLUGINS"> before using this
-plugin. It containes valueable information on when the executable is executed
-and the output that is expected from it.
+Please make sure to read L<collectd-exec(5)> before using this plugin. It
+contains valueable information on when the executable is executed and the
+output that is expected from it.
 
 =over 4
 
