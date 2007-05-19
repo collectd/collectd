@@ -87,29 +87,6 @@ detail. In particular those are L<collectd-exec(5)>, L<collectd-unixsock(5)>,
 
 =head1 SPECIAL PLUGINS
 
-=head2 email
-
-This plugin collects data indirectly by providing a UNIX socket that external
-programs can connect to. A simple line based protocol is used to communicate
-with the plugin:
-
-E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
-
-  e:<type>:<size>
-
-If C<size> is less than or equal to zero, C<size> is ignored.
-
-Spam score:
-
-  s:<value>
-
-Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
-
-  c:<type1>[,<type2>,...]
-
-Each line is limited to 256 characters (including the newline character). 
-Longer lines will be ignored.
-
 =head2 perl
 
 The C<perl plugin> includes a Perl-interpreter in collectd and provides
@@ -240,6 +217,7 @@ The message is passed to all log-callbacks that are registered with collectd.
 =head1 SEE ALSO
 
 L<collectd.conf(5)>,
+L<collectd-email(5)>,
 L<collectd-exec(5)>,
 L<collectd-unixsock(5)>,
 L<http://collectd.org/>
