@@ -1,0 +1,164 @@
+=head1 NAME
+
+collectd-perl - Documentation of collectd's C<perl plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin perl
+  # ...
+  <Plugin perl>
+    IncludeDir "/path/to/perl/plugins"
+    BaseName "Collectd::Plugin"
+    LoadPlugin "FooBar"
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<perl plugin> includes a Perl-interpreter in collectd and provides
+Perl-equivalents of the plugin-functions. This makes it possible to write
+plugins for collectd in Perl. This is a lot more performant than executing a
+Perl-script every time you want to read a value with the C<exec plugin> (see
+L<collectd-exec(5)>) and provides a lot more functionality, too.
+
+=head1 DATA TYPES
+
+There are two more complex types you need to know about:
+
+=over 4
+
+=item Data-Set
+
+A data-set is a list of one or more data-sources. Each data-source defines a
+name, type, min- and max-value and the data-set wraps them up into one
+structure. The general layout looks like this:
+
+  [{
+    name => 'data_source_name',
+    type => DS_TYPE_COUNTER || DS_TYPE_GAUGE
+    min  => value || undef,
+    max  => value || undef
+  }, ...]
+
+=item Value-List
+
+A value-list is one structure which features an array of values and fields to
+identify the values, i. e. time and host, plugin name and plugin-instance as
+well as a type and type-instance. Since the "type" is not included in the
+value-list but is passed as an extra argument, the general layout looks like
+this:
+
+  {
+    values => [123, 0.5],
+    time   => time (),
+    host   => 'localhost',
+    plugin => 'myplugin',
+    plugin_instance => '',
+    type_instance   => ''
+  }
+
+=back
+
+=head1 METHODS
+
+The following functions provide the C-interface to Perl-modules. They are
+automatically exported into the module's namespace. You don't need to C<use>
+any special Modules to access them.
+
+=over 4
+
+=item B<plugin_register> (I<type>, I<name>, I<data>)
+
+Registers a callback-function or data-set.
+
+I<type> can be one of:
+
+=over 4
+
+=item TYPE_INIT
+
+=item TYPE_READ
+
+=item TYPE_WRITE
+
+=item TYPE_LOG
+
+=item TYPE_SHUTDOWN
+
+=item TYPE_DATASET
+
+=back
+
+I<name> is the name of the callback-function or the type of the data-set,
+depending on the value of I<type>. (Please note that the type of the data-set
+is the value passed as I<name> here and has nothing to do with the I<type>
+argument which simply tells B<plugin_register> what is being registered.)
+
+The last argument, I<data>, is either a function- or an array-reference. If
+I<type> is B<TYPE_DATASET>, then the I<data> argument must be an
+array-reference which points to an array of hashes. Each hash describes one
+data-source. For the exact layout see B<Data-Set> above.
+
+If the I<type> argument is any of the other types (B<TYPE_INIT>, B<TYPE_READ>,
+...) then I<data> is expected to be a function reference. These functions are
+called in the various stages of the daemon and are passed the following
+arguments:
+
+=over 4
+
+=item TYPE_INIT
+
+=item TYPE_READ
+
+=item TYPE_SHUTDOWN
+
+No arguments are passed
+
+=item TYPE_WRITE
+
+The arguments passed are I<type>, I<data-set>, and I<value-list>. I<type> is a
+string. For the layout of I<data-set> and I<value-list> see above.
+
+=item TYPE_LOG
+
+The arguments are I<log-level> and I<message>. The log level is small for
+important messages and high for less important messages. The least important
+level is B<LOG_DEBUG>, the most important level is B<LOG_ERR>. In between there
+are (from least to most important): B<LOG_INFO>, B<LOG_NOTICE>, and
+B<LOG_WARNING>. I<message> is simply a string B<without> a newline at the end.
+
+=back
+
+=item B<plugin_unregister> (I<type>, I<plugin>)
+
+Removes a callback or data-set from collectd's internal list of
+functionsE<nbsp>/ datasets.
+
+=item B<plugin_dispatch_values> (I<type>, I<value-list>)
+
+Submits a I<value-list> of type I<type> to the daemon. If the data-set I<type>
+is found (and the number of values matches the number of data-sources) then the
+type, data-set and value-list is passed to all write-callbacks that are
+registered with the daemon.
+
+=item B<plugin_log> (I<log-level>, I<message>)
+
+Submits a I<message> of level I<log-level> to collectd's logging mechanism.
+The message is passed to all log-callbacks that are registered with collectd.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-exec(5)>,
+L<perl(1)>
+
+=head1 AUTHOR
+
+The C<perl plugin> has been written by Sebastian Harl E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
+
+This manpage has been written by Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>.
+
+=cut

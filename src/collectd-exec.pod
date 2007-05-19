@@ -20,6 +20,9 @@ forked once and not again until it exits. If it exited, it will be forked again
 after at most I<Interval> seconds. It is perfectly legal for the executable to
 run for a long time and continuously write values to C<STDOUT>.
 
+If you want/need better performance or more functionality you should take a
+long look at the C<perl plugin>, L<collectd-perl(5)>.
+
 =head1 DATA FORMAT
 
 The forked executable is expected to print values to C<STDOUT>. The expected
@@ -66,7 +69,10 @@ must have an UID that is non-zero.
 
 =head1 SEE ALSO
 
-L<collectd(1)>, L<collectd.conf(5)>, L<fork(2)>, L<exec(3)>
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-perl(5)>,
+L<fork(2)>, L<exec(3)>
 
 =head1 AUTHOR
 
