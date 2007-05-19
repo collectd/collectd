@@ -45,13 +45,21 @@ directory for the daemon.
 =item B<LoadPlugin> I<Plugin>
 
 Loads the plugin I<Plugin>. There must be at least one such line or B<collectd>
-will be mostly useless. The names of the plugins are listed in L<collectd(1)>.
+will be mostly useless.
 
 =item B<PIDFile> I<File>
 
 Sets where to write the PID file to. This file is overwritten when it exists
 and deleted when the program ist stopped. Some init-scripts might override this
 setting using the B<-P> commandline option.
+
+=item B<PluginDir> I<Directory>
+
+Path to the plugins (shared objects) of collectd.
+
+=item B<TypesDB> I<File>
+
+Set the file that contains the data-set descriptions.
 
 =item B<Interval> I<Seconds>
 
