@@ -424,6 +424,8 @@ sub action_show_host
   my $host_url = uri_escape ($host);
   my %plugins = _find_plugins ($host);
 
+  print qq(    <div><a href="${\script_name ()}?action=overview">Back to list of hosts</a></div>\n);
+
   print "<ul>\n";
   for (sort (keys %plugins))
   {
@@ -463,6 +465,8 @@ sub action_show_plugin
   my $url_prefix = script_name () . "?host=$host_url;plugin=$plugin_url";
   $url_prefix .= ";plugin_instance=$plugin_instance_url" if (defined ($plugin_instance));
 
+  print qq(    <div><a href="${\script_name ()}?action=show_host;host=$host_url">Back to list of plugins</a></div>\n);
+
   for (sort (keys %types))
   {
     my $type = $_;
@@ -501,11 +505,17 @@ sub action_show_type
 
   my $host_url = uri_escape ($host);
   my $plugin_url = uri_escape ($plugin);
+  my $plugin_html = encode_entities ($plugin);
   my $plugin_instance_url = defined ($plugin_instance) ? uri_escape ($plugin_instance) : undef;
   my $type_url = uri_escape ($type);
   my $type_instance_url = defined ($type_instance) ? uri_escape ($type_instance) : undef;
 
-  my $url_prefix = script_name () . "?action=show_graph;host=$host_url;plugin=$plugin_url";
+  my $url_prefix = script_name () . "?action=show_plugin;host=$host_url;plugin=$plugin_url";
+  $url_prefix .= ";plugin_instance=$plugin_instance_url" if (defined ($plugin_instance));
+
+  print qq(    <div><a href="$url_prefix">Back to plugin &quot;$plugin_html&quot;</a></div>\n);
+
+  $url_prefix = script_name () . "?action=show_graph;host=$host_url;plugin=$plugin_url";
   $url_prefix .= ";plugin_instance=$plugin_instance_url" if (defined ($plugin_instance));
   $url_prefix .= ";type=$type_url";
   $url_prefix .= ";type_instance=$type_instance_url" if (defined ($type_instance));
@@ -531,7 +541,7 @@ sub action_show_graph
   my %times = (hour => -3600, day => -86400, week => 7 * -86400, month => 31 * -86400, year => 366 * -86400);
   my $start_time = $times{$Args->{'timespan'}} || -86400;
 
-  print STDERR Data::Dumper->Dump ([$Args], ['Args']);
+  #print STDERR Data::Dumper->Dump ([$Args], ['Args']);
 
   return if (!defined ($GraphDefs->{$type}));
   @rrd_args = @{$GraphDefs->{$type}};
@@ -634,7 +644,7 @@ sub main
 
 sub load_graph_definitions
 {
-  my $Canvas = 'F5F5F5';
+  my $Canvas = 'FFFFFF';
 
   my $FullRed    = 'FF0000';
   my $FullGreen  = '00E000';
@@ -1182,7 +1192,7 @@ sub load_graph_definitions
     'GPRINT:used_max:MAX:%5.1lf%s Max,',
     'GPRINT:used_avg:LAST:%5.1lf%s Last'
     ],
-    mysql_commands => [
+    mysql_commands => ['-v', 'Issues/s',
     "DEF:val_avg={file}:value:AVERAGE",
     "DEF:val_min={file}:value:MIN",
     "DEF:val_max={file}:value:MAX",
@@ -1194,7 +1204,7 @@ sub load_graph_definitions
     'GPRINT:val_max:MAX:%5.2lf Max,',
     'GPRINT:val_avg:LAST:%5.2lf Last'
     ],
-    mysql_handler => [
+    mysql_handler => ['-v', 'Issues/s',
     "DEF:val_avg={file}:value:AVERAGE",
     "DEF:val_min={file}:value:MIN",
     "DEF:val_max={file}:value:MAX",
@@ -1206,7 +1216,36 @@ sub load_graph_definitions
     'GPRINT:val_max:MAX:%5.2lf Max,',
     'GPRINT:val_avg:LAST:%5.2lf Last'
     ],
-    mysql_qcache => [
+    mysql_octets => ['-v', 'Bytes/s',
+    'DEF:out_min={file}:tx:MIN',
+    'DEF:out_avg={file}:tx:AVERAGE',
+    'DEF:out_max={file}:tx:MAX',
+    'DEF:inc_min={file}:rx:MIN',
+    'DEF:inc_avg={file}:rx:AVERAGE',
+    'DEF:inc_max={file}:rx:MAX',
+    'CDEF:overlap=out_avg,inc_avg,GT,inc_avg,out_avg,IF',
+    'CDEF:mytime=out_avg,TIME,TIME,IF',
+    'CDEF:sample_len_raw=mytime,PREV(mytime),-',
+    'CDEF:sample_len=sample_len_raw,UN,0,sample_len_raw,IF',
+    'CDEF:out_avg_sample=out_avg,UN,0,out_avg,IF,sample_len,*',
+    'CDEF:out_avg_sum=PREV,UN,0,PREV,IF,out_avg_sample,+',
+    'CDEF:inc_avg_sample=inc_avg,UN,0,inc_avg,IF,sample_len,*',
+    'CDEF:inc_avg_sum=PREV,UN,0,PREV,IF,inc_avg_sample,+',
+    "AREA:out_avg#$HalfGreen",
+    "AREA:inc_avg#$HalfBlue",
+    "AREA:overlap#$HalfBlueGreen",
+    "LINE1:out_avg#$FullGreen:Written",
+    'GPRINT:out_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:out_max:MAX:%5.1lf%s Max,',
+    'GPRINT:out_avg:LAST:%5.1lf%s Last',
+    'GPRINT:out_avg_sum:LAST:(ca. %5.1lf%sB Total)\l',
+    "LINE1:inc_avg#$FullBlue:Read   ",
+    'GPRINT:inc_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:inc_max:MAX:%5.1lf%s Max,',
+    'GPRINT:inc_avg:LAST:%5.1lf%s Last',
+    'GPRINT:inc_avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
+    ],
+    mysql_qcache => ['-v', 'Queries/s',
     "DEF:hits_min={file}:hits:MIN",
     "DEF:hits_avg={file}:hits:AVERAGE",
     "DEF:hits_max={file}:hits:MAX",
@@ -1255,7 +1294,7 @@ sub load_graph_definitions
     'GPRINT:queries_max:MAX:%5.0lf Max,',
     'GPRINT:queries_avg:LAST:%5.0lf Last\l'
     ],
-    mysql_threads => [
+    mysql_threads => ['-v', 'Threads',
     "DEF:running_min={file}:running:MIN",
     "DEF:running_avg={file}:running:AVERAGE",
     "DEF:running_max={file}:running:MAX",
@@ -1293,6 +1332,18 @@ sub load_graph_definitions
     'GPRINT:created_avg:AVERAGE:%5.0lf Avg,',
     'GPRINT:created_max:MAX:%5.0lf Max,',
     'GPRINT:created_avg:LAST:%5.0lf Last\l'
+    ],
+    nfs_procedure => ['-v', 'Issues/s',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Issues/s",
+    'GPRINT:min:MIN:%6.2lf Min,',
+    'GPRINT:avg:AVERAGE:%6.2lf Avg,',
+    'GPRINT:max:MAX:%6.2lf Max,',
+    'GPRINT:avg:LAST:%6.2lf Last\l'
     ],
     nfs3_procedures => [
     "DEF:null_avg={file}:null:AVERAGE",
