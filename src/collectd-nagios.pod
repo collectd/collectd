@@ -9,10 +9,11 @@ collectd-nagios B<-s> I<socket> B<-n> I<value_spec> B<-H> I<hostname> I<[options
 =head1 DESCRIPTION
 
 This small program is the glue between collectd and nagios. collectd collects
-various performance statistics which is provides via the C<unixsock plugin>.
-This program is called by Nagios, connects to the UNIX socket and reads the
-values from collectd. It then returns B<OKAY>, B<WARNING> or B<CRITICAL>
-depending on the values and the ranges provided by Nagios.
+various performance statistics which is provides via the C<unixsock plugin>,
+see L<collectd-unixsock(5)>. This program is called by Nagios, connects to the
+UNIX socket and reads the values from collectd. It then returns B<OKAY>,
+B<WARNING> or B<CRITICAL> depending on the values and the ranges provided by
+Nagios.
 
 =head1 ARGUMENTS AND OPTIONS
 
@@ -89,10 +90,13 @@ occured it returnes B<3> for "unknown".
 
 =head1 SEE ALSO
 
-L<collectd(1)>, L<collectd.conf(5)>, L<http://nagios.org/>
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-unixsock(5)>,
+L<http://nagios.org/>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octo@verplant.orgE<gt>
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>
 
 =cut

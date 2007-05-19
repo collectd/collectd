@@ -20,6 +20,9 @@ the daemon. This can be used to use the values collected by collectd in other
 applications, such as monitoring, or submit externally collected values to
 collectd.
 
+This plugin is used by L<collectd-nagios(1)> to check if some value is in a
+certain range and exit with a Nagios-compatible exit code.
+
 =head1 COMMANDS
 
 Upon start the C<unixsock plugin> opens a UNIX-socket and waits for
@@ -100,7 +103,10 @@ communicate with the daemon, you're encouraged to use and expand this module.
 
 =head1 SEE ALSO
 
-L<collectd(1)>, L<collectd.conf(5)>, L<unix(7)>
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-nagios(1)>,
+L<unix(7)>
 
 =head1 AUTHOR
 
