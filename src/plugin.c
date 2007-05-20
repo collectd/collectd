@@ -607,9 +607,9 @@ void plugin_shutdown_all (void)
 	while (le != NULL)
 	{
 		callback = (int (*) (void)) le->value;
-		(*callback) ();
-
 		le = le->next;
+
+		(*callback) ();
 	}
 } /* void plugin_shutdown_all */
 
