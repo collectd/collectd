@@ -613,7 +613,7 @@ void plugin_shutdown_all (void)
 	}
 } /* void plugin_shutdown_all */
 
-int plugin_dispatch_values (const char *name, const value_list_t *vl)
+int plugin_dispatch_values (const char *name, value_list_t *vl)
 {
 	int (*callback) (const data_set_t *, const value_list_t *);
 	data_set_t *ds;
@@ -650,6 +650,11 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 	}
 #endif
 
+	escape_slashes (vl->host, sizeof (vl->host));
+	escape_slashes (vl->plugin, sizeof (vl->plugin));
+	escape_slashes (vl->plugin_instance, sizeof (vl->plugin_instance));
+	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
+
 	le = llist_head (list_write);
 	while (le != NULL)
 	{
@@ -660,7 +665,7 @@ int plugin_dispatch_values (const char *name, const value_list_t *vl)
 	}
 
 	return (0);
-}
+} /* int plugin_dispatch_values */
 
 void plugin_log (int level, const char *format, ...)
 {

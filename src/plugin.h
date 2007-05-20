@@ -178,7 +178,7 @@ int plugin_unregister_log (const char *name);
  *  `vl'        Value list of the values that have been read by a `read'
  *              function.
  */
-int plugin_dispatch_values (const char *name, const value_list_t *vl);
+int plugin_dispatch_values (const char *name, value_list_t *vl);
 
 void plugin_log (int level, const char *format, ...);
 #define ERROR(...)   plugin_log (LOG_ERR,     __VA_ARGS__)

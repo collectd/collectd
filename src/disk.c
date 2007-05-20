@@ -421,13 +421,6 @@ static int disk_read (void)
 		minor = atoll (fields[1]);
 
 		disk_name = fields[2];
-		{ /* Strip slashes from disk_name */
-			int i;
-			for (i = 0; disk_name[i] != '\0'; i++)
-				if (disk_name[i] == '/')
-					disk_name[i] = '_';
-		}
-
 
 		for (ds = disklist, pre_ds = disklist; ds != NULL; pre_ds = ds, ds = ds->next)
 			if (strcmp (disk_name, ds->name) == 0)

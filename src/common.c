@@ -241,7 +241,7 @@ int strsubstitute (char *str, char c_from, char c_to)
 	}
 
 	return (ret);
-}
+} /* int strsubstitute */
 
 int escape_slashes (char *buf, int buf_len)
 {
@@ -256,8 +256,12 @@ int escape_slashes (char *buf, int buf_len)
 		return (0);
 	}
 
+	if (buf_len <= 1)
+		return (0);
+
 	/* Move one to the left */
-	memmove (buf, buf + 1, buf_len - 1);
+	if (buf[0] == '/')
+		memmove (buf, buf + 1, buf_len - 1);
 
 	for (i = 0; i < buf_len - 1; i++)
 	{
@@ -269,7 +273,7 @@ int escape_slashes (char *buf, int buf_len)
 	buf[i] = '\0';
 
 	return (0);
-}
+} /* int escape_slashes */
 
 int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct timespec *ret)
 {

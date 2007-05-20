@@ -143,6 +143,8 @@ int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const 
  */
 int escape_slashes (char *buf, int buf_len);
 
+int strsubstitute (char *str, char c_from, char c_to);
+
 /* FIXME: `timeval_sub_timespec' needs a description */
 int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct timespec *ret);
 
