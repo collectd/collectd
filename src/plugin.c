@@ -607,6 +607,11 @@ void plugin_shutdown_all (void)
 	while (le != NULL)
 	{
 		callback = (int (*) (void)) le->value;
+
+		/* Advance the pointer before calling the callback allows
+		 * shutdown functions to unregister themselves. If done the
+		 * other way around the memory `le' points to will be freed
+		 * after callback returns. */
 		le = le->next;
 
 		(*callback) ();
