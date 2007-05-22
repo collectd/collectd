@@ -708,17 +708,21 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	ppid = atoi (fields[3]);
 
-	if ((tasks = ps_read_tasks (pid)) == NULL)
-	{
-		/* This happends for zombied, e.g. */
-		DBG ("ps_read_tasks (%i) failed.", pid);
-		*state = 'Z';
-		ps->num_lwp  = 0;
-		ps->num_proc = 0;
-	}
+ 	*state = fields[2][0];
+ 
+ 	if (*state == 'Z')
+  	{
+  		ps->num_lwp  = 0;
+  		ps->num_proc = 0;
+  	}
+ 	else if ((tasks = ps_read_tasks (pid)) == NULL)
+ 	{
+ 		/* Kernel 2.4 or so */
+ 		ps->num_lwp  = 1;
+ 		ps->num_proc = 1;
+ 	}
 	else
 	{
-		*state = '\0';
 		ps->num_lwp  = 0;
 		ps->num_proc = 1;
 		for (i = 0; tasks[i] != 0; i++)
@@ -728,10 +732,10 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		tasks = NULL;
 	}
 
-	/* Leave the rest at zero if this is only an LWP */
+ 	/* Leave the rest at zero if this is only a zombi */
 	if (ps->num_proc == 0)
 	{
-		DBG ("This is only an LWP: pid = %i; name = %s;",
+ 		DBG ("This is only a zombi: pid = %i; name = %s;",
 				pid, ps->name);
 		return (0);
 	}
@@ -750,8 +754,6 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	ps->cpu_user_counter = (unsigned long) cpu_user_counter;
 	ps->cpu_system_counter = (unsigned long) cpu_system_counter;
 	ps->vmem_rss = (unsigned long) vmem_rss;
-
-	*state = fields[2][0];
 
 	/* success */
 	return (0);
