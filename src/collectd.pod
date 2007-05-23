@@ -10,7 +10,7 @@ collectd I<[options]>
 
 collectd is a daemon that receives system statistics and makes them available
 in a number of ways. The main daemon itself doesn't have any real functionality
-appart from loading, querying and submitting to plugins. For a description of
+apart from loading, querying and submitting to plugins. For a description of
 available plugins please see L</PLUGINS> below.
 
 =head1 OPTIONS
@@ -25,6 +25,11 @@ L<collectd.conf(5)> for an in-depth description of all options.
 Specify an alternative config file. This is the place to go when you wish to
 change B<collectd>'s behavior. The path may be relative to the current working
 directory.
+
+=item B<-t>
+
+Test the configuration only. The program immediately exits after parsing the
+config file. A return code not equal to zero indicates an error.
 
 =item B<-P> I<E<lt>pid-fileE<gt>>
 
