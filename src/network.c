@@ -385,7 +385,8 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 
 	if (buffer_len < (15))
 	{
-		DEBUG ("packet is too short: buffer_len = %i", buffer_len);
+		DEBUG ("network plugin: packet is too short: buffer_len = %i",
+				buffer_len);
 		return (-1);
 	}
 
@@ -1047,7 +1048,7 @@ static void network_send_buffer (const char *buffer, int buffer_len)
 	sockent_t *se;
 	int status;
 
-	DEBUG ("buffer_len = %i", buffer_len);
+	DEBUG ("network plugin: network_send_buffer: buffer_len = %i", buffer_len);
 
 	for (se = sending_sockets; se != NULL; se = se->next)
 	{
