@@ -125,7 +125,7 @@ our %TypeRename =
 
 GetOptions ("indir|i=s" => \$InDir,
 	"outdir|o=s" => \$OutDir,
-	"hostname=s" => \$Hostname) or exit (1);
+	"hostname=s" => \$Hostname) or exit_usage ();
 
 die "No such directory: $InDir" if (!-d $InDir);
 
@@ -373,4 +373,12 @@ sub special_disk
 	$dest->{'type'} = 'disk_time';
 	$dest_filename = get_filename ($dest);
 	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rtime' -s 'wtime' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+}
+
+sub exit_usage
+{
+	print <<EOF;
+Usage: $0 [-i indir] [-o outdir] [--hostname myhostname]
+EOF
+	exit (1);
 }
