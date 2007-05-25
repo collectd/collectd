@@ -273,9 +273,15 @@ static void *exec_read_one (void *arg)
     char *type_instance;
     char *value;
 
-    DEBUG ("buffer = %s", buffer);
-
     len = strlen (buffer);
+
+    /* Remove newline from end. */
+    while ((len > 0) && ((buffer[len - 1] == '\n')
+	  || (buffer[len - 1] == '\r')))
+      buffer[--len] = '\0';
+
+    DEBUG ("exec plugin: exec_read_one: buffer = %s", buffer);
+
     if (len < 5)
       continue;
 
@@ -299,11 +305,15 @@ static void *exec_read_one (void *arg)
 
     value = strchr (type_instance, ',');
     if (value == NULL)
+    {
+      WARNING ("exec plugin: type-instance is missing.");
       continue;
+    }
     *value = '\0';
     value++;
 
-    DEBUG ("value = %s", value);
+    DEBUG ("exec plugin: exec_read_one: type = %s; type_instance = %s; "
+	"value = %s;", type, type_instance, value);
 
     if (strcasecmp ("counter", type) == 0)
       submit_counter (type_instance, atoll (value));
