@@ -208,7 +208,7 @@ void sensors_free_features (void)
 	first_feature = NULL;
 }
 
-static void sensors_load_conf (void)
+static int sensors_load_conf (void)
 {
 	FILE *fh;
 	featurelist_t *last_feature = NULL;
@@ -234,7 +234,7 @@ static void sensors_load_conf (void)
 
 	if ((sensors_config_mtime != 0)
 			&& (sensors_config_mtime == statbuf.st_mtime))
-		return;
+		return (0);
 
 	if (sensors_config_mtime != 0)
 	{
@@ -250,7 +250,7 @@ static void sensors_load_conf (void)
 		char errbuf[1024];
 		ERROR ("sensors plugin: fopen(%s) failed: %s", conffile,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return;
+		return (-1);
 	}
 
 	status = sensors_init (fh);
@@ -259,7 +259,7 @@ static void sensors_load_conf (void)
 	{
 		ERROR ("sensors plugin: Cannot initialize sensors. "
 				"Data will not be collected.");
-		return;
+		return (-1);
 	}
 
 	sensors_config_mtime = statbuf.st_mtime;
@@ -329,8 +329,11 @@ static void sensors_load_conf (void)
 		sensors_cleanup ();
 		INFO ("sensors plugin: lm_sensors reports no "
 				"features. Data will not be collected.");
+		return (-1);
 	}
-} /* void sensors_load_conf */
+
+	return (0);
+} /* int sensors_load_conf */
 
 static int sensors_shutdown (void)
 {
@@ -372,7 +375,8 @@ static int sensors_read (void)
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	char type_instance[DATA_MAX_NAME_LEN];
 
-	sensors_load_conf ();
+	if (sensors_load_conf () != 0)
+		return (-1);
 
 	for (feature = first_feature; feature != NULL; feature = feature->next)
 	{

@@ -190,7 +190,6 @@ static int memory_read (void)
 	};
 	double sysctl_vals[8];
 
-	size_t len;
 	int    i;
 
 	for (i = 0; sysctl_keys[i] != NULL; i++)

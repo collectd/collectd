@@ -4,7 +4,9 @@
 	* collectd: The read-function has been changed to read many plugins in
 	  parallel, using threads. Thus, plugins generally need to use
 	  thread-safe functions from now on.
-	* csv plugin: The new `csv' plugin handles output to `comma seperated
+	* collectd: The '-t' command line options allows to perform syntax tests
+	  of the configuration file and exit immediately.
+	* csv plugin: The new `csv' plugin handles output to `comma separated
 	  values'-files.
 	* rrdtool plugin: The new `rrdtool' plugin handles output to
 	  RRD-files. Data can be cached to combine multiple updates into one
@@ -34,8 +36,8 @@
 	  plugin.
 	* irq plugin: The new `irq' plugin collects the IRQ-counters. Thanks
 	  to Peter Holik for contributing this plugin.
-	* nut plugin: The new `nut' plugin connects the the upsd of the
-	  `network ups tools' and reads information about the connected UPS.
+	* nut plugin: The new `nut' plugin connects the upsd of the `network
+	  ups tools' and reads information about the connected UPS.
 	* apache plugin: Support for lighttpd's `BusyServers' (aka.
 	  connections) field was added by Florent Monbillard.
 	* collectd-nagios: The new `collectd-nagios' binary queries values

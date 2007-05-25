@@ -959,6 +959,8 @@ static XS (boot_Collectd)
 
 static int perl_config (const char *key, const char *value)
 {
+	assert (NULL != perl);
+
 	log_debug ("perl_config: key = \"%s\", value=\"%s\"", key, value);
 
 	if (0 == strcasecmp (key, "LoadPlugin")) {
@@ -993,24 +995,32 @@ static int perl_config (const char *key, const char *value)
 
 static int perl_init (void)
 {
+	assert (NULL != perl);
+
 	PERL_SET_CONTEXT (perl);
 	return pplugin_call_all (PLUGIN_INIT);
 } /* static int perl_init (void) */
 
 static int perl_read (void)
 {
+	assert (NULL != perl);
+
 	PERL_SET_CONTEXT (perl);
 	return pplugin_call_all (PLUGIN_READ);
 } /* static int perl_read (void) */
 
 static int perl_write (const data_set_t *ds, const value_list_t *vl)
 {
+	assert (NULL != perl);
+
 	PERL_SET_CONTEXT (perl);
 	return pplugin_call_all (PLUGIN_WRITE, ds, vl);
 } /* static int perl_write (const data_set_t *, const value_list_t *) */
 
 static void perl_log (int level, const char *msg)
 {
+	assert (NULL != perl);
+
 	PERL_SET_CONTEXT (perl);
 	pplugin_call_all (PLUGIN_LOG, level, msg);
 	return;
@@ -1020,6 +1030,14 @@ static int perl_shutdown (void)
 {
 	int i   = 0;
 	int ret = 0;
+
+	plugin_unregister_log ("perl");
+	plugin_unregister_config ("perl");
+	plugin_unregister_init ("perl");
+	plugin_unregister_read ("perl");
+	plugin_unregister_write ("perl");
+
+	assert (NULL != perl);
 
 	PERL_SET_CONTEXT (perl);
 	ret = pplugin_call_all (PLUGIN_SHUTDOWN);
@@ -1054,8 +1072,11 @@ static int perl_shutdown (void)
 
 	perl_destruct (perl);
 	perl_free (perl);
+	perl = NULL;
 
 	PERL_SYS_TERM ();
+
+	plugin_unregister_shutdown ("perl");
 	return ret;
 } /* static void perl_shutdown (void) */
 

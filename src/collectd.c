@@ -320,6 +320,7 @@ int main (int argc, char **argv)
 	struct sigaction sigIntAction;
 	struct sigaction sigTermAction;
 	char *configfile = CONFIGFILE;
+	int test_config  = 0;
 	const char *basedir;
 #if COLLECT_DAEMON
 	struct sigaction sigChldAction;
@@ -332,7 +333,7 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		c = getopt (argc, argv, "hC:"
+		c = getopt (argc, argv, "htC:"
 #if COLLECT_DAEMON
 				"fP:"
 #endif
@@ -345,6 +346,9 @@ int main (int argc, char **argv)
 		{
 			case 'C':
 				configfile = optarg;
+				break;
+			case 't':
+				test_config = 1;
 				break;
 #if COLLECT_DAEMON
 			case 'P':
@@ -396,6 +400,9 @@ int main (int argc, char **argv)
 	 */
 	if (init_global_variables () != 0)
 		return (1);
+
+	if (test_config)
+		return (0);
 
 #if COLLECT_DAEMON
 	/*
