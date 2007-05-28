@@ -1,3 +1,5 @@
+#ifndef CONFIGFILE_H
+#define CONFIGFILE_H
 /**
  * collectd - src/configfile.h
  * Copyright (C) 2005,2006  Florian octo Forster
@@ -20,8 +22,8 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef CONFIGFILE_H
-#define CONFIGFILE_H
+#include "collectd.h"
+#include "liboconfig/oconfig.h"
 
 /*
  * DESCRIPTION
@@ -32,6 +34,7 @@
  *              `plugin_register'
  */
 void cf_unregister (const char *type);
+void cf_unregister_complex (const char *type);
 
 /*
  * DESCRIPTION
@@ -60,6 +63,8 @@ void cf_unregister (const char *type);
 void cf_register (const char *type,
 		int (*callback) (const char *, const char *),
 		const char **keys, int keys_num);
+
+int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *));
 
 /*
  * DESCRIPTION

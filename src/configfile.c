@@ -42,6 +42,13 @@ typedef struct cf_callback
 	struct cf_callback *next;
 } cf_callback_t;
 
+typedef struct cf_complex_callback_s
+{
+	char *type;
+	int (*callback) (oconfig_item_t *);
+	struct cf_complex_callback_s *next;
+} cf_complex_callback_t;
+
 typedef struct cf_value_map_s
 {
 	char *key;
@@ -65,6 +72,7 @@ static int dispatch_value_loadplugin (const oconfig_item_t *ci);
  * Private variables
  */
 static cf_callback_t *first_callback = NULL;
+static cf_complex_callback_t *complex_callback_head = NULL;
 
 static cf_value_map_t cf_value_map[] =
 {
@@ -257,21 +265,29 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 	int i;
 	char *name;
 
+	cf_complex_callback_t *cb;
+
 	if (strcasecmp (ci->key, "Plugin") != 0)
 		return (-1);
-	if (ci->values_num != 1)
+	if (ci->values_num < 1)
 		return (-1);
 	if (ci->values[0].type != OCONFIG_TYPE_STRING)
 		return (-1);
 
 	name = ci->values[0].value.string;
 
+	/* Check for a complex callback first */
+	for (cb = complex_callback_head; cb != NULL; cb = cb->next)
+		if (strcasecmp (name, cb->type) == 0)
+			return (cb->callback (ci));
+
+	/* Hm, no complex plugin found. Dispatch the values one by one */
 	for (i = 0; i < ci->children_num; i++)
 	{
 		if (ci->children[i].children == NULL)
 			dispatch_value_plugin (name, ci->children + i);
 		else
-			{DEBUG ("No nested config blocks allow for plugins. Yet.");}
+			{DEBUG ("No nested config blocks allow for this plugin.");}
 	}
 
 	return (0);
@@ -347,6 +363,26 @@ void cf_unregister (const char *type)
 		}
 } /* void cf_unregister */
 
+void cf_unregister_complex (const char *type)
+{
+	cf_complex_callback_t *this, *prev;
+
+	for (prev = NULL, this = complex_callback_head;
+			this != NULL;
+			prev = this, this = this->next)
+		if (strcasecmp (this->type, type) == 0)
+		{
+			if (prev == NULL)
+				complex_callback_head = this->next;
+			else
+				prev->next = this->next;
+
+			sfree (this->type);
+			sfree (this);
+			break;
+		}
+} /* void cf_unregister */
+
 void cf_register (const char *type,
 		int (*callback) (const char *, const char *),
 		const char **keys, int keys_num)
@@ -368,6 +404,39 @@ void cf_register (const char *type,
 	cf_cb->next = first_callback;
 	first_callback = cf_cb;
 } /* void cf_register */
+
+int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
+{
+	cf_complex_callback_t *new;
+
+	new = (cf_complex_callback_t *) malloc (sizeof (cf_complex_callback_t));
+	if (new == NULL)
+		return (-1);
+
+	new->type = strdup (type);
+	if (new->type == NULL)
+	{
+		sfree (new);
+		return (-1);
+	}
+
+	new->callback = callback;
+	new->next = NULL;
+
+	if (complex_callback_head == NULL)
+	{
+		complex_callback_head = new;
+	}
+	else
+	{
+		cf_complex_callback_t *last = complex_callback_head;
+		while (last->next != NULL)
+			last = last->next;
+		last->next = new;
+	}
+
+	return (0);
+} /* int cf_register_complex */
 
 int cf_read (char *filename)
 {

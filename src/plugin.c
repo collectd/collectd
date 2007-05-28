@@ -374,6 +374,12 @@ int plugin_register_config (const char *name,
 	return (0);
 } /* int plugin_register_config */
 
+int plugin_register_complex_config (const char *type,
+		int (*callback) (oconfig_item_t *))
+{
+	return (cf_register_complex (type, callback));
+} /* int plugin_register_complex_config */
+
 int plugin_register_init (const char *name,
 		int (*callback) (void))
 {
@@ -457,6 +463,12 @@ int plugin_unregister_config (const char *name)
 	cf_unregister (name);
 	return (0);
 } /* int plugin_unregister_config */
+
+int plugin_unregister_complex_config (const char *name)
+{
+	cf_unregister_complex (name);
+	return (0);
+} /* int plugin_unregister_complex_config */
 
 int plugin_unregister_init (const char *name)
 {
