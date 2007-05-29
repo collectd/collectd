@@ -631,6 +631,14 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 			continue;
 		}
 
+		if (pkt_item_len > res_item_size)
+		{
+			syslog (LOG_ERR, "ntpd plugin: (pkt_item_len = %i) "
+					">= (res_item_size = %i)",
+					pkt_item_len, res_item_size);
+			continue;
+		}
+
 		/* If this is the first packet (time wise, not sequence wise),
 		 * set `res_size'. If it's not the first packet check if the
 		 * items have the same size. Discard invalid packets. */
@@ -647,9 +655,16 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 			continue;
 		}
 
+		/*
+		 * Because the items in the packet may be smaller than the
+		 * items requested, the following holds true:
+		 */
+		assert ((*res_size == pkt_item_len)
+				&& (pkt_item_len <= res_item_size));
+
 		/* Calculate the padding. No idea why there might be any padding.. */
 		pkt_padding = 0;
-		if (res_item_size > pkt_item_len)
+		if (pkt_item_len < res_item_size)
 			pkt_padding = res_item_size - pkt_item_len;
 		DBG ("res_item_size = %i; pkt_padding = %i;",
 				res_item_size, pkt_padding);
@@ -694,18 +709,26 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 				(items_num + pkt_item_num) * res_item_size);
 		items = realloc ((void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
-		items_num += pkt_item_num;
 		if (items == NULL)
 		{
 			items = *res_data;
 			syslog (LOG_ERR, "ntpd plugin: realloc failed.");
 			continue;
 		}
+		items_num += pkt_item_num;
 		*res_data = items;
 
 		for (i = 0; i < pkt_item_num; i++)
 		{
+			/* dst: There are already `*res_items' items with
+			 *      res_item_size bytes each in in `*res_data'. Set
+			 *      dst to the first byte after that. */
 			void *dst = (void *) (*res_data + ((*res_items) * res_item_size));
+			/* src: We use `pkt_item_len' to calculate the offset
+			 *      from the beginning of the packet, because the
+			 *      items in the packet may be smaller than the
+			 *      items that were requested. We skip `i' such
+			 *      items. */
 			void *src = (void *) (((char *) res.data) + (i * pkt_item_len));
 
 			/* Set the padding to zeros */
@@ -713,8 +736,10 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 				memset (dst, '\0', res_item_size);
 			memcpy (dst, src, (size_t) pkt_item_len);
 
+			/* Increment `*res_items' by one, so `dst' will end up
+			 * one further in the next round. */
 			(*res_items)++;
-		}
+		} /* for (pkt_item_num) */
 
 		pkt_recvd[pkt_sequence] = (char) 1;
 		pkt_recvd_num++;
@@ -724,7 +749,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 	} /* while (done == 0) */
 
 	return (0);
-}
+} /* int ntpd_receive_response */
 
 /* For a description of the arguments see `ntpd_do_query' below. */
 static int ntpd_send_request (int req_code, int req_items, int req_size, char *req_data)
