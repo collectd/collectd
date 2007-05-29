@@ -1,3 +1,9 @@
+collectd (3.11.5-0octo1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Florian Forster <octo@leeloo.home.verplant.org>  Tue, 29 May 2007 22:50:59 +0200
+
 collectd (3.11.4-0octo1) unstable; urgency=low
 
   * New upstream release.
