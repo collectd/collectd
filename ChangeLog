@@ -43,6 +43,12 @@
 	* collectd-nagios: The new `collectd-nagios' binary queries values
 	  from collectd, parses them and exits according to Nagios-standards.
 
+2007-05-29, Version 3.11.5
+	* configure: Added `AC_SYS_LARGEFILE' for LFS.
+	* ntpd plugin: Fix a potential buffer overflow.
+	* processes plugin: Fix a bug when run under Linux 2.4. All processes
+	  were accounted as `zombies'.
+
 2007-04-10, Version 3.11.4
 	* dns plugin: Change the order of includes to make the plugin compile
 	  under FreeBSD.
