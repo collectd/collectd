@@ -471,6 +471,14 @@ collectd_LDADD += "-dlopen" serial.la
 collectd_DEPENDENCIES += serial.la
 endif
 
+if BUILD_MODULE_SNMP
+pkglib_LTLIBRARIES += snmp.la
+snmp_la_SOURCES = snmp.c
+snmp_la_LDFLAGS = -module -avoid-version -lsnmp
+collectd_LDADD += "-dlopen" snmp.la
+collectd_DEPENDENCIES += snmp.la
+endif
+
 if BUILD_MODULE_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c
