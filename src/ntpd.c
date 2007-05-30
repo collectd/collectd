@@ -570,7 +570,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 
 		if (pkt_item_len > res_item_size)
 		{
-			syslog (LOG_ERR, "ntpd plugin: (pkt_item_len = %i) "
+			ERROR ("ntpd plugin: (pkt_item_len = %i) "
 					">= (res_item_size = %i)",
 					pkt_item_len, res_item_size);
 			continue;
