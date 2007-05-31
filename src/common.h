@@ -24,6 +24,7 @@
 #define COMMON_H
 
 #include "collectd.h"
+#include "plugin.h"
 
 #define sfree(ptr) \
 	if((ptr) != NULL) { \
@@ -165,5 +166,10 @@ int format_name (char *ret, int ret_len,
 #define FORMAT_VL(ret, ret_len, vl, ds) \
 	format_name (ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance, \
 			(ds)->type, (vl)->type_instance)
+
+int parse_identifier (char *str, char **ret_host,
+		char **ret_plugin, char **ret_plugin_instance,
+		char **ret_type, char **ret_type_instance);
+int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);
 
 #endif /* COMMON_H */
