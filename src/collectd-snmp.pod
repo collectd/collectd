@@ -1,0 +1,176 @@
+=head1 NAME
+
+collectd-snmp - Documentation of collectd's C<snmp plugin>
+
+=head1 SYNOPSIS
+
+  LoadPlugin snmp
+  # ...
+  <Plugin snmp>
+    <Data "powerplus_voltge_input">
+      Type "voltage"
+      Table false
+      Instance "input_line1"
+      Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
+    </Data>
+    <Data "hr_users">
+      Type "users"
+      Table false
+      Instance ""
+      Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
+    </Data>
+    <Data "std_traffic">
+      Type "if_octets"
+      Table true
+      Instance "IF-MIB::ifDescr"
+      Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+    </Data>
+
+    <Host "some.switch.mydomain.org">
+      Address "192.168.0.2"
+      Version 1
+      Community "community_string"
+      Collect "std_traffic"
+    </Host>
+    <Host "some.server.mydomain.org">
+      Address "192.168.0.42"
+      Version 2
+      Community "another_string"
+      Collect "std_traffic" "hr_users"
+    </Host>
+    <Host "some.ups.mydomain.org">
+      Address "192.168.0.3"
+      Version 1
+      Community "more_communities"
+      Collect "powerplus_voltge_input"
+    </Host>
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<snmp plugin> queries other hosts using SNMP, the simple network
+management protocol, and translates the value it receives to collectd's
+internal format and dispatches them. Depending on the write plugins you have
+loaded they may be written to disk or submitted to another instance or
+whatever you configured.
+
+=head1 CONFIGURATION
+
+Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
+it's configuration is not trivial and may take some time.
+
+There are two types of blocks that can be contained in the
+C<E<lt>PluginE<nbsp>snmpE<gt>> block: B<Data> and B<Host>:
+
+=head2 The B<Data> block
+
+The B<Data> block defines a list of values or a table of values that are to be
+queried. The following options can be set:
+
+=over 4
+
+=item B<Type> I<type>
+
+collectd's type that is to be used, e.E<nbsp>g. "if_octets" for interface
+traffic or "users" for a user count. The types are read from the B<TypesDB>
+(see L<collectd.conf(5)>), so you may want to check for which types are
+defined.
+
+=item B<Table> I<true|false>
+
+Define if this is a single list of values or a table of values. The difference
+is that when querying a list of values from SNMP that data is going to be
+dispatched as one value-list to the daemon (i.E<nbsp>e.  one RRD file will be
+created). If the correcponding data-set needs more than one value (has more
+than one data-source) you will still need to configure more than one B<Values>
+(see below).
+
+If B<Table> is set to I<true> then the plugin will search the entire subtree
+and dispatch all values it can find. This is handy for the typical SNMP
+tables, such as the interface table (C<IF-MIB::ifTable>).
+
+Since the semantic of B<Instance> and B<Values> depends on this setting you
+need to set it before setting them. Doing vice verse will result in undefined
+behavior.
+
+=item B<Instance> I<Instance>
+
+Sets the type-instance of the values that are dispatched. The meaning of this
+setting depends on wether B<Table> is set to I<true> or I<false>:
+
+If B<Table> is set to I<true>, I<Instance> is interpreted as an SNMP-prefix
+that will return a list of strings. Those strings are then used as the actual
+type-instance. An example would be the C<IF-MIB::ifDescr> subtree.
+L<variables(5)> describes the format of OIDs.
+
+If B<Table> is set to I<false> the actual string configured for I<Instance> is
+copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
+"".
+
+=item B<Values> I<OID> [I<OID> ...]
+
+Configures the values to be queried from the SNMP host. The meaning slightly
+changes with the B<Table> setting. L<variables(5)> describes the format of
+OIDs.
+
+If B<Table> is set to I<true>, each I<OID> must be the prefix of all the
+values to query, e.E<nbsp>g. C<IF-MIB::ifInOctets> for all the counters of
+incoming traffic. This subtree is walked (using C<GETNEXT>) until a value from
+outside the subtree is returned.
+
+If B<Table> is set to I<false>, each I<OID> must be the OID of exactly one
+value, e.E<nbsp>g. C<IF-MIB::ifInOctets.3> for the third counter of incoming
+traffic.
+
+=back
+
+=head2 The Head block
+
+The B<Host> block defines which hosts to query, which SNMP community and
+version to use and which of the defined B<Data> to query.
+
+The argument passed to the B<Host> block is used as the hostname in the data
+stored by collectd.
+
+=over 4
+
+=item B<Address> I<IP-Address>|I<Hostname>
+
+Set the address to connect to.
+
+=item B<Version> B<1>|B<2>
+
+Set the SNMP version to use. When giving B<2> version 2c is actually used.
+Version 3 is not supported by this plugin.
+
+=item B<Community> I<Community>
+
+Pass I<Community> to the host.
+
+=item B<Collect> I<Data> [I<Data> ...]
+
+Defines which values to collect. I<Data> refers to one of the B<Data> block
+above. Since the config file is read top-down you need to define the data
+before using it here.
+
+=back
+
+=head1 BUGS
+
+All configured hosts are queried sequencially, so timeouts may cause gaps in
+graphs.
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<snmpget(1)>,
+L<snmpgetnext(1)>,
+L<variables(5)>,
+L<unix(7)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut

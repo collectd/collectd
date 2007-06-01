@@ -559,7 +559,7 @@ endif
 
 dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5 \
 		collectd-email.5 collectd-exec.5 collectd-perl.5 \
-		collectd-unixsock.5
+		collectd-snmp.5 collectd-unixsock.5
 
 #collectd_1_SOURCES = collectd.pod
 
