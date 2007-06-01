@@ -817,7 +817,7 @@ static int csnmp_read_table (struct snmp_session *sess_ptr,
     /* Get instance name */
     if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
     {
-      strncpy (il->instance, vb->val.bitstring,
+      strncpy (il->instance, (char *) vb->val.bitstring,
 	  sizeof (il->instance));
       il->instance[sizeof (il->instance) - 1] = '\0';
       DEBUG ("Before escape_slashes: %s", il->instance);
