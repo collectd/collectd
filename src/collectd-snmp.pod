@@ -101,7 +101,7 @@ setting depends on wether B<Table> is set to I<true> or I<false>:
 If B<Table> is set to I<true>, I<Instance> is interpreted as an SNMP-prefix
 that will return a list of strings. Those strings are then used as the actual
 type-instance. An example would be the C<IF-MIB::ifDescr> subtree.
-L<variables(5)> describes the format of OIDs.
+L<variables(5)> from the SNMP distribution describes the format of OIDs.
 
 If B<Table> is set to I<false> the actual string configured for I<Instance> is
 copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
@@ -110,8 +110,8 @@ copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
 =item B<Values> I<OID> [I<OID> ...]
 
 Configures the values to be queried from the SNMP host. The meaning slightly
-changes with the B<Table> setting. L<variables(5)> describes the format of
-OIDs.
+changes with the B<Table> setting. L<variables(5)> from the SNMP distribution
+describes the format of OIDs.
 
 If B<Table> is set to I<true>, each I<OID> must be the prefix of all the
 values to query, e.E<nbsp>g. C<IF-MIB::ifInOctets> for all the counters of
@@ -124,7 +124,7 @@ traffic.
 
 =back
 
-=head2 The Head block
+=head2 The Host block
 
 The B<Host> block defines which hosts to query, which SNMP community and
 version to use and which of the defined B<Data> to query.
