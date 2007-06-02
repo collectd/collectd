@@ -54,10 +54,11 @@ Example:
 
 Submits a value (identified by I<Identifier>, see below) to the daemon which
 will dispatch it to all it's write-plugins. The I<Valuelist> is a
-colon-seperated list of values, either an integer if the data-source is a
-counter, of a double if the data-source if of type "gauge". You can submit an
-undefined gauge-value by using B<U>. When submitting B<U> to a counter the
-behavior is undefined.
+colon-seperated list of the time and the values, each either an integer if the
+data-source is a counter, of a double if the data-source if of type "gauge".
+You can submit an undefined gauge-value by using B<U>. When submitting B<U> to
+a counter the behavior is undefined. The time is given as epoch (i.E<nbsp>e.
+standard UNIX time).
 
 Example:
   -> | PUTVAL testhost/interface/if_octets-test0 1179574444:123:456
