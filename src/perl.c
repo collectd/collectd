@@ -25,7 +25,6 @@
  */
 
 #include "collectd.h"
-#include "common.h"
 
 #include "configfile.h"
 
@@ -41,6 +40,7 @@
 
 /* ... while we want the definition found in plugin.h. */
 #include "plugin.h"
+#include "common.h"
 
 #define PLUGIN_INIT     0
 #define PLUGIN_READ     1

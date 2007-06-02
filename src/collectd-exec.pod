@@ -15,7 +15,7 @@ collectd-exec - Documentation of collectd's C<exec plugin>
 =head1 DESCRIPTION
 
 The C<exec plugin> forks of an executable and reads back values that it writes
-to C<STDOUT>. The executable is forked in a fassion similar to L<init>: It is
+to C<STDOUT>. The executable is forked in a fashion similar to L<init>: It is
 forked once and not again until it exits. If it exited, it will be forked again
 after at most I<Interval> seconds. It is perfectly legal for the executable to
 run for a long time and continuously write values to C<STDOUT>.
@@ -36,16 +36,27 @@ Each line beginning with a C<#> (hash mark) is ignored.
 
 =item
 
-Any other line must be of the form C<I<type>,I<type-instance>,I<value>>, where
-I<type> is either B<counter> or B<gauge>, I<type-instance> may not contain
-C<,> (comma), C</> (slash) and C<\0> (null byte) and I<value> is either an
-integer (if I<type> is B<counter>) or a floating-point number (if I<type> is
-B<gauge>).
+Other lines must consist of an I<Identifier> and a I<Value-List>, separated by
+a space. A description of these two parts follows:
+
+An I<Identifier> is of the form
+C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
+I<instance>-parts being optional. If they're omitted the hyphen must be
+omitted, too.
+
+A I<Value-List> is a colon-separated list of values, prepended by the time
+stamp in epoch, i.E<nbsp>e. the same format RRDTool uses, see L<rrdupdate(1)>.
+As with the argument passed to RRDTool you can use B<N> as the current time and
+B<U> for undefined values. However, undefined values can only passed for
+B<GAUGE> values. When setting B<U> for a B<COUNTER> data source the behavior is
+undefined.
+
+Since examples usually let one understand a lot better, here are some:
+
+  leeloo/cpu-0/cpu-idle N:2299366
+  alice/interface/if_octets-eth0 1180647081:421465:479194
 
 =back
-
-The values are always considered to be "fresh", i.E<nbsp>e. the time is set to
-"now".
 
 When collectd exits it sends a B<SIGTERM> to all still running
 child-processes upon which they have to quit.
@@ -72,6 +83,7 @@ must have an UID that is non-zero.
 L<collectd(1)>,
 L<collectd.conf(5)>,
 L<collectd-perl(5)>,
+L<collectd-unixsock(5)>,
 L<fork(2)>, L<exec(3)>
 
 =head1 AUTHOR

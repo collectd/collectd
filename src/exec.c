@@ -104,46 +104,6 @@ static int exec_config (const char *key, const char *value)
   return (0);
 } /* int exec_config */
 
-static void submit_counter (const char *type_instance, counter_t value)
-{
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  DEBUG ("type_instance = %s; value = %llu;", type_instance, value);
-
-  values[0].counter = value;
-
-  vl.values = values;
-  vl.values_len = 1;
-  vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "exec");
-  strcpy (vl.plugin_instance, "");
-  strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-  plugin_dispatch_values ("counter", &vl);
-} /* void submit_counter */
-
-static void submit_gauge (const char *type_instance, gauge_t value)
-{
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  DEBUG ("type_instance = %s; value = %lf;", type_instance, value);
-
-  values[0].gauge = value;
-
-  vl.values = values;
-  vl.values_len = 1;
-  vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "exec");
-  strcpy (vl.plugin_instance, "");
-  strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-  plugin_dispatch_values ("gauge", &vl);
-} /* void submit_counter */
-
 static void exec_child (program_list_t *pl)
 {
   int status;
@@ -242,6 +202,84 @@ static int fork_child (program_list_t *pl)
   return (fd_pipe[0]);
 } /* int fork_child */
 
+static int parse_line (char *buffer)
+{
+  char *fields[4];
+  int fields_num;
+
+  char *hostname;
+  char *plugin;
+  char *plugin_instance;
+  char *type;
+  char *type_instance;
+
+  const data_set_t *ds;
+  value_list_t vl = VALUE_LIST_INIT;
+
+  int status;
+
+  fields_num = strsplit (buffer, fields, 4);
+  if (fields_num != 2)
+  {
+    WARNING ("exec plugin: Number of fields is not 2.");
+    return (-1);
+  }
+
+  status = parse_identifier (fields[0], &hostname,
+      &plugin, &plugin_instance,
+      &type, &type_instance);
+  if (status != 0)
+  {
+    WARNING ("exec plugin: Cannot parse `%s'", fields[0]);
+    return (-1);
+  }
+
+  if ((strlen (hostname) >= sizeof (vl.host))
+      || (strlen (plugin) >= sizeof (vl.plugin))
+      || ((plugin_instance != NULL)
+	&& (strlen (plugin_instance) >= sizeof (vl.plugin_instance)))
+      || ((type_instance != NULL)
+	&& (strlen (type_instance) >= sizeof (vl.type_instance))))
+  {
+    WARNING ("exec plugin: An identifier is too long.");
+    return (-1);
+  }
+
+  strcpy (vl.host, hostname);
+  strcpy (vl.plugin, plugin);
+  if (plugin_instance != NULL)
+    strcpy (vl.plugin_instance, plugin_instance);
+  if (type_instance != NULL)
+    strcpy (vl.type_instance, type_instance);
+
+  ds = plugin_get_ds (type);
+  if (ds == NULL)
+  {
+    WARNING ("exec plugin: No such type: `%s'", type);
+    return (-1);
+  }
+
+  vl.values_len = ds->ds_num;
+  vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
+  if (vl.values == NULL)
+    return (-1);
+
+  /* Sets vl.values and vl.time */
+  status = parse_values (fields[1], &vl, ds);
+  if (status != 0)
+  {
+    WARNING ("exec plugin: Cannot parse `%s'", fields[1]);
+    sfree (vl.values);
+    return (-1);
+  }
+
+  plugin_dispatch_values (type, &vl);
+
+  sfree (vl.values);
+  
+  return (0);
+} /* int parse_line */
+
 static void *exec_read_one (void *arg)
 {
   program_list_t *pl = (program_list_t *) arg;
@@ -269,9 +307,6 @@ static void *exec_read_one (void *arg)
   while (fgets (buffer, sizeof (buffer), fh) != NULL)
   {
     int len;
-    char *type;
-    char *type_instance;
-    char *value;
 
     len = strlen (buffer);
 
@@ -282,43 +317,7 @@ static void *exec_read_one (void *arg)
 
     DEBUG ("exec plugin: exec_read_one: buffer = %s", buffer);
 
-    if (len < 5)
-      continue;
-
-    if (buffer[0] == '#')
-      continue;
-
-    type = buffer;
-
-    type_instance = strchr (type, ',');
-    if (type_instance == NULL)
-      continue;
-    *type_instance = '\0';
-    type_instance++;
-
-    if ((strcasecmp ("counter", type) != 0)
-	&& (strcasecmp ("gauge", type) != 0))
-    {
-      WARNING ("exec plugin: Received invalid type: %s", type);
-      continue;
-    }
-
-    value = strchr (type_instance, ',');
-    if (value == NULL)
-    {
-      WARNING ("exec plugin: type-instance is missing.");
-      continue;
-    }
-    *value = '\0';
-    value++;
-
-    DEBUG ("exec plugin: exec_read_one: type = %s; type_instance = %s; "
-	"value = %s;", type, type_instance, value);
-
-    if (strcasecmp ("counter", type) == 0)
-      submit_counter (type_instance, atoll (value));
-    else
-      submit_gauge (type_instance, atof (value));
+    parse_line (buffer);
   } /* while (fgets) */
 
   fclose (fh);
