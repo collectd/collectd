@@ -44,7 +44,7 @@ our %EXPORT_TAGS = (
 
 Exporter::export_ok_tags('all');
 
-bootstrap Collectd "4.0.0-rc10";
+bootstrap Collectd "4.0.0";
 
 1;
 

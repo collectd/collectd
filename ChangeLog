@@ -1,4 +1,4 @@
-2007-04-02, Version 4.0.0
+2007-06-03, Version 4.0.0
 	* collectd: The plugin-infrastructure has been changed to allow for
 	  more types of plugins, namely `write' and `log' plugins.
 	* collectd: The read-function has been changed to read many plugins in
@@ -42,6 +42,7 @@
 	  connections) field was added by Florent Monbillard.
 	* collectd-nagios: The new `collectd-nagios' binary queries values
 	  from collectd, parses them and exits according to Nagios-standards.
+	* manpages: The manpages have been improved a lot.
 
 2007-05-29, Version 3.11.5
 	* configure: Added `AC_SYS_LARGEFILE' for LFS.
