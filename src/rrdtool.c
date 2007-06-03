@@ -459,9 +459,7 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 static int rrd_write_to_file (char *filename, char **values, int values_num)
 {
 	char **argv;
-	int    argc;
-
-	char *fn;
+	int argc;
 	int status;
 
 	if (values_num < 1)
@@ -489,8 +487,7 @@ static int rrd_write_to_file (char *filename, char **values, int values_num)
 		status = -1;
 	}
 
-	free (argv);
-	free (fn);
+	sfree (argv);
 
 	return (status);
 } /* int rrd_write_cache_entry */
@@ -591,6 +588,8 @@ static int rrd_queue_cache_entry (const char *filename)
 	queue_tail = queue_entry;
 	pthread_cond_signal (&queue_cond);
 	pthread_mutex_unlock (&queue_lock);
+
+	DEBUG ("rrdtool plugin: Put `%s' into the update queue", filename);
 
 	return (0);
 } /* int rrd_queue_cache_entry */
@@ -720,6 +719,7 @@ static int rrd_cache_insert (const char *filename,
 		sfree (rc);
 		return (-1);
 	}
+	rc->values = values_new;
 
 	rc->values[rc->values_num] = strdup (value);
 	if (rc->values[rc->values_num] != NULL)
@@ -755,13 +755,19 @@ static int rrd_cache_insert (const char *filename,
 	DEBUG ("rrd_cache_insert (%s, %s, %u) = %p", filename, value,
 			(unsigned int) value_time, (void *) rc);
 
-	if (((rc->last_value - rc->first_value) >= cache_timeout)
-			&& (rc->flags != FLAG_QUEUED))
+	if ((rc->last_value - rc->first_value) >= cache_timeout)
 	{
 		/* XXX: If you need to lock both, cache_lock and queue_lock, at
 		 * the same time, ALWAYS lock `cache_lock' first! */
-		if (rrd_queue_cache_entry (filename) == 0)
-			rc->flags = FLAG_QUEUED;
+		if (rc->flags != FLAG_QUEUED)
+		{
+			if (rrd_queue_cache_entry (filename) == 0)
+				rc->flags = FLAG_QUEUED;
+		}
+		else
+		{
+			DEBUG ("rrdtool plugin: `%s' is already queued.", filename);
+		}
 	}
 
 	if ((cache_timeout > 0) &&
