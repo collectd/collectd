@@ -471,6 +471,14 @@ collectd_LDADD += "-dlopen" serial.la
 collectd_DEPENDENCIES += serial.la
 endif
 
+if BUILD_MODULE_SNMP
+pkglib_LTLIBRARIES += snmp.la
+snmp_la_SOURCES = snmp.c
+snmp_la_LDFLAGS = -module -avoid-version -lsnmp
+collectd_LDADD += "-dlopen" snmp.la
+collectd_DEPENDENCIES += snmp.la
+endif
+
 if BUILD_MODULE_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c
@@ -551,7 +559,7 @@ endif
 
 dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5 \
 		collectd-email.5 collectd-exec.5 collectd-perl.5 \
-		collectd-unixsock.5
+		collectd-snmp.5 collectd-unixsock.5
 
 #collectd_1_SOURCES = collectd.pod
 
