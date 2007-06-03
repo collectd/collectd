@@ -112,6 +112,9 @@ Features
       write your own plugins in Perl and return arbitary values using this
       API. See collectd-perl(5).
 
+      This plugin is still considered to be experimental and subject to change
+      between minor releases.
+
     - ping
       Network latency: Time to reach the default gateway or another given
       host.

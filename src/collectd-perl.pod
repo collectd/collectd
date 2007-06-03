@@ -21,6 +21,9 @@ plugins for collectd in Perl. This is a lot more performant than executing a
 Perl-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
+Please note that this is still considered to be experimental and subject to
+change between minor releases.
+
 =head1 DATA TYPES
 
 There are two more complex types you need to know about:
