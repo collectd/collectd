@@ -555,7 +555,7 @@ can savely ignore these settings.
 
 =item B<DataDir> I<Directory>
 
-Set the directory to store CSV-files under. Per default CSV-files are generated
+Set the directory to store RRD-files under. Per default RRD-files are generated
 beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =item B<StepSize> I<Seconds>
