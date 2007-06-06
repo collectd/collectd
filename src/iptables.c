@@ -152,8 +152,12 @@ static int iptables_config (const char *key, const char *value)
 		    }
 		    else
 		    {
-			strncpy (temp.rule.comment, comment,
-				sizeof (temp.rule.comment) - 1);
+			temp.rule.comment = strdup (comment);
+			if (temp.rule.comment == NULL)
+			{
+			    free (value_copy);
+			    return (1);
+			}
 			temp.rule_type = RTYPE_COMMENT;
 		    }
 		}
@@ -336,6 +340,10 @@ static int iptables_shutdown (void)
 
     for (i = 0; i < chain_num; i++)
     {
+	if ((chain_list[i] != NULL) && (chain_list[i]->rule_type == RTYPE_COMMENT))
+	{
+	    sfree (chain_list[i]->rule.comment);
+	}
 	sfree (chain_list[i]);
     }
     sfree (chain_list);
