@@ -162,7 +162,7 @@ static int listen_loop = 0;
 static char         send_buffer[BUFF_SIZE];
 static char        *send_buffer_ptr;
 static int          send_buffer_fill;
-static value_list_t send_buffer_vl = VALUE_LIST_INIT;
+static value_list_t send_buffer_vl = VALUE_LIST_STATIC;
 static char         send_buffer_type[DATA_MAX_NAME_LEN];
 static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -556,6 +556,13 @@ static int parse_packet (void *buffer, int buffer_len)
 			status = parse_part_number (&buffer, &buffer_len, &tmp);
 			if (status == 0)
 				vl.time = (time_t) tmp;
+		}
+		else if (ntohs (header->type) == TYPE_INTERVAL)
+		{
+			uint64_t tmp = 0;
+			status = parse_part_number (&buffer, &buffer_len, &tmp);
+			if (status == 0)
+				vl.interval = (int) tmp;
 		}
 		else if (ntohs (header->type) == TYPE_HOST)
 		{
@@ -1095,6 +1102,16 @@ static int add_to_buffer (char *buffer, int buffer_size,
 		vl_def->time = vl->time;
 		DEBUG ("network plugin: add_to_buffer: time = %u",
 				(unsigned int) vl->time);
+	}
+
+	if (vl_def->interval != vl->interval)
+	{
+		if (write_part_number (&buffer, &buffer_size, TYPE_INTERVAL,
+					(uint64_t) vl->interval))
+			return (-1);
+		vl_def->interval = vl->interval;
+		DEBUG ("network plugin: add_to_buffer: interval = %i",
+				(int) vl->interval);
 	}
 
 	if (strcmp (vl_def->plugin, vl->plugin) != 0)

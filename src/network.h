@@ -61,5 +61,6 @@
 #define TYPE_TYPE            0x0004
 #define TYPE_TYPE_INSTANCE   0x0005
 #define TYPE_VALUES          0x0006
+#define TYPE_INTERVAL        0x0007
 
 #endif /* NETWORK_H */
