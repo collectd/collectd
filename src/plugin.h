@@ -63,6 +63,7 @@ struct value_list_s
 	value_t *values;
 	int      values_len;
 	time_t   time;
+	int      interval;
 	char     host[DATA_MAX_NAME_LEN];
 	char     plugin[DATA_MAX_NAME_LEN];
 	char     plugin_instance[DATA_MAX_NAME_LEN];
@@ -70,7 +71,8 @@ struct value_list_s
 };
 typedef struct value_list_s value_list_t;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, "localhost", "", "", "" }
+#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "" }
+#define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "" }
 
 struct data_source_s
 {
