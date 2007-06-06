@@ -89,6 +89,9 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
+/* If datadir is zero, the daemon's basedir is used. If stepsize or heartbeat
+ * is zero a default, depending on the `interval' member of the value list is
+ * being used. */
 static char   *datadir   = NULL;
 static int     stepsize  = 0;
 static int     heartbeat = 0;
@@ -114,10 +117,22 @@ static int do_shutdown = 0;
 /* * * * * * * * * *
  * WARNING:  Magic *
  * * * * * * * * * */
-static int rra_get (char ***ret)
+
+static void rra_free (int rra_num, char **rra_def)
 {
-	static char **rra_def = NULL;
-	static int rra_num = 0;
+	int i;
+
+	for (i = 0; i < rra_num; i++)
+	{
+		sfree (rra_def[i]);
+	}
+	sfree (rra_def);
+} /* void rra_free */
+
+static int rra_get (char ***ret, const value_list_t *vl)
+{
+	char **rra_def;
+	int rra_num;
 
 	int *rts;
 	int  rts_num;
@@ -132,10 +147,21 @@ static int rra_get (char ***ret)
 
 	char buffer[64];
 
-	if ((rra_num != 0) && (rra_def != NULL))
+	/* The stepsize we use here: If it is user-set, use it. If not, use the
+	 * interval of the value-list. */
+	int ss;
+
+	if (rrarows <= 0)
 	{
-		*ret = rra_def;
-		return (rra_num);
+		*ret = NULL;
+		return (-1);
+	}
+
+	ss = (stepsize > 0) ? stepsize : vl->interval;
+	if (ss <= 0)
+	{
+		*ret = NULL;
+		return (-1);
 	}
 
 	/* Use the configured timespans or fall back to the built-in defaults */
@@ -155,29 +181,24 @@ static int rra_get (char ***ret)
 	if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
 		return (-1);
 	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
-
-	if ((stepsize <= 0) || (rrarows <= 0))
-	{
-		*ret = NULL;
-		return (-1);
-	}
+	rra_num = 0;
 
 	cdp_len = 0;
 	for (i = 0; i < rts_num; i++)
 	{
 		span = rts[i];
 
-		if ((span / stepsize) < rrarows)
+		if ((span / ss) < rrarows)
 			continue;
 
 		if (cdp_len == 0)
 			cdp_len = 1;
 		else
 			cdp_len = (int) floor (((double) span)
-					/ ((double) (rrarows * stepsize)));
+					/ ((double) (rrarows * ss)));
 
 		cdp_num = (int) ceil (((double) span)
-				/ ((double) (cdp_len * stepsize)));
+				/ ((double) (cdp_len * ss)));
 
 		for (j = 0; j < rra_types_num; j++)
 		{
@@ -204,7 +225,7 @@ static int rra_get (char ***ret)
 
 	*ret = rra_def;
 	return (rra_num);
-}
+} /* int rra_get */
 
 static void ds_free (int ds_num, char **ds_def)
 {
@@ -216,7 +237,7 @@ static void ds_free (int ds_num, char **ds_def)
 	free (ds_def);
 }
 
-static int ds_get (char ***ret, const data_set_t *ds)
+static int ds_get (char ***ret, const data_set_t *ds, const value_list_t *vl)
 {
 	char **ds_def;
 	int ds_num;
@@ -278,7 +299,8 @@ static int ds_get (char ***ret, const data_set_t *ds)
 
 		status = snprintf (buffer, sizeof (buffer),
 				"DS:%s:%s:%i:%s:%s",
-				d->name, type, heartbeat,
+				d->name, type,
+				(heartbeat > 0) ? heartbeat : (2 * vl->interval),
 				min, max);
 		if ((status < 1) || (status >= sizeof (buffer)))
 			break;
@@ -305,7 +327,7 @@ static int ds_get (char ***ret, const data_set_t *ds)
 	return (ds_num);
 }
 
-static int rrd_create_file (char *filename, const data_set_t *ds)
+static int rrd_create_file (char *filename, const data_set_t *ds, const value_list_t *vl)
 {
 	char **argv;
 	int argc;
@@ -320,13 +342,13 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 	if (check_create_dir (filename))
 		return (-1);
 
-	if ((rra_num = rra_get (&rra_def)) < 1)
+	if ((rra_num = rra_get (&rra_def, vl)) < 1)
 	{
 		ERROR ("rrd_create_file failed: Could not calculate RRAs");
 		return (-1);
 	}
 
-	if ((ds_num = ds_get (&ds_def, ds)) < 1)
+	if ((ds_num = ds_get (&ds_def, ds, vl)) < 1)
 	{
 		ERROR ("rrd_create_file failed: Could not calculate DSes");
 		return (-1);
@@ -343,10 +365,13 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 	}
 
 	status = snprintf (stepsize_str, sizeof (stepsize_str),
-			"%i", stepsize);
+			"%i", (stepsize > 0) ? stepsize : vl->interval);
 	if ((status < 1) || (status >= sizeof (stepsize_str)))
 	{
 		ERROR ("rrdtool plugin: snprintf failed.");
+		free (argv);
+		ds_free (ds_num, ds_def);
+		rra_free (rra_num, rra_def);
 		return (-1);
 	}
 
@@ -372,6 +397,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 
 	free (argv);
 	ds_free (ds_num, ds_def);
+	rra_free (rra_num, rra_def);
 
 	return (status);
 }
@@ -797,7 +823,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	{
 		if (errno == ENOENT)
 		{
-			if (rrd_create_file (filename, ds))
+			if (rrd_create_file (filename, ds, vl))
 				return (-1);
 		}
 		else
@@ -867,25 +893,15 @@ static int rrd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("StepSize", key) == 0)
 	{
-		int tmp = atoi (value);
-		if (tmp <= 0)
-		{
-			fprintf (stderr, "rrdtool: `StepSize' must "
-					"be greater than 0.\n");
-			return (1);
-		}
-		stepsize = tmp;
+		stepsize = atoi (value);
+		if (stepsize < 0)
+			stepsize = 0;
 	}
 	else if (strcasecmp ("HeartBeat", key) == 0)
 	{
-		int tmp = atoi (value);
-		if (tmp <= 0)
-		{
-			fprintf (stderr, "rrdtool: `HeartBeat' must "
-					"be greater than 0.\n");
-			return (1);
-		}
-		heartbeat = tmp;
+		heartbeat = atoi (value);
+		if (heartbeat < 0)
+			heartbeat = 0;
 	}
 	else if (strcasecmp ("RRARows", key) == 0)
 	{
@@ -966,16 +982,21 @@ static int rrd_init (void)
 {
 	int status;
 
-	if (stepsize <= 0)
-		stepsize = interval_g;
+	if (stepsize < 0)
+		stepsize = 0;
 	if (heartbeat <= 0)
-		heartbeat = 2 * interval_g;
+	{
+		if (stepsize > 0)
+			heartbeat = 2 * stepsize;
+		else
+			heartbeat = 0;
+	}
 
-	if (heartbeat < interval_g)
+	if ((heartbeat > 0) && (heartbeat < interval_g))
 		WARNING ("rrdtool plugin: Your `heartbeat' is "
 				"smaller than your `interval'. This will "
 				"likely cause problems.");
-	else if (stepsize < interval_g)
+	else if ((stepsize > 0) && (stepsize < interval_g))
 		WARNING ("rrdtool plugin: Your `stepsize' is "
 				"smaller than your `interval'. This will "
 				"create needlessly big RRD-files.");
