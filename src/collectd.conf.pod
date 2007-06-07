@@ -103,7 +103,7 @@ the following snipped to base your Apache config upon:
     </Location>
   </IfModule>
 
-Since it's C<mod_status> module is very similar to Apache's, B<lighttpd> is
+Since its C<mod_status> module is very similar to Apache's, B<lighttpd> is
 also supported. It introduces a new field, called C<BusyServers>, to count the
 number of currently connected clients. This field is also supported.
 
@@ -555,7 +555,7 @@ can savely ignore these settings.
 
 =item B<DataDir> I<Directory>
 
-Set the directory to store CSV-files under. Per default CSV-files are generated
+Set the directory to store RRD-files under. Per default RRD-files are generated
 beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =item B<StepSize> I<Seconds>
