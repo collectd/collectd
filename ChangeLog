@@ -1,3 +1,8 @@
+2007-06-07, Version 4.0.1
+	* iptables plugin: A bug in the configuration routine has been fixed.
+	  Setting a comment in the configfile will no longer cause a
+	  segmentation fault.
+
 2007-06-03, Version 4.0.0
 	* collectd: The plugin-infrastructure has been changed to allow for
 	  more types of plugins, namely `write' and `log' plugins.
