@@ -253,7 +253,7 @@ Prerequisites
 
   * librrd (optional; headers and library; rrdtool 1.0 and 1.2 both work fine)
     If built without `librrd' the resulting binary will be `client only', i.e.
-    will send it's values via multicast and not create any RRD files itself.
+    will send its values via multicast and not create any RRD files itself.
     Alternatively you can chose to write CSV-files (Comma Seperated Values)
     instead.
 

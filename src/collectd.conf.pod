@@ -103,7 +103,7 @@ the following snipped to base your Apache config upon:
     </Location>
   </IfModule>
 
-Since it's C<mod_status> module is very similar to Apache's, B<lighttpd> is
+Since its C<mod_status> module is very similar to Apache's, B<lighttpd> is
 also supported. It introduces a new field, called C<BusyServers>, to count the
 number of currently connected clients. This field is also supported.
 
