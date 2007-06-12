@@ -61,11 +61,7 @@
 /* 256 bytes ought to be enough for anybody ;-) */
 #define BUFSIZE 256
 
-#ifndef COLLECTD_SOCKET_PREFIX
-# define COLLECTD_SOCKET_PREFIX "/tmp/.collectd-"
-#endif /* COLLECTD_SOCKET_PREFIX */
-
-#define SOCK_PATH COLLECTD_SOCKET_PREFIX"email"
+#define SOCK_PATH LOCALSTATEDIR"/run/"PACKAGE_NAME"-email"
 #define MAX_CONNS 5
 #define MAX_CONNS_LIMIT 16384
 
@@ -119,6 +115,7 @@ typedef struct {
 /* valid configuration file keys */
 static const char *config_keys[] =
 {
+	"SocketFile",
 	"SocketGroup",
 	"SocketPerms",
 	"MaxConns"
@@ -126,6 +123,7 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 /* socket configuration */
+static char *sock_file  = SOCK_PATH;
 static char *sock_group = COLLECTD_GRP_NAME;
 static int  sock_perms  = S_IRWXU | S_IRWXG;
 static int  max_conns   = MAX_CONNS;
@@ -171,7 +169,10 @@ static type_list_t check;
  */
 static int email_config (const char *key, const char *value)
 {
-	if (0 == strcasecmp (key, "SocketGroup")) {
+	if (0 == strcasecmp (key, "SocketFile")) {
+		sock_file = sstrdup (value);
+	}
+	else if (0 == strcasecmp (key, "SocketGroup")) {
 		sock_group = sstrdup (value);
 	}
 	else if (0 == strcasecmp (key, "SocketPerms")) {
@@ -508,7 +509,7 @@ static void *open_connection (void *arg)
 
 	addr.sun_family = AF_UNIX;
 
-	strncpy (addr.sun_path, SOCK_PATH, (size_t)(UNIX_PATH_MAX - 1));
+	strncpy (addr.sun_path, sock_file, (size_t)(UNIX_PATH_MAX - 1));
 	addr.sun_path[UNIX_PATH_MAX - 1] = '\0';
 	unlink (addr.sun_path);
 
@@ -555,12 +556,12 @@ static void *open_connection (void *arg)
 		}
 		else
 		{
-			status = chown (SOCK_PATH, (uid_t) -1, grp->gr_gid);
+			status = chown (sock_file, (uid_t) -1, grp->gr_gid);
 			if (status != 0)
 			{
 				char errbuf[1024];
 				log_warn ("chown (%s, -1, %i) failed: %s",
-						SOCK_PATH, (int) grp->gr_gid,
+						sock_file, (int) grp->gr_gid,
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 			}
 		}
@@ -571,7 +572,7 @@ static void *open_connection (void *arg)
 	}
 
 	errno = 0;
-	if (0 != chmod (SOCK_PATH, sock_perms)) {
+	if (0 != chmod (sock_file, sock_perms)) {
 		char errbuf[1024];
 		log_warn ("chmod() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -714,7 +715,7 @@ static int email_shutdown (void)
 
 	pthread_mutex_unlock (&conns_mutex);
 
-	unlink (SOCK_PATH);
+	unlink (sock_file);
 	errno = 0;
 
 	return (0);

@@ -214,6 +214,10 @@ Ignore packets that originate from this address.
 
 =over 4
 
+=item B<SocketFile> I<Path>
+
+Sets the socket-file which is to be created.
+
 =item B<SocketGroup> I<Group>
 
 If running as root change the group of the UNIX-socket after it has been 
