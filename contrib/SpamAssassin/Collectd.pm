@@ -18,7 +18,7 @@ add a loadplugin call into your init.pre file.
 
 =over 4
 
-=item collectd_socket [ socket path ]	    (default: /tmp/.collectd-email)
+=item collectd_socket [ socket path ]	    (default: /var/run/collectd-email)
 
 Where the collectd socket is
 
@@ -116,7 +116,7 @@ sub set_config {
 
     push (@cmds, {
 	    setting => 'collectd_socket', 
-	    default => '/tmp/.collectd-email',
+	    default => '/var/run/collectd-email',
 	    type => $Mail::SpamAssassin::Conf::CONF_TYPE_STRING,
     });
 
