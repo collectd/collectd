@@ -65,7 +65,7 @@ static int config_keys_num = 2;
 # define NTPD_DEFAULT_PORT "123"
 static int   sock_descr = -1;
 static char *ntpd_host = NULL;
-static char *ntpd_port = NULL;
+static char  ntpd_port[16];
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * The following definitions were copied from the NTPd distribution  *
@@ -263,19 +263,22 @@ static int refclock_names_num = 45;
 
 static int ntpd_config (const char *key, const char *value)
 {
-	if (strcasecmp (key, "host") == 0)
+	if (strcasecmp (key, "Host") == 0)
 	{
 		if (ntpd_host != NULL)
 			free (ntpd_host);
 		if ((ntpd_host = strdup (value)) == NULL)
 			return (1);
 	}
-	else if (strcasecmp (key, "port") == 0)
+	else if (strcasecmp (key, "Port") == 0)
 	{
-		if (ntpd_port != NULL)
-			free (ntpd_port);
-		if ((ntpd_port = strdup (value)) == NULL)
-			return (1);
+		int port = (int) (atof (value));
+		if ((port > 0) && (port <= 65535))
+			snprintf (ntpd_port, sizeof (ntpd_port),
+					"%i", port);
+		else
+			strncpy (ntpd_port, value, sizeof (ntpd_port));
+		ntpd_port[sizeof (ntpd_port) - 1] = '\0';
 	}
 	else
 	{
@@ -348,7 +351,7 @@ static int ntpd_connect (void)
 		host = NTPD_DEFAULT_HOST;
 
 	port = ntpd_port;
-	if (port == NULL)
+	if (strlen (port) == 0)
 		port = NTPD_DEFAULT_PORT;
 
 	memset (&ai_hints, '\0', sizeof (ai_hints));

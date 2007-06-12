@@ -69,7 +69,7 @@ typedef struct hddname
 
 static hddname_t *first_hddname = NULL;
 static char *hddtemp_host = NULL;
-static char *hddtemp_port = NULL;
+static char hddtemp_port[16];
 
 /*
  * NAME
@@ -118,7 +118,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 		host = HDDTEMP_DEF_HOST;
 
 	port = hddtemp_port;
-	if (port == NULL)
+	if (strlen (port) == 0)
 		port = HDDTEMP_DEF_PORT;
 
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
@@ -211,17 +211,21 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 static int hddtemp_config (const char *key, const char *value)
 {
-	if (strcasecmp (key, "host") == 0)
+	if (strcasecmp (key, "Host") == 0)
 	{
 		if (hddtemp_host != NULL)
 			free (hddtemp_host);
 		hddtemp_host = strdup (value);
 	}
-	else if (strcasecmp (key, "port") == 0)
+	else if (strcasecmp (key, "Port") == 0)
 	{
-		if (hddtemp_port != NULL)
-			free (hddtemp_port);
-		hddtemp_port = strdup (value);
+		int port = (int) (atof (value));
+		if ((port > 0) && (port <= 65535))
+			snprintf (hddtemp_port, sizeof (hddtemp_port),
+					"%i", port);
+		else
+			strncpy (hddtemp_port, value, sizeof (hddtemp_port));
+		hddtemp_port[sizeof (hddtemp_port) - 1] = '\0';
 	}
 	else
 	{

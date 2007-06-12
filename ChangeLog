@@ -1,3 +1,7 @@
+2007-06-12, Version 4.0.2
+	* hddtemp and ntpd plugin: Corrected the parsing of port numbers when
+	  they're given in numerically form.
+
 2007-06-07, Version 4.0.1
 	* iptables plugin: A bug in the configuration routine has been fixed.
 	  Setting a comment in the configfile will no longer cause a
