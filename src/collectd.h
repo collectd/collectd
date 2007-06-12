@@ -182,6 +182,10 @@
 #define CONFIGFILE SYSCONFDIR"/collectd.conf"
 #endif
 
+#ifndef LOCALSTATEDIR
+#define LOCALSTATEDIR PREFIX "/var"
+#endif
+
 #ifndef PKGLOCALSTATEDIR
 #define PKGLOCALSTATEDIR PREFIX "/var/lib/" PACKAGE_NAME
 #endif

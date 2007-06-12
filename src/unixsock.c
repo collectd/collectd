@@ -36,7 +36,7 @@
 # define UNIX_PATH_MAX sizeof (((struct sockaddr_un *)0)->sun_path)
 #endif
 
-#define US_DEFAULT_PATH PREFIX"/var/run/"PACKAGE_NAME"-unixsock"
+#define US_DEFAULT_PATH LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 
 /*
  * Private data structures

@@ -25,6 +25,7 @@ collectd_SOURCES = collectd.c collectd.h \
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DPREFIX='"${prefix}"'
 collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
+collectd_CPPFLAGS += -DLOCALSTATEDIR='"${localstatedir}"'
 collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
@@ -527,7 +528,7 @@ endif
 if BUILD_MODULE_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c
-unixsock_la_CPPFLAGS = -DPREFIX='"${prefix}"'
+unixsock_la_CPPFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
 unixsock_la_LDFLAGS = -module -avoid-version -lpthread
 collectd_LDADD += "-dlopen" unixsock.la
 collectd_DEPENDENCIES += unixsock.la
