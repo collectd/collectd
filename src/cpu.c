@@ -219,9 +219,9 @@ static int cpu_read (void)
 		}
 
 		submit (cpu, "user", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
-		submit (cpu, "nice", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
-		submit (cpu, "system", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
-		submit (cpu, "idle", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
+		submit (cpu, "nice", (counter_t) cpu_info.cpu_ticks[CPU_STATE_NICE]);
+		submit (cpu, "system", (counter_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
+		submit (cpu, "idle", (counter_t) cpu_info.cpu_ticks[CPU_STATE_IDLE]);
 #endif /* PROCESSOR_CPU_LOAD_INFO */
 #if PROCESSOR_TEMPERATURE
 		/*
