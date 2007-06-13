@@ -1219,6 +1219,32 @@ else
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 
+AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to the Net-SNMPD library.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libnetsnmp="yes"
+	fi
+],
+[with_libnetsnmp="yes"])
+if test "x$with_libnetsnmp" = "xyes"
+then
+	AC_CHECK_LIB(netsnmp, init_snmp,
+	[
+		AC_DEFINE(HAVE_LIBSNMP, 1, [Define to 1 if you have the Net-SNMP library (-lnetsnmp).])
+	], [with_libnetsnmp="no (libnetsnmp not found)"])
+fi
+if test "x$with_libnetsnmp" = "xyes"
+then
+	AC_CHECK_HEADERS(net-snmp/net-snmp-config.h,
+	[
+		AC_DEFINE(HAVE_NET_SNMP_NET_SNMP_CONFIG_H, 1, [Define to 1 if you have the <net-snmp/net-snmp-config.h> header file.])
+	], [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
+
 AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], [Path to libupsclient.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -1377,6 +1403,7 @@ Configuration:
     libiptc . . . . . . $with_libiptc
     libkstat  . . . . . $with_kstat
     libmysql  . . . . . $with_libmysql
+    libnetsnmp  . . . . $with_libnetsnmp
     liboconfig  . . . . $with_liboconfig
     liboping  . . . . . $with_liboping
     libpcap . . . . . . $with_libpcap

@@ -475,7 +475,10 @@ endif
 if BUILD_MODULE_SNMP
 pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = snmp.c
-snmp_la_LDFLAGS = -module -avoid-version -lsnmp
+snmp_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBNETSNMP
+snmp_la_LDFLAGS += -lnetsnmp
+endif
 collectd_LDADD += "-dlopen" snmp.la
 collectd_DEPENDENCIES += snmp.la
 endif
