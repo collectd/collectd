@@ -32,7 +32,7 @@
 struct oid_s
 {
   oid oid[MAX_OID_LEN];
-  uint32_t oid_len;
+  size_t oid_len;
 };
 typedef struct oid_s oid_t;
 
