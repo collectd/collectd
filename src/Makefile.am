@@ -561,6 +561,20 @@ collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif
 
+if BUILD_MODULE_XMMS
+pkglib_LTLIBRARIES += xmms.la
+xmms_la_SOURCES = xmms.c
+xmms_la_CFLAGS = 
+xmms_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBXMMS
+xmms_la_CFLAGS += $(BUILD_WITH_LIBXMMS_CFLAGS)
+xmms_la_LDFLAGS += $(BUILD_WITH_LIBXMMS_LIBS)
+endif
+collectd_LDADD += "-dlopen" xmms.la
+collectd_DEPENDENCIES += xmms.la
+endif
+
+
 dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5 \
 		collectd-email.5 collectd-exec.5 collectd-perl.5 \
 		collectd-snmp.5 collectd-unixsock.5

@@ -2,6 +2,7 @@ apache_bytes		count:COUNTER:0:134217728
 apache_connections	count:GAUGE:0:65535
 apache_requests		count:COUNTER:0:134217728
 apache_scoreboard	count:GAUGE:0:65535
+bitrate			value:GAUGE:0:4294967295
 charge			value:GAUGE:0:U
 counter			value:COUNTER:U:U
 cpu			value:COUNTER:0:4294967295

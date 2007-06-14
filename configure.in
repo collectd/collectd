@@ -1273,6 +1273,74 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBUPSCLIENT, test "x$with_libupsclient" = "xyes")
 
+### BEGIN of check for libxmms ###
+with_xmms_config="xmms-config"
+with_xmms_prefix=0
+with_xmms_cflags=""
+with_xmms_libs=""
+AC_ARG_WITH(libxmms, [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to libxmms.])],
+[
+	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	then
+		if test -x "$withval/bin/xmms-config"
+		then
+			with_xmms_config="$withval/bin/xmms-config"
+			with_xmms_prefix=1
+		fi
+	fi
+	if test "x$withval" = "xno"
+	then
+		with_libxmms="no"
+	else
+		with_libxmms="yes"
+	fi
+],
+[
+	with_libxmms="yes"
+])
+if test "x$with_libxmms" = "xyes"
+then
+	with_xmms_cflags=`$with_xmms_config --cflags 2>/dev/null`
+	xmms_config_status=$?
+
+	if test $xmms_config_status -ne 0
+	then
+		with_libxmms="no"
+	fi
+fi
+if test "x$with_libxmms" = "xyes"
+then
+	with_xmms_libs=`$with_xmms_config --libs 2>/dev/null`
+	xmms_config_status=$?
+
+	if test $xmms_config_status -ne 0
+	then
+		with_libxmms="no"
+	fi
+fi
+if test "x$with_libxmms" = "xyes"
+then
+	AC_CHECK_LIB(xmms, xmms_remote_get_info,
+	[
+		BUILD_WITH_LIBXMMS_CFLAGS="$with_xmms_cflags"
+		BUILD_WITH_LIBXMMS_LIBS="$with_xmms_libs"
+		AC_SUBST(BUILD_WITH_LIBXMMS_CFLAGS)
+		AC_SUBST(BUILD_WITH_LIBXMMS_LIBS)
+	],
+	[
+		with_libxmms="no"
+	],
+	[$with_xmms_libs])
+fi
+with_libxmms_numeric=0
+if test "x$with_libxmms" = "xyes"
+then
+	with_libxmms_numeric=1
+fi
+AC_DEFINE_UNQUOTED(HAVE_LIBXMMS, [$with_libxmms_numeric], [Define to 1 if you have the 'xmms' library (-lxmms).])
+AM_CONDITIONAL(BUILD_WITH_LIBXMMS, test "x$with_libxmms" = "xyes")
+### END of check for libxmms ###
+
 # Check for enabled/disabled features
 #
 
@@ -1384,6 +1452,7 @@ AC_COLLECTD([unixsock],  [disable], [module], [UNIX socket plugin])
 AC_COLLECTD([users],     [disable], [module], [user count statistics])
 AC_COLLECTD([vserver],   [disable], [module], [vserver statistics])
 AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
+AC_COLLECTD([xmms],      [disable], [module], [wireless link statistics])
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile)
 
@@ -1413,6 +1482,7 @@ Configuration:
     libsensors  . . . . $with_lm_sensors
     libstatgrab . . . . $with_libstatgrab
     libupsclient  . . . $with_libupsclient
+    libxmms . . . . . . $with_libxmms
 
   Features:
     daemon mode . . . . $enable_daemon
@@ -1459,5 +1529,6 @@ Configuration:
     users . . . . . . . $enable_users
     vserver . . . . . . $enable_vserver
     wireless  . . . . . $enable_wireless
+    xmms  . . . . . . . $enable_xmms
 
 EOF
