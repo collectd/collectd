@@ -50,6 +50,25 @@ Example:
   -> | GETVAL myhost/cpu-0/cpu-user
   <- | 1 value=1.260000e+00
 
+=item B<LISTVAL>
+
+Returnes a list of the values available in the value cache together with the
+time of the last update, so that querying applications can issue a B<GETVAL>
+command for the values that have changed.
+
+The first line's status number is the number of identifiers returned or less
+than zero if an error occured. Each of the following lines containes the
+update time as an epoch value and the identifier, seperated by a space.
+
+Example:
+  -> | LISTVAL
+  <- | 69 Values found
+  <- | 1182204284 leeloo/cpu-0/cpu-idle
+  <- | 1182204284 leeloo/cpu-0/cpu-nice
+  <- | 1182204284 leeloo/cpu-0/cpu-system
+  <- | 1182204284 leeloo/cpu-0/cpu-user
+  ...
+
 =item B<PUTVAL> I<Identifier> I<Valuelist>
 
 Submits a value (identified by I<Identifier>, see below) to the daemon which
