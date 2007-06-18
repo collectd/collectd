@@ -31,6 +31,7 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Version 1
       Community "community_string"
       Collect "std_traffic"
+      Inverval 120
     </Host>
     <Host "some.server.mydomain.org">
       Address "192.168.0.42"
@@ -43,6 +44,7 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Version 1
       Community "more_communities"
       Collect "powerplus_voltge_input"
+      Interval 300
     </Host>
   </Plugin>
 
@@ -152,6 +154,19 @@ Pass I<Community> to the host.
 Defines which values to collect. I<Data> refers to one of the B<Data> block
 above. Since the config file is read top-down you need to define the data
 before using it here.
+
+=item B<Interval> I<Seconds>
+
+Collect data from this host every I<Seconds> seconds. This value needs to be a
+multiple of the global B<Interval> setting and, if it is not, will be rounded
+B<down> to one and a warning is logged in this case. So if your global
+B<Interval> is set to I<10> and you configure I<25> here, it's rounded down to
+I<20>. By default the global B<Interval> setting will be used.
+
+This option is meant for devices with not much CPU power, e.E<nbsp>g. network
+equipment such as switches, embedded devices, rack monitoring systems and so
+on. Since the B<Step> of generated RRD files depends on this setting it's
+wise to select a reasonable value once and never change it.
 
 =back
 

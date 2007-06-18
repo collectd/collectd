@@ -62,6 +62,8 @@ struct host_definition_s
   char *community;
   int version;
   struct snmp_session sess;
+  uint16_t skip_num;
+  uint16_t skip_left;
   data_definition_t **data_list;
   int data_list_len;
   struct host_definition_s *next;
@@ -89,8 +91,8 @@ typedef struct csnmp_table_values_s csnmp_table_values_t;
 /*
  * Private variables
  */
-data_definition_t *data_head = NULL;
-host_definition_t *host_head = NULL;
+static data_definition_t *data_head = NULL;
+static host_definition_t *host_head = NULL;
 
 /*
  * Private functions
@@ -101,13 +103,18 @@ host_definition_t *host_head = NULL;
 /*
  * Callgraph for the config stuff:
  *  csnmp_config
+ *  +-> call_snmp_init_once
  *  +-> csnmp_config_add_data
  *  !   +-> csnmp_config_add_data_type
  *  !   +-> csnmp_config_add_data_table
  *  !   +-> csnmp_config_add_data_instance
  *  !   +-> csnmp_config_add_data_values
  *  +-> csnmp_config_add_host
- *  +-> csnmp_config_add_host_collect
+ *      +-> csnmp_config_add_host_address
+ *      +-> csnmp_config_add_host_community
+ *      +-> csnmp_config_add_host_version
+ *      +-> csnmp_config_add_host_collect
+ *      +-> csnmp_config_add_host_interval
  */
 static void call_snmp_init_once (void)
 {
@@ -441,6 +448,31 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   return (0);
 } /* int csnmp_config_add_host_collect */
 
+static int csnmp_config_add_host_interval (host_definition_t *hd, oconfig_item_t *ci)
+{
+  int interval;
+
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("snmp plugin: The `Interval' config option needs exactly one number argument.");
+    return (-1);
+  }
+
+  interval = (int) ci->values[0].value.number;
+  hd->skip_num = interval / interval_g;
+  if (hd->skip_num < 1)
+    hd->skip_num = 1;
+
+  if ((hd->skip_num * interval_g) != interval)
+  {
+    WARNING ("snmp plugin: Data for host `%s' will be collected every %i seconds.",
+	hd->name, hd->skip_num * interval_g);
+  }
+
+  return (0);
+} /* int csnmp_config_add_host_interval */
+
 static int csnmp_config_add_host (oconfig_item_t *ci)
 {
   host_definition_t *hd;
@@ -469,6 +501,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   snmp_sess_init (&hd->sess);
   hd->sess.version = SNMP_VERSION_2c;
 
+  hd->skip_num = 1;
+  hd->skip_left = 0;
+
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
@@ -482,6 +517,8 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
       status = csnmp_config_add_host_version (hd, option);
     else if (strcasecmp ("Collect", option->key) == 0)
       csnmp_config_add_host_collect (hd, option);
+    else if (strcasecmp ("Interval", option->key) == 0)
+      csnmp_config_add_host_interval (hd, option);
     else
     {
       WARNING ("snmp plugin: csnmp_config_add_host: Option `%s' not allowed here.", option->key);
@@ -974,6 +1011,8 @@ static int csnmp_read_value (struct snmp_session *sess_ptr,
   strncpy (vl.type_instance, data->instance.string, sizeof (vl.type_instance));
   vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
+  vl.interval = interval_g * host->skip_num;
+
   req = snmp_pdu_create (SNMP_MSG_GET);
   if (req == NULL)
   {
@@ -1049,6 +1088,7 @@ static int csnmp_read_host (host_definition_t *host)
 static int csnmp_read (void)
 {
   host_definition_t *host;
+  time_t now;
 
   if (host_head == NULL)
   {
@@ -1056,8 +1096,18 @@ static int csnmp_read (void)
     return (-1);
   }
 
+  now = time (NULL);
+
   for (host = host_head; host != NULL; host = host->next)
+  {
+    host->skip_left--;
+    if (host->skip_left > 0)
+      continue;
+
     csnmp_read_host (host);
+
+    host->skip_left = host->skip_num;
+  } /* for (host) */
 
   return (0);
 } /* int csnmp_read */
