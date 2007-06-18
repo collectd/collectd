@@ -83,6 +83,33 @@ sub _create_identifier
 	return ("$host/$plugin/$type");
 } # _create_identifier
 
+sub _parse_identifier
+{
+	my $string = shift;
+	my $host;
+	my $plugin;
+	my $plugin_instance;
+	my $type;
+	my $type_instance;
+	my $ident;
+
+	($host, $plugin, $type) = split ('/', $string);
+
+	($plugin, $plugin_instance) = split ('-', $plugin, 2);
+	($type, $type_instance) = split ('-', $type, 2);
+
+	$ident =
+	{
+		host => $host,
+		plugin => $plugin,
+		type => $type
+	};
+	$ident->{'plugin_instance'} = $plugin_instance if (defined ($plugin_instance));
+	$ident->{'type_instance'} = $type_instance if (defined ($type_instance));
+
+	return ($ident);
+} # _parse_identifier
+
 =head1 PUBLIC METHODS
 
 =over 4
@@ -216,6 +243,52 @@ sub putval
 	$obj->{'error'} = $msg;
 	return;
 } # putval
+
+=item I<$res> = I<$obj>-E<gt>B<listval> ()
+
+Queries a list of values from the daemon. The list is returned as an array of
+hash references, where each hash reference is a valid identifier. The C<time>
+member of each hash holds the epoch value of the last update of that value.
+
+=cut
+
+sub listval
+{
+	my $obj = shift;
+	my $msg;
+	my @ret = ();
+	my $status;
+	my $fh = $obj->{'sock'} or confess;
+
+	$msg = "LISTVAL\n";
+	send ($fh, $msg, 0) or confess ("send: $!");
+
+	$msg = <$fh>;
+	($status, $msg) = split (' ', $msg, 2);
+	if ($status < 0)
+	{
+		$obj->{'error'} = $msg;
+		return;
+	}
+
+	for (my $i = 0; $i < $status; $i++)
+	{
+		my $time;
+		my $ident;
+
+		$msg = <$fh>;
+		chomp ($msg);
+
+		($time, $ident) = split (' ', $msg, 2);
+
+		$ident = _parse_identifier ($ident);
+		$ident->{'time'} = int ($time);
+
+		push (@ret, $ident);
+	} # for (i = 0 .. $status)
+
+	return (@ret);
+} # listval
 
 =item I<$obj>-E<gt>destroy ();
 
