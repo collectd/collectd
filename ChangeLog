@@ -1,3 +1,7 @@
+2007-06-18, Version 4.0.3
+	* cpu plugin: Fix the Darwin / Mac OS X code.
+	* ping plugin: Use the return value of `getpid', not its address.
+
 2007-06-12, Version 4.0.2
 	* hddtemp and ntpd plugin: Corrected the parsing of port numbers when
 	  they're given in numerically form.
