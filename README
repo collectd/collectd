@@ -275,6 +275,26 @@ Prerequisites
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
 
+
+Crosscompiling
+--------------
+
+    To compile correctly collectd needs to be able to initialize static
+    variables to NAN (Not A Number). Some C libraries, especially the GNU
+    libc, have a problem with that.
+
+    Luckily, with GCC it's possible to work around that problem: One can define
+    NAN as being (0.0 / 0.0) and `isnan' as `f != f'. However, to test this
+    ``implementation'' the configure script needs to compile and run a short
+    test program. Obviously running a test program when doing a cross-
+    compilation is, well, challenging.
+
+    If you run into this problem, you can use the `--with-nan-emulation'
+    configure option to force the use of this implementation. We can't promise
+    that the compiled binary actually behaves as it should, but since NANs
+    are likely never passed to the libm you have a good chance to be lucky.
+
+
 Author
 ------
 

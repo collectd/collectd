@@ -241,7 +241,7 @@ static int ping_read (void)
 		number_of_hosts++;
 	}
 
-	if ((number_of_hosts == 0) && (getuid != 0))
+	if ((number_of_hosts == 0) && (getuid () != 0))
 	{
 		ERROR ("ping plugin: All hosts failed. Try starting collectd as root.");
 	}

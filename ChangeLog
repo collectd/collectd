@@ -1,3 +1,10 @@
+2007-06-19, Version 4.0.3
+	* cpu plugin: Fix the Darwin / Mac OS X code.
+	* ping plugin: Use the return value of `getpid', not its address.
+	* csv, rrdtool plugin: Fixed a bug that prevented an buffer to be
+	  initialized correctly.
+	* configure: Added `--with-nan-emulation' to aid cross compilation.
+
 2007-06-12, Version 4.0.2
 	* hddtemp and ntpd plugin: Corrected the parsing of port numbers when
 	  they're given in numerically form.

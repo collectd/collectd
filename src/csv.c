@@ -41,7 +41,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 	int status;
 	int i;
 
-	memset (buffer, '\0', sizeof (buffer_len));
+	memset (buffer, '\0', buffer_len);
 
 	status = snprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
 	if ((status < 1) || (status >= buffer_len))
