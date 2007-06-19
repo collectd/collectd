@@ -413,7 +413,17 @@ AC_CHECK_FUNCS(getgrgid getpwuid)
 AC_CHECK_FUNCS(getifaddrs)
 
 # Check for NAN
-nan_type="none"
+AC_ARG_WITH(nan-emulation, [AS_HELP_STRING([--with-nan-emulation], [use emulated NAN. For crosscompiling only.])],
+[
+ if test "x$withval" = "xno"; then
+	 nan_type="none"
+ else if test "x$withval" = "xyes"; then
+	 nan_type="zero"
+ else
+	 nan_type="$withval"
+ fi; fi
+],
+[nan_type="none"])
 if test "x$nan_type" = "xnone"; then
   AC_CACHE_CHECK([whether NAN is defined by default],
     [have_nan_default],
@@ -436,9 +446,7 @@ static float foo = NAN;
   )
   if test "x$have_nan_default" = "xyes"
   then
-   nan_type="default"
-   AC_DEFINE(NAN_STATIC_DEFAULT, 1,
-     [Define if NAN is defined by default and can initialize static variables.])
+    nan_type="default"
   fi
 fi
 if test "x$nan_type" = "xnone"; then
@@ -464,9 +472,7 @@ static float foo = NAN;
   )
   if test "x$have_nan_isoc" = "xyes"
   then
-   nan_type="isoc99"
-   AC_DEFINE(NAN_STATIC_ISOC, 1,
-     [Define if NAN is defined by __USE_ISOC99 and can initialize static variables.])
+    nan_type="isoc99"
   fi
 fi
 if test "x$nan_type" = "xnone"; then
@@ -498,14 +504,22 @@ static float foo = NAN;
   )
   if test "x$have_nan_zero" = "xyes"
   then
-   nan_type="zero"
-   AC_DEFINE(NAN_ZERO_ZERO, 1,
-     [Define if NAN can be defined as (0.0 / 0.0)])
+    nan_type="zero"
   fi
 fi
-if test "x$nan_type" = "xnone"; then
+
+if test "x$nan_type" = "xdefault"; then
+  AC_DEFINE(NAN_STATIC_DEFAULT, 1,
+    [Define if NAN is defined by default and can initialize static variables.])
+else if test "x$nan_type" = "xisoc99"; then
+  AC_DEFINE(NAN_STATIC_ISOC, 1,
+    [Define if NAN is defined by __USE_ISOC99 and can initialize static variables.])
+else if test "x$nan_type" = "xzero"; then
+  AC_DEFINE(NAN_ZERO_ZERO, 1,
+    [Define if NAN can be defined as (0.0 / 0.0)])
+else
   AC_MSG_ERROR([Didn't find out how to statically initialize variables to NAN. Sorry.])
-fi
+fi; fi; fi
 
 # For mount interface
 #AC_CHECK_FUNCS(getfsent getvfsent)
