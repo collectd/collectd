@@ -340,7 +340,7 @@ static int cpu_read (void)
 	static cpu_stat_t cs;
 
 	if (kc == NULL)
-		return;
+		return (-1);
 
 	for (cpu = 0; cpu < numcpu; cpu++)
 	{
