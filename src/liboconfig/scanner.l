@@ -23,6 +23,7 @@
 #include "parser.h"
 %}
 %option yylineno
+%option noyywrap
 WHITE_SPACE [\ \t\b]
 QUOTED_STRING \"([^\\"]+|\\.)*\"
 UNQUOTED_STRING [0-9A-Za-z_]+
