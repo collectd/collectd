@@ -88,7 +88,7 @@ static int load_read (void)
 		char errbuf[1024];
 		WARNING ("load: fopen: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return;
+		return (-1);
 	}
 
 	if (fgets (buffer, 16, loadavg) == NULL)
@@ -97,7 +97,7 @@ static int load_read (void)
 		WARNING ("load: fgets: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (loadavg);
-		return;
+		return (-1);
 	}
 
 	if (fclose (loadavg))
@@ -110,7 +110,7 @@ static int load_read (void)
 	numfields = strsplit (buffer, fields, 8);
 
 	if (numfields < 3)
-		return;
+		return (-1);
 
 	snum = atof (fields[0]);
 	mnum = atof (fields[1]);
