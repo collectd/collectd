@@ -62,8 +62,8 @@ struct host_definition_s
   char *community;
   int version;
   struct snmp_session sess;
-  uint16_t skip_num;
-  uint16_t skip_left;
+  int16_t skip_num;
+  int16_t skip_left;
   data_definition_t **data_list;
   int data_list_len;
   struct host_definition_s *next;
@@ -460,15 +460,9 @@ static int csnmp_config_add_host_interval (host_definition_t *hd, oconfig_item_t
   }
 
   interval = (int) ci->values[0].value.number;
-  hd->skip_num = interval / interval_g;
-  if (hd->skip_num < 1)
-    hd->skip_num = 1;
-
-  if ((hd->skip_num * interval_g) != interval)
-  {
-    WARNING ("snmp plugin: Data for host `%s' will be collected every %i seconds.",
-	hd->name, hd->skip_num * interval_g);
-  }
+  hd->skip_num = interval;
+  if (hd->skip_num < 0)
+    hd->skip_num = 0;
 
   return (0);
 } /* int csnmp_config_add_host_interval */
@@ -501,7 +495,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   snmp_sess_init (&hd->sess);
   hd->sess.version = SNMP_VERSION_2c;
 
-  hd->skip_num = 1;
+  hd->skip_num = 0;
   hd->skip_left = 0;
 
   for (i = 0; i < ci->children_num; i++)
@@ -595,7 +589,25 @@ static int csnmp_config (oconfig_item_t *ci)
 
 static int csnmp_init (void)
 {
+  host_definition_t *host;
+
   call_snmp_init_once ();
+
+  for (host = host_head; host != NULL; host = host->next)
+  {
+    host->skip_left = interval_g;
+    if (host->skip_num == 0)
+    {
+      host->skip_num = interval_g;
+    }
+    else if (host->skip_num < interval_g)
+    {
+      host->skip_num = interval_g;
+      WARNING ("snmp plugin: Data for host `%s' will be collected every %i seconds.",
+	  host->name, host->skip_num);
+    }
+  } /* for (host) */
+
   return (0);
 }
 
@@ -699,6 +711,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   vl.host[sizeof (vl.host) - 1] = '\0';
   strcpy (vl.plugin, "snmp");
 
+  vl.interval = host->skip_num;
   vl.time = time (NULL);
 
   for (instance_list_ptr = instance_list;
@@ -794,7 +807,7 @@ static int csnmp_read_table (struct snmp_session *sess_ptr,
     sfree (oid_list);
     return (-1);
   }
-  memset (value_table, '\0', sizeof (csnmp_table_values_t *) * 2);
+  memset (value_table, '\0', sizeof (csnmp_table_values_t *) * 2 * data->values_len);
   value_table_ptr = value_table + data->values_len;
   
   instance_list = NULL;
@@ -854,12 +867,27 @@ static int csnmp_read_table (struct snmp_session *sess_ptr,
     /* Get instance name */
     if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
     {
-      strncpy (il->instance, (char *) vb->val.bitstring,
-	  sizeof (il->instance));
-      il->instance[sizeof (il->instance) - 1] = '\0';
-      DEBUG ("Before escape_slashes: %s", il->instance);
-      escape_slashes (il->instance, strlen (il->instance));
-      DEBUG ("After  escape_slashes: %s", il->instance);
+      char *ptr;
+      size_t instance_len;
+
+      instance_len = sizeof (il->instance) - 1;
+      if (instance_len > vb->val_len)
+	instance_len = vb->val_len;
+
+      strncpy (il->instance, (char *) ((vb->type == ASN_OCTET_STR)
+	    ? vb->val.string
+	    : vb->val.bitstring),
+	  instance_len);
+      il->instance[instance_len] = '\0';
+
+      for (ptr = il->instance; *ptr != '\0'; ptr++)
+      {
+	if ((*ptr > 0) && (*ptr < 32))
+	  *ptr = ' ';
+	else if (*ptr == '/')
+	  *ptr = '_';
+      }
+      DEBUG ("snmp plugin: il->instance = `%s';", il->instance);
     }
     else
     {
@@ -928,7 +956,7 @@ static int csnmp_read_table (struct snmp_session *sess_ptr,
       /* Copy OID to oid_list[i + 1] */
       memcpy (oid_list[i + 1].oid, vb->name, sizeof (oid) * vb->name_length);
       oid_list[i + 1].oid_len = vb->name_length;
-    } /* for (data->values_len) */
+    } /* for (i = data->values_len) */
 
     if (res != NULL)
       snmp_free_pdu (res);
@@ -1011,7 +1039,7 @@ static int csnmp_read_value (struct snmp_session *sess_ptr,
   strncpy (vl.type_instance, data->instance.string, sizeof (vl.type_instance));
   vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-  vl.interval = interval_g * host->skip_num;
+  vl.interval = host->skip_num;
 
   req = snmp_pdu_create (SNMP_MSG_GET);
   if (req == NULL)
@@ -1100,8 +1128,8 @@ static int csnmp_read (void)
 
   for (host = host_head; host != NULL; host = host->next)
   {
-    host->skip_left--;
-    if (host->skip_left > 0)
+    host->skip_left -= interval_g;
+    if (host->skip_left >= interval_g)
       continue;
 
     csnmp_read_host (host);
