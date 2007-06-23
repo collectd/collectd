@@ -61,7 +61,7 @@ struct host_definition_s
   char *address;
   char *community;
   int version;
-  struct snmp_session sess;
+  void *sess_handle;
   int16_t skip_num;
   int16_t skip_left;
   data_definition_t **data_list;
@@ -339,8 +339,6 @@ static int csnmp_config_add_host_address (host_definition_t *hd, oconfig_item_t 
   DEBUG ("snmp plugin: host = %s; host->address = %s;",
       hd->name, hd->address);
 
-  hd->sess.peername = hd->address;
-
   return (0);
 } /* int csnmp_config_add_host_address */
 
@@ -362,9 +360,6 @@ static int csnmp_config_add_host_community (host_definition_t *hd, oconfig_item_
 
   DEBUG ("snmp plugin: host = %s; host->community = %s;",
       hd->name, hd->community);
-
-  hd->sess.community = (u_char *) hd->community;
-  hd->sess.community_len = strlen (hd->community);
 
   return (0);
 } /* int csnmp_config_add_host_community */
@@ -388,11 +383,6 @@ static int csnmp_config_add_host_version (host_definition_t *hd, oconfig_item_t 
   }
 
   hd->version = version;
-
-  if (hd->version == 1)
-    hd->sess.version = SNMP_VERSION_1;
-  else
-    hd->sess.version = SNMP_VERSION_2c;
 
   return (0);
 } /* int csnmp_config_add_host_address */
@@ -492,9 +482,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
     return (-1);
   }
 
-  snmp_sess_init (&hd->sess);
-  hd->sess.version = SNMP_VERSION_2c;
-
+  hd->sess_handle = NULL;
   hd->skip_num = 0;
   hd->skip_left = 0;
 
@@ -587,6 +575,59 @@ static int csnmp_config (oconfig_item_t *ci)
   return (0);
 } /* int csnmp_config */
 
+/* End of the config stuff. Now the interesting part begins */
+
+static void csnmp_host_close_session (host_definition_t *host)
+{
+  int status;
+
+  if (host->sess_handle == NULL)
+    return;
+
+  status = snmp_sess_close (host->sess_handle);
+
+  if (status != 0)
+  {
+    char *errstr = NULL;
+
+    snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
+
+    ERROR ("snmp plugin: snmp_sess_close failed: %s",
+	(errstr == NULL) ? "Unknown problem" : errstr);
+    sfree (errstr);
+  }
+
+  host->sess_handle = NULL;
+} /* void csnmp_host_close_session */
+
+static void csnmp_host_open_session (host_definition_t *host)
+{
+  struct snmp_session sess;
+
+  if (host->sess_handle != NULL)
+    csnmp_host_close_session (host);
+
+  snmp_sess_init (&sess);
+  sess.peername = host->address;
+  sess.community = (u_char *) host->community;
+  sess.community_len = strlen (host->community);
+  sess.version = (host->version == 1) ? SNMP_VERSION_1 : SNMP_VERSION_2c;
+
+  /* snmp_sess_open will copy the `struct snmp_session *'. */
+  host->sess_handle = snmp_sess_open (&sess);
+
+  if (host->sess_handle == NULL)
+  {
+    char *errstr = NULL;
+
+    snmp_error (&sess, NULL, NULL, &errstr);
+
+    ERROR ("snmp plugin: snmp_sess_open failed: %s",
+	(errstr == NULL) ? "Unknown problem" : errstr);
+    sfree (errstr);
+  }
+} /* void csnmp_host_open_session */
+
 static int csnmp_init (void)
 {
   host_definition_t *host;
@@ -595,6 +636,8 @@ static int csnmp_init (void)
 
   for (host = host_head; host != NULL; host = host->next)
   {
+    /* We need to initialize `skip_num' here, because `interval_g' isn't
+     * initialized during `configure'. */
     host->skip_left = interval_g;
     if (host->skip_num == 0)
     {
@@ -606,30 +649,12 @@ static int csnmp_init (void)
       WARNING ("snmp plugin: Data for host `%s' will be collected every %i seconds.",
 	  host->name, host->skip_num);
     }
+
+    csnmp_host_open_session (host);
   } /* for (host) */
 
   return (0);
-}
-
-#if 0
-static void csnmp_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
-{
-  value_t values[3];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  values[0].gauge = snum;
-  values[1].gauge = mnum;
-  values[2].gauge = lnum;
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE (values);
-  vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "load");
-
-  plugin_dispatch_values ("load", &vl);
-}
-#endif
+} /* int csnmp_init */
 
 static value_t csnmp_value_list_to_value (struct variable_list *vl, int type)
 {
@@ -751,8 +776,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   return (0);
 } /* int csnmp_dispatch_table */
 
-static int csnmp_read_table (struct snmp_session *sess_ptr,
-    host_definition_t *host, data_definition_t *data)
+static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 {
   struct snmp_pdu *req;
   struct snmp_pdu *res;
@@ -773,7 +797,7 @@ static int csnmp_read_table (struct snmp_session *sess_ptr,
   csnmp_table_values_t **value_table;
   csnmp_table_values_t **value_table_ptr;
 
-  DEBUG ("snmp plugin: csnmp_read_value (host = %s, data = %s)",
+  DEBUG ("snmp plugin: csnmp_read_table (host = %s, data = %s)",
       host->name, data->name);
 
   ds = plugin_get_ds (data->type);
@@ -829,11 +853,17 @@ static int csnmp_read_table (struct snmp_session *sess_ptr,
     for (i = 0; i < oid_list_len; i++)
       snmp_add_null_var (req, oid_list[i].oid, oid_list[i].oid_len);
 
-    status = snmp_synch_response (sess_ptr, req, &res);
+    status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
     if (status != STAT_SUCCESS)
     {
-      ERROR ("snmp plugin: snmp_synch_response failed.");
+      char *errstr = NULL;
+
+      snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
+      ERROR ("snmp plugin: snmp_sess_synch_response failed: %s",
+	  (errstr == NULL) ? "Unknown problem" : errstr);
+      csnmp_host_close_session (host);
+
       status = -1;
       break;
     }
@@ -991,8 +1021,7 @@ static int csnmp_read_table (struct snmp_session *sess_ptr,
   return (0);
 } /* int csnmp_read_table */
 
-static int csnmp_read_value (struct snmp_session *sess_ptr,
-    host_definition_t *host, data_definition_t *data)
+static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 {
   struct snmp_pdu *req;
   struct snmp_pdu *res;
@@ -1051,12 +1080,18 @@ static int csnmp_read_value (struct snmp_session *sess_ptr,
 
   for (i = 0; i < data->values_len; i++)
     snmp_add_null_var (req, data->values[i].oid, data->values[i].oid_len);
-  status = snmp_synch_response (sess_ptr, req, &res);
+  status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
   if (status != STAT_SUCCESS)
   {
-    ERROR ("snmp plugin: snmp_synch_response failed.");
-    sfree (vl.values);
+    char *errstr = NULL;
+
+    snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
+    ERROR ("snmp plugin: snmp_sess_synch_response failed: %s",
+	(errstr == NULL) ? "Unknown problem" : errstr);
+    csnmp_host_close_session (host);
+    sfree (errstr);
+
     return (-1);
   }
 
@@ -1086,30 +1121,26 @@ static int csnmp_read_value (struct snmp_session *sess_ptr,
 
 static int csnmp_read_host (host_definition_t *host)
 {
-  struct snmp_session *sess_ptr;
   int i;
 
   DEBUG ("snmp plugin: csnmp_read_host (%s);", host->name);
 
-  sess_ptr = snmp_open (&host->sess);
-  if (sess_ptr == NULL)
-  {
-    snmp_perror ("snmp_open");
-    ERROR ("snmp plugin: snmp_open failed.");
+  if (host->sess_handle == NULL)
+    csnmp_host_open_session (host);
+
+  if (host->sess_handle == NULL)
     return (-1);
-  }
 
   for (i = 0; i < host->data_list_len; i++)
   {
     data_definition_t *data = host->data_list[i];
 
     if (data->is_table)
-      csnmp_read_table (sess_ptr, host, data);
+      csnmp_read_table (host, data);
     else
-      csnmp_read_value (sess_ptr, host, data);
+      csnmp_read_value (host, data);
   }
 
-  snmp_close (sess_ptr);
   return (0);
 } /* int csnmp_read_host */
 
