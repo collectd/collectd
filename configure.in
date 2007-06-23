@@ -332,7 +332,12 @@ AC_CHECK_HEADERS(net/if_arp.h, [], [],
 # include <sys/socket.h>
 #endif
 ])
-AC_CHECK_HEADERS(net/if_ppp.h)
+AC_CHECK_HEADERS(net/ppp_defs.h)
+AC_CHECK_HEADERS(net/if_ppp.h, [], [],
+[#if HAVE_NET_PPP_DEFS_H
+# include <net/ppp_defs.h>
+#endif
+])
 AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 [#if HAVE_STDINT_H
 # include <stdint.h>

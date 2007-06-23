@@ -63,6 +63,9 @@
 #if HAVE_NETINET_IF_ETHER_H
 # include <netinet/if_ether.h>
 #endif
+#if HAVE_NET_PPP_DEFS_H
+# include <net/ppp_defs.h>
+#endif
 #if HAVE_NET_IF_PPP_H
 # include <net/if_ppp.h>
 #endif
