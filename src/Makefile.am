@@ -479,6 +479,9 @@ snmp_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBNETSNMP
 snmp_la_LDFLAGS += -lnetsnmp
 endif
+if BUILD_WITH_LIBPTHREAD
+snmp_la_LDFLAGS += -lpthread
+endif
 collectd_LDADD += "-dlopen" snmp.la
 collectd_DEPENDENCIES += snmp.la
 endif
