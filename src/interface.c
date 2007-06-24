@@ -317,7 +317,7 @@ static int interface_read (void)
 	unsigned long long tx;
 
 	if (kc == NULL)
-		return;
+		return (-1);
 
 	for (i = 0; i < numif; i++)
 	{

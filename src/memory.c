@@ -305,7 +305,7 @@ static int memory_read (void)
 
 	memory_submit ("used",   mem_used);
 	memory_submit ("free",   mem_free);
-	memory_submit ("locked", mem_locked);
+	memory_submit ("locked", mem_lock);
 /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
