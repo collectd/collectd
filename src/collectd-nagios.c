@@ -11,18 +11,32 @@
 #include <sys/un.h>
 
 /*
- * This weird macro cascade forces the glibc to define `NAN'. I don't know
- * another way to solve this, so more intelligent solutions are welcome. -octo
+ * This is copied directly from collectd.h. Make changes there!
  */
-#ifndef __USE_ISOC99
-# define DISABLE__USE_ISOC99 1
-# define __USE_ISOC99 1
-#endif
-#include <math.h>
-#ifdef DISABLE__USE_ISOC99
-# undef DISABLE__USE_ISOC99
-# undef __USE_ISOC99
-#endif
+#if NAN_STATIC_DEFAULT
+# include <math.h>
+/* #endif NAN_STATIC_DEFAULT*/
+#elif NAN_STATIC_ISOC
+# ifndef __USE_ISOC99
+#  define DISABLE_ISOC99 1
+#  define __USE_ISOC99 1
+# endif /* !defined(__USE_ISOC99) */
+# include <math.h>
+# if DISABLE_ISOC99
+#  undef DISABLE_ISOC99
+#  undef __USE_ISOC99
+# endif /* DISABLE_ISOC99 */
+/* #endif NAN_STATIC_ISOC */
+#elif NAN_ZERO_ZERO
+# include <math.h>
+# ifdef NAN
+#  undef NAN
+# endif
+# define NAN (0.0 / 0.0)
+# ifndef isnan
+#  define isnan(f) ((f) != (f))
+# endif /* !defined(isnan) */
+#endif /* NAN_ZERO_ZERO */
 
 #define RET_OKAY     0
 #define RET_WARNING  1
