@@ -1,3 +1,11 @@
+2007-06-24, Version 4.0.4
+	* cpu plugin: Fixed the Solaris code.
+	* dns plugin: Fixed a build issue for OpenBSD.
+	* interface plugin: Fixed the Solaris code.
+	* load plugin: Fixed the alternative `/proc' Linux code.
+	* memory plugin: Fixed the Solaris code.
+	* oconfig: Don't require `-lfl' anymore.
+
 2007-06-19, Version 4.0.3
 	* cpu plugin: Fix the Darwin / Mac OS X code.
 	* ping plugin: Use the return value of `getpid', not its address.
