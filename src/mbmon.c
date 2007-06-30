@@ -94,7 +94,10 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	int              ai_return;
 
 	memset (&ai_hints, '\0', sizeof (ai_hints));
-	ai_hints.ai_flags    = AI_ADDRCONFIG;
+	ai_hints.ai_flags    = 0;
+#ifdef AI_ADDRCONFIG
+	ai_hints.ai_flags   |= AI_ADDRCONFIG;
+#endif
 	ai_hints.ai_family   = PF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_STREAM;
 	ai_hints.ai_protocol = IPPROTO_TCP;
