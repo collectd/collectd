@@ -26,6 +26,10 @@
 #include "collectd.h"
 #include "plugin.h"
 
+#if HAVE_PWD_H
+# include <pwd.h>
+#endif
+
 #define sfree(ptr) \
 	if((ptr) != NULL) { \
 		free(ptr); \
@@ -171,5 +175,10 @@ int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
 		char **ret_type, char **ret_type_instance);
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);
+
+#if !HAVE_GETPWNAM_R
+int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
+		size_t buflen, struct passwd **pwbufp);
+#endif
 
 #endif /* COMMON_H */

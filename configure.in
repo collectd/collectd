@@ -418,6 +418,9 @@ AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
 AC_CHECK_FUNCS(strncasecmp strcasecmp)
 AC_CHECK_FUNCS(openlog syslog closelog)
 
+AC_CHECK_FUNCS(getpwnam_r)
+AC_CHECK_FUNCS(getgrnam_r)
+
 socket_needs_socket="no"
 AC_CHECK_FUNCS(socket, [], AC_CHECK_LIB(socket, socket, [socket_needs_socket="yes"], AC_MSG_ERROR(cannot find socket)))
 AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$socket_needs_socket" = "xyes")
@@ -443,10 +446,6 @@ AC_CHECK_FUNCS(thread_info)
 
 # For users module
 AC_CHECK_FUNCS(getutent getutxent)
-
-# For quota module
-AC_CHECK_FUNCS(quotactl)
-AC_CHECK_FUNCS(getgrgid getpwuid)
 
 # For interface module
 AC_CHECK_FUNCS(getifaddrs)
