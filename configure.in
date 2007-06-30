@@ -189,7 +189,16 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 ])
 
 # For cpu modules
-AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
+AC_CHECK_HEADERS(sys/sysctl.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
+AC_CHECK_HEADERS(sys/dkstat.h)
 AC_CHECK_HEADERS(mach/mach_init.h)
 AC_CHECK_HEADERS(mach/host_priv.h)
 AC_CHECK_HEADERS(mach/mach_error.h)
@@ -240,7 +249,15 @@ AC_CHECK_HEADERS(sys/loadavg.h)
 AC_CHECK_HEADERS(linux/config.h)
 
 # For the swap module
-AC_CHECK_HEADERS(sys/swap.h)
+AC_CHECK_HEADERS(sys/swap.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
 
 # For users module
 AC_CHECK_HEADERS(utmp.h)
@@ -283,7 +300,16 @@ AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 AC_CHECK_HEADERS(curl/curl.h)
 
 # For quota module
-AC_CHECK_HEADERS(pwd.h sys/ucred.h)
+AC_CHECK_HEADERS(pwd.h)
+AC_CHECK_HEADERS(sys/ucred.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
 AC_CHECK_HEADERS(ctype.h)
 AC_CHECK_HEADERS(limits.h)
 AC_CHECK_HEADERS(sys/quota.h)
@@ -299,7 +325,15 @@ AC_CHECK_HEADERS(sys/fstyp.h)
 AC_CHECK_HEADERS(sys/fs_types.h)
 AC_CHECK_HEADERS(sys/mntent.h)
 AC_CHECK_HEADERS(sys/mnttab.h)
-AC_CHECK_HEADERS(sys/mount.h)
+AC_CHECK_HEADERS(sys/mount.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
 AC_CHECK_HEADERS(sys/statfs.h)
 AC_CHECK_HEADERS(sys/statvfs.h)
 AC_CHECK_HEADERS(sys/vfs.h)
