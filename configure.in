@@ -36,23 +36,8 @@ AC_CONFIG_SUBDIRS(libltdl)
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
-AC_CHECK_HEADERS(stdint.h)
-AC_CHECK_HEADERS(stdio.h)
-AC_CHECK_HEADERS(errno.h)
-AC_CHECK_HEADERS(math.h)
-AC_CHECK_HEADERS(syslog.h)
-AC_CHECK_HEADERS(fcntl.h)
-AC_CHECK_HEADERS(signal.h)
-AC_CHECK_HEADERS(assert.h)
-AC_CHECK_HEADERS(sys/types.h)
-AC_CHECK_HEADERS(sys/socket.h)
-AC_CHECK_HEADERS(sys/select.h)
-AC_CHECK_HEADERS(poll.h)
-AC_CHECK_HEADERS(netdb.h)
-AC_CHECK_HEADERS(arpa/inet.h)
-AC_CHECK_HEADERS(sys/resource.h)
-AC_CHECK_HEADERS(sys/param.h)
-AC_CHECK_HEADERS(kstat.h)
+
+AC_CHECK_HEADERS(stdint.h stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h)
 
 # For ping library
 AC_CHECK_HEADERS(netinet/in_systm.h, [], [],
@@ -189,33 +174,13 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 ])
 
 # For cpu modules
-AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h)
-AC_CHECK_HEADERS(mach/mach_init.h)
-AC_CHECK_HEADERS(mach/host_priv.h)
-AC_CHECK_HEADERS(mach/mach_error.h)
-AC_CHECK_HEADERS(mach/mach_host.h)
-AC_CHECK_HEADERS(mach/mach_port.h)
-AC_CHECK_HEADERS(mach/mach_types.h)
-AC_CHECK_HEADERS(mach/message.h)
-AC_CHECK_HEADERS(mach/processor_set.h)
-AC_CHECK_HEADERS(mach/processor.h)
-AC_CHECK_HEADERS(mach/processor_info.h)
-AC_CHECK_HEADERS(mach/task.h)
-AC_CHECK_HEADERS(mach/thread_act.h)
-AC_CHECK_HEADERS(mach/vm_region.h)
-AC_CHECK_HEADERS(mach/vm_map.h)
-AC_CHECK_HEADERS(mach/vm_prot.h)
-AC_CHECK_HEADERS(mach/vm_statistics.h)
-AC_CHECK_HEADERS(mach/kern_return.h)
+AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h mach/mach_init.h mach/host_priv.h mach/mach_error.h mach/mach_host.h mach/mach_port.h mach/mach_types.h mach/message.h mach/processor_set.h mach/processor.h mach/processor_info.h mach/task.h mach/thread_act.h mach/vm_region.h mach/vm_map.h mach/vm_prot.h mach/vm_statistics.h mach/kern_return.h)
 
 # For hddtemp module
-AC_CHECK_HEADERS(linux/major.h)
-AC_CHECK_HEADERS(libgen.h)
+AC_CHECK_HEADERS(linux/major.h libgen.h)
 
 # For the apple_sensors module
-AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h)
-AC_CHECK_HEADERS(IOKit/IOKitLib.h)
-AC_CHECK_HEADERS(IOKit/IOTypes.h)
+AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h IOKit/IOKitLib.h IOKit/IOTypes.h IOKit/ps/IOPSKeys.h IOKit/IOBSD.h IOKit/storage/IOBlockStorageDriver.h)
 
 # For the battery plugin
 AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
@@ -227,24 +192,12 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 #  include <IOKit/IOTypes.h>
 #endif
 ])
-AC_CHECK_HEADERS(IOKit/ps/IOPSKeys.h)
-
-# For the `disk' plugin
-AC_CHECK_HEADERS(IOKit/IOBSD.h)
-AC_CHECK_HEADERS(IOKit/storage/IOBlockStorageDriver.h)
 
 # For load module
-AC_CHECK_HEADERS(sys/loadavg.h)
-
 # For the processes plugin
-AC_CHECK_HEADERS(linux/config.h)
-
 # For the swap module
-AC_CHECK_HEADERS(sys/swap.h)
-
 # For users module
-AC_CHECK_HEADERS(utmp.h)
-AC_CHECK_HEADERS(utmpx.h)
+AC_CHECK_HEADERS(sys/loadavg.h linux/config.h sys/swap.h utmp.h utmpx.h)
 
 # For interface plugin
 AC_CHECK_HEADERS(ifaddrs.h)
@@ -280,52 +233,9 @@ AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 ])
 
 # For apache plugin
-AC_CHECK_HEADERS(curl/curl.h)
-
-# For quota module
-AC_CHECK_HEADERS(pwd.h sys/ucred.h)
-AC_CHECK_HEADERS(ctype.h)
-AC_CHECK_HEADERS(limits.h)
-AC_CHECK_HEADERS(sys/quota.h)
-AC_CHECK_HEADERS(xfs/xqm.h)
-
 # For mount interface
-AC_CHECK_HEADERS(fs_info.h)
-AC_CHECK_HEADERS(fshelp.h)
-AC_CHECK_HEADERS(paths.h)
-AC_CHECK_HEADERS(mntent.h)
-AC_CHECK_HEADERS(mnttab.h)
-AC_CHECK_HEADERS(sys/fstyp.h)
-AC_CHECK_HEADERS(sys/fs_types.h)
-AC_CHECK_HEADERS(sys/mntent.h)
-AC_CHECK_HEADERS(sys/mnttab.h)
-AC_CHECK_HEADERS(sys/mount.h)
-AC_CHECK_HEADERS(sys/statfs.h)
-AC_CHECK_HEADERS(sys/statvfs.h)
-AC_CHECK_HEADERS(sys/vfs.h)
-AC_CHECK_HEADERS(sys/vfstab.h)
-
-# For the swap plugin, FreeBSD
-AC_CHECK_HEADERS(kvm.h)
-
-# For the email plugin
-AC_CHECK_HEADERS(linux/un.h, [], [],
-[
-#if HAVE_SYS_SOCKET_H
-#	include <sys/socket.h>
-#endif
-])
-AC_CHECK_HEADERS(sys/un.h)
-AC_CHECK_HEADERS(grp.h)
-
-# For debugging interface (variable number of arguments)
-AC_CHECK_HEADERS(stdarg.h)
-
-# Regular expressions for the ignorelist.
-AC_CHECK_HEADERS(regex.h)
-
 # For the dns plugin
-AC_CHECK_HEADERS(arpa/nameser.h arpa/nameser_compat.h)
+AC_CHECK_HEADERS(curl/curl.h pwd.h grp.h sys/un.h sys/ucred.h ctype.h limits.h sys/quota.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/mount.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h arpa/nameser.h arpa/nameser_compat.h)
 
 AC_CHECK_HEADERS(net/if_arp.h, [], [],
 [#if HAVE_SYS_SOCKET_H
@@ -357,8 +267,7 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 ])
 
 # For the multimeter plugin
-AC_CHECK_HEADERS(termios.h)
-AC_CHECK_HEADERS(sys/ioctl.h)
+AC_CHECK_HEADERS(termios.h sys/ioctl.h)
 
 #
 # Checking for libraries
@@ -378,11 +287,7 @@ AC_HEADER_TIME
 # Checks for library functions.
 #
 AC_PROG_GCC_TRADITIONAL
-AC_CHECK_FUNCS(gettimeofday select strdup strtol)
-AC_CHECK_FUNCS(getaddrinfo getnameinfo)
-AC_CHECK_FUNCS(strchr memcpy strstr strcmp strncmp strncpy strlen)
-AC_CHECK_FUNCS(strncasecmp strcasecmp)
-AC_CHECK_FUNCS(openlog syslog closelog)
+AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog)
 
 socket_needs_socket="no"
 AC_CHECK_FUNCS(socket, [], AC_CHECK_LIB(socket, socket, [socket_needs_socket="yes"], AC_MSG_ERROR(cannot find socket)))
@@ -392,30 +297,21 @@ nanosleep_needs_rt="no"
 AC_CHECK_FUNCS(nanosleep, [], AC_CHECK_LIB(rt, nanosleep, [nanosleep_needs_rt="yes"], AC_MSG_ERROR(cannot find nanosleep)))
 AM_CONDITIONAL(BUILD_WITH_LIBRT, test "x$nanosleep_needs_rt" = "xyes")
 
-# Regular expressions for the ignorelist.
 AC_CHECK_FUNCS(regcomp regerror regexec regfree)
 
-# For cpu module
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
-
-# For df module
-AC_CHECK_FUNCS(statfs statvfs)
+AC_CHECK_FUNCS(host_statistics, [have_host_statistics="yes"], [have_host_statistics="no"])
+AC_CHECK_FUNCS(processor_info, [have_processor_info="yes"], [have_processor_info="no"])
+AC_CHECK_FUNCS(thread_info, [have_thread_info="yes"], [have_thread_info="no"])
+AC_CHECK_FUNCS(statfs, [have_statfs="yes"], [have_statfs="no"])
+AC_CHECK_FUNCS(statvfs, [have_statvfs="yes"], [have_statvfs="no"])
+AC_CHECK_FUNCS(getifaddrs, [have_getifaddrs="yes"], [have_getifaddrs="no"])
+AC_CHECK_FUNCS(syslog, [have_syslog="yes"], [have_syslog="no"])
+AC_CHECK_FUNCS(getutent, [have_getutent="yes"], [have_getutent="no"])
+AC_CHECK_FUNCS(getutxent, [have_getutxent="yes"], [have_getutxent="no"])
 
 # For load module
 AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
-
-# For the `processes' plugin
-AC_CHECK_FUNCS(thread_info)
-
-# For users module
-AC_CHECK_FUNCS(getutent getutxent)
-
-# For quota module
-AC_CHECK_FUNCS(quotactl)
-AC_CHECK_FUNCS(getgrgid getpwuid)
-
-# For interface module
-AC_CHECK_FUNCS(getifaddrs)
 
 # Check for NAN
 AC_ARG_WITH(nan-emulation, [AS_HELP_STRING([--with-nan-emulation], [use emulated NAN. For crosscompiling only.])],
@@ -1101,10 +997,6 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBOPING, test "x$with_liboping" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_OWN_LIBOPING, test "x$with_own_liboping" = "xyes")
-if test "x$with_liboping" = "xyes" -a "x$with_own_liboping" = "xyes"
-then
-	with_liboping="yes (shipped version)"
-fi
 
 AC_ARG_WITH(libpcap, [AS_HELP_STRING([--with-libpcap@<:@=PREFIX@:>@], [Path to libpcap.])],
 [
@@ -1423,57 +1315,220 @@ fi
 	]dnl
 )# AC_COLLECTD(name, enable/disable, info-text, feature/module)
 
+# AC_PLUGIN(name, default, info)
+# ------------------------------------------------------------
+dnl
+AC_DEFUN(
+  [AC_PLUGIN],
+  [
+    enable_plugin="no"
+    AC_ARG_ENABLE([$1], AC_HELP_STRING([--enable-$1], [$3]),
+    [
+     if test "x$enableval" = "xyes"
+     then
+	     enable_plugin="yes"
+     else
+	     enable_plugin="no"
+     fi
+    ],
+    [
+     if test "x$2" = "xyes"
+     then
+	     enable_plugin="yes"
+     else
+	     enable_plugin="no"
+     fi
+    ])
+    if test "x$enable_plugin" = "xyes"
+    then
+	    AC_DEFINE([HAVE_PLUGIN_]my_toupper([$1]), 1, [Define to 1 if the $1 plugin is enabled.])
+    fi
+    AM_CONDITIONAL([BUILD_PLUGIN_]my_toupper([$1]), test "x$enable_plugin" = "xyes")
+    enable_$1="$enable_plugin"
+  ]
+)# AC_PLUGIN(name, default, info)
+
 m4_divert_once([HELP_ENABLE], [
 collectd features:])
+# FIXME: Remove these calls to `AC_COLLECTD' and then remove that macro.
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
+plugin_battery="no"
+plugin_cpu="no"
+plugin_cpufreq="no"
+plugin_df="no"
+plugin_disk="no"
+plugin_entropy="no"
+plugin_interface="no"
+plugin_irq="no"
+plugin_load="no"
+plugin_memory="no"
+plugin_nfs="no"
+plugin_processes="no"
+plugin_serial="no"
+plugin_swap="no"
+plugin_tape="no"
+plugin_users="no"
+plugin_vserver="no"
+plugin_wireless="no"
+
+# Linux
+if test "x$ac_system" = "xLinux"
+then
+	plugin_battery="yes"
+	plugin_cpu="yes"
+	plugin_cpufreq="yes"
+	plugin_disk="yes"
+	plugin_entropy="yes"
+	plugin_interface="yes"
+	plugin_irq="yes"
+	plugin_load="yes"
+	plugin_memory="yes"
+	plugin_nfs="yes"
+	plugin_processes="yes"
+	plugin_serial="yes"
+	plugin_swap="yes"
+	plugin_vserver="yes"
+	plugin_wireless="yes"
+fi
+
+# Mac OS X devices
+if test "x$with_libiokit" = "xyes"
+then
+	plugin_battery="yes"
+	plugin_disk="yes"
+fi
+
+# Solaris
+if test "x$with_devinfo$with_kstat" = "xyesyes"
+then
+	plugin_cpu="yes"
+	plugin_disk="yes"
+	plugin_interface="yes"
+	plugin_memory="yes"
+	plugin_swap="yes"
+	plugin_tape="yes"
+fi
+
+# libstatgrab
+if test "x$with_libstatgrab" = "xyes"
+then
+	plugin_interface="yes"
+	plugin_load="yes"
+	plugin_memory="yes"
+	plugin_swap="yes"
+fi
+
+if test "x$have_processor_info" = "xyes"
+then
+	plugin_cpu="yes"
+fi
+if test "x$have_sysctlbyname" = "xyes"
+then
+	plugin_cpu="yes"
+	plugin_memory="yes"
+fi
+
+if test "x$have_statfs" = "xyes"
+then
+	plugin_df="yes"
+fi
+if test "x$have_statvfs" = "xyes"
+then
+	plugin_df="yes"
+fi
+
+if test "x$have_getifaddrs" = "xyes"
+then
+	plugin_interface="yes"
+fi
+
+if test "x$have_getloadavg" = "xyes"
+then
+	plugin_load="yes"
+fi
+
+# Mac OS X memory interface
+if test "x$have_host_statistics" = "xyes"
+then
+	plugin_memory="yes"
+fi
+
+if test "x$have_thread_info" = "xyes"
+then
+	plugin_processes="yes"
+fi
+
+if test "x$with_libkvm" = "xyes"
+then
+	plugin_swap="yes"
+fi
+
+if test "x$have_getutent" = "xyes"
+then
+	plugin_users="yes"
+fi
+if test "x$have_getutxent" = "xyes"
+then
+	plugin_users="yes"
+fi
+
+# FIXME: sysctl for swap plugin
+
 m4_divert_once([HELP_ENABLE], [
-collectd modules:])
-AC_COLLECTD([apache],    [disable], [module], [Apache httpd statistics])
-AC_COLLECTD([apcups],    [disable], [module], [Statistics of UPSes by APC])
-AC_COLLECTD([apple_sensors], [disable], [module], [Apple's hardware sensors])
-AC_COLLECTD([battery],   [disable], [module], [battery statistics])
-AC_COLLECTD([cpu],       [disable], [module], [cpu usage statistics])
-AC_COLLECTD([cpufreq],   [disable], [module], [system cpu frequency statistics])
-AC_COLLECTD([disk],      [disable], [module], [disk/partition statistics])
-AC_COLLECTD([csv],       [disable], [module], [csv output plugin])
-AC_COLLECTD([df],        [disable], [module], [df statistics])
-AC_COLLECTD([dns],       [disable], [module], [dns statistics])
-AC_COLLECTD([email],     [disable], [module], [email statistics])
-AC_COLLECTD([entropy],   [disable], [module], [entropy statistics])
-AC_COLLECTD([exec],      [disable], [module], [exec of external programs])
-AC_COLLECTD([hddtemp],   [disable], [module], [hdd temperature statistics])
-AC_COLLECTD([interface], [disable], [module], [interface statistics])
-AC_COLLECTD([iptables],  [disable], [module], [IPtables statistics])
-AC_COLLECTD([irq],       [disable], [module], [irq statistics])
-AC_COLLECTD([load],      [disable], [module], [system load statistics])
-AC_COLLECTD([mbmon],     [disable], [module], [motherboard monitor statistics])
-AC_COLLECTD([memory],    [disable], [module], [memory statistics])
-AC_COLLECTD([multimeter],[disable], [module], [multimeter statistics])
-AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
-AC_COLLECTD([network],   [disable], [module], [network functionality])
-AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
-AC_COLLECTD([ntpd],      [disable], [module], [ntpd statistics])
-AC_COLLECTD([nut],       [disable], [module], [network UPS tools statistics])
-AC_COLLECTD([perl],      [disable], [module], [embedded perl interpreter])
-AC_COLLECTD([ping],      [disable], [module], [ping statistics])
-AC_COLLECTD([processes], [disable], [module], [processes statistics])
-AC_COLLECTD([sensors],   [disable], [module], [lm_sensors statistics])
-AC_COLLECTD([serial],    [disable], [module], [serial statistics])
-AC_COLLECTD([snmp],      [disable], [module], [serial statistics])
-AC_COLLECTD([logfile],   [disable], [module], [logfile log facility])
-AC_COLLECTD([swap],      [disable], [module], [swap statistics])
-AC_COLLECTD([syslog],    [disable], [module], [syslog log facility])
-AC_COLLECTD([tape],      [disable], [module], [tape statistics])
-AC_COLLECTD([unixsock],  [disable], [module], [UNIX socket plugin])
-AC_COLLECTD([users],     [disable], [module], [user count statistics])
-AC_COLLECTD([vserver],   [disable], [module], [vserver statistics])
-AC_COLLECTD([wireless],  [disable], [module], [wireless link statistics])
-AC_COLLECTD([xmms],      [disable], [module], [wireless link statistics])
+collectd plugins:])
+
+AC_PLUGIN([apache],      [$with_libcurl],     [Apache httpd statistics])
+AC_PLUGIN([apcups],      [yes],               [Statistics of UPSes by APC])
+AC_PLUGIN([apple_sensors], [$with_libiokit],  [Apple's hardware sensors])
+AC_PLUGIN([battery],     [$plugin_battery],   [Battery statistics])
+AC_PLUGIN([cpu],         [$plugin_cpu],       [CPU usage statistics])
+AC_PLUGIN([cpufreq],     [$plugin_cpufreq],   [CPU frequency statistics])
+AC_PLUGIN([csv],         [yes],               [CSV output plugin])
+AC_PLUGIN([df],          [$plugin_df],        [Filesystem usage statistics])
+AC_PLUGIN([disk],        [$plugin_disk],      [Disk usage statistics])
+AC_PLUGIN([dns],         [$with_libpcap],     [DNS traffic analysis])
+AC_PLUGIN([email],       [yes],               [EMail statistics])
+AC_PLUGIN([entropy],     [$plugin_entropy],   [Entropy statistics])
+AC_PLUGIN([exec],        [yes],               [Execution of external programs])
+AC_PLUGIN([hddtemp],     [yes],               [Query hddtempd])
+AC_PLUGIN([interface],   [$plugin_interface], [Interface traffic statistics])
+AC_PLUGIN([iptables],    [$with_libiptc],     [IPTables rule counters])
+AC_PLUGIN([irq],         [$plugin_irq],       [IRQ statistics])
+AC_PLUGIN([load],        [$plugin_load],      [System load])
+AC_PLUGIN([logfile],     [yes],               [File logging plugin])
+AC_PLUGIN([mbmon],       [yes],               [Query mbmond])
+AC_PLUGIN([memory],      [$plugin_memory],    [Memory usage])
+AC_PLUGIN([multimeter],  [no],                [Read multimeter values])
+AC_PLUGIN([mysql],       [$with_libmysql],    [MySQL statistics])
+AC_PLUGIN([network],     [yes],               [Network communication plugin])
+AC_PLUGIN([nfs],         [$plugin_nfs],       [NFS statistics])
+AC_PLUGIN([ntpd],        [yes],               [NTPd statistics])
+AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
+AC_PLUGIN([perl],        [$with_libperl],     [Embed a Perl interpreter])
+AC_PLUGIN([ping],        [$with_liboping],    [Network latency statistics])
+AC_PLUGIN([processes],   [$plugin_processes], [Process statistics])
+AC_PLUGIN([rrdtool],     [$with_rrdtool],     [RRDTool output plugin])
+AC_PLUGIN([sensors],     [$with_lm_sensors],  [lm_sensors statistics])
+AC_PLUGIN([serial],      [$plugin_serial],    [serial port traffic])
+AC_PLUGIN([snmp],        [$with_libnetsnmp],  [SNMP querying plugin])
+AC_PLUGIN([swap],        [$plugin_swap],      [Swap usage statistics])
+AC_PLUGIN([syslog],      [$have_syslog],      [Syslog logging plugin])
+AC_PLUGIN([tape],        [$plugin_tape],      [Tape drive statistics])
+AC_PLUGIN([unixsock],    [yes],               [Unixsock communication plugin])
+AC_PLUGIN([users],       [$plugin_users],     [User statistics])
+AC_PLUGIN([vserver],     [$plugin_vserver],   [Linux VServer statistics])
+AC_PLUGIN([wireless],    [$plugin_wireless],  [Wireless statistics])
+AC_PLUGIN([xmms],        [$with_libxmms],     [XMMS statistics])
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile)
+
+if test "x$with_liboping" = "xyes" -a "x$with_own_liboping" = "xyes"
+then
+	with_liboping="yes (shipped version)"
+fi
 
 if test "x$with_libperl" = "xyes"
 then
@@ -1490,6 +1545,7 @@ Configuration:
     libiokit  . . . . . $with_libiokit
     libiptc . . . . . . $with_libiptc
     libkstat  . . . . . $with_kstat
+    libkvm  . . . . . . $with_libkvm
     libmysql  . . . . . $with_libmysql
     libnetsnmp  . . . . $with_libnetsnmp
     liboconfig  . . . . $with_liboconfig
