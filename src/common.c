@@ -695,7 +695,8 @@ int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
 		pwbuf->pw_uid = pw->pw_uid;
 		pwbuf->pw_gid = pw->pw_gid;
 
-		*pwbufp = pwbuf;
+		if (pwbufp != NULL)
+			*pwbufp = pwbuf;
 	} while (0);
 
 	pthread_mutex_unlock (&getpwnam_r_lock);
