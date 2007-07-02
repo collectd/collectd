@@ -26,15 +26,10 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#if HAVE_NETDB_H && HAVE_SYS_SOCKET_H && HAVE_NETINET_IN_H && HAVE_NETINET_TCP_H
-# include <netdb.h>
-# include <sys/socket.h>
-# include <netinet/in.h>
-# include <netinet/tcp.h>
-# define MBMON_HAVE_READ 1
-#else
-# define MBMON_HAVE_READ 0
-#endif
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #define MBMON_DEF_HOST "127.0.0.1"
 #define MBMON_DEF_PORT "411" /* the default for Debian */
@@ -47,7 +42,6 @@ static const char *config_keys[] =
 };
 static int config_keys_num = 2;
 
-#if MBMON_HAVE_READ
 static char *mbmon_host = NULL;
 static char *mbmon_port = NULL;
 
@@ -305,14 +299,11 @@ static int mbmon_read (void)
 
 	return (0);
 } /* void mbmon_read */
-#endif /* MBMON_HAVE_READ */
 
 /* module_register
    Register collectd plugin. */
 void module_register (void)
 {
-#if MBMON_HAVE_READ
 	plugin_register_config ("mbmon", mbmon_config, config_keys, config_keys_num);
 	plugin_register_read ("mbmon", mbmon_read);
-#endif /* MBMON_HAVE_READ */
 } /* void module_register */

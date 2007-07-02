@@ -80,27 +80,20 @@
 #  ifndef CONFIG_HZ
 #    define CONFIG_HZ 100
 #  endif
-#endif /* KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
 
-#define MODULE_NAME "processes"
-
-#if HAVE_THREAD_INFO || KERNEL_LINUX
-# define PROCESSES_HAVE_READ 1
 #else
-# define PROCESSES_HAVE_READ 0
+# error "No applicable input method."
 #endif
 
 #define BUFSIZE 256
 
-#if PROCESSES_HAVE_READ
-#if HAVE_THREAD_INFO | KERNEL_LINUX
 static const char *config_keys[] =
 {
 	"Process",
 	NULL
 };
 static int config_keys_num = 1;
-#endif
 
 typedef struct procstat_entry_s
 {
@@ -143,9 +136,7 @@ typedef struct procstat
 	struct procstat_entry_s *instances;
 } procstat_t;
 
-#if HAVE_THREAD_INFO | KERNEL_LINUX
 static procstat_t *list_head_g = NULL;
-#endif
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -159,7 +150,6 @@ static mach_msg_type_number_t     pset_list_len;
 static long pagesize_g;
 #endif /* KERNEL_LINUX */
 
-#if HAVE_THREAD_INFO | KERNEL_LINUX
 static void ps_list_register (const char *name)
 {
 	procstat_t *new;
@@ -370,7 +360,6 @@ static int ps_config (const char *key, const char *value)
 
 	return (0);
 }
-#endif /* HAVE_THREAD_INFO | KERNEL_LINUX */
 
 static int ps_init (void)
 {
@@ -1018,16 +1007,11 @@ static int ps_read (void)
 
 	return (0);
 } /* int ps_read */
-#endif /* PROCESSES_HAVE_READ */
 
 void module_register (void)
 {
-#if PROCESSES_HAVE_READ
-#if HAVE_THREAD_INFO | KERNEL_LINUX
 	plugin_register_config ("processes", ps_config,
 			config_keys, config_keys_num);
-#endif
 	plugin_register_init ("processes", ps_init);
 	plugin_register_read ("processes", ps_read);
-#endif /* PROCESSES_HAVE_READ */
 } /* void module_register */

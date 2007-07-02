@@ -28,16 +28,12 @@
 
 #define BUFSIZE 512
 
-#define MODULE_NAME "vserver"
 #define PROCDIR "/proc/virtual"
 
-#if defined(KERNEL_LINUX)
-# define VSERVER_HAVE_READ 1
-#else
-# define VSERVER_HAVE_READ 0
-#endif /* defined(KERNEL_LINUX) */
+#if !KERNEL_LINUX
+# error "No applicable input method."
+#endif
 
-#if VSERVER_HAVE_READ
 static int pagesize = 0;
 
 static int vserver_init (void)
@@ -306,14 +302,11 @@ static int vserver_read (void)
 
 	return (0);
 } /* int vserver_read */
-#endif /* VSERVER_HAVE_READ */
 
 void module_register (void)
 {
-#if VSERVER_HAVE_READ
 	plugin_register_init ("vserver", vserver_init);
 	plugin_register_read ("vserver", vserver_read);
-#endif /* VSERVER_HAVE_READ */
 } /* void module_register(void) */
 
 /* vim: set ts=4 sw=4 noexpandtab : */

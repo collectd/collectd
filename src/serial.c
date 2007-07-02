@@ -25,13 +25,10 @@
 #include "common.h"
 #include "plugin.h"
 
-#if defined(KERNEL_LINUX)
-# define SERIAL_HAVE_READ 1
-#else
-# define SERIAL_HAVE_READ 0
+#if !KERNEL_LINUX
+# error "No applicable input method."
 #endif
 
-#if SERIAL_HAVE_READ
 static void serial_submit (const char *type_instance,
 		counter_t rx, counter_t tx)
 {
@@ -54,7 +51,6 @@ static void serial_submit (const char *type_instance,
 
 static int serial_read (void)
 {
-#ifdef KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
 
@@ -121,13 +117,9 @@ static int serial_read (void)
 
 	fclose (fh);
 	return (0);
-#endif /* KERNEL_LINUX */
 } /* int serial_read */
-#endif /* SERIAL_HAVE_READ */
 
 void module_register (void)
 {
-#if SERIAL_HAVE_READ
 	plugin_register_read ("serial", serial_read);
-#endif /* SERIAL_HAVE_READ */
 } /* void module_register */

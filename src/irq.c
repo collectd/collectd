@@ -25,10 +25,8 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#if KERNEL_LINUX
-# define IRQ_HAVE_READ 1
-#else
-# define IRQ_HAVE_READ 0
+#if !KERNEL_LINUX
+# error "No applicable input method."
 #endif
 
 #define BUFSIZE 128
@@ -36,7 +34,6 @@
 /*
  * (Module-)Global variables
  */
-#if IRQ_HAVE_READ
 static const char *config_keys[] =
 {
 	"Irq",
@@ -148,8 +145,6 @@ static void irq_submit (unsigned int irq, counter_t value)
 
 static int irq_read (void)
 {
-#if KERNEL_LINUX
-
 #undef BUFSIZE
 #define BUFSIZE 256
 
@@ -198,19 +193,15 @@ static int irq_read (void)
 		irq_submit (irq, irq_value);
 	}
 	fclose (fh);
-#endif /* KERNEL_LINUX */
 
 	return (0);
 } /* int irq_read */
-#endif /* IRQ_HAVE_READ */
 
 void module_register (void)
 {
-#if IRQ_HAVE_READ
 	plugin_register_config ("irq", irq_config,
 			config_keys, config_keys_num);
 	plugin_register_read ("irq", irq_read);
-#endif /* IRQ_HAVE_READ */
 } /* void module_register */
 
 #undef BUFSIZE

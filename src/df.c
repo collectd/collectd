@@ -26,12 +26,6 @@
 #include "utils_mount.h"
 #include "utils_ignorelist.h"
 
-#if HAVE_STATFS || HAVE_STATVFS
-# define DF_HAVE_READ 1
-#else
-# define DF_HAVE_READ 0
-#endif
-
 #if HAVE_STATVFS
 # if HAVE_SYS_STATVFS_H
 #  include <sys/statvfs.h>
@@ -44,9 +38,10 @@
 # endif
 # define STATANYFS statfs
 # define BLOCKSIZE(s) (s).f_bsize
+#else
+# error "No applicable input method."
 #endif
 
-#if DF_HAVE_READ
 static const char *config_keys[] =
 {
 	"Device",
@@ -209,14 +204,11 @@ static int df_read (void)
 
 	return (0);
 } /* int df_read */
-#endif /* DF_HAVE_READ */
 
 void module_register (void)
 {
-#if DF_HAVE_READ
 	plugin_register_config ("df", df_config,
 			config_keys, config_keys_num);
 	plugin_register_init ("df", df_init);
 	plugin_register_read ("df", df_read);
-#endif
 } /* void module_register */

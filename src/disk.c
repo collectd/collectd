@@ -58,13 +58,6 @@
 #  define UINT_MAX 4294967295U
 #endif
 
-#if HAVE_IOKIT_IOKITLIB_H || KERNEL_LINUX || HAVE_LIBKSTAT
-# define DISK_HAVE_READ 1
-#else
-# define DISK_HAVE_READ 0
-#endif
-
-#if DISK_HAVE_READ
 #if HAVE_IOKIT_IOKITLIB_H
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
@@ -102,7 +95,11 @@ static diskstats_t *disklist;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
-#endif /* HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
+
+#else
+# error "No applicable input method."
+#endif
 
 static int disk_init (void)
 {
@@ -639,12 +636,9 @@ static int disk_read (void)
 
 	return (0);
 } /* int disk_read */
-#endif /* DISK_HAVE_READ */
 
 void module_register (void)
 {
-#if DISK_HAVE_READ
 	plugin_register_init ("disk", disk_init);
 	plugin_register_read ("disk", disk_read);
-#endif /* DISK_HAVE_READ */
 } /* void module_register */

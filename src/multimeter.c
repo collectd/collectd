@@ -30,13 +30,10 @@
 # include <termios.h>
 # include <sys/ioctl.h>
 # include <math.h>
-# define MULTIMETER_HAVE_READ 1
 #else
-# define MULTIMETER_HAVE_READ 0
-# error "multimeter cannot read!"
+# error "No applicable input method."
 #endif
 
-#if MULTIMETER_HAVE_READ
 static int fd = -1;
 
 static int multimeter_timeval_sub (struct timeval *tv1, struct timeval *tv2,
@@ -58,6 +55,7 @@ static int multimeter_timeval_sub (struct timeval *tv1, struct timeval *tv2,
         }
 	return (0);
 }
+
 #define LINE_LENGTH 14
 static int multimeter_read_value(double *value)
 {
@@ -248,13 +246,10 @@ static int multimeter_shutdown (void)
 
 	return (0);
 }
-#endif /* MULTIMETER_HAVE_READ */
 
 void module_register (void)
 {
-#if MULTIMETER_HAVE_READ
 	plugin_register_init ("multimeter", multimeter_init);
 	plugin_register_read ("multimeter", multimeter_read);
 	plugin_register_shutdown ("multimeter", multimeter_shutdown);
-#endif /* MULTIMETER_HAVE_READ */
 } /* void module_register */

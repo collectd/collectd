@@ -25,21 +25,16 @@
 
 #if HAVE_UTMPX_H
 # include <utmpx.h>
-#else /* !HAVE_UTMPX_H */
-# if HAVE_UTMP_H
-#  include <utmp.h>
-# endif /* HAVE_UTMP_H */
-#endif /* HAVE_UTMPX_H */
+/* #endif HAVE_UTMPX_H */
 
-#define MODULE_NAME "users"
+#elif HAVE_UTMP_H
+# include <utmp.h>
+/* #endif HAVE_UTMP_H */
 
-#if HAVE_GETUTXENT || HAVE_GETUTENT
-# define USERS_HAVE_READ 1
 #else
-# define USERS_HAVE_READ 0
+# error "No applicable input method."
 #endif
 
-#if USERS_HAVE_READ
 static void users_submit (gauge_t value)
 {
 	value_t values[1];
@@ -92,15 +87,16 @@ static int users_read (void)
 	endutent();
 
 	users_submit (users);
-#endif /* HAVE_GETUTENT */
+/* #endif HAVE_GETUTENT */
+
+#else
+# error "No applicable input method."
+#endif
 
 	return (0);
 } /* int users_read */
-#endif /* USERS_HAVE_READ */
 
 void module_register (void)
 {
-#if USERS_HAVE_READ
 	plugin_register_read ("users", users_read);
-#endif
 } /* void module_register(void) */

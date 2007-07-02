@@ -36,16 +36,9 @@
 #  include <kvm.h>
 #endif
 
-#if KERNEL_LINUX || HAVE_LIBKSTAT || defined(VM_SWAPUSAGE) || HAVE_LIBKVM || HAVE_LIBSTATGRAB
-# define SWAP_HAVE_READ 1
-#else
-# define SWAP_HAVE_READ 0
-#endif
-
 #undef  MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
-#if SWAP_HAVE_READ
 #if KERNEL_LINUX
 /* No global variables */
 /* #endif KERNEL_LINUX */
@@ -66,6 +59,10 @@ int kvm_pagesize;
 
 #elif HAVE_LIBSTATGRAB
 /* No global variables */
+/* #endif HAVE_LIBSTATGRAB */
+
+#else
+# error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
 static int swap_init (void)
@@ -300,12 +297,9 @@ static int swap_read (void)
 
 	return (0);
 } /* int swap_read */
-#endif /* SWAP_HAVE_READ */
 
 void module_register (void)
 {
-#if SWAP_HAVE_READ
 	plugin_register_init ("swap", swap_init);
 	plugin_register_read ("swap", swap_read);
-#endif /* SWAP_HAVE_READ */
 } /* void module_register */

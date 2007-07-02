@@ -26,20 +26,10 @@
 
 #define MODULE_NAME "cpufreq"
 
-#if defined(KERNEL_LINUX)
-# define CPUFREQ_HAVE_READ 1
-#else
-# define CPUFREQ_HAVE_READ 0
-#endif
-
-#if CPUFREQ_HAVE_READ
-#ifdef KERNEL_LINUX
 static int num_cpu = 0;
-#endif
 
 static int cpufreq_init (void)
 {
-#ifdef KERNEL_LINUX
         int status;
 	char filename[256];
 
@@ -64,7 +54,6 @@ static int cpufreq_init (void)
 
 	if (num_cpu == 0)
 		plugin_unregister_read ("cpufreq");
-#endif /* defined(KERNEL_LINUX) */
 
 	return (0);
 } /* int cpufreq_init */
@@ -89,7 +78,6 @@ static void cpufreq_submit (int cpu_num, double value)
 
 static int cpufreq_read (void)
 {
-#ifdef KERNEL_LINUX
         int status;
 	unsigned long long val;
 	int i = 0;
@@ -138,17 +126,12 @@ static int cpufreq_read (void)
 
 		cpufreq_submit (i, val);
 	}
-#endif /* defined(KERNEL_LINUX) */
 
 	return (0);
 } /* int cpufreq_read */
-#endif /* CPUFREQ_HAVE_READ */
-#undef BUFSIZE
 
 void module_register (void)
 {
-#if CPUFREQ_HAVE_READ
 	plugin_register_init ("cpufreq", cpufreq_init);
 	plugin_register_read ("cpufreq", cpufreq_read);
-#endif /* CPUFREQ_HAVE_READ */
 }

@@ -29,25 +29,10 @@
 # include <libiptc/libiptc.h>
 #endif
 
-#if HAVE_LIBIPTC_LIBIPTC_H
-# define IPTABLES_HAVE_READ 1
-#else
-# define IPTABLES_HAVE_READ 0
-#endif
-
-#define MODULE_NAME "iptables"
-#define BUFSIZE 512
-
 /*
  * (Module-)Global variables
  */
 
-/*
- * Removed packet count for now, should have config option if you want to save
- * them Although other collectd models don't seem to care much for options
- * eitherway for what to log
- */
-#if IPTABLES_HAVE_READ
 /*
  * Config format should be `Chain table chainname',
  * e. g. `Chain mangle incoming'
@@ -205,9 +190,7 @@ static int iptables_config (const char *key, const char *value)
 
 	return (0);
 } /* int iptables_config */
-#endif /* IPTABLES_HAVE_READ */
 
-#if IPTABLES_HAVE_READ
 /* This needs to return `int' for IPT_MATCH_ITERATE to work. */
 static int submit_match (const struct ipt_entry_match *match,
 		const struct ipt_entry *entry,
@@ -350,20 +333,14 @@ static int iptables_shutdown (void)
 
     return (0);
 } /* int iptables_shutdown */
-#endif /* IPTABLES_HAVE_READ */
 
 void module_register (void)
 {
-#if IPTABLES_HAVE_READ
     plugin_register_config ("iptables", iptables_config,
 	    config_keys, config_keys_num);
     plugin_register_read ("iptables", iptables_read);
     plugin_register_shutdown ("iptables", iptables_shutdown);
-#endif
 } /* void module_register */
-
-#undef BUFSIZE
-#undef MODULE_NAME
 
 /*
  * vim:shiftwidth=4:softtabstop=4:tabstop=8

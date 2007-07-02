@@ -68,13 +68,10 @@
 # endif
 #endif /* HAVE_SYSCTLBYNAME */
 
-#if defined(PROCESSOR_CPU_LOAD_INFO) || defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) || defined(HAVE_SYSCTLBYNAME)
-# define CPU_HAVE_READ 1
-#else
-# define CPU_HAVE_READ 0
+#if !PROCESSOR_CPU_LOAD_INFO && !KERNEL_LINUX && !HAVE_LIBKSTAT && !HAVE_SYSCTLBYNAME
+# error "No applicable input method."
 #endif
 
-#if CPU_HAVE_READ
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
@@ -389,12 +386,9 @@ static int cpu_read (void)
 
 	return (0);
 }
-#endif /* CPU_HAVE_READ */
 
 void module_register (void)
 {
-#if CPU_HAVE_READ
 	plugin_register_init ("cpu", init);
 	plugin_register_read ("cpu", cpu_read);
-#endif /* CPU_HAVE_READ */
 } /* void module_register */

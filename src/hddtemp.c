@@ -31,17 +31,11 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#if HAVE_NETDB_H && HAVE_SYS_SOCKET_H && HAVE_NETINET_IN_H \
-	&& HAVE_NETINET_TCP_H && HAVE_LIBGEN_H
 # include <netdb.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <netinet/tcp.h>
 # include <libgen.h> /* for basename */
-# define HDDTEMP_HAVE_READ 1
-#else
-# define HDDTEMP_HAVE_READ 0
-#endif
 
 #if HAVE_LINUX_MAJOR_H
 # include <linux/major.h>
@@ -50,7 +44,6 @@
 #define HDDTEMP_DEF_HOST "127.0.0.1"
 #define HDDTEMP_DEF_PORT "7634"
 
-#if HDDTEMP_HAVE_READ
 static const char *config_keys[] =
 {
 	"Host",
@@ -504,16 +497,13 @@ static int hddtemp_read (void)
 	
 	return (0);
 } /* int hddtemp_read */
-#endif /* HDDTEMP_HAVE_READ */
 
 /* module_register
    Register collectd plugin. */
 void module_register (void)
 {
-#if HDDTEMP_HAVE_READ
 	plugin_register_config ("hddtemp", hddtemp_config,
 			config_keys, config_keys_num);
 	plugin_register_init ("hddtemp", hddtemp_init);
 	plugin_register_read ("hddtemp", hddtemp_read);
-#endif /* HDDTEMP_HAVE_READ */
 }

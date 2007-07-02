@@ -58,10 +58,8 @@
 # endif /* !COLLECT_GETIFADDRS */
 #endif /* KERNEL_LINUX */
 
-#if HAVE_GETIFADDRS || KERNEL_LINUX || HAVE_LIBKSTAT || HAVE_LIBSTATGRAB
-# define INTERFACE_HAVE_READ 1
-#else
-# define INTERFACE_HAVE_READ 0
+#if !HAVE_GETIFADDRS && !KERNEL_LINUX && !HAVE_LIBKSTAT && !HAVE_LIBSTATGRAB
+# error "No applicable input method."
 #endif
 
 /*
@@ -132,7 +130,6 @@ static int interface_config (const char *key, const char *value)
 #if HAVE_LIBKSTAT
 static int interface_init (void)
 {
-#if HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
 	unsigned long long val;
 
@@ -155,7 +152,6 @@ static int interface_init (void)
 			continue;
 		ksp[numif++] = ksp_chain;
 	}
-#endif /* HAVE_LIBKSTAT */
 
 	return (0);
 } /* int interface_init */
@@ -181,7 +177,6 @@ static int check_ignore_if (const char *interface)
 	return (1 - if_list_action);
 } /* int check_ignore_if */
 
-#if INTERFACE_HAVE_READ
 static void if_submit (const char *dev, const char *type,
 		unsigned long long rx,
 		unsigned long long tx)
@@ -353,7 +348,6 @@ static int interface_read (void)
 
 	return (0);
 } /* int interface_read */
-#endif /* INTERFACE_HAVE_READ */
 
 void module_register (void)
 {
@@ -362,7 +356,5 @@ void module_register (void)
 #if HAVE_LIBKSTAT
 	plugin_register_init ("interface", interface_init);
 #endif
-#if INTERFACE_HAVE_READ
 	plugin_register_read ("interface", interface_read);
-#endif
 } /* void module_register */

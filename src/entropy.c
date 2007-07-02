@@ -1,6 +1,6 @@
 /**
  * collectd - src/entropy.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,15 +23,12 @@
 #include "common.h"
 #include "plugin.h"
 
-#if KERNEL_LINUX
-# define ENTROPY_HAVE_READ 1
-#else
-# define ENTROPY_HAVE_READ 0
+#if !KERNEL_LINUX
+# error "No applicable input method."
 #endif
 
 #define ENTROPY_FILE "/proc/sys/kernel/random/entropy_avail"
 
-#if ENTROPY_HAVE_READ
 static void entropy_submit (double entropy)
 {
 	value_t values[1];
@@ -52,7 +49,6 @@ static void entropy_submit (double entropy)
 
 static int entropy_read (void)
 {
-#if KERNEL_LINUX
 	double entropy;
 	FILE *fh;
 	char buffer[64];
@@ -72,15 +68,11 @@ static int entropy_read (void)
 	
 	if (entropy > 0.0)
 		entropy_submit (entropy);
-#endif /* KERNEL_LINUX */
 
 	return (0);
 }
-#endif /* ENTROPY_HAVE_READ */
 
 void module_register (void)
 {
-#if ENTROPY_HAVE_READ
 	plugin_register_read ("entropy", entropy_read);
-#endif
 } /* void module_register */
