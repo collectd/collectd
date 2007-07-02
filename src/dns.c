@@ -24,20 +24,14 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#if HAVE_LIBPCAP && HAVE_LIBPTHREAD
-# include "utils_dns.h"
-# include <pthread.h>
-# include <pcap.h>
-# include <poll.h>
-# define DNS_HAVE_READ 1
-#else
-# define DNS_HAVE_READ 0
-#endif
+#include "utils_dns.h"
+#include <pthread.h>
+#include <pcap.h>
+#include <poll.h>
 
 /*
  * Private data types
  */
-#if DNS_HAVE_READ
 struct counter_list_s
 {
 	unsigned int key;
@@ -45,12 +39,10 @@ struct counter_list_s
 	struct counter_list_s *next;
 };
 typedef struct counter_list_s counter_list_t;
-#endif
 
 /*
  * Private variables
  */
-#if DNS_HAVE_READ
 static const char *config_keys[] =
 {
 	"Interface",
@@ -75,12 +67,10 @@ static pthread_mutex_t traffic_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t qtype_mutex   = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t opcode_mutex  = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t rcode_mutex   = PTHREAD_MUTEX_INITIALIZER;
-#endif /* DNS_HAVE_READ */
 
 /*
  * Private functions
  */
-#if DNS_HAVE_READ
 static counter_list_t *counter_list_search (counter_list_t **list, unsigned int key)
 {
 	counter_list_t *entry;
@@ -402,13 +392,10 @@ static int dns_read (void)
 
 	return (0);
 } /* int dns_read */
-#endif
 
 void module_register (void)
 {
-#if DNS_HAVE_READ
 	plugin_register_config ("dns", dns_config, config_keys, config_keys_num);
 	plugin_register_init ("dns", dns_init);
 	plugin_register_read ("dns", dns_read);
-#endif
 } /* void module_register */

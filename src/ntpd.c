@@ -24,12 +24,6 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#if HAVE_SYS_SOCKET_H
-# define NTPD_HAVE_READ 1
-#else
-# define NTPD_HAVE_READ 0
-#endif
-
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
@@ -60,7 +54,6 @@ static const char *config_keys[] =
 };
 static int config_keys_num = 2;
 
-#if NTPD_HAVE_READ
 # define NTPD_DEFAULT_HOST "localhost"
 # define NTPD_DEFAULT_PORT "123"
 static int   sock_descr = -1;
@@ -956,13 +949,10 @@ static int ntpd_read (void)
 
 	return (0);
 } /* int ntpd_read */
-#endif /* NTPD_HAVE_READ */
 
 void module_register (void)
 {
-#if NTPD_HAVE_READ
 	plugin_register_config ("ntpd", ntpd_config,
 			config_keys, config_keys_num);
 	plugin_register_read ("ntpd", ntpd_read);
-#endif /* NTPD_HAVE_READ */
 } /* void module_register */

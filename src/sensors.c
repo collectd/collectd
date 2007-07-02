@@ -36,17 +36,8 @@
 
 #if defined(HAVE_SENSORS_SENSORS_H)
 # include <sensors/sensors.h>
-#else
-# undef HAVE_LIBSENSORS
 #endif
 
-#if defined(HAVE_LIBSENSORS)
-# define SENSORS_HAVE_READ 1
-#else
-# define SENSORS_HAVE_READ 0
-#endif
-
-#if SENSORS_HAVE_READ
 #define SENSOR_TYPE_VOLTAGE     0
 #define SENSOR_TYPE_FANSPEED    1
 #define SENSOR_TYPE_TEMPERATURE 2
@@ -421,14 +412,11 @@ static int sensors_read (void)
 
 	return (0);
 } /* int sensors_read */
-#endif /* SENSORS_HAVE_READ */
 
 void module_register (void)
 {
-#if SENSORS_HAVE_READ
 	plugin_register_config ("sensors", sensors_config,
 			config_keys, config_keys_num);
 	plugin_register_read ("sensors", sensors_read);
 	plugin_register_shutdown ("sensors", sensors_shutdown);
-#endif
 } /* void module_register */

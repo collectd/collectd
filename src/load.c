@@ -1,6 +1,6 @@
 /**
  * collectd - src/load.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,12 +23,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#if defined(HAVE_GETLOADAVG) || defined(KERNEL_LINUX) || defined(HAVE_LIBSTATGRAB)
-# define LOAD_HAVE_READ 1
-#else
-# define LOAD_HAVE_READ 0
-#endif
-
 #ifdef HAVE_SYS_LOADAVG_H
 #include <sys/loadavg.h>
 #endif
@@ -41,7 +35,6 @@
 #endif
 #endif /* defined(HAVE_GETLOADAVG) */
 
-#if LOAD_HAVE_READ
 static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
 	value_t values[3];
@@ -131,15 +124,16 @@ static int load_read (void)
 	lnum = ls->min15;
 
 	load_submit (snum, mnum, lnum);
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
+
+#else
+# error "No applicable input method."
+#endif
 
 	return (0);
 }
-#endif /* LOAD_HAVE_READ */
 
 void module_register (void)
 {
-#if LOAD_HAVE_READ
 	plugin_register_read ("load", load_read);
-#endif
 } /* void module_register */

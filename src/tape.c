@@ -24,23 +24,17 @@
 #include "common.h"
 #include "plugin.h"
 
-#if defined(HAVE_LIBKSTAT)
-# define TAPE_HAVE_READ 1
-#else
-# define TAPE_HAVE_READ 0
+#if !HAVE_LIBKSTAT
+# error "No applicable input method."
 #endif
 
-#if TAPE_HAVE_READ
-#if defined(HAVE_LIBKSTAT)
 #define MAX_NUMTAPE 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMTAPE];
 static int numtape = 0;
-#endif /* HAVE_LIBKSTAT */
 
 static int tape_init (void)
 {
-#ifdef HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
 
 	numtape = 0;
@@ -58,10 +52,9 @@ static int tape_init (void)
 			continue;
 		ksp[numtape++] = ksp_chain;
 	}
-#endif
 
 	return (0);
-}
+} /* int tape_init */
 
 static void tape_submit (const char *plugin_instance,
 		const char *type,
@@ -87,24 +80,23 @@ static void tape_submit (const char *plugin_instance,
 static int tape_read (void)
 {
 
-#if defined(HAVE_LIBKSTAT)
-# if HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_NWRITES && HAVE_KSTAT_IO_T_WTIME
-#  define KIO_ROCTETS reads
-#  define KIO_WOCTETS writes
-#  define KIO_ROPS    nreads
-#  define KIO_WOPS    nwrites
-#  define KIO_RTIME   rtime
-#  define KIO_WTIME   wtime
-# elif HAVE_KSTAT_IO_T_NWRITTEN && HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_WTIME
-#  define KIO_ROCTETS nread
-#  define KIO_WOCTETS nwritten
-#  define KIO_ROPS    reads
-#  define KIO_WOPS    writes
-#  define KIO_RTIME   rtime
-#  define KIO_WTIME   wtime
-# else
-#  error "kstat_io_t does not have the required members"
-# endif
+#if HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_NWRITES && HAVE_KSTAT_IO_T_WTIME
+# define KIO_ROCTETS reads
+# define KIO_WOCTETS writes
+# define KIO_ROPS    nreads
+# define KIO_WOPS    nwrites
+# define KIO_RTIME   rtime
+# define KIO_WTIME   wtime
+#elif HAVE_KSTAT_IO_T_NWRITTEN && HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_WTIME
+# define KIO_ROCTETS nread
+# define KIO_WOCTETS nwritten
+# define KIO_ROPS    reads
+# define KIO_WOPS    writes
+# define KIO_RTIME   rtime
+# define KIO_WTIME   wtime
+#else
+# error "kstat_io_t does not have the required members"
+#endif
 	static kstat_io_t kio;
 	int i;
 
@@ -130,16 +122,12 @@ static int tape_read (void)
 					kio.KIO_RTIME, kio.KIO_WTIME);
 		}
 	}
-#endif /* defined(HAVE_LIBKSTAT) */
 
 	return (0);
 }
-#endif /* TAPE_HAVE_READ */
 
 void module_register (void)
 {
-#if TAPE_HAVE_READ
 	plugin_register_init ("tape", tape_init);
 	plugin_register_read ("tape", tape_read);
-#endif /* TAPE_HAVE_READ */
 }

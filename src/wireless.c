@@ -23,15 +23,12 @@
 #include "common.h"
 #include "plugin.h"
 
-#if defined(KERNEL_LINUX)
-# define WIRELESS_HAVE_READ 1
-#else
-# define WIRELESS_HAVE_READ 0
+#if !KERNEL_LINUX
+# error "No applicable input method."
 #endif
 
 #define WIRELESS_PROC_FILE "/proc/net/wireless"
 
-#if WIRELESS_HAVE_READ
 #if 0
 static double wireless_dbm_to_watt (double dbm)
 {
@@ -140,11 +137,8 @@ static int wireless_read (void)
 
 	return (0);
 } /* int wireless_read */
-#endif /* WIRELESS_HAVE_READ */
 
 void module_register (void)
 {
-#if WIRELESS_HAVE_READ
 	plugin_register_read ("wireless", wireless_read);
-#endif /* WIRELESS_HAVE_READ */
 } /* void module_register */

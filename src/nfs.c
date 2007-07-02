@@ -24,11 +24,8 @@
 #include "common.h"
 #include "plugin.h"
 
-/* #if defined(KERNEL_LINUX) || defined(HAVE_LIBKSTAT) */
-#if KERNEL_LINUX
-# define NFS_HAVE_READ 1
-#else
-# define NFS_HAVE_READ 0
+#if !KERNEL_LINUX
+# error "No applicable input method."
 #endif
 
 /*
@@ -76,7 +73,6 @@ Number      Procedures  Procedures
 21                      commit
 */
 
-#if NFS_HAVE_READ
 static const char *nfs2_procedures_names[] =
 {
 	"null",
@@ -209,7 +205,6 @@ static void nfs_procedures_submit (const char *plugin_instance,
 	}
 } /* void nfs_procedures_submit */
 
-#if KERNEL_LINUX
 static void nfs_read_stats_file (FILE *fh, char *inst)
 {
 	char buffer[BUFSIZE];
@@ -307,7 +302,6 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 		}
 	} /* while (fgets (buffer, BUFSIZE, fh) != NULL) */
 } /* void nfs_read_stats_file */
-#endif /* defined(KERNEL_LINUX) */
 #undef BUFSIZE
 
 #if HAVE_LIBKSTAT && 0
@@ -340,7 +334,6 @@ static void nfs2_read_kstat (kstat_t *ksp, char *inst)
 
 static int nfs_read (void)
 {
-#if KERNEL_LINUX
 	FILE *fh;
 
 	if ((fh = fopen ("/proc/net/rpc/nfs", "r")) != NULL)
@@ -355,9 +348,7 @@ static int nfs_read (void)
 		fclose (fh);
 	}
 
-/* #endif defined(KERNEL_LINUX) */
-
-#elif HAVE_LIBKSTAT && 0
+#if HAVE_LIBKSTAT && 0
 	if (nfs2_ksp_client != NULL)
 		nfs2_read_kstat (nfs2_ksp_client, "client");
 	if (nfs2_ksp_server != NULL)
@@ -366,11 +357,8 @@ static int nfs_read (void)
 
 	return (0);
 }
-#endif /* NFS_HAVE_READ */
 
 void module_register (void)
 {
-#if NFS_HAVE_READ
 	plugin_register_read ("nfs", nfs_read);
-#endif
 } /* void module_register */

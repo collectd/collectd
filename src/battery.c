@@ -48,15 +48,12 @@
 #  include <IOKit/ps/IOPSKeys.h>
 #endif
 
-#if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H || KERNEL_LINUX
-# define BATTERY_HAVE_READ 1
-#else
-# define BATTERY_HAVE_READ 0
+#if !HAVE_IOKIT_IOKITLIB_H && !HAVE_IOKIT_PS_IOPOWERSOURCES_H && !KERNEL_LINUX
+# error "No applicable input method."
 #endif
 
 #define INVALID_VALUE 47841.29
 
-#if BATTERY_HAVE_READ
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	/* No global variables */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
@@ -523,12 +520,9 @@ static int battery_read (void)
 
 	return (0);
 }
-#endif /* BATTERY_HAVE_READ */
 
 void module_register (void)
 {
-#if BATTERY_HAVE_READ
 	plugin_register_init ("battery", battery_init);
 	plugin_register_read ("battery", battery_read);
-#endif /* BATTERY_HAVE_READ */
 } /* void module_register */

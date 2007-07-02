@@ -28,15 +28,8 @@
 #include <mysql/mysql.h>
 #endif
 
-#if COLLECT_LIBMYSQL
-# define MYSQL_HAVE_READ 1
-#else
-# define MYSQL_HAVE_READ 0
-#endif
-
 /* TODO: Understand `Select_*' and possibly do that stuff as well.. */
 
-#if MYSQL_HAVE_READ
 static const char *config_keys[] =
 {
 	"Host",
@@ -322,12 +315,9 @@ static int mysql_read (void)
 
 	return (0);
 } /* int mysql_read */
-#endif /* MYSQL_HAVE_READ */
 
 void module_register (void)
 {
-#if MYSQL_HAVE_READ
 	plugin_register_config ("mysql", config, config_keys, config_keys_num);
 	plugin_register_read ("mysql", mysql_read);
-#endif /* MYSQL_HAVE_READ */
 } /* void module_register */

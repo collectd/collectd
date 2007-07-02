@@ -1,8 +1,10 @@
 /*
  * collectd - src/apcups.c
+ * Copyright (C) 2007 Florian octo Forster
  * Copyright (C) 2006 Anthony Gialluca <tonyabg at charter.net>
  * Copyright (C) 2000-2004 Kern Sibbald
  * Copyright (C) 1996-99 Andre M. Hedrick <andre at suse.com>
+ *
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General

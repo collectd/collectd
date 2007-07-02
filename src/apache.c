@@ -1,6 +1,6 @@
 /**
  * collectd - src/apache.c
- * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2006,2007  Florian octo Forster
  * Copyright (C) 2007  Florent EppO Monbillard
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -27,14 +27,8 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#if HAVE_LIBCURL && HAVE_CURL_CURL_H
-#  define APACHE_HAVE_READ 1
-#  include <curl/curl.h>
-#else
-#  define APACHE_HAVE_READ 0
-#endif
+#include <curl/curl.h>
 
-#if APACHE_HAVE_READ
 static char *url    = NULL;
 static char *user   = NULL;
 static char *pass   = NULL;
@@ -309,14 +303,11 @@ static int apache_read (void)
 
 	return (0);
 } /* int apache_read */
-#endif /* APACHE_HAVE_READ */
 
 void module_register (void)
 {
-#if APACHE_HAVE_READ
 	plugin_register_config ("apache", config,
 			config_keys, config_keys_num);
 	plugin_register_init ("apache", init);
 	plugin_register_read ("apache", apache_read);
-#endif
 } /* void module_register */

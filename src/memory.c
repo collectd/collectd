@@ -43,12 +43,6 @@
 # include <mach/vm_statistics.h>
 #endif
 
-#if HAVE_HOST_STATISTICS || HAVE_SYSCTLBYNAME || KERNEL_LINUX || HAVE_LIBKSTAT
-# define MEMORY_HAVE_READ 1
-#else
-# define MEMORY_HAVE_READ 0
-#endif
-
 /* vm_statistics_data_t */
 #if HAVE_HOST_STATISTICS
 static mach_port_t port_host;
@@ -66,9 +60,12 @@ static vm_size_t pagesize;
 #elif HAVE_LIBKSTAT
 static int pagesize;
 static kstat_t *ksp;
-#endif /* HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
 
-#if MEMORY_HAVE_READ
+#else
+# error "No applicable input method."
+#endif
+
 static int memory_init (void)
 {
 #if HAVE_HOST_STATISTICS
@@ -321,12 +318,9 @@ static int memory_read (void)
 
 	return (0);
 }
-#endif /* MEMORY_HAVE_READ */
 
 void module_register (void)
 {
-#if MEMORY_HAVE_READ
 	plugin_register_init ("memory", memory_init);
 	plugin_register_read ("memory", memory_read);
-#endif /* MEMORY_HAVE_READ */
 } /* void module_register */
