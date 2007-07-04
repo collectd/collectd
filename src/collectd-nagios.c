@@ -294,25 +294,22 @@ int do_check_con_none (int values_num, double *values, char **values_names)
 			num_okay++;
 	}
 
-	if ((num_critical != 0) || (values_num == 0))
+	printf ("%i critical, %i warning, %i okay",
+			num_critical, num_warning, num_okay);
+	if (values_num > 0)
 	{
-		printf ("CRITICAL: %i critical, %i warning, %i okay\n",
-				num_critical, num_warning, num_okay);
-		return (RET_CRITICAL);
+		printf (" |");
+		for (i = 0; i < values_num; i++)
+			printf (" %s=%lf;;;;", values_names[i], values[i]);
 	}
-	else if (num_warning != 0)
-	{
-		printf ("WARNING: %i warning, %i okay\n",
-				num_warning, num_okay);
-		return (RET_WARNING);
-	}
-	else
-	{
-		printf ("OKAY: %i okay\n", num_okay);
-		return (RET_OKAY);
-	}
+	printf ("\n");
 
-	return (RET_UNKNOWN);
+	if ((num_critical != 0) || (values_num == 0))
+		return (RET_CRITICAL);
+	else if (num_warning != 0)
+		return (RET_WARNING);
+
+	return (RET_OKAY);
 } /* int do_check_con_none */
 
 int do_check_con_average (int values_num, double *values, char **values_names)
@@ -320,6 +317,7 @@ int do_check_con_average (int values_num, double *values, char **values_names)
 	int i;
 	double total;
 	int total_num;
+	double average;
 
 	total = 0.0;
 	total_num = 0;
@@ -333,31 +331,23 @@ int do_check_con_average (int values_num, double *values, char **values_names)
 	}
 
 	if (total_num == 0)
-	{
-		printf ("WARNING: No defined values found\n");
-		return (RET_WARNING);
-	}
-
-	if (match_range (&range_critical_g, total / total_num) != 0)
-	{
-		printf ("CRITICAL: Average = %lf\n",
-				(double) (total / total_num));
-		return (RET_CRITICAL);
-	}
-	else if (match_range (&range_warning_g, total / total_num) != 0)
-	{
-		printf ("WARNING: Average = %lf\n",
-				(double) (total / total_num));
-		return (RET_WARNING);
-	}
+		average = NAN;
 	else
-	{
-		printf ("OKAY: Average = %lf\n",
-				(double) (total / total_num));
-		return (RET_OKAY);
-	}
+		average = total / total_num;
+	printf ("%lf average |", average);
+	for (i = 0; i < values_num; i++)
+		printf (" %s=%lf;;;;", values_names[i], values[i]);
 
-	return (RET_UNKNOWN);
+	if (total_num == 0)
+		return (RET_WARNING);
+
+	if (isnan (average)
+			|| match_range (&range_critical_g, average))
+		return (RET_CRITICAL);
+	else if (match_range (&range_warning_g, average) != 0)
+		return (RET_WARNING);
+
+	return (RET_OKAY);
 } /* int do_check_con_average */
 
 int do_check_con_sum (int values_num, double *values, char **values_names)
@@ -422,7 +412,7 @@ int do_check (void)
 		return (do_check_con_sum (values_num, values, values_names));
 
 	free (values);
-	free (values_names);
+	free (values_names); /* FIXME? */
 
 	return (RET_UNKNOWN);
 }
