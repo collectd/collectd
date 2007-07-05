@@ -1,3 +1,6 @@
+2007-07-05, Version 4.0.5
+	* Portability: More fixes for OpenBSD have been included.
+
 2007-06-24, Version 4.0.4
 	* cpu plugin: Fixed the Solaris code.
 	* dns plugin: Fixed a build issue for OpenBSD.
