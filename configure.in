@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, 4.0.4)
+AC_INIT(collectd, 4.0.5)
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AM_INIT_AUTOMAKE(dist-bzip2)
@@ -174,7 +174,16 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 ])
 
 # For cpu modules
-AC_CHECK_HEADERS(sys/sysctl.h sys/dkstat.h mach/mach_init.h mach/host_priv.h mach/mach_error.h mach/mach_host.h mach/mach_port.h mach/mach_types.h mach/message.h mach/processor_set.h mach/processor.h mach/processor_info.h mach/task.h mach/thread_act.h mach/vm_region.h mach/vm_map.h mach/vm_prot.h mach/vm_statistics.h mach/kern_return.h)
+AC_CHECK_HEADERS(sys/dkstat.h mach/mach_init.h mach/host_priv.h mach/mach_error.h mach/mach_host.h mach/mach_port.h mach/mach_types.h mach/message.h mach/processor_set.h mach/processor.h mach/processor_info.h mach/task.h mach/thread_act.h mach/vm_region.h mach/vm_map.h mach/vm_prot.h mach/vm_statistics.h mach/kern_return.h)
+AC_CHECK_HEADERS(sys/sysctl.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
 
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h libgen.h)
@@ -193,11 +202,21 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 #endif
 ])
 
+# For the swap module
+AC_CHECK_HEADERS(sys/swap.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
+
 # For load module
 # For the processes plugin
-# For the swap module
 # For users module
-AC_CHECK_HEADERS(sys/loadavg.h linux/config.h sys/swap.h utmp.h utmpx.h)
+AC_CHECK_HEADERS(sys/loadavg.h linux/config.h utmp.h utmpx.h)
 
 # For interface plugin
 AC_CHECK_HEADERS(ifaddrs.h)
@@ -232,10 +251,46 @@ AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 #endif
 ])
 
-# For apache plugin
+# For quota module
+AC_CHECK_HEADERS(sys/ucred.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
+
 # For mount interface
+AC_CHECK_HEADERS(sys/mount.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
+
+# For the email plugin
+AC_CHECK_HEADERS(linux/un.h, [], [],
+[
+#if HAVE_SYS_SOCKET_H
+#	include <sys/socket.h>
+#endif
+])
+
+AC_CHECK_HEADERS(curl/curl.h pwd.h grp.h sys/un.h ctype.h limits.h sys/quota.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h)
+
 # For the dns plugin
-AC_CHECK_HEADERS(curl/curl.h pwd.h grp.h sys/un.h sys/ucred.h ctype.h limits.h sys/quota.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/mount.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h arpa/nameser.h arpa/nameser_compat.h)
+AC_CHECK_HEADERS(arpa/nameser.h)
+AC_CHECK_HEADERS(arpa/nameser_compat.h, [], [],
+[
+#if HAVE_ARPA_NAMESER_H
+# include <arpa/nameser.h>
+#endif
+])
 
 AC_CHECK_HEADERS(net/if_arp.h, [], [],
 [#if HAVE_SYS_SOCKET_H
@@ -288,6 +343,9 @@ AC_HEADER_TIME
 #
 AC_PROG_GCC_TRADITIONAL
 AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog)
+
+AC_CHECK_FUNCS(getpwnam_r)
+AC_CHECK_FUNCS(getgrnam_r)
 
 socket_needs_socket="no"
 AC_CHECK_FUNCS(socket, [], AC_CHECK_LIB(socket, socket, [socket_needs_socket="yes"], AC_MSG_ERROR(cannot find socket)))

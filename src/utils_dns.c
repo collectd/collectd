@@ -50,7 +50,8 @@
 
 #if HAVE_ARPA_NAMESER_H
 # include <arpa/nameser.h>
-#elif HAVE_ARPA_NAMESER_COMPAT_H
+#endif
+#if HAVE_ARPA_NAMESER_COMPAT_H
 # include <arpa/nameser_compat.h>
 #endif
 
@@ -700,6 +701,7 @@ const char *qtype_str(int t)
 {
     static char buf[32];
     switch (t) {
+#if (defined (__NAMESER)) && (__NAMESER >= 19991006)
 	    case ns_t_a:        return ("A");
 	    case ns_t_ns:       return ("NS");
 	    case ns_t_md:       return ("MD");
@@ -748,6 +750,65 @@ const char *qtype_str(int t)
 	    case ns_t_maila:    return ("MAILA");
 	    case ns_t_any:      return ("ANY");
 	    case ns_t_zxfr:     return ("ZXFR");
+/* #endif __NAMESER >= 19991006 */
+#elif (defined (__BIND)) && (__BIND >= 19950621)
+	    case T_A:		return ("A"); /* 1 ... */
+	    case T_NS:		return ("NS");
+	    case T_MD:		return ("MD");
+	    case T_MF:		return ("MF");
+	    case T_CNAME:	return ("CNAME");
+	    case T_SOA:		return ("SOA");
+	    case T_MB:		return ("MB");
+	    case T_MG:		return ("MG");
+	    case T_MR:		return ("MR");
+	    case T_NULL:	return ("NULL");
+	    case T_WKS:		return ("WKS");
+	    case T_PTR:		return ("PTR");
+	    case T_HINFO:	return ("HINFO");
+	    case T_MINFO:	return ("MINFO");
+	    case T_MX:		return ("MX");
+	    case T_TXT:		return ("TXT");
+	    case T_RP:		return ("RP");
+	    case T_AFSDB:	return ("AFSDB");
+	    case T_X25:		return ("X25");
+	    case T_ISDN:	return ("ISDN");
+	    case T_RT:		return ("RT");
+	    case T_NSAP:	return ("NSAP");
+	    case T_NSAP_PTR:	return ("NSAP_PTR");
+	    case T_SIG:		return ("SIG");
+	    case T_KEY:		return ("KEY");
+	    case T_PX:		return ("PX");
+	    case T_GPOS:	return ("GPOS");
+	    case T_AAAA:	return ("AAAA");
+	    case T_LOC:		return ("LOC");
+	    case T_NXT:		return ("NXT");
+	    case T_EID:		return ("EID");
+	    case T_NIMLOC:	return ("NIMLOC");
+	    case T_SRV:		return ("SRV");
+	    case T_ATMA:	return ("ATMA");
+	    case T_NAPTR:	return ("NAPTR"); /* ... 35 */
+#if (__BIND >= 19960801)
+	    case T_KX:		return ("KX"); /* 36 ... */
+	    case T_CERT:	return ("CERT");
+	    case T_A6:		return ("A6");
+	    case T_DNAME:	return ("DNAME");
+	    case T_SINK:	return ("SINK");
+	    case T_OPT:		return ("OPT");
+	    case T_APL:		return ("APL");
+	    case T_DS:		return ("DS");
+	    case T_SSHFP:	return ("SSHFP");
+	    case T_RRSIG:	return ("RRSIG");
+	    case T_NSEC:	return ("NSEC");
+	    case T_DNSKEY:	return ("DNSKEY"); /* ... 48 */
+	    case T_TKEY:	return ("TKEY"); /* 249 */
+#endif /* __BIND >= 19960801 */
+	    case T_TSIG:	return ("TSIG"); /* 250 ... */
+	    case T_IXFR:	return ("IXFR");
+	    case T_AXFR:	return ("AXFR");
+	    case T_MAILB:	return ("MAILB");
+	    case T_MAILA:	return ("MAILA");
+	    case T_ANY:		return ("ANY"); /* ... 255 */
+#endif /* __BIND >= 19950621 */
 	    default:
 		    snprintf (buf, 32, "#%i", t);
 		    buf[31] = '\0';
@@ -788,6 +849,7 @@ const char *rcode_str (int rcode)
 	static char buf[32];
 	switch (rcode)
 	{
+#if (defined (__NAMESER)) && (__NAMESER >= 19991006)
 		case ns_r_noerror:  return ("NOERROR");
 		case ns_r_formerr:  return ("FORMERR");
 		case ns_r_servfail: return ("SERVFAIL");
@@ -803,6 +865,22 @@ const char *rcode_str (int rcode)
 		case ns_r_badsig:   return ("BADSIG");
 		case ns_r_badkey:   return ("BADKEY");
 		case ns_r_badtime:  return ("BADTIME");
+/* #endif __NAMESER >= 19991006 */
+#elif (defined (__BIND)) && (__BIND >= 19950621)
+		case NOERROR:	    return ("NOERROR");
+		case FORMERR:	    return ("FORMERR");
+		case SERVFAIL:	    return ("SERVFAIL");
+		case NXDOMAIN:	    return ("NXDOMAIN");
+		case NOTIMP:	    return ("NOTIMP");
+		case REFUSED:	    return ("REFUSED");
+#if defined (YXDOMAIN) && defined (NXRRSET)
+		case YXDOMAIN:	    return ("YXDOMAIN");
+		case YXRRSET:	    return ("YXRRSET");
+		case NXRRSET:	    return ("NXRRSET");
+		case NOTAUTH:	    return ("NOTAUTH");
+		case NOTZONE:	    return ("NOTZONE");
+#endif  /* RFC2136 rcodes */
+#endif /* __BIND >= 19950621 */
 		default:
 			snprintf (buf, 32, "RCode%i", rcode);
 			buf[31] = '\0';
