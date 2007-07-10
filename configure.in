@@ -1256,6 +1256,10 @@ then
 fi
 if test "x$with_libupsclient" = "xyes"
 then
+	CFLAGS_ORIG=$CFLAGS
+	CFLAGS="$CFLAGS $with_upsclient_cflags"
+	LDFLAGS_ORIG=$LDFLAGS
+	LDFLAGS="$LDFLAGS $with_upsclient_libs"
 	AC_CHECK_LIB(upsclient, upscli_connect,
 	[
 		BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_upsclient_cflags"
@@ -1266,6 +1270,8 @@ then
 	[
 		with_libupsclient="no"
 	])
+	CFLAGS=$CFLAGS_ORIG
+	LDFLAGS=$LDFLAGS_ORIG
 fi
 if test "x$with_libupsclient" = "xyes"
 then
