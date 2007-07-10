@@ -37,7 +37,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 
-AC_CHECK_HEADERS(stdint.h stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h)
+AC_CHECK_HEADERS(stdint.h stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h)
 
 # For ping library
 AC_CHECK_HEADERS(netinet/in_systm.h, [], [],
@@ -322,7 +322,8 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 ])
 
 # For the multimeter plugin
-AC_CHECK_HEADERS(termios.h sys/ioctl.h)
+have_termios_h="no"
+AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
 #
 # Checking for libraries
@@ -1214,13 +1215,20 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
 
+with_upsclient_config="libupsclient-config"
+with_upsclient_cflags=""
+with_upsclient_libs=""
 AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], [Path to libupsclient.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" = "xno"
 	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libupsclient="no"
+	else
 		with_libupsclient="yes"
+		if "x$withval" != "xyes"
+		then
+			with_upsclient_config="$withval/bin/libupsclient-config"
+		fi
 	fi
 ],
 [
@@ -1228,23 +1236,45 @@ AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], 
 ])
 if test "x$with_libupsclient" = "xyes"
 then
-	AC_CHECK_LIB(upsclient, upscli_connect,
-	[
-		AC_DEFINE(HAVE_LIBUPSCLIENT, 1, [Define to 1 if you have the upsclient library (-lupsclient).])
-	], [with_libupsclient="no (libupsclient not found)"])
+	with_upsclient_cflags=`$with_upsclient_config --cflags 2>/dev/null`
+	upsclient_config_status=$?
+
+	if test $upsclient_config_status -ne 0
+	then
+		with_libupsclient="no"
+	fi
 fi
 if test "x$with_libupsclient" = "xyes"
 then
-	AC_CHECK_HEADERS(upsclient.h,
+	with_upsclient_libs=`$with_upsclient_config --libs 2>/dev/null`
+	upsclient_config_status=$?
+
+	if test $upsclient_config_status -ne 0
+	then
+		with_libupsclient="no"
+	fi
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	AC_CHECK_LIB(upsclient, upscli_connect,
 	[
-		AC_DEFINE(HAVE_UPSCLIENT_H, 1, [Define to 1 if you have the <upsclient.h> header file.])
-	], [with_libupsclient="no (upsclient.h not found)"])
+		BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_upsclient_cflags"
+		BUILD_WITH_LIBUPSCLIENT_LIBS="$with_upsclient_libs"
+		AC_SUBST(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
+		AC_SUBST(BUILD_WITH_LIBUPSCLIENT_LIBS)
+	],
+	[
+		with_libupsclient="no"
+	])
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBUPSCLIENT, 1, [Define to 1 if you have the upsclient library (-lupsclient).])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBUPSCLIENT, test "x$with_libupsclient" = "xyes")
 
 ### BEGIN of check for libxmms ###
 with_xmms_config="xmms-config"
-with_xmms_prefix=0
 with_xmms_cflags=""
 with_xmms_libs=""
 AC_ARG_WITH(libxmms, [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to libxmms.])],
@@ -1254,7 +1284,6 @@ AC_ARG_WITH(libxmms, [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to l
 		if test -x "$withval/bin/xmms-config"
 		then
 			with_xmms_config="$withval/bin/xmms-config"
-			with_xmms_prefix=1
 		fi
 	fi
 	if test "x$withval" = "xno"
@@ -1423,6 +1452,7 @@ plugin_interface="no"
 plugin_irq="no"
 plugin_load="no"
 plugin_memory="no"
+plugin_multimeter="no"
 plugin_nfs="no"
 plugin_processes="no"
 plugin_serial="no"
@@ -1514,6 +1544,11 @@ then
 	plugin_memory="yes"
 fi
 
+if test "x$have_termios_h" = "xyes"
+then
+	plugin_multimeter="yes"
+fi
+
 if test "x$have_thread_info" = "xyes"
 then
 	plugin_processes="yes"
@@ -1538,48 +1573,48 @@ fi
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
-AC_PLUGIN([apache],      [$with_libcurl],     [Apache httpd statistics])
-AC_PLUGIN([apcups],      [yes],               [Statistics of UPSes by APC])
-AC_PLUGIN([apple_sensors], [$with_libiokit],  [Apple's hardware sensors])
-AC_PLUGIN([battery],     [$plugin_battery],   [Battery statistics])
-AC_PLUGIN([cpu],         [$plugin_cpu],       [CPU usage statistics])
-AC_PLUGIN([cpufreq],     [$plugin_cpufreq],   [CPU frequency statistics])
-AC_PLUGIN([csv],         [yes],               [CSV output plugin])
-AC_PLUGIN([df],          [$plugin_df],        [Filesystem usage statistics])
-AC_PLUGIN([disk],        [$plugin_disk],      [Disk usage statistics])
-AC_PLUGIN([dns],         [$with_libpcap],     [DNS traffic analysis])
-AC_PLUGIN([email],       [yes],               [EMail statistics])
-AC_PLUGIN([entropy],     [$plugin_entropy],   [Entropy statistics])
-AC_PLUGIN([exec],        [yes],               [Execution of external programs])
-AC_PLUGIN([hddtemp],     [yes],               [Query hddtempd])
-AC_PLUGIN([interface],   [$plugin_interface], [Interface traffic statistics])
-AC_PLUGIN([iptables],    [$with_libiptc],     [IPTables rule counters])
-AC_PLUGIN([irq],         [$plugin_irq],       [IRQ statistics])
-AC_PLUGIN([load],        [$plugin_load],      [System load])
-AC_PLUGIN([logfile],     [yes],               [File logging plugin])
-AC_PLUGIN([mbmon],       [yes],               [Query mbmond])
-AC_PLUGIN([memory],      [$plugin_memory],    [Memory usage])
-AC_PLUGIN([multimeter],  [no],                [Read multimeter values])
-AC_PLUGIN([mysql],       [$with_libmysql],    [MySQL statistics])
-AC_PLUGIN([network],     [yes],               [Network communication plugin])
-AC_PLUGIN([nfs],         [$plugin_nfs],       [NFS statistics])
-AC_PLUGIN([ntpd],        [yes],               [NTPd statistics])
+AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
+AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
+AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
+AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
+AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
+AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
+AC_PLUGIN([csv],         [yes],                [CSV output plugin])
+AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
+AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
+AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
+AC_PLUGIN([email],       [yes],                [EMail statistics])
+AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
+AC_PLUGIN([exec],        [yes],                [Execution of external programs])
+AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
+AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
+AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
+AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
+AC_PLUGIN([load],        [$plugin_load],       [System load])
+AC_PLUGIN([logfile],     [yes],                [File logging plugin])
+AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
+AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
+AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
+AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
+AC_PLUGIN([network],     [yes],                [Network communication plugin])
+AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
+AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
-AC_PLUGIN([perl],        [$with_libperl],     [Embed a Perl interpreter])
-AC_PLUGIN([ping],        [$with_liboping],    [Network latency statistics])
-AC_PLUGIN([processes],   [$plugin_processes], [Process statistics])
-AC_PLUGIN([rrdtool],     [$with_rrdtool],     [RRDTool output plugin])
-AC_PLUGIN([sensors],     [$with_lm_sensors],  [lm_sensors statistics])
-AC_PLUGIN([serial],      [$plugin_serial],    [serial port traffic])
-AC_PLUGIN([snmp],        [$with_libnetsnmp],  [SNMP querying plugin])
-AC_PLUGIN([swap],        [$plugin_swap],      [Swap usage statistics])
-AC_PLUGIN([syslog],      [$have_syslog],      [Syslog logging plugin])
-AC_PLUGIN([tape],        [$plugin_tape],      [Tape drive statistics])
-AC_PLUGIN([unixsock],    [yes],               [Unixsock communication plugin])
-AC_PLUGIN([users],       [$plugin_users],     [User statistics])
-AC_PLUGIN([vserver],     [$plugin_vserver],   [Linux VServer statistics])
-AC_PLUGIN([wireless],    [$plugin_wireless],  [Wireless statistics])
-AC_PLUGIN([xmms],        [$with_libxmms],     [XMMS statistics])
+AC_PLUGIN([perl],        [$with_libperl],      [Embed a Perl interpreter])
+AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
+AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
+AC_PLUGIN([rrdtool],     [$with_rrdtool],      [RRDTool output plugin])
+AC_PLUGIN([sensors],     [$with_lm_sensors],   [lm_sensors statistics])
+AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
+AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
+AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
+AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
+AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
+AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
+AC_PLUGIN([users],       [$plugin_users],      [User statistics])
+AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
+AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
+AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile)
 

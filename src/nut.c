@@ -23,13 +23,8 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-
-#if HAVE_UPSCLIENT_H
-# include <upsclient.h>
-#endif
+#include <pthread.h>
+#include <upsclient.h>
 
 struct nut_ups_s;
 typedef struct nut_ups_s nut_ups_t;
