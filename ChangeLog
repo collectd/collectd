@@ -3,6 +3,8 @@
 	  instance' was used to match against the list, but the documentation
 	  told otherwise. This release fixes the code, so it complies with the
 	  documentation.
+	* syslog plugin: Call `openlog' right when the plugin is loaded, so
+	  configuration messages will end up in the logging facility.
 
 2007-07-05, Version 4.0.5
 	* Portability: More fixes for OpenBSD have been included.
