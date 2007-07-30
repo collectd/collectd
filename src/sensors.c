@@ -347,12 +347,24 @@ static void sensors_submit (const char *plugin_instance,
 		const char *type, const char *type_instance,
 		double val)
 {
+	char match_key[1024];
+	int status;
+
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	if ((sensor_list != NULL)
-			&& (ignorelist_match (sensor_list, type_instance)))
+	status = snprintf (match_key, sizeof (match_key), "%s/%s-%s",
+			plugin_instance, type, type_instance);
+	if ((status < 1) || (status >= sizeof (match_key)))
 		return;
+	match_key[sizeof (match_key) - 1] = '\0';
+
+	if (sensor_list != NULL)
+	{
+		DEBUG ("sensors plugin: Checking ignorelist for `%s'", match_key);
+		if (ignorelist_match (sensor_list, match_key))
+			return;
+	}
 
 	values[0].gauge = val;
 

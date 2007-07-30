@@ -1,3 +1,9 @@
+2007-07-30, Version 4.0.6
+	* sensors plugin: Fix the ignorelist functionality: Only the `type
+	  instance' was used to match against the list, but the documentation
+	  told otherwise. This release fixes the code, so it complies with the
+	  documentation.
+
 2007-07-05, Version 4.0.5
 	* Portability: More fixes for OpenBSD have been included.
 
