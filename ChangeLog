@@ -1,3 +1,19 @@
+2007-07-21, Version 4.1.0
+	* Build system: The build system has been changed to automatically
+	  disable all plugins, which are missing dependencies. The dependency
+	  checking has been removed from the plugins themselves to remove
+	  redundancy.
+	* Flexible interval: The interval of collected data is not sent along
+	  with the data itself over the network, so that the interval-settings
+	  of server and clients no longer needs to match.
+	* snmp plugin: The new `snmp' plugin can read values from SNMP enabled
+	  network devices, such as switches, routers, thermometers, rack
+	  monitoring servers, etc. The collectd-snmp(5) manpage documents this
+	  plugin.
+	* unixsock plugin: Added the `LISTVAL' command.
+	* xmms plugin: The new `xmms' plugin graphs the bitrate and frequency
+	  of music played with xmms.
+
 2007-07-05, Version 4.0.5
 	* Portability: More fixes for OpenBSD have been included.
 
