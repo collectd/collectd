@@ -32,6 +32,7 @@ config.status
 libtool
 src/.deps
 src/Makefile
+src/collectd.conf
 src/config.h
 src/libconfig/Makefile
 src/liboping/Makefile
@@ -43,15 +44,21 @@ src/*.la
 src/*.lo
 src/*.o
 src/collectd
-src/collectd.1
-src/collectd.conf.5
+src/collectd*.1
+src/collectd*.5
 src/config.h.in~
-src/libconfig/.libs
-src/libconfig/*.la
-src/libconfig/*.lo
+src/liboconfig/.libs
+src/liboconfig/*.la
+src/liboconfig/*.lo
 src/liboping/.libs
 src/liboping/*.la
 src/liboping/*.lo
+
+# lex / yacc stuff:
+ylwrap
+src/liboconfig/parser.c
+src/liboconfig/parser.h
+src/liboconfig/scanner.c
 
 # make dist stuff:
 collectd-*.tar.gz
