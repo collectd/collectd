@@ -5,6 +5,8 @@
 	  documentation.
 	* syslog plugin: Call `openlog' right when the plugin is loaded, so
 	  configuration messages will end up in the logging facility.
+	* conrtib/fedora: The contributed specfile for Fedora has been
+	  updated.
 
 2007-07-05, Version 4.0.5
 	* Portability: More fixes for OpenBSD have been included.
