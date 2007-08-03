@@ -28,7 +28,11 @@
 # include <syslog.h>
 #endif
 
+#if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;
+#else
+static int log_level = LOG_INFO;
+#endif /* COLLECT_DEBUG */
 
 static const char *config_keys[] =
 {
@@ -64,13 +68,6 @@ static int sl_config (const char *key, const char *value)
 	return (0);
 } /* int sl_config */
 
-static int sl_init (void)
-{
-	openlog ("collectd", LOG_CONS | LOG_PID, LOG_DAEMON);
-
-	return (0);
-}
-
 static void sl_log (int severity, const char *msg)
 {
 	if (severity > log_level)
@@ -88,8 +85,9 @@ static int sl_shutdown (void)
 
 void module_register (void)
 {
+	openlog ("collectd", LOG_CONS | LOG_PID, LOG_DAEMON);
+
 	plugin_register_config ("syslog", sl_config, config_keys, config_keys_num);
-	plugin_register_init ("syslog", sl_init);
 	plugin_register_log ("syslog", sl_log);
 	plugin_register_shutdown ("syslog", sl_shutdown);
 } /* void module_register(void) */

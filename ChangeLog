@@ -14,6 +14,16 @@
 	* xmms plugin: The new `xmms' plugin graphs the bitrate and frequency
 	  of music played with xmms.
 
+2007-07-30, Version 4.0.6
+	* sensors plugin: Fix the ignorelist functionality: Only the `type
+	  instance' was used to match against the list, but the documentation
+	  told otherwise. This release fixes the code, so it complies with the
+	  documentation.
+	* syslog plugin: Call `openlog' right when the plugin is loaded, so
+	  configuration messages will end up in the logging facility.
+	* conrtib/fedora: The contributed specfile for Fedora has been
+	  updated.
+
 2007-07-05, Version 4.0.5
 	* Portability: More fixes for OpenBSD have been included.
 

@@ -83,6 +83,7 @@
 #</Plugin>
 
 #<Plugin email>
+#	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-email"
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
