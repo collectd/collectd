@@ -81,7 +81,7 @@ Of course not all plugins fit neatly into one of the two above categories. The
 C<network plugin>, for example, is able to send (i.E<nbsp>e. "write") B<and>
 receive (i.E<nbsp>e. "dispatch") values. Also, it opens a socket upon
 initialization and dispatches the values when it receives them and isn't
-triggered at the same time the input plugins are being read. You can think if
+triggered at the same time the input plugins are being read. You can think of
 the network receive part as working asynchronous if it helps.
 
 In addition to the above, there are "logging plugins". Right now those are the
