@@ -1,7 +1,7 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	4.0.5
-Release:	0.fc0
+Version:	4.0.6
+Release:	0.fc7
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
 Group:		System Environment/Daemons
@@ -64,8 +64,6 @@ cp src/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
 cp contrib/fedora/init.d-collectd $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
 cp contrib/collection.cgi $RPM_BUILD_ROOT/var/www/cgi-bin
 mkdir -p $RPM_BUILD_ROOT/var/lib/collectd
-#rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.a
-#rm -f $RPM_BUILD_ROOT%{_libdir}/%{name}/*.la
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -75,14 +73,23 @@ rm -rf $RPM_BUILD_ROOT
 /sbin/chkconfig collectd on
 
 %preun
-/sbin/chkconfig collectd off
-/etc/init.d/collectd stop
-/sbin/chkconfig --del collectd
+if [ "$1" = 0 ]; then
+   /sbin/chkconfig collectd off
+   /etc/init.d/collectd stop
+   /sbin/chkconfig --del collectd
+fi
+exit 0
+
+%postun
+if [ "$1" -ge 1 ]; then
+    /etc/init.d/collectd restart
+fi
+exit 0
 
 %files
 %defattr(-,root,root)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
-%config /etc/collectd.conf
+%attr(0644,root,root) %config(noreplace) /etc/collectd.conf
 %attr(0755,root,root) /etc/rc.d/init.d/collectd
 %attr(0755,root,root) /var/www/cgi-bin/collection.cgi
 %attr(0755,root,root) %{_sbindir}/collectd
@@ -219,6 +226,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0644,root,root) %{_libdir}/%{name}/sensors.la
 
 %changelog
+* Mon Aug 06 2007 Kjell Randa <Kjell.Randa@broadpark.no> 4.0.6
+- New upstream version
+
 * Wed Jul 25 2007 Kjell Randa <Kjell.Randa@broadpark.no> 4.0.5
 - New major releas
 - Changes to support 4.0.5 
