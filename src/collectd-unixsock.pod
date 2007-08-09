@@ -36,12 +36,12 @@ The following commands are implemented:
 =item B<GETVAL> I<Identifier>
 
 If the value identified by I<Identifier> (see below) is found the complete
-value-list is returned. The response is a space seperated list of
+value-list is returned. The response is a space separated list of
 name-value-pairs:
 
 I<num> I<name>B<=>I<value>[ I<name>B<=>I<value>[ ...]]
 
-If I<num> is less then zero, an error occured. Otherwise it contains the
+If I<num> is less then zero, an error occurred. Otherwise it contains the
 number of values that follow. Each value is of the form I<name>B<=>I<value>.
 Counter-values are converted to a rate, e.E<nbsp>g. bytes per second.
 Undefined values are returned as B<NaN>.
@@ -54,7 +54,7 @@ Example:
 
 Submits a value (identified by I<Identifier>, see below) to the daemon which
 will dispatch it to all it's write-plugins. The I<Valuelist> is a
-colon-seperated list of the time and the values, each either an integer if the
+colon-separated list of the time and the values, each either an integer if the
 data-source is a counter, of a double if the data-source if of type "gauge".
 You can submit an undefined gauge-value by using B<U>. When submitting B<U> to
 a counter the behavior is undefined. The time is given as epoch (i.E<nbsp>e.
@@ -68,7 +68,7 @@ Example:
 
 =head2 Identifiers
 
-Value or value-lists are identified in a uniform fassion:
+Value or value-lists are identified in a uniform fashion:
 
 I<Hostname>/I<Plugin>/I<Type>
 

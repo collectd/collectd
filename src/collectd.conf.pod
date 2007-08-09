@@ -25,10 +25,10 @@ controls which plugins to load. These plugins ultimately define collectd's
 behavior.
 
 The syntax of this config file is similar to the config file of the famos
-B<Apache Webserver>. Each line containes either a key-value-pair or a
+B<Apache Webserver>. Each line contains either a key-value-pair or a
 section-start or -end. Empty lines and everything after the hash-symbol `#' is
 ignored. Values are either string, enclosed in double-quotes,
-(floating-point-)numbers or a boolean extression, i.E<nbsp>e. either B<true> or
+(floating-point-)numbers or a boolean expression, i.E<nbsp>e. either B<true> or
 B<false>. String containing of only alphanumeric characters and underscores do
 not need to be quoted.
 
@@ -78,7 +78,7 @@ a value higher than the number of plugins you've loaded is totally useless.
 
 =head1 PLUGIN OPTIONS
 
-Some Plugins may register own options. These options must be inclosed in a
+Some Plugins may register own options. These options must be enclosed in a
 C<Plugin>-Section. Which options exist depends on the plugin used. Some plugins
 require external configuration, too. The C<apache plugin>, for example,
 required C<mod_status> to be configured in the webserver you're going to
@@ -128,7 +128,7 @@ Optional password needed for authentication.
 =item B<CACert> I<File>
 
 File that holds one or more SSL certificates. If you want to use HTTPS you will
-possibly need this option. What CA certificates come bundeled with C<libcurl>
+possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
 =back
@@ -188,7 +188,7 @@ Select partitions based on the filesystem type.
 
 Invert the selection: If set to true, all partitions B<except> the ones that
 match any one of the criteria are collected. By default only selected
-partitions are collected if a selection is made. If no selection is conifured
+partitions are collected if a selection is made. If no selection is configured
 at all, B<all> partitions are selected.
 
 =back
@@ -237,7 +237,7 @@ at most B<16384> to prevent typos and dumb mistakes.
 =head2 Plugin C<exec>
 
 Please make sure to read L<collectd-exec(5)> before using this plugin. It
-contains valueable information on when the executable is executed and the
+contains valuable information on when the executable is executed and the
 output that is expected from it.
 
 =over 4
@@ -285,7 +285,7 @@ a more detailed description see B<IgnoreSelected> below.
 If no configuration if given, the B<traffic>-plugin will collect data from
 all interfaces. This may not be practical, especially for loopback- and
 similar interfaces. Thus, you can use the B<Interface>-option to pick the
-interfaces you're interested in. Sometimes, however, it's easier/prefered
+interfaces you're interested in. Sometimes, however, it's easier/preferred
 to collect all interfaces I<except> a few ones. This option enables you to
 do that: By setting B<IgnoreSelected> to I<true> the effect of
 B<Interface> is inversed: All selected interfaces are ignored and all
@@ -325,11 +325,11 @@ detailed description see B<IgnoreSelected> below.
 
 If no configuration if given, the B<irq>-plugin will collect data from all
 irqs. This may not be practical, especially if no interrupts happen. Thus, you
-can use the B<Irq>-option to pick the interupt you're interested in.
-Sometimes, however, it's easier/prefered to collect all interupts I<except> a
+can use the B<Irq>-option to pick the interrupt you're interested in.
+Sometimes, however, it's easier/preferred to collect all interrupts I<except> a
 few ones. This option enables you to do that: By setting B<IgnoreSelected> to
-I<true> the effect of B<Irq> is inversed: All selected interupts are ignored
-and all other interupts are collected.
+I<true> the effect of B<Irq> is inversed: All selected interrupts are ignored
+and all other interrupts are collected.
 
 =back
 
@@ -408,7 +408,7 @@ Password needed to log into the database.
 
 =item B<Database> I<Database>
 
-Select this database. Defaults to I<no database> which is a perfecly reasonable
+Select this database. Defaults to I<no database> which is a perfectly reasonable
 option for what this plugin does.
 
 =back
@@ -433,13 +433,13 @@ the argument is a multicast address the daemon will join that multicast group.
 If no B<Listen> statement is found the server tries join both, the default IPv6
 multicast group and the default IPv4 multicast group. If no B<Server> statement
 is found the client will try to send data to the IPv6 multicast group first. If
-that failes the client will try the IPv4 multicast group.
+that fails the client will try the IPv4 multicast group.
 
 The default IPv6 multicast group is C<ff18::efc0:4a42>. The default IPv4
 multicast group is C<239.192.74.66>.
 
 The optional I<Port> argument sets the port to use. It can either be given
-using a numeric port number or a service name. If the argument is omited the
+using a numeric port number or a service name. If the argument is omitted the
 default port B<25826> is assumed.
 
 =item B<TimeToLive> I<1-255>
@@ -455,7 +455,7 @@ If set to I<true>, write packets that were received via the network plugin to
 the sending sockets. This should only be activated when the B<Listen>- and
 B<Server>-statements differ. Otherwise packets may be send multiple times to
 the same multicast group. While this results in more network traffic than
-neccessary it's not a huge problem since the plugin has a duplicate detection,
+necessary it's not a huge problem since the plugin has a duplicate detection,
 so the values will not loop.
 
 =item B<CacheFlush> I<Seconds>
@@ -549,7 +549,7 @@ and minor and major pagefaults.
 You can use the settings B<StepSize>, B<HeartBeat>, B<RRARows>, and B<XFF> to
 finetune your RRD-files. Please read L<rrdcreate(1)> if you encounter problems
 using these settings. If you don't want to dive into the depths of RRDTool, you
-can savely ignore these settings.
+can safely ignore these settings.
 
 =over 4
 
@@ -587,7 +587,7 @@ default is 1200.
 
 =item B<RRATimespan> I<Seconds>
 
-Adds an RRA-timespan, given in seconds. Use this option mulitple times to have
+Adds an RRA-timespan, given in seconds. Use this option multiple times to have
 more then one RRA. If this option is never used, the built-in default of (3600,
 86400, 604800, 2678400, 31622400) is used.
 
@@ -644,7 +644,7 @@ voltage sensor I<in1> of the I<it8712> on the isa bus at the address 0290.
 If no configuration if given, the B<sensors>-plugin will collect data from all
 sensors. This may not be practical, especially for uninteresting sensors.
 Thus, you can use the B<Sensor>-option to pick the sensors you're interested
-in. Sometimes, however, it's easier/prefered to collect all sensors I<except> a
+in. Sometimes, however, it's easier/preferred to collect all sensors I<except> a
 few ones. This option enables you to do that: By setting B<IgnoreSelected> to
 I<true> the effect of B<Sensor> is inversed: All selected sensors are ignored
 and all other sensors are collected.
