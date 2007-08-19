@@ -295,10 +295,23 @@ Crosscompiling
     are likely never passed to the libm you have a good chance to be lucky.
 
 
+Contact
+-------
+
+  For questions, bugreports, development information and basically all other
+  concerns please send an email to collectd's mailinglist at
+  <collectd at verplant.org>.
+
+  For live discussion and more personal contact visit us in IRC, we're in
+  channel #collectd on freenode.
+
+
 Author
 ------
 
   Florian octo Forster <octo at verplant.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
+
+  Please send bugreports and patches to the mailinglist, see `Contact' above.
 
