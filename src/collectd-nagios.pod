@@ -46,7 +46,7 @@ handled according to the consolidation function given with the B<-g> option.
 =item B<-g> B<none>I<|>B<average>I<|>B<sum>
 
 When multiple data sources are selected from a value spec they can be handled
-differently dependin on this option. The values of the following meaning:
+differently depending on this option. The values of the following meaning:
 
 =over 4
 
@@ -86,7 +86,7 @@ As usual for Nagios plugins this program writes a short, one line status
 message to STDOUT and signals success or failure with it's return value. It
 exists with a return value of B<0> for success or B<1> or B<2> for warning and
 critical, respectively. If the values is not available or some other error
-occured it returnes B<3> for "unknown". 
+occurred it returns B<3> for "unknown". 
 
 =head1 SEE ALSO
 

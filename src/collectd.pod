@@ -42,7 +42,7 @@ config-option.
 
 Don't fork to the background. I<collectd> will also B<not> close standard file
 descriptors, detach from the session nor write a pid file. This is mainly
-thought for 'supervisioning' init replacements such as I<runit>.
+thought for 'supervising' init replacements such as I<runit>.
 
 =item B<-h>
 
@@ -63,7 +63,7 @@ There are two big groups of plugins, B<input> and B<output> plugins:
 
 =item
 
-Input plugins are queried periodically. They somehow aquire the current value
+Input plugins are queried periodically. They somehow acquire the current value
 of whatever they where designed to work with and submit these values back to
 the daemon, i. e. they "dispatch" the values. As an example, the C<cpu plugin>
 reads the current cpu-counters of time spent in the various modes (user,

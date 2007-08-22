@@ -1,5 +1,5 @@
 The files in this directory may be used to perform common tasks that aren't
-exactly `collectd's job. They may or may not require in-depth knowlege of RRD
+exactly `collectd's job. They may or may not require in-depth knowledge of RRD
 files and/or `collectd's inner workings. Use at your own risk.
 
 PerlLib/
@@ -10,9 +10,9 @@ documentation of the .pm-files to find out what they're good for.
 add_rra.sh
 ----------
   Before version 3.9.0 collectd used to create a different set of RRAs. The
-most detailed of these old RRAs hat a one minute resolution. This script can
+most detailed of these old RRAs had a one minute resolution. This script can
 be used to add three more RRAs: minimum, maximum and average with a ten second
-resolution and 2200 rows (~6 hours). This will make houly statistics much more
+resolution and 2200 rows (~6 hours). This will make hourly statistics much more
 interesting. Please note that no sanity- checking whatsoever is performed. You
 can seriously fuck up your RRD files if you don't know what you're doing.
 
