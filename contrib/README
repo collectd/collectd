@@ -24,8 +24,19 @@ several PNG files which are graphs of the RRD files found.
 
 collection.cgi
 --------------
-  Sample CGI script that creates graphs on the fly. The Perl module `RRDs' is
-needed (Debian package `librrds-perl').
+  Sample CGI script that creates graphs on the fly. The Perl modules `RRDs'
+(Debian package `librrds-perl'), `URI:Escape' (package liburi-perl),
+`HTML::Entities' (package libhtml-parser-perl) and a CGI capable web server
+(e.g. apache2 or boa) are needed. Simply install the script to a place where
+the webserver will treat it as a CGI script (/usr/lib/cgi-bin/ by default) and
+visit that page in a browser (http://localhost/cgi-bin/collection.cgi by
+default). Please refer to your webserver's documentation for more details.
+
+  Starting with version 4, collection.cgi requires a small config file, which
+should look something like this:
+
+  datadir: "/var/lib/collectd/rrd/"
+  libdir: "/usr/lib/collectd/"
 
 extractDS.px
 ------------
