@@ -69,18 +69,47 @@ Example:
   <- | 1182204284 leeloo/cpu-0/cpu-user
   ...
 
-=item B<PUTVAL> I<Identifier> I<Valuelist>
+=item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
 
-Submits a value (identified by I<Identifier>, see below) to the daemon which
-will dispatch it to all it's write-plugins. The I<Valuelist> is a
-colon-seperated list of the time and the values, each either an integer if the
-data-source is a counter, of a double if the data-source if of type "gauge".
-You can submit an undefined gauge-value by using B<U>. When submitting B<U> to
-a counter the behavior is undefined. The time is given as epoch (i.E<nbsp>e.
-standard UNIX time).
+Submits one or more values (identified by I<Identifier>, see below) to the
+daemon which will dispatch it to all it's write-plugins.
+
+An I<Identifier> is of the form
+C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
+I<instance>-parts being optional. If they're omitted the hyphen must be
+omitted, too.
+
+The I<OptionList> is an optional list of I<Options>, where each option if a
+key-value-pair. A list of currently understood options can be found below, all
+other options will be ignored.
+
+I<Valuelist> is a colon-seperated list of the time and the values, each either
+an integer if the data-source is a counter, of a double if the data-source if
+of type "gauge". You can submit an undefined gauge-value by using B<U>. When
+submitting B<U> to a counter the behavior is undefined. The time is given as
+epoch (i.E<nbsp>e. standard UNIX time).
+
+You can mix options and values, but the order is important: Options only
+effect following values, so specifying an option as last field is allowed, but
+useless. Also, an option applies to B<all> following values, so you don't need
+to re-set an option over and over again.
+
+The currently defined B<Options> are:
+
+=over 4
+
+=item B<interval=>I<seconds>
+
+Gives the interval in which the data identified by I<Identifier> is being
+collected.
+
+=back
+
+Please note that this is the same format as used in the B<exec plugin>, see
+L<collectd-exec(5)>.
 
 Example:
-  -> | PUTVAL testhost/interface/if_octets-test0 1179574444:123:456
+  -> | PUTVAL testhost/interface/if_octets-test0 interval=10 1179574444:123:456
   <- | 0 Success
 
 =back

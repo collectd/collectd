@@ -495,7 +495,7 @@ endif
 
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
-unixsock_la_SOURCES = unixsock.c
+unixsock_la_SOURCES = unixsock.c utils_cmd_putval.h utils_cmd_putval.c
 unixsock_la_CPPFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
 unixsock_la_LDFLAGS = -module -avoid-version -lpthread
 collectd_LDADD += "-dlopen" unixsock.la

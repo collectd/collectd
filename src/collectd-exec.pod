@@ -36,25 +36,48 @@ Each line beginning with a C<#> (hash mark) is ignored.
 
 =item
 
-Other lines must consist of an I<Identifier> and a I<Value-List>, separated by
-a space. A description of these two parts follows:
+Other lines must consist of an I<Identifier>, an optional I<Option-List> and a
+I<Value-List>, separated by a spaces. A description of these two parts follows:
 
 An I<Identifier> is of the form
 C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
 I<instance>-parts being optional. If they're omitted the hyphen must be
 omitted, too.
 
-A I<Value-List> is a colon-separated list of values, prepended by the time
-stamp in epoch, i.E<nbsp>e. the same format RRDTool uses, see L<rrdupdate(1)>.
-As with the argument passed to RRDTool you can use B<N> as the current time and
-B<U> for undefined values. However, undefined values can only passed for
-B<GAUGE> values. When setting B<U> for a B<COUNTER> data source the behavior is
-undefined.
+The I<OptionList> is an optional list of I<Options>, where each option if a
+key-value-pair. A list of currently understood options can be found below, all
+other options will be ignored.
+
+I<Valuelist> is a colon-seperated list of the time and the values, each either
+an integer if the data-source is a counter, of a double if the data-source if
+of type "gauge". You can submit an undefined gauge-value by using B<U>. When
+submitting B<U> to a counter the behavior is undefined. The time is given as
+epoch (i.E<nbsp>e. standard UNIX time).
+
+You can mix options and values, but the order is important: Options only
+effect following values, so specifying an option as last field is allowed, but
+useless. Also, an option applies to B<all> following values, so you don't need
+to re-set an option over and over again.
+
+The currently defined B<Options> are:
+
+=over 4
+
+=item B<interval=>I<seconds>
+
+Gives the interval in which the data identified by I<Identifier> is being
+collected.
+
+=back
+
+Please note that this is the same format as used in the B<unixsock plugin>, see
+L<collectd-unixsock(5)>. There's also a bit more information on identifiers in
+case you're confused.
 
 Since examples usually let one understand a lot better, here are some:
 
   leeloo/cpu-0/cpu-idle N:2299366
-  alice/interface/if_octets-eth0 1180647081:421465:479194
+  alice/interface/if_octets-eth0 interval=10 1180647081:421465:479194
 
 =back
 

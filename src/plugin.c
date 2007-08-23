@@ -194,7 +194,7 @@ static void *plugin_read_thread (void *args)
 					rf->wait_time = 86400;
 
 				NOTICE ("read-function of plugin `%s' "
-						"failed. Will syspend it for %i "
+						"failed. Will suspend it for %i "
 						"seconds.", le->key, rf->wait_left);
 			}
 			else
