@@ -1057,7 +1057,11 @@ then
 	[
 		AC_DEFINE(HAVE_LIBMYSQLCLIENT, 1,
 			  [Define to 1 if you have the mysqlclient library (-lmysqlclient).])
-	], [with_libmysql="no (libmysql not found)"])
+	],
+	[
+		with_libmysql="no (libmysql not found)"
+	],
+	[$with_mysql_libs])
 fi
 if test "x$with_libmysql" = "xyes"
 then
