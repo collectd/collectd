@@ -36,12 +36,20 @@ use warnings;
 use strict;
 use Fatal qw(open close);
 use File::Basename;
+use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
-my $DIR = "/var/lib/collectd";
+my $DIR  = "/var/lib/collectd";
+my $HOST = "_UNDEFINED_";
+
+GetOptions (
+    "host-is=s"  => \$HOST,
+    "data-dir=s" => \$DIR
+);
+
 my @COLORS = (0xff7777, 0x7777ff, 0x55ff55, 0xffcc77, 0xff77ff, 0x77ffff,
 	0xffff77, 0x55aaff);
 my @tmp = `/bin/hostname`; chomp(@tmp);
-my $HOST = $tmp[0];
+$HOST = $tmp[0] if ( $HOST =~ /_UNDEFINED_/ );
 my $IMG_DIR = "${HOST}.dir";
 my $HTML = "${HOST}.html";
 
