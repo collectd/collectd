@@ -352,10 +352,13 @@ if BUILD_MODULE_MYSQL
 pkglib_LTLIBRARIES += mysql.la
 mysql_la_SOURCES = mysql.c
 mysql_la_LDFLAGS = -module -avoid-version
-if BUILD_WITH_LIBMYSQL
-mysql_la_LDFLAGS += -lmysqlclient
-endif
+mysql_la_CFLAGS =
+mysql_la_LIBADD =
 collectd_LDADD += "-dlopen" mysql.la
+if BUILD_WITH_LIBMYSQL
+mysql_la_CFLAGS += $(BUILD_WITH_LIBMYSQL_CFLAGS)
+mysql_la_LIBADD += $(BUILD_WITH_LIBMYSQL_LIBS)
+endif
 collectd_DEPENDENCIES += mysql.la
 endif
 

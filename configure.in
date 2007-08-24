@@ -1009,12 +1009,24 @@ AC_DEFINE_UNQUOTED(COLLECT_LM_SENSORS, [$collect_lm_sensors],
 	[Wether or not to use sensors library])
 AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_lm_sensors" = "xyes")
 
+with_mysql_config="mysql_config"
+with_mysql_prefix=0
+with_mysql_cflags=""
+with_mysql_libs=""
 AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to libmysql.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		if test -x "$withval/bin/mysql_config"
+		then
+			with_mysql_config="$withval/bin/mysql_config"
+			with_mysql_prefix=1
+		fi
+	fi
+	if test "x$withval" = "xno"
+	then
+		with_libmysql="no"
+	else
 		with_libmysql="yes"
 	fi
 ],
@@ -1023,26 +1035,37 @@ AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to
 ])
 if test "x$with_libmysql" = "xyes"
 then
+	with_mysql_cflags=`$with_mysql_config --cflags 2>/dev/null`
+	mysql_config_status=$?
+
+	if test $mysql_config_status -ne 0
+	then
+		with_libmysql="no"
+	else
+		SAVE_CFLAGS=$CFLAGS
+		CFLAGS="$CFLAGS $with_mysql_cflags"
+
+		AC_CHECK_HEADERS(mysql/mysql.h, [], [with_libmysql="no (mysql/mysql.h not found)"], [])
+
+		CFLAGS="$SAVE_CFLAGS"
+	fi
+fi
+if test "x$with_libmysql" = "xyes"
+then
+	with_mysql_libs=`$with_mysql_config --libs 2>/dev/null`
 	AC_CHECK_LIB(mysqlclient, mysql_init,
 	[
-		AC_DEFINE(HAVE_LIBMYSQLCLIENT, 1, [Define to 1 if you have the mysqlclient library (-lmysqlclient).])
+		AC_DEFINE(HAVE_LIBMYSQLCLIENT, 1,
+			  [Define to 1 if you have the mysqlclient library (-lmysqlclient).])
 	], [with_libmysql="no (libmysql not found)"])
 fi
 if test "x$with_libmysql" = "xyes"
 then
-	AC_CHECK_HEADERS(mysql/mysql.h,
-	[
-		AC_DEFINE(HAVE_MYSQL_MYSQL_H, 1, [Define to 1 if you have the <mysql/mysql.h> header file.])
-	], [with_libmysql="no (mysql/mysql.h not found)"])
+	BUILD_WITH_LIBMYSQL_CFLAGS="$with_mysql_cflags"
+	BUILD_WITH_LIBMYSQL_LIBS="$with_mysql_libs"
+	AC_SUBST(BUILD_WITH_LIBMYSQL_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMYSQL_LIBS)
 fi
-if test "x$with_libmysql" = "xyes"
-then
-	collect_libmysql=1
-else
-	collect_libmysql=0
-fi
-AC_DEFINE_UNQUOTED(COLLECT_LIBMYSQL, [$collect_libmysql],
-	[Wether or not to use mysql library])
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 
 with_own_liboconfig="no"
