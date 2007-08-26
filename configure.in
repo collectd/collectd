@@ -836,28 +836,46 @@ AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
 ### BEGIN of check for libcurl ###
 with_curl_config="curl-config"
-with_curl_prefix=0
+with_curl_cflags=""
 with_curl_libs=""
 AC_ARG_WITH(libcurl, [AS_HELP_STRING([--with-libcurl@<:@=PREFIX@:>@], [Path to libcurl.])],
 [
-	if test "x$withval" != "xno" -a "x$withval" != "xyes"
-	then
-		if test -x "$withval/bin/curl-config"
-		then
-			with_curl_config="$withval/bin/curl-config"
-			with_curl_prefix=1
-		fi
-	fi
 	if test "x$withval" = "xno"
 	then
 		with_libcurl="no"
-	else
+	else if test "x$withval" = "xyes"
+	then
 		with_libcurl="yes"
-	fi
+	else
+		if test -x "$withval"
+		then
+			with_curl_config="$withval"
+		else if test -x "$withval/bin/curl-config"
+		then
+			with_curl_config="$withval/bin/curl-config"
+		fi; fi
+	fi; fi
 ],
 [
 	with_libcurl="yes"
 ])
+if test "x$with_libcurl" = "xyes"
+then
+	with_curl_cflags=`$with_curl_config --cflags 2>/dev/null`
+	curl_config_status=$?
+
+	if test $curl_config_status -ne 0
+	then
+		with_libcurl="no"
+	else
+		SAVE_CFLAGS=$CFLAGS
+		CFLAGS="$CFLAGS $with_curl_cflags"
+
+		AC_CHECK_HEADERS(curl/curl.h, [], [with_libcurl="no (curl/curl.h not found)"], [])
+
+		CFLAGS="$SAVE_CFLAGS"
+	fi
+fi
 if test "x$with_libcurl" = "xyes"
 then
 	with_curl_libs=`$with_curl_config --libs 2>/dev/null`
@@ -868,38 +886,23 @@ then
 		with_libcurl="no"
 	else
 		AC_CHECK_LIB(curl, curl_easy_init,
-		[
-			BUILD_WITH_LIBCURL_LIBS="$with_curl_libs"
-			AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
-		],
-		[
-			with_libcurl="no"
-		],
-		[$with_curl_libs])
+		 [
+		  # We need to do this to have `HAVE_LIBCURL' defined but
+		  # `-lcurl' NOT added to the default LDFLAGS.
+			AC_DEFINE(HAVE_LIBCURL, 1,
+				  [Define to 1 if you have the curl library.])
+		 ],
+		 [with_libcurl="no (symbol 'curl_easy_init' not found)"],
+		 [$with_curl_libs])
 	fi
 fi
-if test "x$with_libcurl" = "xyes" -a $with_curl_prefix -ne 0
-then
-	with_curl_prefix=`$with_curl_config --libs 2>/dev/null`
-	curl_config_status=$?
-
-	if test $curl_config_status -ne 0
-	then
-		with_libcurl="no"
-	else
-		if test -d "$with_curl_prefix/include"
-		then
-			CPPFLAGS="$CPPFLAGS -I$with_curl_prefix/include"
-		fi
-	fi
-fi
-
-with_libcurl_numeric=0
 if test "x$with_libcurl" = "xyes"
 then
-	with_libcurl_numeric=1
+	BUILD_WITH_LIBCURL_CFLAGS="$with_curl_cflags"
+	BUILD_WITH_LIBCURL_LIBS="$with_curl_libs"
+	AC_SUBST(BUILD_WITH_LIBCURL_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
 fi
-AC_DEFINE_UNQUOTED(HAVE_LIBCURL, [$with_libcurl_numeric], [Define to 1 if you have the 'curl' library (-lcurl).])
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 ### END of check for libcurl ###
 
@@ -1010,25 +1013,25 @@ AC_DEFINE_UNQUOTED(COLLECT_LM_SENSORS, [$collect_lm_sensors],
 AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_lm_sensors" = "xyes")
 
 with_mysql_config="mysql_config"
-with_mysql_prefix=0
 with_mysql_cflags=""
 with_mysql_libs=""
 AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to libmysql.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		if test -x "$withval/bin/mysql_config"
-		then
-			with_mysql_config="$withval/bin/mysql_config"
-			with_mysql_prefix=1
-		fi
-	fi
 	if test "x$withval" = "xno"
 	then
 		with_libmysql="no"
-	else
+	else if test "x$withval" = "xyes"
+	then
 		with_libmysql="yes"
-	fi
+	else
+		if test -x "$withval";
+		then
+			with_mysql_config="$withval"
+		else if test -x "$withval/bin/mysql_config"
+		then
+			with_mysql_config="$withval/bin/mysql_config"
+		fi; fi
+	fi; fi
 ],
 [
 	with_libmysql="yes"
@@ -1053,15 +1056,22 @@ fi
 if test "x$with_libmysql" = "xyes"
 then
 	with_mysql_libs=`$with_mysql_config --libs 2>/dev/null`
-	AC_CHECK_LIB(mysqlclient, mysql_init,
-	[
-		AC_DEFINE(HAVE_LIBMYSQLCLIENT, 1,
-			  [Define to 1 if you have the mysqlclient library (-lmysqlclient).])
-	],
-	[
-		with_libmysql="no (libmysql not found)"
-	],
-	[$with_mysql_libs])
+	mysql_config_status=$?
+
+	if test $mysql_config_status -ne 0
+	then
+		with_libmysql="no"
+	else
+		AC_CHECK_LIB(mysqlclient, mysql_init,
+		 [
+		  # We need to do this to have `HAVE_LIBMYSQLCLIENT' defined
+		  # but `-lmysqlclient' NOT added to the default LDFLAGS.
+			AC_DEFINE(HAVE_LIBMYSQLCLIENT, 1,
+				  [Define to 1 if you have the mysqlclient library.])
+		 ],
+		 [with_libmysql="no (libmysql not found)"],
+		 [$with_mysql_libs])
+	fi
 fi
 if test "x$with_libmysql" = "xyes"
 then
@@ -1304,6 +1314,7 @@ else
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 
+# TODO: Use `libupsclient-config' here.
 AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], [Path to libupsclient.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -1329,6 +1340,13 @@ then
 	[
 		AC_DEFINE(HAVE_UPSCLIENT_H, 1, [Define to 1 if you have the <upsclient.h> header file.])
 	], [with_libupsclient="no (upsclient.h not found)"])
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	AC_CHECK_TYPES([UPSCONN_t, UPSCONN], [], [], 
+[#include <stdlib.h>
+#include <stdio.h>
+#include <upsclient.h>])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBUPSCLIENT, test "x$with_libupsclient" = "xyes")
 
