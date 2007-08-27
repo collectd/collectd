@@ -31,6 +31,10 @@ B<Apache Webserver>. Each line containes either a key-value-pair or a
 section-start or -end. Empty lines and everything after the hash-symbol `#' is
 ignored.
 
+Please note that B<there is a bug> in the library used by collectd to read the
+configfile, that will lead to all lines with trailing whitespaces to be
+ignored. This problem has been solved in collectdE<nbsp>4.0 and later.
+
 =head1 GLOBAL OPTIONS
 
 =over 4
