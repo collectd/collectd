@@ -256,6 +256,7 @@ static int parse_line (char *buffer)
   fields_num = strsplit (buffer, &fields[1], STATIC_ARRAY_SIZE(fields) - 1);
 
   handle_putval (stdout, fields, fields_num + 1);
+  return (0);
 } /* int parse_line */
 
 static void *exec_read_one (void *arg)
