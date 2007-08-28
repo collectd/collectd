@@ -246,9 +246,12 @@ output that is expected from it.
 
 =over 4
 
-=item B<Exec> I<User> I<Executable>
+=item B<Exec> I<User>[:[I<Group>]] I<Executable>
 
-Execute the executable I<Executable> as user I<User>.
+Execute the executable I<Executable> as user I<User>. If the user name is
+followed by a colon and a group name, the program is executed as the specified
+group. If only the colon follows the user name the group defaults to the
+user's login group.
 
 =back
 
