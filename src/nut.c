@@ -26,11 +26,19 @@
 #include <pthread.h>
 #include <upsclient.h>
 
+#if HAVE_UPSCONN_T
+typedef UPSCONN_t collectd_upsconn_t;
+#elif HAVE_UPSCONN
+typedef UPSCONN collectd_upsconn_t;
+#else
+# error "Unable to determine the UPS connection type."
+#endif
+
 struct nut_ups_s;
 typedef struct nut_ups_s nut_ups_t;
 struct nut_ups_s
 {
-  UPSCONN   *conn;
+  collectd_upsconn_t *conn;
   char      *upsname;
   char      *hostname;
   int        port;
@@ -143,7 +151,7 @@ static int nut_read_one (nut_ups_t *ups)
   /* (Re-)Connect if we have no connection */
   if (ups->conn == NULL)
   {
-    ups->conn = (UPSCONN *) malloc (sizeof (UPSCONN));
+    ups->conn = (collectd_upsconn_t *) malloc (sizeof (collectd_upsconn_t));
     if (ups->conn == NULL)
     {
       ERROR ("nut plugin: malloc failed.");

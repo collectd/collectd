@@ -510,11 +510,14 @@ static int *ps_read_tasks (int pid)
 
 	closedir (dh);
 
+	if (list_len == 0)
+		return (NULL);
+
 	assert (list_len < list_size);
 	assert (list[list_len] == 0);
 
 	return (list);
-}
+} /* int *ps_read_tasks */
 
 int ps_read_process (int pid, procstat_t *ps, char *state)
 {

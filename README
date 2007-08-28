@@ -26,7 +26,7 @@ Features
       voltage sensors.
 
     - battery
-      Batterycharge, -current and volatage of ACPI and PMU based laptop
+      Batterycharge, -current and voltage of ACPI and PMU based laptop
       batteries.
 
     - cpu
@@ -109,7 +109,7 @@ Features
 
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
-      write your own plugins in Perl and return arbitary values using this
+      write your own plugins in Perl and return arbitrary values using this
       API. See collectd-perl(5).
 
       This plugin is still considered to be experimental and subject to change
@@ -139,7 +139,7 @@ Features
       Users currently logged in.
 
     - vserver
-      System ressources used by Linux VServers.
+      System resources used by Linux VServers.
       See <http://linux-vserver.org/>.
 
     - wireless
@@ -149,7 +149,7 @@ Features
     plugins:
 
     - csv
-      Write to comma seperated values (CSV) files. This needs lots of
+      Write to comma separated values (CSV) files. This needs lots of
       diskspace but is extremely portable and can be analysed with almost
       every program that can analyse anything. Even Microsoft's Excel..
 
@@ -181,7 +181,7 @@ Features
       Writes logmessages to a file or STDOUT/STDERR.
 
     - syslog
-      Logs to the standard UNIX logging mechanismn, syslog.
+      Logs to the standard UNIX logging mechanism, syslog.
 
   * Performance: Since collectd is running as a daemon it doesn't spend much
     time starting up again and again. With the exception of the exec plugin no
@@ -191,7 +191,7 @@ Features
     and multicore processors and makes sure that the daemon isn't idle if only
     one plugins waits for an IO-operation to complete.
     
-  * Once set up, hardly any maintenence is neccessary. Setup is kept as easy
+  * Once set up, hardly any maintenance is necessary. Setup is kept as easy
     as possible and the default values should be okay for most users.
 
 
@@ -232,7 +232,7 @@ Prerequisites
 
   * A POSIX-threads (pthread) implementation.
     Since gathering some statistics is slow (network connections, slow devices,
-    etc) the collectd is parellelized. The POSIX threads interface is being
+    etc) the collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
 
@@ -254,7 +254,7 @@ Prerequisites
   * librrd (optional; headers and library; rrdtool 1.0 and 1.2 both work fine)
     If built without `librrd' the resulting binary will be `client only', i.e.
     will send its values via multicast and not create any RRD files itself.
-    Alternatively you can chose to write CSV-files (Comma Seperated Values)
+    Alternatively you can chose to write CSV-files (Comma Separated Values)
     instead.
 
   * libsensors (optional)
@@ -295,10 +295,23 @@ Crosscompiling
     are likely never passed to the libm you have a good chance to be lucky.
 
 
+Contact
+-------
+
+  For questions, bugreports, development information and basically all other
+  concerns please send an email to collectd's mailinglist at
+  <collectd at verplant.org>.
+
+  For live discussion and more personal contact visit us in IRC, we're in
+  channel #collectd on freenode.
+
+
 Author
 ------
 
   Florian octo Forster <octo at verplant.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
+
+  Please send bugreports and patches to the mailinglist, see `Contact' above.
 

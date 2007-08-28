@@ -36,12 +36,12 @@ The following commands are implemented:
 =item B<GETVAL> I<Identifier>
 
 If the value identified by I<Identifier> (see below) is found the complete
-value-list is returned. The response is a space seperated list of
+value-list is returned. The response is a space separated list of
 name-value-pairs:
 
 I<num> I<name>B<=>I<value>[ I<name>B<=>I<value>[ ...]]
 
-If I<num> is less then zero, an error occured. Otherwise it contains the
+If I<num> is less then zero, an error occurred. Otherwise it contains the
 number of values that follow. Each value is of the form I<name>B<=>I<value>.
 Counter-values are converted to a rate, e.E<nbsp>g. bytes per second.
 Undefined values are returned as B<NaN>.
@@ -116,7 +116,7 @@ Example:
 
 =head2 Identifiers
 
-Value or value-lists are identified in a uniform fassion:
+Value or value-lists are identified in a uniform fashion:
 
 I<Hostname>/I<Plugin>/I<Type>
 

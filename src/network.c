@@ -1249,7 +1249,11 @@ static int network_config (const char *key, const char *val)
 				&& (fields_num != 2))
 			return (1);
 		else if (fields_num == 2)
+		{
+			if ((service = strchr (fields[1], '.')) != NULL)
+				*service = '\0';
 			service = fields[1];
+		}
 		node = fields[0];
 
 		if (strcasecmp ("Listen", key) == 0)
