@@ -26,6 +26,7 @@
 
 #include <sys/types.h>
 #include <pwd.h>
+#include <grp.h>
 #include <signal.h>
 
 #include <pthread.h>
@@ -38,6 +39,7 @@ typedef struct program_list_s program_list_t;
 struct program_list_s
 {
   char           *user;
+  char           *group;
   char           *exec;
   int             pid;
   program_list_t *next;
@@ -96,6 +98,12 @@ static int exec_config (const char *key, const char *value)
 
     pl->next = pl_head;
     pl_head = pl;
+
+    pl->group = strchr (pl->user, ':');
+    if (NULL != pl->group) {
+      *pl->group = '\0';
+      pl->group++;
+    }
   }
   else
   {
@@ -109,15 +117,16 @@ static void exec_child (program_list_t *pl)
 {
   int status;
   int uid;
+  int gid;
   char *arg0;
 
   struct passwd *sp_ptr;
   struct passwd sp;
-  char pwnambuf[2048];
+  char nambuf[2048];
   char errbuf[1024];
 
   sp_ptr = NULL;
-  status = getpwnam_r (pl->user, &sp, pwnambuf, sizeof (pwnambuf), &sp_ptr);
+  status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
   if (status != 0)
   {
     ERROR ("exec plugin: getpwnam_r failed: %s",
@@ -143,6 +152,41 @@ static void exec_child (program_list_t *pl)
     ERROR ("exec plugin: setuid failed: %s",
 	sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
+  }
+
+  if (NULL != pl->group)
+  {
+    if ('\0' != *pl->group) {
+      struct group *gr_ptr = NULL;
+      struct group gr;
+
+      status = getgrnam_r (pl->group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
+      if (0 != status)
+      {
+	ERROR ("exec plugin: getgrnam_r failed: %s",
+	    sstrerror (errno, errbuf, sizeof (errbuf)));
+	exit (-1);
+      }
+      if (NULL == gr_ptr)
+      {
+	ERROR ("exec plugin: No such group: `%s'", pl->group);
+	exit (-1);
+      }
+
+      gid = gr.gr_gid;
+    }
+    else
+    {
+      gid = sp.pw_gid;
+    }
+
+    status = setgid (gid);
+    if (0 != status)
+    {
+      ERROR ("exec plugin: setgid failed: %s",
+	  sstrerror (errno, errbuf, sizeof (errbuf)));
+      exit (-1);
+    }
   }
 
   arg0 = strrchr (pl->exec, '/');
