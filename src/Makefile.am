@@ -209,7 +209,7 @@ endif
 
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
-exec_la_SOURCES = exec.c
+exec_la_SOURCES = exec.c utils_cmd_putval.c utils_cmd_putval.h
 exec_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBPTHREAD
 exec_la_LDFLAGS += -lpthread
