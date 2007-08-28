@@ -28,7 +28,7 @@
 #include <mysql/mysql.h>
 #endif
 
-#if COLLECT_LIBMYSQL
+#if HAVE_LIBMYSQLCLIENT
 # define MYSQL_HAVE_READ 1
 #else
 # define MYSQL_HAVE_READ 0
