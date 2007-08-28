@@ -126,7 +126,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 
 	if (fields_num < 3)
 	{
-		DEBUG ("unixsock plugin: Wrong number of fields: %i",
+		DEBUG ("cmd putval: Wrong number of fields: %i",
 			       	fields_num);
 		fprintf (fh, "-1 Wrong number of fields: Got %i, "
 				"expected at least 3.\n",
@@ -140,7 +140,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 			&type, &type_instance);
 	if (status != 0)
 	{
-		DEBUG ("unixsock plugin: Cannot parse `%s'", fields[1]);
+		DEBUG ("cmd putval: Cannot parse `%s'", fields[1]);
 		fprintf (fh, "-1 Cannot parse identifier.\n");
 		fflush (fh);
 		return (-1);
