@@ -349,6 +349,15 @@ endif
 collectd_DEPENDENCIES += mysql.la
 endif
 
+if BUILD_PLUGIN_NETLINK
+pkglib_LTLIBRARIES += netlink.la
+netlink_la_SOURCES = netlink.c
+netlink_la_LDFLAGS = -module -avoid-version
+netlink_la_LIBADD = -lnetlink
+collectd_LDADD += "-dlopen" netlink.la
+collectd_DEPENDENCIES += netlink.la
+endif
+
 if BUILD_PLUGIN_NETWORK
 pkglib_LTLIBRARIES += network.la
 network_la_SOURCES = network.c network.h
