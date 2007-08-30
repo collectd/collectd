@@ -236,7 +236,19 @@ static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
     submit_two (dev, "if_dropped", NULL, stats->rx_bytes, stats->tx_bytes);
     submit_one (dev, "if_multicast", NULL, stats->multicast);
     submit_one (dev, "if_collisions", NULL, stats->collisions);
-    /* FIXME: Add the rest */
+
+    submit_one (dev, "if_rx_errors", "length", stats->rx_length_errors);
+    submit_one (dev, "if_rx_errors", "over", stats->rx_over_errors);
+    submit_one (dev, "if_rx_errors", "crc", stats->rx_crc_errors);
+    submit_one (dev, "if_rx_errors", "frame", stats->rx_frame_errors);
+    submit_one (dev, "if_rx_errors", "fifo", stats->rx_fifo_errors);
+    submit_one (dev, "if_rx_errors", "missed", stats->rx_missed_errors);
+
+    submit_one (dev, "if_tx_errors", "aborted", stats->tx_aborted_errors);
+    submit_one (dev, "if_tx_errors", "carrier", stats->tx_carrier_errors);
+    submit_one (dev, "if_tx_errors", "fifo", stats->tx_fifo_errors);
+    submit_one (dev, "if_tx_errors", "heartbeat", stats->tx_heartbeat_errors);
+    submit_one (dev, "if_tx_errors", "window", stats->tx_window_errors);
   }
   else
   {
@@ -303,9 +315,20 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
     ERROR ("netlink plugin: qos_filter: attrs[TCA_KIND] == NULL\n");
     return (-1);
   }
-  snprintf (tc_inst, sizeof (tc_inst), "%s-%x",
-      (const char *) RTA_DATA (attrs[TCA_KIND]), (msg->tcm_handle >> 16));
-  tc_inst[sizeof (tc_inst) - 1] = '\0';
+
+  { /* The the ID */
+    uint32_t numberic_id;
+
+    numberic_id = msg->tcm_handle;
+    if (strcmp (tc_type, "filter") == 0)
+      numberic_id = msg->tcm_parent;
+
+    snprintf (tc_inst, sizeof (tc_inst), "%s-%x:%x",
+	(const char *) RTA_DATA (attrs[TCA_KIND]),
+	numberic_id >> 16,
+	numberic_id & 0x0000FFFF);
+    tc_inst[sizeof (tc_inst) - 1] = '\0';
+  }
   
   if (check_ignorelist (dev, tc_type, tc_inst))
     return (0);
