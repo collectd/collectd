@@ -1694,6 +1694,7 @@ Configuration:
     libkstat  . . . . . $with_kstat
     libkvm  . . . . . . $with_libkvm
     libmysql  . . . . . $with_libmysql
+    libnetlink  . . . . $with_libnetlink
     libnetsnmp  . . . . $with_libnetsnmp
     liboconfig  . . . . $with_liboconfig
     liboping  . . . . . $with_liboping
