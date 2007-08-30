@@ -223,8 +223,8 @@ static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   if (check_ignorelist (dev, "interface", NULL) == 0)
   {
     submit_two (dev, "if_octets", NULL, stats->rx_bytes, stats->tx_bytes);
-    submit_two (dev, "if_packets", NULL, stats->rx_bytes, stats->tx_bytes);
-    submit_two (dev, "if_errors", NULL, stats->rx_bytes, stats->tx_bytes);
+    submit_two (dev, "if_packets", NULL, stats->rx_packets, stats->tx_packets);
+    submit_two (dev, "if_errors", NULL, stats->rx_errors, stats->tx_errors);
   }
   else
   {
@@ -270,8 +270,6 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   /* char *type_instance; */
   char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
-
-  printf ("=== qos_filter ===\n");
 
   if (nmh->nlmsg_type == RTM_NEWQDISC)
     tc_type = "qdisc";
@@ -353,7 +351,7 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
       memcpy (&bs, RTA_DATA (attrs_stats[TCA_STATS_BASIC]),
 	  MIN (RTA_PAYLOAD (attrs_stats[TCA_STATS_BASIC]), sizeof(bs)));
 
-      submit_one (dev, "ipt_octets", type_instance, bs.bytes);
+      submit_one (dev, "ipt_bytes", type_instance, bs.bytes);
       submit_one (dev, "ipt_packets", type_instance, bs.packets);
     }
   }
