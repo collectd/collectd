@@ -35,6 +35,7 @@
 @BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
 @BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 @BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
+@BUILD_PLUGIN_NETLINK_TRUE@LoadPlugin netlink
 @BUILD_PLUGIN_NETWORK_TRUE@LoadPlugin network
 @BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
 @BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
@@ -129,6 +130,14 @@
 #	User "db_user"
 #	Password "secret"
 #	Database "db_name"
+#</Plugin>
+
+#<Plugin netlink>
+#	Interface "All"
+#	VerboseInterface "All"
+#	QDisc "eth0" "pfifo_fast-1:0"
+#	Class "ppp0" "htb-1:10"
+#	Filter "ppp0" "u32-1:0"
 #</Plugin>
 
 #<Plugin network>

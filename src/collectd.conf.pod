@@ -420,6 +420,83 @@ option for what this plugin does.
 
 =back
 
+=head2 Plugin C<netlink>
+
+The C<netlink> plugin uses a netlink socket to query the Linux kernel about
+statistics of various interface and routing aspects.
+
+=over 4
+
+=item B<Interface> I<Interface>
+
+=item B<VerboseInterface> I<Interface>
+
+Instruct the plugin to collect interface statistics. This is basically the same
+as the statistics provided by the C<interface> plugin (see above) but
+potentially much more detailed.
+
+When configuring with B<Interface> only the basic statistics will be collected,
+namely octets, packets, and errors. These statistics are collected by
+the C<interface> plugin, too, so using both at the same time is no benefit.
+
+When configured with B<VerboseInterface> all counters B<except> the basic ones,
+so that no data needs to be collected twice if you use the C<interface> plugin.
+This includes dropped packets, received multicast packets, collisions and a
+whole zoo of differentiated RX and TX errors. You can try the following command
+to get an idea of what awaits you:
+
+  ip -s -s link list
+
+If I<Interface> is B<All>, all interfaces will be selected.
+
+=item B<QDisc> I<Interface> [I<QDisc>]
+
+=item B<Class> I<Interface> [I<Class>]
+
+=item B<Filter> I<Interface> [I<Filter>]
+
+Collect the octets and packets that pass a certain qdisc, class or filter.
+
+QDiscs and classes are identified by their type and handle (or classid).
+Filters don't necessarily have a handle, therefore the parent's handle is used.
+The notation used in collectd differs from that used in tc(1) in that it
+doesn't skip the major or minor number if it's zero and doesn't print special
+ids by their name.  So, for example, a qdisc may be identified by
+C<pfifo_fast-1:0> even though the minor number of B<all> qdiscs is zero and
+thus not displayed by tc(1).
+
+If B<QDisc>, B<Class>, or B<Filter> is given without the second argument,
+i.E<nbsp>.e. without an identifier, all qdiscs, classes, or filters that are
+associated with that interface will be collected.
+
+Since a filter itself doesn't necessarily have a handle, the parent's handle is
+used. This may lead to problems when more than one filter is attached to a
+qdisc or class. This isn't nice, but we don't know how this could be done any
+better. If you have a idea, please don't hesitate to tell us.
+
+As with the B<Interface> option you can specify B<All> as the interface,
+meaning all interfaces.
+
+Here are some examples to help you understand the above text more easily:
+
+  <Plugin netlink>
+    VerboseInterface "All"
+    QDisc "eth0" "pfifo_fast-1:0"
+    QDisc "ppp0"
+    Class "ppp0" "htb-1:10"
+    Filter "ppp0" "u32-1:0"
+  </Plugin>
+
+=item B<IgnoreSelected>
+
+The behaviour is the same as with all other similar plugins: If nothing is
+selected at all, everything is collected. If some things are selected using the
+options described above, only these statistics are collected. If you set
+B<IgnoreSelected> to B<true>, this behavior is inversed, i.E<nbsp>e. the
+specified statistics will not be collected.
+
+=back
+
 =head2 Plugin C<network>
 
 =over 4
