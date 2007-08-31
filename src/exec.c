@@ -146,14 +146,6 @@ static void exec_child (program_list_t *pl)
     exit (-1);
   }
 
-  status = setuid (uid);
-  if (status != 0)
-  {
-    ERROR ("exec plugin: setuid failed: %s",
-	sstrerror (errno, errbuf, sizeof (errbuf)));
-    exit (-1);
-  }
-
   if (NULL != pl->group)
   {
     if ('\0' != *pl->group) {
@@ -187,6 +179,14 @@ static void exec_child (program_list_t *pl)
 	  sstrerror (errno, errbuf, sizeof (errbuf)));
       exit (-1);
     }
+  } /* if (pl->group == NULL) */
+
+  status = setuid (uid);
+  if (status != 0)
+  {
+    ERROR ("exec plugin: setuid failed: %s",
+	sstrerror (errno, errbuf, sizeof (errbuf)));
+    exit (-1);
   }
 
   arg0 = strrchr (pl->exec, '/');
