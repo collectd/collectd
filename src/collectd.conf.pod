@@ -32,10 +32,6 @@ ignored. Values are either string, enclosed in double-quotes,
 B<false>. String containing of only alphanumeric characters and underscores do
 not need to be quoted.
 
-Please note that B<there is a bug> in the library used by collectd to read the
-configfile, that will lead to all lines with trailing whitespaces to be
-ignored. This problem has been solved in collectdE<nbsp>4.0 and later.
-
 =head1 GLOBAL OPTIONS
 
 =over 4
