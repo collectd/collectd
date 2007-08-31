@@ -233,7 +233,7 @@ static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
 
   if (check_ignorelist (dev, "if_detail", NULL) == 0)
   {
-    submit_two (dev, "if_dropped", NULL, stats->rx_bytes, stats->tx_bytes);
+    submit_two (dev, "if_dropped", NULL, stats->rx_dropped, stats->tx_dropped);
     submit_one (dev, "if_multicast", NULL, stats->multicast);
     submit_one (dev, "if_collisions", NULL, stats->collisions);
 
