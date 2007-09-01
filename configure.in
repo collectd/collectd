@@ -30,6 +30,24 @@ AC_PROG_LEX
 AC_PROG_YACC
 AC_CONFIG_SUBDIRS(libltdl)
 
+AC_MSG_CHECKING([for kernel type ($host_os)])
+case $host_os in
+	*linux*)
+	AC_DEFINE([KERNEL_LINUX], 1, [True if program is to be compiled for a Linux kernel])
+	ac_system="Linux"
+	;;
+	*solaris*)
+	AC_DEFINE([KERNEL_SOLARIS], 1, [True if program is to be compiled for a Solaris kernel])
+	ac_system="Solaris"
+	;;
+	*apple-darwin*)
+	ac_system="Mac OS X"
+	;;
+	*)
+	ac_system="unknown"
+esac
+AC_MSG_RESULT([$ac_system])
+
 #
 # Checks for header files.
 #
@@ -174,7 +192,12 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 ])
 
 # For cpu modules
-AC_CHECK_HEADERS(sys/dkstat.h mach/mach_init.h mach/host_priv.h mach/mach_error.h mach/mach_host.h mach/mach_port.h mach/mach_types.h mach/message.h mach/processor_set.h mach/processor.h mach/processor_info.h mach/task.h mach/thread_act.h mach/vm_region.h mach/vm_map.h mach/vm_prot.h mach/vm_statistics.h mach/kern_return.h)
+AC_CHECK_HEADERS(sys/dkstat.h)
+if test ac_system = "Mac OS X"
+then
+	AC_CHECK_HEADERS(mach/mach_init.h mach/host_priv.h mach/mach_error.h mach/mach_host.h mach/mach_port.h mach/mach_types.h mach/message.h mach/processor_set.h mach/processor.h mach/processor_info.h mach/task.h mach/thread_act.h mach/vm_region.h mach/vm_map.h mach/vm_prot.h mach/vm_statistics.h mach/kern_return.h)
+	AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h IOKit/IOKitLib.h IOKit/IOTypes.h IOKit/ps/IOPSKeys.h IOKit/IOBSD.h IOKit/storage/IOBlockStorageDriver.h)
+fi
 AC_CHECK_HEADERS(sys/sysctl.h, [], [],
 [
 #if HAVE_SYS_TYPES_H
@@ -187,9 +210,6 @@ AC_CHECK_HEADERS(sys/sysctl.h, [], [],
 
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h libgen.h)
-
-# For the apple_sensors module
-AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h IOKit/IOKitLib.h IOKit/IOTypes.h IOKit/ps/IOPSKeys.h IOKit/IOBSD.h IOKit/storage/IOBlockStorageDriver.h)
 
 # For the battery plugin
 AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
@@ -281,7 +301,7 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #endif
 ])
 
-AC_CHECK_HEADERS(curl/curl.h pwd.h grp.h sys/un.h ctype.h limits.h sys/quota.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h)
+AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h sys/quota.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h)
 
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
@@ -635,21 +655,6 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 #endif
 	])
 
-AC_MSG_CHECKING([for kernel type ($host_os)])
-case $host_os in
-	*linux*)
-	AC_DEFINE([KERNEL_LINUX], 1, [True if program is to be compiled for a Linux kernel])
-	ac_system="Linux"
-	;;
-	*solaris*)
-	AC_DEFINE([KERNEL_SOLARIS], 1, [True if program is to be compiled for a Solaris kernel])
-	ac_system="Solaris"
-	;;
-	*)
-	ac_system="unknown"
-esac
-AC_MSG_RESULT([$ac_system])
-
 with_libresolv="yes"
 AC_CHECK_LIB(resolv, res_search,
 [
@@ -899,7 +904,7 @@ AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Pat
 	then
 		with_lm_sensors="yes"
 	else
-		with_lm_sensors="no"
+		with_lm_sensors="no (Linux only library)"
 	fi
 ])
 if test "x$with_lm_sensors" = "xyes"
