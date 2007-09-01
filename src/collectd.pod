@@ -92,7 +92,7 @@ Several loglevels let you suppress uninteresting messages.
 Please note that some plugins, that provide other means of communicating with
 the daemon, have manpages of their own to describe their functionality in more
 detail. In particular those are L<collectd-email(5)>, L<collectd-exec(5)>,
-L<collectd-perl(5)>, and L<collectd-unixsock(5)>
+L<collectd-perl(5)>, L<collectd-snmp(5)>, and L<collectd-unixsock(5)>
 
 =head1 SEE ALSO
 
@@ -100,6 +100,7 @@ L<collectd.conf(5)>,
 L<collectd-email(5)>,
 L<collectd-exec(5)>,
 L<collectd-perl(5)>,
+L<collectd-snmp(5)>,
 L<collectd-unixsock(5)>,
 L<http://collectd.org/>
 
