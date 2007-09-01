@@ -91,6 +91,11 @@ Features
       MySQL server statistics: Commands issued, handlers triggered, thread
       usage, query cache utilization and traffic/octets sent and received.
 
+    - netlink
+      Very detailed Linux network interface and routing statistics. You can get
+      (detailed) information on interfaces, qdiscs, classes, and, if you can
+      make use of it, filters.
+
     - network
       Receive values that were collected by other hosts. Large setups will
       want to collect the data on one dedicated machine, and this is the
