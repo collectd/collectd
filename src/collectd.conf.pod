@@ -50,8 +50,8 @@ will be mostly useless.
 =item B<PIDFile> I<File>
 
 Sets where to write the PID file to. This file is overwritten when it exists
-and deleted when the program ist stopped. Some init-scripts might override this
-setting using the B<-P> commandline option.
+and deleted when the program is stopped. Some init-scripts might override this
+setting using the B<-P> command-line option.
 
 =item B<PluginDir> I<Directory>
 
@@ -78,7 +78,7 @@ a value higher than the number of plugins you've loaded is totally useless.
 
 =head1 PLUGIN OPTIONS
 
-Some Plugins may register own options. These options must be enclosed in a
+Some plugins may register own options. These options must be enclosed in a
 C<Plugin>-Section. Which options exist depends on the plugin used. Some plugins
 require external configuration, too. The C<apache plugin>, for example,
 required C<mod_status> to be configured in the webserver you're going to
@@ -631,7 +631,7 @@ and minor and major pagefaults.
 =head2 Plugin C<rrdtool>
 
 You can use the settings B<StepSize>, B<HeartBeat>, B<RRARows>, and B<XFF> to
-finetune your RRD-files. Please read L<rrdcreate(1)> if you encounter problems
+fine-tune your RRD-files. Please read L<rrdcreate(1)> if you encounter problems
 using these settings. If you don't want to dive into the depths of RRDTool, you
 can safely ignore these settings.
 
@@ -699,7 +699,7 @@ normally do much harm either.
 If this option is set to a value greater than zero, the C<rrdtool plugin> will
 save values in a cache, as described above. Writing multiple values at once
 reduces IO-operations and thus lessens the load produced by updating the files.
-The tradeoff is that the graphs kind of "drag behind" and that more memory is
+The trade off is that the graphs kind of "drag behind" and that more memory is
 used.
 
 =back
@@ -734,6 +734,12 @@ I<true> the effect of B<Sensor> is inversed: All selected sensors are ignored
 and all other sensors are collected.
 
 =back
+
+=head2 Plugin C<snmp>
+
+Since the configuration of the C<snmp plugin> is a little more complicated than
+other plugins, its documentation has been moved to an own manpage,
+L<collectd-snmp(5)>. Please see there for details.
 
 =head2 Plugin C<syslog>
 
