@@ -1,4 +1,4 @@
-2007-07-21, Version 4.1.0
+2007-09-01, Version 4.1.0
 	* Build system: The build system has been changed to automatically
 	  disable all plugins, which are missing dependencies. The dependency
 	  checking has been removed from the plugins themselves to remove
