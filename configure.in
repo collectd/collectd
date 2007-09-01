@@ -1389,8 +1389,65 @@ AC_DEFINE_UNQUOTED(HAVE_LIBXMMS, [$with_libxmms_numeric], [Define to 1 if you ha
 AM_CONDITIONAL(BUILD_WITH_LIBXMMS, test "x$with_libxmms" = "xyes")
 ### END of check for libxmms ###
 
-with_libnetlink="yes"
-AC_CHECK_LIB(netlink, rtnl_open, [with_libnetlink="yes"], [with_libnetlink="no"])
+with_libnetlink_cflags=""
+with_libnetlink_libs="-lnetlink"
+AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libnetlink.])],
+[
+ echo "libnetlink: withval = $withval"
+ if test "x$withval" = "xyes"
+ then
+	 with_libnetlink="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libnetlink="no"
+ else
+	 if test -d "$withval/include"
+	 then
+		 with_libnetlink_cflags="-I$withval/include"
+		 with_libnetlink_libs="-L$withval/lib -lnetlink"
+		 with_libnetlink="yes"
+	 else
+		 AC_MSG_ERROR("no such directory: $withval/include")
+	 fi
+ fi; fi
+],
+[
+ if test "x$ac_system" = "xLinux"
+ then
+	 with_libnetlink="yes"
+ else
+	 with_libnetlink="no (Linux only library)"
+ fi
+])
+if test "x$with_libnetlink" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS $with_libnetlink_cflags"
+
+	AC_CHECK_HEADERS(iproute/libnetlink.h, [], [with_libnetlink="no (iproute/libnetlink.h not found)"],
+[#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>])
+
+	CFLAGS="$SAVE_CFLAGS"
+fi
+if test "x$with_libnetlink" = "xyes"
+then
+	AC_CHECK_LIB(netlink, rtnl_open,
+		     [with_libnetlink="yes"],
+		     [with_libnetlink="no (symbol 'rtnl_open' not found)"],
+		     [$with_libnetlink_libs])
+fi
+if test "x$with_libnetlink" = "xyes"
+then
+	BUILD_WITH_LIBNETLINK_CFLAGS="$with_curl_cflags"
+	BUILD_WITH_LIBNETLINK_LIBS="$with_curl_libs"
+	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBNETLINK_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
 
 # Check for enabled/disabled features
 #
@@ -1735,7 +1792,7 @@ Configuration:
     memory  . . . . . . $enable_memory
     multimeter  . . . . $enable_multimeter
     mysql . . . . . . . $enable_mysql
-    netlink . . . . . . $enable_network
+    netlink . . . . . . $enable_netlink
     network . . . . . . $enable_network
     nfs . . . . . . . . $enable_nfs
     ntpd  . . . . . . . $enable_ntpd

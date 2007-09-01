@@ -353,7 +353,8 @@ if BUILD_PLUGIN_NETLINK
 pkglib_LTLIBRARIES += netlink.la
 netlink_la_SOURCES = netlink.c
 netlink_la_LDFLAGS = -module -avoid-version
-netlink_la_LIBADD = -lnetlink
+netlink_la_CFLAGS = $(BUILD_WITH_LIBNETLINK_CFLAGS)
+netlink_la_LIBADD = $(BUILD_WITH_LIBNETLINK_LIBS)
 collectd_LDADD += "-dlopen" netlink.la
 collectd_DEPENDENCIES += netlink.la
 endif
