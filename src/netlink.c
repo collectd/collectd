@@ -45,6 +45,9 @@ static ir_ignorelist_t *ir_ignorelist_head = NULL;
 
 static struct rtnl_handle rth;
 
+static char **iflist = NULL;
+static size_t iflist_len = 0;
+
 static const char *config_keys[] =
 {
 	"Interface",
@@ -112,19 +115,39 @@ static int check_ignorelist (const char *dev,
 {
   ir_ignorelist_t *i;
 
+  assert ((dev != NULL) && (type != NULL));
+
   if (ir_ignorelist_head == NULL)
     return (ir_ignorelist_invert ? 0 : 1);
 
   for (i = ir_ignorelist_head; i != NULL; i = i->next)
   {
-    if ((strcasecmp (i->device, dev) != 0)
-	|| (strcasecmp (i->type, type) != 0))
+    /* i->device == NULL  =>  match all devices */
+    if ((i->device != NULL)
+	&& (strcasecmp (i->device, dev) != 0))
       continue;
 
+    if (strcasecmp (i->type, type) != 0)
+      continue;
+
+#if 0
     if ((i->inst != NULL)
 	&& ((type_instance == NULL)
 	  || (strcasecmp (i->inst, type_instance) != 0)))
       continue;
+#endif
+    if ((i->inst != NULL) && (type_instance != NULL)
+	&& (strcasecmp (i->inst, type_instance) != 0))
+      continue;
+
+    DEBUG ("netlink plugin: check_ignorelist: "
+	"(dev = %s; type = %s; inst = %s) matched "
+	"(dev = %s; type = %s; inst = %s)",
+	dev, type,
+	type_instance == NULL ? "(nil)" : type_instance,
+	i->device == NULL ? "(nil)" : i->device,
+	i->type,
+	i->inst == NULL ? "(nil)" : i->inst);
 
     return (ir_ignorelist_invert ? 0 : 1);
   } /* for i */
@@ -188,7 +211,7 @@ static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
 
   if (nmh->nlmsg_type != RTM_NEWLINK)
   {
-    ERROR ("netlink plugin: link_filter: Don't know how to handle type %i.\n",
+    ERROR ("netlink plugin: link_filter: Don't know how to handle type %i.",
 	nmh->nlmsg_type);
     return (-1);
   }
@@ -198,14 +221,14 @@ static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   msg_len = nmh->nlmsg_len - sizeof (struct ifinfomsg);
   if (msg_len < 0)
   {
-    ERROR ("netlink plugin: link_filter: msg_len = %i < 0;\n", msg_len);
+    ERROR ("netlink plugin: link_filter: msg_len = %i < 0;", msg_len);
     return (-1);
   }
 
   memset (attrs, '\0', sizeof (attrs));
   if (parse_rtattr (attrs, IFLA_MAX, IFLA_RTA (msg), msg_len) != 0)
   {
-    ERROR ("netlink plugin: link_filter: parse_rtattr failed.\n");
+    ERROR ("netlink plugin: link_filter: parse_rtattr failed.");
     return (-1);
   }
 
@@ -215,10 +238,35 @@ static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
 
   if (attrs[IFLA_IFNAME] == NULL)
   {
-    ERROR ("netlink plugin: link_filter: attrs[IFLA_IFNAME] == NULL\n");
+    ERROR ("netlink plugin: link_filter: attrs[IFLA_IFNAME] == NULL");
     return (-1);
   }
   dev = RTA_DATA (attrs[IFLA_IFNAME]);
+
+  /* Update the `iflist'. It's used to know which interfaces exist and query
+   * them later for qdiscs and classes. */
+  if (msg->ifi_index >= iflist_len)
+  {
+    char **temp;
+
+    temp = (char **) realloc (iflist, (msg->ifi_index + 1) * sizeof (char *));
+    if (temp == NULL)
+    {
+      ERROR ("netlink plugin: link_filter: realloc failed.");
+      return (-1);
+    }
+
+    memset (temp + iflist_len, '\0',
+	(msg->ifi_index + 1 - iflist_len) * sizeof (char *));
+    iflist = temp;
+    iflist_len = msg->ifi_index + 1;
+  }
+  if ((iflist[msg->ifi_index] == NULL)
+      || (strcmp (iflist[msg->ifi_index], dev) != 0))
+  {
+    sfree (iflist[msg->ifi_index]);
+    iflist[msg->ifi_index] = strdup (dev);
+  }
 
   if (check_ignorelist (dev, "interface", NULL) == 0)
   {
@@ -265,6 +313,8 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   int msg_len;
   struct rtattr *attrs[TCA_MAX + 1];
 
+  int wanted_ifindex = *((int *) args);
+
   const char *dev;
 
   /* char *type_instance; */
@@ -279,7 +329,7 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
     tc_type = "filter";
   else
   {
-    ERROR ("netlink plugin: qos_filter: Don't know how to handle type %i.\n",
+    ERROR ("netlink plugin: qos_filter: Don't know how to handle type %i.",
 	nmh->nlmsg_type);
     return (-1);
   }
@@ -289,14 +339,30 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   msg_len = nmh->nlmsg_len - sizeof (struct tcmsg);
   if (msg_len < 0)
   {
-    ERROR ("netlink plugin: qos_filter: msg_len = %i < 0;\n", msg_len);
+    ERROR ("netlink plugin: qos_filter: msg_len = %i < 0;", msg_len);
     return (-1);
   }
 
-  dev = ll_index_to_name (msg->tcm_ifindex);
+  if (msg->tcm_ifindex != wanted_ifindex)
+  {
+    DEBUG ("netlink plugin: qos_filter: Got %s for interface #%i, "
+	"but expected #%i.",
+	tc_type, msg->tcm_ifindex, wanted_ifindex);
+    return (0);
+  }
+
+  if (msg->tcm_ifindex >= iflist_len)
+  {
+    ERROR ("netlink plugin: qos_filter: msg->tcm_ifindex = %i "
+	">= iflist_len = %i",
+	msg->tcm_ifindex, iflist_len);
+    return (-1);
+  }
+
+  dev = iflist[msg->tcm_ifindex];
   if (dev == NULL)
   {
-    ERROR ("netlink plugin: qos_filter: ll_index_to_name (%i) failed.\n",
+    ERROR ("netlink plugin: qos_filter: iflist[%i] == NULL",
 	msg->tcm_ifindex);
     return (-1);
   }
@@ -304,13 +370,13 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   memset (attrs, '\0', sizeof (attrs));
   if (parse_rtattr (attrs, TCA_MAX, TCA_RTA (msg), msg_len) != 0)
   {
-    ERROR ("netlink plugin: qos_filter: parse_rtattr failed.\n");
+    ERROR ("netlink plugin: qos_filter: parse_rtattr failed.");
     return (-1);
   }
 
   if (attrs[TCA_KIND] == NULL)
   {
-    ERROR ("netlink plugin: qos_filter: attrs[TCA_KIND] == NULL\n");
+    ERROR ("netlink plugin: qos_filter: attrs[TCA_KIND] == NULL");
     return (-1);
   }
 
@@ -327,6 +393,9 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
 	numberic_id & 0x0000FFFF);
     tc_inst[sizeof (tc_inst) - 1] = '\0';
   }
+
+  DEBUG ("netlink plugin: qos_filter: got %s for %s (%i).",
+      tc_type, dev, msg->tcm_ifindex);
   
   if (check_ignorelist (dev, tc_type, tc_inst))
     return (0);
@@ -411,7 +480,7 @@ static int ir_config (const char *key, const char *value)
       status = 0;
     }
   }
-  else if (strcasecmp (key, "IgnoreSelected"))
+  else if (strcasecmp (key, "IgnoreSelected") == 0)
   {
     if (fields_num != 1)
     {
@@ -442,13 +511,13 @@ static int ir_init (void)
 
   if (rtnl_open (&rth, 0) != 0)
   {
-    ERROR ("netlink plugin: print_stats: rtnl_open failed.\n");
+    ERROR ("netlink plugin: ir_read: rtnl_open failed.");
     return (-1);
   }
 
   if (ll_init_map (&rth) != 0)
   {
-    ERROR ("netlink plugin: print_stats: ll_init_map failed.\n");
+    ERROR ("netlink plugin: ir_read: ll_init_map failed.");
     return (-1);
   }
 
@@ -459,71 +528,69 @@ static int ir_read (void)
 {
   struct ifinfomsg im;
   struct tcmsg tm;
+  int ifindex;
+
+  static const int type_id[] = { RTM_GETQDISC, RTM_GETTCLASS, RTM_GETTFILTER };
+  static const char *type_name[] = { "qdisc", "class", "filter" };
 
   memset (&im, '\0', sizeof (im));
   im.ifi_type = AF_UNSPEC;
 
-  memset (&tm, '\0', sizeof (tm));
-  tm.tcm_family = AF_UNSPEC;
-
   if (rtnl_dump_request (&rth, RTM_GETLINK, &im, sizeof (im)) < 0)
   {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_request failed.\n");
+    ERROR ("netlink plugin: ir_read: rtnl_dump_request failed.");
     return (-1);
   }
 
   if (rtnl_dump_filter (&rth, link_filter, /* arg1 = */ NULL,
 	NULL, NULL) != 0)
   {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_filter failed.\n");
+    ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
     return (-1);
   }
 
-  /* Get QDisc stats */
-  if (rtnl_dump_request (&rth, RTM_GETQDISC, &tm, sizeof (tm)) < 0)
+  /* `link_filter' will update `iflist' which is used here to iterate over all
+   * interfaces. */
+  for (ifindex = 0; ifindex < iflist_len; ifindex++)
   {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_request failed.\n");
-    return (-1);
-  }
+    int type_index;
 
-  if (rtnl_dump_filter (&rth, qos_filter, /* arg1 = */ NULL,
-	NULL, NULL) != 0)
-  {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_filter failed.\n");
-    return (-1);
-  }
+    if (iflist[ifindex] == NULL)
+      continue;
 
-  /* Get Class stats */
-  if (rtnl_dump_request (&rth, RTM_GETTCLASS, &tm, sizeof (tm)) < 0)
-  {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_request failed.\n");
-    return (-1);
-  }
+    for (type_index = 0; type_index < STATIC_ARRAY_SIZE (type_id); type_index++)
+    {
+      if (check_ignorelist (iflist[ifindex], type_name[type_index], NULL))
+      {
+	DEBUG ("netlink plugin: ir_read: check_ignorelist (%s, %s, (nil)) "
+	    "== TRUE", iflist[ifindex], type_name[type_index]);
+	continue;
+      }
 
-  if (rtnl_dump_filter (&rth, qos_filter, /* arg1 = */ NULL,
-	NULL, NULL) != 0)
-  {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_filter failed.\n");
-    return (-1);
-  }
+      DEBUG ("netlink plugin: ir_read: querying %s from %s (%i).",
+	  type_name[type_index], iflist[ifindex], ifindex);
 
-  /* Get Filter stats */
-  if (rtnl_dump_request (&rth, RTM_GETTFILTER, &tm, sizeof (tm)) < 0)
-  {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_request failed.\n");
-    return (-1);
-  }
+      memset (&tm, '\0', sizeof (tm));
+      tm.tcm_family = AF_UNSPEC;
+      tm.tcm_ifindex = ifindex;
 
-  if (rtnl_dump_filter (&rth, qos_filter, /* arg1 = */ NULL,
-	NULL, NULL) != 0)
-  {
-    ERROR ("netlink plugin: print_stats: rtnl_dump_filter failed.\n");
-    return (-1);
-  }
+      if (rtnl_dump_request (&rth, type_id[type_index], &tm, sizeof (tm)) < 0)
+      {
+	ERROR ("netlink plugin: ir_read: rtnl_dump_request failed.");
+	continue;
+      }
 
+      if (rtnl_dump_filter (&rth, qos_filter, (void *) &ifindex,
+	    NULL, NULL) != 0)
+      {
+	ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
+	continue;
+      }
+    } /* for (type_index) */
+  } /* for (if_index) */
 
   return (0);
-} /* int print_stats */
+} /* int ir_read */
 
 static int ir_shutdown (void)
 {

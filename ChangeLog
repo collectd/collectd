@@ -6,6 +6,9 @@
 	* Flexible interval: The interval of collected data is not sent along
 	  with the data itself over the network, so that the interval-settings
 	  of server and clients no longer needs to match.
+	* netlink plugin: The new `netlink' plugin connects to the Linux
+	  kernel using a netlink socket and uses it to query information about
+	  interfaces, qdiscs and classes.
 	* snmp plugin: The new `snmp' plugin can read values from SNMP enabled
 	  network devices, such as switches, routers, thermometers, rack
 	  monitoring servers, etc. The collectd-snmp(5) manpage documents this
