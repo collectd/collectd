@@ -9,6 +9,8 @@
 	* netlink plugin: The new `netlink' plugin connects to the Linux
 	  kernel using a netlink socket and uses it to query information about
 	  interfaces, qdiscs and classes.
+	* rrdtool plugin: The cache is now dumped to disk in an extra thread
+	  to not block data collection.
 	* snmp plugin: The new `snmp' plugin can read values from SNMP enabled
 	  network devices, such as switches, routers, thermometers, rack
 	  monitoring servers, etc. The collectd-snmp(5) manpage documents this
