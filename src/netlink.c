@@ -130,12 +130,6 @@ static int check_ignorelist (const char *dev,
     if (strcasecmp (i->type, type) != 0)
       continue;
 
-#if 0
-    if ((i->inst != NULL)
-	&& ((type_instance == NULL)
-	  || (strcasecmp (i->inst, type_instance) != 0)))
-      continue;
-#endif
     if ((i->inst != NULL) && (type_instance != NULL)
 	&& (strcasecmp (i->inst, type_instance) != 0))
       continue;
