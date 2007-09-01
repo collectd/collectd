@@ -1447,8 +1447,8 @@ then
 fi
 if test "x$with_libnetlink" = "xyes"
 then
-	BUILD_WITH_LIBNETLINK_CFLAGS="$with_curl_cflags"
-	BUILD_WITH_LIBNETLINK_LIBS="$with_curl_libs"
+	BUILD_WITH_LIBNETLINK_CFLAGS="$with_libnetlink_cflags"
+	BUILD_WITH_LIBNETLINK_LIBS="$with_libnetlink_libs"
 	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBNETLINK_LIBS)
 fi
