@@ -56,6 +56,10 @@ internal format and dispatches them. Depending on the write plugins you have
 loaded they may be written to disk or submitted to another instance or
 whatever you configured.
 
+Because querying a host via SNMP may produce a timeout multiple threads are
+used to query hosts in parallel. Depending on the number of hosts between one
+and ten threads are used.
+
 =head1 CONFIGURATION
 
 Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
@@ -81,15 +85,35 @@ defined.
 =item B<Table> I<true|false>
 
 Define if this is a single list of values or a table of values. The difference
-is that when querying a list of values from SNMP that data is going to be
-dispatched as one value-list to the daemon (i.E<nbsp>e.  one RRD file will be
-created). If the correcponding data-set needs more than one value (has more
-than one data-source) you will still need to configure more than one B<Values>
-(see below).
+is the following:
 
-If B<Table> is set to I<true> then the plugin will search the entire subtree
-and dispatch all values it can find. This is handy for the typical SNMP
-tables, such as the interface table (C<IF-MIB::ifTable>).
+When B<Table> is set to B<false>, the OIDs given to B<Values> (see below) are
+queried using the C<GET> SNMP command (see L<snmpget(1)>) and transmitted to
+collectd. B<One> value list is dispatched and, eventually, one file will be
+written.
+
+When B<Table> is set to B<true>, the OIDs given to B<Values> (see below) are
+queried using the C<GETNEXT> SNMP command until the subtree is left. After all
+the lists (think: all columns of the table) have been read B<several> values
+sets will be dispatches and, eventually, several files will be written. If you
+configure a B<Type> (see above) which needs more than one data source (for
+example C<if_octets> which needs C<rx> and C<tx>) you will need to specify more
+than one (two, in the example case) OIDs with the B<Values> option. This has
+nothing to do with the B<Table> setting.
+
+For example, if you want to query the number of users on a system, you can use
+C<HOST-RESOURCES-MIB::hrSystemNumUsers.0>. This is one value and belongs to one
+value list, therefore B<Table> must be set to B<false>. Please note that, in
+this case, you have to include the sequence number (zero in this case) in the
+OID.
+
+Counter example: If you want to query the interface table provided by the
+C<IF-MIB>, e.E<nbsp>g. the bytes transmitted. There are potentially many
+interfaces, so you will want to set B<Table> to B<true>. Because the
+C<if_octets> type needs two values, received and transmitted bytes, you need to
+specify two OIDs in the B<Values> setting, in this case likely
+C<IF-MIB::ifHCInOctets> and C<IF-MIB::ifHCOutOctets>. But, this is because of
+the B<Type> setting, not the B<Table> setting.
 
 Since the semantic of B<Instance> and B<Values> depends on this setting you
 need to set it before setting them. Doing vice verse will result in undefined
@@ -98,7 +122,7 @@ behavior.
 =item B<Instance> I<Instance>
 
 Sets the type-instance of the values that are dispatched. The meaning of this
-setting depends on wether B<Table> is set to I<true> or I<false>:
+setting depends on whether B<Table> is set to I<true> or I<false>:
 
 If B<Table> is set to I<true>, I<Instance> is interpreted as an SNMP-prefix
 that will return a list of strings. Those strings are then used as the actual
@@ -169,11 +193,6 @@ on. Since the B<Step> of generated RRD files depends on this setting it's
 wise to select a reasonable value once and never change it.
 
 =back
-
-=head1 BUGS
-
-All configured hosts are queried sequencially, so timeouts may cause gaps in
-graphs.
 
 =head1 SEE ALSO
 
