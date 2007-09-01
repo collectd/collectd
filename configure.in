@@ -40,8 +40,8 @@ case $host_os in
 	AC_DEFINE([KERNEL_SOLARIS], 1, [True if program is to be compiled for a Solaris kernel])
 	ac_system="Solaris"
 	;;
-	*apple-darwin*)
-	ac_system="Mac OS X"
+	*darwin*)
+	ac_system="Darwin"
 	;;
 	*)
 	ac_system="unknown"
@@ -193,7 +193,7 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 
 # For cpu modules
 AC_CHECK_HEADERS(sys/dkstat.h)
-if test ac_system = "Mac OS X"
+if test "x$ac_system" = "xDarwin"
 then
 	AC_CHECK_HEADERS(mach/mach_init.h mach/host_priv.h mach/mach_error.h mach/mach_host.h mach/mach_port.h mach/mach_types.h mach/message.h mach/processor_set.h mach/processor.h mach/processor_info.h mach/task.h mach/thread_act.h mach/vm_region.h mach/vm_map.h mach/vm_prot.h mach/vm_statistics.h mach/kern_return.h)
 	AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h IOKit/IOKitLib.h IOKit/IOTypes.h IOKit/ps/IOPSKeys.h IOKit/IOBSD.h IOKit/storage/IOBlockStorageDriver.h)
@@ -729,7 +729,7 @@ AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
 	[Wether or not to use pthread (POSIX threads) library])
 AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 
-if test "$ac_system" = "Solaris"
+if test "x$ac_system" = "xSolaris"
 then
 	with_kstat="yes"
 	with_devinfo="yes"
