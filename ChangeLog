@@ -24,7 +24,6 @@
 	  (i. e. without quotes).
 	* nut plugin: A fix allows linking the nut plugin against
 	  libupsclient, version >= 2.2.0.
-	* processes plugin: Fix a potential segmentation fault.
 
 2007-07-30, Version 4.0.6
 	* sensors plugin: Fix the ignorelist functionality: Only the `type
@@ -108,6 +107,9 @@
 	* collectd-nagios: The new `collectd-nagios' binary queries values
 	  from collectd, parses them and exits according to Nagios-standards.
 	* manpages: The manpages have been improved a lot.
+
+2007-08-31, Version 3.11.6
+	* processes plugin: Fix a potential segmentation fault.
 
 2007-05-29, Version 3.11.5
 	* configure: Added `AC_SYS_LARGEFILE' for LFS.
