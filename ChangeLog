@@ -3,7 +3,7 @@
 	  disable all plugins, which are missing dependencies. The dependency
 	  checking has been removed from the plugins themselves to remove
 	  redundancy.
-	* Flexible interval: The interval of collected data is not sent along
+	* Flexible interval: The interval of collected data is now sent along
 	  with the data itself over the network, so that the interval-settings
 	  of server and clients no longer needs to match.
 	* netlink plugin: The new `netlink' plugin connects to the Linux
