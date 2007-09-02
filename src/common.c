@@ -77,7 +77,15 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
 {
 	buf[0] = '\0';
 #ifdef STRERROR_R_CHAR_P
-	buf = strerror_r (errnum, buf, buflen);
+	{
+		char *temp;
+		temp = strerror_r (errnum, buf, buflen);
+		if (buf[0] == '\0')
+		{
+			strncpy (buf, temp, buflen);
+			buf[buflen - 1] = '\0';
+		}
+	}
 #else
 	strerror_r (errnum, buf, buflen);
 #endif /* STRERROR_R_CHAR_P */
