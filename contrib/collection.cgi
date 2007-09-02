@@ -459,135 +459,25 @@ sub action_show_host
   my @hosts = _get_param_host ();
   @hosts = sort (@hosts);
 
-  my $all_plugins = {};
-  my $plugins_per_host = {};
-
   my $timespan = _get_param_timespan ();
+  my $all_plugins = _find_files_for_hosts (@hosts);
 
-  for (my $i = 0; $i < @hosts; $i++)
-  {
-    $plugins_per_host->{$hosts[$i]} = _find_files_for_host ($hosts[$i]);
-    _files_union ($all_plugins, $plugins_per_host->{$hosts[$i]});
-  }
-
-  my $param_host = join (";", map { "host=" . encode_entities ($_) } (@hosts));
-
-  print '<!-- ', Data::Dumper->Dump ([$all_plugins], ['all_plugins']), " -->\n";
-
-  my @plugins = sort (keys %$all_plugins);
+  my $url_prefix = script_name () . '?action=show_plugin'
+  . join ('', map { ';host=' . uri_escape ($_) } (@hosts))
+  . ';timespan=' . uri_escape ($timespan);
 
   print qq(    <div><a href="${\script_name ()}?action=overview">Back to list of hosts</a></div>\n);
 
-  print <<HTML;
-    <table class="graphs">
-      <tr>
-	<th>Plugin</th>
-HTML
-  for (my $i = 0; $i < @hosts; $i++)
+  print "    <p>Available plugins:</p>\n"
+  . "    <ul>\n";
+  for (sort (keys %$all_plugins))
   {
-    print "\t<th>", encode_entities ($hosts[$i]), "</th>\n";
+    my $plugin = $_;
+    my $plugin_html = encode_entities ($plugin);
+    my $url_plugin = $url_prefix . ';plugin=' . uri_escape ($plugin);
+    print qq(      <li><a href="$url_plugin">$plugin_html</a></li>\n);
   }
-  print "      </tr>\n";
-  for (my $i = 0; $i < @plugins; $i++)
-  {
-    my $plugin = $plugins[$i];
-    my $plugin_esc = encode_entities ($plugins[$i]);
-
-    my @pinsts = sort (keys %{$all_plugins->{$plugin}});
-
-    for (my $j = 0; $j < @pinsts; $j++)
-    {
-      my $pinst = $pinsts[$j];
-      my $pinst_esc = encode_entities ($pinst);
-      my $title = $plugin . ($pinst ne '-' ? " ($pinst)" : '');
-      my $title_esc = encode_entities ($title);
-
-      my $param_plugin = "plugin=$plugin_esc";
-      if ($pinst ne '-')
-      {
-	$param_plugin .= ";plugin_instance=$pinst_esc";
-      }
-
-      my $files_printed = 0;
-      my $files_num = _files_plugin_inst_count ($all_plugins->{$plugin}{$pinst});
-      next if (!$files_num);
-
-      my $rowspan = ($files_num == 1) ? '' : qq( rowspan="$files_num");
-
-      for (sort (keys %{$all_plugins->{$plugin}{$pinst}}))
-      {
-	my $type = $_;
-	my $type_esc = encode_entities ($type);
-
-	if (exists ($MetaGraphDefs->{$type}))
-	{
-	  my $param_type = "type=$type_esc";
-
-	  print "      <tr>\n";
-	  if ($files_printed == 0)
-	  {
-	    print "\t<td$rowspan>$title_esc</td>\n";
-	  }
-
-	  for (my $k = 0; $k < @hosts; $k++)
-	  {
-	    my $host = $hosts[$k];
-	    my $host_esc = encode_entities ($host);
-
-	    print "\t<td>";
-	    if (exists $plugins_per_host->{$host}{$plugin}{$pinst}{$type})
-	    {
-	      #print qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />);
-	      print encode_entities (qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />));
-	    }
-	    print "</td>\n";
-	  } # for (my $k = 0; $k < @hosts; $k++)
-
-	  print "      </tr>\n";
-
-	  $files_printed++;
-	  next; # pinst
-	}
-
-	for (sort (keys %{$all_plugins->{$plugin}{$pinst}{$type}}))
-	{
-	  my $tinst = $_;
-	  my $tinst_esc = encode_entities ($tinst);
-
-	  my $param_type = "type=$type_esc";
-	  if ($tinst ne '-')
-	  {
-	    $param_type .= ";type_instance=$tinst_esc";
-	  }
-
-	  print "      <tr>\n";
-	  if ($files_printed == 0)
-	  {
-	    print "\t<td$rowspan>$title_esc</td>\n";
-	  }
-
-	  for (my $k = 0; $k < @hosts; $k++)
-	  {
-	    my $host = $hosts[$k];
-	    my $host_esc = encode_entities ($host);
-
-	    print "\t<td>";
-	    if ($plugins_per_host->{$host}{$plugin}{$pinst}{$type}{$tinst})
-	    {
-	      #print qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />);
-	      print encode_entities (qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />));
-	    }
-	    print "</td>\n";
-	  } # for (my $k = 0; $k < @hosts; $k++)
-
-	  print "      </tr>\n";
-
-	  $files_printed++;
-	} # for ($tinst)
-      } # for ($type)
-    } # for (my $j = 0; $j < @pinsts; $j++)
-  } # for (my $i = 0; $i < @plugins; $i++)
-  print "   </table>\n";
+  print "   </ul>\n";
 } # action_show_host
 
 sub action_show_plugin
@@ -598,12 +488,11 @@ sub action_show_plugin
   my $timespan = _get_param_timespan ();
 
   my $hosts_url = join (';', map { 'host=' . uri_escape ($_) } (@hosts));
-  my $plugin_esc = encode_entities ($plugin);
-  my $plugin_url = uri_escape ($plugin);
-  my $plugin_instance_url = defined ($plugin_instance) ? uri_escape ($plugin_instance) : undef;
+  my $url_prefix = script_name () . "?$hosts_url";
 
   my $all_plugins = {};
   my $plugins_per_host = {};
+  my $selected_plugins = {};
 
   for (my $i = 0; $i < @hosts; $i++)
   {
@@ -611,121 +500,151 @@ sub action_show_plugin
     _files_union ($all_plugins, $plugins_per_host->{$hosts[$i]});
   }
 
-  my $url_prefix = script_name () . "?$hosts_url;plugin=$plugin_url";
-  $url_prefix .= ";plugin_instance=$plugin_instance_url" if (defined ($plugin_instance));
+  for (param ('plugin'))
+  {
+    if (defined ($all_plugins->{$_}))
+    {
+      $selected_plugins->{$_} = 1;
+    }
+  }
 
   print qq(    <div><a href="${\script_name ()}?action=show_host;$hosts_url">Back to list of plugins</a></div>\n);
 
-  if (!defined ($all_plugins->{$plugin}))
-  {
-    print qq(    <div class="error">Plugin &quot;${\encode_entities ($plugin)}&quot; not found for host &quot;${\encode_entities (@hosts)}&quot;.</div>\n);
-    return;
-  }
-
-  my @pinsts = sort (keys %{$all_plugins->{$plugin}});
-
+  # Print table header
   print <<HTML;
     <table class="graphs">
       <tr>
-	<th>Plugin</th>
+        <th>Plugins</th>
 HTML
-  for (my $i = 0; $i < @hosts; $i++)
+  for (@hosts)
   {
-    print "\t<th>", encode_entities ($hosts[$i]), "</th>\n";
+    print "\t<th>", encode_entities ($_), "</th>\n";
   }
   print "      </tr>\n";
 
-  for (my $j = 0; $j < @pinsts; $j++)
+  for (sort (keys %$selected_plugins))
   {
-    my $pinst = $pinsts[$j];
-    my $pinst_esc = encode_entities ($pinst);
-    my $title = $plugin . ($pinst ne '-' ? " ($pinst)" : '');
-    my $title_esc = encode_entities ($title);
+    my $plugin = $_;
+    my $plugin_html = encode_entities ($plugin);
+    my $plugin_url = "$url_prefix;plugin=" . uri_escape ($plugin);
+    my $all_pinst = $all_plugins->{$plugin};
 
-    my $param_plugin = "plugin=$plugin_esc";
-    if ($pinst ne '-')
+    for (sort (keys %$all_pinst))
     {
-      $param_plugin .= ";plugin_instance=$pinst_esc";
-    }
+      my $pinst = $_;
+      my $pinst_html = '';
+      my $pinst_url = $plugin_url;
 
-    my $files_printed = 0;
-    my $files_num = _files_plugin_inst_count ($all_plugins->{$plugin}{$pinst});
-    next if (!$files_num);
-
-    my $rowspan = ($files_num == 1) ? '' : qq( rowspan="$files_num");
-
-    for (sort (keys %{$all_plugins->{$plugin}{$pinst}}))
-    {
-      my $type = $_;
-      my $type_esc = encode_entities ($type);
-
-      if (exists ($MetaGraphDefs->{$type}))
+      if ($pinst ne '-')
       {
-	my $param_type = "type=$type_esc";
-
-	print "      <tr>\n";
-	if ($files_printed == 0)
-	{
-	  print "\t<td$rowspan>$title_esc</td>\n";
-	}
-
-	for (my $k = 0; $k < @hosts; $k++)
-	{
-	  my $host = $hosts[$k];
-	  my $host_esc = encode_entities ($host);
-
-	  print "\t<td>";
-	  if (exists $plugins_per_host->{$host}{$plugin}{$pinst}{$type})
-	  {
-	    print qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />);
-	    #print encode_entities (qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />));
-	  }
-	  print "</td>\n";
-	} # for (my $k = 0; $k < @hosts; $k++)
-
-	print "      </tr>\n";
-
-	$files_printed++;
-	next; # pinst
+	$pinst_html = encode_entities ($pinst);
+	$pinst_url .= ';plugin_instance=' . uri_escape ($pinst);
       }
 
-      for (sort (keys %{$all_plugins->{$plugin}{$pinst}{$type}}))
+      my $files_printed = 0;
+      my $files_num = _files_plugin_inst_count ($all_pinst->{$pinst});
+      if ($files_num < 1)
       {
-	my $tinst = $_;
-	my $tinst_esc = encode_entities ($tinst);
+	next;
+      }
+      my $rowspan = ($files_num == 1) ? '' : qq( rowspan="$files_num");
 
-	my $param_type = "type=$type_esc";
-	if ($tinst ne '-')
-	{
-	  $param_type .= ";type_instance=$tinst_esc";
-	}
+      for (sort (keys %{$all_plugins->{$plugin}{$pinst}}))
+      {
+	my $type = $_;
+	my $type_html = encode_entities ($type);
+	my $type_url = "$pinst_url;type=" . uri_escape ($type);
 
-	print "      <tr>\n";
 	if ($files_printed == 0)
 	{
-	  print "\t<td$rowspan>$title_esc</td>\n";
+	  my $title = $plugin_html;
+	  if ($pinst ne '-')
+	  {
+	    $title .= " ($pinst_html)";
+	  }
+	  print "      <tr>\n";
+	  print "\t<td$rowspan>$title</td>\n";
 	}
 
-	for (my $k = 0; $k < @hosts; $k++)
+	if (exists ($MetaGraphDefs->{$type}))
 	{
-	  my $host = $hosts[$k];
-	  my $host_esc = encode_entities ($host);
-
-	  print "\t<td>";
-	  if ($plugins_per_host->{$host}{$plugin}{$pinst}{$type}{$tinst})
+	  my $graph_url = script_name () . '?action=show_graph'
+	  . ';plugin=' . uri_escape ($plugin)
+	  . ';type=' . uri_escape ($type)
+	  . ';timespan=' . uri_escape ($timespan);
+	  if ($pinst ne '-')
 	  {
-	    print qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />);
-	    #print encode_entities (qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />));
+	    $graph_url .= ';plugin_instance=' . uri_escape ($pinst);
 	  }
-	  print "</td>\n";
-	} # for (my $k = 0; $k < @hosts; $k++)
 
-	print "      </tr>\n";
+	  if ($files_printed != 0)
+	  {
+	    print "      <tr>\n";
+	  }
 
-	$files_printed++;
-      } # for ($tinst)
-    } # for ($type)
-  } # for (my $j = 0; $j < @pinsts; $j++)
+	  for (@hosts)
+	  {
+	    my $host = $_;
+	    my $host_graph_url = $graph_url . ';host=' . uri_escape ($host);
+
+	    print "\t<td>";
+	    if (exists $plugins_per_host->{$host}{$plugin}{$pinst}{$type})
+	    {
+	      print qq(<img src="$host_graph_url" />);
+	      #print encode_entities (qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />));
+	    }
+	    print "</td>\n";
+	  } # for (my $k = 0; $k < @hosts; $k++)
+
+	  print "      </tr>\n";
+
+	  $files_printed++;
+	  next; # pinst
+	} # if (exists ($MetaGraphDefs->{$type}))
+
+	for (sort (keys %{$all_plugins->{$plugin}{$pinst}{$type}}))
+	{
+	  my $tinst = $_;
+	  my $tinst_esc = encode_entities ($tinst);
+	  my $graph_url = script_name () . '?action=show_graph'
+	  . ';plugin=' . uri_escape ($plugin)
+	  . ';type=' . uri_escape ($type)
+	  . ';timespan=' . uri_escape ($timespan);
+	  if ($pinst ne '-')
+	  {
+	    $graph_url .= ';plugin_instance=' . uri_escape ($pinst);
+	  }
+	  if ($tinst ne '-')
+	  {
+	    $graph_url .= ';type_instance=' . uri_escape ($tinst);
+	  }
+
+	  if ($files_printed != 0)
+	  {
+	    print "      <tr>\n";
+	  }
+
+	  for (my $k = 0; $k < @hosts; $k++)
+	  {
+	    my $host = $hosts[$k];
+	    my $host_graph_url = $graph_url . ';host=' . uri_escape ($host);
+
+	    print "\t<td>";
+	    if ($plugins_per_host->{$host}{$plugin}{$pinst}{$type}{$tinst})
+	    {
+	      print qq(<img src="$host_graph_url" />);
+	      #print encode_entities (qq(<img src="${\script_name ()}?action=show_graph;host=$host_esc;$param_plugin;$param_type;timespan=$timespan" />));
+	    }
+	    print "</td>\n";
+	  } # for (my $k = 0; $k < @hosts; $k++)
+
+	  print "      </tr>\n";
+
+	  $files_printed++;
+	} # for ($tinst)
+      } # for ($type)
+    } # for ($pinst)
+  } # for ($plugin)
   print "   </table>\n";
 } # action_show_plugin
 
@@ -830,7 +749,7 @@ HTML
 
   if (keys %selected_hosts)
   {
-    my $all_plugins = _find_files_for_hosts (@hosts);
+    my $all_plugins = _find_files_for_hosts (keys %selected_hosts);
     my %selected_plugins = map { $_ => 1 } (param ('plugin'));
 
     print qq(\t<select name="plugin" multiple="multiple" size="10">\n);
