@@ -70,12 +70,17 @@ char *sstrdup (const char *s)
 	return (r);
 }
 
-/* Don't use the return value of `strerror_r', because the GNU-people got
- * inventive there.. -octo */
+/* Even though Posix requires "strerror_r" to return an "int",
+ * some systems (e.g. the GNU libc) return a "char *" _and_
+ * ignore the second argument ... -tokkee */
 char *sstrerror (int errnum, char *buf, size_t buflen)
 {
 	buf[0] = '\0';
+#ifdef STRERROR_R_CHAR_P
+	buf = strerror_r (errnum, buf, buflen);
+#else
 	strerror_r (errnum, buf, buflen);
+#endif /* STRERROR_R_CHAR_P */
 	return (buf);
 } /* char *sstrerror */
 
