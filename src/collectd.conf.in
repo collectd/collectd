@@ -46,6 +46,7 @@
 @BUILD_PLUGIN_RRDTOOL_TRUE@LoadPlugin rrdtool
 @BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 @BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
+@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 @BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 @BUILD_PLUGIN_SYSLOG_TRUE@LoadPlugin syslog
 @BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
@@ -53,6 +54,7 @@
 @BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 @BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 @BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
+@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 
 #<Plugin apache>
 #	URL "http://localhost/status?auto"
@@ -188,6 +190,48 @@
 #	Sensor "it8712-isa-0290/fanspeed-fan3"
 #	Sensor "it8712-isa-0290/voltage-in8"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin snmp>
+#   <Data "powerplus_voltge_input">
+#       Type "voltage"
+#       Table false
+#       Instance "input_line1"
+#       Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
+#   </Data>
+#   <Data "hr_users">
+#       Type "users"
+#       Table false
+#       Instance ""
+#       Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
+#   </Data>
+#   <Data "std_traffic">
+#       Type "if_octets"
+#       Table true
+#       Instance "IF-MIB::ifDescr"
+#       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+#   </Data>
+#   
+#   <Host "some.switch.mydomain.org">
+#       Address "192.168.0.2"
+#       Version 1
+#       Community "community_string"
+#       Collect "std_traffic"
+#       Inverval 120
+#   </Host>
+#   <Host "some.server.mydomain.org">
+#       Address "192.168.0.42"
+#       Version 2
+#       Community "another_string"
+#       Collect "std_traffic" "hr_users"
+#   </Host>
+#   <Host "some.ups.mydomain.org">
+#       Address "192.168.0.3"
+#       Version 1
+#       Community "more_communities"
+#       Collect "powerplus_voltge_input"
+#       Interval 300
+#   </Host>
 #</Plugin>
 
 #<Plugin syslog>

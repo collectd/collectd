@@ -134,6 +134,11 @@ Features
     - serial
       RX and TX of serial interfaces. Linux only; needs root privileges.
 
+    - snmp
+      Read values from SNMP (Simple Network Management Protocol) enabled
+      network devices such as switches, routers, thermometers, rack monitoring
+      servers, etc. See collectd-snmp(5).
+
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 
@@ -149,6 +154,9 @@ Features
 
     - wireless
       Link quality of wireless cards. Linux only.
+
+    - xmms
+      Bitrate and frequency of music played with XMMS.
 
   * Output can be written or send to various destinations by the following
     plugins:
