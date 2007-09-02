@@ -1588,7 +1588,7 @@ sub load_graph_definitions
     "DEF:val_max={file}:value:MAX",
     "AREA:val_max#$HalfBlue",
     "AREA:val_min#$Canvas",
-    "LINE1:val_avg#$FullBlue:{inst}",
+    "LINE1:val_avg#$FullBlue:Issues/s",
     'GPRINT:val_min:MIN:%5.2lf Min,',
     'GPRINT:val_avg:AVERAGE:%5.2lf Avg,',
     'GPRINT:val_max:MAX:%5.2lf Max,',
@@ -1600,7 +1600,7 @@ sub load_graph_definitions
     "DEF:val_max={file}:value:MAX",
     "AREA:val_max#$HalfBlue",
     "AREA:val_min#$Canvas",
-    "LINE1:val_avg#$FullBlue:{inst}",
+    "LINE1:val_avg#$FullBlue:Issues/s",
     'GPRINT:val_min:MIN:%5.2lf Min,',
     'GPRINT:val_avg:AVERAGE:%5.2lf Avg,',
     'GPRINT:val_max:MAX:%5.2lf Max,',
@@ -2125,14 +2125,8 @@ sub load_graph_definitions
     'DEF:temp_min={file}:value:MIN',
     'DEF:temp_max={file}:value:MAX',
     'CDEF:average=temp_avg,0.2,*,PREV,UN,temp_avg,PREV,IF,0.8,*,+',
-    'CDEF:derivative=PREV(average),average,-',
-    'CDEF:rising=derivative,-0.01,LT,INF,UNKN,IF',
-    'CDEF:falling=derivative,0.01,GT,INF,UNKN,IF',
-    "AREA:rising#f0fff0",
-    "AREA:falling#fff0f0",
     "AREA:temp_max#$HalfRed",
     "AREA:temp_min#$Canvas",
-    #"LINE1:average#000000",
     "LINE1:temp_avg#$FullRed:Temperature",
     'GPRINT:temp_min:MIN:%4.1lf Min,',
     'GPRINT:temp_avg:AVERAGE:%4.1lf Avg,',
@@ -2333,6 +2327,11 @@ sub load_graph_definitions
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
   $MetaGraphDefs->{'memory'} = \&meta_graph_memory;
+  $MetaGraphDefs->{'nfs_procedure'} = \&meta_graph_nfs_procedure;
+  $MetaGraphDefs->{'ps_state'} = \&meta_graph_ps_state;
+  $MetaGraphDefs->{'swap'} = \&meta_graph_swap;
+  $MetaGraphDefs->{'mysql_commands'} = \&meta_graph_mysql_commands;
+  $MetaGraphDefs->{'mysql_handler'} = \&meta_graph_mysql_commands;
 } # load_graph_definitions
 
 sub meta_graph_generic_stack
@@ -2418,7 +2417,7 @@ sub meta_graph_generic_stack
       qq(GPRINT:${inst_name}_min:MIN:$number_format Min,),
       qq(GPRINT:${inst_name}_avg:AVERAGE:$number_format Avg,),
       qq(GPRINT:${inst_name}_max:MAX:$number_format Max,),
-      qq(GPRINT:${inst_name}_avg:LAST:$number_format Last\l),
+      qq(GPRINT:${inst_name}_avg:LAST:$number_format Last\\l),
     );
   }
 
@@ -2547,5 +2546,212 @@ sub meta_graph_memory
 
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_cpu
+
+sub meta_graph_mysql_commands
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%5.2lf';
+
+  my @files = ();
+
+  for (sort @$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_mysql_commands
+
+sub meta_graph_nfs_procedure
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%5.1lf%s';
+
+  my @files = ();
+
+  for (sort @$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_nfs_procedure
+
+sub meta_graph_ps_state
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    'Running'      => '00e000',
+    'Sleeping'  => '0000ff',
+    'Paging'      => 'ffb000',
+    'Zombies'   => 'ff0000',
+    'Blocked'   => 'ff00ff',
+    'Stopped' => 'a000a0'
+  };
+
+  _custom_sort_arrayref ($type_instances,
+    [qw(paging blocked zombies stopped running sleeping)]);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => ucfirst ($inst),
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_ps_state
+
+sub meta_graph_swap
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%5.1lf%s';
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    'Free'   => '00e000',
+    'Cached'  => '0000ff',
+    'Reserved'      => 'ffb000',
+    'Used'   => 'ff0000'
+  };
+
+  _custom_sort_arrayref ($type_instances,
+    [qw(free cached reserved used)]);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => ucfirst ($inst),
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_swap
 
 # vim: shiftwidth=2:softtabstop=2:tabstop=8
