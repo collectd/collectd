@@ -579,6 +579,10 @@ dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5 \
 
 EXTRA_DIST = types.db
 
+EXTRA_DIST += collectd-email.pod collectd-exec.pod collectd-nagios.pod \
+	collectd-perl.pod collectd-snmp.pod collectd-unixsock.pod \
+	collectd.conf.pod collectd.pod
+
 .pod.1:
 	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >$@
 
