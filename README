@@ -257,6 +257,10 @@ Prerequisites
 
   * libmysqlclient (optional)
 
+  * libnetlink (optional)
+
+  * libnetsnmp (optional)
+
   * liboping (optional, if not found a version shipped with this distribution
     can be used)
     Used by the `ping' plugin to send and receive ICMP packets.
@@ -280,6 +284,8 @@ Prerequisites
 
   * libupsclient/nut (optional)
     For the `nut' plugin which queries nut's `upsd'.
+
+  * libxmms (optional)
 
   * librt, libsocket, libkstat, libdevinfo
     Various standard Solaris libraries which provide system functions.
