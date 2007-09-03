@@ -647,10 +647,12 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 
 	ds = (data_set_t *) le->value;
 
-	DEBUG ("plugin: plugin_dispatch_values: time = %u; host = %s; "
-			"plugin = %s; plugin_instance = %s; type = %s; "
-			"type_instance = %s;",
-			(unsigned int) vl->time, vl->host,
+	DEBUG ("plugin: plugin_dispatch_values: time = %u; interval = %i; "
+			"host = %s; "
+			"plugin = %s; plugin_instance = %s; "
+			"type = %s; type_instance = %s;",
+			(unsigned int) vl->time, vl->interval,
+			vl->host,
 			vl->plugin, vl->plugin_instance,
 			ds->type, vl->type_instance);
 
