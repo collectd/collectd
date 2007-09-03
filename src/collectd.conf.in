@@ -93,7 +93,7 @@
 #</Plugin>
 
 #<Plugin exec>
-#	Exec user "/path/to/exec"
+#	Exec "user:group" "/path/to/exec"
 #</Plugin>
 
 #<Plugin hddtemp>

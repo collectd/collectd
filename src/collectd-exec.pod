@@ -8,8 +8,8 @@ collectd-exec - Documentation of collectd's C<exec plugin>
   LoadPlugin exec
   # ...
   <Plugin exec>
-    Exec myuser myprog
-    Exec otheruser /path/to/another/binary
+    Exec "myuser:mygroup" "myprog"
+    Exec "otheruser" "/path/to/another/binary"
   </Plugin>
 
 =head1 DESCRIPTION

@@ -249,9 +249,15 @@ output that is expected from it.
 =item B<Exec> I<User>[:[I<Group>]] I<Executable>
 
 Execute the executable I<Executable> as user I<User>. If the user name is
-followed by a colon and a group name, the program is executed as the specified
-group. If only the colon follows the user name the group defaults to the
-user's login group.
+followed by a colon and a group name, the effective group is set to that group.
+The real group and saved-set group will be set to the default group of that
+user. If no group is given the effective group ID will be the same as the real
+group ID.
+
+Please note that in order to change the user and/or group the daemon needs
+superuser privileges. If the daemon is run as an unprivileged user you must
+specify the same user/group here. If the daemon is run with superuser
+privileges, you must supply a non-root user here.
 
 =back
 

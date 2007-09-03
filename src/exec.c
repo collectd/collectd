@@ -118,6 +118,7 @@ static void exec_child (program_list_t *pl)
   int status;
   int uid;
   int gid;
+  int egid;
   char *arg0;
 
   struct passwd *sp_ptr;
@@ -140,12 +141,16 @@ static void exec_child (program_list_t *pl)
   }
 
   uid = sp.pw_uid;
+  gid = sp.pw_gid;
   if (uid == 0)
   {
     ERROR ("exec plugin: Cowardly refusing to exec program as root.");
     exit (-1);
   }
 
+  /* The group configured in the configfile is set as effective group, because
+   * this way the forked process can (re-)gain the user's primary group. */
+  egid = -1;
   if (NULL != pl->group)
   {
     if ('\0' != *pl->group) {
@@ -165,27 +170,38 @@ static void exec_child (program_list_t *pl)
 	exit (-1);
       }
 
-      gid = gr.gr_gid;
+      egid = gr.gr_gid;
     }
     else
     {
-      gid = sp.pw_gid;
-    }
-
-    status = setgid (gid);
-    if (0 != status)
-    {
-      ERROR ("exec plugin: setgid failed: %s",
-	  sstrerror (errno, errbuf, sizeof (errbuf)));
-      exit (-1);
+      egid = gid;
     }
   } /* if (pl->group == NULL) */
+
+  status = setgid (gid);
+  if (status != 0)
+  {
+    ERROR ("exec plugin: setgid (%i) failed: %s",
+	gid, sstrerror (errno, errbuf, sizeof (errbuf)));
+    exit (-1);
+  }
+
+  if (egid != -1)
+  {
+    status = setegid (egid);
+    if (status != 0)
+    {
+      ERROR ("exec plugin: setegid (%i) failed: %s",
+	  egid, sstrerror (errno, errbuf, sizeof (errbuf)));
+      exit (-1);
+    }
+  }
 
   status = setuid (uid);
   if (status != 0)
   {
-    ERROR ("exec plugin: setuid failed: %s",
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("exec plugin: setuid (%i) failed: %s",
+	uid, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
 
