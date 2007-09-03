@@ -82,13 +82,23 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
 		temp = strerror_r (errnum, buf, buflen);
 		if (buf[0] == '\0')
 		{
-			strncpy (buf, temp, buflen);
+			if ((temp != NULL) && (temp != buf) && (temp[0] != '\0'))
+				strncpy (buf, temp, buflen);
+			else
+				strncpy (buf, "strerror_r did not return "
+						"an error message", buflen);
 			buf[buflen - 1] = '\0';
 		}
 	}
 #else
-	strerror_r (errnum, buf, buflen);
+	if (strerror_r (errnum, buf, buflen) != 0)
+	{
+		snprintf (buf, buflen, "Error #%i; "
+				"Additionally, strerror_r failed.",
+				errnum);
+	}
 #endif /* STRERROR_R_CHAR_P */
+	buf[buflen - 1] = '\0';
 	return (buf);
 } /* char *sstrerror */
 
