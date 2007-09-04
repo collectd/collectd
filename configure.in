@@ -1271,7 +1271,12 @@ AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], 
 		with_libupsclient="yes"
 		if "x$withval" != "xyes"
 		then
-			with_upsclient_config="$withval/bin/libupsclient-config"
+			if test -x "$withval"
+			then
+				with_upsclient_config="$withval"
+			else
+				with_upsclient_config="$withval/bin/libupsclient-config"
+			fi
 		fi
 	fi
 ],
@@ -1285,8 +1290,17 @@ then
 
 	if test $upsclient_config_status -ne 0
 	then
-		with_libupsclient="no"
+		with_libupsclient="no ($with_upsclient_config failed)"
 	fi
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $with_upsclient_cflags"
+
+	AC_CHECK_HEADERS(upsclient.h, [], [with_libupsclient="no (upsclient.h not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
 fi
 if test "x$with_libupsclient" = "xyes"
 then
@@ -1295,15 +1309,11 @@ then
 
 	if test $upsclient_config_status -ne 0
 	then
-		with_libupsclient="no"
+		with_libupsclient="no ($with_upsclient_config failed)"
 	fi
 fi
 if test "x$with_libupsclient" = "xyes"
 then
-	CFLAGS_ORIG=$CFLAGS
-	CFLAGS="$CFLAGS $with_upsclient_cflags"
-	LDFLAGS_ORIG=$LDFLAGS
-	LDFLAGS="$LDFLAGS $with_upsclient_libs"
 	AC_CHECK_LIB(upsclient, upscli_connect,
 	[
 		BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_upsclient_cflags"
@@ -1312,14 +1322,8 @@ then
 		AC_SUBST(BUILD_WITH_LIBUPSCLIENT_LIBS)
 	],
 	[
-		with_libupsclient="no"
-	])
-	CFLAGS=$CFLAGS_ORIG
-	LDFLAGS=$LDFLAGS_ORIG
-fi
-if test "x$with_libupsclient" = "xyes"
-then
-	AC_DEFINE(HAVE_LIBUPSCLIENT, 1, [Define to 1 if you have the upsclient library (-lupsclient).])
+		with_libupsclient="no (symbol 'upscli_connect' not found)"
+	], [$with_upsclient_libs])
 fi
 if test "x$with_libupsclient" = "xyes"
 then
