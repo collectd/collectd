@@ -789,7 +789,7 @@ then
 
 	if test $curl_config_status -ne 0
 	then
-		with_libcurl="no"
+		with_libcurl="no ($with_curl_config failed)"
 	else
 		SAVE_CFLAGS=$CFLAGS
 		CFLAGS="$CFLAGS $with_curl_cflags"
@@ -806,15 +806,10 @@ then
 
 	if test $curl_config_status -ne 0
 	then
-		with_libcurl="no"
+		with_libcurl="no ($with_curl_config failed)"
 	else
 		AC_CHECK_LIB(curl, curl_easy_init,
-		 [
-		  # We need to do this to have `HAVE_LIBCURL' defined but
-		  # `-lcurl' NOT added to the default LDFLAGS.
-			AC_DEFINE(HAVE_LIBCURL, 1,
-				  [Define to 1 if you have the curl library.])
-		 ],
+		 [with_libcurl="yes"],
 		 [with_libcurl="no (symbol 'curl_easy_init' not found)"],
 		 [$with_curl_libs])
 	fi
@@ -986,13 +981,8 @@ then
 		with_libmysql="no"
 	else
 		AC_CHECK_LIB(mysqlclient, mysql_init,
-		 [
-		  # We need to do this to have `HAVE_LIBMYSQLCLIENT' defined
-		  # but `-lmysqlclient' NOT added to the default LDFLAGS.
-			AC_DEFINE(HAVE_LIBMYSQLCLIENT, 1,
-				  [Define to 1 if you have the mysqlclient library.])
-		 ],
-		 [with_libmysql="no (libmysql not found)"],
+		 [with_libmysql="yes"],
+		 [with_libmysql="no (symbol 'mysql_init' not found)"],
 		 [$with_mysql_libs])
 	fi
 fi
@@ -1435,7 +1425,13 @@ then
 	SAVE_CFLAGS=$CFLAGS
 	CFLAGS="$CFLAGS $with_libnetlink_cflags"
 
-	AC_CHECK_HEADERS(iproute/libnetlink.h, [], [with_libnetlink="no (iproute/libnetlink.h not found)"],
+	with_libnetlink="no (libnetlink.h not found)"
+
+	AC_CHECK_HEADERS(libnetlink.h iproute/libnetlink.h linux/libnetlink.h,
+	[
+	 with_libnetlink="yes"
+	 break
+	], [],
 [#include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
