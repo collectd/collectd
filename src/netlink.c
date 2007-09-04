@@ -25,12 +25,17 @@
 
 #include <asm/types.h>
 #include <sys/socket.h>
-#include <iproute/libnetlink.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/gen_stats.h>
 
-#include <iproute/ll_map.h>
+#if HAVE_LIBNETLINK_H
+# include <libnetlink.h>
+#elif HAVE_IPROUTE_LIBNETLINK_H
+# include <iproute/libnetlink.h>
+#elif HAVE_LINUX_LIBNETLINK_H
+# include <linux/libnetlink.h>
+#endif
 
 typedef struct ir_ignorelist_s
 {
@@ -506,12 +511,6 @@ static int ir_init (void)
   if (rtnl_open (&rth, 0) != 0)
   {
     ERROR ("netlink plugin: ir_read: rtnl_open failed.");
-    return (-1);
-  }
-
-  if (ll_init_map (&rth) != 0)
-  {
-    ERROR ("netlink plugin: ir_read: ll_init_map failed.");
     return (-1);
   }
 
