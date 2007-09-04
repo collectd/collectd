@@ -1434,6 +1434,7 @@ then
 	AC_CHECK_HEADERS(iproute/libnetlink.h, [], [with_libnetlink="no (iproute/libnetlink.h not found)"],
 [#include <stdio.h>
 #include <sys/types.h>
+#include <asm/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>])
