@@ -12,6 +12,7 @@
 	  (i. e. without quotes).
 	* nut plugin: A fix allows linking the nut plugin against
 	  libupsclient, version >= 2.2.0.
+	* processes plugin: Fix a potential segmentation fault.
 
 2007-07-30, Version 4.0.6
 	* sensors plugin: Fix the ignorelist functionality: Only the `type
