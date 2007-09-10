@@ -1,3 +1,9 @@
+2007-09-10, Version 4.1.1
+	* Build system: The detection of `libnetlink' has been improved.
+	* collectd: The documentation has been fixed in numerous places.
+	* exec plugin: Setting the group under which to run a program has been
+	  fixed.
+
 2007-09-01, Version 4.1.0
 	* Build system: The build system has been changed to automatically
 	  disable all plugins, which are missing dependencies. The dependency
@@ -18,6 +24,7 @@
 	* unixsock plugin: Added the `LISTVAL' command.
 	* xmms plugin: The new `xmms' plugin graphs the bitrate and frequency
 	  of music played with xmms.
+
 2007-09-10, Version 4.0.8
 	* collectd: The `sstrerror' function was improved to work correctly
 	  with the broken GNU version of `strerror_r'.
