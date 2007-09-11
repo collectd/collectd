@@ -421,7 +421,7 @@ int check_create_dir (const char *file_orig)
 				if (mkdir (dir, 0755) == -1)
 				{
 					char errbuf[1024];
-					ERROR ("mkdir (%s): %s", dir,
+					ERROR ("check_create_dir: mkdir (%s): %s", dir,
 							sstrerror (errno,
 								errbuf, sizeof (errbuf)));
 					return (-1);
@@ -444,7 +444,7 @@ int check_create_dir (const char *file_orig)
 	}
 
 	return (0);
-}
+} /* check_create_dir */
 
 #ifdef HAVE_LIBKSTAT
 int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name)
