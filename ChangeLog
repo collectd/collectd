@@ -1,3 +1,7 @@
+2007-09-10, Version 4.0.8
+	* collectd: The `sstrerror' function was improved to work correctly
+	  with the broken GNU version of `strerror_r'.
+
 2007-08-26, Version 4.0.7
 	* documentation: Some typos have been fixed and some information has
 	  been improved.
@@ -8,6 +12,7 @@
 	  (i. e. without quotes).
 	* nut plugin: A fix allows linking the nut plugin against
 	  libupsclient, version >= 2.2.0.
+	* processes plugin: Fix a potential segmentation fault.
 
 2007-07-30, Version 4.0.6
 	* sensors plugin: Fix the ignorelist functionality: Only the `type
