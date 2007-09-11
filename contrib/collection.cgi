@@ -2332,6 +2332,8 @@ sub load_graph_definitions
   $GraphDefs->{'if_tx_errors'} = $GraphDefs->{'if_rx_errors'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
+  $MetaGraphDefs->{'if_rx_errors'} = \&meta_graph_if_rx_errors;
+  $MetaGraphDefs->{'if_tx_errors'} = \&meta_graph_if_rx_errors;
   $MetaGraphDefs->{'memory'} = \&meta_graph_memory;
   $MetaGraphDefs->{'nfs_procedure'} = \&meta_graph_nfs_procedure;
   $MetaGraphDefs->{'ps_state'} = \&meta_graph_ps_state;
@@ -2381,17 +2383,21 @@ sub meta_graph_generic_stack
       qq#CDEF:${inst_name}_nnl=${inst_name}_avg,UN,0,${inst_name}_avg,IF#);
   }
 
-  for (my $i = 0; $i < @$sources; $i++)
   {
-    my $inst_data0 = $sources->[@$sources - (1 + $i)];
-    my $inst_data1 = $sources->[@$sources - (($i == 0) ? 1 : $i)];
+    my $inst_data = $sources->[@$sources - 1];
+    my $inst_name = $inst_data->{'name'};
+
+    push (@cmd, qq#CDEF:${inst_name}_stk=${inst_name}_nnl#);
+  }
+  for (my $i = 1; $i < @$sources; $i++)
+  {
+    my $inst_data0 = $sources->[@$sources - ($i + 1)];
+    my $inst_data1 = $sources->[@$sources - $i];
 
     my $inst_name0 = $inst_data0->{'name'};
     my $inst_name1 = $inst_data1->{'name'};
 
-    my $cdef_name = ($i == 0) ? 'nnl' : 'stk';
-
-    push (@cmd, qq#CDEF:${inst_name0}_stk=${inst_name0}_nnl,${inst_name1}_${cdef_name},+#);
+    push (@cmd, qq#CDEF:${inst_name0}_stk=${inst_name0}_nnl,${inst_name1}_stk,+#);
   }
 
   for (my $i = 0; $i < @$sources; $i++)
@@ -2552,6 +2558,53 @@ sub meta_graph_memory
 
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_cpu
+
+sub meta_graph_if_rx_errors
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%5.2lf';
+  $opts->{'rrd_opts'} = ['-v', 'Errors/s'];
+
+  my @files = ();
+
+  for (sort @$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_if_rx_errors
 
 sub meta_graph_mysql_commands
 {
