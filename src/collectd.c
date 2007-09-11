@@ -114,7 +114,7 @@ static int change_basedir (const char *orig_dir)
 			if (mkdir (orig_dir, 0755) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("mkdir (%s): %s", orig_dir,
+				ERROR ("change_basedir: mkdir (%s): %s", orig_dir,
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
