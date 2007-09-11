@@ -510,7 +510,7 @@ static int ir_init (void)
 
   if (rtnl_open (&rth, 0) != 0)
   {
-    ERROR ("netlink plugin: ir_read: rtnl_open failed.");
+    ERROR ("netlink plugin: ir_init: rtnl_open failed.");
     return (-1);
   }
 
