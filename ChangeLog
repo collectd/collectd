@@ -1,8 +1,16 @@
-2007-09-10, Version 4.1.1
+2007-09-12, Version 4.1.1
 	* Build system: The detection of `libnetlink' has been improved.
 	* collectd: The documentation has been fixed in numerous places.
 	* exec plugin: Setting the group under which to run a program has been
 	  fixed.
+	* collectd: The `sstrerror' function was improved to work correctly
+	  with the broken GNU version of `strerror_r'.
+	* collectd: Write an error message to STDERR when loading of a plugin
+	  fails.
+	* apcups plugin: Fix the `types' used to submit the values: They still
+	  has an `apcups_' prefix which doesn't work anymore.
+	* rrdtool plugin: Create new RRD-files with the `begin' time set to
+	  whatever the client thinks is `now'..
 
 2007-09-01, Version 4.1.0
 	* Build system: The build system has been changed to automatically
@@ -25,11 +33,15 @@
 	* xmms plugin: The new `xmms' plugin graphs the bitrate and frequency
 	  of music played with xmms.
 
-2007-09-10, Version 4.0.8
+2007-09-12, Version 4.0.8
 	* collectd: The `sstrerror' function was improved to work correctly
 	  with the broken GNU version of `strerror_r'.
+	* collectd: Write an error message to STDERR when loading of a plugin
+	  fails.
 	* apcups plugin: Fix the `types' used to submit the values: They still
 	  has an `apcups_' prefix which doesn't work anymore.
+	* rrdtool plugin: Create new RRD-files with the `begin' time set to
+	  whatever the client thinks is `now'..
 
 2007-08-26, Version 4.0.7
 	* documentation: Some typos have been fixed and some information has

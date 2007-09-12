@@ -133,6 +133,7 @@ static int plugin_load_file (char *file)
 		const char *error = lt_dlerror ();
 
 		ERROR ("lt_dlopen failed: %s", error);
+		fprintf (stderr, "lt_dlopen failed: %s\n", error);
 		return (1);
 	}
 
@@ -354,6 +355,10 @@ int plugin_load (const char *type)
 			/* success */
 			ret = 0;
 			break;
+		}
+		else
+		{
+			fprintf (stderr, "Unable to load plugin %s.\n", type);
 		}
 	}
 
