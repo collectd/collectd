@@ -1,8 +1,12 @@
-2007-09-10, Version 4.0.8
+2007-09-12, Version 4.0.8
 	* collectd: The `sstrerror' function was improved to work correctly
 	  with the broken GNU version of `strerror_r'.
+	* collectd: Write an error message to STDERR when loading of a plugin
+	  fails.
 	* apcups plugin: Fix the `types' used to submit the values: They still
 	  has an `apcups_' prefix which doesn't work anymore.
+	* rrdtool plugin: Create new RRD-files with the `begin' time set to
+	  whatever the client thinks is `now'..
 
 2007-08-26, Version 4.0.7
 	* documentation: Some typos have been fixed and some information has
