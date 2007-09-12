@@ -283,7 +283,7 @@ static int ds_get (char ***ret, const data_set_t *ds)
 	return (ds_num);
 }
 
-static int rrd_create_file (char *filename, const data_set_t *ds)
+static int rrd_create_file (char *filename, const data_set_t *ds, const value_list_t *vl)
 {
 	char **argv;
 	int argc;
@@ -293,6 +293,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 	int ds_num;
 	int i, j;
 	char stepsize_str[16];
+	char begin_str[16];
 	int status = 0;
 
 	if (check_create_dir (filename))
@@ -310,7 +311,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 		return (-1);
 	}
 
-	argc = ds_num + rra_num + 4;
+	argc = ds_num + rra_num + 6;
 
 	if ((argv = (char **) malloc (sizeof (char *) * (argc + 1))) == NULL)
 	{
@@ -328,12 +329,23 @@ static int rrd_create_file (char *filename, const data_set_t *ds)
 		return (-1);
 	}
 
+	assert (vl->time > 10);
+	status = snprintf (begin_str, sizeof (begin_str),
+			"%llu", (unsigned long long) (vl->time - 10));
+	if ((status < 1) || (status >= sizeof (begin_str)))
+	{
+		ERROR ("rrdtool plugin: snprintf failed.");
+		return (-1);
+	}
+
 	argv[0] = "create";
 	argv[1] = filename;
-	argv[2] = "-s";
-	argv[3] = stepsize_str;
+	argv[2] = "-b";
+	argv[3] = begin_str;
+	argv[4] = "-s";
+	argv[5] = stepsize_str;
 
-	j = 4;
+	j = 6;
 	for (i = 0; i < ds_num; i++)
 		argv[j++] = ds_def[i];
 	for (i = 0; i < rra_num; i++)
@@ -650,7 +662,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	{
 		if (errno == ENOENT)
 		{
-			if (rrd_create_file (filename, ds))
+			if (rrd_create_file (filename, ds, vl))
 				return (-1);
 		}
 		else
