@@ -239,13 +239,11 @@ static void *dns_child_loop (void *dummy)
 	memset (&fp, 0, sizeof (fp));
 	if (pcap_compile (pcap_obj, &fp, "udp port 53", 1, 0) < 0)
 	{
-		DEBUG ("pcap_compile failed");
 		ERROR ("dns plugin: pcap_compile failed");
 		return (NULL);
 	}
 	if (pcap_setfilter (pcap_obj, &fp) < 0)
 	{
-		DEBUG ("pcap_setfilter failed");
 		ERROR ("dns plugin: pcap_setfilter failed");
 		return (NULL);
 	}

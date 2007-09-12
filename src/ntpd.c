@@ -397,7 +397,6 @@ static int ntpd_connect (void)
 
 	if (sock_descr < 0)
 	{
-		DEBUG ("Unable to connect to server.");
 		ERROR ("ntpd plugin: Unable to connect to server.");
 	}
 

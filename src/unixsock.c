@@ -351,12 +351,13 @@ static int us_open_socket (void)
 			sizeof (sa.sun_path) - 1);
 	/* unlink (sa.sun_path); */
 
+	DEBUG ("unixsock plugin: socket path = %s", sa.sun_path);
+
 	status = bind (sock_fd, (struct sockaddr *) &sa, sizeof (sa));
 	if (status != 0)
 	{
 		char errbuf[1024];
 		sstrerror (errno, errbuf, sizeof (errbuf));
-		DEBUG ("bind failed: %s; sa.sun_path = %s", errbuf, sa.sun_path);
 		ERROR ("unixsock plugin: bind failed: %s", errbuf);
 		close (sock_fd);
 		sock_fd = -1;
