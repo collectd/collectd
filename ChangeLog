@@ -1,3 +1,6 @@
+yyyy-mm-dd, Version 4.0.9
+	* apcups plugin: Fix reporting of the `load percent' data.
+
 2007-09-12, Version 4.0.8
 	* collectd: The `sstrerror' function was improved to work correctly
 	  with the broken GNU version of `strerror_r'.
