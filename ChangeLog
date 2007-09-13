@@ -1,3 +1,6 @@
+yyyy-mm-dd, Version 4.1.2
+	* apcups plugin: Fix reporting of the `load percent' data.
+
 2007-09-12, Version 4.1.1
 	* Build system: The detection of `libnetlink' has been improved.
 	* collectd: The documentation has been fixed in numerous places.
@@ -32,6 +35,9 @@
 	* unixsock plugin: Added the `LISTVAL' command.
 	* xmms plugin: The new `xmms' plugin graphs the bitrate and frequency
 	  of music played with xmms.
+
+yyyy-mm-dd, Version 4.0.9
+	* apcups plugin: Fix reporting of the `load percent' data.
 
 2007-09-12, Version 4.0.8
 	* collectd: The `sstrerror' function was improved to work correctly
