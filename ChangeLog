@@ -1,3 +1,7 @@
+yyyy-mm-dd, Version 4.2.0
+	* snmp plugin: Added the options `Scale' and `Shift' to Data-blocks to
+	  correct the values returned by SNMP-agents.
+
 yyyy-mm-dd, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.
 

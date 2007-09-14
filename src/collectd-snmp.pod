@@ -11,12 +11,14 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Type "voltage"
       Table false
       Instance "input_line1"
+      Scale 0.1
       Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
     </Data>
     <Data "hr_users">
       Type "users"
       Table false
       Instance ""
+      Shift -1
       Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
     </Data>
     <Data "std_traffic">
@@ -147,6 +149,24 @@ outside the subtree is returned.
 If B<Table> is set to I<false>, each I<OID> must be the OID of exactly one
 value, e.E<nbsp>g. C<IF-MIB::ifInOctets.3> for the third counter of incoming
 traffic.
+
+=item B<Scale> I<Value>
+
+The gauge-values returned by the SNMP-agent are multiplied by I<Value>.  This
+is useful when values are transfered as a fixed point real number. For example,
+thermometers may transfer B<243> but actually mean B<24.3>, so you can specify
+a scale value of B<0.1> to correct this. The default value is of course B<1.0>.
+
+This value is not applied to counter-values.
+
+=item B<Shift> I<Value>
+
+I<Value> is added to gauge-values returned by the SNMP-agent after they have
+been multiplied by any B<Scale> value. If, for example, a thermometer returns
+degrees Kelvin you could specify a shift of B<273.15> here to store values in
+degrees Celsius. The default value is is course B<0.0>.
+
+This value is not applied to counter-values.
 
 =back
 

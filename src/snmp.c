@@ -53,6 +53,8 @@ struct data_definition_s
   instance_t instance;
   oid_t *values;
   int values_len;
+  double scale;
+  double shift;
   struct data_definition_s *next;
 };
 typedef struct data_definition_s data_definition_t;
@@ -245,6 +247,34 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
   return (0);
 } /* int csnmp_config_add_data_instance */
 
+static int csnmp_config_add_data_shift (data_definition_t *dd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("snmp plugin: The `Scale' config option needs exactly one number argument.");
+    return (-1);
+  }
+
+  dd->shift = ci->values[0].value.number;
+
+  return (0);
+} /* int csnmp_config_add_data_shift */
+
+static int csnmp_config_add_data_scale (data_definition_t *dd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("snmp plugin: The `Scale' config option needs exactly one number argument.");
+    return (-1);
+  }
+
+  dd->scale = ci->values[0].value.number;
+
+  return (0);
+} /* int csnmp_config_add_data_scale */
+
 static int csnmp_config_add_data (oconfig_item_t *ci)
 {
   data_definition_t *dd;
@@ -269,6 +299,8 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     free (dd);
     return (-1);
   }
+  dd->scale = 1.0;
+  dd->shift = 0.0;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -283,6 +315,10 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
       status = csnmp_config_add_data_instance (dd, option);
     else if (strcasecmp ("Values", option->key) == 0)
       status = csnmp_config_add_data_values (dd, option);
+    else if (strcasecmp ("Shift", option->key) == 0)
+      status = csnmp_config_add_data_shift (dd, option);
+    else if (strcasecmp ("Scale", option->key) == 0)
+      status = csnmp_config_add_data_scale (dd, option);
     else
     {
       WARNING ("snmp plugin: Option `%s' not allowed here.", option->key);
@@ -645,7 +681,8 @@ static void csnmp_host_open_session (host_definition_t *host)
   }
 } /* void csnmp_host_open_session */
 
-static value_t csnmp_value_list_to_value (struct variable_list *vl, int type)
+static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
+    double scale, double shift)
 {
   value_t ret;
   uint64_t temp = 0;
@@ -680,7 +717,7 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type)
   {
     ret.gauge = NAN;
     if (defined != 0)
-      ret.gauge = temp;
+      ret.gauge = (scale * temp) + shift;
   }
 
   return (ret);
@@ -910,7 +947,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     }
     else
     {
-      value_t val = csnmp_value_list_to_value (vb, DS_TYPE_COUNTER);
+      value_t val = csnmp_value_list_to_value (vb, DS_TYPE_COUNTER, 1.0, 0.0);
       snprintf (il->instance, sizeof (il->instance),
 	  "%llu", val.counter);
     }
@@ -962,7 +999,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       if (vt != NULL)
       {
 	vt->subid = vb->name[vb->name_length - 1];
-	vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type);
+	vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
+	    data->scale, data->shift);
 	vt->next = NULL;
 
 	if (value_table_ptr[i] == NULL)
@@ -1096,7 +1134,8 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     for (i = 0; i < data->values_len; i++)
       if (snmp_oid_compare (data->values[i].oid, data->values[i].oid_len,
 	    vb->name, vb->name_length) == 0)
-	vl.values[i] = csnmp_value_list_to_value (vb, ds->ds[i].type);
+	vl.values[i] = csnmp_value_list_to_value (vb, ds->ds[i].type,
+	    data->scale, data->shift);
   } /* for (res->variables) */
 
   snmp_free_pdu (res);
