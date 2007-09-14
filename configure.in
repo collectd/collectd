@@ -1259,7 +1259,7 @@ AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], 
 		with_libupsclient="no"
 	else
 		with_libupsclient="yes"
-		if "x$withval" != "xyes"
+		if test "x$withval" != "xyes"
 		then
 			if test -x "$withval"
 			then
