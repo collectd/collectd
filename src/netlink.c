@@ -25,9 +25,15 @@
 
 #include <asm/types.h>
 #include <sys/socket.h>
+
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#include <linux/gen_stats.h>
+#if HAVE_LINUX_GEN_STATS_H
+# include <linux/gen_stats.h>
+#endif
+#if HAVE_LINUX_PKT_SCHED_H
+# include <linux/pkt_sched.h>
+#endif
 
 #if HAVE_LIBNETLINK_H
 # include <libnetlink.h>
@@ -198,8 +204,8 @@ static void submit_two (const char *dev, const char *type,
   plugin_dispatch_values (type, &vl);
 } /* void submit_two */
 
-static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
-    void *args)
+static int link_filter (const struct sockaddr_nl *sa,
+    const struct nlmsghdr *nmh, void *args)
 {
   struct ifinfomsg *msg;
   int msg_len;
@@ -305,8 +311,8 @@ static int link_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   return (0);
 } /* int link_filter */
 
-static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
-    void *args)
+static int qos_filter (const struct sockaddr_nl *sa,
+    const struct nlmsghdr *nmh, void *args)
 {
   struct tcmsg *msg;
   int msg_len;
@@ -399,6 +405,7 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
   if (check_ignorelist (dev, tc_type, tc_inst))
     return (0);
 
+#if HAVE_TCA_STATS2
   if (attrs[TCA_STATS2])
   {
     struct rtattr *attrs_stats[TCA_STATS_MAX + 1];
@@ -422,6 +429,35 @@ static int qos_filter (const struct sockaddr_nl *sa, struct nlmsghdr *nmh,
       submit_one (dev, "ipt_bytes", type_instance, bs.bytes);
       submit_one (dev, "ipt_packets", type_instance, bs.packets);
     }
+  }
+#endif /* TCA_STATS2 */
+#if HAVE_TCA_STATS && HAVE_TCA_STATS2
+  else
+#endif
+#if HAVE_TCA_STATS
+  if (attrs[TCA_STATS] != NULL)
+  {
+    struct tc_stats ts;
+    char type_instance[DATA_MAX_NAME_LEN];
+
+    snprintf (type_instance, sizeof (type_instance), "%s-%s",
+	tc_type, tc_inst);
+    type_instance[sizeof (type_instance) - 1] = '\0';
+
+    memset(&ts, '\0', sizeof (ts));
+    memcpy(&ts, RTA_DATA (attrs[TCA_STATS]),
+	MIN (RTA_PAYLOAD (attrs[TCA_STATS]), sizeof (ts)));
+
+    submit_one (dev, "ipt_bytes", type_instance, ts.bytes);
+    submit_one (dev, "ipt_packets", type_instance, ts.packets);
+  }
+#endif /* TCA_STATS */
+#if HAVE_TCA_STATS || HAVE_TCA_STATS2
+  else
+#endif
+  {
+    DEBUG ("netlink plugin: qos_filter: Have neither TCA_STATS2 nor "
+	"TCA_STATS.");
   }
 
   return (0);
