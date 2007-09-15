@@ -1438,6 +1438,43 @@ then
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>])
+	AC_CHECK_HEADERS(linux/gen_stats.h linux/pkt_sched.h, [], [],
+[#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>])
+
+	AC_COMPILE_IFELSE(
+[#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+
+int main (void)
+{
+	int retval = TCA_STATS2;
+	return (retval);
+}],
+	[AC_DEFINE([HAVE_TCA_STATS2], 1, [True if the enum-member TCA_STATS2 exists])]
+	[]);
+
+	AC_COMPILE_IFELSE(
+[#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+
+int main (void)
+{
+	int retval = TCA_STATS;
+	return (retval);
+}],
+	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])]
+	[]);
 
 	CFLAGS="$SAVE_CFLAGS"
 fi
