@@ -508,6 +508,8 @@ static void apc_submit (struct apc_detail_s *apcups_detail)
 	apc_submit_generic ("apcups_voltage",    "output",  apcups_detail->outputv);
 	apc_submit_generic ("apcups_voltage",    "battery", apcups_detail->battv);
 	apc_submit_generic ("apcups_charge",     "-",       apcups_detail->bcharge);
+	/* `apcups_charge_pct' actually is the wrong name, but we keep it that
+	 * way for backwards compatibility. */
 	apc_submit_generic ("apcups_charge_pct", "-",       apcups_detail->loadpct);
 	apc_submit_generic ("apcups_timeleft",   "-",       apcups_detail->timeleft);
 	apc_submit_generic ("apcups_temp",       "-",       apcups_detail->itemp);
@@ -555,6 +557,8 @@ void module_register (void)
 	plugin_register (MODULE_NAME, apcups_init, apcups_read, NULL);
 	plugin_register ("apcups_voltage",    NULL, NULL, apc_write_voltage);
 	plugin_register ("apcups_charge",     NULL, NULL, apc_write_charge);
+	/* `apcups_charge_pct' actually is the wrong name, but we keep it that
+	 * way for backwards compatibility. */
 	plugin_register ("apcups_charge_pct", NULL, NULL, apc_write_percent);
 	plugin_register ("apcups_timeleft",   NULL, NULL, apc_write_timeleft);
 	plugin_register ("apcups_temp",       NULL, NULL, apc_write_temperature);
