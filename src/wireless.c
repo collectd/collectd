@@ -108,6 +108,15 @@ static void wireless_submit (char *device,
 	plugin_submit (MODULE_NAME, device, buf);
 }
 
+#define POWER_MIN -90.0
+#define POWER_MAX -50.0
+static double wireless_percent_to_power (double quality)
+{
+	assert ((quality >= 0.0) && (quality <= 100.0));
+
+	return ((quality * (POWER_MAX - POWER_MIN)) + POWER_MIN);
+} /* double wireless_percent_to_power */
+
 static void wireless_read (void)
 {
 #ifdef KERNEL_LINUX
@@ -137,6 +146,8 @@ static void wireless_read (void)
 
 	while (fgets (buffer, BUFSIZE, fh) != NULL)
 	{
+		char *endptr;
+
 		numfields = strsplit (buffer, fields, 8);
 
 		if (numfields < 5)
@@ -150,19 +161,28 @@ static void wireless_read (void)
 		fields[0][len] = '\0';
 
 		device  = fields[0];
-		quality = atof (fields[2]);
-		power   = atof (fields[3]);
-		noise   = atof (fields[4]);
 
-		/* Fill in invalid values when conversion failed.. */
-		if (quality == 0.0)
-			quality = -1.0; /* quality >= 0 */
+		quality = strtod (fields[2], &endptr);
+		if (fields[2] == endptr)
+			quality = -1.0; /* invalid */
 
-		if (power == 0.0)
-			power = 1.0; /* power <= 0 */
+		/* power [dBm] < 0.0 */
+		power = strtod (fields[3], &endptr);
+		if (fields[3] == endptr)
+			power = 1.0; /* invalid */
+		else if ((power >= 0.0) && (power <= 100.0))
+			power = wireless_percent_to_power (power);
+		else if (power > 100.0)
+			power = 1.0; /* invalid */
 
-		if (noise == 0.0)
-			noise = 1.0; /* noise <= 0 */
+		/* noise [dBm] < 0.0 */
+		noise = strtod (fields[3], &endptr);
+		if (fields[3] == endptr)
+			noise = 1.0; /* invalid */
+		else if ((noise >= 0.0) && (noise <= 100.0))
+			noise = wireless_percent_to_power (noise);
+		else if (noise > 100.0)
+			noise = 1.0; /* invalid */
 
 		wireless_submit (device, quality, power, noise);
 	}

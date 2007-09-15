@@ -1,3 +1,7 @@
+yyyy-mm-dd, Version 3.11.7
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+
 2007-08-31, Version 3.11.6
 	* processes plugin: Fix a potential segmentation fault.
 
