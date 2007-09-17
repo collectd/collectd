@@ -47,6 +47,15 @@ directory for the daemon.
 Loads the plugin I<Plugin>. There must be at least one such line or B<collectd>
 will be mostly useless.
 
+=item B<Include> I<File>
+
+Includes the file I<File> as if it was copy and pasted here. To prevent loops
+and shooting yourself in the foot in interesting ways the nesting is limited to
+a depth of 8E<nbsp>levels, which should be sufficient for most uses.
+
+It is no problem to have a block like C<E<lt>Plugin fooE<gt>> in more than one
+file, but you cannot include files from within blocks.
+
 =item B<PIDFile> I<File>
 
 Sets where to write the PID file to. This file is overwritten when it exists

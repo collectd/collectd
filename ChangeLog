@@ -1,4 +1,8 @@
 yyyy-mm-dd, Version 4.2.0
+	* collectd: The new config option `Include' lets you include other
+	  configfiles and thus split up your config into smaller parts. This
+	  may be especially interresting for the snmp plugin to keep the data
+	  definitions seperate from the host definitions.
 	* snmp plugin: Added the options `Scale' and `Shift' to Data-blocks to
 	  correct the values returned by SNMP-agents.
 
