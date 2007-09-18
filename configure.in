@@ -1250,7 +1250,7 @@ AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Pat
 [with_libnetsnmp="yes"])
 if test "x$with_libnetsnmp" = "xyes"
 then
-	with_snmp_cflags=`$with_snmp_config --cflags >/dev/null`
+	with_snmp_cflags=`$with_snmp_config --cflags 2>/dev/null`
 	snmp_config_status=$?
 
 	if test $snmp_config_status -ne 0
@@ -1267,7 +1267,7 @@ then
 fi
 if test "x$with_libnetsnmp" = "xyes"
 then
-	with_snmp_libs=`$with_snmp_config --libs >/dev/null`
+	with_snmp_libs=`$with_snmp_config --libs 2>/dev/null`
 	snmp_config_status=$?
 
 	if test $snmp_config_status -ne 0
@@ -1280,7 +1280,7 @@ then
 		[$with_snmp_libs])
 	fi
 fi
-if test "x$with_libsnmp" = "xyes"
+if test "x$with_libnetsnmp" = "xyes"
 then
 	BUILD_WITH_LIBSNMP_CFLAGS="$with_snmp_cflags"
 	BUILD_WITH_LIBSNMP_LIBS="$with_snmp_libs"
