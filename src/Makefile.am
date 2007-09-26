@@ -466,11 +466,14 @@ if BUILD_PLUGIN_SNMP
 pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = snmp.c
 snmp_la_LDFLAGS = -module -avoid-version
+snmp_la_CFLAGS =
+snmp_la_LIBADD =
 if BUILD_WITH_LIBNETSNMP
-snmp_la_LDFLAGS += -lnetsnmp
+snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
+snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
 endif
 if BUILD_WITH_LIBPTHREAD
-snmp_la_LDFLAGS += -lpthread
+snmp_la_LIBADD += -lpthread
 endif
 collectd_LDADD += "-dlopen" snmp.la
 collectd_DEPENDENCIES += snmp.la

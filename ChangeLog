@@ -1,5 +1,7 @@
 yyyy-mm-dd, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.
+	* netlink plugin: Build issues under some older versions of the Linux
+	  includes (i. e. Debian Sarge) have been fixed.
 
 2007-09-12, Version 4.1.1
 	* Build system: The detection of `libnetlink' has been improved.
