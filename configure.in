@@ -770,13 +770,14 @@ AC_ARG_WITH(libcurl, [AS_HELP_STRING([--with-libcurl@<:@=PREFIX@:>@], [Path to l
 	then
 		with_libcurl="yes"
 	else
-		if test -x "$withval"
+		if test -f "$withval" && test -x "$withval"
 		then
 			with_curl_config="$withval"
 		else if test -x "$withval/bin/curl-config"
 		then
 			with_curl_config="$withval/bin/curl-config"
 		fi; fi
+		with_libcurl="yes"
 	fi; fi
 ],
 [
@@ -942,13 +943,14 @@ AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to
 	then
 		with_libmysql="yes"
 	else
-		if test -x "$withval";
+		if test -f "$withval" && test -x "$withval";
 		then
 			with_mysql_config="$withval"
 		else if test -x "$withval/bin/mysql_config"
 		then
 			with_mysql_config="$withval/bin/mysql_config"
 		fi; fi
+		with_libmysql="yes"
 	fi; fi
 ],
 [
@@ -1258,16 +1260,16 @@ AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], 
 	then
 		with_libupsclient="no"
 	else
-		with_libupsclient="yes"
 		if test "x$withval" != "xyes"
 		then
-			if test -x "$withval"
+			if test -f "$withval" && test -x "$withval";
 			then
 				with_upsclient_config="$withval"
 			else
 				with_upsclient_config="$withval/bin/libupsclient-config"
 			fi
 		fi
+		with_libupsclient="yes"
 	fi
 ],
 [
@@ -1332,17 +1334,20 @@ AC_ARG_WITH(libxmms, [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to l
 [
 	if test "x$withval" != "xno" -a "x$withval" != "xyes"
 	then
-		if test -x "$withval/bin/xmms-config"
+		if test -f "$withval" && test -x "$withval";
+		then
+			with_xmms_config="$withval"
+		else if test -x "$withval/bin/xmms-config"
 		then
 			with_xmms_config="$withval/bin/xmms-config"
-		fi
-	fi
-	if test "x$withval" = "xno"
+		fi; fi
+		with_libxmms="yes"
+	else if test "x$withval" = "xno"
 	then
 		with_libxmms="no"
 	else
 		with_libxmms="yes"
-	fi
+	fi; fi
 ],
 [
 	with_libxmms="yes"
