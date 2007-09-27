@@ -333,7 +333,7 @@ static char *get_module_name (char *buf, size_t buf_len, const char *module) {
 		status = snprintf (buf, buf_len, "%s::%s", base_name, module);
 	if ((status < 0) || (status >= buf_len))
 		return (NULL);
-	buf[buf_len] = '\0';
+	buf[buf_len - 1] = '\0';
 	return (buf);
 } /* char *get_module_name */
 
