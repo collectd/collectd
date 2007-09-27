@@ -654,6 +654,9 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type)
   if ((vl->type == ASN_INTEGER)
       || (vl->type == ASN_UINTEGER)
       || (vl->type == ASN_COUNTER)
+#ifdef ASN_TIMETICKS
+      || (vl->type == ASN_TIMETICKS)
+#endif
       || (vl->type == ASN_GAUGE))
   {
     temp = (uint32_t) *vl->val.integer;
