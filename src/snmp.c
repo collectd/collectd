@@ -609,8 +609,8 @@ static void csnmp_host_close_session (host_definition_t *host)
 
     snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
 
-    ERROR ("snmp plugin: snmp_sess_close failed: %s",
-	(errstr == NULL) ? "Unknown problem" : errstr);
+    ERROR ("snmp plugin: host %s: snmp_sess_close failed: %s",
+	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
     sfree (errstr);
   }
 
@@ -639,8 +639,8 @@ static void csnmp_host_open_session (host_definition_t *host)
 
     snmp_error (&sess, NULL, NULL, &errstr);
 
-    ERROR ("snmp plugin: snmp_sess_open failed: %s",
-	(errstr == NULL) ? "Unknown problem" : errstr);
+    ERROR ("snmp plugin: host %s: snmp_sess_open failed: %s",
+	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
     sfree (errstr);
   }
 } /* void csnmp_host_open_session */
@@ -792,6 +792,12 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   DEBUG ("snmp plugin: csnmp_read_table (host = %s, data = %s)",
       host->name, data->name);
 
+  if (host->sess_handle == NULL)
+  {
+    DEBUG ("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
+    return (-1);
+  }
+
   ds = plugin_get_ds (data->type);
   if (!ds)
   {
@@ -852,8 +858,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       char *errstr = NULL;
 
       snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
-      ERROR ("snmp plugin: snmp_sess_synch_response failed: %s",
-	  (errstr == NULL) ? "Unknown problem" : errstr);
+      ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
+	  host->name, (errstr == NULL) ? "Unknown problem" : errstr);
       csnmp_host_close_session (host);
 
       status = -1;
@@ -1028,6 +1034,12 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   DEBUG ("snmp plugin: csnmp_read_value (host = %s, data = %s)",
       host->name, data->name);
 
+  if (host->sess_handle == NULL)
+  {
+    DEBUG ("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
+    return (-1);
+  }
+
   ds = plugin_get_ds (data->type);
   if (!ds)
   {
@@ -1079,8 +1091,8 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     char *errstr = NULL;
 
     snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
-    ERROR ("snmp plugin: snmp_sess_synch_response failed: %s",
-	(errstr == NULL) ? "Unknown problem" : errstr);
+    ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
+	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
     csnmp_host_close_session (host);
     sfree (errstr);
 
