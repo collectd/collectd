@@ -1183,7 +1183,10 @@ static int csnmp_init (void)
   int i;
 
   if (host_head == NULL)
+  {
+    NOTICE ("snmp plugin: No host has been defined.");
     return (-1);
+  }
 
   call_snmp_init_once ();
 
@@ -1218,7 +1221,10 @@ static int csnmp_init (void)
 
   threads = (pthread_t *) malloc (threads_num * sizeof (pthread_t));
   if (threads == NULL)
+  {
+    ERROR ("snmp plugin: malloc failed.");
     return (-1);
+  }
   memset (threads, '\0', threads_num * sizeof (pthread_t));
 
   for (i = 0; i < threads_num; i++)
