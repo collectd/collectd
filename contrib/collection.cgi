@@ -2517,7 +2517,7 @@ sub meta_graph_memory
   . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
   $opts->{'number_format'} = '%5.1lf%s';
 
-  $opts->{'rrd_opts'} = ['-b', '1024'];
+  $opts->{'rrd_opts'} = ['-b', '1024', '-v', 'Bytes'];
 
   my @files = ();
 
@@ -2777,10 +2777,10 @@ sub meta_graph_swap
 
   $opts->{'colors'} =
   {
-    'Free'   => '00e000',
-    'Cached'  => '0000ff',
-    'Reserved'      => 'ffb000',
-    'Used'   => 'ff0000'
+    'Free'     => '00e000',
+    'Cached'   => '0000ff',
+    'Reserved' => 'ffb000',
+    'Used'     => 'ff0000'
   };
 
   _custom_sort_arrayref ($type_instances,
