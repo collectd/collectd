@@ -106,6 +106,10 @@ yyyy-mm-dd, Version 4.0.9
 	  from collectd, parses them and exits according to Nagios-standards.
 	* manpages: The manpages have been improved a lot.
 
+2007-09-28, Version 3.11.7
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+
 2007-08-31, Version 3.11.6
 	* processes plugin: Fix a potential segmentation fault.
 
