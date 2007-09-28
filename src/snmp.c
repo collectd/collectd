@@ -609,8 +609,8 @@ static void csnmp_host_close_session (host_definition_t *host)
 
     snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
 
-    ERROR ("snmp plugin: snmp_sess_close failed: %s",
-	(errstr == NULL) ? "Unknown problem" : errstr);
+    ERROR ("snmp plugin: host %s: snmp_sess_close failed: %s",
+	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
     sfree (errstr);
   }
 
@@ -639,8 +639,8 @@ static void csnmp_host_open_session (host_definition_t *host)
 
     snmp_error (&sess, NULL, NULL, &errstr);
 
-    ERROR ("snmp plugin: snmp_sess_open failed: %s",
-	(errstr == NULL) ? "Unknown problem" : errstr);
+    ERROR ("snmp plugin: host %s: snmp_sess_open failed: %s",
+	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
     sfree (errstr);
   }
 } /* void csnmp_host_open_session */
@@ -654,6 +654,9 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type)
   if ((vl->type == ASN_INTEGER)
       || (vl->type == ASN_UINTEGER)
       || (vl->type == ASN_COUNTER)
+#ifdef ASN_TIMETICKS
+      || (vl->type == ASN_TIMETICKS)
+#endif
       || (vl->type == ASN_GAUGE))
   {
     temp = (uint32_t) *vl->val.integer;
@@ -789,6 +792,12 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   DEBUG ("snmp plugin: csnmp_read_table (host = %s, data = %s)",
       host->name, data->name);
 
+  if (host->sess_handle == NULL)
+  {
+    DEBUG ("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
+    return (-1);
+  }
+
   ds = plugin_get_ds (data->type);
   if (!ds)
   {
@@ -849,8 +858,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       char *errstr = NULL;
 
       snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
-      ERROR ("snmp plugin: snmp_sess_synch_response failed: %s",
-	  (errstr == NULL) ? "Unknown problem" : errstr);
+      ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
+	  host->name, (errstr == NULL) ? "Unknown problem" : errstr);
       csnmp_host_close_session (host);
 
       status = -1;
@@ -1025,6 +1034,12 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   DEBUG ("snmp plugin: csnmp_read_value (host = %s, data = %s)",
       host->name, data->name);
 
+  if (host->sess_handle == NULL)
+  {
+    DEBUG ("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
+    return (-1);
+  }
+
   ds = plugin_get_ds (data->type);
   if (!ds)
   {
@@ -1076,8 +1091,8 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     char *errstr = NULL;
 
     snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
-    ERROR ("snmp plugin: snmp_sess_synch_response failed: %s",
-	(errstr == NULL) ? "Unknown problem" : errstr);
+    ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
+	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
     csnmp_host_close_session (host);
     sfree (errstr);
 
@@ -1168,7 +1183,10 @@ static int csnmp_init (void)
   int i;
 
   if (host_head == NULL)
+  {
+    NOTICE ("snmp plugin: No host has been defined.");
     return (-1);
+  }
 
   call_snmp_init_once ();
 
@@ -1203,7 +1221,10 @@ static int csnmp_init (void)
 
   threads = (pthread_t *) malloc (threads_num * sizeof (pthread_t));
   if (threads == NULL)
+  {
+    ERROR ("snmp plugin: malloc failed.");
     return (-1);
+  }
   memset (threads, '\0', threads_num * sizeof (pthread_t));
 
   for (i = 0; i < threads_num; i++)
