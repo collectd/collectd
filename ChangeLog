@@ -1,7 +1,13 @@
-yyyy-mm-dd, Version 4.1.2
+2007-09-28, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+	* perl plugin: Fix a possible buffer overflow in get_module_name().
+	* build system: Further improve the detection of libraries.
 	* netlink plugin: Build issues under some older versions of the Linux
 	  includes (i. e. Debian Sarge) have been fixed.
+	* snmp plugin: Fix a potential segfault when a host times out. Add
+	  support for the `timeticks' type. 
 
 2007-09-12, Version 4.1.1
 	* Build system: The detection of `libnetlink' has been improved.
