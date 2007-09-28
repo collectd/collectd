@@ -1,5 +1,8 @@
-yyyy-mm-dd, Version 4.0.9
+2007-09-28, Version 4.0.9
 	* apcups plugin: Fix reporting of the `load percent' data.
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+	* perl plugin: Fix a possible buffer overflow in get_module_name().
 
 2007-09-12, Version 4.0.8
 	* collectd: The `sstrerror' function was improved to work correctly
