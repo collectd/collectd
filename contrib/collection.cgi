@@ -944,10 +944,10 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%5.1lf%s Max,',
     'GPRINT:avg:LAST:%5.1lf%s Last\l'
     ],
-    charge => [
-    'DEF:avg={file}:charge:AVERAGE',
-    'DEF:min={file}:charge:MIN',
-    'DEF:max={file}:charge:MAX',
+    charge => ['-v', 'Ah',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
     "LINE1:avg#$FullBlue:Charge",
@@ -955,18 +955,6 @@ sub load_graph_definitions
     'GPRINT:avg:AVERAGE:%5.1lf%sAh Avg,',
     'GPRINT:max:MAX:%5.1lf%sAh Max,',
     'GPRINT:avg:LAST:%5.1lf%sAh Last\l'
-    ],
-    charge_percent => [
-    'DEF:avg={file}:percent:AVERAGE',
-    'DEF:min={file}:percent:MIN',
-    'DEF:max={file}:percent:MAX',
-    "AREA:max#$HalfBlue",
-    "AREA:min#$Canvas",
-    "LINE1:avg#$FullBlue:Charge",
-    'GPRINT:min:MIN:%5.1lf%s%% Min,',
-    'GPRINT:avg:AVERAGE:%5.1lf%s%% Avg,',
-    'GPRINT:max:MAX:%5.1lf%s%% Max,',
-    'GPRINT:avg:LAST:%5.1lf%s%% Last\l'
     ],
     cpu => ['-v', 'CPU load',
     'DEF:avg={file}:value:AVERAGE',
@@ -980,10 +968,10 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%6.2lf%% Max,',
     'GPRINT:avg:LAST:%6.2lf%% Last\l'
     ],
-    current => [
-    'DEF:avg={file}:current:AVERAGE',
-    'DEF:min={file}:current:MIN',
-    'DEF:max={file}:current:MAX',
+    current => ['-v', 'Ampere',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
     "LINE1:avg#$FullBlue:Current",
