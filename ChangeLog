@@ -1,7 +1,13 @@
-yyyy-mm-dd, Version 4.1.2
+2007-09-28, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+	* perl plugin: Fix a possible buffer overflow in get_module_name().
+	* build system: Further improve the detection of libraries.
 	* netlink plugin: Build issues under some older versions of the Linux
 	  includes (i. e. Debian Sarge) have been fixed.
+	* snmp plugin: Fix a potential segfault when a host times out. Add
+	  support for the `timeticks' type. 
 
 2007-09-12, Version 4.1.1
 	* Build system: The detection of `libnetlink' has been improved.
@@ -38,8 +44,11 @@ yyyy-mm-dd, Version 4.1.2
 	* xmms plugin: The new `xmms' plugin graphs the bitrate and frequency
 	  of music played with xmms.
 
-yyyy-mm-dd, Version 4.0.9
+2007-09-28, Version 4.0.9
 	* apcups plugin: Fix reporting of the `load percent' data.
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+	* perl plugin: Fix a possible buffer overflow in get_module_name().
 
 2007-09-12, Version 4.0.8
 	* collectd: The `sstrerror' function was improved to work correctly
@@ -145,6 +154,10 @@ yyyy-mm-dd, Version 4.0.9
 	* collectd-nagios: The new `collectd-nagios' binary queries values
 	  from collectd, parses them and exits according to Nagios-standards.
 	* manpages: The manpages have been improved a lot.
+
+2007-09-28, Version 3.11.7
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
 
 2007-08-31, Version 3.11.6
 	* processes plugin: Fix a potential segmentation fault.

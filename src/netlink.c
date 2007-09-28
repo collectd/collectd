@@ -237,10 +237,6 @@ static int link_filter (const struct sockaddr_nl *sa,
     return (-1);
   }
 
-  if (attrs[IFLA_STATS] == NULL)
-    return (-1);
-  stats = RTA_DATA (attrs[IFLA_STATS]);
-
   if (attrs[IFLA_IFNAME] == NULL)
   {
     ERROR ("netlink plugin: link_filter: attrs[IFLA_IFNAME] == NULL");
@@ -272,6 +268,13 @@ static int link_filter (const struct sockaddr_nl *sa,
     sfree (iflist[msg->ifi_index]);
     iflist[msg->ifi_index] = strdup (dev);
   }
+
+  if (attrs[IFLA_STATS] == NULL)
+  {
+    DEBUG ("netlink plugin: link_filter: No statistics for interface %s.", dev);
+    return (0);
+  }
+  stats = RTA_DATA (attrs[IFLA_STATS]);
 
   if (check_ignorelist (dev, "interface", NULL) == 0)
   {
