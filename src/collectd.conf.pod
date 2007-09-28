@@ -650,15 +650,18 @@ beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =item B<StepSize> I<Seconds>
 
-Sets the stepsize of newly created RRD-files. Ideally (and per default) this
-setting is identical to the global B<Interval>-option and should not be
-smaller. If unsure, don't set this option.
+B<Force> the stepsize of newly created RRD-files. Ideally (and per default)
+this setting is unset and the stepsize is set to the interval in which the data
+is collected. Do not use this option unless you absolutely have to for some
+reason. Setting this option may cause problems with the C<snmp plugin>, the
+C<exec plugin> or when the daemon is set up to receive data from other hosts.
 
 =item B<HeartBeat> I<Seconds>
 
-Sets the heartbeat of newly created RRD-files. Ideally this setting is bigger
-than the B<Interval>-setting, by default it's twice the B<Interval>-setting. If
-unsure, don't set this option.
+B<Force> the heartbeat of newly created RRD-files. This setting should be unset
+in which case the heartbeat is set to twice the B<StepSize> which should equal
+the interval in which data is collected. Do not set this option unless you have
+a very good reason to do so.
 
 =item B<RRARows> I<NumRows>
 
