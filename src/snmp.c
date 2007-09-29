@@ -51,6 +51,7 @@ struct data_definition_s
   char *type; /* used to find the data_set */
   int is_table;
   instance_t instance;
+  char *instance_prefix;
   oid_t *values;
   int values_len;
   double scale;
@@ -126,6 +127,7 @@ static pthread_cond_t  host_cond = PTHREAD_COND_INITIALIZER;
  *  !   +-> csnmp_config_add_data_type
  *  !   +-> csnmp_config_add_data_table
  *  !   +-> csnmp_config_add_data_instance
+ *  !   +-> csnmp_config_add_data_instance_prefix
  *  !   +-> csnmp_config_add_data_values
  *  +-> csnmp_config_add_host
  *      +-> csnmp_config_add_host_address
@@ -151,9 +153,7 @@ static int csnmp_config_add_data_type (data_definition_t *dd, oconfig_item_t *ci
     return (-1);
   }
 
-  if (dd->type != NULL)
-    free (dd->type);
-
+  sfree (dd->type);
   dd->type = strdup (ci->values[0].value.string);
   if (dd->type == NULL)
     return (-1);
@@ -204,6 +204,30 @@ static int csnmp_config_add_data_instance (data_definition_t *dd, oconfig_item_t
   return (0);
 } /* int csnmp_config_add_data_instance */
 
+static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("snmp plugin: `InstancePrefix' needs exactly one string argument.");
+    return (-1);
+  }
+
+  if (!dd->is_table)
+  {
+    WARNING ("snmp plugin: data %s: InstancePrefix is ignored when `Table' "
+	"is set to `false'.", dd->name);
+    return (-1);
+  }
+
+  sfree (dd->instance_prefix);
+  dd->instance_prefix = strdup (ci->values[0].value.string);
+  if (dd->instance_prefix == NULL)
+    return (-1);
+
+  return (0);
+} /* int csnmp_config_add_data_instance_prefix */
+
 static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *ci)
 {
   int i;
@@ -221,8 +245,8 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
       return (-1);
     }
 
-  if (dd->values != NULL)
-    free (dd->values);
+  sfree (dd->values);
+  dd->values_len = 0;
   dd->values = (oid_t *) malloc (sizeof (oid_t) * ci->values_num);
   if (dd->values == NULL)
     return (-1);
@@ -313,6 +337,8 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
       status = csnmp_config_add_data_table (dd, option);
     else if (strcasecmp ("Instance", option->key) == 0)
       status = csnmp_config_add_data_instance (dd, option);
+    else if (strcasecmp ("InstancePrefix", option->key) == 0)
+      status = csnmp_config_add_data_instance_prefix (dd, option);
     else if (strcasecmp ("Values", option->key) == 0)
       status = csnmp_config_add_data_values (dd, option);
     else if (strcasecmp ("Shift", option->key) == 0)
@@ -350,6 +376,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   if (status != 0)
   {
     sfree (dd->name);
+    sfree (dd->instance_prefix);
     sfree (dd->values);
     sfree (dd);
     return (-1);
@@ -962,13 +989,24 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 	|| (instance_list_ptr->subid == value_table_ptr[0]->subid));
 #endif
 
-    if (instance_list_ptr == NULL)
-      snprintf (vl.type_instance, sizeof (vl.type_instance), "%u",
-	  (uint32_t) subid);
-    else
-      strncpy (vl.type_instance, instance_list_ptr->instance,
-	  sizeof (vl.type_instance));
-    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+    {
+      char temp[DATA_MAX_NAME_LEN];
+
+      if (instance_list_ptr == NULL)
+	snprintf (temp, sizeof (temp), "%u",
+	    (uint32_t) subid);
+      else
+	strncpy (temp, instance_list_ptr->instance,
+	    sizeof (temp));
+      temp[sizeof (temp) - 1] = '\0';
+
+      if (data->instance_prefix == NULL)
+	strncpy (vl.type_instance, temp, sizeof (vl.type_instance));
+      else
+	snprintf (vl.type_instance, sizeof (vl.type_instance), "%s%s",
+	    data->instance_prefix, temp);
+      vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+    }
 
     for (i = 0; i < data->values_len; i++)
       vl.values[i] = value_table_ptr[i]->value;
