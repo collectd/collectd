@@ -127,13 +127,30 @@ Sets the type-instance of the values that are dispatched. The meaning of this
 setting depends on whether B<Table> is set to I<true> or I<false>:
 
 If B<Table> is set to I<true>, I<Instance> is interpreted as an SNMP-prefix
-that will return a list of strings. Those strings are then used as the actual
+that will return a list of values. Those values are then used as the actual
 type-instance. An example would be the C<IF-MIB::ifDescr> subtree.
 L<variables(5)> from the SNMP distribution describes the format of OIDs.
+
+If B<Table> is set to I<true> and B<Instance> is omitted, then "SUBID" will be
+used as the instance.
 
 If B<Table> is set to I<false> the actual string configured for I<Instance> is
 copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
 "".
+
+=item B<InstancePrefix> I<String>
+
+If B<Table> is set to I<true>, you may feel the need to add something to the
+instance of the files. If set, I<String> is prepended to the instance as
+determinded by querying the agent. When B<Table> is set to I<false> this option
+has no effect.
+
+The C<UPS-MIB> is an example where you need this setting: It has voltages of
+the inlets, outlets and the battery of an UPS. However, it doesn't provide a
+descriptive column for these voltages. In this case having 1, 2,E<nbsp>... as
+instances is not enough, because the inlet voltages and outlet voltages may
+both have the subids 1, 2,E<nbsp>... You can use this setting to distinguish
+between the different voltages.
 
 =item B<Values> I<OID> [I<OID> ...]
 
