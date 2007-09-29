@@ -726,6 +726,137 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   return (ret);
 } /* value_t csnmp_value_list_to_value */
 
+/* Returns true if all OIDs have left their subtree */
+static int csnmp_check_res_left_subtree (const host_definition_t *host,
+    const data_definition_t *data,
+    struct snmp_pdu *res)
+{
+  struct variable_list *vb;
+  int num_checked;
+  int num_left_subtree;
+  int i;
+
+  vb = res->variables;
+  if (vb == NULL)
+    return (-1);
+
+  num_checked = 0;
+  num_left_subtree = 0;
+
+  /* check all the variables and count how many have left their subtree */
+  for (vb = res->variables, i = 0;
+      (vb != NULL) && (i < data->values_len);
+      vb = vb->next_variable, i++)
+  {
+    num_checked++;
+    if (snmp_oid_ncompare (data->values[i].oid,
+	  data->values[i].oid_len,
+	  vb->name, vb->name_length,
+	  data->values[i].oid_len) != 0)
+      num_left_subtree++;
+  }
+
+  /* check if enough variables have been returned */
+  if (i < data->values_len)
+  {
+    ERROR ("snmp plugin: host %s: Expected %i variables, but got only %i",
+	host->name, data->values_len, i);
+    return (-1);
+  }
+
+  if (data->instance.oid.oid_len > 0)
+  {
+    if (vb == NULL)
+    {
+      ERROR ("snmp plugin: host %s: Expected one more variable for "
+	  "the instance..");
+      return (-1);
+    }
+
+    num_checked++;
+    if (snmp_oid_ncompare (data->instance.oid.oid,
+	  data->instance.oid.oid_len,
+	  vb->name, vb->name_length,
+	  data->instance.oid.oid_len) != 0)
+      num_left_subtree++;
+  }
+
+  DEBUG ("snmp plugin: csnmp_check_res_left_subtree: %i of %i variables have "
+      "left their subtree",
+      num_left_subtree, num_checked);
+  if (num_left_subtree >= num_checked)
+    return (1);
+  return (0);
+} /* int csnmp_check_res_left_subtree */
+
+static int csnmp_instance_list_add (csnmp_list_instances_t **head,
+    csnmp_list_instances_t **tail,
+    const struct snmp_pdu *res)
+{
+  csnmp_list_instances_t *il;
+  struct variable_list *vb;
+
+  /* Set vb on the last variable */
+  for (vb = res->variables;
+      (vb != NULL) && (vb->next_variable != NULL);
+      vb = vb->next_variable)
+    /* do nothing */;
+  if (vb == NULL)
+    return (-1);
+
+  il = (csnmp_list_instances_t *) malloc (sizeof (csnmp_list_instances_t));
+  if (il == NULL)
+  {
+    ERROR ("snmp plugin: malloc failed.");
+    return (-1);
+  }
+  il->subid = vb->name[vb->name_length - 1];
+  il->next = NULL;
+
+  /* Get instance name */
+  if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
+  {
+    char *ptr;
+    size_t instance_len;
+
+    instance_len = sizeof (il->instance) - 1;
+    if (instance_len > vb->val_len)
+      instance_len = vb->val_len;
+
+    strncpy (il->instance, (char *) ((vb->type == ASN_OCTET_STR)
+	  ? vb->val.string
+	  : vb->val.bitstring),
+	instance_len);
+    il->instance[instance_len] = '\0';
+
+    for (ptr = il->instance; *ptr != '\0'; ptr++)
+    {
+      if ((*ptr > 0) && (*ptr < 32))
+	*ptr = ' ';
+      else if (*ptr == '/')
+	*ptr = '_';
+    }
+    DEBUG ("snmp plugin: il->instance = `%s';", il->instance);
+  }
+  else
+  {
+    value_t val = csnmp_value_list_to_value (vb, DS_TYPE_COUNTER, 1.0, 0.0);
+    snprintf (il->instance, sizeof (il->instance),
+	"%llu", val.counter);
+  }
+  il->instance[sizeof (il->instance) - 1] = '\0';
+
+  /* TODO: Debugging output */
+
+  if (*head == NULL)
+    *head = il;
+  else
+    (*tail)->next = il;
+  *tail = il;
+
+  return (0);
+} /* int csnmp_instance_list_add */
+
 static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *data,
     csnmp_list_instances_t *instance_list,
     csnmp_table_values_t **value_table)
@@ -737,6 +868,8 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   csnmp_table_values_t **value_table_ptr;
 
   int i;
+  oid subid;
+  int have_more;
 
   ds = plugin_get_ds (data->type);
   if (!ds)
@@ -745,6 +878,8 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     return (-1);
   }
   assert (ds->ds_num == data->values_len);
+
+  instance_list_ptr = instance_list;
 
   value_table_ptr = (csnmp_table_values_t **) malloc (sizeof (csnmp_table_values_t *)
       * data->values_len);
@@ -757,6 +892,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
   if (vl.values == NULL)
   {
+    ERROR ("snmp plugin: malloc failed.");
     sfree (value_table_ptr);
     return (-1);
   }
@@ -768,36 +904,80 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   vl.interval = host->skip_num;
   vl.time = time (NULL);
 
-  for (instance_list_ptr = instance_list;
-      instance_list_ptr != NULL;
-      instance_list_ptr = instance_list_ptr->next)
+  subid = 0;
+  have_more = 1;
+
+  while (have_more != 0)
   {
-    strncpy (vl.type_instance, instance_list_ptr->instance, sizeof (vl.type_instance));
-    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+    if (instance_list != NULL)
+    {
+      while ((instance_list_ptr != NULL)
+	  && (instance_list_ptr->subid < subid))
+	instance_list_ptr = instance_list_ptr->next;
+
+      if (instance_list_ptr == NULL)
+      {
+	have_more = 0;
+	continue;
+      }
+      else if (instance_list_ptr->subid > subid)
+      {
+	subid = instance_list_ptr->subid;
+	continue;
+      }
+    } /* if (instance_list != NULL) */
 
     for (i = 0; i < data->values_len; i++)
     {
       while ((value_table_ptr[i] != NULL)
-	  && (value_table_ptr[i]->subid < instance_list_ptr->subid))
+	  && (value_table_ptr[i]->subid < subid))
 	value_table_ptr[i] = value_table_ptr[i]->next;
-      if ((value_table_ptr[i] == NULL)
-	  || (value_table_ptr[i]->subid != instance_list_ptr->subid))
-	break;
-      vl.values[i] = value_table_ptr[i]->value;
-    } /* for (data->values_len) */
 
-    /* If the for-loop was aborted early, not all subid's match. */
+      if (value_table_ptr[i] == NULL)
+      {
+	have_more = 0;
+	break;
+      }
+      else if (value_table_ptr[i]->subid > subid)
+      {
+	subid = value_table_ptr[i]->subid;
+	break;
+      }
+    } /* for (i = 0; i < columns; i++) */
+    /* The subid has been increased - start scanning from the beginning
+     * again.. */
     if (i < data->values_len)
-    {
-      DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
-	  "Skipping SUBID %i",
-	  host->name, data->name, i, instance_list_ptr->subid);
       continue;
+
+    /* if we reach this line, all value_table_ptr[i] are non-NULL and are set
+     * to the same subid. instance_list_ptr is either NULL or points to the
+     * same subid, too. */
+#if COLLECT_DEBUG
+    for (i = 1; i < data->values_len; i++)
+    {
+      assert (value_table_ptr[i] != NULL);
+      assert (value_table_ptr[i-1]->subid == value_table_ptr[i]->subid);
     }
+    assert ((instance_list_ptr == NULL)
+	|| (instance_list_ptr->subid == value_table_ptr[0]->subid));
+#endif
+
+    if (instance_list_ptr == NULL)
+      snprintf (vl.type_instance, sizeof (vl.type_instance), "%u",
+	  (uint32_t) subid);
+    else
+      strncpy (vl.type_instance, instance_list_ptr->instance,
+	  sizeof (vl.type_instance));
+    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+
+    for (i = 0; i < data->values_len; i++)
+      vl.values[i] = value_table_ptr[i]->value;
 
     /* If we get here `vl.type_instance' and all `vl.values' have been set */
     plugin_dispatch_values (data->type, &vl);
-  } /* for (instance_list) */
+
+    subid++;
+  } /* while (have_more != 0) */
 
   sfree (vl.values);
   sfree (value_table_ptr);
@@ -853,16 +1033,22 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   oid_list_len = data->values_len + 1;
   oid_list = (oid_t *) malloc (sizeof (oid_t) * (oid_list_len));
   if (oid_list == NULL)
+  {
+    ERROR ("snmp plugin: csnmp_read_table: malloc failed.");
     return (-1);
-  memcpy (oid_list, &data->instance.oid, sizeof (oid_t));
-  for (i = 0; i < data->values_len; i++)
-    memcpy (oid_list + (i + 1), data->values + i, sizeof (oid_t));
+  }
+  memcpy (oid_list, data->values, data->values_len * sizeof (oid_t));
+  if (data->instance.oid.oid_len > 0)
+    memcpy (oid_list + data->values_len, &data->instance.oid, sizeof (oid_t));
+  else
+    oid_list_len--;
 
   /* Allocate the `value_table' */
   value_table = (csnmp_table_values_t **) malloc (sizeof (csnmp_table_values_t *)
       * 2 * data->values_len);
   if (value_table == NULL)
   {
+    ERROR ("snmp plugin: csnmp_read_table: malloc failed.");
     sfree (oid_list);
     return (-1);
   }
@@ -875,8 +1061,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   status = 0;
   while (status == 0)
   {
-    csnmp_list_instances_t *il;
-
     req = snmp_pdu_create (SNMP_MSG_GETNEXT);
     if (req == NULL)
     {
@@ -912,78 +1096,46 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       break;
     }
 
-    /* Check if we left the subtree */
-    if (snmp_oid_ncompare (data->instance.oid.oid, data->instance.oid.oid_len,
-	  vb->name, vb->name_length,
-	  data->instance.oid.oid_len) != 0)
+    /* Check if all values (and possibly the instance) have left their
+     * subtree */
+    if (csnmp_check_res_left_subtree (host, data, res) != 0)
       break;
 
-    /* Allocate a new `csnmp_list_instances_t', insert the instance name and
-     * add it to the list */
-    il = (csnmp_list_instances_t *) malloc (sizeof (csnmp_list_instances_t));
-    if (il == NULL)
+    /* if an instance-OID is configured.. */
+    if (data->instance.oid.oid_len > 0)
     {
-      status = -1;
-      break;
-    }
-    il->subid = vb->name[vb->name_length - 1];
-    il->next = NULL;
-
-    /* Get instance name */
-    if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
-    {
-      char *ptr;
-      size_t instance_len;
-
-      instance_len = sizeof (il->instance) - 1;
-      if (instance_len > vb->val_len)
-	instance_len = vb->val_len;
-
-      strncpy (il->instance, (char *) ((vb->type == ASN_OCTET_STR)
-	    ? vb->val.string
-	    : vb->val.bitstring),
-	  instance_len);
-      il->instance[instance_len] = '\0';
-
-      for (ptr = il->instance; *ptr != '\0'; ptr++)
+      /* Allocate a new `csnmp_list_instances_t', insert the instance name and
+       * add it to the list */
+      if (csnmp_instance_list_add (&instance_list, &instance_list_ptr,
+	    res) != 0)
       {
-	if ((*ptr > 0) && (*ptr < 32))
-	  *ptr = ' ';
-	else if (*ptr == '/')
-	  *ptr = '_';
+	ERROR ("snmp plugin: csnmp_instance_list_add failed.");
+	status = -1;
+	break;
       }
-      DEBUG ("snmp plugin: il->instance = `%s';", il->instance);
-    }
-    else
-    {
-      value_t val = csnmp_value_list_to_value (vb, DS_TYPE_COUNTER, 1.0, 0.0);
-      snprintf (il->instance, sizeof (il->instance),
-	  "%llu", val.counter);
-    }
-    il->instance[sizeof (il->instance) - 1] = '\0';
-    DEBUG ("snmp plugin: data = `%s'; il->instance = `%s';",
-	data->name, il->instance);
 
-    if (instance_list_ptr == NULL)
-      instance_list = il;
-    else
-      instance_list_ptr->next = il;
-    instance_list_ptr = il;
-
-    /* Copy OID to oid_list[0] */
-    memcpy (oid_list[0].oid, vb->name, sizeof (oid) * vb->name_length);
-    oid_list[0].oid_len = vb->name_length;
-
-    for (i = 0; i < data->values_len; i++)
-    {
-      csnmp_table_values_t *vt;
-
-      vb = vb->next_variable;
+      /* Set vb on the last variable */
+      for (vb = res->variables;
+	  (vb != NULL) && (vb->next_variable != NULL);
+	  vb = vb->next_variable)
+	/* do nothing */;
       if (vb == NULL)
       {
 	status = -1;
 	break;
       }
+
+      /* Copy OID to oid_list[data->values_len] */
+      memcpy (oid_list[data->values_len].oid, vb->name,
+	  sizeof (oid) * vb->name_length);
+      oid_list[data->values_len].oid_len = vb->name_length;
+    }
+
+    for (vb = res->variables, i = 0;
+	(vb != NULL) && (i < data->values_len);
+	vb = vb->next_variable, i++)
+    {
+      csnmp_table_values_t *vt;
 
       /* Check if we left the subtree */
       if (snmp_oid_ncompare (data->values[i].oid,
@@ -999,29 +1151,34 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       if ((value_table_ptr[i] != NULL)
 	  && (vb->name[vb->name_length - 1] <= value_table_ptr[i]->subid))
       {
-	DEBUG ("snmp plugin: host = %s; data = %s; i = %i; SUBID is not increasing.",
+	DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+	    "SUBID is not increasing.",
 	    host->name, data->name, i);
 	continue;
       }
 
       vt = (csnmp_table_values_t *) malloc (sizeof (csnmp_table_values_t));
-      if (vt != NULL)
+      if (vt == NULL)
       {
-	vt->subid = vb->name[vb->name_length - 1];
-	vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
-	    data->scale, data->shift);
-	vt->next = NULL;
-
-	if (value_table_ptr[i] == NULL)
-	  value_table[i] = vt;
-	else
-	  value_table_ptr[i]->next = vt;
-	value_table_ptr[i] = vt;
+	ERROR ("snmp plugin: malloc failed.");
+	status = -1;
+	break;
       }
 
+      vt->subid = vb->name[vb->name_length - 1];
+      vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
+	  data->scale, data->shift);
+      vt->next = NULL;
+
+      if (value_table_ptr[i] == NULL)
+	value_table[i] = vt;
+      else
+	value_table_ptr[i]->next = vt;
+      value_table_ptr[i] = vt;
+
       /* Copy OID to oid_list[i + 1] */
-      memcpy (oid_list[i + 1].oid, vb->name, sizeof (oid) * vb->name_length);
-      oid_list[i + 1].oid_len = vb->name_length;
+      memcpy (oid_list[i].oid, vb->name, sizeof (oid) * vb->name_length);
+      oid_list[i].oid_len = vb->name_length;
     } /* for (i = data->values_len) */
 
     if (res != NULL)
