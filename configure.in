@@ -1145,6 +1145,9 @@ AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to l
 [
 	with_libperl="yes"
 ])
+
+AC_SUBST(PERL, "$perl_interpreter")
+
 if test "x$with_libperl" = "xyes"
 then
   SAVE_CFLAGS=$CFLAGS
@@ -1817,7 +1820,29 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile)
+dnl Perl bindings
+AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@], [Options passed to "perl Makefile.PL".])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		PERL_BINDINGS_OPTIONS="$withval"
+		with_perl_bindings="yes"
+	fi
+],
+[
+	PERL_BINDINGS_OPTIONS=""
+	with_perl_bindings="yes"
+])
+if test "x$with_perl_bindings" = "xyes"
+then
+	PERL_BINDINGS="perl"
+else
+	PERL_BINDINGS=""
+fi
+AC_SUBST(PERL_BINDINGS)
+AC_SUBST(PERL_BINDINGS_OPTIONS)
+
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
 if test "x$with_liboping" = "xyes" -a "x$with_own_liboping" = "xyes"
 then
@@ -1826,9 +1851,14 @@ fi
 
 if test "x$with_libperl" = "xyes"
 then
-	with_libperl="yes (version `perl -MConfig -e 'print $Config{version};'`)"
+	with_libperl="yes (version `$perl_interpreter -MConfig -e 'print $Config{version};'`)"
 else
 	enable_perl="no (needs libperl)"
+fi
+
+if test "x$with_perl_bindings" = "xyes" -a "x$PERL_BINDINGS_OPTIONS" != "x"
+then
+	with_perl_bindings="yes ($PERL_BINDINGS_OPTIONS)"
 fi
 
 cat <<EOF;
@@ -1857,6 +1887,9 @@ Configuration:
   Features:
     daemon mode . . . . $enable_daemon
     debug . . . . . . . $enable_debug
+
+  Bindings:
+    perl  . . . . . . . $with_perl_bindings
 
   Modules:
     apache  . . . . . . $enable_apache

@@ -1,4 +1,4 @@
-SUBDIRS = libltdl src
+SUBDIRS = libltdl src bindings
 
 INCLUDES = $(LTDLINCL)
 
