@@ -53,6 +53,7 @@
 #define PLUGIN_DATASET  255
 
 #define log_debug(...) DEBUG ("perl: " __VA_ARGS__)
+#define log_info(...) INFO ("perl: " __VA_ARGS__)
 #define log_warn(...) WARNING ("perl: " __VA_ARGS__)
 #define log_err(...) ERROR ("perl: " __VA_ARGS__)
 
@@ -97,6 +98,9 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static PerlInterpreter *perl = NULL;
+
+static int  perl_argc   = 0;
+static char **perl_argv = NULL;
 
 static char base_name[DATA_MAX_NAME_LEN] = "";
 
@@ -957,45 +961,10 @@ static XS (boot_Collectd)
  * Interface to collectd.
  */
 
-static int perl_config (const char *key, const char *value)
-{
-	assert (NULL != perl);
-
-	log_debug ("perl_config: key = \"%s\", value=\"%s\"", key, value);
-
-	if (0 == strcasecmp (key, "LoadPlugin")) {
-		char module_name[DATA_MAX_NAME_LEN];
-
-		if (get_module_name (module_name, sizeof (module_name), value)
-				== NULL) {
-			log_err ("Invalid module name %s", value);
-			return (1);
-		} /* if (get_module_name == NULL) */
-
-		log_debug ("perl_config: loading perl plugin \"%s\"", value);
-		Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
-				Perl_newSVpv (perl, module_name, strlen (module_name)),
-				Nullsv);
-	}
-	else if (0 == strcasecmp (key, "BaseName")) {
-		log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
-		strncpy (base_name, value, sizeof (base_name));
-		base_name[sizeof (base_name) - 1] = '\0';
-	}
-	else if (0 == strcasecmp (key, "IncludeDir")) {
-		Perl_av_unshift (perl, GvAVn (PL_incgv), 1);
-		Perl_av_store (perl, GvAVn (PL_incgv),
-				0, Perl_newSVpv (perl, value, strlen (value)));
-	}
-	else {
-		return -1;
-	}
-	return 0;
-} /* static int perl_config (char *, char *) */
-
 static int perl_init (void)
 {
-	assert (NULL != perl);
+	if (NULL == perl)
+		return 0;
 
 	PERL_SET_CONTEXT (perl);
 	return pplugin_call_all (PLUGIN_INIT);
@@ -1003,7 +972,8 @@ static int perl_init (void)
 
 static int perl_read (void)
 {
-	assert (NULL != perl);
+	if (NULL == perl)
+		return 0;
 
 	PERL_SET_CONTEXT (perl);
 	return pplugin_call_all (PLUGIN_READ);
@@ -1011,7 +981,8 @@ static int perl_read (void)
 
 static int perl_write (const data_set_t *ds, const value_list_t *vl)
 {
-	assert (NULL != perl);
+	if (NULL == perl)
+		return 0;
 
 	PERL_SET_CONTEXT (perl);
 	return pplugin_call_all (PLUGIN_WRITE, ds, vl);
@@ -1019,7 +990,8 @@ static int perl_write (const data_set_t *ds, const value_list_t *vl)
 
 static void perl_log (int level, const char *msg)
 {
-	assert (NULL != perl);
+	if (NULL == perl)
+		return;
 
 	PERL_SET_CONTEXT (perl);
 	pplugin_call_all (PLUGIN_LOG, level, msg);
@@ -1037,7 +1009,8 @@ static int perl_shutdown (void)
 	plugin_unregister_read ("perl");
 	plugin_unregister_write ("perl");
 
-	assert (NULL != perl);
+	if (NULL == perl)
+		return 0;
 
 	PERL_SET_CONTEXT (perl);
 	ret = pplugin_call_all (PLUGIN_SHUTDOWN);
@@ -1094,17 +1067,19 @@ static void xs_init (pTHX)
 	return;
 } /* static void xs_init (pTHX) */
 
-/*
- * Create the perl interpreter and register it with collectd.
- */
-void module_register (void)
+/* Initialize the global Perl interpreter. */
+static int init_pi (int argc, char **argv)
 {
-	char *embed_argv[] = { "", "-e", "bootstrap Collectd \""VERSION"\"", NULL };
-	int  embed_argc    = 3;
-
 	int i = 0;
 
-	log_debug ("module_register: Registering perl plugin...");
+	if (NULL != perl)
+		return 0;
+
+	log_info ("Initializing Perl interpreter...");
+#if COLLECT_DEBUG
+	for (i = 0; i < argc; ++i)
+		log_debug ("argv[%i] = \"%s\"", i, argv[i]);
+#endif /* COLLECT_DEBUG */
 
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
 
@@ -1116,7 +1091,7 @@ void module_register (void)
 
 	PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
 
-	if (0 != perl_parse (perl, xs_init, embed_argc, embed_argv, NULL)) {
+	if (0 != perl_parse (perl, xs_init, argc, argv, NULL)) {
 		log_err ("module_register: Unable to bootstrap Collectd.");
 		exit (1);
 	}
@@ -1128,13 +1103,74 @@ void module_register (void)
 	data_sets = Perl_newHV (perl);
 
 	plugin_register_log ("perl", perl_log);
-	plugin_register_config ("perl", perl_config, config_keys, config_keys_num);
 	plugin_register_init ("perl", perl_init);
 
 	plugin_register_read ("perl", perl_read);
 
 	plugin_register_write ("perl", perl_write);
 	plugin_register_shutdown ("perl", perl_shutdown);
+	return 0;
+} /* static int init_pi (const char **, const int) */
+
+static int perl_config (const char *key, const char *value)
+{
+	log_debug ("perl_config: key = \"%s\", value=\"%s\"", key, value);
+
+	if (0 == strcasecmp (key, "LoadPlugin")) {
+		char module_name[DATA_MAX_NAME_LEN];
+
+		if (get_module_name (module_name, sizeof (module_name), value)
+				== NULL) {
+			log_err ("Invalid module name %s", value);
+			return (1);
+		} /* if (get_module_name == NULL) */
+
+		init_pi (perl_argc, perl_argv);
+
+		log_info ("perl_config: loading perl plugin \"%s\"", value);
+		Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
+				Perl_newSVpv (perl, module_name, strlen (module_name)),
+				Nullsv);
+	}
+	else if (0 == strcasecmp (key, "BaseName")) {
+		log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
+		strncpy (base_name, value, sizeof (base_name));
+		base_name[sizeof (base_name) - 1] = '\0';
+	}
+	else if (0 == strcasecmp (key, "IncludeDir")) {
+		perl_argv = (char **)realloc (perl_argv,
+				(++perl_argc + 1) * sizeof (char *));
+
+		if (NULL == perl_argv) {
+			log_err ("perl_config: Not enough memory.");
+			exit (3);
+		}
+
+		perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 3);
+		sstrncpy(perl_argv[perl_argc - 1], "-I", 3);
+		sstrncpy(perl_argv[perl_argc - 1] + 2, value, strlen (value) + 1);
+
+		perl_argv[perl_argc] = NULL;
+	}
+	else {
+		return -1;
+	}
+	return 0;
+} /* static int perl_config (char *, char *) */
+
+void module_register (void)
+{
+	perl_argc = 4;
+	perl_argv = (char **)smalloc ((perl_argc + 1) * sizeof (char *));
+
+	/* default options for the Perl interpreter */
+	perl_argv[0] = "";
+	perl_argv[1] = "-MCollectd";
+	perl_argv[2] = "-e";
+	perl_argv[3] = "1";
+	perl_argv[4] = NULL;
+
+	plugin_register_config ("perl", perl_config, config_keys, config_keys_num);
 	return;
 } /* void module_register (void) */
 
