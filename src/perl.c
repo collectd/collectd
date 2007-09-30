@@ -61,8 +61,8 @@
 /* this is defined in DynaLoader.a */
 void boot_DynaLoader (PerlInterpreter *, CV *);
 
-static XS (Collectd_plugin_register);
-static XS (Collectd_plugin_unregister);
+static XS (Collectd_plugin_register_ds);
+static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
 static XS (Collectd_plugin_log);
 
@@ -75,13 +75,6 @@ typedef struct {
 	int len;
 	int *values;
 } ds_types_t;
-
-typedef struct {
-	int wait_time;
-	int wait_left;
-
-	SV  *sub;
-} pplugin_t;
 
 
 /*
@@ -104,8 +97,6 @@ static char **perl_argv = NULL;
 
 static char base_name[DATA_MAX_NAME_LEN] = "";
 
-static char *plugin_types[] = { "init", "read", "write", "shutdown" };
-static HV   *plugins[PLUGIN_TYPES];
 static HV   *data_sets;
 
 static struct {
@@ -113,10 +104,10 @@ static struct {
 	XS ((*f));
 } api[] =
 {
-	{ "Collectd::plugin_register",        Collectd_plugin_register },
-	{ "Collectd::plugin_unregister",      Collectd_plugin_unregister },
-	{ "Collectd::plugin_dispatch_values", Collectd_plugin_dispatch_values },
-	{ "Collectd::plugin_log",             Collectd_plugin_log },
+	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
+	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
+	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
+	{ "Collectd::plugin_log",                 Collectd_plugin_log },
 	{ "", NULL }
 };
 
@@ -342,62 +333,6 @@ static char *get_module_name (char *buf, size_t buf_len, const char *module) {
 } /* char *get_module_name */
 
 /*
- * Add a new plugin with the given name.
- */
-static int pplugin_register (int type, const char *name, SV *sub)
-{
-	pplugin_t *p = NULL;
-
-	if ((type < 0) || (type >= PLUGIN_TYPES))
-		return -1;
-
-	if (NULL == name)
-		return -1;
-
-	p = (pplugin_t *)smalloc (sizeof (pplugin_t));
-	/* this happens during parsing of config file,
-	 * thus interval_g is not set correctly */
-	p->wait_time = 10;
-	p->wait_left = 0;
-	p->sub = Perl_newSVsv (perl, sub);
-
-	if (NULL == Perl_hv_store (perl, plugins[type], name, strlen (name),
-				Perl_sv_setref_pv (perl, Perl_newSV (perl, 0), 0, p), 0)) {
-		log_debug ("pplugin_register: Failed to add plugin \"%s\" (\"%s\")",
-				name, SvPV_nolen (sub));
-		Perl_sv_free (perl, p->sub);
-		sfree (p);
-		return -1;
-	}
-	return 0;
-} /* static int pplugin_register (int, char *, SV *) */
-
-/*
- * Removes the plugin with the given name and frees any ressources.
- */
-static int pplugin_unregister (int type, char *name)
-{
-	SV *tmp = NULL;
-
-	if ((type < 0) || (type >= PLUGIN_TYPES))
-		return -1;
-
-	if (NULL == name)
-		return -1;
-
-	/* freeing the allocated memory of the element itself (pplugin_t *) causes
-	 * a segfault during perl_destruct () thus I assume perl somehow takes
-	 * care of this... */
-
-	tmp = Perl_hv_delete (perl, plugins[type], name, strlen (name), 0);
-	if (NULL != tmp) {
-		pplugin_t *p = (pplugin_t *)SvIV ((SV *)SvRV (tmp));
-		Perl_sv_free (perl, p->sub);
-	}
-	return 0;
-} /* static int pplugin_unregister (char *) */
-
-/*
  * Add a plugin's data set definition.
  */
 static int pplugin_register_data_set (char *name, AV *dataset)
@@ -563,13 +498,13 @@ static int pplugin_dispatch_values (char *name, HV *values)
 } /* static int pplugin_dispatch_values (char *, HV *) */
 
 /*
- * Call a plugin's working function.
+ * Call all working functions of the given type.
  */
-static int pplugin_call (int type, char *name, SV *sub, va_list ap)
+static int pplugin_call_all (int type, ...)
 {
 	int retvals = 0;
-	I32 xflags  = G_NOARGS;
 
+	va_list ap;
 	int ret = 0;
 
 	dSP;
@@ -577,10 +512,14 @@ static int pplugin_call (int type, char *name, SV *sub, va_list ap)
 	if ((type < 0) || (type >= PLUGIN_TYPES))
 		return -1;
 
+	va_start (ap, type);
+
 	ENTER;
 	SAVETMPS;
 
 	PUSHMARK (SP);
+
+	XPUSHs (sv_2mortal (Perl_newSViv (perl, (IV)type)));
 
 	if (PLUGIN_WRITE == type) {
 		/*
@@ -625,8 +564,6 @@ static int pplugin_call (int type, char *name, SV *sub, va_list ap)
 		XPUSHs (sv_2mortal (Perl_newSVpv (perl, ds->type, 0)));
 		XPUSHs (sv_2mortal (Perl_newRV_noinc (perl, (SV *)pds)));
 		XPUSHs (sv_2mortal (Perl_newRV_noinc (perl, (SV *)pvl)));
-
-		xflags = 0;
 	}
 	else if (PLUGIN_LOG == type) {
 		/*
@@ -636,27 +573,14 @@ static int pplugin_call (int type, char *name, SV *sub, va_list ap)
 		 */
 		XPUSHs (sv_2mortal (Perl_newSViv (perl, va_arg (ap, int))));
 		XPUSHs (sv_2mortal (Perl_newSVpv (perl, va_arg (ap, char *), 0)));
-
-		xflags = 0;
 	}
 
 	PUTBACK;
 
-	/* prevent an endless loop */
-	if (PLUGIN_LOG != type)
-		log_debug ("pplugin_call: executing %s::%s->%s()",
-				base_name, name, plugin_types[type]);
-
-	retvals = Perl_call_sv (perl, sub, G_SCALAR | xflags);
+	retvals = Perl_call_pv (perl, "Collectd::plugin_call_all", G_SCALAR);
 
 	SPAGAIN;
-	if (1 > retvals) {
-		if (PLUGIN_LOG != type)
-			log_warn ("pplugin_call: "
-					"%s::%s->%s() returned void - assuming true",
-					base_name, name, plugin_types[type]);
-	}
-	else {
+	if (0 < retvals) {
 		SV *tmp = POPs;
 		if (! SvTRUE (tmp))
 			ret = -1;
@@ -665,73 +589,9 @@ static int pplugin_call (int type, char *name, SV *sub, va_list ap)
 	PUTBACK;
 	FREETMPS;
 	LEAVE;
+
+	va_end (ap);
 	return ret;
-} /* static int pplugin_call (int, char *, SV *, va_list) */
-
-/*
- * Call all working functions of the given type.
- */
-static int pplugin_call_all (int type, ...)
-{
-	SV *tmp = NULL;
-
-	char *plugin;
-	I32  len;
-
-	if ((type < 0) || (type >= PLUGIN_TYPES))
-		return -1;
-
-	if (0 == Perl_hv_iterinit (perl, plugins[type]))
-		return 0;
-
-	while (NULL != (tmp = Perl_hv_iternextsv (perl, plugins[type],
-			&plugin, &len))) {
-		pplugin_t *p;
-		va_list   ap;
-
-		int status;
-
-		va_start (ap, type);
-
-		p = (pplugin_t *)SvIV ((SV *)SvRV (tmp));
-
-		if (p->wait_left > 0)
-			p->wait_left -= interval_g;
-
-		if (p->wait_left > 0)
-			continue;
-
-		if (0 == (status = pplugin_call (type, plugin, p->sub, ap))) {
-			p->wait_left = 0;
-			p->wait_time = interval_g;
-		}
-		else if (PLUGIN_READ == type) {
-			p->wait_left = p->wait_time;
-			p->wait_time <<= 1;
-
-			if (p->wait_time > 86400)
-				p->wait_time = 86400;
-
-			log_warn ("%s->read() failed. Will suspend it for %i seconds.",
-					plugin, p->wait_left);
-		}
-		else if (PLUGIN_INIT == type) {
-			int i = 0;
-
-			log_err ("%s->init() failed. Plugin will be disabled.",
-					plugin, status);
-
-			for (i = 0; i < PLUGIN_TYPES; ++i)
-				pplugin_unregister (i, plugin);
-		}
-		else if (PLUGIN_LOG != type) {
-			log_warn ("%s->%s() failed with status %i.",
-					plugin, plugin_types[type], status);
-		}
-
-		va_end (ap);
-	}
-	return 0;
 } /* static int pplugin_call_all (int, ...) */
 
 
@@ -740,93 +600,38 @@ static int pplugin_call_all (int type, ...)
  */
 
 /*
- * Collectd::plugin_register (type, name, data).
+ * Collectd::plugin_register_data_set (type, dataset).
  *
  * type:
- *   init, read, write, shutdown, data set
+ *   type of the dataset
  *
- * name:
- *   name of the plugin
- *
- * data:
- *   reference to the plugin's subroutine that does the work or the data set
- *   definition
+ * dataset:
+ *   dataset to be registered
  */
-static XS (Collectd_plugin_register)
+static XS (Collectd_plugin_register_ds)
 {
-	int type  = 0;
 	SV  *data = NULL;
-
-	int ret = 0;
-
-	dXSARGS;
-
-	if (3 != items) {
-		log_err ("Usage: Collectd::plugin_register(type, name, data)");
-		XSRETURN_EMPTY;
-	}
-
-	log_debug ("Collectd::plugin_register: "
-			"type = \"%i\", name = \"%s\", \"%s\"",
-			(int)SvIV (ST (0)), SvPV_nolen (ST (1)), SvPV_nolen (ST (2)));
-
-	type = (int)SvIV (ST (0));
-	data = ST (2);
-
-	if ((type >= 0) && (type < PLUGIN_TYPES)
-			&& SvROK (data) && (SVt_PVCV == SvTYPE (SvRV (data)))) {
-		ret = pplugin_register (type, SvPV_nolen (ST (1)), data);
-	}
-	else if ((type == PLUGIN_DATASET)
-			&& SvROK (data) && (SVt_PVAV == SvTYPE (SvRV (data)))) {
-		ret = pplugin_register_data_set (SvPV_nolen (ST (1)),
-				(AV *)SvRV (data));
-	}
-	else {
-		log_err ("Collectd::plugin_register: Invalid data.");
-		XSRETURN_EMPTY;
-	}
-
-	if (0 == ret)
-		XSRETURN_YES;
-	else
-		XSRETURN_EMPTY;
-} /* static XS (Collectd_plugin_register) */
-
-/*
- * Collectd::plugin_unregister (type, name).
- *
- * type:
- *   init, read, write, shutdown, data set
- *
- * name:
- *   name of the plugin
- */
-static XS (Collectd_plugin_unregister)
-{
-	int type = 0;
-	int ret  = 0;
+	int ret   = 0;
 
 	dXSARGS;
 
 	if (2 != items) {
-		log_err ("Usage: Collectd::plugin_unregister(type, name)");
+		log_err ("Usage: Collectd::plugin_register_data_set(type, dataset)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_unregister: type = \"%i\", name = \"%s\"",
-			(int)SvIV (ST (0)), SvPV_nolen (ST (1)));
+	log_debug ("Collectd::plugin_register_data_set: "
+			"type = \"%s\", dataset = \"%s\"",
+			SvPV_nolen (ST (0)), SvPV_nolen (ST (1)));
 
-	type = (int)SvIV (ST (0));
+	data = ST (1);
 
-	if ((type >= 0) && (type < PLUGIN_TYPES)) {
-		ret = pplugin_unregister (type, SvPV_nolen (ST (1)));
-	}
-	else if (type == PLUGIN_DATASET) {
-		ret = pplugin_unregister_data_set (SvPV_nolen (ST (1)));
+	if (SvROK (data) && (SVt_PVAV == SvTYPE (SvRV (data)))) {
+		ret = pplugin_register_data_set (SvPV_nolen (ST (0)),
+				(AV *)SvRV (data));
 	}
 	else {
-		log_err ("Collectd::plugin_unregister: Invalid type.");
+		log_err ("Collectd::plugin_register_data_set: Invalid data.");
 		XSRETURN_EMPTY;
 	}
 
@@ -834,7 +639,31 @@ static XS (Collectd_plugin_unregister)
 		XSRETURN_YES;
 	else
 		XSRETURN_EMPTY;
-} /* static XS (Collectd_plugin_unregister) */
+} /* static XS (Collectd_plugin_register_ds) */
+
+/*
+ * Collectd::plugin_unregister_data_set (type).
+ *
+ * type:
+ *   type of the dataset
+ */
+static XS (Collectd_plugin_unregister_ds)
+{
+	dXSARGS;
+
+	if (1 != items) {
+		log_err ("Usage: Collectd::plugin_unregister_data_set(type)");
+		XSRETURN_EMPTY;
+	}
+
+	log_debug ("Collectd::plugin_unregister_data_set: type = \"%s\"",
+			SvPV_nolen (ST (0)));
+
+	if (0 == pplugin_unregister_data_set (SvPV_nolen (ST (1))))
+		XSRETURN_YES;
+	else
+		XSRETURN_EMPTY;
+} /* static XS (Collectd_plugin_register_ds) */
 
 /*
  * Collectd::plugin_dispatch_values (name, values).
@@ -898,8 +727,6 @@ static XS (Collectd_plugin_log)
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_log: level = %i, message = \"%s\"",
-			SvIV (ST (0)), SvPV_nolen (ST (1)));
 	plugin_log (SvIV (ST (0)), SvPV_nolen (ST (1)));
 	XSRETURN_YES;
 } /* static XS (Collectd_plugin_log) */
@@ -1000,33 +827,20 @@ static void perl_log (int level, const char *msg)
 
 static int perl_shutdown (void)
 {
-	int i   = 0;
 	int ret = 0;
 
-	plugin_unregister_log ("perl");
 	plugin_unregister_config ("perl");
-	plugin_unregister_init ("perl");
-	plugin_unregister_read ("perl");
-	plugin_unregister_write ("perl");
 
 	if (NULL == perl)
 		return 0;
 
+	plugin_unregister_log ("perl");
+	plugin_unregister_init ("perl");
+	plugin_unregister_read ("perl");
+	plugin_unregister_write ("perl");
+
 	PERL_SET_CONTEXT (perl);
 	ret = pplugin_call_all (PLUGIN_SHUTDOWN);
-
-	for (i = 0; i < PLUGIN_TYPES; ++i) {
-		if (0 < Perl_hv_iterinit (perl, plugins[i])) {
-			char *k = NULL;
-			I32  l  = 0;
-
-			while (NULL != Perl_hv_iternextsv (perl, plugins[i], &k, &l)) {
-				pplugin_unregister (i, k);
-			}
-		}
-
-		Perl_hv_undef (perl, plugins[i]);
-	}
 
 	if (0 < Perl_hv_iterinit (perl, data_sets)) {
 		char *k = NULL;
@@ -1097,9 +911,6 @@ static int init_pi (int argc, char **argv)
 	}
 	perl_run (perl);
 
-	for (i = 0; i < PLUGIN_TYPES; ++i)
-		plugins[i] = Perl_newHV (perl);
-
 	data_sets = Perl_newHV (perl);
 
 	plugin_register_log ("perl", perl_log);
@@ -1127,7 +938,7 @@ static int perl_config (const char *key, const char *value)
 
 		init_pi (perl_argc, perl_argv);
 
-		log_info ("perl_config: loading perl plugin \"%s\"", value);
+		log_debug ("perl_config: loading perl plugin \"%s\"", value);
 		Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
 				Perl_newSVpv (perl, module_name, strlen (module_name)),
 				Nullsv);
