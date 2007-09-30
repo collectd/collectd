@@ -111,6 +111,27 @@ static struct {
 	{ "", NULL }
 };
 
+struct {
+	char name[64];
+	int  value;
+} constants[] =
+{
+	{ "Collectd::TYPE_INIT",       PLUGIN_INIT },
+	{ "Collectd::TYPE_READ",       PLUGIN_READ },
+	{ "Collectd::TYPE_WRITE",      PLUGIN_WRITE },
+	{ "Collectd::TYPE_SHUTDOWN",   PLUGIN_SHUTDOWN },
+	{ "Collectd::TYPE_LOG",        PLUGIN_LOG },
+	{ "Collectd::TYPE_DATASET",    PLUGIN_DATASET },
+	{ "Collectd::DS_TYPE_COUNTER", DS_TYPE_COUNTER },
+	{ "Collectd::DS_TYPE_GAUGE",   DS_TYPE_GAUGE },
+	{ "Collectd::LOG_ERR",         LOG_ERR },
+	{ "Collectd::LOG_WARNING",     LOG_WARNING },
+	{ "Collectd::LOG_NOTICE",      LOG_NOTICE },
+	{ "Collectd::LOG_INFO",        LOG_INFO },
+	{ "Collectd::LOG_DEBUG",       LOG_DEBUG },
+	{ "", 0 }
+};
+
 
 /*
  * Helper functions for data type conversion.
@@ -731,58 +752,6 @@ static XS (Collectd_plugin_log)
 	XSRETURN_YES;
 } /* static XS (Collectd_plugin_log) */
 
-/*
- * Collectd::bootstrap ().
- */
-static XS (boot_Collectd)
-{
-	HV   *stash = NULL;
-	char *file  = __FILE__;
-
-	struct {
-		char name[64];
-		SV   *value;
-	} consts[] =
-	{
-		{ "Collectd::TYPE_INIT",       Perl_newSViv (perl, PLUGIN_INIT) },
-		{ "Collectd::TYPE_READ",       Perl_newSViv (perl, PLUGIN_READ) },
-		{ "Collectd::TYPE_WRITE",      Perl_newSViv (perl, PLUGIN_WRITE) },
-		{ "Collectd::TYPE_SHUTDOWN",   Perl_newSViv (perl, PLUGIN_SHUTDOWN) },
-		{ "Collectd::TYPE_LOG",        Perl_newSViv (perl, PLUGIN_LOG) },
-		{ "Collectd::TYPE_DATASET",    Perl_newSViv (perl, PLUGIN_DATASET) },
-		{ "Collectd::DS_TYPE_COUNTER", Perl_newSViv (perl, DS_TYPE_COUNTER) },
-		{ "Collectd::DS_TYPE_GAUGE",   Perl_newSViv (perl, DS_TYPE_GAUGE) },
-		{ "Collectd::LOG_ERR",         Perl_newSViv (perl, LOG_ERR) },
-		{ "Collectd::LOG_WARNING",     Perl_newSViv (perl, LOG_WARNING) },
-		{ "Collectd::LOG_NOTICE",      Perl_newSViv (perl, LOG_NOTICE) },
-		{ "Collectd::LOG_INFO",        Perl_newSViv (perl, LOG_INFO) },
-		{ "Collectd::LOG_DEBUG",       Perl_newSViv (perl, LOG_DEBUG) },
-		{ "", NULL }
-	};
-
-	int i = 0;
-
-	dXSARGS;
-
-	if ((1 > items) || (2 < items)) {
-		log_err ("Usage: Collectd::bootstrap(name[, version])");
-		XSRETURN_EMPTY;
-	}
-
-	XS_VERSION_BOOTCHECK;
-
-	/* register API */
-	for (i = 0; NULL != api[i].f; ++i)
-		Perl_newXS (perl, api[i].name, api[i].f, file);
-
-	stash = Perl_gv_stashpv (perl, "Collectd", 1);
-
-	/* export "constants" */
-	for (i = 0; NULL != consts[i].value; ++i)
-		Perl_newCONSTSUB (perl, stash, consts[i].name, consts[i].value);
-	XSRETURN_YES;
-} /* static XS (boot_Collectd) */
-
 
 /*
  * Interface to collectd.
@@ -867,17 +836,29 @@ static int perl_shutdown (void)
 	return ret;
 } /* static void perl_shutdown (void) */
 
+/* bootstrap the Collectd module */
 static void xs_init (pTHX)
 {
-	char *file = __FILE__;
+	HV   *stash = NULL;
+	char *file  = __FILE__;
+
+	int i = 0;
 
 	dXSUB_SYS;
 
-	/* build the Collectd module into the perl interpreter */
-	Perl_newXS (perl, "Collectd::bootstrap", boot_Collectd, file);
-
 	/* enable usage of Perl modules using shared libraries */
 	Perl_newXS (perl, "DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+
+	/* register API */
+	for (i = 0; NULL != api[i].f; ++i)
+		Perl_newXS (perl, api[i].name, api[i].f, file);
+
+	stash = Perl_gv_stashpv (perl, "Collectd", 1);
+
+	/* export "constants" */
+	for (i = 0; '\0' != constants[i].name[0]; ++i)
+		Perl_newCONSTSUB (perl, stash, constants[i].name,
+				Perl_newSViv (perl, constants[i].value));
 	return;
 } /* static void xs_init (pTHX) */
 

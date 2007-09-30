@@ -24,9 +24,6 @@ use warnings;
 
 require Exporter;
 
-# make all symbols available at compile time
-BEGIN { our $VERSION = '4.1.2'; bootstrap Collectd $VERSION; }
-
 our @ISA = qw( Exporter );
 
 our %EXPORT_TAGS = (
