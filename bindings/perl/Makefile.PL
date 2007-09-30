@@ -2,7 +2,6 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
 	'NAME'		=> 'Collectd',
-	'VERSION'	=> '4.1.2',
 	'AUTHOR'	=> 'Sebastian Harl <sh@tokkee.org>',
 );
 

@@ -2,7 +2,6 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
 	'NAME'		=> 'Collectd::Unixsock',
-	'VERSION'	=> '4.1.2',
 	'AUTHOR'	=> 'Florian Forster <octo@verplant.org>',
 );
 
