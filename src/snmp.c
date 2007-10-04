@@ -1103,10 +1103,12 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
   for (vb = res->variables; vb != NULL; vb = vb->next_variable)
   {
+#if COLLECT_DEBUG
     char buffer[1024];
     snprint_variable (buffer, sizeof (buffer),
 	vb->name, vb->name_length, vb);
     DEBUG ("snmp plugin: Got this variable: %s", buffer);
+#endif /* COLLECT_DEBUG */
 
     for (i = 0; i < data->values_len; i++)
       if (snmp_oid_compare (data->values[i].oid, data->values[i].oid_len,
@@ -1126,8 +1128,12 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_host (host_definition_t *host)
 {
   int i;
+  time_t time_start;
+  time_t time_end;
 
-  DEBUG ("snmp plugin: csnmp_read_host (%s);", host->name);
+  time_start = time (NULL);
+  DEBUG ("snmp plugin: csnmp_read_host (%s) started at %u;", host->name,
+      (unsigned int) time_start);
 
   if (host->sess_handle == NULL)
     csnmp_host_open_session (host);
@@ -1143,6 +1149,16 @@ static int csnmp_read_host (host_definition_t *host)
       csnmp_read_table (host, data);
     else
       csnmp_read_value (host, data);
+  }
+
+  time_end = time (NULL);
+  DEBUG ("snmp plugin: csnmp_read_host (%s)  at %u;", host->name,
+      (unsigned int) time_end);
+  if ((time_end - time_start) > host->skip_num)
+  {
+    WARNING ("snmp plugin: Host `%s' should be queried every %i seconds, "
+	"but reading all values takes %i seconds.",
+	host->name, host->skip_num, time_end - time_start);
   }
 
   return (0);
