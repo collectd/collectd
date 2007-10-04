@@ -65,6 +65,10 @@ and ten threads are used.
 Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
 it's configuration is not trivial and may take some time.
 
+Since the C<Net-SNMP> library is used you cann use all the environment
+variables that are interpreted by that package. See L<snmpcmd(1)> for more
+details.
+
 There are two types of blocks that can be contained in the
 C<E<lt>PluginE<nbsp>snmpE<gt>> block: B<Data> and B<Host>:
 
