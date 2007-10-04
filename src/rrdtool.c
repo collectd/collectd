@@ -476,7 +476,6 @@ static int rrd_create_file (char *filename, const data_set_t *ds, const value_li
 	int rra_num;
 	char **ds_def;
 	int ds_num;
-	int i, j;
 	int status = 0;
 
 	if (check_create_dir (filename))
