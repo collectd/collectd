@@ -453,7 +453,7 @@ static int srrd_update (char *filename, char *template, int argc, char **argv)
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
 
-	status = rrd_update (argc, argv);
+	status = rrd_update (new_argc, new_argv);
 	pthread_mutex_unlock (&librrd_lock);
 
 	if (status != 0)
