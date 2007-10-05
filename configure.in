@@ -670,35 +670,57 @@ m4_divert_once([HELP_WITH], [
 collectd additional packages:])
 
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
+librrd_cflags=""
+librrd_ldflags=""
+librrd_threadsafe="yes"
 AC_ARG_WITH(rrdtool, [AS_HELP_STRING([--with-rrdtool@<:@=PREFIX@:>@], [Path to rrdtool.])],
 [	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		librrd_cflags="-I$withval/include"
+		librrd_ldflags="-L$withval/lib"
 		with_rrdtool="yes"
 	fi
 ], [with_rrdtool="yes"])
 if test "x$with_rrdtool" = "xyes"
 then
-	AC_CHECK_LIB(rrd, rrd_update,
-	[
-		AC_DEFINE(HAVE_LIBRRD, 1, [Define to 1 if you have the rrd library (-lrrd).])
-	],
-	[with_rrdtool="no (librrd not found)"], [-lm])
-fi
-if test "x$with_rrdtool" = "xyes"
-then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CFLAGS="$CFLAGS $librrd_cflags"
+	LDFLAGS="$LDFLAGS $librrd_ldflags"
+
 	AC_CHECK_HEADERS(rrd.h,, [with_rrdtool="no (rrd.h not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_rrdtool" = "xyes"
 then
-	collect_rrdtool=1
-else
-	collect_rrdtool=0
+	AC_CHECK_LIB(rrd_th, rrd_update_r,
+	[with_rrdtool="yes"
+	 librrd_ldflags="$librrd_ldflags -lrrd_th -lm"
+	],
+	[librrd_threadsafe="no"
+	 AC_CHECK_LIB(rrd, rrd_update,
+	 [with_rrdtool="yes"
+	  librrd_ldflags="$librrd_ldflags -lrrd -lm"
+	 ],
+	 [with_rrdtool="no (symbol 'rrd_update' not found)"],
+	 [-lm])
+	]
+	[-lm])
 fi
-AC_DEFINE_UNQUOTED(COLLECT_RRDTOOL, [$collect_rrdtool],
-	[Wether or not to use rrdtool library])
-AM_CONDITIONAL(BUILD_WITH_RRDTOOL, test "x$with_rrdtool" = "xyes")
+if test "x$with_rrdtool" = "xyes"
+then
+	BUILD_WITH_LIBRRD_CFLAGS="$librrd_cflags"
+	BUILD_WITH_LIBRRD_LDFLAGS="$librrd_ldflags"
+	AC_SUBST(BUILD_WITH_LIBRRD_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRRD_LDFLAGS)
+fi
+if test "x$librrd_threadsafe" = "xyes"
+then
+	AC_DEFINE(HAVE_THREADSAFE_LIBRRD, 1, [Define to 1 if you have the threadsafe rrd library (-lrrd_th).])
+fi
 
 AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
 [	if test "x$withval" != "xno" -a "x$withval" != "xyes"

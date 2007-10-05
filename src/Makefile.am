@@ -438,7 +438,9 @@ endif
 if BUILD_PLUGIN_RRDTOOL
 pkglib_LTLIBRARIES += rrdtool.la
 rrdtool_la_SOURCES = rrdtool.c
-rrdtool_la_LDFLAGS = -module -avoid-version -lrrd
+rrdtool_la_LDFLAGS = -module -avoid-version
+rrdtool_la_CFLAGS = $(BUILD_WITH_LIBRRD_CFLAGS)
+rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)
 collectd_LDADD += "-dlopen" rrdtool.la
 collectd_DEPENDENCIES += rrdtool.la
 endif

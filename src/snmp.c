@@ -67,16 +67,16 @@ struct host_definition_s
   char *community;
   int version;
   void *sess_handle;
-  int16_t skip_num;
-  int16_t skip_left;
+  uint32_t interval;
+  time_t next_update;
   data_definition_t **data_list;
   int data_list_len;
-  enum          /****************************************************/
-  {             /* This host..                                      */
-    STATE_IDLE, /* - just sits there until `skip_left < interval_g' */
-    STATE_WAIT, /* - waits to be queried.                           */
-    STATE_BUSY  /* - is currently being queried.                    */
-  } state;      /****************************************************/
+  enum          /******************************************************/
+  {             /* This host..                                        */
+    STATE_IDLE, /* - just sits there until `next_update < interval_g' */
+    STATE_WAIT, /* - waits to be queried.                             */
+    STATE_BUSY  /* - is currently being queried.                      */
+  } state;      /******************************************************/
   struct host_definition_s *next;
 };
 typedef struct host_definition_s host_definition_t;
@@ -519,8 +519,6 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
 
 static int csnmp_config_add_host_interval (host_definition_t *hd, oconfig_item_t *ci)
 {
-  int interval;
-
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
   {
@@ -528,10 +526,9 @@ static int csnmp_config_add_host_interval (host_definition_t *hd, oconfig_item_t
     return (-1);
   }
 
-  interval = (int) ci->values[0].value.number;
-  hd->skip_num = interval;
-  if (hd->skip_num < 0)
-    hd->skip_num = 0;
+  hd->interval = (int) ci->values[0].value.number;
+  if (hd->interval < 0)
+    hd->interval = 0;
 
   return (0);
 } /* int csnmp_config_add_host_interval */
@@ -562,8 +559,8 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   }
 
   hd->sess_handle = NULL;
-  hd->skip_num = 0;
-  hd->skip_left = 0;
+  hd->interval = 0;
+  hd->next_update = 0;
   hd->state = STATE_IDLE;
 
   for (i = 0; i < ci->children_num; i++)
@@ -928,7 +925,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   vl.host[sizeof (vl.host) - 1] = '\0';
   strcpy (vl.plugin, "snmp");
 
-  vl.interval = host->skip_num;
+  vl.interval = host->interval;
   vl.time = time (NULL);
 
   subid = 0;
@@ -1305,7 +1302,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   strncpy (vl.type_instance, data->instance.string, sizeof (vl.type_instance));
   vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-  vl.interval = host->skip_num;
+  vl.interval = host->interval;
 
   req = snmp_pdu_create (SNMP_MSG_GET);
   if (req == NULL)
@@ -1336,10 +1333,12 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
   for (vb = res->variables; vb != NULL; vb = vb->next_variable)
   {
+#if COLLECT_DEBUG
     char buffer[1024];
     snprint_variable (buffer, sizeof (buffer),
 	vb->name, vb->name_length, vb);
     DEBUG ("snmp plugin: Got this variable: %s", buffer);
+#endif /* COLLECT_DEBUG */
 
     for (i = 0; i < data->values_len; i++)
       if (snmp_oid_compare (data->values[i].oid, data->values[i].oid_len,
@@ -1360,8 +1359,12 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_host (host_definition_t *host)
 {
   int i;
+  time_t time_start;
+  time_t time_end;
 
-  DEBUG ("snmp plugin: csnmp_read_host (%s);", host->name);
+  time_start = time (NULL);
+  DEBUG ("snmp plugin: csnmp_read_host (%s) started at %u;", host->name,
+      (unsigned int) time_start);
 
   if (host->sess_handle == NULL)
     csnmp_host_open_session (host);
@@ -1377,6 +1380,16 @@ static int csnmp_read_host (host_definition_t *host)
       csnmp_read_table (host, data);
     else
       csnmp_read_value (host, data);
+  }
+
+  time_end = time (NULL);
+  DEBUG ("snmp plugin: csnmp_read_host (%s) finished at %u;", host->name,
+      (unsigned int) time_end);
+  if ((time_end - time_start) > host->interval)
+  {
+    WARNING ("snmp plugin: Host `%s' should be queried every %i seconds, "
+	"but reading all values takes %i seconds.",
+	host->name, host->interval, time_end - time_start);
   }
 
   return (0);
@@ -1428,18 +1441,18 @@ static int csnmp_init (void)
   for (host = host_head; host != NULL; host = host->next)
   {
     threads_num++;
-    /* We need to initialize `skip_num' here, because `interval_g' isn't
+    /* We need to initialize `interval' here, because `interval_g' isn't
      * initialized during `configure'. */
-    host->skip_left = interval_g;
-    if (host->skip_num == 0)
+    host->next_update = time (NULL);
+    if (host->interval == 0)
     {
-      host->skip_num = interval_g;
+      host->interval = interval_g;
     }
-    else if (host->skip_num < interval_g)
+    else if (host->interval < interval_g)
     {
-      host->skip_num = interval_g;
+      host->interval = interval_g;
       WARNING ("snmp plugin: Data for host `%s' will be collected every %i seconds.",
-	  host->name, host->skip_num);
+	  host->name, host->interval);
     }
 
     csnmp_host_open_session (host);
@@ -1486,13 +1499,12 @@ static int csnmp_read (void)
     if (host->state != STATE_IDLE)
       continue;
 
-    host->skip_left -= interval_g;
-    if (host->skip_left >= interval_g)
+    /* Skip this host if the next or a later iteration will be sufficient. */
+    if (host->next_update >= (now + interval_g))
       continue;
 
     host->state = STATE_WAIT;
-
-    host->skip_left = host->skip_num;
+    host->next_update = now + host->interval;
   } /* for (host) */
 
   pthread_cond_broadcast (&host_cond);
