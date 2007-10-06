@@ -177,10 +177,6 @@
 
 #<Plugin rrdtool>
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
-#	StepSize      10
-#	HeartBeat     20
-#	RRARows     1200
-#	XFF            0.1
 #	CacheTimeout 120
 #	CacheFlush   900
 #</Plugin>
