@@ -236,6 +236,17 @@ Operation
     the values and read the rrdtool(1) manpage thoroughly.
 
 
+collectd and chkrootkit
+-----------------------
+
+  If you are using the `dns' plugin chkrootkit(1) will report collectd as a
+  packet sniffer ("<iface>: PACKET SNIFFER(/usr/sbin/collectd[<pid>])"). The
+  plugin captures all UDP packets on port 53 to analyze the DNS traffic. In
+  this case, collectd is a legitimate sniffer and the report should be
+  considered to be a false positive. However, you might want to check that
+  this really is collectd and not some other, illegitimate sniffer.
+
+
 Prerequisites
 -------------
 
