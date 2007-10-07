@@ -86,6 +86,7 @@ static const char *config_keys[] =
 {
 	"LoadPlugin",
 	"BaseName",
+	"EnableDebugger",
 	"IncludeDir"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -930,6 +931,26 @@ static int perl_config (const char *key, const char *value)
 		log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
 		strncpy (base_name, value, sizeof (base_name));
 		base_name[sizeof (base_name) - 1] = '\0';
+	}
+	else if (0 == strcasecmp (key, "EnableDebugger")) {
+		perl_argv = (char **)realloc (perl_argv,
+				(++perl_argc + 1) * sizeof (char *));
+
+		if (NULL == perl_argv) {
+			log_err ("perl_config: Not enough memory.");
+			exit (3);
+		}
+
+		if ('\0' == value[0]) {
+			perl_argv[perl_argc - 1] = "-d";
+		}
+		else {
+			perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 4);
+			sstrncpy (perl_argv[perl_argc - 1], "-d:", 4);
+			sstrncpy (perl_argv[perl_argc - 1] + 3, value, strlen (value) + 1);
+		}
+
+		perl_argv[perl_argc] = NULL;
 	}
 	else if (0 == strcasecmp (key, "IncludeDir")) {
 		perl_argv = (char **)realloc (perl_argv,
