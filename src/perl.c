@@ -81,16 +81,6 @@ typedef struct {
  * private variables
  */
 
-/* valid configuration file keys */
-static const char *config_keys[] =
-{
-	"LoadPlugin",
-	"BaseName",
-	"EnableDebugger",
-	"IncludeDir"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
 static PerlInterpreter *perl = NULL;
 
 static int  perl_argc   = 0;
@@ -799,7 +789,7 @@ static int perl_shutdown (void)
 {
 	int ret = 0;
 
-	plugin_unregister_config ("perl");
+	plugin_unregister_complex_config ("perl");
 
 	if (NULL == perl)
 		return 0;
@@ -907,71 +897,137 @@ static int init_pi (int argc, char **argv)
 	return 0;
 } /* static int init_pi (const char **, const int) */
 
-static int perl_config (const char *key, const char *value)
+/*
+ * LoadPlugin "<Plugin>"
+ */
+static int perl_config_loadplugin (oconfig_item_t *ci)
 {
-	log_debug ("perl_config: key = \"%s\", value=\"%s\"", key, value);
+	char module_name[DATA_MAX_NAME_LEN];
 
-	if (0 == strcasecmp (key, "LoadPlugin")) {
-		char module_name[DATA_MAX_NAME_LEN];
+	char *value = NULL;
 
-		if (get_module_name (module_name, sizeof (module_name), value)
-				== NULL) {
-			log_err ("Invalid module name %s", value);
-			return (1);
-		} /* if (get_module_name == NULL) */
-
-		init_pi (perl_argc, perl_argv);
-
-		log_debug ("perl_config: loading perl plugin \"%s\"", value);
-		Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
-				Perl_newSVpv (perl, module_name, strlen (module_name)),
-				Nullsv);
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
 	}
-	else if (0 == strcasecmp (key, "BaseName")) {
-		log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
-		strncpy (base_name, value, sizeof (base_name));
-		base_name[sizeof (base_name) - 1] = '\0';
+
+	value = ci->values[0].value.string;
+
+	if (NULL == get_module_name (module_name, sizeof (module_name), value)) {
+		log_err ("Invalid module name %s", value);
+		return (1);
 	}
-	else if (0 == strcasecmp (key, "EnableDebugger")) {
-		perl_argv = (char **)realloc (perl_argv,
-				(++perl_argc + 1) * sizeof (char *));
 
-		if (NULL == perl_argv) {
-			log_err ("perl_config: Not enough memory.");
-			exit (3);
-		}
+	init_pi (perl_argc, perl_argv);
 
-		if ('\0' == value[0]) {
-			perl_argv[perl_argc - 1] = "-d";
-		}
-		else {
-			perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 4);
-			sstrncpy (perl_argv[perl_argc - 1], "-d:", 4);
-			sstrncpy (perl_argv[perl_argc - 1] + 3, value, strlen (value) + 1);
-		}
+	log_debug ("perl_config: loading perl plugin \"%s\"", value);
+	Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
+			Perl_newSVpv (perl, module_name, strlen (module_name)),
+			Nullsv);
+	return 0;
+} /* static int perl_config_loadplugin (oconfig_item_it *) */
 
-		perl_argv[perl_argc] = NULL;
+/*
+ * BaseName "<Name>"
+ */
+static int perl_config_basename (oconfig_item_t *ci)
+{
+	char *value = NULL;
+
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
 	}
-	else if (0 == strcasecmp (key, "IncludeDir")) {
-		perl_argv = (char **)realloc (perl_argv,
-				(++perl_argc + 1) * sizeof (char *));
 
-		if (NULL == perl_argv) {
-			log_err ("perl_config: Not enough memory.");
-			exit (3);
-		}
+	value = ci->values[0].value.string;
 
-		perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 3);
-		sstrncpy(perl_argv[perl_argc - 1], "-I", 3);
-		sstrncpy(perl_argv[perl_argc - 1] + 2, value, strlen (value) + 1);
+	log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
+	strncpy (base_name, value, sizeof (base_name));
+	base_name[sizeof (base_name) - 1] = '\0';
+	return 0;
+} /* static int perl_config_basename (oconfig_item_it *) */
 
-		perl_argv[perl_argc] = NULL;
+/*
+ * EnableDebugger "<Package>"|""
+ */
+static int perl_config_enabledebugger (oconfig_item_t *ci)
+{
+	char *value = NULL;
+
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+	}
+
+	value = ci->values[0].value.string;
+
+	perl_argv = (char **)realloc (perl_argv,
+			(++perl_argc + 1) * sizeof (char *));
+
+	if (NULL == perl_argv) {
+		log_err ("perl_config: Not enough memory.");
+		exit (3);
+	}
+
+	if ('\0' == value[0]) {
+		perl_argv[perl_argc - 1] = "-d";
 	}
 	else {
-		return -1;
+		perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 4);
+		sstrncpy (perl_argv[perl_argc - 1], "-d:", 4);
+		sstrncpy (perl_argv[perl_argc - 1] + 3, value, strlen (value) + 1);
+	}
+
+	perl_argv[perl_argc] = NULL;
+	return 0;
+} /* static int perl_config_enabledebugger (oconfig_item_it *) */
+
+/*
+ * IncludeDir "<Dir>"
+ */
+static int perl_config_includedir (oconfig_item_t *ci)
+{
+	char *value = NULL;
+
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+	}
+
+	value = ci->values[0].value.string;
+
+	perl_argv = (char **)realloc (perl_argv,
+			(++perl_argc + 1) * sizeof (char *));
+
+	if (NULL == perl_argv) {
+		log_err ("perl_config: Not enough memory.");
+		exit (3);
+	}
+
+	perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 3);
+	sstrncpy(perl_argv[perl_argc - 1], "-I", 3);
+	sstrncpy(perl_argv[perl_argc - 1] + 2, value, strlen (value) + 1);
+
+	perl_argv[perl_argc] = NULL;
+	return 0;
+} /* static int perl_config_includedir (oconfig_item_it *) */
+
+static int perl_config (oconfig_item_t *ci)
+{
+	int i = 0;
+
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *c = ci->children + i;
+
+		if (0 == strcasecmp (c->key, "LoadPlugin"))
+			perl_config_loadplugin (c);
+		else if (0 == strcasecmp (c->key, "BaseName"))
+			perl_config_basename (c);
+		else if (0 == strcasecmp (c->key, "EnableDebugger"))
+			perl_config_enabledebugger (c);
+		else if (0 == strcasecmp (c->key, "IncludeDir"))
+			perl_config_includedir (c);
+		else
+			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
 	return 0;
-} /* static int perl_config (char *, char *) */
+} /* static int perl_config (oconfig_item_t *) */
 
 void module_register (void)
 {
@@ -985,7 +1041,7 @@ void module_register (void)
 	perl_argv[3] = "1";
 	perl_argv[4] = NULL;
 
-	plugin_register_config ("perl", perl_config, config_keys, config_keys_num);
+	plugin_register_complex_config ("perl", perl_config);
 	return;
 } /* void module_register (void) */
 
