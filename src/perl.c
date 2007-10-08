@@ -865,15 +865,17 @@ static void xs_init (pTHX)
 /* Initialize the global Perl interpreter. */
 static int init_pi (int argc, char **argv)
 {
-	int i = 0;
-
 	if (NULL != perl)
 		return 0;
 
 	log_info ("Initializing Perl interpreter...");
 #if COLLECT_DEBUG
-	for (i = 0; i < argc; ++i)
-		log_debug ("argv[%i] = \"%s\"", i, argv[i]);
+	{
+		int i = 0;
+
+		for (i = 0; i < argc; ++i)
+			log_debug ("argv[%i] = \"%s\"", i, argv[i]);
+	}
 #endif /* COLLECT_DEBUG */
 
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
