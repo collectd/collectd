@@ -1,3 +1,6 @@
+	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
+	  be more threadsafe otherwise by locking calls to the library.
+
 2007-09-28, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.
 	* wireless plugin: Correct the handling of cards returning signal and
