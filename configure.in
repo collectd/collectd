@@ -1683,6 +1683,7 @@ plugin_processes="no"
 plugin_serial="no"
 plugin_swap="no"
 plugin_tape="no"
+plugin_tcpconns="no"
 plugin_users="no"
 plugin_vserver="no"
 plugin_wireless="no"
@@ -1703,6 +1704,7 @@ then
 	plugin_processes="yes"
 	plugin_serial="yes"
 	plugin_swap="yes"
+	plugin_tcpconns="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
 fi
@@ -1836,6 +1838,7 @@ AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
+AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
@@ -1951,6 +1954,7 @@ Configuration:
     swap  . . . . . . . $enable_swap
     syslog  . . . . . . $enable_syslog
     tape  . . . . . . . $enable_tape
+    tcpconns  . . . . . $enable_tcpconns
     unixsock  . . . . . $enable_unixsock
     users . . . . . . . $enable_users
     vserver . . . . . . $enable_vserver

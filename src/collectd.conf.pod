@@ -771,6 +771,44 @@ syslog-daemon.
 
 =back
 
+=head2 Plugin C<tcpconns>
+
+The C<tcpconns plugin> counts the number of currently established TCP
+connections based on the local port and/or the remote port. Since there may be
+a lot of connections the default if to count all connections with a local port,
+for which a listening socket is opened. You can use the following options to
+fine-tune the ports you are interested in:
+
+=over 4
+
+=item B<ListeningPorts> I<true>|I<false>
+
+If this option is set to I<true>, statistics for all local ports for which a
+listening socket exists are collected. The default depends on B<LocalPort> and
+B<RemotePort> (see below): If no port at all is specifically selected, the
+default is to collect listening ports. If specific ports (no matter if local or
+remote ports) are selected, this option defaults to I<false>, i.E<nbsp>e. only
+the selected ports will be collected unless this option is set to I<true>
+specifically.
+
+=item B<LocalPort> I<Port>
+
+Count the connections to a specific local port. This can be used to see how
+many connections are handeled by a specific daemon, e.E<nbsp>g. the mailserver.
+You have to specify the port in numeric form, so for the mailserver example
+you'd need to set B<25>.
+
+=item B<RemotePort> I<Port>
+
+Count the connections to a specific remote port. This is usefull to see how
+much a remote service is used. This is most useful if you want to know how many
+connections a local service has opened to remote services, e.E<nbsp>g. how many
+connections a mail server or news server has to other mail or news servers, or
+how many connections a web proxy holds to web servers. You have to give the
+port in numeric form.
+
+=back
+
 =head2 Plugin C<unixsock>
 
 =over 4

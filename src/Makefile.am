@@ -520,6 +520,14 @@ collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
 endif
 
+if BUILD_PLUGIN_TCPCONNS
+pkglib_LTLIBRARIES += tcpconns.la
+tcpconns_la_SOURCES = tcpconns.c
+tcpconns_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" tcpconns.la
+collectd_DEPENDENCIES += tcpconns.la
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c utils_cmd_putval.h utils_cmd_putval.c
