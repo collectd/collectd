@@ -27,6 +27,9 @@
 # error "No applicable input method."
 #endif
 
+#define TCP_STATE_LISTEN 10
+#define TCP_STATE_MAX 11
+
 #define PORT_COLLECT_LOCAL  0x01
 #define PORT_COLLECT_REMOTE 0x02
 #define PORT_IS_LISTENING   0x04
@@ -35,8 +38,8 @@ typedef struct port_entry_s
 {
   uint16_t port;
   uint16_t flags;
-  uint32_t count_local;
-  uint32_t count_remote;
+  uint32_t count_local[TCP_STATE_MAX + 1];
+  uint32_t count_remote[TCP_STATE_MAX + 1];
   struct port_entry_s *next;
 } port_entry_t;
 
@@ -48,6 +51,22 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
+static const char *tcp_state[] =
+{
+  "", /* 0 */
+  "ESTABLISHED",
+  "SYN_SENT",
+  "SYN_RECV",
+  "FIN_WAIT1",
+  "FIN_WAIT2",
+  "TIME_WAIT",
+  "CLOSE",
+  "CLOSE_WAIT",
+  "LAST_ACK",
+  "LISTEN", /* 10 */
+  "CLOSING"
+};
+
 static int port_collect_listening = 0;
 static port_entry_t *port_list_head = NULL;
 
@@ -55,27 +74,47 @@ static void conn_submit_port_entry (port_entry_t *pe)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
+  int i;
 
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "tcpconns");
-  snprintf (vl.type_instance, sizeof (vl.type_instance), "%hu", pe->port);
-  vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
   if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING))
       || (pe->flags & PORT_COLLECT_LOCAL))
   {
-    values[0].gauge = pe->count_local;
-    strcpy (vl.plugin_instance, "local");
-    plugin_dispatch_values ("tcp_connections", &vl);
+    snprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+	"%hu-local", pe->port);
+    vl.plugin_instance[sizeof (vl.plugin_instance) - 1] = '\0';
+
+    for (i = 1; i <= TCP_STATE_MAX; i++)
+    {
+      vl.values[0].gauge = pe->count_local[i];
+
+      strncpy (vl.type_instance, tcp_state[i], sizeof (vl.type_instance));
+      vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+
+      plugin_dispatch_values ("tcp_connections", &vl);
+    }
   }
+
   if (pe->flags & PORT_COLLECT_REMOTE)
   {
-    values[0].gauge = pe->count_remote;
-    strcpy (vl.plugin_instance, "remote");
-    plugin_dispatch_values ("tcp_connections", &vl);
+    snprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+	"%hu-remote", pe->port);
+    vl.plugin_instance[sizeof (vl.plugin_instance) - 1] = '\0';
+
+    for (i = 1; i <= TCP_STATE_MAX; i++)
+    {
+      vl.values[0].gauge = pe->count_remote[i];
+
+      strncpy (vl.type_instance, tcp_state[i], sizeof (vl.type_instance));
+      vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+
+      plugin_dispatch_values ("tcp_connections", &vl);
+    }
   }
 } /* void conn_submit */
 
@@ -114,6 +153,8 @@ static port_entry_t *conn_get_port_entry (uint16_t port, int create)
   return (ret);
 } /* port_entry_t *conn_get_port_entry */
 
+/* Removes ports that were added automatically due to the `ListeningPorts'
+ * setting but which are no longer listening. */
 static void conn_reset_port_entry (void)
 {
   port_entry_t *prev = NULL;
@@ -123,7 +164,9 @@ static void conn_reset_port_entry (void)
   {
     /* If this entry was created while reading the files (ant not when handling
      * the configuration) remove it now. */
-    if ((pe->flags & (PORT_COLLECT_LOCAL | PORT_COLLECT_REMOTE)) == 0)
+    if ((pe->flags & (PORT_COLLECT_LOCAL
+	    | PORT_COLLECT_REMOTE
+	    | PORT_IS_LISTENING)) == 0)
     {
       port_entry_t *next = pe->next;
 
@@ -141,9 +184,8 @@ static void conn_reset_port_entry (void)
       continue;
     }
 
-    pe->count_local = 0;
-    pe->count_remote = 0;
-
+    memset (pe->count_local, '\0', sizeof (pe->count_local));
+    memset (pe->count_remote, '\0', sizeof (pe->count_remote));
     pe->flags &= ~PORT_IS_LISTENING;
 
     pe = pe->next;
@@ -152,40 +194,33 @@ static void conn_reset_port_entry (void)
 
 static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t state)
 {
-  /* Listening sockets */
-  if ((state == 0x0a) && (port_collect_listening != 0))
+  port_entry_t *pe = NULL;
+
+  if ((state == 0) || (state > TCP_STATE_MAX))
   {
-    port_entry_t *pe;
+    NOTICE ("tcpconns plugin: Ignoring connection with unknown state 0x%02x.",
+	state);
+    return (-1);
+  }
 
-    DEBUG ("tcpconns plugin: Adding listening port %hu", port_local);
-
+  /* Listening sockets */
+  if ((state == TCP_STATE_LISTEN) && (port_collect_listening != 0))
+  {
     pe = conn_get_port_entry (port_local, 1 /* create */);
     if (pe != NULL)
-    {
-      pe->count_local++;
       pe->flags |= PORT_IS_LISTENING;
-    }
   }
-  /* Established connections */
-  else if (state == 0x01)
-  {
-    port_entry_t *pe;
 
-    DEBUG ("tcpconns plugin: Established connection %hu <-> %hu",
-	port_local, port_remote);
-    
-    pe = conn_get_port_entry (port_local, 0 /* no create */);
-    if ((pe != NULL) && (pe->flags & PORT_COLLECT_LOCAL))
-      pe->count_local++;
+  DEBUG ("tcpconns plugin: Connection %hu <-> %hu (%s)",
+      port_local, port_remote, tcp_state[state]);
 
-    pe = conn_get_port_entry (port_remote, 0 /* no create */);
-    if ((pe != NULL) && (pe->flags & PORT_COLLECT_REMOTE))
-      pe->count_remote++;
-  }
-  else
-  {
-    DEBUG ("tcpconns plugin: Ignoring unknown state 0x%x", state);
-  }
+  pe = conn_get_port_entry (port_local, 0 /* no create */);
+  if (pe != NULL)
+    pe->count_local[state]++;
+
+  pe = conn_get_port_entry (port_remote, 0 /* no create */);
+  if (pe != NULL)
+    pe->count_remote[state]++;
 
   return (0);
 } /* int conn_handle_ports */

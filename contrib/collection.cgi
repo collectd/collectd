@@ -2070,7 +2070,7 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%6.2lf%sByte Max,',
     'GPRINT:avg:LAST:%6.2lf%sByte Last\l'
     ],
-    ols_swap => [
+    old_swap => [
     'DEF:used_avg={file}:used:AVERAGE',
     'DEF:used_min={file}:used:MIN',
     'DEF:used_max={file}:used:MAX',
@@ -2113,6 +2113,18 @@ sub load_graph_definitions
     'GPRINT:used_avg:AVERAGE:%5.1lf%s Avg,',
     'GPRINT:used_max:MAX:%5.1lf%s Max,',
     'GPRINT:used_avg:LAST:%5.1lf%s Last\l'
+    ],
+    tcp_connections => ['-v', 'Connections',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Connections",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
     ],
     temperature => ['-v', 'Celsius',
     'DEF:temp_avg={file}:value:AVERAGE',
@@ -2328,6 +2340,7 @@ sub load_graph_definitions
   $MetaGraphDefs->{'swap'} = \&meta_graph_swap;
   $MetaGraphDefs->{'mysql_commands'} = \&meta_graph_mysql_commands;
   $MetaGraphDefs->{'mysql_handler'} = \&meta_graph_mysql_commands;
+  $MetaGraphDefs->{'tcp_connections'} = \&meta_graph_tcp_connections;
 } # load_graph_definitions
 
 sub meta_graph_generic_stack
@@ -2801,4 +2814,70 @@ sub meta_graph_swap
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_swap
 
+sub meta_graph_tcp_connections
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%6.2lf';
+
+  $opts->{'rrd_opts'} = ['-v', 'Connections'];
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    ESTABLISHED	  => '00e000',
+    SYN_SENT	  => '00e0ff',
+    SYN_RECV	  => '00e0a0',
+    FIN_WAIT1	  => 'f000f0',
+    FIN_WAIT2	  => 'f000a0',
+    TIME_WAIT	  => 'ffb000',
+    CLOSE	  => '0000f0',
+    CLOSE_WAIT	  => '0000a0',
+    LAST_ACK	  => '000080',
+    LISTEN	  => 'ff0000',
+    CLOSING	  => '000000'
+  };
+
+  _custom_sort_arrayref ($type_instances,
+    [qw(ESTABLISHED SYN_SENT SYN_RECV FIN_WAIT1 FIN_WAIT2 TIME_WAIT CLOSE
+    CLOSE_WAIT LAST_ACK CLOSING LISTEN)]);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_tcp_connections
 # vim: shiftwidth=2:softtabstop=2:tabstop=8
