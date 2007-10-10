@@ -260,6 +260,14 @@ collectd_LDADD += "-dlopen" iptables.la
 collectd_DEPENDENCIES += iptables.la
 endif
 
+if BUILD_PLUGIN_IPVS
+pkglib_LTLIBRARIES += ipvs.la
+ipvs_la_SOURCES = ipvs.c
+ipvs_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" ipvs.la
+collectd_DEPENDENCIES += ipvs.la
+endif
+
 if BUILD_PLUGIN_IRQ
 pkglib_LTLIBRARIES += irq.la
 irq_la_SOURCES = irq.c

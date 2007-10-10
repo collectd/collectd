@@ -1674,6 +1674,7 @@ plugin_df="no"
 plugin_disk="no"
 plugin_entropy="no"
 plugin_interface="no"
+plugin_ipvs="no"
 plugin_irq="no"
 plugin_load="no"
 plugin_memory="no"
@@ -1697,6 +1698,7 @@ then
 	plugin_disk="yes"
 	plugin_entropy="yes"
 	plugin_interface="yes"
+	plugin_ipvs="yes"
 	plugin_irq="yes"
 	plugin_load="yes"
 	plugin_memory="yes"
@@ -1816,6 +1818,7 @@ AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
+AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
@@ -1933,6 +1936,7 @@ Configuration:
     hddtemp . . . . . . $enable_hddtemp
     interface . . . . . $enable_interface
     iptables  . . . . . $enable_iptables
+    ipvs  . . . . . . . $enable_ipvs
     irq . . . . . . . . $enable_irq
     load  . . . . . . . $enable_load
     logfile . . . . . . $enable_logfile
