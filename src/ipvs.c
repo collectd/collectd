@@ -309,6 +309,8 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 
 	for (i = 0; i < dests->num_dests; ++i)
 		cipvs_submit_dest (pi, &dests->entrytable[i]);
+
+	free (dests);
 	return;
 } /* cipvs_submit_service */
 
