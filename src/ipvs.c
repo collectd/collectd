@@ -73,6 +73,7 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *);
 
 static const char *ipvs_strerror (int err)
 {
+	char errbuf[1024];
 	unsigned int i;
 
 	struct {
@@ -93,7 +94,7 @@ static const char *ipvs_strerror (int err)
 				&& (table[i].err == err))
 			return table[i].message;
 	}
-	return strerror (err);
+	return sstrerror (err, errbuf, sizeof (errbuf));
 } /* ipvs_strerror */
 
 static struct ip_vs_get_services *ipvs_get_services (void)
