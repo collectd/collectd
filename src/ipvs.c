@@ -34,12 +34,22 @@
 #include "plugin.h"
 #include "common.h"
 
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#if HAVE_ARPA_INET_H
+# include <arpa/inet.h>
+#endif /* HAVE_ARPA_INET_H */
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif /* HAVE_SYS_SOCKET_H */
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif /* HAVE_NETINET_IN_H */
 
 /* this can probably only be found in the kernel sources */
-#include <net/ip_vs.h>
+#if HAVE_NET_IP_VS_H
+# include <net/ip_vs.h>
+#elif HAVE_IP_VS_H
+# include <ip_vs.h>
+#endif /* HAVE_IP_VS_H */
 
 #define log_err(...) ERROR ("ipvs: " __VA_ARGS__)
 

@@ -271,6 +271,15 @@ AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 #endif
 ])
 
+# For ipvs module
+have_net_ip_vs_h="no"
+have_ip_vs_h="no"
+if test "x$ac_system" = "xLinux"
+then
+	AC_CHECK_HEADERS(net/ip_vs.h, [have_net_ip_vs_h="yes"])
+	AC_CHECK_HEADERS(ip_vs.h, [have_ip_vs_h="yes"])
+fi
+
 # For quota module
 AC_CHECK_HEADERS(sys/ucred.h, [], [],
 [
@@ -1698,7 +1707,6 @@ then
 	plugin_disk="yes"
 	plugin_entropy="yes"
 	plugin_interface="yes"
-	plugin_ipvs="yes"
 	plugin_irq="yes"
 	plugin_load="yes"
 	plugin_memory="yes"
@@ -1709,6 +1717,11 @@ then
 	plugin_tcpconns="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
+
+	if test "x$have_net_ip_vs_h" = "xyes" -o "x$have_ip_vs_h" = "xyes"
+	then
+		plugin_ipvs="yes"
+	fi
 fi
 
 # Mac OS X devices
@@ -1847,6 +1860,12 @@ AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
+
+dnl ip_vs.h
+if test "x$ac_system" = "xLinux" -a "x$have_net_ip_vs_h$have_ip_vs_h" = "xnono"
+then
+	enable_ipvs="$enable_ipvs (ip_vs.h not found)"
+fi
 
 dnl Perl bindings
 AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@], [Options passed to "perl Makefile.PL".])],
