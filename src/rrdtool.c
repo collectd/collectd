@@ -1051,6 +1051,11 @@ static int rrd_shutdown (void)
 	rrd_cache_flush (-1);
 	pthread_mutex_unlock (&cache_lock);
 
+	pthread_mutex_lock (&queue_lock);
+	do_shutdown = 1;
+	pthread_cond_signal (&queue_cond);
+	pthread_mutex_unlock (&queue_lock);
+
 	/* Wait for all the values to be written to disk before returning. */
 	if (queue_thread != 0)
 	{
@@ -1058,11 +1063,6 @@ static int rrd_shutdown (void)
 		queue_thread = 0;
 		DEBUG ("rrdtool plugin: queue_thread exited.");
 	}
-
-	pthread_mutex_lock (&queue_lock);
-	do_shutdown = 1;
-	pthread_cond_signal (&queue_cond);
-	pthread_mutex_unlock (&queue_lock);
 
 	return (0);
 } /* int rrd_shutdown */
