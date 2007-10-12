@@ -61,8 +61,6 @@
 static int   sockfd    = -1;
 static void *ipvs_func = NULL;
 
-static struct ip_vs_getinfo ipvs_info;
-
 
 /*
  * libipvs API
@@ -99,8 +97,19 @@ static const char *ipvs_strerror (int err)
 
 static struct ip_vs_get_services *ipvs_get_services (void)
 {
+	struct ip_vs_getinfo       ipvs_info;
 	struct ip_vs_get_services *ret;
+
 	socklen_t len;
+
+	len = sizeof (ipvs_info);
+
+	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
+				(void *)&ipvs_info, &len)) {
+		log_err ("ip_vs_get_services: getsockopt() failed: %s",
+				ipvs_strerror (errno));
+		return NULL;
+	}
 
 	len = sizeof (*ret) +
 		sizeof (struct ip_vs_service_entry) * ipvs_info.num_services;
@@ -162,18 +171,8 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 
 static int cipvs_init (void)
 {
-	socklen_t len;
-
-	len = sizeof (ipvs_info);
-
 	if (-1 == (sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW))) {
 		log_err ("cipvs_init: socket() failed: %s", ipvs_strerror (errno));
-		return -1;
-	}
-
-	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
-				(void *)&ipvs_info, &len)) {
-		log_err ("cipvs_init: getsockopt() failed: %s", ipvs_strerror (errno));
 		return -1;
 	}
 	return 0;
