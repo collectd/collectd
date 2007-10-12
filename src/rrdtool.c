@@ -652,6 +652,8 @@ static void *rrd_queue_thread (void *data)
 
 		/* Write the values to the RRD-file */
 		srrd_update (queue_entry->filename, NULL, values_num, values);
+		DEBUG ("rrdtool plugin: queue thread: Wrote %i values to %s",
+				values_num, queue_entry->filename);
 
 		for (i = 0; i < values_num; i++)
 		{
