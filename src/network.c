@@ -1277,8 +1277,6 @@ static int network_config (const char *key, const char *val)
 
 static int network_shutdown (void)
 {
-	DEBUG ("Shutting down.");
-
 	listen_loop++;
 
 	if (listen_thread != (pthread_t) 0)
@@ -1288,7 +1286,8 @@ static int network_shutdown (void)
 		listen_thread = (pthread_t) 0;
 	}
 
-	listen_thread = 0;
+	if (send_buffer_fill > 0)
+		flush_buffer ();
 
 	if (cache_tree != NULL)
 	{
