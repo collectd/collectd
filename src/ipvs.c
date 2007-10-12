@@ -59,41 +59,11 @@
  */
 
 static int   sockfd    = -1;
-static void *ipvs_func = NULL;
 
 
 /*
  * libipvs API
  */
-
-static struct ip_vs_get_services *ipvs_get_services (void);
-static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *);
-
-static const char *ipvs_strerror (int err)
-{
-	char errbuf[1024];
-	unsigned int i;
-
-	struct {
-		void *func;
-		int   err;
-		const char *message;
-	} table [] = {
-		{ 0, EPERM, "Permission denied (you must be root)" },
-		{ 0, EINVAL, "Module is wrong version" },
-		{ 0, ENOPROTOOPT, "Protocol not available" },
-		{ 0, ENOMEM, "Memory allocation problem" },
-		{ ipvs_get_services, ESRCH, "No such service" },
-		{ ipvs_get_dests, ESRCH, "No such service" },
-	};
-
-	for (i = 0; i < sizeof (table) / sizeof (table[0]); i++) {
-		if (((NULL == table[i].func) || (table[i].func == ipvs_func))
-				&& (table[i].err == err))
-			return table[i].message;
-	}
-	return sstrerror (err, errbuf, sizeof (errbuf));
-} /* ipvs_strerror */
 
 static struct ip_vs_get_services *ipvs_get_services (void)
 {
@@ -106,8 +76,9 @@ static struct ip_vs_get_services *ipvs_get_services (void)
 
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
 				(void *)&ipvs_info, &len)) {
+		char errbuf[1024];
 		log_err ("ip_vs_get_services: getsockopt() failed: %s",
-				ipvs_strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return NULL;
 	}
 
@@ -119,14 +90,13 @@ static struct ip_vs_get_services *ipvs_get_services (void)
 		exit (3);
 	}
 
-	ipvs_func = ipvs_get_services;
-
 	ret->num_services = ipvs_info.num_services;
 
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICES,
 				(void *)ret, &len)) {
+		char errbuf[1024];
 		log_err ("ipvs_get_services: getsockopt failed: %s",
-				ipvs_strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 
 		free(ret);
 		return NULL;
@@ -146,8 +116,6 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 		exit (3);
 	}
 
-	ipvs_func = ipvs_get_dests;
-
 	ret->fwmark    = se->fwmark;
 	ret->protocol  = se->protocol;
 	ret->addr      = se->addr;
@@ -156,8 +124,9 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS,
 				(void *)ret, &len)) {
+		char errbuf[1024];
 		log_err ("ipvs_get_dests: getsockopt() failed: %s",
-				ipvs_strerror (errno));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		free (ret);
 		return NULL;
 	}
@@ -172,7 +141,9 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 static int cipvs_init (void)
 {
 	if (-1 == (sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW))) {
-		log_err ("cipvs_init: socket() failed: %s", ipvs_strerror (errno));
+		char errbuf[1024];
+		log_err ("cipvs_init: socket() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
 	return 0;
