@@ -584,10 +584,10 @@ EXTRA_DIST += collectd-email.pod collectd-exec.pod collectd-nagios.pod \
 	collectd.conf.pod collectd.pod
 
 .pod.1:
-	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >$@
+	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
 
 .pod.5:
-	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< >$@
+	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< >.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
