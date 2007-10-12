@@ -594,7 +594,7 @@ static void rrd_cache_flush (int timeout)
 	if (cache == NULL)
 		return;
 
-	DEBUG ("Flushing cache, timeout = %i", timeout);
+	DEBUG ("rrdtool plugin: Flushing cache, timeout = %i", timeout);
 
 	now = time (NULL);
 
@@ -627,7 +627,7 @@ static void rrd_cache_flush (int timeout)
 	{
 		if (avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
 		{
-			DEBUG ("avl_remove (%s) failed.", keys[i]);
+			DEBUG ("rrdtool plugin: avl_remove (%s) failed.", keys[i]);
 			continue;
 		}
 
@@ -639,7 +639,6 @@ static void rrd_cache_flush (int timeout)
 	} /* for (i = 0..keys_num) */
 
 	free (keys);
-	DEBUG ("Flushed %i value(s)", keys_num);
 
 	cache_flush_last = now;
 } /* void rrd_cache_flush */
