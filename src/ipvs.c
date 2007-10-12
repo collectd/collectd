@@ -330,7 +330,7 @@ static int cipvs_shutdown (void)
 {
 	if (sockfd >= 0)
 		close (sockfd);
-	sockfs = -1;
+	sockfd = -1;
 
 	return 0;
 } /* cipvs_shutdown */
