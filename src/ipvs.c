@@ -54,18 +54,14 @@
 #define log_err(...) ERROR ("ipvs: " __VA_ARGS__)
 #define log_info(...) INFO ("ipvs: " __VA_ARGS__)
 
-
 /*
  * private variables
  */
-
-static int   sockfd    = -1;
-
+static int sockfd = -1;
 
 /*
  * libipvs API
  */
-
 static struct ip_vs_get_services *ipvs_get_services (void)
 {
 	struct ip_vs_getinfo       ipvs_info;
@@ -134,11 +130,9 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 	return ret;
 } /* ip_vs_get_dests */
 
-
 /*
  * collectd plugin API and helper functions
  */
-
 static int cipvs_init (void)
 {
 	struct ip_vs_getinfo ipvs_info;
@@ -160,6 +154,7 @@ static int cipvs_init (void)
 		log_err ("cipvs_init: getsockopt() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sockfd);
+		sockfd = -1;
 		return -1;
 	}
 
@@ -168,6 +163,7 @@ static int cipvs_init (void)
 		log_err ("cipvs_init: IPVS version too old (%d.%d.%d < %d.%d.%d)",
 				NVERSION (ipvs_info.version), 1, 1, 4);
 		close (sockfd);
+		sockfd = -1;
 		return -1;
 	}
 	else {
@@ -315,8 +311,10 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 static int cipvs_read (void)
 {
 	struct ip_vs_get_services *services = NULL;
-
 	int i = 0;
+
+	if (sockfd < 0)
+		return (-1);
 
 	if (NULL == (services = ipvs_get_services ()))
 		return -1;
@@ -330,7 +328,10 @@ static int cipvs_read (void)
 
 static int cipvs_shutdown (void)
 {
-	close (sockfd);
+	if (sockfd >= 0)
+		close (sockfd);
+	sockfs = -1;
+
 	return 0;
 } /* cipvs_shutdown */
 
@@ -343,4 +344,3 @@ void module_register (void)
 } /* module_register */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-
