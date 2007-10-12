@@ -69,6 +69,11 @@ Features
       Iptables' counters: Number of bytes that were matched by a certain
       iptables rule.
 
+    - ipvs
+      IPVS connection statistics (number of connections, octets and packets
+      for each service and destination).
+      See http://www.linuxvirtualserver.org/software/index.html.
+
     - irq
       IRQ counters: Frequency in which certain interrupts occur.
 

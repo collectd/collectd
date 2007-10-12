@@ -7,6 +7,9 @@ yyyy-mm-dd, Version 4.2.0
 	  config option which lets you debug your Perl plugins more easily.
 	* snmp plugin: Added the options `Scale' and `Shift' to Data-blocks to
 	  correct the values returned by SNMP-agents.
+	* ipvs plugin: The new `ipvs' plugin collects IPVS connection statistics
+	  (number of connections, octets and packets for each service and
+	  destination).
 
 2007-09-28, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.
