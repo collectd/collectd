@@ -722,8 +722,6 @@ static void rrd_cache_flush (int timeout)
 	iter = avl_get_iterator (cache);
 	while (avl_iterator_next (iter, (void *) &key, (void *) &rc) == 0)
 	{
-		DEBUG ("key = %s; age = %i;", key, now - rc->first_value);
-
 		if (rc->flags == FLAG_QUEUED)
 			continue;
 		else if ((now - rc->first_value) < timeout)
@@ -859,8 +857,10 @@ static int rrd_cache_insert (const char *filename,
 		avl_insert (cache, cache_key, rc);
 	}
 
-	DEBUG ("rrd_cache_insert (%s, %s, %u) = %p", filename, value,
-			(unsigned int) value_time, (void *) rc);
+	DEBUG ("rrdtool plugin: rrd_cache_insert: file = %s; "
+			"values_num = %i; age = %u;",
+			filename, rc->values_num,
+			rc->last_value - rc->first_value);
 
 	if ((rc->last_value - rc->first_value) >= cache_timeout)
 	{

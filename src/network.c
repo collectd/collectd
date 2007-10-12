@@ -1107,8 +1107,6 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					(uint64_t) vl->interval))
 			return (-1);
 		vl_def->interval = vl->interval;
-		DEBUG ("network plugin: add_to_buffer: interval = %i",
-				(int) vl->interval);
 	}
 
 	if (strcmp (vl_def->plugin, vl->plugin) != 0)
