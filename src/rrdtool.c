@@ -105,7 +105,7 @@ static double  xff       = 0.1;
 static int         cache_timeout = 0;
 static int         cache_flush_timeout = 0;
 static time_t      cache_flush_last;
-static avl_tree_t *cache = NULL;
+static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static rrd_queue_t    *queue_head = NULL;
@@ -641,7 +641,7 @@ static void *rrd_queue_thread (void *data)
 		 * we make a copy of it's values */
 		pthread_mutex_lock (&cache_lock);
 
-		avl_get (cache, queue_entry->filename, (void *) &cache_entry);
+		c_avl_get (cache, queue_entry->filename, (void *) &cache_entry);
 
 		values = cache_entry->values;
 		values_num = cache_entry->values_num;
@@ -665,7 +665,7 @@ static void *rrd_queue_thread (void *data)
 	} /* while (42) */
 
 	pthread_mutex_lock (&cache_lock);
-	avl_destroy (cache);
+	c_avl_destroy (cache);
 	cache = NULL;
 	pthread_mutex_unlock (&cache_lock);
 
@@ -713,7 +713,7 @@ static void rrd_cache_flush (int timeout)
 	int    keys_num = 0;
 
 	char *key;
-	avl_iterator_t *iter;
+	c_avl_iterator_t *iter;
 	int i;
 
 	DEBUG ("rrdtool plugin: Flushing cache, timeout = %i", timeout);
@@ -721,8 +721,8 @@ static void rrd_cache_flush (int timeout)
 	now = time (NULL);
 
 	/* Build a list of entries to be flushed */
-	iter = avl_get_iterator (cache);
-	while (avl_iterator_next (iter, (void *) &key, (void *) &rc) == 0)
+	iter = c_avl_get_iterator (cache);
+	while (c_avl_iterator_next (iter, (void *) &key, (void *) &rc) == 0)
 	{
 		if (rc->flags == FLAG_QUEUED)
 			continue;
@@ -744,20 +744,20 @@ static void rrd_cache_flush (int timeout)
 						"realloc failed: %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
-				avl_iterator_destroy (iter);
+				c_avl_iterator_destroy (iter);
 				return;
 			}
 			keys[keys_num] = key;
 			keys_num++;
 		}
-	} /* while (avl_iterator_next) */
-	avl_iterator_destroy (iter);
+	} /* while (c_avl_iterator_next) */
+	c_avl_iterator_destroy (iter);
 	
 	for (i = 0; i < keys_num; i++)
 	{
-		if (avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
+		if (c_avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
 		{
-			DEBUG ("rrdtool plugin: avl_remove (%s) failed.", keys[i]);
+			DEBUG ("rrdtool plugin: c_avl_remove (%s) failed.", keys[i]);
 			continue;
 		}
 
@@ -783,7 +783,7 @@ static int rrd_cache_insert (const char *filename,
 
 	pthread_mutex_lock (&cache_lock);
 
-	avl_get (cache, filename, (void *) &rc);
+	c_avl_get (cache, filename, (void *) &rc);
 
 	if (rc == NULL)
 	{
@@ -816,7 +816,7 @@ static int rrd_cache_insert (const char *filename,
 
 		sstrerror (errno, errbuf, sizeof (errbuf));
 
-		avl_remove (cache, filename, &cache_key, NULL);
+		c_avl_remove (cache, filename, &cache_key, NULL);
 		pthread_mutex_unlock (&cache_lock);
 
 		ERROR ("rrdtool plugin: realloc failed: %s", errbuf);
@@ -856,7 +856,7 @@ static int rrd_cache_insert (const char *filename,
 			return (-1);
 		}
 
-		avl_insert (cache, cache_key, rc);
+		c_avl_insert (cache, cache_key, rc);
 	}
 
 	DEBUG ("rrdtool plugin: rrd_cache_insert: file = %s; "
@@ -1095,10 +1095,10 @@ static int rrd_init (void)
 	/* Set the cache up */
 	pthread_mutex_lock (&cache_lock);
 
-	cache = avl_create ((int (*) (const void *, const void *)) strcmp);
+	cache = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 	if (cache == NULL)
 	{
-		ERROR ("rrdtool plugin: avl_create failed.");
+		ERROR ("rrdtool plugin: c_avl_create failed.");
 		return (-1);
 	}
 
