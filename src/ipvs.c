@@ -52,6 +52,7 @@
 #endif /* HAVE_IP_VS_H */
 
 #define log_err(...) ERROR ("ipvs: " __VA_ARGS__)
+#define log_info(...) INFO ("ipvs: " __VA_ARGS__)
 
 
 /*
@@ -140,11 +141,38 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 
 static int cipvs_init (void)
 {
+	struct ip_vs_getinfo ipvs_info;
+
+	socklen_t len;
+
 	if (-1 == (sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW))) {
 		char errbuf[1024];
 		log_err ("cipvs_init: socket() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
+	}
+
+	len = sizeof (ipvs_info);
+
+	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
+				(void *)&ipvs_info, &len)) {
+		char errbuf[1024];
+		log_err ("cipvs_init: getsockopt() failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		close (sockfd);
+		return -1;
+	}
+
+	/* we need IPVS >= 1.1.4 */
+	if (ipvs_info.version < ((1 << 16) + (1 << 8) + 4)) {
+		log_err ("cipvs_init: IPVS version too old (%d.%d.%d < %d.%d.%d)",
+				NVERSION (ipvs_info.version), 1, 1, 4);
+		close (sockfd);
+		return -1;
+	}
+	else {
+		log_info ("Successfully connected to IPVS %d.%d.%d",
+				NVERSION (ipvs_info.version));
 	}
 	return 0;
 } /* cipvs_init */
