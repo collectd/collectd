@@ -163,7 +163,7 @@ installed and an "cpu governor" (that's a kernel module) is loaded.
 
 =item B<DataDir> I<Directory>
 
-Set the directory to store RRD-files under. Per default RRD-files are generated
+Set the directory to store CSV-files under. Per default CSV-files are generated
 beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
 =back
@@ -394,7 +394,7 @@ TCP-Port to connect to. Defaults to B<411>.
 The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to the
 database when started and keeps the connection up as long as possible. When the
 connection is interrupted for whatever reason it will try to re-connect. The
-plugin logs loud complaints in case anything goes wrong.
+plugin will complaint loudly in case anything goes wrong.
 
 This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
 C<Com_*> and C<Handler_*> which correspond to F<mysql_octets.rrd>,

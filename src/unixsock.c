@@ -623,7 +623,7 @@ static void *us_server_thread (void *arg)
 
 	while (loop != 0)
 	{
-		DEBUG ("Calling accept..");
+		DEBUG ("unixsock plugin: Calling accept..");
 		status = accept (sock_fd, NULL, NULL);
 		if (status < 0)
 		{

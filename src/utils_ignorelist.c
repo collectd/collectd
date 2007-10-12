@@ -240,8 +240,6 @@ void ignorelist_free (ignorelist_t *il)
 	ignorelist_item_t *this;
 	ignorelist_item_t *next;
 
-	DEBUG ("(il = 0x%p)", (void *) il);
-
 	if (il == NULL)
 		return;
 
