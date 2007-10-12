@@ -226,8 +226,8 @@ Operation
   * When the `csv' or `rrdtool' plugins are loaded they'll write the values to
     files. The usual place for these files is beneath `/var/lib/collectd'.
 
-  * When using some of the plugins, collectd needs to run as user root, since only
-    root can do certain things, such as craft ICMP packages needed to ping
+  * When using some of the plugins, collectd needs to run as user root, since
+    only root can do certain things, such as craft ICMP packages needed to ping
     other hosts. collectd should NOT be installed setuid root since it can be
     used to overwrite valuable files!
 
@@ -242,6 +242,17 @@ Operation
     and `heartbeat' settings given. If change these settings you may need to
     re-create the files, losing all data. Please be aware of that when changing
     the values and read the rrdtool(1) manpage thoroughly.
+
+
+collectd and chkrootkit
+-----------------------
+
+  If you are using the `dns' plugin chkrootkit(1) will report collectd as a
+  packet sniffer ("<iface>: PACKET SNIFFER(/usr/sbin/collectd[<pid>])"). The
+  plugin captures all UDP packets on port 53 to analyze the DNS traffic. In
+  this case, collectd is a legitimate sniffer and the report should be
+  considered to be a false positive. However, you might want to check that
+  this really is collectd and not some other, illegitimate sniffer.
 
 
 Prerequisites
@@ -306,20 +317,20 @@ Prerequisites
 Crosscompiling
 --------------
 
-    To compile correctly collectd needs to be able to initialize static
-    variables to NAN (Not A Number). Some C libraries, especially the GNU
-    libc, have a problem with that.
+  To compile correctly collectd needs to be able to initialize static
+  variables to NAN (Not A Number). Some C libraries, especially the GNU
+  libc, have a problem with that.
 
-    Luckily, with GCC it's possible to work around that problem: One can define
-    NAN as being (0.0 / 0.0) and `isnan' as `f != f'. However, to test this
-    ``implementation'' the configure script needs to compile and run a short
-    test program. Obviously running a test program when doing a cross-
-    compilation is, well, challenging.
+  Luckily, with GCC it's possible to work around that problem: One can define
+  NAN as being (0.0 / 0.0) and `isnan' as `f != f'. However, to test this
+  ``implementation'' the configure script needs to compile and run a short
+  test program. Obviously running a test program when doing a cross-
+  compilation is, well, challenging.
 
-    If you run into this problem, you can use the `--with-nan-emulation'
-    configure option to force the use of this implementation. We can't promise
-    that the compiled binary actually behaves as it should, but since NANs
-    are likely never passed to the libm you have a good chance to be lucky.
+  If you run into this problem, you can use the `--with-nan-emulation'
+  configure option to force the use of this implementation. We can't promise
+  that the compiled binary actually behaves as it should, but since NANs
+  are likely never passed to the libm you have a good chance to be lucky.
 
 
 Contact

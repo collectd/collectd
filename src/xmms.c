@@ -55,7 +55,7 @@ int cxmms_read (void)
   xmms_remote_get_info (xmms_session, &rate, &freq, &nch);
 
   if ((freq == 0) || (nch == 0))
-    return (0);
+    return (-1);
 
   cxmms_submit ("bitrate", rate);
   cxmms_submit ("frequency", freq);

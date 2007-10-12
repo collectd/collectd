@@ -714,7 +714,7 @@ static void rrd_cache_flush (int timeout)
 	avl_iterator_t *iter;
 	int i;
 
-	DEBUG ("Flushing cache, timeout = %i", timeout);
+	DEBUG ("rrdtool plugin: Flushing cache, timeout = %i", timeout);
 
 	now = time (NULL);
 
@@ -722,8 +722,6 @@ static void rrd_cache_flush (int timeout)
 	iter = avl_get_iterator (cache);
 	while (avl_iterator_next (iter, (void *) &key, (void *) &rc) == 0)
 	{
-		DEBUG ("key = %s; age = %i;", key, now - rc->first_value);
-
 		if (rc->flags == FLAG_QUEUED)
 			continue;
 		else if ((now - rc->first_value) < timeout)
@@ -757,7 +755,7 @@ static void rrd_cache_flush (int timeout)
 	{
 		if (avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
 		{
-			DEBUG ("avl_remove (%s) failed.", keys[i]);
+			DEBUG ("rrdtool plugin: avl_remove (%s) failed.", keys[i]);
 			continue;
 		}
 
@@ -770,7 +768,6 @@ static void rrd_cache_flush (int timeout)
 	} /* for (i = 0..keys_num) */
 
 	free (keys);
-	DEBUG ("Flushed %i value(s)", keys_num);
 
 	cache_flush_last = now;
 } /* void rrd_cache_flush */
@@ -860,8 +857,10 @@ static int rrd_cache_insert (const char *filename,
 		avl_insert (cache, cache_key, rc);
 	}
 
-	DEBUG ("rrd_cache_insert (%s, %s, %u) = %p", filename, value,
-			(unsigned int) value_time, (void *) rc);
+	DEBUG ("rrdtool plugin: rrd_cache_insert: file = %s; "
+			"values_num = %i; age = %u;",
+			filename, rc->values_num,
+			rc->last_value - rc->first_value);
 
 	if ((rc->last_value - rc->first_value) >= cache_timeout)
 	{
@@ -1051,6 +1050,14 @@ static int rrd_shutdown (void)
 	pthread_mutex_lock (&cache_lock);
 	rrd_cache_flush (-1);
 	pthread_mutex_unlock (&cache_lock);
+
+	/* Wait for all the values to be written to disk before returning. */
+	if (queue_thread != 0)
+	{
+		pthread_join (queue_thread, NULL);
+		queue_thread = 0;
+		DEBUG ("rrdtool plugin: queue_thread exited.");
+	}
 
 	pthread_mutex_lock (&queue_lock);
 	do_shutdown = 1;

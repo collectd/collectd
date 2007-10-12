@@ -10,6 +10,12 @@ yyyy-mm-dd, Version 4.2.0
 	* ipvs plugin: The new `ipvs' plugin collects IPVS connection statistics
 	  (number of connections, octets and packets for each service and
 	  destination).
+	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
+	  be more threadsafe otherwise by locking calls to the library.
+
+yyyy-mm-dd, Version 4.1.3
+	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
+	  be more threadsafe otherwise by locking calls to the library.
 
 2007-09-28, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.

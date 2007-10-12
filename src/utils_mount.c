@@ -334,7 +334,7 @@ get_spec_by_uuid(const char *s)
 	return get_spec_by_x(UUID, uuid);
 
 	bad_uuid:
-		DEBUG("Found an invalid UUID: %s", s);
+		DEBUG("utils_mount: Found an invalid UUID: %s", s);
 	return NULL;
 }
 
@@ -353,12 +353,12 @@ static char *get_device_name(const char *optstr)
 	}
 	else if (strncmp (optstr, "UUID=", 5) == 0)
 	{
-		DEBUG ("TODO: check UUID= code!");
+		DEBUG ("utils_mount: TODO: check UUID= code!");
 		rc = get_spec_by_uuid (optstr + 5);
 	}
 	else if (strncmp (optstr, "LABEL=", 6) == 0)
 	{
-		DEBUG ("TODO: check LABEL= code!");
+		DEBUG ("utils_mount: TODO: check LABEL= code!");
 		rc = get_spec_by_volume_label (optstr + 6);
 	}
 	else
@@ -368,7 +368,7 @@ static char *get_device_name(const char *optstr)
 
 	if(!rc)
 	{
-		DEBUG ("Error checking device name: optstr = %s", optstr);
+		DEBUG ("utils_mount: Error checking device name: optstr = %s", optstr);
 	}
 	return rc;
 }
@@ -384,7 +384,7 @@ static cu_mount_t *cu_mount_listmntent (void)
 	struct tabmntent *mntlist;
 	if(listmntent(&mntlist, COLLECTD_MNTTAB, NULL, NULL) < 0) {
 		char errbuf[1024];
-		DEBUG("calling listmntent() failed: %s",
+		DEBUG("utils_mount: calling listmntent() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
@@ -396,7 +396,7 @@ static cu_mount_t *cu_mount_listmntent (void)
 		if(loop == NULL) {   /* no loop= mount */
 			device = get_device_name(mnt->mnt_fsname);
 			if(device == NULL) {
-				DEBUG("can't get devicename for fs (%s) %s (%s)"
+				DEBUG("utils_mount: can't get devicename for fs (%s) %s (%s)"
 					": ignored", mnt->mnt_type,
 					mnt->mnt_dir, mnt->mnt_fsname);
 				continue;
@@ -455,7 +455,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	if ((bufsize = CMD_STATFS (NULL, 0, FLAGS_STATFS)) < 1)
 	{
 		char errbuf[1024];
-		DEBUG ("getv?fsstat failed: %s",
+		DEBUG ("utils_mount: getv?fsstat failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (NULL);
 	}
@@ -470,7 +470,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	if ((num = CMD_STATFS (buf, bufsize * sizeof (STRUCT_STATFS), FLAGS_STATFS)) < 1)
 	{
 		char errbuf[1024];
-		DEBUG ("getv?fsstat failed: %s",
+		DEBUG ("utils_mount: getv?fsstat failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		free (buf);
 		return (NULL);
@@ -520,7 +520,7 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 	cu_mount_t *last  = NULL;
 	cu_mount_t *new   = NULL;
 
-	DEBUG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
+	DEBUG ("utils_mount: (void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
 
 	if ((fp = fopen (COLLECTD_MNTTAB, "r")) == NULL)
 	{
@@ -577,7 +577,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 	cu_mount_t *last  = NULL;
 	cu_mount_t *new   = NULL;
 
-	DEBUG ("(void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
+	DEBUG ("utils_mount: (void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
 
 	if ((fp = setmntent (COLLECTD_MNTTAB, "r")) == NULL)
 	{
@@ -601,7 +601,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 		new->device      = get_device_name (new->options);
 		new->next        = NULL;
 
-		DEBUG ("new = {dir = %s, spec_device = %s, type = %s, options = %s, device = %s}",
+		DEBUG ("utils_mount: new = {dir = %s, spec_device = %s, type = %s, options = %s, device = %s}",
 				new->dir, new->spec_device, new->type, new->options, new->device);
 
 		/* Append to list */
@@ -619,7 +619,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	endmntent (fp);
 
-	DEBUG ("return (0x%p)", (void *) first);
+	DEBUG ("utils_mount: return (0x%p)", (void *) first);
 
 	return (first);
 }
@@ -681,8 +681,6 @@ void cu_mount_freelist (cu_mount_t *list)
 {
 	cu_mount_t *this;
 	cu_mount_t *next;
-
-	DEBUG ("(list = 0x%p)", (void *) list);
 
 	for (this = list; this != NULL; this = next)
 	{
