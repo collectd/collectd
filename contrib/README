@@ -38,6 +38,11 @@ should look something like this:
   datadir: "/var/lib/collectd/rrd/"
   libdir: "/usr/lib/collectd/"
 
+exec-smartctl
+-------------
+  Sample script for the exec plugin. Please refer to the documentation in the
+file - you will have to adapt it to your needs anyway.
+
 extractDS.px
 ------------
   Creates a new RRD-file with only one data-source (DS) of the source-RRD-
@@ -58,3 +63,12 @@ been renamed) and others have bee split up into multiple files. This script
 prints a bash-script to STDOUT which should do most of the work for you. You
 may still need to do some things by hand, read `README.migration' for more
 details.
+
+snmp-data.conf
+--------------
+  Sample configuration for the SNMP plugin. This config includes a few standard
+<Data ..> definitions that you can include in your own config using the
+`Include' statement (available since version 4.2.0). The config includes some
+data that is defined in the IF-MIB, e. g. octet or packet counters, UPS-MIB and
+whatever people have send in. If you have some more definitions please send
+them in, so others can profit from it.
