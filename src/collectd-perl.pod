@@ -4,29 +4,119 @@ collectd-perl - Documentation of collectd's C<perl plugin>
 
 =head1 SYNOPSIS
 
-  # See collectd.conf(5)
   LoadPlugin perl
   # ...
   <Plugin perl>
     IncludeDir "/path/to/perl/plugins"
     BaseName "Collectd::Plugin"
+    EnableDebugger ""
     LoadPlugin "FooBar"
   </Plugin>
 
 =head1 DESCRIPTION
 
-The C<perl plugin> includes a Perl-interpreter in collectd and provides
-Perl-equivalents of the plugin-functions. This makes it possible to write
-plugins for collectd in Perl. This is a lot more efficient than executing a
+The C<perl plugin> embeds a Perl-interpreter into collectd and provides an
+interface to collectd's plugin system. This makes it possible to write plugins
+for collectd in Perl. This is a lot more efficient than executing a
 Perl-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
 Please note that this is still considered to be experimental and subject to
 change between minor releases.
 
+=head1 CONFIGURATION
+
+=over 4
+
+=item B<LoadPlugin> I<Plugin>
+
+Loads the Perl plugin I<Plugin>. This does basically the same as B<use> would
+do in a Perl program. As a side effect, the first occurrence of this option
+causes the Perl-interpreter to be initialized.
+
+=item B<BaseName> I<Name>
+
+Prepends I<Name>B<::> to all plugin names loaded after this option. This is
+provided for convenience to keep plugin names short.
+
+=item B<EnableDebugger> I<Package>[=I<option>,...]
+
+Run collectd under the control of the Perl source debugger. If I<Package> is
+not the empty string, control is passed to the debugging, profiling, or
+tracing module installed as Devel::I<Package>. A comma-separated list of
+options may be specified after the "=" character. Please note that you may not
+leave out the I<Package> option even if you specify B<"">. This is the same as
+using the B<-d:Package> command line option.
+
+See L<perldebug> for detailed documentation about debugging Perl.
+
+=item B<IncludeDir> I<Dir>
+
+Adds I<Dir> to the B<@INC> array. This is the same as using the B<-IDir>
+command line option or B<use lib Dir> in the source code. Please note that it
+only has effect on plugins loaded after this option.
+
+=back
+
+=head1 WRITING YOUR OWN PLUGINS
+
+Writing your own plugins is quite simply. collectd manages plugins by means of
+B<dispatch functions> which call the appropriate B<callback functions>
+registered by the plugins. Any plugin basically consists of the implementation
+of these callback functions and initializing code which registers the
+functions with collectd. See the section "EXAMPLES" below for a really basic
+example. The following types of B<callback functions> are known to collectd
+(all of these are optional):
+
+=over 4
+
+=item init functions
+
+This type of functions is called once after loading the module and before any
+calls to the read and write functions. It should be used to initialize the
+internal state of the plugin (e.E<nbsp>g. open sockets, ...). If the return
+value evaluates to B<false>, the plugin will be disabled.
+
+=item read functions
+
+This type of function is used to collect the actual data. It is called once
+per interval (see the B<Interval> configuration option of collectd). Usually
+it will call B<plugin_dispatch_values> to dispatch the values to collectd
+which will pass them on to all registered B<write functions>. If the return
+value evaluates to B<false> the plugin will be skipped for an increasing
+amount of time until it returns B<true> again.
+
+=item write functions
+
+This type of function is used to write the dispatched values. It is called
+once for each call to B<plugin_dispatch_values>.
+
+=item log functions
+
+This type of function is used to pass messages of plugins or the daemon itself
+to the user.
+
+=item shutdown functions
+
+This type of function is called once before the daemon shuts down. It should
+be used to clean up the plugin (e.g. close sockets, ...).
+
+=back
+
+See the documentation of the B<plugin_register> method in the section
+"METHODS" below for the number and types of arguments passed to each
+B<callback function>. This section also explains how to register B<callback
+functions> with collectd.
+
+To enable a plugin, copy it to a place where Perl can find it (i.E<nbsp>e. a
+directory listed in the B<@INC> array) just as any other Perl plugin and add
+an appropriate B<LoadPlugin> option to the configuration file. After
+restarting collectd you're done.
+
 =head1 DATA TYPES
 
-There are two more complex types you need to know about:
+The following complex types are used to pass values between the Perl plugin
+and collectd:
 
 =over 4
 
@@ -46,10 +136,10 @@ structure. The general layout looks like this:
 =item Value-List
 
 A value-list is one structure which features an array of values and fields to
-identify the values, i. e. time and host, plugin name and plugin-instance as
-well as a type and type-instance. Since the "type" is not included in the
-value-list but is passed as an extra argument, the general layout looks like
-this:
+identify the values, i.E<nbsp>e. time and host, plugin name and
+plugin-instance as well as a type and type-instance. Since the "type" is not
+included in the value-list but is passed as an extra argument, the general
+layout looks like this:
 
   {
     values => [123, 0.5],
@@ -65,8 +155,7 @@ this:
 =head1 METHODS
 
 The following functions provide the C-interface to Perl-modules. They are
-automatically exported into the module's namespace. You don't need to C<use>
-any special Modules to access them.
+exported by the ":plugin" export tag (see the section "EXPORTS" below).
 
 =over 4
 
@@ -100,7 +189,9 @@ argument which simply tells B<plugin_register> what is being registered.)
 The last argument, I<data>, is either a function- or an array-reference. If
 I<type> is B<TYPE_DATASET>, then the I<data> argument must be an
 array-reference which points to an array of hashes. Each hash describes one
-data-source. For the exact layout see B<Data-Set> above.
+data-source. For the exact layout see B<Data-Set> above. Please note that
+there is a large number of predefined data-sets available in the B<types.db>
+file which are automatically registered with collectd.
 
 If the I<type> argument is any of the other types (B<TYPE_INIT>, B<TYPE_READ>,
 ...) then I<data> is expected to be a function reference. These functions are
@@ -149,19 +240,144 @@ registered with the daemon.
 Submits a I<message> of level I<log-level> to collectd's logging mechanism.
 The message is passed to all log-callbacks that are registered with collectd.
 
+=item B<ERROR>, B<WARNING>, B<NOTICE>, B<INFO>, B<DEBUG> (I<message>)
+
+Wrappers around B<plugin_log>, using B<LOG_ERR>, B<LOG_WARNING>,
+B<LOG_NOTICE>, B<LOG_INFO> and B<LOG_DEBUG> respectively as I<log-level>.
+
 =back
+
+=head1 EXPORTS
+
+By default no symbols are exported. However, the following export tags are
+available (B<:all> will export all of them):
+
+=over 4
+
+=item B<:plugin>
+
+=over 4
+
+=item B<plugin_register> ()
+
+=item B<plugin_unregister> ()
+
+=item B<plugin_dispatch_values> ()
+
+=item B<plugin_log> ()
+
+=back
+
+=item B<:types>
+
+=over 4
+
+=item B<TYPE_INIT>
+
+=item B<TYPE_READ>
+
+=item B<TYPE_WRITE>
+
+=item B<TYPE_SHUTDOWN>
+
+=item B<TYPE_LOG>
+
+=back
+
+=item B<:ds_types>
+
+=over 4
+
+=item B<DS_TYPE_COUNTER>
+
+=item B<DS_TYPE_GAUGE>
+
+=back
+
+=item B<:log>
+
+=over 4
+
+=item B<ERROR> ()
+
+=item B<WARNING> ()
+
+=item B<NOTICE> ()
+
+=item B<INFO> ()
+
+=item B<DEBUG> ()
+
+=item B<LOG_ERR>
+
+=item B<LOG_WARNING>
+
+=item B<LOG_NOTICE>
+
+=item B<LOG_INFO>
+
+=item B<LOG_DEBUG>
+
+=back
+
+=back
+
+=head1 EXAMPLES
+
+Any Perl plugin will start similar to:
+
+  package Collectd::Plugins::FooBar;
+
+  use strict;
+  use warnings;
+
+  use Collectd qw( :all );
+
+A very simple read function will look like:
+
+  sub foobar_read
+  {
+    my $vl = { plugin => 'foobar' };
+    $vl->{'values'} = [ rand(42) ];
+    plugin_dispatch_values ('gauge', $vl);
+    return 1;
+  }
+
+A very simple write function will look like:
+
+  sub foobar_write
+  {
+    my ($type, $ds, $vl) = @_;
+    for (my $i = 0; $i < scalar (@$ds); ++$i) {
+      print "$vl->{'plugin'} ($vl->{'type'}): $vl->{'values'}->[$i]\n";
+    }
+    return 1;
+  }
+
+To register those functions with collectd:
+
+  plugin_register (TYPE_READ, "foobar", \&foobar_read);
+  plugin_register (TYPE_WRITE, "foobar", \&foobar_write);
+
+See the section "DATA TYPES" above for a complete documentation of the data
+types used by the read and write functions.
 
 =head1 SEE ALSO
 
 L<collectd(1)>,
 L<collectd.conf(5)>,
 L<collectd-exec(5)>,
-L<perl(1)>
+L<perl(1)>,
+L<perldebug(1)>
 
 =head1 AUTHOR
 
-The C<perl plugin> has been written by Sebastian Harl E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
+The C<perl plugin> has been written by Sebastian Harl
+E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
 
-This manpage has been written by Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>.
+This manpage has been written by Florian Forster
+E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt> and Sebastian Harl
+E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
 
 =cut
+
