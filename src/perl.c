@@ -907,8 +907,8 @@ static int perl_config_loadplugin (oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-	}
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+		return 1;
 
 	value = ci->values[0].value.string;
 
@@ -934,8 +934,8 @@ static int perl_config_basename (oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-	}
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+		return 1;
 
 	value = ci->values[0].value.string;
 
@@ -953,8 +953,8 @@ static int perl_config_enabledebugger (oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-	}
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+		return 1;
 
 	value = ci->values[0].value.string;
 
@@ -987,8 +987,8 @@ static int perl_config_includedir (oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-	}
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+		return 1;
 
 	value = ci->values[0].value.string;
 
