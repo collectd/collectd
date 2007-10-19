@@ -1071,6 +1071,7 @@ AC_COLLECTD([memory],    [disable], [module], [memory statistics])
 AC_COLLECTD([multimeter],[disable], [module], [multimeter statistics])
 AC_COLLECTD([mysql],     [disable], [module], [mysql statistics])
 AC_COLLECTD([nfs],       [disable], [module], [nfs statistics])
+AC_COLLECTD([nginx],     [disable], [module], [nginx statistics])
 AC_COLLECTD([ntpd],      [disable], [module], [nfs statistics])
 AC_COLLECTD([ping],      [disable], [module], [ping statistics])
 AC_COLLECTD([processes], [disable], [module], [processes statistics])
@@ -1124,6 +1125,7 @@ Configuration:
     multimeter  . . . . $enable_multimeter
     mysql . . . . . . . $enable_mysql
     nfs . . . . . . . . $enable_nfs
+    nginx . . . . . . . $enable_nginx
     ntpd  . . . . . . . $enable_ntpd
     ping  . . . . . . . $enable_ping
     processes . . . . . $enable_processes
