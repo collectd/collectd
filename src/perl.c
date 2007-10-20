@@ -57,7 +57,6 @@
 #define log_warn(...) WARNING ("perl: " __VA_ARGS__)
 #define log_err(...) ERROR ("perl: " __VA_ARGS__)
 
-
 /* this is defined in DynaLoader.a */
 void boot_DynaLoader (PerlInterpreter *, CV *);
 
@@ -65,17 +64,6 @@ static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
 static XS (Collectd_plugin_log);
-
-
-/*
- * private data types
- */
-
-typedef struct {
-	int len;
-	int *values;
-} ds_types_t;
-
 
 /*
  * private variables
@@ -87,8 +75,6 @@ static int  perl_argc   = 0;
 static char **perl_argv = NULL;
 
 static char base_name[DATA_MAX_NAME_LEN] = "";
-
-static HV   *data_sets;
 
 static struct {
 	char name[64];
@@ -122,7 +108,6 @@ struct {
 	{ "Collectd::LOG_DEBUG",       LOG_DEBUG },
 	{ "", 0 }
 };
-
 
 /*
  * Helper functions for data type conversion.
@@ -182,9 +167,7 @@ static int hv2data_source (HV *hash, data_source_t *ds)
 
 static int av2value (char *name, AV *array, value_t *value, int len)
 {
-	SV **tmp = NULL;
-
-	ds_types_t *ds = NULL;
+	const data_set_t *ds;
 
 	int i = 0;
 
@@ -197,23 +180,22 @@ static int av2value (char *name, AV *array, value_t *value, int len)
 	if (0 >= len)
 		return -1;
 
-	tmp = Perl_hv_fetch (perl, data_sets, name, strlen (name), 0);
-	if (NULL == tmp) {
-		log_err ("av2value: No dataset for \"%s\".", name);
+	ds = plugin_get_ds (name);
+	if (NULL == ds) {
+		log_err ("av2value: Unknown dataset \"%s\"", name);
 		return -1;
 	}
-	ds = (ds_types_t *)SvIV ((SV *)SvRV (*tmp));
 
-	if (ds->len < len) {
+	if (ds->ds_num < len) {
 		log_warn ("av2value: Value length exceeds data set length.");
-		len = ds->len;
+		len = ds->ds_num;
 	}
 
 	for (i = 0; i < len; ++i) {
 		SV **tmp = Perl_av_fetch (perl, array, i, 0);
 
 		if (NULL != tmp) {
-			if (DS_TYPE_COUNTER == ds->values[i])
+			if (DS_TYPE_COUNTER == ds->ds[i].type)
 				value[i].counter = SvIV (*tmp);
 			else
 				value[i].gauge = SvNV (*tmp);
@@ -327,7 +309,6 @@ static int value_list2hv (value_list_t *vl, data_set_t *ds, HV *hash)
 	return 0;
 } /* static int value2av (value_list_t *, data_set_t *, HV *) */
 
-
 /*
  * Internal functions.
  */
@@ -355,8 +336,6 @@ static int pplugin_register_data_set (char *name, AV *dataset)
 	data_source_t *ds  = NULL;
 	data_set_t    *set = NULL;
 
-	ds_types_t *types = NULL;
-
 	if ((NULL == name) || (NULL == dataset))
 		return -1;
 
@@ -367,10 +346,6 @@ static int pplugin_register_data_set (char *name, AV *dataset)
 
 	ds  = (data_source_t *)smalloc ((len + 1) * sizeof (data_source_t));
 	set = (data_set_t *)smalloc (sizeof (data_set_t));
-
-	types = (ds_types_t *)smalloc (sizeof (ds_types_t));
-	types->len = len + 1;
-	types->values = (int *)smalloc ((types->len) * sizeof (int));
 
 	for (i = 0; i <= len; ++i) {
 		SV **elem = Perl_av_fetch (perl, dataset, i, 0);
@@ -386,15 +361,10 @@ static int pplugin_register_data_set (char *name, AV *dataset)
 		if (-1 == hv2data_source ((HV *)SvRV (*elem), &ds[i]))
 			return -1;
 
-		types->values[i] = ds[i].type;
 		log_debug ("pplugin_register_data_set: "
 				"DS.name = \"%s\", DS.type = %i, DS.min = %f, DS.max = %f",
 				ds[i].name, ds[i].type, ds[i].min, ds[i].max);
 	}
-
-	if (NULL == Perl_hv_store (perl, data_sets, name, strlen (name),
-			Perl_sv_setref_pv (perl, Perl_newSV (perl, 0), 0, types), 0))
-		return -1;
 
 	strncpy (set->type, name, DATA_MAX_NAME_LEN);
 	set->type[DATA_MAX_NAME_LEN - 1] = '\0';
@@ -409,20 +379,8 @@ static int pplugin_register_data_set (char *name, AV *dataset)
  */
 static int pplugin_unregister_data_set (char *name)
 {
-	SV *tmp = NULL;
-
 	if (NULL == name)
 		return 0;
-
-	/* freeing the allocated memory of the element itself (ds_types_t *)
-	 * causes a segfault during perl_destruct () thus I assume perl somehow
-	 * takes care of this... */
-
-	tmp = Perl_hv_delete (perl, data_sets, name, strlen (name), 0);
-	if (NULL != tmp) {
-		ds_types_t *ds = (ds_types_t *)SvIV ((SV *)SvRV (tmp));
-		sfree (ds->values);
-	}
 	return plugin_unregister_data_set (name);
 } /* static int pplugin_unregister_data_set (char *) */
 
@@ -460,6 +418,9 @@ static int pplugin_dispatch_values (char *name, HV *values)
 	{
 		AV  *array = (AV *)SvRV (*tmp);
 		int len    = Perl_av_len (perl, array) + 1;
+
+		if (len <= 0)
+			return -1;
 
 		val = (value_t *)smalloc (len * sizeof (value_t));
 
@@ -606,7 +567,6 @@ static int pplugin_call_all (int type, ...)
 	return ret;
 } /* static int pplugin_call_all (int, ...) */
 
-
 /*
  * Exported Perl API.
  */
@@ -743,7 +703,6 @@ static XS (Collectd_plugin_log)
 	XSRETURN_YES;
 } /* static XS (Collectd_plugin_log) */
 
-
 /*
  * Interface to collectd.
  */
@@ -801,17 +760,6 @@ static int perl_shutdown (void)
 
 	PERL_SET_CONTEXT (perl);
 	ret = pplugin_call_all (PLUGIN_SHUTDOWN);
-
-	if (0 < Perl_hv_iterinit (perl, data_sets)) {
-		char *k = NULL;
-		I32  l  = 0;
-
-		while (NULL != Perl_hv_iternextsv (perl, data_sets, &k, &l)) {
-			pplugin_unregister_data_set (k);
-		}
-	}
-
-	Perl_hv_undef (perl, data_sets);
 
 #if COLLECT_DEBUG
 	Perl_sv_report_used (perl);
@@ -884,8 +832,6 @@ static int init_pi (int argc, char **argv)
 		exit (1);
 	}
 	perl_run (perl);
-
-	data_sets = Perl_newHV (perl);
 
 	plugin_register_log ("perl", perl_log);
 	plugin_register_init ("perl", perl_init);
