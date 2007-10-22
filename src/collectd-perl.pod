@@ -362,6 +362,13 @@ To register those functions with collectd:
 See the section "DATA TYPES" above for a complete documentation of the data
 types used by the read and write functions.
 
+=head1 BUGS
+
+This plugin does not yet work correctly if collectd uses multiple threads.
+Perl does not allow multiple threads to access a single interpreter at the
+same time. As a temporary workaround you should use a single read thread only
+(see collectd's B<ReadThread> configuration option).
+
 =head1 SEE ALSO
 
 L<collectd(1)>,
