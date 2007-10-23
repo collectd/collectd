@@ -23,60 +23,31 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "utils_debug.h"
 #include "configfile.h"
 
-#define MODULE_NAME "nginx"
-
-#if HAVE_LIBCURL && HAVE_CURL_CURL_H
-#  define NGINX_HAVE_READ 1
-#  include <curl/curl.h>
-#else
-#  define NGINX_HAVE_READ 0
-#endif
+#include <curl/curl.h>
 
 static char *url    = NULL;
 static char *user   = NULL;
 static char *pass   = NULL;
 static char *cacert = NULL;
 
-#if HAVE_LIBCURL
 static CURL *curl = NULL;
 
 #define ABUFFER_SIZE 16384
 static char nginx_buffer[ABUFFER_SIZE];
 static int  nginx_buffer_len = 0;
 static char nginx_curl_error[CURL_ERROR_SIZE];
-#endif /* HAVE_LIBCURL */
 
-static char *connections_file = "nginx/nginx_connections-%s.rrd";
-static char *connections_ds_def[] =
-{
-  "DS:value:GAUGE:"COLLECTD_HEARTBEAT":0:U",
-  NULL
-};
-static int connections_ds_num = 1;
-
-/* Limit to 2^20 requests/s */
-static char *requests_file = "nginx/nginx_requests.rrd";
-static char *requests_ds_def[] =
-{
-  "DS:value:COUNTER:"COLLECTD_HEARTBEAT":0:1048576",
-  NULL
-};
-static int requests_ds_num = 1;
-
-static char *config_keys[] =
+static const char *config_keys[] =
 {
   "URL",
   "User",
   "Password",
-  "CACert",
-  NULL
+  "CACert"
 };
-static int config_keys_num = 4;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-#if HAVE_LIBCURL
 static size_t nginx_curl_callback (void *buf, size_t size, size_t nmemb, void *stream)
 {
   size_t len = size * nmemb;
@@ -95,9 +66,8 @@ static size_t nginx_curl_callback (void *buf, size_t size, size_t nmemb, void *s
 
   return (len);
 }
-#endif /* HAVE_LIBCURL */
 
-static int config_set (char **var, char *value)
+static int config_set (char **var, const char *value)
 {
   if (*var != NULL)
   {
@@ -111,7 +81,7 @@ static int config_set (char **var, char *value)
     return (0);
 }
 
-static int config (char *key, char *value)
+static int config (const char *key, const char *value)
 {
   if (strcasecmp (key, "url") == 0)
     return (config_set (&url, value));
@@ -123,22 +93,19 @@ static int config (char *key, char *value)
     return (config_set (&cacert, value));
   else
     return (-1);
-}
+} /* int config */
 
-static void init (void)
+static int init (void)
 {
-#if HAVE_LIBCURL
   static char credentials[1024];
 
   if (curl != NULL)
-  {
     curl_easy_cleanup (curl);
-  }
 
   if ((curl = curl_easy_init ()) == NULL)
   {
-    syslog (LOG_ERR, "nginx: `curl_easy_init' failed.");
-    return;
+    ERROR ("nginx plugin: curl_easy_init failed.");
+    return (-1);
   }
 
   curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
@@ -149,8 +116,8 @@ static void init (void)
   {
     if (snprintf (credentials, 1024, "%s:%s", user, pass == NULL ? "" : pass) >= 1024)
     {
-      syslog (LOG_ERR, "nginx: Credentials would have been truncated.");
-      return;
+      ERROR ("nginx plugin: Credentials would have been truncated.");
+      return (-1);
     }
 
     curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
@@ -165,46 +132,39 @@ static void init (void)
   {
     curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
   }
-#endif /* HAVE_LIBCURL */
+
+  return (0);
 } /* void init */
 
-static void connections_write (char *host, char *inst, char *val)
-{
-  char buf[1024];
-
-  if (snprintf (buf, 1024, connections_file, inst) >= 1024)
-    return;
-
-  rrd_update_file (host, buf, val,
-      connections_ds_def, connections_ds_num);
-}
-
-static void requests_write (char *host, char *inst, char *val)
-{
-  rrd_update_file (host, requests_file, val,
-      requests_ds_def, requests_ds_num);
-}
-
-#if NGINX_HAVE_READ
 static void submit (char *type, char *inst, long long value)
 {
-  char buf[1024];
-  int  status;
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
 
-  DBG ("type = %s; inst = %s; value = %lli;",
-      type, (inst == NULL) ? "(nil)" : inst, value);
-
-  status = snprintf (buf, 1024, "%u:%lli", (unsigned int) curtime, value);
-  if ((status < 0) || (status >= 1024))
-  {
-    syslog (LOG_ERR, "nginx: snprintf failed");
+  if (strcpy (type, "nginx_connections") == 0)
+    values[0].gauge = value;
+  else if (strcpy (type, "nginx_requests") == 0)
+    values[0].counter = value;
+  else
     return;
+
+  vl.values = values;
+  vl.values_len = 1;
+  vl.time = time (NULL);
+  strcpy (vl.host, hostname_g);
+  strcpy (vl.plugin, "nginx");
+  strcpy (vl.plugin_instance, "");
+
+  if (inst != NULL)
+  {
+    strncpy (vl.type_instance, inst, sizeof (vl.type_instance));
+    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
   }
 
-  plugin_submit (type, inst, buf);
-}
+  plugin_dispatch_values (type, &vl);
+} /* void submit */
 
-static void nginx_read (void)
+static int nginx_read (void)
 {
   int i;
 
@@ -216,15 +176,15 @@ static void nginx_read (void)
   int   fields_num;
 
   if (curl == NULL)
-    return;
+    return (-1);
   if (url == NULL)
-    return;
+    return (-1);
 
   nginx_buffer_len = 0;
   if (curl_easy_perform (curl) != 0)
   {
-    syslog (LOG_WARNING, "nginx: curl_easy_perform failed: %s", nginx_curl_error);
-    return;
+    WARNING ("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
+    return (-1);
   }
 
   ptr = nginx_buffer;
@@ -276,20 +236,16 @@ static void nginx_read (void)
   }
 
   nginx_buffer_len = 0;
-}
-#else
-#  define nginx_read NULL
-#endif /* NGINX_HAVE_READ */
+
+  return (0);
+} /* int nginx_read */
 
 void module_register (void)
 {
-  plugin_register (MODULE_NAME, init, nginx_read, NULL);
-  plugin_register ("nginx_requests",   NULL, NULL, requests_write);
-  plugin_register ("nginx_connections", NULL, NULL, connections_write);
-  cf_register (MODULE_NAME, config, config_keys, config_keys_num);
-}
-
-#undef MODULE_NAME
+  plugin_register_config ("nginx", config, config_keys, config_keys_num);
+  plugin_register_init ("nginx", init);
+  plugin_register_read ("nginx", nginx_read);
+} /* void module_register */
 
 /*
  * vim: set shiftwidth=2 softtabstop=2 tabstop=8 :
