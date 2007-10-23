@@ -1967,6 +1967,7 @@ Configuration:
     netlink . . . . . . $enable_netlink
     network . . . . . . $enable_network
     nfs . . . . . . . . $enable_nfs
+    nginx . . . . . . . $enable_nginx
     ntpd  . . . . . . . $enable_ntpd
     nut . . . . . . . . $enable_nut
     perl  . . . . . . . $enable_perl
