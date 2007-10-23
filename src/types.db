@@ -48,10 +48,11 @@ mysql_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
 mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
 mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U
 nfs_procedure		value:COUNTER:0:4294967295
-memcached_connections	current:GAUGE:0:U, total:COUNTER:0:U
-memcached_bytes		read:COUNTER:0:U, written:COUNTER:0:U
-memcached_cmd		get:COUNTER:0:U, set:COUNTER:0:U, get_hits:COUNTER:0:U, get_misses:COUNTER:0:U
-memcached_rusage	user:COUNTER:0:U, system:COUNTER:0:U
+memcached_command	value:COUNTER:0:U
+memcached_connections	value:GAUGE:0:U
+memcached_items		value:GAUGE:0:U
+memcached_octets	rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+memcached_ops		value:COUNTER:0:134217728
 percent			percent:GAUGE:0:100.1
 ping			ping:GAUGE:0:65535
 power			value:GAUGE:0:U

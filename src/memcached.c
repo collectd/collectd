@@ -106,7 +106,6 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 
 		/* connect to the memcached daemon */
 		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen)) {
-			char errbuf[1024];
 			shutdown(fd, SHUT_RDWR);
 			close(fd);
 			fd = -1;
@@ -218,184 +217,260 @@ static int memcached_config (const char *key, const char *value) /* {{{ */
 }
 /* }}} */
 
-#if 0
-static void memcached_submit_items(double curr_items, unsigned long long total_items) /* {{{ */
+static void submit_counter (const char *type, const char *type_inst,
+		counter_t value) /* {{{ */
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].counter = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname_g);
+	strcpy (vl.plugin, "memcached");
+	if (type_inst != NULL)
+	{
+		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
+		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+	}
+
+	plugin_dispatch_values (type, &vl);
+} /* void memcached_submit_cmd */
+/* }}} */
+
+static void submit_counter2 (const char *type, const char *type_inst,
+		counter_t value0, counter_t value1) /* {{{ */
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = curr_items;
-	values[1].counter = total_items;
+	values[0].counter = value0;
+	values[1].counter = value1;
 
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
+	if (type_inst != NULL)
+	{
+		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
+		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+	}
 
-	plugin_dispatch_values ("memcached_items", &vl);
+	plugin_dispatch_values (type, &vl);
+} /* void memcached_submit_cmd */
+/* }}} */
+
+static void submit_gauge (const char *type, const char *type_inst,
+		gauge_t value) /* {{{ */
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	vl.time = time (NULL);
+	strcpy (vl.host, hostname_g);
+	strcpy (vl.plugin, "memcached");
+	if (type_inst != NULL)
+	{
+		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
+		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+	}
+
+	plugin_dispatch_values (type, &vl);
 }
 /* }}} */
-#endif
 
-static void memcached_submit_connections(double curr_connections, unsigned long long total_connections) /* {{{ */
+static void submit_gauge2 (const char *type, const char *type_inst,
+		gauge_t value0, gauge_t value1) /* {{{ */
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = curr_connections;
-	values[1].counter = total_connections;
+	values[0].gauge = value0;
+	values[1].gauge = value1;
 
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
+	if (type_inst != NULL)
+	{
+		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
+		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+	}
 
-	plugin_dispatch_values ("memcached_connections", &vl);
-}
-/* }}} */
-
-static void memcached_submit_bytes(unsigned long long bytes_read, unsigned long long bytes_written) /* {{{ */
-{
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].counter = bytes_read;
-	values[1].counter = bytes_written;
-
-	vl.values = values;
-	vl.values_len = 2;
-	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memcached");
-
-	plugin_dispatch_values ("memcached_bytes", &vl);
-}
-/* }}} */
-
-static void memcached_submit_cmd(unsigned long long cmd_get, unsigned long long cmd_set, unsigned long long get_hits, unsigned long long get_misses) /* {{{ */
-{
-	value_t values[4];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].counter = cmd_get;
-	values[1].counter = cmd_set;
-	values[2].counter = get_hits;
-	values[3].counter = get_misses;
-
-	vl.values = values;
-	vl.values_len = 4;
-	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memcached");
-
-	plugin_dispatch_values ("memcached_cmd", &vl);
-}
-/* }}} */
-
-static void memcached_submit_rusage(unsigned long long rusage_user, unsigned long long rusage_system) /* {{{ */
-{
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].counter = rusage_user;
-	values[1].counter = rusage_system;
-
-	vl.values = values;
-	vl.values_len = 2;
-	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memcached");
-
-	plugin_dispatch_values ("memcached_rusage", &vl);
+	plugin_dispatch_values (type, &vl);
 }
 /* }}} */
 
 static int memcached_read (void) /* {{{ */
 {
 	char buf[1024];
-	char *lines[128];
 	char *fields[3];
 	char *ptr;
+	char *line;
 	char *saveptr;
 	int fields_num;
-	int lines_num = 0;
-	int i;
-	unsigned long long total_connections = 0, bytes_read = 0, bytes_written = 0, cmd_get = 0, cmd_set = 0, get_hits = 0, get_misses = 0, rusage_user = 0, rusage_system = 0;
-	double curr_connections = 0;
+
+	gauge_t bytes_used = NAN;
+	gauge_t bytes_total = NAN;
+	counter_t rusage_user = 0;
+	counter_t rusage_syst = 0;
+	counter_t octets_rx = 0;
+	counter_t octets_tx = 0;
 
 	/* get data from daemon */
 	if (memcached_query_daemon (buf, sizeof (buf)) < 0) {
 		return -1;
 	}
 
+#define FIELD_IS(cnst) \
+	(((sizeof(cnst) - 1) == name_len) && (strcmp (cnst, fields[1]) == 0))
+
     ptr = buf;
     saveptr = NULL;
-    while ((lines[lines_num] = strtok_r (ptr, "\n\r", &saveptr)) != NULL) {
-        ptr = NULL;
-        lines_num++;
-
-        if (lines_num >= 127) break;
-    }
-
-#define FIELD_IS(cnst) \
-	(sizeof(cnst) - 1) == name_len && memcmp(cnst, fields[1], sizeof(cnst)) == 0
-
-	for (i = 0; i < lines_num; i++) {
+    while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
+	{
 		int name_len;
 
-		fields_num = strsplit(lines[i], fields, 3);
-		if (fields_num != 3) continue;
+        ptr = NULL;
+
+		fields_num = strsplit(line, fields, 3);
+		if (fields_num != 3)
+			continue;
 
 		name_len = strlen(fields[1]);
-		if (name_len == 0) continue;
+		if (name_len == 0)
+			continue;
 
-		if (FIELD_IS("rusage_user")) {
-			rusage_user = atoll(fields[2]);
-		} else if (FIELD_IS("rusage_system")) {
-			rusage_system = atoll(fields[2]);
-/*		} else if (FIELD_IS("curr_items")) {
-			curr_items = atof(fields[2]);
-		} else if (FIELD_IS("total_items")) {
-			total_items = atoll(fields[2]);
-		} else if (FIELD_IS("bytes")) {
-			 bytes = atof(fields[2]); */
-		} else if (FIELD_IS("curr_connections")) {
-			curr_connections = atof(fields[2]);
-		} else if (FIELD_IS("total_connections")) {
-			total_connections = atoll(fields[2]);
-/*		} else if (FIELD_IS("connection_structures")) {
-			connection_structures = atof(fields[2]); */
-		} else if (FIELD_IS("cmd_get")) {
-			cmd_get = atoll(fields[2]);
-		} else if (FIELD_IS("cmd_set")) {
-			cmd_set = atoll(fields[2]);
-		} else if (FIELD_IS("get_hits")) {
-			get_hits = atoll(fields[2]);
-		} else if (FIELD_IS("get_misses")) {
-			get_misses = atoll(fields[2]);
-/*		} else if (FIELD_IS("evictions")) {
-			evictions = atoll(fields[2]); */
-		} else if (FIELD_IS("bytes_read")) {
-			bytes_read = atoll(fields[2]);
-		} else if (FIELD_IS("bytes_written")) {
-			bytes_written = atoll(fields[2]);
-/*		} else if (FIELD_IS("limit_maxbytes")) {
-			limit_maxbytes = atof(fields[2]);
-		} else if (FIELD_IS("threads")) {
-			threads = atof(fields[2]);  */
+		/*
+		 * For an explanation on these fields please refer to
+		 * <http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt>
+		 */
+
+		/*
+		 * CPU time consumed by the memcached process
+		 */
+		if (FIELD_IS ("rusage_user"))
+		{
+			rusage_user = atoll (fields[2]);
 		}
-	}
+		else if (FIELD_IS ("rusage_system"))
+		{
+			rusage_syst = atoll(fields[2]);
+		}
+	
+		/*
+		 * Number of threads of this instance
+		 */
+		else if (FIELD_IS ("threads"))
+		{
+			submit_gauge2 ("ps_count", NULL, NAN, atof (fields[2]));
+		}
 
-#if 0
-	memcached_submit_items(curr_items, total_items);
-#endif
-	memcached_submit_connections(curr_connections, total_connections);
-	memcached_submit_bytes(bytes_read, bytes_written);
-	memcached_submit_cmd(cmd_get, cmd_set, get_hits, get_misses);
-	memcached_submit_rusage(rusage_user, rusage_system);
+		/*
+		 * Number of items stored
+		 */
+		else if (FIELD_IS ("curr_items"))
+		{
+			submit_gauge ("memcached_items", "current", atof (fields[2]));
+		}
+/*		
+		else if (FIELD_IS ("total_items"))
+		{
+			total_items = atoll(fields[2]);
+		}
+ */
 
+		/*
+		 * Number of bytes used and available (total - used)
+		 */
+		else if (FIELD_IS ("bytes"))
+		{
+			bytes_used = atof (fields[2]);
+		}
+		else if (FIELD_IS ("limit_maxbytes"))
+		{
+			bytes_total = atof(fields[2]);
+		}
+
+		/*
+		 * Connections
+		 */
+		else if (FIELD_IS ("curr_connections"))
+		{
+			submit_gauge ("memcached_connections", "current", atof (fields[2]));
+		}
+/*
+		else if (FIELD_IS("total_connections"))
+		{
+			total_connections = atoll(fields[2]);
+		}
+*/
+
+/*
+ * ``Number of connection structures allocated by the server''
+		else if (FIELD_IS ("connection_structures"))
+		{
+			connection_structures = atof(fields[2]);
+		}
+ */
+
+		/*
+		 * Commands
+		 */
+		else if ((name_len > 4) && (strncmp (fields[1], "cmd_", 4) == 0))
+		{
+			const char *name = fields[1] + 4;
+			submit_counter ("memcached_command", name, atoll (fields[2]));
+		}
+
+		/*
+		 * Operations on the cache, i. e. cache hits, cache misses and evictions of items
+		 */
+		else if (FIELD_IS ("get_hits"))
+		{
+			submit_counter ("memcached_ops", "hits", atoll (fields[2]));
+		}
+		else if (FIELD_IS ("get_misses"))
+		{
+			submit_counter ("memcached_ops", "misses", atoll (fields[2]));
+		}
+		else if (FIELD_IS ("evictions"))
+		{
+			submit_counter ("memcached_ops", "evictions", atoll (fields[2]));
+		}
+
+		/*
+		 * Network traffic
+		 */
+		else if (FIELD_IS ("bytes_read"))
+		{
+			octets_rx = atoll (fields[2]);
+		}
+		else if (FIELD_IS ("bytes_written"))
+		{
+			octets_tx = atoll (fields[2]);
+		}
+	} /* while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL) */
+
+	if (!isnan (bytes_used) && !isnan (bytes_total) && (bytes_used <= bytes_total))
+		submit_gauge2 ("df", "cache", bytes_used, bytes_total - bytes_used);
+	
+	if ((rusage_user != 0) || (rusage_syst != 0))
+		submit_counter2 ("ps_cputime", NULL, rusage_user, rusage_syst);
+
+	if ((octets_rx != 0) || (octets_tx != 0))
+		submit_counter2 ("memcached_octets", NULL, octets_rx, octets_tx);
+	
 	return 0;
 }
 /* }}} */
