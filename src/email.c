@@ -39,6 +39,8 @@
 
 #include "configfile.h"
 
+#include <stddef.h>
+
 #if HAVE_LIBPTHREAD
 # include <pthread.h>
 #endif
