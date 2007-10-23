@@ -1,6 +1,7 @@
 /**
- * collectd - src/memcached.c
- * Copyright (C) 2007  Antony Dovgal, heavily based on hddtemp.c
+ * collectd - src/memcached.c, based on src/hddtemp.c
+ * Copyright (C) 2007  Antony Dovgal
+ * Copyright (C) 2005,2006  Vincent Stehlé
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,7 +19,8 @@
  *
  * Authors:
  *   Antony Dovgal <tony at daylessday dot org>
- *
+ *   Vincent Stehlé <vincent.stehle at free.fr>
+ *   Florian octo Forster <octo at verplant.org>
  **/
 
 #include "collectd.h"
@@ -31,11 +33,6 @@
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <netinet/tcp.h>
-# include <libgen.h> /* for basename */
-
-#if HAVE_LINUX_MAJOR_H
-# include <linux/major.h>
-#endif
 
 #define MEMCACHED_DEF_HOST "127.0.0.1"
 #define MEMCACHED_DEF_PORT "11211"
@@ -45,10 +42,9 @@
 static const char *config_keys[] =
 {
 	"Host",
-	"Port",
-	NULL
+	"Port"
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static char *memcached_host = NULL;
 static char memcached_port[16];
