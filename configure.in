@@ -1836,6 +1836,7 @@ AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
+AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
@@ -1960,6 +1961,7 @@ Configuration:
     load  . . . . . . . $enable_load
     logfile . . . . . . $enable_logfile
     mbmon . . . . . . . $enable_mbmon
+    memcached . . . . . $enable_memcached
     memory  . . . . . . $enable_memory
     multimeter  . . . . $enable_multimeter
     mysql . . . . . . . $enable_mysql
