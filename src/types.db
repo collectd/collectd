@@ -53,6 +53,8 @@ memcached_connections	value:GAUGE:0:U
 memcached_items		value:GAUGE:0:U
 memcached_octets	rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
 memcached_ops		value:COUNTER:0:134217728
+nginx_connections	value:GAUGE:0:U
+nginx_requests		value:COUNTER:0:134217728
 percent			percent:GAUGE:0:100.1
 ping			ping:GAUGE:0:65535
 power			value:GAUGE:0:U

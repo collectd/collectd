@@ -110,6 +110,10 @@ Features
       NFS Procedures: Which NFS command were called how often. Only NFSv2 and
       NFSv3 right now.
 
+    - nginx
+      Collects statistics from `nginx' (speak: engine X), a HTTP and mail
+      server/proxy.
+
     - ntp
       NTP daemon statistics: Local clock drift, offset to peers, etc.
 
