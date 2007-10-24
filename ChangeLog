@@ -12,6 +12,9 @@ yyyy-mm-dd, Version 4.2.0
 	  destination).
 	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
 	  be more threadsafe otherwise by locking calls to the library.
+	* memcached plugin: The new `memcached' plugin connects to a memcached
+	  daemon process and collects statistics of this distributed caching
+	  system. Thanks to Antony Dovgal for contributing this plugin.
 
 yyyy-mm-dd, Version 4.1.3
 	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
