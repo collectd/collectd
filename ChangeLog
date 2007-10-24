@@ -16,7 +16,9 @@ yyyy-mm-dd, Version 4.2.0
 	  daemon process and collects statistics of this distributed caching
 	  system. Thanks to Antony Dovgal for contributing this plugin.
 
-yyyy-mm-dd, Version 4.1.3
+2007-10-24, Version 4.1.3
+	* collectd: A build issue under Solaris has been resolved by renaming
+	  data types.
 	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
 	  be more threadsafe otherwise by locking calls to the library.
 
