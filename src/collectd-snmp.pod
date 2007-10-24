@@ -67,7 +67,7 @@ and ten threads are used.
 Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
 it's configuration is not trivial and may take some time.
 
-Since the C<Net-SNMP> library is used you cann use all the environment
+Since the C<Net-SNMP> library is used you can use all the environment
 variables that are interpreted by that package. See L<snmpcmd(1)> for more
 details.
 
@@ -146,7 +146,7 @@ copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
 
 If B<Table> is set to I<true>, you may feel the need to add something to the
 instance of the files. If set, I<String> is prepended to the instance as
-determinded by querying the agent. When B<Table> is set to I<false> this option
+determined by querying the agent. When B<Table> is set to I<false> this option
 has no effect.
 
 The C<UPS-MIB> is an example where you need this setting: It has voltages of

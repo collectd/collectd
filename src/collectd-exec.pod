@@ -48,7 +48,7 @@ The I<OptionList> is an optional list of I<Options>, where each option if a
 key-value-pair. A list of currently understood options can be found below, all
 other options will be ignored.
 
-I<Valuelist> is a colon-seperated list of the time and the values, each either
+I<Valuelist> is a colon-separated list of the time and the values, each either
 an integer if the data-source is a counter, of a double if the data-source if
 of type "gauge". You can submit an undefined gauge-value by using B<U>. When
 submitting B<U> to a counter the behavior is undefined. The time is given as

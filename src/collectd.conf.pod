@@ -589,7 +589,7 @@ either.
 
 =head2 Plugin C<nginx>
 
-This plugin collects the number of connections and requests handeled by the
+This plugin collects the number of connections and requests handled by the
 C<nginx daemon> (speak: engineE<nbsp>X), a HTTP and mail server/proxy. It
 queries the page provided by the C<ngx_http_stub_status_module> module, which
 isn't compiled by default. Please refer to
@@ -829,13 +829,13 @@ specifically.
 =item B<LocalPort> I<Port>
 
 Count the connections to a specific local port. This can be used to see how
-many connections are handeled by a specific daemon, e.E<nbsp>g. the mailserver.
+many connections are handled by a specific daemon, e.E<nbsp>g. the mailserver.
 You have to specify the port in numeric form, so for the mailserver example
 you'd need to set B<25>.
 
 =item B<RemotePort> I<Port>
 
-Count the connections to a specific remote port. This is usefull to see how
+Count the connections to a specific remote port. This is useful to see how
 much a remote service is used. This is most useful if you want to know how many
 connections a local service has opened to remote services, e.E<nbsp>g. how many
 connections a mail server or news server has to other mail or news servers, or
