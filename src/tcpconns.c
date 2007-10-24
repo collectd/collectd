@@ -23,12 +23,71 @@
 #include "common.h"
 #include "plugin.h"
 
-#if !KERNEL_LINUX
+#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME
 # error "No applicable input method."
 #endif
 
-#define TCP_STATE_LISTEN 10
-#define TCP_STATE_MAX 11
+#if KERNEL_LINUX
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_SYSCTLBYNAME
+# include <sys/socketvar.h>
+# include <sys/sysctl.h>
+# include <net/route.h>
+# include <netinet/in.h>
+# include <netinet/in_systm.h>
+# include <netinet/ip.h>
+# include <netinet/ip6.h>
+# include <netinet/in_pcb.h>
+# include <netinet/ip_var.h>
+# include <netinet/tcp.h>
+# include <netinet/tcpip.h>
+# include <netinet/tcp_seq.h>
+# include <netinet/tcp_var.h>
+#endif /* HAVE_SYSCTLBYNAME */
+
+#if KERNEL_LINUX
+static const char *tcp_state[] =
+{
+  "", /* 0 */
+  "ESTABLISHED",
+  "SYN_SENT",
+  "SYN_RECV",
+  "FIN_WAIT1",
+  "FIN_WAIT2",
+  "TIME_WAIT",
+  "CLOSED",
+  "CLOSE_WAIT",
+  "LAST_ACK",
+  "LISTEN", /* 10 */
+  "CLOSING"
+};
+
+# define TCP_STATE_LISTEN 10
+# define TCP_STATE_MIN 1
+# define TCP_STATE_MAX 11
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_SYSCTLBYNAME
+static const char *tcp_state[] =
+{
+  "CLOSED",
+  "LISTEN",
+  "SYN_SENT",
+  "SYN_RECV",
+  "ESTABLISHED",
+  "CLOSE_WAIT",
+  "FIN_WAIT1",
+  "CLOSING",
+  "LAST_ACK",
+  "FIN_WAIT2",
+  "TIME_WAIT"
+};
+
+# define TCP_STATE_LISTEN 1
+# define TCP_STATE_MIN 0
+# define TCP_STATE_MAX 10
+#endif /* HAVE_SYSCTLBYNAME */
 
 #define PORT_COLLECT_LOCAL  0x01
 #define PORT_COLLECT_REMOTE 0x02
@@ -50,22 +109,6 @@ static const char *config_keys[] =
   "RemotePort"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
-static const char *tcp_state[] =
-{
-  "", /* 0 */
-  "ESTABLISHED",
-  "SYN_SENT",
-  "SYN_RECV",
-  "FIN_WAIT1",
-  "FIN_WAIT2",
-  "TIME_WAIT",
-  "CLOSE",
-  "CLOSE_WAIT",
-  "LAST_ACK",
-  "LISTEN", /* 10 */
-  "CLOSING"
-};
 
 static int port_collect_listening = 0;
 static port_entry_t *port_list_head = NULL;
@@ -196,7 +239,11 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 {
   port_entry_t *pe = NULL;
 
-  if ((state == 0) || (state > TCP_STATE_MAX))
+  if ((state > TCP_STATE_MAX)
+#if TCP_STATE_MIN > 0
+      || (state < TCP_STATE_MIN)
+#endif
+     )
   {
     NOTICE ("tcpconns plugin: Ignoring connection with unknown state 0x%02x.",
 	state);
@@ -225,6 +272,7 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
   return (0);
 } /* int conn_handle_ports */
 
+#if KERNEL_LINUX
 static int conn_handle_line (char *buffer)
 {
   char *fields[32];
@@ -304,6 +352,10 @@ static int conn_read_file (const char *file)
 
   return (0);
 } /* int conn_read_file */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_SYSCTLBYNAME
+#endif /* HAVE_SYSCTLBYNAME */
 
 static int conn_config (const char *key, const char *value)
 {
@@ -348,6 +400,7 @@ static int conn_config (const char *key, const char *value)
   return (0);
 } /* int conn_config */
 
+#if KERNEL_LINUX
 static int conn_init (void)
 {
   if (port_list_head == NULL)
@@ -367,12 +420,91 @@ static int conn_read (void)
 
   return (0);
 } /* int conn_read */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_SYSCTLBYNAME
+static int conn_read (void)
+{
+  int status;
+  char *buffer;
+  size_t buffer_len;;
+
+  struct xinpgen *in_orig;
+  struct xinpgen *in_ptr;
+
+  conn_reset_port_entry ();
+
+  buffer_len = 0;
+  status = sysctlbyname ("net.inet.tcp.pcblist", NULL, &buffer_len, 0, 0);
+  if (status < 0)
+  {
+    ERROR ("tcpconns plugin: sysctlbyname failed.");
+    return (-1);
+  }
+
+  buffer = (char *) malloc (buffer_len);
+  if (buffer == NULL)
+  {
+    ERROR ("tcpconns plugin: malloc failed.");
+    return (-1);
+  }
+
+  status = sysctlbyname ("net.inet.tcp.pcblist", buffer, &buffer_len, 0, 0);
+  if (status < 0)
+  {
+    ERROR ("tcpconns plugin: sysctlbyname failed.");
+    sfree (buffer);
+    return (-1);
+  }
+
+  if (buffer_len <= sizeof (struct xinpgen))
+  {
+    ERROR ("tcpconns plugin: (buffer_len <= sizeof (struct xinpgen))");
+    sfree (buffer);
+    return (-1);
+  }
+
+  in_orig = (struct xinpgen *) buffer;
+  for (in_ptr = (struct xinpgen *) (((char *) in_orig) + in_orig->xig_len);
+      in_ptr->xig_len > sizeof (struct xinpgen);
+      in_ptr = (struct xinpgen *) (((char *) in_ptr) + in_ptr->xig_len))
+  {
+    struct tcpcb *tp = &((struct xtcpcb *) in_ptr)->xt_tp;
+    struct inpcb *inp = &((struct xtcpcb *) in_ptr)->xt_inp;
+    struct xsocket *so = &((struct xtcpcb *) in_ptr)->xt_socket;
+
+    /* Ignore non-TCP sockets */
+    if (so->xso_protocol != IPPROTO_TCP)
+      continue;
+
+    /* Ignore PCBs which were freed during copyout. */
+    if (inp->inp_gencnt > in_orig->xig_gen)
+      continue;
+
+    if (((inp->inp_vflag & INP_IPV4) == 0)
+	&& ((inp->inp_vflag & INP_IPV6) == 0))
+      continue;
+
+    conn_handle_ports (inp->inp_lport, inp->inp_fport, tp->t_state);
+  } /* for (in_ptr) */
+
+  in_orig = NULL;
+  in_ptr = NULL;
+  sfree (buffer);
+
+  conn_submit_all ();
+
+  return (0);
+} /* int conn_read */
+#endif /* HAVE_SYSCTLBYNAME */
 
 void module_register (void)
 {
 	plugin_register_config ("tcpconns", conn_config,
 			config_keys, config_keys_num);
+#if KERNEL_LINUX
 	plugin_register_init ("tcpconns", conn_init);
+#endif
 	plugin_register_read ("tcpconns", conn_read);
 } /* void module_register */
 

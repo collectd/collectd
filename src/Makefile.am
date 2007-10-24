@@ -389,6 +389,17 @@ collectd_LDADD += "-dlopen" nfs.la
 collectd_DEPENDENCIES += nfs.la
 endif
 
+if BUILD_PLUGIN_NGINX
+pkglib_LTLIBRARIES += nginx.la
+nginx_la_SOURCES = nginx.c
+nginx_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBCURL
+nginx_la_LDFLAGS += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+collectd_LDADD += "-dlopen" nginx.la
+collectd_DEPENDENCIES += nginx.la
+endif
+
 if BUILD_PLUGIN_NTPD
 pkglib_LTLIBRARIES += ntpd.la
 ntpd_la_SOURCES = ntpd.c

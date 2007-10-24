@@ -1759,6 +1759,7 @@ if test "x$have_sysctlbyname" = "xyes"
 then
 	plugin_cpu="yes"
 	plugin_memory="yes"
+	plugin_tcpconns="yes"
 fi
 
 if test "x$have_statfs" = "xyes"
@@ -1842,6 +1843,7 @@ AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
+AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([perl],        [$with_libperl],      [Embed a Perl interpreter])
@@ -1966,6 +1968,7 @@ Configuration:
     netlink . . . . . . $enable_netlink
     network . . . . . . $enable_network
     nfs . . . . . . . . $enable_nfs
+    nginx . . . . . . . $enable_nginx
     ntpd  . . . . . . . $enable_ntpd
     nut . . . . . . . . $enable_nut
     perl  . . . . . . . $enable_perl

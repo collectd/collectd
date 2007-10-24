@@ -569,6 +569,39 @@ either.
 
 =back
 
+=head2 Plugin C<nginx>
+
+This plugin collects the number of connections and requests handeled by the
+C<nginx daemon> (speak: engineE<nbsp>X), a HTTP and mail server/proxy. It
+queries the page provided by the C<ngx_http_stub_status_module> module, which
+isn't compiled by default. Please refer to
+L<http://wiki.codemongers.com/NginxStubStatusModule> for more information on
+how to compile and configure nginx and this module.
+
+The following options are accepted by the C<nginx plugin>:
+
+=over 4
+
+=item B<URL> I<http://host/nginx_status>
+
+Sets the URL of the C<ngx_http_stub_status_module> output.
+
+=item B<User> I<Username>
+
+Optional user name needed for authentication.
+
+=item B<Password> I<Password>
+
+Optional password needed for authentication.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use HTTPS you will
+possibly need this option. What CA certificates come bundled with C<libcurl>
+and are checked by default depends on the distribution you use.
+
+=back
+
 =head2 Plugin C<ntpd>
 
 =over 4
