@@ -84,6 +84,10 @@ Features
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
 
+    - memcached
+      Statistics of the memcached distributed caching system.
+      <http://www.danga.com/memcached/>
+
     - memory
       Memory utilization: Memory occupied by running processes, page cache,
       buffer cache and free.

@@ -33,6 +33,7 @@
 @BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 @BUILD_PLUGIN_LOGFILE_TRUE@LoadPlugin logfile
 @BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
+@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
 @BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 @BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
@@ -127,6 +128,11 @@
 #<Plugin mbmon>
 #	Host "127.0.0.1"
 #	Port 411
+#</Plugin>
+
+#<Plugin memcached>
+#	Host "127.0.0.1"
+#	Port "11211"
 #</Plugin>
 
 #<Plugin mysql>

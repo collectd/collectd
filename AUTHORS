@@ -16,6 +16,9 @@ iptables module by:
 mbmon plugin by:
   Flavio Stanchina <flavio at stanchina.net>
 
+memcached plugin by:
+  Antony Dovgal <tony at daylessday.org>
+
 nfs module by:
   Jason Pepas <cell at ices.utexas.edu>
 

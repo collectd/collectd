@@ -398,6 +398,24 @@ TCP-Port to connect to. Defaults to B<411>.
 
 =back
 
+=head2 Plugin C<memcached>
+
+The C<memcached plugin> connects to a memcached server and queries statistics
+about cache utilization, memory and bandwidth used.
+L<http://www.danga.com/memcached/>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname to connect to. Defaults to B<127.0.0.1>.
+
+=item B<Port> I<Port>
+
+TCP-Port to connect to. Defaults to B<11211>.
+
+=back
+
 =head2 Plugin C<mysql>
 
 The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to the
