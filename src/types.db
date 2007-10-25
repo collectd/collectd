@@ -51,7 +51,7 @@ percent			percent:GAUGE:0:100.1
 ping			ping:GAUGE:0:65535
 power			value:GAUGE:0:U
 ps_count		processes:GAUGE:0:1000000, threads:GAUGE:0:1000000
-ps_cputime		user:COUNTER:0:1000000, syst:COUNTER:0:1000000
+ps_cputime		user:COUNTER:0:16000000, syst:COUNTER:0:16000000
 ps_pagefaults		minflt:COUNTER:0:9223372036854775807, majflt:COUNTER:0:9223372036854775807
 ps_rss			value:GAUGE:0:9223372036854775807
 ps_state		value:GAUGE:0:65535
