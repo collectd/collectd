@@ -277,16 +277,19 @@ Prerequisites
     platforms.
 
   * libcurl (optional)
-    If you want to use the `apache' plugin
+    If you want to use the `apache' and/or `nginx' plugins.
 
   * libiptc (optional)
     For querying iptables counters.
 
   * libmysqlclient (optional)
+    Unsurprisingly used by the `mysql' plugin.
 
   * libnetlink (optional)
+    Used, obviously, for the `netlink' plugin.
 
   * libnetsnmp (optional)
+    For the `snmp' plugin.
 
   * liboping (optional, if not found a version shipped with this distribution
     can be used)
@@ -302,7 +305,7 @@ Prerequisites
     instead.
 
   * libsensors (optional)
-    To read from `lm_sensors'.
+    To read from `lm_sensors', see the `sensors' plugin.
 
   * libstatgrab may be used to collect statistics on systems other than Linux
     and/or Solaris. Note that CPU- and disk-statistics, while being provided
