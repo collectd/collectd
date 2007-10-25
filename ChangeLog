@@ -1,8 +1,8 @@
 yyyy-mm-dd, Version 4.2.0
 	* collectd: The new config option `Include' lets you include other
 	  configfiles and thus split up your config into smaller parts. This
-	  may be especially interresting for the snmp plugin to keep the data
-	  definitions seperate from the host definitions.
+	  may be especially interesting for the snmp plugin to keep the data
+	  definitions separate from the host definitions.
 	* perl plugin: Many changes, including the added `EnableDebugger'
 	  config option which lets you debug your Perl plugins more easily.
 	* snmp plugin: Added the options `Scale' and `Shift' to Data-blocks to
@@ -10,8 +10,8 @@ yyyy-mm-dd, Version 4.2.0
 	* ipvs plugin: The new `ipvs' plugin collects IPVS connection statistics
 	  (number of connections, octets and packets for each service and
 	  destination).
-	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
-	  be more threadsafe otherwise by locking calls to the library.
+	* rrdtool plugin: Use the thread-safe RRD-library if available. Try to
+	  be more thread-safe otherwise by locking calls to the library.
 	* memcached plugin: The new `memcached' plugin connects to a memcached
 	  daemon process and collects statistics of this distributed caching
 	  system. Thanks to Antony Dovgal for contributing this plugin.
@@ -19,8 +19,8 @@ yyyy-mm-dd, Version 4.2.0
 2007-10-24, Version 4.1.3
 	* collectd: A build issue under Solaris has been resolved by renaming
 	  data types.
-	* rrdtool plugin: Use the threadsafe RRD-library if available. Try to
-	  be more threadsafe otherwise by locking calls to the library.
+	* rrdtool plugin: Use the thread-safe RRD-library if available. Try to
+	  be more thread-safe otherwise by locking calls to the library.
 
 2007-09-28, Version 4.1.2
 	* apcups plugin: Fix reporting of the `load percent' data.
@@ -254,7 +254,7 @@ yyyy-mm-dd, Version 4.2.0
 	* The sample config file has been improved.
 	* Errors in the manpages have been corrected.
 	* The ping-plugin now adds hosts during initialization, not during
-	  startup. This speeds up starup when no network connectivity is
+	  startup. This speeds up startup when no network connectivity is
 	  available. Also, the hosts are being added later when the network is
 	  available.
 	* Improved BSD-support for the df-plugin.
@@ -277,7 +277,7 @@ yyyy-mm-dd, Version 4.2.0
 	* A plugin to monitor APC UPSes using `apcupsd' has been added. Thanks
 	  to Anthony Gialluca for contributing this plugin and providing me
 	  with a test environment :)
-	* A plugin for moniroting an NTP instance and the local clock drift
+	* A plugin for monitoring an NTP instance and the local clock drift
 	  has been added.
 
 2006-06-25, Version 3.9.4
@@ -321,7 +321,7 @@ yyyy-mm-dd, Version 4.2.0
 	* A plugin for wireless LAN cards has been added. It monitors signal
 	  strength, link quality and noise ratio..
 	* A plugin for Apple hardware sensors has been added.
-	* An option to compile collectd with different `step' and `hearbeat'
+	* An option to compile collectd with different `step' and `heartbeat'
 	  settings has been added. The size of RRAs is no longer static but
 	  calculated based on the settings for `step' and `width'.
 	* The `ping' plugin can now be configured to use a certain TTL.
@@ -346,7 +346,7 @@ yyyy-mm-dd, Version 4.2.0
 	  `/etc/mtab'.
 
 2006-03-13, Version 3.8.1
-	* Fixes for building collectd unter FreeBSD, Mac OS X and Solaris.
+	* Fixes for building collectd under FreeBSD, Mac OS X and Solaris.
 	* Fixes in the debian `postinst' and `init.d' scripts.
 
 2006-03-09, Version 3.8.0
@@ -356,7 +356,7 @@ yyyy-mm-dd, Version 4.2.0
 
 2006-02-18, Version 3.7.2
 	* A simple bug in the `battery' plugin has been fixed. It should now
-	  work with ACPI based batteries as well. Thankt to Sebastian for
+	  work with ACPI based batteries as well. Thanks to Sebastian for
 	  fixing this.
 	* Fixing a bug that prevented collectd to be built without librrd.
 	  Thanks to Werner Heuser for reporting it.
@@ -397,7 +397,7 @@ yyyy-mm-dd, Version 4.2.0
 	* A `df' plugin has been added.
 	* A `mysql' plugin has been added.
 	* The `ping' plugin doesn't entirely give up hope when a socket error
-	  occured, but will back of and increase the intervals between tries.
+	  occurred, but will back of and increase the intervals between tries.
 
 2006-01-21, Version 3.5.2
 	* Fixed yet another bug in the signal handling.. Stupid typo..
@@ -433,12 +433,12 @@ yyyy-mm-dd, Version 4.2.0
 	  - `serial', for monitoring traffic on the serial interfaces
 	  - `nfs', for graphing NFS procedure calls
 	  - `tape', traffic from/to tape devices
-	* The the memory.rrd now accepts more than 4Gig of memory.
+	* The memory.rrd now accepts more than 4Gig of memory.
 
 2005-10-26, Version 3.2.0 (Revision 200)
 	* Support for graphing the processes has been added (thanks to Lyonel
 	  Vincent)
-	* If reading from hddtemp failes collectd will increase the time
+	* If reading from hddtemp fails collectd will increase the time
 	  between polls up to one day.
 	* The init.d files have been improved.
 	* Problems with the spec file have been fixed.
@@ -462,7 +462,7 @@ yyyy-mm-dd, Version 4.2.0
 2005-09-09, Version 2.0.0 (Revision 135)
 	* Filenames can no longer be configured at program startup. The only
 	  options as of this version are the directory and ping hosts.
-	* CPU statistics now include Wait-IO. If privided under Linux IRQ and
+	* CPU statistics now include Wait-IO. If provided under Linux IRQ and
 	  Soft-IRQ statistics are added to `System'. 
 	* Diskstats now collect read and write bytes, not sectors.
 	* Ping statistics can now be collected for more than one host. There
@@ -473,7 +473,7 @@ yyyy-mm-dd, Version 4.2.0
 2005-09-01, Version 1.8.1 (Revision 123)
 	* Much improved configure-script: libraries and features may now be
 	  disabled.
-	* More detailed warnings/error messages when RRD update failes.
+	* More detailed warnings/error messages when RRD update fails.
 
 2005-08-29, Version 1.8.0:
 	* Support for collecting disk statistics under Solaris.
@@ -484,14 +484,14 @@ yyyy-mm-dd, Version 4.2.0
 	  libstatgrab returns insufficient information. I will contact the
 	  authors.
 	* Improved the CPU-initialization code for Solaris. Apparently CPUs
-	  aren't neccessarily counted linear which is now handled correctly.
+	  aren't necessarily counted linear which is now handled correctly.
 	[1]: http://www.i-scream.org/libstatgrab/
 
 2005-08-21, Version 1.6.0:
 	* Basic support for Solaris: System load and cpu-usage can be
-	  collected unter Solaris, too. Other stats will follow later.
+	  collected under Solaris, too. Other stats will follow later.
 	* Many fixes in the autoconf-script
-	* Collection/Museum scripts have been added unter contrib/museum
+	* Collection/Museum scripts have been added under contrib/museum
 	* collectd may now be started in unprivileged mode, though ping
 	  statistics will not work.
 
@@ -504,7 +504,7 @@ yyyy-mm-dd, Version 4.2.0
 	  about the disks and partitions.
 
 2005-07-11, Version 1.4.2:
-	* The meminfo mofule has been changed to work with more platforms
+	* The meminfo module has been changed to work with more platforms
 	  and/or kernel versions.
 
 2005-07-10, Version 1.4.1: Correct traffic stats
@@ -524,7 +524,7 @@ yyyy-mm-dd, Version 4.2.0
 	* The default directory is now /var/db/collectd
 
 2004-07-10, Version 1.1: Minor changes
-	* Nothing really usefull to say ;)
+	* Nothing really useful to say ;)
 
 2004-07-09, Version 1.0: Initial Version
 	* The following modules are provided:
