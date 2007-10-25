@@ -5,8 +5,15 @@ yyyy-mm-dd, Version 4.2.0
 	  definitions separate from the host definitions.
 	* perl plugin: Many changes, including the added `EnableDebugger'
 	  config option which lets you debug your Perl plugins more easily.
+	* tcpconns plugin: The new `tcpconns' plugin collects the number of
+	  certain TCP connections and what state they're in. This can be used
+	  to see how many connections your FTP server has to handle or how
+	  many outgoing connections your mailserver has open.
 	* snmp plugin: Added the options `Scale' and `Shift' to Data-blocks to
-	  correct the values returned by SNMP-agents.
+	  correct the values returned by SNMP-agents. If a <data> block is
+	  defined as `table' the instance is now optional. The sequence number
+	  is used as the type-instance in this case. The new `InstancePrefix'
+	  option allows to add arbitary prefixes to the type-instance.
 	* ipvs plugin: The new `ipvs' plugin collects IPVS connection statistics
 	  (number of connections, octets and packets for each service and
 	  destination).
