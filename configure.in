@@ -683,19 +683,25 @@ AC_ARG_WITH(rrdtool, [AS_HELP_STRING([--with-rrdtool@<:@=PREFIX@:>@], [Path to r
 ], [with_rrdtool="yes"])
 if test "x$with_rrdtool" = "xyes"
 then
-	SAVE_CFLAGS="$CFLAGS"
+	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
 
-	CFLAGS="$CFLAGS $librrd_cflags"
+	CPPFLAGS="$CPPFLAGS $librrd_cflags"
 	LDFLAGS="$LDFLAGS $librrd_ldflags"
 
 	AC_CHECK_HEADERS(rrd.h,, [with_rrdtool="no (rrd.h not found)"])
 
-	CFLAGS="$SAVE_CFLAGS"
+	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_rrdtool" = "xyes"
 then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CPPFLAGS="$CPPFLAGS $librrd_cflags"
+	LDFLAGS="$LDFLAGS $librrd_ldflags"
+
 	AC_CHECK_LIB(rrd_th, rrd_update_r,
 	[with_rrdtool="yes"
 	 librrd_ldflags="$librrd_ldflags -lrrd_th -lm"
@@ -709,6 +715,9 @@ then
 	 [-lm])
 	]
 	[-lm])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_rrdtool" = "xyes"
 then
