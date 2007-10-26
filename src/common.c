@@ -48,6 +48,10 @@ extern kstat_ctl_t *kc;
 static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
+#if !HAVE_STRERROR_R
+static pthread_mutex_t strerror_r_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
 void sstrncpy (char *d, const char *s, int len)
 {
 	strncpy (d, s, len);
@@ -76,7 +80,21 @@ char *sstrdup (const char *s)
 char *sstrerror (int errnum, char *buf, size_t buflen)
 {
 	buf[0] = '\0';
-#ifdef STRERROR_R_CHAR_P
+
+#if !HAVE_STRERROR_R
+	{
+		char *temp;
+
+		pthread_mutex_lock (&strerror_r_lock);
+
+		temp = strerror (errnum);
+		strncpy (buf, temp, buflen);
+
+		pthread_mutex_unlock (&strerror_r_lock);
+	}
+/* #endif !HAVE_STRERROR_R */
+
+#elif STRERROR_R_CHAR_P
 	{
 		char *temp;
 		temp = strerror_r (errnum, buf, buflen);
@@ -87,9 +105,10 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
 			else
 				strncpy (buf, "strerror_r did not return "
 						"an error message", buflen);
-			buf[buflen - 1] = '\0';
 		}
 	}
+/* #endif STRERROR_R_CHAR_P */
+
 #else
 	if (strerror_r (errnum, buf, buflen) != 0)
 	{
@@ -98,6 +117,7 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
 				errnum);
 	}
 #endif /* STRERROR_R_CHAR_P */
+
 	buf[buflen - 1] = '\0';
 	return (buf);
 } /* char *sstrerror */
