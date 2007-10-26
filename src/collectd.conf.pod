@@ -371,6 +371,10 @@ B<stderr> can be used to write to the standard output and standard error
 channels, respectively. This, of course, only makes much sense when collectd is
 running in foreground- or non-daemon-mode.
 
+=item B<Timestamp> B<true>|B<false>
+
+Prefix all lines printed by the current time. Defaults to B<true>.
+
 =back
 
 =head2 Plugin C<mbmon>

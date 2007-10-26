@@ -35,11 +35,13 @@ static int log_level = LOG_INFO;
 static pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static char *log_file = NULL;
+static int print_timestamp = 1;
 
 static const char *config_keys[] =
 {
 	"LogLevel",
-	"File"
+	"File",
+	"Timestamp"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -68,6 +70,14 @@ static int logfile_config (const char *key, const char *value)
 		sfree (log_file);
 		log_file = strdup (value);
 	}
+	else if (0 == strcasecmp (key, "File")) {
+		if ((strcasecmp (value, "false") == 0)
+				|| (strcasecmp (value, "no") == 0)
+				|| (strcasecmp (value, "off") == 0))
+			print_timestamp = 0;
+		else
+			print_timestamp = 1;
+	}
 	else {
 		return -1;
 	}
@@ -78,9 +88,22 @@ static void logfile_log (int severity, const char *msg)
 {
 	FILE *fh;
 	int do_close = 0;
+	time_t timestamp_time;
+	struct tm timestamp_tm;
+	char timestamp_str[64];
 
 	if (severity > log_level)
 		return;
+
+	if (print_timestamp)
+	{
+		timestamp_time = time (NULL);
+		localtime_r (&timestamp_time, &timestamp_tm);
+
+		strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S",
+				&timestamp_tm);
+		timestamp_str[sizeof (timestamp_str) - 1] = '\0';
+	}
 
 	pthread_mutex_lock (&file_lock);
 
@@ -103,7 +126,11 @@ static void logfile_log (int severity, const char *msg)
 	}
 	else
 	{
-		fprintf (fh, "%s\n", msg);
+		if (print_timestamp)
+			fprintf (fh, "[%s] %s\n", timestamp_str, msg);
+		else
+			fprintf (fh, "%s\n", msg);
+
 		if (do_close != 0)
 			fclose (fh);
 	}
