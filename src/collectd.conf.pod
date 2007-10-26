@@ -24,7 +24,7 @@ B<collectd> behaves. The most significant option is B<LoadPlugin>, which
 controls which plugins to load. These plugins ultimately define collectd's
 behavior.
 
-The syntax of this config file is similar to the config file of the famos
+The syntax of this config file is similar to the config file of the famous
 B<Apache Webserver>. Each line contains either a key-value-pair or a
 section-start or -end. Empty lines and everything after the hash-symbol `#' is
 ignored. Values are either string, enclosed in double-quotes,
