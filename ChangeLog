@@ -10,7 +10,7 @@
 	  daemon process and collects statistics of this distributed caching
 	  system. Thanks to Antony Dovgal for contributing this plugin.
 	* nginx plugin: The new `nginx' plugin reads the status page of an
-	  nginx daemon and saves the handeled connections and requests.
+	  nginx daemon and saves the handled connections and requests.
 	* perl plugin: Many changes, including the added `EnableDebugger'
 	  config option which lets you debug your Perl plugins more easily.
 	* rrdtool plugin: Use the thread-safe RRD-library if available. Try to
@@ -19,7 +19,7 @@
 	  correct the values returned by SNMP-agents. If a <data> block is
 	  defined as `table' the instance is now optional. The sequence number
 	  is used as the type-instance in this case. The new `InstancePrefix'
-	  option allows to add arbitary prefixes to the type-instance.
+	  option allows to add arbitrary prefixes to the type-instance.
 	* tcpconns plugin: The new `tcpconns' plugin collects the number of
 	  certain TCP connections and what state they're in. This can be used
 	  to see how many connections your FTP server has to handle or how
