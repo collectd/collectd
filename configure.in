@@ -1299,7 +1299,7 @@ AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Pat
  	if test "x$withval" = "xno"
 	then
 		with_libnetsnmp="no"
-	else if "x$withval" = "xyes"
+	else if test "x$withval" = "xyes"
 	then
 		with_libnetsnmp="yes"
 	else

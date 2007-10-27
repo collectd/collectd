@@ -325,6 +325,29 @@ Prerequisites
     particular.
 
 
+Configuring / Compiling / Installing
+------------------------------------
+
+  To configure, build and install collectd with the default settings, run
+  `./configure && make && make install'.  For detailed, generic instructions
+  see INSTALL. For a complete list of configure options and their description,
+  run `./configure --help'.
+  
+  By default, the configure script will check for all build dependencies and
+  disable all plugins whose requirements cannot be fulfilled (any other plugin
+  will be enabled). To enable a plugin, install missing dependencies (see
+  section `Prerequisites' above) and rerun `configure'. If you specify the
+  `--enable-<plugin>' configure option, you can force the plugin to be built.
+  This will most likely fail though unless you're working in a very unusual
+  setup and you really know what you're doing.
+
+  By default, collectd will be installed into `/opt/collectd'. You can adjust
+  this setting by specifying the `--prefix' configure option - see INSTALL for
+  details. If you pass DESTDIR=<path> to `make install', <path> will be
+  prefixed to all installation directories. This might be useful when creating
+  packages for collectd.
+
+
 Crosscompiling
 --------------
 
