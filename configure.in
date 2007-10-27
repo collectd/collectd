@@ -930,13 +930,21 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM, test "x$with_libkvm" = "xyes")
 
+with_sensors_cflags=""
+with_sensors_ldflags=""
 AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" = "xno"
 	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_lm_sensors="no"
+	else
 		with_lm_sensors="yes"
+		if test "x$withval" != "xyes"
+		then
+			with_sensors_cflags="-I$withval/include"
+			with_sensors_ldflags="-L$withval/lib"
+			with_lm_sensors="yes"
+		fi
 	fi
 ],
 [
@@ -949,28 +957,41 @@ AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Pat
 ])
 if test "x$with_lm_sensors" = "xyes"
 then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
+
+#	AC_CHECK_HEADERS(sensors/sensors.h,
+#	[
+#		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
+#	],
+#	[with_lm_sensors="no (sensors/sensors.h not found)"])
+	AC_CHECK_HEADERS(sensors/sensors.h, [], [with_lm_sensors="no (sensors/sensors.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_lm_sensors" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
+	LDFLAGS="$LDFLAGS $with_sensors_ldflags"
+
 	AC_CHECK_LIB(sensors, sensors_init,
 	[
 		AC_DEFINE(HAVE_LIBSENSORS, 1, [Define to 1 if you have the sensors library (-lsensors).])
 	],
 	[with_lm_sensors="no (libsensors not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_lm_sensors" = "xyes"
 then
-	AC_CHECK_HEADERS(sensors/sensors.h,
-	[
-		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
-	],
-	[with_lm_sensors="no (sensors/sensors.h not found)"])
+	BUILD_WITH_LIBSENSORS_CFLAGS="$with_sensors_cflags"
+	BUILD_WITH_LIBSENSORS_LDFLAGS="$with_sensors_ldflags"
+	AC_SUBST(BUILD_WITH_LIBSENSORS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBSENSORS_LDFLAGS)
 fi
-if test "x$with_lm_sensors" = "xyes"
-then
-	collect_lm_sensors=1
-else
-	collect_lm_sensors=0
-fi
-AC_DEFINE_UNQUOTED(COLLECT_LM_SENSORS, [$collect_lm_sensors],
-	[Wether or not to use sensors library])
 AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_lm_sensors" = "xyes")
 
 with_mysql_config="mysql_config"
