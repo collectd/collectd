@@ -355,11 +355,6 @@ have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
 #
-# Checking for libraries
-#
-AC_CHECK_LIB(m, ext)
-
-#
 # Checks for typedefs, structures, and compiler characteristics.
 #
 AC_C_CONST
