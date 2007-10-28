@@ -22,6 +22,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
 		   utils_mount.c utils_mount.h \
+		   utils_threshold.c \
 		   types_list.c types_list.h
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DPREFIX='"${prefix}"'
