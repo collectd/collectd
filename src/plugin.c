@@ -54,6 +54,7 @@ static llist_t *list_write;
 static llist_t *list_shutdown;
 static llist_t *list_data_set;
 static llist_t *list_log;
+static llist_t *list_notification;
 
 static char *plugindir = NULL;
 
@@ -463,6 +464,12 @@ int plugin_register_log (char *name,
 	return (register_callback (&list_log, name, (void *) callback));
 } /* int plugin_register_log */
 
+int plugin_register_notification (const char *name,
+		int (*callback) (const notification_t *notif))
+{
+	return (register_callback (&list_log, name, (void *) callback));
+} /* int plugin_register_log */
+
 int plugin_unregister_config (const char *name)
 {
 	cf_unregister (name);
@@ -532,6 +539,11 @@ int plugin_unregister_data_set (const char *name)
 int plugin_unregister_log (const char *name)
 {
 	return (plugin_unregister (list_log, name));
+}
+
+int plugin_unregister_notification (const char *name)
+{
+	return (plugin_unregister (list_notification, name));
 }
 
 void plugin_init_all (void)
@@ -696,6 +708,28 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 
 	return (0);
 } /* int plugin_dispatch_values */
+
+int plugin_dispatch_notification (const notification_t *notif)
+{
+	int (*callback) (const notification_t *);
+	llentry_t *le;
+	/* Possible TODO: Add flap detection here */
+
+	/* Nobody cares for notifications */
+	if (list_notification == NULL)
+		return (-1);
+
+	le = llist_head (list_notification);
+	while (le != NULL)
+	{
+		callback = (int (*) (const notification_t *)) le->value;
+		(*callback) (notif);
+
+		le = le->next;
+	}
+
+	return (0);
+} /* int plugin_dispatch_notification */
 
 void plugin_log (int level, const char *format, ...)
 {
