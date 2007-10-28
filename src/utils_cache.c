@@ -87,8 +87,24 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     {
       if (ds->ds[i].type == DS_TYPE_COUNTER)
       {
-	ce->values_gauge[i] = ((double) (vl->values[i].counter
-	    - ce->values_counter[i]))
+	counter_t diff;
+
+	/* check if the counter has wrapped around */
+	if (vl->values[i].counter < ce->values_counter[i])
+	{
+	  if (ce->values_counter[i] <= 4294967295U)
+	    diff = (4294967295U - ce->values_counter[i])
+	      + vl->values[i].counter;
+	  else
+	    diff = (18446744073709551615ULL - ce->values_counter[i])
+	      + vl->values[i].counter;
+	}
+	else /* counter has NOT wrapped around */
+	{
+	  diff = vl->values[i].counter - ce->values_counter[i];
+	}
+
+	ce->values_gauge[i] = ((double) diff)
 	  / ((double) (vl->time - ce->last_update));
 	ce->values_counter[i] = vl->values[i].counter;
       }

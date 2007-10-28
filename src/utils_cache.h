@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_cache.c
+ * collectd - src/utils_cache.h
  * Copyright (C) 2007  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
