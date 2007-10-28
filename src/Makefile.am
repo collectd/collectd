@@ -14,13 +14,14 @@ sbin_PROGRAMS = collectd
 bin_PROGRAMS = collectd-nagios
 
 collectd_SOURCES = collectd.c collectd.h \
-		   utils_avltree.c utils_avltree.h \
-		   utils_mount.c utils_mount.h \
-		   utils_llist.c utils_llist.h \
-		   utils_ignorelist.c utils_ignorelist.h \
 		   common.c common.h \
-		   plugin.c plugin.h \
 		   configfile.c configfile.h \
+		   plugin.c plugin.h \
+		   utils_avltree.c utils_avltree.h \
+		   utils_cache.c utils_cache.h \
+		   utils_ignorelist.c utils_ignorelist.h \
+		   utils_llist.c utils_llist.h \
+		   utils_mount.c utils_mount.h \
 		   types_list.c types_list.h
 collectd_CPPFLAGS = $(LTDLINCL)
 collectd_CPPFLAGS += -DPREFIX='"${prefix}"'

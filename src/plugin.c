@@ -31,6 +31,7 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_llist.h"
+#include "utils_cache.h"
 
 /*
  * Private structures
@@ -549,6 +550,9 @@ void plugin_init_all (void)
 		start_threads ((num > 0) ? num : 5);
 	}
 
+	/* Init the value cache */
+	uc_init ();
+
 	if (list_init == NULL)
 		return;
 
@@ -677,6 +681,9 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 	escape_slashes (vl->plugin, sizeof (vl->plugin));
 	escape_slashes (vl->plugin_instance, sizeof (vl->plugin_instance));
 	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
+
+	/* Update the value cache */
+	uc_update (ds, vl);
 
 	le = llist_head (list_write);
 	while (le != NULL)
