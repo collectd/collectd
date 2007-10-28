@@ -831,6 +831,10 @@ static int init_pi (int argc, char **argv)
 		log_err ("module_register: Unable to bootstrap Collectd.");
 		exit (1);
 	}
+
+	/* Set $0 to "collectd" because perl_parse() has to set it to "-e". */
+	Perl_sv_setpv (perl, Perl_get_sv (perl, "0", 0), "collectd");
+
 	perl_run (perl);
 
 	plugin_register_log ("perl", perl_log);
