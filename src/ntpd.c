@@ -493,7 +493,7 @@ static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
 		if (status < 0)
 		{
 			char errbuf[1024];
-			DEBUG ("recv(2) failed: %s",
+			INFO ("recv(2) failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			DEBUG ("Closing socket #%i", sd);
 			close (sd);

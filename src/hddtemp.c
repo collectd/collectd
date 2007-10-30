@@ -144,7 +144,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
 		{
 			char errbuf[1024];
-			DEBUG ("hddtemp: connect (%s, %s): %s", host, port,
+			INFO ("hddtemp: connect (%s, %s): %s", host, port,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
 			fd = -1;

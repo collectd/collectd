@@ -136,7 +136,7 @@ static int net_open (char *host, char *service, int port)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		DEBUG ("getaddrinfo failed: %s",
+		INFO ("getaddrinfo failed: %s",
 				(status == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
 				: gai_strerror (status));
@@ -167,7 +167,7 @@ static int net_open (char *host, char *service, int port)
 	if (status != 0) /* `connect(2)' failed */
 	{
 		char errbuf[1024];
-		DEBUG ("connect failed: %s",
+		INFO ("connect failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sd);
 		return (-1);

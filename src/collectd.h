@@ -195,11 +195,6 @@
 #define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
 #endif
 
-#define MODE_SERVER 0x01
-#define MODE_CLIENT 0x02
-#define MODE_LOCAL  0x04
-#define MODE_LOG    0x08
-
 #ifndef COLLECTD_GRP_NAME
 # define COLLECTD_GRP_NAME "collectd"
 #endif
