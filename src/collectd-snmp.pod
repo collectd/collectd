@@ -33,7 +33,7 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Version 1
       Community "community_string"
       Collect "std_traffic"
-      Inverval 120
+      Interval 120
     </Host>
     <Host "some.server.mydomain.org">
       Address "192.168.0.42"
@@ -67,9 +67,8 @@ and ten threads are used.
 Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
 it's configuration is not trivial and may take some time.
 
-Since the C<Net-SNMP> library is used you can use all the environment
-variables that are interpreted by that package. See L<snmpcmd(1)> for more
-details.
+Since the C<Net-SNMP> library is used you can use all the environment variables
+that are interpreted by that package. See L<snmpcmd(1)> for more details.
 
 There are two types of blocks that can be contained in the
 C<E<lt>PluginE<nbsp>snmpE<gt>> block: B<Data> and B<Host>:
@@ -207,7 +206,7 @@ Set the address to connect to.
 
 =item B<Version> B<1>|B<2>
 
-Set the SNMP version to use. When giving B<2> version 2c is actually used.
+Set the SNMP version to use. When giving B<2> version C<2c> is actually used.
 Version 3 is not supported by this plugin.
 
 =item B<Community> I<Community>
