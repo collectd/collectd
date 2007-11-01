@@ -480,9 +480,60 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
   for (i = 0; i < ds->ds_num; i++)
   {
     if ((th->min > values[i]) || (th->max < values[i]))
-      WARNING ("ut_check_threshold: ds%i: %lf <= !%lf <= %lf",
-	  i, th->min, values[i], th->max);
-  }
+    {
+      notification_t n;
+      char *buf;
+      size_t bufsize;
+      int status;
+
+      WARNING ("ut_check_threshold: ds[%s]: %lf <= !%lf <= %lf",
+	  ds->ds[i].name, th->min, values[i], th->max);
+
+      buf = n.message;
+      bufsize = sizeof (n.message);
+
+      status = snprintf (buf, bufsize, "Host %s, plugin %s",
+	  vl->host, vl->plugin);
+      buf += status;
+      bufsize -= status;
+
+      if (vl->plugin_instance[0] != '\0')
+      {
+	status = snprintf (buf, bufsize, " (instance %s)",
+	    vl->plugin_instance);
+	buf += status;
+	bufsize -= status;
+      }
+
+      status = snprintf (buf, bufsize, " type %s", ds->type);
+      buf += status;
+      bufsize -= status;
+
+      if (vl->type_instance[0] != '\0')
+      {
+	status = snprintf (buf, bufsize, " (instance %s)",
+	    vl->type_instance);
+	buf += status;
+	bufsize -= status;
+      }
+
+      status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	  "%lf. That is %s the configured threshold of %lf.",
+	  ds->ds[i].name, values[i],
+	  (values[i] < th->min) ? "below" : "above",
+	  (values[i] < th->min) ? th->min : th->max);
+      buf += status;
+      bufsize -= status;
+
+      n.severity = NOTIF_FAILURE;
+      n.time = vl->time;
+
+      strncpy (n.host, vl->host, sizeof (n.host));
+      n.host[sizeof (n.host) - 1] = '\0';
+
+      plugin_dispatch_notification (&n);
+    }
+  } /* for (i = 0; i < ds->ds_num; i++) */
 
   sfree (values);
 
