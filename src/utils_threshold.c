@@ -349,6 +349,16 @@ int ut_config (const oconfig_item_t *ci)
 
   threshold_t th;
 
+  if (threshold_tree == NULL)
+  {
+    threshold_tree = avl_create ((void *) strcmp);
+    if (threshold_tree == NULL)
+    {
+      ERROR ("ut_config: avl_create failed.");
+      return (-1);
+    }
+  }
+
   memset (&th, '\0', sizeof (th));
   th.min = NAN;
   th.max = NAN;
