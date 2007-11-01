@@ -32,6 +32,7 @@
 #include "configfile.h"
 #include "utils_llist.h"
 #include "utils_cache.h"
+#include "utils_threshold.h"
 
 /*
  * Private structures
@@ -696,6 +697,7 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 
 	/* Update the value cache */
 	uc_update (ds, vl);
+	ut_check_threshold (ds, vl);
 
 	le = llist_head (list_write);
 	while (le != NULL)

@@ -30,7 +30,7 @@
 
 /*
  * Private data structures
- */
+ * {{{ */
 typedef struct threshold_s
 {
   char host[DATA_MAX_NAME_LEN];
@@ -42,19 +42,21 @@ typedef struct threshold_s
   gauge_t max;
   int invert;
 } threshold_t;
+/* }}} */
 
 /*
  * Private (static) variables
- */
+ * {{{ */
 static avl_tree_t     *threshold_tree = NULL;
 static pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
+/* }}} */
 
 /*
  * Threshold management
  * ====================
  * The following functions add, delete, search, etc. configured thresholds to
  * the underlying AVL trees.
- */
+ * {{{ */
 static int ut_threshold_add (const threshold_t *th)
 {
   char name[6 * DATA_MAX_NAME_LEN];
@@ -103,14 +105,14 @@ static int ut_threshold_add (const threshold_t *th)
 } /* int ut_threshold_add */
 /*
  * End of the threshold management functions
- */
+ * }}} */
 
 /*
  * Configuration
  * =============
- * The following approximately two hundred functions are used to convert the
- * threshold values..
- */
+ * The following approximately two hundred functions are used to handle the
+ * configuration and fill the threshold list.
+ * {{{ */
 static int ut_config_type_instance (threshold_t *th, oconfig_item_t *ci)
 {
   if ((ci->values_num != 1)
@@ -389,5 +391,102 @@ int ut_config (const oconfig_item_t *ci)
 /*
  * End of the functions used to configure threshold values.
  */
+/* }}} */
 
-/* vim: set sw=2 ts=8 sts=2 tw=78 : */
+static threshold_t *threshold_get (const char *hostname,
+    const char *plugin, const char *plugin_instance,
+    const char *type, const char *type_instance)
+{
+  char name[6 * DATA_MAX_NAME_LEN];
+  threshold_t *th = NULL;
+
+  format_name (name, sizeof (name),
+      (hostname == NULL) ? "" : hostname,
+      (plugin == NULL) ? "" : plugin, plugin_instance,
+      (type == NULL) ? "" : type, type_instance);
+  name[sizeof (name) - 1] = '\0';
+
+  if (avl_get (threshold_tree, name, (void *) &th) == 0)
+    return (th);
+  else
+    return (NULL);
+} /* threshold_t *threshold_get */
+
+static threshold_t *threshold_search (const data_set_t *ds,
+    const value_list_t *vl)
+{
+  threshold_t *th;
+
+  if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
+	  ds->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
+	  ds->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
+	  ds->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
+	  ds->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, "", NULL,
+	  ds->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, "", NULL,
+	  ds->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
+	  ds->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
+	  ds->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, NULL,
+	  ds->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, NULL,
+	  ds->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", "", NULL,
+	  ds->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", "", NULL,
+	  ds->type, NULL)) != NULL)
+    return (th);
+
+  return (NULL);
+} /* threshold_t *threshold_search */
+
+int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
+{
+  threshold_t *th;
+  gauge_t *values;
+  int i;
+
+  if (threshold_tree == NULL)
+    return (0);
+  pthread_mutex_lock (&threshold_lock);
+  th = threshold_search (ds, vl);
+  pthread_mutex_unlock (&threshold_lock);
+  if (th == NULL)
+    return (0);
+
+  DEBUG ("Found matching threshold");
+
+  values = uc_get_rate (ds, vl);
+  if (values == NULL)
+    return (0);
+
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if ((th->min > values[i]) || (th->max < values[i]))
+      WARNING ("ut_check_threshold: ds%i: %lf <= !%lf <= %lf",
+	  i, th->min, values[i], th->max);
+  }
+
+  sfree (values);
+
+  return (0);
+} /* int ut_check_threshold */
+
+/* vim: set sw=2 ts=8 sts=2 tw=78 fdm=marker : */
