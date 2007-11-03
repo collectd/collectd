@@ -38,6 +38,15 @@ should look something like this:
   datadir: "/var/lib/collectd/rrd/"
   libdir: "/usr/lib/collectd/"
 
+exec-munin.px
+-------------
+  Script to be used with the exec-plugin (see collectd-exec(5) for details)
+which executes munin plugins, parses the output and translates it to a format
+the exec-plugin understands. The features are limited - changing the munin
+plugins to use the output format understood by the exec-plugin is recommended.
+See the embedded POD documentation for more details:
+ $ perldoc contrib/exec-munin.px
+
 extractDS.px
 ------------
   Creates a new RRD-file with only one data-source (DS) of the source-RRD-
