@@ -59,7 +59,7 @@ static program_list_t *pl_head = NULL;
 /*
  * Functions
  */
-static int exec_config (const char *key, const char *value)
+static int exec_config (const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp ("Exec", key) == 0)
   {
@@ -111,9 +111,9 @@ static int exec_config (const char *key, const char *value)
   }
 
   return (0);
-} /* int exec_config */
+} /* int exec_config }}} */
 
-static void exec_child (program_list_t *pl)
+static void exec_child (program_list_t *pl) /* {{{ */
 {
   int status;
   int uid;
@@ -216,9 +216,9 @@ static void exec_child (program_list_t *pl)
   ERROR ("exec plugin: exec failed: %s",
       sstrerror (errno, errbuf, sizeof (errbuf)));
   exit (-1);
-} /* void exec_child */
+} /* void exec_child }}} */
 
-static int fork_child (program_list_t *pl)
+static int fork_child (program_list_t *pl) /* {{{ */
 {
   int fd_pipe[2];
   int status;
@@ -261,9 +261,9 @@ static int fork_child (program_list_t *pl)
 
   close (fd_pipe[1]);
   return (fd_pipe[0]);
-} /* int fork_child */
+} /* int fork_child }}} */
 
-static int parse_line (char *buffer)
+static int parse_line (char *buffer) /* {{{ */
 {
   char *fields[256];
   int fields_num;
@@ -273,9 +273,9 @@ static int parse_line (char *buffer)
 
   handle_putval (stdout, fields, fields_num + 1);
   return (0);
-} /* int parse_line */
+} /* int parse_line }}} */
 
-static void *exec_read_one (void *arg)
+static void *exec_read_one (void *arg) /* {{{ */
 {
   program_list_t *pl = (program_list_t *) arg;
   int fd;
@@ -320,9 +320,9 @@ static void *exec_read_one (void *arg)
 
   pthread_exit ((void *) 0);
   return (NULL);
-} /* void *exec_read_one */
+} /* void *exec_read_one }}} */
 
-static int exec_read (void)
+static int exec_read (void) /* {{{ */
 {
   program_list_t *pl;
 
@@ -340,9 +340,9 @@ static int exec_read (void)
   } /* for (pl) */
 
   return (0);
-} /* int exec_read */
+} /* int exec_read }}} */
 
-static int exec_shutdown (void)
+static int exec_shutdown (void) /* {{{ */
 {
   program_list_t *pl;
   program_list_t *next;
@@ -366,7 +366,7 @@ static int exec_shutdown (void)
   pl_head = NULL;
 
   return (0);
-} /* int exec_shutdown */
+} /* int exec_shutdown }}} */
 
 void module_register (void)
 {
@@ -376,5 +376,5 @@ void module_register (void)
 } /* void module_register */
 
 /*
- * vim:shiftwidth=2:softtabstop=2:tabstop=8
+ * vim:shiftwidth=2:softtabstop=2:tabstop=8:fdm=marker
  */
