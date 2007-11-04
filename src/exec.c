@@ -31,6 +31,10 @@
 
 #include <pthread.h>
 
+#define PL_NORMAL        0x01
+#define PL_NOTIF_ACTION  0x02
+#define PL_NAGIOS_PLUGIN 0x04
+
 /*
  * Private data types
  */
@@ -41,74 +45,203 @@ struct program_list_s
   char           *user;
   char           *group;
   char           *exec;
+  char          **argv;
   int             pid;
+  int             status;
+  int             flags;
   program_list_t *next;
 };
 
 /*
  * Private variables
  */
-static const char *config_keys[] =
-{
-  "Exec"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
 static program_list_t *pl_head = NULL;
 
 /*
  * Functions
  */
-static int exec_config (const char *key, const char *value) /* {{{ */
+static void sigchld_handler (int signal) /* {{{ */
 {
-  if (strcasecmp ("Exec", key) == 0)
+  pid_t pid;
+  int status;
+  while ((pid = waitpid (-1, &status, WNOHANG)) > 0)
   {
     program_list_t *pl;
-    pl = (program_list_t *) malloc (sizeof (program_list_t));
-    if (pl == NULL)
-      return (1);
-    memset (pl, '\0', sizeof (program_list_t));
+    for (pl = pl_head; pl != NULL; pl = pl->next)
+      if (pl->pid == pid)
+	break;
+    if (pl != NULL)
+      pl->status = status;
+  } /* while (waitpid) */
+} /* void sigchld_handler }}} */
 
-    pl->user = strdup (value);
-    if (pl->user == NULL)
-    {
-      sfree (pl);
-      return (1);
-    }
+static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
+{
+  program_list_t *pl;
+  char buffer[128];
+  int i;
 
-    pl->exec = strchr (pl->user, ' ');
-    if (pl->exec == NULL)
-    {
-      sfree (pl->user);
-      sfree (pl);
-      return (1);
-    }
-    while (*pl->exec == ' ')
-    {
-      *pl->exec = '\0';
-      pl->exec++;
-    }
-
-    if (*pl->exec == '\0')
-    {
-      sfree (pl->user);
-      sfree (pl);
-      return (1);
-    }
-
-    pl->next = pl_head;
-    pl_head = pl;
-
-    pl->group = strchr (pl->user, ':');
-    if (NULL != pl->group) {
-      *pl->group = '\0';
-      pl->group++;
-    }
-  }
-  else
+  if (ci->children_num != 0)
   {
+    WARNING ("exec plugin: The config option `%s' may not be a block.",
+	ci->key);
     return (-1);
   }
+  if (ci->values_num < 2)
+  {
+    WARNING ("exec plugin: The config option `%s' needs at least two "
+	"arguments.", ci->key);
+    return (-1);
+  }
+  if ((ci->values[0].type != OCONFIG_TYPE_STRING)
+      || (ci->values[1].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("exec plugin: The first two arguments to the `%s' option must "
+	"be string arguments.", ci->key);
+    return (-1);
+  }
+
+  pl = (program_list_t *) malloc (sizeof (program_list_t));
+  if (pl == NULL)
+  {
+    ERROR ("exec plugin: malloc failed.");
+    return (-1);
+  }
+  memset (pl, '\0', sizeof (program_list_t));
+
+  if (strcasecmp ("NagiosExec", ci->key) == 0)
+    pl->flags |= PL_NAGIOS_PLUGIN;
+  else if (strcasecmp ("NotificationExec", ci->key) == 0)
+    pl->flags |= PL_NOTIF_ACTION;
+  else
+    pl->flags |= PL_NORMAL;
+
+  pl->user = strdup (ci->values[0].value.string);
+  if (pl->user == NULL)
+  {
+    ERROR ("exec plugin: strdup failed.");
+    sfree (pl);
+    return (-1);
+  }
+
+  pl->group = strchr (pl->user, ':');
+  if (pl->group != NULL)
+  {
+    *pl->group = '\0';
+    pl->group++;
+  }
+
+  pl->exec = strdup (ci->values[1].value.string);
+  if (pl->exec == NULL)
+  {
+    ERROR ("exec plugin: strdup failed.");
+    sfree (pl->user);
+    sfree (pl);
+    return (-1);
+  }
+
+  pl->argv = (char **) malloc (ci->values_num * sizeof (char *));
+  if (pl->argv == NULL)
+  {
+    ERROR ("exec plugin: malloc failed.");
+    sfree (pl->exec);
+    sfree (pl->user);
+    sfree (pl);
+    return (-1);
+  }
+  memset (pl->argv, '\0', ci->values_num * sizeof (char *));
+
+  {
+    char *tmp = strrchr (ci->values[1].value.string, '/');
+    if (tmp == NULL)
+      strncpy (buffer, ci->values[1].value.string, sizeof (buffer));
+    else
+      strncpy (buffer, tmp + 1, sizeof (buffer));
+    buffer[sizeof (buffer) - 1] = '\0';
+  }
+  pl->argv[0] = strdup (buffer);
+  if (pl->argv[0] == NULL)
+  {
+    ERROR ("exec plugin: malloc failed.");
+    sfree (pl->argv);
+    sfree (pl->exec);
+    sfree (pl->user);
+    sfree (pl);
+    return (-1);
+  }
+
+  for (i = 1; i < (ci->values_num - 1); i++)
+  {
+    if (ci->values[i + 1].type == OCONFIG_TYPE_STRING)
+    {
+      pl->argv[i] = strdup (ci->values[i + 1].value.string);
+    }
+    else
+    {
+      if (ci->values[i + 1].type == OCONFIG_TYPE_NUMBER)
+      {
+	snprintf (buffer, sizeof (buffer), "%lf",
+	    ci->values[i + 1].value.number);
+      }
+      else
+      {
+	if (ci->values[i + 1].value.boolean)
+	  strncpy (buffer, "true", sizeof (buffer));
+	else
+	  strncpy (buffer, "false", sizeof (buffer));
+      }
+      buffer[sizeof (buffer) - 1] = '\0';
+
+      pl->argv[i] = strdup (buffer);
+    }
+
+    if (pl->argv[i] == NULL)
+    {
+      ERROR ("exec plugin: strdup failed.");
+      break;
+    }
+  } /* for (i) */
+
+  if (i < (ci->values_num - 1))
+  {
+    while ((--i) >= 0)
+    {
+      sfree (pl->argv[i]);
+    }
+    sfree (pl->argv);
+    sfree (pl->exec);
+    sfree (pl->user);
+    sfree (pl);
+    return (-1);
+  }
+
+  for (i = 0; pl->argv[i] != NULL; i++)
+  {
+    DEBUG ("exec plugin: argv[%i] = %s", i, pl->argv[i]);
+  }
+
+  pl->next = pl_head;
+  pl_head = pl;
+
+  return (0);
+} /* int exec_config_exec }}} */
+
+static int exec_config (oconfig_item_t *ci) /* {{{ */
+{
+  int i;
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+    if ((strcasecmp ("Exec", child->key) == 0)
+	|| (strcasecmp ("NagiosExec", child->key) == 0)
+	|| (strcasecmp ("NotificationExec", child->key) == 0))
+      exec_config_exec (child);
+    else
+    {
+      WARNING ("exec plugin: Unknown config option `%s'.", child->key);
+    }
+  } /* for (i) */
 
   return (0);
 } /* int exec_config }}} */
@@ -119,7 +252,6 @@ static void exec_child (program_list_t *pl) /* {{{ */
   int uid;
   int gid;
   int egid;
-  char *arg0;
 
   struct passwd *sp_ptr;
   struct passwd sp;
@@ -205,13 +337,7 @@ static void exec_child (program_list_t *pl) /* {{{ */
     exit (-1);
   }
 
-  arg0 = strrchr (pl->exec, '/');
-  if (arg0 != NULL)
-    arg0++;
-  if ((arg0 == NULL) || (*arg0 == '\0'))
-    arg0 = pl->exec;
-
-  status = execlp (pl->exec, arg0, (char *) 0);
+  status = execvp (pl->exec, pl->argv);
 
   ERROR ("exec plugin: exec failed: %s",
       sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -281,6 +407,7 @@ static void *exec_read_one (void *arg) /* {{{ */
   int fd;
   FILE *fh;
   char buffer[1024];
+  int status;
 
   fd = fork_child (pl);
   if (fd < 0)
@@ -299,6 +426,7 @@ static void *exec_read_one (void *arg) /* {{{ */
     pthread_exit ((void *) 1);
   }
 
+  buffer[0] = '\0';
   while (fgets (buffer, sizeof (buffer), fh) != NULL)
   {
     int len;
@@ -312,15 +440,58 @@ static void *exec_read_one (void *arg) /* {{{ */
 
     DEBUG ("exec plugin: exec_read_one: buffer = %s", buffer);
 
+    if (pl->flags & PL_NAGIOS_PLUGIN)
+      break;
+
     parse_line (buffer);
   } /* while (fgets) */
 
   fclose (fh);
-  pl->pid = 0;
 
+  if (waitpid (pl->pid, &status, 0) > 0)
+    pl->status = status;
+
+  DEBUG ("exec plugin: Child %i exited with status %i.",
+      (int) pl->pid, pl->status);
+
+  if (pl->flags & PL_NAGIOS_PLUGIN)
+  {
+    notification_t n;
+
+    memset (&n, '\0', sizeof (n));
+    
+    n.severity = NOTIF_FAILURE;
+    if (pl->status == 0)
+      n.severity = NOTIF_OKAY;
+    else if (pl->status == 1)
+      n.severity = NOTIF_WARNING;
+
+    strncpy (n.message, buffer, sizeof (n.message));
+    n.message[sizeof (n.message) - 1] = '\0';
+
+    n.time = time (NULL);
+
+    strncpy (n.host, hostname_g, sizeof (n.host));
+    n.host[sizeof (n.host) - 1] = '\0';
+
+    plugin_dispatch_notification (&n);
+  }
+
+  pl->pid = 0;
   pthread_exit ((void *) 0);
   return (NULL);
 } /* void *exec_read_one }}} */
+
+static int exec_init (void) /* {{{ */
+{
+  struct sigaction sa;
+
+  memset (&sa, '\0', sizeof (sa));
+  sa.sa_handler = sigchld_handler;
+  sigaction (SIGCHLD, &sa, NULL);
+
+  return (0);
+} /* int exec_init }}} */
 
 static int exec_read (void) /* {{{ */
 {
@@ -370,7 +541,8 @@ static int exec_shutdown (void) /* {{{ */
 
 void module_register (void)
 {
-  plugin_register_config ("exec", exec_config, config_keys, config_keys_num);
+  plugin_register_complex_config ("exec", exec_config);
+  plugin_register_init ("exec", exec_init);
   plugin_register_read ("exec", exec_read);
   plugin_register_shutdown ("exec", exec_shutdown);
 } /* void module_register */
