@@ -386,8 +386,11 @@ if your virtualization setup is static you might consider increasing
 this.
 
 =item B<Domain> I<name>
+
 =item B<BlockDevice> I<name:dev>
+
 =item B<InterfaceDevice> I<name:dev>
+
 =item B<IgnoreSelected> I<true>|I<false>
 
 Select which domains and devices are monitored.
@@ -412,6 +415,26 @@ Example:
 
 Ignore all I<hdb> devices on any domain, but other block devices
 (eg. I<hda>) will be monitored.
+
+=item B<HostnameFormat> I<name|uuid|hostname|...>
+
+When libvirtstats logs data, it sets the collectd I<host> field in the
+data according to this setting.
+
+The default is I<name> which means to use the guest name from the
+hypervisor.
+
+I<uuid> means use the guest's UUID.  This is useful if you want to
+track the same guest across migrations.
+
+I<hostname> means to use the global I<Hostname> setting, which is
+probably not useful on its own because all guests will appear to have
+the same name.
+
+You can also specify combinations of these fields.  For example
+I<name uuid>
+means to concatenate the guest name and UUID (with a literal
+colon character between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
