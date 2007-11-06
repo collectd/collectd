@@ -868,7 +868,7 @@ AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
 [
 	with_libiokit="yes"
 	collectd_libiokit=1
-], 
+],
 [
 	with_libiokit="no"
 	collectd_libiokit=0
@@ -1126,7 +1126,6 @@ AC_ARG_WITH(liboping, [AS_HELP_STRING([--with-liboping@<:@=PREFIX@:>@], [Path to
 	fi
 ],
 [
- 	#753
 	with_liboping="yes"
 ])
 
@@ -1257,7 +1256,7 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 	fi
 ],
 [
- 	if test "x$ac_system" = "xLinux"
+	if test "x$ac_system" = "xLinux"
 	then
 		with_libiptc="yes"
 	else
@@ -1291,14 +1290,14 @@ with_snmp_cflags=""
 with_snmp_libs=""
 AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to the Net-SNMPD library.])],
 [
- 	if test "x$withval" = "xno"
+	if test "x$withval" = "xno"
 	then
 		with_libnetsnmp="no"
 	else if test "x$withval" = "xyes"
 	then
 		with_libnetsnmp="yes"
 	else
-	       	if test -x "$withval"
+		if test -x "$withval"
 		then
 			with_snmp_config="$withval"
 			with_libnetsnmp="yes"
@@ -1418,7 +1417,7 @@ then
 fi
 if test "x$with_libupsclient" = "xyes"
 then
-	AC_CHECK_TYPES([UPSCONN_t, UPSCONN], [], [], 
+	AC_CHECK_TYPES([UPSCONN_t, UPSCONN], [], [],
 [#include <stdlib.h>
 #include <stdio.h>
 #include <upsclient.h>])
@@ -1613,8 +1612,8 @@ dnl Add the right compiler flags and libraries.
 if test "x$with_libvirt" = "xyes"; then
     PKG_PROG_PKG_CONFIG
     if test "x$PKG_CONFIG" != "x"; then
-   	BUILD_WITH_LIBVIRTSTATS_CFLAGS="`pkg-config --cflags libvirt` `pkg-config --cflags libxml-2.0`"
-   	BUILD_WITH_LIBVIRTSTATS_LIBS="`pkg-config --libs libvirt` `pkg-config --libs libxml-2.0`"
+	BUILD_WITH_LIBVIRTSTATS_CFLAGS="`pkg-config --cflags libvirt` `pkg-config --cflags libxml-2.0`"
+	BUILD_WITH_LIBVIRTSTATS_LIBS="`pkg-config --libs libvirt` `pkg-config --libs libxml-2.0`"
 	AC_SUBST(BUILD_WITH_LIBVIRTSTATS_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBVIRTSTATS_LIBS)
     fi
