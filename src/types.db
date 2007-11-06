@@ -6,8 +6,8 @@ bitrate			value:GAUGE:0:4294967295
 charge			value:GAUGE:0:U
 connections		value:COUNTER:0:U
 counter			value:COUNTER:U:U
-cpu			value:COUNTER:0:4294967295
 cpufreq			value:GAUGE:0:U
+cpu			value:COUNTER:0:4294967295
 current			value:GAUGE:U:U
 delay			seconds:GAUGE:-1000000:1000000
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
@@ -63,19 +63,20 @@ ps_cputime		user:COUNTER:0:16000000, syst:COUNTER:0:16000000
 ps_pagefaults		minflt:COUNTER:0:9223372036854775807, majflt:COUNTER:0:9223372036854775807
 ps_rss			value:GAUGE:0:9223372036854775807
 ps_state		value:GAUGE:0:65535
+serial_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+signal_noise		value:GAUGE:U:0
+signal_power		value:GAUGE:U:0
+signal_quality		value:GAUGE:0:U
 spam_score		value:GAUGE:U:U
+swap			value:GAUGE:0:1099511627776
 tcp_connections		value:GAUGE:0:4294967295
 temperature		value:GAUGE:-273.15:U
 time_dispersion		seconds:GAUGE:-1000000:1000000
-time_offset		seconds:GAUGE:-1000000:1000000
 timeleft		timeleft:GAUGE:0:3600
-voltage			value:GAUGE:U:U
-serial_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
-swap			value:GAUGE:0:1099511627776
+time_offset		seconds:GAUGE:-1000000:1000000
 users			users:GAUGE:0:65535
-vs_threads		value:GAUGE:0:65535
-vs_processes		value:GAUGE:0:65535
+voltage_threshold	value:GAUGE:U:U, threshold:GAUGE:U:U
+voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
-signal_quality		value:GAUGE:0:U
-signal_power		value:GAUGE:U:0
-signal_noise		value:GAUGE:U:0
+vs_processes		value:GAUGE:0:65535
+vs_threads		value:GAUGE:0:65535

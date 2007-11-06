@@ -656,24 +656,10 @@ static int csnmp_config (oconfig_item_t *ci)
 
 static void csnmp_host_close_session (host_definition_t *host)
 {
-  int status;
-
   if (host->sess_handle == NULL)
     return;
 
-  status = snmp_sess_close (host->sess_handle);
-
-  if (status != 0)
-  {
-    char *errstr = NULL;
-
-    snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
-
-    ERROR ("snmp plugin: host %s: snmp_sess_close failed: %s",
-	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
-    sfree (errstr);
-  }
-
+  snmp_sess_close (host->sess_handle);
   host->sess_handle = NULL;
 } /* void csnmp_host_close_session */
 
@@ -1107,15 +1093,22 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     for (i = 0; i < oid_list_len; i++)
       snmp_add_null_var (req, oid_list[i].oid, oid_list[i].oid_len);
 
+    res = NULL;
     status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
-    if (status != STAT_SUCCESS)
+    if ((status != STAT_SUCCESS) || (res == NULL))
     {
       char *errstr = NULL;
 
       snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
       ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
 	  host->name, (errstr == NULL) ? "Unknown problem" : errstr);
+
+      if (res != NULL)
+	snmp_free_pdu (res);
+      res = NULL;
+
+      sfree (errstr);
       csnmp_host_close_session (host);
 
       status = -1;
@@ -1127,6 +1120,10 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     vb = res->variables;
     if (vb == NULL)
     {
+      if (res != NULL)
+	snmp_free_pdu (res);
+      res = NULL;
+
       status = -1;
       break;
     }
@@ -1134,7 +1131,13 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     /* Check if all values (and possibly the instance) have left their
      * subtree */
     if (csnmp_check_res_left_subtree (host, data, res) != 0)
+    {
+      if (res != NULL)
+	snmp_free_pdu (res);
+      res = NULL;
+
       break;
+    }
 
     /* if an instance-OID is configured.. */
     if (data->instance.oid.oid_len > 0)
@@ -1314,17 +1317,24 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
   for (i = 0; i < data->values_len; i++)
     snmp_add_null_var (req, data->values[i].oid, data->values[i].oid_len);
+
+  res = NULL;
   status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
-  if (status != STAT_SUCCESS)
+  if ((status != STAT_SUCCESS) || (res == NULL))
   {
     char *errstr = NULL;
 
     snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
     ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
 	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
-    csnmp_host_close_session (host);
+
+    if (res != NULL)
+      snmp_free_pdu (res);
+    res = NULL;
+
     sfree (errstr);
+    csnmp_host_close_session (host);
 
     return (-1);
   }
@@ -1347,7 +1357,9 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 	    data->scale, data->shift);
   } /* for (res->variables) */
 
-  snmp_free_pdu (res);
+  if (res != NULL)
+    snmp_free_pdu (res);
+  res = NULL;
 
   DEBUG ("snmp plugin: -> plugin_dispatch_values (%s, &vl);", data->type);
   plugin_dispatch_values (data->type, &vl);
