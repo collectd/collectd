@@ -1,13 +1,17 @@
 Summary:	Statistics collection daemon for filling RRD files.
 Name:           collectd
-Version:	4.0.6
-Release:	0.fc7
+Version:	4.2.0
+Release:	1.fc6
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildPrereq:	lm_sensors-devel, mysql-devel, rrdtool-devel
+BuildPrereq:	lm_sensors-devel
+BuildPrereq:	mysql-devel
+BuildPrereq:	rrdtool-devel
+BuildPrereq:	net-snmp-devel
 Requires:	rrdtool
+Requires:	perl-Regexp-Common
 Packager:	Florian octo Forster <octo@verplant.org>
 Vendor:		Florian octo Forster <octo@verplant.org>
 
@@ -63,6 +67,7 @@ mkdir -p $RPM_BUILD_ROOT/var/www/cgi-bin
 cp src/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
 cp contrib/fedora/init.d-collectd $RPM_BUILD_ROOT/etc/rc.d/init.d/collectd
 cp contrib/collection.cgi $RPM_BUILD_ROOT/var/www/cgi-bin
+cp contrib/collection.conf $RPM_BUILD_ROOT/etc/collection.conf
 mkdir -p $RPM_BUILD_ROOT/var/lib/collectd
 
 %clean
@@ -90,6 +95,7 @@ exit 0
 %defattr(-,root,root)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README
 %attr(0644,root,root) %config(noreplace) /etc/collectd.conf
+%attr(0644,root,root) %config(noreplace) /etc/collection.conf
 %attr(0755,root,root) /etc/rc.d/init.d/collectd
 %attr(0755,root,root) /var/www/cgi-bin/collection.cgi
 %attr(0755,root,root) %{_sbindir}/collectd
@@ -97,11 +103,18 @@ exit 0
 %attr(0644,root,root) %{_mandir}/man1/*
 %attr(0644,root,root) %{_mandir}/man5/*
 
+%attr(0644,root,root) /usr/lib/perl5/5.8.8/i386-linux-thread-multi/perllocal.pod
+%attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd.pm
+%attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd/Unixsock.pm
+%attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/i386-linux-thread-multi/auto/Collectd/.packlist
+%attr(0644,root,root) %{_mandir}/man3/Collectd::Unixsock.3pm.gz
+
 %attr(0644,root,root) %{_libdir}/%{name}/apcups.so*
 %attr(0644,root,root) %{_libdir}/%{name}/apcups.la
 
-%attr(0644,root,root) %{_libdir}/%{name}/apple_sensors.so*
-%attr(0644,root,root) %{_libdir}/%{name}/apple_sensors.la
+# FIXME!!!
+#%attr(0644,root,root) %{_libdir}/%{name}/apple_sensors.so*
+#%attr(0644,root,root) %{_libdir}/%{name}/apple_sensors.la
 
 %attr(0644,root,root) %{_libdir}/%{name}/battery.so*
 %attr(0644,root,root) %{_libdir}/%{name}/battery.la
@@ -148,8 +161,11 @@ exit 0
 %attr(0644,root,root) %{_libdir}/%{name}/logfile.so*
 %attr(0644,root,root) %{_libdir}/%{name}/logfile.la
 
-%attr(0644,root,root) %{_libdir}/%{name}/mbmon.so
+%attr(0644,root,root) %{_libdir}/%{name}/mbmon.so*
 %attr(0644,root,root) %{_libdir}/%{name}/mbmon.la
+
+%attr(0644,root,root) %{_libdir}/%{name}/memcached.so*
+%attr(0644,root,root) %{_libdir}/%{name}/memcached.la
 
 %attr(0644,root,root) %{_libdir}/%{name}/memory.so*
 %attr(0644,root,root) %{_libdir}/%{name}/memory.la
@@ -163,11 +179,15 @@ exit 0
 %attr(0644,root,root) %{_libdir}/%{name}/nfs.so*
 %attr(0644,root,root) %{_libdir}/%{name}/nfs.la
 
+%attr(0644,root,root) %{_libdir}/%{name}/nginx.so*
+%attr(0644,root,root) %{_libdir}/%{name}/nginx.la
+
 %attr(0644,root,root) %{_libdir}/%{name}/ntpd.so*
 %attr(0644,root,root) %{_libdir}/%{name}/ntpd.la
 
-%attr(0644,root,root) %{_libdir}/%{name}/nut.so*
-%attr(0644,root,root) %{_libdir}/%{name}/nut.la
+# FIXME!!!
+#%attr(0644,root,root) %{_libdir}/%{name}/nut.so*
+#%attr(0644,root,root) %{_libdir}/%{name}/nut.la
 
 %attr(0644,root,root) %{_libdir}/%{name}/perl.so*
 %attr(0644,root,root) %{_libdir}/%{name}/perl.la
@@ -187,11 +207,18 @@ exit 0
 %attr(0644,root,root) %{_libdir}/%{name}/swap.so*
 %attr(0644,root,root) %{_libdir}/%{name}/swap.la
 
+%attr(0644,root,root) %{_libdir}/%{name}/snmp.so*
+%attr(0644,root,root) %{_libdir}/%{name}/snmp.la
+
 %attr(0644,root,root) %{_libdir}/%{name}/syslog.so*
 %attr(0644,root,root) %{_libdir}/%{name}/syslog.la
 
-%attr(0644,root,root) %{_libdir}/%{name}/tape.so*
-%attr(0644,root,root) %{_libdir}/%{name}/tape.la
+# FIXME!!!
+#%attr(0644,root,root) %{_libdir}/%{name}/tape.so*
+#%attr(0644,root,root) %{_libdir}/%{name}/tape.la
+
+%attr(0644,root,root) %{_libdir}/%{name}/tcpconns.so*
+%attr(0644,root,root) %{_libdir}/%{name}/tcpconns.la
 
 %attr(0644,root,root) %{_libdir}/%{name}/unixsock.so*
 %attr(0644,root,root) %{_libdir}/%{name}/unixsock.la
@@ -226,11 +253,15 @@ exit 0
 %attr(0644,root,root) %{_libdir}/%{name}/sensors.la
 
 %changelog
+* Wed Oct 31 2007 Iain Lea <iain@bricbrac.de> 4.2.0
+- New major release
+- Changes to support 4.2.0 (ie. contrib/collection.conf)
+
 * Mon Aug 06 2007 Kjell Randa <Kjell.Randa@broadpark.no> 4.0.6
 - New upstream version
 
 * Wed Jul 25 2007 Kjell Randa <Kjell.Randa@broadpark.no> 4.0.5
-- New major releas
+- New major release
 - Changes to support 4.0.5 
 
 * Wed Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
