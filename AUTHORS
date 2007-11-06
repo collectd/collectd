@@ -64,6 +64,9 @@ uuid module by:
   Dan Berrange <berrange@redhat.com>
   Richard W.M. Jones <rjones@redhat.com>
 
+Libvirt integration by:
+  Richard Jones <rjones@redhat.com>
+
 collectd is available at:
   <http://collectd.org/>
 

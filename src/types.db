@@ -73,6 +73,8 @@ voltage			value:GAUGE:U:U
 serial_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
 swap			value:GAUGE:0:1099511627776
 users			users:GAUGE:0:65535
+virt_cpu_total		ns:COUNTER:0:256000000000
+virt_vcpu		ns:COUNTER:0:1000000000
 vs_threads		value:GAUGE:0:65535
 vs_processes		value:GAUGE:0:65535
 vs_memory		value:GAUGE:0:9223372036854775807
