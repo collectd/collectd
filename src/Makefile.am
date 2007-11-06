@@ -578,6 +578,16 @@ collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
 endif
 
+if BUILD_PLUGIN_UUID
+pkglib_LTLIBRARIES += uuid.la
+uuid_la_SOURCES = uuid.c
+uuid_la_CFLAGS  = $(BUILD_WITH_LIBHAL_CFLAGS)
+uuid_la_LIBADD  = $(BUILD_WITH_LIBHAL_LIBS)
+uuid_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" uuid.la
+collectd_DEPENDENCIES += uuid.la
+endif
+
 if BUILD_PLUGIN_VSERVER
 pkglib_LTLIBRARIES += vserver.la
 vserver_la_SOURCES = vserver.c

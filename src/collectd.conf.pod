@@ -869,6 +869,35 @@ L<chmod(1)>. Defaults to B<0770>.
 
 =back
 
+=head2 Plugin C<uuid>
+
+This plugin, if loaded, causes the Hostname to be taken from the
+machine's UUID.  The UUID is a universally unique designation for the
+machine, usually taken from the machine's BIOS.  This is most useful
+if the machine is running in a virtual environment such as Xen, in
+which case the UUID is preserved across shutdowns and migration.
+
+The following methods are used to find the machine's UUID, in order:
+
+Check I</etc/uuid> (or I<UUIDFile>).
+
+Check for UUID from HAL (L<http://www.freedesktop.org/wiki/Software/hal>)
+if present.
+
+Check for UUID from C<dmidecode> / SMBIOS.
+
+Check for UUID from Xen hypervisor.
+
+If no UUID can be found then the hostname is not modified.
+
+=over 4
+
+=item B<UUIDFile> I<Path>
+
+Take the UUID from the given file (default I</etc/uuid>).
+
+=back
+
 =head2 Plugin C<vserver>
 
 This plugin doesn't have any options. B<VServer> support is only available for

@@ -17,6 +17,7 @@ AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
+AM_PROG_CC_C_O
 AM_CONDITIONAL(COMPILER_IS_GCC, test "x$GCC" = "xyes")
 
 dnl configure libtool
@@ -669,6 +670,20 @@ AC_CHECK_LIB(resolv, res_search,
 [with_libresolv="no"])
 AM_CONDITIONAL(BUILD_WITH_LIBRESOLV, test "x$with_libresolv" = "xyes")
 
+dnl Check for HAL (hardware abstraction library)
+with_libhal="yes"
+AC_CHECK_LIB(hal,libhal_device_property_exists,
+	     [AC_DEFINE(HAVE_LIBHAL, 1, [Define to 1 if you have 'hal' library])],
+	     [with_libhal="no"])
+if test "x$with_libhal" = "xyes"; then
+	PKG_PROG_PKG_CONFIG
+	if test "x$PKG_CONFIG" != "x"; then
+		BUILD_WITH_LIBHAL_CFLAGS="`pkg-config --cflags hal`"
+		BUILD_WITH_LIBHAL_LIBS="`pkg-config --libs hal`"
+		AC_SUBST(BUILD_WITH_LIBHAL_CFLAGS)
+		AC_SUBST(BUILD_WITH_LIBHAL_LIBS)
+	fi
+fi
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
@@ -1885,6 +1900,7 @@ AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
 AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
+AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
@@ -2011,6 +2027,7 @@ Configuration:
     tcpconns  . . . . . $enable_tcpconns
     unixsock  . . . . . $enable_unixsock
     users . . . . . . . $enable_users
+    uuid  . . . . . . . $enable_uuid
     vserver . . . . . . $enable_vserver
     wireless  . . . . . $enable_wireless
     xmms  . . . . . . . $enable_xmms
