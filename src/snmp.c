@@ -837,10 +837,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     res = NULL;
     status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
-    if (req != NULL)
-      snmp_free_pdu (req);
-    req = NULL;
-
     if ((status != STAT_SUCCESS) || (res == NULL))
     {
       char *errstr = NULL;
@@ -1104,10 +1100,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
 	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
 
-    if (req != NULL)
-      snmp_free_pdu (req);
-    req = NULL;
-
     if (res != NULL)
       snmp_free_pdu (res);
     res = NULL;
@@ -1134,10 +1126,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 	    vb->name, vb->name_length) == 0)
 	vl.values[i] = csnmp_value_list_to_value (vb, ds->ds[i].type);
   } /* for (res->variables) */
-
-  if (req != NULL)
-    snmp_free_pdu (req);
-  req = NULL;
 
   if (res != NULL)
     snmp_free_pdu (res);
