@@ -60,6 +60,9 @@ Much time and effort to find a nasty bug in the ntpd-plugin has been
 contributed by:
   Luboš Staněk <lubek at users.sourceforge.net>
 
+Libvirt integration by:
+  Richard Jones <rjones@redhat.com>
+
 collectd is available at:
   <http://collectd.org/>
 

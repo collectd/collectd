@@ -1598,6 +1598,30 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
 
+dnl Check for libvirt and libxml2 libraries.
+AC_CHECK_LIB(xml2,xmlXPathEval,
+	     [with_libxml2="yes"],
+	     [with_libxml2="no"])
+
+with_libvirt="no"
+if test "x$with_libxml2" = "xyes"; then
+    AC_CHECK_LIB(virt,virDomainBlockStats,
+		 [with_libvirt="yes"],
+		 [with_libvirt="no (symbol virDomainBlockStats not found)"])
+fi
+dnl Add the right compiler flags and libraries.
+if test "x$with_libvirt" = "xyes"; then
+    PKG_PROG_PKG_CONFIG
+    if test "x$PKG_CONFIG" != "x"; then
+   	BUILD_WITH_LIBVIRTSTATS_CFLAGS="`pkg-config --cflags libvirt` `pkg-config --cflags libxml-2.0`"
+   	BUILD_WITH_LIBVIRTSTATS_LIBS="`pkg-config --libs libvirt` `pkg-config --libs libxml-2.0`"
+	AC_SUBST(BUILD_WITH_LIBVIRTSTATS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBVIRTSTATS_LIBS)
+    fi
+fi
+
+dnl End of check for libvirt and libxml2 libraries.
+
 # Check for enabled/disabled features
 #
 
@@ -1859,6 +1883,7 @@ AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
+AC_PLUGIN([libvirtstats],[$with_libvirt],      [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
@@ -1957,6 +1982,8 @@ Configuration:
     libsensors  . . . . $with_lm_sensors
     libstatgrab . . . . $with_libstatgrab
     libupsclient  . . . $with_libupsclient
+    libvirt . . . . . . $with_libvirt
+    libxml2 . . . . . . $with_libxml2
     libxmms . . . . . . $with_libxmms
 
   Features:
@@ -1985,6 +2012,7 @@ Configuration:
     iptables  . . . . . $enable_iptables
     ipvs  . . . . . . . $enable_ipvs
     irq . . . . . . . . $enable_irq
+    libvirtstats  . . . $enable_libvirtstats
     load  . . . . . . . $enable_load
     logfile . . . . . . $enable_logfile
     mbmon . . . . . . . $enable_mbmon

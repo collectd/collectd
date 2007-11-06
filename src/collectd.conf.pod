@@ -355,6 +355,66 @@ and all other interrupts are collected.
 
 =back
 
+=head2 Plugin C<libvirtstats>
+
+This plugin allows CPU, disk and network load to be monitored for
+virtualized guests on the machine.  The statistics are collected
+through libvirt (L<http://libvirt.org/>).
+
+Only I<Connection> is required.
+
+=over 4
+
+=item B<Connection> I<uri>
+
+Connect to the hypervisor given by I<uri>.  For example if using
+Xen use:
+
+ Connection "xen:///"
+
+Details are URIs allowed are given at L<http://libvirt.org/uri.html>.
+
+=item B<RefreshInterval> I<seconds>
+
+Refresh the list of domains and devices every I<seconds>.  The default
+is 60 seconds.  Setting this to be the same or smaller than the
+I<Interval> will cause the list of domains and devices to be refreshed
+on every iteration.
+
+Refreshing the devices in particular is quite a costly operation, so
+if your virtualization setup is static you might consider increasing
+this.
+
+=item B<Domain> I<name>
+=item B<BlockDevice> I<name:dev>
+=item B<InterfaceDevice> I<name:dev>
+=item B<IgnoreSelected> I<true>|I<false>
+
+Select which domains and devices are monitored.
+
+If I<IgnoreSelected> is not given or I<false> then only the
+listed domains and disk/network devices are monitored.
+
+If I<IgnoreSelected> is I<true> then the test is reversed
+and the listed domains and disk/network devices are ignored,
+while the rest are monitored.
+
+The domain name and device names may use a regular expression, if the
+name is surrounded by I</.../> and collectd was compiled with support
+for regexps.
+
+The default is to monitor all domains and all their devices.
+
+Example:
+
+ BlockDevice "/:hdb/"
+ IgnoreSelected "true"
+
+Ignore all I<hdb> devices on any domain, but other block devices
+(eg. I<hda>) will be monitored.
+
+=back
+
 =head2 Plugin C<logfile>
 
 =over 4

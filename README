@@ -80,6 +80,9 @@ Features
     - load
       System load average over the last 1, 5 and 15 minutes.
 
+    - libvirt
+      CPU, disk and network I/O statistics from virtual machines.
+
     - mbmon
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
@@ -323,6 +326,9 @@ Prerequisites
   * CoreFoundation.framework and IOKit.framework
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
+
+  * libvirt (optional)
+    Collect statistics from virtual machines.
 
 
 Configuring / Compiling / Installing
