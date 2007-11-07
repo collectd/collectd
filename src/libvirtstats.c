@@ -31,8 +31,6 @@
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 
-#define LIBVIRTSTATS_DEBUG 0
-
 static const char *config_keys[] = {
     "Connection",
 
@@ -121,14 +119,10 @@ static void cpu_submit (unsigned long long cpu_time,
 static void vcpu_submit (unsigned long long cpu_time,
                          time_t t,
                          virDomainPtr dom, int vcpu_nr, const char *type);
-static void disk_submit (long long read, long long write,
+static void submit_counter2 (long long read, long long write,
                          time_t t,
                          virDomainPtr dom, const char *devname,
                          const char *type);
-static void if_submit (long long rx, long long tx,
-                       time_t t,
-                       virDomainPtr dom, const char *devname,
-                       const char *type);
 
 /* ERROR(...) macro for virterrors. */
 #define VIRT_ERROR(conn,s) do {                 \
@@ -140,7 +134,7 @@ static void if_submit (long long rx, long long tx,
 static int
 libvirtstats_init (void)
 {
-    if (virInitialize () == -1)
+    if (virInitialize () != 0)
         return -1;
 
 	return 0;
@@ -149,7 +143,7 @@ libvirtstats_init (void)
 static int
 libvirtstats_config (const char *key, const char *value)
 {
-    if (virInitialize () == -1)
+    if (virInitialize () != 0)
         return 1;
 
     if (il_domains == NULL)
@@ -217,7 +211,7 @@ libvirtstats_config (const char *key, const char *value)
 
         value_copy = strdup (value);
         if (value_copy == NULL) {
-            ERROR ("strdup: %s", strerror (errno));
+            ERROR ("libvirtstats plugin: strdup failed.");
             return -1;
         }
 
@@ -260,20 +254,23 @@ libvirtstats_read (void)
     int i;
 
     if (conn == NULL) {
-        ERROR ("Not connected.  Use Connection in config file to supply connection URI.  For more information see http://libvirt.org/uri.html");
+        ERROR ("libvirtstats plugin: Not connected. Use Connection in "
+                "config file to supply connection URI.  For more information "
+                "see <http://libvirt.org/uri.html>");
         return -1;
     }
 
     time (&t);
 
     /* Need to refresh domain or device lists? */
-    if (last_refresh == (time_t) 0 ||
-        (interval > 0 && last_refresh + interval <= t)) {
-        if (refresh_lists () == -1) return -1;
+    if ((last_refresh == (time_t) 0) ||
+            ((interval > 0) && ((last_refresh + interval) <= t))) {
+        if (refresh_lists () != 0)
+            return -1;
         last_refresh = t;
     }
 
-#if LIBVIRTSTATS_DEBUG
+#if 0
     for (i = 0; i < nr_domains; ++i)
         fprintf (stderr, "domain %s\n", virDomainGetName (domains[i]));
     for (i = 0; i < nr_block_devices; ++i)
@@ -292,25 +289,26 @@ libvirtstats_read (void)
         virVcpuInfoPtr vinfo = NULL;
         int j;
 
-        if (virDomainGetInfo (domains[i], &info) == -1) continue;
+        if (virDomainGetInfo (domains[i], &info) != 0)
+            continue;
 
         cpu_submit (info.cpuTime, t, domains[i], "virt_cpu_total");
 
         vinfo = malloc (info.nrVirtCpu * sizeof vinfo[0]);
         if (vinfo == NULL) {
-            ERROR ("malloc: %s", strerror (errno));
+            ERROR ("libvirtstats plugin: malloc failed.");
             continue;
         }
 
         if (virDomainGetVcpus (domains[i], vinfo, info.nrVirtCpu,
-                               NULL, 0) == -1) {
+                    NULL, 0) != 0) {
             free (vinfo);
             continue;
         }
 
         for (j = 0; j < info.nrVirtCpu; ++j)
             vcpu_submit (vinfo[j].cpuTime,
-                         t, domains[i], vinfo[j].number, "virt_vcpu");
+                    t, domains[i], vinfo[j].number, "virt_vcpu");
 
         free (vinfo);
     }
@@ -320,39 +318,49 @@ libvirtstats_read (void)
         struct _virDomainBlockStats stats;
 
         if (virDomainBlockStats (block_devices[i].dom, block_devices[i].path,
-                                 &stats, sizeof stats) == -1)
+                    &stats, sizeof stats) != 0)
             continue;
 
-        disk_submit (stats.rd_req, stats.wr_req,
-                     t, block_devices[i].dom, block_devices[i].path,
-                     "disk_ops");
-        disk_submit (stats.rd_bytes, stats.wr_bytes,
-                     t, block_devices[i].dom, block_devices[i].path,
-                     "disk_octets");
-    }
+        if ((stats.rd_req != -1) && (stats.wr_req != -1))
+            submit_counter2 ("disk_ops",
+                    (counter_t) stats.rd_req, (counter_t) stats.wr_req,
+                    t, block_devices[i].dom, block_devices[i].path);
+
+        if ((stats.rd_bytes != -1) && (stats.wr_bytes != -1))
+            submit_counter2 ("disk_octets",
+                    (counter_t) stats.rd_bytes, (counter_t) stats.wr_bytes,
+                    t, block_devices[i].dom, block_devices[i].path);
+    } /* for (nr_block_devices) */
 
     /* Get interface stats for each domain. */
     for (i = 0; i < nr_interface_devices; ++i) {
         struct _virDomainInterfaceStats stats;
 
         if (virDomainInterfaceStats (interface_devices[i].dom,
-                                     interface_devices[i].path,
-                                     &stats, sizeof stats) == -1)
+                    interface_devices[i].path,
+                    &stats, sizeof stats) != 0)
             continue;
 
-        if_submit (stats.rx_bytes, stats.tx_bytes,
-                   t, interface_devices[i].dom, interface_devices[i].path,
-                   "if_octets");
-        if_submit (stats.rx_packets, stats.tx_packets,
-                   t, interface_devices[i].dom, interface_devices[i].path,
-                   "if_packets");
-        if_submit (stats.rx_errs, stats.tx_errs,
-                   t, interface_devices[i].dom, interface_devices[i].path,
-                   "if_errors");
-        if_submit (stats.rx_drop, stats.tx_drop,
-                   t, interface_devices[i].dom, interface_devices[i].path,
-                   "if_dropped");
-    }
+	if ((stats.rx_bytes != -1) && (stats.tx_bytes != -1))
+	    submit_counter2 ("if_octets",
+		    (counter_t) stats.rx_bytes, (counter_t) stats.tx_bytes,
+		    t, interface_devices[i].dom, interface_devices[i].path);
+
+	if ((stats.rx_packets != -1) && (stats.tx_packets != -1))
+	    submit_counter2 ("if_packets",
+		    (counter_t) stats.rx_packets, (counter_t) stats.tx_packets,
+		    t, interface_devices[i].dom, interface_devices[i].path);
+
+	if ((stats.rx_errs != -1) && (stats.tx_errs != -1))
+	    submit_counter2 ("if_errors",
+		    (counter_t) stats.rx_errs, (counter_t) stats.tx_errs,
+		    t, interface_devices[i].dom, interface_devices[i].path);
+
+	if ((stats.rx_drop != -1) && (stats.tx_drop != -1))
+	    submit_counter2 ("if_dropped",
+		    (counter_t) stats.rx_drop, (counter_t) stats.tx_drop,
+		    t, interface_devices[i].dom, interface_devices[i].path);
+    } /* for (nr_interface_devices) */
 
     return 0;
 }
@@ -363,7 +371,7 @@ refresh_lists (void)
     int n;
 
     n = virConnectNumOfDomains (conn);
-    if (n == -1) {
+    if (n < 0) {
         VIRT_ERROR (conn, "reading number of domains");
         return -1;
     }
@@ -375,12 +383,12 @@ refresh_lists (void)
         /* Get list of domains. */
         domids = malloc (sizeof (int) * n);
         if (domids == 0) {
-            ERROR ("malloc failed: %s", strerror (errno));
+            ERROR ("libvirtstats plugin: malloc failed.");
             return -1;
         }
 
         n = virConnectListDomains (conn, domids, n);
-        if (n == -1) {
+        if (n < 0) {
             VIRT_ERROR (conn, "reading list of domains");
             free (domids);
             return -1;
@@ -416,8 +424,8 @@ refresh_lists (void)
             if (il_domains && ignorelist_match (il_domains, name) != 0)
                 goto cont;
 
-            if (add_domain (dom) == -1) {
-                ERROR ("malloc: %s", strerror (errno));
+            if (add_domain (dom) < 0) {
+                ERROR ("libvirtstats plugin: malloc failed.");
                 goto cont;
             }
 
@@ -528,7 +536,9 @@ add_domain (virDomainPtr dom)
     else
         new_ptr = malloc (new_size);
 
-    if (new_ptr == NULL) return -1;
+    if (new_ptr == NULL)
+        return -1;
+
     domains = new_ptr;
     domains[nr_domains] = dom;
     return nr_domains++;
@@ -556,7 +566,8 @@ add_block_device (virDomainPtr dom, const char *path)
     char *path_copy;
 
     path_copy = strdup (path);
-    if (!path_copy) return -1;
+    if (!path_copy)
+        return -1;
 
     if (block_devices)
         new_ptr = realloc (block_devices, new_size);
@@ -621,7 +632,7 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
     n = sizeof (char) * (strlen (domname) + strlen (devpath) + 2);
     name = malloc (n);
     if (name == NULL) {
-        ERROR ("malloc: %s", strerror (errno));
+        ERROR ("libvirtstats plugin: malloc failed.");
         return 0;
     }
     snprintf (name, n, "%s:%s", domname, devpath);
@@ -631,50 +642,72 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
 }
 
 static void
-common_submit (value_list_t *vl, time_t t, virDomainPtr dom)
+init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
 {
-    int i, n;
-    const char *name;
-    char uuid[VIR_UUID_STRING_BUFLEN];
+    int i;
+    char  *host_ptr;
+    size_t host_len;
 
     vl->time = t;
     vl->interval = interval_g;
-    strncpy (vl->plugin, "libvirtstats", DATA_MAX_NAME_LEN);
-    /*strncpy (vl->plugin_instance, ?, DATA_MAX_NAME_LEN);*/
+
+    strncpy (vl->plugin, "libvirtstats", sizeof (vl->plugin));
+    vl->plugin[sizeof (vl->plugin) - 1] = '\0';
 
     vl->host[0] = '\0';
+    host_ptr = vl->host;
+    host_len = sizeof (vl->host);
 
     /* Construct the hostname field according to HostnameFormat. */
     for (i = 0; i < HF_MAX_FIELDS; ++i) {
-        if (hostname_format[i] == hf_none)
-            continue;
-
-        n = DATA_MAX_NAME_LEN - strlen (vl->host) - 2;
-
-        if (i > 0 && n >= 1) {
-            strcat (vl->host, ":");
-            n--;
-        }
+	int status = 0;
 
         switch (hostname_format[i]) {
-        case hf_none: break;
-        case hf_hostname:
-            strncat (vl->host, hostname_g, n);
-            break;
-        case hf_name:
-            name = virDomainGetName (dom);
-            if (name)
-                strncat (vl->host, name, n);
-            break;
-        case hf_uuid:
-            if (virDomainGetUUIDString (dom, uuid) == 0)
-                strncat (vl->host, uuid, n);
-            break;
-        }
-    }
+	    case hf_none;
+	    	/* do nothing */
+	    	break;
 
-    vl->host[DATA_MAX_NAME_LEN-1] = '\0';
-}
+	    case hf_hostname:
+		status = snprintf (host_ptr, host_len, ":%s", hostname_g);
+		break;
+
+	    case hf_name:
+	    {
+		const char *name = virDomainGetName (dom);
+		if (name != NULL)
+		    status = snprintf (host_ptr, host_len, ":%s", name);
+		break;
+	    }
+	    case hf_uuid:
+	    {
+		char uuid[VIR_UUID_STRING_BUFLEN];
+		if (virDomainGetUUIDString (dom, uuid) == 0) {
+		    uuid[sizeof (uuid) - 1] = '\0';
+		    status = snprintf (host_ptr, host_len, ":%s", uuid);
+		}
+		break;
+	    }
+	} /* switch (hostname_format[i]) */
+
+	/* If status >= host_len
+	 * => the buffer is full, there's no null-byte at the end and
+	 *    continuing with this loop doesn't make any sense. */
+	if (status >= host_len) {
+	    host_len = 0;
+	    host_ptr = NULL;
+	}
+	/* else: Test if anything was added to the buffer */
+	else if (status > 0) {
+	    host_len -= status;
+	    host_ptr += status;
+	}
+
+	if (host_len <= 0)
+	    break;
+    } /* for (i) */
+
+    vl->host[sizeof (host) - 1] = '\0';
+} /* void init_value_list */
 
 static void
 cpu_submit (unsigned long long cpu_time,
@@ -684,7 +717,7 @@ cpu_submit (unsigned long long cpu_time,
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
-    common_submit (&vl, t, dom);
+    init_value_list (&vl, t, dom);
 
     values[0].counter = cpu_time;
 
@@ -695,68 +728,45 @@ cpu_submit (unsigned long long cpu_time,
 }
 
 static void
-vcpu_submit (unsigned long long cpu_time,
+vcpu_submit (counter_t cpu_time,
              time_t t,
              virDomainPtr dom, int vcpu_nr, const char *type)
 {
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
-    common_submit (&vl, t, dom);
+    init_value_list (&vl, t, dom);
 
     values[0].counter = cpu_time;
-
     vl.values = values;
     vl.values_len = 1;
-    snprintf (vl.type_instance, DATA_MAX_NAME_LEN, "%d", vcpu_nr);
-    vl.type_instance[DATA_MAX_NAME_LEN-1] = '\0';
+
+    snprintf (vl.type_instance, sizeof (vl.type_instance), "%d", vcpu_nr);
+    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
     plugin_dispatch_values (type, &vl);
 }
 
 static void
-disk_submit (long long read, long long write,
+submit_counter2 (const char *type, counter_t v0, counter_t v1,
              time_t t,
-             virDomainPtr dom, const char *devname,
-             const char *type)
+             virDomainPtr dom, const char *devname)
 {
     value_t values[2];
     value_list_t vl = VALUE_LIST_INIT;
 
-    common_submit (&vl, t, dom);
+    init_value_list (&vl, t, dom);
 
-    values[0].counter = read >= 0 ? (unsigned long long) read : 0;
-    values[1].counter = write >= 0 ? (unsigned long long) write : 0;
-
+    values[0].counter = v0;
+    values[1].counter = v1;
     vl.values = values;
     vl.values_len = 2;
-    strncpy (vl.type_instance, devname, DATA_MAX_NAME_LEN);
-    vl.type_instance[DATA_MAX_NAME_LEN-1] = '\0';
+
+    strncpy (vl.type_instance, devname, sizeof (vl.type_instance));
+    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
     plugin_dispatch_values (type, &vl);
-}
-
-static void
-if_submit (long long rx, long long tx,
-           time_t t,
-           virDomainPtr dom, const char *devname,
-           const char *type)
-{
-    value_t values[2];
-    value_list_t vl = VALUE_LIST_INIT;
-
-    common_submit (&vl, t, dom);
-
-    values[0].counter = rx >= 0 ? (unsigned long long) rx : 0;
-    values[1].counter = tx >= 0 ? (unsigned long long) tx : 0;
-
-    vl.values = values;
-    vl.values_len = 2;
-    strncpy (vl.type_instance, devname, DATA_MAX_NAME_LEN);
-    vl.type_instance[DATA_MAX_NAME_LEN-1] = '\0';
-
-    plugin_dispatch_values (type, &vl);
-}
+} /* void submit_counter2 */
 
 static int
 libvirtstats_shutdown (void)
@@ -765,7 +775,8 @@ libvirtstats_shutdown (void)
     free_interface_devices ();
     free_domains ();
 
-    if (conn) virConnectClose (conn);
+    if (conn != NULL)
+	virConnectClose (conn);
     conn = NULL;
 
     ignorelist_free (il_domains);
@@ -781,24 +792,14 @@ libvirtstats_shutdown (void)
 void
 module_register (void)
 {
-	plugin_register_config ("libvirtstats",
-                            libvirtstats_config,
-                            config_keys, NR_CONFIG_KEYS);
+    plugin_register_config ("libvirtstats",
+	    libvirtstats_config,
+	    config_keys, NR_CONFIG_KEYS);
     plugin_register_init ("libvirtstats", libvirtstats_init);
-	plugin_register_read ("libvirtstats", libvirtstats_read);
-	plugin_register_shutdown ("libvirtstats", libvirtstats_shutdown);
+    plugin_register_read ("libvirtstats", libvirtstats_read);
+    plugin_register_shutdown ("libvirtstats", libvirtstats_shutdown);
 }
 
 /*
- * vim: set tabstop=4:
- * vim: set shiftwidth=4:
- * vim: set expandtab:
- */
-/*
- * Local variables:
- *  indent-tabs-mode: nil
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 4
- * End:
+ * vim: shiftwidth=4 tabstop=8 softtabstop=4 expandtab fdm=marker
  */
