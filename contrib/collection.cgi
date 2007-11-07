@@ -1289,6 +1289,18 @@ sub load_graph_definitions
     'GPRINT:temp_max:MAX:%4.1lf Max,',
     'GPRINT:temp_avg:LAST:%4.1lf Last\l'
     ],
+    humidity => ['-v', 'Percent',
+    'DEF:temp_avg={file}:value:AVERAGE',
+    'DEF:temp_min={file}:value:MIN',
+    'DEF:temp_max={file}:value:MAX',
+    "AREA:temp_max#$HalfGreen",
+    "AREA:temp_min#$Canvas",
+    "LINE1:temp_avg#$FullGreen:Temperature",
+    'GPRINT:temp_min:MIN:%4.1lf%% Min,',
+    'GPRINT:temp_avg:AVERAGE:%4.1lf%% Avg,',
+    'GPRINT:temp_max:MAX:%4.1lf%% Max,',
+    'GPRINT:temp_avg:LAST:%4.1lf%% Last\l'
+    ],
     if_errors => ['-v', 'Errors/s',
     'DEF:tx_min={file}:tx:MIN',
     'DEF:tx_avg={file}:tx:AVERAGE',
@@ -1881,6 +1893,18 @@ sub load_graph_definitions
     'GPRINT:ping_avg:AVERAGE:%4.1lf ms Avg,',
     'GPRINT:ping_max:MAX:%4.1lf ms Max,',
     'GPRINT:ping_avg:LAST:%4.1lf ms Last'],
+    power => ['-v', 'Watt',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Watt",
+    'GPRINT:min:MIN:%5.1lf%sW Min,',
+    'GPRINT:avg:AVERAGE:%5.1lf%sW Avg,',
+    'GPRINT:max:MAX:%5.1lf%sW Max,',
+    'GPRINT:avg:LAST:%5.1lf%sW Last\l'
+    ],
     processes => [
     "DEF:running_avg={file}:running:AVERAGE",
     "DEF:running_min={file}:running:MIN",
@@ -2139,7 +2163,7 @@ sub load_graph_definitions
     'GPRINT:temp_max:MAX:%4.1lf Max,',
     'GPRINT:temp_avg:LAST:%4.1lf Last\l'
     ],
-    timeleft => [
+    timeleft => ['-v', 'Minutes',
     'DEF:avg={file}:timeleft:AVERAGE',
     'DEF:min={file}:timeleft:MIN',
     'DEF:max={file}:timeleft:MAX',
@@ -2223,7 +2247,7 @@ sub load_graph_definitions
     'GPRINT:multimeter_max:MAX:%4.1lf Max,',
     'GPRINT:multimeter_avg:LAST:%4.1lf Last\l'
     ],
-    users => [
+    users => ['-v', 'Users',
     'DEF:users_avg={file}:users:AVERAGE',
     'DEF:users_min={file}:users:MIN',
     'DEF:users_max={file}:users:MAX',
@@ -2456,6 +2480,8 @@ sub meta_graph_cpu
 
   $opts->{'title'} = "$host/$plugin"
   . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+
+  $opts->{'rrd_opts'} = ['-v', 'Percent'];
 
   my @files = ();
 
@@ -2714,6 +2740,7 @@ sub meta_graph_ps_state
 
   $opts->{'title'} = "$host/$plugin"
   . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'rrd_opts'} = ['-v', 'Processes'];
 
   my @files = ();
 
@@ -2773,6 +2800,7 @@ sub meta_graph_swap
   $opts->{'title'} = "$host/$plugin"
   . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
   $opts->{'number_format'} = '%5.1lf%s';
+  $opts->{'rrd_opts'} = ['-v', 'Bytes'];
 
   my @files = ();
 
@@ -2851,7 +2879,7 @@ sub meta_graph_tcp_connections
   };
 
   _custom_sort_arrayref ($type_instances,
-    [qw(ESTABLISHED SYN_SENT SYN_RECV FIN_WAIT1 FIN_WAIT2 TIME_WAIT CLOSE
+    [reverse qw(ESTABLISHED SYN_SENT SYN_RECV FIN_WAIT1 FIN_WAIT2 TIME_WAIT CLOSE
     CLOSE_WAIT LAST_ACK CLOSING LISTEN)]);
 
   for (@$type_instances)
