@@ -1968,9 +1968,9 @@ sub load_graph_definitions
     'GPRINT:sleeping_avg:LAST:%5.1lf Last\l'
     ],
     ps_rss => [
-    'DEF:avg={file}:byte:AVERAGE',
-    'DEF:min={file}:byte:MIN',
-    'DEF:max={file}:byte:MAX',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
     "AREA:avg#$HalfBlue",
     "LINE1:avg#$FullBlue:RSS",
     'GPRINT:min:MIN:%5.1lf%s Min,',
