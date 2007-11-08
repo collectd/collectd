@@ -1613,16 +1613,78 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
 
 dnl Check for libvirt and libxml2 libraries.
-AC_CHECK_LIB(xml2,xmlXPathEval,
-	     [with_libxml2="yes"],
-	     [with_libxml2="no"])
-
-with_libvirt="no"
+with_libxml2="no (pkg-config isn't available)"
+with_libxml2_cflags=""
+with_libxml2_ldflags=""
+with_libvirt="no (pkg-config isn't available)"
 with_libvirt_cflags=""
 with_libvirt_ldflags=""
+PKG_PROG_PKG_CONFIG
+if test "x$PKG_CONFIG" != "x"
+then
+	pkg-config --exists 'libxml-2.0' 2>/dev/null
+	if test "$?" = "0"
+	then
+		with_libxml2="yes"
+	else
+		with_libxml2="no (pkg-config doesn't know library)"
+	fi
+
+	pkg-config --exists libvirt 2>/dev/null
+	if test "$?" = "0"
+	then
+		with_libvirt="yes"
+	else
+		with_libvirt="no (pkg-config doesn't know library)"
+	fi
+fi
 if test "x$with_libxml2" = "xyes"
 then
-	with_libvirt="yes"
+	with_libxml2_cflags="`pkg-config --cflags libxml-2.0`"
+	if test $? -ne 0
+	then
+		with_libxml2="no"
+	fi
+	with_libxml2_ldflags="`pkg-config --libs libxml-2.0`"
+	if test $? -ne 0
+	then
+		with_libxml2="no"
+	fi
+fi
+if test "x$with_libxml2" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libxml2_cflags"
+
+	AC_CHECK_HEADERS(libxml/parser.h, [],
+		      [with_libxml2="no (libxml/parser.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libxml2" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LD_FLAGS="$LDFLAGS"
+
+	CFLAGS="$CFLAGS $with_libxml2_cflags"
+	LDFLAGS="$LDFLAGS $with_libxml2_ldflags"
+
+	AC_CHECK_LIB(xml2, xmlXPathEval,
+		     [with_libxml2="yes"],
+		     [with_libxml2="no (symbol xmlXPathEval not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+dnl Add the right compiler flags and libraries.
+if test "x$with_libxml2" = "xyes"; then
+	BUILD_WITH_LIBXML2_CFLAGS="$with_libxml2_cflags"
+	BUILD_WITH_LIBXML2_LIBS="$with_libxml2_ldflags"
+	AC_SUBST(BUILD_WITH_LIBXML2_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBXML2_LIBS)
+fi
+if test "x$with_libvirt" = "xyes"
+then
 	with_libvirt_cflags="`pkg-config --cflags libvirt`"
 	if test $? -ne 0
 	then
@@ -1636,13 +1698,23 @@ then
 fi
 if test "x$with_libvirt" = "xyes"
 then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libvirt_cflags"
+
+	AC_CHECK_HEADERS(libvirt/libvirt.h, [],
+		      [with_libvirt="no (libvirt/libvirt.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libvirt" = "xyes"
+then
 	SAVE_CFLAGS="$CFLAGS"
 	SAVE_LD_FLAGS="$LDFLAGS"
 
 	CFLAGS="$CFLAGS $with_libvirt_cflags"
 	LDFLAGS="$LDFLAGS $with_libvirt_ldflags"
 
-	AC_CHECK_LIB(virt,virDomainBlockStats,
+	AC_CHECK_LIB(virt, virDomainBlockStats,
 		     [with_libvirt="yes"],
 		     [with_libvirt="no (symbol virDomainBlockStats not found)"])
 
@@ -1651,13 +1723,10 @@ then
 fi
 dnl Add the right compiler flags and libraries.
 if test "x$with_libvirt" = "xyes"; then
-    PKG_PROG_PKG_CONFIG
-    if test "x$PKG_CONFIG" != "x"; then
-	BUILD_WITH_LIBVIRTSTATS_CFLAGS="`pkg-config --cflags libvirt` `pkg-config --cflags libxml-2.0`"
-	BUILD_WITH_LIBVIRTSTATS_LIBS="`pkg-config --libs libvirt` `pkg-config --libs libxml-2.0`"
-	AC_SUBST(BUILD_WITH_LIBVIRTSTATS_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBVIRTSTATS_LIBS)
-    fi
+	BUILD_WITH_LIBVIRT_CFLAGS="$with_libvirt_cflags"
+	BUILD_WITH_LIBVIRT_LIBS="$with_libvirt_ldflags"
+	AC_SUBST(BUILD_WITH_LIBVIRT_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
 fi
 
 dnl End of check for libvirt and libxml2 libraries.
@@ -1774,6 +1843,7 @@ plugin_entropy="no"
 plugin_interface="no"
 plugin_ipvs="no"
 plugin_irq="no"
+plugin_libvirtstats="no"
 plugin_load="no"
 plugin_memory="no"
 plugin_multimeter="no"
@@ -1865,6 +1935,11 @@ then
 	plugin_interface="yes"
 fi
 
+if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"
+then
+	plugin_libvirtstats="yes"
+fi
+
 if test "x$have_getloadavg" = "xyes"
 then
 	plugin_load="yes"
@@ -1923,7 +1998,7 @@ AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
-AC_PLUGIN([libvirtstats],[$with_libvirt],      [Virtual machine statistics])
+AC_PLUGIN([libvirtstats],[$plugin_libvirtstats], [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])

@@ -281,8 +281,8 @@ endif
 if BUILD_PLUGIN_LIBVIRTSTATS
 pkglib_LTLIBRARIES += libvirtstats.la
 libvirtstats_la_SOURCES = libvirtstats.c
-libvirtstats_la_CFLAGS = $(BUILD_WITH_LIBVIRTSTATS_CFLAGS)
-libvirtstats_la_LIBADD = $(BUILD_WITH_LIBVIRTSTATS_LIBS)
+libvirtstats_la_CFLAGS = $(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+libvirtstats_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 libvirtstats_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" libvirtstats.la
 collectd_DEPENDENCIES += libvirtstats.la
