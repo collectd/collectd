@@ -1618,10 +1618,36 @@ AC_CHECK_LIB(xml2,xmlXPathEval,
 	     [with_libxml2="no"])
 
 with_libvirt="no"
-if test "x$with_libxml2" = "xyes"; then
-    AC_CHECK_LIB(virt,virDomainBlockStats,
-		 [with_libvirt="yes"],
-		 [with_libvirt="no (symbol virDomainBlockStats not found)"])
+with_libvirt_cflags=""
+with_libvirt_ldflags=""
+if test "x$with_libxml2" = "xyes"
+then
+	with_libvirt="yes"
+	with_libvirt_cflags="`pkg-config --cflags libvirt`"
+	if test $? -ne 0
+	then
+		with_libvirt="no"
+	fi
+	with_libvirt_ldflags="`pkg-config --libs libvirt`"
+	if test $? -ne 0
+	then
+		with_libvirt="no"
+	fi
+fi
+if test "x$with_libvirt" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LD_FLAGS="$LDFLAGS"
+
+	CFLAGS="$CFLAGS $with_libvirt_cflags"
+	LDFLAGS="$LDFLAGS $with_libvirt_ldflags"
+
+	AC_CHECK_LIB(virt,virDomainBlockStats,
+		     [with_libvirt="yes"],
+		     [with_libvirt="no (symbol virDomainBlockStats not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 dnl Add the right compiler flags and libraries.
 if test "x$with_libvirt" = "xyes"; then
