@@ -119,10 +119,9 @@ static void cpu_submit (unsigned long long cpu_time,
 static void vcpu_submit (unsigned long long cpu_time,
                          time_t t,
                          virDomainPtr dom, int vcpu_nr, const char *type);
-static void submit_counter2 (long long read, long long write,
-                         time_t t,
-                         virDomainPtr dom, const char *devname,
-                         const char *type);
+static void submit_counter2 (const char *type, counter_t v0, counter_t v1,
+             time_t t,
+             virDomainPtr dom, const char *devname);
 
 /* ERROR(...) macro for virterrors. */
 #define VIRT_ERROR(conn,s) do {                 \
@@ -663,7 +662,7 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
 	int status = 0;
 
         switch (hostname_format[i]) {
-	    case hf_none;
+	    case hf_none:
 	    	/* do nothing */
 	    	break;
 
@@ -706,7 +705,7 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
 	    break;
     } /* for (i) */
 
-    vl->host[sizeof (host) - 1] = '\0';
+    vl->host[sizeof (vl->host) - 1] = '\0';
 } /* void init_value_list */
 
 static void
