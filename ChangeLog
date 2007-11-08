@@ -1,3 +1,8 @@
+2007-11-08, Version 4.2.1
+	* tcpconns plugin: Don't complain about a missing file if IPv6 is not
+	  enabled on the host.
+	* snmp plugin: Fix a memory leak.
+
 2007-10-27, Version 4.2.0
 	* collectd: The new config option `Include' lets you include other
 	  configfiles and thus split up your config into smaller parts. This
