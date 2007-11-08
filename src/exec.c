@@ -422,6 +422,7 @@ static void *exec_read_one (void *arg) /* {{{ */
     ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
 	sstrerror (errno, errbuf, sizeof (errbuf)));
     kill (pl->pid, SIGTERM);
+    pl->pid = 0;
     close (fd);
     pthread_exit ((void *) 1);
   }

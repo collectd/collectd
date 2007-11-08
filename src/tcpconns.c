@@ -336,12 +336,7 @@ static int conn_read_file (const char *file)
 
   fh = fopen (file, "r");
   if (fh == NULL)
-  {
-    char errbuf[1024];
-    ERROR ("tcpconns plugin: fopen (%s) failed: %s",
-	file, sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
-  }
 
   while (fgets (buffer, sizeof (buffer), fh) != NULL)
   {
@@ -411,12 +406,25 @@ static int conn_init (void)
 
 static int conn_read (void)
 {
+  int errors_num = 0;
+
   conn_reset_port_entry ();
 
-  conn_read_file ("/proc/net/tcp");
-  conn_read_file ("/proc/net/tcp6");
+  if (conn_read_file ("/proc/net/tcp") != 0)
+    errors_num++;
+  if (conn_read_file ("/proc/net/tcp6") != 0)
+    errors_num++;
 
-  conn_submit_all ();
+  if (errors_num < 2)
+  {
+    conn_submit_all ();
+  }
+  else
+  {
+    ERROR ("tcpconns plugin: Neither /proc/net/tcp nor /proc/net/tcp6 "
+	"coult be read.");
+    return (-1);
+  }
 
   return (0);
 } /* int conn_read */
