@@ -22,17 +22,20 @@
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
+#include "utils_cache.h"
 
 /*
  * Private variables
  */
 static const char *config_keys[] =
 {
-	"DataDir"
+	"DataDir",
+	"StoreRates"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static char *datadir   = NULL;
+static int store_rates = 0;
 
 static int value_list_to_string (char *buffer, int buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
@@ -40,6 +43,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 	int offset;
 	int status;
 	int i;
+	gauge_t *rates = NULL;
 
 	memset (buffer, '\0', buffer_len);
 
@@ -55,18 +59,45 @@ static int value_list_to_string (char *buffer, int buffer_len,
 			return (-1);
 
 		if (ds->ds[i].type == DS_TYPE_COUNTER)
-			status = snprintf (buffer + offset, buffer_len - offset,
-					",%llu", vl->values[i].counter);
-		else
+		{
+			if (store_rates == 0)
+			{
+				status = snprintf (buffer + offset,
+						buffer_len - offset,
+						",%llu",
+						vl->values[i].counter);
+			}
+			else /* if (store_rates == 1) */
+			{
+				if (rates == NULL)
+					rates = uc_get_rate (ds, vl);
+				if (rates == NULL)
+				{
+					WARNING ("csv plugin: "
+							"uc_get_rate failed.");
+					return (-1);
+				}
+				status = snprintf (buffer + offset,
+						buffer_len - offset,
+						",%lf", rates[i]);
+			}
+		}
+		else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
+		{
 			status = snprintf (buffer + offset, buffer_len - offset,
 					",%lf", vl->values[i].gauge);
+		}
 
 		if ((status < 1) || (status >= (buffer_len - offset)))
+		{
+			sfree (rates);
 			return (-1);
+		}
 
 		offset += status;
 	} /* for ds->ds_num */
 
+	sfree (rates);
 	return (0);
 } /* int value_list_to_string */
 
@@ -179,6 +210,19 @@ static int csv_config (const char *key, const char *value)
 				free (datadir);
 				datadir = NULL;
 			}
+		}
+	}
+	else if (strcasecmp ("StoreRates", key) == 0)
+	{
+		if ((strcasecmp ("True", value) == 0)
+				|| (strcasecmp ("Yes", value) == 0)
+				|| (strcasecmp ("On", value) == 0))
+		{
+			store_rates = 1;
+		}
+		else
+		{
+			store_rates = 0;
 		}
 	}
 	else

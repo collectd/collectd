@@ -175,6 +175,12 @@ installed and an "cpu governor" (that's a kernel module) is loaded.
 Set the directory to store CSV-files under. Per default CSV-files are generated
 beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
 
+=item B<StoreRates> B<true|false>
+
+If set to B<true>, convert counter values to rates. If set to B<false> (the
+default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
+
 =back
 
 =head2 Plugin C<df>

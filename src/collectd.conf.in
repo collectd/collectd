@@ -74,6 +74,7 @@
 
 #<Plugin csv>
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
+#	StoreRates false
 #</Plugin>
 
 #<Plugin df>
