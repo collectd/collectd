@@ -1,5 +1,5 @@
 /**
- * collectd - src/libvirtstats.c
+ * collectd - src/libvirt.c
  * Copyright (C) 2006,2007  Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -131,7 +131,7 @@ static void submit_counter2 (const char *type, counter_t v0, counter_t v1,
     } while(0)
 
 static int
-libvirtstats_init (void)
+lv_init (void)
 {
     if (virInitialize () != 0)
         return -1;
@@ -140,7 +140,7 @@ libvirtstats_init (void)
 }
 
 static int
-libvirtstats_config (const char *key, const char *value)
+lv_config (const char *key, const char *value)
 {
     if (virInitialize () != 0)
         return 1;
@@ -210,7 +210,7 @@ libvirtstats_config (const char *key, const char *value)
 
         value_copy = strdup (value);
         if (value_copy == NULL) {
-            ERROR ("libvirtstats plugin: strdup failed.");
+            ERROR ("libvirt plugin: strdup failed.");
             return -1;
         }
 
@@ -247,13 +247,13 @@ libvirtstats_config (const char *key, const char *value)
 }
 
 static int
-libvirtstats_read (void)
+lv_read (void)
 {
     time_t t;
     int i;
 
     if (conn == NULL) {
-        ERROR ("libvirtstats plugin: Not connected. Use Connection in "
+        ERROR ("libvirt plugin: Not connected. Use Connection in "
                 "config file to supply connection URI.  For more information "
                 "see <http://libvirt.org/uri.html>");
         return -1;
@@ -295,7 +295,7 @@ libvirtstats_read (void)
 
         vinfo = malloc (info.nrVirtCpu * sizeof vinfo[0]);
         if (vinfo == NULL) {
-            ERROR ("libvirtstats plugin: malloc failed.");
+            ERROR ("libvirt plugin: malloc failed.");
             continue;
         }
 
@@ -382,7 +382,7 @@ refresh_lists (void)
         /* Get list of domains. */
         domids = malloc (sizeof (int) * n);
         if (domids == 0) {
-            ERROR ("libvirtstats plugin: malloc failed.");
+            ERROR ("libvirt plugin: malloc failed.");
             return -1;
         }
 
@@ -424,7 +424,7 @@ refresh_lists (void)
                 goto cont;
 
             if (add_domain (dom) < 0) {
-                ERROR ("libvirtstats plugin: malloc failed.");
+                ERROR ("libvirt plugin: malloc failed.");
                 goto cont;
             }
 
@@ -631,7 +631,7 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
     n = sizeof (char) * (strlen (domname) + strlen (devpath) + 2);
     name = malloc (n);
     if (name == NULL) {
-        ERROR ("libvirtstats plugin: malloc failed.");
+        ERROR ("libvirt plugin: malloc failed.");
         return 0;
     }
     snprintf (name, n, "%s:%s", domname, devpath);
@@ -650,7 +650,7 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
     vl->time = t;
     vl->interval = interval_g;
 
-    strncpy (vl->plugin, "libvirtstats", sizeof (vl->plugin));
+    strncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
     vl->plugin[sizeof (vl->plugin) - 1] = '\0';
 
     vl->host[0] = '\0';
@@ -768,7 +768,7 @@ submit_counter2 (const char *type, counter_t v0, counter_t v1,
 } /* void submit_counter2 */
 
 static int
-libvirtstats_shutdown (void)
+lv_shutdown (void)
 {
     free_block_devices ();
     free_interface_devices ();
@@ -791,12 +791,12 @@ libvirtstats_shutdown (void)
 void
 module_register (void)
 {
-    plugin_register_config ("libvirtstats",
-	    libvirtstats_config,
+    plugin_register_config ("libvirt",
+	    lv_config,
 	    config_keys, NR_CONFIG_KEYS);
-    plugin_register_init ("libvirtstats", libvirtstats_init);
-    plugin_register_read ("libvirtstats", libvirtstats_read);
-    plugin_register_shutdown ("libvirtstats", libvirtstats_shutdown);
+    plugin_register_init ("libvirt", lv_init);
+    plugin_register_read ("libvirt", lv_read);
+    plugin_register_shutdown ("libvirt", lv_shutdown);
 }
 
 /*

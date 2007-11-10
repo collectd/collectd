@@ -278,14 +278,14 @@ collectd_LDADD += "-dlopen" irq.la
 collectd_DEPENDENCIES += irq.la
 endif
 
-if BUILD_PLUGIN_LIBVIRTSTATS
-pkglib_LTLIBRARIES += libvirtstats.la
-libvirtstats_la_SOURCES = libvirtstats.c
-libvirtstats_la_CFLAGS = $(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
-libvirtstats_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
-libvirtstats_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" libvirtstats.la
-collectd_DEPENDENCIES += libvirtstats.la
+if BUILD_PLUGIN_LIBVIRT
+pkglib_LTLIBRARIES += libvirt.la
+libvirt_la_SOURCES = libvirt.c
+libvirt_la_CFLAGS = $(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+libvirt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+libvirt_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" libvirt.la
+collectd_DEPENDENCIES += libvirt.la
 endif
 
 if BUILD_PLUGIN_LOAD

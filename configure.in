@@ -1843,7 +1843,7 @@ plugin_entropy="no"
 plugin_interface="no"
 plugin_ipvs="no"
 plugin_irq="no"
-plugin_libvirtstats="no"
+plugin_libvirt="no"
 plugin_load="no"
 plugin_memory="no"
 plugin_multimeter="no"
@@ -1937,7 +1937,7 @@ fi
 
 if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"
 then
-	plugin_libvirtstats="yes"
+	plugin_libvirt="yes"
 fi
 
 if test "x$have_getloadavg" = "xyes"
@@ -1998,7 +1998,7 @@ AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
-AC_PLUGIN([libvirtstats],[$plugin_libvirtstats], [Virtual machine statistics])
+AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
@@ -2128,7 +2128,7 @@ Configuration:
     iptables  . . . . . $enable_iptables
     ipvs  . . . . . . . $enable_ipvs
     irq . . . . . . . . $enable_irq
-    libvirtstats  . . . $enable_libvirtstats
+    libvirt . . . . . . $enable_libvirt
     load  . . . . . . . $enable_load
     logfile . . . . . . $enable_logfile
     mbmon . . . . . . . $enable_mbmon
