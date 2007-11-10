@@ -355,11 +355,13 @@ and all other interrupts are collected.
 
 =back
 
-=head2 Plugin C<libvirtstats>
+=head2 Plugin C<libvirt>
 
-This plugin allows CPU, disk and network load to be monitored for
-virtualized guests on the machine.  The statistics are collected
-through libvirt (L<http://libvirt.org/>).
+This plugin allows CPU, disk and network load to be collected for virtualized
+guests on the machine. This means that these characteristics can be collected
+for guest systems without installing any software on them - collectd only runs
+on the hosting system. The statistics are collected through libvirt
+(L<http://libvirt.org/>).
 
 Only I<Connection> is required.
 
@@ -367,23 +369,20 @@ Only I<Connection> is required.
 
 =item B<Connection> I<uri>
 
-Connect to the hypervisor given by I<uri>.  For example if using
-Xen use:
+Connect to the hypervisor given by I<uri>. For example if using Xen use:
 
  Connection "xen:///"
 
-Details are URIs allowed are given at L<http://libvirt.org/uri.html>.
+Details which URIs allowed are given at L<http://libvirt.org/uri.html>.
 
 =item B<RefreshInterval> I<seconds>
 
-Refresh the list of domains and devices every I<seconds>.  The default
-is 60 seconds.  Setting this to be the same or smaller than the
-I<Interval> will cause the list of domains and devices to be refreshed
-on every iteration.
+Refresh the list of domains and devices every I<seconds>. The default is 60
+seconds. Setting this to be the same or smaller than the I<Interval> will cause
+the list of domains and devices to be refreshed on every iteration.
 
-Refreshing the devices in particular is quite a costly operation, so
-if your virtualization setup is static you might consider increasing
-this.
+Refreshing the devices in particular is quite a costly operation, so if your
+virtualization setup is static you might consider increasing this.
 
 =item B<Domain> I<name>
 
@@ -393,48 +392,42 @@ this.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
-Select which domains and devices are monitored.
+Select which domains and devices are collected.
 
-If I<IgnoreSelected> is not given or I<false> then only the
-listed domains and disk/network devices are monitored.
+If I<IgnoreSelected> is not given or I<false> then only the listed domains and
+disk/network devices are collected.
 
-If I<IgnoreSelected> is I<true> then the test is reversed
-and the listed domains and disk/network devices are ignored,
-while the rest are monitored.
+If I<IgnoreSelected> is I<true> then the test is reversed and the listed
+domains and disk/network devices are ignored, while the rest are collected.
 
-The domain name and device names may use a regular expression, if the
-name is surrounded by I</.../> and collectd was compiled with support
-for regexps.
+The domain name and device names may use a regular expression, if the name is
+surrounded by I</.../> and collectd was compiled with support for regexps.
 
-The default is to monitor all domains and all their devices.
+The default is to collect statistics for all domains and all their devices.
 
 Example:
 
  BlockDevice "/:hdb/"
  IgnoreSelected "true"
 
-Ignore all I<hdb> devices on any domain, but other block devices
-(eg. I<hda>) will be monitored.
+Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
+will be collected.
 
-=item B<HostnameFormat> I<name|uuid|hostname|...>
+=item B<HostnameFormat> B<name|uuid|hostname|...>
 
-When libvirtstats logs data, it sets the collectd I<host> field in the
-data according to this setting.
+When the libvirt plugin logs data, it sets the hostname of the collected data
+according to this setting. The default is to use the guest name as provided by
+the hypervisor, which is equal to setting B<name>.
 
-The default is I<name> which means to use the guest name from the
-hypervisor.
+B<uuid> means use the guest's UUID. This is useful if you want to track the
+same guest across migrations.
 
-I<uuid> means use the guest's UUID.  This is useful if you want to
-track the same guest across migrations.
+B<hostname> means to use the global B<Hostname> setting, which is probably not
+useful on its own because all guests will appear to have the same name.
 
-I<hostname> means to use the global I<Hostname> setting, which is
-probably not useful on its own because all guests will appear to have
-the same name.
-
-You can also specify combinations of these fields.  For example
-I<name uuid>
-means to concatenate the guest name and UUID (with a literal
-colon character between, thus I<"foo:1234-1234-1234-1234">).
+You can also specify combinations of these fields. For example B<name uuid>
+means to concatenate the guest name and UUID (with a literal colon character
+between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
@@ -464,7 +457,7 @@ Prefix all lines printed by the current time. Defaults to B<true>.
 
 The C<mbmon plugin> uses mbmon to retrieve temperature, voltage, etc.
 
-Be default collectd connects to B<localhost> (127.0.0.1), port B<411/tcp>.  The
+Be default collectd connects to B<localhost> (127.0.0.1), port B<411/tcp>. The
 B<Host> and B<Port> options can be used to change these values, see below.
 C<mbmon> has to be running to work correctly. If C<mbmon> is not running
 timeouts may appear which may interfere with other statistics..
@@ -581,7 +574,7 @@ QDiscs and classes are identified by their type and handle (or classid).
 Filters don't necessarily have a handle, therefore the parent's handle is used.
 The notation used in collectd differs from that used in tc(1) in that it
 doesn't skip the major or minor number if it's zero and doesn't print special
-ids by their name.  So, for example, a qdisc may be identified by
+ids by their name. So, for example, a qdisc may be identified by
 C<pfifo_fast-1:0> even though the minor number of B<all> qdiscs is zero and
 thus not displayed by tc(1).
 
@@ -954,22 +947,34 @@ L<chmod(1)>. Defaults to B<0770>.
 
 =head2 Plugin C<uuid>
 
-This plugin, if loaded, causes the Hostname to be taken from the
-machine's UUID.  The UUID is a universally unique designation for the
-machine, usually taken from the machine's BIOS.  This is most useful
-if the machine is running in a virtual environment such as Xen, in
-which case the UUID is preserved across shutdowns and migration.
+This plugin, if loaded, causes the Hostname to be taken from the machine's
+UUID. The UUID is a universally unique designation for the machine, usually
+taken from the machine's BIOS. This is most useful if the machine is running in
+a virtual environment such as Xen, in which case the UUID is preserved across
+shutdowns and migration.
 
 The following methods are used to find the machine's UUID, in order:
 
+=over 4
+
+=item
+
 Check I</etc/uuid> (or I<UUIDFile>).
 
-Check for UUID from HAL (L<http://www.freedesktop.org/wiki/Software/hal>)
-if present.
+=item
+
+Check for UUID from HAL (L<http://www.freedesktop.org/wiki/Software/hal>) if
+present.
+
+=item
 
 Check for UUID from C<dmidecode> / SMBIOS.
 
+=item
+
 Check for UUID from Xen hypervisor.
+
+=back
 
 If no UUID can be found then the hostname is not modified.
 
