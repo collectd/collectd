@@ -1261,6 +1261,41 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPERL, test "x$with_libperl" = "xyes")
 
+if test "x$with_libperl" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	SAVE_LDFLAGS=$LDFLAGS
+	CFLAGS="$CFLAGS $PERL_CFLAGS"
+	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
+
+	AC_CACHE_CHECK([if perl supports ithreads],
+		[have_perl_ithreads],
+		AC_LINK_IFELSE(
+			AC_LANG_PROGRAM(
+			[[
+#include <EXTERN.h>
+#include <perl.h>
+#include <XSUB.h>
+
+#if !defined(USE_ITHREADS)
+# error "Perl does not support ithreads!"
+#endif /* !defined(USE_ITHREADS) */
+			]],
+			[[ ]]),
+			[have_perl_ithreads="yes"],
+			[have_perl_ithreads="no"]
+		)
+	)
+
+	if test "x$have_perl_ithreads" = "xyes"
+	then
+		AC_DEFINE(HAVE_PERL_ITHREADS, 1, [Define if Perl supports ithreads.])
+	fi
+
+	CFLAGS=$SAVE_CFLAGS
+	LDFLAGS=$SAVE_LDFLAGS
+fi
+
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -1848,6 +1883,7 @@ plugin_load="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
+plugin_perl="no"
 plugin_processes="no"
 plugin_serial="no"
 plugin_swap="no"
@@ -1945,6 +1981,11 @@ then
 	plugin_load="yes"
 fi
 
+if test "x$have_libperl$have_perl_ithreads" = "xyesyes"
+then
+	plugin_perl="yes"
+fi
+
 # Mac OS X memory interface
 if test "x$have_host_statistics" = "xyes"
 then
@@ -2012,7 +2053,7 @@ AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
-AC_PLUGIN([perl],        [$with_libperl],      [Embed a Perl interpreter])
+AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([rrdtool],     [$with_rrdtool],      [RRDTool output plugin])

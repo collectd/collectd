@@ -42,6 +42,10 @@
 #include "plugin.h"
 #include "common.h"
 
+#if !defined(USE_ITHREADS)
+# error "Perl does not support ithreads!"
+#endif /* !defined(USE_ITHREADS) */
+
 #define PLUGIN_INIT     0
 #define PLUGIN_READ     1
 #define PLUGIN_WRITE    2
