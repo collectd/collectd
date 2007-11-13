@@ -84,12 +84,13 @@ static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
 
 static cf_global_option_t cf_global_options[] =
 {
-	{"BaseDir",   NULL, PKGLOCALSTATEDIR},
-	{"PIDFile",   NULL, PIDFILE},
-	{"Hostname",  NULL, NULL},
-	{"Interval",  NULL, "10"},
+	{"BaseDir",     NULL, PKGLOCALSTATEDIR},
+	{"PIDFile",     NULL, PIDFILE},
+	{"Hostname",    NULL, NULL},
+	{"FQDNLookup",  NULL, "false"},
+	{"Interval",    NULL, "10"},
 	{"ReadThreads", NULL, "5"},
-	{"TypesDB",   NULL, PLUGINDIR"/types.db"} /* FIXME: Configure path */
+	{"TypesDB",     NULL, PLUGINDIR"/types.db"} /* FIXME: Configure path */
 };
 static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
 
@@ -173,6 +174,13 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 		snprintf (tmp, sizeof (tmp), "%lf", ci->values[0].value.number);
 		tmp[127] = '\0';
 		return (global_option_set (ci->key, tmp));
+	}
+	else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
+	{
+		if (ci->values[0].value.boolean)
+			return (global_option_set (ci->key, "true"));
+		else
+			return (global_option_set (ci->key, "false"));
 	}
 
 	return (-1);

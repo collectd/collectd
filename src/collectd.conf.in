@@ -5,6 +5,7 @@
 #
 
 #Hostname    "localhost"
+FQDNLookup   true
 #BaseDir     "@prefix@/var/lib/@PACKAGE_NAME@"
 #PIDFile     "@prefix@/var/run/@PACKAGE_NAME@.pid"
 #PluginDir   "@prefix@/lib/@PACKAGE_NAME@"
