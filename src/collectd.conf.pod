@@ -83,6 +83,23 @@ you may want to increase this if you have more than five plugins that take a
 long time to read. Mostly those are plugin that do network-IO. Setting this to
 a value higher than the number of plugins you've loaded is totally useless.
 
+=item B<Hostname> I<Name>
+
+Sets the hostname that identifies a host. If you omit this setting, the
+hostname will be determinded using the L<gethostname(2)> system call.
+
+=item B<FQDNLookup> B<true|false>
+
+If B<Hostname> is determined automatically this setting controls whether or not
+the daemon should try to figure out the "full qualified domain name", FQDN.
+This is done using a lookup of the name returned by C<gethostname>.
+
+Using this feature (i.E<nbsp>e. setting this option to B<true>) is recommended.
+However, to preserve backwards compatibility the default is set to B<false>.
+The sample config file that is installed with C<makeE<nbsp>install> includes a
+line with sets this option, though, so that default installations will have
+this setting enabled.
+
 =back
 
 =head1 PLUGIN OPTIONS
