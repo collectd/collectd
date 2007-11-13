@@ -24,6 +24,9 @@
  * interface for collectd plugins written in perl.
  */
 
+/* do not automatically get the thread specific perl interpreter */
+#define PERL_NO_GET_CONTEXT
+
 #include "collectd.h"
 
 #include "configfile.h"
@@ -129,14 +132,14 @@ struct {
  *   ...
  * ]
  */
-static int hv2data_source (HV *hash, data_source_t *ds)
+static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 {
 	SV **tmp = NULL;
 
 	if ((NULL == hash) || (NULL == ds))
 		return -1;
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, hash, "name", 4, 0))) {
+	if (NULL != (tmp = hv_fetch (hash, "name", 4, 0))) {
 		strncpy (ds->name, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
 		ds->name[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
@@ -145,7 +148,7 @@ static int hv2data_source (HV *hash, data_source_t *ds)
 		return -1;
 	}
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, hash, "type", 4, 0))) {
+	if (NULL != (tmp = hv_fetch (hash, "type", 4, 0))) {
 		ds->type = SvIV (*tmp);
 
 		if ((DS_TYPE_COUNTER != ds->type) && (DS_TYPE_GAUGE != ds->type)) {
@@ -157,19 +160,19 @@ static int hv2data_source (HV *hash, data_source_t *ds)
 		ds->type = DS_TYPE_COUNTER;
 	}
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, hash, "min", 3, 0)))
+	if (NULL != (tmp = hv_fetch (hash, "min", 3, 0)))
 		ds->min = SvNV (*tmp);
 	else
 		ds->min = NAN;
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, hash, "max", 3, 0)))
+	if (NULL != (tmp = hv_fetch (hash, "max", 3, 0)))
 		ds->max = SvNV (*tmp);
 	else
 		ds->max = NAN;
 	return 0;
 } /* static data_source_t *hv2data_source (HV *) */
 
-static int av2value (char *name, AV *array, value_t *value, int len)
+static int av2value (pTHX_ char *name, AV *array, value_t *value, int len)
 {
 	const data_set_t *ds;
 
@@ -178,8 +181,8 @@ static int av2value (char *name, AV *array, value_t *value, int len)
 	if ((NULL == name) || (NULL == array) || (NULL == value))
 		return -1;
 
-	if (Perl_av_len (perl, array) < len - 1)
-		len = Perl_av_len (perl, array) + 1;
+	if (av_len (array) < len - 1)
+		len = av_len (array) + 1;
 
 	if (0 >= len)
 		return -1;
@@ -196,7 +199,7 @@ static int av2value (char *name, AV *array, value_t *value, int len)
 	}
 
 	for (i = 0; i < len; ++i) {
-		SV **tmp = Perl_av_fetch (perl, array, i, 0);
+		SV **tmp = av_fetch (array, i, 0);
 
 		if (NULL != tmp) {
 			if (DS_TYPE_COUNTER == ds->ds[i].type)
@@ -211,44 +214,42 @@ static int av2value (char *name, AV *array, value_t *value, int len)
 	return len;
 } /* static int av2value (char *, AV *, value_t *, int) */
 
-static int data_set2av (data_set_t *ds, AV *array)
+static int data_set2av (pTHX_ data_set_t *ds, AV *array)
 {
 	int i = 0;
 
 	if ((NULL == ds) || (NULL == array))
 		return -1;
 
-	Perl_av_extend (perl, array, ds->ds_num);
+	av_extend (array, ds->ds_num);
 
 	for (i = 0; i < ds->ds_num; ++i) {
-		HV *source = Perl_newHV (perl);
+		HV *source = newHV ();
 
-		if (NULL == Perl_hv_store (perl, source, "name", 4,
-				Perl_newSVpv (perl, ds->ds[i].name, 0), 0))
+		if (NULL == hv_store (source, "name", 4,
+				newSVpv (ds->ds[i].name, 0), 0))
 			return -1;
 
-		if (NULL == Perl_hv_store (perl, source, "type", 4,
-				Perl_newSViv (perl, ds->ds[i].type), 0))
+		if (NULL == hv_store (source, "type", 4, newSViv (ds->ds[i].type), 0))
 			return -1;
 
 		if (! isnan (ds->ds[i].min))
-			if (NULL == Perl_hv_store (perl, source, "min", 3,
-					Perl_newSVnv (perl, ds->ds[i].min), 0))
+			if (NULL == hv_store (source, "min", 3,
+					newSVnv (ds->ds[i].min), 0))
 				return -1;
 
 		if (! isnan (ds->ds[i].max))
-			if (NULL == Perl_hv_store (perl, source, "max", 3,
-					Perl_newSVnv (perl, ds->ds[i].max), 0))
+			if (NULL == hv_store (source, "max", 3,
+					newSVnv (ds->ds[i].max), 0))
 				return -1;
 
-		if (NULL == Perl_av_store (perl, array, i,
-				Perl_newRV_noinc (perl, (SV *)source)))
+		if (NULL == av_store (array, i, newRV_noinc ((SV *)source)))
 			return -1;
 	}
 	return 0;
 } /* static int data_set2av (data_set_t *, AV *) */
 
-static int value_list2hv (value_list_t *vl, data_set_t *ds, HV *hash)
+static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 {
 	AV *values = NULL;
 
@@ -265,50 +266,46 @@ static int value_list2hv (value_list_t *vl, data_set_t *ds, HV *hash)
 		len = ds->ds_num;
 	}
 
-	values = Perl_newAV (perl);
-	Perl_av_extend (perl, values, len - 1);
+	values = newAV ();
+	av_extend (values, len - 1);
 
 	for (i = 0; i < len; ++i) {
 		SV *val = NULL;
 
 		if (DS_TYPE_COUNTER == ds->ds[i].type)
-			val = Perl_newSViv (perl, vl->values[i].counter);
+			val = newSViv (vl->values[i].counter);
 		else
-			val = Perl_newSVnv (perl, vl->values[i].gauge);
+			val = newSVnv (vl->values[i].gauge);
 
-		if (NULL == Perl_av_store (perl, values, i, val)) {
-			Perl_av_undef (perl, values);
+		if (NULL == av_store (values, i, val)) {
+			av_undef (values);
 			return -1;
 		}
 	}
 
-	if (NULL == Perl_hv_store (perl, hash, "values", 6,
-			Perl_newRV_noinc (perl, (SV *)values), 0))
+	if (NULL == hv_store (hash, "values", 6, newRV_noinc ((SV *)values), 0))
 		return -1;
 
 	if (0 != vl->time)
-		if (NULL == Perl_hv_store (perl, hash, "time", 4,
-				Perl_newSViv (perl, vl->time), 0))
+		if (NULL == hv_store (hash, "time", 4, newSViv (vl->time), 0))
 			return -1;
 
 	if ('\0' != vl->host[0])
-		if (NULL == Perl_hv_store (perl, hash, "host", 4,
-				Perl_newSVpv (perl, vl->host, 0), 0))
+		if (NULL == hv_store (hash, "host", 4, newSVpv (vl->host, 0), 0))
 			return -1;
 
 	if ('\0' != vl->plugin[0])
-		if (NULL == Perl_hv_store (perl, hash, "plugin", 6,
-				Perl_newSVpv (perl, vl->plugin, 0), 0))
+		if (NULL == hv_store (hash, "plugin", 6, newSVpv (vl->plugin, 0), 0))
 			return -1;
 
 	if ('\0' != vl->plugin_instance[0])
-		if (NULL == Perl_hv_store (perl, hash, "plugin_instance", 15,
-				Perl_newSVpv (perl, vl->plugin_instance, 0), 0))
+		if (NULL == hv_store (hash, "plugin_instance", 15,
+				newSVpv (vl->plugin_instance, 0), 0))
 			return -1;
 
 	if ('\0' != vl->type_instance[0])
-		if (NULL == Perl_hv_store (perl, hash, "type_instance", 13,
-				Perl_newSVpv (perl, vl->type_instance, 0), 0))
+		if (NULL == hv_store (hash, "type_instance", 13,
+				newSVpv (vl->type_instance, 0), 0))
 			return -1;
 	return 0;
 } /* static int value2av (value_list_t *, data_set_t *, HV *) */
@@ -332,7 +329,7 @@ static char *get_module_name (char *buf, size_t buf_len, const char *module) {
 /*
  * Add a plugin's data set definition.
  */
-static int pplugin_register_data_set (char *name, AV *dataset)
+static int pplugin_register_data_set (pTHX_ char *name, AV *dataset)
 {
 	int len = -1;
 	int i   = 0;
@@ -343,7 +340,7 @@ static int pplugin_register_data_set (char *name, AV *dataset)
 	if ((NULL == name) || (NULL == dataset))
 		return -1;
 
-	len = Perl_av_len (perl, dataset);
+	len = av_len (dataset);
 
 	if (-1 == len)
 		return -1;
@@ -352,7 +349,7 @@ static int pplugin_register_data_set (char *name, AV *dataset)
 	set = (data_set_t *)smalloc (sizeof (data_set_t));
 
 	for (i = 0; i <= len; ++i) {
-		SV **elem = Perl_av_fetch (perl, dataset, i, 0);
+		SV **elem = av_fetch (dataset, i, 0);
 
 		if (NULL == elem)
 			return -1;
@@ -362,7 +359,7 @@ static int pplugin_register_data_set (char *name, AV *dataset)
 			return -1;
 		}
 
-		if (-1 == hv2data_source ((HV *)SvRV (*elem), &ds[i]))
+		if (-1 == hv2data_source (aTHX_ (HV *)SvRV (*elem), &ds[i]))
 			return -1;
 
 		log_debug ("pplugin_register_data_set: "
@@ -401,7 +398,7 @@ static int pplugin_unregister_data_set (char *name)
  *   type_instance   => $tinstance,
  * }
  */
-static int pplugin_dispatch_values (char *name, HV *values)
+static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
 {
 	value_list_t list = VALUE_LIST_INIT;
 	value_t      *val = NULL;
@@ -413,7 +410,7 @@ static int pplugin_dispatch_values (char *name, HV *values)
 	if ((NULL == name) || (NULL == values))
 		return -1;
 
-	if ((NULL == (tmp = Perl_hv_fetch (perl, values, "values", 6, 0)))
+	if ((NULL == (tmp = hv_fetch (values, "values", 6, 0)))
 			|| (! (SvROK (*tmp) && (SVt_PVAV == SvTYPE (SvRV (*tmp)))))) {
 		log_err ("pplugin_dispatch_values: No valid values given.");
 		return -1;
@@ -421,14 +418,14 @@ static int pplugin_dispatch_values (char *name, HV *values)
 
 	{
 		AV  *array = (AV *)SvRV (*tmp);
-		int len    = Perl_av_len (perl, array) + 1;
+		int len    = av_len (array) + 1;
 
 		if (len <= 0)
 			return -1;
 
 		val = (value_t *)smalloc (len * sizeof (value_t));
 
-		list.values_len = av2value (name, (AV *)SvRV (*tmp), val, len);
+		list.values_len = av2value (aTHX_ name, (AV *)SvRV (*tmp), val, len);
 		list.values = val;
 
 		if (-1 == list.values_len) {
@@ -437,14 +434,14 @@ static int pplugin_dispatch_values (char *name, HV *values)
 		}
 	}
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, values, "time", 4, 0))) {
+	if (NULL != (tmp = hv_fetch (values, "time", 4, 0))) {
 		list.time = (time_t)SvIV (*tmp);
 	}
 	else {
 		list.time = time (NULL);
 	}
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, values, "host", 4, 0))) {
+	if (NULL != (tmp = hv_fetch (values, "host", 4, 0))) {
 		strncpy (list.host, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
 		list.host[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
@@ -452,18 +449,18 @@ static int pplugin_dispatch_values (char *name, HV *values)
 		strcpy (list.host, hostname_g);
 	}
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, values, "plugin", 6, 0))) {
+	if (NULL != (tmp = hv_fetch (values, "plugin", 6, 0))) {
 		strncpy (list.plugin, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
 		list.plugin[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, values,
+	if (NULL != (tmp = hv_fetch (values,
 			"plugin_instance", 15, 0))) {
 		strncpy (list.plugin_instance, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
 		list.plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
 
-	if (NULL != (tmp = Perl_hv_fetch (perl, values, "type_instance", 13, 0))) {
+	if (NULL != (tmp = hv_fetch (values, "type_instance", 13, 0))) {
 		strncpy (list.type_instance, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
 		list.type_instance[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
@@ -477,7 +474,7 @@ static int pplugin_dispatch_values (char *name, HV *values)
 /*
  * Call all working functions of the given type.
  */
-static int pplugin_call_all (int type, ...)
+static int pplugin_call_all (pTHX_ int type, ...)
 {
 	int retvals = 0;
 
@@ -496,7 +493,7 @@ static int pplugin_call_all (int type, ...)
 
 	PUSHMARK (SP);
 
-	XPUSHs (sv_2mortal (Perl_newSViv (perl, (IV)type)));
+	XPUSHs (sv_2mortal (newSViv ((IV)type)));
 
 	if (PLUGIN_WRITE == type) {
 		/*
@@ -526,21 +523,21 @@ static int pplugin_call_all (int type, ...)
 		data_set_t   *ds;
 		value_list_t *vl;
 
-		AV *pds = Perl_newAV (perl);
-		HV *pvl = Perl_newHV (perl);
+		AV *pds = newAV ();
+		HV *pvl = newHV ();
 
 		ds = va_arg (ap, data_set_t *);
 		vl = va_arg (ap, value_list_t *);
 
-		if (-1 == data_set2av (ds, pds))
+		if (-1 == data_set2av (aTHX_ ds, pds))
 			return -1;
 
-		if (-1 == value_list2hv (vl, ds, pvl))
+		if (-1 == value_list2hv (aTHX_ vl, ds, pvl))
 			return -1;
 
-		XPUSHs (sv_2mortal (Perl_newSVpv (perl, ds->type, 0)));
-		XPUSHs (sv_2mortal (Perl_newRV_noinc (perl, (SV *)pds)));
-		XPUSHs (sv_2mortal (Perl_newRV_noinc (perl, (SV *)pvl)));
+		XPUSHs (sv_2mortal (newSVpv (ds->type, 0)));
+		XPUSHs (sv_2mortal (newRV_noinc ((SV *)pds)));
+		XPUSHs (sv_2mortal (newRV_noinc ((SV *)pvl)));
 	}
 	else if (PLUGIN_LOG == type) {
 		/*
@@ -548,13 +545,13 @@ static int pplugin_call_all (int type, ...)
 		 *
 		 * $_[1] = $message;
 		 */
-		XPUSHs (sv_2mortal (Perl_newSViv (perl, va_arg (ap, int))));
-		XPUSHs (sv_2mortal (Perl_newSVpv (perl, va_arg (ap, char *), 0)));
+		XPUSHs (sv_2mortal (newSViv (va_arg (ap, int))));
+		XPUSHs (sv_2mortal (newSVpv (va_arg (ap, char *), 0)));
 	}
 
 	PUTBACK;
 
-	retvals = Perl_call_pv (perl, "Collectd::plugin_call_all", G_SCALAR);
+	retvals = call_pv ("Collectd::plugin_call_all", G_SCALAR);
 
 	SPAGAIN;
 	if (0 < retvals) {
@@ -603,7 +600,7 @@ static XS (Collectd_plugin_register_ds)
 	data = ST (1);
 
 	if (SvROK (data) && (SVt_PVAV == SvTYPE (SvRV (data)))) {
-		ret = pplugin_register_data_set (SvPV_nolen (ST (0)),
+		ret = pplugin_register_data_set (aTHX_ SvPV_nolen (ST (0)),
 				(AV *)SvRV (data));
 	}
 	else {
@@ -677,7 +674,8 @@ static XS (Collectd_plugin_dispatch_values)
 	if ((NULL == ST (0)) || (NULL == values))
 		XSRETURN_EMPTY;
 
-	ret = pplugin_dispatch_values (SvPV_nolen (ST (0)), (HV *)SvRV (values));
+	ret = pplugin_dispatch_values (aTHX_ SvPV_nolen (ST (0)),
+			(HV *)SvRV (values));
 
 	if (0 == ret)
 		XSRETURN_YES;
@@ -713,38 +711,54 @@ static XS (Collectd_plugin_log)
 
 static int perl_init (void)
 {
+	dTHXa (NULL);
+
 	if (NULL == perl)
 		return 0;
 
 	PERL_SET_CONTEXT (perl);
-	return pplugin_call_all (PLUGIN_INIT);
+	aTHX = perl;
+
+	return pplugin_call_all (aTHX_ PLUGIN_INIT);
 } /* static int perl_init (void) */
 
 static int perl_read (void)
 {
+	dTHXa (NULL);
+
 	if (NULL == perl)
 		return 0;
 
 	PERL_SET_CONTEXT (perl);
-	return pplugin_call_all (PLUGIN_READ);
+	aTHX = perl;
+
+	return pplugin_call_all (aTHX_ PLUGIN_READ);
 } /* static int perl_read (void) */
 
 static int perl_write (const data_set_t *ds, const value_list_t *vl)
 {
+	dTHXa (NULL);
+
 	if (NULL == perl)
 		return 0;
 
 	PERL_SET_CONTEXT (perl);
-	return pplugin_call_all (PLUGIN_WRITE, ds, vl);
+	aTHX = perl;
+
+	return pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
 } /* static int perl_write (const data_set_t *, const value_list_t *) */
 
 static void perl_log (int level, const char *msg)
 {
+	dTHXa (NULL);
+
 	if (NULL == perl)
 		return;
 
 	PERL_SET_CONTEXT (perl);
-	pplugin_call_all (PLUGIN_LOG, level, msg);
+	aTHX = perl;
+
+	pplugin_call_all (aTHX_ PLUGIN_LOG, level, msg);
 	return;
 } /* static void perl_log (int, const char *) */
 
@@ -752,21 +766,25 @@ static int perl_shutdown (void)
 {
 	int ret = 0;
 
+	dTHXa (NULL);
+
 	plugin_unregister_complex_config ("perl");
 
 	if (NULL == perl)
 		return 0;
+
+	PERL_SET_CONTEXT (perl);
+	aTHX = perl;
 
 	plugin_unregister_log ("perl");
 	plugin_unregister_init ("perl");
 	plugin_unregister_read ("perl");
 	plugin_unregister_write ("perl");
 
-	PERL_SET_CONTEXT (perl);
-	ret = pplugin_call_all (PLUGIN_SHUTDOWN);
+	ret = pplugin_call_all (aTHX_ PLUGIN_SHUTDOWN);
 
 #if COLLECT_DEBUG
-	Perl_sv_report_used (perl);
+	sv_report_used ();
 #endif /* COLLECT_DEBUG */
 
 	perl_destruct (perl);
@@ -790,24 +808,25 @@ static void xs_init (pTHX)
 	dXSUB_SYS;
 
 	/* enable usage of Perl modules using shared libraries */
-	Perl_newXS (perl, "DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+	newXS ("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
 
 	/* register API */
 	for (i = 0; NULL != api[i].f; ++i)
-		Perl_newXS (perl, api[i].name, api[i].f, file);
+		newXS (api[i].name, api[i].f, file);
 
-	stash = Perl_gv_stashpv (perl, "Collectd", 1);
+	stash = gv_stashpv ("Collectd", 1);
 
 	/* export "constants" */
 	for (i = 0; '\0' != constants[i].name[0]; ++i)
-		Perl_newCONSTSUB (perl, stash, constants[i].name,
-				Perl_newSViv (perl, constants[i].value));
+		newCONSTSUB (stash, constants[i].name, newSViv (constants[i].value));
 	return;
 } /* static void xs_init (pTHX) */
 
 /* Initialize the global Perl interpreter. */
 static int init_pi (int argc, char **argv)
 {
+	dTHXa (NULL);
+
 	if (NULL != perl)
 		return 0;
 
@@ -827,6 +846,8 @@ static int init_pi (int argc, char **argv)
 		log_err ("module_register: Not enough memory.");
 		exit (3);
 	}
+
+	aTHX = perl;
 	perl_construct (perl);
 
 	PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
@@ -837,7 +858,7 @@ static int init_pi (int argc, char **argv)
 	}
 
 	/* Set $0 to "collectd" because perl_parse() has to set it to "-e". */
-	Perl_sv_setpv (perl, Perl_get_sv (perl, "0", 0), "collectd");
+	sv_setpv (get_sv ("0", 0), "collectd");
 
 	perl_run (perl);
 
@@ -854,7 +875,7 @@ static int init_pi (int argc, char **argv)
 /*
  * LoadPlugin "<Plugin>"
  */
-static int perl_config_loadplugin (oconfig_item_t *ci)
+static int perl_config_loadplugin (pTHX_ oconfig_item_t *ci)
 {
 	char module_name[DATA_MAX_NAME_LEN];
 
@@ -872,18 +893,18 @@ static int perl_config_loadplugin (oconfig_item_t *ci)
 	}
 
 	init_pi (perl_argc, perl_argv);
+	aTHX = perl;
 
 	log_debug ("perl_config: loading perl plugin \"%s\"", value);
-	Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
-			Perl_newSVpv (perl, module_name, strlen (module_name)),
-			Nullsv);
+	load_module (PERL_LOADMOD_NOIMPORT,
+			newSVpv (module_name, strlen (module_name)), Nullsv);
 	return 0;
 } /* static int perl_config_loadplugin (oconfig_item_it *) */
 
 /*
  * BaseName "<Name>"
  */
-static int perl_config_basename (oconfig_item_t *ci)
+static int perl_config_basename (pTHX_ oconfig_item_t *ci)
 {
 	char *value = NULL;
 
@@ -902,7 +923,7 @@ static int perl_config_basename (oconfig_item_t *ci)
 /*
  * EnableDebugger "<Package>"|""
  */
-static int perl_config_enabledebugger (oconfig_item_t *ci)
+static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 {
 	char *value = NULL;
 
@@ -936,7 +957,7 @@ static int perl_config_enabledebugger (oconfig_item_t *ci)
 /*
  * IncludeDir "<Dir>"
  */
-static int perl_config_includedir (oconfig_item_t *ci)
+static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 {
 	char *value = NULL;
 
@@ -946,7 +967,7 @@ static int perl_config_includedir (oconfig_item_t *ci)
 
 	value = ci->values[0].value.string;
 
-	if (NULL == perl) {
+	if (NULL == aTHX) {
 		perl_argv = (char **)realloc (perl_argv,
 				(++perl_argc + 1) * sizeof (char *));
 
@@ -963,9 +984,8 @@ static int perl_config_includedir (oconfig_item_t *ci)
 	}
 	else {
 		/* prepend the directory to @INC */
-		Perl_av_unshift (perl, GvAVn (PL_incgv), 1);
-		Perl_av_store (perl, GvAVn (PL_incgv),
-				0, Perl_newSVpv (perl, value, strlen (value)));
+		av_unshift (GvAVn (PL_incgv), 1);
+		av_store (GvAVn (PL_incgv), 0, newSVpv (value, strlen (value)));
 	}
 	return 0;
 } /* static int perl_config_includedir (oconfig_item_it *) */
@@ -974,17 +994,22 @@ static int perl_config (oconfig_item_t *ci)
 {
 	int i = 0;
 
+	dTHXa (NULL);
+
+	PERL_SET_CONTEXT (perl);
+	aTHX = perl;
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "LoadPlugin"))
-			perl_config_loadplugin (c);
+			perl_config_loadplugin (aTHX_ c);
 		else if (0 == strcasecmp (c->key, "BaseName"))
-			perl_config_basename (c);
+			perl_config_basename (aTHX_ c);
 		else if (0 == strcasecmp (c->key, "EnableDebugger"))
-			perl_config_enabledebugger (c);
+			perl_config_enabledebugger (aTHX_ c);
 		else if (0 == strcasecmp (c->key, "IncludeDir"))
-			perl_config_includedir (c);
+			perl_config_includedir (aTHX_ c);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
