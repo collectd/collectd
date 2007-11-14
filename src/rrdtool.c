@@ -735,9 +735,9 @@ static void rrd_cache_flush (int timeout)
 		}
 		else /* ancient and no values -> waste of memory */
 		{
-			keys = (char **) realloc ((void *) keys,
+			char **tmp = (char **) realloc ((void *) keys,
 					(keys_num + 1) * sizeof (char *));
-			if (keys == NULL)
+			if (tmp == NULL)
 			{
 				char errbuf[1024];
 				ERROR ("rrdtool plugin: "
@@ -745,8 +745,10 @@ static void rrd_cache_flush (int timeout)
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				c_avl_iterator_destroy (iter);
+				sfree (keys);
 				return;
 			}
+			keys = tmp;
 			keys[keys_num] = key;
 			keys_num++;
 		}
@@ -769,7 +771,7 @@ static void rrd_cache_flush (int timeout)
 		keys[i] = NULL;
 	} /* for (i = 0..keys_num) */
 
-	free (keys);
+	sfree (keys);
 
 	cache_flush_last = now;
 } /* void rrd_cache_flush */
