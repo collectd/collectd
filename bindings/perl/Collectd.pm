@@ -22,6 +22,14 @@ package Collectd;
 use strict;
 use warnings;
 
+use Config;
+
+BEGIN {
+	if (! $Config{'useithreads'}) {
+		die "Perl does not support ithreads!";
+	}
+}
+
 require Exporter;
 
 our @ISA = qw( Exporter );
