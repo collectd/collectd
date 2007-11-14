@@ -76,7 +76,6 @@ our %EXPORT_TAGS = (
 Exporter::export_ok_tags ('all');
 
 my @plugins  = ();
-my @datasets = ();
 
 my %types = (
 	TYPE_INIT,     "init",
