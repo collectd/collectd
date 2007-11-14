@@ -301,6 +301,10 @@ Prerequisites
   * libpcap (optional)
     Used to capture packets by the `dns' plugin.
 
+  * libperl (optional)
+    Obviously used by the `perl' plugin. The library has to be compiled with
+    ithread support (introduced in Perl 5.6.0).
+
   * librrd (optional; headers and library; rrdtool 1.0 and 1.2 both work fine)
     If built without `librrd' the resulting binary will be `client only', i.e.
     will send its values via multicast and not create any RRD files itself.
