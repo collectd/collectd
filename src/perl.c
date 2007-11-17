@@ -51,6 +51,10 @@
 # error "Perl does not support ithreads!"
 #endif /* !defined(USE_ITHREADS) */
 
+/* clear the Perl sub's stack frame
+ * (this should only be used inside an XSUB) */
+#define CLEAR_STACK_FRAME PL_stack_sp = PL_stack_base + *PL_markstack_ptr
+
 #define PLUGIN_INIT     0
 #define PLUGIN_READ     1
 #define PLUGIN_WRITE    2
@@ -73,6 +77,7 @@ static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
 static XS (Collectd_plugin_log);
+static XS (Collectd_call_by_name);
 
 /*
  * private data types
@@ -121,6 +126,7 @@ static struct {
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
 	{ "Collectd::plugin_log",                 Collectd_plugin_log },
+	{ "Collectd::call_by_name",               Collectd_call_by_name },
 	{ "", NULL }
 };
 
@@ -733,6 +739,35 @@ static XS (Collectd_plugin_log)
 	plugin_log (SvIV (ST (0)), SvPV_nolen (ST (1)));
 	XSRETURN_YES;
 } /* static XS (Collectd_plugin_log) */
+
+/*
+ * Collectd::call_by_name (...).
+ *
+ * Call a Perl sub identified by its name passed through $Collectd::cb_name.
+ */
+static XS (Collectd_call_by_name)
+{
+	SV   *tmp  = NULL;
+	char *name = NULL;
+
+	if (NULL == (tmp = get_sv ("Collectd::cb_name", 0))) {
+		log_debug ("Collectd::call_by_name: cb_name is not set.");
+		CLEAR_STACK_FRAME;
+		return;
+	}
+
+	name = SvPV_nolen (tmp);
+
+	if (NULL == get_cv (name, 0)) {
+		log_err ("Collectd::call_by_name: Unknown callback \"%s\".", name);
+		CLEAR_STACK_FRAME;
+		return;
+	}
+
+	/* simply pass on the subroutine call without touching the stack,
+	 * thus leaving any arguments and return values in place */
+	call_pv (name, 0);
+} /* static XS (Collectd_call_by_name) */
 
 /*
  * collectd's perl interpreter based thread implementation.
