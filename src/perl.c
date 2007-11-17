@@ -751,7 +751,7 @@ static XS (Collectd_call_by_name)
 	char *name = NULL;
 
 	if (NULL == (tmp = get_sv ("Collectd::cb_name", 0))) {
-		log_debug ("Collectd::call_by_name: cb_name is not set.");
+		sv_setpv (get_sv ("@", 1), "cb_name has not been set");
 		CLEAR_STACK_FRAME;
 		return;
 	}
@@ -759,7 +759,7 @@ static XS (Collectd_call_by_name)
 	name = SvPV_nolen (tmp);
 
 	if (NULL == get_cv (name, 0)) {
-		log_err ("Collectd::call_by_name: Unknown callback \"%s\".", name);
+		sv_setpvf (get_sv ("@", 1), "unknown callback \"%s\"", name);
 		CLEAR_STACK_FRAME;
 		return;
 	}
