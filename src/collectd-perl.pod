@@ -50,6 +50,10 @@ using the B<-d:Package> command line option.
 
 See L<perldebug> for detailed documentation about debugging Perl.
 
+This option does not prevent collectd from daemonizing, so you should start
+collectd with the B<-f> command line option. Else you will not be able to use
+the command line driven interface of the debugger.
+
 =item B<IncludeDir> I<Dir>
 
 Adds I<Dir> to the B<@INC> array. This is the same as using the B<-IDir>
