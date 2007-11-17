@@ -26,6 +26,8 @@
 
 #include <pthread.h>
 
+#define DEFAULT_LOGFILE LOCALSTATEDIR"/log/collectd.log"
+
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;
 #else
@@ -107,7 +109,12 @@ static void logfile_log (int severity, const char *msg)
 
 	pthread_mutex_lock (&file_lock);
 
-	if ((log_file == NULL) || (strcasecmp (log_file, "stderr") == 0))
+	if (log_file == NULL)
+	{
+		fh = fopen (DEFAULT_LOGFILE, "a");
+		do_close = 1;
+	}
+	else if (strcasecmp (log_file, "stderr") == 0)
 		fh = stderr;
 	else if (strcasecmp (log_file, "stdout") == 0)
 		fh = stdout;
@@ -121,7 +128,7 @@ static void logfile_log (int severity, const char *msg)
 	{
 			char errbuf[1024];
 			fprintf (stderr, "logfile plugin: fopen (%s) failed: %s\n",
-					(log_file == NULL) ? "<null>" : log_file,
+					(log_file == NULL) ? DEFAULT_LOGFILE : log_file,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 	else
