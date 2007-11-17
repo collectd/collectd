@@ -103,6 +103,9 @@ be used to clean up the plugin (e.g. close sockets, ...).
 
 =back
 
+Any function may set the B<$@> variable to describe errors in more detail. The
+message will be passed on to the user using collectd's logging mechanism.
+
 See the documentation of the B<plugin_register> method in the section
 "METHODS" below for the number and types of arguments passed to each
 B<callback function>. This section also explains how to register B<callback

@@ -143,12 +143,21 @@ sub plugin_call_all {
 		$cb_name = $p->{'cb_name'};
 		$status = call_by_name (@_);
 
-		if (! defined $status) {
-			if (TYPE_LOG != $type) {
-				ERROR ("Could not execute callback \"$cb_name\": $@");
+		if (! $status) {
+			my $err = undef;
+
+			if ($@) {
+				$err = $@;
+			}
+			else {
+				$err = "callback returned false";
 			}
 
-			next;
+			if (TYPE_LOG != $type) {
+				ERROR ("Execution of callback \"$cb_name\" failed: $err");
+			}
+
+			$status = 0;
 		}
 
 		if ($status) {
@@ -156,23 +165,23 @@ sub plugin_call_all {
 			$p->{'wait_time'} = 10;
 		}
 		elsif (TYPE_READ == $type) {
+			WARNING ("${plugin}->read() failed with status $status. "
+				. "Will suspend it for $p->{'wait_left'} seconds.");
+
 			$p->{'wait_left'} = $p->{'wait_time'};
 			$p->{'wait_time'} *= 2;
 
 			if ($p->{'wait_time'} > 86400) {
 				$p->{'wait_time'} = 86400;
 			}
-
-			WARNING ("${plugin}->read() failed with status $status. "
-				. "Will suspend it for $p->{'wait_left'} seconds.");
 		}
 		elsif (TYPE_INIT == $type) {
+			ERROR ("${plugin}->init() failed with status $status. "
+				. "Plugin will be disabled.");
+
 			foreach my $type (keys %types) {
 				plugin_unregister ($type, $plugin);
 			}
-
-			ERROR ("${plugin}->init() failed with status $status. "
-				. "Plugin will be disabled.");
 		}
 		elsif (TYPE_LOG != $type) {
 			WARNING ("${plugin}->$types{$type}() failed with status $status.");
