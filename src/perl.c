@@ -829,7 +829,7 @@ static int perl_init (void)
 		aTHX = t->interp;
 	}
 
-	log_debug ("perl_init: c_ithread: interp = %p (active threads: %i)\n",
+	log_debug ("perl_init: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 	return pplugin_call_all (aTHX_ PLUGIN_INIT);
 } /* static int perl_init (void) */
@@ -851,7 +851,7 @@ static int perl_read (void)
 		aTHX = t->interp;
 	}
 
-	log_debug ("perl_read: c_ithread: interp = %p (active threads: %i)\n",
+	log_debug ("perl_read: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 	return pplugin_call_all (aTHX_ PLUGIN_READ);
 } /* static int perl_read (void) */
@@ -873,7 +873,7 @@ static int perl_write (const data_set_t *ds, const value_list_t *vl)
 		aTHX = t->interp;
 	}
 
-	log_debug ("perl_write: c_ithread: interp = %p (active threads: %i)\n",
+	log_debug ("perl_write: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 	return pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
 } /* static int perl_write (const data_set_t *, const value_list_t *) */
@@ -922,7 +922,7 @@ static int perl_shutdown (void)
 		aTHX = t->interp;
 	}
 
-	log_debug ("perl_shutdown: c_ithread: interp = %p (active threads: %i)\n",
+	log_debug ("perl_shutdown: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 
 	plugin_unregister_log ("perl");
