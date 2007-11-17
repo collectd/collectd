@@ -186,16 +186,22 @@ depending on the value of I<type>. (Please note that the type of the data-set
 is the value passed as I<name> here and has nothing to do with the I<type>
 argument which simply tells B<plugin_register> what is being registered.)
 
-The last argument, I<data>, is either a function- or an array-reference. If
-I<type> is B<TYPE_DATASET>, then the I<data> argument must be an
+The last argument, I<data>, is either a function name or an array-reference.
+If I<type> is B<TYPE_DATASET>, then the I<data> argument must be an
 array-reference which points to an array of hashes. Each hash describes one
 data-source. For the exact layout see B<Data-Set> above. Please note that
 there is a large number of predefined data-sets available in the B<types.db>
 file which are automatically registered with collectd.
 
 If the I<type> argument is any of the other types (B<TYPE_INIT>, B<TYPE_READ>,
-...) then I<data> is expected to be a function reference. These functions are
-called in the various stages of the daemon and are passed the following
+...) then I<data> is expected to be a function name. If the name is not
+prefixed with the plugin's package name collectd will add it automatically.
+The interface slightly differs from the C interface (which expects a function
+pointer instead) because Perl does not support to share references to
+subroutines between threads.
+
+These functions are called in the various stages of the daemon (see the
+section "WRITING YOUR OWN PLUGINS" above) and are passed the following
 arguments:
 
 =over 4
@@ -356,8 +362,8 @@ A very simple write function will look like:
 
 To register those functions with collectd:
 
-  plugin_register (TYPE_READ, "foobar", \&foobar_read);
-  plugin_register (TYPE_WRITE, "foobar", \&foobar_write);
+  plugin_register (TYPE_READ, "foobar", "foobar_read");
+  plugin_register (TYPE_WRITE, "foobar", "foobar_write");
 
 See the section "DATA TYPES" above for a complete documentation of the data
 types used by the read and write functions.
