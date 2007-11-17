@@ -10,6 +10,15 @@ if COMPILER_IS_GCC
 AM_CFLAGS = -Wall -Werror
 endif
 
+AM_CPPFLAGS = -DPREFIX='"${prefix}"'
+AM_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
+AM_CPPFLAGS += -DLOCALSTATEDIR='"${localstatedir}"'
+AM_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
+if BUILD_FEATURE_DAEMON
+AM_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
+endif
+AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
+
 sbin_PROGRAMS = collectd
 bin_PROGRAMS = collectd-nagios
 
@@ -25,14 +34,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_threshold.c utils_threshold.h \
 		   types_list.c types_list.h
 collectd_CPPFLAGS = $(LTDLINCL)
-collectd_CPPFLAGS += -DPREFIX='"${prefix}"'
-collectd_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
-collectd_CPPFLAGS += -DLOCALSTATEDIR='"${localstatedir}"'
-collectd_CPPFLAGS += -DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"'
-if BUILD_FEATURE_DAEMON
-collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
-endif
-collectd_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
+collectd_CPPFLAGS += $(AM_CPPFLAGS)
 
 # Link to these libraries..
 collectd_LDFLAGS = -export-dynamic
@@ -574,7 +576,6 @@ endif
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c utils_cmd_putval.h utils_cmd_putval.c
-unixsock_la_CPPFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
 unixsock_la_LDFLAGS = -module -avoid-version -lpthread
 collectd_LDADD += "-dlopen" unixsock.la
 collectd_DEPENDENCIES += unixsock.la
