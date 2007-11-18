@@ -945,8 +945,12 @@ static int perl_shutdown (void)
 	t = perl_threads->tail;
 
 	while (NULL != t) {
+		c_ithread_t *last = NULL;
+
 		aTHX = t->interp;
 		PERL_SET_CONTEXT (aTHX);
+
+		log_debug ("Shutting down Perl interpreter %p...", aTHX);
 
 #if COLLECT_DEBUG
 		sv_report_used ();
@@ -955,9 +959,10 @@ static int perl_shutdown (void)
 		perl_destruct (aTHX);
 		perl_free (aTHX);
 
+		last = t;
 		t = t->prev;
 
-		sfree (t);
+		sfree (last);
 	}
 
 	pthread_mutex_unlock (&perl_threads->mutex);
