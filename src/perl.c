@@ -1093,7 +1093,7 @@ static int init_pi (int argc, char **argv)
 	perl_threads->tail = perl_threads->head;
 
 	if (NULL == (perl_threads->head->interp = perl_alloc ())) {
-		log_err ("module_register: Not enough memory.");
+		log_err ("init_pi: Not enough memory.");
 		exit (3);
 	}
 
@@ -1105,7 +1105,7 @@ static int init_pi (int argc, char **argv)
 	PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
 
 	if (0 != perl_parse (aTHX_ xs_init, argc, argv, NULL)) {
-		log_err ("module_register: Unable to bootstrap Collectd.");
+		log_err ("init_pi: Unable to bootstrap Collectd.");
 		exit (1);
 	}
 
@@ -1134,8 +1134,10 @@ static int perl_config_loadplugin (pTHX_ oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("LoadPlugin expects a single string argument.");
 		return 1;
+	}
 
 	value = ci->values[0].value.string;
 
@@ -1164,8 +1166,10 @@ static int perl_config_basename (pTHX_ oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("BaseName expects a single string argument.");
 		return 1;
+	}
 
 	value = ci->values[0].value.string;
 
@@ -1183,8 +1187,10 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("EnableDebugger expects a single string argument.");
 		return 1;
+	}
 
 	value = ci->values[0].value.string;
 
@@ -1217,8 +1223,10 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 	char *value = NULL;
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("IncludeDir expects a single string argument.");
 		return 1;
+	}
 
 	value = ci->values[0].value.string;
 
