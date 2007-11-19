@@ -112,6 +112,9 @@ typedef struct {
  * point to the "base" thread */
 static c_ithread_list_t *perl_threads = NULL;
 
+/* the key used to store each pthread's ithread */
+static pthread_key_t perl_thr_key;
+
 static int    perl_argc = 0;
 static char **perl_argv = NULL;
 
@@ -776,6 +779,63 @@ static XS (Collectd_call_by_name)
  */
 
 /* must be called with perl_threads->mutex locked */
+static void c_ithread_destroy (c_ithread_t *ithread)
+{
+	dTHXa (ithread->interp);
+
+	assert (NULL != perl_threads);
+
+	PERL_SET_CONTEXT (aTHX);
+	log_debug ("Shutting down Perl interpreter %p...", aTHX);
+
+#if COLLECT_DEBUG
+	sv_report_used ();
+
+	--perl_threads->number_of_threads;
+#endif /* COLLECT_DEBUG */
+
+	perl_destruct (aTHX);
+	perl_free (aTHX);
+
+	if (NULL == ithread->prev)
+		perl_threads->head = ithread->next;
+	else
+		ithread->prev->next = ithread->next;
+
+	if (NULL == ithread->next)
+		perl_threads->tail = ithread->prev;
+	else
+		ithread->next->prev = ithread->prev;
+
+	sfree (ithread);
+	return;
+} /* static void c_ithread_destroy (c_ithread_t *) */
+
+static void c_ithread_destructor (void *arg)
+{
+	c_ithread_t *ithread = (c_ithread_t *)arg;
+	c_ithread_t *t = NULL;
+
+	if (NULL == perl_threads)
+		return;
+
+	pthread_mutex_lock (&perl_threads->mutex);
+
+	for (t = perl_threads->head; NULL != t; t = t->next)
+		if (t == ithread)
+			break;
+
+	/* the ithread no longer exists */
+	if (NULL == t)
+		return;
+
+	c_ithread_destroy (ithread);
+
+	pthread_mutex_unlock (&perl_threads->mutex);
+	return;
+} /* static void c_ithread_destructor (void *) */
+
+/* must be called with perl_threads->mutex locked */
 static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 {
 	c_ithread_t *t = NULL;
@@ -814,6 +874,8 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 	}
 
 	perl_threads->tail = t;
+
+	pthread_setspecific (perl_thr_key, (const void *)t);
 	return t;
 } /* static c_ithread_t *c_ithread_create (PerlInterpreter *) */
 
@@ -945,29 +1007,21 @@ static int perl_shutdown (void)
 	t = perl_threads->tail;
 
 	while (NULL != t) {
-		c_ithread_t *last = NULL;
+		c_ithread_t *thr = t;
 
-		aTHX = t->interp;
-		PERL_SET_CONTEXT (aTHX);
-
-		log_debug ("Shutting down Perl interpreter %p...", aTHX);
-
-#if COLLECT_DEBUG
-		sv_report_used ();
-#endif /* COLLECT_DEBUG */
-
-		perl_destruct (aTHX);
-		perl_free (aTHX);
-
-		last = t;
+		/* the pointer has to be advanced before destroying
+		 * the thread as this will free the memory */
 		t = t->prev;
 
-		sfree (last);
+		c_ithread_destroy (thr);
 	}
 
 	pthread_mutex_unlock (&perl_threads->mutex);
+	pthread_mutex_destroy (&perl_threads->mutex);
 
 	sfree (perl_threads);
+
+	pthread_key_delete (perl_thr_key);
 
 	PERL_SYS_TERM ();
 
@@ -1017,6 +1071,13 @@ static int init_pi (int argc, char **argv)
 			log_debug ("argv[%i] = \"%s\"", i, argv[i]);
 	}
 #endif /* COLLECT_DEBUG */
+
+	if (0 != pthread_key_create (&perl_thr_key, c_ithread_destructor)) {
+		log_err ("init_pi: pthread_key_create failed");
+
+		/* this must not happen - cowardly giving up if it does */
+		exit (1);
+	}
 
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
 
