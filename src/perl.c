@@ -779,6 +779,7 @@ static XS (Collectd_call_by_name)
 static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 {
 	c_ithread_t *t = NULL;
+	dTHXa (NULL);
 
 	assert (NULL != perl_threads);
 
@@ -788,6 +789,14 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 	t->interp = (NULL == base)
 		? NULL
 		: perl_clone (base, CLONEf_KEEP_PTR_TABLE);
+
+	aTHX = t->interp;
+
+	if (NULL != base) {
+		av_clear (PL_endav);
+		av_undef (PL_endav);
+		PL_endav = Nullav;
+	}
 
 #if COLLECT_DEBUG
 	++perl_threads->number_of_threads;
