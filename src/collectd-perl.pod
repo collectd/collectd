@@ -260,6 +260,25 @@ B<LOG_NOTICE>, B<LOG_INFO> and B<LOG_DEBUG> respectively as I<log-level>.
 
 =back
 
+=head1 GLOBAL VARIABLES
+
+=over 4
+
+=item B<$hostname_g>
+
+As the name suggests this variable keeps the hostname of the system collectd
+is running on. The value might be influenced by the B<Hostname> or
+B<FQDNLookup> configuration options (see L<collectd.conf(5)> for details).
+
+=item B<$interval_g>
+
+This variable keeps the interval in seconds in which the read functions are
+queried (see the B<Interval> configuration option).
+
+=back
+
+Any changes to these variables will be globally visible in collectd.
+
 =head1 EXPORTS
 
 By default no symbols are exported. However, the following export tags are
@@ -330,6 +349,16 @@ available (B<:all> will export all of them):
 =item B<LOG_INFO>
 
 =item B<LOG_DEBUG>
+
+=back
+
+=item B<:globals>
+
+=over 4
+
+=item B<$hostname_g>
+
+=item B<$interval_g>
 
 =back
 

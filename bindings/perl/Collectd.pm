@@ -68,6 +68,10 @@ our %EXPORT_TAGS = (
 			LOG_INFO
 			LOG_DEBUG
 	) ],
+	'globals' => [ qw(
+			$hostname_g
+			$interval_g
+	) ],
 );
 
 {

@@ -154,6 +154,24 @@ struct {
 	{ "", 0 }
 };
 
+struct {
+	char  name[64];
+	char *var;
+} g_strings[] =
+{
+	{ "Collectd::hostname_g", hostname_g },
+	{ "", NULL }
+};
+
+struct {
+	char  name[64];
+	int  *var;
+} g_integers[] =
+{
+	{ "Collectd::interval_g", &interval_g },
+	{ "", NULL }
+};
+
 /*
  * Helper functions for data type conversion.
  */
@@ -1029,10 +1047,50 @@ static int perl_shutdown (void)
 	return ret;
 } /* static void perl_shutdown (void) */
 
+/*
+ * Access functions for global variables.
+ *
+ * These functions implement the "magic" used to access
+ * the global variables from Perl.
+ */
+
+static int g_pv_get (pTHX_ SV *var, MAGIC *mg)
+{
+	char *pv = mg->mg_ptr;
+	sv_setpv (var, pv);
+	return 0;
+} /* static int g_pv_get (pTHX_ SV *, MAGIC *) */
+
+static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
+{
+	char *pv = mg->mg_ptr;
+	strncpy (pv, SvPV_nolen (var), DATA_MAX_NAME_LEN);
+	pv[DATA_MAX_NAME_LEN - 1] = '\0';
+	return 0;
+} /* static int g_pv_set (pTHX_ SV *, MAGIC *) */
+
+static int g_iv_get (pTHX_ SV *var, MAGIC *mg)
+{
+	int *iv = (int *)mg->mg_ptr;
+	sv_setiv (var, *iv);
+	return 0;
+} /* static int g_iv_get (pTHX_ SV *, MAGIC *) */
+
+static int g_iv_set (pTHX_ SV *var, MAGIC *mg)
+{
+	int *iv = (int *)mg->mg_ptr;
+	*iv = (int)SvIV (var);
+	return 0;
+} /* static int g_iv_set (pTHX_ SV *, MAGIC *) */
+
+static MGVTBL g_pv_vtbl = { g_pv_get, g_pv_set, NULL, NULL, NULL };
+static MGVTBL g_iv_vtbl = { g_iv_get, g_iv_set, NULL, NULL, NULL };
+
 /* bootstrap the Collectd module */
 static void xs_init (pTHX)
 {
 	HV   *stash = NULL;
+	SV   *tmp   = NULL;
 	char *file  = __FILE__;
 
 	int i = 0;
@@ -1051,6 +1109,25 @@ static void xs_init (pTHX)
 	/* export "constants" */
 	for (i = 0; '\0' != constants[i].name[0]; ++i)
 		newCONSTSUB (stash, constants[i].name, newSViv (constants[i].value));
+
+	/* export global variables
+	 * by adding "magic" to the SV's representing the globale variables
+	 * perl is able to automagically call the get/set function when
+	 * accessing any such variable (this is basically the same as using
+	 * tie() in Perl) */
+	/* global strings */
+	for (i = 0; '\0' != g_strings[i].name[0]; ++i) {
+		tmp = get_sv (g_strings[i].name, 1);
+		sv_magicext (tmp, NULL, PERL_MAGIC_ext, &g_pv_vtbl,
+				g_strings[i].var, 0);
+	}
+
+	/* global integers */
+	for (i = 0; '\0' != g_integers[i].name[0]; ++i) {
+		tmp = get_sv (g_integers[i].name, 1);
+		sv_magicext (tmp, NULL, PERL_MAGIC_ext, &g_iv_vtbl,
+				(char *)g_integers[i].var, 0);
+	}
 	return;
 } /* static void xs_init (pTHX) */
 
