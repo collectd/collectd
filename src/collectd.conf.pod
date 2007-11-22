@@ -73,12 +73,12 @@ Set the file that contains the data-set descriptions.
 =item B<Interval> I<Seconds>
 
 Configures the interval in which to query the read plugins. Obviously smaller
-values lead to a higher system load produces by collectd, while higher values
+values lead to a higher system load produced by collectd, while higher values
 lead to more coarse statistics.
 
 =item B<ReadThreads> I<Num>
 
-Number of threads to start for reading plugins. The default value if B<5>, but
+Number of threads to start for reading plugins. The default value is B<5>, but
 you may want to increase this if you have more than five plugins that take a
 long time to read. Mostly those are plugin that do network-IO. Setting this to
 a value higher than the number of plugins you've loaded is totally useless.
@@ -91,13 +91,13 @@ hostname will be determinded using the L<gethostname(2)> system call.
 =item B<FQDNLookup> B<true|false>
 
 If B<Hostname> is determined automatically this setting controls whether or not
-the daemon should try to figure out the "full qualified domain name", FQDN.
+the daemon should try to figure out the "fully qualified domain name", FQDN.
 This is done using a lookup of the name returned by C<gethostname>.
 
 Using this feature (i.E<nbsp>e. setting this option to B<true>) is recommended.
 However, to preserve backwards compatibility the default is set to B<false>.
 The sample config file that is installed with C<makeE<nbsp>install> includes a
-line with sets this option, though, so that default installations will have
+line which sets this option, though, so that default installations will have
 this setting enabled.
 
 =back
