@@ -70,7 +70,10 @@ void avl_destroy (avl_tree_t *t);
  * PARAMETERS
  *   `t'        AVL-tree to store the data in.
  *   `key'      Key used to store the value under. This is used to get back to
- *              the value again.
+ *              the value again. The pointer is stored in an internal structure
+ *              and _not_ copied. So the memory pointed to may _not_ be freed
+ *              before this entry is removed. You can use the `rkey' argument
+ *              to `avl_remove' to get the original pointer back and free it.
  *   `value'    Value to be stored.
  *
  * RETURN VALUE
@@ -91,6 +94,10 @@ int avl_insert (avl_tree_t *t, void *key, void *value);
  *   `t'	AVL-tree to remove key-value-pair from.
  *   `key'      Key to identify the entry.
  *   `rkey'     Pointer to a pointer in which to store the key. May be NULL.
+ *              Since the `key' pointer is not copied when creating an entry,
+ *              the pointer may not be available anymore from outside the tree.
+ *              You can use this argument to get the actual pointer back and
+ *              free the memory pointed to by it.
  *   `rvalue'   Pointer to a pointer in which to store the value. May be NULL.
  *
  * RETURN VALUE
