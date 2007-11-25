@@ -54,7 +54,8 @@
 # define WCOREDUMP(s) 0
 #endif /* ! WCOREDUMP */
 
-static int loop = 0;
+static int loop    = 0;
+static int restart = 0;
 
 static char  *pidfile      = NULL;
 static pid_t  collectd_pid = 0;
@@ -202,11 +203,22 @@ static void sig_int_term_handler (int signo)
 	return;
 } /* sig_int_term_handler */
 
+static void sig_hup_handler (int signo)
+{
+	++restart;
+	return;
+} /* sig_hup_handler */
+
 static void log_status (int status)
 {
 	if (WIFEXITED (status)) {
-		syslog (LOG_INFO, "Info: collectd terminated with exit status %i",
-				WEXITSTATUS (status));
+		if (0 == WEXITSTATUS (status))
+			syslog (LOG_INFO, "Info: collectd terminated with exit status %i",
+					WEXITSTATUS (status));
+		else
+			syslog (LOG_WARNING,
+					"Warning: collectd terminated with exit status %i",
+					WEXITSTATUS (status));
 	}
 	else if (WIFSIGNALED (status)) {
 		syslog (LOG_WARNING, "Warning: collectd was terminated by signal %i%s",
@@ -312,6 +324,13 @@ int main (int argc, char **argv)
 		return 1;
 	}
 
+	sa.sa_handler = sig_hup_handler;
+
+	if (0 != sigaction (SIGHUP, &sa, NULL)) {
+		syslog (LOG_ERR, "Error: sigaction() failed: %s", strerror (errno));
+		return 1;
+	}
+
 	sigaddset (&sa.sa_mask, SIGCHLD);
 	if (0 != sigprocmask (SIG_BLOCK, &sa.sa_mask, NULL)) {
 		syslog (LOG_ERR, "Error: sigprocmask() failed: %s", strerror (errno));
@@ -329,7 +348,7 @@ int main (int argc, char **argv)
 		assert (0 < collectd_pid);
 		while ((collectd_pid != waitpid (collectd_pid, &status, 0))
 				&& (EINTR == errno))
-			if (0 != loop)
+			if ((0 != loop) || (0 != restart))
 				collectd_stop ();
 
 		collectd_pid = 0;
@@ -337,7 +356,11 @@ int main (int argc, char **argv)
 		log_status (status);
 		check_respawn ();
 
-		if (0 == loop)
+		if (0 != restart) {
+			syslog (LOG_INFO, "Info: restarting collectd");
+			restart = 0;
+		}
+		else if (0 == loop)
 			syslog (LOG_WARNING, "Warning: restarting collectd");
 	}
 
