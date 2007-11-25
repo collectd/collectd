@@ -19,7 +19,7 @@ AM_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 
-sbin_PROGRAMS = collectd
+sbin_PROGRAMS = collectd collectdmon
 bin_PROGRAMS = collectd-nagios
 
 collectd_SOURCES = collectd.c collectd.h \
@@ -76,6 +76,9 @@ collectd_DEPENDENCIES += $(LIBLTDL) liboconfig/liboconfig.la
 else
 collectd_LDFLAGS += -loconfig
 endif
+
+collectdmon_SOURCES = collectdmon.c
+collectdmon_CPPFLAGS = $(AM_CPPFLAGS)
 
 collectd_nagios_SOURCES = collectd-nagios.c
 collectd_nagios_LDFLAGS =
