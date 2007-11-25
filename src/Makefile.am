@@ -630,7 +630,7 @@ endif
 
 dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5 \
 		collectd-email.5 collectd-exec.5 collectd-perl.5 \
-		collectd-snmp.5 collectd-unixsock.5
+		collectd-snmp.5 collectd-unixsock.5 collectdmon.1
 
 #collectd_1_SOURCES = collectd.pod
 
@@ -638,7 +638,7 @@ EXTRA_DIST = types.db
 
 EXTRA_DIST += collectd-email.pod collectd-exec.pod collectd-nagios.pod \
 	collectd-perl.pod collectd-snmp.pod collectd-unixsock.pod \
-	collectd.conf.pod collectd.pod
+	collectd.conf.pod collectd.pod collectdmon.pod
 
 .pod.1:
 	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
