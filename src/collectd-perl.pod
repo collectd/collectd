@@ -404,12 +404,38 @@ To register those functions with collectd:
 See the section "DATA TYPES" above for a complete documentation of the data
 types used by the read and write functions.
 
-=head1 BUGS
+=head1 CAVEATS
 
-This plugin does not yet work correctly if collectd uses multiple threads.
-Perl does not allow multiple threads to access a single interpreter at the
-same time. As a temporary workaround you should use a single read thread only
-(see collectd's B<ReadThread> configuration option).
+=over 4
+
+=item
+
+collectd is heavily multi-threaded. Each collectd thread accessing the perl
+plugin will be mapped to a Perl interpreter thread (see L<threads(3perl)>).
+Any such thread will be created and destroyed transparently and on-the-fly.
+
+Hence, any plugin has to be thread-safe if it provides several entry points
+from collectd (i.E<nbsp>e. if it registers more than one callback). Please
+note that no data is shared between threads by default. You have to use the
+B<threads::shared> module to do so.
+
+=item
+
+Each function name registered with collectd has to be available before the
+first thread has been created (i.E<nbsp>e. basically at compile time). This
+basically means that hacks (yes, I really consider this to be a hack) like
+C<*foo = \&bar; plugin_register (TYPE_READ, "plugin", "foo");> most likely
+will not work. This is due to the fact that the symbol table is not shared
+across different threads.
+
+=item
+
+Each plugin is usually only loaded once and kept in memory for performance
+reasons. Therefore, END blocks are only executed once when collectd shuts
+down. You should not rely on END blocks anyway - use B<shutdown functions>
+instead.
+
+=back
 
 =head1 SEE ALSO
 
@@ -417,6 +443,8 @@ L<collectd(1)>,
 L<collectd.conf(5)>,
 L<collectd-exec(5)>,
 L<perl(1)>,
+L<threads(3perl)>,
+L<threads::shared(3perl)>,
 L<perldebug(1)>
 
 =head1 AUTHOR
