@@ -388,6 +388,7 @@ static char *get_module_name (char *buf, size_t buf_len, const char *module) {
 static int pplugin_register_data_set (pTHX_ char *name, AV *dataset)
 {
 	int len = -1;
+	int ret = 0;
 	int i   = 0;
 
 	data_source_t *ds  = NULL;
@@ -428,7 +429,12 @@ static int pplugin_register_data_set (pTHX_ char *name, AV *dataset)
 
 	set->ds_num = len + 1;
 	set->ds = ds;
-	return plugin_register_data_set (set);
+
+	ret = plugin_register_data_set (set);
+
+	free (ds);
+	free (set);
+	return ret;
 } /* static int pplugin_register_data_set (char *, SV *) */
 
 /*
