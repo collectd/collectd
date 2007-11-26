@@ -17,25 +17,28 @@ package Collectd::Plugin::MyPlugin;
 use strict;
 use warnings;
 
+use Collectd qw( :all );
+
 # data set definition:
 # see section "DATA TYPES" in collectd-perl(5) for details
+# (take a look at the types.db file for a large list of predefined data-sets)
 my $dataset =
 [
 	{
 		name => 'my_ds',
-		type => Collectd::DS_TYPE_GAUGE,
+		type => DS_TYPE_GAUGE,
 		min  => 0,
 		max  => 65535,
 	},
 ];
 
 # This code is executed after loading the plugin to register it with collectd.
-Collectd::plugin_register (Collectd::TYPE_LOG, 'myplugin', \&my_log);
-Collectd::plugin_register (Collectd::TYPE_DATASET, 'myplugin', $dataset);
-Collectd::plugin_register (Collectd::TYPE_INIT, 'myplugin', \&my_init);
-Collectd::plugin_register (Collectd::TYPE_READ, 'myplugin', \&my_read);
-Collectd::plugin_register (Collectd::TYPE_WRITE, 'myplugin', \&my_write);
-Collectd::plugin_register (Collectd::TYPE_SHUTDOWN, 'myplugin', \&my_shutdown);
+plugin_register (TYPE_LOG, 'myplugin', 'my_log');
+plugin_register (TYPE_DATASET, 'myplugin', $dataset);
+plugin_register (TYPE_INIT, 'myplugin', 'my_init');
+plugin_register (TYPE_READ, 'myplugin', 'my_read');
+plugin_register (TYPE_WRITE, 'myplugin', 'my_write');
+plugin_register (TYPE_SHUTDOWN, 'myplugin', 'my_shutdown');
 
 # For each of the functions below see collectd-perl(5) for details about
 # arguments and the like.
@@ -67,7 +70,7 @@ sub my_read
 	# dispatch the values to collectd which passes them on to all registered
 	# write functions - the first argument is used to lookup the data set
 	# definition
-	Collectd::plugin_dispatch_values ('myplugin', $vl);
+	plugin_dispatch_values ('myplugin', $vl);
 
 	# A false return value indicates an error and the plugin will be skipped
 	# for an increasing amount of time.
@@ -82,7 +85,7 @@ sub my_write
 	my $vl   = shift;
 
 	if (scalar (@$ds) != scalar (@{$vl->{'values'}})) {
-		Collectd::plugin_log (Collectd::LOG_WARNING,
+		plugin_log (LOG_WARNING,
 			"DS number does not match values length");
 		return;
 	}
