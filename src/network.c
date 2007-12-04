@@ -683,6 +683,15 @@ static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
 	int loop = 0;
 
+	/* allow multiple sockets to use the same PORT number */
+	if (setsockopt(se->fd, SOL_SOCKET, SO_REUSEADDR,
+				&loop, sizeof(loop)) == -1) {
+                char errbuf[1024];
+                ERROR ("setsockopt: %s", 
+                                sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
 	DEBUG ("fd = %i; calling `bind'", se->fd);
 
 	if (bind (se->fd, ai->ai_addr, ai->ai_addrlen) == -1)
