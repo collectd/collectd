@@ -682,10 +682,11 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
 	int loop = 0;
+	int yes  = 1;
 
 	/* allow multiple sockets to use the same PORT number */
 	if (setsockopt(se->fd, SOL_SOCKET, SO_REUSEADDR,
-				&loop, sizeof(loop)) == -1) {
+				&yes, sizeof(yes)) == -1) {
                 char errbuf[1024];
                 ERROR ("setsockopt: %s", 
                                 sstrerror (errno, errbuf, sizeof (errbuf)));
