@@ -231,21 +231,13 @@ static int disk_read (void)
 	int  disk_minor;
 	char disk_name[64];
 
-	static complain_t complain_obj;
-
 	/* Get the list of all disk objects. */
 	if (IOServiceGetMatchingServices (io_master_port,
 				IOServiceMatching (kIOBlockStorageDriverClass),
 				&disk_list) != kIOReturnSuccess)
 	{
-		plugin_complain (LOG_ERR, &complain_obj, "disk plugin: "
-				"IOServiceGetMatchingServices failed.");
+		ERROR ("disk plugin: IOServiceGetMatchingServices failed.");
 		return (-1);
-	}
-	else if (complain_obj.interval != 0)
-	{
-		plugin_relief (LOG_NOTICE, &complain_obj, "disk plugin: "
-				"IOServiceGetMatchingServices succeeded.");
 	}
 
 	while ((disk = IOIteratorNext (disk_list)) != 0)
@@ -386,24 +378,18 @@ static int disk_read (void)
 
 	diskstats_t *ds, *pre_ds;
 
-	static complain_t complain_obj;
-
 	if ((fh = fopen ("/proc/diskstats", "r")) == NULL)
 	{
-		if ((fh = fopen ("/proc/partitions", "r")) == NULL)
+		fh = fopen ("/proc/partitions", "r");
+		if (fh == NULL)
 		{
-			plugin_complain (LOG_ERR, &complain_obj,
-					"disk plugin: Failed to open /proc/"
-					"{diskstats,partitions}.");
+			ERROR ("disk plugin: fopen (/proc/{diskstats,partitions}) failed.");
 			return (-1);
 		}
 
 		/* Kernel is 2.4.* */
 		fieldshift = 1;
 	}
-
-	plugin_relief (LOG_NOTICE, &complain_obj, "disk plugin: "
-			"Succeeded to open /proc/{diskstats,partitions}.");
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
