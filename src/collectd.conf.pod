@@ -735,6 +735,13 @@ Hostname of the host running B<ntpd>. Defaults to B<localhost>.
 
 UDP-Port to connect to. Defaults to B<123>.
 
+=item B<ReverseLookups> B<true>|B<false>
+
+Sets wether or not to perform reverse lookups on peers. Since the name or
+IP-address may be used in a filename it is recommended to disable reverse
+lookups. The default is to do reverse lookups to preserve backwards
+compatibility, though.
+
 =back
 
 =head2 Plugin C<nut>

@@ -50,9 +50,11 @@ static const char *config_keys[] =
 {
 	"Host",
 	"Port",
-	NULL
+	"ReverseLookups"
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static int do_reverse_lookups = 1;
 
 # define NTPD_DEFAULT_HOST "localhost"
 # define NTPD_DEFAULT_PORT "123"
@@ -247,9 +249,9 @@ static char *refclock_names[] =
 	"CHRONOLOG",  "DUMBCLOCK",    "ULINK_M320", "PCF",         /* 32-35 */
 	"WWV_AUDIO",  "GPS_FG",       "HOPF_S",     "HOPF_P",      /* 36-39 */
 	"JJY",        "TT_IRIG",      "GPS_ZYFER",  "GPS_RIPENCC", /* 40-43 */
-	"NEOCLK4X",   NULL                                         /* 44    */
+	"NEOCLK4X"                                                 /* 44    */
 };
-static int refclock_names_num = 45;
+static int refclock_names_num = STATIC_ARRAY_SIZE (refclock_names);
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -272,6 +274,15 @@ static int ntpd_config (const char *key, const char *value)
 		else
 			strncpy (ntpd_port, value, sizeof (ntpd_port));
 		ntpd_port[sizeof (ntpd_port) - 1] = '\0';
+	}
+	else if (strcasecmp (key, "ReverseLookups") == 0)
+	{
+		if ((strcasecmp (value, "True") == 0)
+				|| (strcasecmp (value, "Yes") == 0)
+				|| (strcasecmp (value, "On") == 0))
+			do_reverse_lookups = 1;
+		else
+			do_reverse_lookups = 0;
 	}
 	else
 	{
@@ -848,38 +859,13 @@ static int ntpd_read (void)
 		ptr = ps + i;
 		refclock_id = 0;
 
-		/*
-		if (((ntohl (ptr->dstadr) & 0xFFFFFF00) == 0x7F000000) || (ptr->dstadr == 0))
-			continue;
-			*/
-
 		/* Convert the `long floating point' offset value to double */
 		M_LFPTOD (ntohl (ptr->offset_int), ntohl (ptr->offset_frc), offset);
 
-		if (ptr->v6_flag)
-		{
-			struct sockaddr_in6 sa;
-
-			memset (&sa, 0, sizeof (sa));
-			sa.sin6_family = AF_INET6;
-			sa.sin6_port = htons (123);
-			memcpy (&sa.sin6_addr, &ptr->srcadr6, sizeof (struct in6_addr));
-
-			status = getnameinfo ((const struct sockaddr *) &sa,
-					sizeof (sa),
-					peername, sizeof (peername),
-					NULL, 0, 0 /* no flags */);
-			if (status != 0)
-			{
-				char errbuf[1024];
-				ERROR ("ntpd plugin: getnameinfo failed: %s",
-						(status == EAI_SYSTEM)
-						? sstrerror (errno, errbuf, sizeof (errbuf))
-						: gai_strerror (status));
-				continue;
-			}
-		}
-		else if ((ntohl (ptr->srcadr) & REFCLOCK_MASK) == REFCLOCK_ADDR)
+		/* Special IP addresses for hardware clocks and stuff.. */
+		if (!ptr->v6_flag
+				&& ((ntohl (ptr->srcadr) & REFCLOCK_MASK)
+					== REFCLOCK_ADDR))
 		{
 			struct in_addr  addr_obj;
 			char *addr_str;
@@ -900,25 +886,53 @@ static int ntpd_read (void)
 				strncpy (peername, addr_str, sizeof (peername));
 			}
 		}
-		else /* IPv4 */
+		else /* Normal network host. */
 		{
-			struct in_addr  addr_obj;
-			struct hostent *addr_he;
-			char           *addr_str;
+			struct sockaddr_storage sa;
+			socklen_t sa_len;
+			int flags = 0;
 
-			memset ((void *) &addr_obj, '\0', sizeof (addr_obj));
-			addr_obj.s_addr = ptr->srcadr;
-			addr_str = inet_ntoa (addr_obj);
+			memset (&sa, '\0', sizeof (sa));
 
-			addr_he = gethostbyaddr ((const void *) &addr_obj,
-					sizeof (addr_obj), AF_INET);
-			if (addr_he != NULL)
+			if (ptr->v6_flag)
 			{
-				strncpy (peername, addr_he->h_name, sizeof (peername));
+				struct sockaddr_in6 *sa_ptr;
+				sa_ptr = (struct sockaddr_in6 *) &sa;
+
+				sa_ptr->sin6_family = AF_INET6;
+				sa_ptr->sin6_port = htons (123);
+				memcpy (&sa_ptr->sin6_addr, &ptr->srcadr6,
+						sizeof (struct in6_addr));
+				sa_len = sizeof (struct sockaddr_in6);
 			}
 			else
 			{
-				strncpy (peername, addr_str, sizeof (peername));
+				struct sockaddr_in *sa_ptr;
+				sa_ptr = (struct sockaddr_in *) &sa;
+
+				sa_ptr->sin_family = AF_INET;
+				sa_ptr->sin_port = htons (123);
+				memcpy (&sa_ptr->sin_addr, &ptr->srcadr,
+						sizeof (struct in_addr));
+				sa_len = sizeof (struct sockaddr_in);
+			}
+
+			if (do_reverse_lookups == 0)
+				flags |= NI_NUMERICHOST;
+
+			status = getnameinfo ((const struct sockaddr *) &sa,
+					sa_len,
+					peername, sizeof (peername),
+					NULL, 0, /* No port name */
+					flags);
+			if (status != 0)
+			{
+				char errbuf[1024];
+				ERROR ("ntpd plugin: getnameinfo failed: %s",
+						(status == EAI_SYSTEM)
+						? sstrerror (errno, errbuf, sizeof (errbuf))
+						: gai_strerror (status));
+				continue;
 			}
 		}
 

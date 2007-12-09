@@ -173,6 +173,7 @@ FQDNLookup   true
 #<Plugin ntpd>
 #	Host "localhost"
 #	Port 123
+#	ReverseLookups false
 #</Plugin>
 
 #<Plugin nut>
