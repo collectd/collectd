@@ -97,12 +97,6 @@ struct data_set_s
 };
 typedef struct data_set_s data_set_t;
 
-typedef struct complain_s
-{
-	unsigned int interval; /* how long we wait for reporting this error again */
-	unsigned int delay;    /* how many more iterations we still need to wait */
-} complain_t;
-
 typedef struct notification_s
 {
 	int    severity;
@@ -217,10 +211,6 @@ void plugin_log (int level, const char *format, ...);
 #else /* COLLECT_DEBUG */
 # define DEBUG(...)  /* noop */
 #endif /* ! COLLECT_DEBUG */
-
-/* TODO: Move plugin_{complain,relief} into `utils_complain.[ch]'. -octo */
-void plugin_complain (int level, complain_t *c, const char *format, ...);
-void plugin_relief (int level, complain_t *c, const char *format, ...);
 
 const data_set_t *plugin_get_ds (const char *name);
 
