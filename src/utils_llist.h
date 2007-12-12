@@ -44,12 +44,14 @@ typedef struct llist_s llist_t;
 llist_t *llist_create (void);
 void llist_destroy (llist_t *l);
 
-llentry_t *llentry_create (const char *key, void *value);
+llentry_t *llentry_create (char *key, void *value);
 void llentry_destroy (llentry_t *e);
 
 void llist_append (llist_t *l, llentry_t *e);
 void llist_prepend (llist_t *l, llentry_t *e);
 void llist_remove (llist_t *l, llentry_t *e);
+
+int llist_size (llist_t *l);
 
 llentry_t *llist_search (llist_t *l, const char *key);
 
