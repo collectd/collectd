@@ -35,6 +35,7 @@ struct llist_s
 {
 	llentry_t *head;
 	llentry_t *tail;
+	int size;
 };
 
 /*
@@ -67,22 +68,16 @@ void llist_destroy (llist_t *l)
 	free (l);
 }
 
-llentry_t *llentry_create (const char *key, void *value)
+llentry_t *llentry_create (char *key, void *value)
 {
 	llentry_t *e;
 
 	e = (llentry_t *) malloc (sizeof (llentry_t));
-	if (e == NULL)
-		return (NULL);
-
-	e->key   = strdup (key);
-	e->value = value;
-	e->next  = NULL;
-
-	if (e->key == NULL)
+	if (e)
 	{
-		free (e);
-		return (NULL);
+		e->key   = key;
+		e->value = value;
+		e->next  = NULL;
 	}
 
 	return (e);
@@ -90,7 +85,6 @@ llentry_t *llentry_create (const char *key, void *value)
 
 void llentry_destroy (llentry_t *e)
 {
-	free (e->key);
 	free (e);
 }
 
@@ -104,12 +98,15 @@ void llist_append (llist_t *l, llentry_t *e)
 		l->tail->next = e;
 
 	l->tail = e;
+
+	++(l->size);
 }
 
 void llist_prepend (llist_t *l, llentry_t *e)
 {
 	e->next = l->head;
 	l->head = e;
+	++(l->size);
 }
 
 void llist_remove (llist_t *l, llentry_t *e)
@@ -126,6 +123,13 @@ void llist_remove (llist_t *l, llentry_t *e)
 		l->head = e->next;
 	if (l->tail == e)
 		l->tail = prev;
+
+	--(l->size);
+}
+
+int llist_size (llist_t *l)
+{
+	return (l ? l->size : 0);
 }
 
 llentry_t *llist_search (llist_t *l, const char *key)

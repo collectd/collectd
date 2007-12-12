@@ -79,6 +79,7 @@ static const char *plugin_get_dir (void)
 static int register_callback (llist_t **list, const char *name, void *callback)
 {
 	llentry_t *le;
+	char *key;
 
 	if ((*list == NULL)
 			&& ((*list = llist_create ()) == NULL))
@@ -87,9 +88,16 @@ static int register_callback (llist_t **list, const char *name, void *callback)
 	le = llist_search (*list, name);
 	if (le == NULL)
 	{
-		le = llentry_create (name, callback);
-		if (le == NULL)
+		key = strdup (name);
+		if (key == NULL)
 			return (-1);
+
+		le = llentry_create (key, callback);
+		if (le == NULL)
+		{
+			free (key);
+			return (-1);
+		}
 
 		llist_append (*list, le);
 	}
@@ -111,6 +119,7 @@ static int plugin_unregister (llist_t *list, const char *name)
 		return (-1);
 
 	llist_remove (list, e);
+	free (e->key);
 	llentry_destroy (e);
 
 	return (0);
@@ -499,6 +508,7 @@ int plugin_unregister_read (const char *name)
 
 	llist_remove (list_read, e);
 	free (e->value);
+	free (e->key);
 	llentry_destroy (e);
 
 	return (0);
@@ -529,6 +539,7 @@ int plugin_unregister_data_set (const char *name)
 
 	llist_remove (list_data_set, e);
 	ds = (data_set_t *) e->value;
+	free (e->key);
 	llentry_destroy (e);
 
 	sfree (ds->ds);
