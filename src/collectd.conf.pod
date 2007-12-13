@@ -32,6 +32,10 @@ ignored. Values are either string, enclosed in double-quotes,
 B<false>. String containing of only alphanumeric characters and underscores do
 not need to be quoted.
 
+Plugins are loaded in the order listed in this config file. It is a good idea
+to load any logging plugins first in order to catch messages from plugins
+during configuration.
+
 =head1 GLOBAL OPTIONS
 
 =over 4
@@ -229,7 +233,7 @@ Sets the socket-file which is to be created.
 
 =item B<SocketGroup> I<Group>
 
-If running as root change the group of the UNIX-socket after it has been 
+If running as root change the group of the UNIX-socket after it has been
 created. Defaults to B<collectd>.
 
 =item B<SocketPerms> I<Permissions>
@@ -858,7 +862,7 @@ Sets the socket-file which is to be created.
 
 =item B<SocketGroup> I<Group>
 
-If running as root change the group of the UNIX-socket after it has been 
+If running as root change the group of the UNIX-socket after it has been
 created. Defaults to B<collectd>.
 
 =item B<SocketPerms> I<Permissions>
