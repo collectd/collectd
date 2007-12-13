@@ -518,7 +518,7 @@ int avl_insert (avl_tree_t *t, void *key, void *value)
 		if (cmp == 0)
 		{
 			free_node (new);
-			return (-1);
+			return (1);
 		}
 		else if (cmp < 0)
 		{
