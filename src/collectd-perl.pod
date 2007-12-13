@@ -61,7 +61,7 @@ only has effect on plugins loaded after this option.
 
 =head1 WRITING YOUR OWN PLUGINS
 
-Writing your own plugins is quite simply. collectd manages plugins by means of
+Writing your own plugins is quite simple. collectd manages plugins by means of
 B<dispatch functions> which call the appropriate B<callback functions>
 registered by the plugins. Any plugin basically consists of the implementation
 of these callback functions and initializing code which registers the

@@ -72,7 +72,7 @@ static int logfile_config (const char *key, const char *value)
 		sfree (log_file);
 		log_file = strdup (value);
 	}
-	else if (0 == strcasecmp (key, "File")) {
+	else if (0 == strcasecmp (key, "Timestamp")) {
 		if ((strcasecmp (value, "false") == 0)
 				|| (strcasecmp (value, "no") == 0)
 				|| (strcasecmp (value, "off") == 0))
