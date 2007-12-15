@@ -1,3 +1,11 @@
+2007-12-15, Version 4.2.2
+	* nginx plugin: Incorrect comparison of strings lead to a segfault
+	  when using the plugin. Thanks to Saulius Grigaliunas for fixing
+	  this.
+	* logfile plugin: The config option `Timestamp' was handled
+	  incorrectly and basically always active. Thanks to Luke Heberling
+	  for fixing this.
+
 2007-11-08, Version 4.2.1
 	* tcpconns plugin: Don't complain about a missing file if IPv6 is not
 	  enabled on the host.
