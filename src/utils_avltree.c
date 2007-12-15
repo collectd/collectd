@@ -35,35 +35,35 @@
 /*
  * private data types
  */
-struct avl_node_s
+struct c_avl_node_s
 {
 	void *key;
 	void *value;
 
 	int height;
-	struct avl_node_s *left;
-	struct avl_node_s *right;
-	struct avl_node_s *parent;
+	struct c_avl_node_s *left;
+	struct c_avl_node_s *right;
+	struct c_avl_node_s *parent;
 };
-typedef struct avl_node_s avl_node_t;
+typedef struct c_avl_node_s c_avl_node_t;
 
-struct avl_tree_s
+struct c_avl_tree_s
 {
-	avl_node_t *root;
+	c_avl_node_t *root;
 	int (*compare) (const void *, const void *);
 };
 
-struct avl_iterator_s
+struct c_avl_iterator_s
 {
-	avl_tree_t *tree;
-	avl_node_t *node;
+	c_avl_tree_t *tree;
+	c_avl_node_t *node;
 };
 
 /*
  * private functions
  */
 #if 0
-static void verify_tree (avl_node_t *n)
+static void verify_tree (c_avl_node_t *n)
 {
 	if (n == NULL)
 		return;
@@ -78,7 +78,7 @@ static void verify_tree (avl_node_t *n)
 # define verify_tree(n) /**/
 #endif
 
-static void free_node (avl_node_t *n)
+static void free_node (c_avl_node_t *n)
 {
 	if (n == NULL)
 		return;
@@ -91,7 +91,7 @@ static void free_node (avl_node_t *n)
 	free (n);
 }
 
-static int calc_height (avl_node_t *n)
+static int calc_height (c_avl_node_t *n)
 {
 	int height_left;
 	int height_right;
@@ -107,9 +107,9 @@ static int calc_height (avl_node_t *n)
 				: height_right) + 1);
 } /* int calc_height */
 
-static avl_node_t *search (avl_tree_t *t, const void *key)
+static c_avl_node_t *search (c_avl_tree_t *t, const void *key)
 {
-	avl_node_t *n;
+	c_avl_node_t *n;
 	int cmp;
 
 	n = t->root;
@@ -135,11 +135,11 @@ static avl_node_t *search (avl_tree_t *t, const void *key)
  *  / a\ /_b\               /_b\ /_c\
  * /____\
  */
-static avl_node_t *rotate_right (avl_tree_t *t, avl_node_t *x)
+static c_avl_node_t *rotate_right (c_avl_tree_t *t, c_avl_node_t *x)
 {
-	avl_node_t *p;
-	avl_node_t *y;
-	avl_node_t *b;
+	c_avl_node_t *p;
+	c_avl_node_t *y;
+	c_avl_node_t *b;
 
 	p = x->parent;
 	y = x->left;
@@ -176,11 +176,11 @@ static avl_node_t *rotate_right (avl_tree_t *t, avl_node_t *x)
  *     /_b\ / c\     /_a\ /_b\
  *         /____\
  */
-static avl_node_t *rotate_left (avl_tree_t *t, avl_node_t *x)
+static c_avl_node_t *rotate_left (c_avl_tree_t *t, c_avl_node_t *x)
 {
-	avl_node_t *p;
-	avl_node_t *y;
-	avl_node_t *b;
+	c_avl_node_t *p;
+	c_avl_node_t *y;
+	c_avl_node_t *b;
 
 	p = x->parent;
 	y = x->right;
@@ -208,19 +208,19 @@ static avl_node_t *rotate_left (avl_tree_t *t, avl_node_t *x)
 	return (y);
 } /* void rotate_left */
 
-static avl_node_t *rotate_left_right (avl_tree_t *t, avl_node_t *x)
+static c_avl_node_t *rotate_left_right (c_avl_tree_t *t, c_avl_node_t *x)
 {
 	rotate_left (t, x->left);
 	return (rotate_right (t, x));
 } /* void rotate_left_right */
 
-static avl_node_t *rotate_right_left (avl_tree_t *t, avl_node_t *x)
+static c_avl_node_t *rotate_right_left (c_avl_tree_t *t, c_avl_node_t *x)
 {
 	rotate_right (t, x->right);
 	return (rotate_left (t, x));
 } /* void rotate_right_left */
 
-static void rebalance (avl_tree_t *t, avl_node_t *n)
+static void rebalance (c_avl_tree_t *t, c_avl_node_t *n)
 {
 	int b_top;
 	int b_bottom;
@@ -264,9 +264,9 @@ static void rebalance (avl_tree_t *t, avl_node_t *n)
 	} /* while (n != NULL) */
 } /* void rebalance */
 
-static avl_node_t *avl_node_next (avl_tree_t *t, avl_node_t *n)
+static c_avl_node_t *c_avl_node_next (c_avl_tree_t *t, c_avl_node_t *n)
 {
-	avl_node_t *r; /* return node */
+	c_avl_node_t *r; /* return node */
 
 	if (n == NULL)
 	{
@@ -307,11 +307,11 @@ static avl_node_t *avl_node_next (avl_tree_t *t, avl_node_t *n)
 	}
 
 	return (r);
-} /* avl_node_t *avl_node_next */
+} /* c_avl_node_t *c_avl_node_next */
 
-static avl_node_t *avl_node_prev (avl_tree_t *t, avl_node_t *n)
+static c_avl_node_t *c_avl_node_prev (c_avl_tree_t *t, c_avl_node_t *n)
 {
-	avl_node_t *r; /* return node */
+	c_avl_node_t *r; /* return node */
 
 	if (n == NULL)
 	{
@@ -352,25 +352,25 @@ static avl_node_t *avl_node_prev (avl_tree_t *t, avl_node_t *n)
 	}
 
 	return (r);
-} /* avl_node_t *avl_node_prev */
+} /* c_avl_node_t *c_avl_node_prev */
 
-static int _remove (avl_tree_t *t, avl_node_t *n)
+static int _remove (c_avl_tree_t *t, c_avl_node_t *n)
 {
 	assert ((t != NULL) && (n != NULL));
 
 	if ((n->left != NULL) && (n->right != NULL))
 	{
-		avl_node_t *r; /* replacement node */
+		c_avl_node_t *r; /* replacement node */
 		if (BALANCE (n) > 0) /* left subtree is higher */
 		{
 			assert (n->left != NULL);
-			r = avl_node_prev (t, n);
+			r = c_avl_node_prev (t, n);
 			
 		}
 		else /* right subtree is higher */
 		{
 			assert (n->right != NULL);
-			r = avl_node_next (t, n);
+			r = c_avl_node_next (t, n);
 		}
 
 		assert ((r->left == NULL) || (r->right == NULL));
@@ -467,14 +467,14 @@ static int _remove (avl_tree_t *t, avl_node_t *n)
 /*
  * public functions
  */
-avl_tree_t *avl_create (int (*compare) (const void *, const void *))
+c_avl_tree_t *c_avl_create (int (*compare) (const void *, const void *))
 {
-	avl_tree_t *t;
+	c_avl_tree_t *t;
 
 	if (compare == NULL)
 		return (NULL);
 
-	if ((t = (avl_tree_t *) malloc (sizeof (avl_tree_t))) == NULL)
+	if ((t = (c_avl_tree_t *) malloc (sizeof (c_avl_tree_t))) == NULL)
 		return (NULL);
 
 	t->root = NULL;
@@ -483,19 +483,19 @@ avl_tree_t *avl_create (int (*compare) (const void *, const void *))
 	return (t);
 }
 
-void avl_destroy (avl_tree_t *t)
+void c_avl_destroy (c_avl_tree_t *t)
 {
 	free_node (t->root);
 	free (t);
 }
 
-int avl_insert (avl_tree_t *t, void *key, void *value)
+int c_avl_insert (c_avl_tree_t *t, void *key, void *value)
 {
-	avl_node_t *new;
-	avl_node_t *nptr;
+	c_avl_node_t *new;
+	c_avl_node_t *nptr;
 	int cmp;
 
-	if ((new = (avl_node_t *) malloc (sizeof (avl_node_t))) == NULL)
+	if ((new = (c_avl_node_t *) malloc (sizeof (c_avl_node_t))) == NULL)
 		return (-1);
 
 	new->key = key;
@@ -554,11 +554,11 @@ int avl_insert (avl_tree_t *t, void *key, void *value)
 
 	verify_tree (t->root);
 	return (0);
-} /* int avl_insert */
+} /* int c_avl_insert */
 
-int avl_remove (avl_tree_t *t, const void *key, void **rkey, void **rvalue)
+int c_avl_remove (c_avl_tree_t *t, const void *key, void **rkey, void **rvalue)
 {
-	avl_node_t *n;
+	c_avl_node_t *n;
 	int status;
 
 	assert (t != NULL);
@@ -575,11 +575,11 @@ int avl_remove (avl_tree_t *t, const void *key, void **rkey, void **rvalue)
 	status = _remove (t, n);
 	verify_tree (t->root);
 	return (status);
-} /* void *avl_remove */
+} /* void *c_avl_remove */
 
-int avl_get (avl_tree_t *t, const void *key, void **value)
+int c_avl_get (c_avl_tree_t *t, const void *key, void **value)
 {
-	avl_node_t *n;
+	c_avl_node_t *n;
 
 	n = search (t, key);
 	if (n == NULL)
@@ -591,10 +591,10 @@ int avl_get (avl_tree_t *t, const void *key, void **value)
 	return (0);
 }
 
-int avl_pick (avl_tree_t *t, void **key, void **value)
+int c_avl_pick (c_avl_tree_t *t, void **key, void **value)
 {
-	avl_node_t *n;
-	avl_node_t *p;
+	c_avl_node_t *n;
+	c_avl_node_t *p;
 
 	if ((key == NULL) || (value == NULL))
 		return (-1);
@@ -628,27 +628,27 @@ int avl_pick (avl_tree_t *t, void **key, void **value)
 	rebalance (t, p);
 
 	return (0);
-} /* int avl_pick */
+} /* int c_avl_pick */
 
-avl_iterator_t *avl_get_iterator (avl_tree_t *t)
+c_avl_iterator_t *c_avl_get_iterator (c_avl_tree_t *t)
 {
-	avl_iterator_t *iter;
+	c_avl_iterator_t *iter;
 
 	if (t == NULL)
 		return (NULL);
 
-	iter = (avl_iterator_t *) malloc (sizeof (avl_iterator_t));
+	iter = (c_avl_iterator_t *) malloc (sizeof (c_avl_iterator_t));
 	if (iter == NULL)
 		return (NULL);
-	memset (iter, '\0', sizeof (avl_iterator_t));
+	memset (iter, '\0', sizeof (c_avl_iterator_t));
 	iter->tree = t;
 
 	return (iter);
-} /* avl_iterator_t *avl_get_iterator */
+} /* c_avl_iterator_t *c_avl_get_iterator */
 
-int avl_iterator_next (avl_iterator_t *iter, void **key, void **value)
+int c_avl_iterator_next (c_avl_iterator_t *iter, void **key, void **value)
 {
-	avl_node_t *n;
+	c_avl_node_t *n;
 
 	if ((iter == NULL) || (key == NULL) || (value == NULL))
 		return (-1);
@@ -662,7 +662,7 @@ int avl_iterator_next (avl_iterator_t *iter, void **key, void **value)
 	}
 	else
 	{
-		n = avl_node_next (iter->tree, iter->node);
+		n = c_avl_node_next (iter->tree, iter->node);
 	}
 
 	if (n == NULL)
@@ -673,11 +673,11 @@ int avl_iterator_next (avl_iterator_t *iter, void **key, void **value)
 	*value = n->value;
 
 	return (0);
-} /* int avl_iterator_next */
+} /* int c_avl_iterator_next */
 
-int avl_iterator_prev (avl_iterator_t *iter, void **key, void **value)
+int c_avl_iterator_prev (c_avl_iterator_t *iter, void **key, void **value)
 {
-	avl_node_t *n;
+	c_avl_node_t *n;
 
 	if ((iter == NULL) || (key == NULL) || (value == NULL))
 		return (-1);
@@ -691,7 +691,7 @@ int avl_iterator_prev (avl_iterator_t *iter, void **key, void **value)
 	}
 	else
 	{
-		n = avl_node_prev (iter->tree, iter->node);
+		n = c_avl_node_prev (iter->tree, iter->node);
 	}
 
 	if (n == NULL)
@@ -702,9 +702,9 @@ int avl_iterator_prev (avl_iterator_t *iter, void **key, void **value)
 	*value = n->value;
 
 	return (0);
-} /* int avl_iterator_prev */
+} /* int c_avl_iterator_prev */
 
-void avl_iterator_destroy (avl_iterator_t *iter)
+void c_avl_iterator_destroy (c_avl_iterator_t *iter)
 {
 	free (iter);
 }

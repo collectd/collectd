@@ -16,6 +16,9 @@
 #
 # Copyright 2006 Vincent Stehlé <vincent.stehle@free.fr>
 #
+# Patch to configure the data directory and hostname by Eddy Petrisor
+# <eddy.petrisor@gmail.com>.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -39,17 +42,17 @@ use File::Basename;
 use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
 my $DIR  = "/var/lib/collectd";
-my $HOST = "_UNDEFINED_";
+my $HOST = undef;
 
 GetOptions (
-    "host-is=s"  => \$HOST,
+    "host=s"     => \$HOST,
     "data-dir=s" => \$DIR
 );
 
 my @COLORS = (0xff7777, 0x7777ff, 0x55ff55, 0xffcc77, 0xff77ff, 0x77ffff,
 	0xffff77, 0x55aaff);
 my @tmp = `/bin/hostname`; chomp(@tmp);
-$HOST = $tmp[0] if ( $HOST =~ /_UNDEFINED_/ );
+$HOST = $tmp[0] if (! defined $HOST);
 my $IMG_DIR = "${HOST}.dir";
 my $HTML = "${HOST}.html";
 
