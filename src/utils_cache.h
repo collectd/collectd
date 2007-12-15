@@ -25,6 +25,7 @@
 #include "plugin.h"
 
 int uc_init (void);
+int uc_check_timeout (void);
 int uc_update (const data_set_t *ds, const value_list_t *vl);
 gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl);
 

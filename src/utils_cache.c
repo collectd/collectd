@@ -33,7 +33,15 @@ typedef struct cache_entry_s
 	int        values_num;
 	gauge_t   *values_gauge;
 	counter_t *values_counter;
+	/* Time contained in the package
+	 * (for calculating rates) */
+	time_t last_time;
+	/* Time according to the local clock
+	 * (for purging old entries) */
 	time_t last_update;
+	/* Interval in which the data is collected
+	 * (for purding old entries) */
+	int interval;
 } cache_entry_t;
 
 static avl_tree_t     *cache_tree = NULL;
@@ -45,6 +53,77 @@ static int cache_compare (const cache_entry_t *a, const cache_entry_t *b)
   return (strcmp (a->name, b->name));
 } /* int cache_compare */
 
+static int uc_send_notification (const char *name)
+{
+  cache_entry_t *ce = NULL;
+  int status;
+
+  char *name_copy;
+  char *host;
+  char *plugin;
+  char *plugin_instance;
+  char *type;
+  char *type_instance;
+
+  notification_t n;
+
+  memset (&n, '\0', sizeof (n));
+
+  name_copy = strdup (name);
+  if (name_copy == NULL)
+  {
+    ERROR ("uc_send_notification: strdup failed.");
+    return (-1);
+  }
+
+  status = parse_identifier (name_copy, &host,
+      &plugin, &plugin_instance,
+      &type, &type_instance);
+  if (status != 0)
+  {
+    ERROR ("uc_send_notification: Cannot parse name `%s'", name);
+    return (-1);
+  }
+
+  n.severity = NOTIF_FAILURE;
+  strncpy (n.host, host, sizeof (n.host));
+  n.host[sizeof (n.host) - 1] = '\0';
+
+  sfree (name_copy);
+  name_copy = host = plugin = plugin_instance = type = type_instance = NULL;
+
+  pthread_mutex_lock (&cache_lock);
+
+  n.time = time (NULL);
+
+  status = avl_get (cache_tree, name, (void *) &ce);
+  if (status != 0)
+  {
+    pthread_mutex_unlock (&cache_lock);
+    sfree (name_copy);
+    return (-1);
+  }
+    
+  /* Check if the entry has been updated in the meantime */
+  if ((n.time - ce->last_update) <= (2 * ce->interval))
+  {
+    pthread_mutex_unlock (&cache_lock);
+    sfree (name_copy);
+    return (-1);
+  }
+
+  snprintf (n.message, sizeof (n.message),
+      "%s has not been updated for %i seconds.", name,
+      (int) (ce->last_update - n.time));
+
+  pthread_mutex_unlock (&cache_lock);
+
+  n.message[sizeof (n.message) - 1] = '\0';
+  plugin_dispatch_notification (&n);
+
+  return (0);
+} /* int uc_send_notification */
+
 int uc_init (void)
 {
   if (cache_tree == NULL)
@@ -53,6 +132,86 @@ int uc_init (void)
 
   return (0);
 } /* int uc_init */
+
+int uc_check_timeout (void)
+{
+  time_t now;
+  cache_entry_t *ce;
+
+  char **keys = NULL;
+  int keys_len = 0;
+
+  char *key;
+  avl_iterator_t *iter;
+  int i;
+  
+  pthread_mutex_lock (&cache_lock);
+
+  now = time (NULL);
+
+  /* Build a list of entries to be flushed */
+  iter = avl_get_iterator (cache_tree);
+  while (avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
+  {
+    /* If entry has not been updated, add to `keys' array */
+    if ((now - ce->last_update) > (2 * ce->interval))
+    {
+      char **tmp;
+
+      tmp = (char **) realloc ((void *) keys,
+	  (keys_len + 1) * sizeof (char *));
+      if (tmp == NULL)
+      {
+	ERROR ("uc_purge: realloc failed.");
+	avl_iterator_destroy (iter);
+	return (-1);
+      }
+
+      keys = tmp;
+      keys[keys_len] = strdup (key);
+      if (keys[keys_len] == NULL)
+      {
+	ERROR ("uc_check_timeout: strdup failed.");
+	continue;
+      }
+      keys_len++;
+    }
+  } /* while (avl_iterator_next) */
+
+  for (i = 0; i < keys_len; i++)
+  {
+    int status;
+
+    /* TODO: Check if value interesting:
+     * - Not interesting: Remove value from cache and shut up
+     * - Interesting:     Don't remove value from cache but send a
+     *                    notification.
+     */
+    status = avl_remove (cache_tree, keys[i], (void *) &key, (void *) &ce);
+    if (status != 0)
+    {
+      ERROR ("uc_check_timeout: avl_remove (%s) failed.", keys[i]);
+      continue;
+    }
+
+    sfree (key);
+    sfree (ce);
+  }
+
+  avl_iterator_destroy (iter);
+
+  pthread_mutex_unlock (&cache_lock);
+
+  for (i = 0; i < keys_len; i++)
+  {
+    uc_send_notification (keys[i]);
+    sfree (keys[i]);
+  }
+
+  sfree (keys);
+
+  return (0);
+} /* int uc_check_timeout */
 
 int uc_update (const data_set_t *ds, const value_list_t *vl)
 {
@@ -74,13 +233,20 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     assert (ce != NULL);
     assert (ce->values_num == ds->ds_num);
 
-    if (ce->last_update >= vl->time)
+    if (ce->last_time >= vl->time)
     {
       pthread_mutex_unlock (&cache_lock);
       NOTICE ("uc_insert: Value too old: name = %s; value time = %u; "
 	  "last cache update = %u;",
-	  name, (unsigned int) vl->time, (unsigned int) ce->last_update);
+	  name, (unsigned int) vl->time, (unsigned int) ce->last_time);
       return (-1);
+    }
+
+    if ((ce->last_time + ce->interval) < vl->time)
+    {
+      /* TODO: Implement a `real' okay notification. Watch out for locking
+       * issues, though! */
+      NOTICE ("uc_insert: Okay notification for %s", name);
     }
 
     for (i = 0; i < ds->ds_num; i++)
@@ -105,7 +271,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	}
 
 	ce->values_gauge[i] = ((double) diff)
-	  / ((double) (vl->time - ce->last_update));
+	  / ((double) (vl->time - ce->last_time));
 	ce->values_counter[i] = vl->values[i].counter;
       }
       else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
@@ -115,7 +281,9 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
       DEBUG ("uc_insert: %s: ds[%i] = %lf", name, i, ce->values_gauge[i]);
     } /* for (i) */
 
-    ce->last_update = vl->time;
+    ce->last_time = vl->time;
+    ce->last_update = time (NULL);
+    ce->interval = vl->interval;
   }
   else /* key is not found */
   {
@@ -162,7 +330,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
       }
     } /* for (i) */
 
-    ce->last_update = vl->time;
+    ce->last_time = vl->time;
 
     if (avl_insert (cache_tree, key, ce) != 0)
     {

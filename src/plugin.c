@@ -605,6 +605,8 @@ void plugin_read_all (const int *loop)
 	llentry_t   *le;
 	read_func_t *rf;
 
+	uc_check_timeout ();
+
 	if (list_read == NULL)
 		return;
 
