@@ -518,7 +518,7 @@ int avl_insert (avl_tree_t *t, void *key, void *value)
 		if (cmp == 0)
 		{
 			free_node (new);
-			return (-1);
+			return (1);
 		}
 		else if (cmp < 0)
 		{
@@ -581,13 +581,12 @@ int avl_get (avl_tree_t *t, const void *key, void **value)
 {
 	avl_node_t *n;
 
-	assert (value != NULL);
-
 	n = search (t, key);
 	if (n == NULL)
 		return (-1);
 
-	*value = n->value;
+	if (value != NULL)
+		*value = n->value;
 
 	return (0);
 }

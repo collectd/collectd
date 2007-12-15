@@ -141,9 +141,9 @@ static void submit (char *type, char *inst, long long value)
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  if (strcpy (type, "nginx_connections") == 0)
+  if (strcmp (type, "nginx_connections") == 0)
     values[0].gauge = value;
-  else if (strcpy (type, "nginx_requests") == 0)
+  else if (strcmp (type, "nginx_requests") == 0)
     values[0].counter = value;
   else
     return;

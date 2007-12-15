@@ -77,8 +77,8 @@ void avl_destroy (avl_tree_t *t);
  *   `value'    Value to be stored.
  *
  * RETURN VALUE
- *   Zero upon success and non-zero upon failure and if the key is already
- *   stored in the tree.
+ *   Zero upon success, non-zero otherwise. It's less than zero if an error
+ *   occurred or greater than zero if the key is already stored in the tree.
  */
 int avl_insert (avl_tree_t *t, void *key, void *value);
 
