@@ -23,6 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_avltree.h"
+#include "utils_threshold.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -105,7 +106,7 @@ static int uc_send_notification (const char *name)
   }
     
   /* Check if the entry has been updated in the meantime */
-  if ((n.time - ce->last_update) <= (2 * ce->interval))
+  if ((n.time - ce->last_update) < (2 * ce->interval))
   {
     pthread_mutex_unlock (&cache_lock);
     sfree (name_copy);
@@ -114,7 +115,7 @@ static int uc_send_notification (const char *name)
 
   snprintf (n.message, sizeof (n.message),
       "%s has not been updated for %i seconds.", name,
-      (int) (ce->last_update - n.time));
+      (int) (n.time - ce->last_update));
 
   pthread_mutex_unlock (&cache_lock);
 
@@ -154,7 +155,7 @@ int uc_check_timeout (void)
   while (avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
   {
     /* If entry has not been updated, add to `keys' array */
-    if ((now - ce->last_update) > (2 * ce->interval))
+    if ((now - ce->last_update) >= (2 * ce->interval))
     {
       char **tmp;
 
@@ -182,21 +183,34 @@ int uc_check_timeout (void)
   {
     int status;
 
-    /* TODO: Check if value interesting:
-     * - Not interesting: Remove value from cache and shut up
-     * - Interesting:     Don't remove value from cache but send a
-     *                    notification.
-     */
-    status = avl_remove (cache_tree, keys[i], (void *) &key, (void *) &ce);
-    if (status != 0)
-    {
-      ERROR ("uc_check_timeout: avl_remove (%s) failed.", keys[i]);
-      continue;
-    }
+    status = ut_check_interesting (keys[i]);
 
-    sfree (key);
-    sfree (ce);
-  }
+    if (status < 0)
+    {
+      ERROR ("uc_check_timeout: ut_check_interesting failed.");
+      sfree (keys[i]);
+    }
+    else if (status == 0) /* ``service'' is uninteresting */
+    {
+      ce = NULL;
+      DEBUG ("uc_check_timeout: %s is missing but ``uninteresting''", keys[i]);
+      status = avl_remove (cache_tree, keys[i], (void *) &key, (void *) &ce);
+      if (status != 0)
+      {
+	ERROR ("uc_check_timeout: avl_remove (%s) failed.", keys[i]);
+      }
+      sfree (keys[i]);
+      sfree (ce);
+    }
+    else /* (status > 0); ``service'' is interesting */
+    {
+      /*
+       * `keys[i]' is not freed and set to NULL, so that the for-loop below
+       * will send out notifications. There's nothing else to do here.
+       */
+      DEBUG ("uc_check_timeout: %s is missing and ``interesting''", keys[i]);
+    }
+  } /* for (keys[i]) */
 
   avl_iterator_destroy (iter);
 
@@ -204,6 +218,9 @@ int uc_check_timeout (void)
 
   for (i = 0; i < keys_len; i++)
   {
+    if (keys[i] == NULL)
+      continue;
+
     uc_send_notification (keys[i]);
     sfree (keys[i]);
   }
@@ -331,6 +348,8 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     } /* for (i) */
 
     ce->last_time = vl->time;
+    ce->last_update = time (NULL);
+    ce->interval = vl->interval;
 
     if (avl_insert (cache_tree, key, ce) != 0)
     {

@@ -28,5 +28,6 @@
 
 int ut_config (const oconfig_item_t *ci);
 int ut_check_threshold (const data_set_t *ds, const value_list_t *vl);
+int ut_check_interesting (const char *name);
 
 #endif /* UTILS_THRESHOLD_H */
