@@ -1034,11 +1034,28 @@ The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
 Starting with version C<4.3.0> collectd has support for B<monitoring>. By that
 we mean that the values are not only stored or sent somewhere, but that they
-are judged and, if a problem is recognized, acted upon.
+are judged and, if a problem is recognized, acted upon. The only action
+collectd takes itself is to generate and dispatch a "notification". Plugins can
+register to receive notifications and perform appropriate further actions.
 
 Since systems and what you expect them to do differ a lot, you can configure
 B<thresholds> for your values freely. This gives you a lot of flexibility but
 also a lot of responsibility.
+
+Every time a value is out of range a notification is dispatched. This means
+that the idle percentage of your CPU needs to be less then the configured
+threshold only once for a notification to be generated. There's no such thing
+as a moving average or similar - at least not now.
+
+Also, all values that match a threshold are considered to be relevant or
+"interesting". As a consequence collectd will issue a notification if they are
+not received for twice the last timeout of the values. If, for example, some
+hosts sends it's CPU statistics to the server every 60 seconds, a notification
+will be dispatched after about 120 seconds. It may take a little longer because
+the timeout is checked only once each B<Interval> on the server.
+
+Here is a configuration example to get you started. Read below for more
+information.
 
  <Threshold>
    <Type "foo">
@@ -1079,14 +1096,26 @@ C<Plugin> and C<Type> blocks, C<Plugin> may only contain C<Type> blocks and
 C<Type> may not contain other blocks. If multiple blocks apply to the same
 value the most specific block is used.
 
-The other statements specify the threshold to configure. Currently the
-following statements are recognized:
+The other statements specify the threshold to configure. They B<must> be
+included in a C<Type> block. Currently the following statements are recognized:
 
 =over 4
 
+=item B<Max> I<Value>
+
+Sets the upper bound of acceptable values. If unset defaults to positive
+infinity.
+
 =item B<Min> I<Value>
 
-...
+Sets the lower bound of acceptable values. If unset defaults to negative
+infinity.
+
+=item B<Invert> B<true>|B<false>
+
+If set to B<true> the range of acceptable values is inverted, i.E<nbsp>e.
+values between B<Min> and B<Max> are not okay. Defaults, of course, to
+B<false>.
 
 =back
 
