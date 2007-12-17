@@ -1030,6 +1030,66 @@ the F</proc/virtual> filesystem that is required by this plugin.
 
 The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
+=head1 THRESHOLD CONFIGURATION
+
+Starting with version C<4.3.0> collectd has support for B<monitoring>. By that
+we mean that the values are not only stored or sent somewhere, but that they
+are judged and, if a problem is recognized, acted upon.
+
+Since systems and what you expect them to do differ a lot, you can configure
+B<thresholds> for your values freely. This gives you a lot of flexibility but
+also a lot of responsibility.
+
+ <Threshold>
+   <Type "foo">
+     Min    0.00
+     Max 1000.00
+     Invert false
+     Instance "bar"
+   </Type>
+
+   <Plugin "interface">
+     Instance "eth0"
+     <Type "if_octets">
+       Max 10000000
+     </Type>
+   </Plugin>
+
+   <Host "hostname">
+     <Type "cpu">
+       Instance "idle"
+       Min 10
+     </Type>
+
+     <Plugin "memory">
+       <Type "memory">
+         Instance "cached"
+	 Min 100000000
+       </Type>
+     </Plugin>
+   </Host>
+ </Threshold>
+
+There are basically two types of configuration statements: The C<Host>,
+C<Plugin>, and C<Type> blocks select the value for which a threshold should be
+configured. The C<Plugin> and C<Type> blocks may be specified further using the
+C<Instance> option. You can combine the block by nesting the blocks, though
+they must be nested in the above order, i.E<nbsp>e. C<Host> may contain either
+C<Plugin> and C<Type> blocks, C<Plugin> may only contain C<Type> blocks and
+C<Type> may not contain other blocks. If multiple blocks apply to the same
+value the most specific block is used.
+
+The other statements specify the threshold to configure. Currently the
+following statements are recognized:
+
+=over 4
+
+=item B<Min> I<Value>
+
+...
+
+=back
+
 =head1 SEE ALSO
 
 L<collectd(1)>,
