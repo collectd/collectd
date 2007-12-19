@@ -31,6 +31,9 @@
 /*
  * Private data structures
  * {{{ */
+#define UT_FLAG_INVERT  0x01
+#define UT_FLAG_PERSIST 0x02
+
 typedef struct threshold_s
 {
   char host[DATA_MAX_NAME_LEN];
@@ -40,7 +43,7 @@ typedef struct threshold_s
   char type_instance[DATA_MAX_NAME_LEN];
   gauge_t min;
   gauge_t max;
-  int invert;
+  int flags;
 } threshold_t;
 /* }}} */
 
@@ -170,7 +173,10 @@ static int ut_config_type_invert (threshold_t *th, oconfig_item_t *ci)
     return (-1);
   }
 
-  th->invert = (ci->values[0].value.boolean) ? 1 : 0;
+  if (ci->values[0].value.boolean)
+    th->flags |= UT_FLAG_INVERT;
+  else
+    th->flags &= ~UT_FLAG_INVERT;
 
   return (0);
 } /* int ut_config_type_invert */
@@ -198,6 +204,9 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   memcpy (&th, th_orig, sizeof (th));
   strncpy (th.type, ci->values[0].value.string, sizeof (th.type));
   th.type[sizeof (th.type) - 1] = '\0';
+
+  th.min = NAN;
+  th.max = NAN;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -479,15 +488,26 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 
   for (i = 0; i < ds->ds_num; i++)
   {
-    if ((th->min > values[i]) || (th->max < values[i]))
+    int out_of_range = 0;
+    int is_inverted = 0;
+
+    if ((th->flags & UT_FLAG_INVERT) != 0)
+      is_inverted = 1;
+    if ((!isnan (th->min) && (th->min > values[i]))
+	|| (!isnan (th->max) && (th->max < values[i])))
+      out_of_range = 1;
+
+    /* If only one of these conditions is true, there is a problem */
+    if ((out_of_range + is_inverted) == 1)
     {
       notification_t n;
       char *buf;
       size_t bufsize;
       int status;
 
-      WARNING ("ut_check_threshold: ds[%s]: %lf <= !%lf <= %lf",
-	  ds->ds[i].name, th->min, values[i], th->max);
+      WARNING ("ut_check_threshold: ds[%s]: %lf <= !%lf <= %lf (invert: %s)",
+	  ds->ds[i].name, th->min, values[i], th->max,
+	  is_inverted ? "true" : "false");
 
       buf = n.message;
       bufsize = sizeof (n.message);
@@ -517,11 +537,32 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 	bufsize -= status;
       }
 
-      status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	  "%lf. That is %s the configured threshold of %lf.",
-	  ds->ds[i].name, values[i],
-	  (values[i] < th->min) ? "below" : "above",
-	  (values[i] < th->min) ? th->min : th->max);
+      if (is_inverted)
+      {
+	if (!isnan (th->min) && !isnan (th->max))
+	{
+	  status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	      "%lf. That is within the critical region of %lf and %lf.",
+	      ds->ds[i].name, values[i],
+	      th->min, th->min);
+	}
+	else
+	{
+	  status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	      "%lf. That is %s the configured threshold of %lf.",
+	      ds->ds[i].name, values[i],
+	      isnan (th->min) ? "below" : "above",
+	      isnan (th->min) ? th->max : th->min);
+	}
+      }
+      else /* (!is_inverted) */
+      {
+	status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	    "%lf. That is %s the configured threshold of %lf.",
+	    ds->ds[i].name, values[i],
+	    (values[i] < th->min) ? "below" : "above",
+	    (values[i] < th->min) ? th->min : th->max);
+      }
       buf += status;
       bufsize -= status;
 
