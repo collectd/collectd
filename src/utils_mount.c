@@ -383,9 +383,11 @@ static cu_mount_t *cu_mount_listmntent (void)
 
 	struct tabmntent *mntlist;
 	if(listmntent(&mntlist, COLLECTD_MNTTAB, NULL, NULL) < 0) {
+#if COLLECT_DEBUG
 		char errbuf[1024];
 		DEBUG("utils_mount: calling listmntent() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
+#endif /* COLLECT_DEBUG */
 	}
 
 	for(p = mntlist; p; p = p->next) {
@@ -454,9 +456,11 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	/* Get the number of mounted file systems */
 	if ((bufsize = CMD_STATFS (NULL, 0, FLAGS_STATFS)) < 1)
 	{
+#if COLLECT_DEBUG
 		char errbuf[1024];
 		DEBUG ("utils_mount: getv?fsstat failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
+#endif /* COLLECT_DEBUG */
 		return (NULL);
 	}
 
@@ -469,9 +473,11 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	 * manpage.. -octo */
 	if ((num = CMD_STATFS (buf, bufsize * sizeof (STRUCT_STATFS), FLAGS_STATFS)) < 1)
 	{
+#if COLLECT_DEBUG
 		char errbuf[1024];
 		DEBUG ("utils_mount: getv?fsstat failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
+#endif /* COLLECT_DEBUG */
 		free (buf);
 		return (NULL);
 	}
