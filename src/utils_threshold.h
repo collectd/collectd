@@ -26,8 +26,32 @@
 #include "liboconfig/oconfig.h"
 #include "plugin.h"
 
+/*
+ * ut_config
+ *
+ * Parses the configuration and sets up the module. This is called from
+ * `src/configfile.c'.
+ */
 int ut_config (const oconfig_item_t *ci);
+
+/*
+ * ut_check_threshold
+ *
+ * Checks if a threshold is defined for this value and if such a threshold is
+ * configured, check if the value within the acceptable range. If it is not, a
+ * notification is dispatched to inform the user that a problem exists. This is
+ * called from `plugin_read_all'.
+ */
 int ut_check_threshold (const data_set_t *ds, const value_list_t *vl);
+
+/*
+ * Given an identification returns
+ * 0: No threshold is defined.
+ * 1: A threshold has been found. The flag `persist' is off.
+ * 2: A threshold has been found. The flag `persist' is on.
+ *    (That is, it is expected that many notifications are sent until the
+ *    problem disappears.)
+ */
 int ut_check_interesting (const char *name);
 
 #endif /* UTILS_THRESHOLD_H */
