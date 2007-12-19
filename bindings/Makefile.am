@@ -1,18 +1,20 @@
 EXTRA_DIST = perl/Collectd.pm perl/Makefile.PL perl/Collectd/Makefile.PL perl/Collectd/Unixsock.pm
 
+PERL_SUBDIR = $(srcdir)/perl
+
 all-local: @PERL_BINDINGS@
 
 install-exec-local:
-	[ ! -f perl/Makefile ] || $(MAKE) -C perl install
+	[ ! -f $(PERL_SUBDIR)/Makefile ] || $(MAKE) -C $(PERL_SUBDIR) install
 
 clean-local:
-	[ ! -f perl/Makefile ] || $(MAKE) -C perl realclean
+	[ ! -f $(PERL_SUBDIR)/Makefile ] || $(MAKE) -C $(PERL_SUBDIR) realclean
 
-perl: perl/Makefile
-	$(MAKE) -C perl
+@srcdir@/perl: $(PERL_SUBDIR)/Makefile
+	$(MAKE) -C $(PERL_SUBDIR)
 
-perl/Makefile: perl/Makefile.PL perl/Collectd/Makefile.PL
-	cd perl && @PERL@ Makefile.PL PREFIX=$(prefix) @PERL_BINDINGS_OPTIONS@
+@srcdir@/perl/Makefile: @srcdir@/perl/Makefile.PL @srcdir@/perl/Collectd/Makefile.PL
+	cd $(PERL_SUBDIR) && @PERL@ Makefile.PL PREFIX=$(prefix) @PERL_BINDINGS_OPTIONS@
 
-.PHONY: perl
+.PHONY: @srcdir@/perl
 
