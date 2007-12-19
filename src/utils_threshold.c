@@ -181,6 +181,24 @@ static int ut_config_type_invert (threshold_t *th, oconfig_item_t *ci)
   return (0);
 } /* int ut_config_type_invert */
 
+static int ut_config_type_persist (threshold_t *th, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    WARNING ("threshold values: The `Persist' option needs exactly one "
+	"boolean argument.");
+    return (-1);
+  }
+
+  if (ci->values[0].value.boolean)
+    th->flags |= UT_FLAG_PERSIST;
+  else
+    th->flags &= ~UT_FLAG_PERSIST;
+
+  return (0);
+} /* int ut_config_type_persist */
+
 static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 {
   int i;
@@ -221,6 +239,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
       status = ut_config_type_min (&th, option);
     else if (strcasecmp ("Invert", option->key) == 0)
       status = ut_config_type_invert (&th, option);
+    else if (strcasecmp ("Persist", option->key) == 0)
+      status = ut_config_type_persist (&th, option);
     else
     {
       WARNING ("threshold values: Option `%s' not allowed inside a `Type' "
@@ -637,10 +657,11 @@ int ut_check_interesting (const char *name)
   host = plugin = plugin_instance = type = type_instance = NULL;
 
   th = threshold_search (&ds, &vl);
-  if (th != NULL)
-    return (1);
-  else
+  if (th == NULL)
     return (0);
+  if ((th->flags & UT_FLAG_PERSIST) == 0)
+    return (1);
+  return (2);
 } /* int ut_check_interesting */
 
 /* vim: set sw=2 ts=8 sts=2 tw=78 fdm=marker : */

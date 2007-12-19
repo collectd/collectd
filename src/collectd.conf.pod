@@ -1117,6 +1117,17 @@ If set to B<true> the range of acceptable values is inverted, i.E<nbsp>e.
 values between B<Min> and B<Max> are not okay. Defaults, of course, to
 B<false>.
 
+=item B<Persist> B<true>|B<false>
+
+Sets how often notifications are generated. If set to B<true> one notification
+will be generated for each value that is out of the acceptable range. If set to
+B<false> (the default) then a notification is only generated if a value is out
+of range but the previous value was okay.
+
+This applies to missing values, too: If set to B<true> a notification about a
+missing value is generated once every B<Interval> seconds. If set to B<false>
+only one such notification is generated until the value appears again.
+
 =back
 
 =head1 SEE ALSO
