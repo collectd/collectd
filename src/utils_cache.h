@@ -24,9 +24,17 @@
 
 #include "plugin.h"
 
+#define STATE_OKAY    0
+#define STATE_WARNING 1
+#define STATE_ERROR   2
+
 int uc_init (void);
 int uc_check_timeout (void);
 int uc_update (const data_set_t *ds, const value_list_t *vl);
 gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl);
 
+int uc_get_state (const data_set_t *ds, const value_list_t *vl);
+int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state);
+
+/* vim: set shiftwidth=2 softtabstop=2 tabstop=8 : */
 #endif /* !UTILS_CACHE_H */

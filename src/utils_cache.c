@@ -23,6 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_avltree.h"
+#include "utils_cache.h"
 #include "utils_threshold.h"
 
 #include <assert.h>
@@ -43,6 +44,7 @@ typedef struct cache_entry_s
 	/* Interval in which the data is collected
 	 * (for purding old entries) */
 	int interval;
+	int state;
 } cache_entry_t;
 
 static avl_tree_t     *cache_tree = NULL;
@@ -108,6 +110,7 @@ static int uc_send_notification (const char *name)
   /* Check if the entry has been updated in the meantime */
   if ((n.time - ce->last_update) < (2 * ce->interval))
   {
+    ce->state = STATE_OKAY;
     pthread_mutex_unlock (&cache_lock);
     sfree (name_copy);
     return (-1);
@@ -209,6 +212,7 @@ int uc_check_timeout (void)
        * will send out notifications. There's nothing else to do here.
        */
       DEBUG ("uc_check_timeout: %s is missing and ``interesting''", keys[i]);
+      ce->state = STATE_ERROR;
     }
   } /* for (keys[i]) */
 
@@ -264,6 +268,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
       /* TODO: Implement a `real' okay notification. Watch out for locking
        * issues, though! */
       NOTICE ("uc_insert: Okay notification for %s", name);
+      ce->state = STATE_OKAY;
     }
 
     for (i = 0; i < ds->ds_num; i++)
@@ -350,6 +355,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     ce->last_time = vl->time;
     ce->last_update = time (NULL);
     ce->interval = vl->interval;
+    ce->state = STATE_OKAY;
 
     if (avl_insert (cache_tree, key, ce) != 0)
     {
@@ -401,4 +407,59 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   return (ret);
 } /* gauge_t *uc_get_rate */
 
+int uc_get_state (const data_set_t *ds, const value_list_t *vl)
+{
+  char name[6 * DATA_MAX_NAME_LEN];
+  cache_entry_t *ce = NULL;
+  int ret = STATE_ERROR;
+
+  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  {
+    ERROR ("uc_get_state: FORMAT_VL failed.");
+    return (STATE_ERROR);
+  }
+
+  pthread_mutex_lock (&cache_lock);
+
+  if (avl_get (cache_tree, name, (void *) &ce) == 0)
+  {
+    assert (ce != NULL);
+    ret = ce->state;
+  }
+
+  pthread_mutex_unlock (&cache_lock);
+
+  return (ret);
+} /* int uc_get_state */
+
+int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state)
+{
+  char name[6 * DATA_MAX_NAME_LEN];
+  cache_entry_t *ce = NULL;
+  int ret = -1;
+
+  if (state < STATE_OKAY)
+    state = STATE_OKAY;
+  if (state > STATE_ERROR)
+    state = STATE_ERROR;
+
+  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  {
+    ERROR ("uc_get_state: FORMAT_VL failed.");
+    return (STATE_ERROR);
+  }
+
+  pthread_mutex_lock (&cache_lock);
+
+  if (avl_get (cache_tree, name, (void *) &ce) == 0)
+  {
+    assert (ce != NULL);
+    ret = ce->state;
+    ce->state = state;
+  }
+
+  pthread_mutex_unlock (&cache_lock);
+
+  return (ret);
+} /* int uc_set_state */
 /* vim: set sw=2 ts=8 sts=2 tw=78 : */
