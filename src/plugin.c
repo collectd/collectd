@@ -477,7 +477,7 @@ int plugin_register_log (char *name,
 int plugin_register_notification (const char *name,
 		int (*callback) (const notification_t *notif))
 {
-	return (register_callback (&list_log, name, (void *) callback));
+	return (register_callback (&list_notification, name, (void *) callback));
 } /* int plugin_register_log */
 
 int plugin_unregister_config (const char *name)
