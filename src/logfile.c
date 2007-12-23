@@ -86,20 +86,15 @@ static int logfile_config (const char *key, const char *value)
 	return 0;
 } /* int logfile_config (const char *, const char *) */
 
-static void logfile_log (int severity, const char *msg)
+static void logfile_print (const char *msg, time_t timestamp_time)
 {
 	FILE *fh;
 	int do_close = 0;
-	time_t timestamp_time;
 	struct tm timestamp_tm;
 	char timestamp_str[64];
 
-	if (severity > log_level)
-		return;
-
 	if (print_timestamp)
 	{
-		timestamp_time = time (NULL);
 		localtime_r (&timestamp_time, &timestamp_tm);
 
 		strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S",
@@ -145,13 +140,40 @@ static void logfile_log (int severity, const char *msg)
 	pthread_mutex_unlock (&file_lock);
 
 	return;
+} /* void logfile_print */
+
+static void logfile_log (int severity, const char *msg)
+{
+	if (severity > log_level)
+		return;
+
+	logfile_print (msg, time (NULL));
 } /* void logfile_log (int, const char *) */
+
+int logfile_notification (const notification_t *n)
+{
+	char msg[1024] = "";
+	int status;
+
+	status = snprintf (msg, sizeof (msg), "Notification: %s: message = %s, "
+			"host = %s",
+			(n->severity == NOTIF_FAILURE) ? "FAILURE"
+			: ((n->severity == NOTIF_WARNING) ? "WARNING"
+				: ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")),
+			n->message, n->host);
+	msg[sizeof (msg) - 1] = '\0';
+
+	logfile_print (msg, n->time);
+
+	return (0);
+} /* int logfile_notification */
 
 void module_register (void)
 {
 	plugin_register_config ("logfile", logfile_config,
 			config_keys, config_keys_num);
 	plugin_register_log ("logfile", logfile_log);
+	plugin_register_notification ("logfile", logfile_notification);
 } /* void module_register (void) */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
