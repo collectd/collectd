@@ -238,6 +238,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 {
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
+  int send_okay_notification = 0;
 
   if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
   {
@@ -265,9 +266,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 
     if ((ce->last_time + ce->interval) < vl->time)
     {
-      /* TODO: Implement a `real' okay notification. Watch out for locking
-       * issues, though! */
-      NOTICE ("uc_insert: Okay notification for %s", name);
+      send_okay_notification = vl->time - ce->last_time;
       ce->state = STATE_OKAY;
     }
 
@@ -368,6 +367,24 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   } /* if (key is not found) */
 
   pthread_mutex_unlock (&cache_lock);
+
+  if (send_okay_notification > 0)
+  {
+    notification_t n;
+    memset (&n, '\0', sizeof (n));
+
+    n.severity = NOTIF_OKAY;
+    strncpy (n.host, vl->host, sizeof (n.host));
+    n.host[sizeof (n.host) - 1] = '\0';
+    n.time = vl->time;
+
+    snprintf (n.message, sizeof (n.message),
+	"Received a value for %s. It was missing for %i seconds.",
+	name, send_okay_notification);
+    n.message[sizeof (n.message) - 1] = '\0';
+
+    plugin_dispatch_notification (&n);
+  }
 
   return (0);
 } /* int uc_insert */
