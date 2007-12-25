@@ -35,8 +35,18 @@
 #define PL_NOTIF_ACTION  0x02
 #define PL_NAGIOS_PLUGIN 0x04
 
+#define PL_RUNNING       0x10
+
 /*
  * Private data types
+ */
+/*
+ * Access to this structure is serialized using the `pl_lock' lock and the
+ * `PL_RUNNING' flag. The execution of notifications is *not* serialized, so
+ * all functions used to handle notifications MUST NOT write to this structure.
+ * The `pid' and `status' fields are thus unused if the `PL_NOTIF_ACTION' flag
+ * is set.
+ * The `PL_RUNNING' flag is set in `exec_read' and unset in `exec_read_one'.
  */
 struct program_list_s;
 typedef struct program_list_s program_list_t;
@@ -52,10 +62,17 @@ struct program_list_s
   program_list_t *next;
 };
 
+typedef struct program_list_and_notification_s
+{
+  program_list_t *pl;
+  const notification_t *n;
+} program_list_and_notification_t;
+
 /*
  * Private variables
  */
 static program_list_t *pl_head = NULL;
+static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Functions
@@ -344,15 +361,22 @@ static void exec_child (program_list_t *pl) /* {{{ */
   exit (-1);
 } /* void exec_child }}} */
 
-static int fork_child (program_list_t *pl) /* {{{ */
+/*
+ * Creates two pipes (one for reading, ong for writing), forks a child, sets up
+ * the pipes so that fd_in is connected to STDIN of the child and fd_out is
+ * connected to STDOUT and STDERR of the child. Then is calls `exec_child'.
+ */
+static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
 {
-  int fd_pipe[2];
+  int fd_pipe_in[2];
+  int fd_pipe_out[2];
   int status;
+  int pid;
 
   if (pl->pid != 0)
     return (-1);
 
-  status = pipe (fd_pipe);
+  status = pipe (fd_pipe_in);
   if (status != 0)
   {
     char errbuf[1024];
@@ -361,32 +385,82 @@ static int fork_child (program_list_t *pl) /* {{{ */
     return (-1);
   }
 
-  pl->pid = fork ();
-  if (pl->pid < 0)
+  status = pipe (fd_pipe_out);
+  if (status != 0)
+  {
+    char errbuf[1024];
+    ERROR ("exec plugin: pipe failed: %s",
+	sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  pid = fork ();
+  if (pid < 0)
   {
     char errbuf[1024];
     ERROR ("exec plugin: fork failed: %s",
 	sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
-  else if (pl->pid == 0)
+  else if (pid == 0)
   {
-    close (fd_pipe[0]);
+    close (fd_pipe_in[1]);
+    close (fd_pipe_out[0]);
 
-    /* Connect the pipe to STDOUT and STDERR */
-    if (fd_pipe[1] != STDOUT_FILENO)
-      dup2 (fd_pipe[1], STDOUT_FILENO);
-    if (fd_pipe[1] != STDERR_FILENO)
-      dup2 (fd_pipe[1], STDERR_FILENO);
-    if ((fd_pipe[1] != STDOUT_FILENO) && (fd_pipe[1] != STDERR_FILENO))
-      close (fd_pipe[1]);
+    /* If the `out' pipe has the filedescriptor STDIN we have to be careful
+     * with the `dup's below. So, if this is the case we have to handle the
+     * `out' pipe first. */
+    if (fd_pipe_out[1] == STDIN_FILENO)
+    {
+      int new_fileno = (fd_pipe_in[0] == STDOUT_FILENO)
+	? STDERR_FILENO : STDOUT_FILENO;
+      dup2 (fd_pipe_out[1], new_fileno);
+      close (fd_pipe_out[1]);
+      fd_pipe_out[1] = new_fileno;
+    }
+    /* Now `fd_pipe_out[1]' is either `STDOUT' or `STDERR', but definitely not
+     * `STDIN_FILENO'. */
+
+    /* Connect the `in' pipe to STDIN */
+    if (fd_pipe_in[0] != STDIN_FILENO)
+    {
+      dup2 (fd_pipe_in[0], STDIN_FILENO);
+      close (fd_pipe_in[0]);
+      fd_pipe_in[0] = STDIN_FILENO;
+    }
+
+    /* Now connect the `out' pipe to STDOUT and STDERR */
+    if (fd_pipe_out[1] != STDOUT_FILENO)
+      dup2 (fd_pipe_out[1], STDOUT_FILENO);
+    if (fd_pipe_out[1] != STDERR_FILENO)
+      dup2 (fd_pipe_out[1], STDERR_FILENO);
+
+    /* If the pipe has some FD that's something completely different, close it
+     * now. */
+    if ((fd_pipe_out[1] != STDOUT_FILENO) && (fd_pipe_out[1] != STDERR_FILENO))
+    {
+      close (fd_pipe_out[1]);
+      fd_pipe_out[1] = STDOUT_FILENO;
+    }
 
     exec_child (pl);
     /* does not return */
   }
 
-  close (fd_pipe[1]);
-  return (fd_pipe[0]);
+  close (fd_pipe_in[0]);
+  close (fd_pipe_out[1]);
+
+  if (fd_in != NULL)
+    *fd_in = fd_pipe_in[1];
+  else
+    close (fd_pipe_in[1]);
+
+  if (fd_out != NULL)
+    *fd_out = fd_pipe_out[0];
+  else
+    close (fd_pipe_out[0]);
+
+  return (pid);
 } /* int fork_child }}} */
 
 static int parse_line (char *buffer) /* {{{ */
@@ -409,9 +483,10 @@ static void *exec_read_one (void *arg) /* {{{ */
   char buffer[1024];
   int status;
 
-  fd = fork_child (pl);
-  if (fd < 0)
+  status = fork_child (pl, NULL, &fd);
+  if (status < 0)
     pthread_exit ((void *) 1);
+  pl->pid = status;
 
   assert (pl->pid != 0);
 
@@ -479,9 +554,64 @@ static void *exec_read_one (void *arg) /* {{{ */
   }
 
   pl->pid = 0;
+
+  pthread_mutex_lock (&pl_lock);
+  pl->flags &= ~PL_RUNNING;
+  pthread_mutex_unlock (&pl_lock);
+
   pthread_exit ((void *) 0);
   return (NULL);
 } /* void *exec_read_one }}} */
+
+static void *exec_notification_one (void *arg) /* {{{ */
+{
+  program_list_t *pl = ((program_list_and_notification_t *) arg)->pl;
+  const notification_t *n = ((program_list_and_notification_t *) arg)->n;
+  int fd;
+  FILE *fh;
+  int pid;
+  int status;
+  const char *severity;
+
+  pid = fork_child (pl, &fd, NULL);
+  if (pid < 0)
+    pthread_exit ((void *) 1);
+
+  fh = fdopen (fd, "w");
+  if (fh == NULL)
+  {
+    char errbuf[1024];
+    ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
+	sstrerror (errno, errbuf, sizeof (errbuf)));
+    kill (pl->pid, SIGTERM);
+    pl->pid = 0;
+    close (fd);
+    pthread_exit ((void *) 1);
+  }
+
+  severity = "FAILURE";
+  if (n->severity == NOTIF_WARNING)
+    severity = "WARNING";
+  else if (n->severity == NOTIF_OKAY)
+    severity = "OKAY";
+
+  fprintf (fh, "Severity: %s\n"
+      "Time: %u\n"
+      "Host: %s\n"
+      "Message: %s\n"
+      "\n",
+      severity, (unsigned int) n->time, n->host, n->message);
+  fflush (fh);
+  fclose (fh);
+
+  waitpid (pid, &status, 0);
+
+  DEBUG ("exec plugin: Child %i exited with status %i.",
+      pid, status);
+
+  pthread_exit ((void *) 0);
+  return (NULL);
+} /* void *exec_notification_one }}} */
 
 static int exec_init (void) /* {{{ */
 {
@@ -503,8 +633,19 @@ static int exec_read (void) /* {{{ */
     pthread_t t;
     pthread_attr_t attr;
 
-    if (pl->pid != 0)
+    /* Only execute `normal' and `nagios' style executables here. */
+    if ((pl->flags & (PL_NAGIOS_PLUGIN | PL_NORMAL)) == 0)
       continue;
+
+    pthread_mutex_lock (&pl_lock);
+    /* Skip if a child is already running. */
+    if ((pl->flags & PL_RUNNING) != 0)
+    {
+      pthread_mutex_unlock (&pl_lock);
+      continue;
+    }
+    pl->flags |= PL_RUNNING;
+    pthread_mutex_unlock (&pl_lock);
 
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
@@ -513,6 +654,31 @@ static int exec_read (void) /* {{{ */
 
   return (0);
 } /* int exec_read }}} */
+
+static int exec_notification (const notification_t *n)
+{
+  program_list_t *pl;
+
+  for (pl = pl_head; pl != NULL; pl = pl->next)
+  {
+    pthread_t t;
+    pthread_attr_t attr;
+
+    /* Only execute `normal' and `nagios' style executables here. */
+    if ((pl->flags & PL_NOTIF_ACTION) == 0)
+      continue;
+
+    /* Skip if a child is already running. */
+    if (pl->pid != 0)
+      continue;
+
+    pthread_attr_init (&attr);
+    pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create (&t, &attr, exec_notification_one, (void *) pl);
+  } /* for (pl) */
+
+  return (0);
+} /* int exec_notification */
 
 static int exec_shutdown (void) /* {{{ */
 {
@@ -545,6 +711,7 @@ void module_register (void)
   plugin_register_complex_config ("exec", exec_config);
   plugin_register_init ("exec", exec_init);
   plugin_register_read ("exec", exec_read);
+  plugin_register_notification ("exec", exec_notification);
   plugin_register_shutdown ("exec", exec_shutdown);
 } /* void module_register */
 
