@@ -1,3 +1,9 @@
+2007-12-27, Version 4.1.5
+	* rrdtool plugin: Fix a memory leak that only occured in very-low-
+	  memory situations.
+	* sensors plugin: Updated the plugin to build and work with version 3
+	  of the libsensors library.
+
 2007-11-08, Version 4.1.4
 	* Build system: Improve detection of the rrd library, especially if
 	  it's in a non-standard location.
