@@ -1936,6 +1936,21 @@ then
 	with_perl_bindings="yes ($PERL_BINDINGS_OPTIONS)"
 fi
 
+if test ".." != "$ac_top_srcdir"
+then
+	# we're not building from the source tree
+	for file in \
+			bindings/perl/Collectd/Makefile.PL \
+			bindings/perl/Collectd/Unixsock.pm \
+			bindings/perl/Collectd.pm \
+			bindings/perl/Makefile.PL
+	do
+		dir=`dirname $file`
+		mkdir -p $dir
+		cp src/$ac_top_srcdir/$file $file
+	done
+fi
+
 cat <<EOF;
 
 Configuration:
