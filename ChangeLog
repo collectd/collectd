@@ -1,3 +1,7 @@
+2007-12-27, Version 4.2.3
+	* sensors plugin: Updated the plugin to build and work with version 3
+	  of the libsensors library.
+
 2007-12-15, Version 4.2.2
 	* nginx plugin: Incorrect comparison of strings lead to a segfault
 	  when using the plugin. Thanks to Saulius Grigaliunas for fixing
