@@ -368,6 +368,17 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 
   pthread_mutex_unlock (&cache_lock);
 
+  /* Do not send okay notifications for uninteresting values, i. e. values for
+   * which no threshold is configured. */
+  if (send_okay_notification > 0)
+  {
+    int status;
+
+    status = ut_check_interesting (name);
+    if (status <= 0)
+      send_okay_notification = 0;
+  }
+
   if (send_okay_notification > 0)
   {
     notification_t n;
