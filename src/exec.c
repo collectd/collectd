@@ -65,7 +65,7 @@ struct program_list_s
 typedef struct program_list_and_notification_s
 {
   program_list_t *pl;
-  const notification_t *n;
+  notification_t n;
 } program_list_and_notification_t;
 
 /*
@@ -566,7 +566,7 @@ static void *exec_read_one (void *arg) /* {{{ */
 static void *exec_notification_one (void *arg) /* {{{ */
 {
   program_list_t *pl = ((program_list_and_notification_t *) arg)->pl;
-  const notification_t *n = ((program_list_and_notification_t *) arg)->n;
+  const notification_t *n = &((program_list_and_notification_t *) arg)->n;
   int fd;
   FILE *fh;
   int pid;
@@ -609,6 +609,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   DEBUG ("exec plugin: Child %i exited with status %i.",
       pid, status);
 
+  sfree (arg);
   pthread_exit ((void *) 0);
   return (NULL);
 } /* void *exec_notification_one }}} */
@@ -658,13 +659,14 @@ static int exec_read (void) /* {{{ */
 static int exec_notification (const notification_t *n)
 {
   program_list_t *pl;
+  program_list_and_notification_t *pln;
 
   for (pl = pl_head; pl != NULL; pl = pl->next)
   {
     pthread_t t;
     pthread_attr_t attr;
 
-    /* Only execute `normal' and `nagios' style executables here. */
+    /* Only execute `notification' style executables here. */
     if ((pl->flags & PL_NOTIF_ACTION) == 0)
       continue;
 
@@ -672,9 +674,20 @@ static int exec_notification (const notification_t *n)
     if (pl->pid != 0)
       continue;
 
+    pln = (program_list_and_notification_t *) malloc (sizeof
+	(program_list_and_notification_t));
+    if (pln == NULL)
+    {
+      ERROR ("exec plugin: malloc failed.");
+      continue;
+    }
+
+    pln->pl = pl;
+    memcpy (&pln->n, n, sizeof (notification_t));
+
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-    pthread_create (&t, &attr, exec_notification_one, (void *) pl);
+    pthread_create (&t, &attr, exec_notification_one, (void *) pln);
   } /* for (pl) */
 
   return (0);
