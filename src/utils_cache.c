@@ -47,7 +47,7 @@ typedef struct cache_entry_s
 	int state;
 } cache_entry_t;
 
-static avl_tree_t     *cache_tree = NULL;
+static c_avl_tree_t   *cache_tree = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int cache_compare (const cache_entry_t *a, const cache_entry_t *b)
@@ -99,7 +99,7 @@ static int uc_send_notification (const char *name)
 
   n.time = time (NULL);
 
-  status = avl_get (cache_tree, name, (void *) &ce);
+  status = c_avl_get (cache_tree, name, (void *) &ce);
   if (status != 0)
   {
     pthread_mutex_unlock (&cache_lock);
@@ -131,7 +131,7 @@ static int uc_send_notification (const char *name)
 int uc_init (void)
 {
   if (cache_tree == NULL)
-    cache_tree = avl_create ((int (*) (const void *, const void *))
+    cache_tree = c_avl_create ((int (*) (const void *, const void *))
 	cache_compare);
 
   return (0);
@@ -146,7 +146,7 @@ int uc_check_timeout (void)
   int keys_len = 0;
 
   char *key;
-  avl_iterator_t *iter;
+  c_avl_iterator_t *iter;
   int i;
   
   pthread_mutex_lock (&cache_lock);
@@ -154,8 +154,8 @@ int uc_check_timeout (void)
   now = time (NULL);
 
   /* Build a list of entries to be flushed */
-  iter = avl_get_iterator (cache_tree);
-  while (avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
+  iter = c_avl_get_iterator (cache_tree);
+  while (c_avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
   {
     /* If entry has not been updated, add to `keys' array */
     if ((now - ce->last_update) >= (2 * ce->interval))
@@ -167,7 +167,7 @@ int uc_check_timeout (void)
       if (tmp == NULL)
       {
 	ERROR ("uc_purge: realloc failed.");
-	avl_iterator_destroy (iter);
+	c_avl_iterator_destroy (iter);
 	return (-1);
       }
 
@@ -180,7 +180,7 @@ int uc_check_timeout (void)
       }
       keys_len++;
     }
-  } /* while (avl_iterator_next) */
+  } /* while (c_avl_iterator_next) */
 
   for (i = 0; i < keys_len; i++)
   {
@@ -197,10 +197,10 @@ int uc_check_timeout (void)
     {
       ce = NULL;
       DEBUG ("uc_check_timeout: %s is missing but ``uninteresting''", keys[i]);
-      status = avl_remove (cache_tree, keys[i], (void *) &key, (void *) &ce);
+      status = c_avl_remove (cache_tree, keys[i], (void *) &key, (void *) &ce);
       if (status != 0)
       {
-	ERROR ("uc_check_timeout: avl_remove (%s) failed.", keys[i]);
+	ERROR ("uc_check_timeout: c_avl_remove (%s) failed.", keys[i]);
       }
       sfree (keys[i]);
       sfree (ce);
@@ -216,7 +216,7 @@ int uc_check_timeout (void)
     }
   } /* for (keys[i]) */
 
-  avl_iterator_destroy (iter);
+  c_avl_iterator_destroy (iter);
 
   pthread_mutex_unlock (&cache_lock);
 
@@ -248,7 +248,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 
   pthread_mutex_lock (&cache_lock);
 
-  if (avl_get (cache_tree, name, (void *) &ce) == 0)
+  if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
   {
     int i;
 
@@ -356,10 +356,10 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     ce->interval = vl->interval;
     ce->state = STATE_OKAY;
 
-    if (avl_insert (cache_tree, key, ce) != 0)
+    if (c_avl_insert (cache_tree, key, ce) != 0)
     {
       pthread_mutex_unlock (&cache_lock);
-      ERROR ("uc_insert: avl_insert failed.");
+      ERROR ("uc_insert: c_avl_insert failed.");
       return (-1);
     }
 
@@ -403,7 +403,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
 
   pthread_mutex_lock (&cache_lock);
 
-  if (avl_get (cache_tree, name, (void *) &ce) == 0)
+  if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
   {
     assert (ce != NULL);
     assert (ce->values_num == ds->ds_num);
@@ -438,7 +438,7 @@ int uc_get_state (const data_set_t *ds, const value_list_t *vl)
 
   pthread_mutex_lock (&cache_lock);
 
-  if (avl_get (cache_tree, name, (void *) &ce) == 0)
+  if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
   {
     assert (ce != NULL);
     ret = ce->state;
@@ -468,7 +468,7 @@ int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state)
 
   pthread_mutex_lock (&cache_lock);
 
-  if (avl_get (cache_tree, name, (void *) &ce) == 0)
+  if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
   {
     assert (ce != NULL);
     ret = ce->state;

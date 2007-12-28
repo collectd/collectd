@@ -50,7 +50,7 @@ typedef struct threshold_s
 /*
  * Private (static) variables
  * {{{ */
-static avl_tree_t     *threshold_tree = NULL;
+static c_avl_tree_t   *threshold_tree = NULL;
 static pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
 /* }}} */
 
@@ -94,12 +94,12 @@ static int ut_threshold_add (const threshold_t *th)
   DEBUG ("ut_threshold_add: Adding entry `%s'", name);
 
   pthread_mutex_lock (&threshold_lock);
-  status = avl_insert (threshold_tree, name_copy, th_copy);
+  status = c_avl_insert (threshold_tree, name_copy, th_copy);
   pthread_mutex_unlock (&threshold_lock);
 
   if (status != 0)
   {
-    ERROR ("ut_threshold_add: avl_insert (%s) failed.", name);
+    ERROR ("ut_threshold_add: c_avl_insert (%s) failed.", name);
     sfree (name_copy);
     sfree (th_copy);
   }
@@ -382,10 +382,10 @@ int ut_config (const oconfig_item_t *ci)
 
   if (threshold_tree == NULL)
   {
-    threshold_tree = avl_create ((void *) strcmp);
+    threshold_tree = c_avl_create ((void *) strcmp);
     if (threshold_tree == NULL)
     {
-      ERROR ("ut_config: avl_create failed.");
+      ERROR ("ut_config: c_avl_create failed.");
       return (-1);
     }
   }
@@ -435,7 +435,7 @@ static threshold_t *threshold_get (const char *hostname,
       (type == NULL) ? "" : type, type_instance);
   name[sizeof (name) - 1] = '\0';
 
-  if (avl_get (threshold_tree, name, (void *) &th) == 0)
+  if (c_avl_get (threshold_tree, name, (void *) &th) == 0)
     return (th);
   else
     return (NULL);
