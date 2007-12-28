@@ -12,9 +12,17 @@ clean-local:
 perl: perl/Makefile
 	$(MAKE) -C perl
 
-perl/Makefile: perl/Makefile.PL perl/Collectd/Makefile.PL \
-		$(top_builddir)/config.status
+perl/Makefile: .perl-directory-stamp perl/Makefile.PL \
+	perl/Collectd/Makefile.PL $(top_builddir)/config.status
 	cd perl && @PERL@ Makefile.PL PREFIX=$(prefix) @PERL_BINDINGS_OPTIONS@
+
+.perl-directory-stamp:
+	if test ! -d perl; then \
+	  mkdir -p perl/Collectd; \
+	  cp $(srcdir)/perl/{Collectd.pm,Makefile.PL} perl/; \
+	  cp $(srcdir)/perl/Collectd/{Unixsock.pm,Makefile.PL} perl/Collectd/; \
+	fi
+	touch $@
 
 .PHONY: perl
 

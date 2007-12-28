@@ -422,9 +422,12 @@ endif
 if BUILD_PLUGIN_NGINX
 pkglib_LTLIBRARIES += nginx.la
 nginx_la_SOURCES = nginx.c
+nginx_la_CFLAGS = $(AM_CFLAGS)
+nginx_la_LIBADD =
 nginx_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBCURL
-nginx_la_LDFLAGS += $(BUILD_WITH_LIBCURL_LIBS)
+nginx_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+nginx_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 collectd_LDADD += "-dlopen" nginx.la
 collectd_DEPENDENCIES += nginx.la

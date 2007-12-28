@@ -23,15 +23,15 @@
 #ifndef UTILS_AVLTREE_H
 #define UTILS_AVLTREE_H 1
 
-struct avl_tree_s;
-typedef struct avl_tree_s avl_tree_t;
+struct c_avl_tree_s;
+typedef struct c_avl_tree_s c_avl_tree_t;
 
-struct avl_iterator_s;
-typedef struct avl_iterator_s avl_iterator_t;
+struct c_avl_iterator_s;
+typedef struct c_avl_iterator_s c_avl_iterator_t;
 
 /*
  * NAME
- *   avl_create
+ *   c_avl_create
  *
  * DESCRIPTION
  *   Allocates a new AVL-tree.
@@ -45,24 +45,24 @@ typedef struct avl_iterator_s avl_iterator_t;
  *              function from the libc here.
  *
  * RETURN VALUE
- *   A avl_tree_t-pointer upon success or NULL upon failure.
+ *   A c_avl_tree_t-pointer upon success or NULL upon failure.
  */
-avl_tree_t *avl_create (int (*compare) (const void *, const void *));
+c_avl_tree_t *c_avl_create (int (*compare) (const void *, const void *));
 
 
 /*
  * NAME
- *   avl_destroy
+ *   c_avl_destroy
  *
  * DESCRIPTION
  *   Deallocates an AVL-tree. Stored value- and key-pointer are lost, but of
  *   course not freed.
  */
-void avl_destroy (avl_tree_t *t);
+void c_avl_destroy (c_avl_tree_t *t);
 
 /*
  * NAME
- *   avl_insert
+ *   c_avl_insert
  *
  * DESCRIPTION
  *   Stores the key-value-pair in the AVL-tree pointed to by `t'.
@@ -80,11 +80,11 @@ void avl_destroy (avl_tree_t *t);
  *   Zero upon success, non-zero otherwise. It's less than zero if an error
  *   occurred or greater than zero if the key is already stored in the tree.
  */
-int avl_insert (avl_tree_t *t, void *key, void *value);
+int c_avl_insert (c_avl_tree_t *t, void *key, void *value);
 
 /*
  * NAME
- *   avl_remove
+ *   c_avl_remove
  *
  * DESCRIPTION
  *   Removes a key-value-pair from the tree t. The stored key and value may be
@@ -103,11 +103,11 @@ int avl_insert (avl_tree_t *t, void *key, void *value);
  * RETURN VALUE
  *   Zero upon success or non-zero if the key isn't found in the tree.
  */
-int avl_remove (avl_tree_t *t, const void *key, void **rkey, void **rvalue);
+int c_avl_remove (c_avl_tree_t *t, const void *key, void **rkey, void **rvalue);
 
 /*
  * NAME
- *   avl_get
+ *   c_avl_get
  *
  * DESCRIPTION
  *   Retrieve the `value' belonging to `key'.
@@ -120,11 +120,11 @@ int avl_remove (avl_tree_t *t, const void *key, void **rkey, void **rvalue);
  * RETURN VALUE
  *   Zero upon success or non-zero if the key isn't found in the tree.
  */
-int avl_get (avl_tree_t *t, const void *key, void **value);
+int c_avl_get (c_avl_tree_t *t, const void *key, void **value);
 
 /*
  * NAME
- *   avl_pick
+ *   c_avl_pick
  *
  * DESCRIPTION
  *   Remove a (pseudo-)random element from the tree and return it's `key' and
@@ -141,11 +141,11 @@ int avl_get (avl_tree_t *t, const void *key, void **value);
  *   Zero upon success or non-zero if the tree is empty or key or value is
  *   NULL.
  */
-int avl_pick (avl_tree_t *t, void **key, void **value);
+int c_avl_pick (c_avl_tree_t *t, void **key, void **value);
 
-avl_iterator_t *avl_get_iterator (avl_tree_t *t);
-int avl_iterator_next (avl_iterator_t *iter, void **key, void **value);
-int avl_iterator_prev (avl_iterator_t *iter, void **key, void **value);
-void avl_iterator_destroy (avl_iterator_t *iter);
+c_avl_iterator_t *c_avl_get_iterator (c_avl_tree_t *t);
+int c_avl_iterator_next (c_avl_iterator_t *iter, void **key, void **value);
+int c_avl_iterator_prev (c_avl_iterator_t *iter, void **key, void **value);
+void c_avl_iterator_destroy (c_avl_iterator_t *iter);
 
 #endif /* UTILS_AVLTREE_H */

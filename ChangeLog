@@ -1,3 +1,15 @@
+2007-12-28, Version 4.2.3
+	* sensors plugin: Updated the plugin to build and work with version 3
+	  of the libsensors library.
+
+2007-12-15, Version 4.2.2
+	* nginx plugin: Incorrect comparison of strings lead to a segfault
+	  when using the plugin. Thanks to Saulius Grigaliunas for fixing
+	  this.
+	* logfile plugin: The config option `Timestamp' was handled
+	  incorrectly and basically always active. Thanks to Luke Heberling
+	  for fixing this.
+
 2007-11-08, Version 4.2.1
 	* tcpconns plugin: Don't complain about a missing file if IPv6 is not
 	  enabled on the host.
@@ -29,6 +41,12 @@
 	  certain TCP connections and what state they're in. This can be used
 	  to see how many connections your FTP server has to handle or how
 	  many outgoing connections your mailserver has open.
+
+2007-12-27, Version 4.1.5
+	* rrdtool plugin: Fix a memory leak that only occured in very-low-
+	  memory situations.
+	* sensors plugin: Updated the plugin to build and work with version 3
+	  of the libsensors library.
 
 2007-11-08, Version 4.1.4
 	* Build system: Improve detection of the rrd library, especially if

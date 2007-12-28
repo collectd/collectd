@@ -166,7 +166,7 @@ static value_list_t send_buffer_vl = VALUE_LIST_STATIC;
 static char         send_buffer_type[DATA_MAX_NAME_LEN];
 static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static avl_tree_t      *cache_tree = NULL;
+static c_avl_tree_t      *cache_tree = NULL;
 static pthread_mutex_t  cache_lock = PTHREAD_MUTEX_INITIALIZER;
 static time_t           cache_flush_last;
 static int              cache_flush_interval = 1800;
@@ -184,12 +184,12 @@ static int cache_flush (void)
 
 	char   *key;
 	time_t *value;
-	avl_iterator_t *iter;
+	c_avl_iterator_t *iter;
 
 	time_t curtime = time (NULL);
 
-	iter = avl_get_iterator (cache_tree);
-	while (avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
+	iter = c_avl_get_iterator (cache_tree);
+	while (c_avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
 	{
 		if ((curtime - *value) <= cache_flush_interval)
 			continue;
@@ -198,7 +198,7 @@ static int cache_flush (void)
 		if (tmp == NULL)
 		{
 			sfree (keys);
-			avl_iterator_destroy (iter);
+			c_avl_iterator_destroy (iter);
 			ERROR ("network plugin: cache_flush: realloc"
 					" failed.");
 			return (-1);
@@ -206,15 +206,15 @@ static int cache_flush (void)
 		keys = tmp;
 		keys[keys_num] = key;
 		keys_num++;
-	} /* while (avl_iterator_next) */
-	avl_iterator_destroy (iter);
+	} /* while (c_avl_iterator_next) */
+	c_avl_iterator_destroy (iter);
 
 	for (i = 0; i < keys_num; i++)
 	{
-		if (avl_remove (cache_tree, keys[i], (void *) &key,
+		if (c_avl_remove (cache_tree, keys[i], (void *) &key,
 					(void *) &value) != 0)
 		{
-			WARNING ("network plugin: cache_flush: avl_remove"
+			WARNING ("network plugin: cache_flush: c_avl_remove"
 					" (%s) failed.", keys[i]);
 			continue;
 		}
@@ -246,7 +246,7 @@ static int cache_check (const char *type, const value_list_t *vl)
 
 	pthread_mutex_lock (&cache_lock);
 
-	if (avl_get (cache_tree, key, (void *) &value) == 0)
+	if (c_avl_get (cache_tree, key, (void *) &value) == 0)
 	{
 		if (*value < vl->time)
 		{
@@ -267,7 +267,7 @@ static int cache_check (const char *type, const value_list_t *vl)
 		if ((key_copy != NULL) && (value != NULL))
 		{
 			*value = vl->time;
-			avl_insert (cache_tree, key_copy, value);
+			c_avl_insert (cache_tree, key_copy, value);
 			retval = 0;
 		}
 		else
@@ -1309,12 +1309,12 @@ static int network_shutdown (void)
 		void *key;
 		void *value;
 
-		while (avl_pick (cache_tree, &key, &value) == 0)
+		while (c_avl_pick (cache_tree, &key, &value) == 0)
 		{
 			sfree (key);
 			sfree (value);
 		}
-		avl_destroy (cache_tree);
+		c_avl_destroy (cache_tree);
 		cache_tree = NULL;
 	}
 
@@ -1337,7 +1337,7 @@ static int network_init (void)
 	memset (&send_buffer_vl, '\0', sizeof (send_buffer_vl));
 	memset (send_buffer_type, '\0', sizeof (send_buffer_type));
 
-	cache_tree = avl_create ((int (*) (const void *, const void *)) strcmp);
+	cache_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 	cache_flush_last = time (NULL);
 
 	/* setup socket(s) and so on */
