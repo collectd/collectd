@@ -29,6 +29,7 @@
 #include <pthread.h>
 
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 
 #include <grp.h>
@@ -364,6 +365,8 @@ static int us_open_socket (void)
 		sock_fd = -1;
 		return (-1);
 	}
+
+	chmod (sa.sun_path, sock_perms);
 
 	status = listen (sock_fd, 8);
 	if (status != 0)
