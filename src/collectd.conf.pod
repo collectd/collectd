@@ -32,9 +32,11 @@ ignored. Values are either string, enclosed in double-quotes,
 B<false>. String containing of only alphanumeric characters and underscores do
 not need to be quoted.
 
-Plugins are loaded in the order listed in this config file. It is a good idea
-to load any logging plugins first in order to catch messages from plugins
-during configuration.
+The configuration is read and processed in order, i.E<nbsp>e. from top to
+bottom. So the plugins are loaded in the order listed in this config file. It
+is a good idea to load any logging plugins first in order to catch messages
+from plugins during configuration. Also, the C<LoadPlugin> option B<must> occur
+B<before> the C<E<lt>Plugin ...E<gt>> block.
 
 =head1 GLOBAL OPTIONS
 
