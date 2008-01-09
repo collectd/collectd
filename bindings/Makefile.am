@@ -3,13 +3,13 @@ EXTRA_DIST = perl/Collectd.pm perl/Makefile.PL perl/Collectd/Makefile.PL perl/Co
 all-local: @PERL_BINDINGS@
 
 install-exec-local:
-	[ ! -f perl/Makefile ] || $(MAKE) -C perl install
+	[ ! -f perl/Makefile ] || ( cd perl && $(MAKE) install )
 
 clean-local:
-	[ ! -f perl/Makefile ] || $(MAKE) -C perl realclean
+	[ ! -f perl/Makefile ] || ( cd perl && $(MAKE) realclean )
 
 perl: perl/Makefile
-	$(MAKE) -C perl
+	cd perl && $(MAKE)
 
 perl/Makefile: .perl-directory-stamp perl/Makefile.PL perl/Collectd/Makefile.PL
 	cd perl && @PERL@ Makefile.PL PREFIX=$(prefix) @PERL_BINDINGS_OPTIONS@
