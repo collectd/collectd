@@ -643,7 +643,9 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
 static void
 init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
 {
-    int i;
+    int i, n;
+    const char *name;
+    char uuid[VIR_UUID_STRING_BUFLEN];
     char  *host_ptr;
     size_t host_len;
 
@@ -659,51 +661,32 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
 
     /* Construct the hostname field according to HostnameFormat. */
     for (i = 0; i < HF_MAX_FIELDS; ++i) {
-	int status = 0;
+        if (hostname_format[i] == hf_none)
+            continue;
+
+        n = DATA_MAX_NAME_LEN - strlen (vl->host) - 2;
+
+        if (i > 0 && n >= 1) {
+            strcat (vl->host, ":");
+            n--;
+        }
 
         switch (hostname_format[i]) {
-	    case hf_none:
-	    	/* do nothing */
-	    	break;
-
-	    case hf_hostname:
-		status = snprintf (host_ptr, host_len, ":%s", hostname_g);
-		break;
-
-	    case hf_name:
-	    {
-		const char *name = virDomainGetName (dom);
-		if (name != NULL)
-		    status = snprintf (host_ptr, host_len, ":%s", name);
-		break;
-	    }
-	    case hf_uuid:
-	    {
-		char uuid[VIR_UUID_STRING_BUFLEN];
-		if (virDomainGetUUIDString (dom, uuid) == 0) {
-		    uuid[sizeof (uuid) - 1] = '\0';
-		    status = snprintf (host_ptr, host_len, ":%s", uuid);
-		}
-		break;
-	    }
-	} /* switch (hostname_format[i]) */
-
-	/* If status >= host_len
-	 * => the buffer is full, there's no null-byte at the end and
-	 *    continuing with this loop doesn't make any sense. */
-	if (status >= host_len) {
-	    host_len = 0;
-	    host_ptr = NULL;
-	}
-	/* else: Test if anything was added to the buffer */
-	else if (status > 0) {
-	    host_len -= status;
-	    host_ptr += status;
-	}
-
-	if (host_len <= 0)
-	    break;
-    } /* for (i) */
+        case hf_none: break;
+        case hf_hostname:
+            strncat (vl->host, hostname_g, n);
+            break;
+        case hf_name:
+            name = virDomainGetName (dom);
+            if (name)
+                strncat (vl->host, name, n);
+            break;
+        case hf_uuid:
+            if (virDomainGetUUIDString (dom, uuid) == 0)
+                strncat (vl->host, uuid, n);
+            break;
+        }
+    }
 
     vl->host[sizeof (vl->host) - 1] = '\0';
 } /* void init_value_list */
