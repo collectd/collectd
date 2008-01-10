@@ -469,6 +469,9 @@ between, thus I<"foo:1234-1234-1234-1234">).
 Sets the log-level. If, for example, set to B<notice>, then all events with
 severity B<notice>, B<warning>, or B<err> will be written to the logfile.
 
+Please note that B<debug> is only available if collectd has been compiled with
+debugging support.
+
 =item B<File> I<File>
 
 Sets the file to write log messages to. The special strings B<stdout> and
@@ -919,6 +922,9 @@ L<collectd-snmp(5)>. Please see there for details.
 Sets the log-level. If, for example, set to B<notice>, then all events with
 severity B<notice>, B<warning>, or B<err> will be submitted to the
 syslog-daemon.
+
+Please note that B<debug> is only available if collectd has been compiled with
+debugging support.
 
 =back
 
