@@ -1,3 +1,9 @@
+2008-12-11, Version 4.1.6
+	* unixsock plugin: A bug in the unixsock plugin caused it not to set
+	  the permission on the socket as documented in the manpage. Thanks to
+	  Evgeny Chukreev for fixing this issue.
+	* collectd: The documentation has been improved.
+
 2007-12-27, Version 4.1.5
 	* rrdtool plugin: Fix a memory leak that only occured in very-low-
 	  memory situations.
