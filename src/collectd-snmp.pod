@@ -85,7 +85,7 @@ queried. The following options can be set:
 collectd's type that is to be used, e.E<nbsp>g. "if_octets" for interface
 traffic or "users" for a user count. The types are read from the B<TypesDB>
 (see L<collectd.conf(5)>), so you may want to check for which types are
-defined.
+defined. See L<types.db(5)> for a description of the format of this file.
 
 =item B<Table> I<true|false>
 

@@ -102,6 +102,7 @@ L<collectd-exec(5)>,
 L<collectd-perl(5)>,
 L<collectd-snmp(5)>,
 L<collectd-unixsock(5)>,
+L<types.db(5)>,
 L<http://collectd.org/>
 
 =head1 AUTHOR

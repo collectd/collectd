@@ -193,9 +193,10 @@ argument which simply tells B<plugin_register> what is being registered.)
 The last argument, I<data>, is either a function name or an array-reference.
 If I<type> is B<TYPE_DATASET>, then the I<data> argument must be an
 array-reference which points to an array of hashes. Each hash describes one
-data-source. For the exact layout see B<Data-Set> above. Please note that
+data-set. For the exact layout see B<Data-Set> above. Please note that
 there is a large number of predefined data-sets available in the B<types.db>
-file which are automatically registered with collectd.
+file which are automatically registered with collectd - see L<types.db(5)> for
+a description of the format of this file.
 
 If the I<type> argument is any of the other types (B<TYPE_INIT>, B<TYPE_READ>,
 ...) then I<data> is expected to be a function name. If the name is not
@@ -455,6 +456,7 @@ instead.
 L<collectd(1)>,
 L<collectd.conf(5)>,
 L<collectd-exec(5)>,
+L<types.db(5)>,
 L<perl(1)>,
 L<threads(3perl)>,
 L<threads::shared(3perl)>,

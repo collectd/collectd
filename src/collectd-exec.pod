@@ -46,7 +46,8 @@ omitted, too. I<plugin> and each I<instance>-part may be chosen freely as long
 as the tuple (plugin, plugin instance, type instance) uniquely identifies the
 plugin within collectd. I<type> identifies the type and number of values
 (i.E<nbsp>e. data-set) passed to collectd. A large list of predefined
-data-sets is available in the B<types.db> file.
+data-sets is available in the B<types.db> file. See L<types.db(5)> for a
+description of the format of this file.
 
 The I<OptionList> is an optional list of I<Options>, where each option if a
 key-value-pair. A list of currently understood options can be found below, all
