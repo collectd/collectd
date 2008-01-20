@@ -401,6 +401,22 @@ To register those functions with collectd:
 See the section "DATA TYPES" above for a complete documentation of the data
 types used by the read and write functions.
 
+=head1 NOTES
+
+=over 4
+
+=item
+
+Please feel free to send in new plugins to collectd's mailinglist at
+E<lt>collectdE<nbsp>atE<nbsp>verplant.orgE<gt> for review and, possibly,
+inclusion in the main distribution. In the latter case, we will take care of
+keeping the plugin up to date and adapting it to new versions of collectd.
+
+Before submitting your plugin, please take a look at
+L<http://collectd.org/dev-info.shtml>.
+
+=back
+
 =head1 CAVEATS
 
 =over 4
