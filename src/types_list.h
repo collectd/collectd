@@ -22,6 +22,6 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-int read_types_list (void);
+int read_types_list (const char *file);
 
 #endif /* TYPES_LIST_H */

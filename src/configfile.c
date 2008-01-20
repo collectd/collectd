@@ -27,6 +27,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "types_list.h"
 #include "utils_threshold.h"
 
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
@@ -66,6 +67,7 @@ typedef struct cf_global_option_s
 /*
  * Prototypes of callback functions
  */
+static int dispatch_value_typesdb (const oconfig_item_t *ci);
 static int dispatch_value_plugindir (const oconfig_item_t *ci);
 static int dispatch_value_loadplugin (const oconfig_item_t *ci);
 
@@ -77,6 +79,7 @@ static cf_complex_callback_t *complex_callback_head = NULL;
 
 static cf_value_map_t cf_value_map[] =
 {
+	{"TypesDB",    dispatch_value_typesdb},
 	{"PluginDir",  dispatch_value_plugindir},
 	{"LoadPlugin", dispatch_value_loadplugin}
 };
@@ -89,10 +92,11 @@ static cf_global_option_t cf_global_options[] =
 	{"Hostname",    NULL, NULL},
 	{"FQDNLookup",  NULL, "false"},
 	{"Interval",    NULL, "10"},
-	{"ReadThreads", NULL, "5"},
-	{"TypesDB",     NULL, PLUGINDIR"/types.db"} /* FIXME: Configure path */
+	{"ReadThreads", NULL, "5"}
 };
 static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
+
+static int cf_default_typesdb = 1;
 
 /*
  * Functions to handle register/unregister, search, and other plugin related
@@ -187,6 +191,27 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 
 	return (-1);
 } /* int dispatch_global_option */
+
+static int dispatch_value_typesdb (const oconfig_item_t *ci)
+{
+	int i = 0;
+
+	assert (strcasecmp (ci->key, "TypesDB") == 0);
+
+	cf_default_typesdb = 0;
+
+	if (ci->values_num < 1)
+		return (-1);
+
+	for (i = 0; i < ci->values_num; ++i)
+	{
+		if (OCONFIG_TYPE_STRING != ci->values[i].type)
+			continue;
+
+		read_types_list (ci->values[i].value.string);
+	}
+	return (0);
+} /* int dispatch_value_typesdb */
 
 static int dispatch_value_plugindir (const oconfig_item_t *ci)
 {
@@ -593,5 +618,7 @@ int cf_read (char *filename)
 			dispatch_block (conf->children + i);
 	}
 
+	if (cf_default_typesdb)
+		read_types_list (PLUGINDIR"/types.db"); /* FIXME: Configure path */
 	return (0);
 } /* int cf_read */

@@ -72,9 +72,9 @@ setting using the B<-P> command-line option.
 
 Path to the plugins (shared objects) of collectd.
 
-=item B<TypesDB> I<File>
+=item B<TypesDB> I<File> [I<File> ...]
 
-Set the file that contains the data-set descriptions.
+Set one or more files that contain the data-set descriptions.
 
 =item B<Interval> I<Seconds>
 

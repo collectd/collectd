@@ -169,17 +169,12 @@ static void parse_file (FILE *fh)
   } /* while (fgets) */
 } /* void parse_file */
 
-int read_types_list (void)
+int read_types_list (const char *file)
 {
-  const char *file;
   FILE *fh;
 
-  file = global_option_get ("TypesDB");
   if (file == NULL)
-  {
-    ERROR ("global_option_get (\"TypesDB\") returned NULL.");
     return (-1);
-  }
 
   fh = fopen (file, "r");
   if (fh == NULL)
