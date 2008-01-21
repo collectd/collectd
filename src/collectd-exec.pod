@@ -42,7 +42,11 @@ I<Value-List>, separated by a spaces. A description of these two parts follows:
 An I<Identifier> is of the form
 C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
 I<instance>-parts being optional. If they're omitted the hyphen must be
-omitted, too.
+omitted, too. I<plugin> and each I<instance>-part may be chosen freely as long
+as the tuple (plugin, plugin instance, type instance) uniquely identifies the
+plugin within collectd. I<type> identifies the type and number of values
+(i.E<nbsp>e. data-set) passed to collectd. A large list of predefined
+data-sets is available in the B<types.db> file.
 
 The I<OptionList> is an optional list of I<Options>, where each option if a
 key-value-pair. A list of currently understood options can be found below, all
