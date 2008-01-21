@@ -1,3 +1,9 @@
+2008-01-21, Version 4.2.4
+	* unixsock plugin: A bug in the unixsock plugin caused it not to set
+	  the permission on the socket as documented in the manpage. Thanks to
+	  Evgeny Chukreev for fixing this issue.
+	* collectd: The documentation has been improved.
+
 2007-12-28, Version 4.2.3
 	* sensors plugin: Updated the plugin to build and work with version 3
 	  of the libsensors library.
@@ -41,6 +47,12 @@
 	  certain TCP connections and what state they're in. This can be used
 	  to see how many connections your FTP server has to handle or how
 	  many outgoing connections your mailserver has open.
+
+2008-01-11, Version 4.1.6
+	* unixsock plugin: A bug in the unixsock plugin caused it not to set
+	  the permission on the socket as documented in the manpage. Thanks to
+	  Evgeny Chukreev for fixing this issue.
+	* collectd: The documentation has been improved.
 
 2007-12-27, Version 4.1.5
 	* rrdtool plugin: Fix a memory leak that only occured in very-low-
