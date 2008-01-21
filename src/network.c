@@ -989,7 +989,7 @@ static int network_add_sending_socket (const char *node, const char *service)
 	return (0);
 } /* int network_get_listen_socket */
 
-int network_receive (void)
+static int network_receive (void)
 {
 	char buffer[BUFF_SIZE];
 	int  buffer_len;
