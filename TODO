@@ -1,15 +1,17 @@
-src/battery.c: commend not working code.
-general: build Darwin package
+For version 4.3:
+* Add notification stuff to the network plugin
+* Add notification stuff to the unixsock plugin
 
-Near future:
+src/battery.c: commend not working code.
+
+Wishlist:
 * Update the RPM specfile to
   - build `collectd-apache'
   - be free of syntax erros.
-
-For version 3.*:
 * Port nfs module to solaris
 * Port tape module to Linux
 * Maybe look into porting the serial module
+* Build Darwin package
 
 http://developer.apple.com/documentation/DeviceDrivers/Conceptual/AccessingHardware/AH_IOKitLib_API/chapter_5_section_1.html
 http://developer.apple.com/documentation/DeviceDrivers/Conceptual/IOKitFundamentals/index.html#//apple_ref/doc/uid/TP0000011
