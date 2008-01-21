@@ -1,3 +1,9 @@
+2008-01-21, Version 4.2.4
+	* unixsock plugin: A bug in the unixsock plugin caused it not to set
+	  the permission on the socket as documented in the manpage. Thanks to
+	  Evgeny Chukreev for fixing this issue.
+	* collectd: The documentation has been improved.
+
 2007-12-28, Version 4.2.3
 	* sensors plugin: Updated the plugin to build and work with version 3
 	  of the libsensors library.
