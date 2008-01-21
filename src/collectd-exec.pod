@@ -10,20 +10,65 @@ collectd-exec - Documentation of collectd's C<exec plugin>
   <Plugin exec>
     Exec "myuser:mygroup" "myprog"
     Exec "otheruser" "/path/to/another/binary"
+    NotificationExec "user" "/usr/lib/collectd/exec/handle_notification"
+    NagiosExec "nagios:nagios" "/usr/lib/nagios/plugins/check_something"
   </Plugin>
 
 =head1 DESCRIPTION
 
-The C<exec plugin> forks of an executable and reads back values that it writes
-to C<STDOUT>. The executable is forked in a fashion similar to L<init>: It is
-forked once and not again until it exits. If it exited, it will be forked again
-after at most I<Interval> seconds. It is perfectly legal for the executable to
-run for a long time and continuously write values to C<STDOUT>.
+The C<exec plugin> forks of an executable either to receive values, to dispatch
+notifications to the outside world or to be able to use Nagios plugins.
 
 If you want/need better performance or more functionality you should take a
 long look at the C<perl plugin>, L<collectd-perl(5)>.
 
-=head1 DATA FORMAT
+=head1 EXECUTABLE TYPES
+
+There are currently three types of executables that can be executed by the
+C<exec plugin>:
+
+=over 4
+
+=item C<Exec>
+
+These programs are forked and values that it writes to C<STDOUT> are read back.
+The executable is forked in a fashion similar to L<init>: It is forked once and
+not again until it exits. If it exited, it will be forked again after at most
+I<Interval> seconds. It is perfectly legal for the executable to run for a long
+time and continuously write values to C<STDOUT>.
+
+See L<EXEC DATA FORMAT> below for a description of the output format expected
+from these programs.
+
+B<Warning:> If the executable only writes one value and then exits I will be
+executed every I<Interval> seconds. If I<Interval> is short (the default is 10
+seconds) this may result in serious system load.
+
+=item C<NotificationExec>
+
+The program is forked once for each notification that is handled by the daemon.
+The notification is passed to the program on C<STDIN> in a fashion similar to
+HTTP-headers. In contrast to programs specified with C<Exec> the execution of
+this program is not serialized, so that several instances of this program may
+run at once if multiple notifications are received.
+
+See L<NOTIFICATION DATA FORMAT> below for a description of the data passed to
+these programs.
+
+=item C<NagiosExec>
+
+The executable is treated as a Nagios plugin. That means that the first line
+printed to C<STDOUT> by this program is used as the text of a notification and
+the severity of the notification depends on the exit status of the executable
+only.
+
+For information on how to write Nagios plugins please refer to the Nagios
+documentation. If a plugin works with Nagios but not with collectd please
+complain on the collectd mailing list instead.
+
+=back
+
+=head1 EXEC DATA FORMAT
 
 The forked executable is expected to print values to C<STDOUT>. The expected
 format is as follows:
@@ -89,20 +134,56 @@ Since examples usually let one understand a lot better, here are some:
 When collectd exits it sends a B<SIGTERM> to all still running
 child-processes upon which they have to quit.
 
+=head1 NOTIFICATION DATA FORMAT
+
+The notification executables receive values rather than providing them. In
+fact, after the program is started C<STDOUT> is connected to C</dev/null>.
+
+The data is passed to the executables over C<STDIN> in a format very similar to
+HTTP-headers: There is one line per field. Every line consists of a field name,
+ended by a colon, and the associated value until end-of-line. The input is
+ended by two newlines immediately following another.
+
+The following is an example notification passed to a program:
+
+  Severity: FAILURE
+  Time: 1200928930
+  Host: myhost.mydomain.org
+  Message: This is a test notification to demonstrate the format
+  <newline>
+
+The following header files are currently used. Please note, however, that you
+should ignore unknown header files to be as forward-compatible as possible.
+
+=over 4
+
+=item B<Severity>
+
+Severity of the notification. May either be B<FAILURE>, B<WARNING>, or B<OKAY>.
+
+=item B<Time>
+
+The time in epoch, i.E<nbsp>e. as seconds since 1970-01-01 00:00:00 UTC.
+
+=item B<Host>
+
+Name of the host concerned.
+
+=item B<Message>
+
+Message of the notification. This message should be made accessible to the
+user somehow.
+
+=back
+
 =head1 CAVEATS
 
 =over 4
 
 =item
 
-If the executable only writes one value and then exits I will be executed every
-I<Interval> seconds. If I<Interval> is short (the default is 10 seconds) this
-may result in serious system load.
-
-=item
-
 The user, the binary is executed as, may not have root privileges, i.E<nbsp>e.
-must have an UID that is non-zero.
+must have an UID that is non-zero. This is for your own good.
 
 =back
 
