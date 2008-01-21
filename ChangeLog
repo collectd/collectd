@@ -42,7 +42,7 @@
 	  to see how many connections your FTP server has to handle or how
 	  many outgoing connections your mailserver has open.
 
-2008-12-11, Version 4.1.6
+2008-01-11, Version 4.1.6
 	* unixsock plugin: A bug in the unixsock plugin caused it not to set
 	  the permission on the socket as documented in the manpage. Thanks to
 	  Evgeny Chukreev for fixing this issue.
