@@ -376,7 +376,7 @@ static char *get_module_name (char *buf, size_t buf_len, const char *module) {
 		status = snprintf (buf, buf_len, "%s", module);
 	else
 		status = snprintf (buf, buf_len, "%s::%s", base_name, module);
-	if ((status < 0) || (status >= buf_len))
+	if ((status < 0) || ((unsigned int)status >= buf_len))
 		return (NULL);
 	buf[buf_len - 1] = '\0';
 	return (buf);
@@ -1089,8 +1089,8 @@ static int g_iv_set (pTHX_ SV *var, MAGIC *mg)
 	return 0;
 } /* static int g_iv_set (pTHX_ SV *, MAGIC *) */
 
-static MGVTBL g_pv_vtbl = { g_pv_get, g_pv_set, NULL, NULL, NULL };
-static MGVTBL g_iv_vtbl = { g_iv_get, g_iv_set, NULL, NULL, NULL };
+static MGVTBL g_pv_vtbl = { g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL };
+static MGVTBL g_iv_vtbl = { g_iv_get, g_iv_set, NULL, NULL, NULL, NULL, NULL };
 
 /* bootstrap the Collectd module */
 static void xs_init (pTHX)

@@ -81,7 +81,7 @@ static pthread_t listen_thread = (pthread_t) 0;
 /* Linked list and auxilliary variables for saving values */
 static value_cache_t   *cache_head = NULL;
 static pthread_mutex_t  cache_lock = PTHREAD_MUTEX_INITIALIZER;
-static unsigned int     cache_oldest = UINT_MAX;
+static time_t           cache_oldest = -1;
 
 /*
  * Functions
@@ -188,7 +188,7 @@ static int cache_insert (const data_set_t *ds, const value_list_t *vl)
 	cache_head = vc;
 
 	vc->time = vl->time;
-	if (vc->time < cache_oldest)
+	if ((vc->time < cache_oldest) || (-1 == cache_oldest))
 		cache_oldest = vc->time;
 
 	pthread_mutex_unlock (&cache_lock);
@@ -275,7 +275,7 @@ static int cache_update (const data_set_t *ds, const value_list_t *vl)
 	vc->ds = ds;
 	vc->time = vl->time;
 
-	if (vc->time < cache_oldest)
+	if ((vc->time < cache_oldest) || (-1 == cache_oldest))
 		cache_oldest = vc->time;
 
 	pthread_mutex_unlock (&cache_lock);

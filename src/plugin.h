@@ -144,7 +144,7 @@ void plugin_set_dir (const char *dir);
 int plugin_load (const char *name);
 
 void plugin_init_all (void);
-void plugin_read_all (const int *loop);
+void plugin_read_all (void);
 void plugin_shutdown_all (void);
 
 /*

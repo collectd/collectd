@@ -111,7 +111,7 @@ static int check_ignore_irq (const unsigned int irq)
 	if (irq_list_num < 1)
 		return (0);
 
-	for (i = 0; i < irq_list_num; i++)
+	for (i = 0; (unsigned int)i < irq_list_num; i++)
 		if (irq == irq_list[i])
 			return (irq_list_action);
 
@@ -137,7 +137,7 @@ static void irq_submit (unsigned int irq, counter_t value)
 
 	status = snprintf (vl.type_instance, sizeof (vl.type_instance),
 			"%u", irq);
-	if ((status < 1) || (status >= sizeof (vl.type_instance)))
+	if ((status < 1) || ((unsigned int)status >= sizeof (vl.type_instance)))
 		return;
 
 	plugin_dispatch_values ("irq", &vl);

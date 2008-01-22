@@ -215,7 +215,7 @@ static void update_kstat (void)
 /* TODO
  * Remove all settings but `-f' and `-C'
  */
-static void exit_usage (char *name)
+static void exit_usage (void)
 {
 	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
 			
@@ -288,7 +288,7 @@ static int do_loop (void)
 #endif
 
 		/* Issue all plugins */
-		plugin_read_all (&loop);
+		plugin_read_all ();
 
 		if (gettimeofday (&tv_now, NULL) < 0)
 		{
@@ -404,7 +404,7 @@ int main (int argc, char **argv)
 #endif /* COLLECT_DAEMON */
 			case 'h':
 			default:
-				exit_usage (argv[0]);
+				exit_usage ();
 		} /* switch (c) */
 	} /* while (1) */
 

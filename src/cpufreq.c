@@ -40,7 +40,7 @@ static int cpufreq_init (void)
 		status = snprintf (filename, sizeof (filename),
 				"/sys/devices/system/cpu/cpu%d/cpufreq/"
 				"scaling_cur_freq", num_cpu);
-    		if (status < 1 || status >= sizeof (filename))
+		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			break;
 
 		if (access (filename, R_OK))
@@ -90,7 +90,7 @@ static int cpufreq_read (void)
 		status = snprintf (filename, sizeof (filename),
 				"/sys/devices/system/cpu/cpu%d/cpufreq/"
 				"scaling_cur_freq", i);
-    		if (status < 1 || status >= sizeof (filename))
+		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			return (-1);
 
 		if ((fp = fopen (filename, "r")) == NULL)

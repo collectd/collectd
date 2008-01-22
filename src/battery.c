@@ -77,7 +77,7 @@ static int battery_init (void)
 	{
 		len = snprintf (filename, sizeof (filename), battery_pmu_file, battery_pmu_num);
 
-		if ((len >= sizeof (filename)) || (len < 0))
+		if ((len < 0) || ((unsigned int)len >= sizeof (filename)))
 			break;
 
 		if (access (filename, R_OK))
@@ -360,11 +360,11 @@ static int battery_read (void)
 		double *valptr = NULL;
 
 		len = snprintf (filename, sizeof (filename), battery_pmu_file, i);
-		if ((len >= sizeof (filename)) || (len < 0))
+		if ((len < 0) || ((unsigned int)len >= sizeof (filename)))
 			continue;
 
 		len = snprintf (batnum_str, sizeof (batnum_str), "%i", i);
-		if ((len >= sizeof (batnum_str)) || (len < 0))
+		if ((len < 0) || ((unsigned int)len >= sizeof (batnum_str)))
 			continue;
 
 		if ((fh = fopen (filename, "r")) == NULL)
@@ -438,7 +438,7 @@ static int battery_read (void)
 			len = snprintf (filename, sizeof (filename),
 					"/proc/acpi/battery/%s/state",
 					ent->d_name);
-			if ((len >= sizeof (filename)) || (len < 0))
+			if ((len < 0) || ((unsigned int)len >= sizeof (filename)))
 				continue;
 
 			if ((fh = fopen (filename, "r")) == NULL)

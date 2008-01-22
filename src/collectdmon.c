@@ -140,7 +140,7 @@ static int daemonize (void)
 	if (RLIM_INFINITY == rl.rlim_max)
 		rl.rlim_max = 1024;
 
-	for (i = 0; i < rl.rlim_max; ++i)
+	for (i = 0; i < (int)rl.rlim_max; ++i)
 		close (i);
 
 	errno = 0;
@@ -166,7 +166,7 @@ static int daemonize (void)
 	return 0;
 } /* daemonize */
 
-static int collectd_start (int argc, char **argv)
+static int collectd_start (char **argv)
 {
 	pid_t pid = 0;
 
@@ -340,7 +340,7 @@ int main (int argc, char **argv)
 	while (0 == loop) {
 		int status = 0;
 
-		if (0 != collectd_start (collectd_argc, collectd_argv)) {
+		if (0 != collectd_start (collectd_argv)) {
 			syslog (LOG_ERR, "Error: failed to start collectd.");
 			break;
 		}

@@ -513,7 +513,8 @@ static int parse_packet (void *buffer, int buffer_len)
 	memset (&type, '\0', sizeof (type));
 	status = 0;
 
-	while ((status == 0) && (buffer_len > sizeof (part_header_t)))
+	while ((status == 0) && (0 < buffer_len)
+			&& ((unsigned int)buffer_len > sizeof (part_header_t)))
 	{
 		header = (part_header_t *) buffer;
 

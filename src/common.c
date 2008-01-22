@@ -176,7 +176,7 @@ ssize_t sread (int fd, void *buf, size_t count)
 			return (-1);
 		}
 
-		assert (nleft >= status);
+		assert ((0 > status) || (nleft >= (size_t)status));
 
 		nleft = nleft - status;
 		ptr   = ptr   + status;
@@ -237,8 +237,8 @@ int strjoin (char *dst, size_t dst_len,
 		char **fields, size_t fields_num,
 		const char *sep)
 {
-	int field_len;
-	int sep_len;
+	size_t field_len;
+	size_t sep_len;
 	int i;
 
 	memset (dst, '\0', dst_len);
@@ -250,7 +250,7 @@ int strjoin (char *dst, size_t dst_len,
 	if (sep != NULL)
 		sep_len = strlen (sep);
 
-	for (i = 0; i < fields_num; i++)
+	for (i = 0; i < (int)fields_num; i++)
 	{
 		if ((i > 0) && (sep_len > 0))
 		{

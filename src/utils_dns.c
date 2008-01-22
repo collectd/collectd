@@ -429,12 +429,15 @@ static int
 handle_ipv6 (struct ip6_hdr *ipv6, int len)
 {
     char buf[PCAP_SNAPLEN];
-    int offset;
+    unsigned int offset;
     int nexthdr;
 
     struct in6_addr s_addr;
     struct in6_addr d_addr;
     uint16_t payload_len;
+
+    if (0 > len)
+	return (0);
 
     offset = sizeof (struct ip6_hdr);
     nexthdr = ipv6->ip6_nxt;
@@ -459,7 +462,7 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
 	uint16_t ext_hdr_len;
 
 	/* Catch broken packets */
-	if ((offset + sizeof (struct ip6_ext)) > len)
+	if ((offset + sizeof (struct ip6_ext)) > (unsigned int)len)
 	    return (0);
 
 	/* Cannot handle fragments. */
@@ -479,7 +482,7 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
     } /* while */
 
     /* Catch broken and empty packets */
-    if (((offset + payload_len) > len)
+    if (((offset + payload_len) > (unsigned int)len)
 	    || (payload_len == 0)
 	    || (payload_len > PCAP_SNAPLEN))
 	return (0);
@@ -620,7 +623,7 @@ handle_linux_sll (const u_char *pkt, int len)
     } *hdr;
     uint16_t etype;
 
-    if (len < sizeof (struct sll_header))
+    if ((0 > len) || ((unsigned int)len < sizeof (struct sll_header)))
 	return (0);
 
     hdr  = (struct sll_header *) pkt;

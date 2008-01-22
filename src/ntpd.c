@@ -408,7 +408,7 @@ static int ntpd_connect (void)
 }
 
 /* For a description of the arguments see `ntpd_do_query' below. */
-static int ntpd_receive_response (int req_code, int *res_items, int *res_size,
+static int ntpd_receive_response (int *res_items, int *res_size,
 		char **res_data, int res_item_size)
 {
 	int              sd;
@@ -766,7 +766,7 @@ static int ntpd_do_query (int req_code, int req_items, int req_size, char *req_d
 	if (status != 0)
 		return (status);
 
-	status = ntpd_receive_response (req_code, res_items, res_size, res_data,
+	status = ntpd_receive_response (res_items, res_size, res_data,
 			res_item_size);
 	return (status);
 }

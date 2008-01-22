@@ -264,7 +264,7 @@ static void rebalance (c_avl_tree_t *t, c_avl_node_t *n)
 	} /* while (n != NULL) */
 } /* void rebalance */
 
-static c_avl_node_t *c_avl_node_next (c_avl_tree_t *t, c_avl_node_t *n)
+static c_avl_node_t *c_avl_node_next (c_avl_node_t *n)
 {
 	c_avl_node_t *r; /* return node */
 
@@ -309,7 +309,7 @@ static c_avl_node_t *c_avl_node_next (c_avl_tree_t *t, c_avl_node_t *n)
 	return (r);
 } /* c_avl_node_t *c_avl_node_next */
 
-static c_avl_node_t *c_avl_node_prev (c_avl_tree_t *t, c_avl_node_t *n)
+static c_avl_node_t *c_avl_node_prev (c_avl_node_t *n)
 {
 	c_avl_node_t *r; /* return node */
 
@@ -364,13 +364,13 @@ static int _remove (c_avl_tree_t *t, c_avl_node_t *n)
 		if (BALANCE (n) > 0) /* left subtree is higher */
 		{
 			assert (n->left != NULL);
-			r = c_avl_node_prev (t, n);
+			r = c_avl_node_prev (n);
 			
 		}
 		else /* right subtree is higher */
 		{
 			assert (n->right != NULL);
-			r = c_avl_node_next (t, n);
+			r = c_avl_node_next (n);
 		}
 
 		assert ((r->left == NULL) || (r->right == NULL));
@@ -662,7 +662,7 @@ int c_avl_iterator_next (c_avl_iterator_t *iter, void **key, void **value)
 	}
 	else
 	{
-		n = c_avl_node_next (iter->tree, iter->node);
+		n = c_avl_node_next (iter->node);
 	}
 
 	if (n == NULL)
@@ -691,7 +691,7 @@ int c_avl_iterator_prev (c_avl_iterator_t *iter, void **key, void **value)
 	}
 	else
 	{
-		n = c_avl_node_prev (iter->tree, iter->node);
+		n = c_avl_node_prev (iter->node);
 	}
 
 	if (n == NULL)

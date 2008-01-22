@@ -600,7 +600,7 @@ void plugin_init_all (void)
 	}
 } /* void plugin_init_all */
 
-void plugin_read_all (const int *loop)
+void plugin_read_all (void)
 {
 	llentry_t   *le;
 	read_func_t *rf;

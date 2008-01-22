@@ -106,7 +106,7 @@ static int iptables_config (const char *key, const char *value)
 		chain = fields[1];
 
 		table_len = strlen (table);
-		if (table_len >= sizeof(temp.table))
+		if ((unsigned int)table_len >= sizeof(temp.table))
 		{
 			ERROR ("Table `%s' too long.", table);
 			free (value_copy);
@@ -116,7 +116,7 @@ static int iptables_config (const char *key, const char *value)
 		temp.table[table_len] = '\0';
 
 		chain_len = strlen (chain);
-		if (chain_len >= sizeof(temp.chain))
+		if ((unsigned int)chain_len >= sizeof(temp.chain))
 		{
 			ERROR ("Chain `%s' too long.", chain);
 			free (value_copy);
@@ -224,7 +224,7 @@ static int submit_match (const struct ipt_entry_match *match,
 
     status = snprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	    "%s-%s", chain->table, chain->chain);
-    if ((status >= sizeof (vl.plugin_instance)) || (status < 1))
+    if ((status < 1) || ((unsigned int)status >= sizeof (vl.plugin_instance)))
 	return (0);
 
     if (chain->name[0] != '\0')

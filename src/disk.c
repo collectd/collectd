@@ -562,9 +562,8 @@ static int disk_read (void)
 
 		if (is_disk)
 		{
-			if ((read_merged != -1LL) || (write_merged != -1LL))
-				disk_submit (disk_name, "disk_merged",
-						read_merged, write_merged);
+			disk_submit (disk_name, "disk_merged",
+					read_merged, write_merged);
 		} /* if (is_disk) */
 	} /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
 
