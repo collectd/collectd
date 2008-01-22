@@ -102,6 +102,9 @@ static int init (void)
 {
 	static char credentials[1024];
 
+	if (url == NULL)
+		return (0);
+
 	if (curl != NULL)
 	{
 		curl_easy_cleanup (curl);
@@ -128,10 +131,7 @@ static int init (void)
 		curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
 	}
 
-	if (url != NULL)
-	{
-		curl_easy_setopt (curl, CURLOPT_URL, url);
-	}
+	curl_easy_setopt (curl, CURLOPT_URL, url);
 
 	if (cacert != NULL)
 	{
