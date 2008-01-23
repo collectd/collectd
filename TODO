@@ -1,6 +1,4 @@
 For version 4.3:
-* Add notification stuff to the unixsock plugin
-* Add separate warning/critical thresholds.
 * Fix the libvirt plugin.
 * unixsock plugin: Remove the custom cache if possible.
 
@@ -16,6 +14,8 @@ Wishlist:
 * Build Darwin package
 * Maybe let the network plugin configure whether or not notifications should be
   sent/received.
+* Maybe find a way for processes connected to the unixsock plugin to receive
+  notifications, too.
 
 http://developer.apple.com/documentation/DeviceDrivers/Conceptual/AccessingHardware/AH_IOKitLib_API/chapter_5_section_1.html
 http://developer.apple.com/documentation/DeviceDrivers/Conceptual/IOKitFundamentals/index.html#//apple_ref/doc/uid/TP0000011
