@@ -22,7 +22,9 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
 #include "utils_cmd_putval.h"
+#include "utils_cmd_putnotif.h"
 
 #include <sys/types.h>
 #include <pwd.h>
@@ -469,10 +471,15 @@ static int parse_line (char *buffer) /* {{{ */
   int fields_num;
 
   fields[0] = "PUTVAL";
-  fields_num = strsplit (buffer, &fields[1], STATIC_ARRAY_SIZE(fields) - 1);
+  fields_num = strsplit (buffer, fields + 1, STATIC_ARRAY_SIZE(fields) - 1);
 
-  handle_putval (stdout, fields, fields_num + 1);
-  return (0);
+  if (strcasecmp (fields[1], "putval") == 0)
+    return (handle_putval (stdout, fields + 1, fields_num));
+  else if (strcasecmp (fields[1], "putnotif") == 0)
+    return (handle_putnotif (stdout, fields + 1, fields_num));
+
+  /* compatibility code */
+  return (handle_putval (stdout, fields, fields_num + 1));
 } /* int parse_line }}} */
 
 static void *exec_read_one (void *arg) /* {{{ */

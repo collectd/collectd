@@ -165,6 +165,9 @@ table. All the options are optional, but B<plugin_instance> without B<plugin>
 or B<type_instance> without B<type> doesn't make much sense and should be
 avoided.
 
+Please note that this is the same format as used in the B<exec plugin>, see
+L<collectd-exec(5)>.
+
 =back
 
 Example:

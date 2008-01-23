@@ -77,14 +77,14 @@ format is as follows:
 
 =over 4
 
-=item
+=item Comments
 
 Each line beginning with a C<#> (hash mark) is ignored.
 
-=item
+=item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
 
-Other lines must consist of an I<Identifier>, an optional I<Option-List> and a
-I<Value-List>, separated by a spaces. A description of these two parts follows:
+Submits one or more values (identified by I<Identifier>, see below) to the
+daemon which will dispatch it to all it's write-plugins.
 
 An I<Identifier> is of the form
 C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
@@ -130,6 +130,62 @@ Since examples usually let one understand a lot better, here are some:
 
   leeloo/cpu-0/cpu-idle N:2299366
   alice/interface/if_octets-eth0 interval=10 1180647081:421465:479194
+
+Since this action was the only one supported with older versions of the C<exec
+plugin> all lines were treated as if they were prefixed with B<PUTVAL>. This is
+still the case to maintain backwards compatibility but deprecated.
+
+=item B<PUTNOTIF> [I<OptionList>] B<message=>I<Message>
+
+Submits a notification to the daemon which will then dispatch it to all plugins
+which have registered for receiving notifications. 
+
+The B<PUTNOTIF> if followed by a list of options which further describe the
+notification. The B<message> option is special in that it will consume the rest
+of the line as its value. The B<message>, B<severity>, and B<time> options are
+mandatory.
+
+Valid options are:
+
+=over 4
+
+=item B<message=>I<Message> (B<REQUIRED>)
+
+Sets the message of the notification. This is the message that will be made
+accessible to the user, so it should contain some useful information. This
+option must be the last option because the rest of the line will be its value,
+even if there are spaces and equal-signs following it! This option is
+mandatory.
+
+=item B<severity=failure>|B<warning>|B<okay> (B<REQUIRED>)
+
+Sets the severity of the notification. This option is mandatory.
+
+=item B<time=>I<Time> (B<REQUIRED>)
+
+Sets the time of the notification. The time is given as "epoch", i.E<nbsp>e. as
+seconds since January 1st, 1970, 00:00:00. This option is mandatory.
+
+=item B<host=>I<Hostname>
+
+=item B<plugin=>I<Plugin>
+
+=item B<plugin_instance=>I<Plugin-Instance>
+
+=item B<type=>I<Type>
+
+=item B<type_instance=>I<Type-Instance>
+
+These "associative" options establish a relation between this notification and
+collected performance data. This connection is purely informal, i.E<nbsp>e. the
+daemon itself doesn't do anything with this information. However, websites or
+GUIs may use this information to place notifications near the affected graph or
+table. All the options are optional, but B<plugin_instance> without B<plugin>
+or B<type_instance> without B<type> doesn't make much sense and should be
+avoided.
+
+Please note that this is the same format as used in the B<unixsock plugin>, see
+L<collectd-unixsock(5)>.
 
 =back
 
