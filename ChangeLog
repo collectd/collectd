@@ -1,3 +1,38 @@
+yyyy-mm-dd, Version 4.3.0
+	* collectd: Notifications have been added to the daemon. Notifications
+	  are status messages that may be associated with an data instance.
+	* collectd: Threshold checking has been added to the daemon. This
+	  means that you can configure threshold values for each data
+	  instance. If this threshold is exceeded a notification will be
+	  created.
+	* collectd: The new `FQDNLookup' option tells the daemon to use the
+	  full qualified domain name as the hostname, not just the host part
+	  es returned by `gethostname(2)'.
+	* collectd: Support for more than one `TypesDB' file has been added.
+	  This is useful when one such file is included in a package but one
+	  wants to add custom type definitions.
+	* collectdmon: The new `collectdmon' binary detects when collectd
+	  terminates and automatically restarts it again.
+	* csv plugin: The CSV plugin is now able to store counter values as a
+	  rate, using the `StoreRates' configuration option.
+	* exec plugin: Handling of notifications has been added and a special
+	  executable type for Nagios plugins has been implemented. Also, the
+	  ability to pass arguments to the executed programs has been added.
+	* logfile plugin: Handling of notifications has been added.
+	* ntpd plugin: The new `ReverseLookups' can be used to disable reverse
+	  domain name lookups in this plugin.
+	* perl plugin: The thread handling and API have been improved. The
+	  plugin is no longer experimental.
+	* uuid plugin: The new UUID plugin sets the hostname to an unique
+	  identifier for this host. This is meant for setups where each client
+	  may migrate to another physical host, possibly going through one or
+	  more name changes in the process. Thanks to Richard Jones from
+	  Red Hat's Emerging Technology group for this plugin.
+	* libvirt: The new libvirt plugin uses the `libvirt' library to query
+	  CPU, disk and network statistics about guest systems on the same
+	  physical server. Thanks to Richard Jones from Red Hat's Emerging
+	  Technology group for this plugin.
+
 2008-01-21, Version 4.2.4
 	* unixsock plugin: A bug in the unixsock plugin caused it not to set
 	  the permission on the socket as documented in the manpage. Thanks to
