@@ -8,11 +8,13 @@ src/battery.c: commend not working code.
 Wishlist:
 * Update the RPM specfile to
   - build `collectd-apache'
-  - be free of syntax erros.
+  - be free of syntax errors.
 * Port nfs module to solaris
 * Port tape module to Linux
 * Maybe look into porting the serial module
 * Build Darwin package
+* Maybe let the network plugin configure whether or not notifications should be
+  sent/received.
 
 http://developer.apple.com/documentation/DeviceDrivers/Conceptual/AccessingHardware/AH_IOKitLib_API/chapter_5_section_1.html
 http://developer.apple.com/documentation/DeviceDrivers/Conceptual/IOKitFundamentals/index.html#//apple_ref/doc/uid/TP0000011
