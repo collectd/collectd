@@ -41,8 +41,10 @@ typedef struct threshold_s
   char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
-  gauge_t min;
-  gauge_t max;
+  gauge_t warning_min;
+  gauge_t warning_max;
+  gauge_t failure_min;
+  gauge_t failure_max;
   int flags;
 } threshold_t;
 /* }}} */
@@ -138,12 +140,15 @@ static int ut_config_type_max (threshold_t *th, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
   {
-    WARNING ("threshold values: The `Max' option needs exactly one "
-	"number argument.");
+    WARNING ("threshold values: The `%s' option needs exactly one "
+	"number argument.", ci->key);
     return (-1);
   }
 
-  th->max = ci->values[0].value.number;
+  if (strcasecmp (ci->key, "WarningMax") == 0)
+    th->warning_min = ci->values[0].value.number;
+  else
+    th->failure_min = ci->values[0].value.number;
 
   return (0);
 } /* int ut_config_type_max */
@@ -153,12 +158,15 @@ static int ut_config_type_min (threshold_t *th, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
   {
-    WARNING ("threshold values: The `Min' option needs exactly one "
-	"number argument.");
+    WARNING ("threshold values: The `%s' option needs exactly one "
+	"number argument.", ci->key);
     return (-1);
   }
 
-  th->min = ci->values[0].value.number;
+  if (strcasecmp (ci->key, "WarningMin") == 0)
+    th->warning_min = ci->values[0].value.number;
+  else
+    th->failure_min = ci->values[0].value.number;
 
   return (0);
 } /* int ut_config_type_min */
@@ -223,8 +231,10 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   strncpy (th.type, ci->values[0].value.string, sizeof (th.type));
   th.type[sizeof (th.type) - 1] = '\0';
 
-  th.min = NAN;
-  th.max = NAN;
+  th.warning_min = NAN;
+  th.warning_max = NAN;
+  th.failure_min = NAN;
+  th.failure_max = NAN;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -233,9 +243,11 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 
     if (strcasecmp ("Instance", option->key) == 0)
       status = ut_config_type_instance (&th, option);
-    else if (strcasecmp ("Max", option->key) == 0)
+    else if ((strcasecmp ("WarningMax", option->key) == 0)
+	|| (strcasecmp ("FailureMax", option->key) == 0))
       status = ut_config_type_max (&th, option);
-    else if (strcasecmp ("Min", option->key) == 0)
+    else if ((strcasecmp ("WarningMin", option->key) == 0)
+	|| (strcasecmp ("FailureMin", option->key) == 0))
       status = ut_config_type_min (&th, option);
     else if (strcasecmp ("Invert", option->key) == 0)
       status = ut_config_type_invert (&th, option);
@@ -398,8 +410,10 @@ int ut_config (const oconfig_item_t *ci)
   }
 
   memset (&th, '\0', sizeof (th));
-  th.min = NAN;
-  th.max = NAN;
+  th.warning_min = NAN;
+  th.warning_max = NAN;
+  th.failure_min = NAN;
+  th.failure_max = NAN;
     
   for (i = 0; i < ci->children_num; i++)
   {
@@ -501,6 +515,8 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 
   if (threshold_tree == NULL)
     return (0);
+  /* Is this lock really necessary? So far, thresholds are only inserted at
+   * startup. -octo */
   pthread_mutex_lock (&threshold_lock);
   th = threshold_search (ds, vl);
   pthread_mutex_unlock (&threshold_lock);
@@ -515,31 +531,40 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 
   for (i = 0; i < ds->ds_num; i++)
   {
-    int out_of_range = 0;
     int is_inverted = 0;
+    int is_warning = 0;
+    int is_failure = 0;
 
     if ((th->flags & UT_FLAG_INVERT) != 0)
       is_inverted = 1;
-    if ((!isnan (th->min) && (th->min > values[i]))
-	|| (!isnan (th->max) && (th->max < values[i])))
-      out_of_range = 1;
+    if ((!isnan (th->failure_min) && (th->failure_min > values[i]))
+	|| (!isnan (th->failure_max) && (th->failure_max < values[i])))
+      is_failure = is_inverted - 1;
+    if ((!isnan (th->warning_min) && (th->warning_min > values[i]))
+	|| (!isnan (th->warning_max) && (th->warning_max < values[i])))
+      is_warning = is_inverted - 1;
 
-    /* If only one of these conditions is true, there is a problem */
-    if ((out_of_range + is_inverted) == 1)
+    if ((is_failure != 0) || (is_warning != 0))
     {
       notification_t n;
       char *buf;
       size_t bufsize;
       int status;
 
-      WARNING ("ut_check_threshold: ds[%s]: %lf <= !%lf <= %lf (invert: %s)",
-	  ds->ds[i].name, th->min, values[i], th->max,
+      double min;
+      double max;
+
+      min = (is_failure != 0) ? th->failure_min : th->warning_min;
+      max = (is_failure != 0) ? th->failure_max : th->warning_max;
+
+      DEBUG ("ut_check_threshold: ds[%s]: %lf <= !%lf <= %lf (invert: %s)",
+	  ds->ds[i].name, min, values[i], max,
 	  is_inverted ? "true" : "false");
 
       /* Copy the associative members */
       NOTIFICATION_INIT_VL (&n, vl, ds);
 
-      n.severity = NOTIF_FAILURE;
+      n.severity = (is_failure != 0) ? NOTIF_FAILURE : NOTIF_WARNING;
       n.time = vl->time;
 
       buf = n.message;
@@ -572,29 +597,32 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 
       if (is_inverted)
       {
-	if (!isnan (th->min) && !isnan (th->max))
+	if (!isnan (min) && !isnan (max))
 	{
 	  status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	      "%lf. That is within the critical region of %lf and %lf.",
+	      "%f. That is within the %s region of %f and %f.",
 	      ds->ds[i].name, values[i],
-	      th->min, th->min);
+	      (is_failure != 0) ? "failure" : "warning",
+	      min, min);
 	}
 	else
 	{
 	  status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	      "%lf. That is %s the configured threshold of %lf.",
+	      "%f. That is %s the %s threshold of %f.",
 	      ds->ds[i].name, values[i],
-	      isnan (th->min) ? "below" : "above",
-	      isnan (th->min) ? th->max : th->min);
+	      isnan (min) ? "below" : "above",
+	      (is_failure != 0) ? "failure" : "warning",
+	      isnan (min) ? max : min);
 	}
       }
       else /* (!is_inverted) */
       {
 	status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	    "%lf. That is %s the configured threshold of %lf.",
+	    "%f. That is %s the %s threshold of %f.",
 	    ds->ds[i].name, values[i],
-	    (values[i] < th->min) ? "below" : "above",
-	    (values[i] < th->min) ? th->min : th->max);
+	    (values[i] < min) ? "below" : "above",
+	    (is_failure != 0) ? "failure" : "warning",
+	    (values[i] < min) ? min : max);
       }
       buf += status;
       bufsize -= status;

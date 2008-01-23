@@ -1082,8 +1082,10 @@ information.
 
  <Threshold>
    <Type "foo">
-     Min    0.00
-     Max 1000.00
+     WarningMin    0.00
+     WarningMax 1000.00
+     FailureMin    0.00
+     FailureMax 1200.00
      Invert false
      Instance "bar"
    </Type>
@@ -1091,20 +1093,20 @@ information.
    <Plugin "interface">
      Instance "eth0"
      <Type "if_octets">
-       Max 10000000
+       FailureMax 10000000
      </Type>
    </Plugin>
 
    <Host "hostname">
      <Type "cpu">
        Instance "idle"
-       Min 10
+       FailureMin 10
      </Type>
 
      <Plugin "memory">
        <Type "memory">
          Instance "cached"
-	 Min 100000000
+	 WarningMin 100000000
        </Type>
      </Plugin>
    </Host>
@@ -1124,21 +1126,29 @@ included in a C<Type> block. Currently the following statements are recognized:
 
 =over 4
 
-=item B<Max> I<Value>
+=item B<FailureMax> I<Value>
+
+=item B<WarningMax> I<Value>
 
 Sets the upper bound of acceptable values. If unset defaults to positive
-infinity.
+infinity. If a value is greater than B<FailureMax> a B<FAILURE> notification
+will be created. If the value is greater than B<WarningMax> but less than (or
+equal to) B<FailureMax> a B<WARNING> notification will be created.
 
-=item B<Min> I<Value>
+=item B<FailureMin> I<Value>
+
+=item B<WarningMin> I<Value>
 
 Sets the lower bound of acceptable values. If unset defaults to negative
-infinity.
+infinity. If a value is less than B<FailureMin> a B<FAILURE> notification will
+be created. If the value is less than B<WarningMin> but greater than (or equal
+to) B<FailureMin> a B<WARNING> notification will be created.
 
 =item B<Invert> B<true>|B<false>
 
 If set to B<true> the range of acceptable values is inverted, i.E<nbsp>e.
-values between B<Min> and B<Max> are not okay. Defaults, of course, to
-B<false>.
+values between B<FailureMin> and B<FailureMax> (B<WarningMin> and
+B<WarningMax>) are not okay. Defaults to B<false>.
 
 =item B<Persist> B<true>|B<false>
 
