@@ -1,6 +1,6 @@
 /**
  * collectd - src/apache.c
- * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2006-2008  Florian octo Forster
  * Copyright (C) 2007  Florent EppO Monbillard
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -46,10 +46,9 @@ static const char *config_keys[] =
 	"URL",
 	"User",
 	"Password",
-	"CACert",
-	NULL
+	"CACert"
 };
-static int config_keys_num = 4;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb, void *stream)
 {
@@ -102,6 +101,13 @@ static int init (void)
 {
 	static char credentials[1024];
 
+	if (url == NULL)
+	{
+		WARNING ("apache plugin: init: No URL configured, returning "
+				"an error.");
+		return (-1);
+	}
+
 	if (curl != NULL)
 	{
 		curl_easy_cleanup (curl);
@@ -109,7 +115,7 @@ static int init (void)
 
 	if ((curl = curl_easy_init ()) == NULL)
 	{
-		ERROR ("apache: `curl_easy_init' failed.");
+		ERROR ("apache plugin: init: `curl_easy_init' failed.");
 		return (-1);
 	}
 
@@ -119,19 +125,23 @@ static int init (void)
 
 	if (user != NULL)
 	{
-		if (snprintf (credentials, 1024, "%s:%s", user, pass == NULL ? "" : pass) >= 1024)
+		int status;
+
+		status = snprintf (credentials, sizeof (credentials), "%s:%s",
+				user, (pass == NULL) ? "" : pass);
+		if (status >= sizeof (credentials))
 		{
-			ERROR ("apache: Credentials would have been truncated.");
+			ERROR ("apache plugin: init: Returning an error "
+					"because the credentials have been "
+					"truncated.");
 			return (-1);
 		}
+		credentials[sizeof (credentials) - 1] = '\0';
 
 		curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
 	}
 
-	if (url != NULL)
-	{
-		curl_easy_setopt (curl, CURLOPT_URL, url);
-	}
+	curl_easy_setopt (curl, CURLOPT_URL, url);
 
 	if (cacert != NULL)
 	{
@@ -142,13 +152,10 @@ static int init (void)
 } /* int init */
 
 static void submit_counter (const char *type, const char *type_instance,
-		unsigned long long value)
+		counter_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	DEBUG ("type = %s; type_instance = %s; value = %llu;",
-			type, type_instance, value);
 
 	values[0].counter = value;
 
@@ -158,19 +165,22 @@ static void submit_counter (const char *type, const char *type_instance,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "apache");
 	strcpy (vl.plugin_instance, "");
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	if (type_instance != NULL)
+	{
+		strncpy (vl.type_instance, type_instance,
+				sizeof (vl.type_instance));
+		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+	}
 
 	plugin_dispatch_values (type, &vl);
 } /* void submit_counter */
 
 static void submit_gauge (const char *type, const char *type_instance,
-		double value)
+		gauge_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	DEBUG ("type = %s; type_instance = %s; value = %lf;",
-			type, type_instance, value);
 
 	values[0].gauge = value;
 
@@ -182,8 +192,11 @@ static void submit_gauge (const char *type, const char *type_instance,
 	strcpy (vl.plugin_instance, "");
 
 	if (type_instance != NULL)
+	{
 		strncpy (vl.type_instance, type_instance,
 				sizeof (vl.type_instance));
+		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+	}
 
 	plugin_dispatch_values (type, &vl);
 } /* void submit_counter */

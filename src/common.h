@@ -48,17 +48,17 @@ char *sstrerror (int errnum, char *buf, size_t buflen);
  *   sread
  *
  * DESCRIPTION
- *   Reads exactly `n' bytes or failes. Syntax and other behavior is analogous
+ *   Reads exactly `n' bytes or fails. Syntax and other behavior is analogous
  *   to `read(2)'. If EOF is received the file descriptor is closed and an
  *   error is returned.
  *
  * PARAMETERS
  *   `fd'          File descriptor to write to.
  *   `buf'         Buffer that is to be written.
- *   `count'       Numver of bytes in the buffer.
+ *   `count'       Number of bytes in the buffer.
  *
  * RETURN VALUE
- *   Zero upon success or non-zero if an error occured. `errno' is set in this
+ *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
 ssize_t sread (int fd, void *buf, size_t count);
@@ -68,16 +68,16 @@ ssize_t sread (int fd, void *buf, size_t count);
  *   swrite
  *
  * DESCRIPTION
- *   Writes exactly `n' bytes or failes. Syntax and other behavior is analogous
+ *   Writes exactly `n' bytes or fails. Syntax and other behavior is analogous
  *   to `write(2)'.
  *
  * PARAMETERS
  *   `fd'          File descriptor to write to.
  *   `buf'         Buffer that is to be written.
- *   `count'       Numver of bytes in the buffer.
+ *   `count'       Number of bytes in the buffer.
  *
  * RETURN VALUE
- *   Zero upon success or non-zero if an error occured. `errno' is set in this
+ *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
 ssize_t swrite (int fd, const void *buf, size_t count);
@@ -108,8 +108,8 @@ int strsplit (char *string, char **fields, size_t size);
  *   strjoin
  *
  * DESCRIPTION
- *   Joins together several parts of a string using `sep' as a seperator. This
- *   is equipollent to the perl buildin `join'.
+ *   Joins together several parts of a string using `sep' as a separator. This
+ *   is equivalent to the Perl built-in `join'.
  *
  * PARAMETERS
  *   `dst'         Buffer where the result is stored.
@@ -124,7 +124,7 @@ int strsplit (char *string, char **fields, size_t size);
  *
  * RETURN VALUE
  *   Returns the number of characters in `dst', NOT including the trailing
- *   null-byte. If an error occured (empty array or `dst' too small) a value
+ *   null-byte. If an error occurred (empty array or `dst' too small) a value
  *   smaller than zero will be returned.
  */
 int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const char *sep);
