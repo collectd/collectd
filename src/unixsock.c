@@ -1,6 +1,6 @@
 /**
  * collectd - src/unixsock.c
- * Copyright (C) 2007  Florian octo Forster
+ * Copyright (C) 2007,2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
