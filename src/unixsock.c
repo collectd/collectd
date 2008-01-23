@@ -23,7 +23,9 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+
 #include "utils_cmd_putval.h"
+#include "utils_cmd_putnotif.h"
 
 /* Folks without pthread will need to disable this plugin. */
 #include <pthread.h>
@@ -600,6 +602,10 @@ static void *us_handle_client (void *arg)
 		else if (strcasecmp (fields[0], "listval") == 0)
 		{
 			us_handle_listval (fh, fields, fields_num);
+		}
+		else if (strcasecmp (fields[0], "putnotif") == 0)
+		{
+			handle_putnotif (fh, fields, fields_num);
 		}
 		else
 		{
