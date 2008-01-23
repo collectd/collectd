@@ -1,5 +1,4 @@
 For version 4.3:
-* Fix the libvirt plugin.
 * unixsock plugin: Remove the custom cache if possible.
 
 src/battery.c: commend not working code.
