@@ -529,6 +529,12 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 	  ds->ds[i].name, th->min, values[i], th->max,
 	  is_inverted ? "true" : "false");
 
+      /* Copy the associative members */
+      NOTIFICATION_INIT_VL (&n, vl, ds);
+
+      n.severity = NOTIF_FAILURE;
+      n.time = vl->time;
+
       buf = n.message;
       bufsize = sizeof (n.message);
 
@@ -585,12 +591,6 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
       }
       buf += status;
       bufsize -= status;
-
-      n.severity = NOTIF_FAILURE;
-      n.time = vl->time;
-
-      strncpy (n.host, vl->host, sizeof (n.host));
-      n.host[sizeof (n.host) - 1] = '\0';
 
       plugin_dispatch_notification (&n);
     }

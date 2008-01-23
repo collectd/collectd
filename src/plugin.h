@@ -100,9 +100,13 @@ typedef struct data_set_s data_set_t;
 typedef struct notification_s
 {
 	int    severity;
-	char   message[NOTIF_MAX_MSG_LEN];
 	time_t time;
+	char   message[NOTIF_MAX_MSG_LEN];
 	char   host[DATA_MAX_NAME_LEN];
+	char   plugin[DATA_MAX_NAME_LEN];
+	char   plugin_instance[DATA_MAX_NAME_LEN];
+	char   type[DATA_MAX_NAME_LEN];
+	char   type_instance[DATA_MAX_NAME_LEN];
 } notification_t;
 
 /*

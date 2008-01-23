@@ -70,8 +70,6 @@ static int uc_send_notification (const char *name)
 
   notification_t n;
 
-  memset (&n, '\0', sizeof (n));
-
   name_copy = strdup (name);
   if (name_copy == NULL)
   {
@@ -88,15 +86,20 @@ static int uc_send_notification (const char *name)
     return (-1);
   }
 
-  n.severity = NOTIF_FAILURE;
-  strncpy (n.host, host, sizeof (n.host));
-  n.host[sizeof (n.host) - 1] = '\0';
+  /* Copy the associative members */
+  notification_init (&n, NOTIF_FAILURE, /* host = */ NULL,
+      host, plugin, plugin_instance, type, type_instance);
 
   sfree (name_copy);
   name_copy = host = plugin = plugin_instance = type = type_instance = NULL;
 
   pthread_mutex_lock (&cache_lock);
 
+  /*
+   * Set the time _after_ getting the lock because we don't know how long
+   * acquiring the lock takes and we will use this time later to decide
+   * whether or not the state is OKAY.
+   */
   n.time = time (NULL);
 
   status = c_avl_get (cache_tree, name, (void *) &ce);
@@ -384,9 +387,10 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     notification_t n;
     memset (&n, '\0', sizeof (n));
 
+    /* Copy the associative members */
+    NOTIFICATION_INIT_VL (&n, vl, ds);
+
     n.severity = NOTIF_OKAY;
-    strncpy (n.host, vl->host, sizeof (n.host));
-    n.host[sizeof (n.host) - 1] = '\0';
     n.time = vl->time;
 
     snprintf (n.message, sizeof (n.message),

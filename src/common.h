@@ -181,4 +181,12 @@ int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
 		size_t buflen, struct passwd **pwbufp);
 #endif
 
+int notification_init (notification_t *n, int severity, const char *message,
+		const char *host,
+		const char *plugin, const char *plugin_instance,
+		const char *type, const char *type_instance);
+#define NOTIFICATION_INIT_VL(n, vl, ds) \
+	notification_init (n, NOTIF_FAILURE, NULL, \
+			(vl)->host, (vl)->plugin, (vl)->plugin_instance, \
+			(ds)->type, (vl)->type_instance)
 #endif /* COMMON_H */
