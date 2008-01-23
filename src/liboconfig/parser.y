@@ -1,6 +1,6 @@
 /**
  * oconfig - src/parser.y
- * Copyright (C) 2007  Florian octo Forster <octo at verplant.org>
+ * Copyright (C) 2007,2008  Florian octo Forster <octo at verplant.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
