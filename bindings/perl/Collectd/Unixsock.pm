@@ -2,7 +2,8 @@ package Collectd::Unixsock;
 
 =head1 NAME
 
-Collectd::Unixsock - Abstraction layer for accessing the functionality by collectd's unixsock plugin.
+Collectd::Unixsock - Abstraction layer for accessing the functionality by
+collectd's unixsock plugin.
 
 =head1 SYNOPSIS
 
@@ -28,6 +29,8 @@ programmers to interact with the daemon.
 
 use strict;
 use warnings;
+
+#use constant { NOTIF_FAILURE => 1, NOTIF_WARNING => 2, NOTIF_OKAY => 4 };
 
 use Carp (qw(cluck confess));
 use IO::Socket::UNIX;
@@ -190,7 +193,7 @@ sub getval
 	return ($ret);
 } # getval
 
-=item I<$obj>-E<gt>B<putval> (I<%identifier>, B<time> => I<$time>, B<values> => [...]);
+=item I<$obj>-E<gt>B<putval> (I<%identifier>, B<time> =E<gt> I<$time>, B<values> =E<gt> [...]);
 
 Submits a value-list to the daemon. If the B<time> argument is omitted
 C<time()> is used. The requierd argument B<values> is a reference to an array
@@ -290,6 +293,92 @@ sub listval
 	return (@ret);
 } # listval
 
+=item I<$res> = I<$obj>-E<gt>B<putnotif> (B<severity> =E<gt> I<$severity>, B<message> =E<gt> I<$message>, ...);
+
+Submits a notification to the daemon.
+
+Valid options are:
+
+=over 4
+
+=item B<severity>
+
+Sets the severity of the notification. The value must be one of the following
+strings: C<failure>, C<warning>, or C<okay>. Case does not matter. This option
+is mandatory.
+
+=item B<message>
+
+Sets the message of the notification. This option is mandatory.
+
+=item B<time>
+
+Sets the time. If omitted, C<time()> is used.
+
+=item I<Value identifier>
+
+All the other fields of the value identifiers, B<host>, B<plugin>,
+B<plugin_instance>, B<type>, and B<type_instance>, are optional. When given,
+the notification is associated with the performance data of that identifier.
+For more details, please see L<collectd-unixsock(5)>.
+
+=back
+
+=cut
+
+sub putnotif
+{
+	my $obj = shift;
+	my %args = @_;
+
+	my $status;
+	my $fh = $obj->{'sock'} or confess;
+
+	my $msg; # message sent to the socket
+	my $opt_msg; # message of the notification
+	
+	if (!$args{'message'})
+	{
+		cluck ("Need argument `message'");
+		return;
+	}
+	if (!$args{'severity'})
+	{
+		cluck ("Need argument `severity'");
+		return;
+	}
+	$args{'severity'} = lc ($args{'severity'});
+	if (($args{'severity'} ne 'failure')
+		&& ($args{'severity'} ne 'warning')
+		&& ($args{'severity'} ne 'okay'))
+	{
+		cluck ("Invalid `severity: " . $args{'severity'});
+		return;
+	}
+
+	if (!$args{'time'})
+	{
+		$args{'time'} = time ();
+	}
+	
+	$opt_msg = $args{'message'};
+	delete ($args{'message'});
+
+	$msg = 'PUTNOTIF '
+	. join (' ', map { $_ . '=' . $args{$_} } (keys %args))
+	. " message=$opt_msg\n";
+
+	send ($fh, $msg, 0) or confess ("send: $!");
+	$msg = undef;
+	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
+
+	($status, $msg) = split (' ', $msg, 2);
+	return (1) if ($status == 0);
+
+	$obj->{'error'} = $msg;
+	return;
+} # putnotif
+
 =item I<$obj>-E<gt>destroy ();
 
 Closes the socket before the object is destroyed. This function is also
@@ -314,6 +403,12 @@ sub DESTROY
 	my $obj = shift;
 	$obj->destroy ();
 }
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-unixsock(5)>
 
 =head1 AUTHOR
 
