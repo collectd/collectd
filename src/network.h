@@ -63,4 +63,8 @@
 #define TYPE_VALUES          0x0006
 #define TYPE_INTERVAL        0x0007
 
+/* Types to transmit notifications */
+#define TYPE_MESSAGE         0x0100
+#define TYPE_SEVERITY        0x0101
+
 #endif /* NETWORK_H */
