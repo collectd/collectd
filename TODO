@@ -2,6 +2,7 @@ For version 4.3:
 * Add notification stuff to the unixsock plugin
 * Add separate warning/critical thresholds.
 * Fix the libvirt plugin.
+* unixsock plugin: Remove the custom cache if possible.
 
 src/battery.c: commend not working code.
 
