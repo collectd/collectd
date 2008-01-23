@@ -13,6 +13,10 @@ hddtemp module by:
 iptables module by:
   Sjoerd van der Berg <harekiet at gmail.com>
 
+libvirt and uuid plugins by:
+  Richard Jones <rjones at redhat.com>
+  of Red Hat's Emerging Technology group
+
 mbmon plugin by:
   Flavio Stanchina <flavio at stanchina.net>
 
