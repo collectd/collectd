@@ -108,6 +108,12 @@ option:
 	;
 
 block_begin:
+	OPENBRAC identifier CLOSEBRAC EOL
+	{
+	 memset (&$$, '\0', sizeof ($$));
+	 $$.key = $2;
+	}
+	|
 	OPENBRAC identifier argument_list CLOSEBRAC EOL
 	{
 	 memset (&$$, '\0', sizeof ($$));
@@ -150,7 +156,7 @@ statement_list:
 	statement_list statement
 	{
 	 $$ = $1;
-	 if ($2.values_num > 0)
+	 if (($2.values_num > 0) || ($2.children_num > 0))
 	 {
 		 $$.statement_num++;
 		 $$.statement = realloc ($$.statement, $$.statement_num * sizeof (oconfig_item_t));
@@ -159,7 +165,7 @@ statement_list:
 	}
 	| statement
 	{
-	 if ($1.values_num > 0)
+	 if (($1.values_num > 0) || ($1.children_num > 0))
 	 {
 		 $$.statement = malloc (sizeof (oconfig_item_t));
 		 $$.statement[0] = $1;
