@@ -21,7 +21,10 @@ yyyy-mm-dd, Version 4.3.0
 	* logfile plugin: Handling of notifications has been added.
 	* ntpd plugin: The new `ReverseLookups' can be used to disable reverse
 	  domain name lookups in this plugin.
-	* perl plugin: The thread handling and API have been improved. The
+	* perl plugin: Many internal changes added support for handling multiple
+	  threads making the plugin reasonably usable inside collectd. The API has
+	  been extended to export global variables to Perl plugins; callbacks now
+	  have to be identified by name rather than a pointer to a subroutine. The
 	  plugin is no longer experimental.
 	* uuid plugin: The new UUID plugin sets the hostname to an unique
 	  identifier for this host. This is meant for setups where each client
