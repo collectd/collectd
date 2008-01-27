@@ -581,8 +581,10 @@ static void *exec_notification_one (void *arg) /* {{{ */
   const char *severity;
 
   pid = fork_child (pl, &fd, NULL);
-  if (pid < 0)
+  if (pid < 0) {
+    sfree (arg);
     pthread_exit ((void *) 1);
+  }
 
   fh = fdopen (fd, "w");
   if (fh == NULL)
@@ -593,6 +595,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
     kill (pl->pid, SIGTERM);
     pl->pid = 0;
     close (fd);
+    sfree (arg);
     pthread_exit ((void *) 1);
   }
 
