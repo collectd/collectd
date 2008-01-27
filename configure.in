@@ -1902,6 +1902,9 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 	then
 		PERL_BINDINGS_OPTIONS="$withval"
 		with_perl_bindings="yes"
+	else
+		PERL_BINDINGS_OPTIONS=""
+		with_perl_bindings="$withval"
 	fi
 ],
 [
