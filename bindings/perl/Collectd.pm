@@ -50,6 +50,7 @@ our %EXPORT_TAGS = (
 			TYPE_WRITE
 			TYPE_SHUTDOWN
 			TYPE_LOG
+			TYPE_NOTIF
 			TYPE_DATASET
 	) ],
 	'ds_types' => [ qw(
@@ -67,6 +68,11 @@ our %EXPORT_TAGS = (
 			LOG_NOTICE
 			LOG_INFO
 			LOG_DEBUG
+	) ],
+	'notif' => [ qw(
+			NOTIF_FAILURE
+			NOTIF_WARNING
+			NOTIF_OKAY
 	) ],
 	'globals' => [ qw(
 			$hostname_g
@@ -89,7 +95,8 @@ my %types = (
 	TYPE_READ,     "read",
 	TYPE_WRITE,    "write",
 	TYPE_SHUTDOWN, "shutdown",
-	TYPE_LOG,      "log"
+	TYPE_LOG,      "log",
+	TYPE_NOTIF,    "notify"
 );
 
 foreach my $type (keys %types) {

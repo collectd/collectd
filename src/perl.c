@@ -60,8 +60,9 @@
 #define PLUGIN_WRITE    2
 #define PLUGIN_SHUTDOWN 3
 #define PLUGIN_LOG      4
+#define PLUGIN_NOTIF    5
 
-#define PLUGIN_TYPES    5
+#define PLUGIN_TYPES    6
 
 #define PLUGIN_DATASET  255
 
@@ -143,6 +144,7 @@ struct {
 	{ "Collectd::TYPE_WRITE",      PLUGIN_WRITE },
 	{ "Collectd::TYPE_SHUTDOWN",   PLUGIN_SHUTDOWN },
 	{ "Collectd::TYPE_LOG",        PLUGIN_LOG },
+	{ "Collectd::TYPE_NOTIF",      PLUGIN_NOTIF },
 	{ "Collectd::TYPE_DATASET",    PLUGIN_DATASET },
 	{ "Collectd::DS_TYPE_COUNTER", DS_TYPE_COUNTER },
 	{ "Collectd::DS_TYPE_GAUGE",   DS_TYPE_GAUGE },
@@ -151,6 +153,9 @@ struct {
 	{ "Collectd::LOG_NOTICE",      LOG_NOTICE },
 	{ "Collectd::LOG_INFO",        LOG_INFO },
 	{ "Collectd::LOG_DEBUG",       LOG_DEBUG },
+	{ "Collectd::NOTIF_FAILURE",   NOTIF_FAILURE },
+	{ "Collectd::NOTIF_WARNING",   NOTIF_WARNING },
+	{ "Collectd::NOTIF_OKAY",      NOTIF_OKAY },
 	{ "", 0 }
 };
 
@@ -365,6 +370,43 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 			return -1;
 	return 0;
 } /* static int value2av (value_list_t *, data_set_t *, HV *) */
+
+static int notification2hv (pTHX_ notification_t *n, HV *hash)
+{
+	if (NULL == hv_store (hash, "severity", 8, newSViv (n->severity), 0))
+		return -1;
+
+	if (0 != n->time)
+		if (NULL == hv_store (hash, "time", 4, newSViv (n->time), 0))
+			return -1;
+
+	if ('\0' != *n->message)
+		if (NULL == hv_store (hash, "message", 7, newSVpv (n->message, 0), 0))
+			return -1;
+
+	if ('\0' != *n->host)
+		if (NULL == hv_store (hash, "host", 4, newSVpv (n->host, 0), 0))
+			return -1;
+
+	if ('\0' != *n->plugin)
+		if (NULL == hv_store (hash, "plugin", 6, newSVpv (n->plugin, 0), 0))
+			return -1;
+
+	if ('\0' != *n->plugin_instance)
+		if (NULL == hv_store (hash, "plugin_instance", 15,
+				newSVpv (n->plugin_instance, 0), 0))
+			return -1;
+
+	if ('\0' != *n->type)
+		if (NULL == hv_store (hash, "type", 4, newSVpv (n->type, 0), 0))
+			return -1;
+
+	if ('\0' != *n->type_instance)
+		if (NULL == hv_store (hash, "type_instance", 13,
+				newSVpv (n->type_instance, 0), 0))
+			return -1;
+	return 0;
+} /* static int notification2hv (notification_t *, HV *) */
 
 /*
  * Internal functions.
@@ -609,6 +651,30 @@ static int pplugin_call_all (pTHX_ int type, ...)
 		 */
 		XPUSHs (sv_2mortal (newSViv (va_arg (ap, int))));
 		XPUSHs (sv_2mortal (newSVpv (va_arg (ap, char *), 0)));
+	}
+	else if (PLUGIN_NOTIF == type) {
+		/*
+		 * $_[0] =
+		 * {
+		 *   severity => $severity,
+		 *   time     => $time,
+		 *   message  => $msg,
+		 *   host     => $host,
+		 *   plugin   => $plugin,
+		 *   type     => $type,
+		 *   plugin_instance => $instance,
+		 *   type_instance   => $type_instance
+		 * };
+		 */
+		notification_t *n;
+		HV *notif = newHV ();
+
+		n = va_arg (ap, notification_t *);
+
+		if (-1 == notification2hv (aTHX_ n, notif))
+			return -1;
+
+		XPUSHs (sv_2mortal (newRV_noinc ((SV *)notif)));
 	}
 
 	PUTBACK;
@@ -994,6 +1060,25 @@ static void perl_log (int level, const char *msg)
 	return;
 } /* static void perl_log (int, const char *) */
 
+static int perl_notify (const notification_t *notif)
+{
+	dTHX;
+
+	if (NULL == perl_threads)
+		return 0;
+
+	if (NULL == aTHX) {
+		c_ithread_t *t = NULL;
+
+		pthread_mutex_lock (&perl_threads->mutex);
+		t = c_ithread_create (perl_threads->head->interp);
+		pthread_mutex_unlock (&perl_threads->mutex);
+
+		aTHX = t->interp;
+	}
+	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
+} /* static int perl_notify (const notification_t *) */
+
 static int perl_shutdown (void)
 {
 	c_ithread_t *t = NULL;
@@ -1198,6 +1283,7 @@ static int init_pi (int argc, char **argv)
 	perl_run (aTHX);
 
 	plugin_register_log ("perl", perl_log);
+	plugin_register_notification ("perl", perl_notify);
 	plugin_register_init ("perl", perl_init);
 
 	plugin_register_read ("perl", perl_read);
