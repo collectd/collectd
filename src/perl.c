@@ -77,6 +77,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
+static XS (Collectd_plugin_dispatch_notification);
 static XS (Collectd_plugin_log);
 static XS (Collectd_call_by_name);
 
@@ -129,6 +130,8 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
+	{ "Collectd::plugin_dispatch_notification",
+		Collectd_plugin_dispatch_notification },
 	{ "Collectd::plugin_log",                 Collectd_plugin_log },
 	{ "Collectd::call_by_name",               Collectd_call_by_name },
 	{ "", NULL }
@@ -558,8 +561,7 @@ static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
 		list.plugin[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
 
-	if (NULL != (tmp = hv_fetch (values,
-			"plugin_instance", 15, 0))) {
+	if (NULL != (tmp = hv_fetch (values, "plugin_instance", 15, 0))) {
 		strncpy (list.plugin_instance, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
 		list.plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
@@ -574,6 +576,71 @@ static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
 	sfree (val);
 	return ret;
 } /* static int pplugin_dispatch_values (char *, HV *) */
+
+/*
+ * Dispatch a notification.
+ *
+ * notification:
+ * {
+ *   severity => $severity,
+ *   time     => $time,
+ *   message  => $msg,
+ *   host     => $host,
+ *   plugin   => $plugin,
+ *   type     => $type,
+ *   plugin_instance => $instance,
+ *   type_instance   => $type_instance
+ * }
+ */
+static int pplugin_dispatch_notification (pTHX_ HV *notif)
+{
+	notification_t n;
+
+	SV **tmp = NULL;
+
+	if (NULL == notif)
+		return -1;
+
+	memset (&n, 0, sizeof (n));
+
+	if (NULL != (tmp = hv_fetch (notif, "severity", 8, 0)))
+		n.severity = SvIV (*tmp);
+	else
+		n.severity = NOTIF_FAILURE;
+
+	if (NULL != (tmp = hv_fetch (notif, "time", 4, 0)))
+		n.time = (time_t)SvIV (*tmp);
+	else
+		n.time = time (NULL);
+
+	if (NULL != (tmp = hv_fetch (notif, "message", 7, 0)))
+		strncpy (n.message, SvPV_nolen (*tmp), sizeof (n.message));
+	n.message[sizeof (n.message) - 1] = '\0';
+
+	if (NULL != (tmp = hv_fetch (notif, "host", 4, 0)))
+		strncpy (n.host, SvPV_nolen (*tmp), sizeof (n.host));
+	else
+		strncpy (n.host, hostname_g, sizeof (n.host));
+	n.host[sizeof (n.host) - 1] = '\0';
+
+	if (NULL != (tmp = hv_fetch (notif, "plugin", 6, 0)))
+		strncpy (n.plugin, SvPV_nolen (*tmp), sizeof (n.plugin));
+	n.plugin[sizeof (n.plugin) - 1] = '\0';
+
+	if (NULL != (tmp = hv_fetch (notif, "plugin_instance", 15, 0)))
+		strncpy (n.plugin_instance, SvPV_nolen (*tmp),
+				sizeof (n.plugin_instance));
+	n.plugin_instance[sizeof (n.plugin_instance) - 1] = '\0';
+
+	if (NULL != (tmp = hv_fetch (notif, "type", 4, 0)))
+		strncpy (n.type, SvPV_nolen (*tmp), sizeof (n.type));
+	n.type[sizeof (n.type) - 1] = '\0';
+
+	if (NULL != (tmp = hv_fetch (notif, "type_instance", 13, 0)))
+		strncpy (n.type_instance, SvPV_nolen (*tmp), sizeof (n.type_instance));
+	n.type_instance[sizeof (n.type_instance) - 1] = '\0';
+	return plugin_dispatch_notification (&n);
+} /* static int pplugin_dispatch_notification (HV *) */
 
 /*
  * Call all working functions of the given type.
@@ -810,6 +877,43 @@ static XS (Collectd_plugin_dispatch_values)
 	else
 		XSRETURN_EMPTY;
 } /* static XS (Collectd_plugin_dispatch_values) */
+
+/*
+ * Collectd::plugin_dispatch_notification (notif).
+ *
+ * notif:
+ *   notification to dispatch
+ */
+static XS (Collectd_plugin_dispatch_notification)
+{
+	SV *notif = NULL;
+
+	int ret = 0;
+
+	dXSARGS;
+
+	if (1 != items) {
+		log_err ("Usage: Collectd::plugin_dispatch_notification(notif)");
+		XSRETURN_EMPTY;
+	}
+
+	log_debug ("Collectd::plugin_dispatch_notification: notif = \"%s\"",
+			SvPV_nolen (ST (0)));
+
+	notif = ST (0);
+
+	if (! (SvROK (notif) && (SVt_PVHV == SvTYPE (SvRV (notif))))) {
+		log_err ("Collectd::plugin_dispatch_notification: Invalid notif.");
+		XSRETURN_EMPTY;
+	}
+
+	ret = pplugin_dispatch_notification (aTHX_ (HV *)SvRV (notif));
+
+	if (0 == ret)
+		XSRETURN_YES;
+	else
+		XSRETURN_EMPTY;
+} /* static XS (Collectd_plugin_dispatch_notification) */
 
 /*
  * Collectd::plugin_log (level, message).

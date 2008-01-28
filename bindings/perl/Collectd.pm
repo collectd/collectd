@@ -42,6 +42,7 @@ our %EXPORT_TAGS = (
 			plugin_register
 			plugin_unregister
 			plugin_dispatch_values
+			plugin_dispatch_notification
 			plugin_log
 	) ],
 	'types' => [ qw(
