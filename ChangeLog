@@ -1,6 +1,6 @@
 yyyy-mm-dd, Version 4.3.0
 	* collectd: Notifications have been added to the daemon. Notifications
-	  are status messages that may be associated with an data instance.
+	  are status messages that may be associated with a data instance.
 	* collectd: Threshold checking has been added to the daemon. This
 	  means that you can configure threshold values for each data
 	  instance. If this threshold is exceeded a notification will be
@@ -23,9 +23,9 @@ yyyy-mm-dd, Version 4.3.0
 	  domain name lookups in this plugin.
 	* perl plugin: Many internal changes added support for handling multiple
 	  threads making the plugin reasonably usable inside collectd. The API has
-	  been extended to export global variables to Perl plugins; callbacks now
-	  have to be identified by name rather than a pointer to a subroutine. The
-	  plugin is no longer experimental.
+	  been extended to support notifications and export global variables to
+	  Perl plugins; callbacks now have to be identified by name rather than a
+	  pointer to a subroutine. The plugin is no longer experimental.
 	* uuid plugin: The new UUID plugin sets the hostname to an unique
 	  identifier for this host. This is meant for setups where each client
 	  may migrate to another physical host, possibly going through one or
