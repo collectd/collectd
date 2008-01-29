@@ -1210,6 +1210,7 @@ static int perl_shutdown (void)
 			aTHX, perl_threads->number_of_threads);
 
 	plugin_unregister_log ("perl");
+	plugin_unregister_notification ("perl");
 	plugin_unregister_init ("perl");
 	plugin_unregister_read ("perl");
 	plugin_unregister_write ("perl");
