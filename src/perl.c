@@ -827,7 +827,7 @@ static XS (Collectd_plugin_unregister_ds)
 	log_debug ("Collectd::plugin_unregister_data_set: type = \"%s\"",
 			SvPV_nolen (ST (0)));
 
-	if (0 == pplugin_unregister_data_set (SvPV_nolen (ST (1))))
+	if (0 == pplugin_unregister_data_set (SvPV_nolen (ST (0))))
 		XSRETURN_YES;
 	else
 		XSRETURN_EMPTY;
