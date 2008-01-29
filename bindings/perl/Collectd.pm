@@ -87,6 +87,10 @@ our %EXPORT_TAGS = (
 		foreach keys %EXPORT_TAGS;
 }
 
+# global variables
+our $hostname_g;
+our $interval_g;
+
 Exporter::export_ok_tags ('all');
 
 my @plugins : shared = ();
@@ -146,8 +150,7 @@ sub plugin_call_all {
 		my $status = 0;
 
 		if ($p->{'wait_left'} > 0) {
-			# TODO: use interval_g
-			$p->{'wait_left'} -= 10;
+			$p->{'wait_left'} -= $interval_g;
 		}
 
 		next if ($p->{'wait_left'} > 0);
@@ -174,11 +177,12 @@ sub plugin_call_all {
 
 		if ($status) {
 			$p->{'wait_left'} = 0;
-			$p->{'wait_time'} = 10;
+			$p->{'wait_time'} = $interval_g;
 		}
 		elsif (TYPE_READ == $type) {
-			WARNING ("${plugin}->read() failed with status $status. "
-				. "Will suspend it for $p->{'wait_left'} seconds.");
+			if ($p->{'wait_time'} < $interval_g) {
+				$p->{'wait_time'} = $interval_g;
+			}
 
 			$p->{'wait_left'} = $p->{'wait_time'};
 			$p->{'wait_time'} *= 2;
@@ -186,6 +190,9 @@ sub plugin_call_all {
 			if ($p->{'wait_time'} > 86400) {
 				$p->{'wait_time'} = 86400;
 			}
+
+			WARNING ("${plugin}->read() failed with status $status. "
+				. "Will suspend it for $p->{'wait_left'} seconds.");
 		}
 		elsif (TYPE_INIT == $type) {
 			ERROR ("${plugin}->init() failed with status $status. "
@@ -243,9 +250,8 @@ sub plugin_register {
 			$data = $pkg . "::" . $data;
 		}
 
-		# TODO: make interval_g available at configuration time
 		%p = (
-			wait_time => 10,
+			wait_time => $interval_g,
 			wait_left => 0,
 			cb_name   => $data,
 		);
