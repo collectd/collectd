@@ -30,6 +30,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_avltree.h"
 #include "utils_llist.h"
 #include "utils_cache.h"
 #include "utils_threshold.h"
@@ -53,9 +54,10 @@ static llist_t *list_init;
 static llist_t *list_read;
 static llist_t *list_write;
 static llist_t *list_shutdown;
-static llist_t *list_data_set;
 static llist_t *list_log;
 static llist_t *list_notification;
+
+static c_avl_tree_t *data_sets;
 
 static char *plugindir = NULL;
 
@@ -442,11 +444,17 @@ int plugin_register_data_set (const data_set_t *ds)
 	data_set_t *ds_copy;
 	int i;
 
-	if ((list_data_set != NULL)
-			&& (llist_search (list_data_set, ds->type) != NULL))
+	if ((data_sets != NULL)
+			&& (c_avl_get (data_sets, ds->type, NULL) == 0))
 	{
 		NOTICE ("Replacing DS `%s' with another version.", ds->type);
 		plugin_unregister_data_set (ds->type);
+	}
+	else if (data_sets == NULL)
+	{
+		data_sets = c_avl_create ((int (*) (const void *, const void *)) strcmp);
+		if (data_sets == NULL)
+			return (-1);
 	}
 
 	ds_copy = (data_set_t *) malloc (sizeof (data_set_t));
@@ -465,7 +473,7 @@ int plugin_register_data_set (const data_set_t *ds)
 	for (i = 0; i < ds->ds_num; i++)
 		memcpy (ds_copy->ds + i, ds->ds + i, sizeof (data_source_t));
 
-	return (register_callback (&list_data_set, ds->type, (void *) ds_copy));
+	return (c_avl_insert (data_sets, (void *) ds_copy->type, (void *) ds_copy));
 } /* int plugin_register_data_set */
 
 int plugin_register_log (char *name,
@@ -526,21 +534,13 @@ int plugin_unregister_shutdown (const char *name)
 
 int plugin_unregister_data_set (const char *name)
 {
-	llentry_t  *e;
 	data_set_t *ds;
 
-	if (list_data_set == NULL)
+	if (data_sets == NULL)
 		return (-1);
 
-	e = llist_search (list_data_set, name);
-
-	if (e == NULL)
+	if (c_avl_remove (data_sets, name, NULL, (void *) &ds) != 0)
 		return (-1);
-
-	llist_remove (list_data_set, e);
-	ds = (data_set_t *) e->value;
-	free (e->key);
-	llentry_destroy (e);
 
 	sfree (ds->ds);
 	sfree (ds);
@@ -670,17 +670,14 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 	data_set_t *ds;
 	llentry_t *le;
 
-	if ((list_write == NULL) || (list_data_set == NULL))
+	if ((list_write == NULL) || (data_sets == NULL))
 		return (-1);
 
-	le = llist_search (list_data_set, name);
-	if (le == NULL)
+	if (c_avl_get (data_sets, name, (void *) &ds) != 0)
 	{
 		DEBUG ("No such dataset registered: %s", name);
 		return (-1);
 	}
-
-	ds = (data_set_t *) le->value;
 
 	DEBUG ("plugin: plugin_dispatch_values: time = %u; interval = %i; "
 			"host = %s; "
@@ -785,16 +782,12 @@ void plugin_log (int level, const char *format, ...)
 const data_set_t *plugin_get_ds (const char *name)
 {
 	data_set_t *ds;
-	llentry_t *le;
 
-	le = llist_search (list_data_set, name);
-	if (le == NULL)
+	if (c_avl_get (data_sets, name, (void *) &ds) != 0)
 	{
 		DEBUG ("No such dataset registered: %s", name);
 		return (NULL);
 	}
-
-	ds = (data_set_t *) le->value;
 
 	return (ds);
 } /* data_set_t *plugin_get_ds */
