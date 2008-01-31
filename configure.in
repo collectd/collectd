@@ -2101,6 +2101,11 @@ AC_SUBST(PERL_BINDINGS_OPTIONS)
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
+if test "x$with_rrdtool" = "xyes" -a "x$librrd_threadsafe" != "xyes"
+then
+	with_rrdtool="yes (warning: librrd is not thread-safe)"
+fi
+
 if test "x$with_liboping" = "xyes" -a "x$with_own_liboping" = "xyes"
 then
 	with_liboping="yes (shipped version)"
