@@ -5,8 +5,9 @@ http://collectd.org/
 About
 -----
 
-  collectd is a small daemon which collects statistics about a computer's
-  usage and writes then into RRD files.
+  collectd is a small daemon which collects system information periodically
+  and provides mechanisms to store and monitor the values in a variety of
+  ways.
 
 
 Features
