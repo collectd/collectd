@@ -213,6 +213,13 @@ Features
     - syslog
       Logs to the standard UNIX logging mechanism, syslog.
 
+  * Miscellaneous plugins:
+
+    - uuid
+      Sets the hostname to an unique identifier. This is meant for setups
+      where each client may migrate to another physical host, possibly going
+      through one or more name changes in the process.
+
   * Performance: Since collectd is running as a daemon it doesn't spend much
     time starting up again and again. With the exception of the exec plugin no
     processes are forked. Caching in output plugins, such as the rrdtool and
@@ -279,6 +286,9 @@ Prerequisites
 
   * libcurl (optional)
     If you want to use the `apache' and/or `nginx' plugins.
+
+  * libhal (optional)
+    If present, the uuid plugin will check for UUID from HAL.
 
   * libiptc (optional)
     For querying iptables counters.
