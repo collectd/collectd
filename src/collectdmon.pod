@@ -39,6 +39,24 @@ B<-f> will be added to these options. See L<collectd(1)>.
 
 =back
 
+=head1 SIGNALS
+
+B<collectdmon> accepts the following signals:
+
+=over 4
+
+=item B<SIGINT>, B<SIGTERM>
+
+These signals cause B<collectdmon> to terminate B<collectd>, wait for its
+termination and then shut down.
+
+=item B<SIGHUP>
+
+This signal causes B<collectdmon> to terminate B<collectd>, wait for its
+termination and then restart it.
+
+=back
+
 =head1 SEE ALSO
 
 L<collectd(1)>,
