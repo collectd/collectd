@@ -34,6 +34,7 @@ my $dataset =
 
 # This code is executed after loading the plugin to register it with collectd.
 plugin_register (TYPE_LOG, 'myplugin', 'my_log');
+plugin_register (TYPE_NOTIF, 'myplugin', 'my_notify');
 plugin_register (TYPE_DATASET, 'myplugin', $dataset);
 plugin_register (TYPE_INIT, 'myplugin', 'my_init');
 plugin_register (TYPE_READ, 'myplugin', 'my_read');
@@ -85,8 +86,7 @@ sub my_write
 	my $vl   = shift;
 
 	if (scalar (@$ds) != scalar (@{$vl->{'values'}})) {
-		plugin_log (LOG_WARNING,
-			"DS number does not match values length");
+		plugin_log (LOG_WARNING, "DS number does not match values length");
 		return;
 	}
 
@@ -125,4 +125,39 @@ sub my_log
 	print "LOG: $level - $msg\n";
 	return 1;
 } # my_log ()
+
+# This function is called when plugin_dispatch_notification () has been used
+sub my_notify
+{
+	my $notif = shift;
+
+	my ($sec, $min, $hour, $mday, $mon, $year) = localtime ($notif->{'time'});
+
+	printf "NOTIF (%04d-%02d-%02d %02d:%02d:%02d): %d - ",
+			$year + 1900, $mon + 1, $mday, $hour, $min, $sec,
+			$notif->{'severity'};
+
+	if (defined $notif->{'host'}) {
+		print "$notif->{'host'}: ";
+	}
+
+	if (defined $notif->{'plugin'}) {
+		print "$notif->{'plugin'}: ";
+	}
+
+	if (defined $notif->{'plugin_instance'}) {
+		print "$notif->{'plugin_instance'}: ";
+	}
+
+	if (defined $notif->{'type'}) {
+		print "$notif->{'type'}: ";
+	}
+
+	if (defined $notif->{'type_instance'}) {
+		print "$notif->{'type_instance'}: ";
+	}
+
+	print "$notif->{'message'}\n";
+	return 1;
+} # my_notify ()
 

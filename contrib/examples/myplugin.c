@@ -18,7 +18,8 @@
  *   is optional
  */
 
-#include <stdio.h>
+#if ! HAVE_CONFIG_H
+
 #include <stdlib.h>
 
 #include <string.h>
@@ -32,6 +33,10 @@
 # undef DISABLE_ISOC99
 # undef __USE_ISOC99
 #endif /* DISABLE_ISOC99 */
+
+#include <time.h>
+
+#endif /* ! HAVE_CONFIG */
 
 #include <collectd/collectd.h>
 #include <collectd/common.h>
@@ -146,6 +151,44 @@ static void my_log (int severity, const char *msg)
 } /* static void my_log (int, const char *) */
 
 /*
+ * This function is called when plugin_dispatch_notification () has been used.
+ */
+static int my_notify (const notification_t *notif)
+{
+	char time_str[32] = "";
+	struct tm *tm = NULL;
+
+	int n = 0;
+
+	if (NULL == (tm = localtime (&notif->time)))
+		time_str[0] = '\0';
+
+	n = strftime (time_str, 32, "%F %T", tm);
+	if (n >= 32) n = 31;
+	time_str[n] = '\0';
+
+	printf ("NOTIF (%s): %i - ", time_str, notif->severity);
+
+	if ('\0' != *notif->host)
+		printf ("%s: ", notif->host);
+
+	if ('\0' != *notif->plugin)
+		printf ("%s: ", notif->plugin);
+
+	if ('\0' != *notif->plugin_instance)
+		printf ("%s: ", notif->plugin_instance);
+
+	if ('\0' != *notif->type)
+		printf ("%s: ", notif->type);
+
+	if ('\0' != *notif->type_instance)
+		printf ("%s: ", notif->type_instance);
+
+	printf ("%s\n", notif->message);
+	return 0;
+} /* static int my_notify (notification_t *) */
+
+/*
  * This function is called before shutting down collectd.
  */
 static int my_shutdown (void)
@@ -161,6 +204,7 @@ static int my_shutdown (void)
 void module_register (void)
 {
 	plugin_register_log ("myplugin", my_log);
+	plugin_register_notification ("myplugin", my_notify);
 	plugin_register_data_set (&ds);
 	plugin_register_read ("myplugin", my_read);
 	plugin_register_init ("myplugin", my_init);
