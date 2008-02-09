@@ -217,10 +217,6 @@ ignorelist_t *ignorelist_create (int invert)
 
 	/* smalloc exits if it failes */
 	il = (ignorelist_t *) smalloc (sizeof (ignorelist_t));
-	DEBUG("Ignorelist created 0x%p, default is %s",
-			(void *) il,
-			invert ? "collect" : "ignore");
-
 	memset (il, '\0', sizeof (ignorelist_t));
 
 	/*
