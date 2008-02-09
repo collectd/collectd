@@ -763,8 +763,6 @@ AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Pa
 		then
 			with_libpthread="no (disabled)"
 		fi
-	else
-		with_libpthread="$withval"
 	fi
 ], [with_libpthread="yes"])
 if test "x$with_libpthread" = "xyes"
