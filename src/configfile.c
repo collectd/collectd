@@ -340,8 +340,93 @@ static int dispatch_block (oconfig_item_t *ci)
 	return (0);
 }
 
+static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
+		int offset)
+{
+	oconfig_item_t *temp;
+	int i;
+
+	assert (offset >= 0);
+	assert (dst->children_num > offset);
+
+	/* Resize the memory containing the children to be big enough to hold
+	 * all children. */
+	temp = (oconfig_item_t *) realloc (dst->children,
+			sizeof (oconfig_item_t)
+			* (dst->children_num + src->children_num - 1));
+	if (temp == NULL)
+	{
+		ERROR ("configfile: realloc failed.");
+		return (-1);
+	}
+	dst->children = temp;
+
+	/* Free the memory used by the replaced child. Usually that's the
+	 * `Include "blah"' statement. */
+	temp = dst->children + offset;
+	for (i = 0; i < temp->values_num; i++)
+	{
+		if (temp->values[i].type == OCONFIG_TYPE_STRING)
+		{
+			sfree (temp->values[i].value.string);
+		}
+	}
+	sfree (temp->values);
+	temp = NULL;
+
+	/* If there are children behind the include statement, move them to the
+	 * end of the list, so that the new children have room before them. */
+	if ((dst->children_num - (offset + 1)) > 0)
+	{
+		int nmemb = dst->children_num - (offset + 1);
+		int old_offset = offset + 1;
+		int new_offset = offset + src->children_num;
+
+		memmove (dst->children + new_offset,
+				dst->children + old_offset,
+				sizeof (oconfig_item_t) * nmemb);
+	}
+
+	/* Last but not least: If there are new childrem, copy them to the
+	 * memory reserved for them. */
+	if (src->children_num > 0)
+	{
+		memcpy (dst->children + offset,
+				src->children,
+				sizeof (oconfig_item_t) * src->children_num);
+	}
+
+	/* Update the number of children. */
+	dst->children_num += (src->children_num - 1);
+
+	return (0);
+} /* int cf_ci_replace_child */
+
+static int cf_ci_append_children (oconfig_item_t *dst, oconfig_item_t *src)
+{
+	oconfig_item_t *temp;
+
+	temp = (oconfig_item_t *) realloc (dst->children,
+			sizeof (oconfig_item_t)
+			* (dst->children_num + src->children_num));
+	if (temp == NULL)
+	{
+		ERROR ("configfile: realloc failed.");
+		return (-1);
+	}
+	dst->children = temp;
+
+	memcpy (dst->children + dst->children_num,
+			src->children,
+			sizeof (oconfig_item_t)
+			* src->children_num);
+	dst->children_num += src->children_num;
+
+	return (0);
+} /* int cf_ci_append_children */
+
 #define CF_MAX_DEPTH 8
-static oconfig_item_t *cf_read_file (const char *file, int depth);
+static oconfig_item_t *cf_read_generic (const char *path, int depth);
 
 static int cf_include_all (oconfig_item_t *root, int depth)
 {
@@ -368,72 +453,15 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 			continue;
 		}
 
-		new = cf_read_file (old->values[0].value.string, depth + 1);
+		new = cf_read_generic (old->values[0].value.string, depth + 1);
 		if (new == NULL)
 			continue;
 
-		/* There are more children now. We need to expand
-		 * root->children. */
-		if (new->children_num > 1)
-		{
-			oconfig_item_t *temp;
+		/* Now replace the i'th child in `root' with `new'. */
+		cf_ci_replace_child (root, new, i);
 
-			DEBUG ("configfile: Resizing root-children from %i to %i elements.",
-					root->children_num,
-					root->children_num + new->children_num - 1);
-
-			temp = (oconfig_item_t *) realloc (root->children,
-					sizeof (oconfig_item_t)
-					* (root->children_num + new->children_num - 1));
-			if (temp == NULL)
-			{
-				ERROR ("configfile: realloc failed.");
-				oconfig_free (new);
-				continue;
-			}
-			root->children = temp;
-		}
-
-		/* Clean up the old include directive while we still have a
-		 * valid pointer */
-		DEBUG ("configfile: Cleaning up `old'");
-		/* sfree (old->values[0].value.string); */
-		sfree (old->values);
-
-		/* If there are trailing children and the number of children
-		 * changes, we need to move the trailing ones either one to the
-		 * front or (new->num - 1) to the back */
-		if (((root->children_num - i) > 1)
-				&& (new->children_num != 1))
-		{
-			DEBUG ("configfile: Moving trailing children.");
-			memmove (root->children + i + new->children_num,
-					root->children + i + 1,
-					sizeof (oconfig_item_t)
-					* (root->children_num - (i + 1)));
-		}
-
-		/* Now copy the new children to where the include statement was */
-		if (new->children_num > 0)
-		{
-			DEBUG ("configfile: Copying new children.");
-			memcpy (root->children + i,
-					new->children,
-					sizeof (oconfig_item_t)
-					* new->children_num);
-		}
-
-		/* Adjust the number of children and the position in the list. */
-		root->children_num = root->children_num + new->children_num - 1;
-		i = i + new->children_num - 1;
-
-		/* Clean up the `new' struct. We set `new->children' to NULL so
-		 * the stuff we've just copied pointers to isn't freed by
-		 * `oconfig_free' */
-		DEBUG ("configfile: Cleaning up `new'");
-		sfree (new->values); /* should be NULL anyway */
+		sfree (new->values);
 		sfree (new);
-		new = NULL;
 	} /* for (i = 0; i < root->children_num; i++) */
 
 	return (0);
@@ -443,12 +471,7 @@ static oconfig_item_t *cf_read_file (const char *file, int depth)
 {
 	oconfig_item_t *root;
 
-	if (depth >= CF_MAX_DEPTH)
-	{
-		ERROR ("configfile: Not including `%s' because the maximum nesting depth has been reached.",
-				file);
-		return (NULL);
-	}
+	assert (depth < CF_MAX_DEPTH);
 
 	root = oconfig_parse_file (file);
 	if (root == NULL)
@@ -461,6 +484,101 @@ static oconfig_item_t *cf_read_file (const char *file, int depth)
 
 	return (root);
 } /* oconfig_item_t *cf_read_file */
+
+static oconfig_item_t *cf_read_dir (const char *dir, int depth)
+{
+	oconfig_item_t *root = NULL;
+	DIR *dh;
+	struct dirent *de;
+	char name[1024];
+	int status;
+
+	assert (depth < CF_MAX_DEPTH);
+
+	dh = opendir (dir);
+	if (dh == NULL)
+	{
+		char errbuf[1024];
+		ERROR ("configfile: opendir failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (NULL);
+	}
+
+	root = (oconfig_item_t *) malloc (sizeof (oconfig_item_t));
+	if (root == NULL)
+	{
+		ERROR ("configfile: malloc failed.");
+		return (NULL);
+	}
+	memset (root, '\0', sizeof (oconfig_item_t));
+
+	while ((de = readdir (dh)) != NULL)
+	{
+		oconfig_item_t *temp;
+
+		if ((de->d_name[0] == '.') || (de->d_name[0] == '\0'))
+			continue;
+
+		status = snprintf (name, sizeof (name), "%s/%s",
+				dir, de->d_name);
+		if (status >= sizeof (name))
+		{
+			ERROR ("configfile: Not including `%s/%s' because its"
+					" name is too long.",
+					dir, de->d_name);
+			continue;
+		}
+
+		temp = cf_read_generic (name, depth);
+		if (temp == NULL)
+			continue;
+
+		cf_ci_append_children (root, temp);
+		sfree (temp->children);
+		sfree (temp);
+	}
+
+	return (root);
+} /* oconfig_item_t *cf_read_dir */
+
+/* 
+ * cf_read_generic
+ *
+ * Path is stat'ed and either cf_read_file or cf_read_dir is called
+ * accordingly.
+ */
+static oconfig_item_t *cf_read_generic (const char *path, int depth)
+{
+	struct stat statbuf;
+	int status;
+
+	if (depth >= CF_MAX_DEPTH)
+	{
+		ERROR ("configfile: Not including `%s' because the maximum "
+				"nesting depth has been reached.", path);
+		return (NULL);
+	}
+
+	fprintf (stderr, "cf_read_generic (path = %s, depth = %i);", path, depth);
+
+	status = stat (path, &statbuf);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		ERROR ("configfile: stat (%s) failed: %s",
+				path,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (NULL);
+	}
+
+	if (S_ISREG (statbuf.st_mode))
+		return (cf_read_file (path, depth));
+	else if (S_ISDIR (statbuf.st_mode))
+		return (cf_read_dir (path, depth));
+
+	ERROR ("configfile: %s is neither a file nor a directory.", path);
+	return (NULL);
+} /* oconfig_item_t *cf_read_generic */
 
 /* 
  * Public functions
@@ -603,7 +721,7 @@ int cf_read (char *filename)
 	oconfig_item_t *conf;
 	int i;
 
-	conf = cf_read_file (filename, 0 /* depth */);
+	conf = cf_read_generic (filename, 0 /* depth */);
 	if (conf == NULL)
 	{
 		ERROR ("Unable to read config file %s.", filename);
