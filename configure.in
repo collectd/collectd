@@ -698,6 +698,8 @@ AC_ARG_WITH(rrdtool, [AS_HELP_STRING([--with-rrdtool@<:@=PREFIX@:>@], [Path to r
 		librrd_cflags="-I$withval/include"
 		librrd_ldflags="-L$withval/lib"
 		with_rrdtool="yes"
+	else
+		with_rrdtool="$withval"
 	fi
 ], [with_rrdtool="yes"])
 if test "x$with_rrdtool" = "xyes"
@@ -761,6 +763,8 @@ AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Pa
 		then
 			with_libpthread="no (disabled)"
 		fi
+	else
+		with_libpthread="$withval"
 	fi
 ], [with_libpthread="yes"])
 if test "x$with_libpthread" = "xyes"
@@ -900,6 +904,8 @@ AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [P
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
 		with_libstatgrab="yes"
+	else
+		with_libstatgrab="$withval"
 	fi
 ],
 [
@@ -1138,7 +1144,10 @@ AC_ARG_WITH(liboping, [AS_HELP_STRING([--with-liboping@<:@=PREFIX@:>@], [Path to
 	then
 		with_liboping="no"
 		with_own_liboping="no"
-	fi
+	else if test "x$withval" = "xyes"
+	then
+		with_liboping="yes"
+	fi; fi
 ],
 [
 	with_liboping="yes"
@@ -1172,6 +1181,8 @@ AC_ARG_WITH(libpcap, [AS_HELP_STRING([--with-libpcap@<:@=PREFIX@:>@], [Path to l
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
 		with_libpcap="yes"
+	else
+		with_libpcap="$withval"
 	fi
 ],
 [
@@ -1210,6 +1221,8 @@ AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to l
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
 		perl_interpreter="$withval/bin/perl"
 		with_libperl="yes"
+	else
+		with_libperl="$withval"
 	fi
 ],
 [
@@ -1303,6 +1316,8 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
 		with_libiptc="yes"
+	else
+		with_libiptc="$withval"
 	fi
 ],
 [
@@ -2084,6 +2099,9 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 	then
 		PERL_BINDINGS_OPTIONS="$withval"
 		with_perl_bindings="yes"
+	else
+		PERL_BINDINGS_OPTIONS=""
+		with_perl_bindings="$withval"
 	fi
 ],
 [

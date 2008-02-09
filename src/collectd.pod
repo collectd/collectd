@@ -89,6 +89,11 @@ C<logfile plugin> and the C<syslog plugin>. With these plugins collectd can
 provide information about issues and significant situations to the user.
 Several loglevels let you suppress uninteresting messages.
 
+Starting with version C<4.3.0> collectd has support for B<monitoring>. This is
+done by checking thresholds defined by the user. If a value is out of range, a
+notification will be dispatched to "notification plugins". See
+L<collectd.conf(5)> for more detailed information about threshold checking.
+
 Please note that some plugins, that provide other means of communicating with
 the daemon, have manpages of their own to describe their functionality in more
 detail. In particular those are L<collectd-email(5)>, L<collectd-exec(5)>,

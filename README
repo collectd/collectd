@@ -5,8 +5,9 @@ http://collectd.org/
 About
 -----
 
-  collectd is a small daemon which collects statistics about a computer's
-  usage and writes then into RRD files.
+  collectd is a small daemon which collects system information periodically
+  and provides mechanisms to store and monitor the values in a variety of
+  ways.
 
 
 Features
@@ -209,8 +210,35 @@ Features
     - logfile
       Writes logmessages to a file or STDOUT/STDERR.
 
+    - perl
+      Log messages are propagated to plugins written in Perl as well.
+      See collectd-perl(5).
+
     - syslog
       Logs to the standard UNIX logging mechanism, syslog.
+
+  * Notifications can be handled by the following plugins:
+
+    - exec
+      Execute a program or script to handle the notification.
+      See collectd-exec(5).
+
+    - logfile
+      Writes the notification message to a file or STDOUT/STDERR.
+
+    - network
+      Send the notification to a remote host to handle it somehow.
+
+    - perl
+      Notifications are propagated to plugins written in Perl as well.
+      See collectd-perl(5).
+
+  * Miscellaneous plugins:
+
+    - uuid
+      Sets the hostname to an unique identifier. This is meant for setups
+      where each client may migrate to another physical host, possibly going
+      through one or more name changes in the process.
 
   * Performance: Since collectd is running as a daemon it doesn't spend much
     time starting up again and again. With the exception of the exec plugin no
@@ -278,6 +306,9 @@ Prerequisites
 
   * libcurl (optional)
     If you want to use the `apache' and/or `nginx' plugins.
+
+  * libhal (optional)
+    If present, the uuid plugin will check for UUID from HAL.
 
   * libiptc (optional)
     For querying iptables counters.
