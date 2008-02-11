@@ -299,8 +299,6 @@ output that is expected from it.
 
 =item B<NotificationExec> I<User>[:[I<Group>]] I<Executable> [I<E<lt>argE<gt>> [I<E<lt>argE<gt>> ...]]
 
-=item B<NagiosExec> I<User>[:[I<Group>]] I<Executable> [I<E<lt>argE<gt>> [I<E<lt>argE<gt>> ...]]
-
 Execute the executable I<Executable> as user I<User>. If the user name is
 followed by a colon and a group name, the effective group is set to that group.
 The real group and saved-set group will be set to the default group of that
@@ -317,10 +315,9 @@ program. Please note that due to the configuration parsing numbers and boolean
 values may be changed. If you want to be absolutely sure that something is
 passed as-is please enclose it in quotes.
 
-The B<Exec>, B<NotificationExec>, and B<NagiosExec> statements change the
-semantics of the programs executed, i.E<nbsp>e. the data passed to them and the
-response expected from them. This is documented in great detail in
-L<collectd-exec(5)>.
+The B<Exec> and B<NotificationExec> statements change the semantics of the
+programs executed, i.E<nbsp>e. the data passed to them and the response
+expected from them. This is documented in great detail in L<collectd-exec(5)>.
 
 =back
 

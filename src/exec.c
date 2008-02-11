@@ -128,9 +128,12 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   }
   memset (pl, '\0', sizeof (program_list_t));
 
+#if 0
   if (strcasecmp ("NagiosExec", ci->key) == 0)
     pl->flags |= PL_NAGIOS_PLUGIN;
-  else if (strcasecmp ("NotificationExec", ci->key) == 0)
+  else
+#endif
+  if (strcasecmp ("NotificationExec", ci->key) == 0)
     pl->flags |= PL_NOTIF_ACTION;
   else
     pl->flags |= PL_NORMAL;
@@ -253,7 +256,9 @@ static int exec_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
     if ((strcasecmp ("Exec", child->key) == 0)
+#if 0
 	|| (strcasecmp ("NagiosExec", child->key) == 0)
+#endif
 	|| (strcasecmp ("NotificationExec", child->key) == 0))
       exec_config_exec (child);
     else

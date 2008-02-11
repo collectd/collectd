@@ -11,22 +11,20 @@ collectd-exec - Documentation of collectd's C<exec plugin>
     Exec "myuser:mygroup" "myprog"
     Exec "otheruser" "/path/to/another/binary" "arg0" "arg1"
     NotificationExec "user" "/usr/lib/collectd/exec/handle_notification"
-    NagiosExec "nagios:nagios" "/usr/lib/nagios/plugins/check_something"
   </Plugin>
 
 =head1 DESCRIPTION
 
-The C<exec plugin> forks of an executable either to receive values, to dispatch
-notifications to the outside world or to be able to use Nagios plugins. The
-syntax of the configuration is explained in L<collectd.conf(5)> but summarized
-in the above synopsis.
+The C<exec plugin> forks of an executable either to receive values or to
+dispatch notifications to the outside world. The syntax of the configuration is
+explained in L<collectd.conf(5)> but summarized in the above synopsis.
 
 If you want/need better performance or more functionality you should take a
 long look at the C<perl plugin>, L<collectd-perl(5)>.
 
 =head1 EXECUTABLE TYPES
 
-There are currently three types of executables that can be executed by the
+There are currently two types of executables that can be executed by the
 C<exec plugin>:
 
 =over 4
@@ -57,6 +55,8 @@ run at once if multiple notifications are received.
 See L<NOTIFICATION DATA FORMAT> below for a description of the data passed to
 these programs.
 
+=begin comment
+
 =item C<NagiosExec>
 
 The executable is treated as a Nagios plugin. That means that the first line
@@ -67,6 +67,8 @@ only.
 For information on how to write Nagios plugins please refer to the Nagios
 documentation. If a plugin works with Nagios but not with collectd please
 complain on the collectd mailing list instead.
+
+=end comment
 
 =back
 
