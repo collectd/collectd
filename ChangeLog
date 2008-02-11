@@ -11,6 +11,8 @@ yyyy-mm-dd, Version 4.3.0
 	* collectd: Support for more than one `TypesDB' file has been added.
 	  This is useful when one such file is included in a package but one
 	  wants to add custom type definitions.
+	* collectd: The `Include' config option has been expanded to handle
+	  entire directories and shell wildcards.
 	* collectdmon: The new `collectdmon' binary detects when collectd
 	  terminates and automatically restarts it again.
 	* csv plugin: The CSV plugin is now able to store counter values as a
