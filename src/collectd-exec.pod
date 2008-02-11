@@ -200,17 +200,19 @@ The notification executables receive values rather than providing them. In
 fact, after the program is started C<STDOUT> is connected to C</dev/null>.
 
 The data is passed to the executables over C<STDIN> in a format very similar to
-HTTP-headers: There is one line per field. Every line consists of a field name,
-ended by a colon, and the associated value until end-of-line. The input is
-ended by two newlines immediately following another.
+HTTP: At first there is a "header" with one line per field. Every line consists
+of a field name, ended by a colon, and the associated value until end-of-line.
+The "header" is ended by two newlines immediately following another,
+i.E<nbsp>e. an empty line. The rest, basically the "body", is the message of
+the notification.
 
 The following is an example notification passed to a program:
 
   Severity: FAILURE
   Time: 1200928930
   Host: myhost.mydomain.org
-  Message: This is a test notification to demonstrate the format
-  <newline>
+  \n
+  This is a test notification to demonstrate the format
 
 The following header files are currently used. Please note, however, that you
 should ignore unknown header files to be as forward-compatible as possible.
@@ -227,12 +229,17 @@ The time in epoch, i.E<nbsp>e. as seconds since 1970-01-01 00:00:00 UTC.
 
 =item B<Host>
 
-Name of the host concerned.
+=item B<Plugin>
 
-=item B<Message>
+=item B<PluginInstance>
 
-Message of the notification. This message should be made accessible to the
-user somehow.
+=item B<Type>
+
+=item B<TypeInstance>
+
+Identification of the performance data this notification is associated with.
+All of these fields are optional because notifications do not B<need> to be
+associated with a certain value.
 
 =back
 

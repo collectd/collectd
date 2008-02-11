@@ -610,10 +610,10 @@ static void *exec_notification_one (void *arg) /* {{{ */
   else if (n->severity == NOTIF_OKAY)
     severity = "OKAY";
 
-  fprintf (fh, "Severity: %s\n"
-      "Time: %u\n"
-      "Message: %s\n",
-      severity, (unsigned int) n->time, n->message);
+  fprintf (fh,
+      "Severity: %s\n"
+      "Time: %u\n",
+      severity, (unsigned int) n->time);
 
   /* Print the optional fields */
   if (strlen (n->host) > 0)
@@ -627,8 +627,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   if (strlen (n->type_instance) > 0)
     fprintf (fh, "TypeInstance: %s\n", n->type_instance);
 
-  /* Newline signalling end of data */
-  fprintf (fh, "\n");
+  fprintf (fh, "\n%s\n", n->message);
 
   fflush (fh);
   fclose (fh);
