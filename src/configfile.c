@@ -30,6 +30,10 @@
 #include "types_list.h"
 #include "utils_threshold.h"
 
+#if HAVE_WORDEXP_H
+# include <wordexp.h>
+#endif /* HAVE_WORDEXP_H */
+
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
 
 /*
@@ -546,7 +550,83 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
  *
  * Path is stat'ed and either cf_read_file or cf_read_dir is called
  * accordingly.
+ *
+ * There are two versions of this function: If `wordexp' exists shell wildcards
+ * will be expanded and the function will include all matches found. If
+ * `wordexp' (or, more precisely, it's header file) is not available the
+ * simpler function is used which does not do any such expansion.
  */
+#if HAVE_WORDEXP_H
+static oconfig_item_t *cf_read_generic (const char *path, int depth)
+{
+	oconfig_item_t *root = NULL;
+	int status;
+	const char *path_ptr;
+	wordexp_t we;
+	int i;
+
+	if (depth >= CF_MAX_DEPTH)
+	{
+		ERROR ("configfile: Not including `%s' because the maximum "
+				"nesting depth has been reached.", path);
+		return (NULL);
+	}
+
+	status = wordexp (path, &we, WRDE_NOCMD);
+	if (status != 0)
+	{
+		ERROR ("configfile: wordexp (%s) failed.", path);
+		return (NULL);
+	}
+
+	root = (oconfig_item_t *) malloc (sizeof (oconfig_item_t));
+	if (root == NULL)
+	{
+		ERROR ("configfile: malloc failed.");
+		return (NULL);
+	}
+	memset (root, '\0', sizeof (oconfig_item_t));
+
+	for (i = 0; i < we.we_wordc; i++)
+	{
+		oconfig_item_t *temp;
+		struct stat statbuf;
+
+		path_ptr = we.we_wordv[i];
+
+		status = stat (path_ptr, &statbuf);
+		if (status != 0)
+		{
+			char errbuf[1024];
+			ERROR ("configfile: stat (%s) failed: %s",
+					path_ptr,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			return (NULL);
+		}
+
+		if (S_ISREG (statbuf.st_mode))
+			temp = cf_read_file (path_ptr, depth);
+		else if (S_ISDIR (statbuf.st_mode))
+			temp = cf_read_dir (path_ptr, depth);
+		else
+		{
+			ERROR ("configfile: %s is neither a file nor a "
+					"directory.", path);
+			continue;
+		}
+
+		cf_ci_append_children (root, temp);
+		sfree (temp->children);
+		sfree (temp);
+	}
+
+	wordfree (&we);
+
+	return (root);
+} /* oconfig_item_t *cf_read_generic */
+/* #endif HAVE_WORDEXP_H */
+
+#else /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic (const char *path, int depth)
 {
 	struct stat statbuf;
@@ -558,8 +638,6 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 				"nesting depth has been reached.", path);
 		return (NULL);
 	}
-
-	fprintf (stderr, "cf_read_generic (path = %s, depth = %i);", path, depth);
 
 	status = stat (path, &statbuf);
 	if (status != 0)
@@ -579,6 +657,7 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 	ERROR ("configfile: %s is neither a file nor a directory.", path);
 	return (NULL);
 } /* oconfig_item_t *cf_read_generic */
+#endif /* !HAVE_WORDEXP_H */
 
 /* 
  * Public functions
