@@ -700,11 +700,19 @@ static int pplugin_call_all (pTHX_ int type, ...)
 		ds = va_arg (ap, data_set_t *);
 		vl = va_arg (ap, value_list_t *);
 
-		if (-1 == data_set2av (aTHX_ ds, pds))
-			return -1;
+		if (-1 == data_set2av (aTHX_ ds, pds)) {
+			av_clear (pds);
+			av_undef (pds);
+			pds = Nullav;
+			ret = -1;
+		}
 
-		if (-1 == value_list2hv (aTHX_ vl, ds, pvl))
-			return -1;
+		if (-1 == value_list2hv (aTHX_ vl, ds, pvl)) {
+			hv_clear (pvl);
+			hv_undef (pvl);
+			pvl = Nullhv;
+			ret = -1;
+		}
 
 		XPUSHs (sv_2mortal (newSVpv (ds->type, 0)));
 		XPUSHs (sv_2mortal (newRV_noinc ((SV *)pds)));
@@ -738,8 +746,12 @@ static int pplugin_call_all (pTHX_ int type, ...)
 
 		n = va_arg (ap, notification_t *);
 
-		if (-1 == notification2hv (aTHX_ n, notif))
-			return -1;
+		if (-1 == notification2hv (aTHX_ n, notif)) {
+			hv_clear (notif);
+			hv_undef (notif);
+			notif = Nullhv;
+			ret = -1;
+		}
 
 		XPUSHs (sv_2mortal (newRV_noinc ((SV *)notif)));
 	}
