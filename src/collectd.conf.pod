@@ -433,7 +433,8 @@ seconds. Setting this to be the same or smaller than the I<Interval> will cause
 the list of domains and devices to be refreshed on every iteration.
 
 Refreshing the devices in particular is quite a costly operation, so if your
-virtualization setup is static you might consider increasing this.
+virtualization setup is static you might consider increasing this. If this
+option is set to 0, refreshing is disabled completely.
 
 =item B<Domain> I<name>
 
