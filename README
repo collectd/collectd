@@ -84,6 +84,9 @@ Features
     - libvirt
       CPU, disk and network I/O statistics from virtual machines.
 
+    - libxml2
+      Parse XML data provided by libvirt.
+
     - mbmon
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
