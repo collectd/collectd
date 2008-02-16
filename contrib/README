@@ -2,11 +2,6 @@ The files in this directory may be used to perform common tasks that aren't
 exactly `collectd's job. They may or may not require in-depth knowledge of RRD
 files and/or `collectd's inner workings. Use at your own risk.
 
-PerlLib/
---------
-  Perl modules to be used in conjunction with collectd. See the perldoc
-documentation of the .pm-files to find out what they're good for.
-
 add_rra.sh
 ----------
   Before version 3.9.0 collectd used to create a different set of RRAs. The
