@@ -35,7 +35,6 @@
 
 #define PL_NORMAL        0x01
 #define PL_NOTIF_ACTION  0x02
-#define PL_NAGIOS_PLUGIN 0x04
 
 #define PL_RUNNING       0x10
 
@@ -128,11 +127,6 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   }
   memset (pl, '\0', sizeof (program_list_t));
 
-#if 0
-  if (strcasecmp ("NagiosExec", ci->key) == 0)
-    pl->flags |= PL_NAGIOS_PLUGIN;
-  else
-#endif
   if (strcasecmp ("NotificationExec", ci->key) == 0)
     pl->flags |= PL_NOTIF_ACTION;
   else
@@ -256,9 +250,6 @@ static int exec_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
     if ((strcasecmp ("Exec", child->key) == 0)
-#if 0
-	|| (strcasecmp ("NagiosExec", child->key) == 0)
-#endif
 	|| (strcasecmp ("NotificationExec", child->key) == 0))
       exec_config_exec (child);
     else
@@ -528,9 +519,6 @@ static void *exec_read_one (void *arg) /* {{{ */
 
     DEBUG ("exec plugin: exec_read_one: buffer = %s", buffer);
 
-    if (pl->flags & PL_NAGIOS_PLUGIN)
-      break;
-
     parse_line (buffer);
   } /* while (fgets) */
 
@@ -541,29 +529,6 @@ static void *exec_read_one (void *arg) /* {{{ */
 
   DEBUG ("exec plugin: Child %i exited with status %i.",
       (int) pl->pid, pl->status);
-
-  if (pl->flags & PL_NAGIOS_PLUGIN)
-  {
-    notification_t n;
-
-    memset (&n, '\0', sizeof (n));
-    
-    n.severity = NOTIF_FAILURE;
-    if (pl->status == 0)
-      n.severity = NOTIF_OKAY;
-    else if (pl->status == 1)
-      n.severity = NOTIF_WARNING;
-
-    strncpy (n.message, buffer, sizeof (n.message));
-    n.message[sizeof (n.message) - 1] = '\0';
-
-    n.time = time (NULL);
-
-    strncpy (n.host, hostname_g, sizeof (n.host));
-    n.host[sizeof (n.host) - 1] = '\0';
-
-    plugin_dispatch_notification (&n);
-  }
 
   pl->pid = 0;
 
@@ -662,8 +627,8 @@ static int exec_read (void) /* {{{ */
     pthread_t t;
     pthread_attr_t attr;
 
-    /* Only execute `normal' and `nagios' style executables here. */
-    if ((pl->flags & (PL_NAGIOS_PLUGIN | PL_NORMAL)) == 0)
+    /* Only execute `normal' style executables here. */
+    if ((pl->flags & PL_NORMAL) == 0)
       continue;
 
     pthread_mutex_lock (&pl_lock);

@@ -55,21 +55,6 @@ run at once if multiple notifications are received.
 See L<NOTIFICATION DATA FORMAT> below for a description of the data passed to
 these programs.
 
-=begin comment
-
-=item C<NagiosExec>
-
-The executable is treated as a Nagios plugin. That means that the first line
-printed to C<STDOUT> by this program is used as the text of a notification and
-the severity of the notification depends on the exit status of the executable
-only.
-
-For information on how to write Nagios plugins please refer to the Nagios
-documentation. If a plugin works with Nagios but not with collectd please
-complain on the collectd mailing list instead.
-
-=end comment
-
 =back
 
 =head1 EXEC DATA FORMAT
@@ -242,6 +227,23 @@ All of these fields are optional because notifications do not B<need> to be
 associated with a certain value.
 
 =back
+
+=head1 USING NAGIOS PLUGINS
+
+Though the interface is far from perfect, there are tons of plugins for Nagios.
+You can use these plugins with collectd by using a simple transition layer,
+C<exec-nagios.px>, which is shipped with the collectd distribution in the
+C<contrib/> directory. It is a simple Perl script that comes with embedded
+documentation. To see it, run the following command:
+
+  perldoc exec-nagios.px
+
+This script expects a configuration file, C<exec-nagios.conf>. You can find an
+example in the C<contrib/> directory, too.
+
+Even a simple mechanism to submit "performance data" to collectd is
+implemented. If you need a more sophisticated setup, please rewrite the plugin
+to make use of collectd's more powerful interface.
 
 =head1 CAVEATS
 
