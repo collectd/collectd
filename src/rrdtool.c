@@ -891,6 +891,19 @@ static int rrd_cache_insert (const char *filename,
 	return (0);
 } /* int rrd_cache_insert */
 
+static int rrd_compare_numeric (const void *a_ptr, const void *b_ptr)
+{
+	int a = *((int *) a_ptr);
+	int b = *((int *) b_ptr);
+
+	if (a < b)
+		return (-1);
+	else if (a > b)
+		return (1);
+	else
+		return (0);
+} /* int rrd_compare_numeric */
+
 static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 {
 	struct stat  statbuf;
@@ -1029,6 +1042,12 @@ static int rrd_config (const char *key, const char *value)
 			if (rra_timespans_custom[rra_timespans_custom_num] != 0)
 				rra_timespans_custom_num++;
 		} /* while (strtok_r) */
+
+		qsort (/* base = */ rra_timespans_custom,
+				/* nmemb  = */ rra_timespans_custom_num,
+				/* size   = */ sizeof (rra_timespans_custom[0]),
+				/* compar = */ rrd_compare_numeric);
+
 		free (value_copy);
 	}
 	else if (strcasecmp ("XFF", key) == 0)
