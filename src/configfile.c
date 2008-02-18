@@ -353,18 +353,6 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 	assert (offset >= 0);
 	assert (dst->children_num > offset);
 
-	/* Resize the memory containing the children to be big enough to hold
-	 * all children. */
-	temp = (oconfig_item_t *) realloc (dst->children,
-			sizeof (oconfig_item_t)
-			* (dst->children_num + src->children_num - 1));
-	if (temp == NULL)
-	{
-		ERROR ("configfile: realloc failed.");
-		return (-1);
-	}
-	dst->children = temp;
-
 	/* Free the memory used by the replaced child. Usually that's the
 	 * `Include "blah"' statement. */
 	temp = dst->children + offset;
@@ -378,9 +366,34 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 	sfree (temp->values);
 	temp = NULL;
 
-	/* If there are children behind the include statement, move them to the
-	 * end of the list, so that the new children have room before them. */
-	if ((dst->children_num - (offset + 1)) > 0)
+	/* If (src->children_num == 0) the array size is decreased. If offset
+	 * is _not_ the last element, (offset < (src->children_num - 1)), then
+	 * we need to move the trailing elements before resizing the array. */
+	if ((src->children_num == 0) && (offset < (src->children_num - 1)))
+	{
+		int nmemb = src->children_num - (offset + 1);
+		memmove (src->children + offset, src->children + offset + 1,
+				sizeof (oconfig_item_t) * nmemb);
+	}
+
+	/* Resize the memory containing the children to be big enough to hold
+	 * all children. */
+	temp = (oconfig_item_t *) realloc (dst->children,
+			sizeof (oconfig_item_t)
+			* (dst->children_num + src->children_num - 1));
+	if (temp == NULL)
+	{
+		ERROR ("configfile: realloc failed.");
+		return (-1);
+	}
+	dst->children = temp;
+
+	/* If there are children behind the include statement, and they have
+	 * not yet been moved because (src->children_num == 0), then move them
+	 * to the end of the list, so that the new children have room before
+	 * them. */
+	if ((src->children_num > 0)
+			&& ((dst->children_num - (offset + 1)) > 0))
 	{
 		int nmemb = dst->children_num - (offset + 1);
 		int old_offset = offset + 1;
