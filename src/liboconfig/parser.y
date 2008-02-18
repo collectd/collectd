@@ -210,8 +210,8 @@ static char *unquote (const char *orig)
 	if ((len < 2) || (ret[0] != '"') || (ret[len - 1] != '"'))
 		return (ret);
 
-	ret++;
 	len -= 2;
+	memmove (ret, ret + 1, len);
 	ret[len] = '\0';
 
 	for (i = 0; i < len; i++)
