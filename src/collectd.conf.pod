@@ -342,6 +342,13 @@ Hostname to connect to. Defaults to B<127.0.0.1>.
 
 TCP-Port to connect to. Defaults to B<7634>.
 
+=item B<TranslateDevicename> I<true>|I<false>
+
+If enabled, translate the disk names to major/minor device numbers
+(e.E<nbsp>g. "8-0" for /dev/sda). For backwards compatibility this defaults to
+I<true> but it's recommended to disable it as it will probably be removed in
+the next major version.
+
 =back
 
 =head2 Plugin C<interface>

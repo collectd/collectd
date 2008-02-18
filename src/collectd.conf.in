@@ -105,10 +105,11 @@ FQDNLookup   true
 #	NotificationExec "/path/to/exec"
 #</Plugin>
 
-#<Plugin hddtemp>
+@BUILD_PLUGIN_HDDTEMP_TRUE@<Plugin hddtemp>
 #	Host "127.0.0.1"
 #	Port "7634"
-#</Plugin>
+@BUILD_PLUGIN_HDDTEMP_TRUE@	TranslateDevicename false
+@BUILD_PLUGIN_HDDTEMP_TRUE@</Plugin>
 
 #<Plugin interface>
 #	Interface "eth0"

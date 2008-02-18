@@ -48,9 +48,9 @@ static const char *config_keys[] =
 {
 	"Host",
 	"Port",
-	NULL
+	"TranslateDevicename"
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 typedef struct hddname
 {
@@ -63,6 +63,7 @@ typedef struct hddname
 static hddname_t *first_hddname = NULL;
 static char *hddtemp_host = NULL;
 static char hddtemp_port[16];
+static int translate_devicename = 1;
 
 /*
  * NAME
@@ -222,6 +223,15 @@ static int hddtemp_config (const char *key, const char *value)
 		else
 			strncpy (hddtemp_port, value, sizeof (hddtemp_port));
 		hddtemp_port[sizeof (hddtemp_port) - 1] = '\0';
+	}
+	else if (strcasecmp (key, "TranslateDevicename") == 0)
+	{
+		if ((strcasecmp ("true", value) == 0)
+				|| (strcasecmp ("yes", value) == 0)
+				|| (strcasecmp ("on", value) == 0))
+			translate_devicename = 1;
+		else
+			translate_devicename = 0;
 	}
 	else
 	{
@@ -388,14 +398,14 @@ static int hddtemp_init (void)
 } /* int hddtemp_init */
 
 /*
- * hddtemp_get_name
+ * hddtemp_get_major_minor
  *
  * Description:
  *   Try to "cook" a bit the drive name as returned
  *   by the hddtemp daemon. The intend is to transform disk
  *   names into <major>-<minor> when possible.
  */
-static char *hddtemp_get_name (char *drive)
+static char *hddtemp_get_major_minor (char *drive)
 {
 	hddname_t *list;
 	char *ret;
@@ -470,7 +480,7 @@ static int hddtemp_read (void)
 
 	for (i = 0; i < num_disks; i++)
 	{
-		char *name, *submit_name;
+		char *name, *major_minor;
 		double temperature;
 		char *mode;
 
@@ -487,10 +497,11 @@ static int hddtemp_read (void)
 		if (mode[0] == 'F')
 			temperature = (temperature - 32.0) * 5.0 / 9.0;
 
-		if ((submit_name = hddtemp_get_name (name)) != NULL)
+		if (translate_devicename
+				&& (major_minor = hddtemp_get_major_minor (name)) != NULL)
 		{
-			hddtemp_submit (submit_name, temperature);
-			free (submit_name);
+			hddtemp_submit (major_minor, temperature);
+			free (major_minor);
 		}
 		else
 		{
