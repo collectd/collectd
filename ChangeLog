@@ -1,4 +1,4 @@
-yyyy-mm-dd, Version 4.3.0
+2008-02-18, Version 4.3.0
 	* collectd: Notifications have been added to the daemon. Notifications
 	  are status messages that may be associated with a data instance.
 	* collectd: Threshold checking has been added to the daemon. This
@@ -20,6 +20,8 @@ yyyy-mm-dd, Version 4.3.0
 	* exec plugin: Handling of notifications has been added and a special
 	  executable type for Nagios plugins has been implemented. Also, the
 	  ability to pass arguments to the executed programs has been added.
+	* hddtemp plugin: The new `TranslateDevicename' option lets you
+	  disable the translation from device names to major-minor-numbers.
 	* logfile plugin: Handling of notifications has been added.
 	* ntpd plugin: The new `ReverseLookups' can be used to disable reverse
 	  domain name lookups in this plugin.
