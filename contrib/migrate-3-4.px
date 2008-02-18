@@ -95,6 +95,7 @@ our %Subdirs =
 our %TypeTranslate =
 (
 	cpu => sub { $_ = shift; $_->{'plugin_instance'} = $_->{'type_instance'}; $_->{'type_instance'} = undef; $_; },
+	hddtemp => sub { $_ = shift; $_->{'plugin'} = 'hddtemp'; $_->{'type'} = 'temperature'; $_->{'type_instance'} = _special_disk_instance ($_->{'type_instance'}); $_; },
 	if_errors => sub { $_ = shift; $_->{'type_instance'} = $_->{'plugin_instance'}; $_->{'plugin_instance'} = undef; $_; },
 	if_packets => sub { $_ = shift; $_->{'type_instance'} = $_->{'plugin_instance'}; $_->{'plugin_instance'} = undef; $_; },
 	nfs2_procedures => sub { $_ = shift; @$_{qw(plugin plugin_instance type type_instance)} = ('nfs', 'v2' . $_->{'type_instance'}, 'nfs_procedure', undef); $_; },
