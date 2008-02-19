@@ -17,8 +17,7 @@
 	  terminates and automatically restarts it again.
 	* csv plugin: The CSV plugin is now able to store counter values as a
 	  rate, using the `StoreRates' configuration option.
-	* exec plugin: Handling of notifications has been added and a special
-	  executable type for Nagios plugins has been implemented. Also, the
+	* exec plugin: Handling of notifications has been added and the
 	  ability to pass arguments to the executed programs has been added.
 	* hddtemp plugin: The new `TranslateDevicename' option lets you
 	  disable the translation from device names to major-minor-numbers.
