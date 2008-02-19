@@ -87,7 +87,11 @@ static int init_hostname (void)
 	status = getaddrinfo (hostname_g, NULL, &ai_hints, &ai_list);
 	if (status != 0)
 	{
-		ERROR ("getaddrinfo failed.");
+		ERROR ("Looking up \"%s\" failed. You have set the "
+				"\"FQDNLookup\" option, but I cannot resolve "
+				"my hostname to a fully qualified domain "
+				"name. Please fix you network "
+				"configuration.");
 		return (-1);
 	}
 
