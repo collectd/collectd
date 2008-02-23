@@ -1,6 +1,7 @@
 /*
  * collectd - src/utils_logtail.h
  * Copyright (C) 2007-2008  C-Ware, Inc.
+ * Copyright (C) 2008       Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -15,49 +16,85 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
- * Author:
+ * Authors:
  *   Luke Heberling <lukeh at c-ware.com>
+ *   Florian Forster <octo at verplant.org>
  *
  * Description:
  *   Encapsulates useful code to plugins which must parse a log file.
  *
  */
 
-#include "utils_llist.h"
-#include "utils_tail.h"
+#include "utils_match.h"
 
-struct logtail_instance_s;
-typedef struct logtail_instance_s logtail_instance_t;
+struct cu_logtail_s;
+typedef struct cu_logtail_s cu_logtail_t;
 
-/*
- * NAME
- *   logtail_term
- *
- * DESCRIPTION
- *   Call to release resources associated with the plugin.
- *
- * PARAMETERS
- *   `instances' The handle used to identify the plugin.
- *
- * RETURN VALUE
- *   Zero on success, nonzero on failure.
- */
-int logtail_term (llist_t **instances);
+struct cu_logtail_simple_s
+{
+  char plugin[DATA_MAX_NAME_LEN];
+  char plugin_instance[DATA_MAX_NAME_LEN];
+  char type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
+};
+typedef struct cu_logtail_simple_s cu_logtail_simple_t;
 
 /*
  * NAME
- *   logtail_init
+ *   logtail_create
  *
  * DESCRIPTION
- *   Call to initialize the plugin
+ *   Allocates, initializes and returns a new `cu_logtail_t' object.
  *
  * PARAMETERS
- *   `instances' The handle used to identify the plugin.
+ *   `filename'  The name to read data from.
+ *   `plugin'    The plugin name to use when dispatching values.
  *
  * RETURN VALUE
- *   Zero on success, nonzero on failure.
+ *   Returns NULL upon failure, non-NULL otherwise.
  */
-int logtail_init (llist_t **instances);
+cu_logtail_t *logtail_create (const char *filename);
+
+/*
+ * NAME
+ *   logtail_destroy
+ *
+ * DESCRIPTION
+ *   Releases resources used by the `cu_logtail_t' object.
+ *
+ * PARAMETERS
+ *   The object to destroy.
+ */
+void logtail_destroy (cu_logtail_t *obj);
+
+/*
+ * NAME
+ *   logtail_add_match_simple
+ *
+ * DESCRIPTION
+ *   Adds a match, in form of a regular expression, to the `cu_logtail_t'
+ *   object. The values matched by that regular expression are dispatched to
+ *   the daemon using the supplied `type' and `type_instance' fields.
+ *
+ * PARAMETERS
+ *   `obj'
+ *   `type'
+ *   `type_instance'
+ *   `match_ds_type'
+ *   `regex'
+ *
+ * RETURN VALUE
+ *   Zero upon success, non-zero otherwise.
+ */
+int logtail_add_match (cu_logtail_t *obj, cu_match_t *match,
+    int (*submit_match) (cu_match_t *match, void *user_data),
+    void *user_data,
+    void (*free_user_data) (void *user_data));
+
+int logtail_add_match_simple (cu_logtail_t *obj,
+    const char *regex, int ds_type,
+    const char *plugin, const char *plugin_instance,
+    const char *type, const char *type_instance);
 
 /*
  * NAME
@@ -80,89 +117,7 @@ int logtail_init (llist_t **instances);
  *
  * RETURN VALUE
  *   Zero on success, nonzero on failure.
- */
-int logtail_read (llist_t **instances, tailfunc *func, char *plugin,
-		char **names);
+*/
+int logtail_read (cu_logtail_t *obj);
 
-/*
- * NAME
- *   logtail_config
- *
- * DESCRIPTION
- *   Configures the logtail instance for the given plugin.
- *
- * PARAMETERS
- *   `instances' The handle used to identify the plugin.
- *
- *   `ci'        The configuration item from collectd.
- *
- *   `plugin'    The name of the plugin.
- *
- *   `names'     An array of counter names in the same order as the
- *               counters themselves.
- *
- *   `default_file' The default log file if none is found in the
- *               configuration.
- *
- *   `default_cache_size' The default cache size if none is found in the
- *               configuration.
- *
- * RETURN VALUE
- *   Zero on success, nonzero on failure.
- */
-int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
-			char **names, char *default_file,
-			int default_cache_size);
-
-/*
- * NAME
- *   logtail_counters
- *
- * DESCRIPTION
- *   Returns the counters maintained for the plugin.
- *
- * PARAMETERS
- *   `instance' The handle used to identify the logtail instance.
- *
- */
-unsigned long *logtail_counters (logtail_instance_t *instance);
-
-/*
- * NAME
- *   logtail_cache
- *
- * DESCRIPTION
- *   Stores the data in the cache.
- *
- * PARAMETERS
- *   `instance' The handle used to identify the logtail instance.
- *
- *   `plugin'   The name of the plugin.
- *
- *   `key'      The key to identify the cached data.
- *   
- *   `data'     The data to cache.
- *
- *   `len'      The length of the data to cache.
- *
- * RETURN VALUE
- *   Zero on success, nonzero on failure.
- */
-int logtail_cache (logtail_instance_t *instance, char *plugin, char *key,
-		void **data, int len);
-
-/*
- * NAME
- *   logtail_decache
- *
- * DESCRIPTION
- *   Removes the data from the cache.
- *
- * PARAMETERS
- *   `instance' The handle used to identify the logtail instance.
- *
- *   `key'      The key to identify the cached data.
- *   
- */
-void logtail_decache (logtail_instance_t *instance, char *key);
-
+/* vim: set sw=2 sts=2 ts=8 : */

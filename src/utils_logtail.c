@@ -1,6 +1,7 @@
 /*
  * collectd - src/utils_logtail.c
  * Copyright (C) 2007-2008  C-Ware, Inc.
+ * Copyright (C) 2008       Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Author:
  *   Luke Heberling <lukeh at c-ware.com>
+ *   Florian Forster <octo at verplant.org>
  *
  * Description:
  *   Encapsulates useful code to plugins which must parse a log file.
@@ -25,404 +27,207 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_match.h"
 #include "utils_tail.h"
-#include "utils_llist.h"
-#include "utils_avltree.h"
+#include "utils_logtail.h"
 
-struct logtail_instance_s
+struct cu_logtail_match_s
 {
-  char *name;
-  cu_tail_t *tail;
-  c_avl_tree_t *tree;
-  llist_t *list;
-  uint cache_size;
-  unsigned long *counters;
+  cu_match_t *match;
+  void *user_data;
+  int (*submit) (cu_match_t *match, void *user_data);
+  void (*free) (void *user_data);
 };
-typedef struct logtail_instance_s logtail_instance_t;
+typedef struct cu_logtail_match_s cu_logtail_match_t;
 
-static void submit (const char *plugin, const char *plugin_instance,
-    const char *name, value_t value)
+struct cu_logtail_s
 {
+  int flags;
+  cu_tail_t *tail;
+
+  cu_logtail_match_t *matches;
+  size_t matches_num;
+};
+
+/*
+ * Private functions
+ */
+static int simple_submit_match (cu_match_t *match, void *user_data)
+{
+  cu_logtail_simple_t *data = (cu_logtail_simple_t *) user_data;
+  cu_match_value_t *match_value;
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[1];
 
-  values[0] = value;
+  match_value = (cu_match_value_t *) match_get_user_data (match);
+  if (match_value == NULL)
+    return (-1);
+
+  values[0] = match_value->value;
 
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, plugin, sizeof (vl.plugin));
-  sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
-  sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+  sstrncpy (vl.plugin, data->plugin, sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, data->plugin_instance,
+      sizeof (vl.plugin_instance));
+  sstrncpy (vl.type_instance, data->type_instance,
+      sizeof (vl.type_instance));
 
-  plugin_dispatch_values (name, &vl);
-} /* static void submit */
-
-static int destroy_instance (logtail_instance_t *inst)
-{
-  if (inst == NULL)
-    return (-1);
-
-  sfree (inst->name);
-  if (inst->tail != NULL)
-  {
-    cu_tail_destroy (inst->tail);
-    inst->tail = NULL;
-  }
-  if (inst->tree != NULL)
-  {
-    c_avl_destroy (inst->tree);
-    inst->tree = NULL;
-  }
-  assert ((inst->list == NULL) || (llist_size (inst->list) == 0));
-  if (inst->list != NULL)
-  {
-    llist_destroy (inst->list);
-    inst->list = NULL;
-  }
-
-  sfree (inst->counters);
-  sfree (inst);
+  plugin_dispatch_values (data->type, &vl);
 
   return (0);
-} /* int destroy_instance */
+} /* int simple_submit_match */
 
-int logtail_term (llist_t **instances)
+static int tail_callback (void *data, char *buf, int buflen)
 {
-  llentry_t *entry;
-  llentry_t *prev;
+  cu_logtail_t *obj = (cu_logtail_t *) data;
+  int i;
 
-  llentry_t *lentry;
-  llentry_t *lprev;
+  for (i = 0; i < obj->matches_num; i++)
+    match_apply (obj->matches[i].match, buf);
 
-  logtail_instance_t *instance;
+  return (0);
+} /* int tail_callback */
 
-  if (*instances != NULL)
+/*
+ * Public functions
+ */
+cu_logtail_t *logtail_create (const char *filename)
+{
+  cu_logtail_t *obj;
+
+  obj = (cu_logtail_t *) malloc (sizeof (cu_logtail_t));
+  if (obj == NULL)
+    return (NULL);
+  memset (obj, '\0', sizeof (cu_logtail_t));
+
+  obj->tail = cu_tail_create (filename);
+  if (obj->tail == NULL)
   {
-    entry = llist_head (*instances);
-    while (entry)
+    sfree (obj);
+    return (NULL);
+  }
+
+  return (obj);
+} /* cu_logtail_t *logtail_create */
+
+void logtail_destroy (cu_logtail_t *obj)
+{
+  int i;
+
+  if (obj == NULL)
+    return;
+
+  if (obj->tail != NULL)
+  {
+    cu_tail_destroy (obj->tail);
+    obj->tail = NULL;
+  }
+
+  for (i = 0; i < obj->matches_num; i++)
+  {
+    cu_logtail_match_t *match = obj->matches + i;
+    if (match->match != NULL)
     {
-      prev = entry;
-      entry = entry->next;
-
-      instance = prev->value;
-      if (instance->list != NULL)
-      {
-	lentry = llist_head (instance->list);
-	while (lentry)
-	{
-	  lprev = lentry;
-	  lentry = lentry->next;
-	  if (lprev->key != NULL)
-	    free (lprev->key);
-	  if (lprev->value != NULL)
-	    free (lprev->value);
-	  llist_remove (instance->list, lprev);
-	  llentry_destroy (lprev);
-	}
-      }
-
-      llist_remove (*instances, prev);
-      llentry_destroy (prev);
-      destroy_instance (instance);
+      match_destroy (match->match);
+      match->match = NULL;
     }
 
-    llist_destroy (*instances);
-    *instances = NULL;
+    if ((match->user_data != NULL)
+	&& (match->free != NULL))
+      (*match->free) (match->user_data);
+    match->user_data = NULL;
   }
 
+  sfree (obj->matches);
+  sfree (obj);
+} /* void logtail_destroy */
+
+int logtail_add_match (cu_logtail_t *obj, cu_match_t *match,
+    int (*submit_match) (cu_match_t *match, void *user_data),
+    void *user_data,
+    void (*free_user_data) (void *user_data))
+{
+  cu_logtail_match_t *temp;
+
+  temp = (cu_logtail_match_t *) realloc (obj->matches,
+      sizeof (cu_logtail_match_t) * (obj->matches_num + 1));
+  if (temp == NULL)
+    return (-1);
+
+  obj->matches = temp;
+  obj->matches_num++;
+
+  temp = obj->matches + (obj->matches_num - 1);
+
+  temp->match = match;
+  temp->user_data = user_data;
+  temp->submit = submit_match;
+  temp->free = free_user_data;
+
   return (0);
-} /* int logtail_term */
+} /* int logtail_add_match */
 
-int logtail_init (llist_t **instances)
+int logtail_add_match_simple (cu_logtail_t *obj,
+    const char *regex, int ds_type,
+    const char *plugin, const char *plugin_instance,
+    const char *type, const char *type_instance)
 {
-  if (*instances == NULL)
-    *instances = llist_create();
+  cu_match_t *match;
+  cu_logtail_simple_t *user_data;
+  int status;
 
-  return (*instances == NULL);
-} /* int logtail_init */
+  match = match_create_simple (regex, ds_type);
+  if (match == NULL)
+    return (-1);
 
-int logtail_read (llist_t **instances, tailfunc *func, char *plugin,
-    char **counter_instances)
+  user_data = (cu_logtail_simple_t *) malloc (sizeof (cu_logtail_simple_t));
+  if (user_data == NULL)
+  {
+    match_destroy (match);
+    return (-1);
+  }
+
+  sstrncpy (user_data->plugin, plugin, sizeof (user_data->plugin));
+  sstrncpy (user_data->plugin_instance, plugin_instance,
+      sizeof (user_data->plugin_instance));
+  sstrncpy (user_data->type, type, sizeof (user_data->type));
+  sstrncpy (user_data->type_instance, type_instance,
+      sizeof (user_data->type_instance));
+
+  status = logtail_add_match (obj, match, simple_submit_match,
+      user_data, free);
+
+  if (status != 0)
+  {
+    match_destroy (match);
+    sfree (user_data);
+  }
+
+  return (status);
+} /* int logtail_add_match_simple */
+
+int logtail_read (cu_logtail_t *obj)
 {
-  llentry_t *entry;
-  char buffer[2048];
+  char buffer[4096];
   int status;
   int i;
 
-  for (entry = llist_head (*instances); entry != NULL; entry = entry->next )
+  status = cu_tail_read (obj->tail, buffer, sizeof (buffer), tail_callback,
+      (void *) obj);
+  if (status != 0)
+    return (status);
+
+  for (i = 0; i < obj->matches_num; i++)
   {
-    logtail_instance_t *instance = (logtail_instance_t *) entry->value;
+    cu_logtail_match_t *lt_match = obj->matches + i;
 
-    status = cu_tail_read (instance->tail, buffer, sizeof (buffer),
-	func, instance);
-    if (status != 0)
-      continue;
-
-    for (i = 0; counter_instances[i] != NULL; i++)
-    {
-      char *name = counter_instances[i];
-      value_t value;
-      
-      value.counter = (counter_t) instance->counters[i];
-
-      submit (plugin, instance->name, name, value);
-    }
+    (*lt_match->submit) (lt_match->match, lt_match->user_data);
   }
 
   return (0);
 } /* int logtail_read */
-
-int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
-    char **names, char *default_file, int default_cache_size)
-{
-  int counterslen = 0;
-  logtail_instance_t *instance;
-
-  llentry_t *entry;
-  char *tail_file;
-
-  oconfig_item_t *gchild;
-  int gchildren;
-
-  oconfig_item_t *child = ci->children;
-  int children = ci->children_num;
-
-  while (*(names++) != NULL)
-    counterslen += sizeof (unsigned long);
-
-  if (*instances == NULL)
-  {
-    *instances = llist_create();
-    if (*instances == NULL)
-      return 1;
-  }
-
-
-  for (; children; --children, ++child)
-  {
-    tail_file = NULL;
-
-    if (strcmp (child->key, "Instance") != 0)
-    {
-      WARNING ("%s plugin: Ignoring unknown"
-	  " config option `%s'.", plugin, child->key);
-      continue;
-    }
-
-    if ((child->values_num != 1) ||
-	(child->values[0].type != OCONFIG_TYPE_STRING))
-    {
-      WARNING ("%s plugin: `Instance' needs exactly"
-	  " one string argument.", plugin);
-      continue;
-    }
-
-    instance = malloc (sizeof (logtail_instance_t));
-    if (instance == NULL)
-    {
-      ERROR ("%s plugin: `malloc' failed.", plugin);
-      return 1;
-    }
-    memset (instance, '\0', sizeof (logtail_instance_t));
-
-    instance->counters = malloc (counterslen);
-    if (instance->counters == NULL)
-    {
-      ERROR ("%s plugin: `malloc' failed.", plugin);
-      destroy_instance (instance);
-      return 1;
-    }
-    memset (instance->counters, '\0', counterslen);
-
-    instance->name = strdup (child->values[0].value.string);
-    if (instance->name == NULL)
-    {
-      ERROR ("%s plugin: `strdup' failed.", plugin);
-      destroy_instance (instance);
-      return 1;
-    }
-
-    instance->list = llist_create();
-    if (instance->list == NULL)
-    {
-      ERROR ("%s plugin: `llist_create' failed.", plugin);
-      destroy_instance (instance);
-      return 1;
-    }
-
-    instance->tree = c_avl_create ((void *)strcmp);
-    if (instance->tree == NULL)
-    {
-      ERROR ("%s plugin: `c_avl_create' failed.", plugin);
-      destroy_instance (instance);
-      return 1;
-    }
-
-    entry = llentry_create (instance->name, instance);
-    if (entry == NULL)
-    {
-      ERROR ("%s plugin: `llentry_create' failed.", plugin);
-      destroy_instance (instance);
-      return 1;
-    }
-
-    gchild = child->children;
-    gchildren = child->children_num;
-
-    for (; gchildren; --gchildren, ++gchild)
-    {
-      if (strcmp (gchild->key, "LogFile") == 0)
-      {
-	if (gchild->values_num != 1 || 
-	    gchild->values[0].type != OCONFIG_TYPE_STRING)
-	{
-	  WARNING ("%s plugin: config option `%s'"
-	      " should have exactly one string value.",
-	      plugin, gchild->key);
-	  continue;
-	}
-	if (tail_file != NULL)
-	{
-	  WARNING ("%s plugin: ignoring extraneous"
-	      " `LogFile' config option.", plugin);
-	  continue;
-	}
-	tail_file = gchild->values[0].value.string;
-      }
-      else if (strcmp (gchild->key, "CacheSize") == 0)
-      {
-	if (gchild->values_num != 1 
-	    || gchild->values[0].type != OCONFIG_TYPE_NUMBER)
-	{
-	  WARNING ("%s plugin: config option `%s'"
-	      " should have exactly one numerical value.",
-	      plugin, gchild->key);
-	  continue;
-	}
-	if (instance->cache_size)
-	{
-	  WARNING ("%s plugin: ignoring extraneous"
-	      " `CacheSize' config option.", plugin);
-	  continue;
-	}
-	instance->cache_size = gchild->values[0].value.number;
-      }
-      else
-      {
-	WARNING ("%s plugin: Ignoring unknown config option"
-	    " `%s'.", plugin, gchild->key);
-	continue;
-      }
-
-      if (gchild->children_num)
-      {
-	WARNING ("%s plugin: config option `%s' should not"
-	    " have children.", plugin, gchild->key);
-      }
-    }
-
-    if (tail_file == NULL)
-      tail_file = default_file;
-    instance->tail = cu_tail_create (tail_file);
-    if (instance->tail == NULL)
-    {
-      ERROR ("%s plugin: `cu_tail_create' failed.", plugin);
-      destroy_instance (instance);
-
-      llentry_destroy (entry);
-      return 1;
-    }
-
-    if (instance->cache_size == 0)
-      instance->cache_size = default_cache_size;
-
-    llist_append (*instances, entry);
-  }
-
-  return 0;
-} /* int logtail_config */
-
-unsigned long *logtail_counters (logtail_instance_t *instance)
-{
-  return instance->counters;
-} /* unsigned log *logtail_counters */
-
-int logtail_cache (logtail_instance_t *instance, char *plugin, char *key, void **data, int len)
-{
-  llentry_t *entry = NULL;
-
-  if (c_avl_get (instance->tree, key, (void*)&entry) == 0)
-  {
-    *data = entry->value;
-    return (0);
-  }
-
-  if ((key = strdup (key)) == NULL)
-  {
-    ERROR ("%s plugin: `strdup' failed.", plugin);
-    return (0);
-  }
-
-  if (data != NULL && (*data = malloc (len)) == NULL)
-  {
-    ERROR ("%s plugin: `malloc' failed.", plugin);
-    free (key);
-    return (0);
-  }
-
-  if (data != NULL)
-    memset (*data, '\0', len);
-
-  entry = llentry_create (key, data == NULL ? NULL : *data);
-  if (entry == NULL)
-  {
-    ERROR ("%s plugin: `llentry_create' failed.", plugin);
-    free (key);
-    if (data !=NULL)
-      free (*data);
-    return (0);
-  }
-
-  if (c_avl_insert (instance->tree, key, entry) != 0)
-  {
-    ERROR ("%s plugin: `c_avl_insert' failed.", plugin);
-    llentry_destroy (entry);
-    free (key);
-    if (data != NULL)
-      free (*data);
-    return (0);
-  }
-
-  llist_prepend (instance->list, entry);
-
-  while (llist_size (instance->list) > instance->cache_size &&
-      (entry = llist_tail (instance->list)) != NULL )
-  {
-    c_avl_remove (instance->tree, entry->key, NULL, NULL);
-    llist_remove (instance->list, entry);
-    free (entry->key);
-    if (entry->value != NULL)
-      free (entry->value);
-    llentry_destroy (entry);
-  }
-
-  return (1);
-}
-
-void logtail_decache (logtail_instance_t *instance, char *key)
-{
-  llentry_t *entry = NULL;
-  if (c_avl_remove (instance->tree, key, NULL, (void*)&entry))
-    return;
-
-  llist_remove (instance->list, entry);
-  free (entry->key);
-  if (entry->value != NULL)
-    free (entry->value);
-
-  llentry_destroy (entry);
-}
 
 /* vim: set sw=2 sts=2 ts=8 : */

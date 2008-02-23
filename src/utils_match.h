@@ -71,7 +71,7 @@ cu_match_t *match_create_callback (const char *regex,
 
 /*
  * NAME
- *  match_create_callback
+ *  match_create_simple
  *
  * DESCRIPTION
  *  Creates a new `cu_match_t' with a default callback. The user data for that
@@ -93,7 +93,7 @@ cu_match_t *match_create_callback (const char *regex,
  *    The function will not search for anything in the string and increase
  *    value.counter by one.
  */
-cu_match_t *match_create_default (const char *regex, int ds_type);
+cu_match_t *match_create_simple (const char *regex, int ds_type);
 
 /*
  * NAME

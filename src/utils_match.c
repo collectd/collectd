@@ -113,7 +113,7 @@ cu_match_t *match_create_callback (const char *regex,
   return (obj);
 } /* cu_match_t *match_create_callback */
 
-cu_match_t *match_create_default (const char *regex, int match_ds_type)
+cu_match_t *match_create_simple (const char *regex, int match_ds_type)
 {
   cu_match_value_t *user_data;
   cu_match_t *obj;
@@ -133,7 +133,7 @@ cu_match_t *match_create_default (const char *regex, int match_ds_type)
   obj->flags |= UTILS_MATCH_FLAGS_FREE_USER_DATA;
 
   return (obj);
-} /* cu_match_t *match_create_default */
+} /* cu_match_t *match_create_simple */
 
 void match_destroy (cu_match_t *obj)
 {
