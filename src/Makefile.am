@@ -31,6 +31,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
 		   utils_logtail.c utils_logtail.h \
+		   utils_match.c utils_match.h \
 		   utils_mount.c utils_mount.h \
 		   utils_tail.c utils_tail.h \
 		   utils_threshold.c utils_threshold.h \
