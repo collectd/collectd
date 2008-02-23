@@ -30,7 +30,7 @@
 struct cu_tail_s;
 typedef struct cu_tail_s cu_tail_t;
 
-typedef int tailfunc(void *data, char *buf, int buflen);
+typedef int tailfunc_t(void *data, char *buf, int buflen);
 
 /*
  * NAME
@@ -77,7 +77,7 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen);
  *
  * Returns 0 when successful and non-zero otherwise.
  */
-int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc *callback,
+int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
 		void *data);
 
 #endif /* UTILS_TAIL_H */

@@ -71,7 +71,11 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
 	int status;
 
 	if (buflen < 1)
+	{
+		ERROR ("utils_tail: cu_tail_readline: buflen too small: "
+				"%i bytes.", buflen);
 		return (-1);
+	}
 	
 	if (stat (obj->file, &stat_now) != 0)
 	{
@@ -91,11 +95,14 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
 		 */
 		FILE *new_fd;
 
+		DEBUG ("utils_tail: cu_tail_readline: (Re)Opening %s..",
+				obj->file);
+
 		new_fd = fopen (obj->file, "r");
 		if (new_fd == NULL)
 		{
 			char errbuf[1024];
-			ERROR ("cu_tail_readline: open (%s) failed: %s",
+			ERROR ("utils_tail: cu_tail_readline: open (%s) failed: %s",
 					obj->file,
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
@@ -125,10 +132,14 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
 	status = 0;
 	if (fgets (buf, buflen, obj->fd) == NULL)
 	{
-		if (feof (obj->fd) == 0)
+		if (feof (obj->fd) != 0)
 			buf[0] = '\0';
 		else /* an error occurred */
+		{
+			ERROR ("utils_tail: cu_tail_readline: fgets returned "
+					"an error.");
 			status = -1;
+		}
 	}
 
 	if (status == 0)
@@ -137,20 +148,32 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
 	return (status);
 } /* int cu_tail_readline */
 
-int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc *callback,
+int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
 		void *data)
 {
 	int status;
 
-	while ((status = cu_tail_readline (obj, buf, buflen)) == 0)
+	while (42)
 	{
+		status = cu_tail_readline (obj, buf, buflen);
+		if (status != 0)
+		{
+			ERROR ("utils_tail: cu_tail_read: cu_tail_readline "
+					"failed.");
+			break;
+		}
+
 		/* check for EOF */
 		if (buf[0] == '\0')
 			break;
 
 		status = callback (data, buf, buflen);
 		if (status != 0)
+		{
+			ERROR ("utils_tail: cu_tail_read: callback returned "
+					"status %i.", status);
 			break;
+		}
 	}
 
 	return status;
