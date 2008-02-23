@@ -231,7 +231,10 @@ int logtail_read (cu_logtail_t *obj)
   status = cu_tail_read (obj->tail, buffer, sizeof (buffer), tail_callback,
       (void *) obj);
   if (status != 0)
+  {
+    ERROR ("logtail: cu_tail_read failed.");
     return (status);
+  }
 
   for (i = 0; i < obj->matches_num; i++)
   {
