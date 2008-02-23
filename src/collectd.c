@@ -91,7 +91,7 @@ static int init_hostname (void)
 				"\"FQDNLookup\" option, but I cannot resolve "
 				"my hostname to a fully qualified domain "
 				"name. Please fix you network "
-				"configuration.");
+				"configuration.", hostname_g);
 		return (-1);
 	}
 
