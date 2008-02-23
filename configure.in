@@ -371,8 +371,7 @@ AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr 
 
 AC_FUNC_STRERROR_R
 
-AC_CHECK_FUNCS(getpwnam_r)
-AC_CHECK_FUNCS(getgrnam_r)
+AC_CHECK_FUNCS(getpwnam_r getgrnam_r setgroups regcomp regerror regexec regfree)
 
 socket_needs_socket="no"
 AC_CHECK_FUNCS(socket, [], AC_CHECK_LIB(socket, socket, [socket_needs_socket="yes"], AC_MSG_ERROR(cannot find socket)))
@@ -381,8 +380,6 @@ AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$socket_needs_socket" = "xyes")
 nanosleep_needs_rt="no"
 AC_CHECK_FUNCS(nanosleep, [], AC_CHECK_LIB(rt, nanosleep, [nanosleep_needs_rt="yes"], AC_MSG_ERROR(cannot find nanosleep)))
 AM_CONDITIONAL(BUILD_WITH_LIBRT, test "x$nanosleep_needs_rt" = "xyes")
-
-AC_CHECK_FUNCS(regcomp regerror regexec regfree)
 
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
 AC_CHECK_FUNCS(host_statistics, [have_host_statistics="yes"], [have_host_statistics="no"])
