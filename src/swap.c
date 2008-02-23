@@ -232,7 +232,7 @@ static int swap_read (void)
 
 	swap_submit ("used", swap_alloc);
 	swap_submit ("free", swap_avail);
-	swap_submit ("reserved", swap_resv - swap_alloc);
+	swap_submit ("reserved", swap_resv);
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(VM_SWAPUSAGE)
