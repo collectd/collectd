@@ -122,6 +122,7 @@ cu_match_t *match_create_simple (const char *regex, int match_ds_type)
   if (user_data == NULL)
     return (NULL);
   memset (user_data, '\0', sizeof (cu_match_value_t));
+  user_data->ds_type = match_ds_type;
 
   obj = match_create_callback (regex, default_callback, user_data);
   if (obj == NULL)
@@ -151,39 +152,44 @@ void match_destroy (cu_match_t *obj)
 int match_apply (cu_match_t *obj, const char *str)
 {
   int status;
-  regmatch_t re_match;
+  regmatch_t re_match[2];
   char *sub_match;
   size_t sub_match_len;
 
   if ((obj == NULL) || (str == NULL))
     return (-1);
 
-  re_match.rm_so = -1;
-  re_match.rm_eo = -1;
-
-  status = regexec (&obj->regex, str, /* nmatch = */ 1, &re_match,
+  re_match[0].rm_so = -1;
+  re_match[0].rm_eo = -1;
+  re_match[1].rm_so = -1;
+  re_match[1].rm_eo = -1;
+  status = regexec (&obj->regex, str, /* nmatch = */ 2, re_match,
       /* eflags = */ 0);
 
   /* Regex did not match */
   if (status != 0)
     return (0);
 
-  if (re_match.rm_so < 0)
+  /* re_match[0] is the location of the entire match.
+   * re_match[1] is the location of the sub-match. */
+  if (re_match[1].rm_so < 0)
   {
     status = obj->callback (str, obj->user_data);
     return (status);
   }
 
-  assert (re_match.rm_so < re_match.rm_eo);
-  sub_match_len = (size_t) (re_match.rm_eo - re_match.rm_so);
+  assert (re_match[1].rm_so < re_match[1].rm_eo);
+  sub_match_len = (size_t) (re_match[1].rm_eo - re_match[1].rm_so);
   sub_match = (char *) malloc (sizeof (char) * (sub_match_len + 1));
   if (sub_match == NULL)
   {
     ERROR ("malloc failed.");
     return (-1);
   }
-  sstrncpy (sub_match, str + re_match.rm_so, sub_match_len + 1);
+  sstrncpy (sub_match, str + re_match[1].rm_so, sub_match_len + 1);
 
+  DEBUG ("utils_match: match_apply: Dispatching substring \"%s\" to "
+      "callback.", sub_match);
   status = obj->callback (sub_match, obj->user_data);
 
   sfree (sub_match);
