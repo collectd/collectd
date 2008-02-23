@@ -22,31 +22,12 @@
  *   Encapsulates useful code to plugins which must parse a log file.
  */
 
-#include <time.h>
+#include "collectd.h"
+#include "common.h"
 #include "plugin.h"
 #include "utils_tail.h"
 #include "utils_llist.h"
 #include "utils_avltree.h"
-
-#define DESTROY_INSTANCE(inst)			\
-  do {						\
-    if (inst != NULL)				\
-    {						\
-      if (inst->name != NULL)			\
-	free (inst->name);			\
-      if (inst->tail != NULL)			\
-	cu_tail_destroy (inst->tail);		\
-      if (inst->tree != NULL)			\
-	c_avl_destroy (inst->tree);		\
-	assert (inst->list == NULL ||		\
-	    llist_size (inst->list) == 0);	\
-	if (inst->list != NULL)			\
-	  llist_destroy (inst->list);		\
-	if (inst->counters != NULL)		\
-	  free (inst->counters);		\
-	free (inst);				\
-    }						\
-  } while (0)
 
 struct logtail_instance_s
 {
@@ -59,32 +40,53 @@ struct logtail_instance_s
 };
 typedef struct logtail_instance_s logtail_instance_t;
 
-static void submit (const char *plugin, const char *instance,
-    const char *name, unsigned long value)
+static void submit (const char *plugin, const char *plugin_instance,
+    const char *name, value_t value)
 {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[1];
-  const data_set_t *ds;
 
-  ds = plugin_get_ds (name);
-  if (ds == NULL)
-    return;
-
-  if (ds->ds->type == DS_TYPE_GAUGE)
-    values[0].gauge = (float)value;
-  else
-    values[0].counter = value;
+  values[0] = value;
 
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strncpy (vl.host, hostname_g, sizeof (vl.host));
-  strncpy (vl.plugin, plugin, sizeof (vl.plugin));
-  strncpy (vl.type_instance, "", sizeof (vl.type_instance));
-  strncpy (vl.plugin_instance, instance, sizeof (vl.plugin_instance));
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, plugin, sizeof (vl.plugin));
+  sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
+  sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
   plugin_dispatch_values (name, &vl);
 } /* static void submit */
+
+static int destroy_instance (logtail_instance_t *inst)
+{
+  if (inst == NULL)
+    return (-1);
+
+  sfree (inst->name);
+  if (inst->tail != NULL)
+  {
+    cu_tail_destroy (inst->tail);
+    inst->tail = NULL;
+  }
+  if (inst->tree != NULL)
+  {
+    c_avl_destroy (inst->tree);
+    inst->tree = NULL;
+  }
+  assert ((inst->list == NULL) || (llist_size (inst->list) == 0));
+  if (inst->list != NULL)
+  {
+    llist_destroy (inst->list);
+    inst->list = NULL;
+  }
+
+  sfree (inst->counters);
+  sfree (inst);
+
+  return (0);
+} /* int destroy_instance */
 
 int logtail_term (llist_t **instances)
 {
@@ -123,7 +125,7 @@ int logtail_term (llist_t **instances)
 
       llist_remove (*instances, prev);
       llentry_destroy (prev);
-      DESTROY_INSTANCE (instance);
+      destroy_instance (instance);
     }
 
     llist_destroy (*instances);
@@ -141,23 +143,32 @@ int logtail_init (llist_t **instances)
   return (*instances == NULL);
 } /* int logtail_init */
 
-int logtail_read (llist_t **instances, tailfunc *func, char *plugin, char **names)
+int logtail_read (llist_t **instances, tailfunc *func, char *plugin,
+    char **counter_instances)
 {
   llentry_t *entry;
-  logtail_instance_t *instance;
   char buffer[2048];
-  char **name;
-  unsigned long *counter;
+  int status;
+  int i;
 
   for (entry = llist_head (*instances); entry != NULL; entry = entry->next )
   {
-    instance = (logtail_instance_t *)entry->value;
-    cu_tail_read (instance->tail, buffer,
-	sizeof (buffer), func, instance);
+    logtail_instance_t *instance = (logtail_instance_t *) entry->value;
 
-    for (name = names, counter = instance->counters;
-	*name != NULL; ++name, ++counter)
-      submit (plugin, instance->name, *name, *counter);
+    status = cu_tail_read (instance->tail, buffer, sizeof (buffer),
+	func, instance);
+    if (status != 0)
+      continue;
+
+    for (i = 0; counter_instances[i] != NULL; i++)
+    {
+      char *name = counter_instances[i];
+      value_t value;
+      
+      value.counter = (counter_t) instance->counters[i];
+
+      submit (plugin, instance->name, name, value);
+    }
   }
 
   return (0);
@@ -220,7 +231,7 @@ int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
     if (instance->counters == NULL)
     {
       ERROR ("%s plugin: `malloc' failed.", plugin);
-      DESTROY_INSTANCE (instance);
+      destroy_instance (instance);
       return 1;
     }
     memset (instance->counters, '\0', counterslen);
@@ -229,7 +240,7 @@ int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
     if (instance->name == NULL)
     {
       ERROR ("%s plugin: `strdup' failed.", plugin);
-      DESTROY_INSTANCE (instance);
+      destroy_instance (instance);
       return 1;
     }
 
@@ -237,7 +248,7 @@ int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
     if (instance->list == NULL)
     {
       ERROR ("%s plugin: `llist_create' failed.", plugin);
-      DESTROY_INSTANCE (instance);
+      destroy_instance (instance);
       return 1;
     }
 
@@ -245,7 +256,7 @@ int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
     if (instance->tree == NULL)
     {
       ERROR ("%s plugin: `c_avl_create' failed.", plugin);
-      DESTROY_INSTANCE (instance);
+      destroy_instance (instance);
       return 1;
     }
 
@@ -253,7 +264,7 @@ int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
     if (entry == NULL)
     {
       ERROR ("%s plugin: `llentry_create' failed.", plugin);
-      DESTROY_INSTANCE (instance);
+      destroy_instance (instance);
       return 1;
     }
 
@@ -318,7 +329,7 @@ int logtail_config (llist_t **instances, oconfig_item_t *ci, char *plugin,
     if (instance->tail == NULL)
     {
       ERROR ("%s plugin: `cu_tail_create' failed.", plugin);
-      DESTROY_INSTANCE (instance);
+      destroy_instance (instance);
 
       llentry_destroy (entry);
       return 1;

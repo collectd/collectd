@@ -46,7 +46,7 @@ int logtail_term (llist_t **instances);
 
 /*
  * NAME
- *   logtail_term
+ *   logtail_init
  *
  * DESCRIPTION
  *   Call to initialize the plugin
