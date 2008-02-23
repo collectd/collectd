@@ -31,6 +31,15 @@
 #include "utils_tail.h"
 #include "utils_logtail.h"
 
+struct cu_logtail_simple_s
+{
+  char plugin[DATA_MAX_NAME_LEN];
+  char plugin_instance[DATA_MAX_NAME_LEN];
+  char type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
+};
+typedef struct cu_logtail_simple_s cu_logtail_simple_t;
+
 struct cu_logtail_match_s
 {
   cu_match_t *match;
@@ -189,13 +198,17 @@ int logtail_add_match_simple (cu_logtail_t *obj,
     match_destroy (match);
     return (-1);
   }
+  memset (user_data, '\0', sizeof (cu_logtail_simple_t));
 
   sstrncpy (user_data->plugin, plugin, sizeof (user_data->plugin));
-  sstrncpy (user_data->plugin_instance, plugin_instance,
-      sizeof (user_data->plugin_instance));
+  if (plugin_instance != NULL)
+    sstrncpy (user_data->plugin_instance, plugin_instance,
+	sizeof (user_data->plugin_instance));
+
   sstrncpy (user_data->type, type, sizeof (user_data->type));
-  sstrncpy (user_data->type_instance, type_instance,
-      sizeof (user_data->type_instance));
+  if (type_instance != NULL)
+    sstrncpy (user_data->type_instance, type_instance,
+	sizeof (user_data->type_instance));
 
   status = logtail_add_match (obj, match, simple_submit_match,
       user_data, free);
@@ -223,6 +236,9 @@ int logtail_read (cu_logtail_t *obj)
   for (i = 0; i < obj->matches_num; i++)
   {
     cu_logtail_match_t *lt_match = obj->matches + i;
+
+    if (lt_match->submit == NULL)
+      continue;
 
     (*lt_match->submit) (lt_match->match, lt_match->user_data);
   }

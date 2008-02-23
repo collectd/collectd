@@ -21,23 +21,17 @@
  *   Florian Forster <octo at verplant.org>
  *
  * Description:
- *   Encapsulates useful code to plugins which must parse a log file.
- *
+ *   `logtail' uses `utils_tail' and `utils_match' to tail a file and try to
+ *   match it using several regular expressions. Matches are then passed to
+ *   user-provided callback functions or default handlers. This should keep all
+ *   of the parsing logic out of the actual plugin, which only operate with
+ *   regular expressions.
  */
 
 #include "utils_match.h"
 
 struct cu_logtail_s;
 typedef struct cu_logtail_s cu_logtail_t;
-
-struct cu_logtail_simple_s
-{
-  char plugin[DATA_MAX_NAME_LEN];
-  char plugin_instance[DATA_MAX_NAME_LEN];
-  char type[DATA_MAX_NAME_LEN];
-  char type_instance[DATA_MAX_NAME_LEN];
-};
-typedef struct cu_logtail_simple_s cu_logtail_simple_t;
 
 /*
  * NAME
@@ -48,7 +42,6 @@ typedef struct cu_logtail_simple_s cu_logtail_simple_t;
  *
  * PARAMETERS
  *   `filename'  The name to read data from.
- *   `plugin'    The plugin name to use when dispatching values.
  *
  * RETURN VALUE
  *   Returns NULL upon failure, non-NULL otherwise.
@@ -69,19 +62,20 @@ void logtail_destroy (cu_logtail_t *obj);
 
 /*
  * NAME
- *   logtail_add_match_simple
+ *   logtail_add_match
  *
  * DESCRIPTION
- *   Adds a match, in form of a regular expression, to the `cu_logtail_t'
- *   object. The values matched by that regular expression are dispatched to
- *   the daemon using the supplied `type' and `type_instance' fields.
- *
- * PARAMETERS
- *   `obj'
- *   `type'
- *   `type_instance'
- *   `match_ds_type'
- *   `regex'
+ *   Adds a match, in form of a `cu_match_t' object, to the object.
+ *   After data has been read from the logfile (using utils_tail) the callback
+ *   function `submit_match' is called with the match object and the user
+ *   supplied data.
+ *   Please note that his function is called regardless whether this match
+ *   matched any lines recently or not.
+ *   When `logtail_destroy' is called the `user_data' pointer is freed using
+ *   the `free_user_data' callback - if it is not NULL.
+ *   When using this interface the `logtail' module doesn't dispatch any values
+ *   itself - all that has to happen in either the match-callbacks or the
+ *   submit_match callback.
  *
  * RETURN VALUE
  *   Zero upon success, non-zero otherwise.
@@ -91,6 +85,22 @@ int logtail_add_match (cu_logtail_t *obj, cu_match_t *match,
     void *user_data,
     void (*free_user_data) (void *user_data));
 
+/*
+ * NAME
+ *  logtail_add_match_simple
+ *
+ * DESCRIPTION
+ *  A simplified version of `logtail_add_match'. The regular expressen `regex'
+ *  must match a number, which is then dispatched according to `ds_type'. See
+ *  the `match_create_simple' function in utils_match.h for a description how
+ *  this flag effects calculation of a new value.
+ *  The values gathered are dispatched by the logtail module in this case. The
+ *  passed `plugin', `plugin_instance', `type', and `type_instance' are
+ *  directly used when submitting these values.
+ *
+ * RETURN VALUE
+ *   Zero upon success, non-zero otherwise.
+ */
 int logtail_add_match_simple (cu_logtail_t *obj,
     const char *regex, int ds_type,
     const char *plugin, const char *plugin_instance,
@@ -101,19 +111,12 @@ int logtail_add_match_simple (cu_logtail_t *obj,
  *   logtail_read
  *
  * DESCRIPTION
- *   Looks for more data in the log file, sends each line
- *   through the given function, and submits the counters to
- *   collectd.
- *
- * PARAMETERS
- *   `instances' The handle used to identify the plugin.
- *
- *   `func'      The function used to parse each line from the log.
- *
- *   `plugin'    The name of the plugin.
- *
- *   `names'     An array of counter names in the same order as the
- *               counters themselves.
+ *   This function should be called periodically by plugins. It reads new lines
+ *   from the logfile using `utils_tail' and tries to match them using all
+ *   added `utils_match' objects.
+ *   After all lines have been read and processed, the submit_match callback is
+ *   called or, in case of logtail_add_match_simple, the data is dispatched to
+ *   the daemon directly.
  *
  * RETURN VALUE
  *   Zero on success, nonzero on failure.
