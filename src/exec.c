@@ -325,6 +325,25 @@ static void exec_child (program_list_t *pl) /* {{{ */
     }
   } /* if (pl->group == NULL) */
 
+#if HAVE_SETGROUPS
+  if (getuid () == 0)
+  {
+    gid_t  glist[2];
+    size_t glist_len;
+
+    glist[0] = gid;
+    glist_len = 1;
+
+    if (gid != egid)
+    {
+      glist[1] = egid;
+      glist_len = 2;
+    }
+
+    setgroups (glist_len, glist);
+  }
+#endif /* HAVE_SETGROUPS */
+
   status = setgid (gid);
   if (status != 0)
   {

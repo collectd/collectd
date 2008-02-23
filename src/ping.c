@@ -106,15 +106,18 @@ static void add_hosts (void)
 			hl_this = hl_this->next;
 		}
 	}
-}
+} /* void add_hosts */
 
 static int ping_init (void)
 {
+	if (pingobj == NULL)
+		return (-1);
+
 	if (hosts != NULL)
 		add_hosts ();
 
 	return (0);
-}
+} /* int ping_init */
 
 static int ping_config (const char *key, const char *value)
 {
