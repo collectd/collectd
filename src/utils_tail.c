@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_tail.c
- * Copyright (C) 2008  C-Ware, Inc.
+ * Copyright (C) 2007-2008  C-Ware, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,12 +23,9 @@
  *   the end of a file.
  **/
 
-
+#include "collectd.h"
+#include "common.h"
 #include "utils_tail.h"
-#include <stdio.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <malloc.h>
 
 struct cu_tail_s
 {
@@ -71,26 +68,45 @@ int cu_tail_destroy (cu_tail_t *obj)
 int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
 {
 	struct stat stat_now;
-	FILE *new_fd;
-	int len;
+	int status;
 
-	if( buflen < 1 )
-		return -1;
+	if (buflen < 1)
+		return (-1);
 	
-	*buf = '\0';
-
 	if (stat (obj->file, &stat_now) != 0)
-		return 0;
-
-	if (stat_now.st_dev != obj->stat.st_dev ||
-		stat_now.st_ino != obj->stat.st_ino)
 	{
+		char errbuf[1024];
+		ERROR ("cu_tail_readline: stat (%s) failed: %s",
+				obj->file,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	if ((stat_now.st_dev != obj->stat.st_dev) ||
+		(stat_now.st_ino != obj->stat.st_ino))
+	{
+		/*
+		 * If the file was replaced open the new file and close the
+		 * old filehandle
+		 */
+		FILE *new_fd;
+
 		new_fd = fopen (obj->file, "r");
 		if (new_fd == NULL)
-			return -1;
+		{
+			char errbuf[1024];
+			ERROR ("cu_tail_readline: open (%s) failed: %s",
+					obj->file,
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
+			return (-1);
+		}
 		
+		/* If there was no previous file, seek to the end. We don't
+		 * want to read in the entire file, usually. */
 		if (obj->stat.st_ino == 0)
 			fseek (new_fd, 0, SEEK_END);
+
 		if (obj->fd != NULL)
 			fclose (obj->fd);
 		obj->fd = new_fd;
@@ -98,32 +114,44 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
 	}
 	else if (stat_now.st_size < obj->stat.st_size)
 	{
+		/*
+		 * Else, if the file was not replaces, but the file was
+		 * truncated, seek to the beginning of the file.
+		 */
+		assert (obj->fd != NULL);
 		rewind (obj->fd);
 	}
 
-	memcpy (&obj->stat, &stat_now, sizeof (struct stat));	
-	
-	if (fgets (buf, buflen, obj->fd) == NULL && feof (obj->fd) == 0)
-		return -1;
-
-	len = strlen (buf);
-	if (len > 0 && *(buf + len - 1) != '\n' && feof (obj->fd))
+	status = 0;
+	if (fgets (buf, buflen, obj->fd) == NULL)
 	{
-		fseek (obj->fd, -len, SEEK_CUR);
-		*buf = '\0';
+		if (feof (obj->fd) == 0)
+			buf[0] = '\0';
+		else /* an error occurred */
+			status = -1;
 	}
 
-	return 0;
+	if (status == 0)
+		memcpy (&obj->stat, &stat_now, sizeof (struct stat));	
+	
+	return (status);
 } /* int cu_tail_readline */
 
-int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc *func, void *data)
+int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc *callback,
+		void *data)
 {
-	int ret;
+	int status;
 
-	while ((ret = cu_tail_readline (obj, buf, buflen)) == 0)
-		if (*buf == '\0' || (ret = func (data, buf, buflen)))
-				break;
+	while ((status = cu_tail_readline (obj, buf, buflen)) == 0)
+	{
+		/* check for EOF */
+		if (buf[0] == '\0')
+			break;
 
-	return ret;
+		status = callback (data, buf, buflen);
+		if (status != 0)
+			break;
+	}
+
+	return status;
 } /* int cu_tail_read */
-

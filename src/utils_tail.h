@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_tail.h
- * Copyright (C) 2007  C-Ware, Inc.
+ * Copyright (C) 2007-2008  C-Ware, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -59,7 +59,12 @@ int cu_tail_destroy (cu_tail_t *obj);
  *
  * Reads from the file until `buflen' characters are read, a newline
  * character is read, or an eof condition is encountered. `buf' is
- * always null-terminated on successful return.
+ * always null-terminated on successful return and isn't touched when non-zero
+ * is returned.
+ *
+ * You can check if the EOF condition is reached by looking at the buffer: If
+ * the length of the string stored in the buffer is zero, EOF occurred.
+ * Otherwise at least the newline character will be in the buffer.
  *
  * Returns 0 when successful and non-zero otherwise.
  */
@@ -72,6 +77,7 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen);
  *
  * Returns 0 when successful and non-zero otherwise.
  */
-int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc *func, void *data);
+int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc *callback,
+		void *data);
 
 #endif /* UTILS_TAIL_H */
