@@ -85,9 +85,6 @@ static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
   else
     dsrc->max = atof (fields[3]);
 
-  DEBUG ("parse_ds: dsrc = {%s, %i, %lf, %lf};",
-      dsrc->name, dsrc->type, dsrc->min, dsrc->max);
-
   return (0);
 } /* int parse_ds */
 
@@ -124,9 +121,6 @@ static void parse_line (char *buf)
 	  "of data set %s", i, ds->type);
       return;
     }
-
-  DEBUG ("parse_line: ds = {%s, %i, %p};",
-      ds->type, ds->ds_num, (void *) ds->ds);
 
   plugin_register_data_set (ds);
 
