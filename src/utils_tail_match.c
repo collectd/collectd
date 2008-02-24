@@ -86,6 +86,12 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
 
   plugin_dispatch_values (data->type, &vl);
 
+  if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+  {
+    match_value->value.gauge = NAN;
+    match_value->values_num = 0;
+  }
+
   return (0);
 } /* int simple_submit_match */
 

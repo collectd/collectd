@@ -159,6 +159,10 @@ Features
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 
+    - tail
+      Follows (tails) logfiles, parses them by lines and submits matched
+      values.
+
     - tape
       Bytes and operations read and written on tape devices. Solaris only.
 
