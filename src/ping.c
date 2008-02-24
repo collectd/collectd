@@ -162,7 +162,7 @@ static int ping_config (const char *key, const char *value)
 	else if (strcasecmp (key, "ttl") == 0)
 	{
 		int ttl = atoi (value);
-		if (ping_setopt (pingobj, PING_DEF_TIMEOUT, (void *) &ttl))
+		if (ping_setopt (pingobj, PING_OPT_TTL, (void *) &ttl))
 		{
 			WARNING ("ping: liboping did not accept the TTL value %i", ttl);
 			return (1);
