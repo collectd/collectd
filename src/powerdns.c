@@ -1,6 +1,7 @@
 /**
  * collectd - src/powerdns.c
  * Copyright (C) 2007-2008  C-Ware, Inc.
+ * Copyright (C) 2008       Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,13 +18,14 @@
  *
  * Author:
  *   Luke Heberling <lukeh at c-ware.com>
+ *   Florian Forster <octo at verplant.org>
  *
  * DESCRIPTION
  *      Queries a PowerDNS control socket for statistics
- *
  **/
 
 #include "collectd.h"
+#include "common.h"
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_llist.h"
@@ -39,29 +41,32 @@
 #include <sys/un.h>
 #include <malloc.h>
 
-#define BUFFER_SIZE 1000
+#ifndef UNIX_PATH_MAX
+# define UNIX_PATH_MAX sizeof (((struct sockaddr_un *)0)->sun_path)
+#endif
+#define FUNC_ERROR(func) ERROR ("powerdns plugin: `%s' failed\n", func)
 
-#define FUNC_ERROR(func) ERROR ("%s: `%s' failed\n", "powerdns", func)
+#define SERVER_SOCKET  "/var/run/pdns.controlsocket"
+#define SERVER_COMMAND "SHOW *"
 
-#define COMMAND_SERVER "SHOW *"
-#define COMMAND_RECURSOR "get all-outqueries answers0-1 answers100-1000 answers10-100 answers1-10 answers-slow cache-entries cache-hits cache-misses chain-resends client-parse-errors concurrent-queries dlg-only-drops ipv6-outqueries negcache-entries noerror-answers nsset-invalidations nsspeeds-entries nxdomain-answers outgoing-timeouts qa-latency questions resource-limits server-parse-errors servfail-answers spoof-prevents sys-msec tcp-client-overflow tcp-outqueries tcp-questions throttled-out throttled-outqueries throttle-entries unauthorized-tcp unauthorized-udp unexpected-packets unreachables user-msec"
+#define RECURSOR_SOCKET  "/var/run/pdns_recursor.controlsocket"
+#define RECURSOR_COMMAND "get all-outqueries answers0-1 answers100-1000 answers10-100 answers1-10 answers-slow cache-entries cache-hits cache-misses chain-resends client-parse-errors concurrent-queries dlg-only-drops ipv6-outqueries negcache-entries noerror-answers nsset-invalidations nsspeeds-entries nxdomain-answers outgoing-timeouts qa-latency questions resource-limits server-parse-errors servfail-answers spoof-prevents sys-msec tcp-client-overflow tcp-outqueries tcp-questions throttled-out throttled-outqueries throttle-entries unauthorized-tcp unauthorized-udp unexpected-packets unreachables user-msec"
 
-typedef void item_func (void*);
-typedef ssize_t io_func (int, void*, size_t, int);
+struct list_item_s;
+typedef struct list_item_s list_item_t;
 
 struct list_item_s
 {
-  item_func *func;
+  int (*func) (list_item_t *item);
   char *instance;
   char *command;
-  struct sockaddr_un remote;
-  struct sockaddr_un local;
+  struct sockaddr_un sockaddr;
+  int socktype;
 };
-typedef struct list_item_s list_item_t;
 
 static llist_t *list = NULL;
 
-static void submit (const char *instance, const char *name, const char *value)
+static void submit (const char *plugin_instance, const char *type, const char *value)
 {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[1];
@@ -69,10 +74,12 @@ static void submit (const char *instance, const char *name, const char *value)
   float f;
   long l;
 
-  ds = plugin_get_ds (name);
+  ERROR ("powerdns plugin: submit: TODO: Translate the passed-in `key' to a reasonable type (and type_instance).");
+
+  ds = plugin_get_ds (type);
   if (ds == NULL)
   {
-    ERROR( "%s: DS %s not defined\n", "powerdns", name );
+    ERROR( "%s: DS %s not defined\n", "powerdns", type );
     return;
   }
 
@@ -82,7 +89,7 @@ static void submit (const char *instance, const char *name, const char *value)
     f = atof(value);
     if (errno != 0)
     {
-      ERROR ("%s: atof failed (%s->%s)", "powerdns", name, value);
+      ERROR ("%s: atof failed (%s->%s)", "powerdns", type, value);
       return;
     }
     else
@@ -95,7 +102,7 @@ static void submit (const char *instance, const char *name, const char *value)
     l = atol(value);
     if (errno != 0)
     {
-      ERROR ("%s: atol failed (%s->%s)", "powerdns", name, value);
+      ERROR ("%s: atol failed (%s->%s)", "powerdns", type, value);
       return;
     }
     else
@@ -107,445 +114,379 @@ static void submit (const char *instance, const char *name, const char *value)
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strncpy (vl.host, hostname_g, sizeof (vl.host));
-  strncpy (vl.plugin, "powerdns", sizeof (vl.plugin));
-  strncpy (vl.type_instance, "", sizeof (vl.type_instance));
-  strncpy (vl.plugin_instance,instance, sizeof (vl.plugin_instance));
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "powerdns", sizeof (vl.plugin));
+  sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
+  sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
-  plugin_dispatch_values (name, &vl);
+  plugin_dispatch_values (type, &vl);
 } /* static void submit */
 
-static int io (io_func *func, int fd, char* buf, int buflen)
+static int powerdns_get_data (list_item_t *item, char **ret_buffer,
+    size_t *ret_buffer_size)
 {
-  int bytes = 0;
-  int cc = 1;
-  for (; buflen > 0 && (cc = func (fd, buf, buflen, 0)) > 0; 
-      buf += cc, bytes += cc, buflen -= cc)
-    ;
+  int sd;
+  int status;
 
-  return bytes;
-} /* static int io */
+  char temp[1024];
+  char *buffer = NULL;
+  size_t buffer_size = 0;
 
-static void powerdns_read_server (list_item_t *item)
-{
-  int bytes;
-  int sck;
-  char *name_token,*value_token,*pos;
-  char *buffer;
-  char *delims = ",=";
-
-  if ((sck = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+  sd = socket (AF_UNIX, item->socktype, 0);
+  if (sd < 0)
   {
     FUNC_ERROR ("socket");
-    return;
+    return (-1);
   }
 
-  if (connect( sck,(struct sockaddr *) &item->remote, 
-	sizeof(item->remote)) == -1)
-  {
-    FUNC_ERROR( "connect" );
-    close (sck);
-    return;
-  }
-
-  buffer = malloc (BUFFER_SIZE + 1);
-  if (buffer == NULL)
-  {
-    FUNC_ERROR ("malloc");
-    close (sck);
-    return;
-  }
-  strncpy (buffer, 
-      item->command == NULL ? COMMAND_SERVER : item->command,
-      BUFFER_SIZE);
-  buffer[BUFFER_SIZE] = '\0';
-
-  if (io ((io_func*) &send, sck, buffer, strlen(buffer)) < strlen(buffer))
-  {
-    FUNC_ERROR ("send");
-    free (buffer);
-    close (sck);
-    return;
-  }
-
-  bytes = io ((io_func*) &recv, sck, buffer, BUFFER_SIZE);
-  if (bytes < 1)
-  {
-    FUNC_ERROR ("recv");
-    free (buffer);
-    close (sck);
-    return;
-  }
-
-  close(sck);
-
-  buffer[bytes] = '\0';
-
-  for (name_token = strtok_r (buffer, delims, &pos),
-      value_token = strtok_r (NULL, delims, &pos);
-      name_token != NULL && value_token != NULL;
-      name_token = strtok_r (NULL, delims, &pos ),
-      value_token = strtok_r (NULL, delims, &pos) )
-    submit (item->instance, name_token, value_token);
-
-  free (buffer);
-  return;
-} /* static void powerdns_read_server */
-
-static void powerdns_read_recursor (list_item_t *item) {
-  int sck,tmp,bytes;
-  char *ptr;
-  char *name_token, *name_pos;
-  char *value_token, *value_pos;
-  char *send_buffer;
-  char *recv_buffer;
-  char *delims = " \n";	
-
-  for (ptr = item->local.sun_path
-      + strlen(item->local.sun_path) - 1;
-      ptr > item->local.sun_path && *ptr != '/'; --ptr)
-    ;
-
-  if (ptr <= item->local.sun_path)
-  {
-    ERROR("%s: Bad path %s\n", "powerdns", item->local.sun_path);
-    return;
-  }
-
-  *ptr='\0';
-  strncat (item->local.sun_path, "/lsockXXXXXX",
-      sizeof (item->local.sun_path) - strlen (item->local.sun_path));
-
-  if ((sck = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-    FUNC_ERROR ("socket");
-    return;
-  }
-
-  tmp = 1;
-  if (setsockopt (sck, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(tmp)) < 0)
-  {
-    FUNC_ERROR ("setsockopt");
-    close (sck);
-    return;
-  }
-
-  if ((tmp=mkstemp(item->local.sun_path))< 0)
-  {
-    FUNC_ERROR ("mkstemp");
-    close (sck);
-    return;
-  }
-  close (tmp);
-
-  if (unlink(item->local.sun_path) < 0 && errno != ENOENT)
-  {
-    FUNC_ERROR ("unlink");
-    close (sck);
-    return;
-  }
-
-  if (bind(sck, (struct sockaddr*)&item->local, sizeof(item->local)) < 0)
-  {
-    FUNC_ERROR ("bind");
-    close (sck);
-    unlink (item->local.sun_path);
-    return;
-  }
-
-  if (chmod(item->local.sun_path,0666) < 0)
-  {
-    FUNC_ERROR ("chmod");
-    close (sck);
-    unlink (item->local.sun_path);
-    return;
-  }
-
-  if (connect (sck,(struct sockaddr *) &item->remote, sizeof(item->remote)) == -1)
+  status = connect (sd, (struct sockaddr *) &item->sockaddr,
+      sizeof(item->sockaddr));
+  if (status != 0)
   {
     FUNC_ERROR ("connect");
-    close (sck);
-    unlink (item->local.sun_path);
-    return;
+    close (sd);
+    return (-1);
   }
 
-  send_buffer = strdup (item->command == NULL ? COMMAND_RECURSOR : item->command);
-  if (send_buffer == NULL)
-  {
-    FUNC_ERROR ("strdup");
-    close (sck);
-    unlink (item->local.sun_path);
-    return;
-  }
-
-  if (io((io_func*)&send, sck, send_buffer, strlen (send_buffer)) < strlen (send_buffer))
+  status = send (sd, item->command, strlen (item->command), 0);
+  if (status < 0)
   {
     FUNC_ERROR ("send");
-    close (sck);
-    unlink (item->local.sun_path);
-    free (send_buffer);
-    return;
+    close (sd);
+    return (-1);
   }
 
-  recv_buffer = malloc (BUFFER_SIZE + 1);
-  if (recv_buffer == NULL)
+  while (42)
   {
-    FUNC_ERROR ("malloc");
-    close (sck);
-    unlink (item->local.sun_path);
-    free (send_buffer);
-    return;
-  }
+    char *buffer_new;
 
-  bytes = recv (sck, recv_buffer, BUFFER_SIZE, 0);
-  if (bytes < 1) {
-    FUNC_ERROR ("recv");
-    close (sck);
-    unlink (item->local.sun_path);
-    free (send_buffer);
-    free (recv_buffer);
-    return;
-  }
-  recv_buffer[bytes]='\0';
-
-  close (sck);
-  unlink (item->local.sun_path);
-
-  for( name_token = strtok_r (send_buffer, delims, &name_pos),
-      name_token = strtok_r (NULL, delims, &name_pos),
-      value_token = strtok_r (recv_buffer, delims, &value_pos);
-      name_token != NULL && value_token != NULL;
-      name_token = strtok_r (NULL, delims, &name_pos),
-      value_token = strtok_r (NULL, delims, &value_pos) )
-    submit (item->instance, name_token, value_token);
-
-  free (send_buffer);
-  free (recv_buffer);
-  return;
-
-} /* static void powerdns_read_recursor */
-
-static int powerdns_term() {
-  llentry_t *e_this;
-  llentry_t *e_next;
-  list_item_t *item;
-
-  if (list != NULL)
-  {
-    for (e_this = llist_head(list); e_this != NULL; e_this = e_next)
+    status = recv (sd, temp, sizeof (temp), 0);
+    if (status < 0)
     {
-      item = e_this->value;
-      free (item->instance);
+      FUNC_ERROR ("recv");
+      break;
+    }
+    else if (status == 0)
+      break;
 
-      if (item->command != COMMAND_SERVER &&
-	  item->command != COMMAND_RECURSOR)
-	free (item->command);
+    buffer_new = (char *) realloc (buffer, buffer_size + status);
+    if (buffer_new == NULL)
+    {
+      FUNC_ERROR ("realloc");
+      status = -1;
+      break;
+    }
+    buffer = buffer_new;
 
-      free (item);
+    memcpy (buffer + buffer_size, temp, status);
+    buffer_size += status;
+  }
+  close (sd);
+  sd = -1;
 
-      e_next = e_this->next;
+  if (status < 0)
+  {
+    sfree (buffer);
+  }
+  else
+  {
+    *ret_buffer = buffer;
+    *ret_buffer_size = buffer_size;
+  }
+
+  return (status);
+} /* int powerdns_get_data */
+
+static int powerdns_read_server (list_item_t *item)
+{
+  char *buffer = NULL;
+  size_t buffer_size = 0;
+  int status;
+
+  char *dummy;
+  char *saveptr;
+
+  char *key;
+  char *value;
+
+  status = powerdns_get_data (item, &buffer, &buffer_size);
+  if (status != 0)
+    return (-1);
+
+  dummy = buffer;
+  saveptr = NULL;
+  while ((key = strtok_r (dummy, ",", &saveptr)) != NULL)
+  {
+    dummy = NULL;
+
+    value = strchr (key, '=');
+    if (value == NULL)
+      break;
+
+    *value = '\0';
+    value++;
+
+    if (value[0] == '\0')
+      continue;
+
+    submit (item->instance, key, value);
+  } /* while (strtok_r) */
+
+  sfree (buffer);
+
+  return (0);
+} /* int powerdns_read_server */
+
+static int powerdns_read_recursor (list_item_t *item)
+{
+  char *buffer = NULL;
+  size_t buffer_size = 0;
+  int status;
+
+  char *dummy;
+
+  char *keys_list;
+  char *key;
+  char *key_saveptr;
+  char *value;
+  char *value_saveptr;
+
+  status = powerdns_get_data (item, &buffer, &buffer_size);
+  if (status != 0)
+    return (-1);
+
+  keys_list = strdup (item->command);
+  if (keys_list == NULL)
+  {
+    FUNC_ERROR ("strdup");
+    sfree (buffer);
+    return (-1);
+  }
+
+  key_saveptr = NULL;
+  value_saveptr = NULL;
+
+  /* Skip the `get' at the beginning */
+  strtok_r (keys_list, " \t", &key_saveptr);
+
+  dummy = buffer;
+  while ((value = strtok_r (dummy, " \t\n\r", &value_saveptr)) != NULL)
+  {
+    dummy = NULL;
+
+    key = strtok_r (NULL, " \t", &key_saveptr);
+    if (key == NULL)
+      break;
+
+    submit (item->instance, key, value);
+  } /* while (strtok_r) */
+
+  sfree (buffer);
+  sfree (keys_list);
+
+  return (0);
+} /* int powerdns_read_recursor */
+
+static int powerdns_config_add_string (const char *name, char **dest,
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("powerdns plugin: `%s' needs exactly one string argument.",
+	name);
+    return (-1);
+  }
+
+  sfree (*dest);
+  *dest = strdup (ci->values[0].value.string);
+  if (*dest == NULL)
+    return (-1);
+
+  return (0);
+} /* int ctail_config_add_string */
+
+static int powerdns_config_add_server (oconfig_item_t *ci)
+{
+  char *socket_temp;
+
+  list_item_t *item;
+  int status;
+  int i;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("powerdns plugin: `%s' needs exactly one string argument.",
+	ci->key);
+    return (-1);
+  }
+
+  item = (list_item_t *) malloc (sizeof (list_item_t));
+  if (item == NULL)
+  {
+    ERROR ("powerdns plugin: malloc failed.");
+    return (-1);
+  }
+  memset (item, '\0', sizeof (list_item_t));
+
+  item->instance = strdup (ci->values[0].value.string);
+  if (item->instance == NULL)
+  {
+    ERROR ("powerdns plugin: strdup failed.");
+    sfree (item);
+    return (-1);
+  }
+
+  /*
+   * Set default values for the members of list_item_t
+   */
+  if (strcasecmp ("Server", ci->key) == 0)
+  {
+    item->func = powerdns_read_server;
+    item->command = strdup (SERVER_COMMAND);
+    item->socktype = SOCK_STREAM;
+    socket_temp = strdup (SERVER_SOCKET);
+  }
+  else if (strcasecmp ("Recursor", ci->key) == 0)
+  {
+    item->func = powerdns_read_recursor;
+    item->command = strdup (RECURSOR_COMMAND);
+    item->socktype = SOCK_DGRAM;
+    socket_temp = strdup (RECURSOR_SOCKET);
+  }
+
+  status = 0;
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *option = ci->children + i;
+
+    if (strcasecmp ("Command", option->key) == 0)
+      status = powerdns_config_add_string ("Command", &item->command, option);
+    else if (strcasecmp ("Socket", option->key) == 0)
+      status = powerdns_config_add_string ("Socket", &socket_temp, option);
+    else
+    {
+      ERROR ("powerdns plugin: Option `%s' not allowed here.", option->key);
+      status = -1;
     }
 
-    llist_destroy (list);
-    list = NULL;
+    if (status != 0)
+      break;
+  }
+
+  while (status == 0)
+  {
+    llentry_t *e;
+
+    if (socket_temp == NULL)
+    {
+      ERROR ("powerdns plugin: socket_temp == NULL.");
+      status = -1;
+      break;
+    }
+
+    if (item->command == NULL)
+    {
+      ERROR ("powerdns plugin: item->command == NULL.");
+      status = -1;
+      break;
+    }
+
+    item->sockaddr.sun_family = AF_UNIX;
+    sstrncpy (item->sockaddr.sun_path, socket_temp, UNIX_PATH_MAX);
+
+    e = llentry_create (item->instance, item);
+    if (e == NULL)
+    {
+      ERROR ("powerdns plugin: llentry_create failed.");
+      status = -1;
+      break;
+    }
+    llist_append (list, e);
+
+    break;
+  }
+
+  if (status != 0)
+  {
+    sfree (item);
+    return (-1);
   }
 
   return (0);
-} /* static int powerdns_term */
+} /* int powerdns_config_add_server */
 
 static int powerdns_config (oconfig_item_t *ci)
 {
-  oconfig_item_t *gchild;
-  int gchildren;
+  int i;
 
-  oconfig_item_t *child = ci->children;
-  int children = ci->children_num;
-
-  llentry_t *entry;
-  list_item_t *item;
-
-  if (list == NULL && (list = llist_create()) == NULL )
+  if (list == NULL)
   {
-    ERROR ("powerdns plugin: `llist_create' failed.");
-    return 1;
-  }		
+    list = llist_create ();
 
-  for (; children; --children, ++child)
-  {
-    item = malloc (sizeof (list_item_t));
-    if (item == NULL)
+    if (list == NULL)
     {
-      ERROR ("powerdns plugin: `malloc' failed.");
-      return 1;
+      ERROR ("powerdns plugin: `llist_create' failed.");
+      return (-1);
     }
-
-    if (strcmp (child->key, "Server") == 0)
-    {
-      item->func = (item_func*)&powerdns_read_server;
-      item->command = COMMAND_SERVER;
-    }
-    else if (strcmp (child->key, "Recursor") == 0)
-    {
-      item->func = (item_func*)&powerdns_read_recursor;
-      item->command = COMMAND_RECURSOR;
-    }
-    else
-    {
-      WARNING ("powerdns plugin: Ignoring unknown"
-	  " config option `%s'.", child->key);
-      free (item);
-      continue;
-    }
-
-    if ((child->values_num != 1) ||
-	(child->values[0].type != OCONFIG_TYPE_STRING))
-    {
-      WARNING ("powerdns plugin: `%s' needs exactly"
-	  " one string argument.", child->key);
-      free (item);
-      continue;
-    }
-
-    if (llist_search (list, child->values[0].value.string) != NULL)
-    {
-      ERROR ("powerdns plugin: multiple instances for %s",
-	  child->values[0].value.string);
-      free (item);
-      return 1;
-    }
-
-    item->instance = strdup (child->values[0].value.string);
-    if (item->instance == NULL)
-    {
-      ERROR ("powerdns plugin: `strdup' failed.");
-      free (item);
-      return 1;
-    }
-
-    entry = llentry_create (item->instance, item);
-    if (entry == NULL)
-    {
-      ERROR ("powerdns plugin: `llentry_create' failed.");
-      free (item->instance);
-      free (item);
-      return 1;
-    }
-
-    item->remote.sun_family = ~AF_UNIX;
-
-    gchild = child->children;
-    gchildren = child->children_num;
-
-    for (; gchildren; --gchildren, ++gchild)
-    {
-      if (strcmp (gchild->key, "Socket") == 0)
-      {
-	if (gchild->values_num != 1 || 
-	    gchild->values[0].type != OCONFIG_TYPE_STRING)
-	{
-	  WARNING ("powerdns plugin: config option `%s'"
-	      " should have exactly one string value.",
-	      gchild->key);
-	  continue;
-	}
-	if (item->remote.sun_family == AF_UNIX)
-	{
-	  WARNING ("powerdns plugin: ignoring extraneous"
-	      " `%s' config option.", gchild->key);
-	  continue;
-	}
-	item->remote.sun_family = item->local.sun_family = AF_UNIX;
-	strncpy (item->remote.sun_path, gchild->values[0].value.string,
-	    sizeof (item->remote.sun_path));
-	strncpy (item->local.sun_path, gchild->values[0].value.string,
-	    sizeof (item->remote.sun_path));
-      }
-      else if (strcmp (gchild->key, "Command") == 0)
-      {
-	if (gchild->values_num != 1 
-	    || gchild->values[0].type != OCONFIG_TYPE_NUMBER)
-	{
-	  WARNING ("powerdns plugin: config option `%s'"
-	      " should have exactly one string value.",
-	      gchild->key);
-	  continue;
-	}
-	if (item->command != COMMAND_RECURSOR &&
-	    item->command != COMMAND_SERVER)
-	{
-	  WARNING ("powerdns plugin: ignoring extraneous"
-	      " `%s' config option.", gchild->key);
-	  continue;
-	}
-	item->command = strdup (gchild->values[0].value.string);
-	if (item->command == NULL)
-	{
-	  ERROR ("powerdns plugin: `strdup' failed.");
-	  llentry_destroy (entry);
-	  free (item->instance);
-	  free (item);
-	  return 1;
-	}
-      }
-      else
-      {
-	WARNING ("powerdns plugin: Ignoring unknown config option"
-	    " `%s'.", gchild->key);
-	continue;
-      }
-
-      if (gchild->children_num)
-      {
-	WARNING ("powerdns plugin: config option `%s' should not"
-	    " have children.", gchild->key);
-      }
-    }
-
-
-    if (item->remote.sun_family != AF_UNIX)
-    {
-      if (item->func == (item_func*)&powerdns_read_server)
-      {
-	item->remote.sun_family = item->local.sun_family = AF_UNIX;
-	strncpy (item->remote.sun_path, "/var/run/pdns.controlsocket",
-	    sizeof (item->remote.sun_path));
-	strncpy (item->local.sun_path, "/var/run/pdns.controlsocket",
-	    sizeof (item->remote.sun_path));
-      }
-      else
-      {
-	item->remote.sun_family = item->local.sun_family = AF_UNIX;
-	strncpy (item->remote.sun_path, "/var/run/pdns_recursor.controlsocket",
-	    sizeof (item->remote.sun_path));
-	strncpy (item->local.sun_path, "/var/run/pdns_recursor.controlsocket",
-	    sizeof (item->remote.sun_path));
-      }
-    }
-
-    llist_append (list, entry);
   }
 
-  return 0;
-} /* static int powerdns_config */
-
-static int powerdns_read(void)
-{
-  llentry_t *e_this;
-  list_item_t *item;
-
-  for (e_this = llist_head(list); e_this != NULL; e_this = e_this->next)
+  for (i = 0; i < ci->children_num; i++)
   {
-    item = e_this->value;
-    item->func(item);
+    oconfig_item_t *option = ci->children + i;
+
+    if ((strcasecmp ("Server", ci->key) == 0)
+	|| (strcasecmp ("Recursor", ci->key) == 0))
+      powerdns_config_add_server (option);
+    else
+    {
+      ERROR ("powerdns plugin: Option `%s' not allowed here.", option->key);
+    }
+  } /* for (i = 0; i < ci->children_num; i++) */
+
+  return (0);
+} /* int powerdns_config */
+
+static int powerdns_read (void)
+{
+  llentry_t *e;
+
+  for (e = llist_head (list); e != NULL; e = e->next)
+  {
+    list_item_t *item = e->value;
+    item->func (item);
   }
 
   return (0);
 } /* static int powerdns_read */
 
+static int powerdns_shutdown (void)
+{
+  llentry_t *e;
+
+  if (list == NULL)
+    return (0);
+
+  for (e = llist_head (list); e != NULL; e = e->next)
+  {
+    list_item_t *item = (list_item_t *) e->value;
+    e->value = NULL;
+
+    sfree (item->instance);
+    sfree (item->command);
+    sfree (item);
+  }
+
+  llist_destroy (list);
+  list = NULL;
+
+  return (0);
+} /* static int powerdns_shutdown */
+
 void module_register (void)
 {
   plugin_register_complex_config ("powerdns", powerdns_config);
   plugin_register_read ("powerdns", powerdns_read);
-  plugin_register_shutdown ("powerdns", powerdns_term );
+  plugin_register_shutdown ("powerdns", powerdns_shutdown );
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 ts=8 : */
