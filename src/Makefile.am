@@ -484,6 +484,14 @@ collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif
 
+if BUILD_PLUGIN_POWERDNS
+pkglib_LTLIBRARIES += powerdns.la
+powerdns_la_SOURCES = powerdns.c
+powerdns_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" powerdns.la
+collectd_DEPENDENCIES += powerdns.la
+endif
+
 if BUILD_PLUGIN_PROCESSES
 pkglib_LTLIBRARIES += processes.la
 processes_la_SOURCES = processes.c

@@ -2217,6 +2217,7 @@ AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
+AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([rrdtool],     [$with_rrdtool],      [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_lm_sensors],   [lm_sensors statistics])
@@ -2357,6 +2358,7 @@ Configuration:
     nut . . . . . . . . $enable_nut
     perl  . . . . . . . $enable_perl
     ping  . . . . . . . $enable_ping
+    powerdns  . . . . . $enable_powerdns
     processes . . . . . $enable_processes
     rrdtool . . . . . . $enable_rrdtool
     sensors . . . . . . $enable_sensors
