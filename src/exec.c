@@ -187,7 +187,7 @@ static void exec_child (program_list_t *pl)
     glist[0] = gid;
     glist_len = 1;
 
-    if (gid != egid)
+    if ((gid != egid) && (egid != -1))
     {
       glist[1] = egid;
       glist_len = 2;
