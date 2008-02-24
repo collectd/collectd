@@ -2211,6 +2211,7 @@ Configuration:
     snmp  . . . . . . . $enable_snmp
     swap  . . . . . . . $enable_swap
     syslog  . . . . . . $enable_syslog
+    tail  . . . . . . . $enable_tail
     tape  . . . . . . . $enable_tape
     tcpconns  . . . . . $enable_tcpconns
     unixsock  . . . . . $enable_unixsock
