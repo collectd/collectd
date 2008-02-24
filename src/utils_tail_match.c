@@ -1,5 +1,5 @@
 /*
- * collectd - src/utils_logtail.c
+ * collectd - src/utils_tail_match.c
  * Copyright (C) 2007-2008  C-Ware, Inc.
  * Copyright (C) 2008       Florian Forster
  *
@@ -29,32 +29,32 @@
 #include "plugin.h"
 #include "utils_match.h"
 #include "utils_tail.h"
-#include "utils_logtail.h"
+#include "utils_tail_match.h"
 
-struct cu_logtail_simple_s
+struct cu_tail_match_simple_s
 {
   char plugin[DATA_MAX_NAME_LEN];
   char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
 };
-typedef struct cu_logtail_simple_s cu_logtail_simple_t;
+typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;
 
-struct cu_logtail_match_s
+struct cu_tail_match_match_s
 {
   cu_match_t *match;
   void *user_data;
   int (*submit) (cu_match_t *match, void *user_data);
   void (*free) (void *user_data);
 };
-typedef struct cu_logtail_match_s cu_logtail_match_t;
+typedef struct cu_tail_match_match_s cu_tail_match_match_t;
 
-struct cu_logtail_s
+struct cu_tail_match_s
 {
   int flags;
   cu_tail_t *tail;
 
-  cu_logtail_match_t *matches;
+  cu_tail_match_match_t *matches;
   size_t matches_num;
 };
 
@@ -63,7 +63,7 @@ struct cu_logtail_s
  */
 static int simple_submit_match (cu_match_t *match, void *user_data)
 {
-  cu_logtail_simple_t *data = (cu_logtail_simple_t *) user_data;
+  cu_tail_match_simple_t *data = (cu_tail_match_simple_t *) user_data;
   cu_match_value_t *match_value;
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[1];
@@ -72,7 +72,11 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   if (match_value == NULL)
     return (-1);
 
-  values[0] = match_value->value;
+  if ((match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+      && (match_value->values_num == 0))
+    values[0].gauge = NAN;
+  else
+    values[0] = match_value->value;
 
   vl.values = values;
   vl.values_len = 1;
@@ -86,12 +90,18 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
 
   plugin_dispatch_values (data->type, &vl);
 
+  if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+  {
+    match_value->value.gauge = NAN;
+    match_value->values_num = 0;
+  }
+
   return (0);
 } /* int simple_submit_match */
 
 static int tail_callback (void *data, char *buf, int buflen)
 {
-  cu_logtail_t *obj = (cu_logtail_t *) data;
+  cu_tail_match_t *obj = (cu_tail_match_t *) data;
   int i;
 
   for (i = 0; i < obj->matches_num; i++)
@@ -103,14 +113,14 @@ static int tail_callback (void *data, char *buf, int buflen)
 /*
  * Public functions
  */
-cu_logtail_t *logtail_create (const char *filename)
+cu_tail_match_t *tail_match_create (const char *filename)
 {
-  cu_logtail_t *obj;
+  cu_tail_match_t *obj;
 
-  obj = (cu_logtail_t *) malloc (sizeof (cu_logtail_t));
+  obj = (cu_tail_match_t *) malloc (sizeof (cu_tail_match_t));
   if (obj == NULL)
     return (NULL);
-  memset (obj, '\0', sizeof (cu_logtail_t));
+  memset (obj, '\0', sizeof (cu_tail_match_t));
 
   obj->tail = cu_tail_create (filename);
   if (obj->tail == NULL)
@@ -120,9 +130,9 @@ cu_logtail_t *logtail_create (const char *filename)
   }
 
   return (obj);
-} /* cu_logtail_t *logtail_create */
+} /* cu_tail_match_t *tail_match_create */
 
-void logtail_destroy (cu_logtail_t *obj)
+void tail_match_destroy (cu_tail_match_t *obj)
 {
   int i;
 
@@ -137,7 +147,7 @@ void logtail_destroy (cu_logtail_t *obj)
 
   for (i = 0; i < obj->matches_num; i++)
   {
-    cu_logtail_match_t *match = obj->matches + i;
+    cu_tail_match_match_t *match = obj->matches + i;
     if (match->match != NULL)
     {
       match_destroy (match->match);
@@ -152,17 +162,17 @@ void logtail_destroy (cu_logtail_t *obj)
 
   sfree (obj->matches);
   sfree (obj);
-} /* void logtail_destroy */
+} /* void tail_match_destroy */
 
-int logtail_add_match (cu_logtail_t *obj, cu_match_t *match,
+int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
     int (*submit_match) (cu_match_t *match, void *user_data),
     void *user_data,
     void (*free_user_data) (void *user_data))
 {
-  cu_logtail_match_t *temp;
+  cu_tail_match_match_t *temp;
 
-  temp = (cu_logtail_match_t *) realloc (obj->matches,
-      sizeof (cu_logtail_match_t) * (obj->matches_num + 1));
+  temp = (cu_tail_match_match_t *) realloc (obj->matches,
+      sizeof (cu_tail_match_match_t) * (obj->matches_num + 1));
   if (temp == NULL)
     return (-1);
 
@@ -177,28 +187,28 @@ int logtail_add_match (cu_logtail_t *obj, cu_match_t *match,
   temp->free = free_user_data;
 
   return (0);
-} /* int logtail_add_match */
+} /* int tail_match_add_match */
 
-int logtail_add_match_simple (cu_logtail_t *obj,
+int tail_match_add_match_simple (cu_tail_match_t *obj,
     const char *regex, int ds_type,
     const char *plugin, const char *plugin_instance,
     const char *type, const char *type_instance)
 {
   cu_match_t *match;
-  cu_logtail_simple_t *user_data;
+  cu_tail_match_simple_t *user_data;
   int status;
 
   match = match_create_simple (regex, ds_type);
   if (match == NULL)
     return (-1);
 
-  user_data = (cu_logtail_simple_t *) malloc (sizeof (cu_logtail_simple_t));
+  user_data = (cu_tail_match_simple_t *) malloc (sizeof (cu_tail_match_simple_t));
   if (user_data == NULL)
   {
     match_destroy (match);
     return (-1);
   }
-  memset (user_data, '\0', sizeof (cu_logtail_simple_t));
+  memset (user_data, '\0', sizeof (cu_tail_match_simple_t));
 
   sstrncpy (user_data->plugin, plugin, sizeof (user_data->plugin));
   if (plugin_instance != NULL)
@@ -210,7 +220,7 @@ int logtail_add_match_simple (cu_logtail_t *obj,
     sstrncpy (user_data->type_instance, type_instance,
 	sizeof (user_data->type_instance));
 
-  status = logtail_add_match (obj, match, simple_submit_match,
+  status = tail_match_add_match (obj, match, simple_submit_match,
       user_data, free);
 
   if (status != 0)
@@ -220,9 +230,9 @@ int logtail_add_match_simple (cu_logtail_t *obj,
   }
 
   return (status);
-} /* int logtail_add_match_simple */
+} /* int tail_match_add_match_simple */
 
-int logtail_read (cu_logtail_t *obj)
+int tail_match_read (cu_tail_match_t *obj)
 {
   char buffer[4096];
   int status;
@@ -232,13 +242,13 @@ int logtail_read (cu_logtail_t *obj)
       (void *) obj);
   if (status != 0)
   {
-    ERROR ("logtail: cu_tail_read failed.");
+    ERROR ("tail_match: cu_tail_read failed.");
     return (status);
   }
 
   for (i = 0; i < obj->matches_num; i++)
   {
-    cu_logtail_match_t *lt_match = obj->matches + i;
+    cu_tail_match_match_t *lt_match = obj->matches + i;
 
     if (lt_match->submit == NULL)
       continue;
@@ -247,6 +257,6 @@ int logtail_read (cu_logtail_t *obj)
   }
 
   return (0);
-} /* int logtail_read */
+} /* int tail_match_read */
 
 /* vim: set sw=2 sts=2 ts=8 : */

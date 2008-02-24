@@ -30,7 +30,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_cache.c utils_cache.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
-		   utils_logtail.c utils_logtail.h \
+		   utils_tail_match.c utils_tail_match.h \
 		   utils_match.c utils_match.h \
 		   utils_mount.c utils_mount.h \
 		   utils_tail.c utils_tail.h \
@@ -564,6 +564,14 @@ syslog_la_SOURCES = syslog.c
 syslog_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" syslog.la
 collectd_DEPENDENCIES += syslog.la
+endif
+
+if BUILD_PLUGIN_TAIL
+pkglib_LTLIBRARIES += tail.la
+tail_la_SOURCES = tail.c
+tail_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" tail.la
+collectd_DEPENDENCIES += tail.la
 endif
 
 if BUILD_PLUGIN_TAPE

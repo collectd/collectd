@@ -1,5 +1,5 @@
 /*
- * collectd - src/utils_logtail.h
+ * collectd - src/utils_tail_match.h
  * Copyright (C) 2007-2008  C-Ware, Inc.
  * Copyright (C) 2008       Florian Forster
  *
@@ -21,7 +21,7 @@
  *   Florian Forster <octo at verplant.org>
  *
  * Description:
- *   `logtail' uses `utils_tail' and `utils_match' to tail a file and try to
+ *   `tail_match' uses `utils_tail' and `utils_match' to tail a file and try to
  *   match it using several regular expressions. Matches are then passed to
  *   user-provided callback functions or default handlers. This should keep all
  *   of the parsing logic out of the actual plugin, which only operate with
@@ -30,15 +30,15 @@
 
 #include "utils_match.h"
 
-struct cu_logtail_s;
-typedef struct cu_logtail_s cu_logtail_t;
+struct cu_tail_match_s;
+typedef struct cu_tail_match_s cu_tail_match_t;
 
 /*
  * NAME
- *   logtail_create
+ *   tail_match_create
  *
  * DESCRIPTION
- *   Allocates, initializes and returns a new `cu_logtail_t' object.
+ *   Allocates, initializes and returns a new `cu_tail_match_t' object.
  *
  * PARAMETERS
  *   `filename'  The name to read data from.
@@ -46,23 +46,23 @@ typedef struct cu_logtail_s cu_logtail_t;
  * RETURN VALUE
  *   Returns NULL upon failure, non-NULL otherwise.
  */
-cu_logtail_t *logtail_create (const char *filename);
+cu_tail_match_t *tail_match_create (const char *filename);
 
 /*
  * NAME
- *   logtail_destroy
+ *   tail_match_destroy
  *
  * DESCRIPTION
- *   Releases resources used by the `cu_logtail_t' object.
+ *   Releases resources used by the `cu_tail_match_t' object.
  *
  * PARAMETERS
  *   The object to destroy.
  */
-void logtail_destroy (cu_logtail_t *obj);
+void tail_match_destroy (cu_tail_match_t *obj);
 
 /*
  * NAME
- *   logtail_add_match
+ *   tail_match_add_match
  *
  * DESCRIPTION
  *   Adds a match, in form of a `cu_match_t' object, to the object.
@@ -71,56 +71,56 @@ void logtail_destroy (cu_logtail_t *obj);
  *   supplied data.
  *   Please note that his function is called regardless whether this match
  *   matched any lines recently or not.
- *   When `logtail_destroy' is called the `user_data' pointer is freed using
+ *   When `tail_match_destroy' is called the `user_data' pointer is freed using
  *   the `free_user_data' callback - if it is not NULL.
- *   When using this interface the `logtail' module doesn't dispatch any values
+ *   When using this interface the `tail_match' module doesn't dispatch any values
  *   itself - all that has to happen in either the match-callbacks or the
  *   submit_match callback.
  *
  * RETURN VALUE
  *   Zero upon success, non-zero otherwise.
  */
-int logtail_add_match (cu_logtail_t *obj, cu_match_t *match,
+int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
     int (*submit_match) (cu_match_t *match, void *user_data),
     void *user_data,
     void (*free_user_data) (void *user_data));
 
 /*
  * NAME
- *  logtail_add_match_simple
+ *  tail_match_add_match_simple
  *
  * DESCRIPTION
- *  A simplified version of `logtail_add_match'. The regular expressen `regex'
+ *  A simplified version of `tail_match_add_match'. The regular expressen `regex'
  *  must match a number, which is then dispatched according to `ds_type'. See
  *  the `match_create_simple' function in utils_match.h for a description how
  *  this flag effects calculation of a new value.
- *  The values gathered are dispatched by the logtail module in this case. The
+ *  The values gathered are dispatched by the tail_match module in this case. The
  *  passed `plugin', `plugin_instance', `type', and `type_instance' are
  *  directly used when submitting these values.
  *
  * RETURN VALUE
  *   Zero upon success, non-zero otherwise.
  */
-int logtail_add_match_simple (cu_logtail_t *obj,
+int tail_match_add_match_simple (cu_tail_match_t *obj,
     const char *regex, int ds_type,
     const char *plugin, const char *plugin_instance,
     const char *type, const char *type_instance);
 
 /*
  * NAME
- *   logtail_read
+ *   tail_match_read
  *
  * DESCRIPTION
  *   This function should be called periodically by plugins. It reads new lines
  *   from the logfile using `utils_tail' and tries to match them using all
  *   added `utils_match' objects.
  *   After all lines have been read and processed, the submit_match callback is
- *   called or, in case of logtail_add_match_simple, the data is dispatched to
+ *   called or, in case of tail_match_add_match_simple, the data is dispatched to
  *   the daemon directly.
  *
  * RETURN VALUE
  *   Zero on success, nonzero on failure.
 */
-int logtail_read (cu_logtail_t *obj);
+int tail_match_read (cu_tail_match_t *obj);
 
 /* vim: set sw=2 sts=2 ts=8 : */

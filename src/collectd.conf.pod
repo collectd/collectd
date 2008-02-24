@@ -958,6 +958,112 @@ debugging support.
 
 =back
 
+=head2 Plugin C<tail>
+
+The C<tail plugin> plugins follows logfiles, just like L<tail(1)> does, parses
+each line and dispatches found values. What is matched can be configured by the
+user using (extended) regular expressions, as described in L<regex(7)>.
+
+  <Plugin "tail">
+    <File "/var/log/exim4/mainlog">
+      Instance "exim"
+      <Match>
+      	Regex "S=([1-9][0-9]*)"
+	DSType "CounterAdd"
+	Type "ipt_bytes"
+	Instance "total"
+      </Match>
+      <Match>
+      	Regex "\\<R=local_user\\>"
+	DSType "CounterInc"
+	Type "email_count"
+	Instance "local_user"
+      </Match>
+    </File>
+  </Plugin>
+
+The config consists of one or more B<File> blocks, each of which configures one
+logfile to parse. Within each B<File> block, there are one or more B<Match>
+blocks, which configure a regular expression to search for.
+
+The B<Instance> option in the B<File> block may be used to set the plugin
+instance. So in the above example the plugin name C<tail-foo> would be used.
+This plugin instance is for all B<Match> blocks that B<follow> it, until the
+next B<Instance> option. This way you can extract several plugin instances from
+one logfile, handy when parsing syslog and the like.
+
+Each B<Match> block has the following options to describe how the match should
+be performed:
+
+=over 4
+
+=item B<Regex> I<regex>
+
+Sets the regular expression to use for matching against a line. The first
+subexpression has to match something that can be turned into a number by
+L<strtoll(3)> or L<strtod(3)>, depending on the value of C<CounterAdd>, see
+below. Because B<extended> regular expressions are used, you do not need to use
+backslashes for subexpressions! If in doubt, please consult L<regex(7)>. Due to
+collectd's config parsing you need to escape backslashes, though. So if you
+want to match literal parentheses you need to do the following:
+
+  Regex "SPAM \\(Score: (-?[0-9]+\\.[0-9]+)\\)"
+
+=item B<DSType> I<Type>
+
+Sets how the values are cumulated. I<Type> is one of:
+
+=over 4
+
+=item B<GaugeAverage>
+
+Calculate the average.
+
+=item B<GaugeMin>
+
+Use the smallest number only.
+
+=item B<GaugeMax>
+
+Use the greatest number only.
+
+=item B<GaugeLast>
+
+Use the last number found.
+
+=item B<CounterSet>
+
+The matched number is a counter. Simply sets the internal counter to this
+value.
+
+=item B<CounterAdd>
+
+Add the matched value to the internal counter.
+
+=item B<CounterInc>
+
+Increase the internal counter by one. This B<DSType> is the only one that does
+not use the matched subexpression, but simply counts the number of matched
+lines. Thus, you may use a regular expression without submatch in this case.
+
+=back
+
+As you'd expect the B<Gauge*> types interpret the submatch as a floating point
+number, using L<strtod(3)>. The B<CounterSet> and B<CounterAdd> interpret the
+submatch as an integer using L<strtoll(3)>. B<CounterInc> does not use the
+submatch at all and it may be omitted in this case.
+
+=item B<Type> I<Type>
+
+Sets the type used to dispatch this value. Detailed information about types and
+their configuration can be found in L<types.db(5)>.
+
+=item B<Instance> I<TypeInstance>
+
+This optional setting sets the type instance to use.
+
+=back
+
 =head2 Plugin C<tcpconns>
 
 The C<tcpconns plugin> counts the number of currently established TCP

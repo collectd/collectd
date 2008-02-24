@@ -28,10 +28,17 @@
 /*
  * Defines
  */
-#define UTILS_MATCH_DS_TYPE_GAUGE       0
-#define UTILS_MATCH_DS_TYPE_COUNTER_SET 1
-#define UTILS_MATCH_DS_TYPE_COUNTER_ADD 2
-#define UTILS_MATCH_DS_TYPE_COUNTER_INC 3
+#define UTILS_MATCH_DS_TYPE_GAUGE   0x10
+#define UTILS_MATCH_DS_TYPE_COUNTER 0x20
+
+#define UTILS_MATCH_CF_GAUGE_AVERAGE 0x01
+#define UTILS_MATCH_CF_GAUGE_MIN     0x02
+#define UTILS_MATCH_CF_GAUGE_MAX     0x04
+#define UTILS_MATCH_CF_GAUGE_LAST    0x08
+
+#define UTILS_MATCH_CF_COUNTER_SET   0x01
+#define UTILS_MATCH_CF_COUNTER_ADD   0x02
+#define UTILS_MATCH_CF_COUNTER_INC   0x04
 
 /*
  * Data types
@@ -43,6 +50,7 @@ struct cu_match_value_s
 {
   int ds_type;
   value_t value;
+  unsigned int values_num;
 };
 typedef struct cu_match_value_s cu_match_value_t;
 
