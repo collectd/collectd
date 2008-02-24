@@ -30,7 +30,7 @@
  *	Instance "exim"
  *	<Match>
  *	  Regex "S=([1-9][0-9]*)"
- *	  DSType "CouterAdd"
+ *	  DSType "CounterAdd"
  *	  Type "ipt_bytes"
  *	  Instance "total"
  *	</Match>
@@ -92,11 +92,11 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
   else if (strncasecmp ("Counter", ci->values[0].value.string, strlen ("Counter")) == 0)
   {
     cm->flags = UTILS_MATCH_DS_TYPE_COUNTER;
-    if (strcasecmp ("CouterSet", ci->values[0].value.string) == 0)
+    if (strcasecmp ("CounterSet", ci->values[0].value.string) == 0)
       cm->flags |= UTILS_MATCH_CF_COUNTER_SET;
-    else if (strcasecmp ("CouterAdd", ci->values[0].value.string) == 0)
+    else if (strcasecmp ("CounterAdd", ci->values[0].value.string) == 0)
       cm->flags |= UTILS_MATCH_CF_COUNTER_ADD;
-    else if (strcasecmp ("CouterInc", ci->values[0].value.string) == 0)
+    else if (strcasecmp ("CounterInc", ci->values[0].value.string) == 0)
       cm->flags |= UTILS_MATCH_CF_COUNTER_INC;
     else
       cm->flags = 0;
