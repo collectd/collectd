@@ -131,6 +131,8 @@ cu_match_t *match_create_callback (const char *regex,
   cu_match_t *obj;
   int status;
 
+  DEBUG ("utils_match: match_create_callback: regex = %s", regex);
+
   obj = (cu_match_t *) malloc (sizeof (cu_match_t));
   if (obj == NULL)
     return (NULL);
