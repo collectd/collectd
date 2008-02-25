@@ -940,6 +940,11 @@ static int perl_config_includedir (oconfig_item_t *ci)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type))
 		return 1;
 
+	if (NULL == aTHX) {
+		log_warn ("EnableDebugger has no effects if used after LoadPlugin.");
+		return 1;
+	}
+
 	value = ci->values[0].value.string;
 
 	if (NULL == perl) {
