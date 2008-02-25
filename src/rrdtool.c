@@ -1099,12 +1099,7 @@ static int rrd_init (void)
 	if (stepsize < 0)
 		stepsize = 0;
 	if (heartbeat <= 0)
-	{
-		if (stepsize > 0)
-			heartbeat = 2 * stepsize;
-		else
-			heartbeat = 0;
-	}
+		heartbeat = 2 * stepsize;
 
 	if ((heartbeat > 0) && (heartbeat < interval_g))
 		WARNING ("rrdtool plugin: Your `heartbeat' is "
