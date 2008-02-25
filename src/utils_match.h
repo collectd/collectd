@@ -74,7 +74,8 @@ typedef struct cu_match_value_s cu_match_value_t;
  *  callback.
  */
 cu_match_t *match_create_callback (const char *regex,
-		int (*callback) (const char *str, void *user_data),
+		int (*callback) (const char *str,
+		  char * const *matches, size_t matches_num, void *user_data),
 		void *user_data);
 
 /*
