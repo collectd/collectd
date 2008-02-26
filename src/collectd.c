@@ -227,11 +227,13 @@ static void exit_usage (void)
 			"  General:\n"
 			"    -C <file>       Configuration file.\n"
 			"                    Default: "CONFIGFILE"\n"
+			"    -t              Test config and exit.\n"
 			"    -P <file>       PID-file.\n"
 			"                    Default: "PIDFILE"\n"
 #if COLLECT_DAEMON
 			"    -f              Don't fork to the background.\n"
 #endif
+			"    -h              Display help (this message)\n"
 			"\nBuiltin defaults:\n"
 			"  Config-File       "CONFIGFILE"\n"
 			"  PID-File          "PIDFILE"\n"
