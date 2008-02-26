@@ -53,6 +53,7 @@ typedef struct read_func_s read_func_t;
 static llist_t *list_init;
 static llist_t *list_read;
 static llist_t *list_write;
+static llist_t *list_flush;
 static llist_t *list_shutdown;
 static llist_t *list_log;
 static llist_t *list_notification;
@@ -433,6 +434,11 @@ int plugin_register_write (const char *name,
 	return (register_callback (&list_write, name, (void *) callback));
 } /* int plugin_register_write */
 
+int plugin_register_flush (const char *name, int (*callback) (const int))
+{
+	return (register_callback (&list_flush, name, (void *) callback));
+} /* int plugin_register_flush */
+
 int plugin_register_shutdown (char *name,
 		int (*callback) (void))
 {
@@ -525,6 +531,11 @@ int plugin_unregister_read (const char *name)
 int plugin_unregister_write (const char *name)
 {
 	return (plugin_unregister (list_write, name));
+}
+
+int plugin_unregister_flush (const char *name)
+{
+	return (plugin_unregister (list_flush, name));
 }
 
 int plugin_unregister_shutdown (const char *name)
@@ -638,6 +649,24 @@ void plugin_read_all (void)
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 } /* void plugin_read_all */
+
+void plugin_flush_all (int timeout)
+{
+	int (*callback) (int);
+	llentry_t *le;
+
+	if (list_flush == NULL)
+		return;
+
+	le = llist_head (list_flush);
+	while (le != NULL)
+	{
+		callback = (int (*) (int)) le->value;
+		le = le->next;
+
+		(*callback) (timeout);
+	}
+} /* void plugin_flush_all */
 
 void plugin_shutdown_all (void)
 {
