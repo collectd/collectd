@@ -174,10 +174,13 @@ Example:
   -> | PUTNOTIF type=temperature severity=warning time=1201094702 message=The roof is on fire!
   <- | 0 Success
 
-=item B<FLUSH> [I<Timeout>]
+=item B<FLUSH> [B<timeout=>I<Timeout>] [B<plugin=>I<Plugin> [...]]
 
 Flushes all cached data older than I<Timeout> seconds. If no timeout has been
 specified, it defaults to -1 which causes all data to be flushed.
+
+If specified, only specific plugins are flushed. Otherwise all plugins
+providing a flush callback are flushed.
 
 Example:
   -> | FLUSH
