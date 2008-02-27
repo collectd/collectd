@@ -27,6 +27,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <pthread.h>
+
 #include "plugin.h"
 #include "configfile.h"
 
@@ -41,6 +43,15 @@ kstat_ctl_t *kc;
 
 static int loop = 0;
 
+static void *do_flush (void *arg)
+{
+	INFO ("Flushing all data.");
+	plugin_flush_all (-1);
+	INFO ("Finished flushing all data.");
+	pthread_exit (NULL);
+	return NULL;
+}
+
 static void sigIntHandler (int signal)
 {
 	loop++;
@@ -49,6 +60,18 @@ static void sigIntHandler (int signal)
 static void sigTermHandler (int signal)
 {
 	loop++;
+}
+
+static void sigUsr1Handler (int signal)
+{
+	pthread_t      thread;
+	pthread_attr_t attr;
+
+	/* flushing the data might take a while,
+	 * so it should be done asynchronously */
+	pthread_attr_init (&attr);
+	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create (&thread, &attr, do_flush, NULL);
 }
 
 static int init_hostname (void)
@@ -369,6 +392,7 @@ int main (int argc, char **argv)
 {
 	struct sigaction sigIntAction;
 	struct sigaction sigTermAction;
+	struct sigaction sigUsr1Action;
 	char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	const char *basedir;
@@ -520,6 +544,10 @@ int main (int argc, char **argv)
 	memset (&sigTermAction, '\0', sizeof (sigTermAction));
 	sigTermAction.sa_handler = sigTermHandler;
 	sigaction (SIGTERM, &sigTermAction, NULL);
+
+	memset (&sigUsr1Action, '\0', sizeof (sigUsr1Action));
+	sigUsr1Action.sa_handler = sigUsr1Handler;
+	sigaction (SIGUSR1, &sigUsr1Action, NULL);
 
 	/*
 	 * run the actual loops

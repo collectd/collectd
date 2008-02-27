@@ -22,8 +22,6 @@
 #ifndef UTILS_CMD_PUTVAL_H
 #define UTILS_CMD_PUTVAL_H 1
 
-#include "plugin.h"
-
 int handle_putval (FILE *fh, char **fields, int fields_num);
 
 #endif /* UTILS_CMD_PUTVAL_H */
