@@ -24,9 +24,7 @@
 #include "plugin.h"
 #include "configfile.h"
 
-/* FIXME: Replace this with "utils_cmd_getval.h" asap */
-#include "utils_cache.h"
-
+#include "utils_cmd_getval.h"
 #include "utils_cmd_putval.h"
 #include "utils_cmd_putnotif.h"
 
@@ -423,97 +421,6 @@ static int us_open_socket (void)
 	return (0);
 } /* int us_open_socket */
 
-static int us_handle_getval (FILE *fh, char **fields, int fields_num)
-{
-	char *hostname;
-	char *plugin;
-	char *plugin_instance;
-	char *type;
-	char *type_instance;
-	gauge_t *values;
-	size_t values_num;
-
-	const data_set_t *ds;
-
-	int   status;
-	int   i;
-
-	if (fields_num != 2)
-	{
-		DEBUG ("unixsock plugin: Wrong number of fields: %i", fields_num);
-		fprintf (fh, "-1 Wrong number of fields: Got %i, expected 2.\n",
-				fields_num);
-		fflush (fh);
-		return (-1);
-	}
-	DEBUG ("unixsock plugin: Got query for `%s'", fields[1]);
-
-	if (strlen (fields[1]) < strlen ("h/p/t"))
-	{
-		fprintf (fh, "-1 Invalied identifier, %s", fields[1]);
-		fflush (fh);
-		return (-1);
-	}
-
-	status = parse_identifier (fields[1], &hostname,
-			&plugin, &plugin_instance,
-			&type, &type_instance);
-	if (status != 0)
-	{
-		DEBUG ("unixsock plugin: Cannot parse `%s'", fields[1]);
-		fprintf (fh, "-1 Cannot parse identifier.\n");
-		fflush (fh);
-		return (-1);
-	}
-
-	ds = plugin_get_ds (type);
-	if (ds == NULL)
-	{
-		DEBUG ("unixsock plugin: plugin_get_ds (%s) == NULL;", type);
-		fprintf (fh, "-1 Type `%s' is unknown.\n", type);
-		fflush (fh);
-		return (-1);
-	}
-
-	values = NULL;
-	values_num = 0;
-	status = uc_get_rate_by_name (fields[1], &values, &values_num);
-	if (status != 0)
-	{
-		fprintf (fh, "-1 No such value");
-		fflush (fh);
-		return (-1);
-	}
-
-	if (ds->ds_num != values_num)
-	{
-		ERROR ("ds[%s]->ds_num = %i, "
-				"but uc_get_rate_by_name returned %i values.",
-				ds->type, ds->ds_num, values_num);
-		fprintf (fh, "-1 Error reading value from cache.\n");
-		fflush (fh);
-		sfree (values);
-		return (-1);
-	}
-
-	fprintf (fh, "%u", (unsigned int) values_num);
-	for (i = 0; i < values_num; i++)
-	{
-		fprintf (fh, " %s=", ds->ds[i].name);
-		if (isnan (values[i]))
-			fprintf (fh, "NaN");
-		else
-			fprintf (fh, "%12e", values[i]);
-	}
-
-	fprintf (fh, "\n");
-	fflush (fh);
-
-	sfree (values);
-
-	return (0);
-} /* int us_handle_getval */
-
 static int us_handle_listval (FILE *fh, char **fields, int fields_num)
 {
 	char buffer[1024];
@@ -613,7 +520,7 @@ static void *us_handle_client (void *arg)
 
 		if (strcasecmp (fields[0], "getval") == 0)
 		{
-			us_handle_getval (fh, fields, fields_num);
+			handle_getval (fh, fields, fields_num);
 		}
 		else if (strcasecmp (fields[0], "putval") == 0)
 		{

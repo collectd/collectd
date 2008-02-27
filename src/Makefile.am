@@ -592,7 +592,10 @@ endif
 
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
-unixsock_la_SOURCES = unixsock.c utils_cmd_putval.h utils_cmd_putval.c utils_cmd_putnotif.h utils_cmd_putnotif.c
+unixsock_la_SOURCES = unixsock.c \
+		      utils_cmd_getval.h utils_cmd_getval.c \
+		      utils_cmd_putval.h utils_cmd_putval.c \
+		      utils_cmd_putnotif.h utils_cmd_putnotif.c
 unixsock_la_LDFLAGS = -module -avoid-version -lpthread
 collectd_LDADD += "-dlopen" unixsock.la
 collectd_DEPENDENCIES += unixsock.la
