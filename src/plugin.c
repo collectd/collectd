@@ -1,6 +1,6 @@
 /**
  * collectd - src/plugin.c
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +17,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
@@ -649,6 +650,25 @@ void plugin_read_all (void)
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 } /* void plugin_read_all */
+
+int plugin_flush_one (int timeout, const char *name)
+{
+	int (*callback) (int);
+	llentry_t *le;
+	int status;
+
+	if (list_flush == NULL)
+		return (-1);
+
+	le = llist_search (list_flush, name);
+	if (le == NULL)
+		return (-1);
+	callback = (int (*) (int)) le->value;
+
+	status = (*callback) (timeout);
+
+	return (status);
+} /* int plugin_flush_ont */
 
 void plugin_flush_all (int timeout)
 {
