@@ -24,6 +24,9 @@
 #include "plugin.h"
 #include "configfile.h"
 
+/* FIXME: Replace this with "utils_cmd_getval.h" asap */
+#include "utils_cache.h"
+
 #include "utils_cmd_putval.h"
 #include "utils_cmd_putnotif.h"
 
@@ -427,8 +430,11 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 	char *plugin_instance;
 	char *type;
 	char *type_instance;
-	char  name[4*DATA_MAX_NAME_LEN];
-	value_cache_t *vc;
+	gauge_t *values;
+	size_t values_num;
+
+	const data_set_t *ds;
+
 	int   status;
 	int   i;
 
@@ -442,6 +448,13 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 	}
 	DEBUG ("unixsock plugin: Got query for `%s'", fields[1]);
 
+	if (strlen (fields[1]) < strlen ("h/p/t"))
+	{
+		fprintf (fh, "-1 Invalied identifier, %s", fields[1]);
+		fflush (fh);
+		return (-1);
+	}
+
 	status = parse_identifier (fields[1], &hostname,
 			&plugin, &plugin_instance,
 			&type, &type_instance);
@@ -453,43 +466,50 @@ static int us_handle_getval (FILE *fh, char **fields, int fields_num)
 		return (-1);
 	}
 
-	status = format_name (name, sizeof (name),
-			hostname, plugin, plugin_instance, type, type_instance);
-	if (status != 0)
+	ds = plugin_get_ds (type);
+	if (ds == NULL)
 	{
-		fprintf (fh, "-1 format_name failed.\n");
+		DEBUG ("unixsock plugin: plugin_get_ds (%s) == NULL;", type);
+		fprintf (fh, "-1 Type `%s' is unknown.\n", type);
+		fflush (fh);
 		return (-1);
 	}
 
-	pthread_mutex_lock (&cache_lock);
-
-	DEBUG ("vc = cache_search (%s)", name);
-	vc = cache_search (name);
-
-	if (vc == NULL)
+	values = NULL;
+	values_num = 0;
+	status = uc_get_rate_by_name (fields[1], &values, &values_num);
+	if (status != 0)
 	{
-		DEBUG ("Did not find cache entry.");
 		fprintf (fh, "-1 No such value");
-	}
-	else
-	{
-		DEBUG ("Found cache entry.");
-		fprintf (fh, "%i", vc->values_num);
-		for (i = 0; i < vc->values_num; i++)
-		{
-			fprintf (fh, " %s=", vc->ds->ds[i].name);
-			if (isnan (vc->gauge[i]))
-				fprintf (fh, "NaN");
-			else
-				fprintf (fh, "%12e", vc->gauge[i]);
-		}
+		fflush (fh);
+		return (-1);
 	}
 
-	/* Free the mutex as soon as possible and definitely before flushing */
-	pthread_mutex_unlock (&cache_lock);
+	if (ds->ds_num != values_num)
+	{
+		ERROR ("ds[%s]->ds_num = %i, "
+				"but uc_get_rate_by_name returned %i values.",
+				ds->type, ds->ds_num, values_num);
+		fprintf (fh, "-1 Error reading value from cache.\n");
+		fflush (fh);
+		sfree (values);
+		return (-1);
+	}
+
+	fprintf (fh, "%u", (unsigned int) values_num);
+	for (i = 0; i < values_num; i++)
+	{
+		fprintf (fh, " %s=", ds->ds[i].name);
+		if (isnan (values[i]))
+			fprintf (fh, "NaN");
+		else
+			fprintf (fh, "%12e", values[i]);
+	}
 
 	fprintf (fh, "\n");
 	fflush (fh);
+
+	sfree (values);
 
 	return (0);
 } /* int us_handle_getval */
