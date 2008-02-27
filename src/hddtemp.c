@@ -314,6 +314,7 @@ static int hddtemp_init (void)
 				case SCSI_DISK5_MAJOR:
 				case SCSI_DISK6_MAJOR:
 				case SCSI_DISK7_MAJOR:
+#ifdef SCSI_DISK8_MAJOR
 				case SCSI_DISK8_MAJOR:
 				case SCSI_DISK9_MAJOR:
 				case SCSI_DISK10_MAJOR:
@@ -322,6 +323,7 @@ static int hddtemp_init (void)
 				case SCSI_DISK13_MAJOR:
 				case SCSI_DISK14_MAJOR:
 				case SCSI_DISK15_MAJOR:
+#endif /* SCSI_DISK8_MAJOR */
 					/* SCSI disks minors are multiples of 16.
 					 * Keep only those. */
 					if (minor % 16)

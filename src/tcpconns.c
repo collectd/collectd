@@ -33,6 +33,19 @@
 #elif HAVE_SYSCTLBYNAME
 # include <sys/socketvar.h>
 # include <sys/sysctl.h>
+
+/* Some includes needed for compiling on FreeBSD */
+#include <sys/time.h>
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+
 # include <net/route.h>
 # include <netinet/in.h>
 # include <netinet/in_systm.h>
