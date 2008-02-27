@@ -949,10 +949,13 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 
 static int rrd_flush (const int timeout)
 {
-	if (cache == NULL)
-		return (0);
-
 	pthread_mutex_lock (&cache_lock);
+
+	if (cache == NULL) {
+		pthread_mutex_unlock (&cache_lock);
+		return (0);
+	}
+
 	rrd_cache_flush (timeout);
 	pthread_mutex_unlock (&cache_lock);
 	return (0);
