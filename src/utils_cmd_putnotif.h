@@ -22,8 +22,6 @@
 #ifndef UTILS_CMD_PUTNOTIF_H
 #define UTILS_CMD_PUTNOTIF_H 1
 
-#include "plugin.h"
-
 int handle_putnotif (FILE *fh, char **fields, int fields_num);
 
 /* vim: set shiftwidth=2 softtabstop=2 tabstop=8 : */
