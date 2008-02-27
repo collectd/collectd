@@ -52,17 +52,17 @@ static void *do_flush (void *arg)
 	return NULL;
 }
 
-static void sigIntHandler (int signal)
+static void sig_int_handler (int signal)
 {
 	loop++;
 }
 
-static void sigTermHandler (int signal)
+static void sig_term_handler (int signal)
 {
 	loop++;
 }
 
-static void sigUsr1Handler (int signal)
+static void sig_usr1_handler (int signal)
 {
 	pthread_t      thread;
 	pthread_attr_t attr;
@@ -390,9 +390,9 @@ static int pidfile_remove (void)
 
 int main (int argc, char **argv)
 {
-	struct sigaction sigIntAction;
-	struct sigaction sigTermAction;
-	struct sigaction sigUsr1Action;
+	struct sigaction sig_int_action;
+	struct sigaction sig_term_action;
+	struct sigaction sig_usr1_action;
 	char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	const char *basedir;
@@ -537,17 +537,32 @@ int main (int argc, char **argv)
 	/*
 	 * install signal handlers
 	 */
-	memset (&sigIntAction, '\0', sizeof (sigIntAction));
-	sigIntAction.sa_handler = sigIntHandler;
-	sigaction (SIGINT, &sigIntAction, NULL);
+	memset (&sig_int_action, '\0', sizeof (sig_int_action));
+	sig_int_action.sa_handler = sig_int_handler;
+	if (0 != sigaction (SIGINT, &sig_int_action, NULL)) {
+		char errbuf[1024];
+		ERROR ("Error: Failed to install a signal handler for signal INT: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (1);
+	}
 
-	memset (&sigTermAction, '\0', sizeof (sigTermAction));
-	sigTermAction.sa_handler = sigTermHandler;
-	sigaction (SIGTERM, &sigTermAction, NULL);
+	memset (&sig_term_action, '\0', sizeof (sig_term_action));
+	sig_term_action.sa_handler = sig_term_handler;
+	if (0 != sigaction (SIGTERM, &sig_term_action, NULL)) {
+		char errbuf[1024];
+		ERROR ("Error: Failed to install a signal handler for signal TERM: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (1);
+	}
 
-	memset (&sigUsr1Action, '\0', sizeof (sigUsr1Action));
-	sigUsr1Action.sa_handler = sigUsr1Handler;
-	sigaction (SIGUSR1, &sigUsr1Action, NULL);
+	memset (&sig_usr1_action, '\0', sizeof (sig_usr1_action));
+	sig_usr1_action.sa_handler = sig_usr1_handler;
+	if (0 != sigaction (SIGUSR1, &sig_usr1_action, NULL)) {
+		char errbuf[1024];
+		ERROR ("Error: Failed to install a signal handler for signal USR1: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (1);
+	}
 
 	/*
 	 * run the actual loops
