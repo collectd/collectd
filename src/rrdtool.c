@@ -947,6 +947,20 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	return (status);
 } /* int rrd_write */
 
+static int rrd_flush (const int timeout)
+{
+	pthread_mutex_lock (&cache_lock);
+
+	if (cache == NULL) {
+		pthread_mutex_unlock (&cache_lock);
+		return (0);
+	}
+
+	rrd_cache_flush (timeout);
+	pthread_mutex_unlock (&cache_lock);
+	return (0);
+} /* int rrd_flush */
+
 static int rrd_config (const char *key, const char *value)
 {
 	if (strcasecmp ("CacheTimeout", key) == 0)
@@ -1099,12 +1113,7 @@ static int rrd_init (void)
 	if (stepsize < 0)
 		stepsize = 0;
 	if (heartbeat <= 0)
-	{
-		if (stepsize > 0)
-			heartbeat = 2 * stepsize;
-		else
-			heartbeat = 0;
-	}
+		heartbeat = 2 * stepsize;
 
 	if ((heartbeat > 0) && (heartbeat < interval_g))
 		WARNING ("rrdtool plugin: Your `heartbeat' is "
@@ -1157,5 +1166,6 @@ void module_register (void)
 			config_keys, config_keys_num);
 	plugin_register_init ("rrdtool", rrd_init);
 	plugin_register_write ("rrdtool", rrd_write);
+	plugin_register_flush ("rrdtool", rrd_flush);
 	plugin_register_shutdown ("rrdtool", rrd_shutdown);
 }

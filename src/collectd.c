@@ -27,6 +27,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <pthread.h>
+
 #include "plugin.h"
 #include "configfile.h"
 
@@ -41,14 +43,35 @@ kstat_ctl_t *kc;
 
 static int loop = 0;
 
-static void sigIntHandler (int signal)
+static void *do_flush (void *arg)
+{
+	INFO ("Flushing all data.");
+	plugin_flush_all (-1);
+	INFO ("Finished flushing all data.");
+	pthread_exit (NULL);
+	return NULL;
+}
+
+static void sig_int_handler (int signal)
 {
 	loop++;
 }
 
-static void sigTermHandler (int signal)
+static void sig_term_handler (int signal)
 {
 	loop++;
+}
+
+static void sig_usr1_handler (int signal)
+{
+	pthread_t      thread;
+	pthread_attr_t attr;
+
+	/* flushing the data might take a while,
+	 * so it should be done asynchronously */
+	pthread_attr_init (&attr);
+	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create (&thread, &attr, do_flush, NULL);
 }
 
 static int init_hostname (void)
@@ -227,11 +250,13 @@ static void exit_usage (void)
 			"  General:\n"
 			"    -C <file>       Configuration file.\n"
 			"                    Default: "CONFIGFILE"\n"
+			"    -t              Test config and exit.\n"
 			"    -P <file>       PID-file.\n"
 			"                    Default: "PIDFILE"\n"
 #if COLLECT_DAEMON
 			"    -f              Don't fork to the background.\n"
 #endif
+			"    -h              Display help (this message)\n"
 			"\nBuiltin defaults:\n"
 			"  Config-File       "CONFIGFILE"\n"
 			"  PID-File          "PIDFILE"\n"
@@ -365,8 +390,9 @@ static int pidfile_remove (void)
 
 int main (int argc, char **argv)
 {
-	struct sigaction sigIntAction;
-	struct sigaction sigTermAction;
+	struct sigaction sig_int_action;
+	struct sigaction sig_term_action;
+	struct sigaction sig_usr1_action;
 	char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	const char *basedir;
@@ -511,13 +537,32 @@ int main (int argc, char **argv)
 	/*
 	 * install signal handlers
 	 */
-	memset (&sigIntAction, '\0', sizeof (sigIntAction));
-	sigIntAction.sa_handler = sigIntHandler;
-	sigaction (SIGINT, &sigIntAction, NULL);
+	memset (&sig_int_action, '\0', sizeof (sig_int_action));
+	sig_int_action.sa_handler = sig_int_handler;
+	if (0 != sigaction (SIGINT, &sig_int_action, NULL)) {
+		char errbuf[1024];
+		ERROR ("Error: Failed to install a signal handler for signal INT: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (1);
+	}
 
-	memset (&sigTermAction, '\0', sizeof (sigTermAction));
-	sigTermAction.sa_handler = sigTermHandler;
-	sigaction (SIGTERM, &sigTermAction, NULL);
+	memset (&sig_term_action, '\0', sizeof (sig_term_action));
+	sig_term_action.sa_handler = sig_term_handler;
+	if (0 != sigaction (SIGTERM, &sig_term_action, NULL)) {
+		char errbuf[1024];
+		ERROR ("Error: Failed to install a signal handler for signal TERM: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (1);
+	}
+
+	memset (&sig_usr1_action, '\0', sizeof (sig_usr1_action));
+	sig_usr1_action.sa_handler = sig_usr1_handler;
+	if (0 != sigaction (SIGUSR1, &sig_usr1_action, NULL)) {
+		char errbuf[1024];
+		ERROR ("Error: Failed to install a signal handler for signal USR1: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (1);
+	}
 
 	/*
 	 * run the actual loops

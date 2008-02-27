@@ -1,6 +1,6 @@
 /**
- * collectd - src/utils_cms_putnotif.h
- * Copyright (C) 2008  Florian octo Forster
+ * collectd - src/utils_cmd_flush.h
+ * Copyright (C) 2008  Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,14 +16,15 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Author:
- *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian "tokkee" Harl <sh at tokkee.org>
  **/
 
-#ifndef UTILS_CMD_PUTNOTIF_H
-#define UTILS_CMD_PUTNOTIF_H 1
+#ifndef UTILS_CMD_FLUSH_H
+#define UTILS_CMD_FLUSH_H 1
 
-int handle_putnotif (FILE *fh, char **fields, int fields_num);
+int handle_flush (FILE *fh, char **fields, int fields_num);
 
-/* vim: set shiftwidth=2 softtabstop=2 tabstop=8 : */
+#endif /* UTILS_CMD_FLUSH_H */
 
-#endif /* UTILS_CMD_PUTNOTIF_H */
+/* vim: set sw=4 ts=4 tw=78 noexpandtab : */
+

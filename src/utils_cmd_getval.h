@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_cms_putnotif.h
+ * collectd - src/utils_cms_getval.h
  * Copyright (C) 2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -19,11 +19,11 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef UTILS_CMD_PUTNOTIF_H
-#define UTILS_CMD_PUTNOTIF_H 1
+#ifndef UTILS_CMD_GETVAL_H
+#define UTILS_CMD_GETVAL_H 1
 
-int handle_putnotif (FILE *fh, char **fields, int fields_num);
+int handle_getval (FILE *fh, char **fields, int fields_num);
 
-/* vim: set shiftwidth=2 softtabstop=2 tabstop=8 : */
+#endif /* UTILS_CMD_GETVAL_H */
 
-#endif /* UTILS_CMD_PUTNOTIF_H */
+/* vim: set sw=2 sts=2 ts=8 : */

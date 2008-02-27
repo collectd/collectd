@@ -56,6 +56,43 @@ static int cache_compare (const cache_entry_t *a, const cache_entry_t *b)
   return (strcmp (a->name, b->name));
 } /* int cache_compare */
 
+static cache_entry_t *cache_alloc (int values_num)
+{
+  cache_entry_t *ce;
+
+  ce = (cache_entry_t *) malloc (sizeof (cache_entry_t));
+  if (ce == NULL)
+  {
+    ERROR ("utils_cache: cache_alloc: malloc failed.");
+    return (NULL);
+  }
+  memset (ce, '\0', sizeof (cache_entry_t));
+  ce->values_num = values_num;
+
+  ce->values_gauge = (gauge_t *) calloc (values_num, sizeof (gauge_t));
+  ce->values_counter = (counter_t *) calloc (values_num, sizeof (counter_t));
+  if ((ce->values_gauge == NULL) || (ce->values_counter == NULL))
+  {
+    sfree (ce->values_gauge);
+    sfree (ce->values_counter);
+    sfree (ce);
+    ERROR ("utils_cache: cache_alloc: calloc failed.");
+    return (NULL);
+  }
+
+  return (ce);
+} /* cache_entry_t *cache_alloc */
+
+static void cache_free (cache_entry_t *ce)
+{
+  if (ce == NULL)
+    return;
+
+  sfree (ce->values_gauge);
+  sfree (ce->values_counter);
+  sfree (ce);
+} /* void cache_free */
+
 static int uc_send_notification (const char *name)
 {
   cache_entry_t *ce = NULL;
@@ -206,7 +243,7 @@ int uc_check_timeout (void)
 	ERROR ("uc_check_timeout: c_avl_remove (%s) failed.", keys[i]);
       }
       sfree (keys[i]);
-      sfree (ce);
+      cache_free (ce);
     }
     else /* (status > 0); ``service'' is interesting */
     {
@@ -312,8 +349,6 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   else /* key is not found */
   {
     int i;
-    size_t ce_size = sizeof (cache_entry_t)
-      + ds->ds_num * (sizeof (counter_t) + sizeof (gauge_t));
     char *key;
     
     key = strdup (name);
@@ -324,22 +359,15 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
       return (-1);
     }
 
-    ce = (cache_entry_t *) malloc (ce_size);
+    ce = cache_alloc (ds->ds_num);
     if (ce == NULL)
     {
       pthread_mutex_unlock (&cache_lock);
-      ERROR ("uc_insert: malloc (%u) failed.", (unsigned int) ce_size);
+      ERROR ("uc_insert: cache_alloc (%i) failed.", ds->ds_num);
       return (-1);
     }
 
-    memset (ce, '\0', ce_size);
-
-    strncpy (ce->name, name, sizeof (ce->name));
-    ce->name[sizeof (ce->name) - 1] = '\0';
-
-    ce->values_num = ds->ds_num;
-    ce->values_gauge = (gauge_t *) (ce + 1);
-    ce->values_counter = (counter_t *) (ce->values_gauge + ce->values_num);
+    sstrncpy (ce->name, name, sizeof (ce->name));
 
     for (i = 0; i < ds->ds_num; i++)
     {
@@ -404,11 +432,54 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   return (0);
 } /* int uc_insert */
 
+int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_values_num)
+{
+  gauge_t *ret = NULL;
+  size_t ret_num = 0;
+  cache_entry_t *ce = NULL;
+  int status = 0;
+
+  pthread_mutex_lock (&cache_lock);
+
+  if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
+  {
+    assert (ce != NULL);
+
+    ret_num = ce->values_num;
+    ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
+    if (ret == NULL)
+    {
+      ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
+      status = -1;
+    }
+    else
+    {
+      memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
+    }
+  }
+  else
+  {
+    DEBUG ("utils_cache: uc_get_rate_by_name: No such value: %s", name);
+    status = -1;
+  }
+
+  pthread_mutex_unlock (&cache_lock);
+
+  if (status == 0)
+  {
+    *ret_values = ret;
+    *ret_values_num = ret_num;
+  }
+
+  return (status);
+} /* gauge_t *uc_get_rate_by_name */
+
 gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
 {
   char name[6 * DATA_MAX_NAME_LEN];
   gauge_t *ret = NULL;
-  cache_entry_t *ce = NULL;
+  size_t ret_num = 0;
+  int status;
 
   if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
   {
@@ -416,25 +487,20 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
     return (NULL);
   }
 
-  pthread_mutex_lock (&cache_lock);
+  status = uc_get_rate_by_name (name, &ret, &ret_num);
+  if (status != 0)
+    return (NULL);
 
-  if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
+  /* This is important - the caller has no other way of knowing how many
+   * values are returned. */
+  if (ret_num != ds->ds_num)
   {
-    assert (ce != NULL);
-    assert (ce->values_num == ds->ds_num);
-
-    ret = (gauge_t *) malloc (ce->values_num * sizeof (gauge_t));
-    if (ret == NULL)
-    {
-      ERROR ("uc_get_rate: malloc failed.");
-    }
-    else
-    {
-      memcpy (ret, ce->values_gauge, ce->values_num * sizeof (gauge_t));
-    }
+    ERROR ("utils_cache: uc_get_rate: ds[%s] has %i values, "
+	"but uc_get_rate_by_name returned %i.",
+	ds->type, ds->ds_num, ret_num);
+    sfree (ret);
+    return (NULL);
   }
-
-  pthread_mutex_unlock (&cache_lock);
 
   return (ret);
 } /* gauge_t *uc_get_rate */

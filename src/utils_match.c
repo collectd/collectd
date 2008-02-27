@@ -35,14 +35,41 @@ struct cu_match_s
   regex_t regex;
   int flags;
 
-  int (*callback) (const char *str, void *user_data);
+  int (*callback) (const char *str, char * const *matches, size_t matches_num,
+      void *user_data);
   void *user_data;
 };
 
 /*
  * Private functions
  */
-static int default_callback (const char *str, void *user_data)
+static char *match_substr (const char *str, int begin, int end)
+{
+  char *ret;
+  size_t ret_len;
+
+  if ((begin < 0) || (end < 0) || (begin >= end))
+    return (NULL);
+  if (end > (strlen (str) + 1))
+  {
+    ERROR ("utils_match: match_substr: `end' points after end of string.");
+    return (NULL);
+  }
+
+  ret_len = end - begin;
+  ret = (char *) malloc (sizeof (char) * (ret_len + 1));
+  if (ret == NULL)
+  {
+    ERROR ("utils_match: match_substr: malloc failed.");
+    return (NULL);
+  }
+
+  sstrncpy (ret, str + begin, ret_len + 1);
+  return (ret);
+} /* char *match_substr */
+
+static int default_callback (const char *str,
+    char * const *matches, size_t matches_num, void *user_data)
 {
   cu_match_value_t *data = (cu_match_value_t *) user_data;
 
@@ -51,8 +78,11 @@ static int default_callback (const char *str, void *user_data)
     gauge_t value;
     char *endptr = NULL;
 
-    value = strtod (str, &endptr);
-    if (str == endptr)
+    if (matches_num < 2)
+      return (-1);
+
+    value = strtod (matches[1], &endptr);
+    if (matches[1] == endptr)
       return (-1);
 
     if ((data->values_num == 0)
@@ -96,8 +126,11 @@ static int default_callback (const char *str, void *user_data)
       return (0);
     }
 
-    value = strtoll (str, &endptr, 0);
-    if (str == endptr)
+    if (matches_num < 2)
+      return (-1);
+
+    value = strtoll (matches[1], &endptr, 0);
+    if (matches[1] == endptr)
       return (-1);
 
     if (data->ds_type & UTILS_MATCH_CF_COUNTER_SET)
@@ -125,7 +158,8 @@ static int default_callback (const char *str, void *user_data)
  * Public functions
  */
 cu_match_t *match_create_callback (const char *regex,
-		int (*callback) (const char *str, void *user_data),
+		int (*callback) (const char *str,
+		  char * const *matches, size_t matches_num, void *user_data),
 		void *user_data)
 {
   cu_match_t *obj;
@@ -191,47 +225,55 @@ void match_destroy (cu_match_t *obj)
 int match_apply (cu_match_t *obj, const char *str)
 {
   int status;
-  regmatch_t re_match[2];
-  char *sub_match;
-  size_t sub_match_len;
+  regmatch_t re_match[32];
+  char *matches[32];
+  size_t matches_num;
+  int i;
 
   if ((obj == NULL) || (str == NULL))
     return (-1);
 
-  re_match[0].rm_so = -1;
-  re_match[0].rm_eo = -1;
-  re_match[1].rm_so = -1;
-  re_match[1].rm_eo = -1;
-  status = regexec (&obj->regex, str, /* nmatch = */ 2, re_match,
+  status = regexec (&obj->regex, str,
+      STATIC_ARRAY_SIZE (re_match), re_match,
       /* eflags = */ 0);
 
   /* Regex did not match */
   if (status != 0)
     return (0);
 
-  /* re_match[0] is the location of the entire match.
-   * re_match[1] is the location of the sub-match. */
-  if (re_match[1].rm_so < 0)
+  memset (matches, '\0', sizeof (matches));
+  for (matches_num = 0; matches_num < STATIC_ARRAY_SIZE (matches); matches_num++)
   {
-    status = obj->callback (str, obj->user_data);
-    return (status);
+    if ((re_match[matches_num].rm_so < 0)
+	|| (re_match[matches_num].rm_eo < 0))
+      break;
+
+    matches[matches_num] = match_substr (str,
+	re_match[matches_num].rm_so, re_match[matches_num].rm_eo);
+    if (matches[matches_num] == NULL)
+    {
+      status = -1;
+      break;
+    }
   }
 
-  assert (re_match[1].rm_so < re_match[1].rm_eo);
-  sub_match_len = (size_t) (re_match[1].rm_eo - re_match[1].rm_so);
-  sub_match = (char *) malloc (sizeof (char) * (sub_match_len + 1));
-  if (sub_match == NULL)
+  if (status != 0)
   {
-    ERROR ("malloc failed.");
-    return (-1);
+    ERROR ("utils_match: match_apply: match_substr failed.");
   }
-  sstrncpy (sub_match, str + re_match[1].rm_so, sub_match_len + 1);
+  else
+  {
+    status = obj->callback (str, matches, matches_num, obj->user_data);
+    if (status != 0)
+    {
+      ERROR ("utils_match: match_apply: callback failed.");
+    }
+  }
 
-  DEBUG ("utils_match: match_apply: Dispatching substring \"%s\" to "
-      "callback.", sub_match);
-  status = obj->callback (sub_match, obj->user_data);
-
-  sfree (sub_match);
+  for (i = 0; i < matches_num; i++)
+  {
+    sfree (matches[i]);
+  }
 
   return (status);
 } /* int match_apply */

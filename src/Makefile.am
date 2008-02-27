@@ -219,7 +219,9 @@ endif
 
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
-exec_la_SOURCES = exec.c utils_cmd_putval.c utils_cmd_putval.h
+exec_la_SOURCES = exec.c \
+		  utils_cmd_putnotif.c utils_cmd_putnotif.h \
+		  utils_cmd_putval.c utils_cmd_putval.h
 exec_la_LDFLAGS = -module -avoid-version
 if BUILD_WITH_LIBPTHREAD
 exec_la_LDFLAGS += -lpthread
@@ -592,7 +594,11 @@ endif
 
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
-unixsock_la_SOURCES = unixsock.c utils_cmd_putval.h utils_cmd_putval.c utils_cmd_putnotif.h utils_cmd_putnotif.c
+unixsock_la_SOURCES = unixsock.c \
+		      utils_cmd_flush.h utils_cmd_flush.c \
+		      utils_cmd_getval.h utils_cmd_getval.c \
+		      utils_cmd_putval.h utils_cmd_putval.c \
+		      utils_cmd_putnotif.h utils_cmd_putnotif.c
 unixsock_la_LDFLAGS = -module -avoid-version -lpthread
 collectd_LDADD += "-dlopen" unixsock.la
 collectd_DEPENDENCIES += unixsock.la

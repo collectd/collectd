@@ -2,7 +2,7 @@
 #define PLUGIN_H
 /**
  * collectd - src/plugin.h
- * Copyright (C) 2005-2007  Florian octo Forster
+ * Copyright (C) 2005-2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +19,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
@@ -149,7 +150,10 @@ int plugin_load (const char *name);
 
 void plugin_init_all (void);
 void plugin_read_all (void);
+void plugin_flush_all (int timeout);
 void plugin_shutdown_all (void);
+
+int plugin_flush_one (int timeout, const char *name);
 
 /*
  * The `plugin_register_*' functions are used to make `config', `init',
@@ -167,6 +171,8 @@ int plugin_register_read (const char *name,
 		int (*callback) (void));
 int plugin_register_write (const char *name,
 		int (*callback) (const data_set_t *ds, const value_list_t *vl));
+int plugin_register_flush (const char *name,
+		int (*callback) (const int));
 int plugin_register_shutdown (char *name,
 		int (*callback) (void));
 int plugin_register_data_set (const data_set_t *ds);
@@ -180,6 +186,7 @@ int plugin_unregister_complex_config (const char *name);
 int plugin_unregister_init (const char *name);
 int plugin_unregister_read (const char *name);
 int plugin_unregister_write (const char *name);
+int plugin_unregister_flush (const char *name);
 int plugin_unregister_shutdown (const char *name);
 int plugin_unregister_data_set (const char *name);
 int plugin_unregister_log (const char *name);

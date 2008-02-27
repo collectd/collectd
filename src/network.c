@@ -306,37 +306,83 @@ static int cache_check (const char *type, const value_list_t *vl)
 static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
 {
-	part_values_t pv;
+	char *packet_ptr;
+	int packet_len;
+	int num_values;
+
+	part_header_t pkg_ph;
+	uint16_t      pkg_num_values;
+	uint8_t      *pkg_values_types;
+	value_t      *pkg_values;
+
+	int offset;
 	int i;
 
-	i = 6 + (9 * vl->values_len);
-	if (*ret_buffer_len < i)
+	num_values = vl->values_len;
+	packet_len = sizeof (part_header_t) + sizeof (uint16_t)
+		+ (num_values * sizeof (uint8_t))
+		+ (num_values * sizeof (value_t));
+
+	if (*ret_buffer_len < packet_len)
 		return (-1);
-	*ret_buffer_len -= i;
 
-	pv.head = (part_header_t *) *ret_buffer;
-	pv.num_values = (uint16_t *) (pv.head + 1);
-	pv.values_types = (uint8_t *) (pv.num_values + 1);
-	pv.values = (value_t *) (pv.values_types + vl->values_len);
-	*ret_buffer = (void *) (pv.values + vl->values_len);
+	pkg_values_types = (uint8_t *) malloc (num_values * sizeof (uint8_t));
+	if (pkg_values_types == NULL)
+	{
+		ERROR ("network plugin: write_part_values: malloc failed.");
+		return (-1);
+	}
 
-	pv.head->type = htons (TYPE_VALUES);
-	pv.head->length = htons (6 + (9 * vl->values_len));
-	*pv.num_values = htons ((uint16_t) vl->values_len);
-	
-	for (i = 0; i < vl->values_len; i++)
+	pkg_values = (value_t *) malloc (num_values * sizeof (value_t));
+	if (pkg_values == NULL)
+	{
+		free (pkg_values_types);
+		ERROR ("network plugin: write_part_values: malloc failed.");
+		return (-1);
+	}
+
+	pkg_ph.type = htons (TYPE_VALUES);
+	pkg_ph.length = htons (packet_len);
+
+	pkg_num_values = htons ((uint16_t) vl->values_len);
+
+	for (i = 0; i < num_values; i++)
 	{
 		if (ds->ds[i].type == DS_TYPE_COUNTER)
 		{
-			pv.values_types[i] = DS_TYPE_COUNTER;
-			pv.values[i].counter = htonll (vl->values[i].counter);
+			pkg_values_types[i] = DS_TYPE_COUNTER;
+			pkg_values[i].counter = htonll (vl->values[i].counter);
 		}
 		else
 		{
-			pv.values_types[i] = DS_TYPE_GAUGE;
-			pv.values[i].gauge = vl->values[i].gauge;
+			pkg_values_types[i] = DS_TYPE_GAUGE;
+			pkg_values[i].gauge = vl->values[i].gauge;
 		}
-	} /* for (values) */
+	}
+
+	/*
+	 * Use `memcpy' to write everything to the buffer, because the pointer
+	 * may be unaligned and some architectures, such as SPARC, can't handle
+	 * that.
+	 */
+	packet_ptr = *ret_buffer;
+	offset = 0;
+	memcpy (packet_ptr + offset, &pkg_ph, sizeof (pkg_ph));
+	offset += sizeof (pkg_ph);
+	memcpy (packet_ptr + offset, &pkg_num_values, sizeof (pkg_num_values));
+	offset += sizeof (pkg_num_values);
+	memcpy (packet_ptr + offset, pkg_values_types, num_values * sizeof (uint8_t));
+	offset += num_values * sizeof (uint8_t);
+	memcpy (packet_ptr + offset, pkg_values, num_values * sizeof (value_t));
+	offset += num_values * sizeof (value_t);
+
+	assert (offset == packet_len);
+
+	*ret_buffer = packet_ptr + packet_len;
+	*ret_buffer_len -= packet_len;
+
+	free (pkg_values_types);
+	free (pkg_values);
 
 	return (0);
 } /* int write_part_values */
@@ -344,20 +390,34 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 static int write_part_number (char **ret_buffer, int *ret_buffer_len,
 		int type, uint64_t value)
 {
-	part_number_t pn;
+	char *packet_ptr;
+	int packet_len;
 
-	if (*ret_buffer_len < 12)
+	part_header_t pkg_head;
+	uint64_t pkg_value;
+	
+	int offset;
+
+	packet_len = sizeof (pkg_head) + sizeof (pkg_value);
+
+	if (*ret_buffer_len < packet_len)
 		return (-1);
 
-	pn.head = (part_header_t *) *ret_buffer;
-	pn.value = (uint64_t *) (pn.head + 1);
+	pkg_head.type = htons (type);
+	pkg_head.length = htons (packet_len);
+	pkg_value = htonll (value);
 
-	pn.head->type = htons (type);
-	pn.head->length = htons (12);
-	*pn.value = htonll (value);
+	packet_ptr = *ret_buffer;
+	offset = 0;
+	memcpy (packet_ptr + offset, &pkg_head, sizeof (pkg_head));
+	offset += sizeof (pkg_head);
+	memcpy (packet_ptr + offset, &pkg_value, sizeof (pkg_value));
+	offset += sizeof (pkg_value);
 
-	*ret_buffer = (char *) (pn.value + 1);
-	*ret_buffer_len -= 12;
+	assert (offset == packet_len);
+
+	*ret_buffer = packet_ptr + packet_len;
+	*ret_buffer_len -= packet_len;
 
 	return (0);
 } /* int write_part_number */
@@ -365,23 +425,33 @@ static int write_part_number (char **ret_buffer, int *ret_buffer_len,
 static int write_part_string (char **ret_buffer, int *ret_buffer_len,
 		int type, const char *str, int str_len)
 {
-	part_string_t ps;
-	int len;
+	char *packet_ptr;
+	int packet_len;
 
-	len = 4 + str_len + 1;
-	if (*ret_buffer_len < len)
+	part_header_t pkg_head;
+
+	int offset;
+
+	packet_len = sizeof (pkg_head) + str_len + 1;
+	if (*ret_buffer_len < packet_len)
 		return (-1);
-	*ret_buffer_len -= len;
 
-	ps.head = (part_header_t *) *ret_buffer;
-	ps.value = (char *) (ps.head + 1);
+	pkg_head.type = htons (type);
+	pkg_head.length = htons (packet_len);
 
-	ps.head->type = htons ((uint16_t) type);
-	ps.head->length = htons ((uint16_t) str_len + 5);
-	if (str_len > 0)
-		memcpy (ps.value, str, str_len);
-	ps.value[str_len] = '\0';
-	*ret_buffer = (void *) (ps.value + (str_len + 1));
+	packet_ptr = *ret_buffer;
+	offset = 0;
+	memcpy (packet_ptr + offset, &pkg_head, sizeof (pkg_head));
+	offset += sizeof (pkg_head);
+	memcpy (packet_ptr + offset, str, str_len);
+	offset += str_len;
+	memset (packet_ptr + offset, '\0', 1);
+	offset += 1;
+
+	assert (offset == packet_len);
+
+	*ret_buffer = packet_ptr + packet_len;
+	*ret_buffer_len -= packet_len;
 
 	return (0);
 } /* int write_part_string */
@@ -1602,9 +1672,25 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
+static int network_flush (int timeout)
+{
+	pthread_mutex_lock (&send_buffer_lock);
+
+	if (((time (NULL) - cache_flush_last) >= timeout)
+			&& (send_buffer_fill > 0))
+	{
+		flush_buffer ();
+	}
+
+	pthread_mutex_unlock (&send_buffer_lock);
+
+	return (0);
+} /* int network_flush */
+
 void module_register (void)
 {
 	plugin_register_config ("network", network_config,
 			config_keys, config_keys_num);
 	plugin_register_init   ("network", network_init);
+	plugin_register_flush   ("network", network_flush);
 } /* void module_register */
