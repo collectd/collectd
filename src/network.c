@@ -1602,9 +1602,25 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
+static int network_flush (int timeout)
+{
+	pthread_mutex_lock (&send_buffer_lock);
+
+	if (((time (NULL) - cache_flush_last) >= timeout)
+			&& (send_buffer_fill > 0))
+	{
+		flush_buffer ();
+	}
+
+	pthread_mutex_unlock (&send_buffer_lock);
+
+	return (0);
+} /* int network_flush */
+
 void module_register (void)
 {
 	plugin_register_config ("network", network_config,
 			config_keys, config_keys_num);
 	plugin_register_init   ("network", network_init);
+	plugin_register_flush   ("network", network_flush);
 } /* void module_register */
