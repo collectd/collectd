@@ -24,6 +24,7 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#include "utils_cmd_flush.h"
 #include "utils_cmd_getval.h"
 #include "utils_cmd_putval.h"
 #include "utils_cmd_putnotif.h"
@@ -533,6 +534,10 @@ static void *us_handle_client (void *arg)
 		else if (strcasecmp (fields[0], "putnotif") == 0)
 		{
 			handle_putnotif (fh, fields, fields_num);
+		}
+		else if (strcasecmp (fields[0], "flush") == 0)
+		{
+			handle_flush (fh, fields, fields_num);
 		}
 		else
 		{
