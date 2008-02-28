@@ -504,8 +504,160 @@ else
   AC_MSG_ERROR([Didn't find out how to statically initialize variables to NAN. Sorry.])
 fi; fi; fi
 
-# For mount interface
-#AC_CHECK_FUNCS(getfsent getvfsent)
+AC_ARG_WITH(fp-layout, [AS_HELP_STRING([--with-fp-layout], [set the memory layout of doubles. For crosscompiling only.])],
+[
+ if test "x$withval" = "xnothing"; then
+ 	fp_layout_type="nothing"
+ else if test "x$withval" = "xendianflip"; then
+ 	fp_layout_type="endianflip"
+ else if test "x$withval" = "xintswap"; then
+ 	fp_layout_type="intswap"
+ else
+ 	AC_MSG_ERROR([Invalid argument for --with-fp-layout. Valid arguments are: nothing, endianflip, intswap]);
+fi; fi; fi
+],
+[fp_layout_type="unknown"])
+
+if test "x$fp_layout_type" = "xunknown"; then
+  AC_CACHE_CHECK([if doubles are stored in x86 representation],
+    [fp_layout_need_nothing],
+    AC_RUN_IFELSE(
+      AC_LANG_PROGRAM(
+      [[[[
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+      ]]]],
+      [[[[
+	uint64_t i0;
+	uint64_t i1;
+	uint8_t c[8];
+	double d;
+
+	d = 8.642135e130; 
+	memcpy ((void *) &i0, (void *) &d, 8);
+
+	i1 = i0;
+	memcpy ((void *) c, (void *) &i1, 8);
+
+	if ((c[0] == 0x2f) && (c[1] == 0x25)
+			&& (c[2] == 0xc0) && (c[3] == 0xc7)
+			&& (c[4] == 0x43) && (c[5] == 0x2b)
+			&& (c[6] == 0x1f) && (c[7] == 0x5b))
+		return (0);
+	else
+		return (1);
+      ]]]]),
+      [fp_layout_need_nothing="yes"],
+      [fp_layout_need_nothing="no"]
+    )
+  )
+  if test "x$fp_layout_need_nothing" = "xyes"; then
+    fp_layout_type="nothing"
+  fi
+fi
+if test "x$fp_layout_type" = "xunknown"; then
+  AC_CACHE_CHECK([if endianflip converts to x86 representation],
+    [fp_layout_need_endianflip],
+    AC_RUN_IFELSE(
+      AC_LANG_PROGRAM(
+      [[[[
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#define endianflip(A) ((((uint64_t)(A) & 0xff00000000000000LL) >> 56) | \
+                       (((uint64_t)(A) & 0x00ff000000000000LL) >> 40) | \
+                       (((uint64_t)(A) & 0x0000ff0000000000LL) >> 24) | \
+                       (((uint64_t)(A) & 0x000000ff00000000LL) >> 8)  | \
+                       (((uint64_t)(A) & 0x00000000ff000000LL) << 8)  | \
+                       (((uint64_t)(A) & 0x0000000000ff0000LL) << 24) | \
+                       (((uint64_t)(A) & 0x000000000000ff00LL) << 40) | \
+                       (((uint64_t)(A) & 0x00000000000000ffLL) << 56))
+      ]]]],
+      [[[[
+	uint64_t i0;
+	uint64_t i1;
+	uint8_t c[8];
+	double d;
+
+	d = 8.642135e130; 
+	memcpy ((void *) &i0, (void *) &d, 8);
+
+	i1 = endianflip (i0);
+	memcpy ((void *) c, (void *) &i1, 8);
+
+	if ((c[0] == 0x2f) && (c[1] == 0x25)
+			&& (c[2] == 0xc0) && (c[3] == 0xc7)
+			&& (c[4] == 0x43) && (c[5] == 0x2b)
+			&& (c[6] == 0x1f) && (c[7] == 0x5b))
+		return (0);
+	else
+		return (1);
+      ]]]]),
+      [fp_layout_need_endianflip="yes"],
+      [fp_layout_need_endianflip="no"]
+    )
+  )
+  if test "x$fp_layout_need_endianflip" = "xyes"; then
+    fp_layout_type="endianflip"
+  fi
+fi
+if test "x$fp_layout_type" = "xunknown"; then
+  AC_CACHE_CHECK([if intswap converts to x86 representation],
+    [fp_layout_need_intswap],
+    AC_RUN_IFELSE(
+      AC_LANG_PROGRAM(
+      [[[[
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#define intswap(A)    ((((uint64_t)(A) & 0xffffffff00000000LL) >> 32) | \
+                       (((uint64_t)(A) & 0x00000000ffffffffLL) << 32))
+      ]]]],
+      [[[[
+	uint64_t i0;
+	uint64_t i1;
+	uint8_t c[8];
+	double d;
+
+	d = 8.642135e130; 
+	memcpy ((void *) &i0, (void *) &d, 8);
+
+	i1 = intswap (i0);
+	memcpy ((void *) c, (void *) &i1, 8);
+
+	if ((c[0] == 0x2f) && (c[1] == 0x25)
+			&& (c[2] == 0xc0) && (c[3] == 0xc7)
+			&& (c[4] == 0x43) && (c[5] == 0x2b)
+			&& (c[6] == 0x1f) && (c[7] == 0x5b))
+		return (0);
+	else
+		return (1);
+      ]]]]),
+      [fp_layout_need_intswap="yes"],
+      [fp_layout_need_intswap="no"]
+    )
+  )
+  if test "x$fp_layout_need_intswap" = "xyes"; then
+    fp_layout_type="intswap"
+  fi
+fi
+
+if test "x$fp_layout_type" = "xnothing"; then
+  AC_DEFINE(FP_LAYOUT_NEED_NOTHING, 1,
+  [Define if doubles are stored in x86 representation.])
+else if test "x$fp_layout_type" = "xendianflip"; then
+  AC_DEFINE(FP_LAYOUT_NEED_ENDIANFLIP, 1,
+  [Define if endianflip is needed to convert to x86 representation.])
+else if test "x$fp_layout_type" = "xintswap"; then
+  AC_DEFINE(FP_LAYOUT_NEED_INTSWAP, 1,
+  [Define if intswap is needed to convert to x86 representation.])
+else
+  AC_MSG_ERROR([Didn't find out how doubles are stored in memory. Sorry.])
+fi; fi; fi
 
 have_getfsstat="no"
 AC_CHECK_FUNCS(getfsstat, [have_getfsstat="yes"])
