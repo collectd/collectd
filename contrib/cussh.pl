@@ -56,12 +56,18 @@ use Collectd::Unixsock();
 	my $path = $ARGV[0] || "/var/run/collectd-unixsock";
 	my $sock = Collectd::Unixsock->new($path);
 
+	my $cmds = {
+		PUTVAL => \&putval,
+		GETVAL => \&getval,
+		FLUSH  => \&flush,
+	};
+
 	if (! $sock) {
 		print STDERR "Unable to connect to $path!\n";
 		exit 1;
 	}
 
-	print "cussh version 0.1, Copyright (C) 2007 Sebastian Harl\n"
+	print "cussh version 0.2, Copyright (C) 2007 Sebastian Harl\n"
 		. "cussh comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
 		. "and you are welcome to redistribute it under certain conditions.\n"
 		. "See the GNU General Public License 2 for more details.\n\n";
@@ -79,11 +85,8 @@ use Collectd::Unixsock();
 		$cmd = uc $cmd;
 
 		my $f = undef;
-		if ($cmd eq "PUTVAL") {
-			$f = \&putval;
-		}
-		elsif ($cmd eq "GETVAL") {
-			$f = \&getval;
+		if (defined $cmds->{$cmd}) {
+			$f = $cmds->{$cmd};
 		}
 		else {
 			print STDERR "ERROR: Unknown command $cmd!\n";
@@ -138,7 +141,10 @@ sub putval {
 
 	my $id = getid(\$line);
 
-	return if (! $id);
+	if (! $id) {
+		print STDERR $sock->{'error'} . $/;
+		return;
+	}
 
 	my ($time, @values) = split m/:/, $line;
 	return $sock->putval(%$id, $time, \@values);
@@ -150,7 +156,10 @@ sub getval {
 
 	my $id = getid(\$line);
 
-	return if (! $id);
+	if (! $id) {
+		print STDERR $sock->{'error'} . $/;
+		return;
+	}
 
 	my $vals = $sock->getval(%$id);
 
@@ -158,6 +167,44 @@ sub getval {
 
 	foreach my $key (keys %$vals) {
 		print "\t$key: $vals->{$key}\n";
+	}
+	return 1;
+}
+
+sub flush {
+	my $sock = shift || return;
+	my $line = shift;
+
+	my $res;
+
+	if (! $line) {
+		$res = $sock->flush();
+	}
+	else {
+		my %args = ();
+
+		foreach my $i (split m/ /, $line) {
+			my ($option, $value) = $i =~ m/^([^=]+)=(.+)$/;
+			next if (! ($option && $value));
+
+			if ($option eq "plugin") {
+				push @{$args{"plugins"}}, $value;
+			}
+			elsif ($option eq "timeout") {
+				$args{"timeout"} = $value;
+			}
+			else {
+				print STDERR "Invalid option \"$option\".\n";
+				return;
+			}
+		}
+
+		$res = $sock->flush(%args);
+	}
+
+	if (! $res) {
+		print STDERR $sock->{'error'} . $/;
+		return;
 	}
 	return 1;
 }

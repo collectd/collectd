@@ -400,6 +400,63 @@ sub putnotif
 	return;
 } # putnotif
 
+=item I<$obj>-E<gt>B<flush> (B<timeout> =E<gt> I<$timeout>, B<plugins> =E<gt> [...]);
+
+Flush cached data.
+
+Valid options are:
+
+=over 4
+
+=item B<timeout>
+
+If this option is specified, only data older than I<$timeout> seconds is
+flushed.
+
+=item B<plugins>
+
+If this option is specified, only the selected plugins will be flushed. 
+
+=back
+
+=cut
+
+sub flush
+{
+	my $obj  = shift;
+	my %args = @_;
+
+	my $fh = $obj->{'sock'} or confess;
+
+	my $status = 0;
+	my $msg    = "FLUSH";
+
+	if ($args{'timeout'})
+	{
+		$msg .= " timeout=" . $args{'timeout'};
+	}
+
+	if ($args{'plugins'})
+	{
+		foreach my $plugin (@{$args{'plugins'}})
+		{
+			$msg .= " plugin=" . $plugin;
+		}
+	}
+
+	$msg .= "\n";
+
+	send ($fh, $msg, 0) or confess ("send: $!");
+	$msg = undef;
+	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
+
+	($status, $msg) = split (' ', $msg, 2);
+	return (1) if ($status == 0);
+
+	$obj->{'error'} = $msg;
+	return;
+}
+
 =item I<$obj>-E<gt>destroy ();
 
 Closes the socket before the object is destroyed. This function is also
