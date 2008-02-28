@@ -593,7 +593,7 @@ double ntohd (double d)
 {
 	union
 	{
-		char     byte[8];
+		uint8_t  byte[8];
 		uint64_t integer;
 		double   floating;
 	} ret;
@@ -622,7 +622,7 @@ double htond (double d)
 {
 	union
 	{
-		char     byte[8];
+		uint8_t  byte[8];
 		uint64_t integer;
 		double   floating;
 	} ret;
