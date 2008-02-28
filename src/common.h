@@ -163,6 +163,16 @@ long long get_kstat_value (kstat_t *ksp, char *name);
 unsigned long long ntohll (unsigned long long n);
 unsigned long long htonll (unsigned long long n);
 
+#if FP_LAYOUT_NEED_NOTHING
+# define ntohd(d) (d)
+# define htond(d) (d)
+#elif FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP
+double ntohd (double d);
+double htond (double d);
+#else
+# error "Don't know how to convert between host and network representation of doubles."
+#endif
+
 int format_name (char *ret, int ret_len,
 		const char *hostname,
 		const char *plugin, const char *plugin_instance,

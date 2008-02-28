@@ -356,7 +356,7 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 		else
 		{
 			pkg_values_types[i] = DS_TYPE_GAUGE;
-			pkg_values[i].gauge = vl->values[i].gauge;
+			pkg_values[i].gauge = htond (vl->values[i].gauge);
 		}
 	}
 
@@ -496,6 +496,8 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 	for (i = 0; i < h_num; i++)
 		if (pv.values_types[i] == DS_TYPE_COUNTER)
 			pv.values[i].counter = ntohll (pv.values[i].counter);
+		else
+			pv.values[i].gauge = ntohd (pv.values[i].gauge);
 
 	*ret_buffer     = (void *) (pv.values + h_num);
 	*ret_buffer_len = buffer_len - h_length;
