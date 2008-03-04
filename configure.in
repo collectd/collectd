@@ -866,7 +866,7 @@ then
 	 ],
 	 [with_rrdtool="no (symbol 'rrd_update' not found)"],
 	 [-lm])
-	]
+	],
 	[-lm])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
