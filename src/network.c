@@ -461,12 +461,17 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 {
 	char *buffer = *ret_buffer;
 	int   buffer_len = *ret_buffer_len;
-	part_values_t pv;
+
+	uint16_t tmp16;
+	size_t exp_size;
 	int   i;
 
-	uint16_t h_length;
-	uint16_t h_type;
-	uint16_t h_num;
+	uint16_t pkg_length;
+	uint16_t pkg_type;
+	uint16_t pkg_numval;
+
+	uint8_t *pkg_types;
+	value_t *pkg_values;
 
 	if (buffer_len < (15))
 	{
@@ -475,34 +480,69 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 		return (-1);
 	}
 
-	pv.head = (part_header_t *) buffer;
-	h_length = ntohs (pv.head->length);
-	h_type = ntohs (pv.head->type);
+	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+	buffer += sizeof (tmp16);
+	pkg_length = ntohs (tmp16);
 
-	assert (h_type == TYPE_VALUES);
+	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+	buffer += sizeof (tmp16);
+	pkg_type = ntohs (tmp16);
 
-	pv.num_values = (uint16_t *) (pv.head + 1);
-	h_num = ntohs (*pv.num_values);
+	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+	buffer += sizeof (tmp16);
+	pkg_numval = ntohs (tmp16);
 
-	if (h_num != ((h_length - 6) / 9))
+	assert (pkg_type == TYPE_VALUES);
+
+	exp_size = 3 * sizeof (uint16_t)
+		+ pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
+	if (buffer_len < exp_size)
 	{
-		DEBUG ("`length' and `num of values' don't match");
+		WARNING ("network plugin: parse_part_values: "
+				"Packet too short: "
+				"Chunk of size %u expected, "
+				"but buffer has only %i bytes left.",
+				(unsigned int) exp_size, buffer_len);
 		return (-1);
 	}
 
-	pv.values_types = (uint8_t *) (pv.num_values + 1);
-	pv.values = (value_t *) (pv.values_types + h_num);
+	if (pkg_length != exp_size)
+	{
+		WARNING ("network plugin: parse_part_values: "
+				"Length and number of values "
+				"in the packet don't match.");
+		return (-1);
+	}
 
-	for (i = 0; i < h_num; i++)
-		if (pv.values_types[i] == DS_TYPE_COUNTER)
-			pv.values[i].counter = ntohll (pv.values[i].counter);
-		else
-			pv.values[i].gauge = ntohd (pv.values[i].gauge);
+	pkg_types = (uint8_t *) malloc (pkg_numval * sizeof (uint8_t));
+	pkg_values = (value_t *) malloc (pkg_numval * sizeof (value_t));
+	if ((pkg_types == NULL) || (pkg_values == NULL))
+	{
+		sfree (pkg_types);
+		sfree (pkg_values);
+		ERROR ("network plugin: parse_part_values: malloc failed.");
+		return (-1);
+	}
 
-	*ret_buffer     = (void *) (pv.values + h_num);
-	*ret_buffer_len = buffer_len - h_length;
-	*ret_num_values = h_num;
-	*ret_values     = pv.values;
+	memcpy ((void *) pkg_types, (void *) buffer, pkg_numval * sizeof (uint8_t));
+	buffer += pkg_numval * sizeof (uint8_t);
+	memcpy ((void *) pkg_values, (void *) buffer, pkg_numval * sizeof (value_t));
+	buffer += pkg_numval * sizeof (value_t);
+
+	for (i = 0; i < pkg_numval; i++)
+	{
+		if (pkg_types[i] == DS_TYPE_COUNTER)
+			pkg_values[i].counter = ntohll (pkg_values[i].counter);
+		else if (pkg_types[i] == DS_TYPE_GAUGE)
+			pkg_values[i].gauge = ntohd (pkg_values[i].gauge);
+	}
+
+	*ret_buffer     = buffer;
+	*ret_buffer_len = buffer_len - pkg_length;
+	*ret_num_values = pkg_numval;
+	*ret_values     = pkg_values;
+
+	sfree (pkg_types);
 
 	return (0);
 } /* int parse_part_values */
@@ -510,21 +550,40 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 static int parse_part_number (void **ret_buffer, int *ret_buffer_len,
 		uint64_t *value)
 {
-	part_number_t pn;
-	uint16_t len;
+	char *buffer = *ret_buffer;
+	int buffer_len = *ret_buffer_len;
 
-	pn.head = (part_header_t *) *ret_buffer;
-	pn.value = (uint64_t *) (pn.head + 1);
+	uint16_t tmp16;
+	uint64_t tmp64;
+	size_t exp_size = 2 * sizeof (uint16_t) + sizeof (uint64_t);
 
-	len = ntohs (pn.head->length);
-	if (len != 12)
+	uint16_t pkg_length;
+	uint16_t pkg_type;
+
+	if (buffer_len < exp_size)
+	{
+		WARNING ("network plugin: parse_part_number: "
+				"Packet too short: "
+				"Chunk of size %u expected, "
+				"but buffer has only %i bytes left.",
+				(unsigned int) exp_size, buffer_len);
 		return (-1);
-	if (len > *ret_buffer_len)
-		return (-1);
-	*value = ntohll (*pn.value);
+	}
 
-	*ret_buffer = (void *) (pn.value + 1);
-	*ret_buffer_len -= len;
+	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+	buffer += sizeof (tmp16);
+	pkg_length = ntohs (tmp16);
+
+	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+	buffer += sizeof (tmp16);
+	pkg_type = ntohs (tmp16);
+
+	memcpy ((void *) &tmp64, buffer, sizeof (tmp64));
+	buffer += sizeof (tmp64);
+	*value = ntohll (tmp64);
+
+	*ret_buffer = buffer;
+	*ret_buffer_len = buffer_len - pkg_length;
 
 	return (0);
 } /* int parse_part_number */
@@ -534,60 +593,83 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 {
 	char *buffer = *ret_buffer;
 	int   buffer_len = *ret_buffer_len;
-	part_string_t ps;
 
-	uint16_t h_length;
-	uint16_t h_type;
+	uint16_t tmp16;
+	size_t header_size = 2 * sizeof (uint16_t);
 
-	DEBUG ("network plugin: parse_part_string: ret_buffer = %p;"
-			" ret_buffer_len = %i; output = %p; output_len = %i;",
-			*ret_buffer, *ret_buffer_len,
-			(void *) output, output_len);
+	uint16_t pkg_length;
+	uint16_t pkg_type;
 
-	ps.head = (part_header_t *) buffer;
-
-	h_length = ntohs (ps.head->length);
-	h_type = ntohs (ps.head->type);
-
-	DEBUG ("network plugin: parse_part_string: length = %hu; type = %hu;",
-			h_length, h_type);
-
-	if (buffer_len < h_length)
+	if (buffer_len < header_size)
 	{
-		DEBUG ("packet is too short");
-		return (-1);
-	}
-	assert ((h_type == TYPE_HOST)
-			|| (h_type == TYPE_PLUGIN)
-			|| (h_type == TYPE_PLUGIN_INSTANCE)
-			|| (h_type == TYPE_TYPE)
-			|| (h_type == TYPE_TYPE_INSTANCE));
-
-	ps.value = buffer + 4;
-	if (ps.value[h_length - 5] != '\0')
-	{
-		DEBUG ("String does not end with a nullbyte");
+		WARNING ("network plugin: parse_part_string: "
+				"Packet too short: "
+				"Chunk of at least size %u expected, "
+				"but buffer has only %i bytes left.",
+				(unsigned int) header_size, buffer_len);
 		return (-1);
 	}
 
-	if (output_len < (h_length - 4))
+	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+	buffer += sizeof (tmp16);
+	pkg_length = ntohs (tmp16);
+
+	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+	buffer += sizeof (tmp16);
+	pkg_type = ntohs (tmp16);
+
+	/* Check that packet fits in the input buffer */
+	if (pkg_length > buffer_len)
 	{
-		DEBUG ("output buffer is too small");
+		WARNING ("network plugin: parse_part_string: "
+				"Packet too big: "
+				"Chunk of size %hu received, "
+				"but buffer has only %i bytes left.",
+				pkg_length, buffer_len);
 		return (-1);
 	}
-	strcpy (output, ps.value);
 
-	DEBUG ("network plugin: parse_part_string: output = %s", output);
+	/* Check that pkg_length is in the valid range */
+	if (pkg_length <= header_size)
+	{
+		WARNING ("network plugin: parse_part_string: "
+				"Packet too short: "
+				"Header claims this packet is only %hu "
+				"bytes long.", pkg_length);
+		return (-1);
+	}
 
-	*ret_buffer = (void *) (buffer + h_length);
-	*ret_buffer_len = buffer_len - h_length;
+	/* Check that the package data fits into the output buffer.
+	 * The previous if-statement ensures that:
+	 * `pkg_length > header_size' */
+	if ((pkg_length - header_size) > output_len)
+	{
+		WARNING ("network plugin: parse_part_string: "
+				"Output buffer too small.");
+		return (-1);
+	}
+
+	/* All sanity checks successfull, let's copy the data over */
+	output_len = pkg_length - header_size;
+	memcpy ((void *) output, (void *) buffer, output_len);
+	buffer += output_len;
+
+	if (output[output_len - 1] != '\0');
+	{
+		WARNING ("network plugin: parse_part_string: "
+				"Received string does not end "
+				"with a NULL-byte.");
+		return (-1);
+	}
+
+	*ret_buffer = buffer;
+	*ret_buffer_len = buffer_len - pkg_length;
 
 	return (0);
 } /* int parse_part_string */
 
 static int parse_packet (void *buffer, int buffer_len)
 {
-	part_header_t *header;
 	int status;
 
 	value_list_t vl = VALUE_LIST_INIT;
@@ -602,24 +684,32 @@ static int parse_packet (void *buffer, int buffer_len)
 
 	while ((status == 0) && (buffer_len > sizeof (part_header_t)))
 	{
-		header = (part_header_t *) buffer;
+		uint16_t pkg_length;
+		uint16_t pkg_type;
 
-		if (ntohs (header->length) > buffer_len)
+		memcpy ((void *) &pkg_length,
+				(void *) buffer,
+				sizeof (pkg_length));
+		memcpy ((void *) &pkg_type,
+				(void *) buffer + sizeof (pkg_length),
+				sizeof (pkg_type));
+
+		pkg_length = ntohs (pkg_length);
+		pkg_type = ntohs (pkg_type);
+
+		if (pkg_length > buffer_len)
 			break;
-		/* Assure that this loop terminates eventually */
-		if (ntohs (header->length) < 4)
+		/* Ensure that this loop terminates eventually */
+		if (pkg_length < (2 * sizeof (uint16_t)))
 			break;
 
-		if (ntohs (header->type) == TYPE_VALUES)
+		if (pkg_type == TYPE_VALUES)
 		{
 			status = parse_part_values (&buffer, &buffer_len,
 					&vl.values, &vl.values_len);
 
 			if (status != 0)
-			{
-				DEBUG ("parse_part_values failed.");
 				break;
-			}
 
 			if ((vl.time > 0)
 					&& (strlen (vl.host) > 0)
@@ -627,8 +717,6 @@ static int parse_packet (void *buffer, int buffer_len)
 					&& (strlen (type) > 0)
 					&& (cache_check (type, &vl) == 0))
 			{
-				DEBUG ("network plugin: parse_packet:"
-						" dispatching values");
 				plugin_dispatch_values (type, &vl);
 			}
 			else
@@ -636,46 +724,48 @@ static int parse_packet (void *buffer, int buffer_len)
 				DEBUG ("network plugin: parse_packet:"
 						" NOT dispatching values");
 			}
+
+			sfree (vl.values);
 		}
-		else if (ntohs (header->type) == TYPE_TIME)
+		else if (pkg_type == TYPE_TIME)
 		{
 			uint64_t tmp = 0;
 			status = parse_part_number (&buffer, &buffer_len, &tmp);
 			if (status == 0)
 				vl.time = (time_t) tmp;
 		}
-		else if (ntohs (header->type) == TYPE_INTERVAL)
+		else if (pkg_type == TYPE_INTERVAL)
 		{
 			uint64_t tmp = 0;
 			status = parse_part_number (&buffer, &buffer_len, &tmp);
 			if (status == 0)
 				vl.interval = (int) tmp;
 		}
-		else if (ntohs (header->type) == TYPE_HOST)
+		else if (pkg_type == TYPE_HOST)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.host, sizeof (vl.host));
 			DEBUG ("network plugin: parse_packet: vl.host = %s", vl.host);
 		}
-		else if (ntohs (header->type) == TYPE_PLUGIN)
+		else if (pkg_type == TYPE_PLUGIN)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin, sizeof (vl.plugin));
 			DEBUG ("network plugin: parse_packet: vl.plugin = %s", vl.plugin);
 		}
-		else if (ntohs (header->type) == TYPE_PLUGIN_INSTANCE)
+		else if (pkg_type == TYPE_PLUGIN_INSTANCE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin_instance, sizeof (vl.plugin_instance));
 			DEBUG ("network plugin: parse_packet: vl.plugin_instance = %s", vl.plugin_instance);
 		}
-		else if (ntohs (header->type) == TYPE_TYPE)
+		else if (pkg_type == TYPE_TYPE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					type, sizeof (type));
 			DEBUG ("network plugin: parse_packet: type = %s", type);
 		}
-		else if (ntohs (header->type) == TYPE_TYPE_INSTANCE)
+		else if (pkg_type == TYPE_TYPE_INSTANCE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.type_instance, sizeof (vl.type_instance));
@@ -684,12 +774,12 @@ static int parse_packet (void *buffer, int buffer_len)
 		else
 		{
 			DEBUG ("network plugin: parse_packet: Unknown part"
-					" type: 0x%0hx", ntohs (header->type));
-			buffer = ((char *) buffer) + ntohs (header->length);
+					" type: 0x%04hx", pkg_type);
+			buffer = ((char *) buffer) + pkg_length;
 		}
 	} /* while (buffer_len > sizeof (part_header_t)) */
 
-	return (0);
+	return (status);
 } /* int parse_packet */
 
 static void free_sockent (sockent_t *se)
