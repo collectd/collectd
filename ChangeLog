@@ -1,18 +1,18 @@
 2008-03-04, Version 4.2.5
 	* apache plugin: Improved initialization and error messages.
+	* exec plugin: Set supplementary group IDs.
 	* network plugin:
 	  + Create separate threads for reading from the socket and parsing
 	    and dispatching incoming packets. Versions prior to this may have
 	    problems in high-load situations, where the socket receive buffers
 	    overflows, resulting in gaps in the data.
-	  + Use `memcpy' when constructing a package to avoid alignment
-	    problems.
+	  + Use `memcpy' when constructing/parsing a package to avoid
+	    alignment problems on weird architectures, such as Sparc.
 	  + Translate doubles to/from the x86 byte representation to ensure
 	    cross-platform compatibility.
-	* rrdtool plugin: Ensure correct handling of the `RRATimespan' option.
-	* exec plugin: Set supplementary group IDs.
-	* swap plugin: Reapply a patch for Solaris.
 	* ping plugin: Correct the handling of the `TTL' setting.
+	* rrdtool plugin: Ensure correct handling of the `RRATimespan' option.
+	* swap plugin: Reapply a patch for Solaris.
 	* tcpconns plugin: Portability improvements.
 
 2008-01-21, Version 4.2.4
