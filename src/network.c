@@ -425,33 +425,36 @@ static int write_part_number (char **ret_buffer, int *ret_buffer_len,
 static int write_part_string (char **ret_buffer, int *ret_buffer_len,
 		int type, const char *str, int str_len)
 {
-	char *packet_ptr;
-	int packet_len;
+	char *buffer;
+	int buffer_len;
 
-	part_header_t pkg_head;
+	uint16_t pkg_type;
+	uint16_t pkg_length;
 
 	int offset;
 
-	packet_len = sizeof (pkg_head) + str_len + 1;
-	if (*ret_buffer_len < packet_len)
+	buffer_len = 2 * sizeof (uint16_t) + str_len + 1;
+	if (*ret_buffer_len < buffer_len)
 		return (-1);
 
-	pkg_head.type = htons (type);
-	pkg_head.length = htons (packet_len);
+	pkg_type = htons (type);
+	pkg_length = htons (buffer_len);
 
-	packet_ptr = *ret_buffer;
+	buffer = *ret_buffer;
 	offset = 0;
-	memcpy (packet_ptr + offset, &pkg_head, sizeof (pkg_head));
-	offset += sizeof (pkg_head);
-	memcpy (packet_ptr + offset, str, str_len);
+	memcpy (buffer + offset, (void *) &pkg_type, sizeof (pkg_type));
+	offset += sizeof (pkg_type);
+	memcpy (buffer + offset, (void *) &pkg_length, sizeof (pkg_length));
+	offset += sizeof (pkg_length);
+	memcpy (buffer + offset, str, str_len);
 	offset += str_len;
-	memset (packet_ptr + offset, '\0', 1);
+	memset (buffer + offset, '\0', 1);
 	offset += 1;
 
-	assert (offset == packet_len);
+	assert (offset == buffer_len);
 
-	*ret_buffer = packet_ptr + packet_len;
-	*ret_buffer_len -= packet_len;
+	*ret_buffer = buffer + buffer_len;
+	*ret_buffer_len -= buffer_len;
 
 	return (0);
 } /* int write_part_string */
@@ -482,11 +485,11 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
-	pkg_length = ntohs (tmp16);
+	pkg_type = ntohs (tmp16);
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
-	pkg_type = ntohs (tmp16);
+	pkg_length = ntohs (tmp16);
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
@@ -572,11 +575,11 @@ static int parse_part_number (void **ret_buffer, int *ret_buffer_len,
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
-	pkg_length = ntohs (tmp16);
+	pkg_type = ntohs (tmp16);
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
-	pkg_type = ntohs (tmp16);
+	pkg_length = ntohs (tmp16);
 
 	memcpy ((void *) &tmp64, buffer, sizeof (tmp64));
 	buffer += sizeof (tmp64);
@@ -612,11 +615,11 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
-	pkg_length = ntohs (tmp16);
+	pkg_type = ntohs (tmp16);
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
-	pkg_type = ntohs (tmp16);
+	pkg_length = ntohs (tmp16);
 
 	/* Check that packet fits in the input buffer */
 	if (pkg_length > buffer_len)
@@ -654,7 +657,9 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	memcpy ((void *) output, (void *) buffer, output_len);
 	buffer += output_len;
 
-	if (output[output_len - 1] != '\0');
+	/* For some very weird reason '\0' doesn't do the trick on SPARC in
+	 * this statement. */
+	if (output[output_len - 1] != 0)
 	{
 		WARNING ("network plugin: parse_part_string: "
 				"Received string does not end "
@@ -687,12 +692,12 @@ static int parse_packet (void *buffer, int buffer_len)
 		uint16_t pkg_length;
 		uint16_t pkg_type;
 
-		memcpy ((void *) &pkg_length,
-				(void *) buffer,
-				sizeof (pkg_length));
 		memcpy ((void *) &pkg_type,
-				(void *) buffer + sizeof (pkg_length),
+				(void *) buffer,
 				sizeof (pkg_type));
+		memcpy ((void *) &pkg_length,
+				(void *) (buffer + sizeof (pkg_type)),
+				sizeof (pkg_length));
 
 		pkg_length = ntohs (pkg_length);
 		pkg_type = ntohs (pkg_type);
@@ -745,31 +750,26 @@ static int parse_packet (void *buffer, int buffer_len)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.host, sizeof (vl.host));
-			DEBUG ("network plugin: parse_packet: vl.host = %s", vl.host);
 		}
 		else if (pkg_type == TYPE_PLUGIN)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin, sizeof (vl.plugin));
-			DEBUG ("network plugin: parse_packet: vl.plugin = %s", vl.plugin);
 		}
 		else if (pkg_type == TYPE_PLUGIN_INSTANCE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin_instance, sizeof (vl.plugin_instance));
-			DEBUG ("network plugin: parse_packet: vl.plugin_instance = %s", vl.plugin_instance);
 		}
 		else if (pkg_type == TYPE_TYPE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					type, sizeof (type));
-			DEBUG ("network plugin: parse_packet: type = %s", type);
 		}
 		else if (pkg_type == TYPE_TYPE_INSTANCE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.type_instance, sizeof (vl.type_instance));
-			DEBUG ("network plugin: parse_packet: vl.type_instance = %s", vl.type_instance);
 		}
 		else
 		{
