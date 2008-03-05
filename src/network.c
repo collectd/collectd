@@ -738,7 +738,8 @@ static int parse_packet (void *buffer, int buffer_len)
 		else if (pkg_type == TYPE_TIME)
 		{
 			uint64_t tmp = 0;
-			status = parse_part_number (&buffer, &buffer_len, &tmp);
+			status = parse_part_number (&buffer, &buffer_len,
+					&tmp);
 			if (status == 0)
 			{
 				vl.time = (time_t) tmp;
@@ -748,7 +749,8 @@ static int parse_packet (void *buffer, int buffer_len)
 		else if (pkg_type == TYPE_INTERVAL)
 		{
 			uint64_t tmp = 0;
-			status = parse_part_number (&buffer, &buffer_len, &tmp);
+			status = parse_part_number (&buffer, &buffer_len,
+					&tmp);
 			if (status == 0)
 				vl.interval = (int) tmp;
 		}
@@ -756,47 +758,53 @@ static int parse_packet (void *buffer, int buffer_len)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.host, sizeof (vl.host));
-			strncpy (n.host, vl.host, sizeof (n.host));
-			n.host[sizeof (n.host) - 1] = '\0';
+			if (status == 0)
+				sstrncpy (n.host, vl.host, sizeof (n.host));
 		}
 		else if (pkg_type == TYPE_PLUGIN)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin, sizeof (vl.plugin));
-			strncpy (n.plugin, vl.plugin, sizeof (n.plugin));
-			n.plugin[sizeof (n.plugin) - 1] = '\0';
+			if (status == 0)
+				sstrncpy (n.plugin, vl.plugin,
+						sizeof (n.plugin));
 		}
 		else if (pkg_type == TYPE_PLUGIN_INSTANCE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.plugin_instance,
 					sizeof (vl.plugin_instance));
-			strncpy (n.plugin_instance, vl.plugin_instance,
-					sizeof (n.plugin_instance));
-			n.plugin_instance[sizeof (n.plugin_instance) - 1] = '\0';
+			if (status == 0)
+				sstrncpy (n.plugin_instance,
+						vl.plugin_instance,
+						sizeof (n.plugin_instance));
 		}
 		else if (pkg_type == TYPE_TYPE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					type, sizeof (type));
-			strncpy (n.type, type, sizeof (n.type));
-			n.type[sizeof (n.type) - 1] = '\0';
+			if (status == 0)
+				sstrncpy (n.type, type, sizeof (n.type));
 		}
 		else if (pkg_type == TYPE_TYPE_INSTANCE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					vl.type_instance,
 					sizeof (vl.type_instance));
-			strncpy (n.type_instance, vl.type_instance,
-					sizeof (n.type_instance));
-			n.type_instance[sizeof (n.type_instance) - 1] = '\0';
+			if (status == 0)
+				sstrncpy (n.type_instance, vl.type_instance,
+						sizeof (n.type_instance));
 		}
 		else if (pkg_type == TYPE_MESSAGE)
 		{
 			status = parse_part_string (&buffer, &buffer_len,
 					n.message, sizeof (n.message));
 
-			if ((n.severity != NOTIF_FAILURE)
+			if (status != 0)
+			{
+				/* do nothing */
+			}
+			else if ((n.severity != NOTIF_FAILURE)
 					&& (n.severity != NOTIF_WARNING)
 					&& (n.severity != NOTIF_OKAY))
 			{
@@ -819,17 +827,14 @@ static int parse_packet (void *buffer, int buffer_len)
 			}
 			else
 			{
-				/*
-				 * TODO: Let this do a separate thread so that
-				 * no packets are lost if this takes too long.
-				 */
 				plugin_dispatch_notification (&n);
 			}
 		}
 		else if (pkg_type == TYPE_SEVERITY)
 		{
 			uint64_t tmp = 0;
-			status = parse_part_number (&buffer, &buffer_len, &tmp);
+			status = parse_part_number (&buffer, &buffer_len,
+					&tmp);
 			if (status == 0)
 				n.severity = (int) tmp;
 		}
