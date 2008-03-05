@@ -1,3 +1,14 @@
+2008-03-05, Version 4.3.1
+	* exec plugin: Set supplementary group IDs.
+	* network plugin:
+	  + Use `memcpy' when constructing/parsing a package to avoid
+	    alignment problems on weird architectures, such as Sparc.
+	  + Translate doubles to/from the x86 byte representation to ensure
+	    cross-platform compatibility.
+	* ping plugin: Correct the handling of the `TTL' setting.
+	* swap plugin: Reapply a patch for Solaris.
+	* tcpconns plugin: Portability improvements.
+
 2008-02-18, Version 4.3.0
 	* collectd: Notifications have been added to the daemon. Notifications
 	  are status messages that may be associated with a data instance.
