@@ -52,11 +52,13 @@ static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t strerror_r_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-void sstrncpy (char *d, const char *s, int len)
+char *sstrncpy (char *dest, const char *src, size_t n)
 {
-	strncpy (d, s, len);
-	d[len - 1] = '\0';
-}
+	strncpy (dest, src, n);
+	dest[n - 1] = '\0';
+
+	return (dest);
+} /* char *sstrncpy */
 
 char *sstrdup (const char *s)
 {
