@@ -38,7 +38,6 @@ L<Getopt::Long> module.
 =cut
 
 use Getopt::Long ('GetOptions');
-use Data::Dumper ();
 
 our $InFile;
 our $InDS = [];
