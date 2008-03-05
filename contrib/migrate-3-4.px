@@ -166,7 +166,7 @@ for (@Files)
 			my $src_ds = $src_dses->[$i];
 			$dest->{'type_instance'} = $type_instances->[$i];
 			$dest_filename = get_filename ($dest);
-			print "./extractDS.px -i '$InDir/$orig_filename' -s '$src_ds' -o '$OutDir/$dest_filename' -d '$dst_ds'\n";
+			print "./rrd_filter.px -i '$InDir/$orig_filename' -m '${src_ds}:${dst_ds}' -o '$OutDir/$dest_filename'\n";
 		}
 	}
 	elsif (exists ($TypeRename{$orig->{'type'}}))
@@ -361,19 +361,19 @@ sub special_disk
 		$OutDirs{$dest_directory} = 1;
 	}
 
-	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rmerged' -s 'wmerged' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rmerged:read' -m 'wmerged:write' -o '$OutDir/$dest_filename'\n";
 
 	$dest->{'type'} = 'disk_octets';
 	$dest_filename = get_filename ($dest);
-	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rbytes' -s 'wbytes' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rbytes:read' -m 'wbytes:write' -o '$OutDir/$dest_filename'\n";
 
 	$dest->{'type'} = 'disk_ops';
 	$dest_filename = get_filename ($dest);
-	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rcount' -s 'wcount' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rcount:read' -m 'wcount:write' -o '$OutDir/$dest_filename'\n";
 
 	$dest->{'type'} = 'disk_time';
 	$dest_filename = get_filename ($dest);
-	print "./extractDS.px -i '$InDir/$orig_filename' -s 'rtime' -s 'wtime' -o '$OutDir/$dest_filename' -d 'read' -d 'write'\n";
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rtime:read' -m 'wtime:write' -o '$OutDir/$dest_filename'\n";
 }
 
 sub exit_usage
