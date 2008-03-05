@@ -146,9 +146,9 @@ static int ut_config_type_max (threshold_t *th, oconfig_item_t *ci)
   }
 
   if (strcasecmp (ci->key, "WarningMax") == 0)
-    th->warning_min = ci->values[0].value.number;
+    th->warning_max = ci->values[0].value.number;
   else
-    th->failure_min = ci->values[0].value.number;
+    th->failure_max = ci->values[0].value.number;
 
   return (0);
 } /* int ut_config_type_max */
@@ -536,13 +536,17 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
     int is_failure = 0;
 
     if ((th->flags & UT_FLAG_INVERT) != 0)
+    {
       is_inverted = 1;
+      is_warning--;
+      is_failure--;
+    }
     if ((!isnan (th->failure_min) && (th->failure_min > values[i]))
 	|| (!isnan (th->failure_max) && (th->failure_max < values[i])))
-      is_failure = is_inverted - 1;
+      is_failure++;
     if ((!isnan (th->warning_min) && (th->warning_min > values[i]))
 	|| (!isnan (th->warning_max) && (th->warning_max < values[i])))
-      is_warning = is_inverted - 1;
+      is_warning++;
 
     if ((is_failure != 0) || (is_warning != 0))
     {
