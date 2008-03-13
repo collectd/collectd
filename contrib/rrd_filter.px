@@ -44,6 +44,7 @@ our $InDS = [];
 our $OutFile;
 our $OutDS = [];
 
+our $NewDSes = [];
 our $NewRRAs = [];
 
 our $Step = 0;
@@ -132,6 +133,17 @@ GetOptions ("infile|i=s" => \$InFile,
 		push (@$OutDS, $out_ds);
 	},
 	'step|s=i' => \$Step,
+	'ds|d=s' => sub
+	{
+		#DS:ds-name:GAUGE | COUNTER | DERIVE | ABSOLUTE:heartbeat:min:max
+		my ($ds, $name, $type, $hb, $min, $max) = split (':', $_[1]);
+		if (($ds ne 'DS') || !defined ($max))
+		{
+			print STDERR "Please use the standard RRDTool syntax when adding DSes. I. e. DS:<name>:<type>:<heartbeat>:<min>:<max>.\n";
+			exit (1);
+		}
+		push (@$NewDSes, {name => $name, type => $type, heartbeat => $hb, min => $min, max => $max});
+	},
 	'rra|a=s' => sub
 	{
 		my ($rra, $cf, $xff, $steps, $rows) = split (':', $_[1]);
@@ -156,7 +168,6 @@ if ((1 + @$InDS) != (1 + @$OutDS))
 	print STDERR "You need the same amount of in- and out-DSes\n";
 	exit (1);
 }
-
 main ($InFile, $OutFile);
 exit (0);
 
@@ -445,6 +456,87 @@ sub handle_line_step
 }} # handle_line_step
 
 #
+# The _add DS_ handler
+#
+{
+my $add_ds_done;
+sub handle_line_add_ds
+{
+  my $line = shift;
+  my $index = shift;
+
+  my $post = sub { for (@_) { post_line ($_, $index + 1); } };
+
+  if (!@$NewDSes)
+  {
+    $post->($line);
+    return;
+  }
+
+  if (!$add_ds_done && ($line =~ m#<rra>#i))
+  {
+    for (my $i = 0; $i < @$NewDSes; $i++)
+    {
+      my $ds = $NewDSes->[$i];
+      my $temp;
+
+      my $min;
+      my $max;
+
+      if ($Debug)
+      {
+      	print STDOUT "Adding DS: name = $ds->{'name'}, type = $ds->{'type'}, heartbeat = $ds->{'heartbeat'}, min = $ds->{'min'}, max = $ds->{'max'}\n";
+      }
+
+      $min = 'NaN';
+      if (defined ($ds->{'min'}) && ($ds->{'min'} ne 'U'))
+      {
+	$min = sprintf ('%.10e', $ds->{'min'});
+      }
+      
+      $max = 'NaN';
+      if (defined ($ds->{'max'}) && ($ds->{'max'} ne 'U'))
+      {
+	$max = sprintf ('%.10e', $ds->{'max'});
+      }
+      
+
+      $post->("\t<ds>\n",
+      "\t\t<name> $ds->{'name'} </name>\n",
+      "\t\t<type> $ds->{'type'} </type>\n",
+      "\t\t<minimal_heartbeat> $ds->{'heartbeat'} </minimal_heartbeat>\n",
+      "\t\t<min> $min </min>\n",
+      "\t\t<max> $max </max>\n",
+      "\n",
+      "\t\t<!-- PDP Status -->\n",
+      "\t\t<last_ds> UNKN </last_ds>\n",
+      "\t\t<value> NaN </value>\n",
+      "\t\t<unknown_sec> 0 </unknown_sec>\n",
+      "\t</ds>\n",
+      "\n");
+    }
+
+    $add_ds_done = 1;
+  }
+  elsif ($add_ds_done && ($line =~ m#</ds>#i)) # inside a cdp_prep block
+  {
+    $post->("\t\t\t</ds>\n",
+	"\t\t\t<ds>\n",
+	"\t\t\t<primary_value> NaN </primary_value>\n",
+	"\t\t\t<secondary_value> NaN </secondary_value>\n",
+	"\t\t\t<value> NaN </value>\n",
+	"\t\t\t<unknown_datapoints> 0 </unknown_datapoints>\n");
+  }
+  elsif ($line =~ m#<row>#i)
+  {
+	  my $insert = '<v> NaN </v>' x (0 + @$NewDSes);
+	  $line =~ s#</row>#$insert</row>#i;
+  }
+
+  $post->($line);
+}} # handle_line_add_ds
+
+#
 # The _add RRA_ handler
 #
 {
@@ -701,6 +793,11 @@ sub handle_fh
   }
 
   #add_handler (\&handle_line_peak_detect);
+
+  if (@$NewDSes)
+  {
+    add_handler (\&handle_line_add_ds);
+  }
 
   if (@$NewRRAs)
   {
