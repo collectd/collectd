@@ -618,6 +618,7 @@ static void *us_handle_client (void *arg)
 	close (fd);
 
 	pthread_exit ((void *) 0);
+	return ((void *) 0);
 } /* void *us_handle_client */
 
 static void *us_server_thread (void *arg)

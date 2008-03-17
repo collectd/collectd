@@ -168,6 +168,60 @@ static int uc_send_notification (const char *name)
   return (0);
 } /* int uc_send_notification */
 
+static int uc_insert (const data_set_t *ds, const value_list_t *vl,
+    const char *key)
+{
+  int i;
+  char *key_copy;
+  cache_entry_t *ce;
+
+  /* `cache_lock' has been locked by `uc_update' */
+
+  key_copy = strdup (key);
+  if (key_copy == NULL)
+  {
+    ERROR ("uc_insert: strdup failed.");
+    return (-1);
+  }
+
+  ce = cache_alloc (ds->ds_num);
+  if (ce == NULL)
+  {
+    ERROR ("uc_insert: cache_alloc (%i) failed.", ds->ds_num);
+    return (-1);
+  }
+
+  sstrncpy (ce->name, key, sizeof (ce->name));
+
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if (ds->ds[i].type == DS_TYPE_COUNTER)
+    {
+      ce->values_gauge[i] = NAN;
+      ce->values_counter[i] = vl->values[i].counter;
+    }
+    else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
+    {
+      ce->values_gauge[i] = vl->values[i].gauge;
+    }
+  } /* for (i) */
+
+  ce->last_time = vl->time;
+  ce->last_update = time (NULL);
+  ce->interval = vl->interval;
+  ce->state = STATE_OKAY;
+
+  if (c_avl_insert (cache_tree, key_copy, ce) != 0)
+  {
+    sfree (key_copy);
+    ERROR ("uc_insert: c_avl_insert failed.");
+    return (-1);
+  }
+
+  DEBUG ("uc_insert: Added %s to the cache.", key);
+  return (0);
+} /* int uc_insert */
+
 int uc_init (void)
 {
   if (cache_tree == NULL)
@@ -236,8 +290,10 @@ int uc_check_timeout (void)
     else if (status == 0) /* ``service'' is uninteresting */
     {
       ce = NULL;
-      DEBUG ("uc_check_timeout: %s is missing but ``uninteresting''", keys[i]);
-      status = c_avl_remove (cache_tree, keys[i], (void *) &key, (void *) &ce);
+      DEBUG ("uc_check_timeout: %s is missing but ``uninteresting''",
+	  keys[i]);
+      status = c_avl_remove (cache_tree, keys[i],
+	  (void *) &key, (void *) &ce);
       if (status != 0)
       {
 	ERROR ("uc_check_timeout: c_avl_remove (%s) failed.", keys[i]);
@@ -245,14 +301,33 @@ int uc_check_timeout (void)
       sfree (keys[i]);
       cache_free (ce);
     }
-    else /* (status > 0); ``service'' is interesting */
+    else if (status == 1) /* persist */
     {
-      /*
-       * `keys[i]' is not freed and set to NULL, so that the for-loop below
-       * will send out notifications. There's nothing else to do here.
-       */
-      DEBUG ("uc_check_timeout: %s is missing and ``interesting''", keys[i]);
+      DEBUG ("uc_check_timeout: %s is missing, sending notification.",
+	  keys[i]);
       ce->state = STATE_ERROR;
+    }
+    else if (status == 2) /* do not persist */
+    {
+      if (ce->state == STATE_ERROR)
+      {
+	DEBUG ("uc_check_timeout: %s is missing but "
+	    "notification has already been sent.",
+	    keys[i]);
+	sfree (keys[i]);
+      }
+      else /* (ce->state != STATE_ERROR) */
+      {
+	DEBUG ("uc_check_timeout: %s is missing, sending one notification.",
+	    keys[i]);
+	ce->state = STATE_ERROR;
+      }
+    }
+    else
+    {
+      WARNING ("uc_check_timeout: ut_check_interesting (%s) returned ",
+	  "invalid status %i.",
+	  keys[i], status);
     }
   } /* for (keys[i]) */
 
@@ -279,158 +354,111 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int send_okay_notification = 0;
+  time_t update_delay = 0;
+  notification_t n;
+  int status;
+  int i;
 
   if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
   {
-    ERROR ("uc_insert: FORMAT_VL failed.");
+    ERROR ("uc_update: FORMAT_VL failed.");
     return (-1);
   }
 
   pthread_mutex_lock (&cache_lock);
 
-  if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
+  status = c_avl_get (cache_tree, name, (void *) &ce);
+  if (status != 0) /* entry does not yet exist */
   {
-    int i;
-
-    assert (ce != NULL);
-    assert (ce->values_num == ds->ds_num);
-
-    if (ce->last_time >= vl->time)
-    {
-      pthread_mutex_unlock (&cache_lock);
-      NOTICE ("uc_insert: Value too old: name = %s; value time = %u; "
-	  "last cache update = %u;",
-	  name, (unsigned int) vl->time, (unsigned int) ce->last_time);
-      return (-1);
-    }
-
-    if ((ce->last_time + ce->interval) < vl->time)
-    {
-      send_okay_notification = vl->time - ce->last_time;
-      ce->state = STATE_OKAY;
-    }
-
-    for (i = 0; i < ds->ds_num; i++)
-    {
-      if (ds->ds[i].type == DS_TYPE_COUNTER)
-      {
-	counter_t diff;
-
-	/* check if the counter has wrapped around */
-	if (vl->values[i].counter < ce->values_counter[i])
-	{
-	  if (ce->values_counter[i] <= 4294967295U)
-	    diff = (4294967295U - ce->values_counter[i])
-	      + vl->values[i].counter;
-	  else
-	    diff = (18446744073709551615ULL - ce->values_counter[i])
-	      + vl->values[i].counter;
-	}
-	else /* counter has NOT wrapped around */
-	{
-	  diff = vl->values[i].counter - ce->values_counter[i];
-	}
-
-	ce->values_gauge[i] = ((double) diff)
-	  / ((double) (vl->time - ce->last_time));
-	ce->values_counter[i] = vl->values[i].counter;
-      }
-      else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
-      {
-	ce->values_gauge[i] = vl->values[i].gauge;
-      }
-      DEBUG ("uc_insert: %s: ds[%i] = %lf", name, i, ce->values_gauge[i]);
-    } /* for (i) */
-
-    ce->last_time = vl->time;
-    ce->last_update = time (NULL);
-    ce->interval = vl->interval;
+    status = uc_insert (ds, vl, name);
+    pthread_mutex_unlock (&cache_lock);
+    return (status);
   }
-  else /* key is not found */
+
+  assert (ce != NULL);
+  assert (ce->values_num == ds->ds_num);
+
+  if (ce->last_time >= vl->time)
   {
-    int i;
-    char *key;
-    
-    key = strdup (name);
-    if (key == NULL)
-    {
-      pthread_mutex_unlock (&cache_lock);
-      ERROR ("uc_insert: strdup failed.");
-      return (-1);
-    }
+    pthread_mutex_unlock (&cache_lock);
+    NOTICE ("uc_update: Value too old: name = %s; value time = %u; "
+	"last cache update = %u;",
+	name, (unsigned int) vl->time, (unsigned int) ce->last_time);
+    return (-1);
+  }
 
-    ce = cache_alloc (ds->ds_num);
-    if (ce == NULL)
-    {
-      pthread_mutex_unlock (&cache_lock);
-      ERROR ("uc_insert: cache_alloc (%i) failed.", ds->ds_num);
-      return (-1);
-    }
-
-    sstrncpy (ce->name, name, sizeof (ce->name));
-
-    for (i = 0; i < ds->ds_num; i++)
-    {
-      if (ds->ds[i].type == DS_TYPE_COUNTER)
-      {
-	ce->values_gauge[i] = NAN;
-	ce->values_counter[i] = vl->values[i].counter;
-      }
-      else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
-      {
-	ce->values_gauge[i] = vl->values[i].gauge;
-      }
-    } /* for (i) */
-
-    ce->last_time = vl->time;
-    ce->last_update = time (NULL);
-    ce->interval = vl->interval;
+  /* Send a notification (after the lock has been released) if we switch the
+   * state from something else to `okay'. */
+  if (ce->state != STATE_OKAY)
+  {
+    send_okay_notification = 1;
     ce->state = STATE_OKAY;
+    update_delay = time (NULL) - ce->last_update;
+  }
 
-    if (c_avl_insert (cache_tree, key, ce) != 0)
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if (ds->ds[i].type == DS_TYPE_COUNTER)
     {
-      pthread_mutex_unlock (&cache_lock);
-      ERROR ("uc_insert: c_avl_insert failed.");
-      return (-1);
-    }
+      counter_t diff;
 
-    DEBUG ("uc_insert: Added %s to the cache.", name);
-  } /* if (key is not found) */
+      /* check if the counter has wrapped around */
+      if (vl->values[i].counter < ce->values_counter[i])
+      {
+	if (ce->values_counter[i] <= 4294967295U)
+	  diff = (4294967295U - ce->values_counter[i])
+	    + vl->values[i].counter;
+	else
+	  diff = (18446744073709551615ULL - ce->values_counter[i])
+	    + vl->values[i].counter;
+      }
+      else /* counter has NOT wrapped around */
+      {
+	diff = vl->values[i].counter - ce->values_counter[i];
+      }
+
+      ce->values_gauge[i] = ((double) diff)
+	/ ((double) (vl->time - ce->last_time));
+      ce->values_counter[i] = vl->values[i].counter;
+    }
+    else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
+    {
+      ce->values_gauge[i] = vl->values[i].gauge;
+    }
+    DEBUG ("uc_update: %s: ds[%i] = %lf", name, i, ce->values_gauge[i]);
+  } /* for (i) */
+
+  ce->last_time = vl->time;
+  ce->last_update = time (NULL);
+  ce->interval = vl->interval;
 
   pthread_mutex_unlock (&cache_lock);
 
+  if (send_okay_notification == 0)
+    return (0);
+
   /* Do not send okay notifications for uninteresting values, i. e. values for
    * which no threshold is configured. */
-  if (send_okay_notification > 0)
-  {
-    int status;
+  status = ut_check_interesting (name);
+  if (status <= 0)
+    return (0);
 
-    status = ut_check_interesting (name);
-    if (status <= 0)
-      send_okay_notification = 0;
-  }
+  /* Initialize the notification */
+  memset (&n, '\0', sizeof (n));
+  NOTIFICATION_INIT_VL (&n, vl, ds);
 
-  if (send_okay_notification > 0)
-  {
-    notification_t n;
-    memset (&n, '\0', sizeof (n));
+  n.severity = NOTIF_OKAY;
+  n.time = vl->time;
 
-    /* Copy the associative members */
-    NOTIFICATION_INIT_VL (&n, vl, ds);
+  snprintf (n.message, sizeof (n.message),
+      "Received a value for %s. It was missing for %u seconds.",
+      name, (unsigned int) update_delay);
+  n.message[sizeof (n.message) - 1] = '\0';
 
-    n.severity = NOTIF_OKAY;
-    n.time = vl->time;
-
-    snprintf (n.message, sizeof (n.message),
-	"Received a value for %s. It was missing for %i seconds.",
-	name, send_okay_notification);
-    n.message[sizeof (n.message) - 1] = '\0';
-
-    plugin_dispatch_notification (&n);
-  }
+  plugin_dispatch_notification (&n);
 
   return (0);
-} /* int uc_insert */
+} /* int uc_update */
 
 gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
 {
@@ -440,7 +468,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
 
   if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
   {
-    ERROR ("uc_insert: FORMAT_VL failed.");
+    ERROR ("uc_get_rate: FORMAT_VL failed.");
     return (NULL);
   }
 

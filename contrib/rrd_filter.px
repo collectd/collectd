@@ -38,16 +38,21 @@ L<Getopt::Long> module.
 =cut
 
 use Getopt::Long ('GetOptions');
-use Data::Dumper ();
 
 our $InFile;
 our $InDS = [];
 our $OutFile;
 our $OutDS = [];
 
+our $NewDSes = [];
 our $NewRRAs = [];
 
 our $Step = 0;
+
+our $Scale = 1.0;
+our $Shift = 0.0;
+
+our $Debug = 0;
 
 =head1 OPTIONS
 
@@ -101,6 +106,15 @@ Inserts a new RRA in the generated RRD file. This is done B<after> the step has
 been adjusted, take that into account when specifying I<steps> and I<rows>. For
 an explanation of the format please see L<rrdcreate(1)>.
 
+=item B<--scale> I<factor>
+
+Scales the values by the factor I<factor>, i.E<nbsp>e. all values are
+multiplied by I<factor>.
+
+=item B<--shift> I<offset>
+
+Shifts all values by I<offset>, i.E<nbsp>e. I<offset> is added to all values.
+
 =back
 
 =cut
@@ -119,6 +133,17 @@ GetOptions ("infile|i=s" => \$InFile,
 		push (@$OutDS, $out_ds);
 	},
 	'step|s=i' => \$Step,
+	'ds|d=s' => sub
+	{
+		#DS:ds-name:GAUGE | COUNTER | DERIVE | ABSOLUTE:heartbeat:min:max
+		my ($ds, $name, $type, $hb, $min, $max) = split (':', $_[1]);
+		if (($ds ne 'DS') || !defined ($max))
+		{
+			print STDERR "Please use the standard RRDTool syntax when adding DSes. I. e. DS:<name>:<type>:<heartbeat>:<min>:<max>.\n";
+			exit (1);
+		}
+		push (@$NewDSes, {name => $name, type => $type, heartbeat => $hb, min => $min, max => $max});
+	},
 	'rra|a=s' => sub
 	{
 		my ($rra, $cf, $xff, $steps, $rows) = split (':', $_[1]);
@@ -128,7 +153,9 @@ GetOptions ("infile|i=s" => \$InFile,
 			exit (1);
 		}
 		push (@$NewRRAs, {cf => $cf, xff => $xff, steps => $steps, rows => $rows});
-	}
+	},
+	'scale=f' => \$Scale,
+	'shift=f' => \$Shift
 ) or exit (1);
 
 if (!$InFile || !$OutFile)
@@ -141,7 +168,6 @@ if ((1 + @$InDS) != (1 + @$OutDS))
 	print STDERR "You need the same amount of in- and out-DSes\n";
 	exit (1);
 }
-
 main ($InFile, $OutFile);
 exit (0);
 
@@ -175,6 +201,7 @@ sub handle_line_dsmap
 		$ds_index = [];
 		for (my $i = 0; $i < @$InDS; $i++)
 		{
+			print STDOUT "DS map $i: $InDS->[$i] -> $OutDS->[$i]\n" if ($Debug);
 			$ds_index->[$i] = -1;
 		}
 	}
@@ -203,6 +230,14 @@ sub handle_line_dsmap
 			}
 
 			$out_cache->[$current_index] .= $line;
+		}
+		elsif ($line =~ m#<last_ds>\s*([^\s>]+)\s*</last_ds>#i)
+		{
+			$out_cache->[$current_index] .= "\t\t<last_ds> NaN </last_ds>\n";
+		}
+		elsif ($line =~ m#<value>\s*([^\s>]+)\s*</value>#i)
+		{
+			$out_cache->[$current_index] .= "\t\t<value> NaN </value>\n";
 		}
 		elsif ($line =~ m#</ds>#)
 		{
@@ -247,6 +282,10 @@ sub handle_line_dsmap
 		{
 			$current_index++;
 			$out_cache->[$current_index] .= $line;
+		}
+		elsif ($line =~ m#<value>\s*([^\s>]+)\s*</value>#i)
+		{
+			$out_cache->[$current_index] .= "\t\t\t<value> NaN </value>\n";
 		}
 		elsif ($line =~ m#</cdp_prep>#)
 		{
@@ -350,6 +389,11 @@ sub handle_line_step
 		return;
 	}
 
+	if ($Debug && !defined ($step_factor_up))
+	{
+		print STDOUT "New step: $Step\n";
+	}
+
 	$step_factor_up ||= 0;
 	$step_factor_down ||= 0;
 
@@ -412,6 +456,87 @@ sub handle_line_step
 }} # handle_line_step
 
 #
+# The _add DS_ handler
+#
+{
+my $add_ds_done;
+sub handle_line_add_ds
+{
+  my $line = shift;
+  my $index = shift;
+
+  my $post = sub { for (@_) { post_line ($_, $index + 1); } };
+
+  if (!@$NewDSes)
+  {
+    $post->($line);
+    return;
+  }
+
+  if (!$add_ds_done && ($line =~ m#<rra>#i))
+  {
+    for (my $i = 0; $i < @$NewDSes; $i++)
+    {
+      my $ds = $NewDSes->[$i];
+      my $temp;
+
+      my $min;
+      my $max;
+
+      if ($Debug)
+      {
+      	print STDOUT "Adding DS: name = $ds->{'name'}, type = $ds->{'type'}, heartbeat = $ds->{'heartbeat'}, min = $ds->{'min'}, max = $ds->{'max'}\n";
+      }
+
+      $min = 'NaN';
+      if (defined ($ds->{'min'}) && ($ds->{'min'} ne 'U'))
+      {
+	$min = sprintf ('%.10e', $ds->{'min'});
+      }
+      
+      $max = 'NaN';
+      if (defined ($ds->{'max'}) && ($ds->{'max'} ne 'U'))
+      {
+	$max = sprintf ('%.10e', $ds->{'max'});
+      }
+      
+
+      $post->("\t<ds>\n",
+      "\t\t<name> $ds->{'name'} </name>\n",
+      "\t\t<type> $ds->{'type'} </type>\n",
+      "\t\t<minimal_heartbeat> $ds->{'heartbeat'} </minimal_heartbeat>\n",
+      "\t\t<min> $min </min>\n",
+      "\t\t<max> $max </max>\n",
+      "\n",
+      "\t\t<!-- PDP Status -->\n",
+      "\t\t<last_ds> UNKN </last_ds>\n",
+      "\t\t<value> NaN </value>\n",
+      "\t\t<unknown_sec> 0 </unknown_sec>\n",
+      "\t</ds>\n",
+      "\n");
+    }
+
+    $add_ds_done = 1;
+  }
+  elsif ($add_ds_done && ($line =~ m#</ds>#i)) # inside a cdp_prep block
+  {
+    $post->("\t\t\t</ds>\n",
+	"\t\t\t<ds>\n",
+	"\t\t\t<primary_value> NaN </primary_value>\n",
+	"\t\t\t<secondary_value> NaN </secondary_value>\n",
+	"\t\t\t<value> NaN </value>\n",
+	"\t\t\t<unknown_datapoints> 0 </unknown_datapoints>\n");
+  }
+  elsif ($line =~ m#<row>#i)
+  {
+	  my $insert = '<v> NaN </v>' x (0 + @$NewDSes);
+	  $line =~ s#</row>#$insert</row>#i;
+  }
+
+  $post->($line);
+}} # handle_line_add_ds
+
+#
 # The _add RRA_ handler
 #
 {
@@ -442,6 +567,12 @@ sub handle_line_add_rra
     {
       my $rra = $NewRRAs->[$i];
       my $temp;
+
+      if ($Debug)
+      {
+      	print STDOUT "Adding RRA: CF = $rra->{'cf'}, xff = $rra->{'xff'}, steps = $rra->{'steps'}, rows = $rra->{'rows'}, num_ds = $num_ds\n";
+      }
+
       $post->("\t<rra>\n",
       "\t\t<cf> $rra->{'cf'} </cf>\n",
       "\t\t<pdp_per_row> $rra->{'steps'} </pdp_per_row>\n",
@@ -466,15 +597,52 @@ sub handle_line_add_rra
       {
 	$post->($temp);
       }
-      $post->("\t\t</database>\n");
+      $post->("\t\t</database>\n", "\t</rra>\n");
     }
+
+    $add_rra_done = 1;
   }
 
   $post->($line);
 }} # handle_line_add_rra
 
 #
+# The _scale/shift_ handler
+#
+sub calculate_scale_shift 
+{
+  my $value = shift;
+  my $tag = shift;
+  my $scale = shift;
+  my $shift = shift;
+
+  if (lc ("$value") eq 'nan')
+  {
+    $value = 'NaN';
+    return ("<$tag> NaN </$tag>");
+  }
+
+  $value = ($scale * (0.0 + $value)) + $shift;
+  return (sprintf ("<%s> %1.10e </%s>", $tag, $value, $tag));
+}
+
+sub handle_line_scale_shift
+{
+  my $line = shift;
+  my $index = shift;
+
+  if (($Scale != 1.0) || ($Shift != 0.0))
+  {
+    $line =~ s#<(min|max|last_ds|value|primary_value|secondary_value|v)>\s*([^\s<]+)\s*</[^>]+>#calculate_scale_shift ($2, $1, $Scale, $Shift)#eg;
+  }
+
+  post_line ($line, $index + 1);
+}
+
+#
 # The _output_ handler
+#
+# This filter is unfinished!
 #
 {
 my $fh;
@@ -482,6 +650,79 @@ sub set_output
 {
 	$fh = shift;
 }
+
+{
+my $previous_values;
+my $previous_differences;
+my $pdp_per_row;
+sub handle_line_peak_detect
+{
+  my $line = shift;
+  my $index = shift;
+
+  if (!$previous_values)
+  {
+    $previous_values = [];
+    $previous_differences = [];
+  }
+
+  if ($line =~ m#</database>#i)
+  {
+    $previous_values = [];
+    $previous_differences = [];
+    print STDERR "==============================================================================\n";
+  }
+  elsif ($line =~ m#<pdp_per_row>\s*([1-9][0-9]*)\s*</pdp_per_row>#)
+  {
+    $pdp_per_row = int ($1);
+    print STDERR "pdp_per_row = $pdp_per_row;\n";
+  }
+  elsif ($line =~ m#<row>#)
+  {
+    my @values = ();
+    while ($line =~ m#<v>\s*([^\s>]+)\s*</v>#ig)
+    {
+      if ($1 eq 'NaN')
+      {
+	push (@values, undef);
+      }
+      else
+      {
+	push (@values, 0.0 + $1);
+      }
+    }
+
+    for (my $i = 0; $i < @values; $i++)
+    {
+      if (!defined ($values[$i]))
+      {
+	$previous_values->[$i] = undef;
+      }
+      elsif (!defined ($previous_values->[$i]))
+      {
+	$previous_values->[$i] = $values[$i];
+      }
+      elsif (!defined ($previous_differences->[$i]))
+      {
+      	$previous_differences->[$i] = abs ($previous_values->[$i] - $values[$i]);
+      }
+      else
+      {
+      	my $divisor = ($previous_differences->[$i] < 1.0) ? 1.0 : $previous_differences->[$i];
+	my $difference = abs ($previous_values->[$i] - $values[$i]);
+	my $change = $pdp_per_row * $difference / $divisor;
+	if (($divisor > 10.0) &&  ($change > 10e5))
+	{
+	  print STDERR "i = $i; average difference = " . $previous_differences->[$i]. "; current difference = " . $difference. "; change = $change;\n";
+	}
+	$previous_values->[$i] = $values[$i];
+	$previous_differences->[$i] = (0.95 * $previous_differences->[$i]) + (0.05 * $difference);
+      }
+    }
+  }
+
+  post_line ($line, $index + 1);
+}} # handle_line_peak_detect
 
 sub handle_line_output
 {
@@ -531,32 +772,44 @@ sub post_line
 
 sub handle_fh
 {
-	my $in_fh = shift;
-	my $out_fh = shift;
+  my $in_fh = shift;
+  my $out_fh = shift;
 
-	set_output ($out_fh);
+  set_output ($out_fh);
 
-	if (@$InDS)
-	{
-	  add_handler (\&handle_line_dsmap);
-	}
+  if (@$InDS)
+  {
+    add_handler (\&handle_line_dsmap);
+  }
 
-	if ($Step)
-	{
-	  add_handler (\&handle_line_step);
-	}
+  if ($Step)
+  {
+    add_handler (\&handle_line_step);
+  }
 
-	if (@$NewRRAs)
-	{
-	  add_handler (\&handle_line_add_rra);
-	}
+  if (($Scale != 1.0) || ($Shift != 0.0))
+  {
+    add_handler (\&handle_line_scale_shift);
+  }
 
-	add_handler (\&handle_line_output);
+  #add_handler (\&handle_line_peak_detect);
 
-	while (my $line = <$in_fh>)
-	{
-		post_line ($line, 0);
-	}
+  if (@$NewDSes)
+  {
+    add_handler (\&handle_line_add_ds);
+  }
+
+  if (@$NewRRAs)
+  {
+    add_handler (\&handle_line_add_rra);
+  }
+
+  add_handler (\&handle_line_output);
+
+  while (my $line = <$in_fh>)
+  {
+    post_line ($line, 0);
+  }
 } # handle_fh
 
 sub main
