@@ -509,12 +509,22 @@ static threshold_t *threshold_search (const data_set_t *ds,
 
 int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 {
+  notification_t n;
   threshold_t *th;
   gauge_t *values;
   int i;
 
+  int state_orig;
+  int state_new = STATE_OKAY;
+  int ds_index = 0;
+
+  char *buf;
+  size_t bufsize;
+  int status;
+
   if (threshold_tree == NULL)
     return (0);
+
   /* Is this lock really necessary? So far, thresholds are only inserted at
    * startup. -octo */
   pthread_mutex_lock (&threshold_lock);
@@ -528,6 +538,8 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
   values = uc_get_rate (ds, vl);
   if (values == NULL)
     return (0);
+
+  state_orig = uc_get_state (ds, vl);
 
   for (i = 0; i < ds->ds_num; i++)
   {
@@ -548,92 +560,122 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 	|| (!isnan (th->warning_max) && (th->warning_max < values[i])))
       is_warning++;
 
-    if ((is_failure != 0) || (is_warning != 0))
+    if ((is_failure != 0) && (state_new != STATE_ERROR))
     {
-      notification_t n;
-      char *buf;
-      size_t bufsize;
-      int status;
+      state_new = STATE_ERROR;
+      ds_index = i;
+    }
+    else if ((is_warning != 0)
+	&& (state_new != STATE_ERROR)
+	&& (state_new != STATE_WARNING))
+    {
+      state_new = STATE_WARNING;
+      ds_index = i;
+    }
+  }
 
-      double min;
-      double max;
+  if (state_new != state_orig)
+    uc_set_state (ds, vl, state_new);
 
-      min = (is_failure != 0) ? th->failure_min : th->warning_min;
-      max = (is_failure != 0) ? th->failure_max : th->warning_max;
+  /* Return here if we're not going to send a notification */
+  if ((state_new == state_orig)
+      && ((state_new == STATE_OKAY)
+	|| ((th->flags & UT_FLAG_PERSIST) == 0)))
+  {
+    sfree (values);
+    return (0);
+  }
 
-      DEBUG ("ut_check_threshold: ds[%s]: %lf <= !%lf <= %lf (invert: %s)",
-	  ds->ds[i].name, min, values[i], max,
-	  is_inverted ? "true" : "false");
+  NOTIFICATION_INIT_VL (&n, vl, ds);
+  {
+    /* Copy the associative members */
+    if (state_new == STATE_OKAY)
+      n.severity = NOTIF_OKAY;
+    else if (state_new == STATE_WARNING)
+      n.severity = NOTIF_WARNING;
+    else
+      n.severity = NOTIF_FAILURE;
 
-      /* Copy the associative members */
-      NOTIFICATION_INIT_VL (&n, vl, ds);
+    n.time = vl->time;
 
-      n.severity = (is_failure != 0) ? NOTIF_FAILURE : NOTIF_WARNING;
-      n.time = vl->time;
+    buf = n.message;
+    bufsize = sizeof (n.message);
 
-      buf = n.message;
-      bufsize = sizeof (n.message);
+    status = snprintf (buf, bufsize, "Host %s, plugin %s",
+	vl->host, vl->plugin);
+    buf += status;
+    bufsize -= status;
 
-      status = snprintf (buf, bufsize, "Host %s, plugin %s",
-	  vl->host, vl->plugin);
+    if (vl->plugin_instance[0] != '\0')
+    {
+      status = snprintf (buf, bufsize, " (instance %s)",
+	  vl->plugin_instance);
       buf += status;
       bufsize -= status;
+    }
 
-      if (vl->plugin_instance[0] != '\0')
-      {
-	status = snprintf (buf, bufsize, " (instance %s)",
-	    vl->plugin_instance);
-	buf += status;
-	bufsize -= status;
-      }
+    status = snprintf (buf, bufsize, " type %s", ds->type);
+    buf += status;
+    bufsize -= status;
 
-      status = snprintf (buf, bufsize, " type %s", ds->type);
+    if (vl->type_instance[0] != '\0')
+    {
+      status = snprintf (buf, bufsize, " (instance %s)",
+	  vl->type_instance);
       buf += status;
       bufsize -= status;
+    }
+  }
 
-      if (vl->type_instance[0] != '\0')
-      {
-	status = snprintf (buf, bufsize, " (instance %s)",
-	    vl->type_instance);
-	buf += status;
-	bufsize -= status;
-      }
+  /* Send a okay notification */
+  if (state_new == STATE_OKAY)
+  {
+    status = snprintf (buf, bufsize, ": All data sources are within range again.");
+    buf += status;
+    bufsize -= status;
+  }
+  else
+  {
+    double min;
+    double max;
 
-      if (is_inverted)
+    min = (state_new == STATE_ERROR) ? th->failure_min : th->warning_min;
+    max = (state_new == STATE_ERROR) ? th->failure_max : th->warning_max;
+
+    if (th->flags & UT_FLAG_INVERT)
+    {
+      if (!isnan (min) && !isnan (max))
       {
-	if (!isnan (min) && !isnan (max))
-	{
-	  status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	      "%f. That is within the %s region of %f and %f.",
-	      ds->ds[i].name, values[i],
-	      (is_failure != 0) ? "failure" : "warning",
-	      min, min);
-	}
-	else
-	{
-	  status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	      "%f. That is %s the %s threshold of %f.",
-	      ds->ds[i].name, values[i],
-	      isnan (min) ? "below" : "above",
-	      (is_failure != 0) ? "failure" : "warning",
-	      isnan (min) ? max : min);
-	}
+	status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	    "%f. That is within the %s region of %f and %f.",
+	    ds->ds[ds_index].name, values[ds_index],
+	    (state_new == STATE_ERROR) ? "failure" : "warning",
+	    min, min);
       }
-      else /* (!is_inverted) */
+      else
       {
 	status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
 	    "%f. That is %s the %s threshold of %f.",
-	    ds->ds[i].name, values[i],
-	    (values[i] < min) ? "below" : "above",
-	    (is_failure != 0) ? "failure" : "warning",
-	    (values[i] < min) ? min : max);
+	    ds->ds[ds_index].name, values[ds_index],
+	    isnan (min) ? "below" : "above",
+	    (state_new == STATE_ERROR) ? "failure" : "warning",
+	    isnan (min) ? max : min);
       }
-      buf += status;
-      bufsize -= status;
-
-      plugin_dispatch_notification (&n);
     }
-  } /* for (i = 0; i < ds->ds_num; i++) */
+    else /* is not inverted */
+    {
+      status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	  "%f. That is %s the %s threshold of %f.",
+	  ds->ds[ds_index].name, values[ds_index],
+	  (values[ds_index] < min) ? "below" : "above",
+	  (state_new == STATE_ERROR) ? "failure" : "warning",
+	  (values[ds_index] < min) ? min : max);
+    }
+    buf += status;
+    bufsize -= status;
+  }
+
+  plugin_dispatch_notification (&n);
 
   sfree (values);
 
