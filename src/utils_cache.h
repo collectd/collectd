@@ -24,9 +24,10 @@
 
 #include "plugin.h"
 
-#define STATE_OKAY    0
-#define STATE_WARNING 1
-#define STATE_ERROR   2
+#define STATE_OKAY     0
+#define STATE_WARNING  1
+#define STATE_ERROR    2
+#define STATE_MISSING 15
 
 int uc_init (void);
 int uc_check_timeout (void);

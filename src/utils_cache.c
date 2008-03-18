@@ -305,22 +305,22 @@ int uc_check_timeout (void)
     {
       DEBUG ("uc_check_timeout: %s is missing, sending notification.",
 	  keys[i]);
-      ce->state = STATE_ERROR;
+      ce->state = STATE_MISSING;
     }
     else if (status == 2) /* do not persist */
     {
-      if (ce->state == STATE_ERROR)
+      if (ce->state == STATE_MISSING)
       {
 	DEBUG ("uc_check_timeout: %s is missing but "
 	    "notification has already been sent.",
 	    keys[i]);
 	sfree (keys[i]);
       }
-      else /* (ce->state != STATE_ERROR) */
+      else /* (ce->state != STATE_MISSING) */
       {
 	DEBUG ("uc_check_timeout: %s is missing, sending one notification.",
 	    keys[i]);
-	ce->state = STATE_ERROR;
+	ce->state = STATE_MISSING;
       }
     }
     else
@@ -389,7 +389,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 
   /* Send a notification (after the lock has been released) if we switch the
    * state from something else to `okay'. */
-  if (ce->state != STATE_OKAY)
+  if (ce->state == STATE_MISSING)
   {
     send_okay_notification = 1;
     ce->state = STATE_OKAY;
@@ -525,11 +525,6 @@ int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int ret = -1;
-
-  if (state < STATE_OKAY)
-    state = STATE_OKAY;
-  if (state > STATE_ERROR)
-    state = STATE_ERROR;
 
   if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
   {
