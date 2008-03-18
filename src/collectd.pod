@@ -99,6 +99,23 @@ the daemon, have manpages of their own to describe their functionality in more
 detail. In particular those are L<collectd-email(5)>, L<collectd-exec(5)>,
 L<collectd-perl(5)>, L<collectd-snmp(5)>, and L<collectd-unixsock(5)>
 
+=head1 SIGNALS
+
+B<collectd> accepts the following signals:
+
+=over 4
+
+=item B<SIGINT>, B<SIGTERM>
+
+These signals cause B<collectd> to shut down all plugins and terminate.
+
+=item B<SIGUSR1>
+
+This signal causes B<collectd> to signal all plugins to flush data from
+internal caches. E.E<nbsp>g. the C<rrdtool plugin> will write all pending data
+to the RRD files. This is the same as using the C<FLUSH -1> command of the
+C<unixsock plugin>.
+
 =head1 SEE ALSO
 
 L<collectd.conf(5)>,
