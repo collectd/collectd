@@ -546,12 +546,15 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 			ERROR ("configfile: Not including `%s/%s' because its"
 					" name is too long.",
 					dir, de->d_name);
-			continue;
+			oconfig_free (root);
+			return (NULL);
 		}
 
 		temp = cf_read_generic (name, depth);
-		if (temp == NULL)
-			continue;
+		if (temp == NULL) {
+			oconfig_free (root);
+			return (NULL);
+		}
 
 		cf_ci_append_children (root, temp);
 		sfree (temp->children);
