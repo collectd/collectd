@@ -617,6 +617,7 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 			ERROR ("configfile: stat (%s) failed: %s",
 					path_ptr,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
+			oconfig_free (root);
 			return (NULL);
 		}
 
