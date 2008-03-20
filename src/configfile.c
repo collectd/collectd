@@ -423,6 +423,9 @@ static int cf_ci_append_children (oconfig_item_t *dst, oconfig_item_t *src)
 {
 	oconfig_item_t *temp;
 
+	if ((src == NULL) || (src->children_num == 0))
+		return (0);
+
 	temp = (oconfig_item_t *) realloc (dst->children,
 			sizeof (oconfig_item_t)
 			* (dst->children_num + src->children_num));
@@ -626,6 +629,11 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 			ERROR ("configfile: %s is neither a file nor a "
 					"directory.", path);
 			continue;
+		}
+
+		if (temp == NULL) {
+			oconfig_free (root);
+			return (NULL);
 		}
 
 		cf_ci_append_children (root, temp);
