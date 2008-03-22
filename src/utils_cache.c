@@ -467,12 +467,6 @@ int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_val
   cache_entry_t *ce = NULL;
   int status = 0;
 
-  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
-  {
-    ERROR ("uc_get_rate: FORMAT_VL failed.");
-    return (NULL);
-  }
-
   pthread_mutex_lock (&cache_lock);
 
   if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
