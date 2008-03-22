@@ -18,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
@@ -423,6 +424,9 @@ static int cf_ci_append_children (oconfig_item_t *dst, oconfig_item_t *src)
 {
 	oconfig_item_t *temp;
 
+	if ((src == NULL) || (src->children_num == 0))
+		return (0);
+
 	temp = (oconfig_item_t *) realloc (dst->children,
 			sizeof (oconfig_item_t)
 			* (dst->children_num + src->children_num));
@@ -502,13 +506,20 @@ static oconfig_item_t *cf_read_file (const char *file, int depth)
 	return (root);
 } /* oconfig_item_t *cf_read_file */
 
+static int cf_compare_string (const void *p1, const void *p2)
+{
+	return strcmp (*(const char **) p1, *(const char **) p2);
+}
+
 static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 {
 	oconfig_item_t *root = NULL;
 	DIR *dh;
 	struct dirent *de;
-	char name[1024];
+	char **filenames = NULL;
+	int filenames_num = 0;
 	int status;
+	int i;
 
 	assert (depth < CF_MAX_DEPTH);
 
@@ -531,7 +542,8 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 
 	while ((de = readdir (dh)) != NULL)
 	{
-		oconfig_item_t *temp;
+		char   name[1024];
+		char **tmp;
 
 		if ((de->d_name[0] == '.') || (de->d_name[0] == '\0'))
 			continue;
@@ -543,18 +555,55 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 			ERROR ("configfile: Not including `%s/%s' because its"
 					" name is too long.",
 					dir, de->d_name);
-			continue;
+			for (i = 0; i < filenames_num; ++i)
+				free (filenames[i]);
+			free (filenames);
+			free (root);
+			return (NULL);
 		}
 
+		++filenames_num;
+		tmp = (char **) realloc (filenames,
+				filenames_num * sizeof (*filenames));
+		if (tmp == NULL) {
+			ERROR ("configfile: realloc failed.");
+			for (i = 0; i < filenames_num - 1; ++i)
+				free (filenames[i]);
+			free (filenames);
+			free (root);
+			return (NULL);
+		}
+		filenames = tmp;
+
+		filenames[filenames_num - 1] = sstrdup (name);
+	}
+
+	qsort ((void *) filenames, filenames_num, sizeof (*filenames),
+			cf_compare_string);
+
+	for (i = 0; i < filenames_num; ++i)
+	{
+		oconfig_item_t *temp;
+		char *name = filenames[i];
+
 		temp = cf_read_generic (name, depth);
-		if (temp == NULL)
-			continue;
+		if (temp == NULL) {
+			int j;
+			for (j = i; j < filenames_num; ++j)
+				free (filenames[j]);
+			free (filenames);
+			oconfig_free (root);
+			return (NULL);
+		}
 
 		cf_ci_append_children (root, temp);
 		sfree (temp->children);
 		sfree (temp);
+
+		free (name);
 	}
 
+	free(filenames);
 	return (root);
 } /* oconfig_item_t *cf_read_dir */
 
@@ -600,6 +649,11 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 	}
 	memset (root, '\0', sizeof (oconfig_item_t));
 
+	/* wordexp() might return a sorted list already. That's not
+	 * documented though, so let's make sure we get what we want. */
+	qsort ((void *) we.we_wordv, we.we_wordc, sizeof (*we.we_wordv),
+			cf_compare_string);
+
 	for (i = 0; i < we.we_wordc; i++)
 	{
 		oconfig_item_t *temp;
@@ -614,6 +668,7 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 			ERROR ("configfile: stat (%s) failed: %s",
 					path_ptr,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
+			oconfig_free (root);
 			return (NULL);
 		}
 
@@ -626,6 +681,11 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 			ERROR ("configfile: %s is neither a file nor a "
 					"directory.", path);
 			continue;
+		}
+
+		if (temp == NULL) {
+			oconfig_free (root);
+			return (NULL);
 		}
 
 		cf_ci_append_children (root, temp);

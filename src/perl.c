@@ -1478,6 +1478,11 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 		return 1;
 	}
 
+	if (NULL != perl_threads) {
+		log_warn ("EnableDebugger has no effects if used after LoadPlugin.");
+		return 1;
+	}
+
 	value = ci->values[0].value.string;
 
 	perl_argv = (char **)realloc (perl_argv,
@@ -1511,11 +1516,6 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
 		log_err ("IncludeDir expects a single string argument.");
-		return 1;
-	}
-
-	if (NULL == aTHX) {
-		log_warn ("EnableDebugger has no effects if used after LoadPlugin.");
 		return 1;
 	}
 

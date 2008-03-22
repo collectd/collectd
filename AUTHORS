@@ -4,18 +4,17 @@ This package was written by:
 apcups plugin by:
   Anthony Gialluca <tonyabg at charter.net>
 
-cpufreq, multimeter and irq module by:
+cpufreq, multimeter and irq plugin by:
   Peter Holik <peter at holik.at>
 
-hddtemp module by:
+hddtemp plugin by:
   Vincent Stehlé <vincent.stehle at free.fr>
 
-iptables module by:
+iptables plugin by:
   Sjoerd van der Berg <harekiet at gmail.com>
 
-libvirt and uuid plugins by:
-  Richard Jones <rjones at redhat.com>
-  of Red Hat's Emerging Technology group
+libvirt plugin by:
+  Richard W. M. Jones <rjones at redhat.com>
 
 mbmon plugin by:
   Flavio Stanchina <flavio at stanchina.net>
@@ -23,37 +22,41 @@ mbmon plugin by:
 memcached plugin by:
   Antony Dovgal <tony at daylessday.org>
 
-nfs module by:
+nfs plugin by:
   Jason Pepas <cell at ices.utexas.edu>
 
-perl module by:
+perl plugin by:
   Sebastian Harl <sh at tokkee.org>
 
-processes module by:
+processes plugin by:
   Lyonel Vincent <lyonel at ezix.org>
 
 sensors plugin has been improved by:
   Luboš Staněk <kolektor at atlas.cz>
 
-serial module by:
+serial plugin by:
   David Bacher <drbacher at gmail.com>
 
-tape module by:
+tape plugin by:
   Scott Garrett <sgarrett at technomancer.com>
 
-users module by:
+users plugin by:
   Sebastian Harl <sh at tokkee.org>
 
-vserver module by:
+uuid plugin by:
+  Dan Berrange <berrange@redhat.com>
+  Richard W.M. Jones <rjones@redhat.com>
+
+vserver plugin by:
   Sebastian Harl <sh at tokkee.org>
 
 PID-file patch by:
   Tommie Gannert <d00-tga at d.kth.se>
 
-don't-fork-patch by:
+Don't-fork-patch by:
   Alvaro Barcellos <alvaro.barcellos at gmail.com>
 
-many autotools related fixes, libltdl code, getmnt-wizardry and much help has
+Many autotools related fixes, libltdl code, getmnt-wizardry and much help has
 contributed:
   Niki W. Waibel <niki.waibel at newlogic.com>
 
@@ -63,13 +66,6 @@ The `log' mode has been written by:
 Much time and effort to find a nasty bug in the ntpd-plugin has been
 contributed by:
   Luboš Staněk <lubek at users.sourceforge.net>
-
-uuid module by:
-  Dan Berrange <berrange@redhat.com>
-  Richard W.M. Jones <rjones@redhat.com>
-
-Libvirt integration by:
-  Richard Jones <rjones@redhat.com>
 
 collectd is available at:
   <http://collectd.org/>

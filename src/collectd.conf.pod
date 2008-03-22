@@ -63,6 +63,11 @@ use statements like the following:
 
   Include "/etc/collectd.d/*.conf"
 
+If more than one files are included by a single B<Include> option, the files
+will be included in lexicographical order (as defined by the C<strcmp>
+function). Thus, you can e.E<nbsp>g. use numbered prefixes to specify the
+order in which the files are loaded.
+
 To prevent loops and shooting yourself in the foot in interesting ways the
 nesting is limited to a depth of 8E<nbsp>levels, which should be sufficient for
 most uses. Since symlinks are followed it is still possible to crash the daemon

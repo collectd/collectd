@@ -1,3 +1,14 @@
+2008-03-05, Version 4.3.1
+	* exec plugin: Set supplementary group IDs.
+	* network plugin:
+	  + Use `memcpy' when constructing/parsing a package to avoid
+	    alignment problems on weird architectures, such as Sparc.
+	  + Translate doubles to/from the x86 byte representation to ensure
+	    cross-platform compatibility.
+	* ping plugin: Correct the handling of the `TTL' setting.
+	* swap plugin: Reapply a patch for Solaris.
+	* tcpconns plugin: Portability improvements.
+
 2008-02-18, Version 4.3.0
 	* collectd: Notifications have been added to the daemon. Notifications
 	  are status messages that may be associated with a data instance.
@@ -38,6 +49,23 @@
 	  CPU, disk and network statistics about guest systems on the same
 	  physical server. Thanks to Richard Jones from Red Hat's Emerging
 	  Technology group for this plugin.
+
+2008-03-04, Version 4.2.5
+	* apache plugin: Improved initialization and error messages.
+	* exec plugin: Set supplementary group IDs.
+	* network plugin:
+	  + Create separate threads for reading from the socket and parsing
+	    and dispatching incoming packets. Versions prior to this may have
+	    problems in high-load situations, where the socket receive buffers
+	    overflows, resulting in gaps in the data.
+	  + Use `memcpy' when constructing/parsing a package to avoid
+	    alignment problems on weird architectures, such as Sparc.
+	  + Translate doubles to/from the x86 byte representation to ensure
+	    cross-platform compatibility.
+	* ping plugin: Correct the handling of the `TTL' setting.
+	* rrdtool plugin: Ensure correct handling of the `RRATimespan' option.
+	* swap plugin: Reapply a patch for Solaris.
+	* tcpconns plugin: Portability improvements.
 
 2008-01-21, Version 4.2.4
 	* unixsock plugin: A bug in the unixsock plugin caused it not to set
@@ -96,7 +124,7 @@
 	* collectd: The documentation has been improved.
 
 2007-12-27, Version 4.1.5
-	* rrdtool plugin: Fix a memory leak that only occured in very-low-
+	* rrdtool plugin: Fix a memory leak that only occurred in very-low-
 	  memory situations.
 	* sensors plugin: Updated the plugin to build and work with version 3
 	  of the libsensors library.

@@ -236,6 +236,7 @@ static void *plugin_read_thread (void *args)
 	pthread_mutex_unlock (&read_lock);
 
 	pthread_exit (NULL);
+	return ((void *) 0);
 } /* void *plugin_read_thread */
 
 static void start_threads (int num)
