@@ -1,5 +1,5 @@
 Summary:	Statistics collection daemon for filling RRD files.
-Name:           collectd
+Name:		collectd
 Version:	4.3.1
 Release:	0.centos5
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
@@ -8,59 +8,59 @@ Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildPrereq:	lm_sensors-devel, mysql-devel, rrdtool-devel, curl-devel, libpcap-devel, net-snmp-devel, libstatgrab-devel, mysql-devel, libxml2-devel, libiptcdata-devel
 Requires:	rrdtool, perl-Regexp-Common, libstatgrab
-Packager:	Florian octo Forster <octo@verplant.org>
-Vendor:		Florian octo Forster <octo@verplant.org>
+Packager:	RightScale <support@rightscale.com>
+Vendor:		collectd development team <collectd@verplant.org>
 
 %description
-collectd is a small daemon written in C for performance.  It reads various
-system  statistics  and updates  RRD files,  creating  them if neccessary.
-Since the daemon doesn't need to startup every time it wants to update the
-files it's very fast and easy on the system. Also, the statistics are very
-fine grained since the files are updated every 10 seconds.
+collectd is a small daemon which collects system information periodically and
+provides mechanisms to monitor and store the values in a variety of ways. It
+is written in C for performance. Since the daemon doesn't need to startup
+every time it wants to update the values it's very fast and easy on the
+system. Also, the statistics are very fine grained since the files are updated
+every 10 seconds.
 
 %package apache
 Summary:	apache-plugin for collectd.
 Group:		System Environment/Daemons
 Requires:	collectd = %{version}, curl
 %description apache
-This plugin collectd data provided by Apache's `mod_status'.
+This plugin collects data provided by Apache's `mod_status'.
 
 %package email
 Summary:	email-plugin for collectd.
 Group:		System Environment/Daemons
 Requires:	collectd = %{version}, spamassassin
 %description email
-This plugin collectd data provided by spamassassin.
+This plugin collects data provided by spamassassin.
 
 %package mysql
 Summary:	mysql-module for collectd.
 Group:		System Environment/Daemons
 Requires:	collectd = %{version}, mysql
 %description mysql
-MySQL  querying  plugin.  This plugins  provides data of  issued commands,
-called handlers and database traffic.
+MySQL querying plugin. This plugins provides data of issued commands, called
+handlers and database traffic.
 
 %package nginx
 Summary:	nginx-plugin for collectd.
 Group:		System Environment/Daemons
 Requires:	collectd = %{version}, curl
 %description nginx
-This plugin gets data provided by nginx .
+This plugin gets data provided by nginx.
 
 %package sensors
 Summary:	libsensors-module for collectd.
 Group:		System Environment/Daemons
 Requires:	collectd = %{version}, lm_sensors
 %description sensors
-This  plugin  for  collectd  provides  querying  of sensors  supported  by
-lm_sensors.
+This plugin for collectd provides querying of sensors supported by lm_sensors.
 
 %package snmp
 Summary:	snmp-module for collectd.
 Group:		System Environment/Daemons
 Requires:	collectd = %{version}, net-snmp
 %description snmp
-This  plugin  for  collectd  provides  querying  of net-snmp
+This plugin for collectd allows querying of network equipment using SNMP.
 
 %prep
 rm -rf $RPM_BUILD_ROOT
