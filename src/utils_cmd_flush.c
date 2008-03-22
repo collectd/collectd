@@ -118,7 +118,7 @@ int handle_flush (FILE *fh, char **fields, int fields_num)
 	else
 	{
 		plugin_flush_all (fi.timeout);
-		fprintf (fh, "0 Done");
+		fprintf (fh, "0 Done\n");
 	}
 	fflush (fh);
 
