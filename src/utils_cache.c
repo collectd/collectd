@@ -533,48 +533,66 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   return (ret);
 } /* gauge_t *uc_get_rate */
 
-int uc_get_names (char ***ret_names, size_t *ret_names_num)
+int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number)
 {
   c_avl_iterator_t *iter;
   char *key;
-  void *value;
+  cache_entry_t *value;
 
   char **names = NULL;
-  size_t names_num = 0;
+  time_t *times = NULL;
+  size_t number = 0;
 
   int status = 0;
+
+  if ((ret_names == NULL) || (ret_number == NULL))
+    return (-1);
 
   pthread_mutex_lock (&cache_lock);
 
   iter = c_avl_get_iterator (cache_tree);
-  while (c_avl_iterator_next (iter, (void *) &key, &value) == 0)
+  while (c_avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
   {
     char **temp;
 
-    temp = (char **) realloc (names, sizeof (char *) * (names_num + 1));
+    if (ret_times != NULL)
+    {
+      time_t *tmp_times;
+
+      tmp_times = (time_t *) realloc (times, sizeof (time_t) * (number + 1));
+      if (tmp_times == NULL)
+      {
+	status = -1;
+	break;
+      }
+      times = tmp_times;
+      times[number] = value->last_time;
+    }
+
+    temp = (char **) realloc (names, sizeof (char *) * (number + 1));
     if (temp == NULL)
     {
       status = -1;
       break;
     }
     names = temp;
-    names[names_num] = strdup (key);
-    if (names[names_num] == NULL)
+    names[number] = strdup (key);
+    if (names[number] == NULL)
     {
       status = -1;
       break;
     }
-    names_num++;
-  }
+    number++;
+  } /* while (c_avl_iterator_next) */
 
   c_avl_iterator_destroy (iter);
   pthread_mutex_unlock (&cache_lock);
 
   if (status != 0)
   {
-    int i;
+    size_t i;
     
-    for (i = 0; i < names_num; i++)
+    for (i = 0; i < number; i++)
     {
       sfree (names[i]);
     }
@@ -584,7 +602,9 @@ int uc_get_names (char ***ret_names, size_t *ret_names_num)
   }
 
   *ret_names = names;
-  *ret_names_num = names_num;
+  if (ret_times != NULL)
+    *ret_times = times;
+  *ret_number = number;
 
   return (0);
 } /* int uc_get_names */
