@@ -68,6 +68,10 @@ prints a bash-script to STDOUT which should do most of the work for you. You
 may still need to do some things by hand, read `README.migration' for more
 details.
 
+redhat/
+-------
+  Spec-file and affiliated files to build an RedHat RPM package of collectd.
+
 snmp-data.conf
 --------------
   Sample configuration for the SNMP plugin. This config includes a few standard

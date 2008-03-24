@@ -1042,8 +1042,6 @@ AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
 AC_DEFINE_UNQUOTED(COLLECT_LIBIOKIT, [$collect_libiokit], [Wether or not to use the IOKit library])
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
-with_libstatgrab="yes"
-with_libdevstat="no"
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
 [
 	if test "x$withval" != "xno" -a "x$withval" != "xyes"
