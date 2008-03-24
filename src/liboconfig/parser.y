@@ -65,6 +65,9 @@ extern char           *c_file;
 %type <sl> statement_list
 %type <ci> entire_file
 
+/* pass an verbose, specific error message to yyerror() */
+%error-verbose
+
 %%
 string:
 	QUOTED_STRING		{$$ = unquote ($1);}
