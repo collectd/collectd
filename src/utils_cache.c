@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_cache.c
- * Copyright (C) 2007  Florian octo Forster
+ * Copyright (C) 2007,2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -532,6 +532,62 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
 
   return (ret);
 } /* gauge_t *uc_get_rate */
+
+int uc_get_names (char ***ret_names, size_t *ret_names_num)
+{
+  c_avl_iterator_t *iter;
+  char *key;
+  void *value;
+
+  char **names = NULL;
+  size_t names_num = 0;
+
+  int status = 0;
+
+  pthread_mutex_lock (&cache_lock);
+
+  iter = c_avl_get_iterator (cache_tree);
+  while (c_avl_iterator_next (iter, (void *) &key, &value) == 0)
+  {
+    char **temp;
+
+    temp = (char **) realloc (names, sizeof (char *) * (names_num + 1));
+    if (temp == NULL)
+    {
+      status = -1;
+      break;
+    }
+    names = temp;
+    names[names_num] = strdup (key);
+    if (names[names_num] == NULL)
+    {
+      status = -1;
+      break;
+    }
+    names_num++;
+  }
+
+  c_avl_iterator_destroy (iter);
+  pthread_mutex_unlock (&cache_lock);
+
+  if (status != 0)
+  {
+    int i;
+    
+    for (i = 0; i < names_num; i++)
+    {
+      sfree (names[i]);
+    }
+    sfree (names);
+
+    return (-1);
+  }
+
+  *ret_names = names;
+  *ret_names_num = names_num;
+
+  return (0);
+} /* int uc_get_names */
 
 int uc_get_state (const data_set_t *ds, const value_list_t *vl)
 {
