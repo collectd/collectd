@@ -58,7 +58,10 @@ command for the values that have changed.
 
 The first line's status number is the number of identifiers returned or less
 than zero if an error occurred. Each of the following lines contains the
-update time as an epoch value and the identifier, separated by a space.
+update time as an epoch value and the identifier, separated by a space. The
+update time is the time of the last value, as provided by the collecting
+instance and may be very different from the time the server consideres to be
+"now".
 
 Example:
   -> | LISTVAL
