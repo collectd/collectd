@@ -36,7 +36,7 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 	char *value_str = strchr (time_str, ':');
 	if (value_str == NULL)
 	{
-		fprintf (fh, "-1 No time found.");
+		fprintf (fh, "-1 No time found.\n");
 		return (-1);
 	}
 	*value_str = '\0'; value_str++;
@@ -153,7 +153,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 			|| ((type_instance != NULL)
 				&& (strlen (type_instance) >= sizeof (vl.type_instance))))
 	{
-		fprintf (fh, "-1 Identifier too long.");
+		fprintf (fh, "-1 Identifier too long.\n");
 		return (-1);
 	}
 
@@ -172,7 +172,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	vl.values = (value_t *) malloc (vl.values_len * sizeof (value_t));
 	if (vl.values == NULL)
 	{
-		fprintf (fh, "-1 malloc failed.");
+		fprintf (fh, "-1 malloc failed.\n");
 		return (-1);
 	}
 
@@ -191,7 +191,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 		{
 			if (parse_option (&vl, fields[i]) != 0)
 			{
-				fprintf (fh, "-1 Error parsing option `%s'",
+				fprintf (fh, "-1 Error parsing option `%s'\n",
 						fields[i]);
 				break;
 			}

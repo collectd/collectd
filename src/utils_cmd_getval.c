@@ -52,7 +52,7 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
 
   if (strlen (fields[1]) < strlen ("h/p/t"))
   {
-    fprintf (fh, "-1 Invalied identifier, %s", fields[1]);
+    fprintf (fh, "-1 Invalied identifier, %s\n", fields[1]);
     fflush (fh);
     return (-1);
   }
@@ -82,7 +82,7 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
   status = uc_get_rate_by_name (fields[1], &values, &values_num);
   if (status != 0)
   {
-    fprintf (fh, "-1 No such value");
+    fprintf (fh, "-1 No such value\n");
     fflush (fh);
     return (-1);
   }
