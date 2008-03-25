@@ -57,9 +57,10 @@ use Collectd::Unixsock();
 	my $sock = Collectd::Unixsock->new($path);
 
 	my $cmds = {
-		PUTVAL => \&putval,
-		GETVAL => \&getval,
-		FLUSH  => \&flush,
+		PUTVAL  => \&putval,
+		GETVAL  => \&getval,
+		FLUSH   => \&flush,
+		LISTVAL => \&listval,
 	};
 
 	if (! $sock) {
@@ -67,7 +68,7 @@ use Collectd::Unixsock();
 		exit 1;
 	}
 
-	print "cussh version 0.2, Copyright (C) 2007 Sebastian Harl\n"
+	print "cussh version 0.2, Copyright (C) 2007-2008 Sebastian Harl\n"
 		. "cussh comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
 		. "and you are welcome to redistribute it under certain conditions.\n"
 		. "See the GNU General Public License 2 for more details.\n\n";
@@ -76,7 +77,11 @@ use Collectd::Unixsock();
 		print "cussh> ";
 		my $line = <STDIN>;
 
-		last if ((! $line) || ($line =~ m/^quit$/i));
+		last if (! $line);
+
+		chomp $line;
+
+		last if ($line =~ m/^quit$/i);
 
 		my ($cmd) = $line =~ m/^(\w+)\s+/;
 		$line = $';
@@ -122,16 +127,30 @@ sub getid {
 	return \%id;
 }
 
+sub putid {
+	my $ident = shift || return;
+
+	my $string;
+
+	$string = $ident->{'host'} . "/" . $ident->{'plugin'};
+
+	if (defined $ident->{'plugin_instance'}) {
+		$string .= "-" . $ident->{'plugin_instance'};
+	}
+
+	$string .= "/" . $ident->{'type'};
+
+	if (defined $ident->{'type_instance'}) {
+		$string .= "-" . $ident->{'type_instance'};
+	}
+	return $string;
+}
+
 =head1 COMMANDS
 
 =over 4
 
 =item B<GETVAL> I<Identifier>
-
-=item B<PUTVAL> I<Identifier> I<Valuelist>
-
-These commands follow the exact same syntax as described in
-L<collectd-unixsock(5)>.
 
 =cut
 
@@ -147,8 +166,12 @@ sub putval {
 	}
 
 	my ($time, @values) = split m/:/, $line;
-	return $sock->putval(%$id, $time, \@values);
+	return $sock->putval(%$id, time => $time, values => \@values);
 }
+
+=item B<PUTVAL> I<Identifier> I<Valuelist>
+
+=cut
 
 sub getval {
 	my $sock = shift || return;
@@ -163,13 +186,20 @@ sub getval {
 
 	my $vals = $sock->getval(%$id);
 
-	return if (! $vals);
+	if (! $vals) {
+		print STDERR $sock->{'error'} . $/;
+		return;
+	}
 
 	foreach my $key (keys %$vals) {
 		print "\t$key: $vals->{$key}\n";
 	}
 	return 1;
 }
+
+=item B<FLUSH> [B<timeout>=I<$timeout>] [B<plugin>=I<$plugin>[ ...]]
+
+=cut
 
 sub flush {
 	my $sock = shift || return;
@@ -208,6 +238,33 @@ sub flush {
 	}
 	return 1;
 }
+
+=item B<LISTVAL>
+
+=cut
+
+sub listval {
+	my $sock = shift || return;
+
+	my @res;
+
+	@res = $sock->listval();
+
+	if (! @res) {
+		print STDERR $sock->{'error'} . $/;
+		return;
+	}
+
+	foreach my $ident (@res) {
+		print $ident->{'time'} . " " . putid($ident) . $/;
+	}
+	return 1;
+}
+
+=back
+
+These commands follow the exact same syntax as described in
+L<collectd-unixsock(5)>.
 
 =head1 SEE ALSO
 
