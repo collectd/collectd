@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # collectd - contrib/cussh.pl
-# Copyright (C) 2007  Sebastian Harl
+# Copyright (C) 2007-2008  Sebastian Harl
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -83,7 +83,7 @@ use Collectd::Unixsock();
 
 		last if ($line =~ m/^quit$/i);
 
-		my ($cmd) = $line =~ m/^(\w+)\s+/;
+		my ($cmd) = $line =~ m/^(\w+)\s*/;
 		$line = $';
 
 		next if (! $cmd);
@@ -113,7 +113,7 @@ sub getid {
 
 	print $$string . $/;
 	my ($h, $p, $pi, $t, $ti) =
-		$$string =~ m/^(\w+)\/(\w+)(?:-(\w+))?\/(\w+)(?:-(\w+))?\s+/;
+		$$string =~ m/^(\w+)\/(\w+)(?:-(\w+))?\/(\w+)(?:-(\w+))?\s*/;
 	$$string = $';
 
 	return if ((! $h) || (! $p) || (! $t));
