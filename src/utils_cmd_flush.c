@@ -25,108 +25,63 @@
 #include "common.h"
 #include "plugin.h"
 
-struct flush_info_s
-{
-	char **plugins;
-	int plugins_num;
-	int timeout;
-};
-typedef struct flush_info_s flush_info_t;
-
-static int parse_option_plugin (flush_info_t *fi, const char *option)
-{
-	char **temp;
-
-	temp = (char **) realloc (fi->plugins,
-			(fi->plugins_num + 1) * sizeof (char *));
-	if (temp == NULL)
-	{
-		ERROR ("utils_cmd_flush: parse_option_plugin: realloc failed.");
-		return (-1);
-	}
-	fi->plugins = temp;
-
-	fi->plugins[fi->plugins_num] = strdup (option + strlen ("plugin="));
-	if (fi->plugins[fi->plugins_num] == NULL)
-	{
-		/* fi->plugins is freed in handle_flush in this case */
-		ERROR ("utils_cmd_flush: parse_option_plugin: strdup failed.");
-		return (-1);
-	}
-	fi->plugins_num++;
-
-	return (0);
-} /* int parse_option_plugin */
-
-static int parse_option_timeout (flush_info_t *fi, const char *option)
-{
-	const char *value_ptr = option + strlen ("timeout=");
-	char *endptr = NULL;
-	int timeout;
-
-	timeout = strtol (value_ptr, &endptr, 0);
-	if (value_ptr == endptr)
-		return (-1);
-
-	fi->timeout = (timeout <= 0) ? (-1) : timeout;
-
-	return (0);
-} /* int parse_option_timeout */
-
-static int parse_option (flush_info_t *fi, const char *option)
-{
-	if (strncasecmp ("plugin=", option, strlen ("plugin=")) == 0)
-		return (parse_option_plugin (fi, option));
-	else if (strncasecmp ("timeout=", option, strlen ("timeout=")) == 0)
-		return (parse_option_timeout (fi, option));
-	else
-		return (-1);
-} /* int parse_option */
-
 int handle_flush (FILE *fh, char **fields, int fields_num)
 {
-	flush_info_t fi;
-	int status;
-	int i;
+	int success = 0;
+	int error   = 0;
 
-	memset (&fi, '\0', sizeof (fi));
-	fi.timeout = -1;
+	int timeout = -1;
+
+	int i;
 
 	for (i = 1; i < fields_num; i++)
 	{
-		status = parse_option (&fi, fields[i]);
+		char *option = fields[i];
+		int   status = 0;
+
+		if (strncasecmp ("plugin=", option, strlen ("plugin=")) == 0)
+		{
+			char *plugin = option + strlen ("plugin=");
+
+			if (0 == plugin_flush_one (timeout, plugin))
+				++success;
+			else
+				++error;
+		}
+		else if (strncasecmp ("timeout=", option, strlen ("timeout=")) == 0)
+		{
+			char *endptr = NULL;
+			char *value  = option + strlen ("timeout=");
+
+			errno = 0;
+			timeout = strtol (value, &endptr, 0);
+
+			if ((endptr == value) || (0 != errno))
+				status = -1;
+			else if (0 >= timeout)
+				timeout = -1;
+		}
+		else
+			status = -1;
+
 		if (status != 0)
 		{
-			fprintf (fh, "-1 Cannot parse option %s\n", fields[i]);
+			fprintf (fh, "-1 Cannot parse option %s\n", option);
 			fflush (fh);
 			return (-1);
 		}
 	}
 
-	if (fi.plugins_num > 0)
+	if ((success + error) > 0)
 	{
-		int success = 0;
-		for (i = 0; i < fi.plugins_num; i++)
-		{
-			status = plugin_flush_one (fi.timeout, fi.plugins[i]);
-			if (status == 0)
-				success++;
-		}
-		fprintf (fh, "0 Done: %i successful, %i errors\n",
-				success, fi.plugins_num - success);
+		fprintf (fh, "0 Done: %i successful, %i errors\n", success, error);
 	}
 	else
 	{
-		plugin_flush_all (fi.timeout);
+		plugin_flush_all (timeout);
 		fprintf (fh, "0 Done\n");
 	}
 	fflush (fh);
-
-	for (i = 0; i < fi.plugins_num; i++)
-	{
-		sfree (fi.plugins[i]);
-	}
-	sfree (fi.plugins);
 
 	return (0);
 } /* int handle_flush */

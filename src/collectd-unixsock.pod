@@ -180,7 +180,9 @@ Example:
 =item B<FLUSH> [B<timeout=>I<Timeout>] [B<plugin=>I<Plugin> [...]]
 
 Flushes all cached data older than I<Timeout> seconds. If no timeout has been
-specified, it defaults to -1 which causes all data to be flushed.
+specified, it defaults to -1 which causes all data to be flushed. B<timeout>
+may be specified multiple times - each occurrence applies to plugins listed
+afterwards.
 
 If specified, only specific plugins are flushed. Otherwise all plugins
 providing a flush callback are flushed.
