@@ -83,12 +83,12 @@ plugin within collectd. I<type> identifies the type and number of values
 (i.E<nbsp>e. data-set) passed to collectd. A large list of predefined
 data-sets is available in the B<types.db> file.
 
-The I<OptionList> is an optional list of I<Options>, where each option if a
+The I<OptionList> is an optional list of I<Options>, where each option is a
 key-value-pair. A list of currently understood options can be found below, all
 other options will be ignored.
 
 I<Valuelist> is a colon-separated list of the time and the values, each either
-an integer if the data-source is a counter, of a double if the data-source if
+an integer if the data-source is a counter, or a double if the data-source is
 of type "gauge". You can submit an undefined gauge-value by using B<U>. When
 submitting B<U> to a counter the behavior is undefined. The time is given as
 epoch (i.E<nbsp>e. standard UNIX time).
@@ -207,10 +207,12 @@ value on failure and never return zero.
 
 =head1 ABSTRACTION LAYER
 
-Shipped with the sourcecode comes the Perl-Module L<Collectd::Unixsock> which
+B<collectd> ships the Perl-Module L<Collectd::Unixsock> which
 provides an abstraction layer over the actual socket connection. It can be
-found in the directory F<contrib/PerlLib>. If you want to use Perl to
-communicate with the daemon, you're encouraged to use and expand this module.
+found in the directory F<bindings/perl/> in the source distribution or
+(usually) somewhere near F</usr/share/perl5/> if you're using a package. If
+you want to use Perl to communicate with the daemon, you're encouraged to use
+and expand this module.
 
 =head1 SEE ALSO
 
