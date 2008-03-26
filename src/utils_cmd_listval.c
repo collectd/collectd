@@ -53,7 +53,7 @@ int handle_listval (FILE *fh, char **fields, int fields_num)
     return (-1);
   }
 
-  fprintf (fh, "%i Values found\n", (int) number);
+  fprintf (fh, "%i Value%s found\n", (int) number, (number == 1) ? "" : "s");
   for (i = 0; i < number; i++)
     fprintf (fh, "%u %s\n", (unsigned int) times[i], names[i]);
   fflush (fh);

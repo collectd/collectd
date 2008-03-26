@@ -29,6 +29,18 @@ Upon start the C<unixsock plugin> opens a UNIX-socket and waits for
 connections. Once a connection is established the client can send commands to
 the daemon which it will answer, if it understand them.
 
+In general the plugin answers with a status line of the following form:
+
+I<Status> I<Message>
+
+If I<Status> is greater than or equal to zero the message indicates success,
+if I<Status> is less than zero the message indicates failure. I<Message> is a
+human-readable string that further describes the return value.
+
+On success, I<Status> furthermore indicates the number of subsequent lines of
+output (not including the status line). Each such lines usually contains a
+single return value. See the description of each command for details.
+
 The following commands are implemented:
 
 =over 4
@@ -36,40 +48,34 @@ The following commands are implemented:
 =item B<GETVAL> I<Identifier>
 
 If the value identified by I<Identifier> (see below) is found the complete
-value-list is returned. The response is a space separated list of
-name-value-pairs:
-
-I<num> I<name>B<=>I<value>[ I<name>B<=>I<value>[ ...]]
-
-If I<num> is less then zero, an error occurred. Otherwise it contains the
-number of values that follow. Each value is of the form I<name>B<=>I<value>.
+value-list is returned. The response is a list of name-value-pairs, each pair
+on its own line (the number of lines is indicated by the status line - see
+above). Each name-value-pair is of the form I<name>B<=>I<value>.
 Counter-values are converted to a rate, e.E<nbsp>g. bytes per second.
 Undefined values are returned as B<NaN>.
 
 Example:
   -> | GETVAL myhost/cpu-0/cpu-user
-  <- | 1 value=1.260000e+00
+  <- | 1 Value found
+  <- | value=1.260000e+00
 
 =item B<LISTVAL>
 
 Returns a list of the values available in the value cache together with the
 time of the last update, so that querying applications can issue a B<GETVAL>
-command for the values that have changed.
-
-The first line's status number is the number of identifiers returned or less
-than zero if an error occurred. Each of the following lines contains the
+command for the values that have changed. Each return value consists of the
 update time as an epoch value and the identifier, separated by a space. The
 update time is the time of the last value, as provided by the collecting
-instance and may be very different from the time the server consideres to be
+instance and may be very different from the time the server considers to be
 "now".
 
 Example:
   -> | LISTVAL
   <- | 69 Values found
-  <- | 1182204284 leeloo/cpu-0/cpu-idle
-  <- | 1182204284 leeloo/cpu-0/cpu-nice
-  <- | 1182204284 leeloo/cpu-0/cpu-system
-  <- | 1182204284 leeloo/cpu-0/cpu-user
+  <- | 1182204284 myhost/cpu-0/cpu-idle
+  <- | 1182204284 myhost/cpu-0/cpu-nice
+  <- | 1182204284 myhost/cpu-0/cpu-system
+  <- | 1182204284 myhost/cpu-0/cpu-user
   ...
 
 =item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
@@ -207,20 +213,6 @@ some examples:
   myhost/load/load
   myhost/memory/memory-used
   myhost/disk-sda/disk_octets
-
-=head2 Return values
-
-Unless otherwise noted the plugin answers with a line of the following form:
-
-I<Num> I<Message>
-
-If I<Num> is zero the message indicates success, if I<Num> is non-zero the
-message indicates failure. I<Message> is a human-readable string that describes
-the return value further.
-
-Commands that return values may use I<Num> to return the number of values that
-follow, such as the B<GETVAL> command. These commands usually return a negative
-value on failure and never return zero.
 
 =head1 ABSTRACTION LAYER
 

@@ -98,17 +98,16 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
     return (-1);
   }
 
-  fprintf (fh, "%u", (unsigned int) values_num);
+  fprintf (fh, "%u Value%s found\n", (unsigned int) values_num,
+      (values_num == 1) ? "" : "s");
   for (i = 0; i < values_num; i++)
   {
-    fprintf (fh, " %s=", ds->ds[i].name);
+    fprintf (fh, "%s=", ds->ds[i].name);
     if (isnan (values[i]))
-      fprintf (fh, "NaN");
+      fprintf (fh, "NaN\n");
     else
-      fprintf (fh, "%12e", values[i]);
+      fprintf (fh, "%12e\n", values[i]);
   }
-
-  fprintf (fh, "\n");
   fflush (fh);
 
   sfree (values);
