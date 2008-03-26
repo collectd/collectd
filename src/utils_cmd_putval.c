@@ -121,6 +121,8 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	int   status;
 	int   i;
 
+	char *identifier_copy;
+
 	const data_set_t *ds;
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -135,7 +137,11 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 		return (-1);
 	}
 
-	status = parse_identifier (fields[1], &hostname,
+	/* parse_identifier() modifies its first argument,
+	 * returning pointers into it */
+	identifier_copy = sstrdup (fields[1]);
+
+	status = parse_identifier (identifier_copy, &hostname,
 			&plugin, &plugin_instance,
 			&type, &type_instance);
 	if (status != 0)
@@ -143,6 +149,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 		DEBUG ("cmd putval: Cannot parse `%s'", fields[1]);
 		fprintf (fh, "-1 Cannot parse identifier.\n");
 		fflush (fh);
+		sfree (identifier_copy);
 		return (-1);
 	}
 
@@ -154,6 +161,8 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 				&& (strlen (type_instance) >= sizeof (vl.type_instance))))
 	{
 		fprintf (fh, "-1 Identifier too long.\n");
+		fflush (fh);
+		sfree (identifier_copy);
 		return (-1);
 	}
 
@@ -165,14 +174,18 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 		strcpy (vl.type_instance, type_instance);
 
 	ds = plugin_get_ds (type);
-	if (ds == NULL)
+	if (ds == NULL) {
+		sfree (identifier_copy);
 		return (-1);
+	}
 
 	vl.values_len = ds->ds_num;
 	vl.values = (value_t *) malloc (vl.values_len * sizeof (value_t));
 	if (vl.values == NULL)
 	{
 		fprintf (fh, "-1 malloc failed.\n");
+		fflush (fh);
+		sfree (identifier_copy);
 		return (-1);
 	}
 
@@ -211,6 +224,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	fflush (fh);
 
 	sfree (vl.values); 
+	sfree (identifier_copy);
 
 	return (0);
 } /* int handle_putval */
