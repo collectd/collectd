@@ -73,7 +73,7 @@ sub _create_socket
 
 =head1 VALUE IDENTIFIER
 
-The values in the collectd are identified using an five-tupel (host, plugin,
+The values in the collectd are identified using an five-tuple (host, plugin,
 plugin-instance, type, type-instance) where only plugin-instance and
 type-instance may be NULL (or undefined). Many functions expect an
 I<%identifier> hash that has at least the members B<host>, B<plugin>, and
@@ -217,7 +217,7 @@ sub getval
 =item I<$obj>-E<gt>B<putval> (I<%identifier>, B<time> =E<gt> I<$time>, B<values> =E<gt> [...]);
 
 Submits a value-list to the daemon. If the B<time> argument is omitted
-C<time()> is used. The requierd argument B<values> is a reference to an array
+C<time()> is used. The required argument B<values> is a reference to an array
 of values that is to be submitted. The number of values must match the number
 of values expected for the given B<type> (see L<VALUE IDENTIFIER>), though this
 is checked by the daemon, not the Perl module. Also, gauge data-sources

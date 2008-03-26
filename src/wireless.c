@@ -132,8 +132,8 @@ static int wireless_read (void)
 			power = 1.0; /* invalid */
 
 		/* noise [dBm] < 0.0 */
-		noise = strtod (fields[3], &endptr);
-		if (fields[3] == endptr)
+		noise = strtod (fields[4], &endptr);
+		if (fields[4] == endptr)
 			noise = 1.0; /* invalid */
 		else if ((noise >= 0.0) && (noise <= 100.0))
 			noise = wireless_percent_to_power (noise);

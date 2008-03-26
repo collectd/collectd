@@ -341,16 +341,38 @@ static int sensors_load_conf (void)
 
 			/* "master features" only */
 			if (feature->mapping != SENSORS_NO_MAPPING)
+			{
+				DEBUG ("sensors plugin: sensors_load_conf: "
+						"Ignoring subfeature `%s', "
+						"because (feature->mapping "
+						"!= SENSORS_NO_MAPPING).",
+						feature->name);
 				continue;
+			}
 
 			/* skip ignored in sensors.conf */
 			if (sensors_get_ignored (*chip, feature->number) == 0)
-				break;
+			{
+				DEBUG ("sensors plugin: sensors_load_conf: "
+						"Ignoring subfeature `%s', "
+						"because "
+						"`sensors_get_ignored' told "
+						"me so.",
+						feature->name);
+				continue;
+			}
 
 			feature_type = sensors_feature_name_to_type (
 					feature->name);
 			if (feature_type == SENSOR_TYPE_UNKNOWN)
+			{
+				DEBUG ("sensors plugin: sensors_load_conf: "
+						"Ignoring subfeature `%s', "
+						"because its type is "
+						"unknown.",
+						feature->name);
 				continue;
+			}
 
 			fl = (featurelist_t *) malloc (sizeof (featurelist_t));
 			if (fl == NULL)
@@ -389,7 +411,13 @@ static int sensors_load_conf (void)
 			if ((feature->type != SENSORS_FEATURE_IN)
 					&& (feature->type != SENSORS_FEATURE_FAN)
 					&& (feature->type != SENSORS_FEATURE_TEMP))
+			{
+				DEBUG ("sensors plugin: sensors_load_conf: "
+						"Ignoring feature `%s', "
+						"because its type is not "
+						"supported.", feature->name);
 				continue;
+			}
 
 			while ((subfeature = sensors_get_all_subfeatures (chip,
 							feature, &subfeature_num)) != NULL)

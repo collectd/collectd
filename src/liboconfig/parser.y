@@ -30,6 +30,7 @@ extern int yylineno;
 extern char *yytext;
 
 extern oconfig_item_t *ci_root;
+extern char           *c_file;
 %}
 
 %start entire_file
@@ -63,6 +64,9 @@ extern oconfig_item_t *ci_root;
 %type <ci> statement
 %type <sl> statement_list
 %type <ci> entire_file
+
+/* pass an verbose, specific error message to yyerror() */
+%error-verbose
 
 %%
 string:
@@ -192,7 +196,15 @@ entire_file:
 %%
 static int yyerror (const char *s)
 {
-	fprintf (stderr, "Error in line %i near `%s': %s\n", yylineno, yytext, s);
+	char *text;
+
+	if (*yytext == '\n')
+		text = "<newline>";
+	else
+		text = yytext;
+
+	fprintf (stderr, "Parse error in file `%s', line %i near `%s': %s\n",
+		c_file, yylineno, text, s);
 	return (-1);
 } /* int yyerror */
 
