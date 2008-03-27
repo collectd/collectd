@@ -24,7 +24,13 @@
 #include "plugin.h"
 
 #if KERNEL_LINUX
-/* No global variables */
+static const char *config_keys[] =
+{
+  "Verbose"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static int verbose_output = 0;
 /* #endif KERNEL_LINUX */
 
 #else
@@ -66,6 +72,25 @@ static void submit_one (const char *plugin_instance, const char *type,
 {
   submit (plugin_instance, type, type_instance, &value, 1);
 } /* void submit_one */
+
+static int vmem_config (const char *key, const char *value)
+{
+  if (strcasecmp ("Verbose", key) == 0)
+  {
+    if ((strcasecmp ("true", value) == 0)
+	|| (strcasecmp ("yes", value) == 0)
+	|| (strcasecmp ("on", value) == 0))
+      verbose_output = 1;
+    else
+      verbose_output = 0;
+  }
+  else
+  {
+    return (-1);
+  }
+
+  return (0);
+} /* int vmem_config */
 
 static int vmem_read (void)
 {
@@ -131,41 +156,6 @@ static int vmem_read (void)
       submit_one (NULL, "vmpage_number", inst, value);
     }
 
-    /*
-     * Number of page allocations, refills, steals and scans. This is collected
-     * ``per zone'', i. e. for DMA, DMA32, normal and possibly highmem.
-     */
-    else if (strncmp ("pgalloc_", key, strlen ("pgalloc_")) == 0)
-    {
-      char *inst = key + strlen ("pgalloc_");
-      value_t value  = { .counter = counter };
-      submit_one (inst, "vmpage_action", "alloc", value);
-    }
-    else if (strncmp ("pgrefill_", key, strlen ("pgrefill_")) == 0)
-    {
-      char *inst = key + strlen ("pgrefill_");
-      value_t value  = { .counter = counter };
-      submit_one (inst, "vmpage_action", "refill", value);
-    }
-    else if (strncmp ("pgsteal_", key, strlen ("pgsteal_")) == 0)
-    {
-      char *inst = key + strlen ("pgsteal_");
-      value_t value  = { .counter = counter };
-      submit_one (inst, "vmpage_action", "steal", value);
-    }
-    else if (strncmp ("pgscan_kswapd_", key, strlen ("pgscan_kswapd_")) == 0)
-    {
-      char *inst = key + strlen ("pgscan_kswapd_");
-      value_t value  = { .counter = counter };
-      submit_one (inst, "vmpage_action", "scan_kswapd", value);
-    }
-    else if (strncmp ("pgscan_direct_", key, strlen ("pgscan_direct_")) == 0)
-    {
-      char *inst = key + strlen ("pgscan_direct_");
-      value_t value  = { .counter = counter };
-      submit_one (inst, "vmpage_action", "scan_direct", value);
-    }
-
     /* 
      * Page in and page outs. For memory and swap.
      */
@@ -202,6 +192,47 @@ static int vmem_read (void)
     {
       pgmajfault = counter;
       pgfaultvalid |= 0x02;
+    }
+
+    /*
+     * Skip the other statistics if verbose output is disabled.
+     */
+    else if (verbose_output == 0)
+      continue;
+
+    /*
+     * Number of page allocations, refills, steals and scans. This is collected
+     * ``per zone'', i. e. for DMA, DMA32, normal and possibly highmem.
+     */
+    else if (strncmp ("pgalloc_", key, strlen ("pgalloc_")) == 0)
+    {
+      char *inst = key + strlen ("pgalloc_");
+      value_t value  = { .counter = counter };
+      submit_one (inst, "vmpage_action", "alloc", value);
+    }
+    else if (strncmp ("pgrefill_", key, strlen ("pgrefill_")) == 0)
+    {
+      char *inst = key + strlen ("pgrefill_");
+      value_t value  = { .counter = counter };
+      submit_one (inst, "vmpage_action", "refill", value);
+    }
+    else if (strncmp ("pgsteal_", key, strlen ("pgsteal_")) == 0)
+    {
+      char *inst = key + strlen ("pgsteal_");
+      value_t value  = { .counter = counter };
+      submit_one (inst, "vmpage_action", "steal", value);
+    }
+    else if (strncmp ("pgscan_kswapd_", key, strlen ("pgscan_kswapd_")) == 0)
+    {
+      char *inst = key + strlen ("pgscan_kswapd_");
+      value_t value  = { .counter = counter };
+      submit_one (inst, "vmpage_action", "scan_kswapd", value);
+    }
+    else if (strncmp ("pgscan_direct_", key, strlen ("pgscan_direct_")) == 0)
+    {
+      char *inst = key + strlen ("pgscan_direct_");
+      value_t value  = { .counter = counter };
+      submit_one (inst, "vmpage_action", "scan_direct", value);
     }
 
     /*
@@ -245,7 +276,9 @@ static int vmem_read (void)
 
 void module_register (void)
 {
-	plugin_register_read ("vmem", vmem_read);
+  plugin_register_config ("vmem", vmem_config,
+      config_keys, config_keys_num);
+  plugin_register_read ("vmem", vmem_read);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 ts=8 : */
