@@ -1,3 +1,9 @@
+2008-mm-dd, Version 4.2.6
+	* collectd: Improved error messages when parsing the configuration.
+	* sensors plugin: Fix temperature collection with libsensors4.
+	* unixsock plugin: Fix mixed input and output operation on streams.
+	* wireless plugin: Fix reading noise value.
+
 2008-03-04, Version 4.2.5
 	* apache plugin: Improved initialization and error messages.
 	* exec plugin: Set supplementary group IDs.
