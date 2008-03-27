@@ -2050,6 +2050,7 @@ plugin_swap="no"
 plugin_tape="no"
 plugin_tcpconns="no"
 plugin_users="no"
+plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 
@@ -2070,6 +2071,7 @@ then
 	plugin_serial="yes"
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
+	plugin_vmem="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
 
@@ -2228,6 +2230,7 @@ AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
+AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
@@ -2367,6 +2370,7 @@ Configuration:
     unixsock  . . . . . $enable_unixsock
     users . . . . . . . $enable_users
     uuid  . . . . . . . $enable_uuid
+    vmem  . . . . . . . $enable_vmem
     vserver . . . . . . $enable_vserver
     wireless  . . . . . $enable_wireless
     xmms  . . . . . . . $enable_xmms

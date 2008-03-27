@@ -77,6 +77,10 @@ time_offset		seconds:GAUGE:-1000000:1000000
 users			users:GAUGE:0:65535
 virt_cpu_total		ns:COUNTER:0:256000000000
 virt_vcpu		ns:COUNTER:0:1000000000
+vmpage_action		value:COUNTER:0:4294967295
+vmpage_number		value:GAUGE:0:4294967295
+vmpage_faults		minflt:COUNTER:0:9223372036854775807, majflt:COUNTER:0:9223372036854775807
+vmpage_io		in:COUNTER:0:4294967295, out:COUNTER:0:4294967295
 voltage_threshold	value:GAUGE:U:U, threshold:GAUGE:U:U
 voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807

@@ -623,6 +623,14 @@ collectd_LDADD += "-dlopen" uuid.la
 collectd_DEPENDENCIES += uuid.la
 endif
 
+if BUILD_PLUGIN_VMEM
+pkglib_LTLIBRARIES += vmem.la
+vmem_la_SOURCES = vmem.c
+vmem_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" vmem.la
+collectd_DEPENDENCIES += vmem.la
+endif
+
 if BUILD_PLUGIN_VSERVER
 pkglib_LTLIBRARIES += vserver.la
 vserver_la_SOURCES = vserver.c

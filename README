@@ -169,6 +169,10 @@ Features
     - users
       Users currently logged in.
 
+    - vmem
+      Virtual memory statistics, e. g. the number of page-ins/-outs or the
+      number of pagefaults.
+
     - vserver
       System resources used by Linux VServers.
       See <http://linux-vserver.org/>.

@@ -59,6 +59,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
 @BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 @BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
+@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 @BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 @BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 @BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
