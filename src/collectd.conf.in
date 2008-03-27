@@ -288,3 +288,7 @@ FQDNLookup   true
 #	UUIDFile "/etc/uuid"
 #</Plugin>
 
+#<Plugin vmem>
+#	Verbose false
+#</Plugin>
+

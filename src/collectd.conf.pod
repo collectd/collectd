@@ -1169,6 +1169,24 @@ Take the UUID from the given file (default I</etc/uuid>).
 
 =back
 
+=head2 Plugin C<vmem>
+
+The C<vmem> plugin collects information about the usage of virtual memory.
+Since the statistics provided by the Linux kernel are very detailed, they are
+collected very detailed. However, to get all the details, you have to switch
+them on manually. Most people just want an overview over, such as the number of
+pages read from swap space.
+
+=over 4
+
+=item B<Verbose> B<true>|B<false>
+
+Enables verbose collection of information. This will start collecting page
+"actions", e.E<nbsp>g. page allocations, (de)activations, steals and so on.
+Part of these statistics are collected on a "per zone" basis.
+
+=back
+
 =head2 Plugin C<vserver>
 
 This plugin doesn't have any options. B<VServer> support is only available for
