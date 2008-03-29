@@ -1,6 +1,6 @@
 /**
  * collectd - src/disk.c
- * Copyright (C) 2005-2007  Florian octo Forster
+ * Copyright (C) 2005-2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +22,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_ignorelist.h"
 
 #if HAVE_MACH_MACH_TYPES_H
 #  include <mach/mach_types.h>
@@ -101,6 +102,43 @@ static int numdisk = 0;
 # error "No applicable input method."
 #endif
 
+static const char *config_keys[] =
+{
+	"Disk",
+	"IgnoreSelected"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static ignorelist_t *ignorelist = NULL;
+
+static int disk_config (const char *key, const char *value)
+{
+  if (ignorelist == NULL)
+    ignorelist = ignorelist_create (/* invert = */ 1);
+  if (ignorelist == NULL)
+    return (1);
+
+  if (strcasecmp ("Disk", key) == 0)
+  {
+    ignorelist_add (ignorelist, value);
+  }
+  else if (strcasecmp ("IgnoreSelected", key) == 0)
+  {
+    int invert = 1;
+    if ((strcasecmp ("True", value) == 0)
+	|| (strcasecmp ("Yes", value) == 0)
+	|| (strcasecmp ("On", value) == 0))
+      invert = 0;
+    ignorelist_set_invert (ignorelist, invert);
+  }
+  else
+  {
+    return (-1);
+  }
+
+  return (0);
+} /* int disk_config */
+
 static int disk_init (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H
@@ -157,6 +195,10 @@ static void disk_submit (const char *plugin_instance,
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
+
+	/* Both `ignorelist' and `plugin_instance' may be NULL. */
+	if (ignorelist_match (ignorelist, plugin_instance) != 0)
+	  return;
 
 	values[0].counter = read;
 	values[1].counter = write;
@@ -624,6 +666,8 @@ static int disk_read (void)
 
 void module_register (void)
 {
-	plugin_register_init ("disk", disk_init);
-	plugin_register_read ("disk", disk_read);
+  plugin_register_config ("disk", disk_config,
+      config_keys, config_keys_num);
+  plugin_register_init ("disk", disk_init);
+  plugin_register_read ("disk", disk_read);
 } /* void module_register */
