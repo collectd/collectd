@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_ignorelist.c
  * Copyright (C) 2006 Lubos Stanek <lubek at users.sourceforge.net>
+ * Copyright (C) 2008 Florian Forster <octo at verplant.org>
  *
  * This program is free software; you can redistribute it and/
  * or modify it under the terms of the GNU General Public Li-
@@ -19,6 +20,7 @@
  *
  * Authors:
  *   Lubos Stanek <lubek at users.sourceforge.net>
+ *   Florian Forster <octo at verplant.org>
  **/
 /**
  * ignorelist handles plugin's list of configured collectable
@@ -332,10 +334,8 @@ int ignorelist_match (ignorelist_t *il, const char *entry)
 {
 	ignorelist_item_t *traverse;
 
-	assert (il != NULL);
-
 	/* if no entries, collect all */
-	if (il->head == NULL)
+	if ((il == NULL) || (il->head == NULL))
 		return (0);
 
 	if ((entry == NULL) || (strlen (entry) == 0))
