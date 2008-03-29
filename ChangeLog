@@ -1,4 +1,4 @@
-2008-mm-dd, Version 4.2.6
+2008-03-29, Version 4.2.6
 	* collectd: Improved error messages when parsing the configuration.
 	* sensors plugin: Fix temperature collection with libsensors4.
 	* unixsock plugin: Fix mixed input and output operation on streams.
