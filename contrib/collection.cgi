@@ -413,6 +413,64 @@ sub _get_random_color
   return ([$r, $g, $b]);
 } # _get_random_color
 
+sub _get_n_colors
+{
+	my $instances = shift;
+	my $num = scalar @$instances;
+	my $ret = {};
+
+	for (my $i = 0; $i < $num; $i++)
+	{
+		my $pos = 6 * $i / $num;
+		my $n = int ($pos);
+		my $p = $pos - $n;
+		my $q = 1 - $p;
+
+		my $red   = 0;
+		my $green = 0;
+		my $blue  = 0;
+
+		my $color;
+
+		if ($n == 0)
+		{
+			$red  = 255;
+			$blue = 255 * $p;
+		}
+		elsif ($n == 1)
+		{
+			$red  = 255 * $q;
+			$blue = 255;
+		}
+		elsif ($n == 2)
+		{
+			$green = 255 * $p;
+			$blue  = 255;
+		}
+		elsif ($n == 3)
+		{
+			$green = 255;
+			$blue  = 255 * $q;
+		}
+		elsif ($n == 4)
+		{
+			$red   = 255 * $p;
+			$green = 255;
+		}
+		elsif ($n == 5)
+		{
+			$red   = 255;
+			$green = 255 * $q;
+		}
+		else { die; }
+
+		$color = sprintf ("%02x%02x%02x", $red, $green, $blue);
+		$ret->{$instances->[$i]} = $color;
+	}
+
+	return ($ret);
+} # _get_n_colors
+
 sub _get_faded_color
 {
   my $fg = shift;
@@ -2372,6 +2430,8 @@ sub load_graph_definitions
   $GraphDefs->{'dns_rcode'} = $GraphDefs->{'dns_opcode'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
+  $MetaGraphDefs->{'dns_qtype'} = \&meta_graph_dns;
+  $MetaGraphDefs->{'dns_rcode'} = \&meta_graph_dns;
   $MetaGraphDefs->{'if_rx_errors'} = \&meta_graph_if_rx_errors;
   $MetaGraphDefs->{'if_tx_errors'} = \&meta_graph_if_rx_errors;
   $MetaGraphDefs->{'memory'} = \&meta_graph_memory;
@@ -2543,6 +2603,57 @@ sub meta_graph_cpu
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_cpu
 
+sub meta_graph_dns
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+
+  $opts->{'rrd_opts'} = ['-v', 'Queries/s'];
+
+  my @files = ();
+
+  @$type_instances = sort @$type_instances;
+
+  $opts->{'colors'} = _get_n_colors ($type_instances);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_dns
+
 sub meta_graph_memory
 {
   confess ("Wrong number of arguments") if (@_ != 5);
@@ -2600,7 +2711,7 @@ sub meta_graph_memory
   } # for (@$type_instances)
 
   return (meta_graph_generic_stack ($opts, $sources));
-} # meta_graph_cpu
+} # meta_graph_memory
 
 sub meta_graph_if_rx_errors
 {
