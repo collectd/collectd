@@ -21,7 +21,7 @@
  *   Florian Forster <octo at verplant.org>
  *
  * DESCRIPTION
- *      Queries a PowerDNS control socket for statistics
+ *   Queries a PowerDNS control socket for statistics
  **/
 
 #include "collectd.h"
@@ -44,13 +44,22 @@
 #ifndef UNIX_PATH_MAX
 # define UNIX_PATH_MAX sizeof (((struct sockaddr_un *)0)->sun_path)
 #endif
-#define FUNC_ERROR(func) ERROR ("powerdns plugin: `%s' failed\n", func)
+#define FUNC_ERROR(func) do { char errbuf[1024]; ERROR ("powerdns plugin: %s failed: %s", func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
 
 #define SERVER_SOCKET  "/var/run/pdns.controlsocket"
 #define SERVER_COMMAND "SHOW *"
 
 #define RECURSOR_SOCKET  "/var/run/pdns_recursor.controlsocket"
-#define RECURSOR_COMMAND "get all-outqueries answers0-1 answers100-1000 answers10-100 answers1-10 answers-slow cache-entries cache-hits cache-misses chain-resends client-parse-errors concurrent-queries dlg-only-drops ipv6-outqueries negcache-entries noerror-answers nsset-invalidations nsspeeds-entries nxdomain-answers outgoing-timeouts qa-latency questions resource-limits server-parse-errors servfail-answers spoof-prevents sys-msec tcp-client-overflow tcp-outqueries tcp-questions throttled-out throttled-outqueries throttle-entries unauthorized-tcp unauthorized-udp unexpected-packets unreachables user-msec"
+#define RECURSOR_COMMAND "get all-outqueries answers0-1 " /* {{{ */ \
+  "answers100-1000 answers10-100 answers1-10 answers-slow cache-entries " \
+  "cache-hits cache-misses chain-resends client-parse-errors " \
+  "concurrent-queries dlg-only-drops ipv6-outqueries negcache-entries " \
+  "noerror-answers nsset-invalidations nsspeeds-entries nxdomain-answers " \
+  "outgoing-timeouts qa-latency questions resource-limits " \
+  "server-parse-errors servfail-answers spoof-prevents sys-msec " \
+  "tcp-client-overflow tcp-outqueries tcp-questions throttled-out " \
+  "throttled-outqueries throttle-entries unauthorized-tcp unauthorized-udp " \
+  "unexpected-packets unreachables user-msec" /* }}} */
 
 struct list_item_s;
 typedef struct list_item_s list_item_t;
@@ -64,50 +73,190 @@ struct list_item_s
   int socktype;
 };
 
+struct statname_lookup_s
+{
+  char *name;
+  char *type;
+  char *type_instance;
+};
+typedef struct statname_lookup_s statname_lookup_t;
+
+/* Description of statistics returned by the recursor: {{{
+all-outqueries      counts the number of outgoing UDP queries since starting
+answers0-1          counts the number of queries answered within 1 milisecond
+answers100-1000     counts the number of queries answered within 1 second
+answers10-100       counts the number of queries answered within 100 miliseconds
+answers1-10         counts the number of queries answered within 10 miliseconds
+answers-slow        counts the number of queries answered after 1 second
+cache-entries       shows the number of entries in the cache
+cache-hits          counts the number of cache hits since starting
+cache-misses        counts the number of cache misses since starting
+chain-resends       number of queries chained to existing outstanding query
+client-parse-errors counts number of client packets that could not be parsed
+concurrent-queries  shows the number of MThreads currently running
+dlg-only-drops      number of records dropped because of delegation only setting
+negcache-entries    shows the number of entries in the Negative answer cache
+noerror-answers     counts the number of times it answered NOERROR since starting
+nsspeeds-entries    shows the number of entries in the NS speeds map
+nsset-invalidations number of times an nsset was dropped because it no longer worked
+nxdomain-answers    counts the number of times it answered NXDOMAIN since starting
+outgoing-timeouts   counts the number of timeouts on outgoing UDP queries since starting
+qa-latency          shows the current latency average
+questions           counts all End-user initiated queries with the RD bit set
+resource-limits     counts number of queries that could not be performed because of resource limits
+server-parse-errors counts number of server replied packets that could not be parsed
+servfail-answers    counts the number of times it answered SERVFAIL since starting
+spoof-prevents      number of times PowerDNS considered itself spoofed, and dropped the data
+sys-msec            number of CPU milliseconds spent in 'system' mode
+tcp-client-overflow number of times an IP address was denied TCP access because it already had too many connections
+tcp-outqueries      counts the number of outgoing TCP queries since starting
+tcp-questions       counts all incoming TCP queries (since starting)
+throttled-out       counts the number of throttled outgoing UDP queries since starting
+throttle-entries    shows the number of entries in the throttle map
+unauthorized-tcp    number of TCP questions denied because of allow-from restrictions
+unauthorized-udp    number of UDP questions denied because of allow-from restrictions
+unexpected-packets  number of answers from remote servers that were unexpected (might point to spoofing)
+uptime              number of seconds process has been running (since 3.1.5)
+user-msec           number of CPU milliseconds spent in 'user' mode
+}}} */
+
+statname_lookup_t lookup_table[] = /* {{{ */
+{
+  /*
+   * Recursor statistics
+   */
+  /*
+   * corrupt-packets
+   * deferred-cache-inserts
+   * deferred-cache-lookup
+   * qsize-q
+   * servfail-packets
+   * timedout-packets
+   * udp4-answers
+   * udp4-queries
+   * udp6-answers
+   * udp6-queries
+   */
+  /* Questions */
+  {"recursing-questions", "dns_question", "recurse"},
+  {"tcp-queries",         "dns_question", "tcp"},
+  {"udp-queries",         "dns_question", "udp"},
+
+  /* Answers */
+  {"recursing-answers",   "dns_answer",   "recurse"},
+  {"tcp-answers",         "dns_answer",   "tcp"},
+  {"udp-answers",         "dns_answer",   "udp"},
+
+  /* Cache stuff */
+  {"packetcache-hit",     "cache_result", "packet-hit"},
+  {"packetcache-miss",    "cache_result", "packet-miss"},
+  {"packetcache-size",    "cache_size",   "packet"},
+  {"query-cache-hit",     "cache_result", "query-hit"},
+  {"query-cache-miss",    "cache_result", "query-miss"},
+
+  /* Latency */
+  {"latency",             "latency",      NULL},
+
+  /*
+   * Recursor statistics
+   */
+  /* Answers by return code */
+  {"noerror-answers",     "dns_rcode",    "NOERROR"},
+  {"nxdomain-answers",    "dns_rcode",    "NXDOMAIN"},
+  {"servfail-answers",    "dns_rcode",    "SERVFAIL"},
+
+  /* CPU utilization */
+  {"sys-msec",            "cpu",          "system"},
+  {"user-msec",           "cpu",          "user"},
+
+  /* Question-to-answer latency */
+  {"qa-latency",          "latency",      NULL},
+
+  /* Cache */
+  {"cache-entries",       "cache_size",   NULL},
+  {"cache-hits",          "cache_result", "hit"},
+  {"cache-misses",        "cache_result", "miss"},
+
+  /* Total number of questions.. */
+  {"questions",           "dns_qtype",    "total"}
+}; /* }}} */
+int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
+
 static llist_t *list = NULL;
 
-static void submit (const char *plugin_instance, const char *type, const char *value)
+#define PDNS_LOCAL_SOCKPATH LOCALSTATEDIR"/run/"PACKAGE_NAME"-powerdns"
+static char *local_sockpath = NULL;
+
+/* <http://doc.powerdns.com/recursor-stats.html> */
+static void submit (const char *plugin_instance, /* {{{ */
+    const char *pdns_type, const char *value)
 {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[1];
-  const data_set_t *ds;
-  float f;
-  long l;
 
-  ERROR ("powerdns plugin: submit: TODO: Translate the passed-in `key' to a reasonable type (and type_instance).");
+  const char *type = NULL;
+  const char *type_instance = NULL;
+  const data_set_t *ds;
+
+  int i;
+
+  for (i = 0; i < lookup_table_length; i++)
+    if (strcmp (lookup_table[i].name, pdns_type) == 0)
+      break;
+
+  if (lookup_table[i].type == NULL)
+    return;
+
+  if (i >= lookup_table_length)
+  {
+    DEBUG ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
+        pdns_type, value);
+    return;
+  }
+
+  type = lookup_table[i].type;
+  type_instance = lookup_table[i].type_instance;
 
   ds = plugin_get_ds (type);
   if (ds == NULL)
   {
-    ERROR( "%s: DS %s not defined\n", "powerdns", type );
+    ERROR ("powerdns plugin: The lookup table returned type `%s', "
+        "but I cannot find it via `plugin_get_ds'.",
+        type);
     return;
   }
 
-  errno = 0;
-  if (ds->ds->type == DS_TYPE_GAUGE)
+  if (ds->ds_num != 1)
   {
-    f = atof(value);
-    if (errno != 0)
+    ERROR ("powerdns plugin: type `%s' has %i data sources, "
+        "but I can only handle one.",
+        type, ds->ds_num);
+    return;
+  }
+
+  if (ds->ds[0].type == DS_TYPE_GAUGE)
+  {
+    char *endptr = NULL;
+
+    values[0].gauge = strtod (value, &endptr);
+
+    if (endptr == value)
     {
-      ERROR ("%s: atof failed (%s->%s)", "powerdns", type, value);
+      ERROR ("powerdns plugin: Cannot convert `%s' "
+          "to a floating point number.", value);
       return;
-    }
-    else
-    {
-      values[0].gauge = f<0?-f:f;
     }
   }
   else
   {
-    l = atol(value);
-    if (errno != 0)
+    char *endptr = NULL;
+
+    values[0].counter = strtoll (value, &endptr, 0);
+    if (endptr == value)
     {
-      ERROR ("%s: atol failed (%s->%s)", "powerdns", type, value);
+      ERROR ("powerdns plugin: Cannot convert `%s' "
+          "to an integer number.", value);
       return;
-    }
-    else
-    {
-      values[0].counter = l < 0 ? -l : l;
     }
   }
 
@@ -116,23 +265,126 @@ static void submit (const char *plugin_instance, const char *type, const char *v
   vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "powerdns", sizeof (vl.plugin));
-  sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
+  if (type_instance != NULL)
+    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
   sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
   plugin_dispatch_values (type, &vl);
-} /* static void submit */
+} /* }}} static void submit */
 
-static int powerdns_get_data (list_item_t *item, char **ret_buffer,
+static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
+    char **ret_buffer,
     size_t *ret_buffer_size)
 {
   int sd;
   int status;
 
-  char temp[1024];
+  char temp[4096];
   char *buffer = NULL;
   size_t buffer_size = 0;
 
-  sd = socket (AF_UNIX, item->socktype, 0);
+  struct sockaddr_un sa_unix;
+
+  sd = socket (PF_UNIX, item->socktype, 0);
+  if (sd < 0)
+  {
+    FUNC_ERROR ("socket");
+    return (-1);
+  }
+
+  memset (&sa_unix, 0, sizeof (sa_unix));
+  sa_unix.sun_family = AF_UNIX;
+  strncpy (sa_unix.sun_path,
+      (local_sockpath != NULL) ? local_sockpath : PDNS_LOCAL_SOCKPATH,
+      sizeof (sa_unix.sun_path));
+  sa_unix.sun_path[sizeof (sa_unix.sun_path) - 1] = 0;
+
+  status = unlink (sa_unix.sun_path);
+  if ((status != 0) && (errno != ENOENT))
+  {
+    FUNC_ERROR ("unlink");
+    close (sd);
+    return (-1);
+  }
+
+  do /* while (0) */
+  {
+    /* We need to bind to a specific path, because this is a datagram socket
+     * and otherwise the daemon cannot answer. */
+    status = bind (sd, (struct sockaddr *) &sa_unix, sizeof (sa_unix));
+    if (status != 0)
+    {
+      FUNC_ERROR ("bind");
+      break;
+    }
+
+    /* Make the socket writeable by the daemon.. */
+    status = chmod (sa_unix.sun_path, 0666);
+    if (status != 0)
+    {
+      FUNC_ERROR ("chmod");
+      break;
+    }
+
+    status = connect (sd, (struct sockaddr *) &item->sockaddr,
+        sizeof (item->sockaddr));
+    if (status != 0)
+    {
+      FUNC_ERROR ("connect");
+      break;
+    }
+
+    status = send (sd, item->command, strlen (item->command), 0);
+    if (status < 0)
+    {
+      FUNC_ERROR ("send");
+      break;
+    }
+
+    status = recv (sd, temp, sizeof (temp), /* flags = */ 0);
+    if (status < 0)
+    {
+      FUNC_ERROR ("recv");
+      break;
+    }
+    status = 0;
+  } while (0);
+
+  close (sd);
+  unlink (sa_unix.sun_path);
+
+  if (status != 0)
+    return (-1);
+
+  buffer_size = status + 1;
+  buffer = (char *) malloc (buffer_size);
+  if (buffer == NULL)
+  {
+    FUNC_ERROR ("malloc");
+    return (-1);
+  }
+
+  memcpy (buffer, temp, status);
+  buffer[status] = 0;
+
+  *ret_buffer = buffer;
+  *ret_buffer_size = buffer_size;
+
+  return (0);
+} /* }}} int powerdns_get_data_dgram */
+
+static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
+    char **ret_buffer,
+    size_t *ret_buffer_size)
+{
+  int sd;
+  int status;
+
+  char temp[4096];
+  char *buffer = NULL;
+  size_t buffer_size = 0;
+
+  sd = socket (PF_UNIX, item->socktype, 0);
   if (sd < 0)
   {
     FUNC_ERROR ("socket");
@@ -140,7 +392,7 @@ static int powerdns_get_data (list_item_t *item, char **ret_buffer,
   }
 
   status = connect (sd, (struct sockaddr *) &item->sockaddr,
-      sizeof(item->sockaddr));
+      sizeof (item->sockaddr));
   if (status != 0)
   {
     FUNC_ERROR ("connect");
@@ -148,7 +400,9 @@ static int powerdns_get_data (list_item_t *item, char **ret_buffer,
     return (-1);
   }
 
-  status = send (sd, item->command, strlen (item->command), 0);
+  /* strlen + 1, because we need to send the terminating NULL byte, too. */
+  status = send (sd, item->command, strlen (item->command) + 1,
+      /* flags = */ 0);
   if (status < 0)
   {
     FUNC_ERROR ("send");
@@ -160,7 +414,7 @@ static int powerdns_get_data (list_item_t *item, char **ret_buffer,
   {
     char *buffer_new;
 
-    status = recv (sd, temp, sizeof (temp), 0);
+    status = recv (sd, temp, sizeof (temp), /* flags = */ 0);
     if (status < 0)
     {
       FUNC_ERROR ("recv");
@@ -169,7 +423,7 @@ static int powerdns_get_data (list_item_t *item, char **ret_buffer,
     else if (status == 0)
       break;
 
-    buffer_new = (char *) realloc (buffer, buffer_size + status);
+    buffer_new = (char *) realloc (buffer, buffer_size + status + 1);
     if (buffer_new == NULL)
     {
       FUNC_ERROR ("realloc");
@@ -180,7 +434,8 @@ static int powerdns_get_data (list_item_t *item, char **ret_buffer,
 
     memcpy (buffer + buffer_size, temp, status);
     buffer_size += status;
-  }
+    buffer[buffer_size] = 0;
+  } /* while (42) */
   close (sd);
   sd = -1;
 
@@ -190,14 +445,29 @@ static int powerdns_get_data (list_item_t *item, char **ret_buffer,
   }
   else
   {
+    assert (status == 0);
     *ret_buffer = buffer;
     *ret_buffer_size = buffer_size;
   }
 
   return (status);
+} /* }}} int powerdns_get_data_stream */
+
+static int powerdns_get_data (list_item_t *item, char **ret_buffer,
+    size_t *ret_buffer_size)
+{
+  if (item->socktype == SOCK_DGRAM)
+    return (powerdns_get_data_dgram (item, ret_buffer, ret_buffer_size));
+  else if (item->socktype == SOCK_STREAM)
+    return (powerdns_get_data_stream (item, ret_buffer, ret_buffer_size));
+  else
+  {
+    ERROR ("powerdns plugin: Unknown socket type: %i", (int) item->socktype);
+    return (-1);
+  }
 } /* int powerdns_get_data */
 
-static int powerdns_read_server (list_item_t *item)
+static int powerdns_read_server (list_item_t *item) /* {{{ */
 {
   char *buffer = NULL;
   size_t buffer_size = 0;
@@ -213,6 +483,7 @@ static int powerdns_read_server (list_item_t *item)
   if (status != 0)
     return (-1);
 
+  /* corrupt-packets=0,deferred-cache-inserts=0,deferred-cache-lookup=0,latency=0,packetcache-hit=0,packetcache-miss=0,packetcache-size=0,qsize-q=0,query-cache-hit=0,query-cache-miss=0,recursing-answers=0,recursing-questions=0,servfail-packets=0,tcp-answers=0,tcp-queries=0,timedout-packets=0,udp-answers=0,udp-queries=0,udp4-answers=0,udp4-queries=0,udp6-answers=0,udp6-queries=0, */
   dummy = buffer;
   saveptr = NULL;
   while ((key = strtok_r (dummy, ",", &saveptr)) != NULL)
@@ -235,9 +506,9 @@ static int powerdns_read_server (list_item_t *item)
   sfree (buffer);
 
   return (0);
-} /* int powerdns_read_server */
+} /* }}} int powerdns_read_server */
 
-static int powerdns_read_recursor (list_item_t *item)
+static int powerdns_read_recursor (list_item_t *item) /* {{{ */
 {
   char *buffer = NULL;
   size_t buffer_size = 0;
@@ -285,9 +556,10 @@ static int powerdns_read_recursor (list_item_t *item)
   sfree (keys_list);
 
   return (0);
-} /* int powerdns_read_recursor */
+} /* }}} int powerdns_read_recursor */
 
-static int powerdns_config_add_string (const char *name, char **dest,
+static int powerdns_config_add_string (const char *name, /* {{{ */
+    char **dest,
     oconfig_item_t *ci)
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -303,9 +575,9 @@ static int powerdns_config_add_string (const char *name, char **dest,
     return (-1);
 
   return (0);
-} /* int ctail_config_add_string */
+} /* }}} int ctail_config_add_string */
 
-static int powerdns_config_add_server (oconfig_item_t *ci)
+static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 {
   char *socket_temp;
 
@@ -412,12 +684,16 @@ static int powerdns_config_add_server (oconfig_item_t *ci)
     return (-1);
   }
 
-  return (0);
-} /* int powerdns_config_add_server */
+  DEBUG ("powerdns plugin: Add server: instance = %s;", item->instance);
 
-static int powerdns_config (oconfig_item_t *ci)
+  return (0);
+} /* }}} int powerdns_config_add_server */
+
+static int powerdns_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
+
+  DEBUG ("powerdns plugin: powerdns_config (ci = %p);", (void *) ci);
 
   if (list == NULL)
   {
@@ -434,9 +710,17 @@ static int powerdns_config (oconfig_item_t *ci)
   {
     oconfig_item_t *option = ci->children + i;
 
-    if ((strcasecmp ("Server", ci->key) == 0)
-	|| (strcasecmp ("Recursor", ci->key) == 0))
+    if ((strcasecmp ("Server", option->key) == 0)
+	|| (strcasecmp ("Recursor", option->key) == 0))
       powerdns_config_add_server (option);
+    if (strcasecmp ("LocalSocket", option->key) == 0)
+    {
+      char *temp = strdup (option->key);
+      if (temp == NULL)
+        return (1);
+      sfree (local_sockpath);
+      local_sockpath = temp;
+    }
     else
     {
       ERROR ("powerdns plugin: Option `%s' not allowed here.", option->key);
@@ -444,7 +728,7 @@ static int powerdns_config (oconfig_item_t *ci)
   } /* for (i = 0; i < ci->children_num; i++) */
 
   return (0);
-} /* int powerdns_config */
+} /* }}} int powerdns_config */
 
 static int powerdns_read (void)
 {
@@ -489,4 +773,4 @@ void module_register (void)
   plugin_register_shutdown ("powerdns", powerdns_shutdown );
 } /* void module_register */
 
-/* vim: set sw=2 sts=2 ts=8 : */
+/* vim: set sw=2 sts=2 ts=8 fdm=marker : */
