@@ -1136,7 +1136,7 @@ sub load_graph_definitions
     'GPRINT:inc_max:MAX:%5.1lf%ss Max,',
     'GPRINT:inc_avg:LAST:%5.1lf%ss Last\l'
     ],
-    dns_traffic => ['DEF:rsp_min_raw={file}:responses:MIN',
+    dns_octets => ['DEF:rsp_min_raw={file}:responses:MIN',
     'DEF:rsp_avg_raw={file}:responses:AVERAGE',
     'DEF:rsp_max_raw={file}:responses:MAX',
     'DEF:qry_min_raw={file}:queries:MIN',
@@ -1170,6 +1170,18 @@ sub load_graph_definitions
     'GPRINT:qry_max:MAX:%5.1lf%s Max,',
     'GPRINT:qry_avg:LAST:%5.1lf%s Last',
     'GPRINT:qry_avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
+    ],
+    dns_opcode => [
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Queries/s",
+    'GPRINT:min:MIN:%9.3lf Min,',
+    'GPRINT:avg:AVERAGE:%9.3lf Average,',
+    'GPRINT:max:MAX:%9.3lf Max,',
+    'GPRINT:avg:LAST:%9.3lf Last\l'
     ],
     email_count => ['-v', 'Mails',
     'DEF:avg={file}:value:AVERAGE',
@@ -1839,18 +1851,6 @@ sub load_graph_definitions
     'GPRINT:read_avg:AVERAGE:%5.1lf Avg,',
     'GPRINT:read_avg:LAST:%5.1lf Last\l'
     ],
-    opcode => [
-    'DEF:avg={file}:value:AVERAGE',
-    'DEF:min={file}:value:MIN',
-    'DEF:max={file}:value:MAX',
-    "AREA:max#$HalfBlue",
-    "AREA:min#$Canvas",
-    "LINE1:avg#$FullBlue:Queries/s",
-    'GPRINT:min:MIN:%9.3lf Min,',
-    'GPRINT:avg:AVERAGE:%9.3lf Average,',
-    'GPRINT:max:MAX:%9.3lf Max,',
-    'GPRINT:avg:LAST:%9.3lf Last\l'
-    ],
     partition => [
     "DEF:rbyte_avg={file}:rbytes:AVERAGE",
     "DEF:rbyte_min={file}:rbytes:MIN",
@@ -2059,30 +2059,6 @@ sub load_graph_definitions
     'GPRINT:avg:AVERAGE:%6.2lf Avg,',
     'GPRINT:max:MAX:%6.2lf Max,',
     'GPRINT:avg:LAST:%6.2lf Last\l'
-    ],
-    qtype => [
-    'DEF:avg={file}:value:AVERAGE',
-    'DEF:min={file}:value:MIN',
-    'DEF:max={file}:value:MAX',
-    "AREA:max#$HalfBlue",
-    "AREA:min#$Canvas",
-    "LINE1:avg#$FullBlue:Queries/s",
-    'GPRINT:min:MIN:%9.3lf Min,',
-    'GPRINT:avg:AVERAGE:%9.3lf Average,',
-    'GPRINT:max:MAX:%9.3lf Max,',
-    'GPRINT:avg:LAST:%9.3lf Last\l'
-    ],
-    rcode => [
-    'DEF:avg={file}:value:AVERAGE',
-    'DEF:min={file}:value:MIN',
-    'DEF:max={file}:value:MAX',
-    "AREA:max#$HalfBlue",
-    "AREA:min#$Canvas",
-    "LINE1:avg#$FullBlue:Queries/s",
-    'GPRINT:min:MIN:%9.3lf Min,',
-    'GPRINT:avg:AVERAGE:%9.3lf Average,',
-    'GPRINT:max:MAX:%9.3lf Max,',
-    'GPRINT:avg:LAST:%9.3lf Last\l'
     ],
     swap => ['-v', 'Bytes', '-b', '1024',
     'DEF:avg={file}:value:AVERAGE',
@@ -2356,6 +2332,8 @@ sub load_graph_definitions
   };
   $GraphDefs->{'if_multicast'} = $GraphDefs->{'ipt_packets'};
   $GraphDefs->{'if_tx_errors'} = $GraphDefs->{'if_rx_errors'};
+  $GraphDefs->{'dns_qtype'} = $GraphDefs->{'dns_opcode'};
+  $GraphDefs->{'dns_rcode'} = $GraphDefs->{'dns_opcode'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
   $MetaGraphDefs->{'if_rx_errors'} = \&meta_graph_if_rx_errors;
