@@ -195,7 +195,7 @@ static int rra_get (char ***ret, const value_list_t *vl)
 		span = rts[i];
 
 		if ((span / ss) < rrarows)
-			continue;
+			span = ss * rrarows;
 
 		if (cdp_len == 0)
 			cdp_len = 1;
