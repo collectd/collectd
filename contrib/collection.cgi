@@ -2463,12 +2463,21 @@ sub meta_graph_generic_stack
     @RRDDefaultArgs, @{$opts->{'rrd_opts'}});
 
   my $max_inst_name = 0;
+  my @vnames = ();
+
+  for ($i = 0; $i < @$sources; $i++)
+  {
+    my $tmp = $sources->[$i]->{'name'};
+    $tmp =~ tr/A-Za-z0-9\-_/_/c;
+    $vnames[$i] = $i . $tmp;
+  }
 
   for ($i = 0; $i < @$sources; $i++)
   {
     my $inst_data = $sources->[$i];
     my $inst_name = $inst_data->{'name'} || confess;
     my $file = $inst_data->{'file'} || confess;
+    my $vname = $vnames[$i];
 
     if (length ($inst_name) > $max_inst_name)
     {
@@ -2478,33 +2487,31 @@ sub meta_graph_generic_stack
     confess ("No such file: $file") if (!-e $file);
 
     push (@cmd,
-      qq#DEF:${inst_name}_min=$file:value:MIN#,
-      qq#DEF:${inst_name}_avg=$file:value:AVERAGE#,
-      qq#DEF:${inst_name}_max=$file:value:MAX#,
-      qq#CDEF:${inst_name}_nnl=${inst_name}_avg,UN,0,${inst_name}_avg,IF#);
+      qq#DEF:${vname}_min=$file:value:MIN#,
+      qq#DEF:${vname}_avg=$file:value:AVERAGE#,
+      qq#DEF:${vname}_max=$file:value:MAX#,
+      qq#CDEF:${vname}_nnl=${vname}_avg,UN,0,${vname}_avg,IF#);
   }
 
   {
-    my $inst_data = $sources->[@$sources - 1];
-    my $inst_name = $inst_data->{'name'};
+    my $vname = $vnames[@vnames - 1];
 
-    push (@cmd, qq#CDEF:${inst_name}_stk=${inst_name}_nnl#);
+    push (@cmd, qq#CDEF:${vname}_stk=${vname}_nnl#);
   }
   for (my $i = 1; $i < @$sources; $i++)
   {
-    my $inst_data0 = $sources->[@$sources - ($i + 1)];
-    my $inst_data1 = $sources->[@$sources - $i];
+    my $vname0 = $vnames[@vnames - ($i + 1)];
+    my $vname1 = $vnames[@vnames - $i];
 
-    my $inst_name0 = $inst_data0->{'name'};
-    my $inst_name1 = $inst_data1->{'name'};
-
-    push (@cmd, qq#CDEF:${inst_name0}_stk=${inst_name0}_nnl,${inst_name1}_stk,+#);
+    push (@cmd, qq#CDEF:${vname0}_stk=${vname0}_nnl,${vname1}_stk,+#);
   }
 
   for (my $i = 0; $i < @$sources; $i++)
   {
     my $inst_data = $sources->[$i];
     my $inst_name = $inst_data->{'name'};
+
+    my $vname = $vnames[$i];
 
     my $legend = sprintf ('%-*s', $max_inst_name, $inst_name);
 
@@ -2525,12 +2532,12 @@ sub meta_graph_generic_stack
     }
     $area_color = _color_to_string (_get_faded_color ($area_color));
 
-    push (@cmd, qq(AREA:${inst_name}_stk#$area_color),
-      qq(LINE1:${inst_name}_stk#$line_color:$legend),
-      qq(GPRINT:${inst_name}_min:MIN:$number_format Min,),
-      qq(GPRINT:${inst_name}_avg:AVERAGE:$number_format Avg,),
-      qq(GPRINT:${inst_name}_max:MAX:$number_format Max,),
-      qq(GPRINT:${inst_name}_avg:LAST:$number_format Last\\l),
+    push (@cmd, qq(AREA:${vname}_stk#$area_color),
+      qq(LINE1:${vname}_stk#$line_color:$legend),
+      qq(GPRINT:${vname}_min:MIN:$number_format Min,),
+      qq(GPRINT:${vname}_avg:AVERAGE:$number_format Avg,),
+      qq(GPRINT:${vname}_max:MAX:$number_format Max,),
+      qq(GPRINT:${vname}_avg:LAST:$number_format Last\\l),
     );
   }
 
