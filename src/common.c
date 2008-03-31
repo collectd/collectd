@@ -24,6 +24,7 @@
 # include "config.h"
 #endif
 
+#include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 
@@ -554,7 +555,7 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 
 unsigned long long ntohll (unsigned long long n)
 {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if BYTE_ORDER == BIG_ENDIAN
 	return (n);
 #else
 	return (((unsigned long long) ntohl (n)) << 32) + ntohl (n >> 32);
@@ -563,7 +564,7 @@ unsigned long long ntohll (unsigned long long n)
 
 unsigned long long htonll (unsigned long long n)
 {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if BYTE_ORDER == BIG_ENDIAN
 	return (n);
 #else
 	return (((unsigned long long) htonl (n)) << 32) + htonl (n >> 32);
