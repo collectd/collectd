@@ -297,7 +297,7 @@ int plugin_load (const char *type)
 {
 	DIR  *dh;
 	const char *dir;
-	char  filename[BUFSIZE];
+	char  filename[BUFSIZE] = "";
 	char  typename[BUFSIZE];
 	int   typename_len;
 	int   ret;
@@ -363,6 +363,9 @@ int plugin_load (const char *type)
 	}
 
 	closedir (dh);
+
+	if (filename[0] == '\0')
+		fprintf (stderr, "Could not find plugin %s.\n", type);
 
 	return (ret);
 }
