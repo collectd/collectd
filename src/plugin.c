@@ -643,19 +643,32 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 	data_set_t *ds;
 	llentry_t *le;
 
-	if ((list_write == NULL) || (list_data_set == NULL))
+	if (list_write == NULL)
+	{
+		ERROR ("plugin_dispatch_values: No write callback has been "
+				"registered. Please load at least one plugin "
+				"that provides a write function.");
 		return (-1);
+	}
+
+	if (list_data_set == NULL)
+	{
+		ERROR ("plugin_dispatch_values: No data sets registered. "
+				"Could the types database be read? Check "
+				"your `TypesDB' setting!");
+		return (-1);
+	}
 
 	le = llist_search (list_data_set, name);
 	if (le == NULL)
 	{
-		DEBUG ("No such dataset registered: %s", name);
+		INFO ("plugin_dispatch_values: Dataset not found: %s", name);
 		return (-1);
 	}
 
 	ds = (data_set_t *) le->value;
 
-	DEBUG ("plugin: plugin_dispatch_values: time = %u; interval = %i; "
+	DEBUG ("plugin_dispatch_values: time = %u; interval = %i; "
 			"host = %s; "
 			"plugin = %s; plugin_instance = %s; "
 			"type = %s; type_instance = %s;",
@@ -669,7 +682,8 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 #else
 	if (ds->ds_num != vl->values_len)
 	{
-		ERROR ("plugin: ds->type = %s: (ds->ds_num = %i) != "
+		ERROR ("plugin_dispatch_values: ds->type = %s: "
+				"(ds->ds_num = %i) != "
 				"(vl->values_len = %i)",
 				ds->type, ds->ds_num, vl->values_len);
 		return (-1);
