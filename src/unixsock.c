@@ -382,7 +382,6 @@ static int us_shutdown (void)
 	}
 
 	plugin_unregister_init ("unixsock");
-	plugin_unregister_write ("unixsock");
 	plugin_unregister_shutdown ("unixsock");
 
 	return (0);

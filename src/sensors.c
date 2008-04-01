@@ -580,7 +580,7 @@ static int sensors_read (void)
 			type = "fanspeed";
 		else if (fl->feature->type
 				== SENSORS_FEATURE_TEMP)
-			type = "input";
+			type = "temperature";
 		else
 			continue;
 

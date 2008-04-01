@@ -1,3 +1,12 @@
+2008-03-29, Version 4.3.2
+	* collectd: Fix configuration of the `FailureMax', `WarningMax', and
+	  `Persist' threshold options.
+	* collectd: Fix handling of missing values in the global value cache.
+	* collectd: Improved error messages when parsing the configuration.
+	* sensors plugin: Fix temperature collection with libsensors4.
+	* unixsock plugin: Fix mixed input and output operation on streams.
+	* wireless plugin: Fix reading noise value.
+
 2008-03-05, Version 4.3.1
 	* exec plugin: Set supplementary group IDs.
 	* network plugin:
@@ -49,6 +58,12 @@
 	  CPU, disk and network statistics about guest systems on the same
 	  physical server. Thanks to Richard Jones from Red Hat's Emerging
 	  Technology group for this plugin.
+
+2008-03-29, Version 4.2.6
+	* collectd: Improved error messages when parsing the configuration.
+	* sensors plugin: Fix temperature collection with libsensors4.
+	* unixsock plugin: Fix mixed input and output operation on streams.
+	* wireless plugin: Fix reading noise value.
 
 2008-03-04, Version 4.2.5
 	* apache plugin: Improved initialization and error messages.

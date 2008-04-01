@@ -314,7 +314,7 @@ int plugin_load (const char *type)
 {
 	DIR  *dh;
 	const char *dir;
-	char  filename[BUFSIZE];
+	char  filename[BUFSIZE] = "";
 	char  typename[BUFSIZE];
 	int   typename_len;
 	int   ret;
@@ -380,6 +380,9 @@ int plugin_load (const char *type)
 	}
 
 	closedir (dh);
+
+	if (filename[0] == '\0')
+		fprintf (stderr, "Could not find plugin %s.\n", type);
 
 	return (ret);
 }
@@ -720,16 +723,29 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 	data_set_t *ds;
 	llentry_t *le;
 
-	if ((list_write == NULL) || (data_sets == NULL))
-		return (-1);
-
-	if (c_avl_get (data_sets, name, (void *) &ds) != 0)
+	if (list_write == NULL)
 	{
-		DEBUG ("No such dataset registered: %s", name);
+		ERROR ("plugin_dispatch_values: No write callback has been "
+				"registered. Please load at least one plugin "
+				"that provides a write function.");
 		return (-1);
 	}
 
-	DEBUG ("plugin: plugin_dispatch_values: time = %u; interval = %i; "
+	if (data_sets == NULL)
+	{
+		ERROR ("plugin_dispatch_values: No data sets registered. "
+				"Could the types database be read? Check "
+				"your `TypesDB' setting!");
+		return (-1);
+	}
+
+	if (c_avl_get (data_sets, name, (void *) &ds) != 0)
+	{
+		INFO ("plugin_dispatch_values: Dataset not found: %s", name);
+		return (-1);
+	}
+
+	DEBUG ("plugin_dispatch_values: time = %u; interval = %i; "
 			"host = %s; "
 			"plugin = %s; plugin_instance = %s; "
 			"type = %s; type_instance = %s;",
@@ -743,7 +759,8 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 #else
 	if (ds->ds_num != vl->values_len)
 	{
-		ERROR ("plugin: ds->type = %s: (ds->ds_num = %i) != "
+		ERROR ("plugin_dispatch_values: ds->type = %s: "
+				"(ds->ds_num = %i) != "
 				"(vl->values_len = %i)",
 				ds->type, ds->ds_num, vl->values_len);
 		return (-1);

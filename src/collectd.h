@@ -122,6 +122,24 @@
 # endif /* !defined(isnan) */
 #endif /* NAN_ZERO_ZERO */
 
+#if HAVE_ENDIAN_H
+# include <endian.h>
+#endif
+
+#ifndef BYTE_ORDER
+# ifdef __BYTE_ORDER
+#  define BYTE_ORDER __BYTE_ORDER
+# endif
+#endif
+#ifndef BIG_ENDIAN
+# ifdef __BIG_ENDIAN
+#  define BIG_ENDIAN __BIG_ENDIAN
+# endif
+#endif
+#if !defined(BYTE_ORDER) || !defined(BIG_ENDIAN)
+# error "Cannot determine byte order"
+#endif
+
 #if HAVE_DIRENT_H
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)
