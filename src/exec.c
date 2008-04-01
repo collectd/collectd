@@ -379,14 +379,17 @@ static void exec_child (program_list_t *pl) /* {{{ */
 } /* void exec_child }}} */
 
 /*
- * Creates two pipes (one for reading, ong for writing), forks a child, sets up
- * the pipes so that fd_in is connected to STDIN of the child and fd_out is
- * connected to STDOUT and STDERR of the child. Then is calls `exec_child'.
+ * Creates three pipes (one for reading, one for writing and one for errors),
+ * forks a child, sets up the pipes so that fd_in is connected to STDIN of 
+ * the child and fd_out is connected to STDOUT and fd_err is connected to STDERR
+ * of the child. Then is calls `exec_child'.
  */
-static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
+static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err) /* {{{ */
 {
   int fd_pipe_in[2];
   int fd_pipe_out[2];
+  int fd_pipe_err[2];
+  char errbuf[1024];
   int status;
   int pid;
 
@@ -396,7 +399,6 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
   status = pipe (fd_pipe_in);
   if (status != 0)
   {
-    char errbuf[1024];
     ERROR ("exec plugin: pipe failed: %s",
 	sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
@@ -405,7 +407,14 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
   status = pipe (fd_pipe_out);
   if (status != 0)
   {
-    char errbuf[1024];
+    ERROR ("exec plugin: pipe failed: %s",
+	sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  status = pipe (fd_pipe_err);
+  if (status != 0)
+  {
     ERROR ("exec plugin: pipe failed: %s",
 	sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
@@ -414,7 +423,6 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
   pid = fork ();
   if (pid < 0)
   {
-    char errbuf[1024];
     ERROR ("exec plugin: fork failed: %s",
 	sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
@@ -423,41 +431,27 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
   {
     close (fd_pipe_in[1]);
     close (fd_pipe_out[0]);
-
-    /* If the `out' pipe has the filedescriptor STDIN we have to be careful
-     * with the `dup's below. So, if this is the case we have to handle the
-     * `out' pipe first. */
-    if (fd_pipe_out[1] == STDIN_FILENO)
-    {
-      int new_fileno = (fd_pipe_in[0] == STDOUT_FILENO)
-	? STDERR_FILENO : STDOUT_FILENO;
-      dup2 (fd_pipe_out[1], new_fileno);
-      close (fd_pipe_out[1]);
-      fd_pipe_out[1] = new_fileno;
-    }
-    /* Now `fd_pipe_out[1]' is either `STDOUT' or `STDERR', but definitely not
-     * `STDIN_FILENO'. */
+    close (fd_pipe_err[0]);
 
     /* Connect the `in' pipe to STDIN */
     if (fd_pipe_in[0] != STDIN_FILENO)
     {
       dup2 (fd_pipe_in[0], STDIN_FILENO);
       close (fd_pipe_in[0]);
-      fd_pipe_in[0] = STDIN_FILENO;
     }
 
-    /* Now connect the `out' pipe to STDOUT and STDERR */
+    /* Now connect the `out' pipe to STDOUT */
     if (fd_pipe_out[1] != STDOUT_FILENO)
-      dup2 (fd_pipe_out[1], STDOUT_FILENO);
-    if (fd_pipe_out[1] != STDERR_FILENO)
-      dup2 (fd_pipe_out[1], STDERR_FILENO);
-
-    /* If the pipe has some FD that's something completely different, close it
-     * now. */
-    if ((fd_pipe_out[1] != STDOUT_FILENO) && (fd_pipe_out[1] != STDERR_FILENO))
     {
+      dup2 (fd_pipe_out[1], STDOUT_FILENO);
       close (fd_pipe_out[1]);
-      fd_pipe_out[1] = STDOUT_FILENO;
+    }
+
+    /* Now connect the `out' pipe to STDOUT */
+    if (fd_pipe_err[1] != STDERR_FILENO)
+    {
+      dup2 (fd_pipe_err[1], STDERR_FILENO);
+      close (fd_pipe_err[1]);
     }
 
     exec_child (pl);
@@ -466,6 +460,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
 
   close (fd_pipe_in[0]);
   close (fd_pipe_out[1]);
+  close (fd_pipe_err[1]);
 
   if (fd_in != NULL)
     *fd_in = fd_pipe_in[1];
@@ -476,6 +471,11 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out) /* {{{ */
     *fd_out = fd_pipe_out[0];
   else
     close (fd_pipe_out[0]);
+
+  if (fd_err != NULL)
+    *fd_err = fd_pipe_err[0];
+  else
+    close (fd_pipe_err[0]);
 
   return (pid);
 } /* int fork_child }}} */
@@ -500,48 +500,112 @@ static int parse_line (char *buffer) /* {{{ */
 static void *exec_read_one (void *arg) /* {{{ */
 {
   program_list_t *pl = (program_list_t *) arg;
-  int fd;
-  FILE *fh;
-  char buffer[1024];
+  int fd, fd_err, highest_fd;
+  fd_set fdset, copy;
   int status;
+  char buffer[1200];  /* if not completely read */
+  char buffer_err[1024];
+  char *pbuffer = buffer;
+  char *pbuffer_err = buffer_err;
 
-  status = fork_child (pl, NULL, &fd);
+  status = fork_child (pl, NULL, &fd, &fd_err);
   if (status < 0)
     pthread_exit ((void *) 1);
   pl->pid = status;
 
   assert (pl->pid != 0);
 
-  fh = fdopen (fd, "r");
-  if (fh == NULL)
-  {
-    char errbuf[1024];
-    ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
-	sstrerror (errno, errbuf, sizeof (errbuf)));
-    kill (pl->pid, SIGTERM);
-    pl->pid = 0;
-    close (fd);
-    pthread_exit ((void *) 1);
-  }
+  FD_ZERO( &fdset );
+  FD_SET(fd, &fdset);
+  FD_SET(fd_err, &fdset);
 
-  buffer[0] = '\0';
-  while (fgets (buffer, sizeof (buffer), fh) != NULL)
+  /* Determine the highest file descriptor */
+  highest_fd = (fd > fd_err) ? fd : fd_err;
+
+  /* We use a copy of fdset, as select modifies it */
+  copy = fdset;
+
+  while (select(highest_fd + 1, &copy, NULL, NULL, NULL ) > 0)
   {
     int len;
 
-    len = strlen (buffer);
+    if (FD_ISSET(fd, &copy))
+    {
+      char *pnl;
 
-    /* Remove newline from end. */
-    while ((len > 0) && ((buffer[len - 1] == '\n')
-	  || (buffer[len - 1] == '\r')))
-      buffer[--len] = '\0';
+      len = read(fd, pbuffer, sizeof(buffer) - 1 - (pbuffer - buffer));
 
-    DEBUG ("exec plugin: exec_read_one: buffer = %s", buffer);
+      if (len < 0)
+      {
+        if (errno == EAGAIN || errno == EINTR)  continue;
+        break;
+      }
+      else if (len == 0) break;  /* We've reached EOF */
 
-    parse_line (buffer);
-  } /* while (fgets) */
+      pbuffer[len] = '\0';
 
-  fclose (fh);
+      len += pbuffer - buffer;
+      pbuffer = buffer;
+
+      while ((pnl = strchr(pbuffer, '\n')))
+      {
+        *pnl = '\0';
+        if (*(pnl-1) == '\r' ) *(pnl-1) = '\0';
+
+        parse_line (pbuffer);
+
+        pbuffer = ++pnl;
+      }
+      /* not completely read ? */
+      if (pbuffer - buffer < len)
+      {
+        len -= pbuffer - buffer;
+        memmove(buffer, pbuffer, len);
+        pbuffer = buffer + len;
+      }
+      else
+        pbuffer = buffer; 
+    } 
+    else if (FD_ISSET(fd_err, &copy))
+    {
+      char *pnl;
+
+      len = read(fd_err, pbuffer_err, sizeof(buffer_err) - 1 - (pbuffer_err - buffer_err));
+
+      if (len < 0)
+      {
+        if (errno == EAGAIN || errno == EINTR)  continue;
+        break;
+      }
+      else if (len == 0) break;  /* We've reached EOF */
+
+      pbuffer_err[len] = '\0';
+
+      len += pbuffer_err - buffer_err;
+      pbuffer_err = buffer_err;
+
+      while ((pnl = strchr(pbuffer_err, '\n')))
+      {
+        *pnl = '\0';
+        if (*(pnl-1) == '\r' ) *(pnl-1) = '\0';
+
+        ERROR ("exec plugin: exec_read_one: error = %s", pbuffer_err);
+
+        pbuffer_err = ++pnl;
+      }
+      /* not completely read ? */
+      if (pbuffer_err - buffer_err < len)
+      {
+        len -= pbuffer_err - buffer_err;
+        memmove(buffer_err, pbuffer_err, len);
+        pbuffer_err = buffer_err + len;
+      }
+      else
+        pbuffer_err = buffer_err;
+    }
+    /* reset copy */
+    copy = fdset;
+  }
 
   if (waitpid (pl->pid, &status, 0) > 0)
     pl->status = status;
@@ -554,6 +618,9 @@ static void *exec_read_one (void *arg) /* {{{ */
   pthread_mutex_lock (&pl_lock);
   pl->flags &= ~PL_RUNNING;
   pthread_mutex_unlock (&pl_lock);
+
+  close (fd);
+  close (fd_err);
 
   pthread_exit ((void *) 0);
   return (NULL);
@@ -569,7 +636,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   int status;
   const char *severity;
 
-  pid = fork_child (pl, &fd, NULL);
+  pid = fork_child (pl, &fd, NULL, NULL);
   if (pid < 0) {
     sfree (arg);
     pthread_exit ((void *) 1);
