@@ -121,7 +121,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
 		char errbuf[1024];
-		ERROR ("hddtemp: getaddrinfo (%s, %s): %s",
+		ERROR ("hddtemp plugin: getaddrinfo (%s, %s): %s",
 				host, port,
 				(ai_return == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
@@ -133,19 +133,23 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		/* create our socket descriptor */
-		if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0)
+		fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
+				ai_ptr->ai_protocol);
+		if (fd < 0)
 		{
 			char errbuf[1024];
-			ERROR ("hddtemp: socket: %s",
+			ERROR ("hddtemp plugin: socket: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
 
 		/* connect to the hddtemp daemon */
-		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
+		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr,
+					ai_ptr->ai_addrlen))
 		{
 			char errbuf[1024];
-			INFO ("hddtemp: connect (%s, %s): %s", host, port,
+			INFO ("hddtemp plugin: connect (%s, %s) failed: %s",
+					host, port,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
 			fd = -1;
@@ -161,7 +165,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 	if (fd < 0)
 	{
-		ERROR ("hddtemp: Could not connect to daemon.");
+		ERROR ("hddtemp plugin: Could not connect to daemon.");
 		return (-1);
 	}
 
@@ -178,7 +182,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 			if ((errno == EAGAIN) || (errno == EINTR))
 				continue;
 
-			ERROR ("hddtemp: Error reading from socket: %s",
+			ERROR ("hddtemp plugin: Error reading from socket: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
 			return (-1);
@@ -192,12 +196,13 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	if (buffer_fill >= buffer_size)
 	{
 		buffer[buffer_size - 1] = '\0';
-		WARNING ("hddtemp: Message from hddtemp has been truncated.");
+		WARNING ("hddtemp plugin: Message from hddtemp has been "
+				"truncated.");
 	}
 	else if (buffer_fill == 0)
 	{
-		WARNING ("hddtemp: Peer has unexpectedly shut down the socket. "
-				"Buffer: `%s'", buffer);
+		WARNING ("hddtemp plugin: Peer has unexpectedly shut down "
+				"the socket. Buffer: `%s'", buffer);
 		close (fd);
 		return (-1);
 	}
@@ -273,7 +278,7 @@ static int hddtemp_init (void)
 
 	if ((fh = fopen ("/proc/partitions", "r")) != NULL)
 	{
-		DEBUG ("Looking at /proc/partitions...");
+		DEBUG ("hddtemp plugin: Looking at /proc/partitions...");
 
 		while (fgets (buf, sizeof (buf), fh) != NULL)
 		{
@@ -349,25 +354,25 @@ static int hddtemp_init (void)
 
 				/* Skip all other majors. */
 				default:
-					DEBUG ("Skipping unknown major %i", major);
+					DEBUG ("hddtemp plugin: Skipping unknown major %i", major);
 					continue;
 			} /* switch (major) */
 
 			if ((name = strdup (fields[3])) == NULL)
 			{
-				ERROR ("hddtemp: strdup(%s) == NULL", fields[3]);
+				ERROR ("hddtemp plugin: strdup(%s) == NULL", fields[3]);
 				continue;
 			}
 
 			if ((entry = (hddname_t *) malloc (sizeof (hddname_t))) == NULL)
 			{
-				ERROR ("hddtemp: malloc (%u) == NULL",
+				ERROR ("hddtemp plugin: malloc (%u) == NULL",
 						(unsigned int) sizeof (hddname_t));
 				free (name);
 				continue;
 			}
 
-			DEBUG ("Found disk: %s (%u:%u).", name, major, minor);
+			DEBUG ("hddtemp plugin: Found disk: %s (%u:%u).", name, major, minor);
 
 			entry->major = major;
 			entry->minor = minor;
@@ -390,7 +395,7 @@ static int hddtemp_init (void)
 	else
 	{
 		char errbuf[1024];
-		DEBUG ("Could not open /proc/partitions: %s",
+		DEBUG ("hddtemp plugin: Could not open /proc/partitions: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 #endif /* COLLECT_DEBUG */
@@ -418,7 +423,7 @@ static char *hddtemp_get_major_minor (char *drive)
 
 	if (list == NULL)
 	{
-		DEBUG ("Don't know %s, keeping name as-is.", drive);
+		DEBUG ("hddtemp plugin: Don't know %s, keeping name as-is.", drive);
 		return (strdup (drive));
 	}
 

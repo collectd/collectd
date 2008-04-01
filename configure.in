@@ -56,7 +56,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 
-AC_CHECK_HEADERS(stdint.h stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h)
+AC_CHECK_HEADERS(stdint.h stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h)
 
 # For ping library
 AC_CHECK_HEADERS(netinet/in_systm.h, [], [],
@@ -995,12 +995,12 @@ then
 	then
 		with_libcurl="no ($with_curl_config failed)"
 	else
-		SAVE_CFLAGS=$CFLAGS
-		CFLAGS="$CFLAGS $with_curl_cflags"
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_curl_cflags"
 
 		AC_CHECK_HEADERS(curl/curl.h, [], [with_libcurl="no (curl/curl.h not found)"], [])
 
-		CFLAGS="$SAVE_CFLAGS"
+		CPPFLAGS="$SAVE_CPPFLAGS"
 	fi
 fi
 if test "x$with_libcurl" = "xyes"
@@ -1189,12 +1189,12 @@ then
 	then
 		with_libmysql="no"
 	else
-		SAVE_CFLAGS=$CFLAGS
-		CFLAGS="$CFLAGS $with_mysql_cflags"
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
 
 		AC_CHECK_HEADERS(mysql/mysql.h, [], [with_libmysql="no (mysql/mysql.h not found)"], [])
 
-		CFLAGS="$SAVE_CFLAGS"
+		CPPFLAGS="$SAVE_CPPFLAGS"
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
@@ -1527,12 +1527,12 @@ then
 	then
 		with_libnetsnmp="no ($with_snmp_config failed)"
 	else
-		SAVE_CFLAGS=$CFLAGS
-		CFLAGS="$CFLAGS $with_snmp_cflags"
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_snmp_cflags"
 		
 		AC_CHECK_HEADERS(net-snmp/net-snmp-config.h, [], [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"])
 
-		CFLAGS="$SAVE_CFLAGS"
+		CPPFLAGS="$SAVE_CPPFLAGS"
 	fi
 fi
 if test "x$with_libnetsnmp" = "xyes"
@@ -1595,12 +1595,12 @@ then
 fi
 if test "x$with_libupsclient" = "xyes"
 then
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $with_upsclient_cflags"
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_upsclient_cflags"
 
 	AC_CHECK_HEADERS(upsclient.h, [], [with_libupsclient="no (upsclient.h not found)"])
 
-	CFLAGS="$SAVE_CFLAGS"
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 if test "x$with_libupsclient" = "xyes"
 then
@@ -1627,10 +1627,15 @@ then
 fi
 if test "x$with_libupsclient" = "xyes"
 then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_upsclient_cflags"
+
 	AC_CHECK_TYPES([UPSCONN_t, UPSCONN], [], [],
 [#include <stdlib.h>
 #include <stdio.h>
 #include <upsclient.h>])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBUPSCLIENT, test "x$with_libupsclient" = "xyes")
 

@@ -413,6 +413,64 @@ sub _get_random_color
   return ([$r, $g, $b]);
 } # _get_random_color
 
+sub _get_n_colors
+{
+	my $instances = shift;
+	my $num = scalar @$instances;
+	my $ret = {};
+
+	for (my $i = 0; $i < $num; $i++)
+	{
+		my $pos = 6 * $i / $num;
+		my $n = int ($pos);
+		my $p = $pos - $n;
+		my $q = 1 - $p;
+
+		my $red   = 0;
+		my $green = 0;
+		my $blue  = 0;
+
+		my $color;
+
+		if ($n == 0)
+		{
+			$red  = 255;
+			$blue = 255 * $p;
+		}
+		elsif ($n == 1)
+		{
+			$red  = 255 * $q;
+			$blue = 255;
+		}
+		elsif ($n == 2)
+		{
+			$green = 255 * $p;
+			$blue  = 255;
+		}
+		elsif ($n == 3)
+		{
+			$green = 255;
+			$blue  = 255 * $q;
+		}
+		elsif ($n == 4)
+		{
+			$red   = 255 * $p;
+			$green = 255;
+		}
+		elsif ($n == 5)
+		{
+			$red   = 255;
+			$green = 255 * $q;
+		}
+		else { die; }
+
+		$color = sprintf ("%02x%02x%02x", $red, $green, $blue);
+		$ret->{$instances->[$i]} = $color;
+	}
+
+	return ($ret);
+} # _get_n_colors
+
 sub _get_faded_color
 {
   my $fg = shift;
@@ -1136,7 +1194,7 @@ sub load_graph_definitions
     'GPRINT:inc_max:MAX:%5.1lf%ss Max,',
     'GPRINT:inc_avg:LAST:%5.1lf%ss Last\l'
     ],
-    dns_traffic => ['DEF:rsp_min_raw={file}:responses:MIN',
+    dns_octets => ['DEF:rsp_min_raw={file}:responses:MIN',
     'DEF:rsp_avg_raw={file}:responses:AVERAGE',
     'DEF:rsp_max_raw={file}:responses:MAX',
     'DEF:qry_min_raw={file}:queries:MIN',
@@ -1170,6 +1228,18 @@ sub load_graph_definitions
     'GPRINT:qry_max:MAX:%5.1lf%s Max,',
     'GPRINT:qry_avg:LAST:%5.1lf%s Last',
     'GPRINT:qry_avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
+    ],
+    dns_opcode => [
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Queries/s",
+    'GPRINT:min:MIN:%9.3lf Min,',
+    'GPRINT:avg:AVERAGE:%9.3lf Average,',
+    'GPRINT:max:MAX:%9.3lf Max,',
+    'GPRINT:avg:LAST:%9.3lf Last\l'
     ],
     email_count => ['-v', 'Mails',
     'DEF:avg={file}:value:AVERAGE',
@@ -1839,18 +1909,6 @@ sub load_graph_definitions
     'GPRINT:read_avg:AVERAGE:%5.1lf Avg,',
     'GPRINT:read_avg:LAST:%5.1lf Last\l'
     ],
-    opcode => [
-    'DEF:avg={file}:value:AVERAGE',
-    'DEF:min={file}:value:MIN',
-    'DEF:max={file}:value:MAX',
-    "AREA:max#$HalfBlue",
-    "AREA:min#$Canvas",
-    "LINE1:avg#$FullBlue:Queries/s",
-    'GPRINT:min:MIN:%9.3lf Min,',
-    'GPRINT:avg:AVERAGE:%9.3lf Average,',
-    'GPRINT:max:MAX:%9.3lf Max,',
-    'GPRINT:avg:LAST:%9.3lf Last\l'
-    ],
     partition => [
     "DEF:rbyte_avg={file}:rbytes:AVERAGE",
     "DEF:rbyte_min={file}:rbytes:MIN",
@@ -2060,29 +2118,41 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%6.2lf Max,',
     'GPRINT:avg:LAST:%6.2lf Last\l'
     ],
-    qtype => [
+    signal_noise => ['-v', 'dBm',
     'DEF:avg={file}:value:AVERAGE',
     'DEF:min={file}:value:MIN',
     'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
-    "LINE1:avg#$FullBlue:Queries/s",
-    'GPRINT:min:MIN:%9.3lf Min,',
-    'GPRINT:avg:AVERAGE:%9.3lf Average,',
-    'GPRINT:max:MAX:%9.3lf Max,',
-    'GPRINT:avg:LAST:%9.3lf Last\l'
+    "LINE1:avg#$FullBlue:Noise",
+    'GPRINT:min:MIN:%5.1lf%sdBm Min,',
+    'GPRINT:avg:AVERAGE:%5.1lf%sdBm Avg,',
+    'GPRINT:max:MAX:%5.1lf%sdBm Max,',
+    'GPRINT:avg:LAST:%5.1lf%sdBm Last\l'
     ],
-    rcode => [
+    signal_power => ['-v', 'dBm',
     'DEF:avg={file}:value:AVERAGE',
     'DEF:min={file}:value:MIN',
     'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
-    "LINE1:avg#$FullBlue:Queries/s",
-    'GPRINT:min:MIN:%9.3lf Min,',
-    'GPRINT:avg:AVERAGE:%9.3lf Average,',
-    'GPRINT:max:MAX:%9.3lf Max,',
-    'GPRINT:avg:LAST:%9.3lf Last\l'
+    "LINE1:avg#$FullBlue:Power",
+    'GPRINT:min:MIN:%5.1lf%sdBm Min,',
+    'GPRINT:avg:AVERAGE:%5.1lf%sdBm Avg,',
+    'GPRINT:max:MAX:%5.1lf%sdBm Max,',
+    'GPRINT:avg:LAST:%5.1lf%sdBm Last\l'
+    ],
+    signal_quality => ['-v', '%',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Quality",
+    'GPRINT:min:MIN:%5.1lf%s%% Min,',
+    'GPRINT:avg:AVERAGE:%5.1lf%s%% Avg,',
+    'GPRINT:max:MAX:%5.1lf%s%% Max,',
+    'GPRINT:avg:LAST:%5.1lf%s%% Last\l'
     ],
     swap => ['-v', 'Bytes', '-b', '1024',
     'DEF:avg={file}:value:AVERAGE',
@@ -2356,8 +2426,12 @@ sub load_graph_definitions
   };
   $GraphDefs->{'if_multicast'} = $GraphDefs->{'ipt_packets'};
   $GraphDefs->{'if_tx_errors'} = $GraphDefs->{'if_rx_errors'};
+  $GraphDefs->{'dns_qtype'} = $GraphDefs->{'dns_opcode'};
+  $GraphDefs->{'dns_rcode'} = $GraphDefs->{'dns_opcode'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
+  $MetaGraphDefs->{'dns_qtype'} = \&meta_graph_dns;
+  $MetaGraphDefs->{'dns_rcode'} = \&meta_graph_dns;
   $MetaGraphDefs->{'if_rx_errors'} = \&meta_graph_if_rx_errors;
   $MetaGraphDefs->{'if_tx_errors'} = \&meta_graph_if_rx_errors;
   $MetaGraphDefs->{'memory'} = \&meta_graph_memory;
@@ -2389,12 +2463,21 @@ sub meta_graph_generic_stack
     @RRDDefaultArgs, @{$opts->{'rrd_opts'}});
 
   my $max_inst_name = 0;
+  my @vnames = ();
+
+  for ($i = 0; $i < @$sources; $i++)
+  {
+    my $tmp = $sources->[$i]->{'name'};
+    $tmp =~ tr/A-Za-z0-9\-_/_/c;
+    $vnames[$i] = $i . $tmp;
+  }
 
   for ($i = 0; $i < @$sources; $i++)
   {
     my $inst_data = $sources->[$i];
     my $inst_name = $inst_data->{'name'} || confess;
     my $file = $inst_data->{'file'} || confess;
+    my $vname = $vnames[$i];
 
     if (length ($inst_name) > $max_inst_name)
     {
@@ -2404,33 +2487,31 @@ sub meta_graph_generic_stack
     confess ("No such file: $file") if (!-e $file);
 
     push (@cmd,
-      qq#DEF:${inst_name}_min=$file:value:MIN#,
-      qq#DEF:${inst_name}_avg=$file:value:AVERAGE#,
-      qq#DEF:${inst_name}_max=$file:value:MAX#,
-      qq#CDEF:${inst_name}_nnl=${inst_name}_avg,UN,0,${inst_name}_avg,IF#);
+      qq#DEF:${vname}_min=$file:value:MIN#,
+      qq#DEF:${vname}_avg=$file:value:AVERAGE#,
+      qq#DEF:${vname}_max=$file:value:MAX#,
+      qq#CDEF:${vname}_nnl=${vname}_avg,UN,0,${vname}_avg,IF#);
   }
 
   {
-    my $inst_data = $sources->[@$sources - 1];
-    my $inst_name = $inst_data->{'name'};
+    my $vname = $vnames[@vnames - 1];
 
-    push (@cmd, qq#CDEF:${inst_name}_stk=${inst_name}_nnl#);
+    push (@cmd, qq#CDEF:${vname}_stk=${vname}_nnl#);
   }
   for (my $i = 1; $i < @$sources; $i++)
   {
-    my $inst_data0 = $sources->[@$sources - ($i + 1)];
-    my $inst_data1 = $sources->[@$sources - $i];
+    my $vname0 = $vnames[@vnames - ($i + 1)];
+    my $vname1 = $vnames[@vnames - $i];
 
-    my $inst_name0 = $inst_data0->{'name'};
-    my $inst_name1 = $inst_data1->{'name'};
-
-    push (@cmd, qq#CDEF:${inst_name0}_stk=${inst_name0}_nnl,${inst_name1}_stk,+#);
+    push (@cmd, qq#CDEF:${vname0}_stk=${vname0}_nnl,${vname1}_stk,+#);
   }
 
   for (my $i = 0; $i < @$sources; $i++)
   {
     my $inst_data = $sources->[$i];
     my $inst_name = $inst_data->{'name'};
+
+    my $vname = $vnames[$i];
 
     my $legend = sprintf ('%-*s', $max_inst_name, $inst_name);
 
@@ -2451,12 +2532,12 @@ sub meta_graph_generic_stack
     }
     $area_color = _color_to_string (_get_faded_color ($area_color));
 
-    push (@cmd, qq(AREA:${inst_name}_stk#$area_color),
-      qq(LINE1:${inst_name}_stk#$line_color:$legend),
-      qq(GPRINT:${inst_name}_min:MIN:$number_format Min,),
-      qq(GPRINT:${inst_name}_avg:AVERAGE:$number_format Avg,),
-      qq(GPRINT:${inst_name}_max:MAX:$number_format Max,),
-      qq(GPRINT:${inst_name}_avg:LAST:$number_format Last\\l),
+    push (@cmd, qq(AREA:${vname}_stk#$area_color),
+      qq(LINE1:${vname}_stk#$line_color:$legend),
+      qq(GPRINT:${vname}_min:MIN:$number_format Min,),
+      qq(GPRINT:${vname}_avg:AVERAGE:$number_format Avg,),
+      qq(GPRINT:${vname}_max:MAX:$number_format Max,),
+      qq(GPRINT:${vname}_avg:LAST:$number_format Last\\l),
     );
   }
 
@@ -2529,6 +2610,57 @@ sub meta_graph_cpu
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_cpu
 
+sub meta_graph_dns
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+
+  $opts->{'rrd_opts'} = ['-v', 'Queries/s'];
+
+  my @files = ();
+
+  @$type_instances = sort @$type_instances;
+
+  $opts->{'colors'} = _get_n_colors ($type_instances);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_dns
+
 sub meta_graph_memory
 {
   confess ("Wrong number of arguments") if (@_ != 5);
@@ -2586,7 +2718,7 @@ sub meta_graph_memory
   } # for (@$type_instances)
 
   return (meta_graph_generic_stack ($opts, $sources));
-} # meta_graph_cpu
+} # meta_graph_memory
 
 sub meta_graph_if_rx_errors
 {
