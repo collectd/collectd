@@ -272,6 +272,16 @@ collectd_LDADD += "-dlopen" iptables.la
 collectd_DEPENDENCIES += iptables.la
 endif
 
+if BUILD_PLUGIN_IPMI
+pkglib_LTLIBRARIES += ipmi.la
+ipmi_la_SOURCES = ipmi.c
+ipmi_la_CFLAGS = $(BUILD_WITH_OPENIPMI_CFLAGS)
+ipmi_la_LDFLAGS = -module -avoid-version
+ipmi_la_LIBADD = $(BUILD_WITH_OPENIPMI_LIBS)
+collectd_LDADD += "-dlopen" ipmi.la
+collectd_DEPENDENCIES += ipmi.la
+endif
+
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
