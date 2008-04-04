@@ -169,22 +169,23 @@ for (@Files)
 			print "./rrd_filter.px -i '$InDir/$orig_filename' -m '${src_ds}:${dst_ds}' -o '$OutDir/$dest_filename'\n";
 		}
 	}
-	elsif (exists ($TypeRename{$orig->{'type'}}))
-	{
-		my $src_dses = $TypeRename{$orig->{'type'}}->{'from'};
-		my $dst_dses = $TypeRename{$orig->{'type'}}->{'to'};
-		my @sed_prog = ();
-
-		for (my $i = 0; $i < @$src_dses; $i++)
-		{
-			push (@sed_prog, 's/^' . $src_dses->[$i] . '$/' . $dst_dses->[$i] . '/g;');
-		}
-
-		print "rrdtool dump '$InDir/$orig_filename' | sed -e '" . join (' ', @sed_prog) . "' | rrdtool restore - '$OutDir/$dest_filename'\n";
-	}
 	else
 	{
 		print "cp '$InDir/$orig_filename' '$OutDir/$dest_filename'\n";
+	}
+
+	if (exists ($TypeRename{$orig->{'type'}}))
+	{
+		my $src_dses = $TypeRename{$orig->{'type'}}->{'from'};
+		my $dst_dses = $TypeRename{$orig->{'type'}}->{'to'};
+
+		print "rrdtool tune '$OutDir/$dest_filename'";
+		for (my $i = 0; $i < @$src_dses; $i++)
+		{
+			print " --data-source-rename "
+				. $src_dses->[$i] . ':' . $dst_dses->[$i];
+		}
+		print "\n";
 	}
 }
 
