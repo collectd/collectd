@@ -22,6 +22,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_ignorelist.h"
 
 #include <pthread.h>
 
@@ -51,6 +52,15 @@ static c_ipmi_sensor_list_t *sensor_list = NULL;
 
 static int c_ipmi_active = 0;
 static pthread_t thread_id = (pthread_t) 0;
+
+static const char *config_keys[] =
+{
+	"Sensor",
+	"IgnoreSelected"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static ignorelist_t *ignorelist = NULL;
 
 /*
  * Misc private functions
@@ -129,6 +139,13 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
         (value_present == IPMI_RAW_VALUE_PRESENT)
         ? "only the raw value"
         : "no value");
+    sensor_list_remove (sensor);
+    return;
+  }
+
+  /* Both `ignorelist' and `plugin_instance' may be NULL. */
+  if (ignorelist_match (ignorelist, sensor_name_ptr) != 0)
+  {
     sensor_list_remove (sensor);
     return;
   }
@@ -450,6 +467,34 @@ static void *thread_main (void *user_data)
   return ((void *) 0);
 } /* void *thread_main */
 
+static int c_ipmi_config (const char *key, const char *value)
+{
+  if (ignorelist == NULL)
+    ignorelist = ignorelist_create (/* invert = */ 1);
+  if (ignorelist == NULL)
+    return (1);
+
+  if (strcasecmp ("Sensor", key) == 0)
+  {
+    ignorelist_add (ignorelist, value);
+  }
+  else if (strcasecmp ("IgnoreSelected", key) == 0)
+  {
+    int invert = 1;
+    if ((strcasecmp ("True", value) == 0)
+	|| (strcasecmp ("Yes", value) == 0)
+	|| (strcasecmp ("On", value) == 0))
+      invert = 0;
+    ignorelist_set_invert (ignorelist, invert);
+  }
+  else
+  {
+    return (-1);
+  }
+
+  return (0);
+} /* int c_ipmi_config */
+
 static int c_ipmi_init (void)
 {
   int status;
@@ -499,6 +544,8 @@ static int c_ipmi_shutdown (void)
 
 void module_register (void)
 {
+  plugin_register_config ("ipmi", c_ipmi_config,
+      config_keys, config_keys_num);
   plugin_register_init ("ipmi", c_ipmi_init);
   plugin_register_read ("ipmi", c_ipmi_read);
   plugin_register_shutdown ("ipmi", c_ipmi_shutdown);
