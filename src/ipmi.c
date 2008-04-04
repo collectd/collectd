@@ -114,8 +114,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
   if (err != 0)
   {
     INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
-        "because it failed with status %#x. If you need this sensor, "
-        "please file a bug report.",
+        "because it failed with status %#x.",
         sensor_name_ptr, err);
     sensor_list_remove (sensor);
     return;
@@ -124,7 +123,8 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
   if (value_present != IPMI_BOTH_VALUES_PRESENT)
   {
     INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
-        "because it provides %s.",
+        "because it provides %s. If you need this sensor, "
+        "please file a bug report.",
         sensor_name_ptr,
         (value_present == IPMI_RAW_VALUE_PRESENT)
         ? "only the raw value"
@@ -160,7 +160,8 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
         
         sensor_type_str = ipmi_sensor_get_sensor_type_string (sensor);
         INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
-            "because I don't know how to handle its type (%#x, %s).",
+            "because I don't know how to handle its type (%#x, %s). "
+            "If you need this sensor, please file a bug report.",
             sensor_name_ptr, sensor_type, sensor_type_str);
         sensor_list_remove (sensor);
         return;
