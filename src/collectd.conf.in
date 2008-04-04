@@ -29,6 +29,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 @BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
+@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
 @BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
 @BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
 @BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
