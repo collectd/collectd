@@ -121,7 +121,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     return;
   }
 
-  if (value_present != IPMI_RAW_VALUE_PRESENT)
+  if (value_present != IPMI_BOTH_VALUES_PRESENT)
   {
     INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
         "because it provides %s.",
