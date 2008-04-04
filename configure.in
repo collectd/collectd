@@ -2395,6 +2395,7 @@ Configuration:
     libnetlink  . . . . $with_libnetlink
     libnetsnmp  . . . . $with_libnetsnmp
     liboconfig  . . . . $with_liboconfig
+    libopenipmi . . . . $with_libopenipmipthread
     liboping  . . . . . $with_liboping
     libpcap . . . . . . $with_libpcap
     libperl . . . . . . $with_libperl
