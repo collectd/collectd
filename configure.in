@@ -2113,6 +2113,7 @@ AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
+plugin_ascent="no"
 plugin_battery="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
@@ -2191,6 +2192,11 @@ then
 	plugin_load="yes"
 	plugin_memory="yes"
 	plugin_swap="yes"
+fi
+
+if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"
+then
+	plugin_ascent="yes"
 fi
 
 if test "x$with_libopenipmipthread" = "xyes"
@@ -2276,6 +2282,7 @@ collectd plugins:])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
+AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
@@ -2419,6 +2426,7 @@ Configuration:
     apache  . . . . . . $enable_apache
     apcups  . . . . . . $enable_apcups
     apple_sensors . . . $enable_apple_sensors
+    ascent  . . . . . . $enable_ascent
     battery . . . . . . $enable_battery
     cpu . . . . . . . . $enable_cpu
     cpufreq . . . . . . $enable_cpufreq
