@@ -173,6 +173,19 @@ Optional user name needed for authentication.
 
 Optional password needed for authentication.
 
+=item B<VerifyPeer> B<true|false>
+
+Enable or disable peer SSL certificate verification. See
+L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
+
+=item B<VerifyHost> B<true|false>
+
+Enable or disable peer host name verification. If enabled, the plugin checks
+if the C<Common Name> or a C<Subject Alternate Name> field of the SSL
+certificate matches the host name provided by the B<URL> option. If this
+identity check fails, the connection is aborted. Obviously, only works when
+connecting to a SSL enabled server. Enabled by default.
+
 =item B<CACert> I<File>
 
 File that holds one or more SSL certificates. If you want to use HTTPS you will
@@ -822,6 +835,19 @@ Optional user name needed for authentication.
 =item B<Password> I<Password>
 
 Optional password needed for authentication.
+
+=item B<VerifyPeer> B<true|false>
+
+Enable or disable peer SSL certificate verification. See
+L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
+
+=item B<VerifyHost> B<true|false>
+
+Enable or disable peer host name verification. If enabled, the plugin checks
+if the C<Common Name> or a C<Subject Alternate Name> field of the SSL
+certificate matches the host name provided by the B<URL> option. If this
+identity check fails, the connection is aborted. Obviously, only works when
+connecting to a SSL enabled server. Enabled by default.
 
 =item B<CACert> I<File>
 
