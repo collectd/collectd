@@ -30,23 +30,6 @@
 static char *races_list[] = /* {{{ */
 {
   NULL,
-  "Warrior", /*  1 */
-  "Paladin", /*  2 */
-  "Hunter",  /*  3 */
-  "Rogue",   /*  4 */
-  "Priest",  /*  5 */
-  NULL,
-  "Shaman",  /*  7 */
-  "Mage",    /*  8 */
-  "Warlock", /*  9 */
-  NULL,
-  "Druid"    /* 11 */
-}; /* }}} */
-#define RACES_LIST_LENGTH STATIC_ARRAY_SIZE (races_list)
-
-static char *classes_list[] = /* {{{ */
-{
-  NULL,
   "Human",    /*  1 */
   "Orc",      /*  2 */
   "Dwarf",    /*  3 */
@@ -58,6 +41,23 @@ static char *classes_list[] = /* {{{ */
   NULL,
   "Bloodelf", /* 10 */
   "Draenei"   /* 11 */
+}; /* }}} */
+#define RACES_LIST_LENGTH STATIC_ARRAY_SIZE (races_list)
+
+static char *classes_list[] = /* {{{ */
+{
+  NULL,
+  "Warrior", /*  1 */
+  "Paladin", /*  2 */
+  "Hunter",  /*  3 */
+  "Rogue",   /*  4 */
+  "Priest",  /*  5 */
+  NULL,
+  "Shaman",  /*  7 */
+  "Mage",    /*  8 */
+  "Warlock", /*  9 */
+  NULL,
+  "Druid"    /* 11 */
 }; /* }}} */
 #define CLASSES_LIST_LENGTH STATIC_ARRAY_SIZE (classes_list)
 
@@ -392,6 +392,22 @@ static int ascent_xml_status (xmlDoc *doc, xmlNode *node) /* {{{ */
       ascent_xml_submit_gauge (doc, child, NULL, "players", "horde");
     else if (xmlStrcmp ((const xmlChar *) "qplayers", child->name) == 0)
       ascent_xml_submit_gauge (doc, child, NULL, "players", "queued");
+    else if ((xmlStrcmp ((const xmlChar *) "acceptedconns", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "avglat", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "cdbquerysize", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "cpu", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "fthreads", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "gmcount", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "lastupdate", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "ontime", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "oplayers", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "peakcount", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "platform", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "ram", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "threads", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "uptime", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "wdbquerysize", child->name) == 0))
+      /* ignore */;
     else
     {
       WARNING ("ascent plugin: ascent_xml_status: Unknown tag: %s", child->name);
