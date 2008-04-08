@@ -27,6 +27,70 @@
 #include <curl/curl.h>
 #include <libxml/parser.h>
 
+static char *races_list[] = /* {{{ */
+{
+  NULL,
+  "Warrior", /*  1 */
+  "Paladin", /*  2 */
+  "Hunter",  /*  3 */
+  "Rogue",   /*  4 */
+  "Priest",  /*  5 */
+  NULL,
+  "Shaman",  /*  7 */
+  "Mage",    /*  8 */
+  "Warlock", /*  9 */
+  NULL,
+  "Druid"    /* 11 */
+}; /* }}} */
+#define RACES_LIST_LENGTH STATIC_ARRAY_SIZE (races_list)
+
+static char *classes_list[] = /* {{{ */
+{
+  NULL,
+  "Human",    /*  1 */
+  "Orc",      /*  2 */
+  "Dwarf",    /*  3 */
+  "Nightelf", /*  4 */
+  "Undead",   /*  5 */
+  "Tauren",   /*  6 */
+  "Gnome",    /*  7 */
+  "Troll",    /*  8 */
+  NULL,
+  "Bloodelf", /* 10 */
+  "Draenei"   /* 11 */
+}; /* }}} */
+#define CLASSES_LIST_LENGTH STATIC_ARRAY_SIZE (classes_list)
+
+static char *genders_list[] = /* {{{ */
+{
+  "Male",
+  "Female"
+}; /* }}} */
+#define GENDERS_LIST_LENGTH STATIC_ARRAY_SIZE (genders_list)
+
+struct player_stats_s
+{
+  int races[RACES_LIST_LENGTH];
+  int classes[CLASSES_LIST_LENGTH];
+  int genders[GENDERS_LIST_LENGTH];
+  int level_sum;
+  int level_num;
+  int latency_sum;
+  int latency_num;
+};
+typedef struct player_stats_s player_stats_t;
+
+struct player_info_s
+{
+  int race;
+  int class;
+  int gender;
+  int level;
+  int latency;
+};
+typedef struct player_info_s player_info_t;
+#define PLAYER_INFO_STATIC_INIT { -1, -1, -1, -1, -1 }
+
 static char *url    = NULL;
 static char *user   = NULL;
 static char *pass   = NULL;
@@ -47,6 +111,31 @@ static const char *config_keys[] =
   "CACert"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static int ascent_submit_gauge (const char *plugin_instance, /* {{{ */
+    const char *type, const char *type_instance, gauge_t value)
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  values[0].gauge = value;
+
+  vl.values = values;
+  vl.values_len = 1;
+  vl.time = time (NULL);
+  strcpy (vl.host, hostname_g);
+  strcpy (vl.plugin, "ascent");
+
+  if (plugin_instance != NULL)
+    sstrncpy (vl.plugin_instance, plugin_instance,
+        sizeof (vl.plugin_instance));
+
+  if (type_instance != NULL)
+    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+  plugin_dispatch_values (type, &vl);
+  return (0);
+} /* }}} int ascent_submit_gauge */
 
 static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{ */
     void *stream)
@@ -78,13 +167,93 @@ static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{
   return (len);
 } /* }}} size_t ascent_curl_callback */
 
+static int ascent_submit_players (player_stats_t *ps) /* {{{ */
+{
+  int i;
+  gauge_t value;
+
+  for (i = 0; i < RACES_LIST_LENGTH; i++)
+    if (races_list[i] != NULL)
+      ascent_submit_gauge ("by-race", "players", races_list[i],
+          (gauge_t) ps->races[i]);
+
+  for (i = 0; i < CLASSES_LIST_LENGTH; i++)
+    if (classes_list[i] != NULL)
+      ascent_submit_gauge ("by-class", "players", classes_list[i],
+          (gauge_t) ps->classes[i]);
+
+  for (i = 0; i < GENDERS_LIST_LENGTH; i++)
+    if (genders_list[i] != NULL)
+      ascent_submit_gauge ("by-gender", "players", genders_list[i],
+          (gauge_t) ps->genders[i]);
+
+  if (ps->level_num <= 0)
+    value = NAN;
+  else
+    value = ((double) ps->level_sum) / ((double) ps->level_num);
+  ascent_submit_gauge (NULL, "gauge", "avg-level", value);
+
+  if (ps->latency_num <= 0)
+    value = NAN;
+  else
+    value = ((double) ps->latency_sum) / ((double) ps->latency_num);
+  ascent_submit_gauge (NULL, "gauge", "avg-latency", value);
+
+  return (0);
+} /* }}} int ascent_submit_players */
+
+static int ascent_account_player (player_stats_t *ps, /* {{{ */
+    player_info_t *pi)
+{
+  if (pi->race >= 0)
+  {
+    if ((pi->race >= RACES_LIST_LENGTH)
+        || (races_list[pi->race] == NULL))
+      ERROR ("ascent plugin: Ignoring invalid numeric race %i.", pi->race);
+    else
+      ps->races[pi->race]++;
+  }
+
+  if (pi->class >= 0)
+  {
+    if ((pi->class >= CLASSES_LIST_LENGTH)
+        || (classes_list[pi->class] == NULL))
+      ERROR ("ascent plugin: Ignoring invalid numeric class %i.", pi->class);
+    else
+      ps->classes[pi->class]++;
+  }
+
+  if (pi->gender >= 0)
+  {
+    if ((pi->gender >= GENDERS_LIST_LENGTH)
+        || (genders_list[pi->gender] == NULL))
+      ERROR ("ascent plugin: Ignoring invalid numeric gender %i.",
+          pi->gender);
+    else
+      ps->genders[pi->gender]++;
+  }
+
+
+  if (pi->level > 0)
+  {
+    ps->level_sum += pi->level;
+    ps->level_num++;
+  }
+
+  if (pi->latency >= 0)
+  {
+    ps->latency_sum += pi->latency;
+    ps->latency_num++;
+  }
+
+  return (0);
+} /* }}} int ascent_account_player */
+
 static int ascent_xml_submit_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
     const char *plugin_instance, const char *type, const char *type_instance)
 {
   char *str_ptr;
-
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
+  gauge_t value;
 
   str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL)
@@ -94,11 +263,11 @@ static int ascent_xml_submit_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
   }
 
   if (strcasecmp ("N/A", str_ptr) == 0)
-    values[0].gauge = NAN;
+    value = NAN;
   else
   {
     char *end_ptr = NULL;
-    values[0].gauge = strtod (str_ptr, &end_ptr);
+    value = strtod (str_ptr, &end_ptr);
     if (str_ptr == end_ptr)
     {
       ERROR ("ascent plugin: ascent_xml_submit_gauge: strtod failed.");
@@ -106,21 +275,107 @@ static int ascent_xml_submit_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
     }
   }
 
-  vl.values = values;
-  vl.values_len = 1;
-  vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "ascent");
-
-  if (plugin_instance != NULL)
-    sstrncpy (vl.plugin_instance, plugin_instance,
-        sizeof (vl.plugin_instance));
-
-  if (type_instance != NULL)
-    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-  plugin_dispatch_values (type, &vl);
+  return (ascent_submit_gauge (plugin_instance, type, type_instance, value));
 } /* }}} int ascent_xml_submit_gauge */
+
+static int ascent_xml_read_int (xmlDoc *doc, xmlNode *node, /* {{{ */
+    int *ret_value)
+{
+  char *str_ptr;
+  int value;
+
+  str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
+  if (str_ptr == NULL)
+  {
+    ERROR ("ascent plugin: ascent_xml_read_int: xmlNodeListGetString failed.");
+    return (-1);
+  }
+
+  if (strcasecmp ("N/A", str_ptr) == 0)
+    value = -1;
+  else
+  {
+    char *end_ptr = NULL;
+    value = strtol (str_ptr, &end_ptr, 0);
+    if (str_ptr == end_ptr)
+    {
+      ERROR ("ascent plugin: ascent_xml_read_int: strtol failed.");
+      return (-1);
+    }
+  }
+
+  *ret_value = value;
+  return (0);
+} /* }}} int ascent_xml_read_int */
+
+static int ascent_xml_sessions_plr (xmlDoc *doc, xmlNode *node, /* {{{ */
+    player_info_t *pi)
+{
+  xmlNode *child;
+
+  for (child = node->xmlChildrenNode; child != NULL; child = child->next)
+  {
+    if ((xmlStrcmp ((const xmlChar *) "comment", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "text", child->name) == 0))
+      /* ignore */;
+    else if (xmlStrcmp ((const xmlChar *) "race", child->name) == 0)
+      ascent_xml_read_int (doc, child, &pi->race);
+    else if (xmlStrcmp ((const xmlChar *) "class", child->name) == 0)
+      ascent_xml_read_int (doc, child, &pi->class);
+    else if (xmlStrcmp ((const xmlChar *) "gender", child->name) == 0)
+      ascent_xml_read_int (doc, child, &pi->gender);
+    else if (xmlStrcmp ((const xmlChar *) "level", child->name) == 0)
+      ascent_xml_read_int (doc, child, &pi->level);
+    else if (xmlStrcmp ((const xmlChar *) "latency", child->name) == 0)
+      ascent_xml_read_int (doc, child, &pi->latency);
+    else if ((xmlStrcmp ((const xmlChar *) "name", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "pvprank", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "map", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "areaid", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "xpos", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "ypos", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "onime", child->name) == 0))
+      /* ignore */;
+    else
+    {
+      WARNING ("ascent plugin: ascent_xml_status: Unknown tag: %s", child->name);
+    }
+  } /* for (child) */
+
+  return (0);
+} /* }}} int ascent_xml_sessions_plr */
+
+static int ascent_xml_sessions (xmlDoc *doc, xmlNode *node) /* {{{ */
+{
+  xmlNode *child;
+  player_stats_t ps;
+
+  memset (&ps, 0, sizeof (ps));
+
+  for (child = node->xmlChildrenNode; child != NULL; child = child->next)
+  {
+    if ((xmlStrcmp ((const xmlChar *) "comment", child->name) == 0)
+        || (xmlStrcmp ((const xmlChar *) "text", child->name) == 0))
+      /* ignore */;
+    else if (xmlStrcmp ((const xmlChar *) "plr", child->name) == 0)
+    {
+      int status;
+      player_info_t pi = PLAYER_INFO_STATIC_INIT;
+
+      status = ascent_xml_sessions_plr (doc, child, &pi);
+      if (status == 0)
+        ascent_account_player (&ps, &pi);
+    }
+    else
+    {
+      WARNING ("ascent plugin: ascent_xml_status: Unknown tag: %s", child->name);
+    }
+  } /* for (child) */
+
+  ascent_submit_players (&ps);
+
+  return (0);
+} /* }}} int ascent_xml_sessions */
 
 static int ascent_xml_status (xmlDoc *doc, xmlNode *node) /* {{{ */
 {
@@ -193,7 +448,7 @@ static int ascent_xml (const char *data) /* {{{ */
     else if (xmlStrcmp ((const xmlChar *) "gms", child->name) == 0)
       /* ignore for now */;
     else if (xmlStrcmp ((const xmlChar *) "sessions", child->name) == 0)
-      /* ignore for now */;
+      ascent_xml_sessions (doc, child);
     else
     {
       WARNING ("ascent plugin: ascent_xml: Unknown tag: %s", child->name);
