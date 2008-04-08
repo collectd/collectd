@@ -380,7 +380,7 @@ static void exec_child (program_list_t *pl) /* {{{ */
 
 /*
  * Creates three pipes (one for reading, one for writing and one for errors),
- * forks a child, sets up the pipes so that fd_in is connected to STDIN of 
+ * forks a child, sets up the pipes so that fd_in is connected to STDIN of
  * the child and fd_out is connected to STDOUT and fd_err is connected to STDERR
  * of the child. Then is calls `exec_child'.
  */
@@ -564,8 +564,8 @@ static void *exec_read_one (void *arg) /* {{{ */
         pbuffer = buffer + len;
       }
       else
-        pbuffer = buffer; 
-    } 
+        pbuffer = buffer;
+    }
     else if (FD_ISSET(fd_err, &copy))
     {
       char *pnl;
