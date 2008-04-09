@@ -16,6 +16,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 @BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 @BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
+@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
 @BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 @BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 @BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
@@ -75,6 +76,13 @@ FQDNLookup   true
 #<Plugin apcups>
 #	Host "localhost"
 #	Port "3551"
+#</Plugin>
+
+#<Plugin ascent>
+#	URL "http://localhost/ascent/status/"
+#	User "www-user"
+#	Password "secret"
+#	CACert "/etc/ssl/ca.crt"
 #</Plugin>
 
 #<Plugin csv>

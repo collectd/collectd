@@ -62,6 +62,7 @@ nginx_connections	value:GAUGE:0:U
 nginx_requests		value:COUNTER:0:134217728
 percent			percent:GAUGE:0:100.1
 ping			ping:GAUGE:0:65535
+players			value:GAUGE:0:1000000
 power			value:GAUGE:0:U
 ps_count		processes:GAUGE:0:1000000, threads:GAUGE:0:1000000
 ps_cputime		user:COUNTER:0:16000000, syst:COUNTER:0:16000000

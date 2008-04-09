@@ -26,6 +26,9 @@ Features
       Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
       voltage sensors.
 
+    - ascent
+      Statistics about Ascent, a free server for the game `World of Warcraft'.
+
     - battery
       Batterycharge, -current and voltage of ACPI and PMU based laptop
       batteries.
@@ -313,7 +316,7 @@ Prerequisites
     platforms.
 
   * libcurl (optional)
-    If you want to use the `apache' and/or `nginx' plugins.
+    If you want to use the `apache', `ascent', or `nginx' plugin.
 
   * libhal (optional)
     If present, the uuid plugin will check for UUID from HAL.
@@ -371,7 +374,7 @@ Prerequisites
     Collect statistics from virtual machines.
 
   * libxml2 (optional)
-    Parse XML data provided by libvirt.
+    Parse XML data. This is needed for the `ascent' and `libvirt' plugins.
 
 
 Configuring / Compiling / Installing
