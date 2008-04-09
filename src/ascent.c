@@ -193,11 +193,12 @@ static int ascent_submit_players (player_stats_t *ps) /* {{{ */
     value = ((double) ps->level_sum) / ((double) ps->level_num);
   ascent_submit_gauge (NULL, "gauge", "avg-level", value);
 
+  /* Latency is in ms, but we store seconds. */
   if (ps->latency_num <= 0)
     value = NAN;
   else
-    value = ((double) ps->latency_sum) / ((double) ps->latency_num);
-  ascent_submit_gauge (NULL, "gauge", "avg-latency", value);
+    value = ((double) ps->latency_sum) / (1000.0 * ((double) ps->latency_num));
+  ascent_submit_gauge (NULL, "latency", "average", value);
 
   return (0);
 } /* }}} int ascent_submit_players */
