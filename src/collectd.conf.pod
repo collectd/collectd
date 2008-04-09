@@ -197,6 +197,36 @@ TCP-Port to connect to. Defaults to B<3551>.
 
 =back
 
+=head2 Plugin C<ascent>
+
+This plugin collects information about an Ascent server, a free server for the
+"World of Warcraft" game. This plugin gathers the information by fetching the
+XML status page using C<libcurl> and parses it using C<libxml2>.
+
+The configuration options are the same as for the C<apache> plugin above:
+
+=over 4
+
+=item B<URL> I<http://localhost/ascent/status/>
+
+Sets the URL of the XML status output.
+
+=item B<User> I<Username>
+
+Optional user name needed for authentication.
+
+=item B<Password> I<Password>
+
+Optional password needed for authentication.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use HTTPS you will
+possibly need this option. What CA certificates come bundled with C<libcurl>
+and are checked by default depends on the distribution you use.
+
+=back
+
 =head2 Plugin C<cpufreq>
 
 This plugin doesn't have any options. It reads
