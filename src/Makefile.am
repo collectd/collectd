@@ -602,6 +602,14 @@ collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
 endif
 
+if BUILD_PLUGIN_TSS2
+pkglib_LTLIBRARIES += tss2.la
+tss2_la_SOURCES = tss2.c
+tss2_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" tss2.la
+collectd_DEPENDENCIES += tss2.la
+endif
+
 if BUILD_PLUGIN_TCPCONNS
 pkglib_LTLIBRARIES += tcpconns.la
 tcpconns_la_SOURCES = tcpconns.c

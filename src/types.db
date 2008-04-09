@@ -79,6 +79,8 @@ temperature		value:GAUGE:-273.15:U
 time_dispersion		seconds:GAUGE:-1000000:1000000
 timeleft		timeleft:GAUGE:0:3600
 time_offset		seconds:GAUGE:-1000000:1000000
+octets			send:COUNTER:0:4294967295, received:COUNTER:0:4294967295
+packets			send:COUNTER:0:4294967295, received:COUNTER:0:4294967295
 users			users:GAUGE:0:65535
 virt_cpu_total		ns:COUNTER:0:256000000000
 virt_vcpu		ns:COUNTER:0:1000000000
