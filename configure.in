@@ -2319,7 +2319,7 @@ AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
 AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
 AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
-AC_PLUGIN([tss2],        [yes],                [Teamspeak2 server statistics])
+AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
@@ -2463,7 +2463,7 @@ Configuration:
     tail  . . . . . . . $enable_tail
     tape  . . . . . . . $enable_tape
     tcpconns  . . . . . $enable_tcpconns
-    tss2  . . . . . . . $enable_tss2
+    teamspeak2  . . . . $enable_teamspeak2
     unixsock  . . . . . $enable_unixsock
     users . . . . . . . $enable_users
     uuid  . . . . . . . $enable_uuid
