@@ -53,8 +53,7 @@
 #define T_BYTES_REC	   "total_bytesreceived="
 
 /* Convinience defines */
-#define SOCKET			int
-#define INVALID_SOCKET 0
+#define INVALID_SOCKET -1
 
 
 /*
@@ -79,58 +78,56 @@
  */
  
 /* Server linked list structure */
-typedef struct server_s {
+typedef struct vserver_list_s {
 	int port;
-	struct server_s *next;
-} server_t;
-static server_t *pserver = NULL;
+	struct vserver_list_s *next;
+} vserver_list_t;
+static vserver_list_t *server_list = NULL;
 
 
 /* Host data */
-static char *config_host		= NULL;
-static int   port	   	= DEFAULT_PORT;
+static char *config_host = NULL;
+static int   config_port = DEFAULT_PORT;
 
-static SOCKET telnet	= INVALID_SOCKET;
-static FILE *telnet_in	= NULL;
+static int telnet        = INVALID_SOCKET;
+static FILE *telnet_in   = NULL;
 
 
 /* Config data */
 static const char *config_keys[] =
 {
-    "Host",
+	"Host",
 	"Port",
-    "Server",
-    NULL
+	"Server"
 };
-static int config_keys_num = 3;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 
 /*
  * Functions
  */
-
-static void add_server(server_t *new_server)
+static void add_server(vserver_list_t *new_server)
 {
 	/*
 	 * Adds a new server to the linked list 
 	 */
-	server_t *tmp	 = NULL;
+	vserver_list_t *tmp	 = NULL;
 	new_server->next = NULL;
 
-	if(pserver == NULL) {
+	if(server_list == NULL) {
 		/* Add the server as the first element */
-		pserver = new_server;
+		server_list = new_server;
 	}
 	else {
 		/* Add the server to the end of the list */
-		tmp = pserver;
+		tmp = server_list;
 		while(tmp->next != NULL) {
 			tmp = tmp->next;
 		}
 		tmp->next = new_server;
 	}
 
-	DEBUG("Registered new server '%d'", new_server->port); 
+	DEBUG("teamspeak2 plugin: Registered new server '%d'", new_server->port); 
 } /* void add_server */
 
 
@@ -149,7 +146,7 @@ static int do_connect(void)
 	
 	addr.sin_family 		= AF_INET;
 	addr.sin_addr.s_addr 	= inet_addr(host);
-	addr.sin_port 			= htons(port);
+	addr.sin_port 			= htons(config_port);
 
 	if(connect(telnet, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
 		/* Connection failed */
@@ -165,7 +162,7 @@ static int do_request(char *request)
 	 * Pushes a request
 	 */
 	int ret = 0;
-	DEBUG("Send Request: '%s'", request);
+	DEBUG("teamspeak2 plugin: Send Request: '%s'", request);
 	
 	/* Send the request */
 	if((ret = send(telnet, request, strlen(request), 0))==-1) {
@@ -175,7 +172,7 @@ static int do_request(char *request)
 			telnet = INVALID_SOCKET;
 		}
 		char errbuf[1024];
-		ERROR("teamspeak2: send data to host '%s' failed: %s",
+		ERROR("teamspeak2 plugin: send data to host '%s' failed: %s",
 				config_host,
 				sstrerror(errno, errbuf,
 						  sizeof(errbuf)));
@@ -208,7 +205,7 @@ static int do_recv(char *buffer, int buffer_size, long int usecs)
 		}
 		
 		char errbuf[1024];
-		ERROR("teamspeak2: select failed: %s",
+		ERROR("teamspeak2 plugin: select failed: %s",
 				sstrerror(errno, errbuf,
 				sizeof(errbuf)));
 		return -1;
@@ -219,7 +216,7 @@ static int do_recv(char *buffer, int buffer_size, long int usecs)
 			close(telnet);
 			telnet = INVALID_SOCKET;
 		}
-		WARNING("teamspeak2: request timed out (closed connection)");
+		WARNING("teamspeak2 plugin: request timed out (closed connection)");
 		return -1;
 	}
 	if ((ret = recv(telnet, buffer, buffer_size, 0)) == -1) {
@@ -230,7 +227,7 @@ static int do_recv(char *buffer, int buffer_size, long int usecs)
 		}
 		
 		char errbuf[1024];
-		ERROR("teamspeak2: recv failed: %s",
+		ERROR("teamspeak2 plugin: recv failed: %s",
 			  sstrerror(errno, errbuf,
 			  sizeof(errbuf)));
 		return -1;
@@ -274,12 +271,12 @@ static int do_recv_line(char *buffer, int buffer_size, long int usecs)
 		}
 		
 		char errbuf[1024];
-		ERROR("teamspeak2: fgets failed: %s",
+		ERROR("teamspeak2 plugin: fgets failed: %s",
 			  sstrerror(errno, errbuf,
 			  sizeof(errbuf)));
 		return -1;
 	}
-	DEBUG("Line: %s", buffer);
+	DEBUG("teamspeak2 plugin: Line: %s", buffer);
 	return 0;
 }
 
@@ -295,7 +292,7 @@ static int tss2_config(const char *key, const char *value)
     	/* Host variable found*/
 		if ((phost = strdup(value)) == NULL) {
 			char errbuf[1024];
-			ERROR("teamspeak2: strdup failed: %s",
+			ERROR("teamspeak2 plugin: strdup failed: %s",
 				sstrerror(errno, errbuf,
 						  sizeof(errbuf)));
 			return 1;
@@ -305,22 +302,22 @@ static int tss2_config(const char *key, const char *value)
 	}
 	else if (strcasecmp(key, "port") == 0) {
 		/* Port variable found */
-		port = atoi(value);
+		config_port = atoi(value);
 	}
 	else if (strcasecmp(key, "server") == 0) {
 		/* Server variable found */
-		server_t *new_server = NULL;
+		vserver_list_t *new_server = NULL;
 
-		if ((new_server = (server_t *)malloc(sizeof(server_t))) == NULL) {
+		if ((new_server = (vserver_list_t *)malloc(sizeof(vserver_list_t))) == NULL) {
 			char errbuf[1024];
-			ERROR("teamspeak2: malloc failed: %s",
+			ERROR("teamspeak2 plugin: malloc failed: %s",
 				  sstrerror (errno, errbuf,
 				  sizeof (errbuf)));
 			return 1;
 		}
 
 		new_server->port = atoi(value);
-		add_server((struct server_s*)new_server);
+		add_server((vserver_list_t *)new_server);
 	}
 	else {
 		/* Unknow variable found */
@@ -339,19 +336,19 @@ static int tss2_init(void)
 	char buff[TELNET_BANNER_LENGTH + 1]; /*Prepare banner buffer*/
 	
 	/*Connect to telnet*/
-	DEBUG("teamspeak2: Connecting to '%s:%d'", config_host, port);
+	DEBUG("teamspeak2 plugin: Connecting to '%s:%d'", config_host, config_port);
 	if (do_connect()!=0) {
 		/* Failed */
 		char errbuf[1024];
-		ERROR("teamspeak2: connect to %s:%d failed: %s",
+		ERROR("teamspeak2 plugin: connect to %s:%d failed: %s",
 			config_host,
-			port,
+			config_port,
 			sstrerror(errno, errbuf,
 					  sizeof(errbuf)));
 		return 1;
 	}
 	else {
-		DEBUG("teamspeak2: connection established!");
+		DEBUG("teamspeak2 plugin: connection established!");
 	}
 	
 	/*Check if this is the real thing*/
@@ -359,12 +356,12 @@ static int tss2_init(void)
 		/* Failed */
 		return 1;
 	}
-	DEBUG("teamspeak2: received banner '%s'", buff);
+	DEBUG("teamspeak2 plugin: received banner '%s'", buff);
 	
 	if (strcmp(buff, TELNET_BANNER)!=0) {
 		/* Received unexpected banner string */
-		ERROR("teamspeak2: host %s:%d is no teamspeak2 query port",
-			config_host, port);
+		ERROR("teamspeak2 plugin: host %s:%d is no teamspeak2 query port",
+			config_host, config_port);
 		return 1;
 	}
 	
@@ -372,12 +369,12 @@ static int tss2_init(void)
 	if ((telnet_in = fdopen(telnet, "r")) == NULL) {
 		/* Failed */
 		char errbuf[1024];
-		ERROR("teamspeak2: fdopen failed",
+		ERROR("teamspeak2 plugin: fdopen failed",
 				sstrerror(errno, errbuf,
 				sizeof(errbuf)));
 		return 1;
 	}
-	DEBUG("teamspeak2: Connection established");
+	DEBUG("teamspeak2 plugin: Connection established");
     return 0;
 } /* int tss2_init */
 
@@ -469,7 +466,7 @@ static int tss2_read(void)
 	 * Tries to read the current values from all servers and to submit them
 	 */
 	char buff[TELNET_BUFFSIZE];
-	server_t *tmp;
+	vserver_list_t *tmp;
     
 	/* Variables for received values */
 	int collected			    = 0;
@@ -484,9 +481,9 @@ static int tss2_read(void)
 	if ((telnet == INVALID_SOCKET) && (do_connect() != 0)) {
 		/* Disconnected and reconnect failed */
 		char errbuf[1024];
-		ERROR("teamspeak2: reconnect to %s:%d failed: %s",
+		ERROR("teamspeak2 plugin: reconnect to %s:%d failed: %s",
 			config_host,
-			port,
+			config_port,
 			sstrerror(errno, errbuf,
 					  sizeof(errbuf)));
 		return -1;
@@ -495,7 +492,7 @@ static int tss2_read(void)
 	/* Request global server variables */
 	if (do_request(T_REQUEST) == -1) {
 		/* Collect global info failed */
-		ERROR("teamspeak2: Collect global information request failed");
+		ERROR("teamspeak2 plugin: Collect global information request failed");
 		return -1;
 	}
 
@@ -505,7 +502,7 @@ static int tss2_read(void)
 		/* Request a line with a timeout of 200ms */
 		if (do_recv_line(buff, TELNET_BUFFSIZE, 200000) != 0) {
 			/* Failed */
-			ERROR("teamspeak2: Collect global information failed");
+			ERROR("teamspeak2 plugin: Collect global information failed");
 			return -1;
 		}
 		
@@ -515,38 +512,38 @@ static int tss2_read(void)
 		if (is_eq(T_USERS_ONLINE, buff) == 0) {
 			/* Number of users online */
 			users_online = (int)eval_eq(T_USERS_ONLINE, buff);
-			DEBUG("users_online: %d", users_online);
+			DEBUG("teamspeak2 plugin: users_online: %d", users_online);
 			collected += 1;
 		}
 		else if (is_eq(T_PACKETS_SEND, buff) == 0) {
 			/* Number of packets send */
 			packets_send = eval_eq(T_PACKETS_SEND, buff);
-			DEBUG("packets_send: %ld", packets_send);
+			DEBUG("teamspeak2 plugin: packets_send: %ld", packets_send);
 			collected += 1;
 		}
 		else if (is_eq(T_PACKETS_REC, buff) == 0) {
 			/* Number of packets received */
 			packets_received = eval_eq(T_PACKETS_REC, buff);
-			DEBUG("packets_received: %ld", packets_received);
+			DEBUG("teamspeak2 plugin: packets_received: %ld", packets_received);
 			collected += 1;
 		}
 		else if (is_eq(T_BYTES_SEND, buff) == 0) {
 			/* Number of bytes send */
 			bytes_send = eval_eq(T_BYTES_SEND, buff);
-			DEBUG("bytes_send: %ld", bytes_send);
+			DEBUG("teamspeak2 plugin: bytes_send: %ld", bytes_send);
 			collected += 1;
 		}
 		else if (is_eq(T_BYTES_REC, buff) == 0) {
 			/* Number of bytes received */
 			bytes_received = eval_eq(T_BYTES_REC, buff);
-			DEBUG("byte_received: %ld", bytes_received);
+			DEBUG("teamspeak2 plugin: byte_received: %ld", bytes_received);
 			collected += 1;
 		}
 		else if (is_eq(TELNET_OK, buff) == 0) {
 			/* Received end of transmission flag */
 			if (collected < 5) {
 				/* Not all expected values were received */
-				ERROR("teamspeak2: Couldn't collect all values (%d)", collected);
+				ERROR("teamspeak2 plugin: Couldn't collect all values (%d)", collected);
 				return -1;
 			}
 			/*
@@ -556,17 +553,17 @@ static int tss2_read(void)
 		}
 		else if (is_eq(TELNET_ERROR, buff) == 0) {
 			/* An error occured on the servers' side */
-			ERROR("teamspeak2: host reported error '%s'", buff);
+			ERROR("teamspeak2 plugin: host reported error '%s'", buff);
 			return -1;
 		}
 	}
 	
 	/* Forward values to collectd */
-	DEBUG("Full global dataset received");
+	DEBUG("teamspeak2 plugin: Full global dataset received");
 	tss2_submit(users_online, bytes_send, bytes_received, packets_send, packets_received, NULL);
 
 	/* Collect values of servers */
-	tmp = pserver;
+	tmp = server_list;
 	while(tmp != NULL) {
 		/* Try to select server */
 		sprintf(buff, "sel %d\r\n", tmp->port);
@@ -576,7 +573,7 @@ static int tss2_read(void)
 		
 		if (is_eq(buff,TELNET_ERROR) == 0) {
 			/*Could not select server, go to the next one*/
-			WARNING("teamspeak2: Could not select server '%d'", tmp->port);
+			WARNING("teamspeak2 plugin: Could not select server '%d'", tmp->port);
 			tmp = tmp->next;
 			continue;
 		}
@@ -588,7 +585,7 @@ static int tss2_read(void)
 			
 			if (do_request(S_REQUEST) == -1) {
 				/* Failed */
-				WARNING("teamspeak2: Collect info about server '%d' failed", tmp->port);
+				WARNING("teamspeak2 plugin: Collect info about server '%d' failed", tmp->port);
 				tmp = tmp->next;
 				continue;
 			}
@@ -596,7 +593,7 @@ static int tss2_read(void)
 			for(;;) {
 				/* Request a line with a timeout of 200ms */
 				if (do_recv_line(buff, TELNET_BUFFSIZE, 200000) !=0 ) {
-					ERROR("teamspeak2: Connection error");
+					ERROR("teamspeak2 plugin: Connection error");
 					return -1;
 				}
 				
@@ -636,14 +633,14 @@ static int tss2_read(void)
 				}
 				else if (is_eq(TELNET_ERROR, buff) == 0) {
 					/* Error, not good */
-					ERROR("teamspeak2: server '%d' reported error '%s'", tmp->port, buff);
+					ERROR("teamspeak2 plugin: server '%d' reported error '%s'", tmp->port, buff);
 					return -1;
 				}
 			}
 			
 			if (collected < 5) {
 				/* Not all expected values were received */
-				ERROR("teamspeak2: Couldn't collect all values of server '%d' (%d)", tmp->port, collected);
+				ERROR("teamspeak2 plugin: Couldn't collect all values of server '%d' (%d)", tmp->port, collected);
 				tmp = tmp->next;
 				continue; /* Continue with the next VServer */
 			}
@@ -655,7 +652,7 @@ static int tss2_read(void)
 		}
 		else {
 			/*The server send us garbage? wtf???*/
-			ERROR("teamspeak2: Server send garbage");
+			ERROR("teamspeak2 plugin: Server send garbage");
 			return -1;
 		}
 		tmp = tmp->next;
@@ -670,8 +667,8 @@ static int tss2_shutdown(void)
 	/*
 	 * Shutdown handler
 	 */
-	DEBUG("teamspeak2: Shutdown");
-	server_t *tmp = NULL;
+	DEBUG("teamspeak2 plugin: Shutdown");
+	vserver_list_t *tmp = NULL;
 	
 	/* Close our telnet socket */
 	if (telnet != INVALID_SOCKET) {
@@ -682,9 +679,9 @@ static int tss2_shutdown(void)
 	}
 	
 	/* Release all allocated memory */
-	while(pserver != NULL) {
-		tmp 	= pserver;
-		pserver = pserver->next;
+	while(server_list != NULL) {
+		tmp 	= server_list;
+		server_list = server_list->next;
 		free(tmp);
 	}
 	
@@ -710,4 +707,4 @@ void module_register(void)
 	plugin_register_shutdown("teamspeak2", tss2_shutdown);
 } /* void module_register */
 
-/* vim: set ts=4 : */
+/* vim: set sw=4 ts=4 : */
