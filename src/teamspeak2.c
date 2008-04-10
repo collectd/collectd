@@ -1,6 +1,7 @@
 /**
  * collectd - src/teamspeak2.c
  * Copyright (C) 2008  Stefan Hacker
+ * Copyright (C) 2008  Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,81 +18,43 @@
  *
  * Authors:
  *   Stefan Hacker <d0t at dbclan dot de>
+ *   Florian Forster <octo at verplant.org>
  **/
 
-
-/*
- * Defines
- */
- 
-/* Teamspeak query protocol defines */
-#define TELNET_BANNER   "[TS]\r\n"
-#define TELNET_BANNER_LENGTH 5
-#define TELNET_ERROR   "ERROR"
-#define TELNET_OK	   "OK"
-#define TELNET_QUIT	   "quit\r\n"
-
-/* Predefined settings */
-#define TELNET_BUFFSIZE 512
-#define DEFAULT_HOST	"127.0.0.1"
-#define DEFAULT_PORT	51234
-
-/* VServer request defines */
-#define S_REQUEST	   "si\r\n"
-#define S_USERS_ONLINE "server_currentusers="
-#define S_PACKETS_SEND "server_packetssend="
-#define S_PACKETS_REC  "server_packetsreceived="
-#define S_BYTES_SEND   "server_bytessend="
-#define S_BYTES_REC	   "server_bytesreceived="
-
-/* Global request defines */
-#define T_REQUEST	   "gi\r\n"
-#define T_USERS_ONLINE "total_users_online="
-#define T_PACKETS_SEND "total_packetssend="
-#define T_PACKETS_REC  "total_packetsreceived="
-#define T_BYTES_SEND   "total_bytessend="
-#define T_BYTES_REC	   "total_bytesreceived="
-
-/* Convinience defines */
-#define INVALID_SOCKET -1
-
-
-/*
- * Includes
- */
- 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 
-#include <stdio.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/select.h>
 #include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
+/*
+ * Defines
+ */
+/* Default host and port */
+#define DEFAULT_HOST	"127.0.0.1"
+#define DEFAULT_PORT	"51234"
 
 /*
  * Variables
  */
- 
 /* Server linked list structure */
-typedef struct vserver_list_s {
+typedef struct vserver_list_s
+{
 	int port;
 	struct vserver_list_s *next;
 } vserver_list_t;
 static vserver_list_t *server_list = NULL;
 
-
 /* Host data */
 static char *config_host = NULL;
-static int   config_port = DEFAULT_PORT;
+static char *config_port = NULL;
 
-static int telnet        = INVALID_SOCKET;
-static FILE *telnet_in   = NULL;
-
+static FILE *global_read_fh = NULL;
+static FILE *global_write_fh = NULL;
 
 /* Config data */
 static const char *config_keys[] =
@@ -102,609 +65,552 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-
 /*
  * Functions
  */
-static void add_server(vserver_list_t *new_server)
+static int tss2_add_vserver (int vserver_port)
 {
-	/*
-	 * Adds a new server to the linked list 
-	 */
-	vserver_list_t *tmp	 = NULL;
-	new_server->next = NULL;
+	vserver_list_t *entry;
+
+	if ((vserver_port <= 0) || (vserver_port > 65535))
+	{
+		ERROR ("teamspeak2 plugin: VServer port is invalid: %i",
+				vserver_port);
+		return (-1);
+	}
+
+	entry = (vserver_list_t *) malloc (sizeof (vserver_list_t));
+	if (entry == NULL)
+	{
+		ERROR ("teamspeak2 plugin: malloc failed.");
+		return (-1);
+	}
+	memset (entry, 0, sizeof (vserver_list_t));
+
+	entry->port = vserver_port;
 
 	if(server_list == NULL) {
 		/* Add the server as the first element */
-		server_list = new_server;
+		server_list = entry;
 	}
 	else {
+		vserver_list_t *prev;
+
 		/* Add the server to the end of the list */
-		tmp = server_list;
-		while(tmp->next != NULL) {
-			tmp = tmp->next;
-		}
-		tmp->next = new_server;
+		prev = server_list;
+		while (prev->next != NULL)
+			prev = prev->next;
+		prev->next = entry;
 	}
 
-	DEBUG("teamspeak2 plugin: Registered new server '%d'", new_server->port); 
-} /* void add_server */
+	INFO ("teamspeak2 plugin: Registered new vserver: %i", vserver_port);
 
+	return (0);
+} /* int tss2_add_vserver */
 
-static int do_connect(void)
+static void tss2_submit_gauge (const char *plugin_instance, const char *type,
+		gauge_t value)
 {
-	/*
-	 * Tries to establish a connection to the server
-	 */
-	struct sockaddr_in addr;
-	char *host;
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
 
-	host = (config_host != NULL) ? config_host : DEFAULT_HOST;
+	values[0].gauge = value;
+
+	vl.values     = values;
+	vl.values_len = 1;
+	vl.time       = time (NULL);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "teamspeak2", sizeof (vl.plugin));
+
+	if (plugin_instance != NULL)
+		sstrncpy (vl.plugin_instance, plugin_instance,
+				sizeof (vl.plugin_instance));
 	
-	/* Establish telnet connection */
-	telnet = socket(AF_INET, SOCK_STREAM, 0);
+	plugin_dispatch_values (type, &vl);
+} /* void tss2_submit_gauge */
+
+static void tss2_submit_io (const char *plugin_instance, const char *type,
+		counter_t rx, counter_t tx)
+{
+	value_t values[2];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].counter = rx;
+	values[1].counter = tx;
+
+	vl.values     = values;
+	vl.values_len = 2;
+	vl.time       = time (NULL);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "teamspeak2", sizeof (vl.plugin));
+
+	if (plugin_instance != NULL)
+		sstrncpy (vl.plugin_instance, plugin_instance,
+				sizeof (vl.plugin_instance));
 	
-	addr.sin_family 		= AF_INET;
-	addr.sin_addr.s_addr 	= inet_addr(host);
-	addr.sin_port 			= htons(config_port);
+	plugin_dispatch_values (type, &vl);
+} /* void tss2_submit_gauge */
 
-	if(connect(telnet, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-		/* Connection failed */
-		return -1;
-	}
-	return 0;
-} /* int do_connect */
-
-
-static int do_request(char *request)
+static void tss2_close_socket (void)
 {
-	/*
-	 * Pushes a request
-	 */
-	int ret = 0;
-	DEBUG("teamspeak2 plugin: Send Request: '%s'", request);
-	
-	/* Send the request */
-	if((ret = send(telnet, request, strlen(request), 0))==-1) {
-		/* Send data failed */
-		if (telnet!=INVALID_SOCKET) {
-			close(telnet);
-			telnet = INVALID_SOCKET;
-		}
-		char errbuf[1024];
-		ERROR("teamspeak2 plugin: send data to host '%s' failed: %s",
-				config_host,
-				sstrerror(errno, errbuf,
-						  sizeof(errbuf)));
-		return -1;
+	if (global_write_fh != NULL)
+	{
+		fputs ("quit\r\n", global_write_fh);
 	}
-	return ret;
-} /* int do_request */
 
+	if (global_read_fh != NULL)
+	{
+		fclose (global_read_fh);
+		global_read_fh = NULL;
+	}
 
-static int do_recv(char *buffer, int buffer_size, long int usecs)
+	if (global_write_fh != NULL)
+	{
+		fclose (global_write_fh);
+		global_write_fh = NULL;
+	}
+} /* void tss2_close_socket */
+
+static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 {
-	/*
-	 * Tries to receive from the connection 'timeout' seconds
-	 */
-	int	   ret = 0;
-	fd_set rset;
-	struct timeval timeout;
+	struct addrinfo ai_hints;
+	struct addrinfo *ai_head;
+	struct addrinfo *ai_ptr;
+	int sd = -1;
+	int status;
 
-	timeout.tv_sec     = 0;
-	timeout.tv_usec    = usecs;
+	if ((global_read_fh != NULL) && (global_write_fh != NULL))
+	{
+		if (ret_read_fh != NULL)
+			*ret_read_fh = global_read_fh;
+		if (ret_write_fh != NULL)
+			*ret_write_fh = global_write_fh;
+		return (0);
+	}
 
-	FD_ZERO(&rset);
-	FD_SET(telnet, &rset);
+	memset (&ai_hints, 0, sizeof (ai_hints));
+#ifdef AI_ADDRCONFIG
+	ai_hints.ai_flags |= AI_ADDRCONFIG;
+#endif
+	ai_hints.ai_family = AF_UNSPEC;
+	ai_hints.ai_socktype = SOCK_STREAM;
 
-	if (select(FD_SETSIZE, &rset, NULL, NULL, &timeout) == -1) {
-		/* Select failed */
-		if (telnet!=INVALID_SOCKET) {
-			close(telnet);
-			telnet = INVALID_SOCKET;
+	status = getaddrinfo ((config_host != NULL) ? config_host : DEFAULT_HOST,
+			(config_port != NULL) ? config_port : DEFAULT_PORT,
+			&ai_hints,
+			&ai_head);
+	if (status != 0)
+	{
+		ERROR ("teamspeak2 plugin: getaddrinfo failed: %s",
+				gai_strerror (status));
+		return (-1);
+	}
+
+	for (ai_ptr = ai_head; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	{
+		sd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
+				ai_ptr->ai_protocol);
+		if (sd < 0)
+		{
+			char errbuf[1024];
+			WARNING ("teamspeak2 plugin: socket failed: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			continue;
 		}
-		
+
+		status = connect (sd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+		if (status != 0)
+		{
+			char errbuf[1024];
+			WARNING ("teamspeak2 plugin: connect failed: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			close (sd);
+			continue;
+		}
+
+		break;
+	} /* for (ai_ptr) */
+
+	freeaddrinfo (ai_head);
+
+	if (sd < 0)
+		return (-1);
+
+	global_read_fh = fdopen (sd, "r");
+	if (global_read_fh == NULL)
+	{
 		char errbuf[1024];
-		ERROR("teamspeak2 plugin: select failed: %s",
-				sstrerror(errno, errbuf,
-				sizeof(errbuf)));
-		return -1;
+		ERROR ("teamspeak2 plugin: fdopen failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		close (sd);
+		return (-1);
 	}
-	if (!FD_ISSET(telnet, &rset)) {
-		/* Timeout for answer reached --> disconnect */
-		if (telnet!=INVALID_SOCKET) {
-			close(telnet);
-			telnet = INVALID_SOCKET;
-		}
-		WARNING("teamspeak2 plugin: request timed out (closed connection)");
-		return -1;
-	}
-	if ((ret = recv(telnet, buffer, buffer_size, 0)) == -1) {
-		/* Recv failed */
-		if (telnet!=INVALID_SOCKET) {
-			close(telnet);
-			telnet = INVALID_SOCKET;
-		}
-		
+
+	global_write_fh = fdopen (sd, "w");
+	if (global_write_fh == NULL)
+	{
 		char errbuf[1024];
-		ERROR("teamspeak2 plugin: recv failed: %s",
-			  sstrerror(errno, errbuf,
-			  sizeof(errbuf)));
-		return -1;
+		ERROR ("teamspeak2 plugin: fdopen failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		tss2_close_socket ();
+		return (-1);
 	}
-	return ret;
-} /* int do_recv */
 
+	{ /* Check that the server correctly identifies itself. */
+		char buffer[4096];
+		char *buffer_ptr;
 
-static int is_eq(char *eq, char *str) {
-	/*
-	 * Checks if the given str starts with eq
-	*/
-	if (strlen(eq) > strlen(str)) return -1;
-	return strncmp(eq, str, strlen(eq));
-}
+		buffer_ptr = fgets (buffer, sizeof (buffer), global_read_fh);
+		buffer[sizeof (buffer) - 1] = 0;
 
+		if (memcmp ("[TS]\r\n", buffer, 6) != 0)
+		{
+			ERROR ("teamspeak2 plugin: Unexpected response when connecting "
+					"to server. Expected ``[TS]'', got ``%s''.",
+					buffer);
+			tss2_close_socket ();
+			return (-1);
+		}
+	}
 
-static long int eval_eq(char *eq, char *str) {
-	/*
-	 * Returns the value written behind the eq string in str as a long int
-	 */
-	return strtol((char*)&str[strlen(eq)], NULL, 10);
-}
+	if (ret_read_fh != NULL)
+		*ret_read_fh = global_read_fh;
+	if (ret_write_fh != NULL)
+		*ret_write_fh = global_write_fh;
+	return (0);
+} /* int tss2_get_socket */
 
-
-static int do_recv_line(char *buffer, int buffer_size, long int usecs)
+static int tss2_send_request (FILE *fh, const char *request)
 {
-	/*
-	 * Receives a line from the socket
-	 */
+	int status;
+
+	status = fputs (request, fh);
+	if (status < 0)
+	{
+		ERROR ("teamspeak2 plugin: fputs failed.");
+		tss2_close_socket ();
+		return (-1);
+	}
+
+	return (0);
+} /* int tss2_send_request */
+
+static int tss2_receive_line (FILE *fh, char *buffer, int buffer_size)
+{
+	char *temp;
 	 
 	/*
 	 * fgets is blocking but much easier then doing anything else
 	 * TODO: Non-blocking Version would be safer
 	 */
-	if ((fgets(buffer, buffer_size, telnet_in)) == NULL) {
-		/* Receive line failed */
-		if (telnet != INVALID_SOCKET) {
-			close(telnet);
-			telnet = INVALID_SOCKET;
-		}
-		
+	temp = fgets (buffer, buffer_size, fh);
+	if (temp == NULL)
+	{
 		char errbuf[1024];
-		ERROR("teamspeak2 plugin: fgets failed: %s",
-			  sstrerror(errno, errbuf,
-			  sizeof(errbuf)));
-		return -1;
+		ERROR ("teamspeak2 plugin: fgets failed: %s",
+				sstrerror (errno, errbuf, sizeof(errbuf)));
+		tss2_close_socket ();
+		return (-1);
 	}
-	DEBUG("teamspeak2 plugin: Line: %s", buffer);
-	return 0;
-}
 
+	buffer[buffer_size - 1] = 0;
+	return (0);
+} /* int tss2_receive_line */
 
-static int tss2_config(const char *key, const char *value)
+static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *vserver)
 {
-	/*
-	 * Configuration interpreter function
-	 */
-	char *phost = NULL;
-	
-    if (strcasecmp(key, "host") == 0) {
-    	/* Host variable found*/
-		if ((phost = strdup(value)) == NULL) {
-			char errbuf[1024];
-			ERROR("teamspeak2 plugin: strdup failed: %s",
-				sstrerror(errno, errbuf,
-						  sizeof(errbuf)));
-			return 1;
-		}
-		sfree (config_host);
-		config_host = phost;
-	}
-	else if (strcasecmp(key, "port") == 0) {
-		/* Port variable found */
-		config_port = atoi(value);
-	}
-	else if (strcasecmp(key, "server") == 0) {
-		/* Server variable found */
-		vserver_list_t *new_server = NULL;
+	char command[128];
+	char response[128];
+	int status;
 
-		if ((new_server = (vserver_list_t *)malloc(sizeof(vserver_list_t))) == NULL) {
-			char errbuf[1024];
-			ERROR("teamspeak2 plugin: malloc failed: %s",
-				  sstrerror (errno, errbuf,
-				  sizeof (errbuf)));
-			return 1;
-		}
+	snprintf (command, sizeof (command), "sel %i\r\n", vserver->port);
+	command[sizeof (command) - 1] = 0;
 
-		new_server->port = atoi(value);
-		add_server((vserver_list_t *)new_server);
-	}
-	else {
-		/* Unknow variable found */
-		return 1;
+	status = tss2_send_request (write_fh, command);
+	if (status != 0)
+	{
+		ERROR ("teamspeak2 plugin: tss2_send_request (%s) failed.", command);
+		return (-1);
 	}
 
-	return 0;
-}
+	status = tss2_receive_line (read_fh, response, sizeof (response));
+	if (status != 0)
+	{
+		ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
+		return (-1);
+	}
+	response[sizeof (response)] = 0;
 
+	if ((strncmp ("OK", response, 2) == 0)
+			&& ((response[2] == 0)
+				|| (response[2] == '\n')
+				|| (response[2] == '\r')))
+		return (0);
 
-static int tss2_init(void)
+	ERROR ("teamspeak2 plugin: Command ``%s'' failed. "
+			"Response received from server was: ``%s''.",
+			command, response);
+	return (-1);
+} /* int tss2_select_vserver */
+
+static int tss2_read_vserver (vserver_list_t *vserver)
 {
-	/*
-	 * Function to initialize the plugin
-	 */
-	char buff[TELNET_BANNER_LENGTH + 1]; /*Prepare banner buffer*/
-	
-	/*Connect to telnet*/
-	DEBUG("teamspeak2 plugin: Connecting to '%s:%d'", config_host, config_port);
-	if (do_connect()!=0) {
-		/* Failed */
-		char errbuf[1024];
-		ERROR("teamspeak2 plugin: connect to %s:%d failed: %s",
-			config_host,
-			config_port,
-			sstrerror(errno, errbuf,
-					  sizeof(errbuf)));
-		return 1;
-	}
-	else {
-		DEBUG("teamspeak2 plugin: connection established!");
-	}
-	
-	/*Check if this is the real thing*/
-	if (do_recv(buff, sizeof(buff), 1) == -1) {
-		/* Failed */
-		return 1;
-	}
-	DEBUG("teamspeak2 plugin: received banner '%s'", buff);
-	
-	if (strcmp(buff, TELNET_BANNER)!=0) {
-		/* Received unexpected banner string */
-		ERROR("teamspeak2 plugin: host %s:%d is no teamspeak2 query port",
-			config_host, config_port);
-		return 1;
-	}
-	
-	/*Alright, we are connected now get a file descriptor*/
-	if ((telnet_in = fdopen(telnet, "r")) == NULL) {
-		/* Failed */
-		char errbuf[1024];
-		ERROR("teamspeak2 plugin: fdopen failed",
-				sstrerror(errno, errbuf,
-				sizeof(errbuf)));
-		return 1;
-	}
-	DEBUG("teamspeak2 plugin: Connection established");
-    return 0;
-} /* int tss2_init */
+	int status;
 
+	gauge_t users = NAN;
+	counter_t rx_octets = 0;
+	counter_t tx_octets = 0;
+	counter_t rx_packets = 0;
+	counter_t tx_packets = 0;
+	int valid = 0;
 
-static void tss2_submit (gauge_t users,
-					   counter_t bytes_send, counter_t bytes_received,
-					   counter_t packets_send, counter_t packets_received,
-					   char *server)
-{
-	/*
-	 * Function to submit values to collectd
-	 */
-	value_t v_users[1];
-	value_t v_octets[2];
-	value_t v_packets[2];
-	
-	value_list_t vl_users   = VALUE_LIST_INIT;
-	value_list_t vl_octets  = VALUE_LIST_INIT;
-	value_list_t vl_packets = VALUE_LIST_INIT;
-	
-	/* 
-	 * Dispatch users gauge
-	 */
-	v_users[0].gauge    = users;
-	
-	vl_users.values     = v_users;
-	vl_users.values_len = STATIC_ARRAY_SIZE (v_users);
-	vl_users.time       = time (NULL);
+	char plugin_instance[DATA_MAX_NAME_LEN];
 
-	
-	strcpy(vl_users.host, hostname_g);
-	strcpy(vl_users.plugin, "teamspeak2");
-	
-	if (server != NULL) {
-		/* VServer values */
-		strcpy(vl_users.plugin_instance, "");
-		strncpy(vl_users.type_instance, server, sizeof(vl_users.type_instance));
-	}
-	
-	plugin_dispatch_values ("users", &vl_users);
-	
-	/* 
-	 * Dispatch octets counter
-	 */
-	v_octets[0].counter  = bytes_send;
-	v_octets[1].counter  = bytes_received;
-	
-	vl_octets.values     = v_octets;
-	vl_octets.values_len = STATIC_ARRAY_SIZE (v_octets);
-	vl_octets.time       = time (NULL);
+	FILE *read_fh;
+	FILE *write_fh;
 
-	strcpy(vl_octets.host, hostname_g);
-	strcpy(vl_octets.plugin, "teamspeak2");
-	
-	if (server != NULL) {
-		/* VServer values */
-		strcpy(vl_octets.plugin_instance, "");
-		strncpy(vl_octets.type_instance, server, sizeof(vl_octets.type_instance));
-	}
-	
-	plugin_dispatch_values ("octets", &vl_octets);
-
-	/* 
-	 * Dispatch packets counter
-	 */
-	v_packets[0].counter  = packets_send;
-	v_packets[1].counter  = packets_send;
-	
-	vl_packets.values     = v_packets;
-	vl_packets.values_len = STATIC_ARRAY_SIZE (v_packets);
-	vl_packets.time       = time (NULL);
-	
-	strcpy(vl_packets.host, hostname_g);
-	strcpy(vl_packets.plugin, "teamspeak2");
-	
-	if (server != NULL) {
-		/* VServer values */
-		strcpy(vl_packets.plugin_instance, "");
-		strncpy(vl_packets.type_instance, server, sizeof(vl_packets.type_instance));
-	}
-	
-	plugin_dispatch_values("packets", &vl_packets);
-} /* void tss2_submit */
-
-
-static int tss2_read(void)
-{
-	/*
-	 * Tries to read the current values from all servers and to submit them
-	 */
-	char buff[TELNET_BUFFSIZE];
-	vserver_list_t *tmp;
-    
-	/* Variables for received values */
-	int collected			    = 0;
-	int users_online			= 0;
-	
-	long int bytes_received		= 0;
-	long int bytes_send			= 0;
-	long int packets_received	= 0;
-	long int packets_send		= 0;
-	
-	/*Check if we are connected*/
-	if ((telnet == INVALID_SOCKET) && (do_connect() != 0)) {
-		/* Disconnected and reconnect failed */
-		char errbuf[1024];
-		ERROR("teamspeak2 plugin: reconnect to %s:%d failed: %s",
-			config_host,
-			config_port,
-			sstrerror(errno, errbuf,
-					  sizeof(errbuf)));
-		return -1;
-	}
-	
-	/* Request global server variables */
-	if (do_request(T_REQUEST) == -1) {
-		/* Collect global info failed */
-		ERROR("teamspeak2 plugin: Collect global information request failed");
-		return -1;
+	status = tss2_get_socket (&read_fh, &write_fh);
+	if (status != 0)
+	{
+		ERROR ("teamspeak2 plugin: tss2_get_socket failed.");
+		return (-1);
 	}
 
-	collected = 0; /* Counts the number of variables found in the reply */
-	
-	for(;;) {
-		/* Request a line with a timeout of 200ms */
-		if (do_recv_line(buff, TELNET_BUFFSIZE, 200000) != 0) {
-			/* Failed */
-			ERROR("teamspeak2 plugin: Collect global information failed");
-			return -1;
-		}
-		
-		/*
-		 * Collect the received data
-		 */
-		if (is_eq(T_USERS_ONLINE, buff) == 0) {
-			/* Number of users online */
-			users_online = (int)eval_eq(T_USERS_ONLINE, buff);
-			DEBUG("teamspeak2 plugin: users_online: %d", users_online);
-			collected += 1;
-		}
-		else if (is_eq(T_PACKETS_SEND, buff) == 0) {
-			/* Number of packets send */
-			packets_send = eval_eq(T_PACKETS_SEND, buff);
-			DEBUG("teamspeak2 plugin: packets_send: %ld", packets_send);
-			collected += 1;
-		}
-		else if (is_eq(T_PACKETS_REC, buff) == 0) {
-			/* Number of packets received */
-			packets_received = eval_eq(T_PACKETS_REC, buff);
-			DEBUG("teamspeak2 plugin: packets_received: %ld", packets_received);
-			collected += 1;
-		}
-		else if (is_eq(T_BYTES_SEND, buff) == 0) {
-			/* Number of bytes send */
-			bytes_send = eval_eq(T_BYTES_SEND, buff);
-			DEBUG("teamspeak2 plugin: bytes_send: %ld", bytes_send);
-			collected += 1;
-		}
-		else if (is_eq(T_BYTES_REC, buff) == 0) {
-			/* Number of bytes received */
-			bytes_received = eval_eq(T_BYTES_REC, buff);
-			DEBUG("teamspeak2 plugin: byte_received: %ld", bytes_received);
-			collected += 1;
-		}
-		else if (is_eq(TELNET_OK, buff) == 0) {
-			/* Received end of transmission flag */
-			if (collected < 5) {
-				/* Not all expected values were received */
-				ERROR("teamspeak2 plugin: Couldn't collect all values (%d)", collected);
-				return -1;
-			}
-			/*
-			 * Everything is fine, let's break out of the loop
-			 */
+	if (vserver == NULL)
+	{
+		memset (plugin_instance, 0, sizeof (plugin_instance));
+
+		status = tss2_send_request (write_fh, "gi\r\n");
+	}
+	else
+	{
+		snprintf (plugin_instance, sizeof (plugin_instance), "vserver%i",
+				vserver->port);
+		plugin_instance[sizeof (plugin_instance) - 1] = 0;
+
+		status = tss2_select_vserver (read_fh, write_fh, vserver);
+		if (status != 0)
+			return (status);
+		status = tss2_send_request (write_fh, "si\r\n");
+	}
+
+	if (status != 0)
+	{
+		ERROR ("teamspeak2 plugin: tss2_send_request failed.");
+		return (-1);
+	}
+
+	while (42)
+	{
+		char buffer[4096];
+		char *key;
+		char *value;
+		char *endptr = NULL;
+
+		status = tss2_receive_line (read_fh, buffer, sizeof (buffer));
+		if (status != 0)
+		{
+			/* Set to NULL just to make sure noone uses these FHs anymore. */
+			read_fh = NULL;
+			write_fh = NULL;
+			ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
 			break;
 		}
-		else if (is_eq(TELNET_ERROR, buff) == 0) {
-			/* An error occured on the servers' side */
-			ERROR("teamspeak2 plugin: host reported error '%s'", buff);
-			return -1;
+
+		if (strncmp ("ERROR", buffer, 5) == 0)
+		{
+			ERROR ("teamspeak2 plugin: Server returned an error: %s",
+					buffer);
+			break;
+		}
+		else if (strncmp ("OK", buffer, 2) == 0)
+		{
+			break;
+		}
+
+		/* Split line into key and value */
+		key = strchr (buffer, '_');
+		if (key == NULL)
+		{
+			DEBUG ("teamspeak2 plugin: Cannot parse line: %s", buffer);
+			continue;
+		}
+		key++;
+
+		value = strchr (key, '=');
+		if (value == NULL)
+		{
+			DEBUG ("teamspeak2 plugin: Cannot parse line: %s", buffer);
+			continue;
+		}
+		*value = 0;
+		value++;
+
+		if ((strcmp ("currentusers", key) == 0)
+				|| (strcmp ("users_online", key) == 0))
+		{
+			users = strtod (value, &endptr);
+			if (value != endptr)
+				valid |= 0x01;
+		}
+		else if (strcmp ("bytesreceived", key) == 0)
+		{
+			rx_octets = strtoll (value, &endptr, 0);
+			if (value != endptr)
+				valid |= 0x02;
+		}
+		else if (strcmp ("bytessend", key) == 0)
+		{
+			tx_octets = strtoll (value, &endptr, 0);
+			if (value != endptr)
+				valid |= 0x04;
+		}
+		else if (strcmp ("packetsreceived", key) == 0)
+		{
+			rx_packets = strtoll (value, &endptr, 0);
+			if (value != endptr)
+				valid |= 0x08;
+		}
+		else if (strcmp ("packetssend", key) == 0)
+		{
+			tx_packets = strtoll (value, &endptr, 0);
+			if (value != endptr)
+				valid |= 0x10;
+		}
+		else
+		{
+			DEBUG ("teamspeak2 plugin: Unknown key-value-pair: key = %s; value = %s;",
+					key, value);
+		}
+	} /* while (42) */
+
+	if ((valid & 0x01) == 0x01)
+		tss2_submit_gauge (plugin_instance, "users", users);
+
+	if ((valid & 0x06) == 0x06)
+		tss2_submit_io (plugin_instance, "if_octets", rx_octets, tx_octets);
+
+	if ((valid & 0x18) == 0x18)
+		tss2_submit_io (plugin_instance, "if_packets", rx_packets, tx_packets);
+
+	if (valid == 0)
+		return (-1);
+	return (0);
+} /* int tss2_read_vserver */
+
+static int tss2_config (const char *key, const char *value)
+{
+    if (strcasecmp ("Host", key) == 0)
+	{
+		char *temp;
+
+		temp = strdup (value);
+		if (temp == NULL)
+		{
+			ERROR("teamspeak2 plugin: strdup failed.");
+			return (1);
+		}
+		sfree (config_host);
+		config_host = temp;
+	}
+	else if (strcasecmp ("Port", key) == 0)
+	{
+		char *temp;
+
+		temp = strdup (value);
+		if (temp == NULL)
+		{
+			ERROR("teamspeak2 plugin: strdup failed.");
+			return (1);
+		}
+		sfree (config_port);
+		config_port = temp;
+	}
+	else if (strcasecmp ("Server", key) == 0)
+	{
+		/* Server variable found */
+		int status;
+		
+		status = tss2_add_vserver (atoi (value));
+		if (status != 0)
+			return (1);
+	}
+	else
+	{
+		/* Unknow variable found */
+		return (-1);
+	}
+
+	return 0;
+} /* int tss2_config */
+
+static int tss2_read (void)
+{
+	vserver_list_t *vserver;
+	int success = 0;
+	int status;
+
+	/* Handle global server variables */
+	status = tss2_read_vserver (NULL);
+	if (status == 0)
+	{
+		success++;
+	}
+	else
+	{
+		WARNING ("teamspeak2 plugin: Reading global server variables failed.");
+	}
+
+	for (vserver = server_list; vserver != NULL; vserver = vserver->next)
+	{
+		status = tss2_read_vserver (vserver);
+		if (status == 0)
+		{
+			success++;
+		}
+		else
+		{
+			WARNING ("teamspeak2 plugin: Reading statistics "
+					"for vserver %i failed.", vserver->port);
+			continue;
 		}
 	}
 	
-	/* Forward values to collectd */
-	DEBUG("teamspeak2 plugin: Full global dataset received");
-	tss2_submit(users_online, bytes_send, bytes_received, packets_send, packets_received, NULL);
-
-	/* Collect values of servers */
-	tmp = server_list;
-	while(tmp != NULL) {
-		/* Try to select server */
-		sprintf(buff, "sel %d\r\n", tmp->port);
-		
-		if (do_request(buff) == -1) return -1; /* Send the request */
-		if (do_recv_line(buff, TELNET_BUFFSIZE, 200000)!=0) return -1; /* Receive the first line */
-		
-		if (is_eq(buff,TELNET_ERROR) == 0) {
-			/*Could not select server, go to the next one*/
-			WARNING("teamspeak2 plugin: Could not select server '%d'", tmp->port);
-			tmp = tmp->next;
-			continue;
-		}
-		else if (is_eq(TELNET_OK, buff) == 0) {
-			/*
-			 * VServer selected, now request its information
-			 */
-			collected = 0; /* Counts the number of variables found in the reply */
-			
-			if (do_request(S_REQUEST) == -1) {
-				/* Failed */
-				WARNING("teamspeak2 plugin: Collect info about server '%d' failed", tmp->port);
-				tmp = tmp->next;
-				continue;
-			}
-
-			for(;;) {
-				/* Request a line with a timeout of 200ms */
-				if (do_recv_line(buff, TELNET_BUFFSIZE, 200000) !=0 ) {
-					ERROR("teamspeak2 plugin: Connection error");
-					return -1;
-				}
-				
-				/*
-				 * Collect the received data
-				 */
-				if (is_eq(S_USERS_ONLINE, buff) == 0) {
-					/* Number of users online */
-					users_online = (int)eval_eq(S_USERS_ONLINE, buff);
-					collected += 1;
-				}
-				else if (is_eq(S_PACKETS_SEND, buff) == 0) {
-					/* Number of packets send */
-					packets_send = eval_eq(S_PACKETS_SEND, buff);
-					collected += 1;
-				}
-				else if (is_eq(S_PACKETS_REC, buff) == 0) {
-					/* Number of packets received */
-					packets_received = eval_eq(S_PACKETS_REC, buff);
-					collected += 1;
-				}
-				else if (is_eq(S_BYTES_SEND, buff) == 0) {
-					/* Number of bytes send */
-					bytes_send = eval_eq(S_BYTES_SEND, buff);
-					collected += 1;
-				}
-				else if (is_eq(S_BYTES_REC, buff) == 0) {
-					/* Number of bytes received */
-					bytes_received = eval_eq(S_BYTES_REC, buff);
-					collected += 1;
-				}
-				else if (is_eq(TELNET_OK, buff) == 0) {
-					/*
-					 * Received end of transmission flag, break the loop
-					 */
-					break;
-				}
-				else if (is_eq(TELNET_ERROR, buff) == 0) {
-					/* Error, not good */
-					ERROR("teamspeak2 plugin: server '%d' reported error '%s'", tmp->port, buff);
-					return -1;
-				}
-			}
-			
-			if (collected < 5) {
-				/* Not all expected values were received */
-				ERROR("teamspeak2 plugin: Couldn't collect all values of server '%d' (%d)", tmp->port, collected);
-				tmp = tmp->next;
-				continue; /* Continue with the next VServer */
-			}
-			
-			/* Forward values to connectd */
-			sprintf(buff,"%d",tmp->port);
-			tss2_submit(users_online, bytes_send, bytes_received, packets_send, packets_received, buff);
-
-		}
-		else {
-			/*The server send us garbage? wtf???*/
-			ERROR("teamspeak2 plugin: Server send garbage");
-			return -1;
-		}
-		tmp = tmp->next;
-	}
-
-    return 0;
+	if (success == 0)
+		return (-1);
+    return (0);
 } /* int tss2_read */
-
 
 static int tss2_shutdown(void)
 {
-	/*
-	 * Shutdown handler
-	 */
-	DEBUG("teamspeak2 plugin: Shutdown");
-	vserver_list_t *tmp = NULL;
-	
-	/* Close our telnet socket */
-	if (telnet != INVALID_SOCKET) {
-		do_request(TELNET_QUIT);
-		fclose(telnet_in);
-		telnet_in = NULL;
-		telnet = INVALID_SOCKET;
-	}
-	
-	/* Release all allocated memory */
-	while(server_list != NULL) {
-		tmp 	= server_list;
-		server_list = server_list->next;
-		free(tmp);
-	}
-	
-	/* Get rid of the rest */
-	sfree (config_host);
-	
-    return 0;
-} /* int tss2_shutdown */
+	vserver_list_t *entry;
 
+	tss2_close_socket ();
+
+	entry = server_list;
+	server_list = NULL;
+	while (entry != NULL)
+	{
+		vserver_list_t *next;
+
+		next = entry->next;
+		sfree (entry);
+		entry = next;
+	}
+
+	/* Get rid of the configuration */
+	sfree (config_host);
+	sfree (config_port);
+	
+    return (0);
+} /* int tss2_shutdown */
 
 void module_register(void)
 {
-	/*
-	 * Module registrator
-	 */
-	plugin_register_config("teamspeak2",
-                            tss2_config,
-                            config_keys,
-                            config_keys_num);
-
-	plugin_register_init("teamspeak2", tss2_init);
-	plugin_register_read("teamspeak2", tss2_read);
-	plugin_register_shutdown("teamspeak2", tss2_shutdown);
+	plugin_register_config ("teamspeak2", tss2_config,
+			config_keys, config_keys_num);
+	plugin_register_read ("teamspeak2", tss2_read);
+	plugin_register_shutdown ("teamspeak2", tss2_shutdown);
 } /* void module_register */
 
 /* vim: set sw=4 ts=4 : */
