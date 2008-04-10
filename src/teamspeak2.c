@@ -488,10 +488,10 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		tss2_submit_gauge (plugin_instance, "users", users);
 
 	if ((valid & 0x06) == 0x06)
-		tss2_submit_io (plugin_instance, "if_octets", rx_octets, tx_octets);
+		tss2_submit_io (plugin_instance, "io_octets", rx_octets, tx_octets);
 
 	if ((valid & 0x18) == 0x18)
-		tss2_submit_io (plugin_instance, "if_packets", rx_packets, tx_packets);
+		tss2_submit_io (plugin_instance, "io_packets", rx_packets, tx_packets);
 
 	if (valid == 0)
 		return (-1);
