@@ -538,10 +538,32 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 			if (value != endptr)
 				valid |= 0x10;
 		}
+		else if ((strncmp ("allow_codec_", key, strlen ("allow_codec_")) == 0)
+				|| (strncmp ("bwinlast", key, strlen ("bwinlast")) == 0)
+				|| (strncmp ("bwoutlast", key, strlen ("bwoutlast")) == 0)
+				|| (strncmp ("webpost_", key, strlen ("webpost_")) == 0)
+				|| (strcmp ("adminemail", key) == 0)
+				|| (strcmp ("clan_server", key) == 0)
+				|| (strcmp ("countrynumber", key) == 0)
+				|| (strcmp ("id", key) == 0)
+				|| (strcmp ("ispname", key) == 0)
+				|| (strcmp ("linkurl", key) == 0)
+				|| (strcmp ("maxusers", key) == 0)
+				|| (strcmp ("name", key) == 0)
+				|| (strcmp ("password", key) == 0)
+				|| (strcmp ("platform", key) == 0)
+				|| (strcmp ("server_platform", key) == 0)
+				|| (strcmp ("server_uptime", key) == 0)
+				|| (strcmp ("server_version", key) == 0)
+				|| (strcmp ("udpport", key) == 0)
+				|| (strcmp ("uptime", key) == 0)
+				|| (strcmp ("users_maximal", key) == 0)
+				|| (strcmp ("welcomemessage", key) == 0))
+			/* ignore */;
 		else
 		{
-			DEBUG ("teamspeak2 plugin: Unknown key-value-pair: key = %s; value = %s;",
-					key, value);
+			INFO ("teamspeak2 plugin: Unknown key-value-pair: "
+					"key = %s; value = %s;", key, value);
 		}
 	} /* while (42) */
 
