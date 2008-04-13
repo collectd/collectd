@@ -70,8 +70,12 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
  */
 static int tss2_add_vserver (int vserver_port)
 {
+	/*
+	 * Adds a new vserver to the linked list
+	 */
 	vserver_list_t *entry;
 
+	/* Check port range */
 	if ((vserver_port <= 0) || (vserver_port > 65535))
 	{
 		ERROR ("teamspeak2 plugin: VServer port is invalid: %i",
@@ -79,6 +83,7 @@ static int tss2_add_vserver (int vserver_port)
 		return (-1);
 	}
 
+	/* Allocate memory */
 	entry = (vserver_list_t *) malloc (sizeof (vserver_list_t));
 	if (entry == NULL)
 	{
@@ -87,8 +92,10 @@ static int tss2_add_vserver (int vserver_port)
 	}
 	memset (entry, 0, sizeof (vserver_list_t));
 
+	/* Save data */
 	entry->port = vserver_port;
 
+	/* Insert to list */
 	if(server_list == NULL) {
 		/* Add the server as the first element */
 		server_list = entry;
@@ -111,6 +118,9 @@ static int tss2_add_vserver (int vserver_port)
 static void tss2_submit_gauge (const char *plugin_instance, const char *type,
 		gauge_t value)
 {
+	/*
+	 * Submits a gauge value to the collectd daemon
+	 */
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -132,6 +142,9 @@ static void tss2_submit_gauge (const char *plugin_instance, const char *type,
 static void tss2_submit_io (const char *plugin_instance, const char *type,
 		counter_t rx, counter_t tx)
 {
+	/*
+	 * Submits the io rx/tx tuple to the collectd daemon
+	 */
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -153,6 +166,9 @@ static void tss2_submit_io (const char *plugin_instance, const char *type,
 
 static void tss2_close_socket (void)
 {
+	/*
+	 * Closes all sockets
+	 */
 	if (global_write_fh != NULL)
 	{
 		fputs ("quit\r\n", global_write_fh);
@@ -173,14 +189,20 @@ static void tss2_close_socket (void)
 
 static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 {
+	/*
+	 * Returns connected file objects or establishes the connection
+	 * if it's not already present
+	 */
 	struct addrinfo ai_hints;
 	struct addrinfo *ai_head;
 	struct addrinfo *ai_ptr;
 	int sd = -1;
 	int status;
 
+	/* Check if we already got opened connections */
 	if ((global_read_fh != NULL) && (global_write_fh != NULL))
 	{
+		/* If so, use them */
 		if (ret_read_fh != NULL)
 			*ret_read_fh = global_read_fh;
 		if (ret_write_fh != NULL)
@@ -188,6 +210,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 		return (0);
 	}
 
+	/* Get all addrs for this hostname */
 	memset (&ai_hints, 0, sizeof (ai_hints));
 #ifdef AI_ADDRCONFIG
 	ai_hints.ai_flags |= AI_ADDRCONFIG;
@@ -206,8 +229,10 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 		return (-1);
 	}
 
+	/* Try all given hosts until we can connect to one */
 	for (ai_ptr = ai_head; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
+		/* Create socket */
 		sd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
 				ai_ptr->ai_protocol);
 		if (sd < 0)
@@ -218,6 +243,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 			continue;
 		}
 
+		/* Try to connect */
 		status = connect (sd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
 		if (status != 0)
 		{
@@ -228,14 +254,19 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 			continue;
 		}
 
+		/*
+		 * Success, we can break. Don't need more than one connection
+		 */
 		break;
 	} /* for (ai_ptr) */
 
 	freeaddrinfo (ai_head);
 
+	/* Check if we really got connected */
 	if (sd < 0)
 		return (-1);
 
+	/* Create file objects from sockets */
 	global_read_fh = fdopen (sd, "r");
 	if (global_read_fh == NULL)
 	{
@@ -271,8 +302,10 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 			tss2_close_socket ();
 			return (-1);
 		}
+		DEBUG ("teamspeak2 plugin: Server send correct banner, connected!");
 	}
 
+	/* Copy the new filehandles to the given pointers */
 	if (ret_read_fh != NULL)
 		*ret_read_fh = global_read_fh;
 	if (ret_write_fh != NULL)
@@ -282,6 +315,9 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 
 static int tss2_send_request (FILE *fh, const char *request)
 {
+	/*
+	 * This function puts a request to the server socket
+	 */
 	int status;
 
 	status = fputs (request, fh);
@@ -298,6 +334,9 @@ static int tss2_send_request (FILE *fh, const char *request)
 
 static int tss2_receive_line (FILE *fh, char *buffer, int buffer_size)
 {
+	/*
+	 * Receive a single line from the given file object
+	 */
 	char *temp;
 	 
 	/*
@@ -320,10 +359,16 @@ static int tss2_receive_line (FILE *fh, char *buffer, int buffer_size)
 
 static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *vserver)
 {
+	/*
+	 * Tell the server to select the given vserver
+	 */
 	char command[128];
 	char response[128];
 	int status;
 
+	DEBUG("teamspeak2 plugin: Select server %i", vserver->port);
+	
+	/* Send request */
 	snprintf (command, sizeof (command), "sel %i\r\n", vserver->port);
 	command[sizeof (command) - 1] = 0;
 
@@ -334,6 +379,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 		return (-1);
 	}
 
+	/* Get answer */
 	status = tss2_receive_line (read_fh, response, sizeof (response));
 	if (status != 0)
 	{
@@ -342,6 +388,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 	}
 	response[sizeof (response)] = 0;
 
+	/* Check answer */
 	if ((strncmp ("OK", response, 2) == 0)
 			&& ((response[2] == 0)
 				|| (response[2] == '\n')
@@ -370,6 +417,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	FILE *read_fh;
 	FILE *write_fh;
 
+	/* Get the send/receive sockets */
 	status = tss2_get_socket (&read_fh, &write_fh);
 	if (status != 0)
 	{
@@ -379,19 +427,27 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 
 	if (vserver == NULL)
 	{
+		/* Request global information */
+		DEBUG("teamspeak2 plugin: Read global server information");
+	
 		memset (plugin_instance, 0, sizeof (plugin_instance));
 
 		status = tss2_send_request (write_fh, "gi\r\n");
 	}
 	else
 	{
+		/* Request server information */
+		DEBUG("teamspeak2 plugin: Read vserver's %i information!", vserver->port);
+	
 		snprintf (plugin_instance, sizeof (plugin_instance), "vserver%i",
 				vserver->port);
 		plugin_instance[sizeof (plugin_instance) - 1] = 0;
 
+		/* Select the server */
 		status = tss2_select_vserver (read_fh, write_fh, vserver);
 		if (status != 0)
 			return (status);
+
 		status = tss2_send_request (write_fh, "si\r\n");
 	}
 
@@ -401,13 +457,15 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		return (-1);
 	}
 
+	/* Loop until break */
 	while (42)
 	{
 		char buffer[4096];
 		char *key;
 		char *value;
 		char *endptr = NULL;
-
+		
+		/* Read one line of the server's answer */
 		status = tss2_receive_line (read_fh, buffer, sizeof (buffer));
 		if (status != 0)
 		{
@@ -438,6 +496,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		}
 		key++;
 
+		/* Evaluate assignment */
 		value = strchr (key, '=');
 		if (value == NULL)
 		{
@@ -447,6 +506,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		*value = 0;
 		value++;
 
+		/* Check for known key and save the given value */
 		if ((strcmp ("currentusers", key) == 0)
 				|| (strcmp ("users_online", key) == 0))
 		{
@@ -501,6 +561,9 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 
 static int tss2_config (const char *key, const char *value)
 {
+	/*
+	 * Interpret configuration values
+	 */
     if (strcasecmp ("Host", key) == 0)
 	{
 		char *temp;
@@ -538,7 +601,7 @@ static int tss2_config (const char *key, const char *value)
 	}
 	else
 	{
-		/* Unknow variable found */
+		/* Unknown variable found */
 		return (-1);
 	}
 
@@ -584,6 +647,9 @@ static int tss2_read (void)
 
 static int tss2_shutdown(void)
 {
+	/*
+	 * Shutdown handler
+	 */
 	vserver_list_t *entry;
 
 	tss2_close_socket ();
@@ -608,6 +674,9 @@ static int tss2_shutdown(void)
 
 void module_register(void)
 {
+	/*
+	 * Mandatory module_register function
+	 */
 	plugin_register_config ("teamspeak2", tss2_config,
 			config_keys, config_keys_num);
 	plugin_register_read ("teamspeak2", tss2_read);
