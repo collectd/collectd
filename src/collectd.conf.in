@@ -58,6 +58,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_SYSLOG_TRUE@LoadPlugin syslog
 @BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
 @BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
+@BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
 @BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
 @BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 @BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
@@ -285,6 +286,12 @@ FQDNLookup   true
 #	ListeningPorts false
 #	LocalPort "25"
 #	RemotePort "25"
+#</Plugin>
+
+#<Plugin teamspeak2>
+#	Host "127.0.0.1"
+#	Port "51234"
+#	Server "8767"
 #</Plugin>
 
 #<Plugin unixsock>
