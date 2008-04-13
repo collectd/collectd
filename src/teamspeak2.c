@@ -291,6 +291,7 @@ static int tss2_send_request (FILE *fh, const char *request)
 		tss2_close_socket ();
 		return (-1);
 	}
+	fflush (fh);
 
 	return (0);
 } /* int tss2_send_request */
