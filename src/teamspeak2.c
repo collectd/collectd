@@ -401,8 +401,119 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 	return (-1);
 } /* int tss2_select_vserver */
 
+static int tss2_vserver_gapl(vserver_list_t *vserver)
+{
+	/*
+	 * Reads the vserver's average packet loss and submits it to collectd.
+	 * Be sure to run the tss2_read_vserver function before calling this so
+	 * the vserver is selected correctly.
+	 */
+	int status;
+	
+	FILE *read_fh;
+	FILE *write_fh;
+
+	char plugin_instance[DATA_MAX_NAME_LEN];
+	
+	gauge_t packet_loss = NAN;
+
+	DEBUG("teamspeak2 plugin: Get average packet loss (VServer: %i)", vserver->port);
+	
+	/* Get the send/receive sockets */
+	status = tss2_get_socket (&read_fh, &write_fh);
+	if (status != 0)
+	{
+		ERROR ("teamspeak2 plugin: tss2_get_socket failed.");
+		return (-1);
+	}
+	
+	status = tss2_send_request (write_fh, "gapl\r\n");
+	if (status != 0)
+	{
+		ERROR("teamspeak2 plugin: tss2_send_request failed. (gapl)");
+		return (-1);
+	}
+
+	while (42)
+	{
+		char buffer[4096];
+		char *value;
+		char *endptr = NULL;
+		
+		status = tss2_receive_line (read_fh, buffer, sizeof (buffer));
+		if (status != 0)
+		{
+			/* Set to NULL just to make sure noone uses these FHs anymore. */
+			read_fh = NULL;
+			write_fh = NULL;
+			ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
+			return (-1);
+		}
+		buffer[sizeof (buffer)] = 0;
+		
+		if (strncmp ("average_packet_loss=", buffer, 20) == 0)
+		{
+			/* Got average packet loss, now interpret it */
+			value = &buffer[20];
+			/* Replace , with . */
+			while (*value != 0)
+			{
+				if (*value == ',')
+				{
+					*value = '.';
+					break;
+				}
+				value++;
+			}
+			
+			value = &buffer[20];
+			
+			packet_loss = strtod(value, &endptr);
+			if (value == endptr)
+			{
+				/* Failed */
+				WARNING ("teamspeak2 plugin: Could not read average package loss from string: %s", buffer);
+				continue;
+			}
+		}
+		else if (strncmp ("OK", buffer, 2) == 0)
+		{
+			break;
+		}
+		else if(strncasecmp ("ERROR", buffer, 5) == 0)
+		{
+			ERROR ("teamspeak2 plugin: Server returned an error: %s", buffer);
+			return (-1);
+		}
+		else
+		{
+			WARNING ("teamspeak2 plugin: Server returned unexpected string: %s",
+					buffer);
+		}
+	}
+	
+	if (packet_loss != NAN)
+	{
+		snprintf (plugin_instance, sizeof (plugin_instance), "vserver%i",
+				vserver->port);
+		plugin_instance[sizeof (plugin_instance) - 1] = 0;
+		
+		tss2_submit_gauge (plugin_instance, "percent", packet_loss);
+	}
+	else
+	{
+		return (-1);
+	}
+	
+	return (0);
+} /* int tss2_vserver_gapl */
+
 static int tss2_read_vserver (vserver_list_t *vserver)
 {
+	/*
+	 * Poll information for the given vserver and submit it to collect.
+	 * If vserver is NULL the global server information will be queried.
+	 */
 	int status;
 
 	gauge_t users = NAN;
@@ -632,10 +743,16 @@ static int tss2_config (const char *key, const char *value)
 
 static int tss2_read (void)
 {
+	/*
+	 * Poll function which collects global and vserver information
+	 * and submits it to collectd
+	 */
 	vserver_list_t *vserver;
 	int success = 0;
 	int status;
 
+	DEBUG("teamspeak2 plugin: Poll everything");
+	
 	/* Handle global server variables */
 	status = tss2_read_vserver (NULL);
 	if (status == 0)
@@ -647,6 +764,7 @@ static int tss2_read (void)
 		WARNING ("teamspeak2 plugin: Reading global server variables failed.");
 	}
 
+	/* Handle vservers */
 	for (vserver = server_list; vserver != NULL; vserver = vserver->next)
 	{
 		status = tss2_read_vserver (vserver);
@@ -660,7 +778,15 @@ static int tss2_read (void)
 					"for vserver %i failed.", vserver->port);
 			continue;
 		}
+		
+		status = tss2_vserver_gapl (vserver);
+		if (status != 0)
+		{
+			WARNING ("teamspeak2 plugin: Reading package loss "
+					"for vserver %i failed.", vserver->port);
+		}
 	}
+	DEBUG("teamspeak2 plugin: Poll done");
 	
 	if (success == 0)
 		return (-1);
