@@ -1103,6 +1103,32 @@ This optional setting sets the type instance to use.
 
 =back
 
+=head2 Plugin C<teamspeak2>
+
+The C<teamspeak2 plugin> connects to the query port of a teamspeak2 server and
+polls interesting global and virtual server data. The plugin can query only one
+physical server but unlimited virtual servers. You can use the following options
+to configure it:
+
+=over 4
+
+=item B<Host> I<hostname/ip>
+
+The hostname or ip which identifies the physical server.
+Default: 127.0.0.1
+
+=item B<Port> I<port>
+
+The query port of the physical server.
+Default: 51234
+
+=item B<Server> I<port>
+
+This option has to be added once for every virtual server the plugin should
+query. If you want to query the virtual server on port 8767 this is what the
+option would look like:
+Server 8767
+
 =head2 Plugin C<tcpconns>
 
 The C<tcpconns plugin> counts the number of currently established TCP
@@ -1112,6 +1138,8 @@ for which a listening socket is opened. You can use the following options to
 fine-tune the ports you are interested in:
 
 =over 4
+
+=back
 
 =item B<ListeningPorts> I<true>|I<false>
 
