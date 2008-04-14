@@ -41,11 +41,13 @@ typedef struct threshold_s
   char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
+  char data_source[DATA_MAX_NAME_LEN];
   gauge_t warning_min;
   gauge_t warning_max;
   gauge_t failure_min;
   gauge_t failure_max;
   int flags;
+  struct threshold_s *next;
 } threshold_t;
 /* }}} */
 
@@ -62,11 +64,31 @@ static pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
  * The following functions add, delete, search, etc. configured thresholds to
  * the underlying AVL trees.
  * {{{ */
+static threshold_t *threshold_get (const char *hostname,
+    const char *plugin, const char *plugin_instance,
+    const char *type, const char *type_instance)
+{
+  char name[6 * DATA_MAX_NAME_LEN];
+  threshold_t *th = NULL;
+
+  format_name (name, sizeof (name),
+      (hostname == NULL) ? "" : hostname,
+      (plugin == NULL) ? "" : plugin, plugin_instance,
+      (type == NULL) ? "" : type, type_instance);
+  name[sizeof (name) - 1] = '\0';
+
+  if (c_avl_get (threshold_tree, name, (void *) &th) == 0)
+    return (th);
+  else
+    return (NULL);
+} /* threshold_t *threshold_get */
+
 static int ut_threshold_add (const threshold_t *th)
 {
   char name[6 * DATA_MAX_NAME_LEN];
   char *name_copy;
   threshold_t *th_copy;
+  threshold_t *th_ptr;
   int status = 0;
 
   if (format_name (name, sizeof (name), th->host,
@@ -92,11 +114,29 @@ static int ut_threshold_add (const threshold_t *th)
     return (-1);
   }
   memcpy (th_copy, th, sizeof (threshold_t));
+  th_copy = NULL;
 
   DEBUG ("ut_threshold_add: Adding entry `%s'", name);
 
   pthread_mutex_lock (&threshold_lock);
-  status = c_avl_insert (threshold_tree, name_copy, th_copy);
+
+  th_ptr = threshold_get (th->host, th->plugin, th->plugin_instance,
+      th->type, th->type_instance);
+
+  while ((th_ptr != NULL) && (th_ptr->next != NULL))
+    th_ptr = th_ptr->next;
+
+  if (th_ptr == NULL) /* no such threshold yet */
+  {
+    status = c_avl_insert (threshold_tree, name_copy, th_copy);
+  }
+  else /* th_ptr points to the last threshold in the list */
+  {
+    th_ptr->next = th_copy;
+    /* name_copy isn't needed */
+    sfree (name_copy);
+  }
+
   pthread_mutex_unlock (&threshold_lock);
 
   if (status != 0)
@@ -118,6 +158,22 @@ static int ut_threshold_add (const threshold_t *th)
  * The following approximately two hundred functions are used to handle the
  * configuration and fill the threshold list.
  * {{{ */
+static int ut_config_type_datasource (threshold_t *th, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("threshold values: The `DataSource' option needs exactly one "
+	"string argument.");
+    return (-1);
+  }
+
+  sstrncpy (th->data_source, ci->values[0].value.string,
+      sizeof (th->data_source));
+
+  return (0);
+} /* int ut_config_type_datasource */
+
 static int ut_config_type_instance (threshold_t *th, oconfig_item_t *ci)
 {
   if ((ci->values_num != 1)
@@ -243,6 +299,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 
     if (strcasecmp ("Instance", option->key) == 0)
       status = ut_config_type_instance (&th, option);
+    if (strcasecmp ("DataSource", option->key) == 0)
+      status = ut_config_type_datasource (&th, option);
     else if ((strcasecmp ("WarningMax", option->key) == 0)
 	|| (strcasecmp ("FailureMax", option->key) == 0))
       status = ut_config_type_max (&th, option);
@@ -443,25 +501,6 @@ int ut_config (const oconfig_item_t *ci)
  */
 /* }}} */
 
-static threshold_t *threshold_get (const char *hostname,
-    const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance)
-{
-  char name[6 * DATA_MAX_NAME_LEN];
-  threshold_t *th = NULL;
-
-  format_name (name, sizeof (name),
-      (hostname == NULL) ? "" : hostname,
-      (plugin == NULL) ? "" : plugin, plugin_instance,
-      (type == NULL) ? "" : type, type_instance);
-  name[sizeof (name) - 1] = '\0';
-
-  if (c_avl_get (threshold_tree, name, (void *) &th) == 0)
-    return (th);
-  else
-    return (NULL);
-} /* threshold_t *threshold_get */
-
 static threshold_t *threshold_search (const data_set_t *ds,
     const value_list_t *vl)
 {
@@ -507,6 +546,10 @@ static threshold_t *threshold_search (const data_set_t *ds,
   return (NULL);
 } /* threshold_t *threshold_search */
 
+/* TODO: Split this into two functions, one that iterates over all threshold
+ * definitions and one that checks if (a) the threshold matches (the data
+ * source matches) and (b) if the threshold is satisfied or not. Break at the
+ * first matching threshold. */
 int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
 {
   notification_t n;
