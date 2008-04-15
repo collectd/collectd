@@ -1361,6 +1361,7 @@ information.
      Instance "eth0"
      <Type "if_octets">
        FailureMax 10000000
+       DataSource "rx"
      </Type>
    </Plugin>
 
@@ -1410,6 +1411,19 @@ Sets the lower bound of acceptable values. If unset defaults to negative
 infinity. If a value is less than B<FailureMin> a B<FAILURE> notification will
 be created. If the value is less than B<WarningMin> but greater than (or equal
 to) B<FailureMin> a B<WARNING> notification will be created.
+
+=item B<DataSource> I<DSName>
+
+Some data sets have more than one "data source". Interesting examples are the
+C<if_octets> data set, which has received (C<rx>) and sent (C<tx>) bytes and
+the C<disk_ops> data set, which holds C<read> and C<write> operations. The
+system load data set, C<load>, even has three data sources: C<shortterm>,
+C<midterm>, and C<longterm>.
+
+Normally, all data sources are checked against a configured threshold. If this
+is undesirable, or if you want to specify different limits for each data
+source, you can use the B<DataSource> option to have a threshold apply only to
+one data source.
 
 =item B<Invert> B<true>|B<false>
 
