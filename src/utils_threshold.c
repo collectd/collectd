@@ -114,7 +114,7 @@ static int ut_threshold_add (const threshold_t *th)
     return (-1);
   }
   memcpy (th_copy, th, sizeof (threshold_t));
-  th_copy = NULL;
+  th_ptr = NULL;
 
   DEBUG ("ut_threshold_add: Adding entry `%s'", name);
 
