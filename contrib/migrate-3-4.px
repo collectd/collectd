@@ -121,7 +121,8 @@ our %TypeSplit =
 
 our %TypeRename =
 (
-	traffic => { from => [qw(incoming outgoing)], to => [qw(rx tx)] }
+	traffic => { from => [qw(incoming outgoing)], to => [qw(rx tx)] },
+	vs_processes => { from => [qw(total)], to => [qw(value)] },
 );
 
 GetOptions ("indir|i=s" => \$InDir,
