@@ -394,7 +394,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 	response[sizeof (response)] = 0;
 
 	/* Check answer */
-	if ((strncmp ("OK", response, 2) == 0)
+	if ((strncasecmp ("OK", response, 2) == 0)
 			&& ((response[2] == 0)
 				|| (response[2] == '\n')
 				|| (response[2] == '\r')))
@@ -471,7 +471,7 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 				continue;
 			}
 		}
-		else if (strncmp ("OK", buffer, 2) == 0)
+		else if (strncasecmp ("OK", buffer, 2) == 0)
 		{
 			break;
 		}
@@ -573,13 +573,13 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 			break;
 		}
 
-		if (strncmp ("ERROR", buffer, 5) == 0)
+		if (strncasecmp ("ERROR", buffer, 5) == 0)
 		{
 			ERROR ("teamspeak2 plugin: Server returned an error: %s",
 					buffer);
 			break;
 		}
-		else if (strncmp ("OK", buffer, 2) == 0)
+		else if (strncasecmp ("OK", buffer, 2) == 0)
 		{
 			break;
 		}
