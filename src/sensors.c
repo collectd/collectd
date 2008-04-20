@@ -506,10 +506,12 @@ static void sensors_submit (const char *plugin_instance,
 	strncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
 	vl.plugin_instance[sizeof (vl.plugin_instance) - 1] = '\0';
+	strncpy (vl.type, type, sizeof (vl.type));
+	vl.type[sizeof (vl.type) - 1] = '\0';
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 	vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void sensors_submit */
 
 static int sensors_read (void)

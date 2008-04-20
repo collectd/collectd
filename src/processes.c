@@ -412,9 +412,10 @@ static void ps_submit_state (const char *state, double value)
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "processes");
 	strcpy (vl.plugin_instance, "");
+	strcpy (vl.type, "ps_state");
 	strncpy (vl.type_instance, state, sizeof (vl.type_instance));
 
-	plugin_dispatch_values ("ps_state", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static void ps_submit_proc_list (procstat_t *ps)
@@ -429,24 +430,28 @@ static void ps_submit_proc_list (procstat_t *ps)
 	strcpy (vl.plugin, "processes");
 	strncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
+	strcpy (vl.type, "ps_rss");
 	vl.values[0].gauge = ps->vmem_rss;
 	vl.values_len = 1;
-	plugin_dispatch_values ("ps_rss", &vl);
+	plugin_dispatch_values (&vl);
 
+	strcpy (vl.type, "ps_cputime");
 	vl.values[0].counter = ps->cpu_user_counter;
 	vl.values[1].counter = ps->cpu_system_counter;
 	vl.values_len = 2;
-	plugin_dispatch_values ("ps_cputime", &vl);
+	plugin_dispatch_values (&vl);
 
+	strcpy (vl.type, "ps_count");
 	vl.values[0].gauge = ps->num_proc;
 	vl.values[1].gauge = ps->num_lwp;
 	vl.values_len = 2;
-	plugin_dispatch_values ("ps_count", &vl);
+	plugin_dispatch_values (&vl);
 
+	strcpy (vl.type, "ps_pagefaults");
 	vl.values[0].counter = ps->vmem_minflt_counter;
 	vl.values[1].counter = ps->vmem_majflt_counter;
 	vl.values_len = 2;
-	plugin_dispatch_values ("ps_pagefaults", &vl);
+	plugin_dispatch_values (&vl);
 
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
 			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "

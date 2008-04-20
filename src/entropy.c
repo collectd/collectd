@@ -42,9 +42,10 @@ static void entropy_submit (double entropy)
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "entropy");
 	strcpy (vl.plugin_instance, "");
+	strcpy (vl.type, "entropy");
 	strcpy (vl.type_instance, "");
 
-	plugin_dispatch_values ("entropy", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int entropy_read (void)

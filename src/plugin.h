@@ -74,12 +74,13 @@ struct value_list_s
 	char     host[DATA_MAX_NAME_LEN];
 	char     plugin[DATA_MAX_NAME_LEN];
 	char     plugin_instance[DATA_MAX_NAME_LEN];
+	char     type[DATA_MAX_NAME_LEN];
 	char     type_instance[DATA_MAX_NAME_LEN];
 };
 typedef struct value_list_s value_list_t;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "" }
-#define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "" }
+#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "", "" }
+#define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "", "" }
 
 struct data_source_s
 {
@@ -204,11 +205,10 @@ int plugin_unregister_notification (const char *name);
  *  write-functions.
  *
  * ARGUMENTS
- *  `name'      Name/type of the data-set that describe the values in `vl'.
  *  `vl'        Value list of the values that have been read by a `read'
  *              function.
  */
-int plugin_dispatch_values (const char *name, value_list_t *vl);
+int plugin_dispatch_values (value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);
 

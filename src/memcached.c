@@ -226,13 +226,14 @@ static void submit_counter (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
+	strncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 	}
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void memcached_submit_cmd */
 /* }}} */
 
@@ -250,13 +251,14 @@ static void submit_counter2 (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
+	strncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 	}
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void memcached_submit_cmd */
 /* }}} */
 
@@ -273,13 +275,14 @@ static void submit_gauge (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
+	strncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 	}
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 }
 /* }}} */
 
@@ -297,13 +300,14 @@ static void submit_gauge2 (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
+	strncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 	}
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 }
 /* }}} */
 

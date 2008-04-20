@@ -128,9 +128,10 @@ static void df_submit (char *df_name,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "df");
 	strcpy (vl.plugin_instance, "");
+	strcpy (vl.type, "df");
 	strncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
 
-	plugin_dispatch_values ("df", &vl);
+	plugin_dispatch_values (&vl);
 } /* void df_submit */
 
 static int df_read (void)

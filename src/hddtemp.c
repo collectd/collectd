@@ -451,9 +451,10 @@ static void hddtemp_submit (char *type_instance, double value)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "hddtemp");
+	strcpy (vl.type, "temperature");
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	plugin_dispatch_values ("temperature", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int hddtemp_read (void)

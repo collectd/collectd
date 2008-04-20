@@ -210,8 +210,9 @@ static void disk_submit (const char *plugin_instance,
 	strcpy (vl.plugin, "disk");
 	strncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
+	strncpy (vl.type, type, sizeof (vl.type));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void disk_submit */
 
 #if HAVE_IOKIT_IOKITLIB_H

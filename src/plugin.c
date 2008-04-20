@@ -717,11 +717,16 @@ void plugin_shutdown_all (void)
 	}
 } /* void plugin_shutdown_all */
 
-int plugin_dispatch_values (const char *name, value_list_t *vl)
+int plugin_dispatch_values (value_list_t *vl)
 {
 	int (*callback) (const data_set_t *, const value_list_t *);
 	data_set_t *ds;
 	llentry_t *le;
+
+	if ((vl == NULL) || (*vl->type == '\0')) {
+		ERROR ("plugin_dispatch_values: Invalid value list.");
+		return (-1);
+	}
 
 	if (list_write == NULL)
 	{
@@ -739,9 +744,9 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 		return (-1);
 	}
 
-	if (c_avl_get (data_sets, name, (void *) &ds) != 0)
+	if (c_avl_get (data_sets, vl->type, (void *) &ds) != 0)
 	{
-		INFO ("plugin_dispatch_values: Dataset not found: %s", name);
+		INFO ("plugin_dispatch_values: Dataset not found: %s", vl->type);
 		return (-1);
 	}
 
@@ -752,7 +757,15 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 			(unsigned int) vl->time, vl->interval,
 			vl->host,
 			vl->plugin, vl->plugin_instance,
-			ds->type, vl->type_instance);
+			vl->type, vl->type_instance);
+
+#if COLLECT_DEBUG
+	assert (0 == strcmp (ds->type, vl->type));
+#else
+	if (0 != strcmp (ds->type, vl->type))
+		WARN ("plugin_dispatch_values: (ds->type = %s) != (vl->type = %s)",
+				ds->type, vl->type);
+#endif
 
 #if COLLECT_DEBUG
 	assert (ds->ds_num == vl->values_len);
@@ -770,6 +783,7 @@ int plugin_dispatch_values (const char *name, value_list_t *vl)
 	escape_slashes (vl->host, sizeof (vl->host));
 	escape_slashes (vl->plugin, sizeof (vl->plugin));
 	escape_slashes (vl->plugin_instance, sizeof (vl->plugin_instance));
+	escape_slashes (vl->type, sizeof (vl->type));
 	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
 
 	/* Update the value cache */

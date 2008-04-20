@@ -242,11 +242,13 @@ static int submit_match (const struct ipt_entry_match *match,
     }
     vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
+    strcpy (vl.type, "ipt_bytes");
     values[0].counter = (counter_t) entry->counters.bcnt;
-    plugin_dispatch_values ("ipt_bytes", &vl);
+    plugin_dispatch_values (&vl);
 
+    strcpy (vl.type, "ipt_packets");
     values[0].counter = (counter_t) entry->counters.pcnt;
-    plugin_dispatch_values ("ipt_packets", &vl);
+    plugin_dispatch_values (&vl);
 
     return (0);
 } /* void submit_match */

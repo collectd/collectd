@@ -192,6 +192,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 	strcpy (vl.plugin, "nfs");
 	strncpy (vl.plugin_instance, plugin_instance,
 		       	sizeof (vl.plugin_instance));
+	strcpy (vl.type, "nfs_procedure");
 
 	for (i = 0; i < len; i++)
 	{
@@ -201,7 +202,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 		DEBUG ("%s-%s/nfs_procedure-%s = %llu",
 				vl.plugin, vl.plugin_instance,
 				vl.type_instance, val[i]);
-		plugin_dispatch_values ("nfs_procedure", &vl);
+		plugin_dispatch_values (&vl);
 	}
 } /* void nfs_procedures_submit */
 

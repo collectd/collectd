@@ -103,10 +103,11 @@ static void memory_submit (const char *type_instance, gauge_t value)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memory");
+	strcpy (vl.type, "memory");
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 	vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-	plugin_dispatch_values ("memory", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int memory_read (void)

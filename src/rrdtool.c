@@ -591,10 +591,10 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 
 	if (strlen (vl->type_instance) > 0)
 		status = snprintf (buffer + offset, buffer_len - offset,
-				"%s-%s.rrd", ds->type, vl->type_instance);
+				"%s-%s.rrd", vl->type, vl->type_instance);
 	else
 		status = snprintf (buffer + offset, buffer_len - offset,
-				"%s.rrd", ds->type);
+				"%s.rrd", vl->type);
 	if ((status < 1) || (status >= buffer_len - offset))
 		return (-1);
 	offset += status;
@@ -912,6 +912,11 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	char         filename[512];
 	char         values[512];
 	int          status;
+
+	if (0 != strcmp (ds->type, vl->type)) {
+		ERROR ("rrdtool plugin: DS type does not match value list type");
+		return -1;
+	}
 
 	if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
 		return (-1);

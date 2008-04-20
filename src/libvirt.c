@@ -706,7 +706,9 @@ cpu_submit (unsigned long long cpu_time,
     vl.values = values;
     vl.values_len = 1;
 
-    plugin_dispatch_values (type, &vl);
+    strncpy (vl.type, type, sizeof (vl.type));
+
+    plugin_dispatch_values (&vl);
 }
 
 static void
@@ -723,10 +725,11 @@ vcpu_submit (counter_t cpu_time,
     vl.values = values;
     vl.values_len = 1;
 
+    strncpy (vl.type, type, sizeof (vl.type));
     snprintf (vl.type_instance, sizeof (vl.type_instance), "%d", vcpu_nr);
     vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-    plugin_dispatch_values (type, &vl);
+    plugin_dispatch_values (&vl);
 }
 
 static void
@@ -744,10 +747,11 @@ submit_counter2 (const char *type, counter_t v0, counter_t v1,
     vl.values = values;
     vl.values_len = 2;
 
+    strncpy (vl.type, type, sizeof (vl.type));
     strncpy (vl.type_instance, devname, sizeof (vl.type_instance));
     vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-    plugin_dispatch_values (type, &vl);
+    plugin_dispatch_values (&vl);
 } /* void submit_counter2 */
 
 static int

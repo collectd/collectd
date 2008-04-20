@@ -137,6 +137,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
   vl.time = time (NULL);
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "tcpconns");
+  strcpy (vl.type, "tcp_connections");
 
   if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING))
       || (pe->flags & PORT_COLLECT_LOCAL))
@@ -152,7 +153,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
       strncpy (vl.type_instance, tcp_state[i], sizeof (vl.type_instance));
       vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-      plugin_dispatch_values ("tcp_connections", &vl);
+      plugin_dispatch_values (&vl);
     }
   }
 
@@ -169,7 +170,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
       strncpy (vl.type_instance, tcp_state[i], sizeof (vl.type_instance));
       vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
-      plugin_dispatch_values ("tcp_connections", &vl);
+      plugin_dispatch_values (&vl);
     }
   }
 } /* void conn_submit */

@@ -501,46 +501,45 @@ int ut_config (const oconfig_item_t *ci)
  */
 /* }}} */
 
-static threshold_t *threshold_search (const data_set_t *ds,
-    const value_list_t *vl)
+static threshold_t *threshold_search (const value_list_t *vl)
 {
   threshold_t *th;
 
   if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  ds->type, vl->type_instance)) != NULL)
+	  vl->type, vl->type_instance)) != NULL)
     return (th);
   else if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  ds->type, NULL)) != NULL)
+	  vl->type, NULL)) != NULL)
     return (th);
   else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  ds->type, vl->type_instance)) != NULL)
+	  vl->type, vl->type_instance)) != NULL)
     return (th);
   else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  ds->type, NULL)) != NULL)
+	  vl->type, NULL)) != NULL)
     return (th);
   else if ((th = threshold_get (vl->host, "", NULL,
-	  ds->type, vl->type_instance)) != NULL)
+	  vl->type, vl->type_instance)) != NULL)
     return (th);
   else if ((th = threshold_get (vl->host, "", NULL,
-	  ds->type, NULL)) != NULL)
+	  vl->type, NULL)) != NULL)
     return (th);
   else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  ds->type, vl->type_instance)) != NULL)
+	  vl->type, vl->type_instance)) != NULL)
     return (th);
   else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  ds->type, NULL)) != NULL)
+	  vl->type, NULL)) != NULL)
     return (th);
   else if ((th = threshold_get ("", vl->plugin, NULL,
-	  ds->type, vl->type_instance)) != NULL)
+	  vl->type, vl->type_instance)) != NULL)
     return (th);
   else if ((th = threshold_get ("", vl->plugin, NULL,
-	  ds->type, NULL)) != NULL)
+	  vl->type, NULL)) != NULL)
     return (th);
   else if ((th = threshold_get ("", "", NULL,
-	  ds->type, vl->type_instance)) != NULL)
+	  vl->type, vl->type_instance)) != NULL)
     return (th);
   else if ((th = threshold_get ("", "", NULL,
-	  ds->type, NULL)) != NULL)
+	  vl->type, NULL)) != NULL)
     return (th);
 
   return (NULL);
@@ -610,7 +609,7 @@ static int ut_report_state (const data_set_t *ds,
     bufsize -= status;
   }
 
-  status = snprintf (buf, bufsize, " type %s", ds->type);
+  status = snprintf (buf, bufsize, " type %s", vl->type);
   buf += status;
   bufsize -= status;
 
@@ -783,7 +782,7 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
   /* Is this lock really necessary? So far, thresholds are only inserted at
    * startup. -octo */
   pthread_mutex_lock (&threshold_lock);
-  th = threshold_search (ds, vl);
+  th = threshold_search (vl);
   pthread_mutex_unlock (&threshold_lock);
   if (th == NULL)
     return (0);
@@ -876,6 +875,8 @@ int ut_check_interesting (const char *name)
   }
   strncpy (ds.type, type, sizeof (ds.type));
   ds.type[sizeof (ds.type) - 1] = '\0';
+  strncpy (vl.type, type, sizeof (vl.type));
+  vl.type[sizeof (vl.type) - 1] = '\0';
   if (type_instance != NULL)
   {
     strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -885,7 +886,7 @@ int ut_check_interesting (const char *name)
   sfree (name_copy);
   host = plugin = plugin_instance = type = type_instance = NULL;
 
-  th = threshold_search (&ds, &vl);
+  th = threshold_search (&vl);
   if (th == NULL)
     return (0);
   if ((th->flags & UT_FLAG_PERSIST) == 0)

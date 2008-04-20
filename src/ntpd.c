@@ -305,9 +305,10 @@ static void ntpd_submit (char *type, char *type_inst, double value)
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "ntpd");
 	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type, type, sizeof (vl.type));
 	strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 }
 
 /* returns `tv0 - tv1' in milliseconds or 0 if `tv1 > tv0' */

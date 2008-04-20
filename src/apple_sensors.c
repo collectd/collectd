@@ -91,9 +91,10 @@ static void as_submit (const char *type, const char *type_instance,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "apple_sensors");
 	strcpy (vl.plugin_instance, "");
-	strcpy (vl.type_instance, type_instance);
+	strncpy (vl.type, type, sizeof (vl.type))
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int as_read (void)

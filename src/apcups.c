@@ -376,9 +376,10 @@ static void apc_submit_generic (char *type, char *type_inst, double value)
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "apcups");
 	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type, type, sizeof (vl.type));
 	strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static void apc_submit (struct apc_detail_s *apcups_detail)

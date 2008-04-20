@@ -193,9 +193,10 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "ipmi", sizeof (vl.plugin));
+  sstrncpy (vl.type, type, sizeof (vl.type));
   sstrncpy (vl.type_instance, sensor_name_ptr, sizeof (vl.type_instance));
 
-  plugin_dispatch_values (type, &vl);
+  plugin_dispatch_values (&vl);
 } /* void sensor_read_handler */
 
 static int sensor_list_add (ipmi_sensor_t *sensor)

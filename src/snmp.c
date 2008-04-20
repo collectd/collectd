@@ -972,6 +972,8 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 	|| (instance_list_ptr->subid == value_table_ptr[0]->subid));
 #endif
 
+    strncpy (vl.type, data->type, sizeof (vl.type));
+
     {
       char temp[DATA_MAX_NAME_LEN];
 
@@ -995,7 +997,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
       vl.values[i] = value_table_ptr[i]->value;
 
     /* If we get here `vl.type_instance' and all `vl.values' have been set */
-    plugin_dispatch_values (data->type, &vl);
+    plugin_dispatch_values (&vl);
 
     subid++;
   } /* while (have_more != 0) */
@@ -1302,6 +1304,8 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   strncpy (vl.host, host->name, sizeof (vl.host));
   vl.host[sizeof (vl.host) - 1] = '\0';
   strcpy (vl.plugin, "snmp");
+  strncpy (vl.type, data->type, sizeof (vl.type));
+  vl.type[sizeof (vl.type) - 1] = '\0';
   strncpy (vl.type_instance, data->instance.string, sizeof (vl.type_instance));
   vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
@@ -1361,8 +1365,8 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     snmp_free_pdu (res);
   res = NULL;
 
-  DEBUG ("snmp plugin: -> plugin_dispatch_values (%s, &vl);", data->type);
-  plugin_dispatch_values (data->type, &vl);
+  DEBUG ("snmp plugin: -> plugin_dispatch_values (&vl);");
+  plugin_dispatch_values (&vl);
   sfree (vl.values);
 
   return (0);

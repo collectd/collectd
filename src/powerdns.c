@@ -264,11 +264,12 @@ static void submit (const char *plugin_instance, /* {{{ */
   vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "powerdns", sizeof (vl.plugin));
+  sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_instance != NULL)
     sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
   sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
-  plugin_dispatch_values (type, &vl);
+  plugin_dispatch_values (&vl);
 } /* }}} static void submit */
 
 static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */

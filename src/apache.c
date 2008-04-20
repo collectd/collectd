@@ -202,6 +202,7 @@ static void submit_counter (const char *type, const char *type_instance,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "apache");
 	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type, type, sizeof (vl.type));
 
 	if (type_instance != NULL)
 	{
@@ -210,7 +211,7 @@ static void submit_counter (const char *type, const char *type_instance,
 		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 	}
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void submit_counter */
 
 static void submit_gauge (const char *type, const char *type_instance,
@@ -227,6 +228,7 @@ static void submit_gauge (const char *type, const char *type_instance,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "apache");
 	strcpy (vl.plugin_instance, "");
+	strncpy (vl.type, type, sizeof (vl.type));
 
 	if (type_instance != NULL)
 	{
@@ -235,7 +237,7 @@ static void submit_gauge (const char *type, const char *type_instance,
 		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 	}
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void submit_counter */
 
 static void submit_scoreboard (char *buf)

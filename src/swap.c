@@ -122,9 +122,10 @@ static void swap_submit (const char *type_instance, double value)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "swap");
+	strcpy (vl.type, "swap");
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	plugin_dispatch_values ("swap", &vl);
+	plugin_dispatch_values (&vl);
 } /* void swap_submit */
 
 static int swap_read (void)

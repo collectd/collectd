@@ -43,10 +43,11 @@ static void serial_submit (const char *type_instance,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "serial");
+	strcpy (vl.type, "serial_octets");
 	strncpy (vl.type_instance, type_instance,
 			sizeof (vl.type_instance));
 
-	plugin_dispatch_values ("serial_octets", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int serial_read (void)

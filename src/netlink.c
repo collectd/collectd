@@ -174,11 +174,12 @@ static void submit_one (const char *dev, const char *type,
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "netlink");
   strncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
+  strncpy (vl.type, type, sizeof (vl.type));
 
   if (type_instance != NULL)
     strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-  plugin_dispatch_values (type, &vl);
+  plugin_dispatch_values (&vl);
 } /* void submit_one */
 
 static void submit_two (const char *dev, const char *type,
@@ -197,11 +198,12 @@ static void submit_two (const char *dev, const char *type,
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "netlink");
   strncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
+  strncpy (vl.type, type, sizeof (vl.type));
 
   if (type_instance != NULL)
     strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-  plugin_dispatch_values (type, &vl);
+  plugin_dispatch_values (&vl);
 } /* void submit_two */
 
 static int link_filter (const struct sockaddr_nl *sa,

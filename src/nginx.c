@@ -180,6 +180,7 @@ static void submit (char *type, char *inst, long long value)
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "nginx");
   strcpy (vl.plugin_instance, "");
+  strncpy (vl.type, type, sizeof (vl.type));
 
   if (inst != NULL)
   {
@@ -187,7 +188,7 @@ static void submit (char *type, char *inst, long long value)
     vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
   }
 
-  plugin_dispatch_values (type, &vl);
+  plugin_dispatch_values (&vl);
 } /* void submit */
 
 static int nginx_read (void)

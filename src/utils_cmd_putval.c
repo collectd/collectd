@@ -24,7 +24,6 @@
 #include "plugin.h"
 
 static int parse_value (const data_set_t *ds, value_list_t *vl,
-		const char *type,
 	       	FILE *fh, char *buffer)
 {
 	char *dummy;
@@ -82,7 +81,7 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 		return (-1);
 	}
 
-	plugin_dispatch_values (type, vl);
+	plugin_dispatch_values (vl);
 	return (0);
 } /* int parse_value */
 
@@ -170,6 +169,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	strcpy (vl.plugin, plugin);
 	if (plugin_instance != NULL)
 		strcpy (vl.plugin_instance, plugin_instance);
+	strcpy (vl.type, type);
 	if (type_instance != NULL)
 		strcpy (vl.type_instance, type_instance);
 
@@ -197,7 +197,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 			/* It's parse_value's job to write an error to `fh'.
 			 * This is not the case with `parse_option below.
 			 * Neither will write an success message. */
-			if (parse_value (ds, &vl, type, fh, fields[i]) != 0)
+			if (parse_value (ds, &vl, fh, fields[i]) != 0)
 				break;
 		}
 		else if (strchr (fields[i], '=') != NULL)

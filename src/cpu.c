@@ -172,9 +172,10 @@ static void submit (int cpu_num, const char *type_instance, counter_t value)
 	snprintf (vl.plugin_instance, sizeof (vl.type_instance),
 			"%i", cpu_num);
 	vl.plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
-	strcpy (vl.type_instance, type_instance);
+	strcpy (vl.type, "cpu");
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	plugin_dispatch_values ("cpu", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int cpu_read (void)

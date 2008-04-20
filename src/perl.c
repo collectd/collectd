@@ -367,6 +367,10 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 				newSVpv (vl->plugin_instance, 0), 0))
 			return -1;
 
+	if ('\0' != vl->type[0])
+		if (NULL == hv_store (hash, "type", 4, newSVpv (vl->type, 0), 0))
+			return -1;
+
 	if ('\0' != vl->type_instance[0])
 		if (NULL == hv_store (hash, "type_instance", 13,
 				newSVpv (vl->type_instance, 0), 0))
@@ -505,7 +509,7 @@ static int pplugin_unregister_data_set (char *name)
  *   type_instance   => $tinstance,
  * }
  */
-static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
+static int pplugin_dispatch_values (pTHX_ HV *values)
 {
 	value_list_t list = VALUE_LIST_INIT;
 	value_t      *val = NULL;
@@ -514,8 +518,16 @@ static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
 
 	int ret = 0;
 
-	if ((NULL == name) || (NULL == values))
+	if (NULL == values)
 		return -1;
+
+	if (NULL == (tmp = hv_fetch (values, "type", 4, 0))) {
+		log_err ("pplugin_dispatch_values: No type given.");
+		return -1;
+	}
+
+	strncpy (list.type, SvPV_nolen (*tmp), sizeof (list.type));
+	list.type[DATA_MAX_NAME_LEN - 1] = '\0';
 
 	if ((NULL == (tmp = hv_fetch (values, "values", 6, 0)))
 			|| (! (SvROK (*tmp) && (SVt_PVAV == SvTYPE (SvRV (*tmp)))))) {
@@ -532,7 +544,8 @@ static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
 
 		val = (value_t *)smalloc (len * sizeof (value_t));
 
-		list.values_len = av2value (aTHX_ name, (AV *)SvRV (*tmp), val, len);
+		list.values_len = av2value (aTHX_ list.type, (AV *)SvRV (*tmp),
+				val, len);
 		list.values = val;
 
 		if (-1 == list.values_len) {
@@ -571,7 +584,7 @@ static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
 		list.type_instance[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
 
-	ret = plugin_dispatch_values (name, &list);
+	ret = plugin_dispatch_values (&list);
 
 	sfree (val);
 	return ret;
@@ -687,6 +700,7 @@ static int pplugin_call_all (pTHX_ int type, ...)
 		 *   time   => $time,
 		 *   host   => $hostname,
 		 *   plugin => $plugin,
+		 *   type   => $type,
 		 *   plugin_instance => $instance,
 		 *   type_instance   => $type_instance
 		 * };
@@ -856,33 +870,43 @@ static XS (Collectd_plugin_unregister_ds)
  */
 static XS (Collectd_plugin_dispatch_values)
 {
-	SV *values = NULL;
+	SV *values     = NULL;
+	int values_idx = 0;
 
 	int ret = 0;
 
 	dXSARGS;
 
-	if (2 != items) {
-		log_err ("Usage: Collectd::plugin_dispatch_values(name, values)");
+	if (2 == items) {
+		log_warn ("Collectd::plugin_dispatch_values with two arguments "
+				"is deprecated - pass the type through values->{type}.");
+		values_idx = 1;
+	}
+	else if (1 != items) {
+		log_err ("Usage: Collectd::plugin_dispatch_values(values)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_dispatch_values: "
-			"name = \"%s\", values=\"%s\"",
-			SvPV_nolen (ST (0)), SvPV_nolen (ST (1)));
+	log_debug ("Collectd::plugin_dispatch_values: values=\"%s\"",
+			SvPV_nolen (ST (values_idx)));
 
-	values = ST (1);
+	values = ST (values_idx);
 
 	if (! (SvROK (values) && (SVt_PVHV == SvTYPE (SvRV (values))))) {
 		log_err ("Collectd::plugin_dispatch_values: Invalid values.");
 		XSRETURN_EMPTY;
 	}
 
-	if ((NULL == ST (0)) || (NULL == values))
+	if (((2 == items) && (NULL == ST (0))) || (NULL == values))
 		XSRETURN_EMPTY;
 
-	ret = pplugin_dispatch_values (aTHX_ SvPV_nolen (ST (0)),
-			(HV *)SvRV (values));
+	if ((2 == items) && (NULL == hv_store ((HV *)SvRV (values), "type", 4,
+			newSVsv (ST (0)), 0))) {
+		log_err ("Collectd::plugin_dispatch_values: Could not store type.");
+		XSRETURN_EMPTY;
+	}
+
+	ret = pplugin_dispatch_values (aTHX_ (HV *)SvRV (values));
 
 	if (0 == ret)
 		XSRETURN_YES;

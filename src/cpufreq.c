@@ -70,10 +70,11 @@ static void cpufreq_submit (int cpu_num, double value)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "cpufreq");
+	strcpy (vl.type, "cpufreq");
 	snprintf (vl.type_instance, sizeof (vl.type_instance),
 			"%i", cpu_num);
 
-	plugin_dispatch_values ("cpufreq", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int cpufreq_read (void)

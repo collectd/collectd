@@ -39,8 +39,9 @@ static void cxmms_submit (const char *type, gauge_t value)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "xmms");
+	strncpy (vl.type, type, sizeof (vl.type));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void cxmms_submit */
 
 int cxmms_read (void)

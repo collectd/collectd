@@ -49,8 +49,9 @@ static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "load");
+	strcpy (vl.type, "load");
 
-	plugin_dispatch_values ("load", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static int load_read (void)

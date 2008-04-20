@@ -136,12 +136,14 @@ static void tss2_submit_gauge (const char *plugin_instance,
 	if (plugin_instance != NULL)
 		sstrncpy (vl.plugin_instance, plugin_instance,
 				sizeof (vl.plugin_instance));
-	
+
+	sstrncpy (vl.type, type, sizeof (vl.type));
+
 	if (type_instance != NULL)
 		sstrncpy (vl.type_instance, type_instance,
 				sizeof (vl.type_instance));
 	
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void tss2_submit_gauge */
 
 static void tss2_submit_io (const char *plugin_instance, const char *type,
@@ -165,8 +167,10 @@ static void tss2_submit_io (const char *plugin_instance, const char *type,
 	if (plugin_instance != NULL)
 		sstrncpy (vl.plugin_instance, plugin_instance,
 				sizeof (vl.plugin_instance));
-	
-	plugin_dispatch_values (type, &vl);
+
+	sstrncpy (vl.type, type, sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
 } /* void tss2_submit_gauge */
 
 static void tss2_close_socket (void)

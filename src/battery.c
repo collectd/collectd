@@ -100,9 +100,10 @@ static void battery_submit (const char *plugin_instance, const char *type, doubl
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "battery");
-	strcpy (vl.plugin_instance, plugin_instance);
+	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	strncpy (vl.type, type, sizeof (vl.type));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void battery_submit */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H

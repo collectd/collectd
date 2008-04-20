@@ -134,13 +134,14 @@ static void irq_submit (unsigned int irq, counter_t value)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "irq");
+	strcpy (vl.type, "irq");
 
 	status = snprintf (vl.type_instance, sizeof (vl.type_instance),
 			"%u", irq);
 	if ((status < 1) || ((unsigned int)status >= sizeof (vl.type_instance)))
 		return;
 
-	plugin_dispatch_values ("irq", &vl);
+	plugin_dispatch_values (&vl);
 } /* void irq_submit */
 
 static int irq_read (void)

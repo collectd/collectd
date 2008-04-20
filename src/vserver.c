@@ -60,9 +60,10 @@ static void traffic_submit (const char *plugin_instance,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "vserver");
 	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	strcpy (vl.type, "if_octets");
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	plugin_dispatch_values ("if_octets", &vl);
+	plugin_dispatch_values (&vl);
 } /* void traffic_submit */
 
 static void load_submit (const char *plugin_instance,
@@ -81,8 +82,9 @@ static void load_submit (const char *plugin_instance,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "vserver");
 	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	strcpy (vl.type, "load");
 
-	plugin_dispatch_values ("load", &vl);
+	plugin_dispatch_values (&vl);
 }
 
 static void submit_gauge (const char *plugin_instance, const char *type,
@@ -100,9 +102,10 @@ static void submit_gauge (const char *plugin_instance, const char *type,
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "vserver");
 	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	strncpy (vl.type, type, sizeof (vl.type));
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void submit_gauge */
 
 static inline long long __get_sock_bytes(const char *s)

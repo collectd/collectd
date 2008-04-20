@@ -195,9 +195,10 @@ static void if_submit (const char *dev, const char *type,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "interface");
+	strncpy (vl.type, type, sizeof (vl.type));
 	strncpy (vl.type_instance, dev, sizeof (vl.type_instance));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void if_submit */
 
 static int interface_read (void)

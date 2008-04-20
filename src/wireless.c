@@ -60,8 +60,9 @@ static void wireless_submit (const char *plugin_instance, const char *type,
 	strcpy (vl.plugin, "wireless");
 	strncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
+	strncpy (vl.type, type, sizeof (vl.type));
 
-	plugin_dispatch_values (type, &vl);
+	plugin_dispatch_values (&vl);
 } /* void wireless_submit */
 
 #define POWER_MIN -90.0

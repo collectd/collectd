@@ -85,10 +85,11 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   sstrncpy (vl.plugin, data->plugin, sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, data->plugin_instance,
       sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, data->type, sizeof (vl.type));
   sstrncpy (vl.type_instance, data->type_instance,
       sizeof (vl.type_instance));
 
-  plugin_dispatch_values (data->type, &vl);
+  plugin_dispatch_values (&vl);
 
   if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
   {
