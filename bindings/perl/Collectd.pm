@@ -246,7 +246,7 @@ sub plugin_register {
 
 		my %p : shared;
 
-		if ($data !~ m/^$pkg/) {
+		if ($data !~ m/^$pkg\:\:/) {
 			$data = $pkg . "::" . $data;
 		}
 
