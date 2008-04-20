@@ -86,8 +86,8 @@ static int us_open_socket (void)
 
 	memset (&sa, '\0', sizeof (sa));
 	sa.sun_family = AF_UNIX;
-	strncpy (sa.sun_path, (sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
-			sizeof (sa.sun_path) - 1);
+	sstrncpy (sa.sun_path, (sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
+			sizeof (sa.sun_path));
 	/* unlink (sa.sun_path); */
 
 	DEBUG ("unixsock plugin: socket path = %s", sa.sun_path);

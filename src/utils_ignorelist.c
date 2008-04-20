@@ -310,7 +310,7 @@ int ignorelist_add (ignorelist_t *il, const char *entry)
 		/* We need to copy `entry' since it's const */
 		entry_copy = smalloc (entry_len);
 		memset (entry_copy, '\0', entry_len);
-		strncpy (entry_copy, entry + 1, entry_len - 2);
+		sstrncpy (entry_copy, entry + 1, entry_len - 2);
 
 		DEBUG("I'm about to add regex entry: %s", entry_copy);
 		ret = ignorelist_append_regex(il, entry_copy);

@@ -156,13 +156,12 @@ static int uc_send_notification (const char *name)
     return (-1);
   }
 
-  snprintf (n.message, sizeof (n.message),
+  ssnprintf (n.message, sizeof (n.message),
       "%s has not been updated for %i seconds.", name,
       (int) (n.time - ce->last_update));
 
   pthread_mutex_unlock (&cache_lock);
 
-  n.message[sizeof (n.message) - 1] = '\0';
   plugin_dispatch_notification (&n);
 
   return (0);
@@ -450,10 +449,9 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   n.severity = NOTIF_OKAY;
   n.time = vl->time;
 
-  snprintf (n.message, sizeof (n.message),
+  ssnprintf (n.message, sizeof (n.message),
       "Received a value for %s. It was missing for %u seconds.",
       name, (unsigned int) update_delay);
-  n.message[sizeof (n.message) - 1] = '\0';
 
   plugin_dispatch_notification (&n);
 

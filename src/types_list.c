@@ -62,8 +62,7 @@ static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
     return (-1);
   }
 
-  strncpy (dsrc->name, fields[0], sizeof (dsrc->name));
-  dsrc->name[sizeof (dsrc->name) - 1] = '\0';
+  sstrncpy (dsrc->name, fields[0], sizeof (dsrc->name));
 
   if (strcasecmp (fields[1], "GAUGE") == 0)
     dsrc->type = DS_TYPE_GAUGE;
@@ -105,8 +104,7 @@ static void parse_line (char *buf)
 
   memset (ds, '\0', sizeof (data_set_t));
 
-  strncpy (ds->type, fields[0], sizeof (ds->type));
-  ds->type[sizeof (ds->type) - 1] = '\0';
+  sstrncpy (ds->type, fields[0], sizeof (ds->type));
 
   ds->ds_num = fields_num - 1;
   ds->ds = (data_source_t *) calloc (ds->ds_num, sizeof (data_source_t));

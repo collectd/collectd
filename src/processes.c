@@ -158,7 +158,7 @@ static void ps_list_register (const char *name)
 	if ((new = (procstat_t *) malloc (sizeof (procstat_t))) == NULL)
 		return;
 	memset (new, 0, sizeof (procstat_t));
-	strncpy (new->name, name, PROCSTAT_NAME_LEN);
+	sstrncpy (new->name, name, sizeof (new->name));
 
 	for (ptr = list_head_g; ptr != NULL; ptr = ptr->next)
 	{
@@ -413,7 +413,7 @@ static void ps_submit_state (const char *state, double value)
 	strcpy (vl.plugin, "processes");
 	strcpy (vl.plugin_instance, "");
 	strcpy (vl.type, "ps_state");
-	strncpy (vl.type_instance, state, sizeof (vl.type_instance));
+	sstrncpy (vl.type_instance, state, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
@@ -428,7 +428,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "processes");
-	strncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
+	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
 	strcpy (vl.type, "ps_rss");
 	vl.values[0].gauge = ps->vmem_rss;
@@ -472,8 +472,7 @@ static int *ps_read_tasks (int pid)
 	DIR           *dh;
 	struct dirent *ent;
 
-	snprintf (dirname, 64, "/proc/%i/task", pid);
-	dirname[63] = '\0';
+	ssnprintf (dirname, sizeof (dirname), "/proc/%i/task", pid);
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
@@ -545,8 +544,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	memset (ps, 0, sizeof (procstat_t));
 
-	snprintf (filename, 64, "/proc/%i/stat", pid);
-	filename[63] = '\0';
+	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
 
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (-1);

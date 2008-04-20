@@ -129,7 +129,7 @@ static void df_submit (char *df_name,
 	strcpy (vl.plugin, "df");
 	strcpy (vl.plugin_instance, "");
 	strcpy (vl.type, "df");
-	strncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
+	sstrncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void df_submit */
@@ -174,13 +174,13 @@ static int df_read (void)
 
 		if (strcmp (mnt_ptr->dir, "/") == 0)
 		{
-			strncpy (mnt_name, "root", sizeof (mnt_name));
+			sstrncpy (mnt_name, "root", sizeof (mnt_name));
 		}
 		else
 		{
 			int i, len;
 
-			strncpy (mnt_name, mnt_ptr->dir + 1, sizeof (mnt_name));
+			sstrncpy (mnt_name, mnt_ptr->dir + 1, sizeof (mnt_name));
 			len = strlen (mnt_name);
 
 			for (i = 0; i < len; i++)

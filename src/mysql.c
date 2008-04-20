@@ -128,8 +128,8 @@ static void counter_submit (const char *type, const char *type_instance,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "mysql");
-	strncpy (vl.type, type, sizeof (vl.type));
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void counter_submit */

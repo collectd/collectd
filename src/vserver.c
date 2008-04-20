@@ -59,9 +59,9 @@ static void traffic_submit (const char *plugin_instance,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "vserver");
-	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	strcpy (vl.type, "if_octets");
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void traffic_submit */
@@ -81,7 +81,7 @@ static void load_submit (const char *plugin_instance,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "vserver");
-	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	strcpy (vl.type, "load");
 
 	plugin_dispatch_values (&vl);
@@ -101,9 +101,9 @@ static void submit_gauge (const char *plugin_instance, const char *type,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "vserver");
-	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	strncpy (vl.type, type, sizeof (vl.type));
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void submit_gauge */
@@ -150,8 +150,9 @@ static int vserver_read (void)
 			continue;
 
 		/* socket message accounting */
-		len = snprintf (file, BUFSIZE, PROCDIR "/%s/cacct", dent->d_name);
-		if ((len < 0) || (len >= BUFSIZE))
+		len = ssnprintf (file, sizeof (file),
+				PROCDIR "/%s/cacct", dent->d_name);
+		if ((len < 0) || (len >= sizeof (file)))
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
@@ -197,8 +198,9 @@ static int vserver_read (void)
 		}
 
 		/* thread information and load */
-		len = snprintf (file, BUFSIZE, PROCDIR "/%s/cvirt", dent->d_name);
-		if ((len < 0) || (len >= BUFSIZE))
+		len = ssnprintf (file, sizeof (file),
+				PROCDIR "/%s/cvirt", dent->d_name);
+		if ((len < 0) || (len >= sizeof (file)))
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))
@@ -249,8 +251,9 @@ static int vserver_read (void)
 		}
 
 		/* processes and memory usage */
-		len = snprintf (file, BUFSIZE, PROCDIR "/%s/limit", dent->d_name);
-		if ((len < 0) || (len >= BUFSIZE))
+		len = ssnprintf (file, sizeof (file),
+				PROCDIR "/%s/limit", dent->d_name);
+		if ((len < 0) || (len >= sizeof (file)))
 			continue;
 
 		if (NULL == (fh = fopen (file, "r")))

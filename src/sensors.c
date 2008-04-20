@@ -182,21 +182,21 @@ static int sensors_snprintf_chip_name (char *buf, size_t buf_size,
 
 	if (chip->bus == SENSORS_CHIP_NAME_BUS_ISA)
 	{
-		status = snprintf (buf, buf_size,
+		status = ssnprintf (buf, buf_size,
 				"%s-isa-%04x",
 				chip->prefix,
 				chip->addr);
 	}
 	else if (chip->bus == SENSORS_CHIP_NAME_BUS_DUMMY)
 	{
-		snprintf (buf, buf_size, "%s-%s-%04x",
+		ssnprintf (buf, buf_size, "%s-%s-%04x",
 				chip->prefix,
 				chip->busname,
 				chip->addr);
 	}
 	else
 	{
-		snprintf (buf, buf_size, "%s-i2c-%d-%02x",
+		ssnprintf (buf, buf_size, "%s-i2c-%d-%02x",
 				chip->prefix,
 				chip->bus,
 				chip->addr);
@@ -480,11 +480,10 @@ static void sensors_submit (const char *plugin_instance,
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	status = snprintf (match_key, sizeof (match_key), "%s/%s-%s",
+	status = ssnprintf (match_key, sizeof (match_key), "%s/%s-%s",
 			plugin_instance, type, type_instance);
 	if (status < 1)
 		return;
-	match_key[sizeof (match_key) - 1] = '\0';
 
 	if (sensor_list != NULL)
 	{
@@ -499,17 +498,12 @@ static void sensors_submit (const char *plugin_instance,
 	vl.values_len = 1;
 	vl.time = time (NULL);
 
-	strncpy (vl.host, hostname_g, sizeof (vl.host));
-	vl.host[sizeof (vl.host) - 1] = '\0';
-	strncpy (vl.plugin, "sensors", sizeof (vl.plugin));
-	vl.plugin[sizeof (vl.plugin) - 1] = '\0';
-	strncpy (vl.plugin_instance, plugin_instance,
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "sensors", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
-	vl.plugin_instance[sizeof (vl.plugin_instance) - 1] = '\0';
-	strncpy (vl.type, type, sizeof (vl.type));
-	vl.type[sizeof (vl.type) - 1] = '\0';
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-	vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void sensors_submit */
@@ -538,11 +532,9 @@ static int sensors_read (void)
 				sizeof (plugin_instance), fl->chip);
 		if (status < 0)
 			continue;
-		plugin_instance[sizeof (plugin_instance) - 1] = '\0';
 
-		strncpy (type_instance, fl->data->name,
+		sstrncpy (type_instance, fl->data->name,
 				sizeof (type_instance));
-		type_instance[sizeof (type_instance) - 1] = '\0';
 
 		sensors_submit (plugin_instance,
 				sensor_type_name_map[fl->type],
@@ -569,11 +561,9 @@ static int sensors_read (void)
 				sizeof (plugin_instance), fl->chip);
 		if (status < 0)
 			continue;
-		plugin_instance[sizeof (plugin_instance) - 1] = '\0';
 
-		strncpy (type_instance, fl->feature->name,
+		sstrncpy (type_instance, fl->feature->name,
 				sizeof (type_instance));
-		type_instance[sizeof (type_instance) - 1] = '\0';
 
 		if (fl->feature->type == SENSORS_FEATURE_IN)
 			type = "voltage";

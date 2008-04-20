@@ -190,14 +190,14 @@ static void nfs_procedures_submit (const char *plugin_instance,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "nfs");
-	strncpy (vl.plugin_instance, plugin_instance,
+	sstrncpy (vl.plugin_instance, plugin_instance,
 		       	sizeof (vl.plugin_instance));
 	strcpy (vl.type, "nfs_procedure");
 
 	for (i = 0; i < len; i++)
 	{
 		values[0].counter = val[i];
-		strncpy (vl.type_instance, names[i],
+		sstrncpy (vl.type_instance, names[i],
 				sizeof (vl.type_instance));
 		DEBUG ("%s-%s/nfs_procedure-%s = %llu",
 				vl.plugin, vl.plugin_instance,
@@ -241,9 +241,8 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 				continue;
 			}
 
-			snprintf (plugin_instance, sizeof (plugin_instance),
+			ssnprintf (plugin_instance, sizeof (plugin_instance),
 					"v2%s", inst);
-			plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
 
 			values = (unsigned long long *) malloc (nfs2_procedures_names_num * sizeof (unsigned long long));
 			if (values == NULL)
@@ -278,9 +277,8 @@ static void nfs_read_stats_file (FILE *fh, char *inst)
 				continue;
 			}
 
-			snprintf (plugin_instance, sizeof (plugin_instance),
+			ssnprintf (plugin_instance, sizeof (plugin_instance),
 					"v3%s", inst);
-			plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
 
 			values = (unsigned long long *) malloc (nfs3_procedures_names_num * sizeof (unsigned long long));
 			if (values == NULL)

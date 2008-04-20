@@ -191,7 +191,7 @@ static int get_pi (struct ip_vs_service_entry *se, char *pi, size_t size)
 
 	/* inet_ntoa() returns a pointer to a statically allocated buffer
 	 * I hope non-glibc systems behave the same */
-	len = snprintf (pi, size, "%s_%s%u", inet_ntoa (addr),
+	len = ssnprintf (pi, size, "%s_%s%u", inet_ntoa (addr),
 			(se->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
 			ntohs (se->port));
 
@@ -215,7 +215,7 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 
 	/* inet_ntoa() returns a pointer to a statically allocated buffer
 	 * I hope non-glibc systems behave the same */
-	len = snprintf (ti, size, "%s_%u", inet_ntoa (addr),
+	len = ssnprintf (ti, size, "%s_%u", inet_ntoa (addr),
 			ntohs (de->port));
 
 	if ((0 > len) || (size <= len)) {
@@ -240,9 +240,9 @@ static void cipvs_submit_connections (char *pi, char *ti, counter_t value)
 
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "ipvs");
-	strncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
+	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
 	strcpy (vl.type, "connections");
-	strncpy (vl.type_instance, (NULL != ti) ? ti : "total",
+	sstrncpy (vl.type_instance, (NULL != ti) ? ti : "total",
 		sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
@@ -266,9 +266,9 @@ static void cipvs_submit_if (char *pi, char *t, char *ti,
 
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "ipvs");
-	strncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
-	strncpy (vl.type, t, sizeof (vl.type));
-	strncpy (vl.type_instance, (NULL != ti) ? ti : "total",
+	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, t, sizeof (vl.type));
+	sstrncpy (vl.type_instance, (NULL != ti) ? ti : "total",
 		sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);

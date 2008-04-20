@@ -173,11 +173,11 @@ static void submit_one (const char *dev, const char *type,
   vl.time = time (NULL);
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "netlink");
-  strncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
-  strncpy (vl.type, type, sizeof (vl.type));
+  sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, type, sizeof (vl.type));
 
   if (type_instance != NULL)
-    strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
   plugin_dispatch_values (&vl);
 } /* void submit_one */
@@ -197,11 +197,11 @@ static void submit_two (const char *dev, const char *type,
   vl.time = time (NULL);
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "netlink");
-  strncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
-  strncpy (vl.type, type, sizeof (vl.type));
+  sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, type, sizeof (vl.type));
 
   if (type_instance != NULL)
-    strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
   plugin_dispatch_values (&vl);
 } /* void submit_two */
@@ -397,11 +397,10 @@ static int qos_filter (const struct sockaddr_nl *sa,
     if (strcmp (tc_type, "filter") == 0)
       numberic_id = msg->tcm_parent;
 
-    snprintf (tc_inst, sizeof (tc_inst), "%s-%x:%x",
+    ssnprintf (tc_inst, sizeof (tc_inst), "%s-%x:%x",
 	(const char *) RTA_DATA (attrs[TCA_KIND]),
 	numberic_id >> 16,
 	numberic_id & 0x0000FFFF);
-    tc_inst[sizeof (tc_inst) - 1] = '\0';
   }
 
   DEBUG ("netlink plugin: qos_filter: got %s for %s (%i).",
@@ -423,9 +422,8 @@ static int qos_filter (const struct sockaddr_nl *sa,
       struct gnet_stats_basic bs;
       char type_instance[DATA_MAX_NAME_LEN];
 
-      snprintf (type_instance, sizeof (type_instance), "%s-%s",
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
 	  tc_type, tc_inst);
-      type_instance[sizeof (type_instance) - 1] = '\0';
 
       memset (&bs, '\0', sizeof (bs));
       memcpy (&bs, RTA_DATA (attrs_stats[TCA_STATS_BASIC]),
@@ -445,9 +443,8 @@ static int qos_filter (const struct sockaddr_nl *sa,
     struct tc_stats ts;
     char type_instance[DATA_MAX_NAME_LEN];
 
-    snprintf (type_instance, sizeof (type_instance), "%s-%s",
+    ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
 	tc_type, tc_inst);
-    type_instance[sizeof (type_instance) - 1] = '\0';
 
     memset(&ts, '\0', sizeof (ts));
     memcpy(&ts, RTA_DATA (attrs[TCA_STATS]),

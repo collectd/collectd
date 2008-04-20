@@ -204,8 +204,7 @@ static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 		return -1;
 
 	if (NULL != (tmp = hv_fetch (hash, "name", 4, 0))) {
-		strncpy (ds->name, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
-		ds->name[DATA_MAX_NAME_LEN - 1] = '\0';
+		sstrncpy (ds->name, SvPV_nolen (*tmp), sizeof (ds->name));
 	}
 	else {
 		log_err ("hv2data_source: No DS name given.");
@@ -422,12 +421,11 @@ static int notification2hv (pTHX_ notification_t *n, HV *hash)
 static char *get_module_name (char *buf, size_t buf_len, const char *module) {
 	int status = 0;
 	if (base_name[0] == '\0')
-		status = snprintf (buf, buf_len, "%s", module);
+		status = ssnprintf (buf, buf_len, "%s", module);
 	else
-		status = snprintf (buf, buf_len, "%s::%s", base_name, module);
+		status = ssnprintf (buf, buf_len, "%s::%s", base_name, module);
 	if ((status < 0) || ((unsigned int)status >= buf_len))
 		return (NULL);
-	buf[buf_len - 1] = '\0';
 	return (buf);
 } /* char *get_module_name */
 
@@ -473,8 +471,7 @@ static int pplugin_register_data_set (pTHX_ char *name, AV *dataset)
 				ds[i].name, ds[i].type, ds[i].min, ds[i].max);
 	}
 
-	strncpy (set->type, name, DATA_MAX_NAME_LEN);
-	set->type[DATA_MAX_NAME_LEN - 1] = '\0';
+	sstrncpy (set->type, name, sizeof (set->type));
 
 	set->ds_num = len + 1;
 	set->ds = ds;
@@ -526,8 +523,7 @@ static int pplugin_dispatch_values (pTHX_ HV *values)
 		return -1;
 	}
 
-	strncpy (list.type, SvPV_nolen (*tmp), sizeof (list.type));
-	list.type[DATA_MAX_NAME_LEN - 1] = '\0';
+	sstrncpy (list.type, SvPV_nolen (*tmp), sizeof (list.type));
 
 	if ((NULL == (tmp = hv_fetch (values, "values", 6, 0)))
 			|| (! (SvROK (*tmp) && (SVt_PVAV == SvTYPE (SvRV (*tmp)))))) {
@@ -562,27 +558,22 @@ static int pplugin_dispatch_values (pTHX_ HV *values)
 	}
 
 	if (NULL != (tmp = hv_fetch (values, "host", 4, 0))) {
-		strncpy (list.host, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
-		list.host[DATA_MAX_NAME_LEN - 1] = '\0';
+		sstrncpy (list.host, SvPV_nolen (*tmp), sizeof (list.host));
 	}
 	else {
 		strcpy (list.host, hostname_g);
 	}
 
-	if (NULL != (tmp = hv_fetch (values, "plugin", 6, 0))) {
-		strncpy (list.plugin, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
-		list.plugin[DATA_MAX_NAME_LEN - 1] = '\0';
-	}
+	if (NULL != (tmp = hv_fetch (values, "plugin", 6, 0)))
+		sstrncpy (list.plugin, SvPV_nolen (*tmp), sizeof (list.plugin));
 
-	if (NULL != (tmp = hv_fetch (values, "plugin_instance", 15, 0))) {
-		strncpy (list.plugin_instance, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
-		list.plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
-	}
+	if (NULL != (tmp = hv_fetch (values, "plugin_instance", 15, 0)))
+		sstrncpy (list.plugin_instance, SvPV_nolen (*tmp),
+				sizeof (list.plugin_instance));
 
-	if (NULL != (tmp = hv_fetch (values, "type_instance", 13, 0))) {
-		strncpy (list.type_instance, SvPV_nolen (*tmp), DATA_MAX_NAME_LEN);
-		list.type_instance[DATA_MAX_NAME_LEN - 1] = '\0';
-	}
+	if (NULL != (tmp = hv_fetch (values, "type_instance", 13, 0)))
+		sstrncpy (list.type_instance, SvPV_nolen (*tmp),
+				sizeof (list.type_instance));
 
 	ret = plugin_dispatch_values (&list);
 
@@ -627,31 +618,25 @@ static int pplugin_dispatch_notification (pTHX_ HV *notif)
 		n.time = time (NULL);
 
 	if (NULL != (tmp = hv_fetch (notif, "message", 7, 0)))
-		strncpy (n.message, SvPV_nolen (*tmp), sizeof (n.message));
-	n.message[sizeof (n.message) - 1] = '\0';
+		sstrncpy (n.message, SvPV_nolen (*tmp), sizeof (n.message));
 
 	if (NULL != (tmp = hv_fetch (notif, "host", 4, 0)))
-		strncpy (n.host, SvPV_nolen (*tmp), sizeof (n.host));
+		sstrncpy (n.host, SvPV_nolen (*tmp), sizeof (n.host));
 	else
-		strncpy (n.host, hostname_g, sizeof (n.host));
-	n.host[sizeof (n.host) - 1] = '\0';
+		sstrncpy (n.host, hostname_g, sizeof (n.host));
 
 	if (NULL != (tmp = hv_fetch (notif, "plugin", 6, 0)))
-		strncpy (n.plugin, SvPV_nolen (*tmp), sizeof (n.plugin));
-	n.plugin[sizeof (n.plugin) - 1] = '\0';
+		sstrncpy (n.plugin, SvPV_nolen (*tmp), sizeof (n.plugin));
 
 	if (NULL != (tmp = hv_fetch (notif, "plugin_instance", 15, 0)))
-		strncpy (n.plugin_instance, SvPV_nolen (*tmp),
+		sstrncpy (n.plugin_instance, SvPV_nolen (*tmp),
 				sizeof (n.plugin_instance));
-	n.plugin_instance[sizeof (n.plugin_instance) - 1] = '\0';
 
 	if (NULL != (tmp = hv_fetch (notif, "type", 4, 0)))
-		strncpy (n.type, SvPV_nolen (*tmp), sizeof (n.type));
-	n.type[sizeof (n.type) - 1] = '\0';
+		sstrncpy (n.type, SvPV_nolen (*tmp), sizeof (n.type));
 
 	if (NULL != (tmp = hv_fetch (notif, "type_instance", 13, 0)))
-		strncpy (n.type_instance, SvPV_nolen (*tmp), sizeof (n.type_instance));
-	n.type_instance[sizeof (n.type_instance) - 1] = '\0';
+		sstrncpy (n.type_instance, SvPV_nolen (*tmp), sizeof (n.type_instance));
 	return plugin_dispatch_notification (&n);
 } /* static int pplugin_dispatch_notification (HV *) */
 
@@ -1296,8 +1281,7 @@ static int g_pv_get (pTHX_ SV *var, MAGIC *mg)
 static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 {
 	char *pv = mg->mg_ptr;
-	strncpy (pv, SvPV_nolen (var), DATA_MAX_NAME_LEN);
-	pv[DATA_MAX_NAME_LEN - 1] = '\0';
+	sstrncpy (pv, SvPV_nolen (var), DATA_MAX_NAME_LEN);
 	return 0;
 } /* static int g_pv_set (pTHX_ SV *, MAGIC *) */
 
@@ -1484,8 +1468,7 @@ static int perl_config_basename (pTHX_ oconfig_item_t *ci)
 	value = ci->values[0].value.string;
 
 	log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
-	strncpy (base_name, value, sizeof (base_name));
-	base_name[sizeof (base_name) - 1] = '\0';
+	sstrncpy (base_name, value, sizeof (base_name));
 	return 0;
 } /* static int perl_config_basename (oconfig_item_it *) */
 

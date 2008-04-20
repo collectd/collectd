@@ -269,11 +269,10 @@ static int ntpd_config (const char *key, const char *value)
 	{
 		int port = (int) (atof (value));
 		if ((port > 0) && (port <= 65535))
-			snprintf (ntpd_port, sizeof (ntpd_port),
+			ssnprintf (ntpd_port, sizeof (ntpd_port),
 					"%i", port);
 		else
-			strncpy (ntpd_port, value, sizeof (ntpd_port));
-		ntpd_port[sizeof (ntpd_port) - 1] = '\0';
+			sstrncpy (ntpd_port, value, sizeof (ntpd_port));
 	}
 	else if (strcasecmp (key, "ReverseLookups") == 0)
 	{
@@ -305,8 +304,8 @@ static void ntpd_submit (char *type, char *type_inst, double value)
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "ntpd");
 	strcpy (vl.plugin_instance, "");
-	strncpy (vl.type, type, sizeof (vl.type));
-	strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
@@ -875,7 +874,7 @@ static int ntpd_read (void)
 
 			if (refclock_id < refclock_names_num)
 			{
-				strncpy (peername, refclock_names[refclock_id],
+				sstrncpy (peername, refclock_names[refclock_id],
 						sizeof (peername));
 			}
 			else
@@ -884,7 +883,7 @@ static int ntpd_read (void)
 				addr_obj.s_addr = ptr->srcadr;
 				addr_str = inet_ntoa (addr_obj);
 
-				strncpy (peername, addr_str, sizeof (peername));
+				sstrncpy (peername, addr_str, sizeof (peername));
 			}
 		}
 		else /* Normal network host. */

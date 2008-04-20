@@ -208,9 +208,9 @@ static void disk_submit (const char *plugin_instance,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "disk");
-	strncpy (vl.plugin_instance, plugin_instance,
+	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
-	strncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 } /* void disk_submit */
@@ -369,7 +369,8 @@ static int disk_read (void)
 		write_tme = dict_get_value (stats_dict,
 				kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
 
-		if (snprintf (disk_name, 64, "%i-%i", disk_major, disk_minor) >= 64)
+		if (ssnprintf (disk_name, sizeof (disk_name),
+				"%i-%i", disk_major, disk_minor) >= sizeof (disk_name))
 		{
 			DEBUG ("snprintf (major, minor) failed.");
 			CFRelease (child_dict);

@@ -634,7 +634,7 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
         ERROR ("libvirt plugin: malloc failed.");
         return 0;
     }
-    snprintf (name, n, "%s:%s", domname, devpath);
+    ssnprintf (name, n, "%s:%s", domname, devpath);
     r = ignorelist_match (il, name);
     free (name);
     return r;
@@ -652,8 +652,7 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
     vl->time = t;
     vl->interval = interval_g;
 
-    strncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
-    vl->plugin[sizeof (vl->plugin) - 1] = '\0';
+    sstrncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
 
     vl->host[0] = '\0';
     host_ptr = vl->host;
@@ -706,7 +705,7 @@ cpu_submit (unsigned long long cpu_time,
     vl.values = values;
     vl.values_len = 1;
 
-    strncpy (vl.type, type, sizeof (vl.type));
+    sstrncpy (vl.type, type, sizeof (vl.type));
 
     plugin_dispatch_values (&vl);
 }
@@ -725,9 +724,8 @@ vcpu_submit (counter_t cpu_time,
     vl.values = values;
     vl.values_len = 1;
 
-    strncpy (vl.type, type, sizeof (vl.type));
-    snprintf (vl.type_instance, sizeof (vl.type_instance), "%d", vcpu_nr);
-    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+    sstrncpy (vl.type, type, sizeof (vl.type));
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%d", vcpu_nr);
 
     plugin_dispatch_values (&vl);
 }
@@ -747,9 +745,8 @@ submit_counter2 (const char *type, counter_t v0, counter_t v1,
     vl.values = values;
     vl.values_len = 2;
 
-    strncpy (vl.type, type, sizeof (vl.type));
-    strncpy (vl.type_instance, devname, sizeof (vl.type_instance));
-    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
+    sstrncpy (vl.type, type, sizeof (vl.type));
+    sstrncpy (vl.type_instance, devname, sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl);
 } /* void submit_counter2 */

@@ -61,6 +61,19 @@ char *sstrncpy (char *dest, const char *src, size_t n)
 	return (dest);
 } /* char *sstrncpy */
 
+int ssnprintf (char *dest, size_t n, const char *format, ...)
+{
+	int ret = 0;
+	va_list ap;
+
+	va_start (ap, format);
+	ret = vsnprintf (dest, n, format, ap);
+	dest[n - 1] = '\0';
+	va_end (ap);
+
+	return (ret);
+} /* int ssnprintf */
+
 char *sstrdup (const char *s)
 {
 	char *r;
@@ -91,7 +104,7 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
 		pthread_mutex_lock (&strerror_r_lock);
 
 		temp = strerror (errnum);
-		strncpy (buf, temp, buflen);
+		sstrncpy (buf, temp, buflen);
 
 		pthread_mutex_unlock (&strerror_r_lock);
 	}
@@ -104,9 +117,9 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
 		if (buf[0] == '\0')
 		{
 			if ((temp != NULL) && (temp != buf) && (temp[0] != '\0'))
-				strncpy (buf, temp, buflen);
+				sstrncpy (buf, temp, buflen);
 			else
-				strncpy (buf, "strerror_r did not return "
+				sstrncpy (buf, "strerror_r did not return "
 						"an error message", buflen);
 		}
 	}
@@ -115,13 +128,12 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
 #else
 	if (strerror_r (errnum, buf, buflen) != 0)
 	{
-		snprintf (buf, buflen, "Error #%i; "
+		ssnprintf (buf, buflen, "Error #%i; "
 				"Additionally, strerror_r failed.",
 				errnum);
 	}
 #endif /* STRERROR_R_CHAR_P */
 
-	buf[buflen - 1] = '\0';
 	return (buf);
 } /* char *sstrerror */
 
@@ -376,7 +388,7 @@ int check_create_dir (const char *file_orig)
 
 	if ((len = strlen (file_orig)) < 1)
 		return (-1);
-	else if (len >= 512)
+	else if (len >= sizeof (file_copy))
 		return (-1);
 
 	/*
@@ -391,8 +403,7 @@ int check_create_dir (const char *file_orig)
 	/*
 	 * Create a copy for `strtok_r' to destroy
 	 */
-	strncpy (file_copy, file_orig, 512);
-	file_copy[511] = '\0';
+	sstrncpy (file_copy, file_orig, sizeof (file_copy));
 
 	/*
 	 * Break into components. This will eat up several slashes in a row and
@@ -477,8 +488,7 @@ int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name)
 	if (kc == NULL)
 		return (-1);
 
-	snprintf (ident, 128, "%s,%i,%s", module, instance, name);
-	ident[127] = '\0';
+	ssnprintf (ident, sizeof (ident), "%s,%i,%s", module, instance, name);
 
 	if (*ksp_ptr == NULL)
 	{
@@ -663,21 +673,21 @@ int format_name (char *ret, int ret_len,
 	if ((plugin_instance == NULL) || (strlen (plugin_instance) == 0))
 	{
 		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = snprintf (ret, ret_len, "%s/%s/%s",
+			status = ssnprintf (ret, ret_len, "%s/%s/%s",
 					hostname, plugin, type);
 		else
-			status = snprintf (ret, ret_len, "%s/%s/%s-%s",
+			status = ssnprintf (ret, ret_len, "%s/%s/%s-%s",
 					hostname, plugin, type,
 					type_instance);
 	}
 	else
 	{
 		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = snprintf (ret, ret_len, "%s/%s-%s/%s",
+			status = ssnprintf (ret, ret_len, "%s/%s-%s/%s",
 					hostname, plugin, plugin_instance,
 					type);
 		else
-			status = snprintf (ret, ret_len, "%s/%s-%s/%s-%s",
+			status = ssnprintf (ret, ret_len, "%s/%s-%s/%s-%s",
 					hostname, plugin, plugin_instance,
 					type, type_instance);
 	}
@@ -838,26 +848,19 @@ int notification_init (notification_t *n, int severity, const char *message,
 	n->severity = severity;
 
 	if (message != NULL)
-		strncpy (n->message, message, sizeof (n->message));
+		sstrncpy (n->message, message, sizeof (n->message));
 	if (host != NULL)
-		strncpy (n->host, host, sizeof (n->host));
+		sstrncpy (n->host, host, sizeof (n->host));
 	if (plugin != NULL)
-		strncpy (n->plugin, plugin, sizeof (n->plugin));
+		sstrncpy (n->plugin, plugin, sizeof (n->plugin));
 	if (plugin_instance != NULL)
-		strncpy (n->plugin_instance, plugin_instance,
+		sstrncpy (n->plugin_instance, plugin_instance,
 				sizeof (n->plugin_instance));
 	if (type != NULL)
-		strncpy (n->type, type, sizeof (n->type));
+		sstrncpy (n->type, type, sizeof (n->type));
 	if (type_instance != NULL)
-		strncpy (n->type_instance, type_instance,
+		sstrncpy (n->type_instance, type_instance,
 				sizeof (n->type_instance));
-
-	n->message[sizeof (n->message) - 1] = '\0';
-	n->host[sizeof (n->host) - 1] = '\0';
-	n->plugin[sizeof (n->plugin) - 1] = '\0';
-	n->plugin_instance[sizeof (n->plugin_instance) - 1] = '\0';
-	n->type[sizeof (n->type) - 1] = '\0';
-	n->type_instance[sizeof (n->type_instance) - 1] = '\0';
 
 	return (0);
 } /* int notification_init */

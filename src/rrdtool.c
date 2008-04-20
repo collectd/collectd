@@ -211,7 +211,7 @@ static int rra_get (char ***ret, const value_list_t *vl)
 			if (rra_num >= rra_max)
 				break;
 
-			if (snprintf (buffer, sizeof (buffer), "RRA:%s:%3.1f:%u:%u",
+			if (ssnprintf (buffer, sizeof (buffer), "RRA:%s:%3.1f:%u:%u",
 						rra_types[j], xff,
 						cdp_len, cdp_num) >= sizeof (buffer))
 			{
@@ -284,26 +284,16 @@ static int ds_get (char ***ret, const data_set_t *ds, const value_list_t *vl)
 		}
 
 		if (isnan (d->min))
-		{
 			strcpy (min, "U");
-		}
 		else
-		{
-			snprintf (min, sizeof (min), "%lf", d->min);
-			min[sizeof (min) - 1] = '\0';
-		}
+			ssnprintf (min, sizeof (min), "%lf", d->min);
 
 		if (isnan (d->max))
-		{
 			strcpy (max, "U");
-		}
 		else
-		{
-			snprintf (max, sizeof (max), "%lf", d->max);
-			max[sizeof (max) - 1] = '\0';
-		}
+			ssnprintf (max, sizeof (max), "%lf", d->max);
 
-		status = snprintf (buffer, sizeof (buffer),
+		status = ssnprintf (buffer, sizeof (buffer),
 				"DS:%s:%s:%i:%s:%s",
 				d->name, type,
 				(heartbeat > 0) ? heartbeat : (2 * vl->interval),
@@ -395,10 +385,8 @@ static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
 	if (last_up == 0)
 		last_up = time (NULL) - 10;
 
-	snprintf (pdp_step_str, sizeof (pdp_step_str), "%lu", pdp_step);
-	pdp_step_str[sizeof (pdp_step_str) - 1] = '\0';
-	snprintf (last_up_str, sizeof (last_up_str), "%u", (unsigned int) last_up);
-	last_up_str[sizeof (last_up_str) - 1] = '\0';
+	ssnprintf (pdp_step_str, sizeof (pdp_step_str), "%lu", pdp_step);
+	ssnprintf (last_up_str, sizeof (last_up_str), "%u", (unsigned int) last_up);
 
 	new_argv[0] = "create";
 	new_argv[1] = filename;
@@ -531,7 +519,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 
 	memset (buffer, '\0', buffer_len);
 
-	status = snprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
+	status = ssnprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
 	if ((status < 1) || (status >= buffer_len))
 		return (-1);
 	offset = status;
@@ -543,10 +531,10 @@ static int value_list_to_string (char *buffer, int buffer_len,
 			return (-1);
 
 		if (ds->ds[i].type == DS_TYPE_COUNTER)
-			status = snprintf (buffer + offset, buffer_len - offset,
+			status = ssnprintf (buffer + offset, buffer_len - offset,
 					":%llu", vl->values[i].counter);
 		else
-			status = snprintf (buffer + offset, buffer_len - offset,
+			status = ssnprintf (buffer + offset, buffer_len - offset,
 					":%lf", vl->values[i].gauge);
 
 		if ((status < 1) || (status >= (buffer_len - offset)))
@@ -566,34 +554,34 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 
 	if (datadir != NULL)
 	{
-		status = snprintf (buffer + offset, buffer_len - offset,
+		status = ssnprintf (buffer + offset, buffer_len - offset,
 				"%s/", datadir);
 		if ((status < 1) || (status >= buffer_len - offset))
 			return (-1);
 		offset += status;
 	}
 
-	status = snprintf (buffer + offset, buffer_len - offset,
+	status = ssnprintf (buffer + offset, buffer_len - offset,
 			"%s/", vl->host);
 	if ((status < 1) || (status >= buffer_len - offset))
 		return (-1);
 	offset += status;
 
 	if (strlen (vl->plugin_instance) > 0)
-		status = snprintf (buffer + offset, buffer_len - offset,
+		status = ssnprintf (buffer + offset, buffer_len - offset,
 				"%s-%s/", vl->plugin, vl->plugin_instance);
 	else
-		status = snprintf (buffer + offset, buffer_len - offset,
+		status = ssnprintf (buffer + offset, buffer_len - offset,
 				"%s/", vl->plugin);
 	if ((status < 1) || (status >= buffer_len - offset))
 		return (-1);
 	offset += status;
 
 	if (strlen (vl->type_instance) > 0)
-		status = snprintf (buffer + offset, buffer_len - offset,
+		status = ssnprintf (buffer + offset, buffer_len - offset,
 				"%s-%s.rrd", vl->type, vl->type_instance);
 	else
-		status = snprintf (buffer + offset, buffer_len - offset,
+		status = ssnprintf (buffer + offset, buffer_len - offset,
 				"%s.rrd", vl->type);
 	if ((status < 1) || (status >= buffer_len - offset))
 		return (-1);

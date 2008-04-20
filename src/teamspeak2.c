@@ -376,8 +376,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 	int status;
 
 	/* Send request */
-	snprintf (command, sizeof (command), "sel %i\r\n", vserver->port);
-	command[sizeof (command) - 1] = 0;
+	ssnprintf (command, sizeof (command), "sel %i\r\n", vserver->port);
 
 	status = tss2_send_request (write_fh, command);
 	if (status != 0)
@@ -531,9 +530,8 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	else
 	{
 		/* Request server information */
-		snprintf (plugin_instance, sizeof (plugin_instance), "vserver%i",
+		ssnprintf (plugin_instance, sizeof (plugin_instance), "vserver%i",
 				vserver->port);
-		plugin_instance[sizeof (plugin_instance) - 1] = 0;
 
 		/* Select the server */
 		status = tss2_select_vserver (read_fh, write_fh, vserver);

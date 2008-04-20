@@ -122,7 +122,8 @@ static int init (void)
 
   if (user != NULL)
   {
-    if (snprintf (credentials, 1024, "%s:%s", user, pass == NULL ? "" : pass) >= 1024)
+    if (ssnprintf (credentials, sizeof (credentials),
+	  "%s:%s", user, pass == NULL ? "" : pass) >= sizeof (credentials))
     {
       ERROR ("nginx plugin: Credentials would have been truncated.");
       return (-1);
@@ -180,13 +181,10 @@ static void submit (char *type, char *inst, long long value)
   strcpy (vl.host, hostname_g);
   strcpy (vl.plugin, "nginx");
   strcpy (vl.plugin_instance, "");
-  strncpy (vl.type, type, sizeof (vl.type));
+  sstrncpy (vl.type, type, sizeof (vl.type));
 
   if (inst != NULL)
-  {
-    strncpy (vl.type_instance, inst, sizeof (vl.type_instance));
-    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-  }
+    sstrncpy (vl.type_instance, inst, sizeof (vl.type_instance));
 
   plugin_dispatch_values (&vl);
 } /* void submit */

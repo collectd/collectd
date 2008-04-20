@@ -112,8 +112,7 @@ static int iptables_config (const char *key, const char *value)
 			free (value_copy);
 			return (1);
 		}
-		strncpy (temp.table, table, table_len);
-		temp.table[table_len] = '\0';
+		sstrncpy (temp.table, table, table_len);
 
 		chain_len = strlen (chain);
 		if ((unsigned int)chain_len >= sizeof(temp.chain))
@@ -122,8 +121,7 @@ static int iptables_config (const char *key, const char *value)
 			free (value_copy);
 			return (1);
 		}
-		strncpy (temp.chain, chain, chain_len);
-		temp.chain[chain_len] = '\0'; 
+		sstrncpy (temp.chain, chain, chain_len);
 
 		if (fields_num >= 3)
 		{
@@ -152,7 +150,7 @@ static int iptables_config (const char *key, const char *value)
 		}
 
 		if (fields_num >= 4)
-		    strncpy (temp.name, fields[3], sizeof (temp.name) - 1);
+		    sstrncpy (temp.name, fields[3], sizeof (temp.name));
 
 		free (value_copy);
 		value_copy = NULL;
@@ -222,25 +220,24 @@ static int submit_match (const struct ipt_entry_match *match,
     strcpy (vl.host, hostname_g);
     strcpy (vl.plugin, "iptables");
 
-    status = snprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+    status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	    "%s-%s", chain->table, chain->chain);
     if ((status < 1) || ((unsigned int)status >= sizeof (vl.plugin_instance)))
 	return (0);
 
     if (chain->name[0] != '\0')
     {
-	strncpy (vl.type_instance, chain->name, sizeof (vl.type_instance));
+	sstrncpy (vl.type_instance, chain->name, sizeof (vl.type_instance));
     }
     else
     {
 	if (chain->rule_type == RTYPE_NUM)
-	    snprintf (vl.type_instance, sizeof (vl.type_instance),
+	    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
 		    "%i", chain->rule.num);
 	else
-	    strncpy (vl.type_instance, (char *) match->data,
+	    sstrncpy (vl.type_instance, (char *) match->data,
 		    sizeof (vl.type_instance));
     }
-    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
 
     strcpy (vl.type, "ipt_bytes");
     values[0].counter = (counter_t) entry->counters.bcnt;

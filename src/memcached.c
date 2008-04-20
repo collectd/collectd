@@ -200,11 +200,10 @@ static int memcached_config (const char *key, const char *value) /* {{{ */
 	} else if (strcasecmp (key, "Port") == 0) {
 		int port = (int) (atof (value));
 		if ((port > 0) && (port <= 65535)) {
-			snprintf (memcached_port, sizeof (memcached_port), "%i", port);
+			ssnprintf (memcached_port, sizeof (memcached_port), "%i", port);
 		} else {
-			strncpy (memcached_port, value, sizeof (memcached_port));
+			sstrncpy (memcached_port, value, sizeof (memcached_port));
 		}
-		memcached_port[sizeof (memcached_port) - 1] = '\0';
 	} else {
 		return -1;
 	}
@@ -226,12 +225,9 @@ static void submit_counter (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
-	strncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
-	{
-		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
-		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-	}
+		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void memcached_submit_cmd */
@@ -251,12 +247,9 @@ static void submit_counter2 (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
-	strncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
-	{
-		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
-		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-	}
+		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void memcached_submit_cmd */
@@ -275,12 +268,9 @@ static void submit_gauge (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
-	strncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
-	{
-		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
-		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-	}
+		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
@@ -300,12 +290,9 @@ static void submit_gauge2 (const char *type, const char *type_inst,
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "memcached");
-	strncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
-	{
-		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
-		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-	}
+		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }

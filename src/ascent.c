@@ -536,7 +536,7 @@ static int ascent_init (void) /* {{{ */
   {
     int status;
 
-    status = snprintf (credentials, sizeof (credentials), "%s:%s",
+    status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
         user, (pass == NULL) ? "" : pass);
     if (status >= sizeof (credentials))
     {
@@ -544,7 +544,6 @@ static int ascent_init (void) /* {{{ */
           "credentials have been truncated.");
       return (-1);
     }
-    credentials[sizeof (credentials) - 1] = '\0';
 
     curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
   }

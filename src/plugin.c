@@ -328,7 +328,8 @@ int plugin_load (const char *type)
 
 	/* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
 	 * type when matching the filename */
-	if (snprintf (typename, BUFSIZE, "%s.so", type) >= BUFSIZE)
+	if (ssnprintf (typename, sizeof (typename),
+			"%s.so", type) >= sizeof (typename))
 	{
 		WARNING ("snprintf: truncated: `%s.so'", type);
 		return (-1);
@@ -348,7 +349,8 @@ int plugin_load (const char *type)
 		if (strncasecmp (de->d_name, typename, typename_len))
 			continue;
 
-		if (snprintf (filename, BUFSIZE, "%s/%s", dir, de->d_name) >= BUFSIZE)
+		if (ssnprintf (filename, sizeof (filename),
+				"%s/%s", dir, de->d_name) >= sizeof (filename))
 		{
 			WARNING ("snprintf: truncated: `%s/%s'", dir, de->d_name);
 			continue;

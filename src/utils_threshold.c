@@ -184,9 +184,8 @@ static int ut_config_type_instance (threshold_t *th, oconfig_item_t *ci)
     return (-1);
   }
 
-  strncpy (th->type_instance, ci->values[0].value.string,
+  sstrncpy (th->type_instance, ci->values[0].value.string,
       sizeof (th->type_instance));
-  th->type_instance[sizeof (th->type_instance) - 1] = '\0';
 
   return (0);
 } /* int ut_config_type_instance */
@@ -284,8 +283,7 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   }
 
   memcpy (&th, th_orig, sizeof (th));
-  strncpy (th.type, ci->values[0].value.string, sizeof (th.type));
-  th.type[sizeof (th.type) - 1] = '\0';
+  sstrncpy (th.type, ci->values[0].value.string, sizeof (th.type));
 
   th.warning_min = NAN;
   th.warning_max = NAN;
@@ -340,9 +338,8 @@ static int ut_config_plugin_instance (threshold_t *th, oconfig_item_t *ci)
     return (-1);
   }
 
-  strncpy (th->plugin_instance, ci->values[0].value.string,
+  sstrncpy (th->plugin_instance, ci->values[0].value.string,
       sizeof (th->plugin_instance));
-  th->plugin_instance[sizeof (th->plugin_instance) - 1] = '\0';
 
   return (0);
 } /* int ut_config_plugin_instance */
@@ -369,8 +366,7 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
   }
 
   memcpy (&th, th_orig, sizeof (th));
-  strncpy (th.plugin, ci->values[0].value.string, sizeof (th.plugin));
-  th.plugin[sizeof (th.plugin) - 1] = '\0';
+  sstrncpy (th.plugin, ci->values[0].value.string, sizeof (th.plugin));
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -417,8 +413,7 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
   }
 
   memcpy (&th, th_orig, sizeof (th));
-  strncpy (th.host, ci->values[0].value.string, sizeof (th.host));
-  th.host[sizeof (th.host) - 1] = '\0';
+  sstrncpy (th.host, ci->values[0].value.string, sizeof (th.host));
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -596,26 +591,26 @@ static int ut_report_state (const data_set_t *ds,
 
   n.time = vl->time;
 
-  status = snprintf (buf, bufsize, "Host %s, plugin %s",
+  status = ssnprintf (buf, bufsize, "Host %s, plugin %s",
       vl->host, vl->plugin);
   buf += status;
   bufsize -= status;
 
   if (vl->plugin_instance[0] != '\0')
   {
-    status = snprintf (buf, bufsize, " (instance %s)",
+    status = ssnprintf (buf, bufsize, " (instance %s)",
 	vl->plugin_instance);
     buf += status;
     bufsize -= status;
   }
 
-  status = snprintf (buf, bufsize, " type %s", vl->type);
+  status = ssnprintf (buf, bufsize, " type %s", vl->type);
   buf += status;
   bufsize -= status;
 
   if (vl->type_instance[0] != '\0')
   {
-    status = snprintf (buf, bufsize, " (instance %s)",
+    status = ssnprintf (buf, bufsize, " (instance %s)",
 	vl->type_instance);
     buf += status;
     bufsize -= status;
@@ -624,7 +619,7 @@ static int ut_report_state (const data_set_t *ds,
   /* Send an okay notification */
   if (state == STATE_OKAY)
   {
-    status = snprintf (buf, bufsize, ": All data sources are within range again.");
+    status = ssnprintf (buf, bufsize, ": All data sources are within range again.");
     buf += status;
     bufsize -= status;
   }
@@ -640,7 +635,7 @@ static int ut_report_state (const data_set_t *ds,
     {
       if (!isnan (min) && !isnan (max))
       {
-	status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
 	    "%f. That is within the %s region of %f and %f.",
 	    ds->ds[ds_index].name, values[ds_index],
 	    (state == STATE_ERROR) ? "failure" : "warning",
@@ -648,7 +643,7 @@ static int ut_report_state (const data_set_t *ds,
       }
       else
       {
-	status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+	status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
 	    "%f. That is %s the %s threshold of %f.",
 	    ds->ds[ds_index].name, values[ds_index],
 	    isnan (min) ? "below" : "above",
@@ -658,7 +653,7 @@ static int ut_report_state (const data_set_t *ds,
     }
     else /* is not inverted */
     {
-      status = snprintf (buf, bufsize, ": Data source \"%s\" is currently "
+      status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
 	  "%f. That is %s the %s threshold of %f.",
 	  ds->ds[ds_index].name, values[ds_index],
 	  (values[ds_index] < min) ? "below" : "above",
@@ -864,24 +859,14 @@ int ut_check_interesting (const char *name)
   memset (&ds, '\0', sizeof (ds));
   memset (&vl, '\0', sizeof (vl));
 
-  strncpy (vl.host, host, sizeof (vl.host));
-  vl.host[sizeof (vl.host) - 1] = '\0';
-  strncpy (vl.plugin, plugin, sizeof (vl.plugin));
-  vl.plugin[sizeof (vl.plugin) - 1] = '\0';
+  sstrncpy (vl.host, host, sizeof (vl.host));
+  sstrncpy (vl.plugin, plugin, sizeof (vl.plugin));
   if (plugin_instance != NULL)
-  {
-    strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-    vl.plugin_instance[sizeof (vl.plugin_instance) - 1] = '\0';
-  }
-  strncpy (ds.type, type, sizeof (ds.type));
-  ds.type[sizeof (ds.type) - 1] = '\0';
-  strncpy (vl.type, type, sizeof (vl.type));
-  vl.type[sizeof (vl.type) - 1] = '\0';
+    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+  sstrncpy (ds.type, type, sizeof (ds.type));
+  sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_instance != NULL)
-  {
-    strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-    vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-  }
+    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
   sfree (name_copy);
   host = plugin = plugin_instance = type = type_instance = NULL;

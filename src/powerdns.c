@@ -294,10 +294,9 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
 
   memset (&sa_unix, 0, sizeof (sa_unix));
   sa_unix.sun_family = AF_UNIX;
-  strncpy (sa_unix.sun_path,
+  sstrncpy (sa_unix.sun_path,
       (local_sockpath != NULL) ? local_sockpath : PDNS_LOCAL_SOCKPATH,
       sizeof (sa_unix.sun_path));
-  sa_unix.sun_path[sizeof (sa_unix.sun_path) - 1] = 0;
 
   status = unlink (sa_unix.sun_path);
   if ((status != 0) && (errno != ENOENT))
@@ -664,7 +663,8 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     }
 
     item->sockaddr.sun_family = AF_UNIX;
-    sstrncpy (item->sockaddr.sun_path, socket_temp, UNIX_PATH_MAX);
+    sstrncpy (item->sockaddr.sun_path, socket_temp,
+      sizeof (item->sockaddr.sun_path));
 
     e = llentry_create (item->instance, item);
     if (e == NULL)

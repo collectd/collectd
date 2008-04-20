@@ -511,8 +511,7 @@ static void *open_connection (void *arg)
 
 	addr.sun_family = AF_UNIX;
 
-	strncpy (addr.sun_path, sock_file, (size_t)(UNIX_PATH_MAX - 1));
-	addr.sun_path[UNIX_PATH_MAX - 1] = '\0';
+	sstrncpy (addr.sun_path, sock_file, sizeof (addr.sun_path));
 	unlink (addr.sun_path);
 
 	errno = 0;
@@ -735,8 +734,8 @@ static void email_submit (const char *type, const char *type_instance, gauge_t v
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "email");
-	strncpy (vl.type, type, sizeof (vl.type));
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void email_submit */

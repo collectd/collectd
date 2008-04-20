@@ -39,6 +39,7 @@
 #define STATIC_ARRAY_SIZE(a) (sizeof (a) / sizeof (*(a)))
 
 char *sstrncpy (char *dest, const char *src, size_t n);
+int ssnprintf (char *dest, size_t n, const char *format, ...);
 char *sstrdup(const char *s);
 void *smalloc(size_t size);
 char *sstrerror (int errnum, char *buf, size_t buflen);

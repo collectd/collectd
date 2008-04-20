@@ -182,8 +182,7 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 	else if (ci->values[0].type == OCONFIG_TYPE_NUMBER)
 	{
 		char tmp[128];
-		snprintf (tmp, sizeof (tmp), "%lf", ci->values[0].value.number);
-		tmp[127] = '\0';
+		ssnprintf (tmp, sizeof (tmp), "%lf", ci->values[0].value.number);
 		return (global_option_set (ci->key, tmp));
 	}
 	else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
@@ -258,13 +257,13 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 		int status = -1;
 
 		if (ci->values[i].type == OCONFIG_TYPE_STRING)
-			status = snprintf (buffer_ptr, buffer_free, " %s",
+			status = ssnprintf (buffer_ptr, buffer_free, " %s",
 					ci->values[i].value.string);
 		else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
-			status = snprintf (buffer_ptr, buffer_free, " %lf",
+			status = ssnprintf (buffer_ptr, buffer_free, " %lf",
 					ci->values[i].value.number);
 		else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
-			status = snprintf (buffer_ptr, buffer_free, " %s",
+			status = ssnprintf (buffer_ptr, buffer_free, " %s",
 					ci->values[i].value.boolean
 					? "true" : "false");
 
@@ -548,7 +547,7 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 		if ((de->d_name[0] == '.') || (de->d_name[0] == '\0'))
 			continue;
 
-		status = snprintf (name, sizeof (name), "%s/%s",
+		status = ssnprintf (name, sizeof (name), "%s/%s",
 				dir, de->d_name);
 		if (status >= sizeof (name))
 		{

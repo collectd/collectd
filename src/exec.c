@@ -170,10 +170,9 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   {
     char *tmp = strrchr (ci->values[1].value.string, '/');
     if (tmp == NULL)
-      strncpy (buffer, ci->values[1].value.string, sizeof (buffer));
+      sstrncpy (buffer, ci->values[1].value.string, sizeof (buffer));
     else
-      strncpy (buffer, tmp + 1, sizeof (buffer));
-    buffer[sizeof (buffer) - 1] = '\0';
+      sstrncpy (buffer, tmp + 1, sizeof (buffer));
   }
   pl->argv[0] = strdup (buffer);
   if (pl->argv[0] == NULL)
@@ -196,17 +195,16 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     {
       if (ci->values[i + 1].type == OCONFIG_TYPE_NUMBER)
       {
-	snprintf (buffer, sizeof (buffer), "%lf",
+	ssnprintf (buffer, sizeof (buffer), "%lf",
 	    ci->values[i + 1].value.number);
       }
       else
       {
 	if (ci->values[i + 1].value.boolean)
-	  strncpy (buffer, "true", sizeof (buffer));
+	  sstrncpy (buffer, "true", sizeof (buffer));
 	else
-	  strncpy (buffer, "false", sizeof (buffer));
+	  sstrncpy (buffer, "false", sizeof (buffer));
       }
-      buffer[sizeof (buffer) - 1] = '\0';
 
       pl->argv[i] = strdup (buffer);
     }

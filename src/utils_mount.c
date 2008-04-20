@@ -260,7 +260,7 @@ uuidcache_init(void)
 			* (This is useful, if the cdrom on /dev/hdc must not
 			* be accessed.)
 			*/
-				snprintf(device, sizeof(device), "%s/%s",
+				ssnprintf(device, sizeof(device), "%s/%s",
 					DEVLABELDIR, ptname);
 				if(!get_label_uuid(device, &label, uuid)) {
 					uuidcache_addentry(sstrdup(device),
@@ -769,8 +769,6 @@ cu_mount_getoptionvalue(char *line, char *keyword)
 	return r;
 } /* char *cu_mount_getoptionvalue(char *line, char *keyword) */
 
-
-
 int
 cu_mount_type(const char *type)
 {
@@ -781,6 +779,4 @@ cu_mount_type(const char *type)
 	if(strcmp(type, "zfs")  == 0) return CUMT_ZFS;
 	return CUMT_UNKNOWN;
 } /* int cu_mount_type(const char *type) */
-
-
 

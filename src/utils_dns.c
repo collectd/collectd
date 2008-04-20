@@ -34,6 +34,7 @@
  */
 
 #include "collectd.h"
+#include "common.h"
 
 #if HAVE_NETINET_IN_SYSTM_H
 # include <netinet/in_systm.h>
@@ -813,8 +814,7 @@ const char *qtype_str(int t)
 	    case T_ANY:		return ("ANY"); /* ... 255 */
 #endif /* __BIND >= 19950621 */
 	    default:
-		    snprintf (buf, 32, "#%i", t);
-		    buf[31] = '\0';
+		    ssnprintf (buf, sizeof (buf), "#%i", t);
 		    return (buf);
     }; /* switch (t) */
     /* NOTREACHED */
@@ -841,7 +841,7 @@ const char *opcode_str (int o)
 	return "Update";
 	break;
     default:
-	snprintf(buf, 30, "Opcode%d", o);
+	ssnprintf(buf, sizeof (buf), "Opcode%d", o);
 	return buf;
     }
     /* NOTREACHED */
@@ -885,8 +885,7 @@ const char *rcode_str (int rcode)
 #endif  /* RFC2136 rcodes */
 #endif /* __BIND >= 19950621 */
 		default:
-			snprintf (buf, 32, "RCode%i", rcode);
-			buf[31] = '\0';
+			ssnprintf (buf, sizeof (buf), "RCode%i", rcode);
 			return (buf);
 	}
 	/* Never reached */

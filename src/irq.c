@@ -136,7 +136,7 @@ static void irq_submit (unsigned int irq, counter_t value)
 	strcpy (vl.plugin, "irq");
 	strcpy (vl.type, "irq");
 
-	status = snprintf (vl.type_instance, sizeof (vl.type_instance),
+	status = ssnprintf (vl.type_instance, sizeof (vl.type_instance),
 			"%u", irq);
 	if ((status < 1) || ((unsigned int)status >= sizeof (vl.type_instance)))
 		return;

@@ -169,11 +169,10 @@ static void submit (int cpu_num, const char *type_instance, counter_t value)
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "cpu");
-	snprintf (vl.plugin_instance, sizeof (vl.type_instance),
+	ssnprintf (vl.plugin_instance, sizeof (vl.type_instance),
 			"%i", cpu_num);
-	vl.plugin_instance[DATA_MAX_NAME_LEN - 1] = '\0';
 	strcpy (vl.type, "cpu");
-	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }

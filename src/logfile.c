@@ -158,7 +158,7 @@ static int logfile_notification (const notification_t *n)
 	int   buf_len = sizeof (buf);
 	int status;
 
-	status = snprintf (buf_ptr, buf_len, "Notification: severity = %s",
+	status = ssnprintf (buf_ptr, buf_len, "Notification: severity = %s",
 			(n->severity == NOTIF_FAILURE) ? "FAILURE"
 			: ((n->severity == NOTIF_WARNING) ? "WARNING"
 				: ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
@@ -170,7 +170,7 @@ static int logfile_notification (const notification_t *n)
 
 #define APPEND(bufptr, buflen, key, value) \
 	if ((buflen > 0) && (strlen (value) > 0)) { \
-		int status = snprintf (bufptr, buflen, ", %s = %s", key, value); \
+		int status = ssnprintf (bufptr, buflen, ", %s = %s", key, value); \
 		if (status > 0) { \
 			bufptr += status; \
 			buflen -= status; \

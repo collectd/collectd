@@ -75,7 +75,7 @@ static int battery_init (void)
 
 	for (battery_pmu_num = 0; ; battery_pmu_num++)
 	{
-		len = snprintf (filename, sizeof (filename), battery_pmu_file, battery_pmu_num);
+		len = ssnprintf (filename, sizeof (filename), battery_pmu_file, battery_pmu_num);
 
 		if ((len < 0) || ((unsigned int)len >= sizeof (filename)))
 			break;
@@ -100,8 +100,8 @@ static void battery_submit (const char *plugin_instance, const char *type, doubl
 	vl.time = time (NULL);
 	strcpy (vl.host, hostname_g);
 	strcpy (vl.plugin, "battery");
-	strncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	strncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 } /* void battery_submit */
@@ -360,11 +360,11 @@ static int battery_read (void)
 		double  charge  = INVALID_VALUE;
 		double *valptr = NULL;
 
-		len = snprintf (filename, sizeof (filename), battery_pmu_file, i);
+		len = ssnprintf (filename, sizeof (filename), battery_pmu_file, i);
 		if ((len < 0) || ((unsigned int)len >= sizeof (filename)))
 			continue;
 
-		len = snprintf (batnum_str, sizeof (batnum_str), "%i", i);
+		len = ssnprintf (batnum_str, sizeof (batnum_str), "%i", i);
 		if ((len < 0) || ((unsigned int)len >= sizeof (batnum_str)))
 			continue;
 
@@ -436,7 +436,7 @@ static int battery_read (void)
 			if (ent->d_name[0] == '.')
 				continue;
 
-			len = snprintf (filename, sizeof (filename),
+			len = ssnprintf (filename, sizeof (filename),
 					"/proc/acpi/battery/%s/state",
 					ent->d_name);
 			if ((len < 0) || ((unsigned int)len >= sizeof (filename)))
