@@ -371,8 +371,6 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 	char response[128];
 	int status;
 
-	DEBUG("teamspeak2 plugin: Select server %i", vserver->port);
-	
 	/* Send request */
 	snprintf (command, sizeof (command), "sel %i\r\n", vserver->port);
 	command[sizeof (command) - 1] = 0;
@@ -417,9 +415,6 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 	gauge_t packet_loss = NAN;
 	int status;
 
-	DEBUG("teamspeak2 plugin: Get average packet loss (VServer: %i)",
-			vserver->port);
-	
 	status = tss2_send_request (write_fh, "gapl\r\n");
 	if (status != 0)
 	{
@@ -525,8 +520,6 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	if (vserver == NULL)
 	{
 		/* Request global information */
-		DEBUG("teamspeak2 plugin: Read global server information");
-	
 		memset (plugin_instance, 0, sizeof (plugin_instance));
 
 		status = tss2_send_request (write_fh, "gi\r\n");
@@ -534,8 +527,6 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	else
 	{
 		/* Request server information */
-		DEBUG("teamspeak2 plugin: Read vserver's %i information!", vserver->port);
-	
 		snprintf (plugin_instance, sizeof (plugin_instance), "vserver%i",
 				vserver->port);
 		plugin_instance[sizeof (plugin_instance) - 1] = 0;
@@ -780,8 +771,6 @@ static int tss2_read (void)
 	int success = 0;
 	int status;
 
-	DEBUG("teamspeak2 plugin: Poll everything");
-	
 	/* Handle global server variables */
 	status = tss2_read_vserver (NULL);
 	if (status == 0)
@@ -808,7 +797,6 @@ static int tss2_read (void)
 			continue;
 		}
 	}
-	DEBUG("teamspeak2 plugin: Poll done");
 	
 	if (success == 0)
 		return (-1);
