@@ -500,6 +500,8 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	int status;
 
 	gauge_t users = NAN;
+	gauge_t channels = NAN;
+	gauge_t servers = NAN;
 	counter_t rx_octets = 0;
 	counter_t tx_octets = 0;
 	counter_t rx_packets = 0;
@@ -602,12 +604,30 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		value++;
 
 		/* Check for known key and save the given value */
+		/* global info: users_online,
+		 * server info: currentusers. */
 		if ((strcmp ("currentusers", key) == 0)
 				|| (strcmp ("users_online", key) == 0))
 		{
 			users = strtod (value, &endptr);
 			if (value != endptr)
 				valid |= 0x01;
+		}
+		/* global info: channels,
+		 * server info: currentchannels. */
+		else if ((strcmp ("currentchannels", key) == 0)
+				|| (strcmp ("channels", key) == 0))
+		{
+			channels = strtod (value, &endptr);
+			if (value != endptr)
+				valid |= 0x40;
+		}
+		/* global only */
+		else if (strcmp ("servers", key) == 0)
+		{
+			servers = strtod (value, &endptr);
+			if (value != endptr)
+				valid |= 0x80;
 		}
 		else if (strcmp ("bytesreceived", key) == 0)
 		{
@@ -689,6 +709,12 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 
 	if ((valid & 0x20) == 0x20)
 		tss2_submit_gauge (plugin_instance, "percent", "packet_loss", packet_loss);
+
+	if ((valid & 0x40) == 0x40)
+		tss2_submit_gauge (plugin_instance, "gauge", "channels", channels);
+
+	if ((valid & 0x80) == 0x80)
+		tss2_submit_gauge (plugin_instance, "gauge", "servers", servers);
 
 	if (valid == 0)
 		return (-1);
