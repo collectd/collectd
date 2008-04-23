@@ -765,7 +765,7 @@ int plugin_dispatch_values (value_list_t *vl)
 	assert (0 == strcmp (ds->type, vl->type));
 #else
 	if (0 != strcmp (ds->type, vl->type))
-		WARN ("plugin_dispatch_values: (ds->type = %s) != (vl->type = %s)",
+		WARNING ("plugin_dispatch_values: (ds->type = %s) != (vl->type = %s)",
 				ds->type, vl->type);
 #endif
 
