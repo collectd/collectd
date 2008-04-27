@@ -302,23 +302,23 @@ sub plugin_flush {
 
 	DEBUG ("Collectd::plugin_flush:"
 		. (defined ($args{'timeout'}) ? " timeout = $args{'timeout'}" : "")
-		. (defined ($args{'name'}) ? " name = $args{'name'}" : ""));
+		. (defined ($args{'plugins'}) ? " plugins = $args{'plugins'}" : ""));
 
 	if (defined ($args{'timeout'}) && ($args{'timeout'} > 0)) {
 		$timeout = $args{'timeout'};
 	}
 
-	if (! defined $args{'name'}) {
+	if (! defined $args{'plugins'}) {
 		plugin_flush_all ($timeout);
 	}
 	else {
-		if ("ARRAY" eq ref ($args{'name'})) {
-			foreach my $name (@{$args{'name'}}) {
-				plugin_flush_one ($timeout, $name);
+		if ("ARRAY" eq ref ($args{'plugins'})) {
+			foreach my $plugin (@{$args{'plugins'}}) {
+				plugin_flush_one ($timeout, $plugin);
 			}
 		}
 		else {
-			plugin_flush_one ($timeout, $args{'name'});
+			plugin_flush_one ($timeout, $args{'plugins'});
 		}
 	}
 }
