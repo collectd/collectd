@@ -42,6 +42,9 @@ our %EXPORT_TAGS = (
 			plugin_register
 			plugin_unregister
 			plugin_dispatch_values
+			plugin_flush
+			plugin_flush_one
+			plugin_flush_all
 			plugin_dispatch_notification
 			plugin_log
 	) ],
@@ -289,6 +292,34 @@ sub plugin_unregister {
 	else {
 		ERROR ("Collectd::plugin_unregister: Invalid type.");
 		return;
+	}
+}
+
+sub plugin_flush {
+	my %args = @_;
+
+	my $timeout = -1;
+
+	DEBUG ("Collectd::plugin_flush:"
+		. (defined ($args{'timeout'}) ? " timeout = $args{'timeout'}" : "")
+		. (defined ($args{'name'}) ? " name = $args{'name'}" : ""));
+
+	if (defined ($args{'timeout'}) && ($args{'timeout'} > 0)) {
+		$timeout = $args{'timeout'};
+	}
+
+	if (! defined $args{'name'}) {
+		plugin_flush_all ($timeout);
+	}
+	else {
+		if ("ARRAY" eq ref ($args{'name'})) {
+			foreach my $name (@{$args{'name'}}) {
+				plugin_flush_one ($timeout, $name);
+			}
+		}
+		else {
+			plugin_flush_one ($timeout, $args{'name'});
+		}
 	}
 }
 
