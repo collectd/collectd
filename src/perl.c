@@ -61,8 +61,9 @@
 #define PLUGIN_SHUTDOWN 3
 #define PLUGIN_LOG      4
 #define PLUGIN_NOTIF    5
+#define PLUGIN_FLUSH    6
 
-#define PLUGIN_TYPES    6
+#define PLUGIN_TYPES    7
 
 #define PLUGIN_DATASET  255
 
@@ -148,6 +149,7 @@ struct {
 	{ "Collectd::TYPE_SHUTDOWN",   PLUGIN_SHUTDOWN },
 	{ "Collectd::TYPE_LOG",        PLUGIN_LOG },
 	{ "Collectd::TYPE_NOTIF",      PLUGIN_NOTIF },
+	{ "Collectd::TYPE_FLUSH",      PLUGIN_FLUSH },
 	{ "Collectd::TYPE_DATASET",    PLUGIN_DATASET },
 	{ "Collectd::DS_TYPE_COUNTER", DS_TYPE_COUNTER },
 	{ "Collectd::DS_TYPE_GAUGE",   DS_TYPE_GAUGE },
@@ -755,6 +757,12 @@ static int pplugin_call_all (pTHX_ int type, ...)
 
 		XPUSHs (sv_2mortal (newRV_noinc ((SV *)notif)));
 	}
+	else if (PLUGIN_FLUSH == type) {
+		/*
+		 * $_[0] = $timeout;
+		 */
+		XPUSHs (sv_2mortal (newSViv (va_arg (ap, int))));
+	}
 
 	PUTBACK;
 
@@ -1195,6 +1203,25 @@ static int perl_notify (const notification_t *notif)
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
+static int perl_flush (const int timeout)
+{
+	dTHX;
+
+	if (NULL == perl_threads)
+		return 0;
+
+	if (NULL == aTHX) {
+		c_ithread_t *t = NULL;
+
+		pthread_mutex_lock (&perl_threads->mutex);
+		t = c_ithread_create (perl_threads->head->interp);
+		pthread_mutex_unlock (&perl_threads->mutex);
+
+		aTHX = t->interp;
+	}
+	return pplugin_call_all (aTHX_ PLUGIN_FLUSH, timeout);
+} /* static int perl_flush (const int) */
+
 static int perl_shutdown (void)
 {
 	c_ithread_t *t = NULL;
@@ -1226,6 +1253,7 @@ static int perl_shutdown (void)
 	plugin_unregister_init ("perl");
 	plugin_unregister_read ("perl");
 	plugin_unregister_write ("perl");
+	plugin_unregister_flush ("perl");
 
 	ret = pplugin_call_all (aTHX_ PLUGIN_SHUTDOWN);
 
@@ -1406,6 +1434,7 @@ static int init_pi (int argc, char **argv)
 	plugin_register_read ("perl", perl_read);
 
 	plugin_register_write ("perl", perl_write);
+	plugin_register_flush ("perl", perl_flush);
 	plugin_register_shutdown ("perl", perl_shutdown);
 	return 0;
 } /* static int init_pi (const char **, const int) */

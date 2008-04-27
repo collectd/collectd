@@ -52,6 +52,7 @@ our %EXPORT_TAGS = (
 			TYPE_SHUTDOWN
 			TYPE_LOG
 			TYPE_NOTIF
+			TYPE_FLUSH
 			TYPE_DATASET
 	) ],
 	'ds_types' => [ qw(
@@ -101,7 +102,8 @@ my %types = (
 	TYPE_WRITE,    "write",
 	TYPE_SHUTDOWN, "shutdown",
 	TYPE_LOG,      "log",
-	TYPE_NOTIF,    "notify"
+	TYPE_NOTIF,    "notify",
+	TYPE_FLUSH,    "flush"
 );
 
 foreach my $type (keys %types) {
