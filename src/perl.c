@@ -817,6 +817,11 @@ static int init_pi (int argc, char **argv)
 	}
 #endif /* COLLECT_DEBUG */
 
+#ifdef __FreeBSD__
+	/* On FreeBSD, PERL_SYS_INIT3 expands to some expression which
+	 * triggers a "value computed is not used" warning by gcc. */
+	(void)
+#endif
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
 
 	if (NULL == (perl = perl_alloc ())) {
