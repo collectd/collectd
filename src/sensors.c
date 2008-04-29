@@ -189,14 +189,14 @@ static int sensors_snprintf_chip_name (char *buf, size_t buf_size,
 	}
 	else if (chip->bus == SENSORS_CHIP_NAME_BUS_DUMMY)
 	{
-		ssnprintf (buf, buf_size, "%s-%s-%04x",
+		status = snprintf (buf, buf_size, "%s-%s-%04x",
 				chip->prefix,
 				chip->busname,
 				chip->addr);
 	}
 	else
 	{
-		ssnprintf (buf, buf_size, "%s-i2c-%d-%02x",
+		status = snprintf (buf, buf_size, "%s-i2c-%d-%02x",
 				chip->prefix,
 				chip->bus,
 				chip->addr);

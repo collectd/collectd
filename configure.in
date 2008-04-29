@@ -1507,9 +1507,19 @@ AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to l
 	with_libperl="yes"
 ])
 
+AC_MSG_CHECKING([for perl])
+perl_interpreter=`which "$perl_interpreter" 2> /dev/null`
+if test -x "$perl_interpreter"
+then
+	AC_MSG_RESULT([yes])
+else
+	perl_interpreter=""
+	AC_MSG_RESULT([no])
+fi
+
 AC_SUBST(PERL, "$perl_interpreter")
 
-if test "x$with_libperl" = "xyes"
+if test "x$with_libperl" = "xyes" -a -n "$perl_interpreter"
 then
   SAVE_CFLAGS=$CFLAGS
   SAVE_LDFLAGS=$LDFLAGS
@@ -1549,7 +1559,10 @@ then
 
   CFLAGS=$SAVE_CFLAGS
   LDFLAGS=$SAVE_LDFLAGS
-fi
+else if test -z "$perl_interpreter"; then
+  with_libperl="no (no perl interpreter found)"
+  have_libperl="no"
+fi; fi
 AM_CONDITIONAL(BUILD_WITH_LIBPERL, test "x$with_libperl" = "xyes")
 
 if test "x$with_libperl" = "xyes"
@@ -2487,7 +2500,12 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 ],
 [
 	PERL_BINDINGS_OPTIONS=""
-	with_perl_bindings="yes"
+	if test -n "$perl_interpreter"
+	then
+		with_perl_bindings="yes"
+	else
+		with_perl_bindings="no (no perl interpreter found)"
+	fi
 ])
 if test "x$with_perl_bindings" = "xyes"
 then
