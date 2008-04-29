@@ -264,7 +264,17 @@ static int fork_child (program_list_t *pl)
   }
   else if (pl->pid == 0)
   {
-    close (fd_pipe[0]);
+    int fd_num;
+    int fd;
+
+    /* Close all file descriptors but the pipe end we need. */
+    fd_num = getdtablesize ();
+    for (fd = 0; fd < fd_num; fd++)
+    {
+      if (fd == fd_pipe[1])
+	continue;
+      close (fd);
+    }
 
     /* Connect the pipe to STDOUT and STDERR */
     if (fd_pipe[1] != STDOUT_FILENO)

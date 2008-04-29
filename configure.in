@@ -372,6 +372,68 @@ AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr 
 
 AC_FUNC_STRERROR_R
 
+AC_CACHE_CHECK([for strtok_r],
+  [have_strtok_r_default],
+  AC_LINK_IFELSE(
+    AC_LANG_PROGRAM(
+    [[[[
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+    ]]]],
+    [[[[
+      char buffer[] = "foo,bar,baz";
+      char *token;
+      char *dummy;
+      char *saveptr;
+
+      dummy = buffer;
+      saveptr = NULL;
+      while ((token = strtok_r (dummy, ",", &saveptr)) != NULL)
+      {
+	dummy = NULL;
+        printf ("token = %s;\n", token);
+      }
+    ]]]]),
+    [have_strtok_r_default="yes"],
+    [have_strtok_r_default="no"]
+  )
+)
+
+if test "x$have_strtok_r_default" = "xno"
+then
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -D_REENTRANT=1"
+
+  AC_CACHE_CHECK([if strtok_r needs _REENTRANT],
+    [have_strtok_r_reentrant],
+    AC_LINK_IFELSE(
+      AC_LANG_PROGRAM(
+      [[[[
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+      ]]]],
+      [[[[
+        char buffer[] = "foo,bar,baz";
+        char *token;
+        char *dummy;
+        char *saveptr;
+
+        dummy = buffer;
+        saveptr = NULL;
+        while ((token = strtok_r (dummy, ",", &saveptr)) != NULL)
+        {
+	  dummy = NULL;
+          printf ("token = %s;\n", token);
+        }
+      ]]]]),
+      [have_strtok_r_reentrant="yes"],
+      [AC_MSG_FAILURE([strtok_r isn't available. Please file a bugreport!])]
+    )
+  )
+fi
+
 AC_CHECK_FUNCS(getpwnam_r getgrnam_r setgroups regcomp regerror regexec regfree)
 
 socket_needs_socket="no"
@@ -1420,9 +1482,19 @@ AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to l
 	with_libperl="yes"
 ])
 
+AC_MSG_CHECKING([for perl])
+perl_interpreter=`which "$perl_interpreter" 2> /dev/null`
+if test -x "$perl_interpreter"
+then
+	AC_MSG_RESULT([yes])
+else
+	perl_interpreter=""
+	AC_MSG_RESULT([no])
+fi
+
 AC_SUBST(PERL, "$perl_interpreter")
 
-if test "x$with_libperl" = "xyes"
+if test "x$with_libperl" = "xyes" -a -n "$perl_interpreter"
 then
   SAVE_CFLAGS=$CFLAGS
   SAVE_LDFLAGS=$LDFLAGS
@@ -1462,7 +1534,10 @@ then
 
   CFLAGS=$SAVE_CFLAGS
   LDFLAGS=$SAVE_LDFLAGS
-fi
+else if test -z "$perl_interpreter"; then
+  with_libperl="no (no perl interpreter found)"
+  have_libperl="no"
+fi; fi
 AM_CONDITIONAL(BUILD_WITH_LIBPERL, test "x$with_libperl" = "xyes")
 
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
@@ -2132,7 +2207,12 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 ],
 [
 	PERL_BINDINGS_OPTIONS=""
-	with_perl_bindings="yes"
+	if test -n "$perl_interpreter"
+	then
+		with_perl_bindings="yes"
+	else
+		with_perl_bindings="no (no perl interpreter found)"
+	fi
 ])
 if test "x$with_perl_bindings" = "xyes"
 then
