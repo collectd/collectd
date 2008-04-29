@@ -29,6 +29,7 @@ AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 AC_PROG_LEX
 AC_PROG_YACC
+PKG_PROG_PKG_CONFIG
 AC_CONFIG_SUBDIRS(libltdl)
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
@@ -811,6 +812,9 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 #endif
 	])
 
+#
+# Checks for libraries begin here
+#
 with_libresolv="yes"
 AC_CHECK_LIB(resolv, res_search,
 [
@@ -1042,12 +1046,14 @@ AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
 AC_DEFINE_UNQUOTED(COLLECT_LIBIOKIT, [$collect_libiokit], [Wether or not to use the IOKit library])
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
+with_libstatgrab_cflags=""
+with_libstatgrab_ldflags=""
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
 [
 	if test "x$withval" != "xno" -a "x$withval" != "xyes"
 	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libstatgrab_cflags="-I$withval/include"
+		with_libstatgrab_ldflags="-L$withval/lib"
 		with_libstatgrab="yes"
 	else
 		with_libstatgrab="$withval"
@@ -1061,28 +1067,93 @@ AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [P
 		with_libstatgrab="no"
 	fi
 ])
-if test "x$with_libstatgrab" = "xyes"
+with_libstatgrab_pkg_config="yes"
+if test "x$with_libstatgrab" = "xyes" \
+  && test "x$PKG_CONFIG" != "x"
 then
-	AC_CHECK_LIB(statgrab, sg_init, [with_libstatgrab="yes"], [with_libstatgrab="no (libstatgrab not found)"])
-fi
-if test "x$with_libstatgrab" = "xyes"
-then
-	AC_CHECK_HEADERS(statgrab.h,,    [with_libstatgrab="no (statgrab.h not found)"])
-fi
-if test "x$with_libstatgrab" = "xyes"
-then
-	AC_CHECK_LIB(devstat, getdevs, [with_libdevstat="yes"], [with_libdevstat="no"])
-fi
-if test "x$with_libstatgrab" = "xyes"
-then
-	collect_libstatgrab=1
+  AC_MSG_CHECKING([pkg-config for libstatgrab])
+  temp_result="found"
+  $PKG_CONFIG --exists libstatgrab 2>/dev/null
+  if test "$?" != "0"
+  then
+    with_libstatgrab_pkg_config="no"
+    temp_result="not found"
+  fi
+  AC_MSG_RESULT([$temp_result])
 else
-	collect_libstatgrab=0
+  AC_MSG_NOTICE([pkg-config not available, trying to guess flags for the statgrab library.])
+  with_libstatgrab_pkg_config="no"
+  with_libstatgrab_ldflags="$with_libstatgrab_ldflags -lstatgrab"
 fi
-AC_DEFINE_UNQUOTED(COLLECT_LIBSTATGRAB, [$collect_libstatgrab],
-	[Wether or not to use statgrab library])
+
+if test "x$with_libstatgrab" = "xyes" \
+  && test "x$with_libstatgrab_pkg_config" = "xyes" \
+  && test "x$with_libstatgrab_cflags" = "x"
+then
+  AC_MSG_CHECKING([for libstatgrab CFLAGS])
+  temp_result="`$PKG_CONFIG --cflags libstatgrab`"
+  if test "$?" = "0"
+  then
+    with_libstatgrab_cflags="$temp_result"
+  else
+    with_libstatgrab="no ($PKG_CONFIG --cflags libstatgrab failed)"
+    temp_result="$PKG_CONFIG --cflags libstatgrab failed"
+  fi
+  AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libstatgrab" = "xyes" \
+  && test "x$with_libstatgrab_pkg_config" = "xyes" \
+  && test "x$with_libstatgrab_ldflags" = "x"
+then
+  AC_MSG_CHECKING([for libstatgrab LDFLAGS])
+  temp_result="`$PKG_CONFIG --libs libstatgrab`"
+  if test "$?" = "0"
+  then
+    with_libstatgrab_ldflags="$temp_result"
+  else
+    with_libstatgrab="no ($PKG_CONFIG --libs libstatgrab failed)"
+    temp_result="$PKG_CONFIG --libs libstatgrab failed"
+  fi
+  AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libstatgrab" = "xyes"
+then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libstatgrab_cflags"
+
+  AC_CHECK_HEADERS(statgrab.h,
+		   [with_libstatgrab="yes"],
+		   [with_libstatgrab="no (statgrab.h not found)"])
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libstatgrab" = "xyes"
+then
+  SAVE_CFLAGS="$CFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+
+  CFLAGS="$CFLAGS $with_libstatgrab_cflags"
+  LDFLAGS="$LDFLAGS $with_libstatgrab_ldflags"
+
+  AC_CHECK_LIB(statgrab, sg_init,
+	       [with_libstatgrab="yes"],
+	       [with_libstatgrab="no (symbol sg_init not found)"])
+
+  CFLAGS="$SAVE_CFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
-AM_CONDITIONAL(BUILD_WITH_LIBDEVSTAT,  test "x$with_libdevstat"  = "xyes")
+if test "x$with_libstatgrab" = "xyes"
+then
+  BUILD_WITH_LIBSTATGRAB_CFLAGS="$with_libstatgrab_cflags"
+  BUILD_WITH_LIBSTATGRAB_LDFLAGS="$with_libstatgrab_ldflags"
+  AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)
+  AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+fi
 
 AC_CHECK_LIB(kvm, kvm_getswapinfo, [with_libkvm="yes"], [with_libkvm="no"])
 if test "x$with_libkvm" = "xyes"
