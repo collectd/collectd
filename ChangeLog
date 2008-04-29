@@ -1,3 +1,18 @@
+2008-04-22, Version 4.3.3
+	* build system: Improved detection of several libraries, especially if
+	  they are in non-standard paths.
+	* build system: Portability fixes: Automatically define "_REENTRANT"
+	  if the libc expects it.
+	* collectd: Error and warning messages have been improved.
+	* collectd: Check for the BYTE_ORDER and BIG_ENDIAN defines before
+	  using them.
+	* apache plugin: Allocate new memory when reading a webpage instead of
+	  using a buffer of static size.
+	* exec plugin: Close (almost) all filedescriptors before exec(2)ing
+	  the program.
+	* hddtemp plugin: Error and warning messages have been improved.
+	* sensors plugin: Fix sensor collection for some chip types.
+
 2008-03-29, Version 4.3.2
 	* collectd: Fix configuration of the `FailureMax', `WarningMax', and
 	  `Persist' threshold options.
@@ -58,6 +73,21 @@
 	  CPU, disk and network statistics about guest systems on the same
 	  physical server. Thanks to Richard Jones from Red Hat's Emerging
 	  Technology group for this plugin.
+
+2008-04-22, Version 4.2.7
+	* build system: Improved detection of several libraries, especially if
+	  they are in non-standard paths.
+	* build system: Portability fixes: Automatically define "_REENTRANT"
+	  if the libc expects it.
+	* collectd: Error and warning messages have been improved.
+	* collectd: Check for the BYTE_ORDER and BIG_ENDIAN defines before
+	  using them.
+	* apache plugin: Allocate new memory when reading a webpage instead of
+	  using a buffer of static size.
+	* exec plugin: Close (almost) all filedescriptors before exec(2)ing
+	  the program.
+	* hddtemp plugin: Error and warning messages have been improved.
+	* sensors plugin: Fix sensor collection for some chip types.
 
 2008-03-29, Version 4.2.6
 	* collectd: Improved error messages when parsing the configuration.
