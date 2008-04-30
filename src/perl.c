@@ -61,8 +61,9 @@
 #define PLUGIN_SHUTDOWN 3
 #define PLUGIN_LOG      4
 #define PLUGIN_NOTIF    5
+#define PLUGIN_FLUSH    6
 
-#define PLUGIN_TYPES    6
+#define PLUGIN_TYPES    7
 
 #define PLUGIN_DATASET  255
 
@@ -77,6 +78,8 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
+static XS (Collectd_plugin_flush_one);
+static XS (Collectd_plugin_flush_all);
 static XS (Collectd_plugin_dispatch_notification);
 static XS (Collectd_plugin_log);
 static XS (Collectd_call_by_name);
@@ -130,6 +133,8 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
+	{ "Collectd::plugin_flush_one",           Collectd_plugin_flush_one },
+	{ "Collectd::plugin_flush_all",           Collectd_plugin_flush_all },
 	{ "Collectd::plugin_dispatch_notification",
 		Collectd_plugin_dispatch_notification },
 	{ "Collectd::plugin_log",                 Collectd_plugin_log },
@@ -148,6 +153,7 @@ struct {
 	{ "Collectd::TYPE_SHUTDOWN",   PLUGIN_SHUTDOWN },
 	{ "Collectd::TYPE_LOG",        PLUGIN_LOG },
 	{ "Collectd::TYPE_NOTIF",      PLUGIN_NOTIF },
+	{ "Collectd::TYPE_FLUSH",      PLUGIN_FLUSH },
 	{ "Collectd::TYPE_DATASET",    PLUGIN_DATASET },
 	{ "Collectd::DS_TYPE_COUNTER", DS_TYPE_COUNTER },
 	{ "Collectd::DS_TYPE_GAUGE",   DS_TYPE_GAUGE },
@@ -754,6 +760,12 @@ static int pplugin_call_all (pTHX_ int type, ...)
 
 		XPUSHs (sv_2mortal (newRV_noinc ((SV *)notif)));
 	}
+	else if (PLUGIN_FLUSH == type) {
+		/*
+		 * $_[0] = $timeout;
+		 */
+		XPUSHs (sv_2mortal (newSViv (va_arg (ap, int))));
+	}
 
 	PUTBACK;
 
@@ -898,6 +910,54 @@ static XS (Collectd_plugin_dispatch_values)
 	else
 		XSRETURN_EMPTY;
 } /* static XS (Collectd_plugin_dispatch_values) */
+
+/*
+ * Collectd::plugin_flush_one (timeout, name).
+ *
+ * timeout:
+ *   timeout to use when flushing the data
+ *
+ * name:
+ *   name of the plugin to flush
+ */
+static XS (Collectd_plugin_flush_one)
+{
+	dXSARGS;
+
+	if (2 != items) {
+		log_err ("Usage: Collectd::plugin_flush_one(timeout, name)");
+		XSRETURN_EMPTY;
+	}
+
+	log_debug ("Collectd::plugin_flush_one: timeout = %i, name = \"%s\"",
+			(int)SvIV (ST (0)), SvPV_nolen (ST (1)));
+
+	if (0 == plugin_flush_one ((int)SvIV (ST (0)), SvPV_nolen (ST (1))))
+		XSRETURN_YES;
+	else
+		XSRETURN_EMPTY;
+} /* static XS (Collectd_plugin_flush_one) */
+
+/*
+ * Collectd::plugin_flush_all (timeout).
+ *
+ * timeout:
+ *   timeout to use when flushing the data
+ */
+static XS (Collectd_plugin_flush_all)
+{
+	dXSARGS;
+
+	if (1 != items) {
+		log_err ("Usage: Collectd::plugin_flush_all(timeout)");
+		XSRETURN_EMPTY;
+	}
+
+	log_debug ("Collectd::plugin_flush_all: timeout = %i", (int)SvIV (ST (0)));
+
+	plugin_flush_all ((int)SvIV (ST (0)));
+	XSRETURN_YES;
+} /* static XS (Collectd_plugin_flush_all) */
 
 /*
  * Collectd::plugin_dispatch_notification (notif).
@@ -1204,6 +1264,25 @@ static int perl_notify (const notification_t *notif)
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
+static int perl_flush (const int timeout)
+{
+	dTHX;
+
+	if (NULL == perl_threads)
+		return 0;
+
+	if (NULL == aTHX) {
+		c_ithread_t *t = NULL;
+
+		pthread_mutex_lock (&perl_threads->mutex);
+		t = c_ithread_create (perl_threads->head->interp);
+		pthread_mutex_unlock (&perl_threads->mutex);
+
+		aTHX = t->interp;
+	}
+	return pplugin_call_all (aTHX_ PLUGIN_FLUSH, timeout);
+} /* static int perl_flush (const int) */
+
 static int perl_shutdown (void)
 {
 	c_ithread_t *t = NULL;
@@ -1235,6 +1314,7 @@ static int perl_shutdown (void)
 	plugin_unregister_init ("perl");
 	plugin_unregister_read ("perl");
 	plugin_unregister_write ("perl");
+	plugin_unregister_flush ("perl");
 
 	ret = pplugin_call_all (aTHX_ PLUGIN_SHUTDOWN);
 
@@ -1372,6 +1452,11 @@ static int init_pi (int argc, char **argv)
 		exit (1);
 	}
 
+#ifdef __FreeBSD__
+	/* On FreeBSD, PERL_SYS_INIT3 expands to some expression which
+	 * triggers a "value computed is not used" warning by gcc. */
+	(void)
+#endif
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
 
 	perl_threads = (c_ithread_list_t *)smalloc (sizeof (c_ithread_list_t));
@@ -1414,6 +1499,7 @@ static int init_pi (int argc, char **argv)
 	plugin_register_read ("perl", perl_read);
 
 	plugin_register_write ("perl", perl_write);
+	plugin_register_flush ("perl", perl_flush);
 	plugin_register_shutdown ("perl", perl_shutdown);
 	return 0;
 } /* static int init_pi (const char **, const int) */

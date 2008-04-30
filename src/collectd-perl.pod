@@ -67,7 +67,7 @@ registered by the plugins. Any plugin basically consists of the implementation
 of these callback functions and initializing code which registers the
 functions with collectd. See the section "EXAMPLES" below for a really basic
 example. The following types of B<callback functions> are known to collectd
-(all of these are optional):
+(all of them are optional):
 
 =over 4
 
@@ -91,6 +91,12 @@ amount of time until it returns B<true> again.
 
 This type of function is used to write the dispatched values. It is called
 once for each call to B<plugin_dispatch_values>.
+
+=item flush functions
+
+This type of function is used to flush internal caches of plugins. It is
+usually triggered by the user only. Any plugin which caches data before
+writing it to disk should provide this kind of callback function.
 
 =item log functions
 
@@ -204,6 +210,8 @@ I<type> can be one of:
 
 =item TYPE_WRITE
 
+=item TYPE_FLUSH
+
 =item TYPE_LOG
 
 =item TYPE_NOTIF
@@ -246,12 +254,17 @@ arguments:
 
 =item TYPE_SHUTDOWN
 
-No arguments are passed
+No arguments are passed.
 
 =item TYPE_WRITE
 
 The arguments passed are I<type>, I<data-set>, and I<value-list>. I<type> is a
 string. For the layout of I<data-set> and I<value-list> see above.
+
+=item TYPE_FLUSH
+
+The only argument passed is I<timeout> which indicates that only data older
+than I<timeout> seconds is to be flushed.
 
 =item TYPE_LOG
 
@@ -285,6 +298,22 @@ B<Note>: Prior to version 4.4 of collectd, the data-set type used to be passed
 as the first argument to B<plugin_register>. This syntax is still supported
 for backwards compatibility but has been deprecated and will be removed in
 some future version of collectd.
+
+=item B<plugin_flush> ([B<timeout> => I<timeout>,] [B<plugins> => I<...>])
+
+Flush one or more plugins. I<timeout> is passed on to the registered
+flush-callbacks. If omitted, C<-1> is used. If the I<plugins> argument has
+been specified, only named plugins will be flushed. The argument's value may
+either be a string or a reference to an array of strings.
+
+=item B<plugin_flush_one> (I<timeout>, I<plugin>)
+
+This is identical to using "plugin_flush (timeout =E<gt> I<timeout>, plugins
+=E<gt> I<plugin>".
+
+=item B<plugin_flush_all> (I<timeout>)
+
+This is identical to using "plugin_flush (timeout =E<gt> I<timeout>)".
 
 =item B<plugin_dispatch_notification> (I<notification>)
 
@@ -339,6 +368,12 @@ available (B<:all> will export all of them):
 
 =item B<plugin_dispatch_values> ()
 
+=item B<plugin_flush> ()
+
+=item B<plugin_flush_one> ()
+
+=item B<plugin_flush_all> ()
+
 =item B<plugin_dispatch_notification> ()
 
 =item B<plugin_log> ()
@@ -354,6 +389,8 @@ available (B<:all> will export all of them):
 =item B<TYPE_READ>
 
 =item B<TYPE_WRITE>
+
+=item B<TYPE_FLUSH>
 
 =item B<TYPE_SHUTDOWN>
 
@@ -508,6 +545,18 @@ Each plugin is usually only loaded once and kept in memory for performance
 reasons. Therefore, END blocks are only executed once when collectd shuts
 down. You should not rely on END blocks anyway - use B<shutdown functions>
 instead.
+
+=back
+
+=head1 KNOWN BUGS
+
+=over 4
+
+=item
+
+Currently, it is not possible to flush a single Perl plugin only. You can
+either flush all Perl plugins or none at all and you have to use C<perl> as
+plugin name when doing so.
 
 =back
 

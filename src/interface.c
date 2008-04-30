@@ -46,6 +46,10 @@
 #  include <ifaddrs.h>
 #endif
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 /*
  * Various people have reported problems with `getifaddrs' and varying versions
  * of `glibc'. That's why it's disabled by default. Since more statistics are

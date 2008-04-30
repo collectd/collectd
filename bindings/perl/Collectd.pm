@@ -42,6 +42,9 @@ our %EXPORT_TAGS = (
 			plugin_register
 			plugin_unregister
 			plugin_dispatch_values
+			plugin_flush
+			plugin_flush_one
+			plugin_flush_all
 			plugin_dispatch_notification
 			plugin_log
 	) ],
@@ -52,6 +55,7 @@ our %EXPORT_TAGS = (
 			TYPE_SHUTDOWN
 			TYPE_LOG
 			TYPE_NOTIF
+			TYPE_FLUSH
 			TYPE_DATASET
 	) ],
 	'ds_types' => [ qw(
@@ -101,7 +105,8 @@ my %types = (
 	TYPE_WRITE,    "write",
 	TYPE_SHUTDOWN, "shutdown",
 	TYPE_LOG,      "log",
-	TYPE_NOTIF,    "notify"
+	TYPE_NOTIF,    "notify",
+	TYPE_FLUSH,    "flush"
 );
 
 foreach my $type (keys %types) {
@@ -246,7 +251,7 @@ sub plugin_register {
 
 		my %p : shared;
 
-		if ($data !~ m/^$pkg/) {
+		if ($data !~ m/^$pkg\:\:/) {
 			$data = $pkg . "::" . $data;
 		}
 
@@ -287,6 +292,34 @@ sub plugin_unregister {
 	else {
 		ERROR ("Collectd::plugin_unregister: Invalid type.");
 		return;
+	}
+}
+
+sub plugin_flush {
+	my %args = @_;
+
+	my $timeout = -1;
+
+	DEBUG ("Collectd::plugin_flush:"
+		. (defined ($args{'timeout'}) ? " timeout = $args{'timeout'}" : "")
+		. (defined ($args{'plugins'}) ? " plugins = $args{'plugins'}" : ""));
+
+	if (defined ($args{'timeout'}) && ($args{'timeout'} > 0)) {
+		$timeout = $args{'timeout'};
+	}
+
+	if (! defined $args{'plugins'}) {
+		plugin_flush_all ($timeout);
+	}
+	else {
+		if ("ARRAY" eq ref ($args{'plugins'})) {
+			foreach my $plugin (@{$args{'plugins'}}) {
+				plugin_flush_one ($timeout, $plugin);
+			}
+		}
+		else {
+			plugin_flush_one ($timeout, $args{'plugins'});
+		}
 	}
 }
 
