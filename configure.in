@@ -1095,17 +1095,13 @@ AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 ### END of check for libcurl ###
 
 with_libiokit="no"
-collectd_libiokit=0
 AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
 [
 	with_libiokit="yes"
-	collectd_libiokit=1
-],
+], 
 [
 	with_libiokit="no"
-	collectd_libiokit=0
 ])
-AC_DEFINE_UNQUOTED(COLLECT_LIBIOKIT, [$collect_libiokit], [Wether or not to use the IOKit library])
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 with_libstatgrab_cflags=""
@@ -1212,6 +1208,7 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
 if test "x$with_libstatgrab" = "xyes"
 then
+  AC_DEFINE(HAVE_LIBSTATGRAB, 1, [Define to 1 if you have the 'statgrab' library (-lstatgrab)])
   BUILD_WITH_LIBSTATGRAB_CFLAGS="$with_libstatgrab_cflags"
   BUILD_WITH_LIBSTATGRAB_LDFLAGS="$with_libstatgrab_ldflags"
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)

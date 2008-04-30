@@ -1364,6 +1364,11 @@ static int init_pi (int argc, char **argv)
 		exit (1);
 	}
 
+#ifdef __FreeBSD__
+	/* On FreeBSD, PERL_SYS_INIT3 expands to some expression which
+	 * triggers a "value computed is not used" warning by gcc. */
+	(void)
+#endif
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
 
 	perl_threads = (c_ithread_list_t *)smalloc (sizeof (c_ithread_list_t));

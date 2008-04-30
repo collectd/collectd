@@ -116,7 +116,7 @@ static int load_read (void)
 	load_submit (snum, mnum, lnum);
 /* #endif KERNEL_LINUX */
 
-#elif defined(HAVE_LIBSTATGRAB)
+#elif HAVE_LIBSTATGRAB
 	gauge_t snum, mnum, lnum;
 	sg_load_stats *ls;
 
