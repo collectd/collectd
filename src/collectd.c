@@ -30,6 +30,10 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 /*
  * Global variables
  */
