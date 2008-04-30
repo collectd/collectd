@@ -27,6 +27,10 @@
 #include <sys/loadavg.h>
 #endif
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 #ifdef HAVE_GETLOADAVG
 #if !defined(LOADAVG_1MIN) || !defined(LOADAVG_5MIN) || !defined(LOADAVG_15MIN)
 #define LOADAVG_1MIN  0
@@ -112,7 +116,7 @@ static int load_read (void)
 	load_submit (snum, mnum, lnum);
 /* #endif KERNEL_LINUX */
 
-#elif defined(HAVE_LIBSTATGRAB)
+#elif HAVE_LIBSTATGRAB
 	gauge_t snum, mnum, lnum;
 	sg_load_stats *ls;
 

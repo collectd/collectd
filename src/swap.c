@@ -36,6 +36,10 @@
 #  include <kvm.h>
 #endif
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 #undef  MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
