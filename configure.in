@@ -1078,17 +1078,13 @@ AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 ### END of check for libcurl ###
 
 with_libiokit="no"
-collectd_libiokit=0
 AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
 [
 	with_libiokit="yes"
-	collectd_libiokit=1
 ], 
 [
 	with_libiokit="no"
-	collectd_libiokit=0
 ])
-AC_DEFINE_UNQUOTED(COLLECT_LIBIOKIT, [$collect_libiokit], [Wether or not to use the IOKit library])
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 with_libstatgrab_cflags=""
