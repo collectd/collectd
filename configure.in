@@ -1089,7 +1089,8 @@ AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
 [
-	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
@@ -1097,7 +1098,7 @@ AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [P
 	fi
 ],
 [
-	if test "x$ac_system" == "xunknown"
+	if test "x$ac_system" = "xunknown"
 	then
 		with_libstatgrab="yes"
 	else
