@@ -43,6 +43,10 @@
 # include <mach/vm_statistics.h>
 #endif
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 /* vm_statistics_data_t */
 #if HAVE_HOST_STATISTICS
 static mach_port_t port_host;
@@ -61,6 +65,10 @@ static vm_size_t pagesize;
 static int pagesize;
 static kstat_t *ksp;
 /* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_LIBSTATGRAB
+/* no global variables */
+/* endif HAVE_LIBSTATGRAB */
 
 #else
 # error "No applicable input method."
@@ -218,7 +226,7 @@ static int memory_read (void)
 	memory_submit ("cache",    sysctl_vals[6]);
 /* #endif HAVE_SYSCTLBYNAME */
 
-#elif defined(KERNEL_LINUX)
+#elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
 	
@@ -276,9 +284,9 @@ static int memory_read (void)
 		memory_submit ("cached",   mem_cached);
 		memory_submit ("free",     mem_free);
 	}
-/* #endif defined(KERNEL_LINUX) */
+/* #endif KERNEL_LINUX */
 
-#elif defined(HAVE_LIBKSTAT)
+#elif HAVE_LIBKSTAT
 	long long mem_used;
 	long long mem_free;
 	long long mem_lock;
@@ -303,9 +311,9 @@ static int memory_read (void)
 	memory_submit ("used",   mem_used);
 	memory_submit ("free",   mem_free);
 	memory_submit ("locked", mem_lock);
-/* #endif defined(HAVE_LIBKSTAT) */
+/* #endif HAVE_LIBKSTAT */
 
-#elif defined(HAVE_LIBSTATGRAB)
+#elif HAVE_LIBSTATGRAB
 	sg_mem_stats *ios;
 
 	if ((ios = sg_get_mem_stats ()) != NULL)

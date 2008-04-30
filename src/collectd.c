@@ -27,6 +27,10 @@
 #include "configfile.h"
 #include "types_list.h"
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 /*
  * Global variables
  */

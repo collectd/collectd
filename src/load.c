@@ -27,6 +27,10 @@
 #include <sys/loadavg.h>
 #endif
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 #ifdef HAVE_GETLOADAVG
 #if !defined(LOADAVG_1MIN) || !defined(LOADAVG_5MIN) || !defined(LOADAVG_15MIN)
 #define LOADAVG_1MIN  0
