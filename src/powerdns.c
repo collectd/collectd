@@ -121,44 +121,45 @@ user-msec           number of CPU milliseconds spent in 'user' mode
 
 statname_lookup_t lookup_table[] = /* {{{ */
 {
-  /*
-   * Recursor statistics
-   */
-  /*
-   * corrupt-packets
-   * deferred-cache-inserts
-   * deferred-cache-lookup
-   * qsize-q
-   * servfail-packets
-   * timedout-packets
-   * udp4-answers
-   * udp4-queries
-   * udp6-answers
-   * udp6-queries
-   */
+  /*********************
+   * Server statistics *
+   *********************/
   /* Questions */
-  {"recursing-questions", "dns_question", "recurse"},
-  {"tcp-queries",         "dns_question", "tcp"},
-  {"udp-queries",         "dns_question", "udp"},
+  {"recursing-questions",    "dns_question", "recurse"},
+  {"tcp-queries",            "dns_question", "tcp"},
+  {"udp-queries",            "dns_question", "udp"},
 
   /* Answers */
-  {"recursing-answers",   "dns_answer",   "recurse"},
-  {"tcp-answers",         "dns_answer",   "tcp"},
-  {"udp-answers",         "dns_answer",   "udp"},
+  {"recursing-answers",      "dns_answer",   "recurse"},
+  {"tcp-answers",            "dns_answer",   "tcp"},
+  {"udp-answers",            "dns_answer",   "udp"},
 
   /* Cache stuff */
-  {"packetcache-hit",     "cache_result", "packet-hit"},
-  {"packetcache-miss",    "cache_result", "packet-miss"},
-  {"packetcache-size",    "cache_size",   "packet"},
-  {"query-cache-hit",     "cache_result", "query-hit"},
-  {"query-cache-miss",    "cache_result", "query-miss"},
+  {"packetcache-hit",        "cache_result", "packet-hit"},
+  {"packetcache-miss",       "cache_result", "packet-miss"},
+  {"packetcache-size",       "cache_size",   "packet"},
+  {"query-cache-hit",        "cache_result", "query-hit"},
+  {"query-cache-miss",       "cache_result", "query-miss"},
 
   /* Latency */
-  {"latency",             "latency",      NULL},
+  {"latency",                "latency",      NULL},
 
-  /*
-   * Recursor statistics
-   */
+  /* Other stuff.. */
+  {"corrupt-packets",        "io_packets",   "corrupt"},
+  {"deferred-cache-inserts", "counter",      "cache-deferred_insert"},
+  {"deferred-cache-lookup",  "counter",      "cache-deferred_lookup"},
+  {"qsize-a",                "cache_size",   "answers"},
+  {"qsize-q",                "cache_size",   "questions"},
+  {"servfail-packets",       "io_packets",   "servfail"},
+  {"timedout-packets",       "io_packets",   "timeout"},
+  {"udp4-answers",           "dns_answer",   "udp4"},
+  {"udp4-queries",           "dns_question", "queries-udp4"},
+  {"udp6-answers",           "dns_answer",   "udp6"},
+  {"udp6-queries",           "dns_question", "queries-udp6"},
+
+  /***********************
+   * Recursor statistics *
+   ***********************/
   /* Answers by return code */
   {"noerror-answers",     "dns_rcode",    "NOERROR"},
   {"nxdomain-answers",    "dns_rcode",    "NXDOMAIN"},
@@ -178,6 +179,8 @@ statname_lookup_t lookup_table[] = /* {{{ */
 
   /* Total number of questions.. */
   {"questions",           "dns_qtype",    "total"}
+
+  /* TODO: Add all recursor metrics here */
 }; /* }}} */
 int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
 
@@ -185,6 +188,18 @@ static llist_t *list = NULL;
 
 #define PDNS_LOCAL_SOCKPATH LOCALSTATEDIR"/run/"PACKAGE_NAME"-powerdns"
 static char *local_sockpath = NULL;
+
+/* TODO: Do this before 4.4:
+ * - Make list of ``interesting values'' configurable
+ * - Authorative server:
+ *   - Store each element in a list or an array
+ *   - Check values returned by `SHOW *' against that list.
+ * - Recursor:
+ *   - Use the list to build a command to request the given values
+ *   - Complete list of known pdns -> collectd mappings.
+ *
+ * -octo
+ */
 
 /* <http://doc.powerdns.com/recursor-stats.html> */
 static void submit (const char *plugin_instance, /* {{{ */
