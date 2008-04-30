@@ -1112,7 +1112,8 @@ with_libstatgrab_cflags=""
 with_libstatgrab_ldflags=""
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
 [
-	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
 	then
 		with_libstatgrab_cflags="-I$withval/include"
 		with_libstatgrab_ldflags="-L$withval/lib"
@@ -1122,7 +1123,7 @@ AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [P
 	fi
 ],
 [
-	if test "x$ac_system" == "xunknown"
+	if test "x$ac_system" = "xunknown"
 	then
 		with_libstatgrab="yes"
 	else
