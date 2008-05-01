@@ -1598,6 +1598,16 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 
+if test "x$ac_system" = "xLinux"
+then
+	AC_ARG_VAR([KERNEL_DIR], [path to Linux kernel sources])
+	if test -z "$KERNEL_DIR"
+	then
+		KERNEL_DIR="/lib/modules/`uname -r`/source"
+	fi
+fi
+
+with_own_libiptc="no"
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -1622,22 +1632,45 @@ then
 	AC_CHECK_LIB(iptc, iptc_init,
 	[
 		AC_DEFINE(HAVE_LIBIPTC, 1, [Define to 1 if you have the iptc library (-liptc).])
-	], [with_libiptc="no (libiptc not found)"])
+	],
+	[
+		with_libiptc="yes"
+		with_own_libiptc="yes"
+	])
 fi
-if test "x$with_libiptc" = "xyes"
+if test "x$with_libiptc" = "xyes" -a "x$with_own_libiptc" != "xyes"
 then
 	AC_CHECK_HEADERS(libiptc/libiptc.h,
 	[
 		AC_DEFINE(HAVE_LIBIPTC_LIBIPTC_H, 1, [Define to 1 if you have the <libiptc/libiptc.h> header file.])
-	], [with_libiptc="no (libiptc/libiptc.h not found)"])
+	],
+	[
+		with_libiptc="yes"
+		with_own_libiptc="yes"
+	])
 fi
 if test "x$with_libiptc" = "xyes"
 then
-	collect_libiptc=1
-else
-	collect_libiptc=0
+	SAVE_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS -I$KERNEL_DIR/include"
+
+	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
+	[
+		with_libiptc="no (Linux iptables headers not found - check KERNEL_DIR)"
+		with_own_libiptc="no"
+	],
+	[
+#include "$srcdir/src/libiptc/ipt_kernel_headers.h"
+	])
+
+	CFLAGS=$SAVE_CFLAGS
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_own_libiptc" = "xyes")
+if test "x$with_own_libiptc" = "xyes"
+then
+	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
+fi
 
 with_snmp_config="net-snmp-config"
 with_snmp_cflags=""
@@ -2517,7 +2550,7 @@ fi
 AC_SUBST(PERL_BINDINGS)
 AC_SUBST(PERL_BINDINGS_OPTIONS)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
 if test "x$with_rrdtool" = "xyes" -a "x$librrd_threadsafe" != "xyes"
 then
@@ -2527,6 +2560,11 @@ fi
 if test "x$with_liboping" = "xyes" -a "x$with_own_liboping" = "xyes"
 then
 	with_liboping="yes (shipped version)"
+fi
+
+if test "x$with_libiptc" = "xyes" -a "x$with_own_libiptc" = "xyes"
+then
+	with_libiptc="yes (shipped version)"
 fi
 
 if test "x$with_libperl" = "xyes"

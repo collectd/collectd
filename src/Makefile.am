@@ -1,4 +1,7 @@
 SUBDIRS =
+if BUILD_WITH_OWN_LIBIPTC
+SUBDIRS += libiptc
+endif
 if BUILD_WITH_OWN_LIBOCONFIG
 SUBDIRS += liboconfig
 endif
@@ -284,7 +287,13 @@ endif # BUILD_PLUGIN_INTERFACE
 if BUILD_PLUGIN_IPTABLES
 pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
-iptables_la_LDFLAGS = -module -avoid-version -liptc
+iptables_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_OWN_LIBIPTC
+iptables_la_LIBADD  = libiptc/libiptc.la
+iptables_la_DEPENDENCIES = libiptc/libiptc.la
+else
+iptables_la_LDFLAGS += -liptc
+endif
 collectd_LDADD += "-dlopen" iptables.la
 collectd_DEPENDENCIES += iptables.la
 endif
