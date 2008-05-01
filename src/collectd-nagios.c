@@ -142,7 +142,7 @@ static int get_values (int *ret_values_num, double **ret_values,
 	struct sockaddr_un sa;
 	int status;
 	int fd;
-	FILE *fh;
+	FILE *fh_in, *fh_out;
 	char buffer[4096];
 
 	int values_num;
@@ -172,8 +172,8 @@ static int get_values (int *ret_values_num, double **ret_values,
 		return (-1);
 	}
 
-	fh = fdopen (fd, "r+");
-	if (fh == NULL)
+	fh_in = fdopen (fd, "r");
+	if (fh_in == NULL)
 	{
 		fprintf (stderr, "fdopen failed: %s\n",
 				strerror (errno));
@@ -181,17 +181,28 @@ static int get_values (int *ret_values_num, double **ret_values,
 		return (-1);
 	}
 
-	fprintf (fh, "GETVAL %s/%s\n", hostname_g, value_string_g);
-	fflush (fh);
+	fh_out = fdopen (fd, "w");
+	if (fh_out == NULL)
+	{
+		fprintf (stderr, "fdopen failed: %s\n",
+				strerror (errno));
+		fclose (fh_in);
+		return (-1);
+	}
 
-	if (fgets (buffer, sizeof (buffer), fh) == NULL)
+	fprintf (fh_out, "GETVAL %s/%s\n", hostname_g, value_string_g);
+	fflush (fh_out);
+
+	if (fgets (buffer, sizeof (buffer), fh_in) == NULL)
 	{
 		fprintf (stderr, "fgets failed: %s\n",
 				strerror (errno));
-		close (fd);
+		fclose (fh_in);
+		fclose (fh_out);
 		return (-1);
 	}
-	close (fd); fd = -1;
+	fclose (fh_in); fh_in = NULL; fd = -1;
+	fclose (fh_out); fh_out = NULL;
 
 	values_num = atoi (buffer);
 	if (values_num < 1)
