@@ -397,11 +397,12 @@ int main (int argc, char **argv)
 	struct sigaction sig_int_action;
 	struct sigaction sig_term_action;
 	struct sigaction sig_usr1_action;
+	struct sigaction sig_pipe_action;
 	char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	const char *basedir;
 #if COLLECT_DAEMON
-	struct sigaction sigChldAction;
+	struct sigaction sig_chld_action;
 	pid_t pid;
 	int daemonize    = 1;
 #endif
@@ -486,9 +487,9 @@ int main (int argc, char **argv)
 	/*
 	 * fork off child
 	 */
-	memset (&sigChldAction, '\0', sizeof (sigChldAction));
-	sigChldAction.sa_handler = SIG_IGN;
-	sigaction (SIGCHLD, &sigChldAction, NULL);
+	memset (&sig_chld_action, '\0', sizeof (sig_chld_action));
+	sig_chld_action.sa_handler = SIG_IGN;
+	sigaction (SIGCHLD, &sig_chld_action, NULL);
 
 	if (daemonize)
 	{
@@ -537,6 +538,10 @@ int main (int argc, char **argv)
 		}
 	} /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
+
+	memset (&sig_pipe_action, '\0', sizeof (sig_pipe_action));
+	sig_pipe_action.sa_handler = SIG_IGN;
+	sigaction (SIGPIPE, &sig_pipe_action, NULL);
 
 	/*
 	 * install signal handlers

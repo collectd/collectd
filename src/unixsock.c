@@ -189,9 +189,33 @@ static void *us_handle_client (void *arg)
 		pthread_exit ((void *) 1);
 	}
 
-	while (fgets (buffer, sizeof (buffer), fhin) != NULL)
+	/* change output buffer to line buffered mode */
+	if (setvbuf (fhout, NULL, _IOLBF, 0) != 0)
+	{
+		char errbuf[1024];
+		ERROR ("unixsock plugin: setvbuf failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		fclose (fhin);
+		fclose (fhout);
+		pthread_exit ((void *) 1);
+	}
+
+	while (42)
 	{
 		int len;
+
+		errno = 0;
+		if (fgets (buffer, sizeof (buffer), fhin) == NULL)
+		{
+			if (errno != 0)
+			{
+				char errbuf[1024];
+				WARNING ("unixsock plugin: failed to read from socket #%i: %s",
+						fileno (fhin),
+						sstrerror (errno, errbuf, sizeof (errbuf)));
+			}
+			break;
+		}
 
 		len = strlen (buffer);
 		while ((len > 0)
@@ -234,8 +258,14 @@ static void *us_handle_client (void *arg)
 		}
 		else
 		{
-			fprintf (fhout, "-1 Unknown command: %s\n", fields[0]);
-			fflush (fhout);
+			if (fprintf (fhout, "-1 Unknown command: %s\n", fields[0]) < 0)
+			{
+				char errbuf[1024];
+				WARNING ("unixsock plugin: failed to write to socket #%i: %s",
+						fileno (fhout),
+						sstrerror (errno, errbuf, sizeof (errbuf)));
+				break;
+			}
 		}
 	} /* while (fgets) */
 
