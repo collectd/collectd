@@ -178,9 +178,35 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"cache-misses",        "cache_result", "miss"},
 
   /* Total number of questions.. */
-  {"questions",           "dns_qtype",    "total"}
+  {"questions",           "dns_qtype",    "total"},
 
-  /* TODO: Add all recursor metrics here */
+  /* All the other stuff.. */
+  {"all-outqueries",      "dns_question", "outgoing"},
+  {"answers0-1",          "dns_answer",   "0_1"},
+  {"answers1-10",         "dns_answer",   "1_10"},
+  {"answers10-100",       "dns_answer",   "10_100"},
+  {"answers100-1000",     "dns_answer",   "100_1000"},
+  {"answers-slow",        "dns_answer",   "slow"},
+  {"chain-resends",       "dns_question", "chained"},
+  {"client-parse-errors", "counter",      "drops-client_parse_error"},
+  {"concurrent-queries",  "dns_question", "concurrent"},
+  {"dlg-only-drops",      "counter",      "drops-delegation_only"},
+  {"negcache-entries",    "cache_size",   "negative"},
+  {"nsspeeds-entries",    "gauge",        "entries-ns_speeds"},
+  {"nsset-invalidations", "counter",      "ns_set_invalidation"},
+  {"outgoing-timeouts",   "counter",      "drops-timeout_outgoing"},
+  {"resource-limits",     "counter",      "drops-resource_limit"},
+  {"server-parse-errors", "counter",      "drops-server_parse_error"},
+  {"spoof-prevents",      "counter",      "drops-spoofed"},
+  {"tcp-client-overflow", "counter",      "denied-client_overflow_tcp"},
+  {"tcp-outqueries",      "dns_question", "outgoing-tcp"},
+  {"tcp-questions",       "dns_question", "incoming-tcp"},
+  {"throttled-out",       "dns_question", "outgoing-throttled"},
+  {"throttle-entries",    "gauge",        "entries-throttle"},
+  {"unauthorized-tcp",    "counter",      "denied-unauthorized_tcp"},
+  {"unauthorized-udp",    "counter",      "denied-unauthorized_udp"},
+  {"unexpected-packets",  "dns_answer",   "unexpected"}
+  /* {"uptime", "", ""} */
 }; /* }}} */
 int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
 
