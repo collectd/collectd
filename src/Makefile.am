@@ -197,6 +197,10 @@ endif
 if BUILD_WITH_LIBIOKIT
 disk_la_LDFLAGS += -lIOKit
 endif
+if BUILD_WITH_LIBSTATGRAB
+disk_la_CFLAGS = $(BUILD_WITH_LIBSTATGRAB_CFLAGS)  
+disk_la_LIBADD = $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+endif
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
