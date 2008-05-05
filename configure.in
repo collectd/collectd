@@ -2331,6 +2331,7 @@ fi
 # libstatgrab
 if test "x$with_libstatgrab" = "xyes"
 then
+	plugin_disk="yes"
 	plugin_interface="yes"
 	plugin_load="yes"
 	plugin_memory="yes"
