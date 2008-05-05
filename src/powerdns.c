@@ -128,6 +128,23 @@ uptime              number of seconds process has been running (since 3.1.5)
 user-msec           number of CPU milliseconds spent in 'user' mode
 }}} */
 
+const char* const default_server_fields[] = /* {{{ */
+{
+  "latency"
+  "packetcache-hit",
+  "packetcache-miss",
+  "packetcache-size",
+  "query-cache-hit",
+  "query-cache-miss",
+  "recursing-answers",
+  "recursing-questions",
+  "tcp-answers",
+  "tcp-queries",
+  "udp-answers",
+  "udp-queries",
+}; /* }}} */
+int default_server_fields_num = STATIC_ARRAY_SIZE (default_server_fields);
+
 statname_lookup_t lookup_table[] = /* {{{ */
 {
   /*********************
@@ -498,6 +515,9 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
   char *key;
   char *value;
 
+  const char* const *fields;
+  int fields_num;
+
   if (item->command == NULL)
     item->command = strdup ("SHOW *");
   if (item->command == NULL)
@@ -509,6 +529,20 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
   status = powerdns_get_data (item, &buffer, &buffer_size);
   if (status != 0)
     return (-1);
+
+  if (item->fields_num != 0)
+  {
+    fields = (const char* const *) item->fields;
+    fields_num = item->fields_num;
+  }
+  else
+  {
+    fields = default_server_fields;
+    fields_num = default_server_fields_num;
+  }
+
+  assert (fields != NULL);
+  assert (fields_num > 0);
 
   /* corrupt-packets=0,deferred-cache-inserts=0,deferred-cache-lookup=0,latency=0,packetcache-hit=0,packetcache-miss=0,packetcache-size=0,qsize-q=0,query-cache-hit=0,query-cache-miss=0,recursing-answers=0,recursing-questions=0,servfail-packets=0,tcp-answers=0,tcp-queries=0,timedout-packets=0,udp-answers=0,udp-queries=0,udp4-answers=0,udp4-queries=0,udp6-answers=0,udp6-queries=0, */
   dummy = buffer;
@@ -530,10 +564,10 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
       continue;
 
     /* Check if this item was requested. */
-    for (i = 0; i < item->fields_num; i++)
-      if (strcasecmp (key, item->fields[i]) == 0)
+    for (i = 0; i < fields_num; i++)
+      if (strcasecmp (key, fields[i]) == 0)
 	break;
-    if (i >= item->fields_num)
+    if (i >= fields_num)
       continue;
 
     submit (item->instance, key, value);
@@ -556,19 +590,27 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
   char buffer[4096];
   int status;
 
-  if (li != NULL)
+  if (li == NULL)
     return (0);
 
-  strcpy (buffer, "get ");
-  status = strjoin (&buffer[4], sizeof (buffer) - strlen ("get "),
-      li->fields, li->fields_num,
-      /* seperator = */ " ");
-  if (status < 0)
+  if (li->fields_num < 1)
   {
-    ERROR ("powerdns plugin: strjoin failed.");
-    return (-1);
+    sstrncpy (buffer, RECURSOR_COMMAND, sizeof (buffer));
+  }
+  else
+  {
+    strcpy (buffer, "get ");
+    status = strjoin (&buffer[4], sizeof (buffer) - strlen ("get "),
+	li->fields, li->fields_num,
+	/* seperator = */ " ");
+    if (status < 0)
+    {
+      ERROR ("powerdns plugin: strjoin failed.");
+      return (-1);
+    }
   }
 
+  buffer[sizeof (buffer) - 1] = 0;
   li->command = strdup (buffer);
   if (li->command == NULL)
   {
