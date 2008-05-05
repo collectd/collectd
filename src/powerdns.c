@@ -264,7 +264,7 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   if (i >= lookup_table_length)
   {
-    DEBUG ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
+    INFO ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
         pdns_type, value);
     return;
   }
