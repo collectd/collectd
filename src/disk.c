@@ -59,6 +59,10 @@
 #  define UINT_MAX 4294967295U
 #endif
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
@@ -97,6 +101,9 @@ extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
 /* #endif HAVE_LIBKSTAT */
+
+#elif defined(HAVE_LIBSTATGRAB)
+/* #endif HAVE_LIBKSTATGRAB */
 
 #else
 # error "No applicable input method."
@@ -659,7 +666,23 @@ static int disk_read (void)
 					kio.KIO_ROPS, kio.KIO_WOPS);
 		}
 	}
-#endif /* defined(HAVE_LIBKSTAT) */
+/* #endif defined(HAVE_LIBKSTAT) */
+
+#elif defined(HAVE_LIBSTATGRAB)
+	sg_disk_io_stats *ds;
+	int disks, counter;
+	char name[DATA_MAX_NAME_LEN];
+	
+	if ((ds = sg_get_disk_io_stats(&disks)) == NULL)
+		return (0);
+		
+	for (counter=0; counter < disks; counter++) {
+		strncpy(name, ds->disk_name, sizeof(name));
+		name[sizeof(name)-1] = '\0'; /* strncpy doesn't terminate longer strings */
+		disk_submit (name, "disk_octets", ds->read_bytes, ds->write_bytes);
+		ds++;
+	}
+#endif /* defined(HAVE_LIBSTATGRAB) */
 
 	return (0);
 } /* int disk_read */

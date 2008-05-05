@@ -145,12 +145,18 @@ endif
 if BUILD_PLUGIN_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c
+cpu_la_CFLAGS =
 cpu_la_LDFLAGS = -module -avoid-version
+cpu_la_LIBADD = 
 if BUILD_WITH_LIBKSTAT
 cpu_la_LDFLAGS += -lkstat
 endif
 if BUILD_WITH_LIBDEVINFO
 cpu_la_LDFLAGS += -ldevinfo
+endif
+if BUILD_WITH_LIBSTATGRAB
+cpu_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
+cpu_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 collectd_LDADD += "-dlopen" cpu.la
 collectd_DEPENDENCIES += cpu.la
@@ -183,7 +189,9 @@ endif
 if BUILD_PLUGIN_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
+disk_la_CFLAGS =
 disk_la_LDFLAGS = -module -avoid-version
+disk_la_LIBADD = 
 if BUILD_WITH_LIBKSTAT
 disk_la_LDFLAGS += -lkstat
 endif
@@ -192,6 +200,10 @@ disk_la_LDFLAGS += -ldevinfo
 endif
 if BUILD_WITH_LIBIOKIT
 disk_la_LDFLAGS += -lIOKit
+endif
+if BUILD_WITH_LIBSTATGRAB
+disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)  
+disk_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
@@ -633,7 +645,13 @@ endif
 if BUILD_PLUGIN_USERS
 pkglib_LTLIBRARIES += users.la
 users_la_SOURCES = users.c
+users_la_CFLAGS =
 users_la_LDFLAGS = -module -avoid-version
+users_la_LIBADD =
+if BUILD_WITH_LIBSTATGRAB
+users_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
+users_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+endif
 collectd_LDADD += "-dlopen" users.la
 collectd_DEPENDENCIES += users.la
 endif

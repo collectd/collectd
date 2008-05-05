@@ -23,6 +23,10 @@
 #include "common.h"
 #include "plugin.h"
 
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif /* HAVE_STATGRAB_H */
+
 #if HAVE_UTMPX_H
 # include <utmpx.h>
 /* #endif HAVE_UTMPX_H */
@@ -88,6 +92,16 @@ static int users_read (void)
 
 	users_submit (users);
 /* #endif HAVE_GETUTENT */
+
+#elif HAVE_LIBSTATGRAB
+	sg_user_stats *us;
+
+	us = sg_get_user_stats ();
+	if (us == NULL)
+		return (-1);   
+
+	users_submit ((gauge_t) us->num_entries);
+/* #endif HAVE_LIBSTATGRAB */
 
 #else
 # error "No applicable input method."

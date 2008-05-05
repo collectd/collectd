@@ -65,9 +65,18 @@ typedef struct list_item_s list_item_t;
 
 struct list_item_s
 {
+  enum
+  {
+    SRV_AUTHORATIVE,
+    SRV_RECURSOR
+  } server_type;
   int (*func) (list_item_t *item);
   char *instance;
+
+  char **fields;
+  int fields_num;
   char *command;
+
   struct sockaddr_un sockaddr;
   int socktype;
 };
@@ -216,13 +225,9 @@ static llist_t *list = NULL;
 static char *local_sockpath = NULL;
 
 /* TODO: Do this before 4.4:
- * - Make list of ``interesting values'' configurable
- * - Authorative server:
- *   - Store each element in a list or an array
- *   - Check values returned by `SHOW *' against that list.
  * - Recursor:
- *   - Use the list to build a command to request the given values
  *   - Complete list of known pdns -> collectd mappings.
+ * - Update the collectd.conf(5) manpage.
  *
  * -octo
  */
@@ -519,6 +524,14 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
   char *key;
   char *value;
 
+  if (item->command == NULL)
+    item->command = strdup ("SHOW *");
+  if (item->command == NULL)
+  {
+    ERROR ("powerdns plugin: strdup failed.");
+    return (-1);
+  }
+
   status = powerdns_get_data (item, &buffer, &buffer_size);
   if (status != 0)
     return (-1);
@@ -528,6 +541,8 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
   saveptr = NULL;
   while ((key = strtok_r (dummy, ",", &saveptr)) != NULL)
   {
+    int i;
+
     dummy = NULL;
 
     value = strchr (key, '=');
@@ -540,6 +555,13 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
     if (value[0] == '\0')
       continue;
 
+    /* Check if this item was requested. */
+    for (i = 0; i < item->fields_num; i++)
+      if (strcasecmp (key, item->fields[i]) == 0)
+	break;
+    if (i >= item->fields_num)
+      continue;
+
     submit (item->instance, key, value);
   } /* while (strtok_r) */
 
@@ -547,6 +569,41 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
 
   return (0);
 } /* }}} int powerdns_read_server */
+
+/*
+ * powerdns_update_recursor_command
+ *
+ * Creates a string that holds the command to be sent to the recursor. This
+ * string is stores in the `command' member of the `list_item_t' passed to the
+ * function. This function is called by `powerdns_read_recursor'.
+ */
+static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
+{
+  char buffer[4096];
+  int status;
+
+  if (li != NULL)
+    return (0);
+
+  strcpy (buffer, "get ");
+  status = strjoin (&buffer[4], sizeof (buffer) - strlen ("get "),
+      li->fields, li->fields_num,
+      /* seperator = */ " ");
+  if (status < 0)
+  {
+    ERROR ("powerdns plugin: strjoin failed.");
+    return (-1);
+  }
+
+  li->command = strdup (buffer);
+  if (li->command == NULL)
+  {
+    ERROR ("powerdns plugin: strdup failed.");
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int powerdns_update_recursor_command */
 
 static int powerdns_read_recursor (list_item_t *item) /* {{{ */
 {
@@ -561,6 +618,17 @@ static int powerdns_read_recursor (list_item_t *item) /* {{{ */
   char *key_saveptr;
   char *value;
   char *value_saveptr;
+
+  if (item->command == NULL)
+  {
+    status = powerdns_update_recursor_command (item);
+    if (status != 0)
+    {
+      ERROR ("powerdns plugin: powerdns_update_recursor_command failed.");
+      return (-1);
+    }
+  }
+  assert (item->command != NULL);
 
   status = powerdns_get_data (item, &buffer, &buffer_size);
   if (status != 0)
@@ -615,7 +683,54 @@ static int powerdns_config_add_string (const char *name, /* {{{ */
     return (-1);
 
   return (0);
-} /* }}} int ctail_config_add_string */
+} /* }}} int powerdns_config_add_string */
+
+static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
+    oconfig_item_t *ci)
+{
+  int i;
+  char **temp;
+
+  if (ci->values_num < 1)
+  {
+    WARNING ("powerdns plugin: The `Collect' option needs "
+	"at least one argument.");
+    return (-1);
+  }
+
+  for (i = 0; i < ci->values_num; i++)
+    if (ci->values[i].type != OCONFIG_TYPE_STRING)
+    {
+      WARNING ("powerdns plugin: Only string arguments are allowed to "
+	  "the `Collect' option.");
+      return (-1);
+    }
+
+  temp = (char **) realloc (li->fields,
+      sizeof (char *) * (li->fields_num + ci->values_num));
+  if (temp == NULL)
+  {
+    WARNING ("powerdns plugin: realloc failed.");
+    return (-1);
+  }
+  li->fields = temp;
+
+  for (i = 0; i < ci->values_num; i++)
+  {
+    li->fields[li->fields_num] = strdup (ci->values[i].value.string);
+    if (li->fields[li->fields_num] == NULL)
+    {
+      WARNING ("powerdns plugin: strdup failed.");
+      continue;
+    }
+    li->fields_num++;
+  }
+
+  /* Invalidate a previously computed command */
+  sfree (li->command);
+
+  return (0);
+} /* }}} int powerdns_config_add_collect */
 
 static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 {
@@ -653,17 +768,23 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
    */
   if (strcasecmp ("Server", ci->key) == 0)
   {
+    item->server_type = SRV_AUTHORATIVE;
     item->func = powerdns_read_server;
-    item->command = strdup (SERVER_COMMAND);
     item->socktype = SOCK_STREAM;
     socket_temp = strdup (SERVER_SOCKET);
   }
   else if (strcasecmp ("Recursor", ci->key) == 0)
   {
+    item->server_type = SRV_RECURSOR;
     item->func = powerdns_read_recursor;
-    item->command = strdup (RECURSOR_COMMAND);
     item->socktype = SOCK_DGRAM;
     socket_temp = strdup (RECURSOR_SOCKET);
+  }
+  else
+  {
+    /* We must never get here.. */
+    assert (0);
+    return (-1);
   }
 
   status = 0;
@@ -671,8 +792,8 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp ("Command", option->key) == 0)
-      status = powerdns_config_add_string ("Command", &item->command, option);
+    if (strcasecmp ("Collect", option->key) == 0)
+      status = powerdns_config_add_collect (item, option);
     else if (strcasecmp ("Socket", option->key) == 0)
       status = powerdns_config_add_string ("Socket", &socket_temp, option);
     else
