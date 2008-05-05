@@ -671,7 +671,7 @@ static int disk_read (void)
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_disk_io_stats *ds;
 	int disks, counter;
-	char name[16];
+	char name[DATA_MAX_NAME_LEN];
 	
 	if ((ds = sg_get_disk_io_stats(&disks)) == NULL)
 		return (0);
