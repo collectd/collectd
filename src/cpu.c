@@ -387,13 +387,20 @@ static int cpu_read (void)
 
 #elif defined(HAVE_LIBSTATGRAB)
        sg_cpu_stats *cs;
-       if ((cs = sg_get_cpu_stats ()) == NULL)
-               return (0);
+       cs = sg_get_cpu_stats ();
 
-       submit (0, "idle", (counter_t) cs->idle);
-       submit (0, "nice", (counter_t) cs->nice);
-       submit (0, "user", (counter_t) cs->user);
-       submit (0, "system", (counter_t) (cs->kernel+cs->swap+cs->iowait));
+       if (cs == NULL)
+       {
+	       ERROR ("cpu plugin: sg_get_cpu_stats failed.");
+               return (-1);
+       }
+
+       submit (0, "idle",   (counter_t) cs->idle);
+       submit (0, "nice",   (counter_t) cs->nice);
+       submit (0, "swap",   (counter_t) cs->swap);
+       submit (0, "system", (counter_t) cs->kernel);
+       submit (0, "user",   (counter_t) cs->user);
+       submit (0, "wait",   (counter_t) cs->iowait);
 #endif /* HAVE_LIBSTATGRAB */
 
 	return (0);
