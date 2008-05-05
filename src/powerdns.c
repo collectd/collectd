@@ -49,16 +49,9 @@
 #define SERVER_COMMAND "SHOW *"
 
 #define RECURSOR_SOCKET  "/var/run/pdns_recursor.controlsocket"
-#define RECURSOR_COMMAND "get all-outqueries answers0-1 " /* {{{ */ \
-  "answers100-1000 answers10-100 answers1-10 answers-slow cache-entries " \
-  "cache-hits cache-misses chain-resends client-parse-errors " \
-  "concurrent-queries dlg-only-drops ipv6-outqueries negcache-entries " \
-  "noerror-answers nsset-invalidations nsspeeds-entries nxdomain-answers " \
-  "outgoing-timeouts qa-latency questions resource-limits " \
-  "server-parse-errors servfail-answers spoof-prevents sys-msec " \
-  "tcp-client-overflow tcp-outqueries tcp-questions throttled-out " \
-  "throttled-outqueries throttle-entries unauthorized-tcp unauthorized-udp " \
-  "unexpected-packets unreachables user-msec" /* }}} */
+#define RECURSOR_COMMAND "get noerror-answers nxdomain-answers " \
+  "servfail-answers sys-msec user-msec qa-latency cache-entries cache-hits " \
+  "cache-misses questions"
 
 struct list_item_s;
 typedef struct list_item_s list_item_t;
@@ -67,7 +60,7 @@ struct list_item_s
 {
   enum
   {
-    SRV_AUTHORATIVE,
+    SRV_AUTHORITATIVE,
     SRV_RECURSOR
   } server_type;
   int (*func) (list_item_t *item);
@@ -810,7 +803,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
    */
   if (strcasecmp ("Server", ci->key) == 0)
   {
-    item->server_type = SRV_AUTHORATIVE;
+    item->server_type = SRV_AUTHORITATIVE;
     item->func = powerdns_read_server;
     item->socktype = SOCK_STREAM;
     socket_temp = strdup (SERVER_SOCKET);
