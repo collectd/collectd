@@ -909,7 +909,7 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
     if ((strcasecmp ("Server", option->key) == 0)
 	|| (strcasecmp ("Recursor", option->key) == 0))
       powerdns_config_add_server (option);
-    if (strcasecmp ("LocalSocket", option->key) == 0)
+    else if (strcasecmp ("LocalSocket", option->key) == 0)
     {
       char *temp = strdup (option->key);
       if (temp == NULL)
