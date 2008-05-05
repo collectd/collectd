@@ -152,6 +152,10 @@ endif
 if BUILD_WITH_LIBDEVINFO
 cpu_la_LDFLAGS += -ldevinfo
 endif
+if BUILD_WITH_LIBSTATGRAB
+cpu_la_CFLAGS = $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
+cpu_la_LIBADD = $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+endif
 collectd_LDADD += "-dlopen" cpu.la
 collectd_DEPENDENCIES += cpu.la
 endif
