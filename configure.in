@@ -2337,6 +2337,7 @@ then
 	plugin_load="yes"
 	plugin_memory="yes"
 	plugin_swap="yes"
+       plugin_users="yes"
 fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"
