@@ -968,7 +968,8 @@ then
 fi
 
 AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
-[	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+[	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
@@ -1517,7 +1518,8 @@ fi
 
 AC_SUBST(PERL, "$perl_interpreter")
 
-if test "x$with_libperl" = "xyes" -a -n "$perl_interpreter"
+if test "x$with_libperl" = "xyes" \
+	&& test -n "$perl_interpreter"
 then
   SAVE_CFLAGS=$CFLAGS
   SAVE_LDFLAGS=$LDFLAGS
@@ -1822,7 +1824,8 @@ with_xmms_cflags=""
 with_xmms_libs=""
 AC_ARG_WITH(libxmms, [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to libxmms.])],
 [
-	if test "x$withval" != "xno" -a "x$withval" != "xyes"
+	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
 	then
 		if test -f "$withval" && test -x "$withval";
 		then
@@ -2515,7 +2518,8 @@ AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 
 dnl ip_vs.h
-if test "x$ac_system" = "xLinux" -a "x$have_net_ip_vs_h$have_ip_vs_h" = "xnono"
+if test "x$ac_system" = "xLinux" \
+	&& test "x$have_net_ip_vs_h$have_ip_vs_h" = "xnono"
 then
 	enable_ipvs="$enable_ipvs (ip_vs.h not found)"
 fi
@@ -2552,12 +2556,14 @@ AC_SUBST(PERL_BINDINGS_OPTIONS)
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
-if test "x$with_rrdtool" = "xyes" -a "x$librrd_threadsafe" != "xyes"
+if test "x$with_rrdtool" = "xyes" \
+	&& test "x$librrd_threadsafe" != "xyes"
 then
 	with_rrdtool="yes (warning: librrd is not thread-safe)"
 fi
 
-if test "x$with_liboping" = "xyes" -a "x$with_own_liboping" = "xyes"
+if test "x$with_liboping" = "xyes" \
+	&& test "x$with_own_liboping" = "xyes"
 then
 	with_liboping="yes (shipped version)"
 fi
@@ -2574,7 +2580,8 @@ else
 	enable_perl="no (needs libperl)"
 fi
 
-if test "x$with_perl_bindings" = "xyes" -a "x$PERL_BINDINGS_OPTIONS" != "x"
+if test "x$with_perl_bindings" = "xyes" \
+	&& test "x$PERL_BINDINGS_OPTIONS" != "x"
 then
 	with_perl_bindings="yes ($PERL_BINDINGS_OPTIONS)"
 fi
