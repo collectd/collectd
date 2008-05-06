@@ -3,6 +3,9 @@
 	* collectd: Added support for a `Flush' command in the unixsock and
 	  exec plugins. This command can be used to force a plugin (or all) to
 	  flush its values to disk.
+	* collectd: Thresholds can now be configured to apply to one data
+	  source only, making it possible to configure different thresholds
+	  for each data source.
 	* apache, nginx plugins: Added the possibility to disable host and/or
 	  peer verification.
 	* ascent plugin: The new ascent plugin reads and parses the statistics
