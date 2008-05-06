@@ -909,6 +909,139 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =back
 
+=head2 Plugin C<powerdns>
+
+The C<powerdns> plugin queries statistics from an authoritative PowerDNS
+nameserver and/or a PowerDNS recursor. Since both offer a wide variety of
+values, many of which are probably meaningless to most users, but may be useful
+for some. So you may chose which values to collect, but if you don't, some
+reasonable defaults will be collected.
+
+  <Plugin "powerdns">
+    <Server "server_name">
+      Collect "latency"
+      Collect "udp-answers" "udp-queries"
+      Socket "/var/run/pdns.controlsocket"
+    </Server>
+    <Recursor "recursor_name">
+      Collect "questions"
+      Collect "cache-hits" "cache-misses"
+      Socket "/var/run/pdns_recursor.controlsocket"
+    </Recursor>
+    LocalSocket "/opt/collectd/var/run/collectd-powerdns"
+  </Plugin>
+
+=over 4
+
+=item B<Server> and B<Recursor> block
+
+The B<Server> block defines one authoritative server to query, the B<Recursor>
+does the same for an recursing server. The possible options in both blocks are
+the same, though. The argument defines a name for the serverE<nbsp>/ recursor
+and is required.
+
+=over 4
+
+=item B<Collect> I<Field>
+
+Using the B<Collect> statement you can select which values to collect. Here,
+you specify the name of the values as used by the PowerDNS servers, e.E<nbsp>g.
+C<dlg-only-drops>, C<answers10-100>.
+
+The method of getting the values differs for B<Server> and B<Recursor> blocks:
+When querying the server a C<SHOW *> command is issued in any case, because
+that's the only way of getting multiple values out of the server at once.
+collectd then picks out the values you have selected. When querying the
+recursor, a command is generated to query exactly these values. So if you
+specify invalid fields when querying the recursor, a syntax error may be
+returned by the daemon and collectd may not collect any values at all.
+
+If no B<Collect> statement is given, the following B<Server> values will be
+collected:
+
+=over 4
+
+=item latency
+
+=item packetcache-hit
+
+=item packetcache-miss
+
+=item packetcache-size
+
+=item query-cache-hit
+
+=item query-cache-miss
+
+=item recursing-answers
+
+=item recursing-questions
+
+=item tcp-answers
+
+=item tcp-queries
+
+=item udp-answers
+
+=item udp-queries
+
+=back
+
+The following B<Recursor> values will be collected by default:
+
+=over 4
+
+=item noerror-answers
+
+=item nxdomain-answers
+
+=item servfail-answers
+
+=item sys-msec
+
+=item user-msec
+
+=item qa-latency
+
+=item cache-entries
+
+=item cache-hits
+
+=item cache-misses
+
+=item questions
+
+=back
+
+Please note that up to that point collectd doesn't know what values are
+available on the server and values that are added do not need a change of the
+mechanism so far. However, the values must be mapped to collectd's naming
+scheme, which is done using a lookup table that lists all known values. If
+values are added in the future and collectd does not know about them, you will
+get an error much like this:
+
+  powerdns plugin: submit: Not found in lookup table: foobar = 42
+
+In this case please file a bug report with the collectd team.
+
+=item B<Socket> I<Path>
+
+Configures the path to the UNIX domain socket to be used when connecting to the
+daemon. By default C</var/run/pdns.controlsocket> will be used for an
+authoritative server and C</var/run/pdns_recursor.controlsocket> will be used
+for the recursor.
+
+=back
+
+=item B<LocalSocket> I<Path>
+
+Querying the recursor is done using UDP. When using UDP over UNIX domain
+sockets, the client socket needs a name in the file system, too. You can set
+this local name to I<Path> using the B<LocalSocket> option. The default is
+C<I<prefix>/var/run/collectd-powerdns>.
+
+=back
+
 =head2 Plugin C<processes>
 
 =over 4

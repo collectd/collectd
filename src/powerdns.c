@@ -49,25 +49,27 @@
 #define SERVER_COMMAND "SHOW *"
 
 #define RECURSOR_SOCKET  "/var/run/pdns_recursor.controlsocket"
-#define RECURSOR_COMMAND "get all-outqueries answers0-1 " /* {{{ */ \
-  "answers100-1000 answers10-100 answers1-10 answers-slow cache-entries " \
-  "cache-hits cache-misses chain-resends client-parse-errors " \
-  "concurrent-queries dlg-only-drops ipv6-outqueries negcache-entries " \
-  "noerror-answers nsset-invalidations nsspeeds-entries nxdomain-answers " \
-  "outgoing-timeouts qa-latency questions resource-limits " \
-  "server-parse-errors servfail-answers spoof-prevents sys-msec " \
-  "tcp-client-overflow tcp-outqueries tcp-questions throttled-out " \
-  "throttled-outqueries throttle-entries unauthorized-tcp unauthorized-udp " \
-  "unexpected-packets unreachables user-msec" /* }}} */
+#define RECURSOR_COMMAND "get noerror-answers nxdomain-answers " \
+  "servfail-answers sys-msec user-msec qa-latency cache-entries cache-hits " \
+  "cache-misses questions"
 
 struct list_item_s;
 typedef struct list_item_s list_item_t;
 
 struct list_item_s
 {
+  enum
+  {
+    SRV_AUTHORITATIVE,
+    SRV_RECURSOR
+  } server_type;
   int (*func) (list_item_t *item);
   char *instance;
+
+  char **fields;
+  int fields_num;
   char *command;
+
   struct sockaddr_un sockaddr;
   int socktype;
 };
@@ -119,46 +121,64 @@ uptime              number of seconds process has been running (since 3.1.5)
 user-msec           number of CPU milliseconds spent in 'user' mode
 }}} */
 
+const char* const default_server_fields[] = /* {{{ */
+{
+  "latency"
+  "packetcache-hit",
+  "packetcache-miss",
+  "packetcache-size",
+  "query-cache-hit",
+  "query-cache-miss",
+  "recursing-answers",
+  "recursing-questions",
+  "tcp-answers",
+  "tcp-queries",
+  "udp-answers",
+  "udp-queries",
+}; /* }}} */
+int default_server_fields_num = STATIC_ARRAY_SIZE (default_server_fields);
+
 statname_lookup_t lookup_table[] = /* {{{ */
 {
-  /*
-   * Recursor statistics
-   */
-  /*
-   * corrupt-packets
-   * deferred-cache-inserts
-   * deferred-cache-lookup
-   * qsize-q
-   * servfail-packets
-   * timedout-packets
-   * udp4-answers
-   * udp4-queries
-   * udp6-answers
-   * udp6-queries
-   */
+  /*********************
+   * Server statistics *
+   *********************/
   /* Questions */
-  {"recursing-questions", "dns_question", "recurse"},
-  {"tcp-queries",         "dns_question", "tcp"},
-  {"udp-queries",         "dns_question", "udp"},
+  {"recursing-questions",    "dns_question", "recurse"},
+  {"tcp-queries",            "dns_question", "tcp"},
+  {"udp-queries",            "dns_question", "udp"},
 
   /* Answers */
-  {"recursing-answers",   "dns_answer",   "recurse"},
-  {"tcp-answers",         "dns_answer",   "tcp"},
-  {"udp-answers",         "dns_answer",   "udp"},
+  {"recursing-answers",      "dns_answer",   "recurse"},
+  {"tcp-answers",            "dns_answer",   "tcp"},
+  {"udp-answers",            "dns_answer",   "udp"},
 
   /* Cache stuff */
-  {"packetcache-hit",     "cache_result", "packet-hit"},
-  {"packetcache-miss",    "cache_result", "packet-miss"},
-  {"packetcache-size",    "cache_size",   "packet"},
-  {"query-cache-hit",     "cache_result", "query-hit"},
-  {"query-cache-miss",    "cache_result", "query-miss"},
+  {"packetcache-hit",        "cache_result", "packet-hit"},
+  {"packetcache-miss",       "cache_result", "packet-miss"},
+  {"packetcache-size",       "cache_size",   "packet"},
+  {"query-cache-hit",        "cache_result", "query-hit"},
+  {"query-cache-miss",       "cache_result", "query-miss"},
 
   /* Latency */
-  {"latency",             "latency",      NULL},
+  {"latency",                "latency",      NULL},
 
-  /*
-   * Recursor statistics
-   */
+  /* Other stuff.. */
+  {"corrupt-packets",        "io_packets",   "corrupt"},
+  {"deferred-cache-inserts", "counter",      "cache-deferred_insert"},
+  {"deferred-cache-lookup",  "counter",      "cache-deferred_lookup"},
+  {"qsize-a",                "cache_size",   "answers"},
+  {"qsize-q",                "cache_size",   "questions"},
+  {"servfail-packets",       "io_packets",   "servfail"},
+  {"timedout-packets",       "io_packets",   "timeout"},
+  {"udp4-answers",           "dns_answer",   "udp4"},
+  {"udp4-queries",           "dns_question", "queries-udp4"},
+  {"udp6-answers",           "dns_answer",   "udp6"},
+  {"udp6-queries",           "dns_question", "queries-udp6"},
+
+  /***********************
+   * Recursor statistics *
+   ***********************/
   /* Answers by return code */
   {"noerror-answers",     "dns_rcode",    "NOERROR"},
   {"nxdomain-answers",    "dns_rcode",    "NXDOMAIN"},
@@ -177,7 +197,35 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"cache-misses",        "cache_result", "miss"},
 
   /* Total number of questions.. */
-  {"questions",           "dns_qtype",    "total"}
+  {"questions",           "dns_qtype",    "total"},
+
+  /* All the other stuff.. */
+  {"all-outqueries",      "dns_question", "outgoing"},
+  {"answers0-1",          "dns_answer",   "0_1"},
+  {"answers1-10",         "dns_answer",   "1_10"},
+  {"answers10-100",       "dns_answer",   "10_100"},
+  {"answers100-1000",     "dns_answer",   "100_1000"},
+  {"answers-slow",        "dns_answer",   "slow"},
+  {"chain-resends",       "dns_question", "chained"},
+  {"client-parse-errors", "counter",      "drops-client_parse_error"},
+  {"concurrent-queries",  "dns_question", "concurrent"},
+  {"dlg-only-drops",      "counter",      "drops-delegation_only"},
+  {"negcache-entries",    "cache_size",   "negative"},
+  {"nsspeeds-entries",    "gauge",        "entries-ns_speeds"},
+  {"nsset-invalidations", "counter",      "ns_set_invalidation"},
+  {"outgoing-timeouts",   "counter",      "drops-timeout_outgoing"},
+  {"resource-limits",     "counter",      "drops-resource_limit"},
+  {"server-parse-errors", "counter",      "drops-server_parse_error"},
+  {"spoof-prevents",      "counter",      "drops-spoofed"},
+  {"tcp-client-overflow", "counter",      "denied-client_overflow_tcp"},
+  {"tcp-outqueries",      "dns_question", "outgoing-tcp"},
+  {"tcp-questions",       "dns_question", "incoming-tcp"},
+  {"throttled-out",       "dns_question", "outgoing-throttled"},
+  {"throttle-entries",    "gauge",        "entries-throttle"},
+  {"unauthorized-tcp",    "counter",      "denied-unauthorized_tcp"},
+  {"unauthorized-udp",    "counter",      "denied-unauthorized_udp"},
+  {"unexpected-packets",  "dns_answer",   "unexpected"}
+  /* {"uptime", "", ""} */
 }; /* }}} */
 int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
 
@@ -185,6 +233,14 @@ static llist_t *list = NULL;
 
 #define PDNS_LOCAL_SOCKPATH LOCALSTATEDIR"/run/"PACKAGE_NAME"-powerdns"
 static char *local_sockpath = NULL;
+
+/* TODO: Do this before 4.4:
+ * - Recursor:
+ *   - Complete list of known pdns -> collectd mappings.
+ * - Update the collectd.conf(5) manpage.
+ *
+ * -octo
+ */
 
 /* <http://doc.powerdns.com/recursor-stats.html> */
 static void submit (const char *plugin_instance, /* {{{ */
@@ -208,7 +264,7 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   if (i >= lookup_table_length)
   {
-    DEBUG ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
+    INFO ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
         pdns_type, value);
     return;
   }
@@ -478,15 +534,42 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
   char *key;
   char *value;
 
+  const char* const *fields;
+  int fields_num;
+
+  if (item->command == NULL)
+    item->command = strdup ("SHOW *");
+  if (item->command == NULL)
+  {
+    ERROR ("powerdns plugin: strdup failed.");
+    return (-1);
+  }
+
   status = powerdns_get_data (item, &buffer, &buffer_size);
   if (status != 0)
     return (-1);
+
+  if (item->fields_num != 0)
+  {
+    fields = (const char* const *) item->fields;
+    fields_num = item->fields_num;
+  }
+  else
+  {
+    fields = default_server_fields;
+    fields_num = default_server_fields_num;
+  }
+
+  assert (fields != NULL);
+  assert (fields_num > 0);
 
   /* corrupt-packets=0,deferred-cache-inserts=0,deferred-cache-lookup=0,latency=0,packetcache-hit=0,packetcache-miss=0,packetcache-size=0,qsize-q=0,query-cache-hit=0,query-cache-miss=0,recursing-answers=0,recursing-questions=0,servfail-packets=0,tcp-answers=0,tcp-queries=0,timedout-packets=0,udp-answers=0,udp-queries=0,udp4-answers=0,udp4-queries=0,udp6-answers=0,udp6-queries=0, */
   dummy = buffer;
   saveptr = NULL;
   while ((key = strtok_r (dummy, ",", &saveptr)) != NULL)
   {
+    int i;
+
     dummy = NULL;
 
     value = strchr (key, '=');
@@ -499,6 +582,13 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
     if (value[0] == '\0')
       continue;
 
+    /* Check if this item was requested. */
+    for (i = 0; i < fields_num; i++)
+      if (strcasecmp (key, fields[i]) == 0)
+	break;
+    if (i >= fields_num)
+      continue;
+
     submit (item->instance, key, value);
   } /* while (strtok_r) */
 
@@ -506,6 +596,49 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
 
   return (0);
 } /* }}} int powerdns_read_server */
+
+/*
+ * powerdns_update_recursor_command
+ *
+ * Creates a string that holds the command to be sent to the recursor. This
+ * string is stores in the `command' member of the `list_item_t' passed to the
+ * function. This function is called by `powerdns_read_recursor'.
+ */
+static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
+{
+  char buffer[4096];
+  int status;
+
+  if (li == NULL)
+    return (0);
+
+  if (li->fields_num < 1)
+  {
+    sstrncpy (buffer, RECURSOR_COMMAND, sizeof (buffer));
+  }
+  else
+  {
+    strcpy (buffer, "get ");
+    status = strjoin (&buffer[4], sizeof (buffer) - strlen ("get "),
+	li->fields, li->fields_num,
+	/* seperator = */ " ");
+    if (status < 0)
+    {
+      ERROR ("powerdns plugin: strjoin failed.");
+      return (-1);
+    }
+  }
+
+  buffer[sizeof (buffer) - 1] = 0;
+  li->command = strdup (buffer);
+  if (li->command == NULL)
+  {
+    ERROR ("powerdns plugin: strdup failed.");
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int powerdns_update_recursor_command */
 
 static int powerdns_read_recursor (list_item_t *item) /* {{{ */
 {
@@ -520,6 +653,17 @@ static int powerdns_read_recursor (list_item_t *item) /* {{{ */
   char *key_saveptr;
   char *value;
   char *value_saveptr;
+
+  if (item->command == NULL)
+  {
+    status = powerdns_update_recursor_command (item);
+    if (status != 0)
+    {
+      ERROR ("powerdns plugin: powerdns_update_recursor_command failed.");
+      return (-1);
+    }
+  }
+  assert (item->command != NULL);
 
   status = powerdns_get_data (item, &buffer, &buffer_size);
   if (status != 0)
@@ -574,7 +718,54 @@ static int powerdns_config_add_string (const char *name, /* {{{ */
     return (-1);
 
   return (0);
-} /* }}} int ctail_config_add_string */
+} /* }}} int powerdns_config_add_string */
+
+static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
+    oconfig_item_t *ci)
+{
+  int i;
+  char **temp;
+
+  if (ci->values_num < 1)
+  {
+    WARNING ("powerdns plugin: The `Collect' option needs "
+	"at least one argument.");
+    return (-1);
+  }
+
+  for (i = 0; i < ci->values_num; i++)
+    if (ci->values[i].type != OCONFIG_TYPE_STRING)
+    {
+      WARNING ("powerdns plugin: Only string arguments are allowed to "
+	  "the `Collect' option.");
+      return (-1);
+    }
+
+  temp = (char **) realloc (li->fields,
+      sizeof (char *) * (li->fields_num + ci->values_num));
+  if (temp == NULL)
+  {
+    WARNING ("powerdns plugin: realloc failed.");
+    return (-1);
+  }
+  li->fields = temp;
+
+  for (i = 0; i < ci->values_num; i++)
+  {
+    li->fields[li->fields_num] = strdup (ci->values[i].value.string);
+    if (li->fields[li->fields_num] == NULL)
+    {
+      WARNING ("powerdns plugin: strdup failed.");
+      continue;
+    }
+    li->fields_num++;
+  }
+
+  /* Invalidate a previously computed command */
+  sfree (li->command);
+
+  return (0);
+} /* }}} int powerdns_config_add_collect */
 
 static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 {
@@ -612,17 +803,23 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
    */
   if (strcasecmp ("Server", ci->key) == 0)
   {
+    item->server_type = SRV_AUTHORITATIVE;
     item->func = powerdns_read_server;
-    item->command = strdup (SERVER_COMMAND);
     item->socktype = SOCK_STREAM;
     socket_temp = strdup (SERVER_SOCKET);
   }
   else if (strcasecmp ("Recursor", ci->key) == 0)
   {
+    item->server_type = SRV_RECURSOR;
     item->func = powerdns_read_recursor;
-    item->command = strdup (RECURSOR_COMMAND);
     item->socktype = SOCK_DGRAM;
     socket_temp = strdup (RECURSOR_SOCKET);
+  }
+  else
+  {
+    /* We must never get here.. */
+    assert (0);
+    return (-1);
   }
 
   status = 0;
@@ -630,8 +827,8 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp ("Command", option->key) == 0)
-      status = powerdns_config_add_string ("Command", &item->command, option);
+    if (strcasecmp ("Collect", option->key) == 0)
+      status = powerdns_config_add_collect (item, option);
     else if (strcasecmp ("Socket", option->key) == 0)
       status = powerdns_config_add_string ("Socket", &socket_temp, option);
     else
@@ -713,7 +910,7 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
     if ((strcasecmp ("Server", option->key) == 0)
 	|| (strcasecmp ("Recursor", option->key) == 0))
       powerdns_config_add_server (option);
-    if (strcasecmp ("LocalSocket", option->key) == 0)
+    else if (strcasecmp ("LocalSocket", option->key) == 0)
     {
       char *temp = strdup (option->key);
       if (temp == NULL)

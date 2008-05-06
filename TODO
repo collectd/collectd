@@ -1,3 +1,6 @@
+For version 4.4:
+* PowerDNS plugin
+
 For version 4.3:
 * unixsock plugin: Remove the custom cache if possible.
 

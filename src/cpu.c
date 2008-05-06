@@ -68,7 +68,12 @@
 # endif
 #endif /* HAVE_SYSCTLBYNAME */
 
-#if !PROCESSOR_CPU_LOAD_INFO && !KERNEL_LINUX && !HAVE_LIBKSTAT && !HAVE_SYSCTLBYNAME
+#if HAVE_STATGRAB_H
+# include <statgrab.h>
+#endif
+
+#if !PROCESSOR_CPU_LOAD_INFO && !KERNEL_LINUX && !HAVE_LIBKSTAT \
+	&& !HAVE_SYSCTLBYNAME && !HAVE_LIBSTATGRAB
 # error "No applicable input method."
 #endif
 
@@ -98,7 +103,11 @@ static int numcpu;
 
 #elif defined(HAVE_SYSCTLBYNAME)
 static int numcpu;
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif defined(HAVE_LIBSTATGRAB)
+/* no variables needed */
+#endif /* HAVE_LIBSTATGRAB */
 
 static int init (void)
 {
@@ -152,7 +161,11 @@ static int init (void)
 
 	if (numcpu != 1)
 		NOTICE ("cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
-#endif
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif defined(HAVE_LIBSTATGRAB)
+	/* nothing to initialize */
+#endif /* HAVE_LIBSTATGRAB */
 
 	return (0);
 } /* int init */
@@ -370,7 +383,25 @@ static int cpu_read (void)
 	submit (0, "nice", cpuinfo[CP_NICE]);
 	submit (0, "system", cpuinfo[CP_SYS]);
 	submit (0, "idle", cpuinfo[CP_IDLE]);
-#endif
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif defined(HAVE_LIBSTATGRAB)
+       sg_cpu_stats *cs;
+       cs = sg_get_cpu_stats ();
+
+       if (cs == NULL)
+       {
+	       ERROR ("cpu plugin: sg_get_cpu_stats failed.");
+               return (-1);
+       }
+
+       submit (0, "idle",   (counter_t) cs->idle);
+       submit (0, "nice",   (counter_t) cs->nice);
+       submit (0, "swap",   (counter_t) cs->swap);
+       submit (0, "system", (counter_t) cs->kernel);
+       submit (0, "user",   (counter_t) cs->user);
+       submit (0, "wait",   (counter_t) cs->iowait);
+#endif /* HAVE_LIBSTATGRAB */
 
 	return (0);
 }

@@ -127,12 +127,16 @@
 #endif
 
 #ifndef BYTE_ORDER
-# ifdef __BYTE_ORDER
+# if defined(_BYTE_ORDER)
+#  define BYTE_ORDER _BYTE_ORDER
+# elif defined(__BYTE_ORDER)
 #  define BYTE_ORDER __BYTE_ORDER
 # endif
 #endif
 #ifndef BIG_ENDIAN
-# ifdef __BIG_ENDIAN
+# if defined(_BIG_ENDIAN)
+#  define BIG_ENDIAN _BIG_ENDIAN
+# elif defined(__BIG_ENDIAN)
 #  define BIG_ENDIAN __BIG_ENDIAN
 # endif
 #endif
