@@ -402,6 +402,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
       FUNC_ERROR ("recv");
       break;
     }
+    buffer_size = status + 1;
     status = 0;
   } while (0);
 
@@ -411,7 +412,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
   if (status != 0)
     return (-1);
 
-  buffer_size = status + 1;
+  assert (buffer_size > 0);
   buffer = (char *) malloc (buffer_size);
   if (buffer == NULL)
   {
@@ -419,8 +420,8 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     return (-1);
   }
 
-  memcpy (buffer, temp, status);
-  buffer[status] = 0;
+  memcpy (buffer, temp, buffer_size - 1);
+  buffer[buffer_size - 1] = 0;
 
   *ret_buffer = buffer;
   *ret_buffer_size = buffer_size;
@@ -662,12 +663,18 @@ static int powerdns_read_recursor (list_item_t *item) /* {{{ */
       ERROR ("powerdns plugin: powerdns_update_recursor_command failed.");
       return (-1);
     }
+
+    DEBUG ("powerdns plugin: powerdns_read_recursor: item->command = %s;",
+        item->command);
   }
   assert (item->command != NULL);
 
   status = powerdns_get_data (item, &buffer, &buffer_size);
   if (status != 0)
+  {
+    ERROR ("powerdns plugin: powerdns_get_data failed.");
     return (-1);
+  }
 
   keys_list = strdup (item->command);
   if (keys_list == NULL)
@@ -848,13 +855,6 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     if (socket_temp == NULL)
     {
       ERROR ("powerdns plugin: socket_temp == NULL.");
-      status = -1;
-      break;
-    }
-
-    if (item->command == NULL)
-    {
-      ERROR ("powerdns plugin: item->command == NULL.");
       status = -1;
       break;
     }
