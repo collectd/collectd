@@ -183,19 +183,25 @@ Example:
   -> | PUTNOTIF type=temperature severity=warning time=1201094702 message=The roof is on fire!
   <- | 0 Success
 
-=item B<FLUSH> [B<timeout=>I<Timeout>] [B<plugin=>I<Plugin> [...]]
+=item B<FLUSH> [B<timeout=>I<Timeout>] [B<plugin=>I<Plugin> [...]] [B<identifier=>I<Ident> [...]]
 
 Flushes all cached data older than I<Timeout> seconds. If no timeout has been
-specified, it defaults to -1 which causes all data to be flushed. B<timeout>
-may be specified multiple times - each occurrence applies to plugins listed
-afterwards.
+specified, it defaults to -1 which causes all data to be flushed.
 
-If specified, only specific plugins are flushed. Otherwise all plugins
-providing a flush callback are flushed.
+If the B<plugin> option has been specified, only the I<Plugin> plugin will be
+flushed. You can have multiple B<plugin> options to flush multiple plugins in
+one go. If the B<plugin> option is not given all plugins providing a flush
+callback will be flushed.
+
+If the B<identifier> option is given only the specified values will be flushed.
+This is meant to be used by graphing or displaying frontends which want to have
+the lastest values for a specific graph. Again, you can specify the
+B<identifier> option multiple times to flush several values. If this option is
+not specified at all, all values will be flushed.
 
 Example:
-  -> | FLUSH
-  <- | 0 Done
+  -> | FLUSH plugin=rrdtool identifier=localhost/df/df-root identifier=localhost/df/df-var
+  <- | 0 Done: 2 successful, 0 errors
 
 =back
 
