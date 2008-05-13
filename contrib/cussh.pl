@@ -57,6 +57,7 @@ use Collectd::Unixsock();
 	my $sock = Collectd::Unixsock->new($path);
 
 	my $cmds = {
+		HELP    => \&cmd_help,
 		PUTVAL  => \&putval,
 		GETVAL  => \&getval,
 		FLUSH   => \&flush,
@@ -149,6 +150,25 @@ sub putid {
 =head1 COMMANDS
 
 =over 4
+
+=item B<HELP>
+
+=cut
+
+sub cmd_help {
+	print <<HELP;
+Available commands:
+  HELP
+  PUTVAL
+  GETVAL
+  FLUSH
+  LISTVAL
+
+See the embedded Perldoc documentation for details. To do that, run:
+  perldoc $0
+HELP
+	return 1;
+} # cmd_help
 
 =item B<GETVAL> I<Identifier>
 
