@@ -389,7 +389,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 		ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
 		return (-1);
 	}
-	response[sizeof (response)] = 0;
+	response[sizeof (response) - 1] = 0;
 
 	/* Check answer */
 	if ((strncasecmp ("OK", response, 2) == 0)
@@ -437,7 +437,7 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 			ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
 			return (-1);
 		}
-		buffer[sizeof (buffer)] = 0;
+		buffer[sizeof (buffer) - 1] = 0;
 		
 		if (strncmp ("average_packet_loss=", buffer,
 					strlen ("average_packet_loss=")) == 0)
