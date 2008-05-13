@@ -299,7 +299,7 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 
     if (strcasecmp ("Instance", option->key) == 0)
       status = ut_config_type_instance (&th, option);
-    if (strcasecmp ("DataSource", option->key) == 0)
+    else if (strcasecmp ("DataSource", option->key) == 0)
       status = ut_config_type_datasource (&th, option);
     else if ((strcasecmp ("WarningMax", option->key) == 0)
 	|| (strcasecmp ("FailureMax", option->key) == 0))
