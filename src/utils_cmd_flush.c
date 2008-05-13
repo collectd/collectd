@@ -33,12 +33,31 @@
 		return -1; \
 	}
 
+static int add_to_array (char ***array, int *array_num, char *value)
+{
+	char **temp;
+
+	temp = (char **) realloc (*array, sizeof (char *) * (*array_num + 1));
+	if (temp == NULL)
+		return (-1);
+
+	*array = temp;
+	(*array)[*array_num] = value;
+	(*array_num)++;
+
+	return (0);
+} /* int add_to_array */
+
 int handle_flush (FILE *fh, char **fields, int fields_num)
 {
 	int success = 0;
 	int error   = 0;
 
 	int timeout = -1;
+	char **plugins = NULL;
+	int plugins_num = 0;
+	char **identifiers = NULL;
+	int identifiers_num = 0;
 
 	int i;
 
@@ -49,12 +68,17 @@ int handle_flush (FILE *fh, char **fields, int fields_num)
 
 		if (strncasecmp ("plugin=", option, strlen ("plugin=")) == 0)
 		{
-			char *plugin = option + strlen ("plugin=");
+			char *plugin;
+			
+			plugin = option + strlen ("plugin=");
+			add_to_array (&plugins, &plugins_num, plugin);
+		}
+		else if (strncasecmp ("identifier=", option, strlen ("identifier=")) == 0)
+		{
+			char *identifier;
 
-			if (0 == plugin_flush_one (timeout, plugin))
-				++success;
-			else
-				++error;
+			identifier = option + strlen ("identifier=");
+			add_to_array (&identifiers, &identifiers_num, identifier);
 		}
 		else if (strncasecmp ("timeout=", option, strlen ("timeout=")) == 0)
 		{
@@ -76,6 +100,35 @@ int handle_flush (FILE *fh, char **fields, int fields_num)
 		{
 			print_to_socket (fh, "-1 Cannot parse option %s\n", option);
 			return (-1);
+		}
+	}
+
+	/* Add NULL entries for `any plugin' and/or `any value' if nothing was
+	 * specified. */
+	if (plugins_num == 0)
+		add_to_array (&plugins, &plugins_num, NULL);
+
+	if (identifiers_num == 0)
+		add_to_array (&identifiers, &identifiers_num, NULL);
+
+	for (i = 0; i < plugins_num; i++)
+	{
+		char *plugin;
+		int j;
+
+		plugin = plugins[i];
+
+		for (j = 0; j < identifiers_num; j++)
+		{
+			char *identifier;
+			int status;
+
+			identifier = identifiers[j];
+			status = plugin_flush (plugin, timeout, identifier);
+			if (status == 0)
+				success++;
+			else
+				error++;
 		}
 	}
 
