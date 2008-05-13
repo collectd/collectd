@@ -71,7 +71,7 @@ sub _create_socket
 	return ($sock);
 } # _create_socket
 
-=head1 VALUE IDENTIFIER
+=head1 VALUE IDENTIFIERS
 
 The values in the collectd are identified using an five-tuple (host, plugin,
 plugin-instance, type, type-instance) where only plugin-instance and
@@ -219,8 +219,8 @@ sub getval
 Submits a value-list to the daemon. If the B<time> argument is omitted
 C<time()> is used. The required argument B<values> is a reference to an array
 of values that is to be submitted. The number of values must match the number
-of values expected for the given B<type> (see L<VALUE IDENTIFIER>), though this
-is checked by the daemon, not the Perl module. Also, gauge data-sources
+of values expected for the given B<type> (see L<VALUE IDENTIFIERS>), though
+this is checked by the daemon, not the Perl module. Also, gauge data-sources
 (e.E<nbsp>g. system-load) may be C<undef>. Returns true upon success and false
 otherwise.
 
@@ -400,7 +400,7 @@ sub putnotif
 	return;
 } # putnotif
 
-=item I<$obj>-E<gt>B<flush> (B<timeout> =E<gt> I<$timeout>, B<plugins> =E<gt> [...]);
+=item I<$obj>-E<gt>B<flush> (B<timeout> =E<gt> I<$timeout>, B<plugins> =E<gt> [...], B<identifier>  =E<gt> [...]);
 
 Flush cached data.
 
@@ -415,7 +415,14 @@ flushed.
 
 =item B<plugins>
 
-If this option is specified, only the selected plugins will be flushed. 
+If this option is specified, only the selected plugins will be flushed. The
+argument is a reference to an array of strings.
+
+=item B<identifier>
+
+If this option is specified, only the given identifier(s) will be flushed. The
+argument is a reference to an array of identifiers. Identifiers, in this case,
+are hash references and have the members as outlined in L<VALUE IDENTIFIERS>.
 
 =back
 
@@ -431,7 +438,7 @@ sub flush
 	my $status = 0;
 	my $msg    = "FLUSH";
 
-	if ($args{'timeout'})
+	if (defined ($args{'timeout'}))
 	{
 		$msg .= " timeout=" . $args{'timeout'};
 	}
@@ -441,6 +448,31 @@ sub flush
 		foreach my $plugin (@{$args{'plugins'}})
 		{
 			$msg .= " plugin=" . $plugin;
+		}
+	}
+
+	if ($args{'identifier'})
+	{
+		for (@{$args{'identifier'}})
+		{
+			my $identifier = $_;
+			my $ident_str;
+
+			if (ref ($identifier) ne 'HASH')
+			{
+				cluck ("The argument of the `identifier' "
+					. "option must be an array reference "
+					. "of hash references.");
+				return;
+			}
+
+			$ident_str = _create_identifier ($identifier);
+			if (!$ident_str)
+			{
+				return;
+			}
+
+			$msg .= " identifier=$ident_str";
 		}
 	}
 
