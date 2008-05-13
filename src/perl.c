@@ -1264,7 +1264,8 @@ static int perl_notify (const notification_t *notif)
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
-static int perl_flush (const int timeout)
+/* TODO: Implement flushing of single identifiers. */
+static int perl_flush (int timeout, const char *identifier)
 {
 	dTHX;
 

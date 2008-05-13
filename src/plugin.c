@@ -441,7 +441,8 @@ int plugin_register_write (const char *name,
 	return (register_callback (&list_write, name, (void *) callback));
 } /* int plugin_register_write */
 
-int plugin_register_flush (const char *name, int (*callback) (const int))
+int plugin_register_flush (const char *name,
+		int (*callback) (const int timeout, const char *identifier))
 {
 	return (register_callback (&list_flush, name, (void *) callback));
 } /* int plugin_register_flush */
@@ -693,6 +694,28 @@ void plugin_flush_all (int timeout)
 		(*callback) (timeout);
 	}
 } /* void plugin_flush_all */
+
+int plugin_flush (const char *plugin, int timeout, const char *identifier)
+{
+  int (*callback) (int timeout, const char *identifier);
+  llentry_t *le;
+
+  if (list_flush == NULL)
+    return (0);
+
+  le = llist_head (list_flush);
+  while (le != NULL)
+  {
+    if ((plugin != NULL)
+	&& (strcmp (plugin, le->key) != 0))
+      continue;
+
+    callback = (int (*) (int, const char *)) le->value;
+    le = le->next;
+
+    (*callback) (timeout, identifier);
+  }
+} /* int plugin_flush */
 
 void plugin_shutdown_all (void)
 {

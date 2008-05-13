@@ -1757,7 +1757,8 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
-static int network_flush (int timeout)
+/* TODO: Implement flushing of single items. */
+static int network_flush (int timeout, const char *itentifier)
 {
 	pthread_mutex_lock (&send_buffer_lock);
 

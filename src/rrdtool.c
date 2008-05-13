@@ -766,6 +766,55 @@ static void rrd_cache_flush (int timeout)
 	cache_flush_last = now;
 } /* void rrd_cache_flush */
 
+static int rrd_cache_flush_identifier (int timeout, const char *identifier)
+{
+  rrd_cache_t *rc;
+  time_t now;
+  int status;
+  char *key;
+  size_t key_size;
+
+  if (identifier == NULL)
+  {
+    rrd_cache_flush (timeout);
+    return (0);
+  }
+
+  now = time (NULL);
+
+  key_size = strlen (identifier + 5) * sizeof (char);
+  key = (char *) malloc (key_size);
+  if (key == NULL)
+  {
+    ERROR ("rrdtool plugin: rrd_cache_flush_identifier: malloc failed.");
+    return (-1);
+  }
+  snprintf (key, key_size, "%s.rrd", identifier);
+  key[key_size - 1] = 0;
+
+  status = c_avl_get (cache, key, (void *) &rc);
+  if (status != 0)
+  {
+    WARNING ("rrdtool plugin: rrd_cache_flush_identifier: "
+	"c_avl_get (%s) failed. Does that file really exist?",
+	key);
+    return (status);
+  }
+
+  if (rc->flags == FLAG_QUEUED)
+    status = 0;
+  else if ((now - rc->first_value) < timeout)
+    status = 0;
+  else if (rc->values_num > 0)
+  {
+    status = rrd_queue_cache_entry (key);
+    if (status == 0)
+      rc->flags = FLAG_QUEUED;
+  }
+
+  return (status);
+} /* int rrd_cache_flush_identifier */
+
 static int rrd_cache_insert (const char *filename,
 		const char *value, time_t value_time)
 {
@@ -940,7 +989,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	return (status);
 } /* int rrd_write */
 
-static int rrd_flush (const int timeout)
+static int rrd_flush (int timeout, const char *identifier)
 {
 	pthread_mutex_lock (&cache_lock);
 
@@ -949,7 +998,8 @@ static int rrd_flush (const int timeout)
 		return (0);
 	}
 
-	rrd_cache_flush (timeout);
+	rrd_cache_flush_identifier (timeout, identifier);
+
 	pthread_mutex_unlock (&cache_lock);
 	return (0);
 } /* int rrd_flush */

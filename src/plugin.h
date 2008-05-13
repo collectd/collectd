@@ -151,10 +151,11 @@ int plugin_load (const char *name);
 
 void plugin_init_all (void);
 void plugin_read_all (void);
-void plugin_flush_all (int timeout);
 void plugin_shutdown_all (void);
 
+void plugin_flush_all (int timeout);
 int plugin_flush_one (int timeout, const char *name);
+int plugin_flush (const char *plugin, int timeout, const char *identifier);
 
 /*
  * The `plugin_register_*' functions are used to make `config', `init',
@@ -173,7 +174,7 @@ int plugin_register_read (const char *name,
 int plugin_register_write (const char *name,
 		int (*callback) (const data_set_t *ds, const value_list_t *vl));
 int plugin_register_flush (const char *name,
-		int (*callback) (const int));
+		int (*callback) (const int timeout, const char *identifier));
 int plugin_register_shutdown (char *name,
 		int (*callback) (void));
 int plugin_register_data_set (const data_set_t *ds);
