@@ -771,8 +771,7 @@ static int rrd_cache_flush_identifier (int timeout, const char *identifier)
   rrd_cache_t *rc;
   time_t now;
   int status;
-  char *key;
-  size_t key_size;
+  char key[2048];
 
   if (identifier == NULL)
   {
@@ -782,15 +781,13 @@ static int rrd_cache_flush_identifier (int timeout, const char *identifier)
 
   now = time (NULL);
 
-  key_size = strlen (identifier + 5) * sizeof (char);
-  key = (char *) malloc (key_size);
-  if (key == NULL)
-  {
-    ERROR ("rrdtool plugin: rrd_cache_flush_identifier: malloc failed.");
-    return (-1);
-  }
-  snprintf (key, key_size, "%s.rrd", identifier);
-  key[key_size - 1] = 0;
+  if (datadir == NULL)
+	  snprintf (key, sizeof (key), "%s.rrd",
+			  identifier);
+  else
+	  snprintf (key, sizeof (key), "%s/%s.rrd",
+			  datadir, identifier);
+  key[sizeof (key) - 1] = 0;
 
   status = c_avl_get (cache, key, (void *) &rc);
   if (status != 0)
