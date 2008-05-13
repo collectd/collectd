@@ -1,3 +1,38 @@
+2008-05-06, Version 4.4.0
+	* collectd: Internal code cleanups.
+	* collectd: Added support for a `Flush' command in the unixsock and
+	  exec plugins. This command can be used to force a plugin (or all) to
+	  flush its values to disk.
+	* collectd: Thresholds can now be configured to apply to one data
+	  source only, making it possible to configure different thresholds
+	  for each data source.
+	* apache, nginx plugins: Added the possibility to disable host and/or
+	  peer verification.
+	* ascent plugin: The new ascent plugin reads and parses the statistics
+	  page of an Ascent server.
+	* cpu plugin: Support for the statgrab library has been added.
+	* disk plugin: The possibility to ignore certain disks or collect only
+	  specific disks has been added.
+	* disk plugin: Support for the statgrab library has been added.
+	* ipmi plugin: The new ipmi plugin uses the OpenIPMI library to read
+	  sensor values via IPMI, the intelligent platform management
+	  interface.
+	* iptables plugin: The iptc library that is used by the iptables
+	  plugin has been added to the distribution, because it is not
+	  provided by all distributions and removed from at least one.
+	* powerdns plugin: The new powerdns plugin reads statistics from an
+	  authoritative or a recursing PowerDNS name server.
+	* rrdtool plugin: The size of the files generated with the default
+	  configuration has been decreased.
+	* tail plugin: The new tail plugin can be used to gather statistics by
+	  continuously reading from log files.
+	* teamspeak2 plugin: The new teamspeak2 plugin connects to a
+	  TeamSpeak2 server and collects statistics about the number of users
+	  and number of channels.
+	* users plugin: Support for the statgrab library has been added.
+	* vmem plugin: The new vmem plugin collects very detailed statistics
+	  about the virtual memory subsystem of Linux.
+
 2008-04-22, Version 4.3.3
 	* build system: Improved detection of several libraries, especially if
 	  they are in non-standard paths.

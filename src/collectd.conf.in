@@ -49,6 +49,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 @BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 @BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
+@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 @BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 @BUILD_PLUGIN_RRDTOOL_TRUE@LoadPlugin rrdtool
 @BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
@@ -56,6 +57,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 @BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 @BUILD_PLUGIN_SYSLOG_TRUE@LoadPlugin syslog
+@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
 @BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
 @BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
 @BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
@@ -219,6 +221,20 @@ FQDNLookup   true
 #	TTL 255
 #</Plugin>
 
+#<Plugin powerdns>
+#  <Server "server_name">
+#    Collect "latency"
+#    Collect "udp-answers" "udp-queries"
+#    Socket "/var/run/pdns.controlsocket"
+#  </Server>
+#  <Recursor "recursor_name">
+#    Collect "questions"
+#    Collect "cache-hits" "cache-misses"
+#    Socket "/var/run/pdns_recursor.controlsocket"
+#  </Recursor>
+#  LocalSocket "/opt/collectd/var/run/collectd-powerdns"
+#</Plugin>
+
 #<Plugin processes>
 #	Process "name"
 #</Plugin>
@@ -280,6 +296,24 @@ FQDNLookup   true
 
 #<Plugin syslog>
 #	LogLevel info
+#</Plugin>
+
+#<Plugin "tail">
+#  <File "/var/log/exim4/mainlog">
+#    Instance "exim"
+#    <Match>
+#      Regex "S=([1-9][0-9]*)"
+#      DSType "CounterAdd"
+#      Type "ipt_bytes"
+#      Instance "total"
+#    </Match>
+#    <Match>
+#      Regex "\\<R=local_user\\>"
+#      DSType "CounterInc"
+#      Type "email_count"
+#      Instance "local_user"
+#    </Match>
+#  </File>
 #</Plugin>
 
 #<Plugin tcpconns>

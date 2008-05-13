@@ -25,7 +25,9 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#if HAVE_LIBIPTC_LIBIPTC_H
+#if OWN_LIBIPTC
+# include "libiptc/libiptc.h"
+#else
 # include <libiptc/libiptc.h>
 #endif
 

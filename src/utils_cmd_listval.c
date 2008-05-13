@@ -26,6 +26,14 @@
 #include "utils_cmd_listval.h"
 #include "utils_cache.h"
 
+#define print_to_socket(fh, ...) \
+  if (fprintf (fh, __VA_ARGS__) < 0) { \
+    char errbuf[1024]; \
+    WARNING ("handle_listval: failed to write to socket #%i: %s", \
+	fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
+    return -1; \
+  }
+
 int handle_listval (FILE *fh, char **fields, int fields_num)
 {
   char **names = NULL;
@@ -38,9 +46,8 @@ int handle_listval (FILE *fh, char **fields, int fields_num)
   {
     DEBUG ("command listval: us_handle_listval: Wrong number of fields: %i",
 	fields_num);
-    fprintf (fh, "-1 Wrong number of fields: Got %i, expected 1.\n",
+    print_to_socket (fh, "-1 Wrong number of fields: Got %i, expected 1.\n",
 	fields_num);
-    fflush (fh);
     return (-1);
   }
 
@@ -48,15 +55,14 @@ int handle_listval (FILE *fh, char **fields, int fields_num)
   if (status != 0)
   {
     DEBUG ("command listval: uc_get_names failed with status %i", status);
-    fprintf (fh, "-1 uc_get_names failed.\n");
-    fflush (fh);
+    print_to_socket (fh, "-1 uc_get_names failed.\n");
     return (-1);
   }
 
-  fprintf (fh, "%i Value%s found\n", (int) number, (number == 1) ? "" : "s");
+  print_to_socket (fh, "%i Value%s found\n",
+      (int) number, (number == 1) ? "" : "s");
   for (i = 0; i < number; i++)
-    fprintf (fh, "%u %s\n", (unsigned int) times[i], names[i]);
-  fflush (fh);
+    print_to_socket (fh, "%u %s\n", (unsigned int) times[i], names[i]);
 
   return (0);
 } /* int handle_listval */

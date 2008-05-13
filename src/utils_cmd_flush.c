@@ -25,6 +25,14 @@
 #include "common.h"
 #include "plugin.h"
 
+#define print_to_socket(fh, ...) \
+	if (fprintf (fh, __VA_ARGS__) < 0) { \
+		char errbuf[1024]; \
+		WARNING ("handle_flush: failed to write to socket #%i: %s", \
+				fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
+		return -1; \
+	}
+
 int handle_flush (FILE *fh, char **fields, int fields_num)
 {
 	int success = 0;
@@ -66,22 +74,21 @@ int handle_flush (FILE *fh, char **fields, int fields_num)
 
 		if (status != 0)
 		{
-			fprintf (fh, "-1 Cannot parse option %s\n", option);
-			fflush (fh);
+			print_to_socket (fh, "-1 Cannot parse option %s\n", option);
 			return (-1);
 		}
 	}
 
 	if ((success + error) > 0)
 	{
-		fprintf (fh, "0 Done: %i successful, %i errors\n", success, error);
+		print_to_socket (fh, "0 Done: %i successful, %i errors\n",
+				success, error);
 	}
 	else
 	{
 		plugin_flush_all (timeout);
-		fprintf (fh, "0 Done\n");
+		print_to_socket (fh, "0 Done\n");
 	}
-	fflush (fh);
 
 	return (0);
 } /* int handle_flush */

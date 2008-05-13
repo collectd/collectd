@@ -4,7 +4,8 @@ This package was written by:
 apcups plugin by:
   Anthony Gialluca <tonyabg at charter.net>
 
-cpufreq, multimeter and irq plugin by:
+cpufreq, multimeter and irq plugin, as well as some bugfixes in the exec plugin
+by:
   Peter Holik <peter at holik.at>
 
 hddtemp plugin by:
@@ -28,6 +29,9 @@ nfs plugin by:
 perl plugin by:
   Sebastian Harl <sh at tokkee.org>
 
+powerdns plugin and initial `tail' subsystem by:
+  Luke Herberling <collectd at c-ware.com>
+
 processes plugin by:
   Lyonel Vincent <lyonel at ezix.org>
 
@@ -47,8 +51,8 @@ users plugin by:
   Sebastian Harl <sh at tokkee.org>
 
 uuid plugin by:
-  Dan Berrange <berrange@redhat.com>
-  Richard W.M. Jones <rjones@redhat.com>
+  Dan Berrange <berrange at redhat.com>
+  Richard W.M. Jones <rjones at redhat.com>
 
 vserver plugin by:
   Sebastian Harl <sh at tokkee.org>
@@ -69,6 +73,10 @@ The `log' mode has been written by:
 Much time and effort to find a nasty bug in the ntpd-plugin has been
 contributed by:
   Luboš Staněk <lubek at users.sourceforge.net>
+
+Support for the statgrab library has been added to the cpu, disk and users
+plugins by
+  Oleg King <king2 at kaluga.ru>
 
 collectd is available at:
   <http://collectd.org/>

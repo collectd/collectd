@@ -25,6 +25,14 @@
 
 #include "utils_cache.h"
 
+#define print_to_socket(fh, ...) \
+  if (fprintf (fh, __VA_ARGS__) < 0) { \
+    char errbuf[1024]; \
+    WARNING ("handle_getval: failed to write to socket #%i: %s", \
+	fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
+    return -1; \
+  }
+
 int handle_getval (FILE *fh, char **fields, int fields_num)
 {
   char *hostname;
@@ -45,17 +53,15 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
   if (fields_num != 2)
   {
     DEBUG ("unixsock plugin: Wrong number of fields: %i", fields_num);
-    fprintf (fh, "-1 Wrong number of fields: Got %i, expected 2.\n",
+    print_to_socket (fh, "-1 Wrong number of fields: Got %i, expected 2.\n",
 	fields_num);
-    fflush (fh);
     return (-1);
   }
   DEBUG ("unixsock plugin: Got query for `%s'", fields[1]);
 
   if (strlen (fields[1]) < strlen ("h/p/t"))
   {
-    fprintf (fh, "-1 Invalied identifier, %s\n", fields[1]);
-    fflush (fh);
+    print_to_socket (fh, "-1 Invalied identifier, %s\n", fields[1]);
     return (-1);
   }
 
@@ -69,8 +75,7 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
   if (status != 0)
   {
     DEBUG ("unixsock plugin: Cannot parse `%s'", fields[1]);
-    fprintf (fh, "-1 Cannot parse identifier.\n");
-    fflush (fh);
+    print_to_socket (fh, "-1 Cannot parse identifier.\n");
     sfree (identifier_copy);
     return (-1);
   }
@@ -79,8 +84,7 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
   if (ds == NULL)
   {
     DEBUG ("unixsock plugin: plugin_get_ds (%s) == NULL;", type);
-    fprintf (fh, "-1 Type `%s' is unknown.\n", type);
-    fflush (fh);
+    print_to_socket (fh, "-1 Type `%s' is unknown.\n", type);
     sfree (identifier_copy);
     return (-1);
   }
@@ -90,8 +94,7 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
   status = uc_get_rate_by_name (fields[1], &values, &values_num);
   if (status != 0)
   {
-    fprintf (fh, "-1 No such value\n");
-    fflush (fh);
+    print_to_socket (fh, "-1 No such value\n");
     sfree (identifier_copy);
     return (-1);
   }
@@ -101,24 +104,26 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
     ERROR ("ds[%s]->ds_num = %i, "
 	"but uc_get_rate_by_name returned %i values.",
 	ds->type, ds->ds_num, values_num);
-    fprintf (fh, "-1 Error reading value from cache.\n");
-    fflush (fh);
+    print_to_socket (fh, "-1 Error reading value from cache.\n");
     sfree (values);
     sfree (identifier_copy);
     return (-1);
   }
 
-  fprintf (fh, "%u Value%s found\n", (unsigned int) values_num,
+  print_to_socket (fh, "%u Value%s found\n", (unsigned int) values_num,
       (values_num == 1) ? "" : "s");
   for (i = 0; i < values_num; i++)
   {
-    fprintf (fh, "%s=", ds->ds[i].name);
+    print_to_socket (fh, "%s=", ds->ds[i].name);
     if (isnan (values[i]))
-      fprintf (fh, "NaN\n");
+    {
+      print_to_socket (fh, "NaN\n");
+    }
     else
-      fprintf (fh, "%12e\n", values[i]);
+    {
+      print_to_socket (fh, "%12e\n", values[i]);
+    }
   }
-  fflush (fh);
 
   sfree (values);
   sfree (identifier_copy);

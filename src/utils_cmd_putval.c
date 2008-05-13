@@ -23,6 +23,14 @@
 #include "common.h"
 #include "plugin.h"
 
+#define print_to_socket(fh, ...) \
+	if (fprintf (fh, __VA_ARGS__) < 0) { \
+		char errbuf[1024]; \
+		WARNING ("handle_putval: failed to write to socket #%i: %s", \
+				fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
+		return -1; \
+	}
+
 static int parse_value (const data_set_t *ds, value_list_t *vl,
 	       	FILE *fh, char *buffer)
 {
@@ -35,7 +43,7 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 	char *value_str = strchr (time_str, ':');
 	if (value_str == NULL)
 	{
-		fprintf (fh, "-1 No time found.\n");
+		print_to_socket (fh, "-1 No time found.\n");
 		return (-1);
 	}
 	*value_str = '\0'; value_str++;
@@ -75,7 +83,7 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 				"Number of values incorrect: "
 				"Got %i, expected %i. Identifier is `%s'.",
 				i, vl->values_len, identifier);
-		fprintf (fh, "-1 Number of values incorrect: "
+		print_to_socket (fh, "-1 Number of values incorrect: "
 				"Got %i, expected %i.\n",
 			       	i, vl->values_len);
 		return (-1);
@@ -129,10 +137,9 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	{
 		DEBUG ("cmd putval: Wrong number of fields: %i",
 			       	fields_num);
-		fprintf (fh, "-1 Wrong number of fields: Got %i, "
+		print_to_socket (fh, "-1 Wrong number of fields: Got %i, "
 				"expected at least 3.\n",
 				fields_num);
-		fflush (fh);
 		return (-1);
 	}
 
@@ -146,8 +153,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	if (status != 0)
 	{
 		DEBUG ("cmd putval: Cannot parse `%s'", fields[1]);
-		fprintf (fh, "-1 Cannot parse identifier.\n");
-		fflush (fh);
+		print_to_socket (fh, "-1 Cannot parse identifier.\n");
 		sfree (identifier_copy);
 		return (-1);
 	}
@@ -159,8 +165,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 			|| ((type_instance != NULL)
 				&& (strlen (type_instance) >= sizeof (vl.type_instance))))
 	{
-		fprintf (fh, "-1 Identifier too long.\n");
-		fflush (fh);
+		print_to_socket (fh, "-1 Identifier too long.\n");
 		sfree (identifier_copy);
 		return (-1);
 	}
@@ -183,8 +188,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	vl.values = (value_t *) malloc (vl.values_len * sizeof (value_t));
 	if (vl.values == NULL)
 	{
-		fprintf (fh, "-1 malloc failed.\n");
-		fflush (fh);
+		print_to_socket (fh, "-1 malloc failed.\n");
 		sfree (identifier_copy);
 		return (-1);
 	}
@@ -204,7 +208,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 		{
 			if (parse_option (&vl, fields[i]) != 0)
 			{
-				fprintf (fh, "-1 Error parsing option `%s'\n",
+				print_to_socket (fh, "-1 Error parsing option `%s'\n",
 						fields[i]);
 				break;
 			}
@@ -220,8 +224,7 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 	/* Done parsing the options. */
 
 	if (i == fields_num)
-		fprintf (fh, "0 Success\n");
-	fflush (fh);
+		print_to_socket (fh, "0 Success\n");
 
 	sfree (vl.values); 
 	sfree (identifier_copy);

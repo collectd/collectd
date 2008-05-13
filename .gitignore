@@ -48,6 +48,9 @@ src/collectd*.1
 src/collectd*.5
 src/types.db.5
 src/config.h.in~
+src/libiptc/.libs
+src/libiptc/*.la
+src/libiptc/*.lo
 src/liboconfig/.libs
 src/liboconfig/*.la
 src/liboconfig/*.lo
