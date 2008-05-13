@@ -105,11 +105,7 @@ sub getid {
 
 	print $$string . $/;
 	my ($h, $p, $pi, $t, $ti) =
-<<<<<<< collectd-4.3:contrib/cussh.pl
-		$$string =~ m/^(\w+)\/(\w+)(?:-(\w+))?\/(\w+)(?:-(\w+))?\s+/;
-=======
 		$$string =~ m#^([^/]+)/([^/-]+)(?:-([^/]+))?/([^/-]+)(?:-([^/]+))?\s*#;
->>>>>>> local:contrib/cussh.pl
 	$$string = $';
 
 	return if ((! $h) || (! $p) || (! $t));
