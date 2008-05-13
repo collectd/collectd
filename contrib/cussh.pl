@@ -223,6 +223,15 @@ sub flush {
 			elsif ($option eq "timeout") {
 				$args{"timeout"} = $value;
 			}
+			elsif ($option eq "identifier") {
+				my $id = getid (\$value);
+				if (!$id)
+				{
+					print STDERR "Not a valid identifier: \"$value\"\n";
+					next;
+				}
+				push @{$args{"identifier"}}, $id;
+			}
 			else {
 				print STDERR "Invalid option \"$option\".\n";
 				return;
