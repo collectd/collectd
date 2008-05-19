@@ -1738,6 +1738,10 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
 
+PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
+		[with_libnotify="yes"],
+		[with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"])
+
 with_upsclient_config="libupsclient-config"
 with_upsclient_cflags=""
 with_upsclient_libs=""
@@ -2469,6 +2473,7 @@ AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
+AC_PLUGIN([desktop_notification], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
@@ -2598,6 +2603,7 @@ Configuration:
     libmysql  . . . . . $with_libmysql
     libnetlink  . . . . $with_libnetlink
     libnetsnmp  . . . . $with_libnetsnmp
+    libnotify . . . . . $with_libnotify
     liboconfig  . . . . $with_liboconfig
     libopenipmi . . . . $with_libopenipmipthread
     liboping  . . . . . $with_liboping
@@ -2628,6 +2634,7 @@ Configuration:
     cpu . . . . . . . . $enable_cpu
     cpufreq . . . . . . $enable_cpufreq
     csv . . . . . . . . $enable_csv
+    desktop_notification $enable_desktop_notification
     df  . . . . . . . . $enable_df
     disk  . . . . . . . $enable_disk
     dns . . . . . . . . $enable_dns

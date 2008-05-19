@@ -21,6 +21,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 @BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @BUILD_PLUGIN_CSV_TRUE@LoadPlugin csv
+@BUILD_PLUGIN_DESKTOP_NOTIFICATION_TRUE@LoadPlugin desktop_notification
 @BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 @BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 @BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
@@ -91,6 +92,12 @@ FQDNLookup   true
 #<Plugin csv>
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
+#</Plugin>
+
+#<Plugin desktop_notification>
+#	OkayTimeout 1000
+#	WarningTimeout 5000
+#	FailureTimeout 0
 #</Plugin>
 
 #<Plugin df>

@@ -230,6 +230,12 @@ Features
 
   * Notifications can be handled by the following plugins:
 
+    - desktop_notification
+      Send a desktop notification to a notification daemon, as defined in
+      the Desktop Notification Specification. To actually display the
+      notifications, notification-daemon is required.
+      See http://www.galago-project.org/specs/notification/.
+
     - exec
       Execute a program or script to handle the notification.
       See collectd-exec(5).
@@ -332,6 +338,9 @@ Prerequisites
 
   * libnetsnmp (optional)
     For the `snmp' plugin.
+
+  * libnotify (optional)
+    For the `desktop_notification' plugin.
 
   * liboping (optional, if not found a version shipped with this distribution
     can be used)

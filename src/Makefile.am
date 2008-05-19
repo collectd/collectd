@@ -181,6 +181,15 @@ collectd_LDADD += "-dlopen" csv.la
 collectd_DEPENDENCIES += csv.la
 endif
 
+if BUILD_PLUGIN_DESKTOP_NOTIFICATION
+pkglib_LTLIBRARIES += desktop_notification.la
+desktop_notification_la_SOURCES = desktop_notification.c
+desktop_notification_la_CFLAGS = $(LIBNOTIFY_CFLAGS)
+desktop_notification_la_LDFLAGS = -module -avoid-version $(LIBNOTIFY_LIBS)
+collectd_LDADD += "-dlopen" desktop_notification.la
+collectd_DEPENDENCIES += desktop_notification.la
+endif
+
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = df.c
