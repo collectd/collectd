@@ -2595,92 +2595,92 @@ cat <<EOF;
 
 Configuration:
   Libraries:
-    libcurl . . . . . . $with_libcurl
-    libiokit  . . . . . $with_libiokit
-    libiptc . . . . . . $with_libiptc
-    libkstat  . . . . . $with_kstat
-    libkvm  . . . . . . $with_libkvm
-    libmysql  . . . . . $with_libmysql
-    libnetlink  . . . . $with_libnetlink
-    libnetsnmp  . . . . $with_libnetsnmp
-    libnotify . . . . . $with_libnotify
-    liboconfig  . . . . $with_liboconfig
-    libopenipmi . . . . $with_libopenipmipthread
-    liboping  . . . . . $with_liboping
-    libpcap . . . . . . $with_libpcap
-    libperl . . . . . . $with_libperl
-    libpthread  . . . . $with_libpthread
-    librrd  . . . . . . $with_rrdtool
-    libsensors  . . . . $with_lm_sensors
-    libstatgrab . . . . $with_libstatgrab
-    libupsclient  . . . $with_libupsclient
-    libvirt . . . . . . $with_libvirt
-    libxml2 . . . . . . $with_libxml2
-    libxmms . . . . . . $with_libxmms
+    libcurl . . . . . . . $with_libcurl
+    libiokit  . . . . . . $with_libiokit
+    libiptc . . . . . . . $with_libiptc
+    libkstat  . . . . . . $with_kstat
+    libkvm  . . . . . . . $with_libkvm
+    libmysql  . . . . . . $with_libmysql
+    libnetlink  . . . . . $with_libnetlink
+    libnetsnmp  . . . . . $with_libnetsnmp
+    libnotify . . . . . . $with_libnotify
+    liboconfig  . . . . . $with_liboconfig
+    libopenipmi . . . . . $with_libopenipmipthread
+    liboping  . . . . . . $with_liboping
+    libpcap . . . . . . . $with_libpcap
+    libperl . . . . . . . $with_libperl
+    libpthread  . . . . . $with_libpthread
+    librrd  . . . . . . . $with_rrdtool
+    libsensors  . . . . . $with_lm_sensors
+    libstatgrab . . . . . $with_libstatgrab
+    libupsclient  . . . . $with_libupsclient
+    libvirt . . . . . . . $with_libvirt
+    libxml2 . . . . . . . $with_libxml2
+    libxmms . . . . . . . $with_libxmms
 
   Features:
-    daemon mode . . . . $enable_daemon
-    debug . . . . . . . $enable_debug
+    daemon mode . . . . . $enable_daemon
+    debug . . . . . . . . $enable_debug
 
   Bindings:
-    perl  . . . . . . . $with_perl_bindings
+    perl  . . . . . . . . $with_perl_bindings
 
   Modules:
-    apache  . . . . . . $enable_apache
-    apcups  . . . . . . $enable_apcups
-    apple_sensors . . . $enable_apple_sensors
-    ascent  . . . . . . $enable_ascent
-    battery . . . . . . $enable_battery
-    cpu . . . . . . . . $enable_cpu
-    cpufreq . . . . . . $enable_cpufreq
-    csv . . . . . . . . $enable_csv
-    desktop_notification $enable_desktop_notification
-    df  . . . . . . . . $enable_df
-    disk  . . . . . . . $enable_disk
-    dns . . . . . . . . $enable_dns
-    email . . . . . . . $enable_email
-    entropy . . . . . . $enable_entropy
-    exec  . . . . . . . $enable_exec
-    hddtemp . . . . . . $enable_hddtemp
-    interface . . . . . $enable_interface
-    iptables  . . . . . $enable_iptables
-    ipmi  . . . . . . . $enable_ipmi
-    ipvs  . . . . . . . $enable_ipvs
-    irq . . . . . . . . $enable_irq
-    libvirt . . . . . . $enable_libvirt
-    load  . . . . . . . $enable_load
-    logfile . . . . . . $enable_logfile
-    mbmon . . . . . . . $enable_mbmon
-    memcached . . . . . $enable_memcached
-    memory  . . . . . . $enable_memory
-    multimeter  . . . . $enable_multimeter
-    mysql . . . . . . . $enable_mysql
-    netlink . . . . . . $enable_netlink
-    network . . . . . . $enable_network
-    nfs . . . . . . . . $enable_nfs
-    nginx . . . . . . . $enable_nginx
-    ntpd  . . . . . . . $enable_ntpd
-    nut . . . . . . . . $enable_nut
-    perl  . . . . . . . $enable_perl
-    ping  . . . . . . . $enable_ping
-    powerdns  . . . . . $enable_powerdns
-    processes . . . . . $enable_processes
-    rrdtool . . . . . . $enable_rrdtool
-    sensors . . . . . . $enable_sensors
-    serial  . . . . . . $enable_serial
-    snmp  . . . . . . . $enable_snmp
-    swap  . . . . . . . $enable_swap
-    syslog  . . . . . . $enable_syslog
-    tail  . . . . . . . $enable_tail
-    tape  . . . . . . . $enable_tape
-    tcpconns  . . . . . $enable_tcpconns
-    teamspeak2  . . . . $enable_teamspeak2
-    unixsock  . . . . . $enable_unixsock
-    users . . . . . . . $enable_users
-    uuid  . . . . . . . $enable_uuid
-    vmem  . . . . . . . $enable_vmem
-    vserver . . . . . . $enable_vserver
-    wireless  . . . . . $enable_wireless
-    xmms  . . . . . . . $enable_xmms
+    apache  . . . . . . . $enable_apache
+    apcups  . . . . . . . $enable_apcups
+    apple_sensors . . . . $enable_apple_sensors
+    ascent  . . . . . . . $enable_ascent
+    battery . . . . . . . $enable_battery
+    cpu . . . . . . . . . $enable_cpu
+    cpufreq . . . . . . . $enable_cpufreq
+    csv . . . . . . . . . $enable_csv
+    desktop_notification  $enable_desktop_notification
+    df  . . . . . . . . . $enable_df
+    disk  . . . . . . . . $enable_disk
+    dns . . . . . . . . . $enable_dns
+    email . . . . . . . . $enable_email
+    entropy . . . . . . . $enable_entropy
+    exec  . . . . . . . . $enable_exec
+    hddtemp . . . . . . . $enable_hddtemp
+    interface . . . . . . $enable_interface
+    iptables  . . . . . . $enable_iptables
+    ipmi  . . . . . . . . $enable_ipmi
+    ipvs  . . . . . . . . $enable_ipvs
+    irq . . . . . . . . . $enable_irq
+    libvirt . . . . . . . $enable_libvirt
+    load  . . . . . . . . $enable_load
+    logfile . . . . . . . $enable_logfile
+    mbmon . . . . . . . . $enable_mbmon
+    memcached . . . . . . $enable_memcached
+    memory  . . . . . . . $enable_memory
+    multimeter  . . . . . $enable_multimeter
+    mysql . . . . . . . . $enable_mysql
+    netlink . . . . . . . $enable_netlink
+    network . . . . . . . $enable_network
+    nfs . . . . . . . . . $enable_nfs
+    nginx . . . . . . . . $enable_nginx
+    ntpd  . . . . . . . . $enable_ntpd
+    nut . . . . . . . . . $enable_nut
+    perl  . . . . . . . . $enable_perl
+    ping  . . . . . . . . $enable_ping
+    powerdns  . . . . . . $enable_powerdns
+    processes . . . . . . $enable_processes
+    rrdtool . . . . . . . $enable_rrdtool
+    sensors . . . . . . . $enable_sensors
+    serial  . . . . . . . $enable_serial
+    snmp  . . . . . . . . $enable_snmp
+    swap  . . . . . . . . $enable_swap
+    syslog  . . . . . . . $enable_syslog
+    tail  . . . . . . . . $enable_tail
+    tape  . . . . . . . . $enable_tape
+    tcpconns  . . . . . . $enable_tcpconns
+    teamspeak2  . . . . . $enable_teamspeak2
+    unixsock  . . . . . . $enable_unixsock
+    users . . . . . . . . $enable_users
+    uuid  . . . . . . . . $enable_uuid
+    vmem  . . . . . . . . $enable_vmem
+    vserver . . . . . . . $enable_vserver
+    wireless  . . . . . . $enable_wireless
+    xmms  . . . . . . . . $enable_xmms
 
 EOF
