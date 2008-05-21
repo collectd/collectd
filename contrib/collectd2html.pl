@@ -43,16 +43,20 @@ use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
 my $DIR  = "/var/lib/collectd";
 my $HOST = undef;
+my $IMG_FMT = "PNG";
 
 GetOptions (
     "host=s"     => \$HOST,
-    "data-dir=s" => \$DIR
+    "data-dir=s" => \$DIR,
+    "image-format=s" => \$IMG_FMT
 );
 
 my @COLORS = (0xff7777, 0x7777ff, 0x55ff55, 0xffcc77, 0xff77ff, 0x77ffff,
 	0xffff77, 0x55aaff);
 my @tmp = `/bin/hostname`; chomp(@tmp);
 $HOST = $tmp[0] if (! defined $HOST);
+my $svg_p = ($IMG_FMT eq "SVG");
+my $IMG_SFX = $svg_p ? ".svg" : ".png";
 my $IMG_DIR = "${HOST}.dir";
 my $HTML = "${HOST}.html";
 
@@ -186,18 +190,26 @@ END
 
 	# graph various ranges
 	foreach my $span qw(1hour 1day 1week 1month){
-		my $png = "$IMG_DIR/${bn}-$span.png";
+		my $img = "$IMG_DIR/${bn}-$span$IMG_SFX";
 
-		my $cmd = "rrdtool graph $png"
-			." -t \"$bn $span\" --imgformat PNG --width 600 --height 100"
+		my $cmd = "rrdtool graph $img"
+			." -t \"$bn $span\" --imgformat $IMG_FMT --width 600 --height 100"
 			." --start now-$span --end now --interlaced"
 			." $defs >/dev/null 2>&1";
 		system($cmd);
 
-		my $cleaned_png = $png; $cleaned_png =~ s/%/%25/g;
-		print OUT <<END;
-<P><IMG src="$cleaned_png" alt="${bn} $span"></P>
+		my $cleaned_img = $img; $cleaned_img =~ s/%/%25/g;
+		if (! $svg_p) {
+			print OUT <<END;
+<P><IMG src="$cleaned_img" alt="${bn} $span"></P>
 END
+		} else {
+			print OUT <<END;
+<P><object data="$cleaned_img" type="image/svg+xml"
+           width="670" height="179">
+  ${bn} $span</object></P>
+END
+		}
 	}
 
 	print OUT <<END;
