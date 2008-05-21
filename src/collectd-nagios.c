@@ -201,12 +201,17 @@ static int get_values (int *ret_values_num, double **ret_values,
 		fclose (fh_out);
 		return (-1);
 	}
-	fclose (fh_in); fh_in = NULL; fd = -1;
-	fclose (fh_out); fh_out = NULL;
 
-	values_num = atoi (buffer);
-	if (values_num < 1)
-		return (-1);
+	{
+		char *ptr = strchr (buffer, ' ');
+
+		if (ptr != NULL)
+			*ptr = '\0';
+
+		values_num = atoi (buffer);
+		if (values_num < 1)
+			return (-1);
+	}
 
 	values = (double *) malloc (values_num * sizeof (double));
 	if (values == NULL)
@@ -225,32 +230,33 @@ static int get_values (int *ret_values_num, double **ret_values,
 		return (-1);
 	}
 
+	i = 0;
+	while (fgets (buffer, sizeof (buffer), fh_in) != NULL)
 	{
-		char *ptr = strchr (buffer, ' ') + 1;
 		char *key;
 		char *value;
 
-		i = 0;
-		while ((key = strtok (ptr, " \t")) != NULL)
-		{
-			ptr = NULL;
-			value = strchr (key, '=');
-			if (value == NULL)
-				continue;
-			*value = '\0'; value++;
+		key = buffer;
 
-			if (ignore_ds (key) != 0)
-				continue;
+		value = strchr (key, '=');
+		if (value == NULL)
+			continue;
+		*value = '\0'; value++;
 
-			values_names[i] = strdup (key);
-			values[i] = atof (value);
+		if (ignore_ds (key) != 0)
+			continue;
 
-			i++;
-			if (i >= values_num)
-				break;
-		}
-		values_num = i;
+		values_names[i] = strdup (key);
+		values[i] = atof (value);
+
+		i++;
+		if (i >= values_num)
+			break;
 	}
+	values_num = i;
+
+	fclose (fh_in); fh_in = NULL; fd = -1;
+	fclose (fh_out); fh_out = NULL;
 
 	*ret_values_num = values_num;
 	*ret_values = values;
