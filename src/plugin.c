@@ -21,6 +21,7 @@
  **/
 
 #include "collectd.h"
+#include "utils_complain.h"
 
 #include <ltdl.h>
 
@@ -744,6 +745,8 @@ void plugin_shutdown_all (void)
 
 int plugin_dispatch_values (value_list_t *vl)
 {
+	static c_complain_t no_write_complaint = C_COMPLAIN_INIT;
+
 	int (*callback) (const data_set_t *, const value_list_t *);
 	data_set_t *ds;
 	llentry_t *le;
@@ -754,12 +757,10 @@ int plugin_dispatch_values (value_list_t *vl)
 	}
 
 	if (list_write == NULL)
-	{
-		ERROR ("plugin_dispatch_values: No write callback has been "
-				"registered. Please load at least one plugin "
-				"that provides a write function.");
-		return (-1);
-	}
+		c_complain_once (LOG_WARNING, &no_write_complaint,
+				"plugin_dispatch_values: No write callback has been "
+				"registered. Please load at least one output plugin, "
+				"if you want the collected data to be stored.");
 
 	if (data_sets == NULL)
 	{
