@@ -59,6 +59,9 @@ void llist_destroy (llist_t *l)
 	llentry_t *e_this;
 	llentry_t *e_next;
 
+	if (l == NULL)
+		return;
+
 	for (e_this = l->head; e_this != NULL; e_this = e_next)
 	{
 		e_next = e_this->next;
@@ -140,6 +143,9 @@ llentry_t *llist_search (llist_t *l, const char *key)
 {
 	llentry_t *e;
 
+	if (l == NULL)
+		return (NULL);
+
 	for (e = l->head; e != NULL; e = e->next)
 		if (strcmp (key, e->key) == 0)
 			break;
@@ -149,10 +155,14 @@ llentry_t *llist_search (llist_t *l, const char *key)
 
 llentry_t *llist_head (llist_t *l)
 {
+	if (l == NULL)
+		return (NULL);
 	return (l->head);
 }
 
 llentry_t *llist_tail (llist_t *l)
 {
+	if (l == NULL)
+		return (NULL);
 	return (l->tail);
 }
