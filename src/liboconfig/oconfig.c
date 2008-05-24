@@ -27,7 +27,7 @@
 extern FILE *yyin;
 
 oconfig_item_t *ci_root;
-char           *c_file;
+const char     *c_file;
 
 static void yyset_in  (FILE *fd)
 {
