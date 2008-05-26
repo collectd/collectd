@@ -102,8 +102,8 @@ int handle_getval (FILE *fh, char **fields, int fields_num)
   if (ds->ds_num != values_num)
   {
     ERROR ("ds[%s]->ds_num = %i, "
-	"but uc_get_rate_by_name returned %i values.",
-	ds->type, ds->ds_num, values_num);
+	"but uc_get_rate_by_name returned %u values.",
+	ds->type, ds->ds_num, (unsigned int) values_num);
     print_to_socket (fh, "-1 Error reading value from cache.\n");
     sfree (values);
     sfree (identifier_copy);
