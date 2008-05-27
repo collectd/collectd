@@ -1,7 +1,8 @@
 /**
  * collectd - src/processes.c
  * Copyright (C) 2005  Lyonel Vincent
- * Copyright (C) 2006-2007  Florian Forster (Mach code)
+ * Copyright (C) 2006-2008  Florian Forster (Mach code)
+ * Copyright (C) 2008  Oleg King
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +21,7 @@
  * Authors:
  *   Lyonel Vincent <lyonel at ezix.org>
  *   Florian octo Forster <octo at verplant.org>
+ *   Oleg King <king2 at kaluga.ru>
  **/
 
 #include "collectd.h"
