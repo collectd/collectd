@@ -1150,8 +1150,9 @@ static int ps_read (void)
 	kvm_t *kd;
 	char errbuf[1024];
 	char cmdline[ARG_MAX];
+	char *cmdline_ptr;
   	struct kinfo_proc *procs;          /* array of processes */
-  	char ** argv;
+  	char **argv;
   	int count;                         /* returns number of processes */
 	int i, j;
 
@@ -1161,32 +1162,54 @@ static int ps_read (void)
 	ps_list_reset ();
 
 	/* Open the kvm interface, get a descriptor */
-	if ((kd = kvm_open(NULL, NULL, NULL, 0, errbuf)) == NULL) {
-		ERROR ("Cannot open kvm interface: %s", errbuf);
+	kd = kvm_open (NULL, NULL, NULL, 0, errbuf);
+	if (kd == NULL)
+	{
+		ERROR ("processes plugin: Cannot open kvm interface: %s",
+				errbuf);
 		return (0);
 	}  
      
 	/* Get the list of processes. */
-	if ((procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count)) == NULL) {
-		kvm_close(kd);
-		ERROR ("Cannot get kvm processes list: %s", kvm_geterr(kd));
+	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count);
+	if (procs == NULL)
+	{
+		kvm_close (kd);
+		ERROR ("processes plugin: Cannot get kvm processes list: %s",
+				kvm_geterr(kd));
 		return (0);
 	}
 
 	/* Iterate through the processes in kinfo_proc */
-	for (i=0; i < count; i++) {
+	for (i = 0; i < count; i++)
+	{
 		/* retrieve the arguments */
-		*cmdline = '\0';
-		argv = kvm_getargv(kd, (const struct kinfo_proc *) &(procs[i]), 0);
-		if (argv) {
-			j = 0;
-			while (argv[j] && strlen(cmdline) <= ARG_MAX) {
-				if (j)
-					strncat(cmdline, " ", 1);
-				strncat(cmdline, argv[j], strlen(argv[j]));
-				j++;
+		cmdline[0] = 0;
+		cmdline_ptr = NULL;
+
+		argv = kvm_getargv (kd, (const struct kinfo_proc *) &(procs[i]), 0);
+		if (argv != NULL)
+		{
+			int status;
+			int argc;
+
+			argc = 0;
+			while (argv[argc] != NULL)
+				argc++;
+
+			status = strjoin (cmdline, sizeof (cmdline),
+					argv, argc, " ");
+
+			if (status < 0)
+			{
+				WARNING ("processes plugin: Command line did "
+						"not fit into buffer.");
 			}
-		}  
+			else
+			{
+				cmdline_ptr = &cmdline[0];
+			}
+		}
 
 		pse.id       = procs[i].ki_pid;
 		pse.age      = 0;
@@ -1201,11 +1224,16 @@ static int ps_read (void)
 		pse.vmem_majflt_counter = procs[i].ki_rusage.ru_majflt;
 
 		pse.cpu_user = 0;
-		pse.cpu_user_counter = procs[i].ki_rusage.ru_utime.tv_sec*1000 + procs[i].ki_rusage.ru_utime.tv_usec;
+		pse.cpu_user_counter = procs[i].ki_rusage.ru_utime.tv_sec
+			* 1000
+			+ procs[i].ki_rusage.ru_utime.tv_usec;
 		pse.cpu_system = 0;
-		pse.cpu_system_counter = procs[i].ki_rusage.ru_stime.tv_sec*1000 + procs[i].ki_rusage.ru_stime.tv_usec;
+		pse.cpu_system_counter = procs[i].ki_rusage.ru_stime.tv_sec
+			* 1000
+			+ procs[i].ki_rusage.ru_stime.tv_usec;
 
-		switch (procs[i].ki_stat) {
+		switch (procs[i].ki_stat)
+		{
 			case SSTOP: 	stopped++;	break;
 			case SSLEEP:	sleeping++;	break;
 			case SRUN:	running++;	break;
@@ -1215,10 +1243,10 @@ static int ps_read (void)
 			case SZOMB:	zombies++;	break;
 		}
 
-		ps_list_add (procs[i].ki_comm, cmdline, &pse);
+		ps_list_add (procs[i].ki_comm, cmdline_ptr, &pse);
 	}
 
-	if (kd) kvm_close(kd);
+	kvm_close(kd);
 
 	ps_submit_state ("running",  running);
 	ps_submit_state ("sleeping", sleeping);
@@ -1230,7 +1258,6 @@ static int ps_read (void)
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
-
 #endif /* HAVE_LIBKVM */
 
 	return (0);
