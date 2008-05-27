@@ -450,7 +450,7 @@ static int ps_config (const char *key, const char *value)
 	}
 	else if (strcasecmp (key, "ProcessMatch") == 0)
 	{
-		char *new_val;  
+		char *new_val;
 		char *fields[3];
 		int fields_num;
 
@@ -1168,8 +1168,8 @@ static int ps_read (void)
 		ERROR ("processes plugin: Cannot open kvm interface: %s",
 				errbuf);
 		return (0);
-	}  
-     
+	}
+
 	/* Get the list of processes. */
 	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count);
 	if (procs == NULL)
