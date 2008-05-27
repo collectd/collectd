@@ -101,6 +101,11 @@ FQDNLookup   true
 #	IgnoreSelected false
 #</Plugin>
 
+#<Plugin df>
+#	Disk "/^[hs]d[a-f][0-9]?$/"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin dns>
 #	Interface "eth0"
 #	IgnoreSource "192.168.0.1"
