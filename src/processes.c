@@ -285,7 +285,6 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
 
@@ -857,7 +856,8 @@ static int ps_read (void)
 			{
 				/* search for at least one match */
 				for (ps = list_head_g; ps != NULL; ps = ps->next)
-					if (ps_list_match(task_name, NULL, ps) == 1) //!!! cmdline should be here instead of NULL
+					/* FIXME: cmdline should be here instead of NULL */
+					if (ps_list_match (task_name, NULL, ps) == 1)
 						break;
 			}
 
@@ -1017,7 +1017,8 @@ static int ps_read (void)
 			}
 
 			if (ps != NULL)
-				ps_list_add (task_name, NULL, &pse); //!!! cmdline should be here instead of NULL
+				/* FIXME: cmdline should be here instead of NULL */
+				ps_list_add (task_name, NULL, &pse);
 		} /* for (task_list) */
 
 		if ((status = vm_deallocate (port_task_self,
@@ -1120,7 +1121,8 @@ static int ps_read (void)
 			case 'W': paging++;   break;
 		}
 
-		ps_list_add (ps.name, NULL, &pse); //!!! cmdline should be here instead of NULL
+		/* FIXME: cmdline should be here instead of NULL */
+		ps_list_add (ps.name, NULL, &pse);
 	}
 
 	closedir (proc);
@@ -1173,7 +1175,7 @@ static int ps_read (void)
 
 	/* Iterate through the processes in kinfo_proc */
 	for (i=0; i < count; i++) {
-		// retrieve the arguments
+		/* retrieve the arguments */
 		*cmdline = '\0';
 		argv = kvm_getargv(kd, (const struct kinfo_proc *) &(procs[i]), 0);
 		if (argv) {
