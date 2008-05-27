@@ -639,7 +639,7 @@ static int ut_report_state (const data_set_t *ds,
 	    "%f. That is within the %s region of %f and %f.",
 	    ds->ds[ds_index].name, values[ds_index],
 	    (state == STATE_ERROR) ? "failure" : "warning",
-	    min, min);
+	    min, max);
       }
       else
       {
