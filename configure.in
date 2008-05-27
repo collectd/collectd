@@ -2448,6 +2448,7 @@ fi
 
 if test "x$with_libkvm" = "xyes"
 then
+	plugin_processes="yes"
 	plugin_swap="yes"
 fi
 
