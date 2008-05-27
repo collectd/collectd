@@ -1757,8 +1757,14 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
-/* TODO: Implement flushing of single items. */
-static int network_flush (int timeout, const char *itentifier)
+/* 
+ * The flush option of the network plugin cannot flush individual identifiers.
+ * All the values are added to a buffer and sent when the buffer is full, the
+ * requested value may or may not be in there, it's not worth finding out. We
+ * just send the buffer if `flush'  is called - if the requested value was in
+ * there, good. If not, well, then there is nothing to flush.. -octo
+ */
+static int network_flush (int timeout, const char *identifier)
 {
 	pthread_mutex_lock (&send_buffer_lock);
 
