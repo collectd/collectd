@@ -107,7 +107,7 @@ static const char *config_keys[] =
 	"ProcessMatch",
 	NULL
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 typedef struct procstat_entry_s
 {
