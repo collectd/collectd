@@ -247,13 +247,32 @@ static void ps_list_register (const char *name, const char *regexp)
 /* try to match name against entry, returns 1 if success */
 static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 {
-	if ((ps->re != NULL) && (regexec(ps->re, (strlen(cmdline)!=0)?cmdline:name, 0, NULL, 0) == 0))
-		return (1);
-	if (strcmp (ps->name, name) == 0) {
-		return (1);
+#if HAVE_REGEX_H
+	if (ps->re != NULL)
+	{
+		int status;
+		const char *str;
+
+		str = cmdline;
+		if ((str == NULL) || (str[0] == 0))
+			str = name;
+
+		assert (str != NULL);
+
+		status = regexec (ps->re, str,
+				/* nmatch = */ 0,
+				/* pmatch = */ NULL,
+				/* eflags = */ 0);
+		if (status == 0)
+			return (1);
 	}
+	else
+#endif
+	if (strcmp (ps->name, name) == 0)
+		return (1);
+
 	return (0);
-}
+} /* int ps_list_match */
 
 /* add process entry to 'instances' of process 'name' (or refresh it) */
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
