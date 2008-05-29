@@ -1118,7 +1118,7 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 
 	aTHX = t->interp;
 
-	if (NULL != base) {
+	if ((NULL != base) && (NULL != PL_endav)) {
 		av_clear (PL_endav);
 		av_undef (PL_endav);
 		PL_endav = Nullav;
