@@ -1154,7 +1154,7 @@ static int ps_read (void)
   	struct kinfo_proc *procs;          /* array of processes */
   	char **argv;
   	int count;                         /* returns number of processes */
-	int i, j;
+	int i;
 
 	procstat_t *ps_ptr;
 	procstat_entry_t pse;
