@@ -101,7 +101,7 @@ FQDNLookup   true
 #	IgnoreSelected false
 #</Plugin>
 
-#<Plugin df>
+#<Plugin disk>
 #	Disk "/^[hs]d[a-f][0-9]?$/"
 #	IgnoreSelected false
 #</Plugin>
