@@ -91,10 +91,12 @@ struct player_info_s
 typedef struct player_info_s player_info_t;
 #define PLAYER_INFO_STATIC_INIT { -1, -1, -1, -1, -1 }
 
-static char *url    = NULL;
-static char *user   = NULL;
-static char *pass   = NULL;
-static char *cacert = NULL;
+static char *url         = NULL;
+static char *user        = NULL;
+static char *pass        = NULL;
+static char *verify_peer = NULL;
+static char *verify_host = NULL;
+static char *cacert      = NULL;
 
 static CURL *curl = NULL;
 
@@ -108,6 +110,8 @@ static const char *config_keys[] =
   "URL",
   "User",
   "Password",
+  "VerifyPeer",
+  "VerifyHost",
   "CACert"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -500,6 +504,10 @@ static int ascent_config (const char *key, const char *value) /* {{{ */
     return (config_set (&user, value));
   else if (strcasecmp (key, "Password") == 0)
     return (config_set (&pass, value));
+  else if (strcasecmp (key, "VerifyPeer") == 0)
+    return (config_set (&verify_peer, value));
+  else if (strcasecmp (key, "VerifyHost") == 0)
+    return (config_set (&verify_host, value));
   else if (strcasecmp (key, "CACert") == 0)
     return (config_set (&cacert, value));
   else
@@ -549,6 +557,16 @@ static int ascent_init (void) /* {{{ */
   }
 
   curl_easy_setopt (curl, CURLOPT_URL, url);
+
+  if ((verify_peer == NULL) || (strcmp (verify_peer, "true") == 0))
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1);
+  else
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0);
+
+  if ((verify_host == NULL) || (strcmp (verify_host, "true") == 0))
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 2);
+  else
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0);
 
   if (cacert != NULL)
     curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
