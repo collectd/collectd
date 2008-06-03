@@ -1127,7 +1127,7 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 
 	aTHX = t->interp;
 
-	if (NULL != base) {
+	if ((NULL != base) && (NULL != PL_endav)) {
 		av_clear (PL_endav);
 		av_undef (PL_endav);
 		PL_endav = Nullav;
@@ -1450,7 +1450,7 @@ static int init_pi (int argc, char **argv)
 		log_err ("init_pi: pthread_key_create failed");
 
 		/* this must not happen - cowardly giving up if it does */
-		exit (1);
+		return -1;
 	}
 
 #ifdef __FreeBSD__
@@ -1485,7 +1485,13 @@ static int init_pi (int argc, char **argv)
 
 	if (0 != perl_parse (aTHX_ xs_init, argc, argv, NULL)) {
 		log_err ("init_pi: Unable to bootstrap Collectd.");
-		exit (1);
+
+		perl_destruct (perl_threads->head->interp);
+		perl_free (perl_threads->head->interp);
+		sfree (perl_threads);
+
+		pthread_key_delete (perl_thr_key);
+		return -1;
 	}
 
 	/* Set $0 to "collectd" because perl_parse() has to set it to "-e". */
@@ -1527,7 +1533,9 @@ static int perl_config_loadplugin (pTHX_ oconfig_item_t *ci)
 		return (1);
 	}
 
-	init_pi (perl_argc, perl_argv);
+	if (0 != init_pi (perl_argc, perl_argv))
+		return -1;
+
 	assert (NULL != perl_threads);
 	assert (NULL != perl_threads->head);
 
