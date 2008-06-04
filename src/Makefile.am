@@ -478,6 +478,14 @@ collectd_LDADD += "-dlopen" nginx.la
 collectd_DEPENDENCIES += nginx.la
 endif
 
+if BUILD_PLUGIN_NOTIFY_EMAIL
+pkglib_LTLIBRARIES += notify_email.la
+notify_email_la_SOURCES = notify_email.c
+notify_email_la_LDFLAGS = -L/usr/local/lib -lesmtp -lssl -lcrypto -pthread -module -avoid-version
+collectd_LDADD += "-dlopen" notify_email.la
+collectd_DEPENDENCIES += notify_email.la
+endif
+
 if BUILD_PLUGIN_NTPD
 pkglib_LTLIBRARIES += ntpd.la
 ntpd_la_SOURCES = ntpd.c

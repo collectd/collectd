@@ -46,6 +46,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_NETWORK_TRUE@LoadPlugin network
 @BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
 @BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
+@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 @BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 @BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 @BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
@@ -209,6 +210,17 @@ FQDNLookup   true
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#</Plugin>
+
+#<Plugin notify_email>
+#       SMTPHost "localhost"
+#	SMTPPort 25
+#	SMTPSubject "Aaaaaa!! %s on %s!!!!!"   # <WARNING/FAILURE/OK> on <hostname>. beware! do not use not more than two %s in this string!!!
+#	SMTPFrom "collectd@main0server.com"
+#	SMTPUser "my-username"
+#	SMTPPassword "my-password"
+#	EmailTo "email1@domain1.net"
+#	EmailTo "email2@domain2.com"
 #</Plugin>
 
 #<Plugin ntpd>

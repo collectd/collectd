@@ -1489,6 +1489,44 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
 	[Wether or not to use the pcap library])
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 
+AC_ARG_WITH(libesmtp, [AS_HELP_STRING([--with-libesmtp@<:@=PREFIX@:>@], [Path to libesmtp.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include -D_THREAD_SAFE"
+		with_libesmtp="yes"
+	else
+		with_libesmtp="$withval"
+	fi
+],
+[
+	with_libesmtp="yes"
+])
+if test "x$with_libesmtp" = "xyes"
+then
+	AC_CHECK_LIB(esmtp, smtp_create_session,
+	[
+		AC_DEFINE(HAVE_LIBESMTP, 1, [Define to 1 if you have the esmtp library (-lesmtp).])
+	], [with_libesmtp="no (libesmtp not found)"])
+fi
+if test "x$with_libesmtp" = "xyes"
+then
+	AC_CHECK_HEADERS(libesmtp.h,
+	[
+		AC_DEFINE(HAVE_LIBESMTP_H, 1, [Define to 1 if you have the <libesmtp.h> header file.])
+	], [with_libesmtp="no (libesmtp.h not found)"])
+fi
+if test "x$with_libesmtp" = "xyes"
+then
+	collect_libesmtp=1
+else
+	collect_libesmtp=0
+fi
+AC_DEFINE_UNQUOTED(COLLECT_LIBESMTP, [$collect_libesmtp],
+	[Wether or not to use the esmtp library])
+AM_CONDITIONAL(BUILD_WITH_LIBESMTP, test "x$with_libesmtp" = "xyes")
+
 perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
 [
@@ -2499,6 +2537,7 @@ AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistic
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
+AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
@@ -2660,6 +2699,7 @@ Configuration:
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
     nginx . . . . . . . . $enable_nginx
+    notify_email  . . . . $enable_notify_email
     ntpd  . . . . . . . . $enable_ntpd
     nut . . . . . . . . . $enable_nut
     perl  . . . . . . . . $enable_perl
