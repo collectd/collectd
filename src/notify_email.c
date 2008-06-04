@@ -41,8 +41,8 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static char **emails;
-static int emails_len = 0;
+static char **recipients;
+static int recipients_len = 0;
 
 static smtp_session_t session;
 static smtp_message_t message;
@@ -153,19 +153,19 @@ static int notify_email_config (const char *key, const char *value)
   {
     char **tmp;
 
-    tmp = (char **) realloc ((void *) emails, (emails_len + 1) * sizeof (char *));
+    tmp = (char **) realloc ((void *) recipients, (recipients_len + 1) * sizeof (char *));
     if (tmp == NULL) {
       ERROR ("notify_email: realloc failed.");
       return (-1);
     }
 
-    emails = tmp;
-    emails[emails_len] = strdup (value);
-    if (emails[emails_len] == NULL) {
+    recipients = tmp;
+    recipients[recipients_len] = strdup (value);
+    if (recipients[recipients_len] == NULL) {
       ERROR ("notify_email: strdup failed.");
       return (-1);
     }
-    emails_len++;
+    recipients_len++;
   }
   else if (0 == strcasecmp (key, "SMTPHost")) {
     sfree (smtp_host);
@@ -254,8 +254,8 @@ static int notify_email_notification (const notification_t *n)
   smtp_set_header (message, "To", NULL, NULL);
   smtp_set_message_str (message, buf);
 
-  for (i = 0; i < emails_len; i++)
-    recipient = smtp_add_recipient (message, emails[i]);
+  for (i = 0; i < recipients_len; i++)
+    recipient = smtp_add_recipient (message, recipients[i]);
 
   /* Initiate a connection to the SMTP server and transfer the message. */
   if (!smtp_start_session (session)) {
