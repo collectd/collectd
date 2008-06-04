@@ -92,7 +92,7 @@ static void monitor_cb (const char *buf, int buflen, int writing, void *arg)
 {
   char log_str[MAXSTRING];
 
-  strncpy(log_str, buf, buflen);
+  sstrncpy (log_str, buf, sizeof (log_str));
   if (buflen > 2)
     log_str[buflen - 2] = 0; /* replace \n with \0 */
 
@@ -115,7 +115,9 @@ static int notify_email_init()
 
   smtp_set_monitorcb (session, monitor_cb, NULL, 1);
   smtp_set_hostname (session, hostname_g);
-  sprintf(server, "%s:%i", smtp_host == NULL ? DEFAULT_SMTP_HOST : smtp_host, smtp_port);
+  ssnprintf(server, sizeof (server), "%s:%i",
+      (smtp_host == NULL) ? DEFAULT_SMTP_HOST : smtp_host,
+      smtp_port);
   smtp_set_server (session, server);
 
   if (smtp_user && smtp_password) {
@@ -205,26 +207,28 @@ static int notify_email_notification (const notification_t *n)
   struct tm timestamp_tm;
   char timestamp_str[64];
 
-  char severity[MAXSTRING];
+  char severity[32];
   char subject[MAXSTRING];
 
   char buf[4096] = "";
   int  buf_len = sizeof (buf);
   int i;
 
-  sprintf (severity, "%s",
+  ssnprintf (severity, sizeof (severity), "%s",
       (n->severity == NOTIF_FAILURE) ? "FAILURE"
       : ((n->severity == NOTIF_WARNING) ? "WARNING"
         : ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
 
-  sprintf (subject, smtp_subject == NULL ? DEFAULT_SMTP_SUBJECT : smtp_subject, severity, n->host);
+  ssnprintf (subject, sizeof (subject),
+      (smtp_subject == NULL) ? DEFAULT_SMTP_SUBJECT : smtp_subject,
+      severity, n->host);
 
   localtime_r (&n->time, &timestamp_tm);
   strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S", &timestamp_tm);
   timestamp_str[sizeof (timestamp_str) - 1] = '\0';
 
   /* Let's make RFC822 message text with \r\n EOLs */
-  snprintf (buf, buf_len,
+  ssnprintf (buf, buf_len,
       "MIME-Version: 1.0\r\n"
       "Content-Type: text/plain;\r\n"
       "Content-Transfer-Encoding: 8bit\r\n"
