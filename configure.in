@@ -2512,7 +2512,7 @@ AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
-AC_PLUGIN([desktop_notification], [$with_libnotify], [Desktop notifications])
+AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
@@ -2674,7 +2674,6 @@ Configuration:
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
-    desktop_notification  $enable_desktop_notification
     df  . . . . . . . . . $enable_df
     disk  . . . . . . . . $enable_disk
     dns . . . . . . . . . $enable_dns
@@ -2699,6 +2698,7 @@ Configuration:
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
     nginx . . . . . . . . $enable_nginx
+    notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
     ntpd  . . . . . . . . $enable_ntpd
     nut . . . . . . . . . $enable_nut

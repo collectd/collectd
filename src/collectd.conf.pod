@@ -278,32 +278,6 @@ number.
 
 =back
 
-=head2 Plugin C<desktop_notification>
-
-This plugin sends a desktop notification to a notification daemon, as defined
-in the Desktop Notification Specification. To actually display the
-notifications, B<notification-daemon> is required and B<collectd> has to be
-able to access the X server.
-
-The Desktop Notification Specification can be found at
-L<http://www.galago-project.org/specs/notification/>.
-
-=over 4
-
-=item B<OkayTimeout> I<timeout>
-
-=item B<WarningTimeout> I<timeout>
-
-=item B<FailureTimeout> I<timeout>
-
-Set the I<timeout>, in milliseconds, after which to expire the notification
-for C<OKAY>, C<WARNING> and C<FAILURE> severities respectively. If zero has
-been specified, the displayed notification will not be closed at all - the
-user has to do so herself. These options default to 5000. If a negative number
-has been specified, the default is used as well.
-
-=back
-
 =head2 Plugin C<df>
 
 =over 4
@@ -893,6 +867,32 @@ connecting to a SSL enabled server. Enabled by default.
 File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
+
+=back
+
+=head2 Plugin C<notify_desktop>
+
+This plugin sends a desktop notification to a notification daemon, as defined
+in the Desktop Notification Specification. To actually display the
+notifications, B<notification-daemon> is required and B<collectd> has to be
+able to access the X server.
+
+The Desktop Notification Specification can be found at
+L<http://www.galago-project.org/specs/notification/>.
+
+=over 4
+
+=item B<OkayTimeout> I<timeout>
+
+=item B<WarningTimeout> I<timeout>
+
+=item B<FailureTimeout> I<timeout>
+
+Set the I<timeout>, in milliseconds, after which to expire the notification
+for C<OKAY>, C<WARNING> and C<FAILURE> severities respectively. If zero has
+been specified, the displayed notification will not be closed at all - the
+user has to do so herself. These options default to 5000. If a negative number
+has been specified, the default is used as well.
 
 =back
 

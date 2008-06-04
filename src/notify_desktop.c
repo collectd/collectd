@@ -1,5 +1,5 @@
 /**
- * collectd - src/desktop_notification.c
+ * collectd - src/notify_desktop.c
  * Copyright (C) 2008  Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -30,9 +30,9 @@
 #include <glib.h>
 #include <libnotify/notify.h>
 
-#define log_info(...) INFO ("desktop_notification: " __VA_ARGS__)
-#define log_warn(...) WARNING ("desktop_notification: " __VA_ARGS__)
-#define log_err(...) ERROR ("desktop_notification: " __VA_ARGS__)
+#define log_info(...) INFO ("notify_desktop: " __VA_ARGS__)
+#define log_warn(...) WARNING ("notify_desktop: " __VA_ARGS__)
+#define log_err(...) ERROR ("notify_desktop: " __VA_ARGS__)
 
 #define DEFAULT_TIMEOUT 5000
 
@@ -111,9 +111,9 @@ static int c_notify (const notification_t *n)
 
 static int c_notify_shutdown (void)
 {
-	plugin_unregister_init ("desktop_notification");
-	plugin_unregister_notification ("desktop_notification");
-	plugin_unregister_shutdown ("desktop_notification");
+	plugin_unregister_init ("notify_desktop");
+	plugin_unregister_notification ("notify_desktop");
+	plugin_unregister_shutdown ("notify_desktop");
 
 	if (notify_is_initted ())
 		notify_uninit ();
@@ -144,15 +144,15 @@ static int c_notify_init (void)
 		free (spec_version);
 	}
 
-	plugin_register_notification ("desktop_notification", c_notify);
-	plugin_register_shutdown ("desktop_notification", c_notify_shutdown);
+	plugin_register_notification ("notify_desktop", c_notify);
+	plugin_register_shutdown ("notify_desktop", c_notify_shutdown);
 	return 0;
 } /* c_notify_init */
 
 void module_register (void)
 {
-	plugin_register_complex_config ("desktop_notification", c_notify_config);
-	plugin_register_init ("desktop_notification", c_notify_init);
+	plugin_register_complex_config ("notify_desktop", c_notify_config);
+	plugin_register_init ("notify_desktop", c_notify_init);
 	return;
 } /* module_register */
 
