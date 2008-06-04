@@ -59,9 +59,9 @@ static char *smtp_subject = NULL;
 #define DEFAULT_SMTP_FROM	"root@localhost"
 #define DEFAULT_SMTP_SUBJECT	"Collectd notify: %s@%s"
 
-
 /* Callback to get username and password */
-static int authinteract (auth_client_request_t request, char **result, int fields, void *arg)
+static int authinteract (auth_client_request_t request, char **result,
+    int fields, void *arg)
 {               
   int i;
   for (i = 0; i < fields; i++)
@@ -74,18 +74,20 @@ static int authinteract (auth_client_request_t request, char **result, int field
       return 0;
   }
   return 1;
-}
+} /* int authinteract */
 
 /* Callback to print the recipient status */
-static void print_recipient_status (smtp_recipient_t recipient, const char *mailbox, void *arg)
+static void print_recipient_status (smtp_recipient_t recipient,
+    const char *mailbox, void *arg)
 {
   const smtp_status_t *status;
 
   status = smtp_recipient_status (recipient);
   if (status->text[strlen(status->text) - 2] == '\r')
     status->text[strlen(status->text) - 2] = 0;
-  INFO ("notify_email: notify sent to %s: %d %s", mailbox, status->code, status->text);
-}
+  INFO ("notify_email: notify sent to %s: %d %s", mailbox, status->code,
+      status->text);
+} /* void print_recipient_status */
 
 /* Callback to monitor SMTP activity */
 static void monitor_cb (const char *buf, int buflen, int writing, void *arg)
@@ -97,18 +99,21 @@ static void monitor_cb (const char *buf, int buflen, int writing, void *arg)
     log_str[buflen - 2] = 0; /* replace \n with \0 */
 
   if (writing == SMTP_CB_HEADERS) {
-    DEBUG ("SMTP --- H: %s", log_str);
+    DEBUG ("notify_email plugin: SMTP --- H: %s", log_str);
     return;
   }
-  DEBUG (writing ? "SMTP >>> C: %s" : "SMTP <<< S: %s", log_str);
-}
+  DEBUG (writing
+      ? "notify_email plugin: SMTP >>> C: %s"
+      : "notify_email plugin: SMTP <<< S: %s",
+      log_str);
+} /* void monitor_cb */
 
-static int notify_email_init()
+static int notify_email_init (void)
 {
   char server[MAXSTRING];
 
   auth_client_init();
-  if ( !(session = smtp_create_session()) ) {
+  if (!(session = smtp_create_session ())) {
     ERROR ("notify_email plugin: cannot create SMTP session");
     return (-1);
   }
@@ -132,17 +137,15 @@ static int notify_email_init()
   }
 
   return (0);
-}
+} /* int notify_email_init */
 
-
-static int notify_email_shutdown()
+static int notify_email_shutdown (void)
 {
   smtp_destroy_session (session);
   auth_destroy_context (authctx);
   auth_client_exit();
   return (0);
-}
-
+} /* int notify_email_shutdown */
 
 static int notify_email_config (const char *key, const char *value)
 {
@@ -199,7 +202,6 @@ static int notify_email_config (const char *key, const char *value)
   return 0;
 } /* int notify_email_config (const char *, const char *) */
 
-
 static int notify_email_notification (const notification_t *n)
 {
   smtp_recipient_t recipient;
@@ -224,7 +226,8 @@ static int notify_email_notification (const notification_t *n)
       severity, n->host);
 
   localtime_r (&n->time, &timestamp_tm);
-  strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S", &timestamp_tm);
+  strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S",
+      &timestamp_tm);
   timestamp_str[sizeof (timestamp_str) - 1] = '\0';
 
   /* Let's make RFC822 message text with \r\n EOLs */
@@ -243,7 +246,7 @@ static int notify_email_notification (const notification_t *n)
       n->host,
       n->message);
 
-  if ( !(message = smtp_add_message (session))) {
+  if (!(message = smtp_add_message (session))) {
     ERROR ("notify_email plugin: cannot set SMTP message");
     return (-1);   
   }
@@ -257,13 +260,15 @@ static int notify_email_notification (const notification_t *n)
   /* Initiate a connection to the SMTP server and transfer the message. */
   if (!smtp_start_session (session)) {
     char buf[MAXSTRING];
-    ERROR ("SMTP server problem: %s", smtp_strerror (smtp_errno (), buf, sizeof buf));
+    ERROR ("notify_email plugin: SMTP server problem: %s",
+        smtp_strerror (smtp_errno (), buf, sizeof buf));
     return (-1);
   } else {
     const smtp_status_t *status;
     /* Report on the success or otherwise of the mail transfer. */
     status = smtp_message_transfer_status (message);
-    DEBUG ("SMTP server report: %d %s", status->code, (status->text != NULL) ? status->text : "\n");
+    DEBUG ("notify_email plugin: SMTP server report: %d %s",
+        status->code, (status->text != NULL) ? status->text : "\n");
     smtp_enumerate_recipients (message, print_recipient_status, NULL);
   }
 
@@ -278,3 +283,5 @@ void module_register (void)
       config_keys, config_keys_num);
   plugin_register_notification ("notify_email", notify_email_notification);
 } /* void module_register (void) */
+
+/* vim: set sw=2 sts=2 ts=8 et : */
