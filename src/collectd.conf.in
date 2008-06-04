@@ -213,14 +213,15 @@ FQDNLookup   true
 #</Plugin>
 
 #<Plugin notify_email>
-#       SMTPHost "localhost"
+#       SMTPServer "localhost"
 #	SMTPPort 25
-#	SMTPSubject "Aaaaaa!! %s on %s!!!!!"   # <WARNING/FAILURE/OK> on <hostname>. beware! do not use not more than two %s in this string!!!
-#	SMTPFrom "collectd@main0server.com"
 #	SMTPUser "my-username"
 #	SMTPPassword "my-password"
-#	EmailTo "email1@domain1.net"
-#	EmailTo "email2@domain2.com"
+#	From "collectd@main0server.com"
+#	# <WARNING/FAILURE/OK> on <hostname>. beware! do not use not more than two %s in this string!!!
+#	Subject "Aaaaaa!! %s on %s!!!!!"
+#	Recipient "email1@domain1.net"
+#	Recipient "email2@domain2.com"
 #</Plugin>
 
 #<Plugin ntpd>

@@ -31,13 +31,13 @@
 
 static const char *config_keys[] =
 {
-  "SMTPHost",
+  "SMTPServer",
   "SMTPPort",
   "SMTPUser",
   "SMTPPassword",
-  "SMTPFrom",
-  "SMTPSubject",
-  "EmailTo"
+  "From",
+  "Recipient",
+  "Subject"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -52,8 +52,8 @@ static int smtp_port = 25;
 static char *smtp_host = NULL;
 static char *smtp_user = NULL;
 static char *smtp_password = NULL;
-static char *smtp_from = NULL;
-static char *smtp_subject = NULL;
+static char *email_from = NULL;
+static char *email_subject = NULL;
 
 #define DEFAULT_SMTP_HOST	"localhost"
 #define DEFAULT_SMTP_FROM	"root@localhost"
@@ -149,7 +149,7 @@ static int notify_email_shutdown (void)
 
 static int notify_email_config (const char *key, const char *value)
 {
-  if (strcasecmp (key, "EmailTo") == 0)
+  if (strcasecmp (key, "Recipient") == 0)
   {
     char **tmp;
 
@@ -167,7 +167,7 @@ static int notify_email_config (const char *key, const char *value)
     }
     recipients_len++;
   }
-  else if (0 == strcasecmp (key, "SMTPHost")) {
+  else if (0 == strcasecmp (key, "SMTPServer")) {
     sfree (smtp_host);
     smtp_host = strdup (value);
   }
@@ -188,13 +188,13 @@ static int notify_email_config (const char *key, const char *value)
     sfree (smtp_password);
     smtp_password = strdup (value);
   }
-  else if (0 == strcasecmp (key, "SMTPFrom")) {
-    sfree (smtp_from);
-    smtp_from = strdup (value);
+  else if (0 == strcasecmp (key, "From")) {
+    sfree (email_from);
+    email_from = strdup (value);
   }
-  else if (0 == strcasecmp (key, "SMTPSubject")) {
-    sfree (smtp_subject);
-    smtp_subject = strdup (value);
+  else if (0 == strcasecmp (key, "Subject")) {
+    sfree (email_subject);
+    email_subject = strdup (value);
   }
   else {
     return -1;
@@ -222,7 +222,7 @@ static int notify_email_notification (const notification_t *n)
         : ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
 
   ssnprintf (subject, sizeof (subject),
-      (smtp_subject == NULL) ? DEFAULT_SMTP_SUBJECT : smtp_subject,
+      (email_subject == NULL) ? DEFAULT_SMTP_SUBJECT : email_subject,
       severity, n->host);
 
   localtime_r (&n->time, &timestamp_tm);
@@ -250,7 +250,7 @@ static int notify_email_notification (const notification_t *n)
     ERROR ("notify_email plugin: cannot set SMTP message");
     return (-1);   
   }
-  smtp_set_reverse_path (message, smtp_from);
+  smtp_set_reverse_path (message, email_from);
   smtp_set_header (message, "To", NULL, NULL);
   smtp_set_message_str (message, buf);
 
