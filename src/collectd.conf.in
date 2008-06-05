@@ -21,7 +21,6 @@ FQDNLookup   true
 @BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 @BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @BUILD_PLUGIN_CSV_TRUE@LoadPlugin csv
-@BUILD_PLUGIN_DESKTOP_NOTIFICATION_TRUE@LoadPlugin desktop_notification
 @BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 @BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 @BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
@@ -46,6 +45,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_NETWORK_TRUE@LoadPlugin network
 @BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
 @BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
+@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 @BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 @BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 @BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
@@ -93,12 +93,6 @@ FQDNLookup   true
 #<Plugin csv>
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
-#</Plugin>
-
-#<Plugin desktop_notification>
-#	OkayTimeout 1000
-#	WarningTimeout 5000
-#	FailureTimeout 0
 #</Plugin>
 
 #<Plugin df>
@@ -210,6 +204,12 @@ FQDNLookup   true
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#</Plugin>
+
+#<Plugin notify_desktop>
+#	OkayTimeout 1000
+#	WarningTimeout 5000
+#	FailureTimeout 0
 #</Plugin>
 
 #<Plugin notify_email>
