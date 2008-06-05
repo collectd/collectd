@@ -236,6 +236,10 @@ Features
       notifications, notification-daemon is required.
       See http://www.galago-project.org/specs/notification/.
 
+    - notify_email
+      Send an E-mail with the notification message to the configured
+      recipients.
+
     - exec
       Execute a program or script to handle the notification.
       See collectd-exec(5).
@@ -321,8 +325,15 @@ Prerequisites
     used and should be found in various implementations for hopefully all
     platforms.
 
+  * CoreFoundation.framework and IOKit.framework (optional)
+    For compiling on Darwin in general and the `apple_sensors' plugin in
+    particular.
+
   * libcurl (optional)
     If you want to use the `apache', `ascent', or `nginx' plugin.
+
+  * libesmtp (optional)
+    For the `notify_email' plugin.
 
   * libhal (optional)
     If present, the uuid plugin will check for UUID from HAL.
@@ -359,31 +370,27 @@ Prerequisites
     Alternatively you can chose to write CSV-files (Comma Separated Values)
     instead.
 
+  * librt, libsocket, libkstat, libdevinfo (optional)
+    Various standard Solaris libraries which provide system functions.
+
   * libsensors (optional)
     To read from `lm_sensors', see the `sensors' plugin.
 
-  * libstatgrab may be used to collect statistics on systems other than Linux
-    and/or Solaris. Note that CPU- and disk-statistics, while being provided
-    by this library, are not supported in collectd right now..
+  * libstatgrab (optional) may be used to collect statistics on systems other
+    than Linux and/or Solaris. Note that CPU- and disk-statistics, while being
+    provided by this library, are not supported in collectd right now..
     <http://www.i-scream.org/libstatgrab/> 
 
   * libupsclient/nut (optional)
     For the `nut' plugin which queries nut's `upsd'.
-
-  * libxmms (optional)
-
-  * librt, libsocket, libkstat, libdevinfo
-    Various standard Solaris libraries which provide system functions.
-
-  * CoreFoundation.framework and IOKit.framework
-    For compiling on Darwin in general and the `apple_sensors' plugin in
-    particular.
 
   * libvirt (optional)
     Collect statistics from virtual machines.
 
   * libxml2 (optional)
     Parse XML data. This is needed for the `ascent' and `libvirt' plugins.
+
+  * libxmms (optional)
 
 
 Configuring / Compiling / Installing
