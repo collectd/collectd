@@ -1,6 +1,6 @@
 /**
  * collectd - src/rrdtool.c
- * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2006-2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -46,6 +46,13 @@ struct rrd_cache_s
 	} flags;
 };
 typedef struct rrd_cache_s rrd_cache_t;
+
+enum rrd_queue_dir_e
+{
+  QUEUE_INSERT_FRONT,
+  QUEUE_INSERT_BACK
+};
+typedef enum rrd_queue_dir_e rrd_queue_dir_t;
 
 struct rrd_queue_s
 {
@@ -663,36 +670,73 @@ static void *rrd_queue_thread (void *data)
 	return ((void *) 0);
 } /* void *rrd_queue_thread */
 
-static int rrd_queue_cache_entry (const char *filename)
+static int rrd_queue_cache_entry (const char *filename, rrd_queue_dir_t dir)
 {
-	rrd_queue_t *queue_entry;
+  rrd_queue_t *queue_entry;
 
-	queue_entry = (rrd_queue_t *) malloc (sizeof (rrd_queue_t));
-	if (queue_entry == NULL)
-		return (-1);
+  queue_entry = (rrd_queue_t *) malloc (sizeof (rrd_queue_t));
+  if (queue_entry == NULL)
+    return (-1);
 
-	queue_entry->filename = strdup (filename);
-	if (queue_entry->filename == NULL)
-	{
-		free (queue_entry);
-		return (-1);
-	}
+  queue_entry->filename = strdup (filename);
+  if (queue_entry->filename == NULL)
+  {
+    free (queue_entry);
+    return (-1);
+  }
 
-	queue_entry->next = NULL;
+  queue_entry->next = NULL;
 
-	pthread_mutex_lock (&queue_lock);
-	if (queue_tail == NULL)
-		queue_head = queue_entry;
-	else
-		queue_tail->next = queue_entry;
-	queue_tail = queue_entry;
-	pthread_cond_signal (&queue_cond);
-	pthread_mutex_unlock (&queue_lock);
+  pthread_mutex_lock (&queue_lock);
+  if (dir == QUEUE_INSERT_FRONT)
+  {
+    queue_entry->next = queue_head;
+    queue_head = queue_entry;
+    if (queue_tail == NULL)
+      queue_tail = queue_head;
+  }
+  else /* (dir == QUEUE_INSERT_BACK) */
+  {
+    if (queue_tail == NULL)
+      queue_head = queue_entry;
+    else
+      queue_tail->next = queue_entry;
+    queue_tail = queue_entry;
+  }
+  pthread_cond_signal (&queue_cond);
+  pthread_mutex_unlock (&queue_lock);
 
-	DEBUG ("rrdtool plugin: Put `%s' into the update queue", filename);
+  DEBUG ("rrdtool plugin: Put `%s' into the update queue", filename);
 
-	return (0);
+  return (0);
 } /* int rrd_queue_cache_entry */
+
+static int rrd_queue_move_to_front (const char *filename)
+{
+  rrd_queue_t *this;
+  rrd_queue_t *prev;
+
+  this = NULL;
+  prev = NULL;
+  pthread_mutex_lock (&queue_lock);
+  for (this = queue_head; this != NULL; this = this->next)
+  {
+    if (strcmp (this->filename, filename) == 0)
+      break;
+    prev = this;
+  }
+
+  /* Check if we found the entry and if it is NOT the first entry. */
+  if ((this != NULL) && (prev != NULL))
+  {
+    prev->next = this->next;
+    this->next = queue_head;
+    queue_head = this;
+  }
+  pthread_mutex_unlock (&queue_lock);
+
+  return (0);
+} /* int rrd_queue_move_to_front */
 
 static void rrd_cache_flush (int timeout)
 {
@@ -720,7 +764,7 @@ static void rrd_cache_flush (int timeout)
 			continue;
 		else if (rc->values_num > 0)
 		{
-			if (rrd_queue_cache_entry (key) == 0)
+			if (rrd_queue_cache_entry (key, QUEUE_INSERT_BACK) == 0)
 				rc->flags = FLAG_QUEUED;
 		}
 		else /* ancient and no values -> waste of memory */
@@ -799,12 +843,12 @@ static int rrd_cache_flush_identifier (int timeout, const char *identifier)
   }
 
   if (rc->flags == FLAG_QUEUED)
-    status = 0;
+    status = rrd_queue_move_to_front (key);
   else if ((now - rc->first_value) < timeout)
     status = 0;
   else if (rc->values_num > 0)
   {
-    status = rrd_queue_cache_entry (key);
+    status = rrd_queue_cache_entry (key, QUEUE_INSERT_FRONT);
     if (status == 0)
       rc->flags = FLAG_QUEUED;
   }
@@ -908,7 +952,7 @@ static int rrd_cache_insert (const char *filename,
 		 * the same time, ALWAYS lock `cache_lock' first! */
 		if (rc->flags != FLAG_QUEUED)
 		{
-			if (rrd_queue_cache_entry (filename) == 0)
+			if (rrd_queue_cache_entry (filename, QUEUE_INSERT_BACK) == 0)
 				rc->flags = FLAG_QUEUED;
 		}
 		else
