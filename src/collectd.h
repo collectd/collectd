@@ -122,8 +122,13 @@
 # endif /* !defined(isnan) */
 #endif /* NAN_ZERO_ZERO */
 
+/* Try really, really hard to determine endianess. Under NexentaStor 1.0.2 this
+ * information is in <sys/isa_defs.h>, possibly some other Solaris versions do
+ * this too.. */
 #if HAVE_ENDIAN_H
 # include <endian.h>
+#elif HAVE_SYS_ISA_DEFS_H
+# include <sys/isa_defs.h>
 #endif
 
 #ifndef BYTE_ORDER
@@ -138,6 +143,26 @@
 #  define BIG_ENDIAN _BIG_ENDIAN
 # elif defined(__BIG_ENDIAN)
 #  define BIG_ENDIAN __BIG_ENDIAN
+# endif
+#endif
+#ifndef LITTLE_ENDIAN
+# if defined(_LITTLE_ENDIAN)
+#  define LITTLE_ENDIAN _LITTLE_ENDIAN
+# elif defined(__LITTLE_ENDIAN)
+#  define LITTLE_ENDIAN __LITTLE_ENDIAN
+# endif
+#endif
+#ifndef BYTE_ORDER
+# if defined(BIG_ENDIAN) && !defined(LITTLE_ENDIAN)
+#  undef BIG_ENDIAN
+#  define BIG_ENDIAN 4321
+#  define LITTLE_ENDIAN 1234
+#  define BYTE_ORDER BIG_ENDIAN
+# elif !defined(BIG_ENDIAN) && defined(LITTLE_ENDIAN)
+#  undef LITTLE_ENDIAN
+#  define BIG_ENDIAN 4321
+#  define LITTLE_ENDIAN 1234
+#  define BYTE_ORDER LITTLE_ENDIAN
 # endif
 #endif
 #if !defined(BYTE_ORDER) || !defined(BIG_ENDIAN)
@@ -219,6 +244,11 @@
 #endif
 
 #define STATIC_ARRAY_LEN(array) (sizeof (array) / sizeof ((array)[0]))
+
+/* Remove GNU specific __attribute__ settings when using another compiler */
+#if !__GNUC__
+# define __attribute__(x) /**/
+#endif
 
 extern char hostname_g[];
 extern int  interval_g;
