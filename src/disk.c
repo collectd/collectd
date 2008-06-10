@@ -452,7 +452,7 @@ static int disk_read (void)
 		major = atoll (fields[0]);
 		minor = atoll (fields[1]);
 
-		disk_name = fields[2];
+		disk_name = fields[2 + fieldshift];
 
 		for (ds = disklist, pre_ds = disklist; ds != NULL; pre_ds = ds, ds = ds->next)
 			if (strcmp (disk_name, ds->name) == 0)

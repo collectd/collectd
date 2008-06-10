@@ -183,7 +183,7 @@ static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static c_avl_tree_t      *cache_tree = NULL;
 static pthread_mutex_t  cache_lock = PTHREAD_MUTEX_INITIALIZER;
-static time_t           cache_flush_last;
+static time_t           cache_flush_last = 0;
 static int              cache_flush_interval = 1800;
 
 /*
@@ -1706,11 +1706,19 @@ static int network_shutdown (void)
 	plugin_unregister_write ("network");
 	plugin_unregister_shutdown ("network");
 
+	/* Let the init function do it's move again ;) */
+	cache_flush_last = 0;
+
 	return (0);
 } /* int network_shutdown */
 
 static int network_init (void)
 {
+	/* Check if we were already initialized. If so, just return - there's
+	 * nothing more to do (for now, that is). */
+	if (cache_flush_last != 0)
+		return (0);
+
 	plugin_register_shutdown ("network", network_shutdown);
 
 	send_buffer_ptr  = send_buffer;
