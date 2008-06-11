@@ -667,7 +667,7 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
         n = DATA_MAX_NAME_LEN - strlen (vl->host) - 2;
 
         if (i > 0 && n >= 1) {
-            strcat (vl->host, ":");
+            strncat (vl->host, ":", 1);
             n--;
         }
 
