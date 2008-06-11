@@ -2356,6 +2356,7 @@ plugin_serial="no"
 plugin_swap="no"
 plugin_tape="no"
 plugin_tcpconns="no"
+plugin_thermal="no"
 plugin_users="no"
 plugin_vmem="no"
 plugin_vserver="no"
@@ -2378,6 +2379,7 @@ then
 	plugin_serial="yes"
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
+	plugin_thermal="yes"
 	plugin_vmem="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
@@ -2554,6 +2556,7 @@ AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
 AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
 AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
+AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
@@ -2716,6 +2719,7 @@ Configuration:
     tape  . . . . . . . . $enable_tape
     tcpconns  . . . . . . $enable_tcpconns
     teamspeak2  . . . . . $enable_teamspeak2
+    thermal . . . . . . . $enable_thermal
     unixsock  . . . . . . $enable_unixsock
     users . . . . . . . . $enable_users
     uuid  . . . . . . . . $enable_uuid

@@ -656,6 +656,14 @@ collectd_LDADD += "-dlopen" teamspeak2.la
 collectd_DEPENDENCIES += teamspeak2.la
 endif
 
+if BUILD_PLUGIN_THERMAL
+pkglib_LTLIBRARIES += thermal.la
+thermal_la_SOURCES = thermal.c
+thermal_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" thermal.la
+collectd_DEPENDENCIES += thermal.la
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
