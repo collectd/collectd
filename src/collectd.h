@@ -250,6 +250,10 @@
 # define __attribute__(x) /**/
 #endif
 
+#if __GNUC__
+# pragma GCC poison strcpy strcat sprintf strtok
+#endif
+
 extern char hostname_g[];
 extern int  interval_g;
 
