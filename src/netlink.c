@@ -171,8 +171,8 @@ static void submit_one (const char *dev, const char *type,
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "netlink");
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "netlink", sizeof (vl.plugin));
   strncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
 
   if (type_instance != NULL)
@@ -194,8 +194,8 @@ static void submit_two (const char *dev, const char *type,
   vl.values = values;
   vl.values_len = 2;
   vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "netlink");
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "netlink", sizeof (vl.plugin));
   strncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
 
   if (type_instance != NULL)

@@ -657,8 +657,8 @@ static void email_submit (const char *type, const char *type_instance, gauge_t v
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "email");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "email", sizeof (vl.plugin));
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (type, &vl);

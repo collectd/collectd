@@ -384,7 +384,7 @@ handle_dns(const char *buf, int len,
     if (0 != x)
 	return 0;
     if ('\0' == qh.qname[0])
-	strcpy(qh.qname, ".");
+	strncpy (qh.qname, ".", sizeof (qh.qname));
     while ((t = strchr(qh.qname, '\n')))
 	*t = ' ';
     while ((t = strchr(qh.qname, '\r')))

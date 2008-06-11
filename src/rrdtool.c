@@ -285,7 +285,7 @@ static int ds_get (char ***ret, const data_set_t *ds, const value_list_t *vl)
 
 		if (isnan (d->min))
 		{
-			strcpy (min, "U");
+			sstrncpy (min, "U", sizeof (min));
 		}
 		else
 		{
@@ -295,7 +295,7 @@ static int ds_get (char ***ret, const data_set_t *ds, const value_list_t *vl)
 
 		if (isnan (d->max))
 		{
-			strcpy (max, "U");
+			sstrncpy (max, "U", sizeof (max));
 		}
 		else
 		{

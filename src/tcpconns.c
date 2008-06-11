@@ -135,8 +135,8 @@ static void conn_submit_port_entry (port_entry_t *pe)
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "tcpconns");
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "tcpconns", sizeof (vl.plugin));
 
   if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING))
       || (pe->flags & PORT_COLLECT_LOCAL))

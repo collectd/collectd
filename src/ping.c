@@ -186,9 +186,9 @@ static void ping_submit (char *host, double latency)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "ping");
-	strcpy (vl.plugin_instance, "");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "ping", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	strncpy (vl.type_instance, host, sizeof (vl.type_instance));
 
 	plugin_dispatch_values ("ping", &vl);

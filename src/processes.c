@@ -409,9 +409,9 @@ static void ps_submit_state (const char *state, double value)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "processes");
-	strcpy (vl.plugin_instance, "");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	strncpy (vl.type_instance, state, sizeof (vl.type_instance));
 
 	plugin_dispatch_values ("ps_state", &vl);
@@ -425,8 +425,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "processes");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	strncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
 	vl.values[0].gauge = ps->vmem_rss;

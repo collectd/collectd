@@ -88,10 +88,10 @@ static void as_submit (const char *type, const char *type_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "apple_sensors");
-	strcpy (vl.plugin_instance, "");
-	strcpy (vl.type_instance, type_instance);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "apple_sensors", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (type, &vl);
 }
@@ -192,17 +192,17 @@ static int as_read (void)
 		if (strcmp (type, "temperature") == 0)
 		{
 			value_double = ((double) value_int) / 65536.0;
-			strcpy (type, "temperature");
+			sstrncpy (type, "temperature", sizeof (type));
 		}
 		else if (strcmp (type, "temp") == 0)
 		{
 			value_double = ((double) value_int) / 10.0;
-			strcpy (type, "temperature");
+			sstrncpy (type, "temperature", sizeof (type));
 		}
 		else if (strcmp (type, "fanspeed") == 0)
 		{
 			value_double = ((double) value_int) / 65536.0;
-			strcpy (type, "fanspeed");
+			sstrncpy (type, "fanspeed", sizeof (type));
 		}
 		else if (strcmp (type, "voltage") == 0)
 		{
@@ -212,7 +212,7 @@ static int as_read (void)
 		else if (strcmp (type, "adc") == 0)
 		{
 			value_double = ((double) value_int) / 10.0;
-			strcpy (type, "fanspeed");
+			sstrncpy (type, "fanspeed", sizeof (type));
 		}
 		else
 		{

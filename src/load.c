@@ -51,8 +51,8 @@ static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "load");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "load", sizeof (vl.plugin));
 
 	plugin_dispatch_values ("load", &vl);
 }

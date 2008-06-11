@@ -238,10 +238,10 @@ static void cipvs_submit_connections (char *pi, char *ti, counter_t value)
 	vl.time     = time (NULL);
 	vl.interval = interval_g;
 
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "ipvs");
-	strcpy (vl.plugin_instance, pi);
-	strcpy (vl.type_instance, (NULL != ti) ? ti : "total");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type_instance, (NULL != ti) ? ti : "total", sizeof (vl.type_instance));
 
 	plugin_dispatch_values ("connections", &vl);
 	return;
@@ -262,10 +262,10 @@ static void cipvs_submit_if (char *pi, char *t, char *ti,
 	vl.time     = time (NULL);
 	vl.interval = interval_g;
 
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "ipvs");
-	strcpy (vl.plugin_instance, pi);
-	strcpy (vl.type_instance, (NULL != ti) ? ti : "total");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type_instance, (NULL != ti) ? ti : "total", sizeof (vl.type_instance));
 
 	plugin_dispatch_values (t, &vl);
 	return;

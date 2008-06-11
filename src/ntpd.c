@@ -302,9 +302,9 @@ static void ntpd_submit (char *type, char *type_inst, double value)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "ntpd");
-	strcpy (vl.plugin_instance, "");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "ntpd", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (type, &vl);
