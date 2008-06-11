@@ -125,9 +125,9 @@ static void df_submit (char *df_name,
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "df");
-	strcpy (vl.plugin_instance, "");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	strncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
 
 	plugin_dispatch_values ("df", &vl);

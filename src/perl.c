@@ -553,7 +553,7 @@ static int pplugin_dispatch_values (pTHX_ char *name, HV *values)
 		list.host[DATA_MAX_NAME_LEN - 1] = '\0';
 	}
 	else {
-		strcpy (list.host, hostname_g);
+		sstrncpy (list.host, hostname_g, sizeof (list.host));
 	}
 
 	if (NULL != (tmp = hv_fetch (values, "plugin", 6, 0))) {

@@ -219,8 +219,8 @@ static int submit_match (const struct ipt_entry_match *match,
     vl.values = values;
     vl.values_len = 1;
     vl.time = time (NULL);
-    strcpy (vl.host, hostname_g);
-    strcpy (vl.plugin, "iptables");
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "iptables", sizeof (vl.plugin));
 
     status = snprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	    "%s-%s", chain->table, chain->chain);

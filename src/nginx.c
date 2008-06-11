@@ -151,9 +151,9 @@ static void submit (char *type, char *inst, long long value)
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "nginx");
-  strcpy (vl.plugin_instance, "");
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "nginx", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 
   if (inst != NULL)
   {

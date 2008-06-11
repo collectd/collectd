@@ -224,8 +224,8 @@ static void submit_counter (const char *type, const char *type_inst,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memcached");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -248,8 +248,8 @@ static void submit_counter2 (const char *type, const char *type_inst,
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memcached");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -271,8 +271,8 @@ static void submit_gauge (const char *type, const char *type_inst,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memcached");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -295,8 +295,8 @@ static void submit_gauge2 (const char *type, const char *type_inst,
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memcached");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
 	if (type_inst != NULL)
 	{
 		strncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
