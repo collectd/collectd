@@ -637,7 +637,8 @@ static void *exec_read_one (void *arg) /* {{{ */
 static void *exec_notification_one (void *arg) /* {{{ */
 {
   program_list_t *pl = ((program_list_and_notification_t *) arg)->pl;
-  const notification_t *n = &((program_list_and_notification_t *) arg)->n;
+  notification_t *n = &((program_list_and_notification_t *) arg)->n;
+  notification_meta_t *meta;
   int fd;
   FILE *fh;
   int pid;
@@ -686,6 +687,21 @@ static void *exec_notification_one (void *arg) /* {{{ */
   if (strlen (n->type_instance) > 0)
     fprintf (fh, "TypeInstance: %s\n", n->type_instance);
 
+  for (meta = n->meta; meta != NULL; meta = meta->next)
+  {
+    if (meta->type == NM_TYPE_STRING)
+      fprintf (fh, "%s: %s\n", meta->name, meta->value_string);
+    else if (meta->type == NM_TYPE_SIGNED_INT)
+      fprintf (fh, "%s: %lli\n", meta->name, meta->value_signed_int);
+    else if (meta->type == NM_TYPE_UNSIGNED_INT)
+      fprintf (fh, "%s: %llu\n", meta->name, meta->value_unsigned_int);
+    else if (meta->type == NM_TYPE_DOUBLE)
+      fprintf (fh, "%s: %e\n", meta->name, meta->value_double);
+    else if (meta->type == NM_TYPE_BOOLEAN)
+      fprintf (fh, "%s: %s\n", meta->name,
+	  meta->value_boolean ? "true" : "false");
+  }
+
   fprintf (fh, "\n%s\n", n->message);
 
   fflush (fh);
@@ -696,6 +712,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   DEBUG ("exec plugin: Child %i exited with status %i.",
       pid, status);
 
+  plugin_notification_meta_free (n);
   sfree (arg);
   pthread_exit ((void *) 0);
   return (NULL);
@@ -771,6 +788,7 @@ static int exec_notification (const notification_t *n)
 
     pln->pl = pl;
     memcpy (&pln->n, n, sizeof (notification_t));
+    plugin_notification_meta_copy (&pln->n, n);
 
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
