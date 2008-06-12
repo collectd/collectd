@@ -99,6 +99,30 @@ struct data_set_s
 };
 typedef struct data_set_s data_set_t;
 
+enum notification_meta_type_e
+{
+	NM_TYPE_STRING,
+	NM_TYPE_SIGNED_INT,
+	NM_TYPE_UNSIGNED_INT,
+	NM_TYPE_DOUBLE,
+	NM_TYPE_BOOLEAN
+};
+
+typedef struct notification_meta_s
+{
+	char name[DATA_MAX_NAME_LEN];
+	enum notification_meta_type_e type;
+	union
+	{
+		const char *value_string;
+		int64_t value_signed_int;
+		uint64_t value_unsigned_int;
+		double value_double;
+		bool value_boolean;
+	};
+	struct notification_meta_s *next;
+} notification_meta_t;
+
 typedef struct notification_s
 {
 	int    severity;
@@ -109,6 +133,7 @@ typedef struct notification_s
 	char   plugin_instance[DATA_MAX_NAME_LEN];
 	char   type[DATA_MAX_NAME_LEN];
 	char   type_instance[DATA_MAX_NAME_LEN];
+	notification_meta_t *meta;
 } notification_t;
 
 /*
@@ -227,5 +252,11 @@ void plugin_log (int level, const char *format, ...)
 #endif /* ! COLLECT_DEBUG */
 
 const data_set_t *plugin_get_ds (const char *name);
+
+int plugin_notification_meta_add (notification_t *n,
+		const char *name,
+		enum notification_meta_type_e type,
+		const void *value);
+int plugin_notification_meta_free (notification_t *n);
 
 #endif /* PLUGIN_H */
