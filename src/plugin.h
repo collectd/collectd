@@ -253,10 +253,21 @@ void plugin_log (int level, const char *format, ...)
 
 const data_set_t *plugin_get_ds (const char *name);
 
-int plugin_notification_meta_add (notification_t *n,
-		const char *name,
-		enum notification_meta_type_e type,
-		const void *value);
+int plugin_notification_meta_add_string (notification_t *n,
+    const char *name,
+    const char *value);
+int plugin_notification_meta_add_signed_int (notification_t *n,
+    const char *name,
+    int64_t value);
+int plugin_notification_meta_add_unsigned_int (notification_t *n,
+    const char *name,
+    uint64_t value);
+int plugin_notification_meta_add_double (notification_t *n,
+    const char *name,
+    double value);
+int plugin_notification_meta_add_boolean (notification_t *n,
+    const char *name,
+    bool value);
 int plugin_notification_meta_free (notification_t *n);
 
 #endif /* PLUGIN_H */

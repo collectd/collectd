@@ -899,7 +899,7 @@ const data_set_t *plugin_get_ds (const char *name)
 	return (ds);
 } /* data_set_t *plugin_get_ds */
 
-int plugin_notification_meta_add (notification_t *n,
+static int plugin_notification_meta_add (notification_t *n,
 		const char *name,
 		enum notification_meta_type_e type,
 		const void *value)
@@ -978,10 +978,51 @@ int plugin_notification_meta_add (notification_t *n,
   return (0);
 } /* int plugin_notification_meta_add */
 
+int plugin_notification_meta_add_string (notification_t *n,
+    const char *name,
+    const char *value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_STRING, value));
+}
+
+int plugin_notification_meta_add_signed_int (notification_t *n,
+    const char *name,
+    int64_t value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_SIGNED_INT, &value));
+}
+
+int plugin_notification_meta_add_unsigned_int (notification_t *n,
+    const char *name,
+    uint64_t value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_UNSIGNED_INT, &value));
+}
+
+int plugin_notification_meta_add_double (notification_t *n,
+    const char *name,
+    double value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_DOUBLE, &value));
+}
+
+int plugin_notification_meta_add_boolean (notification_t *n,
+    const char *name,
+    bool value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_BOOLEAN, &value));
+}
+
 int plugin_notification_meta_free (notification_t *n)
 {
   notification_meta_t *this;
   notification_meta_t *next;
+
+  if (n == NULL)
+  {
+    ERROR ("plugin_notification_meta_free: n == NULL!");
+    return (-1);
+  }
 
   this = n->meta;
   n->meta = NULL;
