@@ -268,6 +268,10 @@ int plugin_notification_meta_add_double (notification_t *n,
 int plugin_notification_meta_add_boolean (notification_t *n,
     const char *name,
     bool value);
+
+int plugin_notification_meta_copy (notification_t *dst,
+    const notification_t *src);
+
 int plugin_notification_meta_free (notification_t *n);
 
 #endif /* PLUGIN_H */
