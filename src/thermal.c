@@ -1,6 +1,6 @@
 /**
  * collectd - src/thermal.c
- * Copyright (C) 2008  Micha≥ Miros≥aw
+ * Copyright (C) 2008  Micha≈Ç Miros≈Çaw
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Micha≥ Miros≥aw <mirq-linux at rere.qmqm.pl>
+ *   Micha≈Ç Miros≈Çaw <mirq-linux at rere.qmqm.pl>
  **/
 
 #include "collectd.h"
