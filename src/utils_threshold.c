@@ -616,6 +616,14 @@ static int ut_report_state (const data_set_t *ds,
     bufsize -= status;
   }
 
+  plugin_notification_meta_add_string (&n, "DataSource",
+      ds->ds[ds_index].name);
+  plugin_notification_meta_add_double (&n, "CurrentValue", values[ds_index]);
+  plugin_notification_meta_add_double (&n, "WarningMin", th->warning_min);
+  plugin_notification_meta_add_double (&n, "WarningMax", th->warning_max);
+  plugin_notification_meta_add_double (&n, "FailureMin", th->failure_min);
+  plugin_notification_meta_add_double (&n, "FailureMax", th->failure_max);
+
   /* Send an okay notification */
   if (state == STATE_OKAY)
   {
@@ -666,6 +674,7 @@ static int ut_report_state (const data_set_t *ds,
 
   plugin_dispatch_notification (&n);
 
+  plugin_notification_meta_free (&n);
   return (0);
 } /* }}} int ut_report_state */
 
