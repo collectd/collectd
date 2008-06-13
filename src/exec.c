@@ -788,6 +788,10 @@ static int exec_notification (const notification_t *n)
 
     pln->pl = pl;
     memcpy (&pln->n, n, sizeof (notification_t));
+
+    /* Set the `meta' member to NULL, otherwise `plugin_notification_meta_copy'
+     * will run into an endless loop. */
+    pln->n.meta = NULL;
     plugin_notification_meta_copy (&pln->n, n);
 
     pthread_attr_init (&attr);
