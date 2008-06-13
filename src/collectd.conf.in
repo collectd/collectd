@@ -102,7 +102,7 @@ FQDNLookup   true
 
 #<Plugin exec>
 #	Exec "user:group" "/path/to/exec"
-#	NotificationExec "/path/to/exec"
+#	NotificationExec "user:group" "/path/to/exec"
 #</Plugin>
 
 @BUILD_PLUGIN_HDDTEMP_TRUE@<Plugin hddtemp>
