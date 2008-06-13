@@ -923,7 +923,6 @@ static int plugin_notification_meta_add (notification_t *n,
 
   sstrncpy (meta->name, name, sizeof (meta->name));
   meta->type = type;
-  meta->next = NULL;
 
   switch (type)
   {
@@ -966,6 +965,7 @@ static int plugin_notification_meta_add (notification_t *n,
     }
   } /* switch (type) */
 
+  meta->next = NULL;
   tail = n->meta;
   while ((tail != NULL) && (tail->next != NULL))
     tail = tail->next;
@@ -1017,6 +1017,11 @@ int plugin_notification_meta_copy (notification_t *dst,
     const notification_t *src)
 {
   notification_meta_t *meta;
+
+  assert (dst != NULL);
+  assert (src != NULL);
+  assert (dst != src);
+  assert ((src->meta == NULL) || (src->meta != dst->meta));
 
   for (meta = src->meta; meta != NULL; meta = meta->next)
   {
