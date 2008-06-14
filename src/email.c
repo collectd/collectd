@@ -292,8 +292,9 @@ static void *collect (void *arg)
 
 			len = strlen (line);
 			if (('\n' != line[len - 1]) && ('\r' != line[len - 1])) {
-				log_warn ("[thread #%5lu] line too long (> %lu characters): "
-						"'%s' (truncated)", self, sizeof (line) - 1, line);
+				log_warn ("[thread #%5lu] line too long (> %zu characters): "
+						"'%s' (truncated)",
+						(unsigned long) self, sizeof (line) - 1, line);
 
 				while (NULL != fgets (line, sizeof (line), this->socket))
 					if (('\n' == line[len - 1]) || ('\r' == line[len - 1]))
