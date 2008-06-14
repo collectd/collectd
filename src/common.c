@@ -224,7 +224,7 @@ int strsplit (char *string, char **fields, size_t size)
 	i = 0;
 	ptr = string;
 	saveptr = NULL;
-	while ((fields[i] = strtok_r (ptr, " \t", &saveptr)) != NULL)
+	while ((fields[i] = strtok_r (ptr, " \t\r\n", &saveptr)) != NULL)
 	{
 		ptr = NULL;
 		i++;
