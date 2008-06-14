@@ -898,3 +898,178 @@ const data_set_t *plugin_get_ds (const char *name)
 
 	return (ds);
 } /* data_set_t *plugin_get_ds */
+
+static int plugin_notification_meta_add (notification_t *n,
+		const char *name,
+		enum notification_meta_type_e type,
+		const void *value)
+{
+  notification_meta_t *meta;
+  notification_meta_t *tail;
+
+  if ((n == NULL) || (name == NULL) || (value == NULL))
+  {
+    ERROR ("plugin_notification_meta_add: A pointer is NULL!");
+    return (-1);
+  }
+
+  meta = (notification_meta_t *) malloc (sizeof (notification_meta_t));
+  if (meta == NULL)
+  {
+    ERROR ("plugin_notification_meta_add: malloc failed.");
+    return (-1);
+  }
+  memset (meta, 0, sizeof (notification_meta_t));
+
+  sstrncpy (meta->name, name, sizeof (meta->name));
+  meta->type = type;
+
+  switch (type)
+  {
+    case NM_TYPE_STRING:
+    {
+      meta->value_string = strdup ((const char *) value);
+      if (meta->value_string == NULL)
+      {
+        ERROR ("plugin_notification_meta_add: strdup failed.");
+        sfree (meta);
+        return (-1);
+      }
+      break;
+    }
+    case NM_TYPE_SIGNED_INT:
+    {
+      meta->value_signed_int = *((int64_t *) value);
+      break;
+    }
+    case NM_TYPE_UNSIGNED_INT:
+    {
+      meta->value_unsigned_int = *((uint64_t *) value);
+      break;
+    }
+    case NM_TYPE_DOUBLE:
+    {
+      meta->value_double = *((double *) value);
+      break;
+    }
+    case NM_TYPE_BOOLEAN:
+    {
+      meta->value_boolean = *((bool *) value);
+      break;
+    }
+    default:
+    {
+      ERROR ("plugin_notification_meta_add: Unknown type: %i", type);
+      sfree (meta);
+      return (-1);
+    }
+  } /* switch (type) */
+
+  meta->next = NULL;
+  tail = n->meta;
+  while ((tail != NULL) && (tail->next != NULL))
+    tail = tail->next;
+
+  if (tail == NULL)
+    n->meta = meta;
+  else
+    tail->next = meta;
+
+  return (0);
+} /* int plugin_notification_meta_add */
+
+int plugin_notification_meta_add_string (notification_t *n,
+    const char *name,
+    const char *value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_STRING, value));
+}
+
+int plugin_notification_meta_add_signed_int (notification_t *n,
+    const char *name,
+    int64_t value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_SIGNED_INT, &value));
+}
+
+int plugin_notification_meta_add_unsigned_int (notification_t *n,
+    const char *name,
+    uint64_t value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_UNSIGNED_INT, &value));
+}
+
+int plugin_notification_meta_add_double (notification_t *n,
+    const char *name,
+    double value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_DOUBLE, &value));
+}
+
+int plugin_notification_meta_add_boolean (notification_t *n,
+    const char *name,
+    bool value)
+{
+  return (plugin_notification_meta_add (n, name, NM_TYPE_BOOLEAN, &value));
+}
+
+int plugin_notification_meta_copy (notification_t *dst,
+    const notification_t *src)
+{
+  notification_meta_t *meta;
+
+  assert (dst != NULL);
+  assert (src != NULL);
+  assert (dst != src);
+  assert ((src->meta == NULL) || (src->meta != dst->meta));
+
+  for (meta = src->meta; meta != NULL; meta = meta->next)
+  {
+    if (meta->type == NM_TYPE_STRING)
+      plugin_notification_meta_add_string (dst, meta->name,
+	  meta->value_string);
+    else if (meta->type == NM_TYPE_SIGNED_INT)
+      plugin_notification_meta_add_signed_int (dst, meta->name,
+	  meta->value_signed_int);
+    else if (meta->type == NM_TYPE_UNSIGNED_INT)
+      plugin_notification_meta_add_unsigned_int (dst, meta->name,
+	  meta->value_unsigned_int);
+    else if (meta->type == NM_TYPE_DOUBLE)
+      plugin_notification_meta_add_double (dst, meta->name,
+	  meta->value_double);
+    else if (meta->type == NM_TYPE_BOOLEAN)
+      plugin_notification_meta_add_boolean (dst, meta->name,
+	  meta->value_boolean);
+  }
+
+  return (0);
+} /* int plugin_notification_meta_copy */
+
+int plugin_notification_meta_free (notification_t *n)
+{
+  notification_meta_t *this;
+  notification_meta_t *next;
+
+  if (n == NULL)
+  {
+    ERROR ("plugin_notification_meta_free: n == NULL!");
+    return (-1);
+  }
+
+  this = n->meta;
+  n->meta = NULL;
+  while (this != NULL)
+  {
+    next = this->next;
+
+    if (this->type == NM_TYPE_STRING)
+    {
+      sfree (this->value_string);
+    }
+    sfree (this);
+
+    this = next;
+  }
+
+  return (0);
+} /* int plugin_notification_meta_free */
