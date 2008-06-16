@@ -2639,6 +2639,7 @@ cat <<EOF;
 Configuration:
   Libraries:
     libcurl . . . . . . . $with_libcurl
+    libesmtp  . . . . . . $with_libesmtp
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
     libkstat  . . . . . . $with_kstat
