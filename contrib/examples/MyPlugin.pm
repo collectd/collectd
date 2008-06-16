@@ -21,7 +21,12 @@ use Collectd qw( :all );
 
 # data set definition:
 # see section "DATA TYPES" in collectd-perl(5) for details
-# (take a look at the types.db file for a large list of predefined data-sets)
+#
+# NOTE: If you're defining a custom data-set, you have to make that known to
+# any servers as well. Else, the server is not able to store values using the
+# type defined by that data-set.
+# It is strongly recommended to use one of the types and data-sets pre-defined
+# in the types.db file.
 my $dataset =
 [
 	{
@@ -70,7 +75,8 @@ sub my_read
 
 	# dispatch the values to collectd which passes them on to all registered
 	# write functions - the first argument is used to lookup the data set
-	# definition
+	# definition (it is strongly recommended to use a type defined in the
+	# types.db file)
 	plugin_dispatch_values ('myplugin', $vl);
 
 	# A false return value indicates an error and the plugin will be skipped
