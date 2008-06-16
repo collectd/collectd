@@ -510,6 +510,9 @@ endif
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c
+# Despite C99 providing the "bool" type thru stdbool.h, Perl defines its own
+# version of that type if HAS_BOOL is not defined... *sigh*
+perl_la_CPPFLAGS = -DHAS_BOOL=1
 perl_la_CFLAGS  = $(AM_CFLAGS) \
 		$(PERL_CFLAGS) \
 		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
