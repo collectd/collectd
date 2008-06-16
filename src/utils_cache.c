@@ -324,7 +324,7 @@ int uc_check_timeout (void)
     }
     else
     {
-      WARNING ("uc_check_timeout: ut_check_interesting (%s) returned ",
+      WARNING ("uc_check_timeout: ut_check_interesting (%s) returned "
 	  "invalid status %i.",
 	  keys[i], status);
     }

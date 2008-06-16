@@ -332,7 +332,7 @@ static int ds_get (char ***ret, const data_set_t *ds, const value_list_t *vl)
 
 #if HAVE_THREADSAFE_LIBRRD
 static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
-		int argc, char **argv)
+		int argc, const char **argv)
 {
 	int status;
 
@@ -350,7 +350,8 @@ static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
 	return (status);
 } /* int srrd_create */
 
-static int srrd_update (char *filename, char *template, int argc, char **argv)
+static int srrd_update (char *filename, char *template,
+		int argc, const char **argv)
 {
 	int status;
 
@@ -371,7 +372,7 @@ static int srrd_update (char *filename, char *template, int argc, char **argv)
 
 #else /* !HAVE_THREADSAFE_LIBRRD */
 static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
-		int argc, char **argv)
+		int argc, const char **argv)
 {
 	int status;
 
@@ -423,7 +424,8 @@ static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
 	return (status);
 } /* int srrd_create */
 
-static int srrd_update (char *filename, char *template, int argc, char **argv)
+static int srrd_update (char *filename, char *template,
+		int argc, const char **argv)
 {
 	int status;
 
@@ -508,7 +510,7 @@ static int rrd_create_file (char *filename, const data_set_t *ds, const value_li
 	status = srrd_create (filename,
 			(stepsize > 0) ? stepsize : vl->interval,
 			vl->time - 10,
-			argc, argv);
+			argc, (const char **)argv);
 
 	free (argv);
 	ds_free (ds_num, ds_def);
@@ -648,7 +650,8 @@ static void *rrd_queue_thread (void *data)
 		pthread_mutex_unlock (&cache_lock);
 
 		/* Write the values to the RRD-file */
-		srrd_update (queue_entry->filename, NULL, values_num, values);
+		srrd_update (queue_entry->filename, NULL,
+				values_num, (const char **)values);
 		DEBUG ("rrdtool plugin: queue thread: Wrote %i values to %s",
 				values_num, queue_entry->filename);
 
@@ -942,9 +945,9 @@ static int rrd_cache_insert (const char *filename,
 	}
 
 	DEBUG ("rrdtool plugin: rrd_cache_insert: file = %s; "
-			"values_num = %i; age = %u;",
+			"values_num = %i; age = %lu;",
 			filename, rc->values_num,
-			rc->last_value - rc->first_value);
+			(unsigned long)(rc->last_value - rc->first_value));
 
 	if ((rc->last_value - rc->first_value) >= cache_timeout)
 	{

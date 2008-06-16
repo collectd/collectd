@@ -42,7 +42,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   types_list.c types_list.h
 
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
-collectd_CFLAGS =
+collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
 collectd_LDADD =
 collectd_DEPENDENCIES =
@@ -96,7 +96,7 @@ if BUILD_PLUGIN_APACHE
 pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = apache.c
 apache_la_LDFLAGS = -module -avoid-version
-apache_la_CFLAGS =
+apache_la_CFLAGS = $(AM_CFLAGS)
 apache_la_LIBADD =
 collectd_LDADD += "-dlopen" apache.la
 if BUILD_WITH_LIBCURL
@@ -129,7 +129,8 @@ if BUILD_PLUGIN_ASCENT
 pkglib_LTLIBRARIES += ascent.la
 ascent_la_SOURCES = ascent.c
 ascent_la_LDFLAGS = -module -avoid-version
-ascent_la_CFLAGS = $(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+ascent_la_CFLAGS = $(AM_CFLAGS) \
+		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 ascent_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 collectd_LDADD += "-dlopen" apache.la
 collectd_DEPENDENCIES += ascent.la
@@ -149,7 +150,7 @@ endif
 if BUILD_PLUGIN_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c
-cpu_la_CFLAGS =
+cpu_la_CFLAGS = $(AM_CFLAGS)
 cpu_la_LDFLAGS = -module -avoid-version
 cpu_la_LIBADD = 
 if BUILD_WITH_LIBKSTAT
@@ -193,7 +194,7 @@ endif
 if BUILD_PLUGIN_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
-disk_la_CFLAGS =
+disk_la_CFLAGS = $(AM_CFLAGS)
 disk_la_LDFLAGS = -module -avoid-version
 disk_la_LIBADD = 
 if BUILD_WITH_LIBKSTAT
@@ -267,7 +268,7 @@ endif
 if BUILD_PLUGIN_INTERFACE
 pkglib_LTLIBRARIES += interface.la
 interface_la_SOURCES = interface.c
-interface_la_CFLAGS =
+interface_la_CFLAGS = $(AM_CFLAGS)
 interface_la_LDFLAGS = -module -avoid-version
 interface_la_LIBADD =
 collectd_LDADD += "-dlopen" interface.la
@@ -302,7 +303,7 @@ endif
 if BUILD_PLUGIN_IPMI
 pkglib_LTLIBRARIES += ipmi.la
 ipmi_la_SOURCES = ipmi.c
-ipmi_la_CFLAGS = $(BUILD_WITH_OPENIPMI_CFLAGS)
+ipmi_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_OPENIPMI_CFLAGS)
 ipmi_la_LDFLAGS = -module -avoid-version
 ipmi_la_LIBADD = $(BUILD_WITH_OPENIPMI_LIBS)
 collectd_LDADD += "-dlopen" ipmi.la
@@ -328,7 +329,8 @@ endif
 if BUILD_PLUGIN_LIBVIRT
 pkglib_LTLIBRARIES += libvirt.la
 libvirt_la_SOURCES = libvirt.c
-libvirt_la_CFLAGS = $(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+libvirt_la_CFLAGS = $(AM_CFLAGS) \
+		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 libvirt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 libvirt_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" libvirt.la
@@ -338,7 +340,7 @@ endif
 if BUILD_PLUGIN_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = load.c
-load_la_CFLAGS =
+load_la_CFLAGS = $(AM_CFLAGS)
 load_la_LDFLAGS = -module -avoid-version
 load_la_LIBADD =
 collectd_LDADD += "-dlopen" load.la
@@ -372,7 +374,6 @@ if BUILD_PLUGIN_MEMCACHED
 pkglib_LTLIBRARIES += memcached.la
 memcached_la_SOURCES = memcached.c
 memcached_la_LDFLAGS = -module -avoid-version
-memcached_la_CFLAGS =
 memcached_la_LIBADD =
 if BUILD_WITH_LIBSOCKET
 memcached_la_LDFLAGS += -lsocket
@@ -384,7 +385,7 @@ endif
 if BUILD_PLUGIN_MEMORY
 pkglib_LTLIBRARIES += memory.la
 memory_la_SOURCES = memory.c
-memory_la_CFLAGS =
+memory_la_CFLAGS = $(AM_CFLAGS)
 memory_la_LDFLAGS = -module -avoid-version
 memory_la_LIBADD =
 collectd_LDADD += "-dlopen" memory.la
@@ -413,7 +414,7 @@ if BUILD_PLUGIN_MYSQL
 pkglib_LTLIBRARIES += mysql.la
 mysql_la_SOURCES = mysql.c
 mysql_la_LDFLAGS = -module -avoid-version
-mysql_la_CFLAGS =
+mysql_la_CFLAGS = $(AM_CFLAGS)
 mysql_la_LIBADD =
 collectd_LDADD += "-dlopen" mysql.la
 if BUILD_WITH_LIBMYSQL
@@ -427,7 +428,7 @@ if BUILD_PLUGIN_NETLINK
 pkglib_LTLIBRARIES += netlink.la
 netlink_la_SOURCES = netlink.c
 netlink_la_LDFLAGS = -module -avoid-version
-netlink_la_CFLAGS = $(BUILD_WITH_LIBNETLINK_CFLAGS)
+netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBNETLINK_CFLAGS)
 netlink_la_LIBADD = $(BUILD_WITH_LIBNETLINK_LIBS)
 collectd_LDADD += "-dlopen" netlink.la
 collectd_DEPENDENCIES += netlink.la
@@ -472,7 +473,7 @@ endif
 if BUILD_PLUGIN_NOTIFY_DESKTOP
 pkglib_LTLIBRARIES += notify_desktop.la
 notify_desktop_la_SOURCES = notify_desktop.c
-notify_desktop_la_CFLAGS = $(LIBNOTIFY_CFLAGS)
+notify_desktop_la_CFLAGS = $(AM_CFLAGS) $(LIBNOTIFY_CFLAGS)
 notify_desktop_la_LDFLAGS = -module -avoid-version $(LIBNOTIFY_LIBS)
 collectd_LDADD += "-dlopen" notify_desktop.la
 collectd_DEPENDENCIES += notify_desktop.la
@@ -510,10 +511,10 @@ if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c
 perl_la_CFLAGS  = $(AM_CFLAGS) \
-		  $(PERL_CFLAGS) \
-		  -DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
+		$(PERL_CFLAGS) \
+		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
 perl_la_LDFLAGS = -module -avoid-version \
-		  $(PERL_LDFLAGS)
+		$(PERL_LDFLAGS)
 collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
 endif
@@ -552,7 +553,7 @@ if BUILD_PLUGIN_RRDTOOL
 pkglib_LTLIBRARIES += rrdtool.la
 rrdtool_la_SOURCES = rrdtool.c
 rrdtool_la_LDFLAGS = -module -avoid-version
-rrdtool_la_CFLAGS = $(BUILD_WITH_LIBRRD_CFLAGS)
+rrdtool_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
 rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)
 collectd_LDADD += "-dlopen" rrdtool.la
 collectd_DEPENDENCIES += rrdtool.la
@@ -561,7 +562,7 @@ endif
 if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = sensors.c
-sensors_la_CFLAGS = $(BUILD_WITH_LIBSENSORS_CFLAGS)
+sensors_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSENSORS_CFLAGS)
 sensors_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBSENSORS_LDFLAGS)
 sensors_la_LIBADD = -lsensors
 collectd_LDADD += "-dlopen" sensors.la
@@ -580,7 +581,7 @@ if BUILD_PLUGIN_SNMP
 pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = snmp.c
 snmp_la_LDFLAGS = -module -avoid-version
-snmp_la_CFLAGS =
+snmp_la_CFLAGS = $(AM_CFLAGS)
 snmp_la_LIBADD =
 if BUILD_WITH_LIBNETSNMP
 snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
@@ -596,7 +597,7 @@ endif
 if BUILD_PLUGIN_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c
-swap_la_CFLAGS =
+swap_la_CFLAGS = $(AM_CFLAGS)
 swap_la_LDFLAGS = -module -avoid-version
 swap_la_LIBADD =
 collectd_LDADD += "-dlopen" swap.la
@@ -680,7 +681,7 @@ endif
 if BUILD_PLUGIN_USERS
 pkglib_LTLIBRARIES += users.la
 users_la_SOURCES = users.c
-users_la_CFLAGS =
+users_la_CFLAGS = $(AM_CFLAGS)
 users_la_LDFLAGS = -module -avoid-version
 users_la_LIBADD =
 if BUILD_WITH_LIBSTATGRAB

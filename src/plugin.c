@@ -716,6 +716,7 @@ int plugin_flush (const char *plugin, int timeout, const char *identifier)
 
     (*callback) (timeout, identifier);
   }
+  return (0);
 } /* int plugin_flush */
 
 void plugin_shutdown_all (void)
@@ -1064,7 +1065,8 @@ int plugin_notification_meta_free (notification_t *n)
 
     if (this->type == NM_TYPE_STRING)
     {
-      sfree (this->value_string);
+      free ((char *)this->value_string);
+      this->value_string = NULL;
     }
     sfree (this);
 

@@ -207,7 +207,7 @@ static void submit_two (const char *dev, const char *type,
 } /* void submit_two */
 
 static int link_filter (const struct sockaddr_nl *sa,
-    const struct nlmsghdr *nmh, void *args)
+    struct nlmsghdr *nmh, void *args)
 {
   struct ifinfomsg *msg;
   int msg_len;
@@ -317,7 +317,7 @@ static int link_filter (const struct sockaddr_nl *sa,
 } /* int link_filter */
 
 static int qos_filter (const struct sockaddr_nl *sa,
-    const struct nlmsghdr *nmh, void *args)
+    struct nlmsghdr *nmh, void *args)
 {
   struct tcmsg *msg;
   int msg_len;
