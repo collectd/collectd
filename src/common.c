@@ -70,12 +70,12 @@ char *sstrdup (const char *s)
 
 	if((r = strdup (s)) == NULL)
 	{
-		DEBUG ("Not enough memory.");
-		exit(3);
+		ERROR ("Not enough memory.");
+		exit (3);
 	}
 
 	return (r);
-}
+} /* char *sstrdup */
 
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
@@ -131,12 +131,12 @@ void *smalloc (size_t size)
 
 	if ((r = malloc (size)) == NULL)
 	{
-		DEBUG("Not enough memory.");
-		exit(3);
+		ERROR ("Not enough memory.");
+		exit (3);
 	}
 
-	return r;
-}
+	return (r);
+} /* void *smalloc */
 
 #if 0
 void sfree (void **ptr)
