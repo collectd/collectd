@@ -203,5 +203,6 @@ int notification_init (notification_t *n, int severity, const char *message,
 
 typedef int (*dirwalk_callback_f)(const char *filename);
 int walk_directory (const char *dir, dirwalk_callback_f callback);
+int read_file_contents (const char *filename, char *buf, int bufsize);
 
 #endif /* COMMON_H */

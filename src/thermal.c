@@ -61,20 +61,6 @@ static void thermal_submit (const char *plugin_instance, enum dev_type dt,
 	plugin_dispatch_values (&vl);
 }
 
-static int read_file_contents (const char *filename, char *buf, int bufsize)
-{
-	FILE *fh;
-	int n;
-
-	if ((fh = fopen (filename, "r")) == NULL)
-		return -1;
-
-	n = fread(buf, 1, bufsize, fh);
-	fclose(fh);
-
-	return n;
-}
-
 static int thermal_sysfs_device_read (const char *name)
 {
 	char filename[256];
