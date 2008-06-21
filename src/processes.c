@@ -644,7 +644,6 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 {
 	char  filename[64];
 	char  buffer[1024];
-	FILE *fh;
 
 	char *fields[64];
 	char  fields_len;
@@ -663,16 +662,10 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
 
-	if ((fh = fopen (filename, "r")) == NULL)
+	i = read_file_contents (filename, buffer, sizeof(buffer) - 1);
+	if (i <= 0)
 		return (-1);
-
-	if (fgets (buffer, 1024, fh) == NULL)
-	{
-		fclose (fh);
-		return (-1);
-	}
-
-	fclose (fh);
+	buffer[i] = 0;
 
 	fields_len = strsplit (buffer, fields, 64);
 	if (fields_len < 24)
