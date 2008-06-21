@@ -864,3 +864,33 @@ int notification_init (notification_t *n, int severity, const char *message,
 
 	return (0);
 } /* int notification_init */
+
+int walk_directory (const char *dir, dirwalk_callback_f callback)
+{
+	struct dirent *ent;
+	DIR *dh;
+	int ok = 0;
+
+	if ((dh = opendir (dir)) == NULL)
+	{
+		char errbuf[1024];
+		ERROR ("Cannot open '%s': %s", dir,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return -1;
+	}
+
+	while ((ent = readdir (dh)) != NULL)
+	{
+		if (ent->d_name[0] == '.')
+			continue;
+
+		if (!callback(ent->d_name))
+			++ok;
+	}
+
+	closedir (dh);
+
+	return ok ? 0 : -1;
+}
+
+

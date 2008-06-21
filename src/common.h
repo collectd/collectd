@@ -200,4 +200,8 @@ int notification_init (notification_t *n, int severity, const char *message,
 	notification_init (n, NOTIF_FAILURE, NULL, \
 			(vl)->host, (vl)->plugin, (vl)->plugin_instance, \
 			(ds)->type, (vl)->type_instance)
+
+typedef int (*dirwalk_callback_f)(const char *filename);
+int walk_directory (const char *dir, dirwalk_callback_f callback);
+
 #endif /* COMMON_H */

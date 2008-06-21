@@ -82,6 +82,9 @@ static int thermal_sysfs_device_read (const char *name)
 	int len;
 	int ok = 0;
 
+	if (device_list && ignorelist_match (device_list, name))
+		return -1;
+
 	len = snprintf (filename, sizeof (filename), "%s/%s/temp", dirname_sysfs, name);
 	if ((len < 0) || ((unsigned int)len >= sizeof (filename)))
 		return -1;
@@ -129,6 +132,9 @@ static int thermal_procfs_device_read (const char *name)
 	char filename[256];
 	char data[1024];
 	int len;
+
+	if (device_list && ignorelist_match (device_list, name))
+		return -1;
 
 	/**
 	 * rechot ~ # cat /proc/acpi/thermal_zone/THRM/temperature
@@ -219,40 +225,6 @@ static int thermal_config (const char *key, const char *value)
 	}
 
 	return 0;
-}
-
-static int walk_directory (const char *dir, int (*callback)(const char *dev))
-{
-	struct dirent *ent;
-	DIR *dh;
-	int ok = 0;
-
-	if ((dh = opendir (dir)) == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("Cannot open '%s': %s", dir,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return -1;
-	}
-
-	while ((ent = readdir (dh)) != NULL)
-	{
-		if (ent->d_name[0] == '.')
-			continue;
-
-		if (device_list) {
-			DEBUG ("thermal plugin: Checking ignorelist for '%s'", ent->d_name);
-			if (ignorelist_match (device_list, ent->d_name))
-				continue;
-		}
-
-		if (!callback(ent->d_name))
-			++ok;
-	}
-
-	closedir (dh);
-
-	return ok ? 0 : -1;
 }
 
 static int thermal_sysfs_read (void)
