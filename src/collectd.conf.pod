@@ -1402,6 +1402,32 @@ port in numeric form.
 
 =back
 
+=head2 Plugin C<thermal>
+
+=over 4
+
+=item B<ForceUseProcfs> I<true>|I<false>
+
+By default, the C<thermal> plugin tries to read the statistics from the Linux
+C<sysfs> interface. If that is not available, the plugin falls back to the
+C<procfs> interface. By setting this option to I<true>, you can force the
+plugin to use the latter. This option defaults to I<false>.
+
+=item B<Device> I<Device>
+
+Selects the name of the thermal device that you want to collect or ignore,
+depending on the value of the B<IgnoreSelected> option. This option may be
+used multiple times to specify a list of devices.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+Invert the selection: If set to true, all devices B<except> the ones that
+match the device names specified by the B<Device> option are collected. By
+default only selected devices are collected if a selection is made. If no
+selection is configured at all, B<all> devices are selected.
+
+=back
+
 =head2 Plugin C<unixsock>
 
 =over 4
