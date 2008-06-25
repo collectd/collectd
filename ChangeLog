@@ -8,7 +8,7 @@
 	* perl plugin: Fail noisily, but don't shutdown the daemon, if
 	  initialization has errors. An issue with Perl 5.10 has been fixed.
 	* teamspeak2 plugin: Fixed an out of bounce array access. Thanks to
-	  René Rebe and Siegmund Gorr for reporting this.
+	  RenÃ© Rebe and Siegmund Gorr for reporting this.
 
 2008-05-06, Version 4.4.0
 	* collectd: Internal code cleanups.
@@ -548,7 +548,7 @@
 	  the data into text files rather than RRD files.
 
 2006-04-09, Version 3.8.4
-	* Applied patch by Vincent Stehlé which improves the disk-name
+	* Applied patch by Vincent StehlÃ© which improves the disk-name
 	  resolution in the `hddtemp' plugin for Linux systems.
 
 2006-04-02, Version 3.8.3
@@ -660,7 +660,7 @@
 
 2005-10-16, Version 3.1.0 (Revision 194)
 	* Added the `setsid' syscall to the startup code.
-	* Support for hddtemp has been added (thanks to Vincent Stehlé)
+	* Support for hddtemp has been added (thanks to Vincent StehlÃ©)
 
 2005-09-30, Version 3.0.0 (Revision 184)
 	* The ability to send/receive data to/from the network (think
