@@ -522,7 +522,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   if (ret_num != ds->ds_num)
   {
     ERROR ("utils_cache: uc_get_rate: ds[%s] has %i values, "
-	"but uc_get_rate_by_name returned %i.",
+	"but uc_get_rate_by_name returned %zu.",
 	ds->type, ds->ds_num, ret_num);
     sfree (ret);
     return (NULL);

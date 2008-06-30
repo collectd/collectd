@@ -34,7 +34,7 @@ static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
 
   if (buf_len < 11)
   {
-    ERROR ("parse_ds: (buf_len = %u) < 11", buf_len);
+    ERROR ("parse_ds: (buf_len = %zu) < 11", buf_len);
     return (-1);
   }
 
