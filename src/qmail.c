@@ -1,5 +1,6 @@
 /**
- * src/qmail_queue.c
+ * collectd - src/qmail.c
+ * Copyright (C) 2008  Alessandro Iurlano
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -14,8 +15,8 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
- * Authors:
- *   Alessandro Iurlano <alessandro.iurlano@gmail.com>
+ * Author:
+ *   Alessandro Iurlano <alessandro.iurlano at gmail.com>
  **/
 
 #include "collectd.h"
@@ -27,196 +28,210 @@
 #include <fcntl.h>
 #include <dirent.h>
 
+#define DEFAULT_BASE_DIR "/var/qmail"
 
-
-static char * qmail_base_dir;
+static char *qmail_base_dir;
 
 static const char *config_keys[] =
 {
-        "QmailDir"
+  "QmailDir"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-
-static void qmail_queue_submit (gauge_t queued_messages, gauge_t todo_messages)
+static void qmail_submit (const char *plugin_instance, gauge_t value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = queued_messages;
+  values[0].gauge = value;
 
   vl.values = values;
   vl.values_len = STATIC_ARRAY_SIZE (values);
   vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "qmail_queue");
-  strncpy (vl.plugin_instance, "messages",
-          sizeof (vl.plugin_instance));
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.type, "gauge", sizeof (vl.type));
+  sstrncpy (vl.plugin, "qmail", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
+  plugin_dispatch_values (&vl);
+} /* void qmail_submit */
 
-  plugin_dispatch_values ("gauge", &vl);
+static int count_files_in_subtree (const char *path, int depth)
+{
+  DIR *dh;
+  struct dirent *de;
+  int status;
 
-  values[0].gauge = todo_messages;
+  char **subdirs;
+  size_t subdirs_num;
 
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE (values);
-  vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "qmail_queue");
-  strncpy (vl.plugin_instance, "todo",
-          sizeof (vl.plugin_instance));
+  int count;
+  int i;
 
-  plugin_dispatch_values ("gauge", &vl);
-}
-
-#define MAX_PATH_LEN 4096
-
-static int count_files_in_dir(char * path) {
-  char *buf, *ebuf, *cp;
-  off_t base;
-  size_t bufsize;
-  int fd, nbytes;
-  struct stat sb;
-  struct dirent *dp;
-  int count=0;
-
-  if ((fd = open(path, O_RDONLY)) < 0) {
-    ERROR("cannot open %s", path);
-    return -1;
+  dh = opendir (path);
+  if (dh == NULL)
+  {
+    ERROR ("qmail plugin: opendir (%s) failed.", path);
+    return (-1);
   }
-  if (fstat(fd, &sb) < 0) {
-    ERROR("fstat");
-    return -1;
-  }
-  bufsize = sb.st_size;
-  if (bufsize < sb.st_blksize)
-    bufsize = sb.st_blksize;
-  if ((buf = malloc(bufsize)) == NULL) {
-    ERROR("cannot malloc %lu bytes", (unsigned long)bufsize);
-    return -1;
-  }
-  while ((nbytes = getdirentries(fd, buf, bufsize, &base)) > 0) {
-    ebuf = buf + nbytes;
-    cp = buf;
-    while (cp < ebuf) {
-      dp = (struct dirent *)cp;
-      if ( (dp->d_fileno!=0) && (dp->d_type!=DT_DIR) ) {
-	count++;
+
+  subdirs = NULL;
+  subdirs_num = 0;
+
+  count = 0;
+  while ((de = readdir (dh)) != NULL)
+  {
+    char abs_path[4096];
+    struct stat statbuf;
+
+    ssnprintf (abs_path, sizeof (abs_path), "%s/%s", path, de->d_name);
+
+    status = lstat (abs_path, &statbuf);
+    if (status != 0)
+    {
+      ERROR ("qmail plugin: stat (%s) failed.", abs_path);
+      continue;
+    }
+
+    if (S_ISREG (statbuf.st_mode))
+    {
+      count++;
+    }
+    else if (S_ISDIR (statbuf.st_mode))
+    {
+      char **temp;
+
+      temp = (char **) realloc (subdirs, sizeof (char *) * (subdirs_num + 1));
+      if (temp == NULL)
+      {
+        ERROR ("qmail plugin: realloc failed.");
+        continue;
       }
-      /*
-	if (dp->d_fileno != 0)
-	printf("%s\n", dp->d_name);*/
-      cp += dp->d_reclen;
+      subdirs = temp;
+
+      subdirs[subdirs_num] = strdup (abs_path);
+      if (subdirs[subdirs_num] == NULL)
+      {
+        ERROR ("qmail plugin: strdup failed.");
+        continue;
+      }
+      subdirs_num++;
     }
   }
-  if (nbytes < 0) {
-    ERROR("getdirentries");
-    return -1;
-  }
-  free(buf);
-  close(fd);
 
-  return count;
-}
-static int count_files_in_tree(char * path) {
+  closedir (dh);
+  dh = NULL;
 
-  char *buf, *ebuf, *cp;
-  off_t base;
-  size_t bufsize;
-  int fd, nbytes;
-  struct stat sb;
-  struct dirent *dp;
-  int files_in_tree=0;
-  int path_len=strlen(path);
-  if ((fd = open(path, O_RDONLY)) < 0) {
-    WARNING("cannot open %s", path);
-    return -1;
-  }
-  if (fstat(fd, &sb) < 0) {
-    WARNING( "fstat");
-    return -1;
-  }
-  bufsize = sb.st_size;
-  if (bufsize < sb.st_blksize)
-    bufsize = sb.st_blksize;
-  if ((buf = malloc(bufsize)) == NULL) {
-    ERROR("cannot malloc %lu bytes", (unsigned long)bufsize);
-    return -1;
-  }
-  while ((nbytes = getdirentries(fd, buf, bufsize, &base)) > 0) {
-    ebuf = buf + nbytes;
-    cp = buf;
-    while (cp < ebuf) {
-      int ret_value;
-      dp = (struct dirent *)cp;
-      //WARNING("Looking file %s\n", dp->d_name);
-      if ((dp->d_fileno!=0) && (dp->d_type==DT_DIR) && strcmp(dp->d_name,".") && strcmp(dp->d_name,"..") ) {
-	snprintf(path+path_len,MAX_PATH_LEN-path_len,"%s",dp->d_name);
-	ret_value=count_files_in_dir(path);
-	if (ret_value!=-1)
-	  files_in_tree+=ret_value;
-	else
-	  return -1;
-      }
-      /*
-	if (dp->d_fileno != 0)
-	printf("%s\n", dp->d_name);*/
-      cp += dp->d_reclen;
+  if (depth > 0)
+  {
+    for (i = 0; i < subdirs_num; i++)
+    {
+      status = count_files_in_subtree (subdirs[i], depth - 1);
+      if (status > 0)
+        count += status;
     }
   }
-  if (nbytes < 0) {
-    ERROR("getdirentries");
-    return -1;
+
+  for (i = 0; i < subdirs_num; i++)
+  {
+    sfree (subdirs[i]);
   }
-  free(buf);
-  close(fd);
-  return files_in_tree;  
-}
+  sfree (subdirs);
+
+  return (count);
+} /* int count_files_in_subtree */
+
+static int read_queue_length (const char *queue_name, const char *path)
+{
+  int64_t num_files;
+
+  num_files = count_files_in_subtree (path, /* depth = */ 1);
+  if (num_files < 0)
+  {
+    ERROR ("qmail plugin: Counting files in `%s' failed.", path);
+    return (-1);
+  }
+
+  qmail_submit (queue_name, (gauge_t) num_files);
+  return (0);
+} /* int read_queue_length */
 
 static int queue_len_read (void)
 {
-  char path[MAX_PATH_LEN];
-  int path_len;
-  //  struct dirent *root_entry, *node_entry;
-  int messages_in_queue, messages_todo;
+  char path[4096];
+  int success;
+  int status;
+
+  success = 0;
   
-  messages_in_queue=0;
-  messages_todo=0;
-  snprintf(path,MAX_PATH_LEN,"%s/queue/mess/",qmail_base_dir);
-  //WARNING("PATH TO READ: %s\n",path);
-  path_len=strlen(path);
-  if (path[path_len]!='/') {
-    strcat(path,"/");
-    path_len=strlen(path);
-  }
+  ssnprintf (path, sizeof (path), "%s/queue/mess",
+      (qmail_base_dir != NULL)
+      ? qmail_base_dir
+      : DEFAULT_BASE_DIR);
 
-  messages_in_queue=count_files_in_tree(path);
+  status = read_queue_length ("messages", path);
+  if (status == 0)
+    success++;
 
-  snprintf(path,MAX_PATH_LEN,"%s/queue/todo/",qmail_base_dir);
-  //WARNING("PATH TO READ: %s\n",path);
-  messages_todo=count_files_in_tree(path);
-  if ( (messages_todo!=-1) && (messages_in_queue!=-1) ) {
-    qmail_queue_submit(messages_in_queue,messages_todo);
+  ssnprintf (path, sizeof (path), "%s/queue/todo",
+      (qmail_base_dir != NULL)
+      ? qmail_base_dir
+      : DEFAULT_BASE_DIR);
+
+  status = read_queue_length ("todo", path);
+  if (status == 0)
+    success++;
+
+  if (success > 0)
     return 0;
-  }
-  else return -1;
-}
+  return (-1);
+} /* int queue_len_read */
 
 static int qmail_config (const char *key, const char *val)
 {
-   if (strcasecmp ("QmailDir", key) == 0)
-     {
-        free(qmail_base_dir);
-        qmail_base_dir=strdup(val);
-	WARNING("Setting Qmail base dir to %s\n", qmail_base_dir);
-     }
-}
+  if (strcasecmp ("QmailDir", key) == 0)
+  {
+    size_t qmail_base_dir_len;
+
+    sfree (qmail_base_dir);
+    qmail_base_dir = strdup(val);
+    if (qmail_base_dir == NULL)
+    {
+      ERROR ("qmail plugin: strdup failed.");
+      return (1);
+    }
+
+    qmail_base_dir_len = strlen (qmail_base_dir);
+    while ((qmail_base_dir_len > 0)
+        && (qmail_base_dir[qmail_base_dir_len - 1] == '/'))
+    {
+      qmail_base_dir[qmail_base_dir_len - 1] = 0;
+      qmail_base_dir_len--;
+    }
+
+    if (qmail_base_dir_len == 0)
+    {
+      ERROR ("qmail plugin: QmailDir is invalid.");
+      sfree (qmail_base_dir);
+      qmail_base_dir = NULL;
+      return (1);
+    }
+  }
+  else
+  {
+    return (-1);
+  }
+
+  return (0);
+} /* int qmail_config */
 
 void module_register (void)
 {
-  qmail_base_dir=strdup("/var/qmail");
-  plugin_register_config ("qmail_queue", qmail_config,
-                        config_keys, config_keys_num);
- 
-  plugin_register_read ("qmail_queue", queue_len_read);
+  plugin_register_config ("qmail", qmail_config,
+      config_keys, config_keys_num);
+  plugin_register_read ("qmail", queue_len_read);
 } /* void module_register */
+
+/*
+ * vim: set sw=2 sts=2 et :
+ */
