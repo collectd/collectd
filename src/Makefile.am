@@ -552,6 +552,14 @@ collectd_LDADD += "-dlopen" processes.la
 collectd_DEPENDENCIES += processes.la
 endif
 
+if BUILD_PLUGIN_QMAIL
+pkglib_LTLIBRARIES += qmail.la
+qmail_la_SOURCES = qmail.c
+qmail_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" qmail.la
+collectd_DEPENDENCIES += qmail.la
+endif
+
 if BUILD_PLUGIN_RRDTOOL
 pkglib_LTLIBRARIES += rrdtool.la
 rrdtool_la_SOURCES = rrdtool.c

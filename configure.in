@@ -2546,6 +2546,7 @@ AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
+AC_PLUGIN([qmail],       [yes],                [QMail queue statistics])
 AC_PLUGIN([rrdtool],     [$with_rrdtool],      [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_lm_sensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
@@ -2710,6 +2711,7 @@ Configuration:
     ping  . . . . . . . . $enable_ping
     powerdns  . . . . . . $enable_powerdns
     processes . . . . . . $enable_processes
+    qmail . . . . . . . . $enable_qmail
     rrdtool . . . . . . . $enable_rrdtool
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
