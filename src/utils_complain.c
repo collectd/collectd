@@ -79,7 +79,7 @@ void c_complain_once (int level, c_complain_t *c, const char *format, ...)
 	va_end (ap);
 } /* c_complain_once */
 
-void c_release (int level, c_complain_t *c, const char *format, ...)
+void c_do_release (int level, c_complain_t *c, const char *format, ...)
 {
 	char message[512];
 	va_list ap;

@@ -83,7 +83,12 @@ void c_complain_once (int level, c_complain_t *c, const char *format, ...);
  *
  *   See `c_complain' for a description of the parameters.
  */
-void c_release (int level, c_complain_t *c, const char *format, ...);
+void c_do_release (int level, c_complain_t *c, const char *format, ...);
+#define c_release(level, c, ...) \
+	do { \
+		if ((c)->interval != 0) \
+			c_do_release(level, c, __VA_ARGS__); \
+	} while (0)
 
 #endif /* UTILS_COMPLAIN_H */
 
