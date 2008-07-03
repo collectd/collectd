@@ -123,22 +123,8 @@ static int value_list_to_filename (char *buffer, int buffer_len,
     return (-1);
   offset += status;
 
-  {
-    time_t now;
-    struct tm stm;
-
-    /* TODO: Find a way to minimize the calls to `localtime_r',
-     * since they are pretty expensive.. */
-    now = time (NULL);
-    if (localtime_r (&now, &stm) == NULL)
-    {
-      ERROR ("rrdcached plugin: localtime_r failed");
-      return (1);
-    }
-
-    strftime (buffer + offset, buffer_len - offset,
-        "-%Y-%m-%d", &stm);
-  }
+  strncpy (buffer + offset, ".rrd", buffer_len - offset);
+  buffer[buffer_len - 1] = 0;
 
   return (0);
 } /* int value_list_to_filename */
