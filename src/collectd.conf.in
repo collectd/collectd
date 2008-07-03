@@ -55,6 +55,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 @BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 @BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
+@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @BUILD_PLUGIN_RRDTOOL_TRUE@LoadPlugin rrdtool
 @BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 @BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
@@ -287,6 +288,11 @@ FQDNLookup   true
 
 #<Plugin processes>
 #	Process "name"
+#</Plugin>
+
+#<Plugin rrdcached>
+#	DaemonAddress "unix:/tmp/rrdcached.sock"
+#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
 #</Plugin>
 
 #<Plugin rrdtool>
