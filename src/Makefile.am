@@ -581,6 +581,16 @@ collectd_LDADD += "-dlopen" qmail.la
 collectd_DEPENDENCIES += qmail.la
 endif
 
+if BUILD_PLUGIN_RRDCACHED
+pkglib_LTLIBRARIES += rrdcached.la
+rrdcached_la_SOURCES = rrdcached.c
+rrdcached_la_LDFLAGS = -module -avoid-version
+rrdcached_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
+rrdcached_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)
+collectd_LDADD += "-dlopen" rrdcached.la
+collectd_DEPENDENCIES += rrdcached.la
+endif
+
 if BUILD_PLUGIN_RRDTOOL
 pkglib_LTLIBRARIES += rrdtool.la
 rrdtool_la_SOURCES = rrdtool.c

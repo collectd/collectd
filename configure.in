@@ -906,6 +906,7 @@ collectd additional packages:])
 librrd_cflags=""
 librrd_ldflags=""
 librrd_threadsafe="yes"
+librrd_rrdc_update="no"
 AC_ARG_WITH(rrdtool, [AS_HELP_STRING([--with-rrdtool@<:@=PREFIX@:>@], [Path to rrdtool.])],
 [	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
@@ -950,6 +951,13 @@ then
 	 [-lm])
 	],
 	[-lm])
+
+	if test "x$librrd_threadsafe" = "xyes"
+	then
+		AC_CHECK_LIB(rrd_th, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
+	else
+		AC_CHECK_LIB(rrd, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
+	fi
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -2672,6 +2680,7 @@ AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([qmail],       [yes],                [QMail queue statistics])
 AC_PLUGIN([rrdtool],     [$with_rrdtool],      [RRDTool output plugin])
+AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_lm_sensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
@@ -2840,6 +2849,7 @@ Configuration:
     processes . . . . . . $enable_processes
     qmail . . . . . . . . $enable_qmail
     rrdtool . . . . . . . $enable_rrdtool
+    rrdcached . . . . . . $enable_rrdcached
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
     snmp  . . . . . . . . $enable_snmp
