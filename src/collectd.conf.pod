@@ -948,6 +948,110 @@ Sets the Time-To-Live of generated ICMP packets.
 
 =back
 
+=head2 Plugin C<postgresql>
+
+The C<postgresql> plugin queries statistics from PostgreSQL databases. It
+keeps a persistent connection to all configured databases and tries to
+reconnect if the connection has been interrupted. The statistics are collected
+from PostgreSQL's B<statistics collector> which thus has to be enabled for
+this plugin to work correctly. This should usually be the case by default.
+See the section "The Statistics Collector" of the B<PostgreSQL Documentation>
+for details.
+
+The B<PostgreSQL Documentation> manual can be found at
+L<http://www.postgresql.org/docs/manuals/>.
+
+  <Plugin postgresql>
+    <Database foo>
+      Host "hostname"
+      Port "5432"
+      User "username"
+      Password "secret"
+      SSLMode "prefer"
+      KRBSrvName "kerberos_service_name"
+    </Database>
+    <Database bar>
+      Service "service_name"
+    </Database>
+  </Plugin>
+
+=over 4
+
+=item B<Database> block
+
+The B<Database> block defines one PostgreSQL database for which to collect
+statistics. It accepts a single mandatory argument which specifies the
+database name. None of the other options are required. PostgreSQL will use
+default values as documented in the section "CONNECTING TO A DATABASE" in the
+L<psql(1)> manpage. However, be aware that those defaults may be influenced by
+the user collectd is run as and special environment variables. See the manpage
+for details.
+
+=item B<Host> I<hostname>
+
+Specify the hostname or IP of the PostgreSQL server to connect to. If the
+value begins with a slash, it is interpreted as the directory name in which to
+look for the UNIX domain socket.
+
+This option is also used to determine the hostname that is associated with a
+collected data set. If it has been omitted or either begins with with a slash
+or equals B<localhost> it will be replaced with the global hostname definition
+of collectd. Any other value will be passed literally to collectd when
+dispatching values. Also see the global B<Hostname> and B<FQDNLookup> options.
+
+=item B<Port> I<port>
+
+Specify the TCP port or the local UNIX domain socket file extension of the
+server.
+
+=item B<User> I<username>
+
+Specify the username to be used when connecting to the server.
+
+=item B<Password> I<password>
+
+Specify the password to be used when connecting to the server.
+
+=item B<SSLMode> I<disable>|I<allow>|I<prefer>|I<require>
+
+Specify whether to use an SSL connection when contacting the server. The
+following modes are supported:
+
+=over 4
+
+=item I<disable>
+
+Do not use SSL at all.
+
+=item I<allow>
+
+First, try to connect without using SSL. If that fails, try using SSL.
+
+=item I<prefer> (default)
+
+First, try to connect using SSL. If that fails, try without using SSL.
+
+=item I<require>
+
+Use SSL only.
+
+=back
+
+=item B<KRBSrvName> I<kerberos_service_name>
+
+Specify the Kerberos service name to use when authenticating with Kerberos 5
+or GSSAPI. See the sections "Kerberos authentication" and "GSSAPI" of the
+B<PostgreSQL Documentation> for details.
+
+=item B<Service> I<service_name>
+
+Specify the PostgreSQL service name to use for additional parameters. That
+service has to be defined in F<pg_service.conf> and holds additional
+connection parameters. See the section "The Connection Service File" in the
+B<PostgreSQL Documentation> for details.
+
+=back
+
 =head2 Plugin C<powerdns>
 
 The C<powerdns> plugin queries statistics from an authoritative PowerDNS
@@ -1652,6 +1756,7 @@ L<types.db(5)>,
 L<hddtemp(8)>,
 L<kstat(3KSTAT)>,
 L<mbmon(1)>,
+L<psql(1)>,
 L<rrdtool(1)>,
 L<sensors(1)>
 

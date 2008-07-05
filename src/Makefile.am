@@ -536,6 +536,16 @@ collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif
 
+if BUILD_PLUGIN_POSTGRESQL
+pkglib_LTLIBRARIES += postgresql.la
+postgresql_la_SOURCES = postgresql.c
+postgresql_la_CPPFLAGS = $(BUILD_WITH_LIBPQ_CPPFLAGS)
+postgresql_la_LDFLAGS = -module -avoid-version \
+		$(BUILD_WITH_LIBPQ_LDFLAGS) -lpq
+collectd_LDADD += "-dlopen" postgresql.la
+collectd_DEPENDENCIES += postgresql.la
+endif
+
 if BUILD_PLUGIN_POWERDNS
 pkglib_LTLIBRARIES += powerdns.la
 powerdns_la_SOURCES = powerdns.c

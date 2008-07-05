@@ -63,6 +63,12 @@ nfs_procedure		value:COUNTER:0:4294967295
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:COUNTER:0:134217728
 percent			percent:GAUGE:0:100.1
+pg_blks			value:COUNTER:0:U
+pg_n_tup_c		value:COUNTER:0:U
+pg_n_tup_g		value:GAUGE:0:U
+pg_numbackends		value:GAUGE:0:U
+pg_scan			value:COUNTER:0:U
+pg_xact			value:COUNTER:0:U
 ping			ping:GAUGE:0:65535
 players			value:GAUGE:0:1000000
 power			value:GAUGE:0:U

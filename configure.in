@@ -2113,6 +2113,93 @@ then
 	AC_SUBST(BUILD_WITH_OPENIPMI_LIBS)
 fi
 
+dnl Check for libpq.
+with_pg_config="pg_config"
+with_libpq_includedir=""
+with_libpq_libdir=""
+with_libpq_cppflags=""
+with_libpq_ldflags=""
+AC_ARG_WITH(libpq, [AS_HELP_STRING([--with-libpq@<:@=PREFIX@:>@],
+	[Path to libpq.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libpq="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libpq="yes"
+	else
+		if test -f "$withval" && test -x "$withval";
+		then
+			with_pg_config="$withval"
+		else if test -x "$withval/bin/pg_config"
+		then
+			with_pg_config="$withval/bin/pg_config"
+		fi; fi
+		with_libpq="yes"
+	fi; fi
+],
+[
+	with_libpq="yes"
+])
+if test "x$with_libpq" = "xyes"
+then
+	with_libpq_includedir=`$with_pg_config --includedir 2> /dev/null`
+	pg_config_status=$?
+
+	if test $pg_config_status -eq 0
+	then
+		if test -n "$with_libpq_includedir"; then
+			for dir in $with_libpq_includedir; do
+				with_libpq_cppflags="$with_libpq_cppflags -I$dir"
+			done
+		fi
+	else
+		AC_MSG_WARN([$with_pg_config returned with status $pg_config_status])
+	fi
+
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libpq_cppflags"
+
+	AC_CHECK_HEADERS(libpq-fe.h, [],
+		[with_libpq="no (libpq-fe.h not found)"], [])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libpq" = "xyes"
+then
+	with_libpq_libdir=`$with_pg_config --libdir 2> /dev/null`
+	pg_config_status=$?
+
+	if test $pg_config_status -eq 0
+	then
+		if test -n "$with_libpq_libdir"; then
+			for dir in $with_libpq_libdir; do
+				with_libpq_ldflags="$with_libpq_ldflags -L$dir"
+			done
+		fi
+	else
+		AC_MSG_WARN([$with_pg_config returned with status $pg_config_status])
+	fi
+
+	SAVE_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS $with_libpq_ldflags"
+
+	AC_CHECK_LIB(pq, PQconnectdb,
+		[with_libpq="yes"],
+		[with_libpq="no (symbol 'PQconnectdb' not found)"])
+
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libpq" = "xyes"
+then
+	BUILD_WITH_LIBPQ_CPPFLAGS="$with_libpq_cppflags"
+	BUILD_WITH_LIBPQ_LDFLAGS="$with_libpq_ldflags"
+	AC_SUBST(BUILD_WITH_LIBPQ_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPQ_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
+
 dnl Check for libvirt and libxml2 libraries.
 with_libxml2="no (pkg-config isn't available)"
 with_libxml2_cflags=""
@@ -2544,6 +2631,7 @@ AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
+AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([qmail],       [yes],                [QMail queue statistics])
@@ -2655,6 +2743,7 @@ Configuration:
     libpcap . . . . . . . $with_libpcap
     libperl . . . . . . . $with_libperl
     libpthread  . . . . . $with_libpthread
+    libpq . . . . . . . . $with_libpq
     librrd  . . . . . . . $with_rrdtool
     libsensors  . . . . . $with_lm_sensors
     libstatgrab . . . . . $with_libstatgrab
@@ -2709,6 +2798,7 @@ Configuration:
     nut . . . . . . . . . $enable_nut
     perl  . . . . . . . . $enable_perl
     ping  . . . . . . . . $enable_ping
+    postgresql  . . . . . $enable_postgresql
     powerdns  . . . . . . $enable_powerdns
     processes . . . . . . $enable_processes
     qmail . . . . . . . . $enable_qmail

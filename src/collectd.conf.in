@@ -51,6 +51,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 @BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 @BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
+@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 @BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 @BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 @BUILD_PLUGIN_RRDTOOL_TRUE@LoadPlugin rrdtool
@@ -245,6 +246,22 @@ FQDNLookup   true
 #<Plugin ping>
 #	Host "host.foo.bar"
 #	TTL 255
+#</Plugin>
+
+#<Plugin postgresql>
+#	<Database foo>
+#		Host "hostname"
+#		Port 5432
+#		User "username"
+#		Password "secret"
+#
+#		SSLMode "prefer"
+#		KRBSrvName "kerberos_service_name"
+#	</Database>
+#
+#	<Database bar>
+#		Service "service_name"
+#	</Database>
 #</Plugin>
 
 #<Plugin powerdns>
