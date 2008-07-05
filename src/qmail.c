@@ -81,8 +81,11 @@ static int count_files_in_subtree (const char *path, int depth)
   count = 0;
   while ((de = readdir (dh)) != NULL)
   {
-    char abs_path[4096];
+    char abs_path[PATH_MAX];
     struct stat statbuf;
+
+    if (de->d_name[0] == '.')
+      continue;
 
     ssnprintf (abs_path, sizeof (abs_path), "%s/%s", path, de->d_name);
 
