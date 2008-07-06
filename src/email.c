@@ -396,7 +396,6 @@ static void *open_connection (void *arg)
 
 	strncpy (addr.sun_path, path, (size_t)(UNIX_PATH_MAX - 1));
 	addr.sun_path[UNIX_PATH_MAX - 1] = '\0';
-	unlink (addr.sun_path);
 
 	errno = 0;
 	if (-1 == bind (connector_socket, (struct sockaddr *)&addr,

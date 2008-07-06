@@ -342,7 +342,7 @@ static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
 
-	status = rrd_create_r (filename, pdp_step, last_up, argc, argv);
+	status = rrd_create_r (filename, pdp_step, last_up, argc, (void *) argv);
 
 	if (status != 0)
 	{
@@ -360,7 +360,7 @@ static int srrd_update (char *filename, char *template, int argc, char **argv)
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
 
-	status = rrd_update_r (filename, template, argc, argv);
+	status = rrd_update_r (filename, template, argc, (void *) argv);
 
 	if (status != 0)
 	{
