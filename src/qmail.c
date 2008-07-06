@@ -58,8 +58,15 @@ static void qmail_submit (const char *plugin_instance, gauge_t value)
 
 static int count_files_in_subtree (const char *path, int depth)
 {
+#if NAME_MAX < 1024
+# define DIRENT_BUFFER_SIZE (sizeof (struct dirent) + 1024 + 1)
+#else
+# define DIRENT_BUFFER_SIZE (sizeof (struct dirent) + NAME_MAX + 1)
+#endif
+
   DIR *dh;
   struct dirent *de;
+  char dirent_buffer[DIRENT_BUFFER_SIZE];
   int status;
 
   char **subdirs;
@@ -79,10 +86,26 @@ static int count_files_in_subtree (const char *path, int depth)
   subdirs_num = 0;
 
   count = 0;
-  while ((de = readdir (dh)) != NULL)
+  while (42)
   {
     char abs_path[PATH_MAX];
     struct stat statbuf;
+
+    de = NULL;
+    status = readdir_r (dh, (struct dirent *) dirent_buffer, &de);
+    if (status != 0)
+    {
+      char errbuf[4096];
+      ERROR ("qmail plugin: readdir_r failed: %s",
+          sstrerror (errno, errbuf, sizeof (errbuf)));
+      closedir (dh);
+      return (-1);
+    }
+    else if (de == NULL)
+    {
+      /* end of directory */
+      break;
+    }
 
     if (de->d_name[0] == '.')
       continue;
