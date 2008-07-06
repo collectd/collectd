@@ -243,7 +243,6 @@ static void type_list_incr (type_list_t *list, char *name, int incr)
 static void *collect (void *arg)
 {
 	collector_t *this = (collector_t *)arg;
-	pthread_t    self = pthread_self ();
 
 	while (1) {
 		int loop = 1;
@@ -269,8 +268,8 @@ static void *collect (void *arg)
 		 * thread and connection management */
 		this->socket = connection->socket;
 
-		log_debug ("[thread #%5lu] handling connection on fd #%i",
-				self, fileno (this->socket));
+		log_debug ("collect: handling connection on fd #%i",
+				fileno (this->socket));
 
 		while (loop) {
 			/* 256 bytes ought to be enough for anybody ;-) */
@@ -283,8 +282,8 @@ static void *collect (void *arg)
 
 				if (0 != errno) {
 					char errbuf[1024];
-					log_err ("[thread #%5lu] reading from socket (fd #%i) "
-							"failed: %s", self, fileno (this->socket),
+					log_err ("collect: reading from socket (fd #%i) "
+							"failed: %s", fileno (this->socket),
 							sstrerror (errno, errbuf, sizeof (errbuf)));
 				}
 				break;
@@ -292,9 +291,8 @@ static void *collect (void *arg)
 
 			len = strlen (line);
 			if (('\n' != line[len - 1]) && ('\r' != line[len - 1])) {
-				log_warn ("[thread #%5lu] line too long (> %zu characters): "
-						"'%s' (truncated)",
-						(unsigned long) self, sizeof (line) - 1, line);
+				log_warn ("collect: line too long (> %zu characters): "
+						"'%s' (truncated)", sizeof (line) - 1, line);
 
 				while (NULL != fgets (line, sizeof (line), this->socket))
 					if (('\n' == line[len - 1]) || ('\r' == line[len - 1]))
@@ -304,11 +302,10 @@ static void *collect (void *arg)
 
 			line[len - 1] = '\0';
 
-			log_debug ("[thread #%5lu] line = '%s'", self, line);
+			log_debug ("collect: line = '%s'", line);
 
 			if (':' != line[1]) {
-				log_err ("[thread #%5lu] syntax error in line '%s'",
-						self, line);
+				log_err ("collect: syntax error in line '%s'", line);
 				continue;
 			}
 
@@ -319,8 +316,7 @@ static void *collect (void *arg)
 				int  bytes = 0;
 
 				if (NULL == tmp) {
-					log_err ("[thread #%5lu] syntax error in line '%s'",
-							self, line);
+					log_err ("collect: syntax error in line '%s'", line);
 					continue;
 				}
 
@@ -354,7 +350,7 @@ static void *collect (void *arg)
 				} while (NULL != (type = strtok_r (NULL, ",", &ptr)));
 			}
 			else {
-				log_err ("[thread #%5lu] unknown type '%c'", self, line[0]);
+				log_err ("collect: unknown type '%c'", line[0]);
 			}
 		} /* while (loop) */
 
@@ -394,9 +390,7 @@ static void *open_connection (void *arg)
 	}
 
 	addr.sun_family = AF_UNIX;
-
 	sstrncpy (addr.sun_path, path, (size_t)(UNIX_PATH_MAX - 1));
-	unlink (addr.sun_path);
 
 	errno = 0;
 	if (-1 == bind (connector_socket, (struct sockaddr *)&addr,
@@ -657,8 +651,8 @@ static void email_submit (const char *type, const char *type_instance, gauge_t v
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "email");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "email", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 

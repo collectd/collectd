@@ -216,9 +216,9 @@ static void multimeter_submit (double value)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "multimeter");
-	strcpy (vl.type, "multimeter");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "multimeter", sizeof (vl.plugin));
+	sstrncpy (vl.type, "multimeter", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 }

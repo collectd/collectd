@@ -907,7 +907,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   }
 
   sstrncpy (vl.host, host->name, sizeof (vl.host));
-  strcpy (vl.plugin, "snmp");
+  sstrncpy (vl.plugin, "snmp", sizeof (vl.plugin));
 
   vl.interval = host->interval;
   vl.time = time (NULL);
@@ -1296,7 +1296,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   }
 
   sstrncpy (vl.host, host->name, sizeof (vl.host));
-  strcpy (vl.plugin, "snmp");
+  sstrncpy (vl.plugin, "snmp", sizeof (vl.plugin));
   sstrncpy (vl.type, data->type, sizeof (vl.type));
   sstrncpy (vl.type_instance, data->instance.string, sizeof (vl.type_instance));
 

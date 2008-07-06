@@ -129,7 +129,7 @@ static void nut_submit (nut_ups_t *ups, const char *type,
       ? hostname_g
       : ups->hostname,
       sizeof (vl.host));
-  strcpy (vl.plugin, "nut");
+  sstrncpy (vl.plugin, "nut", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, ups->upsname, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
   sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

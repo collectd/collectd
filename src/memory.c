@@ -109,9 +109,9 @@ static void memory_submit (const char *type_instance, gauge_t value)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "memory");
-	strcpy (vl.type, "memory");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
+	sstrncpy (vl.type, "memory", sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);

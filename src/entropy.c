@@ -39,11 +39,9 @@ static void entropy_submit (double entropy)
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "entropy");
-	strcpy (vl.plugin_instance, "");
-	strcpy (vl.type, "entropy");
-	strcpy (vl.type_instance, "");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "entropy", sizeof (vl.plugin));
+	sstrncpy (vl.type, "entropy", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 }

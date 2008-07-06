@@ -188,11 +188,11 @@ static void nfs_procedures_submit (const char *plugin_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "nfs");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "nfs", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 		       	sizeof (vl.plugin_instance));
-	strcpy (vl.type, "nfs_procedure");
+	sstrncpy (vl.type, "nfs_procedure", sizeof (vl.type));
 
 	for (i = 0; i < len; i++)
 	{

@@ -385,7 +385,7 @@ handle_dns(const char *buf, int len,
     if (0 != x)
 	return 0;
     if ('\0' == qh.qname[0])
-	strcpy(qh.qname, ".");
+	sstrncpy (qh.qname, ".", sizeof (qh.qname));
     while ((t = strchr(qh.qname, '\n')))
 	*t = ' ';
     while ((t = strchr(qh.qname, '\r')))
@@ -705,7 +705,7 @@ const char *qtype_str(int t)
 {
     static char buf[32];
     switch (t) {
-#if (defined (__NAMESER)) && (__NAMESER >= 19991006)
+#if (defined (__NAMESER)) && (__NAMESER >= 19991001)
 	    case ns_t_a:        return ("A");
 	    case ns_t_ns:       return ("NS");
 	    case ns_t_md:       return ("MD");
@@ -747,7 +747,9 @@ const char *qtype_str(int t)
 	    case ns_t_dname:    return ("DNAME");
 	    case ns_t_sink:     return ("SINK");
 	    case ns_t_opt:      return ("OPT");
+# if __NAMESER >= 19991006
 	    case ns_t_tsig:     return ("TSIG");
+# endif
 	    case ns_t_ixfr:     return ("IXFR");
 	    case ns_t_axfr:     return ("AXFR");
 	    case ns_t_mailb:    return ("MAILB");

@@ -59,6 +59,12 @@ static data_source_t dsrc[1] =
  * - name of the data set
  * - number of data sources
  * - list of data sources
+ *
+ * NOTE: If you're defining a custom data-set, you have to make that known to
+ * any servers as well. Else, the server is not able to store values using the
+ * type defined by that data-set.
+ * It is strongly recommended to use one of the types and data-sets
+ * pre-defined in the types.db file.
  */
 static data_set_t ds =
 {
@@ -99,7 +105,8 @@ static int my_read (void)
 
 	/* dispatch the values to collectd which passes them on to all registered
 	 * write functions - the first argument is used to lookup the data set
-	 * definition */
+	 * definition (it is strongly recommended to use a type defined in the
+	 * types.db file) */
 	plugin_dispatch_values ("myplugin", &vl);
 
 	/* A return value != 0 indicates an error and the plugin will be skipped

@@ -291,12 +291,16 @@ static int ds_get (char ***ret, const data_set_t *ds, const value_list_t *vl)
 		}
 
 		if (isnan (d->min))
-			strcpy (min, "U");
+		{
+			sstrncpy (min, "U", sizeof (min));
+		}
 		else
 			ssnprintf (min, sizeof (min), "%lf", d->min);
 
 		if (isnan (d->max))
-			strcpy (max, "U");
+		{
+			sstrncpy (max, "U", sizeof (max));
+		}
 		else
 			ssnprintf (max, sizeof (max), "%lf", d->max);
 
@@ -339,7 +343,7 @@ static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
 
-	status = rrd_create_r (filename, pdp_step, last_up, argc, argv);
+	status = rrd_create_r (filename, pdp_step, last_up, argc, (void *) argv);
 
 	if (status != 0)
 	{
@@ -358,7 +362,7 @@ static int srrd_update (char *filename, char *template,
 	optind = 0; /* bug in librrd? */
 	rrd_clear_error ();
 
-	status = rrd_update_r (filename, template, argc, argv);
+	status = rrd_update_r (filename, template, argc, (void *) argv);
 
 	if (status != 0)
 	{

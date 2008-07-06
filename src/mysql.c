@@ -126,8 +126,8 @@ static void counter_submit (const char *type, const char *type_instance,
 	vl.values = values;
 	vl.values_len = 1;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "mysql");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
@@ -150,9 +150,9 @@ static void qcache_submit (counter_t hits, counter_t inserts,
 	vl.values = values;
 	vl.values_len = 5;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "mysql");
-	strcpy (vl.type, "mysql_qcache");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
+	sstrncpy (vl.type, "mysql_qcache", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 } /* void qcache_submit */
@@ -171,9 +171,9 @@ static void threads_submit (gauge_t running, gauge_t connected, gauge_t cached,
 	vl.values = values;
 	vl.values_len = 4;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "mysql");
-	strcpy (vl.type, "mysql_threads");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
+	sstrncpy (vl.type, "mysql_threads", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 } /* void threads_submit */
@@ -189,9 +189,9 @@ static void traffic_submit (counter_t rx, counter_t tx)
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "mysql");
-	strcpy (vl.type, "mysql_octets");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
+	sstrncpy (vl.type, "mysql_octets", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 } /* void traffic_submit */

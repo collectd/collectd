@@ -1403,7 +1403,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 		if (write_part_string (&buffer, &buffer_size, TYPE_HOST,
 					vl->host, strlen (vl->host)) != 0)
 			return (-1);
-		strcpy (vl_def->host, vl->host);
+		sstrncpy (vl_def->host, vl->host, sizeof (vl_def->host));
 	}
 
 	if (vl_def->time != vl->time)
@@ -1427,7 +1427,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 		if (write_part_string (&buffer, &buffer_size, TYPE_PLUGIN,
 					vl->plugin, strlen (vl->plugin)) != 0)
 			return (-1);
-		strcpy (vl_def->plugin, vl->plugin);
+		sstrncpy (vl_def->plugin, vl->plugin, sizeof (vl_def->plugin));
 	}
 
 	if (strcmp (vl_def->plugin_instance, vl->plugin_instance) != 0)
@@ -1436,7 +1436,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					vl->plugin_instance,
 					strlen (vl->plugin_instance)) != 0)
 			return (-1);
-		strcpy (vl_def->plugin_instance, vl->plugin_instance);
+		sstrncpy (vl_def->plugin_instance, vl->plugin_instance, sizeof (vl_def->plugin_instance));
 	}
 
 	if (strcmp (type_def, vl->type) != 0)
@@ -1444,7 +1444,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 		if (write_part_string (&buffer, &buffer_size, TYPE_TYPE,
 					vl->type, strlen (vl->type)) != 0)
 			return (-1);
-		strcpy (type_def, vl->type);
+		sstrncpy (type_def, vl->type, sizeof (type_def));
 	}
 
 	if (strcmp (vl_def->type_instance, vl->type_instance) != 0)
@@ -1453,7 +1453,7 @@ static int add_to_buffer (char *buffer, int buffer_size,
 					vl->type_instance,
 					strlen (vl->type_instance)) != 0)
 			return (-1);
-		strcpy (vl_def->type_instance, vl->type_instance);
+		sstrncpy (vl_def->type_instance, vl->type_instance, sizeof (vl_def->type_instance));
 	}
 	
 	if (write_part_values (&buffer, &buffer_size, ds, vl) != 0)

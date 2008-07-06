@@ -178,9 +178,9 @@ static void submit (char *type, char *inst, long long value)
   vl.values = values;
   vl.values_len = 1;
   vl.time = time (NULL);
-  strcpy (vl.host, hostname_g);
-  strcpy (vl.plugin, "nginx");
-  strcpy (vl.plugin_instance, "");
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "nginx", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
 
   if (inst != NULL)
@@ -196,6 +196,7 @@ static int nginx_read (void)
   char *ptr;
   char *lines[16];
   int   lines_num = 0;
+  char *saveptr;
 
   char *fields[16];
   int   fields_num;
@@ -213,7 +214,8 @@ static int nginx_read (void)
   }
 
   ptr = nginx_buffer;
-  while ((lines[lines_num] = strtok (ptr, "\n\r")) != NULL)
+  saveptr = NULL;
+  while ((lines[lines_num] = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
   {
     ptr = NULL;
     lines_num++;

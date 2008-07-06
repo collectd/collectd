@@ -619,7 +619,7 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
   }
   else
   {
-    strcpy (buffer, "get ");
+    sstrncpy (buffer, "get ", sizeof (buffer));
     status = strjoin (&buffer[4], sizeof (buffer) - strlen ("get "),
 	li->fields, li->fields_num,
 	/* seperator = */ " ");

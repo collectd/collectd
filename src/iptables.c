@@ -219,8 +219,8 @@ static int submit_match (const struct ipt_entry_match *match,
     vl.values = values;
     vl.values_len = 1;
     vl.time = time (NULL);
-    strcpy (vl.host, hostname_g);
-    strcpy (vl.plugin, "iptables");
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "iptables", sizeof (vl.plugin));
 
     status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	    "%s-%s", chain->table, chain->chain);
@@ -241,11 +241,11 @@ static int submit_match (const struct ipt_entry_match *match,
 		    sizeof (vl.type_instance));
     }
 
-    strcpy (vl.type, "ipt_bytes");
+    sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
     values[0].counter = (counter_t) entry->counters.bcnt;
     plugin_dispatch_values (&vl);
 
-    strcpy (vl.type, "ipt_packets");
+    sstrncpy (vl.type, "ipt_packets", sizeof (vl.type));
     values[0].counter = (counter_t) entry->counters.pcnt;
     plugin_dispatch_values (&vl);
 

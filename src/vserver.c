@@ -57,10 +57,10 @@ static void traffic_submit (const char *plugin_instance,
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "vserver");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	strcpy (vl.type, "if_octets");
+	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
@@ -79,10 +79,10 @@ static void load_submit (const char *plugin_instance,
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "vserver");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	strcpy (vl.type, "load");
+	sstrncpy (vl.type, "load", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 }
@@ -99,8 +99,8 @@ static void submit_gauge (const char *plugin_instance, const char *type,
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
 	vl.time = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "vserver");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

@@ -567,7 +567,7 @@ static int pplugin_dispatch_values (pTHX_ HV *values)
 		sstrncpy (list.host, SvPV_nolen (*tmp), sizeof (list.host));
 	}
 	else {
-		strcpy (list.host, hostname_g);
+		sstrncpy (list.host, hostname_g, sizeof (list.host));
 	}
 
 	if (NULL != (tmp = hv_fetch (values, "plugin", 6, 0)))
