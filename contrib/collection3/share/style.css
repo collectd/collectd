@@ -1,0 +1,9 @@
+table
+{
+  border-collapse: collapse;
+}
+td, th
+{
+  border: 1px solid gray;
+}
+/* vim: set sw=2 sts=2 et : */
