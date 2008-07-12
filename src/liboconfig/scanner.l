@@ -1,6 +1,7 @@
 /**
  * oconfig - src/scanner.l
  * Copyright (C) 2007  Florian octo Forster <octo at verplant.org>
+ * Copyright (C) 2008  Sebastian tokkee Harl <sh at tokkee.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,11 +22,29 @@
 #include "oconfig.h"
 #include "aux_types.h"
 #include "parser.h"
+
+/* multiline string buffer */
+static char *ml_buffer = NULL;
+static int   ml_pos    = 0;
+static int   ml_len    = 0;
+
+#define ml_free (ml_len - ml_pos)
+
+static void ml_append (char *);
+
+#ifdef yyterminate
+# undef yyterminate
+#endif
+#define yyterminate() \
+	do { free (ml_buffer); ml_buffer = NULL; ml_pos = 0; ml_len = 0; \
+		return YY_NULL; } while (0)
 %}
 %option yylineno
 %option noyywrap
+%x ML
 WHITE_SPACE [\ \t\b]
-QUOTED_STRING \"([^\\"]+|\\.)*\"
+NON_WHITE_SPACE [^\ \t\b]
+QUOTED_STRING ([^\\"]+|\\.)*
 UNQUOTED_STRING [0-9A-Za-z_]+
 HEX_NUMBER 0[xX][0-9a-fA-F]+
 OCT_NUMBER 0[0-7]+
@@ -43,6 +62,8 @@ IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
 {WHITE_SPACE}		|
 {COMMENT}		{/* ignore */}
 
+\\\n			{/* continue line */}
+
 \n			{return (EOL);}
 "/"			{return (SLASH);}
 "<"			{return (OPENBRAC);}
@@ -54,6 +75,50 @@ IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
 
 {NUMBER}		{yylval.number = strtod (yytext, NULL); return (NUMBER);}
 
-{QUOTED_STRING}		{yylval.string = yytext; return (QUOTED_STRING);}
+\"{QUOTED_STRING}\"	{yylval.string = yytext; return (QUOTED_STRING);}
 {UNQUOTED_STRING}	{yylval.string = yytext; return (UNQUOTED_STRING);}
+
+\"{QUOTED_STRING}\\\n {
+	ml_pos = 0;
+
+	/* remove "\\\n" */
+	yytext[strlen (yytext) - 2] = '\0';
+
+	ml_append (yytext);
+	BEGIN (ML);
+}
+<ML>^{WHITE_SPACE}+ {/* remove leading white-space */}
+<ML>{NON_WHITE_SPACE}{QUOTED_STRING}\\\n {
+	/* remove "\\\n" */
+	yytext[strlen (yytext) - 2] = '\0';
+
+	ml_append(yytext);
+}
+<ML>{NON_WHITE_SPACE}{QUOTED_STRING}\" {
+	ml_append(yytext);
+	yylval.string = ml_buffer;
+
+	BEGIN (INITIAL);
+	return (QUOTED_STRING);
+}
 %%
+static void ml_append (char *string)
+{
+	int len = strlen (string);
+	int s;
+
+	if (ml_free <= len) {
+		ml_len += len - ml_free + 1;
+		ml_buffer = (char *)realloc (ml_buffer, ml_len);
+		if (NULL == ml_buffer)
+			YY_FATAL_ERROR ("out of dynamic memory in ml_append");
+	}
+
+	s = snprintf (ml_buffer + ml_pos, ml_free, "%s", string);
+	if ((0 > s) || (ml_free <= s))
+		YY_FATAL_ERROR ("failed to write to multiline buffer");
+
+	ml_pos += s;
+	return;
+} /* ml_append */
+
