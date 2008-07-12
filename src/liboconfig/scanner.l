@@ -44,6 +44,7 @@ static void ml_append (char *);
 %x ML
 WHITE_SPACE [\ \t\b]
 NON_WHITE_SPACE [^\ \t\b]
+EOL (\r\n|\n)
 QUOTED_STRING ([^\\"]+|\\.)*
 UNQUOTED_STRING [0-9A-Za-z_]+
 HEX_NUMBER 0[xX][0-9a-fA-F]+
@@ -62,9 +63,9 @@ IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
 {WHITE_SPACE}		|
 {COMMENT}		{/* ignore */}
 
-\\\n			{/* continue line */}
+\\{EOL}			{/* continue line */}
 
-\n			{return (EOL);}
+{EOL}			{return (EOL);}
 "/"			{return (SLASH);}
 "<"			{return (OPENBRAC);}
 ">"			{return (CLOSEBRAC);}
@@ -78,19 +79,31 @@ IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
 \"{QUOTED_STRING}\"	{yylval.string = yytext; return (QUOTED_STRING);}
 {UNQUOTED_STRING}	{yylval.string = yytext; return (UNQUOTED_STRING);}
 
-\"{QUOTED_STRING}\\\n {
+\"{QUOTED_STRING}\\{EOL} {
+	int len = strlen (yytext);
+
 	ml_pos = 0;
 
-	/* remove "\\\n" */
-	yytext[strlen (yytext) - 2] = '\0';
+	/* remove "\\<EOL>" */
+	if ('\r' == yytext[len - 2])
+		len -= 3;
+	else
+		len -= 2;
+	yytext[len] = '\0';
 
 	ml_append (yytext);
 	BEGIN (ML);
 }
 <ML>^{WHITE_SPACE}+ {/* remove leading white-space */}
-<ML>{NON_WHITE_SPACE}{QUOTED_STRING}\\\n {
-	/* remove "\\\n" */
-	yytext[strlen (yytext) - 2] = '\0';
+<ML>{NON_WHITE_SPACE}{QUOTED_STRING}\\{EOL} {
+	int len = strlen (yytext);
+
+	/* remove "\\<EOL>" */
+	if ('\r' == yytext[len - 2])
+		len -= 3;
+	else
+		len -= 2;
+	yytext[len] = '\0';
 
 	ml_append(yytext);
 }
