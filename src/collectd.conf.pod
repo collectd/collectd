@@ -30,7 +30,11 @@ section-start or -end. Empty lines and everything after the hash-symbol `#' is
 ignored. Values are either string, enclosed in double-quotes,
 (floating-point-)numbers or a boolean expression, i.E<nbsp>e. either B<true> or
 B<false>. String containing of only alphanumeric characters and underscores do
-not need to be quoted.
+not need to be quoted. Lines may be wrapped by using `\' as the last character
+before the newline. This allows long lines to be split into multiple lines.
+Quoted strings may be wrapped as well. However, those are treated special in
+that whitespace at the beginning of the following lines will be ignored, which
+allows for nicely indenting the wrapped lines.
 
 The configuration is read and processed in order, i.E<nbsp>e. from top to
 bottom. So the plugins are loaded in the order listed in this config file. It
