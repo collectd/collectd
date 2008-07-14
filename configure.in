@@ -891,7 +891,6 @@ AC_CHECK_LIB(hal,libhal_device_property_exists,
 	     [AC_DEFINE(HAVE_LIBHAL, 1, [Define to 1 if you have 'hal' library])],
 	     [with_libhal="no"])
 if test "x$with_libhal" = "xyes"; then
-	PKG_PROG_PKG_CONFIG
 	if test "x$PKG_CONFIG" != "x"; then
 		BUILD_WITH_LIBHAL_CFLAGS="`pkg-config --cflags hal`"
 		BUILD_WITH_LIBHAL_LIBS="`pkg-config --libs hal`"
@@ -1705,44 +1704,36 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
 
-with_upsclient_config="libupsclient-config"
-with_upsclient_cflags=""
-with_upsclient_libs=""
-AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], [Path to libupsclient.])],
-[
-	if test "x$withval" = "xno"
+with_libupsclient="no (pkg-config isn't available)"
+with_libupsclient_cflags=""
+with_libupsclient_libs=""
+if test "x$PKG_CONFIG" != "x"
+then
+	pkg-config --exists 'libupsclient' 2>/dev/null
+	if test "$?" = "0"
 	then
-		with_libupsclient="no"
-	else
-		if test "x$withval" != "xyes"
-		then
-			if test -f "$withval" && test -x "$withval";
-			then
-				with_upsclient_config="$withval"
-			else
-				with_upsclient_config="$withval/bin/libupsclient-config"
-			fi
-		fi
 		with_libupsclient="yes"
+	else
+		with_libupsclient="no (pkg-config doesn't know library)"
 	fi
-],
-[
-	with_libupsclient="yes"
-])
+fi
 if test "x$with_libupsclient" = "xyes"
 then
-	with_upsclient_cflags=`$with_upsclient_config --cflags 2>/dev/null`
-	upsclient_config_status=$?
-
-	if test $upsclient_config_status -ne 0
+	with_libupsclient_cflags="`pkg-config --cflags 'libupsclient'`"
+	if test $? -ne 0
 	then
-		with_libupsclient="no ($with_upsclient_config failed)"
+		with_libupsclient="no"
+	fi
+	with_libupsclient_libs="`pkg-config --libs 'libupsclient'`"
+	if test $? -ne 0
+	then
+		with_libupsclient="no"
 	fi
 fi
 if test "x$with_libupsclient" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_upsclient_cflags"
+	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
 
 	AC_CHECK_HEADERS(upsclient.h, [], [with_libupsclient="no (upsclient.h not found)"])
 
@@ -1750,31 +1741,23 @@ then
 fi
 if test "x$with_libupsclient" = "xyes"
 then
-	with_upsclient_libs=`$with_upsclient_config --libs 2>/dev/null`
-	upsclient_config_status=$?
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
 
-	if test $upsclient_config_status -ne 0
-	then
-		with_libupsclient="no ($with_upsclient_config failed)"
-	fi
-fi
-if test "x$with_libupsclient" = "xyes"
-then
+	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
+	LDFLAGS="$LDFLAGS $with_libupsclient_libs"
+
 	AC_CHECK_LIB(upsclient, upscli_connect,
-	[
-		BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_upsclient_cflags"
-		BUILD_WITH_LIBUPSCLIENT_LIBS="$with_upsclient_libs"
-		AC_SUBST(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
-		AC_SUBST(BUILD_WITH_LIBUPSCLIENT_LIBS)
-	],
-	[
-		with_libupsclient="no (symbol 'upscli_connect' not found)"
-	], [$with_upsclient_libs])
+		     [with_libupsclient="yes"],
+		     [with_libupsclient="no (symbol upscli_connect not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_libupsclient" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_upsclient_cflags"
+	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
 
 	AC_CHECK_TYPES([UPSCONN_t, UPSCONN], [], [],
 [#include <stdlib.h>
@@ -1783,7 +1766,13 @@ then
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBUPSCLIENT, test "x$with_libupsclient" = "xyes")
+if test "x$with_libupsclient" = "xyes"
+then
+	BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_libupsclient_cflags"
+	BUILD_WITH_LIBUPSCLIENT_LIBS="$with_libupsclient_libs"
+	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_LIBS)
+fi
 
 ### BEGIN of check for libxmms ###
 with_xmms_config="xmms-config"
@@ -1966,7 +1955,6 @@ with_libxml2_ldflags=""
 with_libvirt="no (pkg-config isn't available)"
 with_libvirt_cflags=""
 with_libvirt_ldflags=""
-PKG_PROG_PKG_CONFIG
 if test "x$PKG_CONFIG" != "x"
 then
 	pkg-config --exists 'libxml-2.0' 2>/dev/null
