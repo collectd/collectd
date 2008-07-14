@@ -27,12 +27,18 @@
 /* do not automatically get the thread specific perl interpreter */
 #define PERL_NO_GET_CONTEXT
 
+#define DONT_POISON_SPRINTF_YET 1
 #include "collectd.h"
+#undef DONT_POISON_SPRINTF_YET
 
 #include "configfile.h"
 
 #include <EXTERN.h>
 #include <perl.h>
+
+#if __GNUC__
+# pragma GCC poison sprintf
+#endif
 
 #include <XSUB.h>
 

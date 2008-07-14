@@ -248,7 +248,19 @@
 #endif
 
 #if __GNUC__
-# pragma GCC poison strcpy strcat sprintf strtok
+# pragma GCC poison strcpy strcat strtok
+#endif
+
+/* 
+ * Special hack for the perl plugin: Because the later included perl.h defines
+ * a macro which is never used, but contains `sprintf', we cannot poison that
+ * identifies just yet. The parl plugin will do that itself once perl.h is
+ * included.
+ */
+#ifndef DONT_POISON_SPRINTF_YET
+# if __GNUC__
+#  pragma GCC poison sprintf
+# endif
 #endif
 
 extern char hostname_g[];
