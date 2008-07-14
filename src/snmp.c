@@ -717,13 +717,42 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
     temp += (uint32_t) vl->val.counter64->low;
     DEBUG ("snmp plugin: Parsed int64 value is %llu.", temp);
   }
+  else if (vl->type == ASN_OCTET_STR)
+  {
+    /* We'll handle this later.. */
+  }
   else
   {
     WARNING ("snmp plugin: I don't know the ASN type `%i'", (int) vl->type);
     defined = 0;
   }
 
-  if (type == DS_TYPE_COUNTER)
+  if (vl->type == ASN_OCTET_STR)
+  {
+    char *string;
+    char *endptr;
+
+    string = (char *) vl->val.string;
+    endptr = NULL;
+
+    if (string != NULL)
+    {
+      if (type == DS_TYPE_COUNTER)
+	ret.counter = (counter_t) strtoll (string, &endptr, /* base = */ 0);
+      else if (type == DS_TYPE_GAUGE)
+	ret.gauge = (gauge_t) strtod (string, &endptr);
+    }
+
+    /* Check if an error occurred */
+    if ((string == NULL) || (endptr == string))
+    {
+      if (type == DS_TYPE_COUNTER)
+	ret.counter = 0;
+      else if (type == DS_TYPE_GAUGE)
+	ret.gauge = NAN;
+    }
+  }
+  else if (type == DS_TYPE_COUNTER)
   {
     ret.counter = temp;
   }
