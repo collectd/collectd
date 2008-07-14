@@ -707,14 +707,14 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       || (vl->type == ASN_GAUGE))
   {
     temp = (uint32_t) *vl->val.integer;
-    DEBUG ("snmp plugin: Parsed int32 value is %llu.", temp);
+    DEBUG ("snmp plugin: Parsed int32 value is %"PRIu64".", temp);
   }
   else if (vl->type == ASN_COUNTER64)
   {
     temp = (uint32_t) vl->val.counter64->high;
     temp = temp << 32;
     temp += (uint32_t) vl->val.counter64->low;
-    DEBUG ("snmp plugin: Parsed int64 value is %llu.", temp);
+    DEBUG ("snmp plugin: Parsed int64 value is %"PRIu64".", temp);
   }
   else
   {
