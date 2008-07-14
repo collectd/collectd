@@ -779,7 +779,7 @@ static int csnmp_check_res_left_subtree (const host_definition_t *host,
     if (vb == NULL)
     {
       ERROR ("snmp plugin: host %s: Expected one more variable for "
-	  "the instance..");
+	  "the instance..", host->name);
       return (-1);
     }
 
@@ -1400,8 +1400,8 @@ static int csnmp_read_host (host_definition_t *host)
   if ((time_end - time_start) > host->interval)
   {
     WARNING ("snmp plugin: Host `%s' should be queried every %i seconds, "
-	"but reading all values takes %i seconds.",
-	host->name, host->interval, time_end - time_start);
+	"but reading all values takes %u seconds.",
+	host->name, host->interval, (unsigned int) (time_end - time_start));
   }
 
   return (0);
