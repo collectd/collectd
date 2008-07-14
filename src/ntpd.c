@@ -612,8 +612,8 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		pkt_padding = 0;
 		if (pkt_item_len < res_item_size)
 			pkt_padding = res_item_size - pkt_item_len;
-		DEBUG ("res_item_size = %i; pkt_padding = %i;",
-				res_item_size, (int) pkt_padding);
+		DEBUG ("res_item_size = %i; pkt_padding = %zi;",
+				res_item_size, pkt_padding);
 
 		/* Extract the sequence number */
 		pkt_sequence = INFO_SEQ (res.auth_seq);
@@ -651,8 +651,8 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		 * Enough with the checks. Copy the data now.
 		 * We start by allocating some more memory.
 		 */
-		DEBUG ("realloc (%p, %i)", (void *) *res_data,
-				(int) (items_num + pkt_item_num) * res_item_size);
+		DEBUG ("realloc (%p, %zu)", (void *) *res_data,
+				(items_num + pkt_item_num) * res_item_size);
 		items = realloc ((void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
 		if (items == NULL)
