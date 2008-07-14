@@ -200,9 +200,6 @@
 # include <kstat.h>
 #endif
 
-#if HAVE_PTH_H
-# include <pth.h>
-#endif
 #if HAVE_SENSORS_SENSORS_H
 # include <sensors/sensors.h>
 #endif
