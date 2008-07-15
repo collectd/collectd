@@ -68,7 +68,7 @@ static char  ntpd_port[16];
 #define MAXFILENAME 128
 #define MAXSEQ  127
 #define MODE_PRIVATE 7
-#define NTP_OLDVERSION ((u_char) 1) /* oldest credible version */
+#define NTP_OLDVERSION ((uint8_t) 1) /* oldest credible version */
 #define IMPL_XNTPD 3
 #define FP_FRAC 65536.0
 
@@ -117,27 +117,27 @@ struct resp_pkt
 
 #define	ISRESPONSE(rm_vn_mode)	(((rm_vn_mode)&RESP_BIT)!=0)
 #define	ISMORE(rm_vn_mode)	(((rm_vn_mode)&MORE_BIT)!=0)
-#define INFO_VERSION(rm_vn_mode) ((u_char)(((rm_vn_mode)>>3)&0x7))
+#define INFO_VERSION(rm_vn_mode) ((uint8_t)(((rm_vn_mode)>>3)&0x7))
 #define	INFO_MODE(rm_vn_mode)	((rm_vn_mode)&0x7)
 
 #define	RM_VN_MODE(resp, more, version)		\
-				((u_char)(((resp)?RESP_BIT:0)\
+				((uint8_t)(((resp)?RESP_BIT:0)\
 				|((more)?MORE_BIT:0)\
 				|((version?version:(NTP_OLDVERSION+1))<<3)\
 				|(MODE_PRIVATE)))
 
 #define	INFO_IS_AUTH(auth_seq)	(((auth_seq) & 0x80) != 0)
 #define	INFO_SEQ(auth_seq)	((auth_seq)&0x7f)
-#define	AUTH_SEQ(auth, seq)	((u_char)((((auth)!=0)?0x80:0)|((seq)&0x7f)))
+#define	AUTH_SEQ(auth, seq)	((uint8_t)((((auth)!=0)?0x80:0)|((seq)&0x7f)))
 
-#define	INFO_ERR(err_nitems)	((u_short)((ntohs(err_nitems)>>12)&0xf))
-#define	INFO_NITEMS(err_nitems)	((u_short)(ntohs(err_nitems)&0xfff))
-#define	ERR_NITEMS(err, nitems)	(htons((u_short)((((u_short)(err)<<12)&0xf000)\
-				|((u_short)(nitems)&0xfff))))
+#define	INFO_ERR(err_nitems)	((uint16_t)((ntohs(err_nitems)>>12)&0xf))
+#define	INFO_NITEMS(err_nitems)	((uint16_t)(ntohs(err_nitems)&0xfff))
+#define	ERR_NITEMS(err, nitems)	(htons((uint16_t)((((uint16_t)(err)<<12)&0xf000)\
+				|((uint16_t)(nitems)&0xfff))))
 
 #define	INFO_MBZ(mbz_itemsize)	((ntohs(mbz_itemsize)>>12)&0xf)
-#define	INFO_ITEMSIZE(mbz_itemsize)	((u_short)(ntohs(mbz_itemsize)&0xfff))
-#define	MBZ_ITEMSIZE(itemsize)	(htons((u_short)(itemsize)))
+#define	INFO_ITEMSIZE(mbz_itemsize)	((uint16_t)(ntohs(mbz_itemsize)&0xfff))
+#define	MBZ_ITEMSIZE(itemsize)	(htons((uint16_t)(itemsize)))
 
 /* negate a long float type */
 #define M_NEG(v_i, v_f) \
