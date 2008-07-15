@@ -73,7 +73,7 @@ static void c_ipmi_error (const char *func, int status)
 
   if (IPMI_IS_OS_ERR (status))
   {
-    sstrerror_r (IPMI_GET_OS_ERR (status), errbuf, sizeof (errbuf));
+    sstrerror (IPMI_GET_OS_ERR (status), errbuf, sizeof (errbuf));
   }
   else if (IPMI_IS_IPMI_ERR (status))
   {
