@@ -10,6 +10,8 @@
 	  cleared a buffer regardless of its contents. This could lead to lost
 	  values under Solaris.
 	* nginx plugin: Remove usage of the thread-unsafe `strtok' function.
+	* vserver plugin: Remove usage of the thread-unsafe `readdir'
+	  function.
 	* wireless plugin: Work around incorrect noise and power values
 	  returned by some broken drivers.
 
