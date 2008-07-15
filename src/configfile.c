@@ -328,7 +328,7 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 		if (ci->children[i].children == NULL)
 			dispatch_value_plugin (name, ci->children + i);
 		else
-			{DEBUG ("No nested config blocks allow for this plugin.");}
+			{DEBUG ("No nested config blocks allowed for this plugin.");}
 	}
 
 	return (0);
