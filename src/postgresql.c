@@ -93,6 +93,56 @@ typedef struct {
 static c_psql_database_t *databases     = NULL;
 static int                databases_num = 0;
 
+static c_psql_database_t *c_psql_database_new (const char *name)
+{
+	c_psql_database_t *db;
+
+	++databases_num;
+	if (NULL == (databases = (c_psql_database_t *)realloc (databases,
+				databases_num * sizeof (*databases)))) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
+
+	db = databases + (databases_num - 1);
+
+	db->conn = NULL;
+
+	db->conn_complaint.last     = 0;
+	db->conn_complaint.interval = 0;
+
+	db->database   = sstrdup (name);
+	db->host       = NULL;
+	db->port       = NULL;
+	db->user       = NULL;
+	db->password   = NULL;
+
+	db->sslmode    = NULL;
+
+	db->krbsrvname = NULL;
+
+	db->service    = NULL;
+	return db;
+} /* c_psql_database_new */
+
+static void c_psql_database_delete (c_psql_database_t *db)
+{
+	PQfinish (db->conn);
+
+	sfree (db->database);
+	sfree (db->host);
+	sfree (db->port);
+	sfree (db->user);
+	sfree (db->password);
+
+	sfree (db->sslmode);
+
+	sfree (db->krbsrvname);
+
+	sfree (db->service);
+	return;
+} /* c_psql_database_delete */
+
 static void submit (const c_psql_database_t *db,
 		const char *type, const char *type_instance,
 		value_t *values, size_t values_len)
@@ -347,20 +397,7 @@ static int c_psql_shutdown (void)
 
 	for (i = 0; i < databases_num; ++i) {
 		c_psql_database_t *db = databases + i;
-
-		PQfinish (db->conn);
-
-		sfree (db->database);
-		sfree (db->host);
-		sfree (db->port);
-		sfree (db->user);
-		sfree (db->password);
-
-		sfree (db->sslmode);
-
-		sfree (db->krbsrvname);
-
-		sfree (db->service);
+		c_psql_database_delete (db);
 	}
 
 	sfree (databases);
@@ -445,31 +482,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		return 1;
 	}
 
-	++databases_num;
-	if (NULL == (databases = (c_psql_database_t *)realloc (databases,
-				databases_num * sizeof (*databases)))) {
-		log_err ("Out of memory.");
-		exit (5);
-	}
-
-	db = databases + (databases_num - 1);
-
-	db->conn = NULL;
-
-	db->conn_complaint.last     = 0;
-	db->conn_complaint.interval = 0;
-
-	db->database   = sstrdup (ci->values[0].value.string);
-	db->host       = NULL;
-	db->port       = NULL;
-	db->user       = NULL;
-	db->password   = NULL;
-
-	db->sslmode    = NULL;
-
-	db->krbsrvname = NULL;
-
-	db->service    = NULL;
+	db = c_psql_database_new (ci->values[0].value.string);
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
