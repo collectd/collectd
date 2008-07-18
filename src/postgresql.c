@@ -123,6 +123,7 @@ typedef struct {
 } c_psql_database_t;
 
 static char *def_queries[] = {
+	"database",
 	"user_tables",
 	"io_user_tables"
 };
@@ -400,51 +401,6 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 	return 0;
 } /* c_psql_exec_query */
 
-static int c_psql_stat_database (c_psql_database_t *db)
-{
-	const char *const query =
-		"SELECT numbackends, xact_commit, xact_rollback "
-			"FROM pg_stat_database "
-			"WHERE datname = $1;";
-
-	PGresult *res;
-
-	int n;
-
-	res = PQexecParams (db->conn, query, /* number of parameters */ 1,
-			NULL, (const char *const *)&db->database, NULL, NULL,
-			/* return text data */ 0);
-
-	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
-		log_err ("Failed to execute SQL query: %s",
-				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s", query);
-		PQclear (res);
-		return -1;
-	}
-
-	n = PQntuples (res);
-	if (1 < n) {
-		log_warn ("pg_stat_database has more than one entry "
-				"for database %s - ignoring additional results.",
-				db->database);
-	}
-	else if (1 > n) {
-		log_err ("pg_stat_database has no entry for database %s",
-				db->database);
-		PQclear (res);
-		return -1;
-	}
-
-	submit_gauge (db, "pg_numbackends", NULL,  PQgetvalue (res, 0, 0));
-
-	submit_counter (db, "pg_xact", "commit",   PQgetvalue (res, 0, 1));
-	submit_counter (db, "pg_xact", "rollback", PQgetvalue (res, 0, 2));
-
-	PQclear (res);
-	return 0;
-} /* c_psql_stat_database */
-
 static int c_psql_read (void)
 {
 	int success = 0;
@@ -459,8 +415,6 @@ static int c_psql_read (void)
 
 		if (0 != c_psql_check_connection (db))
 			continue;
-
-		c_psql_stat_database (db);
 
 		for (j = 0; j < db->queries_num; ++j)
 			c_psql_exec_query (db, j);
