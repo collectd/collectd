@@ -76,6 +76,12 @@
 	C_PSQL_IS_UNIX_DOMAIN_SOCKET (host) ? "/.s.PGSQL." : ":", \
 	port
 
+typedef enum {
+	C_PSQL_PARAM_HOST = 1,
+	C_PSQL_PARAM_DB,
+	C_PSQL_PARAM_USER,
+} c_psql_param_t;
+
 typedef struct {
 	char *type;
 	char *type_instance;
@@ -86,6 +92,9 @@ typedef struct {
 	char *name;
 	char *query;
 
+	c_psql_param_t *params;
+	int             params_num;
+
 	c_psql_col_t *cols;
 	int           cols_num;
 } c_psql_query_t;
@@ -93,6 +102,8 @@ typedef struct {
 typedef struct {
 	PGconn      *conn;
 	c_complain_t conn_complaint;
+
+	int max_params_num;
 
 	/* user configuration */
 	c_psql_query_t **queries;
@@ -138,6 +149,9 @@ static c_psql_query_t *c_psql_query_new (const char *name)
 	query->name  = sstrdup (name);
 	query->query = NULL;
 
+	query->params     = NULL;
+	query->params_num = 0;
+
 	query->cols     = NULL;
 	query->cols_num = 0;
 	return query;
@@ -149,6 +163,9 @@ static void c_psql_query_delete (c_psql_query_t *query)
 
 	sfree (query->name);
 	sfree (query->query);
+
+	sfree (query->params);
+	query->params_num = 0;
 
 	for (i = 0; i < query->cols_num; ++i) {
 		sfree (query->cols[i].type);
@@ -186,6 +203,8 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->conn_complaint.last     = 0;
 	db->conn_complaint.interval = 0;
+
+	db->max_params_num = 0;
 
 	db->queries     = NULL;
 	db->queries_num = 0;
@@ -311,6 +330,8 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 	c_psql_query_t *query;
 	PGresult       *res;
 
+	char *params[db->max_params_num];
+
 	int rows, cols;
 	int i;
 
@@ -319,7 +340,27 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 
 	query = db->queries[idx];
 
-	res = PQexec (db->conn, query->query);
+	assert (db->max_params_num >= query->params_num);
+
+	for (i = 0; i < query->params_num; ++i) {
+		switch (query->params[i]) {
+			case C_PSQL_PARAM_HOST:
+				params[i] = (NULL == db->host) ? "localhost" : db->host;
+				break;
+			case C_PSQL_PARAM_DB:
+				params[i] = db->database;
+				break;
+			case C_PSQL_PARAM_USER:
+				params[i] = db->user;
+				break;
+			default:
+				assert (0);
+		}
+	}
+
+	res = PQexecParams (db->conn, query->query, query->params_num, NULL,
+			(const char *const *)((0 == query->params_num) ? NULL : params),
+			NULL, NULL, /* return text data */ 0);
 
 	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
 		log_err ("Failed to execute SQL query: %s",
@@ -551,6 +592,40 @@ static int config_set (char *name, char **var, const oconfig_item_t *ci)
 	return 0;
 } /* config_set */
 
+static int config_set_param (c_psql_query_t *query, const oconfig_item_t *ci)
+{
+	c_psql_param_t param;
+	char          *param_str;
+
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("Param expects a single string argument.");
+		return 1;
+	}
+
+	param_str = ci->values[0].value.string;
+	if (0 == strcasecmp (param_str, "hostname"))
+		param = C_PSQL_PARAM_HOST;
+	else if (0 == strcasecmp (param_str, "database"))
+		param = C_PSQL_PARAM_DB;
+	else if (0 == strcasecmp (param_str, "username"))
+		param = C_PSQL_PARAM_USER;
+	else {
+		log_err ("Invalid parameter \"%s\".", param_str);
+		return 1;
+	}
+
+	++query->params_num;
+	if (NULL == (query->params = (c_psql_param_t *)realloc (query->params,
+				query->params_num * sizeof (*query->params)))) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
+
+	query->params[query->params_num - 1] = param;
+	return 0;
+} /* config_set_param */
+
 static int config_set_column (c_psql_query_t *query, const oconfig_item_t *ci)
 {
 	c_psql_col_t *col;
@@ -611,6 +686,9 @@ static int config_set_query (c_psql_database_t *db, const oconfig_item_t *ci)
 		exit (5);
 	}
 
+	if (query->params_num > db->max_params_num)
+		db->max_params_num = query->params_num;
+
 	db->queries[db->queries_num - 1] = query;
 	return 0;
 } /* config_set_query */
@@ -634,6 +712,8 @@ static int c_psql_config_query (oconfig_item_t *ci)
 
 		if (0 == strcasecmp (c->key, "Query"))
 			config_set ("Query", &query->query, c);
+		else if (0 == strcasecmp (c->key, "Param"))
+			config_set_param (query, c);
 		else if (0 == strcasecmp (c->key, "Column"))
 			config_set_column (query, c);
 		else
