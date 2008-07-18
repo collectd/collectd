@@ -21,6 +21,7 @@ if BUILD_FEATURE_DAEMON
 AM_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
+AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
 bin_PROGRAMS = collectd-nagios
@@ -796,3 +797,5 @@ install-exec-hook:
 		$(INSTALL) -m 0640 collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
 	cp -f $(srcdir)/types.db $(DESTDIR)$(pkglibdir)/;
+	$(INSTALL) -D -m 0644 $(srcdir)/postgresql_default.conf \
+		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;

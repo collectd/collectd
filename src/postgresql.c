@@ -38,6 +38,10 @@
 #define log_warn(...) WARNING ("postgresql: " __VA_ARGS__)
 #define log_info(...) INFO ("postgresql: " __VA_ARGS__)
 
+#ifndef C_PSQL_DEFAULT_CONF
+# define C_PSQL_DEFAULT_CONF PKGDATADIR "/postgresql_default.conf"
+#endif
+
 /* Appends the (parameter, value) pair to the string
  * pointed to by 'buf' suitable to be used as argument
  * for PQconnectdb(). If value equals NULL, the pair
@@ -106,6 +110,12 @@ typedef struct {
 
 	char *service;
 } c_psql_database_t;
+
+static char *def_queries[] = {
+	"user_tables",
+	"io_user_tables"
+};
+static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
 
 static c_psql_query_t *queries          = NULL;
 static int             queries_num      = 0;
@@ -393,97 +403,6 @@ static int c_psql_stat_database (c_psql_database_t *db)
 	return 0;
 } /* c_psql_stat_database */
 
-static int c_psql_stat_user_tables (c_psql_database_t *db)
-{
-	const char *const query =
-		"SELECT sum(seq_scan), sum(seq_tup_read), "
-				"sum(idx_scan), sum(idx_tup_fetch), "
-				"sum(n_tup_ins), sum(n_tup_upd), sum(n_tup_del), "
-				"sum(n_tup_hot_upd), sum(n_live_tup), sum(n_dead_tup) "
-			"FROM pg_stat_user_tables;";
-
-	PGresult *res;
-
-	int n;
-
-	res = PQexec (db->conn, query);
-
-	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
-		log_err ("Failed to execute SQL query: %s",
-				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s", query);
-		PQclear (res);
-		return -1;
-	}
-
-	n = PQntuples (res);
-	assert (1 >= n);
-
-	if (1 > n) /* no user tables */
-		return 0;
-
-	submit_counter (db, "pg_scan", "seq",           PQgetvalue (res, 0, 0));
-	submit_counter (db, "pg_scan", "seq_tup_read",  PQgetvalue (res, 0, 1));
-	submit_counter (db, "pg_scan", "idx",           PQgetvalue (res, 0, 2));
-	submit_counter (db, "pg_scan", "idx_tup_fetch", PQgetvalue (res, 0, 3));
-
-	submit_counter (db, "pg_n_tup_c", "ins",        PQgetvalue (res, 0, 4));
-	submit_counter (db, "pg_n_tup_c", "upd",        PQgetvalue (res, 0, 5));
-	submit_counter (db, "pg_n_tup_c", "del",        PQgetvalue (res, 0, 6));
-	submit_counter (db, "pg_n_tup_c", "hot_upd",    PQgetvalue (res, 0, 7));
-
-	submit_gauge (db, "pg_n_tup_g", "live",         PQgetvalue (res, 0, 8));
-	submit_gauge (db, "pg_n_tup_g", "dead",         PQgetvalue (res, 0, 9));
-
-	PQclear (res);
-	return 0;
-} /* c_psql_stat_user_tables */
-
-static int c_psql_statio_user_tables (c_psql_database_t *db)
-{
-	const char *const query =
-		"SELECT sum(heap_blks_read), sum(heap_blks_hit), "
-				"sum(idx_blks_read), sum(idx_blks_hit), "
-				"sum(toast_blks_read), sum(toast_blks_hit), "
-				"sum(tidx_blks_read), sum(tidx_blks_hit) "
-			"FROM pg_statio_user_tables;";
-
-	PGresult *res;
-
-	int n;
-
-	res = PQexec (db->conn, query);
-
-	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
-		log_err ("Failed to execute SQL query: %s",
-				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s", query);
-		PQclear (res);
-		return -1;
-	}
-
-	n = PQntuples (res);
-	assert (1 >= n);
-
-	if (1 > n) /* no user tables */
-		return 0;
-
-	submit_counter (db, "pg_blks", "heap_read",  PQgetvalue (res, 0, 0));
-	submit_counter (db, "pg_blks", "heap_hit",   PQgetvalue (res, 0, 1));
-
-	submit_counter (db, "pg_blks", "idx_read",   PQgetvalue (res, 0, 2));
-	submit_counter (db, "pg_blks", "idx_hit",    PQgetvalue (res, 0, 3));
-
-	submit_counter (db, "pg_blks", "toast_read", PQgetvalue (res, 0, 4));
-	submit_counter (db, "pg_blks", "toast_hit",  PQgetvalue (res, 0, 5));
-
-	submit_counter (db, "pg_blks", "tidx_read",  PQgetvalue (res, 0, 6));
-	submit_counter (db, "pg_blks", "tidx_hit",   PQgetvalue (res, 0, 7));
-
-	PQclear (res);
-	return 0;
-} /* c_psql_statio_user_tables */
-
 static int c_psql_read (void)
 {
 	int success = 0;
@@ -500,8 +419,6 @@ static int c_psql_read (void)
 			continue;
 
 		c_psql_stat_database (db);
-		c_psql_stat_user_tables (db);
-		c_psql_statio_user_tables (db);
 
 		for (j = 0; j < db->queries_num; ++j)
 			c_psql_exec_query (db, j);
@@ -761,12 +678,45 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
+
+	if (NULL == db->queries) {
+		db->queries = (c_psql_query_t **)malloc (def_queries_num
+				* sizeof (*db->queries));
+
+		for (i = 0; i < def_queries_num; ++i) {
+			db->queries[i] = c_psql_query_get (def_queries[i]);
+			if (NULL == db->queries[i])
+				log_err ("Query \"%s\" not found - "
+						"please check your installation.",
+						def_queries[i]);
+			else
+				++db->queries_num;
+		}
+	}
 	return 0;
 }
 
 static int c_psql_config (oconfig_item_t *ci)
 {
+	static int have_def_config = 0;
+
 	int i;
+
+	if (0 == have_def_config) {
+		oconfig_item_t *c;
+
+		have_def_config = 1;
+
+		c = oconfig_parse_file (C_PSQL_DEFAULT_CONF);
+		if (NULL == c)
+			log_err ("Failed to read default config ("C_PSQL_DEFAULT_CONF").");
+		else
+			c_psql_config (c);
+
+		if (NULL == queries)
+			log_err ("Default config ("C_PSQL_DEFAULT_CONF") did not define "
+					"any queries - please check your installation.");
+	}
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;

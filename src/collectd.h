@@ -239,6 +239,10 @@
 #define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
 #endif
 
+#ifndef PKGDATADIR
+#define PKGDATADIR PREFIX "/share/" PACKAGE_NAME
+#endif
+
 #ifndef COLLECTD_GRP_NAME
 # define COLLECTD_GRP_NAME "collectd"
 #endif
