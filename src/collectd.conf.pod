@@ -996,16 +996,31 @@ Sets the Time-To-Live of generated ICMP packets.
 
 The C<postgresql> plugin queries statistics from PostgreSQL databases. It
 keeps a persistent connection to all configured databases and tries to
-reconnect if the connection has been interrupted. The statistics are collected
-from PostgreSQL's B<statistics collector> which thus has to be enabled for
-this plugin to work correctly. This should usually be the case by default.
-See the section "The Statistics Collector" of the B<PostgreSQL Documentation>
-for details.
+reconnect if the connection has been interrupted. A database is configured by
+specifying a B<Database> block as described below. The default statistics are
+collected from PostgreSQL's B<statistics collector> which thus has to be
+enabled for this plugin to work correctly. This should usually be the case by
+default. See the section "The Statistics Collector" of the B<PostgreSQL
+Documentation> for details.
+
+By specifying custom database queries using a B<Query> block as described
+below, you may collect any data that is available from some PostgreSQL
+database. This way, you are able to access statistics of external daemons
+which are available in a PostgreSQL database or use future or special
+statistics provided by PostgreSQL without the need to upgrade your collectd
+installation.
 
 The B<PostgreSQL Documentation> manual can be found at
 L<http://www.postgresql.org/docs/manuals/>.
 
   <Plugin postgresql>
+    <Query magic>
+      Query "SELECT magic, spells FROM wizard WHERE host = $1;"
+      Param hostname
+      Column gauge magic
+      Column counter spells
+    </Query>
+
     <Database foo>
       Host "hostname"
       Port "5432"
@@ -1013,15 +1028,84 @@ L<http://www.postgresql.org/docs/manuals/>.
       Password "secret"
       SSLMode "prefer"
       KRBSrvName "kerberos_service_name"
+      Query magic
     </Database>
     <Database bar>
       Service "service_name"
     </Database>
   </Plugin>
 
+The B<Query> block defines one database query which may later be used by a
+database definition. It accepts a single mandatory argument which specifies
+the name of the query. The names of all queries have to be unique. The
+following configuration options are available to define the query:
+
 =over 4
 
-=item B<Database> block
+=item B<Query> I<sql query>
+
+Specify the I<sql query> which the plugin should execute. The string may
+contain the tokens B<$1>, B<$2>, etc. which are used to reference the first,
+second, etc. parameter. The value of the parameters is specified by the
+B<Param> configuration option - see below for details. To include a literal
+B<$> character followed by a number, surround it with single quotes (B<'>).
+
+Any SQL command which may return data (such as C<SELECT> or C<SHOW>) is
+allowed. Note, however, that only a single command may be used. Semicolons are
+allowed as long as a single non-empty command has been specified only.
+
+=item B<Param> I<hostname>|I<database>|I<username>
+
+Specify the parameters which should be passed to the SQL query. The parameters
+are referred to in the SQL query as B<$1>, B<$2>, etc. in the same order as
+they appear in the configuration file. The value of the parameter is
+determined depending on the value of the B<Param> option as follows:
+
+=over 4
+
+=item I<hostname>
+
+The configured hostname of the database connection. If a UNIX domain socket is
+used, the parameter expands to "localhost".
+
+=item I<database>
+
+The name of the database of the current connection.
+
+=item I<username>
+
+The username used to connect to the database.
+
+=back
+
+=item B<Column> I<type> [I<type instance>]
+
+Specify the I<type> and optional I<type instance> used to dispatch the value
+of each result column. Detailed information about types and their
+configuration can be found in L<types.db(5)>. The number and order of the
+B<Column> options has to match the columns of the query result.
+
+=back
+
+The following predefined queries are available:
+
+=over 4
+
+=item B<database>
+
+This query collects general database statistics, i.E<nbsp>e. the number of
+backends and committed and rolled-back transactions.
+
+=item B<user_tables>
+
+This query collects user-table usage statistics, i.E<nbsp>e. the numbers of
+various table scans and the numbers of various table modifications.
+
+=item B<io_user_tables>
+
+This query collects block access counts for user-tables.
+
+=back
 
 The B<Database> block defines one PostgreSQL database for which to collect
 statistics. It accepts a single mandatory argument which specifies the
@@ -1030,6 +1114,8 @@ default values as documented in the section "CONNECTING TO A DATABASE" in the
 L<psql(1)> manpage. However, be aware that those defaults may be influenced by
 the user collectd is run as and special environment variables. See the manpage
 for details.
+
+=over 4
 
 =item B<Host> I<hostname>
 
@@ -1093,6 +1179,13 @@ Specify the PostgreSQL service name to use for additional parameters. That
 service has to be defined in F<pg_service.conf> and holds additional
 connection parameters. See the section "The Connection Service File" in the
 B<PostgreSQL Documentation> for details.
+
+=item B<Query> I<query>
+
+Specify a I<query> which should be executed for the database connection. This
+may be any of the predefined or user-defined queries. If no such option is
+given, it defaults to "database", "user_tables" and "io_user_tables". Else,
+the specified queries are used only.
 
 =back
 

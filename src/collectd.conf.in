@@ -256,6 +256,13 @@ FQDNLookup   true
 #</Plugin>
 
 #<Plugin postgresql>
+#	<Query magic>
+#		Query "SELECT magic, spells FROM wizard WHERE host = $1;"
+#		Param hostname
+#		Column gauge magic
+#		Column counter spells
+#	</Query>
+#
 #	<Database foo>
 #		Host "hostname"
 #		Port 5432
@@ -264,6 +271,8 @@ FQDNLookup   true
 #
 #		SSLMode "prefer"
 #		KRBSrvName "kerberos_service_name"
+#
+#		Query magic
 #	</Database>
 #
 #	<Database bar>
