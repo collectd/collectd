@@ -507,6 +507,17 @@ collectd_LDADD += "-dlopen" nut.la
 collectd_DEPENDENCIES += nut.la
 endif
 
+if BUILD_PLUGIN_ONEWIRE
+pkglib_LTLIBRARIES += onewire.la
+onewire_la_SOURCES = onewire.c
+onewire_la_CFLAGS = $(AM_CFLAGS)
+onewire_la_CPPFLAGS = $(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
+onewire_la_LIBADD = $(BUILD_WITH_LIBOWCAPI_LIBS)
+onewire_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" onewire.la
+collectd_DEPENDENCIES += onewire.la
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c

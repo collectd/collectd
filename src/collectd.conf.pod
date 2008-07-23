@@ -928,6 +928,46 @@ L<upsc(8)>.
 
 =back
 
+=head2 Plugin C<onewire>
+
+The C<onewire> plugin uses the B<owcapi> library from the B<owfs> project
+L<http://owfs.org/> to read sensors connected via the onewire bus.
+
+=over 4
+
+=item B<Device> I<Device>
+
+Sets the device to read the values from. This can either be a "real" hardware
+device, such as a serial port or an USB port, or the address of the
+L<owserver(1)> socket, usually B<localhost:4304>.
+
+Though the documentation claims to automatically recognize the given address
+format, with versionE<nbsp>2.7p4 we had to specify the type explicitly. So
+with that version, the following configuration worked for us:
+
+  <Plugin onewire>
+    Device "-s localhost:4304"
+  </Plugin>
+
+=item B<Sensor> I<Sensor>
+
+Selects sensors to collect or to ignore, depending on B<IgnoreSelected>, see
+below. Sensors are specified without the family byte at the beginning, to you'd
+use C<F10FCA000800>, and B<not> include the leading C<10.> family byte and
+point.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+If no configuration if given, the B<onewire> plugin will collect data from all
+sensors found. This may not be practical, especially if sensors are added and
+removed regularly. Sometimes, however, it's easier/preferred to collect only
+specific sensors or all sensors I<except> a few specified ones. This option
+enables you to do that: By setting B<IgnoreSelected> to I<true> the effect of
+B<Sensor> is inverted: All selected interfaces are ignored and all other
+interfaces are collected.
+
+=back
+
 =head2 Plugin C<perl>
 
 This plugin embeds a Perl-interpreter into collectd and provides an interface
