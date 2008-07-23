@@ -345,7 +345,8 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 	for (i = 0; i < query->params_num; ++i) {
 		switch (query->params[i]) {
 			case C_PSQL_PARAM_HOST:
-				params[i] = (NULL == db->host) ? "localhost" : db->host;
+				params[i] = C_PSQL_IS_UNIX_DOMAIN_SOCKET (db->host)
+					? "localhost" : db->host;
 				break;
 			case C_PSQL_PARAM_DB:
 				params[i] = db->database;
