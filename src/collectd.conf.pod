@@ -463,7 +463,7 @@ similar interfaces. Thus, you can use the B<Interface>-option to pick the
 interfaces you're interested in. Sometimes, however, it's easier/preferred
 to collect all interfaces I<except> a few ones. This option enables you to
 do that: By setting B<IgnoreSelected> to I<true> the effect of
-B<Interface> is inversed: All selected interfaces are ignored and all
+B<Interface> is inverted: All selected interfaces are ignored and all
 other interfaces are collected.
 
 =back
@@ -503,7 +503,7 @@ irqs. This may not be practical, especially if no interrupts happen. Thus, you
 can use the B<Irq>-option to pick the interrupt you're interested in.
 Sometimes, however, it's easier/preferred to collect all interrupts I<except> a
 few ones. This option enables you to do that: By setting B<IgnoreSelected> to
-I<true> the effect of B<Irq> is inversed: All selected interrupts are ignored
+I<true> the effect of B<Irq> is inverted: All selected interrupts are ignored
 and all other interrupts are collected.
 
 =back
@@ -762,7 +762,7 @@ Here are some examples to help you understand the above text more easily:
 The behaviour is the same as with all other similar plugins: If nothing is
 selected at all, everything is collected. If some things are selected using the
 options described above, only these statistics are collected. If you set
-B<IgnoreSelected> to B<true>, this behavior is inversed, i.E<nbsp>e. the
+B<IgnoreSelected> to B<true>, this behavior is inverted, i.E<nbsp>e. the
 specified statistics will not be collected.
 
 =back
@@ -1303,7 +1303,7 @@ sensors. This may not be practical, especially for uninteresting sensors.
 Thus, you can use the B<Sensor>-option to pick the sensors you're interested
 in. Sometimes, however, it's easier/preferred to collect all sensors I<except> a
 few ones. This option enables you to do that: By setting B<IgnoreSelected> to
-I<true> the effect of B<Sensor> is inversed: All selected sensors are ignored
+I<true> the effect of B<Sensor> is inverted: All selected sensors are ignored
 and all other sensors are collected.
 
 =back
