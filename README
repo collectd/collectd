@@ -132,6 +132,9 @@ Features
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
 
+    - onewire
+      Read onewire sensors using the owcapu library of the owfs project.
+
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
       write your own plugins in Perl and return arbitrary values using this
@@ -360,6 +363,10 @@ Prerequisites
   * liboping (optional, if not found a version shipped with this distribution
     can be used)
     Used by the `ping' plugin to send and receive ICMP packets.
+
+  * libowcapi (optional)
+    Used by the `onewire' plugin to read values from onewire sensors (or the
+    owserver(1) daemon).
 
   * libpcap (optional)
     Used to capture packets by the `dns' plugin.
