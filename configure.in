@@ -1450,6 +1450,52 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBOPING, test "x$with_liboping" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_OWN_LIBOPING, test "x$with_own_liboping" = "xyes")
 
+with_libowcapi_cppflags=""
+with_libowcapi_libs="-lowcapi"
+AC_ARG_WITH(libowcapi, [AS_HELP_STRING([--with-libowcapi@<:@=PREFIX@:>@], [Path to libowcapi.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libowcapi_cppflags="-I$withval/include"
+		with_libowcapi_libs="-L$withval/lib -lowcapi"
+		with_libowcapi="yes"
+	else
+		with_libowcapi="$withval"
+	fi
+],
+[
+	with_libowcapi="yes"
+])
+if test "x$with_libowcapi" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$with_libowcapi_cppflags"
+	
+	AC_CHECK_HEADERS(owcapi.h, [with_libowcapi="yes"], [with_libowcapi="no (owcapi.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libowcapi" = "xyes"
+then
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	LDFLAGS="$with_libowcapi_libs"
+	CPPFLAGS="$with_libowcapi_cppflags"
+	
+	AC_CHECK_LIB(owcapi, OW_get, [with_libowcapi="yes"], [with_libowcapi="no (libowcapi not found)"])
+
+	LDFLAGS="$SAVE_LDFLAGS"
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libowcapi" = "xyes"
+then
+	BUILD_WITH_LIBOWCAPI_CPPFLAGS="$with_libowcapi_cppflags"
+	BUILD_WITH_LIBOWCAPI_LIBS="$with_libowcapi_libs"
+	AC_SUBST(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBOWCAPI_LIBS)
+fi
+
+
 AC_ARG_WITH(libpcap, [AS_HELP_STRING([--with-libpcap@<:@=PREFIX@:>@], [Path to libpcap.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -2618,6 +2664,7 @@ AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
+AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
@@ -2785,6 +2832,7 @@ Configuration:
     notify_email  . . . . $enable_notify_email
     ntpd  . . . . . . . . $enable_ntpd
     nut . . . . . . . . . $enable_nut
+    onewire . . . . . . . $enable_onewire
     perl  . . . . . . . . $enable_perl
     ping  . . . . . . . . $enable_ping
     postgresql  . . . . . $enable_postgresql
