@@ -523,7 +523,7 @@ pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c
 # Despite C99 providing the "bool" type thru stdbool.h, Perl defines its own
 # version of that type if HAS_BOOL is not defined... *sigh*
-perl_la_CPPFLAGS = -DHAS_BOOL=1
+perl_la_CPPFLAGS = $(AM_CPPFLAGS) -DHAS_BOOL=1
 perl_la_CFLAGS  = $(AM_CFLAGS) \
 		$(PERL_CFLAGS) \
 		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
@@ -550,7 +550,7 @@ endif
 if BUILD_PLUGIN_POSTGRESQL
 pkglib_LTLIBRARIES += postgresql.la
 postgresql_la_SOURCES = postgresql.c
-postgresql_la_CPPFLAGS = $(BUILD_WITH_LIBPQ_CPPFLAGS)
+postgresql_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQ_CPPFLAGS)
 postgresql_la_LDFLAGS = -module -avoid-version \
 		$(BUILD_WITH_LIBPQ_LDFLAGS) -lpq
 collectd_LDADD += "-dlopen" postgresql.la

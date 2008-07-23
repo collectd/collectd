@@ -1,3 +1,20 @@
+2008-07-15, Version 4.4.2
+	* build system: Use pkg-config to detect the upsclient library.
+	* collectd: Try even harder to determine the endianess of the
+	  architecture collectd is being built on.
+	* disk plugin: Fix for Linux 2.4: A wrong field was used as the name
+	  of disks.
+	* dns plugin: Fix compilation errors with BIND versions 19991001
+	  through 19991005.
+	* network plugin: Bugfix in the init routine: The init function
+	  cleared a buffer regardless of its contents. This could lead to lost
+	  values under Solaris.
+	* nginx plugin: Remove usage of the thread-unsafe `strtok' function.
+	* vserver plugin: Remove usage of the thread-unsafe `readdir'
+	  function.
+	* wireless plugin: Work around incorrect noise and power values
+	  returned by some broken drivers.
+
 2008-06-03, Version 4.4.1
 	* collectd: Fix the `DataSource' option within `Type' blocks. Thanks
 	  to kyrone for reporting this.
