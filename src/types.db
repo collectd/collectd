@@ -62,6 +62,7 @@ mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created
 nfs_procedure		value:COUNTER:0:4294967295
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:COUNTER:0:134217728
+operations		value:COUNTER:0:4294967295
 percent			percent:GAUGE:0:100.1
 pg_blks			value:COUNTER:0:U
 pg_n_tup_c		value:COUNTER:0:U
@@ -77,6 +78,7 @@ ps_cputime		user:COUNTER:0:16000000, syst:COUNTER:0:16000000
 ps_pagefaults		minflt:COUNTER:0:9223372036854775807, majflt:COUNTER:0:9223372036854775807
 ps_rss			value:GAUGE:0:9223372036854775807
 ps_state		value:GAUGE:0:65535
+queue_length		value:GAUGE:0:U
 serial_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
 signal_noise		value:GAUGE:U:0
 signal_power		value:GAUGE:U:0

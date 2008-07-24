@@ -294,6 +294,7 @@ FQDNLookup   true
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
+#	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>

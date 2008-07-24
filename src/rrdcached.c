@@ -33,13 +33,15 @@ static const char *config_keys[] =
 {
   "DaemonAddress",
   "DataDir",
-  "CreateFiles"
+  "CreateFiles",
+  "CollectStatistics"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static char *datadir = NULL;
 static char *daemon_address = NULL;
 static int config_create_files = 1;
+static int config_collect_stats = 1;
 static rrdcreate_config_t rrdcreate_config =
 {
 	/* stepsize = */ 0,
@@ -179,12 +181,21 @@ static int rc_config (const char *key, const char *value)
   }
   else if (strcasecmp ("CreateFiles", key) == 0)
   {
-    if ((strcasecmp ("true", value) == 0)
-        || (strcasecmp ("yes", value) == 0)
-        || (strcasecmp ("on", value) == 0))
-      config_create_files = 1;
-    else
+    if ((strcasecmp ("false", value) == 0)
+        || (strcasecmp ("no", value) == 0)
+        || (strcasecmp ("off", value) == 0))
       config_create_files = 0;
+    else
+      config_create_files = 1;
+  }
+  else if (strcasecmp ("CollectStatistics", key) == 0)
+  {
+    if ((strcasecmp ("false", value) == 0)
+        || (strcasecmp ("no", value) == 0)
+        || (strcasecmp ("off", value) == 0))
+      config_collect_stats = 0;
+    else
+      config_collect_stats = 1;
   }
   else
   {
@@ -192,6 +203,96 @@ static int rc_config (const char *key, const char *value)
   }
   return (0);
 } /* int rc_config */
+
+static int rc_read (void)
+{
+  int status;
+  rrdc_stats_t *head;
+  rrdc_stats_t *ptr;
+
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  if (daemon_address == NULL)
+    return (-1);
+
+  if (config_collect_stats == 0)
+    return (-1);
+
+  vl.values = values;
+  vl.values_len = 1;
+  vl.time = time (NULL);
+
+  if ((strncmp ("unix:", daemon_address, strlen ("unix:")) == 0)
+      || (daemon_address[0] == '/'))
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  else
+    sstrncpy (vl.host, daemon_address, sizeof (vl.host));
+  sstrncpy (vl.plugin, "rrdcached", sizeof (vl.plugin));
+
+  head = NULL;
+  status = rrdc_stats_get (&head);
+  if (status != 0)
+  {
+    ERROR ("rrdcached plugin: rrdc_stats_get failed.");
+    return (-1);
+  }
+
+  for (ptr = head; ptr != NULL; ptr = ptr->next)
+  {
+    if (ptr->type == RRDC_STATS_TYPE_GAUGE)
+      values[0].gauge = (gauge_t) ptr->value.gauge;
+    else if (ptr->type == RRDC_STATS_TYPE_COUNTER)
+      values[0].counter = (counter_t) ptr->value.counter;
+    else
+      continue;
+
+    if (strcasecmp ("QueueLength", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "queue_length", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
+    }
+    else if (strcasecmp ("UpdatesWritten", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "operations", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "write-updates", sizeof (vl.type_instance));
+    }
+    else if (strcasecmp ("DataSetsWritten", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "operations", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "write-data_sets",
+          sizeof (vl.type_instance));
+    }
+    else if (strcasecmp ("TreeNodesNumber", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "gauge", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "tree_nodes", sizeof (vl.type_instance));
+    }
+    else if (strcasecmp ("TreeDepth", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "gauge", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "tree_depth", sizeof (vl.type_instance));
+    }
+    else
+    {
+      continue;
+    }
+
+    plugin_dispatch_values (&vl);
+  } /* for (ptr = head; ptr != NULL; ptr = ptr->next) */
+
+  rrdc_stats_free (head);
+
+  return (0);
+} /* int rc_read */
+
+static int rc_init (void)
+{
+  if (config_collect_stats != 0)
+    plugin_register_read ("rrdcached", rc_read);
+
+  return (0);
+} /* int rc_init */
 
 static int rc_write (const data_set_t *ds, const value_list_t *vl)
 {
@@ -283,6 +384,7 @@ void module_register (void)
 {
   plugin_register_config ("rrdcached", rc_config,
       config_keys, config_keys_num);
+  plugin_register_init ("rrdcached", rc_init);
   plugin_register_write ("rrdcached", rc_write);
   plugin_register_shutdown ("rrdcached", rc_shutdown);
 } /* void module_register */
