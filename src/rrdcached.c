@@ -79,12 +79,12 @@ static int value_list_to_string (char *buffer, int buffer_len,
     if (ds->ds[i].type == DS_TYPE_COUNTER)
     {
       status = ssnprintf (buffer + offset, buffer_len - offset,
-          ",%llu", vl->values[i].counter);
+          ":%llu", vl->values[i].counter);
     }
     else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
     {
       status = ssnprintf (buffer + offset, buffer_len - offset,
-          ",%lf", vl->values[i].gauge);
+          ":%lf", vl->values[i].gauge);
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))
