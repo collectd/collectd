@@ -22,6 +22,7 @@
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
+#include "utils_rrdcreate.h"
 
 #include <rrd_client.h>
 
@@ -31,12 +32,27 @@
 static const char *config_keys[] =
 {
   "DaemonAddress",
-  "DataDir"
+  "DataDir",
+  "CreateFiles"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static char *datadir = NULL;
 static char *daemon_address = NULL;
+static int config_create_files = 1;
+static rrdcreate_config_t rrdcreate_config =
+{
+	/* stepsize = */ 0,
+	/* heartbeat = */ 0,
+	/* rrarows = */ 1200,
+	/* xff = */ 0.1,
+
+	/* timespans = */ NULL,
+	/* timespans_num = */ 0,
+
+	/* consolidation_functions = */ NULL,
+	/* consolidation_functions_num = */ 0
+};
 
 static int value_list_to_string (char *buffer, int buffer_len,
     const data_set_t *ds, const value_list_t *vl)
@@ -161,6 +177,15 @@ static int rc_config (const char *key, const char *value)
       return (1);
     }
   }
+  else if (strcasecmp ("CreateFiles", key) == 0)
+  {
+    if ((strcasecmp ("true", value) == 0)
+        || (strcasecmp ("yes", value) == 0)
+        || (strcasecmp ("on", value) == 0))
+      config_create_files = 1;
+    else
+      config_create_files = 0;
+  }
   else
   {
     return (-1);
@@ -203,7 +228,30 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl)
   values_array[0] = values;
   values_array[1] = NULL;
 
-  /* TODO: Check if the file exists. */
+  if (config_create_files != 0)
+  {
+    struct stat statbuf;
+
+    status = stat (filename, &statbuf);
+    if (status != 0)
+    {
+      if (errno != ENOENT)
+      {
+        char errbuf[1024];
+        ERROR ("rrdcached plugin: stat (%s) failed: %s",
+            filename, sstrerror (errno, errbuf, sizeof (errbuf)));
+        return (-1);
+      }
+
+      status = cu_rrd_create_file (filename, ds, vl, &rrdcreate_config);
+      if (status != 0)
+      {
+        ERROR ("rrdcached plugin: cu_rrd_create_file (%s) failed.",
+            filename);
+        return (-1);
+      }
+    }
+  }
 
   status = rrdc_connect (daemon_address);
   if (status != 0)
