@@ -583,7 +583,7 @@ endif
 
 if BUILD_PLUGIN_RRDCACHED
 pkglib_LTLIBRARIES += rrdcached.la
-rrdcached_la_SOURCES = rrdcached.c
+rrdcached_la_SOURCES = rrdcached.c utils_rrdcreate.c utils_rrdcreate.h
 rrdcached_la_LDFLAGS = -module -avoid-version
 rrdcached_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
 rrdcached_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)
@@ -593,7 +593,7 @@ endif
 
 if BUILD_PLUGIN_RRDTOOL
 pkglib_LTLIBRARIES += rrdtool.la
-rrdtool_la_SOURCES = rrdtool.c
+rrdtool_la_SOURCES = rrdtool.c utils_rrdcreate.c utils_rrdcreate.h
 rrdtool_la_LDFLAGS = -module -avoid-version
 rrdtool_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
 rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)

@@ -23,6 +23,7 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_avltree.h"
+#include "utils_rrdcreate.h"
 
 #include <rrd.h>
 
@@ -64,27 +65,6 @@ typedef struct rrd_queue_s rrd_queue_t;
 /*
  * Private variables
  */
-static int rra_timespans[] =
-{
-	3600,
-	86400,
-	604800,
-	2678400,
-	31622400
-};
-static int rra_timespans_num = STATIC_ARRAY_SIZE (rra_timespans);
-
-static int *rra_timespans_custom = NULL;
-static int rra_timespans_custom_num = 0;
-
-static char *rra_types[] =
-{
-	"AVERAGE",
-	"MIN",
-	"MAX"
-};
-static int rra_types_num = STATIC_ARRAY_SIZE (rra_types);
-
 static const char *config_keys[] =
 {
 	"CacheTimeout",
@@ -102,10 +82,19 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
  * is zero a default, depending on the `interval' member of the value list is
  * being used. */
 static char   *datadir   = NULL;
-static int     stepsize  = 0;
-static int     heartbeat = 0;
-static int     rrarows   = 1200;
-static double  xff       = 0.1;
+static rrdcreate_config_t rrdcreate_config =
+{
+	/* stepsize = */ 0,
+	/* heartbeat = */ 0,
+	/* rrarows = */ 1200,
+	/* xff = */ 0.1,
+
+	/* timespans = */ NULL,
+	/* timespans_num = */ 0,
+
+	/* consolidation_functions = */ NULL,
+	/* consolidation_functions_num = */ 0
+};
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
  * ALWAYS lock `cache_lock' first! */
@@ -127,233 +116,7 @@ static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int do_shutdown = 0;
 
-/* * * * * * * * * *
- * WARNING:  Magic *
- * * * * * * * * * */
-
-static void rra_free (int rra_num, char **rra_def)
-{
-	int i;
-
-	for (i = 0; i < rra_num; i++)
-	{
-		sfree (rra_def[i]);
-	}
-	sfree (rra_def);
-} /* void rra_free */
-
-static int rra_get (char ***ret, const value_list_t *vl)
-{
-	char **rra_def;
-	int rra_num;
-
-	int *rts;
-	int  rts_num;
-
-	int rra_max;
-
-	int span;
-
-	int cdp_num;
-	int cdp_len;
-	int i, j;
-
-	char buffer[64];
-
-	/* The stepsize we use here: If it is user-set, use it. If not, use the
-	 * interval of the value-list. */
-	int ss;
-
-	if (rrarows <= 0)
-	{
-		*ret = NULL;
-		return (-1);
-	}
-
-	ss = (stepsize > 0) ? stepsize : vl->interval;
-	if (ss <= 0)
-	{
-		*ret = NULL;
-		return (-1);
-	}
-
-	/* Use the configured timespans or fall back to the built-in defaults */
-	if (rra_timespans_custom_num != 0)
-	{
-		rts = rra_timespans_custom;
-		rts_num = rra_timespans_custom_num;
-	}
-	else
-	{
-		rts = rra_timespans;
-		rts_num = rra_timespans_num;
-	}
-
-	rra_max = rts_num * rra_types_num;
-
-	if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
-		return (-1);
-	memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
-	rra_num = 0;
-
-	cdp_len = 0;
-	for (i = 0; i < rts_num; i++)
-	{
-		span = rts[i];
-
-		if ((span / ss) < rrarows)
-			span = ss * rrarows;
-
-		if (cdp_len == 0)
-			cdp_len = 1;
-		else
-			cdp_len = (int) floor (((double) span)
-					/ ((double) (rrarows * ss)));
-
-		cdp_num = (int) ceil (((double) span)
-				/ ((double) (cdp_len * ss)));
-
-		for (j = 0; j < rra_types_num; j++)
-		{
-			if (rra_num >= rra_max)
-				break;
-
-			if (ssnprintf (buffer, sizeof (buffer), "RRA:%s:%3.1f:%u:%u",
-						rra_types[j], xff,
-						cdp_len, cdp_num) >= sizeof (buffer))
-			{
-				ERROR ("rra_get: Buffer would have been truncated.");
-				continue;
-			}
-
-			rra_def[rra_num++] = sstrdup (buffer);
-		}
-	}
-
-#if COLLECT_DEBUG
-	DEBUG ("rra_num = %i", rra_num);
-	for (i = 0; i < rra_num; i++)
-		DEBUG ("  %s", rra_def[i]);
-#endif
-
-	*ret = rra_def;
-	return (rra_num);
-} /* int rra_get */
-
-static void ds_free (int ds_num, char **ds_def)
-{
-	int i;
-
-	for (i = 0; i < ds_num; i++)
-		if (ds_def[i] != NULL)
-			free (ds_def[i]);
-	free (ds_def);
-}
-
-static int ds_get (char ***ret, const data_set_t *ds, const value_list_t *vl)
-{
-	char **ds_def;
-	int ds_num;
-
-	char min[32];
-	char max[32];
-	char buffer[128];
-
-	DEBUG ("ds->ds_num = %i", ds->ds_num);
-
-	ds_def = (char **) malloc (ds->ds_num * sizeof (char *));
-	if (ds_def == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("rrdtool plugin: malloc failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
-	memset (ds_def, '\0', ds->ds_num * sizeof (char *));
-
-	for (ds_num = 0; ds_num < ds->ds_num; ds_num++)
-	{
-		data_source_t *d = ds->ds + ds_num;
-		char *type;
-		int status;
-
-		ds_def[ds_num] = NULL;
-
-		if (d->type == DS_TYPE_COUNTER)
-			type = "COUNTER";
-		else if (d->type == DS_TYPE_GAUGE)
-			type = "GAUGE";
-		else
-		{
-			ERROR ("rrdtool plugin: Unknown DS type: %i",
-					d->type);
-			break;
-		}
-
-		if (isnan (d->min))
-		{
-			sstrncpy (min, "U", sizeof (min));
-		}
-		else
-			ssnprintf (min, sizeof (min), "%lf", d->min);
-
-		if (isnan (d->max))
-		{
-			sstrncpy (max, "U", sizeof (max));
-		}
-		else
-			ssnprintf (max, sizeof (max), "%lf", d->max);
-
-		status = ssnprintf (buffer, sizeof (buffer),
-				"DS:%s:%s:%i:%s:%s",
-				d->name, type,
-				(heartbeat > 0) ? heartbeat : (2 * vl->interval),
-				min, max);
-		if ((status < 1) || (status >= sizeof (buffer)))
-			break;
-
-		ds_def[ds_num] = sstrdup (buffer);
-	} /* for ds_num = 0 .. ds->ds_num */
-
-#if COLLECT_DEBUG
-{
-	int i;
-	DEBUG ("ds_num = %i", ds_num);
-	for (i = 0; i < ds_num; i++)
-		DEBUG ("  %s", ds_def[i]);
-}
-#endif
-
-	if (ds_num != ds->ds_num)
-	{
-		ds_free (ds_num, ds_def);
-		return (-1);
-	}
-
-	*ret = ds_def;
-	return (ds_num);
-}
-
 #if HAVE_THREADSAFE_LIBRRD
-static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
-		int argc, const char **argv)
-{
-	int status;
-
-	optind = 0; /* bug in librrd? */
-	rrd_clear_error ();
-
-	status = rrd_create_r (filename, pdp_step, last_up, argc, (void *) argv);
-
-	if (status != 0)
-	{
-		WARNING ("rrdtool plugin: rrd_create_r (%s) failed: %s",
-				filename, rrd_get_error ());
-	}
-
-	return (status);
-} /* int srrd_create */
-
 static int srrd_update (char *filename, char *template,
 		int argc, const char **argv)
 {
@@ -375,59 +138,6 @@ static int srrd_update (char *filename, char *template,
 /* #endif HAVE_THREADSAFE_LIBRRD */
 
 #else /* !HAVE_THREADSAFE_LIBRRD */
-static int srrd_create (char *filename, unsigned long pdp_step, time_t last_up,
-		int argc, const char **argv)
-{
-	int status;
-
-	int new_argc;
-	char **new_argv;
-
-	char pdp_step_str[16];
-	char last_up_str[16];
-
-	new_argc = 6 + argc;
-	new_argv = (char **) malloc ((new_argc + 1) * sizeof (char *));
-	if (new_argv == NULL)
-	{
-		ERROR ("rrdtool plugin: malloc failed.");
-		return (-1);
-	}
-
-	if (last_up == 0)
-		last_up = time (NULL) - 10;
-
-	ssnprintf (pdp_step_str, sizeof (pdp_step_str), "%lu", pdp_step);
-	ssnprintf (last_up_str, sizeof (last_up_str), "%u", (unsigned int) last_up);
-
-	new_argv[0] = "create";
-	new_argv[1] = filename;
-	new_argv[2] = "-s";
-	new_argv[3] = pdp_step_str;
-	new_argv[4] = "-b";
-	new_argv[5] = last_up_str;
-
-	memcpy (new_argv + 6, argv, argc * sizeof (char *));
-	new_argv[new_argc] = NULL;
-	
-	pthread_mutex_lock (&librrd_lock);
-	optind = 0; /* bug in librrd? */
-	rrd_clear_error ();
-
-	status = rrd_create (new_argc, new_argv);
-	pthread_mutex_unlock (&librrd_lock);
-
-	if (status != 0)
-	{
-		WARNING ("rrdtool plugin: rrd_create (%s) failed: %s",
-				filename, rrd_get_error ());
-	}
-
-	sfree (new_argv);
-
-	return (status);
-} /* int srrd_create */
-
 static int srrd_update (char *filename, char *template,
 		int argc, const char **argv)
 {
@@ -470,58 +180,6 @@ static int srrd_update (char *filename, char *template,
 	return (status);
 } /* int srrd_update */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
-
-static int rrd_create_file (char *filename, const data_set_t *ds, const value_list_t *vl)
-{
-	char **argv;
-	int argc;
-	char **rra_def;
-	int rra_num;
-	char **ds_def;
-	int ds_num;
-	int status = 0;
-
-	if (check_create_dir (filename))
-		return (-1);
-
-	if ((rra_num = rra_get (&rra_def, vl)) < 1)
-	{
-		ERROR ("rrd_create_file failed: Could not calculate RRAs");
-		return (-1);
-	}
-
-	if ((ds_num = ds_get (&ds_def, ds, vl)) < 1)
-	{
-		ERROR ("rrd_create_file failed: Could not calculate DSes");
-		return (-1);
-	}
-
-	argc = ds_num + rra_num;
-
-	if ((argv = (char **) malloc (sizeof (char *) * (argc + 1))) == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("rrd_create failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
-
-	memcpy (argv, ds_def, ds_num * sizeof (char *));
-	memcpy (argv + ds_num, rra_def, rra_num * sizeof (char *));
-	argv[ds_num + rra_num] = NULL;
-
-	assert (vl->time > 10);
-	status = srrd_create (filename,
-			(stepsize > 0) ? stepsize : vl->interval,
-			vl->time - 10,
-			argc, (const char **)argv);
-
-	free (argv);
-	ds_free (ds_num, ds_def);
-	rra_free (rra_num, rra_def);
-
-	return (status);
-}
 
 static int value_list_to_string (char *buffer, int buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
@@ -1013,7 +671,9 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl)
 	{
 		if (errno == ENOENT)
 		{
-			if (rrd_create_file (filename, ds, vl))
+			status = cu_rrd_create_file (filename,
+					ds, vl, &rrdcreate_config);
+			if (status != 0)
 				return (-1);
 		}
 		else
@@ -1098,15 +758,15 @@ static int rrd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("StepSize", key) == 0)
 	{
-		stepsize = atoi (value);
-		if (stepsize < 0)
-			stepsize = 0;
+		int temp = atoi (value);
+		if (temp > 0)
+			rrdcreate_config.stepsize = temp;
 	}
 	else if (strcasecmp ("HeartBeat", key) == 0)
 	{
-		heartbeat = atoi (value);
-		if (heartbeat < 0)
-			heartbeat = 0;
+		int temp = atoi (value);
+		if (temp > 0)
+			rrdcreate_config.heartbeat = temp;
 	}
 	else if (strcasecmp ("RRARows", key) == 0)
 	{
@@ -1117,7 +777,7 @@ static int rrd_config (const char *key, const char *value)
 					"be greater than 0.\n");
 			return (1);
 		}
-		rrarows = tmp;
+		rrdcreate_config.rrarows = tmp;
 	}
 	else if (strcasecmp ("RRATimespan", key) == 0)
 	{
@@ -1136,23 +796,23 @@ static int rrd_config (const char *key, const char *value)
 		{
 			dummy = NULL;
 			
-			tmp_alloc = realloc (rra_timespans_custom,
-					sizeof (int) * (rra_timespans_custom_num + 1));
+			tmp_alloc = realloc (rrdcreate_config.timespans,
+					sizeof (int) * (rrdcreate_config.timespans_num + 1));
 			if (tmp_alloc == NULL)
 			{
 				fprintf (stderr, "rrdtool: realloc failed.\n");
 				free (value_copy);
 				return (1);
 			}
-			rra_timespans_custom = tmp_alloc;
-			rra_timespans_custom[rra_timespans_custom_num] = atoi (ptr);
-			if (rra_timespans_custom[rra_timespans_custom_num] != 0)
-				rra_timespans_custom_num++;
+			rrdcreate_config.timespans = tmp_alloc;
+			rrdcreate_config.timespans[rrdcreate_config.timespans_num] = atoi (ptr);
+			if (rrdcreate_config.timespans[rrdcreate_config.timespans_num] != 0)
+				rrdcreate_config.timespans_num++;
 		} /* while (strtok_r) */
 
-		qsort (/* base = */ rra_timespans_custom,
-				/* nmemb  = */ rra_timespans_custom_num,
-				/* size   = */ sizeof (rra_timespans_custom[0]),
+		qsort (/* base = */ rrdcreate_config.timespans,
+				/* nmemb  = */ rrdcreate_config.timespans_num,
+				/* size   = */ sizeof (rrdcreate_config.timespans[0]),
 				/* compar = */ rrd_compare_numeric);
 
 		free (value_copy);
@@ -1166,7 +826,7 @@ static int rrd_config (const char *key, const char *value)
 					"be in the range 0 to 1 (exclusive).");
 			return (1);
 		}
-		xff = tmp;
+		rrdcreate_config.xff = tmp;
 	}
 	else
 	{
@@ -1201,16 +861,18 @@ static int rrd_init (void)
 {
 	int status;
 
-	if (stepsize < 0)
-		stepsize = 0;
-	if (heartbeat <= 0)
-		heartbeat = 2 * stepsize;
+	if (rrdcreate_config.stepsize < 0)
+		rrdcreate_config.stepsize = 0;
+	if (rrdcreate_config.heartbeat <= 0)
+		rrdcreate_config.heartbeat = 2 * rrdcreate_config.stepsize;
 
-	if ((heartbeat > 0) && (heartbeat < interval_g))
+	if ((rrdcreate_config.heartbeat > 0)
+			&& (rrdcreate_config.heartbeat < interval_g))
 		WARNING ("rrdtool plugin: Your `heartbeat' is "
 				"smaller than your `interval'. This will "
 				"likely cause problems.");
-	else if ((stepsize > 0) && (stepsize < interval_g))
+	else if ((rrdcreate_config.stepsize > 0)
+			&& (rrdcreate_config.stepsize < interval_g))
 		WARNING ("rrdtool plugin: Your `stepsize' is "
 				"smaller than your `interval'. This will "
 				"create needlessly big RRD-files.");
@@ -1246,7 +908,10 @@ static int rrd_init (void)
 	DEBUG ("rrdtool plugin: rrd_init: datadir = %s; stepsize = %i;"
 			" heartbeat = %i; rrarows = %i; xff = %lf;",
 			(datadir == NULL) ? "(null)" : datadir,
-			stepsize, heartbeat, rrarows, xff);
+			rrdcreate_config.stepsize,
+			rrdcreate_config.heartbeat,
+			rrdcreate_config.rrarows,
+			rrdcreate_config.xff);
 
 	return (0);
 } /* int rrd_init */
