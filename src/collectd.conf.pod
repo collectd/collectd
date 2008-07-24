@@ -1242,6 +1242,56 @@ and minor and major pagefaults.
 
 =back
 
+=head2 Plugin C<rrdcached>
+
+The C<rrdcached> plugin uses the RRDTool accelerator daemon, L<rrdcached(1)>,
+to store values to RRD files in an efficient manner. The combination of the
+C<rrdcached> B<plugin> and the C<rrdcached> B<daemon> is very similar to the
+way the C<rrdtool> plugin works (see below). The added abstraction layer
+provides a number of benefits, though: Because the cache is not within
+C<collectd> anymore, it does not need to be flushed when C<collectd> is to be
+restarted. This results in much shorter (if any) gaps in graphs, especially
+under heavy load. Also, the C<rrdtool> command line utility is aware of the
+daemon so that it can flush values to disk automatically when needed. This
+allows to integrate automated flushing of values into graphing solutions much
+more easily.
+
+There are disadvantages, though: The daemon may reside on a different host, so
+it may not be possible for C<collectd> to create the appropriate RRD files
+anymore. And even if C<rrdcached> runs on the same host, it may run in a
+different base directory, so relative paths may do weird stuff if you're not
+careful.
+
+So the B<recommended configuration> is to let C<collectd> and C<rrdcached> run
+on the same host, communicating via a UNIX domain socket. The B<DataDir>
+setting should be set to an absolute path, so that a changed base directory
+does not result in RRD files being createdE<nbsp>/ expected in the wrong place.
+
+=over 4
+
+=item B<DaemonAddress> I<Address>
+
+Address of the daemon as understood by the C<rrdc_connect> function of the RRD
+library. See L<rrdcached(1)> for details. Example:
+
+  <Plugin "rrdcached">
+    DaemonAddress "unix:/var/run/rrdcached.sock"
+  </Plugin>
+
+=item B<DataDir> I<Directory>
+
+Set the base directory in which the RRD files reside. If this is a relative
+path, it is relative to the working base directory of the C<rrdcached> daemon!
+Use of an absolute path is recommended.
+
+=item B<CreateFiles> B<true>|B<false>
+
+Enables or disables the creation of RRD files. If the daemon is not running
+locally, or B<DataDir> is set to a relative path, this will not work as
+expected. Default is B<true>.
+
+=back
+
 =head2 Plugin C<rrdtool>
 
 You can use the settings B<StepSize>, B<HeartBeat>, B<RRARows>, and B<XFF> to
