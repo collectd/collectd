@@ -98,8 +98,8 @@ static int my_read (void)
 	vl.values     = values;
 	vl.values_len = 1;
 	vl.time       = time (NULL);
-	strcpy (vl.host, hostname_g);
-	strcpy (vl.plugin, "myplugin");
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "myplugin", sizeof (vl.plugin));
 	/* optionally set vl.plugin_instance and vl.type_instance to reasonable
 	 * values (default: "") */
 
