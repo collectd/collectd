@@ -340,7 +340,8 @@ sub action_show_selection
             <div class="graph_float">
               <img id="${id}" class="graph_image"
                 alt="A graph"
-                src="$url" />
+                src="$url"
+		ondblclick="nav_handle_dblclick (event);" />
               <div class="controls zoom">
                 <div title="Earlier"
                   onclick="nav_move_earlier ('${id}');">&#x2190;</div>
