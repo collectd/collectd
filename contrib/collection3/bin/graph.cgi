@@ -18,6 +18,7 @@ use Collectd::Graph::Type ();
 our $Debug = param ('debug');
 our $Begin = param ('begin');
 our $End = param ('end');
+our $GraphWidth = param ('width');
 
 if ($Debug)
 {
@@ -27,7 +28,7 @@ Content-Type: text/plain
 HTTP
 }
 
-tl_read_config ("$RealBin/../etc/collection3.conf");
+tl_read_config ("$RealBin/../etc/collection.conf");
 
 { # Sanitize begin and end times
   $End ||= 0;
@@ -93,15 +94,29 @@ for (@$files)
 }
 
 my $expires = time ();
+# IF (End is `now')
+#    OR (Begin is before `now' AND End is after `now')
 if (($End == 0) || (($Begin <= $expires) && ($End >= $expires)))
 {
   # 400 == width in pixels
-  my $timespan = $expires - $Begin;
-  $expires += int ($timespan / 400);
+  my $timespan;
+
+  if ($End == 0)
+  {
+    $timespan = $expires - $Begin;
+  }
+  else
+  {
+    $timespan = $End - $Begin;
+  }
+  $expires += int ($timespan / 400.0);
 }
+# IF (End is not `now')
+#    AND (End is before `now')
+# ==> Graph will never change again!
 elsif (($End > 0) && ($End < $expires))
 {
-  $expires += 366 * 86400;
+  $expires += (366 * 86400);
 }
 elsif ($Begin > $expires)
 {
@@ -111,6 +126,11 @@ elsif ($Begin > $expires)
 print STDOUT header (-Content_type => 'image/png',
   -Last_Modified => epoch_to_rfc1123 ($obj->getLastModified ()),
   -Expires => epoch_to_rfc1123 ($expires));
+
+if ($Debug)
+{
+  print "\$expires = $expires;\n";
+}
 
 my $args = $obj->getRRDArgs (0);
 

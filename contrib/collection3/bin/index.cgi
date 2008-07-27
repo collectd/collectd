@@ -57,7 +57,7 @@ if (!exists ($Actions{$action}))
   exit 1;
 }
 
-tl_read_config ("$RealBin/../etc/collection3.conf");
+tl_read_config ("$RealBin/../etc/collection.conf");
 
 $Actions{$action}->();
 exit (0);
@@ -107,6 +107,14 @@ sub start_html
 {
   return if ($html_started);
 
+  my $end;
+  my $begin;
+  my $timespan;
+
+  $end = time ();
+  $timespan = get_timespan_selection ();
+  $begin = $end - $timespan;
+
   if (can_handle_xhtml ())
   {
     print <<HTML;
@@ -136,8 +144,9 @@ HTML
     <title>collection.cgi, Version 3</title>
     <link rel="icon" href="../share/shortcut-icon.png" type="image/png" />
     <link rel="stylesheet" href="../share/style.css" type="text/css" />
+    <script type="text/javascript" src="../share/navigate.js" />
   </head>
-  <body>
+  <body onload="nav_init ($begin, $end);">
 HTML
   $html_started = 1;
 }}
@@ -199,6 +208,17 @@ HTML
         </select>
 	<input type="hidden" name="action" value="show_selection" />
 	<input type="submit" name="ok_button" value="OK" />
+      </fieldset>
+      <fieldset>
+	<legend>Move all graphs</legend>
+	<input type="button" name="earlier" value="&#x2190;" title="Earlier"
+	  onclick="nav_move_earlier ('*');" />
+	<input type="button" name="zoom_out" value="-" title="Zoom out"
+	  onclick="nav_zoom_out ('*');" />
+	<input type="button" name="zoom_in" value="+" title="Zoom in"
+	  onclick="nav_zoom_in ('*');" />
+	<input type="button" name="later" value="&#x2192;" title="Later"
+	  onclick="nav_move_later ('*');" />
       </fieldset>
     </form>
 HTML
@@ -266,6 +286,8 @@ sub action_show_selection
   my $all_files;
   my $types = {};
 
+  my $id_counter = 0;
+
   $all_files = get_selected_files ();
 
   if ($Debug)
@@ -307,11 +329,44 @@ sub action_show_selection
     {
       my $args = $types->{$type}->getGraphArgs ($i);
       my $url = encode_entities ("graph.cgi?$args;begin=-$timespan");
+      my $id = sprintf ("graph%04i", $id_counter++);
 
       print "      <tr>\n";
       print "        <td rowspan=\"$graphs_num\">$type</td>\n" if ($i == 0);
-
-      print qq#        <td><img src="$url" /></td>\n#;
+      print <<EOF;
+        <td>
+          <div class="graph_canvas">
+            <div class="graph_float">
+              <img id="${id}" class="graph_image"
+                alt="A graph"
+                src="$url" />
+              <div class="controls zoom">
+                <div title="Earlier"
+                  onclick="nav_move_earlier ('${id}');">&#x2190;</div>
+                <div title="Zoom out"
+                  onclick="nav_zoom_out ('${id}');">-</div>
+                <div title="Zoom in"
+                  onclick="nav_zoom_in ('${id}');">+</div>
+                <div title="Later"
+                  onclick="nav_move_later ('${id}');">&#x2192;</div>
+              </div>
+              <div class="controls preset">
+                <div title="Show current hour"
+                  onclick="nav_time_reset ('${id}', 3600);">H</div>
+                <div title="Show current day"
+                  onclick="nav_time_reset ('${id}', 86400);">D</div>
+                <div title="Show current week"
+                  onclick="nav_time_reset ('${id}', 7 * 86400);">W</div>
+                <div title="Show current month"
+                  onclick="nav_time_reset ('${id}', 31 * 86400);">M</div>
+                <div title="Show current year"
+                  onclick="nav_time_reset ('${id}', 366 * 86400);">Y</div>
+              </div>
+            </div>
+          </div>
+	</td>
+EOF
+      # print qq#        <td><img src="$url" /></td>\n#;
       print "      </tr>\n";
     }
   }
