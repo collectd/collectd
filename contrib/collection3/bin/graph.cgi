@@ -9,7 +9,8 @@ use Carp (qw(confess cluck));
 use CGI (':cgi');
 use RRDs ();
 
-use Collectd::Graph::TypeLoader (qw(tl_read_config tl_load_type));
+use Collectd::Graph::Config (qw(gc_read_config gc_get_scalar));
+use Collectd::Graph::TypeLoader (qw(tl_load_type));
 
 use Collectd::Graph::Common (qw(sanitize_type get_selected_files
       epoch_to_rfc1123));
@@ -28,7 +29,17 @@ Content-Type: text/plain
 HTTP
 }
 
-tl_read_config ("$RealBin/../etc/collection.conf");
+gc_read_config ("$RealBin/../etc/collection.conf");
+
+if ($GraphWidth)
+{
+  $GraphWidth =~ s/\D//g;
+}
+
+if (!$GraphWidth)
+{
+  $GraphWidth = gc_get_scalar ('GraphWidth', 400);
+}
 
 { # Sanitize begin and end times
   $End ||= 0;
@@ -155,7 +166,7 @@ else
   }
 
   $| = 1;
-  RRDs::graph ('-', '-a', 'PNG', @timesel, @$args);
+  RRDs::graph ('-', '-a', 'PNG', '--width', $GraphWidth, @timesel, @$args);
   if (my $err = RRDs::error ())
   {
     print STDERR "RRDs::graph failed: $err\n";

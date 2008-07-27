@@ -27,7 +27,8 @@ use HTML::Entities ('encode_entities');
 
 use Data::Dumper;
 
-use Collectd::Graph::TypeLoader (qw(tl_read_config tl_load_type));
+use Collectd::Graph::Config (qw(gc_read_config));
+use Collectd::Graph::TypeLoader (qw(tl_load_type));
 use Collectd::Graph::Common (qw(get_files_from_directory get_all_hosts
       get_timespan_selection get_selected_files get_host_selection
       get_plugin_selection));
@@ -57,7 +58,7 @@ if (!exists ($Actions{$action}))
   exit 1;
 }
 
-tl_read_config ("$RealBin/../etc/collection.conf");
+gc_read_config ("$RealBin/../etc/collection.conf");
 
 $Actions{$action}->();
 exit (0);
