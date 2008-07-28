@@ -210,17 +210,6 @@ HTML
 	<input type="hidden" name="action" value="show_selection" />
 	<input type="submit" name="ok_button" value="OK" />
       </fieldset>
-      <fieldset>
-	<legend>Move all graphs</legend>
-	<input type="button" name="earlier" value="&#x2190;" title="Earlier"
-	  onclick="nav_move_earlier ('*');" />
-	<input type="button" name="zoom_out" value="-" title="Zoom out"
-	  onclick="nav_zoom_out ('*');" />
-	<input type="button" name="zoom_in" value="+" title="Zoom in"
-	  onclick="nav_zoom_in ('*');" />
-	<input type="button" name="later" value="&#x2192;" title="Later"
-	  onclick="nav_move_later ('*');" />
-      </fieldset>
     </form>
 HTML
 } # show_selector
@@ -340,8 +329,7 @@ sub action_show_selection
             <div class="graph_float">
               <img id="${id}" class="graph_image"
                 alt="A graph"
-                src="$url"
-		ondblclick="nav_handle_dblclick (event);" />
+                src="$url" />
               <div class="controls zoom">
                 <div title="Earlier"
                   onclick="nav_move_earlier ('${id}');">&#x2190;</div>
@@ -363,6 +351,8 @@ sub action_show_selection
                   onclick="nav_time_reset ('${id}', 31 * 86400);">M</div>
                 <div title="Show current year"
                   onclick="nav_time_reset ('${id}', 366 * 86400);">Y</div>
+                <div title="Set all images to this timespan"
+                  onclick="nav_set_reference ('${id}');">!</div>
               </div>
             </div>
           </div>

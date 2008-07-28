@@ -15,9 +15,17 @@ function nav_init (time_begin, time_end)
     all_images[i].navBaseURL = all_images[i].src.replace (/;(begin|end)=[^;]*/g, '');
 
     if (all_images[i].addEventListener) /* Mozilla */
+    {
+      all_images[i].addEventListener ('dblclick', nav_handle_dblclick,
+          false /* == bubbling */);
       all_images[i].addEventListener ('DOMMouseScroll', nav_handle_wheel,
           false /* == bubbling */);
-    all_images[i].onmousewheel = nav_handle_wheel;
+    }
+    else
+    {
+      all_images[i].ondblclick = nav_handle_dblclick;
+      all_images[i].onmousewheel = nav_handle_wheel;
+    }
   }
 
   return (true);
@@ -54,10 +62,8 @@ function nav_time_change_obj (img, factor_begin, factor_end)
 {
   var diff;
 
-  if (!img)
-    return (false);
-
-  if (!img.navTimeEnd || !img.navTimeBegin)
+  if (!img || !img.navBaseURL
+      || !img.navTimeBegin || !img.navTimeEnd)
     return (false);
 
   diff = img.navTimeEnd - img.navTimeBegin;
@@ -69,9 +75,7 @@ function nav_time_change_obj (img, factor_begin, factor_end)
   img.navTimeBegin += (diff * factor_begin);
   img.navTimeEnd   += (diff * factor_end);
 
-  img.src = img.navBaseURL + ";"
-    + "begin=" + img.navTimeBegin.toFixed (0) + ";"
-    + "end=" + img.navTimeEnd.toFixed (0);
+  nav_image_repaint (img);
 
   return (true);
 } /* nav_time_change */
@@ -83,6 +87,7 @@ function nav_time_change (img_id, factor_begin, factor_end)
   if (img_id == '*')
   {
     var all_images;
+    var i;
 
     all_images = document.getElementsByTagName ("img");
     for (i = 0; i < all_images.length; i++)
@@ -126,6 +131,77 @@ function nav_zoom_out (img_id)
 {
   return (nav_time_change (img_id, (-1.0 / 3.0), (1.0 / 3.0)));
 } /* nav_zoom_in */
+
+function nav_set_reference (img_id)
+{
+  var img;
+  var all_images;
+  var tmp;
+  var i;
+
+  img = document.getElementById (img_id);
+  if (!img || (img.className != "graph_image")
+      || !img.navTimeBegin || !img.navTimeEnd)
+    return;
+
+  all_images = document.getElementsByTagName ("img");
+  for (i = 0; i < all_images.length; i++)
+  {
+    tmp = all_images[i];
+    if (!tmp || (tmp.className != "graph_image")
+        || !tmp.navTimeBegin || !tmp.navTimeEnd)
+      continue;
+
+    if (tmp.id == img_id)
+      continue;
+
+    tmp.navTimeBegin = img.navTimeBegin;
+    tmp.navTimeEnd = img.navTimeEnd;
+
+    nav_image_repaint (tmp);
+  }
+} /* nav_set_reference */
+
+/* 
+ * TODO: calculate the mouse position relative to the image in a cross-browser
+ * manner.
+ */
+function nav_calculate_offset_x (obj)
+{
+  var offset = 0;
+
+  if (!obj)
+    return (offset);
+
+  offset = obj.offsetLeft;
+  if (obj.offsetParent)
+    offset += nav_calculate_offset_x (obj.offsetParent);
+
+  return (offset);
+} /* nav_calculate_offset_x */
+
+function nav_calculate_event_x (e)
+{
+  var pos = 0;
+  var off = 0;
+
+  if (!e || !e.target)
+    return;
+  
+  off = nav_calculate_offset_x (e.target);
+
+  if (e.pageX || e.pageY)
+  {
+    pos = e.pageX;
+  }
+  else if (e.clientX || e.clientY)
+  {
+    pos = e.clientX + document.body.scrollLeft
+      + document.documentElement.scrollLeft;
+  }
+
+  return (pos);
+} /* nav_calculate_event_x */
 
 function nav_recenter (e)
 {
