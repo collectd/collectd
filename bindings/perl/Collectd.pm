@@ -133,6 +133,8 @@ sub DEBUG   { _log (scalar caller, LOG_DEBUG,   shift); }
 sub plugin_call_all {
 	my $type = shift;
 
+	my %plugins;
+
 	our $cb_name = undef;
 
 	if (! defined $type) {
@@ -148,9 +150,13 @@ sub plugin_call_all {
 		return;
 	}
 
-	lock @plugins;
-	foreach my $plugin (keys %{$plugins[$type]}) {
-		my $p = $plugins[$type]->{$plugin};
+	{
+		lock %{$plugins[$type]};
+		%plugins = %{$plugins[$type]};
+	}
+
+	foreach my $plugin (keys %plugins) {
+		my $p = $plugins{$plugin};
 
 		my $status = 0;
 
@@ -261,7 +267,7 @@ sub plugin_register {
 			cb_name   => $data,
 		);
 
-		lock @plugins;
+		lock %{$plugins[$type]};
 		$plugins[$type]->{$name} = \%p;
 	}
 	else {
@@ -286,7 +292,7 @@ sub plugin_unregister {
 		return plugin_unregister_data_set ($name);
 	}
 	elsif (defined $plugins[$type]) {
-		lock @plugins;
+		lock %{$plugins[$type]};
 		delete $plugins[$type]->{$name};
 	}
 	else {
