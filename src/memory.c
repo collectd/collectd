@@ -319,7 +319,7 @@ static int memory_read (void)
 	if ((ios = sg_get_mem_stats ()) != NULL)
 	{
 		memory_submit ("used",   ios->used);
-		memory_submit ("cached", ios->cached);
+		memory_submit ("cached", ios->cache);
 		memory_submit ("free",   ios->free);
 	}
 #endif /* HAVE_LIBSTATGRAB */
