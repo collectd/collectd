@@ -19,11 +19,46 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+/**
+ * Code within `__OpenBSD__' blocks is provided under the following license:
+ *
+ * $collectd: parts of tcpconns.c, 2008/08/08 03:48:30 Michael Stapelberg $
+ * $OpenBSD: inet.c,v 1.100 2007/06/19 05:28:30 ray Exp $
+ * $NetBSD: inet.c,v 1.14 1995/10/03 21:42:37 thorpej Exp $
+ *
+ * Copyright (c) 1983, 1988, 1993
+ *      The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 
-#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME
+#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !__OpenBSD__
 # error "No applicable input method."
 #endif
 
@@ -57,7 +92,24 @@
 # include <netinet/tcpip.h>
 # include <netinet/tcp_seq.h>
 # include <netinet/tcp_var.h>
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif __OpenBSD__
+# include <sys/queue.h>
+# include <sys/socket.h>
+# include <net/route.h>
+# include <netinet/in.h>
+# include <netinet/in_systm.h>
+# include <netinet/ip.h>
+# include <netinet/in_pcb.h>
+# include <netinet/tcp.h>
+# include <netinet/tcp_timer.h>
+# include <netinet/tcp_var.h>
+# include <netdb.h>
+# include <arpa/inet.h>
+# include <nlist.h>
+# include <kvm.h>
+#endif /* __OpenBSD__ */
 
 #if KERNEL_LINUX
 static const char *tcp_state[] =
@@ -100,7 +152,120 @@ static const char *tcp_state[] =
 # define TCP_STATE_LISTEN 1
 # define TCP_STATE_MIN 0
 # define TCP_STATE_MAX 10
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif __OpenBSD__
+static const char *tcp_state[] =
+{
+  "CLOSED",
+  "LISTEN",
+  "SYN_SENT",
+  "SYN_RCVD",
+  "ESTABLISHED",
+  "CLOSE_WAIT",
+  "FIN_WAIT_1",
+  "CLOSING",
+  "LAST_ACK",
+  "FIN_WAIT_2",
+  "TIME_WAIT"
+};
+
+static kvm_t *kvmd;
+
+static struct nlist nl[] = {
+#define N_MBSTAT        0
+        { "_mbstat" },
+#define N_IPSTAT        1
+        { "_ipstat" },
+#define N_TCBTABLE      2
+        { "_tcbtable" },
+#define N_TCPSTAT       3
+        { "_tcpstat" },
+#define N_UDBTABLE      4
+        { "_udbtable" },
+#define N_UDPSTAT       5
+        { "_udpstat" },
+#define N_IFNET         6
+        { "_ifnet" },
+#define N_ICMPSTAT      7
+        { "_icmpstat" },
+#define N_RTSTAT        8
+        { "_rtstat" },
+#define N_UNIXSW        9
+        { "_unixsw" },
+#define N_RTREE         10
+        { "_rt_tables"},
+#define N_FILE          11
+        { "_file" },
+#define N_IGMPSTAT      12
+        { "_igmpstat" },
+#define N_MRTPROTO      13
+        { "_ip_mrtproto" },
+#define N_MRTSTAT       14
+        { "_mrtstat" },
+#define N_MFCHASHTBL    15
+        { "_mfchashtbl" },
+#define N_MFCHASH       16
+        { "_mfchash" },
+        { "_viftable" },
+#define N_AHSTAT        18
+        { "_ahstat"},
+#define N_ESPSTAT       19
+        { "_espstat"},
+#define N_IP4STAT       20
+        { "_ipipstat"},
+#define N_DDPSTAT       21
+        { "_ddpstat"},
+#define N_DDPCB         22
+        { "_ddpcb"},
+#define N_ETHERIPSTAT   23
+        { "_etheripstat"},
+#define N_IP6STAT       24
+        { "_ip6stat" },
+#define N_ICMP6STAT     25
+        { "_icmp6stat" },
+#define N_PIM6STAT      26
+        { "_pim6stat" },
+#define N_MRT6PROTO     27
+        { "_ip6_mrtproto" },
+#define N_MRT6STAT      28
+        { "_mrt6stat" },
+#define N_MF6CTABLE     29
+        { "_mf6ctable" },
+#define N_MIF6TABLE     30
+        { "_mif6table" },
+#define N_MBPOOL        31
+        { "_mbpool" },
+#define N_MCLPOOL       32
+        { "_mclpool" },
+#define N_IPCOMPSTAT    33
+        { "_ipcompstat" },
+#define N_RIP6STAT      34
+        { "_rip6stat" },
+#define N_CARPSTAT      35
+        { "_carpstats" },
+#define N_RAWIPTABLE    36
+        { "_rawcbtable" },
+#define N_RAWIP6TABLE   37
+        { "_rawin6pcbtable" },
+#define N_PFSYNCSTAT    38
+        { "_pfsyncstats" },
+#define N_PIMSTAT       39
+        { "_pimstat" },
+#define N_AF2RTAFIDX    40
+        { "_af2rtafidx" },
+#define N_RTBLIDMAX     41
+        { "_rtbl_id_max" },
+#define N_RTMASK        42
+        { "_mask_rnhead" },
+
+        { "" }
+};
+
+# define TCP_STATE_LISTEN 1
+# define TCP_STATE_MIN 1
+# define TCP_STATE_MAX 10
+#endif /* __OpenBSD__ */
 
 #define PORT_COLLECT_LOCAL  0x01
 #define PORT_COLLECT_REMOTE 0x02
@@ -514,13 +679,74 @@ static int conn_read (void)
 
   return (0);
 } /* int conn_read */
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif __OpenBSD__
+static int kread(u_long addr, void *buf, int size)
+{
+  if (kvm_read(kvmd, addr, buf, size) != size)
+  {
+    ERROR ("tcpconns plugin: %s\n", kvm_geterr(kvmd));
+    return (-1);
+  }
+  return (0);
+}
+
+static int conn_init (void)
+{
+  char buf[_POSIX2_LINE_MAX];
+  if ((kvmd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, buf)) == NULL)
+  {
+    ERROR("tcpconns plugin: %s", buf);
+    return (-1);
+  }
+  if (kvm_nlist(kvmd, nl) < 0 || nl[0].n_type == 0)
+  {
+    ERROR("tcpconns plugin: No namelist.");
+    return (-1);
+  }
+  return (0);
+}
+
+static int conn_read (void)
+{
+  u_long off = nl[2].n_value;
+  struct inpcbtable table;
+  struct inpcb *head, *next, *prev;
+  struct inpcb inpcb;
+  struct tcpcb tcpcb;
+
+  conn_reset_port_entry ();
+
+  kread(off, &table, sizeof(table));
+  prev = head = (struct inpcb *)&CIRCLEQ_FIRST(&((struct inpcbtable *)off)->inpt_queue);
+  next = CIRCLEQ_FIRST(&table.inpt_queue);
+
+  while (next != head) {
+    kread((u_long)next, &inpcb, sizeof(inpcb));
+    prev = next;
+    next = CIRCLEQ_NEXT(&inpcb, inp_queue);
+    if (inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
+      continue;
+    kread((u_long)inpcb.inp_ppcb, &tcpcb, sizeof(tcpcb));
+    conn_handle_ports (ntohs(inpcb.inp_lport), ntohs(inpcb.inp_fport), tcpcb.t_state);
+  }
+
+  conn_submit_all ();
+
+  return (0);
+}
+#endif /* __OpenBSD__ */
 
 void module_register (void)
 {
 	plugin_register_config ("tcpconns", conn_config,
 			config_keys, config_keys_num);
 #if KERNEL_LINUX
+	plugin_register_init ("tcpconns", conn_init);
+#elif HAVE_SYSCTLBYNAME
+	/* no initialization */
+#elif __OpenBSD__
 	plugin_register_init ("tcpconns", conn_init);
 #endif
 	plugin_register_read ("tcpconns", conn_read);
