@@ -50,6 +50,18 @@ case $host_os in
 esac
 AC_MSG_RESULT([$ac_system])
 
+if test "x$ac_system" = "xLinux"
+then
+	AC_ARG_VAR([KERNEL_DIR], [path to Linux kernel sources])
+	if test -z "$KERNEL_DIR"
+	then
+		KERNEL_DIR="/lib/modules/`uname -r`/source"
+	fi
+
+	KERNEL_CFLAGS="-I$KERNEL_DIR/include"
+	AC_SUBST(KERNEL_CFLAGS)
+fi
+
 #
 # Checks for header files.
 #
@@ -278,8 +290,13 @@ have_net_ip_vs_h="no"
 have_ip_vs_h="no"
 if test "x$ac_system" = "xLinux"
 then
+	SAVE_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
+
 	AC_CHECK_HEADERS(net/ip_vs.h, [have_net_ip_vs_h="yes"])
 	AC_CHECK_HEADERS(ip_vs.h, [have_ip_vs_h="yes"])
+
+	CFLAGS=$SAVE_CFLAGS
 fi
 
 # For quota module
@@ -1599,15 +1616,6 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 
-if test "x$ac_system" = "xLinux"
-then
-	AC_ARG_VAR([KERNEL_DIR], [path to Linux kernel sources])
-	if test -z "$KERNEL_DIR"
-	then
-		KERNEL_DIR="/lib/modules/`uname -r`/source"
-	fi
-fi
-
 with_own_libiptc="no"
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
@@ -1653,7 +1661,7 @@ fi
 if test "x$with_libiptc" = "xyes"
 then
 	SAVE_CFLAGS=$CFLAGS
-	CFLAGS="$CFLAGS -I$KERNEL_DIR/include"
+	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
 
 	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
 	[
