@@ -32,6 +32,18 @@ sub getRRDArgs
   my $idents = $group->{$group[$index]};
   my $ds_name_len = 0;
 
+  my $ds = $obj->getDataSources ();
+  if (!$ds)
+  {
+    confess ("obj->getDataSources failed.");
+  }
+  if (@$ds != 1)
+  {
+    confess ("I can only work with RRD files that have "
+      . "exactly one data source!");
+  }
+  my $data_source = $ds->[0];
+
   my $rrd_title = $obj->getTitle ($idents->[0]);
 
   my $colors = $obj->{'rrd_colors'} || {};
@@ -64,9 +76,9 @@ sub getRRDArgs
     $names[$i] =~ s/:/\\:/g;
 
     push (@ret,
-      "DEF:min${i}=${filename}:value:MIN",
-      "DEF:avg${i}=${filename}:value:AVERAGE",
-      "DEF:max${i}=${filename}:value:MAX");
+      "DEF:min${i}=${filename}:${data_source}:MIN",
+      "DEF:avg${i}=${filename}:${data_source}:AVERAGE",
+      "DEF:max${i}=${filename}:${data_source}:MAX");
   }
 
   for (my $i = @$idents - 1; $i >= 0; $i--)

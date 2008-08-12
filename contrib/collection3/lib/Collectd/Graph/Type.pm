@@ -248,6 +248,20 @@ sub getTitle
   my $plugin_instance = $ident->{'plugin_instance'};
   my $type = $ident->{'type'};
   my $type_instance = $ident->{'type_instance'};
+  my $instance;
+
+  if (defined $type_instance)
+  {
+    $instance = $type_instance;
+  }
+  elsif (defined $plugin_instance)
+  {
+    $instance = $plugin_instance;
+  }
+  else
+  {
+    $instance = 'no instance';
+  }
 
   if (!defined $plugin_instance)
   {
@@ -264,6 +278,7 @@ sub getTitle
   $title =~ s#{plugin_instance}#$plugin_instance#g;
   $title =~ s#{type}#$type#g;
   $title =~ s#{type_instance}#$type_instance#g;
+  $title =~ s#{instance}#$instance#g;
 
   return ($title);
 }

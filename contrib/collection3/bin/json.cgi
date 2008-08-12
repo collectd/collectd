@@ -27,13 +27,14 @@ use URI::Escape ('uri_escape');
 
 use Data::Dumper;
 
-use Collectd::Graph::TypeLoader (qw(tl_read_config tl_load_type));
+use Collectd::Graph::Config (qw(gc_read_config));
+use Collectd::Graph::TypeLoader (qw(tl_load_type));
 use Collectd::Graph::Common (qw(get_all_hosts get_files_for_host type_to_module_name));
 use Collectd::Graph::Type ();
 
 our $Debug = param ('debug') ? 1 : 0;
 
-tl_read_config ("$RealBin/../etc/collection3.conf");
+gc_read_config ("$RealBin/../etc/collection.conf");
 
 if ($Debug)
 {
