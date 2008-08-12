@@ -859,6 +859,7 @@ int ut_check_interesting (const char *name)
   if (status != 0)
   {
     ERROR ("ut_check_interesting: parse_identifier failed.");
+    sfree (name_copy);
     return (-1);
   }
 
