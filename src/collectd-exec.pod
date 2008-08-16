@@ -171,10 +171,12 @@ table. All the options are optional, but B<plugin_instance> without B<plugin>
 or B<type_instance> without B<type> doesn't make much sense and should be
 avoided.
 
-Please note that this is the same format as used in the B<unixsock plugin>, see
-L<collectd-unixsock(5)>.
+=back
 
 =back
+
+Please note that this is the same format as used in the B<unixsock plugin>, see
+L<collectd-unixsock(5)>.
 
 When collectd exits it sends a B<SIGTERM> to all still running
 child-processes upon which they have to quit.
