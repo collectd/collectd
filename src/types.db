@@ -64,6 +64,7 @@ nginx_connections	value:GAUGE:0:U
 nginx_requests		value:COUNTER:0:134217728
 percent			percent:GAUGE:0:100.1
 pg_blks			value:COUNTER:0:U
+pg_db_size		value:GAUGE:0:U
 pg_n_tup_c		value:COUNTER:0:U
 pg_n_tup_g		value:GAUGE:0:U
 pg_numbackends		value:GAUGE:0:U

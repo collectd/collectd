@@ -128,7 +128,8 @@ static char *def_queries[] = {
 	"queries",
 	"query_plans",
 	"table_states",
-	"disk_io"
+	"disk_io",
+	"disk_usage"
 };
 static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
 

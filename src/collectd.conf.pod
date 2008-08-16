@@ -1121,6 +1121,10 @@ This query collects the numbers of live and dead rows in the user tables.
 
 This query collects disk block access counts for user tables.
 
+=item B<disk_usage>
+
+This query collects the on-disk size of the database in bytes.
+
 =back
 
 The B<Database> block defines one PostgreSQL database for which to collect
@@ -1201,7 +1205,8 @@ B<PostgreSQL Documentation> for details.
 Specify a I<query> which should be executed for the database connection. This
 may be any of the predefined or user-defined queries. If no such option is
 given, it defaults to "backends", "transactions", "queries", "query_plans",
-"table_states", "disk_io". Else, the specified queries are used only.
+"table_states", "disk_io" and "disk_usage". Else, the specified queries are
+used only.
 
 =back
 
