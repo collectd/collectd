@@ -1087,23 +1087,39 @@ B<Column> options has to match the columns of the query result.
 
 =back
 
-The following predefined queries are available:
+The following predefined queries are available (the definitions can be found
+in the F<postgresql_default.conf> file which, by default, is available at
+C<I<prefix>/share/collectd/>):
 
 =over 4
 
-=item B<database>
+=item B<backends>
 
-This query collects general database statistics, i.E<nbsp>e. the number of
-backends and committed and rolled-back transactions.
+This query collects the number of backends, i.E<nbsp>e. the number of
+connected clients.
 
-=item B<user_tables>
+=item B<transactions>
 
-This query collects user-table usage statistics, i.E<nbsp>e. the numbers of
-various table scans and the numbers of various table modifications.
+This query collects the numbers of committed and rolled-back transactions of
+the user tables.
 
-=item B<io_user_tables>
+=item B<queries>
 
-This query collects block access counts for user-tables.
+This query collects the numbers of various table modifications (i.E<nbsp>e.
+insertions, updates, deletions) of the user tables.
+
+=item B<query_plans>
+
+This query collects the numbers of various table scans and returned tuples of
+the user tables.
+
+=item B<table_states>
+
+This query collects the numbers of live and dead rows in the user tables.
+
+=item B<disk_io>
+
+This query collects disk block access counts for user tables.
 
 =back
 
@@ -1184,8 +1200,8 @@ B<PostgreSQL Documentation> for details.
 
 Specify a I<query> which should be executed for the database connection. This
 may be any of the predefined or user-defined queries. If no such option is
-given, it defaults to "database", "user_tables" and "io_user_tables". Else,
-the specified queries are used only.
+given, it defaults to "backends", "transactions", "queries", "query_plans",
+"table_states", "disk_io". Else, the specified queries are used only.
 
 =back
 

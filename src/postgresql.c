@@ -123,9 +123,12 @@ typedef struct {
 } c_psql_database_t;
 
 static char *def_queries[] = {
-	"database",
-	"user_tables",
-	"io_user_tables"
+	"backends",
+	"transactions",
+	"queries",
+	"query_plans",
+	"table_states",
+	"disk_io"
 };
 static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
 
