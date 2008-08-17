@@ -621,20 +621,14 @@ static int config_set_column (c_psql_query_t *query, const oconfig_item_t *ci)
 	return 0;
 } /* config_set_column */
 
-static int config_set_query (c_psql_database_t *db, const oconfig_item_t *ci)
+static int set_query (c_psql_database_t *db, const char *name)
 {
 	c_psql_query_t *query;
 
-	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("Query expects a single string argument.");
-		return 1;
-	}
-
-	query = c_psql_query_get (ci->values[0].value.string);
+	query = c_psql_query_get (name);
 	if (NULL == query) {
 		log_err ("Query \"%s\" not found - please check your configuration.",
-				ci->values[0].value.string);
+				name);
 		return 1;
 	}
 
@@ -650,6 +644,16 @@ static int config_set_query (c_psql_database_t *db, const oconfig_item_t *ci)
 
 	db->queries[db->queries_num - 1] = query;
 	return 0;
+} /* set_query */
+
+static int config_set_query (c_psql_database_t *db, const oconfig_item_t *ci)
+{
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("Query expects a single string argument.");
+		return 1;
+	}
+	return set_query (db, ci->values[0].value.string);
 } /* config_set_query */
 
 static int c_psql_config_query (oconfig_item_t *ci)
@@ -719,18 +723,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	}
 
 	if (NULL == db->queries) {
-		db->queries = (c_psql_query_t **)malloc (def_queries_num
-				* sizeof (*db->queries));
-
-		for (i = 0; i < def_queries_num; ++i) {
-			db->queries[i] = c_psql_query_get (def_queries[i]);
-			if (NULL == db->queries[i])
-				log_err ("Query \"%s\" not found - "
-						"please check your installation.",
-						def_queries[i]);
-			else
-				++db->queries_num;
-		}
+		for (i = 0; i < def_queries_num; ++i)
+			set_query (db, def_queries[i]);
 	}
 	return 0;
 }
