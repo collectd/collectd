@@ -103,6 +103,8 @@ typedef struct {
 	PGconn      *conn;
 	c_complain_t conn_complaint;
 
+	int proto_version;
+
 	int max_params_num;
 
 	/* user configuration */
@@ -208,6 +210,8 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->conn_complaint.last     = 0;
 	db->conn_complaint.interval = 0;
+
+	db->proto_version = 0;
 
 	db->max_params_num = 0;
 
@@ -323,6 +327,11 @@ static int c_psql_check_connection (c_psql_database_t *db)
 					db->database, PQerrorMessage (db->conn));
 			return -1;
 		}
+
+		db->proto_version = PQprotocolVersion (db->conn);
+		if (3 > db->proto_version)
+			log_warn ("Protocol version %d does not support parameters.",
+					db->proto_version);
 	}
 
 	c_release (LOG_INFO, &db->conn_complaint,
@@ -330,20 +339,11 @@ static int c_psql_check_connection (c_psql_database_t *db)
 	return 0;
 } /* c_psql_check_connection */
 
-static int c_psql_exec_query (c_psql_database_t *db, int idx)
+static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
+		c_psql_query_t *query)
 {
-	c_psql_query_t *query;
-	PGresult       *res;
-
 	char *params[db->max_params_num];
-
-	int rows, cols;
-	int i;
-
-	if (idx >= db->queries_num)
-		return -1;
-
-	query = db->queries[idx];
+	int   i;
 
 	assert (db->max_params_num >= query->params_num);
 
@@ -364,9 +364,40 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 		}
 	}
 
-	res = PQexecParams (db->conn, query->query, query->params_num, NULL,
+	return PQexecParams (db->conn, query->query, query->params_num, NULL,
 			(const char *const *)((0 == query->params_num) ? NULL : params),
 			NULL, NULL, /* return text data */ 0);
+} /* c_psql_exec_query_params */
+
+static PGresult *c_psql_exec_query_noparams (c_psql_database_t *db,
+		c_psql_query_t *query)
+{
+	return PQexec (db->conn, query->query);
+} /* c_psql_exec_query_noparams */
+
+static int c_psql_exec_query (c_psql_database_t *db, int idx)
+{
+	c_psql_query_t *query;
+	PGresult       *res;
+
+	int rows, cols;
+	int i;
+
+	if (idx >= db->queries_num)
+		return -1;
+
+	query = db->queries[idx];
+
+	if (3 <= db->proto_version)
+		res = c_psql_exec_query_params (db, query);
+	else if (0 == query->params_num)
+		res = c_psql_exec_query_noparams (db, query);
+	else {
+		log_err ("Connection to database \"%s\" does not support parameters "
+				"(protocol version %d) - cannot execute query \"%s\".",
+				db->database, db->proto_version, query->name);
+		return -1;
+	}
 
 	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
 		log_err ("Failed to execute SQL query: %s",
@@ -522,6 +553,8 @@ static int c_psql_init (void)
 		if (0 != c_psql_check_connection (db))
 			continue;
 
+		db->proto_version = PQprotocolVersion (db->conn);
+
 		server_host    = PQhost (db->conn);
 		server_version = PQserverVersion (db->conn);
 		log_info ("Sucessfully connected to database %s (user %s) "
@@ -530,7 +563,11 @@ static int c_psql_init (void)
 				PQdb (db->conn), PQuser (db->conn),
 				C_PSQL_SOCKET3 (server_host, PQport (db->conn)),
 				C_PSQL_SERVER_VERSION3 (server_version),
-				PQprotocolVersion (db->conn), PQbackendPID (db->conn));
+				db->proto_version, PQbackendPID (db->conn));
+
+		if (3 > db->proto_version)
+			log_warn ("Protocol version %d does not support parameters.",
+					db->proto_version);
 	}
 
 	plugin_register_read ("postgresql", c_psql_read);

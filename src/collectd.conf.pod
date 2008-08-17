@@ -1078,6 +1078,9 @@ The username used to connect to the database.
 
 =back
 
+Please note that parameters are only supported by PostgreSQL's protocol
+version 3 and above which was introduced in version 7.4 of PostgreSQL.
+
 =item B<Column> I<type> [I<type instance>]
 
 Specify the I<type> and optional I<type instance> used to dispatch the value
