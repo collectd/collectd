@@ -160,19 +160,22 @@ static const char *tcp_state[] =
   "CLOSED",
   "LISTEN",
   "SYN_SENT",
-  "SYN_RCVD",
+  "SYN_RECV",
   "ESTABLISHED",
   "CLOSE_WAIT",
-  "FIN_WAIT_1",
+  "FIN_WAIT1",
   "CLOSING",
   "LAST_ACK",
-  "FIN_WAIT_2",
+  "FIN_WAIT2",
   "TIME_WAIT"
 };
 
 static kvm_t *kvmd;
+static u_long      inpcbtable_off = 0;
+struct inpcbtable *inpcbtable_ptr = NULL;
 
-static struct nlist nl[] = {
+#if 0
+static struct nlist nl[] = { /* {{{ */
 #define N_MBSTAT        0
         { "_mbstat" },
 #define N_IPSTAT        1
@@ -260,7 +263,8 @@ static struct nlist nl[] = {
         { "_mask_rnhead" },
 
         { "" }
-};
+}; /* }}} struct nlist nl[] */
+#endif /* 0 */
 
 # define TCP_STATE_LISTEN 1
 # define TCP_STATE_MIN 1
@@ -525,7 +529,10 @@ static int conn_read_file (const char *file)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif __OpenBSD__
+#endif /* __OpenBSD__ */
 
 static int conn_config (const char *key, const char *value)
 {
@@ -682,55 +689,99 @@ static int conn_read (void)
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif __OpenBSD__
-static int kread(u_long addr, void *buf, int size)
+static int kread (u_long addr, void *buf, int size)
 {
-  if (kvm_read(kvmd, addr, buf, size) != size)
+  int status;
+
+  status = kvm_read (kvmd, addr, buf, size);
+  if (status != size)
   {
-    ERROR ("tcpconns plugin: %s\n", kvm_geterr(kvmd));
+    ERROR ("tcpconns plugin: kvm_read failed (got %i, expected %i): %s\n",
+	status, size, kvm_geterr (kvmd));
     return (-1);
   }
   return (0);
-}
+} /* int kread */
 
 static int conn_init (void)
 {
   char buf[_POSIX2_LINE_MAX];
-  if ((kvmd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, buf)) == NULL)
+  struct nlist nl[] =
   {
-    ERROR("tcpconns plugin: %s", buf);
+#define N_TCBTABLE 0
+    { "_tcbtable" },
+    { "" }
+  };
+  int status;
+
+  kvmd = kvm_openfiles (NULL, NULL, NULL, O_RDONLY, buf);
+  if (kvmd == NULL)
+  {
+    ERROR ("tcpconns plugin: kvm_openfiles failed: %s", buf);
     return (-1);
   }
-  if (kvm_nlist(kvmd, nl) < 0 || nl[0].n_type == 0)
+
+  status = kvm_nlist (kvmd, nl);
+  if (status < 0)
   {
-    ERROR("tcpconns plugin: No namelist.");
+    ERROR ("tcpconns plugin: kvm_nlist failed with status %i.", status);
     return (-1);
   }
+
+  if (nl[N_TCBTABLE].n_type == 0)
+  {
+    ERROR ("tcpconns plugin: Error looking up kernel's namelist: "
+	"N_TCBTABLE is invalid.");
+    return (-1);
+  }
+
+  inpcbtable_off = (u_long) nl[N_TCBTABLE].n_value;
+  inpcbtable_ptr = (struct inpcbtable *) nl[N_TCBTABLE].n_value;
+
   return (0);
-}
+} /* int conn_init */
 
 static int conn_read (void)
 {
   u_long off = nl[2].n_value;
   struct inpcbtable table;
-  struct inpcb *head, *next, *prev;
+  struct inpcb *head;
+  struct inpcb *next;
   struct inpcb inpcb;
   struct tcpcb tcpcb;
+  int status;
 
   conn_reset_port_entry ();
 
-  kread(off, &table, sizeof(table));
-  prev = head = (struct inpcb *)&CIRCLEQ_FIRST(&((struct inpcbtable *)off)->inpt_queue);
-  next = CIRCLEQ_FIRST(&table.inpt_queue);
+  /* Read the pcbtable from the kernel */
+  status = kread (inpcbtable_off, &table, sizeof (table));
+  if (status != 0)
+    return (-1);
 
-  while (next != head) {
-    kread((u_long)next, &inpcb, sizeof(inpcb));
-    prev = next;
-    next = CIRCLEQ_NEXT(&inpcb, inp_queue);
-    if (inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
+  /* Get the `head' pcb */
+  head = (struct inpcb *) &(inpcbtable_ptr->inpt_queue);
+  /* Get the first pcb */
+  next = CIRCLEQ_FIRST (&table.inpt_queue);
+
+  while (next != head)
+  {
+    /* Read the pcb pointed to by `next' into `inpcb' */
+    kread ((u_long) next, &inpcb, sizeof (inpcb));
+
+    /* Advance `next' */
+    next = CIRCLEQ_NEXT (&inpcb, inp_queue);
+
+    /* Ignore sockets, that are not connected. */
+    if (!(inpcb.inp_flags & INP_IPV6)
+	&& (inet_lnaof(inpcb.inp_laddr) == INADDR_ANY))
       continue;
-    kread((u_long)inpcb.inp_ppcb, &tcpcb, sizeof(tcpcb));
+    if ((inpcb.inp_flags & INP_IPV6)
+	&& IN6_IS_ADDR_UNSPECIFIED (&inpcb.inp_laddr6))
+      continue;
+
+    kread ((u_long) inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
     conn_handle_ports (ntohs(inpcb.inp_lport), ntohs(inpcb.inp_fport), tcpcb.t_state);
-  }
+  } /* while (next != head) */
 
   conn_submit_all ();
 
@@ -753,5 +804,5 @@ void module_register (void)
 } /* void module_register */
 
 /*
- * vim: set shiftwidth=2 softtabstop=2 tabstop=8 :
+ * vim: set shiftwidth=2 softtabstop=2 tabstop=8 fdm=marker :
  */
