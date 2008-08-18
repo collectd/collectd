@@ -47,6 +47,9 @@ tape plugin by:
 teamspeak2 plugin by:
   Stefan Hacker <stefan.hacker at web.de>
 
+tcpconns plugin:
+  Michael Stapelberg <michael+git@stapelberg.de> (OpenBSD port)
+
 users plugin by:
   Sebastian Harl <sh at tokkee.org>
 
