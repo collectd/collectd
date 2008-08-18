@@ -258,8 +258,8 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 #endif
      )
   {
-    NOTICE ("tcpconns plugin: Ignoring connection with unknown state 0x%02x.",
-	state);
+    NOTICE ("tcpconns plugin: Ignoring connection with "
+	"unknown state 0x%02"PRIx8".", state);
     return (-1);
   }
 
