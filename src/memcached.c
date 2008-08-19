@@ -127,17 +127,30 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 
 	{
 		struct pollfd p;
-		int n;
+		int timeout;
+		int status;
 
+		memset (&p, 0, sizeof (p));
 		p.fd = fd;
-		p.events = POLLIN|POLLERR|POLLHUP;
+		p.events = POLLIN | POLLERR | POLLHUP;
 		p.revents = 0;
 
-		n = poll(&p, 1, 3);
-
-		if (n <= 0) {
-			ERROR ("memcached: poll() failed or timed out");
-			return -1;
+		status = poll (&p, /* nfds = */ 1, /* timeout = */ interval_g);
+		if (status <= 0)
+		{
+			if (status == 0)
+			{
+				ERROR ("memcached: poll(2) timed out after %i seconds.", interval_g);
+			}
+			else
+			{
+				char errbuf[1024];
+				ERROR ("memcached: poll(2) failed: %s",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
+			}
+			shutdown (fd, SHUT_RDWR);
+			close (fd);
+			return (-1);
 		}
 	}
 
