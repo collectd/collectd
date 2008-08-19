@@ -1241,6 +1241,7 @@ if test "x$with_kvm_getprocs" = "xyes"
 then
 	AC_DEFINE(HAVE_LIBKVM_GETPROCS, 1,
 		  [Define to 1 if you have the 'kvm' library with the 'kvm_getprocs' symbol (-lkvm)])
+	with_libkvm="yes"
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETPROCS, test "x$with_kvm_getprocs" = "xyes")
 
@@ -1258,6 +1259,7 @@ if test "x$with_kvm_nlist" = "xyes"
 then
 	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
 		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
+	with_libkvm="yes"
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_NLIST, test "x$with_kvm_nlist" = "xyes")
 
@@ -2643,9 +2645,13 @@ then
 	plugin_processes="yes"
 fi
 
-if test "x$with_kvm_getswapinfo" = "xyes"
+if test "x$with_kvm_getprocs" = "xyes"
 then
 	plugin_processes="yes"
+fi
+
+if test "x$with_kvm_getswapinfo" = "xyes"
+then
 	plugin_swap="yes"
 fi
 
