@@ -686,7 +686,7 @@ tcpconns_la_LDFLAGS = -module -avoid-version
 tcpconns_la_LIBADD =
 collectd_LDADD += "-dlopen" tcpconns.la
 collectd_DEPENDENCIES += tcpconns.la
-if BUILD_WITH_LIBKVM
+if BUILD_WITH_LIBKVM_NLIST
 tcpconns_la_LIBADD += -lkvm
 endif
 endif

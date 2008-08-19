@@ -20,7 +20,8 @@
  **/
 
 /**
- * Code within `__OpenBSD__' blocks is provided under the following license:
+ * Code within `HAVE_LIBKVM_NLIST' blocks is provided under the following
+ * license:
  *
  * $collectd: parts of tcpconns.c, 2008/08/08 03:48:30 Michael Stapelberg $
  * $OpenBSD: inet.c,v 1.100 2007/06/19 05:28:30 ray Exp $
@@ -58,7 +59,7 @@
 #include "common.h"
 #include "plugin.h"
 
-#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !__OpenBSD__
+#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_LIBKVM_NLIST
 # error "No applicable input method."
 #endif
 
@@ -94,7 +95,8 @@
 # include <netinet/tcp_var.h>
 /* #endif HAVE_SYSCTLBYNAME */
 
-#elif __OpenBSD__
+/* This is for OpenBSD and possibly NetBSD. */
+#elif HAVE_LIBKVM_NLIST
 # include <sys/queue.h>
 # include <sys/socket.h>
 # include <net/route.h>
@@ -109,7 +111,7 @@
 # include <arpa/inet.h>
 # include <nlist.h>
 # include <kvm.h>
-#endif /* __OpenBSD__ */
+#endif /* HAVE_LIBKVM_NLIST */
 
 #if KERNEL_LINUX
 static const char *tcp_state[] =
@@ -154,7 +156,7 @@ static const char *tcp_state[] =
 # define TCP_STATE_MAX 10
 /* #endif HAVE_SYSCTLBYNAME */
 
-#elif __OpenBSD__
+#elif HAVE_LIBKVM_NLIST
 static const char *tcp_state[] =
 {
   "CLOSED",
@@ -177,7 +179,7 @@ struct inpcbtable *inpcbtable_ptr = NULL;
 # define TCP_STATE_LISTEN 1
 # define TCP_STATE_MIN 1
 # define TCP_STATE_MAX 10
-#endif /* __OpenBSD__ */
+#endif /* HAVE_LIBKVM_NLIST */
 
 #define PORT_COLLECT_LOCAL  0x01
 #define PORT_COLLECT_REMOTE 0x02
@@ -439,8 +441,8 @@ static int conn_read_file (const char *file)
 #elif HAVE_SYSCTLBYNAME
 /* #endif HAVE_SYSCTLBYNAME */
 
-#elif __OpenBSD__
-#endif /* __OpenBSD__ */
+#elif HAVE_LIBKVM_NLIST
+#endif /* HAVE_LIBKVM_NLIST */
 
 static int conn_config (const char *key, const char *value)
 {
@@ -596,7 +598,7 @@ static int conn_read (void)
 } /* int conn_read */
 /* #endif HAVE_SYSCTLBYNAME */
 
-#elif __OpenBSD__
+#elif HAVE_LIBKVM_NLIST
 static int kread (u_long addr, void *buf, int size)
 {
   int status;
@@ -694,7 +696,7 @@ static int conn_read (void)
 
   return (0);
 }
-#endif /* __OpenBSD__ */
+#endif /* HAVE_LIBKVM_NLIST */
 
 void module_register (void)
 {
@@ -704,7 +706,7 @@ void module_register (void)
 	plugin_register_init ("tcpconns", conn_init);
 #elif HAVE_SYSCTLBYNAME
 	/* no initialization */
-#elif __OpenBSD__
+#elif HAVE_LIBKVM_NLIST
 	plugin_register_init ("tcpconns", conn_init);
 #endif
 	plugin_register_read ("tcpconns", conn_read);

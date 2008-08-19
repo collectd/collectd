@@ -1251,6 +1251,14 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "xyes")
 
+AC_CHECK_LIB(kvm, kvm_nlist, [with_kvm_nlist="yes"], [with_kvm_nlist="no"])
+if test "x$with_kvm_nlist" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
+		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBKVM_NLIST, test "x$with_kvm_nlist" = "xyes")
+
 with_sensors_cflags=""
 with_sensors_ldflags=""
 AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
@@ -2637,6 +2645,11 @@ if test "x$with_libkvm" = "xyes"
 then
 	plugin_processes="yes"
 	plugin_swap="yes"
+fi
+
+if test "x$with_kvm_nlist" = "xyes"
+then
+	plugin_tcpconns="yes"
 fi
 
 if test "x$have_getutent" = "xyes"
