@@ -43,6 +43,7 @@ struct c_ipmi_sensor_list_s
   ipmi_sensor_id_t sensor_id;
   char sensor_name[DATA_MAX_NAME_LEN];
   char sensor_type[DATA_MAX_NAME_LEN];
+  int sensor_not_present;
   c_ipmi_sensor_list_t *next;
 };
 
@@ -61,7 +62,8 @@ static const char *config_keys[] =
 	"Sensor",
 	"IgnoreSelected",
 	"NotifySensorAdd",
-	"NotifySensorRemove"
+	"NotifySensorRemove",
+	"NotifySensorNotPresent"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -69,6 +71,7 @@ static ignorelist_t *ignorelist = NULL;
 
 static int c_ipmi_nofiy_add = 0;
 static int c_ipmi_nofiy_remove = 0;
+static int c_ipmi_nofiy_notpresent = 0;
 
 /*
  * Misc private functions
@@ -118,11 +121,61 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
 
   if (err != 0)
   {
-    INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
-        "because it failed with status %#x.",
-        list_item->sensor_name, err);
-    sensor_list_remove (sensor);
+    if ((err & 0xff) == IPMI_NOT_PRESENT_CC)
+    {
+      if (list_item->sensor_not_present == 0)
+      {
+        list_item->sensor_not_present = 1;
+
+        INFO ("ipmi plugin: sensor_read_handler: sensor %s "
+            "not present.", list_item->sensor_name);
+
+        if (c_ipmi_nofiy_notpresent)
+        {
+          notification_t n = { NOTIF_WARNING, time(NULL), "", "", "ipmi",
+            "", "", "", NULL };
+
+          sstrncpy (n.host, hostname_g, sizeof (n.host));
+          sstrncpy (n.type_instance, list_item->sensor_name,
+              sizeof (n.type_instance));
+          sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+          ssnprintf (n.message, sizeof (n.message),
+              "sensor %s not present", list_item->sensor_name);
+
+          plugin_dispatch_notification (&n);
+        }
+      }
+    }
+    else
+    {
+      INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+          "because it failed with status %#x.",
+          list_item->sensor_name, err);
+      sensor_list_remove (sensor);
+    }
     return;
+  }
+  else if (list_item->sensor_not_present == 1)
+  {
+    list_item->sensor_not_present = 0;
+
+    INFO ("ipmi plugin: sensor_read_handler: sensor %s present.",
+        list_item->sensor_name);
+
+    if (c_ipmi_nofiy_notpresent)
+    {
+      notification_t n = { NOTIF_OKAY, time(NULL), "", "", "ipmi",
+        "", "", "", NULL };
+
+      sstrncpy (n.host, hostname_g, sizeof (n.host));
+      sstrncpy (n.type_instance, list_item->sensor_name,
+          sizeof (n.type_instance));
+      sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+      ssnprintf (n.message, sizeof (n.message),
+          "sensor %s present", list_item->sensor_name);
+
+      plugin_dispatch_notification (&n);
+    }
   }
 
   if (value_present != IPMI_BOTH_VALUES_PRESENT)
@@ -554,6 +607,13 @@ static int c_ipmi_config (const char *key, const char *value)
         || (strcasecmp ("Yes", value) == 0)
         || (strcasecmp ("On", value) == 0))
       c_ipmi_nofiy_remove = 1;
+  }
+  else if (strcasecmp ("NotifySensorNotPresent", key) == 0)
+  {
+    if ((strcasecmp ("True", value) == 0)
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
+      c_ipmi_nofiy_notpresent = 1;
   }
   else
   {
