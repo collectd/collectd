@@ -143,7 +143,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
       || (pe->flags & PORT_COLLECT_LOCAL))
   {
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-	"%hu-local", pe->port);
+	"%"PRIu16"-local", pe->port);
 
     for (i = 1; i <= TCP_STATE_MAX; i++)
     {
@@ -158,7 +158,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
   if (pe->flags & PORT_COLLECT_REMOTE)
   {
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-	"%hu-remote", pe->port);
+	"%"PRIu16"-remote", pe->port);
 
     for (i = 1; i <= TCP_STATE_MAX; i++)
     {
@@ -224,7 +224,7 @@ static void conn_reset_port_entry (void)
       port_entry_t *next = pe->next;
 
       DEBUG ("tcpconns plugin: Removing temporary entry "
-	  "for listening port %hu", pe->port);
+	  "for listening port %"PRIu16, pe->port);
 
       if (prev == NULL)
 	port_list_head = next;
@@ -255,8 +255,8 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 #endif
      )
   {
-    NOTICE ("tcpconns plugin: Ignoring connection with unknown state 0x%02x.",
-	state);
+    NOTICE ("tcpconns plugin: Ignoring connection with "
+	"unknown state 0x%02"PRIx8".", state);
     return (-1);
   }
 
@@ -268,7 +268,7 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
       pe->flags |= PORT_IS_LISTENING;
   }
 
-  DEBUG ("tcpconns plugin: Connection %hu <-> %hu (%s)",
+  DEBUG ("tcpconns plugin: Connection %"PRIu16" <-> %"PRIu16" (%s)",
       port_local, port_remote, tcp_state[state]);
 
   pe = conn_get_port_entry (port_local, 0 /* no create */);
