@@ -4,8 +4,8 @@ This package was written by:
 apcups plugin by:
   Anthony Gialluca <tonyabg at charter.net>
 
-cpufreq, multimeter and irq plugin, as well as some bugfixes in the exec plugin
-by:
+cpufreq, multimeter and irq plugin, some bugfixes in the exec plugin,
+notifications in the ipmi plugin by:
   Peter Holik <peter at holik.at>
 
 hddtemp plugin by:
