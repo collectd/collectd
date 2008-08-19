@@ -683,8 +683,12 @@ if BUILD_PLUGIN_TCPCONNS
 pkglib_LTLIBRARIES += tcpconns.la
 tcpconns_la_SOURCES = tcpconns.c
 tcpconns_la_LDFLAGS = -module -avoid-version
+tcpconns_la_LIBADD =
 collectd_LDADD += "-dlopen" tcpconns.la
 collectd_DEPENDENCIES += tcpconns.la
+if BUILD_WITH_LIBKVM
+tcpconns_la_LIBADD += -lkvm
+endif
 endif
 
 if BUILD_PLUGIN_TEAMSPEAK2
