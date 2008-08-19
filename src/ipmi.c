@@ -52,17 +52,23 @@ struct c_ipmi_sensor_list_s
 static pthread_mutex_t sensor_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static c_ipmi_sensor_list_t *sensor_list = NULL;
 
+static int c_ipmi_init_in_progress = 0;
 static int c_ipmi_active = 0;
 static pthread_t thread_id = (pthread_t) 0;
 
 static const char *config_keys[] =
 {
 	"Sensor",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"NotifySensorAdd",
+	"NotifySensorRemove"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+
+static int c_ipmi_nofiy_add = 0;
+static int c_ipmi_nofiy_remove = 0;
 
 /*
  * Misc private functions
@@ -258,6 +264,21 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
 
   pthread_mutex_unlock (&sensor_list_lock);
 
+  if (c_ipmi_nofiy_add && (c_ipmi_init_in_progress == 0))
+  {
+    notification_t n = { NOTIF_OKAY, time(NULL), "", "", "ipmi",
+                         "", "", "", NULL };
+
+    sstrncpy (n.host, hostname_g, sizeof (n.host));
+    sstrncpy (n.type_instance, list_item->sensor_name,
+              sizeof (n.type_instance));
+    sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+    ssnprintf (n.message, sizeof (n.message),
+              "sensor %s added", list_item->sensor_name);
+
+    plugin_dispatch_notification (&n);
+  }
+
   return (0);
 } /* int sensor_list_add */
 
@@ -296,6 +317,21 @@ static int sensor_list_remove (ipmi_sensor_t *sensor)
   list_item->next = NULL;
 
   pthread_mutex_unlock (&sensor_list_lock);
+
+  if (c_ipmi_nofiy_remove && c_ipmi_active)
+  {
+    notification_t n = { NOTIF_WARNING, time(NULL), "", "",
+                         "ipmi", "", "", "", NULL };
+
+    sstrncpy (n.host, hostname_g, sizeof (n.host));
+    sstrncpy (n.type_instance, list_item->sensor_name,
+              sizeof (n.type_instance));
+    sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+    ssnprintf (n.message, sizeof (n.message),
+              "sensor %s removed", list_item->sensor_name);
+
+    plugin_dispatch_notification (&n);
+  }
 
   free (list_item);
   return (0);
@@ -500,10 +536,24 @@ static int c_ipmi_config (const char *key, const char *value)
   {
     int invert = 1;
     if ((strcasecmp ("True", value) == 0)
-	|| (strcasecmp ("Yes", value) == 0)
-	|| (strcasecmp ("On", value) == 0))
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
+  }
+  else if (strcasecmp ("NotifySensorAdd", key) == 0)
+  {
+    if ((strcasecmp ("True", value) == 0)
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
+      c_ipmi_nofiy_add = 1;
+  }
+  else if (strcasecmp ("NotifySensorRemove", key) == 0)
+  {
+    if ((strcasecmp ("True", value) == 0)
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
+      c_ipmi_nofiy_remove = 1;
   }
   else
   {
@@ -516,6 +566,9 @@ static int c_ipmi_config (const char *key, const char *value)
 static int c_ipmi_init (void)
 {
   int status;
+
+  /* Don't send `ADD' notifications during startup (~ 1 minute) */
+  c_ipmi_init_in_progress = 1 + (60 / interval_g);
 
   c_ipmi_active = 1;
 
@@ -541,7 +594,12 @@ static int c_ipmi_read (void)
   }
 
   sensor_list_read_all ();
-  
+
+  if (c_ipmi_init_in_progress > 0)
+    c_ipmi_init_in_progress--;
+  else
+    c_ipmi_init_in_progress = 0;
+
   return (0);
 } /* int c_ipmi_read */
 
