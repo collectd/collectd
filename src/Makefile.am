@@ -571,8 +571,12 @@ if BUILD_PLUGIN_PROCESSES
 pkglib_LTLIBRARIES += processes.la
 processes_la_SOURCES = processes.c
 processes_la_LDFLAGS = -module -avoid-version
+processes_la_LIBADD =
 collectd_LDADD += "-dlopen" processes.la
 collectd_DEPENDENCIES += processes.la
+if BUILD_WITH_LIBKVM_GETPROCS
+processes_la_LIBADD += -lkvm
+endif
 endif
 
 if BUILD_PLUGIN_QMAIL

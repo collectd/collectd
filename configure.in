@@ -1232,6 +1232,14 @@ then
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 fi
 
+AC_CHECK_LIB(kvm, kvm_getprocs, [with_kvm_getprocs="yes"], [with_kvm_getprocs="no"])
+if test "x$with_kvm_getprocs" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBKVM_GETPROCS, 1,
+		  [Define to 1 if you have the 'kvm' library with the 'kvm_getprocs' symbol (-lkvm)])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETPROCS, test "x$with_kvm_getprocs" = "xyes")
+
 AC_CHECK_LIB(kvm, kvm_getswapinfo, [with_kvm_getswapinfo="yes"], [with_kvm_getswapinfo="no"])
 if test "x$with_kvm_getswapinfo" = "xyes"
 then
