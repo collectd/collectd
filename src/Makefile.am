@@ -537,7 +537,7 @@ endif
 if BUILD_WITH_LIBDEVINFO
 swap_la_LIBADD += -ldevinfo
 endif
-if BUILD_WITH_LIBKVM
+if BUILD_WITH_LIBKVM_GETSWAPINFO
 swap_la_LIBADD += -lkvm
 endif
 if BUILD_WITH_LIBSTATGRAB
