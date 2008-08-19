@@ -472,6 +472,38 @@ other interfaces are collected.
 
 =back
 
+=head2 Plugin C<ipmi>
+
+=over 4
+
+=item B<Sensor> I<Sensor>
+
+Selects sensors to collect or to ignore, depending on B<IgnoreSelected>.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+If no configuration if given, the B<ipmi> plugin will collect data from all
+sensors found of type "temperature", "voltage", "current" and "fanspeed".
+This option enables you to do that: By setting B<IgnoreSelected> to I<true>
+the effect of B<Sensor> is inverted: All selected sensors are ignored and
+all other sensors are collected.
+
+=item B<NotifySensorAdd> I<true>|I<false>
+
+If a sensor appears after initialization time of a minute a notification
+is sent.
+
+=item B<NotifySensorRemove> I<true>|I<false>
+
+If a sensor disappears a notification is sent.
+
+=item B<NotifySensorNotPresent> I<true>|I<false>
+
+If you have for example dual power supply and one of them is (un)plugged then
+a notification is sent.
+
+=back
+
 =head2 Plugin C<iptables>
 
 =over 4
