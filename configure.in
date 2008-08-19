@@ -1232,11 +1232,13 @@ then
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 fi
 
+with_libkvm="no"
 AC_CHECK_LIB(kvm, kvm_getswapinfo, [with_kvm_getswapinfo="yes"], [with_kvm_getswapinfo="no"])
 if test "x$with_kvm_getswapinfo" = "xyes"
 then
 	AC_DEFINE(HAVE_LIBKVM_GETSWAPINFO, 1,
 		  [Define to 1 if you have the 'kvm' library with the 'kvm_getswapinfo' symbol (-lkvm)])
+	with_libkvm="yes"
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "xyes")
 
@@ -2440,7 +2442,7 @@ then
 	plugin_processes="yes"
 fi
 
-if test "x$with_libkvm" = "xyes"
+if test "x$with_kvm_getswapinfo" = "xyes"
 then
 	plugin_swap="yes"
 fi
