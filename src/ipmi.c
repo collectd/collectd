@@ -41,6 +41,8 @@ typedef struct c_ipmi_sensor_list_s c_ipmi_sensor_list_t;
 struct c_ipmi_sensor_list_s
 {
   ipmi_sensor_id_t sensor_id;
+  char sensor_name[DATA_MAX_NAME_LEN];
+  char sensor_type[DATA_MAX_NAME_LEN];
   c_ipmi_sensor_list_t *next;
 };
 
@@ -106,26 +108,13 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  char sensor_name[IPMI_SENSOR_NAME_LEN];
-  char *sensor_name_ptr;
-  int sensor_type;
-  const char *type;
-
-  memset (sensor_name, 0, sizeof (sensor_name));
-  ipmi_sensor_get_name (sensor, sensor_name, sizeof (sensor_name));
-  sensor_name[sizeof (sensor_name) - 1] = 0;
-
-  sensor_name_ptr = strstr (sensor_name, ").");
-  if (sensor_name_ptr == NULL)
-    sensor_name_ptr = sensor_name;
-  else
-    sensor_name_ptr += 2;
+  c_ipmi_sensor_list_t *list_item = (c_ipmi_sensor_list_t *)user_data;
 
   if (err != 0)
   {
     INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
         "because it failed with status %#x.",
-        sensor_name_ptr, err);
+        list_item->sensor_name, err);
     sensor_list_remove (sensor);
     return;
   }
@@ -135,7 +124,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
         "because it provides %s. If you need this sensor, "
         "please file a bug report.",
-        sensor_name_ptr,
+        list_item->sensor_name,
         (value_present == IPMI_RAW_VALUE_PRESENT)
         ? "only the raw value"
         : "no value");
@@ -143,12 +132,59 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     return;
   }
 
+  values[0].gauge = value;
+
+  vl.values = values;
+  vl.values_len = 1;
+  vl.time = time (NULL);
+
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "ipmi", sizeof (vl.plugin));
+  sstrncpy (vl.type, list_item->sensor_type, sizeof (vl.type));
+  sstrncpy (vl.type_instance, list_item->sensor_name, sizeof (vl.type_instance));
+
+  plugin_dispatch_values (&vl);
+} /* void sensor_read_handler */
+
+static int sensor_list_add (ipmi_sensor_t *sensor)
+{
+  ipmi_sensor_id_t sensor_id;
+  c_ipmi_sensor_list_t *list_item;
+  c_ipmi_sensor_list_t *list_prev;
+
+  char sensor_name[DATA_MAX_NAME_LEN];
+  char *sensor_name_ptr;
+  int sensor_type, len;
+  const char *type;
+  ipmi_entity_t *ent = ipmi_sensor_get_entity(sensor);
+
+  sensor_id = ipmi_sensor_convert_to_id (sensor);
+
+  memset (sensor_name, 0, sizeof (sensor_name));
+  ipmi_sensor_get_name (sensor, sensor_name, sizeof (sensor_name));
+  sensor_name[sizeof (sensor_name) - 1] = 0;
+
+  len = DATA_MAX_NAME_LEN - strlen(sensor_name);
+  strncat(sensor_name, " ", len--);
+  strncat(sensor_name, ipmi_entity_get_entity_id_string(ent), len);
+
+  sensor_name_ptr = strstr (sensor_name, ").");
+  if (sensor_name_ptr == NULL)
+    sensor_name_ptr = sensor_name;
+  else
+  {
+    char *sensor_name_ptr_id = strstr (sensor_name, "(");
+
+    sensor_name_ptr += 2;
+    len = DATA_MAX_NAME_LEN - strlen(sensor_name);
+    strncat(sensor_name, " ", len--);
+    strncat(sensor_name, sensor_name_ptr_id, 
+      MIN(sensor_name_ptr - sensor_name_ptr_id - 1, len));
+  }
+
   /* Both `ignorelist' and `plugin_instance' may be NULL. */
   if (ignorelist_match (ignorelist, sensor_name_ptr) != 0)
-  {
-    sensor_list_remove (sensor);
-    return;
-  }
+    return (0);
 
   /* FIXME: Use rate unit or base unit to scale the value */
 
@@ -174,38 +210,15 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     default:
       {
         const char *sensor_type_str;
-        
+
         sensor_type_str = ipmi_sensor_get_sensor_type_string (sensor);
-        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+        INFO ("ipmi plugin: sensor_list_add: Ignore sensor %s, "
             "because I don't know how to handle its type (%#x, %s). "
             "If you need this sensor, please file a bug report.",
             sensor_name_ptr, sensor_type, sensor_type_str);
-        sensor_list_remove (sensor);
-        return;
+        return (-1);
       }
   } /* switch (sensor_type) */
-
-  values[0].gauge = value;
-
-  vl.values = values;
-  vl.values_len = 1;
-  vl.time = time (NULL);
-
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "ipmi", sizeof (vl.plugin));
-  sstrncpy (vl.type, type, sizeof (vl.type));
-  sstrncpy (vl.type_instance, sensor_name_ptr, sizeof (vl.type_instance));
-
-  plugin_dispatch_values (&vl);
-} /* void sensor_read_handler */
-
-static int sensor_list_add (ipmi_sensor_t *sensor)
-{
-  ipmi_sensor_id_t sensor_id;
-  c_ipmi_sensor_list_t *list_item;
-  c_ipmi_sensor_list_t *list_prev;
-
-  sensor_id = ipmi_sensor_convert_to_id (sensor);
 
   pthread_mutex_lock (&sensor_list_lock);
 
@@ -238,6 +251,10 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
     list_prev->next = list_item;
   else
     sensor_list = list_item;
+
+  sstrncpy (list_item->sensor_name, sensor_name_ptr,
+            sizeof (list_item->sensor_name));
+  sstrncpy (list_item->sensor_type, type, sizeof (list_item->sensor_type));
 
   pthread_mutex_unlock (&sensor_list_lock);
 
@@ -295,7 +312,7 @@ static int sensor_list_read_all (void)
       list_item = list_item->next)
   {
     ipmi_sensor_id_get_reading (list_item->sensor_id,
-        sensor_read_handler, /* user data = */ NULL);
+        sensor_read_handler, /* user data = */ list_item);
   } /* for (list_item) */
 
   pthread_mutex_unlock (&sensor_list_lock);
