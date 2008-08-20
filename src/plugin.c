@@ -715,12 +715,15 @@ int plugin_flush (const char *plugin, int timeout, const char *identifier)
   {
     if ((plugin != NULL)
 	&& (strcmp (plugin, le->key) != 0))
+    {
+      le = le->next;
       continue;
+    }
 
     callback = (int (*) (int, const char *)) le->value;
-    le = le->next;
-
     (*callback) (timeout, identifier);
+
+    le = le->next;
   }
   return (0);
 } /* int plugin_flush */
