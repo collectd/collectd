@@ -31,10 +31,12 @@
 #endif
 
 #define sfree(ptr) \
-	if((ptr) != NULL) { \
-		free(ptr); \
-	} \
-	(ptr) = NULL
+	do { \
+		if((ptr) != NULL) { \
+			free(ptr); \
+		} \
+		(ptr) = NULL; \
+	} while (0)
 
 #define STATIC_ARRAY_SIZE(a) (sizeof (a) / sizeof (*(a)))
 
