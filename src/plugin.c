@@ -686,7 +686,7 @@ int plugin_flush_one (int timeout, const char *name)
 
 void plugin_flush_all (int timeout)
 {
-	int (*callback) (int);
+	int (*callback) (int timeout, const char *identifier);
 	llentry_t *le;
 
 	if (list_flush == NULL)
@@ -695,10 +695,10 @@ void plugin_flush_all (int timeout)
 	le = llist_head (list_flush);
 	while (le != NULL)
 	{
-		callback = (int (*) (int)) le->value;
+		callback = (int (*) (int, const char *)) le->value;
 		le = le->next;
 
-		(*callback) (timeout);
+		(*callback) (timeout, NULL);
 	}
 } /* void plugin_flush_all */
 
