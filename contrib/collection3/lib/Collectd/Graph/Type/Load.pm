@@ -18,8 +18,6 @@ sub new
   $obj->{'rrd_format'} = '%.2lf';
   $obj->{'colors'} = [qw(00ff00 0000ff ff0000)];
 
-  print STDERR "Hi, this is Collectd::Graph::Type::Load::new\n";
-
   return (bless ($obj, $pkg));
 } # new
 

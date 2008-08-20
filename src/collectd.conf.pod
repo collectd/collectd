@@ -1659,6 +1659,8 @@ This option, although numeric, needs to be a string, i.E<nbsp>e. you B<must>
 use quotes around it! If no such statement is given only global information
 will be collected.
 
+=back
+
 =head2 Plugin C<tcpconns>
 
 The C<tcpconns plugin> counts the number of currently established TCP
@@ -1668,8 +1670,6 @@ for which a listening socket is opened. You can use the following options to
 fine-tune the ports you are interested in:
 
 =over 4
-
-=back
 
 =item B<ListeningPorts> I<true>|I<false>
 

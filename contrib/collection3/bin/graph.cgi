@@ -13,7 +13,7 @@ use Collectd::Graph::Config (qw(gc_read_config gc_get_scalar));
 use Collectd::Graph::TypeLoader (qw(tl_load_type));
 
 use Collectd::Graph::Common (qw(sanitize_type get_selected_files
-      epoch_to_rfc1123));
+      epoch_to_rfc1123 flush_files));
 use Collectd::Graph::Type ();
 
 our $Debug = param ('debug');
@@ -133,6 +133,13 @@ elsif ($Begin > $expires)
 {
   $expires = $Begin;
 }
+
+# Send FLUSH command to the daemon if necessary and possible.
+flush_files ($files,
+    begin => $Begin,
+    end => $End,
+    addr => gc_get_scalar ('UnixSockAddr', undef),
+    interval => gc_get_scalar ('Interval', 10));
 
 print STDOUT header (-Content_type => 'image/png',
   -Last_Modified => epoch_to_rfc1123 ($obj->getLastModified ()),

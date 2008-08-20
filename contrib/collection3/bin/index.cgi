@@ -27,11 +27,11 @@ use HTML::Entities ('encode_entities');
 
 use Data::Dumper;
 
-use Collectd::Graph::Config (qw(gc_read_config));
+use Collectd::Graph::Config (qw(gc_read_config gc_get_scalar));
 use Collectd::Graph::TypeLoader (qw(tl_load_type));
 use Collectd::Graph::Common (qw(get_files_from_directory get_all_hosts
       get_timespan_selection get_selected_files get_host_selection
-      get_plugin_selection));
+      get_plugin_selection flush_files));
 use Collectd::Graph::Type ();
 
 our $Debug = param ('debug') ? 1 : 0;
@@ -271,19 +271,27 @@ sub action_show_selection
   start_html ();
   show_selector ();
 
-  my $ident = {};
-
   my $all_files;
+  my $timespan;
+
   my $types = {};
 
   my $id_counter = 0;
 
   $all_files = get_selected_files ();
+  $timespan = get_timespan_selection ();
 
   if ($Debug)
   {
     print "<pre>", Data::Dumper->Dump ([$all_files], ['all_files']), "</pre>\n";
   }
+
+  # Send FLUSH command to the daemon if necessary and possible.
+  flush_files ($all_files,
+      begin => time () - $timespan,
+      end => time (),
+      addr => gc_get_scalar ('UnixSockAddr', undef),
+      interval => gc_get_scalar ('Interval', 10));
 
   for (@$all_files)
   {
@@ -312,8 +320,6 @@ sub action_show_selection
   {
     my $type = $_;
     my $graphs_num = $types->{$type}->getGraphsNum ();
-
-    my $timespan = get_timespan_selection ();
 
     for (my $i = 0; $i < $graphs_num; $i++)
     {

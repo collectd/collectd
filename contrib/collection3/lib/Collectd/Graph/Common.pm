@@ -38,6 +38,7 @@ $ColorHalfBlue = 'B7B7F7';
   sort_idents_by_type_instance
   type_to_module_name
   epoch_to_rfc1123
+  flush_files
 ));
 
 our $DataDir = '/var/lib/collectd/rrd';
@@ -581,5 +582,117 @@ sub epoch_to_rfc1123
       $months[$mon], 1900 + $year, $hour ,$min, $sec);
   return ($string);
 }
+
+sub flush_files
+{
+  my $all_files = shift;
+  my %opts = @_;
+
+  my $begin;
+  my $end;
+  my $addr;
+  my $interval;
+  my $sock;
+  my $now;
+  my $files_to_flush = [];
+  my $status;
+
+  if (!defined $opts{'begin'})
+  {
+    cluck ("begin is not defined");
+    return;
+  }
+  $begin = $opts{'begin'};
+
+  if (!defined $opts{'end'})
+  {
+    cluck ("end is not defined");
+    return;
+  }
+  $end = $opts{'end'};
+
+  if (!$opts{'addr'})
+  {
+    return (1);
+  }
+
+  $interval = $opts{'interval'} || 10;
+
+  if (ref ($all_files) eq 'HASH')
+  {
+    my @tmp = ($all_files);
+    $all_files = \@tmp;
+  }
+
+  $now = time ();
+  # Don't flush anything if the timespan is in the future.
+  if (($end > $now) && ($begin > $now))
+  {
+    return (1);
+  }
+
+  for (@$all_files)
+  {
+    my $file_orig = $_;
+    my $file_name = ident_to_filename ($file_orig);
+    my $file_copy = {};
+    my @statbuf;
+    my $mtime;
+
+    @statbuf = stat ($file_name);
+    if (!@statbuf)
+    {
+      next;
+    }
+    $mtime = $statbuf[9];
+
+    # Skip if file is fresh
+    if (($now - $mtime) <= $interval)
+    {
+      next;
+    }
+    # or $end is before $mtime
+    elsif (($end != 0) && (($end - $mtime) <= 0))
+    {
+      next;
+    }
+
+    $file_copy->{'host'} = $file_orig->{'hostname'};
+    $file_copy->{'plugin'} = $file_orig->{'plugin'};
+    if (exists $file_orig->{'plugin_instance'})
+    {
+      $file_copy->{'plugin_instance'} = $file_orig->{'plugin_instance'}
+    }
+    $file_copy->{'type'} = $file_orig->{'type'};
+    if (exists $file_orig->{'type_instance'})
+    {
+      $file_copy->{'type_instance'} = $file_orig->{'type_instance'}
+    }
+
+    push (@$files_to_flush, $file_copy);
+  } # for (@$all_files)
+
+  if (!@$files_to_flush)
+  {
+    return (1);
+  }
+
+  $sock = Collectd::Unixsock->new ($opts{'addr'});
+  if (!$sock)
+  {
+    return;
+  }
+
+  $status = $sock->flush (plugins => ['rrdtool'], identifier => $files_to_flush);
+  if (!$status)
+  {
+    cluck ("FLUSH failed: " . $sock->{'error'});
+    $sock->destroy ();
+    return;
+  }
+
+  $sock->destroy ();
+  return (1);
+} # flush_files
 
 # vim: set shiftwidth=2 softtabstop=2 tabstop=8 :
