@@ -100,7 +100,7 @@ int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
   else /* an unquoted value */
   {
     buffer = value;
-    while (!isspace ((int) *buffer))
+    while ((*buffer != 0) && !isspace ((int) *buffer))
       buffer++;
     if (*buffer != 0)
     {
