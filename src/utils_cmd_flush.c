@@ -24,6 +24,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_parse_option.h"
 
 #define print_to_socket(fh, ...) \
 	if (fprintf (fh, __VA_ARGS__) < 0) { \
@@ -48,7 +49,7 @@ static int add_to_array (char ***array, int *array_num, char *value)
 	return (0);
 } /* int add_to_array */
 
-int handle_flush (FILE *fh, char **fields, int fields_num)
+int handle_flush (FILE *fh, char *buffer)
 {
 	int success = 0;
 	int error   = 0;
@@ -61,47 +62,71 @@ int handle_flush (FILE *fh, char **fields, int fields_num)
 
 	int i;
 
-	for (i = 1; i < fields_num; i++)
+	if ((fh == NULL) || (buffer == NULL))
+		return (-1);
+
+	DEBUG ("utils_cmd_flush: handle_flush (fh = %p, buffer = %s);",
+			(void *) fh, buffer);
+
+	if (strncasecmp ("FLUSH", buffer, strlen ("FLUSH")) != 0)
 	{
-		char *option = fields[i];
-		int   status = 0;
+		print_to_socket (fh, "-1 Cannot parse command.\n");
+		return (-1);
+	}
+	buffer += strlen ("FLUSH");
 
-		if (strncasecmp ("plugin=", option, strlen ("plugin=")) == 0)
+	while (*buffer != 0)
+	{
+		char *opt_key;
+		char *opt_value;
+		int status;
+
+		opt_key = NULL;
+		opt_value = NULL;
+		status = parse_option (&buffer, &opt_key, &opt_value);
+		if (status != 0)
 		{
-			char *plugin;
+			print_to_socket (fh, "-1 Parsing options failed.\n");
+			sfree (plugins);
+			sfree (identifiers);
+			return (-1);
+		}
+
+		if (strcasecmp ("plugin", opt_key) == 0)
+		{
+			add_to_array (&plugins, &plugins_num, opt_value);
+		}
+		else if (strcasecmp ("identifier", opt_key) == 0)
+		{
+			add_to_array (&identifiers, &identifiers_num, opt_value);
+		}
+		else if (strcasecmp ("timeout", opt_key) == 0)
+		{
+			char *endptr;
 			
-			plugin = option + strlen ("plugin=");
-			add_to_array (&plugins, &plugins_num, plugin);
-		}
-		else if (strncasecmp ("identifier=", option, strlen ("identifier=")) == 0)
-		{
-			char *identifier;
-
-			identifier = option + strlen ("identifier=");
-			add_to_array (&identifiers, &identifiers_num, identifier);
-		}
-		else if (strncasecmp ("timeout=", option, strlen ("timeout=")) == 0)
-		{
-			char *endptr = NULL;
-			char *value  = option + strlen ("timeout=");
-
 			errno = 0;
-			timeout = strtol (value, &endptr, 0);
+			endptr = NULL;
+			timeout = strtol (opt_value, &endptr, 0);
 
-			if ((endptr == value) || (0 != errno))
-				status = -1;
-			else if (0 >= timeout)
+			if ((endptr == opt_value) || (errno != 0))
+			{
+				print_to_socket (fh, "-1 Invalid value for option `timeout': "
+						"%s\n", opt_value);
+				sfree (plugins);
+				sfree (identifiers);
+				return (-1);
+			}
+			else if (timeout <= 0)
 				timeout = -1;
 		}
 		else
-			status = -1;
-
-		if (status != 0)
 		{
-			print_to_socket (fh, "-1 Cannot parse option %s\n", option);
+			print_to_socket (fh, "-1 Cannot parse option %s\n", opt_key);
+			sfree (plugins);
+			sfree (identifiers);
 			return (-1);
 		}
-	}
+	} /* while (*buffer != 0) */
 
 	/* Add NULL entries for `any plugin' and/or `any value' if nothing was
 	 * specified. */
@@ -143,6 +168,8 @@ int handle_flush (FILE *fh, char **fields, int fields_num)
 		print_to_socket (fh, "0 Done\n");
 	}
 
+	sfree (plugins);
+	sfree (identifiers);
 	return (0);
 } /* int handle_flush */
 

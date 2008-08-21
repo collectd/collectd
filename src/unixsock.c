@@ -159,9 +159,6 @@ static void *us_handle_client (void *arg)
 {
 	int fd;
 	FILE *fhin, *fhout;
-	char buffer[1024];
-	char *fields[128];
-	int   fields_num;
 
 	fd = *((int *) arg);
 	free (arg);
@@ -202,7 +199,11 @@ static void *us_handle_client (void *arg)
 
 	while (42)
 	{
-		int len;
+		char buffer[1024];
+		char buffer_copy[1024];
+		char *fields[128];
+		int   fields_num;
+		int   len;
 
 		errno = 0;
 		if (fgets (buffer, sizeof (buffer), fhin) == NULL)
@@ -225,9 +226,9 @@ static void *us_handle_client (void *arg)
 		if (len == 0)
 			continue;
 
-		DEBUG ("fgets -> buffer = %s; len = %i;", buffer, len);
+		sstrncpy (buffer_copy, buffer, sizeof (buffer_copy));
 
-		fields_num = strsplit (buffer, fields,
+		fields_num = strsplit (buffer_copy, fields,
 				sizeof (fields) / sizeof (fields[0]));
 
 		if (fields_num < 1)
@@ -254,7 +255,7 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "flush") == 0)
 		{
-			handle_flush (fhout, fields, fields_num);
+			handle_flush (fhout, buffer);
 		}
 		else
 		{

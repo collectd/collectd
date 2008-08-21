@@ -471,6 +471,12 @@ sub flush
 			{
 				return;
 			}
+			if ($ident_str =~ m/ /)
+			{
+				$ident_str =~ s#\\#\\\\#g;
+				$ident_str =~ s#"#\\"#g;
+				$ident_str = "\"$ident_str\"";
+			}
 
 			$msg .= " identifier=$ident_str";
 		}
