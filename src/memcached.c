@@ -127,7 +127,6 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 
 	{
 		struct pollfd p;
-		int timeout;
 		int status;
 
 		memset (&p, 0, sizeof (p));
