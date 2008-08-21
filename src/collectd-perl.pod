@@ -557,6 +557,14 @@ reasons. Therefore, END blocks are only executed once when collectd shuts
 down. You should not rely on END blocks anyway - use B<shutdown functions>
 instead.
 
+=item
+
+The perl plugin exports the internal API of collectd which is considered
+unstable and subject to change at any time. We try hard to not break backwards
+compatibility in the Perl API during the life cycle of one major release.
+However, this cannot be guaranteed at all times. Watch out for warnings
+dispatched by the perl plugin after upgrades.
+
 =back
 
 =head1 KNOWN BUGS
