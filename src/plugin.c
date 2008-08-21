@@ -665,24 +665,6 @@ void plugin_read_all (void)
 	pthread_mutex_unlock (&read_lock);
 } /* void plugin_read_all */
 
-void plugin_flush_all (int timeout)
-{
-	int (*callback) (int timeout, const char *identifier);
-	llentry_t *le;
-
-	if (list_flush == NULL)
-		return;
-
-	le = llist_head (list_flush);
-	while (le != NULL)
-	{
-		callback = (int (*) (int, const char *)) le->value;
-		le = le->next;
-
-		(*callback) (timeout, NULL);
-	}
-} /* void plugin_flush_all */
-
 int plugin_flush (const char *plugin, int timeout, const char *identifier)
 {
   int (*callback) (int timeout, const char *identifier);

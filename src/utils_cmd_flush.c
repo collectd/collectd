@@ -164,7 +164,7 @@ int handle_flush (FILE *fh, char *buffer)
 	}
 	else
 	{
-		plugin_flush_all (timeout);
+		plugin_flush (NULL, timeout, NULL);
 		print_to_socket (fh, "0 Done\n");
 	}
 
