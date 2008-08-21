@@ -767,8 +767,10 @@ static int pplugin_call_all (pTHX_ int type, ...)
 	else if (PLUGIN_FLUSH == type) {
 		/*
 		 * $_[0] = $timeout;
+		 * $_[1] = $identifier;
 		 */
 		XPUSHs (sv_2mortal (newSViv (va_arg (ap, int))));
+		XPUSHs (sv_2mortal (newSVpv (va_arg (ap, char *), 0)));
 	}
 
 	PUTBACK;
@@ -1263,7 +1265,6 @@ static int perl_notify (const notification_t *notif)
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
-/* TODO: Implement flushing of single identifiers. */
 static int perl_flush (int timeout, const char *identifier)
 {
 	dTHX;
@@ -1280,7 +1281,7 @@ static int perl_flush (int timeout, const char *identifier)
 
 		aTHX = t->interp;
 	}
-	return pplugin_call_all (aTHX_ PLUGIN_FLUSH, timeout);
+	return pplugin_call_all (aTHX_ PLUGIN_FLUSH, timeout, identifier);
 } /* static int perl_flush (const int) */
 
 static int perl_shutdown (void)

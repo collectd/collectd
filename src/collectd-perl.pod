@@ -263,8 +263,9 @@ string. For the layout of I<data-set> and I<value-list> see above.
 
 =item TYPE_FLUSH
 
-The only argument passed is I<timeout> which indicates that only data older
-than I<timeout> seconds is to be flushed.
+The arguments passed are I<timeout> and I<identifier>. I<timeout> indicates
+that only data older than I<timeout> seconds is to be flushed. I<identifier>
+specifies which values are to be flushed.
 
 =item TYPE_LOG
 
