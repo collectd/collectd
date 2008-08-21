@@ -677,7 +677,7 @@ int plugin_flush (const char *plugin, int timeout, const char *identifier)
   while (le != NULL)
   {
     if ((plugin != NULL)
-	&& (strcmp (plugin, le->key) != 0))
+        && (strcmp (plugin, le->key) != 0))
     {
       le = le->next;
       continue;
@@ -873,9 +873,9 @@ const data_set_t *plugin_get_ds (const char *name)
 } /* data_set_t *plugin_get_ds */
 
 static int plugin_notification_meta_add (notification_t *n,
-		const char *name,
-		enum notification_meta_type_e type,
-		const void *value)
+    const char *name,
+    enum notification_meta_type_e type,
+    const void *value)
 {
   notification_meta_t *meta;
   notification_meta_t *tail;
@@ -1000,19 +1000,19 @@ int plugin_notification_meta_copy (notification_t *dst,
   {
     if (meta->type == NM_TYPE_STRING)
       plugin_notification_meta_add_string (dst, meta->name,
-	  meta->value_string);
+          meta->value_string);
     else if (meta->type == NM_TYPE_SIGNED_INT)
       plugin_notification_meta_add_signed_int (dst, meta->name,
-	  meta->value_signed_int);
+          meta->value_signed_int);
     else if (meta->type == NM_TYPE_UNSIGNED_INT)
       plugin_notification_meta_add_unsigned_int (dst, meta->name,
-	  meta->value_unsigned_int);
+          meta->value_unsigned_int);
     else if (meta->type == NM_TYPE_DOUBLE)
       plugin_notification_meta_add_double (dst, meta->name,
-	  meta->value_double);
+          meta->value_double);
     else if (meta->type == NM_TYPE_BOOLEAN)
       plugin_notification_meta_add_boolean (dst, meta->name,
-	  meta->value_boolean);
+          meta->value_boolean);
   }
 
   return (0);
