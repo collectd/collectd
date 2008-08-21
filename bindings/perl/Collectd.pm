@@ -305,28 +305,77 @@ sub plugin_flush {
 	my %args = @_;
 
 	my $timeout = -1;
+	my @plugins = ();
+	my @ids     = ();
 
 	DEBUG ("Collectd::plugin_flush:"
 		. (defined ($args{'timeout'}) ? " timeout = $args{'timeout'}" : "")
-		. (defined ($args{'plugins'}) ? " plugins = $args{'plugins'}" : ""));
+		. (defined ($args{'plugins'}) ? " plugins = $args{'plugins'}" : "")
+		. (defined ($args{'identifiers'})
+			? " identifiers = $args{'identifiers'}" : ""));
 
 	if (defined ($args{'timeout'}) && ($args{'timeout'} > 0)) {
 		$timeout = $args{'timeout'};
 	}
 
-	if (! defined $args{'plugins'}) {
-		plugin_flush_all ($timeout);
-	}
-	else {
+	if (defined ($args{'plugins'})) {
 		if ("ARRAY" eq ref ($args{'plugins'})) {
-			foreach my $plugin (@{$args{'plugins'}}) {
-				plugin_flush_one ($timeout, $plugin);
-			}
+			@plugins = @{$args{'plugins'}};
 		}
 		else {
-			plugin_flush_one ($timeout, $args{'plugins'});
+			@plugins = ($args{'plugins'});
 		}
 	}
+	else {
+		@plugins = (undef);
+	}
+
+	if (defined ($args{'identifiers'})) {
+		if ("ARRAY" eq ref ($args{'identifiers'})) {
+			@ids = @{$args{'identifiers'}};
+		}
+		else {
+			@ids = ($args{'identifiers'});
+		}
+	}
+	else {
+		@ids = (undef);
+	}
+
+	foreach my $plugin (@plugins) {
+		foreach my $id (@ids) {
+			_plugin_flush($plugin, $timeout, $id);
+		}
+	}
+}
+
+sub plugin_flush_one {
+	my $timeout = shift;
+	my $name    = shift;
+
+	WARNING ("Collectd::plugin_flush_one is deprecated - "
+		. "use Collectd::plugin_flush instead.");
+
+	if (! (defined ($timeout) && defined ($name))) {
+		ERROR ("Usage: Collectd::plugin_flush_one(timeout, name)");
+		return;
+	}
+
+	plugin_flush (plugins => $name, timeout => $timeout);
+}
+
+sub plugin_flush_all {
+	my $timeout = shift;
+
+	WARNING ("Collectd::plugin_flush_all is deprecated - "
+		. "use Collectd::plugin_flush instead.");
+
+	if (! defined ($timeout)) {
+		ERROR ("Usage: Collectd::plugin_flush_all(timeout)");
+		return;
+	}
+
+	plugin_flush (timeout => $timeout);
 }
 
 1;

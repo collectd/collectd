@@ -84,8 +84,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
-static XS (Collectd_plugin_flush_one);
-static XS (Collectd_plugin_flush_all);
+static XS (Collectd__plugin_flush);
 static XS (Collectd_plugin_dispatch_notification);
 static XS (Collectd_plugin_log);
 static XS (Collectd_call_by_name);
@@ -139,8 +138,7 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
-	{ "Collectd::plugin_flush_one",           Collectd_plugin_flush_one },
-	{ "Collectd::plugin_flush_all",           Collectd_plugin_flush_all },
+	{ "Collectd::_plugin_flush",              Collectd__plugin_flush },
 	{ "Collectd::plugin_dispatch_notification",
 		Collectd_plugin_dispatch_notification },
 	{ "Collectd::plugin_log",                 Collectd_plugin_log },
@@ -918,52 +916,47 @@ static XS (Collectd_plugin_dispatch_values)
 } /* static XS (Collectd_plugin_dispatch_values) */
 
 /*
- * Collectd::plugin_flush_one (timeout, name).
+ * Collectd::_plugin_flush (plugin, timeout, identifier).
+ *
+ * plugin:
+ *   name of the plugin to flush
  *
  * timeout:
  *   timeout to use when flushing the data
  *
- * name:
- *   name of the plugin to flush
+ * identifier:
+ *   data-set identifier to flush
  */
-static XS (Collectd_plugin_flush_one)
+static XS (Collectd__plugin_flush)
 {
+	char *plugin  = NULL;
+	int   timeout = -1;
+	char *id      = NULL;
+
 	dXSARGS;
 
-	if (2 != items) {
-		log_err ("Usage: Collectd::plugin_flush_one(timeout, name)");
+	if (3 != items) {
+		log_err ("Usage: Collectd::_plugin_flush(plugin, timeout, id)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_flush_one: timeout = %i, name = \"%s\"",
-			(int)SvIV (ST (0)), SvPV_nolen (ST (1)));
+	if (SvOK (ST (0)))
+		plugin = SvPV_nolen (ST (0));
 
-	if (0 == plugin_flush_one ((int)SvIV (ST (0)), SvPV_nolen (ST (1))))
+	if (SvOK (ST (1)))
+		timeout = (int)SvIV (ST (1));
+
+	if (SvOK (ST (2)))
+		id = SvPV_nolen (ST (2));
+
+	log_debug ("Collectd::_plugin_flush: plugin = \"%s\", timeout = %i, "
+			"id = \"%s\"", plugin, timeout, id);
+
+	if (0 == plugin_flush (plugin, timeout, id))
 		XSRETURN_YES;
 	else
 		XSRETURN_EMPTY;
-} /* static XS (Collectd_plugin_flush_one) */
-
-/*
- * Collectd::plugin_flush_all (timeout).
- *
- * timeout:
- *   timeout to use when flushing the data
- */
-static XS (Collectd_plugin_flush_all)
-{
-	dXSARGS;
-
-	if (1 != items) {
-		log_err ("Usage: Collectd::plugin_flush_all(timeout)");
-		XSRETURN_EMPTY;
-	}
-
-	log_debug ("Collectd::plugin_flush_all: timeout = %i", (int)SvIV (ST (0)));
-
-	plugin_flush_all ((int)SvIV (ST (0)));
-	XSRETURN_YES;
-} /* static XS (Collectd_plugin_flush_all) */
+} /* static XS (Collectd__plugin_flush) */
 
 /*
  * Collectd::plugin_dispatch_notification (notif).
