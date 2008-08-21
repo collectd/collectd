@@ -709,12 +709,6 @@ int plugin_flush (const char *plugin, int timeout, const char *identifier)
   return (0);
 } /* int plugin_flush */
 
-/* FIXME: Remove this function once the perl plugin has been updated. */
-int plugin_flush_one (int timeout, const char *name)
-{
-  return (plugin_flush (name, timeout, NULL));
-} /* int plugin_flush_one */
-
 void plugin_shutdown_all (void)
 {
 	int (*callback) (void);

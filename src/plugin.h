@@ -179,7 +179,6 @@ void plugin_read_all (void);
 void plugin_shutdown_all (void);
 
 void plugin_flush_all (int timeout);
-int plugin_flush_one (int timeout, const char *name);
 int plugin_flush (const char *plugin, int timeout, const char *identifier);
 
 /*
