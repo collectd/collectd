@@ -1449,7 +1449,7 @@ Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
 
 =item B<CacheFlush> I<Seconds>
 
-When the C<rrdtool plugin> uses a cache (by setting B<CacheTimeout>, see below)
+When the C<rrdtool> plugin uses a cache (by setting B<CacheTimeout>, see below)
 it writes all values for a certain RRD-file if the oldest value is older than
 (or equal to) the number of seconds specified. If some RRD-file is not updated
 anymore for some reason (the computer was shut down, the network is broken,
@@ -1467,6 +1467,30 @@ save values in a cache, as described above. Writing multiple values at once
 reduces IO-operations and thus lessens the load produced by updating the files.
 The trade off is that the graphs kind of "drag behind" and that more memory is
 used.
+
+=item B<WritesPerSecond> B<Updates>
+
+When collecting many statistics with collectd and the C<rrdtool> plugin, you
+will run serious performance problems. The B<CacheFlush> setting and the
+internal update queue assert that collectd continues to work just fine even
+under heavy load, but the system may become very unresponsive and slow. This is
+a problem especially if create graphs from the RRD files on the same machine,
+for example using the C<graph.cgi> script included in the
+C<contrib/collection3/> directory.
+
+This setting is designed for very large setups. Setting this option to a value
+between 25 and 80 updates per second, depending on your hardware, will leave
+the server responsive enough to draw graphs even while all the cached values
+are written to disk. Flushed values, i.E<nbsp>e. values that are forced to disk
+by the B<FLUSH> command, are B<not> effected by this limit. They are still
+written as fast as possible, so that web frontends have up to date data when
+generating graphs.
+
+For example: If you have 100,000 RRD files and set B<WritesPerSecond> to 30
+updates per second, writing all values to disk will take approximately
+56E<nbsp>minutes. Together with the flushing ability that's integrated into
+"collection3" you'll end up with a responsive and fast system, up to date
+graphs and basically a "backup" of your values every hour.
 
 =back
 
