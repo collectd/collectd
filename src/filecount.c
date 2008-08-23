@@ -1,5 +1,5 @@
 /**
- * collectd - src/qmail.c
+ * collectd - src/filecount.c
  * Copyright (C) 2008  Alessandro Iurlano
  * Copyright (C) 2008  Florian octo Forster
  *
@@ -64,7 +64,7 @@ static void fc_submit_dir (const fc_directory_conf_t *dir)
   vl.values_len = STATIC_ARRAY_SIZE (values);
   vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "qmail", sizeof (vl.plugin));
+  sstrncpy (vl.plugin, "filecount", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dir->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "files", sizeof (vl.type));
 
@@ -78,7 +78,7 @@ static void fc_submit_dir (const fc_directory_conf_t *dir)
 
 /*
  * Config:
- * <Plugin qmail>
+ * <Plugin filecount>
  *   <Directory /path/to/dir>
  *     Instance "foobar"
  *     Name "*.conf"
@@ -125,8 +125,8 @@ static int fc_config_add_dir_instance (fc_directory_conf_t *dir,
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("qmail plugin: The `Instance' config option needs exactly one "
-        "string argument.");
+    WARNING ("filecount plugin: The `Instance' config option needs exactly "
+        "one string argument.");
     return (-1);
   }
 
@@ -141,7 +141,7 @@ static int fc_config_add_dir_name (fc_directory_conf_t *dir,
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("qmail plugin: The `Name' config option needs exactly one "
+    WARNING ("filecount plugin: The `Name' config option needs exactly one "
         "string argument.");
     return (-1);
   }
@@ -149,7 +149,7 @@ static int fc_config_add_dir_name (fc_directory_conf_t *dir,
   temp = strdup (ci->values[0].value.string);
   if (temp == NULL)
   {
-    ERROR ("qmail plugin: strdup failed.");
+    ERROR ("filecount plugin: strdup failed.");
     return (-1);
   }
 
@@ -169,7 +169,7 @@ static int fc_config_add_dir_mtime (fc_directory_conf_t *dir,
       || ((ci->values[0].type != OCONFIG_TYPE_STRING)
         && (ci->values[0].type != OCONFIG_TYPE_NUMBER)))
   {
-    WARNING ("qmail plugin: The `MTime' config option needs exactly one "
+    WARNING ("filecount plugin: The `MTime' config option needs exactly one "
         "string or numeric argument.");
     return (-1);
   }
@@ -186,7 +186,7 @@ static int fc_config_add_dir_mtime (fc_directory_conf_t *dir,
   if ((errno != 0) || (endptr == NULL)
       || (endptr == ci->values[0].value.string))
   {
-    WARNING ("qmail plugin: Converting `%s' to a number failed.",
+    WARNING ("filecount plugin: Converting `%s' to a number failed.",
         ci->values[0].value.string);
     return (-1);
   }
@@ -224,7 +224,7 @@ static int fc_config_add_dir_mtime (fc_directory_conf_t *dir,
       break;
 
     default:
-      WARNING ("qmail plugin: Invalid suffix for `MTime': `%c'", *endptr);
+      WARNING ("filecount plugin: Invalid suffix for `MTime': `%c'", *endptr);
       return (-1);
   } /* switch (*endptr) */
 
@@ -243,7 +243,7 @@ static int fc_config_add_dir_size (fc_directory_conf_t *dir,
       || ((ci->values[0].type != OCONFIG_TYPE_STRING)
         && (ci->values[0].type != OCONFIG_TYPE_NUMBER)))
   {
-    WARNING ("qmail plugin: The `Size' config option needs exactly one "
+    WARNING ("filecount plugin: The `Size' config option needs exactly one "
         "string or numeric argument.");
     return (-1);
   }
@@ -260,7 +260,7 @@ static int fc_config_add_dir_size (fc_directory_conf_t *dir,
   if ((errno != 0) || (endptr == NULL)
       || (endptr == ci->values[0].value.string))
   {
-    WARNING ("qmail plugin: Converting `%s' to a number failed.",
+    WARNING ("filecount plugin: Converting `%s' to a number failed.",
         ci->values[0].value.string);
     return (-1);
   }
@@ -298,7 +298,7 @@ static int fc_config_add_dir_size (fc_directory_conf_t *dir,
       break;
 
     default:
-      WARNING ("qmail plugin: Invalid suffix for `Size': `%c'", *endptr);
+      WARNING ("filecount plugin: Invalid suffix for `Size': `%c'", *endptr);
       return (-1);
   } /* switch (*endptr) */
 
@@ -315,7 +315,8 @@ static int fc_config_add_dir (oconfig_item_t *ci)
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("qmail plugin: `Directory' needs exactly one string argument.");
+    WARNING ("filecount plugin: `Directory' needs exactly one string "
+        "argument.");
     return (-1);
   }
 
@@ -323,7 +324,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   dir = (fc_directory_conf_t *) malloc (sizeof (*dir));
   if (dir == NULL)
   {
-    ERROR ("qmail plugin: mallow failed.");
+    ERROR ("filecount plugin: malloc failed.");
     return (-1);
   }
   memset (dir, 0, sizeof (*dir));
@@ -331,7 +332,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   dir->path = strdup (ci->values[0].value.string);
   if (dir->path == NULL)
   {
-    ERROR ("qmail plugin: strdup failed.");
+    ERROR ("filecount plugin: strdup failed.");
     return (-1);
   }
 
@@ -356,7 +357,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
       status = fc_config_add_dir_size (dir, option);
     else
     {
-      WARNING ("qmail plugin: fc_config_add_dir: "
+      WARNING ("filecount plugin: fc_config_add_dir: "
           "Option `%s' not allowed here.", option->key);
       status = -1;
     }
@@ -373,7 +374,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
         sizeof (*directories) * directories_num);
     if (temp == NULL)
     {
-      ERROR ("qmail plugin: realloc failed.");
+      ERROR ("filecount plugin: realloc failed.");
       status = -1;
     }
     else
@@ -407,7 +408,7 @@ static int fc_config (oconfig_item_t *ci)
       fc_config_add_dir (child);
     else
     {
-      WARNING ("qmail plugin: Ignoring unknown config option `%s'.",
+      WARNING ("filecount plugin: Ignoring unknown config option `%s'.",
           child->key);
     }
   } /* for (ci->children) */
@@ -419,7 +420,7 @@ static int fc_init (void)
 {
   if (directories_num < 1)
   {
-    WARNING ("qmail plugin: No directories have been configured.");
+    WARNING ("filecount plugin: No directories have been configured.");
     return (-1);
   }
 
@@ -442,7 +443,7 @@ static int fc_read_dir_callback (const char *dirname, const char *filename,
   status = lstat (abs_path, &statbuf);
   if (status != 0)
   {
-    ERROR ("qmail plugin: stat (%s) failed.", abs_path);
+    ERROR ("filecount plugin: stat (%s) failed.", abs_path);
     return (-1);
   }
 
@@ -472,7 +473,7 @@ static int fc_read_dir_callback (const char *dirname, const char *filename,
     else
       mtime -= dir->mtime;
 
-    DEBUG ("qmail plugin: Only collecting files that were touched %s %u.",
+    DEBUG ("filecount plugin: Only collecting files that were touched %s %u.",
         (dir->mtime < 0) ? "after" : "before",
         (unsigned int) mtime);
 
@@ -514,7 +515,7 @@ static int fc_read_dir (fc_directory_conf_t *dir)
   status = walk_directory (dir->path, fc_read_dir_callback, dir);
   if (status != 0)
   {
-    WARNING ("qmail plugin: walk_directory (%s) failed.", dir->path);
+    WARNING ("filecount plugin: walk_directory (%s) failed.", dir->path);
     return (-1);
   }
 
@@ -535,9 +536,9 @@ static int fc_read (void)
 
 void module_register (void)
 {
-  plugin_register_complex_config ("qmail", fc_config);
-  plugin_register_init ("qmail", fc_init);
-  plugin_register_read ("qmail", fc_read);
+  plugin_register_complex_config ("filecount", fc_config);
+  plugin_register_init ("filecount", fc_init);
+  plugin_register_read ("filecount", fc_read);
 } /* void module_register */
 
 /*
