@@ -1,85 +1,95 @@
-This package was written by:
-  Florian octo Forster <octo at verplant.org>
+Permanent project members
+=========================
 
-apcups plugin by:
-  Anthony Gialluca <tonyabg at charter.net>
+Florian "octo" Forster <octo at verplant.org>
+ - Initial author.
 
-cpufreq, multimeter and irq plugin, some bugfixes in the exec plugin,
-notifications in the ipmi plugin by:
-  Peter Holik <peter at holik.at>
+Sebastian "tokkee" Harl <sh at tokkee.org>
+ - Bugfixed and enhancments in many places all around the project.
+ - perl plugin.
+ - users plugin.
+ - vserver plugin.
+ - Debian package.
 
-hddtemp plugin by:
-  Vincent Stehlé <vincent.stehle at free.fr>
 
-iptables plugin by:
-  Sjoerd van der Berg <harekiet at gmail.com>
+Contributors (sorted alphabetically)
+====================================
 
-libvirt plugin by:
-  Richard W. M. Jones <rjones at redhat.com>
+Alvaro Barcellos <alvaro.barcellos at gmail.com>
+ - Don't-fork patch.
 
-mbmon plugin by:
-  Flavio Stanchina <flavio at stanchina.net>
+Anthony Gialluca <tonyabg at charter.net>
+ - apcups plugin.
 
-memcached plugin by:
-  Antony Dovgal <tony at daylessday.org>
+Antony Dovgal <tony at daylessday.org>
+ - memcached plugin.
 
-nfs plugin by:
-  Jason Pepas <cell at ices.utexas.edu>
+Christophe Kalt <collectd at klb.taranis.org>
+ - The version 3 `log' mode.
+ - Many Solaris related hints and fixes.
 
-perl plugin by:
-  Sebastian Harl <sh at tokkee.org>
+Dan Berrange <berrange at redhat.com>
+ - uuid plugin.
 
-powerdns plugin and initial `tail' subsystem by:
-  Luke Herberling <collectd at c-ware.com>
+David Bacher <drbacher at gmail.com>
+ - serial plugin.
 
-processes plugin by:
-  Lyonel Vincent <lyonel at ezix.org>
+Flavio Stanchina <flavio at stanchina.net>
+ - mbmon plugin.
 
-sensors plugin has been improved by:
-  Luboš Staněk <kolektor at atlas.cz>
+Jason Pepas <cell at ices.utexas.edu>
+ - nfs plugin.
 
-serial plugin by:
-  David Bacher <drbacher at gmail.com>
+Luboš Staněk <kolektor at atlas.cz>
+ - sensors plugin improvements.
+ - Time and effort to find a nasty bug in the ntpd-plugin.
 
-tape plugin by:
-  Scott Garrett <sgarrett at technomancer.com>
+Luke Herberling <collectd at c-ware.com>
+ - powerdns plugin.
+ - Initial `tail' subsystem by:
 
-teamspeak2 plugin by:
-  Stefan Hacker <stefan.hacker at web.de>
+Lyonel Vincent <lyonel at ezix.org>
+ - processes plugin.
 
-tcpconns plugin:
-  Michael Stapelberg <michael+git@stapelberg.de> (OpenBSD port)
+Michael Stapelberg <michael+git@stapelberg.de>
+ - OpenBSD port of the tcpconns plugin.
 
-users plugin by:
-  Sebastian Harl <sh at tokkee.org>
+Niki W. Waibel <niki.waibel at newlogic.com>
+ - Initial autotools fixes.
+ - libltdl code.
+ - getmnt-wizardry.
 
-uuid plugin by:
-  Dan Berrange <berrange at redhat.com>
-  Richard W.M. Jones <rjones at redhat.com>
+Oleg King <king2 at kaluga.ru>
+ - Added support for the statgrab library to
+   + the cpu plugin,
+   + the disk plugin, and
+   + the users plugin.
 
-vserver plugin by:
-  Sebastian Harl <sh at tokkee.org>
+Peter Holik <peter at holik.at>
+ - cpufreq plugin.
+ - multimeter plugin.
+ - irq plugin.
+ - Some bugfixes in the exec plugin.
+ - Notifications in the ipmi plugin.
 
-PID-file patch by:
-  Tommie Gannert <d00-tga at d.kth.se>
+Richard W. M. Jones <rjones at redhat.com>
+ - libvirt plugin.
+ - uuid plugin.
 
-Don't-fork-patch by:
-  Alvaro Barcellos <alvaro.barcellos at gmail.com>
+Scott Garrett <sgarrett at technomancer.com>
+ - tape plugin.
 
-Many autotools related fixes, libltdl code, getmnt-wizardry and much help has
-contributed:
-  Niki W. Waibel <niki.waibel at newlogic.com>
+Sjoerd van der Berg <harekiet at gmail.com>
+ - iptables plugin.
 
-The `log' mode has been written by:
-  Christophe Kalt <collectd at klb.taranis.org>
+Stefan Hacker <stefan.hacker at web.de>
+ - teamspeak2 plugin.
 
-Much time and effort to find a nasty bug in the ntpd-plugin has been
-contributed by:
-  Luboš Staněk <lubek at users.sourceforge.net>
+Tommie Gannert <d00-tga at d.kth.se>
+ - PID-file patch.
 
-Support for the statgrab library has been added to the cpu, disk and users
-plugins by
-  Oleg King <king2 at kaluga.ru>
+Vincent Stehlé <vincent.stehle at free.fr>
+ - hddtemp plugin.
 
 collectd is available at:
   <http://collectd.org/>
