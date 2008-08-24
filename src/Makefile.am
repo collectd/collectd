@@ -255,6 +255,14 @@ collectd_LDADD += "-dlopen" exec.la
 collectd_DEPENDENCIES += exec.la
 endif
 
+if BUILD_PLUGIN_FILECOUNT
+pkglib_LTLIBRARIES += filecount.la
+filecount_la_SOURCES = filecount.c
+filecount_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" filecount.la
+collectd_DEPENDENCIES += filecount.la
+endif
+
 if BUILD_PLUGIN_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
@@ -577,14 +585,6 @@ collectd_DEPENDENCIES += processes.la
 if BUILD_WITH_LIBKVM_GETPROCS
 processes_la_LIBADD += -lkvm
 endif
-endif
-
-if BUILD_PLUGIN_QMAIL
-pkglib_LTLIBRARIES += qmail.la
-qmail_la_SOURCES = qmail.c
-qmail_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" qmail.la
-collectd_DEPENDENCIES += qmail.la
 endif
 
 if BUILD_PLUGIN_RRDTOOL
