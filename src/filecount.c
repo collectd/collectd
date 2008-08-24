@@ -101,9 +101,9 @@ static int fc_config_set_instance (fc_directory_conf_t *dir, const char *str)
   strncpy (buffer, str, sizeof (buffer));
   for (ptr = buffer; *ptr != 0; ptr++)
     if (*ptr == '/')
-      *ptr = '-';
+      *ptr = '_';
 
-  for (ptr = buffer; *ptr == '-'; ptr++)
+  for (ptr = buffer; *ptr == '_'; ptr++)
     /* do nothing */;
 
   if (*ptr == 0)
