@@ -62,6 +62,9 @@ Features
       Values gathered by a custom program or script.
       See collectd-exec(5).
 
+    - filecount
+      Count the number of files in directories.
+
     - hddtemp
       Harddisk temperatures using hddtempd.
 
