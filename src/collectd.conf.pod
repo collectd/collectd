@@ -420,6 +420,79 @@ expected from them. This is documented in great detail in L<collectd-exec(5)>.
 
 =back
 
+=head2 Plugin C<filecount>
+
+The C<filecount> plugin counts the number of files in a certain directory (and
+its subdirectories) and their combined size. The configuration is very straight
+forward:
+
+  <Plugin "filecount">
+    <Directory "/var/qmail/queue/mess">
+      Instance "qmail-message"
+    </Directory>
+    <Directory "/var/qmail/queue/todo">
+      Instance "qmail-todo"
+    </Directory>
+    <Directory "/var/lib/php5">
+      Instance "php5-sessions"
+      Name "sess_*"
+    </Directory>
+  </Plugin>
+
+The example above counts the number of files in QMail's queue directories and
+the number of PHP5 sessions. Jfiy: The "todo" queue holds the messages that
+QMail has not yet looked at, the "message" queue holds the messages that were
+classified into "local" and "remote".
+
+As you can see, the configuration consists of one or more C<Directory> blocks,
+each of which specifies a directory in which to count the files. Within those
+blocks, the following options are recognized:
+
+=over 4
+
+=item B<Instance> I<Instance>
+
+Sets the plugin instance to I<Instance>. That instance name must be unique, but
+it's your responsibility, the plugin doesn't check for that. If not given, the
+instance is set to the directory name with all slashes replaced by underscores
+and all leading underscores removed.
+
+=item B<Name> I<Pattern>
+
+Only count files that match I<Pattern>, where I<Pattern> is a shell-like
+wildcard as understood by L<fnmatch(3)>. Only the B<filename> is checked
+against the pattern, not the entire path. In case this makes it easier for you:
+This option has been named after the B<-name> parameter to L<find(1)>.
+
+=item B<MTime> I<Age>
+
+Count only files of a specific age: If I<Age> is greater than zero, only files
+that haven't been touched in the last I<Age> seconds are counted. If I<Age> is
+a negative number, this is inversed. For example, if B<-60> is specified, only
+files that have been modified in the last minute will be counted.
+
+The number can also be followed by a "multiplier" to easily specify a larger
+timespan. When given in this notation, the argument must in quoted, i.E<nbsp>e.
+must be passed as string. So the B<-60> could also be written as B<"-1m"> (one
+minute). Valid multipliers are C<s> (second), C<m> (minute), C<h> (hour), C<d>
+(day), C<w> (week), and C<y> (year). There is no "month" multiplier. You can
+also specify fractional numbers, e.E<nbsp>g. B<"0.5d"> is identical to
+B<"12h">.
+
+=item B<Size> I<Size>
+
+Count only files of a specific size. When I<Size> is a positive number, only
+files that are at least this big are counted. If I<Size> is a negative number,
+this is inversed, i.E<nbsp>e. only files smaller than the absolute value of
+I<Size> are counted.
+
+As with the B<MTime> option, a "multiplier" may be added. For a detailed
+description see above. Valid multipliers here are C<b> (byte), C<k> (kilobyte),
+C<m> (megabyte), C<g> (gigabyte), C<t> (terabyte), and C<p> (petabyte). Please
+note that there are 1000 bytes in a kilobyte, not 1024.
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
