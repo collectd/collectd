@@ -1,8 +1,6 @@
-For version 4.4:
-* PowerDNS plugin
-
-For version 4.3:
-* unixsock plugin: Remove the custom cache if possible.
+* Parse options/identifiers with spaces in them correctly.
+* Figure out what to do with the onewire plugin.
+* Custom notification messages?
 
 src/battery.c: commend not working code.
 
