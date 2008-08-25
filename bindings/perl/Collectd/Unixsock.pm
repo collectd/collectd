@@ -236,6 +236,12 @@ sub putval
 	my $msg;
 	my $identifier;
 	my $values;
+	my $interval = "";
+
+	if (defined $args{'interval'})
+	{
+		$interval = ' interval=' . $args{'interval'};
+	}
 
 	$identifier = _create_identifier (\%args) or return;
 	if (!$args{'values'})
@@ -254,7 +260,7 @@ sub putval
 		$values = join (':', $time, map { defined ($_) ? $_ : 'U' } (@{$args{'values'}}));
 	}
 
-	$msg = "PUTVAL $identifier $values\n";
+	$msg = "PUTVAL $identifier$interval $values\n";
 	#print "-> $msg";
 	send ($fh, $msg, 0) or confess ("send: $!");
 	$msg = undef;
