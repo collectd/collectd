@@ -342,10 +342,10 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   dir->mtime = 0;
   dir->size = 0;
 
+  status = 0;
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Instance", option->key) == 0)
       status = fc_config_add_dir_instance (dir, option);
