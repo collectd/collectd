@@ -56,6 +56,7 @@ our %EXPORT_TAGS = (
 			TYPE_LOG
 			TYPE_NOTIF
 			TYPE_FLUSH
+			TYPE_CONFIG
 			TYPE_DATASET
 	) ],
 	'ds_types' => [ qw(
@@ -98,6 +99,7 @@ our $interval_g;
 Exporter::export_ok_tags ('all');
 
 my @plugins : shared = ();
+my %cf_callbacks : shared = ();
 
 my %types = (
 	TYPE_INIT,     "init",
@@ -244,13 +246,24 @@ sub plugin_register {
 		return;
 	}
 
-	if ((! defined $plugins[$type]) && (TYPE_DATASET != $type)) {
+	if ((! defined $plugins[$type]) && (TYPE_DATASET != $type)
+			&& (TYPE_CONFIG != $type)) {
 		ERROR ("Collectd::plugin_register: Invalid type \"$type\"");
 		return;
 	}
 
 	if ((TYPE_DATASET == $type) && ("ARRAY" eq ref $data)) {
 		return plugin_register_data_set ($name, $data);
+	}
+	elsif ((TYPE_CONFIG == $type) && (! ref $data)) {
+		my $pkg = scalar caller;
+
+		if ($data !~ m/^$pkg\:\:/) {
+			$data = $pkg . "::" . $data;
+		}
+
+		lock %cf_callbacks;
+		$cf_callbacks{$name} = $data;
 	}
 	elsif ((TYPE_DATASET != $type) && (! ref $data)) {
 		my $pkg = scalar caller;
@@ -290,6 +303,10 @@ sub plugin_unregister {
 
 	if (TYPE_DATASET == $type) {
 		return plugin_unregister_data_set ($name);
+	}
+	elsif (TYPE_CONFIG == $type) {
+		lock %cf_callbacks;
+		delete $cf_callbacks{$name};
 	}
 	elsif (defined $plugins[$type]) {
 		lock %{$plugins[$type]};
@@ -376,6 +393,30 @@ sub plugin_flush_all {
 	}
 
 	plugin_flush (timeout => $timeout);
+}
+
+sub _plugin_dispatch_config {
+	my $plugin = shift;
+	my $config = shift;
+
+	our $cb_name = undef;
+
+	if (! (defined ($plugin) && defined ($config))) {
+		return;
+	}
+
+	if (! defined $cf_callbacks{$plugin}) {
+		WARNING ("Found a configuration for the \"$plugin\" plugin, but "
+			. "the plugin isn't loaded or didn't register "
+			. "a configuration callback.");
+		return;
+	}
+
+	{
+		lock %cf_callbacks;
+		$cb_name = $cf_callbacks{$plugin};
+	}
+	call_by_name ($config);
 }
 
 1;

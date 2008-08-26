@@ -71,6 +71,7 @@
 
 #define PLUGIN_TYPES    7
 
+#define PLUGIN_CONFIG   254
 #define PLUGIN_DATASET  255
 
 #define log_debug(...) DEBUG ("perl: " __VA_ARGS__)
@@ -158,6 +159,7 @@ struct {
 	{ "Collectd::TYPE_LOG",        PLUGIN_LOG },
 	{ "Collectd::TYPE_NOTIF",      PLUGIN_NOTIF },
 	{ "Collectd::TYPE_FLUSH",      PLUGIN_FLUSH },
+	{ "Collectd::TYPE_CONFIG",     PLUGIN_CONFIG },
 	{ "Collectd::TYPE_DATASET",    PLUGIN_DATASET },
 	{ "Collectd::DS_TYPE_COUNTER", DS_TYPE_COUNTER },
 	{ "Collectd::DS_TYPE_GAUGE",   DS_TYPE_GAUGE },
@@ -423,6 +425,81 @@ static int notification2hv (pTHX_ notification_t *n, HV *hash)
 			return -1;
 	return 0;
 } /* static int notification2hv (notification_t *, HV *) */
+
+static int oconfig_item2hv (pTHX_ oconfig_item_t *ci, HV *hash)
+{
+	int i;
+
+	AV *values;
+	AV *children;
+
+	if (NULL == hv_store (hash, "key", 3, newSVpv (ci->key, 0), 0))
+		return -1;
+
+	values = newAV ();
+	if (0 < ci->values_num)
+		av_extend (values, ci->values_num);
+
+	if (NULL == hv_store (hash, "values", 6, newRV_noinc ((SV *)values), 0)) {
+		av_clear (values);
+		av_undef (values);
+		return -1;
+	}
+
+	for (i = 0; i < ci->values_num; ++i) {
+		SV *value;
+
+		switch (ci->values[i].type) {
+			case OCONFIG_TYPE_STRING:
+				value = newSVpv (ci->values[i].value.string, 0);
+				break;
+			case OCONFIG_TYPE_NUMBER:
+				value = newSVnv ((NV)ci->values[i].value.number);
+				break;
+			case OCONFIG_TYPE_BOOLEAN:
+				value = ci->values[i].value.boolean ? &PL_sv_yes : &PL_sv_no;
+				break;
+			default:
+				log_err ("oconfig_item2hv: Invalid value type %i.",
+						ci->values[i].type);
+				value = &PL_sv_undef;
+		}
+
+		if (NULL == av_store (values, i, value)) {
+			sv_free (value);
+			return -1;
+		}
+	}
+
+	/* ignoring 'parent' member which is uninteresting in this case */
+
+	children = newAV ();
+	if (0 < ci->children_num)
+		av_extend (children, ci->children_num);
+
+	if (NULL == hv_store (hash, "children", 8, newRV_noinc ((SV *)children), 0)) {
+		av_clear (children);
+		av_undef (children);
+		return -1;
+	}
+
+	for (i = 0; i < ci->children_num; ++i) {
+		HV *child = newHV ();
+
+		if (0 != oconfig_item2hv (aTHX_ ci->children + i, child)) {
+			hv_clear (child);
+			hv_undef (child);
+			return -1;
+		}
+
+		if (NULL == av_store (children, i, newRV_noinc ((SV *)child))) {
+			hv_clear (child);
+			hv_undef (child);
+			return -1;
+		}
+	}
+	return 0;
+} /* static int oconfig_item2hv (pTHX_ oconfig_item_t *, HV *) */
 
 /*
  * Internal functions.
@@ -1646,6 +1723,62 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 	return 0;
 } /* static int perl_config_includedir (oconfig_item_it *) */
 
+/*
+ * <Plugin> block
+ */
+static int perl_config_plugin (pTHX_ oconfig_item_t *ci)
+{
+	int retvals = 0;
+	int ret     = 0;
+
+	char *plugin;
+	HV   *config;
+
+	dSP;
+
+	if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("LoadPlugin expects a single string argument.");
+		return 1;
+	}
+
+	plugin = ci->values[0].value.string;
+	config = newHV ();
+
+	if (0 != oconfig_item2hv (aTHX_ ci, config)) {
+		hv_clear (config);
+		hv_undef (config);
+
+		log_err ("Unable to convert configuration to a Perl hash value.");
+		config = Nullhv;
+	}
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK (SP);
+
+	XPUSHs (sv_2mortal (newSVpv (plugin, 0)));
+	XPUSHs (sv_2mortal (newRV_noinc ((SV *)config)));
+
+	PUTBACK;
+
+	retvals = call_pv ("Collectd::_plugin_dispatch_config", G_SCALAR);
+
+	SPAGAIN;
+	if (0 < retvals) {
+		SV *tmp = POPs;
+		if (! SvTRUE (tmp))
+			ret = -1;
+	}
+	else
+		ret = -1;
+
+	PUTBACK;
+	FREETMPS;
+	LEAVE;
+	return ret;
+} /* static int perl_config_plugin (oconfig_item_it *) */
+
 static int perl_config (oconfig_item_t *ci)
 {
 	int i = 0;
@@ -1668,6 +1801,8 @@ static int perl_config (oconfig_item_t *ci)
 			perl_config_enabledebugger (aTHX_ c);
 		else if (0 == strcasecmp (c->key, "IncludeDir"))
 			perl_config_includedir (aTHX_ c);
+		else if (0 == strcasecmp (c->key, "Plugin"))
+			perl_config_plugin (aTHX_ c);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
