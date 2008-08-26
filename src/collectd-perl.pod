@@ -11,6 +11,10 @@ collectd-perl - Documentation of collectd's C<perl plugin>
     BaseName "Collectd::Plugin"
     EnableDebugger ""
     LoadPlugin "FooBar"
+
+    <Plugin FooBar>
+      Foo "Bar"
+    </Plugin>
   </Plugin>
 
 =head1 DESCRIPTION
@@ -35,6 +39,16 @@ causes the Perl-interpreter to be initialized.
 
 Prepends I<Name>B<::> to all plugin names loaded after this option. This is
 provided for convenience to keep plugin names short.
+
+=item E<lt>B<Plugin> I<Name>E<gt> block
+
+This block may be used to pass on configuration settings to a Perl plugin. The
+configuration is converted into a config-item data type which is passed to the
+registered configuration callback. See below for details about the config-item
+data type and how to register callbacks.
+
+The I<name> identifies the callback. It is used literally and independent of
+the B<BaseName> setting.
 
 =item B<EnableDebugger> I<Package>[=I<option>,...]
 
@@ -70,6 +84,13 @@ example. The following types of B<callback functions> are known to collectd
 (all of them are optional):
 
 =over 4
+
+=item configuration functions
+
+This type of functions is called during configuration if an appropriate
+B<Plugin> block has been encountered. It is called once for each B<Plugin>
+block which matches the name of the callback as provided with the
+B<plugin_register> method - see below.
 
 =item init functions
 
@@ -140,6 +161,19 @@ and collectd:
 
 =over 4
 
+=item Config-Item
+
+A config-item is one structure which keeps the informations provided in the
+configuration file. The array of children keeps one entry for each
+configuration option. Each such entry is another config-item structure, which
+may nest further if nested blocks are used.
+
+  {
+    key      => key,
+    values   => [ val1, val2, ... ],
+    children => [ { ... }, { ... }, ... ]
+  }
+
 =item Data-Set
 
 A data-set is a list of one or more data-sources. Each data-source defines a
@@ -204,6 +238,8 @@ I<type> can be one of:
 
 =over 4
 
+=item TYPE_CONFIG
+
 =item TYPE_INIT
 
 =item TYPE_READ
@@ -247,6 +283,11 @@ section "WRITING YOUR OWN PLUGINS" above) and are passed the following
 arguments:
 
 =over 4
+
+=item TYPE_CONFIG
+
+The only argument passed is I<config-item>. See above for the layout of this
+data type.
 
 =item TYPE_INIT
 
@@ -396,6 +437,8 @@ available (B<:all> will export all of them):
 
 =over 4
 
+=item B<TYPE_CONFIG>
+
 =item B<TYPE_INIT>
 
 =item B<TYPE_READ>
@@ -407,6 +450,8 @@ available (B<:all> will export all of them):
 =item B<TYPE_SHUTDOWN>
 
 =item B<TYPE_LOG>
+
+=item B<TYPE_DATASET>
 
 =back
 
