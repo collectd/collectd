@@ -19,6 +19,11 @@
 	* tcpconns plugin: This plugin has been ported to OpenBSD.
 	* thermal plugin: The new thermal plugin collects system temperatures
 	  using Linux ACPI thermal zone data.
+	* perl plugin: Improved synchronized access to internal data structures
+	  and fixed a possible dead-lock.
+	* perl plugin: Added the ability to flush certain identifiers and marked
+	  plugin_flush_all() and plugin_flush_one() as deprecated in favor of
+	  plugin_flush().
 	* TODO: onewire plugin?
 
 2008-07-15, Version 4.4.2
