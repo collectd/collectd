@@ -61,10 +61,13 @@ sub probe_one
   }
 
   @oids = split (/"\s*"/, $conf->{'values'});
-  if (($conf->{'table'} =~ m/^(true|yes|on)$/i) && ($conf->{'instance'}))
+  if ($conf->{'table'} =~ m/^(true|yes|on)$/i)
   {
     $cmd = 'GETNEXT';
-    push (@oids, $conf->{'instance'});
+    if (defined ($conf->{'instance'}))
+    {
+      push (@oids, $conf->{'instance'});
+    }
   }
 
   require Data::Dumper;
