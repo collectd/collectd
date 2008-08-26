@@ -224,11 +224,6 @@ sub probe_all
     $version--;
   } # while ($version > 0)
 
-  if (!@valid_data)
-  {
-    return;
-  }
-
   print <<EOF;
   <Host "$host">
     Address "$address"
@@ -238,6 +233,14 @@ EOF
   for (sort (@valid_data))
   {
     print "    Collect \"$_\"\n";
+  }
+  if (!@valid_data)
+  {
+    print <<EOF;
+# WARNING: Autoconfiguration failed.
+# TODO: Add one or more `Collect' statements here:
+#   Collect "foo"
+EOF
   }
   print <<EOF;
     Interval 60
