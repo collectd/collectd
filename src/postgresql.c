@@ -773,6 +773,14 @@ static int c_psql_config_query (oconfig_item_t *ci)
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
+
+	if (NULL == query->query) {
+		log_err ("Query \"%s\" does not include an SQL query string - "
+				"please check your configuration.", query->name);
+		c_psql_query_delete (query);
+		--queries_num;
+		return 1;
+	}
 	return 0;
 } /* c_psql_config_query */
 
