@@ -774,6 +774,20 @@ static int c_psql_config_query (oconfig_item_t *ci)
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
 
+	for (i = 0; i < queries_num - 1; ++i) {
+		c_psql_query_t *q = queries + i;
+
+		if ((0 == strcasecmp (q->name, query->name))
+				&& (q->min_pg_version <= query->max_pg_version)
+				&& (query->min_pg_version <= q->max_pg_version)) {
+			log_err ("Ignoring redefinition (with overlapping version ranges) "
+					"of query \"%s\".", query->name);
+			c_psql_query_delete (query);
+			--queries_num;
+			return 1;
+		}
+	}
+
 	if (query->min_pg_version > query->max_pg_version) {
 		log_err ("Query \"%s\": MinPGVersion > MaxPGVersion.",
 				query->name);
