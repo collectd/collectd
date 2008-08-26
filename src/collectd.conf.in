@@ -13,6 +13,19 @@ FQDNLookup   true
 #Interval     10
 #ReadThreads  5
 
+@BUILD_PLUGIN_LOGFILE_TRUE@LoadPlugin logfile
+@BUILD_PLUGIN_SYSLOG_TRUE@LoadPlugin syslog
+
+#<Plugin logfile>
+#	LogLevel info
+#	File STDOUT
+#	Timestamp true
+#</Plugin>
+
+#<Plugin syslog>
+#	LogLevel info
+#</Plugin>
+
 @BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 @BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 @BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
@@ -35,7 +48,6 @@ FQDNLookup   true
 @BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
 @BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
 @BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
-@BUILD_PLUGIN_LOGFILE_TRUE@LoadPlugin logfile
 @BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 @BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
@@ -56,7 +68,6 @@ FQDNLookup   true
 @BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
 @BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 @BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
-@BUILD_PLUGIN_SYSLOG_TRUE@LoadPlugin syslog
 @BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
 @BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
 @BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
@@ -153,12 +164,6 @@ FQDNLookup   true
 #	InterfaceDevice "name:device"
 #	IgnoreSelected false
 #	HostnameFormat name
-#</Plugin>
-
-#<Plugin logfile>
-#	LogLevel info
-#	File STDOUT
-#	Timestamp true
 #</Plugin>
 
 #<Plugin mbmon>
@@ -297,10 +302,6 @@ FQDNLookup   true
 #       Collect "powerplus_voltge_input"
 #       Interval 300
 #   </Host>
-#</Plugin>
-
-#<Plugin syslog>
-#	LogLevel info
 #</Plugin>
 
 #<Plugin "tail">
