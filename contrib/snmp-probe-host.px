@@ -99,6 +99,14 @@ sub probe_one
       {
         return;
       }
+      if (!defined ($status))
+      {
+        return;
+      }
+      if ("$status" eq 'NOSUCHOBJECT')
+      {
+        return;
+      }
     }
     else
     {
