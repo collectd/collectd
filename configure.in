@@ -2856,6 +2856,7 @@ Configuration:
     email . . . . . . . . $enable_email
     entropy . . . . . . . $enable_entropy
     exec  . . . . . . . . $enable_exec
+    filecount . . . . . . $enable_filecount
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
     iptables  . . . . . . $enable_iptables
