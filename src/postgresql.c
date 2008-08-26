@@ -97,6 +97,9 @@ typedef struct {
 
 	c_psql_col_t *cols;
 	int           cols_num;
+
+	int min_pg_version;
+	int max_pg_version;
 } c_psql_query_t;
 
 typedef struct {
@@ -161,6 +164,9 @@ static c_psql_query_t *c_psql_query_new (const char *name)
 
 	query->cols     = NULL;
 	query->cols_num = 0;
+
+	query->min_pg_version = 0;
+	query->max_pg_version = INT_MAX;
 	return query;
 } /* c_psql_query_new */
 
@@ -183,12 +189,15 @@ static void c_psql_query_delete (c_psql_query_t *query)
 	return;
 } /* c_psql_query_delete */
 
-static c_psql_query_t *c_psql_query_get (const char *name)
+static c_psql_query_t *c_psql_query_get (const char *name, int server_version)
 {
 	int i;
 
 	for (i = 0; i < queries_num; ++i)
-		if (0 == strcasecmp (name, queries[i].name))
+		if (0 == strcasecmp (name, queries[i].name)
+				&& ((-1 == server_version)
+					|| ((queries[i].min_pg_version <= server_version)
+						&& (server_version <= queries[i].max_pg_version))))
 			return queries + i;
 	return NULL;
 } /* c_psql_query_get */
@@ -535,6 +544,8 @@ static int c_psql_init (void)
 		char *server_host;
 		int   server_version;
 
+		int j;
+
 		status = ssnprintf (buf, buf_len, "dbname = '%s'", db->database);
 		if (0 < status) {
 			buf     += status;
@@ -568,6 +579,33 @@ static int c_psql_init (void)
 		if (3 > db->proto_version)
 			log_warn ("Protocol version %d does not support parameters.",
 					db->proto_version);
+
+		/* Now that we know the PostgreSQL server version, we can get the
+		 * right version of each query definition. */
+		for (j = 0; j < db->queries_num; ++j) {
+			c_psql_query_t *tmp;
+
+			tmp = c_psql_query_get (db->queries[j]->name, server_version);
+
+			if (tmp == db->queries[j])
+				continue;
+
+			if (NULL == tmp) {
+				log_err ("Query \"%s\" not found for server version %i - "
+						"please check your configuration.",
+						db->queries[j]->name, server_version);
+
+				if (db->queries_num - j - 1 > 0)
+					memmove (db->queries + j, db->queries + j + 1,
+							(db->queries_num - j - 1) * sizeof (*db->queries));
+
+				--db->queries_num;
+				--j;
+				continue;
+			}
+
+			db->queries[j] = tmp;
+		}
 	}
 
 	plugin_register_read ("postgresql", c_psql_read);
@@ -587,6 +625,18 @@ static int config_set_s (char *name, char **var, const oconfig_item_t *ci)
 	*var = sstrdup (ci->values[0].value.string);
 	return 0;
 } /* config_set_s */
+
+static int config_set_i (char *name, int *var, const oconfig_item_t *ci)
+{
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_NUMBER != ci->values[0].type)) {
+		log_err ("%s expects a single number argument.", name);
+		return 1;
+	}
+
+	*var = (int)ci->values[0].value.number;
+	return 0;
+} /* config_set_i */
 
 static int config_set_param (c_psql_query_t *query, const oconfig_item_t *ci)
 {
@@ -662,7 +712,7 @@ static int set_query (c_psql_database_t *db, const char *name)
 {
 	c_psql_query_t *query;
 
-	query = c_psql_query_get (name);
+	query = c_psql_query_get (name, -1);
 	if (NULL == query) {
 		log_err ("Query \"%s\" not found - please check your configuration.",
 				name);
@@ -716,6 +766,10 @@ static int c_psql_config_query (oconfig_item_t *ci)
 			config_set_param (query, c);
 		else if (0 == strcasecmp (c->key, "Column"))
 			config_set_column (query, c);
+		else if (0 == strcasecmp (c->key, "MinPGVersion"))
+			config_set_i ("MinPGVersion", &query->min_pg_version, c);
+		else if (0 == strcasecmp (c->key, "MaxPGVersion"))
+			config_set_i ("MaxPGVersion", &query->max_pg_version, c);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
