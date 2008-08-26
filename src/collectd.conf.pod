@@ -1193,6 +1193,20 @@ of each result column. Detailed information about types and their
 configuration can be found in L<types.db(5)>. The number and order of the
 B<Column> options has to match the columns of the query result.
 
+=item B<MinPGVersion> I<version>
+
+=item B<MaxPGVersion> I<version>
+
+Specify the minimum or maximum version of PostgreSQL that this query should be
+used with. Some statistics might only be available with certain versions of
+PostgreSQL. This allows you to specify multiple queries with the same name but
+which apply to different versions, thus allowing you to use the same
+configuration in a heterogeneous environment.
+
+The I<version> has to be specified as the concatenation of the major, minor
+and patch-level versions, each represented as two-decimal-digit numbers. For
+example, version 8.2.3 will become 80203.
+
 =back
 
 The following predefined queries are available (the definitions can be found
