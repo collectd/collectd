@@ -774,6 +774,14 @@ static int c_psql_config_query (oconfig_item_t *ci)
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
 
+	if (query->min_pg_version > query->max_pg_version) {
+		log_err ("Query \"%s\": MinPGVersion > MaxPGVersion.",
+				query->name);
+		c_psql_query_delete (query);
+		--queries_num;
+		return 1;
+	}
+
 	if (NULL == query->query) {
 		log_err ("Query \"%s\" does not include an SQL query string - "
 				"please check your configuration.", query->name);
