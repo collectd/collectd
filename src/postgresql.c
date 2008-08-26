@@ -575,7 +575,7 @@ static int c_psql_init (void)
 	return 0;
 } /* c_psql_init */
 
-static int config_set (char *name, char **var, const oconfig_item_t *ci)
+static int config_set_s (char *name, char **var, const oconfig_item_t *ci)
 {
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
@@ -586,7 +586,7 @@ static int config_set (char *name, char **var, const oconfig_item_t *ci)
 	sfree (*var);
 	*var = sstrdup (ci->values[0].value.string);
 	return 0;
-} /* config_set */
+} /* config_set_s */
 
 static int config_set_param (c_psql_query_t *query, const oconfig_item_t *ci)
 {
@@ -711,7 +711,7 @@ static int c_psql_config_query (oconfig_item_t *ci)
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Query"))
-			config_set ("Query", &query->query, c);
+			config_set_s ("Query", &query->query, c);
 		else if (0 == strcasecmp (c->key, "Param"))
 			config_set_param (query, c);
 		else if (0 == strcasecmp (c->key, "Column"))
@@ -740,19 +740,19 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Host"))
-			config_set ("Host", &db->host, c);
+			config_set_s ("Host", &db->host, c);
 		else if (0 == strcasecmp (c->key, "Port"))
-			config_set ("Port", &db->port, c);
+			config_set_s ("Port", &db->port, c);
 		else if (0 == strcasecmp (c->key, "User"))
-			config_set ("User", &db->user, c);
+			config_set_s ("User", &db->user, c);
 		else if (0 == strcasecmp (c->key, "Password"))
-			config_set ("Password", &db->password, c);
+			config_set_s ("Password", &db->password, c);
 		else if (0 == strcasecmp (c->key, "SSLMode"))
-			config_set ("SSLMode", &db->sslmode, c);
+			config_set_s ("SSLMode", &db->sslmode, c);
 		else if (0 == strcasecmp (c->key, "KRBSrvName"))
-			config_set ("KRBSrvName", &db->krbsrvname, c);
+			config_set_s ("KRBSrvName", &db->krbsrvname, c);
 		else if (0 == strcasecmp (c->key, "Service"))
-			config_set ("Service", &db->service, c);
+			config_set_s ("Service", &db->service, c);
 		else if (0 == strcasecmp (c->key, "Query"))
 			config_set_query (db, c);
 		else
