@@ -74,7 +74,7 @@ static void fc_submit_dir (const fc_directory_conf_t *dir)
   sstrncpy (vl.type, "bytes", sizeof (vl.type));
 
   plugin_dispatch_values (&vl);
-} /* void qmail_submit */
+} /* void fc_submit_dir */
 
 /*
  * Config:
@@ -414,7 +414,7 @@ static int fc_config (oconfig_item_t *ci)
   } /* for (ci->children) */
 
   return (0);
-} /* int qmail_config */
+} /* int fc_config */
 
 static int fc_init (void)
 {
