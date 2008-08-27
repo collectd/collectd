@@ -1060,6 +1060,8 @@ with that version, the following configuration worked for us:
     Device "-s localhost:4304"
   </Plugin>
 
+This directive is B<required> and does not have a default value.
+
 =item B<Sensor> I<Sensor>
 
 Selects sensors to collect or to ignore, depending on B<IgnoreSelected>, see
