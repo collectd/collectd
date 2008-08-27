@@ -44,6 +44,8 @@ src/*.la
 src/*.lo
 src/*.o
 src/collectd
+src/collectd-nagios
+src/collectdmon
 src/collectd*.1
 src/collectd*.5
 src/types.db.5
@@ -63,6 +65,12 @@ ylwrap
 src/liboconfig/parser.c
 src/liboconfig/parser.h
 src/liboconfig/scanner.c
+
+# perl stuff:
+bindings/.perl-directory-stamp
+bindings/perl/Collectd/pm_to_blib
+bindings/perl/blib/
+bindings/perl/pm_to_blib
 
 # make dist stuff:
 collectd-*.tar.gz

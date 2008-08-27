@@ -1673,7 +1673,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
       <Match>
       	Regex "\\<R=local_user\\>"
 	DSType "CounterInc"
-	Type "email_count"
+	Type "counter"
 	Instance "local_user"
       </Match>
     </File>

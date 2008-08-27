@@ -134,7 +134,7 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 		p.events = POLLIN | POLLERR | POLLHUP;
 		p.revents = 0;
 
-		status = poll (&p, /* nfds = */ 1, /* timeout = */ interval_g);
+		status = poll (&p, /* nfds = */ 1, /* timeout = */ 1000 * interval_g);
 		if (status <= 0)
 		{
 			if (status == 0)
