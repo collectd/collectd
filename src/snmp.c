@@ -859,22 +859,15 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     char *ptr;
     size_t instance_len;
 
+    memset (il->instance, 0, sizeof (il->instance));
     instance_len = sizeof (il->instance) - 1;
     if (instance_len > vb->val_len)
       instance_len = vb->val_len;
 
-    if (instance_len < 1)
-    {
-      ERROR ("snmp plugin: csnmp_instance_list_add: instance_len = %zu, "
-	  "which is less than one.", instance_len);
-      sfree (il);
-      return (-1);
-    }
-
     sstrncpy (il->instance, (char *) ((vb->type == ASN_OCTET_STR)
 	  ? vb->val.string
 	  : vb->val.bitstring),
-	instance_len);
+	instance_len + 1);
 
     for (ptr = il->instance; *ptr != '\0'; ptr++)
     {
