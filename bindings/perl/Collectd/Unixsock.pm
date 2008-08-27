@@ -134,6 +134,22 @@ sub _parse_identifier
 	return ($ident);
 } # _parse_identifier
 
+sub _escape_argument
+{
+	my $string = shift;
+
+	if ($string =~ m/^\w+$/)
+	{
+		return ("$string");
+	}
+
+	$string =~ s#\\#\\\\#g;
+	$string =~ s#"#\\"#g;
+	$string = "\"$string\"";
+
+	return ($string);
+}
+
 =head1 PUBLIC METHODS
 
 =over 4
@@ -182,14 +198,8 @@ sub getval
 	my $ret = {};
 
 	$identifier = _create_identifier (\%args) or return;
-	if ($identifier =~ m/[\s"]/)
-	{
-		$identifier =~ s#\\#\\\\#g;
-		$identifier =~ s#"#\\"#g;
-		$identifier = "\"$identifier\"";
-	}
 
-	$msg = "GETVAL $identifier\n";
+	$msg = 'GETVAL ' . _escape_argument ($identifier) . "\n";
 	#print "-> $msg";
 	send ($fh, $msg, 0) or confess ("send: $!");
 
@@ -246,7 +256,8 @@ sub putval
 
 	if (defined $args{'interval'})
 	{
-		$interval = ' interval=' . $args{'interval'};
+		$interval = ' interval='
+		. _escape_argument ($args{'interval'});
 	}
 
 	$identifier = _create_identifier (\%args) or return;
@@ -266,7 +277,10 @@ sub putval
 		$values = join (':', $time, map { defined ($_) ? $_ : 'U' } (@{$args{'values'}}));
 	}
 
-	$msg = "PUTVAL $identifier$interval $values\n";
+	$msg = 'PUTVAL '
+	. _escape_argument ($identifier)
+	. $interval
+	. ' ' . _escape_argument ($values) . "\n";
 	#print "-> $msg";
 	send ($fh, $msg, 0) or confess ("send: $!");
 	$msg = undef;
@@ -483,14 +497,8 @@ sub flush
 			{
 				return;
 			}
-			if ($ident_str =~ m/[\s"]/)
-			{
-				$ident_str =~ s#\\#\\\\#g;
-				$ident_str =~ s#"#\\"#g;
-				$ident_str = "\"$ident_str\"";
-			}
 
-			$msg .= " identifier=$ident_str";
+			$msg .= ' identifier=' . _escape_argument ($ident_str);
 		}
 	}
 

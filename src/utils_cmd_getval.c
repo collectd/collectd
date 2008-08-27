@@ -83,6 +83,12 @@ int handle_getval (FILE *fh, char *buffer)
   }
   assert (identifier != NULL);
 
+  if (*buffer != 0)
+  {
+    print_to_socket (fh, "-1 Garbage after end of command: %s\n", buffer);
+    return (-1);
+  }
+
   /* parse_identifier() modifies its first argument,
    * returning pointers into it */
   identifier_copy = sstrdup (identifier);
@@ -92,7 +98,7 @@ int handle_getval (FILE *fh, char *buffer)
       &type, &type_instance);
   if (status != 0)
   {
-    DEBUG ("unixsock plugin: Cannot parse identifier `%s'.", identifier);
+    DEBUG ("handle_getval: Cannot parse identifier `%s'.", identifier);
     print_to_socket (fh, "-1 Cannot parse identifier `%s'.\n", identifier);
     sfree (identifier_copy);
     return (-1);
@@ -101,7 +107,7 @@ int handle_getval (FILE *fh, char *buffer)
   ds = plugin_get_ds (type);
   if (ds == NULL)
   {
-    DEBUG ("unixsock plugin: plugin_get_ds (%s) == NULL;", type);
+    DEBUG ("handle_getval: plugin_get_ds (%s) == NULL;", type);
     print_to_socket (fh, "-1 Type `%s' is unknown.\n", type);
     sfree (identifier_copy);
     return (-1);

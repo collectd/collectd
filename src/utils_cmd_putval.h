@@ -22,6 +22,6 @@
 #ifndef UTILS_CMD_PUTVAL_H
 #define UTILS_CMD_PUTVAL_H 1
 
-int handle_putval (FILE *fh, char **fields, int fields_num);
+int handle_putval (FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_PUTVAL_H */

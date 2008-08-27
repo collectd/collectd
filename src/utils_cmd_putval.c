@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_cms_putval.c
- * Copyright (C) 2007  Florian octo Forster
+ * Copyright (C) 2007,2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +22,8 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
+#include "utils_parse_option.h"
 
 #define print_to_socket(fh, ...) \
 	if (fprintf (fh, __VA_ARGS__) < 0) { \
@@ -93,24 +95,23 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 	return (0);
 } /* int parse_value */
 
-static int parse_option (value_list_t *vl, char *buffer)
+static int set_option (value_list_t *vl, const char *key, const char *value)
 {
-	char *option = buffer;
-	char *value;
-
-	if ((vl == NULL) || (option == NULL))
+	if ((vl == NULL) || (key == NULL) || (value == NULL))
 		return (-1);
 
-	value = strchr (option, '=');
-	if (value == NULL)
-		return (-1);
-	*value = '\0'; value++;
-
-	if (strcasecmp ("interval", option) == 0)
+	if (strcasecmp ("interval", key) == 0)
 	{
-		vl->interval = atoi (value);
-		if (vl->interval <= 0)
-			vl->interval = interval_g;
+		int tmp;
+		char *endptr;
+
+		endptr = NULL;
+		errno = 0;
+		tmp = strtol (value, &endptr, 0);
+
+		if ((errno == 0) && (endptr != NULL)
+				&& (endptr != value) && (tmp > 0))
+			vl->interval = tmp;
 	}
 	else
 		return (1);
@@ -118,42 +119,63 @@ static int parse_option (value_list_t *vl, char *buffer)
 	return (0);
 } /* int parse_option */
 
-int handle_putval (FILE *fh, char **fields, int fields_num)
+int handle_putval (FILE *fh, char *buffer)
 {
+	char *command;
+	char *identifier;
 	char *hostname;
 	char *plugin;
 	char *plugin_instance;
 	char *type;
 	char *type_instance;
 	int   status;
-	int   i;
+	int   values_submitted;
 
 	char *identifier_copy;
 
 	const data_set_t *ds;
 	value_list_t vl = VALUE_LIST_INIT;
 
-	if (fields_num < 3)
+	DEBUG ("utils_cmd_putval: handle_putval (fh = %p, buffer = %s);",
+			(void *) fh, buffer);
+
+	command = NULL;
+	status = parse_string (&buffer, &command);
+	if (status != 0)
 	{
-		DEBUG ("cmd putval: Wrong number of fields: %i",
-			       	fields_num);
-		print_to_socket (fh, "-1 Wrong number of fields: Got %i, "
-				"expected at least 3.\n",
-				fields_num);
+		print_to_socket (fh, "-1 Cannot parse command.\n");
+		return (-1);
+	}
+	assert (command != NULL);
+
+	if (strcasecmp ("PUTVAL", command) != 0)
+	{
+		print_to_socket (fh, "-1 Unexpected command: `%s'.\n", command);
 		return (-1);
 	}
 
+	identifier = NULL;
+	status = parse_string (&buffer, &identifier);
+	if (status != 0)
+	{
+		print_to_socket (fh, "-1 Cannot parse identifier.\n");
+		return (-1);
+	}
+	assert (identifier != NULL);
+
 	/* parse_identifier() modifies its first argument,
 	 * returning pointers into it */
-	identifier_copy = sstrdup (fields[1]);
+	identifier_copy = sstrdup (identifier);
 
 	status = parse_identifier (identifier_copy, &hostname,
 			&plugin, &plugin_instance,
 			&type, &type_instance);
 	if (status != 0)
 	{
-		DEBUG ("cmd putval: Cannot parse `%s'", fields[1]);
-		print_to_socket (fh, "-1 Cannot parse identifier.\n");
+		DEBUG ("handle_putval: Cannot parse identifier `%s'.",
+				identifier);
+		print_to_socket (fh, "-1 Cannot parse identifier `%s'.\n",
+				identifier);
 		sfree (identifier_copy);
 		return (-1);
 	}
@@ -180,54 +202,73 @@ int handle_putval (FILE *fh, char **fields, int fields_num)
 
 	ds = plugin_get_ds (type);
 	if (ds == NULL) {
+		print_to_socket (fh, "-1 Type `%s' isn't defined.\n", type);
 		sfree (identifier_copy);
 		return (-1);
 	}
+
+	/* Free identifier_copy */
+	hostname = NULL;
+	plugin = NULL; plugin_instance = NULL;
+	type = NULL;   type_instance = NULL;
+	sfree (identifier_copy);
 
 	vl.values_len = ds->ds_num;
 	vl.values = (value_t *) malloc (vl.values_len * sizeof (value_t));
 	if (vl.values == NULL)
 	{
 		print_to_socket (fh, "-1 malloc failed.\n");
-		sfree (identifier_copy);
 		return (-1);
 	}
 
 	/* All the remaining fields are part of the optionlist. */
-	for (i = 2; i < fields_num; i++)
+	values_submitted = 0;
+	while (*buffer != 0)
 	{
-		if (strchr (fields[i], ':') != NULL)
+		char *string = NULL;
+		char *value  = NULL;
+
+		status = parse_option (&buffer, &string, &value);
+		if (status < 0)
 		{
-			/* It's parse_value's job to write an error to `fh'.
-			 * This is not the case with `parse_option below.
-			 * Neither will write an success message. */
-			if (parse_value (ds, &vl, fh, fields[i]) != 0)
-				break;
+			/* parse_option failed, buffer has been modified.
+			 * => we need to abort */
+			print_to_socket (fh, "-1 Misformatted option.\n");
+			return (-1);
 		}
-		else if (strchr (fields[i], '=') != NULL)
+		else if (status == 0)
 		{
-			if (parse_option (&vl, fields[i]) != 0)
-			{
-				print_to_socket (fh, "-1 Error parsing option `%s'\n",
-						fields[i]);
-				break;
-			}
+			assert (string != NULL);
+			assert (value != NULL);
+			set_option (&vl, string, value);
+			continue;
 		}
-		else
+		/* else: parse_option but buffer has not been modified. This is
+		 * the default if no `=' is found.. */
+
+		status = parse_string (&buffer, &string);
+		if (status != 0)
 		{
-			WARNING ("cmd putval: handle_putval: "
-					"Cannot parse field #%i `%s'; "
-					"Ignoring it.\n",
-					i, fields[i]);
+			print_to_socket (fh, "-1 Misformatted value.\n");
+			return (-1);
 		}
-	}
+		assert (string != NULL);
+
+		status = parse_value (ds, &vl, fh, string);
+		if (status != 0)
+		{
+			/* An error has already been printed. */
+			return (-1);
+		}
+		values_submitted++;
+	} /* while (*buffer != 0) */
 	/* Done parsing the options. */
 
-	if (i == fields_num)
-		print_to_socket (fh, "0 Success\n");
+	print_to_socket (fh, "0 Success: %i %s been dispatched.\n",
+			values_submitted,
+			(values_submitted == 1) ? "value has" : "values have");
 
 	sfree (vl.values); 
-	sfree (identifier_copy);
 
 	return (0);
 } /* int handle_putval */
