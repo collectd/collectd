@@ -164,7 +164,7 @@ static void *us_handle_client (void *arg)
 	free (arg);
 	arg = NULL;
 
-	DEBUG ("Reading from fd #%i", fd);
+	DEBUG ("unixsock plugin: us_handle_client: Reading from fd #%i", fd);
 
 	fhin  = fdopen (fd, "r");
 	if (fhin == NULL)
@@ -270,7 +270,7 @@ static void *us_handle_client (void *arg)
 		}
 	} /* while (fgets) */
 
-	DEBUG ("Exiting..");
+	DEBUG ("unixsock plugin: us_handle_client: Exiting..");
 	fclose (fhin);
 	fclose (fhout);
 
