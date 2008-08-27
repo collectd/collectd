@@ -66,6 +66,9 @@ int parse_string (char **ret_buffer, char **ret_string)
     /* No quote sign has been found */
     if (*buffer == 0)
       return (-1);
+
+    *dst = 0;
+    dst++;
     *buffer = 0;
     buffer++;
 
