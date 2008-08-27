@@ -62,7 +62,6 @@ static char *device_g = NULL;
 
 static const char *config_keys[] =
 {
-  "Alias",
   "Device",
   "IgnoreSelected",
   "Sensor",
@@ -104,10 +103,6 @@ static int cow_load_config (const char *key, const char *value)
     }
     sfree (device_g);
     device_g = temp;
-  }
-  else if (strcasecmp (key, "Alias") == 0)
-  {
-    /* azogtodo alias-list */
   }
   else
   {
