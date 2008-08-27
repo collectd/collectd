@@ -135,8 +135,9 @@ Features
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
 
-    - onewire
+    - onewire (EXPERIMENTAL!)
       Read onewire sensors using the owcapu library of the owfs project.
+      Please read in collectd.conf(5) why this plugin is experimental.
 
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can

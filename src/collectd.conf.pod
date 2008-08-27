@@ -1039,6 +1039,8 @@ L<upsc(8)>.
 
 =head2 Plugin C<onewire>
 
+B<EXPERIMENTAL!> See notes below.
+
 The C<onewire> plugin uses the B<owcapi> library from the B<owfs> project
 L<http://owfs.org/> to read sensors connected via the onewire bus.
 
@@ -1076,6 +1078,17 @@ B<Sensor> is inverted: All selected interfaces are ignored and all other
 interfaces are collected.
 
 =back
+
+B<EXPERIMENTAL!> The C<onewire> plugin is experimental, because it doesn't yet
+work with big setups. It works with one sensor being attached to one
+controller, but as soon as you throw in a couple more senors and maybe a hub
+or two, reading all values will take more than ten seconds (the default
+interval). We will probably add some separate thread for reading the sensors
+and some cache or something like that, but it's not done yet. We will try to
+maintain backwards compatibility in the future, but we can't probmise. So in
+short: If it works for you: Great! But kaap in mind that the config I<might>
+change, though this is unlikely. Oh, and if you want to help improving this
+plugin, just send a short notice to the mailing list. ThanksE<nbsp>:)
 
 =head2 Plugin C<perl>
 
