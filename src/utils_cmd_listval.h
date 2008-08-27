@@ -22,7 +22,7 @@
 #ifndef UTILS_CMD_LISTVAL_H
 #define UTILS_CMD_LISTVAL_H 1
 
-int handle_listval (FILE *fh, char **fields, int fields_num);
+int handle_listval (FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_LISTVAL_H */
 
