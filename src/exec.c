@@ -492,11 +492,8 @@ static int parse_line (char *buffer) /* {{{ */
 {
   if (strncasecmp ("PUTVAL", buffer, strlen ("PUTVAL")) == 0)
     return (handle_putval (stdout, buffer));
-#if !COLLECT_DEBUG
-#error "TODO: PUTNOTIF"
-  else if (strcasecmp (fields[1], "putnotif") == 0)
-    return (handle_putnotif (stdout, fields + 1, fields_num));
-#endif
+  else if (strncasecmp ("PUTNOTIF", buffer, strlen ("PUTNOTIF")) == 0)
+    return (handle_putnotif (stdout, buffer));
   else
   {
     /* For backwards compatibility */

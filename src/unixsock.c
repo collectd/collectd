@@ -251,7 +251,7 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "putnotif") == 0)
 		{
-			handle_putnotif (fhout, fields, fields_num);
+			handle_putnotif (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "flush") == 0)
 		{
