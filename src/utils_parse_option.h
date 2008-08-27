@@ -22,6 +22,7 @@
 #ifndef UTILS_PARSE_OPTION
 #define UTILS_PARSE_OPTION 1
 
+int parse_string (char **ret_buffer, char **ret_string);
 int parse_option (char **ret_buffer, char **ret_key, char **ret_value);
 
 #endif /* UTILS_PARSE_OPTION */

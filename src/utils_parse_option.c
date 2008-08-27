@@ -24,55 +24,31 @@
 #include "plugin.h"
 #include "utils_parse_option.h"
 
-/*
- * parse_option
- * ------------
- *  Parses an ``option'' as used with the unixsock and exec commands. An
- *  option is of the form:
- *    name0="value"
- *    name1="value with \"quotes\""
- *    name2="value \\ backslash"
- *  However, if the value does *not* contain a space character, you can skip
- *  the quotes.
- */
-int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
+int parse_string (char **ret_buffer, char **ret_string)
 {
   char *buffer;
-  char *key;
-  char *value;
+  char *string;
 
   buffer = *ret_buffer;
 
-  /* Eat up leading spaces */
-  key = buffer;
-  while (isspace ((int) *key))
-    key++;
-  if (*key == 0)
+  /* Eat up leading spaces. */
+  string = buffer;
+  while (isspace ((int) *string))
+    string++;
+  if (*string == 0)
     return (1);
 
-  /* Look for the equal sign */
-  value = key;
-  while (isalnum ((int) *value))
-    value++;
-  if ((*value != '=') || (value == key))
-    return (1);
-  *value = 0;
-  value++;
-  /* Empty values must be written as "" */
-  if (isspace ((int) *value) || (*value == 0))
-    return (-1);
-
-  /* A quoted value */
-  if (*value == '"')
+  /* A quoted string */
+  if (*string == '"')
   {
     char *dst;
 
-    value++;
-    if (*value == 0)
-      return (-1);
+    string++;
+    if (*string == 0)
+      return (1);
 
-    dst = value;
-    buffer = value;
+    dst = string;
+    buffer = string;
     while ((*buffer != '"') && (*buffer != 0))
     {
       /* Un-escape backslashes */
@@ -97,9 +73,9 @@ int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
     if ((*buffer != 0) && !isspace ((int) *buffer))
       return (-1);
   }
-  else /* an unquoted value */
+  else /* an unquoted string */
   {
-    buffer = value;
+    buffer = string;
     while ((*buffer != 0) && !isspace ((int) *buffer))
       buffer++;
     if (*buffer != 0)
@@ -108,10 +84,61 @@ int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
       buffer++;
     }
   }
-
+  
   /* Eat up trailing spaces */
   while (isspace ((int) *buffer))
     buffer++;
+
+  *ret_buffer = buffer;
+  *ret_string = string;
+
+  return (0);
+} /* int parse_string */
+
+/*
+ * parse_option
+ * ------------
+ *  Parses an ``option'' as used with the unixsock and exec commands. An
+ *  option is of the form:
+ *    name0="value"
+ *    name1="value with \"quotes\""
+ *    name2="value \\ backslash"
+ *  However, if the value does *not* contain a space character, you can skip
+ *  the quotes.
+ */
+int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
+{
+  char *buffer;
+  char *key;
+  char *value;
+  int status;
+
+  buffer = *ret_buffer;
+
+  /* Eat up leading spaces */
+  key = buffer;
+  while (isspace ((int) *key))
+    key++;
+  if (*key == 0)
+    return (1);
+
+  /* Look for the equal sign */
+  buffer = key;
+  while (isalnum ((int) *buffer))
+    buffer++;
+  if ((*buffer != '=') || (buffer == key))
+    return (1);
+  *buffer = 0;
+  buffer++;
+  /* Empty values must be written as "" */
+  if (isspace ((int) *buffer) || (*buffer == 0))
+    return (-1);
+
+  status = parse_string (&buffer, &value);
+  if (status != 0)
+    return (-1);
+
+  /* NB: parse_string will have eaten up all trailing spaces. */
 
   *ret_buffer = buffer;
   *ret_key = key;
