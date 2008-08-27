@@ -57,7 +57,18 @@ use Carp (qw(cluck confess));
 use IO::Socket::UNIX;
 use Regexp::Common (qw(number));
 
+our $Debug = 0;
+
 return (1);
+
+sub _debug
+{
+	if (!$Debug)
+	{
+		return;
+	}
+	print @_;
+}
 
 sub _create_socket
 {
@@ -200,12 +211,12 @@ sub getval
 	$identifier = _create_identifier (\%args) or return;
 
 	$msg = 'GETVAL ' . _escape_argument ($identifier) . "\n";
-	#print "-> $msg";
-	send ($fh, $msg, 0) or confess ("send: $!");
+	_debug "-> $msg";
+	print $fh $msg;
 
-	$msg = undef;
-	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
-	#print "<- $msg";
+	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
 
 	($status, $msg) = split (' ', $msg, 2);
 	if ($status <= 0)
@@ -214,9 +225,12 @@ sub getval
 		return;
 	}
 
-	for (split (' ', $msg))
+	for (my $i = 0; $i < $status; $i++)
 	{
-		my $entry = $_;
+		my $entry = <$fh>;
+		chomp ($entry);
+		_debug "<- $entry\n";
+
 		if ($entry =~ m/^(\w+)=NaN$/)
 		{
 			$ret->{$1} = undef;
@@ -281,11 +295,12 @@ sub putval
 	. _escape_argument ($identifier)
 	. $interval
 	. ' ' . _escape_argument ($values) . "\n";
-	#print "-> $msg";
-	send ($fh, $msg, 0) or confess ("send: $!");
-	$msg = undef;
-	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
-	#print "<- $msg";
+	_debug "-> $msg";
+	print $fh $msg;
+
+	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
 
 	($status, $msg) = split (' ', $msg, 2);
 	return (1) if ($status == 0);
@@ -310,10 +325,12 @@ sub listval
 	my $status;
 	my $fh = $obj->{'sock'} or confess;
 
-	$msg = "LISTVAL\n";
-	send ($fh, $msg, 0) or confess ("send: $!");
+	_debug "LISTVAL\n";
+	print $fh "LISTVAL\n";
 
 	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
 	($status, $msg) = split (' ', $msg, 2);
 	if ($status < 0)
 	{
@@ -328,6 +345,7 @@ sub listval
 
 		$msg = <$fh>;
 		chomp ($msg);
+		_debug "<- $msg\n";
 
 		($time, $ident) = split (' ', $msg, 2);
 
@@ -382,7 +400,6 @@ sub putnotif
 	my $fh = $obj->{'sock'} or confess;
 
 	my $msg; # message sent to the socket
-	my $opt_msg; # message of the notification
 	
 	if (!$args{'message'})
 	{
@@ -408,16 +425,16 @@ sub putnotif
 		$args{'time'} = time ();
 	}
 	
-	$opt_msg = $args{'message'};
-	delete ($args{'message'});
-
 	$msg = 'PUTNOTIF '
-	. join (' ', map { $_ . '=' . $args{$_} } (keys %args))
-	. " message=$opt_msg\n";
+	. join (' ', map { $_ . '=' . _escape_argument ($args{$_}) } (keys %args))
+	. "\n";
 
-	send ($fh, $msg, 0) or confess ("send: $!");
-	$msg = undef;
-	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
+	_debug "-> $msg";
+	print $fh $msg;
+
+	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
 
 	($status, $msg) = split (' ', $msg, 2);
 	return (1) if ($status == 0);
@@ -504,14 +521,27 @@ sub flush
 
 	$msg .= "\n";
 
-	send ($fh, $msg, 0) or confess ("send: $!");
-	$msg = undef;
-	recv ($fh, $msg, 1024, 0) or confess ("recv: $!");
+	_debug "-> $msg";
+	print $fh $msg;
+
+	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
 
 	($status, $msg) = split (' ', $msg, 2);
 	return (1) if ($status == 0);
 
 	$obj->{'error'} = $msg;
+	return;
+}
+
+sub error
+{
+	my $obj = shift;
+	if ($obj->{'error'})
+	{
+		return ($obj->{'error'});
+	}
 	return;
 }
 
