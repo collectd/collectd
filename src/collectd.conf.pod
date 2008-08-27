@@ -1044,6 +1044,13 @@ B<EXPERIMENTAL!> See notes below.
 The C<onewire> plugin uses the B<owcapi> library from the B<owfs> project
 L<http://owfs.org/> to read sensors connected via the onewire bus.
 
+Currently only temperature sensors (sensors with the family code C<10>,
+e.E<nbsp>g. DS1820, DS18S20, DS1920) can be read. If you have other sensors you
+would like to have included, please send a sort request to the mailing list.
+
+Hubs (the DS2409 chips) are working, but read the note, why this plugin is
+experimental, below.
+
 =over 4
 
 =item B<Device> I<Device>
