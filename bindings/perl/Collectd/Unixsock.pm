@@ -175,13 +175,19 @@ sub getval
 	my %args = @_;
 
 	my $status;
-	my $fh = $obj->{'sock'} or confess;
+	my $fh = $obj->{'sock'} or confess ('object has no filehandle');
 	my $msg;
 	my $identifier;
 
 	my $ret = {};
 
 	$identifier = _create_identifier (\%args) or return;
+	if ($identifier =~ m/[\s"]/)
+	{
+		$identifier =~ s#\\#\\\\#g;
+		$identifier =~ s#"#\\"#g;
+		$identifier = "\"$identifier\"";
+	}
 
 	$msg = "GETVAL $identifier\n";
 	#print "-> $msg";
@@ -477,7 +483,7 @@ sub flush
 			{
 				return;
 			}
-			if ($ident_str =~ m/ /)
+			if ($ident_str =~ m/[\s"]/)
 			{
 				$ident_str =~ s#\\#\\\\#g;
 				$ident_str =~ s#"#\\"#g;

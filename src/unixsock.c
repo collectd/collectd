@@ -239,7 +239,7 @@ static void *us_handle_client (void *arg)
 
 		if (strcasecmp (fields[0], "getval") == 0)
 		{
-			handle_getval (fhout, fields, fields_num);
+			handle_getval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "putval") == 0)
 		{
