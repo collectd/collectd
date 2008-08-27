@@ -11,6 +11,14 @@
 	  Specification'.
 	* notify_email plugin: This new plugin sends out notifications via
 	  email, using the `esmtp' library.
+	* onewire plugin: The new experimental(!) onewire plugin reads values,
+	  such as temperatures, from sensors connected to the computer via the
+	  onewire bus.
+	* perl plugin: Improved synchronized access to internal data structures
+	  and fixed a possible dead-lock.
+	* perl plugin: Added the ability to flush certain identifiers and marked
+	  plugin_flush_all() and plugin_flush_one() as deprecated in favor of
+	  plugin_flush().
 	* postgresql plugin: The new postgresql plugin collects statistics
 	  from an PostgreSQL database.
 	* processes plugin: The `ProcessMatch' option has been added.
@@ -19,12 +27,6 @@
 	* tcpconns plugin: This plugin has been ported to OpenBSD.
 	* thermal plugin: The new thermal plugin collects system temperatures
 	  using Linux ACPI thermal zone data.
-	* perl plugin: Improved synchronized access to internal data structures
-	  and fixed a possible dead-lock.
-	* perl plugin: Added the ability to flush certain identifiers and marked
-	  plugin_flush_all() and plugin_flush_one() as deprecated in favor of
-	  plugin_flush().
-	* TODO: onewire plugin?
 
 2008-07-15, Version 4.4.2
 	* build system: Use pkg-config to detect the upsclient library.
