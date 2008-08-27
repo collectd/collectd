@@ -61,10 +61,13 @@ sub probe_one
   }
 
   @oids = split (/"\s*"/, $conf->{'values'});
-  if (($conf->{'table'} =~ m/^(true|yes|on)$/i) && ($conf->{'instance'}))
+  if ($conf->{'table'} =~ m/^(true|yes|on)$/i)
   {
     $cmd = 'GETNEXT';
-    push (@oids, $conf->{'instance'});
+    if (defined ($conf->{'instance'}))
+    {
+      push (@oids, $conf->{'instance'});
+    }
   }
 
   require Data::Dumper;
@@ -93,6 +96,14 @@ sub probe_one
     {
       $status = $sess->get ($vb);
       if ($sess->{'ErrorNum'} != 0)
+      {
+        return;
+      }
+      if (!defined ($status))
+      {
+        return;
+      }
+      if ("$status" eq 'NOSUCHOBJECT')
       {
         return;
       }
@@ -213,11 +224,6 @@ sub probe_all
     $version--;
   } # while ($version > 0)
 
-  if (!@valid_data)
-  {
-    return;
-  }
-
   print <<EOF;
   <Host "$host">
     Address "$address"
@@ -227,6 +233,14 @@ EOF
   for (sort (@valid_data))
   {
     print "    Collect \"$_\"\n";
+  }
+  if (!@valid_data)
+  {
+    print <<EOF;
+# WARNING: Autoconfiguration failed.
+# TODO: Add one or more `Collect' statements here:
+#   Collect "foo"
+EOF
   }
   print <<EOF;
     Interval 60

@@ -1648,15 +1648,13 @@ static int perl_config (oconfig_item_t *ci)
 {
 	int i = 0;
 
-	dTHX;
-
-	/* dTHX does not get any valid values in case Perl
-	 * has not been initialized */
-	if (NULL == perl_threads)
-		aTHX = NULL;
+	dTHXa (NULL);
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
+
+		if (NULL != perl_threads)
+			aTHX = PERL_GET_CONTEXT;
 
 		if (0 == strcasecmp (c->key, "LoadPlugin"))
 			perl_config_loadplugin (aTHX_ c);
