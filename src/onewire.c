@@ -26,10 +26,11 @@
 
 #include <owcapi.h>
 
+#define OW_FAMILY_LENGTH 8
 #define OW_FAMILY_MAX_FEATURES 2
 struct ow_family_features_s
 {
-  char *family;
+  char family[OW_FAMILY_LENGTH];
   struct
   {
     char filename[DATA_MAX_NAME_LEN];
@@ -44,7 +45,7 @@ typedef struct ow_family_features_s ow_family_features_t;
 static ow_family_features_t ow_family_features[] =
 {
   {
-    /* family = */ "10",
+    /* family = */ "10.",
     {
       {
         /* filename = */ "temperature",
@@ -204,6 +205,31 @@ static int cow_read_values (const char *path, const char *name,
   return ((success > 0) ? 0 : -1);
 } /* int cow_read_values */
 
+/* Forward declaration so the recursion below works */
+static int cow_read_bus (const char *path);
+
+/*
+ * cow_read_ds2409
+ *
+ * Handles:
+ * - DS2409 - MicroLAN Coupler
+ */
+static int cow_read_ds2409 (const char *path)
+{
+  char subpath[4096];
+  int status;
+
+  status = ssnprintf (subpath, sizeof (subpath), "%s/main", path);
+  if ((status > 0) && (status < sizeof (subpath)))
+    cow_read_bus (subpath);
+
+  status = ssnprintf (subpath, sizeof (subpath), "%s/aux", path);
+  if ((status > 0) && (status < sizeof (subpath)))
+    cow_read_bus (subpath);
+
+  return (0);
+} /* int cow_read_ds2409 */
+
 static int cow_read_bus (const char *path)
 {
   char *buffer;
@@ -214,7 +240,6 @@ static int cow_read_bus (const char *path)
   char *dummy;
   char *saveptr;
   char subpath[4096];
-  char family_dummy[3]; /* a family only has 2 digits */
 
   status = OW_get (path, &buffer, &buffer_size);
   if (status < 0)
@@ -223,6 +248,8 @@ static int cow_read_bus (const char *path)
         path, status);
     return (-1);
   }
+  DEBUG ("onewire plugin: OW_get (%s) returned: %s",
+      path, buffer);
 
   dummy = buffer;
   saveptr = NULL;
@@ -232,16 +259,33 @@ static int cow_read_bus (const char *path)
 
     dummy = NULL;
 
-    snprintf (subpath, sizeof (subpath), "%s/%s", path, buffer_ptr);
-    subpath[sizeof (subpath) - 1] = 0;
+    if (strcmp ("/", path) == 0)
+      status = ssnprintf (subpath, sizeof (subpath), "/%s", buffer_ptr);
+    else
+      status = ssnprintf (subpath, sizeof (subpath), "%s/%s",
+          path, buffer_ptr);
+    if ((status <= 0) || (status >= sizeof (subpath)))
+      continue;
 
     for (i = 0; i < ow_family_features_num; i++)
     {
-      snprintf (family_dummy, sizeof (family_dummy), "%s%s", ow_family_features[i].family, ".");
-      if (strncmp (family_dummy, buffer_ptr, strlen (family_dummy)) != 0)
+      if (strncmp (ow_family_features[i].family, buffer_ptr,
+            strlen (ow_family_features[i].family)) != 0)
         continue;
 
-      cow_read_values (subpath, buffer_ptr + 3, ow_family_features + i);
+      cow_read_values (subpath,
+          buffer_ptr + strlen (ow_family_features[i].family),
+          ow_family_features + i);
+      break;
+    }
+    if (i < ow_family_features_num)
+      continue;
+
+    /* DS2409 */
+    if (strncmp ("1F.", buffer_ptr, strlen ("1F.")) == 0)
+    {
+      cow_read_ds2409 (subpath);
+      continue;
     }
   } /* while (strtok_r) */
 
@@ -251,40 +295,7 @@ static int cow_read_bus (const char *path)
 
 static int cow_read (void)
 {
-  char *buffer;
-  size_t buffer_size;
-  int status;
-
-  char *buffer_ptr;
-  char *dummy;
-  char *saveptr;
-
-  status = OW_get ("/uncached/", &buffer, &buffer_size);
-  if (status < 0)
-  {
-    ERROR ("onewire plugin: OW_get (\"/\") failed. status = %#x;",
-        status);
-    return (-1);
-  }
-
-  printf ("-- 8< --\n");
-
-  dummy = buffer;
-  saveptr = NULL;
-  while ((buffer_ptr = strtok_r (dummy, ",/", &saveptr)) != NULL)
-  {
-    dummy = NULL;
-    if (strncmp ("bus", buffer_ptr, strlen ("bus")) == 0)
-    {
-      cow_read_bus (buffer_ptr);
-    }
-  } /* while (strtok_r) */
-
-  printf ("-- >8 --\n");
-
-  free (buffer);
-
-  return (0);
+  return (cow_read_bus ("/"));
 } /* int cow_read */
 
 static int cow_shutdown (void)
