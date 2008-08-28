@@ -98,7 +98,7 @@ static int fc_config_set_instance (fc_directory_conf_t *dir, const char *str)
   char *ptr;
   char *copy;
 
-  strncpy (buffer, str, sizeof (buffer));
+  sstrncpy (buffer, str, sizeof (buffer));
   for (ptr = buffer; *ptr != 0; ptr++)
     if (*ptr == '/')
       *ptr = '_';
