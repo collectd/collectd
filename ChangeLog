@@ -1,3 +1,21 @@
+2008-08-30, Version 4.3.4
+	* Build system: Improved detection of and linking with the statgrab
+	  library.
+	* collectd: Portability fixes, especially to determine endianess more
+	  reliable.
+	* Various plugins: Fix format strings.
+	* network plugin: A fix in the initialization function solves problems
+	  under Solaris.
+	* disk plugin: A fix for giving disks under Linux 2.4 the right names
+	  again has been applied.
+	* wireless plugin: A work-around for broken wireless drivers has been
+	  added.
+	* nginx plugin: A thread-unsafe function has been replaced.
+	* vserver plugin: A thread-unsafe function has been replaced.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+
 2008-04-22, Version 4.3.3
 	* build system: Improved detection of several libraries, especially if
 	  they are in non-standard paths.
