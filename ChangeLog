@@ -1,3 +1,10 @@
+2008-09-01, Version 4.4.3
+	* collectd: Fix a memory leak in the threshold checking code.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* snmp plugin: Fix a possible memory leak.
+
 2008-07-15, Version 4.4.2
 	* build system: Use pkg-config to detect the upsclient library.
 	* collectd: Try even harder to determine the endianess of the
