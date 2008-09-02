@@ -20,7 +20,7 @@
 	  plugin_flush_all() and plugin_flush_one() as deprecated in favor of
 	  plugin_flush().
 	* postgresql plugin: The new postgresql plugin collects statistics
-	  from an PostgreSQL database.
+	  about or from a PostgreSQL database.
 	* processes plugin: The `ProcessMatch' option has been added.
 	* rrdtool plugin: Implement throttling of the `update queue' to lessen
 	  IO load.
