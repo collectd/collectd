@@ -19,6 +19,7 @@
 	* perl plugin: Added the ability to flush certain identifiers and marked
 	  plugin_flush_all() and plugin_flush_one() as deprecated in favor of
 	  plugin_flush().
+	* perl plugin: Added the ability to configure Perl plugins.
 	* postgresql plugin: The new postgresql plugin collects statistics
 	  about or from a PostgreSQL database.
 	* processes plugin: The `ProcessMatch' option has been added.
