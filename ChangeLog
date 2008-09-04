@@ -29,6 +29,13 @@
 	* thermal plugin: The new thermal plugin collects system temperatures
 	  using Linux ACPI thermal zone data.
 
+2008-09-01, Version 4.4.3
+	* collectd: Fix a memory leak in the threshold checking code.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* snmp plugin: Fix a possible memory leak.
+
 2008-07-15, Version 4.4.2
 	* build system: Use pkg-config to detect the upsclient library.
 	* collectd: Try even harder to determine the endianess of the
@@ -92,6 +99,24 @@
 	* users plugin: Support for the statgrab library has been added.
 	* vmem plugin: The new vmem plugin collects very detailed statistics
 	  about the virtual memory subsystem of Linux.
+
+2008-08-30, Version 4.3.4
+	* Build system: Improved detection of and linking with the statgrab
+	  library.
+	* collectd: Portability fixes, especially to determine endianess more
+	  reliable.
+	* Various plugins: Fix format strings.
+	* disk plugin: A fix for giving disks under Linux 2.4 the right names
+	  again has been applied.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* network plugin: A fix in the initialization function solves problems
+	  under Solaris.
+	* nginx plugin: A thread-unsafe function has been replaced.
+	* vserver plugin: A thread-unsafe function has been replaced.
+	* wireless plugin: A work-around for broken wireless drivers has been
+	  added.
 
 2008-04-22, Version 4.3.3
 	* build system: Improved detection of several libraries, especially if
