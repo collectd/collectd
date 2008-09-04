@@ -850,7 +850,7 @@ static int ps_read (void)
 					 * There's only zombie tasks, which are
 					 * handled above. */
 					default:
-						WARNING ("Unknown thread status: %s",
+						WARNING ("Unknown thread status: %i",
 								thread_data.run_state);
 						break;
 				} /* switch (thread_data.run_state) */
