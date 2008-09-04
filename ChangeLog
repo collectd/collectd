@@ -1,4 +1,4 @@
-2008-08-24, Version 4.5.0
+2008-09-04, Version 4.5.0
 	* collectd: Added the ability to flush certain identifiers.
 	* collectd: The concept of `notification meta data' has been
 	  introduced.
