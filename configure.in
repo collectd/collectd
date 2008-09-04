@@ -1657,13 +1657,14 @@ then
     AC_LINK_IFELSE(
       AC_LANG_PROGRAM(
       [[
+#define PERL_NO_GET_CONTEXT
 #include <EXTERN.h>
 #include <perl.h>
 #include <XSUB.h>
       ]],
       [[
-       PerlInterpreter *perl = NULL;
-       Perl_load_module (perl, PERL_LOADMOD_NOIMPORT,
+       dTHX;
+       load_module (PERL_LOADMOD_NOIMPORT,
 			 newSVpv ("Collectd::Plugin::FooBar", 24),
 			 Nullsv);
       ]]),
