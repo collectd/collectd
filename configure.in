@@ -1616,7 +1616,11 @@ AM_CONDITIONAL(BUILD_WITH_LIBESMTP, test "x$with_libesmtp" = "xyes")
 perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+ 	if test -x "$withval"
+	then
+		perl_interpreter="$withval"
+		with_libperl="yes"
+	else if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
@@ -1624,7 +1628,7 @@ AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to l
 		with_libperl="yes"
 	else
 		with_libperl="$withval"
-	fi
+	fi; fi
 ],
 [
 	with_libperl="yes"
@@ -1634,7 +1638,7 @@ AC_MSG_CHECKING([for perl])
 perl_interpreter=`which "$perl_interpreter" 2> /dev/null`
 if test -x "$perl_interpreter"
 then
-	AC_MSG_RESULT([yes])
+	AC_MSG_RESULT([yes ($perl_interpreter)])
 else
 	perl_interpreter=""
 	AC_MSG_RESULT([no])
