@@ -1045,9 +1045,9 @@ In this case please file a bug report with the collectd team.
 =item B<Socket> I<Path>
 
 Configures the path to the UNIX domain socket to be used when connecting to the
-daemon. By default C</var/run/pdns.controlsocket> will be used for an
-authoritative server and C</var/run/pdns_recursor.controlsocket> will be used
-for the recursor.
+daemon. By default C<${localstatedir}/run/pdns.controlsocket> will be used for
+an authoritative server and C<${localstatedir}/run/pdns_recursor.controlsocket>
+will be used for the recursor.
 
 =back
 
