@@ -1583,8 +1583,8 @@ When collecting many statistics with collectd and the C<rrdtool> plugin, you
 will run serious performance problems. The B<CacheFlush> setting and the
 internal update queue assert that collectd continues to work just fine even
 under heavy load, but the system may become very unresponsive and slow. This is
-a problem especially if create graphs from the RRD files on the same machine,
-for example using the C<graph.cgi> script included in the
+a problem especially if you create graphs from the RRD files on the same
+machine, for example using the C<graph.cgi> script included in the
 C<contrib/collection3/> directory.
 
 This setting is designed for very large setups. Setting this option to a value
