@@ -38,6 +38,10 @@
 #define log_warn(...) WARNING ("postgresql: " __VA_ARGS__)
 #define log_info(...) INFO ("postgresql: " __VA_ARGS__)
 
+#ifndef C_PSQL_DEFAULT_CONF
+# define C_PSQL_DEFAULT_CONF PKGDATADIR "/postgresql_default.conf"
+#endif
+
 /* Appends the (parameter, value) pair to the string
  * pointed to by 'buf' suitable to be used as argument
  * for PQconnectdb(). If value equals NULL, the pair
@@ -72,11 +76,44 @@
 	C_PSQL_IS_UNIX_DOMAIN_SOCKET (host) ? "/.s.PGSQL." : ":", \
 	port
 
+typedef enum {
+	C_PSQL_PARAM_HOST = 1,
+	C_PSQL_PARAM_DB,
+	C_PSQL_PARAM_USER,
+} c_psql_param_t;
+
+typedef struct {
+	char *type;
+	char *type_instance;
+	int   ds_type;
+} c_psql_col_t;
+
+typedef struct {
+	char *name;
+	char *query;
+
+	c_psql_param_t *params;
+	int             params_num;
+
+	c_psql_col_t *cols;
+	int           cols_num;
+
+	int min_pg_version;
+	int max_pg_version;
+} c_psql_query_t;
+
 typedef struct {
 	PGconn      *conn;
 	c_complain_t conn_complaint;
 
+	int proto_version;
+
+	int max_params_num;
+
 	/* user configuration */
+	c_psql_query_t **queries;
+	int              queries_num;
+
 	char *host;
 	char *port;
 	char *database;
@@ -90,8 +127,140 @@ typedef struct {
 	char *service;
 } c_psql_database_t;
 
+static char *def_queries[] = {
+	"backends",
+	"transactions",
+	"queries",
+	"query_plans",
+	"table_states",
+	"disk_io",
+	"disk_usage"
+};
+static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
+
+static c_psql_query_t *queries          = NULL;
+static int             queries_num      = 0;
+
 static c_psql_database_t *databases     = NULL;
 static int                databases_num = 0;
+
+static c_psql_query_t *c_psql_query_new (const char *name)
+{
+	c_psql_query_t *query;
+
+	++queries_num;
+	if (NULL == (queries = (c_psql_query_t *)realloc (queries,
+				queries_num * sizeof (*queries)))) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
+	query = queries + queries_num - 1;
+
+	query->name  = sstrdup (name);
+	query->query = NULL;
+
+	query->params     = NULL;
+	query->params_num = 0;
+
+	query->cols     = NULL;
+	query->cols_num = 0;
+
+	query->min_pg_version = 0;
+	query->max_pg_version = INT_MAX;
+	return query;
+} /* c_psql_query_new */
+
+static void c_psql_query_delete (c_psql_query_t *query)
+{
+	int i;
+
+	sfree (query->name);
+	sfree (query->query);
+
+	sfree (query->params);
+	query->params_num = 0;
+
+	for (i = 0; i < query->cols_num; ++i) {
+		sfree (query->cols[i].type);
+		sfree (query->cols[i].type_instance);
+	}
+	sfree (query->cols);
+	query->cols_num = 0;
+	return;
+} /* c_psql_query_delete */
+
+static c_psql_query_t *c_psql_query_get (const char *name, int server_version)
+{
+	int i;
+
+	for (i = 0; i < queries_num; ++i)
+		if (0 == strcasecmp (name, queries[i].name)
+				&& ((-1 == server_version)
+					|| ((queries[i].min_pg_version <= server_version)
+						&& (server_version <= queries[i].max_pg_version))))
+			return queries + i;
+	return NULL;
+} /* c_psql_query_get */
+
+static c_psql_database_t *c_psql_database_new (const char *name)
+{
+	c_psql_database_t *db;
+
+	++databases_num;
+	if (NULL == (databases = (c_psql_database_t *)realloc (databases,
+				databases_num * sizeof (*databases)))) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
+
+	db = databases + (databases_num - 1);
+
+	db->conn = NULL;
+
+	db->conn_complaint.last     = 0;
+	db->conn_complaint.interval = 0;
+
+	db->proto_version = 0;
+
+	db->max_params_num = 0;
+
+	db->queries     = NULL;
+	db->queries_num = 0;
+
+	db->database   = sstrdup (name);
+	db->host       = NULL;
+	db->port       = NULL;
+	db->user       = NULL;
+	db->password   = NULL;
+
+	db->sslmode    = NULL;
+
+	db->krbsrvname = NULL;
+
+	db->service    = NULL;
+	return db;
+} /* c_psql_database_new */
+
+static void c_psql_database_delete (c_psql_database_t *db)
+{
+	PQfinish (db->conn);
+
+	sfree (db->queries);
+	db->queries_num = 0;
+
+	sfree (db->database);
+	sfree (db->host);
+	sfree (db->port);
+	sfree (db->user);
+	sfree (db->password);
+
+	sfree (db->sslmode);
+
+	sfree (db->krbsrvname);
+
+	sfree (db->service);
+	return;
+} /* c_psql_database_delete */
 
 static void submit (const c_psql_database_t *db,
 		const char *type, const char *type_instance,
@@ -167,6 +336,11 @@ static int c_psql_check_connection (c_psql_database_t *db)
 					db->database, PQerrorMessage (db->conn));
 			return -1;
 		}
+
+		db->proto_version = PQprotocolVersion (db->conn);
+		if (3 > db->proto_version)
+			log_warn ("Protocol version %d does not support parameters.",
+					db->proto_version);
 	}
 
 	c_release (LOG_INFO, &db->conn_complaint,
@@ -174,141 +348,102 @@ static int c_psql_check_connection (c_psql_database_t *db)
 	return 0;
 } /* c_psql_check_connection */
 
-static int c_psql_stat_database (c_psql_database_t *db)
+static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
+		c_psql_query_t *query)
 {
-	const char *const query =
-		"SELECT numbackends, xact_commit, xact_rollback "
-			"FROM pg_stat_database "
-			"WHERE datname = $1;";
+	char *params[db->max_params_num];
+	int   i;
 
-	PGresult *res;
+	assert (db->max_params_num >= query->params_num);
 
-	int n;
+	for (i = 0; i < query->params_num; ++i) {
+		switch (query->params[i]) {
+			case C_PSQL_PARAM_HOST:
+				params[i] = C_PSQL_IS_UNIX_DOMAIN_SOCKET (db->host)
+					? "localhost" : db->host;
+				break;
+			case C_PSQL_PARAM_DB:
+				params[i] = db->database;
+				break;
+			case C_PSQL_PARAM_USER:
+				params[i] = db->user;
+				break;
+			default:
+				assert (0);
+		}
+	}
 
-	res = PQexecParams (db->conn, query, /* number of parameters */ 1,
-			NULL, (const char *const *)&db->database, NULL, NULL,
-			/* return text data */ 0);
+	return PQexecParams (db->conn, query->query, query->params_num, NULL,
+			(const char *const *)((0 == query->params_num) ? NULL : params),
+			NULL, NULL, /* return text data */ 0);
+} /* c_psql_exec_query_params */
+
+static PGresult *c_psql_exec_query_noparams (c_psql_database_t *db,
+		c_psql_query_t *query)
+{
+	return PQexec (db->conn, query->query);
+} /* c_psql_exec_query_noparams */
+
+static int c_psql_exec_query (c_psql_database_t *db, int idx)
+{
+	c_psql_query_t *query;
+	PGresult       *res;
+
+	int rows, cols;
+	int i;
+
+	if (idx >= db->queries_num)
+		return -1;
+
+	query = db->queries[idx];
+
+	if (3 <= db->proto_version)
+		res = c_psql_exec_query_params (db, query);
+	else if (0 == query->params_num)
+		res = c_psql_exec_query_noparams (db, query);
+	else {
+		log_err ("Connection to database \"%s\" does not support parameters "
+				"(protocol version %d) - cannot execute query \"%s\".",
+				db->database, db->proto_version, query->name);
+		return -1;
+	}
 
 	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
 		log_err ("Failed to execute SQL query: %s",
 				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s", query);
+		log_info ("SQL query was: %s", query->query);
 		PQclear (res);
 		return -1;
 	}
 
-	n = PQntuples (res);
-	if (1 < n) {
-		log_warn ("pg_stat_database has more than one entry "
-				"for database %s - ignoring additional results.",
-				db->database);
-	}
-	else if (1 > n) {
-		log_err ("pg_stat_database has no entry for database %s",
-				db->database);
-		PQclear (res);
-		return -1;
-	}
-
-	submit_gauge (db, "pg_numbackends", NULL,  PQgetvalue (res, 0, 0));
-
-	submit_counter (db, "pg_xact", "commit",   PQgetvalue (res, 0, 1));
-	submit_counter (db, "pg_xact", "rollback", PQgetvalue (res, 0, 2));
-
-	PQclear (res);
-	return 0;
-} /* c_psql_stat_database */
-
-static int c_psql_stat_user_tables (c_psql_database_t *db)
-{
-	const char *const query =
-		"SELECT sum(seq_scan), sum(seq_tup_read), "
-				"sum(idx_scan), sum(idx_tup_fetch), "
-				"sum(n_tup_ins), sum(n_tup_upd), sum(n_tup_del), "
-				"sum(n_tup_hot_upd), sum(n_live_tup), sum(n_dead_tup) "
-			"FROM pg_stat_user_tables;";
-
-	PGresult *res;
-
-	int n;
-
-	res = PQexec (db->conn, query);
-
-	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
-		log_err ("Failed to execute SQL query: %s",
-				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s", query);
-		PQclear (res);
-		return -1;
-	}
-
-	n = PQntuples (res);
-	assert (1 >= n);
-
-	if (1 > n) /* no user tables */
+	rows = PQntuples (res);
+	if (1 > rows)
 		return 0;
 
-	submit_counter (db, "pg_scan", "seq",           PQgetvalue (res, 0, 0));
-	submit_counter (db, "pg_scan", "seq_tup_read",  PQgetvalue (res, 0, 1));
-	submit_counter (db, "pg_scan", "idx",           PQgetvalue (res, 0, 2));
-	submit_counter (db, "pg_scan", "idx_tup_fetch", PQgetvalue (res, 0, 3));
-
-	submit_counter (db, "pg_n_tup_c", "ins",        PQgetvalue (res, 0, 4));
-	submit_counter (db, "pg_n_tup_c", "upd",        PQgetvalue (res, 0, 5));
-	submit_counter (db, "pg_n_tup_c", "del",        PQgetvalue (res, 0, 6));
-	submit_counter (db, "pg_n_tup_c", "hot_upd",    PQgetvalue (res, 0, 7));
-
-	submit_gauge (db, "pg_n_tup_g", "live",         PQgetvalue (res, 0, 8));
-	submit_gauge (db, "pg_n_tup_g", "dead",         PQgetvalue (res, 0, 9));
-
-	PQclear (res);
-	return 0;
-} /* c_psql_stat_user_tables */
-
-static int c_psql_statio_user_tables (c_psql_database_t *db)
-{
-	const char *const query =
-		"SELECT sum(heap_blks_read), sum(heap_blks_hit), "
-				"sum(idx_blks_read), sum(idx_blks_hit), "
-				"sum(toast_blks_read), sum(toast_blks_hit), "
-				"sum(tidx_blks_read), sum(tidx_blks_hit) "
-			"FROM pg_statio_user_tables;";
-
-	PGresult *res;
-
-	int n;
-
-	res = PQexec (db->conn, query);
-
-	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
-		log_err ("Failed to execute SQL query: %s",
-				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s", query);
-		PQclear (res);
+	cols = PQnfields (res);
+	if (query->cols_num != cols) {
+		log_err ("SQL query returned wrong number of fields "
+				"(expected: %i, got: %i)", query->cols_num, cols);
+		log_info ("SQL query was: %s", query->query);
 		return -1;
 	}
 
-	n = PQntuples (res);
-	assert (1 >= n);
+	for (i = 0; i < rows; ++i) {
+		int j;
 
-	if (1 > n) /* no user tables */
-		return 0;
+		for (j = 0; j < cols; ++j) {
+			c_psql_col_t col = query->cols[j];
 
-	submit_counter (db, "pg_blks", "heap_read",  PQgetvalue (res, 0, 0));
-	submit_counter (db, "pg_blks", "heap_hit",   PQgetvalue (res, 0, 1));
+			char *value = PQgetvalue (res, i, j);
 
-	submit_counter (db, "pg_blks", "idx_read",   PQgetvalue (res, 0, 2));
-	submit_counter (db, "pg_blks", "idx_hit",    PQgetvalue (res, 0, 3));
-
-	submit_counter (db, "pg_blks", "toast_read", PQgetvalue (res, 0, 4));
-	submit_counter (db, "pg_blks", "toast_hit",  PQgetvalue (res, 0, 5));
-
-	submit_counter (db, "pg_blks", "tidx_read",  PQgetvalue (res, 0, 6));
-	submit_counter (db, "pg_blks", "tidx_hit",   PQgetvalue (res, 0, 7));
-
-	PQclear (res);
+			if (col.ds_type == DS_TYPE_COUNTER)
+				submit_counter (db, col.type, col.type_instance, value);
+			else if (col.ds_type == DS_TYPE_GAUGE)
+				submit_gauge (db, col.type, col.type_instance, value);
+		}
+	}
 	return 0;
-} /* c_psql_statio_user_tables */
+} /* c_psql_exec_query */
 
 static int c_psql_read (void)
 {
@@ -318,14 +453,15 @@ static int c_psql_read (void)
 	for (i = 0; i < databases_num; ++i) {
 		c_psql_database_t *db = databases + i;
 
+		int j;
+
 		assert (NULL != db->database);
 
 		if (0 != c_psql_check_connection (db))
 			continue;
 
-		c_psql_stat_database (db);
-		c_psql_stat_user_tables (db);
-		c_psql_statio_user_tables (db);
+		for (j = 0; j < db->queries_num; ++j)
+			c_psql_exec_query (db, j);
 
 		++success;
 	}
@@ -347,24 +483,19 @@ static int c_psql_shutdown (void)
 
 	for (i = 0; i < databases_num; ++i) {
 		c_psql_database_t *db = databases + i;
-
-		PQfinish (db->conn);
-
-		sfree (db->database);
-		sfree (db->host);
-		sfree (db->port);
-		sfree (db->user);
-		sfree (db->password);
-
-		sfree (db->sslmode);
-
-		sfree (db->krbsrvname);
-
-		sfree (db->service);
+		c_psql_database_delete (db);
 	}
 
 	sfree (databases);
 	databases_num = 0;
+
+	for (i = 0; i < queries_num; ++i) {
+		c_psql_query_t *query = queries + i;
+		c_psql_query_delete (query);
+	}
+
+	sfree (queries);
+	queries_num = 0;
 	return 0;
 } /* c_psql_shutdown */
 
@@ -374,6 +505,33 @@ static int c_psql_init (void)
 
 	if ((NULL == databases) || (0 == databases_num))
 		return 0;
+
+	for (i = 0; i < queries_num; ++i) {
+		c_psql_query_t *query = queries + i;
+		int j;
+
+		for (j = 0; j < query->cols_num; ++j) {
+			c_psql_col_t     *col = query->cols + j;
+			const data_set_t *ds;
+
+			ds = plugin_get_ds (col->type);
+			if (NULL == ds) {
+				log_err ("Column: Unknown type \"%s\".", col->type);
+				c_psql_shutdown ();
+				return -1;
+			}
+
+			if (1 != ds->ds_num) {
+				log_err ("Column: Invalid type \"%s\" - types defining "
+						"one data source are supported only (got: %i).",
+						col->type, ds->ds_num);
+				c_psql_shutdown ();
+				return -1;
+			}
+
+			col->ds_type = ds->ds[0].type;
+		}
+	}
 
 	for (i = 0; i < databases_num; ++i) {
 		c_psql_database_t *db = databases + i;
@@ -385,6 +543,8 @@ static int c_psql_init (void)
 
 		char *server_host;
 		int   server_version;
+
+		int j;
 
 		status = ssnprintf (buf, buf_len, "dbname = '%s'", db->database);
 		if (0 < status) {
@@ -404,15 +564,48 @@ static int c_psql_init (void)
 		if (0 != c_psql_check_connection (db))
 			continue;
 
+		db->proto_version = PQprotocolVersion (db->conn);
+
 		server_host    = PQhost (db->conn);
 		server_version = PQserverVersion (db->conn);
 		log_info ("Sucessfully connected to database %s (user %s) "
 				"at server %s%s%s (server version: %d.%d.%d, "
 				"protocol version: %d, pid: %d)",
 				PQdb (db->conn), PQuser (db->conn),
-				C_PSQL_SOCKET3(server_host, PQport (db->conn)),
+				C_PSQL_SOCKET3 (server_host, PQport (db->conn)),
 				C_PSQL_SERVER_VERSION3 (server_version),
-				PQprotocolVersion (db->conn), PQbackendPID (db->conn));
+				db->proto_version, PQbackendPID (db->conn));
+
+		if (3 > db->proto_version)
+			log_warn ("Protocol version %d does not support parameters.",
+					db->proto_version);
+
+		/* Now that we know the PostgreSQL server version, we can get the
+		 * right version of each query definition. */
+		for (j = 0; j < db->queries_num; ++j) {
+			c_psql_query_t *tmp;
+
+			tmp = c_psql_query_get (db->queries[j]->name, server_version);
+
+			if (tmp == db->queries[j])
+				continue;
+
+			if (NULL == tmp) {
+				log_err ("Query \"%s\" not found for server version %i - "
+						"please check your configuration.",
+						db->queries[j]->name, server_version);
+
+				if (db->queries_num - j - 1 > 0)
+					memmove (db->queries + j, db->queries + j + 1,
+							(db->queries_num - j - 1) * sizeof (*db->queries));
+
+				--db->queries_num;
+				--j;
+				continue;
+			}
+
+			db->queries[j] = tmp;
+		}
 	}
 
 	plugin_register_read ("postgresql", c_psql_read);
@@ -420,7 +613,7 @@ static int c_psql_init (void)
 	return 0;
 } /* c_psql_init */
 
-static int config_set (char *name, char **var, const oconfig_item_t *ci)
+static int config_set_s (char *name, char **var, const oconfig_item_t *ci)
 {
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
@@ -431,7 +624,187 @@ static int config_set (char *name, char **var, const oconfig_item_t *ci)
 	sfree (*var);
 	*var = sstrdup (ci->values[0].value.string);
 	return 0;
-} /* config_set */
+} /* config_set_s */
+
+static int config_set_i (char *name, int *var, const oconfig_item_t *ci)
+{
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_NUMBER != ci->values[0].type)) {
+		log_err ("%s expects a single number argument.", name);
+		return 1;
+	}
+
+	*var = (int)ci->values[0].value.number;
+	return 0;
+} /* config_set_i */
+
+static int config_set_param (c_psql_query_t *query, const oconfig_item_t *ci)
+{
+	c_psql_param_t param;
+	char          *param_str;
+
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("Param expects a single string argument.");
+		return 1;
+	}
+
+	param_str = ci->values[0].value.string;
+	if (0 == strcasecmp (param_str, "hostname"))
+		param = C_PSQL_PARAM_HOST;
+	else if (0 == strcasecmp (param_str, "database"))
+		param = C_PSQL_PARAM_DB;
+	else if (0 == strcasecmp (param_str, "username"))
+		param = C_PSQL_PARAM_USER;
+	else {
+		log_err ("Invalid parameter \"%s\".", param_str);
+		return 1;
+	}
+
+	++query->params_num;
+	if (NULL == (query->params = (c_psql_param_t *)realloc (query->params,
+				query->params_num * sizeof (*query->params)))) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
+
+	query->params[query->params_num - 1] = param;
+	return 0;
+} /* config_set_param */
+
+static int config_set_column (c_psql_query_t *query, const oconfig_item_t *ci)
+{
+	c_psql_col_t *col;
+
+	int i;
+
+	if ((0 != ci->children_num)
+			|| (1 > ci->values_num) || (2 < ci->values_num)) {
+		log_err ("Column expects either one or two arguments.");
+		return 1;
+	}
+
+	for (i = 0; i < ci->values_num; ++i) {
+		if (OCONFIG_TYPE_STRING != ci->values[i].type) {
+			log_err ("Column expects either one or two string arguments.");
+			return 1;
+		}
+	}
+
+	++query->cols_num;
+	if (NULL == (query->cols = (c_psql_col_t *)realloc (query->cols,
+				query->cols_num * sizeof (*query->cols)))) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
+
+	col = query->cols + query->cols_num - 1;
+
+	col->ds_type = -1;
+
+	col->type = sstrdup (ci->values[0].value.string);
+	col->type_instance = (2 == ci->values_num)
+		? sstrdup (ci->values[1].value.string) : NULL;
+	return 0;
+} /* config_set_column */
+
+static int set_query (c_psql_database_t *db, const char *name)
+{
+	c_psql_query_t *query;
+
+	query = c_psql_query_get (name, -1);
+	if (NULL == query) {
+		log_err ("Query \"%s\" not found - please check your configuration.",
+				name);
+		return 1;
+	}
+
+	++db->queries_num;
+	if (NULL == (db->queries = (c_psql_query_t **)realloc (db->queries,
+				db->queries_num * sizeof (*db->queries)))) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
+
+	if (query->params_num > db->max_params_num)
+		db->max_params_num = query->params_num;
+
+	db->queries[db->queries_num - 1] = query;
+	return 0;
+} /* set_query */
+
+static int config_set_query (c_psql_database_t *db, const oconfig_item_t *ci)
+{
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("Query expects a single string argument.");
+		return 1;
+	}
+	return set_query (db, ci->values[0].value.string);
+} /* config_set_query */
+
+static int c_psql_config_query (oconfig_item_t *ci)
+{
+	c_psql_query_t *query;
+
+	int i;
+
+	if ((1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("<Query> expects a single string argument.");
+		return 1;
+	}
+
+	query = c_psql_query_new (ci->values[0].value.string);
+
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *c = ci->children + i;
+
+		if (0 == strcasecmp (c->key, "Query"))
+			config_set_s ("Query", &query->query, c);
+		else if (0 == strcasecmp (c->key, "Param"))
+			config_set_param (query, c);
+		else if (0 == strcasecmp (c->key, "Column"))
+			config_set_column (query, c);
+		else if (0 == strcasecmp (c->key, "MinPGVersion"))
+			config_set_i ("MinPGVersion", &query->min_pg_version, c);
+		else if (0 == strcasecmp (c->key, "MaxPGVersion"))
+			config_set_i ("MaxPGVersion", &query->max_pg_version, c);
+		else
+			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+	}
+
+	for (i = 0; i < queries_num - 1; ++i) {
+		c_psql_query_t *q = queries + i;
+
+		if ((0 == strcasecmp (q->name, query->name))
+				&& (q->min_pg_version <= query->max_pg_version)
+				&& (query->min_pg_version <= q->max_pg_version)) {
+			log_err ("Ignoring redefinition (with overlapping version ranges) "
+					"of query \"%s\".", query->name);
+			c_psql_query_delete (query);
+			--queries_num;
+			return 1;
+		}
+	}
+
+	if (query->min_pg_version > query->max_pg_version) {
+		log_err ("Query \"%s\": MinPGVersion > MaxPGVersion.",
+				query->name);
+		c_psql_query_delete (query);
+		--queries_num;
+		return 1;
+	}
+
+	if (NULL == query->query) {
+		log_err ("Query \"%s\" does not include an SQL query string - "
+				"please check your configuration.", query->name);
+		c_psql_query_delete (query);
+		--queries_num;
+		return 1;
+	}
+	return 0;
+} /* c_psql_config_query */
 
 static int c_psql_config_database (oconfig_item_t *ci)
 {
@@ -445,63 +818,66 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		return 1;
 	}
 
-	++databases_num;
-	if (NULL == (databases = (c_psql_database_t *)realloc (databases,
-				databases_num * sizeof (*databases)))) {
-		log_err ("Out of memory.");
-		exit (5);
-	}
-
-	db = databases + (databases_num - 1);
-
-	db->conn = NULL;
-
-	db->conn_complaint.last     = 0;
-	db->conn_complaint.interval = 0;
-
-	db->database   = sstrdup (ci->values[0].value.string);
-	db->host       = NULL;
-	db->port       = NULL;
-	db->user       = NULL;
-	db->password   = NULL;
-
-	db->sslmode    = NULL;
-
-	db->krbsrvname = NULL;
-
-	db->service    = NULL;
+	db = c_psql_database_new (ci->values[0].value.string);
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Host"))
-			config_set ("Host", &db->host, c);
+			config_set_s ("Host", &db->host, c);
 		else if (0 == strcasecmp (c->key, "Port"))
-			config_set ("Port", &db->port, c);
+			config_set_s ("Port", &db->port, c);
 		else if (0 == strcasecmp (c->key, "User"))
-			config_set ("User", &db->user, c);
+			config_set_s ("User", &db->user, c);
 		else if (0 == strcasecmp (c->key, "Password"))
-			config_set ("Password", &db->password, c);
+			config_set_s ("Password", &db->password, c);
 		else if (0 == strcasecmp (c->key, "SSLMode"))
-			config_set ("SSLMode", &db->sslmode, c);
+			config_set_s ("SSLMode", &db->sslmode, c);
 		else if (0 == strcasecmp (c->key, "KRBSrvName"))
-			config_set ("KRBSrvName", &db->krbsrvname, c);
+			config_set_s ("KRBSrvName", &db->krbsrvname, c);
 		else if (0 == strcasecmp (c->key, "Service"))
-			config_set ("Service", &db->service, c);
+			config_set_s ("Service", &db->service, c);
+		else if (0 == strcasecmp (c->key, "Query"))
+			config_set_query (db, c);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+	}
+
+	if (NULL == db->queries) {
+		for (i = 0; i < def_queries_num; ++i)
+			set_query (db, def_queries[i]);
 	}
 	return 0;
 }
 
 static int c_psql_config (oconfig_item_t *ci)
 {
+	static int have_def_config = 0;
+
 	int i;
+
+	if (0 == have_def_config) {
+		oconfig_item_t *c;
+
+		have_def_config = 1;
+
+		c = oconfig_parse_file (C_PSQL_DEFAULT_CONF);
+		if (NULL == c)
+			log_err ("Failed to read default config ("C_PSQL_DEFAULT_CONF").");
+		else
+			c_psql_config (c);
+
+		if (NULL == queries)
+			log_err ("Default config ("C_PSQL_DEFAULT_CONF") did not define "
+					"any queries - please check your installation.");
+	}
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
-		if (0 == strcasecmp (c->key, "Database"))
+		if (0 == strcasecmp (c->key, "Query"))
+			c_psql_config_query (c);
+		else if (0 == strcasecmp (c->key, "Database"))
 			c_psql_config_database (c);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);

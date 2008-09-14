@@ -1,3 +1,41 @@
+2008-09-04, Version 4.5.0
+	* collectd: Added the ability to flush certain identifiers.
+	* collectd: The concept of `notification meta data' has been
+	  introduced.
+	* filecount plugin: The new filecount plugin counts the number of
+	  files in a directory and its subdirectories.
+	* ipmi plugin: Sensor names have been changed to ensure unique names.
+	  Notifications upon added and removed sensors can now be generated.
+	* notify_desktop plugin: This new plugin sends notifications to the
+	  X desktop using the structure defined in the `Desktop Notification
+	  Specification'.
+	* notify_email plugin: This new plugin sends out notifications via
+	  email, using the `esmtp' library.
+	* onewire plugin: The new experimental(!) onewire plugin reads values,
+	  such as temperatures, from sensors connected to the computer via the
+	  onewire bus.
+	* perl plugin: Improved synchronized access to internal data structures
+	  and fixed a possible dead-lock.
+	* perl plugin: Added the ability to flush certain identifiers and marked
+	  plugin_flush_all() and plugin_flush_one() as deprecated in favor of
+	  plugin_flush().
+	* perl plugin: Added the ability to configure Perl plugins.
+	* postgresql plugin: The new postgresql plugin collects statistics
+	  about or from a PostgreSQL database.
+	* processes plugin: The `ProcessMatch' option has been added.
+	* rrdtool plugin: Implement throttling of the `update queue' to lessen
+	  IO load.
+	* tcpconns plugin: This plugin has been ported to OpenBSD.
+	* thermal plugin: The new thermal plugin collects system temperatures
+	  using Linux ACPI thermal zone data.
+
+2008-09-01, Version 4.4.3
+	* collectd: Fix a memory leak in the threshold checking code.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* snmp plugin: Fix a possible memory leak.
+
 2008-07-15, Version 4.4.2
 	* build system: Use pkg-config to detect the upsclient library.
 	* collectd: Try even harder to determine the endianess of the
@@ -61,6 +99,24 @@
 	* users plugin: Support for the statgrab library has been added.
 	* vmem plugin: The new vmem plugin collects very detailed statistics
 	  about the virtual memory subsystem of Linux.
+
+2008-08-30, Version 4.3.4
+	* Build system: Improved detection of and linking with the statgrab
+	  library.
+	* collectd: Portability fixes, especially to determine endianess more
+	  reliable.
+	* Various plugins: Fix format strings.
+	* disk plugin: A fix for giving disks under Linux 2.4 the right names
+	  again has been applied.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* network plugin: A fix in the initialization function solves problems
+	  under Solaris.
+	* nginx plugin: A thread-unsafe function has been replaced.
+	* vserver plugin: A thread-unsafe function has been replaced.
+	* wireless plugin: A work-around for broken wireless drivers has been
+	  added.
 
 2008-04-22, Version 4.3.3
 	* build system: Improved detection of several libraries, especially if

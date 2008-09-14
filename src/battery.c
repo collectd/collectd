@@ -315,7 +315,8 @@ static void get_via_generic_iokit (double *ret_charge,
 #endif /* HAVE_IOKIT_IOKITLIB_H */
 
 #if KERNEL_LINUX
-static int battery_read_acpi (const char *name)
+static int battery_read_acpi (const char *dir, const char *name,
+		void *user_data)
 {
 	double  current = INVALID_VALUE;
 	double  voltage = INVALID_VALUE;
@@ -506,7 +507,8 @@ static int battery_read (void)
 			battery_submit ("0", "voltage", voltage);
 	}
 
-	walk_directory (battery_acpi_dir, battery_read_acpi);
+	walk_directory (battery_acpi_dir, battery_read_acpi,
+			/* user_data = */ NULL);
 
 #endif /* KERNEL_LINUX */
 

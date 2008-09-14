@@ -9,15 +9,17 @@ use Carp (qw(confess cluck));
 use CGI (':cgi');
 use RRDs ();
 
-use Collectd::Graph::TypeLoader (qw(tl_read_config tl_load_type));
+use Collectd::Graph::Config (qw(gc_read_config gc_get_scalar));
+use Collectd::Graph::TypeLoader (qw(tl_load_type));
 
 use Collectd::Graph::Common (qw(sanitize_type get_selected_files
-      epoch_to_rfc1123));
+      epoch_to_rfc1123 flush_files));
 use Collectd::Graph::Type ();
 
 our $Debug = param ('debug');
 our $Begin = param ('begin');
 our $End = param ('end');
+our $GraphWidth = param ('width');
 
 if ($Debug)
 {
@@ -27,7 +29,17 @@ Content-Type: text/plain
 HTTP
 }
 
-tl_read_config ("$RealBin/../etc/collection3.conf");
+gc_read_config ("$RealBin/../etc/collection.conf");
+
+if ($GraphWidth)
+{
+  $GraphWidth =~ s/\D//g;
+}
+
+if (!$GraphWidth)
+{
+  $GraphWidth = gc_get_scalar ('GraphWidth', 400);
+}
 
 { # Sanitize begin and end times
   $End ||= 0;
@@ -93,24 +105,50 @@ for (@$files)
 }
 
 my $expires = time ();
+# IF (End is `now')
+#    OR (Begin is before `now' AND End is after `now')
 if (($End == 0) || (($Begin <= $expires) && ($End >= $expires)))
 {
   # 400 == width in pixels
-  my $timespan = $expires - $Begin;
-  $expires += int ($timespan / 400);
+  my $timespan;
+
+  if ($End == 0)
+  {
+    $timespan = $expires - $Begin;
+  }
+  else
+  {
+    $timespan = $End - $Begin;
+  }
+  $expires += int ($timespan / 400.0);
 }
+# IF (End is not `now')
+#    AND (End is before `now')
+# ==> Graph will never change again!
 elsif (($End > 0) && ($End < $expires))
 {
-  $expires += 366 * 86400;
+  $expires += (366 * 86400);
 }
 elsif ($Begin > $expires)
 {
   $expires = $Begin;
 }
 
+# Send FLUSH command to the daemon if necessary and possible.
+flush_files ($files,
+    begin => $Begin,
+    end => $End,
+    addr => gc_get_scalar ('UnixSockAddr', undef),
+    interval => gc_get_scalar ('Interval', 10));
+
 print STDOUT header (-Content_type => 'image/png',
   -Last_Modified => epoch_to_rfc1123 ($obj->getLastModified ()),
   -Expires => epoch_to_rfc1123 ($expires));
+
+if ($Debug)
+{
+  print "\$expires = $expires;\n";
+}
 
 my $args = $obj->getRRDArgs (0);
 
@@ -135,7 +173,7 @@ else
   }
 
   $| = 1;
-  RRDs::graph ('-', '-a', 'PNG', @timesel, @$args);
+  RRDs::graph ('-', '-a', 'PNG', '--width', $GraphWidth, @timesel, @$args);
   if (my $err = RRDs::error ())
   {
     print STDERR "RRDs::graph failed: $err\n";

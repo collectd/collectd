@@ -1,6 +1,7 @@
 /**
  * collectd - src/ipmi.c
  * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008  Peter Holik
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Peter Holik <peter at holik.at>
  **/
 
 #include "collectd.h"
@@ -41,6 +43,9 @@ typedef struct c_ipmi_sensor_list_s c_ipmi_sensor_list_t;
 struct c_ipmi_sensor_list_s
 {
   ipmi_sensor_id_t sensor_id;
+  char sensor_name[DATA_MAX_NAME_LEN];
+  char sensor_type[DATA_MAX_NAME_LEN];
+  int sensor_not_present;
   c_ipmi_sensor_list_t *next;
 };
 
@@ -50,17 +55,25 @@ struct c_ipmi_sensor_list_s
 static pthread_mutex_t sensor_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static c_ipmi_sensor_list_t *sensor_list = NULL;
 
+static int c_ipmi_init_in_progress = 0;
 static int c_ipmi_active = 0;
 static pthread_t thread_id = (pthread_t) 0;
 
 static const char *config_keys[] =
 {
 	"Sensor",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"NotifySensorAdd",
+	"NotifySensorRemove",
+	"NotifySensorNotPresent"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+
+static int c_ipmi_nofiy_add = 0;
+static int c_ipmi_nofiy_remove = 0;
+static int c_ipmi_nofiy_notpresent = 0;
 
 /*
  * Misc private functions
@@ -106,28 +119,65 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  char sensor_name[IPMI_SENSOR_NAME_LEN];
-  char *sensor_name_ptr;
-  int sensor_type;
-  const char *type;
-
-  memset (sensor_name, 0, sizeof (sensor_name));
-  ipmi_sensor_get_name (sensor, sensor_name, sizeof (sensor_name));
-  sensor_name[sizeof (sensor_name) - 1] = 0;
-
-  sensor_name_ptr = strstr (sensor_name, ").");
-  if (sensor_name_ptr == NULL)
-    sensor_name_ptr = sensor_name;
-  else
-    sensor_name_ptr += 2;
+  c_ipmi_sensor_list_t *list_item = (c_ipmi_sensor_list_t *)user_data;
 
   if (err != 0)
   {
-    INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
-        "because it failed with status %#x.",
-        sensor_name_ptr, err);
-    sensor_list_remove (sensor);
+    if ((err & 0xff) == IPMI_NOT_PRESENT_CC)
+    {
+      if (list_item->sensor_not_present == 0)
+      {
+        list_item->sensor_not_present = 1;
+
+        INFO ("ipmi plugin: sensor_read_handler: sensor %s "
+            "not present.", list_item->sensor_name);
+
+        if (c_ipmi_nofiy_notpresent)
+        {
+          notification_t n = { NOTIF_WARNING, time(NULL), "", "", "ipmi",
+            "", "", "", NULL };
+
+          sstrncpy (n.host, hostname_g, sizeof (n.host));
+          sstrncpy (n.type_instance, list_item->sensor_name,
+              sizeof (n.type_instance));
+          sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+          ssnprintf (n.message, sizeof (n.message),
+              "sensor %s not present", list_item->sensor_name);
+
+          plugin_dispatch_notification (&n);
+        }
+      }
+    }
+    else
+    {
+      INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+          "because it failed with status %#x.",
+          list_item->sensor_name, err);
+      sensor_list_remove (sensor);
+    }
     return;
+  }
+  else if (list_item->sensor_not_present == 1)
+  {
+    list_item->sensor_not_present = 0;
+
+    INFO ("ipmi plugin: sensor_read_handler: sensor %s present.",
+        list_item->sensor_name);
+
+    if (c_ipmi_nofiy_notpresent)
+    {
+      notification_t n = { NOTIF_OKAY, time(NULL), "", "", "ipmi",
+        "", "", "", NULL };
+
+      sstrncpy (n.host, hostname_g, sizeof (n.host));
+      sstrncpy (n.type_instance, list_item->sensor_name,
+          sizeof (n.type_instance));
+      sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+      ssnprintf (n.message, sizeof (n.message),
+          "sensor %s present", list_item->sensor_name);
+
+      plugin_dispatch_notification (&n);
+    }
   }
 
   if (value_present != IPMI_BOTH_VALUES_PRESENT)
@@ -135,7 +185,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
         "because it provides %s. If you need this sensor, "
         "please file a bug report.",
-        sensor_name_ptr,
+        list_item->sensor_name,
         (value_present == IPMI_RAW_VALUE_PRESENT)
         ? "only the raw value"
         : "no value");
@@ -143,12 +193,59 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     return;
   }
 
+  values[0].gauge = value;
+
+  vl.values = values;
+  vl.values_len = 1;
+  vl.time = time (NULL);
+
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "ipmi", sizeof (vl.plugin));
+  sstrncpy (vl.type, list_item->sensor_type, sizeof (vl.type));
+  sstrncpy (vl.type_instance, list_item->sensor_name, sizeof (vl.type_instance));
+
+  plugin_dispatch_values (&vl);
+} /* void sensor_read_handler */
+
+static int sensor_list_add (ipmi_sensor_t *sensor)
+{
+  ipmi_sensor_id_t sensor_id;
+  c_ipmi_sensor_list_t *list_item;
+  c_ipmi_sensor_list_t *list_prev;
+
+  char sensor_name[DATA_MAX_NAME_LEN];
+  char *sensor_name_ptr;
+  int sensor_type, len;
+  const char *type;
+  ipmi_entity_t *ent = ipmi_sensor_get_entity(sensor);
+
+  sensor_id = ipmi_sensor_convert_to_id (sensor);
+
+  memset (sensor_name, 0, sizeof (sensor_name));
+  ipmi_sensor_get_name (sensor, sensor_name, sizeof (sensor_name));
+  sensor_name[sizeof (sensor_name) - 1] = 0;
+
+  len = DATA_MAX_NAME_LEN - strlen(sensor_name);
+  strncat(sensor_name, " ", len--);
+  strncat(sensor_name, ipmi_entity_get_entity_id_string(ent), len);
+
+  sensor_name_ptr = strstr (sensor_name, ").");
+  if (sensor_name_ptr == NULL)
+    sensor_name_ptr = sensor_name;
+  else
+  {
+    char *sensor_name_ptr_id = strstr (sensor_name, "(");
+
+    sensor_name_ptr += 2;
+    len = DATA_MAX_NAME_LEN - strlen(sensor_name);
+    strncat(sensor_name, " ", len--);
+    strncat(sensor_name, sensor_name_ptr_id, 
+      MIN(sensor_name_ptr - sensor_name_ptr_id - 1, len));
+  }
+
   /* Both `ignorelist' and `plugin_instance' may be NULL. */
   if (ignorelist_match (ignorelist, sensor_name_ptr) != 0)
-  {
-    sensor_list_remove (sensor);
-    return;
-  }
+    return (0);
 
   /* FIXME: Use rate unit or base unit to scale the value */
 
@@ -174,38 +271,15 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     default:
       {
         const char *sensor_type_str;
-        
+
         sensor_type_str = ipmi_sensor_get_sensor_type_string (sensor);
-        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+        INFO ("ipmi plugin: sensor_list_add: Ignore sensor %s, "
             "because I don't know how to handle its type (%#x, %s). "
             "If you need this sensor, please file a bug report.",
             sensor_name_ptr, sensor_type, sensor_type_str);
-        sensor_list_remove (sensor);
-        return;
+        return (-1);
       }
   } /* switch (sensor_type) */
-
-  values[0].gauge = value;
-
-  vl.values = values;
-  vl.values_len = 1;
-  vl.time = time (NULL);
-
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "ipmi", sizeof (vl.plugin));
-  sstrncpy (vl.type, type, sizeof (vl.type));
-  sstrncpy (vl.type_instance, sensor_name_ptr, sizeof (vl.type_instance));
-
-  plugin_dispatch_values (&vl);
-} /* void sensor_read_handler */
-
-static int sensor_list_add (ipmi_sensor_t *sensor)
-{
-  ipmi_sensor_id_t sensor_id;
-  c_ipmi_sensor_list_t *list_item;
-  c_ipmi_sensor_list_t *list_prev;
-
-  sensor_id = ipmi_sensor_convert_to_id (sensor);
 
   pthread_mutex_lock (&sensor_list_lock);
 
@@ -239,7 +313,26 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
   else
     sensor_list = list_item;
 
+  sstrncpy (list_item->sensor_name, sensor_name_ptr,
+            sizeof (list_item->sensor_name));
+  sstrncpy (list_item->sensor_type, type, sizeof (list_item->sensor_type));
+
   pthread_mutex_unlock (&sensor_list_lock);
+
+  if (c_ipmi_nofiy_add && (c_ipmi_init_in_progress == 0))
+  {
+    notification_t n = { NOTIF_OKAY, time(NULL), "", "", "ipmi",
+                         "", "", "", NULL };
+
+    sstrncpy (n.host, hostname_g, sizeof (n.host));
+    sstrncpy (n.type_instance, list_item->sensor_name,
+              sizeof (n.type_instance));
+    sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+    ssnprintf (n.message, sizeof (n.message),
+              "sensor %s added", list_item->sensor_name);
+
+    plugin_dispatch_notification (&n);
+  }
 
   return (0);
 } /* int sensor_list_add */
@@ -280,6 +373,21 @@ static int sensor_list_remove (ipmi_sensor_t *sensor)
 
   pthread_mutex_unlock (&sensor_list_lock);
 
+  if (c_ipmi_nofiy_remove && c_ipmi_active)
+  {
+    notification_t n = { NOTIF_WARNING, time(NULL), "", "",
+                         "ipmi", "", "", "", NULL };
+
+    sstrncpy (n.host, hostname_g, sizeof (n.host));
+    sstrncpy (n.type_instance, list_item->sensor_name,
+              sizeof (n.type_instance));
+    sstrncpy (n.type, list_item->sensor_type, sizeof (n.type));
+    ssnprintf (n.message, sizeof (n.message),
+              "sensor %s removed", list_item->sensor_name);
+
+    plugin_dispatch_notification (&n);
+  }
+
   free (list_item);
   return (0);
 } /* int sensor_list_remove */
@@ -295,7 +403,7 @@ static int sensor_list_read_all (void)
       list_item = list_item->next)
   {
     ipmi_sensor_id_get_reading (list_item->sensor_id,
-        sensor_read_handler, /* user data = */ NULL);
+        sensor_read_handler, /* user data = */ list_item);
   } /* for (list_item) */
 
   pthread_mutex_unlock (&sensor_list_lock);
@@ -483,10 +591,31 @@ static int c_ipmi_config (const char *key, const char *value)
   {
     int invert = 1;
     if ((strcasecmp ("True", value) == 0)
-	|| (strcasecmp ("Yes", value) == 0)
-	|| (strcasecmp ("On", value) == 0))
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
+  }
+  else if (strcasecmp ("NotifySensorAdd", key) == 0)
+  {
+    if ((strcasecmp ("True", value) == 0)
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
+      c_ipmi_nofiy_add = 1;
+  }
+  else if (strcasecmp ("NotifySensorRemove", key) == 0)
+  {
+    if ((strcasecmp ("True", value) == 0)
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
+      c_ipmi_nofiy_remove = 1;
+  }
+  else if (strcasecmp ("NotifySensorNotPresent", key) == 0)
+  {
+    if ((strcasecmp ("True", value) == 0)
+        || (strcasecmp ("Yes", value) == 0)
+        || (strcasecmp ("On", value) == 0))
+      c_ipmi_nofiy_notpresent = 1;
   }
   else
   {
@@ -499,6 +628,9 @@ static int c_ipmi_config (const char *key, const char *value)
 static int c_ipmi_init (void)
 {
   int status;
+
+  /* Don't send `ADD' notifications during startup (~ 1 minute) */
+  c_ipmi_init_in_progress = 1 + (60 / interval_g);
 
   c_ipmi_active = 1;
 
@@ -524,7 +656,12 @@ static int c_ipmi_read (void)
   }
 
   sensor_list_read_all ();
-  
+
+  if (c_ipmi_init_in_progress > 0)
+    c_ipmi_init_in_progress--;
+  else
+    c_ipmi_init_in_progress = 0;
+
   return (0);
 } /* int c_ipmi_read */
 

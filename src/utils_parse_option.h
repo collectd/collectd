@@ -1,6 +1,6 @@
 /**
- * collectd - src/utils_cms_listval.h
- * Copyright (C) 2008  Florian octo Forster
+ * collectd - src/utils_parse_option.h
+ * Copyright (C) 2008  Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,11 +19,12 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-#ifndef UTILS_CMD_LISTVAL_H
-#define UTILS_CMD_LISTVAL_H 1
+#ifndef UTILS_PARSE_OPTION
+#define UTILS_PARSE_OPTION 1
 
-int handle_listval (FILE *fh, char *buffer);
+int parse_string (char **ret_buffer, char **ret_string);
+int parse_option (char **ret_buffer, char **ret_key, char **ret_value);
 
-#endif /* UTILS_CMD_LISTVAL_H */
+#endif /* UTILS_PARSE_OPTION */
 
-/* vim: set sw=2 sts=2 ts=8 : */
+/* vim: set sw=2 ts=8 tw=78 et : */

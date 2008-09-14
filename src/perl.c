@@ -71,6 +71,7 @@
 
 #define PLUGIN_TYPES    7
 
+#define PLUGIN_CONFIG   254
 #define PLUGIN_DATASET  255
 
 #define log_debug(...) DEBUG ("perl: " __VA_ARGS__)
@@ -84,8 +85,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
-static XS (Collectd_plugin_flush_one);
-static XS (Collectd_plugin_flush_all);
+static XS (Collectd__plugin_flush);
 static XS (Collectd_plugin_dispatch_notification);
 static XS (Collectd_plugin_log);
 static XS (Collectd_call_by_name);
@@ -139,8 +139,7 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
-	{ "Collectd::plugin_flush_one",           Collectd_plugin_flush_one },
-	{ "Collectd::plugin_flush_all",           Collectd_plugin_flush_all },
+	{ "Collectd::_plugin_flush",              Collectd__plugin_flush },
 	{ "Collectd::plugin_dispatch_notification",
 		Collectd_plugin_dispatch_notification },
 	{ "Collectd::plugin_log",                 Collectd_plugin_log },
@@ -160,6 +159,7 @@ struct {
 	{ "Collectd::TYPE_LOG",        PLUGIN_LOG },
 	{ "Collectd::TYPE_NOTIF",      PLUGIN_NOTIF },
 	{ "Collectd::TYPE_FLUSH",      PLUGIN_FLUSH },
+	{ "Collectd::TYPE_CONFIG",     PLUGIN_CONFIG },
 	{ "Collectd::TYPE_DATASET",    PLUGIN_DATASET },
 	{ "Collectd::DS_TYPE_COUNTER", DS_TYPE_COUNTER },
 	{ "Collectd::DS_TYPE_GAUGE",   DS_TYPE_GAUGE },
@@ -425,6 +425,81 @@ static int notification2hv (pTHX_ notification_t *n, HV *hash)
 			return -1;
 	return 0;
 } /* static int notification2hv (notification_t *, HV *) */
+
+static int oconfig_item2hv (pTHX_ oconfig_item_t *ci, HV *hash)
+{
+	int i;
+
+	AV *values;
+	AV *children;
+
+	if (NULL == hv_store (hash, "key", 3, newSVpv (ci->key, 0), 0))
+		return -1;
+
+	values = newAV ();
+	if (0 < ci->values_num)
+		av_extend (values, ci->values_num);
+
+	if (NULL == hv_store (hash, "values", 6, newRV_noinc ((SV *)values), 0)) {
+		av_clear (values);
+		av_undef (values);
+		return -1;
+	}
+
+	for (i = 0; i < ci->values_num; ++i) {
+		SV *value;
+
+		switch (ci->values[i].type) {
+			case OCONFIG_TYPE_STRING:
+				value = newSVpv (ci->values[i].value.string, 0);
+				break;
+			case OCONFIG_TYPE_NUMBER:
+				value = newSVnv ((NV)ci->values[i].value.number);
+				break;
+			case OCONFIG_TYPE_BOOLEAN:
+				value = ci->values[i].value.boolean ? &PL_sv_yes : &PL_sv_no;
+				break;
+			default:
+				log_err ("oconfig_item2hv: Invalid value type %i.",
+						ci->values[i].type);
+				value = &PL_sv_undef;
+		}
+
+		if (NULL == av_store (values, i, value)) {
+			sv_free (value);
+			return -1;
+		}
+	}
+
+	/* ignoring 'parent' member which is uninteresting in this case */
+
+	children = newAV ();
+	if (0 < ci->children_num)
+		av_extend (children, ci->children_num);
+
+	if (NULL == hv_store (hash, "children", 8, newRV_noinc ((SV *)children), 0)) {
+		av_clear (children);
+		av_undef (children);
+		return -1;
+	}
+
+	for (i = 0; i < ci->children_num; ++i) {
+		HV *child = newHV ();
+
+		if (0 != oconfig_item2hv (aTHX_ ci->children + i, child)) {
+			hv_clear (child);
+			hv_undef (child);
+			return -1;
+		}
+
+		if (NULL == av_store (children, i, newRV_noinc ((SV *)child))) {
+			hv_clear (child);
+			hv_undef (child);
+			return -1;
+		}
+	}
+	return 0;
+} /* static int oconfig_item2hv (pTHX_ oconfig_item_t *, HV *) */
 
 /*
  * Internal functions.
@@ -769,8 +844,10 @@ static int pplugin_call_all (pTHX_ int type, ...)
 	else if (PLUGIN_FLUSH == type) {
 		/*
 		 * $_[0] = $timeout;
+		 * $_[1] = $identifier;
 		 */
 		XPUSHs (sv_2mortal (newSViv (va_arg (ap, int))));
+		XPUSHs (sv_2mortal (newSVpv (va_arg (ap, char *), 0)));
 	}
 
 	PUTBACK;
@@ -918,52 +995,47 @@ static XS (Collectd_plugin_dispatch_values)
 } /* static XS (Collectd_plugin_dispatch_values) */
 
 /*
- * Collectd::plugin_flush_one (timeout, name).
+ * Collectd::_plugin_flush (plugin, timeout, identifier).
+ *
+ * plugin:
+ *   name of the plugin to flush
  *
  * timeout:
  *   timeout to use when flushing the data
  *
- * name:
- *   name of the plugin to flush
+ * identifier:
+ *   data-set identifier to flush
  */
-static XS (Collectd_plugin_flush_one)
+static XS (Collectd__plugin_flush)
 {
+	char *plugin  = NULL;
+	int   timeout = -1;
+	char *id      = NULL;
+
 	dXSARGS;
 
-	if (2 != items) {
-		log_err ("Usage: Collectd::plugin_flush_one(timeout, name)");
+	if (3 != items) {
+		log_err ("Usage: Collectd::_plugin_flush(plugin, timeout, id)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_flush_one: timeout = %i, name = \"%s\"",
-			(int)SvIV (ST (0)), SvPV_nolen (ST (1)));
+	if (SvOK (ST (0)))
+		plugin = SvPV_nolen (ST (0));
 
-	if (0 == plugin_flush_one ((int)SvIV (ST (0)), SvPV_nolen (ST (1))))
+	if (SvOK (ST (1)))
+		timeout = (int)SvIV (ST (1));
+
+	if (SvOK (ST (2)))
+		id = SvPV_nolen (ST (2));
+
+	log_debug ("Collectd::_plugin_flush: plugin = \"%s\", timeout = %i, "
+			"id = \"%s\"", plugin, timeout, id);
+
+	if (0 == plugin_flush (plugin, timeout, id))
 		XSRETURN_YES;
 	else
 		XSRETURN_EMPTY;
-} /* static XS (Collectd_plugin_flush_one) */
-
-/*
- * Collectd::plugin_flush_all (timeout).
- *
- * timeout:
- *   timeout to use when flushing the data
- */
-static XS (Collectd_plugin_flush_all)
-{
-	dXSARGS;
-
-	if (1 != items) {
-		log_err ("Usage: Collectd::plugin_flush_all(timeout)");
-		XSRETURN_EMPTY;
-	}
-
-	log_debug ("Collectd::plugin_flush_all: timeout = %i", (int)SvIV (ST (0)));
-
-	plugin_flush_all ((int)SvIV (ST (0)));
-	XSRETURN_YES;
-} /* static XS (Collectd_plugin_flush_all) */
+} /* static XS (Collectd__plugin_flush) */
 
 /*
  * Collectd::plugin_dispatch_notification (notif).
@@ -1270,7 +1342,6 @@ static int perl_notify (const notification_t *notif)
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
-/* TODO: Implement flushing of single identifiers. */
 static int perl_flush (int timeout, const char *identifier)
 {
 	dTHX;
@@ -1287,7 +1358,7 @@ static int perl_flush (int timeout, const char *identifier)
 
 		aTHX = t->interp;
 	}
-	return pplugin_call_all (aTHX_ PLUGIN_FLUSH, timeout);
+	return pplugin_call_all (aTHX_ PLUGIN_FLUSH, timeout, identifier);
 } /* static int perl_flush (const int) */
 
 static int perl_shutdown (void)
@@ -1652,19 +1723,73 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 	return 0;
 } /* static int perl_config_includedir (oconfig_item_it *) */
 
+/*
+ * <Plugin> block
+ */
+static int perl_config_plugin (pTHX_ oconfig_item_t *ci)
+{
+	int retvals = 0;
+	int ret     = 0;
+
+	char *plugin;
+	HV   *config;
+
+	dSP;
+
+	if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("LoadPlugin expects a single string argument.");
+		return 1;
+	}
+
+	plugin = ci->values[0].value.string;
+	config = newHV ();
+
+	if (0 != oconfig_item2hv (aTHX_ ci, config)) {
+		hv_clear (config);
+		hv_undef (config);
+
+		log_err ("Unable to convert configuration to a Perl hash value.");
+		config = Nullhv;
+	}
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK (SP);
+
+	XPUSHs (sv_2mortal (newSVpv (plugin, 0)));
+	XPUSHs (sv_2mortal (newRV_noinc ((SV *)config)));
+
+	PUTBACK;
+
+	retvals = call_pv ("Collectd::_plugin_dispatch_config", G_SCALAR);
+
+	SPAGAIN;
+	if (0 < retvals) {
+		SV *tmp = POPs;
+		if (! SvTRUE (tmp))
+			ret = -1;
+	}
+	else
+		ret = -1;
+
+	PUTBACK;
+	FREETMPS;
+	LEAVE;
+	return ret;
+} /* static int perl_config_plugin (oconfig_item_it *) */
+
 static int perl_config (oconfig_item_t *ci)
 {
 	int i = 0;
 
-	dTHX;
-
-	/* dTHX does not get any valid values in case Perl
-	 * has not been initialized */
-	if (NULL == perl_threads)
-		aTHX = NULL;
+	dTHXa (NULL);
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
+
+		if (NULL != perl_threads)
+			aTHX = PERL_GET_CONTEXT;
 
 		if (0 == strcasecmp (c->key, "LoadPlugin"))
 			perl_config_loadplugin (aTHX_ c);
@@ -1674,6 +1799,8 @@ static int perl_config (oconfig_item_t *ci)
 			perl_config_enabledebugger (aTHX_ c);
 		else if (0 == strcasecmp (c->key, "IncludeDir"))
 			perl_config_includedir (aTHX_ c);
+		else if (0 == strcasecmp (c->key, "Plugin"))
+			perl_config_plugin (aTHX_ c);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}

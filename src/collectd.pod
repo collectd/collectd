@@ -116,6 +116,8 @@ internal caches. E.E<nbsp>g. the C<rrdtool plugin> will write all pending data
 to the RRD files. This is the same as using the C<FLUSH -1> command of the
 C<unixsock plugin>.
 
+=back
+
 =head1 SEE ALSO
 
 L<collectd.conf(5)>,

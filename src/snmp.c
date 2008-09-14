@@ -859,6 +859,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     char *ptr;
     size_t instance_len;
 
+    memset (il->instance, 0, sizeof (il->instance));
     instance_len = sizeof (il->instance) - 1;
     if (instance_len > vb->val_len)
       instance_len = vb->val_len;
@@ -866,7 +867,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     sstrncpy (il->instance, (char *) ((vb->type == ASN_OCTET_STR)
 	  ? vb->val.string
 	  : vb->val.bitstring),
-	instance_len);
+	instance_len + 1);
 
     for (ptr = il->instance; *ptr != '\0'; ptr++)
     {
@@ -1145,10 +1146,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     vb = res->variables;
     if (vb == NULL)
     {
-      if (res != NULL)
-	snmp_free_pdu (res);
-      res = NULL;
-
       status = -1;
       break;
     }
@@ -1157,10 +1154,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
      * subtree */
     if (csnmp_check_res_left_subtree (host, data, res) != 0)
     {
-      if (res != NULL)
-	snmp_free_pdu (res);
-      res = NULL;
-
+      status = 0;
       break;
     }
 
@@ -1182,11 +1176,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 	  (vb != NULL) && (vb->next_variable != NULL);
 	  vb = vb->next_variable)
 	/* do nothing */;
-      if (vb == NULL)
-      {
-	status = -1;
-	break;
-      }
+      assert (vb != NULL);
 
       /* Copy OID to oid_list[data->values_len] */
       memcpy (oid_list[data->values_len].oid, vb->name,
@@ -1248,6 +1238,10 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       snmp_free_pdu (res);
     res = NULL;
   } /* while (status == 0) */
+
+  if (res != NULL)
+    snmp_free_pdu (res);
+  res = NULL;
 
   if (status == 0)
     csnmp_dispatch_table (host, data, instance_list, value_table);

@@ -19,11 +19,47 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+/**
+ * Code within `HAVE_LIBKVM_NLIST' blocks is provided under the following
+ * license:
+ *
+ * $collectd: parts of tcpconns.c, 2008/08/08 03:48:30 Michael Stapelberg $
+ * $OpenBSD: inet.c,v 1.100 2007/06/19 05:28:30 ray Exp $
+ * $NetBSD: inet.c,v 1.14 1995/10/03 21:42:37 thorpej Exp $
+ *
+ * Copyright (c) 1983, 1988, 1993
+ *      The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 
-#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME
+#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_LIBKVM_NLIST
 # error "No applicable input method."
 #endif
 
@@ -57,7 +93,25 @@
 # include <netinet/tcpip.h>
 # include <netinet/tcp_seq.h>
 # include <netinet/tcp_var.h>
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+/* This is for OpenBSD and possibly NetBSD. */
+#elif HAVE_LIBKVM_NLIST
+# include <sys/queue.h>
+# include <sys/socket.h>
+# include <net/route.h>
+# include <netinet/in.h>
+# include <netinet/in_systm.h>
+# include <netinet/ip.h>
+# include <netinet/in_pcb.h>
+# include <netinet/tcp.h>
+# include <netinet/tcp_timer.h>
+# include <netinet/tcp_var.h>
+# include <netdb.h>
+# include <arpa/inet.h>
+# include <nlist.h>
+# include <kvm.h>
+#endif /* HAVE_LIBKVM_NLIST */
 
 #if KERNEL_LINUX
 static const char *tcp_state[] =
@@ -100,7 +154,32 @@ static const char *tcp_state[] =
 # define TCP_STATE_LISTEN 1
 # define TCP_STATE_MIN 0
 # define TCP_STATE_MAX 10
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif HAVE_LIBKVM_NLIST
+static const char *tcp_state[] =
+{
+  "CLOSED",
+  "LISTEN",
+  "SYN_SENT",
+  "SYN_RECV",
+  "ESTABLISHED",
+  "CLOSE_WAIT",
+  "FIN_WAIT1",
+  "CLOSING",
+  "LAST_ACK",
+  "FIN_WAIT2",
+  "TIME_WAIT"
+};
+
+static kvm_t *kvmd;
+static u_long      inpcbtable_off = 0;
+struct inpcbtable *inpcbtable_ptr = NULL;
+
+# define TCP_STATE_LISTEN 1
+# define TCP_STATE_MIN 1
+# define TCP_STATE_MAX 10
+#endif /* HAVE_LIBKVM_NLIST */
 
 #define PORT_COLLECT_LOCAL  0x01
 #define PORT_COLLECT_REMOTE 0x02
@@ -143,7 +222,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
       || (pe->flags & PORT_COLLECT_LOCAL))
   {
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-	"%hu-local", pe->port);
+	"%"PRIu16"-local", pe->port);
 
     for (i = 1; i <= TCP_STATE_MAX; i++)
     {
@@ -158,7 +237,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
   if (pe->flags & PORT_COLLECT_REMOTE)
   {
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-	"%hu-remote", pe->port);
+	"%"PRIu16"-remote", pe->port);
 
     for (i = 1; i <= TCP_STATE_MAX; i++)
     {
@@ -224,7 +303,7 @@ static void conn_reset_port_entry (void)
       port_entry_t *next = pe->next;
 
       DEBUG ("tcpconns plugin: Removing temporary entry "
-	  "for listening port %hu", pe->port);
+	  "for listening port %"PRIu16, pe->port);
 
       if (prev == NULL)
 	port_list_head = next;
@@ -255,8 +334,8 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 #endif
      )
   {
-    NOTICE ("tcpconns plugin: Ignoring connection with unknown state 0x%02x.",
-	state);
+    NOTICE ("tcpconns plugin: Ignoring connection with "
+	"unknown state 0x%02"PRIx8".", state);
     return (-1);
   }
 
@@ -268,7 +347,7 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
       pe->flags |= PORT_IS_LISTENING;
   }
 
-  DEBUG ("tcpconns plugin: Connection %hu <-> %hu (%s)",
+  DEBUG ("tcpconns plugin: Connection %"PRIu16" <-> %"PRIu16" (%s)",
       port_local, port_remote, tcp_state[state]);
 
   pe = conn_get_port_entry (port_local, 0 /* no create */);
@@ -360,7 +439,10 @@ static int conn_read_file (const char *file)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif HAVE_LIBKVM_NLIST
+#endif /* HAVE_LIBKVM_NLIST */
 
 static int conn_config (const char *key, const char *value)
 {
@@ -514,7 +596,107 @@ static int conn_read (void)
 
   return (0);
 } /* int conn_read */
-#endif /* HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif HAVE_LIBKVM_NLIST
+static int kread (u_long addr, void *buf, int size)
+{
+  int status;
+
+  status = kvm_read (kvmd, addr, buf, size);
+  if (status != size)
+  {
+    ERROR ("tcpconns plugin: kvm_read failed (got %i, expected %i): %s\n",
+	status, size, kvm_geterr (kvmd));
+    return (-1);
+  }
+  return (0);
+} /* int kread */
+
+static int conn_init (void)
+{
+  char buf[_POSIX2_LINE_MAX];
+  struct nlist nl[] =
+  {
+#define N_TCBTABLE 0
+    { "_tcbtable" },
+    { "" }
+  };
+  int status;
+
+  kvmd = kvm_openfiles (NULL, NULL, NULL, O_RDONLY, buf);
+  if (kvmd == NULL)
+  {
+    ERROR ("tcpconns plugin: kvm_openfiles failed: %s", buf);
+    return (-1);
+  }
+
+  status = kvm_nlist (kvmd, nl);
+  if (status < 0)
+  {
+    ERROR ("tcpconns plugin: kvm_nlist failed with status %i.", status);
+    return (-1);
+  }
+
+  if (nl[N_TCBTABLE].n_type == 0)
+  {
+    ERROR ("tcpconns plugin: Error looking up kernel's namelist: "
+	"N_TCBTABLE is invalid.");
+    return (-1);
+  }
+
+  inpcbtable_off = (u_long) nl[N_TCBTABLE].n_value;
+  inpcbtable_ptr = (struct inpcbtable *) nl[N_TCBTABLE].n_value;
+
+  return (0);
+} /* int conn_init */
+
+static int conn_read (void)
+{
+  struct inpcbtable table;
+  struct inpcb *head;
+  struct inpcb *next;
+  struct inpcb inpcb;
+  struct tcpcb tcpcb;
+  int status;
+
+  conn_reset_port_entry ();
+
+  /* Read the pcbtable from the kernel */
+  status = kread (inpcbtable_off, &table, sizeof (table));
+  if (status != 0)
+    return (-1);
+
+  /* Get the `head' pcb */
+  head = (struct inpcb *) &(inpcbtable_ptr->inpt_queue);
+  /* Get the first pcb */
+  next = CIRCLEQ_FIRST (&table.inpt_queue);
+
+  while (next != head)
+  {
+    /* Read the pcb pointed to by `next' into `inpcb' */
+    kread ((u_long) next, &inpcb, sizeof (inpcb));
+
+    /* Advance `next' */
+    next = CIRCLEQ_NEXT (&inpcb, inp_queue);
+
+    /* Ignore sockets, that are not connected. */
+    if (!(inpcb.inp_flags & INP_IPV6)
+	&& (inet_lnaof(inpcb.inp_laddr) == INADDR_ANY))
+      continue;
+    if ((inpcb.inp_flags & INP_IPV6)
+	&& IN6_IS_ADDR_UNSPECIFIED (&inpcb.inp_laddr6))
+      continue;
+
+    kread ((u_long) inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
+    conn_handle_ports (ntohs(inpcb.inp_lport), ntohs(inpcb.inp_fport), tcpcb.t_state);
+  } /* while (next != head) */
+
+  conn_submit_all ();
+
+  return (0);
+}
+#endif /* HAVE_LIBKVM_NLIST */
 
 void module_register (void)
 {
@@ -522,10 +704,14 @@ void module_register (void)
 			config_keys, config_keys_num);
 #if KERNEL_LINUX
 	plugin_register_init ("tcpconns", conn_init);
+#elif HAVE_SYSCTLBYNAME
+	/* no initialization */
+#elif HAVE_LIBKVM_NLIST
+	plugin_register_init ("tcpconns", conn_init);
 #endif
 	plugin_register_read ("tcpconns", conn_read);
 } /* void module_register */
 
 /*
- * vim: set shiftwidth=2 softtabstop=2 tabstop=8 :
+ * vim: set shiftwidth=2 softtabstop=2 tabstop=8 fdm=marker :
  */

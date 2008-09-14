@@ -84,14 +84,14 @@
 #  endif
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_KVM_H
+#elif HAVE_LIBKVM_GETPROCS
 #  include <kvm.h>
 #  include <sys/user.h>
 #  include <sys/proc.h>
 #  if HAVE_SYS_SYSCTL_H
 #    include <sys/sysctl.h>
 #  endif
-/* #endif HAVE_KVM_H */
+/* #endif HAVE_LIBKVM_GETPROCS */
 
 #else
 # error "No applicable input method."
@@ -167,7 +167,11 @@ static mach_msg_type_number_t     pset_list_len;
 
 #elif KERNEL_LINUX
 static long pagesize_g;
-#endif /* KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_LIBKVM_GETPROCS
+/* no global variables */
+#endif /* HAVE_LIBKVM_GETPROCS */
 
 /* put name of process from config to list_head_g tree
    list_head_g is a list of 'procstat_t' structs with
@@ -508,7 +512,11 @@ static int ps_init (void)
 	pagesize_g = sysconf(_SC_PAGESIZE);
 	DEBUG ("pagesize_g = %li; CONFIG_HZ = %i;",
 			pagesize_g, CONFIG_HZ);
-#endif /* KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_LIBKVM_GETPROCS
+/* no initialization */
+#endif /* HAVE_LIBKVM_GETPROCS */
 
 	return (0);
 } /* int ps_init */
@@ -971,7 +979,7 @@ static int ps_read (void)
 					 * There's only zombie tasks, which are
 					 * handled above. */
 					default:
-						WARNING ("Unknown thread status: %s",
+						WARNING ("Unknown thread status: %i",
 								thread_data.run_state);
 						break;
 				} /* switch (thread_data.run_state) */
@@ -1131,7 +1139,7 @@ static int ps_read (void)
 		ps_submit_proc_list (ps_ptr);
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM
+#elif HAVE_LIBKVM_GETPROCS
 	int running  = 0;
 	int sleeping = 0;
 	int zombies  = 0;
@@ -1251,7 +1259,7 @@ static int ps_read (void)
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
-#endif /* HAVE_LIBKVM */
+#endif /* HAVE_LIBKVM_GETPROCS */
 
 	return (0);
 } /* int ps_read */

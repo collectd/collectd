@@ -50,7 +50,7 @@ static int loop = 0;
 static void *do_flush (void *arg)
 {
 	INFO ("Flushing all data.");
-	plugin_flush_all (-1);
+	plugin_flush (NULL, -1, NULL);
 	INFO ("Finished flushing all data.");
 	pthread_exit (NULL);
 	return NULL;

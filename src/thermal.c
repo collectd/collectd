@@ -61,7 +61,8 @@ static void thermal_submit (const char *plugin_instance, enum dev_type dt,
 	plugin_dispatch_values (&vl);
 }
 
-static int thermal_sysfs_device_read (const char *name)
+static int thermal_sysfs_device_read (const char *dir, const char *name,
+		void *user_data)
 {
 	char filename[256];
 	char data[1024];
@@ -112,7 +113,8 @@ static int thermal_sysfs_device_read (const char *name)
 	return ok ? 0 : -1;
 }
 
-static int thermal_procfs_device_read (const char *name)
+static int thermal_procfs_device_read (const char *dir, const char *name,
+		void *user_data)
 {
 	const char str_temp[] = "temperature:";
 	char filename[256];
@@ -215,12 +217,14 @@ static int thermal_config (const char *key, const char *value)
 
 static int thermal_sysfs_read (void)
 {
-	return walk_directory (dirname_sysfs, thermal_sysfs_device_read);
+	return walk_directory (dirname_sysfs, thermal_sysfs_device_read,
+			/* user_data = */ NULL);
 }
 
 static int thermal_procfs_read (void)
 {
-	return walk_directory (dirname_procfs, thermal_procfs_device_read);
+	return walk_directory (dirname_procfs, thermal_procfs_device_read,
+			/* user_data = */ NULL);
 }
 
 static int thermal_init (void)

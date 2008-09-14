@@ -149,14 +149,14 @@ static int plugin_load_file (char *file)
 	{
 		const char *error = lt_dlerror ();
 
-		ERROR ("lt_dlopen failed: %s", error);
-		fprintf (stderr, "lt_dlopen failed: %s\n", error);
+		ERROR ("lt_dlopen (%s) failed: %s", file, error);
+		fprintf (stderr, "lt_dlopen (%s) failed: %s\n", file, error);
 		return (1);
 	}
 
 	if ((reg_handle = (void (*) (void)) lt_dlsym (dlh, "module_register")) == NULL)
 	{
-		WARNING ("Couldn't find symbol ``module_register'' in ``%s'': %s\n",
+		WARNING ("Couldn't find symbol `module_register' in `%s': %s\n",
 				file, lt_dlerror ());
 		lt_dlclose (dlh);
 		return (-1);
@@ -665,43 +665,6 @@ void plugin_read_all (void)
 	pthread_mutex_unlock (&read_lock);
 } /* void plugin_read_all */
 
-int plugin_flush_one (int timeout, const char *name)
-{
-	int (*callback) (int);
-	llentry_t *le;
-	int status;
-
-	if (list_flush == NULL)
-		return (-1);
-
-	le = llist_search (list_flush, name);
-	if (le == NULL)
-		return (-1);
-	callback = (int (*) (int)) le->value;
-
-	status = (*callback) (timeout);
-
-	return (status);
-} /* int plugin_flush_ont */
-
-void plugin_flush_all (int timeout)
-{
-	int (*callback) (int);
-	llentry_t *le;
-
-	if (list_flush == NULL)
-		return;
-
-	le = llist_head (list_flush);
-	while (le != NULL)
-	{
-		callback = (int (*) (int)) le->value;
-		le = le->next;
-
-		(*callback) (timeout);
-	}
-} /* void plugin_flush_all */
-
 int plugin_flush (const char *plugin, int timeout, const char *identifier)
 {
   int (*callback) (int timeout, const char *identifier);
@@ -714,13 +677,16 @@ int plugin_flush (const char *plugin, int timeout, const char *identifier)
   while (le != NULL)
   {
     if ((plugin != NULL)
-	&& (strcmp (plugin, le->key) != 0))
+        && (strcmp (plugin, le->key) != 0))
+    {
+      le = le->next;
       continue;
+    }
 
     callback = (int (*) (int, const char *)) le->value;
-    le = le->next;
-
     (*callback) (timeout, identifier);
+
+    le = le->next;
   }
   return (0);
 } /* int plugin_flush */
@@ -907,9 +873,9 @@ const data_set_t *plugin_get_ds (const char *name)
 } /* data_set_t *plugin_get_ds */
 
 static int plugin_notification_meta_add (notification_t *n,
-		const char *name,
-		enum notification_meta_type_e type,
-		const void *value)
+    const char *name,
+    enum notification_meta_type_e type,
+    const void *value)
 {
   notification_meta_t *meta;
   notification_meta_t *tail;
@@ -1034,19 +1000,19 @@ int plugin_notification_meta_copy (notification_t *dst,
   {
     if (meta->type == NM_TYPE_STRING)
       plugin_notification_meta_add_string (dst, meta->name,
-	  meta->value_string);
+          meta->value_string);
     else if (meta->type == NM_TYPE_SIGNED_INT)
       plugin_notification_meta_add_signed_int (dst, meta->name,
-	  meta->value_signed_int);
+          meta->value_signed_int);
     else if (meta->type == NM_TYPE_UNSIGNED_INT)
       plugin_notification_meta_add_unsigned_int (dst, meta->name,
-	  meta->value_unsigned_int);
+          meta->value_unsigned_int);
     else if (meta->type == NM_TYPE_DOUBLE)
       plugin_notification_meta_add_double (dst, meta->name,
-	  meta->value_double);
+          meta->value_double);
     else if (meta->type == NM_TYPE_BOOLEAN)
       plugin_notification_meta_add_boolean (dst, meta->name,
-	  meta->value_boolean);
+          meta->value_boolean);
   }
 
   return (0);

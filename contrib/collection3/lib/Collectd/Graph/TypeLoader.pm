@@ -27,12 +27,11 @@ use warnings;
 use Carp (qw(cluck confess));
 use Exporter ();
 use Config::General ('ParseConfig');
+use Collectd::Graph::Config ('gc_get_config');
 use Collectd::Graph::Type ();
 
 @Collectd::Graph::TypeLoader::ISA = ('Exporter');
-@Collectd::Graph::TypeLoader::EXPORT_OK = ('tl_read_config', 'tl_load_type');
-
-our $Configuration = undef;
+@Collectd::Graph::TypeLoader::EXPORT_OK = ('tl_load_type');
 
 our @ArrayMembers = (qw(data_sources rrd_opts custom_order));
 our @ScalarMembers = (qw(rrd_title rrd_format rrd_vertical scale));
@@ -52,42 +51,6 @@ our %MemberToConfigMap =
 );
 
 return (1);
-
-=head1 EXPORTED FUNCTIONS
-
-=over 4
-
-=item B<tl_read_config> (I<$file>)
-
-Reads the configuration from the file located at I<$file>.
-
-=cut
-
-sub tl_read_config
-{
-  my $file = shift;
-  my %conf;
-
-  if ($Configuration)
-  {
-    return (1);
-  }
-
-  %conf = ParseConfig (-ConfigFile => $file,
-    -LowerCaseNames => 1,
-    -UseApacheInclude => 1,
-    -IncludeDirectories => 1,
-    ($Config::General::VERSION >= 2.38) ? (-IncludeAgain => 0) : (),
-    -MergeDuplicateBlocks => 1,
-    -CComments => 0);
-  if (!%conf)
-  {
-    return;
-  }
-
-  $Configuration = \%conf;
-  return (1);
-} # tl_read_config
 
 sub _create_object
 {
@@ -123,7 +86,6 @@ sub _load_module_from_config
 
   if ($module)
   {
-    print STDERR "\$module = $module;\n";
     $obj = _create_object ($module);
     if (!$obj)
     {
@@ -232,8 +194,6 @@ sub _load_module_from_config
 
       $obj->{$member} ||= {};
       $obj->{$member}{$ds} = $val;
-
-      print STDERR "\$obj->{$member}{$ds} = $val;\n";
     } # for (@val_list)
   } # }}} for (@DSMappedMembers)
 
@@ -263,6 +223,10 @@ sub _load_module_generic
   return ($obj);
 } # _load_module_generic
 
+=head1 EXPORTED FUNCTIONS
+
+=over 4
+
 =item B<tl_load_type> (I<$type>)
 
 Does whatever is necessary to get an object with which to graph RRD files of
@@ -273,10 +237,11 @@ type I<$type>.
 sub tl_load_type
 {
   my $type = shift;
+  my $conf = gc_get_config ();
 
-  if (defined $Configuration->{'type'}{$type})
+  if (defined ($conf) && defined ($conf->{'type'}{$type}))
   {
-    return (_load_module_from_config ($Configuration->{'type'}{$type}));
+    return (_load_module_from_config ($conf->{'type'}{$type}));
   }
   else
   {

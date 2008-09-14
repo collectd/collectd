@@ -159,15 +159,12 @@ static void *us_handle_client (void *arg)
 {
 	int fd;
 	FILE *fhin, *fhout;
-	char buffer[1024];
-	char *fields[128];
-	int   fields_num;
 
 	fd = *((int *) arg);
 	free (arg);
 	arg = NULL;
 
-	DEBUG ("Reading from fd #%i", fd);
+	DEBUG ("unixsock plugin: us_handle_client: Reading from fd #%i", fd);
 
 	fhin  = fdopen (fd, "r");
 	if (fhin == NULL)
@@ -202,7 +199,11 @@ static void *us_handle_client (void *arg)
 
 	while (42)
 	{
-		int len;
+		char buffer[1024];
+		char buffer_copy[1024];
+		char *fields[128];
+		int   fields_num;
+		int   len;
 
 		errno = 0;
 		if (fgets (buffer, sizeof (buffer), fhin) == NULL)
@@ -225,9 +226,9 @@ static void *us_handle_client (void *arg)
 		if (len == 0)
 			continue;
 
-		DEBUG ("fgets -> buffer = %s; len = %i;", buffer, len);
+		sstrncpy (buffer_copy, buffer, sizeof (buffer_copy));
 
-		fields_num = strsplit (buffer, fields,
+		fields_num = strsplit (buffer_copy, fields,
 				sizeof (fields) / sizeof (fields[0]));
 
 		if (fields_num < 1)
@@ -238,23 +239,23 @@ static void *us_handle_client (void *arg)
 
 		if (strcasecmp (fields[0], "getval") == 0)
 		{
-			handle_getval (fhout, fields, fields_num);
+			handle_getval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "putval") == 0)
 		{
-			handle_putval (fhout, fields, fields_num);
+			handle_putval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "listval") == 0)
 		{
-			handle_listval (fhout, fields, fields_num);
+			handle_listval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "putnotif") == 0)
 		{
-			handle_putnotif (fhout, fields, fields_num);
+			handle_putnotif (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "flush") == 0)
 		{
-			handle_flush (fhout, fields, fields_num);
+			handle_flush (fhout, buffer);
 		}
 		else
 		{
@@ -269,7 +270,7 @@ static void *us_handle_client (void *arg)
 		}
 	} /* while (fgets) */
 
-	DEBUG ("Exiting..");
+	DEBUG ("unixsock plugin: us_handle_client: Exiting..");
 	fclose (fhin);
 	fclose (fhout);
 

@@ -22,7 +22,7 @@
 #ifndef UTILS_CMD_GETVAL_H
 #define UTILS_CMD_GETVAL_H 1
 
-int handle_getval (FILE *fh, char **fields, int fields_num);
+int handle_getval (FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_GETVAL_H */
 

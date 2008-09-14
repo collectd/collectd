@@ -21,6 +21,7 @@ if BUILD_FEATURE_DAEMON
 AM_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
+AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
 bin_PROGRAMS = collectd-nagios
@@ -244,6 +245,7 @@ endif
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = exec.c \
+		  utils_parse_option.h utils_parse_option.c \
 		  utils_cmd_putnotif.c utils_cmd_putnotif.h \
 		  utils_cmd_putval.c utils_cmd_putval.h
 exec_la_LDFLAGS = -module -avoid-version
@@ -252,6 +254,14 @@ exec_la_LDFLAGS += -lpthread
 endif
 collectd_LDADD += "-dlopen" exec.la
 collectd_DEPENDENCIES += exec.la
+endif
+
+if BUILD_PLUGIN_FILECOUNT
+pkglib_LTLIBRARIES += filecount.la
+filecount_la_SOURCES = filecount.c
+filecount_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" filecount.la
+collectd_DEPENDENCIES += filecount.la
 endif
 
 if BUILD_PLUGIN_HDDTEMP
@@ -313,6 +323,7 @@ endif
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
+ipvs_la_CFLAGS = $(KERNEL_CFLAGS)
 ipvs_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" ipvs.la
 collectd_DEPENDENCIES += ipvs.la
@@ -569,16 +580,12 @@ if BUILD_PLUGIN_PROCESSES
 pkglib_LTLIBRARIES += processes.la
 processes_la_SOURCES = processes.c
 processes_la_LDFLAGS = -module -avoid-version
+processes_la_LIBADD =
 collectd_LDADD += "-dlopen" processes.la
 collectd_DEPENDENCIES += processes.la
+if BUILD_WITH_LIBKVM_GETPROCS
+processes_la_LIBADD += -lkvm
 endif
-
-if BUILD_PLUGIN_QMAIL
-pkglib_LTLIBRARIES += qmail.la
-qmail_la_SOURCES = qmail.c
-qmail_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" qmail.la
-collectd_DEPENDENCIES += qmail.la
 endif
 
 if BUILD_PLUGIN_RRDCACHED
@@ -650,7 +657,7 @@ endif
 if BUILD_WITH_LIBDEVINFO
 swap_la_LIBADD += -ldevinfo
 endif
-if BUILD_WITH_LIBKVM
+if BUILD_WITH_LIBKVM_GETSWAPINFO
 swap_la_LIBADD += -lkvm
 endif
 if BUILD_WITH_LIBSTATGRAB
@@ -687,8 +694,12 @@ if BUILD_PLUGIN_TCPCONNS
 pkglib_LTLIBRARIES += tcpconns.la
 tcpconns_la_SOURCES = tcpconns.c
 tcpconns_la_LDFLAGS = -module -avoid-version
+tcpconns_la_LIBADD =
 collectd_LDADD += "-dlopen" tcpconns.la
 collectd_DEPENDENCIES += tcpconns.la
+if BUILD_WITH_LIBKVM_NLIST
+tcpconns_la_LIBADD += -lkvm
+endif
 endif
 
 if BUILD_PLUGIN_TEAMSPEAK2
@@ -710,6 +721,7 @@ endif
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
+		      utils_parse_option.h utils_parse_option.c \
 		      utils_cmd_flush.h utils_cmd_flush.c \
 		      utils_cmd_getval.h utils_cmd_getval.c \
 		      utils_cmd_listval.h utils_cmd_listval.c \
@@ -789,13 +801,24 @@ EXTRA_DIST = types.db
 
 EXTRA_DIST += collectd-email.pod collectd-exec.pod collectd-nagios.pod \
 	collectd-perl.pod collectd-snmp.pod collectd-unixsock.pod \
-	collectd.conf.pod collectd.pod collectdmon.pod types.db.pod
+	collectd.conf.pod collectd.pod collectdmon.pod types.db.pod \
+	postgresql_default.conf
 
 .pod.1:
-	pod2man --release=$(VERSION) --center=$(PACKAGE) $< >.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
+	pod2man --release=$(VERSION) --center=$(PACKAGE) $< \
+		>.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
+	if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
+	then \
+		echo "$@ has some POD errors!"; false; \
+	fi
 
 .pod.5:
-	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< >.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
+	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< \
+		>.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
+	if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
+	then \
+		echo "$@ has some POD errors!"; false; \
+	fi
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
@@ -806,3 +829,5 @@ install-exec-hook:
 		$(INSTALL) -m 0640 collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
 	cp -f $(srcdir)/types.db $(DESTDIR)$(pkglibdir)/;
+	$(INSTALL) -D -m 0644 $(srcdir)/postgresql_default.conf \
+		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;

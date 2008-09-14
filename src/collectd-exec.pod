@@ -85,10 +85,11 @@ description of the format of this file.
 
 The I<OptionList> is an optional list of I<Options>, where each option if a
 key-value-pair. A list of currently understood options can be found below, all
-other options will be ignored.
+other options will be ignored. Values that contain spaces must be quoted with
+double quotes.
 
 I<Valuelist> is a colon-separated list of the time and the values, each either
-an integer if the data-source is a counter, of a double if the data-source if
+an integer if the data-source is a counter, or a double if the data-source is
 of type "gauge". You can submit an undefined gauge-value by using B<U>. When
 submitting B<U> to a counter the behavior is undefined. The time is given as
 epoch (i.E<nbsp>e. standard UNIX time).
@@ -139,10 +140,9 @@ Valid options are:
 =item B<message=>I<Message> (B<REQUIRED>)
 
 Sets the message of the notification. This is the message that will be made
-accessible to the user, so it should contain some useful information. This
-option must be the last option because the rest of the line will be its value,
-even if there are spaces and equal-signs following it! This option is
-mandatory.
+accessible to the user, so it should contain some useful information. As with
+all options: If the message includes spaces, it must be quoted with double
+quotes. This option is mandatory.
 
 =item B<severity=failure>|B<warning>|B<okay> (B<REQUIRED>)
 
@@ -171,10 +171,12 @@ table. All the options are optional, but B<plugin_instance> without B<plugin>
 or B<type_instance> without B<type> doesn't make much sense and should be
 avoided.
 
-Please note that this is the same format as used in the B<unixsock plugin>, see
-L<collectd-unixsock(5)>.
+=back
 
 =back
+
+Please note that this is the same format as used in the B<unixsock plugin>, see
+L<collectd-unixsock(5)>.
 
 When collectd exits it sends a B<SIGTERM> to all still running
 child-processes upon which they have to quit.

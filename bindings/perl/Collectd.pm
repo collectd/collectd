@@ -56,6 +56,7 @@ our %EXPORT_TAGS = (
 			TYPE_LOG
 			TYPE_NOTIF
 			TYPE_FLUSH
+			TYPE_CONFIG
 			TYPE_DATASET
 	) ],
 	'ds_types' => [ qw(
@@ -98,6 +99,7 @@ our $interval_g;
 Exporter::export_ok_tags ('all');
 
 my @plugins : shared = ();
+my %cf_callbacks : shared = ();
 
 my %types = (
 	TYPE_INIT,     "init",
@@ -133,6 +135,8 @@ sub DEBUG   { _log (scalar caller, LOG_DEBUG,   shift); }
 sub plugin_call_all {
 	my $type = shift;
 
+	my %plugins;
+
 	our $cb_name = undef;
 
 	if (! defined $type) {
@@ -148,9 +152,13 @@ sub plugin_call_all {
 		return;
 	}
 
-	lock @plugins;
-	foreach my $plugin (keys %{$plugins[$type]}) {
-		my $p = $plugins[$type]->{$plugin};
+	{
+		lock %{$plugins[$type]};
+		%plugins = %{$plugins[$type]};
+	}
+
+	foreach my $plugin (keys %plugins) {
+		my $p = $plugins{$plugin};
 
 		my $status = 0;
 
@@ -238,13 +246,24 @@ sub plugin_register {
 		return;
 	}
 
-	if ((! defined $plugins[$type]) && (TYPE_DATASET != $type)) {
+	if ((! defined $plugins[$type]) && (TYPE_DATASET != $type)
+			&& (TYPE_CONFIG != $type)) {
 		ERROR ("Collectd::plugin_register: Invalid type \"$type\"");
 		return;
 	}
 
 	if ((TYPE_DATASET == $type) && ("ARRAY" eq ref $data)) {
 		return plugin_register_data_set ($name, $data);
+	}
+	elsif ((TYPE_CONFIG == $type) && (! ref $data)) {
+		my $pkg = scalar caller;
+
+		if ($data !~ m/^$pkg\:\:/) {
+			$data = $pkg . "::" . $data;
+		}
+
+		lock %cf_callbacks;
+		$cf_callbacks{$name} = $data;
 	}
 	elsif ((TYPE_DATASET != $type) && (! ref $data)) {
 		my $pkg = scalar caller;
@@ -261,7 +280,7 @@ sub plugin_register {
 			cb_name   => $data,
 		);
 
-		lock @plugins;
+		lock %{$plugins[$type]};
 		$plugins[$type]->{$name} = \%p;
 	}
 	else {
@@ -285,8 +304,12 @@ sub plugin_unregister {
 	if (TYPE_DATASET == $type) {
 		return plugin_unregister_data_set ($name);
 	}
+	elsif (TYPE_CONFIG == $type) {
+		lock %cf_callbacks;
+		delete $cf_callbacks{$name};
+	}
 	elsif (defined $plugins[$type]) {
-		lock @plugins;
+		lock %{$plugins[$type]};
 		delete $plugins[$type]->{$name};
 	}
 	else {
@@ -299,28 +322,101 @@ sub plugin_flush {
 	my %args = @_;
 
 	my $timeout = -1;
+	my @plugins = ();
+	my @ids     = ();
 
 	DEBUG ("Collectd::plugin_flush:"
 		. (defined ($args{'timeout'}) ? " timeout = $args{'timeout'}" : "")
-		. (defined ($args{'plugins'}) ? " plugins = $args{'plugins'}" : ""));
+		. (defined ($args{'plugins'}) ? " plugins = $args{'plugins'}" : "")
+		. (defined ($args{'identifiers'})
+			? " identifiers = $args{'identifiers'}" : ""));
 
 	if (defined ($args{'timeout'}) && ($args{'timeout'} > 0)) {
 		$timeout = $args{'timeout'};
 	}
 
-	if (! defined $args{'plugins'}) {
-		plugin_flush_all ($timeout);
-	}
-	else {
+	if (defined ($args{'plugins'})) {
 		if ("ARRAY" eq ref ($args{'plugins'})) {
-			foreach my $plugin (@{$args{'plugins'}}) {
-				plugin_flush_one ($timeout, $plugin);
-			}
+			@plugins = @{$args{'plugins'}};
 		}
 		else {
-			plugin_flush_one ($timeout, $args{'plugins'});
+			@plugins = ($args{'plugins'});
 		}
 	}
+	else {
+		@plugins = (undef);
+	}
+
+	if (defined ($args{'identifiers'})) {
+		if ("ARRAY" eq ref ($args{'identifiers'})) {
+			@ids = @{$args{'identifiers'}};
+		}
+		else {
+			@ids = ($args{'identifiers'});
+		}
+	}
+	else {
+		@ids = (undef);
+	}
+
+	foreach my $plugin (@plugins) {
+		foreach my $id (@ids) {
+			_plugin_flush($plugin, $timeout, $id);
+		}
+	}
+}
+
+sub plugin_flush_one {
+	my $timeout = shift;
+	my $name    = shift;
+
+	WARNING ("Collectd::plugin_flush_one is deprecated - "
+		. "use Collectd::plugin_flush instead.");
+
+	if (! (defined ($timeout) && defined ($name))) {
+		ERROR ("Usage: Collectd::plugin_flush_one(timeout, name)");
+		return;
+	}
+
+	plugin_flush (plugins => $name, timeout => $timeout);
+}
+
+sub plugin_flush_all {
+	my $timeout = shift;
+
+	WARNING ("Collectd::plugin_flush_all is deprecated - "
+		. "use Collectd::plugin_flush instead.");
+
+	if (! defined ($timeout)) {
+		ERROR ("Usage: Collectd::plugin_flush_all(timeout)");
+		return;
+	}
+
+	plugin_flush (timeout => $timeout);
+}
+
+sub _plugin_dispatch_config {
+	my $plugin = shift;
+	my $config = shift;
+
+	our $cb_name = undef;
+
+	if (! (defined ($plugin) && defined ($config))) {
+		return;
+	}
+
+	if (! defined $cf_callbacks{$plugin}) {
+		WARNING ("Found a configuration for the \"$plugin\" plugin, but "
+			. "the plugin isn't loaded or didn't register "
+			. "a configuration callback.");
+		return;
+	}
+
+	{
+		lock %cf_callbacks;
+		$cb_name = $cf_callbacks{$plugin};
+	}
+	call_by_name ($config);
 }
 
 1;

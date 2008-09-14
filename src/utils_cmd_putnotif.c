@@ -23,6 +23,8 @@
 #include "common.h"
 #include "plugin.h"
 
+#include "utils_parse_option.h"
+
 #define print_to_socket(fh, ...) \
   if (fprintf (fh, __VA_ARGS__) < 0) { \
     char errbuf[1024]; \
@@ -31,7 +33,7 @@
     return -1; \
   }
 
-static int parse_option_severity (notification_t *n, char *value)
+static int set_option_severity (notification_t *n, const char *value)
 {
   if (strcasecmp (value, "Failure") == 0)
     n->severity = NOTIF_FAILURE;
@@ -43,9 +45,9 @@ static int parse_option_severity (notification_t *n, char *value)
     return (-1);
 
   return (0);
-} /* int parse_option_severity */
+} /* int set_option_severity */
 
-static int parse_option_time (notification_t *n, char *value)
+static int set_option_time (notification_t *n, const char *value)
 {
   time_t tmp;
   
@@ -56,25 +58,22 @@ static int parse_option_time (notification_t *n, char *value)
   n->time = tmp;
 
   return (0);
-} /* int parse_option_time */
+} /* int set_option_time */
 
-static int parse_option (notification_t *n, char *buffer)
+static int set_option (notification_t *n, const char *option, const char *value)
 {
-  char *option = buffer;
-  char *value;
-
-  if ((n == NULL) || (option == NULL))
+  if ((n == NULL) || (option == NULL) || (value == NULL))
     return (-1);
 
-  value = strchr (option, '=');
-  if (value == NULL)
-    return (-1);
-  *value = '\0'; value++;
+  DEBUG ("utils_cmd_putnotif: set_option (option = %s, value = %s);",
+      option, value);
 
   if (strcasecmp ("severity", option) == 0)
-    return (parse_option_severity (n, value));
+    return (set_option_severity (n, value));
   else if (strcasecmp ("time", option) == 0)
-    return (parse_option_time (n, value));
+    return (set_option_time (n, value));
+  else if (strcasecmp ("message", option) == 0)
+    sstrncpy (n->message, value, sizeof (n->message));
   else if (strcasecmp ("host", option) == 0)
     sstrncpy (n->host, value, sizeof (n->host));
   else if (strcasecmp ("plugin", option) == 0)
@@ -89,61 +88,55 @@ static int parse_option (notification_t *n, char *buffer)
     return (1);
 
   return (0);
-} /* int parse_option */
+} /* int set_option */
 
-static int parse_message (notification_t *n, char **fields, int fields_num)
+int handle_putnotif (FILE *fh, char *buffer)
 {
-  int status;
-
-  /* Strip off the leading `message=' */
-  fields[0] += strlen ("message=");
-
-  status = strjoin (n->message, sizeof (n->message), fields, fields_num, " ");
-  if (status < 0)
-    return (-1);
-
-  return (0);
-} /* int parse_message */
-
-int handle_putnotif (FILE *fh, char **fields, int fields_num)
-{
+  char *command;
   notification_t n;
   int status;
-  int i;
 
-  /* Required fields: `PUTNOTIF', severity, time, message */
-  if (fields_num < 4)
+  if ((fh == NULL) || (buffer == NULL))
+    return (-1);
+
+  DEBUG ("utils_cmd_putnotif: handle_putnotif (fh = %p, buffer = %s);",
+      (void *) fh, buffer);
+
+  command = NULL;
+  status = parse_string (&buffer, &command);
+  if (status != 0)
   {
-    DEBUG ("cmd putnotif: Wrong number of fields: %i", fields_num);
-    print_to_socket (fh, "-1 Wrong number of fields: Got %i, "
-	"expected at least 4.\n",
-	fields_num);
+    print_to_socket (fh, "-1 Cannot parse command.\n");
+    return (-1);
+  }
+  assert (command != NULL);
+
+  if (strcasecmp ("PUTNOTIF", command) != 0)
+  {
+    print_to_socket (fh, "-1 Unexpected command: `%s'.\n", command);
     return (-1);
   }
 
   memset (&n, '\0', sizeof (n));
 
   status = 0;
-  for (i = 1; i < fields_num; i++)
+  while (*buffer != 0)
   {
-    if (strncasecmp (fields[i], "message=", strlen ("message=")) == 0)
+    char *key;
+    char *value;
+
+    status = parse_option (&buffer, &key, &value);
+    if (status != 0)
     {
-      status = parse_message (&n, fields + i, fields_num - i);
-      if (status != 0)
-      {
-	print_to_socket (fh, "-1 Error parsing the message. Have you hit the "
-	    "limit of %u bytes?\n", (unsigned int) sizeof (n.message));
-      }
+      print_to_socket (fh, "-1 Malformed option.\n");
       break;
     }
-    else
+
+    status = set_option (&n, key, value);
+    if (status != 0)
     {
-      status = parse_option (&n, fields[i]);
-      if (status != 0)
-      {
-	print_to_socket (fh, "-1 Error parsing option `%s'\n", fields[i]);
-	break;
-      }
+      print_to_socket (fh, "-1 Error parsing option `%s'\n", key);
+      break;
     }
   } /* for (i) */
 
