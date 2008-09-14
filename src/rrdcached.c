@@ -234,7 +234,7 @@ static int rc_read (void)
   status = rrdc_stats_get (&head);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: rrdc_stats_get failed.");
+    ERROR ("rrdcached plugin: rrdc_stats_get failed with status %i.", status);
     return (-1);
   }
 
@@ -273,8 +273,29 @@ static int rc_read (void)
       sstrncpy (vl.type, "gauge", sizeof (vl.type));
       sstrncpy (vl.type_instance, "tree_depth", sizeof (vl.type_instance));
     }
+    else if (strcasecmp ("FlushesReceived", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "operations", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "receive-flush", sizeof (vl.type_instance));
+    }
+    else if (strcasecmp ("JournalBytes", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "counter", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "journal-bytes", sizeof (vl.type_instance));
+    }
+    else if (strcasecmp ("JournalRotate", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "counter", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "journal-rotates", sizeof (vl.type_instance));
+    }
+    else if (strcasecmp ("UpdatesReceived", ptr->name) == 0)
+    {
+      sstrncpy (vl.type, "operations", sizeof (vl.type));
+      sstrncpy (vl.type_instance, "receive-update", sizeof (vl.type_instance));
+    }
     else
     {
+      DEBUG ("rrdcached plugin: rc_read: Unknown statistic `%s'.", ptr->name);
       continue;
     }
 
