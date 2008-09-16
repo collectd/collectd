@@ -1481,7 +1481,9 @@ static int init_pi (int argc, char **argv)
 	PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
 
 	if (0 != perl_parse (aTHX_ xs_init, argc, argv, NULL)) {
-		log_err ("init_pi: Unable to bootstrap Collectd.");
+		SV *err = get_sv ("@", 1);
+		log_err ("init_pi: Unable to bootstrap Collectd: %s",
+				SvPV_nolen (err));
 
 		perl_destruct (perl_threads->head->interp);
 		perl_free (perl_threads->head->interp);
