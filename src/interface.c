@@ -24,6 +24,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_ignorelist.h"
 
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -77,14 +78,7 @@ static const char *config_keys[] =
 };
 static int config_keys_num = 2;
 
-static char **if_list = NULL;
-static int    if_list_num = 0;
-/* 
- * if_list_action:
- * 0 => default is to collect selected interface
- * 1 => ignore selcted interfaces
- */
-static int    if_list_action = 0;
+static ignorelist_t *ignorelist = NULL;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
@@ -95,33 +89,21 @@ static int numif = 0;
 
 static int interface_config (const char *key, const char *value)
 {
-	char **temp;
+	if (ignorelist == NULL)
+		ignorelist = ignorelist_create (/* invert = */ 1);
 
 	if (strcasecmp (key, "Interface") == 0)
 	{
-		temp = (char **) realloc (if_list, (if_list_num + 1) * sizeof (char *));
-		if (temp == NULL)
-		{
-			ERROR ("Cannot allocate more memory.");
-			return (1);
-		}
-		if_list = temp;
-
-		if ((if_list[if_list_num] = strdup (value)) == NULL)
-		{
-			ERROR ("Cannot allocate memory.");
-			return (1);
-		}
-		if_list_num++;
+		ignorelist_add (ignorelist, value);
 	}
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
 	{
+		int invert = 1;
 		if ((strcasecmp (value, "True") == 0)
 				|| (strcasecmp (value, "Yes") == 0)
 				|| (strcasecmp (value, "On") == 0))
-			if_list_action = 1;
-		else
-			if_list_action = 0;
+			invert = 0;
+		ignorelist_set_invert (ignorelist, invert);
 	}
 	else
 	{
@@ -161,26 +143,6 @@ static int interface_init (void)
 } /* int interface_init */
 #endif /* HAVE_LIBKSTAT */
 
-/*
- * Check if this interface/instance should be ignored. This is called from
- * both, `submit' and `write' to give client and server the ability to
- * ignore certain stuff..
- */
-static int check_ignore_if (const char *interface)
-{
-	int i;
-
-	/* If no interfaces are given collect all interfaces. Mostly to be
-	 * backwards compatible, but also because this is much easier. */
-	if (if_list_num < 1)
-		return (0);
-
-	for (i = 0; i < if_list_num; i++)
-		if (strcasecmp (interface, if_list[i]) == 0)
-			return (if_list_action);
-	return (1 - if_list_action);
-} /* int check_ignore_if */
-
 static void if_submit (const char *dev, const char *type,
 		unsigned long long rx,
 		unsigned long long tx)
@@ -188,7 +150,7 @@ static void if_submit (const char *dev, const char *type,
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	if (check_ignore_if (dev))
+	if (ignorelist_match (ignorelist, dev) != 0)
 		return;
 
 	values[0].counter = rx;
