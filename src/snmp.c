@@ -22,6 +22,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_complain.h"
 
 #include <pthread.h>
 
@@ -67,6 +68,7 @@ struct host_definition_s
   char *community;
   int version;
   void *sess_handle;
+  c_complain_t complaint;
   uint32_t interval;
   time_t next_update;
   data_definition_t **data_list;
@@ -551,6 +553,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
     return (-1);
   memset (hd, '\0', sizeof (host_definition_t));
   hd->version = 2;
+  C_COMPLAIN_INIT (&hd->complaint);
 
   hd->name = strdup (ci->values[0].value.string);
   if (hd->name == NULL)
@@ -1127,7 +1130,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       char *errstr = NULL;
 
       snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
-      ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
+
+      c_complain (LOG_ERR, &host->complaint,
+	  "snmp plugin: host %s: snmp_sess_synch_response failed: %s",
 	  host->name, (errstr == NULL) ? "Unknown problem" : errstr);
 
       if (res != NULL)
@@ -1142,6 +1147,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     }
     status = 0;
     assert (res != NULL);
+    c_release (LOG_INFO, &host->complaint,
+	"snmp plugin: host %s: snmp_sess_synch_response successful.",
+	host->name);
 
     vb = res->variables;
     if (vb == NULL)
