@@ -39,7 +39,8 @@ typedef struct
 	int interval;
 } c_complain_t;
 
-#define C_COMPLAIN_INIT { 0, 0 }
+#define C_COMPLAIN_INIT_STATIC { 0, 0 }
+#define C_COMPLAIN_INIT(c) do { (c)->last = 0; (c)->interval = 0; } while (0)
 
 /*
  * NAME

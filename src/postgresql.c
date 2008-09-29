@@ -217,8 +217,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->conn = NULL;
 
-	db->conn_complaint.last     = 0;
-	db->conn_complaint.interval = 0;
+	C_COMPLAIN_INIT (&db->conn_complaint);
 
 	db->proto_version = 0;
 

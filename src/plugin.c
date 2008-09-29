@@ -718,7 +718,7 @@ void plugin_shutdown_all (void)
 
 int plugin_dispatch_values (value_list_t *vl)
 {
-	static c_complain_t no_write_complaint = C_COMPLAIN_INIT;
+	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
 	int (*callback) (const data_set_t *, const value_list_t *);
 	data_set_t *ds;
