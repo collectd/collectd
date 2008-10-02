@@ -1,0 +1,22 @@
+ libiptc (IPTables Chains) in collectd
+=======================================
+http://netfilter.org/
+http://collectd.org/
+
+About
+-----
+
+  This is libiptc taken from the iptables source distribution. As it is not
+  meant to be a public interface by upstream it is not shipped in some binary
+  distributions. Thus, collectd ships its own copy as a fall-back.
+
+  The presently available version was imported from iptables 1.4.1.1.
+
+Changes to the iptables upstream sources:
+-----------------------------------------
+
+  * Added copyright headers mentioning the "Netfilter Core Team" as copyright
+    holder.
+
+  * Changed "libiptc/*" includes to "*".
+
