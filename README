@@ -349,7 +349,8 @@ Prerequisites
   * libhal (optional)
     If present, the uuid plugin will check for UUID from HAL.
 
-  * libiptc (optional)
+  * libiptc (optional, if not found a version shipped with this distribution
+    can be used if the Linux kernel headers are available)
     For querying iptables counters.
 
   * libmysqlclient (optional)
