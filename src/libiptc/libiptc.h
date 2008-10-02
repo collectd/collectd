@@ -172,10 +172,12 @@ int iptc_set_counter(const ipt_chainlabel chain,
 int iptc_commit(iptc_handle_t *handle);
 
 /* Get raw socket. */
-int iptc_get_raw_socket();
+int iptc_get_raw_socket(void);
 
 /* Translates errno numbers into more human-readable form than strerror. */
 const char *iptc_strerror(int err);
+
+extern void dump_entries(const iptc_handle_t);
 
 #ifdef __cplusplus
 }

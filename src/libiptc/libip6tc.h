@@ -162,12 +162,14 @@ int ip6tc_set_counter(const ip6t_chainlabel chain,
 int ip6tc_commit(ip6tc_handle_t *handle);
 
 /* Get raw socket. */
-int ip6tc_get_raw_socket();
+int ip6tc_get_raw_socket(void);
 
 /* Translates errno numbers into more human-readable form than strerror. */
 const char *ip6tc_strerror(int err);
 
 /* Return prefix length, or -1 if not contiguous */
 int ipv6_prefix_length(const struct in6_addr *a);
+
+extern void dump_entries6(const ip6tc_handle_t);
 
 #endif /* _LIBIP6TC_H */
