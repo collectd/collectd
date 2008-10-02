@@ -279,7 +279,7 @@ Features
     since collectd is programmed multithreaded it benefits from hyperthreading
     and multicore processors and makes sure that the daemon isn't idle if only
     one plugins waits for an IO-operation to complete.
-    
+
   * Once set up, hardly any maintenance is necessary. Setup is kept as easy
     as possible and the default values should be okay for most users.
 
@@ -383,11 +383,10 @@ Prerequisites
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
 
-  * librrd (optional; headers and library; rrdtool 1.0 and 1.2 both work fine)
-    If built without `librrd' the resulting binary will be `client only', i.e.
-    will send its values via multicast and not create any RRD files itself.
-    Alternatively you can chose to write CSV-files (Comma Separated Values)
-    instead.
+  * librrd (optional)
+    Used by the `rrdtool' and `rrdcached' plugins. The latter requires RRDtool
+    client support which was added after version 1.3 of RRDtool. Versions 1.0,
+    1.2 and 1.3 are known to work with the `rrdtool' plugin.
 
   * librt, libsocket, libkstat, libdevinfo (optional)
     Various standard Solaris libraries which provide system functions.
@@ -395,10 +394,10 @@ Prerequisites
   * libsensors (optional)
     To read from `lm_sensors', see the `sensors' plugin.
 
-  * libstatgrab (optional) may be used to collect statistics on systems other
-    than Linux and/or Solaris. Note that CPU- and disk-statistics, while being
-    provided by this library, are not supported in collectd right now..
-    <http://www.i-scream.org/libstatgrab/> 
+  * libstatgrab (optional)
+    Used by various plugins to collect statistics on systems other than Linux
+    and/or Solaris.
+    <http://www.i-scream.org/libstatgrab/>
 
   * libupsclient/nut (optional)
     For the `nut' plugin which queries nut's `upsd'.
@@ -419,7 +418,7 @@ Configuring / Compiling / Installing
   `./configure && make && make install'.  For detailed, generic instructions
   see INSTALL. For a complete list of configure options and their description,
   run `./configure --help'.
-  
+
   By default, the configure script will check for all build dependencies and
   disable all plugins whose requirements cannot be fulfilled (any other plugin
   will be enabled). To enable a plugin, install missing dependencies (see
