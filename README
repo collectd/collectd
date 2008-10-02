@@ -76,6 +76,9 @@ Features
       Iptables' counters: Number of bytes that were matched by a certain
       iptables rule.
 
+    - ipmi
+      IPMI (Intelligent Platform Management Interface) sensors information.
+
     - ipvs
       IPVS connection statistics (number of connections, octets and packets
       for each service and destination).
@@ -152,8 +155,14 @@ Features
       PostgreSQL database statistics: active server connections, transaction
       numbers, block IO, table row manipulations.
 
+    - powerdns
+      PowerDNS name server statistics.
+
     - processes
       Process counts: Number of running, sleeping, zombie, ... processes.
+
+    - rrdcached
+      RRDtool caching daemon (RRDcacheD) statistics.
 
     - sensors
       System sensors, accessed using lm_sensors: Voltages, temperatures and
@@ -179,6 +188,12 @@ Features
 
     - tcpconns
       Number of TCP connections to specific local and remote ports.
+
+    - teamspeak2
+      TeamSpeak2 server statistics.
+
+    - thermal
+      Linux ACPI thermal zone information.
 
     - users
       Users currently logged in.
@@ -213,6 +228,11 @@ Features
       Of course the values are propagated to plugins written in Perl, too, so
       you can easily do weird stuff with the plugins we didn't dare think of
       ;) See collectd-perl(5).
+
+    - rrdcached
+      Output to round-robin-database (RRD) files using the RRDtool caching
+      daemon (RRDcacheD) - see rrdcached(1). That daemon provides a general
+      implementation of the caching done by the `rrdtool' plugin.
 
     - rrdtool
       Output to round-robin-database (RRD) files using librrd. See rrdtool(1).
