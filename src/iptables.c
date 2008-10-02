@@ -107,8 +107,8 @@ static int iptables_config (const char *key, const char *value)
 		table = fields[0];
 		chain = fields[1];
 
-		table_len = strlen (table);
-		if ((unsigned int)table_len >= sizeof(temp.table))
+		table_len = strlen (table) + 1;
+		if ((unsigned int)table_len > sizeof(temp.table))
 		{
 			ERROR ("Table `%s' too long.", table);
 			free (value_copy);
@@ -116,8 +116,8 @@ static int iptables_config (const char *key, const char *value)
 		}
 		sstrncpy (temp.table, table, table_len);
 
-		chain_len = strlen (chain);
-		if ((unsigned int)chain_len >= sizeof(temp.chain))
+		chain_len = strlen (chain) + 1;
+		if ((unsigned int)chain_len > sizeof(temp.chain))
 		{
 			ERROR ("Chain `%s' too long.", chain);
 			free (value_copy);
