@@ -20,3 +20,6 @@ Changes to the iptables upstream sources:
 
   * Changed "libiptc/*" includes to "*".
 
+  * Use the shipped copy of "xtables.h" instead of the one possibly available
+    on the system.
+

@@ -44,7 +44,7 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <xtables.h>
+#include "xtables.h"
 
 #include "linux_list.h"
 
