@@ -830,7 +830,7 @@ int plugin_dispatch_notification (const notification_t *notif)
 
 void plugin_log (int level, const char *format, ...)
 {
-	char msg[512];
+	char msg[1024];
 	va_list ap;
 
 	void (*callback) (int, const char *);
@@ -845,8 +845,8 @@ void plugin_log (int level, const char *format, ...)
 #endif
 
 	va_start (ap, format);
-	vsnprintf (msg, 512, format, ap);
-	msg[511] = '\0';
+	vsnprintf (msg, sizeof (msg), format, ap);
+	msg[sizeof (msg) - 1] = '\0';
 	va_end (ap);
 
 	le = llist_head (list_log);

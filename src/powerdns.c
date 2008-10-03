@@ -45,10 +45,10 @@
 #endif
 #define FUNC_ERROR(func) do { char errbuf[1024]; ERROR ("powerdns plugin: %s failed: %s", func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
 
-#define SERVER_SOCKET  "/var/run/pdns.controlsocket"
+#define SERVER_SOCKET  LOCALSTATEDIR"/run/pdns.controlsocket"
 #define SERVER_COMMAND "SHOW *"
 
-#define RECURSOR_SOCKET  "/var/run/pdns_recursor.controlsocket"
+#define RECURSOR_SOCKET  LOCALSTATEDIR"/run/pdns_recursor.controlsocket"
 #define RECURSOR_COMMAND "get noerror-answers nxdomain-answers " \
   "servfail-answers sys-msec user-msec qa-latency cache-entries cache-hits " \
   "cache-misses questions"

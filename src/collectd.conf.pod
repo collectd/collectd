@@ -1472,9 +1472,9 @@ In this case please file a bug report with the collectd team.
 =item B<Socket> I<Path>
 
 Configures the path to the UNIX domain socket to be used when connecting to the
-daemon. By default C</var/run/pdns.controlsocket> will be used for an
-authoritative server and C</var/run/pdns_recursor.controlsocket> will be used
-for the recursor.
+daemon. By default C<${localstatedir}/run/pdns.controlsocket> will be used for
+an authoritative server and C<${localstatedir}/run/pdns_recursor.controlsocket>
+will be used for the recursor.
 
 =back
 
@@ -1633,8 +1633,8 @@ When collecting many statistics with collectd and the C<rrdtool> plugin, you
 will run serious performance problems. The B<CacheFlush> setting and the
 internal update queue assert that collectd continues to work just fine even
 under heavy load, but the system may become very unresponsive and slow. This is
-a problem especially if create graphs from the RRD files on the same machine,
-for example using the C<graph.cgi> script included in the
+a problem especially if you create graphs from the RRD files on the same
+machine, for example using the C<graph.cgi> script included in the
 C<contrib/collection3/> directory.
 
 This setting is designed for very large setups. Setting this option to a value
