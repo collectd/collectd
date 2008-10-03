@@ -331,12 +331,6 @@ int main (int argc, char **argv)
 		return 1;
 	}
 
-	sigaddset (&sa.sa_mask, SIGCHLD);
-	if (0 != sigprocmask (SIG_BLOCK, &sa.sa_mask, NULL)) {
-		syslog (LOG_ERR, "Error: sigprocmask() failed: %s", strerror (errno));
-		return 1;
-	}
-
 	while (0 == loop) {
 		int status = 0;
 
