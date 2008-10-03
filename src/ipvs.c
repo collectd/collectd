@@ -280,7 +280,7 @@ static void cipvs_submit_dest (char *pi, struct ip_vs_dest_entry *de) {
 
 	char ti[DATA_MAX_NAME_LEN];
 
-	if (0 != get_ti (de, ti, DATA_MAX_NAME_LEN))
+	if (0 != get_ti (de, ti, sizeof (ti)))
 		return;
 
 	cipvs_submit_connections (pi, ti, stats.conns);
@@ -298,7 +298,7 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 
 	int i = 0;
 
-	if (0 != get_pi (se, pi, DATA_MAX_NAME_LEN))
+	if (0 != get_pi (se, pi, sizeof (pi)))
 		return;
 
 	cipvs_submit_connections (pi, NULL, stats.conns);

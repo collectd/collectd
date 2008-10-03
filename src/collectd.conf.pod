@@ -2022,6 +2022,9 @@ hosts sends it's CPU statistics to the server every 60 seconds, a notification
 will be dispatched after about 120 seconds. It may take a little longer because
 the timeout is checked only once each B<Interval> on the server.
 
+When a value comes within range again or is received after it was missing, an
+"OKAY-notification" is dispatched.
+
 Here is a configuration example to get you started. Read below for more
 information.
 
