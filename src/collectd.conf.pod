@@ -282,6 +282,161 @@ number.
 
 =back
 
+=head2 Plugin C<dbi>
+
+This plugin uses the "B<dbi>" library (L<http://libdbi.sourceforge.net/>) to
+connect to various databases, execute SQL statements and read back the results.
+You can configure how each column is to be interpreted and the plugin will
+generate one data set from each row returned according to these rules.
+
+Because the plugin is very generic, the configuration is a little more complex
+than those of other plugins. It usually looks something like this:
+
+  <Plugin dbi>
+    <Query "out_of_stock">
+      Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
+      Type "gauge"
+      InstancesFrom "category"
+      ValuesFrom "value"
+    </Query>
+    <Database "product_information">
+      Driver "mysql"
+      DriverOption "host" "localhost"
+      DriverOption "username" "collectd"
+      DriverOption "password" "aZo6daiw"
+      DriverOption "dbname" "prod_info"
+      SelectDB "prod_info"
+      Query "out_of_stock"
+    </Database>
+  </Plugin>
+
+The configuration above defines one query and one database. The query is then
+linked to the database with the B<Query> option I<within> the
+B<E<lt>DatabaseE<gt>> block. You can have any number of queries and databases
+and you can also use the B<Include> statement to split up the configuration
+file in multiple, smaller files. However, the B<E<lt>QueryE<gt>> block I<must>
+precede the B<E<lt>DatabaseE<gt>> blocks, because the file is interpreted from
+top to bottom!
+
+The following is a complete list of options:
+
+=head3 B<Query> blocks
+
+Query blocks define SQL statements and how the returned data should be
+interpreted. They are identified by the name that is given in the opening line
+of the block. Thus the name needs to be unique. Other than that, the name is
+not used in collectd.
+
+=over 4
+
+=item B<Statement> I<SQL>
+
+Sets the statement that should be executed on the server. This is B<not>
+interpreted by collectd, but simply passed to the database server. Therefore,
+the SQL dialect that's used depends on the server collectd is connected to.
+
+The query has to return at least two columns, one for the instance and one
+value. You cannot omit the instance, even if the statement is guaranteed to
+always return exactly one line. In that case, you can usually specify something
+like this:
+
+  Statement "SELECT \"instance\", COUNT(*) AS value FROM table"
+
+(That works with MySQL but may not be valid SQL according to the spec. If you
+use a more strict database server, you may have to select from a dummy table or
+something.)
+
+=item B<Type> I<Type>
+
+The B<type> that's used for each line returned. See L<types.db(5)> for more
+details on how types are defined. In short: A type is a predefined layout of
+data and the number of values and type of values has to match the type
+definition.
+
+If you specify "temperature" here, you need exactly one gauge column. If you
+specify "if_octets", you will need two counter columns. See the B<ValuesFrom>
+setting below.
+
+=item B<InstancesFrom> I<column0> [I<column1> ...]
+
+Specifies the columns whose values will be used to create the "TypeInstance"
+for each row. You need to specify at least one column for each query. If you
+specify more than one column, the value of all columns will be join together
+with the hyphen as separation character.
+
+The plugin itself does not check whether or not all built instances are
+different. It's your responsibility to assure that each is unique.
+
+=item B<ValuesFrom> I<column0> [I<column1> ...]
+
+Names the columns whose content is used as the actual data for the data sets
+that are dispatched to the daemon. How many such columns you need is determined
+by the B<Type> setting above. If you specify too many or not enough columns,
+the plugin will complain about that and no data will be submitted to the
+daemon.
+
+The actual data type in the columns is not that important. The plugin will
+automatically cast the values to the right type if it know how to do that. So
+it should be able to handle integer an floating point types, as well as strings
+(if they include a number at the beginning).
+
+=back
+
+=head3 B<Database> blocks
+
+Database blocks define a connection to a database and which queries should be
+sent to that database. Since the used "dbi" library can handle a wide variety
+of databases, the configuration is very generic. If in doubt, refer to libdbi's
+documentationE<nbsp>- we stick as close to the terminology used there.
+
+Each database needs a "name" as string argument in the starting tag of the
+block. This name will be used as "PluginInstance" in the values submitted to
+the daemon. Other than that, that name is not used.
+
+=over 4
+
+=item B<Driver> I<Driver>
+
+Specifies the driver to use to connect to the database. In many cases those
+drivers are named after the database they can connect to, but this is not a
+technical necessity. These drivers are sometimes referred to as "DBD",
+B<D>ataB<B>ase B<D>river, and some distributions ship them in separate
+packages. Drivers for the "dbi" library are developed by the B<libdbi-drivers>
+project at L<http://libdbi-drivers.sourceforge.net/>.
+
+You need to give the driver name as expected by the "dbi" library here. You
+should be able to find that in the documentation for each driver. If you
+mistype the driver name, the plugin will dump a list of all known driver names
+to the log.
+
+=item B<DriverOption> I<Key> I<Value>
+
+Sets driver-specific options. What option a driver supports can be found in the
+documentation for each driver, somewhere at
+L<http://libdbi-drivers.sourceforge.net/>. However, the options "host",
+"username", "password", and "dbname" seem to be deE<nbsp>facto standards.
+
+Unfortunately, drivers are not too keen to report errors when an unknown option
+is passed to them, so invalid settings here may go unnoticed. This is not the
+plugin's fault, it will report errors if it gets them from the libraryE<nbsp>/
+the driver. If a driver complains about an option, the plugin will dump a
+complete list of all options understood by that driver to the log.
+
+=item B<SelectDB> I<Database>
+
+In some cases, the database name you connect with is not the database name you
+want to use for querying data. If this option is set, the plugin will "select"
+(switch to) that database after the connection is established.
+
+=item B<Query> I<QueryName>
+
+Associates the query named I<QueryName> with this database connection. The
+query needs to be defined I<before> this statement, i.E<nbsp>e. all query
+blocks you want to refer to must be placed above the database block you want to
+refer to them from.
+
+=back
+
 =head2 Plugin C<df>
 
 =over 4
