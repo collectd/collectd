@@ -922,23 +922,87 @@ fi
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
 
-# --with-rrdtool {{{
+if test "x$ac_system" = "xSolaris"
+then
+	with_kstat="yes"
+	with_devinfo="yes"
+else
+	with_kstat="no (Solaris only)"
+	with_devinfo="no (Solaris only)"
+fi
+
+if test "x$with_kstat" = "xyes"
+then
+	AC_CHECK_LIB(kstat, kstat_open, [with_kstat="yes"], [with_kstat="no (libkstat not found)"], [])
+fi
+if test "x$with_kstat" = "xyes"
+then
+	AC_CHECK_LIB(devinfo, di_init, [with_devinfo="yes"], [with_devinfo="no (not found)"], [])
+	AC_CHECK_HEADERS(kstat.h,, [with_kstat="no (kstat.h not found)"])
+fi
+if test "x$with_kstat" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBKSTAT, 1,
+		  [Define to 1 if you have the 'kstat' library (-lkstat)])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
+
+with_libiokit="no"
+AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
+[
+	with_libiokit="yes"
+], 
+[
+	with_libiokit="no"
+])
+AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
+
+with_libkvm="no"
+AC_CHECK_LIB(kvm, kvm_getprocs, [with_kvm_getprocs="yes"], [with_kvm_getprocs="no"])
+if test "x$with_kvm_getprocs" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBKVM_GETPROCS, 1,
+		  [Define to 1 if you have the 'kvm' library with the 'kvm_getprocs' symbol (-lkvm)])
+	with_libkvm="yes"
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETPROCS, test "x$with_kvm_getprocs" = "xyes")
+
+AC_CHECK_LIB(kvm, kvm_getswapinfo, [with_kvm_getswapinfo="yes"], [with_kvm_getswapinfo="no"])
+if test "x$with_kvm_getswapinfo" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBKVM_GETSWAPINFO, 1,
+		  [Define to 1 if you have the 'kvm' library with the 'kvm_getswapinfo' symbol (-lkvm)])
+	with_libkvm="yes"
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "xyes")
+
+AC_CHECK_LIB(kvm, kvm_nlist, [with_kvm_nlist="yes"], [with_kvm_nlist="no"])
+if test "x$with_kvm_nlist" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
+		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
+	with_libkvm="yes"
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBKVM_NLIST, test "x$with_kvm_nlist" = "xyes")
+
+# --with-librrd {{{
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 librrd_cflags=""
 librrd_ldflags=""
 librrd_threadsafe="yes"
 librrd_rrdc_update="no"
-AC_ARG_WITH(rrdtool, [AS_HELP_STRING([--with-rrdtool@<:@=PREFIX@:>@], [Path to rrdtool.])],
+AC_ARG_WITH(librrd, [AS_HELP_STRING([--with-librrd@<:@=PREFIX@:>@], [Path to rrdtool.])],
 [	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		librrd_cflags="-I$withval/include"
 		librrd_ldflags="-L$withval/lib"
-		with_rrdtool="yes"
+		with_librrd="yes"
 	else
-		with_rrdtool="$withval"
+		with_librrd="$withval"
 	fi
-], [with_rrdtool="yes"])
-if test "x$with_rrdtool" = "xyes"
+], [with_librrd="yes"])
+if test "x$with_librrd" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
@@ -946,12 +1010,12 @@ then
 	CPPFLAGS="$CPPFLAGS $librrd_cflags"
 	LDFLAGS="$LDFLAGS $librrd_ldflags"
 
-	AC_CHECK_HEADERS(rrd.h,, [with_rrdtool="no (rrd.h not found)"])
+	AC_CHECK_HEADERS(rrd.h,, [with_librrd="no (rrd.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
-if test "x$with_rrdtool" = "xyes"
+if test "x$with_librrd" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
@@ -960,15 +1024,15 @@ then
 	LDFLAGS="$LDFLAGS $librrd_ldflags"
 
 	AC_CHECK_LIB(rrd_th, rrd_update_r,
-	[with_rrdtool="yes"
+	[with_librrd="yes"
 	 librrd_ldflags="$librrd_ldflags -lrrd_th -lm"
 	],
 	[librrd_threadsafe="no"
 	 AC_CHECK_LIB(rrd, rrd_update,
-	 [with_rrdtool="yes"
+	 [with_librrd="yes"
 	  librrd_ldflags="$librrd_ldflags -lrrd -lm"
 	 ],
-	 [with_rrdtool="no (symbol 'rrd_update' not found)"],
+	 [with_librrd="no (symbol 'rrd_update' not found)"],
 	 [-lm])
 	],
 	[-lm])
@@ -983,7 +1047,7 @@ then
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
-if test "x$with_rrdtool" = "xyes"
+if test "x$with_librrd" = "xyes"
 then
 	BUILD_WITH_LIBRRD_CFLAGS="$librrd_cflags"
 	BUILD_WITH_LIBRRD_LDFLAGS="$librrd_ldflags"
@@ -1029,32 +1093,6 @@ AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
 	[Wether or not to use pthread (POSIX threads) library])
 AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 # }}}
-
-if test "x$ac_system" = "xSolaris"
-then
-	with_kstat="yes"
-	with_devinfo="yes"
-else
-	with_kstat="no (Solaris only)"
-	with_devinfo="no (Solaris only)"
-fi
-
-if test "x$with_kstat" = "xyes"
-then
-	AC_CHECK_LIB(kstat, kstat_open, [with_kstat="yes"], [with_kstat="no (libkstat not found)"], [])
-fi
-if test "x$with_kstat" = "xyes"
-then
-	AC_CHECK_LIB(devinfo, di_init, [with_devinfo="yes"], [with_devinfo="no (not found)"], [])
-	AC_CHECK_HEADERS(kstat.h,, [with_kstat="no (kstat.h not found)"])
-fi
-if test "x$with_kstat" = "xyes"
-then
-	AC_DEFINE(HAVE_LIBKSTAT, 1,
-		  [Define to 1 if you have the 'kstat' library (-lkstat)])
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
-AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
 # --with-libcurl {{{
 with_curl_config="curl-config"
@@ -1125,16 +1163,6 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
-
-with_libiokit="no"
-AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
-[
-	with_libiokit="yes"
-], 
-[
-	with_libiokit="no"
-])
-AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 # --with-libstatgrab {{{
 with_libstatgrab_cflags=""
@@ -1249,61 +1277,33 @@ then
 fi
 # }}}
 
-with_libkvm="no"
-AC_CHECK_LIB(kvm, kvm_getprocs, [with_kvm_getprocs="yes"], [with_kvm_getprocs="no"])
-if test "x$with_kvm_getprocs" = "xyes"
-then
-	AC_DEFINE(HAVE_LIBKVM_GETPROCS, 1,
-		  [Define to 1 if you have the 'kvm' library with the 'kvm_getprocs' symbol (-lkvm)])
-	with_libkvm="yes"
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETPROCS, test "x$with_kvm_getprocs" = "xyes")
-
-AC_CHECK_LIB(kvm, kvm_getswapinfo, [with_kvm_getswapinfo="yes"], [with_kvm_getswapinfo="no"])
-if test "x$with_kvm_getswapinfo" = "xyes"
-then
-	AC_DEFINE(HAVE_LIBKVM_GETSWAPINFO, 1,
-		  [Define to 1 if you have the 'kvm' library with the 'kvm_getswapinfo' symbol (-lkvm)])
-	with_libkvm="yes"
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "xyes")
-
-AC_CHECK_LIB(kvm, kvm_nlist, [with_kvm_nlist="yes"], [with_kvm_nlist="no"])
-if test "x$with_kvm_nlist" = "xyes"
-then
-	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
-		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
-	with_libkvm="yes"
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBKVM_NLIST, test "x$with_kvm_nlist" = "xyes")
-
-# --with-lm-sensors {{{
+# --with-libsensors {{{
 with_sensors_cflags=""
 with_sensors_ldflags=""
-AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
+AC_ARG_WITH(libsensors, [AS_HELP_STRING([--with-libsensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
 [
 	if test "x$withval" = "xno"
 	then
-		with_lm_sensors="no"
+		with_libsensors="no"
 	else
-		with_lm_sensors="yes"
+		with_libsensors="yes"
 		if test "x$withval" != "xyes"
 		then
 			with_sensors_cflags="-I$withval/include"
 			with_sensors_ldflags="-L$withval/lib"
-			with_lm_sensors="yes"
+			with_libsensors="yes"
 		fi
 	fi
 ],
 [
 	if test "x$ac_system" = "xLinux"
 	then
-		with_lm_sensors="yes"
+		with_libsensors="yes"
 	else
-		with_lm_sensors="no (Linux only library)"
+		with_libsensors="no (Linux only library)"
 	fi
 ])
-if test "x$with_lm_sensors" = "xyes"
+if test "x$with_libsensors" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
@@ -1312,12 +1312,12 @@ then
 #	[
 #		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
 #	],
-#	[with_lm_sensors="no (sensors/sensors.h not found)"])
-	AC_CHECK_HEADERS(sensors/sensors.h, [], [with_lm_sensors="no (sensors/sensors.h not found)"])
+#	[with_libsensors="no (sensors/sensors.h not found)"])
+	AC_CHECK_HEADERS(sensors/sensors.h, [], [with_libsensors="no (sensors/sensors.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-if test "x$with_lm_sensors" = "xyes"
+if test "x$with_libsensors" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
@@ -1328,19 +1328,19 @@ then
 	[
 		AC_DEFINE(HAVE_LIBSENSORS, 1, [Define to 1 if you have the sensors library (-lsensors).])
 	],
-	[with_lm_sensors="no (libsensors not found)"])
+	[with_libsensors="no (libsensors not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
-if test "x$with_lm_sensors" = "xyes"
+if test "x$with_libsensors" = "xyes"
 then
 	BUILD_WITH_LIBSENSORS_CFLAGS="$with_sensors_cflags"
 	BUILD_WITH_LIBSENSORS_LDFLAGS="$with_sensors_ldflags"
 	AC_SUBST(BUILD_WITH_LIBSENSORS_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBSENSORS_LDFLAGS)
 fi
-AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_lm_sensors" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_libsensors" = "xyes")
 # }}}
 
 # --with-libmysql {{{
@@ -1890,10 +1890,6 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
 # }}}
 
-PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
-		[with_libnotify="yes"],
-		[with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"])
-
 # pkg-config --exists 'libupsclient' {{{
 with_libupsclient="no (pkg-config isn't available)"
 with_libupsclient_cflags=""
@@ -2142,87 +2138,6 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
 # }}}
 
-# $PKG_CONFIG --exists OpenIPMIpthread {{{
-with_libopenipmipthread="yes"
-with_libopenipmipthread_cflags=""
-with_libopenipmipthread_libs=""
-
-AC_MSG_CHECKING([for pkg-config])
-temp_result="no"
-if test "x$PKG_CONFIG" = "x"
-then
-	with_libopenipmipthread="no"
-	temp_result="no"
-else
-	temp_result="$PKG_CONFIG"
-fi
-AC_MSG_RESULT([$temp_result])
-
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	AC_MSG_CHECKING([for libOpenIPMIpthread])
-	$PKG_CONFIG --exists OpenIPMIpthread 2>/dev/null
-	if test "$?" != "0"
-	then
-		with_libopenipmipthread="no ($PKG_CONFIG doesn't know OpenIPMIpthread)"
-	fi
-	AC_MSG_RESULT([$with_libopenipmipthread])
-fi
-
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	AC_MSG_CHECKING([for libOpenIPMIpthread CFLAGS])
-	temp_result="`$PKG_CONFIG --cflags OpenIPMIpthread`"
-	if test "$?" = "0"
-	then
-		with_libopenipmipthread_cflags="$temp_result"
-	else
-		with_libopenipmipthread="no ($PKG_CONFIG --cflags OpenIPMIpthread failed)"
-		temp_result="$PKG_CONFIG --cflags OpenIPMIpthread failed"
-	fi
-	AC_MSG_RESULT([$temp_result])
-fi
-
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	AC_MSG_CHECKING([for libOpenIPMIpthread LDFLAGS])
-	temp_result="`$PKG_CONFIG --libs OpenIPMIpthread`"
-	if test "$?" = "0"
-	then
-		with_libopenipmipthread_ldflags="$temp_result"
-	else
-		with_libopenipmipthread="no ($PKG_CONFIG --libs OpenIPMIpthread failed)"
-		temp_result="$PKG_CONFIG --libs OpenIPMIpthread failed"
-	fi
-	AC_MSG_RESULT([$temp_result])
-fi
-
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libopenipmipthread_cflags"
-
-	AC_CHECK_HEADERS(OpenIPMI/ipmi_smi.h,
-			 [with_libopenipmipthread="yes"],
-			 [with_libopenipmipthread="no (OpenIPMI/ipmi_smi.h not found)"],
-[#include <OpenIPMI/ipmiif.h>
-#include <OpenIPMI/ipmi_err.h>
-#include <OpenIPMI/ipmi_posix.h>
-#include <OpenIPMI/ipmi_conn.h>
-])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	BUILD_WITH_OPENIPMI_CFLAGS="$with_libopenipmipthread_cflags"
-	BUILD_WITH_OPENIPMI_LIBS="$with_libopenipmipthread_ldflags"
-	AC_SUBST(BUILD_WITH_OPENIPMI_CFLAGS)
-	AC_SUBST(BUILD_WITH_OPENIPMI_LIBS)
-fi
-# }}}
-
 # --with-libpq {{{
 with_pg_config="pg_config"
 with_libpq_includedir=""
@@ -2309,6 +2224,87 @@ then
 	AC_SUBST(BUILD_WITH_LIBPQ_LDFLAGS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
+# }}}
+
+# $PKG_CONFIG --exists OpenIPMIpthread {{{
+with_libopenipmipthread="yes"
+with_libopenipmipthread_cflags=""
+with_libopenipmipthread_libs=""
+
+AC_MSG_CHECKING([for pkg-config])
+temp_result="no"
+if test "x$PKG_CONFIG" = "x"
+then
+	with_libopenipmipthread="no"
+	temp_result="no"
+else
+	temp_result="$PKG_CONFIG"
+fi
+AC_MSG_RESULT([$temp_result])
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	AC_MSG_CHECKING([for libOpenIPMIpthread])
+	$PKG_CONFIG --exists OpenIPMIpthread 2>/dev/null
+	if test "$?" != "0"
+	then
+		with_libopenipmipthread="no ($PKG_CONFIG doesn't know OpenIPMIpthread)"
+	fi
+	AC_MSG_RESULT([$with_libopenipmipthread])
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	AC_MSG_CHECKING([for libOpenIPMIpthread CFLAGS])
+	temp_result="`$PKG_CONFIG --cflags OpenIPMIpthread`"
+	if test "$?" = "0"
+	then
+		with_libopenipmipthread_cflags="$temp_result"
+	else
+		with_libopenipmipthread="no ($PKG_CONFIG --cflags OpenIPMIpthread failed)"
+		temp_result="$PKG_CONFIG --cflags OpenIPMIpthread failed"
+	fi
+	AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	AC_MSG_CHECKING([for libOpenIPMIpthread LDFLAGS])
+	temp_result="`$PKG_CONFIG --libs OpenIPMIpthread`"
+	if test "$?" = "0"
+	then
+		with_libopenipmipthread_ldflags="$temp_result"
+	else
+		with_libopenipmipthread="no ($PKG_CONFIG --libs OpenIPMIpthread failed)"
+		temp_result="$PKG_CONFIG --libs OpenIPMIpthread failed"
+	fi
+	AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libopenipmipthread_cflags"
+
+	AC_CHECK_HEADERS(OpenIPMI/ipmi_smi.h,
+			 [with_libopenipmipthread="yes"],
+			 [with_libopenipmipthread="no (OpenIPMI/ipmi_smi.h not found)"],
+[#include <OpenIPMI/ipmiif.h>
+#include <OpenIPMI/ipmi_err.h>
+#include <OpenIPMI/ipmi_posix.h>
+#include <OpenIPMI/ipmi_conn.h>
+])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	BUILD_WITH_OPENIPMI_CFLAGS="$with_libopenipmipthread_cflags"
+	BUILD_WITH_OPENIPMI_LIBS="$with_libopenipmipthread_ldflags"
+	AC_SUBST(BUILD_WITH_OPENIPMI_CFLAGS)
+	AC_SUBST(BUILD_WITH_OPENIPMI_LIBS)
+fi
 # }}}
 
 # pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
@@ -2427,6 +2423,10 @@ if test "x$with_libvirt" = "xyes"; then
 	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
 fi
 # }}}
+
+PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
+		[with_libnotify="yes"],
+		[with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"])
 
 # Check for enabled/disabled features
 #
@@ -2760,9 +2760,9 @@ AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
-AC_PLUGIN([rrdtool],     [$with_rrdtool],      [RRDTool output plugin])
+AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
-AC_PLUGIN([sensors],     [$with_lm_sensors],   [lm_sensors statistics])
+AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
@@ -2819,10 +2819,10 @@ AC_SUBST(PERL_BINDINGS_OPTIONS)
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
-if test "x$with_rrdtool" = "xyes" \
+if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"
 then
-	with_rrdtool="yes (warning: librrd is not thread-safe)"
+	with_librrd="yes (warning: librrd is not thread-safe)"
 fi
 
 if test "x$with_liboping" = "xyes" \
@@ -2870,8 +2870,8 @@ Configuration:
     libperl . . . . . . . $with_libperl
     libpthread  . . . . . $with_libpthread
     libpq . . . . . . . . $with_libpq
-    librrd  . . . . . . . $with_rrdtool
-    libsensors  . . . . . $with_lm_sensors
+    librrd  . . . . . . . $with_librrd
+    libsensors  . . . . . $with_libsensors
     libstatgrab . . . . . $with_libstatgrab
     libupsclient  . . . . $with_libupsclient
     libvirt . . . . . . . $with_libvirt
