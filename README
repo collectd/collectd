@@ -40,6 +40,10 @@ Features
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
 
+    - dbi
+      Executes SQL statements on various databases and interprets the returned
+      data.
+
     - df
       Mountpoint usage (Basically the values `df(1)' delivers)
 
@@ -362,6 +366,10 @@ Prerequisites
 
   * libcurl (optional)
     If you want to use the `apache', `ascent', or `nginx' plugin.
+
+  * libdbi (optional)
+    Used by the `dbi' plugin to connect to various databases.
+    <http://libdbi.sourceforge.net/>
 
   * libesmtp (optional)
     For the `notify_email' plugin.
