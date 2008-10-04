@@ -184,6 +184,16 @@ collectd_LDADD += "-dlopen" csv.la
 collectd_DEPENDENCIES += csv.la
 endif
 
+if BUILD_PLUGIN_DBI
+pkglib_LTLIBRARIES += dbi.la
+dbi_la_SOURCES = dbi.c
+dbi_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBDBI_CPPFLAGS)
+dbi_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBDBI_LDFLAGS)
+dbi_la_LIBADD = $(BUILD_WITH_LIBDBI_LIBS)
+collectd_LDADD += "-dlopen" dbi.la
+collectd_DEPENDENCIES += dbi.la
+endif
+
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = df.c

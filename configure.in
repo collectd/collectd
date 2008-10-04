@@ -1056,6 +1056,56 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
+# --with-libdbi {{{
+with_libdbi_cppflags=""
+with_libdbi_ldflags=""
+AC_ARG_WITH(libdbi, [AS_HELP_STRING([--with-libdbi@<:@=PREFIX@:>@], [Path to libdbi.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libdbi_cppflags="-I$withval/include"
+		with_libdbi_ldflags="-L$withval/lib"
+		with_libdbi="yes"
+	else
+		with_libdbi="$withval"
+	fi
+],
+[
+	with_libdbi="yes"
+])
+if test "x$with_libdbi" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libdbi_cppflags"
+
+	AC_CHECK_HEADERS(dbi/dbi.h, [with_libdbi="yes"], [with_libdbi="no (dbi/dbi.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libdbi" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libdbi_cppflags"
+	LDFLAGS="$LDFLAGS $with_libdbi_ldflags"
+
+	AC_CHECK_LIB(dbi, dbi_initialize, [with_libdbi="yes"], [with_libdbi="no (Symbol 'dbi_initialize' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libdbi" = "xyes"
+then
+	BUILD_WITH_LIBDBI_CPPFLAGS="$with_libdbi_cppflags"
+	BUILD_WITH_LIBDBI_LDFLAGS="$with_libdbi_ldflags"
+	BUILD_WITH_LIBDBI_LIBS="-ldbi"
+	AC_SUBST(BUILD_WITH_LIBDBI_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBDBI_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBDBI_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBDBI, test "x$with_libdbi" = "xyes")
+# }}}
+
 # --with-libesmtp {{{
 AC_ARG_WITH(libesmtp, [AS_HELP_STRING([--with-libesmtp@<:@=PREFIX@:>@], [Path to libesmtp.])],
 [
@@ -2726,6 +2776,7 @@ AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
+AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
@@ -2854,6 +2905,7 @@ cat <<EOF;
 Configuration:
   Libraries:
     libcurl . . . . . . . $with_libcurl
+    libdbi  . . . . . . . $with_libdbi
     libesmtp  . . . . . . $with_libesmtp
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
@@ -2894,6 +2946,7 @@ Configuration:
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
+    dbi . . . . . . . . . $enable_dbi
     df  . . . . . . . . . $enable_df
     disk  . . . . . . . . $enable_disk
     dns . . . . . . . . . $enable_dns
