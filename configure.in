@@ -922,6 +922,7 @@ fi
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
 
+# --with-rrdtool {{{
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 librrd_cflags=""
 librrd_ldflags=""
@@ -993,7 +994,9 @@ if test "x$librrd_threadsafe" = "xyes"
 then
 	AC_DEFINE(HAVE_THREADSAFE_LIBRRD, 1, [Define to 1 if you have the threadsafe rrd library (-lrrd_th).])
 fi
+# }}}
 
+# --with-libpthread {{{
 AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
 [	if test "x$withval" != "xno" \
 		&& test "x$withval" != "xyes"
@@ -1025,6 +1028,7 @@ fi
 AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
 	[Wether or not to use pthread (POSIX threads) library])
 AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
+# }}}
 
 if test "x$ac_system" = "xSolaris"
 then
@@ -1052,7 +1056,7 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
-### BEGIN of check for libcurl ###
+# --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
 with_curl_libs=""
@@ -1120,7 +1124,7 @@ then
 	AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
-### END of check for libcurl ###
+# }}}
 
 with_libiokit="no"
 AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
@@ -1132,6 +1136,7 @@ AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
 ])
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
+# --with-libstatgrab {{{
 with_libstatgrab_cflags=""
 with_libstatgrab_ldflags=""
 AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
@@ -1242,6 +1247,7 @@ then
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 fi
+# }}}
 
 with_libkvm="no"
 AC_CHECK_LIB(kvm, kvm_getprocs, [with_kvm_getprocs="yes"], [with_kvm_getprocs="no"])
@@ -1271,6 +1277,7 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_NLIST, test "x$with_kvm_nlist" = "xyes")
 
+# --with-lm-sensors {{{
 with_sensors_cflags=""
 with_sensors_ldflags=""
 AC_ARG_WITH(lm-sensors, [AS_HELP_STRING([--with-lm-sensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
@@ -1334,7 +1341,9 @@ then
 	AC_SUBST(BUILD_WITH_LIBSENSORS_LDFLAGS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_lm_sensors" = "xyes")
+# }}}
 
+# --with-libmysql {{{
 with_mysql_config="mysql_config"
 with_mysql_cflags=""
 with_mysql_libs=""
@@ -1400,7 +1409,9 @@ then
 	AC_SUBST(BUILD_WITH_LIBMYSQL_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
+# }}}
 
+# --with-liboconfig {{{
 with_own_liboconfig="no"
 liboconfig_LDFLAGS="$LDFLAGS"
 liboconfig_CPPFLAGS="$CPPFLAGS"
@@ -1447,8 +1458,9 @@ if test "x$with_own_liboconfig" = "xyes"
 then
 	with_liboconfig="yes (shipped version)"
 fi
+# }}}
 
-#with_liboping="yes"
+# --with-liboping {{{
 with_own_liboping="no"
 liboping_LDFLAGS="$LDFLAGS"
 liboping_CPPFLAGS="$CPPFLAGS"
@@ -1498,7 +1510,9 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBOPING, test "x$with_liboping" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_OWN_LIBOPING, test "x$with_own_liboping" = "xyes")
+# }}}
 
+# --with-libowcapi {{{
 with_libowcapi_cppflags=""
 with_libowcapi_libs="-lowcapi"
 AC_ARG_WITH(libowcapi, [AS_HELP_STRING([--with-libowcapi@<:@=PREFIX@:>@], [Path to libowcapi.])],
@@ -1543,8 +1557,9 @@ then
 	AC_SUBST(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_LIBOWCAPI_LIBS)
 fi
+# }}}
 
-
+# --with-libpcap {{{
 AC_ARG_WITH(libpcap, [AS_HELP_STRING([--with-libpcap@<:@=PREFIX@:>@], [Path to libpcap.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -1582,7 +1597,9 @@ fi
 AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
 	[Wether or not to use the pcap library])
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
+# }}}
 
+# --with-libesmtp {{{
 AC_ARG_WITH(libesmtp, [AS_HELP_STRING([--with-libesmtp@<:@=PREFIX@:>@], [Path to libesmtp.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -1620,7 +1637,9 @@ fi
 AC_DEFINE_UNQUOTED(COLLECT_LIBESMTP, [$collect_libesmtp],
 	[Wether or not to use the esmtp library])
 AM_CONDITIONAL(BUILD_WITH_LIBESMTP, test "x$with_libesmtp" = "xyes")
+# }}}
 
+# --with-libperl {{{
 perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
 [
@@ -1736,7 +1755,9 @@ then
 	CFLAGS=$SAVE_CFLAGS
 	LDFLAGS=$SAVE_LDFLAGS
 fi
+# }}}
 
+# --with-libiptc {{{
 with_own_libiptc="no"
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
@@ -1801,7 +1822,9 @@ if test "x$with_own_libiptc" = "xyes"
 then
 	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
 fi
+# }}}
 
+# --with-libnetsnmp {{{
 with_snmp_config="net-snmp-config"
 with_snmp_cflags=""
 with_snmp_libs=""
@@ -1865,11 +1888,13 @@ then
 	AC_SUBST(BUILD_WITH_LIBSNMP_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
+# }}}
 
 PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		[with_libnotify="yes"],
 		[with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"])
 
+# pkg-config --exists 'libupsclient' {{{
 with_libupsclient="no (pkg-config isn't available)"
 with_libupsclient_cflags=""
 with_libupsclient_libs=""
@@ -1939,8 +1964,9 @@ then
 	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_LIBS)
 fi
+# }}}
 
-### BEGIN of check for libxmms ###
+# --with-libxmms {{{
 with_xmms_config="xmms-config"
 with_xmms_cflags=""
 with_xmms_libs=""
@@ -2008,8 +2034,9 @@ then
 fi
 AC_DEFINE_UNQUOTED(HAVE_LIBXMMS, [$with_libxmms_numeric], [Define to 1 if you have the 'xmms' library (-lxmms).])
 AM_CONDITIONAL(BUILD_WITH_LIBXMMS, test "x$with_libxmms" = "xyes")
-### END of check for libxmms ###
+# }}}
 
+# --with-libnetlink {{{
 with_libnetlink_cflags=""
 with_libnetlink_libs="-lnetlink"
 AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libnetlink.])],
@@ -2113,7 +2140,9 @@ then
 	AC_SUBST(BUILD_WITH_LIBNETLINK_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
+# }}}
 
+# $PKG_CONFIG --exists OpenIPMIpthread {{{
 with_libopenipmipthread="yes"
 with_libopenipmipthread_cflags=""
 with_libopenipmipthread_libs=""
@@ -2192,8 +2221,9 @@ then
 	AC_SUBST(BUILD_WITH_OPENIPMI_CFLAGS)
 	AC_SUBST(BUILD_WITH_OPENIPMI_LIBS)
 fi
+# }}}
 
-dnl Check for libpq.
+# --with-libpq {{{
 with_pg_config="pg_config"
 with_libpq_includedir=""
 with_libpq_libdir=""
@@ -2279,8 +2309,9 @@ then
 	AC_SUBST(BUILD_WITH_LIBPQ_LDFLAGS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
+# }}}
 
-dnl Check for libvirt and libxml2 libraries.
+# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
 with_libxml2="no (pkg-config isn't available)"
 with_libxml2_cflags=""
 with_libxml2_ldflags=""
@@ -2395,8 +2426,7 @@ if test "x$with_libvirt" = "xyes"; then
 	AC_SUBST(BUILD_WITH_LIBVIRT_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
 fi
-
-dnl End of check for libvirt and libxml2 libraries.
+# }}}
 
 # Check for enabled/disabled features
 #
@@ -2920,3 +2950,5 @@ Configuration:
     xmms  . . . . . . . . $enable_xmms
 
 EOF
+
+# vim: set fdm=marker :
