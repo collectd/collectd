@@ -986,114 +986,6 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_NLIST, test "x$with_kvm_nlist" = "xyes")
 
-# --with-librrd {{{
-# AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
-librrd_cflags=""
-librrd_ldflags=""
-librrd_threadsafe="yes"
-librrd_rrdc_update="no"
-AC_ARG_WITH(librrd, [AS_HELP_STRING([--with-librrd@<:@=PREFIX@:>@], [Path to rrdtool.])],
-[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		librrd_cflags="-I$withval/include"
-		librrd_ldflags="-L$withval/lib"
-		with_librrd="yes"
-	else
-		with_librrd="$withval"
-	fi
-], [with_librrd="yes"])
-if test "x$with_librrd" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-
-	CPPFLAGS="$CPPFLAGS $librrd_cflags"
-	LDFLAGS="$LDFLAGS $librrd_ldflags"
-
-	AC_CHECK_HEADERS(rrd.h,, [with_librrd="no (rrd.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-fi
-if test "x$with_librrd" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-
-	CPPFLAGS="$CPPFLAGS $librrd_cflags"
-	LDFLAGS="$LDFLAGS $librrd_ldflags"
-
-	AC_CHECK_LIB(rrd_th, rrd_update_r,
-	[with_librrd="yes"
-	 librrd_ldflags="$librrd_ldflags -lrrd_th -lm"
-	],
-	[librrd_threadsafe="no"
-	 AC_CHECK_LIB(rrd, rrd_update,
-	 [with_librrd="yes"
-	  librrd_ldflags="$librrd_ldflags -lrrd -lm"
-	 ],
-	 [with_librrd="no (symbol 'rrd_update' not found)"],
-	 [-lm])
-	],
-	[-lm])
-
-	if test "x$librrd_threadsafe" = "xyes"
-	then
-		AC_CHECK_LIB(rrd_th, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
-	else
-		AC_CHECK_LIB(rrd, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
-	fi
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-fi
-if test "x$with_librrd" = "xyes"
-then
-	BUILD_WITH_LIBRRD_CFLAGS="$librrd_cflags"
-	BUILD_WITH_LIBRRD_LDFLAGS="$librrd_ldflags"
-	AC_SUBST(BUILD_WITH_LIBRRD_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBRRD_LDFLAGS)
-fi
-if test "x$librrd_threadsafe" = "xyes"
-then
-	AC_DEFINE(HAVE_THREADSAFE_LIBRRD, 1, [Define to 1 if you have the threadsafe rrd library (-lrrd_th).])
-fi
-# }}}
-
-# --with-libpthread {{{
-AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
-[	if test "x$withval" != "xno" \
-		&& test "x$withval" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
-		with_libpthread="yes"
-	else
-		if test "x$withval" = "xno"
-		then
-			with_libpthread="no (disabled)"
-		fi
-	fi
-], [with_libpthread="yes"])
-if test "x$with_libpthread" = "xyes"
-then
-	AC_CHECK_LIB(pthread, pthread_create, [with_libpthread="yes"], [with_libpthread="no (libpthread not found)"], [])
-fi
-if test "x$with_libpthread" = "xyes"
-then
-	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
-fi
-if test "x$with_libpthread" = "xyes"
-then
-	collect_pthread=1
-else
-	collect_pthread=0
-fi
-AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
-	[Wether or not to use pthread (POSIX threads) library])
-AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
-# }}}
-
 # --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
@@ -1164,183 +1056,111 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
-# --with-libstatgrab {{{
-with_libstatgrab_cflags=""
-with_libstatgrab_ldflags=""
-AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
+# --with-libesmtp {{{
+AC_ARG_WITH(libesmtp, [AS_HELP_STRING([--with-libesmtp@<:@=PREFIX@:>@], [Path to libesmtp.])],
 [
-	if test "x$withval" != "xno" \
-		&& test "x$withval" != "xyes"
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		with_libstatgrab_cflags="-I$withval/include"
-		with_libstatgrab_ldflags="-L$withval/lib"
-		with_libstatgrab="yes"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include -D_THREAD_SAFE"
+		with_libesmtp="yes"
 	else
-		with_libstatgrab="$withval"
+		with_libesmtp="$withval"
 	fi
 ],
 [
-	if test "x$ac_system" = "xunknown"
-	then
-		with_libstatgrab="yes"
-	else
-		with_libstatgrab="no"
-	fi
+	with_libesmtp="yes"
 ])
-with_libstatgrab_pkg_config="yes"
-if test "x$with_libstatgrab" = "xyes" \
-  && test "x$PKG_CONFIG" != "x"
+if test "x$with_libesmtp" = "xyes"
 then
-  AC_MSG_CHECKING([pkg-config for libstatgrab])
-  temp_result="found"
-  $PKG_CONFIG --exists libstatgrab 2>/dev/null
-  if test "$?" != "0"
-  then
-    with_libstatgrab_pkg_config="no"
-    temp_result="not found"
-  fi
-  AC_MSG_RESULT([$temp_result])
+	AC_CHECK_LIB(esmtp, smtp_create_session,
+	[
+		AC_DEFINE(HAVE_LIBESMTP, 1, [Define to 1 if you have the esmtp library (-lesmtp).])
+	], [with_libesmtp="no (libesmtp not found)"])
+fi
+if test "x$with_libesmtp" = "xyes"
+then
+	AC_CHECK_HEADERS(libesmtp.h,
+	[
+		AC_DEFINE(HAVE_LIBESMTP_H, 1, [Define to 1 if you have the <libesmtp.h> header file.])
+	], [with_libesmtp="no (libesmtp.h not found)"])
+fi
+if test "x$with_libesmtp" = "xyes"
+then
+	collect_libesmtp=1
 else
-  AC_MSG_NOTICE([pkg-config not available, trying to guess flags for the statgrab library.])
-  with_libstatgrab_pkg_config="no"
-  with_libstatgrab_ldflags="$with_libstatgrab_ldflags -lstatgrab"
+	collect_libesmtp=0
 fi
-
-if test "x$with_libstatgrab" = "xyes" \
-  && test "x$with_libstatgrab_pkg_config" = "xyes" \
-  && test "x$with_libstatgrab_cflags" = "x"
-then
-  AC_MSG_CHECKING([for libstatgrab CFLAGS])
-  temp_result="`$PKG_CONFIG --cflags libstatgrab`"
-  if test "$?" = "0"
-  then
-    with_libstatgrab_cflags="$temp_result"
-  else
-    with_libstatgrab="no ($PKG_CONFIG --cflags libstatgrab failed)"
-    temp_result="$PKG_CONFIG --cflags libstatgrab failed"
-  fi
-  AC_MSG_RESULT([$temp_result])
-fi
-
-if test "x$with_libstatgrab" = "xyes" \
-  && test "x$with_libstatgrab_pkg_config" = "xyes" \
-  && test "x$with_libstatgrab_ldflags" = "x"
-then
-  AC_MSG_CHECKING([for libstatgrab LDFLAGS])
-  temp_result="`$PKG_CONFIG --libs libstatgrab`"
-  if test "$?" = "0"
-  then
-    with_libstatgrab_ldflags="$temp_result"
-  else
-    with_libstatgrab="no ($PKG_CONFIG --libs libstatgrab failed)"
-    temp_result="$PKG_CONFIG --libs libstatgrab failed"
-  fi
-  AC_MSG_RESULT([$temp_result])
-fi
-
-if test "x$with_libstatgrab" = "xyes"
-then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $with_libstatgrab_cflags"
-
-  AC_CHECK_HEADERS(statgrab.h,
-		   [with_libstatgrab="yes"],
-		   [with_libstatgrab="no (statgrab.h not found)"])
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-
-if test "x$with_libstatgrab" = "xyes"
-then
-  SAVE_CFLAGS="$CFLAGS"
-  SAVE_LDFLAGS="$LDFLAGS"
-
-  CFLAGS="$CFLAGS $with_libstatgrab_cflags"
-  LDFLAGS="$LDFLAGS $with_libstatgrab_ldflags"
-
-  AC_CHECK_LIB(statgrab, sg_init,
-	       [with_libstatgrab="yes"],
-	       [with_libstatgrab="no (symbol sg_init not found)"])
-
-  CFLAGS="$SAVE_CFLAGS"
-  LDFLAGS="$SAVE_LDFLAGS"
-fi
-
-AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
-if test "x$with_libstatgrab" = "xyes"
-then
-  AC_DEFINE(HAVE_LIBSTATGRAB, 1, [Define to 1 if you have the 'statgrab' library (-lstatgrab)])
-  BUILD_WITH_LIBSTATGRAB_CFLAGS="$with_libstatgrab_cflags"
-  BUILD_WITH_LIBSTATGRAB_LDFLAGS="$with_libstatgrab_ldflags"
-  AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)
-  AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
-fi
+AC_DEFINE_UNQUOTED(COLLECT_LIBESMTP, [$collect_libesmtp],
+	[Wether or not to use the esmtp library])
+AM_CONDITIONAL(BUILD_WITH_LIBESMTP, test "x$with_libesmtp" = "xyes")
 # }}}
 
-# --with-libsensors {{{
-with_sensors_cflags=""
-with_sensors_ldflags=""
-AC_ARG_WITH(libsensors, [AS_HELP_STRING([--with-libsensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
+# --with-libiptc {{{
+with_own_libiptc="no"
+AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
-	if test "x$withval" = "xno"
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		with_libsensors="no"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libiptc="yes"
 	else
-		with_libsensors="yes"
-		if test "x$withval" != "xyes"
-		then
-			with_sensors_cflags="-I$withval/include"
-			with_sensors_ldflags="-L$withval/lib"
-			with_libsensors="yes"
-		fi
+		with_libiptc="$withval"
 	fi
 ],
 [
 	if test "x$ac_system" = "xLinux"
 	then
-		with_libsensors="yes"
+		with_libiptc="yes"
 	else
-		with_libsensors="no (Linux only library)"
+		with_libiptc="no (Linux only)"
 	fi
 ])
-if test "x$with_libsensors" = "xyes"
+if test "x$with_libiptc" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
-
-#	AC_CHECK_HEADERS(sensors/sensors.h,
-#	[
-#		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
-#	],
-#	[with_libsensors="no (sensors/sensors.h not found)"])
-	AC_CHECK_HEADERS(sensors/sensors.h, [], [with_libsensors="no (sensors/sensors.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libsensors" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
-	LDFLAGS="$LDFLAGS $with_sensors_ldflags"
-
-	AC_CHECK_LIB(sensors, sensors_init,
+	AC_CHECK_LIB(iptc, iptc_init,
 	[
-		AC_DEFINE(HAVE_LIBSENSORS, 1, [Define to 1 if you have the sensors library (-lsensors).])
+		AC_DEFINE(HAVE_LIBIPTC, 1, [Define to 1 if you have the iptc library (-liptc).])
 	],
-	[with_libsensors="no (libsensors not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
+	[
+		with_libiptc="yes"
+		with_own_libiptc="yes"
+	])
 fi
-if test "x$with_libsensors" = "xyes"
+if test "x$with_libiptc" = "xyes" -a "x$with_own_libiptc" != "xyes"
 then
-	BUILD_WITH_LIBSENSORS_CFLAGS="$with_sensors_cflags"
-	BUILD_WITH_LIBSENSORS_LDFLAGS="$with_sensors_ldflags"
-	AC_SUBST(BUILD_WITH_LIBSENSORS_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBSENSORS_LDFLAGS)
+	AC_CHECK_HEADERS(libiptc/libiptc.h,
+	[
+		AC_DEFINE(HAVE_LIBIPTC_LIBIPTC_H, 1, [Define to 1 if you have the <libiptc/libiptc.h> header file.])
+	],
+	[
+		with_libiptc="yes"
+		with_own_libiptc="yes"
+	])
 fi
-AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_libsensors" = "xyes")
+if test "x$with_libiptc" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
+
+	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
+	[
+		with_libiptc="no (Linux iptables headers not found - check KERNEL_DIR)"
+		with_own_libiptc="no"
+	],
+	[
+#include "$srcdir/src/libiptc/ipt_kernel_headers.h"
+	])
+
+	CFLAGS=$SAVE_CFLAGS
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_own_libiptc" = "xyes")
+if test "x$with_own_libiptc" = "xyes"
+then
+	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
+fi
 # }}}
 
 # --with-libmysql {{{
@@ -1409,6 +1229,178 @@ then
 	AC_SUBST(BUILD_WITH_LIBMYSQL_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
+# }}}
+
+# --with-libnetlink {{{
+with_libnetlink_cflags=""
+with_libnetlink_libs="-lnetlink"
+AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libnetlink.])],
+[
+ echo "libnetlink: withval = $withval"
+ if test "x$withval" = "xyes"
+ then
+	 with_libnetlink="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libnetlink="no"
+ else
+	 if test -d "$withval/include"
+	 then
+		 with_libnetlink_cflags="-I$withval/include"
+		 with_libnetlink_libs="-L$withval/lib -lnetlink"
+		 with_libnetlink="yes"
+	 else
+		 AC_MSG_ERROR("no such directory: $withval/include")
+	 fi
+ fi; fi
+],
+[
+ if test "x$ac_system" = "xLinux"
+ then
+	 with_libnetlink="yes"
+ else
+	 with_libnetlink="no (Linux only library)"
+ fi
+])
+if test "x$with_libnetlink" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS $with_libnetlink_cflags"
+
+	with_libnetlink="no (libnetlink.h not found)"
+
+	AC_CHECK_HEADERS(libnetlink.h iproute/libnetlink.h linux/libnetlink.h,
+	[
+	 with_libnetlink="yes"
+	 break
+	], [],
+[#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>])
+	AC_CHECK_HEADERS(linux/gen_stats.h linux/pkt_sched.h, [], [],
+[#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>])
+
+	AC_COMPILE_IFELSE(
+[#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+
+int main (void)
+{
+	int retval = TCA_STATS2;
+	return (retval);
+}],
+	[AC_DEFINE([HAVE_TCA_STATS2], 1, [True if the enum-member TCA_STATS2 exists])]
+	[]);
+
+	AC_COMPILE_IFELSE(
+[#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+
+int main (void)
+{
+	int retval = TCA_STATS;
+	return (retval);
+}],
+	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])]
+	[]);
+
+	CFLAGS="$SAVE_CFLAGS"
+fi
+if test "x$with_libnetlink" = "xyes"
+then
+	AC_CHECK_LIB(netlink, rtnl_open,
+		     [with_libnetlink="yes"],
+		     [with_libnetlink="no (symbol 'rtnl_open' not found)"],
+		     [$with_libnetlink_libs])
+fi
+if test "x$with_libnetlink" = "xyes"
+then
+	BUILD_WITH_LIBNETLINK_CFLAGS="$with_libnetlink_cflags"
+	BUILD_WITH_LIBNETLINK_LIBS="$with_libnetlink_libs"
+	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBNETLINK_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
+# }}}
+
+# --with-libnetsnmp {{{
+with_snmp_config="net-snmp-config"
+with_snmp_cflags=""
+with_snmp_libs=""
+AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to the Net-SNMPD library.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libnetsnmp="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libnetsnmp="yes"
+	else
+		if test -x "$withval"
+		then
+			with_snmp_config="$withval"
+			with_libnetsnmp="yes"
+		else
+			with_snmp_config="$withval/bin/net-snmp-config"
+			with_libnetsnmp="yes"
+		fi
+	fi; fi
+],
+[with_libnetsnmp="yes"])
+if test "x$with_libnetsnmp" = "xyes"
+then
+	with_snmp_cflags=`$with_snmp_config --cflags 2>/dev/null`
+	snmp_config_status=$?
+
+	if test $snmp_config_status -ne 0
+	then
+		with_libnetsnmp="no ($with_snmp_config failed)"
+	else
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_snmp_cflags"
+		
+		AC_CHECK_HEADERS(net-snmp/net-snmp-config.h, [], [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"])
+
+		CPPFLAGS="$SAVE_CPPFLAGS"
+	fi
+fi
+if test "x$with_libnetsnmp" = "xyes"
+then
+	with_snmp_libs=`$with_snmp_config --libs 2>/dev/null`
+	snmp_config_status=$?
+
+	if test $snmp_config_status -ne 0
+	then
+		with_libnetsnmp="no ($with_snmp_config failed)"
+	else
+		AC_CHECK_LIB(netsnmp, init_snmp,
+		[with_libnetsnmp="yes"],
+		[with_libnetsnmp="no (libnetsnmp not found)"],
+		[$with_snmp_libs])
+	fi
+fi
+if test "x$with_libnetsnmp" = "xyes"
+then
+	BUILD_WITH_LIBSNMP_CFLAGS="$with_snmp_cflags"
+	BUILD_WITH_LIBSNMP_LIBS="$with_snmp_libs"
+	AC_SUBST(BUILD_WITH_LIBSNMP_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBSNMP_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
 # }}}
 
 # --with-liboconfig {{{
@@ -1599,46 +1591,6 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 # }}}
 
-# --with-libesmtp {{{
-AC_ARG_WITH(libesmtp, [AS_HELP_STRING([--with-libesmtp@<:@=PREFIX@:>@], [Path to libesmtp.])],
-[
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include -D_THREAD_SAFE"
-		with_libesmtp="yes"
-	else
-		with_libesmtp="$withval"
-	fi
-],
-[
-	with_libesmtp="yes"
-])
-if test "x$with_libesmtp" = "xyes"
-then
-	AC_CHECK_LIB(esmtp, smtp_create_session,
-	[
-		AC_DEFINE(HAVE_LIBESMTP, 1, [Define to 1 if you have the esmtp library (-lesmtp).])
-	], [with_libesmtp="no (libesmtp not found)"])
-fi
-if test "x$with_libesmtp" = "xyes"
-then
-	AC_CHECK_HEADERS(libesmtp.h,
-	[
-		AC_DEFINE(HAVE_LIBESMTP_H, 1, [Define to 1 if you have the <libesmtp.h> header file.])
-	], [with_libesmtp="no (libesmtp.h not found)"])
-fi
-if test "x$with_libesmtp" = "xyes"
-then
-	collect_libesmtp=1
-else
-	collect_libesmtp=0
-fi
-AC_DEFINE_UNQUOTED(COLLECT_LIBESMTP, [$collect_libesmtp],
-	[Wether or not to use the esmtp library])
-AM_CONDITIONAL(BUILD_WITH_LIBESMTP, test "x$with_libesmtp" = "xyes")
-# }}}
-
 # --with-libperl {{{
 perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
@@ -1757,387 +1709,6 @@ then
 fi
 # }}}
 
-# --with-libiptc {{{
-with_own_libiptc="no"
-AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
-[
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
-		with_libiptc="yes"
-	else
-		with_libiptc="$withval"
-	fi
-],
-[
-	if test "x$ac_system" = "xLinux"
-	then
-		with_libiptc="yes"
-	else
-		with_libiptc="no (Linux only)"
-	fi
-])
-if test "x$with_libiptc" = "xyes"
-then
-	AC_CHECK_LIB(iptc, iptc_init,
-	[
-		AC_DEFINE(HAVE_LIBIPTC, 1, [Define to 1 if you have the iptc library (-liptc).])
-	],
-	[
-		with_libiptc="yes"
-		with_own_libiptc="yes"
-	])
-fi
-if test "x$with_libiptc" = "xyes" -a "x$with_own_libiptc" != "xyes"
-then
-	AC_CHECK_HEADERS(libiptc/libiptc.h,
-	[
-		AC_DEFINE(HAVE_LIBIPTC_LIBIPTC_H, 1, [Define to 1 if you have the <libiptc/libiptc.h> header file.])
-	],
-	[
-		with_libiptc="yes"
-		with_own_libiptc="yes"
-	])
-fi
-if test "x$with_libiptc" = "xyes"
-then
-	SAVE_CFLAGS=$CFLAGS
-	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
-
-	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
-	[
-		with_libiptc="no (Linux iptables headers not found - check KERNEL_DIR)"
-		with_own_libiptc="no"
-	],
-	[
-#include "$srcdir/src/libiptc/ipt_kernel_headers.h"
-	])
-
-	CFLAGS=$SAVE_CFLAGS
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
-AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_own_libiptc" = "xyes")
-if test "x$with_own_libiptc" = "xyes"
-then
-	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
-fi
-# }}}
-
-# --with-libnetsnmp {{{
-with_snmp_config="net-snmp-config"
-with_snmp_cflags=""
-with_snmp_libs=""
-AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to the Net-SNMPD library.])],
-[
-	if test "x$withval" = "xno"
-	then
-		with_libnetsnmp="no"
-	else if test "x$withval" = "xyes"
-	then
-		with_libnetsnmp="yes"
-	else
-		if test -x "$withval"
-		then
-			with_snmp_config="$withval"
-			with_libnetsnmp="yes"
-		else
-			with_snmp_config="$withval/bin/net-snmp-config"
-			with_libnetsnmp="yes"
-		fi
-	fi; fi
-],
-[with_libnetsnmp="yes"])
-if test "x$with_libnetsnmp" = "xyes"
-then
-	with_snmp_cflags=`$with_snmp_config --cflags 2>/dev/null`
-	snmp_config_status=$?
-
-	if test $snmp_config_status -ne 0
-	then
-		with_libnetsnmp="no ($with_snmp_config failed)"
-	else
-		SAVE_CPPFLAGS="$CPPFLAGS"
-		CPPFLAGS="$CPPFLAGS $with_snmp_cflags"
-		
-		AC_CHECK_HEADERS(net-snmp/net-snmp-config.h, [], [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"])
-
-		CPPFLAGS="$SAVE_CPPFLAGS"
-	fi
-fi
-if test "x$with_libnetsnmp" = "xyes"
-then
-	with_snmp_libs=`$with_snmp_config --libs 2>/dev/null`
-	snmp_config_status=$?
-
-	if test $snmp_config_status -ne 0
-	then
-		with_libnetsnmp="no ($with_snmp_config failed)"
-	else
-		AC_CHECK_LIB(netsnmp, init_snmp,
-		[with_libnetsnmp="yes"],
-		[with_libnetsnmp="no (libnetsnmp not found)"],
-		[$with_snmp_libs])
-	fi
-fi
-if test "x$with_libnetsnmp" = "xyes"
-then
-	BUILD_WITH_LIBSNMP_CFLAGS="$with_snmp_cflags"
-	BUILD_WITH_LIBSNMP_LIBS="$with_snmp_libs"
-	AC_SUBST(BUILD_WITH_LIBSNMP_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBSNMP_LIBS)
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBNETSNMP, test "x$with_libnetsnmp" = "xyes")
-# }}}
-
-# pkg-config --exists 'libupsclient' {{{
-with_libupsclient="no (pkg-config isn't available)"
-with_libupsclient_cflags=""
-with_libupsclient_libs=""
-if test "x$PKG_CONFIG" != "x"
-then
-	pkg-config --exists 'libupsclient' 2>/dev/null
-	if test "$?" = "0"
-	then
-		with_libupsclient="yes"
-	else
-		with_libupsclient="no (pkg-config doesn't know library)"
-	fi
-fi
-if test "x$with_libupsclient" = "xyes"
-then
-	with_libupsclient_cflags="`pkg-config --cflags 'libupsclient'`"
-	if test $? -ne 0
-	then
-		with_libupsclient="no"
-	fi
-	with_libupsclient_libs="`pkg-config --libs 'libupsclient'`"
-	if test $? -ne 0
-	then
-		with_libupsclient="no"
-	fi
-fi
-if test "x$with_libupsclient" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
-
-	AC_CHECK_HEADERS(upsclient.h, [], [with_libupsclient="no (upsclient.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libupsclient" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-
-	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
-	LDFLAGS="$LDFLAGS $with_libupsclient_libs"
-
-	AC_CHECK_LIB(upsclient, upscli_connect,
-		     [with_libupsclient="yes"],
-		     [with_libupsclient="no (symbol upscli_connect not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-fi
-if test "x$with_libupsclient" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
-
-	AC_CHECK_TYPES([UPSCONN_t, UPSCONN], [], [],
-[#include <stdlib.h>
-#include <stdio.h>
-#include <upsclient.h>])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libupsclient" = "xyes"
-then
-	BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_libupsclient_cflags"
-	BUILD_WITH_LIBUPSCLIENT_LIBS="$with_libupsclient_libs"
-	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_LIBS)
-fi
-# }}}
-
-# --with-libxmms {{{
-with_xmms_config="xmms-config"
-with_xmms_cflags=""
-with_xmms_libs=""
-AC_ARG_WITH(libxmms, [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to libxmms.])],
-[
-	if test "x$withval" != "xno" \
-		&& test "x$withval" != "xyes"
-	then
-		if test -f "$withval" && test -x "$withval";
-		then
-			with_xmms_config="$withval"
-		else if test -x "$withval/bin/xmms-config"
-		then
-			with_xmms_config="$withval/bin/xmms-config"
-		fi; fi
-		with_libxmms="yes"
-	else if test "x$withval" = "xno"
-	then
-		with_libxmms="no"
-	else
-		with_libxmms="yes"
-	fi; fi
-],
-[
-	with_libxmms="yes"
-])
-if test "x$with_libxmms" = "xyes"
-then
-	with_xmms_cflags=`$with_xmms_config --cflags 2>/dev/null`
-	xmms_config_status=$?
-
-	if test $xmms_config_status -ne 0
-	then
-		with_libxmms="no"
-	fi
-fi
-if test "x$with_libxmms" = "xyes"
-then
-	with_xmms_libs=`$with_xmms_config --libs 2>/dev/null`
-	xmms_config_status=$?
-
-	if test $xmms_config_status -ne 0
-	then
-		with_libxmms="no"
-	fi
-fi
-if test "x$with_libxmms" = "xyes"
-then
-	AC_CHECK_LIB(xmms, xmms_remote_get_info,
-	[
-		BUILD_WITH_LIBXMMS_CFLAGS="$with_xmms_cflags"
-		BUILD_WITH_LIBXMMS_LIBS="$with_xmms_libs"
-		AC_SUBST(BUILD_WITH_LIBXMMS_CFLAGS)
-		AC_SUBST(BUILD_WITH_LIBXMMS_LIBS)
-	],
-	[
-		with_libxmms="no"
-	],
-	[$with_xmms_libs])
-fi
-with_libxmms_numeric=0
-if test "x$with_libxmms" = "xyes"
-then
-	with_libxmms_numeric=1
-fi
-AC_DEFINE_UNQUOTED(HAVE_LIBXMMS, [$with_libxmms_numeric], [Define to 1 if you have the 'xmms' library (-lxmms).])
-AM_CONDITIONAL(BUILD_WITH_LIBXMMS, test "x$with_libxmms" = "xyes")
-# }}}
-
-# --with-libnetlink {{{
-with_libnetlink_cflags=""
-with_libnetlink_libs="-lnetlink"
-AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libnetlink.])],
-[
- echo "libnetlink: withval = $withval"
- if test "x$withval" = "xyes"
- then
-	 with_libnetlink="yes"
- else if test "x$withval" = "xno"
- then
-	 with_libnetlink="no"
- else
-	 if test -d "$withval/include"
-	 then
-		 with_libnetlink_cflags="-I$withval/include"
-		 with_libnetlink_libs="-L$withval/lib -lnetlink"
-		 with_libnetlink="yes"
-	 else
-		 AC_MSG_ERROR("no such directory: $withval/include")
-	 fi
- fi; fi
-],
-[
- if test "x$ac_system" = "xLinux"
- then
-	 with_libnetlink="yes"
- else
-	 with_libnetlink="no (Linux only library)"
- fi
-])
-if test "x$with_libnetlink" = "xyes"
-then
-	SAVE_CFLAGS=$CFLAGS
-	CFLAGS="$CFLAGS $with_libnetlink_cflags"
-
-	with_libnetlink="no (libnetlink.h not found)"
-
-	AC_CHECK_HEADERS(libnetlink.h iproute/libnetlink.h linux/libnetlink.h,
-	[
-	 with_libnetlink="yes"
-	 break
-	], [],
-[#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>])
-	AC_CHECK_HEADERS(linux/gen_stats.h linux/pkt_sched.h, [], [],
-[#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>])
-
-	AC_COMPILE_IFELSE(
-[#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
-
-int main (void)
-{
-	int retval = TCA_STATS2;
-	return (retval);
-}],
-	[AC_DEFINE([HAVE_TCA_STATS2], 1, [True if the enum-member TCA_STATS2 exists])]
-	[]);
-
-	AC_COMPILE_IFELSE(
-[#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
-
-int main (void)
-{
-	int retval = TCA_STATS;
-	return (retval);
-}],
-	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])]
-	[]);
-
-	CFLAGS="$SAVE_CFLAGS"
-fi
-if test "x$with_libnetlink" = "xyes"
-then
-	AC_CHECK_LIB(netlink, rtnl_open,
-		     [with_libnetlink="yes"],
-		     [with_libnetlink="no (symbol 'rtnl_open' not found)"],
-		     [$with_libnetlink_libs])
-fi
-if test "x$with_libnetlink" = "xyes"
-then
-	BUILD_WITH_LIBNETLINK_CFLAGS="$with_libnetlink_cflags"
-	BUILD_WITH_LIBNETLINK_LIBS="$with_libnetlink_libs"
-	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBNETLINK_LIBS)
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
-# }}}
-
 # --with-libpq {{{
 with_pg_config="pg_config"
 with_libpq_includedir=""
@@ -2226,84 +1797,432 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
 # }}}
 
-# $PKG_CONFIG --exists OpenIPMIpthread {{{
-with_libopenipmipthread="yes"
-with_libopenipmipthread_cflags=""
-with_libopenipmipthread_libs=""
-
-AC_MSG_CHECKING([for pkg-config])
-temp_result="no"
-if test "x$PKG_CONFIG" = "x"
+# --with-libpthread {{{
+AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
+[	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libpthread="yes"
+	else
+		if test "x$withval" = "xno"
+		then
+			with_libpthread="no (disabled)"
+		fi
+	fi
+], [with_libpthread="yes"])
+if test "x$with_libpthread" = "xyes"
 then
-	with_libopenipmipthread="no"
-	temp_result="no"
+	AC_CHECK_LIB(pthread, pthread_create, [with_libpthread="yes"], [with_libpthread="no (libpthread not found)"], [])
+fi
+if test "x$with_libpthread" = "xyes"
+then
+	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
+fi
+if test "x$with_libpthread" = "xyes"
+then
+	collect_pthread=1
 else
-	temp_result="$PKG_CONFIG"
+	collect_pthread=0
 fi
-AC_MSG_RESULT([$temp_result])
+AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
+	[Wether or not to use pthread (POSIX threads) library])
+AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
+# }}}
 
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	AC_MSG_CHECKING([for libOpenIPMIpthread])
-	$PKG_CONFIG --exists OpenIPMIpthread 2>/dev/null
-	if test "$?" != "0"
+# --with-librrd {{{
+# AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
+librrd_cflags=""
+librrd_ldflags=""
+librrd_threadsafe="yes"
+librrd_rrdc_update="no"
+AC_ARG_WITH(librrd, [AS_HELP_STRING([--with-librrd@<:@=PREFIX@:>@], [Path to rrdtool.])],
+[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		with_libopenipmipthread="no ($PKG_CONFIG doesn't know OpenIPMIpthread)"
-	fi
-	AC_MSG_RESULT([$with_libopenipmipthread])
-fi
-
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	AC_MSG_CHECKING([for libOpenIPMIpthread CFLAGS])
-	temp_result="`$PKG_CONFIG --cflags OpenIPMIpthread`"
-	if test "$?" = "0"
-	then
-		with_libopenipmipthread_cflags="$temp_result"
+		librrd_cflags="-I$withval/include"
+		librrd_ldflags="-L$withval/lib"
+		with_librrd="yes"
 	else
-		with_libopenipmipthread="no ($PKG_CONFIG --cflags OpenIPMIpthread failed)"
-		temp_result="$PKG_CONFIG --cflags OpenIPMIpthread failed"
+		with_librrd="$withval"
 	fi
-	AC_MSG_RESULT([$temp_result])
-fi
-
-if test "x$with_libopenipmipthread" = "xyes"
-then
-	AC_MSG_CHECKING([for libOpenIPMIpthread LDFLAGS])
-	temp_result="`$PKG_CONFIG --libs OpenIPMIpthread`"
-	if test "$?" = "0"
-	then
-		with_libopenipmipthread_ldflags="$temp_result"
-	else
-		with_libopenipmipthread="no ($PKG_CONFIG --libs OpenIPMIpthread failed)"
-		temp_result="$PKG_CONFIG --libs OpenIPMIpthread failed"
-	fi
-	AC_MSG_RESULT([$temp_result])
-fi
-
-if test "x$with_libopenipmipthread" = "xyes"
+], [with_librrd="yes"])
+if test "x$with_librrd" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libopenipmipthread_cflags"
+	SAVE_LDFLAGS="$LDFLAGS"
 
-	AC_CHECK_HEADERS(OpenIPMI/ipmi_smi.h,
-			 [with_libopenipmipthread="yes"],
-			 [with_libopenipmipthread="no (OpenIPMI/ipmi_smi.h not found)"],
-[#include <OpenIPMI/ipmiif.h>
-#include <OpenIPMI/ipmi_err.h>
-#include <OpenIPMI/ipmi_posix.h>
-#include <OpenIPMI/ipmi_conn.h>
+	CPPFLAGS="$CPPFLAGS $librrd_cflags"
+	LDFLAGS="$LDFLAGS $librrd_ldflags"
+
+	AC_CHECK_HEADERS(rrd.h,, [with_librrd="no (rrd.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_librrd" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CPPFLAGS="$CPPFLAGS $librrd_cflags"
+	LDFLAGS="$LDFLAGS $librrd_ldflags"
+
+	AC_CHECK_LIB(rrd_th, rrd_update_r,
+	[with_librrd="yes"
+	 librrd_ldflags="$librrd_ldflags -lrrd_th -lm"
+	],
+	[librrd_threadsafe="no"
+	 AC_CHECK_LIB(rrd, rrd_update,
+	 [with_librrd="yes"
+	  librrd_ldflags="$librrd_ldflags -lrrd -lm"
+	 ],
+	 [with_librrd="no (symbol 'rrd_update' not found)"],
+	 [-lm])
+	],
+	[-lm])
+
+	if test "x$librrd_threadsafe" = "xyes"
+	then
+		AC_CHECK_LIB(rrd_th, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
+	else
+		AC_CHECK_LIB(rrd, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
+	fi
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_librrd" = "xyes"
+then
+	BUILD_WITH_LIBRRD_CFLAGS="$librrd_cflags"
+	BUILD_WITH_LIBRRD_LDFLAGS="$librrd_ldflags"
+	AC_SUBST(BUILD_WITH_LIBRRD_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRRD_LDFLAGS)
+fi
+if test "x$librrd_threadsafe" = "xyes"
+then
+	AC_DEFINE(HAVE_THREADSAFE_LIBRRD, 1, [Define to 1 if you have the threadsafe rrd library (-lrrd_th).])
+fi
+# }}}
+
+# --with-libsensors {{{
+with_sensors_cflags=""
+with_sensors_ldflags=""
+AC_ARG_WITH(libsensors, [AS_HELP_STRING([--with-libsensors@<:@=PREFIX@:>@], [Path to lm_sensors.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libsensors="no"
+	else
+		with_libsensors="yes"
+		if test "x$withval" != "xyes"
+		then
+			with_sensors_cflags="-I$withval/include"
+			with_sensors_ldflags="-L$withval/lib"
+			with_libsensors="yes"
+		fi
+	fi
+],
+[
+	if test "x$ac_system" = "xLinux"
+	then
+		with_libsensors="yes"
+	else
+		with_libsensors="no (Linux only library)"
+	fi
 ])
+if test "x$with_libsensors" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
+
+#	AC_CHECK_HEADERS(sensors/sensors.h,
+#	[
+#		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
+#	],
+#	[with_libsensors="no (sensors/sensors.h not found)"])
+	AC_CHECK_HEADERS(sensors/sensors.h, [], [with_libsensors="no (sensors/sensors.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-
-if test "x$with_libopenipmipthread" = "xyes"
+if test "x$with_libsensors" = "xyes"
 then
-	BUILD_WITH_OPENIPMI_CFLAGS="$with_libopenipmipthread_cflags"
-	BUILD_WITH_OPENIPMI_LIBS="$with_libopenipmipthread_ldflags"
-	AC_SUBST(BUILD_WITH_OPENIPMI_CFLAGS)
-	AC_SUBST(BUILD_WITH_OPENIPMI_LIBS)
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
+	LDFLAGS="$LDFLAGS $with_sensors_ldflags"
+
+	AC_CHECK_LIB(sensors, sensors_init,
+	[
+		AC_DEFINE(HAVE_LIBSENSORS, 1, [Define to 1 if you have the sensors library (-lsensors).])
+	],
+	[with_libsensors="no (libsensors not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libsensors" = "xyes"
+then
+	BUILD_WITH_LIBSENSORS_CFLAGS="$with_sensors_cflags"
+	BUILD_WITH_LIBSENSORS_LDFLAGS="$with_sensors_ldflags"
+	AC_SUBST(BUILD_WITH_LIBSENSORS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBSENSORS_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_libsensors" = "xyes")
+# }}}
+
+# --with-libstatgrab {{{
+with_libstatgrab_cflags=""
+with_libstatgrab_ldflags=""
+AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
+[
+	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
+	then
+		with_libstatgrab_cflags="-I$withval/include"
+		with_libstatgrab_ldflags="-L$withval/lib"
+		with_libstatgrab="yes"
+	else
+		with_libstatgrab="$withval"
+	fi
+],
+[
+	if test "x$ac_system" = "xunknown"
+	then
+		with_libstatgrab="yes"
+	else
+		with_libstatgrab="no"
+	fi
+])
+with_libstatgrab_pkg_config="yes"
+if test "x$with_libstatgrab" = "xyes" \
+  && test "x$PKG_CONFIG" != "x"
+then
+  AC_MSG_CHECKING([pkg-config for libstatgrab])
+  temp_result="found"
+  $PKG_CONFIG --exists libstatgrab 2>/dev/null
+  if test "$?" != "0"
+  then
+    with_libstatgrab_pkg_config="no"
+    temp_result="not found"
+  fi
+  AC_MSG_RESULT([$temp_result])
+else
+  AC_MSG_NOTICE([pkg-config not available, trying to guess flags for the statgrab library.])
+  with_libstatgrab_pkg_config="no"
+  with_libstatgrab_ldflags="$with_libstatgrab_ldflags -lstatgrab"
+fi
+
+if test "x$with_libstatgrab" = "xyes" \
+  && test "x$with_libstatgrab_pkg_config" = "xyes" \
+  && test "x$with_libstatgrab_cflags" = "x"
+then
+  AC_MSG_CHECKING([for libstatgrab CFLAGS])
+  temp_result="`$PKG_CONFIG --cflags libstatgrab`"
+  if test "$?" = "0"
+  then
+    with_libstatgrab_cflags="$temp_result"
+  else
+    with_libstatgrab="no ($PKG_CONFIG --cflags libstatgrab failed)"
+    temp_result="$PKG_CONFIG --cflags libstatgrab failed"
+  fi
+  AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libstatgrab" = "xyes" \
+  && test "x$with_libstatgrab_pkg_config" = "xyes" \
+  && test "x$with_libstatgrab_ldflags" = "x"
+then
+  AC_MSG_CHECKING([for libstatgrab LDFLAGS])
+  temp_result="`$PKG_CONFIG --libs libstatgrab`"
+  if test "$?" = "0"
+  then
+    with_libstatgrab_ldflags="$temp_result"
+  else
+    with_libstatgrab="no ($PKG_CONFIG --libs libstatgrab failed)"
+    temp_result="$PKG_CONFIG --libs libstatgrab failed"
+  fi
+  AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libstatgrab" = "xyes"
+then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libstatgrab_cflags"
+
+  AC_CHECK_HEADERS(statgrab.h,
+		   [with_libstatgrab="yes"],
+		   [with_libstatgrab="no (statgrab.h not found)"])
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libstatgrab" = "xyes"
+then
+  SAVE_CFLAGS="$CFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+
+  CFLAGS="$CFLAGS $with_libstatgrab_cflags"
+  LDFLAGS="$LDFLAGS $with_libstatgrab_ldflags"
+
+  AC_CHECK_LIB(statgrab, sg_init,
+	       [with_libstatgrab="yes"],
+	       [with_libstatgrab="no (symbol sg_init not found)"])
+
+  CFLAGS="$SAVE_CFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
+if test "x$with_libstatgrab" = "xyes"
+then
+  AC_DEFINE(HAVE_LIBSTATGRAB, 1, [Define to 1 if you have the 'statgrab' library (-lstatgrab)])
+  BUILD_WITH_LIBSTATGRAB_CFLAGS="$with_libstatgrab_cflags"
+  BUILD_WITH_LIBSTATGRAB_LDFLAGS="$with_libstatgrab_ldflags"
+  AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)
+  AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+fi
+# }}}
+
+# --with-libxmms {{{
+with_xmms_config="xmms-config"
+with_xmms_cflags=""
+with_xmms_libs=""
+AC_ARG_WITH(libxmms, [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to libxmms.])],
+[
+	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
+	then
+		if test -f "$withval" && test -x "$withval";
+		then
+			with_xmms_config="$withval"
+		else if test -x "$withval/bin/xmms-config"
+		then
+			with_xmms_config="$withval/bin/xmms-config"
+		fi; fi
+		with_libxmms="yes"
+	else if test "x$withval" = "xno"
+	then
+		with_libxmms="no"
+	else
+		with_libxmms="yes"
+	fi; fi
+],
+[
+	with_libxmms="yes"
+])
+if test "x$with_libxmms" = "xyes"
+then
+	with_xmms_cflags=`$with_xmms_config --cflags 2>/dev/null`
+	xmms_config_status=$?
+
+	if test $xmms_config_status -ne 0
+	then
+		with_libxmms="no"
+	fi
+fi
+if test "x$with_libxmms" = "xyes"
+then
+	with_xmms_libs=`$with_xmms_config --libs 2>/dev/null`
+	xmms_config_status=$?
+
+	if test $xmms_config_status -ne 0
+	then
+		with_libxmms="no"
+	fi
+fi
+if test "x$with_libxmms" = "xyes"
+then
+	AC_CHECK_LIB(xmms, xmms_remote_get_info,
+	[
+		BUILD_WITH_LIBXMMS_CFLAGS="$with_xmms_cflags"
+		BUILD_WITH_LIBXMMS_LIBS="$with_xmms_libs"
+		AC_SUBST(BUILD_WITH_LIBXMMS_CFLAGS)
+		AC_SUBST(BUILD_WITH_LIBXMMS_LIBS)
+	],
+	[
+		with_libxmms="no"
+	],
+	[$with_xmms_libs])
+fi
+with_libxmms_numeric=0
+if test "x$with_libxmms" = "xyes"
+then
+	with_libxmms_numeric=1
+fi
+AC_DEFINE_UNQUOTED(HAVE_LIBXMMS, [$with_libxmms_numeric], [Define to 1 if you have the 'xmms' library (-lxmms).])
+AM_CONDITIONAL(BUILD_WITH_LIBXMMS, test "x$with_libxmms" = "xyes")
+# }}}
+
+# pkg-config --exists 'libupsclient' {{{
+with_libupsclient="no (pkg-config isn't available)"
+with_libupsclient_cflags=""
+with_libupsclient_libs=""
+if test "x$PKG_CONFIG" != "x"
+then
+	pkg-config --exists 'libupsclient' 2>/dev/null
+	if test "$?" = "0"
+	then
+		with_libupsclient="yes"
+	else
+		with_libupsclient="no (pkg-config doesn't know library)"
+	fi
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	with_libupsclient_cflags="`pkg-config --cflags 'libupsclient'`"
+	if test $? -ne 0
+	then
+		with_libupsclient="no"
+	fi
+	with_libupsclient_libs="`pkg-config --libs 'libupsclient'`"
+	if test $? -ne 0
+	then
+		with_libupsclient="no"
+	fi
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
+
+	AC_CHECK_HEADERS(upsclient.h, [], [with_libupsclient="no (upsclient.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
+	LDFLAGS="$LDFLAGS $with_libupsclient_libs"
+
+	AC_CHECK_LIB(upsclient, upscli_connect,
+		     [with_libupsclient="yes"],
+		     [with_libupsclient="no (symbol upscli_connect not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
+
+	AC_CHECK_TYPES([UPSCONN_t, UPSCONN], [], [],
+[#include <stdlib.h>
+#include <stdio.h>
+#include <upsclient.h>])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libupsclient" = "xyes"
+then
+	BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_libupsclient_cflags"
+	BUILD_WITH_LIBUPSCLIENT_LIBS="$with_libupsclient_libs"
+	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBUPSCLIENT_LIBS)
 fi
 # }}}
 
@@ -2421,6 +2340,87 @@ if test "x$with_libvirt" = "xyes"; then
 	BUILD_WITH_LIBVIRT_LIBS="$with_libvirt_ldflags"
 	AC_SUBST(BUILD_WITH_LIBVIRT_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
+fi
+# }}}
+
+# $PKG_CONFIG --exists OpenIPMIpthread {{{
+with_libopenipmipthread="yes"
+with_libopenipmipthread_cflags=""
+with_libopenipmipthread_libs=""
+
+AC_MSG_CHECKING([for pkg-config])
+temp_result="no"
+if test "x$PKG_CONFIG" = "x"
+then
+	with_libopenipmipthread="no"
+	temp_result="no"
+else
+	temp_result="$PKG_CONFIG"
+fi
+AC_MSG_RESULT([$temp_result])
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	AC_MSG_CHECKING([for libOpenIPMIpthread])
+	$PKG_CONFIG --exists OpenIPMIpthread 2>/dev/null
+	if test "$?" != "0"
+	then
+		with_libopenipmipthread="no ($PKG_CONFIG doesn't know OpenIPMIpthread)"
+	fi
+	AC_MSG_RESULT([$with_libopenipmipthread])
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	AC_MSG_CHECKING([for libOpenIPMIpthread CFLAGS])
+	temp_result="`$PKG_CONFIG --cflags OpenIPMIpthread`"
+	if test "$?" = "0"
+	then
+		with_libopenipmipthread_cflags="$temp_result"
+	else
+		with_libopenipmipthread="no ($PKG_CONFIG --cflags OpenIPMIpthread failed)"
+		temp_result="$PKG_CONFIG --cflags OpenIPMIpthread failed"
+	fi
+	AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	AC_MSG_CHECKING([for libOpenIPMIpthread LDFLAGS])
+	temp_result="`$PKG_CONFIG --libs OpenIPMIpthread`"
+	if test "$?" = "0"
+	then
+		with_libopenipmipthread_ldflags="$temp_result"
+	else
+		with_libopenipmipthread="no ($PKG_CONFIG --libs OpenIPMIpthread failed)"
+		temp_result="$PKG_CONFIG --libs OpenIPMIpthread failed"
+	fi
+	AC_MSG_RESULT([$temp_result])
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libopenipmipthread_cflags"
+
+	AC_CHECK_HEADERS(OpenIPMI/ipmi_smi.h,
+			 [with_libopenipmipthread="yes"],
+			 [with_libopenipmipthread="no (OpenIPMI/ipmi_smi.h not found)"],
+[#include <OpenIPMI/ipmiif.h>
+#include <OpenIPMI/ipmi_err.h>
+#include <OpenIPMI/ipmi_posix.h>
+#include <OpenIPMI/ipmi_conn.h>
+])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libopenipmipthread" = "xyes"
+then
+	BUILD_WITH_OPENIPMI_CFLAGS="$with_libopenipmipthread_cflags"
+	BUILD_WITH_OPENIPMI_LIBS="$with_libopenipmipthread_ldflags"
+	AC_SUBST(BUILD_WITH_OPENIPMI_CFLAGS)
+	AC_SUBST(BUILD_WITH_OPENIPMI_LIBS)
 fi
 # }}}
 
