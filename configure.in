@@ -2276,9 +2276,12 @@ AC_DEFUN(
 	     enable_plugin="no"
      fi
     ])
-    if test "x$enable_plugin" = "xyes"
+    if test "x$enable_plugin" = "xyes" && test "x$2" = "xyes"
     then
 	    AC_DEFINE([HAVE_PLUGIN_]my_toupper([$1]), 1, [Define to 1 if the $1 plugin is enabled.])
+    else
+    	    dependency_error="yes"
+	    test "x$enable_plugin" = "xyes" && enable_plugin="failed (missing dependency)"
     fi
     AM_CONDITIONAL([BUILD_PLUGIN_]my_toupper([$1]), test "x$enable_plugin" = "xyes")
     enable_$1="$enable_plugin"
@@ -2292,6 +2295,7 @@ AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
+dependency_error="no"
 plugin_ascent="no"
 plugin_battery="no"
 plugin_cpu="no"
@@ -2677,3 +2681,7 @@ Configuration:
     xmms  . . . . . . . $enable_xmms
 
 EOF
+
+if test "x$dependency_error" = "xyes"; then
+	AC_MSG_ERROR("Some plugins are missing dependencies - see above summary for details")
+fi
