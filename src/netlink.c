@@ -362,7 +362,7 @@ static int qos_filter (const struct sockaddr_nl *sa,
   if (msg->tcm_ifindex >= iflist_len)
   {
     ERROR ("netlink plugin: qos_filter: msg->tcm_ifindex = %i "
-	">= iflist_len = %i",
+	">= iflist_len = %zu",
 	msg->tcm_ifindex, iflist_len);
     return (-1);
   }
