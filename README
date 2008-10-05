@@ -363,6 +363,7 @@ Prerequisites
   * CoreFoundation.framework and IOKit.framework (optional)
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
+    <http://developer.apple.com/corefoundation/>
 
   * libcurl (optional)
     If you want to use the `apache', `ascent', or `nginx' plugin.
@@ -373,54 +374,69 @@ Prerequisites
 
   * libesmtp (optional)
     For the `notify_email' plugin.
+    <http://www.stafford.uklinux.net/libesmtp/>
 
   * libhal (optional)
     If present, the uuid plugin will check for UUID from HAL.
+    <http://hal.freedesktop.org/>
 
   * libiptc (optional, if not found a version shipped with this distribution
     can be used if the Linux kernel headers are available)
     For querying iptables counters.
+    <http://netfilter.org/>
 
   * libmysqlclient (optional)
     Unsurprisingly used by the `mysql' plugin.
+    <http://dev.mysql.com/>
 
   * libnetlink (optional)
     Used, obviously, for the `netlink' plugin.
+    <http://www.linuxfoundation.org/en/Net:Iproute2>
 
   * libnetsnmp (optional)
     For the `snmp' plugin.
+    <http://www.net-snmp.org/>
 
   * libnotify (optional)
     For the `notify_desktop' plugin.
+    <http://www.galago-project.org/>
 
   * liboping (optional, if not found a version shipped with this distribution
     can be used)
     Used by the `ping' plugin to send and receive ICMP packets.
+    <http://verplant.org/liboping/>
 
   * libowcapi (optional)
     Used by the `onewire' plugin to read values from onewire sensors (or the
     owserver(1) daemon).
+    <http://www.owfs.org/>
 
   * libpcap (optional)
     Used to capture packets by the `dns' plugin.
+    <http://www.tcpdump.org/>
 
   * libperl (optional)
     Obviously used by the `perl' plugin. The library has to be compiled with
     ithread support (introduced in Perl 5.6.0).
+    <http://www.perl.org/>
 
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
+    <http://www.postgresql.org/>
 
   * librrd (optional)
     Used by the `rrdtool' and `rrdcached' plugins. The latter requires RRDtool
     client support which was added after version 1.3 of RRDtool. Versions 1.0,
     1.2 and 1.3 are known to work with the `rrdtool' plugin.
+    <http://oss.oetiker.ch/rrdtool/>
 
   * librt, libsocket, libkstat, libdevinfo (optional)
     Various standard Solaris libraries which provide system functions.
+    <http://developers.sun.com/solaris/>
 
   * libsensors (optional)
     To read from `lm_sensors', see the `sensors' plugin.
+    <http://www.lm-sensors.org/>
 
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux
@@ -429,14 +445,18 @@ Prerequisites
 
   * libupsclient/nut (optional)
     For the `nut' plugin which queries nut's `upsd'.
+    <http://networkupstools.org/>
 
   * libvirt (optional)
     Collect statistics from virtual machines.
+    <http://libvirt.org/>
 
   * libxml2 (optional)
     Parse XML data. This is needed for the `ascent' and `libvirt' plugins.
+    <http://xmlsoft.org/>
 
   * libxmms (optional)
+    <http://www.xmms.org/>
 
 
 Configuring / Compiling / Installing
