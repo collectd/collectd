@@ -2276,12 +2276,15 @@ AC_DEFUN(
 	     enable_plugin="no"
      fi
     ])
-    if test "x$enable_plugin" = "xyes" && test "x$2" = "xyes"
+    if test "x$enable_plugin" = "xyes"
     then
-	    AC_DEFINE([HAVE_PLUGIN_]my_toupper([$1]), 1, [Define to 1 if the $1 plugin is enabled.])
-    else
-    	    dependency_error="yes"
-	    test "x$enable_plugin" = "xyes" && enable_plugin="failed (missing dependency)"
+	    if test "x$2" = "xyes"
+	    then
+		    AC_DEFINE([HAVE_PLUGIN_]my_toupper([$1]), 1, [Define to 1 if the $1 plugin is enabled.])
+	    else # User passed "yes" but dependency checking yielded "no" => Dependency problem.
+		    dependency_error="yes"
+		    enable_plugin="no (dependency error)"
+	    fi
     fi
     AM_CONDITIONAL([BUILD_PLUGIN_]my_toupper([$1]), test "x$enable_plugin" = "xyes")
     enable_$1="$enable_plugin"
