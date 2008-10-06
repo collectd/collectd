@@ -367,6 +367,7 @@ Prerequisites
 
   * libcurl (optional)
     If you want to use the `apache', `ascent', or `nginx' plugin.
+    <http://curl.haxx.se/>
 
   * libdbi (optional)
     Used by the `dbi' plugin to connect to various databases.
