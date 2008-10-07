@@ -34,6 +34,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 @BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @BUILD_PLUGIN_CSV_TRUE@LoadPlugin csv
+@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
 @BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 @BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 @BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
@@ -109,6 +110,25 @@ FQDNLookup   true
 #<Plugin csv>
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
+#</Plugin>
+
+#<Plugin dbi>
+#	<Query "num_of_customers">
+#		Statement "SELECT 'customers' AS c_key, COUNT(*) AS c_value FROM customers_tbl"
+#		Type "gauge"
+#		InstancesFrom "c_key"
+#		ValuesFrom "c_value"
+#	</Query>
+#	<Database "customers_db">
+#		Driver "mysql"
+#		DriverOption "host" "localhost"
+#		DriverOption "username" "collectd"
+#		DriverOption "password" "AeXohy0O"
+#		DriverOption "dbname" "custdb0"
+#		#SelectDB "custdb0"
+#		Query "num_of_customers"
+#		#Query "..."
+#	</Database>
 #</Plugin>
 
 #<Plugin df>
