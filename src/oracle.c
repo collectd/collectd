@@ -15,6 +15,31 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
+ * Linking src/oracle.c ("the oracle plugin") statically or dynamically with
+ * other modules is making a combined work based on the oracle plugin. Thus,
+ * the terms and conditions of the GNU General Public License cover the whole
+ * combination.
+ *
+ * In addition, as a special exception, the copyright holders of the oracle
+ * plugin give you permission to combine the oracle plugin with free software
+ * programs or libraries that are released under the GNU LGPL and with code
+ * included in the standard release of the Oracle® Call Interface (OCI) under
+ * the Oracle® Technology Network (OTN) License (or modified versions of such
+ * code, with unchanged license). You may copy and distribute such a system
+ * following the terms of the GNU GPL for the oracle plugin and the licenses of
+ * the other code concerned.
+ *
+ * Note that people who make modified versions of the oracle plugin are not
+ * obligated to grant this special exception for their modified versions; it is
+ * their choice whether to do so. The GNU General Public License gives
+ * permission to release a modified version without this exception; this
+ * exception also makes it possible to release a modified version which carries
+ * forward this exception. However, without this exception the OTN License does
+ * not allow linking with code licensed under the GNU General Public License.
+ *
+ * Oracle® is a registered trademark of Oracle Corporation and/or its
+ * affiliates. Other names may be trademarks of their respective owners.
+ *
  * Authors:
  *   Florian octo Forster <octo at noris.net>
  **/
