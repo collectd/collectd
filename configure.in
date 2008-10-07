@@ -1499,6 +1499,73 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBOPING, test "x$with_liboping" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_OWN_LIBOPING, test "x$with_own_liboping" = "xyes")
 
+with_oracle_cppflags=""
+with_oracle_libs=""
+AC_ARG_WITH(oracle, [AS_HELP_STRING([--with-oracle@<:@=ORACLE_HOME@:>@], [Path to Oracle.])],
+[
+	if test "x$withval" = "xyes"
+	then
+		if test "x$ORACLE_HOME" = "x"
+		then
+			AC_MSG_WARN([Use of the Oracle library has been forced, but the environment variable ORACLE_HOME is not set.])
+		fi
+		with_oracle="yes"
+	else if test "x$withval" = "xno"
+	then
+		with_oracle="no"
+	else
+		with_oracle="yes"
+		ORACLE_HOME="$withval"
+	fi; fi
+],
+[
+	if test "x$ORACLE_HOME" = "x"
+	then
+		with_oracle="no (ORACLE_HOME is not set)"
+	else
+		with_oracle="yes"
+	fi
+])
+if test "x$ORACLE_HOME" != "x"
+then
+	with_oracle_cppflags="-I$ORACLE_HOME/rdbms/public"
+
+	if test -e "$ORACLE_HOME/lib/ldflags"
+	then
+		with_oracle_libs=`cat "$ORACLE_HOME/lib/ldflags"`
+	fi
+	#with_oracle_libs="-L$ORACLE_HOME/lib $with_oracle_libs -lclntsh"
+	with_oracle_libs="-L$ORACLE_HOME/lib -lclntsh"
+fi
+if test "x$with_oracle" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_oracle_cppflags"
+
+	AC_CHECK_HEADERS(oci.h, [with_oracle="yes"], [with_oracle="no (oci.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_oracle" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_oracle_cppflags"
+	LDFLAGS="$LDFLAGS $with_oracle_libs"
+
+	AC_CHECK_FUNC(OCIEnvCreate, [with_oracle="yes"], [with_oracle="no (Symbol 'OCIEnvCreate' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_oracle" = "xyes"
+then
+	BUILD_WITH_ORACLE_CFLAGS="$with_oracle_cppflags"
+	BUILD_WITH_ORACLE_LIBS="$with_oracle_libs"
+	AC_SUBST(BUILD_WITH_ORACLE_CFLAGS)
+	AC_SUBST(BUILD_WITH_ORACLE_LIBS)
+fi
+
 with_libowcapi_cppflags=""
 with_libowcapi_libs="-lowcapi"
 AC_ARG_WITH(libowcapi, [AS_HELP_STRING([--with-libowcapi@<:@=PREFIX@:>@], [Path to libowcapi.])],
@@ -2725,6 +2792,7 @@ AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
+AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
@@ -2847,6 +2915,7 @@ Configuration:
     libvirt . . . . . . . $with_libvirt
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
+    oracle  . . . . . . . $with_oracle
 
   Features:
     daemon mode . . . . . $enable_daemon
@@ -2894,6 +2963,7 @@ Configuration:
     ntpd  . . . . . . . . $enable_ntpd
     nut . . . . . . . . . $enable_nut
     onewire . . . . . . . $enable_onewire
+    oracle  . . . . . . . $enable_oracle
     perl  . . . . . . . . $enable_perl
     ping  . . . . . . . . $enable_ping
     postgresql  . . . . . $enable_postgresql

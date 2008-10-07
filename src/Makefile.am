@@ -529,6 +529,17 @@ collectd_LDADD += "-dlopen" onewire.la
 collectd_DEPENDENCIES += onewire.la
 endif
 
+if BUILD_PLUGIN_ORACLE
+pkglib_LTLIBRARIES += oracle.la
+oracle_la_SOURCES = oracle.c
+oracle_la_CFLAGS = $(AM_CFLAGS)
+oracle_la_CPPFLAGS = $(BUILD_WITH_ORACLE_CFLAGS)
+oracle_la_LIBADD = $(BUILD_WITH_ORACLE_LIBS)
+oracle_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" oracle.la
+collectd_DEPENDENCIES += oracle.la
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c
