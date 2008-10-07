@@ -1806,7 +1806,10 @@ static int perl_config (oconfig_item_t *ci)
 		else if (0 == strcasecmp (c->key, "Plugin"))
 			current_status = perl_config_plugin (aTHX_ c);
 		else
+		{
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+			current_status = 0;
+		}
 
 		/* fatal error - it's up to perl_config_* to clean up */
 		if (0 > current_status) {
