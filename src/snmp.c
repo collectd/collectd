@@ -118,6 +118,7 @@ static pthread_cond_t  host_cond = PTHREAD_COND_INITIALIZER;
 /*
  * Private functions
  */
+/* Many functions to handle the configuration. {{{ */
 /* First there are many functions which do configuration stuff. It's a big
  * bloated and messy, I'm afraid. */
 
@@ -656,7 +657,7 @@ static int csnmp_config (oconfig_item_t *ci)
   return (0);
 } /* int csnmp_config */
 
-/* End of the config stuff. Now the interesting part begins */
+/* }}} End of the config stuff. Now the interesting part begins */
 
 static void csnmp_host_close_session (host_definition_t *host)
 {
@@ -1634,5 +1635,5 @@ void module_register (void)
 } /* void module_register */
 
 /*
- * vim: shiftwidth=2 softtabstop=2 tabstop=8
+ * vim: shiftwidth=2 softtabstop=2 tabstop=8 fdm=marker
  */
