@@ -178,7 +178,7 @@ static void o_database_free (o_database_t *db) /* {{{ */
  *   </Query>
  *     
  *   <Database "plugin_instance1">
- *     Hostname "localhost"
+ *     ConnectID "db01"
  *     Username "oracle"
  *     Password "secret"
  *     Query "plugin_instance0"
