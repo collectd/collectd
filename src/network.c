@@ -1550,7 +1550,10 @@ static int network_config (const char *key, const char *val)
 		fields_num = strsplit (val_cpy, fields, 3);
 		if ((fields_num != 1)
 				&& (fields_num != 2))
+		{
+			sfree (val_cpy);
 			return (1);
+		}
 		else if (fields_num == 2)
 		{
 			if ((service = strchr (fields[1], '.')) != NULL)
@@ -1563,6 +1566,8 @@ static int network_config (const char *key, const char *val)
 			network_add_listen_socket (node, service);
 		else
 			network_add_sending_socket (node, service);
+
+		sfree (val_cpy);
 	}
 	else if (strcasecmp ("TimeToLive", key) == 0)
 	{
