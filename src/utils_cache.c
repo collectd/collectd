@@ -299,6 +299,7 @@ int uc_check_timeout (void)
 	ERROR ("uc_check_timeout: c_avl_remove (%s) failed.", keys[i]);
       }
       sfree (keys[i]);
+      sfree (key);
       cache_free (ce);
     }
     else if (status == 1) /* persist */
