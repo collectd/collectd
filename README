@@ -472,9 +472,11 @@ Configuring / Compiling / Installing
   disable all plugins whose requirements cannot be fulfilled (any other plugin
   will be enabled). To enable a plugin, install missing dependencies (see
   section `Prerequisites' above) and rerun `configure'. If you specify the
-  `--enable-<plugin>' configure option, you can force the plugin to be built.
-  This will most likely fail though unless you're working in a very unusual
-  setup and you really know what you're doing.
+  `--enable-<plugin>' configure option, the script will fail if the depen-
+  dencies for the specified plugin are not met. If you specify the
+  `--disable-<plugin>' configure option, the plugin will not be built. Both
+  options are meant for package maintainers and should not be used in everyday
+  situations.
 
   By default, collectd will be installed into `/opt/collectd'. You can adjust
   this setting by specifying the `--prefix' configure option - see INSTALL for

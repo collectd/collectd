@@ -887,7 +887,11 @@ int cf_read (char *filename)
 			dispatch_block (conf->children + i);
 	}
 
+	oconfig_free (conf);
+
+	/* Read the default types.db if no `TypesDB' option was given. */
 	if (cf_default_typesdb)
-		read_types_list (PLUGINDIR"/types.db"); /* FIXME: Configure path */
+		read_types_list (PLUGINDIR"/types.db");
+
 	return (0);
 } /* int cf_read */
