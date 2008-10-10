@@ -263,6 +263,11 @@ FQDNLookup   true
 #	BaseName "Collectd::Plugin"
 #	EnableDebugger ""
 #	LoadPlugin foo
+#
+#	<Plugin foo>
+#		Foo "Bar"
+#		Qux "Baz"
+#	</Plugin>
 #</Plugin>
 
 #<Plugin ping>
