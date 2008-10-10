@@ -45,7 +45,7 @@ handled according to the consolidation function given with the B<-g> option.
 
 =item B<-g> B<none>I<|>B<average>I<|>B<sum>
 
-When multiple data sources are selected from a value spec they can be handled
+When multiple data sources are selected from a value spec, they can be handled
 differently depending on this option. The values of the following meaning:
 
 =over 4
@@ -71,22 +71,32 @@ The warning and critical ranges are applied to the sum of all values.
 
 Set the critical (B<-c>) and warning (B<-w>) ranges. These options mostly
 follow the normal syntax of Nagios plugins. The general format is
-"I<min>B<:>I<max>". If a value if smaller than I<min> or bigger than I<max> a
-warning or critical is returned, otherwise okay is returned. I<min> (and the
-colon) may be omitted and are then assumed to be zero. If I<max> (but not the
-colon) is omitted I<max> is set to positive infinity. If either I<min> or
-I<max> if set to B<~> they are set to negative and positive infinity,
-respectively.
+"I<min>B<:>I<max>". If a value is smaller than I<min> or bigger than I<max>, a
+I<warning> or I<critical> status is returned, otherwise the status is
+I<success>.
+
+The tilde sign (B<~>) can be used to explicitly specify infinity. If B<~> is
+used as a I<min> value, negative infinity is used. In case of I<max>, it is
+interpreted as positive infinity.
+
+If the first character of the I<range> is the atE<nbsp>sign (B<@>), the meaning
+of the range will be inverted. I.E<nbsp>e. all values I<within> the range will
+yield a I<warning> or I<critical> status, while all values I<outside> the range
+will result in a I<success> status.
+
+I<min> (and the colon) may be omitted,
+I<min> is then assumed to be zero. If I<max> (but not the trailing colon) is
+omitted, I<max> is assumed to be positive infinity.
 
 =back
 
 =head1 RETURN VALUE
 
-As usual for Nagios plugins this program writes a short, one line status
+As usual for Nagios plugins, this program writes a short, one line status
 message to STDOUT and signals success or failure with it's return value. It
-exists with a return value of B<0> for success or B<1> or B<2> for warning and
-critical, respectively. If the values is not available or some other error
-occurred it returns B<3> for "unknown". 
+exits with a return value of B<0> for I<success>, B<1> for I<warning> and B<2>
+for I<critical>. If the values are not available or some other error occurred,
+it returns B<3> for I<unknown>. 
 
 =head1 SEE ALSO
 
