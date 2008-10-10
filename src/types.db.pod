@@ -29,9 +29,10 @@ happen. See L<rrdcreate(1)> for more details.
 =head1 FILES
 
 The location of the types.db file is defined by the B<TypesDB> configuration
-option (see L<collectd.conf(5)>). If you want to specify custom data-sets, you
-should do so by using a custom file specified as an additional argument to the
-B<TypesDB> option.
+option (see L<collectd.conf(5)>). It defaults to collectd's shared data
+directory, i.E<nbsp>e. F<I<prefix>/share/collectd/>. If you want to specify
+custom data-sets, you should do so by using a custom file specified as an
+additional argument to the B<TypesDB> option.
 
 =head1 SEE ALSO
 

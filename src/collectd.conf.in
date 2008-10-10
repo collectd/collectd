@@ -9,7 +9,7 @@ FQDNLookup   true
 #BaseDir     "@prefix@/var/lib/@PACKAGE_NAME@"
 #PIDFile     "@prefix@/var/run/@PACKAGE_NAME@.pid"
 #PluginDir   "@prefix@/lib/@PACKAGE_NAME@"
-#TypesDB     "@prefix@/lib/@PACKAGE_NAME@/types.db"
+#TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 #Interval     10
 #ReadThreads  5
 

@@ -891,7 +891,7 @@ int cf_read (char *filename)
 
 	/* Read the default types.db if no `TypesDB' option was given. */
 	if (cf_default_typesdb)
-		read_types_list (PLUGINDIR"/types.db");
+		read_types_list (PKGDATADIR"/types.db");
 
 	return (0);
 } /* int cf_read */

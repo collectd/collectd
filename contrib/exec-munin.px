@@ -59,7 +59,7 @@ the C<nut> plugin above provides C<in> and C<out> which are both voltages, you
 can use a hyphen to add a "type instance" to the type.
 
 For a list of already defined "types" look at the F<types.db> file in
-collectd's library path, e.E<nbsp>g. F</usr/lib/collectd/>.
+collectd's shared data directory, e.E<nbsp>g. F</usr/share/collectd/>.
 
 =item B<Interval> I<Seconds>
 

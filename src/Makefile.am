@@ -868,7 +868,7 @@ install-exec-hook:
 	else \
 		$(INSTALL) -m 0640 collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
-	cp -f $(srcdir)/types.db $(DESTDIR)$(pkglibdir)/;
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
+	$(INSTALL) -m 0644 $(srcdir)/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
