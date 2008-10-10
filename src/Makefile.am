@@ -130,7 +130,7 @@ ascent_la_SOURCES = ascent.c
 ascent_la_LDFLAGS = -module -avoid-version
 ascent_la_CFLAGS = $(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 ascent_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
-collectd_LDADD += "-dlopen" apache.la
+collectd_LDADD += "-dlopen" ascent.la
 collectd_DEPENDENCIES += ascent.la
 endif
 
