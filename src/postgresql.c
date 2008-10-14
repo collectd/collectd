@@ -428,6 +428,7 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 		log_err ("SQL query returned wrong number of fields "
 				"(expected: %i, got: %i)", query->cols_num, cols);
 		log_info ("SQL query was: %s", query->query);
+		PQclear (res);
 		return -1;
 	}
 
