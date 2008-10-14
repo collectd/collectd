@@ -244,6 +244,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 static void c_psql_database_delete (c_psql_database_t *db)
 {
 	PQfinish (db->conn);
+	db->conn = NULL;
 
 	sfree (db->queries);
 	db->queries_num = 0;
@@ -548,6 +549,12 @@ static int c_psql_init (void)
 		int   server_version;
 
 		int j;
+
+		/* this will happen during reinitialization */
+		if (NULL != db->conn) {
+			c_psql_check_connection (db);
+			continue;
+		}
 
 		status = ssnprintf (buf, buf_len, "dbname = '%s'", db->database);
 		if (0 < status) {
