@@ -52,6 +52,11 @@
 #define NOTIF_WARNING 2
 #define NOTIF_OKAY    4
 
+#define FILTER_NOWRITE 1
+#define FILTER_NOTHRESHOLD_CHECK 2
+/* FILTER_IGNORE has to equal the bitwise or of all other filter flags */
+#define FILTER_IGNORE (FILTER_NOWRITE | FILTER_NOTHRESHOLD_CHECK)
+
 /*
  * Public data types
  */
@@ -196,6 +201,8 @@ int plugin_register_read (const char *name,
 		int (*callback) (void));
 int plugin_register_write (const char *name,
 		int (*callback) (const data_set_t *ds, const value_list_t *vl));
+int plugin_register_filter (const char *name,
+		int (*callback) (const data_set_t *ds, value_list_t *vl));
 int plugin_register_flush (const char *name,
 		int (*callback) (const int timeout, const char *identifier));
 int plugin_register_shutdown (char *name,
@@ -211,6 +218,7 @@ int plugin_unregister_complex_config (const char *name);
 int plugin_unregister_init (const char *name);
 int plugin_unregister_read (const char *name);
 int plugin_unregister_write (const char *name);
+int plugin_unregister_filter (const char *name);
 int plugin_unregister_flush (const char *name);
 int plugin_unregister_shutdown (const char *name);
 int plugin_unregister_data_set (const char *name);
