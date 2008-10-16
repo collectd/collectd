@@ -1016,6 +1016,18 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%5.1lf%sAh Max,',
     'GPRINT:avg:LAST:%5.1lf%sAh Last\l'
     ],
+    connections => ['-v', 'Connections',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Connections",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
+    ],
     cpu => ['-v', 'CPU load',
     'DEF:avg={file}:value:AVERAGE',
     'DEF:min={file}:value:MIN',

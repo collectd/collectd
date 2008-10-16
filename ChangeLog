@@ -29,6 +29,29 @@
 	* thermal plugin: The new thermal plugin collects system temperatures
 	  using Linux ACPI thermal zone data.
 
+2008-10-16, Version 4.4.4
+	* build system: Change `--enable-<plugin>' to abort with an error if
+	  dependencies are not met. Thanks to Bruno Prémont for the patch.
+	  Also, the poisoning of various string functions has been restricted
+	  to debug builds.
+	* collectd: Fix a memory leak in the global value cache. With every
+	  *missing* value a couple of bytes would be leaked. Another memory
+	  leak in the configuration handling code has been fixed. Thanks to
+	  Niraj Tolia for reporting these issues.
+	* collectd: Fix an off-by-one error in the ignorelist functionality.
+	  When using regular expressions, the last character would be missing,
+	  possibly matching differently from what one would expect.
+	* collectdmon: Don't block SIGCHLD. This fixes a potential portability
+	  problem.
+	* collectd-nagios: Fix handling of the `-d' option. Thanks to Fabian
+	  Linzberger for reporting the but.
+	* network plugin: Fix a memory leak in the configuration handling
+	  code. Thanks to Niraj Tolia for reporting this issue.
+	* perl plugin: Log an error message if bootstrapping `Collectd' fails.
+	* tail plugin: Call `clearerr' after reading an EOF. This fixes
+	  problems with some `libc's. Thanks to Matthias Lay for reporting the
+	  bug.
+
 2008-09-01, Version 4.4.3
 	* collectd: Fix a memory leak in the threshold checking code.
 	* memcached plugin: Fix a too short timeout and a related file

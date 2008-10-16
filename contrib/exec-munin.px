@@ -30,8 +30,7 @@ our $Interval = 300;
 main ();
 exit (0);
 
-# Configuration
-# {{{
+# Configuration {{{
 
 =head1 CONFIGURATION
 
