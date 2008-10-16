@@ -1,6 +1,6 @@
-* Parse options/identifiers with spaces in them correctly.
-* Figure out what to do with the onewire plugin.
+* Finalize the onewire plugin.
 * Custom notification messages?
+* Implement moving-average calculation for the threshold stuff.
 
 src/battery.c: commend not working code.
 
@@ -10,6 +10,7 @@ Wishlist:
   - be free of syntax errors.
 * Port nfs module to solaris
 * Port tape module to Linux
+* Port the apple_sensors plugin to Linux/PPC.
 * Maybe look into porting the serial module
 * Build Darwin package
 * Maybe let the network plugin configure whether or not notifications should be
