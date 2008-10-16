@@ -417,8 +417,10 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 	}
 
 	rows = PQntuples (res);
-	if (1 > rows)
+	if (1 > rows) {
+		PQclear (res);
 		return 0;
+	}
 
 	cols = PQnfields (res);
 	if (query->cols_num != cols) {
@@ -442,6 +444,7 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 				submit_gauge (db, col.type, col.type_instance, value);
 		}
 	}
+	PQclear (res);
 	return 0;
 } /* c_psql_exec_query */
 
