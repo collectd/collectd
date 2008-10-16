@@ -247,7 +247,7 @@
 # define __attribute__(x) /**/
 #endif
 
-#if __GNUC__
+#if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
 # pragma GCC poison strcpy strcat strtok
 #endif
 
@@ -258,7 +258,7 @@
  * included.
  */
 #ifndef DONT_POISON_SPRINTF_YET
-# if __GNUC__
+# if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
 #  pragma GCC poison sprintf
 # endif
 #endif
