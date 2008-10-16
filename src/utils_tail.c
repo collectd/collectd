@@ -162,6 +162,7 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
 
   /* Try to read from the filehandle. If that succeeds, everything appears to
    * be fine and we can return. */
+  clearerr (obj->fh);
   if (fgets (buf, buflen, obj->fh) != NULL)
   {
     buf[buflen - 1] = 0;

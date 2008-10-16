@@ -36,7 +36,7 @@
 #include <EXTERN.h>
 #include <perl.h>
 
-#if __GNUC__
+#if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
 # pragma GCC poison sprintf
 #endif
 

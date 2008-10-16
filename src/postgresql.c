@@ -243,6 +243,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 static void c_psql_database_delete (c_psql_database_t *db)
 {
 	PQfinish (db->conn);
+	db->conn = NULL;
 
 	sfree (db->queries);
 	db->queries_num = 0;
@@ -416,14 +417,17 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 	}
 
 	rows = PQntuples (res);
-	if (1 > rows)
+	if (1 > rows) {
+		PQclear (res);
 		return 0;
+	}
 
 	cols = PQnfields (res);
 	if (query->cols_num != cols) {
 		log_err ("SQL query returned wrong number of fields "
 				"(expected: %i, got: %i)", query->cols_num, cols);
 		log_info ("SQL query was: %s", query->query);
+		PQclear (res);
 		return -1;
 	}
 
@@ -441,6 +445,7 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 				submit_gauge (db, col.type, col.type_instance, value);
 		}
 	}
+	PQclear (res);
 	return 0;
 } /* c_psql_exec_query */
 
@@ -544,6 +549,12 @@ static int c_psql_init (void)
 		int   server_version;
 
 		int j;
+
+		/* this will happen during reinitialization */
+		if (NULL != db->conn) {
+			c_psql_check_connection (db);
+			continue;
+		}
 
 		status = ssnprintf (buf, buf_len, "dbname = '%s'", db->database);
 		if (0 < status) {

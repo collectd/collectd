@@ -133,7 +133,7 @@ ascent_la_LDFLAGS = -module -avoid-version
 ascent_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 ascent_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
-collectd_LDADD += "-dlopen" apache.la
+collectd_LDADD += "-dlopen" ascent.la
 collectd_DEPENDENCIES += ascent.la
 endif
 
@@ -839,5 +839,6 @@ install-exec-hook:
 		$(INSTALL) -m 0640 collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
 	cp -f $(srcdir)/types.db $(DESTDIR)$(pkglibdir)/;
-	$(INSTALL) -D -m 0644 $(srcdir)/postgresql_default.conf \
+	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
+	$(INSTALL) -m 0644 $(srcdir)/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
