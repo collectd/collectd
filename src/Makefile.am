@@ -1,4 +1,4 @@
-SUBDIRS =
+SUBDIRS = libcollectdclient
 if BUILD_WITH_OWN_LIBIPTC
 SUBDIRS += libiptc
 endif
