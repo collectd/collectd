@@ -91,6 +91,8 @@ collectd_nagios_LDFLAGS =
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDFLAGS += -lsocket
 endif
+collectd_nagios_LDADD = libcollectdclient/libcollectdclient.la
+collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 pkglib_LTLIBRARIES = 
 

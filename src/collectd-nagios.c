@@ -1,14 +1,66 @@
-#include "config.h"
+/**
+ * collectd-nagios - src/collectd-nagios.c
+ * Copyright (C) 2008  Florian octo Forster
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; only version 2 of the License is applicable.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ *
+ * Authors:
+ *   Florian octo Forster <octo at verplant.org>
+ **/
+
+/* Set to C99 and POSIX code */
+#ifndef _ISOC99_SOURCE
+# define _ISOC99_SOURCE
+#endif
+#ifndef _POSIX_SOURCE
+# define _POSIX_SOURCE
+#endif
+#ifndef _POSIX_C_SOURCE
+# define _POSIX_C_SOURCE 200112L
+#endif
+#ifndef _REENTRANT
+# define _REENTRANT
+#endif
+
+/* Disable non-standard extensions */
+#ifdef _BSD_SOURCE
+# undef _BSD_SOURCE
+#endif
+#ifdef _SVID_SOURCE
+# undef _SVID_SOURCE
+#endif
+#ifdef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+
+#if !defined(__GNUC__) || !__GNUC__
+# define __attribute__(x) /**/
+#endif
 
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <strings.h>
 #include <assert.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include "config.h"
+#include "libcollectdclient/client.h"
 
 /*
  * This is copied directly from collectd.h. Make changes there!
@@ -69,6 +121,22 @@ static int consolitation_g = CON_NONE;
 static char **match_ds_g = NULL;
 static int    match_ds_num_g = 0;
 
+/* `strdup' is an XSI extension. I don't want to pull in all of XSI just for
+ * that, so here's an own implementation.. It's easy enough. The GCC attributes
+ * are supposed to get good performance..  -octo */
+__attribute__((malloc, nonnull (1)))
+static char *cn_strdup (const char *str) /* {{{ */
+{
+  size_t strsize;
+  char *ret;
+
+  strsize = strlen (str) + 1;
+  ret = (char *) malloc (strsize);
+  if (ret != NULL)
+    memcpy (ret, str, strsize);
+  return (ret);
+} /* }}} char *cn_strdup */
+
 static int ignore_ds (const char *name)
 {
 	int i;
@@ -124,7 +192,7 @@ static void parse_range (char *string, range_t *range)
 		range->max = atof (max_ptr);
 } /* void parse_range */
 
-int match_range (range_t *range, double value)
+static int match_range (range_t *range, double value)
 {
 	int ret = 0;
 
@@ -134,164 +202,7 @@ int match_range (range_t *range, double value)
 		ret = 1;
 
 	return (((ret - range->invert) == 0) ? 0 : 1);
-}
-
-static int get_values (int *ret_values_num, double **ret_values,
-		char ***ret_values_names)
-{
-	struct sockaddr_un sa;
-	int status;
-	int fd;
-	FILE *fh_in, *fh_out;
-	char buffer[4096];
-
-	int values_num;
-	double *values;
-	char **values_names;
-
-	int i;
-	int j;
-
-	fd = socket (PF_UNIX, SOCK_STREAM, 0);
-	if (fd < 0)
-	{
-		fprintf (stderr, "socket failed: %s\n",
-				strerror (errno));
-		return (-1);
-	}
-
-	memset (&sa, '\0', sizeof (sa));
-	sa.sun_family = AF_UNIX;
-	strncpy (sa.sun_path, socket_file_g,
-			sizeof (sa.sun_path) - 1);
-
-	status = connect (fd, (struct sockaddr *) &sa, sizeof (sa));
-	if (status != 0)
-	{
-		fprintf (stderr, "connect failed: %s\n",
-				strerror (errno));
-		return (-1);
-	}
-
-	fh_in = fdopen (fd, "r");
-	if (fh_in == NULL)
-	{
-		fprintf (stderr, "fdopen failed: %s\n",
-				strerror (errno));
-		close (fd);
-		return (-1);
-	}
-
-	fh_out = fdopen (fd, "w");
-	if (fh_out == NULL)
-	{
-		fprintf (stderr, "fdopen failed: %s\n",
-				strerror (errno));
-		fclose (fh_in);
-		return (-1);
-	}
-
-	fprintf (fh_out, "GETVAL %s/%s\n", hostname_g, value_string_g);
-	fflush (fh_out);
-
-	if (fgets (buffer, sizeof (buffer), fh_in) == NULL)
-	{
-		fprintf (stderr, "fgets failed: %s\n",
-				strerror (errno));
-		fclose (fh_in);
-		fclose (fh_out);
-		return (-1);
-	}
-
-	{
-		char *ptr = strchr (buffer, ' ');
-
-		if (ptr != NULL)
-			*ptr = '\0';
-
-		values_num = atoi (buffer);
-		if (values_num < 1)
-			return (-1);
-	}
-
-	values = (double *) malloc (values_num * sizeof (double));
-	if (values == NULL)
-	{
-		fprintf (stderr, "malloc failed: %s\n",
-				strerror (errno));
-		return (-1);
-	}
-
-	values_names = (char **) malloc (values_num * sizeof (char *));
-	if (values_names == NULL)
-	{
-		fprintf (stderr, "malloc failed: %s\n",
-				strerror (errno));
-		free (values);
-		return (-1);
-	}
-	memset (values_names, 0, values_num * sizeof (char *));
-
-	i = 0; /* index of the values returned by the server */
-	j = 0; /* number of values in `values_names' and `values' */
-	while (fgets (buffer, sizeof (buffer), fh_in) != NULL)
-	{
-		do /* while (0) */
-		{
-			char *key;
-			char *value;
-			char *endptr;
-
-			key = buffer;
-
-			value = strchr (key, '=');
-			if (value == NULL)
-			{
-				fprintf (stderr, "Cannot parse line: %s\n", buffer);
-				break;
-			}
-			*value = 0;
-			value++;
-
-			if (ignore_ds (key) != 0)
-				break;
-
-			endptr = NULL;
-			errno = 0;
-			values[j] = strtod (value, &endptr);
-			if ((endptr == value) || (errno != 0))
-			{
-				fprintf (stderr, "Could not parse buffer "
-						"as number: %s\n", value);
-				break;
-			}
-
-			values_names[j] = strdup (key);
-			if (values_names[j] == NULL)
-			{
-				fprintf (stderr, "strdup failed.\n");
-				break;
-			}
-			j++;
-		} while (0);
-
-		i++;
-		if (i >= values_num)
-			break;
-	}
-	/* Set `values_num' to the number of values actually stored in the
-	 * array. */
-	values_num = j;
-
-	fclose (fh_in); fh_in = NULL; fd = -1;
-	fclose (fh_out); fh_out = NULL;
-
-	*ret_values_num = values_num;
-	*ret_values = values;
-	*ret_values_names = values_names;
-
-	return (0);
-} /* int get_values */
+} /* int match_range */
 
 static void usage (const char *name)
 {
@@ -319,16 +230,21 @@ static void usage (const char *name)
 	exit (1);
 } /* void usage */
 
-int do_check_con_none (int values_num, double *values, char **values_names)
+static int do_check_con_none (int values_num,
+		double *values, char **values_names)
 {
-	int i;
-
 	int num_critical = 0;
 	int num_warning  = 0;
 	int num_okay = 0;
+	const char *status_str = "UNKNOWN";
+	int status_code = RET_UNKNOWN;
+	int i;
 
 	for (i = 0; i < values_num; i++)
 	{
+		if (ignore_ds (values_names[i]))
+			continue;
+
 		if (isnan (values[i]))
 			num_warning++;
 		else if (match_range (&range_critical_g, values[i]) != 0)
@@ -339,35 +255,57 @@ int do_check_con_none (int values_num, double *values, char **values_names)
 			num_okay++;
 	}
 
-	printf ("%i critical, %i warning, %i okay",
+	if ((num_critical == 0) && (num_warning == 0) && (num_okay == 0))
+	{
+		printf ("WARNING: No defined values found\n");
+		return (RET_WARNING);
+	}
+	else if ((num_critical == 0) && (num_warning == 0))
+	{
+		status_str = "OKAY";
+		status_code = RET_OKAY;
+	}
+	else if (num_critical == 0)
+	{
+		status_str = "WARNING";
+		status_code = RET_WARNING;
+	}
+	else
+	{
+		status_str = "CRITICAL";
+		status_code = RET_CRITICAL;
+	}
+
+	printf ("%s: %i critical, %i warning, %i okay", status_str,
 			num_critical, num_warning, num_okay);
 	if (values_num > 0)
 	{
 		printf (" |");
 		for (i = 0; i < values_num; i++)
-			printf (" %s=%lf;;;;", values_names[i], values[i]);
+			printf (" %s=%g;;;;", values_names[i], values[i]);
 	}
 	printf ("\n");
 
-	if ((num_critical != 0) || (values_num == 0))
-		return (RET_CRITICAL);
-	else if (num_warning != 0)
-		return (RET_WARNING);
-
-	return (RET_OKAY);
+	return (status_code);
 } /* int do_check_con_none */
 
-int do_check_con_average (int values_num, double *values, char **values_names)
+static int do_check_con_average (int values_num,
+		double *values, char **values_names)
 {
 	int i;
 	double total;
 	int total_num;
 	double average;
+	const char *status_str = "UNKNOWN";
+	int status_code = RET_UNKNOWN;
 
 	total = 0.0;
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
+		if (ignore_ds (values_names[i]))
+			continue;
+
 		if (!isnan (values[i]))
 		{
 			total += values[i];
@@ -376,35 +314,52 @@ int do_check_con_average (int values_num, double *values, char **values_names)
 	}
 
 	if (total_num == 0)
-		average = NAN;
-	else
-		average = total / total_num;
-	printf ("%lf average |", average);
-	for (i = 0; i < values_num; i++)
-		printf (" %s=%lf;;;;", values_names[i], values[i]);
-
-	if (total_num == 0)
+	{
+		printf ("WARNING: No defined values found\n");
 		return (RET_WARNING);
+	}
 
-	if (isnan (average)
-			|| match_range (&range_critical_g, average))
-		return (RET_CRITICAL);
+	average = total / total_num;
+
+	if (match_range (&range_critical_g, average) != 0)
+	{
+		status_str = "CRITICAL";
+		status_code = RET_CRITICAL;
+	}
 	else if (match_range (&range_warning_g, average) != 0)
-		return (RET_WARNING);
+	{
+		status_str = "WARNING";
+		status_code = RET_WARNING;
+	}
+	else
+	{
+		status_str = "OKAY";
+		status_code = RET_OKAY;
+	}
 
-	return (RET_OKAY);
+	printf ("%s: %g average |", status_str, average);
+	for (i = 0; i < values_num; i++)
+		printf (" %s=%g;;;;", values_names[i], values[i]);
+	printf ("\n");
+
+	return (status_code);
 } /* int do_check_con_average */
 
-int do_check_con_sum (int values_num, double *values, char **values_names)
+static int do_check_con_sum (int values_num, double *values, char **values_names)
 {
 	int i;
 	double total;
 	int total_num;
+	const char *status_str = "UNKNOWN";
+	int status_code = RET_UNKNOWN;
 
 	total = 0.0;
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
+		if (ignore_ds (values_names[i]))
+			continue;
+
 		if (!isnan (values[i]))
 		{
 			total += values[i];
@@ -420,47 +375,94 @@ int do_check_con_sum (int values_num, double *values, char **values_names)
 
 	if (match_range (&range_critical_g, total) != 0)
 	{
-		printf ("CRITICAL: Sum = %lf\n", total);
-		return (RET_CRITICAL);
+		status_str = "CRITICAL";
+		status_code = RET_CRITICAL;
 	}
 	else if (match_range (&range_warning_g, total) != 0)
 	{
-		printf ("WARNING: Sum = %lf\n", total);
-		return (RET_WARNING);
+		status_str = "WARNING";
+		status_code = RET_WARNING;
 	}
 	else
 	{
-		printf ("OKAY: Sum = %lf\n", total);
-		return (RET_OKAY);
+		status_str = "OKAY";
+		status_code = RET_OKAY;
 	}
 
-	return (RET_UNKNOWN);
+	printf ("%s: %g sum |", status_str, total);
+	for (i = 0; i < values_num; i++)
+		printf (" %s=%g;;;;", values_names[i], values[i]);
+	printf ("\n");
+
+	return (status_code);
 } /* int do_check_con_sum */
 
-int do_check (void)
+static int do_check (void)
 {
-	double  *values;
+	lcc_connection_t *connection;
+	gauge_t *values;
 	char   **values_names;
-	int      values_num;
+	size_t   values_num;
+	char address[1024];
+	char ident_str[1024];
+	lcc_identifier_t ident;
+	size_t i;
+	int status;
 
-	if (get_values (&values_num, &values, &values_names) != 0)
+	snprintf (address, sizeof (address), "unix:%s", socket_file_g);
+	address[sizeof (address) - 1] = 0;
+
+	snprintf (ident_str, sizeof (ident_str), "%s/%s",
+			hostname_g, value_string_g);
+	ident_str[sizeof (ident_str) - 1] = 0;
+
+	connection = NULL;
+	status = lcc_connect (address, &connection);
+	if (status != 0)
 	{
-		fputs ("ERROR: Cannot get values from daemon\n", stdout);
+		printf ("ERROR: Connecting to daemon at %s failed.\n",
+				socket_file_g);
 		return (RET_CRITICAL);
 	}
 
+	memset (&ident, 0, sizeof (ident));
+	status = lcc_string_to_identifier (connection, &ident, ident_str);
+	if (status != 0)
+	{
+		printf ("ERROR: Creating an identifier failed: %s.\n",
+				lcc_strerror (connection));
+		LCC_DESTROY (connection);
+		return (RET_CRITICAL);
+	}
+
+	status = lcc_getval (connection, &ident,
+			&values_num, &values, &values_names);
+	if (status != 0)
+	{
+		printf ("ERROR: Retrieving values from the daemon failed: %s.\n",
+				lcc_strerror (connection));
+		LCC_DESTROY (connection);
+		return (RET_CRITICAL);
+	}
+
+	LCC_DESTROY (connection);
+
+	status = RET_UNKNOWN;
 	if (consolitation_g == CON_NONE)
-		return (do_check_con_none (values_num, values, values_names));
+		status =  do_check_con_none (values_num, values, values_names);
 	else if (consolitation_g == CON_AVERAGE)
-		return (do_check_con_average (values_num, values, values_names));
+		status =  do_check_con_average (values_num, values, values_names);
 	else if (consolitation_g == CON_SUM)
-		return (do_check_con_sum (values_num, values, values_names));
+		status = do_check_con_sum (values_num, values, values_names);
 
 	free (values);
-	free (values_names); /* FIXME? */
+	if (values_names != NULL)
+		for (i = 0; i < values_num; i++)
+			free (values_names[i]);
+	free (values_names);
 
-	return (RET_UNKNOWN);
-}
+	return (status);
+} /* int do_check */
 
 int main (int argc, char **argv)
 {
@@ -520,10 +522,10 @@ int main (int argc, char **argv)
 					return (RET_UNKNOWN);
 				}
 				match_ds_g = tmp;
-				match_ds_g[match_ds_num_g] = strdup (optarg);
+				match_ds_g[match_ds_num_g] = cn_strdup (optarg);
 				if (match_ds_g[match_ds_num_g] == NULL)
 				{
-					fprintf (stderr, "strdup failed: %s\n",
+					fprintf (stderr, "cn_strdup failed: %s\n",
 							strerror (errno));
 					return (RET_UNKNOWN);
 				}
