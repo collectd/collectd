@@ -42,6 +42,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
 @BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
 @BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
+@BUILD_PLUGIN_FILTER_PCRE_TRUE@LoadPlugin filter_pcre
 @BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 @BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
@@ -168,6 +169,16 @@ FQDNLookup   true
 #		MTime "-5m"
 #		Size "+10k"
 #	</Directory>
+#</Plugin>
+
+#<Plugin filter_pcre>
+#	<RegEx>
+#		Host "^mail\d+$"
+#		Plugin "^tcpconns$"
+#		TypeInstance "^SYN_"
+#
+#		Action NoWrite
+#	</RegEx>
 #</Plugin>
 
 @BUILD_PLUGIN_HDDTEMP_TRUE@<Plugin hddtemp>

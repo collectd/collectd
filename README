@@ -250,6 +250,12 @@ Features
       needed. Please read collectd-unixsock(5) for a description on how that's
       done.
 
+  * Filtering and rewriting values dispatched to collectd can be done by the
+    following plugins:
+
+    - filter_pcre
+      Filter value lists based on Perl-compatible regular expressions.
+
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
 
@@ -415,6 +421,10 @@ Prerequisites
   * libpcap (optional)
     Used to capture packets by the `dns' plugin.
     <http://www.tcpdump.org/>
+
+  * libpcre (optional)
+    Used by the `filter_pcre' plugin.
+    <http://www.pcre.org/>
 
   * libperl (optional)
     Obviously used by the `perl' plugin. The library has to be compiled with
