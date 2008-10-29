@@ -38,6 +38,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_tail_match.c utils_tail_match.h \
 		   utils_match.c utils_match.h \
 		   utils_mount.c utils_mount.h \
+		   utils_subst.c utils_subst.h \
 		   utils_tail.c utils_tail.h \
 		   utils_threshold.c utils_threshold.h \
 		   types_list.c types_list.h
