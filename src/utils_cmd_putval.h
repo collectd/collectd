@@ -22,6 +22,8 @@
 #ifndef UTILS_CMD_PUTVAL_H
 #define UTILS_CMD_PUTVAL_H 1
 
+#include <stdio.h>
+
 int handle_putval (FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_PUTVAL_H */

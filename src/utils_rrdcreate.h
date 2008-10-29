@@ -22,6 +22,10 @@
 #ifndef UTILS_RRDCREATE_H
 #define UTILS_RRDCREATE_H 1
 
+#include "plugin.h"
+
+#include <stddef.h>
+
 struct rrdcreate_config_s
 {
   int    stepsize;

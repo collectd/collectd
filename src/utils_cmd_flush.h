@@ -22,6 +22,8 @@
 #ifndef UTILS_CMD_FLUSH_H
 #define UTILS_CMD_FLUSH_H 1
 
+#include <stdio.h>
+
 int handle_flush (FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_FLUSH_H */

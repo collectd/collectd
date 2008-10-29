@@ -22,6 +22,8 @@
 #ifndef UTILS_CMD_LISTVAL_H
 #define UTILS_CMD_LISTVAL_H 1
 
+#include <stdio.h>
+
 int handle_listval (FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_LISTVAL_H */
