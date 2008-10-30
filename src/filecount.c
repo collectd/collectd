@@ -371,7 +371,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
     fc_directory_conf_t **temp;
 
     temp = (fc_directory_conf_t **) realloc (directories,
-        sizeof (*directories) * directories_num);
+        sizeof (*directories) * (directories_num + 1));
     if (temp == NULL)
     {
       ERROR ("filecount plugin: realloc failed.");
