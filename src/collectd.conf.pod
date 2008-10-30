@@ -646,6 +646,10 @@ description see above. Valid multipliers here are C<b> (byte), C<k> (kilobyte),
 C<m> (megabyte), C<g> (gigabyte), C<t> (terabyte), and C<p> (petabyte). Please
 note that there are 1000 bytes in a kilobyte, not 1024.
 
+=item B<Recursive> I<true>|I<false>
+
+Controls whether or not to recurse into subdirectories. Enabled by default.
+
 =back
 
 =head2 Plugin C<filter_pcre>

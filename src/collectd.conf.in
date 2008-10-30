@@ -168,6 +168,7 @@ FQDNLookup   true
 #		Name "*.conf"
 #		MTime "-5m"
 #		Size "+10k"
+#		Recursive true
 #	</Directory>
 #</Plugin>
 
