@@ -661,6 +661,7 @@ the Perl 5 language. See L<pcre(3)> for details.
       TypeInstance "^SYN_"
 
       Action NoWrite
+    </RegEx>
   </Plugin>
 
 The configuration consists of one or more C<RegEx> blocks, each of which
