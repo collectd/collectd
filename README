@@ -254,7 +254,8 @@ Features
     following plugins:
 
     - filter_pcre
-      Filter value lists based on Perl-compatible regular expressions.
+      Filter and rewrite value lists based on Perl-compatible regular
+      expressions.
 
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:

@@ -180,6 +180,13 @@ FQDNLookup   true
 #
 #		Action NoWrite
 #	</RegEx>
+#
+#	<RegEx>
+#		Plugin "^sensors$"
+#		PluginInstance "^Some Weird Sensor Chip Name Prefix"
+#
+#		SubstitutePluginInstance "foo"
+#	</RegEx>
 #</Plugin>
 
 @BUILD_PLUGIN_HDDTEMP_TRUE@<Plugin hddtemp>

@@ -654,9 +654,9 @@ Controls whether or not to recurse into subdirectories. Enabled by default.
 
 =head2 Plugin C<filter_pcre>
 
-This plugin allows you to filter value lists based on Perl-compatible regular
-expressions whose syntax and semantics are as close as possible to those of
-the Perl 5 language. See L<pcre(3)> for details.
+This plugin allows you to filter and rewrite value lists based on
+Perl-compatible regular expressions whose syntax and semantics are as close as
+possible to those of the Perl 5 language. See L<pcre(3)> for details.
 
   <Plugin filter_pcre>
     <RegEx>
@@ -665,6 +665,13 @@ the Perl 5 language. See L<pcre(3)> for details.
       TypeInstance "^SYN_"
 
       Action NoWrite
+    </RegEx>
+
+    <RegEx>
+      Plugin "^sensors$"
+      PluginInstance "^Some Weird Sensor Chip Name Prefix"
+
+      SubstitutePluginInstance "foo"
     </RegEx>
   </Plugin>
 
@@ -714,6 +721,25 @@ Completely ignore this value list.
 =back
 
 Two or more actions may be combined by specifying multiple B<Action> options.
+
+=item B<SubstituteHost> I<replacement>
+
+=item B<SubstitutePlugin> I<replacement>
+
+=item B<SubstitutePluginInstance> I<replacement>
+
+=item B<SubstituteType> I<replacement>
+
+=item B<SubstituteTypeInstance> I<replacement>
+
+Upon a successful match, the matching substring will be replaced by the
+specified I<replacement> text. These options require that an appropriate regex
+has been specified before, e.E<nbsp>g. B<SubstituteHost> requires that the
+B<Host> option has been specified before.
+
+B<Note>: It is not recommended to modify the type unless you really know what
+you are doing. The type is used to identify the data-set definition of the
+dispatched values.
 
 =back
 

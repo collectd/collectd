@@ -20,14 +20,16 @@
  **/
 
 /*
- * This module allows to filter value lists based on Perl-compatible regular
- * expressions.
+ * This module allows to filter and rewrite value lists based on
+ * Perl-compatible regular expressions.
  */
 
 #include "collectd.h"
 #include "configfile.h"
 #include "plugin.h"
 #include "common.h"
+
+#include "utils_subst.h"
 
 #include <pcre.h>
 
@@ -39,18 +41,29 @@
  */
 
 typedef struct {
+	/* regular expression */
 	pcre       *re;
+	const char *re_str;
+
+	/* extra information from studying the pattern */
 	pcre_extra *extra;
+
+	/* replacment text for string substitution */
+	const char *replacement;
 } c_pcre_t;
 
 #define C_PCRE_INIT(regex) do { \
-		(regex).re    = NULL; \
-		(regex).extra = NULL; \
+		(regex).re     = NULL; \
+		(regex).re_str = NULL; \
+		(regex).extra  = NULL; \
+		(regex).replacement = NULL; \
 	} while (0)
 
 #define C_PCRE_FREE(regex) do { \
 		pcre_free ((regex).re); \
+		free ((void *)(regex).re_str); \
 		pcre_free ((regex).extra); \
+		free ((void *)(regex).replacement); \
 		C_PCRE_INIT (regex); \
 	} while (0)
 
@@ -64,6 +77,19 @@ typedef struct {
 	int action;
 } regex_t;
 
+typedef struct {
+	int vec[30];
+	int status;
+} ovec_t;
+
+typedef struct {
+	ovec_t host;
+	ovec_t plugin;
+	ovec_t plugin_instance;
+	ovec_t type;
+	ovec_t type_instance;
+} ovectors_t;
+
 /*
  * private variables
  */
@@ -76,34 +102,53 @@ static int      regexes_num = 0;
  */
 
 /* returns true if string matches the regular expression */
-static int c_pcre_match (c_pcre_t *re, const char *string)
+static int c_pcre_match (c_pcre_t *re, const char *string, ovec_t *ovec)
 {
-	int status;
-	int ovector[30];
-
-	if (NULL == re)
+	if ((NULL == re) || (NULL == re->re))
 		return 1;
 
 	if (NULL == string)
 		string = "";
 
-	status = pcre_exec (re->re,
+	ovec->status = pcre_exec (re->re,
 			/* extra       = */ re->extra,
 			/* subject     = */ string,
 			/* length      = */ strlen (string),
 			/* startoffset = */ 0,
 			/* options     = */ 0,
-			/* ovector     = */ ovector,
-			/* ovecsize    = */ STATIC_ARRAY_SIZE (ovector));
+			/* ovector     = */ ovec->vec,
+			/* ovecsize    = */ STATIC_ARRAY_SIZE (ovec->vec));
 
-	if (0 <= status)
+	if (0 <= ovec->status)
 		return 1;
 
-	if (PCRE_ERROR_NOMATCH != status)
+	if (PCRE_ERROR_NOMATCH != ovec->status)
 		log_err ("PCRE matching of string \"%s\" failed with status %d",
-				string, status);
+				string, ovec->status);
 	return 0;
 } /* c_pcre_match */
+
+static int c_pcre_subst (c_pcre_t *re, char *string, size_t strlen,
+		ovec_t *ovec)
+{
+	char buffer[strlen];
+
+	if ((NULL == re) || (NULL == re->replacement))
+		return 0;
+
+	assert (0 <= ovec->status);
+
+	if (NULL == subst (buffer, sizeof (buffer), string,
+				ovec->vec[0], ovec->vec[1], re->replacement)) {
+		log_err ("Substitution in string \"%s\" (using regex \"%s\" and "
+				"replacement string \"%s\") failed.",
+				string, re->re_str, re->replacement);
+		return -1;
+	}
+
+	sstrncpy (string, buffer, strlen);
+	return 0;
+} /* c_pcre_subst */
 
 static regex_t *regex_new (void)
 {
@@ -143,34 +188,52 @@ static void regex_delete (regex_t *re)
 } /* regex_delete */
 
 /* returns true if the value list matches the regular expression */
-static int regex_match (regex_t *re, value_list_t *vl)
+static int regex_match (regex_t *re, value_list_t *vl, ovectors_t *ovectors)
 {
 	int matches = 0;
 
 	if (NULL == re)
 		return 1;
 
-	if ((NULL == re->host.re) || c_pcre_match (&re->host, vl->host))
+	if (c_pcre_match (&re->host, vl->host, &ovectors->host))
 		++matches;
 
-	if ((NULL == re->plugin.re) || c_pcre_match (&re->plugin, vl->plugin))
+	if (c_pcre_match (&re->plugin, vl->plugin, &ovectors->plugin))
 		++matches;
 
-	if ((NULL == re->plugin_instance.re)
-			|| c_pcre_match (&re->plugin_instance, vl->plugin_instance))
+	if (c_pcre_match (&re->plugin_instance, vl->plugin_instance,
+				&ovectors->plugin_instance))
 		++matches;
 
-	if ((NULL == re->type.re) || c_pcre_match (&re->type, vl->type))
+	if (c_pcre_match (&re->type, vl->type, &ovectors->type))
 		++matches;
 
-	if ((NULL == re->type_instance.re)
-			|| c_pcre_match (&re->type_instance, vl->type_instance))
+	if (c_pcre_match (&re->type_instance, vl->type_instance,
+				&ovectors->type_instance))
 		++matches;
 
 	if (5 == matches)
 		return 1;
 	return 0;
 } /* regex_match */
+
+static int regex_subst (regex_t *re, value_list_t *vl, ovectors_t *ovectors)
+{
+	if (NULL == re)
+		return 0;
+
+	c_pcre_subst (&re->host, vl->host, sizeof (vl->host),
+			&ovectors->host);
+	c_pcre_subst (&re->plugin, vl->plugin, sizeof (vl->plugin),
+			&ovectors->plugin);
+	c_pcre_subst (&re->plugin_instance, vl->plugin_instance,
+			sizeof (vl->plugin_instance), &ovectors->plugin_instance);
+	c_pcre_subst (&re->type, vl->type, sizeof (vl->type),
+			&ovectors->type);
+	c_pcre_subst (&re->type_instance, vl->type_instance,
+			sizeof (vl->type_instance), &ovectors->type_instance);
+	return 0;
+} /* regex_subst */
 
 /*
  * interface to collectd
@@ -180,9 +243,13 @@ static int c_pcre_filter (const data_set_t *ds, value_list_t *vl)
 {
 	int i;
 
+	ovectors_t ovectors;
+
 	for (i = 0; i < regexes_num; ++i)
-		if (regex_match (regexes + i, vl))
+		if (regex_match (regexes + i, vl, &ovectors)) {
+			regex_subst (regexes + i, vl, &ovectors);
 			return regexes[i].action;
+		}
 	return 0;
 } /* c_pcre_filter */
 
@@ -227,6 +294,8 @@ static int config_set_regex (c_pcre_t *re, oconfig_item_t *ci)
 		return 1;
 	}
 
+	re->re_str = sstrdup (pattern);
+
 	re->extra = pcre_study (re->re,
 			/* options = */ 0,
 			/* errptr  = */ &errptr);
@@ -238,6 +307,24 @@ static int config_set_regex (c_pcre_t *re, oconfig_item_t *ci)
 	}
 	return 0;
 } /* config_set_regex */
+
+static int config_set_replacement (c_pcre_t *re, oconfig_item_t *ci)
+{
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
+		log_err ("<RegEx>: %s expects a single string argument.", ci->key);
+		return 1;
+	}
+
+	if (NULL == re->re) {
+		log_err ("<RegEx>: %s without an appropriate regex (%s) "
+				"is not allowed.", ci->key, ci->key + strlen ("Substitute"));
+		return 1;
+	}
+
+	re->replacement = sstrdup (ci->values[0].value.string);
+	return 0;
+} /* config_set_replacement */
 
 static int config_set_action (int *action, oconfig_item_t *ci)
 {
@@ -290,6 +377,16 @@ static int c_pcre_config_regex (oconfig_item_t *ci)
 			status = config_set_regex (&re->type_instance, c);
 		else if (0 == strcasecmp (c->key, "Action"))
 			status = config_set_action (&re->action, c);
+		else if (0 == strcasecmp (c->key, "SubstituteHost"))
+			status = config_set_replacement (&re->host, c);
+		else if (0 == strcasecmp (c->key, "SubstitutePlugin"))
+			status = config_set_replacement (&re->plugin, c);
+		else if (0 == strcasecmp (c->key, "SubstitutePluginInstance"))
+			status = config_set_replacement (&re->plugin_instance, c);
+		else if (0 == strcasecmp (c->key, "SubstituteType"))
+			status = config_set_replacement (&re->type, c);
+		else if (0 == strcasecmp (c->key, "SubstituteTypeInstance"))
+			status = config_set_replacement (&re->type_instance, c);
 		else
 			log_warn ("<RegEx>: Ignoring unknown config key \"%s\".", c->key);
 
