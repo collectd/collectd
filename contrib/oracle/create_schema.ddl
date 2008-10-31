@@ -12,7 +12,7 @@
 --
 -- Requirements
 ---------------
--- make shure you have: 
+-- make sure you have: 
 -- 		write permission in $PWD
 --		you have GID of oracle software owner
 -- 		set $ORACLE_HOME 

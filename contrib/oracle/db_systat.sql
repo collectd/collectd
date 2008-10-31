@@ -41,7 +41,7 @@ pga_hit_ratio
 FROM v$pgastat
 WHERE name = 'cache hit percentage';
 
--- DB Efficientcy
+-- DB Efficiency
 SELECT ROUND(SUM(decode(metric_name,   'Database Wait Time Ratio',   VALUE)),   2) AS
 database_wait_time_ratio,
   ROUND(SUM(decode(metric_name,   'Database CPU Time Ratio',   VALUE)),   2) AS
