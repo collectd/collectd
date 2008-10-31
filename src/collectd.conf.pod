@@ -1318,6 +1318,65 @@ short: If it works for you: Great! But kaap in mind that the config I<might>
 change, though this is unlikely. Oh, and if you want to help improving this
 plugin, just send a short notice to the mailing list. ThanksE<nbsp>:)
 
+=head2 Plugin C<oracle>
+
+The "oracle" plugin uses the Oracle® Call Interface (OCI) to connect to an
+Oracle® Database and lets you execute SQL statements there. It is very similar
+to the "dbi" plugin, because it was written around the same time. See the "dbi"
+plugin's documentation above for details.
+
+  <Plugin oracle>
+    <Query "out_of_stock">
+      Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
+      Type "gauge"
+      InstancesFrom "category"
+      ValuesFrom "value"
+    </Query>
+    <Database "product_information">
+      ConnectID "db01"
+      Username "oracle"
+      Password "secret"
+      Query "out_of_stock"
+    </Database>
+  </Plugin>
+
+=head3 B<Query> blocks
+
+The Query blocks are handled identically to the Query blocks of the "dbi"
+plugin. Please see its documentation above for details on how to specify
+queries.
+
+=head3 B<Database> blocks
+
+Database blocks define a connection to a database and which queries should be
+sent to that database. Each database needs a "name" as string argument in the
+starting tag of the block. This name will be used as "PluginInstance" in the
+values submitted to the daemon. Other than that, that name is not used.
+
+=over 4
+
+=item B<ConnectID> I<ID>
+
+Defines the "database alias" or "service name" to connect to. Usually, these
+names are defined in the file named C<$ORACLE_HOME/network/admin/tnsnames.ora>.
+
+=item B<Username> I<Username>
+
+Username used for authentication.
+
+=item B<Password> I<Password>
+
+Password used for authentication.
+
+=item B<Query> I<QueryName>
+
+Associates the query named I<QueryName> with this database connection. The
+query needs to be defined I<before> this statement, i.E<nbsp>e. all query
+blocks you want to refer to must be placed above the database block you want to
+refer to them from.
+
+=back
+
 =head2 Plugin C<perl>
 
 This plugin embeds a Perl-interpreter into collectd and provides an interface
