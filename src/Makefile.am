@@ -323,7 +323,7 @@ endif
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
-ipvs_la_CFLAGS = $(KERNEL_CFLAGS)
+ipvs_la_CFLAGS = $(AM_CFLAGS) $(KERNEL_CFLAGS)
 ipvs_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" ipvs.la
 collectd_DEPENDENCIES += ipvs.la
@@ -739,7 +739,7 @@ endif
 if BUILD_PLUGIN_UUID
 pkglib_LTLIBRARIES += uuid.la
 uuid_la_SOURCES = uuid.c
-uuid_la_CFLAGS  = $(BUILD_WITH_LIBHAL_CFLAGS)
+uuid_la_CFLAGS  = $(AM_CFLAGS) $(BUILD_WITH_LIBHAL_CFLAGS)
 uuid_la_LIBADD  = $(BUILD_WITH_LIBHAL_LIBS)
 uuid_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" uuid.la
