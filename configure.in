@@ -1338,12 +1338,24 @@ then
 
 	if test $mysql_config_status -ne 0
 	then
-		with_libmysql="no"
+		with_libmysql="no ($with_mysql_config failed)"
 	else
 		SAVE_CPPFLAGS="$CPPFLAGS"
 		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
 
-		AC_CHECK_HEADERS(mysql/mysql.h, [], [with_libmysql="no (mysql/mysql.h not found)"], [])
+		have_mysql_h="no"
+		have_mysql_mysql_h="no"
+		AC_CHECK_HEADERS(mysql.h, [have_mysql_h="yes"])
+
+		if test "x$have_mysql_h" = "xno"
+		then
+			AC_CHECK_HEADERS(mysql/mysql.h, [have_mysql_mysql_h="yes"])
+		fi
+
+		if test "x$have_mysql_h$have_mysql_mysql_h" = "xnono"
+		then
+			with_libmysql="no (mysql.h not found)"
+		fi
 
 		CPPFLAGS="$SAVE_CPPFLAGS"
 	fi
@@ -1355,7 +1367,7 @@ then
 
 	if test $mysql_config_status -ne 0
 	then
-		with_libmysql="no"
+		with_libmysql="no ($with_mysql_config failed)"
 	else
 		AC_CHECK_LIB(mysqlclient, mysql_init,
 		 [with_libmysql="yes"],

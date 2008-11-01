@@ -24,7 +24,9 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#ifdef HAVE_MYSQL_MYSQL_H
+#ifdef HAVE_MYSQL_H
+#include <mysql.h>
+#elif defined(HAVE_MYSQL_MYSQL_H)
 #include <mysql/mysql.h>
 #endif
 
