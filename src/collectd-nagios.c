@@ -99,6 +99,7 @@
 #define CON_NONE     0
 #define CON_AVERAGE  1
 #define CON_SUM      2
+#define CON_PERCENTAGE  3
 
 struct range_s
 {
@@ -446,6 +447,39 @@ static int do_check_con_sum (size_t values_num,
 	return (status_code);
 } /* int do_check_con_sum */
 
+static int do_check_con_percentage (int values_num, double *values, char **values_names)
+{
+        int i;
+	double percentage;
+
+	if (values_num != 2)
+		return (RET_WARNING);
+	if (isnan (values[0]) || isnan (values[1]))
+		return (RET_WARNING);
+	if ((values[0] + values[1]) == 0)
+		return (RET_WARNING);
+
+        percentage = 100 * values[1] / ( values[0] + values[1] );
+
+	printf ("%lf percentage |", percentage);
+	for (i = 0; i < values_num; i++)
+		printf (" %s=%lf;;;;", values_names[i], values[i]);
+
+	if (match_range (&range_critical_g, percentage) != 0)
+	{
+		printf ("CRITICAL: percentage = %lf\n", percentage);
+		return (RET_CRITICAL);
+	}
+	else if (match_range (&range_warning_g, percentage) != 0)
+	{
+		printf ("WARNING: percentage = %lf\n", percentage);
+		return (RET_WARNING);
+        }
+
+        printf ("OKAY: percentage = %lf\n", percentage);
+        return (RET_OKAY);
+} /* int do_check_con_percentage */
+
 static int do_check (void)
 {
 	lcc_connection_t *connection;
@@ -507,6 +541,8 @@ static int do_check (void)
 		status =  do_check_con_average (values_num, values, values_names);
 	else if (consolitation_g == CON_SUM)
 		status = do_check_con_sum (values_num, values, values_names);
+	else if (consolitation_g == CON_PERCENTAGE)
+		status = do_check_con_percentage (values_num, values, values_names);
 
 	free (values);
 	if (values_names != NULL)
@@ -559,6 +595,8 @@ int main (int argc, char **argv)
 					consolitation_g = CON_AVERAGE;
 				else if (strcasecmp (optarg, "sum") == 0)
 					consolitation_g = CON_SUM;
+				else if (strcasecmp (optarg, "percentage") == 0)
+					consolitation_g = CON_PERCENTAGE;
 				else
 					usage (argv[0]);
 				break;
