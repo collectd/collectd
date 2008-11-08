@@ -39,6 +39,9 @@
 /*
  * Types
  */
+#define LCC_TYPE_COUNTER 0
+#define LCC_TYPE_GAUGE   1
+
 typedef uint64_t counter_t;
 typedef double gauge_t;
 
@@ -63,6 +66,7 @@ typedef struct lcc_identifier_s lcc_identifier_t;
 struct lcc_value_list_s
 {
   value_t *values;
+  int     *values_types;
   size_t   values_len;
   time_t   time;
   int      interval;

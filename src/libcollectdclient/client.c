@@ -62,9 +62,22 @@
 #include "client.h"
 
 #define SSTRCPY(d,s) do { \
-  strncpy ((d), (s), sizeof (d)); \
-  (d)[sizeof (d) - 1] = 0; \
-} while (0)
+    strncpy ((d), (s), sizeof (d)); \
+    (d)[sizeof (d) - 1] = 0; \
+  } while (0)
+
+#define SSTRCAT(d,s) do { \
+    strncat ((d), (s), sizeof (d)); \
+    (d)[sizeof (d) - 1] = 0; \
+  } while (0)
+
+#define SSTRCATF(d, ...) do { \
+    char _b[sizeof (d)]; \
+    snprintf (_b, sizeof (_b), __VA_ARGS__); \
+    _b[sizeof (_b) - 1] = 0; \
+    SSTRCAT ((d), _b); \
+  } while (0)
+    
 
 #define LCC_SET_ERRSTR(c, ...) do { \
   snprintf ((c)->errbuf, sizeof ((c)->errbuf), __VA_ARGS__); \
@@ -578,6 +591,7 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   if (res.status != 0)
   {
     LCC_SET_ERRSTR (c, "Server error: %s", res.message);
+    lcc_response_free (&res);
     return (-1);
   }
 
@@ -662,8 +676,73 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   return (0);
 } /* }}} int lcc_getval */
 
-/* TODO: Implement lcc_putval */
-int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl);
+int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
+{
+  char ident_str[6 * LCC_NAME_LEN];
+  char ident_esc[12 * LCC_NAME_LEN];
+  char command[1024];
+  lcc_response_t res;
+  int status;
+  size_t i;
+
+  if ((c == NULL) || (vl == NULL) || (vl->values_len < 1)
+      || (vl->values == NULL) || (vl->values_types == NULL))
+  {
+    lcc_set_errno (c, EINVAL);
+    return (-1);
+  }
+
+  status = lcc_identifier_to_string (c, ident_str, sizeof (ident_str),
+      &vl->identifier);
+  if (status != 0)
+    return (status);
+
+  snprintf (command, sizeof (command), "PUTVAL %s",
+      lcc_strescape (ident_esc, ident_str, sizeof (ident_esc)));
+  command[sizeof (command) - 1] = 0;
+
+  if (vl->interval > 0)
+  {
+    char option[64];
+
+    snprintf (option, sizeof (option), " interval=%i", vl->interval);
+    option[sizeof (option) - 1] = 0;
+
+    SSTRCAT (command, option);
+  }
+
+  if (vl->time > 0)
+    SSTRCATF (command, "%u", (unsigned int) vl->time);
+  else
+    SSTRCAT (command, "N");
+
+  for (i = 0; i < vl->values_len; i++)
+  {
+    if (vl->values_types[i] == LCC_TYPE_COUNTER)
+      SSTRCATF (command, ":%"PRIu64, vl->values[i].counter);
+    else if (vl->values_types[i] == LCC_TYPE_GAUGE)
+    {
+      if (isnan (vl->values[i].gauge))
+        SSTRCPY (command, ":U");
+      else
+        SSTRCATF (command, ":%g", vl->values[i].gauge);
+    }
+  } /* for (i = 0; i < vl->values_len; i++) */
+
+  status = lcc_sendreceive (c, command, &res);
+  if (status != 0)
+    return (status);
+
+  if (res.status != 0)
+  {
+    LCC_SET_ERRSTR (c, "Server error: %s", res.message);
+    lcc_response_free (&res);
+    return (-1);
+  }
+
+  lcc_response_free (&res);
+  return (0);
+} /* }}} int lcc_putval */
 
 /* TODO: Implement lcc_flush */
 int lcc_flush (lcc_connection_t *c, lcc_identifier_t *ident, int timeout);
@@ -696,6 +775,7 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
   if (res.status != 0)
   {
     LCC_SET_ERRSTR (c, "Server error: %s", res.message);
+    lcc_response_free (&res);
     return (-1);
   }
 
