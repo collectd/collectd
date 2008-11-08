@@ -232,7 +232,7 @@ exit 0
 %attr(0644,root,root) %{_libdir}/%{name}/wireless.so*
 %attr(0644,root,root) %{_libdir}/%{name}/wireless.la
 
-%attr(0644,root,root) %{_libdir}/%{name}/types.db
+%attr(0644,root,root) %{_datadir}/%{name}/types.db
 
 %dir /var/lib/collectd
 

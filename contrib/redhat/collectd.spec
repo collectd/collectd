@@ -85,7 +85,7 @@ cp contrib/redhat/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#BaseDir     "/usr/var/lib/collectd":BaseDir     "/var/lib/collectd":' $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#PIDFile     "/usr/var/run/collectd.pid":PIDFile     "/var/run/collectd.pid":' $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#PluginDir   "/usr/lib/collectd":PluginDir   "/usr/lib/collectd":' $RPM_BUILD_ROOT/etc/collectd.conf
-sed -i 's:#TypesDB     "/usr/lib/collectd/types.db":TypesDB     "/usr/lib/collectd/types.db":' $RPM_BUILD_ROOT/etc/collectd.conf
+sed -i 's:#TypesDB     "/usr/share/collectd/types.db":TypesDB     "/usr/share/collectd/types.db":' $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#Interval     10:Interval     10:' $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#ReadThreads  5:ReadThreads  5:' $RPM_BUILD_ROOT/etc/collectd.conf
 ##Move config contribs
@@ -247,7 +247,7 @@ exit 0
 %attr(0644,root,root) %{_libdir}/%{name}/wireless.so*
 %attr(0644,root,root) %{_libdir}/%{name}/wireless.la
 
-%attr(0644,root,root) %{_libdir}/%{name}/types.db
+%attr(0644,root,root) %{_datadir}/%{name}/types.db
 
 %exclude %{_libdir}/perl5/5.8.8/%{_arch}-linux-thread-multi/perllocal.pod
 %attr(0644,root,root) %{_libdir}/perl5/site_perl/5.8.8/Collectd.pm
