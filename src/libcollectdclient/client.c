@@ -61,6 +61,10 @@
 
 #include "client.h"
 
+/* Secure/static macros. They work like `strcpy' and `strcat', but assure null
+ * termination. They work for static buffers only, because they use `sizeof'.
+ * The `SSTRCATF' combines the functionality of `snprintf' and `strcat' which
+ * is very useful to add formatted stuff to the end of a buffer. */
 #define SSTRCPY(d,s) do { \
     strncpy ((d), (s), sizeof (d)); \
     (d)[sizeof (d) - 1] = 0; \
