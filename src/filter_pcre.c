@@ -153,13 +153,16 @@ static int c_pcre_subst (c_pcre_t *re, char *string, size_t strlen,
 static regex_t *regex_new (void)
 {
 	regex_t *re;
+	regex_t *temp;
 
-	++regexes_num;
-	regexes = (regex_t *)realloc (regexes, regexes_num * sizeof (*regexes));
-	if (NULL == regexes) {
+	temp = (regex_t *) realloc (regexes, (regexes_num + 1)
+			* sizeof (*regexes));
+	if (NULL == temp) {
 		log_err ("Out of memory.");
-		exit (5);
+		return NULL;
 	}
+	regexes = temp;
+	regexes_num++;
 
 	re = regexes + (regexes_num - 1);
 
@@ -360,6 +363,8 @@ static int c_pcre_config_regex (oconfig_item_t *ci)
 	}
 
 	re = regex_new ();
+	if (NULL == re)
+		return -1;
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
