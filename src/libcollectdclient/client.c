@@ -684,7 +684,7 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
 {
   char ident_str[6 * LCC_NAME_LEN];
   char ident_esc[12 * LCC_NAME_LEN];
-  char command[1024];
+  char command[1024] = "";
   lcc_response_t res;
   int status;
   size_t i;
@@ -701,19 +701,11 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
   if (status != 0)
     return (status);
 
-  snprintf (command, sizeof (command), "PUTVAL %s",
+  SSTRCATF (command, "PUTVAL %s",
       lcc_strescape (ident_esc, ident_str, sizeof (ident_esc)));
-  command[sizeof (command) - 1] = 0;
 
   if (vl->interval > 0)
-  {
-    char option[64];
-
-    snprintf (option, sizeof (option), " interval=%i", vl->interval);
-    option[sizeof (option) - 1] = 0;
-
-    SSTRCAT (command, option);
-  }
+    SSTRCATF (command, " interval=%i", vl->interval);
 
   if (vl->time > 0)
     SSTRCATF (command, "%u", (unsigned int) vl->time);
