@@ -391,7 +391,7 @@ handle_dns(const char *buf, int len,
     while ((t = strchr(qh.qname, '\r')))
 	*t = ' ';
     for (t = qh.qname; *t; t++)
-	*t = tolower(*t);
+	*t = tolower((int) *t);
 
     memcpy(&us, buf + offset, 2);
     qh.qtype = ntohs(us);

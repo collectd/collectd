@@ -75,11 +75,11 @@
 	* collectdmon: Don't block SIGCHLD. This fixes a potential portability
 	  problem.
 	* collectd-nagios: Fix handling of the `-d' option. Thanks to Fabian
-	  Linzberger for reporting the but.
+	  Linzberger for reporting the bug.
 	* network plugin: Fix a memory leak in the configuration handling
 	  code. Thanks to Niraj Tolia for reporting this issue.
 	* perl plugin: Log an error message if bootstrapping `Collectd' fails.
-	* tail plugin: Call `clearerr' after reading an EOF. This fixes
+	* tail plugin: Call `clearerr(3)' after reading an EOF. This fixes
 	  problems with some `libc's. Thanks to Matthias Lay for reporting the
 	  bug.
 
