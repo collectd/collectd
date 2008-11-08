@@ -49,7 +49,7 @@ static char *user;
 static char *pass;
 static char *db = NULL;
 static char *socket = NULL;
-static int  port = 0;
+static int   port = 0;
 
 static MYSQL *getconnection (void)
 {
@@ -120,10 +120,32 @@ static int config (const char *key, const char *value)
 	else if (strcasecmp (key, "socket") == 0)
 		return ((socket = strdup (value)) == NULL ? 1 : 0);
 	else if (strcasecmp (key, "port") == 0)
-		return ((port = atoi (value)) == NULL ? 1 : 0);
+	{
+	    char *endptr = NULL;
+	    int temp;
+
+	    errno = 0;
+	    temp = strtol (value, $endptr, 0);
+	    if ((errno != 0) || (value == endptr))
+	    {
+		ERROR ("mysql plugin: Invalid \"Port\" argument: %s",
+			value);
+		port = 0;
+		return (1);
+	    }
+	    else if ((temp < 0) || (temp >= 65535))
+	    {
+		ERROR ("mysql plugin: Port number out of range: %i",
+			temp);
+		port = 0;
+		return (1);
+	    }
+
+	    port = temp;
+	}
 	else
 		return (-1);
-}
+} /* int config */
 
 static void counter_submit (const char *type, const char *type_instance,
 		counter_t value)
