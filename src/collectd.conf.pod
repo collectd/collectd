@@ -1047,6 +1047,23 @@ Password needed to log into the database.
 Select this database. Defaults to I<no database> which is a perfectly reasonable
 option for what this plugin does.
 
+=item B<Port> I<Port>
+
+TCP-port to connect to. The port must be specified in its numeric form, but it
+must be passed as a string nonetheless. For example:
+
+  Port "3306"
+
+If B<Host> is set to B<localhost> (the default), this setting has no effect.
+See the documentation for the C<mysql_real_connect> function for details.
+
+=item B<Socket> I<Socket>
+
+Specifies the path to the UNIX domain socket of the MySQL server. This option
+only has any effect, if B<Host> is set to B<localhost> (the default).
+Otherwise, use the B<Port> option above. See the documentation for the
+C<mysql_real_connect> function for details.
+
 =back
 
 =head2 Plugin C<netlink>

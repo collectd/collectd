@@ -38,14 +38,18 @@ static const char *config_keys[] =
 	"User",
 	"Password",
 	"Database",
+	"Port",
+	"Socket",
 	NULL
 };
-static int config_keys_num = 4;
+static int config_keys_num = 6;
 
 static char *host = "localhost";
 static char *user;
 static char *pass;
 static char *db = NULL;
+static char *socket = NULL;
+static int   port = 0;
 
 static MYSQL *getconnection (void)
 {
@@ -88,7 +92,7 @@ static MYSQL *getconnection (void)
 		return (NULL);
 	}
 
-	if (mysql_real_connect (con, host, user, pass, db, 0, NULL, 0) == NULL)
+	if (mysql_real_connect (con, host, user, pass, db, port, socket, 0) == NULL)
 	{
 		ERROR ("mysql_real_connect failed: %s", mysql_error (con));
 		state = 0;
@@ -113,9 +117,35 @@ static int config (const char *key, const char *value)
 		return ((pass = strdup (value)) == NULL ? 1 : 0);
 	else if (strcasecmp (key, "database") == 0)
 		return ((db = strdup (value)) == NULL ? 1 : 0);
+	else if (strcasecmp (key, "socket") == 0)
+		return ((socket = strdup (value)) == NULL ? 1 : 0);
+	else if (strcasecmp (key, "port") == 0)
+	{
+	    char *endptr = NULL;
+	    int temp;
+
+	    errno = 0;
+	    temp = strtol (value, $endptr, 0);
+	    if ((errno != 0) || (value == endptr))
+	    {
+		ERROR ("mysql plugin: Invalid \"Port\" argument: %s",
+			value);
+		port = 0;
+		return (1);
+	    }
+	    else if ((temp < 0) || (temp >= 65535))
+	    {
+		ERROR ("mysql plugin: Port number out of range: %i",
+			temp);
+		port = 0;
+		return (1);
+	    }
+
+	    port = temp;
+	}
 	else
 		return (-1);
-}
+} /* int config */
 
 static void counter_submit (const char *type, const char *type_instance,
 		counter_t value)
