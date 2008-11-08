@@ -21,6 +21,7 @@
  *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
+#include "collectd.h"
 #include "utils_complain.h"
 #include "plugin.h"
 

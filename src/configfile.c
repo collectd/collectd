@@ -276,7 +276,7 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 	buffer_ptr = buffer + 1;
 
 	return (cf_dispatch (plugin, ci->key, buffer_ptr));
-} /* int plugin_conf_dispatch */
+} /* int dispatch_value_plugin */
 
 static int dispatch_value (const oconfig_item_t *ci)
 {

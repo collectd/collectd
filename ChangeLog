@@ -13,7 +13,7 @@
 	* collectdmon: Don't block SIGCHLD. This fixes a potential portability
 	  problem.
 	* collectd-nagios: Fix handling of the `-d' option. Thanks to Fabian
-	  Linzberger for reporting the but.
+	  Linzberger for reporting the bug.
 	* iptables plugin: Fix an off-by-one error. If a string was just one
 	  character too long, it was truncated instead of reporting an error.
 	* network plugin: Fix a memory leak in the configuration handling
@@ -25,7 +25,7 @@
 	  leaks. Thanks to ``Admin'' for reporting these bugs.
 	* snmp plugin: Don't expect null-terminated strings from the Net-SNMP
 	  library.
-	* tail plugin: Call `clearerr' after reading an EOF. This fixes
+	* tail plugin: Call `clearerr(3)' after reading an EOF. This fixes
 	  problems with some `libc's. Thanks to Matthias Lay for reporting the
 	  bug.
 
@@ -75,11 +75,11 @@
 	* collectdmon: Don't block SIGCHLD. This fixes a potential portability
 	  problem.
 	* collectd-nagios: Fix handling of the `-d' option. Thanks to Fabian
-	  Linzberger for reporting the but.
+	  Linzberger for reporting the bug.
 	* network plugin: Fix a memory leak in the configuration handling
 	  code. Thanks to Niraj Tolia for reporting this issue.
 	* perl plugin: Log an error message if bootstrapping `Collectd' fails.
-	* tail plugin: Call `clearerr' after reading an EOF. This fixes
+	* tail plugin: Call `clearerr(3)' after reading an EOF. This fixes
 	  problems with some `libc's. Thanks to Matthias Lay for reporting the
 	  bug.
 
