@@ -168,7 +168,7 @@ static int cdbi_result_get_field (dbi_result res, /* {{{ */
   }
 
   connection = dbi_result_get_conn (res);
-  if (dbi_conn_error_flag (connection) != 0)
+  if (dbi_conn_error (connection, NULL) != 0)
   {
     char errbuf[1024];
     ERROR ("dbi plugin: cdbi_result_get: dbi_result_get_*_idx failed: %s.",
@@ -800,7 +800,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
       const char *inst;
 
       inst = dbi_result_get_string (res, q->instances[i]);
-      if (dbi_conn_error_flag (db->connection) != 0)
+      if (dbi_conn_error (db->connection, NULL) != 0)
       {
         char errbuf[1024];
         ERROR ("dbi plugin: cdbi_read_database_query (%s, %s): "
@@ -844,7 +844,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
     status = dbi_result_next_row (res);
     if (status != 1)
     {
-      if (dbi_conn_error_flag (db->connection) != 0)
+      if (dbi_conn_error (db->connection, NULL) != 0)
       {
         char errbuf[1024];
         WARNING ("dbi plugin: cdbi_read_database_query (%s, %s): "
