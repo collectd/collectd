@@ -125,7 +125,7 @@ static int config (const char *key, const char *value)
 	    int temp;
 
 	    errno = 0;
-	    temp = strtol (value, $endptr, 0);
+	    temp = strtol (value, &endptr, 0);
 	    if ((errno != 0) || (value == endptr))
 	    {
 		ERROR ("mysql plugin: Invalid \"Port\" argument: %s",
@@ -142,6 +142,7 @@ static int config (const char *key, const char *value)
 	    }
 
 	    port = temp;
+	    return (0);
 	}
 	else
 		return (-1);
