@@ -2474,11 +2474,81 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%5.1lf Max,',
     'GPRINT:avg:LAST:%5.1lf Last\l',
     ],
+    vmpage_number => ['-v', 'Pages',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Number",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
+    ],
+    vmpage_faults => [
+    "DEF:minf_avg={file}:minflt:AVERAGE",
+    "DEF:minf_min={file}:minflt:MIN",
+    "DEF:minf_max={file}:minflt:MAX",
+    "DEF:majf_avg={file}:majflt:AVERAGE",
+    "DEF:majf_min={file}:majflt:MIN",
+    "DEF:majf_max={file}:majflt:MAX",
+    'CDEF:overlap=majf_avg,minf_avg,GT,minf_avg,majf_avg,IF',
+    "AREA:majf_avg#$HalfGreen",
+    "AREA:minf_avg#$HalfBlue",
+    "AREA:overlap#$HalfBlueGreen",
+    "LINE1:majf_avg#$FullGreen:Major",
+    'GPRINT:majf_min:MIN:%5.1lf%s Min,',
+    'GPRINT:majf_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:majf_max:MAX:%5.1lf%s Max,',
+    'GPRINT:majf_avg:LAST:%5.1lf%s Last\l',
+    "LINE1:minf_avg#$FullBlue:Minor",
+    'GPRINT:minf_min:MIN:%5.1lf%s Min,',
+    'GPRINT:minf_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:minf_max:MAX:%5.1lf%s Max,',
+    'GPRINT:minf_avg:LAST:%5.1lf%s Last\l'
+    ],
+    vmpage_io => [
+    "DEF:rpag_avg={file}:in:AVERAGE",
+    "DEF:rpag_min={file}:in:MIN",
+    "DEF:rpag_max={file}:in:MAX",
+    "DEF:wpag_avg={file}:out:AVERAGE",
+    "DEF:wpag_min={file}:out:MIN",
+    "DEF:wpag_max={file}:out:MAX",
+    'CDEF:overlap=wpag_avg,rpag_avg,GT,rpag_avg,wpag_avg,IF',
+    "AREA:wpag_avg#$HalfGreen",
+    "AREA:rpag_avg#$HalfBlue",
+    "AREA:overlap#$HalfBlueGreen",
+    "LINE1:wpag_avg#$FullGreen:OUT",
+    'GPRINT:wpag_min:MIN:%5.1lf%s Min,',
+    'GPRINT:wpag_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:wpag_max:MAX:%5.1lf%s Max,',
+    'GPRINT:wpag_avg:LAST:%5.1lf%s Last\l',
+    "LINE1:rpag_avg#$FullBlue:IN ",
+    'GPRINT:rpag_min:MIN:%5.1lf%s Min,',
+    'GPRINT:rpag_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:rpag_max:MAX:%5.1lf%s Max,',
+    'GPRINT:rpag_avg:LAST:%5.1lf%s Last\l'
+    ],
+    vmpage_action => ['-v', 'Pages',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Number",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
+    ],
   };
   $GraphDefs->{'if_multicast'} = $GraphDefs->{'ipt_packets'};
   $GraphDefs->{'if_tx_errors'} = $GraphDefs->{'if_rx_errors'};
   $GraphDefs->{'dns_qtype'} = $GraphDefs->{'dns_opcode'};
   $GraphDefs->{'dns_rcode'} = $GraphDefs->{'dns_opcode'};
+  $GraphDefs->{'vmpage_io-memory'} = $GraphDefs->{'vmpage_io'};
+  $GraphDefs->{'vmpage_io-swap'} = $GraphDefs->{'vmpage_io'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
   $MetaGraphDefs->{'dns_qtype'} = \&meta_graph_dns;
