@@ -2562,6 +2562,8 @@ sub load_graph_definitions
   $MetaGraphDefs->{'mysql_commands'} = \&meta_graph_mysql_commands;
   $MetaGraphDefs->{'mysql_handler'} = \&meta_graph_mysql_commands;
   $MetaGraphDefs->{'tcp_connections'} = \&meta_graph_tcp_connections;
+  $MetaGraphDefs->{'vmpage_number'} = \&meta_graph_vmpage_number;
+  $MetaGraphDefs->{'vmpage_action'} = \&meta_graph_vmpage_action;
 } # load_graph_definitions
 
 sub meta_graph_generic_stack
@@ -3163,4 +3165,131 @@ sub meta_graph_tcp_connections
 
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_tcp_connections
+
+sub meta_graph_vmpage_number
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%6.2lf';
+
+  $opts->{'rrd_opts'} = ['-v', 'Pages'];
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    anon_pages	  => '00e000',
+    bounce	  => '00e0ff',
+    dirty	  => '00e0a0',
+    file_pages	  => 'f000f0',
+    mapped	  => 'f000a0',
+    page_table_pages	  => 'ffb000',
+    slab	  => '0000f0',
+    unstable	  => '0000a0',
+    writeback	  => 'ff0000',
+  };
+
+  _custom_sort_arrayref ($type_instances,
+    [reverse qw(anon_pages bounce dirty file_pages mapped page_table_pages slab unstable writeback)]);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_vmpage_number
+
+sub meta_graph_vmpage_action
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%6.2lf';
+
+  $opts->{'rrd_opts'} = ['-v', 'Pages'];
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    activate	  => '00e000',
+    deactivate	  => '00e0ff',
+    free	  => '00e0a0',
+    alloc	  => 'f000f0',
+    refill	  => 'f000a0',
+    scan_direct	  => 'ffb000',
+    scan_kswapd	  => '0000f0',
+    steal	  => '0000a0',
+  };
+
+  _custom_sort_arrayref ($type_instances,
+    [reverse qw(activate deactivate alloc free refill scan_direct scan_kswapd steal)]);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_vmpage_action
 # vim: shiftwidth=2:softtabstop=2:tabstop=8
