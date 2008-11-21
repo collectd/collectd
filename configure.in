@@ -610,8 +610,13 @@ if test "x$fp_layout_type" = "xunknown"; then
       [[[[
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
+#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_STDBOOL_H
+# include <stdbool.h>
+#endif
       ]]]],
       [[[[
 	uint64_t i0;
@@ -649,8 +654,13 @@ if test "x$fp_layout_type" = "xunknown"; then
       [[[[
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
+#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_STDBOOL_H
+# include <stdbool.h>
+#endif
 #define endianflip(A) ((((uint64_t)(A) & 0xff00000000000000LL) >> 56) | \
                        (((uint64_t)(A) & 0x00ff000000000000LL) >> 40) | \
                        (((uint64_t)(A) & 0x0000ff0000000000LL) >> 24) | \
@@ -696,8 +706,13 @@ if test "x$fp_layout_type" = "xunknown"; then
       [[[[
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
+#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_STDBOOL_H
+# include <stdbool.h>
+#endif
 #define intswap(A)    ((((uint64_t)(A) & 0xffffffff00000000LL) >> 32) | \
                        (((uint64_t)(A) & 0x00000000ffffffffLL) << 32))
       ]]]],
