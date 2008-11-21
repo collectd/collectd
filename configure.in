@@ -2945,7 +2945,6 @@ AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([filter_ignore], [yes],                [Ignore specific values])
-AC_PLUGIN([filter_pcre], [$with_libpcre],      [Filter based on PCRE])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
@@ -2955,6 +2954,7 @@ AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
+AC_PLUGIN([match_regex], [yes],                [The regex match])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
@@ -3120,7 +3120,6 @@ Configuration:
     exec  . . . . . . . . $enable_exec
     filecount . . . . . . $enable_filecount
     filter_ignore . . . . $enable_filter_ignore
-    filter_pcre . . . . . $enable_filter_pcre
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
     iptables  . . . . . . $enable_iptables
@@ -3130,6 +3129,7 @@ Configuration:
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
+    match_regex . . . . . $enable_match_regex
     mbmon . . . . . . . . $enable_mbmon
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
