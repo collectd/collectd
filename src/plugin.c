@@ -705,7 +705,7 @@ int plugin_write (const char *plugin, /* {{{ */
     int success = 0;
     int failure = 0;
 
-    le = llist_head (list_flush);
+    le = llist_head (list_write);
     while (le != NULL)
     {
       callback = le->value;
@@ -725,7 +725,7 @@ int plugin_write (const char *plugin, /* {{{ */
   }
   else /* plugin != NULL */
   {
-    le = llist_head (list_flush);
+    le = llist_head (list_write);
     while (le != NULL)
     {
       if (strcasecmp (plugin, le->key) == 0)
