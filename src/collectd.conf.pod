@@ -2451,6 +2451,251 @@ only one such notification is generated until the value appears again.
 
 =back
 
+=head1 FILTER CONFIGURATION
+
+TODO: Update this entire section once development is done.
+
+Starting with collectd 4.6 there is a powerful filtering infrastructure
+implemented in the daemon. The concept has mostly been copied from I<iptables>,
+the packet filter infrastructure for Linux. We'll use a similar terminology, so
+that users that are familiar with iptables feel right at home.
+
+=head2 Terminology
+
+The most important terms are:
+
+=over 4
+
+=item B<Match>
+
+A I<match> is a criteria to select specific values. Examples are, of course, the
+name of the value or it's current value.
+
+=item B<Target>
+
+A I<target> is some action that is to be performed with data. Such actions
+could, for example, be to change part of the value's identifier or to ignore
+the value completely. Built-in functions are B<write> and B<stop>, see below.
+
+Some targets, for example the built-in B<stop> target, signal that processing
+of a value should be stopped. In that case processing of the current chain will
+be aborted.
+
+=item B<Rule>
+
+The combination of any number of matches and at least one target is called a
+I<rule>. The target actions will be performed for all values for which B<all>
+matches apply. If the rule does not have any matches associated with it, the
+target action will be performed for all values.
+
+If any target returns the stop condition, the processing will stop right away.
+This means that any targets following the current one will not be called after
+the stop condition has been returned.
+
+=item B<Chain>
+
+A I<chain> is a list of rules and possibly default targets. The rules are tried
+in order and if one matches, the associated target will be called. If a value
+is handled by a rule, it depends on the target whether or not any subsequent
+rules are considered or if traversal of the chain is aborted. After all rules
+have been checked and no target returned the stop condition, the default
+targets will be executed.
+
+=back
+
+=head2 General structure
+
+The following shows the resulting structure:
+
+ +---------+
+ ! Chain   !
+ +---------+
+      !
+      V
+ +---------+  +---------+  +---------+  +---------+
+ ! Rule    !->! Match   !->! Match   !->! Target  !
+ +---------+  +---------+  +---------+  +---------+
+      !
+      V
+ +---------+  +---------+  +---------+
+ ! Rule    !->! Target  !->! Target  !
+ +---------+  +---------+  +---------+
+      !
+      V
+      :
+      :
+      !
+      V
+ +---------+  +---------+  +---------+
+ ! Rule    !->! Match   !->! Target  !
+ +---------+  +---------+  +---------+
+      !
+      V
+ +---------+
+ ! Default !
+ ! Target  !
+ +---------+
+
+=head2 Synopsis
+
+The configuration reflects this structure directly:
+
+ <Chain "main">
+   <Rule "ignore_mysql_show">
+     <Match "regex">
+       Plugin "^mysql$"
+       Type "^mysql_command$"
+       TypeInstance "^show_"
+     </Match>
+     <Target "stop">
+     </Target>
+   </Rule>
+   <Target "write">
+     Plugin "rrdtool"
+   </Target>
+ </Chain>
+
+The above configuration example will ignore all values where the plugin field
+is "mysql", the type is "mysql_command" and the type instance begins with
+"show_". All other values will be sent to the "rrdtool" write plugin via the
+default target of the chain.
+
+=head2 List of configuration options
+
+=over 4
+
+=item B<Chain> I<Name>
+
+Adds a new chain with a certain name. This name can be used to refer to a
+specific chain, for example to jump to it.
+
+Within the B<Chain> block, there can be B<Rule> blocks and B<Target> blocks.
+
+=item B<Rule> [I<Name>]
+
+Adds a new rule to the current chain. The name of the rule is optional and
+currently has no meaning for the daemon.
+
+Within the B<Rule> block, there may be any number of B<Match> blocks and there
+must be at least one B<Target> block.
+
+=item B<Match> I<Name>
+
+Adds a match to a B<Rule> block. The name specifies what kind of match should
+be performed. Available matches depend on the plugins that have been loaded.
+
+The arguments inside the B<Match> block are passed to the plugin implementing
+the match, so which arguments are valid here depends on the plugin being used.
+If you do not need any to pass any arguments to a match, you can use the
+shorter syntax:
+
+ Match "foobar"
+
+Which is equivalent to:
+
+ <Match "foobar">
+ </Match>
+
+=item B<Target> I<Name>
+
+Add a target to a rule or a default target to a chain. The name specifies what
+kind of target is to be added. Which targets are available depends on the
+plugins being loaded.
+
+The arguments inside the B<Target> block are passed to the plugin implementing
+the target, so which arguments are valid here depends on the plugin being used.
+If you do not need any to pass any arguments to a target, you can use the
+shorter syntax:
+
+ Target "stop"
+
+This is the same as writing:
+
+ <Target "stop">
+ </Target>
+
+=back
+
+=head2 Built-in targets 
+
+The following targets are built into the core daemon and therefore need no
+plugins to be loaded:
+
+=over 4
+
+=item B<stop>
+
+Does nothing except returning with the stop condition, causing processing of
+the current chain to be aborted.
+
+=item B<write>
+
+Sends the value to write plugins.
+
+Available options:
+
+=over 4
+
+=item B<Plugin> I<Name>
+
+Name of the write plugin to which the data should be sent. This option may be
+given multiple times to send the data to more than one write plugin.
+
+Example:
+
+ Target "stop"
+
+=back
+
+If no plugin is explicitly specified, the values will be sent to all available
+write plugins.
+
+Example:
+
+ <Target "write">
+   Plugin "rrdtool"
+ </Target>
+
+=item B<jump>
+
+Starts processing the rules of another chain. If the end of that chain is
+reached, or a stop condition is encountered, processing will continue right
+after the B<jump> target, i.E<nbsp>e. with the next target or the next rule.
+
+Available options:
+
+=over 4
+
+=item B<Chain> I<Name>
+
+Jumps to the chain I<Name>. This argument is required and may appear only once.
+
+=back
+
+Example:
+
+ <Target "jump">
+   Chain "foobar"
+ </Target>
+
+=back
+
+=head2 Backwards compatibility
+
+If you use collectd with an old configuration, i.E<nbsp>e. one without a
+B<Chain> block, it will behave as it used to. This is equivalent to the
+following configuration:
+
+ <Chain "main">
+   Target "write"
+ </Chain>
+
+If you specify a B<Chain> block anywhere, the B<write> target will not be added
+anywhere and you will have to make sure that it is called where appropriate. We
+suggest to add the above snippet as default target to your main chain.
+
+TODO: Notifications will be implemented using chains, too. Describe that here!
+
 =head1 SEE ALSO
 
 L<collectd(1)>,
