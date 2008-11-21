@@ -1824,6 +1824,15 @@ collected for these selected processes are size of the resident segment size
 (RSS), user- and system-time used, number of processes and number of threads,
 and minor and major pagefaults.
 
+=item B<ProcessMatch> I<name> I<regex>
+
+Similar to the B<Process> option this allows to select more detailed
+statistics of processes matching the specified I<regex> (see L<regex(7)> for
+details). The statistics of all matching processes are summed up and
+dispatched to the daemon using the specified I<name> as an identifier. This
+allows to "group" several processes together. I<name> must not contain
+slashes.
+
 =back
 
 =head2 Plugin C<rrdcached>
@@ -2851,6 +2860,7 @@ L<kstat(3KSTAT)>,
 L<mbmon(1)>,
 L<pcre(3)>,
 L<psql(1)>,
+L<regex(7)>,
 L<rrdtool(1)>,
 L<sensors(1)>
 
