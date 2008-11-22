@@ -340,17 +340,23 @@ static int fc_config_add_target (fc_target_t **targets_head, /* {{{ */
 
   sstrncpy (t->name, ptr->name, sizeof (t->name));
   memcpy (&t->proc, &ptr->proc, sizeof (t->proc));
-  assert (t->proc.create != NULL);
   t->user_data = NULL;
   t->next = NULL;
 
-  status = (*t->proc.create) (ci, &t->user_data);
-  if (status != 0)
+  if (t->proc.create != NULL)
   {
-    WARNING ("Filter subsystem: Failed to create a %s match.",
-        t->name);
-    fc_free_targets (t);
-    return (-1);
+    status = (*t->proc.create) (ci, &t->user_data);
+    if (status != 0)
+    {
+      WARNING ("Filter subsystem: Failed to create a %s match.",
+          t->name);
+      fc_free_targets (t);
+      return (-1);
+    }
+  }
+  else
+  {
+    t->user_data = NULL;
   }
   
   if (*targets_head != NULL)
