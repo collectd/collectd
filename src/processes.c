@@ -459,12 +459,18 @@ static int ps_config (const char *key, const char *value)
 		int fields_num;
 
 		new_val = strdup (value);
-		if (new_val == NULL)
+		if (new_val == NULL) {
+			ERROR ("processes plugin: strdup failed when processing "
+					"`ProcessMatch %s'.", value);
 			return (1);
+		}
+
 		fields_num = strsplit (new_val, fields,
 				STATIC_ARRAY_SIZE (fields));
 		if (fields_num != 2)
 		{
+			ERROR ("processes plugin: `ProcessMatch' needs exactly "
+					"two string arguments.");
 			sfree (new_val);
 			return (1);
 		}
@@ -473,6 +479,8 @@ static int ps_config (const char *key, const char *value)
 	}
 	else
 	{
+		ERROR ("processes plugin: The `%s' configuration option is not "
+				"understood and will be ignored.", key);
 		return (-1);
 	}
 
