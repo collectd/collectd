@@ -105,7 +105,17 @@ static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
 				/* nmatch = */ 0, /* pmatch = */ NULL,
 				/* eflags = */ 0);
 		if (status == 0)
+		{
+			DEBUG ("regex match: Regular expression `%s' matches `%s'.",
+					re->re_str, string);
 			return (FC_MATCH_MATCHES);
+		}
+		else
+		{
+			DEBUG ("regex match: Regular expression `%s' does not match `%s'.",
+					re->re_str, string);
+		}
+
 	}
 
 	return (FC_MATCH_NO_MATCH);

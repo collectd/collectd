@@ -565,11 +565,18 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
   if (chain == NULL)
     return (-1);
 
+  DEBUG ("fc_process_chain (chain = %s);", chain->name);
+
   status = FC_ACTION_CONTINUE;
 
   for (rule = chain->rules; rule != NULL; rule = rule->next)
   {
     fc_match_t *match;
+
+    if (rule->name[0] != 0)
+    {
+      DEBUG ("fc_process_chain: Testing the `%s' rule.", rule->name);
+    }
 
     /* N. B.: rule->matches may be NULL. */
     for (match = rule->matches; match != NULL; match = match->next)
@@ -578,7 +585,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
           &match->user_data);
       if (status < 0)
       {
-        WARNING ("fc_process: A match failed.");
+        WARNING ("fc_process_chain: A match failed.");
         break;
       }
       else if (status != FC_MATCH_MATCHES)
@@ -589,14 +596,20 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
     if (match != NULL)
       continue;
 
+    if (rule->name[0] != 0)
+    {
+      DEBUG ("fc_process_chain: Rule `%s' matches.", rule->name);
+    }
+
     for (target = rule->targets; target != NULL; target = target->next)
     {
-      /* If we get here, all matches have matched the value. Execute the target. */
+      /* If we get here, all matches have matched the value. Execute the
+       * target. */
       status = (*target->proc.invoke) (ds, vl, /* meta = */ NULL,
           &target->user_data);
       if (status < 0)
       {
-        WARNING ("fc_process: A target failed.");
+        WARNING ("fc_process_chain: A target failed.");
         continue;
       }
       else if (status == FC_ACTION_CONTINUE)
@@ -605,12 +618,19 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
         break;
       else
       {
-        WARNING ("fc_process: Unknown target return value: %i", status);
+        WARNING ("fc_process_chain: Unknown target return value: %i", status);
       }
     }
 
     if (status == FC_ACTION_STOP)
+    {
+      if (rule->name[0] != 0)
+      {
+        DEBUG ("fc_process_chain: Rule `%s' signaled the stop condition.",
+            rule->name);
+      }
       break;
+    }
   } /* for (rule) */
 
   /* for-loop has been aborted: A target returned `FC_ACTION_STOP' */
@@ -619,12 +639,13 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
   for (target = chain->targets; target != NULL; target = target->next)
   {
-    /* If we get here, all matches have matched the value. Execute the target. */
+    /* If we get here, all matches have matched the value. Execute the
+     * target. */
     status = (*target->proc.invoke) (ds, vl, /* meta = */ NULL,
         &target->user_data);
     if (status < 0)
     {
-      WARNING ("fc_process: The default target failed.");
+      WARNING ("fc_process_chain: The default target failed.");
     }
   }
 
@@ -870,6 +891,8 @@ int fc_register_match (const char *name, match_proc_t proc) /* {{{ */
 {
   fc_match_t *m;
 
+  DEBUG ("fc_register_match (%s);", name);
+
   m = (fc_match_t *) malloc (sizeof (*m));
   if (m == NULL)
     return (-ENOMEM);
@@ -901,6 +924,8 @@ int fc_register_match (const char *name, match_proc_t proc) /* {{{ */
 int fc_register_target (const char *name, target_proc_t proc) /* {{{ */
 {
   fc_target_t *t;
+
+  DEBUG ("fc_register_target (%s);", name);
 
   t = (fc_target_t *) malloc (sizeof (*t));
   if (t == NULL)
