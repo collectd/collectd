@@ -133,7 +133,7 @@ static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
 	re->next = NULL;
 
 	re->re_str = strdup (ci->values[0].value.string);
-	if (re->re_str)
+	if (re->re_str == NULL)
 	{
 		free (re);
 		log_err ("mr_config_add_regex: strdup failed.");
