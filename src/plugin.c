@@ -36,6 +36,7 @@
 #include "utils_llist.h"
 #include "utils_cache.h"
 #include "utils_threshold.h"
+#include "filter_chain.h"
 
 /*
  * Private structures
@@ -705,7 +706,7 @@ int plugin_write (const char *plugin, /* {{{ */
     int success = 0;
     int failure = 0;
 
-    le = llist_head (list_flush);
+    le = llist_head (list_write);
     while (le != NULL)
     {
       callback = le->value;
@@ -725,7 +726,7 @@ int plugin_write (const char *plugin, /* {{{ */
   }
   else /* plugin != NULL */
   {
-    le = llist_head (list_flush);
+    le = llist_head (list_write);
     while (le != NULL)
     {
       if (strcasecmp (plugin, le->key) == 0)
@@ -800,9 +801,6 @@ int plugin_dispatch_values (value_list_t *vl)
 	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
 	data_set_t *ds;
-	llentry_t *le;
-
-	int filter = 0;
 
 	if ((vl == NULL) || (*vl->type == '\0')) {
 		ERROR ("plugin_dispatch_values: Invalid value list.");
@@ -865,39 +863,10 @@ int plugin_dispatch_values (value_list_t *vl)
 	escape_slashes (vl->type, sizeof (vl->type));
 	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
 
-	le = llist_head (list_filter);
-	while (le != NULL)
-	{
-		int (*filter_callback) (const data_set_t *, value_list_t *) =
-				(int (*) (const data_set_t *, value_list_t *)) le->value;
-
-		filter |= (*filter_callback) (ds, vl);
-
-		if (filter == FILTER_IGNORE)
-			return (-1);
-
-		le = le->next;
-	}
-
 	/* Update the value cache */
 	uc_update (ds, vl);
 
-	if ((filter & FILTER_NOTHRESHOLD_CHECK) == 0)
-		ut_check_threshold (ds, vl);
-
-	if (filter & FILTER_NOWRITE)
-		return (0);
-
-	le = llist_head (list_write);
-	while (le != NULL)
-	{
-		int (*write_callback) (const data_set_t *, const value_list_t *) =
-				(int (*) (const data_set_t *, const value_list_t *)) le->value;
-
-		(*write_callback) (ds, vl);
-
-		le = le->next;
-	}
+	fc_process (ds, vl);
 
 	return (0);
 } /* int plugin_dispatch_values */
