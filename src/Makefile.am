@@ -29,6 +29,7 @@ bin_PROGRAMS = collectd-nagios
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
 		   configfile.c configfile.h \
+		   filter_chain.c filter_chain.h \
 		   plugin.c plugin.h \
 		   utils_avltree.c utils_avltree.h \
 		   utils_cache.c utils_cache.h \
@@ -283,16 +284,6 @@ collectd_LDADD += "-dlopen" filter_ignore.la
 collectd_DEPENDENCIES += filter_ignore.la
 endif
 
-if BUILD_PLUGIN_FILTER_PCRE
-pkglib_LTLIBRARIES += filter_pcre.la
-filter_pcre_la_SOURCES = filter_pcre.c
-filter_pcre_la_CPPFLAGS = $(BUILD_WITH_LIBPCRE_CFLAGS)
-filter_pcre_la_LDFLAGS = -module -avoid-version \
-		$(BUILD_WITH_LIBPCRE_LIBS)
-collectd_LDADD += "-dlopen" filter_pcre.la
-collectd_DEPENDENCIES += filter_pcre.la
-endif
-
 if BUILD_PLUGIN_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
@@ -397,6 +388,16 @@ logfile_la_SOURCES = logfile.c
 logfile_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" logfile.la
 collectd_DEPENDENCIES += logfile.la
+endif
+
+if BUILD_PLUGIN_MATCH_REGEX
+pkglib_LTLIBRARIES += match_regex.la
+match_regex_la_SOURCES = match_regex.c
+match_regex_la_CPPFLAGS = $(BUILD_WITH_LIBPCRE_CFLAGS)
+match_regex_la_LDFLAGS = -module -avoid-version \
+		$(BUILD_WITH_LIBPCRE_LIBS)
+collectd_LDADD += "-dlopen" match_regex.la
+collectd_DEPENDENCIES += match_regex.la
 endif
 
 if BUILD_PLUGIN_MBMON

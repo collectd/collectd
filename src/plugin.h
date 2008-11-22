@@ -183,6 +183,36 @@ void plugin_init_all (void);
 void plugin_read_all (void);
 void plugin_shutdown_all (void);
 
+/*
+ * NAME
+ *  plugin_write
+ *
+ * DESCRIPTION
+ *  Calls the write function of the given plugin with the provided data set and
+ *  value list. It differs from `plugin_dispatch_value' in that it does not
+ *  update the cache, does no do threshold checking, call the chain subsystem
+ *  and so on. It looks up the requested plugin and invokes the function, end
+ *  of story.
+ *
+ * ARGUMENTS
+ *  plugin     Name of the plugin. If NULL, the value is sent to all registered
+ *             write functions.
+ *  ds         Pointer to the data_set_t structure. If NULL, the data set is
+ *             looked up according to the `type' member in the `vl' argument.
+ *  vl         The actual value to be processes. Must not be NULL.
+ *
+ * RETURN VALUE
+ *  Returns zero upon success or non-zero if an error occurred. If `plugin' is
+ *  NULL and more than one plugin is called, an error is only returned if *all*
+ *  plugins fail.
+ *
+ * NOTES
+ *  This is the function used by the `write' built-in target. May be used by
+ *  other target plugins.
+ */
+int plugin_write (const char *plugin,
+    const data_set_t *ds, const value_list_t *vl);
+
 int plugin_flush (const char *plugin, int timeout, const char *identifier);
 
 /*
