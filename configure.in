@@ -3046,7 +3046,7 @@ fi
 AC_SUBST(PERL_BINDINGS)
 AC_SUBST(PERL_BINDINGS_OPTIONS)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"
