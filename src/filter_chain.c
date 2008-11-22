@@ -497,6 +497,8 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp ("Rule", option->key) == 0)
       status = fc_config_add_rule (chain, option);
+    else if (strcasecmp ("Target", option->key) == 0)
+      status = fc_config_add_target (&chain->targets, option);
     else
     {
       WARNING ("Filter subsystem: Chain %s: Option `%s' not allowed "
