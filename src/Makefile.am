@@ -30,6 +30,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
 		   configfile.c configfile.h \
 		   filter_chain.c filter_chain.h \
+		   meta_data.c meta_data.h \
 		   plugin.c plugin.h \
 		   utils_avltree.c utils_avltree.h \
 		   utils_cache.c utils_cache.h \
