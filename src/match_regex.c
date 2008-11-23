@@ -109,17 +109,17 @@ static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
 		{
 			DEBUG ("regex match: Regular expression `%s' matches `%s'.",
 					re->re_str, string);
-			return (FC_MATCH_MATCHES);
 		}
 		else
 		{
 			DEBUG ("regex match: Regular expression `%s' does not match `%s'.",
 					re->re_str, string);
+			return (FC_MATCH_NO_MATCH);
 		}
 
 	}
 
-	return (FC_MATCH_NO_MATCH);
+	return (FC_MATCH_MATCHES);
 } /* }}} int mr_match_regexen */
 
 static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
