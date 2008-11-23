@@ -575,7 +575,8 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
     if (rule->name[0] != 0)
     {
-      DEBUG ("fc_process_chain: Testing the `%s' rule.", rule->name);
+      DEBUG ("fc_process_chain (%s): Testing the `%s' rule.",
+          chain->name, rule->name);
     }
 
     /* N. B.: rule->matches may be NULL. */
@@ -585,7 +586,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
           &match->user_data);
       if (status < 0)
       {
-        WARNING ("fc_process_chain: A match failed.");
+        WARNING ("fc_process_chain (%s): A match failed.", chain->name);
         break;
       }
       else if (status != FC_MATCH_MATCHES)
@@ -598,7 +599,8 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
     if (rule->name[0] != 0)
     {
-      DEBUG ("fc_process_chain: Rule `%s' matches.", rule->name);
+      DEBUG ("fc_process_chain (%s): Rule `%s' matches.",
+          chain->name, rule->name);
     }
 
     for (target = rule->targets; target != NULL; target = target->next)
@@ -609,7 +611,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
           &target->user_data);
       if (status < 0)
       {
-        WARNING ("fc_process_chain: A target failed.");
+        WARNING ("fc_process_chain (%s): A target failed.", chain->name);
         continue;
       }
       else if (status == FC_ACTION_CONTINUE)
@@ -618,7 +620,9 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
         break;
       else
       {
-        WARNING ("fc_process_chain: Unknown target return value: %i", status);
+        WARNING ("fc_process_chain (%s): Unknown return value "
+            "from target `%s': %i",
+            chain->name, target->name, status);
       }
     }
 
@@ -626,8 +630,9 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
     {
       if (rule->name[0] != 0)
       {
-        DEBUG ("fc_process_chain: Rule `%s' signaled the stop condition.",
-            rule->name);
+        DEBUG ("fc_process_chain (%s): Rule `%s' signaled "
+            "the stop condition.",
+            chain->name, rule->name);
       }
       break;
     }
