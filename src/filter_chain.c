@@ -637,6 +637,9 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
   if (rule != NULL)
     return (0);
 
+  DEBUG ("fc_process_chain (%s): Executing the default targets.",
+      chain->name);
+
   for (target = chain->targets; target != NULL; target = target->next)
   {
     /* If we get here, all matches have matched the value. Execute the
@@ -645,8 +648,26 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
         &target->user_data);
     if (status < 0)
     {
-      WARNING ("fc_process_chain: The default target failed.");
+      WARNING ("fc_process_chain (%s): The default target failed.",
+          chain->name);
     }
+    else if (status == FC_ACTION_CONTINUE)
+      continue;
+    else if (status == FC_ACTION_STOP)
+      break;
+    else
+    {
+      WARNING ("fc_process_chain (%s): Unknown return value "
+          "from target `%s': %i",
+          chain->name, target->name, status);
+    }
+  }
+
+  if (target != NULL)
+  {
+    DEBUG ("fc_process_chain (%s): Default target `%s' signaled "
+        "the stop condition.",
+        chain->name, target->name);
   }
 
   return (0);
