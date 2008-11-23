@@ -2696,6 +2696,78 @@ suggest to add the above snippet as default target to your main chain.
 
 TODO: Notifications will be implemented using chains, too. Describe that here!
 
+=head2 Available matches
+
+=over 4
+
+=item B<regex>
+
+Matches a value using regular expressions.
+
+Available options:
+
+=over 4
+
+=item B<Host> I<Regex>
+
+=item B<Plugin> I<Regex>
+
+=item B<PluginInstance> I<Regex>
+
+=item B<Type> I<Regex>
+
+=item B<TypeInstance> I<Regex>
+
+Match values where the given regular expressions match the various fields of
+the identifier of a value. If multiple regular expressions are given, B<all>
+regexen must match for a value to match.
+
+=back
+
+Example:
+
+ <Match "regex">
+   Host "customer[0-9]+"
+   Plugin "^foobar$"
+ </Match>
+
+=back
+
+=head2 Available targets
+
+=over 4
+
+=item B<set>
+
+Sets part of the identifier of a value to a given string.
+
+Available options:
+
+=over 4
+
+=item B<Host> I<String>
+
+=item B<Plugin> I<String>
+
+=item B<PluginInstance> I<String>
+
+=item B<TypeInstance> I<String>
+
+Set the appropriate field to the given string. The strings for plugin instance
+and type instance may be empty, the strings for host and plugin may not be
+empty. It's currently not possible to set the type of a value this way.
+
+=back
+
+Example:
+
+ <Target "set">
+   PluginInstance "coretemp"
+   TypeInstance "core3"
+ </Target>
+
+=back
+
 =head2 Examples
 
 Ignore all values, where the hostname does not contain a dot, i.E<nbsp>e. can't
