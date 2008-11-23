@@ -2696,6 +2696,21 @@ suggest to add the above snippet as default target to your main chain.
 
 TODO: Notifications will be implemented using chains, too. Describe that here!
 
+=head2 Examples
+
+Ignore all values, where the hostname does not contain a dot, i.E<nbsp>e. can't
+be an FQDN.
+
+ <Chain "main">
+   <Rule "no_fqdn">
+     <Match "regex">
+       Host "^[^\.]*$"
+     </Match>
+     Target "stop"
+   </Rule>
+   Target "write"
+ </Chain>
+
 =head1 SEE ALSO
 
 L<collectd(1)>,
