@@ -967,9 +967,8 @@ int fc_process (const data_set_t *ds, value_list_t *vl) /* {{{ */
   if (chain != NULL)
     return (fc_process_chain (ds, vl, chain));
 
-  ERROR ("fc_process: TODO: Implement default behavior!");
-
-  return (0);
+  return (fc_bit_write_invoke (ds, vl,
+        /* meta = */ NULL, /* user_data = */ NULL));
 } /* }}} int fc_process */
 
 int fc_configure (const oconfig_item_t *ci) /* {{{ */
