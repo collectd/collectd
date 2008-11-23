@@ -734,6 +734,14 @@ collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
 endif
 
+if BUILD_PLUGIN_TARGET_SET
+pkglib_LTLIBRARIES += target_set.la
+target_set_la_SOURCES = target_set.c
+target_set_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" target_set.la
+collectd_DEPENDENCIES += target_set.la
+endif
+
 if BUILD_PLUGIN_TCPCONNS
 pkglib_LTLIBRARIES += tcpconns.la
 tcpconns_la_SOURCES = tcpconns.c
