@@ -91,9 +91,9 @@ struct fc_target_s
 }; /* }}} */
 
 /* List of rules, used in fc_chain_t */
-struct fc_fule_s;
-typedef struct fc_fule_s fc_rule_t; /* {{{ */
-struct fc_fule_s
+struct fc_rule_s;
+typedef struct fc_rule_s fc_rule_t; /* {{{ */
+struct fc_rule_s
 {
   char name[DATA_MAX_NAME_LEN];
   fc_match_t  *matches;
