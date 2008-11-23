@@ -66,7 +66,7 @@ struct ts_data_s
   char *host;
   char *plugin;
   char *plugin_instance;
-  char *type;
+  /* char *type; */
   char *type_instance;
 };
 typedef struct ts_data_s ts_data_t;
@@ -90,7 +90,7 @@ static char *ts_strdup (const char *orig) /* {{{ */
 } /* }}} char *ts_strdup */
 
 static int ts_config_add_string (char **dest, /* {{{ */
-    const oconfig_item_t *ci)
+    const oconfig_item_t *ci, int may_be_empty)
 {
   char *temp;
 
@@ -102,6 +102,13 @@ static int ts_config_add_string (char **dest, /* {{{ */
   {
     ERROR ("Target `set': The `%s' option requires exactly one string "
         "argument.", ci->key);
+    return (-1);
+  }
+
+  if ((!may_be_empty) && (ci->values[0].value.string[0] == 0))
+  {
+    ERROR ("Target `set': The `%s' option does not accept empty strings.",
+        ci->key);
     return (-1);
   }
 
@@ -132,7 +139,7 @@ static int ts_destroy (void **user_data) /* {{{ */
   free (data->host);
   free (data->plugin);
   free (data->plugin_instance);
-  free (data->type);
+  /* free (data->type); */
   free (data->type_instance);
   free (data);
 
@@ -156,7 +163,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   data->host = NULL;
   data->plugin = NULL;
   data->plugin_instance = NULL;
-  data->type = NULL;
+  /* data->type = NULL; */
   data->type_instance = NULL;
 
   status = 0;
@@ -166,15 +173,22 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 
     if ((strcasecmp ("Host", child->key) == 0)
         || (strcasecmp ("Hostname", child->key) == 0))
-      status = ts_config_add_string (&data->host, child);
+      status = ts_config_add_string (&data->host, child,
+          /* may be empty = */ 0);
     else if (strcasecmp ("Plugin", child->key) == 0)
-      status = ts_config_add_string (&data->plugin, child);
+      status = ts_config_add_string (&data->plugin, child,
+          /* may be empty = */ 0);
     else if (strcasecmp ("PluginInstance", child->key) == 0)
-      status = ts_config_add_string (&data->plugin_instance, child);
+      status = ts_config_add_string (&data->plugin_instance, child,
+          /* may be empty = */ 1);
+#if 0
     else if (strcasecmp ("Type", child->key) == 0)
-      status = ts_config_add_string (&data->type, child);
+      status = ts_config_add_string (&data->type, child,
+          /* may be empty = */ 0);
+#endif
     else if (strcasecmp ("TypeInstance", child->key) == 0)
-      status = ts_config_add_string (&data->type_instance, child);
+      status = ts_config_add_string (&data->type_instance, child,
+          /* may be empty = */ 1);
     else
     {
       ERROR ("Target `set': The `%s' configuration option is not understood "
@@ -192,7 +206,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
     if ((data->host == NULL)
         && (data->plugin == NULL)
         && (data->plugin_instance == NULL)
-        && (data->type == NULL)
+        /* && (data->type == NULL) */
         && (data->type_instance == NULL))
     {
       ERROR ("Target `set': You need to set at lease one of `Host', "
@@ -232,7 +246,7 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   SET_FIELD (host);
   SET_FIELD (plugin);
   SET_FIELD (plugin_instance);
-  SET_FIELD (type);
+  /* SET_FIELD (type); */
   SET_FIELD (type_instance);
 
   return (0);
