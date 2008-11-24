@@ -86,7 +86,12 @@ static int multimeter_read_value(double *value)
     			struct timeval timeout;
     			struct timeval time_now;
 
-			write(fd, "D", 1);
+			status = swrite (fd, "D", 1);
+			if (status < 0)
+			{
+				ERROR ("multimeter plugin: swrite failed.");
+				return (-1);
+			}
 
 			FD_ZERO(&rfds);
 			FD_SET(fd, &rfds);
