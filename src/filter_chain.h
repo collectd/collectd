@@ -28,8 +28,9 @@
 #define FC_MATCH_NO_MATCH  0
 #define FC_MATCH_MATCHES   1
 
-#define FC_ACTION_CONTINUE 0
-#define FC_ACTION_STOP     1
+#define FC_TARGET_CONTINUE 0
+#define FC_TARGET_STOP     1
+#define FC_TARGET_RETURN   2
 
 /*
  * Match functions

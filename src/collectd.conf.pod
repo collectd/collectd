@@ -2623,10 +2623,31 @@ plugins to be loaded:
 
 =over 4
 
+=item B<return>
+
+Signals the "return" condition. This causes the current chain to stop
+processing the value and returns control to the calling chain. The calling
+chain will continue processing targets and rules just after the B<jump> target
+(see below). This is very similar to the B<RETURN> target of iptables, see
+L<iptables(8)>.
+
+This target does not have any options.
+
+Example:
+
+ Target "return"
+
 =item B<stop>
 
-Does nothing except returning with the stop condition, causing processing of
-the current chain to be aborted.
+Signals the "stop" condition, causing processing of the value to be aborted
+immediately. This is similar to the B<DROP> target of iptables, see
+L<iptables(8)>.
+
+This target does not have any options.
+
+Example:
+
+ Target "stop"
 
 =item B<write>
 
@@ -2640,10 +2661,6 @@ Available options:
 
 Name of the write plugin to which the data should be sent. This option may be
 given multiple times to send the data to more than one write plugin.
-
-Example:
-
- Target "stop"
 
 =back
 
@@ -2661,6 +2678,8 @@ Example:
 Starts processing the rules of another chain. If the end of that chain is
 reached, or a stop condition is encountered, processing will continue right
 after the B<jump> target, i.E<nbsp>e. with the next target or the next rule.
+This is similar to the B<-j> command line option of iptables, see
+L<iptables(8)>.
 
 Available options:
 
@@ -2679,22 +2698,6 @@ Example:
  </Target>
 
 =back
-
-=head2 Backwards compatibility
-
-If you use collectd with an old configuration, i.E<nbsp>e. one without a
-B<Chain> block, it will behave as it used to. This is equivalent to the
-following configuration:
-
- <Chain "main">
-   Target "write"
- </Chain>
-
-If you specify a B<Chain> block anywhere, the B<write> target will not be added
-anywhere and you will have to make sure that it is called where appropriate. We
-suggest to add the above snippet as default target to your main chain.
-
-TODO: Notifications will be implemented using chains, too. Describe that here!
 
 =head2 Available matches
 
@@ -2768,6 +2771,22 @@ Example:
 
 =back
 
+=head2 Backwards compatibility
+
+If you use collectd with an old configuration, i.E<nbsp>e. one without a
+B<Chain> block, it will behave as it used to. This is equivalent to the
+following configuration:
+
+ <Chain "main">
+   Target "write"
+ </Chain>
+
+If you specify a B<Chain> block anywhere, the B<write> target will not be added
+anywhere and you will have to make sure that it is called where appropriate. We
+suggest to add the above snippet as default target to your main chain.
+
+TODO: Notifications will be implemented using chains, too. Describe that here!
+
 =head2 Examples
 
 Ignore all values, where the hostname does not contain a dot, i.E<nbsp>e. can't
@@ -2791,6 +2810,7 @@ L<collectd-perl(5)>,
 L<collectd-unixsock(5)>,
 L<types.db(5)>,
 L<hddtemp(8)>,
+L<iptables(8)>,
 L<kstat(3KSTAT)>,
 L<mbmon(1)>,
 L<pcre(3)>,

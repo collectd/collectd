@@ -567,8 +567,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
   DEBUG ("fc_process_chain (chain = %s);", chain->name);
 
-  status = FC_ACTION_CONTINUE;
-
+  status = FC_TARGET_CONTINUE;
   for (rule = chain->rules; rule != NULL; rule = rule->next)
   {
     fc_match_t *match;
@@ -595,7 +594,10 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
     /* for-loop has been aborted: Either error or no match. */
     if (match != NULL)
+    {
+      status = FC_TARGET_CONTINUE;
       continue;
+    }
 
     if (rule->name[0] != 0)
     {
@@ -614,9 +616,11 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
         WARNING ("fc_process_chain (%s): A target failed.", chain->name);
         continue;
       }
-      else if (status == FC_ACTION_CONTINUE)
+      else if (status == FC_TARGET_CONTINUE)
         continue;
-      else if (status == FC_ACTION_STOP)
+      else if (status == FC_TARGET_STOP)
+        break;
+      else if (status == FC_TARGET_RETURN)
         break;
       else
       {
@@ -626,25 +630,37 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
       }
     }
 
-    if (status == FC_ACTION_STOP)
+    if ((status == FC_TARGET_STOP)
+        || (status == FC_TARGET_RETURN))
     {
       if (rule->name[0] != 0)
       {
         DEBUG ("fc_process_chain (%s): Rule `%s' signaled "
-            "the stop condition.",
-            chain->name, rule->name);
+            "the %s condition.",
+            chain->name, rule->name,
+            (status == FC_TARGET_STOP) ? "stop" : "return");
       }
       break;
     }
+    else
+    {
+      status = FC_TARGET_CONTINUE;
+    }
   } /* for (rule) */
 
-  /* for-loop has been aborted: A target returned `FC_ACTION_STOP' */
+  if (status == FC_TARGET_STOP)
+    return (FC_TARGET_STOP);
+  else if (status == FC_TARGET_RETURN)
+    return (FC_TARGET_CONTINUE);
+
+  /* for-loop has been aborted: A target returned `FC_TARGET_STOP' */
   if (rule != NULL)
-    return (0);
+    return (FC_TARGET_CONTINUE);
 
   DEBUG ("fc_process_chain (%s): Executing the default targets.",
       chain->name);
 
+  status = FC_TARGET_CONTINUE;
   for (target = chain->targets; target != NULL; target = target->next)
   {
     /* If we get here, all matches have matched the value. Execute the
@@ -656,9 +672,11 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
       WARNING ("fc_process_chain (%s): The default target failed.",
           chain->name);
     }
-    else if (status == FC_ACTION_CONTINUE)
+    else if (status == FC_TARGET_CONTINUE)
       continue;
-    else if (status == FC_ACTION_STOP)
+    else if (status == FC_TARGET_STOP)
+      break;
+    else if (status == FC_TARGET_RETURN)
       break;
     else
     {
@@ -668,14 +686,24 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
     }
   }
 
-  if (target != NULL)
+  if ((status == FC_TARGET_STOP)
+      || (status == FC_TARGET_RETURN))
   {
+    assert (target != NULL);
     DEBUG ("fc_process_chain (%s): Default target `%s' signaled "
-        "the stop condition.",
-        chain->name, target->name);
+        "the %s condition.",
+        chain->name, target->name,
+        (status == FC_TARGET_STOP) ? "stop" : "return");
+    if (status == FC_TARGET_STOP)
+      return (FC_TARGET_STOP);
+    else
+      return (FC_TARGET_CONTINUE);
   }
 
-  return (0);
+  DEBUG ("fc_process_chain (%s): Signaling `continue' at end of chain.",
+      chain->name);
+
+  return (FC_TARGET_CONTINUE);
 } /* }}} int fc_process_chain */
 
 /*
@@ -756,15 +784,23 @@ static int fc_bit_jump_invoke (const data_set_t *ds, /* {{{ */
   status = fc_process_chain (ds, vl, chain);
   if (status < 0)
     return (status);
-
-  return (FC_ACTION_CONTINUE);
+  else if (status == FC_TARGET_STOP)
+    return (FC_TARGET_STOP);
+  else
+    return (FC_TARGET_CONTINUE);
 } /* }}} int fc_bit_jump_invoke */
 
 static int fc_bit_stop_invoke (const data_set_t *ds, /* {{{ */
     value_list_t *vl, notification_meta_t **meta, void **user_data)
 {
-  return (FC_ACTION_STOP);
+  return (FC_TARGET_STOP);
 } /* }}} int fc_bit_stop_invoke */
+
+static int fc_bit_return_invoke (const data_set_t *ds, /* {{{ */
+    value_list_t *vl, notification_meta_t **meta, void **user_data)
+{
+  return (FC_TARGET_RETURN);
+} /* }}} int fc_bit_return_invoke */
 
 static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
     void **user_data)
@@ -876,7 +912,7 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
     } /* for (i = 0; plugin_list[i] != NULL; i++) */
   }
 
-  return (FC_ACTION_CONTINUE);
+  return (FC_TARGET_CONTINUE);
 } /* }}} int fc_bit_write_invoke */
 
 static int fc_init_once (void) /* {{{ */
@@ -898,6 +934,12 @@ static int fc_init_once (void) /* {{{ */
   tproc.destroy = NULL;
   tproc.invoke  = fc_bit_stop_invoke;
   fc_register_target ("stop", tproc);
+
+  memset (&tproc, 0, sizeof (tproc));
+  tproc.create  = NULL;
+  tproc.destroy = NULL;
+  tproc.invoke  = fc_bit_return_invoke;
+  fc_register_target ("return", tproc);
 
   memset (&tproc, 0, sizeof (tproc));
   tproc.create  = fc_bit_write_create;

@@ -249,7 +249,7 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   /* SET_FIELD (type); */
   SET_FIELD (type_instance);
 
-  return (0);
+  return (FC_TARGET_CONTINUE);
 } /* }}} int ts_invoke */
 
 void module_register (void)
