@@ -2742,6 +2742,8 @@ must match the specified ranges for a positive match.
 
 Available options:
 
+=over 4
+
 =item B<Min> I<Value>
 
 Sets the smallest value which still results in a match. If unset, behaves like
