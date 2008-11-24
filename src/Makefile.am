@@ -403,6 +403,14 @@ collectd_LDADD += "-dlopen" match_regex.la
 collectd_DEPENDENCIES += match_regex.la
 endif
 
+if BUILD_PLUGIN_MATCH_VALUE
+pkglib_LTLIBRARIES += match_value.la
+match_value_la_SOURCES = match_value.c
+match_value_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" match_value.la
+collectd_DEPENDENCIES += match_value.la
+endif
+
 if BUILD_PLUGIN_MBMON
 pkglib_LTLIBRARIES += mbmon.la
 mbmon_la_SOURCES = mbmon.c

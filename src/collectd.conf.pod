@@ -2734,6 +2734,40 @@ Example:
    Plugin "^foobar$"
  </Match>
 
+=item B<value>
+
+Matches the actual value of data sources against given minimumE<nbsp>/ maximum
+values. If a data-set consists of more than one data-source, all data-sources
+must match the specified ranges for a positive match.
+
+Available options:
+
+=item B<Min> I<Value>
+
+Sets the smallest value which still results in a match. If unset, behaves like
+negative infinity.
+
+=item B<Max> I<Value>
+
+Sets the largest value which still results in a match. If unset, behaves like
+positive infinity.
+
+=item B<Invert> B<true>|B<false>
+
+Inverts the selection. If the B<Min> and B<Max> settings result in a match,
+no-match is returned and vice versa.
+
+=back
+
+Either B<Min> or B<Max>, but not both, may be unset.
+
+Example:
+
+ # Match all values smaller than or equal to 100.
+ <Match "value">
+   Max 100
+ </Match>
+
 =back
 
 =head2 Available targets

@@ -2970,6 +2970,7 @@ AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([match_regex], [yes],                [The regex match])
+AC_PLUGIN([match_value], [yes],                [The value match])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
@@ -3146,6 +3147,7 @@ Configuration:
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
     match_regex . . . . . $enable_match_regex
+    match_value . . . . . $enable_match_value
     mbmon . . . . . . . . $enable_mbmon
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
