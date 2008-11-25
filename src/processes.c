@@ -22,6 +22,7 @@
  *   Lyonel Vincent <lyonel at ezix.org>
  *   Florian octo Forster <octo at verplant.org>
  *   Oleg King <king2 at kaluga.ru>
+ *   Sebastian Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
@@ -755,6 +756,96 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	/* success */
 	return (0);
 } /* int ps_read_process (...) */
+
+static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
+{
+	char  *buf_ptr;
+	size_t len;
+
+	char file[PATH_MAX];
+	int  fd;
+
+	size_t n;
+
+	if ((pid < 1) || (NULL == buf) || (buf_len < 2))
+		return NULL;
+
+	ssnprintf (file, sizeof (file), "/proc/%u/cmdline", pid);
+
+	fd = open (file, O_RDONLY);
+	if (fd < 0) {
+		char errbuf[4096];
+		WARNING ("processes plugin: Failed to open `%s': %s.", file,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return NULL;
+	}
+
+	buf_ptr = buf;
+	len     = buf_len;
+
+	n = 0;
+
+	while (42) {
+		size_t status;
+
+		status = read (fd, (void *)buf_ptr, len);
+
+		if (status < 0) {
+			char errbuf[4096];
+
+			if ((EAGAIN == errno) || (EINTR == errno))
+				continue;
+
+			WARNING ("processes plugin: Failed to read from `%s': %s.", file,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			close (fd);
+			return NULL;
+		}
+
+		n += status;
+
+		if (status == 0)
+			break;
+
+		buf_ptr += status;
+		len     -= status;
+
+		if (len <= 0)
+			break;
+	}
+
+	close (fd);
+
+	if (0 == n) {
+		/* cmdline not available; e.g. kernel thread, zombie */
+		if (NULL == name)
+			return NULL;
+
+		ssnprintf (buf, buf_len, "[%s]", name);
+		return buf;
+	}
+
+	assert (n <= buf_len);
+
+	if (n == buf_len)
+		--n;
+	buf[n] = '\0';
+
+	--n;
+	/* remove trailing whitespace */
+	while ((n > 0) && (isspace (buf[n]) || ('\0' == buf[n]))) {
+		buf[n] = '\0';
+		--n;
+	}
+
+	/* arguments are separated by '\0' in /proc/<pid>/cmdline */
+	while (n > 0) {
+		if ('\0' == buf[n])
+			buf[n] = ' ';
+		--n;
+	}
+	return buf;
+} /* char *ps_get_cmdline (...) */
 #endif /* KERNEL_LINUX */
 
 #if HAVE_THREAD_INFO
@@ -1070,6 +1161,8 @@ static int ps_read (void)
 	DIR           *proc;
 	int            pid;
 
+	char cmdline[ARG_MAX];
+
 	int        status;
 	procstat_t ps;
 	procstat_entry_t pse;
@@ -1130,8 +1223,9 @@ static int ps_read (void)
 			case 'W': paging++;   break;
 		}
 
-		/* FIXME: cmdline should be here instead of NULL */
-		ps_list_add (ps.name, NULL, &pse);
+		ps_list_add (ps.name,
+				ps_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
+				&pse);
 	}
 
 	closedir (proc);
