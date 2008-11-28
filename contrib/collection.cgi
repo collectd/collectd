@@ -2544,11 +2544,81 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%5.1lf Max,',
     'GPRINT:avg:LAST:%5.1lf Last\l',
     ],
+    vmpage_number => ['-v', 'Pages',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Number",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
+    ],
+    vmpage_faults => [
+    "DEF:minf_avg={file}:minflt:AVERAGE",
+    "DEF:minf_min={file}:minflt:MIN",
+    "DEF:minf_max={file}:minflt:MAX",
+    "DEF:majf_avg={file}:majflt:AVERAGE",
+    "DEF:majf_min={file}:majflt:MIN",
+    "DEF:majf_max={file}:majflt:MAX",
+    'CDEF:overlap=majf_avg,minf_avg,GT,minf_avg,majf_avg,IF',
+    "AREA:majf_avg#$HalfGreen",
+    "AREA:minf_avg#$HalfBlue",
+    "AREA:overlap#$HalfBlueGreen",
+    "LINE1:majf_avg#$FullGreen:Major",
+    'GPRINT:majf_min:MIN:%5.1lf%s Min,',
+    'GPRINT:majf_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:majf_max:MAX:%5.1lf%s Max,',
+    'GPRINT:majf_avg:LAST:%5.1lf%s Last\l',
+    "LINE1:minf_avg#$FullBlue:Minor",
+    'GPRINT:minf_min:MIN:%5.1lf%s Min,',
+    'GPRINT:minf_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:minf_max:MAX:%5.1lf%s Max,',
+    'GPRINT:minf_avg:LAST:%5.1lf%s Last\l'
+    ],
+    vmpage_io => [
+    "DEF:rpag_avg={file}:in:AVERAGE",
+    "DEF:rpag_min={file}:in:MIN",
+    "DEF:rpag_max={file}:in:MAX",
+    "DEF:wpag_avg={file}:out:AVERAGE",
+    "DEF:wpag_min={file}:out:MIN",
+    "DEF:wpag_max={file}:out:MAX",
+    'CDEF:overlap=wpag_avg,rpag_avg,GT,rpag_avg,wpag_avg,IF',
+    "AREA:wpag_avg#$HalfGreen",
+    "AREA:rpag_avg#$HalfBlue",
+    "AREA:overlap#$HalfBlueGreen",
+    "LINE1:wpag_avg#$FullGreen:OUT",
+    'GPRINT:wpag_min:MIN:%5.1lf%s Min,',
+    'GPRINT:wpag_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:wpag_max:MAX:%5.1lf%s Max,',
+    'GPRINT:wpag_avg:LAST:%5.1lf%s Last\l',
+    "LINE1:rpag_avg#$FullBlue:IN ",
+    'GPRINT:rpag_min:MIN:%5.1lf%s Min,',
+    'GPRINT:rpag_avg:AVERAGE:%5.1lf%s Avg,',
+    'GPRINT:rpag_max:MAX:%5.1lf%s Max,',
+    'GPRINT:rpag_avg:LAST:%5.1lf%s Last\l'
+    ],
+    vmpage_action => ['-v', 'Pages',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
+    "AREA:max#$HalfBlue",
+    "AREA:min#$Canvas",
+    "LINE1:avg#$FullBlue:Number",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
+    ],
   };
   $GraphDefs->{'if_multicast'} = $GraphDefs->{'ipt_packets'};
   $GraphDefs->{'if_tx_errors'} = $GraphDefs->{'if_rx_errors'};
   $GraphDefs->{'dns_qtype'} = $GraphDefs->{'dns_opcode'};
   $GraphDefs->{'dns_rcode'} = $GraphDefs->{'dns_opcode'};
+  $GraphDefs->{'vmpage_io-memory'} = $GraphDefs->{'vmpage_io'};
+  $GraphDefs->{'vmpage_io-swap'} = $GraphDefs->{'vmpage_io'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
   $MetaGraphDefs->{'dns_qtype'} = \&meta_graph_dns;
@@ -2562,6 +2632,8 @@ sub load_graph_definitions
   $MetaGraphDefs->{'mysql_commands'} = \&meta_graph_mysql_commands;
   $MetaGraphDefs->{'mysql_handler'} = \&meta_graph_mysql_commands;
   $MetaGraphDefs->{'tcp_connections'} = \&meta_graph_tcp_connections;
+  $MetaGraphDefs->{'vmpage_number'} = \&meta_graph_vmpage_number;
+  $MetaGraphDefs->{'vmpage_action'} = \&meta_graph_vmpage_action;
 } # load_graph_definitions
 
 sub meta_graph_generic_stack
@@ -3163,4 +3235,131 @@ sub meta_graph_tcp_connections
 
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_tcp_connections
+
+sub meta_graph_vmpage_number
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%6.2lf';
+
+  $opts->{'rrd_opts'} = ['-v', 'Pages'];
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    anon_pages	  => '00e000',
+    bounce	  => '00e0ff',
+    dirty	  => '00e0a0',
+    file_pages	  => 'f000f0',
+    mapped	  => 'f000a0',
+    page_table_pages	  => 'ffb000',
+    slab	  => '0000f0',
+    unstable	  => '0000a0',
+    writeback	  => 'ff0000',
+  };
+
+  _custom_sort_arrayref ($type_instances,
+    [reverse qw(anon_pages bounce dirty file_pages mapped page_table_pages slab unstable writeback)]);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_vmpage_number
+
+sub meta_graph_vmpage_action
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  $opts->{'title'} = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+  $opts->{'number_format'} = '%6.2lf';
+
+  $opts->{'rrd_opts'} = ['-v', 'Pages'];
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    activate	  => '00e000',
+    deactivate	  => '00e0ff',
+    free	  => '00e0a0',
+    alloc	  => 'f000f0',
+    refill	  => 'f000a0',
+    scan_direct	  => 'ffb000',
+    scan_kswapd	  => '0000f0',
+    steal	  => '0000a0',
+  };
+
+  _custom_sort_arrayref ($type_instances,
+    [reverse qw(activate deactivate alloc free refill scan_direct scan_kswapd steal)]);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+    my $title = $opts->{'title'};
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$title-$inst.rrd")
+      {
+	$file = "$_/$title-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $title") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_vmpage_action
 # vim: shiftwidth=2:softtabstop=2:tabstop=8
