@@ -61,6 +61,12 @@
 
 #include "client.h"
 
+/* NI_MAXHOST has been obsoleted by RFC 3493 which is a reason for SunOS 5.11
+ * to no longer define it. We'll use the old, RFC 2553 value here. */
+#ifndef NI_MAXHOST
+# define NI_MAXHOST 1025
+#endif
+
 /* Secure/static macros. They work like `strcpy' and `strcat', but assure null
  * termination. They work for static buffers only, because they use `sizeof'.
  * The `SSTRCATF' combines the functionality of `snprintf' and `strcat' which
