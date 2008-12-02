@@ -971,8 +971,8 @@ static int plugin_notification_meta_add (notification_t *n,
   {
     case NM_TYPE_STRING:
     {
-      meta->value_string = strdup ((const char *) value);
-      if (meta->value_string == NULL)
+      meta->nm_value.nm_string = strdup ((const char *) value);
+      if (meta->nm_value.nm_string == NULL)
       {
         ERROR ("plugin_notification_meta_add: strdup failed.");
         sfree (meta);
@@ -982,22 +982,22 @@ static int plugin_notification_meta_add (notification_t *n,
     }
     case NM_TYPE_SIGNED_INT:
     {
-      meta->value_signed_int = *((int64_t *) value);
+      meta->nm_value.nm_signed_int = *((int64_t *) value);
       break;
     }
     case NM_TYPE_UNSIGNED_INT:
     {
-      meta->value_unsigned_int = *((uint64_t *) value);
+      meta->nm_value.nm_unsigned_int = *((uint64_t *) value);
       break;
     }
     case NM_TYPE_DOUBLE:
     {
-      meta->value_double = *((double *) value);
+      meta->nm_value.nm_double = *((double *) value);
       break;
     }
     case NM_TYPE_BOOLEAN:
     {
-      meta->value_boolean = *((bool *) value);
+      meta->nm_value.nm_boolean = *((bool *) value);
       break;
     }
     default:
@@ -1070,19 +1070,19 @@ int plugin_notification_meta_copy (notification_t *dst,
   {
     if (meta->type == NM_TYPE_STRING)
       plugin_notification_meta_add_string (dst, meta->name,
-          meta->value_string);
+          meta->nm_value.nm_string);
     else if (meta->type == NM_TYPE_SIGNED_INT)
       plugin_notification_meta_add_signed_int (dst, meta->name,
-          meta->value_signed_int);
+          meta->nm_value.nm_signed_int);
     else if (meta->type == NM_TYPE_UNSIGNED_INT)
       plugin_notification_meta_add_unsigned_int (dst, meta->name,
-          meta->value_unsigned_int);
+          meta->nm_value.nm_unsigned_int);
     else if (meta->type == NM_TYPE_DOUBLE)
       plugin_notification_meta_add_double (dst, meta->name,
-          meta->value_double);
+          meta->nm_value.nm_double);
     else if (meta->type == NM_TYPE_BOOLEAN)
       plugin_notification_meta_add_boolean (dst, meta->name,
-          meta->value_boolean);
+          meta->nm_value.nm_boolean);
   }
 
   return (0);
@@ -1107,8 +1107,8 @@ int plugin_notification_meta_free (notification_t *n)
 
     if (this->type == NM_TYPE_STRING)
     {
-      free ((char *)this->value_string);
-      this->value_string = NULL;
+      free ((char *)this->nm_value.nm_string);
+      this->nm_value.nm_string = NULL;
     }
     sfree (this);
 

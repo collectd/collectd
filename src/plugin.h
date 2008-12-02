@@ -119,12 +119,12 @@ typedef struct notification_meta_s
 	enum notification_meta_type_e type;
 	union
 	{
-		const char *value_string;
-		int64_t value_signed_int;
-		uint64_t value_unsigned_int;
-		double value_double;
-		bool value_boolean;
-	};
+		const char *nm_string;
+		int64_t nm_signed_int;
+		uint64_t nm_unsigned_int;
+		double nm_double;
+		bool nm_boolean;
+	} nm_value;
 	struct notification_meta_s *next;
 } notification_meta_t;
 
