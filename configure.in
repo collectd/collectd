@@ -65,6 +65,11 @@ then
 	AC_SUBST(KERNEL_CFLAGS)
 fi
 
+if test "x$ac_system" = "xSolaris"
+then
+	CPPFLAGS="$CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
+fi
+
 #
 # Checks for header files.
 #
@@ -240,7 +245,8 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 ])
 
 # For the swap module
-AC_CHECK_HEADERS(sys/swap.h, [], [],
+have_sys_swap_h="yes"
+AC_CHECK_HEADERS(sys/swap.h, [], [have_sys_swap_h="no"],
 [
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -249,6 +255,11 @@ AC_CHECK_HEADERS(sys/swap.h, [], [],
 # include <sys/param.h>
 #endif
 ])
+
+if test "x$have_sys_swap_h$ac_system" = "xnoSolaris"
+then
+	AC_MSG_NOTICE([Solaris detected and sys/swap.h not found: Try building a 64bit binary.])
+fi
 
 # For load module
 # For the processes plugin
@@ -2587,8 +2598,12 @@ then
 	plugin_disk="yes"
 	plugin_interface="yes"
 	plugin_memory="yes"
-	plugin_swap="yes"
 	plugin_tape="yes"
+fi
+
+if test "x$have_sys_swap_h$with_kstat$ac_system" = "xyesyesSolaris"
+then
+	plugin_swap="yes"
 fi
 
 # libstatgrab
