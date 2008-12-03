@@ -48,6 +48,8 @@
 # define __attribute__(x) /**/
 #endif
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -59,7 +61,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "config.h"
 #include "libcollectdclient/client.h"
 
 /*
