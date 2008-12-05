@@ -106,8 +106,7 @@
 static const char *config_keys[] =
 {
 	"Process",
-	"ProcessMatch",
-	NULL
+	"ProcessMatch"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
