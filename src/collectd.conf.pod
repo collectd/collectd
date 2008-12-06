@@ -1214,16 +1214,16 @@ user using (extended) regular expressions, as described in L<regex(7)>.
     <File "/var/log/exim4/mainlog">
       Instance "exim"
       <Match>
-      	Regex "S=([1-9][0-9]*)"
-	DSType "CounterAdd"
-	Type "ipt_bytes"
-	Instance "total"
+        Regex "S=([1-9][0-9]*)"
+        DSType "CounterAdd"
+        Type "ipt_bytes"
+        Instance "total"
       </Match>
       <Match>
-      	Regex "\\<R=local_user\\>"
-	DSType "CounterInc"
-	Type "counter"
-	Instance "local_user"
+        Regex "\\<R=local_user\\>"
+        DSType "CounterInc"
+        Type "counter"
+        Instance "local_user"
       </Match>
     </File>
   </Plugin>
@@ -1528,7 +1528,7 @@ information.
      <Plugin "memory">
        <Type "memory">
          Instance "cached"
-	 WarningMin 100000000
+         WarningMin 100000000
        </Type>
      </Plugin>
    </Host>
