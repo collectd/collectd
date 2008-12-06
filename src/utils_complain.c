@@ -50,7 +50,7 @@ static int vcomplain (int level, c_complain_t *c,
 	vsnprintf (message, sizeof (message), format, ap);
 	message[sizeof (message) - 1] = '\0';
 
-	plugin_log (level, message);
+	plugin_log (level, "%s", message);
 	return 1;
 } /* vcomplain */
 
@@ -95,7 +95,7 @@ void c_do_release (int level, c_complain_t *c, const char *format, ...)
 	message[sizeof (message) - 1] = '\0';
 	va_end (ap);
 
-	plugin_log (level, message);
+	plugin_log (level, "%s", message);
 } /* c_release */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
