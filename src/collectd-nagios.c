@@ -138,19 +138,75 @@ static char *cn_strdup (const char *str) /* {{{ */
   return (ret);
 } /* }}} char *cn_strdup */
 
-static int ignore_ds (const char *name)
+static int filter_ds (size_t *values_num,
+		double **values, char ***values_names)
 {
-	int i;
+	gauge_t *new_values;
+	char   **new_names;
+
+	size_t i;
 
 	if (match_ds_g == NULL)
-		return (0);
+		return (RET_OKAY);
+
+	new_values = (gauge_t *)calloc (match_ds_num_g, sizeof (*new_values));
+	if (new_values == NULL)
+	{
+		fprintf (stderr, "malloc failed: %s\n", strerror (errno));
+		return (RET_UNKNOWN);
+	}
+
+	new_names = (char **)calloc (match_ds_num_g, sizeof (*new_names));
+	if (new_names == NULL)
+	{
+		fprintf (stderr, "malloc failed: %s\n", strerror (errno));
+		free (new_values);
+		return (RET_UNKNOWN);
+	}
 
 	for (i = 0; i < match_ds_num_g; i++)
-		if (strcasecmp (match_ds_g[i], name) == 0)
-			return (0);
+	{
+		size_t j;
 
-	return (1);
-} /* int ignore_ds */
+		/* match_ds_g keeps pointers into argv but the names will be freed */
+		new_names[i] = cn_strdup (match_ds_g[i]);
+		if (new_names[i] == NULL)
+		{
+			fprintf (stderr, "cn_strdup failed: %s\n", strerror (errno));
+			free (new_values);
+			for (j = 0; j < i; j++)
+				free (new_names[j]);
+			free (new_names);
+			return (RET_UNKNOWN);
+		}
+
+		for (j = 0; j < *values_num; j++)
+			if (strcasecmp (new_names[i], (*values_names)[j]) == 0)
+				break;
+
+		if (j == *values_num)
+		{
+			printf ("ERROR: DS `%s' is not available.\n", new_names[i]);
+			free (new_values);
+			for (j = 0; j <= i; j++)
+				free (new_names[j]);
+			free (new_names);
+			return (RET_CRITICAL);
+		}
+
+		new_values[i] = (*values)[j];
+	}
+
+	free (*values);
+	for (i = 0; i < *values_num; i++)
+		free ((*values_names)[i]);
+	free (*values_names);
+
+	*values       = new_values;
+	*values_names = new_names;
+	*values_num   = match_ds_num_g;
+	return (RET_OKAY);
+} /* int filter_ds */
 
 static void parse_range (char *string, range_t *range)
 {
@@ -231,7 +287,7 @@ static void usage (const char *name)
 	exit (1);
 } /* void usage */
 
-static int do_check_con_none (int values_num,
+static int do_check_con_none (size_t values_num,
 		double *values, char **values_names)
 {
 	int num_critical = 0;
@@ -243,9 +299,6 @@ static int do_check_con_none (int values_num,
 
 	for (i = 0; i < values_num; i++)
 	{
-		if (ignore_ds (values_names[i]))
-			continue;
-
 		if (isnan (values[i]))
 			num_warning++;
 		else if (match_range (&range_critical_g, values[i]) != 0)
@@ -290,7 +343,7 @@ static int do_check_con_none (int values_num,
 	return (status_code);
 } /* int do_check_con_none */
 
-static int do_check_con_average (int values_num,
+static int do_check_con_average (size_t values_num,
 		double *values, char **values_names)
 {
 	int i;
@@ -304,9 +357,6 @@ static int do_check_con_average (int values_num,
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
-		if (ignore_ds (values_names[i]))
-			continue;
-
 		if (!isnan (values[i]))
 		{
 			total += values[i];
@@ -346,7 +396,8 @@ static int do_check_con_average (int values_num,
 	return (status_code);
 } /* int do_check_con_average */
 
-static int do_check_con_sum (int values_num, double *values, char **values_names)
+static int do_check_con_sum (size_t values_num,
+		double *values, char **values_names)
 {
 	int i;
 	double total;
@@ -358,9 +409,6 @@ static int do_check_con_sum (int values_num, double *values, char **values_names
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
-		if (ignore_ds (values_names[i]))
-			continue;
-
 		if (!isnan (values[i]))
 		{
 			total += values[i];
@@ -447,6 +495,10 @@ static int do_check (void)
 	}
 
 	LCC_DESTROY (connection);
+
+	status = filter_ds (&values_num, &values, &values_names);
+	if (status != RET_OKAY)
+		return (status);
 
 	status = RET_UNKNOWN;
 	if (consolitation_g == CON_NONE)
