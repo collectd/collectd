@@ -48,6 +48,10 @@
 # define __attribute__(x) /**/
 #endif
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -94,7 +98,7 @@
   (c)->errbuf[sizeof ((c)->errbuf) - 1] = 0; \
 } while (0)
 
-#if 1
+#if COLLECT_DEBUG
 # define LCC_DEBUG(...) printf (__VA_ARGS__)
 #else
 # define LCC_DEBUG(...) /**/
