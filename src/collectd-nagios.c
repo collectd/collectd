@@ -617,7 +617,11 @@ int main (int argc, char **argv)
 				else if (strcasecmp (optarg, "percentage") == 0)
 					consolitation_g = CON_PERCENTAGE;
 				else
+				{
+					fprintf (stderr, "Unknown consolidation function `%s'.\n",
+							optarg);
 					usage (argv[0]);
+				}
 				break;
 			case 'd':
 			{
@@ -649,7 +653,10 @@ int main (int argc, char **argv)
 
 	if ((socket_file_g == NULL) || (value_string_g == NULL)
 			|| (hostname_g == NULL))
+	{
+		fprintf (stderr, "Missing required arguments.\n");
 		usage (argv[0]);
+	}
 
 	return (do_check ());
 } /* int main */
