@@ -61,6 +61,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <math.h>
 #include <netdb.h>
 
 #include "client.h"
@@ -152,7 +153,7 @@ static char *lcc_strdup (const char *str) /* {{{ */
 } /* }}} char *lcc_strdup */
 
 __attribute__((nonnull (1, 2)))
-static char *lcc_strescape (char *dest, char *src, size_t dest_size) /* {{{ */
+static char *lcc_strescape (char *dest, const char *src, size_t dest_size) /* {{{ */
 {
   size_t dest_pos;
   size_t src_pos;
