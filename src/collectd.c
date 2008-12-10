@@ -443,6 +443,9 @@ int main (int argc, char **argv)
 		} /* switch (c) */
 	} /* while (1) */
 
+	if (optind < argc)
+		exit_usage ();
+
 	/*
 	 * Read options from the config file, the environment and the command
 	 * line (in that order, with later options overwriting previous ones in
