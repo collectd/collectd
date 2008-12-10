@@ -246,7 +246,7 @@ static void update_kstat (void)
 /* TODO
  * Remove all settings but `-f' and `-C'
  */
-static void exit_usage (void)
+static void exit_usage (int status)
 {
 	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
 			
@@ -268,8 +268,8 @@ static void exit_usage (void)
 			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n");
-	exit (0);
-} /* static void exit_usage (char *name) */
+	exit (status);
+} /* static void exit_usage (int status) */
 
 static int do_init (void)
 {
@@ -438,13 +438,15 @@ int main (int argc, char **argv)
 				break;
 #endif /* COLLECT_DAEMON */
 			case 'h':
+				exit_usage (0);
+				break;
 			default:
-				exit_usage ();
+				exit_usage (1);
 		} /* switch (c) */
 	} /* while (1) */
 
 	if (optind < argc)
-		exit_usage ();
+		exit_usage (1);
 
 	/*
 	 * Read options from the config file, the environment and the command
