@@ -665,12 +665,12 @@ database when started and keeps the connection up as long as possible. When the
 connection is interrupted for whatever reason it will try to re-connect. The
 plugin will complaint loudly in case anything goes wrong.
 
-This plugin issues C<SHOW STATUS> and evaluates C<Bytes_{received,sent}>,
-C<Com_*> and C<Handler_*> which correspond to F<mysql_octets.rrd>,
-F<mysql_commands-*.rrd> and F<mysql_handler-*.rrd>. Also, the values of
-C<Qcache_*> are put in F<mysql_qcache.rrd> and values of C<Threads_*> are put
-in F<mysql_threads.rrd>. Please refer to the B<MySQL reference manual>,
-I<5.2.4. Server Status Variables> for an explanation of these values.
+This plugin issues the MySQL C<SHOW STATUS> command and collects information
+about MySQL network traffic, executed statements, requests, the query cache
+and threads by evaluating the C<Bytes_{received,sent}>, C<Com_*>,
+C<Handler_*>, C<Qcache_*> and C<Threads_*> return values. Please refer to the
+B<MySQL reference manual>, I<5.1.6. Server Status Variables> for an
+explanation of these values.
 
 Use the following options to configure the plugin:
 
@@ -682,7 +682,9 @@ Hostname of the database server. Defaults to B<localhost>.
 
 =item B<User> I<Username>
 
-Username to use when connecting to the database.
+Username to use when connecting to the database. The user does not have to be
+granted any privileges (which is synonym to granting the C<USAGE> privilege).
+Any existing MySQL user will do.
 
 =item B<Password> I<Password>
 
