@@ -34,6 +34,7 @@
  */
 
 #include "collectd.h"
+#include "plugin.h"
 
 #if HAVE_NETINET_IN_SYSTM_H
 # include <netinet/in_systm.h>
@@ -354,7 +355,6 @@ handle_dns(const char *buf, int len,
 
     memcpy(&us, buf + 2, 2);
     us = ntohs(us);
-    fprintf (stderr, "Bytes 0, 1: 0x%04hx\n", us);
     qh.qr = (us >> 15) & 0x01;
     qh.opcode = (us >> 11) & 0x0F;
     qh.aa = (us >> 10) & 0x01;
@@ -648,7 +648,7 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
 {
     int status;
 
-    fprintf (stderr, "handle_pcap (udata = %p, hdr = %p, pkt = %p): hdr->caplen = %i\n",
+    DEBUG ("handle_pcap (udata = %p, hdr = %p, pkt = %p): hdr->caplen = %i\n",
 		    (void *) udata, (void *) hdr, (void *) pkt,
 		    hdr->caplen);
 
@@ -685,7 +685,7 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
 	    break;
 
 	default:
-	    fprintf (stderr, "unsupported data link type %d\n",
+	    ERROR ("handle_pcap: unsupported data link type %d\n",
 		    pcap_datalink(pcap_obj));
 	    status = 0;
 	    break;
