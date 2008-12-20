@@ -75,6 +75,25 @@ char *subst (char *buf, size_t buflen, const char *string, int off1, int off2,
  */
 char *asubst (const char *string, int off1, int off2, const char *replacement);
 
+/*
+ * subst_string:
+ *
+ * Works like `subst', but instead of specifying start and end offsets you
+ * specify `needle', the string that is to be replaced. If `needle' is found
+ * in `string' (using strstr(3)), the offset is calculated and `subst' is
+ * called with the determined parameters.
+ *
+ * If the substring is not found, no error will be indicated and
+ * `subst_string' works mostly like `strncpy'.
+ *
+ * If the substring appears multiple times, all appearances will be replaced.
+ * If the substring has been found `buflen' times, an endless loop is assumed
+ * and the loop is broken. A warning is printed and the function returns
+ * success.
+ */
+char *subst_string (char *buf, size_t buflen, const char *string,
+		const char *needle, const char *replacement);
+
 #endif /* UTILS_SUBST_H */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
