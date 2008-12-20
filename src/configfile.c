@@ -156,7 +156,8 @@ static int cf_dispatch (const char *type, const char *orig_key,
 
 	for (i = 0; i < cf_cb->keys_num; i++)
 	{
-		if (strcasecmp (cf_cb->keys[i], key) == 0)
+		if ((cf_cb->keys[i] != NULL)
+				&& (strcasecmp (cf_cb->keys[i], key) == 0))
 		{
 			ret = (*cf_cb->callback) (key, value);
 			break;

@@ -867,7 +867,7 @@ EXTRA_DIST += collectd-email.pod collectd-exec.pod collectd-nagios.pod \
 .pod.1:
 	pod2man --release=$(VERSION) --center=$(PACKAGE) $< \
 		>.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
-	if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
+	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
 	then \
 		echo "$@ has some POD errors!"; false; \
 	fi
@@ -875,7 +875,7 @@ EXTRA_DIST += collectd-email.pod collectd-exec.pod collectd-nagios.pod \
 .pod.5:
 	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< \
 		>.pod2man.tmp 2>/dev/null && mv -f .pod2man.tmp $@ || true
-	if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
+	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
 	then \
 		echo "$@ has some POD errors!"; false; \
 	fi
