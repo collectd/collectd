@@ -35,7 +35,7 @@ option (see L<collectd.conf(5)>).
 
 If you want to specify custom types, you should do so by specifying a custom
 file in addition to the default one (see L<FILES>) above. You can do that by
-having multiple B<TypesDB> statements in your configuration file of by
+having multiple B<TypesDB> statements in your configuration file or by
 specifying more than one file in one line.
 
 For example:
