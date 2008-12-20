@@ -742,6 +742,14 @@ collectd_LDADD += "-dlopen" tape.la
 collectd_DEPENDENCIES += tape.la
 endif
 
+if BUILD_PLUGIN_TARGET_NOTIFICATION
+pkglib_LTLIBRARIES += target_notification.la
+target_notification_la_SOURCES = target_notification.c
+target_notification_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" target_notification.la
+collectd_DEPENDENCIES += target_notification.la
+endif
+
 if BUILD_PLUGIN_TARGET_REPLACE
 pkglib_LTLIBRARIES += target_replace.la
 target_replace_la_SOURCES = target_replace.c

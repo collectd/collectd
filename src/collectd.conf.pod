@@ -2787,6 +2787,58 @@ Example:
 
 =over 4
 
+=item B<notification>
+
+Creates and dispatches a notification.
+
+Available options:
+
+=over 4
+
+=item B<Message> I<String>
+
+This required option sets the message of the notification. The following
+placeholders will be replaced by an appropriate value:
+
+=over 4
+
+=item B<%{host}>
+
+=item B<%{plugin}>
+
+=item B<%{plugin_instance}>
+
+=item B<%{type}>
+
+=item B<%{type_instance}>
+
+These placeholders are replaced by the identifier field of the same name.
+
+=item B<%{ds:>I<name>B<}>
+
+These placeholders are replaced by a (hopefully) human readable representation
+of the current rate of this data source. If you changed the instance name
+(using the B<set> or B<replace> targets, see below), it may not be possible to
+convert counter values to rates.
+
+=back
+
+Please note that these placeholders are B<case sensitive>!
+
+=item B<Severity> B<"FATAL">|B<"WARNING">|B<"OKAY">
+
+Sets the severity of the message. If omitted, the severity B<"WARNING"> is
+used.
+
+=back
+
+Example:
+
+  <Target "notification">
+    Message "Oops, the %{type_instance} temperature is currently %{ds:value}!"
+    Severity "WARNING"
+  </Target>
+
 =item B<replace>
 
 Replaces parts of the identifier using regular expressions.

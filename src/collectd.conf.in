@@ -462,8 +462,12 @@ FQDNLookup   true
 
 # Load required matches:
 #@BUILD_PLUGIN_MATCH_REGEX_TRUE@LoadPlugin match_regex
+#@BUILD_PLUGIN_MATCH_VALUE_TRUE@LoadPlugin match_value
 
 # Load required targets:
+#@BUILD_PLUGIN_TARGET_NOTIFICATION_TRUE@LoadPlugin target_notification
+#@BUILD_PLUGIN_TARGET_REPLACE_TRUE@LoadPlugin target_replace
+#@BUILD_PLUGIN_TARGET_SET_TRUE@LoadPlugin target_set
  
 # The following block demonstrates the default behavior if no filtering is
 # configured at all: All values will be sent to all available write plugins.
