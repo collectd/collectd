@@ -385,7 +385,7 @@ FQDNLookup   true
 #    <Match>
 #      Regex "\\<R=local_user\\>"
 #      DSType "CounterInc"
-#      Type "email_count"
+#      Type "counter"
 #      Instance "local_user"
 #    </Match>
 #  </File>

@@ -1159,6 +1159,8 @@ static int rrd_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "rrdtool: `CacheTimeout' must "
 					"be greater than 0.\n");
+			ERROR ("rrdtool: `CacheTimeout' must "
+					"be greater than 0.\n");
 			return (1);
 		}
 		cache_timeout = tmp;
@@ -1169,6 +1171,8 @@ static int rrd_config (const char *key, const char *value)
 		if (tmp < 0)
 		{
 			fprintf (stderr, "rrdtool: `CacheFlush' must "
+					"be greater than 0.\n");
+			ERROR ("rrdtool: `CacheFlush' must "
 					"be greater than 0.\n");
 			return (1);
 		}
@@ -1213,6 +1217,8 @@ static int rrd_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "rrdtool: `RRARows' must "
 					"be greater than 0.\n");
+			ERROR ("rrdtool: `RRARows' must "
+					"be greater than 0.\n");
 			return (1);
 		}
 		rrarows = tmp;
@@ -1239,6 +1245,7 @@ static int rrd_config (const char *key, const char *value)
 			if (tmp_alloc == NULL)
 			{
 				fprintf (stderr, "rrdtool: realloc failed.\n");
+				ERROR ("rrdtool: realloc failed.\n");
 				free (value_copy);
 				return (1);
 			}
@@ -1261,6 +1268,8 @@ static int rrd_config (const char *key, const char *value)
 		if ((tmp < 0.0) || (tmp >= 1.0))
 		{
 			fprintf (stderr, "rrdtool: `XFF' must "
+					"be in the range 0 to 1 (exclusive).");
+			ERROR ("rrdtool: `XFF' must "
 					"be in the range 0 to 1 (exclusive).");
 			return (1);
 		}
