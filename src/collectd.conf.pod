@@ -2787,6 +2787,42 @@ Example:
 
 =over 4
 
+=item B<replace>
+
+Replaces parts of the identifier using regular expressions.
+
+Available options:
+
+=over 4
+
+=item B<Host> I<Regex> I<Replacement>
+
+=item B<Plugin> I<Regex> I<Replacement>
+
+=item B<PluginInstance> I<Regex> I<Replacement>
+
+=item B<TypeInstance> I<Regex> I<Replacement>
+
+Match the appropriate field with the given regular expression I<Regex>. If the
+regular expression matches, that part that matches is replaced with
+I<Replacement>. If multiple places of the input buffer match a given regular
+expression, only the first occurrence will be replaced.
+
+You can specify each option multiple times to use multiple regular expressions
+one after another.
+
+=back
+
+Example:
+
+ <Target "replace">
+   # Replace "example.net" with "example.com"
+   Host "\\<example.net\\>" "example.com"
+ 
+   # Strip "www." from hostnames
+   Host "\\<www\\." ""
+ </Target>
+
 =item B<set>
 
 Sets part of the identifier of a value to a given string.
