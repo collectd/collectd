@@ -128,7 +128,7 @@ char *subst_string (char *buf, size_t buflen, const char *string,
 		strncpy (buf, temp, buflen);
 	}
 
-	if (i >= 100)
+	if (i >= buflen)
 	{
 		WARNING ("subst_string: Loop exited after %zu iterations: "
 				"string = %s; needle = %s; replacement = %s;",
