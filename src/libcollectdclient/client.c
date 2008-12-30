@@ -363,7 +363,9 @@ static int lcc_open_unixsocket (lcc_connection_t *c, const char *path) /* {{{ */
   assert (c->fh == NULL);
   assert (path != NULL);
 
-  fd = socket (PF_UNIX, SOCK_STREAM, /* protocol = */ 0);
+  /* Don't use PF_UNIX here, because it's broken on Mac OS X (10.4, possibly
+   * others). */
+  fd = socket (AF_UNIX, SOCK_STREAM, /* protocol = */ 0);
   if (fd < 0)
   {
     lcc_set_errno (c, errno);
