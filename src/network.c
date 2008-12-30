@@ -178,7 +178,6 @@ static char         send_buffer[BUFF_SIZE];
 static char        *send_buffer_ptr;
 static int          send_buffer_fill;
 static value_list_t send_buffer_vl = VALUE_LIST_STATIC;
-static char         send_buffer_type[DATA_MAX_NAME_LEN];
 static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static c_avl_tree_t      *cache_tree = NULL;
@@ -1393,7 +1392,7 @@ static void network_send_buffer (const char *buffer, int buffer_len)
 } /* void network_send_buffer */
 
 static int add_to_buffer (char *buffer, int buffer_size,
-		value_list_t *vl_def, char *type_def,
+		value_list_t *vl_def,
 		const data_set_t *ds, const value_list_t *vl)
 {
 	char *buffer_orig = buffer;
@@ -1439,12 +1438,12 @@ static int add_to_buffer (char *buffer, int buffer_size,
 		sstrncpy (vl_def->plugin_instance, vl->plugin_instance, sizeof (vl_def->plugin_instance));
 	}
 
-	if (strcmp (type_def, vl->type) != 0)
+	if (strcmp (vl_def->type, vl->type) != 0)
 	{
 		if (write_part_string (&buffer, &buffer_size, TYPE_TYPE,
 					vl->type, strlen (vl->type)) != 0)
 			return (-1);
-		sstrncpy (type_def, vl->type, sizeof (type_def));
+		sstrncpy (vl_def->type, ds->type, sizeof (vl_def->type));
 	}
 
 	if (strcmp (vl_def->type_instance, vl->type_instance) != 0)
@@ -1470,8 +1469,7 @@ static void flush_buffer (void)
 	network_send_buffer (send_buffer, send_buffer_fill);
 	send_buffer_ptr  = send_buffer;
 	send_buffer_fill = 0;
-	memset (&send_buffer_vl, '\0', sizeof (send_buffer_vl));
-	memset (send_buffer_type, '\0', sizeof (send_buffer_type));
+	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 }
 
 static int network_write (const data_set_t *ds, const value_list_t *vl)
@@ -1490,7 +1488,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl)
 
 	status = add_to_buffer (send_buffer_ptr,
 			sizeof (send_buffer) - send_buffer_fill,
-			&send_buffer_vl, send_buffer_type,
+			&send_buffer_vl,
 			ds, vl);
 	if (status >= 0)
 	{
@@ -1504,7 +1502,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl)
 
 		status = add_to_buffer (send_buffer_ptr,
 				sizeof (send_buffer) - send_buffer_fill,
-				&send_buffer_vl, send_buffer_type,
+				&send_buffer_vl,
 				ds, vl);
 
 		if (status >= 0)
@@ -1726,8 +1724,7 @@ static int network_init (void)
 
 	send_buffer_ptr  = send_buffer;
 	send_buffer_fill = 0;
-	memset (&send_buffer_vl, '\0', sizeof (send_buffer_vl));
-	memset (send_buffer_type, '\0', sizeof (send_buffer_type));
+	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 
 	cache_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 	cache_flush_last = time (NULL);
