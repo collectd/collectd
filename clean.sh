@@ -43,4 +43,8 @@ true \
 && rm -f src/libping/config.h.in \
 && rm -f src/libping/Makefile \
 && rm -f src/libping/Makefile.in \
-&& rm -f src/libping/stamp-h2
+&& rm -f src/libping/stamp-h2 \
+&& rm -f -r src/libcollectdclient/.libs \
+&& rm -f src/libcollectdclient/*.o \
+&& rm -f src/libcollectdclient/*.la \
+&& rm -f src/libcollectdclient/*.lo
