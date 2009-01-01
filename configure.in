@@ -2243,6 +2243,10 @@ then
 		[with_libpq="yes"],
 		[with_libpq="no (symbol 'PQconnectdb' not found)"])
 
+	AC_CHECK_LIB(pq, PQserverVersion,
+		[with_libpq="yes"],
+		[with_libpq="no (symbol 'PQserverVersion' not found)"])
+
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_libpq" = "xyes"
