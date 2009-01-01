@@ -570,6 +570,15 @@ collectd_LDADD += "-dlopen" onewire.la
 collectd_DEPENDENCIES += onewire.la
 endif
 
+if BUILD_PLUGIN_OPENVPN
+pkglib_LTLIBRARIES += openvpn.la
+openvpn_la_SOURCES = openvpn.c
+openvpn_la_CFLAGS = $(AM_CFLAGS)
+openvpn_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" openvpn.la
+collectd_DEPENDENCIES += openvpn.la
+endif
+
 if BUILD_PLUGIN_ORACLE
 pkglib_LTLIBRARIES += oracle.la
 oracle_la_SOURCES = oracle.c

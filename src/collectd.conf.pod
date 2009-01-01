@@ -1368,6 +1368,32 @@ short: If it works for you: Great! But keep in mind that the config I<might>
 change, though this is unlikely. Oh, and if you want to help improving this
 plugin, just send a short notice to the mailing list. ThanksE<nbsp>:)
 
+=head2 Plugin C<openvpn>
+
+The OpenVPN plugin reads a status file maintained by OpenVPN and gathers
+traffic statistics about connected clients.
+
+To set up OpenVPN to write to the status file periodically, use the
+B<--status> option of OpenVPN. Since OpenVPN can write two different formats,
+you need to set the required format, too. This is done by setting
+B<--status-version> to B<2>.
+
+So, in a nutshell you need:
+
+  openvpn $OTHER_OPTIONS \
+    --status "/var/run/openvpn-status" 10 \
+    --status-version 2
+
+Available options:
+
+=over 4
+
+=item B<StatusFile> I<File>
+
+Specifies the location of the status file.
+
+=back
+
 =head2 Plugin C<oracle>
 
 The "oracle" plugin uses the Oracle® Call Interface (OCI) to connect to an

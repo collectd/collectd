@@ -64,6 +64,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 @BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 @BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
+@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 @BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 @BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
 @BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
