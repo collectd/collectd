@@ -80,3 +80,8 @@ snmp-data.conf
 data that is defined in the IF-MIB, e. g. octet or packet counters, UPS-MIB and
 whatever people have send in. If you have some more definitions please send
 them in, so others can profit from it.
+
+solaris-smf
+-----------
+  Manifest file for the Solaris SMF system and detailed information on how to
+register collectd as a service with this system.
