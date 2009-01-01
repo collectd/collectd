@@ -1363,8 +1363,8 @@ controller, but as soon as you throw in a couple more senors and maybe a hub
 or two, reading all values will take more than ten seconds (the default
 interval). We will probably add some separate thread for reading the sensors
 and some cache or something like that, but it's not done yet. We will try to
-maintain backwards compatibility in the future, but we can't probmise. So in
-short: If it works for you: Great! But kaap in mind that the config I<might>
+maintain backwards compatibility in the future, but we can't promise. So in
+short: If it works for you: Great! But keep in mind that the config I<might>
 change, though this is unlikely. Oh, and if you want to help improving this
 plugin, just send a short notice to the mailing list. ThanksE<nbsp>:)
 
