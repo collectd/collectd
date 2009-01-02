@@ -276,6 +276,9 @@ static void stop_threads (void)
 {
 	int i;
 
+	if (read_threads == NULL)
+		return;
+
 	pthread_mutex_lock (&read_lock);
 	read_loop = 0;
 	DEBUG ("plugin: stop_threads: Signalling `read_cond'");
@@ -635,7 +638,8 @@ void plugin_init_all (void)
 		int num;
 		rt = global_option_get ("ReadThreads");
 		num = atoi (rt);
-		start_threads ((num > 0) ? num : 5);
+		if (num != -1)
+			start_threads ((num > 0) ? num : 5);
 	}
 } /* void plugin_init_all */
 
@@ -677,6 +681,32 @@ void plugin_read_all (void)
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 } /* void plugin_read_all */
+
+int plugin_read_all_once (void)
+{
+	llentry_t   *le;
+	read_func_t *rf;
+	int status;
+
+	if (list_read == NULL)
+		return (0);
+
+	for (le = llist_head (list_read);
+	     le != NULL;
+	     le = le->next)
+	{
+		rf = (read_func_t *) le->value;
+		status = rf->callback ();
+		if (status != 0)
+		{
+			NOTICE ("read-function of plugin `%s' failed.",
+				le->key);
+			return status;
+		}
+	}
+
+	return (0);
+} /* void plugin_read_all_once */
 
 int plugin_write (const char *plugin, /* {{{ */
 		const data_set_t *ds, const value_list_t *vl)
