@@ -1,3 +1,25 @@
+2009-01-02, Version 4.4.5
+	* build system: Check for `mysql.h' and `mysql/mysql.h', since the
+	  file may be in both locations, especially when the database was
+	  installed in a non-standard path. Thanks to Dusty Doris for
+	  reporting this.
+	* build system: Handle the _POSIX_PTHREAD_SEMANTICS defined, needed by
+	  Solaris, in the configure script automatically.
+	* collectd.conf(5): Various fixes and clarifications.
+	* apcups plugin: Include "collectd.h" before <stdlib.h>. This solves
+	  portability problems, especially for Solaris.
+	* dns plugin: Fix a portability problem with NetBSD.
+	* network plugin: Fix the handling of `type' in the network protocol.
+	  Due to a programming mistake, only 4 or 8 bytes would be copied to a
+	  much larger buffer. This caused the `type' to be transferred much
+	  more often than necessary. In some cases, e. g. the `cpu' and
+	  `cpufreq' plugins being used at the same time, data may be corrupted
+	  in those files. Thanks to Bruno Prémont for debugging and reporting
+	  this issue.
+	* unixsock plugin: Make sure the initialization function is run only
+	  once. This resolves a file descriptor leak under systems which run
+	  the initialization more than once, such as Solaris.
+
 2008-10-16, Version 4.4.4
 	* build system: Change `--enable-<plugin>' to abort with an error if
 	  dependencies are not met. Thanks to Bruno Prémont for the patch.
@@ -54,7 +76,7 @@
 	  daemon.
 	* perl plugin: Fail noisily, but don't shutdown the daemon, if
 	  initialization has errors. An issue with Perl 5.10 has been fixed.
-	* teamspeak2 plugin: Fixed an out of bounce array access. Thanks to
+	* teamspeak2 plugin: Fixed an out of bound array access. Thanks to
 	  René Rebe and Siegmund Gorr for reporting this.
 
 2008-05-06, Version 4.4.0
