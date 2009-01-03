@@ -2794,7 +2794,28 @@ positive infinity.
 =item B<Invert> B<true>|B<false>
 
 Inverts the selection. If the B<Min> and B<Max> settings result in a match,
-no-match is returned and vice versa.
+no-match is returned and vice versa. Please note that the B<Invert> setting
+only effects how B<Min> and B<Max> are applied to a specific value. Especially
+the B<DataSource> and B<Satisfy> settings (see below) are not inverted.
+
+=item B<DataSource> I<DSName> [I<DSName> ...]
+
+Select one or more of the data sources. If no data source is configured, all
+data sources will be checked. If the type handled by the match does not have a
+data source of the specified name(s), this will always result in no match
+(independent of the B<Invert> setting).
+
+=item B<Satisfy> B<Any>|B<All>
+
+Specifies how checking with several data sources is performed. If set to
+B<Any>, the match succeeds if one of the data sources is in the configured
+range. If set to B<All> the match only succeeds if all data sources are within
+the configured range. Default is B<All>.
+
+Usually B<All> is used for positive matches, B<Any> is used for negative
+matches. This means that with B<All> you usually check that all values are in a
+"good" range, while with B<Any> you check if any value is within a "bad" range
+(or outside the "good" range).
 
 =back
 
@@ -2802,9 +2823,19 @@ Either B<Min> or B<Max>, but not both, may be unset.
 
 Example:
 
- # Match all values smaller than or equal to 100.
+ # Match all values smaller than or equal to 100. Matches only if all data
+ # sources are below 100.
  <Match "value">
    Max 100
+   Satisfy "All"
+ </Match>
+ 
+ # Match if the value of any data source is outside the range of 0 - 100.
+ <Match "value">
+   Min   0
+   Max 100
+   Invert true
+   Satisfy "Any"
  </Match>
 
 =back

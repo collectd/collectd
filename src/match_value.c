@@ -25,8 +25,12 @@
  */
 
 #include "collectd.h"
+#include "common.h"
 #include "utils_cache.h"
 #include "filter_chain.h"
+
+#define SATISFY_ALL 0
+#define SATISFY_ANY 1
 
 /*
  * private data types
@@ -38,6 +42,10 @@ struct mv_match_s
   gauge_t min;
   gauge_t max;
   int invert;
+  int satisfy;
+
+  char **data_sources;
+  size_t data_sources_num;
 };
 
 /*
@@ -50,6 +58,92 @@ static void mv_free_match (mv_match_t *m) /* {{{ */
 
   free (m);
 } /* }}} void mv_free_match */
+
+static int mv_config_add_satisfy (mv_match_t *m, /* {{{ */
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    ERROR ("`value' match: `%s' needs exactly one string argument.",
+        ci->key);
+    return (-1);
+  }
+
+  if (strcasecmp ("All", ci->values[0].value.string) == 0)
+    m->satisfy = SATISFY_ALL;
+  else if (strcasecmp ("Any", ci->values[0].value.string) == 0)
+    m->satisfy = SATISFY_ANY;
+  else
+  {
+    ERROR ("`value' match: Passing `%s' to the `%s' option is invalid. "
+        "The argument must either be `All' or `Any'.",
+        ci->values[0].value.string, ci->key);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int mv_config_add_satisfy */
+
+static int mv_config_add_data_source (mv_match_t *m, /* {{{ */
+    oconfig_item_t *ci)
+{
+  size_t new_data_sources_num;
+  char **temp;
+  int i;
+
+  /* Check number of arbuments. */
+  if (ci->values_num < 1)
+  {
+    ERROR ("`value' match: `%s' needs at least one argument.",
+        ci->key);
+    return (-1);
+  }
+
+  /* Check type of arguments */
+  for (i = 0; i < ci->values_num; i++)
+  {
+    if (ci->values[i].type == OCONFIG_TYPE_STRING)
+      continue;
+
+    ERROR ("`value' match: `%s' accepts only string arguments "
+        "(argument %i is a %s).",
+        ci->key, i + 1,
+        (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
+        ? "truth value" : "number");
+    return (-1);
+  }
+
+  /* Allocate space for the char pointers */
+  new_data_sources_num = m->data_sources_num + ((size_t) ci->values_num);
+  temp = (char **) realloc (m->data_sources,
+      new_data_sources_num * sizeof (char *));
+  if (temp == NULL)
+  {
+    ERROR ("`value' match: realloc failed.");
+    return (-1);
+  }
+  m->data_sources = temp;
+
+  /* Copy the strings, allocating memory as needed. */
+  for (i = 0; i < ci->values_num; i++)
+  {
+    size_t j;
+
+    /* If we get here, there better be memory for us to write to. */
+    assert (m->data_sources_num < new_data_sources_num);
+
+    j = m->data_sources_num;
+    m->data_sources[j] = sstrdup (ci->values[i].value.string);
+    if (m->data_sources[j] == NULL)
+    {
+      ERROR ("`value' match: sstrdup failed.");
+      continue;
+    }
+    m->data_sources_num++;
+  }
+
+  return (0);
+} /* }}} int mv_config_add_data_source */
 
 static int mv_config_add_gauge (gauge_t *ret_value, /* {{{ */
     oconfig_item_t *ci)
@@ -103,6 +197,9 @@ static int mv_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   m->min = NAN;
   m->max = NAN;
   m->invert = 0;
+  m->satisfy = SATISFY_ALL;
+  m->data_sources = NULL;
+  m->data_sources_num = 0;
 
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -115,6 +212,10 @@ static int mv_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
       status = mv_config_add_gauge (&m->max, child);
     else if (strcasecmp ("Invert", child->key) == 0)
       status = mv_config_add_boolean (&m->invert, child);
+    else if (strcasecmp ("Satisfy", child->key) == 0)
+      status = mv_config_add_satisfy (m, child);
+    else if (strcasecmp ("DataSource", child->key) == 0)
+      status = mv_config_add_data_source (m, child);
     else
     {
       ERROR ("`value' match: The `%s' configuration option is not "
@@ -177,28 +278,57 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  status = FC_MATCH_MATCHES;
+  status = FC_MATCH_NO_MATCH;
+
   for (i = 0; i < ds->ds_num; i++)
   {
+    int value_matches = 0;
+
+    /* Check if this data source is relevant. */
+    if (m->data_sources != NULL)
+    {
+      size_t j;
+
+      for (j = 0; j < m->data_sources_num; j++)
+        if (strcasecmp (ds->ds[i].name, m->data_sources[j]) == 0)
+          break;
+
+      /* No match, ignore this data source. */
+      if (j >=  m->data_sources_num)
+        continue;
+    }
+
     DEBUG ("`value' match: current = %g; min = %g; max = %g; invert = %s;",
         values[i], m->min, m->max,
         m->invert ? "true" : "false");
 
     if ((!isnan (m->min) && (values[i] < m->min))
         || (!isnan (m->max) && (values[i] > m->max)))
+      value_matches = 0;
+    else
+      value_matches = 1;
+
+    if (m->invert)
+    {
+      if (value_matches)
+        value_matches = 0;
+      else
+        value_matches = 1;
+    }
+
+    if (value_matches != 0)
+    {
+      status = FC_MATCH_MATCHES;
+      if (m->satisfy == SATISFY_ANY)
+        break;
+    }
+    else if (value_matches == 0)
     {
       status = FC_MATCH_NO_MATCH;
-      break;
+      if (m->satisfy == SATISFY_ALL)
+        break;
     }
-  }
-
-  if (m->invert)
-  {
-    if (status == FC_MATCH_MATCHES)
-      status = FC_MATCH_NO_MATCH;
-    else
-      status = FC_MATCH_MATCHES;
-  }
+  } /* for (i = 0; i < ds->ds_num; i++) */
 
   free (values);
   return (status);
