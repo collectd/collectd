@@ -25,7 +25,10 @@
 #include "common.h"
 #include "plugin.h"
 
-static char *status_file = "/etc/openvpn/openvpn-status.log";
+#define DEFAULT_STATUS_FILE "/etc/openvpn/openvpn-status.log"
+#define CLIENT_LIST_PREFIX  "CLIENT_LIST,"
+
+static char *status_file = NULL;
 
 static const char *config_keys[] =
 {
@@ -68,7 +71,7 @@ static void openvpn_submit (char *name, counter_t rx, counter_t tx)
 	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
-	sstrncpy (vl.type_instance, name, sizeof (vl.type_instance));
+	sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
@@ -80,12 +83,13 @@ static int openvpn_read (void)
 	counter_t rx, tx;
 	FILE *fh;
 	char buffer[1024];
-	char *fields[8];
-	const int max_fields = sizeof(fields)/sizeof(fields[0]);
+	char *fields[10];
+	const int max_fields = STATIC_ARRAY_SIZE (fields);
 	int   fields_num;
-	static const char *prefix = "CLIENT_LIST,";
 
-	fh = fopen (status_file, "r");
+	fh = fopen ((status_file != NULL)
+			? status_file
+			: DEFAULT_STATUS_FILE, "r");
 	if (fh == NULL)
 		return (-1);
 
@@ -95,16 +99,16 @@ static int openvpn_read (void)
          */
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		if (strncmp(buffer, prefix, strlen(prefix)) != 0)
-		{
+		if (strncmp (buffer, CLIENT_LIST_PREFIX,
+					strlen (CLIENT_LIST_PREFIX)) != 0)
 			continue;
-		}
 
+		/* The line we're expecting has 8 fields. We ignore all lines
+		 * with more or less fields. */
 		fields_num = openvpn_strsplit (buffer, fields, max_fields);
-		if (fields_num != max_fields)
-		{
+		if (fields_num != 8)
 			continue;
-		}
+
 		name =      fields[1];  /* "Common Name" */
 		rx = atoll (fields[4]); /* "Bytes Received */
 		tx = atoll (fields[5]); /* "Bytes Sent" */
@@ -119,7 +123,8 @@ static int openvpn_config (const char *key, const char *value)
 {
 	if (strcasecmp ("StatusFile", key) == 0)
 	{
-		status_file = strdup(value);
+		sfree (status_file);
+		status_file = sstrdup (value);
 	}
 	else
 	{
