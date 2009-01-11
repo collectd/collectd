@@ -22,6 +22,8 @@
 #ifndef LIBCOLLECTD_COLLECTDCLIENT_H
 #define LIBCOLLECTD_COLLECTDCLIENT_H 1
 
+#include "lcc_features.h"
+
 /*
  * Includes (for data types)
  */
@@ -40,6 +42,8 @@
  */
 #define LCC_TYPE_COUNTER 0
 #define LCC_TYPE_GAUGE   1
+
+LCC_BEGIN_DECLS
 
 typedef uint64_t counter_t;
 typedef double gauge_t;
@@ -103,6 +107,8 @@ int lcc_identifier_to_string (lcc_connection_t *c,
     char *string, size_t string_size, const lcc_identifier_t *ident);
 int lcc_string_to_identifier (lcc_connection_t *c,
     lcc_identifier_t *ident, const char *string);
+
+LCC_END_DECLS
 
 /* vim: set sw=2 sts=2 et : */
 #endif /* LIBCOLLECTD_COLLECTDCLIENT_H */

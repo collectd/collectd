@@ -22,6 +22,14 @@
 #ifndef LIBCOLLECTD_LCC_FEATURES_H
 #define LIBCOLLECTD_LCC_FEATURES_H 1
 
+#ifdef __cplusplus
+# define LCC_BEGIN_DECLS extern "C" {
+# define LCC_END_DECLS   }
+#else
+# define LCC_BEGIN_DECLS
+# define LCC_END_DECLS
+#endif
+
 #define LCC_API_VERSION 0
 
 #define LCC_VERSION_MAJOR @LCC_VERSION_MAJOR@
@@ -38,11 +46,15 @@
 #define LCC_VERSION \
 	LCC_VERSION_ENCODE(LCC_VERSION_MAJOR, LCC_VERSION_MINOR, LCC_VERSION_PATCH)
 
+LCC_BEGIN_DECLS
+
 unsigned int lcc_version (void);
 
 const char *lcc_version_string (void);
 
 const char *lcc_version_extra (void);
+
+LCC_END_DECLS
 
 #endif /* ! LIBCOLLECTD_LCC_FEATURES_H */
 
