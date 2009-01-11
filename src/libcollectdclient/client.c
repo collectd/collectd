@@ -52,6 +52,8 @@
 # include "config.h"
 #endif
 
+#include "lcc_features.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -533,6 +535,21 @@ static int lcc_open_socket (lcc_connection_t *c, const char *addr) /* {{{ */
 /*
  * Public functions
  */
+unsigned int lcc_version (void) /* {{{ */
+{
+  return (LCC_VERSION);
+} /* }}} unsigned int lcc_version */
+
+const char *lcc_version_string (void) /* {{{ */
+{
+  return (LCC_VERSION_STRING);
+} /* }}} const char *lcc_version_string */
+
+const char *lcc_version_extra (void) /* {{{ */
+{
+  return (LCC_VERSION_EXTRA);
+} /* }}} const char *lcc_version_extra */
+
 int lcc_connect (const char *address, lcc_connection_t **ret_con) /* {{{ */
 {
   lcc_connection_t *c;

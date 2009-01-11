@@ -32,7 +32,6 @@
 /*
  * Defines
  */
-#define LCC_VERSION 0
 #define LCC_NAME_LEN 64
 #define LCC_DEFAULT_PORT "25826"
 

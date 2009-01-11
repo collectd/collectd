@@ -3075,6 +3075,23 @@ fi
 AC_SUBST(PERL_BINDINGS)
 AC_SUBST(PERL_BINDINGS_OPTIONS)
 
+dnl libcollectdclient
+LCC_VERSION_MAJOR=`echo $PACKAGE_VERSION | cut -d'.' -f1`
+LCC_VERSION_MINOR=`echo $PACKAGE_VERSION | cut -d'.' -f2`
+LCC_VERSION_PATCH=`echo $PACKAGE_VERSION | cut -d'.' -f3`
+
+LCC_VERSION_EXTRA=`echo $PACKAGE_VERSION | cut -d'.' -f4-`
+
+LCC_VERSION_STRING="$LCC_VERSION_MAJOR.$LCC_VERSION_MINOR.$LCC_VERSION_PATCH"
+
+AC_SUBST(LCC_VERSION_MAJOR)
+AC_SUBST(LCC_VERSION_MINOR)
+AC_SUBST(LCC_VERSION_PATCH)
+AC_SUBST(LCC_VERSION_EXTRA)
+AC_SUBST(LCC_VERSION_STRING)
+
+AC_CONFIG_FILES(src/libcollectdclient/lcc_features.h)
+
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
 if test "x$with_librrd" = "xyes" \
