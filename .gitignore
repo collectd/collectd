@@ -50,6 +50,10 @@ src/collectd*.1
 src/collectd*.5
 src/types.db.5
 src/config.h.in~
+src/libcollectdclient/.libs
+src/libcollectdclient/*.la
+src/libcollectdclient/*.lo
+src/libcollectdclient/lcc_features.h
 src/libiptc/.libs
 src/libiptc/*.la
 src/libiptc/*.lo
