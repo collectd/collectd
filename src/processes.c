@@ -118,7 +118,9 @@ typedef struct procstat_entry_s
 
 	unsigned long num_proc;
 	unsigned long num_lwp;
+	unsigned long vmem_size;
 	unsigned long vmem_rss;
+	unsigned long stack_size;
 
 	unsigned long vmem_minflt;
 	unsigned long vmem_majflt;
@@ -143,7 +145,9 @@ typedef struct procstat
 
 	unsigned long num_proc;
 	unsigned long num_lwp;
+	unsigned long vmem_size;
 	unsigned long vmem_rss;
+	unsigned long stack_size;
 
 	unsigned long vmem_minflt_counter;
 	unsigned long vmem_majflt_counter;
@@ -315,13 +319,17 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		}
 
 		pse->age = 0;
-		pse->num_proc = entry->num_proc;
-		pse->num_lwp  = entry->num_lwp;
-		pse->vmem_rss = entry->vmem_rss;
+		pse->num_proc   = entry->num_proc;
+		pse->num_lwp    = entry->num_lwp;
+		pse->vmem_size  = entry->vmem_size;
+		pse->vmem_rss   = entry->vmem_rss;
+		pse->stack_size = entry->stack_size;
 
-		ps->num_proc += pse->num_proc;
-		ps->num_lwp  += pse->num_lwp;
-		ps->vmem_rss += pse->vmem_rss;
+		ps->num_proc   += pse->num_proc;
+		ps->num_lwp    += pse->num_lwp;
+		ps->vmem_size  += pse->vmem_size;
+		ps->vmem_rss   += pse->vmem_rss;
+		ps->stack_size += pse->stack_size;
 
 		if ((entry->vmem_minflt_counter == 0)
 				&& (entry->vmem_majflt_counter == 0))
@@ -410,7 +418,9 @@ static void ps_list_reset (void)
 	{
 		ps->num_proc    = 0;
 		ps->num_lwp     = 0;
+		ps->vmem_size   = 0;
 		ps->vmem_rss    = 0;
+		ps->stack_size  = 0;
 
 		pse_prev = NULL;
 		pse = ps->instances;
@@ -562,8 +572,18 @@ static void ps_submit_proc_list (procstat_t *ps)
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
+	sstrncpy (vl.type, "ps_vm", sizeof (vl.type));
+	vl.values[0].gauge = ps->vmem_size;
+	vl.values_len = 1;
+	plugin_dispatch_values (&vl);
+
 	sstrncpy (vl.type, "ps_rss", sizeof (vl.type));
 	vl.values[0].gauge = ps->vmem_rss;
+	vl.values_len = 1;
+	plugin_dispatch_values (&vl);
+
+	sstrncpy (vl.type, "ps_stacksize", sizeof (vl.type));
+	vl.values[0].gauge = ps->stack_size;
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
 
@@ -672,7 +692,9 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	long long unsigned cpu_user_counter;
 	long long unsigned cpu_system_counter;
+	long long unsigned vmem_size;
 	long long unsigned vmem_rss;
+	long long unsigned stack_size;
 
 	memset (ps, 0, sizeof (procstat_t));
 
@@ -739,10 +761,20 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	cpu_user_counter   = atoll (fields[13]);
 	cpu_system_counter = atoll (fields[14]);
-	vmem_rss = atoll (fields[23]);
+	vmem_size          = atoll (fields[22]);
+	vmem_rss           = atoll (fields[23]);
 	ps->vmem_minflt_counter = atol (fields[9]);
 	ps->vmem_majflt_counter = atol (fields[11]);
-	
+
+	{
+		unsigned long long stack_start = atoll (fields[27]);
+		unsigned long long stack_ptr   = atoll (fields[28]);
+
+		stack_size = (stack_start > stack_ptr)
+			? stack_start - stack_ptr
+			: stack_ptr - stack_start;
+	}
+
 	/* Convert jiffies to useconds */
 	cpu_user_counter   = cpu_user_counter   * 1000000 / CONFIG_HZ;
 	cpu_system_counter = cpu_system_counter * 1000000 / CONFIG_HZ;
@@ -750,7 +782,9 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	ps->cpu_user_counter = (unsigned long) cpu_user_counter;
 	ps->cpu_system_counter = (unsigned long) cpu_system_counter;
+	ps->vmem_size = (unsigned long) vmem_size;
 	ps->vmem_rss = (unsigned long) vmem_rss;
+	ps->stack_size = (unsigned long) stack_size;
 
 	/* success */
 	return (0);
@@ -1198,9 +1232,11 @@ static int ps_read (void)
 		pse.id       = pid;
 		pse.age      = 0;
 
-		pse.num_proc = ps.num_proc;
-		pse.num_lwp  = ps.num_lwp;
-		pse.vmem_rss = ps.vmem_rss;
+		pse.num_proc   = ps.num_proc;
+		pse.num_lwp    = ps.num_lwp;
+		pse.vmem_size  = ps.vmem_size;
+		pse.vmem_rss   = ps.vmem_rss;
+		pse.stack_size = ps.stack_size;
 
 		pse.vmem_minflt = 0;
 		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
