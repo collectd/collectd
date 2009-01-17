@@ -682,14 +682,19 @@ void plugin_read_all (void)
 	pthread_mutex_unlock (&read_lock);
 } /* void plugin_read_all */
 
+/* Read function called when the `-T' command line argument is given. */
 int plugin_read_all_once (void)
 {
 	llentry_t   *le;
 	read_func_t *rf;
 	int status;
+	int return_status = 0;
 
 	if (list_read == NULL)
+	{
+		NOTICE ("No read-functions are registered.");
 		return (0);
+	}
 
 	for (le = llist_head (list_read);
 	     le != NULL;
@@ -701,12 +706,12 @@ int plugin_read_all_once (void)
 		{
 			NOTICE ("read-function of plugin `%s' failed.",
 				le->key);
-			return status;
+			return_status = -1;
 		}
 	}
 
-	return (0);
-} /* void plugin_read_all_once */
+	return (return_status);
+} /* int plugin_read_all_once */
 
 int plugin_write (const char *plugin, /* {{{ */
 		const data_set_t *ds, const value_list_t *vl)

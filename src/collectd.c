@@ -406,6 +406,7 @@ int main (int argc, char **argv)
 	pid_t pid;
 	int daemonize    = 1;
 #endif
+	int exit_status = 0;
 
 	/* read options */
 	while (1)
@@ -589,16 +590,20 @@ int main (int argc, char **argv)
 	 * run the actual loops
 	 */
 	do_init ();
+
 	if (test_readall)
 	{
-		if (plugin_read_all_once ())
-			return (1);
+		if (plugin_read_all_once () != 0)
+			exit_status = 1;
 	}
 	else
+	{
+		INFO ("Initialization complete, entering read-loop.");
 		do_loop ();
+	}
 
 	/* close syslog */
-	INFO ("Exiting normally");
+	INFO ("Exiting normally.");
 
 	do_shutdown ();
 
@@ -607,5 +612,5 @@ int main (int argc, char **argv)
 		pidfile_remove ();
 #endif /* COLLECT_DAEMON */
 
-	return (0);
+	return (exit_status);
 } /* int main */
