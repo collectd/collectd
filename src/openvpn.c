@@ -30,6 +30,13 @@
 
 static char *status_file = NULL;
 
+/* For compression stats we need to convert these counters to a rate. */
+static counter_t pre_compress_old    = 0;
+static counter_t post_compress_old   = 0;
+static counter_t pre_decompress_old  = 0;
+static counter_t post_decompress_old = 0;
+static int compression_counter_valid = 0;
+
 static const char *config_keys[] =
 {
 	"StatusFile"
@@ -77,15 +84,40 @@ static void openvpn_submit (char *name, counter_t rx, counter_t tx)
 	plugin_dispatch_values (&vl);
 } /* void openvpn_submit */
 
+static void compression_submit (char *type_instance, gauge_t ratio)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = ratio;
+
+	vl.values = values;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
+	vl.time = time (NULL);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
+	sstrncpy (vl.type, "compression_ratio", sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
+} /* void compression_submit */
+
 static int openvpn_read (void)
 {
-	char *name;
-	counter_t rx, tx;
 	FILE *fh;
 	char buffer[1024];
 	char *fields[10];
 	const int max_fields = STATIC_ARRAY_SIZE (fields);
 	int   fields_num;
+
+	counter_t pre_compress_new    = 0;
+	counter_t post_compress_new   = 0;
+	counter_t pre_decompress_new  = 0;
+	counter_t post_decompress_new = 0;
+
+	/* Clear the least significant four bits, just to make sure all four
+	 * counters above are considered to be invalid. */
+	compression_counter_valid &= ~0x0f;
 
 	fh = fopen ((status_file != NULL)
 			? status_file
@@ -99,22 +131,86 @@ static int openvpn_read (void)
          */
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		if (strncmp (buffer, CLIENT_LIST_PREFIX,
-					strlen (CLIENT_LIST_PREFIX)) != 0)
-			continue;
-
-		/* The line we're expecting has 8 fields. We ignore all lines
-		 * with more or less fields. */
 		fields_num = openvpn_strsplit (buffer, fields, max_fields);
-		if (fields_num != 8)
+
+		/* Expect at least ``key,value''. */
+		if (fields_num < 2)
 			continue;
 
-		name =      fields[1];  /* "Common Name" */
-		rx = atoll (fields[4]); /* "Bytes Received */
-		tx = atoll (fields[5]); /* "Bytes Sent" */
-		openvpn_submit (name, rx, tx);
+		if (strcmp (fields[0], "CLIENT_LIST") == 0)
+		{
+			char *name;
+			counter_t rx;
+			counter_t tx;
+
+			/* The line we're expecting has 8 fields. We ignore all lines
+			 * with more or less fields. */
+			if (fields_num != 8)
+				continue;
+
+			name =      fields[1];  /* "Common Name" */
+			rx = atoll (fields[4]); /* "Bytes Received */
+			tx = atoll (fields[5]); /* "Bytes Sent" */
+			openvpn_submit (name, rx, tx);
+		}
+		else if (strcmp (fields[0], "pre-compress") == 0)
+		{
+			pre_compress_new = atoll (fields[1]);
+			compression_counter_valid |= 0x01;
+		}
+		else if (strcmp (fields[0], "post-compress") == 0)
+		{
+			post_compress_new = atoll (fields[1]);
+			compression_counter_valid |= 0x02;
+		}
+		else if (strcmp (fields[0], "pre-decompress") == 0)
+		{
+			pre_decompress_new = atoll (fields[1]);
+			compression_counter_valid |= 0x04;
+		}
+		else if (strcmp (fields[0], "post-decompress") == 0)
+		{
+			post_decompress_new = atoll (fields[1]);
+			compression_counter_valid |= 0x08;
+		}
 	}
 	fclose (fh);
+
+	/* Check that all four counters are valid, {pre,post}_*_{old,new}. */
+	if ((compression_counter_valid & 0x33) == 0x33)
+	{
+		counter_t pre_diff;
+		counter_t post_diff;
+
+		pre_diff = counter_diff (pre_compress_old, pre_compress_new);
+		post_diff = counter_diff (post_compress_old, post_compress_new);
+
+		/* If we compress, we're sending. */
+		compression_submit ("tx",
+				((gauge_t) post_diff) / ((gauge_t) pre_diff));
+	}
+
+	/* Now check the other found counters. */
+	if ((compression_counter_valid & 0xcc) == 0xcc)
+	{
+		counter_t pre_diff;
+		counter_t post_diff;
+
+		pre_diff = counter_diff (pre_decompress_old, pre_decompress_new);
+		post_diff = counter_diff (post_decompress_old, post_decompress_new);
+
+		/* If we decompress, we're receiving. */
+		compression_submit ("rx",
+				((gauge_t) pre_diff) / ((gauge_t) post_diff));
+	}
+
+	/* Now copy all the new counters to the old counters and move the flags
+	 * up. */
+	pre_compress_old = pre_compress_new;
+	post_compress_old = post_compress_new;
+	pre_decompress_old = pre_decompress_new;
+	post_decompress_old = post_decompress_new;
+	compression_counter_valid = (compression_counter_valid & 0x0f) << 4;
 
 	return (0);
 } /* int openvpn_read */

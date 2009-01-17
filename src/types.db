@@ -7,6 +7,7 @@ bytes			value:GAUGE:0:U
 cache_result		value:COUNTER:0:4294967295
 cache_size		value:GAUGE:0:4294967295
 charge			value:GAUGE:0:U
+compression_ratio	value:GAUGE:0:2
 connections		value:COUNTER:0:U
 counter			value:COUNTER:U:U
 cpufreq			value:GAUGE:0:U
