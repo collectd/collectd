@@ -367,7 +367,7 @@ static int bind_xml_stats_v1(xmlDoc *doc, xmlXPathContext *xpathCtx, xmlNode *st
     xmlXPathFreeObject(xpathObj);
   }
   return 0;
-}
+} /* int bind_xml_stats_v1 */
 
 /* Bind 9.6.x */
 static int bind_xml_stats_v2(xmlDoc *doc, xmlXPathContext *xpathCtx, xmlNode *statsnode)
@@ -562,7 +562,7 @@ static int bind_xml_stats_v2(xmlDoc *doc, xmlXPathContext *xpathCtx, xmlNode *st
     xmlXPathFreeObject(xpathObj);
   }
   return 0;
-}
+} /* int bind_xml_stats_v2 */
 
 static int bind_xml (const char *data)
 {
@@ -571,45 +571,61 @@ static int bind_xml (const char *data)
   xmlXPathObjectPtr xpathObj = NULL;
   int ret = -1;
 
-  doc = xmlParseMemory (data, strlen (data));
-  if (doc == NULL) {
-    ERROR ("bind plugin: xmlParseMemory failed.");
-    goto out;
-  }
+  do
+  {
+    doc = xmlParseMemory (data, strlen (data));
+    if (doc == NULL) {
+      ERROR ("bind plugin: xmlParseMemory failed.");
+      break;
+    }
 
-  if ((xpathCtx = xmlXPathNewContext(doc)) == NULL) {
-    ERROR ("bind plugin: xmlXPathNewContext failed.");
-    goto out;
-  }
-  /* Look for /isc/bind/statistics[@version='2.0'] */
-  if ((xpathObj = xmlXPathEvalExpression(BAD_CAST "/isc[@version='1.0']/bind/statistics[@version='1.0']", xpathCtx)) == NULL) {
-    ERROR("bind plugin: unable to evaluate XPath expression StatsV1");
-    goto out;
-  } else if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr > 0) {
-    /* We have Bind-9.5.x */
-    ret = bind_xml_stats_v1(doc, xpathCtx, xpathObj->nodesetval->nodeTab[0]);
-    goto out;
-  } else {
+    if ((xpathCtx = xmlXPathNewContext(doc)) == NULL) {
+      ERROR ("bind plugin: xmlXPathNewContext failed.");
+      break;
+    }
+
+    /* Look for /isc/bind/statistics[@version='1.0'] */
+    xpathObj = xmlXPathEvalExpression(BAD_CAST "/isc[@version='1.0']/bind/statistics[@version='1.0']", xpathCtx);
+    if (xpathObj == NULL)
+    {
+      ERROR("bind plugin: unable to evaluate XPath expression StatsV1");
+      break;
+    }
+    else if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr > 0)
+    {
+      /* We have Bind-9.5.x */
+      ret = bind_xml_stats_v1(doc, xpathCtx, xpathObj->nodesetval->nodeTab[0]);
+      break;
+    }
+
+    /* Not Bind-9.5.x. Let's clear up and try Bind-9.6.x instead. */
     xmlXPathFreeObject(xpathObj);
     xpathObj = NULL;
-  }
-  if ((xpathObj = xmlXPathEvalExpression(BAD_CAST "/isc[@version='1.0']/bind/statistics[@version='2.0']", xpathCtx)) == NULL) {
-    ERROR("bind plugin: unable to evaluate XPath expression StatsV2");
-    goto out;
-  } else if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr > 0) {
-    /* We have Bind-9.6.x */
-    ret = bind_xml_stats_v2(doc, xpathCtx, xpathObj->nodesetval->nodeTab[0]);
-    goto out;
-  } else {
-    xmlXPathFreeObject(xpathObj);
-    xpathObj = NULL;
-  }
-  ERROR("bind plugin: unable to find statistics in supported version.");
 
-out:
-  xmlXPathFreeObject(xpathObj);
-  xmlXPathFreeContext(xpathCtx);
-  xmlFreeDoc (doc);
+    /* Look for /isc/bind/statistics[@version='2.0'] */
+    xpathObj = xmlXPathEvalExpression(BAD_CAST "/isc[@version='1.0']/bind/statistics[@version='2.0']", xpathCtx);
+    if (xpathObj == NULL)
+    {
+      ERROR("bind plugin: unable to evaluate XPath expression StatsV2");
+      break;
+    }
+    else if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr > 0)
+    {
+      /* We have Bind-9.6.x */
+      ret = bind_xml_stats_v2(doc, xpathCtx, xpathObj->nodesetval->nodeTab[0]);
+      break;
+    }
+
+    ERROR("bind plugin: unable to find statistics in supported version.");
+  } while (0);
+
+  if (xpathObj != NULL)
+    xmlXPathFreeObject(xpathObj);
+  if (xpathCtx != NULL)
+    xmlXPathFreeContext(xpathCtx);
+  if (doc != NULL)
+    xmlFreeDoc (doc);
+
   return (ret);
 } /* int bind_xml */
 
