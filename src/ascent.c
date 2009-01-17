@@ -271,10 +271,12 @@ static int ascent_xml_submit_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
     value = strtod (str_ptr, &end_ptr);
     if (str_ptr == end_ptr)
     {
+      xmlFree(str_ptr);
       ERROR ("ascent plugin: ascent_xml_submit_gauge: strtod failed.");
       return (-1);
     }
   }
+  xmlFree(str_ptr);
 
   return (ascent_submit_gauge (plugin_instance, type, type_instance, value));
 } /* }}} int ascent_xml_submit_gauge */
@@ -300,10 +302,12 @@ static int ascent_xml_read_int (xmlDoc *doc, xmlNode *node, /* {{{ */
     value = strtol (str_ptr, &end_ptr, 0);
     if (str_ptr == end_ptr)
     {
+      xmlFree(str_ptr);
       ERROR ("ascent plugin: ascent_xml_read_int: strtol failed.");
       return (-1);
     }
   }
+  xmlFree(str_ptr);
 
   *ret_value = value;
   return (0);
