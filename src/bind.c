@@ -19,9 +19,26 @@
  *   Bruno Prémont <bonbons at linux-vserver.org>
  **/
 
-#define _ISOC99_SOURCE
-#define _XOPEN_SOURCE
-#define _BSD_SOURCE
+/* Set to C99 and POSIX code */
+#ifndef _ISOC99_SOURCE
+# define _ISOC99_SOURCE
+#endif
+#ifndef _POSIX_SOURCE
+# define _POSIX_SOURCE
+#endif
+#ifndef _POSIX_C_SOURCE
+# define _POSIX_C_SOURCE 200112L
+#endif
+#ifndef _REENTRANT
+# define _REENTRANT
+#endif
+#ifndef _XOPEN_SOURCE
+# define _XOPEN_SOURCE 600
+#endif
+#ifndef _BSD_SOURCE
+# define _BSD_SOURCE
+#endif
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
