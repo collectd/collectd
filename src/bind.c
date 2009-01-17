@@ -51,11 +51,11 @@ static const char *config_keys[] =
 {
   "URL",
   "RRQueriesIn",
-  "Requests"
+  "Requests",
   "QueryResults",
   "Updates",
   "ZoneMaintenance",
-  "Resolver",
+  "Resolver"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
