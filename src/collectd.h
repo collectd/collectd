@@ -255,6 +255,9 @@
 #endif
 
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
+# undef strcpy
+# undef strcat
+# undef strtok
 # pragma GCC poison strcpy strcat strtok
 #endif
 
@@ -266,6 +269,7 @@
  */
 #ifndef DONT_POISON_SPRINTF_YET
 # if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
+#  undef sprintf
 #  pragma GCC poison sprintf
 # endif
 #endif

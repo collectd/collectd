@@ -253,6 +253,7 @@ static void exit_usage (int status)
 			"    -C <file>       Configuration file.\n"
 			"                    Default: "CONFIGFILE"\n"
 			"    -t              Test config and exit.\n"
+			"    -T              Test plugin read and exit.\n"
 			"    -P <file>       PID-file.\n"
 			"                    Default: "PIDFILE"\n"
 #if COLLECT_DAEMON
@@ -398,19 +399,21 @@ int main (int argc, char **argv)
 	struct sigaction sig_pipe_action;
 	char *configfile = CONFIGFILE;
 	int test_config  = 0;
+	int test_readall = 0;
 	const char *basedir;
 #if COLLECT_DAEMON
 	struct sigaction sig_chld_action;
 	pid_t pid;
 	int daemonize    = 1;
 #endif
+	int exit_status = 0;
 
 	/* read options */
 	while (1)
 	{
 		int c;
 
-		c = getopt (argc, argv, "htC:"
+		c = getopt (argc, argv, "htTC:"
 #if COLLECT_DAEMON
 				"fP:"
 #endif
@@ -426,6 +429,13 @@ int main (int argc, char **argv)
 				break;
 			case 't':
 				test_config = 1;
+				break;
+			case 'T':
+				test_readall = 1;
+				global_option_set ("ReadThreads", "-1");
+#if COLLECT_DAEMON
+				daemonize = 0;
+#endif /* COLLECT_DAEMON */
 				break;
 #if COLLECT_DAEMON
 			case 'P':
@@ -580,10 +590,20 @@ int main (int argc, char **argv)
 	 * run the actual loops
 	 */
 	do_init ();
-	do_loop ();
+
+	if (test_readall)
+	{
+		if (plugin_read_all_once () != 0)
+			exit_status = 1;
+	}
+	else
+	{
+		INFO ("Initialization complete, entering read-loop.");
+		do_loop ();
+	}
 
 	/* close syslog */
-	INFO ("Exiting normally");
+	INFO ("Exiting normally.");
 
 	do_shutdown ();
 
@@ -592,5 +612,5 @@ int main (int argc, char **argv)
 		pidfile_remove ();
 #endif /* COLLECT_DAEMON */
 
-	return (0);
+	return (exit_status);
 } /* int main */

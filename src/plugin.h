@@ -181,6 +181,7 @@ int plugin_load (const char *name);
 
 void plugin_init_all (void);
 void plugin_read_all (void);
+int plugin_read_all_once (void);
 void plugin_shutdown_all (void);
 
 /*

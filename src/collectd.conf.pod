@@ -273,6 +273,9 @@ installed and an "cpu governor" (that's a kernel module) is loaded.
 
 Set the directory to store CSV-files under. Per default CSV-files are generated
 beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
+The special strings B<stdout> and B<stderr> can be used to write to the standard
+output and standard error channels, respectively. This, of course, only makes
+much sense when collectd is running in foreground- or non-daemon-mode.
 
 =item B<StoreRates> B<true|false>
 
