@@ -31,6 +31,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
 @BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
 @BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
+@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 @BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 @BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @BUILD_PLUGIN_CSV_TRUE@LoadPlugin csv
@@ -106,6 +107,16 @@ FQDNLookup   true
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#</Plugin>
+
+#<Plugin bind>
+#	URL "http://localhost/"
+#	RRQueriesIn true
+#	Requests true
+#	QueryResults true
+#	Updates true
+#	ZoneMaintenance true
+#	Resolver true
 #</Plugin>
 
 #<Plugin csv>

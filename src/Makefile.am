@@ -153,6 +153,17 @@ collectd_LDADD += "-dlopen" battery.la
 collectd_DEPENDENCIES += battery.la
 endif
 
+if BUILD_PLUGIN_BIND
+pkglib_LTLIBRARIES += bind.la
+bind_la_SOURCES = bind.c
+bind_la_LDFLAGS = -module -avoid-version
+bind_la_CFLAGS = $(AM_CFLAGS) \
+		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+collectd_LDADD += "-dlopen" bind.la
+collectd_DEPENDENCIES += bind.la
+endif
+
 if BUILD_PLUGIN_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c

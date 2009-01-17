@@ -25,6 +25,10 @@ dns_opcode		value:COUNTER:0:65535
 dns_qtype		value:COUNTER:0:65535
 dns_question		value:COUNTER:0:65535
 dns_rcode		value:COUNTER:0:65535
+dns_request		value:COUNTER:0:65535
+dns_resolver		value:COUNTER:0:65535
+dns_update		value:COUNTER:0:65535
+dns_zops		value:COUNTER:0:65535
 email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U
