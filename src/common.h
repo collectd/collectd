@@ -209,4 +209,6 @@ int walk_directory (const char *dir, dirwalk_callback_f callback,
 		void *user_data);
 int read_file_contents (const char *filename, char *buf, int bufsize);
 
+counter_t counter_diff (counter_t old_value, counter_t new_value);
+
 #endif /* COMMON_H */
