@@ -40,6 +40,13 @@
 
 #define STATIC_ARRAY_SIZE(a) (sizeof (a) / sizeof (*(a)))
 
+#define IS_TRUE(s) ((strcasecmp ("true", (s)) == 0) \
+		|| (strcasecmp ("yes", (s)) == 0) \
+		|| (strcasecmp ("on", (s)) == 0))
+#define IS_FALSE(s) ((strcasecmp ("false", (s)) == 0) \
+		|| (strcasecmp ("no", (s)) == 0) \
+		|| (strcasecmp ("off", (s)) == 0))
+
 char *sstrncpy (char *dest, const char *src, size_t n);
 int ssnprintf (char *dest, size_t n, const char *format, ...);
 char *sstrdup(const char *s);
