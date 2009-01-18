@@ -110,13 +110,21 @@ FQDNLookup   true
 #</Plugin>
 
 #<Plugin bind>
-#	URL "http://localhost/"
-#	RRQueriesIn true
+#	URL "http://localhost:8053/"
+#	# Features
 #	Requests true
+#	Rejects true
+#	Responses true
+#	Queries true
+#	RCode true
+#	ZoneStats true
+#	OpCodes true
+#	Resolver true
+#	DNSSEC true
+#	RRQueriesIn true
 #	QueryResults true
 #	Updates true
 #	ZoneMaintenance true
-#	Resolver true
 #</Plugin>
 
 #<Plugin csv>
