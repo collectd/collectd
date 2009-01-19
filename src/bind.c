@@ -380,9 +380,9 @@ static int bind_xml_read_counter (xmlDoc *doc, xmlNode *node,
   xmlFree(str_ptr);
   if (str_ptr == end_ptr || errno)
   {
-    if (errno && value == LLONG_MIN)
+    if (errno && (value < 0))
       ERROR ("bind plugin: bind_xml_read_counter: strtoll failed with underflow.");
-    else if (errno && value == LLONG_MAX)
+    else if (errno && (value > 0))
       ERROR ("bind plugin: bind_xml_read_counter: strtoll failed with overflow.");
     else
       ERROR ("bind plugin: bind_xml_read_counter: strtoll failed.");
