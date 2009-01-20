@@ -475,8 +475,16 @@ static int memcached_read (void) /* {{{ */
 	if ((octets_rx != 0) || (octets_tx != 0))
 		submit_counter2 ("memcached_octets", NULL, octets_rx, octets_tx);
 	
-	if (! isnan (gets) && !isnan (hits))
-		submit_gauge ("percent", "hitratio", (hits / gets) * 100.0);
+	if (!isnan (gets) && !isnan (hits))
+	{
+		gauge_t rate = NAN;
+
+		if (gets != 0.0)
+			rate = 100.0 * hits / gets;
+
+		submit_gauge ("percent", "hitratio", rate);
+	}
+
 	return 0;
 }
 /* }}} */
