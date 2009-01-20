@@ -187,6 +187,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
   ce = cache_alloc (ds->ds_num);
   if (ce == NULL)
   {
+    sfree (key_copy);
     ERROR ("uc_insert: cache_alloc (%i) failed.", ds->ds_num);
     return (-1);
   }
