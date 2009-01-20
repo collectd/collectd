@@ -262,6 +262,7 @@ int uc_check_timeout (void)
       {
 	ERROR ("uc_purge: realloc failed.");
 	c_avl_iterator_destroy (iter);
+	pthread_mutex_unlock (&cache_lock);
 	return (-1);
       }
 
