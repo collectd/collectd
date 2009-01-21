@@ -5,6 +5,8 @@ use warnings;
 
 use vars (qw($ColorCanvas $ColorFullBlue $ColorHalfBlue));
 
+use Collectd::Unixsock;
+
 use Carp (qw(confess cluck));
 use CGI (':cgi');
 use Exporter;
