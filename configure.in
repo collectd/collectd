@@ -2778,6 +2778,7 @@ AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 dependency_error="no"
 plugin_ascent="no"
 plugin_battery="no"
+plugin_bind="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
 plugin_df="no"
@@ -2874,6 +2875,7 @@ fi
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"
 then
 	plugin_ascent="yes"
+	plugin_bind="yes"
 fi
 
 if test "x$with_libopenipmipthread" = "xyes"
@@ -2971,6 +2973,7 @@ AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
+AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
@@ -3169,6 +3172,7 @@ Configuration:
     apple_sensors . . . . $enable_apple_sensors
     ascent  . . . . . . . $enable_ascent
     battery . . . . . . . $enable_battery
+    bind  . . . . . . . . $enable_bind
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
