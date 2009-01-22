@@ -33,6 +33,10 @@ Features
       Batterycharge, -current and voltage of ACPI and PMU based laptop
       batteries.
 
+    - bind
+      Name server and resolver statistics from the `statistics-channel'
+      interface of BIND 9.5, 9,6 and later.
+
     - cpu
       CPU utilization: Time spent in the system, user, nice, idle, and related
       states.

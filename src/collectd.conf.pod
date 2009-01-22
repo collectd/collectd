@@ -257,6 +257,60 @@ and are checked by default depends on the distribution you use.
 
 =back
 
+=head2 Plugin C<bind>
+
+Starting with BIND 9.5.0, the most widely used DNS server software provides
+extensive statistics about queries, responses and lots of other information.
+The bind plugin retrieves this information that's encoded in XML and provided
+via HTTP and submits the values to collectd.
+
+To use this plugin, you first need to tell BIND to make this information
+available. This is done with the C<statistics-channels> configuration option:
+
+ statistics-channels {
+   inet localhost port 8053;
+ };
+
+The bind plugin accepts the following configuration options:
+
+=over 4
+
+=item B<URL> I<URL>
+
+URL from which to retrieve the XML data. If not specified,
+C<http://localhost:8053/> will be used.
+
+=item B<DNSSEC> I<true>|I<false>
+
+=item B<OpCodes> I<true>|I<false>
+
+=item B<Queries> I<true>|I<false>
+
+=item B<QueryResults> I<true>|I<false>
+
+=item B<RCode> I<true>|I<false>
+
+=item B<Rejects> I<true>|I<false>
+
+=item B<Requests> I<true>|I<false>
+
+=item B<Resolver> I<true>|I<false>
+
+=item B<Responses> I<true>|I<false>
+
+=item B<RRQueriesIn> I<true>|I<false>
+
+=item B<Updates> I<true>|I<false>
+
+=item B<ZoneMaintenance> I<true>|I<false>
+
+=item B<ZoneStats> I<true>|I<false>
+
+Enables or disables collection of specific counters.
+TODO: Options must be described in detail!
+
+=back
+
 =head2 Plugin C<cpufreq>
 
 This plugin doesn't have any options. It reads
