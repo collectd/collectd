@@ -23,6 +23,7 @@
 #include "common.h"
 #include "utils_rrdcreate.h"
 
+#include <pthread.h>
 #include <rrd.h>
 
 /*
@@ -45,6 +46,10 @@ static char *rra_types[] =
   "MAX"
 };
 static int rra_types_num = STATIC_ARRAY_SIZE (rra_types);
+
+#if !defined(HAVE_THREADSAFE_LIBRRD) || !HAVE_THREADSAFE_LIBRRD
+static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * Private functions
@@ -314,7 +319,7 @@ static int srrd_create (const char *filename, /* {{{ */
   ssnprintf (last_up_str, sizeof (last_up_str), "%u", (unsigned int) last_up);
 
   new_argv[0] = "create";
-  new_argv[1] = filename;
+  new_argv[1] = (void *) filename;
   new_argv[2] = "-s";
   new_argv[3] = pdp_step_str;
   new_argv[4] = "-b";
