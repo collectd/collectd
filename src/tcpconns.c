@@ -585,7 +585,8 @@ static int conn_read (void)
 	&& ((inp->inp_vflag & INP_IPV6) == 0))
       continue;
 
-    conn_handle_ports (inp->inp_lport, inp->inp_fport, tp->t_state);
+    conn_handle_ports (ntohs (inp->inp_lport), ntohs (inp->inp_fport),
+	tp->t_state);
   } /* for (in_ptr) */
 
   in_orig = NULL;
