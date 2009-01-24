@@ -62,6 +62,7 @@ use Collectd::Unixsock();
 		GETVAL  => \&getval,
 		FLUSH   => \&flush,
 		LISTVAL => \&listval,
+		PUTNOTIF => \&putnotif,
 	};
 
 	if (! $sock) {
@@ -163,6 +164,7 @@ Available commands:
   GETVAL
   FLUSH
   LISTVAL
+  PUTNOTIF
 
 See the embedded Perldoc documentation for details. To do that, run:
   perldoc $0
@@ -288,6 +290,29 @@ sub listval {
 		print $ident->{'time'} . " " . putid($ident) . $/;
 	}
 	return 1;
+}
+
+=item B<PUTNOTIF> [[B<severity>=I<$severity>] [B<message>=I<$message>] [ ...]]
+
+=cut
+
+sub putnotif {
+	my $sock = shift || return;
+	my $line = shift || return;
+
+	my (%values) = ();
+	foreach my $i (split m/ /, $line) {
+		my($key,$val) = split m/=/, $i, 2;
+		if ($key && $val) {
+			$values{$key} = $val;
+		}
+		else {
+			$values{'message'} .= ' '.$key;
+		}
+	}
+	$values{'time'} ||= time();
+	my(@tmp) = %values;
+	return $sock->putnotif(%values);
 }
 
 =back
