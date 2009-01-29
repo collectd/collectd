@@ -90,7 +90,7 @@ typedef struct {
 
 typedef struct {
 	char *name;
-	char *query;
+	char *stmt;
 
 	c_psql_param_t *params;
 	int             params_num;
@@ -156,8 +156,8 @@ static c_psql_query_t *c_psql_query_new (const char *name)
 	}
 	query = queries + queries_num - 1;
 
-	query->name  = sstrdup (name);
-	query->query = NULL;
+	query->name = sstrdup (name);
+	query->stmt = NULL;
 
 	query->params     = NULL;
 	query->params_num = 0;
@@ -175,7 +175,7 @@ static void c_psql_query_delete (c_psql_query_t *query)
 	int i;
 
 	sfree (query->name);
-	sfree (query->query);
+	sfree (query->stmt);
 
 	sfree (query->params);
 	query->params_num = 0;
@@ -373,7 +373,7 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 		}
 	}
 
-	return PQexecParams (db->conn, query->query, query->params_num, NULL,
+	return PQexecParams (db->conn, query->stmt, query->params_num, NULL,
 			(const char *const *)((0 == query->params_num) ? NULL : params),
 			NULL, NULL, /* return text data */ 0);
 } /* c_psql_exec_query_params */
@@ -381,7 +381,7 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 static PGresult *c_psql_exec_query_noparams (c_psql_database_t *db,
 		c_psql_query_t *query)
 {
-	return PQexec (db->conn, query->query);
+	return PQexec (db->conn, query->stmt);
 } /* c_psql_exec_query_noparams */
 
 static int c_psql_exec_query (c_psql_database_t *db, int idx)
@@ -411,7 +411,7 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
 		log_err ("Failed to execute SQL query: %s",
 				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s", query->query);
+		log_info ("SQL query was: %s", query->stmt);
 		PQclear (res);
 		return -1;
 	}
@@ -426,7 +426,7 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 	if (query->cols_num != cols) {
 		log_err ("SQL query returned wrong number of fields "
 				"(expected: %i, got: %i)", query->cols_num, cols);
-		log_info ("SQL query was: %s", query->query);
+		log_info ("SQL query was: %s", query->stmt);
 		PQclear (res);
 		return -1;
 	}
@@ -770,8 +770,13 @@ static int c_psql_config_query (oconfig_item_t *ci)
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
-		if (0 == strcasecmp (c->key, "Query"))
-			config_set_s ("Query", &query->query, c);
+		if (0 == strcasecmp (c->key, "Statement"))
+			config_set_s ("Statement", &query->stmt, c);
+		/* backwards compat for versions < 4.6 */
+		else if (0 == strcasecmp (c->key, "Query")) {
+			log_warn ("<Query>: 'Query' is deprecated - use 'Statement' instead.");
+			config_set_s ("Query", &query->stmt, c);
+		}
 		else if (0 == strcasecmp (c->key, "Param"))
 			config_set_param (query, c);
 		else if (0 == strcasecmp (c->key, "Column"))
@@ -806,8 +811,8 @@ static int c_psql_config_query (oconfig_item_t *ci)
 		return 1;
 	}
 
-	if (NULL == query->query) {
-		log_err ("Query \"%s\" does not include an SQL query string - "
+	if (NULL == query->stmt) {
+		log_err ("Query \"%s\" does not include an SQL query statement - "
 				"please check your configuration.", query->name);
 		c_psql_query_delete (query);
 		--queries_num;

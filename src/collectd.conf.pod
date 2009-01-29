@@ -1553,7 +1553,7 @@ L<http://www.postgresql.org/docs/manuals/>.
 
   <Plugin postgresql>
     <Query magic>
-      Query "SELECT magic, spells FROM wizard WHERE host = $1;"
+      Statement "SELECT magic, spells FROM wizard WHERE host = $1;"
       Param hostname
       Column gauge magic
       Column counter spells
@@ -1580,17 +1580,22 @@ following configuration options are available to define the query:
 
 =over 4
 
-=item B<Query> I<sql query>
+=item B<Statement> I<sql query statement>
 
-Specify the I<sql query> which the plugin should execute. The string may
-contain the tokens B<$1>, B<$2>, etc. which are used to reference the first,
-second, etc. parameter. The value of the parameters is specified by the
+Specify the I<sql query statement> which the plugin should execute. The string
+may contain the tokens B<$1>, B<$2>, etc. which are used to reference the
+first, second, etc. parameter. The value of the parameters is specified by the
 B<Param> configuration option - see below for details. To include a literal
 B<$> character followed by a number, surround it with single quotes (B<'>).
 
 Any SQL command which may return data (such as C<SELECT> or C<SHOW>) is
 allowed. Note, however, that only a single command may be used. Semicolons are
 allowed as long as a single non-empty command has been specified only.
+
+=item B<Query> I<sql query statement>
+
+This is a deprecated synonym for B<Statement>. It will be removed in version 5
+of collectd.
 
 =item B<Param> I<hostname>|I<database>|I<username>
 
