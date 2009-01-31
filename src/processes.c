@@ -83,6 +83,13 @@
 #  ifndef CONFIG_HZ
 #    define CONFIG_HZ 100
 #  endif
+#  ifndef ARG_MAX
+#    if defined(HAVE_SYSCONF) && HAVE_SYSCONF && defined(_SC_ARG_MAX)
+#      define ARG_MAX sysconf(_SC_ARG_MAX)
+#    else
+#      define ARG_MAX 4096
+#    endif
+#  endif
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS
