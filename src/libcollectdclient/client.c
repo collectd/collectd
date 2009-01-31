@@ -84,7 +84,8 @@
   } while (0)
 
 #define SSTRCAT(d,s) do { \
-    strncat ((d), (s), sizeof (d)); \
+    size_t _l = strlen (d); \
+    strncpy ((d) + _l, (s), sizeof (d) - _l); \
     (d)[sizeof (d) - 1] = 0; \
   } while (0)
 
@@ -773,7 +774,7 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
 int lcc_flush (lcc_connection_t *c, const char *plugin, /* {{{ */
     lcc_identifier_t *ident, int timeout)
 {
-  char command[1024];
+  char command[1024] = "";
   lcc_response_t res;
   int status;
 
