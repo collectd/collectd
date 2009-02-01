@@ -938,7 +938,8 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
               "dbi_result_get_string (%s) failed: %s",
               db->name, q->name, r->instances[i],
               cdbi_strerror (db->connection, errbuf, sizeof (errbuf)));
-          BAIL_OUT_CONTINUE;
+          status = -1;
+          break;
         }
 
         sstrncpy (instances[i], (inst == NULL) ? "" : inst, DATA_MAX_NAME_LEN);
@@ -947,13 +948,18 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
             db->name, q->name, i, instances[i]);
       } /* }}} for (i = 0; i < q->instances_num; i++) */
 
+      if (status != 0)
+      {
+        BAIL_OUT_CONTINUE;
+      }
+
       for (i = 0; i < r->values_num; i++) /* {{{ */
       {
         status = cdbi_result_get_field (res, r->values[i], ds->ds[i].type,
             values + i);
         if (status != 0)
         {
-          BAIL_OUT_CONTINUE;
+          break;
         }
 
         if (ds->ds[i].type == DS_TYPE_COUNTER)
@@ -967,6 +973,11 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
               db->name, q->name, i, values[i].gauge);
         }
       } /* }}} for (i = 0; i < q->values_num; i++) */
+
+      if (status != 0)
+      {
+        BAIL_OUT_CONTINUE;
+      }
 
       /* Dispatch this row to the daemon. */
       cdbi_submit (db, r, instances, values);
