@@ -1,6 +1,6 @@
 /**
  * collectd - src/dbi.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008,2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -36,15 +36,25 @@ struct cdbi_driver_option_s
 };
 typedef struct cdbi_driver_option_s cdbi_driver_option_t;
 
-struct cdbi_query_s
+struct cdbi_result_s;
+typedef struct cdbi_result_s cdbi_result_t;
+struct cdbi_result_s
 {
-  char    *name;
-  char    *statement;
   char    *type;
   char   **instances;
   size_t   instances_num;
   char   **values;
   size_t   values_num;
+
+  cdbi_result_t *next;
+};
+
+struct cdbi_query_s
+{
+  char    *name;
+  char    *statement;
+
+  cdbi_result_t *results;
 };
 typedef struct cdbi_query_s cdbi_query_t;
 
@@ -68,9 +78,9 @@ typedef struct cdbi_database_s cdbi_database_t;
  * Global variables
  */
 static cdbi_query_t    **queries       = NULL;
-static size_t         queries_num   = 0;
+static size_t            queries_num   = 0;
 static cdbi_database_t **databases     = NULL;
-static size_t         databases_num = 0;
+static size_t            databases_num = 0;
 
 /*
  * Functions
@@ -180,24 +190,37 @@ static int cdbi_result_get_field (dbi_result res, /* {{{ */
   return (0);
 } /* }}} int cdbi_result_get_field */
 
-static void cdbi_query_free (cdbi_query_t *q) /* {{{ */
+static void cdbi_result_free (cdbi_result_t *r) /* {{{ */
 {
   size_t i;
 
+  if (r == NULL)
+    return;
+
+  sfree (r->type);
+
+  for (i = 0; i < r->instances_num; i++)
+    sfree (r->instances[i]);
+  sfree (r->instances);
+
+  for (i = 0; i < r->values_num; i++)
+    sfree (r->values[i]);
+  sfree (r->values);
+
+  cdbi_result_free (r->next);
+
+  sfree (r);
+} /* }}} void cdbi_result_free */
+
+static void cdbi_query_free (cdbi_query_t *q) /* {{{ */
+{
   if (q == NULL)
     return;
 
   sfree (q->name);
   sfree (q->statement);
-  sfree (q->type);
 
-  for (i = 0; i < q->instances_num; i++)
-    sfree (q->instances[i]);
-  sfree (q->instances);
-
-  for (i = 0; i < q->values_num; i++)
-    sfree (q->values[i]);
-  sfree (q->values);
+  cdbi_result_free (q->results);
 
   sfree (q);
 } /* }}} void cdbi_query_free */
@@ -222,20 +245,20 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
   sfree (db);
 } /* }}} void cdbi_database_free */
 
-static void cdbi_submit (cdbi_database_t *db, cdbi_query_t *q, /* {{{ */
+static void cdbi_submit (cdbi_database_t *db, cdbi_result_t *r, /* {{{ */
     char **instances, value_t *values)
 {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = values;
-  vl.values_len = (int) q->values_num;
+  vl.values_len = (int) r->values_num;
   vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "dbi", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, db->name, sizeof (vl.type_instance));
-  sstrncpy (vl.type, q->type, sizeof (vl.type));
+  sstrncpy (vl.type, r->type, sizeof (vl.type));
   strjoin (vl.type_instance, sizeof (vl.type_instance),
-      instances, q->instances_num, "-");
+      instances, r->instances_num, "-");
   vl.type_instance[sizeof (vl.type_instance) - 1] = 0;
 
   plugin_dispatch_values (&vl);
@@ -246,9 +269,12 @@ static void cdbi_submit (cdbi_database_t *db, cdbi_query_t *q, /* {{{ */
  * <Plugin dbi>
  *   <Query "plugin_instance0">
  *     Statement "SELECT name, value FROM table"
- *     Type "gauge"
- *     InstancesFrom "name"
- *     ValuesFrom "value"
+ *     <Result>
+ *       Type "gauge"
+ *       InstancesFrom "name"
+ *       ValuesFrom "value"
+ *     </Result>
+ *     ...
  *   </Query>
  *     
  *   <Database "plugin_instance1">
@@ -337,6 +363,107 @@ static int cdbi_config_add_string (char ***ret_array, /* {{{ */
   return (0);
 } /* }}} int cdbi_config_add_string */
 
+static int cdbi_config_add_query_result (cdbi_query_t *q, /* {{{ */
+    oconfig_item_t *ci)
+{
+  cdbi_result_t *r;
+  int status;
+  int i;
+
+  if (ci->values_num != 0)
+  {
+    WARNING ("dbi plugin: The `Result' block doesn't accept any arguments. "
+        "Ignoring %i argument%s.",
+        ci->values_num, (ci->values_num == 1) ? "" : "s");
+  }
+
+  r = (cdbi_result_t *) malloc (sizeof (*r));
+  if (r == NULL)
+  {
+    ERROR ("dbi plugin: malloc failed.");
+    return (-1);
+  }
+  memset (r, 0, sizeof (*r));
+  r->type = NULL;
+  r->instances = NULL;
+  r->values = NULL;
+  r->next = NULL;
+
+  /* Fill the `cdbi_result_t' structure.. */
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Type", child->key) == 0)
+      status = cdbi_config_set_string (&r->type, child);
+    else if (strcasecmp ("InstancesFrom", child->key) == 0)
+      status = cdbi_config_add_string (&r->instances, &r->instances_num, child);
+    else if (strcasecmp ("ValuesFrom", child->key) == 0)
+      status = cdbi_config_add_string (&r->values, &r->values_num, child);
+    else
+    {
+      WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
+  }
+
+  /* Check that all necessary options have been given. */
+  while (status == 0)
+  {
+    if (r->type == NULL)
+    {
+      WARNING ("dbi plugin: `Type' not given for "
+          "result in query `%s'", q->name);
+      status = -1;
+    }
+    if (r->instances == NULL)
+    {
+      WARNING ("dbi plugin: `InstancesFrom' not given for "
+          "result in query `%s'", q->name);
+      status = -1;
+    }
+    if (r->values == NULL)
+    {
+      WARNING ("dbi plugin: `ValuesFrom' not given for "
+          "result in query `%s'", q->name);
+      status = -1;
+    }
+
+    break;
+  } /* while (status == 0) */
+
+  /* If all went well, add this result to the list of results within the
+   * query structure. */
+  if (status == 0)
+  {
+    if (q->results == NULL)
+    {
+      q->results = r;
+    }
+    else
+    {
+      cdbi_result_t *last;
+
+      last = q->results;
+      while (last->next != NULL)
+        last = last->next;
+
+      last->next = r;
+    }
+  }
+
+  if (status != 0)
+  {
+    cdbi_result_free (r);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int cdbi_config_add_query_result */
+
 static int cdbi_config_add_query (oconfig_item_t *ci) /* {{{ */
 {
   cdbi_query_t *q;
@@ -373,12 +500,8 @@ static int cdbi_config_add_query (oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp ("Statement", child->key) == 0)
       status = cdbi_config_set_string (&q->statement, child);
-    else if (strcasecmp ("Type", child->key) == 0)
-      status = cdbi_config_set_string (&q->type, child);
-    else if (strcasecmp ("InstancesFrom", child->key) == 0)
-      status = cdbi_config_add_string (&q->instances, &q->instances_num, child);
-    else if (strcasecmp ("ValuesFrom", child->key) == 0)
-      status = cdbi_config_add_string (&q->values, &q->values_num, child);
+    else if (strcasecmp ("Result", child->key) == 0)
+      status = cdbi_config_add_query_result (q, child);
     else
     {
       WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
@@ -397,19 +520,10 @@ static int cdbi_config_add_query (oconfig_item_t *ci) /* {{{ */
       WARNING ("dbi plugin: `Statement' not given for query `%s'", q->name);
       status = -1;
     }
-    if (q->type == NULL)
+    if (q->results == NULL)
     {
-      WARNING ("dbi plugin: `Type' not given for query `%s'", q->name);
-      status = -1;
-    }
-    if (q->instances == NULL)
-    {
-      WARNING ("dbi plugin: `InstancesFrom' not given for query `%s'", q->name);
-      status = -1;
-    }
-    if (q->values == NULL)
-    {
-      WARNING ("dbi plugin: `ValuesFrom' not given for query `%s'", q->name);
+      WARNING ("dbi plugin: No (valid) `Result' block given for query `%s'",
+          q->name);
       status = -1;
     }
 
@@ -707,67 +821,13 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
     cdbi_query_t *q)
 {
   dbi_result res;
-  char **instances;
-  value_t *values;
-  const data_set_t *ds;
-  size_t i;
   int status;
-
-  res = NULL;
-  instances = NULL;
-  values = NULL;
 
   /* Macro that cleans up dynamically allocated memory and returns the
    * specified status. */
 #define BAIL_OUT(status) \
   if (res != NULL) { dbi_result_free (res); res = NULL; } \
-  if (instances != NULL) { sfree (instances[0]); sfree (instances); } \
-  sfree (values); \
   return (status)
-
-  ds = plugin_get_ds (q->type);
-  if (ds == NULL)
-  {
-    ERROR ("dbi plugin: cdbi_read_database_query: Query `%s': Type `%s' is not "
-        "known by the daemon. See types.db(5) for details.",
-        q->name, q->type);
-    BAIL_OUT (-1);
-  }
-
-  if (((size_t) ds->ds_num) != q->values_num)
-  {
-    ERROR ("dbi plugin: cdbi_read_database_query: Query `%s': The type `%s' "
-        "requires exactly %i value%s, but the configuration specifies %zu.",
-        q->name, q->type,
-        ds->ds_num, (ds->ds_num == 1) ? "" : "s",
-        q->values_num);
-    BAIL_OUT (-1);
-  }
-
-  /* Allocate `instances' and `values' {{{ */
-  instances = (char **) malloc (sizeof (*instances) * q->instances_num);
-  if (instances == NULL)
-  {
-    ERROR ("dbi plugin: malloc failed.");
-    BAIL_OUT (-1);
-  }
-
-  instances[0] = (char *) malloc (q->instances_num * DATA_MAX_NAME_LEN);
-  if (instances[0] == NULL)
-  {
-    ERROR ("dbi plugin: malloc failed.");
-    BAIL_OUT (-1);
-  }
-  for (i = 1; i < q->instances_num; i++)
-    instances[i] = instances[i - 1] + DATA_MAX_NAME_LEN;
-
-  values = (value_t *) malloc (sizeof (*values) * q->values_num);
-  if (values == NULL)
-  {
-    ERROR ("dbi plugin: malloc failed.");
-    BAIL_OUT (-1);
-  }
-  /* }}} */
 
   res = dbi_conn_query (db->connection, q->statement);
   if (res == NULL)
@@ -780,6 +840,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
     BAIL_OUT (-1);
   }
 
+  /* 0 = error; 1 = success; */
   status = dbi_result_first_row (res);
   if (status != 1)
   {
@@ -792,53 +853,127 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
     BAIL_OUT (-1);
   }
 
-  while (42)
+  /* Iterate over all rows and use every result with each row. */
+  while (42) /* {{{ */
   {
-    /* Get instance names and values from the result: */
-    for (i = 0; i < q->instances_num; i++) /* {{{ */
+    cdbi_result_t *r;
+
+    /* Iterate over all results, get the appropriate data_set, allocate memory
+     * for the instance(s) and value(s), copy the values and finally call
+     * `cdbi_submit' to create and dispatch a value_list. */
+    for (r = q->results; r != NULL; r = r->next) /* {{{ */
     {
-      const char *inst;
+      const data_set_t *ds;
+      char **instances;
+      value_t *values;
+      size_t i;
 
-      inst = dbi_result_get_string (res, q->instances[i]);
-      if (dbi_conn_error (db->connection, NULL) != 0)
+      instances = NULL;
+      values = NULL;
+
+      /* Macro to clean up dynamically allocated memory and continue with the
+       * next iteration of the containing loop, i. e. the `for' loop iterating
+       * over all `Result' sets. */
+#define BAIL_OUT_CONTINUE \
+      if (instances != NULL) { sfree (instances[0]); sfree (instances); } \
+      sfree (values); \
+      continue
+
+      /* Read `ds' and check number of values {{{ */
+      ds = plugin_get_ds (r->type);
+      if (ds == NULL)
       {
-        char errbuf[1024];
-        ERROR ("dbi plugin: cdbi_read_database_query (%s, %s): "
-            "dbi_result_get_string (%s) failed: %s",
-            db->name, q->name, q->instances[i],
-            cdbi_strerror (db->connection, errbuf, sizeof (errbuf)));
-        BAIL_OUT (-1);
+        ERROR ("dbi plugin: cdbi_read_database_query: Query `%s': Type `%s' is not "
+            "known by the daemon. See types.db(5) for details.",
+            q->name, r->type);
+        BAIL_OUT_CONTINUE;
       }
 
-      sstrncpy (instances[i], (inst == NULL) ? "" : inst, DATA_MAX_NAME_LEN);
-      DEBUG ("dbi plugin: cdbi_read_database_query (%s, %s): "
-          "instances[%zu] = %s;",
-          db->name, q->name, i, instances[i]);
-    } /* }}} for (i = 0; i < q->instances_num; i++) */
-
-    for (i = 0; i < q->values_num; i++) /* {{{ */
-    {
-      status = cdbi_result_get_field (res, q->values[i], ds->ds[i].type,
-          values + i);
-      if (status != 0)
+      if (((size_t) ds->ds_num) != r->values_num)
       {
-        BAIL_OUT (-1);
+        ERROR ("dbi plugin: cdbi_read_database_query: Query `%s': The type `%s' "
+            "requires exactly %i value%s, but the configuration specifies %zu.",
+            q->name, r->type,
+            ds->ds_num, (ds->ds_num == 1) ? "" : "s",
+            r->values_num);
+        BAIL_OUT_CONTINUE;
+      }
+      /* }}} */
+
+      /* Allocate `instances' and `values' {{{ */
+      instances = (char **) malloc (sizeof (*instances) * r->instances_num);
+      if (instances == NULL)
+      {
+        ERROR ("dbi plugin: malloc failed.");
+        BAIL_OUT_CONTINUE;
       }
 
-      if (ds->ds[i].type == DS_TYPE_COUNTER)
+      instances[0] = (char *) malloc (r->instances_num * DATA_MAX_NAME_LEN);
+      if (instances[0] == NULL)
       {
-        DEBUG ("dbi plugin: cdbi_read_database_query (%s, %s): values[%zu] = %llu;",
-            db->name, q->name, i, values[i].counter);
+        ERROR ("dbi plugin: malloc failed.");
+        BAIL_OUT_CONTINUE;
       }
-      else
-      {
-        DEBUG ("dbi plugin: cdbi_read_database_query (%s, %s): values[%zu] = %g;",
-            db->name, q->name, i, values[i].gauge);
-      }
-    } /* }}} for (i = 0; i < q->values_num; i++) */
+      for (i = 1; i < r->instances_num; i++)
+        instances[i] = instances[i - 1] + DATA_MAX_NAME_LEN;
 
-    /* Dispatch this row to the daemon. */
-    cdbi_submit (db, q, instances, values);
+      values = (value_t *) malloc (sizeof (*values) * r->values_num);
+      if (values == NULL)
+      {
+        ERROR ("dbi plugin: malloc failed.");
+        BAIL_OUT_CONTINUE;
+      }
+      /* }}} */
+
+      /* Get instance names and values from the result: */
+      for (i = 0; i < r->instances_num; i++) /* {{{ */
+      {
+        const char *inst;
+
+        inst = dbi_result_get_string (res, r->instances[i]);
+        if (dbi_conn_error (db->connection, NULL) != 0)
+        {
+          char errbuf[1024];
+          ERROR ("dbi plugin: cdbi_read_database_query (%s, %s): "
+              "dbi_result_get_string (%s) failed: %s",
+              db->name, q->name, r->instances[i],
+              cdbi_strerror (db->connection, errbuf, sizeof (errbuf)));
+          BAIL_OUT_CONTINUE;
+        }
+
+        sstrncpy (instances[i], (inst == NULL) ? "" : inst, DATA_MAX_NAME_LEN);
+        DEBUG ("dbi plugin: cdbi_read_database_query (%s, %s): "
+            "instances[%zu] = %s;",
+            db->name, q->name, i, instances[i]);
+      } /* }}} for (i = 0; i < q->instances_num; i++) */
+
+      for (i = 0; i < r->values_num; i++) /* {{{ */
+      {
+        status = cdbi_result_get_field (res, r->values[i], ds->ds[i].type,
+            values + i);
+        if (status != 0)
+        {
+          BAIL_OUT_CONTINUE;
+        }
+
+        if (ds->ds[i].type == DS_TYPE_COUNTER)
+        {
+          DEBUG ("dbi plugin: cdbi_read_database_query (%s, %s): values[%zu] = %llu;",
+              db->name, q->name, i, values[i].counter);
+        }
+        else
+        {
+          DEBUG ("dbi plugin: cdbi_read_database_query (%s, %s): values[%zu] = %g;",
+              db->name, q->name, i, values[i].gauge);
+        }
+      } /* }}} for (i = 0; i < q->values_num; i++) */
+
+      /* Dispatch this row to the daemon. */
+      cdbi_submit (db, r, instances, values);
+
+      BAIL_OUT_CONTINUE;
+#undef BAIL_OUT_CONTINUE
+    } /* }}} for (r = q->results; r != NULL; r = r->next) */
 
     /* Get the next row from the database. */
     status = dbi_result_next_row (res);
@@ -854,8 +989,9 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
       }
       break;
     }
-  } /* while (42) */
+  } /* }}} while (42) */
 
+  /* Clean up and return `status = 0' (success) */
   BAIL_OUT (0);
 #undef BAIL_OUT
 } /* }}} int cdbi_read_database_query */

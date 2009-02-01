@@ -341,10 +341,12 @@ number.
 
 =head2 Plugin C<dbi>
 
-This plugin uses the "B<dbi>" library (L<http://libdbi.sourceforge.net/>) to
-connect to various databases, execute SQL statements and read back the results.
-You can configure how each column is to be interpreted and the plugin will
-generate one data set from each row returned according to these rules.
+This plugin uses the B<dbi> library (L<http://libdbi.sourceforge.net/>) to
+connect to various databases, execute I<SQL> statements and read back the
+results. I<dbi> is an acronym for "database interface" in case you were
+wondering about the name. You can configure how each column is to be
+interpreted and the plugin will generate one or more data sets from each row
+returned according to these rules.
 
 Because the plugin is very generic, the configuration is a little more complex
 than those of other plugins. It usually looks something like this:
@@ -352,9 +354,11 @@ than those of other plugins. It usually looks something like this:
   <Plugin dbi>
     <Query "out_of_stock">
       Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
-      Type "gauge"
-      InstancesFrom "category"
-      ValuesFrom "value"
+      <Result>
+        Type "gauge"
+        InstancesFrom "category"
+        ValuesFrom "value"
+      </Result>
     </Query>
     <Database "product_information">
       Driver "mysql"
@@ -367,8 +371,8 @@ than those of other plugins. It usually looks something like this:
     </Database>
   </Plugin>
 
-The configuration above defines one query and one database. The query is then
-linked to the database with the B<Query> option I<within> the
+The configuration above defines one query with one result and one database. The
+query is then linked to the database with the B<Query> option I<within> the
 B<E<lt>DatabaseE<gt>> block. You can have any number of queries and databases
 and you can also use the B<Include> statement to split up the configuration
 file in multiple, smaller files. However, the B<E<lt>QueryE<gt>> block I<must>
@@ -379,10 +383,34 @@ The following is a complete list of options:
 
 =head3 B<Query> blocks
 
-Query blocks define SQL statements and how the returned data should be
+Query blocks define I<SQL> statements and how the returned data should be
 interpreted. They are identified by the name that is given in the opening line
 of the block. Thus the name needs to be unique. Other than that, the name is
-not used in collectd.
+not used in collectd. 
+
+In each B<Query> block, there is one or more B<Result> blocks. B<Result> blocks
+define which column holds which value or instance information. You can use
+multiple B<Result> blocks to create multiple values from one returned row. This
+is especially useful, when queries take a long time and sending almost the same
+query again and again is not desirable.
+
+Example:
+
+  <Query "environment">
+    Statement "select station, temperature, humidity from environment"
+    <Result>
+      Type "temperature"
+      InstancesFrom "station"
+      ValuesFrom "temperature"
+    </Result>
+    <Result>
+      Type "humidity"
+      InstancesFrom "station"
+      ValuesFrom "humidity"
+    </Result>
+  </Query>
+
+The following options are accepted:
 
 =over 4
 
@@ -414,6 +442,8 @@ If you specify "temperature" here, you need exactly one gauge column. If you
 specify "if_octets", you will need two counter columns. See the B<ValuesFrom>
 setting below.
 
+There must be exactly one B<Type> option inside each B<Result> block.
+
 =item B<InstancesFrom> I<column0> [I<column1> ...]
 
 Specifies the columns whose values will be used to create the "TypeInstance"
@@ -423,6 +453,8 @@ with the hyphen as separation character.
 
 The plugin itself does not check whether or not all built instances are
 different. It's your responsibility to assure that each is unique.
+
+There must be at least one B<InstancesFrom> option inside each B<Result> block.
 
 =item B<ValuesFrom> I<column0> [I<column1> ...]
 
@@ -436,6 +468,8 @@ The actual data type in the columns is not that important. The plugin will
 automatically cast the values to the right type if it know how to do that. So
 it should be able to handle integer an floating point types, as well as strings
 (if they include a number at the beginning).
+
+There must be at least one B<ValuesFrom> option inside each B<Result> block.
 
 =back
 
