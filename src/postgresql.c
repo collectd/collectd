@@ -112,6 +112,7 @@ typedef struct {
 
 	/* user configuration */
 	c_psql_query_t **queries;
+	int             *hidden_queries;
 	int              queries_num;
 
 	char *host;
@@ -223,8 +224,9 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->max_params_num = 0;
 
-	db->queries     = NULL;
-	db->queries_num = 0;
+	db->queries        = NULL;
+	db->hidden_queries = NULL;
+	db->queries_num    = 0;
 
 	db->database   = sstrdup (name);
 	db->host       = NULL;
@@ -240,12 +242,42 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	return db;
 } /* c_psql_database_new */
 
+static void c_psql_database_init (c_psql_database_t *db, int server_version)
+{
+	int i;
+
+	/* Get the right version of each query definition. */
+	for (i = 0; i < db->queries_num; ++i) {
+		c_psql_query_t *tmp;
+
+		tmp = c_psql_query_get (db->queries[i]->name, server_version);
+
+		if (tmp == db->queries[i])
+			continue;
+
+		if (NULL == tmp) {
+			log_err ("Query \"%s\" not found for server version %i - "
+					"please check your configuration.",
+					db->queries[i]->name, server_version);
+			/* By hiding the query (rather than removing it from the list) we
+			 * don't lose it in case a reconnect to an available version
+			 * happens at a later time. */
+			db->hidden_queries[i] = 1;
+			continue;
+		}
+
+		db->hidden_queries[i] = 0;
+		db->queries[i] = tmp;
+	}
+} /* c_psql_database_init */
+
 static void c_psql_database_delete (c_psql_database_t *db)
 {
 	PQfinish (db->conn);
 	db->conn = NULL;
 
 	sfree (db->queries);
+	sfree (db->hidden_queries);
 	db->queries_num = 0;
 
 	sfree (db->database);
@@ -343,6 +375,11 @@ static int c_psql_check_connection (c_psql_database_t *db)
 					db->proto_version);
 	}
 
+	/* We might have connected to a different PostgreSQL version, so we
+	 * need to reinitialize stuff. */
+	if (c_would_release (&db->conn_complaint))
+		c_psql_database_init (db, PQserverVersion (db->conn));
+
 	c_release (LOG_INFO, &db->conn_complaint,
 			"Successfully reconnected to database %s", PQdb (db->conn));
 	return 0;
@@ -394,6 +431,9 @@ static int c_psql_exec_query (c_psql_database_t *db, int idx)
 
 	if (idx >= db->queries_num)
 		return -1;
+
+	if (0 != db->hidden_queries[idx])
+		return 0;
 
 	query = db->queries[idx];
 
@@ -548,8 +588,6 @@ static int c_psql_init (void)
 		char *server_host;
 		int   server_version;
 
-		int j;
-
 		/* this will happen during reinitialization */
 		if (NULL != db->conn) {
 			c_psql_check_connection (db);
@@ -590,32 +628,7 @@ static int c_psql_init (void)
 			log_warn ("Protocol version %d does not support parameters.",
 					db->proto_version);
 
-		/* Now that we know the PostgreSQL server version, we can get the
-		 * right version of each query definition. */
-		for (j = 0; j < db->queries_num; ++j) {
-			c_psql_query_t *tmp;
-
-			tmp = c_psql_query_get (db->queries[j]->name, server_version);
-
-			if (tmp == db->queries[j])
-				continue;
-
-			if (NULL == tmp) {
-				log_err ("Query \"%s\" not found for server version %i - "
-						"please check your configuration.",
-						db->queries[j]->name, server_version);
-
-				if (db->queries_num - j - 1 > 0)
-					memmove (db->queries + j, db->queries + j + 1,
-							(db->queries_num - j - 1) * sizeof (*db->queries));
-
-				--db->queries_num;
-				--j;
-				continue;
-			}
-
-			db->queries[j] = tmp;
-		}
+		c_psql_database_init (db, server_version);
 	}
 
 	plugin_register_read ("postgresql", c_psql_read);
@@ -757,7 +770,7 @@ static int c_psql_config_query (oconfig_item_t *ci)
 {
 	c_psql_query_t *query;
 
-	int i;
+	int status = 0, i;
 
 	if ((1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
@@ -797,26 +810,27 @@ static int c_psql_config_query (oconfig_item_t *ci)
 				&& (query->min_pg_version <= q->max_pg_version)) {
 			log_err ("Ignoring redefinition (with overlapping version ranges) "
 					"of query \"%s\".", query->name);
-			c_psql_query_delete (query);
-			--queries_num;
-			return 1;
+			status = 1;
+			break;
 		}
 	}
 
 	if (query->min_pg_version > query->max_pg_version) {
 		log_err ("Query \"%s\": MinPGVersion > MaxPGVersion.",
 				query->name);
-		c_psql_query_delete (query);
-		--queries_num;
-		return 1;
+		status = 1;
 	}
 
 	if (NULL == query->stmt) {
 		log_err ("Query \"%s\" does not include an SQL query statement - "
 				"please check your configuration.", query->name);
+		status = 1;
+	}
+
+	if (0 != status) {
 		c_psql_query_delete (query);
 		--queries_num;
-		return 1;
+		return status;
 	}
 	return 0;
 } /* c_psql_config_query */
@@ -862,8 +876,15 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		for (i = 0; i < def_queries_num; ++i)
 			set_query (db, def_queries[i]);
 	}
+
+	db->hidden_queries = (int *)calloc (db->queries_num,
+			sizeof (*db->hidden_queries));
+	if (NULL == db->hidden_queries) {
+		log_err ("Out of memory.");
+		exit (5);
+	}
 	return 0;
-}
+} /* c_psql_config_database */
 
 static int c_psql_config (oconfig_item_t *ci)
 {
