@@ -1589,10 +1589,28 @@ L<http://www.postgresql.org/docs/manuals/>.
 
   <Plugin postgresql>
     <Query magic>
-      Statement "SELECT magic, spells FROM wizard WHERE host = $1;"
+      Statement "SELECT magic FROM wizard WHERE host = $1;"
       Param hostname
-      Column gauge magic
-      Column counter spells
+      <Result>
+        Type gauge
+        InstancePrefix "magic"
+        ValuesFrom magic
+      </Result>
+    </Query>
+
+    <Query rt36_tickets>
+      Statement "SELECT COUNT(type) AS count, type \
+                        FROM (SELECT CASE \
+                                     WHEN resolved = 'epoch' THEN 'open' \
+                                     ELSE 'resolved' END AS type \
+                                     FROM tickets) type \
+                        GROUP BY type;"
+      <Result>
+        Type counter
+        InstancePrefix "rt36_tickets"
+        InstancesFrom "type"
+        ValuesFrom "count"
+      </Result>
     </Query>
 
     <Database foo>
@@ -1604,15 +1622,25 @@ L<http://www.postgresql.org/docs/manuals/>.
       KRBSrvName "kerberos_service_name"
       Query magic
     </Database>
+
     <Database bar>
       Service "service_name"
+      Query backend # predefined
+      Query rt36_tickets
     </Database>
   </Plugin>
 
 The B<Query> block defines one database query which may later be used by a
 database definition. It accepts a single mandatory argument which specifies
-the name of the query. The names of all queries have to be unique. The
-following configuration options are available to define the query:
+the name of the query. The names of all queries have to be unique (see the
+B<MinPGVersion> and B<MaxPGVersion> options below for an exception to this
+rule). The following configuration options are available to define the query:
+
+In each B<Query> block, there is one or more B<Result> blocks. B<Result>
+blocks define how to handle the values returned from the query. They define
+which column holds which value and how to dispatch that value to the daemon.
+Multiple B<Result> blocks may be used to extract multiple values from a single
+query.
 
 =over 4
 
@@ -1627,6 +1655,8 @@ B<$> character followed by a number, surround it with single quotes (B<'>).
 Any SQL command which may return data (such as C<SELECT> or C<SHOW>) is
 allowed. Note, however, that only a single command may be used. Semicolons are
 allowed as long as a single non-empty command has been specified only.
+
+The returned lines will be handled separately one after another.
 
 =item B<Query> I<sql query statement>
 
@@ -1660,12 +1690,63 @@ The username used to connect to the database.
 Please note that parameters are only supported by PostgreSQL's protocol
 version 3 and above which was introduced in version 7.4 of PostgreSQL.
 
+=item B<Type> I<type>
+
+The I<type> name to be used when dispatching the values. The type describes
+how to handle the data and where to store it. See L<types.db(5)> for more
+details on types and their configuration. The number and type of values (as
+selected by the B<ValuesFrom> option) has to match the type of the given name.
+
+This option is required inside a B<Result> block.
+
+=item B<InstancePrefix> I<prefix>
+
+=item B<InstancesFrom> I<column0> [I<column1> ...]
+
+Specify how to create the "TypeInstance" for each data set (i.E<nbsp>e. line).
+B<InstancePrefix> defines a static prefix that will be prepended to all type
+instances. B<InstancesFrom> defines the column names whose values will be used
+to create the type instance. Multiple values will be joined together using the
+hyphen (C<->) as separation character.
+
+The plugin itself does not check whether or not all built instances are
+different. It is your responsibility to assure that each is unique.
+
+Both options are optional. If none is specified, the type instance will be
+empty.
+
+=item B<ValuesFrom> I<column0> [I<column1> ...]
+
+Names the columns whose content is used as the actual data for the data sets
+that are dispatched to the daemon. How many such columns you need is
+determined by the B<Type> setting as explained above. If you specify too many
+or not enough columns, the plugin will complain about that and no data will be
+submitted to the daemon.
+
+The actual data type, as seen by PostgreSQL, is not that important as long as
+it represents numbers. The plugin will automatically cast the values to the
+right type if it know how to do that. For that, it uses the L<strtoll(3)> and
+L<strtod(3)> functions, so anything supported by those functions is supported
+by the plugin as well.
+
+This option is required inside a B<Result> block and may be specified multiple
+times. If multiple B<ValuesFrom> options are specified, the columns are read
+in the given order.
+
 =item B<Column> I<type> [I<type instance>]
 
-Specify the I<type> and optional I<type instance> used to dispatch the value
-of each result column. Detailed information about types and their
-configuration can be found in L<types.db(5)>. The number and order of the
-B<Column> options has to match the columns of the query result.
+This is a deprecated alternative to a B<Result> block. It will be removed in
+version 5 of collectd. It is equivalent to the following B<Result> block:
+
+  <Result>
+    Type I<type>
+    InstancePrefix I<type instance>
+    ValuesFrom I<name of the x. column>
+  </Result>
+
+The order of the B<Column> options defines which columns of the query result
+should be used. The first option specifies the data found in the first column,
+the second option that of the second column, and so on.
 
 =item B<MinPGVersion> I<version>
 
