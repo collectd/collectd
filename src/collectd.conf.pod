@@ -1663,7 +1663,7 @@ The returned lines will be handled separately one after another.
 This is a deprecated synonym for B<Statement>. It will be removed in version 5
 of collectd.
 
-=item B<Param> I<hostname>|I<database>|I<username>
+=item B<Param> I<hostname>|I<database>|I<username>|I<interval>
 
 Specify the parameters which should be passed to the SQL query. The parameters
 are referred to in the SQL query as B<$1>, B<$2>, etc. in the same order as
@@ -1684,6 +1684,10 @@ The name of the database of the current connection.
 =item I<username>
 
 The username used to connect to the database.
+
+=item I<interval>
+
+The interval collectd is using (as specified by the B<Interval> option).
 
 =back
 

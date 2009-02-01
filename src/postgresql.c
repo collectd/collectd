@@ -80,6 +80,7 @@ typedef enum {
 	C_PSQL_PARAM_HOST = 1,
 	C_PSQL_PARAM_DB,
 	C_PSQL_PARAM_USER,
+	C_PSQL_PARAM_INTERVAL,
 } c_psql_param_t;
 
 typedef struct {
@@ -550,6 +551,7 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 		c_psql_query_t *query)
 {
 	char *params[db->max_params_num];
+	char  interval[64];
 	int   i;
 
 	assert (db->max_params_num >= query->params_num);
@@ -565,6 +567,10 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 				break;
 			case C_PSQL_PARAM_USER:
 				params[i] = db->user;
+				break;
+			case C_PSQL_PARAM_INTERVAL:
+				ssnprintf (interval, sizeof (interval), "%i", interval_g);
+				params[i] = interval;
 				break;
 			default:
 				assert (0);
@@ -828,6 +834,8 @@ static int config_set_param (c_psql_query_t *query, const oconfig_item_t *ci)
 		param = C_PSQL_PARAM_DB;
 	else if (0 == strcasecmp (param_str, "username"))
 		param = C_PSQL_PARAM_USER;
+	else if (0 == strcasecmp (param_str, "interval"))
+		param = C_PSQL_PARAM_INTERVAL;
 	else {
 		log_err ("Invalid parameter \"%s\".", param_str);
 		return 1;
