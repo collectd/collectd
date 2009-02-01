@@ -66,6 +66,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 @BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
 @BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
+@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 @BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 @BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
 @BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
@@ -135,9 +136,11 @@ FQDNLookup   true
 #<Plugin dbi>
 #	<Query "num_of_customers">
 #		Statement "SELECT 'customers' AS c_key, COUNT(*) AS c_value FROM customers_tbl"
-#		Type "gauge"
-#		InstancesFrom "c_key"
-#		ValuesFrom "c_value"
+#		<Result>
+#			Type "gauge"
+#			InstancesFrom "c_key"
+#			ValuesFrom "c_value"
+#		<Result>
 #	</Query>
 #	<Database "customers_db">
 #		Driver "mysql"
@@ -298,6 +301,27 @@ FQDNLookup   true
 #	Device "-s localhost:4304"
 #	Sensor "F10FCA000800"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin openvpn>
+#	StatusFile "/etc/openvpn/openvpn-status.log"
+#</Plugin>
+
+#<Plugin oracle>
+#  <Query "out_of_stock">
+#    Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
+#    <Result>
+#      Type "gauge"
+#      InstancesFrom "category"
+#      ValuesFrom "value"
+#    </Result>
+#  </Query>
+#  <Database "product_information">
+#    ConnectID "db01"
+#    Username "oracle"
+#    Password "secret"
+#    Query "out_of_stock"
+#  </Database>
 #</Plugin>
 
 #<Plugin perl>
