@@ -37,6 +37,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_complain.c utils_complain.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
+		   utils_parse_option.c utils_parse_option.h \
 		   utils_tail_match.c utils_tail_match.h \
 		   utils_match.c utils_match.h \
 		   utils_mount.c utils_mount.h \
@@ -271,7 +272,6 @@ endif
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = exec.c \
-		  utils_parse_option.h utils_parse_option.c \
 		  utils_cmd_putnotif.c utils_cmd_putnotif.h \
 		  utils_cmd_putval.c utils_cmd_putval.h
 exec_la_LDFLAGS = -module -avoid-version
@@ -817,7 +817,6 @@ endif
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
-		      utils_parse_option.h utils_parse_option.c \
 		      utils_cmd_flush.h utils_cmd_flush.c \
 		      utils_cmd_getval.h utils_cmd_getval.c \
 		      utils_cmd_listval.h utils_cmd_listval.c \

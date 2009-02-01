@@ -1,6 +1,6 @@
 /**
  * collectd - src/csv.c
- * Copyright (C) 2007  Florian octo Forster
+ * Copyright (C) 2007-2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,7 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_cache.h"
+#include "utils_parse_option.h"
 
 /*
  * Private variables
@@ -273,8 +274,22 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl)
 
 	if (use_stdio)
 	{
+		size_t i;
+
+		escape_string (filename, sizeof (filename));
+
+		/* Replace commas by colons for PUTVAL compatible output. */
+		for (i = 0; i < sizeof (values); i++)
+		{
+			if (values[i] == 0)
+				break;
+			else if (values[i] == ',')
+				values[i] = ':';
+		}
+
 		fprintf (use_stdio == 1 ? stdout : stderr,
-			 "%s=%s\n", filename, values);
+			 "PUTVAL %s interval=%i %s\n",
+			 filename, interval_g, values);
 		return (0);
 	}
 
