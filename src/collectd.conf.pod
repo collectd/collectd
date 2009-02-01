@@ -1487,7 +1487,7 @@ Specifies the location of the status file.
 
 =head2 Plugin C<oracle>
 
-The "oracle" plugin uses the Oracle® Call Interface (OCI) to connect to an
+The "oracle" plugin uses the Oracle® Call Interface I<(OCI)> to connect to an
 Oracle® Database and lets you execute SQL statements there. It is very similar
 to the "dbi" plugin, because it was written around the same time. See the "dbi"
 plugin's documentation above for details.
@@ -1495,9 +1495,11 @@ plugin's documentation above for details.
   <Plugin oracle>
     <Query "out_of_stock">
       Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
-      Type "gauge"
-      InstancesFrom "category"
-      ValuesFrom "value"
+      <Result>
+        Type "gauge"
+        InstancesFrom "category"
+        ValuesFrom "value"
+      </Result>
     </Query>
     <Database "product_information">
       ConnectID "db01"
