@@ -70,6 +70,10 @@ then
 	CPPFLAGS="$CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
 fi
 
+# Where to install .pc files.
+pkgconfigdir="${libdir}/pkgconfig"
+AC_SUBST(pkgconfigdir)
+
 #
 # Checks for header files.
 #
@@ -3095,7 +3099,7 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/lcc_features.h)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile src/liboping/Makefile bindings/Makefile)
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"

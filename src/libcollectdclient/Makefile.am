@@ -6,6 +6,7 @@ endif
 
 pkginclude_HEADERS = client.h lcc_features.h
 lib_LTLIBRARIES = libcollectdclient.la
+nodist_pkgconfig_DATA = libcollectdclient.pc
 
 BUILT_SOURCES = lcc_features.h
 
