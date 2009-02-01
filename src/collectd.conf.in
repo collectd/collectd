@@ -343,26 +343,41 @@ FQDNLookup   true
 
 #<Plugin postgresql>
 #	<Query magic>
-#		Query "SELECT magic, spells FROM wizard WHERE host = $1;"
+#		Statement "SELECT magic FROM wizard WHERE host = $1;"
 #		Param hostname
-#		Column gauge magic
-#		Column counter spells
+#		<Result>
+#			Type gauge
+#			InstancePrefix "magic"
+#			ValuesFrom magic
+#		</Result>
 #	</Query>
-#
+#	<Query rt36_tickets>
+#		Statement "SELECT COUNT(type) AS count, type \
+#		                  FROM (SELECT CASE \
+#		                               WHEN resolved = 'epoch' THEN 'open' \
+#		                               ELSE 'resolved' END AS type \
+#		                               FROM tickets) type \
+#		                  GROUP BY type;"
+#		<Result>
+#			Type counter
+#			InstancePrefix "rt36_tickets"
+#			InstancesFrom "type"
+#			ValuesFrom "count"
+#		</Result>
+#	</Query>
 #	<Database foo>
 #		Host "hostname"
-#		Port 5432
+#		Port "5432"
 #		User "username"
 #		Password "secret"
-#
 #		SSLMode "prefer"
 #		KRBSrvName "kerberos_service_name"
-#
 #		Query magic
 #	</Database>
-#
 #	<Database bar>
 #		Service "service_name"
+#		Query backend # predefined
+#		Query rt36_tickets
 #	</Database>
 #</Plugin>
 
