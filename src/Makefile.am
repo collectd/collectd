@@ -203,7 +203,8 @@ endif
 
 if BUILD_PLUGIN_DBI
 pkglib_LTLIBRARIES += dbi.la
-dbi_la_SOURCES = dbi.c
+dbi_la_SOURCES = dbi.c \
+		 utils_db_query.c utils_db_query.h
 dbi_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBDBI_CPPFLAGS)
 dbi_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBDBI_LDFLAGS)
 dbi_la_LIBADD = $(BUILD_WITH_LIBDBI_LIBS)

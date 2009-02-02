@@ -140,7 +140,7 @@ FQDNLookup   true
 #			Type "gauge"
 #			InstancesFrom "c_key"
 #			ValuesFrom "c_value"
-#		<Result>
+#		</Result>
 #	</Query>
 #	<Database "customers_db">
 #		Driver "mysql"

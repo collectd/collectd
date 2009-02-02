@@ -356,6 +356,7 @@ than those of other plugins. It usually looks something like this:
       Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
       <Result>
         Type "gauge"
+	InstancePrefix "out_of_stock"
         InstancesFrom "category"
         ValuesFrom "value"
       </Result>
@@ -400,6 +401,7 @@ Example:
     Statement "select station, temperature, humidity from environment"
     <Result>
       Type "temperature"
+      # InstancePrefix "foo"
       InstancesFrom "station"
       ValuesFrom "temperature"
     </Result>
@@ -443,6 +445,11 @@ specify "if_octets", you will need two counter columns. See the B<ValuesFrom>
 setting below.
 
 There must be exactly one B<Type> option inside each B<Result> block.
+
+=item B<InstancePrefix> I<prefix>
+
+Prepends I<prefix> followed by a dash I<("-")> to the type instance. See
+B<InstancesFrom> on how the rest of the type instance is built.
 
 =item B<InstancesFrom> I<column0> [I<column1> ...]
 
