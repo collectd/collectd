@@ -31,11 +31,9 @@ config.log
 config.status
 libtool
 src/.deps
-src/Makefile
 src/collectd.conf
 src/config.h
-src/libconfig/Makefile
-src/liboping/Makefile
+src/libcollectdclient/libcollectdclient.pc
 src/stamp-h1
 
 # make stuff:
