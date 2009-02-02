@@ -723,7 +723,7 @@ void *udb_query_get_user_data (udb_query_t *q) /* {{{ */
   if (q == NULL)
     return (NULL);
 
-  return (q->statement);
+  return (q->user_data);
 } /* }}} void *udb_query_get_user_data */
 
 void udb_query_finish_result (udb_query_t *q) /* {{{ */
