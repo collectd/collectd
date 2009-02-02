@@ -1109,6 +1109,10 @@ Prefix all lines printed by the current time. Defaults to B<true>.
 
 =back
 
+B<Note>: There is no need to notify the daemon after moving or removing the
+log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
+for each line it writes.
+
 =head2 Plugin C<mbmon>
 
 The C<mbmon plugin> uses mbmon to retrieve temperature, voltage, etc.
