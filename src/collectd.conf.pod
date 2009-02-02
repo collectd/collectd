@@ -2598,6 +2598,12 @@ the F</proc/virtual> filesystem that is required by this plugin.
 
 The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 
+B<Note>: The traffic collected by this plugin accounts for the amount of
+traffic passing a socket which might be a lot less than the actual on-wire
+traffic (e.E<nbsp>g. due to headers and retransmission). If you want to
+collect on-wire traffic you could, for example, use the logging facilities of
+iptables to feed data for the guest IPs into the iptables plugin.
+
 =head1 THRESHOLD CONFIGURATION
 
 Starting with version C<4.3.0> collectd has support for B<monitoring>. By that
