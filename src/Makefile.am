@@ -604,6 +604,11 @@ perl_la_CPPFLAGS = $(AM_CPPFLAGS) -DHAS_BOOL=1
 perl_la_CFLAGS  = $(AM_CFLAGS) \
 		$(PERL_CFLAGS) \
 		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
+# Work-around for issues #41 and #42 - Perl 5.10 incorrectly introduced
+# __attribute__nonnull__(3) for Perl_load_module().
+if HAVE_BROKEN_PERL_LOAD_MODULE
+perl_la_CFLAGS += -Wno-nonnull
+endif
 perl_la_LDFLAGS = -module -avoid-version \
 		$(PERL_LDFLAGS)
 collectd_LDADD += "-dlopen" perl.la

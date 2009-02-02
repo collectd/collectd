@@ -1949,6 +1949,43 @@ then
 	CFLAGS=$SAVE_CFLAGS
 	LDFLAGS=$SAVE_LDFLAGS
 fi
+
+if test "x$with_libperl" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	SAVE_LDFLAGS=$LDFLAGS
+	# trigger an error if Perl_load_module*() uses __attribute__nonnull__(3)
+	# (see issues #41 and #42)
+	CFLAGS="$CFLAGS $PERL_CFLAGS -Wall -Werror"
+	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
+
+	AC_CACHE_CHECK([for broken Perl_load_module()],
+		[have_broken_perl_load_module],
+		AC_LINK_IFELSE(
+			AC_LANG_PROGRAM(
+			[[
+#define PERL_NO_GET_CONTEXT
+#include <EXTERN.h>
+#include <perl.h>
+#include <XSUB.h>
+			]],
+			[[
+			 dTHX;
+			 load_module (PERL_LOADMOD_NOIMPORT,
+			     newSVpv ("Collectd::Plugin::FooBar", 24),
+			     Nullsv);
+			]]),
+			[have_broken_perl_load_module="no"],
+			[have_broken_perl_load_module="yes"]
+		)
+	)
+
+	AM_CONDITIONAL(HAVE_BROKEN_PERL_LOAD_MODULE,
+			test "x$have_broken_perl_load_module" = "xyes")
+
+	CFLAGS=$SAVE_CFLAGS
+	LDFLAGS=$SAVE_LDFLAGS
+fi
 # }}}
 
 # --with-libpq {{{
