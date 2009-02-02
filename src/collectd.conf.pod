@@ -1504,6 +1504,7 @@ plugin's documentation above for details.
       Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
       <Result>
         Type "gauge"
+        # InstancePrefix "foo"
         InstancesFrom "category"
         ValuesFrom "value"
       </Result>

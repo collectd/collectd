@@ -47,35 +47,14 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "configfile.h"
+#include "utils_db_query.h"
 
 #include <oci.h>
 
 /*
  * Data types
  */
-struct o_result_s;
-typedef struct o_result_s o_result_t;
-struct o_result_s
-{
-  char    *type;
-  char   **instances;
-  size_t   instances_num;
-  char   **values;
-  size_t   values_num;
-
-  o_result_t *next;
-};
-
-struct o_query_s
-{
-  char    *name;
-  char    *statement;
-  OCIStmt *oci_statement;
-
-  o_result_t *results;
-};
-typedef struct o_query_s o_query_t;
-
 struct o_database_s
 {
   char *name;
@@ -83,8 +62,8 @@ struct o_database_s
   char *username;
   char *password;
 
-  o_query_t **queries;
-  size_t      queries_num;
+  udb_query_t **queries;
+  size_t        queries_num;
 
   OCISvcCtx *oci_service_context;
 };
@@ -93,7 +72,7 @@ typedef struct o_database_s o_database_t;
 /*
  * Global variables
  */
-static o_query_t    **queries       = NULL;
+static udb_query_t  **queries       = NULL;
 static size_t         queries_num   = 0;
 static o_database_t **databases     = NULL;
 static size_t         databases_num = 0;
@@ -139,41 +118,6 @@ static void o_report_error (const char *where, /* {{{ */
         where, what, status);
   }
 } /* }}} void o_report_error */
-
-static void o_result_free (o_result_t *r) /* {{{ */
-{
-  size_t i;
-
-  if (r == NULL)
-    return;
-
-  sfree (r->type);
-
-  for (i = 0; i < r->instances_num; i++)
-    sfree (r->instances[i]);
-  sfree (r->instances);
-
-  for (i = 0; i < r->values_num; i++)
-    sfree (r->values[i]);
-  sfree (r->values);
-
-  o_result_free (r->next);
-
-  sfree (r);
-} /* }}} void o_result_free */
-
-static void o_query_free (o_query_t *q) /* {{{ */
-{
-  if (q == NULL)
-    return;
-
-  sfree (q->name);
-  sfree (q->statement);
-
-  o_result_free (q->results);
-
-  sfree (q);
-} /* }}} void o_query_free */
 
 static void o_database_free (o_database_t *db) /* {{{ */
 {
@@ -237,307 +181,6 @@ static int o_config_set_string (char **ret_string, /* {{{ */
   return (0);
 } /* }}} int o_config_set_string */
 
-static int o_config_add_string (char ***ret_array, /* {{{ */
-    size_t *ret_array_len, oconfig_item_t *ci)
-{
-  char **array;
-  size_t array_len;
-  int i;
-
-  if (ci->values_num < 1)
-  {
-    WARNING ("oracle plugin: The `%s' config option "
-        "needs at least one argument.", ci->key);
-    return (-1);
-  }
-
-  for (i = 0; i < ci->values_num; i++)
-  {
-    if (ci->values[i].type != OCONFIG_TYPE_STRING)
-    {
-      WARNING ("oracle plugin: Argument %i to the `%s' option "
-          "is not a string.", i + 1, ci->key);
-      return (-1);
-    }
-  }
-
-  array_len = *ret_array_len;
-  array = (char **) realloc (*ret_array,
-      sizeof (char *) * (array_len + ci->values_num));
-  if (array == NULL)
-  {
-    ERROR ("oracle plugin: realloc failed.");
-    return (-1);
-  }
-  *ret_array = array;
-
-  for (i = 0; i < ci->values_num; i++)
-  {
-    array[array_len] = strdup (ci->values[i].value.string);
-    if (array[array_len] == NULL)
-    {
-      ERROR ("oracle plugin: strdup failed.");
-      *ret_array_len = array_len;
-      return (-1);
-    }
-    array_len++;
-  }
-
-  *ret_array_len = array_len;
-  return (0);
-} /* }}} int o_config_add_string */
-
-static int o_config_add_query_result (o_query_t *q, /* {{{ */
-    oconfig_item_t *ci)
-{
-  o_result_t *r;
-  int status;
-  int i;
-
-  if (ci->values_num != 0)
-  {
-    WARNING ("oracle plugin: The `Result' block doesn't accept any arguments. "
-        "Ignoring %i argument%s.",
-        ci->values_num, (ci->values_num == 1) ? "" : "s");
-  }
-
-  r = (o_result_t *) malloc (sizeof (*r));
-  if (r == NULL)
-  {
-    ERROR ("oracle plugin: malloc failed.");
-    return (-1);
-  }
-  memset (r, 0, sizeof (*r));
-  r->type = NULL;
-  r->instances = NULL;
-  r->values = NULL;
-  r->next = NULL;
-
-  /* Fill the `o_result_t' structure.. */
-  status = 0;
-  for (i = 0; i < ci->children_num; i++)
-  {
-    oconfig_item_t *child = ci->children + i;
-
-    if (strcasecmp ("Type", child->key) == 0)
-      status = o_config_set_string (&r->type, child);
-    else if (strcasecmp ("InstancesFrom", child->key) == 0)
-      status = o_config_add_string (&r->instances, &r->instances_num, child);
-    else if (strcasecmp ("ValuesFrom", child->key) == 0)
-      status = o_config_add_string (&r->values, &r->values_num, child);
-    else
-    {
-      WARNING ("oracle plugin: Query `%s': Option `%s' not allowed here.",
-          q->name, child->key);
-      status = -1;
-    }
-
-    if (status != 0)
-      break;
-  }
-
-  /* Check that all necessary options have been given. */
-  while (status == 0)
-  {
-    if (r->type == NULL)
-    {
-      WARNING ("oracle plugin: `Type' not given for "
-          "result in query `%s'", q->name);
-      status = -1;
-    }
-    if (r->instances == NULL)
-    {
-      WARNING ("oracle plugin: `InstancesFrom' not given for "
-          "result in query `%s'", q->name);
-      status = -1;
-    }
-    if (r->values == NULL)
-    {
-      WARNING ("oracle plugin: `ValuesFrom' not given for "
-          "result in query `%s'", q->name);
-      status = -1;
-    }
-
-    break;
-  } /* while (status == 0) */
-
-  /* If all went well, add this result to the list of results within the
-   * query structure. */
-  if (status == 0)
-  {
-    if (q->results == NULL)
-    {
-      q->results = r;
-    }
-    else
-    {
-      o_result_t *last;
-
-      last = q->results;
-      while (last->next != NULL)
-        last = last->next;
-
-      last->next = r;
-    }
-  }
-
-  if (status != 0)
-  {
-    o_result_free (r);
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int o_config_add_query_result */
-
-static int o_config_add_query (oconfig_item_t *ci) /* {{{ */
-{
-  o_query_t *q;
-  int status;
-  int i;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("oracle plugin: The `Query' block "
-        "needs exactly one string argument.");
-    return (-1);
-  }
-
-  q = (o_query_t *) malloc (sizeof (*q));
-  if (q == NULL)
-  {
-    ERROR ("oracle plugin: malloc failed.");
-    return (-1);
-  }
-  memset (q, 0, sizeof (*q));
-
-  status = o_config_set_string (&q->name, ci);
-  if (status != 0)
-  {
-    sfree (q);
-    return (status);
-  }
-
-  /* Fill the `o_query_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
-  {
-    oconfig_item_t *child = ci->children + i;
-
-    if (strcasecmp ("Statement", child->key) == 0)
-      status = o_config_set_string (&q->statement, child);
-    else if (strcasecmp ("Result", child->key) == 0)
-      status = o_config_add_query_result (q, child);
-    else
-    {
-      WARNING ("oracle plugin: Option `%s' not allowed here.", child->key);
-      status = -1;
-    }
-
-    if (status != 0)
-      break;
-  }
-
-  /* Check that all necessary options have been given. */
-  while (status == 0)
-  {
-    if (q->statement == NULL)
-    {
-      WARNING ("oracle plugin: `Statement' not given for query `%s'", q->name);
-      status = -1;
-    }
-    if (q->results == NULL)
-    {
-      WARNING ("oracle plugin: No (valid) `Result' block given for query `%s'",
-          q->name);
-      status = -1;
-    }
-
-    break;
-  } /* while (status == 0) */
-
-  /* If all went well, add this query to the list of queries within the
-   * database structure. */
-  if (status == 0)
-  {
-    o_query_t **temp;
-
-    temp = (o_query_t **) realloc (queries,
-        sizeof (*queries) * (queries_num + 1));
-    if (temp == NULL)
-    {
-      ERROR ("oracle plugin: realloc failed");
-      status = -1;
-    }
-    else
-    {
-      queries = temp;
-      queries[queries_num] = q;
-      queries_num++;
-    }
-  }
-
-  if (status != 0)
-  {
-    o_query_free (q);
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int o_config_add_query */
-
-static int o_config_add_database_query (o_database_t *db, /* {{{ */
-    oconfig_item_t *ci)
-{
-  o_query_t *q;
-  o_query_t **temp;
-  size_t i;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("oracle plugin: The `Query' config option "
-        "needs exactly one string argument.");
-    return (-1);
-  }
-
-  q = NULL;
-  for (i = 0; i < queries_num; i++)
-  {
-    if (strcasecmp (queries[i]->name, ci->values[0].value.string) == 0)
-    {
-      q = queries[i];
-      break;
-    }
-  }
-
-  if (q == NULL)
-  {
-    WARNING ("oracle plugin: Database `%s': Unknown query `%s'. "
-        "Please make sure that the <Query \"%s\"> block comes before "
-        "the <Database \"%s\"> block.",
-        db->name, ci->values[0].value.string,
-        ci->values[0].value.string, db->name);
-    return (-1);
-  }
-
-  temp = (o_query_t **) realloc (db->queries,
-      sizeof (*db->queries) * (db->queries_num + 1));
-  if (temp == NULL)
-  {
-    ERROR ("oracle plugin: realloc failed");
-    return (-1);
-  }
-  else
-  {
-    db->queries = temp;
-    db->queries[db->queries_num] = q;
-    db->queries_num++;
-  }
-
-  return (0);
-} /* }}} int o_config_add_database_query */
-
 static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 {
   o_database_t *db;
@@ -579,7 +222,8 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Password", child->key) == 0)
       status = o_config_set_string (&db->password, child);
     else if (strcasecmp ("Query", child->key) == 0)
-      status = o_config_add_database_query (db, child);
+      status = udb_query_pick_from_list (child, queries, queries_num,
+          &db->queries, &db->queries_num);
     else
     {
       WARNING ("oracle plugin: Option `%s' not allowed here.", child->key);
@@ -650,12 +294,18 @@ static int o_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Query", child->key) == 0)
-      o_config_add_query (child);
+      udb_query_create (&queries, &queries_num, child);
     else if (strcasecmp ("Database", child->key) == 0)
       o_config_add_database (child);
     else
     {
-      WARNING ("snmp plugin: Ignoring unknown config option `%s'.", child->key);
+      WARNING ("oracle plugin: Ignoring unknown config option `%s'.", child->key);
+    }
+
+    if (queries_num > 0)
+    {
+      DEBUG ("oracle plugin: o_config: queries_num = %zu; queries[0] = %p; udb_query_get_user_data (queries[0]) = %p;",
+          queries_num, (void *) queries[0], udb_query_get_user_data (queries[0]));
     }
   } /* for (ci->children) */
 
@@ -697,176 +347,14 @@ static int o_init (void) /* {{{ */
   return (0);
 } /* }}} int o_init */
 
-static void o_submit (o_database_t *db, o_result_t *r, /* {{{ */
-    const data_set_t *ds, char **buffer_instances, char **buffer_values)
-{
-  value_list_t vl = VALUE_LIST_INIT;
-  size_t i;
-
-  assert (((size_t) ds->ds_num) == r->values_num);
-
-  vl.values = (value_t *) malloc (sizeof (value_t) * r->values_num);
-  if (vl.values == NULL)
-  {
-    ERROR ("oracle plugin: malloc failed.");
-    return;
-  }
-  vl.values_len = ds->ds_num;
-
-  for (i = 0; i < r->values_num; i++)
-  {
-    char *endptr;
-
-    endptr = NULL;
-    errno = 0;
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
-      vl.values[i].counter = (counter_t) strtoll (buffer_values[i],
-          &endptr, /* base = */ 0);
-    else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      vl.values[i].gauge = (gauge_t) strtod (buffer_values[i], &endptr);
-    else
-      errno = EINVAL;
-
-    if ((endptr == buffer_values[i]) || (errno != 0))
-    {
-      WARNING ("oracle plugin: o_submit: Parsing `%s' as %s failed.",
-          buffer_values[i],
-          (ds->ds[i].type == DS_TYPE_COUNTER) ? "counter" : "gauge");
-      vl.values[i].gauge = NAN;
-    }
-  }
-
-  vl.time = time (NULL);
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "oracle", sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, db->name, sizeof (vl.type_instance));
-  sstrncpy (vl.type, r->type, sizeof (vl.type));
-  strjoin (vl.type_instance, sizeof (vl.type_instance),
-      buffer_instances, r->instances_num, "-");
-  vl.type_instance[sizeof (vl.type_instance) - 1] = 0;
-
-  plugin_dispatch_values (&vl);
-} /* }}} void o_submit */
-
-static int o_handle_query_result (o_database_t *db, /* {{{ */
-    o_query_t *q, o_result_t *r,
-    char **column_names, char **column_values, size_t column_num)
-{
-  const data_set_t *ds;
-  char **instances;
-  char **values;
-  size_t i;
-
-  instances = NULL;
-  values = NULL;
-
-#define BAIL_OUT(status) \
-  sfree (instances); \
-  sfree (values); \
-  return (status)
-
-  /* Read `ds' and check number of values {{{ */
-  ds = plugin_get_ds (r->type);
-  if (ds == NULL)
-  {
-    ERROR ("oracle plugin: o_handle_query_result (%s, %s): Type `%s' is not "
-        "known by the daemon. See types.db(5) for details.",
-        db->name, q->name, r->type);
-    BAIL_OUT (-1);
-  }
-
-  if (((size_t) ds->ds_num) != r->values_num)
-  {
-    ERROR ("oracle plugin: o_handle_query_result (%s, %s): The type `%s' "
-        "requires exactly %i value%s, but the configuration specifies %zu.",
-        db->name, q->name, r->type,
-        ds->ds_num, (ds->ds_num == 1) ? "" : "s",
-        r->values_num);
-    BAIL_OUT (-1);
-  }
-  /* }}} */
-
-  /* Allocate `instances' and `values'. {{{ */
-  instances = (char **) calloc (r->instances_num, sizeof (char *));
-  if (instances == NULL)
-  {
-    ERROR ("oracle plugin: o_handle_query_result (%s, %s): malloc failed.",
-        db->name, q->name);
-    BAIL_OUT (-1);
-  }
-
-  values = (char **) calloc (r->values_num, sizeof (char *));
-  if (values == NULL)
-  {
-    sfree (instances);
-    ERROR ("oracle plugin: o_handle_query_result (%s, %s): malloc failed.",
-        db->name, q->name);
-    BAIL_OUT (-1);
-  }
-  /* }}} */
-
-  /* Fill `instances' with pointers to the appropriate strings from
-   * `column_values' */
-  for (i = 0; i < r->instances_num; i++) /* {{{ */
-  {
-    size_t j;
-
-    instances[i] = NULL;
-    for (j = 0; j < column_num; j++)
-    {
-      if (strcasecmp (r->instances[i], column_names[j]) == 0)
-      {
-        instances[i] = column_values[j];
-        break;
-      }
-    }
-
-    if (instances[i] == NULL)
-    {
-      ERROR ("oracle plugin: o_handle_query_result (%s, %s): "
-          "Cannot find column `%s'. Is the statement correct?",
-          db->name, q->name, r->instances[i]);
-      BAIL_OUT (-1);
-    }
-  } /* }}} */
-
-  /* Fill `values' with pointers to the appropriate strings from
-   * `column_values' */
-  for (i = 0; i < r->values_num; i++) /* {{{ */
-  {
-    size_t j;
-
-    values[i] = NULL;
-    for (j = 0; j < column_num; j++)
-    {
-      if (strcasecmp (r->values[i], column_names[j]) == 0)
-      {
-        values[i] = column_values[j];
-        break;
-      }
-    }
-
-    if (values[i] == NULL)
-    {
-      ERROR ("oracle plugin: o_handle_query_result (%s, %s): "
-          "Cannot find column `%s'. Is the statement correct?",
-          db->name, q->name, r->values[i]);
-      BAIL_OUT (-1);
-    }
-  } /* }}} */
-
-  o_submit (db, r, ds, instances, values);
-
-  BAIL_OUT (0);
-#undef BAIL_OUT
-} /* }}} int o_handle_query_result */
-
 static int o_read_database_query (o_database_t *db, /* {{{ */
-    o_query_t *q)
+    udb_query_t *q)
 {
   char **column_names;
   char **column_values;
   size_t column_num;
+
+  OCIStmt *oci_statement;
 
   /* List of `OCIDefine' pointers. These defines map columns to the buffer
    * space declared above. */
@@ -875,35 +363,48 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   int status;
   size_t i;
 
+  oci_statement = udb_query_get_user_data (q);
+
   /* Prepare the statement */
-  if (q->oci_statement == NULL) /* {{{ */
+  if (oci_statement == NULL) /* {{{ */
   {
-    status = OCIHandleAlloc (oci_env, (void *) &q->oci_statement,
+    const char *statement;
+
+    statement = udb_query_get_statement (q);
+    assert (statement != NULL);
+
+    status = OCIHandleAlloc (oci_env, (void *) &oci_statement,
         OCI_HTYPE_STMT, /* user_data_size = */ 0, /* user_data = */ NULL);
     if (status != OCI_SUCCESS)
     {
       o_report_error ("o_read_database_query", "OCIHandleAlloc", oci_error);
-      q->oci_statement = NULL;
+      oci_statement = NULL;
       return (-1);
     }
 
-    status = OCIStmtPrepare (q->oci_statement, oci_error,
-        (text *) q->statement, (ub4) strlen (q->statement),
+    status = OCIStmtPrepare (oci_statement, oci_error,
+        (text *) statement, (ub4) strlen (statement),
         /* language = */ OCI_NTV_SYNTAX,
         /* mode     = */ OCI_DEFAULT);
     if (status != OCI_SUCCESS)
     {
       o_report_error ("o_read_database_query", "OCIStmtPrepare", oci_error);
-      OCIHandleFree (q->oci_statement, OCI_HTYPE_STMT);
-      q->oci_statement = NULL;
+      OCIHandleFree (oci_statement, OCI_HTYPE_STMT);
+      oci_statement = NULL;
       return (-1);
     }
-    assert (q->oci_statement != NULL);
+    udb_query_set_user_data (q, oci_statement);
+
+    DEBUG ("oracle plugin: o_read_database_query (%s, %s): "
+        "Successfully allocated statement handle.",
+        db->name, udb_query_get_name (q));
   } /* }}} */
+
+  assert (oci_statement != NULL);
 
   /* Execute the statement */
   status = OCIStmtExecute (db->oci_service_context, /* {{{ */
-      q->oci_statement,
+      oci_statement,
       oci_error,
       /* iters = */ 0,
       /* rowoff = */ 0,
@@ -911,9 +412,10 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
       /* mode = */ OCI_DEFAULT);
   if (status != OCI_SUCCESS)
   {
+    DEBUG ("oracle plugin: o_read_database_query: status = %i (%#x)", status, status);
     o_report_error ("o_read_database_query", "OCIStmtExecute", oci_error);
     ERROR ("oracle plugin: o_read_database_query: "
-        "Failing statement was: %s", q->statement);
+        "Failing statement was: %s", udb_query_get_statement (q));
     return (-1);
   } /* }}} */
 
@@ -921,7 +423,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   do /* {{{ */
   {
     ub4 param_counter = 0;
-    status = OCIAttrGet (q->oci_statement, OCI_HTYPE_STMT, /* {{{ */
+    status = OCIAttrGet (oci_statement, OCI_HTYPE_STMT, /* {{{ */
         &param_counter, /* size pointer = */ NULL, 
         OCI_ATTR_PARAM_COUNT, oci_error);
     if (status != OCI_SUCCESS)
@@ -995,12 +497,11 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   {
     char *column_name;
     size_t column_name_length;
-    char column_name_copy[DATA_MAX_NAME_LEN];
     OCIParam *oci_param;
 
     oci_param = NULL;
 
-    status = OCIParamGet (q->oci_statement, OCI_HTYPE_STMT, oci_error,
+    status = OCIParamGet (oci_statement, OCI_HTYPE_STMT, oci_error,
         (void *) &oci_param, (ub4) (i + 1));
     if (status != OCI_SUCCESS)
     {
@@ -1032,9 +533,9 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
 
     DEBUG ("oracle plugin: o_read_database_query: column_names[%zu] = %s; "
         "column_name_length = %zu;",
-        i, column_name_copy, column_name_length);
+        i, column_names[i], column_name_length);
 
-    status = OCIDefineByPos (q->oci_statement,
+    status = OCIDefineByPos (oci_statement,
         &oci_defines[i], oci_error, (ub4) (i + 1),
         column_values[i], DATA_MAX_NAME_LEN, SQLT_STR,
         NULL, NULL, NULL, OCI_DEFAULT);
@@ -1046,12 +547,21 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   } /* for (j = 1; j <= param_counter; j++) */
   /* }}} End of the ``define'' stuff. */
 
+  status = udb_query_prepare_result (q, hostname_g, /* plugin = */ "oracle",
+      db->name, column_names, column_num);
+  if (status != 0)
+  {
+    ERROR ("oracle plugin: o_read_database_query (%s, %s): "
+        "udb_query_prepare_result failed.",
+        db->name, udb_query_get_name (q));
+    FREE_ALL;
+    return (-1);
+  }
+
   /* Fetch and handle all the rows that matched the query. */
   while (42) /* {{{ */
   {
-    o_result_t *r;
-
-    status = OCIStmtFetch2 (q->oci_statement, oci_error,
+    status = OCIStmtFetch2 (oci_statement, oci_error,
         /* nrows = */ 1, /* orientation = */ OCI_FETCH_NEXT,
         /* fetch offset = */ 0, /* mode = */ OCI_DEFAULT);
     if (status == OCI_NO_DATA)
@@ -1065,14 +575,13 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
       break;
     }
 
-    for (i = 0; i < column_num; i++)
+    status = udb_query_handle_result (q, column_values);
+    if (status != 0)
     {
-      DEBUG ("oracle plugin: o_read_database_query: [%zu] %s = %s;",
-           i, column_names[i], column_values[i]);
+      WARNING ("oracle plugin: o_read_database_query (%s, %s): "
+          "udb_query_handle_result failed.",
+          db->name, udb_query_get_name (q));
     }
-
-    for (r = q->results; r != NULL; r = r->next)
-      o_handle_query_result (db, q, r, column_names, column_values, column_num);
   } /* }}} while (42) */
 
   /* DEBUG ("oracle plugin: o_read_database_query: This statement succeeded: %s", q->statement); */
@@ -1137,13 +646,23 @@ static int o_shutdown (void) /* {{{ */
     }
   
   for (i = 0; i < queries_num; i++)
-    if (queries[i]->oci_statement != NULL)
+  {
+    OCIStmt *oci_statement;
+
+    oci_statement = udb_query_get_user_data (queries[i]);
+    if (oci_statement != NULL)
     {
-      OCIHandleFree (queries[i]->oci_statement, OCI_HTYPE_STMT);
-      queries[i]->oci_statement = NULL;
+      OCIHandleFree (oci_statement, OCI_HTYPE_STMT);
+      udb_query_set_user_data (queries[i], NULL);
     }
+  }
   
   OCIHandleFree (oci_env, OCI_HTYPE_ENV);
+
+  udb_query_free (queries, queries_num);
+  queries = NULL;
+  queries_num = 0;
+
   return (0);
 } /* }}} int o_shutdown */
 
