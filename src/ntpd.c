@@ -310,31 +310,6 @@ static void ntpd_submit (char *type, char *type_inst, double value)
 	plugin_dispatch_values (&vl);
 }
 
-/* returns `tv0 - tv1' in milliseconds or 0 if `tv1 > tv0' */
-static int timeval_sub (const struct timeval *tv0, const struct timeval *tv1)
-{
-	int sec;
-	int usec;
-
-	if ((tv0->tv_sec < tv1->tv_sec)
-			|| ((tv0->tv_sec == tv1->tv_sec) && (tv0->tv_usec < tv1->tv_usec)))
-		return (0);
-
-	sec  = tv0->tv_sec  - tv1->tv_sec;
-	usec = tv0->tv_usec - tv1->tv_usec;
-
-	while (usec < 0)
-	{
-		usec += 1000000;
-		sec  -= 1;
-	}
-
-	if (sec < 0)
-		return (0);
-
-	return ((sec * 1000) + ((usec + 500) / 1000));
-}
-
 static int ntpd_connect (void)
 {
 	char *host;
@@ -459,6 +434,8 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 	done = 0;
 	while (done == 0)
 	{
+		struct timeval time_left;
+
 		if (gettimeofday (&time_now, NULL) < 0)
 		{
 			char errbuf[1024];
@@ -467,8 +444,14 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 			return (-1);
 		}
 
+		if (timeval_cmp (time_end, time_now, &time_left) <= 0)
+			timeout = 0;
+		else
+			timeout = 1000 * time_left.tv_sec
+				+ ((time_left.tv_usec + 500) / 1000);
+
 		/* timeout reached */
-		if ((timeout = timeval_sub (&time_end, &time_now)) == 0)
+		if (timeout <= 0)
 			break;
 
 		poll_s.fd      = sd;

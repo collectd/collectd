@@ -160,8 +160,27 @@ int escape_slashes (char *buf, int buf_len);
 
 int strsubstitute (char *str, char c_from, char c_to);
 
-/* FIXME: `timeval_sub_timespec' needs a description */
-int timeval_sub_timespec (struct timeval *tv0, struct timeval *tv1, struct timespec *ret);
+/*
+ * NAME
+ *   timeval_cmp
+ *
+ * DESCRIPTION
+ *   Compare the two time values `tv0' and `tv1' and store the absolut value
+ *   of the difference in the time value pointed to by `delta' if it does not
+ *   equal NULL.
+ *
+ * RETURN VALUE
+ *   Returns an integer less than, equal to, or greater than zero if `tv0' is
+ *   less than, equal to, or greater than `tv1' respectively.
+ */
+int timeval_cmp (struct timeval tv0, struct timeval tv1, struct timeval *delta);
+
+/* make sure tv_usec stores less than a second */
+#define NORMALIZE_TIMEVAL(tv) \
+	do { \
+		(tv).tv_sec += (tv).tv_usec / 1000000; \
+		(tv).tv_usec = (tv).tv_usec % 1000000; \
+	} while (0)
 
 int check_create_dir (const char *file_orig);
 

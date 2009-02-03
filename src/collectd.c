@@ -301,6 +301,7 @@ static int do_loop (void)
 {
 	struct timeval tv_now;
 	struct timeval tv_next;
+	struct timeval tv_wait;
 	struct timespec ts_wait;
 
 	while (loop == 0)
@@ -331,13 +332,16 @@ static int do_loop (void)
 			return (-1);
 		}
 
-		if (timeval_sub_timespec (&tv_next, &tv_now, &ts_wait) != 0)
+		if (timeval_cmp (tv_next, tv_now, &tv_wait) <= 0)
 		{
-			WARNING ("Not sleeping because "
-					"`timeval_sub_timespec' returned "
-					"non-zero!");
+			WARNING ("Not sleeping because the next interval is "
+					"%i.%06i seconds in the past!",
+					(int) tv_wait.tv_sec, (int) tv_wait.tv_usec);
 			continue;
 		}
+
+		ts_wait.tv_sec  = tv_wait.tv_sec;
+		ts_wait.tv_nsec = (long) (1000 * tv_wait.tv_usec);
 
 		while ((loop == 0) && (nanosleep (&ts_wait, &ts_wait) == -1))
 		{

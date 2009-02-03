@@ -308,10 +308,9 @@ static void *rrd_queue_thread (void *data)
                     break;
 
                   gettimeofday (&tv_now, /* timezone = */ NULL);
-                  status = timeval_sub_timespec (&tv_next_update, &tv_now,
-                      &ts_wait);
+                  status = timeval_cmp (tv_next_update, tv_now, NULL);
                   /* We're good to go */
-                  if (status != 0)
+                  if (status <= 0)
                     break;
 
                   /* We're supposed to wait a bit with this update, so we'll
