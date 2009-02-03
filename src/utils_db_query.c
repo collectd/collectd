@@ -55,6 +55,9 @@ struct udb_query_s /* {{{ */
   char *statement;
   void *user_data;
 
+  unsigned int min_version;
+  unsigned int max_version;
+
   /* Preparation area */
   size_t column_num;
   char *host;
@@ -143,6 +146,27 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
   *ret_array_len = array_len;
   return (0);
 } /* }}} int udb_config_add_string */
+
+static int udb_config_set_uint (unsigned int *ret_value, /* {{{ */
+    oconfig_item_t *ci)
+{
+  double tmp;
+
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("db query utils: The `%s' config option "
+        "needs exactly one numeric argument.", ci->key);
+    return (-1);
+  }
+
+  tmp = ci->values[0].value.number;
+  if ((tmp < 0.0) || (tmp > ((double) UINT_MAX)))
+    return (-ERANGE);
+
+  *ret_value = (unsigned int) (tmp + .5);
+  return (0);
+} /* }}} int udb_config_set_uint */
 
 /*
  * Result private functions
@@ -545,6 +569,8 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     return (-1);
   }
   memset (q, 0, sizeof (*q));
+  q->min_version = 0;
+  q->max_version = UINT_MAX;
 
   status = udb_config_set_string (&q->name, ci);
   if (status != 0)
@@ -562,6 +588,10 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
       status = udb_config_set_string (&q->statement, child);
     else if (strcasecmp ("Result", child->key) == 0)
       status = udb_result_create (q->name, &q->results, child);
+    else if (strcasecmp ("MinVersion", child->key) == 0)
+      status = udb_config_set_uint (&q->min_version, child);
+    else if (strcasecmp ("MaxVersion", child->key) == 0)
+      status = udb_config_set_uint (&q->max_version, child);
     else
     {
       WARNING ("db query utils: Query `%s': Option `%s' not allowed here.",
@@ -725,6 +755,17 @@ void *udb_query_get_user_data (udb_query_t *q) /* {{{ */
 
   return (q->user_data);
 } /* }}} void *udb_query_get_user_data */
+
+int udb_query_check_version (udb_query_t *q, unsigned int version) /* {{{ */
+{
+  if (q == NULL)
+    return (-EINVAL);
+
+  if ((version < q->min_version) || (version > q->max_version))
+    return (0);
+
+  return (1);
+} /* }}} int udb_query_check_version */
 
 void udb_query_finish_result (udb_query_t *q) /* {{{ */
 {

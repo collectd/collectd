@@ -47,6 +47,8 @@ const char *udb_query_get_statement (udb_query_t *q);
 void  udb_query_set_user_data (udb_query_t *q, void *user_data);
 void *udb_query_get_user_data (udb_query_t *q);
 
+int udb_query_check_version (udb_query_t *q, unsigned int version);
+
 int udb_query_prepare_result (udb_query_t *q,
     const char *host, const char *plugin, const char *db_name,
     char **column_names, size_t column_num);
