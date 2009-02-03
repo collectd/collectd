@@ -83,7 +83,7 @@ plugin within collectd. I<type> identifies the type and number of values
 data-sets is available in the B<types.db> file. See L<types.db(5)> for a
 description of the format of this file.
 
-The I<OptionList> is an optional list of I<Options>, where each option if a
+The I<OptionList> is an optional list of I<Options>, where each option is a
 key-value-pair. A list of currently understood options can be found below, all
 other options will be ignored. Values that contain spaces must be quoted with
 double quotes.
