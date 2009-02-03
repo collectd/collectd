@@ -640,9 +640,6 @@ static int pplugin_dispatch_values (pTHX_ HV *values)
 	if (NULL != (tmp = hv_fetch (values, "time", 4, 0))) {
 		list.time = (time_t)SvIV (*tmp);
 	}
-	else {
-		list.time = time (NULL);
-	}
 
 	if (NULL != (tmp = hv_fetch (values, "host", 4, 0))) {
 		sstrncpy (list.host, SvPV_nolen (*tmp), sizeof (list.host));

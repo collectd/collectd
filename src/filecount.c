@@ -66,7 +66,6 @@ static void fc_submit_dir (const fc_directory_conf_t *dir)
 
   vl.values = values;
   vl.values_len = STATIC_ARRAY_SIZE (values);
-  vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "filecount", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dir->instance, sizeof (vl.plugin_instance));

@@ -177,7 +177,6 @@ static void submit (char *type, char *inst, long long value)
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "nginx", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));

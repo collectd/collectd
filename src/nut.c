@@ -123,7 +123,6 @@ static void nut_submit (nut_ups_t *ups, const char *type,
 
   vl.values = values;
   vl.values_len = STATIC_ARRAY_SIZE (values);
-  vl.time = time (NULL);
   sstrncpy (vl.host,
       (strcasecmp (ups->hostname, "localhost") == 0)
       ? hostname_g

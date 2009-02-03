@@ -212,7 +212,6 @@ static void disk_submit (const char *plugin_instance,
 
 	vl.values = values;
 	vl.values_len = 2;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,

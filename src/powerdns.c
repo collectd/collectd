@@ -317,7 +317,6 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "powerdns", sizeof (vl.plugin));
   sstrncpy (vl.type, type, sizeof (vl.type));

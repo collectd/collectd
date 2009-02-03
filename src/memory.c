@@ -108,7 +108,6 @@ static void memory_submit (const char *type_instance, gauge_t value)
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
 	sstrncpy (vl.type, "memory", sizeof (vl.type));

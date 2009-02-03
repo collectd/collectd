@@ -217,7 +217,6 @@ static void udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
     }
   }
 
-  vl.time = time (NULL);
   sstrncpy (vl.host, q->host, sizeof (vl.host));
   sstrncpy (vl.plugin, q->plugin, sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, q->db_name, sizeof (vl.type_instance));

@@ -124,7 +124,6 @@ static void df_submit (char *df_name,
 
 	vl.values = values;
 	vl.values_len = 2;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));

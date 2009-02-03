@@ -45,7 +45,6 @@ static void submit (const char *plugin_instance, const char *type,
   vl.values = values;
   vl.values_len = values_len;
 
-  vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "vmem", sizeof (vl.plugin));
   if (plugin_instance != NULL)

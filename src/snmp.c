@@ -963,7 +963,6 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   sstrncpy (vl.plugin, "snmp", sizeof (vl.plugin));
 
   vl.interval = host->interval;
-  vl.time = time (NULL);
 
   subid = 0;
   have_more = 1;
@@ -1385,7 +1384,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     return (-1);
   }
 
-  vl.time = time (NULL);
 
   for (vb = res->variables; vb != NULL; vb = vb->next_variable)
   {

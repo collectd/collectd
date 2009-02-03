@@ -496,7 +496,6 @@ static void sensors_submit (const char *plugin_instance,
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "sensors", sizeof (vl.plugin));

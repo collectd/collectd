@@ -51,8 +51,6 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 	*value_str = '\0'; value_str++;
 
 	vl->time = (time_t) atoi (time_str);
-	if (vl->time == 0)
-		vl->time = time (NULL);
 
 	i = 0;
 	dummy = value_str;

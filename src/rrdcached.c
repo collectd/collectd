@@ -221,7 +221,6 @@ static int rc_read (void)
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = time (NULL);
 
   if ((strncmp ("unix:", daemon_address, strlen ("unix:")) == 0)
       || (daemon_address[0] == '/'))

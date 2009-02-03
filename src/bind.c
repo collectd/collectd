@@ -263,7 +263,7 @@ static void submit_counter(time_t ts, const char *plugin_instance, const char *t
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = (ts == 0) ? time (NULL) : ts;
+  vl.time = ts;
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "bind", sizeof(vl.plugin));
   if (plugin_instance) {

@@ -149,7 +149,6 @@ static int cow_read_values (const char *path, const char *name,
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = time (NULL);
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));

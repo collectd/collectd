@@ -158,7 +158,6 @@ static void if_submit (const char *dev, const char *type,
 
 	vl.values = values;
 	vl.values_len = 2;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "interface", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));

@@ -179,7 +179,6 @@ static void submit (int cpu_num, const char *type_instance, counter_t value)
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
 	ssnprintf (vl.plugin_instance, sizeof (vl.type_instance),

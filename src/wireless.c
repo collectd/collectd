@@ -55,7 +55,6 @@ static void wireless_submit (const char *plugin_instance, const char *type,
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "wireless", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,

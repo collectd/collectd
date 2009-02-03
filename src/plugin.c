@@ -874,6 +874,9 @@ int plugin_dispatch_values (value_list_t *vl)
 		return (-1);
 	}
 
+	if (vl->time == 0)
+		vl->time = time (NULL);
+
 	DEBUG ("plugin_dispatch_values: time = %u; interval = %i; "
 			"host = %s; "
 			"plugin = %s; plugin_instance = %s; "

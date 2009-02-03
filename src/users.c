@@ -48,7 +48,6 @@ static void users_submit (gauge_t value)
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "users", sizeof (vl.plugin));
 	sstrncpy (vl.type, "users", sizeof (vl.plugin));

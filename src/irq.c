@@ -131,7 +131,6 @@ static void irq_submit (unsigned int irq, counter_t value)
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "irq", sizeof (vl.plugin));
 	sstrncpy (vl.type, "irq", sizeof (vl.type));

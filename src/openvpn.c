@@ -75,7 +75,6 @@ static void openvpn_submit (char *name, counter_t rx, counter_t tx)
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
@@ -93,7 +92,6 @@ static void compression_submit (char *type_instance, gauge_t ratio)
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	sstrncpy (vl.type, "compression_ratio", sizeof (vl.type));

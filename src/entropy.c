@@ -38,7 +38,6 @@ static void entropy_submit (double entropy)
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "entropy", sizeof (vl.plugin));
 	sstrncpy (vl.type, "entropy", sizeof (vl.type));

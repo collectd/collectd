@@ -392,7 +392,6 @@ static void submit (const c_psql_database_t *db, const c_psql_result_t *res,
 
 	vl.values     = values;
 	vl.values_len = res->values_num;
-	vl.time       = time (NULL);
 
 	if (C_PSQL_IS_UNIX_DOMAIN_SOCKET (db->host)
 			|| (0 == strcmp (db->host, "localhost")))

@@ -235,7 +235,6 @@ static void cipvs_submit_connections (char *pi, char *ti, counter_t value)
 	vl.values     = values;
 	vl.values_len = 1;
 
-	vl.time     = time (NULL);
 	vl.interval = interval_g;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -261,7 +260,6 @@ static void cipvs_submit_if (char *pi, char *t, char *ti,
 	vl.values     = values;
 	vl.values_len = 2;
 
-	vl.time     = time (NULL);
 	vl.interval = interval_g;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
