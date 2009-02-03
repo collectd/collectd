@@ -1950,6 +1950,7 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 
+have_broken_perl_load_module="no"
 if test "x$with_libperl" = "xyes"
 then
 	SAVE_CFLAGS=$CFLAGS
@@ -1980,12 +1981,11 @@ then
 		)
 	)
 
-	AM_CONDITIONAL(HAVE_BROKEN_PERL_LOAD_MODULE,
-			test "x$have_broken_perl_load_module" = "xyes")
-
 	CFLAGS=$SAVE_CFLAGS
 	LDFLAGS=$SAVE_LDFLAGS
 fi
+AM_CONDITIONAL(HAVE_BROKEN_PERL_LOAD_MODULE,
+		test "x$have_broken_perl_load_module" = "xyes")
 # }}}
 
 # --with-libpq {{{
