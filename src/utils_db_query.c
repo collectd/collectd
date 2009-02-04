@@ -592,6 +592,21 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
       status = udb_config_set_uint (&q->min_version, child);
     else if (strcasecmp ("MaxVersion", child->key) == 0)
       status = udb_config_set_uint (&q->max_version, child);
+    /* PostgreSQL compatibility code */
+    else if (strcasecmp ("MinPGVersion", child->key) == 0)
+    {
+      WARNING ("db query utils: Query `%s': The `MinPGVersion' option is "
+          "deprecated. Please use `MinVersion' instead.",
+          q->name);
+      status = udb_config_set_uint (&q->min_version, child);
+    }
+    else if (strcasecmp ("MaxPGVersion", child->key) == 0)
+    {
+      WARNING ("db query utils: Query `%s': The `MaxPGVersion' option is "
+          "deprecated. Please use `MaxVersion' instead.",
+          q->name);
+      status = udb_config_set_uint (&q->max_version, child);
+    }
     else
     {
       WARNING ("db query utils: Query `%s': Option `%s' not allowed here.",
