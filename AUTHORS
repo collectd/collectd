@@ -27,6 +27,12 @@ Anthony Gialluca <tonyabg at charter.net>
 Antony Dovgal <tony at daylessday.org>
  - memcached plugin.
 
+Bruno Prémont <bonbons at linux-vserver.org>
+ - BIND plugin.
+ - Many bugreports and -fixes in various plugins,
+   especially a nasty bug in the network plugin.
+ - Wireshark dissector.
+
 Christophe Kalt <collectd at klb.taranis.org>
  - The version 3 `log' mode.
  - Many Solaris related hints and fixes.
@@ -36,6 +42,15 @@ Dan Berrange <berrange at redhat.com>
 
 David Bacher <drbacher at gmail.com>
  - serial plugin.
+
+Doug MacEachern <dougm at hyperic.com>
+ - The `-T' option (config testing mode).
+ - OpenVPN plugin.
+ - jcollectd (two-way JMX integration).
+ - A few other patches to various plugins.
+
+Fabian Linzberger <e at lefant.net>
+ - Percentage aggregation for `collectd-nagios'.
 
 Flavio Stanchina <flavio at stanchina.net>
  - mbmon plugin.
@@ -54,8 +69,15 @@ Luke Herberling <collectd at c-ware.com>
 Lyonel Vincent <lyonel at ezix.org>
  - processes plugin.
 
-Michael Stapelberg <michael+git@stapelberg.de>
+Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
+
+Michał Mirosław <mirq-linux at rere.qmqm.pl>
+ - thermal plugin.
+ - Streamlines recursive directory traversion.
+
+Mirko Buffoni <briareos at eswat.org>
+ - Port/Socket selection in the MySQL plugin.
 
 Niki W. Waibel <niki.waibel at newlogic.com>
  - Initial autotools fixes.
@@ -75,9 +97,15 @@ Peter Holik <peter at holik.at>
  - Some bugfixes in the exec plugin.
  - Notifications in the ipmi plugin.
 
+Piotr Hosowicz <the55 at wp.pl>
+ - SMF manifest for collectd.
+
 Richard W. M. Jones <rjones at redhat.com>
  - libvirt plugin.
  - uuid plugin.
+
+Roman Klesel <roman.klesel at noris.de>
+ - Oracle schema and sample SQL statements to be used with the Oracle plugin.
 
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
