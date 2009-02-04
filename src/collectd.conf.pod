@@ -2861,7 +2861,7 @@ read-plugins to the write-plugins:
  :         !         :
  :         V         :
  : +-------+-------+ :  +---------------+
- : !     Cache     !--->! Write-Plugins !
+ : !     Cache     !--->!  Value Cache  !
  : !     insert    ! :  +---+---+-------+
  : +-------+-------+ :      !   !
  :         !   ,------------'   !
