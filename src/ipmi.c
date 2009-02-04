@@ -148,11 +148,33 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
         }
       }
     }
+    else if (IPMI_IS_IPMI_ERR(err) && IPMI_GET_IPMI_ERR(err) == IPMI_NOT_SUPPORTED_IN_PRESENT_STATE_CC)
+    {
+      INFO ("ipmi plugin: sensor_read_handler: Sensor %s not ready",
+          list_item->sensor_name);
+    }
     else
     {
-      INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
-          "because it failed with status %#x.",
-          list_item->sensor_name, err);
+      if (IPMI_IS_IPMI_ERR(err))
+        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+            "because it failed with IPMI error %#x.",
+            list_item->sensor_name, IPMI_GET_IPMI_ERR(err));
+      else if (IPMI_IS_OS_ERR(err))
+        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+            "because it failed with OS error %#x.",
+            list_item->sensor_name, IPMI_GET_OS_ERR(err));
+      else if (IPMI_IS_RMCPP_ERR(err))
+        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+            "because it failed with RMCPP error %#x.",
+            list_item->sensor_name, IPMI_GET_RMCPP_ERR(err));
+      else if (IPMI_IS_SOL_ERR(err))
+        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+            "because it failed with RMCPP error %#x.",
+            list_item->sensor_name, IPMI_GET_SOL_ERR(err));
+      else
+        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+            "because it failed with error %#x. of class %#x",
+            list_item->sensor_name, err & 0xff, err & 0xffffff00);
       sensor_list_remove (sensor);
     }
     return;
