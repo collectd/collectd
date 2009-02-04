@@ -354,6 +354,8 @@ than those of other plugins. It usually looks something like this:
   <Plugin dbi>
     <Query "out_of_stock">
       Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
+      # Use with MySQL 5.0.0 or later
+      MinVersion 50000
       <Result>
         Type "gauge"
 	InstancePrefix "out_of_stock"
@@ -432,6 +434,38 @@ like this:
 (That works with MySQL but may not be valid SQL according to the spec. If you
 use a more strict database server, you may have to select from a dummy table or
 something.)
+
+=item B<MinVersion> I<Version>
+
+=item B<MaxVersion> I<Value>
+
+Only use this query for the specified database version. You can use these
+options to provide multiple queries with the same name but with a slightly
+different syntax. The plugin will use only those queries, where the specified
+minimum and maximum versions fit the version of the database in use.
+
+The database version is determined by C<dbi_conn_get_engine_version>, see the 
+L<libdbi documentation|http://libdbi.sourceforge.net/docs/programmers-guide/reference-conn.html#DBI-CONN-GET-ENGINE-VERSION>
+for details. Basically, each part of the version is assumed to be in the range
+from B<00> to B<99> and all dots are removed. So version "4.1.2" becomes
+"40102", version "5.0.42" becomes "50042".
+
+B<Warning:> The plugin will use B<all> matching queries, so if you specify
+multiple queries with the same name and B<overlapping> ranges, weird stuff will
+happen. Don't to it! A valid example would be something along these lines:
+
+  MinVersion 40000
+  MaxVersion 49999
+  ...
+  MinVersion 50000
+  MaxVersion 50099
+  ...
+  MinVersion 50100
+  # No maximum
+
+In the above example, there are three ranges that don't overlap. The last one
+goes from version "5.1.0" to infinity, meaning "all later versions". Versions
+before "4.0.0" are not specified.
 
 =item B<Type> I<Type>
 
