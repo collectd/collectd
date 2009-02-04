@@ -1,6 +1,6 @@
 /**
  * collectd - src/plugin.c
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -61,6 +61,9 @@ static llist_t *list_flush;
 static llist_t *list_shutdown;
 static llist_t *list_log;
 static llist_t *list_notification;
+
+static fc_chain_t *pre_cache_chain = NULL;
+static fc_chain_t *post_cache_chain = NULL;
 
 static c_avl_tree_t *data_sets;
 
@@ -596,12 +599,20 @@ int plugin_unregister_notification (const char *name)
 
 void plugin_init_all (void)
 {
+	const char *chain_name;
 	int (*callback) (void);
 	llentry_t *le;
 	int status;
 
 	/* Init the value cache */
 	uc_init ();
+
+	chain_name = global_option_get ("PreCacheChain");
+	pre_cache_chain = fc_chain_get_by_name (chain_name);
+
+	chain_name = global_option_get ("PostCacheChain");
+	post_cache_chain = fc_chain_get_by_name (chain_name);
+
 
 	if ((list_init == NULL) && (list_read == NULL))
 		return;
@@ -898,10 +909,16 @@ int plugin_dispatch_values (value_list_t *vl)
 	escape_slashes (vl->type, sizeof (vl->type));
 	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
 
+	if (pre_cache_chain != NULL)
+		fc_process_chain (ds, vl, pre_cache_chain);
+
 	/* Update the value cache */
 	uc_update (ds, vl);
 
-	fc_process (ds, vl);
+	if (post_cache_chain != NULL)
+		fc_process_chain (ds, vl, post_cache_chain);
+	else
+		fc_default_action (ds, vl);
 
 	return (0);
 } /* int plugin_dispatch_values */

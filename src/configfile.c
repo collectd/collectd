@@ -1,6 +1,6 @@
 /**
  * collectd - src/configfile.c
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -98,7 +98,9 @@ static cf_global_option_t cf_global_options[] =
 	{"Hostname",    NULL, NULL},
 	{"FQDNLookup",  NULL, "false"},
 	{"Interval",    NULL, "10"},
-	{"ReadThreads", NULL, "5"}
+	{"ReadThreads", NULL, "5"},
+	{"PreCacheChain",  NULL, "PreCache"},
+	{"PostCacheChain", NULL, "PostCache"}
 };
 static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
 

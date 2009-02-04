@@ -1,6 +1,6 @@
 /**
  * collectd - src/filter_chain.h
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008,2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -58,6 +58,9 @@ struct target_proc_s
 };
 typedef struct target_proc_s target_proc_t;
 
+struct fc_chain_s;
+typedef struct fc_chain_s fc_chain_t;
+
 int fc_register_target (const char *name, target_proc_t proc);
 
 /*
@@ -82,7 +85,12 @@ int fc_rule_delete (const char *chain_name, int position);
 /*
  * Processing function
  */
-int fc_process (const data_set_t *ds, value_list_t *vl);
+fc_chain_t *fc_chain_get_by_name (const char *chain_name);
+
+int fc_process_chain (const data_set_t *ds, value_list_t *vl,
+    fc_chain_t *chain);
+
+int fc_default_action (const data_set_t *ds, value_list_t *vl);
 
 /* 
  * Shortcut for global configuration
