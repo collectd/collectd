@@ -844,6 +844,7 @@ void plugin_shutdown_all (void)
 
 int plugin_dispatch_values (value_list_t *vl)
 {
+	int status;
 	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
 	data_set_t *ds;
@@ -910,13 +911,33 @@ int plugin_dispatch_values (value_list_t *vl)
 	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
 
 	if (pre_cache_chain != NULL)
-		fc_process_chain (ds, vl, pre_cache_chain);
+	{
+		status = fc_process_chain (ds, vl, pre_cache_chain);
+		if (status < 0)
+		{
+			WARNING ("plugin_dispatch_values: Running the "
+					"pre-cache chain failed with "
+					"status %i (%#x).",
+					status, status);
+		}
+		else if (status == FC_TARGET_STOP)
+			return (0);
+	}
 
 	/* Update the value cache */
 	uc_update (ds, vl);
 
 	if (post_cache_chain != NULL)
-		fc_process_chain (ds, vl, post_cache_chain);
+	{
+		status = fc_process_chain (ds, vl, post_cache_chain);
+		if (status < 0)
+		{
+			WARNING ("plugin_dispatch_values: Running the "
+					"post-cache chain failed with "
+					"status %i (%#x).",
+					status, status);
+		}
+	}
 	else
 		fc_default_action (ds, vl);
 
