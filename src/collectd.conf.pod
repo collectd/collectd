@@ -126,6 +126,14 @@ The sample config file that is installed with C<makeE<nbsp>install> includes a
 line which sets this option, though, so that default installations will have
 this setting enabled.
 
+=item B<PreCacheChain> I<ChainName>
+
+=item B<PostCacheChain> I<ChainName>
+
+Configure the name of the "pre-cache chain" and the "post-cache chain". Please
+see L<FILTER CONFIGURATION> below on information on chains and how these
+setting change the daemon's behavior.
+
 =back
 
 =head1 PLUGIN OPTIONS
@@ -2802,6 +2810,7 @@ The following shows the resulting structure:
 
 The configuration reflects this structure directly:
 
+ PostCacheChain "main"
  <Chain "main">
    <Rule "ignore_mysql_show">
      <Match "regex">
@@ -2819,12 +2828,75 @@ The configuration reflects this structure directly:
 
 The above configuration example will ignore all values where the plugin field
 is "mysql", the type is "mysql_command" and the type instance begins with
-"show_". All other values will be sent to the "rrdtool" write plugin via the
-default target of the chain.
+"show_". All other values will be sent to the C<rrdtool> write plugin via the
+default target of the chain. Since this chain is run after the value has been
+added to the cache, the MySQL C<show_*> command statistics will be available
+via the C<unixsock> plugin.
 
 =head2 List of configuration options
 
 =over 4
+
+=item B<PreCacheChain> I<ChainName>
+
+=item B<PostCacheChain> I<ChainName>
+
+Configure the name of the "pre-cache chain" and the "post-cache chain". The
+argument is the name of a I<chain> that should be executed before and/or after
+the values have been added to the cache.
+
+To understand the implications, it's important you know what is going on inside
+I<collectd>. The following diagram shows how values are passed from the
+read-plugins to the write-plugins:
+
+   +---------------+
+   !  Read-Plugin  !
+   +-------+-------+
+           !
+ + - - - - V - - - - +
+ : +---------------+ :
+ : !   Pre-Cache   ! :
+ : !     Chain     ! :
+ : +-------+-------+ :
+ :         !         :
+ :         V         :
+ : +-------+-------+ :  +---------------+
+ : !     Cache     !--->! Write-Plugins !
+ : !     insert    ! :  +---+---+-------+
+ : +-------+-------+ :      !   !
+ :         !   ,------------'   !
+ :         V   V     :          V
+ : +-------+---+---+ :  +-------+-------+
+ : !  Post-Cache   +--->! Write-Plugins !
+ : !     Chain     ! :  +---------------+
+ : +---------------+ :
+ :                   :
+ :  dispatch values  :
+ + - - - - - - - - - +
+
+After the values are passed from the read-plugins to the dispatch functions,
+the pre-cache chain is run first. The values are added to the internal cache
+afterwards. The post-cache chain is run after the values have been added to the
+cache. So why is it such a huge deal if chains are run before or after the
+values have been added to this cache?
+
+Targets that change the identifier of a value list should be executed before
+the values are added to the cache, so that the name in the cache matches the
+name that is used in the write-plugins. The C<unixsock> plugin, too, uses this
+cache to receive a list of all available values. If you change the identifier
+after the value list has been added to the cache, this may easily lead to
+confusion, but it's not forbidden of course.
+
+The cache is also used to convert counter values to rates. These rates are, for
+example, used by the C<value> match (see below). If you use the rate stored in
+the cache B<before> the new value is added, you will use the old, B<previous>
+rate. Write plugins may use this rate, too, see the C<csv> plugin, for example.
+The C<unixsock> plugin uses these rates too, to implement the C<GETVAL>
+command.
+
+Last but not last, the B<stop> target makes a difference: If the pre-cache
+chain returns the stop condition, the value will not be added to the cache and
+the post-cache chain will not be run.
 
 =item B<Chain> I<Name>
 
