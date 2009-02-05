@@ -2990,7 +2990,6 @@ AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
-AC_PLUGIN([filter_ignore], [yes],                [Ignore specific values])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
@@ -3188,7 +3187,6 @@ Configuration:
     entropy . . . . . . . $enable_entropy
     exec  . . . . . . . . $enable_exec
     filecount . . . . . . $enable_filecount
-    filter_ignore . . . . $enable_filter_ignore
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
     iptables  . . . . . . $enable_iptables

@@ -291,14 +291,6 @@ collectd_LDADD += "-dlopen" filecount.la
 collectd_DEPENDENCIES += filecount.la
 endif
 
-if BUILD_PLUGIN_FILTER_IGNORE
-pkglib_LTLIBRARIES += filter_ignore.la
-filter_ignore_la_SOURCES = filter_ignore.c
-filter_ignore_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" filter_ignore.la
-collectd_DEPENDENCIES += filter_ignore.la
-endif
-
 if BUILD_PLUGIN_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
