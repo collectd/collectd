@@ -30,11 +30,15 @@
 struct udb_query_s;
 typedef struct udb_query_s udb_query_t;
 
+typedef int (*udb_query_create_callback_t) (udb_query_t *q,
+    oconfig_item_t *ci);
+
 /* 
  * Public functions
  */
 int udb_query_create (udb_query_t ***ret_query_list,
-    size_t *ret_query_list_len, oconfig_item_t *ci);
+    size_t *ret_query_list_len, oconfig_item_t *ci,
+    udb_query_create_callback_t cb);
 void udb_query_free (udb_query_t **query_list, size_t query_list_len);
 
 int udb_query_pick_from_list (oconfig_item_t *ci,

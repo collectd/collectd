@@ -539,7 +539,8 @@ void udb_query_free_one (udb_query_t *q) /* {{{ */
  * Query public functions
  */
 int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
-    size_t *ret_query_list_len, oconfig_item_t *ci)
+    size_t *ret_query_list_len, oconfig_item_t *ci,
+    udb_query_create_callback_t cb)
 {
   udb_query_t **query_list;
   size_t        query_list_len;
@@ -605,6 +606,15 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
           "deprecated. Please use `MaxVersion' instead.",
           q->name);
       status = udb_config_set_uint (&q->max_version, child);
+    }
+    else if (cb != NULL)
+    {
+      status = (*cb) (q, child);
+      if (status != 0)
+      {
+        WARNING ("db query utils: The configuration callback failed "
+            "to handle `%s'.", child->key);
+      }
     }
     else
     {
