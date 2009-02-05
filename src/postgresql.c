@@ -1,6 +1,6 @@
 /**
  * collectd - src/postgresql.c
- * Copyright (C) 2008  Sebastian Harl
+ * Copyright (C) 2008, 2009  Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
