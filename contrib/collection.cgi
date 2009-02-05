@@ -2542,6 +2542,20 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%4.1lf Max,',
     'GPRINT:avg:LAST:%4.1lf Last\l'
     ],
+    virt_cpu_total => ['-v', 'Milliseconds',
+    'DEF:avg_raw={file}:ns:AVERAGE',
+    'DEF:min_raw={file}:ns:MIN',
+    'DEF:max_raw={file}:ns:MAX',
+    'CDEF:avg=avg_raw,1000000,/',
+    'CDEF:min=min_raw,1000000,/',
+    'CDEF:max=max_raw,1000000,/',
+    "AREA:avg#$HalfBlue",
+    "LINE1:avg#$FullBlue:CPU time",
+    'GPRINT:min:MIN:%4.1lf Min,',
+    'GPRINT:avg:AVERAGE:%4.1lf Avg,',
+    'GPRINT:max:MAX:%4.1lf Max,',
+    'GPRINT:avg:LAST:%4.1lf Last\l'
+    ],
   };
   $GraphDefs->{'if_multicast'} = $GraphDefs->{'ipt_packets'};
   $GraphDefs->{'if_tx_errors'} = $GraphDefs->{'if_rx_errors'};
@@ -2549,6 +2563,7 @@ sub load_graph_definitions
   $GraphDefs->{'dns_rcode'} = $GraphDefs->{'dns_opcode'};
   $GraphDefs->{'vmpage_io-memory'} = $GraphDefs->{'vmpage_io'};
   $GraphDefs->{'vmpage_io-swap'} = $GraphDefs->{'vmpage_io'};
+  $GraphDefs->{'virt_cpu_total'} = $GraphDefs->{'virt_cpu_total'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
   $MetaGraphDefs->{'dns_qtype'} = \&meta_graph_dns;
