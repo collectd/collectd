@@ -833,8 +833,18 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
   return (0);
 } /* }}} int ut_check_threshold */
 
+/*
+ * int ut_check_interesting (PUBLIC)
+ *
+ * Given an identification returns
+ * 0: No threshold is defined.
+ * 1: A threshold has been found. The flag `persist' is off.
+ * 2: A threshold has been found. The flag `persist' is on.
+ *    (That is, it is expected that many notifications are sent until the
+ *    problem disappears.)
+ */
 int ut_check_interesting (const char *name)
-{
+{ /* {{{ */
   char *name_copy = NULL;
   char *host = NULL;
   char *plugin = NULL;
@@ -887,6 +897,6 @@ int ut_check_interesting (const char *name)
   if ((th->flags & UT_FLAG_PERSIST) == 0)
     return (1);
   return (2);
-} /* int ut_check_interesting */
+} /* }}} int ut_check_interesting */
 
 /* vim: set sw=2 ts=8 sts=2 tw=78 fdm=marker : */
