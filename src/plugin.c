@@ -56,7 +56,6 @@ typedef struct read_func_s read_func_t;
 static llist_t *list_init;
 static llist_t *list_read;
 static llist_t *list_write;
-static llist_t *list_filter;
 static llist_t *list_flush;
 static llist_t *list_shutdown;
 static llist_t *list_log;
@@ -450,12 +449,6 @@ int plugin_register_write (const char *name,
 	return (register_callback (&list_write, name, (void *) callback));
 } /* int plugin_register_write */
 
-int plugin_register_filter (const char *name,
-		int (*callback) (const data_set_t *ds, value_list_t *vl))
-{
-	return (register_callback (&list_filter, name, (void *) callback));
-} /* int plugin_register_filter */
-
 int plugin_register_flush (const char *name,
 		int (*callback) (const int timeout, const char *identifier))
 {
@@ -554,11 +547,6 @@ int plugin_unregister_read (const char *name)
 int plugin_unregister_write (const char *name)
 {
 	return (plugin_unregister (list_write, name));
-}
-
-int plugin_unregister_filter (const char *name)
-{
-	return (plugin_unregister (list_filter, name));
 }
 
 int plugin_unregister_flush (const char *name)
