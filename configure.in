@@ -3015,11 +3015,10 @@ AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
-AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
+AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
-AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
@@ -3030,8 +3029,8 @@ AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
-AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipmi],        [$plugin_ipmi],       [IPMI sensor statistics])
+AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
@@ -3048,6 +3047,7 @@ AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistic
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
+AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
@@ -3059,8 +3059,8 @@ AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
-AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
+AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
@@ -3189,8 +3189,8 @@ Configuration:
     libpcap . . . . . . . $with_libpcap
     libpcre . . . . . . . $with_libpcre
     libperl . . . . . . . $with_libperl
-    libpthread  . . . . . $with_libpthread
     libpq . . . . . . . . $with_libpq
+    libpthread  . . . . . $with_libpthread
     librrd  . . . . . . . $with_librrd
     libsensors  . . . . . $with_libsensors
     libstatgrab . . . . . $with_libstatgrab
@@ -3228,8 +3228,8 @@ Configuration:
     filecount . . . . . . $enable_filecount
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
-    iptables  . . . . . . $enable_iptables
     ipmi  . . . . . . . . $enable_ipmi
+    iptables  . . . . . . $enable_iptables
     ipvs  . . . . . . . . $enable_ipvs
     irq . . . . . . . . . $enable_irq
     libvirt . . . . . . . $enable_libvirt
@@ -3258,8 +3258,8 @@ Configuration:
     postgresql  . . . . . $enable_postgresql
     powerdns  . . . . . . $enable_powerdns
     processes . . . . . . $enable_processes
-    rrdtool . . . . . . . $enable_rrdtool
     rrdcached . . . . . . $enable_rrdcached
+    rrdtool . . . . . . . $enable_rrdtool
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
     snmp  . . . . . . . . $enable_snmp
