@@ -364,11 +364,61 @@ finance page and dispatch the value to collectd.
       <Match>
         Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
         DSType "GaugeAverage"
+	# Note: `stock_value' is not a standard type.
         Type "stock_value"
         Instance "AMD"
       </Match>
     </Page>
   </Plugin>
+
+In the B<Plugin> block, there may be one or more B<Page> blocks, each defining
+a web page and one or more "matches" to be performed on the returned data. The
+string argument to the B<Page> block is used as plugin instance.
+
+The following options are valid within B<Page> blocks:
+
+=over 4
+
+=item B<URL> I<URL>
+
+URL of the web site to retrieve. Since a regular expression will be used to
+extract information from this data, non-binary data is a big plus here ;)
+
+=item B<User> I<Name>
+
+Username to use if authorization is required to read the page.
+
+=item B<Password> I<Password>
+
+Password to use if authorization is required to read the page.
+
+=item B<VerifyPeer> B<true>|B<false>
+
+Enable or disable peer SSL certificate verification. See
+L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
+
+=item B<VerifyHost> B<true>|B<false>
+
+Enable or disable peer host name verification. If enabled, the plugin checks if
+the C<Common Name> or a C<Subject Alternate Name> field of the SSL certificate
+matches the host name provided by the B<URL> option. If this identity check
+fails, the connection is aborted. Obviously, only works when connecting to a
+SSL enabled server. Enabled by default.
+
+=item B<CACert> I<file>
+
+File that holds one or more SSL certificates. If you want to use HTTPS you will
+possibly need this option. What CA certificates come bundled with C<libcurl>
+and are checked by default depends on the distribution you use.
+
+=item B<E<lt>MatchE<gt>>
+
+One or more B<Match> blocks that define how to match information in the data
+returned by C<libcurl>. The C<curl> plugin uses the same infrastructure that's
+used by the C<tail> plugin, so please see the documentation of the C<tail>
+plugin below on how matches are defined.
+
+=back
 
 =head2 Plugin C<dbi>
 
