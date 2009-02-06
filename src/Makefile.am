@@ -201,6 +201,20 @@ collectd_LDADD += "-dlopen" csv.la
 collectd_DEPENDENCIES += csv.la
 endif
 
+if BUILD_PLUGIN_CURL
+pkglib_LTLIBRARIES += curl.la
+curl_la_SOURCES = curl.c
+curl_la_LDFLAGS = -module -avoid-version
+curl_la_CFLAGS = $(AM_CFLAGS)
+curl_la_LIBADD =
+collectd_LDADD += "-dlopen" curl.la
+if BUILD_WITH_LIBCURL
+curl_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+curl_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+collectd_DEPENDENCIES += curl.la
+endif
+
 if BUILD_PLUGIN_DBI
 pkglib_LTLIBRARIES += dbi.la
 dbi_la_SOURCES = dbi.c \

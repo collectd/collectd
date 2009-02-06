@@ -347,6 +347,29 @@ number.
 
 =back
 
+=head2 Plugin C<curl>
+
+The curl plugin uses the B<libcurl> (L<http://curl.haxx.se/>) to read web pages
+and the match infrastructure (the same code used by the tail plugin) to use
+regular expressions with the received data.
+
+The following example will read the current value of AMD stock from google's
+finance page and dispatch the value to collectd.
+
+  <Plugin curl>
+    <Page "stock_quotes">
+      URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+      User "foo"
+      Password "bar"
+      <Match>
+        Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
+        DSType "GaugeAverage"
+        Type "stock_value"
+        Instance "AMD"
+      </Match>
+    </Page>
+  </Plugin>
+
 =head2 Plugin C<dbi>
 
 This plugin uses the B<dbi> library (L<http://libdbi.sourceforge.net/>) to

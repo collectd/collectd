@@ -35,6 +35,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 @BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @BUILD_PLUGIN_CSV_TRUE@LoadPlugin csv
+@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
 @BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
 @BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 @BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
@@ -131,6 +132,20 @@ FQDNLookup   true
 #<Plugin csv>
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
+#</Plugin>
+
+#<Plugin curl>
+#  <Page "stock_quotes">
+#    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+#    User "foo"
+#    Password "bar"
+#    <Match>
+#      Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
+#      DSType "GaugeAverage"
+#      Type "stock_value"
+#      Instance "AMD"
+#    </Match>
+#  </Page>
 #</Plugin>
 
 #<Plugin dbi>
