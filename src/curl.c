@@ -395,6 +395,11 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
   memset (page, 0, sizeof (*page));
+  page->url = NULL;
+  page->user = NULL;
+  page->pass = NULL;
+  page->verify_peer = 1;
+  page->verify_host = 1;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
