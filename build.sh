@@ -25,20 +25,24 @@ check_for_application lex yacc autoheader aclocal automake autoconf
 check_for_application pkg-config
 
 libtoolize=""
-if which libtoolize >/dev/null 2>&1
+libtoolize --version >/dev/null 2>/dev/null
+if test $? -eq 0
 then
 	libtoolize=libtoolize
-else if which glibtoolize >/dev/null 2>&1
-then
-	libtoolize=glibtoolize
 else
-	cat >&2 <<EOF
+	glibtoolize --version >/dev/null 2>/dev/null
+	if test $? -eq 0
+	then
+		libtoolize=glibtoolize
+	else
+		cat >&2 <<EOF
 WARNING: Neither \`libtoolize' nor \`glibtoolize' have been found!
     Please make sure that one of them is installed and is in one of the
     directories listed in the PATH environment variable.
 EOF
-	GLOBAL_ERROR_INDICATOR=1
-fi; fi
+		GLOBAL_ERROR_INDICATOR=1
+	fi
+ fi
 
 if test "$GLOBAL_ERROR_INDICATOR" != "0"
 then
