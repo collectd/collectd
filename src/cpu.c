@@ -68,12 +68,22 @@
 # endif
 #endif /* HAVE_SYSCTLBYNAME */
 
+#ifdef __OpenBSD__
+# ifdef HAVE_SYS_SYSCTL_H
+#  include <sys/sysctl.h>
+# endif
+
+# ifdef HAVE_SYS_DKSTAT_H
+#  include <sys/dkstat.h>
+# endif
+#endif /* __OpenBSD__ */
+
 #if HAVE_STATGRAB_H
 # include <statgrab.h>
 #endif
 
 #if !PROCESSOR_CPU_LOAD_INFO && !KERNEL_LINUX && !HAVE_LIBKSTAT \
-	&& !HAVE_SYSCTLBYNAME && !HAVE_LIBSTATGRAB
+	&& !HAVE_SYSCTLBYNAME && !HAVE_LIBSTATGRAB && !__OpenBSD__
 # error "No applicable input method."
 #endif
 
@@ -101,7 +111,7 @@ static kstat_t *ksp[MAX_NUMCPU];
 static int numcpu;
 /* #endif HAVE_LIBKSTAT */
 
-#elif defined(HAVE_SYSCTLBYNAME)
+#elif defined(HAVE_SYSCTLBYNAME) || __OpenBSD__
 static int numcpu;
 /* #endif HAVE_SYSCTLBYNAME */
 
@@ -162,6 +172,21 @@ static int init (void)
 	if (numcpu != 1)
 		NOTICE ("cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
 /* #endif HAVE_SYSCTLBYNAME */
+
+#elif defined __OpenBSD__
+	size_t numcpu_size;
+	int mib[2] = {CTL_HW, HW_NCPU};
+
+	numcpu_size = sizeof (numcpu);
+
+	if (sysctl (mib, 2, &numcpu, &numcpu_size, NULL, 0) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("cpu plugin: sysctl: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+/* #endif __OpenBSD__ */
 
 #elif defined(HAVE_LIBSTATGRAB)
 	/* nothing to initialize */
@@ -382,6 +407,68 @@ static int cpu_read (void)
 	submit (0, "idle", cpuinfo[CP_IDLE]);
 	submit (0, "interrupt", cpuinfo[CP_INTR]);
 /* #endif HAVE_SYSCTLBYNAME */
+
+#elif defined __OpenBSD__
+	int64_t **cpuinfo;
+	size_t cpuinfo_size;
+	int i;
+
+	cpuinfo = (int64_t **) calloc (numcpu, sizeof(int64_t *));
+	if(cpuinfo == NULL) {
+		ERROR ("cpu plugin: calloc failed.");
+		return (-1);
+	}
+	for (i = 0; i < numcpu; i++) {
+                cpuinfo[i] = (int64_t *) calloc (CPUSTATES, sizeof(int64_t));
+                if (cpuinfo[i] == NULL) {
+                        ERROR ("cpu plugin: calloc failed.");
+                        return (-1);
+                }
+        }
+
+	if (numcpu > 1) {
+		cpuinfo_size = CPUSTATES * sizeof(int64_t);
+
+                for (i = 0; i < numcpu; i++) {
+                        int mib[] = {CTL_KERN, KERN_CPTIME2, i};
+
+			if (sysctl(mib, 3, cpuinfo[i], &cpuinfo_size, NULL, 0) < 0) {
+				char errbuf[1024];
+				ERROR ("cpu plugin: sysctl failed: %s.",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
+				return (-1);
+			}
+		}
+	} else {
+		int mib[] = {CTL_KERN, KERN_CPTIME};
+		long cpuinfo_tmp[CPUSTATES];
+
+		cpuinfo_size = sizeof(cpuinfo_tmp);
+
+		if (sysctl(mib, 2, &cpuinfo_tmp, &cpuinfo_size, NULL, 0) < 0)
+		{
+			char errbuf[1024];
+			ERROR ("cpu plugin: sysctl failed: %s.",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			return (-1);
+		}
+		for(i = 0; i < CPUSTATES; i++) {
+			cpuinfo[0][i] = cpuinfo_tmp[i];
+		}
+	}
+
+	for (i = 0; i < numcpu; i++) {
+		cpuinfo[i][CP_SYS] += cpuinfo[i][CP_INTR];
+
+		submit (i, "user", cpuinfo[i][CP_USER]);
+		submit (i, "nice", cpuinfo[i][CP_NICE]);
+		submit (i, "system", cpuinfo[i][CP_SYS]);
+		submit (i, "idle", cpuinfo[i][CP_IDLE]);
+
+		free (cpuinfo[i]);
+	}
+	free (cpuinfo);
+/* #endif __OpenBSD__ */
 
 #elif defined(HAVE_LIBSTATGRAB)
        sg_cpu_stats *cs;
