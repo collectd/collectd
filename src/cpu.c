@@ -376,12 +376,11 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	cpuinfo[CP_SYS] += cpuinfo[CP_INTR];
-
 	submit (0, "user", cpuinfo[CP_USER]);
 	submit (0, "nice", cpuinfo[CP_NICE]);
 	submit (0, "system", cpuinfo[CP_SYS]);
 	submit (0, "idle", cpuinfo[CP_IDLE]);
+	submit (0, "interrupt", cpuinfo[CP_INTR]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
