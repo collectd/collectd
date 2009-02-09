@@ -361,6 +361,48 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 	return 0;
 } /* static int hv2value_list (pTHX_ HV *, value_list_t *) */
 
+static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
+{
+	int len, i;
+
+	if ((NULL == array) || (NULL == name) || (NULL == ds))
+		return -1;
+
+	len = av_len (array);
+
+	if (-1 == len) {
+		log_err ("av2data_set: Invalid data set.");
+		return -1;
+	}
+
+	ds->ds = (data_source_t *)smalloc ((len + 1) * sizeof (data_source_t));
+	ds->ds_num = len + 1;
+
+	for (i = 0; i <= len; ++i) {
+		SV **elem = av_fetch (array, i, 0);
+
+		if (NULL == elem) {
+			log_err ("av2data_set: Failed to fetch data source %i.", i);
+			return -1;
+		}
+
+		if (! (SvROK (*elem) && (SVt_PVHV == SvTYPE (SvRV (*elem))))) {
+			log_err ("av2data_set: Invalid data source.");
+			return -1;
+		}
+
+		if (-1 == hv2data_source (aTHX_ (HV *)SvRV (*elem), &ds->ds[i]))
+			return -1;
+
+		log_debug ("av2data_set: "
+				"DS.name = \"%s\", DS.type = %i, DS.min = %f, DS.max = %f",
+				ds->ds[i].name, ds->ds[i].type, ds->ds[i].min, ds->ds[i].max);
+	}
+
+	sstrncpy (ds->type, name, sizeof (ds->type));
+	return 0;
+} /* static int av2data_set (pTHX_ AV *, data_set_t *) */
+
 static int data_set2av (pTHX_ data_set_t *ds, AV *array)
 {
 	int i = 0;
@@ -593,52 +635,19 @@ static char *get_module_name (char *buf, size_t buf_len, const char *module) {
  */
 static int pplugin_register_data_set (pTHX_ char *name, AV *dataset)
 {
-	int len = -1;
 	int ret = 0;
-	int i   = 0;
 
-	data_source_t *ds  = NULL;
-	data_set_t    *set = NULL;
+	data_set_t ds;
 
 	if ((NULL == name) || (NULL == dataset))
 		return -1;
 
-	len = av_len (dataset);
-
-	if (-1 == len)
+	if (0 != av2data_set (aTHX_ dataset, name, &ds))
 		return -1;
 
-	ds  = (data_source_t *)smalloc ((len + 1) * sizeof (data_source_t));
-	set = (data_set_t *)smalloc (sizeof (data_set_t));
+	ret = plugin_register_data_set (&ds);
 
-	for (i = 0; i <= len; ++i) {
-		SV **elem = av_fetch (dataset, i, 0);
-
-		if (NULL == elem)
-			return -1;
-
-		if (! (SvROK (*elem) && (SVt_PVHV == SvTYPE (SvRV (*elem))))) {
-			log_err ("pplugin_register_data_set: Invalid data source.");
-			return -1;
-		}
-
-		if (-1 == hv2data_source (aTHX_ (HV *)SvRV (*elem), &ds[i]))
-			return -1;
-
-		log_debug ("pplugin_register_data_set: "
-				"DS.name = \"%s\", DS.type = %i, DS.min = %f, DS.max = %f",
-				ds[i].name, ds[i].type, ds[i].min, ds[i].max);
-	}
-
-	sstrncpy (set->type, name, sizeof (set->type));
-
-	set->ds_num = len + 1;
-	set->ds = ds;
-
-	ret = plugin_register_data_set (set);
-
-	free (ds);
-	free (set);
+	free (ds.ds);
 	return ret;
 } /* static int pplugin_register_data_set (char *, SV *) */
 
