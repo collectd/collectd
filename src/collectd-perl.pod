@@ -341,12 +341,26 @@ as the first argument to B<plugin_register>. This syntax is still supported
 for backwards compatibility but has been deprecated and will be removed in
 some future version of collectd.
 
+=item B<plugin_write> ([B<plugins> => I<...>][, B<datasets> => I<...>],
+B<valuelists> => I<...>)
+
+Calls the write function of the given I<plugins> with the provided I<data
+sets> and I<value lists>. In contrast to B<plugin_dispatch_values>, it does
+not update collectd's internal cache and bypasses the filter mechanism (see
+L<collectd.conf(5)> for details). If the B<plugins> argument has been omitted,
+the values will be dispatched to all registered write plugins. If the
+B<datasets> argument has been omitted, the required data sets are looked up
+according to the C<type> member in the appropriate value list. The value of
+all three arguments may either be a single scalar or a reference to an array.
+If the B<datasets> argument has been specified, the number of data sets has to
+equal the number of specified value lists.
+
 =item B<plugin_flush> ([B<timeout> => I<timeout>][, B<plugins> => I<...>][,
 B<identifiers> => I<...>])
 
 Flush one or more plugins. I<timeout> and the specified I<identifiers> are
 passed on to the registered flush-callbacks. If omitted, the timeout defaults
-to C<-1>. The identifier defaults to the undefined value. If the I<plugins>
+to C<-1>. The identifier defaults to the undefined value. If the B<plugins>
 argument has been specified, only named plugins will be flushed. The value of
 the B<plugins> and B<identifiers> arguments may either be a string or a
 reference to an array of strings.

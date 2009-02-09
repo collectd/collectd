@@ -85,6 +85,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
+static XS (Collectd__plugin_write);
 static XS (Collectd__plugin_flush);
 static XS (Collectd_plugin_dispatch_notification);
 static XS (Collectd_plugin_log);
@@ -139,6 +140,7 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
+	{ "Collectd::_plugin_write",              Collectd__plugin_write },
 	{ "Collectd::_plugin_flush",              Collectd__plugin_flush },
 	{ "Collectd::plugin_dispatch_notification",
 		Collectd_plugin_dispatch_notification },
@@ -737,6 +739,37 @@ static int pplugin_dispatch_values (pTHX_ HV *values)
 } /* static int pplugin_dispatch_values (char *, HV *) */
 
 /*
+ * Submit the values to a single write function.
+ */
+static int pplugin_write (pTHX_ const char *plugin, AV *data_set, HV *values)
+{
+	data_set_t   ds;
+	value_list_t vl = VALUE_LIST_INIT;
+
+	int ret;
+
+	if (NULL == values)
+		return -1;
+
+	if (0 != hv2value_list (aTHX_ values, &vl))
+		return -1;
+
+	if ((NULL != data_set)
+			&& (0 != av2data_set (aTHX_ data_set, vl.type, &ds)))
+		return -1;
+
+	ret = plugin_write (plugin, NULL == data_set ? NULL : &ds, &vl);
+	if (0 != ret)
+		log_warn ("Dispatching value to plugin \"%s\" failed with status %i.",
+				NULL == plugin ? "<any>" : plugin, ret);
+
+	if (NULL != data_set)
+		sfree (ds.ds);
+	sfree (vl.values);
+	return ret;
+} /* static int pplugin_write (const char *plugin, HV *, HV *) */
+
+/*
  * Dispatch a notification.
  */
 static int pplugin_dispatch_notification (pTHX_ HV *notif)
@@ -1020,6 +1053,65 @@ static XS (Collectd_plugin_dispatch_values)
 	else
 		XSRETURN_EMPTY;
 } /* static XS (Collectd_plugin_dispatch_values) */
+
+/* Collectd::plugin_write (plugin, ds, vl).
+ *
+ * plugin:
+ *   name of the plugin to call, may be 'undef'
+ *
+ * ds:
+ *   data-set that describes the submitted values, may be 'undef'
+ *
+ * vl:
+ *   value-list to be written
+ */
+static XS (Collectd__plugin_write)
+{
+	char *plugin;
+	SV   *ds, *vl;
+	AV   *ds_array;
+
+	int ret;
+
+	dXSARGS;
+
+	if (3 != items) {
+		log_err ("Usage: Collectd::plugin_write(plugin, ds, vl)");
+		XSRETURN_EMPTY;
+	}
+
+	log_debug ("Collectd::plugin_write: plugin=\"%s\", ds=\"%s\", vl=\"%s\"",
+			SvPV_nolen (ST (0)), SvOK (ST (1)) ? SvPV_nolen (ST (1)) : "",
+			SvPV_nolen (ST (2)));
+
+	if (! SvOK (ST (0)))
+		plugin = NULL;
+	else
+		plugin = SvPV_nolen (ST (0));
+
+	ds = ST (1);
+	if (SvROK (ds) && (SVt_PVAV == SvTYPE (SvRV (ds))))
+		ds_array = (AV *)SvRV (ds);
+	else if (! SvOK (ds))
+		ds_array = NULL;
+	else {
+		log_err ("Collectd::plugin_write: Invalid data-set.");
+		XSRETURN_EMPTY;
+	}
+
+	vl = ST (2);
+	if (! (SvROK (vl) && (SVt_PVHV == SvTYPE (SvRV (vl))))) {
+		log_err ("Collectd::plugin_write: Invalid value-list.");
+		XSRETURN_EMPTY;
+	}
+
+	ret = pplugin_write (aTHX_ plugin, ds_array, (HV *)SvRV (vl));
+
+	if (0 == ret)
+		XSRETURN_YES;
+	else
+		XSRETURN_EMPTY;
+} /* static XS (Collectd__plugin_write) */
 
 /*
  * Collectd::_plugin_flush (plugin, timeout, identifier).

@@ -42,6 +42,7 @@ our %EXPORT_TAGS = (
 			plugin_register
 			plugin_unregister
 			plugin_dispatch_values
+			plugin_write
 			plugin_flush
 			plugin_flush_one
 			plugin_flush_all
@@ -315,6 +316,66 @@ sub plugin_unregister {
 	else {
 		ERROR ("Collectd::plugin_unregister: Invalid type.");
 		return;
+	}
+}
+
+sub plugin_write {
+	my %args = @_;
+
+	my @plugins    = ();
+	my @datasets   = ();
+	my @valuelists = ();
+
+	if (! defined $args{'valuelists'}) {
+		ERROR ("Collectd::plugin_write: Missing 'valuelists' argument.");
+		return;
+	}
+
+	DEBUG ("Collectd::plugin_write:"
+		. (defined ($args{'plugins'}) ? " plugins = $args{'plugins'}" : "")
+		. (defined ($args{'datasets'}) ? " datasets = $args{'datasets'}" : "")
+		. " valueslists = $args{'valuelists'}");
+
+	if (defined ($args{'plugins'})) {
+		if ("ARRAY" eq ref ($args{'plugins'})) {
+			@plugins = @{$args{'plugins'}};
+		}
+		else {
+			@plugins = ($args{'plugins'});
+		}
+	}
+	else {
+		@plugins = (undef);
+	}
+
+	if ("ARRAY" eq ref ($args{'valuelists'})) {
+		@valuelists = @{$args{'valuelists'}};
+	}
+	else {
+		@valuelists = ($args{'valuelists'});
+	}
+
+	if (defined ($args{'datasets'})) {
+		if ("ARRAY" eq ref ($args{'datasets'})) {
+			@datasets = @{$args{'datasets'}};
+		}
+		else {
+			@datasets = ($args{'datasets'});
+		}
+	}
+	else {
+		@datasets = (undef) x scalar (@valuelists);
+	}
+
+	if ($#datasets != $#valuelists) {
+		ERROR ("Collectd::plugin_write: Invalid number of datasets.");
+		return;
+	}
+
+	foreach my $plugin (@plugins) {
+		for (my $i = 0; $i < scalar (@valuelists); ++$i) {
+			_plugin_write ($plugin, $datasets[$i], $valuelists[$i]);
+		}
 	}
 }
 
