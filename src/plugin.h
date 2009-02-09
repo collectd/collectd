@@ -186,7 +186,7 @@ void plugin_shutdown_all (void);
  * DESCRIPTION
  *  Calls the write function of the given plugin with the provided data set and
  *  value list. It differs from `plugin_dispatch_value' in that it does not
- *  update the cache, does no do threshold checking, call the chain subsystem
+ *  update the cache, does not do threshold checking, call the chain subsystem
  *  and so on. It looks up the requested plugin and invokes the function, end
  *  of story.
  *
@@ -195,7 +195,7 @@ void plugin_shutdown_all (void);
  *             write functions.
  *  ds         Pointer to the data_set_t structure. If NULL, the data set is
  *             looked up according to the `type' member in the `vl' argument.
- *  vl         The actual value to be processes. Must not be NULL.
+ *  vl         The actual value to be processed. Must not be NULL.
  *
  * RETURN VALUE
  *  Returns zero upon success or non-zero if an error occurred. If `plugin' is
