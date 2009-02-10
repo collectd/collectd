@@ -37,6 +37,8 @@ function toggleDiv(divID) {
 	}
 }
 
+var req = null;
+
 // DHTML helper code to asynchronous loading of content
 function loadXMLDoc(url, query) {
 	if (window.XMLHttpRequest) {
@@ -57,12 +59,13 @@ function loadXMLDoc(url, query) {
 }
 
 // DHTML new-content dispatcher
-function processReqChange() {
+function processReqChange(evt) {
 	if (req.readyState == 4) {
 		if (req.status == 200) {
-			response = req.responseXML.documentElement;
-			method = response.getElementsByTagName('method')[0].firstChild.data;
-			result = response.getElementsByTagName('result')[0];
+			var response = req.responseXML.documentElement;
+			var method = response.getElementsByTagName('method')[0].firstChild.data;
+			var result = response.getElementsByTagName('result')[0];
+			req = null;
 			eval(method + '(result)');
 		}
 	}
@@ -265,9 +268,9 @@ function RefreshButtons() {
 }
 
 var nextGraphId = 1;
+var graphList = new Array();
 
 function GraphAppend() {
-	var graphs      = document.getElementById('graphs');
 	var host_list   = document.getElementById('host_list');
 	var host        = host_list.selectedIndex >= 0 ? host_list.options[host_list.selectedIndex].value : '/';
 	var plugin_list = document.getElementById('plugin_list');
@@ -278,6 +281,15 @@ function GraphAppend() {
 	var type        = type_list.selectedIndex >= 0 ? type_list.options[type_list.selectedIndex].value : '/';
 	var tinst_list  = document.getElementById('tinst_list');
 	var tinst       = tinst_list.selectedIndex >= 0 ? tinst_list.options[tinst_list.selectedIndex].value : '/';
+	var time_list   = document.getElementById('timespan');
+	var timespan    = time_list.selectedIndex >= 0 ? time_list.options[time_list.selectedIndex].value : '';
+	var tinyLegend  = document.getElementById('tinylegend').checked;
+	var logarithmic = document.getElementById('logarithmic').checked
+	GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, logarithmic);
+}
+
+function GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, logarithmic) {
+	var graphs      = document.getElementById('graphs');
 
 	if (host != '/' && plugin != '/' && pinst != '/' && type != '/') {
 		var graph_id   = 'graph_'+nextGraphId++;
@@ -292,14 +304,15 @@ function GraphAppend() {
 			graph_title = type+(tinst.length > 0 ? '-'+tinst : '')+' of '+plugin+(pinst.length > 0 ? '-'+pinst : '')+' plugin for '+host;
 			graph_src  += '&type_instance='+encodeURIComponent(tinst);
 		}
-		if (document.getElementById('logarithmic').checked)
+		if (logarithmic)
 			graph_src += '&logarithmic=1';
-		if (document.getElementById('tinylegend').checked)
+		if (tinyLegend)
 			graph_src += '&tinylegend=1';
-		if (document.getElementById('timespan').selectedIndex >= 0)
-			graph_src += '&timespan='+encodeURIComponent(document.getElementById('timespan').options[document.getElementById('timespan').selectedIndex].value);
+		if (timespan)
+			graph_src += '&timespan='+encodeURIComponent(timespan);
 		var now    = new Date();
 		graph_src += '&ts='+now.getTime();
+		graphList.push(graph_id+' '+encodeURIComponent(graph_alt)+(logarithmic ? '&logarithmic=1' : '')+(tinyLegend ? '&tinylegend=1' : '')+'&timespan='+encodeURIComponent(timespan));
 
 		// Graph container
 		newGraph = document.createElement('div');
@@ -372,6 +385,7 @@ function GraphDropAll() {
 			graphs.removeChild(graphs.childNodes[childCnt]);
 		else if (graphs.childNodes[childCnt].id == 'nograph')
 			graphs.childNodes[childCnt].style.display = 'block';
+	graphList = new Array();
 	RefreshButtons();
 }
 
@@ -413,6 +427,14 @@ function GraphRemove(graph) {
 		RefreshButtons();
 		if (graphs.getElementsByTagName('div').length == 1)
 			document.getElementById('nograph').style.display = 'block';
+
+		var myList = Array();
+		for (i = 0; i < graphList.length; i++)
+			if (graphList[i].substring(0, graph.length) == graph && graphList[i].charAt(graph.length) == ' ')
+				continue;
+			else
+				myList.push(graphList[i]);
+		graphList = myList;
 	}
 }
 
@@ -434,6 +456,15 @@ function GraphMoveUp(graph) {
 			} else
 				prevGraph = graphs.childNodes[i];
 		}
+	for (i = 0; i < graphList.length; i++)
+		if (graphList[i].substring(0, graph.length) == graph && graphList[i].charAt(graph.length) == ' ') {
+			if (i > 0) {
+				var tmp = graphList[i-1];
+				graphList[i-1] = graphList[i];
+				graphList[i]   = tmp;
+			}
+			break;
+		}
 }
 
 function GraphMoveDown(graph) {
@@ -454,5 +485,94 @@ function GraphMoveDown(graph) {
 				break;
 			}
 		}
+	for (i = 0; i < graphList.length; i++)
+		if (graphList[i].substring(0, graph.length) == graph && graphList[i].charAt(graph.length) == ' ') {
+			if (i+1 < graphList.length) {
+				var tmp = graphList[i+1];
+				graphList[i+1] = graphList[i];
+				graphList[i]   = tmp;
+			}
+			break;
+		}
+}
+
+function GraphListFromCookie() {
+	if (document.cookie.length > 0) {
+		cookies = document.cookie.split('; ');
+		for (i = 0; i < cookies.length; i++)
+			if (cookies[i].substring(0, 9) == 'graphLst=')
+				return cookies[i].substring(9).split('/');
+	}
+	return new Array();
+}
+
+function GraphSave() {
+	if (graphList.length > 0) {
+		// Save graph list to cookie
+		var str = '';
+		for (i = 0; i < graphList.length; i++) {
+			var g = graphList[i].indexOf(' ');
+			if (i > 0)
+				str += '/';
+			str += graphList[i].substring(g+1);
+		}
+
+		document.cookie = 'graphLst='+str;
+		if (GraphListFromCookie().length == 0)
+			alert("Failed to save graph list to cookie.");
+		else
+			alert("Successfully saved current graph list.");
+	} else {
+		document.cookie = 'graphLst=; expires='+new Date().toGMTString();
+		alert("Cleared saved graph list.");
+	}
+}
+
+function GraphLoad() {
+	// Load graph list from cookie
+	var grLst = GraphListFromCookie();
+	for (i = 0; i < grLst.length; i++) {
+		var host        = '';
+		var plugin      = '';
+		var pinst       = '';
+		var type        = '';
+		var tinst       = '';
+		var timespan    = '';
+		var logarithmic = false;
+		var tinyLegend  = false;
+		var graph = grLst[i].split('&');
+		for (j = 0; j < graph.length; j++)
+			if (graph[j] == 'logarithmic=1')
+				logarithmic = true;
+			else if (graph[j] == 'tinylegend=1')
+				tinyLegend = true;
+			else if (graph[j].substring(0, 9) == 'timespan=')
+				timespan = decodeURIComponent(graph[j].substring(9));
+		graph = decodeURIComponent(graph[0]).split('/');
+		host = graph[0];
+		if (graph.length > 1) {
+			var g = graph[1].indexOf('-');
+			if (g >= 0) {
+				plugin = graph[1].substring(0, g);
+				pinst  = graph[1].substring(g+1);
+			} else
+				plugin = graph[1];
+		}
+		if (graph.length > 2) {
+			var g = graph[2].indexOf('-');
+			if (g >= 0) {
+				type  = graph[2].substring(0, g);
+				tinst = graph[2].substring(g+1);
+			} else
+				type  = graph[2];
+		}
+
+		if (host && plugin && type)
+			GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, logarithmic);
+	}
+	if (grLst.length == 0)
+		alert("No list found for loading.");
+	else if (grLst.length != graphList.length)
+		alert("Could not load all graphs, probably damaged cookie.");
 }
 

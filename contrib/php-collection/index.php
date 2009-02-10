@@ -58,6 +58,7 @@ function build_page() {
 		print('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">'."\n");
 		print('<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">'."\n");
 	}
+	$url_base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off' ? 'https://' : 'http://').$_SERVER['HTTP_HOST'].dirname($_SERVER['PHP_SELF']).'/';
 ?>
 	<head>
 		<title>Collectd graph viewer</title>
@@ -65,7 +66,8 @@ function build_page() {
 		<style type="text/css">
 			body, html { background-color: #EEEEEE; color: #000000; }
 			h1 { text-align: center; }
-			div.body { margin: auto; width: <?php echo 125+$config['rrd_width'] ?>px; background: #FFFFFF; border: 1px solid #DDDDDD; }
+			div.body { margin: auto; width: <?php echo isset($config['rrd_width']) ? 125+(int)$config['rrd_width'] : 600; ?>px; background: #FFFFFF; border: 1px solid #DDDDDD; }
+			p.error { color: #CC0000; margin: 0em; }
 			div.selector { margin: 0.5em 2em; }
 			div.selectorbox { padding: 5px; border: 1px solid #CCCCCC; background-color: #F8F8F8; }
 			div.selectorbox table { border: none; }
@@ -82,10 +84,10 @@ function build_page() {
 			select { width: 100%; }
 		</style>
 		<script type="text/javascript">// <![CDATA[
-var dhtml_url = '<?php echo addslashes('http://'.$_SERVER['HTTP_HOST'].$_SERVER['PHP_SELF']); ?>';
-var graph_url = '<?php echo addslashes('http://'.$_SERVER['HTTP_HOST'].dirname($_SERVER['PHP_SELF']).'/graph.php'); ?>';
+var dhtml_url = '<?php echo addslashes($url_base.basename($_SERVER['PHP_SELF'])); ?>';
+var graph_url = '<?php echo addslashes($url_base.'graph.php'); ?>';
 //		]]></script>
-		<script type="text/javascript" src="browser.js"></script>
+		<script type="text/javascript" src="<?php echo htmlspecialchars($url_base.'browser.js'); ?>"></script>
 	</head>
 
 	<body onload="ListRefreshHost()"><div class="body">
@@ -135,12 +137,52 @@ var graph_url = '<?php echo addslashes('http://'.$_SERVER['HTTP_HOST'].dirname($
 				<tr>
 					<td class="sc" colspan="3"><input id="btnAdd"     name="btnAdd"     type="button" disabled="disabled" onclick="GraphAppend()" value="Add graph" />
 					<input id="btnClear"   name="btnClear"   type="button" disabled="disabled" onclick="GraphDropAll()" value="Remove all graphs" />
-					<input id="btnRefresh" name="btnRefresh" type="button" disabled="disabled" onclick="GraphRefresh(null)" value="Refresh all graphs" /></td>
+					<input id="btnRefresh" name="btnRefresh" type="button" disabled="disabled" onclick="GraphRefresh(null)" value="Refresh all graphs" />
+					<input id="btnSave"    name="btnSave"    type="button" onclick="GraphSave()" value="Save" title="Save graph list to cookie" />
+					<input id="btnLoad"    name="btnLoad"    type="button" onclick="GraphLoad()" value="Load" title="Load graph list from cookie" /></td>
 				</tr>
 			</table>
 		</div></div>
 		<div class="graphs"><div id="graphs" class="graphs_t">
-			<div id="nograph">Please use above graph selection tool to add graphs to this area.</div>
+			<div id="nograph">Please use above graph selection tool to add graphs to this area.<?php
+			// Config checking
+			if (!isset($config['datadirs']))
+				echo '<p class="error">Config error: $config["datadirs"] is not set</p>';
+			else if (!is_array($config['datadirs']))
+				echo '<p class="error">Config error: $config["datadirs"] is not an array</p>';
+			else if (count($config['datadirs']) == 0)
+				echo '<p class="error">Config error: $config["datadirs"] is empty</p>';
+			else foreach ($config['datadirs'] as $datadir)
+				if (!is_dir($datadir))
+					echo '<p class="error">Config error: $config["datadirs"], '.htmlspecialchars($datadir).' does not exist</p>';
+			if (!isset($config['rrd_width']))
+				echo '<p class="error">Config error: $config["rrd_width"] is not set</p>';
+			else if (10 > (int)$config['rrd_width'])
+				echo '<p class="error">Config error: $config["rrd_width"] is invalid. Integer >= 10 expected</p>';
+			if (!isset($config['rrd_height']))
+				echo '<p class="error">Config error: $config["rrd_height"] is not set</p>';
+			else if (10 > (int)$config['rrd_height'])
+				echo '<p class="error">Config error: $config["rrd_height"] is invalid. Integer >= 10 expected</p>';
+			if (!isset($config['rrd_opts']))
+				echo '<p class="error">Config error: $config["rrd_opts"] is not set</p>';
+			else if (!is_array($config['rrd_opts']))
+				echo '<p class="error">Config error: $config["rrd_opts"] is not an array</p>';
+			if (!isset($config['timespan']))
+				echo '<p class="error">Config error: $config["timespan"] is not set</p>';
+			else if (!is_array($config['timespan']))
+				echo '<p class="error">Config error: $config["timespan"] is not an array</p>';
+			else if (count($config['timespan']) == 0)
+				echo '<p class="error">Config error: $config["timespan"] is empty</p>';
+			else foreach ($config['timespan'] as &$timespan)
+				if (!is_array($timespan) || !isset($timespan['name']) || !isset($timespan['label']) || !isset($timespan['seconds']) || 10 > (int)$timespan['seconds'])
+					echo '<p class="error">Config error: $config["timespan"], invalid entry found</p>';
+			if (!is_null($config['collectd_sock']) && strncmp('unix://', $config['collectd_sock'], 7) != 0)
+				echo '<p class="error">Config error: $config["collectd_sock"] is not valid</p>';
+			if (!defined('RRDTOOL'))
+				echo '<p class="error">Config error: RRDTOOL is not defined</p>';
+			else if (!is_executable(RRDTOOL))
+				echo '<p class="error">Config error: RRDTOOL ('.htmlspecialchars(RRDTOOL).') is not executable</p>';
+			?></div>
 		</div></div>
 	</div></body>
 </html><?php

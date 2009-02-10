@@ -75,7 +75,8 @@ function collectd_list_hosts() {
 				if ($dent != '.' && $dent != '..' && is_dir($datadir.'/'.$dent) && preg_match(REGEXP_HOST, $dent))
 					$hosts[] = $dent;
 			closedir($d);
-		}
+		} else
+			error_log('Failed to open datadir: '.$datadir);
 	$hosts = array_unique($hosts);
 	usort($hosts, 'collectd_compare_host');
 	return $hosts;
