@@ -1576,8 +1576,18 @@ static int g_iv_set (pTHX_ SV *var, MAGIC *mg)
 	return 0;
 } /* static int g_iv_set (pTHX_ SV *, MAGIC *) */
 
-static MGVTBL g_pv_vtbl = { g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL };
-static MGVTBL g_iv_vtbl = { g_iv_get, g_iv_set, NULL, NULL, NULL, NULL, NULL };
+static MGVTBL g_pv_vtbl = {
+	g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL
+#if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
+		, NULL
+#endif
+};
+static MGVTBL g_iv_vtbl = {
+	g_iv_get, g_iv_set, NULL, NULL, NULL, NULL, NULL
+#if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
+		, NULL
+#endif
+};
 
 /* bootstrap the Collectd module */
 static void xs_init (pTHX)

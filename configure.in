@@ -1986,6 +1986,33 @@ then
 fi
 AM_CONDITIONAL(HAVE_BROKEN_PERL_LOAD_MODULE,
 		test "x$have_broken_perl_load_module" = "xyes")
+
+if test "x$with_libperl" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	SAVE_LDFLAGS=$LDFLAGS
+	CFLAGS="$CFLAGS $PERL_CFLAGS"
+	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
+
+	AC_CHECK_MEMBER(
+		[struct mgvtbl.svt_local],
+		[have_struct_mgvtbl_svt_local="yes"],
+		[have_struct_mgvtbl_svt_local="no"],
+		[
+#include <EXTERN.h>
+#include <perl.h>
+#include <XSUB.h>
+		])
+
+	if test "x$have_struct_mgvtbl_svt_local" = "xyes"
+	then
+		AC_DEFINE(HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL, 1,
+				  [Define if Perl's struct mgvtbl has member svt_local.])
+	fi
+
+	CFLAGS=$SAVE_CFLAGS
+	LDFLAGS=$SAVE_LDFLAGS
+fi
 # }}}
 
 # --with-libpq {{{
