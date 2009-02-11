@@ -821,7 +821,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	n = 0;
 
 	while (42) {
-		size_t status;
+		ssize_t status;
 
 		status = read (fd, (void *)buf_ptr, len);
 

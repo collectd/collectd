@@ -305,7 +305,7 @@ static int ctail_init (void)
 static int ctail_read (void)
 {
   int success = 0;
-  int i;
+  size_t i;
 
   for (i = 0; i < tail_match_list_num; i++)
   {
@@ -329,7 +329,7 @@ static int ctail_read (void)
 
 static int ctail_shutdown (void)
 {
-  int i;
+  size_t i;
 
   for (i = 0; i < tail_match_list_num; i++)
   {

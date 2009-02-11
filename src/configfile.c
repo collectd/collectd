@@ -555,7 +555,7 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 
 		status = ssnprintf (name, sizeof (name), "%s/%s",
 				dir, de->d_name);
-		if (status >= sizeof (name))
+		if ((status < 0) || ((size_t) status >= sizeof (name)))
 		{
 			ERROR ("configfile: Not including `%s/%s' because its"
 					" name is too long.",
@@ -630,7 +630,7 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 	int status;
 	const char *path_ptr;
 	wordexp_t we;
-	int i;
+	size_t i;
 
 	if (depth >= CF_MAX_DEPTH)
 	{

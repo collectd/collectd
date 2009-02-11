@@ -103,7 +103,7 @@ static int tail_callback (void *data, char *buf,
     int __attribute__((unused)) buflen)
 {
   cu_tail_match_t *obj = (cu_tail_match_t *) data;
-  int i;
+  size_t i;
 
   for (i = 0; i < obj->matches_num; i++)
     match_apply (obj->matches[i].match, buf);
@@ -135,7 +135,7 @@ cu_tail_match_t *tail_match_create (const char *filename)
 
 void tail_match_destroy (cu_tail_match_t *obj)
 {
-  int i;
+  size_t i;
 
   if (obj == NULL)
     return;
@@ -237,7 +237,7 @@ int tail_match_read (cu_tail_match_t *obj)
 {
   char buffer[4096];
   int status;
-  int i;
+  size_t i;
 
   status = cu_tail_read (obj->tail, buffer, sizeof (buffer), tail_callback,
       (void *) obj);

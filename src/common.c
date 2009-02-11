@@ -411,7 +411,7 @@ int check_create_dir (const char *file_orig)
 	char *saveptr;
 	int   last_is_file = 1;
 	int   path_is_absolute = 0;
-	int   len;
+	size_t len;
 	int   i;
 
 	/*

@@ -174,7 +174,7 @@ static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{
 
 static int ascent_submit_players (player_stats_t *ps) /* {{{ */
 {
-  int i;
+  size_t i;
   gauge_t value;
 
   for (i = 0; i < RACES_LIST_LENGTH; i++)
@@ -213,7 +213,7 @@ static int ascent_account_player (player_stats_t *ps, /* {{{ */
 {
   if (pi->race >= 0)
   {
-    if ((pi->race >= RACES_LIST_LENGTH)
+    if (((size_t) pi->race >= RACES_LIST_LENGTH)
         || (races_list[pi->race] == NULL))
       ERROR ("ascent plugin: Ignoring invalid numeric race %i.", pi->race);
     else
@@ -222,7 +222,7 @@ static int ascent_account_player (player_stats_t *ps, /* {{{ */
 
   if (pi->class >= 0)
   {
-    if ((pi->class >= CLASSES_LIST_LENGTH)
+    if (((size_t) pi->class >= CLASSES_LIST_LENGTH)
         || (classes_list[pi->class] == NULL))
       ERROR ("ascent plugin: Ignoring invalid numeric class %i.", pi->class);
     else
@@ -231,7 +231,7 @@ static int ascent_account_player (player_stats_t *ps, /* {{{ */
 
   if (pi->gender >= 0)
   {
-    if ((pi->gender >= GENDERS_LIST_LENGTH)
+    if (((size_t) pi->gender >= GENDERS_LIST_LENGTH)
         || (genders_list[pi->gender] == NULL))
       ERROR ("ascent plugin: Ignoring invalid numeric gender %i.",
           pi->gender);
@@ -549,7 +549,7 @@ static int ascent_init (void) /* {{{ */
 
     status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
         user, (pass == NULL) ? "" : pass);
-    if (status >= sizeof (credentials))
+    if ((status < 0) || ((size_t) status >= sizeof (credentials)))
     {
       ERROR ("ascent plugin: ascent_init: Returning an error because the "
           "credentials have been truncated.");

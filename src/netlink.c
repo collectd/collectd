@@ -246,7 +246,7 @@ static int link_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
 
   /* Update the `iflist'. It's used to know which interfaces exist and query
    * them later for qdiscs and classes. */
-  if (msg->ifi_index >= iflist_len)
+  if ((msg->ifi_index >= 0) && ((size_t) msg->ifi_index >= iflist_len))
   {
     char **temp;
 
@@ -359,7 +359,8 @@ static int qos_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
     return (0);
   }
 
-  if (msg->tcm_ifindex >= iflist_len)
+  if ((msg->tcm_ifindex >= 0)
+      && ((size_t) msg->tcm_ifindex >= iflist_len))
   {
     ERROR ("netlink plugin: qos_filter: msg->tcm_ifindex = %i "
 	">= iflist_len = %zu",
@@ -580,9 +581,9 @@ static int ir_read (void)
 
   /* `link_filter' will update `iflist' which is used here to iterate over all
    * interfaces. */
-  for (ifindex = 0; ifindex < iflist_len; ifindex++)
+  for (ifindex = 0; (size_t) ifindex < iflist_len; ifindex++)
   {
-    int type_index;
+    size_t type_index;
 
     if (iflist[ifindex] == NULL)
       continue;

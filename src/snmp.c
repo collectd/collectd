@@ -530,9 +530,9 @@ static int csnmp_config_add_host_interval (host_definition_t *hd, oconfig_item_t
     return (-1);
   }
 
-  hd->interval = (int) ci->values[0].value.number;
-  if (hd->interval < 0)
-    hd->interval = 0;
+  hd->interval = ci->values[0].value.number >= 0
+    ? (uint32_t) ci->values[0].value.number
+    : 0;
 
   return (0);
 } /* int csnmp_config_add_host_interval */
@@ -1138,7 +1138,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       break;
     }
 
-    for (i = 0; i < oid_list_len; i++)
+    for (i = 0; (uint32_t) i < oid_list_len; i++)
       snmp_add_null_var (req, oid_list[i].oid, oid_list[i].oid_len);
 
     res = NULL;
@@ -1441,7 +1441,7 @@ static int csnmp_read_host (host_definition_t *host)
   time_end = time (NULL);
   DEBUG ("snmp plugin: csnmp_read_host (%s) finished at %u;", host->name,
       (unsigned int) time_end);
-  if ((time_end - time_start) > host->interval)
+  if ((uint32_t) (time_end - time_start) > host->interval)
   {
     WARNING ("snmp plugin: Host `%s' should be queried every %i seconds, "
 	"but reading all values takes %u seconds.",
@@ -1504,7 +1504,7 @@ static int csnmp_init (void)
     {
       host->interval = interval_g;
     }
-    else if (host->interval < interval_g)
+    else if (host->interval < (uint32_t) interval_g)
     {
       host->interval = interval_g;
       WARNING ("snmp plugin: Data for host `%s' will be collected every %i seconds.",

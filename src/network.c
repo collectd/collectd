@@ -498,7 +498,7 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 
 	exp_size = 3 * sizeof (uint16_t)
 		+ pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
-	if (buffer_len < exp_size)
+	if ((buffer_len < 0) || ((size_t) buffer_len < exp_size))
 	{
 		WARNING ("network plugin: parse_part_values: "
 				"Packet too short: "
@@ -562,7 +562,7 @@ static int parse_part_number (void **ret_buffer, int *ret_buffer_len,
 	uint16_t pkg_length;
 	uint16_t pkg_type;
 
-	if (buffer_len < exp_size)
+	if ((buffer_len < 0) || ((size_t) buffer_len < exp_size))
 	{
 		WARNING ("network plugin: parse_part_number: "
 				"Packet too short: "
@@ -602,7 +602,7 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	uint16_t pkg_length;
 	uint16_t pkg_type;
 
-	if (buffer_len < header_size)
+	if ((buffer_len < 0) || ((size_t) buffer_len < header_size))
 	{
 		WARNING ("network plugin: parse_part_string: "
 				"Packet too short: "
@@ -644,7 +644,8 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	/* Check that the package data fits into the output buffer.
 	 * The previous if-statement ensures that:
 	 * `pkg_length > header_size' */
-	if ((pkg_length - header_size) > output_len)
+	if ((output_len < 0)
+			|| ((size_t) output_len < ((size_t) pkg_length - header_size)))
 	{
 		WARNING ("network plugin: parse_part_string: "
 				"Output buffer too small.");

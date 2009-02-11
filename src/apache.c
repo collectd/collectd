@@ -148,7 +148,7 @@ static int init (void)
 
 		status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
 				user, (pass == NULL) ? "" : pass);
-		if (status >= sizeof (credentials))
+		if ((status < 0) || ((size_t) status >= sizeof (credentials)))
 		{
 			ERROR ("apache plugin: init: Returning an error "
 					"because the credentials have been "

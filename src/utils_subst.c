@@ -37,7 +37,8 @@ char *subst (char *buf, size_t buflen, const char *string, int off1, int off2,
 			|| (NULL == replacement))
 		return NULL;
 
-	sstrncpy (buf_ptr, string, (off1 + 1 > buflen) ? buflen : off1 + 1);
+	sstrncpy (buf_ptr, string,
+			((size_t)off1 + 1 > buflen) ? buflen : (size_t)off1 + 1);
 	buf_ptr += off1;
 	len     -= off1;
 

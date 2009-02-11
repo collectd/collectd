@@ -165,7 +165,7 @@ static int filter_ds (size_t *values_num,
 		return (RET_UNKNOWN);
 	}
 
-	for (i = 0; i < match_ds_num_g; i++)
+	for (i = 0; i < (size_t) match_ds_num_g; i++)
 	{
 		size_t j;
 
@@ -298,7 +298,7 @@ static int do_check_con_none (size_t values_num,
 	int num_okay = 0;
 	const char *status_str = "UNKNOWN";
 	int status_code = RET_UNKNOWN;
-	int i;
+	size_t i;
 
 	for (i = 0; i < values_num; i++)
 	{
@@ -349,7 +349,7 @@ static int do_check_con_none (size_t values_num,
 static int do_check_con_average (size_t values_num,
 		double *values, char **values_names)
 {
-	int i;
+	size_t i;
 	double total;
 	int total_num;
 	double average;
@@ -402,7 +402,7 @@ static int do_check_con_average (size_t values_num,
 static int do_check_con_sum (size_t values_num,
 		double *values, char **values_names)
 {
-	int i;
+	size_t i;
 	double total;
 	int total_num;
 	const char *status_str = "UNKNOWN";
@@ -452,7 +452,7 @@ static int do_check_con_sum (size_t values_num,
 static int do_check_con_percentage (size_t values_num,
 		double *values, char **values_names)
 {
-	int i;
+	size_t i;
 	double sum = 0.0;
 	double percentage;
 

@@ -148,12 +148,15 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
 
     for (j = 0; j < rra_types_num; j++)
     {
+      int status;
+
       if (rra_num >= rra_max)
         break;
 
-      if (ssnprintf (buffer, sizeof (buffer), "RRA:%s:%3.1f:%u:%u",
-            rra_types[j], cfg->xff,
-            cdp_len, cdp_num) >= sizeof (buffer))
+      status = ssnprintf (buffer, sizeof (buffer), "RRA:%s:%3.1f:%u:%u",
+          rra_types[j], cfg->xff, cdp_len, cdp_num);
+
+      if ((status < 0) || ((size_t) status >= sizeof (buffer)))
       {
         ERROR ("rra_get: Buffer would have been truncated.");
         continue;
@@ -236,7 +239,7 @@ static int ds_get (char ***ret, /* {{{ */
         d->name, type,
         (cfg->heartbeat > 0) ? cfg->heartbeat : (2 * vl->interval),
         min, max);
-    if ((status < 1) || (status >= sizeof (buffer)))
+    if ((status < 1) || ((size_t) status >= sizeof (buffer)))
       break;
 
     ds_def[ds_num] = sstrdup (buffer);

@@ -51,7 +51,7 @@ int handle_getval (FILE *fh, char *buffer)
   const data_set_t *ds;
 
   int   status;
-  int   i;
+  size_t i;
 
   if ((fh == NULL) || (buffer == NULL))
     return (-1);
@@ -123,7 +123,7 @@ int handle_getval (FILE *fh, char *buffer)
     return (-1);
   }
 
-  if (ds->ds_num != values_num)
+  if ((size_t) ds->ds_num != values_num)
   {
     ERROR ("ds[%s]->ds_num = %i, "
 	"but uc_get_rate_by_name returned %u values.",

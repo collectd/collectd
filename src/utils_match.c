@@ -50,7 +50,7 @@ static char *match_substr (const char *str, int begin, int end)
 
   if ((begin < 0) || (end < 0) || (begin >= end))
     return (NULL);
-  if (end > (strlen (str) + 1))
+  if ((size_t) end > (strlen (str) + 1))
   {
     ERROR ("utils_match: match_substr: `end' points after end of string.");
     return (NULL);
@@ -228,7 +228,7 @@ int match_apply (cu_match_t *obj, const char *str)
   regmatch_t re_match[32];
   char *matches[32];
   size_t matches_num;
-  int i;
+  size_t i;
 
   if ((obj == NULL) || (str == NULL))
     return (-1);

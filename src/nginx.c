@@ -123,8 +123,9 @@ static int init (void)
 
   if (user != NULL)
   {
-    if (ssnprintf (credentials, sizeof (credentials),
-	  "%s:%s", user, pass == NULL ? "" : pass) >= sizeof (credentials))
+    int status = ssnprintf (credentials, sizeof (credentials),
+	"%s:%s", user, pass == NULL ? "" : pass);
+    if ((status < 0) || ((size_t) status >= sizeof (credentials)))
     {
       ERROR ("nginx plugin: Credentials would have been truncated.");
       return (-1);
