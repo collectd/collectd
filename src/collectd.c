@@ -47,7 +47,7 @@ kstat_ctl_t *kc;
 
 static int loop = 0;
 
-static void *do_flush (void *arg)
+static void *do_flush (void __attribute__((unused)) *arg)
 {
 	INFO ("Flushing all data.");
 	plugin_flush (NULL, -1, NULL);
@@ -56,17 +56,17 @@ static void *do_flush (void *arg)
 	return NULL;
 }
 
-static void sig_int_handler (int signal)
+static void sig_int_handler (int __attribute__((unused)) signal)
 {
 	loop++;
 }
 
-static void sig_term_handler (int signal)
+static void sig_term_handler (int __attribute__((unused)) signal)
 {
 	loop++;
 }
 
-static void sig_usr1_handler (int signal)
+static void sig_usr1_handler (int __attribute__((unused)) signal)
 {
 	pthread_t      thread;
 	pthread_attr_t attr;

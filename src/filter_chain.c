@@ -609,7 +609,8 @@ static int fc_bit_jump_destroy (void **user_data) /* {{{ */
 } /* }}} int fc_bit_jump_destroy */
 
 static int fc_bit_jump_invoke (const data_set_t *ds, /* {{{ */
-    value_list_t *vl, notification_meta_t **meta, void **user_data)
+    value_list_t *vl, notification_meta_t __attribute__((unused)) **meta,
+    void **user_data)
 {
   char *chain_name;
   fc_chain_t *chain;
@@ -637,14 +638,18 @@ static int fc_bit_jump_invoke (const data_set_t *ds, /* {{{ */
     return (FC_TARGET_CONTINUE);
 } /* }}} int fc_bit_jump_invoke */
 
-static int fc_bit_stop_invoke (const data_set_t *ds, /* {{{ */
-    value_list_t *vl, notification_meta_t **meta, void **user_data)
+static int fc_bit_stop_invoke (const data_set_t __attribute__((unused)) *ds, /* {{{ */
+    value_list_t __attribute__((unused)) *vl,
+    notification_meta_t __attribute__((unused)) **meta,
+    void __attribute__((unused)) **user_data)
 {
   return (FC_TARGET_STOP);
 } /* }}} int fc_bit_stop_invoke */
 
-static int fc_bit_return_invoke (const data_set_t *ds, /* {{{ */
-    value_list_t *vl, notification_meta_t **meta, void **user_data)
+static int fc_bit_return_invoke (const data_set_t __attribute__((unused)) *ds, /* {{{ */
+    value_list_t __attribute__((unused)) *vl,
+    notification_meta_t __attribute__((unused)) **meta,
+    void __attribute__((unused)) **user_data)
 {
   return (FC_TARGET_RETURN);
 } /* }}} int fc_bit_return_invoke */
@@ -726,7 +731,8 @@ static int fc_bit_write_destroy (void **user_data) /* {{{ */
 } /* }}} int fc_bit_write_destroy */
 
 static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
-    value_list_t *vl, notification_meta_t **meta, void **user_data)
+    value_list_t *vl, notification_meta_t __attribute__((unused)) **meta,
+    void **user_data)
 {
   char **plugin_list;
   int status;

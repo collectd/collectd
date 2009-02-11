@@ -378,7 +378,7 @@ static void *collect (void *arg)
 	pthread_exit ((void *)0);
 } /* static void *collect (void *) */
 
-static void *open_connection (void *arg)
+static void *open_connection (void __attribute__((unused)) *arg)
 {
 	struct sockaddr_un addr;
 

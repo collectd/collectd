@@ -1240,7 +1240,7 @@ static int network_add_sending_socket (const char *node, const char *service)
 	return (0);
 } /* int network_get_listen_socket */
 
-static void *dispatch_thread (void *arg)
+static void *dispatch_thread (void __attribute__((unused)) *arg)
 {
   while (42)
   {
@@ -1391,7 +1391,7 @@ static int network_receive (void)
 	return (0);
 }
 
-static void *receive_thread (void *arg)
+static void *receive_thread (void __attribute__((unused)) *arg)
 {
 	return (network_receive () ? (void *) 1 : (void *) 0);
 } /* void *receive_thread */
@@ -1808,7 +1808,8 @@ static int network_init (void)
  * just send the buffer if `flush'  is called - if the requested value was in
  * there, good. If not, well, then there is nothing to flush.. -octo
  */
-static int network_flush (int timeout, const char *identifier)
+static int network_flush (int timeout,
+		const char __attribute__((unused)) *identifier)
 {
 	pthread_mutex_lock (&send_buffer_lock);
 

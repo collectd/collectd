@@ -353,7 +353,7 @@ static int tr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 } /* }}} int tr_create */
 
 static int tr_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
-    notification_meta_t **meta, void **user_data)
+    notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
   tr_data_t *data;
 

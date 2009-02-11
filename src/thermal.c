@@ -60,8 +60,8 @@ static void thermal_submit (const char *plugin_instance, enum dev_type dt,
 	plugin_dispatch_values (&vl);
 }
 
-static int thermal_sysfs_device_read (const char *dir, const char *name,
-		void *user_data)
+static int thermal_sysfs_device_read (const char __attribute__((unused)) *dir,
+		const char *name, void __attribute__((unused)) *user_data)
 {
 	char filename[256];
 	char data[1024];
@@ -112,8 +112,8 @@ static int thermal_sysfs_device_read (const char *dir, const char *name,
 	return ok ? 0 : -1;
 }
 
-static int thermal_procfs_device_read (const char *dir, const char *name,
-		void *user_data)
+static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
+		const char *name, void __attribute__((unused)) *user_data)
 {
 	const char str_temp[] = "temperature:";
 	char filename[256];

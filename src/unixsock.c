@@ -278,7 +278,7 @@ static void *us_handle_client (void *arg)
 	return ((void *) 0);
 } /* void *us_handle_client */
 
-static void *us_server_thread (void *arg)
+static void *us_server_thread (void __attribute__((unused)) *arg)
 {
 	int  status;
 	int *remote_fd;

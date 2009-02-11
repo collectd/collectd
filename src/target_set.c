@@ -228,7 +228,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 } /* }}} int ts_create */
 
 static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
-    notification_meta_t **meta, void **user_data)
+    notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
   ts_data_t *data;
 

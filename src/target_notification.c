@@ -223,7 +223,7 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 } /* }}} int tn_create */
 
 static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
-    notification_meta_t **meta, void **user_data)
+    notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
   tn_data_t *data;
   notification_t n;

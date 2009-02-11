@@ -406,7 +406,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 } /* int tss2_select_vserver */
 
 static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
-		vserver_list_t *vserver, gauge_t *ret_value)
+		gauge_t *ret_value)
 {
 	/*
 	 * Reads the vserver's average packet loss and submits it to collectd.
@@ -677,7 +677,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	 * with an error. */
 	if ((status == 0) && (vserver != NULL))
 	{
-		status = tss2_vserver_gapl (read_fh, write_fh, vserver, &packet_loss);
+		status = tss2_vserver_gapl (read_fh, write_fh, &packet_loss);
 		if (status == 0)
 		{
 			valid |= 0x20;

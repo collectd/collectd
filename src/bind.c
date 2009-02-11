@@ -281,7 +281,7 @@ static void submit_counter(time_t ts, const char *plugin_instance, const char *t
 } /* void submit_counter */
 
 static size_t bind_curl_callback (void *buf, size_t size, size_t nmemb,
-    void *stream)
+    void __attribute__((unused)) *stream)
 {
   size_t len = size * nmemb;
 

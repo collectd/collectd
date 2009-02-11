@@ -68,7 +68,7 @@ static char *match_substr (const char *str, int begin, int end)
   return (ret);
 } /* char *match_substr */
 
-static int default_callback (const char *str,
+static int default_callback (const char __attribute__((unused)) *str,
     char * const *matches, size_t matches_num, void *user_data)
 {
   cu_match_value_t *data = (cu_match_value_t *) user_data;

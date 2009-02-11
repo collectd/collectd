@@ -61,7 +61,7 @@ static char *email_subject = NULL;
 
 /* Callback to get username and password */
 static int authinteract (auth_client_request_t request, char **result,
-    int fields, void *arg)
+    int fields, void __attribute__((unused)) *arg)
 {               
   int i;
   for (i = 0; i < fields; i++)
@@ -78,7 +78,7 @@ static int authinteract (auth_client_request_t request, char **result,
 
 /* Callback to print the recipient status */
 static void print_recipient_status (smtp_recipient_t recipient,
-    const char *mailbox, void *arg)
+    const char *mailbox, void __attribute__((unused)) *arg)
 {
   const smtp_status_t *status;
 
@@ -90,7 +90,8 @@ static void print_recipient_status (smtp_recipient_t recipient,
 } /* void print_recipient_status */
 
 /* Callback to monitor SMTP activity */
-static void monitor_cb (const char *buf, int buflen, int writing, void *arg)
+static void monitor_cb (const char *buf, int buflen, int writing,
+    void __attribute__((unused)) *arg)
 {
   char log_str[MAXSTRING];
 

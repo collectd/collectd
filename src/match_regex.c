@@ -257,8 +257,10 @@ static int mr_destroy (void **user_data) /* {{{ */
 	return (0);
 } /* }}} int mr_destroy */
 
-static int mr_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
-		notification_meta_t **meta, void **user_data)
+static int mr_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
+		const value_list_t *vl,
+		notification_meta_t __attribute__((unused)) **meta,
+		void **user_data)
 {
 	mr_match_t *m;
 

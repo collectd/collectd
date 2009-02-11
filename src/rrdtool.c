@@ -223,7 +223,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 } /* int value_list_to_string */
 
 static int value_list_to_filename (char *buffer, int buffer_len,
-		const data_set_t *ds, const value_list_t *vl)
+		const data_set_t __attribute__((unused)) *ds, const value_list_t *vl)
 {
 	int offset = 0;
 	int status;
@@ -266,7 +266,7 @@ static int value_list_to_filename (char *buffer, int buffer_len,
 	return (0);
 } /* int value_list_to_filename */
 
-static void *rrd_queue_thread (void *data)
+static void *rrd_queue_thread (void __attribute__((unused)) *data)
 {
         struct timeval tv_next_update;
         struct timeval tv_now;

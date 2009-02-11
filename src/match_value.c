@@ -258,7 +258,7 @@ static int mv_destroy (void **user_data) /* {{{ */
 } /* }}} int mv_destroy */
 
 static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
-    notification_meta_t **meta, void **user_data)
+    notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
   mv_match_t *m;
   gauge_t *values;

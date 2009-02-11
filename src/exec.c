@@ -78,7 +78,7 @@ static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Functions
  */
-static void sigchld_handler (int signal) /* {{{ */
+static void sigchld_handler (int __attribute__((unused)) signal) /* {{{ */
 {
   pid_t pid;
   int status;

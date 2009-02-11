@@ -19,6 +19,10 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
+#if !defined(__GNUC__) || !__GNUC__
+# define __attribute__(x) /**/
+#endif
+
 #include "config.h"
 
 #include <assert.h>
@@ -197,13 +201,13 @@ static int collectd_stop (void)
 	return 0;
 } /* collectd_stop */
 
-static void sig_int_term_handler (int signo)
+static void sig_int_term_handler (int __attribute__((unused)) signo)
 {
 	++loop;
 	return;
 } /* sig_int_term_handler */
 
-static void sig_hup_handler (int signo)
+static void sig_hup_handler (int __attribute__((unused)) signo)
 {
 	++restart;
 	return;

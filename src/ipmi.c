@@ -111,9 +111,9 @@ static int sensor_list_remove (ipmi_sensor_t *sensor);
 static void sensor_read_handler (ipmi_sensor_t *sensor,
     int err,
     enum ipmi_value_present_e value_present,
-    unsigned int raw_value,
+    unsigned int __attribute__((unused)) raw_value,
     double value,
-    ipmi_states_t *states,
+    ipmi_states_t __attribute__((unused)) *states,
     void *user_data)
 {
   value_t values[1];
@@ -459,9 +459,9 @@ static int sensor_list_remove_all (void)
  * Entity handlers
  */
 static void entity_sensor_update_handler (enum ipmi_update_e op,
-    ipmi_entity_t *entity,
+    ipmi_entity_t __attribute__((unused)) *entity,
     ipmi_sensor_t *sensor,
-    void *user_data)
+    void __attribute__((unused)) *user_data)
 {
   /* TODO: Ignore sensors we cannot read */
 
@@ -480,9 +480,9 @@ static void entity_sensor_update_handler (enum ipmi_update_e op,
  * Domain handlers
  */
 static void domain_entity_update_handler (enum ipmi_update_e op,
-    ipmi_domain_t *domain,
+    ipmi_domain_t __attribute__((unused)) *domain,
     ipmi_entity_t *entity,
-    void *user_data)
+    void __attribute__((unused)) *user_data)
 {
   int status;
 
@@ -574,7 +574,7 @@ static int thread_init (os_handler_t **ret_os_handler)
   return (0);
 } /* int thread_init */
 
-static void *thread_main (void *user_data)
+static void *thread_main (void __attribute__((unused)) *user_data)
 {
   int status;
   os_handler_t *os_handler = NULL;

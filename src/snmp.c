@@ -1451,7 +1451,7 @@ static int csnmp_read_host (host_definition_t *host)
   return (0);
 } /* int csnmp_read_host */
 
-static void *csnmp_read_thread (void *data)
+static void *csnmp_read_thread (void __attribute__((unused)) *data)
 {
   host_definition_t *host;
 

@@ -99,7 +99,8 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   return (0);
 } /* int simple_submit_match */
 
-static int tail_callback (void *data, char *buf, int buflen)
+static int tail_callback (void *data, char *buf,
+    int __attribute__((unused)) buflen)
 {
   cu_tail_match_t *obj = (cu_tail_match_t *) data;
   int i;

@@ -171,7 +171,7 @@ static int plugin_load_file (char *file)
 	return (0);
 }
 
-static void *plugin_read_thread (void *args)
+static void *plugin_read_thread (void __attribute__((unused)) *args)
 {
 	llentry_t   *le;
 	read_func_t *rf;

@@ -55,7 +55,7 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
-		void *stream)
+		void __attribute__((unused)) *stream)
 {
 	size_t len = size * nmemb;
 

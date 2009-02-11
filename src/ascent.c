@@ -143,7 +143,7 @@ static int ascent_submit_gauge (const char *plugin_instance, /* {{{ */
 } /* }}} int ascent_submit_gauge */
 
 static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{ */
-    void *stream)
+    void __attribute__((unused)) *stream)
 {
   size_t len = size * nmemb;
 

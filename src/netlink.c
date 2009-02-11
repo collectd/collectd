@@ -204,8 +204,8 @@ static void submit_two (const char *dev, const char *type,
   plugin_dispatch_values (&vl);
 } /* void submit_two */
 
-static int link_filter (const struct sockaddr_nl *sa,
-    struct nlmsghdr *nmh, void *args)
+static int link_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
+    struct nlmsghdr *nmh, void __attribute__((unused)) *args)
 {
   struct ifinfomsg *msg;
   int msg_len;
@@ -314,7 +314,7 @@ static int link_filter (const struct sockaddr_nl *sa,
   return (0);
 } /* int link_filter */
 
-static int qos_filter (const struct sockaddr_nl *sa,
+static int qos_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
     struct nlmsghdr *nmh, void *args)
 {
   struct tcmsg *msg;

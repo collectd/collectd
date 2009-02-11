@@ -337,9 +337,7 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
 }
 
 static int
-handle_dns(const char *buf, int len,
-	const struct in6_addr *s_addr,
-	const struct in6_addr *d_addr)
+handle_dns(const char *buf, int len)
 {
     rfc1035_header_t qh;
     uint16_t us;
@@ -412,16 +410,14 @@ handle_dns(const char *buf, int len,
 }
 
 static int
-handle_udp(const struct udphdr *udp, int len,
-	const struct in6_addr *s_addr,
-	const struct in6_addr *d_addr)
+handle_udp(const struct udphdr *udp, int len)
 {
     char buf[PCAP_SNAPLEN];
     if ((ntohs (udp->UDP_DEST) != 53)
 		    && (ntohs (udp->UDP_SRC) != 53))
 	return 0;
     memcpy(buf, udp + 1, len - sizeof(*udp));
-    if (0 == handle_dns(buf, len - sizeof(*udp), s_addr, d_addr))
+    if (0 == handle_dns(buf, len - sizeof(*udp)))
 	return 0;
     return 1;
 }
@@ -492,7 +488,7 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
 	return (0);
 
     memcpy (buf, (char *) ipv6 + offset, payload_len);
-    if (handle_udp ((struct udphdr *) buf, payload_len, &s_addr, &d_addr) == 0)
+    if (handle_udp ((struct udphdr *) buf, payload_len) == 0)
 	return (0);
 
     return (1); /* Success */
@@ -516,7 +512,7 @@ handle_ip(const struct ip *ip, int len)
     if (IPPROTO_UDP != ip->ip_p)
 	return 0;
     memcpy(buf, (void *) ip + offset, len - offset);
-    if (0 == handle_udp((struct udphdr *) buf, len - offset, &s_addr, &d_addr))
+    if (0 == handle_udp((struct udphdr *) buf, len - offset))
 	return 0;
     return 1;
 }

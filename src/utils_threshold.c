@@ -689,7 +689,7 @@ static int ut_report_state (const data_set_t *ds,
  * Does not fail.
  */
 static int ut_check_one_data_source (const data_set_t *ds,
-    const value_list_t *vl,
+    const value_list_t __attribute__((unused)) *vl,
     const threshold_t *th,
     const gauge_t *values,
     int ds_index)

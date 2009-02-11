@@ -195,7 +195,7 @@ static void dns_child_callback (const rfc1035_header_t *dns)
 	pthread_mutex_unlock (&opcode_mutex);
 }
 
-static void *dns_child_loop (void *dummy)
+static void *dns_child_loop (void __attribute__((unused)) *dummy)
 {
 	pcap_t *pcap_obj;
 	char    pcap_error[PCAP_ERRBUF_SIZE];
