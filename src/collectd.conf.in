@@ -111,22 +111,23 @@ FQDNLookup   true
 #	CACert "/etc/ssl/ca.crt"
 #</Plugin>
 
-#<Plugin bind>
-#	URL "http://localhost:8053/"
-#	# Features
-#	Requests true
-#	Rejects true
-#	Responses true
-#	Queries true
-#	RCode true
-#	ZoneStats true
-#	OpCodes true
-#	Resolver true
-#	DNSSEC true
-#	RRQueriesIn true
-#	QueryResults true
-#	Updates true
-#	ZoneMaintenance true
+#<Plugin "bind">
+#  URL "http://localhost:8053/"
+#  OpCodes         true
+#  QTypes          true
+#
+#  ServerStats     true
+#  ZoneMaintStats  true
+#  ResolverStats   false
+#  MemoryStats     true
+#
+#  <View "_default">
+#    QTypes        true
+#    ResolverStats true
+#    CacheRRSets   true
+#
+#    Zone "127.in-addr.arpa/IN"
+#  </View>
 #</Plugin>
 
 #<Plugin csv>

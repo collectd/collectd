@@ -279,6 +279,32 @@ available. This is done with the C<statistics-channels> configuration option:
    inet localhost port 8053;
  };
 
+The configuration follows the grouping that can be seen when looking at the
+data with an XSLT compatible viewer, such as a modern web browser. It's
+probably a good idea to make yourself familiar with the provided values, so you
+can understand what the collected statistics actually mean.
+
+Synopsis:
+
+ <Plugin "bind">
+   URL "http://localhost:8053/"
+   OpCodes         true
+   QTypes          true
+ 
+   ServerStats     true
+   ZoneMaintStats  true
+   ResolverStats   false
+   MemoryStats     true
+ 
+   <View "_default">
+     QTypes        true
+     ResolverStats true
+     CacheRRSets   true
+ 
+     Zone "127.in-addr.arpa/IN"
+   </View>
+ </Plugin>
+
 The bind plugin accepts the following configuration options:
 
 =over 4
@@ -288,34 +314,98 @@ The bind plugin accepts the following configuration options:
 URL from which to retrieve the XML data. If not specified,
 C<http://localhost:8053/> will be used.
 
-=item B<DNSSEC> I<true>|I<false>
-
 =item B<OpCodes> I<true>|I<false>
 
-=item B<Queries> I<true>|I<false>
+When enabled, statistics about the I<"OpCodes">, for example the number of
+C<QUERY> packets, are collected.
 
-=item B<QueryResults> I<true>|I<false>
+Default: Enabled.
 
-=item B<RCode> I<true>|I<false>
+=item B<QTypes> I<true>|I<false>
 
-=item B<Rejects> I<true>|I<false>
+When enabled, the number of I<incoming> queries by query types (for example
+C<A>, C<MX>, C<AAAA>) is collected.
 
-=item B<Requests> I<true>|I<false>
+Default: Enabled.
 
-=item B<Resolver> I<true>|I<false>
+=item B<ServerStats> I<true>|I<false>
 
-=item B<Responses> I<true>|I<false>
+Collect global server statistics, such as requests received over IPv4 and IPv6,
+successful queries, and failed updates.
 
-=item B<RRQueriesIn> I<true>|I<false>
+Default: Enabled.
 
-=item B<Updates> I<true>|I<false>
+=item B<ZoneMaintStats> I<true>|I<false>
 
-=item B<ZoneMaintenance> I<true>|I<false>
+Collect zone maintenance statistics, mostly information about notifications
+(zone updates) and zone transfers.
 
-=item B<ZoneStats> I<true>|I<false>
+Default: Enabled.
 
-Enables or disables collection of specific counters.
-TODO: Options must be described in detail!
+=item B<ResolverStats> I<true>|I<false>
+
+Collect resolver statistics, i.E<nbsp>e. statistics about outgoing requests
+(e.E<nbsp>g. queries over IPv4, lame servers). Since the global resolver
+counters apparently were removed in BIND 9.5.1 and 9.6.0, this is disabled by
+default. Use the B<ResolverStats> option within a B<View "_default"> block
+instead for the same functionality.
+
+Default: Disabled.
+
+=item B<MemoryStats>
+
+Collect global memory statistics.
+
+Default: Enabled.
+
+=item B<View> I<Name>
+
+Collect statistics about a specific I<"view">. BIND can behave different,
+mostly depending on the source IP-address of the request. These different
+configurations are called "views". If you don't use this feature, you most
+likely are only interested in the C<_default> view.
+
+Within a E<lt>B<View>E<nbsp>I<name>E<gt> block, you can specify which
+information you want to collect about a view. If no B<View> block is
+configured, no detailed view statistics will be collected.
+
+=over 4
+
+=item B<QTypes> I<true>|I<false>
+
+If enabled, the number of I<outgoing> queries by query type (e.E<nbsp>g. C<A>,
+C<MX>) is collected.
+
+Default: Enabled.
+
+=item B<ResolverStats> I<true>|I<false>
+
+Collect resolver statistics, i.E<nbsp>e. statistics about outgoing requests
+(e.E<nbsp>g. queries over IPv4, lame servers).
+
+Default: Enabled.
+
+=item B<CacheRRSets> I<true>|I<false>
+
+If enabled, the number of entries (I<"RR sets">) in the view's cache by query
+type is collected. Negative entries (queries which resulted in an error, for
+example names that do not exist) are reported with a leading exclamation mark,
+e.E<nbsp>g. "!A".
+
+Default: Enabled.
+
+=item B<Zone> I<Name>
+
+When given, collect detailed information about the given zone in the view. The
+information collected if very similar to the global B<ServerStats> information
+(see above).
+
+You can repeat this option to collect detailed information about multiple
+zones.
+
+By default no detailed zone information is collected.
+
+=back
 
 =back
 
