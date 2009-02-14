@@ -55,6 +55,8 @@ struct udb_query_s /* {{{ */
   char *statement;
   void *user_data;
 
+  int legacy_mode;
+
   unsigned int min_version;
   unsigned int max_version;
 
@@ -540,7 +542,7 @@ void udb_query_free_one (udb_query_t *q) /* {{{ */
  */
 int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     size_t *ret_query_list_len, oconfig_item_t *ci,
-    udb_query_create_callback_t cb)
+    udb_query_create_callback_t cb, int legacy_mode)
 {
   udb_query_t **query_list;
   size_t        query_list_len;
@@ -569,6 +571,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     return (-1);
   }
   memset (q, 0, sizeof (*q));
+  q->legacy_mode = legacy_mode;
   q->min_version = 0;
   q->max_version = UINT_MAX;
 
@@ -592,21 +595,34 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
       status = udb_config_set_uint (&q->min_version, child);
     else if (strcasecmp ("MaxVersion", child->key) == 0)
       status = udb_config_set_uint (&q->max_version, child);
+
     /* PostgreSQL compatibility code */
-    else if (strcasecmp ("MinPGVersion", child->key) == 0)
+    else if ((strcasecmp ("Query", child->key) == 0)
+        && (q->legacy_mode == 1))
+    {
+      WARNING ("db query utils: Query `%s': The `Query' option is "
+          "deprecated. Please use `Statement' instead.",
+          q->name);
+      status = udb_config_set_string (&q->statement, child);
+    }
+    else if ((strcasecmp ("MinPGVersion", child->key) == 0)
+        && (q->legacy_mode == 1))
     {
       WARNING ("db query utils: Query `%s': The `MinPGVersion' option is "
           "deprecated. Please use `MinVersion' instead.",
           q->name);
       status = udb_config_set_uint (&q->min_version, child);
     }
-    else if (strcasecmp ("MaxPGVersion", child->key) == 0)
+    else if ((strcasecmp ("MaxPGVersion", child->key) == 0)
+        && (q->legacy_mode == 1))
     {
       WARNING ("db query utils: Query `%s': The `MaxPGVersion' option is "
           "deprecated. Please use `MaxVersion' instead.",
           q->name);
       status = udb_config_set_uint (&q->max_version, child);
     }
+
+    /* Call custom callbacks */
     else if (cb != NULL)
     {
       status = (*cb) (q, child);
