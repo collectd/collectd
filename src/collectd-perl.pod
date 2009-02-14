@@ -209,7 +209,9 @@ layout looks like this:
 =item Notification
 
 A notification is one structure defining the severity, time and message of the
-status message as well as an identification of a data instance:
+status message as well as an identification of a data instance. Also, it
+includes an optional list of user-defined meta information represented as
+(name, value) pairs:
 
   {
     severity => NOTIF_FAILURE || NOTIF_WARNING || NOTIF_OKAY,
@@ -219,7 +221,8 @@ status message as well as an identification of a data instance:
     plugin   => 'myplugin',
     type     => 'mytype',
     plugin_instance => '',
-    type_instance   => ''
+    type_instance   => '',
+    meta     => [ { name => <name>, value => <value> }, ... ]
   }
 
 =back

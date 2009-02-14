@@ -415,9 +415,73 @@ static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
  *   plugin   => $plugin,
  *   type     => $type,
  *   plugin_instance => $instance,
- *   type_instance   => $type_instance
+ *   type_instance   => $type_instance,
+ *   meta     => [ { name => <name>, value => <value> }, ... ]
  * }
  */
+static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
+{
+	notification_meta_t **m = meta;
+
+	int len = av_len (array);
+	int i;
+
+	for (i = 0; i <= len; ++i) {
+		SV **tmp = av_fetch (array, i, 0);
+		HV  *hash;
+
+		if (NULL == tmp)
+			return -1;
+
+		if (! (SvROK (*tmp) && (SVt_PVHV == SvTYPE (SvRV (*tmp))))) {
+			log_warn ("av2notification_meta: Skipping invalid "
+					"meta information.");
+			continue;
+		}
+
+		hash = (HV *)SvRV (*tmp);
+
+		*m = (notification_meta_t *)smalloc (sizeof (**m));
+
+		if (NULL == (tmp = hv_fetch (hash, "name", 4, 0))) {
+			log_warn ("av2notification_meta: Skipping invalid "
+					"meta information.");
+			free (*m);
+			continue;
+		}
+		sstrncpy ((*m)->name, SvPV_nolen (*tmp), sizeof ((*m)->name));
+
+		if (NULL == (tmp = hv_fetch (hash, "value", 5, 0))) {
+			log_warn ("av2notification_meta: Skipping invalid "
+					"meta information.");
+			free ((*m)->name);
+			free (*m);
+			continue;
+		}
+
+		if (SvNOK (*tmp)) {
+			(*m)->nm_value.nm_double = SvNVX (*tmp);
+			(*m)->type = NM_TYPE_DOUBLE;
+		}
+		else if (SvUOK (*tmp)) {
+			(*m)->nm_value.nm_unsigned_int = SvUVX (*tmp);
+			(*m)->type = NM_TYPE_UNSIGNED_INT;
+		}
+		else if (SvIOK (*tmp)) {
+			(*m)->nm_value.nm_signed_int = SvIVX (*tmp);
+			(*m)->type = NM_TYPE_SIGNED_INT;
+		}
+		else {
+			(*m)->nm_value.nm_string = sstrdup (SvPV_nolen (*tmp));
+			(*m)->type = NM_TYPE_STRING;
+		}
+
+		(*m)->next = NULL;
+		m = &((*m)->next);
+	}
+	return 0;
+} /* static int av2notification_meta (AV *, notification_meta_t *) */
+
 static int hv2notification (pTHX_ HV *hash, notification_t *n)
 {
 	SV **tmp = NULL;
@@ -456,6 +520,20 @@ static int hv2notification (pTHX_ HV *hash, notification_t *n)
 	if (NULL != (tmp = hv_fetch (hash, "type_instance", 13, 0)))
 		sstrncpy (n->type_instance, SvPV_nolen (*tmp),
 				sizeof (n->type_instance));
+
+	n->meta = NULL;
+	while (NULL != (tmp = hv_fetch (hash, "meta", 4, 0))) {
+		if (! (SvROK (*tmp) && (SVt_PVAV == SvTYPE (SvRV (*tmp))))) {
+			log_warn ("hv2notification: Ignoring invalid meta information.");
+			break;
+		}
+
+		if (0 != av2notification_meta (aTHX_ (AV *)SvRV (*tmp), &n->meta)) {
+			plugin_notification_meta_free (n);
+			return -1;
+		}
+		break;
+	}
 	return 0;
 } /* static int hv2notification (pTHX_ HV *, notification_t *) */
 
@@ -562,6 +640,52 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 	return 0;
 } /* static int value2av (value_list_t *, data_set_t *, HV *) */
 
+static int notification_meta2av (pTHX_ notification_meta_t *meta, AV *array)
+{
+	int meta_num = 0;
+	int i;
+
+	while (meta) {
+		++meta_num;
+		meta = meta->next;
+	}
+
+	av_extend (array, meta_num);
+
+	for (i = 0; NULL != meta; meta = meta->next, ++i) {
+		HV *m = newHV ();
+		SV *value;
+
+		if (NULL == hv_store (m, "name", 4, newSVpv (meta->name, 0), 0))
+			return -1;
+
+		if (NM_TYPE_STRING == meta->type)
+			value = newSVpv (meta->nm_value.nm_string, 0);
+		else if (NM_TYPE_SIGNED_INT == meta->type)
+			value = newSViv (meta->nm_value.nm_signed_int);
+		else if (NM_TYPE_UNSIGNED_INT == meta->type)
+			value = newSVuv (meta->nm_value.nm_unsigned_int);
+		else if (NM_TYPE_DOUBLE == meta->type)
+			value = newSVnv (meta->nm_value.nm_double);
+		else if (NM_TYPE_BOOLEAN == meta->type)
+			value = meta->nm_value.nm_boolean ? &PL_sv_yes : &PL_sv_no;
+		else
+			return -1;
+
+		if (NULL == hv_store (m, "value", 5, value, 0)) {
+			sv_free (value);
+			return -1;
+		}
+
+		if (NULL == av_store (array, i, newRV_noinc ((SV *)m))) {
+			hv_clear (m);
+			hv_undef (m);
+			return -1;
+		}
+	}
+	return 0;
+} /* static int notification_meta2av (notification_meta_t *, AV *) */
+
 static int notification2hv (pTHX_ notification_t *n, HV *hash)
 {
 	if (NULL == hv_store (hash, "severity", 8, newSViv (n->severity), 0))
@@ -596,6 +720,17 @@ static int notification2hv (pTHX_ notification_t *n, HV *hash)
 		if (NULL == hv_store (hash, "type_instance", 13,
 				newSVpv (n->type_instance, 0), 0))
 			return -1;
+
+	if (NULL != n->meta) {
+		AV *meta = newAV ();
+		if ((0 != notification_meta2av (aTHX_ n->meta, meta))
+				|| (NULL == hv_store (hash, "meta", 4,
+						newRV_noinc ((SV *)meta), 0))) {
+			av_clear (meta);
+			av_undef (meta);
+			return -1;
+		}
+	}
 	return 0;
 } /* static int notification2hv (notification_t *, HV *) */
 
