@@ -339,16 +339,16 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 		}
 	}
 
-	if (NULL != (tmp = hv_fetch (hash, "time", 4, 0))) {
+	if (NULL != (tmp = hv_fetch (hash, "time", 4, 0)))
 		vl->time = (time_t)SvIV (*tmp);
-	}
 
-	if (NULL != (tmp = hv_fetch (hash, "host", 4, 0))) {
+	if (NULL != (tmp = hv_fetch (hash, "interval", 8, 0)))
+		vl->interval = SvIV (*tmp);
+
+	if (NULL != (tmp = hv_fetch (hash, "host", 4, 0)))
 		sstrncpy (vl->host, SvPV_nolen (*tmp), sizeof (vl->host));
-	}
-	else {
+	else
 		sstrncpy (vl->host, hostname_g, sizeof (vl->host));
-	}
 
 	if (NULL != (tmp = hv_fetch (hash, "plugin", 6, 0)))
 		sstrncpy (vl->plugin, SvPV_nolen (*tmp), sizeof (vl->plugin));
@@ -534,6 +534,9 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 	if (0 != vl->time)
 		if (NULL == hv_store (hash, "time", 4, newSViv (vl->time), 0))
 			return -1;
+
+	if (NULL == hv_store (hash, "interval", 8, newSViv (vl->interval), 0))
+		return -1;
 
 	if ('\0' != vl->host[0])
 		if (NULL == hv_store (hash, "host", 4, newSVpv (vl->host, 0), 0))

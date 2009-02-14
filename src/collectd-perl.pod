@@ -198,6 +198,7 @@ layout looks like this:
   {
     values => [123, 0.5],
     time   => time (),
+    interval => $interval_g,
     host   => $hostname_g,
     plugin => 'myplugin',
     type   => 'myplugin',
