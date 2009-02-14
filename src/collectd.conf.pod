@@ -3151,6 +3151,50 @@ Example:
    Plugin "^foobar$"
  </Match>
 
+=item B<timediff>
+
+Matches values that have a time which differs from the time on the server.
+
+This match is mainly intended for servers that receive values over the
+C<network> plugin and write them to disk using the C<rrdtool> plugin. RRDtool
+is very sensitive to the timestamp used when updating the RRD files. In
+particular, the time must be ever increasing. If a misbehaving client sends one
+packet with a timestamp far in the future, all further packets with a correct
+time will be ignored because of that one packet. What's worse, such corrupted
+RRD files are hard to fix.
+
+This match lets one match all values B<outside> a specified time range
+(relative to the server's time), so you can use the B<stop> target (see below)
+to ignore the value, for example.
+
+Available options:
+
+=over 4
+
+=item B<Future> I<Seconds>
+
+Matches all values that are I<ahead> of the server's time by I<Seconds> or more
+seconds. Set to zero for no limit. Either B<Future> or B<Past> must be
+non-zero.
+
+=item B<Past> I<Seconds>
+
+Matches all values that are I<behind> of the server's time by I<Seconds> or
+more seconds. Set to zero for no limit. Either B<Future> or B<Past> must be
+non-zero.
+
+=back
+
+Example:
+
+ <Match "timediff">
+   Future  300
+   Past   3600
+ </Match>
+
+This example matches all values that are five minutes or more ahead of the
+server or one hour (or more) lagging behind.
+
 =item B<value>
 
 Matches the actual value of data sources against given minimumE<nbsp>/ maximum

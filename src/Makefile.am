@@ -421,6 +421,14 @@ collectd_LDADD += "-dlopen" match_regex.la
 collectd_DEPENDENCIES += match_regex.la
 endif
 
+if BUILD_PLUGIN_MATCH_TIMEDIFF
+pkglib_LTLIBRARIES += match_timediff.la
+match_timediff_la_SOURCES = match_timediff.c
+match_timediff_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" match_timediff.la
+collectd_DEPENDENCIES += match_timediff.la
+endif
+
 if BUILD_PLUGIN_MATCH_VALUE
 pkglib_LTLIBRARIES += match_value.la
 match_value_la_SOURCES = match_value.c
