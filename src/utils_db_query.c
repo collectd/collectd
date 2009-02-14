@@ -918,31 +918,22 @@ void udb_query_free (udb_query_t **query_list, size_t query_list_len) /* {{{ */
   sfree (query_list);
 } /* }}} void udb_query_free */
 
-int udb_query_pick_from_list (oconfig_item_t *ci, /* {{{ */
+int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
     udb_query_t **src_list, size_t src_list_len,
     udb_query_t ***dst_list, size_t *dst_list_len)
 {
-  const char *name;
   udb_query_t *q;
   udb_query_t **tmp_list;
   size_t tmp_list_len;
   size_t i;
 
-  if ((ci == NULL) || (src_list == NULL) || (dst_list == NULL)
+  if ((name == NULL) || (src_list == NULL) || (dst_list == NULL)
       || (dst_list_len == NULL))
   {
-    ERROR ("db query utils: Invalid argument.");
+    ERROR ("db query utils: udb_query_pick_from_list_by_name: "
+        "Invalid argument.");
     return (-EINVAL);
   }
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    ERROR ("db query utils: The `%s' config option "
-        "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
-  name = ci->values[0].value.string;
 
   q = NULL;
   for (i = 0; i < src_list_len; i++)
@@ -954,9 +945,9 @@ int udb_query_pick_from_list (oconfig_item_t *ci, /* {{{ */
 
   if (q == NULL)
   {
-    ERROR ("db query utils: Cannot find query `%s'. Make sure the <%s> "
+    ERROR ("db query utils: Cannot find query `%s'. Make sure the <Query> "
         "block is above the database definition!",
-        name, ci->key);
+        name);
     return (-ENOENT);
   }
 
@@ -975,6 +966,34 @@ int udb_query_pick_from_list (oconfig_item_t *ci, /* {{{ */
   *dst_list_len = tmp_list_len;
 
   return (0);
+} /* }}} int udb_query_pick_from_list_by_name */
+
+int udb_query_pick_from_list (oconfig_item_t *ci, /* {{{ */
+    udb_query_t **src_list, size_t src_list_len,
+    udb_query_t ***dst_list, size_t *dst_list_len)
+{
+  const char *name;
+
+  if ((ci == NULL) || (src_list == NULL) || (dst_list == NULL)
+      || (dst_list_len == NULL))
+  {
+    ERROR ("db query utils: udb_query_pick_from_list: "
+        "Invalid argument.");
+    return (-EINVAL);
+  }
+
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    ERROR ("db query utils: The `%s' config option "
+        "needs exactly one string argument.", ci->key);
+    return (-1);
+  }
+  name = ci->values[0].value.string;
+
+  return (udb_query_pick_from_list_by_name (name,
+        src_list, src_list_len,
+        dst_list, dst_list_len));
 } /* }}} int udb_query_pick_from_list */
 
 const char *udb_query_get_name (udb_query_t *q) /* {{{ */

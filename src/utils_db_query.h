@@ -41,6 +41,9 @@ int udb_query_create (udb_query_t ***ret_query_list,
     udb_query_create_callback_t cb, int legacy_mode);
 void udb_query_free (udb_query_t **query_list, size_t query_list_len);
 
+int udb_query_pick_from_list_by_name (const char *name,
+    udb_query_t **src_list, size_t src_list_len,
+    udb_query_t ***dst_list, size_t *dst_list_len);
 int udb_query_pick_from_list (oconfig_item_t *ci,
     udb_query_t **src_list, size_t src_list_len,
     udb_query_t ***dst_list, size_t *dst_list_len);
