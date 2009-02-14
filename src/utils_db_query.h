@@ -54,6 +54,12 @@ const char *udb_query_get_statement (udb_query_t *q);
 void  udb_query_set_user_data (udb_query_t *q, void *user_data);
 void *udb_query_get_user_data (udb_query_t *q);
 
+/* 
+ * db->proto_version
+ *
+ * Returns 0 if the query is NOT suitable for `version' and >0 if the
+ * query IS suitable.
+ */
 int udb_query_check_version (udb_query_t *q, unsigned int version);
 
 int udb_query_prepare_result (udb_query_t *q,
