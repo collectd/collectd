@@ -314,7 +314,7 @@ static int ctail_read (void)
     status = tail_match_read (tail_match_list[i]);
     if (status != 0)
     {
-      ERROR ("tail plugin: tail_match_read[%i] failed.", i);
+      ERROR ("tail plugin: tail_match_read[%zu] failed.", i);
     }
     else
     {
