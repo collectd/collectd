@@ -55,7 +55,7 @@ void  udb_query_set_user_data (udb_query_t *q, void *user_data);
 void *udb_query_get_user_data (udb_query_t *q);
 
 /* 
- * db->proto_version
+ * udb_query_check_version
  *
  * Returns 0 if the query is NOT suitable for `version' and >0 if the
  * query IS suitable.
