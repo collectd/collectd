@@ -387,50 +387,16 @@ static int cpu_read (void)
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
 
-#elif defined(HAVE_SYSCTLBYNAME)
-	long cpuinfo[CPUSTATES];
-	size_t cpuinfo_size;
-
-	cpuinfo_size = sizeof (cpuinfo);
-
-	if (sysctlbyname("kern.cp_time", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
-	{
-		char errbuf[1024];
-		ERROR ("cpu plugin: sysctlbyname failed: %s.",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
-
-	submit (0, "user", cpuinfo[CP_USER]);
-	submit (0, "nice", cpuinfo[CP_NICE]);
-	submit (0, "system", cpuinfo[CP_SYS]);
-	submit (0, "idle", cpuinfo[CP_IDLE]);
-	submit (0, "interrupt", cpuinfo[CP_INTR]);
-/* #endif HAVE_SYSCTLBYNAME */
-
 #elif defined __OpenBSD__
-	int64_t **cpuinfo;
+	int64_t cpuinfo[numcpu][CPUSTATES];
 	size_t cpuinfo_size;
 	int i;
-
-	cpuinfo = (int64_t **) calloc (numcpu, sizeof(int64_t *));
-	if(cpuinfo == NULL) {
-		ERROR ("cpu plugin: calloc failed.");
-		return (-1);
-	}
-	for (i = 0; i < numcpu; i++) {
-                cpuinfo[i] = (int64_t *) calloc (CPUSTATES, sizeof(int64_t));
-                if (cpuinfo[i] == NULL) {
-                        ERROR ("cpu plugin: calloc failed.");
-                        return (-1);
-                }
-        }
 
 	if (numcpu > 1) {
 		cpuinfo_size = CPUSTATES * sizeof(int64_t);
 
-                for (i = 0; i < numcpu; i++) {
-                        int mib[] = {CTL_KERN, KERN_CPTIME2, i};
+		for (i = 0; i < numcpu; i++) {
+			int mib[] = {CTL_KERN, KERN_CPTIME2, i};
 
 			if (sysctl(mib, 3, cpuinfo[i], &cpuinfo_size, NULL, 0) < 0) {
 				char errbuf[1024];
@@ -458,17 +424,34 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-		cpuinfo[i][CP_SYS] += cpuinfo[i][CP_INTR];
-
 		submit (i, "user", cpuinfo[i][CP_USER]);
 		submit (i, "nice", cpuinfo[i][CP_NICE]);
 		submit (i, "system", cpuinfo[i][CP_SYS]);
 		submit (i, "idle", cpuinfo[i][CP_IDLE]);
-
-		free (cpuinfo[i]);
+		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
 	}
-	free (cpuinfo);
 /* #endif __OpenBSD__ */
+
+#elif defined(HAVE_SYSCTLBYNAME)
+	long cpuinfo[CPUSTATES];
+	size_t cpuinfo_size;
+
+	cpuinfo_size = sizeof (cpuinfo);
+
+	if (sysctlbyname("kern.cp_time", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
+	{
+		char errbuf[1024];
+		ERROR ("cpu plugin: sysctlbyname failed: %s.",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	submit (0, "user", cpuinfo[CP_USER]);
+	submit (0, "nice", cpuinfo[CP_NICE]);
+	submit (0, "system", cpuinfo[CP_SYS]);
+	submit (0, "idle", cpuinfo[CP_IDLE]);
+	submit (0, "interrupt", cpuinfo[CP_INTR]);
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
        sg_cpu_stats *cs;
