@@ -20,7 +20,9 @@
 	  statistics, allowing very detailed name server statistics. Thanks to
 	  Bruno Prémont for this plugin.
 	* cpu plugin: Report `interrupt' separately when using
-	  sysctlbyname(3) (used under *BSD).
+	  sysctlbyname(3) (used under *BSD). Support for sysctl(3), for
+	  example for native OpenBSD support, has been added. Thanks to Simon
+	  Kuhnle for the patch.
 	* csv plugin: Make it possible to write values to STDOUT instead of
 	  files. This is meant for testing purposes mostly. The output written
 	  to STDOUT is compatible with the exec plugin. Thanks to Doug
