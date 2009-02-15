@@ -480,6 +480,7 @@ nanosleep_needs_rt="no"
 AC_CHECK_FUNCS(nanosleep, [], AC_CHECK_LIB(rt, nanosleep, [nanosleep_needs_rt="yes"], AC_MSG_ERROR(cannot find nanosleep)))
 AM_CONDITIONAL(BUILD_WITH_LIBRT, test "x$nanosleep_needs_rt" = "xyes")
 
+AC_CHECK_FUNCS(sysctl, [have_sysctl="yes"], [have_sysctl="no"])
 AC_CHECK_FUNCS(sysctlbyname, [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
 AC_CHECK_FUNCS(host_statistics, [have_host_statistics="yes"], [have_host_statistics="no"])
 AC_CHECK_FUNCS(processor_info, [have_processor_info="yes"], [have_processor_info="no"])
@@ -2955,6 +2956,11 @@ if test "x$have_processor_info" = "xyes"
 then
 	plugin_cpu="yes"
 fi
+if test "x$have_sysctl" = "xyes"
+then
+	plugin_cpu="yes"
+	plugin_swap="yes"
+fi
 if test "x$have_sysctlbyname" = "xyes"
 then
 	plugin_cpu="yes"
@@ -3030,8 +3036,6 @@ if test "x$have_getutxent" = "xyes"
 then
 	plugin_users="yes"
 fi
-
-# FIXME: sysctl for swap plugin
 
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
