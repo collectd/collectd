@@ -1,3 +1,66 @@
+2009-02-15, Version 4.6.0
+	* collectd: Added the `filter chain' infrastructure, which allows the
+	  user to use `matches' and `targets' to control value processing.
+	* collectd: The new `-T' command line argument allows more in-depth
+	  testing of a configuration. Thanks to Doug MacEachern for the patch.
+	* collectd-nagios: The Nagios integration command has been updated to
+	  use libcollectdclient. The `percentage' aggregation function has
+	  been added. Thanks to Fabian Linzberger for the patch.
+	* libcollectdclient: A library which abstract communication with the
+	  unixsock plugin for clients has been added.
+	* regex match: Match values by their identifies using regular
+	  expressions.
+	* timediff match: Match for values with an invalid timestamp.
+	* value match: Select values by their data sources' values.
+	* notification target: Create and dispatch a notification.
+	* replace target: Replace parts of an identifier using regular
+	  expressions.
+	* set target: Set (overwrite) entire parts of an identifier.
+	* bind plugin: This new plugin uses the new HTTP/XML interface to BIND
+	  statistics, allowing very detailed name server statistics. Thanks to
+	  Bruno Prémont for this plugin.
+	* cpu plugin: Report `interrupt' separately when using
+	  sysctlbyname(3) (used under *BSD).
+	* csv plugin: Make it possible to write values to STDOUT instead of
+	  files. This is meant for testing purposes mostly. The output written
+	  to STDOUT is compatible with the exec plugin. Thanks to Doug
+	  MacEachern for the patch.
+	* curl plugin: This new plugin can be used to read web pages and parse
+	  them using the same mechanism that's used in the tail plugin.
+	* dbi plugin: This new plugin allows you to connect to a variety of
+	  relational databases and use SQL to gather custom statistics from
+	  it. It is similar to the already existing PostgreSQL plugin but uses
+	  libdbi to communicate with the database(s).
+	* interface plugin: Use the ignorelist framework when selecting /
+	  ignoring interfaces. This allows one to use regular expressions to
+	  select interfaces, too.
+	* ipmi plugin: Handle temporary IPMI error conditions more gracefully.
+	  Thanks to Bruno Prémont for this patch.
+	* memcached plugin: Add hit-ratio metric. Thanks to Doug MacEachern
+	  for the patch.
+	* mysql plugin: Allow connecting to a database via the UNIX domain
+	  socket, too. Thanks to Mirko Buffoni for the patch.
+	* network plugin: Further performance improvements for the receive
+	  code. This hopefully will help very large setups.
+	* openvpn plugin: This new plugin collects statistics provided by the
+	  OpenVPN daemon. Thanks to Doug MacEachern for the patch.
+	* oracle plugin: This new plugin allows you to connect to an Oracle
+	  database and use SQL to gather custom statistics from it. It is
+	  similar to the already existing PostgreSQL plugin.
+	* perl plugin: Compatibility fixes for broken versions of Perl 5.10
+	  have been added.
+	* postgresql plugin: The preferred configuration syntax has been
+	  updated to be in line with the syntax used by the new dbi and oracle
+	  plugins. The compatibility code for the old syntax is present.
+	  Support for the new `Result' blocks and the interval parameter has
+	  been added.
+	* processes plugin: Stacksize of virtual memory usage statistics have
+	  been addded. Portability fixes.
+	* rrdcached plugin: This new plugin uses the (still in development)
+	  RRD accelerator daemon, rrdcached. This daemon works very similar to
+	  the original rrdtool plugin of collectd, but adds some more nice
+	  features.
+
 2009-01-02, Version 4.5.2
 	* build system: Check for `mysql.h' and `mysql/mysql.h', since the
 	  file may be in both locations, especially when the database was
