@@ -225,6 +225,28 @@ includes an optional list of user-defined meta information represented as
     meta     => [ { name => <name>, value => <value> }, ... ]
   }
 
+=item Match-Proc
+
+A match-proc is one structure storing the callbacks of a "match" of the filter
+chain infrastructure. The general layout looks like this:
+
+  {
+    create  => 'my_create',
+    destroy => 'my_destroy',
+    match   => 'my_match'
+  }
+
+=item Target-Proc
+
+A target-proc is one structure storing the callbacks of a "target" of the
+filter chain infrastructure. The general layout looks like this:
+
+  {
+    create  => 'my_create',
+    destroy => 'my_destroy',
+    invoke  => 'my_invoke'
+  }
+
 =back
 
 =head1 METHODS
@@ -403,6 +425,68 @@ B<LOG_NOTICE>, B<LOG_INFO> and B<LOG_DEBUG> respectively as I<log-level>.
 
 =back
 
+The following function provides the filter chain C-interface to Perl-modules.
+It is exported by the ":filter_chain" export tag (see the section "EXPORTS"
+below).
+
+=over 4
+
+=item B<fc_register> (I<type>, I<name>, I<proc>)
+
+Registers filter chain callbacks with collectd.
+
+I<type> may be any of:
+
+=over 4
+
+=item FC_MATCH
+
+=item FC_TARGET
+
+=back
+
+I<name> is the name of the match or target. By this name, the callbacks are
+identified in the configuration file when specifying a B<Match> or B<Target>
+block (see L<collectd.conf(5)> for details).
+
+I<proc> is a hash reference. The hash includes up to three callbacks: an
+optional constructor (B<create>) and destructor (B<destroy>) and a mandatory
+B<match> or B<invoke> callback. B<match> is called whenever processing an
+appropriate match, while B<invoke> is called whenever processing an
+appropriate target (see the section "FILTER CONFIGURATION" in
+L<collectd.conf(5)> for details). Just like any other callbacks, filter chain
+callbacks are identified by the function name rather than a function pointer
+because Perl does not support to share references to subroutines between
+threads. The following arguments are passed to the callbacks:
+
+=over 4
+
+=item create
+
+The arguments passed are I<config-item> and I<user-data>. See above for the
+layout of the config-item data-type. I<user-data> is a reference to a scalar
+value that may be used to store any information specific to this particular
+instance. The daemon does not care about this information at all. It's for the
+plugin's use only.
+
+=item destroy
+
+The only argument passed is I<user-data> which is a reference to the user data
+initialized in the B<create> callback. This callback may be used to cleanup
+instance-specific information and settings.
+
+=item match, invoke
+
+The arguments passed are I<data-set>, I<value-list>, I<meta> and I<user-data>.
+See above for the layout of the data-set and value-list data-types. I<meta> is
+a pointer to an array of meta information, just like the B<meta> member of the
+notification data-type (see above). I<user-data> is a reference to the user
+data initialized in the B<create> callback.
+
+=back
+
+=back
+
 =head1 GLOBAL VARIABLES
 
 =over 4
@@ -509,6 +593,34 @@ available (B<:all> will export all of them):
 
 =back
 
+=item B<:filter_chain>
+
+=over 4
+
+=item B<fc_register>
+
+=item B<FC_MATCH_NO_MATCH>
+
+=item B<FC_MATCH_MATCHES>
+
+=item B<FC_TARGET_CONTINUE>
+
+=item B<FC_TARGET_STOP>
+
+=item B<FC_TARGET_RETURN>
+
+=back
+
+=item B<:fc_types>
+
+=over 4
+
+=item B<FC_MATCH>
+
+=item B<FC_TARGET>
+
+=back
+
 =item B<:notif>
 
 =over 4
@@ -544,7 +656,7 @@ Any Perl plugin will start similar to:
 
   use Collectd qw( :all );
 
-A very simple read function will look like:
+A very simple read function might look like:
 
   sub foobar_read
   {
@@ -554,7 +666,7 @@ A very simple read function will look like:
     return 1;
   }
 
-A very simple write function will look like:
+A very simple write function might look like:
 
   sub foobar_write
   {
@@ -565,13 +677,27 @@ A very simple write function will look like:
     return 1;
   }
 
+A very simple match callback might look like:
+
+  sub foobar_match
+  {
+    my ($ds, $vl, $meta, $user_data) = @_;
+    if (matches($ds, $vl)) {
+      return FC_MATCH_MATCHES;
+    } else {
+      return FC_MATCH_NO_MATCH;
+    }
+  }
+
 To register those functions with collectd:
 
   plugin_register (TYPE_READ, "foobar", "foobar_read");
   plugin_register (TYPE_WRITE, "foobar", "foobar_write");
 
+  fc_register (FC_MATCH, "foobar", "foobar_match");
+
 See the section "DATA TYPES" above for a complete documentation of the data
-types used by the read and write functions.
+types used by the read, write and match functions.
 
 =head1 NOTES
 
