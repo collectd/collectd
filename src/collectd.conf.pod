@@ -2983,8 +2983,8 @@ The following shows the resulting structure:
 
 The configuration reflects this structure directly:
 
- PostCacheChain "main"
- <Chain "main">
+ PostCacheChain "PostCache"
+ <Chain "PostCache">
    <Rule "ignore_mysql_show">
      <Match "regex">
        Plugin "^mysql$"
@@ -3483,22 +3483,20 @@ If you use collectd with an old configuration, i.E<nbsp>e. one without a
 B<Chain> block, it will behave as it used to. This is equivalent to the
 following configuration:
 
- <Chain "main">
+ <Chain "PostCache">
    Target "write"
  </Chain>
 
-If you specify a B<Chain> block anywhere, the B<write> target will not be added
+If you specify a B<PostCacheChain>, the B<write> target will not be added
 anywhere and you will have to make sure that it is called where appropriate. We
-suggest to add the above snippet as default target to your main chain.
-
-TODO: Notifications will be implemented using chains, too. Describe that here!
+suggest to add the above snippet as default target to your "PostCache" chain.
 
 =head2 Examples
 
 Ignore all values, where the hostname does not contain a dot, i.E<nbsp>e. can't
 be an FQDN.
 
- <Chain "main">
+ <Chain "PreCache">
    <Rule "no_fqdn">
      <Match "regex">
        Host "^[^\.]*$"
