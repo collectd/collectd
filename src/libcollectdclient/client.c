@@ -678,7 +678,7 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
     key = res.lines[i];
     value = strchr (key, '=');
     if (value == NULL)
-      BAIL_OUT (EPROTO);
+      BAIL_OUT (EILSEQ);
 
     *value = 0;
     value++;
@@ -885,7 +885,7 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
 
     if (*ident_str == 0)
     {
-      lcc_set_errno (c, EPROTO);
+      lcc_set_errno (c, EILSEQ);
       status = -1;
       break;
     }
