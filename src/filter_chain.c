@@ -331,7 +331,7 @@ static int fc_config_add_target (fc_target_t **targets_head, /* {{{ */
   t = (fc_target_t *) malloc (sizeof (*t));
   if (t == NULL)
   {
-    ERROR ("fc_config_add_match: malloc failed.");
+    ERROR ("fc_config_add_target: malloc failed.");
     return (-1);
   }
   memset (t, 0, sizeof (*t));
@@ -346,7 +346,7 @@ static int fc_config_add_target (fc_target_t **targets_head, /* {{{ */
     status = (*t->proc.create) (ci, &t->user_data);
     if (status != 0)
     {
-      WARNING ("Filter subsystem: Failed to create a %s match.",
+      WARNING ("Filter subsystem: Failed to create a %s target.",
           t->name);
       fc_free_targets (t);
       return (-1);
