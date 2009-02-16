@@ -6,7 +6,7 @@
 	* collectd-nagios: The Nagios integration command has been updated to
 	  use libcollectdclient. The `percentage' aggregation function has
 	  been added. Thanks to Fabian Linzberger for the patch.
-	* libcollectdclient: A library which abstract communication with the
+	* libcollectdclient: A library which abstracts communication with the
 	  unixsock plugin for clients has been added.
 	* regex match: Match values by their identifies using regular
 	  expressions.
@@ -51,13 +51,17 @@
 	  similar to the already existing PostgreSQL plugin.
 	* perl plugin: Compatibility fixes for broken versions of Perl 5.10
 	  have been added.
+	* perl plugin: Export the newly added plugin_write() to Perl plugins.
+	* perl plugin: Added support for `notification meta data'.
+	* perl plugin: Added support for the `filter chain' infrastructure by
+	  allowing plugins to register `matches' and `targets'.
 	* postgresql plugin: The preferred configuration syntax has been
 	  updated to be in line with the syntax used by the new dbi and oracle
 	  plugins. The compatibility code for the old syntax is present.
 	  Support for the new `Result' blocks and the interval parameter has
 	  been added.
-	* processes plugin: Stacksize of virtual memory usage statistics have
-	  been addded. Portability fixes.
+	* processes plugin: Stacksize and virtual memory usage statistics have
+	  been added. Portability fixes.
 	* rrdcached plugin: This new plugin uses the (still in development)
 	  RRD accelerator daemon, rrdcached. This daemon works very similar to
 	  the original rrdtool plugin of collectd, but adds some more nice
