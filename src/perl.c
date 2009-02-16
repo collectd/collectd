@@ -992,14 +992,14 @@ static int pplugin_call_all (pTHX_ int type, ...)
 		if (-1 == data_set2av (aTHX_ ds, pds)) {
 			av_clear (pds);
 			av_undef (pds);
-			pds = Nullav;
+			pds = (AV *)&PL_sv_undef;
 			ret = -1;
 		}
 
 		if (-1 == value_list2hv (aTHX_ vl, ds, pvl)) {
 			hv_clear (pvl);
 			hv_undef (pvl);
-			pvl = Nullhv;
+			pvl = (HV *)&PL_sv_undef;
 			ret = -1;
 		}
 
@@ -1038,7 +1038,7 @@ static int pplugin_call_all (pTHX_ int type, ...)
 		if (-1 == notification2hv (aTHX_ n, notif)) {
 			hv_clear (notif);
 			hv_undef (notif);
-			notif = Nullhv;
+			notif = (HV *)&PL_sv_undef;
 			ret = -1;
 		}
 
@@ -2023,7 +2023,7 @@ static int perl_config_plugin (pTHX_ oconfig_item_t *ci)
 		hv_undef (config);
 
 		log_err ("Unable to convert configuration to a Perl hash value.");
-		config = Nullhv;
+		config = (HV *)&PL_sv_undef;
 	}
 
 	ENTER;
