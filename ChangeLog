@@ -1,4 +1,4 @@
-2009-02-15, Version 4.6.0
+2009-02-16, Version 4.6.0
 	* collectd: Added the `filter chain' infrastructure, which allows the
 	  user to use `matches' and `targets' to control value processing.
 	* collectd: The new `-T' command line argument allows more in-depth
@@ -50,7 +50,7 @@
 	  database and use SQL to gather custom statistics from it. It is
 	  similar to the already existing PostgreSQL plugin.
 	* perl plugin: Compatibility fixes for broken versions of Perl 5.10
-	  have been added.
+	  has been added.
 	* postgresql plugin: The preferred configuration syntax has been
 	  updated to be in line with the syntax used by the new dbi and oracle
 	  plugins. The compatibility code for the old syntax is present.
