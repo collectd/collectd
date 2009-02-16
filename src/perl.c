@@ -914,6 +914,8 @@ static int pplugin_dispatch_notification (pTHX_ HV *notif)
 {
 	notification_t n;
 
+	int ret;
+
 	if (NULL == notif)
 		return -1;
 
@@ -922,7 +924,9 @@ static int pplugin_dispatch_notification (pTHX_ HV *notif)
 	if (0 != hv2notification (aTHX_ notif, &n))
 		return -1;
 
-	return plugin_dispatch_notification (&n);
+	ret = plugin_dispatch_notification (&n);
+	plugin_notification_meta_free (&n);
+	return ret;
 } /* static int pplugin_dispatch_notification (HV *) */
 
 /*
