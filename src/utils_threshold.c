@@ -674,7 +674,7 @@ static int ut_report_state (const data_set_t *ds,
 
   plugin_dispatch_notification (&n);
 
-  plugin_notification_meta_free (&n);
+  plugin_notification_meta_free (n.meta);
   return (0);
 } /* }}} int ut_report_state */
 

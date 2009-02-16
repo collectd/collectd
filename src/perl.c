@@ -529,7 +529,8 @@ static int hv2notification (pTHX_ HV *hash, notification_t *n)
 		}
 
 		if (0 != av2notification_meta (aTHX_ (AV *)SvRV (*tmp), &n->meta)) {
-			plugin_notification_meta_free (n);
+			plugin_notification_meta_free (n->meta);
+			n->meta = NULL;
 			return -1;
 		}
 		break;
@@ -925,7 +926,7 @@ static int pplugin_dispatch_notification (pTHX_ HV *notif)
 		return -1;
 
 	ret = plugin_dispatch_notification (&n);
-	plugin_notification_meta_free (&n);
+	plugin_notification_meta_free (n.meta);
 	return ret;
 } /* static int pplugin_dispatch_notification (HV *) */
 

@@ -1154,7 +1154,7 @@ int plugin_notification_meta_copy (notification_t *dst,
   return (0);
 } /* int plugin_notification_meta_copy */
 
-int plugin_notification_meta_free (notification_t *n)
+int plugin_notification_meta_free (notification_meta_t *n)
 {
   notification_meta_t *this;
   notification_meta_t *next;
@@ -1165,8 +1165,7 @@ int plugin_notification_meta_free (notification_t *n)
     return (-1);
   }
 
-  this = n->meta;
-  n->meta = NULL;
+  this = n;
   while (this != NULL)
   {
     next = this->next;
