@@ -2445,7 +2445,7 @@ reduces IO-operations and thus lessens the load produced by updating the files.
 The trade off is that the graphs kind of "drag behind" and that more memory is
 used.
 
-=item B<WritesPerSecond> B<Updates>
+=item B<WritesPerSecond> I<Updates>
 
 When collecting many statistics with collectd and the C<rrdtool> plugin, you
 will run serious performance problems. The B<CacheFlush> setting and the
