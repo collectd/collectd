@@ -1,6 +1,6 @@
 /**
  * collectd - src/swap.c
- * Copyright (C) 2005-2007  Florian octo Forster
+ * Copyright (C) 2005-2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,6 +32,9 @@
 #if HAVE_SYS_SYSCTL_H
 #  include <sys/sysctl.h>
 #endif
+#if HAVE_SYS_DKSTAT_H
+#  include <sys/dkstat.h>
+#endif
 #if HAVE_KVM_H
 #  include <kvm.h>
 #endif
@@ -51,6 +54,10 @@
 static unsigned long long pagesize;
 static kstat_t *ksp;
 /* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_SWAPCTL
+/* No global variables */
+/* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
 /* No global variables */
@@ -81,6 +88,10 @@ static int swap_init (void)
 	if (get_kstat (&ksp, "unix", 0, "system_pages"))
 		ksp = NULL;
 /* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_SWAPCTL
+	/* No init stuff */
+/* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
 	/* No init stuff */
@@ -238,6 +249,74 @@ static int swap_read (void)
 	swap_submit ("free", swap_avail);
 	swap_submit ("reserved", swap_resv);
 /* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_SWAPCTL
+	struct swapent *swap_entries;
+	int swap_num;
+	int status;
+	int i;
+
+	uint64_t used  = 0;
+	uint64_t total = 0;
+
+	/*
+	 * XXX: This is the syntax for the *BSD `swapctl', which has the
+	 * following prototype:
+	 *   swapctl (int cmd, void *arg, int misc);
+	 *
+	 * HP-UX and Solaris (and possibly other UNIXes) provide `swapctl',
+	 * too, but with the following prototype:
+	 *   swapctl (int cmd, void *arg);
+	 *
+	 * Solaris is usually handled in the KSTAT case above. For other UNIXes
+	 * a separate case for the other version of `swapctl' may be necessary.
+	 */
+	swap_num = swapctl (SWAP_NSWAP, NULL, 0);
+	if (swap_num < 0)
+	{
+		ERROR ("swap plugin: swapctl (SWAP_NSWAP) failed with status %i.",
+				swap_num);
+		return (-1);
+	}
+	else if (swap_num == 0)
+		return (0);
+
+	swap_entries = calloc (swap_num, sizeof (*swap_entries));
+	if (swap_entries == NULL)
+	{
+		ERROR ("swap plugin: calloc failed.");
+		return (-1);
+	}
+
+	status = swapctl (SWAP_STATS, swap_entries, swap_num);
+	if (status != swap_entries)
+	{
+		ERROR ("swap plugin: swapctl (SWAP_STATS) failed with status %i.",
+				status);
+		sfree (swap_entries);
+		return (-1);
+	}
+
+#if defined(DEV_BSIZE) && (DEV_BSIZE > 0)
+# define C_SWAP_BLOCK_SIZE DEV_BSIZE
+#else
+# define C_SWAP_BLOCK_SIZE 512
+#endif
+
+	for (i = 0; i < swap_entries; i++)
+	{
+		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
+			continue;
+
+		used = swap_entries[i].se_inuse  * C_SWAP_BLOCK_SIZE;
+		total = swap_entries[i].se_nblks * C_SWAP_BLOCK_SIZE;
+	}
+
+	swap_submit ("used", (gauge_t) used);
+	swap_submit ("free", (gauge_t) (total - used));
+
+	sfree (swap_entries);
+/* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
 	int              mib[3];

@@ -62,6 +62,8 @@
 	  RRD accelerator daemon, rrdcached. This daemon works very similar to
 	  the original rrdtool plugin of collectd, but adds some more nice
 	  features.
+	* swap plugin: Code for OpenBSD (and possibly other *BSDs) has been
+	  added.
 
 2009-01-02, Version 4.5.2
 	* build system: Check for `mysql.h' and `mysql/mysql.h', since the

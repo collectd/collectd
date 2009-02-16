@@ -491,6 +491,7 @@ AC_CHECK_FUNCS(getifaddrs, [have_getifaddrs="yes"], [have_getifaddrs="no"])
 AC_CHECK_FUNCS(syslog, [have_syslog="yes"], [have_syslog="no"])
 AC_CHECK_FUNCS(getutent, [have_getutent="yes"], [have_getutent="no"])
 AC_CHECK_FUNCS(getutxent, [have_getutxent="yes"], [have_getutxent="no"])
+AC_CHECK_FUNCS(swapctl, [have_swapctl="yes"], [have_swapctl="no"])
 
 # For load module
 AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
@@ -3019,6 +3020,11 @@ then
 fi
 
 if test "x$with_kvm_getswapinfo" = "xyes"
+then
+	plugin_swap="yes"
+fi
+
+if test "x$have_swapctl" = "xyes"
 then
 	plugin_swap="yes"
 fi
