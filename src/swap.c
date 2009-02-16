@@ -289,7 +289,7 @@ static int swap_read (void)
 	}
 
 	status = swapctl (SWAP_STATS, swap_entries, swap_num);
-	if (status != swap_entries)
+	if (status != swap_num)
 	{
 		ERROR ("swap plugin: swapctl (SWAP_STATS) failed with status %i.",
 				status);
@@ -303,7 +303,7 @@ static int swap_read (void)
 # define C_SWAP_BLOCK_SIZE 512
 #endif
 
-	for (i = 0; i < swap_entries; i++)
+	for (i = 0; i < swap_num; i++)
 	{
 		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
 			continue;
