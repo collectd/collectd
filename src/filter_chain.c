@@ -268,19 +268,21 @@ static int fc_config_add_match (fc_match_t **matches_head, /* {{{ */
 
   sstrncpy (m->name, ptr->name, sizeof (m->name));
   memcpy (&m->proc, &ptr->proc, sizeof (m->proc));
-  assert (m->proc.create != NULL);
   m->user_data = NULL;
   m->next = NULL;
 
-  status = (*m->proc.create) (ci, &m->user_data);
-  if (status != 0)
+  if (m->proc.create != NULL)
   {
-    WARNING ("Filter subsystem: Failed to create a %s match.",
-        m->name);
-    fc_free_matches (m);
-    return (-1);
+    status = (*m->proc.create) (ci, &m->user_data);
+    if (status != 0)
+    {
+      WARNING ("Filter subsystem: Failed to create a %s match.",
+          m->name);
+      fc_free_matches (m);
+      return (-1);
+    }
   }
-  
+
   if (*matches_head != NULL)
   {
     ptr = *matches_head;
