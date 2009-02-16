@@ -361,14 +361,6 @@ static void udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
   assert (r->ds != NULL);
   assert (((size_t) r->ds->ds_num) == r->values_num);
 
-  DEBUG ("db query utils: udb_result_submit: r->instance_prefix = %s;",
-      (r->instance_prefix == NULL) ? "NULL" : r->instance_prefix);
-  for (i = 0; i < r->instances_num; i++)
-  {
-    DEBUG ("db query utils: udb_result_submit: r->instances_buffer[%zu] = %s;",
-        i, r->instances_buffer[i]);
-  }
-
   vl.values = (value_t *) calloc (r->ds->ds_num, sizeof (value_t));
   if (vl.values == NULL)
   {
@@ -405,22 +397,35 @@ static void udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
   sstrncpy (vl.plugin_instance, q->db_name, sizeof (vl.type_instance));
   sstrncpy (vl.type, r->type, sizeof (vl.type));
 
-  if (r->instance_prefix == NULL)
+  /* Set vl.type_instance {{{ */
+  if (r->instances_num <= 0)
   {
-    strjoin (vl.type_instance, sizeof (vl.type_instance),
-        r->instances_buffer, r->instances_num, "-");
+    if (r->instance_prefix == NULL)
+      vl.type_instance[0] = 0;
+    else
+      sstrncpy (vl.type_instance, r->instance_prefix,
+          sizeof (vl.type_instance));
   }
-  else
+  else /* if ((r->instances_num > 0) */
   {
-    char tmp[DATA_MAX_NAME_LEN];
+    if (r->instance_prefix == NULL)
+    {
+      strjoin (vl.type_instance, sizeof (vl.type_instance),
+          r->instances_buffer, r->instances_num, "-");
+    }
+    else
+    {
+      char tmp[DATA_MAX_NAME_LEN];
 
-    strjoin (tmp, sizeof (tmp), r->instances_buffer, r->instances_num, "-");
-    tmp[sizeof (tmp) - 1] = 0;
+      strjoin (tmp, sizeof (tmp), r->instances_buffer, r->instances_num, "-");
+      tmp[sizeof (tmp) - 1] = 0;
 
-    snprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
-        r->instance_prefix, tmp);
+      snprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
+          r->instance_prefix, tmp);
+    }
   }
   vl.type_instance[sizeof (vl.type_instance) - 1] = 0;
+  /* }}} */
 
   plugin_dispatch_values (&vl);
 
@@ -517,22 +522,25 @@ static int udb_result_prepare_result (udb_result_t *r, /* {{{ */
 
   /* Allocate r->instances_pos, r->values_pos, r->instances_buffer, and
    * r->values_buffer {{{ */
-  r->instances_pos = (size_t *) calloc (r->instances_num, sizeof (size_t));
-  if (r->instances_pos == NULL)
+  if (r->instances_num > 0)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
-    BAIL_OUT (-ENOMEM);
-  }
+    r->instances_pos = (size_t *) calloc (r->instances_num, sizeof (size_t));
+    if (r->instances_pos == NULL)
+    {
+      ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+      BAIL_OUT (-ENOMEM);
+    }
+
+    r->instances_buffer = (char **) calloc (r->instances_num, sizeof (char *));
+    if (r->instances_buffer == NULL)
+    {
+      ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+      BAIL_OUT (-ENOMEM);
+    }
+  } /* if (r->instances_num > 0) */
 
   r->values_pos = (size_t *) calloc (r->values_num, sizeof (size_t));
   if (r->values_pos == NULL)
-  {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
-    BAIL_OUT (-ENOMEM);
-  }
-
-  r->instances_buffer = (char **) calloc (r->instances_num, sizeof (char *));
-  if (r->instances_buffer == NULL)
   {
     ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
     BAIL_OUT (-ENOMEM);
@@ -676,12 +684,6 @@ static int udb_result_create (const char *query_name, /* {{{ */
     if (r->type == NULL)
     {
       WARNING ("db query utils: `Type' not given for "
-          "result in query `%s'", query_name);
-      status = -1;
-    }
-    if (r->instances == NULL)
-    {
-      WARNING ("db query utils: `InstancesFrom' not given for "
           "result in query `%s'", query_name);
       status = -1;
     }

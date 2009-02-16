@@ -653,20 +653,24 @@ There must be exactly one B<Type> option inside each B<Result> block.
 
 =item B<InstancePrefix> I<prefix>
 
-Prepends I<prefix> followed by a dash I<("-")> to the type instance. See
-B<InstancesFrom> on how the rest of the type instance is built.
+Prepends I<prefix> to the type instance. If B<InstancesFrom> (see below) is not
+given, the string is simply copied. If B<InstancesFrom> is given, I<prefix> and
+all strings returned in the appropriate columns are concatenated together,
+separated by dahes I<("-")>.
 
 =item B<InstancesFrom> I<column0> [I<column1> ...]
 
-Specifies the columns whose values will be used to create the "TypeInstance"
-for each row. You need to specify at least one column for each query. If you
-specify more than one column, the value of all columns will be join together
-with the hyphen as separation character.
+Specifies the columns whose values will be used to create the "type-instance"
+for each row. If you specify more than one column, the value of all columns
+will be join together with the dahes I<("-")> as separation character.
 
 The plugin itself does not check whether or not all built instances are
-different. It's your responsibility to assure that each is unique.
+different. It's your responsibility to assure that each is unique. This is
+especially true, if you do not specify B<InstancesFrom>: B<You> have to make
+sure that only one row is returned in this case.
 
-There must be at least one B<InstancesFrom> option inside each B<Result> block.
+If neither B<InstancePrefix> nor B<InstancesFrom> is given, the type-instance
+will be empty.
 
 =item B<ValuesFrom> I<column0> [I<column1> ...]
 
