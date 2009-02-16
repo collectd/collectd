@@ -915,6 +915,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
     /* N. B.: rule->matches may be NULL. */
     for (match = rule->matches; match != NULL; match = match->next)
     {
+      /* FIXME: Pass the meta-data to match targets here (when implemented). */
       status = (*match->proc.match) (ds, vl, /* meta = */ NULL,
           &match->user_data);
       if (status < 0)
@@ -943,6 +944,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
     {
       /* If we get here, all matches have matched the value. Execute the
        * target. */
+      /* FIXME: Pass the meta-data to match targets here (when implemented). */
       status = (*target->proc.invoke) (ds, vl, /* meta = */ NULL,
           &target->user_data);
       if (status < 0)
@@ -999,6 +1001,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
   {
     /* If we get here, all matches have matched the value. Execute the
      * target. */
+    /* FIXME: Pass the meta-data to match targets here (when implemented). */
     status = (*target->proc.invoke) (ds, vl, /* meta = */ NULL,
         &target->user_data);
     if (status < 0)
@@ -1044,6 +1047,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
  * matches match. */
 int fc_default_action (const data_set_t *ds, value_list_t *vl) /* {{{ */
 {
+  /* FIXME: Pass the meta-data to match targets here (when implemented). */
   return (fc_bit_write_invoke (ds, vl,
         /* meta = */ NULL, /* user_data = */ NULL));
 } /* }}} int fc_default_action */
