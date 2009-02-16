@@ -529,7 +529,7 @@ than those of other plugins. It usually looks something like this:
       MinVersion 50000
       <Result>
         Type "gauge"
-	InstancePrefix "out_of_stock"
+        InstancePrefix "out_of_stock"
         InstancesFrom "category"
         ValuesFrom "value"
       </Result>
@@ -656,13 +656,13 @@ There must be exactly one B<Type> option inside each B<Result> block.
 Prepends I<prefix> to the type instance. If B<InstancesFrom> (see below) is not
 given, the string is simply copied. If B<InstancesFrom> is given, I<prefix> and
 all strings returned in the appropriate columns are concatenated together,
-separated by dahes I<("-")>.
+separated by dashes I<("-")>.
 
 =item B<InstancesFrom> I<column0> [I<column1> ...]
 
 Specifies the columns whose values will be used to create the "type-instance"
 for each row. If you specify more than one column, the value of all columns
-will be join together with the dahes I<("-")> as separation character.
+will be join together with the dashes I<("-")> as separation character.
 
 The plugin itself does not check whether or not all built instances are
 different. It's your responsibility to assure that each is unique. This is
