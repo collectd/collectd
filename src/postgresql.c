@@ -289,7 +289,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 	int status;
 	int i;
 
-	/* The user data may hold parameter information */
+	/* The user data may hold parameter information, but may be NULL. */
 	data = udb_query_get_user_data (q);
 
 	/* Versions up to `3' don't know how to handle parameters. */
@@ -631,6 +631,12 @@ static int c_psql_config_database (oconfig_item_t *ci)
 					&db->queries, &db->queries_num);
 	}
 
+	for (i = 0; (size_t)i < db->queries_num; ++i) {
+		c_psql_user_data_t *data;
+		data = udb_query_get_user_data (db->queries[i]);
+		if ((data != NULL) && (data->params_num > db->max_params_num))
+			db->max_params_num = data->params_num;
+	}
 	return 0;
 } /* c_psql_config_database */
 
