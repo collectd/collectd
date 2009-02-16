@@ -308,8 +308,8 @@ static int swap_read (void)
 		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
 			continue;
 
-		used = swap_entries[i].se_inuse  * C_SWAP_BLOCK_SIZE;
-		total = swap_entries[i].se_nblks * C_SWAP_BLOCK_SIZE;
+		used  += swap_entries[i].se_inuse * C_SWAP_BLOCK_SIZE;
+		total += swap_entries[i].se_nblks * C_SWAP_BLOCK_SIZE;
 	}
 
 	swap_submit ("used", (gauge_t) used);
