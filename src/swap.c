@@ -298,9 +298,9 @@ static int swap_read (void)
 	}
 
 #if defined(DEV_BSIZE) && (DEV_BSIZE > 0)
-# define C_SWAP_BLOCK_SIZE DEV_BSIZE
+# define C_SWAP_BLOCK_SIZE ((uint64_t) DEV_BSIZE)
 #else
-# define C_SWAP_BLOCK_SIZE 512
+# define C_SWAP_BLOCK_SIZE ((uint64_t) 512)
 #endif
 
 	for (i = 0; i < swap_num; i++)
@@ -308,8 +308,18 @@ static int swap_read (void)
 		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
 			continue;
 
-		used  += swap_entries[i].se_inuse * C_SWAP_BLOCK_SIZE;
-		total += swap_entries[i].se_nblks * C_SWAP_BLOCK_SIZE;
+		used  += ((uint64_t) swap_entries[i].se_inuse)
+			* C_SWAP_BLOCK_SIZE;
+		total += ((uint64_t) swap_entries[i].se_nblks)
+			* C_SWAP_BLOCK_SIZE;
+	}
+
+	if (total < used)
+	{
+		ERROR ("swap plugin: Total swap space (%"PRIu64") "
+				"is less than used swap space (%"PRIu64").",
+				total, used);
+		return (-1);
 	}
 
 	swap_submit ("used", (gauge_t) used);
