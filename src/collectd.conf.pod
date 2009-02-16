@@ -2951,16 +2951,16 @@ only one such notification is generated until the value appears again.
 
 =head1 FILTER CONFIGURATION
 
-TODO: Update this entire section once development is done.
-
 Starting with collectd 4.6 there is a powerful filtering infrastructure
-implemented in the daemon. The concept has mostly been copied from I<iptables>,
-the packet filter infrastructure for Linux. We'll use a similar terminology, so
-that users that are familiar with iptables feel right at home.
+implemented in the daemon. The concept has mostly been copied from
+I<ip_tables>, the packet filter infrastructure for Linux. We'll use a similar
+terminology, so that users that are familiar with iptables feel right at home.
 
 =head2 Terminology
 
-The most important terms are:
+The following are the terms used in the remainder of the filter configuration
+documentation. For an ASCII-art schema of the mechanism, see
+L<"General structure"> below.
 
 =over 4
 
@@ -2969,15 +2969,18 @@ The most important terms are:
 A I<match> is a criteria to select specific values. Examples are, of course, the
 name of the value or it's current value.
 
+Matches are implemented in plugins which you have to load prior to using the
+match. The name of such plugins starts with the "match_" prefix.
+
 =item B<Target>
 
 A I<target> is some action that is to be performed with data. Such actions
 could, for example, be to change part of the value's identifier or to ignore
-the value completely. Built-in functions are B<write> and B<stop>, see below.
+the value completely.
 
-Some targets, for example the built-in B<stop> target, signal that processing
-of a value should be stopped. In that case processing of the current chain will
-be aborted.
+Some of these targets are built into the daemon, see L<"Built-in targets">
+below. Other targets are implemented in plugins which you have to load prior to
+using the target. The name of such plugins starts with the "target_" prefix.
 
 =item B<Rule>
 
@@ -2986,18 +2989,14 @@ I<rule>. The target actions will be performed for all values for which B<all>
 matches apply. If the rule does not have any matches associated with it, the
 target action will be performed for all values.
 
-If any target returns the stop condition, the processing will stop right away.
-This means that any targets following the current one will not be called after
-the stop condition has been returned.
-
 =item B<Chain>
 
 A I<chain> is a list of rules and possibly default targets. The rules are tried
 in order and if one matches, the associated target will be called. If a value
 is handled by a rule, it depends on the target whether or not any subsequent
-rules are considered or if traversal of the chain is aborted. After all rules
-have been checked and no target returned the stop condition, the default
-targets will be executed.
+rules are considered or if traversal of the chain is aborted, see
+L<"Flow control"> below. After all rules have been checked, the default targets
+will be executed.
 
 =back
 
@@ -3033,6 +3032,40 @@ The following shows the resulting structure:
  ! Default !
  ! Target  !
  +---------+
+
+=head2 Flow control
+
+There are four ways to control which way a value takes through the filter
+mechanism:
+
+=over 4
+
+=item B<jump>
+
+The built-in B<jump> target can be used to "call" another chain, i.E<nbsp>e.
+process the value with another chain. When the called chain finishes, usually
+the next target or rule after the jump is executed.
+
+=item B<stop>
+
+The stop condition, signaled for example by the built-in target B<stop>, causes
+all processing of the value to be stopped immediately.
+
+=item B<return>
+
+Causes processing in the current chain to be aborted, but processing of the
+value generally will continue. This means that if the chain was called via
+B<Jump>, the next target or rule after the jump will be executed. If the chain
+was not called by another chain, control will be returned to the daemon and it
+may pass the value to another chain.
+
+=item B<continue>
+
+Most targets will signal the B<continue> condition, meaning that processing
+should continue normally. There is no special built-in target for this
+condition.
+
+=back
 
 =head2 Synopsis
 
@@ -3102,7 +3135,7 @@ read-plugins to the write-plugins:
  :  dispatch values  :
  + - - - - - - - - - +
 
-After the values are passed from the read-plugins to the dispatch functions,
+After the values are passed from the "read" plugins to the dispatch functions,
 the pre-cache chain is run first. The values are added to the internal cache
 afterwards. The post-cache chain is run after the values have been added to the
 cache. So why is it such a huge deal if chains are run before or after the
@@ -3110,10 +3143,10 @@ values have been added to this cache?
 
 Targets that change the identifier of a value list should be executed before
 the values are added to the cache, so that the name in the cache matches the
-name that is used in the write-plugins. The C<unixsock> plugin, too, uses this
-cache to receive a list of all available values. If you change the identifier
-after the value list has been added to the cache, this may easily lead to
-confusion, but it's not forbidden of course.
+name that is used in the "write" plugins. The C<unixsock> plugin, too, uses
+this cache to receive a list of all available values. If you change the
+identifier after the value list has been added to the cache, this may easily
+lead to confusion, but it's not forbidden of course.
 
 The cache is also used to convert counter values to rates. These rates are, for
 example, used by the C<value> match (see below). If you use the rate stored in
@@ -3187,11 +3220,11 @@ plugins to be loaded:
 
 =item B<return>
 
-Signals the "return" condition. This causes the current chain to stop
-processing the value and returns control to the calling chain. The calling
-chain will continue processing targets and rules just after the B<jump> target
-(see below). This is very similar to the B<RETURN> target of iptables, see
-L<iptables(8)>.
+Signals the "return" condition, see the L<"Flow control"> section above. This
+causes the current chain to stop processing the value and returns control to
+the calling chain. The calling chain will continue processing targets and rules
+just after the B<jump> target (see below). This is very similar to the
+B<RETURN> target of iptables, see L<iptables(8)>.
 
 This target does not have any options.
 
@@ -3201,9 +3234,9 @@ Example:
 
 =item B<stop>
 
-Signals the "stop" condition, causing processing of the value to be aborted
-immediately. This is similar to the B<DROP> target of iptables, see
-L<iptables(8)>.
+Signals the "stop" condition, see the L<"Flow control"> section above. This
+causes processing of the value to be aborted immediately. This is similar to
+the B<DROP> target of iptables, see L<iptables(8)>.
 
 This target does not have any options.
 
@@ -3213,7 +3246,7 @@ Example:
 
 =item B<write>
 
-Sends the value to write plugins.
+Sends the value to "write" plugins.
 
 Available options:
 
@@ -3237,11 +3270,11 @@ Example:
 
 =item B<jump>
 
-Starts processing the rules of another chain. If the end of that chain is
-reached, or a stop condition is encountered, processing will continue right
-after the B<jump> target, i.E<nbsp>e. with the next target or the next rule.
-This is similar to the B<-j> command line option of iptables, see
-L<iptables(8)>.
+Starts processing the rules of another chain, see L<"Flow control"> above. If
+the end of that chain is reached, or a stop condition is encountered,
+processing will continue right after the B<jump> target, i.E<nbsp>e. with the
+next target or the next rule. This is similar to the B<-j> command line option
+of iptables, see L<iptables(8)>.
 
 Available options:
 
