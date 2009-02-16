@@ -653,7 +653,8 @@ endif
 
 if BUILD_PLUGIN_POSTGRESQL
 pkglib_LTLIBRARIES += postgresql.la
-postgresql_la_SOURCES = postgresql.c
+postgresql_la_SOURCES = postgresql.c \
+		 utils_db_query.c utils_db_query.h
 postgresql_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQ_CPPFLAGS)
 postgresql_la_LDFLAGS = -module -avoid-version \
 		$(BUILD_WITH_LIBPQ_LDFLAGS) -lpq
