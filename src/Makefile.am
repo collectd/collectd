@@ -378,6 +378,17 @@ collectd_LDADD += "-dlopen" irq.la
 collectd_DEPENDENCIES += irq.la
 endif
 
+if BUILD_PLUGIN_JAVA
+pkglib_LTLIBRARIES += java.la
+java_la_SOURCES = java.c
+java_la_CPPFLAGS = $(AM_CPPFLAGS) $(JAVA_CPPFLAGS)
+java_la_CFLAGS = $(AM_CFLAGS) $(JAVA_CFLAGS)
+java_la_LDFLAGS = -module -avoid-version $(JAVA_LDFLAGS)
+java_la_LIBADD = $(JAVA_LIBS)
+collectd_LDADD += "-dlopen" java.la
+collectd_DEPENDENCIES += java.la
+endif
+
 if BUILD_PLUGIN_LIBVIRT
 pkglib_LTLIBRARIES += libvirt.la
 libvirt_la_SOURCES = libvirt.c
