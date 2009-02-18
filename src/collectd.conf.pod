@@ -1091,7 +1091,6 @@ Synopsis:
    JVMArg "-verbose:jni"
    JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
    LoadPlugin "org.collectd.java.Foobar"
-   # FIXME: The following is planned, but not finished!
    <Plugin "org.collectd.java.Foobar">
      # To be parsed by the plugin
    </Plugin>
@@ -1116,6 +1115,10 @@ used when available:
 
 =item *
 
+public int B<Config> (org.collectd.api.OConfigItem ci)
+
+=item *
+
 public int B<Init> ()
 
 =item *
@@ -1131,6 +1134,11 @@ public int B<Write> (org.collectd.protocol.ValueList vl)
 public int B<Shutdown> ()
 
 =back
+
+=item B<Plugin> I<JavaClass>
+
+The entrie block is passed to the Java plugin as an
+I<org.collectd.api.OConfigItem> object.
 
 =back
 

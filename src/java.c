@@ -41,9 +41,12 @@ struct java_plugin_s /* {{{ */
   jclass class_ptr;
   jobject object_ptr;
 
+  oconfig_item_t *ci;
+
 #define CJNI_FLAG_ENABLED 0x0001
   int flags;
 
+  jmethodID m_config;
   jmethodID m_init;
   jmethodID m_read;
   jmethodID m_write;
@@ -177,72 +180,72 @@ static int ctoj_double (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int ctoj_double */
 
+/* Convert a jlong to a java.lang.Number */
+static jobject ctoj_jlong_to_number (JNIEnv *jvm_env, jlong value) /* {{{ */
+{
+  jclass c_long;
+  jmethodID m_long_constructor;
+
+  /* Look up the java.lang.Long class */
+  c_long = (*jvm_env)->FindClass (jvm_env, "java.lang.Long");
+  if (c_long == NULL)
+  {
+    ERROR ("java plugin: ctoj_jlong_to_number: Looking up the "
+        "java.lang.Long class failed.");
+    return (NULL);
+  }
+
+  m_long_constructor = (*jvm_env)->GetMethodID (jvm_env,
+      c_long, "<init>", "(J)V");
+  if (m_long_constructor == NULL)
+  {
+    ERROR ("java plugin: ctoj_jlong_to_number: Looking up the "
+        "`Long (long)' constructor failed.");
+    return (NULL);
+  }
+
+  return ((*jvm_env)->NewObject (jvm_env,
+        c_long, m_long_constructor, value));
+} /* }}} jobject ctoj_jlong_to_number */
+
+/* Convert a jdouble to a java.lang.Number */
+static jobject ctoj_jdouble_to_number (JNIEnv *jvm_env, jdouble value) /* {{{ */
+{
+  jclass c_double;
+  jmethodID m_double_constructor;
+
+  /* Look up the java.lang.Long class */
+  c_double = (*jvm_env)->FindClass (jvm_env, "java.lang.Double");
+  if (c_double == NULL)
+  {
+    ERROR ("java plugin: ctoj_jdouble_to_number: Looking up the "
+        "java.lang.Double class failed.");
+    return (NULL);
+  }
+
+  m_double_constructor = (*jvm_env)->GetMethodID (jvm_env,
+      c_double, "<init>", "(D)V");
+  if (m_double_constructor == NULL)
+  {
+    ERROR ("java plugin: ctoj_jdouble_to_number: Looking up the "
+        "`Double (double)' constructor failed.");
+    return (NULL);
+  }
+
+  return ((*jvm_env)->NewObject (jvm_env,
+        c_double, m_double_constructor, value));
+} /* }}} jobject ctoj_jdouble_to_number */
+
 /* Convert a value_t to a java.lang.Number */
 static jobject ctoj_value_to_number (JNIEnv *jvm_env, /* {{{ */
     value_t value, int ds_type)
 {
   if (ds_type == DS_TYPE_COUNTER)
-  {
-    jclass c_long;
-    jmethodID m_long_constructor;
-
-    jlong tmp_long;
-
-    /* Look up the java.lang.Long class */
-    c_long = (*jvm_env)->FindClass (jvm_env, "java.lang.Long");
-    if (c_long == NULL)
-    {
-      ERROR ("java plugin: ctoj_value_to_number: Looking up the "
-          "java.lang.Long class failed.");
-      return (NULL);
-    }
-
-    m_long_constructor = (*jvm_env)->GetMethodID (jvm_env,
-        c_long, "<init>", "(J)V");
-    if (m_long_constructor == NULL)
-    {
-      ERROR ("java plugin: ctoj_value_to_number: Looking up the "
-          "`Long (long)' constructor failed.");
-      return (NULL);
-    }
-
-    tmp_long = (jlong) value.counter;
-    return ((*jvm_env)->NewObject (jvm_env,
-          c_long, m_long_constructor, tmp_long));
-  }
+    return (ctoj_jlong_to_number (jvm_env, (jlong) value.counter));
   else if (ds_type == DS_TYPE_GAUGE)
-  {
-    jclass c_double;
-    jmethodID m_double_constructor;
-
-    jdouble tmp_double;
-
-    /* Look up the java.lang.Long class */
-    c_double = (*jvm_env)->FindClass (jvm_env, "java.lang.Double");
-    if (c_double == NULL)
-    {
-      ERROR ("java plugin: ctoj_value_to_number: Looking up the "
-          "java.lang.Double class failed.");
-      return (NULL);
-    }
-
-    m_double_constructor = (*jvm_env)->GetMethodID (jvm_env,
-        c_double, "<init>", "(D)V");
-    if (m_double_constructor == NULL)
-    {
-      ERROR ("java plugin: ctoj_value_to_number: Looking up the "
-          "`Double (double)' constructor failed.");
-      return (NULL);
-    }
-
-    tmp_double = (jdouble) value.gauge;
-    return ((*jvm_env)->NewObject (jvm_env,
-          c_double, m_double_constructor, tmp_double));
-  }
+    return (ctoj_jdouble_to_number (jvm_env, (jdouble) value.gauge));
   else
-  {
     return (NULL);
-  }
 } /* }}} jobject ctoj_value_to_number */
 
 /* Convert a data_source_t to a org.collectd.protocol.DataSource */
@@ -330,6 +333,219 @@ static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
 
   return (o_datasource);
 } /* }}} jobject ctoj_data_source */
+
+/* Convert a oconfig_value_t to a org.collectd.api.OConfigValue */
+static jobject ctoj_oconfig_value (JNIEnv *jvm_env, /* {{{ */
+    oconfig_value_t ocvalue)
+{
+  jclass c_ocvalue;
+  jmethodID m_ocvalue_constructor;
+  jobject o_argument;
+  jobject o_ocvalue;
+
+  m_ocvalue_constructor = NULL;
+  o_argument = NULL;
+
+  c_ocvalue = (*jvm_env)->FindClass (jvm_env,
+      "org.collectd.api.OConfigValue");
+  if (c_ocvalue == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_value: "
+        "FindClass (org.collectd.api.OConfigValue) failed.");
+    return (NULL);
+  }
+
+  if (ocvalue.type == OCONFIG_TYPE_BOOLEAN)
+  {
+    jboolean tmp_boolean;
+
+    tmp_boolean = (ocvalue.value.boolean == 0) ? JNI_FALSE : JNI_TRUE;
+
+    m_ocvalue_constructor = (*jvm_env)->GetMethodID (jvm_env, c_ocvalue,
+        "<init>", "(Z)V");
+    if (m_ocvalue_constructor == NULL)
+    {
+      ERROR ("java plugin: ctoj_oconfig_value: Cannot find the "
+          "`OConfigValue (boolean)' constructor.");
+      return (NULL);
+    }
+
+    return ((*jvm_env)->NewObject (jvm_env,
+          c_ocvalue, m_ocvalue_constructor, tmp_boolean));
+  } /* if (ocvalue.type == OCONFIG_TYPE_BOOLEAN) */
+  else if (ocvalue.type == OCONFIG_TYPE_STRING)
+  {
+    m_ocvalue_constructor = (*jvm_env)->GetMethodID (jvm_env, c_ocvalue,
+        "<init>", "(Ljava/lang/String;)V");
+    if (m_ocvalue_constructor == NULL)
+    {
+      ERROR ("java plugin: ctoj_oconfig_value: Cannot find the "
+          "`OConfigValue (String)' constructor.");
+      return (NULL);
+    }
+
+    o_argument = (*jvm_env)->NewStringUTF (jvm_env, ocvalue.value.string);
+    if (o_argument == NULL)
+    {
+      ERROR ("java plugin: ctoj_oconfig_value: "
+          "Creating a String object failed.");
+      return (NULL);
+    }
+  }
+  else if (ocvalue.type == OCONFIG_TYPE_NUMBER)
+  {
+    m_ocvalue_constructor = (*jvm_env)->GetMethodID (jvm_env, c_ocvalue,
+        "<init>", "(Ljava/lang/Number;)V");
+    if (m_ocvalue_constructor == NULL)
+    {
+      ERROR ("java plugin: ctoj_oconfig_value: Cannot find the "
+          "`OConfigValue (Number)' constructor.");
+      return (NULL);
+    }
+
+    o_argument = ctoj_jdouble_to_number (jvm_env,
+        (jdouble) ocvalue.value.number);
+    if (o_argument == NULL)
+    {
+      ERROR ("java plugin: ctoj_oconfig_value: "
+          "Creating a Number object failed.");
+      return (NULL);
+    }
+  }
+  else
+  {
+    return (NULL);
+  }
+
+  assert (m_ocvalue_constructor != NULL);
+  assert (o_argument != NULL);
+
+  o_ocvalue = (*jvm_env)->NewObject (jvm_env,
+      c_ocvalue, m_ocvalue_constructor, o_argument);
+  if (o_ocvalue == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_value: "
+        "Creating an OConfigValue object failed.");
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_argument);
+    return (NULL);
+  }
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_argument);
+  return (o_ocvalue);
+} /* }}} jobject ctoj_oconfig_value */
+
+/* Convert a oconfig_item_t to a org.collectd.api.OConfigItem */
+static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
+    const oconfig_item_t *ci)
+{
+  jclass c_ocitem;
+  jmethodID m_ocitem_constructor;
+  jmethodID m_addvalue;
+  jmethodID m_addchild;
+  jobject o_key;
+  jobject o_ocitem;
+  int i;
+
+  c_ocitem = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.OConfigItem");
+  if (c_ocitem == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_item: "
+        "FindClass (org.collectd.api.OConfigItem) failed.");
+    return (NULL);
+  }
+
+  /* Get the required methods: m_ocitem_constructor, m_addvalue, and m_addchild
+   * {{{ */
+  m_ocitem_constructor = (*jvm_env)->GetMethodID (jvm_env, c_ocitem,
+      "<init>", "(Ljava/lang/String;)V");
+  if (m_ocitem_constructor == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_item: Cannot find the "
+        "`OConfigItem (String)' constructor.");
+    return (NULL);
+  }
+
+  m_addvalue = (*jvm_env)->GetMethodID (jvm_env, c_ocitem,
+      "addValue", "(Lorg/collectd/api/OConfigValue;)V");
+  if (m_addvalue == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_item: Cannot find the "
+        "`addValue (OConfigValue)' method.");
+    return (NULL);
+  }
+
+  m_addchild = (*jvm_env)->GetMethodID (jvm_env, c_ocitem,
+      "addChild", "(Lorg/collectd/api/OConfigItem;)V");
+  if (m_addchild == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_item: Cannot find the "
+        "`addChild (OConfigItem)' method.");
+    return (NULL);
+  }
+  /* }}} */
+
+  /* Create a String object with the key.
+   * Needed for calling the constructor. */
+  o_key = (*jvm_env)->NewStringUTF (jvm_env, ci->key);
+  if (o_key == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_item: "
+        "Creating String object failed.");
+    return (NULL);
+  }
+
+  /* Create an OConfigItem object */
+  o_ocitem = (*jvm_env)->NewObject (jvm_env,
+      c_ocitem, m_ocitem_constructor, o_key);
+  if (o_ocitem == NULL)
+  {
+    ERROR ("java plugin: ctoj_oconfig_item: "
+        "Creating an OConfigItem object failed.");
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_key);
+    return (NULL);
+  }
+
+  /* We don't need the String object any longer.. */
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_key);
+
+  /* Call OConfigItem.addValue for each value */
+  for (i = 0; i < ci->values_num; i++) /* {{{ */
+  {
+    jobject o_value;
+
+    o_value = ctoj_oconfig_value (jvm_env, ci->values[i]);
+    if (o_value == NULL)
+    {
+      ERROR ("java plugin: ctoj_oconfig_item: "
+          "Creating an OConfigValue object failed.");
+      (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
+      return (NULL);
+    }
+
+    (*jvm_env)->CallVoidMethod (jvm_env, o_ocitem, m_addvalue, o_value);
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_value);
+  } /* }}} for (i = 0; i < ci->values_num; i++) */
+
+  /* Call OConfigItem.addChild for each child */
+  for (i = 0; i < ci->children_num; i++) /* {{{ */
+  {
+    jobject o_child;
+
+    o_child = ctoj_oconfig_item (jvm_env, ci->children + i);
+    if (o_child == NULL)
+    {
+      ERROR ("java plugin: ctoj_oconfig_item: "
+          "Creating an OConfigItem object failed.");
+      (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
+      return (NULL);
+    }
+
+    (*jvm_env)->CallVoidMethod (jvm_env, o_ocitem, m_addvalue, o_child);
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_child);
+  } /* }}} for (i = 0; i < ci->children_num; i++) */
+
+  return (o_ocitem);
+} /* }}} jobject ctoj_oconfig_item */
 
 /* Convert a data_set_t to a java.util.List<DataSource> */
 static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
@@ -977,7 +1193,9 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
 
   jp->class_ptr  = NULL;
   jp->object_ptr = NULL;
+  jp->ci         = NULL;
   jp->flags      = 0;
+  jp->m_config   = NULL;
   jp->m_init     = NULL;
   jp->m_read     = NULL;
   jp->m_write    = NULL;
@@ -987,6 +1205,57 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
 
   return (0);
 } /* }}} int cjni_config_load_plugin */
+
+static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
+{
+  size_t i;
+  const char *class_name;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("java plugin: `Plugin' blocks "
+        "need exactly one string argument.");
+    return (-1);
+  }
+
+  class_name = ci->values[0].value.string;
+  for (i = 0; i < java_plugins_num; i++)
+    if (strcmp (java_plugins[i].class_name, class_name) == 0)
+      break;
+
+  if (i >= java_plugins_num)
+  {
+    WARNING ("java plugin: Configuration block for the `%s' plugin found, "
+        "but the plugin has not been loaded. Please note, that the class "
+        "name is case-sensitive!",
+        class_name);
+    return (0);
+  }
+
+  if (java_plugins[i].ci != NULL)
+  {
+    WARNING ("java plugin: There are more than one <Plugin> blocks for the "
+        "`%s' plugin. This is currently not supported - only the first block "
+        "will be used!",
+        class_name);
+    return (0);
+  }
+
+  java_plugins[i].ci = oconfig_clone (ci);
+  if (java_plugins[i].ci == NULL)
+  {
+    ERROR ("java plugin: cjni_config_plugin_block: "
+        "oconfig_clone failed for `%s'.",
+        class_name);
+    return (-1);
+  }
+
+  DEBUG ("java plugin: cjni_config_plugin_block: "
+      "Successfully copied config for `%s'.",
+      class_name);
+
+  return (0);
+} /* }}} int cjni_config_plugin_block */
 
 static int cjni_config (oconfig_item_t *ci) /* {{{ */
 {
@@ -1013,6 +1282,14 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("LoadPlugin", child->key) == 0)
     {
       status = cjni_config_load_plugin (child);
+      if (status == 0)
+        success++;
+      else
+        errors++;
+    }
+    else if (strcasecmp ("Plugin", child->key) == 0)
+    {
+      status = cjni_config_plugin_block (child);
       if (status == 0)
         success++;
       else
@@ -1065,6 +1342,12 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
     return (-1);
   }
 
+  jp->m_config = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
+      "Config", "(Lorg/collectd/api/OConfigItem;)I");
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_config = %p;",
+      jp->class_name, (void *) jp->m_config);
+
   jp->m_init = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
       "Init", "()I");
   DEBUG ("java plugin: cjni_init_one_plugin: "
@@ -1089,14 +1372,49 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
       "jp->class_name = %s; jp->m_shutdown = %p;",
       jp->class_name, (void *) jp->m_shutdown);
 
+  if (jp->ci != NULL)
+  {
+    if (jp->m_config == NULL)
+    {
+      WARNING ("java plugin: Configuration for the `%s' plugin is present, "
+          "but plugin doesn't provide a configuration method.",
+          jp->class_name);
+    }
+    else
+    {
+      jobject o_ocitem;
+
+      o_ocitem = ctoj_oconfig_item (jvm_env, jp->ci);
+      if (o_ocitem == NULL)
+      {
+        ERROR ("java plugin: Creating an OConfigItem object failed. "
+            "Can't pass configuration information to the `%s' plugin!",
+            jp->class_name);
+      }
+      else
+      {
+        status = (*jvm_env)->CallIntMethod (jvm_env,
+            jp->object_ptr, jp->m_config, o_ocitem);
+        if (status != 0)
+        {
+          ERROR ("java plugin: cjni_init_one_plugin: "
+              "Configuring the `%s' object failed with status %i.",
+              jp->class_name, status);
+        }
+        (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
+      }
+    }
+  } /* if (jp->ci != NULL) */
+
   if (jp->m_init != NULL)
   {
     status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
         jp->m_init);
     if (status != 0)
     {
-      ERROR ("cjni_init_one_plugin: Initializing `%s' object failed "
-          "with status %i.", jp->class_name, status);
+      ERROR ("java plugin: cjni_init_one_plugin: "
+        "Initializing `%s' object failed with status %i.",
+        jp->class_name, status);
       return (-1);
     }
   }
@@ -1416,6 +1734,7 @@ static int cjni_shutdown (void) /* {{{ */
   for (i = 0; i < java_plugins_num; i++)
   {
     sfree (java_plugins[i].class_name);
+    oconfig_free (java_plugins[i].ci);
   }
   sfree (java_plugins);
   java_plugins_num = 0;

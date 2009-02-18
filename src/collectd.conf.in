@@ -237,7 +237,6 @@ FQDNLookup   true
 #	JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
 #
 #	LoadPlugin "org.collectd.java.Foobar"
-#	# FIXME: The following is planned, but not finished!
 #	<Plugin "org.collectd.java.Foobar">
 #	  # To be parsed by the plugin
 #	</Plugin>
