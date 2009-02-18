@@ -347,6 +347,19 @@ int escape_slashes (char *buf, int buf_len)
 	return (0);
 } /* int escape_slashes */
 
+void replace_special (char *buffer, size_t buffer_size)
+{
+	size_t i;
+
+	for (i = 0; i < buffer_size; i++)
+	{
+		if (buffer[i] == 0)
+			return;
+		if ((!isalnum ((int) buffer[i])) && (buffer[i] != '-'))
+			buffer[i] = '_';
+	}
+} /* void replace_special */
+
 int timeval_cmp (struct timeval tv0, struct timeval tv1, struct timeval *delta)
 {
 	struct timeval *larger;

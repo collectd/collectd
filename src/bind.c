@@ -239,19 +239,6 @@ static int memsummary_translation_table_length =
   STATIC_ARRAY_SIZE (memsummary_translation_table);
 /* }}} */
 
-static void remove_special (char *buffer, size_t buffer_size) /* {{{ */
-{
-  size_t i;
-
-  for (i = 0; i < buffer_size; i++)
-  {
-    if (buffer[i] == 0)
-      return;
-    if ((!isalnum ((int) buffer[i])) && (buffer[i] != '-'))
-      buffer[i] = '_';
-  }
-} /* }}} void remove_special */
-
 static void submit_counter(time_t ts, const char *plugin_instance, /* {{{ */
     const char *type, const char *type_instance, counter_t value)
 {
@@ -268,13 +255,13 @@ static void submit_counter(time_t ts, const char *plugin_instance, /* {{{ */
   if (plugin_instance) {
     sstrncpy(vl.plugin_instance, plugin_instance,
         sizeof(vl.plugin_instance));
-    remove_special (vl.plugin_instance, sizeof (vl.plugin_instance));
+    replace_special (vl.plugin_instance, sizeof (vl.plugin_instance));
   }
   sstrncpy(vl.type, type, sizeof(vl.type));
   if (type_instance) {
     sstrncpy(vl.type_instance, type_instance,
         sizeof(vl.type_instance));
-    remove_special (vl.plugin_instance, sizeof (vl.plugin_instance));
+    replace_special (vl.plugin_instance, sizeof (vl.plugin_instance));
   }
   plugin_dispatch_values(&vl);
 } /* }}} void submit_counter */
