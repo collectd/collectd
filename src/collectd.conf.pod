@@ -1174,6 +1174,57 @@ and all other interrupts are collected.
 
 =back
 
+=head2 Plugin C<java>
+
+Synopsis:
+
+ <Plugin "java">
+   JVMArg "-verbose:jni"
+   JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
+   LoadPlugin "org.collectd.java.Foobar"
+   # FIXME: The following is planned, but not finished!
+   <Plugin "org.collectd.java.Foobar">
+     # To be parsed by the plugin
+   </Plugin>
+ </Plugin>
+
+Available config options:
+
+=over 4
+
+=item B<JVMArg> I<Argument>
+
+Argument that is to be passed to the I<Java Virtual Machine> (JVM). This works
+exactly the way the arguments to the I<java> binary on the command line work.
+Execute C<javaE<nbsp>--help> for details.
+
+=item B<LoadPlugin> I<JavaClass>
+
+Instantiates a new I<JavaClass> object. The following methods of this class are
+used when available:
+
+=over 4
+
+=item *
+
+public int B<Init> ()
+
+=item *
+
+public int B<Read> ()
+
+=item *
+
+public int B<Write> (org.collectd.protocol.ValueList vl)
+
+=item *
+
+public int B<Shutdown> ()
+
+=back
+
+=back
+
 =head2 Plugin C<libvirt>
 
 This plugin allows CPU, disk and network load to be collected for virtualized

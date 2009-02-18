@@ -57,11 +57,11 @@ typedef struct java_plugin_s java_plugin_t;
  */
 static JavaVM *jvm = NULL;
 
-static java_plugin_t java_plugins[] =
-{
-  { "org.collectd.java.Foobar", NULL, NULL, 0, NULL, NULL, NULL, NULL }
-};
-static size_t java_plugins_num = sizeof (java_plugins) / sizeof (java_plugins[0]);
+static char **jvm_argv = NULL;
+static size_t jvm_argc = 0;
+
+static java_plugin_t *java_plugins     = NULL;
+static size_t         java_plugins_num = 0;
 
 /* 
  * C to Java conversion functions
@@ -918,6 +918,122 @@ static size_t jni_api_functions_num = sizeof (jni_api_functions)
 /*
  * Functions
  */
+static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
+{
+  char **tmp;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("java plugin: `JVMArg' needs exactly one string argument.");
+    return (-1);
+  }
+
+  tmp = (char **) realloc (jvm_argv, sizeof (char *) * (jvm_argc + 1));
+  if (tmp == NULL)
+  {
+    ERROR ("java plugin: realloc failed.");
+    return (-1);
+  }
+  jvm_argv = tmp;
+
+  jvm_argv[jvm_argc] = strdup (ci->values[0].value.string);
+  if (jvm_argv[jvm_argc] == NULL)
+  {
+    ERROR ("java plugin: strdup failed.");
+    return (-1);
+  }
+  jvm_argc++;
+
+  return (0);
+} /* }}} int cjni_config_add_jvm_arg */
+
+static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
+{
+  java_plugin_t *jp;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("java plugin: `LoadPlugin' needs exactly one string argument.");
+    return (-1);
+  }
+
+  jp = (java_plugin_t *) realloc (java_plugins,
+      sizeof (*java_plugins) * (java_plugins_num + 1));
+  if (jp == NULL)
+  {
+    ERROR ("java plugin: realloc failed.");
+    return (-1);
+  }
+  java_plugins = jp;
+  jp = java_plugins + java_plugins_num;
+
+  memset (jp, 0, sizeof (*jp));
+  jp->class_name = strdup (ci->values[0].value.string);
+  if (jp->class_name == NULL)
+  {
+    ERROR ("java plugin: strdup failed.");
+    return (-1);
+  }
+
+  jp->class_ptr  = NULL;
+  jp->object_ptr = NULL;
+  jp->flags      = 0;
+  jp->m_init     = NULL;
+  jp->m_read     = NULL;
+  jp->m_write    = NULL;
+  jp->m_shutdown = NULL;
+
+  java_plugins_num++;
+
+  return (0);
+} /* }}} int cjni_config_load_plugin */
+
+static int cjni_config (oconfig_item_t *ci) /* {{{ */
+{
+  int success;
+  int errors;
+  int status;
+  int i;
+
+  success = 0;
+  errors = 0;
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("JVMArg", child->key) == 0)
+    {
+      status = cjni_config_add_jvm_arg (child);
+      if (status == 0)
+        success++;
+      else
+        errors++;
+    }
+    else if (strcasecmp ("LoadPlugin", child->key) == 0)
+    {
+      status = cjni_config_load_plugin (child);
+      if (status == 0)
+        success++;
+      else
+        errors++;
+    }
+    else
+    {
+      WARNING ("java plugin: Option `%s' not allowed here.", child->key);
+      errors++;
+    }
+  }
+
+  if ((success == 0) && (errors > 0))
+  {
+    ERROR ("java plugin: All statements failed.");
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int cjni_config */
+
 static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
 {
   jmethodID constructor_id;
@@ -951,19 +1067,27 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
 
   jp->m_init = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
       "Init", "()I");
-  DEBUG ("jp->m_init = %p;", (void *) jp->m_init);
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_init = %p;",
+      jp->class_name, (void *) jp->m_init);
 
   jp->m_read = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
       "Read", "()I");
-  DEBUG ("jp->m_read = %p;", (void *) jp->m_read);
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_read = %p;",
+      jp->class_name, (void *) jp->m_read);
 
   jp->m_write = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
       "Write", "(Lorg/collectd/protocol/ValueList;)I");
-  DEBUG ("jp->m_write = %p;", (void *) jp->m_write);
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_write = %p;",
+      jp->class_name, (void *) jp->m_write);
 
   jp->m_shutdown = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
       "Shutdown", "()I");
-  DEBUG ("jp->m_shutdown = %p;", (void *) jp->m_shutdown);
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_shutdown = %p;",
+      jp->class_name, (void *) jp->m_shutdown);
 
   if (jp->m_init != NULL)
   {
@@ -1018,9 +1142,10 @@ static int cjni_init (void) /* {{{ */
 {
   JNIEnv *jvm_env;
   JavaVMInitArgs vm_args;
-  JavaVMOption vm_options[2];
+  JavaVMOption vm_options[jvm_argc];
 
   int status;
+  size_t i;
 
   if (jvm != NULL)
     return (0);
@@ -1030,10 +1155,17 @@ static int cjni_init (void) /* {{{ */
   memset (&vm_args, 0, sizeof (vm_args));
   vm_args.version = JNI_VERSION_1_2;
   vm_args.options = vm_options;
-  vm_args.nOptions = sizeof (vm_options) / sizeof (vm_options[0]);
+  vm_args.nOptions = (jint) jvm_argc;
 
+  for (i = 0; i < jvm_argc; i++)
+  {
+    DEBUG ("java plugin: cjni_init: jvm_argv[%zu] = %s", i, jvm_argv[i]);
+    vm_args.options[i].optionString = jvm_argv[i];
+  }
+  /*
   vm_args.options[0].optionString = "-verbose:jni";
   vm_args.options[1].optionString = "-Djava.class.path=/home/octo/collectd/bindings/java";
+  */
 
   status = JNI_CreateJavaVM (&jvm, (void **) &jvm_env, (void **) &vm_args);
   if (status != 0)
@@ -1251,6 +1383,7 @@ static int cjni_shutdown (void) /* {{{ */
   JNIEnv *jvm_env;
   JavaVMAttachArgs args;
   int status;
+  size_t i;
 
   if (jvm == NULL)
     return (0);
@@ -1273,11 +1406,26 @@ static int cjni_shutdown (void) /* {{{ */
   jvm = NULL;
   jvm_env = NULL;
 
+  for (i = 0; i < jvm_argc; i++)
+  {
+    sfree (jvm_argv[i]);
+  }
+  sfree (jvm_argv);
+  jvm_argc = 0;
+
+  for (i = 0; i < java_plugins_num; i++)
+  {
+    sfree (java_plugins[i].class_name);
+  }
+  sfree (java_plugins);
+  java_plugins_num = 0;
+
   return (0);
 } /* }}} int cjni_shutdown */
 
 void module_register (void)
 {
+  plugin_register_complex_config ("java", cjni_config);
   plugin_register_init ("java", cjni_init);
   plugin_register_read ("java", cjni_read);
   plugin_register_write ("java", cjni_write);
