@@ -264,13 +264,6 @@ Features
       needed. Please read collectd-unixsock(5) for a description on how that's
       done.
 
-  * Filtering and rewriting values dispatched to collectd can be done by the
-    following plugins:
-
-    - filter_pcre
-      Filter and rewrite value lists based on Perl-compatible regular
-      expressions.
-
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
 
@@ -309,6 +302,27 @@ Features
     - perl
       Notifications are propagated to plugins written in Perl as well.
       See collectd-perl(5).
+
+  * Value processing can be controlled using the "filter chain" infrastructure
+    and "matches" and "targets". The following plugins are available:
+
+    - match_regex
+      Match values by their identifier based on regular expressions.
+
+    - match_timediff
+      Match values with an invalid timestamp.
+
+    - match_value
+      Select values by their data sources' values.
+
+    - target_notification
+      Create and dispatch a notification.
+
+    - target_replace
+      Replace parts of an identifier using regular expressions.
+
+    - target_set
+      Set (overwrite) entire parts of an identifier.
 
   * Miscellaneous plugins:
 
