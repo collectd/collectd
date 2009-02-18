@@ -1117,11 +1117,11 @@ static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
     return (-1);
   }
 
-  plugin_dispatch_values (&vl);
+  status = plugin_dispatch_values (&vl);
 
   sfree (vl.values);
 
-  return (0);
+  return (status);
 } /* }}} jint cjni_api_dispatch_values */
 
 static JNINativeMethod jni_api_functions[] =
