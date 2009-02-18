@@ -1,0 +1,225 @@
+=head1 NAME
+
+collectd-java - Documentation of collectd's "java plugin"
+
+=head1 SYNOPSIS
+
+ LoadPlugin "java"
+ <Plugin "java">
+   JVMArg "-verbose:jni"
+   JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
+   
+   LoadPlugin "org.collectd.java.Foobar"
+   <Plugin "org.collectd.java.Foobar">
+     # To be parsed by the plugin
+   </Plugin>
+ </Plugin>
+
+=head1 DESCRIPTION
+
+The I<Java> plugin embeds a I<Java Virtual Machine> (JVM) into I<collectd> and
+provides a Java interface to part of collectd's API. This makes it possible to
+write additions to the daemon in Java.
+
+This plugin is similar in nature to, but shares no code with, the I<Perl>
+plugin by Sebastian Harl, see L<collectd-perl(5)> for details.
+
+=head1 CONFIGURATION
+
+A short outline of this plugin's configuration can be seen in L<"SYNOPSIS">
+above. For a complete list of all configuration options and their semantics
+please read L<collectd.conf(5)/Plugin C<java>>.
+
+=head1 OVERVIEW
+
+When writing additions for collectd in Java, the underlying C base is mostly
+hidden from you. All complex data types are converted to their Java counterparts
+before they're passed to your functions. These Java classes reside in the
+I<org.collectd.api> and I<org.collectd.protocol> namespaces.
+
+The available classes are:
+
+=over 4
+
+=item B<org.collectd.api.OConfigValue>
+
+Corresponds to C<oconfig_value_t>, defined in F<src/liboconfig/oconfig.h>.
+
+=item B<org.collectd.api.OConfigItem>
+
+Corresponds to C<oconfig_item_t>, defined in F<src/liboconfig/oconfig.h>.
+
+=item B<org.collectd.protocol.DataSource>
+
+Corresponds to C<data_source_t>, defined in F<src/plugin.h>.
+
+=item B<java.util.ListE<lt>org.collectd.protocol.DataSourceE<gt>>
+
+Corresponds to C<data_set_t>, defined in F<src/plugin.h>.
+
+=item B<org.collectd.protocol.ValueList>
+
+Corresponds to C<value_list_t>, defined in F<src/plugin.h>.
+
+=back
+
+The API functions that are available from Java are implemented as I<static>
+functions of the B<org.collectd.api.CollectdAPI> class.
+See L<"CALLING API FUNCTIONS"> below for details.
+
+=head1 CREATING CALLBACKS
+
+Callback functions, i.E<nbsp>e. functions that are called by collectd, differ
+from their C equivalents in that they don't need to be "registered". Instead,
+they have a fixed name, argument list and return value, usually called
+I<"signature">.
+
+When starting up, the plugin will instantiate one object of your class, using
+the constructor without arguments. All other functions called by the Java
+plugin are methods of this object.
+
+Currently used callback methods are:
+
+=over 4
+
+=item Constructor ()
+
+Used to create an object of the custom class. The name of the constructor
+depends on your classes' name, of course. It must have the signature shown
+above, i.E<nbsp>e. an empty argument list, though.
+
+=item I<int> B<Config> (I<org.collectd.api.OConfigItem>)
+
+Configuration for the plugin. This is the first method that is called after the
+object has been created.
+
+=item I<int> B<Init> ()
+
+Initialization of the plugin. This item is called after B<Config> has been
+called.
+
+=item I<int> B<Read> ()
+
+Called when the plugin should acquire new values.
+
+=item I<int> B<Write> (I<org.collectd.protocol.ValueList>)
+
+Called to have the plugin store values.
+
+=item I<int> B<Shutdown> ()
+
+Called when the daemon is shutting down.
+
+=back
+
+A plugin may implement any number of these callbacks, from all to none. An
+object without callback methods is never called by collectd, but may still
+call the exported API functions. One could, for example, start a new thread in
+the constructor and dispatch (submit to the daemon) values asynchronously,
+whenever one is available.
+
+Each callback method is now explained in more detail:
+
+=head2 Config callback
+
+Signature: I<int> B<Config> (I<org.collectd.api.OConfigItem>)
+
+This method is passed a B<OConfigItem> object, if both, method and
+configuration, are available. B<OConfigItem> is the root of a tree representing
+the configuration for this plugin. The root itself is the representation of the
+B<E<lt>PluginE<nbsp>/E<lt>> block, so in next to all cases the children of the
+root are the first interesting objects.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and the plugin will be disabled entirely.
+
+=head2 Init callback
+
+Signature: I<int> B<Init> ()
+
+This method is called after the configuration has been handled. It is
+supposed to set up the plugin. e.E<nbsp>g. start threads, open connections, or
+check if can do anything useful at all.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and the plugin will be disabled entirely.
+
+=head2 Read callback
+
+Signature: I<int> B<Read> ()
+
+This method is called periodically and is supposed to gather statistics in
+whatever fashion. These statistics are represented as a B<ValueList> object and
+sent to the daemon using B<DispatchValues>, see L<"CALLING API FUNCTIONS">
+below.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+Currently, returning non-zero does not have any other effects. In particular,
+Java "read"-methods are not suspended for increasing intervals like C
+"read"-functions.
+
+=head2 Write callback
+
+Signature: I<int> B<Write> (I<org.collectd.protocol.ValueList>)
+
+This method is called whenever a value is dispatched to the daemon. The
+corresponding C "write"-functions are passed a C<data_set_t>, so they can
+decide which values are absolute values (gauge) and which are counter values.
+To get the corresponding C<ListE<lt>DataSourceE<gt>>, call the B<getDataSource>
+method of the B<ValueList> object.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
+=head2 Shutdown callback
+
+Signature: I<int> B<Shutdown> ()
+
+This method is called when the daemon is shutting down. You should not rely on
+the destructor to clean up behind the object but use this function instead.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
+=head1 CALLING API FUNCTIONS
+
+All collectd API functions that are available to Java plugins are implemented
+as I<publicE<nbsp>static> functions of the B<org.collectd.api.CollectdAPI>
+class. This makes calling these functions pretty straight forward.
+
+The currently exported functions are:
+
+=over 4
+
+=item I<int> B<DispatchValues> (I<org.collectd.protocol.ValueList>)
+
+Corresponds to C<plugin_dispatch_values>, defined in F<src/plugin.h>.
+
+=back
+
+Each API function is now explained in more detail:
+
+=head2 DispatchValues
+
+Signature: I<int> B<DispatchValues> (I<org.collectd.protocol.ValueList>)
+
+Passes the values represented by the B<ValueList> object to the
+C<plugin_dispatch_values> function of the daemon. The "data set" (or list of
+"data sources") associated with the object are ignored, because
+C<plugin_dispatch_values> will automatically lookup the required data set. It
+is therefore absolutely okay to leave this blank.
+
+Returns zero upon success or non-zero upon failure.
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-perl(5)>,
+L<types.db(5)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>
+
