@@ -454,10 +454,6 @@ Prerequisites
     Used to capture packets by the `dns' plugin.
     <http://www.tcpdump.org/>
 
-  * libpcre (optional)
-    Used by the `filter_pcre' plugin.
-    <http://www.pcre.org/>
-
   * libperl (optional)
     Obviously used by the `perl' plugin. The library has to be compiled with
     ithread support (introduced in Perl 5.6.0).
