@@ -1078,7 +1078,8 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     ERROR ("java plugin: jtoc_value_list: jtoc_long (getTime) failed.");
     return (-1);
   }
-  vl->time = (time_t) tmp_long;
+  /* Java measures time in milliseconds. */
+  vl->time = (time_t) (tmp_long / ((jlong) 1000));
 
   status = jtoc_long (jvm_env, &tmp_long,
       class_ptr, object_ptr, "getInterval");
