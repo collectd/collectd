@@ -5,7 +5,7 @@
 
 /**
  * oconfig - src/oconfig.h
- * Copyright (C) 2006,2007  Florian octo Forster <octo at verplant.org>
+ * Copyright (C) 2006-2009  Florian octo Forster <octo at verplant.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -58,6 +58,8 @@ struct oconfig_item_s
  */
 oconfig_item_t *oconfig_parse_fh (FILE *fh);
 oconfig_item_t *oconfig_parse_file (const char *file);
+
+oconfig_item_t *oconfig_clone (const oconfig_item_t *ci);
 
 void oconfig_free (oconfig_item_t *ci);
 
