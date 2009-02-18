@@ -1120,10 +1120,10 @@ static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
   jclass api_class_ptr;
   int status;
 
-  api_class_ptr = (*jvm_env)->FindClass (jvm_env, "org.collectd.java.CollectdAPI");
+  api_class_ptr = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.CollectdAPI");
   if (api_class_ptr == NULL)
   {
-    ERROR ("cjni_init_native: Cannot find API class `org.collectd.java.CollectdAPI'.");
+    ERROR ("cjni_init_native: Cannot find API class `org.collectd.api.CollectdAPI'.");
     return (-1);
   }
 

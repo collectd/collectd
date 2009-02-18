@@ -1,5 +1,5 @@
 /*
- * collectd - src/java.c
+ * collectd/java - org/collectd/api/CollectdAPI.java
  * Copyright (C) 2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -19,7 +19,7 @@
  *   Florian octo Forster <octo at verplant.org>
  */
 
-package org.collectd.java;
+package org.collectd.api;
 
 import org.collectd.protocol.ValueList;
 
