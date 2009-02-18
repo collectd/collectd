@@ -425,9 +425,7 @@ endif
 if BUILD_PLUGIN_MATCH_REGEX
 pkglib_LTLIBRARIES += match_regex.la
 match_regex_la_SOURCES = match_regex.c
-match_regex_la_CPPFLAGS = $(BUILD_WITH_LIBPCRE_CFLAGS)
-match_regex_la_LDFLAGS = -module -avoid-version \
-		$(BUILD_WITH_LIBPCRE_LIBS)
+match_regex_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" match_regex.la
 collectd_DEPENDENCIES += match_regex.la
 endif

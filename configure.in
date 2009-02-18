@@ -1853,78 +1853,6 @@ AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 # }}}
 
-# --with-libpcre {{{
-with_pcre_config="pcre-config"
-with_pcre_cflags=""
-with_pcre_libs=""
-AC_ARG_WITH(libpcre, [AS_HELP_STRING([--with-libpcre@<:@=PREFIX@:>@],
-	[Path to libpcre.])],
-	[
-		if test "x$withval" = "xno"
-		then
-			with_libpcre="no"
-		else if test "x$withval" = "xyes"
-		then
-			with_libpcre="yes"
-		else
-			if test -f "$withval" && test -x "$withval"
-			then
-				with_pcre_config="$withval"
-			else if test -x "$withval/bin/pcre-config"
-			then
-				with_pcre_config="$withval/bin/pcre-config"
-			fi; fi
-			with_libpcre="yes"
-		fi; fi
-	],
-	[
-		with_libpcre="yes"
-	])
-
-if test "x$with_libpcre" = "xyes"
-then
-	with_pcre_cflags=`$with_pcre_config --cflags 2>/dev/null`
-	pcre_config_status=$?
-
-	if test $pcre_config_status -ne 0
-	then
-		with_libpcre="no ($with_pcre_config failed)"
-	else
-		SAVE_CPPFLAGS="$CPPFLAGS"
-		CPPFLAGS="$CPPFLAGS $with_pcre_cflags"
-
-		AC_CHECK_HEADERS(pcre.h, [], [with_libpcre="no (pcre.h not found)"], [])
-
-		CPPFLAGS="$SAVE_CPPFLAGS"
-	fi
-fi
-
-if test "x$with_libpcre" = "xyes"
-then
-	with_pcre_libs=`$with_pcre_config --libs 2>/dev/null`
-	pcre_config_status=$?
-
-	if test $pcre_config_status -ne 0
-	then
-		with_libpcre="no ($with_pcre_config failed)"
-	else
-		AC_CHECK_LIB(pcre, pcre_compile,
-			[with_libpcre="yes"],
-			[with_libpcre="no (symbol 'pcre_compile' not found)"],
-			[$with_pcre_libs])
-	fi
-fi
-
-if test "x$with_libpcre" = "xyes"
-then
-	BUILD_WITH_LIBPCRE_CFLAGS="$with_pcre_cflags"
-	BUILD_WITH_LIBPCRE_LIBS="$with_pcre_libs"
-	AC_SUBST(BUILD_WITH_LIBPCRE_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBPCRE_LIBS)
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBPCRE, test "x$with_libpcre" = "xyes")
-# }}}
-
 # --with-libperl {{{
 perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
@@ -3381,7 +3309,6 @@ Configuration:
     libopenipmi . . . . . $with_libopenipmipthread
     liboping  . . . . . . $with_liboping
     libpcap . . . . . . . $with_libpcap
-    libpcre . . . . . . . $with_libpcre
     libperl . . . . . . . $with_libperl
     libpq . . . . . . . . $with_libpq
     libpthread  . . . . . $with_libpthread
