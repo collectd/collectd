@@ -33,6 +33,9 @@ Features
       Batterycharge, -current and voltage of ACPI and PMU based laptop
       batteries.
 
+    - curl
+      Parse statistics from websites using regular expressions.
+
     - bind
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
@@ -381,7 +384,7 @@ Prerequisites
     <http://developer.apple.com/corefoundation/>
 
   * libcurl (optional)
-    If you want to use the `apache', `ascent', or `nginx' plugin.
+    If you want to use the `apache', `ascent', `curl' or `nginx' plugin.
     <http://curl.haxx.se/>
 
   * libdbi (optional)
