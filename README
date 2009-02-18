@@ -157,6 +157,9 @@ Features
       RX and TX of each client in openvpn-status.log (status-version 2).
       <http://openvpn.net/index.php/documentation/howto.html>
 
+    - oracle
+      Query data from an Oracle database.
+
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
       write your own plugins in Perl and return arbitrary values using this
@@ -382,6 +385,9 @@ Prerequisites
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
     <http://developer.apple.com/corefoundation/>
+
+  * libclntsh (optional)
+    Used by the `oracle' plugin.
 
   * libcurl (optional)
     If you want to use the `apache', `ascent', `curl' or `nginx' plugin.
