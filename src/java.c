@@ -1381,7 +1381,7 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
           "but plugin doesn't provide a configuration method.",
           jp->class_name);
     }
-    else
+    else /* if (jp->m_config != NULL) */
     {
       jobject o_ocitem;
 
@@ -1392,7 +1392,7 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
             "Can't pass configuration information to the `%s' plugin!",
             jp->class_name);
       }
-      else
+      else /* if (o_ocitem != NULL) */
       {
         status = (*jvm_env)->CallIntMethod (jvm_env,
             jp->object_ptr, jp->m_config, o_ocitem);
@@ -1401,10 +1401,12 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
           ERROR ("java plugin: cjni_init_one_plugin: "
               "Configuring the `%s' object failed with status %i.",
               jp->class_name, status);
+          (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
+          return (-1);
         }
         (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
-      }
-    }
+      } /* if (o_ocitem != NULL) */
+    } /* if (jp->m_config != NULL) */
   } /* if (jp->ci != NULL) */
 
   if (jp->m_init != NULL)
