@@ -182,13 +182,20 @@ sub putval {
 
 	my $id = getid(\$line);
 
+	my $ret;
+
 	if (! $id) {
-		print STDERR $sock->{'error'} . $/;
+		print STDERR "Invalid id \"$line\"." . $/;
 		return;
 	}
 
 	my ($time, @values) = split m/:/, $line;
-	return $sock->putval(%$id, time => $time, values => \@values);
+	$ret = $sock->putval(%$id, time => $time, values => \@values);
+
+	if (! $ret) {
+		print STDERR "socket error: " . $sock->{'error'} . $/;
+	}
+	return $ret;
 }
 
 =item B<PUTVAL> I<Identifier> I<Valuelist>
@@ -202,14 +209,14 @@ sub getval {
 	my $id = getid(\$line);
 
 	if (! $id) {
-		print STDERR $sock->{'error'} . $/;
+		print STDERR "Invalid id \"$line\"." . $/;
 		return;
 	}
 
 	my $vals = $sock->getval(%$id);
 
 	if (! $vals) {
-		print STDERR $sock->{'error'} . $/;
+		print STDERR "socket error: " . $sock->{'error'} . $/;
 		return;
 	}
 
@@ -264,10 +271,9 @@ sub flush {
 	}
 
 	if (! $res) {
-		print STDERR $sock->{'error'} . $/;
-		return;
+		print STDERR "socket error: " . $sock->{'error'} . $/;
 	}
-	return 1;
+	return $res;
 }
 
 =item B<LISTVAL>
@@ -282,7 +288,7 @@ sub listval {
 	@res = $sock->listval();
 
 	if (! @res) {
-		print STDERR $sock->{'error'} . $/;
+		print STDERR "socket error: " . $sock->{'error'} . $/;
 		return;
 	}
 
@@ -300,6 +306,8 @@ sub putnotif {
 	my $sock = shift || return;
 	my $line = shift || return;
 
+	my $ret;
+
 	my (%values) = ();
 	foreach my $i (split m/ /, $line) {
 		my($key,$val) = split m/=/, $i, 2;
@@ -311,8 +319,12 @@ sub putnotif {
 		}
 	}
 	$values{'time'} ||= time();
-	my(@tmp) = %values;
-	return $sock->putnotif(%values);
+
+	$ret = $sock->putnotif(%values);
+	if (! $ret) {
+		print STDERR "socket error: " . $sock->{'error'} . $/;
+	}
+	return $ret;
 }
 
 =back
