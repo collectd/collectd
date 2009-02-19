@@ -365,30 +365,6 @@ static int tbl_finish (tbl_t *tbl)
 	return 0;
 } /* tbl_finish */
 
-static int tbl_parse_value (char *value, value_t *ret_value,
-		data_source_t ds)
-{
-	char *endptr = NULL;
-
-	if (DS_TYPE_COUNTER == ds.type)
-		ret_value->counter = (counter_t)strtoll (value, &endptr, 0);
-	else if (DS_TYPE_GAUGE == ds.type)
-		ret_value->gauge = (gauge_t)strtod (value, &endptr);
-	else {
-		log_err ("tbl_parse_value: Invalid data source \"%s\" "
-				"(type = %i).", ds.name, ds.type);
-		return -1;
-	}
-
-	if (value == endptr) {
-		log_err ("Failed to parse string as number: %s.", value);
-		return -1;
-	}
-	else if ((NULL != endptr) && ('\0' != *endptr))
-		log_warn ("Ignoring trailing garbage after number: %s.", endptr);
-	return 0;
-} /* tbl_parse_value */
-
 static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
 		char **fields, size_t fields_num)
 {
@@ -406,7 +382,7 @@ static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
 		assert (res->values[i] < fields_num);
 		value = fields[res->values[i]];
 
-		if (0 != tbl_parse_value (value, &values[i], res->ds->ds[i]))
+		if (0 != parse_value (value, &values[i], res->ds->ds[i]))
 			return -1;
 	}
 

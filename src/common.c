@@ -790,6 +790,30 @@ int parse_identifier (char *str, char **ret_host,
 	return (0);
 } /* int parse_identifier */
 
+int parse_value (char *value, value_t *ret_value, const data_source_t ds)
+{
+	char *endptr = NULL;
+
+	if (DS_TYPE_COUNTER == ds.type)
+		ret_value->counter = (counter_t)strtoll (value, &endptr, 0);
+	else if (DS_TYPE_GAUGE == ds.type)
+		ret_value->gauge = (gauge_t)strtod (value, &endptr);
+	else {
+		ERROR ("parse_value: Invalid data source \"%s\" "
+				"(type = %i).", ds.name, ds.type);
+		return -1;
+	}
+
+	if (value == endptr) {
+		ERROR ("parse_value: Failed to parse string as number: %s.", value);
+		return -1;
+	}
+	else if ((NULL != endptr) && ('\0' != *endptr))
+		WARNING ("parse_value: Ignoring trailing garbage after number: %s.",
+				endptr);
+	return 0;
+} /* int parse_value */
+
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 {
 	int i;
@@ -816,12 +840,10 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 		}
 		else
 		{
-			if (strcmp ("U", ptr) == 0)
+			if ((strcmp ("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
 				vl->values[i].gauge = NAN;
-			else if (ds->ds[i].type == DS_TYPE_COUNTER)
-				vl->values[i].counter = atoll (ptr);
-			else if (ds->ds[i].type == DS_TYPE_GAUGE)
-				vl->values[i].gauge = atof (ptr);
+			else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i]))
+				return -1;
 		}
 
 		i++;
