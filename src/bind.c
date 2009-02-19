@@ -178,7 +178,7 @@ static const translation_info_t zonestats_translation_table[] = /* {{{ */
   { "NotifyRej",       "dns_notify",   "rejected"    },
   /* SOA/AXFS/IXFS requests */
   { "SOAOutv4",        "dns_opcode",   "SOA-IPv4"    },
-  { "SOAOutv6",        "dns_opcode",   "SOA-IPv4"    },
+  { "SOAOutv6",        "dns_opcode",   "SOA-IPv6"    },
   { "AXFRReqv4",       "dns_opcode",   "AXFR-IPv4"   },
   { "AXFRReqv6",       "dns_opcode",   "AXFR-IPv6"   },
   { "IXFRReqv4",       "dns_opcode",   "IXFR-IPv4"   },
@@ -1315,7 +1315,16 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("OpCodes", child->key) == 0)
+    if (strcasecmp ("Url", child->key) == 0) {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("bind plugin: The `Url' option needs "
+                 "exactly one string argument.");
+        return (-1);
+      }
+
+      url = strdup (child->values[0].value.string);
+    } else if (strcasecmp ("OpCodes", child->key) == 0)
       bind_config_set_bool ("OpCodes", &global_opcodes, child);
     else if (strcasecmp ("QTypes", child->key) == 0)
       bind_config_set_bool ("QTypes", &global_qtypes, child);
@@ -1326,7 +1335,7 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("ResolverStats", child->key) == 0)
       bind_config_set_bool ("ResolverStats", &global_resolver_stats, child);
     else if (strcasecmp ("MemoryStats", child->key) == 0)
-      bind_config_set_bool ("MemoryStats", &global_resolver_stats, child);
+      bind_config_set_bool ("MemoryStats", &global_memory_stats, child);
     else if (strcasecmp ("View", child->key) == 0)
       bind_config_add_view (child);
     else

@@ -33,6 +33,7 @@ dns_notify		value:COUNTER:0:65535
 dns_transfer		value:COUNTER:0:65535
 dns_query		value:COUNTER:0:65535
 dns_response		value:COUNTER:0:65535
+dns_reject		value:COUNTER:0:65535
 email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U
