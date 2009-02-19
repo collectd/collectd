@@ -230,7 +230,7 @@ int format_name (char *ret, int ret_len,
 int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
 		char **ret_type, char **ret_type_instance);
-int parse_value (char *value, value_t *ret_value, const data_source_t ds);
+int parse_value (const char *value, value_t *ret_value, const data_source_t ds);
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);
 
 #if !HAVE_GETPWNAM_R

@@ -197,7 +197,7 @@ static int udb_legacy_result_handle_result (udb_result_t *r, /* {{{ */
 {
   value_list_t vl = VALUE_LIST_INIT;
   value_t value;
-  char *endptr;
+  char *value_str;
 
   assert (r->legacy_mode == 1);
   assert (r->ds != NULL);
@@ -206,23 +206,14 @@ static int udb_legacy_result_handle_result (udb_result_t *r, /* {{{ */
   vl.values = &value;
   vl.values_len = 1;
 
-  endptr = NULL;
-  errno = 0;
-  if (r->ds->ds[0].type == DS_TYPE_COUNTER)
-    vl.values[0].counter = (counter_t) strtoll (column_values[r->legacy_position],
-        &endptr, /* base = */ 0);
-  else if (r->ds->ds[0].type == DS_TYPE_GAUGE)
-    vl.values[0].gauge = (gauge_t) strtod (column_values[r->legacy_position],
-        &endptr);
-  else
-    errno = EINVAL;
-
-  if ((endptr == column_values[r->legacy_position]) || (errno != 0))
+  value_str = column_values[r->legacy_position];
+  if (0 != parse_value (value_str, &vl.values[0], r->ds->ds[0]))
   {
-    WARNING ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
-        column_values[r->legacy_position],
+    ERROR ("db query utils: udb_legacy_result_handle_result: "
+        "Parsing `%s' as %s failed.", value_str,
         (r->ds->ds[0].type == DS_TYPE_COUNTER) ? "counter" : "gauge");
-    vl.values[0].gauge = NAN;
+    errno = EINVAL;
+    return (-1);
   }
 
   sstrncpy (vl.host, q->host, sizeof (vl.host));
@@ -351,7 +342,7 @@ static int udb_legacy_result_create (const char *query_name, /* {{{ */
 /*
  * Result private functions
  */
-static void udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
+static int udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
 {
   value_list_t vl = VALUE_LIST_INIT;
   size_t i;
@@ -365,30 +356,21 @@ static void udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
   if (vl.values == NULL)
   {
     ERROR ("db query utils: malloc failed.");
-    return;
+    return (-1);
   }
   vl.values_len = r->ds->ds_num;
 
   for (i = 0; i < r->values_num; i++)
   {
-    char *endptr;
+    char *value_str = r->values_buffer[i];
 
-    endptr = NULL;
-    errno = 0;
-    if (r->ds->ds[i].type == DS_TYPE_COUNTER)
-      vl.values[i].counter = (counter_t) strtoll (r->values_buffer[i],
-          &endptr, /* base = */ 0);
-    else if (r->ds->ds[i].type == DS_TYPE_GAUGE)
-      vl.values[i].gauge = (gauge_t) strtod (r->values_buffer[i], &endptr);
-    else
-      errno = EINVAL;
-
-    if ((endptr == r->values_buffer[i]) || (errno != 0))
+    if (0 != parse_value (value_str, &vl.values[i], r->ds->ds[i]))
     {
-      WARNING ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
-          r->values_buffer[i],
+      ERROR ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
+          value_str,
           (r->ds->ds[i].type == DS_TYPE_COUNTER) ? "counter" : "gauge");
-      vl.values[i].gauge = NAN;
+      errno = EINVAL;
+      return (-1);
     }
   }
 
@@ -430,6 +412,7 @@ static void udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
   plugin_dispatch_values (&vl);
 
   sfree (vl.values);
+  return (0);
 } /* }}} void udb_result_submit */
 
 static void udb_result_finish_result (udb_result_t *r) /* {{{ */
@@ -468,9 +451,7 @@ static int udb_result_handle_result (udb_result_t *r, /* {{{ */
   for (i = 0; i < r->values_num; i++)
     r->values_buffer[i] = column_values[r->values_pos[i]];
 
-  udb_result_submit (r, q);
-
-  return (0);
+  return udb_result_submit (r, q);
 } /* }}} int udb_result_handle_result */
 
 static int udb_result_prepare_result (udb_result_t *r, /* {{{ */

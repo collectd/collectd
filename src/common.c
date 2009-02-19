@@ -790,7 +790,7 @@ int parse_identifier (char *str, char **ret_host,
 	return (0);
 } /* int parse_identifier */
 
-int parse_value (char *value, value_t *ret_value, const data_source_t ds)
+int parse_value (const char *value, value_t *ret_value, const data_source_t ds)
 {
 	char *endptr = NULL;
 

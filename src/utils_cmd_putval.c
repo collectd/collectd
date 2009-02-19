@@ -65,12 +65,13 @@ static int dispatch_values (const data_set_t *ds, value_list_t *vl,
 			break;
 		}
 
-		if (strcmp (ptr, "U") == 0)
+		if ((strcmp (ptr, "U") == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
 			vl->values[i].gauge = NAN;
-		else if (ds->ds[i].type == DS_TYPE_COUNTER)
-			vl->values[i].counter = atoll (ptr);
-		else if (ds->ds[i].type == DS_TYPE_GAUGE)
-			vl->values[i].gauge = atof (ptr);
+		else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i]))
+		{
+			print_to_socket (fh, "-1 Failed to parse value `%s'.", ptr);
+			return (-1);
+		}
 
 		i++;
 	} /* while (strtok_r) */
