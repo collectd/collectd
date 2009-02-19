@@ -1118,7 +1118,7 @@ static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
     return (-1);
   }
 
-  status = plugin_dispatch_values (&vl);
+  status = plugin_dispatch_values_async (&vl);
 
   sfree (vl.values);
 
