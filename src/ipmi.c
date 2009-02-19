@@ -225,7 +225,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
   ipmi_sensor_get_name (sensor, sensor_name, sizeof (sensor_name));
   sensor_name[sizeof (sensor_name) - 1] = 0;
 
-  len = DATA_MAX_NAME_LEN - strlen(sensor_name);
+  len = DATA_MAX_NAME_LEN - strlen(sensor_name) - 1;
   strncat(sensor_name, " ", len--);
   strncat(sensor_name, ipmi_entity_get_entity_id_string(ent), len);
 
@@ -237,7 +237,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
     char *sensor_name_ptr_id = strstr (sensor_name, "(");
 
     sensor_name_ptr += 2;
-    len = DATA_MAX_NAME_LEN - strlen(sensor_name);
+    len = DATA_MAX_NAME_LEN - strlen(sensor_name) - 1;
     strncat(sensor_name, " ", len--);
     strncat(sensor_name, sensor_name_ptr_id, 
       MIN(sensor_name_ptr - sensor_name_ptr_id - 1, len));
