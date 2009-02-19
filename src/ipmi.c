@@ -213,35 +213,54 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
   c_ipmi_sensor_list_t *list_item;
   c_ipmi_sensor_list_t *list_prev;
 
+  char buffer[DATA_MAX_NAME_LEN];
+  const char *entity_id_string;
   char sensor_name[DATA_MAX_NAME_LEN];
   char *sensor_name_ptr;
-  int sensor_type, len;
+  int sensor_type;
   const char *type;
   ipmi_entity_t *ent = ipmi_sensor_get_entity(sensor);
 
   sensor_id = ipmi_sensor_convert_to_id (sensor);
 
-  memset (sensor_name, 0, sizeof (sensor_name));
-  ipmi_sensor_get_name (sensor, sensor_name, sizeof (sensor_name));
-  sensor_name[sizeof (sensor_name) - 1] = 0;
+  memset (buffer, 0, sizeof (buffer));
+  ipmi_sensor_get_name (sensor, buffer, sizeof (buffer));
+  buffer[sizeof (buffer) - 1] = 0;
 
-  len = DATA_MAX_NAME_LEN - strlen(sensor_name) - 1;
-  strncat(sensor_name, " ", len--);
-  strncat(sensor_name, ipmi_entity_get_entity_id_string(ent), len);
+  entity_id_string = ipmi_entity_get_entity_id_string (ent);
 
-  sensor_name_ptr = strstr (sensor_name, ").");
-  if (sensor_name_ptr == NULL)
-    sensor_name_ptr = sensor_name;
+  if (entity_id_string == NULL)
+    sstrncpy (sensor_name, buffer, sizeof (sensor_name));
   else
-  {
-    char *sensor_name_ptr_id = strstr (sensor_name, "(");
+    ssnprintf (sensor_name, sizeof (sensor_name),
+        "%s %s", buffer, entity_id_string);
 
+  sstrncpy (buffer, sensor_name, sizeof (buffer));
+  sensor_name_ptr = strstr (buffer, ").");
+  if (sensor_name_ptr != NULL)
+  {
+    /* If name is something like "foo (123).bar",
+     * change that to "bar (123)".
+     * Both, sensor_name_ptr and sensor_id_ptr point to memory within the
+     * `buffer' array, which holds a copy of the current `sensor_name'. */
+    char *sensor_id_ptr;
+
+    /* `sensor_name_ptr' points to ").bar". */
+    sensor_name_ptr[1] = 0;
+    /* `buffer' holds "foo (123)\0bar\0". */
     sensor_name_ptr += 2;
-    len = DATA_MAX_NAME_LEN - strlen(sensor_name) - 1;
-    strncat(sensor_name, " ", len--);
-    strncat(sensor_name, sensor_name_ptr_id, 
-      MIN(sensor_name_ptr - sensor_name_ptr_id - 1, len));
+    /* `sensor_name_ptr' now points to "bar". */
+
+    sensor_id_ptr = strstr (buffer, "(");
+    if (sensor_id_ptr != NULL)
+    {
+      /* `sensor_id_ptr' now points to "(123)". */
+      ssnprintf (sensor_name, sizeof (sensor_name),
+          "%s %s", sensor_name_ptr, sensor_id_ptr); 
+    }
+    /* else: don't touch sensor_name. */
   }
+  sensor_name_ptr = sensor_name;
 
   /* Both `ignorelist' and `plugin_instance' may be NULL. */
   if (ignorelist_match (ignorelist, sensor_name_ptr) != 0)
