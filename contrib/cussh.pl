@@ -110,13 +110,42 @@ use Collectd::Unixsock();
 	exit 0;
 }
 
+sub tokenize {
+	my $line     = shift || return;
+	my $line_ptr = $line;
+	my @line     = ();
+
+	my $token_pattern = qr/[^"\s]+|"[^"]+"/;
+
+	while (my ($token) = $line_ptr =~ m/^($token_pattern)\s+/) {
+		$line_ptr = $';
+		push @line, $token;
+	}
+
+	if ($line_ptr =~ m/^$token_pattern$/) {
+		push @line, $line_ptr;
+	}
+	else {
+		my ($token) = split m/ /, $line_ptr, 1;
+		print STDERR "Failed to parse line: $line\n";
+		print STDERR "Parse error near token \"$token\".\n";
+		return;
+	}
+
+	foreach my $l (@line) {
+		if ($l =~ m/^"(.*)"$/) {
+			$l = $1;
+		}
+	}
+	return @line;
+}
+
 sub getid {
 	my $string = shift || return;
 
-	print $$string . $/;
 	my ($h, $p, $pi, $t, $ti) =
-		$$string =~ m#^([^/]+)/([^/-]+)(?:-([^/]+))?/([^/-]+)(?:-([^/]+))?\s*#;
-	$$string = $';
+		$string =~ m#^([^/]+)/([^/-]+)(?:-([^/]+))?/([^/-]+)(?:-([^/]+))?\s*#;
+	$string = $';
 
 	return if ((! $h) || (! $p) || (! $t));
 
@@ -172,7 +201,7 @@ HELP
 	return 1;
 } # cmd_help
 
-=item B<GETVAL> I<Identifier>
+=item B<PUTVAL> I<Identifier> I<Valuelist>
 
 =cut
 
@@ -180,12 +209,24 @@ sub putval {
 	my $sock = shift || return;
 	my $line = shift || return;
 
-	my $id = getid(\$line);
+	my @line = tokenize($line);
 
+	my $id;
 	my $ret;
 
+	if (! @line) {
+		return;
+	}
+
+	if (scalar(@line) < 2) {
+		print STDERR "Synopsis: PUTVAL <id> <value0> [<value1> ...]" . $/;
+		return;
+	}
+
+	$id = getid($line[0]);
+
 	if (! $id) {
-		print STDERR "Invalid id \"$line\"." . $/;
+		print STDERR "Invalid id \"$line[0]\"." . $/;
 		return;
 	}
 
@@ -198,7 +239,7 @@ sub putval {
 	return $ret;
 }
 
-=item B<PUTVAL> I<Identifier> I<Valuelist>
+=item B<GETVAL> I<Identifier>
 
 =cut
 
@@ -206,14 +247,28 @@ sub getval {
 	my $sock = shift || return;
 	my $line = shift || return;
 
-	my $id = getid(\$line);
+	my @line = tokenize($line);
 
-	if (! $id) {
-		print STDERR "Invalid id \"$line\"." . $/;
+	my $id;
+	my $vals;
+
+	if (! @line) {
 		return;
 	}
 
-	my $vals = $sock->getval(%$id);
+	if (scalar(@line) < 1) {
+		print STDERR "Synopsis: GETVAL <id>" . $/;
+		return;
+	}
+
+	$id = getid($line[0]);
+
+	if (! $id) {
+		print STDERR "Invalid id \"$line[0]\"." . $/;
+		return;
+	}
+
+	$vals = $sock->getval(%$id);
 
 	if (! $vals) {
 		print STDERR "socket error: " . $sock->{'error'} . $/;
@@ -234,6 +289,8 @@ sub flush {
 	my $sock = shift || return;
 	my $line = shift;
 
+	my @line = tokenize($line);
+
 	my $res;
 
 	if (! $line) {
@@ -242,7 +299,7 @@ sub flush {
 	else {
 		my %args = ();
 
-		foreach my $i (split m/ /, $line) {
+		foreach my $i (@line) {
 			my ($option, $value) = $i =~ m/^([^=]+)=(.+)$/;
 			next if (! ($option && $value));
 
@@ -282,8 +339,14 @@ sub flush {
 
 sub listval {
 	my $sock = shift || return;
+	my $line = shift;
 
 	my @res;
+
+	if ($line ne "") {
+		print STDERR "Synopsis: LISTVAL" . $/;
+		return;
+	}
 
 	@res = $sock->listval();
 
@@ -306,16 +369,20 @@ sub putnotif {
 	my $sock = shift || return;
 	my $line = shift || return;
 
+	my @line = tokenize($line);
+
 	my $ret;
 
 	my (%values) = ();
-	foreach my $i (split m/ /, $line) {
-		my($key,$val) = split m/=/, $i, 2;
+	foreach my $i (@line) {
+		my ($key, $val) = split m/=/, $i, 2;
 		if ($key && $val) {
 			$values{$key} = $val;
 		}
 		else {
-			$values{'message'} .= ' '.$key;
+			$values{'message'} = defined($values{'message'})
+				? ($values{'message'} . ' ' . $key)
+				: $key;
 		}
 	}
 	$values{'time'} ||= time();
