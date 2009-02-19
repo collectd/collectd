@@ -179,6 +179,29 @@ int strsubstitute (char *str, char c_from, char c_to);
 
 /*
  * NAME
+ *   strunescape
+ *
+ * DESCRIPTION
+ *   Replaces any escaped characters in a string with the appropriate special
+ *   characters. The following escaped characters are recognized:
+ *
+ *     \t -> <tab>
+ *     \n -> <newline>
+ *     \r -> <carriage return>
+ *
+ *   For all other escacped characters only the backslash will be removed.
+ *
+ * PARAMETERS
+ *   `buf'         String to be unescaped.
+ *   `buf_len'     Length of the string, including the terminating null-byte.
+ *
+ * RETURN VALUE
+ *   Returns zero upon success, a value less than zero else.
+ */
+int strunescape (char *buf, size_t buf_len);
+
+/*
+ * NAME
  *   timeval_cmp
  *
  * DESCRIPTION

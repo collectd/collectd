@@ -2486,6 +2486,10 @@ table is considered to be a single delimiter, i.E<nbsp>e. there cannot be any
 empty columns. The plugin uses the L<strtok_r(3)> function to parse the lines
 of a table - see its documentation for more details. This option is mandatory.
 
+A horizontal tab, newline and carriage return may be specified by C<\\t>,
+C<\\n> and C<\\r> respectively. Please note that the double backslashes are
+required because of collectd's config parsing.
+
 =back
 
 The following options are available inside a B<Result> block:

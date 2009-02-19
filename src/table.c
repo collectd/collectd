@@ -279,6 +279,7 @@ static int tbl_config_table (oconfig_item_t *ci)
 		log_err ("Table \"%s\" does not specify any separator.", tbl->file);
 		status = 1;
 	}
+	strunescape (tbl->sep, strlen (tbl->sep) + 1);
 
 	if (NULL == tbl->instance) {
 		tbl->instance = sstrdup (tbl->file);
