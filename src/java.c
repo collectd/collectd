@@ -1340,205 +1340,6 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int cjni_config */
 
-static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
-{
-  jmethodID constructor_id;
-  int status;
-
-  jp->class_ptr = (*jvm_env)->FindClass (jvm_env, jp->class_name);
-  if (jp->class_ptr == NULL)
-  {
-    ERROR ("cjni_init_one_plugin: FindClass (%s) failed.",
-        jp->class_name);
-    return (-1);
-  }
-
-  constructor_id = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "<init>", "()V");
-  if (constructor_id == NULL)
-  {
-    ERROR ("cjni_init_one_plugin: Could not find the constructor for `%s'.",
-        jp->class_name);
-    return (-1);
-  }
-
-  jp->object_ptr = (*jvm_env)->NewObject (jvm_env, jp->class_ptr,
-      constructor_id);
-  if (jp->object_ptr == NULL)
-  {
-    ERROR ("cjni_init_one_plugin: Could create a new `%s' object.",
-        jp->class_name);
-    return (-1);
-  }
-
-  jp->m_config = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Config", "(Lorg/collectd/api/OConfigItem;)I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_config = %p;",
-      jp->class_name, (void *) jp->m_config);
-
-  jp->m_init = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Init", "()I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_init = %p;",
-      jp->class_name, (void *) jp->m_init);
-
-  jp->m_read = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Read", "()I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_read = %p;",
-      jp->class_name, (void *) jp->m_read);
-
-  jp->m_write = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Write", "(Lorg/collectd/protocol/ValueList;)I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_write = %p;",
-      jp->class_name, (void *) jp->m_write);
-
-  jp->m_shutdown = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Shutdown", "()I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_shutdown = %p;",
-      jp->class_name, (void *) jp->m_shutdown);
-
-  if (jp->ci != NULL)
-  {
-    if (jp->m_config == NULL)
-    {
-      WARNING ("java plugin: Configuration for the `%s' plugin is present, "
-          "but plugin doesn't provide a configuration method.",
-          jp->class_name);
-    }
-    else /* if (jp->m_config != NULL) */
-    {
-      jobject o_ocitem;
-
-      o_ocitem = ctoj_oconfig_item (jvm_env, jp->ci);
-      if (o_ocitem == NULL)
-      {
-        ERROR ("java plugin: Creating an OConfigItem object failed. "
-            "Can't pass configuration information to the `%s' plugin!",
-            jp->class_name);
-      }
-      else /* if (o_ocitem != NULL) */
-      {
-        status = (*jvm_env)->CallIntMethod (jvm_env,
-            jp->object_ptr, jp->m_config, o_ocitem);
-        if (status != 0)
-        {
-          ERROR ("java plugin: cjni_init_one_plugin: "
-              "Configuring the `%s' object failed with status %i.",
-              jp->class_name, status);
-          (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
-          return (-1);
-        }
-        (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
-      } /* if (o_ocitem != NULL) */
-    } /* if (jp->m_config != NULL) */
-  } /* if (jp->ci != NULL) */
-
-  if (jp->m_init != NULL)
-  {
-    status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
-        jp->m_init);
-    if (status != 0)
-    {
-      ERROR ("java plugin: cjni_init_one_plugin: "
-        "Initializing `%s' object failed with status %i.",
-        jp->class_name, status);
-      return (-1);
-    }
-  }
-  jp->flags |= CJNI_FLAG_ENABLED;
-
-  return (0);
-} /* }}} int cjni_init_one_plugin */
-
-static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
-{
-  size_t j;
-
-  for (j = 0; j < java_plugins_num; j++)
-    cjni_init_one_plugin (jvm_env, &java_plugins[j]);
-
-  return (0);
-} /* }}} int cjni_init_plugins */
-
-static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
-{
-  jclass api_class_ptr;
-  int status;
-
-  api_class_ptr = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.CollectdAPI");
-  if (api_class_ptr == NULL)
-  {
-    ERROR ("cjni_init_native: Cannot find API class `org.collectd.api.CollectdAPI'.");
-    return (-1);
-  }
-
-  status = (*jvm_env)->RegisterNatives (jvm_env, api_class_ptr,
-      jni_api_functions, (jint) jni_api_functions_num);
-  if (status != 0)
-  {
-    ERROR ("cjni_init_native: RegisterNatives failed with status %i.", status);
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int cjni_init_native */
-
-static int cjni_init (void) /* {{{ */
-{
-  JNIEnv *jvm_env;
-  JavaVMInitArgs vm_args;
-  JavaVMOption vm_options[jvm_argc];
-
-  int status;
-  size_t i;
-
-  if (jvm != NULL)
-    return (0);
-
-  jvm_env = NULL;
-
-  memset (&vm_args, 0, sizeof (vm_args));
-  vm_args.version = JNI_VERSION_1_2;
-  vm_args.options = vm_options;
-  vm_args.nOptions = (jint) jvm_argc;
-
-  for (i = 0; i < jvm_argc; i++)
-  {
-    DEBUG ("java plugin: cjni_init: jvm_argv[%zu] = %s", i, jvm_argv[i]);
-    vm_args.options[i].optionString = jvm_argv[i];
-  }
-  /*
-  vm_args.options[0].optionString = "-verbose:jni";
-  vm_args.options[1].optionString = "-Djava.class.path=/home/octo/collectd/bindings/java";
-  */
-
-  status = JNI_CreateJavaVM (&jvm, (void **) &jvm_env, (void **) &vm_args);
-  if (status != 0)
-  {
-    ERROR ("cjni_init: JNI_CreateJavaVM failed with status %i.",
-	status);
-    return (-1);
-  }
-  assert (jvm != NULL);
-  assert (jvm_env != NULL);
-
-  /* Call RegisterNatives */
-  status = cjni_init_native (jvm_env);
-  if (status != 0)
-  {
-    ERROR ("cjni_init: cjni_init_native failed.");
-    return (-1);
-  }
-
-  cjni_init_plugins (jvm_env);
-
-  return (0);
-} /* }}} int cjni_init */
-
 static int cjni_read_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
 {
   int status;
@@ -1773,13 +1574,234 @@ static int cjni_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int cjni_shutdown */
 
+static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
+{
+  jmethodID constructor_id;
+  int status;
+
+  jp->class_ptr = (*jvm_env)->FindClass (jvm_env, jp->class_name);
+  if (jp->class_ptr == NULL)
+  {
+    ERROR ("cjni_init_one_plugin: FindClass (%s) failed.",
+        jp->class_name);
+    return (-1);
+  }
+
+  constructor_id = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
+      "<init>", "()V");
+  if (constructor_id == NULL)
+  {
+    ERROR ("cjni_init_one_plugin: Could not find the constructor for `%s'.",
+        jp->class_name);
+    return (-1);
+  }
+
+  jp->object_ptr = (*jvm_env)->NewObject (jvm_env, jp->class_ptr,
+      constructor_id);
+  if (jp->object_ptr == NULL)
+  {
+    ERROR ("cjni_init_one_plugin: Could create a new `%s' object.",
+        jp->class_name);
+    return (-1);
+  }
+
+  jp->m_config = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
+      "Config", "(Lorg/collectd/api/OConfigItem;)I");
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_config = %p;",
+      jp->class_name, (void *) jp->m_config);
+
+  jp->m_init = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
+      "Init", "()I");
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_init = %p;",
+      jp->class_name, (void *) jp->m_init);
+
+  jp->m_read = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
+      "Read", "()I");
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_read = %p;",
+      jp->class_name, (void *) jp->m_read);
+
+  jp->m_write = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
+      "Write", "(Lorg/collectd/protocol/ValueList;)I");
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_write = %p;",
+      jp->class_name, (void *) jp->m_write);
+
+  jp->m_shutdown = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
+      "Shutdown", "()I");
+  DEBUG ("java plugin: cjni_init_one_plugin: "
+      "jp->class_name = %s; jp->m_shutdown = %p;",
+      jp->class_name, (void *) jp->m_shutdown);
+
+  if (jp->ci != NULL)
+  {
+    if (jp->m_config == NULL)
+    {
+      WARNING ("java plugin: Configuration for the `%s' plugin is present, "
+          "but plugin doesn't provide a configuration method.",
+          jp->class_name);
+    }
+    else /* if (jp->m_config != NULL) */
+    {
+      jobject o_ocitem;
+
+      o_ocitem = ctoj_oconfig_item (jvm_env, jp->ci);
+      if (o_ocitem == NULL)
+      {
+        ERROR ("java plugin: Creating an OConfigItem object failed. "
+            "Can't pass configuration information to the `%s' plugin!",
+            jp->class_name);
+      }
+      else /* if (o_ocitem != NULL) */
+      {
+        status = (*jvm_env)->CallIntMethod (jvm_env,
+            jp->object_ptr, jp->m_config, o_ocitem);
+        if (status != 0)
+        {
+          ERROR ("java plugin: cjni_init_one_plugin: "
+              "Configuring the `%s' object failed with status %i.",
+              jp->class_name, status);
+          (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
+          return (-1);
+        }
+        (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
+      } /* if (o_ocitem != NULL) */
+    } /* if (jp->m_config != NULL) */
+  } /* if (jp->ci != NULL) */
+
+  if (jp->m_init != NULL)
+  {
+    status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
+        jp->m_init);
+    if (status != 0)
+    {
+      ERROR ("java plugin: cjni_init_one_plugin: "
+        "Initializing `%s' object failed with status %i.",
+        jp->class_name, status);
+      return (-1);
+    }
+  }
+  jp->flags |= CJNI_FLAG_ENABLED;
+
+  return (0);
+} /* }}} int cjni_init_one_plugin */
+
+static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
+{
+  size_t j;
+
+  int have_read;
+  int have_write;
+  int have_shutdown;
+
+  have_read = 0;
+  have_write = 0;
+  have_shutdown = 0;
+
+  for (j = 0; j < java_plugins_num; j++)
+  {
+    cjni_init_one_plugin (jvm_env, &java_plugins[j]);
+
+    if (java_plugins[j].m_read != NULL)
+      have_read++;
+    if (java_plugins[j].m_write != NULL)
+      have_write++;
+    if (java_plugins[j].m_shutdown != NULL)
+      have_shutdown++;
+  }
+
+  if (have_read > 0)
+    plugin_register_read ("java", cjni_read);
+  if (have_write > 0)
+    plugin_register_write ("java", cjni_write);
+  if (have_shutdown > 0)
+    plugin_register_shutdown ("java", cjni_shutdown);
+
+
+  return (0);
+} /* }}} int cjni_init_plugins */
+
+static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
+{
+  jclass api_class_ptr;
+  int status;
+
+  api_class_ptr = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.CollectdAPI");
+  if (api_class_ptr == NULL)
+  {
+    ERROR ("cjni_init_native: Cannot find API class `org.collectd.api.CollectdAPI'.");
+    return (-1);
+  }
+
+  status = (*jvm_env)->RegisterNatives (jvm_env, api_class_ptr,
+      jni_api_functions, (jint) jni_api_functions_num);
+  if (status != 0)
+  {
+    ERROR ("cjni_init_native: RegisterNatives failed with status %i.", status);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int cjni_init_native */
+
+static int cjni_init (void) /* {{{ */
+{
+  JNIEnv *jvm_env;
+  JavaVMInitArgs vm_args;
+  JavaVMOption vm_options[jvm_argc];
+
+  int status;
+  size_t i;
+
+  if (jvm != NULL)
+    return (0);
+
+  jvm_env = NULL;
+
+  memset (&vm_args, 0, sizeof (vm_args));
+  vm_args.version = JNI_VERSION_1_2;
+  vm_args.options = vm_options;
+  vm_args.nOptions = (jint) jvm_argc;
+
+  for (i = 0; i < jvm_argc; i++)
+  {
+    DEBUG ("java plugin: cjni_init: jvm_argv[%zu] = %s", i, jvm_argv[i]);
+    vm_args.options[i].optionString = jvm_argv[i];
+  }
+  /*
+  vm_args.options[0].optionString = "-verbose:jni";
+  vm_args.options[1].optionString = "-Djava.class.path=/home/octo/collectd/bindings/java";
+  */
+
+  status = JNI_CreateJavaVM (&jvm, (void **) &jvm_env, (void **) &vm_args);
+  if (status != 0)
+  {
+    ERROR ("cjni_init: JNI_CreateJavaVM failed with status %i.",
+	status);
+    return (-1);
+  }
+  assert (jvm != NULL);
+  assert (jvm_env != NULL);
+
+  /* Call RegisterNatives */
+  status = cjni_init_native (jvm_env);
+  if (status != 0)
+  {
+    ERROR ("cjni_init: cjni_init_native failed.");
+    return (-1);
+  }
+
+  cjni_init_plugins (jvm_env);
+
+  return (0);
+} /* }}} int cjni_init */
+
 void module_register (void)
 {
   plugin_register_complex_config ("java", cjni_config);
   plugin_register_init ("java", cjni_init);
-  plugin_register_read ("java", cjni_read);
-  plugin_register_write ("java", cjni_write);
-  plugin_register_shutdown ("java", cjni_shutdown);
 } /* void module_register (void) */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
