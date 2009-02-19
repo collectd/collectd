@@ -3096,6 +3096,7 @@ AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
+AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
 AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
 AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
 AC_PLUGIN([target_notification], [yes],        [The notification target])
@@ -3295,6 +3296,7 @@ Configuration:
     snmp  . . . . . . . . $enable_snmp
     swap  . . . . . . . . $enable_swap
     syslog  . . . . . . . $enable_syslog
+    table . . . . . . . . $enable_table
     tail  . . . . . . . . $enable_tail
     tape  . . . . . . . . $enable_tape
     target_notification . $enable_target_notification

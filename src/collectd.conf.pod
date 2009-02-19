@@ -662,7 +662,7 @@ separated by dashes I<("-")>.
 
 Specifies the columns whose values will be used to create the "type-instance"
 for each row. If you specify more than one column, the value of all columns
-will be join together with the dashes I<("-")> as separation character.
+will be joined together with dashes I<("-")> as separation characters.
 
 The plugin itself does not check whether or not all built instances are
 different. It's your responsibility to assure that each is unique. This is
@@ -2436,9 +2436,105 @@ debugging support.
 
 =back
 
+=head2 Plugin C<table>
+
+The C<table plugin> provides generic means to parse tabular data and dispatch
+user specified values. Values are selected based on column numbers. For
+example, this plugin may be used to get values from the Linux L<proc(5)>
+filesystem or CSV (comma separated values) files.
+
+  <Plugin table>
+    <Table "/proc/slabinfo">
+      Instance "slabinfo"
+      Separator " "
+      <Result>
+        Type gauge
+        InstancePrefix "active_objs"
+        InstancesFrom 0
+        ValuesFrom 1
+      </Result>
+      <Result>
+        Type gauge
+        InstancePrefix "objperslab"
+        InstancesFrom 0
+        ValuesFrom 4
+      </Result>
+    </Table>
+  </Plugin>
+
+The configuration consists of one or more B<Table> blocks, each of which
+configures one file to parse. Within each B<Table> block, there are one or
+more B<Result> blocks, which configure which data to select and how to
+interpret it.
+
+The following options are available inside a B<Table> block:
+
+=over 4
+
+=item B<Instance> I<instance>
+
+If specified, I<instance> is used as the plugin instance. So, in the above
+example, the plugin name C<table-slabinfo> would be used. If omitted, the
+filename of the table is used instead, with all special characters replaced
+with an underscore (C<_>).
+
+=item B<Separator> I<string>
+
+Any character of I<string> is interpreted as a delimiter between the different
+columns of the table. A sequence of two or more contiguous delimiters in the
+table is considered to be a single delimiter, i.E<nbsp>e. there cannot be any
+empty columns. The plugin uses the L<strtok_r(3)> function to parse the lines
+of a table - see its documentation for more details. This option is mandatory.
+
+=back
+
+The following options are available inside a B<Result> block:
+
+=over 4
+
+=item B<Type> I<type>
+
+Sets the type used to dispatch the values to the daemon. Detailed information
+about types and their configuration can be found in L<types.db(5)>. This
+option is mandatory.
+
+=item B<InstancePrefix> I<prefix>
+
+If specified, prepend I<prefix> to the type instance. If omitted, only the
+B<InstancesFrom> option is considered for the type instance.
+
+=item B<InstancesFrom> I<column0> [I<column1> ...]
+
+If specified, the content of the given columns (identified by the column
+number starting at zero) will be used to create the type instance for each
+row. Multiple values (and the instance prefix) will be joined together with
+dashes (I<->) as separation character. If omitted, only the B<InstancePrefix>
+option is considered for the type instance.
+
+The plugin itself does not check whether or not all built instances are
+different. It’s your responsibility to assure that each is unique. This is
+especially true, if you do not specify B<InstancesFrom>: B<You> have to make
+sure that the table only contains one row.
+
+If neither B<InstancePrefix> nor B<InstancesFrom> is given, the type instance
+will be empty.
+
+=item B<ValuesFrom> I<column0> [I<column1> ...]
+
+Specifies the columns (identified by the column numbers starting at zero)
+whose content is used as the actual data for the data sets that are dispatched
+to the daemon. How many such columns you need is determined by the B<Type>
+setting above. If you specify too many or not enough columns, the plugin will
+complain about that and no data will be submitted to the daemon. The plugin
+uses L<strtoll(3)> and L<strtod(3)> to parse counter and gauge values
+respectively, so anything supported by those functions is supported by the
+plugin as well. This option is mandatory.
+
+=back
+
 =head2 Plugin C<tail>
 
-The C<tail plugin> plugins follows logfiles, just like L<tail(1)> does, parses
+The C<tail plugin> follows logfiles, just like L<tail(1)> does, parses
 each line and dispatches found values. What is matched can be configured by the
 user using (extended) regular expressions, as described in L<regex(7)>.
 
