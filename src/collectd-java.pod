@@ -127,7 +127,7 @@ Signature: I<int> B<Config> (I<org.collectd.api.OConfigItem>)
 This method is passed a B<OConfigItem> object, if both, method and
 configuration, are available. B<OConfigItem> is the root of a tree representing
 the configuration for this plugin. The root itself is the representation of the
-B<E<lt>PluginE<nbsp>/E<lt>> block, so in next to all cases the children of the
+B<E<lt>PluginE<nbsp>/E<gt>> block, so in next to all cases the children of the
 root are the first interesting objects.
 
 To signal success, this method has to return zero. Anything else will be
