@@ -131,7 +131,7 @@ static const translation_info_t nsstats_translation_table[] = /* {{{ */
   /* Rejects */
   { "AuthQryRej",      "dns_reject",   "authorative" },
   { "RecQryRej",       "dns_reject",   "recursive"   },
-  { "XfrRej",          "dns_reject",   "transer"     },
+  { "XfrRej",          "dns_reject",   "transfer"    },
   { "UpdateRej",       "dns_reject",   "update"      },
   /* Responses */
   { "Response",        "dns_response", "normal"      },
