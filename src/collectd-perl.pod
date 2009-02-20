@@ -297,6 +297,10 @@ there is a large number of predefined data-sets available in the B<types.db>
 file which are automatically registered with collectd - see L<types.db(5)> for
 a description of the format of this file.
 
+B<Note>: Using B<plugin_register> to register a data-set is deprecated. Add
+the new type to a custom L<types.db(5)> file instead. This functionality might
+be removed in a future version of collectd.
+
 If the I<type> argument is any of the other types (B<TYPE_INIT>, B<TYPE_READ>,
 ...) then I<data> is expected to be a function name. If the name is not
 prefixed with the plugin's package name collectd will add it automatically.
