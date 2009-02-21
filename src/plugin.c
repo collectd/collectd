@@ -41,12 +41,20 @@
 /*
  * Private structures
  */
+#define RF_SIMPLE  0
+#define RF_COMPLEX 1
 struct read_func_s
 {
 	int wait_time;
 	int wait_left;
-	int (*callback) (void);
+	int type;
+	union
+	{
+		int (*cb_simple) (void);
+		plugin_read_cb cb_complex;
+	} callback;
 	enum { DONE = 0, TODO = 1, ACTIVE = 2 } needs_read;
+	user_data_t udata;
 };
 typedef struct read_func_s read_func_t;
 
@@ -117,6 +125,16 @@ static int register_callback (llist_t **list, const char *name, void *callback)
 
 	return (0);
 } /* int register_callback */
+
+static void plugin_user_data_destroy (user_data_t *ud)
+{
+	if ((ud != NULL) && (ud->data != NULL) && (ud->free_func != NULL))
+	{
+		ud->free_func (ud->data);
+		ud->data = NULL;
+		ud->free_func = NULL;
+	}
+} /* void plugin_user_data_destroy */
 
 static int plugin_unregister (llist_t *list, const char *name)
 {
@@ -202,7 +220,15 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 					(unsigned long int) pthread_self (), le->key);
 			pthread_mutex_unlock (&read_lock);
 
-			status = rf->callback ();
+			if (rf->type == RF_SIMPLE)
+			{
+				status = rf->callback.cb_simple ();
+			}
+			else
+			{
+				assert (rf->type == RF_COMPLEX);
+				status = rf->callback.cb_complex (&rf->udata);
+			}
 			done++;
 
 			if (status != 0)
@@ -436,19 +462,76 @@ int plugin_register_read (const char *name,
 		return (-1);
 	}
 
-	memset (rf, '\0', sizeof (read_func_t));
+	memset (rf, 0, sizeof (read_func_t));
 	rf->wait_time = interval_g;
 	rf->wait_left = 0;
-	rf->callback = callback;
+	rf->type = RF_SIMPLE;
+	rf->callback.cb_simple = callback;
 	rf->needs_read = DONE;
+	rf->udata.data = NULL;
+	rf->udata.free_func = NULL;
 
 	return (register_callback (&list_read, name, (void *) rf));
 } /* int plugin_register_read */
 
-int plugin_register_write (const char *name,
-		int (*callback) (const data_set_t *ds, const value_list_t *vl))
+int plugin_register_complex_read (const char *name,
+		plugin_read_cb callback, user_data_t *user_data)
 {
-	return (register_callback (&list_write, name, (void *) callback));
+	read_func_t *rf;
+
+	rf = (read_func_t *) malloc (sizeof (read_func_t));
+	if (rf == NULL)
+	{
+		ERROR ("plugin_register_complex_read: malloc failed.");
+		return (-1);
+	}
+
+	memset (rf, 0, sizeof (read_func_t));
+	rf->wait_time = interval_g;
+	rf->wait_left = 0;
+	rf->type = RF_COMPLEX;
+	rf->callback.cb_complex = callback;
+	rf->needs_read = DONE;
+
+	/* Set user data */
+	if (user_data == NULL)
+	{
+		rf->udata.data = NULL;
+		rf->udata.free_func = NULL;
+	}
+	else
+	{
+		rf->udata = *user_data;
+	}
+
+	return (register_callback (&list_read, name, (void *) rf));
+} /* int plugin_register_complex_read */
+
+int plugin_register_write (const char *name,
+		plugin_write_cb callback, user_data_t *user_data)
+{
+	write_func_t *wr;
+
+	wr = (write_func_t *) malloc (sizeof (*wr));
+	if (wr == NULL)
+	{
+		ERROR ("plugin_register_write: malloc failed.");
+		return (-1);
+	}
+	memset (wr, 0, sizeof (*wr));
+
+	wr->callback = callback;
+	if (user_data == NULL)
+	{
+		wr->udata.data = NULL;
+		wr->udata.free_func = NULL;
+	}
+	else
+	{
+		wr->udata = *user_data;
+	}
+
+	return (register_callback (&list_write, name, (void *) wr));
 } /* int plugin_register_write */
 
 int plugin_register_flush (const char *name,
@@ -532,6 +615,7 @@ int plugin_unregister_init (const char *name)
 int plugin_unregister_read (const char *name)
 {
 	llentry_t *e;
+	read_func_t *rf;
 
 	e = llist_search (list_read, name);
 
@@ -539,8 +623,12 @@ int plugin_unregister_read (const char *name)
 		return (-1);
 
 	llist_remove (list_read, e);
-	free (e->value);
+
+	rf = (read_func_t *) e->value;
+	plugin_user_data_destroy (&rf->udata);
+	free (rf);
 	free (e->key);
+
 	llentry_destroy (e);
 
 	return (0);
@@ -702,7 +790,17 @@ int plugin_read_all_once (void)
 	     le = le->next)
 	{
 		rf = (read_func_t *) le->value;
-		status = rf->callback ();
+
+		if (rf->type == RF_SIMPLE)
+		{
+			status = rf->callback.cb_simple ();
+		}
+		else
+		{
+			assert (rf->type == RF_COMPLEX);
+			status = rf->callback.cb_complex (&rf->udata);
+		}
+
 		if (status != 0)
 		{
 			NOTICE ("read-function of plugin `%s' failed.",
