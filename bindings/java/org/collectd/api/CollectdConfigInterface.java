@@ -1,5 +1,5 @@
 /*
- * collectd/java - org/collectd/api/CollectdAPI.java
+ * collectd/java - org/collectd/api/CollectdConfigInterface.java
  * Copyright (C) 2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -21,15 +21,7 @@
 
 package org.collectd.api;
 
-import java.util.List;
-import org.collectd.api.ValueList;
-import org.collectd.api.DataSource;
-
-public class CollectdAPI
+public interface CollectdConfigInterface
 {
-  native public static int DispatchValues (ValueList vl);
-
-  native public static List<DataSource> GetDS (String type);
-} /* class CollectdAPI */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */
+	int Config (OConfigItem ci);
+}

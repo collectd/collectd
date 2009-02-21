@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-package org.collectd.protocol;
+package org.collectd.api;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,13 +58,17 @@ public class ValueList extends PluginData {
         _values.add(value);
     }
 
+    /* Used by the network parsing code */
+    public void clearValues () {
+        _values.clear ();
+    }
+
     public List<DataSource> getDataSource() {
         if (_ds.size() > 0) {
             return _ds;
         }
         else {
-            TypesDB db = TypesDB.getInstance();
-            return db.getType(_type);
+            return null;
         }
     }
 

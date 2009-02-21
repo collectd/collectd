@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-package org.collectd.protocol;
+package org.collectd.api;
 
 import java.util.Date;
 
