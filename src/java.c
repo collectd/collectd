@@ -257,7 +257,7 @@ static jobject ctoj_value_to_number (JNIEnv *jvm_env, /* {{{ */
     return (NULL);
 } /* }}} jobject ctoj_value_to_number */
 
-/* Convert a data_source_t to a org.collectd.protocol.DataSource */
+/* Convert a data_source_t to a org.collectd.api.DataSource */
 static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
     const data_source_t *dsrc)
 {
@@ -268,11 +268,11 @@ static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
 
   /* Look up the DataSource class */
   c_datasource = (*jvm_env)->FindClass (jvm_env,
-      "org.collectd.protocol.DataSource");
+      "org.collectd.api.DataSource");
   if (c_datasource == NULL)
   {
     ERROR ("java plugin: ctoj_data_source: "
-        "FindClass (org.collectd.protocol.DataSource) failed.");
+        "FindClass (org.collectd.api.DataSource) failed.");
     return (NULL);
   }
 
@@ -710,11 +710,11 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   /* First, create a new ValueList instance..
    * Look up the class.. */
   c_valuelist = (*jvm_env)->FindClass (jvm_env,
-      "org.collectd.protocol.ValueList");
+      "org.collectd.api.ValueList");
   if (c_valuelist == NULL)
   {
     ERROR ("java plugin: ctoj_value_list: "
-        "FindClass (org.collectd.protocol.ValueList) failed.");
+        "FindClass (org.collectd.api.ValueList) failed.");
     return (NULL);
   }
 
@@ -1038,7 +1038,7 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int jtoc_values_array */
 
-/* Convert a org.collectd.protocol.ValueList to a value_list_t. */
+/* Convert a org.collectd.api.ValueList to a value_list_t. */
 static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     jobject object_ptr)
 {
@@ -1163,7 +1163,7 @@ static jobject JNICALL cjni_api_get_ds (JNIEnv *jvm_env, /* {{{ */
 
 static JNINativeMethod jni_api_functions[] =
 {
-  { "DispatchValues", "(Lorg/collectd/protocol/ValueList;)I", cjni_api_dispatch_values },
+  { "DispatchValues", "(Lorg/collectd/api/ValueList;)I", cjni_api_dispatch_values },
   { "GetDS",          "(Ljava/lang/String;)Ljava/util/List;", cjni_api_get_ds }
 };
 static size_t jni_api_functions_num = sizeof (jni_api_functions)
@@ -1724,7 +1724,7 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
       jp->class_name, (void *) jp->m_read);
 
   jp->m_write = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Write", "(Lorg/collectd/protocol/ValueList;)I");
+      "Write", "(Lorg/collectd/api/ValueList;)I");
   DEBUG ("java plugin: cjni_init_one_plugin: "
       "jp->class_name = %s; jp->m_write = %p;",
       jp->class_name, (void *) jp->m_write);
