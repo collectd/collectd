@@ -264,7 +264,6 @@ int plugin_unregister_notification (const char *name);
  *              function.
  */
 int plugin_dispatch_values (value_list_t *vl);
-int plugin_dispatch_values_async (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);
 
