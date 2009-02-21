@@ -1464,64 +1464,6 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int cjni_config */
 
-static int cjni_read_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
-{
-  int status;
-
-  if ((jp == NULL)
-      || ((jp->flags & CJNI_FLAG_ENABLED) == 0)
-      || (jp->m_read == NULL))
-    return (0);
-
-  DEBUG ("java plugin: Calling: %s.Read()", jp->class_name);
-
-  status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
-      jp->m_read);
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read_one_plugin: "
-        "Calling `Read' on an `%s' object failed with status %i.",
-        jp->class_name, status);
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int cjni_read_one_plugin */
-
-static int cjni_read_plugins (JNIEnv *jvm_env) /* {{{ */
-{
-  size_t j;
-
-  for (j = 0; j < java_plugins_num; j++)
-    cjni_read_one_plugin (jvm_env, &java_plugins[j]);
-
-  return (0);
-} /* }}} int cjni_read_plugins */
-
-static int cjni_read (void) /* {{{ */
-{
-  JNIEnv *jvm_env;
-  int status;
-
-  if (jvm == NULL)
-  {
-    ERROR ("java plugin: cjni_read: jvm == NULL");
-    return (-1);
-  }
-
-  jvm_env = cjni_thread_attach ();
-  if (jvm_env == NULL)
-    return (-1);
-
-  cjni_read_plugins (jvm_env);
-
-  status = cjni_thread_detach ();
-  if (status != 0)
-    return (-1);
-
-  return (0);
-} /* }}} int cjni_read */
-
 static int cjni_write_one_plugin (JNIEnv *jvm_env, /* {{{ */
     java_plugin_t *jp, jobject vl_java)
 {
@@ -1547,31 +1489,12 @@ static int cjni_write_one_plugin (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int cjni_write_one_plugin */
 
-static int cjni_write_plugins (JNIEnv *jvm_env, /* {{{ */
-    const data_set_t *ds, const value_list_t *vl)
-{
-  size_t j;
-
-  jobject vl_java;
-
-  vl_java = ctoj_value_list (jvm_env, ds, vl);
-  if (vl_java == NULL)
-  {
-    ERROR ("java plugin: cjni_write_plugins: ctoj_value_list failed.");
-    return (-1);
-  }
-
-  for (j = 0; j < java_plugins_num; j++)
-    cjni_write_one_plugin (jvm_env, &java_plugins[j], vl_java);
-
-  (*jvm_env)->DeleteLocalRef (jvm_env, vl_java);
-
-  return (0);
-} /* }}} int cjni_write_plugins */
-
-static int cjni_write (const data_set_t *ds, const value_list_t *vl) /* {{{ */
+static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
+    user_data_t __attribute__((unused)) *user_data)
 {
   JNIEnv *jvm_env;
+  java_plugin_t *jp;
+  jobject vl_java;
   int status;
 
   if (jvm == NULL)
@@ -1580,11 +1503,28 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl) /* {{{ */
     return (-1);
   }
 
+  if ((user_data == NULL) || (user_data->data == NULL))
+  {
+    ERROR ("java plugin: cjni_read: Invalid user data.");
+    return (-1);
+  }
+
   jvm_env = cjni_thread_attach ();
   if (jvm_env == NULL)
     return (-1);
 
-  cjni_write_plugins (jvm_env, ds, vl);
+  vl_java = ctoj_value_list (jvm_env, ds, vl);
+  if (vl_java == NULL)
+  {
+    ERROR ("java plugin: cjni_write_plugins: ctoj_value_list failed.");
+    return (-1);
+  }
+
+  jp = (java_plugin_t *) user_data->data;
+
+  cjni_write_one_plugin (jvm_env, jp, vl_java);
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, vl_java);
 
   status = cjni_thread_detach ();
   if (status != 0)
@@ -1674,8 +1614,66 @@ static int cjni_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int cjni_shutdown */
 
+static int cjni_read_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
+{
+  int status;
+
+  if ((jp == NULL)
+      || ((jp->flags & CJNI_FLAG_ENABLED) == 0)
+      || (jp->m_read == NULL))
+    return (0);
+
+  DEBUG ("java plugin: Calling: %s.Read()", jp->class_name);
+
+  status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
+      jp->m_read);
+  if (status != 0)
+  {
+    ERROR ("java plugin: cjni_read_one_plugin: "
+        "Calling `Read' on an `%s' object failed with status %i.",
+        jp->class_name, status);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int cjni_read_one_plugin */
+
+static int cjni_read (user_data_t *user_data) /* {{{ */
+{
+  JNIEnv *jvm_env;
+  java_plugin_t *jp;
+  int status;
+
+  if (jvm == NULL)
+  {
+    ERROR ("java plugin: cjni_read: jvm == NULL");
+    return (-1);
+  }
+
+  if ((user_data == NULL) || (user_data->data == NULL))
+  {
+    ERROR ("java plugin: cjni_read: Invalid user data.");
+    return (-1);
+  }
+
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
+    return (-1);
+
+  jp = (java_plugin_t *) user_data->data;
+
+  cjni_read_one_plugin (jvm_env, jp);
+
+  status = cjni_thread_detach ();
+  if (status != 0)
+    return (-1);
+
+  return (0);
+} /* }}} int cjni_read */
+
 static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
 {
+  char plugin_name[128];
   jmethodID constructor_id;
   int status;
 
@@ -1785,40 +1783,49 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
   }
   jp->flags |= CJNI_FLAG_ENABLED;
 
+  ssnprintf (plugin_name, sizeof (plugin_name), "java:%s", jp->class_name);
+  if (jp->m_read != NULL)
+  {
+    user_data_t ud;
+
+    memset (&ud, 0, sizeof (ud));
+    ud.data = jp;
+    ud.free_func = NULL;
+
+    plugin_register_complex_read (plugin_name, cjni_read, &ud);
+  }
+
+  if (jp->m_write != NULL)
+  {
+    user_data_t ud;
+
+    memset (&ud, 0, sizeof (ud));
+    ud.data = jp;
+    ud.free_func = NULL;
+
+    plugin_register_write (plugin_name, cjni_write, &ud);
+  }
+
   return (0);
 } /* }}} int cjni_init_one_plugin */
 
 static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
 {
+  int have_shutdown;
   size_t j;
 
-  int have_read;
-  int have_write;
-  int have_shutdown;
-
-  have_read = 0;
-  have_write = 0;
   have_shutdown = 0;
 
   for (j = 0; j < java_plugins_num; j++)
   {
     cjni_init_one_plugin (jvm_env, &java_plugins[j]);
 
-    if (java_plugins[j].m_read != NULL)
-      have_read++;
-    if (java_plugins[j].m_write != NULL)
-      have_write++;
     if (java_plugins[j].m_shutdown != NULL)
       have_shutdown++;
   }
 
-  if (have_read > 0)
-    plugin_register_read ("java", cjni_read);
-  if (have_write > 0)
-    plugin_register_write ("java", cjni_write);
   if (have_shutdown > 0)
     plugin_register_shutdown ("java", cjni_shutdown);
-
 
   return (0);
 } /* }}} int cjni_init_plugins */
