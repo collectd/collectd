@@ -55,10 +55,19 @@ struct java_plugin_s /* {{{ */
 typedef struct java_plugin_s java_plugin_t;
 /* }}} */
 
+struct cjni_jvm_env_s /* {{{ */
+{
+  JNIEnv *jvm_env;
+  int reference_counter;
+};
+typedef struct cjni_jvm_env_s cjni_jvm_env_t;
+/* }}} */
+
 /*
  * Global variables
  */
 static JavaVM *jvm = NULL;
+static pthread_key_t jvm_env_key;
 
 static char **jvm_argv = NULL;
 static size_t jvm_argc = 0;
@@ -1118,7 +1127,7 @@ static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
     return (-1);
   }
 
-  status = plugin_dispatch_values_async (&vl);
+  status = plugin_dispatch_values (&vl);
 
   sfree (vl.values);
 
@@ -1163,6 +1172,121 @@ static size_t jni_api_functions_num = sizeof (jni_api_functions)
 /*
  * Functions
  */
+static JNIEnv *cjni_thread_attach (void) /* {{{ */
+{
+  cjni_jvm_env_t *cjni_env;
+  JNIEnv *jvm_env;
+
+  cjni_env = pthread_getspecific (jvm_env_key);
+  if (cjni_env == NULL)
+  {
+    /* This pointer is free'd in `cjni_jvm_env_destroy'. */
+    cjni_env = (cjni_jvm_env_t *) malloc (sizeof (*cjni_env));
+    if (cjni_env == NULL)
+    {
+      ERROR ("java plugin: cjni_thread_attach: malloc failed.");
+      return (NULL);
+    }
+    memset (cjni_env, 0, sizeof (*cjni_env));
+    cjni_env->reference_counter = 0;
+    cjni_env->jvm_env = NULL;
+
+    pthread_setspecific (jvm_env_key, cjni_env);
+  }
+
+  if (cjni_env->reference_counter > 0)
+  {
+    cjni_env->reference_counter++;
+    jvm_env = cjni_env->jvm_env;
+  }
+  else
+  {
+    int status;
+    JavaVMAttachArgs args;
+
+    assert (cjni_env->jvm_env == NULL);
+
+    memset (&args, 0, sizeof (args));
+    args.version = JNI_VERSION_1_2;
+
+    status = (*jvm)->AttachCurrentThread (jvm, (void *) &jvm_env, (void *) &args);
+    if (status != 0)
+    {
+      ERROR ("java plugin: cjni_thread_attach: AttachCurrentThread failed "
+          "with status %i.", status);
+      return (NULL);
+    }
+
+    cjni_env->reference_counter = 1;
+    cjni_env->jvm_env = jvm_env;
+  }
+
+  DEBUG ("java plugin: cjni_thread_attach: cjni_env->reference_counter = %i",
+      cjni_env->reference_counter);
+  assert (jvm_env != NULL);
+  return (jvm_env);
+} /* }}} JNIEnv *cjni_thread_attach */
+
+static int cjni_thread_detach (void) /* {{{ */
+{
+  cjni_jvm_env_t *cjni_env;
+  int status;
+
+  cjni_env = pthread_getspecific (jvm_env_key);
+  if (cjni_env == NULL)
+  {
+    ERROR ("java plugin: cjni_thread_detach: pthread_getspecific failed.");
+    return (-1);
+  }
+
+  assert (cjni_env->reference_counter > 0);
+  assert (cjni_env->jvm_env != NULL);
+
+  cjni_env->reference_counter--;
+  DEBUG ("java plugin: cjni_thread_detach: cjni_env->reference_counter = %i",
+      cjni_env->reference_counter);
+
+  if (cjni_env->reference_counter > 0)
+    return (0);
+
+  status = (*jvm)->DetachCurrentThread (jvm);
+  if (status != 0)
+  {
+    ERROR ("java plugin: cjni_thread_detach: DetachCurrentThread failed "
+        "with status %i.", status);
+  }
+
+  cjni_env->reference_counter = 0;
+  cjni_env->jvm_env = NULL;
+
+  return (0);
+} /* }}} JNIEnv *cjni_thread_attach */
+
+static void cjni_jvm_env_destroy (void *args) /* {{{ */
+{
+  cjni_jvm_env_t *cjni_env;
+
+  if (args == NULL)
+    return;
+
+  cjni_env = (cjni_jvm_env_t *) args;
+
+  if (cjni_env->reference_counter > 0)
+  {
+    ERROR ("java plugin: cjni_jvm_env_destroy: "
+        "cjni_env->reference_counter = %i;", cjni_env->reference_counter);
+  }
+
+  if (cjni_env->jvm_env != NULL)
+  {
+    ERROR ("java plugin: cjni_jvm_env_destroy: cjni_env->jvm_env = %p;",
+        (void *) cjni_env->jvm_env);
+  }
+
+  /* The pointer is allocated in `cjni_thread_attach' */
+  free (cjni_env);
+} /* }}} void cjni_jvm_env_destroy */
+
 static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
 {
   char **tmp;
@@ -1377,7 +1501,6 @@ static int cjni_read_plugins (JNIEnv *jvm_env) /* {{{ */
 static int cjni_read (void) /* {{{ */
 {
   JNIEnv *jvm_env;
-  JavaVMAttachArgs args;
   int status;
 
   if (jvm == NULL)
@@ -1386,27 +1509,15 @@ static int cjni_read (void) /* {{{ */
     return (-1);
   }
 
-  jvm_env = NULL;
-  memset (&args, 0, sizeof (args));
-  args.version = JNI_VERSION_1_2;
-
-  status = (*jvm)->AttachCurrentThread (jvm, (void **) &jvm_env, &args);
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read: AttachCurrentThread failed with status %i.",
-        status);
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
     return (-1);
-  }
 
   cjni_read_plugins (jvm_env);
 
-  status = (*jvm)->DetachCurrentThread (jvm);
+  status = cjni_thread_detach ();
   if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read: DetachCurrentThread failed with status %i.",
-        status);
     return (-1);
-  }
 
   return (0);
 } /* }}} int cjni_read */
@@ -1461,7 +1572,6 @@ static int cjni_write_plugins (JNIEnv *jvm_env, /* {{{ */
 static int cjni_write (const data_set_t *ds, const value_list_t *vl) /* {{{ */
 {
   JNIEnv *jvm_env;
-  JavaVMAttachArgs args;
   int status;
 
   if (jvm == NULL)
@@ -1470,27 +1580,15 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl) /* {{{ */
     return (-1);
   }
 
-  jvm_env = NULL;
-  memset (&args, 0, sizeof (args));
-  args.version = JNI_VERSION_1_2;
-
-  status = (*jvm)->AttachCurrentThread (jvm, (void **) &jvm_env, &args);
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_write: AttachCurrentThread failed with status %i.",
-        status);
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
     return (-1);
-  }
 
   cjni_write_plugins (jvm_env, ds, vl);
 
-  status = (*jvm)->DetachCurrentThread (jvm);
+  status = cjni_thread_detach ();
   if (status != 0)
-  {
-    ERROR ("java plugin: cjni_write: DetachCurrentThread failed with status %i.",
-        status);
     return (-1);
-  }
 
   return (0);
 } /* }}} int cjni_write */
@@ -1555,6 +1653,8 @@ static int cjni_shutdown (void) /* {{{ */
   (*jvm)->DestroyJavaVM (jvm);
   jvm = NULL;
   jvm_env = NULL;
+
+  pthread_key_delete (jvm_env_key);
 
   for (i = 0; i < jvm_argc; i++)
   {
@@ -1757,6 +1857,14 @@ static int cjni_init (void) /* {{{ */
 
   if (jvm != NULL)
     return (0);
+
+  status = pthread_key_create (&jvm_env_key, cjni_jvm_env_destroy);
+  if (status != 0)
+  {
+    ERROR ("java plugin: cjni_init: pthread_key_create failed "
+        "with status %i.", status);
+    return (-1);
+  }
 
   jvm_env = NULL;
 
