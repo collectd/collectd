@@ -58,6 +58,13 @@ struct read_func_s
 };
 typedef struct read_func_s read_func_t;
 
+struct write_func_s
+{
+	plugin_write_cb callback;
+	user_data_t udata;
+};
+typedef struct write_func_s write_func_t;
+
 /*
  * Private variables
  */
@@ -636,7 +643,24 @@ int plugin_unregister_read (const char *name)
 
 int plugin_unregister_write (const char *name)
 {
-	return (plugin_unregister (list_write, name));
+	llentry_t *e;
+	write_func_t *wf;
+
+	e = llist_search (list_write, name);
+
+	if (e == NULL)
+		return (-1);
+
+	llist_remove (list_write, e);
+
+	wf = (write_func_t *) e->value;
+	plugin_user_data_destroy (&wf->udata);
+	free (wf);
+	free (e->key);
+
+	llentry_destroy (e);
+
+	return (0);
 }
 
 int plugin_unregister_flush (const char *name)
@@ -815,7 +839,6 @@ int plugin_read_all_once (void)
 int plugin_write (const char *plugin, /* {{{ */
 		const data_set_t *ds, const value_list_t *vl)
 {
-  int (*callback) (const data_set_t *ds, const value_list_t *vl);
   llentry_t *le;
   int status;
 
@@ -843,8 +866,10 @@ int plugin_write (const char *plugin, /* {{{ */
     le = llist_head (list_write);
     while (le != NULL)
     {
-      callback = le->value;
-      status = (*callback) (ds, vl);
+      write_func_t *wf = le->value;
+
+      DEBUG ("plugin: plugin_write: Writing values via %s.", le->key);
+      status = wf->callback (ds, vl, &wf->udata);
       if (status != 0)
         failure++;
       else
@@ -860,6 +885,7 @@ int plugin_write (const char *plugin, /* {{{ */
   }
   else /* plugin != NULL */
   {
+    write_func_t *wf;
     le = llist_head (list_write);
     while (le != NULL)
     {
@@ -872,8 +898,10 @@ int plugin_write (const char *plugin, /* {{{ */
     if (le == NULL)
       return (ENOENT);
 
-    callback = le->value;
-    status = (*callback) (ds, vl);
+    wf = le->value;
+
+    DEBUG ("plugin: plugin_write: Writing values via %s.", le->key);
+    status = wf->callback (ds, vl, &wf->udata);
   }
 
   return (status);

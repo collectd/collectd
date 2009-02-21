@@ -1507,7 +1507,8 @@ static void flush_buffer (void)
 	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 }
 
-static int network_write (const data_set_t *ds, const value_list_t *vl)
+static int network_write (const data_set_t *ds, const value_list_t *vl,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	int status;
 
@@ -1767,7 +1768,8 @@ static int network_init (void)
 	/* setup socket(s) and so on */
 	if (sending_sockets != NULL)
 	{
-		plugin_register_write ("network", network_write);
+		plugin_register_write ("network", network_write,
+				/* user_data = */ NULL);
 		plugin_register_notification ("network", network_notification);
 	}
 

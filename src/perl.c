@@ -1907,7 +1907,8 @@ static int perl_read (void)
 	return pplugin_call_all (aTHX_ PLUGIN_READ);
 } /* static int perl_read (void) */
 
-static int perl_write (const data_set_t *ds, const value_list_t *vl)
+static int perl_write (const data_set_t *ds, const value_list_t *vl,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -2221,7 +2222,7 @@ static int init_pi (int argc, char **argv)
 
 	plugin_register_read ("perl", perl_read);
 
-	plugin_register_write ("perl", perl_write);
+	plugin_register_write ("perl", perl_write, /* user_data = */ NULL);
 	plugin_register_flush ("perl", perl_flush);
 	plugin_register_shutdown ("perl", perl_shutdown);
 	return 0;

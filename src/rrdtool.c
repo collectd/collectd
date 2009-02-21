@@ -746,7 +746,8 @@ static int rrd_compare_numeric (const void *a_ptr, const void *b_ptr)
 		return (0);
 } /* int rrd_compare_numeric */
 
-static int rrd_write (const data_set_t *ds, const value_list_t *vl)
+static int rrd_write (const data_set_t *ds, const value_list_t *vl,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	struct stat  statbuf;
 	char         filename[512];
@@ -1046,7 +1047,7 @@ void module_register (void)
 	plugin_register_config ("rrdtool", rrd_config,
 			config_keys, config_keys_num);
 	plugin_register_init ("rrdtool", rrd_init);
-	plugin_register_write ("rrdtool", rrd_write);
+	plugin_register_write ("rrdtool", rrd_write, /* user_data = */ NULL);
 	plugin_register_flush ("rrdtool", rrd_flush);
 	plugin_register_shutdown ("rrdtool", rrd_shutdown);
 }
