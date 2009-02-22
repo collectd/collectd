@@ -1973,7 +1973,8 @@ static int perl_notify (const notification_t *notif)
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
-static int perl_flush (int timeout, const char *identifier)
+static int perl_flush (int timeout, const char *identifier,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -2226,7 +2227,7 @@ static int init_pi (int argc, char **argv)
 	plugin_register_read ("perl", perl_read);
 
 	plugin_register_write ("perl", perl_write, /* user_data = */ NULL);
-	plugin_register_flush ("perl", perl_flush);
+	plugin_register_flush ("perl", perl_flush, /* user_data = */ NULL);
 	plugin_register_shutdown ("perl", perl_shutdown);
 	return 0;
 } /* static int init_pi (const char **, const int) */

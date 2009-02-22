@@ -795,7 +795,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 	return (status);
 } /* int rrd_write */
 
-static int rrd_flush (int timeout, const char *identifier)
+static int rrd_flush (int timeout, const char *identifier,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	pthread_mutex_lock (&cache_lock);
 
@@ -1048,6 +1049,6 @@ void module_register (void)
 			config_keys, config_keys_num);
 	plugin_register_init ("rrdtool", rrd_init);
 	plugin_register_write ("rrdtool", rrd_write, /* user_data = */ NULL);
-	plugin_register_flush ("rrdtool", rrd_flush);
+	plugin_register_flush ("rrdtool", rrd_flush, /* user_data = */ NULL);
 	plugin_register_shutdown ("rrdtool", rrd_shutdown);
 }

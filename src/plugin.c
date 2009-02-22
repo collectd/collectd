@@ -65,6 +65,13 @@ struct write_func_s
 };
 typedef struct write_func_s write_func_t;
 
+struct flush_func_s
+{
+	plugin_flush_cb callback;
+	user_data_t udata;
+};
+typedef struct flush_func_s flush_func_t;
+
 /*
  * Private variables
  */
@@ -547,34 +554,55 @@ int plugin_register_complex_read (const char *name,
 int plugin_register_write (const char *name,
 		plugin_write_cb callback, user_data_t *user_data)
 {
-	write_func_t *wr;
+	write_func_t *wf;
 
-	wr = (write_func_t *) malloc (sizeof (*wr));
-	if (wr == NULL)
+	wf = (write_func_t *) malloc (sizeof (*wf));
+	if (wf == NULL)
 	{
 		ERROR ("plugin_register_write: malloc failed.");
 		return (-1);
 	}
-	memset (wr, 0, sizeof (*wr));
+	memset (wf, 0, sizeof (*wf));
 
-	wr->callback = callback;
+	wf->callback = callback;
 	if (user_data == NULL)
 	{
-		wr->udata.data = NULL;
-		wr->udata.free_func = NULL;
+		wf->udata.data = NULL;
+		wf->udata.free_func = NULL;
 	}
 	else
 	{
-		wr->udata = *user_data;
+		wf->udata = *user_data;
 	}
 
-	return (register_callback (&list_write, name, (void *) wr));
+	return (register_callback (&list_write, name, (void *) wf));
 } /* int plugin_register_write */
 
 int plugin_register_flush (const char *name,
-		int (*callback) (const int timeout, const char *identifier))
+		plugin_flush_cb callback, user_data_t *user_data)
 {
-	return (register_callback (&list_flush, name, (void *) callback));
+	flush_func_t *ff;
+
+	ff = (flush_func_t *) malloc (sizeof (*ff));
+	if (ff == NULL)
+	{
+		ERROR ("plugin_register_flush: malloc failed.");
+		return (-1);
+	}
+	memset (ff, 0, sizeof (*ff));
+
+	ff->callback = callback;
+	if (user_data == NULL)
+	{
+		ff->udata.data = NULL;
+		ff->udata.free_func = NULL;
+	}
+	else
+	{
+		ff->udata = *user_data;
+	}
+
+	return (register_callback (&list_flush, name, (void *) ff));
 } /* int plugin_register_flush */
 
 int plugin_register_shutdown (char *name,
@@ -695,7 +723,24 @@ int plugin_unregister_write (const char *name)
 
 int plugin_unregister_flush (const char *name)
 {
-	return (plugin_unregister (list_flush, name));
+	llentry_t *e;
+	flush_func_t *ff;
+
+	e = llist_search (list_flush, name);
+
+	if (e == NULL)
+		return (-1);
+
+	llist_remove (list_flush, e);
+
+	ff = (flush_func_t *) e->value;
+	plugin_user_data_destroy (&ff->udata);
+	free (ff);
+	free (e->key);
+
+	llentry_destroy (e);
+
+	return (0);
 }
 
 int plugin_unregister_shutdown (const char *name)
@@ -939,7 +984,6 @@ int plugin_write (const char *plugin, /* {{{ */
 
 int plugin_flush (const char *plugin, int timeout, const char *identifier)
 {
-  int (*callback) (int timeout, const char *identifier);
   llentry_t *le;
 
   if (list_flush == NULL)
@@ -948,6 +992,8 @@ int plugin_flush (const char *plugin, int timeout, const char *identifier)
   le = llist_head (list_flush);
   while (le != NULL)
   {
+    flush_func_t *ff;
+
     if ((plugin != NULL)
         && (strcmp (plugin, le->key) != 0))
     {
@@ -955,8 +1001,9 @@ int plugin_flush (const char *plugin, int timeout, const char *identifier)
       continue;
     }
 
-    callback = (int (*) (int, const char *)) le->value;
-    (*callback) (timeout, identifier);
+    ff = (flush_func_t *) le->value;
+
+    ff->callback (timeout, identifier, &ff->udata);
 
     le = le->next;
   }
