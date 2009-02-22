@@ -21,6 +21,11 @@
 
 package org.collectd.api;
 
+/**
+ * Java representation of collectd/src/liboconfig/oconfig.h:oconfig_value_t structure.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ */
 public class OConfigValue
 {
   public static final int OCONFIG_TYPE_STRING  = 0;

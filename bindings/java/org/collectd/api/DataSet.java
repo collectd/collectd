@@ -24,6 +24,11 @@ package org.collectd.api;
 import java.util.List;
 import java.util.ArrayList;
 
+/**
+ * Java representation of collectd/src/plugin.h:data_set_t structure.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ */
 public class DataSet
 {
     private String _type;

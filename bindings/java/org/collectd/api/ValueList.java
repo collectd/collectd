@@ -26,10 +26,10 @@ import java.util.List;
  */
 public class ValueList extends PluginData {
 
-    List<Number> _values = new ArrayList<Number>();
-    List<DataSource> _ds = new ArrayList<DataSource>();
+    private List<Number> _values = new ArrayList<Number>();
+    private DataSet _ds;
 
-    long _interval;
+    private long _interval;
 
     public ValueList() {
         
@@ -43,7 +43,7 @@ public class ValueList extends PluginData {
         this((PluginData)vl);
         _interval = vl._interval;
         _values.addAll(vl.getValues());
-        _ds.addAll(vl._ds);
+	_ds = vl._ds;
     }
 
     public List<Number> getValues() {
@@ -63,17 +63,28 @@ public class ValueList extends PluginData {
         _values.clear ();
     }
 
+    /**
+     * @deprecated Use {@link #getDataSet()} instead.
+     */
     public List<DataSource> getDataSource() {
-        if (_ds.size() > 0) {
-            return _ds;
-        }
-        else {
+        if (_ds == null)
             return null;
-        }
+        return _ds.getDataSources ();
     }
 
-    public void setDataSource(List<DataSource> ds) {
+    public DataSet getDataSet () {
+        return _ds;
+    }
+
+    public void setDataSet (DataSet ds) {
         _ds = ds;
+    }
+
+    /**
+     * @deprecated Use {@link #setDataSet(DataSet)} instead.
+     */
+    public void setDataSource(List<DataSource> dsrc) {
+        _ds = new DataSet (_type, dsrc);
     }
 
     public long getInterval() {
@@ -107,3 +118,5 @@ public class ValueList extends PluginData {
         return sb.toString();
     }
 }
+
+/* vim: set sw=4 sts=4 et : */

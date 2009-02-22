@@ -21,15 +21,11 @@
 
 package org.collectd.api;
 
-import java.util.List;
-import org.collectd.api.ValueList;
-import org.collectd.api.DataSource;
-
 public class CollectdAPI
 {
   native public static int DispatchValues (ValueList vl);
 
-  native public static List<DataSource> GetDS (String type);
+  native public static DataSet GetDS (String type);
 } /* class CollectdAPI */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

@@ -111,9 +111,6 @@ static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
   /* Decrease reference counter on the java.lang.String object. */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_string);
 
-  DEBUG ("java plugin: ctoj_string: ->%s (%s);",
-      method_name, (string != NULL) ? string : "");
-
   return (0);
 } /* }}} int ctoj_string */
 
@@ -134,9 +131,6 @@ static int ctoj_int (JNIEnv *jvm_env, /* {{{ */
   }
 
   (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_set, value);
-
-  DEBUG ("java plugin: ctoj_int: ->%s (%i);",
-      method_name, (int) value);
 
   return (0);
 } /* }}} int ctoj_int */
@@ -159,9 +153,6 @@ static int ctoj_long (JNIEnv *jvm_env, /* {{{ */
 
   (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_set, value);
 
-  DEBUG ("java plugin: ctoj_long: ->%s (%"PRIi64");",
-      method_name, (int64_t) value);
-
   return (0);
 } /* }}} int ctoj_long */
 
@@ -182,9 +173,6 @@ static int ctoj_double (JNIEnv *jvm_env, /* {{{ */
   }
 
   (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_set, value);
-
-  DEBUG ("java plugin: ctoj_double: ->%s (%g);",
-      method_name, (double) value);
 
   return (0);
 } /* }}} int ctoj_double */
@@ -556,56 +544,67 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
   return (o_ocitem);
 } /* }}} jobject ctoj_oconfig_item */
 
-/* Convert a data_set_t to a java.util.List<DataSource> */
+/* Convert a data_set_t to a org.collectd.api.DataSet */
 static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
 {
-  jclass c_arraylist;
+  jclass c_dataset;
   jmethodID m_constructor;
   jmethodID m_add;
+  jobject o_type;
   jobject o_dataset;
   int i;
 
-  /* Look up the java.util.ArrayList class */
-  c_arraylist = (*jvm_env)->FindClass (jvm_env, "java.util.ArrayList");
-  if (c_arraylist == NULL)
+  /* Look up the org.collectd.api.DataSet class */
+  c_dataset = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.DataSet");
+  if (c_dataset == NULL)
   {
     ERROR ("java plugin: ctoj_data_set: Looking up the "
-        "java.util.ArrayList class failed.");
+        "org.collectd.api.DataSet class failed.");
     return (NULL);
   }
 
-  /* Search for the `ArrayList (int capacity)' constructor. */
+  /* Search for the `DataSet (String type)' constructor. */
   m_constructor = (*jvm_env)->GetMethodID (jvm_env,
-      c_arraylist, "<init>", "()V");
+      c_dataset, "<init>", "(Ljava.lang.String;)V");
   if (m_constructor == NULL)
   {
     ERROR ("java plugin: ctoj_data_set: Looking up the "
-        "`ArrayList (void)' constructor failed.");
+        "`DataSet (String)' constructor failed.");
     return (NULL);
   }
 
-  /* Search for the `boolean add  (Object element)' method. */
+  /* Search for the `void addDataSource (DataSource)' method. */
   m_add = (*jvm_env)->GetMethodID (jvm_env,
-      c_arraylist, "add", "(Ljava/lang/Object;)Z");
+      c_dataset, "addDataSource", "(Lorg.collectd.api.DataSource;)V");
   if (m_add == NULL)
   {
     ERROR ("java plugin: ctoj_data_set: Looking up the "
-        "`add (Object)' method failed.");
+        "`addDataSource (DataSource)' method failed.");
     return (NULL);
   }
 
-  o_dataset = (*jvm_env)->NewObject (jvm_env, c_arraylist, m_constructor);
-  if (o_dataset == NULL)
+  o_type = (*jvm_env)->NewStringUTF (jvm_env, ds->type);
+  if (o_type == NULL)
   {
-    ERROR ("java plugin: ctoj_data_set: "
-        "Creating an ArrayList object failed.");
+    ERROR ("java plugin: ctoj_data_set: Creating a String object failed.");
     return (NULL);
   }
+
+  o_dataset = (*jvm_env)->NewObject (jvm_env,
+      c_dataset, m_constructor, o_type);
+  if (o_dataset == NULL)
+  {
+    ERROR ("java plugin: ctoj_data_set: Creating a DataSet object failed.");
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_type);
+    return (NULL);
+  }
+
+  /* Decrease reference counter on the java.lang.String object. */
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_type);
 
   for (i = 0; i < ds->ds_num; i++)
   {
     jobject o_datasource;
-    jboolean status;
 
     o_datasource = ctoj_data_source (jvm_env, ds->ds + i);
     if (o_datasource == NULL)
@@ -616,15 +615,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
       return (NULL);
     }
 
-    status = (*jvm_env)->CallBooleanMethod (jvm_env,
-        o_dataset, m_add, o_datasource);
-    if (!status)
-    {
-      ERROR ("java plugin: ctoj_data_set: ArrayList.add returned FALSE.");
-      (*jvm_env)->DeleteLocalRef (jvm_env, o_datasource);
-      (*jvm_env)->DeleteLocalRef (jvm_env, o_dataset);
-      return (NULL);
-    }
+    (*jvm_env)->CallVoidMethod (jvm_env, o_dataset, m_add, o_datasource);
 
     (*jvm_env)->DeleteLocalRef (jvm_env, o_datasource);
   } /* for (i = 0; i < ds->ds_num; i++) */
@@ -666,20 +657,20 @@ static int ctoj_value_list_add_value (JNIEnv *jvm_env, /* {{{ */
 static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
     jclass c_valuelist, jobject o_valuelist, const data_set_t *ds)
 {
-  jmethodID m_setdatasource;
+  jmethodID m_setdataset;
   jobject o_dataset;
 
   /* Look for the `void setDataSource (List<DataSource> ds)' method. */
-  m_setdatasource = (*jvm_env)->GetMethodID (jvm_env, c_valuelist,
-      "setDataSource", "(Ljava/util/List;)V");
-  if (m_setdatasource == NULL)
+  m_setdataset = (*jvm_env)->GetMethodID (jvm_env, c_valuelist,
+      "setDataSet", "(Lorg.collectd.api.DataSet;)V");
+  if (m_setdataset == NULL)
   {
     ERROR ("java plugin: ctoj_value_list_add_data_set: "
-        "Cannot find the `void setDataSource (List<DataSource> ds)' method.");
+        "Cannot find the `void setDataSet (DataSet)' method.");
     return (-1);
   }
 
-  /* Create a List<DataSource> object. */
+  /* Create a DataSet object. */
   o_dataset = ctoj_data_set (jvm_env, ds);
   if (o_dataset == NULL)
   {
@@ -690,7 +681,7 @@ static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
 
   /* Actually call the method. */
   (*jvm_env)->CallVoidMethod (jvm_env,
-      o_valuelist, m_setdatasource, o_dataset);
+      o_valuelist, m_setdataset, o_dataset);
 
   /* Decrease reference counter on the List<DataSource> object. */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_dataset);
@@ -839,8 +830,6 @@ static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
     return (-1);
   }
 
-  DEBUG ("java plugin: jtoc_string: ->%s() = %s", method_name, c_str);
-
   sstrncpy (buffer, c_str, buffer_size);
 
   (*jvm_env)->ReleaseStringUTFChars (jvm_env, string_obj, c_str);
@@ -866,9 +855,6 @@ static int jtoc_long (JNIEnv *jvm_env, /* {{{ */
 
   *ret_value = (*jvm_env)->CallLongMethod (jvm_env, object_ptr, method_id);
 
-  DEBUG ("java plugin: jtoc_long: ->%s() = %li",
-      method_name, (long int) *ret_value);
-
   return (0);
 } /* }}} int jtoc_long */
 
@@ -888,9 +874,6 @@ static int jtoc_double (JNIEnv *jvm_env, /* {{{ */
   }
 
   *ret_value = (*jvm_env)->CallDoubleMethod (jvm_env, object_ptr, method_id);
-
-  DEBUG ("java plugin: jtoc_double: ->%s() = %g",
-      method_name, (double) *ret_value);
 
   return (0);
 } /* }}} int jtoc_double */
@@ -1164,7 +1147,7 @@ static jobject JNICALL cjni_api_get_ds (JNIEnv *jvm_env, /* {{{ */
 static JNINativeMethod jni_api_functions[] =
 {
   { "DispatchValues", "(Lorg/collectd/api/ValueList;)I", cjni_api_dispatch_values },
-  { "GetDS",          "(Ljava/lang/String;)Ljava/util/List;", cjni_api_get_ds }
+  { "GetDS",          "(Ljava/lang/String;)Lorg/collectd/api/DataSet;", cjni_api_get_ds }
 };
 static size_t jni_api_functions_num = sizeof (jni_api_functions)
   / sizeof (jni_api_functions[0]);

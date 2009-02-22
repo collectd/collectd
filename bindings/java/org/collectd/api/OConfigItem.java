@@ -24,6 +24,11 @@ package org.collectd.api;
 import java.util.List;
 import java.util.ArrayList;
 
+/**
+ * Java representation of collectd/src/liboconfig/oconfig.h:oconfig_item_t structure.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ */
 public class OConfigItem
 {
   private String _key = null;
