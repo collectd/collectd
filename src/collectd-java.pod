@@ -156,7 +156,7 @@ Signature: I<int> B<flush> (I<int> timeout, I<String> identifier)
 
 This method is called when the daemon received a flush command. This can either
 be done using the C<USR1> signal (see L<collectd(1)>) or using the I<unixsock>
-plugin (see L<collectd-unixsock(1)>).
+plugin (see L<collectd-unixsock(5)>).
 
 If I<timeout> is greater than zero, only values older than this number of
 seconds should be flushed. To signal that all values should be flushed
