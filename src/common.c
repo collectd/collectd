@@ -18,6 +18,8 @@
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
  *   Niki W. Waibel <niki.waibel@gmx.net>
+ *   Sebastian Harl <sh at tokkee.org>
+ *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
 **/
 
 #if HAVE_CONFIG_H
