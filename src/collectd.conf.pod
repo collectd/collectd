@@ -1085,6 +1085,11 @@ and all other interrupts are collected.
 
 =head2 Plugin C<java>
 
+The I<Java> plugin makes it possible to write extensions for collectd in Java.
+This section only discusses the syntax and semantic of the configuration
+options. For more in-depth information on the I<Java> plugin, please read
+L<collectd-java(5)>.
+
 Synopsis:
 
  <Plugin "java">
@@ -1108,37 +1113,15 @@ Execute C<javaE<nbsp>--help> for details.
 
 =item B<LoadPlugin> I<JavaClass>
 
-Instantiates a new I<JavaClass> object. The following methods of this class are
-used when available:
+Instantiates a new I<JavaClass> object. The constructor of this object very
+likely then registers one or more callback methods with the server.
 
-=over 4
-
-=item *
-
-public int B<Config> (org.collectd.api.OConfigItem ci)
-
-=item *
-
-public int B<Init> ()
-
-=item *
-
-public int B<Read> ()
-
-=item *
-
-public int B<Write> (org.collectd.protocol.ValueList vl)
-
-=item *
-
-public int B<Shutdown> ()
-
-=back
+See L<collectd-java(5)> for details.
 
 =item B<Plugin> I<JavaClass>
 
 The entrie block is passed to the Java plugin as an
-I<org.collectd.api.OConfigItem> object.
+I<org.collectd.api.OConfigItem> object. See L<collectd-java(5)/"config callback">.
 
 =back
 
