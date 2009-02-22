@@ -193,7 +193,26 @@ All collectd API functions that are available to Java plugins are implemented
 as I<publicE<nbsp>static> functions of the B<org.collectd.api.CollectdAPI>
 class. This makes calling these functions pretty straight forward.
 
-The currently exported functions are:
+The following are the currently exported functions. For information on the
+interfaces used, please see L<"REGISTERING CALLBACKS"> above.
+
+=head2 registerConfig
+
+Signature: I<int> B<registerConfig> (I<String> name,
+I<CollectdConfigInterface> object);
+
+Registers the B<config> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+=head2 registerInit
+
+Signature: I<int> B<registerInit> (I<String> name,
+I<CollectdInitInterface> object);
+
+Registers the B<init> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
 
 =head2 registerRead
 
@@ -201,8 +220,6 @@ Signature: I<int> B<registerRead> (I<String> name,
 I<CollectdReadInterface> object)
 
 Registers the B<read> function of I<object> with the daemon.
-For a description of the B<CollectdReadInterface> interface, see
-L<"REGISTERING CALLBACKS"> above.
 
 Returns zero upon success and non-zero when an error occurred.
 
@@ -212,8 +229,15 @@ Signature: I<int> B<registerWrite> (I<String> name,
 I<CollectdWriteInterface> object)
 
 Registers the B<write> function of I<object> with the daemon.
-For a description of the B<CollectdWriteInterface> interface, see
-L<"REGISTERING CALLBACKS"> above.
+
+Returns zero upon success and non-zero when an error occurred.
+
+=head2 registerShutdown
+
+Signature: I<int> B<registerShutdown> (I<String> name,
+I<CollectdShutdownInterface> object);
+
+Registers the B<shutdown> function of I<object> with the daemon.
 
 Returns zero upon success and non-zero when an error occurred.
 
@@ -234,6 +258,36 @@ Returns zero upon success or non-zero upon failure.
 Signature: I<DataSet> B<getDS> (I<String>)
 
 Returns the approrpate I<type> or B<null> if the type is not defined.
+
+=head2 logError
+
+Signature: I<void> B<logError> (I<String>)
+
+Sends a log message with severity B<ERROR> to the daemon.
+
+=head2 logWarning
+
+Signature: I<void> B<logWarning> (I<String>)
+
+Sends a log message with severity B<WARNING> to the daemon.
+
+=head2 logNotice
+
+Signature: I<void> B<logNotice> (I<String>)
+
+Sends a log message with severity B<NOTICE> to the daemon.
+
+=head2 logInfo
+
+Signature: I<void> B<logInfo> (I<String>)
+
+Sends a log message with severity B<INFO> to the daemon.
+
+=head2 logDebug
+
+Signature: I<void> B<logDebug> (I<String>)
+
+Sends a log message with severity B<DEBUG> to the daemon.
 
 =head1 SEE ALSO
 
