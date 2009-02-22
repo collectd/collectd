@@ -48,7 +48,6 @@ struct java_plugin_s /* {{{ */
 
   jmethodID m_config;
   jmethodID m_init;
-  jmethodID m_write;
   jmethodID m_shutdown;
 };
 typedef struct java_plugin_s java_plugin_t;
@@ -90,6 +89,8 @@ static size_t         java_plugins_num = 0;
  */
 static void cjni_callback_info_destroy (void *arg);
 static int cjni_read (user_data_t *user_data);
+static int cjni_write (const data_set_t *ds, const value_list_t *vl,
+    user_data_t *ud);
 
 /* 
  * C to Java conversion functions
@@ -1223,11 +1224,46 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 
   plugin_register_complex_read (c_name, cjni_read, &ud);
 
+  DEBUG ("java plugin: New read callback registered: %s", c_name);
+
   (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
   (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
 
   return (0);
 } /* }}} jint cjni_api_register_read */
+
+static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_read)
+{
+  const char *c_name;
+  user_data_t ud;
+  cjni_callback_info_t *cbi;
+
+  c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
+  if (c_name == NULL)
+  {
+    ERROR ("java plugin: cjni_api_register_write: GetStringUTFChars failed.");
+    return (-1);
+  }
+
+  cbi = cjni_callback_info_create (jvm_env, o_read,
+      "Write", "(Lorg/collectd/api/ValueList;)I");
+  if (cbi == NULL)
+    return (-1);
+
+  memset (&ud, 0, sizeof (ud));
+  ud.data = (void *) cbi;
+  ud.free_func = cjni_callback_info_destroy;
+
+  plugin_register_write (c_name, cjni_write, &ud);
+
+  DEBUG ("java plugin: New write callback registered: %s", c_name);
+
+  (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
+
+  return (0);
+} /* }}} jint cjni_api_register_write */
 
 static JNINativeMethod jni_api_functions[] =
 {
@@ -1241,7 +1277,11 @@ static JNINativeMethod jni_api_functions[] =
 
   { "RegisterRead",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdReadInterface;)I",
-    cjni_api_register_read }
+    cjni_api_register_read },
+
+  { "RegisterWrite",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdWriteInterface;)I",
+    cjni_api_register_write }
 };
 static size_t jni_api_functions_num = sizeof (jni_api_functions)
   / sizeof (jni_api_functions[0]);
@@ -1459,7 +1499,6 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
   jp->flags      = 0;
   jp->m_config   = NULL;
   jp->m_init     = NULL;
-  jp->m_write    = NULL;
   jp->m_shutdown = NULL;
 
   java_plugins_num++;
@@ -1572,36 +1611,11 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int cjni_config */
 
-static int cjni_write_one_plugin (JNIEnv *jvm_env, /* {{{ */
-    java_plugin_t *jp, jobject vl_java)
-{
-  int status;
-
-  if ((jp == NULL)
-      || ((jp->flags & CJNI_FLAG_ENABLED) == 0)
-      || (jp->m_write == NULL))
-    return (0);
-
-  DEBUG ("java plugin: Calling: %s.Write(ValueList)", jp->class_name);
-
-  status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
-      jp->m_write, vl_java);
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_write_one_plugin: "
-        "Calling `Write' on an `%s' object failed with status %i.",
-        jp->class_name, status);
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int cjni_write_one_plugin */
-
 static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
-    user_data_t __attribute__((unused)) *user_data)
+    user_data_t *ud)
 {
   JNIEnv *jvm_env;
-  java_plugin_t *jp;
+  cjni_callback_info_t *cbi;
   jobject vl_java;
   int status;
 
@@ -1611,9 +1625,9 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  if ((user_data == NULL) || (user_data->data == NULL))
+  if ((ud == NULL) || (ud->data == NULL))
   {
-    ERROR ("java plugin: cjni_read: Invalid user data.");
+    ERROR ("java plugin: cjni_write: Invalid user data.");
     return (-1);
   }
 
@@ -1621,24 +1635,28 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (jvm_env == NULL)
     return (-1);
 
+  cbi = (cjni_callback_info_t *) ud->data;
+
   vl_java = ctoj_value_list (jvm_env, ds, vl);
   if (vl_java == NULL)
   {
-    ERROR ("java plugin: cjni_write_plugins: ctoj_value_list failed.");
+    ERROR ("java plugin: cjni_write: ctoj_value_list failed.");
     return (-1);
   }
 
-  jp = (java_plugin_t *) user_data->data;
-
-  cjni_write_one_plugin (jvm_env, jp, vl_java);
+  status = (*jvm_env)->CallIntMethod (jvm_env,
+      cbi->object, cbi->method, vl_java);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, vl_java);
 
   status = cjni_thread_detach ();
   if (status != 0)
+  {
+    ERROR ("java plugin: cjni_write: cjni_thread_detach failed.");
     return (-1);
+  }
 
-  return (0);
+  return (status);
 } /* }}} int cjni_write */
 
 static int cjni_shutdown_one_plugin (JNIEnv *jvm_env, /* {{{ */
@@ -1691,7 +1709,7 @@ static int cjni_shutdown (void) /* {{{ */
   status = (*jvm)->AttachCurrentThread (jvm, (void **) &jvm_env, &args);
   if (status != 0)
   {
-    ERROR ("java plugin: cjni_read: AttachCurrentThread failed with status %i.",
+    ERROR ("java plugin: cjni_shutdown: AttachCurrentThread failed with status %i.",
         status);
     return (-1);
   }
@@ -1722,7 +1740,7 @@ static int cjni_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int cjni_shutdown */
 
-static int cjni_read (user_data_t *user_data) /* {{{ */
+static int cjni_read (user_data_t *ud) /* {{{ */
 {
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
@@ -1734,7 +1752,7 @@ static int cjni_read (user_data_t *user_data) /* {{{ */
     return (-1);
   }
 
-  if ((user_data == NULL) || (user_data->data == NULL))
+  if ((ud == NULL) || (ud->data == NULL))
   {
     ERROR ("java plugin: cjni_read: Invalid user data.");
     return (-1);
@@ -1744,7 +1762,7 @@ static int cjni_read (user_data_t *user_data) /* {{{ */
   if (jvm_env == NULL)
     return (-1);
 
-  cbi = (cjni_callback_info_t *) user_data->data;
+  cbi = (cjni_callback_info_t *) ud->data;
 
   status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
       cbi->method);
@@ -1761,7 +1779,6 @@ static int cjni_read (user_data_t *user_data) /* {{{ */
 
 static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
 {
-  char plugin_name[128];
   jmethodID constructor_id;
   int status;
 
@@ -1802,12 +1819,6 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
   DEBUG ("java plugin: cjni_init_one_plugin: "
       "jp->class_name = %s; jp->m_init = %p;",
       jp->class_name, (void *) jp->m_init);
-
-  jp->m_write = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Write", "(Lorg/collectd/api/ValueList;)I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_write = %p;",
-      jp->class_name, (void *) jp->m_write);
 
   jp->m_shutdown = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
       "Shutdown", "()I");
@@ -1864,19 +1875,6 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
     }
   }
   jp->flags |= CJNI_FLAG_ENABLED;
-
-  ssnprintf (plugin_name, sizeof (plugin_name), "java:%s", jp->class_name);
-
-  if (jp->m_write != NULL)
-  {
-    user_data_t ud;
-
-    memset (&ud, 0, sizeof (ud));
-    ud.data = jp;
-    ud.free_func = NULL;
-
-    plugin_register_write (plugin_name, cjni_write, &ud);
-  }
 
   return (0);
 } /* }}} int cjni_init_one_plugin */

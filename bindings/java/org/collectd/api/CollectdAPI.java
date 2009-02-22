@@ -43,6 +43,12 @@ public class CollectdAPI
    */
   native public static int RegisterRead (String name,
       CollectdReadInterface obj);
+
+  /**
+   * Java representation of collectd/src/plugin.h:plugin_register_write
+   */
+  native public static int RegisterWrite (String name,
+      CollectdWriteInterface obj);
 } /* class CollectdAPI */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
