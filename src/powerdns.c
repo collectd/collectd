@@ -289,30 +289,11 @@ static void submit (const char *plugin_instance, /* {{{ */
     return;
   }
 
-  if (ds->ds[0].type == DS_TYPE_GAUGE)
+  if (0 != parse_value (value, &values[0], ds->ds[0]))
   {
-    char *endptr = NULL;
-
-    values[0].gauge = strtod (value, &endptr);
-
-    if (endptr == value)
-    {
-      ERROR ("powerdns plugin: Cannot convert `%s' "
-          "to a floating point number.", value);
-      return;
-    }
-  }
-  else
-  {
-    char *endptr = NULL;
-
-    values[0].counter = strtoll (value, &endptr, 0);
-    if (endptr == value)
-    {
-      ERROR ("powerdns plugin: Cannot convert `%s' "
-          "to an integer number.", value);
-      return;
-    }
+    ERROR ("powerdns plugin: Cannot convert `%s' "
+        "to a number.", value);
+    return;
   }
 
   vl.values = values;

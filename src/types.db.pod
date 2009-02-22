@@ -44,6 +44,9 @@ For example:
  TypesDB "/opt/collectd/share/collectd/types.db"
  TypesDB "/opt/collectd/etc/types.db.custom"
 
+B<Note>: Make sure to make this file available on all systems if you're
+sending values over the network.
+
 =head1 SEE ALSO
 
 L<collectd(1)>,

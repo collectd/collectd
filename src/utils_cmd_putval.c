@@ -33,7 +33,7 @@
 		return -1; \
 	}
 
-static int parse_value (const data_set_t *ds, value_list_t *vl,
+static int dispatch_values (const data_set_t *ds, value_list_t *vl,
 	       	FILE *fh, char *buffer)
 {
 	char *dummy;
@@ -65,12 +65,13 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 			break;
 		}
 
-		if (strcmp (ptr, "U") == 0)
+		if ((strcmp (ptr, "U") == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
 			vl->values[i].gauge = NAN;
-		else if (ds->ds[i].type == DS_TYPE_COUNTER)
-			vl->values[i].counter = atoll (ptr);
-		else if (ds->ds[i].type == DS_TYPE_GAUGE)
-			vl->values[i].gauge = atof (ptr);
+		else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i]))
+		{
+			print_to_socket (fh, "-1 Failed to parse value `%s'.", ptr);
+			return (-1);
+		}
 
 		i++;
 	} /* while (strtok_r) */
@@ -79,7 +80,7 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 	{
 		char identifier[128];
 		FORMAT_VL (identifier, sizeof (identifier), vl, ds);
-		ERROR ("cmd putval: parse_value: "
+		ERROR ("cmd putval: dispatch_values: "
 				"Number of values incorrect: "
 				"Got %i, expected %i. Identifier is `%s'.",
 				i, vl->values_len, identifier);
@@ -91,7 +92,7 @@ static int parse_value (const data_set_t *ds, value_list_t *vl,
 
 	plugin_dispatch_values (vl);
 	return (0);
-} /* int parse_value */
+} /* int dispatch_values */
 
 static int set_option (value_list_t *vl, const char *key, const char *value)
 {
@@ -252,7 +253,7 @@ int handle_putval (FILE *fh, char *buffer)
 		}
 		assert (string != NULL);
 
-		status = parse_value (ds, &vl, fh, string);
+		status = dispatch_values (ds, &vl, fh, string);
 		if (status != 0)
 		{
 			/* An error has already been printed. */

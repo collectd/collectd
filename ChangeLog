@@ -1,3 +1,12 @@
+2009-02-22, Version 4.6.1
+	* collectd: Many documentation fixes.
+	* Collectd::Unixsock: Error handling has been improved.
+	* regex match: Don't link with the PCRE library.
+	* bind plugin: Various bugs have been fixed. Thanks to Bruno Prémont
+	  for finding and fixing most of them.
+	* ipmi plugin: Fix an off-by-one error which could cause segmentation
+	  faults. Thanks to Peter Holik for his patch.
+
 2009-02-16, Version 4.6.0
 	* collectd: Added the `filter chain' infrastructure, which allows the
 	  user to use `matches' and `targets' to control value processing.
@@ -68,6 +77,18 @@
 	  features.
 	* swap plugin: Code for OpenBSD (and possibly other *BSDs) has been
 	  added.
+
+2009-02-22, Version 4.5.3
+	* build system: The check for libupsclient even when `pkg-config' is
+	  not available.
+	* collectd: Fix error handling in the global cache.
+	* Collectd::Unixsock: Error handling has been improved.
+	* ascent plugin: Fix a memory leak. Thanks to Bruno Prémont for his
+	  patch.
+	* ipmi plugin: Fix an off-by-one error which could cause segmentation
+	  faults. Thanks to Peter Holik for his patch.
+	* tcpconns plugin: An endianness problem has been fixed in the *BSD
+	  code. Thanks to "thated" for reporting this.
 
 2009-01-02, Version 4.5.2
 	* build system: Check for `mysql.h' and `mysql/mysql.h', since the

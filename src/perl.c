@@ -1527,6 +1527,9 @@ static XS (Collectd_plugin_register_ds)
 
 	dXSARGS;
 
+	log_warn ("Using plugin_register() to register new data-sets is "
+			"deprecated - add new entries to a custom types.db instead.");
+
 	if (2 != items) {
 		log_err ("Usage: Collectd::plugin_register_data_set(type, dataset)");
 		XSRETURN_EMPTY;
