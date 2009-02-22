@@ -64,7 +64,8 @@ typedef struct java_plugin_config_s java_plugin_config_t;
 #define CB_TYPE_INIT     2
 #define CB_TYPE_READ     3
 #define CB_TYPE_WRITE    4
-#define CB_TYPE_SHUTDOWN 5
+#define CB_TYPE_FLUSH    5
+#define CB_TYPE_SHUTDOWN 6
 struct cjni_callback_info_s /* {{{ */
 {
   char     *name;
@@ -113,6 +114,7 @@ static int cjni_callback_register (JNIEnv *jvm_env, jobject o_name,
 static int cjni_read (user_data_t *user_data);
 static int cjni_write (const data_set_t *ds, const value_list_t *vl,
     user_data_t *ud);
+static int cjni_flush (int timeout, const char *identifier, user_data_t *ud);
 
 /* 
  * C to Java conversion functions
@@ -1247,6 +1249,29 @@ static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} jint cjni_api_register_write */
 
+static jint JNICALL cjni_api_register_flush (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_flush)
+{
+  user_data_t ud;
+  cjni_callback_info_t *cbi;
+
+  cbi = cjni_callback_info_create (jvm_env, o_name, o_flush, CB_TYPE_FLUSH);
+  if (cbi == NULL)
+    return (-1);
+
+  DEBUG ("java plugin: Registering new flush callback: %s", cbi->name);
+
+  memset (&ud, 0, sizeof (ud));
+  ud.data = (void *) cbi;
+  ud.free_func = cjni_callback_info_destroy;
+
+  plugin_register_flush (cbi->name, cjni_flush, &ud);
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_flush);
+
+  return (0);
+} /* }}} jint cjni_api_register_flush */
+
 static jint JNICALL cjni_api_register_shutdown (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_shutdown)
 {
@@ -1304,6 +1329,10 @@ static JNINativeMethod jni_api_functions[] = /* {{{ */
     "(Ljava/lang/String;Lorg/collectd/api/CollectdWriteInterface;)I",
     cjni_api_register_write },
 
+  { "registerFlush",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdFlushInterface;)I",
+    cjni_api_register_flush },
+
   { "registerShutdown",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdShutdownInterface;)I",
     cjni_api_register_shutdown },
@@ -1349,6 +1378,11 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     case CB_TYPE_WRITE:
       method_name = "write";
       method_signature = "(Lorg/collectd/api/ValueList;)I";
+      break;
+
+    case CB_TYPE_FLUSH:
+      method_name = "flush";
+      method_signature = "(ILjava/lang/String;)I";
       break;
 
     case CB_TYPE_SHUTDOWN:
@@ -1906,6 +1940,59 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   return (status);
 } /* }}} int cjni_write */
+
+/* Call the CB_TYPE_WRITE callback pointed to by the `user_data_t' pointer. */
+static int cjni_flush (int timeout, const char *identifier, /* {{{ */
+    user_data_t *ud)
+{
+  JNIEnv *jvm_env;
+  cjni_callback_info_t *cbi;
+  jobject o_identifier;
+  int status;
+
+  if (jvm == NULL)
+  {
+    ERROR ("java plugin: cjni_flush: jvm == NULL");
+    return (-1);
+  }
+
+  if ((ud == NULL) || (ud->data == NULL))
+  {
+    ERROR ("java plugin: cjni_flush: Invalid user data.");
+    return (-1);
+  }
+
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
+    return (-1);
+
+  cbi = (cjni_callback_info_t *) ud->data;
+
+  o_identifier = NULL;
+  if (identifier != NULL)
+  {
+    o_identifier = (*jvm_env)->NewStringUTF (jvm_env, identifier);
+    if (o_identifier == NULL)
+    {
+      ERROR ("java plugin: cjni_flush: NewStringUTF failed.");
+      return (-1);
+    }
+  }
+
+  status = (*jvm_env)->CallIntMethod (jvm_env,
+      cbi->object, cbi->method, (jint) timeout, o_identifier);
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_identifier);
+
+  status = cjni_thread_detach ();
+  if (status != 0)
+  {
+    ERROR ("java plugin: cjni_flush: cjni_thread_detach failed.");
+    return (-1);
+  }
+
+  return (status);
+} /* }}} int cjni_flush */
 
 /* Iterate over `java_classes_list' and create one object of each class. This
  * will trigger the object's constructors, to the objects can register callback

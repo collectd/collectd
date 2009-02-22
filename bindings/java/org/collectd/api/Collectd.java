@@ -59,6 +59,12 @@ public class Collectd
       CollectdWriteInterface object);
 
   /**
+   * Java representation of collectd/src/plugin.h:plugin_register_flush
+   */
+  native public static int registerFlush (String name,
+      CollectdFlushInterface object);
+
+  /**
    * Java representation of collectd/src/plugin.h:plugin_register_shutdown
    */
   native public static int registerShutdown (String name,

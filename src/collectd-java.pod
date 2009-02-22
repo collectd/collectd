@@ -92,7 +92,7 @@ Each callback method is now explained in more detail:
 
 Interface: B<org.collectd.api.CollectdConfigInterface>
 
-Signature: I<int> B<config> (I<OConfigItem>)
+Signature: I<int> B<config> (I<OConfigItem> ci)
 
 This method is passed a B<OConfigItem> object, if both, method and
 configuration, are available. B<OConfigItem> is the root of a tree representing
@@ -137,13 +137,34 @@ Java "read"-methods are not suspended for increasing intervals like C
 
 Interface: B<org.collectd.api.CollectdWriteInterface>
 
-Signature: I<int> B<write> (I<ValueList>)
+Signature: I<int> B<write> (I<ValueList> vl)
 
 This method is called whenever a value is dispatched to the daemon. The
 corresponding C "write"-functions are passed a C<data_set_t>, so they can
 decide which values are absolute values (gauge) and which are counter values.
 To get the corresponding C<ListE<lt>DataSourceE<gt>>, call the B<getDataSource>
 method of the B<ValueList> object.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
+=head2 flush callback
+
+Interface: B<org.collectd.api.CollectdFlushInterface>
+
+Signature: I<int> B<flush> (I<int> timeout, I<String> identifier)
+
+This method is called when the daemon received a flush command. This can either
+be done using the C<USR1> signal (see L<collectd(1)>) or using the I<unixsock>
+plugin (see L<collectd-unixsock(1)>).
+
+If I<timeout> is greater than zero, only values older than this number of
+seconds should be flushed. To signal that all values should be flushed
+regardless of age, this argument is set to a negative number.
+
+The I<identifier> specifies which value should be flushed. If it is not
+possible to flush one specific value, flush all values. To signal that all
+values should be flushed, this argument is set to I<null>.
 
 To signal success, this method has to return zero. Anything else will be
 considered an error condition and cause an appropriate message to be logged.
@@ -229,6 +250,15 @@ Signature: I<int> B<registerWrite> (I<String> name,
 I<CollectdWriteInterface> object)
 
 Registers the B<write> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+=head2 registerFlush
+
+Signature: I<int> B<registerFlush> (I<String> name,
+I<CollectdFlushInterface> object)
+
+Registers the B<flush> function of I<object> with the daemon.
 
 Returns zero upon success and non-zero when an error occurred.
 
