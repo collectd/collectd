@@ -39,6 +39,18 @@ public class CollectdAPI
   native public static DataSet GetDS (String type);
 
   /**
+   * Java representation of collectd/src/plugin.h:plugin_register_config
+   */
+  native public static int RegisterConfig (String name,
+      CollectdConfigInterface obj);
+
+  /**
+   * Java representation of collectd/src/plugin.h:plugin_register_init
+   */
+  native public static int RegisterInit (String name,
+      CollectdInitInterface obj);
+
+  /**
    * Java representation of collectd/src/plugin.h:plugin_register_read
    */
   native public static int RegisterRead (String name,
@@ -49,6 +61,12 @@ public class CollectdAPI
    */
   native public static int RegisterWrite (String name,
       CollectdWriteInterface obj);
+
+  /**
+   * Java representation of collectd/src/plugin.h:plugin_register_shutdown
+   */
+  native public static int RegisterShutdown (String name,
+      CollectdShutdownInterface obj);
 } /* class CollectdAPI */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

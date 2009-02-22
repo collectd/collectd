@@ -35,24 +35,6 @@
 /*
  * Types
  */
-struct java_plugin_s /* {{{ */
-{
-  char *class_name;
-  jclass class_ptr;
-  jobject object_ptr;
-
-  oconfig_item_t *ci;
-
-#define CJNI_FLAG_ENABLED 0x0001
-  int flags;
-
-  jmethodID m_config;
-  jmethodID m_init;
-  jmethodID m_shutdown;
-};
-typedef struct java_plugin_s java_plugin_t;
-/* }}} */
-
 struct cjni_jvm_env_s /* {{{ */
 {
   JNIEnv *jvm_env;
@@ -61,8 +43,32 @@ struct cjni_jvm_env_s /* {{{ */
 typedef struct cjni_jvm_env_s cjni_jvm_env_t;
 /* }}} */
 
+struct java_plugin_class_s /* {{{ */
+{
+  char     *name;
+  jclass    class;
+  jobject   object;
+};
+typedef struct java_plugin_class_s java_plugin_class_t;
+/* }}} */
+
+struct java_plugin_config_s /* {{{ */
+{
+  char *name;
+  oconfig_item_t *ci;
+};
+typedef struct java_plugin_config_s java_plugin_config_t;
+/* }}} */
+
+#define CB_TYPE_CONFIG   1
+#define CB_TYPE_INIT     2
+#define CB_TYPE_READ     3
+#define CB_TYPE_WRITE    4
+#define CB_TYPE_SHUTDOWN 5
 struct cjni_callback_info_s /* {{{ */
 {
+  char     *name;
+  int       type;
   jclass    class;
   jobject   object;
   jmethodID method;
@@ -76,11 +82,22 @@ typedef struct cjni_callback_info_s cjni_callback_info_t;
 static JavaVM *jvm = NULL;
 static pthread_key_t jvm_env_key;
 
+/* Configuration options for the JVM. */
 static char **jvm_argv = NULL;
 static size_t jvm_argc = 0;
 
-static java_plugin_t *java_plugins     = NULL;
-static size_t         java_plugins_num = 0;
+/* List of class names to load */
+static java_plugin_class_t  *java_classes_list = NULL;
+static size_t                java_classes_list_len;
+
+/* List of `config_item_t's for Java plugins */
+static java_plugin_config_t *java_plugin_configs     = NULL;
+static size_t                java_plugin_configs_num = 0;
+
+/* List of config, init, and shutdown callbacks. */
+static cjni_callback_info_t *java_callbacks      = NULL;
+static size_t                java_callbacks_num  = 0;
+static pthread_mutex_t       java_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Prototypes
@@ -1110,19 +1127,76 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
 } /* }}} int jtoc_value_list */
 
 static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ */
-    jobject obj, const char *method_name, const char *signature)
+    jobject o_name, jobject o_callback, int type)
 {
+  const char *c_name;
   cjni_callback_info_t *cbi;
+  const char *method_name;
+  const char *method_signature;
+
+  switch (type)
+  {
+    case CB_TYPE_CONFIG:
+      method_name = "Config";
+      method_signature = "(Lorg/collectd/api/OConfigItem;)I";
+      break;
+
+    case CB_TYPE_INIT:
+      method_name = "Init";
+      method_signature = "()I";
+      break;
+
+    case CB_TYPE_READ:
+      method_name = "Read";
+      method_signature = "()I";
+      break;
+
+    case CB_TYPE_WRITE:
+      method_name = "Write";
+      method_signature = "(Lorg/collectd/api/ValueList;)I";
+      break;
+
+    case CB_TYPE_SHUTDOWN:
+      method_name = "Shutdown";
+      method_signature = "()I";
+      break;
+
+    default:
+      ERROR ("java plugin: cjni_callback_info_create: Unknown type: %#x",
+          type);
+      return (NULL);
+  }
+
+  c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
+  if (c_name == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: "
+        "GetStringUTFChars failed.");
+    return (NULL);
+  }
 
   cbi = (cjni_callback_info_t *) malloc (sizeof (*cbi));
   if (cbi == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: malloc failed.");
+    (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
     return (NULL);
   }
   memset (cbi, 0, sizeof (*cbi));
+  cbi->type = type;
 
-  cbi->class  = (*jvm_env)->GetObjectClass (jvm_env, obj);
+  cbi->name = strdup (c_name);
+  if (cbi->name == NULL)
+  {
+    pthread_mutex_unlock (&java_callbacks_lock);
+    ERROR ("java plugin: cjni_callback_info_create: strdup failed.");
+    (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+    return (NULL);
+  }
+
+  (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+
+  cbi->class  = (*jvm_env)->GetObjectClass (jvm_env, o_callback);
   if (cbi->class == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
@@ -1130,23 +1204,82 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     return (NULL);
   }
 
-  cbi->object = obj;
+  cbi->object = o_callback;
 
   cbi->method = (*jvm_env)->GetMethodID (jvm_env, cbi->class,
-      method_name, signature);
+      method_name, method_signature);
   if (cbi->method == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: "
         "Cannot find the `%s' method with signature `%s'.",
-        method_name, signature);
+        method_name, method_signature);
     free (cbi);
     return (NULL);
   }
 
-  (*jvm_env)->NewGlobalRef (jvm_env, obj);
+  (*jvm_env)->NewGlobalRef (jvm_env, o_callback);
 
   return (cbi);
 } /* }}} cjni_callback_info_t cjni_callback_info_create */
+
+static int cjni_callback_register (JNIEnv *jvm_env, /* {{{ */
+    jobject o_name, jobject o_callback, int type)
+{
+  cjni_callback_info_t *cbi;
+  cjni_callback_info_t *tmp;
+#if COLLECT_DEBUG
+  const char *type_str;
+#endif
+
+  cbi = cjni_callback_info_create (jvm_env, o_name, o_callback, type);
+  if (cbi == NULL)
+    return (-1);
+
+#if COLLECT_DEBUG
+  switch (type)
+  {
+    case CB_TYPE_CONFIG:
+      type_str = "config";
+      break;
+
+    case CB_TYPE_INIT:
+      type_str = "init";
+      break;
+
+    case CB_TYPE_SHUTDOWN:
+      type_str = "shutdown";
+      break;
+
+    default:
+      type_str = "<unknown>";
+  }
+  DEBUG ("java plugin: Registering new %s callback: %s",
+      type_str, cbi->name);
+#endif
+
+  pthread_mutex_lock (&java_callbacks_lock);
+
+  tmp = (cjni_callback_info_t *) realloc (java_callbacks,
+      (java_callbacks_num + 1) * sizeof (*java_callbacks));
+  if (tmp == NULL)
+  {
+    pthread_mutex_unlock (&java_callbacks_lock);
+    ERROR ("java plugin: cjni_callback_register: realloc failed.");
+
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    free (cbi);
+
+    return (-1);
+  }
+  java_callbacks = tmp;
+  java_callbacks[java_callbacks_num] = *cbi;
+  java_callbacks_num++;
+
+  pthread_mutex_unlock (&java_callbacks_lock);
+
+  free (cbi);
+  return (0);
+} /* }}} int cjni_callback_register */
 
 /* 
  * Functions accessible from Java
@@ -1200,72 +1333,72 @@ static jobject JNICALL cjni_api_get_ds (JNIEnv *jvm_env, /* {{{ */
   return (o_dataset);
 } /* }}} jint cjni_api_get_ds */
 
+static jint JNICALL cjni_api_register_config (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_config)
+{
+  return (cjni_callback_register (jvm_env, o_name, o_config, CB_TYPE_CONFIG));
+} /* }}} jint cjni_api_register_config */
+
+static jint JNICALL cjni_api_register_init (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_config)
+{
+  return (cjni_callback_register (jvm_env, o_name, o_config, CB_TYPE_INIT));
+} /* }}} jint cjni_api_register_init */
+
 static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_read)
 {
-  const char *c_name;
   user_data_t ud;
   cjni_callback_info_t *cbi;
 
-  c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
-  if (c_name == NULL)
-  {
-    ERROR ("java plugin: cjni_api_register_read: GetStringUTFChars failed.");
-    return (-1);
-  }
-
-  cbi = cjni_callback_info_create (jvm_env, o_read, "Read", "()I");
+  cbi = cjni_callback_info_create (jvm_env, o_name, o_read, CB_TYPE_READ);
   if (cbi == NULL)
     return (-1);
+
+  DEBUG ("java plugin: Registering new read callback: %s", cbi->name);
 
   memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
-  plugin_register_complex_read (c_name, cjni_read, &ud);
+  plugin_register_complex_read (cbi->name, cjni_read, &ud);
 
-  DEBUG ("java plugin: New read callback registered: %s", c_name);
-
-  (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
   (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
 
   return (0);
 } /* }}} jint cjni_api_register_read */
 
 static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
-    jobject this, jobject o_name, jobject o_read)
+    jobject this, jobject o_name, jobject o_write)
 {
-  const char *c_name;
   user_data_t ud;
   cjni_callback_info_t *cbi;
 
-  c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
-  if (c_name == NULL)
-  {
-    ERROR ("java plugin: cjni_api_register_write: GetStringUTFChars failed.");
-    return (-1);
-  }
-
-  cbi = cjni_callback_info_create (jvm_env, o_read,
-      "Write", "(Lorg/collectd/api/ValueList;)I");
+  cbi = cjni_callback_info_create (jvm_env, o_name, o_write, CB_TYPE_WRITE);
   if (cbi == NULL)
     return (-1);
+
+  DEBUG ("java plugin: Registering new write callback: %s", cbi->name);
 
   memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
-  plugin_register_write (c_name, cjni_write, &ud);
+  plugin_register_write (cbi->name, cjni_write, &ud);
 
-  DEBUG ("java plugin: New write callback registered: %s", c_name);
-
-  (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
-  (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_write);
 
   return (0);
 } /* }}} jint cjni_api_register_write */
 
-static JNINativeMethod jni_api_functions[] =
+static jint JNICALL cjni_api_register_shutdown (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_shutdown)
+{
+  return (cjni_callback_register (jvm_env, o_name, o_shutdown,
+        CB_TYPE_SHUTDOWN));
+} /* }}} jint cjni_api_register_shutdown */
+
+static JNINativeMethod jni_api_functions[] = /* {{{ */
 {
   { "DispatchValues",
     "(Lorg/collectd/api/ValueList;)I",
@@ -1275,16 +1408,30 @@ static JNINativeMethod jni_api_functions[] =
     "(Ljava/lang/String;)Lorg/collectd/api/DataSet;",
     cjni_api_get_ds },
 
+  { "RegisterConfig",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdConfigInterface;)I",
+    cjni_api_register_config },
+
+  { "RegisterInit",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdInitInterface;)I",
+    cjni_api_register_init },
+
   { "RegisterRead",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdReadInterface;)I",
     cjni_api_register_read },
 
   { "RegisterWrite",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdWriteInterface;)I",
-    cjni_api_register_write }
+    cjni_api_register_write },
+
+  { "RegisterShutdown",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdShutdownInterface;)I",
+    cjni_api_register_shutdown }
+
 };
 static size_t jni_api_functions_num = sizeof (jni_api_functions)
   / sizeof (jni_api_functions[0]);
+/* }}} */
 
 /*
  * Functions
@@ -1409,7 +1556,7 @@ static void cjni_jvm_env_destroy (void *args) /* {{{ */
  */
 static void cjni_callback_info_destroy (void *arg) /* {{{ */
 {
-  JNIEnv *jni_env;
+  JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
 
   DEBUG ("java plugin: cjni_callback_info_destroy (arg = %p);", arg);
@@ -1417,8 +1564,8 @@ static void cjni_callback_info_destroy (void *arg) /* {{{ */
   if (arg == NULL)
     return;
 
-  jni_env = cjni_thread_attach ();
-  if (jni_env == NULL)
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_destroy: cjni_thread_attach failed.");
     return;
@@ -1426,7 +1573,7 @@ static void cjni_callback_info_destroy (void *arg) /* {{{ */
 
   cbi = (cjni_callback_info_t *) arg;
 
-  (*jni_env)->DeleteGlobalRef (jni_env, cbi->object);
+  (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
 
   cbi->method = NULL;
   cbi->object = NULL;
@@ -1467,7 +1614,7 @@ static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
 
 static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
 {
-  java_plugin_t *jp;
+  java_plugin_class_t *tmp;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -1475,41 +1622,36 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  jp = (java_plugin_t *) realloc (java_plugins,
-      sizeof (*java_plugins) * (java_plugins_num + 1));
-  if (jp == NULL)
+  tmp = (java_plugin_class_t *) realloc (java_classes_list,
+      (java_classes_list_len + 1) * sizeof (*java_classes_list));
+  if (tmp == NULL)
   {
     ERROR ("java plugin: realloc failed.");
     return (-1);
   }
-  java_plugins = jp;
-  jp = java_plugins + java_plugins_num;
+  java_classes_list = tmp;
+  tmp = java_classes_list + java_classes_list_len;
 
-  memset (jp, 0, sizeof (*jp));
-  jp->class_name = strdup (ci->values[0].value.string);
-  if (jp->class_name == NULL)
+  memset (tmp, 0, sizeof (*tmp));
+  tmp->name = strdup (ci->values[0].value.string);
+  if (tmp->name == NULL)
   {
     ERROR ("java plugin: strdup failed.");
     return (-1);
   }
+  tmp->class = NULL;
+  tmp->object = NULL;
 
-  jp->class_ptr  = NULL;
-  jp->object_ptr = NULL;
-  jp->ci         = NULL;
-  jp->flags      = 0;
-  jp->m_config   = NULL;
-  jp->m_init     = NULL;
-  jp->m_shutdown = NULL;
-
-  java_plugins_num++;
+  java_classes_list_len++;
 
   return (0);
 } /* }}} int cjni_config_load_plugin */
 
 static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
 {
+  java_plugin_config_t *tmp;
+  char *name;
   size_t i;
-  const char *class_name;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -1518,42 +1660,53 @@ static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  class_name = ci->values[0].value.string;
-  for (i = 0; i < java_plugins_num; i++)
-    if (strcmp (java_plugins[i].class_name, class_name) == 0)
-      break;
-
-  if (i >= java_plugins_num)
+  name = strdup (ci->values[0].value.string);
+  if (name == NULL)
   {
-    WARNING ("java plugin: Configuration block for the `%s' plugin found, "
-        "but the plugin has not been loaded. Please note, that the class "
-        "name is case-sensitive!",
-        class_name);
-    return (0);
+    ERROR ("java plugin: cjni_config_plugin_block: strdup faiiled.");
+    return (-1);
   }
 
-  if (java_plugins[i].ci != NULL)
+  for (i = 0; i < java_plugin_configs_num; i++)
   {
-    WARNING ("java plugin: There are more than one <Plugin> blocks for the "
-        "`%s' plugin. This is currently not supported - only the first block "
-        "will be used!",
-        class_name);
-    return (0);
+    if (strcmp (java_plugin_configs[i].name, name) == 0)
+    {
+      WARNING ("java plugin: There is more than one <Plugin \"%s\"> block. "
+          "This is currently not supported - "
+          "only the first block will be used!",
+          name);
+      free (name);
+      return (0);
+    }
   }
 
-  java_plugins[i].ci = oconfig_clone (ci);
-  if (java_plugins[i].ci == NULL)
+  tmp = (java_plugin_config_t *) realloc (java_plugin_configs,
+      (java_plugin_configs_num + 1) * sizeof (*java_plugin_configs));
+  if (tmp == NULL)
+  {
+    ERROR ("java plugin: cjni_config_plugin_block: realloc failed.");
+    free (name);
+    return (-1);
+  }
+  java_plugin_configs = tmp;
+  tmp = java_plugin_configs + java_plugin_configs_num;
+
+  tmp->name = name;
+  tmp->ci = oconfig_clone (ci);
+  if (tmp->ci == NULL)
   {
     ERROR ("java plugin: cjni_config_plugin_block: "
         "oconfig_clone failed for `%s'.",
-        class_name);
+        name);
+    free (name);
     return (-1);
   }
 
   DEBUG ("java plugin: cjni_config_plugin_block: "
       "Successfully copied config for `%s'.",
-      class_name);
+      name);
 
+  java_plugin_configs_num++;
   return (0);
 } /* }}} int cjni_config_plugin_block */
 
@@ -1602,6 +1755,11 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
     }
   }
 
+  DEBUG ("java plugin: jvm_argc = %zu;", jvm_argc);
+  DEBUG ("java plugin: java_classes_list_len = %zu;", java_classes_list_len);
+  DEBUG ("java plugin: java_plugin_configs_num = %zu;",
+      java_plugin_configs_num);
+
   if ((success == 0) && (errors > 0))
   {
     ERROR ("java plugin: All statements failed.");
@@ -1610,6 +1768,43 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
 
   return (0);
 } /* }}} int cjni_config */
+
+static int cjni_read (user_data_t *ud) /* {{{ */
+{
+  JNIEnv *jvm_env;
+  cjni_callback_info_t *cbi;
+  int status;
+
+  if (jvm == NULL)
+  {
+    ERROR ("java plugin: cjni_read: jvm == NULL");
+    return (-1);
+  }
+
+  if ((ud == NULL) || (ud->data == NULL))
+  {
+    ERROR ("java plugin: cjni_read: Invalid user data.");
+    return (-1);
+  }
+
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
+    return (-1);
+
+  cbi = (cjni_callback_info_t *) ud->data;
+
+  status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
+      cbi->method);
+
+  status = cjni_thread_detach ();
+  if (status != 0)
+  {
+    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
+    return (-1);
+  }
+
+  return (status);
+} /* }}} int cjni_read */
 
 static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     user_data_t *ud)
@@ -1659,38 +1854,150 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   return (status);
 } /* }}} int cjni_write */
 
-static int cjni_shutdown_one_plugin (JNIEnv *jvm_env, /* {{{ */
-    java_plugin_t *jp)
+
+static int cjni_load_plugins (JNIEnv *jvm_env) /* {{{ */
 {
-  int status;
+  size_t i;
 
-  if ((jp == NULL)
-      || ((jp->flags & CJNI_FLAG_ENABLED) == 0)
-      || (jp->m_shutdown == NULL))
-    return (0);
-
-  status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
-      jp->m_shutdown);
-  if (status != 0)
+  for (i = 0; i < java_classes_list_len; i++)
   {
-    ERROR ("cjni_shutdown_one_plugin: Destroying an `%s' object failed "
-        "with status %i.", jp->class_name, status);
-    return (-1);
-  }
-  jp->flags &= ~CJNI_FLAG_ENABLED;
+    java_plugin_class_t *class;
+    jmethodID constructor_id;
+
+    class = java_classes_list + i;
+
+    DEBUG ("java plugin: Loading class %s", class->name);
+
+    class->class = (*jvm_env)->FindClass (jvm_env, class->name);
+    if (class->class == NULL)
+    {
+      ERROR ("java plugin: cjni_load_plugins: FindClass (%s) failed.",
+          class->name);
+      continue;
+    }
+
+    constructor_id = (*jvm_env)->GetMethodID (jvm_env, class->class,
+        "<init>", "()V");
+    if (constructor_id == NULL)
+    {
+      ERROR ("java plugin: cjni_load_plugins: Could not find the constructor for `%s'.",
+          class->name);
+      continue;
+    }
+
+    class->object = (*jvm_env)->NewObject (jvm_env, class->class,
+        constructor_id);
+    if (class->object == NULL)
+    {
+      ERROR ("java plugin: cjni_load_plugins: Could create a new `%s' object.",
+          class->name);
+      continue;
+    }
+
+    (*jvm_env)->NewGlobalRef (jvm_env, class->object);
+  } /* for (i = 0; i < java_classes_list_len; i++) */
 
   return (0);
-} /* }}} int cjni_shutdown_one_plugin */
+} /* }}} int cjni_load_plugins */
+
+static int cjni_config_plugins (JNIEnv *jvm_env) /* {{{ */
+{
+  int status;
+  size_t i;
+  size_t j;
+
+  for (i = 0; i < java_plugin_configs_num; i++)
+  {
+    jobject o_ocitem;
+
+    if (java_plugin_configs[i].ci == NULL)
+      continue;
+
+    for (j = 0; j < java_callbacks_num; j++)
+    {
+      if (java_callbacks[j].type != CB_TYPE_CONFIG)
+        continue;
+
+      if (strcmp (java_plugin_configs[i].name, java_callbacks[j].name) == 0)
+        break;
+    }
+
+    if (j >= java_callbacks_num)
+    {
+      NOTICE ("java plugin: Configuration for `%s' is present, but no such "
+          "configuration callback has been registered.",
+          java_plugin_configs[i].name);
+      continue;
+    }
+
+    DEBUG ("java plugin: Configuring %s", java_plugin_configs[i].name);
+
+    o_ocitem = ctoj_oconfig_item (jvm_env, java_plugin_configs[i].ci);
+    if (o_ocitem == NULL)
+    {
+      ERROR ("java plugin: cjni_config_plugins: ctoj_oconfig_item failed.");
+      continue;
+    }
+
+    status = (*jvm_env)->CallIntMethod (jvm_env,
+        java_callbacks[j].object, java_callbacks[j].method, o_ocitem);
+    WARNING ("java plugin: Config callback for `%s' returned status %i.",
+        java_plugin_configs[i].name, status);
+  } /* for (i = 0; i < java_plugin_configs; i++) */
+
+  return (0);
+} /* }}} int cjni_config_plugins */
+
+static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
+{
+  int status;
+  size_t i;
+
+  for (i = 0; i < java_callbacks_num; i++)
+  {
+    if (java_callbacks[i].type != CB_TYPE_INIT)
+      continue;
+
+    DEBUG ("java plugin: Initializing %s", java_callbacks[i].name);
+
+    status = (*jvm_env)->CallIntMethod (jvm_env,
+        java_callbacks[i].object, java_callbacks[i].method);
+    if (status != 0)
+    {
+      ERROR ("java plugin: Initializing `%s' failed with status %i. "
+          "Removing read function.",
+          java_callbacks[i].name, status);
+      plugin_unregister_read (java_callbacks[i].name);
+    }
+  }
+
+  return (0);
+} /* }}} int cjni_init_plugins */
 
 static int cjni_shutdown_plugins (JNIEnv *jvm_env) /* {{{ */
 {
-  size_t j;
+  int status;
+  size_t i;
 
-  for (j = 0; j < java_plugins_num; j++)
-    cjni_shutdown_one_plugin (jvm_env, &java_plugins[j]);
+  for (i = 0; i < java_callbacks_num; i++)
+  {
+    if (java_callbacks[i].type != CB_TYPE_SHUTDOWN)
+      continue;
+
+    DEBUG ("java plugin: Shutting down %s", java_callbacks[i].name);
+
+    status = (*jvm_env)->CallIntMethod (jvm_env,
+        java_callbacks[i].object, java_callbacks[i].method);
+    if (status != 0)
+    {
+      ERROR ("java plugin: Shutting down `%s' failed with status %i. ",
+          java_callbacks[i].name, status);
+    }
+  }
 
   return (0);
 } /* }}} int cjni_shutdown_plugins */
+
 
 static int cjni_shutdown (void) /* {{{ */
 {
@@ -1714,191 +2021,59 @@ static int cjni_shutdown (void) /* {{{ */
     return (-1);
   }
 
+  /* Execute all the shutdown functions registered by plugins. */
   cjni_shutdown_plugins (jvm_env);
 
+  /* Release all the global references to callback functions */
+  for (i = 0; i < java_callbacks_num; i++)
+  {
+    if (java_callbacks[i].object != NULL)
+    {
+      (*jvm_env)->DeleteGlobalRef (jvm_env, java_callbacks[i].object);
+      java_callbacks[i].object = NULL;
+    }
+    sfree (java_callbacks[i].name);
+  }
+  java_callbacks_num = 0;
+  sfree (java_callbacks);
+
+  /* Release all the global references to directly loaded classes. */
+  for (i = 0; i < java_classes_list_len; i++)
+  {
+    if (java_classes_list[i].object != NULL)
+    {
+      (*jvm_env)->DeleteGlobalRef (jvm_env, java_classes_list[i].object);
+      java_classes_list[i].object = NULL;
+    }
+    sfree (java_classes_list[i].name);
+  }
+  java_classes_list_len = 0;
+  sfree (java_classes_list);
+
+  /* Destroy the JVM */
   (*jvm)->DestroyJavaVM (jvm);
   jvm = NULL;
   jvm_env = NULL;
 
   pthread_key_delete (jvm_env_key);
 
+  /* Free the JVM argument list */
   for (i = 0; i < jvm_argc; i++)
-  {
     sfree (jvm_argv[i]);
-  }
-  sfree (jvm_argv);
   jvm_argc = 0;
+  sfree (jvm_argv);
 
-  for (i = 0; i < java_plugins_num; i++)
+  /* Free the copied configuration */
+  for (i = 0; i < java_plugin_configs_num; i++)
   {
-    sfree (java_plugins[i].class_name);
-    oconfig_free (java_plugins[i].ci);
+    sfree (java_plugin_configs[i].name);
+    oconfig_free (java_plugin_configs[i].ci);
   }
-  sfree (java_plugins);
-  java_plugins_num = 0;
+  java_plugin_configs_num = 0;
+  sfree (java_plugin_configs);
 
   return (0);
 } /* }}} int cjni_shutdown */
-
-static int cjni_read (user_data_t *ud) /* {{{ */
-{
-  JNIEnv *jvm_env;
-  cjni_callback_info_t *cbi;
-  int status;
-
-  if (jvm == NULL)
-  {
-    ERROR ("java plugin: cjni_read: jvm == NULL");
-    return (-1);
-  }
-
-  if ((ud == NULL) || (ud->data == NULL))
-  {
-    ERROR ("java plugin: cjni_read: Invalid user data.");
-    return (-1);
-  }
-
-  jvm_env = cjni_thread_attach ();
-  if (jvm_env == NULL)
-    return (-1);
-
-  cbi = (cjni_callback_info_t *) ud->data;
-
-  status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
-      cbi->method);
-
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
-    return (-1);
-  }
-
-  return (status);
-} /* }}} int cjni_read */
-
-static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
-{
-  jmethodID constructor_id;
-  int status;
-
-  jp->class_ptr = (*jvm_env)->FindClass (jvm_env, jp->class_name);
-  if (jp->class_ptr == NULL)
-  {
-    ERROR ("cjni_init_one_plugin: FindClass (%s) failed.",
-        jp->class_name);
-    return (-1);
-  }
-
-  constructor_id = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "<init>", "()V");
-  if (constructor_id == NULL)
-  {
-    ERROR ("cjni_init_one_plugin: Could not find the constructor for `%s'.",
-        jp->class_name);
-    return (-1);
-  }
-
-  jp->object_ptr = (*jvm_env)->NewObject (jvm_env, jp->class_ptr,
-      constructor_id);
-  if (jp->object_ptr == NULL)
-  {
-    ERROR ("cjni_init_one_plugin: Could create a new `%s' object.",
-        jp->class_name);
-    return (-1);
-  }
-
-  jp->m_config = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Config", "(Lorg/collectd/api/OConfigItem;)I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_config = %p;",
-      jp->class_name, (void *) jp->m_config);
-
-  jp->m_init = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Init", "()I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_init = %p;",
-      jp->class_name, (void *) jp->m_init);
-
-  jp->m_shutdown = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Shutdown", "()I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_shutdown = %p;",
-      jp->class_name, (void *) jp->m_shutdown);
-
-  if (jp->ci != NULL)
-  {
-    if (jp->m_config == NULL)
-    {
-      WARNING ("java plugin: Configuration for the `%s' plugin is present, "
-          "but plugin doesn't provide a configuration method.",
-          jp->class_name);
-    }
-    else /* if (jp->m_config != NULL) */
-    {
-      jobject o_ocitem;
-
-      o_ocitem = ctoj_oconfig_item (jvm_env, jp->ci);
-      if (o_ocitem == NULL)
-      {
-        ERROR ("java plugin: Creating an OConfigItem object failed. "
-            "Can't pass configuration information to the `%s' plugin!",
-            jp->class_name);
-      }
-      else /* if (o_ocitem != NULL) */
-      {
-        status = (*jvm_env)->CallIntMethod (jvm_env,
-            jp->object_ptr, jp->m_config, o_ocitem);
-        if (status != 0)
-        {
-          ERROR ("java plugin: cjni_init_one_plugin: "
-              "Configuring the `%s' object failed with status %i.",
-              jp->class_name, status);
-          (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
-          return (-1);
-        }
-        (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
-      } /* if (o_ocitem != NULL) */
-    } /* if (jp->m_config != NULL) */
-  } /* if (jp->ci != NULL) */
-
-  if (jp->m_init != NULL)
-  {
-    status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
-        jp->m_init);
-    if (status != 0)
-    {
-      ERROR ("java plugin: cjni_init_one_plugin: "
-        "Initializing `%s' object failed with status %i.",
-        jp->class_name, status);
-      return (-1);
-    }
-  }
-  jp->flags |= CJNI_FLAG_ENABLED;
-
-  return (0);
-} /* }}} int cjni_init_one_plugin */
-
-static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
-{
-  int have_shutdown;
-  size_t j;
-
-  have_shutdown = 0;
-
-  for (j = 0; j < java_plugins_num; j++)
-  {
-    cjni_init_one_plugin (jvm_env, &java_plugins[j]);
-
-    if (java_plugins[j].m_shutdown != NULL)
-      have_shutdown++;
-  }
-
-  if (have_shutdown > 0)
-    plugin_register_shutdown ("java", cjni_shutdown);
-
-  return (0);
-} /* }}} int cjni_init_plugins */
 
 static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
 {
@@ -1978,6 +2153,8 @@ static int cjni_init (void) /* {{{ */
     return (-1);
   }
 
+  cjni_load_plugins (jvm_env);
+  cjni_config_plugins (jvm_env);
   cjni_init_plugins (jvm_env);
 
   return (0);
@@ -1987,6 +2164,7 @@ void module_register (void)
 {
   plugin_register_complex_config ("java", cjni_config);
   plugin_register_init ("java", cjni_init);
+  plugin_register_shutdown ("java", cjni_shutdown);
 } /* void module_register (void) */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
