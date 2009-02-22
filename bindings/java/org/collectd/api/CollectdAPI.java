@@ -21,11 +21,28 @@
 
 package org.collectd.api;
 
+/**
+ * Java API to internal functions of collectd.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ */
 public class CollectdAPI
 {
+  /**
+   * Java representation of collectd/src/plugin.h:plugin_dispatch_values
+   */
   native public static int DispatchValues (ValueList vl);
 
+  /**
+   * Java representation of collectd/src/plugin.h:plugin_get_ds
+   */
   native public static DataSet GetDS (String type);
+
+  /**
+   * Java representation of collectd/src/plugin.h:plugin_register_read
+   */
+  native public static int RegisterRead (String name,
+      CollectdReadInterface obj);
 } /* class CollectdAPI */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

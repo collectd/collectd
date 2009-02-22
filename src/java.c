@@ -75,6 +75,14 @@ static size_t jvm_argc = 0;
 static java_plugin_t *java_plugins     = NULL;
 static size_t         java_plugins_num = 0;
 
+/*
+ * Prototypes
+ *
+ * Mostly functions that are needed by the Java interface functions.
+ */
+static void cjni_objectref_destroy (void *arg);
+static int cjni_read (user_data_t *user_data);
+
 /* 
  * C to Java conversion functions
  */
@@ -1144,10 +1152,48 @@ static jobject JNICALL cjni_api_get_ds (JNIEnv *jvm_env, /* {{{ */
   return (o_dataset);
 } /* }}} jint cjni_api_get_ds */
 
+static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_read)
+{
+  const char *c_name;
+  user_data_t ud;
+
+  c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
+  if (c_name == NULL)
+  {
+    ERROR ("java plugin: cjni_api_register_read: GetStringUTFChars failed.");
+    return (-1);
+  }
+
+  DEBUG ("java plugin: cjni_api_register_read: c_name = %s;", c_name);
+
+  memset (&ud, 0, sizeof (ud));
+  ud.data = (void *) o_read;
+  ud.free_func = cjni_objectref_destroy;
+
+  (*jvm_env)->NewGlobalRef (jvm_env, o_read);
+
+  plugin_register_complex_read (c_name, cjni_read, &ud);
+
+  (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
+
+  return (0);
+} /* }}} jint cjni_api_register_read */
+
 static JNINativeMethod jni_api_functions[] =
 {
-  { "DispatchValues", "(Lorg/collectd/api/ValueList;)I", cjni_api_dispatch_values },
-  { "GetDS",          "(Ljava/lang/String;)Lorg/collectd/api/DataSet;", cjni_api_get_ds }
+  { "DispatchValues",
+    "(Lorg/collectd/api/ValueList;)I",
+    cjni_api_dispatch_values },
+
+  { "GetDS",
+    "(Ljava/lang/String;)Lorg/collectd/api/DataSet;",
+    cjni_api_get_ds },
+
+  { "RegisterRead",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdReadInterface;)I",
+    cjni_api_register_read }
 };
 static size_t jni_api_functions_num = sizeof (jni_api_functions)
   / sizeof (jni_api_functions[0]);
@@ -1269,6 +1315,33 @@ static void cjni_jvm_env_destroy (void *args) /* {{{ */
   /* The pointer is allocated in `cjni_thread_attach' */
   free (cjni_env);
 } /* }}} void cjni_jvm_env_destroy */
+
+/* 
+ * Delete a global reference, set by the various `Register*' functions.
+ */
+static void cjni_objectref_destroy (void *arg) /* {{{ */
+{
+  JNIEnv *jni_env;
+  jobject obj;
+
+  DEBUG ("java plugin: cjni_objectref_destroy (arg = %p);", arg);
+
+  if (arg == NULL)
+    return;
+
+  jni_env = cjni_thread_attach ();
+  if (jni_env == NULL)
+  {
+    ERROR ("java plugin: cjni_objectref_destroy: cjni_thread_attach failed.");
+    return;
+  }
+
+  obj = (jobject) arg;
+
+  (*jni_env)->DeleteGlobalRef (jni_env, obj);
+
+  cjni_thread_detach ();
+} /* }}} void cjni_objectref_destroy */
 
 static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
 {
@@ -1767,16 +1840,6 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
   jp->flags |= CJNI_FLAG_ENABLED;
 
   ssnprintf (plugin_name, sizeof (plugin_name), "java:%s", jp->class_name);
-  if (jp->m_read != NULL)
-  {
-    user_data_t ud;
-
-    memset (&ud, 0, sizeof (ud));
-    ud.data = jp;
-    ud.free_func = NULL;
-
-    plugin_register_complex_read (plugin_name, cjni_read, &ud);
-  }
 
   if (jp->m_write != NULL)
   {
