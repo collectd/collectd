@@ -21,7 +21,27 @@
 
 package org.collectd.api;
 
+/**
+ * Interface for objects implementing a read function.
+ *
+ * Objects implementing this interface can be registered with the daemon. Their
+ * read method is then called periodically to acquire and submit values.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ * @see Collectd#registerRead
+ */
 public interface CollectdReadInterface
 {
+	/**
+	 * Callback method for read plugins.
+	 *
+	 * This method is called once every few seconds (depends on the
+	 * configuration of the daemon). It is supposed to gather values in
+	 * some way and submit them to the daemon using
+	 * {@link Collectd#dispatchValues}.
+	 *
+	 * @return zero when successful, non-zero when an error occurred.
+	 * @see Collectd#dispatchValues
+	 */
 	public int read ();
 }

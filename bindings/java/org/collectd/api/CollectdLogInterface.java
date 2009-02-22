@@ -21,6 +21,12 @@
 
 package org.collectd.api;
 
+/**
+ * Interface for objects implementing a log function.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ * @see Collectd#registerLog
+ */
 public interface CollectdLogInterface
 {
 	public void log (int severity, String message);

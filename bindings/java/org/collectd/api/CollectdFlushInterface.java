@@ -21,6 +21,12 @@
 
 package org.collectd.api;
 
+/**
+ * Interface for objects implementing a flush function.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ * @see Collectd#registerFlush
+ */
 public interface CollectdFlushInterface
 {
 	public int flush (int timeout, String identifier);

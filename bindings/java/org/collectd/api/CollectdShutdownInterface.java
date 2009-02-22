@@ -21,6 +21,12 @@
 
 package org.collectd.api;
 
+/**
+ * Interface for objects implementing a shutdown function.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ * @see Collectd#registerShutdown
+ */
 public interface CollectdShutdownInterface
 {
 	public int shutdown ();

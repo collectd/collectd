@@ -21,6 +21,12 @@
 
 package org.collectd.api;
 
+/**
+ * Interface for objects implementing a config function.
+ *
+ * @author Florian Forster &lt;octo at verplant.org&gt;
+ * @see Collectd#registerConfig(String, CollectdConfigInterface)
+ */
 public interface CollectdConfigInterface
 {
 	public int config (OConfigItem ci);
