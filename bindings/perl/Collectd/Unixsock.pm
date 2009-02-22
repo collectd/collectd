@@ -287,7 +287,21 @@ sub putval
 	}
 	else
 	{
-		my $time = $args{'time'} ? $args{'time'} : time ();
+		my $time;
+
+		if ("ARRAY" ne ref ($args{'values'}))
+		{
+			cluck ("Invalid `values' argument (expected an array ref)");
+			return;
+		}
+
+		if (! scalar @{$args{'values'}})
+		{
+			cluck ("Empty `values' array");
+			return;
+		}
+
+		$time = $args{'time'} ? $args{'time'} : time ();
 		$values = join (':', $time, map { defined ($_) ? $_ : 'U' } (@{$args{'values'}}));
 	}
 

@@ -59,7 +59,7 @@
  * `list_info_ptr_t' are passed to the callbacks in the `void *user_data'
  * pointer.
  */
-typedef int (*list_callback_t) (const char *name, counter_t value,
+typedef int (*list_callback_t) (const char *name, value_t value,
     time_t current_time, void *user_data);
 
 struct cb_view_s
@@ -131,7 +131,7 @@ static const translation_info_t nsstats_translation_table[] = /* {{{ */
   /* Rejects */
   { "AuthQryRej",      "dns_reject",   "authorative" },
   { "RecQryRej",       "dns_reject",   "recursive"   },
-  { "XfrRej",          "dns_reject",   "transer"     },
+  { "XfrRej",          "dns_reject",   "transfer"    },
   { "UpdateRej",       "dns_reject",   "update"      },
   /* Responses */
   { "Response",        "dns_response", "normal"      },
@@ -178,7 +178,7 @@ static const translation_info_t zonestats_translation_table[] = /* {{{ */
   { "NotifyRej",       "dns_notify",   "rejected"    },
   /* SOA/AXFS/IXFS requests */
   { "SOAOutv4",        "dns_opcode",   "SOA-IPv4"    },
-  { "SOAOutv6",        "dns_opcode",   "SOA-IPv4"    },
+  { "SOAOutv6",        "dns_opcode",   "SOA-IPv6"    },
   { "AXFRReqv4",       "dns_opcode",   "AXFR-IPv4"   },
   { "AXFRReqv6",       "dns_opcode",   "AXFR-IPv6"   },
   { "IXFRReqv4",       "dns_opcode",   "IXFR-IPv4"   },
@@ -239,13 +239,13 @@ static int memsummary_translation_table_length =
   STATIC_ARRAY_SIZE (memsummary_translation_table);
 /* }}} */
 
-static void submit_counter(time_t ts, const char *plugin_instance, /* {{{ */
-    const char *type, const char *type_instance, counter_t value)
+static void submit (time_t ts, const char *plugin_instance, /* {{{ */
+    const char *type, const char *type_instance, value_t value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].counter = value;
+  values[0] = value;
 
   vl.values = values;
   vl.values_len = 1;
@@ -264,7 +264,7 @@ static void submit_counter(time_t ts, const char *plugin_instance, /* {{{ */
     replace_special (vl.plugin_instance, sizeof (vl.plugin_instance));
   }
   plugin_dispatch_values(&vl);
-} /* }}} void submit_counter */
+} /* }}} void submit */
 
 static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
     size_t nmemb, void __attribute__((unused)) *stream)
@@ -299,7 +299,7 @@ static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
  * Callback, that's called with a translation table.
  * (Plugin instance is fixed, type and type instance come from lookup table.)
  */
-static int bind_xml_table_callback (const char *name, counter_t value, /* {{{ */
+static int bind_xml_table_callback (const char *name, value_t value, /* {{{ */
     time_t current_time, void *user_data)
 {
   translation_table_ptr_t *table = (translation_table_ptr_t *) user_data;
@@ -313,7 +313,7 @@ static int bind_xml_table_callback (const char *name, counter_t value, /* {{{ */
     if (strcmp (table->table[i].xml_name, name) != 0)
       continue;
 
-    submit_counter (current_time,
+    submit (current_time,
         table->plugin_instance,
         table->table[i].type,
         table->table[i].type_instance,
@@ -329,14 +329,14 @@ static int bind_xml_table_callback (const char *name, counter_t value, /* {{{ */
  * (Plugin instance and type are fixed, xml name is used as type instance.)
  */
 static int bind_xml_list_callback (const char *name, /* {{{ */
-    counter_t value, time_t current_time, void *user_data)
+    value_t value, time_t current_time, void *user_data)
 {
   list_info_ptr_t *list_info = (list_info_ptr_t *) user_data;
 
   if (list_info == NULL)
     return (-1);
 
-  submit_counter (current_time,
+  submit (current_time,
       list_info->plugin_instance,
       list_info->type,
       /* type instance = */ name,
@@ -375,6 +375,37 @@ static int bind_xml_read_counter (xmlDoc *doc, xmlNode *node, /* {{{ */
   *ret_value = value;
   return (0);
 } /* }}} int bind_xml_read_counter */
+
+static int bind_xml_read_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
+    gauge_t *ret_value)
+{
+  char *str_ptr, *end_ptr;
+  double value;
+
+  str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
+  if (str_ptr == NULL)
+  {
+    ERROR ("bind plugin: bind_xml_read_gauge: xmlNodeListGetString failed.");
+    return (-1);
+  }
+
+  errno = 0;
+  value = strtod (str_ptr, &end_ptr);
+  xmlFree(str_ptr);
+  if (str_ptr == end_ptr || errno)
+  {
+    if (errno && (value < 0))
+      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed with underflow.");
+    else if (errno && (value > 0))
+      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed with overflow.");
+    else
+      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed.");
+    return (-1);
+  }
+
+  *ret_value = (gauge_t) value;
+  return (0);
+} /* }}} int bind_xml_read_gauge */
 
 static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
     xmlDoc *doc, xmlXPathContext *xpathCtx, time_t *ret_value)
@@ -446,7 +477,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
  * Reads statistics in the form:
  * <foo>
  *   <name>QUERY</name>
- *   <value>123</name>
+ *   <counter>123</counter>
  * </foo>
  */
 static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ */
@@ -473,10 +504,15 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
   {
     xmlNode *name_node = NULL;
     xmlNode *counter = NULL;
+    xmlNode *parent;
     xmlNode *child;
 
+    parent = xpathObj->nodesetval->nodeTab[i];
+    DEBUG ("bind plugin: bind_parse_generic_name_value: parent->name = %s;",
+        (char *) parent->name);
+
     /* Iterate over all child nodes. */
-    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+    for (child = parent->xmlChildrenNode;
         child != NULL;
         child = child->next)
     {
@@ -493,10 +529,10 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
     {
       char *name = (char *) xmlNodeListGetString (doc,
           name_node->xmlChildrenNode, 1);
-      counter_t value;
+      value_t value;
       int status;
 
-      status = bind_xml_read_counter (doc, counter, &value);
+      status = bind_xml_read_counter (doc, counter, &value.counter);
       if (status != 0)
         continue;
 
@@ -532,7 +568,7 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
     list_callback_t list_callback,
     void *user_data,
     xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time)
+    time_t current_time, int ds_type)
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
@@ -558,14 +594,18 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
         child = child->next)
     {
       char *node_name;
-      counter_t value;
+      value_t value;
       int status;
 
       if (child->type != XML_ELEMENT_NODE)
         continue;
 
       node_name = (char *) child->name;
-      status = bind_xml_read_counter (doc, child, &value);
+
+      if (ds_type == DS_TYPE_GAUGE)
+        status = bind_xml_read_gauge (doc, child, &value.gauge);
+      else
+        status = bind_xml_read_counter (doc, child, &value.counter);
       if (status != 0)
         continue;
 
@@ -650,7 +690,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_value_list (/* xpath = */ "counters",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
-        doc, path_ctx, current_time);
+        doc, path_ctx, current_time, DS_TYPE_COUNTER);
   } /* }}} */
 
   xmlXPathFreeObject (path_obj);
@@ -959,7 +999,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_value_list ("server/nsstats",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
     else
     {
@@ -1005,7 +1045,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_value_list ("server/zonestats",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
     else
     {
@@ -1052,7 +1092,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_value_list ("server/resstats",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
     else
     {
@@ -1086,7 +1126,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_value_list ("memory/summary",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time);
+          doc, xpathCtx, current_time, DS_TYPE_GAUGE);
   }
 
   if (views_num > 0)
@@ -1302,7 +1342,16 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("OpCodes", child->key) == 0)
+    if (strcasecmp ("Url", child->key) == 0) {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("bind plugin: The `Url' option needs "
+                 "exactly one string argument.");
+        return (-1);
+      }
+
+      url = strdup (child->values[0].value.string);
+    } else if (strcasecmp ("OpCodes", child->key) == 0)
       bind_config_set_bool ("OpCodes", &global_opcodes, child);
     else if (strcasecmp ("QTypes", child->key) == 0)
       bind_config_set_bool ("QTypes", &global_qtypes, child);
@@ -1313,7 +1362,7 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("ResolverStats", child->key) == 0)
       bind_config_set_bool ("ResolverStats", &global_resolver_stats, child);
     else if (strcasecmp ("MemoryStats", child->key) == 0)
-      bind_config_set_bool ("MemoryStats", &global_resolver_stats, child);
+      bind_config_set_bool ("MemoryStats", &global_memory_stats, child);
     else if (strcasecmp ("View", child->key) == 0)
       bind_config_add_view (child);
     else
