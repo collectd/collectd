@@ -23,5 +23,5 @@ package org.collectd.api;
 
 public interface CollectdWriteInterface
 {
-	public int Write (ValueList vl);
+	public int write (ValueList vl);
 }

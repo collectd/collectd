@@ -37,72 +37,72 @@ public class CollectdAPI
   /**
    * Java representation of collectd/src/plugin.h:plugin_register_config
    */
-  native public static int RegisterConfig (String name,
-      CollectdConfigInterface obj);
+  native public static int registerConfig (String name,
+      CollectdConfigInterface object);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_register_init
    */
-  native public static int RegisterInit (String name,
-      CollectdInitInterface obj);
+  native public static int registerInit (String name,
+      CollectdInitInterface object);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_register_read
    */
-  native public static int RegisterRead (String name,
-      CollectdReadInterface obj);
+  native public static int registerRead (String name,
+      CollectdReadInterface object);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_register_write
    */
-  native public static int RegisterWrite (String name,
-      CollectdWriteInterface obj);
+  native public static int registerWrite (String name,
+      CollectdWriteInterface object);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_register_shutdown
    */
-  native public static int RegisterShutdown (String name,
-      CollectdShutdownInterface obj);
+  native public static int registerShutdown (String name,
+      CollectdShutdownInterface object);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_dispatch_values
    */
-  native public static int DispatchValues (ValueList vl);
+  native public static int dispatchValues (ValueList vl);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_get_ds
    */
-  native public static DataSet GetDS (String type);
+  native public static DataSet getDS (String type);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_log
    */
-  native private static void Log (int severity, String message);
+  native private static void log (int severity, String message);
 
-  public static void LogError (String message)
+  public static void logError (String message)
   {
-    Log (LOG_ERR, message);
-  } /* void LogError */
+    log (LOG_ERR, message);
+  } /* void logError */
 
-  public static void LogWarning (String message)
+  public static void logWarning (String message)
   {
-    Log (LOG_WARNING, message);
-  } /* void LogWarning */
+    log (LOG_WARNING, message);
+  } /* void logWarning */
 
-  public static void LogNotice (String message)
+  public static void logNotice (String message)
   {
-    Log (LOG_NOTICE, message);
-  } /* void LogNotice */
+    log (LOG_NOTICE, message);
+  } /* void logNotice */
 
-  public static void LogInfo (String message)
+  public static void logInfo (String message)
   {
-    Log (LOG_INFO, message);
-  } /* void LogInfo */
+    log (LOG_INFO, message);
+  } /* void logInfo */
 
-  public static void LogDebug (String message)
+  public static void logDebug (String message)
   {
-    Log (LOG_DEBUG, message);
-  } /* void LogDebug */
+    log (LOG_DEBUG, message);
+  } /* void logDebug */
 
 } /* class CollectdAPI */
 

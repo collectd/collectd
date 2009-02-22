@@ -23,5 +23,5 @@ package org.collectd.api;
 
 public interface CollectdShutdownInterface
 {
-	public int Shutdown ();
+	public int shutdown ();
 }

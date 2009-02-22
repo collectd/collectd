@@ -23,5 +23,5 @@ package org.collectd.api;
 
 public interface CollectdReadInterface
 {
-	public int Read ();
+	public int read ();
 }

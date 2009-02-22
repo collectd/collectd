@@ -88,11 +88,11 @@ whenever one is available.
 
 Each callback method is now explained in more detail:
 
-=head2 Config callback
+=head2 config callback
 
 Interface: B<org.collectd.api.CollectdConfigInterface>
 
-Signature: I<int> B<Config> (I<OConfigItem>)
+Signature: I<int> B<config> (I<OConfigItem>)
 
 This method is passed a B<OConfigItem> object, if both, method and
 configuration, are available. B<OConfigItem> is the root of a tree representing
@@ -103,11 +103,11 @@ root are the first interesting objects.
 To signal success, this method has to return zero. Anything else will be
 considered an error condition and the plugin will be disabled entirely.
 
-=head2 Init callback
+=head2 init callback
 
 Interface: B<org.collectd.api.CollectdInitInterface>
 
-Signature: I<int> B<Init> ()
+Signature: I<int> B<init> ()
 
 This method is called after the configuration has been handled. It is
 supposed to set up the plugin. e.E<nbsp>g. start threads, open connections, or
@@ -116,15 +116,15 @@ check if can do anything useful at all.
 To signal success, this method has to return zero. Anything else will be
 considered an error condition and the plugin will be disabled entirely.
 
-=head2 Read callback
+=head2 read callback
 
 Interface: B<org.collectd.api.CollectdReadInterface>
 
-Signature: I<int> B<Read> ()
+Signature: I<int> B<read> ()
 
 This method is called periodically and is supposed to gather statistics in
 whatever fashion. These statistics are represented as a B<ValueList> object and
-sent to the daemon using B<DispatchValues>, see L<"CALLING API FUNCTIONS">
+sent to the daemon using B<dispatchValues>, see L<"CALLING API FUNCTIONS">
 below.
 
 To signal success, this method has to return zero. Anything else will be
@@ -133,11 +133,11 @@ Currently, returning non-zero does not have any other effects. In particular,
 Java "read"-methods are not suspended for increasing intervals like C
 "read"-functions.
 
-=head2 Write callback
+=head2 write callback
 
 Interface: B<org.collectd.api.CollectdWriteInterface>
 
-Signature: I<int> B<Write> (I<ValueList>)
+Signature: I<int> B<write> (I<ValueList>)
 
 This method is called whenever a value is dispatched to the daemon. The
 corresponding C "write"-functions are passed a C<data_set_t>, so they can
@@ -148,11 +148,11 @@ method of the B<ValueList> object.
 To signal success, this method has to return zero. Anything else will be
 considered an error condition and cause an appropriate message to be logged.
 
-=head2 Shutdown callback
+=head2 shutdown callback
 
 Interface: B<org.collectd.api.CollectdShutdownInterface>
 
-Signature: I<int> B<Shutdown> ()
+Signature: I<int> B<shutdown> ()
 
 This method is called when the daemon is shutting down. You should not rely on
 the destructor to clean up behind the object but use this function instead.
@@ -174,16 +174,16 @@ daemon:
   {
     public Foobar ()
     {
-      CollectdAPI.RegisterRead ("Foobar", this);
+      CollectdAPI.registerRead ("Foobar", this);
     }
     
-    public int Read ()
+    public int read ()
     {
       ValueList vl;
       
       /* Do something... */
       
-      CollectdAPI.DispatchValues (vl);
+      CollectdAPI.dispatchValues (vl);
     }
   }
 
@@ -195,31 +195,31 @@ class. This makes calling these functions pretty straight forward.
 
 The currently exported functions are:
 
-=head2 RegisterRead
+=head2 registerRead
 
-Signature: I<int> B<RegisterRead> (I<String> name,
+Signature: I<int> B<registerRead> (I<String> name,
 I<CollectdReadInterface> object)
 
-Registers the B<Read> function of I<object> with the daemon.
+Registers the B<read> function of I<object> with the daemon.
 For a description of the B<CollectdReadInterface> interface, see
 L<"REGISTERING CALLBACKS"> above.
 
 Returns zero upon success and non-zero when an error occurred.
 
-=head2 RegisterWrite
+=head2 registerWrite
 
-Signature: I<int> B<RegisterWrite> (I<String> name,
+Signature: I<int> B<registerWrite> (I<String> name,
 I<CollectdWriteInterface> object)
 
-Registers the B<Write> function of I<object> with the daemon.
+Registers the B<write> function of I<object> with the daemon.
 For a description of the B<CollectdWriteInterface> interface, see
 L<"REGISTERING CALLBACKS"> above.
 
 Returns zero upon success and non-zero when an error occurred.
 
-=head2 DispatchValues
+=head2 dispatchValues
 
-Signature: I<int> B<DispatchValues> (I<ValueList>)
+Signature: I<int> B<dispatchValues> (I<ValueList>)
 
 Passes the values represented by the B<ValueList> object to the
 C<plugin_dispatch_values> function of the daemon. The "data set" (or list of
@@ -229,9 +229,9 @@ is therefore absolutely okay to leave this blank.
 
 Returns zero upon success or non-zero upon failure.
 
-=head2 GetDS
+=head2 getDS
 
-Signature: I<DataSet> B<GetDS> (I<String>)
+Signature: I<DataSet> B<getDS> (I<String>)
 
 Returns the approrpate I<type> or B<null> if the type is not defined.
 

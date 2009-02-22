@@ -1280,35 +1280,35 @@ static void JNICALL cjni_api_log (JNIEnv *jvm_env, /* {{{ */
  * Java. */
 static JNINativeMethod jni_api_functions[] = /* {{{ */
 {
-  { "DispatchValues",
+  { "dispatchValues",
     "(Lorg/collectd/api/ValueList;)I",
     cjni_api_dispatch_values },
 
-  { "GetDS",
+  { "getDS",
     "(Ljava/lang/String;)Lorg/collectd/api/DataSet;",
     cjni_api_get_ds },
 
-  { "RegisterConfig",
+  { "registerConfig",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdConfigInterface;)I",
     cjni_api_register_config },
 
-  { "RegisterInit",
+  { "registerInit",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdInitInterface;)I",
     cjni_api_register_init },
 
-  { "RegisterRead",
+  { "registerRead",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdReadInterface;)I",
     cjni_api_register_read },
 
-  { "RegisterWrite",
+  { "registerWrite",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdWriteInterface;)I",
     cjni_api_register_write },
 
-  { "RegisterShutdown",
+  { "registerShutdown",
     "(Ljava/lang/String;Lorg/collectd/api/CollectdShutdownInterface;)I",
     cjni_api_register_shutdown },
 
-  { "Log",
+  { "log",
     "(ILjava/lang/String;)V",
     cjni_api_log },
 };
@@ -1332,27 +1332,27 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
   switch (type)
   {
     case CB_TYPE_CONFIG:
-      method_name = "Config";
+      method_name = "config";
       method_signature = "(Lorg/collectd/api/OConfigItem;)I";
       break;
 
     case CB_TYPE_INIT:
-      method_name = "Init";
+      method_name = "init";
       method_signature = "()I";
       break;
 
     case CB_TYPE_READ:
-      method_name = "Read";
+      method_name = "read";
       method_signature = "()I";
       break;
 
     case CB_TYPE_WRITE:
-      method_name = "Write";
+      method_name = "write";
       method_signature = "(Lorg/collectd/api/ValueList;)I";
       break;
 
     case CB_TYPE_SHUTDOWN:
-      method_name = "Shutdown";
+      method_name = "shutdown";
       method_signature = "()I";
       break;
 
