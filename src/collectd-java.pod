@@ -68,14 +68,14 @@ example B<ValueList>. In order to be able to use these abbreviated names, you
 need to B<import> the classes.
 
 The API functions that are available from Java are implemented as I<static>
-functions of the B<org.collectd.api.CollectdAPI> class.
+functions of the B<org.collectd.api.Collectd> class.
 See L<"CALLING API FUNCTIONS"> below for details.
 
 =head1 REGISTERING CALLBACKS
 
 When starting up, collectd creates an object of each configured class. The
 constructor of this class should then register "callbacks" with the daemon,
-using the appropriate static functions in B<CollectdAPI>,
+using the appropriate static functions in B<Collectd>,
 see L<"CALLING API FUNCTIONS"> below. To register a callback, the object being
 passed to one of the register functions must implement an appropriate
 interface, which are all in the B<org.collectd.api> namespace.
@@ -165,7 +165,7 @@ considered an error condition and cause an appropriate message to be logged.
 This short example demonstrates how to register a read callback with the
 daemon:
 
-  import org.collectd.api.CollectdAPI;
+  import org.collectd.api.Collectd;
   import org.collectd.api.ValueList;
   
   import org.collectd.api.CollectdReadInterface;
@@ -174,7 +174,7 @@ daemon:
   {
     public Foobar ()
     {
-      CollectdAPI.registerRead ("Foobar", this);
+      Collectd.registerRead ("Foobar", this);
     }
     
     public int read ()
@@ -183,15 +183,15 @@ daemon:
       
       /* Do something... */
       
-      CollectdAPI.dispatchValues (vl);
+      Collectd.dispatchValues (vl);
     }
   }
 
 =head1 CALLING API FUNCTIONS
 
 All collectd API functions that are available to Java plugins are implemented
-as I<publicE<nbsp>static> functions of the B<org.collectd.api.CollectdAPI>
-class. This makes calling these functions pretty straight forward.
+as I<publicE<nbsp>static> functions of the B<org.collectd.api.Collectd> class.
+This makes calling these functions pretty straight forward.
 
 The following are the currently exported functions. For information on the
 interfaces used, please see L<"REGISTERING CALLBACKS"> above.

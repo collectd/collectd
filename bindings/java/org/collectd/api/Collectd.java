@@ -1,5 +1,5 @@
 /*
- * collectd/java - org/collectd/api/CollectdAPI.java
+ * collectd/java - org/collectd/api/Collectd.java
  * Copyright (C) 2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@ package org.collectd.api;
  *
  * @author Florian Forster &lt;octo at verplant.org&gt;
  */
-public class CollectdAPI
+public class Collectd
 {
   private static final int LOG_ERR     = 3;
   private static final int LOG_WARNING = 4;
@@ -104,6 +104,6 @@ public class CollectdAPI
     log (LOG_DEBUG, message);
   } /* void logDebug */
 
-} /* class CollectdAPI */
+} /* class Collectd */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
