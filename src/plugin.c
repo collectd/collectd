@@ -277,7 +277,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 	return ((void *) 0);
 } /* void *plugin_read_thread */
 
-static void start_threads (int num)
+static void start_read_threads (int num)
 {
 	int i;
 
@@ -287,7 +287,7 @@ static void start_threads (int num)
 	read_threads = (pthread_t *) calloc (num, sizeof (pthread_t));
 	if (read_threads == NULL)
 	{
-		ERROR ("plugin: start_threads: calloc failed.");
+		ERROR ("plugin: start_read_threads: calloc failed.");
 		return;
 	}
 
@@ -301,13 +301,13 @@ static void start_threads (int num)
 		}
 		else
 		{
-			ERROR ("plugin: start_threads: pthread_create failed.");
+			ERROR ("plugin: start_read_threads: pthread_create failed.");
 			return;
 		}
 	} /* for (i) */
-} /* void start_threads */
+} /* void start_read_threads */
 
-static void stop_threads (void)
+static void stop_read_threads (void)
 {
 	int i;
 
@@ -316,7 +316,7 @@ static void stop_threads (void)
 
 	pthread_mutex_lock (&read_lock);
 	read_loop = 0;
-	DEBUG ("plugin: stop_threads: Signalling `read_cond'");
+	DEBUG ("plugin: stop_read_threads: Signalling `read_cond'");
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 
@@ -324,13 +324,43 @@ static void stop_threads (void)
 	{
 		if (pthread_join (read_threads[i], NULL) != 0)
 		{
-			ERROR ("plugin: stop_threads: pthread_join failed.");
+			ERROR ("plugin: stop_read_threads: pthread_join failed.");
 		}
 		read_threads[i] = (pthread_t) 0;
 	}
 	sfree (read_threads);
 	read_threads_num = 0;
-} /* void stop_threads */
+} /* void stop_read_threads */
+
+static int remove_read_functions (void)
+{
+	llentry_t *this;
+
+	if (list_read == NULL)
+		return (0);
+
+	this = llist_head (list_read);
+	while (this != NULL)
+	{
+		llentry_t *next;
+		read_func_t *rf;
+
+		next = this->next;
+		rf = (read_func_t *) this->value;
+
+		free (this->key);
+
+		plugin_user_data_destroy (&rf->udata);
+		free (rf);
+
+		this = next;
+	}
+
+	llist_destroy (list_read);
+	list_read = NULL;
+
+	return (0);
+} /* }}} int remove_read_functions */
 
 /*
  * Public functions
@@ -752,7 +782,7 @@ void plugin_init_all (void)
 		rt = global_option_get ("ReadThreads");
 		num = atoi (rt);
 		if (num != -1)
-			start_threads ((num > 0) ? num : 5);
+			start_read_threads ((num > 0) ? num : 5);
 	}
 } /* void plugin_init_all */
 
@@ -938,7 +968,8 @@ void plugin_shutdown_all (void)
 	int (*callback) (void);
 	llentry_t *le;
 
-	stop_threads ();
+	stop_read_threads ();
+	remove_read_functions ();
 
 	if (list_shutdown == NULL)
 		return;
