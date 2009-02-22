@@ -28,11 +28,11 @@ package org.collectd.api;
  */
 public class Collectd
 {
-  private static final int LOG_ERR     = 3;
-  private static final int LOG_WARNING = 4;
-  private static final int LOG_NOTICE  = 5;
-  private static final int LOG_INFO    = 6;
-  private static final int LOG_DEBUG   = 7;
+  public static final int LOG_ERR     = 3;
+  public static final int LOG_WARNING = 4;
+  public static final int LOG_NOTICE  = 5;
+  public static final int LOG_INFO    = 6;
+  public static final int LOG_DEBUG   = 7;
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_register_config
@@ -69,6 +69,12 @@ public class Collectd
    */
   native public static int registerShutdown (String name,
       CollectdShutdownInterface object);
+
+  /**
+   * Java representation of collectd/src/plugin.h:plugin_register_log
+   */
+  native public static int registerLog (String name,
+      CollectdLogInterface object);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_dispatch_values

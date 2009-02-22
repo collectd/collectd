@@ -181,6 +181,42 @@ the destructor to clean up behind the object but use this function instead.
 To signal success, this method has to return zero. Anything else will be
 considered an error condition and cause an appropriate message to be logged.
 
+=head2 log callback
+
+Interface: B<org.collectd.api.CollectdLogInterface>
+
+Signature: I<void> B<log> (I<int> severity, I<String> message)
+
+This callback can be used to receive log messages from the daemon.
+
+The argument I<severity> is one of:
+
+=over 4
+
+=item *
+
+org.collectd.api.Collectd.LOG_ERR
+
+=item *
+
+org.collectd.api.Collectd.LOG_WARNING
+
+=item *
+
+org.collectd.api.Collectd.LOG_NOTICE
+
+=item *
+
+org.collectd.api.Collectd.LOG_INFO
+
+=item *
+
+org.collectd.api.Collectd.LOG_DEBUG
+
+=back
+
+The function does not return any value.
+
 =head2 Example
 
 This short example demonstrates how to register a read callback with the
@@ -268,6 +304,15 @@ Signature: I<int> B<registerShutdown> (I<String> name,
 I<CollectdShutdownInterface> object);
 
 Registers the B<shutdown> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+=head2 registerLog
+
+Signature: I<int> B<registerLog> (I<String> name,
+I<CollectdLogInterface> object);
+
+Registers the B<log> function of I<object> with the daemon.
 
 Returns zero upon success and non-zero when an error occurred.
 

@@ -66,6 +66,7 @@ typedef struct java_plugin_config_s java_plugin_config_t;
 #define CB_TYPE_WRITE    4
 #define CB_TYPE_FLUSH    5
 #define CB_TYPE_SHUTDOWN 6
+#define CB_TYPE_LOG      7
 struct cjni_callback_info_s /* {{{ */
 {
   char     *name;
@@ -115,6 +116,7 @@ static int cjni_read (user_data_t *user_data);
 static int cjni_write (const data_set_t *ds, const value_list_t *vl,
     user_data_t *ud);
 static int cjni_flush (int timeout, const char *identifier, user_data_t *ud);
+static void cjni_log (int severity, const char *message, user_data_t *ud);
 
 /* 
  * C to Java conversion functions
@@ -1279,6 +1281,29 @@ static jint JNICALL cjni_api_register_shutdown (JNIEnv *jvm_env, /* {{{ */
         CB_TYPE_SHUTDOWN));
 } /* }}} jint cjni_api_register_shutdown */
 
+static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_log)
+{
+  user_data_t ud;
+  cjni_callback_info_t *cbi;
+
+  cbi = cjni_callback_info_create (jvm_env, o_name, o_log, CB_TYPE_LOG);
+  if (cbi == NULL)
+    return (-1);
+
+  DEBUG ("java plugin: Registering new log callback: %s", cbi->name);
+
+  memset (&ud, 0, sizeof (ud));
+  ud.data = (void *) cbi;
+  ud.free_func = cjni_callback_info_destroy;
+
+  plugin_register_log (cbi->name, cjni_log, &ud);
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_log);
+
+  return (0);
+} /* }}} jint cjni_api_register_log */
+
 static void JNICALL cjni_api_log (JNIEnv *jvm_env, /* {{{ */
     jobject this, jint severity, jobject o_message)
 {
@@ -1337,6 +1362,10 @@ static JNINativeMethod jni_api_functions[] = /* {{{ */
     "(Ljava/lang/String;Lorg/collectd/api/CollectdShutdownInterface;)I",
     cjni_api_register_shutdown },
 
+  { "registerLog",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdLogInterface;)I",
+    cjni_api_register_log },
+
   { "log",
     "(ILjava/lang/String;)V",
     cjni_api_log },
@@ -1388,6 +1417,11 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     case CB_TYPE_SHUTDOWN:
       method_name = "shutdown";
       method_signature = "()I";
+      break;
+
+    case CB_TYPE_LOG:
+      method_name = "log";
+      method_signature = "(ILjava/lang/String;)V";
       break;
 
     default:
@@ -1941,7 +1975,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   return (status);
 } /* }}} int cjni_write */
 
-/* Call the CB_TYPE_WRITE callback pointed to by the `user_data_t' pointer. */
+/* Call the CB_TYPE_FLUSH callback pointed to by the `user_data_t' pointer. */
 static int cjni_flush (int timeout, const char *identifier, /* {{{ */
     user_data_t *ud)
 {
@@ -1993,6 +2027,38 @@ static int cjni_flush (int timeout, const char *identifier, /* {{{ */
 
   return (status);
 } /* }}} int cjni_flush */
+
+/* Call the CB_TYPE_LOG callback pointed to by the `user_data_t' pointer. */
+static void cjni_log (int severity, const char *message, /* {{{ */
+    user_data_t *ud)
+{
+  JNIEnv *jvm_env;
+  cjni_callback_info_t *cbi;
+  jobject o_message;
+
+  if (jvm == NULL)
+    return;
+
+  if ((ud == NULL) || (ud->data == NULL))
+    return;
+
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
+    return;
+
+  cbi = (cjni_callback_info_t *) ud->data;
+
+  o_message = (*jvm_env)->NewStringUTF (jvm_env, message);
+  if (o_message == NULL)
+    return;
+
+  (*jvm_env)->CallVoidMethod (jvm_env,
+      cbi->object, cbi->method, (jint) severity, o_message);
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_message);
+
+  cjni_thread_detach ();
+} /* }}} int cjni_log */
 
 /* Iterate over `java_classes_list' and create one object of each class. This
  * will trigger the object's constructors, to the objects can register callback
