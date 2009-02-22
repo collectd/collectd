@@ -102,9 +102,14 @@ static pthread_mutex_t       java_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Prototypes
  *
- * Mostly functions that are needed by the Java interface functions.
+ * Mostly functions that are needed by the Java interface (``native'')
+ * functions.
  */
 static void cjni_callback_info_destroy (void *arg);
+static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env,
+    jobject o_name, jobject o_callback, int type);
+static int cjni_callback_register (JNIEnv *jvm_env, jobject o_name,
+    jobject o_callback, int type);
 static int cjni_read (user_data_t *user_data);
 static int cjni_write (const data_set_t *ds, const value_list_t *vl,
     user_data_t *ud);
@@ -723,6 +728,7 @@ static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int ctoj_value_list_add_data_set */
 
+/* Convert a value_list_t (and data_set_t) to a org.collectd.api.ValueList */
 static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
     const data_set_t *ds, const value_list_t *vl)
 {
@@ -831,6 +837,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
 /*
  * Java to C conversion functions
  */
+/* Call a `String <method> ()' method. */
 static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
     char *buffer, size_t buffer_size,
     jclass class_ptr, jobject object_ptr, const char *method_name)
@@ -872,6 +879,7 @@ static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int jtoc_string */
 
+/* Call a `long <method> ()' method. */
 static int jtoc_long (JNIEnv *jvm_env, /* {{{ */
     jlong *ret_value,
     jclass class_ptr, jobject object_ptr, const char *method_name)
@@ -892,6 +900,7 @@ static int jtoc_long (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int jtoc_long */
 
+/* Call a `double <method> ()' method. */
 static int jtoc_double (JNIEnv *jvm_env, /* {{{ */
     jdouble *ret_value,
     jclass class_ptr, jobject object_ptr, const char *method_name)
@@ -952,6 +961,8 @@ static int jtoc_value (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int jtoc_value */
 
+/* Read a List<Number>, convert it to `value_t' and add it to the given
+ * `value_list_t'. */
 static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
     const data_set_t *ds, value_list_t *vl,
     jclass class_ptr, jobject object_ptr)
@@ -1016,7 +1027,7 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
     BAIL_OUT (-1);
   }
 
-  values = calloc (values_num, sizeof (value_t));
+  values = (value_t *) calloc (values_num, sizeof (value_t));
   if (values == NULL)
   {
     ERROR ("java plugin: jtoc_values_array: calloc failed.");
@@ -1125,161 +1136,6 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
 
   return (0);
 } /* }}} int jtoc_value_list */
-
-static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ */
-    jobject o_name, jobject o_callback, int type)
-{
-  const char *c_name;
-  cjni_callback_info_t *cbi;
-  const char *method_name;
-  const char *method_signature;
-
-  switch (type)
-  {
-    case CB_TYPE_CONFIG:
-      method_name = "Config";
-      method_signature = "(Lorg/collectd/api/OConfigItem;)I";
-      break;
-
-    case CB_TYPE_INIT:
-      method_name = "Init";
-      method_signature = "()I";
-      break;
-
-    case CB_TYPE_READ:
-      method_name = "Read";
-      method_signature = "()I";
-      break;
-
-    case CB_TYPE_WRITE:
-      method_name = "Write";
-      method_signature = "(Lorg/collectd/api/ValueList;)I";
-      break;
-
-    case CB_TYPE_SHUTDOWN:
-      method_name = "Shutdown";
-      method_signature = "()I";
-      break;
-
-    default:
-      ERROR ("java plugin: cjni_callback_info_create: Unknown type: %#x",
-          type);
-      return (NULL);
-  }
-
-  c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
-  if (c_name == NULL)
-  {
-    ERROR ("java plugin: cjni_callback_info_create: "
-        "GetStringUTFChars failed.");
-    return (NULL);
-  }
-
-  cbi = (cjni_callback_info_t *) malloc (sizeof (*cbi));
-  if (cbi == NULL)
-  {
-    ERROR ("java plugin: cjni_callback_info_create: malloc failed.");
-    (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
-    return (NULL);
-  }
-  memset (cbi, 0, sizeof (*cbi));
-  cbi->type = type;
-
-  cbi->name = strdup (c_name);
-  if (cbi->name == NULL)
-  {
-    pthread_mutex_unlock (&java_callbacks_lock);
-    ERROR ("java plugin: cjni_callback_info_create: strdup failed.");
-    (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
-    return (NULL);
-  }
-
-  (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
-
-  cbi->class  = (*jvm_env)->GetObjectClass (jvm_env, o_callback);
-  if (cbi->class == NULL)
-  {
-    ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
-    free (cbi);
-    return (NULL);
-  }
-
-  cbi->object = o_callback;
-
-  cbi->method = (*jvm_env)->GetMethodID (jvm_env, cbi->class,
-      method_name, method_signature);
-  if (cbi->method == NULL)
-  {
-    ERROR ("java plugin: cjni_callback_info_create: "
-        "Cannot find the `%s' method with signature `%s'.",
-        method_name, method_signature);
-    free (cbi);
-    return (NULL);
-  }
-
-  (*jvm_env)->NewGlobalRef (jvm_env, o_callback);
-
-  return (cbi);
-} /* }}} cjni_callback_info_t cjni_callback_info_create */
-
-static int cjni_callback_register (JNIEnv *jvm_env, /* {{{ */
-    jobject o_name, jobject o_callback, int type)
-{
-  cjni_callback_info_t *cbi;
-  cjni_callback_info_t *tmp;
-#if COLLECT_DEBUG
-  const char *type_str;
-#endif
-
-  cbi = cjni_callback_info_create (jvm_env, o_name, o_callback, type);
-  if (cbi == NULL)
-    return (-1);
-
-#if COLLECT_DEBUG
-  switch (type)
-  {
-    case CB_TYPE_CONFIG:
-      type_str = "config";
-      break;
-
-    case CB_TYPE_INIT:
-      type_str = "init";
-      break;
-
-    case CB_TYPE_SHUTDOWN:
-      type_str = "shutdown";
-      break;
-
-    default:
-      type_str = "<unknown>";
-  }
-  DEBUG ("java plugin: Registering new %s callback: %s",
-      type_str, cbi->name);
-#endif
-
-  pthread_mutex_lock (&java_callbacks_lock);
-
-  tmp = (cjni_callback_info_t *) realloc (java_callbacks,
-      (java_callbacks_num + 1) * sizeof (*java_callbacks));
-  if (tmp == NULL)
-  {
-    pthread_mutex_unlock (&java_callbacks_lock);
-    ERROR ("java plugin: cjni_callback_register: realloc failed.");
-
-    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
-    free (cbi);
-
-    return (-1);
-  }
-  java_callbacks = tmp;
-  java_callbacks[java_callbacks_num] = *cbi;
-  java_callbacks_num++;
-
-  pthread_mutex_unlock (&java_callbacks_lock);
-
-  free (cbi);
-  return (0);
-} /* }}} int cjni_callback_register */
 
 /* 
  * Functions accessible from Java
@@ -1398,6 +1254,8 @@ static jint JNICALL cjni_api_register_shutdown (JNIEnv *jvm_env, /* {{{ */
         CB_TYPE_SHUTDOWN));
 } /* }}} jint cjni_api_register_shutdown */
 
+/* List of ``native'' functions, i. e. C-functions that can be called from
+ * Java. */
 static JNINativeMethod jni_api_functions[] = /* {{{ */
 {
   { "DispatchValues",
@@ -1436,6 +1294,168 @@ static size_t jni_api_functions_num = sizeof (jni_api_functions)
 /*
  * Functions
  */
+/* Allocate a `cjni_callback_info_t' given the type and objects necessary for
+ * all registration functions. */
+static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ */
+    jobject o_name, jobject o_callback, int type)
+{
+  const char *c_name;
+  cjni_callback_info_t *cbi;
+  const char *method_name;
+  const char *method_signature;
+
+  switch (type)
+  {
+    case CB_TYPE_CONFIG:
+      method_name = "Config";
+      method_signature = "(Lorg/collectd/api/OConfigItem;)I";
+      break;
+
+    case CB_TYPE_INIT:
+      method_name = "Init";
+      method_signature = "()I";
+      break;
+
+    case CB_TYPE_READ:
+      method_name = "Read";
+      method_signature = "()I";
+      break;
+
+    case CB_TYPE_WRITE:
+      method_name = "Write";
+      method_signature = "(Lorg/collectd/api/ValueList;)I";
+      break;
+
+    case CB_TYPE_SHUTDOWN:
+      method_name = "Shutdown";
+      method_signature = "()I";
+      break;
+
+    default:
+      ERROR ("java plugin: cjni_callback_info_create: Unknown type: %#x",
+          type);
+      return (NULL);
+  }
+
+  c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
+  if (c_name == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: "
+        "GetStringUTFChars failed.");
+    return (NULL);
+  }
+
+  cbi = (cjni_callback_info_t *) malloc (sizeof (*cbi));
+  if (cbi == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: malloc failed.");
+    (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+    return (NULL);
+  }
+  memset (cbi, 0, sizeof (*cbi));
+  cbi->type = type;
+
+  cbi->name = strdup (c_name);
+  if (cbi->name == NULL)
+  {
+    pthread_mutex_unlock (&java_callbacks_lock);
+    ERROR ("java plugin: cjni_callback_info_create: strdup failed.");
+    (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+    return (NULL);
+  }
+
+  (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+
+  cbi->class  = (*jvm_env)->GetObjectClass (jvm_env, o_callback);
+  if (cbi->class == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
+    free (cbi);
+    return (NULL);
+  }
+
+  cbi->object = o_callback;
+
+  cbi->method = (*jvm_env)->GetMethodID (jvm_env, cbi->class,
+      method_name, method_signature);
+  if (cbi->method == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: "
+        "Cannot find the `%s' method with signature `%s'.",
+        method_name, method_signature);
+    free (cbi);
+    return (NULL);
+  }
+
+  (*jvm_env)->NewGlobalRef (jvm_env, o_callback);
+
+  return (cbi);
+} /* }}} cjni_callback_info_t cjni_callback_info_create */
+
+/* Allocate a `cjni_callback_info_t' via `cjni_callback_info_create' and add it
+ * to the global `java_callbacks' variable. This is used for `config', `init',
+ * and `shutdown' callbacks. */
+static int cjni_callback_register (JNIEnv *jvm_env, /* {{{ */
+    jobject o_name, jobject o_callback, int type)
+{
+  cjni_callback_info_t *cbi;
+  cjni_callback_info_t *tmp;
+#if COLLECT_DEBUG
+  const char *type_str;
+#endif
+
+  cbi = cjni_callback_info_create (jvm_env, o_name, o_callback, type);
+  if (cbi == NULL)
+    return (-1);
+
+#if COLLECT_DEBUG
+  switch (type)
+  {
+    case CB_TYPE_CONFIG:
+      type_str = "config";
+      break;
+
+    case CB_TYPE_INIT:
+      type_str = "init";
+      break;
+
+    case CB_TYPE_SHUTDOWN:
+      type_str = "shutdown";
+      break;
+
+    default:
+      type_str = "<unknown>";
+  }
+  DEBUG ("java plugin: Registering new %s callback: %s",
+      type_str, cbi->name);
+#endif
+
+  pthread_mutex_lock (&java_callbacks_lock);
+
+  tmp = (cjni_callback_info_t *) realloc (java_callbacks,
+      (java_callbacks_num + 1) * sizeof (*java_callbacks));
+  if (tmp == NULL)
+  {
+    pthread_mutex_unlock (&java_callbacks_lock);
+    ERROR ("java plugin: cjni_callback_register: realloc failed.");
+
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    free (cbi);
+
+    return (-1);
+  }
+  java_callbacks = tmp;
+  java_callbacks[java_callbacks_num] = *cbi;
+  java_callbacks_num++;
+
+  pthread_mutex_unlock (&java_callbacks_lock);
+
+  free (cbi);
+  return (0);
+} /* }}} int cjni_callback_register */
+
+/* Increase the reference counter to the JVM for this thread. If it was zero,
+ * attach the JVM first. */
 static JNIEnv *cjni_thread_attach (void) /* {{{ */
 {
   cjni_jvm_env_t *cjni_env;
@@ -1491,6 +1511,8 @@ static JNIEnv *cjni_thread_attach (void) /* {{{ */
   return (jvm_env);
 } /* }}} JNIEnv *cjni_thread_attach */
 
+/* Decrease the reference counter of this thread. If it reaches zero, detach
+ * from the JVM. */
 static int cjni_thread_detach (void) /* {{{ */
 {
   cjni_jvm_env_t *cjni_env;
@@ -1526,6 +1548,8 @@ static int cjni_thread_detach (void) /* {{{ */
   return (0);
 } /* }}} JNIEnv *cjni_thread_attach */
 
+/* Callback for `pthread_key_create'. It frees the data contained in
+ * `jvm_env_key' and prints a warning if the reference counter is not zero. */
 static void cjni_jvm_env_destroy (void *args) /* {{{ */
 {
   cjni_jvm_env_t *cjni_env;
@@ -1551,38 +1575,7 @@ static void cjni_jvm_env_destroy (void *args) /* {{{ */
   free (cjni_env);
 } /* }}} void cjni_jvm_env_destroy */
 
-/* 
- * Delete a global reference, set by the various `Register*' functions.
- */
-static void cjni_callback_info_destroy (void *arg) /* {{{ */
-{
-  JNIEnv *jvm_env;
-  cjni_callback_info_t *cbi;
-
-  DEBUG ("java plugin: cjni_callback_info_destroy (arg = %p);", arg);
-
-  if (arg == NULL)
-    return;
-
-  jvm_env = cjni_thread_attach ();
-  if (jvm_env == NULL)
-  {
-    ERROR ("java plugin: cjni_callback_info_destroy: cjni_thread_attach failed.");
-    return;
-  }
-
-  cbi = (cjni_callback_info_t *) arg;
-
-  (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
-
-  cbi->method = NULL;
-  cbi->object = NULL;
-  cbi->class  = NULL;
-  free (cbi);
-
-  cjni_thread_detach ();
-} /* }}} void cjni_callback_info_destroy */
-
+/* Boring configuration functions.. {{{ */
 static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
 {
   char **tmp;
@@ -1768,7 +1761,41 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
 
   return (0);
 } /* }}} int cjni_config */
+/* }}} */
 
+/* Free the data contained in the `user_data_t' pointer passed to `cjni_read'
+ * and `cjni_write'. In particular, delete the global reference to the Java
+ * object. */
+static void cjni_callback_info_destroy (void *arg) /* {{{ */
+{
+  JNIEnv *jvm_env;
+  cjni_callback_info_t *cbi;
+
+  DEBUG ("java plugin: cjni_callback_info_destroy (arg = %p);", arg);
+
+  if (arg == NULL)
+    return;
+
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_destroy: cjni_thread_attach failed.");
+    return;
+  }
+
+  cbi = (cjni_callback_info_t *) arg;
+
+  (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+
+  cbi->method = NULL;
+  cbi->object = NULL;
+  cbi->class  = NULL;
+  free (cbi);
+
+  cjni_thread_detach ();
+} /* }}} void cjni_callback_info_destroy */
+
+/* Call the CB_TYPE_READ callback pointed to by the `user_data_t' pointer. */
 static int cjni_read (user_data_t *ud) /* {{{ */
 {
   JNIEnv *jvm_env;
@@ -1806,6 +1833,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
   return (status);
 } /* }}} int cjni_read */
 
+/* Call the CB_TYPE_WRITE callback pointed to by the `user_data_t' pointer. */
 static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     user_data_t *ud)
 {
@@ -1854,7 +1882,9 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   return (status);
 } /* }}} int cjni_write */
 
-
+/* Iterate over `java_classes_list' and create one object of each class. This
+ * will trigger the object's constructors, to the objects can register callback
+ * methods. */
 static int cjni_load_plugins (JNIEnv *jvm_env) /* {{{ */
 {
   size_t i;
@@ -1900,6 +1930,8 @@ static int cjni_load_plugins (JNIEnv *jvm_env) /* {{{ */
   return (0);
 } /* }}} int cjni_load_plugins */
 
+/* Iterate over `java_plugin_configs' and `java_callbacks' and call all
+ * `config' callback methods for which a configuration is available. */
 static int cjni_config_plugins (JNIEnv *jvm_env) /* {{{ */
 {
   int status;
@@ -1948,6 +1980,7 @@ static int cjni_config_plugins (JNIEnv *jvm_env) /* {{{ */
   return (0);
 } /* }}} int cjni_config_plugins */
 
+/* Iterate over `java_callbacks' and call all CB_TYPE_INIT callbacks. */
 static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
 {
   int status;
@@ -1974,6 +2007,7 @@ static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
   return (0);
 } /* }}} int cjni_init_plugins */
 
+/* Iterate over `java_callbacks' and call all CB_TYPE_SHUTDOWN callbacks. */
 static int cjni_shutdown_plugins (JNIEnv *jvm_env) /* {{{ */
 {
   int status;
@@ -2075,6 +2109,8 @@ static int cjni_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int cjni_shutdown */
 
+/* Register ``native'' functions with the JVM. Native functions are C-functions
+ * that can be called by Java code. */
 static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
 {
   jclass api_class_ptr;
@@ -2098,6 +2134,8 @@ static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
   return (0);
 } /* }}} int cjni_init_native */
 
+/* Initialization: Create a JVM, load all configured classes and call their
+ * `config' and `init' callback methods. */
 static int cjni_init (void) /* {{{ */
 {
   JNIEnv *jvm_env;
