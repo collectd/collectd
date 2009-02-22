@@ -23,5 +23,5 @@ package org.collectd.api;
 
 public interface CollectdInitInterface
 {
-	int Init ();
+	public int Init ();
 }

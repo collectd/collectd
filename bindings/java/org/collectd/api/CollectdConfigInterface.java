@@ -23,5 +23,5 @@ package org.collectd.api;
 
 public interface CollectdConfigInterface
 {
-	int Config (OConfigItem ci);
+	public int Config (OConfigItem ci);
 }

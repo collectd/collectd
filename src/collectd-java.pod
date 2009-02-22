@@ -35,7 +35,7 @@ please read L<collectd.conf(5)/Plugin C<java>>.
 When writing additions for collectd in Java, the underlying C base is mostly
 hidden from you. All complex data types are converted to their Java counterparts
 before they're passed to your functions. These Java classes reside in the
-I<org.collectd.api> and I<org.collectd.protocol> namespaces.
+I<org.collectd.api> namespace.
 
 The available classes are:
 
@@ -49,71 +49,39 @@ Corresponds to C<oconfig_value_t>, defined in F<src/liboconfig/oconfig.h>.
 
 Corresponds to C<oconfig_item_t>, defined in F<src/liboconfig/oconfig.h>.
 
-=item B<org.collectd.protocol.DataSource>
+=item B<org.collectd.api.DataSource>
 
 Corresponds to C<data_source_t>, defined in F<src/plugin.h>.
 
-=item B<java.util.ListE<lt>org.collectd.protocol.DataSourceE<gt>>
+=item B<org.collectd.api.DataSet>
 
 Corresponds to C<data_set_t>, defined in F<src/plugin.h>.
 
-=item B<org.collectd.protocol.ValueList>
+=item B<org.collectd.api.ValueList>
 
 Corresponds to C<value_list_t>, defined in F<src/plugin.h>.
 
 =back
 
+In the remainder of this document, we'll use the short form of these names, for
+example B<ValueList>. In order to be able to use these abbreviated names, you
+need to B<import> the classes.
+
 The API functions that are available from Java are implemented as I<static>
 functions of the B<org.collectd.api.CollectdAPI> class.
 See L<"CALLING API FUNCTIONS"> below for details.
 
-=head1 CREATING CALLBACKS
+=head1 REGISTERING CALLBACKS
 
-Callback functions, i.E<nbsp>e. functions that are called by collectd, differ
-from their C equivalents in that they don't need to be "registered". Instead,
-they have a fixed name, argument list and return value, usually called
-I<"signature">.
+When starting up, collectd creates an object of each configured class. The
+constructor of this class should then register "callbacks" with the daemon,
+using the appropriate static functions in B<CollectdAPI>,
+see L<"CALLING API FUNCTIONS"> below. To register a callback, the object being
+passed to one of the register functions must implement an appropriate
+interface, which are all in the B<org.collectd.api> namespace.
 
-When starting up, the plugin will instantiate one object of your class, using
-the constructor without arguments. All other functions called by the Java
-plugin are methods of this object.
-
-Currently used callback methods are:
-
-=over 4
-
-=item Constructor ()
-
-Used to create an object of the custom class. The name of the constructor
-depends on your classes' name, of course. It must have the signature shown
-above, i.E<nbsp>e. an empty argument list, though.
-
-=item I<int> B<Config> (I<org.collectd.api.OConfigItem>)
-
-Configuration for the plugin. This is the first method that is called after the
-object has been created.
-
-=item I<int> B<Init> ()
-
-Initialization of the plugin. This item is called after B<Config> has been
-called.
-
-=item I<int> B<Read> ()
-
-Called when the plugin should acquire new values.
-
-=item I<int> B<Write> (I<org.collectd.protocol.ValueList>)
-
-Called to have the plugin store values.
-
-=item I<int> B<Shutdown> ()
-
-Called when the daemon is shutting down.
-
-=back
-
-A plugin may implement any number of these callbacks, from all to none. An
-object without callback methods is never called by collectd, but may still
+A constructor may register any number of these callbacks, even none. An object
+without callback methods is never actively called by collectd, but may still
 call the exported API functions. One could, for example, start a new thread in
 the constructor and dispatch (submit to the daemon) values asynchronously,
 whenever one is available.
@@ -122,7 +90,9 @@ Each callback method is now explained in more detail:
 
 =head2 Config callback
 
-Signature: I<int> B<Config> (I<org.collectd.api.OConfigItem>)
+Interface: B<org.collectd.api.CollectdConfigInterface>
+
+Signature: I<int> B<Config> (I<OConfigItem>)
 
 This method is passed a B<OConfigItem> object, if both, method and
 configuration, are available. B<OConfigItem> is the root of a tree representing
@@ -135,6 +105,8 @@ considered an error condition and the plugin will be disabled entirely.
 
 =head2 Init callback
 
+Interface: B<org.collectd.api.CollectdInitInterface>
+
 Signature: I<int> B<Init> ()
 
 This method is called after the configuration has been handled. It is
@@ -145,6 +117,8 @@ To signal success, this method has to return zero. Anything else will be
 considered an error condition and the plugin will be disabled entirely.
 
 =head2 Read callback
+
+Interface: B<org.collectd.api.CollectdReadInterface>
 
 Signature: I<int> B<Read> ()
 
@@ -161,7 +135,9 @@ Java "read"-methods are not suspended for increasing intervals like C
 
 =head2 Write callback
 
-Signature: I<int> B<Write> (I<org.collectd.protocol.ValueList>)
+Interface: B<org.collectd.api.CollectdWriteInterface>
+
+Signature: I<int> B<Write> (I<ValueList>)
 
 This method is called whenever a value is dispatched to the daemon. The
 corresponding C "write"-functions are passed a C<data_set_t>, so they can
@@ -174,6 +150,8 @@ considered an error condition and cause an appropriate message to be logged.
 
 =head2 Shutdown callback
 
+Interface: B<org.collectd.api.CollectdShutdownInterface>
+
 Signature: I<int> B<Shutdown> ()
 
 This method is called when the daemon is shutting down. You should not rely on
@@ -181,6 +159,33 @@ the destructor to clean up behind the object but use this function instead.
 
 To signal success, this method has to return zero. Anything else will be
 considered an error condition and cause an appropriate message to be logged.
+
+=head2 Example
+
+This short example demonstrates how to register a read callback with the
+daemon:
+
+  import org.collectd.api.CollectdAPI;
+  import org.collectd.api.ValueList;
+  
+  import org.collectd.api.CollectdReadInterface;
+  
+  public class Foobar implements CollectdReadInterface
+  {
+    public Foobar ()
+    {
+      CollectdAPI.RegisterRead ("Foobar", this);
+    }
+    
+    public int Read ()
+    {
+      ValueList vl;
+      
+      /* Do something... */
+      
+      CollectdAPI.DispatchValues (vl);
+    }
+  }
 
 =head1 CALLING API FUNCTIONS
 
@@ -190,19 +195,31 @@ class. This makes calling these functions pretty straight forward.
 
 The currently exported functions are:
 
-=over 4
+=head2 RegisterRead
 
-=item I<int> B<DispatchValues> (I<org.collectd.protocol.ValueList>)
+Signature: I<int> B<RegisterRead> (I<String> name,
+I<CollectdReadInterface> object)
 
-Corresponds to C<plugin_dispatch_values>, defined in F<src/plugin.h>.
+Registers the B<Read> function of I<object> with the daemon.
+For a description of the B<CollectdReadInterface> interface, see
+L<"REGISTERING CALLBACKS"> above.
 
-=back
+Returns zero upon success and non-zero when an error occurred.
 
-Each API function is now explained in more detail:
+=head2 RegisterWrite
+
+Signature: I<int> B<RegisterWrite> (I<String> name,
+I<CollectdWriteInterface> object)
+
+Registers the B<Write> function of I<object> with the daemon.
+For a description of the B<CollectdWriteInterface> interface, see
+L<"REGISTERING CALLBACKS"> above.
+
+Returns zero upon success and non-zero when an error occurred.
 
 =head2 DispatchValues
 
-Signature: I<int> B<DispatchValues> (I<org.collectd.protocol.ValueList>)
+Signature: I<int> B<DispatchValues> (I<ValueList>)
 
 Passes the values represented by the B<ValueList> object to the
 C<plugin_dispatch_values> function of the daemon. The "data set" (or list of
@@ -211,6 +228,12 @@ C<plugin_dispatch_values> will automatically lookup the required data set. It
 is therefore absolutely okay to leave this blank.
 
 Returns zero upon success or non-zero upon failure.
+
+=head2 GetDS
+
+Signature: I<DataSet> B<GetDS> (I<String>)
+
+Returns the approrpate I<type> or B<null> if the type is not defined.
 
 =head1 SEE ALSO
 
