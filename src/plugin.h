@@ -151,6 +151,8 @@ typedef int (*plugin_write_cb) (const data_set_t *, const value_list_t *,
 		user_data_t *);
 typedef int (*plugin_flush_cb) (int timeout, const char *identifier,
 		user_data_t *);
+typedef void (*plugin_log_cb) (int severity, const char *message,
+		user_data_t *);
 
 /*
  * NAME
@@ -250,8 +252,8 @@ int plugin_register_flush (const char *name,
 int plugin_register_shutdown (char *name,
 		int (*callback) (void));
 int plugin_register_data_set (const data_set_t *ds);
-int plugin_register_log (char *name,
-		void (*callback) (int, const char *));
+int plugin_register_log (const char *name,
+		plugin_log_cb callback, user_data_t *user_data);
 int plugin_register_notification (const char *name,
 		int (*callback) (const notification_t *notif));
 

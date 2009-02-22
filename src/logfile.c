@@ -143,7 +143,8 @@ static void logfile_print (const char *msg, time_t timestamp_time)
 	return;
 } /* void logfile_print */
 
-static void logfile_log (int severity, const char *msg)
+static void logfile_log (int severity, const char *msg,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	if (severity > log_level)
 		return;
@@ -194,7 +195,7 @@ void module_register (void)
 {
 	plugin_register_config ("logfile", logfile_config,
 			config_keys, config_keys_num);
-	plugin_register_log ("logfile", logfile_log);
+	plugin_register_log ("logfile", logfile_log, /* user_data = */ NULL);
 	plugin_register_notification ("logfile", logfile_notification);
 } /* void module_register (void) */
 

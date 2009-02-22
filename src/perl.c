@@ -1933,7 +1933,8 @@ static int perl_write (const data_set_t *ds, const value_list_t *vl,
 	return pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
 } /* static int perl_write (const data_set_t *, const value_list_t *) */
 
-static void perl_log (int level, const char *msg)
+static void perl_log (int level, const char *msg,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -2220,7 +2221,7 @@ static int init_pi (int argc, char **argv)
 
 	perl_run (aTHX);
 
-	plugin_register_log ("perl", perl_log);
+	plugin_register_log ("perl", perl_log, /* user_data = */ NULL);
 	plugin_register_notification ("perl", perl_notify);
 	plugin_register_init ("perl", perl_init);
 

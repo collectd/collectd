@@ -72,6 +72,13 @@ struct flush_func_s
 };
 typedef struct flush_func_s flush_func_t;
 
+struct log_func_s
+{
+	plugin_log_cb callback;
+	user_data_t udata;
+};
+typedef struct log_func_s log_func_t;
+
 /*
  * Private variables
  */
@@ -648,10 +655,31 @@ int plugin_register_data_set (const data_set_t *ds)
 	return (c_avl_insert (data_sets, (void *) ds_copy->type, (void *) ds_copy));
 } /* int plugin_register_data_set */
 
-int plugin_register_log (char *name,
-		void (*callback) (int priority, const char *msg))
+int plugin_register_log (const char *name,
+		plugin_log_cb callback, user_data_t *user_data)
 {
-	return (register_callback (&list_log, name, (void *) callback));
+	log_func_t *lf;
+
+	lf = (log_func_t *) malloc (sizeof (*lf));
+	if (lf == NULL)
+	{
+		ERROR ("plugin_register_log: malloc failed.");
+		return (-1);
+	}
+	memset (lf, 0, sizeof (*lf));
+
+	lf->callback = callback;
+	if (user_data == NULL)
+	{
+		lf->udata.data = NULL;
+		lf->udata.free_func = NULL;
+	}
+	else
+	{
+		lf->udata = *user_data;
+	}
+
+	return (register_callback (&list_log, name, (void *) lf));
 } /* int plugin_register_log */
 
 int plugin_register_notification (const char *name,
@@ -766,7 +794,24 @@ int plugin_unregister_data_set (const char *name)
 
 int plugin_unregister_log (const char *name)
 {
-	return (plugin_unregister (list_log, name));
+	llentry_t *e;
+	log_func_t *lf;
+
+	e = llist_search (list_log, name);
+
+	if (e == NULL)
+		return (-1);
+
+	llist_remove (list_log, e);
+
+	lf = (log_func_t *) e->value;
+	plugin_user_data_destroy (&lf->udata);
+	free (lf);
+	free (e->key);
+
+	llentry_destroy (e);
+
+	return (0);
 }
 
 int plugin_unregister_notification (const char *name)
@@ -1172,8 +1217,6 @@ void plugin_log (int level, const char *format, ...)
 {
 	char msg[1024];
 	va_list ap;
-
-	void (*callback) (int, const char *);
 	llentry_t *le;
 
 	if (list_log == NULL)
@@ -1192,8 +1235,11 @@ void plugin_log (int level, const char *format, ...)
 	le = llist_head (list_log);
 	while (le != NULL)
 	{
-		callback = (void (*) (int, const char *)) le->value;
-		(*callback) (level, msg);
+		log_func_t *lf;
+
+		lf = (log_func_t *) le->value;
+
+		lf->callback (level, msg, &lf->udata);
 
 		le = le->next;
 	}

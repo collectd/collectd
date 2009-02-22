@@ -68,7 +68,8 @@ static int sl_config (const char *key, const char *value)
 	return (0);
 } /* int sl_config */
 
-static void sl_log (int severity, const char *msg)
+static void sl_log (int severity, const char *msg,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	if (severity > log_level)
 		return;
@@ -88,6 +89,6 @@ void module_register (void)
 	openlog ("collectd", LOG_CONS | LOG_PID, LOG_DAEMON);
 
 	plugin_register_config ("syslog", sl_config, config_keys, config_keys_num);
-	plugin_register_log ("syslog", sl_log);
+	plugin_register_log ("syslog", sl_log, /* user_data = */ NULL);
 	plugin_register_shutdown ("syslog", sl_shutdown);
 } /* void module_register(void) */
