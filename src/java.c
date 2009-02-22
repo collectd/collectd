@@ -48,7 +48,6 @@ struct java_plugin_s /* {{{ */
 
   jmethodID m_config;
   jmethodID m_init;
-  jmethodID m_read;
   jmethodID m_write;
   jmethodID m_shutdown;
 };
@@ -61,6 +60,15 @@ struct cjni_jvm_env_s /* {{{ */
   int reference_counter;
 };
 typedef struct cjni_jvm_env_s cjni_jvm_env_t;
+/* }}} */
+
+struct cjni_callback_info_s /* {{{ */
+{
+  jclass    class;
+  jobject   object;
+  jmethodID method;
+};
+typedef struct cjni_callback_info_s cjni_callback_info_t;
 /* }}} */
 
 /*
@@ -80,7 +88,7 @@ static size_t         java_plugins_num = 0;
  *
  * Mostly functions that are needed by the Java interface functions.
  */
-static void cjni_objectref_destroy (void *arg);
+static void cjni_callback_info_destroy (void *arg);
 static int cjni_read (user_data_t *user_data);
 
 /* 
@@ -1100,6 +1108,45 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
   return (0);
 } /* }}} int jtoc_value_list */
 
+static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ */
+    jobject obj, const char *method_name, const char *signature)
+{
+  cjni_callback_info_t *cbi;
+
+  cbi = (cjni_callback_info_t *) malloc (sizeof (*cbi));
+  if (cbi == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: malloc failed.");
+    return (NULL);
+  }
+  memset (cbi, 0, sizeof (*cbi));
+
+  cbi->class  = (*jvm_env)->GetObjectClass (jvm_env, obj);
+  if (cbi->class == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
+    free (cbi);
+    return (NULL);
+  }
+
+  cbi->object = obj;
+
+  cbi->method = (*jvm_env)->GetMethodID (jvm_env, cbi->class,
+      method_name, signature);
+  if (cbi->method == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: "
+        "Cannot find the `%s' method with signature `%s'.",
+        method_name, signature);
+    free (cbi);
+    return (NULL);
+  }
+
+  (*jvm_env)->NewGlobalRef (jvm_env, obj);
+
+  return (cbi);
+} /* }}} cjni_callback_info_t cjni_callback_info_create */
+
 /* 
  * Functions accessible from Java
  */
@@ -1157,6 +1204,7 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 {
   const char *c_name;
   user_data_t ud;
+  cjni_callback_info_t *cbi;
 
   c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
   if (c_name == NULL)
@@ -1165,13 +1213,13 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
     return (-1);
   }
 
-  DEBUG ("java plugin: cjni_api_register_read: c_name = %s;", c_name);
+  cbi = cjni_callback_info_create (jvm_env, o_read, "Read", "()I");
+  if (cbi == NULL)
+    return (-1);
 
   memset (&ud, 0, sizeof (ud));
-  ud.data = (void *) o_read;
-  ud.free_func = cjni_objectref_destroy;
-
-  (*jvm_env)->NewGlobalRef (jvm_env, o_read);
+  ud.data = (void *) cbi;
+  ud.free_func = cjni_callback_info_destroy;
 
   plugin_register_complex_read (c_name, cjni_read, &ud);
 
@@ -1319,12 +1367,12 @@ static void cjni_jvm_env_destroy (void *args) /* {{{ */
 /* 
  * Delete a global reference, set by the various `Register*' functions.
  */
-static void cjni_objectref_destroy (void *arg) /* {{{ */
+static void cjni_callback_info_destroy (void *arg) /* {{{ */
 {
   JNIEnv *jni_env;
-  jobject obj;
+  cjni_callback_info_t *cbi;
 
-  DEBUG ("java plugin: cjni_objectref_destroy (arg = %p);", arg);
+  DEBUG ("java plugin: cjni_callback_info_destroy (arg = %p);", arg);
 
   if (arg == NULL)
     return;
@@ -1332,16 +1380,21 @@ static void cjni_objectref_destroy (void *arg) /* {{{ */
   jni_env = cjni_thread_attach ();
   if (jni_env == NULL)
   {
-    ERROR ("java plugin: cjni_objectref_destroy: cjni_thread_attach failed.");
+    ERROR ("java plugin: cjni_callback_info_destroy: cjni_thread_attach failed.");
     return;
   }
 
-  obj = (jobject) arg;
+  cbi = (cjni_callback_info_t *) arg;
 
-  (*jni_env)->DeleteGlobalRef (jni_env, obj);
+  (*jni_env)->DeleteGlobalRef (jni_env, cbi->object);
+
+  cbi->method = NULL;
+  cbi->object = NULL;
+  cbi->class  = NULL;
+  free (cbi);
 
   cjni_thread_detach ();
-} /* }}} void cjni_objectref_destroy */
+} /* }}} void cjni_callback_info_destroy */
 
 static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
 {
@@ -1406,7 +1459,6 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
   jp->flags      = 0;
   jp->m_config   = NULL;
   jp->m_init     = NULL;
-  jp->m_read     = NULL;
   jp->m_write    = NULL;
   jp->m_shutdown = NULL;
 
@@ -1670,34 +1722,10 @@ static int cjni_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int cjni_shutdown */
 
-static int cjni_read_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
-{
-  int status;
-
-  if ((jp == NULL)
-      || ((jp->flags & CJNI_FLAG_ENABLED) == 0)
-      || (jp->m_read == NULL))
-    return (0);
-
-  DEBUG ("java plugin: Calling: %s.Read()", jp->class_name);
-
-  status = (*jvm_env)->CallIntMethod (jvm_env, jp->object_ptr,
-      jp->m_read);
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read_one_plugin: "
-        "Calling `Read' on an `%s' object failed with status %i.",
-        jp->class_name, status);
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int cjni_read_one_plugin */
-
 static int cjni_read (user_data_t *user_data) /* {{{ */
 {
   JNIEnv *jvm_env;
-  java_plugin_t *jp;
+  cjni_callback_info_t *cbi;
   int status;
 
   if (jvm == NULL)
@@ -1716,15 +1744,19 @@ static int cjni_read (user_data_t *user_data) /* {{{ */
   if (jvm_env == NULL)
     return (-1);
 
-  jp = (java_plugin_t *) user_data->data;
+  cbi = (cjni_callback_info_t *) user_data->data;
 
-  cjni_read_one_plugin (jvm_env, jp);
+  status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
+      cbi->method);
 
   status = cjni_thread_detach ();
   if (status != 0)
+  {
+    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
     return (-1);
+  }
 
-  return (0);
+  return (status);
 } /* }}} int cjni_read */
 
 static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
@@ -1770,12 +1802,6 @@ static int cjni_init_one_plugin (JNIEnv *jvm_env, java_plugin_t *jp) /* {{{ */
   DEBUG ("java plugin: cjni_init_one_plugin: "
       "jp->class_name = %s; jp->m_init = %p;",
       jp->class_name, (void *) jp->m_init);
-
-  jp->m_read = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
-      "Read", "()I");
-  DEBUG ("java plugin: cjni_init_one_plugin: "
-      "jp->class_name = %s; jp->m_read = %p;",
-      jp->class_name, (void *) jp->m_read);
 
   jp->m_write = (*jvm_env)->GetMethodID (jvm_env, jp->class_ptr,
       "Write", "(Lorg/collectd/api/ValueList;)I");
