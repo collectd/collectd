@@ -61,6 +61,10 @@ Corresponds to C<data_set_t>, defined in F<src/plugin.h>.
 
 Corresponds to C<value_list_t>, defined in F<src/plugin.h>.
 
+=item B<org.collectd.api.Notification>
+
+Corresponds to C<notification_t>, defined in F<src/plugin.h>.
+
 =back
 
 In the remainder of this document, we'll use the short form of these names, for
@@ -217,6 +221,17 @@ org.collectd.api.Collectd.LOG_DEBUG
 
 The function does not return any value.
 
+=head2 notification callback
+
+Interface: B<org.collectd.api.CollectdNotificationInterface>
+
+Signature: I<int> B<notification> (I<Notification> n)
+
+This callback can be used to receive notifications from the daemon.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
 =head2 Example
 
 This short example demonstrates how to register a read callback with the
@@ -313,6 +328,15 @@ Signature: I<int> B<registerLog> (I<String> name,
 I<CollectdLogInterface> object);
 
 Registers the B<log> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+=head2 registerNotification
+
+Signature: I<int> B<registerNotification> (I<String> name,
+I<CollectdNotificationInterface> object);
+
+Registers the B<notification> function of I<object> with the daemon.
 
 Returns zero upon success and non-zero when an error occurred.
 

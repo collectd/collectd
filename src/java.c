@@ -60,13 +60,14 @@ struct java_plugin_config_s /* {{{ */
 typedef struct java_plugin_config_s java_plugin_config_t;
 /* }}} */
 
-#define CB_TYPE_CONFIG   1
-#define CB_TYPE_INIT     2
-#define CB_TYPE_READ     3
-#define CB_TYPE_WRITE    4
-#define CB_TYPE_FLUSH    5
-#define CB_TYPE_SHUTDOWN 6
-#define CB_TYPE_LOG      7
+#define CB_TYPE_CONFIG       1
+#define CB_TYPE_INIT         2
+#define CB_TYPE_READ         3
+#define CB_TYPE_WRITE        4
+#define CB_TYPE_FLUSH        5
+#define CB_TYPE_SHUTDOWN     6
+#define CB_TYPE_LOG          7
+#define CB_TYPE_NOTIFICATION 8
 struct cjni_callback_info_s /* {{{ */
 {
   char     *name;
@@ -117,6 +118,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl,
     user_data_t *ud);
 static int cjni_flush (int timeout, const char *identifier, user_data_t *ud);
 static void cjni_log (int severity, const char *message, user_data_t *ud);
+static int cjni_notification (const notification_t *n, user_data_t *ud);
 
 /* 
  * C to Java conversion functions
@@ -836,7 +838,90 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   }
 
   return (o_valuelist);
-} /* }}} int ctoj_value_list */
+} /* }}} jobject ctoj_value_list */
+
+/* Convert a notification_t to a org.collectd.api.Notification */
+static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
+    const notification_t *n)
+{
+  jclass c_notification;
+  jmethodID m_constructor;
+  jobject o_notification;
+  int status;
+
+  /* First, create a new Notification instance..
+   * Look up the class.. */
+  c_notification = (*jvm_env)->FindClass (jvm_env,
+      "org.collectd.api.Notification");
+  if (c_notification == NULL)
+  {
+    ERROR ("java plugin: ctoj_notification: "
+        "FindClass (org.collectd.api.Notification) failed.");
+    return (NULL);
+  }
+
+  /* Lookup the `Notification ()' constructor. */
+  m_constructor = (*jvm_env)->GetMethodID (jvm_env, c_notification,
+      "<init>", "()V");
+  if (m_constructor == NULL)
+  {
+    ERROR ("java plugin: ctoj_notification: Cannot find the "
+        "`Notification ()' constructor.");
+    return (NULL);
+  }
+
+  /* Create a new instance. */
+  o_notification = (*jvm_env)->NewObject (jvm_env, c_notification,
+      m_constructor);
+  if (o_notification == NULL)
+  {
+    ERROR ("java plugin: ctoj_notification: Creating a new Notification "
+        "instance failed.");
+    return (NULL);
+  }
+
+  /* Set the strings.. */
+#define SET_STRING(str,method_name) do { \
+  status = ctoj_string (jvm_env, str, \
+      c_notification, o_notification, method_name); \
+  if (status != 0) { \
+    ERROR ("java plugin: ctoj_notification: jtoc_string (%s) failed.", \
+        method_name); \
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_notification); \
+    return (NULL); \
+  } } while (0)
+
+  SET_STRING (n->host,            "setHost");
+  SET_STRING (n->plugin,          "setPlugin");
+  SET_STRING (n->plugin_instance, "setPluginInstance");
+  SET_STRING (n->type,            "setType");
+  SET_STRING (n->type_instance,   "setTypeInstance");
+  SET_STRING (n->message,         "setMessage");
+
+#undef SET_STRING
+
+  /* Set the `time' member. Java stores time in milliseconds. */
+  status = ctoj_long (jvm_env, ((jlong) n->time) * ((jlong) 1000),
+      c_notification, o_notification, "setTime");
+  if (status != 0)
+  {
+    ERROR ("java plugin: ctoj_notification: ctoj_long (setTime) failed.");
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_notification);
+    return (NULL);
+  }
+
+  /* Set the `interval' member.. */
+  status = ctoj_int (jvm_env, (jint) n->severity,
+      c_notification, o_notification, "setSeverity");
+  if (status != 0)
+  {
+    ERROR ("java plugin: ctoj_notification: ctoj_int (setSeverity) failed.");
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_notification);
+    return (NULL);
+  }
+
+  return (o_notification);
+} /* }}} jobject ctoj_notification */
 
 /*
  * Java to C conversion functions
@@ -1304,6 +1389,30 @@ static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} jint cjni_api_register_log */
 
+static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_notification)
+{
+  user_data_t ud;
+  cjni_callback_info_t *cbi;
+
+  cbi = cjni_callback_info_create (jvm_env, o_name, o_notification,
+      CB_TYPE_NOTIFICATION);
+  if (cbi == NULL)
+    return (-1);
+
+  DEBUG ("java plugin: Registering new notification callback: %s", cbi->name);
+
+  memset (&ud, 0, sizeof (ud));
+  ud.data = (void *) cbi;
+  ud.free_func = cjni_callback_info_destroy;
+
+  plugin_register_notification (cbi->name, cjni_notification, &ud);
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_notification);
+
+  return (0);
+} /* }}} jint cjni_api_register_notification */
+
 static void JNICALL cjni_api_log (JNIEnv *jvm_env, /* {{{ */
     jobject this, jint severity, jobject o_message)
 {
@@ -1366,6 +1475,10 @@ static JNINativeMethod jni_api_functions[] = /* {{{ */
     "(Ljava/lang/String;Lorg/collectd/api/CollectdLogInterface;)I",
     cjni_api_register_log },
 
+  { "registerNotification",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdNotificationInterface;)I",
+    cjni_api_register_notification },
+
   { "log",
     "(ILjava/lang/String;)V",
     cjni_api_log },
@@ -1422,6 +1535,11 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     case CB_TYPE_LOG:
       method_name = "log";
       method_signature = "(ILjava/lang/String;)V";
+      break;
+
+    case CB_TYPE_NOTIFICATION:
+      method_name = "notification";
+      method_signature = "(LLorg/collectd/api/Notification;)I";
       break;
 
     default:
@@ -1866,6 +1984,15 @@ static void cjni_callback_info_destroy (void *arg) /* {{{ */
 
   DEBUG ("java plugin: cjni_callback_info_destroy (arg = %p);", arg);
 
+  cbi = (cjni_callback_info_t *) arg;
+
+  /* This condition can occurr when shutting down. */
+  if (jvm == NULL)
+  {
+    sfree (cbi);
+    return;
+  }
+
   if (arg == NULL)
     return;
 
@@ -1875,8 +2002,6 @@ static void cjni_callback_info_destroy (void *arg) /* {{{ */
     ERROR ("java plugin: cjni_callback_info_destroy: cjni_thread_attach failed.");
     return;
   }
-
-  cbi = (cjni_callback_info_t *) arg;
 
   (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
 
@@ -1894,6 +2019,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
   int status;
+  int ret_status;
 
   if (jvm == NULL)
   {
@@ -1913,7 +2039,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
 
   cbi = (cjni_callback_info_t *) ud->data;
 
-  status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
+  ret_status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
       cbi->method);
 
   status = cjni_thread_detach ();
@@ -1923,7 +2049,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
     return (-1);
   }
 
-  return (status);
+  return (ret_status);
 } /* }}} int cjni_read */
 
 /* Call the CB_TYPE_WRITE callback pointed to by the `user_data_t' pointer. */
@@ -1934,6 +2060,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   cjni_callback_info_t *cbi;
   jobject vl_java;
   int status;
+  int ret_status;
 
   if (jvm == NULL)
   {
@@ -1960,7 +2087,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  status = (*jvm_env)->CallIntMethod (jvm_env,
+  ret_status = (*jvm_env)->CallIntMethod (jvm_env,
       cbi->object, cbi->method, vl_java);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, vl_java);
@@ -1972,7 +2099,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  return (status);
+  return (ret_status);
 } /* }}} int cjni_write */
 
 /* Call the CB_TYPE_FLUSH callback pointed to by the `user_data_t' pointer. */
@@ -1983,6 +2110,7 @@ static int cjni_flush (int timeout, const char *identifier, /* {{{ */
   cjni_callback_info_t *cbi;
   jobject o_identifier;
   int status;
+  int ret_status;
 
   if (jvm == NULL)
   {
@@ -2013,7 +2141,7 @@ static int cjni_flush (int timeout, const char *identifier, /* {{{ */
     }
   }
 
-  status = (*jvm_env)->CallIntMethod (jvm_env,
+  ret_status = (*jvm_env)->CallIntMethod (jvm_env,
       cbi->object, cbi->method, (jint) timeout, o_identifier);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_identifier);
@@ -2025,7 +2153,7 @@ static int cjni_flush (int timeout, const char *identifier, /* {{{ */
     return (-1);
   }
 
-  return (status);
+  return (ret_status);
 } /* }}} int cjni_flush */
 
 /* Call the CB_TYPE_LOG callback pointed to by the `user_data_t' pointer. */
@@ -2058,7 +2186,58 @@ static void cjni_log (int severity, const char *message, /* {{{ */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_message);
 
   cjni_thread_detach ();
-} /* }}} int cjni_log */
+} /* }}} void cjni_log */
+
+/* Call the CB_TYPE_NOTIFICATION callback pointed to by the `user_data_t'
+ * pointer. */
+static int cjni_notification (const notification_t *n, /* {{{ */
+    user_data_t *ud)
+{
+  JNIEnv *jvm_env;
+  cjni_callback_info_t *cbi;
+  jobject o_notification;
+  int status;
+  int ret_status;
+
+  if (jvm == NULL)
+  {
+    ERROR ("java plugin: cjni_read: jvm == NULL");
+    return (-1);
+  }
+
+  if ((ud == NULL) || (ud->data == NULL))
+  {
+    ERROR ("java plugin: cjni_read: Invalid user data.");
+    return (-1);
+  }
+
+  jvm_env = cjni_thread_attach ();
+  if (jvm_env == NULL)
+    return (-1);
+
+  cbi = (cjni_callback_info_t *) ud->data;
+
+  o_notification = ctoj_notification (jvm_env, n);
+  if (o_notification == NULL)
+  {
+    ERROR ("java plugin: cjni_notification: ctoj_notification failed.");
+    return (-1);
+  }
+
+  ret_status = (*jvm_env)->CallIntMethod (jvm_env,
+      cbi->object, cbi->method, o_notification);
+
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_notification);
+
+  status = cjni_thread_detach ();
+  if (status != 0)
+  {
+    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
+    return (-1);
+  }
+
+  return (ret_status);
+} /* }}} int cjni_notification */
 
 /* Iterate over `java_classes_list' and create one object of each class. This
  * will trigger the object's constructors, to the objects can register callback
@@ -2263,6 +2442,7 @@ static int cjni_shutdown (void) /* {{{ */
   sfree (java_classes_list);
 
   /* Destroy the JVM */
+  DEBUG ("java plugin: Destroying the JVM.");
   (*jvm)->DestroyJavaVM (jvm);
   jvm = NULL;
   jvm_env = NULL;

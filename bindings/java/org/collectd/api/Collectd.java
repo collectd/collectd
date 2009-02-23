@@ -77,6 +77,12 @@ public class Collectd
       CollectdLogInterface object);
 
   /**
+   * Java representation of collectd/src/plugin.h:plugin_register_notification
+   */
+  native public static int registerNotification (String name,
+      CollectdNotificationInterface object);
+
+  /**
    * Java representation of collectd/src/plugin.h:plugin_dispatch_values
    */
   native public static int dispatchValues (ValueList vl);
