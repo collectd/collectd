@@ -34,6 +34,13 @@ public class Collectd
   public static final int LOG_INFO    = 6;
   public static final int LOG_DEBUG   = 7;
 
+  public static final int FC_MATCH_NO_MATCH  = 0;
+  public static final int FC_MATCH_MATCHES   = 1;
+
+  public static final int FC_TARGET_CONTINUE = 0;
+  public static final int FC_TARGET_STOP     = 1;
+  public static final int FC_TARGET_RETURN   = 2;
+
   /**
    * Java representation of collectd/src/plugin.h:plugin_register_config
    */
@@ -81,6 +88,12 @@ public class Collectd
    */
   native public static int registerNotification (String name,
       CollectdNotificationInterface object);
+
+  /**
+   * Java representation of collectd/src/filter_chain.h:fc_register_match
+   */
+  native public static int registerMatch (String name,
+      CollectdMatchFactoryInterface object);
 
   /**
    * Java representation of collectd/src/plugin.h:plugin_dispatch_values
