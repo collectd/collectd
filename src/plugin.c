@@ -1138,7 +1138,6 @@ int plugin_dispatch_values (value_list_t *vl)
 
 int plugin_dispatch_notification (const notification_t *notif)
 {
-	int (*callback) (const notification_t *);
 	llentry_t *le;
 	/* Possible TODO: Add flap detection here */
 
@@ -1154,8 +1153,19 @@ int plugin_dispatch_notification (const notification_t *notif)
 	le = llist_head (list_notification);
 	while (le != NULL)
 	{
-		callback = (int (*) (const notification_t *)) le->value;
-		(*callback) (notif);
+		callback_func_t *cf;
+		plugin_notification_cb callback;
+		int status;
+
+		cf = le->value;
+		callback = cf->cf_callback;
+		status = (*callback) (notif, &cf->cf_udata);
+		if (status != 0)
+		{
+			WARNING ("plugin_dispatch_notification: Notification "
+					"callback %s returned %i.",
+					le->key, status);
+		}
 
 		le = le->next;
 	}
