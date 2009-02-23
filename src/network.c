@@ -1632,7 +1632,8 @@ static int network_config (const char *key, const char *val)
 	return (0);
 } /* int network_config */
 
-static int network_notification (const notification_t *n)
+static int network_notification (const notification_t *n,
+		user_data_t __attribute__((unused)) *user_data)
 {
   char  buffer[BUFF_SIZE];
   char *buffer_ptr = buffer;
@@ -1770,7 +1771,8 @@ static int network_init (void)
 	{
 		plugin_register_write ("network", network_write,
 				/* user_data = */ NULL);
-		plugin_register_notification ("network", network_notification);
+		plugin_register_notification ("network", network_notification,
+				/* user_data = */ NULL);
 	}
 
 	if ((listen_sockets_num != 0) && (receive_thread_id == 0))

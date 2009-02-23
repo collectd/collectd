@@ -146,12 +146,16 @@ typedef struct user_data_s user_data_t;
 /*
  * Callback types
  */
+typedef int (*plugin_init_cb) (void);
 typedef int (*plugin_read_cb) (user_data_t *);
 typedef int (*plugin_write_cb) (const data_set_t *, const value_list_t *,
 		user_data_t *);
 typedef int (*plugin_flush_cb) (int timeout, const char *identifier,
 		user_data_t *);
 typedef void (*plugin_log_cb) (int severity, const char *message,
+		user_data_t *);
+typedef int (*plugin_shutdown_cb) (void);
+typedef int (*plugin_notification_cb) (const notification_t *,
 		user_data_t *);
 
 /*
@@ -240,7 +244,7 @@ int plugin_register_config (const char *name,
 int plugin_register_complex_config (const char *type,
 		int (*callback) (oconfig_item_t *));
 int plugin_register_init (const char *name,
-		int (*callback) (void));
+		plugin_init_cb callback);
 int plugin_register_read (const char *name,
 		int (*callback) (void));
 int plugin_register_complex_read (const char *name,
@@ -250,12 +254,12 @@ int plugin_register_write (const char *name,
 int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *user_data);
 int plugin_register_shutdown (char *name,
-		int (*callback) (void));
+		plugin_shutdown_cb callback);
 int plugin_register_data_set (const data_set_t *ds);
 int plugin_register_log (const char *name,
 		plugin_log_cb callback, user_data_t *user_data);
 int plugin_register_notification (const char *name,
-		int (*callback) (const notification_t *notif));
+		plugin_notification_cb callback, user_data_t *user_data);
 
 int plugin_unregister_config (const char *name);
 int plugin_unregister_complex_config (const char *name);

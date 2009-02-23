@@ -203,7 +203,8 @@ static int notify_email_config (const char *key, const char *value)
   return 0;
 } /* int notify_email_config (const char *, const char *) */
 
-static int notify_email_notification (const notification_t *n)
+static int notify_email_notification (const notification_t *n,
+    user_data_t __attribute__((unused)) *user_data)
 {
   smtp_recipient_t recipient;
 
@@ -282,7 +283,8 @@ void module_register (void)
   plugin_register_shutdown ("notify_email", notify_email_shutdown);
   plugin_register_config ("notify_email", notify_email_config,
       config_keys, config_keys_num);
-  plugin_register_notification ("notify_email", notify_email_notification);
+  plugin_register_notification ("notify_email", notify_email_notification,
+      /* user_data = */ NULL);
 } /* void module_register (void) */
 
 /* vim: set sw=2 sts=2 ts=8 et : */

@@ -1955,7 +1955,8 @@ static void perl_log (int level, const char *msg,
 	return;
 } /* static void perl_log (int, const char *) */
 
-static int perl_notify (const notification_t *notif)
+static int perl_notify (const notification_t *notif,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -2222,7 +2223,8 @@ static int init_pi (int argc, char **argv)
 	perl_run (aTHX);
 
 	plugin_register_log ("perl", perl_log, /* user_data = */ NULL);
-	plugin_register_notification ("perl", perl_notify);
+	plugin_register_notification ("perl", perl_notify,
+			/* user_data = */ NULL);
 	plugin_register_init ("perl", perl_init);
 
 	plugin_register_read ("perl", perl_read);

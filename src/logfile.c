@@ -152,7 +152,8 @@ static void logfile_log (int severity, const char *msg,
 	logfile_print (msg, time (NULL));
 } /* void logfile_log (int, const char *) */
 
-static int logfile_notification (const notification_t *n)
+static int logfile_notification (const notification_t *n,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	char  buf[1024] = "";
 	char *buf_ptr = buf;
@@ -196,7 +197,8 @@ void module_register (void)
 	plugin_register_config ("logfile", logfile_config,
 			config_keys, config_keys_num);
 	plugin_register_log ("logfile", logfile_log, /* user_data = */ NULL);
-	plugin_register_notification ("logfile", logfile_notification);
+	plugin_register_notification ("logfile", logfile_notification,
+			/* user_data = */ NULL);
 } /* void module_register (void) */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
