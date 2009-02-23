@@ -187,7 +187,8 @@ static int logfile_notification (const notification_t *n,
 
 	buf[sizeof (buf) - 1] = '\0';
 
-	logfile_print (buf, n->time);
+	logfile_print (buf,
+			(n->time > 0) ? n->time : time (NULL));
 
 	return (0);
 } /* int logfile_notification */
