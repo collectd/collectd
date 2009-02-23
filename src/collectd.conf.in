@@ -50,6 +50,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
 @BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
 @BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
+@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
 @BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
 @BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 @BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
