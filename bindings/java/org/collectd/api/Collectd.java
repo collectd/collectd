@@ -88,6 +88,11 @@ public class Collectd
   native public static int dispatchValues (ValueList vl);
 
   /**
+   * Java representation of collectd/src/plugin.h:plugin_dispatch_notification
+   */
+  native public static int dispatchNotification (Notification n);
+
+  /**
    * Java representation of collectd/src/plugin.h:plugin_get_ds
    */
   native public static DataSet getDS (String type);

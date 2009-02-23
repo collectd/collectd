@@ -36,8 +36,15 @@ public class Notification extends PluginData {
     private int _severity;
     private String _message;
 
+    public Notification () {
+        _severity = 0;
+        _message = "Initial notification message";
+    }
+
     public Notification (PluginData pd) {
         super (pd);
+        _severity = 0;
+        _message = "Initial notification message";
     }
 
     public void setSeverity (int severity) {

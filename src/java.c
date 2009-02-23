@@ -790,7 +790,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   status = ctoj_string (jvm_env, str, \
       c_valuelist, o_valuelist, method_name); \
   if (status != 0) { \
-    ERROR ("java plugin: ctoj_value_list: jtoc_string (%s) failed.", \
+    ERROR ("java plugin: ctoj_value_list: ctoj_string (%s) failed.", \
         method_name); \
     (*jvm_env)->DeleteLocalRef (jvm_env, o_valuelist); \
     return (NULL); \
@@ -885,7 +885,7 @@ static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
   status = ctoj_string (jvm_env, str, \
       c_notification, o_notification, method_name); \
   if (status != 0) { \
-    ERROR ("java plugin: ctoj_notification: jtoc_string (%s) failed.", \
+    ERROR ("java plugin: ctoj_notification: ctoj_string (%s) failed.", \
         method_name); \
     (*jvm_env)->DeleteLocalRef (jvm_env, o_notification); \
     return (NULL); \
@@ -928,7 +928,7 @@ static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
  */
 /* Call a `String <method> ()' method. */
 static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
-    char *buffer, size_t buffer_size,
+    char *buffer, size_t buffer_size, int empty_okay,
     jclass class_ptr, jobject object_ptr, const char *method_name)
 {
   jmethodID method_id;
@@ -945,11 +945,16 @@ static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
   }
 
   string_obj = (*jvm_env)->CallObjectMethod (jvm_env, object_ptr, method_id);
-  if (string_obj == NULL)
+  if ((string_obj == NULL) && (empty_okay == 0))
   {
     ERROR ("java plugin: jtoc_string: CallObjectMethod (%s) failed.",
         method_name);
     return (-1);
+  }
+  else if ((string_obj == NULL) && (empty_okay != 0))
+  {
+    memset (buffer, 0, buffer_size);
+    return (0);
   }
 
   c_str = (*jvm_env)->GetStringUTFChars (jvm_env, string_obj, 0);
@@ -967,6 +972,27 @@ static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
 
   return (0);
 } /* }}} int jtoc_string */
+
+/* Call an `int <method> ()' method. */
+static int jtoc_int (JNIEnv *jvm_env, /* {{{ */
+    jint *ret_value,
+    jclass class_ptr, jobject object_ptr, const char *method_name)
+{
+  jmethodID method_id;
+
+  method_id = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
+      method_name, "()I");
+  if (method_id == NULL)
+  {
+    ERROR ("java plugin: jtoc_int: Cannot find method `int %s ()'.",
+        method_name);
+    return (-1);
+  }
+
+  *ret_value = (*jvm_env)->CallIntMethod (jvm_env, object_ptr, method_id);
+
+  return (0);
+} /* }}} int jtoc_int */
 
 /* Call a `long <method> ()' method. */
 static int jtoc_long (JNIEnv *jvm_env, /* {{{ */
@@ -1000,7 +1026,7 @@ static int jtoc_double (JNIEnv *jvm_env, /* {{{ */
       method_name, "()D");
   if (method_id == NULL)
   {
-    ERROR ("java plugin: jtoc_string: Cannot find method `double %s ()'.",
+    ERROR ("java plugin: jtoc_double: Cannot find method `double %s ()'.",
         method_name);
     return (-1);
   }
@@ -1171,8 +1197,9 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-#define SET_STRING(buffer,method) do { \
-  status = jtoc_string (jvm_env, buffer, sizeof (buffer), \
+  /* eo == empty okay */
+#define SET_STRING(buffer,method, eo) do { \
+  status = jtoc_string (jvm_env, buffer, sizeof (buffer), eo, \
       class_ptr, object_ptr, method); \
   if (status != 0) { \
     ERROR ("java plugin: jtoc_value_list: jtoc_string (%s) failed.", \
@@ -1180,7 +1207,7 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     return (-1); \
   } } while (0)
 
-  SET_STRING(vl->type, "getType");
+  SET_STRING(vl->type, "getType", /* empty = */ 0);
 
   ds = plugin_get_ds (vl->type);
   if (ds == NULL)
@@ -1191,10 +1218,10 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  SET_STRING(vl->host, "getHost");
-  SET_STRING(vl->plugin, "getPlugin");
-  SET_STRING(vl->plugin_instance, "getPluginInstance");
-  SET_STRING(vl->type_instance, "getTypeInstance");
+  SET_STRING(vl->host,            "getHost",           /* empty = */ 0);
+  SET_STRING(vl->plugin,          "getPlugin",         /* empty = */ 0);
+  SET_STRING(vl->plugin_instance, "getPluginInstance", /* empty = */ 1);
+  SET_STRING(vl->type_instance,   "getTypeInstance",   /* empty = */ 1);
 
 #undef SET_STRING
 
@@ -1226,6 +1253,61 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
   return (0);
 } /* }}} int jtoc_value_list */
 
+/* Convert a org.collectd.api.Notification to a notification_t. */
+static int jtoc_notification (JNIEnv *jvm_env, notification_t *n, /* {{{ */
+    jobject object_ptr)
+{
+  jclass class_ptr;
+  int status;
+  jlong tmp_long;
+  jint tmp_int;
+
+  class_ptr = (*jvm_env)->GetObjectClass (jvm_env, object_ptr);
+  if (class_ptr == NULL)
+  {
+    ERROR ("java plugin: jtoc_notification: GetObjectClass failed.");
+    return (-1);
+  }
+
+  /* eo == empty okay */
+#define SET_STRING(buffer,method, eo) do { \
+  status = jtoc_string (jvm_env, buffer, sizeof (buffer), eo, \
+      class_ptr, object_ptr, method); \
+  if (status != 0) { \
+    ERROR ("java plugin: jtoc_notification: jtoc_string (%s) failed.", \
+        method); \
+    return (-1); \
+  } } while (0)
+
+  SET_STRING (n->host,            "getHost",           /* empty = */ 1);
+  SET_STRING (n->plugin,          "getPlugin",         /* empty = */ 1);
+  SET_STRING (n->plugin_instance, "getPluginInstance", /* empty = */ 1);
+  SET_STRING (n->type,            "getType",           /* empty = */ 1);
+  SET_STRING (n->type_instance,   "getTypeInstance",   /* empty = */ 1);
+  SET_STRING (n->message,         "getMessage",        /* empty = */ 0);
+
+#undef SET_STRING
+
+  status = jtoc_long (jvm_env, &tmp_long, class_ptr, object_ptr, "getTime");
+  if (status != 0)
+  {
+    ERROR ("java plugin: jtoc_notification: jtoc_long (getTime) failed.");
+    return (-1);
+  }
+  /* Java measures time in milliseconds. */
+  n->time = (time_t) (tmp_long / ((jlong) 1000));
+
+  status = jtoc_int (jvm_env, &tmp_int,
+      class_ptr, object_ptr, "getSeverity");
+  if (status != 0)
+  {
+    ERROR ("java plugin: jtoc_notification: jtoc_int (getSeverity) failed.");
+    return (-1);
+  }
+  n->severity = (int) tmp_int;
+
+  return (0);
+} /* }}} int jtoc_notification */
 /* 
  * Functions accessible from Java
  */
@@ -1250,6 +1332,27 @@ static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
 
   return (status);
 } /* }}} jint cjni_api_dispatch_values */
+
+static jint JNICALL cjni_api_dispatch_notification (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_notification)
+{
+  notification_t n;
+  int status;
+
+  memset (&n, 0, sizeof (n));
+  n.meta = NULL;
+
+  status = jtoc_notification (jvm_env, &n, o_notification);
+  if (status != 0)
+  {
+    ERROR ("java plugin: cjni_api_dispatch_notification: jtoc_notification failed.");
+    return (-1);
+  }
+
+  status = plugin_dispatch_notification (&n);
+
+  return (status);
+} /* }}} jint cjni_api_dispatch_notification */
 
 static jobject JNICALL cjni_api_get_ds (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_string_type)
@@ -1442,6 +1545,10 @@ static JNINativeMethod jni_api_functions[] = /* {{{ */
   { "dispatchValues",
     "(Lorg/collectd/api/ValueList;)I",
     cjni_api_dispatch_values },
+
+  { "dispatchNotification",
+    "(Lorg/collectd/api/Notification;)I",
+    cjni_api_dispatch_notification },
 
   { "getDS",
     "(Ljava/lang/String;)Lorg/collectd/api/DataSet;",
