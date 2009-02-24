@@ -1,6 +1,7 @@
 /**
  * collectd - src/cpu.c
- * Copyright (C) 2005-2007  Florian octo Forster
+ * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2009 Simon Kuhnle
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Simon Kuhnle <simon at blarzwurst.de>
  **/
 
 #include "collectd.h"

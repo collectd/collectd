@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # collectd - contrib/cussh.pl
-# Copyright (C) 2007-2008  Sebastian Harl
+# Copyright (C) 2007-2009  Sebastian Harl
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
