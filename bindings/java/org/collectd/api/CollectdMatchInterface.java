@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a match function.
+ * Interface for objects implementing a match method.
  *
  * These objects are instantiated using objects which implement the
  * CollectdMatchFactoryInterface interface. They are not instantiated by the

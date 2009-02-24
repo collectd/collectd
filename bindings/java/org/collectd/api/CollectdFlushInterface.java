@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a flush function.
+ * Interface for objects implementing a flush method.
  *
  * @author Florian Forster &lt;octo at verplant.org&gt;
  * @see Collectd#registerFlush

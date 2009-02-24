@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a notification function.
+ * Interface for objects implementing a notification method.
  *
  * @author Florian Forster &lt;octo at verplant.org&gt;
  * @see Collectd#registerNotification

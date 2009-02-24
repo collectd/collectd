@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a config function.
+ * Interface for objects implementing a config method.
  *
  * @author Florian Forster &lt;octo at verplant.org&gt;
  * @see Collectd#registerConfig(String, CollectdConfigInterface)

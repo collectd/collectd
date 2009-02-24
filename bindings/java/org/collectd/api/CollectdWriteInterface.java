@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a write function.
+ * Interface for objects implementing a write method.
  *
  * @author Florian Forster &lt;octo at verplant.org&gt;
  * @see Collectd#registerWrite

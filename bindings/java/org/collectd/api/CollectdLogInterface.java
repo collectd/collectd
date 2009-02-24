@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a log function.
+ * Interface for objects implementing a log method.
  *
  * @author Florian Forster &lt;octo at verplant.org&gt;
  * @see Collectd#registerLog

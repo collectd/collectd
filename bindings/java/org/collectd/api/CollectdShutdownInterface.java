@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a shutdown function.
+ * Interface for objects implementing a shutdown method.
  *
  * @author Florian Forster &lt;octo at verplant.org&gt;
  * @see Collectd#registerShutdown

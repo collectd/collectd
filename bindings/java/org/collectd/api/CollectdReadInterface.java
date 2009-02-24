@@ -22,7 +22,7 @@
 package org.collectd.api;
 
 /**
- * Interface for objects implementing a read function.
+ * Interface for objects implementing a read method.
  *
  * Objects implementing this interface can be registered with the daemon. Their
  * read method is then called periodically to acquire and submit values.
