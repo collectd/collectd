@@ -111,9 +111,11 @@ static int cjni_flush (int timeout, const char *identifier, user_data_t *ud);
 static void cjni_log (int severity, const char *message, user_data_t *ud);
 static int cjni_notification (const notification_t *n, user_data_t *ud);
 
-static int cjni_match_create (const oconfig_item_t *ci, void **user_data);
-static int cjni_match_destroy (void **user_data);
-static int cjni_match_match (const data_set_t *ds, const value_list_t *vl,
+/* Create, destroy, and match/invoke functions, used by both, matches AND
+ * targets. */
+static int cjni_match_target_create (const oconfig_item_t *ci, void **user_data);
+static int cjni_match_target_destroy (void **user_data);
+static int cjni_match_target_invoke (const data_set_t *ds, value_list_t *vl,
     notification_meta_t **meta, void **user_data);
 
 /* 
@@ -1512,38 +1514,62 @@ static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} jint cjni_api_register_notification */
 
-static jint JNICALL cjni_api_register_match (JNIEnv *jvm_env, /* {{{ */
-    jobject this, jobject o_name, jobject o_match)
+static jint JNICALL cjni_api_register_match_target (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_match, int type)
 {
-  match_proc_t proc;
   int status;
   const char *c_name;
 
   c_name = (*jvm_env)->GetStringUTFChars (jvm_env, o_name, 0);
   if (c_name == NULL)
   {
-    ERROR ("java plugin: cjni_api_register_match: "
+    ERROR ("java plugin: cjni_api_register_match_target: "
         "GetStringUTFChars failed.");
     return (-1);
   }
 
-  status = cjni_callback_register (jvm_env, o_name, o_match, CB_TYPE_MATCH);
+  status = cjni_callback_register (jvm_env, o_name, o_match, type);
   if (status != 0)
   {
     (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
     return (-1);
   }
 
-  memset (&proc, 0, sizeof (proc));
-  proc.create  = cjni_match_create;
-  proc.destroy = cjni_match_destroy;
-  proc.match   = cjni_match_match;
+  if (type == CB_TYPE_MATCH)
+  {
+    match_proc_t m_proc;
 
-  status = fc_register_match (c_name, proc);
+    memset (&m_proc, 0, sizeof (m_proc));
+    m_proc.create  = cjni_match_target_create;
+    m_proc.destroy = cjni_match_target_destroy;
+    m_proc.match   = (void *) cjni_match_target_invoke;
+
+    status = fc_register_match (c_name, m_proc);
+  }
+  else if (type == CB_TYPE_TARGET)
+  {
+    target_proc_t t_proc;
+
+    memset (&t_proc, 0, sizeof (t_proc));
+    t_proc.create  = cjni_match_target_create;
+    t_proc.destroy = cjni_match_target_destroy;
+    t_proc.invoke  = cjni_match_target_invoke;
+
+    status = fc_register_target (c_name, t_proc);
+  }
+  else
+  {
+    ERROR ("java plugin: cjni_api_register_match_target: "
+        "Don't know whether to create a match or a target.");
+    (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+    return (-1);
+  }
+
   if (status != 0)
   {
-    ERROR ("java plugin: cjni_api_register_match: "
-        "fc_register_match failed.");
+    ERROR ("java plugin: cjni_api_register_match_target: "
+        "%s failed.",
+        (type == CB_TYPE_MATCH) ? "fc_register_match" : "fc_register_target");
     (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
     return (-1);
   }
@@ -1551,7 +1577,21 @@ static jint JNICALL cjni_api_register_match (JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
 
   return (0);
+} /* }}} jint cjni_api_register_match_target */
+
+static jint JNICALL cjni_api_register_match (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_match)
+{
+  return (cjni_api_register_match_target (jvm_env, this, o_name, o_match,
+        CB_TYPE_MATCH));
 } /* }}} jint cjni_api_register_match */
+
+static jint JNICALL cjni_api_register_target (JNIEnv *jvm_env, /* {{{ */
+    jobject this, jobject o_name, jobject o_target)
+{
+  return (cjni_api_register_match_target (jvm_env, this, o_name, o_target,
+        CB_TYPE_TARGET));
+} /* }}} jint cjni_api_register_target */
 
 static void JNICALL cjni_api_log (JNIEnv *jvm_env, /* {{{ */
     jobject this, jint severity, jobject o_message)
@@ -1627,6 +1667,10 @@ static JNINativeMethod jni_api_functions[] = /* {{{ */
     "(Ljava/lang/String;Lorg/collectd/api/CollectdMatchFactoryInterface;)I",
     cjni_api_register_match },
 
+  { "registerTarget",
+    "(Ljava/lang/String;Lorg/collectd/api/CollectdTargetFactoryInterface;)I",
+    cjni_api_register_target },
+
   { "log",
     "(ILjava/lang/String;)V",
     cjni_api_log },
@@ -1694,6 +1738,12 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
       method_name = "createMatch";
       method_signature = "(Lorg/collectd/api/OConfigItem;)"
         "Lorg/collectd/api/CollectdMatchInterface;";
+      break;
+
+    case CB_TYPE_TARGET:
+      method_name = "createTarget";
+      method_signature = "(Lorg/collectd/api/OConfigItem;)"
+        "Lorg/collectd/api/CollectdTargetInterface;";
       break;
 
     default:
@@ -1790,6 +1840,10 @@ static int cjni_callback_register (JNIEnv *jvm_env, /* {{{ */
 
     case CB_TYPE_MATCH:
       type_str = "match";
+      break;
+
+    case CB_TYPE_TARGET:
+      type_str = "target";
       break;
 
     default:
@@ -2552,7 +2606,7 @@ static int cjni_notification (const notification_t *n, /* {{{ */
 } /* }}} int cjni_notification */
 
 /* Callbacks for matches implemented in Java */
-static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
+static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
     void **user_data)
 {
   JNIEnv *jvm_env;
@@ -2560,6 +2614,7 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
   cjni_callback_info_t *cbi_factory;
   const char *name;
   jobject o_ci;
+  int type;
   size_t i;
 
   cbi_ret = NULL;
@@ -2592,6 +2647,18 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
     BAIL_OUT (-1);
   }
 
+  /* Find out whether to create a match or a target. */
+  if (strcasecmp ("Match", ci->key) == 0)
+    type = CB_TYPE_MATCH;
+  else if (strcasecmp ("Target", ci->key) == 0)
+    type = CB_TYPE_TARGET;
+  else
+  {
+    ERROR ("java plugin: cjni_match_target_create: Can't figure out whether "
+        "to create a match or a target.");
+    BAIL_OUT (-1);
+  }
+
   /* This is the name of the match we should create. */
   name = ci->values[0].value.string;
 
@@ -2599,7 +2666,7 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
   cbi_factory = NULL;
   for (i = 0; i < java_callbacks_num; i++)
   {
-    if (java_callbacks[i].type != CB_TYPE_MATCH)
+    if (java_callbacks[i].type != type)
       continue;
 
     if (strcmp (name, java_callbacks[i].name) != 0)
@@ -2612,7 +2679,7 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
   /* Nope, no factory for that name.. */
   if (cbi_factory == NULL)
   {
-    ERROR ("java plugin: cjni_match_create: "
+    ERROR ("java plugin: cjni_match_target_create: "
         "No such match factory registered: %s",
         name);
     BAIL_OUT (-1);
@@ -2622,7 +2689,8 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
   o_ci = ctoj_oconfig_item (jvm_env, ci);
   if (o_ci == NULL)
   {
-    ERROR ("java plugin: cjni_match_create: ctoj_oconfig_item failed.");
+    ERROR ("java plugin: cjni_match_target_create: "
+        "ctoj_oconfig_item failed.");
     BAIL_OUT (-1);
   }
 
@@ -2631,17 +2699,18 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
   cbi_ret = (cjni_callback_info_t *) malloc (sizeof (*cbi_ret));
   if (cbi_ret == NULL)
   {
-    ERROR ("java plugin: cjni_match_create: ctoj_oconfig_item failed.");
+    ERROR ("java plugin: cjni_match_target_create: malloc failed.");
     BAIL_OUT (-1);
   }
   memset (cbi_ret, 0, sizeof (*cbi_ret));
   cbi_ret->object = NULL;
+  cbi_ret->type = type;
 
   /* Lets fill the callback info structure.. First, the name: */
   cbi_ret->name = strdup (name);
   if (cbi_ret->name == NULL)
   {
-    ERROR ("java plugin: cjni_match_create: strdup failed.");
+    ERROR ("java plugin: cjni_match_target_create: strdup failed.");
     BAIL_OUT (-1);
   }
 
@@ -2650,7 +2719,7 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
       cbi_factory->object, cbi_factory->method, o_ci);
   if (cbi_ret->object == NULL)
   {
-    ERROR ("java plugin: cjni_match_create: CallObjectMethod failed.");
+    ERROR ("java plugin: cjni_match_target_create: CallObjectMethod failed.");
     BAIL_OUT (-1);
   }
 
@@ -2659,16 +2728,17 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
   cbi_ret->class = (*jvm_env)->GetObjectClass (jvm_env, cbi_ret->object);
   if (cbi_ret->class == NULL)
   {
-    ERROR ("java plugin: cjni_match_create: GetObjectClass failed.");
+    ERROR ("java plugin: cjni_match_target_create: GetObjectClass failed.");
     BAIL_OUT (-1);
   }
 
   /* Lookup the `int match (DataSet, ValueList)' method. */
   cbi_ret->method = (*jvm_env)->GetMethodID (jvm_env, cbi_ret->class,
-      "match", "(Lorg/collectd/api/DataSet;Lorg/collectd/api/ValueList;)I");
+      /* method name = */ (type == CB_TYPE_MATCH) ? "match" : "invoke",
+      "(Lorg/collectd/api/DataSet;Lorg/collectd/api/ValueList;)I");
   if (cbi_ret->method == NULL)
   {
-    ERROR ("java plugin: cjni_match_create: GetMethodID failed.");
+    ERROR ("java plugin: cjni_match_target_create: GetMethodID failed.");
     BAIL_OUT (-1);
   }
 
@@ -2681,24 +2751,25 @@ static int cjni_match_create (const oconfig_item_t *ci, /* {{{ */
 
   cjni_thread_detach ();
 
-  DEBUG ("java plugin: cjni_match_create: Successfully created a `%s' match.",
-      cbi_ret->name);
+  DEBUG ("java plugin: cjni_match_target_create: "
+      "Successfully created a `%s' %s.",
+      cbi_ret->name, (type == CB_TYPE_MATCH) ? "match" : "target");
 
   /* Success! */
   return (0);
 #undef BAIL_OUT
-} /* }}} int cjni_match_create */
+} /* }}} int cjni_match_target_create */
 
-static int cjni_match_destroy (void **user_data) /* {{{ */
+static int cjni_match_target_destroy (void **user_data) /* {{{ */
 {
   cjni_callback_info_destroy (*user_data);
   *user_data = NULL;
 
   return (0);
-} /* }}} int cjni_match_destroy */
+} /* }}} int cjni_match_target_destroy */
 
-static int cjni_match_match (const data_set_t *ds, /* {{{ */
-    const value_list_t *vl, notification_meta_t **meta, void **user_data)
+static int cjni_match_target_invoke (const data_set_t *ds, /* {{{ */
+    value_list_t *vl, notification_meta_t **meta, void **user_data)
 {
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
@@ -2709,7 +2780,7 @@ static int cjni_match_match (const data_set_t *ds, /* {{{ */
 
   if (jvm == NULL)
   {
-    ERROR ("java plugin: cjni_match_match: jvm == NULL");
+    ERROR ("java plugin: cjni_match_target_invoke: jvm == NULL");
     return (-1);
   }
 
@@ -2722,7 +2793,7 @@ static int cjni_match_match (const data_set_t *ds, /* {{{ */
   o_vl = ctoj_value_list (jvm_env, ds, vl);
   if (o_vl == NULL)
   {
-    ERROR ("java plugin: cjni_match_match: ctoj_value_list failed.");
+    ERROR ("java plugin: cjni_match_target_invoke: ctoj_value_list failed.");
     cjni_thread_detach ();
     return (-1);
   }
@@ -2730,7 +2801,7 @@ static int cjni_match_match (const data_set_t *ds, /* {{{ */
   o_ds = ctoj_data_set (jvm_env, ds);
   if (o_ds == NULL)
   {
-    ERROR ("java plugin: cjni_match_match: ctoj_value_list failed.");
+    ERROR ("java plugin: cjni_match_target_invoke: ctoj_value_list failed.");
     cjni_thread_detach ();
     return (-1);
   }
@@ -2738,14 +2809,39 @@ static int cjni_match_match (const data_set_t *ds, /* {{{ */
   ret_status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object, cbi->method,
       o_ds, o_vl);
 
-  DEBUG ("java plugin: cjni_match_match: Method returned %i.", ret_status);
+  DEBUG ("java plugin: cjni_match_target_invoke: Method returned %i.", ret_status);
+
+  /* If we're executing a target, copy the `ValueList' back to our
+   * `value_list_t'. */
+  if (cbi->type == CB_TYPE_TARGET)
+  {
+    value_list_t new_vl;
+
+    memset (&new_vl, 0, sizeof (new_vl));
+    status = jtoc_value_list (jvm_env, &new_vl, o_vl);
+    if (status != 0)
+    {
+      ERROR ("java plugin: cjni_match_target_invoke: "
+          "jtoc_value_list failed.");
+    }
+    else /* if (status == 0) */
+    {
+      /* plugin_dispatch_values assures that this is dynamically allocated
+       * memory. */
+      sfree (vl->values);
+
+      /* This will replace the vl->values pointer to a new, dynamically
+       * allocated piece of memory. */
+      memcpy (vl, &new_vl, sizeof (*vl));
+    }
+  } /* if (cbi->type == CB_TYPE_TARGET) */
 
   status = cjni_thread_detach ();
   if (status != 0)
     ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
 
   return (ret_status);
-} /* }}} int cjni_match_match */
+} /* }}} int cjni_match_target_invoke */
 
 /* Iterate over `java_callbacks' and call all CB_TYPE_INIT callbacks. */
 static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
@@ -2876,7 +2972,7 @@ static int cjni_init (void) /* {{{ */
 
   if (jvm == NULL)
   {
-    ERROR ("java plugin: cjni_match_match: jvm == NULL");
+    ERROR ("java plugin: cjni_init: jvm == NULL");
     return (-1);
   }
 
