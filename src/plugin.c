@@ -837,9 +837,14 @@ int plugin_dispatch_values (value_list_t *vl)
 	int status;
 	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
+	value_t *saved_values;
+	int      saved_values_len;
+
 	data_set_t *ds;
 
-	if ((vl == NULL) || (*vl->type == '\0')) {
+	if ((vl == NULL) || (vl->type[0] == 0)
+			|| (vl->values == NULL) || (vl->values_len < 1))
+	{
 		ERROR ("plugin_dispatch_values: Invalid value list.");
 		return (-1);
 	}
@@ -903,6 +908,31 @@ int plugin_dispatch_values (value_list_t *vl)
 	escape_slashes (vl->type, sizeof (vl->type));
 	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
 
+	/* Copy the values. This way, we can assure `targets' that they get
+	 * dynamically allocated values, which they can free and replace if
+	 * they like. */
+	if ((pre_cache_chain != NULL) || (post_cache_chain != NULL))
+	{
+		saved_values     = vl->values;
+		saved_values_len = vl->values_len;
+
+		vl->values = (value_t *) calloc (vl->values_len,
+				sizeof (*vl->values));
+		if (vl->values == NULL)
+		{
+			ERROR ("plugin_dispatch_values: calloc failed.");
+			vl->values = saved_values;
+			return (-1);
+		}
+		memcpy (vl->values, saved_values,
+				vl->values_len * sizeof (*vl->values));
+	}
+	else /* if ((pre == NULL) && (post == NULL)) */
+	{
+		saved_values     = NULL;
+		saved_values_len = 0;
+	}
+
 	if (pre_cache_chain != NULL)
 	{
 		status = fc_process_chain (ds, vl, pre_cache_chain);
@@ -914,7 +944,17 @@ int plugin_dispatch_values (value_list_t *vl)
 					status, status);
 		}
 		else if (status == FC_TARGET_STOP)
+		{
+			/* Restore the state of the value_list so that plugins
+			 * don't get confused.. */
+			if (saved_values != NULL)
+			{
+				free (vl->values);
+				vl->values     = saved_values;
+				vl->values_len = saved_values_len;
+			}
 			return (0);
+		}
 	}
 
 	/* Update the value cache */
@@ -933,6 +973,15 @@ int plugin_dispatch_values (value_list_t *vl)
 	}
 	else
 		fc_default_action (ds, vl);
+
+	/* Restore the state of the value_list so that plugins don't get
+	 * confused.. */
+	if (saved_values != NULL)
+	{
+		free (vl->values);
+		vl->values     = saved_values;
+		vl->values_len = saved_values_len;
+	}
 
 	return (0);
 } /* int plugin_dispatch_values */
