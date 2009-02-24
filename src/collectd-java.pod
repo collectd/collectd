@@ -232,6 +232,95 @@ This callback can be used to receive notifications from the daemon.
 To signal success, this method has to return zero. Anything else will be
 considered an error condition and cause an appropriate message to be logged.
 
+=head2 match callback
+
+The match (and target, see L<"target callback"> below) callbacks work a bit
+different from the other callbacks above: You don't register a match callback
+with the daemon directly, but you register a function which, when called,
+creates an appropriate object. The object creating the "match" objects is
+called "match factory".
+
+=head3 Factory object
+
+Interface: B<org.collectd.api.CollectdMatchFactoryInterface>
+
+Signature: I<CollectdMatchInterface> B<createMatch>
+(I<OConfigItem> ci);
+
+Called by the daemon to create "match" objects.
+
+Returns: A new object which implements the B<CollectdMatchInterface> interface.
+
+=head3 Match object
+
+Interface: B<org.collectd.api.CollectdMatchInterface>
+
+Signature: I<int> B<match> (I<DataSet> ds, I<ValueList> vl);
+
+Called when processing a chain to determine whether or not a I<ValueList>
+matches. How values are matches is up to the implementing class.
+
+Has to return one of:
+
+=over 4
+
+=item *
+
+B<Collectd.FC_MATCH_NO_MATCH>
+
+=item *
+
+B<Collectd.FC_MATCH_MATCHES>
+
+=back
+
+=head2 target callback
+
+The target (and match, see L<"match callback"> above) callbacks work a bit
+different from the other callbacks above: You don't register a target callback
+with the daemon directly, but you register a function which, when called,
+creates an appropriate object. The object creating the "target" objects is
+called "target factory".
+
+=head3 Factory object
+
+Interface: B<org.collectd.api.CollectdTargetFactoryInterface>
+
+Signature: I<CollectdTargetInterface> B<createTarget>
+(I<OConfigItem> ci);
+
+Called by the daemon to create "target" objects.
+
+Returns: A new object which implements the B<CollectdTargetInterface>
+interface.
+
+=head3 Target object
+
+Interface: B<org.collectd.api.CollectdTargetInterface>
+
+Signature: I<int> B<invoke> (I<DataSet> ds, I<ValueList> vl);
+
+Called when processing a chain to perform some action. The action performed is
+up to the implementing class.
+
+Has to return one of:
+
+=over 4
+
+=item *
+
+B<Collectd.FC_TARGET_CONTINUE>
+
+=item *
+
+B<Collectd.FC_TARGET_STOP>
+
+=item *
+
+B<Collectd.FC_TARGET_RETURN>
+
+=back
+
 =head2 Example
 
 This short example demonstrates how to register a read callback with the
@@ -340,6 +429,28 @@ Registers the B<notification> function of I<object> with the daemon.
 
 Returns zero upon success and non-zero when an error occurred.
 
+=head2 registerMatch
+
+Signature: I<int> B<registerMatch> (I<String> name,
+I<CollectdMatchFactoryInterface> object);
+
+Registers the B<createMatch> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"match callback"> above.
+
+=head2 registerTarget
+
+Signature: I<int> B<registerTarget> (I<String> name,
+I<CollectdTargetFactoryInterface> object);
+
+Registers the B<createTarget> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"target callback"> above.
+
 =head2 dispatchValues
 
 Signature: I<int> B<dispatchValues> (I<ValueList>)
@@ -356,7 +467,7 @@ Returns zero upon success or non-zero upon failure.
 
 Signature: I<DataSet> B<getDS> (I<String>)
 
-Returns the approrpate I<type> or B<null> if the type is not defined.
+Returns the appropriate I<type> or B<null> if the type is not defined.
 
 =head2 logError
 
