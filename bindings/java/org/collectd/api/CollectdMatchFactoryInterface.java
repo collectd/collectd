@@ -33,5 +33,17 @@ package org.collectd.api;
  */
 public interface CollectdMatchFactoryInterface
 {
+	/**
+	 * Create a new "match" object.
+	 *
+	 * This method uses the configuration provided as argument to create a
+	 * new object which must implement the {@link CollectdMatchInterface}
+	 * interface.
+	 *
+	 * This function corresponds to the <code>create</code> member of the
+	 * <code>src/filter_chain.h:match_proc_t</code> struct.
+	 *
+	 * @return New {@link CollectdMatchInterface} object.
+	 */
 	public CollectdMatchInterface createMatch (OConfigItem ci);
 }
