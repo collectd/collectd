@@ -497,7 +497,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   for (i = 0; i < column_num; i++) /* {{{ */
   {
     char *column_name;
-    size_t column_name_length;
+    ub4 column_name_length;
     OCIParam *oci_param;
 
     oci_param = NULL;
@@ -533,8 +533,8 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
     column_names[i][column_name_length] = 0;
 
     DEBUG ("oracle plugin: o_read_database_query: column_names[%zu] = %s; "
-        "column_name_length = %zu;",
-        i, column_names[i], column_name_length);
+        "column_name_length = %"PRIu32";",
+        i, column_names[i], (uint32_t) column_name_length);
 
     status = OCIDefineByPos (oci_statement,
         &oci_defines[i], oci_error, (ub4) (i + 1),
