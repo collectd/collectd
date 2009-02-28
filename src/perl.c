@@ -1910,7 +1910,8 @@ static int perl_read (void)
 	return pplugin_call_all (aTHX_ PLUGIN_READ);
 } /* static int perl_read (void) */
 
-static int perl_write (const data_set_t *ds, const value_list_t *vl)
+static int perl_write (const data_set_t *ds, const value_list_t *vl,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -1932,7 +1933,8 @@ static int perl_write (const data_set_t *ds, const value_list_t *vl)
 	return pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
 } /* static int perl_write (const data_set_t *, const value_list_t *) */
 
-static void perl_log (int level, const char *msg)
+static void perl_log (int level, const char *msg,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -1953,7 +1955,8 @@ static void perl_log (int level, const char *msg)
 	return;
 } /* static void perl_log (int, const char *) */
 
-static int perl_notify (const notification_t *notif)
+static int perl_notify (const notification_t *notif,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -1972,7 +1975,8 @@ static int perl_notify (const notification_t *notif)
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
-static int perl_flush (int timeout, const char *identifier)
+static int perl_flush (int timeout, const char *identifier,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
 
@@ -2218,14 +2222,15 @@ static int init_pi (int argc, char **argv)
 
 	perl_run (aTHX);
 
-	plugin_register_log ("perl", perl_log);
-	plugin_register_notification ("perl", perl_notify);
+	plugin_register_log ("perl", perl_log, /* user_data = */ NULL);
+	plugin_register_notification ("perl", perl_notify,
+			/* user_data = */ NULL);
 	plugin_register_init ("perl", perl_init);
 
 	plugin_register_read ("perl", perl_read);
 
-	plugin_register_write ("perl", perl_write);
-	plugin_register_flush ("perl", perl_flush);
+	plugin_register_write ("perl", perl_write, /* user_data = */ NULL);
+	plugin_register_flush ("perl", perl_flush, /* user_data = */ NULL);
 	plugin_register_shutdown ("perl", perl_shutdown);
 	return 0;
 } /* static int init_pi (const char **, const int) */

@@ -1507,7 +1507,8 @@ static void flush_buffer (void)
 	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 }
 
-static int network_write (const data_set_t *ds, const value_list_t *vl)
+static int network_write (const data_set_t *ds, const value_list_t *vl,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	int status;
 
@@ -1631,7 +1632,8 @@ static int network_config (const char *key, const char *val)
 	return (0);
 } /* int network_config */
 
-static int network_notification (const notification_t *n)
+static int network_notification (const notification_t *n,
+		user_data_t __attribute__((unused)) *user_data)
 {
   char  buffer[BUFF_SIZE];
   char *buffer_ptr = buffer;
@@ -1767,8 +1769,10 @@ static int network_init (void)
 	/* setup socket(s) and so on */
 	if (sending_sockets != NULL)
 	{
-		plugin_register_write ("network", network_write);
-		plugin_register_notification ("network", network_notification);
+		plugin_register_write ("network", network_write,
+				/* user_data = */ NULL);
+		plugin_register_notification ("network", network_notification,
+				/* user_data = */ NULL);
 	}
 
 	if ((listen_sockets_num != 0) && (receive_thread_id == 0))
@@ -1810,7 +1814,8 @@ static int network_init (void)
  * there, good. If not, well, then there is nothing to flush.. -octo
  */
 static int network_flush (int timeout,
-		const char __attribute__((unused)) *identifier)
+		const char __attribute__((unused)) *identifier,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	pthread_mutex_lock (&send_buffer_lock);
 
@@ -1830,5 +1835,6 @@ void module_register (void)
 	plugin_register_config ("network", network_config,
 			config_keys, config_keys_num);
 	plugin_register_init   ("network", network_init);
-	plugin_register_flush   ("network", network_flush);
+	plugin_register_flush   ("network", network_flush,
+			/* user_data = */ NULL);
 } /* void module_register */

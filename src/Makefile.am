@@ -378,6 +378,17 @@ collectd_LDADD += "-dlopen" irq.la
 collectd_DEPENDENCIES += irq.la
 endif
 
+if BUILD_PLUGIN_JAVA
+pkglib_LTLIBRARIES += java.la
+java_la_SOURCES = java.c
+java_la_CPPFLAGS = $(AM_CPPFLAGS) $(JAVA_CPPFLAGS)
+java_la_CFLAGS = $(AM_CFLAGS) $(JAVA_CFLAGS)
+java_la_LDFLAGS = -module -avoid-version $(JAVA_LDFLAGS)
+java_la_LIBADD = $(JAVA_LIBS)
+collectd_LDADD += "-dlopen" java.la
+collectd_DEPENDENCIES += java.la
+endif
+
 if BUILD_PLUGIN_LIBVIRT
 pkglib_LTLIBRARIES += libvirt.la
 libvirt_la_SOURCES = libvirt.c
@@ -913,19 +924,34 @@ collectd_DEPENDENCIES += xmms.la
 endif
 
 
-dist_man_MANS = collectd.1 collectd-nagios.1 collectd.conf.5 \
-		collectd-email.5 collectd-exec.5 collectd-perl.5 \
-		collectd-snmp.5 collectd-unixsock.5 collectdmon.1 \
+dist_man_MANS = collectd.1 \
+		collectd.conf.5 \
+		collectd-email.5 \
+		collectd-exec.5 \
+		collectd-java.5
+		collectdmon.1 \
+		collectd-nagios.1 \
+		collectd-perl.5 \
+		collectd-snmp.5 \
+		collectd-unixsock.5 \
 		types.db.5
 
 #collectd_1_SOURCES = collectd.pod
 
 EXTRA_DIST = types.db
 
-EXTRA_DIST += collectd-email.pod collectd-exec.pod collectd-nagios.pod \
-	collectd-perl.pod collectd-snmp.pod collectd-unixsock.pod \
-	collectd.conf.pod collectd.pod collectdmon.pod types.db.pod \
-	postgresql_default.conf
+EXTRA_DIST +=   collectd.conf.pod \
+		collectd-email.pod \
+		collectd-exec.pod \
+		collectd-java.pod \
+		collectdmon.pod \
+		collectd-nagios.pod \
+		collectd-perl.pod \
+		collectd.pod \
+		collectd-snmp.pod \
+		collectd-unixsock.pod \
+		postgresql_default.conf \
+		types.db.pod
 
 .pod.1:
 	pod2man --release=$(VERSION) --center=$(PACKAGE) $< \

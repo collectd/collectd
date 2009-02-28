@@ -143,7 +143,8 @@ static void logfile_print (const char *msg, time_t timestamp_time)
 	return;
 } /* void logfile_print */
 
-static void logfile_log (int severity, const char *msg)
+static void logfile_log (int severity, const char *msg,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	if (severity > log_level)
 		return;
@@ -151,7 +152,8 @@ static void logfile_log (int severity, const char *msg)
 	logfile_print (msg, time (NULL));
 } /* void logfile_log (int, const char *) */
 
-static int logfile_notification (const notification_t *n)
+static int logfile_notification (const notification_t *n,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	char  buf[1024] = "";
 	char *buf_ptr = buf;
@@ -185,7 +187,8 @@ static int logfile_notification (const notification_t *n)
 
 	buf[sizeof (buf) - 1] = '\0';
 
-	logfile_print (buf, n->time);
+	logfile_print (buf,
+			(n->time > 0) ? n->time : time (NULL));
 
 	return (0);
 } /* int logfile_notification */
@@ -194,8 +197,9 @@ void module_register (void)
 {
 	plugin_register_config ("logfile", logfile_config,
 			config_keys, config_keys_num);
-	plugin_register_log ("logfile", logfile_log);
-	plugin_register_notification ("logfile", logfile_notification);
+	plugin_register_log ("logfile", logfile_log, /* user_data = */ NULL);
+	plugin_register_notification ("logfile", logfile_notification,
+			/* user_data = */ NULL);
 } /* void module_register (void) */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */

@@ -72,7 +72,8 @@ static int c_notify_config (oconfig_item_t *ci)
 	return 0;
 } /* c_notify_config */
 
-static int c_notify (const notification_t *n)
+static int c_notify (const notification_t *n,
+		user_data_t __attribute__((unused)) *user_data)
 {
 	NotifyNotification *notification = NULL;
 	NotifyUrgency       urgency      = NOTIFY_URGENCY_LOW;
@@ -145,7 +146,8 @@ static int c_notify_init (void)
 		free (spec_version);
 	}
 
-	plugin_register_notification ("notify_desktop", c_notify);
+	plugin_register_notification ("notify_desktop", c_notify,
+			/* user_data = */ NULL);
 	plugin_register_shutdown ("notify_desktop", c_notify_shutdown);
 	return 0;
 } /* c_notify_init */

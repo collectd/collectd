@@ -761,7 +761,8 @@ static int exec_read (void) /* {{{ */
   return (0);
 } /* int exec_read }}} */
 
-static int exec_notification (const notification_t *n)
+static int exec_notification (const notification_t *n,
+    user_data_t __attribute__((unused)) *user_data)
 {
   program_list_t *pl;
   program_list_and_notification_t *pln;
@@ -801,7 +802,7 @@ static int exec_notification (const notification_t *n)
   } /* for (pl) */
 
   return (0);
-} /* int exec_notification */
+} /* }}} int exec_notification */
 
 static int exec_shutdown (void) /* {{{ */
 {
@@ -834,7 +835,8 @@ void module_register (void)
   plugin_register_complex_config ("exec", exec_config);
   plugin_register_init ("exec", exec_init);
   plugin_register_read ("exec", exec_read);
-  plugin_register_notification ("exec", exec_notification);
+  plugin_register_notification ("exec", exec_notification,
+      /* user_data = */ NULL);
   plugin_register_shutdown ("exec", exec_shutdown);
 } /* void module_register */
 

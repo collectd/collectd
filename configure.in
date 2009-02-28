@@ -1254,6 +1254,96 @@ then
 fi
 # }}}
 
+# --with-java {{{
+with_java_home="$JAVA_HOME"
+with_java_vmtype="client"
+with_java_cflags=""
+with_java_libs=""
+AC_ARG_WITH(java, [AS_HELP_STRING([--with-java@<:@=PREFIX@:>@], [Path to Java home.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_java="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_java="yes"
+	else
+		with_java_home="$withval"
+		with_java="yes"
+	fi; fi
+],
+[with_java="yes"])
+if test "x$with_java" = "xyes"
+then
+	if test -d "$with_java_home"
+	then
+		if test -d "$with_java_home/include"
+		then
+			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$with_java_home/include"
+		else
+			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$with_java_home"
+		fi
+		
+		if test -d "$with_java_home/lib"
+		then
+			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$with_java_home/lib"
+		else
+			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$with_java_home"
+		fi
+	else if test "x$with_java_home" != "x"
+	then
+		AC_MSG_WARN([JAVA_HOME: No such directory: $with_java_home])
+	fi; fi
+fi
+
+if test "x$JAVA_CPPFLAGS" != "x"
+then
+	AC_MSG_NOTICE([Building with JAVA_CPPFLAGS set to: $JAVA_CPPFLAGS])
+fi
+if test "x$JAVA_CFLAGS" != "x"
+then
+	AC_MSG_NOTICE([Building with JAVA_CFLAGS set to: $JAVA_CFLAGS])
+fi
+if test "x$JAVA_LDFLAGS" != "x"
+then
+	AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_CFLAGS="$CFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $JAVA_CPPFLAGS"
+CFLAGS="$CFLAGS $JAVA_CFLAGS"
+LDFLAGS="$LDFLAGS $JAVA_LDFLAGS"
+
+if test "x$with_java" = "xyes"
+then
+	AC_CHECK_HEADERS(jni.h, [], [with_java="no (jni.h not found)"])
+fi
+if test "x$with_java" = "xyes"
+then
+	AC_CHECK_LIB(jvm, JNI_CreateJavaVM,
+	[with_java="yes"],
+	[with_java="no (libjvm not found)"],
+	[$JAVA_LIBS])
+fi
+if test "x$with_java" = "xyes"
+then
+	JAVA_LIBS="$JAVA_LIBS -ljvm"
+	AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+CFLAGS="$SAVE_CFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+AC_SUBST(JAVA_CPPFLAGS)
+AC_SUBST(JAVA_CFLAGS)
+AC_SUBST(JAVA_LDFLAGS)
+AC_SUBST(JAVA_LIBS)
+AM_CONDITIONAL(BUILD_WITH_JAVA, test "x$with_java" = "xyes")
+# }}}
+
 # --with-libmysql {{{
 with_mysql_config="mysql_config"
 with_mysql_cflags=""
@@ -3062,6 +3152,7 @@ AC_PLUGIN([ipmi],        [$plugin_ipmi],       [IPMI sensor statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
+AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
@@ -3208,6 +3299,7 @@ Configuration:
     libesmtp  . . . . . . $with_libesmtp
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
+    libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmysql  . . . . . . $with_libmysql
@@ -3262,6 +3354,7 @@ Configuration:
     iptables  . . . . . . $enable_iptables
     ipvs  . . . . . . . . $enable_ipvs
     irq . . . . . . . . . $enable_irq
+    java  . . . . . . . . $enable_java
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile

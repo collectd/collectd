@@ -1083,6 +1083,62 @@ and all other interrupts are collected.
 
 =back
 
+=head2 Plugin C<java>
+
+The I<Java> plugin makes it possible to write extensions for collectd in Java.
+This section only discusses the syntax and semantic of the configuration
+options. For more in-depth information on the I<Java> plugin, please read
+L<collectd-java(5)>.
+
+Synopsis:
+
+ <Plugin "java">
+   JVMArg "-verbose:jni"
+   JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
+   LoadPlugin "org.collectd.java.Foobar"
+   <Plugin "org.collectd.java.Foobar">
+     # To be parsed by the plugin
+   </Plugin>
+ </Plugin>
+
+Available configuration options:
+
+=over 4
+
+=item B<JVMArg> I<Argument>
+
+Argument that is to be passed to the I<Java Virtual Machine> (JVM). This works
+exactly the way the arguments to the I<java> binary on the command line work.
+Execute C<javaE<nbsp>--help> for details.
+
+Please note that B<all> these options must appear B<before> (i.E<nbsp>e. above)
+any other options! When another option is found, the JVM will be started and
+later options will have to be ignored!
+
+=item B<LoadPlugin> I<JavaClass>
+
+Instantiates a new I<JavaClass> object. The constructor of this object very
+likely then registers one or more callback methods with the server.
+
+See L<collectd-java(5)> for details.
+
+When the first such option is found, the virtual machine (JVM) is created. This
+means that all B<JVMArg> options must appear before (i.E<nbsp>e. above) all
+B<LoadPlugin> options!
+
+=item B<Plugin> I<Name>
+
+The entire block is passed to the Java plugin as an
+I<org.collectd.api.OConfigItem> object.
+
+For this to work, the plugin has to register a configuration callback first,
+see L<collectd-java(5)/"config callback">. This means, that the B<Plugin> block
+must appear after the appropriate B<LoadPlugin> block. Also note, that I<Name>
+depends on the (Java) plugin registering the callback and is completely
+independent from the I<JavaClass> argument passed to B<LoadPlugin>.
+
+=back
+
 =head2 Plugin C<libvirt>
 
 This plugin allows CPU, disk and network load to be collected for virtualized
