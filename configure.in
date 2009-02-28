@@ -2947,6 +2947,7 @@ plugin_multimeter="no"
 plugin_nfs="no"
 plugin_perl="no"
 plugin_processes="no"
+plugin_protocols="no"
 plugin_serial="no"
 plugin_swap="no"
 plugin_tape="no"
@@ -2971,6 +2972,7 @@ then
 	plugin_memory="yes"
 	plugin_nfs="yes"
 	plugin_processes="yes"
+	plugin_protocols="yes"
 	plugin_serial="yes"
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
@@ -3180,6 +3182,7 @@ AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
+AC_PLUGIN([protocols],   [$plugin_protocols],  [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])

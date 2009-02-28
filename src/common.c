@@ -253,7 +253,7 @@ int strsplit (char *string, char **fields, size_t size)
 			break;
 	}
 
-	return (i);
+	return ((int) i);
 }
 
 int strjoin (char *dst, size_t dst_len,

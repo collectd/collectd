@@ -691,6 +691,14 @@ processes_la_LIBADD += -lkvm
 endif
 endif
 
+if BUILD_PLUGIN_PROTOCOLS
+pkglib_LTLIBRARIES += protocols.la
+protocols_la_SOURCES = protocols.c
+protocols_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" protocols.la
+collectd_DEPENDENCIES += protocols.la
+endif
+
 if BUILD_PLUGIN_RRDCACHED
 pkglib_LTLIBRARIES += rrdcached.la
 rrdcached_la_SOURCES = rrdcached.c utils_rrdcreate.c utils_rrdcreate.h

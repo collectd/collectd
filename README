@@ -179,6 +179,9 @@ Features
     - processes
       Process counts: Number of running, sleeping, zombie, ... processes.
 
+    - protocols
+      Counts various aspects of network protocols such as IP, TCP, UDP, etc.
+
     - rrdcached
       RRDtool caching daemon (RRDcacheD) statistics.
 

@@ -2287,6 +2287,39 @@ slashes.
 
 =back
 
+=head2 Plugin C<protocols>
+
+Collects a lot of information about various network protocols, such as I<IP>,
+I<TCP>, I<UDP>, etc.
+
+Available configuration options:
+
+=over 4
+
+=item B<Value> I<Selector>
+
+Selects whether or not to select a specific value. The string being matched is
+of the form "I<Protocol>:I<ValueName>", where I<Protocol> will be used as the
+plugin instance and I<ValueName> will be used as type instance. An example of
+the string being used would be C<Tcp:RetransSegs>.
+
+You can use regular expressions to match a large number of values with just one
+configuration option. To select all "extended" I<TCP> values, you could use the
+following statement:
+
+  Value "/^TcpExt:/"
+
+Whether only matched values are selected or all matched values are ignored
+depends on the B<IgnoreSelected>. By default, only matched values are selected.
+If no value is configured at all, all values will be selected.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+If set to B<true>, inverts the selection made by B<Value>, i.E<nbsp>e. all
+matching values will be ignored.
+
+=back
+
 =head2 Plugin C<rrdcached>
 
 The C<rrdcached> plugin uses the RRDTool accelerator daemon, L<rrdcached(1)>,

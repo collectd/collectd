@@ -98,7 +98,7 @@ ssize_t swrite (int fd, const void *buf, size_t count);
  *
  * DESCRIPTION
  *   Splits a string into parts and stores pointers to the parts in `fields'.
- *   The characters split at are ` ' (space) and "\t" (tab).
+ *   The characters split at are: " ", "\t", "\r", and "\n".
  *
  * PARAMETERS
  *   `string'      String to split. This string will be modified. `fields' will
