@@ -454,12 +454,24 @@ Crosscompiling
   that the compiled binary actually behaves as it should, but since NANs
   are likely never passed to the libm you have a good chance to be lucky.
 
+  Likewise, collectd needs to know the layout of doubles in memory, in order
+  to craft uniform network packets over different architectures. For this, it
+  needs to know how to convert doubles into the memory layout used by x86. The
+  configure script tries to figure this out by compiling and running a few
+  small test programs. This is of course not possible when cross-compiling.
+  You can use the `--with-fp-layout' option to tell the configure script which
+  conversion method to assume. Valid arguments are:
+
+    * `nothing'    (12345678 -> 12345678)
+    * `endianflip' (12345678 -> 87654321)
+    * `intswap'    (12345678 -> 56781234)
+
 
 Contact
 -------
 
-  For questions, bugreports, development information and basically all other
-  concerns please send an email to collectd's mailinglist at
+  For questions, bug reports, development information and basically all other
+  concerns please send an email to collectd's mailing list at
   <collectd at verplant.org>.
 
   For live discussion and more personal contact visit us in IRC, we're in
@@ -473,5 +485,6 @@ Author
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
 
-  Please send bugreports and patches to the mailinglist, see `Contact' above.
+  Please send bug reports and patches to the mailing list, see `Contact'
+  above.
 
