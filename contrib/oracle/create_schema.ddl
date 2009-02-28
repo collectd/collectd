@@ -1,3 +1,22 @@
+-- collectd - contrib/oracle/create_schema.ddl
+-- Copyright (C) 2008,2009  Roman Klesel
+--
+-- This program is free software; you can redistribute it and/or modify it
+-- under the terms of the GNU General Public License as published by the
+-- Free Software Foundation; only version 2 of the License is applicable.
+--
+-- This program is distributed in the hope that it will be useful, but
+-- WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-- General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License along
+-- with this program; if not, write to the Free Software Foundation, Inc.,
+-- 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+--
+-- Authors:
+--   Roman Klesel <roman.klesel at noris.de>
+
 -- Description
 --------------
 -- This will create a schema to provide collectd with the required permissions
@@ -241,3 +260,5 @@ END;
 
 spool off
 quit
+
+-- vim: set syntax=sql :

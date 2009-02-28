@@ -17,11 +17,11 @@ collectd-unixsock - Documentation of collectd's C<unixsock plugin>
 
 The C<unixsock plugin> opens an UNIX-socket over which one can interact with
 the daemon. This can be used to use the values collected by collectd in other
-applications, such as monitoring, or submit externally collected values to
-collectd.
+applications, such as monitoring solutions, or submit externally collected
+values to collectd.
 
-This plugin is used by L<collectd-nagios(1)> to check if some value is in a
-certain range and exit with a Nagios-compatible exit code.
+For example, this plugin is used by L<collectd-nagios(1)> to check if some
+value is in a certain range and exit with a Nagios-compatible exit code.
 
 =head1 COMMANDS
 

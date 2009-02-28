@@ -516,7 +516,8 @@ int check_create_dir (const char *file_orig)
 		 */
 		if (fields[i][0] == '.')
 		{
-			ERROR ("Cowardly refusing to create a directory that begins with a `.' (dot): `%s'", file_orig);
+			ERROR ("Cowardly refusing to create a directory that "
+					"begins with a `.' (dot): `%s'", file_orig);
 			return (-2);
 		}
 
@@ -531,32 +532,42 @@ int check_create_dir (const char *file_orig)
 			return (-1);
 		}
 
-		if (stat (dir, &statbuf) == -1)
-		{
-			if (errno == ENOENT)
+		while (42) {
+			if (stat (dir, &statbuf) == -1)
 			{
-				if (mkdir (dir, 0755) == -1)
+				if (errno == ENOENT)
 				{
+					if (mkdir (dir, 0755) == 0)
+						break;
+
+					/* this might happen, if a different thread created
+					 * the directory in the meantime
+					 * => call stat() again to check for S_ISDIR() */
+					if (EEXIST == errno)
+						continue;
+
 					char errbuf[1024];
 					ERROR ("check_create_dir: mkdir (%s): %s", dir,
 							sstrerror (errno,
 								errbuf, sizeof (errbuf)));
 					return (-1);
 				}
+				else
+				{
+					char errbuf[1024];
+					ERROR ("check_create_dir: stat (%s): %s", dir,
+							sstrerror (errno, errbuf,
+								sizeof (errbuf)));
+					return (-1);
+				}
 			}
-			else
+			else if (!S_ISDIR (statbuf.st_mode))
 			{
-				char errbuf[1024];
-				ERROR ("stat (%s): %s", dir,
-						sstrerror (errno, errbuf,
-							sizeof (errbuf)));
+				ERROR ("check_create_dir: `%s' exists but is not "
+						"a directory!", dir);
 				return (-1);
 			}
-		}
-		else if (!S_ISDIR (statbuf.st_mode))
-		{
-			ERROR ("stat (%s): Not a directory!", dir);
-			return (-1);
+			break;
 		}
 	}
 
