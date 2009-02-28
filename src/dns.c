@@ -212,7 +212,7 @@ static void *dns_child_loop (void *dummy)
 
 	/* Passing `pcap_device == NULL' is okay and the same as passign "any" */
 	DEBUG ("Creating PCAP object..");
-	pcap_obj = pcap_open_live (pcap_device,
+	pcap_obj = pcap_open_live ((pcap_device != NULL) ? pcap_device : "any",
 			PCAP_SNAPLEN,
 			0 /* Not promiscuous */,
 			interval_g,
