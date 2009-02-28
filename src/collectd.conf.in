@@ -426,6 +426,11 @@ FQDNLookup   true
 #	Process "name"
 #</Plugin>
 
+#<Plugin protocols>
+#	Value "/^Tcp:/"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin rrdcached>
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
 #	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"

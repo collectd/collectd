@@ -3385,6 +3385,7 @@ Configuration:
     postgresql  . . . . . $enable_postgresql
     powerdns  . . . . . . $enable_powerdns
     processes . . . . . . $enable_processes
+    protocols . . . . . . $enable_protocols
     rrdcached . . . . . . $enable_rrdcached
     rrdtool . . . . . . . $enable_rrdtool
     sensors . . . . . . . $enable_sensors
