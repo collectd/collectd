@@ -3207,6 +3207,86 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 
+dnl Default configuration file
+# Load either syslog or logfile
+LOAD_PLUGIN_SYSLOG=""
+LOAD_PLUGIN_LOGFILE=""
+
+AC_MSG_CHECKING([which default log plugin to load])
+default_log_plugin="none"
+if test "x$enable_syslog" = "xyes"
+then
+	default_log_plugin="syslog"
+else
+	LOAD_PLUGIN_SYSLOG="##"
+fi
+
+if test "x$enable_logfile" = "xyes"
+then
+	if test "x$default_log_plugin" = "xnone"
+	then
+		default_log_plugin="logfile"
+	else
+		LOAD_PLUGIN_LOGFILE="#"
+	fi
+else
+	LOAD_PLUGIN_LOGFILE="##"
+fi
+AC_MSG_RESULT([$default_log_plugin])
+
+AC_SUBST(LOAD_PLUGIN_SYSLOG)
+AC_SUBST(LOAD_PLUGIN_LOGFILE)
+
+DEFAULT_LOG_LEVEL="info"
+if test "x$enable_debug" = "xyes"
+then
+	DEFAULT_LOG_LEVEL="debug"
+fi
+AC_SUBST(DEFAULT_LOG_LEVEL)
+
+# Load only one of rrdtool, network, csv in the default config.
+LOAD_PLUGIN_RRDTOOL=""
+LOAD_PLUGIN_NETWORK=""
+LOAD_PLUGIN_CSV=""
+
+AC_MSG_CHECKING([which default write plugin to load])
+default_write_plugin="none"
+if test "x$enable_rrdtool" = "xyes"
+then
+	default_write_plugin="rrdtool"
+else
+	LOAD_PLUGIN_RRDTOOL="##"
+fi
+
+if test "x$enable_network" = "xyes"
+then
+	if test "x$default_write_plugin" = "xnone"
+	then
+		default_write_plugin="network"
+	else
+		LOAD_PLUGIN_NETWORK="#"
+	fi
+else
+	LOAD_PLUGIN_NETWORK="##"
+fi
+
+if test "x$enable_csv" = "xyes"
+then
+	if test "x$default_write_plugin" = "xnone"
+	then
+		default_write_plugin="csv"
+	else
+		LOAD_PLUGIN_CSV="#"
+	fi
+else
+	LOAD_PLUGIN_CSV="##"
+fi
+AC_MSG_RESULT([$default_write_plugin])
+
+AC_SUBST(LOAD_PLUGIN_RRDTOOL)
+AC_SUBST(LOAD_PLUGIN_NETWORK)
+AC_SUBST(LOAD_PLUGIN_CSV)
+
 dnl ip_vs.h
 if test "x$ac_system" = "xLinux" \
 	&& test "x$have_net_ip_vs_h$have_ip_vs_h" = "xnono"

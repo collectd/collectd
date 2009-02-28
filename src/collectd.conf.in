@@ -4,6 +4,12 @@
 # http://collectd.org/
 #
 
+##############################################################################
+# Global                                                                     #
+#----------------------------------------------------------------------------#
+# Global settings for the daemon.                                            #
+##############################################################################
+
 #Hostname    "localhost"
 FQDNLookup   true
 #BaseDir     "@prefix@/var/lib/@PACKAGE_NAME@"
@@ -13,85 +19,111 @@ FQDNLookup   true
 #Interval     10
 #ReadThreads  5
 
-@BUILD_PLUGIN_LOGFILE_TRUE@LoadPlugin logfile
-@BUILD_PLUGIN_SYSLOG_TRUE@LoadPlugin syslog
+##############################################################################
+# Logging                                                                    #
+#----------------------------------------------------------------------------#
+# Plugins which provide logging functions should be loaded first, so log     #
+# messages generated when loading or configuring other plugins can be        #
+# accessed.                                                                  #
+##############################################################################
+
+@LOAD_PLUGIN_SYSLOG@LoadPlugin syslog
+@LOAD_PLUGIN_LOGFILE@LoadPlugin logfile
 
 #<Plugin logfile>
-#	LogLevel info
+#	LogLevel @DEFAULT_LOG_LEVEL@
 #	File STDOUT
 #	Timestamp true
 #</Plugin>
 
 #<Plugin syslog>
-#	LogLevel info
+#	LogLevel @DEFAULT_LOG_LEVEL@
 #</Plugin>
 
-@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
-@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
-@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
-@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
-@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
-@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
-@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
-@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
-@BUILD_PLUGIN_CSV_TRUE@LoadPlugin csv
-@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
-@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
-@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
-@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
-@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
-@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
-@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
-@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
-@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
-@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
-@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
-@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
-@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
-@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
-@BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
-@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
-@BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
-@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
-@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
-@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
-@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
-@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
-@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
-@BUILD_PLUGIN_NETLINK_TRUE@LoadPlugin netlink
-@BUILD_PLUGIN_NETWORK_TRUE@LoadPlugin network
-@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
-@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
-@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
-@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
-@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
-@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
-@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
-@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
-@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
-@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
-@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
-@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
-@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
-@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
-@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
-@BUILD_PLUGIN_RRDTOOL_TRUE@LoadPlugin rrdtool
-@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
-@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
-@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
-@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
-@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
-@BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
-@BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
-@BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
-@BUILD_PLUGIN_THERMAL_TRUE@LoadPlugin thermal
-@BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
-@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
-#LoadPlugin uuid
-@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
-@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
-@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
-@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
+##############################################################################
+# LoadPlugin section                                                         #
+#----------------------------------------------------------------------------#
+# Lines beginning with a single `#' belong to plugins which have been built  #
+# but are disabled by default.                                               #
+#                                                                            #
+# Lines begnning with `##' belong to plugins which have not been built due   #
+# to missing dependencies or because they have been deactivated explicitly.  #
+##############################################################################
+
+#@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
+#@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
+#@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
+#@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
+#@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
+#@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
+@BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
+#@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
+@LOAD_PLUGIN_CSV@LoadPlugin csv
+#@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
+#@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
+#@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
+#@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
+#@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
+#@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
+#@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
+#@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
+#@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
+#@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
+@BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
+#@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
+#@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
+#@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
+#@BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
+#@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
+#@BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
+@BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
+#@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
+#@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
+@BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
+#@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
+#@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
+#@BUILD_PLUGIN_NETLINK_TRUE@LoadPlugin netlink
+@LOAD_PLUGIN_NETWORK@LoadPlugin network
+#@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
+#@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
+#@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
+#@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
+#@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
+#@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
+#@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
+#@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
+#@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
+#@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
+#@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
+#@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
+#@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
+#@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
+#@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
+#@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
+@LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
+#@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
+#@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
+#@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
+#@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
+#@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
+#@BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
+#@BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
+#@BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
+#@BUILD_PLUGIN_THERMAL_TRUE@LoadPlugin thermal
+#@BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
+#@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
+#@BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
+#@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
+#@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
+#@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
+#@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
+
+##############################################################################
+# Plugin configuration                                                       #
+#----------------------------------------------------------------------------#
+# In this section configuration stubs for each plugin are provided. A desc-  #
+# ription of those options is available in the collectd.conf(5) manual page. #
+##############################################################################
 
 #<Plugin apache>
 #	URL "http://localhost/status?auto"
@@ -211,11 +243,17 @@ FQDNLookup   true
 #	</Directory>
 #</Plugin>
 
-@BUILD_PLUGIN_HDDTEMP_TRUE@<Plugin hddtemp>
-#	Host "127.0.0.1"
-#	Port "7634"
-@BUILD_PLUGIN_HDDTEMP_TRUE@	TranslateDevicename false
-@BUILD_PLUGIN_HDDTEMP_TRUE@</Plugin>
+#<Plugin hddtemp>
+#  Host "127.0.0.1"
+#  Port "7634"
+#
+#  #----------------------------------------------------------------#
+#  # `TranslateDevicename' enabled backwards compatibility behavior #
+#  # and is enabled by default. Setting this option to `false' is   #
+#  # highly recommended.                                            #
+#  #----------------------------------------------------------------#
+#  TranslateDevicename false
+#</Plugin>
 
 #<Plugin interface>
 #	Interface "eth0"
@@ -279,15 +317,15 @@ FQDNLookup   true
 #	IgnoreSelected false
 #</Plugin>
 
-#<Plugin network>
-#	Server "ff18::efc0:4a42" "25826"
-#	Server "239.192.74.66" "25826"
+@LOAD_PLUGIN_NETWORK@<Plugin network>
+@LOAD_PLUGIN_NETWORK@	Server "ff18::efc0:4a42" "25826"
+@LOAD_PLUGIN_NETWORK@	Server "239.192.74.66" "25826"
 #	Listen "ff18::efc0:4a42" "25826"
 #	Listen "239.192.74.66" "25826"
 #	TimeToLive "128"
 #	Forward false
 #	CacheFlush 1800
-#</Plugin>
+@LOAD_PLUGIN_NETWORK@</Plugin>
 
 #<Plugin nginx>
 #	URL "http://localhost/status?auto"
@@ -470,7 +508,7 @@ FQDNLookup   true
 #       Instance "IF-MIB::ifDescr"
 #       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
 #   </Data>
-#   
+#
 #   <Host "some.switch.mydomain.org">
 #       Address "192.168.0.2"
 #       Version 1
@@ -543,13 +581,13 @@ FQDNLookup   true
 #	Verbose false
 #</Plugin>
 
-# * * * * * * * * * * * * *
-# * FILTER CONFIGURATION  *
-# * * * * * * * * * * * * *
-
-# The following configures collectd's filtering mechanism. Before changing
-# anything in this section, please read the `FILTER CONFIGURATION' section in
-# the collectd.conf(5) manual page.
+##############################################################################
+# Filter configuration                                                       #
+#----------------------------------------------------------------------------#
+# The following configures collectd's filtering mechanism. Before changing   #
+# anything in this section, please read the `FILTER CONFIGURATION' section   #
+# in the collectd.conf(5) manual page.                                       #
+##############################################################################
 
 # Load required matches:
 #@BUILD_PLUGIN_MATCH_REGEX_TRUE@LoadPlugin match_regex
@@ -559,9 +597,11 @@ FQDNLookup   true
 #@BUILD_PLUGIN_TARGET_NOTIFICATION_TRUE@LoadPlugin target_notification
 #@BUILD_PLUGIN_TARGET_REPLACE_TRUE@LoadPlugin target_replace
 #@BUILD_PLUGIN_TARGET_SET_TRUE@LoadPlugin target_set
- 
-# The following block demonstrates the default behavior if no filtering is
-# configured at all: All values will be sent to all available write plugins.
+
+#----------------------------------------------------------------------------#
+# The following block demonstrates the default behavior if no filtering is   #
+# configured at all: All values will be sent to all available write plugins. #
+#----------------------------------------------------------------------------#
 
 #<Chain "Main">
 #  Target "write"
