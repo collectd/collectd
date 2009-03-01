@@ -1576,6 +1576,18 @@ function load_graph_definitions($logarithmic = false, $tinylegend = false) {
 	$MetaGraphDefs['mysql_commands']    = 'meta_graph_mysql_commands';
 	$MetaGraphDefs['mysql_handler']     = 'meta_graph_mysql_commands';
 	$MetaGraphDefs['tcp_connections']   = 'meta_graph_tcp_connections';
+	$MetaGraphDefs['dns_opcode']        = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_qtype']         = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_rcode']         = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_request']       = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_resolver']      = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_update']        = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_zops']          = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_response']      = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_query']         = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_reject']        = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_notify']        = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_transfer']      = 'meta_graph_dns_event';
 
 	if (function_exists('load_graph_definitions_local'))
 		load_graph_definitions_local($logarithmic, $tinylegend);
@@ -1706,13 +1718,20 @@ function meta_graph_memory($host, $plugin, $plugin_instance, $type, $type_instan
 
 	$files = array();
 	$opts['colors'] = array(
+		// Linux - System memoery
 		'free'     => '00e000',
 		'cached'   => '0000ff',
 		'buffered' => 'ffb000',
-		'used'     => 'ff0000'
+		'used'     => 'ff0000',
+		// Bind - Server memory
+		'TotalUse'    => '00e000',
+		'InUse'       => 'ff0000',
+		'BlockSize'   => '8888dd',
+		'ContextSize' => '444499',
+		'Lost'        => '222222'
 	);
 
-	$type_instances = array('free', 'cached', 'buffered', 'used');
+	$type_instances = array('free', 'cached', 'buffered', 'used',   'TotalUse', 'InUse', 'BlockSize', 'ContextSize', 'Lost');
 	while (list($k, $inst) = each($type_instances)) {
 		$file = '';
 		foreach ($config['datadirs'] as $datadir)
@@ -2034,6 +2053,36 @@ function meta_graph_tcp_connections($host, $plugin, $plugin_instance, $type, $ty
 		$sources[] = array('name'=>$inst, 'file'=>$file, 'ds'=>'value');
 	}
 
+	return collectd_draw_meta_stack($opts, $sources);
+}
+
+function meta_graph_dns_event($host, $plugin, $plugin_instance, $type, $type_instances, $opts = array()) {
+	global $config;
+	$sources = array();
+
+	$title = "$host/$plugin".(!is_null($plugin_instance) ? "-$plugin_instance" : '')."/$type";
+	if (!isset($opts['title']))
+		$opts['title'] = $title;
+	$opts['rrd_opts'] = array('-v', 'Events', '-r', '-l', '0');
+
+	$files = array();
+//	$opts['colors'] = array(
+//	);
+
+//	$type_instances = array('IQUERY', 'NOTIFY');
+	while (list($k, $inst) = each($type_instances)) {
+		$file  = '';
+		$title = $opts['title'];
+		foreach ($config['datadirs'] as $datadir)
+			if (is_file($datadir.'/'.$title.'-'.$inst.'.rrd')) {
+				$file = $datadir.'/'.$title.'-'.$inst.'.rrd';
+				break;
+			}
+		if ($file == '')
+			continue;
+
+		$sources[] = array('name'=>$inst, 'file'=>$file);
+	}
 	return collectd_draw_meta_stack($opts, $sources);
 }
 
