@@ -112,6 +112,13 @@ function error400($title, $msg) {
 	return error(400, "Bad request", $title, $msg);
 }
 
+/**
+ * Incomplete / invalid request
+ */
+function error500($title, $msg) {
+	return error(500, "Internal error", $title, $msg);
+}
+
 // Process input arguments
 $host     = read_var('host', $_GET, null);
 if (is_null($host))
