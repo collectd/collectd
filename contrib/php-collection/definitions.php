@@ -1575,6 +1575,7 @@ function load_graph_definitions($logarithmic = false, $tinylegend = false) {
 	$MetaGraphDefs['apache_scoreboard'] = 'meta_graph_apache_scoreboard';
 	$MetaGraphDefs['mysql_commands']    = 'meta_graph_mysql_commands';
 	$MetaGraphDefs['mysql_handler']     = 'meta_graph_mysql_commands';
+	$MetaGraphDefs['tcp_connections']   = 'meta_graph_tcp_connections';
 
 	if (function_exists('load_graph_definitions_local'))
 		load_graph_definitions_local($logarithmic, $tinylegend);
@@ -2030,7 +2031,7 @@ function meta_graph_tcp_connections($host, $plugin, $plugin_instance, $type, $ty
 		if ($file == '')
 			continue;
 
-		$sources[] = array('name'=>$inst, 'file'=>$file, 'ds'=>'count');
+		$sources[] = array('name'=>$inst, 'file'=>$file, 'ds'=>'value');
 	}
 
 	return collectd_draw_meta_stack($opts, $sources);
