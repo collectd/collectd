@@ -111,7 +111,8 @@ static rrd_queue_t    *queue_head = NULL;
 static rrd_queue_t    *queue_tail = NULL;
 static rrd_queue_t    *flushq_head = NULL;
 static rrd_queue_t    *flushq_tail = NULL;
-static pthread_t       queue_thread = 0;
+static pthread_t       queue_thread;
+static int             queue_thread_running = 1;
 static pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  queue_cond = PTHREAD_COND_INITIALIZER;
 
@@ -973,13 +974,27 @@ static int rrd_shutdown (void)
 	pthread_cond_signal (&queue_cond);
 	pthread_mutex_unlock (&queue_lock);
 
+	if ((queue_thread_running != 0)
+			&& ((queue_head != NULL) || (flushq_head != NULL)))
+	{
+		INFO ("rrdtool plugin: Shutting down the queue thread. "
+				"This may take a while.");
+	}
+	else if (queue_thread_running != 0)
+	{
+		INFO ("rrdtool plugin: Shutting down the queue thread.");
+	}
+
 	/* Wait for all the values to be written to disk before returning. */
-	if (queue_thread != 0)
+	if (queue_thread_running != 0)
 	{
 		pthread_join (queue_thread, NULL);
-		queue_thread = 0;
+		memset (&queue_thread, 0, sizeof (queue_thread));
+		queue_thread_running = 0;
 		DEBUG ("rrdtool plugin: queue_thread exited.");
 	}
+
+	/* TODO: Maybe it'd be a good idea to free the cache here.. */
 
 	return (0);
 } /* int rrd_shutdown */
@@ -1025,12 +1040,14 @@ static int rrd_init (void)
 
 	pthread_mutex_unlock (&cache_lock);
 
-	status = pthread_create (&queue_thread, NULL, rrd_queue_thread, NULL);
+	status = pthread_create (&queue_thread, /* attr = */ NULL,
+			rrd_queue_thread, /* args = */ NULL);
 	if (status != 0)
 	{
 		ERROR ("rrdtool plugin: Cannot create queue-thread.");
 		return (-1);
 	}
+	queue_thread_running = 1;
 
 	DEBUG ("rrdtool plugin: rrd_init: datadir = %s; stepsize = %i;"
 			" heartbeat = %i; rrarows = %i; xff = %lf;",

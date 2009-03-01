@@ -404,6 +404,8 @@ static void stop_read_threads (void)
 	if (read_threads == NULL)
 		return;
 
+	INFO ("collectd: Stopping %i read threads.", read_threads_num);
+
 	pthread_mutex_lock (&read_lock);
 	read_loop = 0;
 	DEBUG ("plugin: stop_read_threads: Signalling `read_cond'");

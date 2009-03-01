@@ -168,19 +168,27 @@ static pthread_mutex_t       receive_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t        receive_list_cond = PTHREAD_COND_INITIALIZER;
 
 static struct pollfd *listen_sockets = NULL;
-static int listen_sockets_num = 0;
+static int            listen_sockets_num = 0;
 
-static int listen_loop = 0;
-static pthread_t receive_thread_id = 0;
-static pthread_t dispatch_thread_id = 0;
+/* The receive and dispatch threads will run as long as `listen_loop' is set to
+ * zero. */
+static int       listen_loop = 0;
+static int       receive_thread_running = 0;
+static pthread_t receive_thread_id;
+static int       dispatch_thread_running = 0;
+static pthread_t dispatch_thread_id;
 
-static char         send_buffer[BUFF_SIZE];
-static char        *send_buffer_ptr;
-static int          send_buffer_fill;
-static value_list_t send_buffer_vl = VALUE_LIST_STATIC;
-static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
+/* Buffer in which to-be-sent network packets are constructed. */
+static char             send_buffer[BUFF_SIZE];
+static char            *send_buffer_ptr;
+static int              send_buffer_fill;
+static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
+static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static c_avl_tree_t      *cache_tree = NULL;
+/* In this cache we store all the values we received, so we can send out only
+ * those values which were *not* received via the network plugin, too. This is
+ * used for the `Forward false' option. */
+static c_avl_tree_t    *cache_tree = NULL;
 static pthread_mutex_t  cache_lock = PTHREAD_MUTEX_INITIALIZER;
 static time_t           cache_flush_last = 0;
 static int              cache_flush_interval = 1800;
@@ -1329,6 +1337,10 @@ static int network_receive (void)
 				return (-1);
 			}
 
+			/* TODO: Possible performance enhancement: Do not free
+			 * these entries in the dispatch thread but put them in
+			 * another list, so we don't have to allocate more and
+			 * more of these structures. */
 			ent = malloc (sizeof (receive_list_entry_t));
 			if (ent == NULL)
 			{
@@ -1709,16 +1721,23 @@ static int network_shutdown (void)
 	listen_loop++;
 
 	/* Kill the listening thread */
-	if (receive_thread_id != (pthread_t) 0)
+	if (receive_thread_running != 0)
 	{
+		INFO ("network plugin: Stopping receive thread.");
 		pthread_kill (receive_thread_id, SIGTERM);
 		pthread_join (receive_thread_id, NULL /* no return value */);
-		receive_thread_id = (pthread_t) 0;
+		memset (&receive_thread_id, 0, sizeof (receive_thread_id));
+		receive_thread_running = 0;
 	}
 
 	/* Shutdown the dispatching thread */
-	if (dispatch_thread_id != (pthread_t) 0)
+	if (dispatch_thread_running != 0)
+	{
+		INFO ("network plugin: Stopping dispatch thread.");
+		pthread_join (dispatch_thread_id, /* ret = */ NULL);
 		pthread_cond_broadcast (&receive_list_cond);
+		dispatch_thread_running = 0;
+	}
 
 	if (send_buffer_fill > 0)
 		flush_buffer ();
@@ -1775,10 +1794,15 @@ static int network_init (void)
 				/* user_data = */ NULL);
 	}
 
-	if ((listen_sockets_num != 0) && (receive_thread_id == 0))
+	/* If no threads need to be started, return here. */
+	if ((listen_sockets_num == 0)
+			|| ((dispatch_thread_running != 0)
+				&& (receive_thread_running != 0)))
+		return (0);
+
+	if (dispatch_thread_running == 0)
 	{
 		int status;
-
 		status = pthread_create (&dispatch_thread_id,
 				NULL /* no attributes */,
 				dispatch_thread,
@@ -1790,7 +1814,15 @@ static int network_init (void)
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 		}
+		else
+		{
+			dispatch_thread_running = 1;
+		}
+	}
 
+	if (receive_thread_running == 0)
+	{
+		int status;
 		status = pthread_create (&receive_thread_id,
 				NULL /* no attributes */,
 				receive_thread,
@@ -1802,7 +1834,12 @@ static int network_init (void)
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 		}
+		else
+		{
+			receive_thread_running = 1;
+		}
 	}
+
 	return (0);
 } /* int network_init */
 
