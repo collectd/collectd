@@ -374,6 +374,10 @@ function rrd_strip_quotes($str) {
 		return $str;
 }
 
+function rrd_escape($str) {
+	return str_replace(array('\\', ':'), array('\\\\', '\\:'), $str);
+}
+
 /**
  * Determine useful information about RRD file
  * @file Name of RRD file to analyse
@@ -495,11 +499,11 @@ function collectd_draw_rrd($host, $plugin, $pinst = null, $type, $tinst = null, 
 		if (strlen($k) > $l_max)
 			$l_max = strlen($k);
 		if ($has_min)
-			$graph[] = sprintf('DEF:%s_min=%s:%s:MIN', $k, $rrdinfo['filename'], $k);
+			$graph[] = sprintf('DEF:%s_min=%s:%s:MIN', $k, rrd_escape($rrdinfo['filename']), $k);
 		if ($has_avg)
-			$graph[] = sprintf('DEF:%s_avg=%s:%s:AVERAGE', $k, $rrdinfo['filename'], $k);
+			$graph[] = sprintf('DEF:%s_avg=%s:%s:AVERAGE', $k, rrd_escape($rrdinfo['filename']), $k);
 		if ($has_max)
-			$graph[] = sprintf('DEF:%s_max=%s:%s:MAX', $k, $rrdinfo['filename'], $k);
+			$graph[] = sprintf('DEF:%s_max=%s:%s:MAX', $k, rrd_escape($rrdinfo['filename']), $k);
 	}
 	if ($has_min && $has_max || $has_min && $has_avg || $has_avg && $has_max) {
 		$n = 1;
@@ -571,7 +575,7 @@ function collectd_draw_generic($timespan, $host, $plugin, $pinst = null, $type, 
 			continue;
 
 		$file = str_replace(":", "\\:", $file);
-		$rrd_args = str_replace('{file}', $file, $rrd_args);
+		$rrd_args = str_replace('{file}', rrd_escape($file), $rrd_args);
 
 		$rrdgraph = array_merge($rrd_cmd, $rrd_args);
 		$cmd = RRDTOOL;
@@ -612,7 +616,7 @@ function collectd_draw_meta_stack(&$opts, &$sources) {
 	$max_inst_name = 0;
 
 	foreach($sources as &$inst_data) {
-		$inst_name = $inst_data['name'];
+		$inst_name = str_replace('!', '_', $inst_data['name']);
 		$file      = $inst_data['file'];
 		$ds        = isset($inst_data['ds']) ? $inst_data['ds'] : 'value';
 
@@ -622,9 +626,9 @@ function collectd_draw_meta_stack(&$opts, &$sources) {
 		if (!is_file($file))
 			continue;
 
-		$cmd[] = 'DEF:'.$inst_name.'_min='.$file.':'.$ds.':MIN';
-		$cmd[] = 'DEF:'.$inst_name.'_avg='.$file.':'.$ds.':AVERAGE';
-		$cmd[] = 'DEF:'.$inst_name.'_max='.$file.':'.$ds.':MAX';
+		$cmd[] = 'DEF:'.$inst_name.'_min='.rrd_escape($file).':'.$ds.':MIN';
+		$cmd[] = 'DEF:'.$inst_name.'_avg='.rrd_escape($file).':'.$ds.':AVERAGE';
+		$cmd[] = 'DEF:'.$inst_name.'_max='.rrd_escape($file).':'.$ds.':MAX';
 		$cmd[] = 'CDEF:'.$inst_name.'_nnl='.$inst_name.'_avg,UN,0,'.$inst_name.'_avg,IF';
 	}
 	$inst_data = end($sources);
@@ -633,16 +637,16 @@ function collectd_draw_meta_stack(&$opts, &$sources) {
 
 	$inst_data1 = end($sources);
 	while (($inst_data0 = prev($sources)) !== false) {
-		$inst_name0 = $inst_data0['name'];
-		$inst_name1 = $inst_data1['name'];
+		$inst_name0 = str_replace('!', '_', $inst_data0['name']);
+		$inst_name1 = str_replace('!', '_', $inst_data1['name']);
 
 		$cmd[] = 'CDEF:'.$inst_name0.'_stk='.$inst_name0.'_nnl,'.$inst_name1.'_stk,+';
 		$inst_data1 = $inst_data0;
 	}
 
 	foreach($sources as &$inst_data) {
-		$inst_name = $inst_data['name'];
-		$legend = sprintf('%s', $inst_name);
+		$inst_name = str_replace('!', '_', $inst_data['name']);
+		$legend = sprintf('%s', $inst_data['name']);
 		while (strlen($legend) < $max_inst_name)
 			$legend .= ' ';
 		$number_format = isset($opts['number_format']) ? $opts['number_format'] : '%6.1lf';
@@ -699,7 +703,7 @@ function collectd_draw_meta_line(&$opts, &$sources) {
 	$max_inst_name = 0;
 
 	foreach ($sources as &$inst_data) {
-		$inst_name = $inst_data['name'];
+		$inst_name = str_replace('!', '_', $inst_data['name']);
 		$file      = $inst_data['file'];
 		$ds        = isset($inst_data['ds']) ? $inst_data['ds'] : 'value';
 
@@ -709,13 +713,13 @@ function collectd_draw_meta_line(&$opts, &$sources) {
 		if (!is_file($file))
 			continue;
 
-		$cmd[] = 'DEF:'.$inst_name.'_min='.$file.':'.$ds.':MIN';
-		$cmd[] = 'DEF:'.$inst_name.'_avg='.$file.':'.$ds.':AVERAGE';
-		$cmd[] = 'DEF:'.$inst_name.'_max='.$file.':'.$ds.':MAX';
+		$cmd[] = 'DEF:'.$inst_name.'_min='.rrd_escape($file).':'.$ds.':MIN';
+		$cmd[] = 'DEF:'.$inst_name.'_avg='.rrd_escape($file).':'.$ds.':AVERAGE';
+		$cmd[] = 'DEF:'.$inst_name.'_max='.rrd_escape($file).':'.$ds.':MAX';
 	}
 
 	foreach ($sources as &$inst_data) {
-		$inst_name = $inst_data['name'];
+		$inst_name = str_replace('!', '_', $inst_data['name']);
 		$legend = sprintf('%s', $inst_name);
 		while (strlen($legend) < $max_inst_name)
 			$legend .= ' ';
