@@ -84,6 +84,8 @@ pg_numbackends		value:GAUGE:0:U
 pg_scan			value:COUNTER:0:U
 pg_xact			value:COUNTER:0:U
 ping			ping:GAUGE:0:65535
+ping_droprate		value:GAUGE:0:100
+ping_stddev		value:GAUGE:0:65535
 players			value:GAUGE:0:1000000
 power			value:GAUGE:0:U
 protocol_counter	value:COUNTER:0:U

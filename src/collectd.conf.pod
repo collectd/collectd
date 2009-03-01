@@ -1794,12 +1794,39 @@ to collectd's plugin system. See L<collectd-perl(5)> for its documentation.
 
 =head2 Plugin C<ping>
 
+The I<Ping> plugin starts a new thread which sends ICMP "ping" packets to the
+configured hosts periodically and measures the network latency. Whenever the
+C<read> function of the plugin is called, it submits the average latency, the
+standard deviation and the drop rate for each host.
+
+Available configuration options:
+
 =over 4
 
 =item B<Host> I<IP-address>
 
 Host to ping periodically. This option may be repeated several times to ping
 multiple hosts.
+
+=item B<Interval> I<Seconds>
+
+Sets the interval in which to send ICMP echo packets to the configured hosts.
+This is B<not> the interval in which statistics are queries from the plugin but
+the interval in which the hosts are "pinged". Therefore, the setting here
+should be smaller than or equal to the global B<Interval> setting. Fractional
+times, such as "1.24" are allowed.
+
+Default: B<1.0>
+
+=item B<Timeout> I<Seconds>
+
+Time to wait for a response from the host to which an ICMP packet had been
+sent. If a reply was not received after I<Seconds> seconds, the host is assumed
+to be down or the packet to be dropped. This setting must be smaller than the
+B<Interval> setting above for the plugin to work correctly. Fractional
+arguments are accepted.
+
+Default: B<0.9>
 
 =item B<TTL> I<0-255>
 
