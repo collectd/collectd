@@ -90,7 +90,7 @@ var graph_url = '<?php echo addslashes($url_base.'graph.php'); ?>';
 		<script type="text/javascript" src="<?php echo htmlspecialchars($url_base.'browser.js'); ?>"></script>
 	</head>
 
-	<body onload="ListRefreshHost()"><div class="body">
+	<body onload="ListRefreshHost(); GraphListRefresh(); "><div class="body">
 		<h1><img src="collectd-logo.png" align="bottom" alt="" /> Collectd browser for system statistics graphs</h1>
 		<div class="selector"><a href="javascript:toggleDiv('selector')"><span id="selector_sw">Hide</span> graph selection tool</a><div id="selector" class="selectorbox">
 			<table>
@@ -137,9 +137,18 @@ var graph_url = '<?php echo addslashes($url_base.'graph.php'); ?>';
 				<tr>
 					<td class="sc" colspan="3"><input id="btnAdd"     name="btnAdd"     type="button" disabled="disabled" onclick="GraphAppend()" value="Add graph" />
 					<input id="btnClear"   name="btnClear"   type="button" disabled="disabled" onclick="GraphDropAll()" value="Remove all graphs" />
-					<input id="btnRefresh" name="btnRefresh" type="button" disabled="disabled" onclick="GraphRefresh(null)" value="Refresh all graphs" />
-					<input id="btnSave"    name="btnSave"    type="button" onclick="GraphSave()" value="Save" title="Save graph list to cookie" />
-					<input id="btnLoad"    name="btnLoad"    type="button" onclick="GraphLoad()" value="Load" title="Load graph list from cookie" /></td>
+					<input id="btnRefresh" name="btnRefresh" type="button" disabled="disabled" onclick="GraphRefresh(null)" value="Refresh all graphs" /></td>
+				</tr>
+				<tr>
+					<td class="s1" rowspan="2">Graph list favorites:</td>
+					<td class="s3"><input type="text" style="width: 100%" maxlength="30" id="GraphListName" name="GraphListName" value="default" onchange="GraphListCheckName(false)" /></td>
+					<td class="s3"><a href="javascript:GraphSave()"><img src="save.png" width="16" height="16" alt="S" title="Save graph list to cookie" /></a></td>
+				</tr>
+				<tr>
+					<td class="s2"><select id="GraphList" name="GraphList" onfocus="GraphListRefresh()">
+						<option value="default">default</option>
+					</select></td>
+					<td class="s3"><a href="javascript:GraphLoad()"><img src="load.png" width="16" height="16" alt="L" title="Load graph list from cookie" /></a><a href="javascript:GraphDrop()"><img src="delete.png" width="16" height="16" alt="D" title="Delete graph list from cookie" /></a></td>
 				</tr>
 			</table>
 		</div></div>
