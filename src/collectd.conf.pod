@@ -606,6 +606,9 @@ like this:
 use a more strict database server, you may have to select from a dummy table or
 something.)
 
+Please note that some databases, for example B<Oracle>, will fail if you
+include a semicolon at the end of the statement.
+
 =item B<MinVersion> I<Version>
 
 =item B<MaxVersion> I<Value>
