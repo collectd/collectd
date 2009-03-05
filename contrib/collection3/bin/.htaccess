@@ -1,0 +1,2 @@
+Options +ExecCGI
+SetHandler cgi-script .cgi
