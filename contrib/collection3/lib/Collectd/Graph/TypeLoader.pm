@@ -6,7 +6,7 @@ Collectd::Graph::TypeLoader - Load a module according to the "type"
 
 =cut
 
-# Copyright (C) 2008  Florian octo Forster <octo at verplant.org>
+# Copyright (C) 2008,2009  Florian octo Forster <octo at verplant.org>
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ use Collectd::Graph::Type ();
 @Collectd::Graph::TypeLoader::EXPORT_OK = ('tl_load_type');
 
 our @ArrayMembers = (qw(data_sources rrd_opts custom_order));
-our @ScalarMembers = (qw(rrd_title rrd_format rrd_vertical scale));
+our @ScalarMembers = (qw(rrd_title rrd_format rrd_vertical scale ignore_unknown));
 our @DSMappedMembers = (qw(ds_names rrd_colors));
 
 our %MemberToConfigMap =
@@ -47,7 +47,8 @@ our %MemberToConfigMap =
   rrd_vertical => 'rrdverticallabel',
   rrd_colors => 'color',
   scale => 'scale', # GenericIO only
-  custom_order => 'order' # GenericStacked only
+  custom_order => 'order', # GenericStacked only
+  ignore_unknown => 'ignoreunknown' # GenericStacked only
 );
 
 return (1);

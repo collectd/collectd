@@ -49,6 +49,19 @@ sub getRRDArgs
   my $colors = $obj->{'rrd_colors'} || {};
   my @ret = ('-t', $rrd_title, @$rrd_opts);
 
+  my $ignore_unknown = $obj->{'ignore_unknown'} || 0;
+  if ($ignore_unknown)
+  {
+    if ($ignore_unknown =~ m/^(yes|true|on)$/i)
+    {
+      $ignore_unknown = 1;
+    }
+    else
+    {
+      $ignore_unknown = 0;
+    }
+  }
+
   if (defined $obj->{'rrd_vertical'})
   {
     push (@ret, '-v', $obj->{'rrd_vertical'});
@@ -57,6 +70,23 @@ sub getRRDArgs
   if ($obj->{'custom_order'})
   {
     sort_idents_by_type_instance ($idents, $obj->{'custom_order'});
+  }
+
+  if ($ignore_unknown)
+  {
+    my $new_idents = [];
+    for (@$idents)
+    {
+      if (exists ($obj->{'ds_names'}{$_->{'type_instance'}}))
+      {
+	push (@$new_idents, $_);
+      }
+    }
+
+    if (@$new_idents)
+    {
+      $idents = $new_idents;
+    }
   }
 
   $obj->{'ds_names'} ||= {};
