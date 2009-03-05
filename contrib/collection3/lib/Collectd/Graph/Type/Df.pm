@@ -1,5 +1,20 @@
 package Collectd::Graph::Type::Df;
 
+# Copyright (C) 2008,2009  Florian octo Forster <octo at verplant.org>
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; only version 2 of the License is applicable.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 use strict;
 use warnings;
 use base ('Collectd::Graph::Type');
@@ -43,7 +58,7 @@ sub getRRDArgs
   my $faded_green = get_faded_color ('00ff00');
   my $faded_red = get_faded_color ('ff0000');
 
-  return (['-t', 'Free space (' . $ident->{'type_instance'} . ')', '-v', 'Bytes', '-l', '0',
+  return (['-t', 'Diskspace (' . $ident->{'type_instance'} . ')', '-v', 'Bytes', '-l', '0',
     "DEF:free_min=${filename}:free:MIN",
     "DEF:free_avg=${filename}:free:AVERAGE",
     "DEF:free_max=${filename}:free:MAX",

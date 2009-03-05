@@ -58,8 +58,8 @@ sub _create_object
   my $module = shift;
   my $obj;
 
-  local $SIG{__WARN__} = sub {};
-  local $SIG{__DIE__} = sub {};
+  local $SIG{__WARN__} = sub { print STDERR "WARNING: " . join (', ', @_) . "\n"; };
+  local $SIG{__DIE__} = sub { print STDERR "FATAL: " . join (', ', @_) . "\n"; };
 
   eval <<PERL;
   require $module;
