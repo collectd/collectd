@@ -454,7 +454,7 @@ finance page and dispatch the value to collectd.
       <Match>
         Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
         DSType "GaugeAverage"
-	# Note: `stock_value' is not a standard type.
+        # Note: `stock_value' is not a standard type.
         Type "stock_value"
         Instance "AMD"
       </Match>
