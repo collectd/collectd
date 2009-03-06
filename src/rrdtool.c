@@ -621,6 +621,7 @@ static void *rrd_queue_thread (void *data)
 		rrd_cache_t *cache_entry;
 		char **values;
 		int    values_num;
+		int    status;
 		int    i;
 
                 pthread_mutex_lock (&queue_lock);
@@ -628,7 +629,6 @@ static void *rrd_queue_thread (void *data)
                 while (true)
                 {
                   struct timespec ts_wait;
-                  int status;
 
                   while ((flushq_head == NULL) && (queue_head == NULL)
                       && (do_shutdown == 0))
@@ -704,16 +704,27 @@ static void *rrd_queue_thread (void *data)
 		 * we make a copy of it's values */
 		pthread_mutex_lock (&cache_lock);
 
-		c_avl_get (cache, queue_entry->filename, (void *) &cache_entry);
+		status = c_avl_get (cache, queue_entry->filename,
+				(void *) &cache_entry);
 
-		values = cache_entry->values;
-		values_num = cache_entry->values_num;
+		if (status == 0)
+		{
+			values = cache_entry->values;
+			values_num = cache_entry->values_num;
 
-		cache_entry->values = NULL;
-		cache_entry->values_num = 0;
-		cache_entry->flags = FLAG_NONE;
+			cache_entry->values = NULL;
+			cache_entry->values_num = 0;
+			cache_entry->flags = FLAG_NONE;
+		}
 
 		pthread_mutex_unlock (&cache_lock);
+
+		if (status != 0)
+		{
+			sfree (queue_entry->filename);
+			sfree (queue_entry);
+			continue;
+		}
 
 		/* Update `tv_next_update' */
 		if (write_rate > 0.0) 
@@ -967,6 +978,15 @@ static int rrd_cache_insert (const char *filename,
 	char **values_new;
 
 	pthread_mutex_lock (&cache_lock);
+
+	/* This shouldn't happen, but it did happen at least once, so we'll be
+	 * careful. */
+	if (cache == NULL)
+	{
+		pthread_mutex_unlock (&cache_lock);
+		WARNING ("rrdtool plugin: cache == NULL.");
+		return (-1);
+	}
 
 	c_avl_get (cache, filename, (void *) &rc);
 
