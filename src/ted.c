@@ -47,211 +47,230 @@
 # error "No applicable input method."
 #endif
 
-#define PKT_LENGTH 278
-#define MAX_PKT 300
+#define EXPECTED_PACKAGE_LENGTH 278
 #define ESCAPE       0x10
 #define PKT_BEGIN    0x04
 #define PKT_END      0x03
 
-#define DEFAULT_DEVICE "/dev/ttyUSB "
+#define DEFAULT_DEVICE "/dev/ttyUSB0"
 
-static char *device = NULL;
+static char *conf_device = NULL;
+static int   conf_retries = 0;
+
 static int fd = -1;
 
-static const char *config_keys[] = { "Device" };
+static const char *config_keys[] =
+{
+    "Device",
+    "Retries"
+};
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int ted_read_value(double *kw, double *voltage)
+static int ted_read_value(double *ret_power, double *ret_voltage)
 {
-    unsigned char sResult[MAX_PKT];
-    unsigned char package_buffer[MAX_PKT];
-    char sResultByte;
-    int status;
-    int byte;
-    int package_length;
-    int escape_flag;
-    int end_flag;
-    int sResultnum;
-    struct timeval timeout;
+    unsigned char receive_buffer[300];
+    unsigned char package_buffer[300];
     char pkt_request[1] = {0xAA};
-    fd_set input;
+    int package_buffer_pos;
 
-    int retry = 3; /* sometimes we receive garbadge */
+    fd_set input;
+    struct timeval timeout;
+
+    int end_flag;
+    int escape_flag;
+
+    int status;
+
+    assert (fd >= 0);
 
     /* Initialize the input set*/
-    FD_ZERO(&input);
-    FD_SET(fd, &input);
+    FD_ZERO (&input);
+    FD_SET (fd, &input);
 
-    /* Initialize timout structure, set to 1 second    */
-    do
+    /* Initialize timeout structure, set to 2 seconds */
+    memset (&timeout, 0, sizeof (timeout));
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+
+    /* clear out anything in the buffer */
+    tcflush (fd, TCIFLUSH);
+
+    status = write (fd, pkt_request, sizeof(pkt_request));
+    if (status <= 0)
     {
-        timeout.tv_sec = 2;
-        timeout.tv_usec = 0;
-        escape_flag = 0;
-        end_flag = 0;
-        package_length = 0;
-        /* clear out anything in the buffer */
-        tcflush(fd, TCIFLUSH);
+        ERROR ("ted plugin: swrite failed.");
+        return (-1);
+    }
 
-        status = write (fd, pkt_request,sizeof(pkt_request));
-        DEBUG ("status of write %d",status);
-        if (status < 0)
+    /* Loop until we find the end of the package */
+    end_flag = 0;
+    escape_flag = 0;
+    package_buffer_pos = -1;
+    while (end_flag == 0)
+    {
+        ssize_t receive_buffer_length;
+        ssize_t i;
+
+        /* check for timeout or input error*/
+        status = select (fd + 1, &input, NULL, NULL, &timeout);
+        if (status == 0) /* Timeout */
         {
-            ERROR ("ted plugin: swrite failed.");
+            WARNING ("ted plugin: Timeout while waiting for file descriptor "
+                    "to become ready.");
+            return (-1);
+        }
+        else if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+        {
+            /* Some signal or something. Start over.. */
+            continue;
+        }
+        else if (status < 0)
+        {
+            char errbuf[1024];
+            ERROR ("ted plugin: select failed: %s",
+                    sstrerror (errno, errbuf, sizeof (errbuf)));
             return (-1);
         }
 
-
-        /* Loop until we find the end of the package */
-        while (end_flag == 0)
+        receive_buffer_length = read (fd, receive_buffer, sizeof (receive_buffer));
+        if (receive_buffer_length < 0)
         {
-            /* check for timeout or input error*/
-            status = select(fd+1, &input, NULL, NULL, &timeout);
-            if (status == 0) /* Timeout */
-            {
-                INFO ("Timeout");
-                break;
-            }
-            else if ((status == -1) && ((errno == EAGAIN) || (errno == EINTR)))
-            {
-                DEBUG ("Not Ready");
+            char errbuf[1024];
+            if ((errno == EAGAIN) || (errno == EINTR))
                 continue;
-            }
-            else if (status == -1)
-            {
-                char errbuf[1024];
-                ERROR ("ted plugin: select failed: %s",
-                        sstrerror (errno, errbuf, sizeof (errbuf)));
-                break;
-            }
-
-            else
-            {
-                /* find out how may bytes are in the input buffer*/
-                ioctl(fd, FIONREAD, &byte);
-                DEBUG  ("bytes in buffer %d",byte);
-                if (byte <= 0)
-                {
-                    continue;
-                }
-
-                sResultnum = read(fd, sResult, MAX_PKT);
-                DEBUG  ("bytes read %d",sResultnum);
-
-                /*
-                 * packet filter loop
-                 */
-                for (byte=0; byte< sResultnum; byte++)
-                {
-                    sResultByte = sResult[byte];
-                    /* was byte before escape */
-                    if (escape_flag == 1)
-                    {
-                        escape_flag = 0;
-                        /* escape escape = single escape */
-                        if ((sResultByte==ESCAPE) & (package_length > 0))
-                        {
-                            package_buffer[package_length] = ESCAPE;
-                            package_length++;
-                        }
-                        else if (sResultByte==PKT_BEGIN)
-                        {
-                            package_length=0;
-                        }
-                        else if  (sResultByte==PKT_END)
-                        {
-                            end_flag = 1;
-                            break;
-                        }
-                    }
-                    else if (sResultByte == ESCAPE)
-                    {
-                        escape_flag = 1;
-                    }
-                    /* if we are in a package add byte to buffer
-                     * otherwise throw away */
-                    else if (package_length >= 0)
-                    {
-                        package_buffer[package_length] = sResultByte;
-                        package_length++;
-                    }
-                }
-            }
+            ERROR ("ted plugin: read(2) failed: %s",
+                    sstrerror (errno, errbuf, sizeof (errbuf)));
+            return (-1);
         }
-        DEBUG ("read package_length %d",package_length);
-
-        if (package_length != PKT_LENGTH)
+        else if (receive_buffer_length == 0)
         {
-            INFO ("Not the correct package");
-            /* delay until next package is loaded into TED TED is updated once
-             * per second */
-            usleep (1000000);
-            continue;
+            /* Should we close the FD in this case? */
+            WARNING ("ted plugin: Received EOF from file descriptor.");
+            return (-1);
+        }
+        else if (receive_buffer_length > sizeof (receive_buffer))
+        {
+            ERROR ("ted plugin: read(2) returned invalid value %zi.",
+                    receive_buffer_length);
+            return (-1);
+        }
+        else if (receive_buffer_length < EXPECTED_PACKAGE_LENGTH)
+        {
+            WARNING ("ted plugin: read(2) returned %zi bytes, "
+                    "but at least %i are necessary for a valid packet.",
+                    receive_buffer_length, EXPECTED_PACKAGE_LENGTH);
+            return (-1);
         }
 
-        /* part of the info in the package get KiloWatts at char 247 and 248
-         * get Voltage at char 251 and 252 */
-        *kw = ((package_buffer[248] * 256) + package_buffer[247])*10.0;
-        DEBUG ("kw %f",*kw);
-        *voltage = ((package_buffer[252] * 256) + package_buffer[251])/10.0;
-        DEBUG ("voltage %f",*voltage);
-        return (0); /* value received */
+        /*
+         * packet filter loop
+         *
+         * Handle escape sequences in `receive_buffer' and put the
+         * result in `package_buffer'.
+         */
+        /* We need to see the begin sequence first. When we receive `ESCAPE
+         * PKT_BEGIN', we set `package_buffer_pos' to zero to signal that
+         * the beginning of the package has been found. */
+        package_buffer_pos = -1;
+        escape_flag = 0;
+        for (i = 0; i < receive_buffer_length; i++)
+        {
+            /* Check if previous byte was the escape byte. */
+            if (escape_flag == 1)
+            {
+                escape_flag = 0;
+                /* escape escape = single escape */
+                if ((receive_buffer[i] == ESCAPE)
+                        && (package_buffer_pos >= 0))
+                {
+                    package_buffer[package_buffer_pos] = ESCAPE;
+                    package_buffer_pos++;
+                }
+                else if (receive_buffer[i] == PKT_BEGIN)
+                {
+                    package_buffer_pos = 0;
+                }
+                else if  (receive_buffer[i] == PKT_END)
+                {
+                    end_flag = 1;
+                    break;
+                }
+                else
+                {
+                    DEBUG ("ted plugin: Unknown escaped byte: %#x",
+                            (unsigned int) receive_buffer[i]);
+                }
+            }
+            else if (receive_buffer[i] == ESCAPE)
+            {
+                escape_flag = 1;
+            }
+            /* if we are in a package add byte to buffer
+             * otherwise throw away */
+            else if (package_buffer_pos >= 0)
+            {
+                package_buffer[package_buffer_pos] = receive_buffer[i];
+                package_buffer_pos++;
+            }
+        } /* for (i = 0; i < receive_buffer_length; i++) */
+    } /* while (end_flag == 0) */
 
+    /* Check for errors inside the loop. */
+    if (end_flag == 0)
+        return (-1);
 
-    } while (--retry);
+    /* 
+     * Power is at positions 247 and 248 (LSB first) in [10kW].
+     * Voltage is at positions 251 and 252 (LSB first) in [.1V].
+     *
+     * According to Eric's patch the power is in 10kW steps, but according to a
+     * Python module I've found, it's in 0.01kW == 10W. IMHO the Python scale
+     * is more realistic. -octo
+     */
+    *ret_power = 10.0 * (double) ((((int) package_buffer[248]) * 256)
+            + ((int) package_buffer[247]));
+    *ret_voltage = 0.1 * (double) ((((int) package_buffer[252]) * 256)
+            + ((int) package_buffer[251]));
 
-    return (-2);  /* no value received */
+    /* success */
+    return (0);
 } /* int ted_read_value */
 
-static int ted_init (void)
+static int ted_open_device (void)
 {
-    int i;
-    double kw;
-    double voltage;
+    const char *dev;
+    struct termios options;
 
-    if (device == NULL)
-    {
-        device = DEFAULT_DEVICE;
-    }
-
-    for (i = 0; i < 10; i++)
-    {
-        device[strlen(device)-1] = i + '0';
-
-        if ((fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK)) <= 0)
-        {
-            DEBUG ("No device at fd %d", fd);
-            close (fd);
-            continue;
-        }
-        struct termios options;
-        /* Get the current options for the port... */
-        tcgetattr(fd, &options);
-        options.c_cflag = B19200 | CS8 | CSTOPB | CREAD | CLOCAL;
-        options.c_iflag = IGNBRK | IGNPAR;
-        options.c_oflag = 0;
-        options.c_lflag = 0;
-        options.c_cc[VTIME] = 20;
-        options.c_cc[VMIN]  = 250;
-
-        /* Set the new options for the port... */
-        tcflush(fd, TCIFLUSH);
-        tcsetattr(fd, TCSANOW, &options);
-
-        if (ted_read_value (&kw,&voltage) != 0)
-        {
-            DEBUG ("No device at fd %d", fd);
-            close (fd);
-            continue;
-        }
-
-        INFO ("ted plugin: Device found at %s", device);
+    if (fd >= 0)
         return (0);
+
+    dev = DEFAULT_DEVICE;
+    if (conf_device != NULL)
+        dev = conf_device;
+
+    fd = open (dev, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
+    if (fd < 0)
+    {
+        ERROR ("ted plugin: Unable to open device %s.", dev);
+        return (-1);
     }
 
-    ERROR ("ted plugin: No device found");
-    return (-1);
-}
+    /* Get the current options for the port... */
+    tcgetattr(fd, &options);
+    options.c_cflag = B19200 | CS8 | CSTOPB | CREAD | CLOCAL;
+    options.c_iflag = IGNBRK | IGNPAR;
+    options.c_oflag = 0;
+    options.c_lflag = 0;
+    options.c_cc[VTIME] = 20;
+    options.c_cc[VMIN]  = 250;
+
+    /* Set the new options for the port... */
+    tcflush(fd, TCIFLUSH);
+    tcsetattr(fd, TCSANOW, &options);
+
+    INFO ("ted plugin: Successfully opened %s.", dev);
+    return (0);
+} /* int ted_open_device */
 
 static void ted_submit (char *type_instance, double value)
 {
@@ -272,29 +291,58 @@ static void ted_submit (char *type_instance, double value)
 
 static int ted_config (const char *key, const char *value)
 {
-    if (strcasecmp ("Device", key) != 0)
+    if (strcasecmp ("Device", key) == 0)
     {
+        sfree (conf_device);
+        conf_device = sstrdup (value);
+    }
+    else if (strcasecmp ("Retries", key) == 0)
+    {
+        int tmp;
+
+        tmp = atoi (value);
+        if (tmp < 0)
+        {
+            WARNING ("ted plugin: Invalid retry count: %i", tmp);
+            return (1);
+        }
+        conf_retries = tmp;
+    }
+    else
+    {
+        ERROR ("ted plugin: Unknown config option: %s", key);
         return (-1);
     }
 
-    sfree (device);
-    device = sstrdup (value);
     return (0);
 } /* int ted_config */
 
 static int ted_read (void)
 {
-    double kw;
+    double power;
     double voltage;
+    int status;
+    int i;
 
-    if (fd < 0)
+    status = ted_open_device ();
+    if (status != 0)
         return (-1);
 
-    if (ted_read_value (&kw,&voltage) != 0)
+    power = NAN;
+    voltage = NAN;
+    for (i = 0; i <= conf_retries; i++)
+    {
+        status = ted_read_value (&power, &voltage);
+        if (status == 0)
+            break;
+    }
+
+    if (status != 0)
         return (-1);
 
-    ted_submit ("ted_kw", kw);
-    ted_submit ("ted_voltage", voltage);
+    ted_submit ("power", power);
+    ted_submit ("voltage", voltage);
+
     return (0);
 } /* int ted_read */
 
@@ -313,7 +361,6 @@ void module_register (void)
 {
     plugin_register_config ("ted", ted_config,
             config_keys, config_keys_num);
-    plugin_register_init ("ted", ted_init);
     plugin_register_read ("ted", ted_read);
     plugin_register_shutdown ("ted", ted_shutdown);
 } /* void module_register */
