@@ -20,14 +20,14 @@
  *   Eric Reed <ericr at reedhome.net>
  *
  *  This is a collectd module for The Energy Detective: A low-cost whole
- * house energy monitoring system. For more DEBUGrmation on TED, see
+ * house energy monitoring system. For more information on TED, see
  * http://theenergydetective.com
  *
  * This module was not created by Energy, Inc. nor is it supported by
- * them in any way. It was created using DEBUGrmation from two sources:
+ * them in any way. It was created using information from two sources:
  * David Satterfield's TED module for Misterhouse, and Micah Dowty's TED
  * Python Module.
- * 
+ *
  * This has only tested with the model 1001 RDU, with
  * firmware version 9.01U. The USB port is uses the very common FTDI
  * USB-to-serial chip, so the RDU will show up as a serial device on
@@ -46,8 +46,6 @@
 #else
 # error "No applicable input method."
 #endif
-
-
 
 #define PKT_LENGTH 278
 #define MAX_PKT 300
@@ -80,12 +78,11 @@ static int ted_read_value(double *kw, double *voltage)
 
     int retry = 3; /* sometimes we receive garbadge */
 
-/*     Initialize the input set*/
+    /* Initialize the input set*/
     FD_ZERO(&input);
     FD_SET(fd, &input);
-/*     Initialize timout structure, set to 1 second    */
 
- 
+    /* Initialize timout structure, set to 1 second    */
     do
     {
         timeout.tv_sec = 2;
@@ -93,22 +90,22 @@ static int ted_read_value(double *kw, double *voltage)
         escape_flag = 0;
         end_flag = 0;
         package_length = 0;
-        // clear out anything in the buffer
+        /* clear out anything in the buffer */
         tcflush(fd, TCIFLUSH);
-        
+
         status = write (fd, pkt_request,sizeof(pkt_request));
         DEBUG ("status of write %d",status);
         if (status < 0)
         {
-                ERROR ("ted plugin: swrite failed.");
-                return (-1);
+            ERROR ("ted plugin: swrite failed.");
+            return (-1);
         }
 
-    
-/*       Loop until we find the end of the package */
+
+        /* Loop until we find the end of the package */
         while (end_flag == 0)
-        { 
-/*          check for timeout or input error*/
+        {
+            /* check for timeout or input error*/
             status = select(fd+1, &input, NULL, NULL, &timeout);
             if (status == 0) /* Timeout */
             {
@@ -124,39 +121,39 @@ static int ted_read_value(double *kw, double *voltage)
             {
                 char errbuf[1024];
                 ERROR ("ted plugin: select failed: %s",
-                                sstrerror (errno, errbuf, sizeof (errbuf)));
+                        sstrerror (errno, errbuf, sizeof (errbuf)));
                 break;
             }
-            
+
             else
             {
-/*              find out how may bytes are in the input buffer*/
+                /* find out how may bytes are in the input buffer*/
                 ioctl(fd, FIONREAD, &byte);
                 DEBUG  ("bytes in buffer %d",byte);
-                if (byte <= 0) 
+                if (byte <= 0)
                 {
                     continue;
-                } 
-                // Read input buffer
+                }
+
                 sResultnum = read(fd, sResult, MAX_PKT);
                 DEBUG  ("bytes read %d",sResultnum);
 
-                //
-                // packet filter loop
-                // 
-                for (byte=0; byte< sResultnum; byte++) 
+                /*
+                 * packet filter loop
+                 */
+                for (byte=0; byte< sResultnum; byte++)
                 {
                     sResultByte = sResult[byte];
-                    // was byte before escape 
-                    if (escape_flag == 1) 
+                    /* was byte before escape */
+                    if (escape_flag == 1)
                     {
                         escape_flag = 0;
-                        // escape escape = single escape
+                        /* escape escape = single escape */
                         if ((sResultByte==ESCAPE) & (package_length > 0))
                         {
                             package_buffer[package_length] = ESCAPE;
-                            package_length++;  
-                        } 
+                            package_length++;
+                        }
                         else if (sResultByte==PKT_BEGIN)
                         {
                             package_length=0;
@@ -171,29 +168,29 @@ static int ted_read_value(double *kw, double *voltage)
                     {
                         escape_flag = 1;
                     }
-                    // if we are in a package add byte to buffer
-                    // otherwise throw away
+                    /* if we are in a package add byte to buffer
+                     * otherwise throw away */
                     else if (package_length >= 0)
                     {
                         package_buffer[package_length] = sResultByte;
-                        package_length++;  
+                        package_length++;
                     }
                 }
             }
         }
         DEBUG ("read package_length %d",package_length);
-				
+
         if (package_length != PKT_LENGTH)
         {
             INFO ("Not the correct package");
-            // delay until next package is loaded into TED
-            // TED is updated once per second
+            /* delay until next package is loaded into TED TED is updated once
+             * per second */
             usleep (1000000);
             continue;
-        }       
-        //part of the DEBUG in the package
-        //get KiloWatts at char 247 and 248
-        //get Voltage at char 251 and 252 
+        }
+
+        /* part of the info in the package get KiloWatts at char 247 and 248
+         * get Voltage at char 251 and 252 */
         *kw = ((package_buffer[248] * 256) + package_buffer[247])*10.0;
         DEBUG ("kw %f",*kw);
         *voltage = ((package_buffer[252] * 256) + package_buffer[251])/10.0;
@@ -208,118 +205,117 @@ static int ted_read_value(double *kw, double *voltage)
 
 static int ted_init (void)
 {
-	int i;
-        double kw;
-        double voltage;
-        
-        if (device == NULL)
+    int i;
+    double kw;
+    double voltage;
+
+    if (device == NULL)
+    {
+        device = DEFAULT_DEVICE;
+    }
+
+    for (i = 0; i < 10; i++)
+    {
+        device[strlen(device)-1] = i + '0';
+
+        if ((fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK)) <= 0)
         {
-            device = DEFAULT_DEVICE;
+            DEBUG ("No device at fd %d", fd);
+            close (fd);
+            continue;
         }
-        
-	for (i = 0; i < 10; i++)
-	{
-            device[strlen(device)-1] = i + '0'; 
+        struct termios options;
+        /* Get the current options for the port... */
+        tcgetattr(fd, &options);
+        options.c_cflag = B19200 | CS8 | CSTOPB | CREAD | CLOCAL;
+        options.c_iflag = IGNBRK | IGNPAR;
+        options.c_oflag = 0;
+        options.c_lflag = 0;
+        options.c_cc[VTIME] = 20;
+        options.c_cc[VMIN]  = 250;
 
-            if ((fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK)) <= 0)
-            {
-                DEBUG ("No device at fd %d", fd);
-                close (fd);
-                continue;
-            }
-            struct termios options;
-            // Get the current options for the port...
-            tcgetattr(fd, &options);                        
-            options.c_cflag = B19200 | CS8 | CSTOPB | CREAD | CLOCAL;
-            options.c_iflag = IGNBRK | IGNPAR;
-            options.c_oflag = 0;
-            options.c_lflag = 0;
-            options.c_cc[VTIME] = 20;
-            options.c_cc[VMIN]  = 250;
-                                
-            // Set the new options for the port...
-            tcflush(fd, TCIFLUSH);
-            tcsetattr(fd, TCSANOW, &options);
-            
-            if (ted_read_value (&kw,&voltage) != 0) 
-            {
-                DEBUG ("No device at fd %d", fd);
-                close (fd);
-                continue;
-            }
-            
-            INFO ("ted plugin: Device found at %s", device);
-            return (0);
-	}
+        /* Set the new options for the port... */
+        tcflush(fd, TCIFLUSH);
+        tcsetattr(fd, TCSANOW, &options);
 
-	ERROR ("ted plugin: No device found");
-	return (-1);
+        if (ted_read_value (&kw,&voltage) != 0)
+        {
+            DEBUG ("No device at fd %d", fd);
+            close (fd);
+            continue;
+        }
+
+        INFO ("ted plugin: Device found at %s", device);
+        return (0);
+    }
+
+    ERROR ("ted plugin: No device found");
+    return (-1);
 }
-#undef LINE_LENGTH
 
 static void ted_submit (char *type_instance, double value)
 {
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
+    values[0].gauge = value;
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "ted", sizeof (vl.plugin));
-        sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-	sstrncpy (vl.type, "ted", sizeof (vl.type));
+    vl.values = values;
+    vl.values_len = 1;
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "ted", sizeof (vl.plugin));
+    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+    sstrncpy (vl.type, "ted", sizeof (vl.type));
 
-	plugin_dispatch_values (&vl);
+    plugin_dispatch_values (&vl);
 }
 
 static int ted_config (const char *key, const char *value)
 {
-	if (strcasecmp ("Device", key) != 0)
-	{
-		return (-1);
-	}       
-	
-        sfree (device);
-        device = sstrdup (value);
-        return (0);
-        
-} /* int ted_config */
+    if (strcasecmp ("Device", key) != 0)
+    {
+        return (-1);
+    }
 
+    sfree (device);
+    device = sstrdup (value);
+    return (0);
+} /* int ted_config */
 
 static int ted_read (void)
 {
-	double kw;
-        double voltage;
+    double kw;
+    double voltage;
 
-	if (fd < 0)
-		return (-1);
+    if (fd < 0)
+        return (-1);
 
-	if (ted_read_value (&kw,&voltage) != 0)
-		return (-1);
+    if (ted_read_value (&kw,&voltage) != 0)
+        return (-1);
 
-	ted_submit ("ted_kw", kw);	
-        ted_submit ("ted_voltage", voltage);
-	return (0);
+    ted_submit ("ted_kw", kw);
+    ted_submit ("ted_voltage", voltage);
+    return (0);
 } /* int ted_read */
 
 static int ted_shutdown (void)
 {
-	if (fd >= 0)
-	{
-		close (fd);
-		fd = -1;
-	}
+    if (fd >= 0)
+    {
+        close (fd);
+        fd = -1;
+    }
 
-	return (0);
-}
+    return (0);
+} /* int ted_shutdown */
 
 void module_register (void)
 {
-	plugin_register_config ("ted", ted_config,
-				config_keys, config_keys_num);
-	plugin_register_init ("ted", ted_init);
-	plugin_register_read ("ted", ted_read);
-	plugin_register_shutdown ("ted", ted_shutdown);
+    plugin_register_config ("ted", ted_config,
+            config_keys, config_keys_num);
+    plugin_register_init ("ted", ted_init);
+    plugin_register_read ("ted", ted_read);
+    plugin_register_shutdown ("ted", ted_shutdown);
 } /* void module_register */
+
+/* vim: set sw=4 et : */
