@@ -196,14 +196,12 @@ static int register_callback (llist_t **list, /* {{{ */
 static int create_register_callback (llist_t **list, /* {{{ */
 		const char *name, void *callback, user_data_t *ud)
 {
-	char *key;
 	callback_func_t *cf;
 
 	cf = (callback_func_t *) malloc (sizeof (*cf));
 	if (cf == NULL)
 	{
 		ERROR ("plugin: create_register_callback: malloc failed.");
-		sfree (key);
 		return (-1);
 	}
 	memset (cf, 0, sizeof (*cf));
