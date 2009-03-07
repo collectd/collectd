@@ -6,7 +6,7 @@ Collectd::Graph::Config - Parse the collection3 config file.
 
 =cut
 
-# Copyright (C) 2008  Florian octo Forster <octo at verplant.org>
+# Copyright (C) 2008,2009  Florian octo Forster <octo at verplant.org>
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,6 @@ use warnings;
 use Carp (qw(cluck confess));
 use Exporter ();
 use Config::General ('ParseConfig');
-use Collectd::Graph::Type ();
 
 @Collectd::Graph::Config::ISA = ('Exporter');
 @Collectd::Graph::Config::EXPORT_OK = (qw(gc_read_config gc_get_config

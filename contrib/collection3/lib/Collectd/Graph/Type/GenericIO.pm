@@ -1,5 +1,20 @@
 package Collectd::Graph::Type::GenericIO;
 
+# Copyright (C) 2008,2009  Florian octo Forster <octo at verplant.org>
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; only version 2 of the License is applicable.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 use strict;
 use warnings;
 use base ('Collectd::Graph::Type');
@@ -92,20 +107,32 @@ sub getRRDArgs
   }
 
   push (@ret,
+    "CDEF:avg_rx_bytes=avg_rx,8,/",
+    "VDEF:global_min_rx=min_rx,MINIMUM",
+    "VDEF:global_avg_rx=avg_rx,AVERAGE",
+    "VDEF:global_max_rx=max_rx,MAXIMUM",
+    "VDEF:global_tot_rx=avg_rx_bytes,TOTAL",
+    "CDEF:avg_tx_bytes=avg_tx,8,/",
+    "VDEF:global_min_tx=min_tx,MINIMUM",
+    "VDEF:global_avg_tx=avg_tx,AVERAGE",
+    "VDEF:global_max_tx=max_tx,MAXIMUM",
+    "VDEF:global_tot_tx=avg_tx_bytes,TOTAL");
+
+  push (@ret,
       "CDEF:overlap=avg_rx,avg_tx,LT,avg_rx,avg_tx,IF",
       "AREA:avg_rx#${rx_color_bg}",
       "AREA:avg_tx#${tx_color_bg}",
       "AREA:overlap#${overlap_color}",
       "LINE1:avg_rx#${rx_color_fg}:${rx_ds_name}",
-      "GPRINT:min_rx:MIN:${format} Min,",
-      "GPRINT:avg_rx:AVERAGE:${format} Avg,",
-      "GPRINT:max_rx:MAX:${format} Max,",
-      "GPRINT:avg_rx:LAST:${format} Last\\l",
+      "GPRINT:global_min_rx:${format} Min,",
+      "GPRINT:global_avg_rx:${format} Avg,",
+      "GPRINT:global_max_rx:${format} Max,",
+      "GPRINT:global_tot_rx:ca. ${format} Total\\l",
       "LINE1:avg_tx#${tx_color_fg}:${tx_ds_name}",
-      "GPRINT:min_tx:MIN:${format} Min,",
-      "GPRINT:avg_tx:AVERAGE:${format} Avg,",
-      "GPRINT:max_tx:MAX:${format} Max,",
-      "GPRINT:avg_tx:LAST:${format} Last\\l");
+      "GPRINT:global_min_tx:${format} Min,",
+      "GPRINT:global_avg_tx:${format} Avg,",
+      "GPRINT:global_max_tx:${format} Max,",
+      "GPRINT:global_tot_tx:ca. ${format} Total\\l");
 
   return (\@ret);
 } # getRRDArgs
