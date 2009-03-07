@@ -1,6 +1,6 @@
 /**
  * collectd - src/ted.c
- * Copyright (C) 2005,2006  Peter Holik
+ * Copyright (C) 2009  Eric Reed
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,11 +20,11 @@
  *   Eric Reed <ericr at reedhome.net>
  *
  *  This is a collectd module for The Energy Detective: A low-cost whole
- * house energy monitoring system. For more information on TED, see
+ * house energy monitoring system. For more DEBUGrmation on TED, see
  * http://theenergydetective.com
  *
  * This module was not created by Energy, Inc. nor is it supported by
- * them in any way. It was created using information from two sources:
+ * them in any way. It was created using DEBUGrmation from two sources:
  * David Satterfield's TED module for Misterhouse, and Micah Dowty's TED
  * Python Module.
  * 
@@ -49,14 +49,13 @@
 
 
 
-#define LINE_LENGTH 282
-#define PKT_REQUEST  "\xAA"
+#define PKT_LENGTH 278
+#define MAX_PKT 300
 #define ESCAPE       0x10
 #define PKT_BEGIN    0x04
 #define PKT_END      0x03
 
-#define DEFAULT_DEVICE "/dev/ttyUSB"
-#define CLIENT_LIST_PREFIX  "CLIENT_LIST,"
+#define DEFAULT_DEVICE "/dev/ttyUSB "
 
 static char *device = NULL;
 static int fd = -1;
@@ -64,193 +63,193 @@ static int fd = -1;
 static const char *config_keys[] = { "Device" };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-
-
-
-static int ted_read_value(double *kv, double *voltage)
+static int ted_read_value(double *kw, double *voltage)
 {
-	int retry = 3; /* sometimes we receive garbadge */
+    unsigned char sResult[MAX_PKT];
+    unsigned char package_buffer[MAX_PKT];
+    char sResultByte;
+    int status;
+    int byte;
+    int package_length;
+    int escape_flag;
+    int end_flag;
+    int sResultnum;
+    struct timeval timeout;
+    char pkt_request[1] = {0xAA};
+    fd_set input;
 
-	do
-	{
-		struct timeval time_end;
+    int retry = 3; /* sometimes we receive garbadge */
 
-		tcflush(fd, TCIFLUSH);
+/*     Initialize the input set*/
+    FD_ZERO(&input);
+    FD_SET(fd, &input);
+/*     Initialize timout structure, set to 1 second    */
 
-		if (gettimeofday (&time_end, NULL) < 0)
-	        {
-			char errbuf[1024];
-	                ERROR ("ted plugin: gettimeofday failed: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-	                return (-1);
-	        }
-	        time_end.tv_sec++;	
+ 
+    do
+    {
+        timeout.tv_sec = 2;
+        timeout.tv_usec = 0;
+        escape_flag = 0;
+        end_flag = 0;
+        package_length = 0;
+        // clear out anything in the buffer
+        tcflush(fd, TCIFLUSH);
+        
+        status = write (fd, pkt_request,sizeof(pkt_request));
+        DEBUG ("status of write %d",status);
+        if (status < 0)
+        {
+                ERROR ("ted plugin: swrite failed.");
+                return (-1);
+        }
 
-		while (1)
-		{
-		        unsigned char buf[4096];
-		        unsigned char package_buffer[4096];
-                        char sResultByte;
-                        char sCmd[1];
-			int status;
-                        int byte;
-                        int package_length=-1;
-                        int start_flag=0;
-                        int escape_flag=0;
-    			struct timeval timeout;
-    			struct timeval time_now;
-                        sCmd[0] = 0xAA;
+    
+/*       Loop until we find the end of the package */
+        while (end_flag == 0)
+        { 
+/*          check for timeout or input error*/
+            status = select(fd+1, &input, NULL, NULL, &timeout);
+            if (status == 0) /* Timeout */
+            {
+                INFO ("Timeout");
+                break;
+            }
+            else if ((status == -1) && ((errno == EAGAIN) || (errno == EINTR)))
+            {
+                DEBUG ("Not Ready");
+                continue;
+            }
+            else if (status == -1)
+            {
+                char errbuf[1024];
+                ERROR ("ted plugin: select failed: %s",
+                                sstrerror (errno, errbuf, sizeof (errbuf)));
+                break;
+            }
+            
+            else
+            {
+/*              find out how may bytes are in the input buffer*/
+                ioctl(fd, FIONREAD, &byte);
+                DEBUG  ("bytes in buffer %d",byte);
+                if (byte <= 0) 
+                {
+                    continue;
+                } 
+                // Read input buffer
+                sResultnum = read(fd, sResult, MAX_PKT);
+                DEBUG  ("bytes read %d",sResultnum);
 
-			status = write (fd, sCmd, 1);
-                        INFO ("status of write %d",status);
-			if (status < 0)
-			{
-				ERROR ("ted plugin: swrite failed.");
-				return (-1);
-			}
-
-
-			if (gettimeofday (&time_now, NULL) < 0)
-	                {
-				char errbuf[1024];
-		                ERROR ("ted plugin: "
-						"gettimeofday failed: %s",
-						sstrerror (errno, errbuf,
-							sizeof (errbuf)));
-	                        return (-1);
-	                }
-			/*if (timeval_cmp (time_end, time_now, &timeout) < 0)
-	                        break; */
-
-                        usleep(700000);
-			status = select(fd+1, NULL, NULL, NULL, &timeout);
-                        INFO ("status 1 %d",status);
-                        status = 1;
-
-
-
-			if (status > 0) /* usually we succeed */
-			{
-				status = read(fd, buf, 4096);
-                                INFO ("status of read %d",status);
-
-				if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
-				        continue;
-
-                                       for (byte=0; byte< status; byte++) {
-                                            sResultByte = buf[byte];
-                                            if (escape_flag) {
-                                                escape_flag = 0;
-                                                if ((sResultByte==ESCAPE) & (package_length > 0)){
-                                                    package_buffer[package_length] = ESCAPE;
-                                                    package_length++;  
-                                                    }          
-                                                else if (sResultByte==PKT_BEGIN){
-                                                    start_flag = 1;
-                                                    package_length=0;
-                                                    }
-                                                else if  (sResultByte==PKT_END){
-                                                    package_buffer[package_length] = '\0';
-                                                    package_length++;
-                                                    }
-                                                }
-                                            else if (sResultByte == ESCAPE)
-                                                escape_flag = 1;
-                                            else if (package_length >= 0){
-                                                package_buffer[package_length] = sResultByte;
-                                                package_length++;  
-                                                }
-
-                                        }
-
-                                 INFO ("read package_length %d",package_length);
+                //
+                // packet filter loop
+                // 
+                for (byte=0; byte< sResultnum; byte++) 
+                {
+                    sResultByte = sResult[byte];
+                    // was byte before escape 
+                    if (escape_flag == 1) 
+                    {
+                        escape_flag = 0;
+                        // escape escape = single escape
+                        if ((sResultByte==ESCAPE) & (package_length > 0))
+                        {
+                            package_buffer[package_length] = ESCAPE;
+                            package_length++;  
+                        } 
+                        else if (sResultByte==PKT_BEGIN)
+                        {
+                            package_length=0;
+                        }
+                        else if  (sResultByte==PKT_END)
+                        {
+                            end_flag = 1;
+                            break;
+                        }
+                    }
+                    else if (sResultByte == ESCAPE)
+                    {
+                        escape_flag = 1;
+                    }
+                    // if we are in a package add byte to buffer
+                    // otherwise throw away
+                    else if (package_length >= 0)
+                    {
+                        package_buffer[package_length] = sResultByte;
+                        package_length++;  
+                    }
+                }
+            }
+        }
+        DEBUG ("read package_length %d",package_length);
 				
-				if (package_length == 279)
-				{
-                                    *kv = ((package_buffer[248] * 256) + package_buffer[247])*10.0;
-                                    INFO ("kv %f",*kv);
-                                    *voltage = ((package_buffer[252] * 256) + package_buffer[251])/10.0;
-                                    INFO ("voltage %f",*voltage);
-                                    return (0); /* value received */
-                                }
-                                else
-                                    INFO ("Not the correct package");
-                                    usleep(700000);
-                                    continue;
-                                    //return (-1); /* Not pro package */
-			}
-			else if (!status) /* Timeout */
-            		{
-	                        break;
-			}
-			else if ((status == -1) && ((errno == EAGAIN) || (errno == EINTR)))
-			{
-                                usleep(700000);
-			        continue;
-			}
-			else /* status == -1 */
-            		{
-				char errbuf[1024];
-		                ERROR ("ted plugin: "
-						"select failed: %s",
-						sstrerror (errno, errbuf, sizeof (errbuf)));
-	                        break;
-			}
-		}
-	} while (--retry);
+        if (package_length != PKT_LENGTH)
+        {
+            INFO ("Not the correct package");
+            // delay until next package is loaded into TED
+            // TED is updated once per second
+            usleep (1000000);
+            continue;
+        }       
+        //part of the DEBUG in the package
+        //get KiloWatts at char 247 and 248
+        //get Voltage at char 251 and 252 
+        *kw = ((package_buffer[248] * 256) + package_buffer[247])*10.0;
+        DEBUG ("kw %f",*kw);
+        *voltage = ((package_buffer[252] * 256) + package_buffer[251])/10.0;
+        DEBUG ("voltage %f",*voltage);
+        return (0); /* value received */
 
-	return (-2);  /* no value received */
+
+    } while (--retry);
+
+    return (-2);  /* no value received */
 } /* int ted_read_value */
 
 static int ted_init (void)
 {
 	int i;
-        int status;
-	//char device[] = "/dev/ttyUSB ";
-        char sCmd[1];
-
-        char buf[4096];
-        sCmd[0] = 0xAA;
+        double kw;
+        double voltage;
         
         if (device == NULL)
+        {
             device = DEFAULT_DEVICE;
+        }
         
 	for (i = 0; i < 10; i++)
 	{
-		device[strlen(device)-1] = i + '0'; 
+            device[strlen(device)-1] = i + '0'; 
 
-		if ((fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK)) > 0)
-		{
-                        struct termios options;
-                        // Get the current options for the port...
-                        tcgetattr(fd, &options);                        
-                        options.c_cflag = B19200 | CS8 | CSTOPB | CREAD | CLOCAL;
-			options.c_iflag = IGNBRK | IGNPAR;
-	    		options.c_oflag = 0;
-			options.c_lflag = 0;
-			options.c_cc[VTIME] = 3;
-			options.c_cc[VMIN]  = 50;
-                                            
-                        // Set the new options for the port...
-                        tcflush(fd, TCIFLUSH);
-                        tcsetattr(fd, TCSANOW, &options);
-                        
-			status = swrite (fd, sCmd, 1);
-                        if (status < 0)
-                            continue;
-                        usleep(900000);
-                        status = read(fd, buf, 4096);
-                        if (status < 0)
-                            continue;
-                        INFO ("status of read %d",status);
-                        INFO ("length of read %d", strlen(buf));
-			
-				INFO ("ted plugin: Device "
-						"found at %s", device);
-				return (0);
-			
-		}
+            if ((fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK)) <= 0)
+            {
+                DEBUG ("No device at fd %d", fd);
+                close (fd);
+                continue;
+            }
+            struct termios options;
+            // Get the current options for the port...
+            tcgetattr(fd, &options);                        
+            options.c_cflag = B19200 | CS8 | CSTOPB | CREAD | CLOCAL;
+            options.c_iflag = IGNBRK | IGNPAR;
+            options.c_oflag = 0;
+            options.c_lflag = 0;
+            options.c_cc[VTIME] = 20;
+            options.c_cc[VMIN]  = 250;
+                                
+            // Set the new options for the port...
+            tcflush(fd, TCIFLUSH);
+            tcsetattr(fd, TCSANOW, &options);
+            
+            if (ted_read_value (&kw,&voltage) != 0) 
+            {
+                DEBUG ("No device at fd %d", fd);
+                close (fd);
+                continue;
+            }
+            
+            INFO ("ted plugin: Device found at %s", device);
+            return (0);
 	}
 
 	ERROR ("ted plugin: No device found");
@@ -269,40 +268,39 @@ static void ted_submit (char *type_instance, double value)
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ted", sizeof (vl.plugin));
+        sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 	sstrncpy (vl.type, "ted", sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
 
 static int ted_config (const char *key, const char *value)
 {
-	if (strcasecmp ("Device", key) == 0)
-	{
-		sfree (device);
-		device = sstrdup (value);
-	}
-	else
+	if (strcasecmp ("Device", key) != 0)
 	{
 		return (-1);
-	}
+	}       
+	
+        sfree (device);
+        device = sstrdup (value);
         return (0);
-} /* int openvpn_config */
+        
+} /* int ted_config */
 
 
 static int ted_read (void)
 {
-	double kv;
+	double kw;
         double voltage;
 
 	if (fd < 0)
 		return (-1);
 
-	if (ted_read_value (&kv,&voltage) != 0)
+	if (ted_read_value (&kw,&voltage) != 0)
 		return (-1);
 
-	ted_submit ("kv", kv);	
-        ted_submit ("voltage", voltage);
+	ted_submit ("ted_kw", kw);	
+        ted_submit ("ted_voltage", voltage);
 	return (0);
 } /* int ted_read */
 
