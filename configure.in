@@ -2952,6 +2952,7 @@ plugin_serial="no"
 plugin_swap="no"
 plugin_tape="no"
 plugin_tcpconns="no"
+plugin_ted="no"
 plugin_thermal="no"
 plugin_users="no"
 plugin_vmem="no"
@@ -3091,6 +3092,7 @@ fi
 if test "x$have_termios_h" = "xyes"
 then
 	plugin_multimeter="yes"
+	plugin_ted="yes"
 fi
 
 if test "x$have_thread_info" = "xyes"
@@ -3198,6 +3200,7 @@ AC_PLUGIN([target_replace], [yes],             [The replace target])
 AC_PLUGIN([target_set],  [yes],                [The set target])
 AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
+AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
@@ -3481,6 +3484,7 @@ Configuration:
     target_set  . . . . . $enable_target_set
     tcpconns  . . . . . . $enable_tcpconns
     teamspeak2  . . . . . $enable_teamspeak2
+    ted . . . . . . . . . $enable_ted
     thermal . . . . . . . $enable_thermal
     unixsock  . . . . . . $enable_unixsock
     users . . . . . . . . $enable_users

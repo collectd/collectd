@@ -853,6 +853,14 @@ collectd_LDADD += "-dlopen" teamspeak2.la
 collectd_DEPENDENCIES += teamspeak2.la
 endif
 
+if BUILD_PLUGIN_TED
+pkglib_LTLIBRARIES += ted.la
+ted_la_SOURCES = ted.c
+ted_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" ted.la
+collectd_DEPENDENCIES += ted.la
+endif
+
 if BUILD_PLUGIN_THERMAL
 pkglib_LTLIBRARIES += thermal.la
 thermal_la_SOURCES = thermal.c
