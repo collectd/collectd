@@ -244,6 +244,20 @@ FQDNLookup   true
 #	</Directory>
 #</Plugin>
 
+#<Plugin "gmond">
+#  MCReceiveFrom "239.2.11.71" "8649"
+#  <Metric "swap_total">
+#    Type "swap"
+#    TypeInstance "total"
+#    DataSource "value"
+#  </Metric>
+#  <Metric "swap_free">
+#    Type "swap"
+#    TypeInstance "free"
+#    DataSource "value"
+#  </Metric>
+#</Plugin>
+
 #<Plugin hddtemp>
 #  Host "127.0.0.1"
 #  Port "7634"
