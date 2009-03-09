@@ -962,6 +962,88 @@ Controls whether or not to recurse into subdirectories. Enabled by default.
 
 =back
 
+=head2 Plugin C<gmond>
+
+The I<gmond> plugin received the multicast traffic sent by B<gmond>, the
+statistics collection daemon of Ganglia. Mappings for the standard "metrics"
+are built-in, custom mappings may be added via B<Metric> blocks, see below.
+
+Synopsis:
+
+ <Plugin "gmond">
+   MCReceiveFrom "239.2.11.71" "8649"
+   <Metric "swap_total">
+     Type "swap"
+     TypeInstance "total"
+     DataSource "value"
+   </Metric>
+   <Metric "swap_free">
+     Type "swap"
+     TypeInstance "free"
+     DataSource "value"
+   </Metric>
+ </Plugin>
+
+The following metrics are built-in:
+
+=over 4
+
+=item *
+
+load_one, load_five, load_fifteen
+
+=item *
+
+cpu_user, cpu_system, cpu_idle, cpu_nice, cpu_wio
+
+=item *
+
+mem_free, mem_shared, mem_buffers, mem_cached, mem_total
+
+=item *
+
+bytes_in, bytes_out
+
+=item *
+
+pkts_in, pkts_out
+
+=back
+
+Available configuration options:
+
+=over 4
+
+=item B<MCReceiveFrom> I<MCGroup> [I<Port>]
+
+Sets sets the multicast group and UDP port to which to subscribe.
+
+Default: B<239.2.11.71>E<nbsp>/E<nbsp>B<8649>
+
+=item E<lt>B<Metric> I<Name>E<gt>
+
+These blocks add a new metric conversion to the internal table. I<Name>, the
+string argument to the B<Metric> block, is the metric name as used by Ganglia.
+
+=over 4
+
+=item B<Type> I<Type>
+
+Type to map this metric to. Required.
+
+=item B<TypeInstance> I<Instance>
+
+Type-instance to use. Optional.
+
+=item B<DataSource> I<Name>
+
+Data source to map this metric to. If the configured type has exactly one data
+source, this is optional. Otherwise the option is required.
+
+=back
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),

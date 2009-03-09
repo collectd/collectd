@@ -68,6 +68,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
+#@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
@@ -241,6 +242,20 @@ FQDNLookup   true
 #		Size "+10k"
 #		Recursive true
 #	</Directory>
+#</Plugin>
+
+#<Plugin "gmond">
+#  MCReceiveFrom "239.2.11.71" "8649"
+#  <Metric "swap_total">
+#    Type "swap"
+#    TypeInstance "total"
+#    DataSource "value"
+#  </Metric>
+#  <Metric "swap_free">
+#    Type "swap"
+#    TypeInstance "free"
+#    DataSource "value"
+#  </Metric>
 #</Plugin>
 
 #<Plugin hddtemp>

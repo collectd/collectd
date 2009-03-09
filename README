@@ -76,6 +76,9 @@ Features
     - filecount
       Count the number of files in directories.
 
+    - gmond
+      Receive multicast traffic from Ganglia instances.
+
     - hddtemp
       Harddisk temperatures using hddtempd.
 
