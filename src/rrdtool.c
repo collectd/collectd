@@ -390,8 +390,9 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 		/* Write the values to the RRD-file */
 		srrd_update (queue_entry->filename, NULL,
 				values_num, (const char **)values);
-		DEBUG ("rrdtool plugin: queue thread: Wrote %i values to %s",
-				values_num, queue_entry->filename);
+		DEBUG ("rrdtool plugin: queue thread: Wrote %i value%s to %s",
+				values_num, (values_num == 1) ? "" : "s",
+				queue_entry->filename);
 
 		for (i = 0; i < values_num; i++)
 		{
