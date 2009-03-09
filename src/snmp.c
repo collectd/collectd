@@ -696,6 +696,7 @@ static void csnmp_host_open_session (host_definition_t *host)
   }
 } /* void csnmp_host_open_session */
 
+/* TODO: Check if negative values wrap around. Problem: negative temperatures. */
 static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
     double scale, double shift)
 {

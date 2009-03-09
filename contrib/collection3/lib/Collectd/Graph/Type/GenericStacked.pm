@@ -1,5 +1,20 @@
 package Collectd::Graph::Type::GenericStacked;
 
+# Copyright (C) 2008,2009  Florian octo Forster <octo at verplant.org>
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; only version 2 of the License is applicable.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 use strict;
 use warnings;
 use base ('Collectd::Graph::Type');
@@ -49,6 +64,19 @@ sub getRRDArgs
   my $colors = $obj->{'rrd_colors'} || {};
   my @ret = ('-t', $rrd_title, @$rrd_opts);
 
+  my $ignore_unknown = $obj->{'ignore_unknown'} || 0;
+  if ($ignore_unknown)
+  {
+    if ($ignore_unknown =~ m/^(yes|true|on)$/i)
+    {
+      $ignore_unknown = 1;
+    }
+    else
+    {
+      $ignore_unknown = 0;
+    }
+  }
+
   if (defined $obj->{'rrd_vertical'})
   {
     push (@ret, '-v', $obj->{'rrd_vertical'});
@@ -57,6 +85,23 @@ sub getRRDArgs
   if ($obj->{'custom_order'})
   {
     sort_idents_by_type_instance ($idents, $obj->{'custom_order'});
+  }
+
+  if ($ignore_unknown)
+  {
+    my $new_idents = [];
+    for (@$idents)
+    {
+      if (exists ($obj->{'ds_names'}{$_->{'type_instance'}}))
+      {
+	push (@$new_idents, $_);
+      }
+    }
+
+    if (@$new_idents)
+    {
+      $idents = $new_idents;
+    }
   }
 
   $obj->{'ds_names'} ||= {};
@@ -86,13 +131,13 @@ sub getRRDArgs
     if ($i == (@$idents - 1))
     {
       push (@ret,
-	"CDEF:cdef${i}=avg${i}");
+	"CDEF:cdef${i}=avg${i},UN,0,avg${i},IF");
     }
     else
     {
       my $j = $i + 1;
       push (@ret,
-	"CDEF:cdef${i}=cdef${j},avg${i},+");
+	"CDEF:cdef${i}=avg${i},UN,0,avg${i},IF,cdef${j},+");
     }
   }
 

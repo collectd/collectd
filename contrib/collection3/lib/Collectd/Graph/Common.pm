@@ -5,11 +5,11 @@ use warnings;
 
 use vars (qw($ColorCanvas $ColorFullBlue $ColorHalfBlue));
 
-use Collectd::Unixsock;
-
+use Collectd::Unixsock ();
 use Carp (qw(confess cluck));
 use CGI (':cgi');
 use Exporter;
+use Collectd::Graph::Config (qw(gc_get_scalar));
 
 $ColorCanvas   = 'FFFFFF';
 $ColorFullBlue = '0000FF';
@@ -43,7 +43,7 @@ $ColorHalfBlue = 'B7B7F7';
   flush_files
 ));
 
-our $DataDir = '/var/lib/collectd/rrd';
+our $DefaultDataDir = '/var/lib/collectd/rrd';
 
 return (1);
 
@@ -146,6 +146,7 @@ sub filename_to_ident
 sub ident_to_filename
 {
   my $ident = shift;
+  my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
 
   my $ret = '';
 
@@ -155,7 +156,7 @@ sub ident_to_filename
   }
   else
   {
-    $ret .= "$DataDir/";
+    $ret .= "$data_dir/";
   }
 
   if (!$ident->{'hostname'})
@@ -257,12 +258,13 @@ sub get_all_hosts
 {
   my $dh;
   my @ret = ();
+  my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
 
-  opendir ($dh, "$DataDir") or confess ("opendir ($DataDir): $!");
+  opendir ($dh, "$data_dir") or confess ("opendir ($data_dir): $!");
   while (my $entry = readdir ($dh))
   {
     next if ($entry =~ m/^\./);
-    next if (!-d "$DataDir/$entry");
+    next if (!-d "$data_dir/$entry");
     push (@ret, sanitize_hostname ($entry));
   }
   closedir ($dh);
@@ -286,6 +288,7 @@ sub get_all_plugins
   my @hosts = @_;
   my $ret = {};
   my $dh;
+  my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
 
   if (!@hosts)
   {
@@ -295,14 +298,14 @@ sub get_all_plugins
   for (@hosts)
   {
     my $host = $_;
-    opendir ($dh, "$DataDir/$host") or next;
+    opendir ($dh, "$data_dir/$host") or next;
     while (my $entry = readdir ($dh))
     {
       my $plugin;
       my $plugin_instance = '';
 
       next if ($entry =~ m/^\./);
-      next if (!-d "$DataDir/$host/$entry");
+      next if (!-d "$data_dir/$host/$entry");
 
       if ($entry =~ m#^([^-]+)-(.+)$#)
       {
@@ -338,7 +341,8 @@ sub get_all_plugins
 sub get_files_for_host
 {
   my $host = sanitize_hostname (shift);
-  return (get_files_from_directory ("$DataDir/$host", 2));
+  my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
+  return (get_files_from_directory ("$data_dir/$host", 2));
 } # get_files_for_host
 
 sub _filter_ident
@@ -384,6 +388,7 @@ sub get_files_by_ident
   my $ident = shift;
   my $all_files;
   my @ret = ();
+  my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
 
   #if ($ident->{'hostname'})
   #{
@@ -391,7 +396,7 @@ sub get_files_by_ident
   #}
   #else
   #{
-    $all_files = get_files_from_directory ($DataDir, 3);
+    $all_files = get_files_from_directory ($data_dir, 3);
     #}
 
   @ret = grep { _filter_ident ($ident, $_) == 0 } (@$all_files);

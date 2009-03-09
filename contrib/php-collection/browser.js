@@ -496,17 +496,93 @@ function GraphMoveDown(graph) {
 		}
 }
 
-function GraphListFromCookie() {
+function GraphListFromCookie(lname) {
 	if (document.cookie.length > 0) {
-		cookies = document.cookie.split('; ');
+		var cname= 'graphLst'+lname+'=';
+		var cookies = document.cookie.split('; ');
 		for (i = 0; i < cookies.length; i++)
-			if (cookies[i].substring(0, 9) == 'graphLst=')
-				return cookies[i].substring(9).split('/');
+			if (cookies[i].substring(0, cname.length) == cname)
+				return cookies[i].substring(cname.length).split('/');
 	}
 	return new Array();
 }
 
+function GraphListNameSort(a, b) {
+	if (a[0] > b[0])
+		return 1
+	else if (a[0] < b[0])
+		return -1;
+	else
+		return 0;
+}
+
+function GraphListRefresh() {
+	var select   = document.getElementById('GraphList');
+	var childCnt = select.childNodes.length;
+	var oldValue = select.selectedIndex > 0 ? select.options[select.selectedIndex].value : '/';
+	while (childCnt > 0)
+		select.removeChild(select.childNodes[--childCnt]);
+
+	// Determine available names
+	var options = new Array();
+	if (document.cookie.length > 0) {
+		var cookies = document.cookie.split('; ');
+		for (i = 0; i < cookies.length; i++)
+			if (cookies[i].substring(0, 8) == 'graphLst') {
+				var p = cookies[i].indexOf('=');
+				if (p < 0)
+					continue;
+				options.push(new Array(cookies[i].substring(8, p), cookies[i].substring(p+1).split('/').length));
+			}
+	}
+	options.sort(GraphListNameSort);
+
+	var optCnt  = options ? options.length : 0;
+	if (optCnt == 0) {
+		select.setAttribute('disabled', 'disabled');
+		return -1;
+	} else {
+		select.removeAttribute('disabled');
+		for (i = 0; i < optCnt; i++) {
+			newOption = document.createElement("option");
+			newOption.value = options[i][0];
+			if (newOption.value == oldValue)
+				newOption.setAttribute('selected', 'selected');
+			if (options[i][1] == 1)
+				newOption.appendChild(document.createTextNode(newOption.value+' (1 graph)'));
+			else
+				newOption.appendChild(document.createTextNode(newOption.value+' ('+options[i][1]+' graphs)'));
+			select.appendChild(newOption);
+		}
+		return select.selectedIndex;
+	}
+}
+
+function GraphListCheckName(doalert) {
+	var lname = document.getElementById('GraphListName');
+	if (lname) {
+		if (lname.value.match(/^[a-zA-Z0-9_-]+$/)) {
+			lname.style.backgroundColor = '';
+			return lname.value;
+		} else {
+			lname.style.backgroundColor = '#ffdddd';
+			if (doalert && lname.value.length == 0)
+				alert('Graph list name is empty.\n\n'+
+				      'Please fill in a name and try again.');
+			else if (doalert)
+				alert('Graph list name contains non-permitted character.\n\n'+
+				      'Only anlphanumerical characters (a-z, A-Z, 0-9), hyphen (-) and underscore (_) are permitted.\n'+
+				      'Please correct and try again.');
+			lname.focus();
+		}
+	}
+	return '';
+}
+
 function GraphSave() {
+	var lstName = GraphListCheckName(true);
+	if (lstName.length == 0)
+		return;
 	if (graphList.length > 0) {
 		// Save graph list to cookie
 		var str = '';
@@ -517,20 +593,37 @@ function GraphSave() {
 			str += graphList[i].substring(g+1);
 		}
 
-		document.cookie = 'graphLst='+str;
-		if (GraphListFromCookie().length == 0)
-			alert("Failed to save graph list to cookie.");
+		document.cookie = 'graphLst'+lstName+'='+str;
+		if (GraphListFromCookie(lstName).length == 0)
+			alert("Failed to save graph list '"+lstName+"' to cookie.");
 		else
 			alert("Successfully saved current graph list.");
 	} else {
-		document.cookie = 'graphLst=; expires='+new Date().toGMTString();
+		document.cookie = 'graphLst'+lstName+'=; expires='+new Date().toGMTString();
 		alert("Cleared saved graph list.");
 	}
+	GraphListRefresh();
+}
+
+function GraphDrop() {
+	var cname = document.getElementById('GraphList');
+	if (cname && cname.selectedIndex >= 0) {
+		cname = cname.options[cname.selectedIndex].value;
+		document.cookie = 'graphLst'+cname+'=; expires='+new Date().toGMTString();
+		GraphListRefresh();
+	} else
+		return;
 }
 
 function GraphLoad() {
+	var cname = document.getElementById('GraphList');
+	if (cname && cname.selectedIndex >= 0)
+		cname = cname.options[cname.selectedIndex].value;
+	else
+		return;
 	// Load graph list from cookie
-	var grLst = GraphListFromCookie();
+	var grLst = GraphListFromCookie(cname);
+	var oldLength = graphList.length;
 	for (i = 0; i < grLst.length; i++) {
 		var host        = '';
 		var plugin      = '';
@@ -571,8 +664,8 @@ function GraphLoad() {
 			GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, logarithmic);
 	}
 	if (grLst.length == 0)
-		alert("No list found for loading.");
-	else if (grLst.length != graphList.length)
+		alert("No list '"+cname+"' found for loading.");
+	else if (grLst.length + oldLength != graphList.length)
 		alert("Could not load all graphs, probably damaged cookie.");
 }
 
