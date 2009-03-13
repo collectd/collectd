@@ -145,7 +145,7 @@ HTML
     <title>collection.cgi, Version 3</title>
     <link rel="icon" href="../share/shortcut-icon.png" type="image/png" />
     <link rel="stylesheet" href="../share/style.css" type="text/css" />
-    <script type="text/javascript" src="../share/navigate.js" />
+    <script type="text/javascript" src="../share/navigate.js"></script>
   </head>
   <body onload="nav_init ($begin, $end);">
 HTML
