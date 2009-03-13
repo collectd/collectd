@@ -92,8 +92,11 @@ static int memory_init (void)
 #elif defined(HAVE_LIBKSTAT)
 	/* getpagesize(3C) tells me this does not fail.. */
 	pagesize = getpagesize ();
-	if (get_kstat (&ksp, "unix", 0, "system_pages"))
+	if (get_kstat (&ksp, "unix", 0, "system_pages") != 0)
+	{
 		ksp = NULL;
+		return (-1);
+	}
 #endif /* HAVE_LIBKSTAT */
 
 	return (0);
