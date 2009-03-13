@@ -20,6 +20,7 @@ use warnings;
 use lib ('../lib');
 use utf8;
 
+use Carp (qw(cluck confess));
 use FindBin ('$RealBin');
 use CGI (':cgi');
 use CGI::Carp ('fatalsToBrowser');

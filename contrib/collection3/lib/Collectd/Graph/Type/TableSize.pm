@@ -82,7 +82,7 @@ sub _group_files
   my $obj = shift;
   my $data = [];
   my @files;
-  my $last_values
+  my $last_values;
 
   $last_values = $obj->getLastValues ();
 
