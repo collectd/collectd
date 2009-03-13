@@ -20,6 +20,7 @@ our $Debug = param ('debug');
 our $Begin = param ('begin');
 our $End = param ('end');
 our $GraphWidth = param ('width');
+our $Index = param ('index') || 0;
 our $OutputFormat = 'PNG';
 our $ContentType = 'image/png';
 
@@ -167,7 +168,7 @@ if ($Debug)
   print "\$expires = $expires;\n";
 }
 
-my $args = $obj->getRRDArgs (0);
+my $args = $obj->getRRDArgs (0 + $Index);
 
 if ($Debug)
 {
