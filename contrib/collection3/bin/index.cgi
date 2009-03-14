@@ -20,6 +20,7 @@ use warnings;
 use lib ('../lib');
 use utf8;
 
+use Carp (qw(cluck confess));
 use FindBin ('$RealBin');
 use CGI (':cgi');
 use CGI::Carp ('fatalsToBrowser');
@@ -145,7 +146,7 @@ HTML
     <title>collection.cgi, Version 3</title>
     <link rel="icon" href="../share/shortcut-icon.png" type="image/png" />
     <link rel="stylesheet" href="../share/style.css" type="text/css" />
-    <script type="text/javascript" src="../share/navigate.js" />
+    <script type="text/javascript" src="../share/navigate.js"></script>
   </head>
   <body onload="nav_init ($begin, $end);">
 HTML
