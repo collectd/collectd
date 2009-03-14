@@ -20,20 +20,21 @@ disk_octets		read:COUNTER:0:17179869183, write:COUNTER:0:17179869183
 disk_ops		read:COUNTER:0:4294967295, write:COUNTER:0:4294967295
 disk_time		read:COUNTER:0:1000000, write:COUNTER:0:1000000
 dns_answer		value:COUNTER:0:65535
+dns_notify		value:COUNTER:0:65535
 dns_octets		queries:COUNTER:0:125000000, responses:COUNTER:0:125000000
 dns_opcode		value:COUNTER:0:65535
 dns_qtype		value:COUNTER:0:65535
+dns_qtype_cached	value:GAUGE:0:4294967295
+dns_query		value:COUNTER:0:65535
 dns_question		value:COUNTER:0:65535
 dns_rcode		value:COUNTER:0:65535
+dns_reject		value:COUNTER:0:65535
 dns_request		value:COUNTER:0:65535
 dns_resolver		value:COUNTER:0:65535
+dns_response		value:COUNTER:0:65535
+dns_transfer		value:COUNTER:0:65535
 dns_update		value:COUNTER:0:65535
 dns_zops		value:COUNTER:0:65535
-dns_notify		value:COUNTER:0:65535
-dns_transfer		value:COUNTER:0:65535
-dns_query		value:COUNTER:0:65535
-dns_response		value:COUNTER:0:65535
-dns_reject		value:COUNTER:0:65535
 email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U

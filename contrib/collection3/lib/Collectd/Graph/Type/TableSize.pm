@@ -1,4 +1,4 @@
-package Collectd::Graph::Type::GenericStacked;
+package Collectd::Graph::Type::TableSize;
 
 # Copyright (C) 2008,2009  Florian octo Forster <octo at verplant.org>
 #
@@ -20,17 +20,110 @@ use warnings;
 use base ('Collectd::Graph::Type');
 
 use Collectd::Graph::Common (qw($ColorCanvas $ColorFullBlue $ColorHalfBlue
-  group_files_by_plugin_instance ident_to_filename sanitize_type_instance
-  get_faded_color sort_idents_by_type_instance));
+  ident_to_filename sanitize_type_instance
+  get_random_color sort_idents_by_type_instance));
+
+use RRDs ();
 
 return (1);
+
+sub _get_last_value
+{
+  my $ident = shift;
+  my $value = undef;
+  my $filename = ident_to_filename ($ident);
+  my ($start ,$step ,$names ,$data) = RRDs::fetch ($filename, 'AVERAGE', '-s', '-3600');
+  if (my $errmsg = RRDs::error ())
+  {
+    print STDERR "RRDs::fetch ($filename) failed: $errmsg\n";
+    return;
+  }
+
+  for (@$data)
+  {
+    my $line = $_;
+
+    for (@$line)
+    {
+      my $ds = $_;
+
+      if (defined ($ds))
+      {
+	$value = $ds;
+      }
+    }
+  } # for (@$data)
+
+  return ($value);
+} # _get_last_value
+
+sub getLastValues
+{
+  my $obj = shift;
+  my $last_value = {};
+
+  if (exists ($obj->{'last_value'}))
+  {
+    return ($obj->{'last_value'});
+  }
+
+  for (@{$obj->{'files'}})
+  {
+    my $file = $_;
+
+    $last_value->{$file} = _get_last_value ($file);
+  }
+  $obj->{'last_value'} = $last_value;
+  return ($obj->{'last_value'});
+} # getLastValues
+
+sub _group_files
+{
+  my $obj = shift;
+  my $data = [];
+  my @files;
+  my $last_values;
+
+  $last_values = $obj->getLastValues ();
+
+  @files = sort
+  { 
+    if (!defined ($last_values->{$a}) && !defined ($last_values->{$b}))
+    {
+      return (0);
+    }
+    elsif (!defined ($last_values->{$a}))
+    {
+      return (1);
+    }
+    elsif (!defined ($last_values->{$b}))
+    {
+      return (-1);
+    }
+    else
+    {
+      return ($last_values->{$a} <=> $last_values->{$b});
+    }
+  } (@{$obj->{'files'}});
+
+  for (my $i = 0; $i < @files; $i++)
+  {
+    my $file = $files[$i];
+    my $j = int ($i / 10);
+
+    $data->[$j] ||= [];
+    push (@{$data->[$j]}, $file);
+  }
+
+  return ($data);
+} # _group_files
 
 sub getGraphsNum
 {
   my $obj = shift;
-  my $group = group_files_by_plugin_instance (@{$obj->{'files'}});
+  my $group = _group_files ($obj);
 
-  return (scalar (keys %$group));
+  return (0 + @$group);
 }
 
 sub getRRDArgs
@@ -38,13 +131,12 @@ sub getRRDArgs
   my $obj = shift;
   my $index = shift;
 
-  my $group = group_files_by_plugin_instance (@{$obj->{'files'}});
-  my @group = sort (keys %$group);
+  my $group = _group_files ($obj);
 
   my $rrd_opts = $obj->{'rrd_opts'} || [];
   my $format = $obj->{'rrd_format'} || '%5.1lf';
 
-  my $idents = $group->{$group[$index]};
+  my $idents = $group->[$index];
   my $ds_name_len = 0;
 
   my $ds = $obj->getDataSources ();
@@ -64,19 +156,6 @@ sub getRRDArgs
   my $colors = $obj->{'rrd_colors'} || {};
   my @ret = ('-t', $rrd_title, @$rrd_opts);
 
-  my $ignore_unknown = $obj->{'ignore_unknown'} || 0;
-  if ($ignore_unknown)
-  {
-    if ($ignore_unknown =~ m/^(yes|true|on)$/i)
-    {
-      $ignore_unknown = 1;
-    }
-    else
-    {
-      $ignore_unknown = 0;
-    }
-  }
-
   if (defined $obj->{'rrd_vertical'})
   {
     push (@ret, '-v', $obj->{'rrd_vertical'});
@@ -85,23 +164,6 @@ sub getRRDArgs
   if ($obj->{'custom_order'})
   {
     sort_idents_by_type_instance ($idents, $obj->{'custom_order'});
-  }
-
-  if ($ignore_unknown)
-  {
-    my $new_idents = [];
-    for (@$idents)
-    {
-      if (exists ($obj->{'ds_names'}{$_->{'type_instance'}}))
-      {
-	push (@$new_idents, $_);
-      }
-    }
-
-    if (@$new_idents)
-    {
-      $idents = $new_idents;
-    }
   }
 
   $obj->{'ds_names'} ||= {};
@@ -126,36 +188,6 @@ sub getRRDArgs
       "DEF:max${i}=${filename}:${data_source}:MAX");
   }
 
-  for (my $i = @$idents - 1; $i >= 0; $i--)
-  {
-    if ($i == (@$idents - 1))
-    {
-      push (@ret,
-	"CDEF:cdef${i}=avg${i},UN,0,avg${i},IF");
-    }
-    else
-    {
-      my $j = $i + 1;
-      push (@ret,
-	"CDEF:cdef${i}=avg${i},UN,0,avg${i},IF,cdef${j},+");
-    }
-  }
-
-  for (my $i = 0; $i < @$idents; $i++)
-  {
-    my $type_instance = $idents->[$i]{'type_instance'};
-    my $color = '000000';
-    if (exists $colors->{$type_instance})
-    {
-      $color = $colors->{$type_instance};
-    }
-
-    $color = get_faded_color ($color);
-
-    push (@ret,
-      "AREA:cdef${i}#${color}");
-  }
-
   for (my $i = 0; $i < @$idents; $i++)
   {
     my $type_instance = $idents->[$i]{'type_instance'};
@@ -165,8 +197,12 @@ sub getRRDArgs
     {
       $color = $colors->{$type_instance};
     }
+    else
+    {
+      $color = get_random_color ();
+    }
     push (@ret,
-      "LINE1:cdef${i}#${color}:${ds_name}",
+      "LINE1:avg${i}#${color}:${ds_name}",
       "GPRINT:min${i}:MIN:${format} Min,",
       "GPRINT:avg${i}:AVERAGE:${format} Avg,",
       "GPRINT:max${i}:MAX:${format} Max,",
@@ -181,10 +217,8 @@ sub getGraphArgs
   my $obj = shift;
   my $index = shift;
 
-  my $group = group_files_by_plugin_instance (@{$obj->{'files'}});
-  my @group = sort (keys %$group);
-
-  my $idents = $group->{$group[$index]};
+  my $group = _group_files ($obj);
+  my $idents = $group->[$index];
 
   my @args = ();
   for (qw(hostname plugin plugin_instance type))
@@ -194,9 +228,9 @@ sub getGraphArgs
       push (@args, $_ . '=' . $idents->[0]{$_});
     }
   }
+  push (@args, "index=$index");
 
   return (join (';', @args));
 } # getGraphArgs
-
 
 # vim: set shiftwidth=2 softtabstop=2 tabstop=8 :

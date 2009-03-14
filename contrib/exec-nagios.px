@@ -123,8 +123,20 @@ sub handle_config_script
     }
     else
     {
-      $opts->{'script'} = $script;
-      push (@$Scripts, $opts);
+      if (ref ($opts) eq 'ARRAY')
+        {
+          for (@$opts)
+            {
+              my $opt = $_;
+              $opt->{'script'} = $script;
+              push (@$Scripts, $opt);
+            }
+        }
+          else
+        {
+          $opts->{'script'} = $script;
+          push (@$Scripts, $opts);
+        }
     }
   } # for (keys %$scripts)
 } # handle_config_script

@@ -344,6 +344,12 @@ static int lcc_sendreceive (lcc_connection_t *c, /* {{{ */
   lcc_response_t res;
   int status;
 
+  if (c->fh == NULL)
+  {
+    lcc_set_errno (c, EBADF);
+    return (-1);
+  }
+
   status = lcc_send (c, command);
   if (status != 0)
     return (status);
@@ -554,6 +560,7 @@ const char *lcc_version_extra (void) /* {{{ */
 int lcc_connect (const char *address, lcc_connection_t **ret_con) /* {{{ */
 {
   lcc_connection_t *c;
+  int status;
 
   if (address == NULL)
     return (-1);
@@ -566,8 +573,15 @@ int lcc_connect (const char *address, lcc_connection_t **ret_con) /* {{{ */
     return (-1);
   memset (c, 0, sizeof (*c));
 
+  status = lcc_open_socket (c, address);
+  if (status != 0)
+  {
+    lcc_disconnect (c);
+    return (status);
+  }
+
   *ret_con = c;
-  return (lcc_open_socket (c, address));
+  return (0);
 } /* }}} int lcc_connect */
 
 int lcc_disconnect (lcc_connection_t *c) /* {{{ */

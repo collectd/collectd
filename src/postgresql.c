@@ -287,7 +287,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 
 	int rows_num;
 	int status;
-	int i;
+	int row, col;
 
 	/* The user data may hold parameter information, but may be NULL. */
 	data = udb_query_get_user_data (q);
@@ -340,12 +340,12 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 		BAIL_OUT (-1);
 	}
 	
-	for (i = 0; i < column_num; i++) {
+	for (col = 0; col < column_num; ++col) {
 		/* Pointers returned by `PQfname' are freed by `PQclear' via
 		 * `BAIL_OUT'. */
-		column_names[i] = PQfname (res, i);
-		if (NULL == column_names[i]) {
-			log_err ("PQfname (%i) failed.", i);
+		column_names[col] = PQfname (res, col);
+		if (NULL == column_names[col]) {
+			log_err ("Failed to resolv name of column %i.", col);
 			BAIL_OUT (-1);
 		}
 	}
@@ -364,21 +364,20 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 		BAIL_OUT (-1);
 	}
 
-	for (i = 0; i < rows_num; ++i) {
-		int j;
-
-		for (j = 0; j < column_num; j++) {
+	for (row = 0; row < rows_num; ++row) {
+		for (col = 0; col < column_num; ++col) {
 			/* Pointers returned by `PQgetvalue' are freed by `PQclear' via
 			 * `BAIL_OUT'. */
-			column_values[j] = PQgetvalue (res, /* row = */ i, /* col = */ j);
-			if (NULL == column_values[j]) {
-				log_err ("PQgetvalue (%i, %i) failed.", i, j);
+			column_values[col] = PQgetvalue (res, row, col);
+			if (NULL == column_values[col]) {
+				log_err ("Failed to get value at (row = %i, col = %i).",
+						row, col);
 				break;
 			}
 		}
 
 		/* check for an error */
-		if (j < column_num)
+		if (col < column_num)
 			continue;
 
 		status = udb_query_handle_result (q, column_values);
@@ -386,7 +385,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 			log_err ("udb_query_handle_result failed with status %i.",
 					status);
 		}
-	} /* for (i = 0; i < rows_num; ++i) */
+	} /* for (row = 0; row < rows_num; ++row) */
 
 	BAIL_OUT (0);
 #undef BAIL_OUT

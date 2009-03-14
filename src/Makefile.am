@@ -305,6 +305,16 @@ collectd_LDADD += "-dlopen" filecount.la
 collectd_DEPENDENCIES += filecount.la
 endif
 
+if BUILD_PLUGIN_GMOND
+pkglib_LTLIBRARIES += gmond.la
+gmond_la_SOURCES = gmond.c
+gmond_la_CPPFLAGS = $(AM_CPPFLAGS) $(GANGLIA_CPPFLAGS)
+gmond_la_LDFLAGS = -module -avoid-version $(GANGLIA_LDFLAGS)
+gmond_la_LIBADD = $(GANGLIA_LIBS)
+collectd_LDADD += "-dlopen" gmond.la
+collectd_DEPENDENCIES += gmond.la
+endif
+
 if BUILD_PLUGIN_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
