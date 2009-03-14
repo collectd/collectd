@@ -809,7 +809,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info =
     {
       plugin_instance,
-      /* type = */ "dns_qtype"
+      /* type = */ "dns_qtype_gauge"
     };
 
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-qtypes",
@@ -846,7 +846,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info =
     {
       plugin_instance,
-      /* type = */ "dns_qtype"
+      /* type = */ "dns_qtype_gauge"
     };
 
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-cache_rr_sets",
