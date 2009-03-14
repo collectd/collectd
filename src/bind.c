@@ -497,7 +497,7 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
     list_callback_t list_callback,
     void *user_data,
     xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time)
+    time_t current_time, int ds_type)
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
@@ -545,7 +545,10 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
       value_t value;
       int status;
 
-      status = bind_xml_read_counter (doc, counter, &value.counter);
+      if (ds_type == DS_TYPE_GAUGE)
+        status = bind_xml_read_gauge (doc, counter, &value.gauge);
+      else
+        status = bind_xml_read_counter (doc, counter, &value.counter);
       if (status != 0)
         continue;
 
@@ -818,7 +821,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value (/* xpath = */ "rdtype",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, path_ctx, current_time);
+        doc, path_ctx, current_time, DS_TYPE_COUNTER);
   } /* }}} */
 
   if (view->resolver_stats != 0) /* {{{ */
@@ -837,7 +840,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value ("resstat",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
-        doc, path_ctx, current_time);
+        doc, path_ctx, current_time, DS_TYPE_COUNTER);
   } /* }}} */
 
   if (view->cacherrsets != 0) /* {{{ */
@@ -855,7 +858,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value (/* xpath = */ "cache/rrset",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, path_ctx, current_time);
+        doc, path_ctx, current_time, DS_TYPE_GAUGE);
   } /* }}} */
 
   if (view->zones_num > 0)
@@ -944,7 +947,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value (/* xpath = */ "server/requests/opcode",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, xpathCtx, current_time);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
   }
 
   /* XPath:     server/queries-in/rdtype
@@ -969,7 +972,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value (/* xpath = */ "server/queries-in/rdtype",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, xpathCtx, current_time);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
   }
   
   /* XPath:     server/nsstats, server/nsstat
@@ -1019,7 +1022,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_name_value ("server/nsstat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
   }
 
@@ -1065,7 +1068,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_name_value ("server/zonestat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
   }
 
@@ -1112,7 +1115,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_name_value ("server/resstat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
   }
 
