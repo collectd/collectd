@@ -154,13 +154,6 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
                     receive_buffer_length);
             return (-1);
         }
-        else if (receive_buffer_length < EXPECTED_PACKAGE_LENGTH)
-        {
-            WARNING ("ted plugin: read(2) returned %zi bytes, "
-                    "but at least %i are necessary for a valid packet.",
-                    receive_buffer_length, EXPECTED_PACKAGE_LENGTH);
-            return (-1);
-        }
 
         /*
          * packet filter loop
