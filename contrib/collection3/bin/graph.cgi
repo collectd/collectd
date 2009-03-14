@@ -20,6 +20,7 @@ our $Debug = param ('debug');
 our $Begin = param ('begin');
 our $End = param ('end');
 our $GraphWidth = param ('width');
+our $GraphHeight = param ('height');
 our $Index = param ('index') || 0;
 our $OutputFormat = 'PNG';
 our $ContentType = 'image/png';
@@ -57,6 +58,16 @@ if ($GraphWidth)
 if (!$GraphWidth)
 {
   $GraphWidth = gc_get_scalar ('GraphWidth', 400);
+}
+
+if ($GraphHeight)
+{
+  $GraphHeight =~ s/\D//g;
+}
+
+if (!$GraphHeight)
+{
+  $GraphHeight = gc_get_scalar ('GraphHeight', 100);
 }
 
 { # Sanitize begin and end times
@@ -191,7 +202,7 @@ else
   }
 
   $| = 1;
-  RRDs::graph ('-', '-a', $OutputFormat, '--width', $GraphWidth, @timesel, @$args);
+  RRDs::graph ('-', '-a', $OutputFormat, '--width', $GraphWidth, '--height', $GraphHeight, @timesel, @$args);
   if (my $err = RRDs::error ())
   {
     print STDERR "RRDs::graph failed: $err\n";
