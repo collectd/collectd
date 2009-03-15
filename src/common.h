@@ -222,6 +222,13 @@ int timeval_cmp (struct timeval tv0, struct timeval tv1, struct timeval *delta);
 		(tv).tv_usec = (tv).tv_usec % 1000000; \
 	} while (0)
 
+/* make sure tv_sec stores less than a second */
+#define NORMALIZE_TIMESPEC(tv) \
+	do { \
+		(tv).tv_sec += (tv).tv_nsec / 1000000000; \
+		(tv).tv_nsec = (tv).tv_nsec % 1000000000; \
+	} while (0)
+
 int check_create_dir (const char *file_orig);
 
 #ifdef HAVE_LIBKSTAT
