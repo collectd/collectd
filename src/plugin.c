@@ -931,7 +931,6 @@ void plugin_read_all (void)
 /* Read function called when the `-T' command line argument is given. */
 int plugin_read_all_once (void)
 {
-	llentry_t   *le;
 	int status;
 	int return_status = 0;
 
@@ -967,7 +966,7 @@ int plugin_read_all_once (void)
 		if (status != 0)
 		{
 			NOTICE ("read-function of plugin `%s' failed.",
-				le->key);
+					rf->rf_name);
 			return_status = -1;
 		}
 
