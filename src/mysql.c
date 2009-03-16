@@ -32,26 +32,245 @@
 
 /* TODO: Understand `Select_*' and possibly do that stuff as well.. */
 
-static const char *config_keys[] =
+struct mysql_database_s /* {{{ */
 {
-	"Host",
-	"User",
-	"Password",
-	"Database",
-	"Port",
-	"Socket",
-	NULL
+	char *host;
+	char *user;
+	char *pass;
+	char *name;
+	char *socket;
+	int   port;
 };
-static int config_keys_num = 6;
+typedef struct mysql_database_s mysql_database_t; /* }}} */
 
-static char *host = "localhost";
-static char *user;
-static char *pass;
-static char *db = NULL;
-static char *socket = NULL;
-static int   port = 0;
+static mysql_database_t **databases     = NULL;
+static size_t             databases_num = 0;
 
-static MYSQL *getconnection (void)
+static void mysql_database_free (mysql_database_t *db) /* {{{ */
+{
+	if (db == NULL)
+		return;
+
+	sfree (db->host);
+	sfree (db->user);
+	sfree (db->pass);
+	sfree (db->socket);
+	sfree (db);
+} /* }}} void mysql_database_free */
+
+/* Configuration handling functions {{{
+ *
+ * <Plugin mysql>
+ *   <Database "plugin_instance1">
+ *     Host "localhost"
+ *     Port 22000
+ *     ...
+ *   </Database>
+ * </Plugin>
+ */
+
+static int mysql_config_set_string (char **ret_string, /* {{{ */
+				    oconfig_item_t *ci)
+{
+	char *string;
+
+	if ((ci->values_num != 1)
+	    || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		WARNING ("mysql plugin: The `%s' config option "
+			 "needs exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	string = strdup (ci->values[0].value.string);
+	if (string == NULL)
+	{
+		ERROR ("mysql plugin: strdup failed.");
+		return (-1);
+	}
+
+	if (*ret_string != NULL)
+		free (*ret_string);
+	*ret_string = string;
+
+	return (0);
+} /* }}} int mysql_config_set_string */
+
+static int mysql_config_set_int (int *ret_int, /* {{{ */
+				 oconfig_item_t *ci)
+{
+	if ((ci->values_num != 1)
+	    || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+	{
+		WARNING ("mysql plugin: The `%s' config option "
+			 "needs exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	*ret_int = ci->values[0].value.number;
+
+	return (0);
+} /* }}} int mysql_config_set_int */
+
+static int mysql_config_add_database (oconfig_item_t *ci) /* {{{ */
+{
+	mysql_database_t *db;
+	int status;
+	int i;
+
+	if ((ci->values_num != 1)
+	    || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		WARNING ("mysql plugin: The `Database' block "
+			 "needs exactly one string argument.");
+		return (-1);
+	}
+
+	db = (mysql_database_t *) malloc (sizeof (*db));
+	if (db == NULL)
+	{
+		ERROR ("mysql plugin: malloc failed.");
+		return (-1);
+	}
+	memset (db, 0, sizeof (*db));
+
+	status = mysql_config_set_string (&db->name, ci);
+	if (status != 0)
+	{
+		sfree (db);
+		return (status);
+	}
+
+	/* Fill the `mysql_database_t' structure.. */
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Host", child->key) == 0)
+			status = mysql_config_set_string (&db->host, child);
+		else if (strcasecmp ("User", child->key) == 0)
+			status = mysql_config_set_string (&db->user, child);
+		else if (strcasecmp ("Password", child->key) == 0)
+			status = mysql_config_set_string (&db->pass, child);
+		else if (strcasecmp ("Port", child->key) == 0)
+			status = mysql_config_set_int (&db->port, child);
+		else if (strcasecmp ("Socket", child->key) == 0)
+			status = mysql_config_set_string (&db->socket, child);
+		else
+		{
+			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
+			status = -1;
+		}
+
+		if (status != 0)
+			break;
+	}
+
+	/* Check that all necessary options have been given. */
+	while (status == 0)
+	{
+		if ((db->port < 0) || (db->port >= 65535))
+		{
+			ERROR ("mysql plugin: Port number out of range: %i",
+			       db->port);
+			status = -1;
+		}
+		break;
+	} /* while (status == 0) */
+
+	/* If all went well, add this database to the global list of databases. */
+	if (status == 0)
+	{
+		mysql_database_t **temp;
+
+		temp = (mysql_database_t **) realloc (databases,
+						     sizeof (*databases) * (databases_num + 1));
+		if (temp == NULL)
+		{
+			ERROR ("mysql plugin: realloc failed");
+			status = -1;
+		}
+		else
+		{
+			databases = temp;
+			databases[databases_num] = db;
+			databases_num++;
+		}
+	}
+
+	if (status != 0)
+	{
+		mysql_database_free (db);
+		return (-1);
+	}
+
+	return (0);
+} /* }}} int mysql_config_add_database */
+
+static int mysql_config (oconfig_item_t *ci) /* {{{ */
+{
+	int status = 0;
+	int i;
+	oconfig_item_t *lci = NULL; /* legacy config */
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Database", child->key) == 0 && child->children_num > 0)
+			mysql_config_add_database (child);
+		else
+		{
+			/* legacy mode - convert to <Database ...> config */
+			if (lci == NULL)
+			{
+				lci = malloc (sizeof(*lci));
+				if (lci == NULL)
+				{
+					ERROR ("mysql plugin: malloc failed.");
+					return (-1);
+				}
+				memset (lci, '\0', sizeof (*lci));
+			}
+			if (strcasecmp ("Database", child->key) == 0)
+			{
+				lci->key = child->key;
+				lci->values = child->values;
+				lci->values_num = child->values_num;
+				lci->parent = child->parent;
+			}
+			else
+			{
+				lci->children_num++;
+				lci->children =
+					realloc (lci->children,
+						 lci->children_num * sizeof (*child));
+				if (lci->children == NULL)
+				{
+					ERROR ("mysql plugin: realloc failed.");
+					return (-1);
+				}
+				memcpy (&lci->children[lci->children_num-1], child, sizeof (*child));
+			}
+		}
+	} /* for (ci->children) */
+
+	if (lci)
+	{
+		if (lci->key == NULL)
+		{
+			ERROR ("mysql plugin: no Database configured.");
+			status = -1;
+		}
+		else
+			mysql_config_add_database (lci);
+		sfree (lci->children);
+		sfree (lci);
+	}
+	return (status);
+} /* }}} int mysql_config */
+
+static MYSQL *getconnection (mysql_database_t *db)
 {
 	static MYSQL *con;
 	static int    state;
@@ -92,7 +311,7 @@ static MYSQL *getconnection (void)
 		return (NULL);
 	}
 
-	if (mysql_real_connect (con, host, user, pass, db, port, socket, 0) == NULL)
+	if (mysql_real_connect (con, db->host, db->user, db->pass, db->name, db->port, db->socket, 0) == NULL)
 	{
 		ERROR ("mysql_real_connect failed: %s", mysql_error (con));
 		state = 0;
@@ -107,49 +326,15 @@ static MYSQL *getconnection (void)
 	}
 } /* static MYSQL *getconnection (void) */
 
-static int config (const char *key, const char *value)
+static void set_plugin_instance (mysql_database_t *db, value_list_t *vl)
 {
-	if (strcasecmp (key, "host") == 0)
-		return ((host = strdup (value)) == NULL ? 1 : 0);
-	else if (strcasecmp (key, "user") == 0)
-		return ((user = strdup (value)) == NULL ? 1 : 0);
-	else if (strcasecmp (key, "password") == 0)
-		return ((pass = strdup (value)) == NULL ? 1 : 0);
-	else if (strcasecmp (key, "database") == 0)
-		return ((db = strdup (value)) == NULL ? 1 : 0);
-	else if (strcasecmp (key, "socket") == 0)
-		return ((socket = strdup (value)) == NULL ? 1 : 0);
-	else if (strcasecmp (key, "port") == 0)
-	{
-	    char *endptr = NULL;
-	    int temp;
-
-	    errno = 0;
-	    temp = strtol (value, &endptr, 0);
-	    if ((errno != 0) || (value == endptr))
-	    {
-		ERROR ("mysql plugin: Invalid \"Port\" argument: %s",
-			value);
-		port = 0;
-		return (1);
-	    }
-	    else if ((temp < 0) || (temp >= 65535))
-	    {
-		ERROR ("mysql plugin: Port number out of range: %i",
-			temp);
-		port = 0;
-		return (1);
-	    }
-
-	    port = temp;
-	    return (0);
-	}
-	else
-		return (-1);
-} /* int config */
+	/* XXX legacy mode - no plugin_instance */
+	if (databases_num > 0)
+		sstrncpy (vl->plugin_instance, db->name, sizeof (vl->plugin_instance));
+}
 
 static void counter_submit (const char *type, const char *type_instance,
-		counter_t value)
+		counter_t value, mysql_database_t *db)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -162,13 +347,14 @@ static void counter_submit (const char *type, const char *type_instance,
 	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	set_plugin_instance (db, &vl);
 
 	plugin_dispatch_values (&vl);
 } /* void counter_submit */
 
 static void qcache_submit (counter_t hits, counter_t inserts,
 		counter_t not_cached, counter_t lowmem_prunes,
-		gauge_t queries_in_cache)
+		gauge_t queries_in_cache, mysql_database_t *db)
 {
 	value_t values[5];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -184,12 +370,13 @@ static void qcache_submit (counter_t hits, counter_t inserts,
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
 	sstrncpy (vl.type, "mysql_qcache", sizeof (vl.type));
+	set_plugin_instance (db, &vl);
 
 	plugin_dispatch_values (&vl);
 } /* void qcache_submit */
 
 static void threads_submit (gauge_t running, gauge_t connected, gauge_t cached,
-		counter_t created)
+		counter_t created, mysql_database_t *db)
 {
 	value_t values[4];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -204,11 +391,12 @@ static void threads_submit (gauge_t running, gauge_t connected, gauge_t cached,
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
 	sstrncpy (vl.type, "mysql_threads", sizeof (vl.type));
+	set_plugin_instance (db, &vl);
 
 	plugin_dispatch_values (&vl);
 } /* void threads_submit */
 
-static void traffic_submit (counter_t rx, counter_t tx)
+static void traffic_submit (counter_t rx, counter_t tx, mysql_database_t *db)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -221,11 +409,12 @@ static void traffic_submit (counter_t rx, counter_t tx)
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
 	sstrncpy (vl.type, "mysql_octets", sizeof (vl.type));
+	set_plugin_instance (db, &vl);
 
 	plugin_dispatch_values (&vl);
 } /* void traffic_submit */
 
-static int mysql_read (void)
+static int mysql_read_database (mysql_database_t *db)
 {
 	MYSQL     *con;
 	MYSQL_RES *res;
@@ -249,7 +438,7 @@ static int mysql_read (void)
 	unsigned long long traffic_outgoing = 0ULL;
 
 	/* An error message will have been printed in this case */
-	if ((con = getconnection ()) == NULL)
+	if ((con = getconnection (db)) == NULL)
 		return (-1);
 
 	query = "SHOW STATUS";
@@ -288,14 +477,14 @@ static int mysql_read (void)
 
 			/* Ignore `prepared statements' */
 			if (strncmp (key, "Com_stmt_", 9) != 0)
-				counter_submit ("mysql_commands", key + 4, val);
+				counter_submit ("mysql_commands", key + 4, val, db);
 		}
 		else if (strncmp (key, "Handler_", 8) == 0)
 		{
 			if (val == 0ULL)
 				continue;
 
-			counter_submit ("mysql_handler", key + 8, val);
+			counter_submit ("mysql_handler", key + 8, val, db);
 		}
 		else if (strncmp (key, "Qcache_", 7) == 0)
 		{
@@ -336,21 +525,44 @@ static int mysql_read (void)
 			|| (qcache_not_cached != 0ULL)
 			|| (qcache_lowmem_prunes != 0ULL))
 		qcache_submit (qcache_hits, qcache_inserts, qcache_not_cached,
-				qcache_lowmem_prunes, qcache_queries_in_cache);
+			       qcache_lowmem_prunes, qcache_queries_in_cache, db);
 
 	if (threads_created != 0ULL)
 		threads_submit (threads_running, threads_connected,
-				threads_cached, threads_created);
+				threads_cached, threads_created, db);
 
-	traffic_submit  (traffic_incoming, traffic_outgoing);
+	traffic_submit  (traffic_incoming, traffic_outgoing, db);
 
 	/* mysql_close (con); */
+
+	return (0);
+} /* int mysql_read_database */
+
+static int mysql_read (void)
+{
+	size_t i;
+	int success = 0;
+	int status;
+
+	for (i = 0; i < databases_num; i++)
+	{
+		status = mysql_read_database (databases[i]);
+		if (status == 0)
+			success++;
+	}
+
+	if (success == 0)
+	{
+		ERROR ("mysql plugin: No database could be read. Will return an error so "
+		       "the plugin will be delayed.");
+		return (-1);
+	}
 
 	return (0);
 } /* int mysql_read */
 
 void module_register (void)
 {
-	plugin_register_config ("mysql", config, config_keys, config_keys_num);
+	plugin_register_complex_config ("mysql", mysql_config);
 	plugin_register_read ("mysql", mysql_read);
 } /* void module_register */
