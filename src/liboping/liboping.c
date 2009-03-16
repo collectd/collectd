@@ -921,9 +921,6 @@ int ping_host_add (pingobj_t *obj, const char *host)
 {
 	pinghost_t *ph;
 
-	struct sockaddr_storage sockaddr;
-	socklen_t               sockaddr_len;
-
 	struct addrinfo  ai_hints;
 	struct addrinfo *ai_list, *ai_ptr;
 	int              ai_return;
@@ -982,30 +979,13 @@ int ping_host_add (pingobj_t *obj, const char *host)
 	{
 		ph->fd = -1;
 
-		sockaddr_len = sizeof (sockaddr);
-		memset (&sockaddr, '\0', sockaddr_len);
-
 		if (ai_ptr->ai_family == AF_INET)
 		{
-			struct sockaddr_in *si;
-
-			si = (struct sockaddr_in *) &sockaddr;
-			si->sin_family = AF_INET;
-			si->sin_port   = htons (ph->ident);
-			si->sin_addr.s_addr = htonl (INADDR_ANY);
-
 			ai_ptr->ai_socktype = SOCK_RAW;
 			ai_ptr->ai_protocol = IPPROTO_ICMP;
 		}
 		else if (ai_ptr->ai_family == AF_INET6)
 		{
-			struct sockaddr_in6 *si;
-
-			si = (struct sockaddr_in6 *) &sockaddr;
-			si->sin6_family = AF_INET6;
-			si->sin6_port   = htons (ph->ident);
-			si->sin6_addr   = in6addr_any;
-
 			ai_ptr->ai_socktype = SOCK_RAW;
 			ai_ptr->ai_protocol = IPPROTO_ICMPV6;
 		}
