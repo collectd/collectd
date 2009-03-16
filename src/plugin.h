@@ -248,7 +248,9 @@ int plugin_register_init (const char *name,
 int plugin_register_read (const char *name,
 		int (*callback) (void));
 int plugin_register_complex_read (const char *name,
-		plugin_read_cb callback, user_data_t *user_data);
+		plugin_read_cb callback,
+		const struct timespec *interval,
+		user_data_t *user_data);
 int plugin_register_write (const char *name,
 		plugin_write_cb callback, user_data_t *user_data);
 int plugin_register_flush (const char *name,

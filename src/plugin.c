@@ -679,7 +679,9 @@ int plugin_register_read (const char *name,
 } /* int plugin_register_read */
 
 int plugin_register_complex_read (const char *name,
-		plugin_read_cb callback, user_data_t *user_data)
+		plugin_read_cb callback,
+		const struct timespec *interval,
+		user_data_t *user_data)
 {
 	read_func_t *rf;
 
@@ -705,8 +707,10 @@ int plugin_register_complex_read (const char *name,
 	rf->rf_callback = (void *) callback;
 	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
 	rf->rf_type = RF_COMPLEX;
-	rf->rf_interval.tv_sec = 0;
-	rf->rf_interval.tv_nsec = 0;
+	if (interval != NULL)
+	{
+		rf->rf_interval = *interval;
+	}
 	rf->rf_effective_interval = rf->rf_interval;
 
 	/* Set user data */
