@@ -650,7 +650,7 @@ int plugin_register_read (const char *name,
 		read_heap = c_heap_create (plugin_compare_read_func);
 		if (read_heap == NULL)
 		{
-			ERROR ("plugin_register_complex_read: "
+			ERROR ("plugin_register_read: "
 					"c_heap_create failed.");
 			return (-1);
 		}
