@@ -42,6 +42,12 @@ struct mysql_database_s /* {{{ */
 	char *database;
 	char *socket;
 	int   port;
+
+	MYSQL *con;
+	int    state;
+
+	int wait_for;
+	int wait_increase;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
@@ -52,6 +58,9 @@ static void mysql_database_free (mysql_database_t *db) /* {{{ */
 {
 	if (db == NULL)
 		return;
+
+	if (db->con != NULL)
+		mysql_close (db->con);
 
 	sfree (db->host);
 	sfree (db->user);
@@ -143,6 +152,9 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 	db->pass     = NULL;
 	db->database = NULL;
 	db->socket   = NULL;
+	db->con      = NULL;
+	/* initialize non-configurable defaults */
+	db->wait_increase = 60;
 
 	plugin_block = 1;
 	if (strcasecmp ("Plugin", ci->key) == 0)
@@ -283,60 +295,54 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 
 static MYSQL *getconnection (mysql_database_t *db)
 {
-	static MYSQL *con;
-	static int    state;
-
-	static int wait_for = 0;
-	static int wait_increase = 60;
-
-	if (state != 0)
+	if (db->state != 0)
 	{
 		int err;
-		if ((err = mysql_ping (con)) != 0)
+		if ((err = mysql_ping (db->con)) != 0)
 		{
-			WARNING ("mysql_ping failed: %s", mysql_error (con));
-			state = 0;
+			WARNING ("mysql_ping failed: %s", mysql_error (db->con));
+			db->state = 0;
 		}
 		else
 		{
-			state = 1;
-			return (con);
+			db->state = 1;
+			return (db->con);
 		}
 	}
 
-	if (wait_for > 0)
+	if (db->wait_for > 0)
 	{
-		wait_for -= interval_g;
+		db->wait_for -= interval_g;
 		return (NULL);
 	}
 
-	wait_for = wait_increase;
-	wait_increase *= 2;
-	if (wait_increase > 86400)
-		wait_increase = 86400;
+	db->wait_for = db->wait_increase;
+	db->wait_increase *= 2;
+	if (db->wait_increase > 86400)
+		db->wait_increase = 86400;
 
-	if ((con = mysql_init (con)) == NULL)
+	if ((db->con = mysql_init (db->con)) == NULL)
 	{
-		ERROR ("mysql_init failed: %s", mysql_error (con));
-		state = 0;
+		ERROR ("mysql_init failed: %s", mysql_error (db->con));
+		db->state = 0;
 		return (NULL);
 	}
 
-	if (mysql_real_connect (con, db->host, db->user, db->pass,
+	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
 	{
-		ERROR ("mysql_real_connect failed: %s", mysql_error (con));
-		state = 0;
+		ERROR ("mysql_real_connect failed: %s", mysql_error (db->con));
+		db->state = 0;
 		return (NULL);
 	}
 	else
 	{
-		state = 1;
-		wait_for = 0;
-		wait_increase = 60;
-		return (con);
+		db->state = 1;
+		db->wait_for = 0;
+		db->wait_increase = 60;
+		return (db->con);
 	}
-} /* static MYSQL *getconnection (void) */
+} /* static MYSQL *getconnection (mysql_database_t *db) */
 
 static void set_host (mysql_database_t *db, value_list_t *vl)
 {
@@ -564,8 +570,6 @@ static int mysql_read_database (mysql_database_t *db)
 				threads_cached, threads_created, db);
 
 	traffic_submit  (traffic_incoming, traffic_outgoing, db);
-
-	/* mysql_close (con); */
 
 	return (0);
 } /* int mysql_read_database */
