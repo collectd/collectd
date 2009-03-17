@@ -164,7 +164,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
         /* We need to see the begin sequence first. When we receive `ESCAPE
          * PKT_BEGIN', we set `package_buffer_pos' to zero to signal that
          * the beginning of the package has been found. */
-        
+
         escape_flag = 0;
         for (i = 0; i < receive_buffer_length; i++)
         {
@@ -185,7 +185,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
                 }
                 else if  (receive_buffer[i] == PKT_END)
                 {
-                    end_flag = 1;	
+                    end_flag = 1;
                     break;
                 }
                 else
@@ -209,17 +209,17 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     } /* while (end_flag == 0) */
 
     /* Check for errors inside the loop. */
-    if ((end_flag == 0) | (package_buffer_pos != 278))
+    if ((end_flag == 0) || (package_buffer_pos != EXPECTED_PACKAGE_LENGTH))
         return (-1);
-	   
-    /* 
+
+    /*
      * Power is at positions 247 and 248 (LSB first) in [10kW].
      * Voltage is at positions 251 and 252 (LSB first) in [.1V].
      *
-     * Power is in 1Watt steps  
+     * Power is in 10 Watt steps
      * Voltage is in volts
      */
-    *ret_power = 10 * (double) ((((int) package_buffer[248]) * 256)
+    *ret_power = 10.0 * (double) ((((int) package_buffer[248]) * 256)
             + ((int) package_buffer[247]));
     *ret_voltage = 0.1 * (double) ((((int) package_buffer[252]) * 256)
             + ((int) package_buffer[251]));
@@ -265,7 +265,7 @@ static int ted_open_device (void)
 } /* int ted_open_device */
 
 static void ted_submit (char *type, double value)
-{	
+{
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
