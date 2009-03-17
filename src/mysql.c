@@ -45,17 +45,19 @@ struct mysql_database_s /* {{{ */
 
 	MYSQL *con;
 	int    state;
-
-	int wait_for;
-	int wait_increase;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
-static mysql_database_t **databases     = NULL;
-static size_t             databases_num = 0;
+static int mysql_read (user_data_t *ud);
 
-static void mysql_database_free (mysql_database_t *db) /* {{{ */
+static void mysql_database_free (void *arg) /* {{{ */
 {
+	mysql_database_t *db;
+
+	DEBUG ("mysql plugin: mysql_database_free (arg = %p);", arg);
+
+	db = (mysql_database_t *) arg;
+
 	if (db == NULL)
 		return;
 
@@ -66,6 +68,8 @@ static void mysql_database_free (mysql_database_t *db) /* {{{ */
 	sfree (db->user);
 	sfree (db->pass);
 	sfree (db->socket);
+	sfree (db->instance);
+	sfree (db->database);
 	sfree (db);
 } /* }}} void mysql_database_free */
 
@@ -127,7 +131,7 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 {
 	mysql_database_t *db;
 	int plugin_block;
-	int status;
+	int status = 0;
 	int i;
 
 	if ((ci->values_num != 1)
@@ -153,8 +157,6 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 	db->database = NULL;
 	db->socket   = NULL;
 	db->con      = NULL;
-	/* initialize non-configurable defaults */
-	db->wait_increase = 60;
 
 	plugin_block = 1;
 	if (strcasecmp ("Plugin", ci->key) == 0)
@@ -171,6 +173,7 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 			return (status);
 		}
 		assert (db->instance != NULL);
+		db->database = strdup (db->instance);
 	}
 	else
 	{
@@ -259,30 +262,29 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 					db->port);
 			status = -1;
 		}
+		if (db->database == NULL)
+		{
+			ERROR ("mysql plugin: No `Database' configured");
+			status = -1;
+		}
 		break;
 	} /* while (status == 0) */
 
-	/* If all went well, add this database to the global list of databases. */
+	/* If all went well, register this database for reading */
 	if (status == 0)
 	{
-		mysql_database_t **temp;
+		user_data_t ud;
 
-		temp = (mysql_database_t **) realloc (databases,
-						     sizeof (*databases) * (databases_num + 1));
-		if (temp == NULL)
-		{
-			ERROR ("mysql plugin: realloc failed");
-			status = -1;
-		}
-		else
-		{
-			databases = temp;
-			databases[databases_num] = db;
-			databases_num++;
-		}
+		DEBUG ("mysql plugin: Registering new read callback: %s", db->database);
+
+		memset (&ud, 0, sizeof (ud));
+		ud.data = (void *) db;
+		ud.free_func = mysql_database_free;
+
+		plugin_register_complex_read (db->database, mysql_read,
+					      /* interval = */ NULL, &ud);
 	}
-
-	if (status != 0)
+	else
 	{
 		mysql_database_free (db);
 		return (-1);
@@ -310,17 +312,6 @@ static MYSQL *getconnection (mysql_database_t *db)
 		}
 	}
 
-	if (db->wait_for > 0)
-	{
-		db->wait_for -= interval_g;
-		return (NULL);
-	}
-
-	db->wait_for = db->wait_increase;
-	db->wait_increase *= 2;
-	if (db->wait_increase > 86400)
-		db->wait_increase = 86400;
-
 	if ((db->con = mysql_init (db->con)) == NULL)
 	{
 		ERROR ("mysql_init failed: %s", mysql_error (db->con));
@@ -338,8 +329,6 @@ static MYSQL *getconnection (mysql_database_t *db)
 	else
 	{
 		db->state = 1;
-		db->wait_for = 0;
-		db->wait_increase = 60;
 		return (db->con);
 	}
 } /* static MYSQL *getconnection (mysql_database_t *db) */
@@ -452,8 +441,9 @@ static void traffic_submit (counter_t rx, counter_t tx, mysql_database_t *db)
 	plugin_dispatch_values (&vl);
 } /* void traffic_submit */
 
-static int mysql_read_database (mysql_database_t *db)
+static int mysql_read (user_data_t *ud)
 {
+	mysql_database_t *db;
 	MYSQL     *con;
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
@@ -474,6 +464,14 @@ static int mysql_read_database (mysql_database_t *db)
 
 	unsigned long long traffic_incoming = 0ULL;
 	unsigned long long traffic_outgoing = 0ULL;
+
+	if ((ud == NULL) || (ud->data == NULL))
+	{
+		ERROR ("mysql plugin: mysql_database_read: Invalid user data.");
+		return (-1);
+	}
+
+	db = (mysql_database_t *) ud->data;
 
 	/* An error message will have been printed in this case */
 	if ((con = getconnection (db)) == NULL)
@@ -572,33 +570,9 @@ static int mysql_read_database (mysql_database_t *db)
 	traffic_submit  (traffic_incoming, traffic_outgoing, db);
 
 	return (0);
-} /* int mysql_read_database */
-
-static int mysql_read (void)
-{
-	size_t i;
-	int success = 0;
-	int status;
-
-	for (i = 0; i < databases_num; i++)
-	{
-		status = mysql_read_database (databases[i]);
-		if (status == 0)
-			success++;
-	}
-
-	if (success == 0)
-	{
-		ERROR ("mysql plugin: No database could be read. Will return an error so "
-		       "the plugin will be delayed.");
-		return (-1);
-	}
-
-	return (0);
 } /* int mysql_read */
 
 void module_register (void)
 {
 	plugin_register_complex_config ("mysql", mysql_config);
-	plugin_register_read ("mysql", mysql_read);
 } /* void module_register */
