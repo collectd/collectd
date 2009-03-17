@@ -516,21 +516,6 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
       break;
   } /* for (ci->children) */
 
-  /* Additional sanity checking. */
-  while (status == 0)
-  {
-    if (chain->targets == NULL)
-    {
-      WARNING ("Filter subsystem: Chain %s: No default target has been "
-          "specified. Please make sure that there is a <Target> block within "
-          "the <Chain> block!", chain->name);
-      status = -1;
-      break;
-    }
-
-    break;
-  } /* while (status == 0) */
-
   if (status != 0)
   {
     fc_free_chains (chain);

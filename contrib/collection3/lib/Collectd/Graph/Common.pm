@@ -36,6 +36,7 @@ $ColorHalfBlue = 'B7B7F7';
   get_timespan_selection
   get_host_selection
   get_plugin_selection
+  get_random_color
   get_faded_color
   sort_idents_by_type_instance
   type_to_module_name
@@ -515,6 +516,26 @@ sub _color_to_string
   confess ("Wrong number of arguments") if (@_ != 1);
   return (sprintf ('%02hx%02hx%02hx', map { int (255.0 * $_) } @{$_[0]}));
 } # _color_to_string
+
+sub get_random_color
+{
+  my ($r, $g, $b) = (rand (), rand ());
+  my $min = 0.0;
+  my $max = 1.0;
+
+  if (($r + $g) < 1.0)
+  {
+    $min = 1.0 - ($r + $g);
+  }
+  else
+  {
+    $max = 2.0 - ($r + $g);
+  }
+
+  $b = $min + (rand () * ($max - $min));
+
+  return (_color_to_string ([$r, $g, $b]));
+} # get_random_color
 
 sub get_faded_color
 {
