@@ -512,7 +512,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
 
   if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
   {
-    ERROR ("uc_insert: FORMAT_VL failed.");
+    ERROR ("utils_cache: uc_get_rate: FORMAT_VL failed.");
     return (NULL);
   }
 
