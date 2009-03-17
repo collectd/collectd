@@ -105,7 +105,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     /* Loop until we find the end of the package */
     end_flag = 0;
     escape_flag = 0;
-    package_buffer_pos = -1;
+    package_buffer_pos = 0;
     while (end_flag == 0)
     {
         ssize_t receive_buffer_length;
@@ -164,7 +164,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
         /* We need to see the begin sequence first. When we receive `ESCAPE
          * PKT_BEGIN', we set `package_buffer_pos' to zero to signal that
          * the beginning of the package has been found. */
-        package_buffer_pos = -1;
+        
         escape_flag = 0;
         for (i = 0; i < receive_buffer_length; i++)
         {
@@ -185,7 +185,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
                 }
                 else if  (receive_buffer[i] == PKT_END)
                 {
-                    end_flag = 1;
+                    end_flag = 1;	
                     break;
                 }
                 else
@@ -209,18 +209,17 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     } /* while (end_flag == 0) */
 
     /* Check for errors inside the loop. */
-    if (end_flag == 0)
+    if ((end_flag == 0) | (package_buffer_pos != 278))
         return (-1);
-
+	   
     /* 
      * Power is at positions 247 and 248 (LSB first) in [10kW].
      * Voltage is at positions 251 and 252 (LSB first) in [.1V].
      *
-     * According to Eric's patch the power is in 10kW steps, but according to a
-     * Python module I've found, it's in 0.01kW == 10W. IMHO the Python scale
-     * is more realistic. -octo
+     * Power is in 1Watt steps  
+     * Voltage is in volts
      */
-    *ret_power = 10.0 * (double) ((((int) package_buffer[248]) * 256)
+    *ret_power = 10 * (double) ((((int) package_buffer[248]) * 256)
             + ((int) package_buffer[247]));
     *ret_voltage = 0.1 * (double) ((((int) package_buffer[252]) * 256)
             + ((int) package_buffer[251]));
@@ -265,19 +264,19 @@ static int ted_open_device (void)
     return (0);
 } /* int ted_open_device */
 
-static void ted_submit (char *type_instance, double value)
-{
+static void ted_submit (char *type, double value)
+{	
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
     values[0].gauge = value;
 
+    vl.time = time (NULL);
     vl.values = values;
     vl.values_len = 1;
     sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "ted", sizeof (vl.plugin));
-    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-    sstrncpy (vl.type, "ted", sizeof (vl.type));
+    sstrncpy (vl.type, type, sizeof (vl.type));
 
     plugin_dispatch_values (&vl);
 }
