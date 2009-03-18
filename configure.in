@@ -409,7 +409,7 @@ AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr 
 AC_FUNC_STRERROR_R
 
 AC_CACHE_CHECK([for strtok_r],
-  [have_strtok_r_default],
+  [c_cv_have_strtok_r_default],
   AC_LINK_IFELSE(
     AC_LANG_PROGRAM(
     [[[[
@@ -431,18 +431,18 @@ AC_CACHE_CHECK([for strtok_r],
         printf ("token = %s;\n", token);
       }
     ]]]]),
-    [have_strtok_r_default="yes"],
-    [have_strtok_r_default="no"]
+    [c_cv_have_strtok_r_default="yes"],
+    [c_cv_have_strtok_r_default="no"]
   )
 )
 
-if test "x$have_strtok_r_default" = "xno"
+if test "x$c_cv_have_strtok_r_default" = "xno"
 then
   SAVE_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -D_REENTRANT=1"
 
   AC_CACHE_CHECK([if strtok_r needs _REENTRANT],
-    [have_strtok_r_reentrant],
+    [c_cv_have_strtok_r_reentrant],
     AC_LINK_IFELSE(
       AC_LANG_PROGRAM(
       [[[[
@@ -464,7 +464,7 @@ then
           printf ("token = %s;\n", token);
         }
       ]]]]),
-      [have_strtok_r_reentrant="yes"],
+      [c_cv_have_strtok_r_reentrant="yes"],
       [AC_MSG_FAILURE([strtok_r isn't available. Please file a bugreport!])]
     )
   )
@@ -510,7 +510,7 @@ AC_ARG_WITH(nan-emulation, [AS_HELP_STRING([--with-nan-emulation], [use emulated
 [nan_type="none"])
 if test "x$nan_type" = "xnone"; then
   AC_CACHE_CHECK([whether NAN is defined by default],
-    [have_nan_default],
+    [c_cv_have_nan_default],
     AC_COMPILE_IFELSE(
       AC_LANG_PROGRAM(
       [[
@@ -524,18 +524,18 @@ static float foo = NAN;
        else
 	return 1;
       ]]),
-      [have_nan_default="yes"],
-      [have_nan_default="no"]
+      [c_cv_have_nan_default="yes"],
+      [c_cv_have_nan_default="no"]
     )
   )
-  if test "x$have_nan_default" = "xyes"
+  if test "x$c_cv_have_nan_default" = "xyes"
   then
     nan_type="default"
   fi
 fi
 if test "x$nan_type" = "xnone"; then
   AC_CACHE_CHECK([whether NAN is defined by __USE_ISOC99],
-    [have_nan_isoc],
+    [c_cv_have_nan_isoc],
     AC_COMPILE_IFELSE(
       AC_LANG_PROGRAM(
       [[
@@ -550,18 +550,18 @@ static float foo = NAN;
        else
 	return 1;
       ]]),
-      [have_nan_isoc="yes"],
-      [have_nan_isoc="no"]
+      [c_cv_have_nan_isoc="yes"],
+      [c_cv_have_nan_isoc="no"]
     )
   )
-  if test "x$have_nan_isoc" = "xyes"
+  if test "x$c_cv_have_nan_isoc" = "xyes"
   then
     nan_type="isoc99"
   fi
 fi
 if test "x$nan_type" = "xnone"; then
   AC_CACHE_CHECK([whether NAN can be defined by 0/0],
-    [have_nan_zero],
+    [c_cv_have_nan_zero],
     AC_RUN_IFELSE(
       AC_LANG_PROGRAM(
       [[
@@ -582,11 +582,11 @@ static float foo = NAN;
        else
 	return 1;
       ]]),
-      [have_nan_zero="yes"],
-      [have_nan_zero="no"]
+      [c_cv_have_nan_zero="yes"],
+      [c_cv_have_nan_zero="no"]
     )
   )
-  if test "x$have_nan_zero" = "xyes"
+  if test "x$c_cv_have_nan_zero" = "xyes"
   then
     nan_type="zero"
   fi
@@ -621,7 +621,7 @@ fi; fi; fi
 
 if test "x$fp_layout_type" = "xunknown"; then
   AC_CACHE_CHECK([if doubles are stored in x86 representation],
-    [fp_layout_need_nothing],
+    [c_cv_fp_layout_need_nothing],
     AC_RUN_IFELSE(
       AC_LANG_PROGRAM(
       [[[[
@@ -655,17 +655,17 @@ if test "x$fp_layout_type" = "xunknown"; then
 	else
 		return (1);
       ]]]]),
-      [fp_layout_need_nothing="yes"],
-      [fp_layout_need_nothing="no"]
+      [c_cv_fp_layout_need_nothing="yes"],
+      [c_cv_fp_layout_need_nothing="no"]
     )
   )
-  if test "x$fp_layout_need_nothing" = "xyes"; then
+  if test "x$c_cv_fp_layout_need_nothing" = "xyes"; then
     fp_layout_type="nothing"
   fi
 fi
 if test "x$fp_layout_type" = "xunknown"; then
   AC_CACHE_CHECK([if endianflip converts to x86 representation],
-    [fp_layout_need_endianflip],
+    [c_cv_fp_layout_need_endianflip],
     AC_RUN_IFELSE(
       AC_LANG_PROGRAM(
       [[[[
@@ -707,17 +707,17 @@ if test "x$fp_layout_type" = "xunknown"; then
 	else
 		return (1);
       ]]]]),
-      [fp_layout_need_endianflip="yes"],
-      [fp_layout_need_endianflip="no"]
+      [c_cv_fp_layout_need_endianflip="yes"],
+      [c_cv_fp_layout_need_endianflip="no"]
     )
   )
-  if test "x$fp_layout_need_endianflip" = "xyes"; then
+  if test "x$c_cv_fp_layout_need_endianflip" = "xyes"; then
     fp_layout_type="endianflip"
   fi
 fi
 if test "x$fp_layout_type" = "xunknown"; then
   AC_CACHE_CHECK([if intswap converts to x86 representation],
-    [fp_layout_need_intswap],
+    [c_cv_fp_layout_need_intswap],
     AC_RUN_IFELSE(
       AC_LANG_PROGRAM(
       [[[[
@@ -753,11 +753,11 @@ if test "x$fp_layout_type" = "xunknown"; then
 	else
 		return (1);
       ]]]]),
-      [fp_layout_need_intswap="yes"],
-      [fp_layout_need_intswap="no"]
+      [c_cv_fp_layout_need_intswap="yes"],
+      [c_cv_fp_layout_need_intswap="no"]
     )
   )
-  if test "x$fp_layout_need_intswap" = "xyes"; then
+  if test "x$c_cv_fp_layout_need_intswap" = "xyes"; then
     fp_layout_type="intswap"
   fi
 fi
@@ -796,7 +796,7 @@ fi
 
 if test "x$have_getmntent" = "xc"; then
 	AC_CACHE_CHECK([whether getmntent takes one argument],
-		[have_one_getmntent],
+		[c_cv_have_one_getmntent],
 		AC_COMPILE_IFELSE(
 			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
 #include <mntent.h>
@@ -808,12 +808,12 @@ if test "x$have_getmntent" = "xc"; then
 				 me = getmntent (fh);
 				]]
 			),
-			[have_one_getmntent="yes"],
-			[have_one_getmntent="no"]
+			[c_cv_have_one_getmntent="yes"],
+			[c_cv_have_one_getmntent="no"]
 		)
 	)
 	AC_CACHE_CHECK([whether getmntent takes two arguments],
-		[have_two_getmntent],
+		[c_cv_have_two_getmntent],
 		AC_COMPILE_IFELSE(
 			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
 #include <sys/mnttab.h>
@@ -826,8 +826,8 @@ if test "x$have_getmntent" = "xc"; then
 				 status = getmntent (fh, &mt);
 				]]
 			),
-			[have_two_getmntent="yes"],
-			[have_two_getmntent="no"]
+			[c_cv_have_two_getmntent="yes"],
+			[c_cv_have_two_getmntent="no"]
 		)
 	)
 fi
@@ -835,11 +835,11 @@ fi
 # Check for different versions of `getmntent' here..
 
 if test "x$have_getmntent" = "xc"; then
-	if test "x$have_one_getmntent" = "xyes"; then
+	if test "x$c_cv_have_one_getmntent" = "xyes"; then
 		AC_DEFINE(HAVE_ONE_GETMNTENT, 1,
 			  [Define if the function getmntent exists and takes one argument.])
 	fi
-	if test "x$have_two_getmntent" = "xyes"; then
+	if test "x$c_cv_have_two_getmntent" = "xyes"; then
 		AC_DEFINE(HAVE_TWO_GETMNTENT, 1,
 			  [Define if the function getmntent exists and takes two arguments.])
 	fi
@@ -1974,7 +1974,7 @@ then
   LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 
   AC_CACHE_CHECK([for libperl],
-    [have_libperl],
+    [c_cv_have_libperl],
     AC_LINK_IFELSE(
       AC_LANG_PROGRAM(
       [[
@@ -1989,12 +1989,12 @@ then
 			 newSVpv ("Collectd::Plugin::FooBar", 24),
 			 Nullsv);
       ]]),
-      [have_libperl="yes"],
-      [have_libperl="no"]
+      [c_cv_have_libperl="yes"],
+      [c_cv_have_libperl="no"]
     )
   )
 
-  if test "x$have_libperl" = "xyes"
+  if test "x$c_cv_have_libperl" = "xyes"
   then
 	  AC_DEFINE(HAVE_LIBPERL, 1, [Define if libperl is present and usable.])
 	  AC_SUBST(PERL_CFLAGS)
@@ -2007,7 +2007,7 @@ then
   LDFLAGS=$SAVE_LDFLAGS
 else if test -z "$perl_interpreter"; then
   with_libperl="no (no perl interpreter found)"
-  have_libperl="no"
+  c_cv_have_libperl="no"
 fi; fi
 AM_CONDITIONAL(BUILD_WITH_LIBPERL, test "x$with_libperl" = "xyes")
 
@@ -2019,7 +2019,7 @@ then
 	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 
 	AC_CACHE_CHECK([if perl supports ithreads],
-		[have_perl_ithreads],
+		[c_cv_have_perl_ithreads],
 		AC_LINK_IFELSE(
 			AC_LANG_PROGRAM(
 			[[
@@ -2032,12 +2032,12 @@ then
 #endif /* !defined(USE_ITHREADS) */
 			]],
 			[[ ]]),
-			[have_perl_ithreads="yes"],
-			[have_perl_ithreads="no"]
+			[c_cv_have_perl_ithreads="yes"],
+			[c_cv_have_perl_ithreads="no"]
 		)
 	)
 
-	if test "x$have_perl_ithreads" = "xyes"
+	if test "x$c_cv_have_perl_ithreads" = "xyes"
 	then
 		AC_DEFINE(HAVE_PERL_ITHREADS, 1, [Define if Perl supports ithreads.])
 	fi
@@ -2046,7 +2046,7 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 
-have_broken_perl_load_module="no"
+c_cv_have_broken_perl_load_module="no"
 if test "x$with_libperl" = "xyes"
 then
 	SAVE_CFLAGS=$CFLAGS
@@ -2057,7 +2057,7 @@ then
 	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 
 	AC_CACHE_CHECK([for broken Perl_load_module()],
-		[have_broken_perl_load_module],
+		[c_cv_have_broken_perl_load_module],
 		AC_LINK_IFELSE(
 			AC_LANG_PROGRAM(
 			[[
@@ -2072,8 +2072,8 @@ then
 			     newSVpv ("Collectd::Plugin::FooBar", 24),
 			     Nullsv);
 			]]),
-			[have_broken_perl_load_module="no"],
-			[have_broken_perl_load_module="yes"]
+			[c_cv_have_broken_perl_load_module="no"],
+			[c_cv_have_broken_perl_load_module="yes"]
 		)
 	)
 
@@ -2081,7 +2081,7 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 AM_CONDITIONAL(HAVE_BROKEN_PERL_LOAD_MODULE,
-		test "x$have_broken_perl_load_module" = "xyes")
+		test "x$c_cv_have_broken_perl_load_module" = "xyes")
 
 if test "x$with_libperl" = "xyes"
 then
@@ -3153,7 +3153,7 @@ then
 	plugin_load="yes"
 fi
 
-if test "x$have_libperl$have_perl_ithreads" = "xyesyes"
+if test "x$c_cv_have_libperl$c_cv_have_perl_ithreads" = "xyesyes"
 then
 	plugin_perl="yes"
 fi

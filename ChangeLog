@@ -1,3 +1,22 @@
+2009-03-18, Version 4.6.2
+	* collectd: Some Solaris utility code has been improved.
+	* filter subsystem: Allow `Chains' without default targets.
+	* liboping: A patch to comply with strict aliasing rules has been
+	  added.
+	* timediff match: Fix a typo: The match was registered with a wrong
+	  name which prevented this match to be used as documented. Thanks to
+	  Bruno Prémont for finding this problem.
+	* bind plugin: Fix collection of the cached RR sets. The number of RR
+	  sets currently in the cache was collected as a counter value, which
+	  is nonsense. Thanks to Bruno Prémont for implementing this.
+	* dns plugin: Don't pass NULL to `pcap_open_live': Some systems,
+	  primarily BSDs, don't take it well and crash.
+	* oracle plugin: Portability to 64 bit systems has been improved.
+	* postgresql plugin: The default configuration has been improved.
+	* rrdtool plugin: Fix a possible race condition: If the network plugin
+	  is brought and dispatches a value before the rrdtool plugin is
+	  initialized, the daemon may crash.
+
 2009-02-22, Version 4.6.1
 	* collectd: Many documentation fixes.
 	* Collectd::Unixsock: Error handling has been improved.

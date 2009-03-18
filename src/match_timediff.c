@@ -163,7 +163,7 @@ void module_register (void)
   mproc.create  = mt_create;
   mproc.destroy = mt_destroy;
   mproc.match   = mt_match;
-  fc_register_match ("value", mproc);
+  fc_register_match ("timediff", mproc);
 } /* module_register */
 
 /* vim: set sw=2 sts=2 tw=78 et fdm=marker : */
