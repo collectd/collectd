@@ -70,16 +70,8 @@ struct host_definition_s
   void *sess_handle;
   c_complain_t complaint;
   uint32_t interval;
-  time_t next_update;
   data_definition_t **data_list;
   int data_list_len;
-  enum          /******************************************************/
-  {             /* This host..                                        */
-    STATE_IDLE, /* - just sits there until `next_update < interval_g' */
-    STATE_WAIT, /* - waits to be queried.                             */
-    STATE_BUSY  /* - is currently being queried.                      */
-  } state;      /******************************************************/
-  struct host_definition_s *next;
 };
 typedef struct host_definition_s host_definition_t;
 
@@ -104,20 +96,50 @@ typedef struct csnmp_table_values_s csnmp_table_values_t;
 /*
  * Private variables
  */
-static int do_shutdown = 0;
-
-pthread_t *threads = NULL;
-int threads_num = 0;
-
 static data_definition_t *data_head = NULL;
-static host_definition_t *host_head = NULL;
 
-static pthread_mutex_t host_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  host_cond = PTHREAD_COND_INITIALIZER;
+/*
+ * Prototypes
+ */
+static int csnmp_read_host (user_data_t *ud);
 
 /*
  * Private functions
  */
+static void csnmp_host_close_session (host_definition_t *host) /* {{{ */
+{
+  if (host->sess_handle == NULL)
+    return;
+
+  snmp_sess_close (host->sess_handle);
+  host->sess_handle = NULL;
+} /* }}} void csnmp_host_close_session */
+
+static void csnmp_host_definition_destroy (void *arg) /* {{{ */
+{
+  host_definition_t *hd;
+
+  hd = arg;
+
+  if (hd == NULL)
+    return;
+
+  if (hd->name != NULL)
+  {
+    DEBUG ("snmp plugin: Destroying host definition for host `%s'.",
+	hd->name);
+  }
+
+  csnmp_host_close_session (hd);
+
+  sfree (hd->name);
+  sfree (hd->address);
+  sfree (hd->community);
+  sfree (hd->data_list);
+
+  sfree (hd);
+} /* }}} void csnmp_host_definition_destroy */
+
 /* Many functions to handle the configuration. {{{ */
 /* First there are many functions which do configuration stuff. It's a big
  * bloated and messy, I'm afraid. */
@@ -543,6 +565,11 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   int status = 0;
   int i;
 
+  /* Registration stuff. */
+  char cb_name[DATA_MAX_NAME_LEN];
+  user_data_t cb_data;
+  struct timespec cb_interval;
+
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
     WARNING ("snmp plugin: `Host' needs exactly one string argument.");
@@ -565,8 +592,6 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   hd->sess_handle = NULL;
   hd->interval = 0;
-  hd->next_update = 0;
-  hd->state = STATE_IDLE;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -613,23 +638,30 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   if (status != 0)
   {
-    sfree (hd->name);
-    sfree (hd);
+    csnmp_host_definition_destroy (hd);
     return (-1);
   }
 
   DEBUG ("snmp plugin: hd = { name = %s, address = %s, community = %s, version = %i }",
       hd->name, hd->address, hd->community, hd->version);
 
-  if (host_head == NULL)
-    host_head = hd;
-  else
+  ssnprintf (cb_name, sizeof (cb_name), "snmp-%s", hd->name);
+
+  memset (&cb_data, 0, sizeof (cb_data));
+  cb_data.data = hd;
+  cb_data.free_func = csnmp_host_definition_destroy;
+
+  memset (&cb_interval, 0, sizeof (cb_interval));
+  if (hd->interval != 0)
+    cb_interval.tv_sec = (time_t) hd->interval;
+
+  status = plugin_register_complex_read (cb_name, csnmp_read_host,
+      /* interval = */ &cb_interval, /* user_data = */ &cb_data);
+  if (status != 0)
   {
-    host_definition_t *last;
-    last = host_head;
-    while (last->next != NULL)
-      last = last->next;
-    last->next = hd;
+    ERROR ("snmp plugin: Registering complex read function failed.");
+    csnmp_host_definition_destroy (hd);
+    return (-1);
   }
 
   return (0);
@@ -658,15 +690,6 @@ static int csnmp_config (oconfig_item_t *ci)
 } /* int csnmp_config */
 
 /* }}} End of the config stuff. Now the interesting part begins */
-
-static void csnmp_host_close_session (host_definition_t *host)
-{
-  if (host->sess_handle == NULL)
-    return;
-
-  snmp_sess_close (host->sess_handle);
-  host->sess_handle = NULL;
-} /* void csnmp_host_close_session */
 
 static void csnmp_host_open_session (host_definition_t *host)
 {
@@ -1413,11 +1436,19 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   return (0);
 } /* int csnmp_read_value */
 
-static int csnmp_read_host (host_definition_t *host)
+static int csnmp_read_host (user_data_t *ud)
 {
-  int i;
+  host_definition_t *host;
   time_t time_start;
   time_t time_end;
+  int status;
+  int success;
+  int i;
+
+  host = ud->data;
+
+  if (host->interval == 0)
+    host->interval = interval_g;
 
   time_start = time (NULL);
   DEBUG ("snmp plugin: csnmp_read_host (%s) started at %u;", host->name,
@@ -1429,14 +1460,18 @@ static int csnmp_read_host (host_definition_t *host)
   if (host->sess_handle == NULL)
     return (-1);
 
+  success = 0;
   for (i = 0; i < host->data_list_len; i++)
   {
     data_definition_t *data = host->data_list[i];
 
     if (data->is_table)
-      csnmp_read_table (host, data);
+      status = csnmp_read_table (host, data);
     else
-      csnmp_read_value (host, data);
+      status = csnmp_read_value (host, data);
+
+    if (status == 0)
+      success++;
   }
 
   time_end = time (NULL);
@@ -1444,169 +1479,32 @@ static int csnmp_read_host (host_definition_t *host)
       (unsigned int) time_end);
   if ((uint32_t) (time_end - time_start) > host->interval)
   {
-    WARNING ("snmp plugin: Host `%s' should be queried every %i seconds, "
-	"but reading all values takes %u seconds.",
+    WARNING ("snmp plugin: Host `%s' should be queried every %"PRIu32
+	" seconds, but reading all values takes %u seconds.",
 	host->name, host->interval, (unsigned int) (time_end - time_start));
   }
+
+  if (success == 0)
+    return (-1);
 
   return (0);
 } /* int csnmp_read_host */
 
-static void *csnmp_read_thread (void __attribute__((unused)) *data)
-{
-  host_definition_t *host;
-
-  pthread_mutex_lock (&host_lock);
-  while (do_shutdown == 0)
-  {
-    pthread_cond_wait (&host_cond, &host_lock);
-
-    for (host = host_head; host != NULL; host = host->next)
-    {
-      if (do_shutdown != 0)
-	break;
-      if (host->state != STATE_WAIT)
-	continue;
-
-      host->state = STATE_BUSY;
-      pthread_mutex_unlock (&host_lock);
-      csnmp_read_host (host);
-      pthread_mutex_lock (&host_lock);
-      host->state = STATE_IDLE;
-    } /* for (host) */
-  } /* while (do_shutdown == 0) */
-  pthread_mutex_unlock (&host_lock);
-
-  pthread_exit ((void *) 0);
-  return ((void *) 0);
-} /* void *csnmp_read_thread */
-
 static int csnmp_init (void)
 {
-  host_definition_t *host;
-  int i;
-
-  if (host_head == NULL)
-  {
-    NOTICE ("snmp plugin: No host has been defined.");
-    return (-1);
-  }
-
   call_snmp_init_once ();
-
-  threads_num = 0;
-  for (host = host_head; host != NULL; host = host->next)
-  {
-    threads_num++;
-    /* We need to initialize `interval' here, because `interval_g' isn't
-     * initialized during `configure'. */
-    host->next_update = time (NULL);
-    if (host->interval == 0)
-    {
-      host->interval = interval_g;
-    }
-    else if (host->interval < (uint32_t) interval_g)
-    {
-      host->interval = interval_g;
-      WARNING ("snmp plugin: Data for host `%s' will be collected every %i seconds.",
-	  host->name, host->interval);
-    }
-
-    csnmp_host_open_session (host);
-  } /* for (host) */
-
-  /* Now start the reading threads */
-  if (threads_num > 3)
-  {
-    threads_num = 3 + ((threads_num - 3) / 10);
-    if (threads_num > 10)
-      threads_num = 10;
-  }
-
-  threads = (pthread_t *) malloc (threads_num * sizeof (pthread_t));
-  if (threads == NULL)
-  {
-    ERROR ("snmp plugin: malloc failed.");
-    return (-1);
-  }
-  memset (threads, '\0', threads_num * sizeof (pthread_t));
-
-  for (i = 0; i < threads_num; i++)
-      pthread_create (threads + i, NULL, csnmp_read_thread, (void *) 0);
 
   return (0);
 } /* int csnmp_init */
 
-static int csnmp_read (void)
-{
-  host_definition_t *host;
-  time_t now;
-
-  if (host_head == NULL)
-  {
-    INFO ("snmp plugin: No hosts configured.");
-    return (-1);
-  }
-
-  now = time (NULL);
-
-  pthread_mutex_lock (&host_lock);
-  for (host = host_head; host != NULL; host = host->next)
-  {
-    if (host->state != STATE_IDLE)
-      continue;
-
-    /* Skip this host if the next or a later iteration will be sufficient. */
-    if (host->next_update >= (now + interval_g))
-      continue;
-
-    host->state = STATE_WAIT;
-    host->next_update = now + host->interval;
-  } /* for (host) */
-
-  pthread_cond_broadcast (&host_cond);
-  pthread_mutex_unlock (&host_lock);
-
-  return (0);
-} /* int csnmp_read */
-
 static int csnmp_shutdown (void)
 {
-  host_definition_t *host_this;
-  host_definition_t *host_next;
-
   data_definition_t *data_this;
   data_definition_t *data_next;
 
-  int i;
-
-  pthread_mutex_lock (&host_lock);
-  do_shutdown = 1;
-  pthread_cond_broadcast (&host_cond);
-  pthread_mutex_unlock (&host_lock);
-
-  for (i = 0; i < threads_num; i++)
-    pthread_join (threads[i], NULL);
-
-  /* Now that all the threads have exited, let's free all the global variables.
-   * This isn't really neccessary, I guess, but I think it's good stile to do
-   * so anyway. */
-  host_this = host_head;
-  host_head = NULL;
-  while (host_this != NULL)
-  {
-    host_next = host_this->next;
-
-    csnmp_host_close_session (host_this);
-
-    sfree (host_this->name);
-    sfree (host_this->address);
-    sfree (host_this->community);
-    sfree (host_this->data_list);
-    sfree (host_this);
-
-    host_this = host_next;
-  }
+  /* When we get here, the read threads have been stopped and all the
+   * `host_definition_t' will be freed. */
+  DEBUG ("snmp plugin: Destroying all data definitions.");
 
   data_this = data_head;
   data_head = NULL;
@@ -1629,7 +1527,6 @@ void module_register (void)
 {
   plugin_register_complex_config ("snmp", csnmp_config);
   plugin_register_init ("snmp", csnmp_init);
-  plugin_register_read ("snmp", csnmp_read);
   plugin_register_shutdown ("snmp", csnmp_shutdown);
 } /* void module_register */
 
