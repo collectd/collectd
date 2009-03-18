@@ -1880,7 +1880,7 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 
-have_broken_perl_load_module="no"
+c_cv_have_broken_perl_load_module="no"
 if test "x$with_libperl" = "xyes"
 then
 	SAVE_CFLAGS=$CFLAGS
@@ -1891,7 +1891,7 @@ then
 	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 
 	AC_CACHE_CHECK([for broken Perl_load_module()],
-		[have_broken_perl_load_module],
+		[c_cv_have_broken_perl_load_module],
 		AC_LINK_IFELSE(
 			AC_LANG_PROGRAM(
 			[[
@@ -1906,8 +1906,8 @@ then
 			     newSVpv ("Collectd::Plugin::FooBar", 24),
 			     Nullsv);
 			]]),
-			[have_broken_perl_load_module="no"],
-			[have_broken_perl_load_module="yes"]
+			[c_cv_have_broken_perl_load_module="no"],
+			[c_cv_have_broken_perl_load_module="yes"]
 		)
 	)
 
@@ -1915,7 +1915,7 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 AM_CONDITIONAL(HAVE_BROKEN_PERL_LOAD_MODULE,
-		test "x$have_broken_perl_load_module" = "xyes")
+		test "x$c_cv_have_broken_perl_load_module" = "xyes")
 
 if test "x$with_libperl" = "xyes"
 then
