@@ -274,6 +274,7 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 	if (status == 0)
 	{
 		user_data_t ud;
+		char cb_name[DATA_MAX_NAME_LEN];
 
 		DEBUG ("mysql plugin: Registering new read callback: %s", db->database);
 
@@ -281,7 +282,13 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 		ud.data = (void *) db;
 		ud.free_func = mysql_database_free;
 
-		plugin_register_complex_read (db->database, mysql_read,
+		if (db->database != NULL)
+			ssnprintf (cb_name, sizeof (cb_name), "mysql-%s",
+					db->database);
+		else
+			sstrncpy (cb_name, "mysql", sizeof (cb_name));
+
+		plugin_register_complex_read (cb_name, mysql_read,
 					      /* interval = */ NULL, &ud);
 	}
 	else
