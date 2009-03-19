@@ -3030,6 +3030,7 @@ plugin_tape="no"
 plugin_tcpconns="no"
 plugin_thermal="no"
 plugin_users="no"
+plugin_uptime="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
@@ -3053,6 +3054,7 @@ then
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
 	plugin_thermal="yes"
+	plugin_uptime="yes"
 	plugin_vmem="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
@@ -3076,6 +3078,11 @@ then
 fi
 
 # Solaris
+if test "x$with_kstat" = "xyes"
+then
+	plugin_uptime="yes"
+fi
+
 if test "x$with_devinfo$with_kstat" = "xyesyes"
 then
 	plugin_cpu="yes"
@@ -3121,6 +3128,7 @@ if test "x$have_sysctl" = "xyes"
 then
 	plugin_cpu="yes"
 	plugin_swap="yes"
+	plugin_uptime="yes"
 fi
 if test "x$have_sysctlbyname" = "xyes"
 then
@@ -3277,6 +3285,7 @@ AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
+AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
@@ -3561,6 +3570,7 @@ Configuration:
     teamspeak2  . . . . . $enable_teamspeak2
     thermal . . . . . . . $enable_thermal
     unixsock  . . . . . . $enable_unixsock
+    uptime  . . . . . . . $enable_uptime
     users . . . . . . . . $enable_users
     uuid  . . . . . . . . $enable_uuid
     vmem  . . . . . . . . $enable_vmem

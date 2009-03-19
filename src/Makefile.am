@@ -885,6 +885,19 @@ collectd_LDADD += "-dlopen" unixsock.la
 collectd_DEPENDENCIES += unixsock.la
 endif
 
+if BUILD_PLUGIN_UPTIME
+pkglib_LTLIBRARIES += uptime.la
+uptime_la_SOURCES = uptime.c
+uptime_la_CFLAGS = $(AM_CFLAGS)
+uptime_la_LDFLAGS = -module -avoid-version
+uptime_la_LIBADD =
+if BUILD_WITH_LIBKSTAT
+uptime_la_LIBADD += -lkstat
+endif
+collectd_LDADD += "-dlopen" uptime.la
+collectd_DEPENDENCIES += uptime.la
+endif
+
 if BUILD_PLUGIN_USERS
 pkglib_LTLIBRARIES += users.la
 users_la_SOURCES = users.c
