@@ -59,12 +59,14 @@ static ow_family_features_t ow_family_features[] =
 static int ow_family_features_num = STATIC_ARRAY_SIZE (ow_family_features);
 
 static char *device_g = NULL;
+static int   ow_interval = 0;
 
 static const char *config_keys[] =
 {
   "Device",
   "IgnoreSelected",
   "Sensor",
+  "Interval"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -104,6 +106,15 @@ static int cow_load_config (const char *key, const char *value)
     sfree (device_g);
     device_g = temp;
   }
+  else if (strcasecmp ("Interval", key) == 0)
+  {
+    int tmp;
+    tmp = atoi (value);
+    if (tmp > 0)
+      ow_interval = tmp;
+    else
+      ERROR ("onewire plugin: Invalid `Interval' setting: %s", value);
+  }
   else
   {
     return (-1);
@@ -111,26 +122,6 @@ static int cow_load_config (const char *key, const char *value)
 
   return (0);
 }
-
-static int cow_init (void)
-{
-  int status;
-
-  if (device_g == NULL)
-  {
-    ERROR ("onewire plugin: cow_init: No device configured.");
-    return (-1);
-  }
-
-  status = (int) OW_init (device_g);
-  if (status != 0)
-  {
-    ERROR ("onewire plugin: OW_init(%s) failed: %i.", device_g, status);
-    return (1);
-  }
-
-  return (0);
-} /* int cow_init */
 
 static int cow_read_values (const char *path, const char *name,
     const ow_family_features_t *family_info)
@@ -287,7 +278,7 @@ static int cow_read_bus (const char *path)
   return (0);
 } /* int cow_read_bus */
 
-static int cow_read (void)
+static int cow_read (user_data_t *ud __attribute__((unused)))
 {
   return (cow_read_bus ("/"));
 } /* int cow_read */
@@ -299,11 +290,38 @@ static int cow_shutdown (void)
   return (0);
 } /* int cow_shutdown */
 
+static int cow_init (void)
+{
+  int status;
+  struct timespec cb_interval;
+
+  if (device_g == NULL)
+  {
+    ERROR ("onewire plugin: cow_init: No device configured.");
+    return (-1);
+  }
+
+  status = (int) OW_init (device_g);
+  if (status != 0)
+  {
+    ERROR ("onewire plugin: OW_init(%s) failed: %i.", device_g, status);
+    return (1);
+  }
+
+  memset (&cb_interval, 0, sizeof (cb_interval));
+  if (ow_interval > 0)
+    cb_interval.tv_sec = (time_t) ow_interval;
+
+  plugin_register_complex_read ("onewire", cow_read,
+      &cb_interval, /* user data = */ NULL);
+  plugin_register_shutdown ("onewire", cow_shutdown);
+
+  return (0);
+} /* int cow_init */
+
 void module_register (void)
 {
   plugin_register_init ("onewire", cow_init);
-  plugin_register_read ("onewire", cow_read);
-  plugin_register_shutdown ("onewire", cow_shutdown);
   plugin_register_config ("onewire", cow_load_config,
     config_keys, config_keys_num);
 }

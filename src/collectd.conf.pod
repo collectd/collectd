@@ -1771,6 +1771,11 @@ enables you to do that: By setting B<IgnoreSelected> to I<true> the effect of
 B<Sensor> is inverted: All selected interfaces are ignored and all other
 interfaces are collected.
 
+=item B<Interval> I<Seconds>
+
+Sets the interval in which all sensors should be read. If not specified, the
+global B<Interval> setting is used.
+
 =back
 
 B<EXPERIMENTAL!> The C<onewire> plugin is experimental, because it doesn't yet
