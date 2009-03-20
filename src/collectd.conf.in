@@ -318,10 +318,17 @@ FQDNLookup   true
 #</Plugin>
 
 #<Plugin mysql>
-#	Host "database.serv.er"
-#	User "db_user"
-#	Password "secret"
-#	Database "db_name"
+#	<Database db_name>
+#		Host "database.serv.er"
+#		User "db_user"
+#		Password "secret"
+#		Database "db_name"
+#	</Database>
+#
+#	<Database db_name2>
+#		Host "localhost"
+#		Socket "/var/run/mysql/mysqld.sock"
+#	</Database>
 #</Plugin>
 
 #<Plugin netlink>

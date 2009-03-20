@@ -1375,10 +1375,10 @@ TCP-Port to connect to. Defaults to B<11211>.
 
 =head2 Plugin C<mysql>
 
-The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to the
-database when started and keeps the connection up as long as possible. When the
-connection is interrupted for whatever reason it will try to re-connect. The
-plugin will complaint loudly in case anything goes wrong.
+The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to
+one or more databases when started and keeps the connection up as long as
+possible. When the connection is interrupted for whatever reason it will try
+to re-connect. The plugin will complaint loudly in case anything goes wrong.
 
 This plugin issues the MySQL C<SHOW STATUS> command and collects information
 about MySQL network traffic, executed statements, requests, the query cache
@@ -1387,7 +1387,26 @@ C<Handler_*>, C<Qcache_*> and C<Threads_*> return values. Please refer to the
 B<MySQL reference manual>, I<5.1.6. Server Status Variables> for an
 explanation of these values.
 
-Use the following options to configure the plugin:
+Synopsis:
+
+  <Plugin mysql>
+    <Database foo>
+      Host "hostname"
+      User "username"
+      Password "password"
+      Port "3306"
+    </Database>
+
+    <Database bar>
+      Host "localhost"
+      Socket "/var/run/mysql/mysqld.sock"
+    </Database>
+  </Plugin>
+
+A B<Database> block defines one connection to a MySQL database. It accepts a
+single argument which specifies the name of the database. None of the other
+options are required. MySQL will use default values as documented in the
+section "mysql_real_connect()" in the B<MySQL reference manual>.
 
 =over 4
 
