@@ -323,11 +323,14 @@ FQDNLookup   true
 #		User "db_user"
 #		Password "secret"
 #		Database "db_name"
+#		MasterStats true
 #	</Database>
 #
 #	<Database db_name2>
 #		Host "localhost"
 #		Socket "/var/run/mysql/mysqld.sock"
+#		SlaveStats true
+#		SlaveNotifications true
 #	</Database>
 #</Plugin>
 

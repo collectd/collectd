@@ -1380,12 +1380,21 @@ one or more databases when started and keeps the connection up as long as
 possible. When the connection is interrupted for whatever reason it will try
 to re-connect. The plugin will complaint loudly in case anything goes wrong.
 
-This plugin issues the MySQL C<SHOW STATUS> command and collects information
-about MySQL network traffic, executed statements, requests, the query cache
-and threads by evaluating the C<Bytes_{received,sent}>, C<Com_*>,
-C<Handler_*>, C<Qcache_*> and C<Threads_*> return values. Please refer to the
-B<MySQL reference manual>, I<5.1.6. Server Status Variables> for an
-explanation of these values.
+This plugin issues the MySQL C<SHOW STATUS> / C<SHOW GLOBAL STATUS> command
+and collects information about MySQL network traffic, executed statements,
+requests, the query cache and threads by evaluating the
+C<Bytes_{received,sent}>, C<Com_*>, C<Handler_*>, C<Qcache_*> and C<Threads_*>
+return values. Please refer to the B<MySQL reference manual>, I<5.1.6. Server
+Status Variables> for an explanation of these values.
+
+Optionally, master and slave statistics may be collected in a MySQL
+replication setup. In that case, information about the synchronization state
+of the nodes are collected by evaluating the C<Position> return value of the
+C<SHOW MASTER STATUS> command and the C<Seconds_Behind_Master>,
+C<Read_Master_Log_Pos> and C<Exec_Master_Log_Pos> return values of the
+C<SHOW SLAVE STATUS> command. See the B<MySQL reference manual>,
+I<12.5.5.21 SHOW MASTER STATUS Syntax> and
+I<12.5.5.31 SHOW SLAVE STATUS Syntax> for details.
 
 Synopsis:
 
@@ -1395,11 +1404,14 @@ Synopsis:
       User "username"
       Password "password"
       Port "3306"
+      MasterStats true
     </Database>
 
     <Database bar>
       Host "localhost"
       Socket "/var/run/mysql/mysqld.sock"
+      SlaveStats true
+      SlaveNotifications true
     </Database>
   </Plugin>
 
@@ -1445,6 +1457,17 @@ Specifies the path to the UNIX domain socket of the MySQL server. This option
 only has any effect, if B<Host> is set to B<localhost> (the default).
 Otherwise, use the B<Port> option above. See the documentation for the
 C<mysql_real_connect> function for details.
+
+=item B<MasterStats> I<true|false>
+
+=item B<SlaveStats> I<true|false>
+
+Enable the collection of master / slave statistics in a replication setup.
+
+=item B<SlaveNotifications> I<true|false>
+
+If enabled, the plugin sends a notification if the replication slave I/O and /
+or SQL threads are not running.
 
 =back
 
