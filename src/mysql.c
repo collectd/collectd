@@ -1,6 +1,7 @@
 /**
  * collectd - src/mysql.c
  * Copyright (C) 2006-2009  Florian octo Forster
+ * Copyright (C) 2009  Doug MacEachern
  * Copyright (C) 2009  Sebastian tokkee Harl
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,6 +19,8 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Mirko Buffoni <briareos at eswat.org>
+ *   Doug MacEachern <dougm at hyperic.com>
  *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
