@@ -51,6 +51,10 @@ struct mysql_database_s /* {{{ */
 	int   master_stats;
 	int   slave_stats;
 
+	int   slave_notif;
+	int   slave_io_running;
+	int   slave_sql_running;
+
 	MYSQL *con;
 	int    state;
 };
@@ -200,6 +204,10 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 	db->socket   = NULL;
 	db->con      = NULL;
 
+	/* trigger a notification, if it's not running */
+	db->slave_io_running  = 1;
+	db->slave_sql_running = 1;
+
 	plugin_block = 1;
 	if (strcasecmp ("Plugin", ci->key) == 0)
 	{
@@ -258,6 +266,8 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 			status = mysql_config_set_boolean (&db->master_stats, child);
 		else if (strcasecmp ("SlaveStats", child->key) == 0)
 			status = mysql_config_set_boolean (&db->slave_stats, child);
+		else if (strcasecmp ("SlaveNotifications", child->key) == 0)
+			status = mysql_config_set_boolean (&db->slave_notif, child);
 		else
 		{
 			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
@@ -386,31 +396,30 @@ static MYSQL *getconnection (mysql_database_t *db)
 	}
 } /* static MYSQL *getconnection (mysql_database_t *db) */
 
-static void set_host (mysql_database_t *db, value_list_t *vl)
+static void set_host (mysql_database_t *db, char *buf, size_t buflen)
 {
 	/* XXX legacy mode - use hostname_g */
 	if (db->instance == NULL)
-		sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+		sstrncpy (buf, hostname_g, buflen);
 	else
 	{
 		if ((db->host == NULL)
 				|| (strcmp ("", db->host) == 0)
 				|| (strcmp ("localhost", db->host) == 0))
-			sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+			sstrncpy (buf, hostname_g, buflen);
 		else
-			sstrncpy (vl->host, db->host, sizeof (vl->host));
+			sstrncpy (buf, db->host, buflen);
 	}
 }
 
-static void set_plugin_instance (mysql_database_t *db, value_list_t *vl)
+static void set_plugin_instance (mysql_database_t *db,
+		char *buf, size_t buflen)
 {
 	/* XXX legacy mode - no plugin_instance */
 	if (db->instance == NULL)
-		sstrncpy (vl->plugin_instance, "",
-				sizeof (vl->plugin_instance));
+		sstrncpy (buf, "", buflen);
 	else
-		sstrncpy (vl->plugin_instance, db->instance,
-				sizeof (vl->plugin_instance));
+		sstrncpy (buf, db->instance, buflen);
 }
 
 static void submit (const char *type, const char *type_instance,
@@ -421,10 +430,10 @@ static void submit (const char *type, const char *type_instance,
 	vl.values     = values;
 	vl.values_len = values_len;
 
-	set_host (db, &vl);
+	set_host (db, vl.host, sizeof (vl.host));
 
 	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
-	set_plugin_instance (db, &vl);
+	set_plugin_instance (db, vl.plugin_instance, sizeof (vl.plugin_instance));
 
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_instance != NULL)
@@ -570,11 +579,10 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	/* WTF? libmysqlclient does not seem to provide any means to
 	 * translate a column name to a column index ... :-/ */
 	const int READ_MASTER_LOG_POS_IDX   = 6;
+	const int SLAVE_IO_RUNNING_IDX      = 10;
+	const int SLAVE_SQL_RUNNING_IDX     = 11;
 	const int EXEC_MASTER_LOG_POS_IDX   = 21;
 	const int SECONDS_BEHIND_MASTER_IDX = 32;
-
-	unsigned long long counter;
-	double gauge;
 
 	query = "SHOW SLAVE STATUS";
 
@@ -598,16 +606,75 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 		return (-1);
 	}
 
-	counter = atoll (row[READ_MASTER_LOG_POS_IDX]);
-	counter_submit ("mysql_log_position", "slave-read", counter, db);
-
-	counter = atoll (row[EXEC_MASTER_LOG_POS_IDX]);
-	counter_submit ("mysql_log_position", "slave-exec", counter, db);
-
-	if (row[SECONDS_BEHIND_MASTER_IDX] != NULL)
+	if (db->slave_stats)
 	{
-		gauge = atof (row[SECONDS_BEHIND_MASTER_IDX]);
-		gauge_submit ("time_offset", NULL, gauge, db);
+		unsigned long long counter;
+		double gauge;
+
+		counter = atoll (row[READ_MASTER_LOG_POS_IDX]);
+		counter_submit ("mysql_log_position", "slave-read", counter, db);
+
+		counter = atoll (row[EXEC_MASTER_LOG_POS_IDX]);
+		counter_submit ("mysql_log_position", "slave-exec", counter, db);
+
+		if (row[SECONDS_BEHIND_MASTER_IDX] != NULL)
+		{
+			gauge = atof (row[SECONDS_BEHIND_MASTER_IDX]);
+			gauge_submit ("time_offset", NULL, gauge, db);
+		}
+	}
+
+	if (db->slave_notif)
+	{
+		notification_t n = { 0, time (NULL), "", "",
+			"mysql", "", "time_offset", "", NULL };
+
+		char *io, *sql;
+
+		io  = row[SLAVE_IO_RUNNING_IDX];
+		sql = row[SLAVE_SQL_RUNNING_IDX];
+
+		set_host (db, n.host, sizeof (n.host));
+		set_plugin_instance (db,
+				n.plugin_instance, sizeof (n.plugin_instance));
+
+		if (((io == NULL) || (strcasecmp (io, "yes") != 0))
+				&& (db->slave_io_running))
+		{
+			n.severity = NOTIF_WARNING;
+			ssnprintf (n.message, sizeof (n.message),
+					"slave I/O thread not started or not connected to master");
+			plugin_dispatch_notification (&n);
+			db->slave_io_running = 0;
+		}
+		else if (((io != NULL) && (strcasecmp (io, "yes") == 0))
+				&& (! db->slave_io_running))
+		{
+			n.severity = NOTIF_OKAY;
+			ssnprintf (n.message, sizeof (n.message),
+					"slave I/O thread started and connected to master");
+			plugin_dispatch_notification (&n);
+			db->slave_io_running = 1;
+		}
+
+		if (((sql == NULL) || (strcasecmp (sql, "yes") != 0))
+				&& (db->slave_sql_running))
+		{
+			n.severity = NOTIF_WARNING;
+			ssnprintf (n.message, sizeof (n.message),
+					"slave SQL thread not started");
+			plugin_dispatch_notification (&n);
+			db->slave_sql_running = 0;
+		}
+		else if (((sql != NULL) && (strcasecmp (sql, "yes") == 0))
+				&& (! db->slave_sql_running))
+		{
+			n.severity = NOTIF_OKAY;
+			ssnprintf (n.message, sizeof (n.message),
+					"slave SQL thread started");
+			plugin_dispatch_notification (&n);
+			db->slave_sql_running = 0;
+		}
 	}
 
 	row = mysql_fetch_row (res);
@@ -738,7 +805,7 @@ static int mysql_read (user_data_t *ud)
 	if (db->master_stats)
 		mysql_read_master_stats (db, con);
 
-	if (db->slave_stats)
+	if ((db->slave_stats) || (db->slave_notif))
 		mysql_read_slave_stats (db, con);
 
 	return (0);
