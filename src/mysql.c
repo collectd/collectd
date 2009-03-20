@@ -385,12 +385,22 @@ static MYSQL *getconnection (mysql_database_t *db)
 	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
 	{
-		ERROR ("mysql_real_connect failed: %s", mysql_error (db->con));
+		ERROR ("mysql plugin: Failed to connect to database %s "
+				"at server %s: %s",
+				(db->database != NULL) ? db->database : "<none>",
+				(db->host != NULL) ? db->host : "localhost",
+				mysql_error (db->con));
 		db->state = 0;
 		return (NULL);
 	}
 	else
 	{
+		INFO ("mysql plugin: Sucessfully connected to database %s "
+				"at server %s (server version: %s, protocol version: %d)",
+				(db->database != NULL) ? db->database : "<none>",
+				mysql_get_host_info (db->con),
+				mysql_get_server_info (db->con),
+				mysql_get_proto_info (db->con));
 		db->state = 1;
 		return (db->con);
 	}
