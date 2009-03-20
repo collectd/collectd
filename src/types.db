@@ -69,6 +69,7 @@ memory			value:GAUGE:0:281474976710656
 multimeter		value:GAUGE:U:U
 mysql_commands		value:COUNTER:0:U
 mysql_handler		value:COUNTER:0:U
+mysql_log_position	value:COUNTER:0:4294967295
 mysql_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
 mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
 mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U

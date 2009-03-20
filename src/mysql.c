@@ -1,6 +1,7 @@
 /**
  * collectd - src/mysql.c
- * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2006-2009  Florian octo Forster
+ * Copyright (C) 2009  Sebastian tokkee Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
@@ -42,6 +44,9 @@ struct mysql_database_s /* {{{ */
 	char *database;
 	char *socket;
 	int   port;
+
+	int   master_stats;
+	int   slave_stats;
 
 	MYSQL *con;
 	int    state;
@@ -126,6 +131,40 @@ static int mysql_config_set_int (int *ret_int, /* {{{ */
 
 	return (0);
 } /* }}} int mysql_config_set_int */
+
+static int mysql_config_set_boolean (int *ret_boolean, /* {{{ */
+				oconfig_item_t *ci)
+{
+	int status = 0;
+
+	if (ci->values_num != 1)
+		status = -1;
+
+	if (status == 0)
+	{
+		if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
+			*ret_boolean = ci->values[0].value.boolean;
+		else if (ci->values[0].type == OCONFIG_TYPE_STRING)
+		{
+			if (IS_TRUE (ci->values[0].value.string))
+				*ret_boolean = 1;
+			else if (IS_FALSE (ci->values[0].value.string))
+				*ret_boolean = 0;
+			else
+				status = -1;
+		}
+		else
+			status = -1;
+	}
+
+	if (status != 0)
+	{
+		WARNING ("mysql plugin: The `%s' config option "
+			"needs exactly one boolean argument.", ci->key);
+		return (-1);
+	}
+	return (0);
+} /* }}} mysql_config_set_boolean */
 
 static int mysql_config (oconfig_item_t *ci) /* {{{ */
 {
@@ -212,6 +251,10 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 		else if ((strcasecmp ("Database", child->key) == 0)
 				&& (child->children == NULL))
 			status = mysql_config_set_string (&db->database, child);
+		else if (strcasecmp ("MasterStats", child->key) == 0)
+			status = mysql_config_set_boolean (&db->master_stats, child);
+		else if (strcasecmp ("SlaveStats", child->key) == 0)
+			status = mysql_config_set_boolean (&db->slave_stats, child);
 		else
 		{
 			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
@@ -367,31 +410,49 @@ static void set_plugin_instance (mysql_database_t *db, value_list_t *vl)
 				sizeof (vl->plugin_instance));
 }
 
+static void submit (const char *type, const char *type_instance,
+		value_t *values, size_t values_len, mysql_database_t *db)
+{
+	value_list_t vl = VALUE_LIST_INIT;
+
+	vl.values     = values;
+	vl.values_len = values_len;
+
+	set_host (db, &vl);
+
+	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
+	set_plugin_instance (db, &vl);
+
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	if (type_instance != NULL)
+		sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+} /* submit */
+
 static void counter_submit (const char *type, const char *type_instance,
 		counter_t value, mysql_database_t *db)
 {
 	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
 
 	values[0].counter = value;
-
-	vl.values = values;
-	vl.values_len = 1;
-	set_host (db, &vl);
-	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-	set_plugin_instance (db, &vl);
-
-	plugin_dispatch_values (&vl);
+	submit (type, type_instance, values, STATIC_ARRAY_SIZE (values), db);
 } /* void counter_submit */
+
+static void gauge_submit (const char *type, const char *type_instance,
+		gauge_t value, mysql_database_t *db)
+{
+	value_t values[1];
+
+	values[0].gauge = value;
+	submit (type, type_instance, values, STATIC_ARRAY_SIZE (values), db);
+} /* void gauge_submit */
 
 static void qcache_submit (counter_t hits, counter_t inserts,
 		counter_t not_cached, counter_t lowmem_prunes,
 		gauge_t queries_in_cache, mysql_database_t *db)
 {
 	value_t values[5];
-	value_list_t vl = VALUE_LIST_INIT;
 
 	values[0].counter = hits;
 	values[1].counter = inserts;
@@ -399,54 +460,162 @@ static void qcache_submit (counter_t hits, counter_t inserts,
 	values[3].counter = lowmem_prunes;
 	values[4].gauge   = queries_in_cache;
 
-	vl.values = values;
-	vl.values_len = 5;
-	set_host (db, &vl);
-	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
-	sstrncpy (vl.type, "mysql_qcache", sizeof (vl.type));
-	set_plugin_instance (db, &vl);
-
-	plugin_dispatch_values (&vl);
+	submit ("mysql_qcache", NULL, values, STATIC_ARRAY_SIZE (values), db);
 } /* void qcache_submit */
 
 static void threads_submit (gauge_t running, gauge_t connected, gauge_t cached,
 		counter_t created, mysql_database_t *db)
 {
 	value_t values[4];
-	value_list_t vl = VALUE_LIST_INIT;
 
 	values[0].gauge   = running;
 	values[1].gauge   = connected;
 	values[2].gauge   = cached;
 	values[3].counter = created;
 
-	vl.values = values;
-	vl.values_len = 4;
-	set_host (db, &vl);
-	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
-	sstrncpy (vl.type, "mysql_threads", sizeof (vl.type));
-	set_plugin_instance (db, &vl);
-
-	plugin_dispatch_values (&vl);
+	submit ("mysql_threads", NULL, values, STATIC_ARRAY_SIZE (values), db);
 } /* void threads_submit */
 
 static void traffic_submit (counter_t rx, counter_t tx, mysql_database_t *db)
 {
 	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
 
 	values[0].counter = rx;
 	values[1].counter = tx;
 
-	vl.values = values;
-	vl.values_len = 2;
-	set_host (db, &vl);
-	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
-	sstrncpy (vl.type, "mysql_octets", sizeof (vl.type));
-	set_plugin_instance (db, &vl);
-
-	plugin_dispatch_values (&vl);
+	submit ("mysql_octets", NULL, values, STATIC_ARRAY_SIZE (values), db);
 } /* void traffic_submit */
+
+static MYSQL_RES *exec_query (MYSQL *con, const char *query)
+{
+	MYSQL_RES *res;
+
+	int query_len = strlen (query);
+
+	if (mysql_real_query (con, query, query_len))
+	{
+		ERROR ("mysql plugin: Failed to execute query: %s",
+				mysql_error (con));
+		INFO ("mysql plugin: SQL query was: %s", query);
+		return (NULL);
+	}
+
+	res = mysql_store_result (con);
+	if (res == NULL)
+	{
+		ERROR ("mysql plugin: Failed to store query result: %s",
+				mysql_error (con));
+		INFO ("mysql plugin: SQL query was: %s", query);
+		return (NULL);
+	}
+
+	return (res);
+} /* exec_query */
+
+static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW  row;
+
+	char *query;
+	int   field_num;
+	unsigned long long position;
+
+	query = "SHOW MASTER STATUS";
+
+	res = exec_query (con, query);
+	if (res == NULL)
+		return (-1);
+
+	row = mysql_fetch_row (res);
+	if (row == NULL)
+	{
+		ERROR ("mysql plugin: Failed to get master statistics: "
+				"`%s' did not return any rows.", query);
+		return (-1);
+	}
+
+	field_num = mysql_num_fields (res);
+	if (field_num < 2)
+	{
+		ERROR ("mysql plugin: Failed to get master statistics: "
+				"`%s' returned less than two columns.", query);
+		return (-1);
+	}
+
+	position = atoll (row[1]);
+	counter_submit ("mysql_log_position", "master-bin", position, db);
+
+	row = mysql_fetch_row (res);
+	if (row != NULL)
+		WARNING ("mysql plugin: `%s' returned more than one row - "
+				"ignoring further results.", query);
+
+	mysql_free_result (res);
+
+	return (0);
+} /* mysql_read_master_stats */
+
+static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW  row;
+
+	char *query;
+	int   field_num;
+
+	/* WTF? libmysqlclient does not seem to provide any means to
+	 * translate a column name to a column index ... :-/ */
+	const int READ_MASTER_LOG_POS_IDX   = 6;
+	const int EXEC_MASTER_LOG_POS_IDX   = 21;
+	const int SECONDS_BEHIND_MASTER_IDX = 32;
+
+	unsigned long long counter;
+	double gauge;
+
+	query = "SHOW SLAVE STATUS";
+
+	res = exec_query (con, query);
+	if (res == NULL)
+		return (-1);
+
+	row = mysql_fetch_row (res);
+	if (row == NULL)
+	{
+		ERROR ("mysql plugin: Failed to get slave statistics: "
+				"`%s' did not return any rows.", query);
+		return (-1);
+	}
+
+	field_num = mysql_num_fields (res);
+	if (field_num < 33)
+	{
+		ERROR ("mysql plugin: Failed to get slave statistics: "
+				"`%s' returned less than 33 columns.", query);
+		return (-1);
+	}
+
+	counter = atoll (row[READ_MASTER_LOG_POS_IDX]);
+	counter_submit ("mysql_log_position", "slave-read", counter, db);
+
+	counter = atoll (row[EXEC_MASTER_LOG_POS_IDX]);
+	counter_submit ("mysql_log_position", "slave-exec", counter, db);
+
+	if (row[SECONDS_BEHIND_MASTER_IDX] != NULL)
+	{
+		gauge = atof (row[SECONDS_BEHIND_MASTER_IDX]);
+		gauge_submit ("time_offset", NULL, gauge, db);
+	}
+
+	row = mysql_fetch_row (res);
+	if (row != NULL)
+		WARNING ("mysql plugin: `%s' returned more than one row - "
+				"ignoring further results.", query);
+
+	mysql_free_result (res);
+
+	return (0);
+} /* mysql_read_slave_stats */
 
 static int mysql_read (user_data_t *ud)
 {
@@ -455,7 +624,6 @@ static int mysql_read (user_data_t *ud)
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
 	char      *query;
-	int        query_len;
 	int        field_num;
 
 	unsigned long long qcache_hits          = 0ULL;
@@ -488,21 +656,9 @@ static int mysql_read (user_data_t *ud)
 	if (mysql_get_server_version (con) >= 50002)
 		query = "SHOW GLOBAL STATUS";
 
-	query_len = strlen (query);
-
-	if (mysql_real_query (con, query, query_len))
-	{
-		ERROR ("mysql_real_query failed: %s\n",
-				mysql_error (con));
+	res = exec_query (con, query);
+	if (res == NULL)
 		return (-1);
-	}
-
-	if ((res = mysql_store_result (con)) == NULL)
-	{
-		ERROR ("mysql_store_result failed: %s\n",
-				mysql_error (con));
-		return (-1);
-	}
 
 	field_num = mysql_num_fields (res);
 	while ((row = mysql_fetch_row (res)))
@@ -575,6 +731,12 @@ static int mysql_read (user_data_t *ud)
 				threads_cached, threads_created, db);
 
 	traffic_submit  (traffic_incoming, traffic_outgoing, db);
+
+	if (db->master_stats)
+		mysql_read_master_stats (db, con);
+
+	if (db->slave_stats)
+		mysql_read_slave_stats (db, con);
 
 	return (0);
 } /* int mysql_read */
