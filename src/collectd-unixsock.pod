@@ -131,10 +131,10 @@ Example:
 Submits a notification to the daemon which will then dispatch it to all plugins
 which have registered for receiving notifications. 
 
-The B<PUTNOTIF> if followed by a list of options which further describe the
-notification. The B<message> option is special in that it will consume the rest
-of the line as its value. The B<message>, B<severity>, and B<time> options are
-mandatory.
+The B<PUTNOTIF> command is followed by a list of options which further describe
+the notification. The B<message> option is special in that it will consume the
+rest of the line as its value. The B<message>, B<severity>, and B<time> options
+are mandatory.
 
 Valid options are:
 
@@ -195,7 +195,7 @@ callback will be flushed.
 
 If the B<identifier> option is given only the specified values will be flushed.
 This is meant to be used by graphing or displaying frontends which want to have
-the lastest values for a specific graph. Again, you can specify the
+the latest values for a specific graph. Again, you can specify the
 B<identifier> option multiple times to flush several values. If this option is
 not specified at all, all values will be flushed.
 
