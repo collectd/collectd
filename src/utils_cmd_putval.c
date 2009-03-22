@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_cms_putval.c
- * Copyright (C) 2007,2008  Florian octo Forster
+ * Copyright (C) 2007-2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -69,7 +69,7 @@ static int dispatch_values (const data_set_t *ds, value_list_t *vl,
 			vl->values[i].gauge = NAN;
 		else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i]))
 		{
-			print_to_socket (fh, "-1 Failed to parse value `%s'.", ptr);
+			print_to_socket (fh, "-1 Failed to parse value `%s'.\n", ptr);
 			return (-1);
 		}
 
