@@ -142,6 +142,7 @@
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
 #@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
+#@BUILD_PLUGIN_NETCMD_TRUE@LoadPlugin netcmd
 #@BUILD_PLUGIN_NETLINK_TRUE@LoadPlugin netlink
 @LOAD_PLUGIN_NETWORK@LoadPlugin network
 #@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
@@ -741,6 +742,12 @@
 #			GetDiskIO      true
 #		</System>
 #	</Host>
+#</Plugin>
+
+#<Plugin netcmd>
+#	Listen "192.168.0.1"
+#	Listen "unix:/var/run/collectd-netcmd"
+#	SocketPerms "0660"
 #</Plugin>
 
 #<Plugin netlink>

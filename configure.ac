@@ -5586,6 +5586,7 @@ AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
+AC_PLUGIN([netcmd],      [yes],                [Network control socket])
 AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
@@ -5965,6 +5966,7 @@ Configuration:
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
+    netcmd  . . . . . . . $enable_netcmd
     netlink . . . . . . . $enable_netlink
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
