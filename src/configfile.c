@@ -172,7 +172,7 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	free (key);
 	free (value);
 
-	DEBUG ("return (%i)", ret);
+	DEBUG ("cf_dispatch: return (%i)", ret);
 
 	return (ret);
 } /* int cf_dispatch */
