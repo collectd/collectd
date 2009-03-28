@@ -223,7 +223,6 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 			return (status);
 		}
 		assert (db->instance != NULL);
-		db->database = strdup (db->instance);
 	}
 	else
 	{
@@ -318,11 +317,6 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 					db->port);
 			status = -1;
 		}
-		if (db->database == NULL)
-		{
-			ERROR ("mysql plugin: No `Database' configured");
-			status = -1;
-		}
 		break;
 	} /* while (status == 0) */
 
@@ -332,7 +326,8 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 		user_data_t ud;
 		char cb_name[DATA_MAX_NAME_LEN];
 
-		DEBUG ("mysql plugin: Registering new read callback: %s", db->database);
+		DEBUG ("mysql plugin: Registering new read callback: %s",
+				(db->database != NULL) ? db->database : "<default>");
 
 		memset (&ud, 0, sizeof (ud));
 		ud.data = (void *) db;
