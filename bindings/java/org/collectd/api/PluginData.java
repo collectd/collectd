@@ -25,7 +25,7 @@ import java.util.Date;
  */
 public class PluginData {
 
-    protected long _time;
+    protected long _time = 0;
     protected String _host;
     protected String _plugin;
     protected String _pluginInstance = "";

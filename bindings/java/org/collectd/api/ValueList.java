@@ -29,7 +29,7 @@ public class ValueList extends PluginData {
     private List<Number> _values = new ArrayList<Number>();
     private DataSet _ds;
 
-    private long _interval;
+    private long _interval = 0;
 
     public ValueList() {
         
