@@ -1782,15 +1782,21 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
 
   (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
 
-  cbi->class  = (*jvm_env)->GetObjectClass (jvm_env, o_callback);
+  cbi->object = (*jvm_env)->NewGlobalRef (jvm_env, o_callback);
+  if (cbi->object == NULL)
+  {
+    ERROR ("java plugin: cjni_callback_info_create: NewGlobalRef failed.");
+    free (cbi);
+    return (NULL);
+  }
+
+  cbi->class  = (*jvm_env)->GetObjectClass (jvm_env, cbi->object);
   if (cbi->class == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
     free (cbi);
     return (NULL);
   }
-
-  cbi->object = o_callback;
 
   cbi->method = (*jvm_env)->GetMethodID (jvm_env, cbi->class,
       method_name, method_signature);
@@ -1802,8 +1808,6 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     free (cbi);
     return (NULL);
   }
-
-  (*jvm_env)->NewGlobalRef (jvm_env, o_callback);
 
   return (cbi);
 } /* }}} cjni_callback_info_t cjni_callback_info_create */
@@ -2141,6 +2145,7 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
   JNIEnv *jvm_env;
   java_plugin_class_t *class;
   jmethodID constructor_id;
+  jobject tmp_object;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -2198,8 +2203,12 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  class->object = (*jvm_env)->NewObject (jvm_env, class->class,
+  tmp_object = (*jvm_env)->NewObject (jvm_env, class->class,
       constructor_id);
+  if (tmp_object != NULL)
+    class->object = (*jvm_env)->NewGlobalRef (jvm_env, tmp_object);
+  else
+    class->object = NULL;
   if (class->object == NULL)
   {
     ERROR ("java plugin: cjni_config_load_plugin: "
@@ -2210,7 +2219,6 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  (*jvm_env)->NewGlobalRef (jvm_env, class->object);
   cjni_thread_detach ();
 
   java_classes_list_len++;
@@ -2226,6 +2234,9 @@ static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
   const char *name;
   int status;
   size_t i;
+
+  jclass class;
+  jmethodID method;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -2272,8 +2283,12 @@ static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
+  class = (*jvm_env)->GetObjectClass (jvm_env, cbi->object);
+  method = (*jvm_env)->GetMethodID (jvm_env, class,
+      "config", "(Lorg/collectd/api/OConfigItem;)I");
+
   status = (*jvm_env)->CallIntMethod (jvm_env,
-      cbi->object, cbi->method, o_ocitem);
+      cbi->object, method, o_ocitem);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_ocitem);
   cjni_thread_detach ();
@@ -2611,6 +2626,7 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
   cjni_callback_info_t *cbi_factory;
   const char *name;
   jobject o_ci;
+  jobject o_tmp;
   int type;
   size_t i;
 
@@ -2712,11 +2728,18 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
   }
 
   /* Then call the factory method so it creates a new object for us. */
-  cbi_ret->object = (*jvm_env)->CallObjectMethod (jvm_env,
+  o_tmp = (*jvm_env)->CallObjectMethod (jvm_env,
       cbi_factory->object, cbi_factory->method, o_ci);
-  if (cbi_ret->object == NULL)
+  if (o_tmp == NULL)
   {
     ERROR ("java plugin: cjni_match_target_create: CallObjectMethod failed.");
+    BAIL_OUT (-1);
+  }
+
+  cbi_ret->object = (*jvm_env)->NewGlobalRef (jvm_env, o_tmp);
+  if (o_tmp == NULL)
+  {
+    ERROR ("java plugin: cjni_match_target_create: NewGlobalRef failed.");
     BAIL_OUT (-1);
   }
 
@@ -2738,10 +2761,6 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
     ERROR ("java plugin: cjni_match_target_create: GetMethodID failed.");
     BAIL_OUT (-1);
   }
-
-  /* We have everything we hoped for. Now we add a new global reference so this
-   * match isn't freed immediately after we return.. */
-  (*jvm_env)->NewGlobalRef (jvm_env, cbi_ret->object);
 
   /* Return the newly created match via the user_data pointer. */
   *user_data = (void *) cbi_ret;
