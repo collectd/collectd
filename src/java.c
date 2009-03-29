@@ -580,7 +580,7 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
       return (NULL);
     }
 
-    (*jvm_env)->CallVoidMethod (jvm_env, o_ocitem, m_addvalue, o_child);
+    (*jvm_env)->CallVoidMethod (jvm_env, o_ocitem, m_addchild, o_child);
     (*jvm_env)->DeleteLocalRef (jvm_env, o_child);
   } /* }}} for (i = 0; i < ci->children_num; i++) */
 
