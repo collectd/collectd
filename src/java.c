@@ -288,7 +288,7 @@ static jobject ctoj_value_to_number (JNIEnv *jvm_env, /* {{{ */
     return (NULL);
 } /* }}} jobject ctoj_value_to_number */
 
-/* Convert a data_source_t to a org.collectd.api.DataSource */
+/* Convert a data_source_t to a org/collectd/api/DataSource */
 static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
     const data_source_t *dsrc)
 {
@@ -299,11 +299,11 @@ static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
 
   /* Look up the DataSource class */
   c_datasource = (*jvm_env)->FindClass (jvm_env,
-      "org.collectd.api.DataSource");
+      "org/collectd/api/DataSource");
   if (c_datasource == NULL)
   {
     ERROR ("java plugin: ctoj_data_source: "
-        "FindClass (org.collectd.api.DataSource) failed.");
+        "FindClass (org/collectd/api/DataSource) failed.");
     return (NULL);
   }
 
@@ -374,7 +374,7 @@ static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
   return (o_datasource);
 } /* }}} jobject ctoj_data_source */
 
-/* Convert a oconfig_value_t to a org.collectd.api.OConfigValue */
+/* Convert a oconfig_value_t to a org/collectd/api/OConfigValue */
 static jobject ctoj_oconfig_value (JNIEnv *jvm_env, /* {{{ */
     oconfig_value_t ocvalue)
 {
@@ -387,11 +387,11 @@ static jobject ctoj_oconfig_value (JNIEnv *jvm_env, /* {{{ */
   o_argument = NULL;
 
   c_ocvalue = (*jvm_env)->FindClass (jvm_env,
-      "org.collectd.api.OConfigValue");
+      "org/collectd/api/OConfigValue");
   if (c_ocvalue == NULL)
   {
     ERROR ("java plugin: ctoj_oconfig_value: "
-        "FindClass (org.collectd.api.OConfigValue) failed.");
+        "FindClass (org/collectd/api/OConfigValue) failed.");
     return (NULL);
   }
 
@@ -474,7 +474,7 @@ static jobject ctoj_oconfig_value (JNIEnv *jvm_env, /* {{{ */
   return (o_ocvalue);
 } /* }}} jobject ctoj_oconfig_value */
 
-/* Convert a oconfig_item_t to a org.collectd.api.OConfigItem */
+/* Convert a oconfig_item_t to a org/collectd/api/OConfigItem */
 static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
     const oconfig_item_t *ci)
 {
@@ -486,11 +486,11 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
   jobject o_ocitem;
   int i;
 
-  c_ocitem = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.OConfigItem");
+  c_ocitem = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/OConfigItem");
   if (c_ocitem == NULL)
   {
     ERROR ("java plugin: ctoj_oconfig_item: "
-        "FindClass (org.collectd.api.OConfigItem) failed.");
+        "FindClass (org/collectd/api/OConfigItem) failed.");
     return (NULL);
   }
 
@@ -587,7 +587,7 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
   return (o_ocitem);
 } /* }}} jobject ctoj_oconfig_item */
 
-/* Convert a data_set_t to a org.collectd.api.DataSet */
+/* Convert a data_set_t to a org/collectd/api/DataSet */
 static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
 {
   jclass c_dataset;
@@ -597,12 +597,12 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   jobject o_dataset;
   int i;
 
-  /* Look up the org.collectd.api.DataSet class */
-  c_dataset = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.DataSet");
+  /* Look up the org/collectd/api/DataSet class */
+  c_dataset = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/DataSet");
   if (c_dataset == NULL)
   {
     ERROR ("java plugin: ctoj_data_set: Looking up the "
-        "org.collectd.api.DataSet class failed.");
+        "org/collectd/api/DataSet class failed.");
     return (NULL);
   }
 
@@ -618,7 +618,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
 
   /* Search for the `void addDataSource (DataSource)' method. */
   m_add = (*jvm_env)->GetMethodID (jvm_env,
-      c_dataset, "addDataSource", "(Lorg.collectd.api.DataSource;)V");
+      c_dataset, "addDataSource", "(Lorg/collectd/api/DataSource;)V");
   if (m_add == NULL)
   {
     ERROR ("java plugin: ctoj_data_set: Looking up the "
@@ -705,7 +705,7 @@ static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
 
   /* Look for the `void setDataSource (List<DataSource> ds)' method. */
   m_setdataset = (*jvm_env)->GetMethodID (jvm_env, c_valuelist,
-      "setDataSet", "(Lorg.collectd.api.DataSet;)V");
+      "setDataSet", "(Lorg/collectd/api/DataSet;)V");
   if (m_setdataset == NULL)
   {
     ERROR ("java plugin: ctoj_value_list_add_data_set: "
@@ -732,7 +732,7 @@ static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int ctoj_value_list_add_data_set */
 
-/* Convert a value_list_t (and data_set_t) to a org.collectd.api.ValueList */
+/* Convert a value_list_t (and data_set_t) to a org/collectd/api/ValueList */
 static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
     const data_set_t *ds, const value_list_t *vl)
 {
@@ -745,11 +745,11 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   /* First, create a new ValueList instance..
    * Look up the class.. */
   c_valuelist = (*jvm_env)->FindClass (jvm_env,
-      "org.collectd.api.ValueList");
+      "org/collectd/api/ValueList");
   if (c_valuelist == NULL)
   {
     ERROR ("java plugin: ctoj_value_list: "
-        "FindClass (org.collectd.api.ValueList) failed.");
+        "FindClass (org/collectd/api/ValueList) failed.");
     return (NULL);
   }
 
@@ -838,7 +838,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   return (o_valuelist);
 } /* }}} jobject ctoj_value_list */
 
-/* Convert a notification_t to a org.collectd.api.Notification */
+/* Convert a notification_t to a org/collectd/api/Notification */
 static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
     const notification_t *n)
 {
@@ -850,11 +850,11 @@ static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
   /* First, create a new Notification instance..
    * Look up the class.. */
   c_notification = (*jvm_env)->FindClass (jvm_env,
-      "org.collectd.api.Notification");
+      "org/collectd/api/Notification");
   if (c_notification == NULL)
   {
     ERROR ("java plugin: ctoj_notification: "
-        "FindClass (org.collectd.api.Notification) failed.");
+        "FindClass (org/collectd/api/Notification) failed.");
     return (NULL);
   }
 
@@ -1179,7 +1179,7 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
   return (0);
 } /* }}} int jtoc_values_array */
 
-/* Convert a org.collectd.api.ValueList to a value_list_t. */
+/* Convert a org/collectd/api/ValueList to a value_list_t. */
 static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     jobject object_ptr)
 {
@@ -1251,7 +1251,7 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
   return (0);
 } /* }}} int jtoc_value_list */
 
-/* Convert a org.collectd.api.Notification to a notification_t. */
+/* Convert a org/collectd/api/Notification to a notification_t. */
 static int jtoc_notification (JNIEnv *jvm_env, notification_t *n, /* {{{ */
     jobject object_ptr)
 {
@@ -1912,10 +1912,10 @@ static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
   jclass api_class_ptr;
   int status;
 
-  api_class_ptr = (*jvm_env)->FindClass (jvm_env, "org.collectd.api.Collectd");
+  api_class_ptr = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/Collectd");
   if (api_class_ptr == NULL)
   {
-    ERROR ("cjni_init_native: Cannot find API class `org.collectd.api.Collectd'.");
+    ERROR ("cjni_init_native: Cannot find API class `org/collectd/api/Collectd'.");
     return (-1);
   }
 
@@ -1965,10 +1965,6 @@ static int cjni_create_jvm (void) /* {{{ */
         i, jvm_argv[i]);
     vm_args.options[i].optionString = jvm_argv[i];
   }
-  /*
-  vm_args.options[0].optionString = "-verbose:jni";
-  vm_args.options[1].optionString = "-Djava.class.path=/home/octo/collectd/bindings/java";
-  */
 
   status = JNI_CreateJavaVM (&jvm, (void **) &jvm_env, (void **) &vm_args);
   if (status != 0)
