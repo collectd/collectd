@@ -2923,6 +2923,37 @@ will be collected.
 
 =back
 
+=head2 Plugin C<ted>
+
+The I<TED> plugin connects to a device of "The Energy Detective", a device to
+measure power consumption. These devices are usually connected to a serial
+(RS232) or USB port. The plugin opens a configured device and tries to read the
+current energy readings. For more information on TED, visit
+L<http://www.theenergydetective.com/>.
+
+Available configuration options:
+
+=over 4
+
+=item B<Device> I<Path>
+
+Path to the device on which TED is connected. collectd will need read and write
+permissions on that file.
+
+Default: B</dev/ttyUSB0>
+
+=item B<Retries> I<Num>
+
+Apparently reading from TED is not that reliable. You can therefore configure a
+number of retries here. You only configure the I<retries> here, to if you
+specify zero, one reading will be performed (but no retries if that fails); if
+you specify three, a maximum of four readings are performed. Negative values
+are illegal.
+
+Default: B<0>
+
+=back
+
 =head2 Plugin C<tcpconns>
 
 The C<tcpconns plugin> counts the number of currently established TCP
