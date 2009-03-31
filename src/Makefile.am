@@ -166,6 +166,14 @@ collectd_LDADD += "-dlopen" bind.la
 collectd_DEPENDENCIES += bind.la
 endif
 
+if BUILD_PLUGIN_CONNTRACK
+pkglib_LTLIBRARIES += conntrack.la
+conntrack_la_SOURCES = conntrack.c
+conntrack_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" conntrack.la
+collectd_DEPENDENCIES += conntrack.la
+endif
+
 if BUILD_PLUGIN_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c

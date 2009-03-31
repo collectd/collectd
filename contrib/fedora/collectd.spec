@@ -119,6 +119,9 @@ exit 0
 %attr(0644,root,root) %{_libdir}/%{name}/battery.so*
 %attr(0644,root,root) %{_libdir}/%{name}/battery.la
 
+%attr(0644,root,root) %{_libdir}/%{name}/conntrack.so*
+%attr(0644,root,root) %{_libdir}/%{name}/conntrack.la
+
 %attr(0644,root,root) %{_libdir}/%{name}/cpufreq.so*
 %attr(0644,root,root) %{_libdir}/%{name}/cpufreq.la
 
