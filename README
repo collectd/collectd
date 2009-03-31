@@ -216,6 +216,9 @@ Features
     - teamspeak2
       TeamSpeak2 server statistics.
 
+    - ted
+      Plugin to read values from `The Energy Detective' (TED).
+
     - thermal
       Linux ACPI thermal zone information.
 
