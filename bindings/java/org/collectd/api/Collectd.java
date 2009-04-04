@@ -219,7 +219,7 @@ public class Collectd
    * Java representation of collectd/src/filter_chain.h:fc_register_target
    *
    * @return Zero when successful, non-zero otherwise.
-   * @see CollectdTargetTargetInterface
+   * @see CollectdTargetFactoryInterface
    */
   native public static int registerTarget (String name,
       CollectdTargetFactoryInterface object);
