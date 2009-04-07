@@ -1970,7 +1970,7 @@ static int cjni_create_jvm (void) /* {{{ */
     vm_args.options[i].optionString = jvm_argv[i];
   }
 
-  status = JNI_CreateJavaVM (&jvm, (void **) &jvm_env, (void **) &vm_args);
+  status = JNI_CreateJavaVM (&jvm, (void *) &jvm_env, (void *) &vm_args);
   if (status != 0)
   {
     ERROR ("java plugin: cjni_create_jvm: "
@@ -2926,7 +2926,7 @@ static int cjni_shutdown (void) /* {{{ */
   memset (&args, 0, sizeof (args));
   args.version = JNI_VERSION_1_2;
 
-  status = (*jvm)->AttachCurrentThread (jvm, (void **) &jvm_env, &args);
+  status = (*jvm)->AttachCurrentThread (jvm, (void *) &jvm_env, &args);
   if (status != 0)
   {
     ERROR ("java plugin: cjni_shutdown: AttachCurrentThread failed with status %i.",
