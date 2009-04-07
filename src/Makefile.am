@@ -5,9 +5,6 @@ endif
 if BUILD_WITH_OWN_LIBOCONFIG
 SUBDIRS += liboconfig
 endif
-if BUILD_WITH_OWN_LIBOPING
-SUBDIRS += liboping
-endif
 
 if COMPILER_IS_GCC
 AM_CFLAGS = -Wall -Werror
@@ -674,13 +671,9 @@ endif
 if BUILD_PLUGIN_PING
 pkglib_LTLIBRARIES += ping.la
 ping_la_SOURCES = ping.c
-ping_la_LDFLAGS = -module -avoid-version
-if BUILD_WITH_OWN_LIBOPING
-ping_la_LIBADD = liboping/liboping.la
-ping_la_DEPENDENCIES = liboping/liboping.la
-else
+ping_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOPING_CPPFLAGS)
+ping_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBOPING_LDFLAGS)
 ping_la_LIBADD = -loping
-endif
 collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif

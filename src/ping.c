@@ -25,13 +25,12 @@
 #include "configfile.h"
 
 #include <pthread.h>
-
 #include <netinet/in.h>
-#include "liboping/oping.h"
-
 #if HAVE_NETDB_H
 # include <netdb.h> /* NI_MAXHOST */
 #endif
+
+#include <oping.h>
 
 #ifndef NI_MAXHOST
 # define NI_MAXHOST 1025
