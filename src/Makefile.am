@@ -470,6 +470,16 @@ collectd_LDADD += "-dlopen" mbmon.la
 collectd_DEPENDENCIES += mbmon.la
 endif
 
+if BUILD_PLUGIN_MEMCACHEC
+pkglib_LTLIBRARIES += memcachec.la
+memcachec_la_SOURCES = memcachec.c
+memcachec_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMEMCACHED_LDFLAGS)
+memcachec_la_CPPFLAGS = $(BUILD_WITH_LIBMEMCACHED_CPPFLAGS)
+memcachec_la_LIBADD = $(BUILD_WITH_LIBMEMCACHED_LIBS)
+collectd_LDADD += "-dlopen" memcachec.la
+collectd_DEPENDENCIES += memcachec.la
+endif
+
 if BUILD_PLUGIN_MEMCACHED
 pkglib_LTLIBRARIES += memcached.la
 memcached_la_SOURCES = memcached.c
