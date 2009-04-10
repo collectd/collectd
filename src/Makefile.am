@@ -544,10 +544,16 @@ endif
 if BUILD_PLUGIN_NETWORK
 pkglib_LTLIBRARIES += network.la
 network_la_SOURCES = network.c network.h
+network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = -module -avoid-version
 network_la_LIBADD = -lpthread
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
+endif
+if BUILD_WITH_LIBGCRYPT
+network_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
+network_la_LDFLAGS += $(GCRYPT_LDFLAGS)
+network_la_LIBADD += $(GCRYPT_LIBS)
 endif
 collectd_LDADD += "-dlopen" network.la
 collectd_DEPENDENCIES += network.la

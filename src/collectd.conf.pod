@@ -1577,6 +1577,45 @@ The optional I<Port> argument sets the port to use. It can either be given
 using a numeric port number or a service name. If the argument is omitted the
 default port B<25826> is assumed.
 
+Both, B<Server> and B<Listen> can be used as block, too, to provide
+configuration options for this socket only. For example:
+
+ <Plugin "network">
+   <Server "my.server.tld">
+     SecurityLevel "sign"
+     Secret "ohl0eQue"
+   </Server>
+ </Plugin>
+
+The following options are understood within B<E<lt>ServerE<gt>> and
+B<E<lt>ListenE<gt>> blocks:
+
+=over 4
+
+=item B<SecurityLevel> B<Encrypt>|B<Sign>|B<None>
+
+Set the security you require for network communication. When the security level
+has been set to B<Encrypt>, data sent over the network will be encrypted using
+I<AES-256> and only encrypted data will be accepted when receiving. When set to
+B<Sign>, transmitted data is signed using I<SHA-256> and only signed and
+encrypted data is accepted when receiving. When set to B<None>, data is sent
+without any security and all data is accepted when receiving.
+
+This feature is only available if the I<network> plugin was linked with
+I<libgcrypt>.
+
+=item B<Secret> I<Secret>
+
+Sets a shared secret for this socket. All security levels except B<None>
+require this setting. For B<None> this setting is only required if you want to
+be able to decrypt encrypted data (B<SecurityLevel> is set to B<Encrypt> on the
+client).
+
+This feature is only available if the I<network> plugin was linked with
+I<libgcrypt>.
+
+=back
+
 =item B<TimeToLive> I<1-255>
 
 Set the time-to-live of sent packets. This applies to all, unicast and
