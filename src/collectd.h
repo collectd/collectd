@@ -139,6 +139,8 @@
 #  define BYTE_ORDER _BYTE_ORDER
 # elif defined(__BYTE_ORDER)
 #  define BYTE_ORDER __BYTE_ORDER
+# elif defined(__DARWIN_BYTE_ORDER)
+#  define BYTE_ORDER __DARWIN_BYTE_ORDER
 # endif
 #endif
 #ifndef BIG_ENDIAN
@@ -146,6 +148,8 @@
 #  define BIG_ENDIAN _BIG_ENDIAN
 # elif defined(__BIG_ENDIAN)
 #  define BIG_ENDIAN __BIG_ENDIAN
+# elif defined(__DARWIN_BIG_ENDIAN)
+#  define BIG_ENDIAN __DARWIN_BIG_ENDIAN
 # endif
 #endif
 #ifndef LITTLE_ENDIAN
@@ -153,6 +157,8 @@
 #  define LITTLE_ENDIAN _LITTLE_ENDIAN
 # elif defined(__LITTLE_ENDIAN)
 #  define LITTLE_ENDIAN __LITTLE_ENDIAN
+# elif defined(__DARWIN_LITTLE_ENDIAN)
+#  define LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
 # endif
 #endif
 #ifndef BYTE_ORDER
