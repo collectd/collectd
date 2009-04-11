@@ -376,6 +376,7 @@ int plugin_load (const char *type)
 		else if (!S_ISREG (statbuf.st_mode))
 		{
 			/* don't follow symlinks */
+			WARNING ("stat %s: not a regular file", filename);
 			continue;
 		}
 

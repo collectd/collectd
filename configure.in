@@ -1802,8 +1802,9 @@ if test "x$with_libperl" = "xyes" \
 then
   SAVE_CFLAGS=$CFLAGS
   SAVE_LDFLAGS=$LDFLAGS
-  PERL_CFLAGS=`$perl_interpreter -MExtUtils::Embed -e ccopts`
-  PERL_LDFLAGS=`$perl_interpreter -MExtUtils::Embed -e ldopts`
+dnl ARCHFLAGS="" -> disable multi -arch on OSX (see Config_heavy.pl:fetch_string)
+  PERL_CFLAGS=`ARCHFLAGS="" $perl_interpreter -MExtUtils::Embed -e ccopts`
+  PERL_LDFLAGS=`ARCHFLAGS="" $perl_interpreter -MExtUtils::Embed -e ldopts`
   CFLAGS="$CFLAGS $PERL_CFLAGS"
   LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 

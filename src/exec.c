@@ -585,7 +585,17 @@ static void *exec_read_one (void *arg) /* {{{ */
         if (errno == EAGAIN || errno == EINTR)  continue;
         break;
       }
-      else if (len == 0) break;  /* We've reached EOF */
+      else if (len == 0)
+      {
+	/* We've reached EOF */
+	NOTICE ("exec plugin: Program `%s' has closed STDERR.",
+	    pl->exec);
+	close (fd_err);
+	FD_CLR (fd_err, &fdset);
+	highest_fd = fd;
+	fd_err = -1;
+	continue;
+      }
 
       pbuffer_err[len] = '\0';
 
@@ -615,6 +625,7 @@ static void *exec_read_one (void *arg) /* {{{ */
     copy = fdset;
   }
 
+  DEBUG ("exec plugin: exec_read_one: Waiting for `%s' to exit.", pl->exec);
   if (waitpid (pl->pid, &status, 0) > 0)
     pl->status = status;
 
@@ -628,7 +639,8 @@ static void *exec_read_one (void *arg) /* {{{ */
   pthread_mutex_unlock (&pl_lock);
 
   close (fd);
-  close (fd_err);
+  if (fd_err >= 0)
+    close (fd_err);
 
   pthread_exit ((void *) 0);
   return (NULL);
