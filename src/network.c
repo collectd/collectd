@@ -189,10 +189,6 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
-#if HAVE_GCRYPT_H
-static char network_encryption_iv[] = NET_ENCR_IV;
-#endif /* HAVE_GCRYPT_H */
-
 static int network_config_ttl = 0;
 static int network_config_forward = 0;
 
@@ -788,6 +784,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   err = gcry_cipher_decrypt (se->cypher,
       buffer + sizeof (pea.head), buffer_len - sizeof (pea.head),
       /* in = */ NULL, /* in len = */ 0);
+  gcry_cipher_reset (se->cypher);
   if (err != 0)
   {
     ERROR ("network plugin: gcry_cipher_decrypt returned: %s",
@@ -1193,23 +1190,20 @@ static int network_set_encryption (sockent_t *se, /* {{{ */
 
   se->shared_secret = sstrdup (shared_secret);
 
+  /*
+   * We use CBC *without* an initialization vector: The cipher is reset after
+   * each packet and we would have to re-set the IV each time. The first
+   * encrypted block will contain the SHA-224 checksum anyway, so this should
+   * be quite unpredictable. Also, there's a 2 byte field in the header that's
+   * being filled with random numbers. So we only use CBC so the blocks
+   * *within* one packet are chained.
+   */
   err = gcry_cipher_open (&se->cypher,
-      GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_ECB, /* flags = */ 0);
+      GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CBC, /* flags = */ 0);
   if (err != 0)
   {
     ERROR ("network plugin: gcry_cipher_open returned: %s",
         gcry_strerror (err));
-    return (-1);
-  }
-
-  err = gcry_cipher_setiv (se->cypher, network_encryption_iv,
-      sizeof (network_encryption_iv));
-  if (err != 0)
-  {
-    ERROR ("network plugin: gcry_cipher_setiv returned: %s",
-        gcry_strerror (err));
-    gcry_cipher_close (se->cypher);
-    se->cypher = NULL;
     return (-1);
   }
 
@@ -1875,6 +1869,7 @@ static void networt_send_buffer_encrypted (const sockent_t *se, /* {{{ */
   err = gcry_cipher_encrypt (se->cypher,
       buffer + sizeof (pea.head), buffer_size - sizeof (pea.head),
       /* in = */ NULL, /* in len = */ 0);
+  gcry_cipher_reset (se->cypher);
   if (err != 0)
   {
     ERROR ("network plugin: gcry_cipher_encrypt returned: %s",
