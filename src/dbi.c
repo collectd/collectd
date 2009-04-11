@@ -126,10 +126,19 @@ static int cdbi_result_get_field (dbi_result res, /* {{{ */
     else
       sstrncpy (buffer, value, buffer_size);
   }
+  /* DBI_TYPE_BINARY */
+  /* DBI_TYPE_DATETIME */
   else
   {
-    ERROR ("dbi plugin: cdbi_result_get: Don't know how to handle "
-        "source type %hu.", src_type);
+    const char *field_name;
+
+    field_name = dbi_result_get_field_name (res, index);
+    if (field_name == NULL)
+      field_name = "<unknown>";
+
+    ERROR ("dbi plugin: Column `%s': Don't know how to handle "
+        "source type %hu.",
+        field_name, src_type);
     return (-1);
   }
 

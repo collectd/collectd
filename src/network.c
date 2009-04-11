@@ -1130,10 +1130,11 @@ static void free_sockent (sockent_t *se) /* {{{ */
  */
 static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 {
+	DEBUG ("network plugin: network_set_ttl: network_config_ttl = %i;",
+			network_config_ttl);
+
 	if ((network_config_ttl < 1) || (network_config_ttl > 255))
 		return (-1);
-
-	DEBUG ("ttl = %i", network_config_ttl);
 
 	if (ai->ai_family == AF_INET)
 	{
