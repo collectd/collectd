@@ -761,7 +761,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   err = gcry_md_open (&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
   if (err != 0)
   {
-    ERROR ("network plugin: Creating HMAC object failed: %s",
+    ERROR ("network plugin: Creating HMAC-SHA-256 object failed: %s",
         gcry_strerror (err));
     return (-1);
   }
@@ -1030,7 +1030,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 			status = parse_part_sign_sha256 (se, &buffer, &buffer_len);
 			if (status < 0)
 			{
-				ERROR ("network plugin: Verifying SHA-256 "
+				ERROR ("network plugin: Verifying HMAC-SHA-256 "
 						"signature failed "
 						"with status %i.", status);
 				break;
@@ -1038,7 +1038,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 			else if (status > 0)
 			{
 				ERROR ("network plugin: Ignoring packet with "
-						"invalid SHA-256 signature.");
+						"invalid HMAC-SHA-256 signature.");
 				break;
 			}
 			else

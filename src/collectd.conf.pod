@@ -1596,10 +1596,12 @@ B<E<lt>ListenE<gt>> blocks:
 
 Set the security you require for network communication. When the security level
 has been set to B<Encrypt>, data sent over the network will be encrypted using
-I<AES-256> and only encrypted data will be accepted when receiving. When set to
-B<Sign>, transmitted data is signed using I<SHA-256> and only signed and
-encrypted data is accepted when receiving. When set to B<None>, data is sent
-without any security and all data is accepted when receiving.
+I<AES-256> and only encrypted data will be accepted when receiving. The
+integrity of encrypted packets is ensures using I<SHA-1>. When set to B<Sign>,
+transmitted data is signed using the I<HMAC-SHA-256> message authentication
+code and only signed and encrypted data is accepted when receiving. When set to
+B<None>, data is sent without any security and all data is accepted when
+receiving.
 
 This feature is only available if the I<network> plugin was linked with
 I<libgcrypt>.
