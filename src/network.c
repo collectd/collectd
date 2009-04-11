@@ -67,12 +67,12 @@
 /*
  * Maximum size required for encryption / signing:
  * Type/length:       4
- * Hash/orig length: 32
- * Padding (up to):  16
+ * Hash/orig length: 22
+ * Padding (up to):  15
  * --------------------
- *                   52
+ *                   41
  */
-#define BUFF_SIG_SIZE 52
+#define BUFF_SIG_SIZE 41
 
 /*
  * Private data types
@@ -161,6 +161,16 @@ struct part_values_s
 };
 typedef struct part_values_s part_values_t;
 
+/*                      1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-------------------------------+-------------------------------+
+ * ! Type                          ! Length                        !
+ * +-------------------------------+-------------------------------+
+ * ! Hash (Bits   0 -  31)                                         !
+ * : :                                                             :
+ * ! Hash (Bits 224 - 255)                                         !
+ * +---------------------------------------------------------------+
+ */
 struct part_signature_sha256_s
 {
   part_header_t head;
@@ -168,12 +178,24 @@ struct part_signature_sha256_s
 };
 typedef struct part_signature_sha256_s part_signature_sha256_t;
 
+/*                      1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-------------------------------+-------------------------------+
+ * ! Type                          ! Length                        !
+ * +-------------------------------+-------------------------------+
+ * ! Original length               ! Padding (0 - 15 bytes)        !
+ * +-------------------------------+-------------------------------+
+ * ! Hash (Bits   0 -  31)                                         !
+ * : :                                                             :
+ * ! Hash (Bits 128 - 159)                                         !
+ * +---------------------------------------------------------------+
+ */
 struct part_encryption_aes256_s
 {
   part_header_t head;
   uint16_t orig_length;
-  uint16_t random;
-  char hash[28];
+  char padding[15];
+  char hash[20];
 };
 typedef struct part_encryption_aes256_s part_encryption_aes256_t;
 
@@ -766,12 +788,24 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 		void **ret_buffer, int *ret_buffer_len)
 {
-  char *buffer = *ret_buffer;
-  int   buffer_len = *ret_buffer_len;
-  int   orig_buffer_len;
+  char  *buffer = *ret_buffer;
+  size_t buffer_len = (size_t) *ret_buffer_len;
+  size_t orig_buffer_len;
+  size_t part_size;
+  size_t buffer_offset = 0;
+  size_t padding_size;
   part_encryption_aes256_t pea;
-  char hash[28];
+  size_t pea_size;
+  char hash[sizeof (pea.hash)];
   gcry_error_t err;
+
+  /* Make sure at least the header if available. */
+  if (buffer_len < sizeof (pea))
+  {
+    NOTICE ("network plugin: parse_part_encr_aes256: "
+        "Discarding short packet.");
+    return (-1);
+  }
 
   if (se->cypher == NULL)
   {
@@ -780,9 +814,26 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     return (-1);
   }
 
+  /* Size of `pea' without padding. */
+  pea_size = sizeof (pea.head.type) + sizeof (pea.head.length)
+    + sizeof (pea.orig_length) + sizeof (pea.hash);
+
+  /* Copy the header information to `pea' */
+  memcpy (&pea.head, buffer, sizeof (pea.head));
+  buffer_offset += sizeof (pea.head);
+  
+  /* Check the `part size'. */
+  part_size = ntohs (pea.head.length);
+  if (part_size > buffer_len)
+  {
+    NOTICE ("network plugin: parse_part_encr_aes256: "
+        "Discarding large part.");
+    return (-1);
+  }
+
   /* Decrypt the packet in-place */
   err = gcry_cipher_decrypt (se->cypher,
-      buffer + sizeof (pea.head), buffer_len - sizeof (pea.head),
+      buffer + sizeof (pea.head), part_size - sizeof (pea.head),
       /* in = */ NULL, /* in len = */ 0);
   gcry_cipher_reset (se->cypher);
   if (err != 0)
@@ -792,22 +843,33 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     return (-1);
   }
 
-  /* Copy the header information to `pea' */
-  memcpy (&pea, buffer, sizeof (pea));
-  buffer += sizeof (pea);
-  buffer_len -= sizeof (pea);
-
-  /* Check sanity of the original length */
+  /* Figure out the length of the payload and the length of the padding. */
+  memcpy (&pea.orig_length, buffer + buffer_offset, sizeof (pea.orig_length));
+  buffer_offset += sizeof (pea.orig_length);
   orig_buffer_len = ntohs (pea.orig_length);
-  if (orig_buffer_len > buffer_len)
+  if (orig_buffer_len > (part_size - pea_size))
   {
     ERROR ("network plugin: Decryption failed: Invalid original length.");
     return (-1);
   }
 
+  /* Calculate the size of the `padding' field. */
+  padding_size = part_size - (orig_buffer_len + pea_size);
+  if (padding_size > sizeof (pea.padding))
+  {
+    ERROR ("network plugin: Part- and original length "
+        "differ more than %zu bytes.", sizeof (pea.padding));
+    return (-1);
+  }
+  buffer_offset += padding_size;
+
+  memcpy (pea.hash, buffer + buffer_offset, sizeof (pea.hash));
+  buffer_offset += sizeof (pea.hash);
+
   /* Check hash sum */
   memset (hash, 0, sizeof (hash));
-  gcry_md_hash_buffer (GCRY_MD_SHA224, hash, buffer, orig_buffer_len);
+  gcry_md_hash_buffer (GCRY_MD_SHA1, hash,
+      buffer + buffer_offset, orig_buffer_len);
   
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
@@ -815,9 +877,17 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     return (-1);
   }
 
+  assert ((buffer_offset + orig_buffer_len) <= buffer_len);
+  if ((buffer_offset + orig_buffer_len) < buffer_len)
+  {
+    NOTICE ("network plugin: Trailing, potentially unencrypted data "
+        "(%zu bytes) will be ignored.",
+        buffer_len - (buffer_offset + orig_buffer_len));
+  }
+
   /* Update return values */
-  *ret_buffer = buffer;
-  *ret_buffer_len = orig_buffer_len;
+  *ret_buffer = buffer + buffer_offset;
+  *ret_buffer_len = (int) orig_buffer_len;
 
   return (0);
 } /* }}} int parse_part_encr_aes256 */
@@ -1835,14 +1905,20 @@ static void networt_send_buffer_encrypted (const sockent_t *se, /* {{{ */
 		const char *in_buffer, size_t in_buffer_size)
 {
   part_encryption_aes256_t pea;
-  char buffer[sizeof (pea) + in_buffer_size + 16];
+  char buffer[sizeof (pea) + in_buffer_size];
   size_t buffer_size;
+  size_t buffer_offset;
+  size_t padding_size;
   gcry_error_t err;
 
   /* Round to the next multiple of 16, because AES has a block size of 128 bit.
    * the first four bytes of `pea' are not encrypted and must be subtracted. */
-  buffer_size = (sizeof (pea) + in_buffer_size + 15 - sizeof (pea.head)) / 16;
+  buffer_size = sizeof (pea.orig_length) + sizeof (pea.hash) + in_buffer_size;
+  padding_size = buffer_size;
+  buffer_size = (buffer_size + 15) / 16;
   buffer_size = buffer_size * 16;
+  padding_size = buffer_size - padding_size;
+  assert (padding_size <= sizeof (pea.padding));
   buffer_size += sizeof (pea.head);
 
   DEBUG ("network plugin: networt_send_buffer_encrypted: "
@@ -1856,15 +1932,35 @@ static void networt_send_buffer_encrypted (const sockent_t *se, /* {{{ */
 
   /* Fill the extra field with random values. Some entropy in the encrypted
    * data is usually not a bad thing, I hope. */
-  gcry_randomize (&pea.random, sizeof (pea.random), GCRY_STRONG_RANDOM);
+  if (padding_size > 0)
+    gcry_randomize (&pea.padding, padding_size, GCRY_STRONG_RANDOM);
 
   /* Create hash of the payload */
-  gcry_md_hash_buffer (GCRY_MD_SHA224, pea.hash, in_buffer, in_buffer_size);
+  gcry_md_hash_buffer (GCRY_MD_SHA1, pea.hash, in_buffer, in_buffer_size);
 
   /* Initialize the buffer */
+  buffer_offset = 0;
   memset (buffer, 0, sizeof (buffer));
-  memcpy (buffer, &pea, sizeof (pea));
-  memcpy (buffer + sizeof (pea), in_buffer, in_buffer_size);
+
+  memcpy (buffer + buffer_offset, &pea.head, sizeof (pea.head));
+  buffer_offset += sizeof (pea.head);
+
+  memcpy (buffer + buffer_offset, &pea.orig_length, sizeof (pea.orig_length));
+  buffer_offset += sizeof (pea.orig_length);
+
+  if (padding_size > 0)
+  {
+    memcpy (buffer + buffer_offset, &pea.padding, padding_size);
+    buffer_offset += padding_size;
+  }
+
+  memcpy (buffer + buffer_offset, &pea.hash, sizeof (pea.hash));
+  buffer_offset += sizeof (pea.hash);
+
+  memcpy (buffer + buffer_offset, in_buffer, in_buffer_size);
+  buffer_offset += in_buffer_size;
+
+  assert (buffer_offset == buffer_size);
 
   /* Encrypt the buffer in-place */
   err = gcry_cipher_encrypt (se->cypher,
