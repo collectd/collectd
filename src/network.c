@@ -741,7 +741,11 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   size_t buffer_len = (size_t) *ret_buffer_len;
 
   part_signature_sha256_t ps_received;
-  part_signature_sha256_t ps_expected;
+  char hash[sizeof (ps_received.hash)];
+
+  gcry_md_hd_t hd;
+  gcry_error_t err;
+  unsigned char *hash_ptr;
 
   if (se->shared_secret == NULL)
   {
@@ -753,19 +757,48 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   if (buffer_len < sizeof (ps_received))
     return (-ENOMEM);
 
+  hd = NULL;
+  err = gcry_md_open (&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
+  if (err != 0)
+  {
+    ERROR ("network plugin: Creating HMAC object failed: %s",
+        gcry_strerror (err));
+    return (-1);
+  }
+
+  err = gcry_md_setkey (hd, se->shared_secret,
+      strlen (se->shared_secret));
+  if (err != 0)
+  {
+    ERROR ("network plugin: gcry_md_setkey failed: %s",
+        gcry_strerror (err));
+    gcry_md_close (hd);
+    return (-1);
+  }
+
   memcpy (&ps_received, buffer, sizeof (ps_received));
+  /* TODO: Check ps_received.head.length! */
 
-  memset (&ps_expected, 0, sizeof (ps_expected));
-  ps_expected.head.type = htons (TYPE_SIGN_SHA256);
-  ps_expected.head.length = htons (sizeof (ps_expected));
-  sstrncpy (ps_expected.hash, se->shared_secret, sizeof (ps_expected.hash));
-  memcpy (buffer, &ps_expected, sizeof (ps_expected));
+  buffer += sizeof (ps_received);
+  buffer_len -= sizeof (ps_received);
 
-  gcry_md_hash_buffer (GCRY_MD_SHA256, ps_expected.hash, buffer, buffer_len);
+  gcry_md_write (hd, buffer, buffer_len);
+  hash_ptr = gcry_md_read (hd, GCRY_MD_SHA256);
+  if (hash_ptr == NULL)
+  {
+    ERROR ("network plugin: gcry_md_read failed.");
+    gcry_md_close (hd);
+    return (-1);
+  }
+  memcpy (hash, hash_ptr, sizeof (hash));
+
+  gcry_md_close (hd);
+  hd = NULL;
 
   *ret_buffer += sizeof (ps_received);
+  *ret_buffer_len -= sizeof (ps_received);
 
-  if (memcmp (ps_received.hash, ps_expected.hash,
+  if (memcmp (ps_received.hash, hash,
         sizeof (ps_received.hash)) == 0)
     return (0);
   else /* hashes do not match. */
@@ -1879,24 +1912,52 @@ static void networt_send_buffer_signed (const sockent_t *se, /* {{{ */
 {
 	part_signature_sha256_t ps;
 	char buffer[sizeof (ps) + in_buffer_size];
-	char hash[sizeof (ps.hash)];
+
+	gcry_md_hd_t hd;
+	gcry_error_t err;
+	unsigned char *hash;
+
+	hd = NULL;
+	err = gcry_md_open (&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
+	if (err != 0)
+	{
+		ERROR ("network plugin: Creating HMAC object failed: %s",
+				gcry_strerror (err));
+		return;
+	}
+
+	err = gcry_md_setkey (hd, se->shared_secret,
+			strlen (se->shared_secret));
+	if (err != 0)
+	{
+		ERROR ("network plugin: gcry_md_setkey failed: %s",
+				gcry_strerror (err));
+		gcry_md_close (hd);
+		return;
+	}
 
 	/* Initialize the `ps' structure. */
 	memset (&ps, 0, sizeof (ps));
 	ps.head.type = htons (TYPE_SIGN_SHA256);
 	ps.head.length = htons ((uint16_t) sizeof (ps));
-	sstrncpy (ps.hash, se->shared_secret, sizeof (ps.hash));
 
-	/* Prepend the signature. */
+	/* Calculate the hash value. */
+	gcry_md_write (hd, in_buffer, in_buffer_size);
+	hash = gcry_md_read (hd, GCRY_MD_SHA256);
+	if (hash == NULL)
+	{
+		ERROR ("network plugin: gcry_md_read failed.");
+		gcry_md_close (hd);
+		return;
+	}
+
+	/* Add the signature and fill the rest of the buffer. */
+        memcpy (ps.hash, hash, sizeof (ps.hash));
 	memcpy (buffer, &ps, sizeof (ps));
 	memcpy (buffer + sizeof (ps), in_buffer, in_buffer_size);
 
-	/* Calculate the hash value. */
-	gcry_md_hash_buffer (GCRY_MD_SHA256, hash, buffer, sizeof (buffer));
-
-	/* Copy the hash value into the buffer. */
-	memcpy (ps.hash, hash, sizeof (ps.hash));
-	memcpy (buffer, &ps, sizeof (ps));
+	gcry_md_close (hd);
+	hd = NULL;
 
 	networt_send_buffer_plain (se, buffer, sizeof (buffer));
 } /* }}} void networt_send_buffer_signed */
