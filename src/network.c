@@ -67,12 +67,13 @@
 /*
  * Maximum size required for encryption / signing:
  * Type/length:       4
+ * IV                16
  * Hash/orig length: 22
  * Padding (up to):  15
  * --------------------
- *                   41
+ *                   57
  */
-#define BUFF_SIG_SIZE 41
+#define BUFF_SIG_SIZE 57
 
 /*
  * Private data types
@@ -89,6 +90,7 @@ typedef struct sockent
 # define SECURITY_LEVEL_ENCRYPT 2
 	int security_level;
 	char *shared_secret;
+	unsigned char shared_secret_hash[32];
 	gcry_cipher_hd_t cypher;
 #endif /* HAVE_GCRYPT_H */
 
@@ -174,7 +176,7 @@ typedef struct part_values_s part_values_t;
 struct part_signature_sha256_s
 {
   part_header_t head;
-  char hash[32];
+  unsigned char hash[32];
 };
 typedef struct part_signature_sha256_s part_signature_sha256_t;
 
@@ -190,12 +192,16 @@ typedef struct part_signature_sha256_s part_signature_sha256_t;
  * ! Hash (Bits 128 - 159)                                         !
  * +---------------------------------------------------------------+
  */
+/* Size without padding */
+#define PART_ENCRYPTION_AES256_SIZE 42
+#define PART_ENCRYPTION_AES256_UNENCR_SIZE 20
 struct part_encryption_aes256_s
 {
   part_header_t head;
+  unsigned char iv[16];
   uint16_t orig_length;
-  char padding[15];
-  char hash[20];
+  unsigned char hash[20];
+  unsigned char padding[15];
 };
 typedef struct part_encryption_aes256_s part_encryption_aes256_t;
 
@@ -361,6 +367,55 @@ static int cache_check (const value_list_t *vl)
 
 	return (retval);
 } /* int cache_check */
+
+#if HAVE_GCRYPT_H
+static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
+    const void *iv, size_t iv_size)
+{
+  gcry_error_t err;
+
+  if (se->cypher == NULL)
+  {
+    err = gcry_cipher_open (&se->cypher,
+        GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CBC, /* flags = */ 0);
+    if (err != 0)
+    {
+      ERROR ("network plugin: gcry_cipher_open returned: %s",
+          gcry_strerror (err));
+      se->cypher = NULL;
+      return (NULL);
+    }
+  }
+  else
+  {
+    gcry_cipher_reset (se->cypher);
+  }
+  assert (se->cypher != NULL);
+
+  err = gcry_cipher_setkey (se->cypher,
+      se->shared_secret_hash, sizeof (se->shared_secret_hash));
+  if (err != 0)
+  {
+    ERROR ("network plugin: gcry_cipher_setkey returned: %s",
+        gcry_strerror (err));
+    gcry_cipher_close (se->cypher);
+    se->cypher = NULL;
+    return (NULL);
+  }
+
+  err = gcry_cipher_setiv (se->cypher, iv, iv_size);
+  if (err != 0)
+  {
+    ERROR ("network plugin: gcry_cipher_setkey returned: %s",
+        gcry_strerror (err));
+    gcry_cipher_close (se->cypher);
+    se->cypher = NULL;
+    return (NULL);
+  }
+
+  return (se->cypher);
+} /* }}} int network_get_aes256_cypher */
+#endif /* HAVE_GCRYPT_H */
 
 static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
@@ -825,11 +880,12 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   size_t buffer_len = (size_t) *ret_buffer_len;
   size_t orig_buffer_len;
   size_t part_size;
-  size_t buffer_offset = 0;
+  size_t buffer_offset;
   size_t padding_size;
   part_encryption_aes256_t pea;
-  size_t pea_size;
-  char hash[sizeof (pea.hash)];
+  unsigned char hash[sizeof (pea.hash)];
+
+  gcry_cipher_hd_t cypher;
   gcry_error_t err;
 
   /* Make sure at least the header if available. */
@@ -840,21 +896,18 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     return (-1);
   }
 
-  if (se->cypher == NULL)
-  {
-    NOTICE ("network plugin: Unable to decrypt packet, because no cypher "
-        "instance is present.");
-    return (-1);
-  }
+  buffer_offset = 0;
 
-  /* Size of `pea' without padding. */
-  pea_size = sizeof (pea.head.type) + sizeof (pea.head.length)
-    + sizeof (pea.orig_length) + sizeof (pea.hash);
+#define BUFFER_READ(p,s) do { \
+  memcpy ((p), buffer + buffer_offset, (s)); \
+  buffer_offset += (s); \
+} while (0)
 
-  /* Copy the header information to `pea' */
-  memcpy (&pea.head, buffer, sizeof (pea.head));
-  buffer_offset += sizeof (pea.head);
-  
+  /* Copy the unencrypted information into `pea'. */
+  BUFFER_READ (&pea.head.type, sizeof (pea.head.type));
+  BUFFER_READ (&pea.head.length, sizeof (pea.head.length));
+  BUFFER_READ (pea.iv, sizeof (pea.iv));
+
   /* Check the `part size'. */
   part_size = ntohs (pea.head.length);
   if (part_size > buffer_len)
@@ -864,11 +917,15 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     return (-1);
   }
 
+  cypher = network_get_aes256_cypher (se, pea.iv, sizeof (pea.iv));
+  if (cypher == NULL)
+    return (-1);
+
   /* Decrypt the packet in-place */
-  err = gcry_cipher_decrypt (se->cypher,
-      buffer + sizeof (pea.head), part_size - sizeof (pea.head),
+  err = gcry_cipher_decrypt (cypher,
+      buffer    + PART_ENCRYPTION_AES256_UNENCR_SIZE,
+      part_size - PART_ENCRYPTION_AES256_UNENCR_SIZE,
       /* in = */ NULL, /* in len = */ 0);
-  gcry_cipher_reset (se->cypher);
   if (err != 0)
   {
     ERROR ("network plugin: gcry_cipher_decrypt returned: %s",
@@ -877,27 +934,28 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   }
 
   /* Figure out the length of the payload and the length of the padding. */
-  memcpy (&pea.orig_length, buffer + buffer_offset, sizeof (pea.orig_length));
-  buffer_offset += sizeof (pea.orig_length);
+  BUFFER_READ (&pea.orig_length, sizeof (pea.orig_length));
+
   orig_buffer_len = ntohs (pea.orig_length);
-  if (orig_buffer_len > (part_size - pea_size))
+  if (orig_buffer_len > (part_size - PART_ENCRYPTION_AES256_SIZE))
   {
     ERROR ("network plugin: Decryption failed: Invalid original length.");
     return (-1);
   }
 
   /* Calculate the size of the `padding' field. */
-  padding_size = part_size - (orig_buffer_len + pea_size);
+  padding_size = part_size - (orig_buffer_len + PART_ENCRYPTION_AES256_SIZE);
   if (padding_size > sizeof (pea.padding))
   {
     ERROR ("network plugin: Part- and original length "
         "differ more than %zu bytes.", sizeof (pea.padding));
     return (-1);
   }
-  buffer_offset += padding_size;
 
-  memcpy (pea.hash, buffer + buffer_offset, sizeof (pea.hash));
-  buffer_offset += sizeof (pea.hash);
+  BUFFER_READ (pea.hash, sizeof (pea.hash));
+
+  /* Read the padding. */
+  BUFFER_READ (pea.padding, padding_size);
 
   /* Check hash sum */
   memset (hash, 0, sizeof (hash));
@@ -923,6 +981,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   *ret_buffer_len = (int) orig_buffer_len;
 
   return (0);
+#undef BUFFER_READ
 } /* }}} int parse_part_encr_aes256 */
 /* #endif HAVE_GCRYPT_H */
 
@@ -1285,50 +1344,6 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 	return (0);
 } /* int network_set_ttl */
 
-#if HAVE_GCRYPT_H
-static int network_set_encryption (sockent_t *se, /* {{{ */
-		const char *shared_secret)
-{
-  char hash[32];
-  gcry_error_t err;
-
-  se->shared_secret = sstrdup (shared_secret);
-
-  /*
-   * We use CBC *without* an initialization vector: The cipher is reset after
-   * each packet and we would have to re-set the IV each time. The first
-   * encrypted block will contain the SHA-224 checksum anyway, so this should
-   * be quite unpredictable. Also, there's a 2 byte field in the header that's
-   * being filled with random numbers. So we only use CBC so the blocks
-   * *within* one packet are chained.
-   */
-  err = gcry_cipher_open (&se->cypher,
-      GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CBC, /* flags = */ 0);
-  if (err != 0)
-  {
-    ERROR ("network plugin: gcry_cipher_open returned: %s",
-        gcry_strerror (err));
-    return (-1);
-  }
-
-  assert (se->shared_secret != NULL);
-  gcry_md_hash_buffer (GCRY_MD_SHA256, hash,
-      se->shared_secret, strlen (se->shared_secret));
-
-  err = gcry_cipher_setkey (se->cypher, hash, sizeof (hash));
-  if (err != 0)
-  {
-    DEBUG ("network plugin: gcry_cipher_setkey returned: %s",
-        gcry_strerror (err));
-    gcry_cipher_close (se->cypher);
-    se->cypher = NULL;
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int network_set_encryption */
-#endif /* HAVE_GCRYPT_H */
-
 static int network_bind_socket (const sockent_t *se, const struct addrinfo *ai)
 {
 	int loop = 0;
@@ -1544,28 +1559,16 @@ static sockent_t *network_create_socket (const char *node, /* {{{ */
 		se->cypher = NULL;
 		if (shared_secret != NULL)
 		{
-			status = network_set_encryption (se, shared_secret);
-			if ((status != 0) && (security_level <= SECURITY_LEVEL_SIGN))
-			{
-				WARNING ("network plugin: Starting cryptograp"
-						"hic subsystem failed. Since "
-						"security level `Sign' or "
-						"`None' is configured I will "
-						"continue.");
-			}
-			else if (status != 0)
-			{
-				ERROR ("network plugin: Starting cryptograp"
-						"hic subsystem failed. "
-						"Because the security level "
-						"is set to `Encrypt' I will "
-						"not continue!");
-				close (se->fd);
-				free (se->addr);
-				free (se);
-				continue;
-			}
-		} /* if (shared_secret != NULL) */
+			se->shared_secret = sstrdup (shared_secret);
+			assert (se->shared_secret != NULL);
+
+			memset (se->shared_secret_hash, 0,
+					sizeof (se->shared_secret_hash));
+			gcry_md_hash_buffer (GCRY_MD_SHA256,
+					se->shared_secret_hash,
+					se->shared_secret,
+					strlen (se->shared_secret));
+		}
 #else
 		/* Make compiler happy */
 		security_level = 0;
@@ -1962,7 +1965,7 @@ static void networt_send_buffer_signed (const sockent_t *se, /* {{{ */
 	networt_send_buffer_plain (se, buffer, sizeof (buffer));
 } /* }}} void networt_send_buffer_signed */
 
-static void networt_send_buffer_encrypted (const sockent_t *se, /* {{{ */
+static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
 		const char *in_buffer, size_t in_buffer_size)
 {
   part_encryption_aes256_t pea;
@@ -1971,16 +1974,21 @@ static void networt_send_buffer_encrypted (const sockent_t *se, /* {{{ */
   size_t buffer_offset;
   size_t padding_size;
   gcry_error_t err;
+  gcry_cipher_hd_t cypher;
 
   /* Round to the next multiple of 16, because AES has a block size of 128 bit.
-   * the first four bytes of `pea' are not encrypted and must be subtracted. */
-  buffer_size = sizeof (pea.orig_length) + sizeof (pea.hash) + in_buffer_size;
+   * the first 20 bytes of `pea' are not encrypted and must be subtracted. */
+  buffer_size = in_buffer_size + 
+    (PART_ENCRYPTION_AES256_SIZE - PART_ENCRYPTION_AES256_UNENCR_SIZE);
   padding_size = buffer_size;
+  /* Round to the next multiple of 16. */
   buffer_size = (buffer_size + 15) / 16;
   buffer_size = buffer_size * 16;
+  /* Calculate padding_size */
   padding_size = buffer_size - padding_size;
   assert (padding_size <= sizeof (pea.padding));
-  buffer_size += sizeof (pea.head);
+  /* Now add the unencrypted bytes. */
+  buffer_size += PART_ENCRYPTION_AES256_UNENCR_SIZE;
 
   DEBUG ("network plugin: networt_send_buffer_encrypted: "
       "buffer_size = %zu;", buffer_size);
@@ -1991,43 +1999,48 @@ static void networt_send_buffer_encrypted (const sockent_t *se, /* {{{ */
   pea.head.length = htons ((uint16_t) buffer_size);
   pea.orig_length = htons ((uint16_t) in_buffer_size);
 
+  /* Chose a random initialization vector. */
+  gcry_randomize (&pea.iv, sizeof (pea.iv), GCRY_STRONG_RANDOM);
+
+  /* Create hash of the payload */
+  gcry_md_hash_buffer (GCRY_MD_SHA1, pea.hash, in_buffer, in_buffer_size);
+
   /* Fill the extra field with random values. Some entropy in the encrypted
    * data is usually not a bad thing, I hope. */
   if (padding_size > 0)
     gcry_randomize (&pea.padding, padding_size, GCRY_STRONG_RANDOM);
 
-  /* Create hash of the payload */
-  gcry_md_hash_buffer (GCRY_MD_SHA1, pea.hash, in_buffer, in_buffer_size);
-
   /* Initialize the buffer */
   buffer_offset = 0;
   memset (buffer, 0, sizeof (buffer));
 
-  memcpy (buffer + buffer_offset, &pea.head, sizeof (pea.head));
-  buffer_offset += sizeof (pea.head);
+#define BUFFER_ADD(p,s) do { \
+  memcpy (buffer + buffer_offset, (p), (s)); \
+  buffer_offset += (s); \
+} while (0)
 
-  memcpy (buffer + buffer_offset, &pea.orig_length, sizeof (pea.orig_length));
-  buffer_offset += sizeof (pea.orig_length);
+  BUFFER_ADD (&pea.head.type, sizeof (pea.head.type));
+  BUFFER_ADD (&pea.head.length, sizeof (pea.head.length));
+  BUFFER_ADD (pea.iv, sizeof (pea.iv));
+  BUFFER_ADD (&pea.orig_length, sizeof (pea.orig_length));
+  BUFFER_ADD (pea.hash, sizeof (pea.hash));
 
   if (padding_size > 0)
-  {
-    memcpy (buffer + buffer_offset, &pea.padding, padding_size);
-    buffer_offset += padding_size;
-  }
+    BUFFER_ADD (pea.padding, padding_size);
 
-  memcpy (buffer + buffer_offset, &pea.hash, sizeof (pea.hash));
-  buffer_offset += sizeof (pea.hash);
-
-  memcpy (buffer + buffer_offset, in_buffer, in_buffer_size);
-  buffer_offset += in_buffer_size;
+  BUFFER_ADD (in_buffer, in_buffer_size);
 
   assert (buffer_offset == buffer_size);
 
+  cypher = network_get_aes256_cypher (se, pea.iv, sizeof (pea.iv));
+  if (cypher == NULL)
+    return;
+
   /* Encrypt the buffer in-place */
-  err = gcry_cipher_encrypt (se->cypher,
-      buffer + sizeof (pea.head), buffer_size - sizeof (pea.head),
+  err = gcry_cipher_encrypt (cypher,
+      buffer      + PART_ENCRYPTION_AES256_UNENCR_SIZE,
+      buffer_size - PART_ENCRYPTION_AES256_UNENCR_SIZE,
       /* in = */ NULL, /* in len = */ 0);
-  gcry_cipher_reset (se->cypher);
   if (err != 0)
   {
     ERROR ("network plugin: gcry_cipher_encrypt returned: %s",
@@ -2037,6 +2050,7 @@ static void networt_send_buffer_encrypted (const sockent_t *se, /* {{{ */
 
   /* Send it out without further modifications */
   networt_send_buffer_plain (se, buffer, buffer_size);
+#undef BUFFER_ADD
 } /* }}} void networt_send_buffer_encrypted */
 #endif /* HAVE_GCRYPT_H */
 
