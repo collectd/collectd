@@ -573,11 +573,11 @@ static int write_part_string (char **ret_buffer, int *ret_buffer_len,
 	return (0);
 } /* int write_part_string */
 
-static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
+static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 		value_t **ret_values, int *ret_num_values)
 {
 	char *buffer = *ret_buffer;
-	int   buffer_len = *ret_buffer_len;
+	size_t buffer_len = *ret_buffer_len;
 
 	uint16_t tmp16;
 	size_t exp_size;
@@ -590,10 +590,10 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 	uint8_t *pkg_types;
 	value_t *pkg_values;
 
-	if (buffer_len < (15))
+	if (buffer_len < 15)
 	{
-		DEBUG ("network plugin: packet is too short: buffer_len = %i",
-				buffer_len);
+		NOTICE ("network plugin: packet is too short: "
+				"buffer_len = %zu", buffer_len);
 		return (-1);
 	}
 
@@ -613,13 +613,13 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 
 	exp_size = 3 * sizeof (uint16_t)
 		+ pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
-	if ((buffer_len < 0) || ((size_t) buffer_len < exp_size))
+	if ((buffer_len < 0) || (buffer_len < exp_size))
 	{
 		WARNING ("network plugin: parse_part_values: "
 				"Packet too short: "
-				"Chunk of size %u expected, "
-				"but buffer has only %i bytes left.",
-				(unsigned int) exp_size, buffer_len);
+				"Chunk of size %zu expected, "
+				"but buffer has only %zu bytes left.",
+				exp_size, buffer_len);
 		return (-1);
 	}
 
@@ -664,11 +664,11 @@ static int parse_part_values (void **ret_buffer, int *ret_buffer_len,
 	return (0);
 } /* int parse_part_values */
 
-static int parse_part_number (void **ret_buffer, int *ret_buffer_len,
+static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
 		uint64_t *value)
 {
 	char *buffer = *ret_buffer;
-	int buffer_len = *ret_buffer_len;
+	size_t buffer_len = *ret_buffer_len;
 
 	uint16_t tmp16;
 	uint64_t tmp64;
@@ -681,9 +681,9 @@ static int parse_part_number (void **ret_buffer, int *ret_buffer_len,
 	{
 		WARNING ("network plugin: parse_part_number: "
 				"Packet too short: "
-				"Chunk of size %u expected, "
-				"but buffer has only %i bytes left.",
-				(unsigned int) exp_size, buffer_len);
+				"Chunk of size %zu expected, "
+				"but buffer has only %zu bytes left.",
+				exp_size, buffer_len);
 		return (-1);
 	}
 
@@ -705,11 +705,11 @@ static int parse_part_number (void **ret_buffer, int *ret_buffer_len,
 	return (0);
 } /* int parse_part_number */
 
-static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
+static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 		char *output, int output_len)
 {
 	char *buffer = *ret_buffer;
-	int   buffer_len = *ret_buffer_len;
+	size_t buffer_len = *ret_buffer_len;
 
 	uint16_t tmp16;
 	size_t header_size = 2 * sizeof (uint16_t);
@@ -717,13 +717,13 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	uint16_t pkg_length;
 	uint16_t pkg_type;
 
-	if ((buffer_len < 0) || ((size_t) buffer_len < header_size))
+	if ((buffer_len < 0) || (buffer_len < header_size))
 	{
 		WARNING ("network plugin: parse_part_string: "
 				"Packet too short: "
-				"Chunk of at least size %u expected, "
-				"but buffer has only %i bytes left.",
-				(unsigned int) header_size, buffer_len);
+				"Chunk of at least size %zu expected, "
+				"but buffer has only %zu bytes left.",
+				header_size, buffer_len);
 		return (-1);
 	}
 
@@ -740,8 +740,8 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	{
 		WARNING ("network plugin: parse_part_string: "
 				"Packet too big: "
-				"Chunk of size %hu received, "
-				"but buffer has only %i bytes left.",
+				"Chunk of size %"PRIu16" received, "
+				"but buffer has only %zu bytes left.",
 				pkg_length, buffer_len);
 		return (-1);
 	}
@@ -788,12 +788,19 @@ static int parse_part_string (void **ret_buffer, int *ret_buffer_len,
 	return (0);
 } /* int parse_part_string */
 
+/* Forward declaration: parse_part_sign_sha256 and parse_part_encr_aes256 call
+ * parse_packet and vice versa. */
+#define PP_SIGNED    0x01
+#define PP_ENCRYPTED 0x02
+static int parse_packet (sockent_t *se,
+		void *buffer, size_t buffer_size, int flags);
+
 #if HAVE_GCRYPT_H
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
-    void **ret_buffer, int *ret_buffer_len)
+    void **ret_buffer, size_t *ret_buffer_len)
 {
   char *buffer = *ret_buffer;
-  size_t buffer_len = (size_t) *ret_buffer_len;
+  size_t buffer_len = *ret_buffer_len;
 
   part_signature_sha256_t ps_received;
   char hash[sizeof (ps_received.hash)];
@@ -863,7 +870,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
 #else /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
-    void **ret_buffer, int *ret_buffer_len)
+    void **ret_buffer, size_t *ret_buffer_len)
 {
   INFO ("network plugin: Received signed packet, but the network "
       "plugin was not linked with libgcrypt, so I cannot "
@@ -874,10 +881,11 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
 #if HAVE_GCRYPT_H
 static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
-		void **ret_buffer, int *ret_buffer_len)
+		void **ret_buffer, size_t *ret_buffer_len,
+		int flags)
 {
   char  *buffer = *ret_buffer;
-  size_t buffer_len = (size_t) *ret_buffer_len;
+  size_t buffer_len = *ret_buffer_len;
   size_t orig_buffer_len;
   size_t part_size;
   size_t buffer_offset;
@@ -968,17 +976,15 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     return (-1);
   }
 
-  assert ((buffer_offset + orig_buffer_len) <= buffer_len);
-  if ((buffer_offset + orig_buffer_len) < buffer_len)
-  {
-    NOTICE ("network plugin: Trailing, potentially unencrypted data "
-        "(%zu bytes) will be ignored.",
-        buffer_len - (buffer_offset + orig_buffer_len));
-  }
+  assert ((PART_ENCRYPTION_AES256_SIZE + padding_size + orig_buffer_len)
+		  == part_size);
+
+  parse_packet (se, buffer + PART_ENCRYPTION_AES256_SIZE + padding_size,
+		  orig_buffer_len, flags | PP_ENCRYPTED);
 
   /* Update return values */
-  *ret_buffer = buffer + buffer_offset;
-  *ret_buffer_len = (int) orig_buffer_len;
+  *ret_buffer =     buffer     + part_size;
+  *ret_buffer_len = buffer_len - part_size;
 
   return (0);
 #undef BUFFER_READ
@@ -987,7 +993,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 
 #else /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
-    void **ret_buffer, int *ret_buffer_len)
+    void **ret_buffer, size_t *ret_buffer_len)
 {
   INFO ("network plugin: Received encrypted packet, but the network "
       "plugin was not linked with libgcrypt, so I cannot "
@@ -996,45 +1002,27 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 } /* }}} int parse_part_encr_aes256 */
 #endif /* !HAVE_GCRYPT_H */
 
-static int parse_packet (receive_list_entry_t *rle) /* {{{ */
+static int parse_packet (sockent_t *se, /* {{{ */
+		void *buffer, size_t buffer_size, int flags)
 {
 	int status;
-
-	void *buffer;
-	int buffer_len;
-	sockent_t *se;
 
 	value_list_t vl = VALUE_LIST_INIT;
 	notification_t n;
 
-	int packet_was_encrypted = 0;
-	int packet_was_signed = 0;
+	int packet_was_signed = (flags & PP_SIGNED);
+	int packet_was_encrypted = (flags & PP_ENCRYPTED);
 #if HAVE_GCRYPT_H
 	int printed_ignore_warning = 0;
 #endif /* HAVE_GCRYPT_H */
 
-	buffer = rle->data;
-	buffer_len = rle->data_len;
-
-	/* Look for the correct `sockent_t' */
-	se = listen_sockets;
-	while ((se != NULL) && (se->fd != rle->fd))
-		se = se->next;
-
-	if (se == NULL)
-	{
-		ERROR ("network plugin: Got packet from FD %i, but can't "
-				"find an appropriate socket entry.",
-				rle->fd);
-		return (-1);
-	}
 
 	memset (&vl, '\0', sizeof (vl));
 	memset (&n, '\0', sizeof (n));
 	status = 0;
 
-	while ((status == 0) && (0 < buffer_len)
-			&& ((unsigned int) buffer_len > sizeof (part_header_t)))
+	while ((status == 0) && (0 < buffer_size)
+			&& ((unsigned int) buffer_size > sizeof (part_header_t)))
 	{
 		uint16_t pkg_length;
 		uint16_t pkg_type;
@@ -1049,7 +1037,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 		pkg_length = ntohs (pkg_length);
 		pkg_type = ntohs (pkg_type);
 
-		if (pkg_length > buffer_len)
+		if (pkg_length > buffer_size)
 			break;
 		/* Ensure that this loop terminates eventually */
 		if (pkg_length < (2 * sizeof (uint16_t)))
@@ -1057,17 +1045,15 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 
 		if (pkg_type == TYPE_ENCR_AES256)
 		{
-			status = parse_part_encr_aes256 (se, &buffer, &buffer_len);
+			status = parse_part_encr_aes256 (se,
+					&buffer, &buffer_size,
+					flags);
 			if (status != 0)
 			{
 				ERROR ("network plugin: Decrypting AES256 "
 						"part failed "
 						"with status %i.", status);
 				break;
-			}
-			else
-			{
-				packet_was_encrypted = 1;
 			}
 		}
 #if HAVE_GCRYPT_H
@@ -1086,7 +1072,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 #endif /* HAVE_GCRYPT_H */
 		else if (pkg_type == TYPE_SIGN_SHA256)
 		{
-			status = parse_part_sign_sha256 (se, &buffer, &buffer_len);
+			status = parse_part_sign_sha256 (se, &buffer, &buffer_size);
 			if (status < 0)
 			{
 				ERROR ("network plugin: Verifying HMAC-SHA-256 "
@@ -1122,7 +1108,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 #endif /* HAVE_GCRYPT_H */
 		else if (pkg_type == TYPE_VALUES)
 		{
-			status = parse_part_values (&buffer, &buffer_len,
+			status = parse_part_values (&buffer, &buffer_size,
 					&vl.values, &vl.values_len);
 
 			if (status != 0)
@@ -1147,7 +1133,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 		else if (pkg_type == TYPE_TIME)
 		{
 			uint64_t tmp = 0;
-			status = parse_part_number (&buffer, &buffer_len,
+			status = parse_part_number (&buffer, &buffer_size,
 					&tmp);
 			if (status == 0)
 			{
@@ -1158,21 +1144,21 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 		else if (pkg_type == TYPE_INTERVAL)
 		{
 			uint64_t tmp = 0;
-			status = parse_part_number (&buffer, &buffer_len,
+			status = parse_part_number (&buffer, &buffer_size,
 					&tmp);
 			if (status == 0)
 				vl.interval = (int) tmp;
 		}
 		else if (pkg_type == TYPE_HOST)
 		{
-			status = parse_part_string (&buffer, &buffer_len,
+			status = parse_part_string (&buffer, &buffer_size,
 					vl.host, sizeof (vl.host));
 			if (status == 0)
 				sstrncpy (n.host, vl.host, sizeof (n.host));
 		}
 		else if (pkg_type == TYPE_PLUGIN)
 		{
-			status = parse_part_string (&buffer, &buffer_len,
+			status = parse_part_string (&buffer, &buffer_size,
 					vl.plugin, sizeof (vl.plugin));
 			if (status == 0)
 				sstrncpy (n.plugin, vl.plugin,
@@ -1180,7 +1166,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 		}
 		else if (pkg_type == TYPE_PLUGIN_INSTANCE)
 		{
-			status = parse_part_string (&buffer, &buffer_len,
+			status = parse_part_string (&buffer, &buffer_size,
 					vl.plugin_instance,
 					sizeof (vl.plugin_instance));
 			if (status == 0)
@@ -1190,14 +1176,14 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 		}
 		else if (pkg_type == TYPE_TYPE)
 		{
-			status = parse_part_string (&buffer, &buffer_len,
+			status = parse_part_string (&buffer, &buffer_size,
 					vl.type, sizeof (vl.type));
 			if (status == 0)
 				sstrncpy (n.type, vl.type, sizeof (n.type));
 		}
 		else if (pkg_type == TYPE_TYPE_INSTANCE)
 		{
-			status = parse_part_string (&buffer, &buffer_len,
+			status = parse_part_string (&buffer, &buffer_size,
 					vl.type_instance,
 					sizeof (vl.type_instance));
 			if (status == 0)
@@ -1206,7 +1192,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 		}
 		else if (pkg_type == TYPE_MESSAGE)
 		{
-			status = parse_part_string (&buffer, &buffer_len,
+			status = parse_part_string (&buffer, &buffer_size,
 					n.message, sizeof (n.message));
 
 			if (status != 0)
@@ -1242,7 +1228,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 		else if (pkg_type == TYPE_SEVERITY)
 		{
 			uint64_t tmp = 0;
-			status = parse_part_number (&buffer, &buffer_len,
+			status = parse_part_number (&buffer, &buffer_size,
 					&tmp);
 			if (status == 0)
 				n.severity = (int) tmp;
@@ -1253,7 +1239,7 @@ static int parse_packet (receive_list_entry_t *rle) /* {{{ */
 					" type: 0x%04hx", pkg_type);
 			buffer = ((char *) buffer) + pkg_length;
 		}
-	} /* while (buffer_len > sizeof (part_header_t)) */
+	} /* while (buffer_size > sizeof (part_header_t)) */
 
 	return (status);
 } /* }}} int parse_packet */
@@ -1711,11 +1697,12 @@ static int network_add_sending_socket (const char *node, /* {{{ */
 	return (0);
 } /* }}} int network_add_sending_socket */
 
-static void *dispatch_thread (void __attribute__((unused)) *arg)
+static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
 {
   while (42)
   {
     receive_list_entry_t *ent;
+    sockent_t *se;
 
     /* Lock and wait for more data to come in */
     pthread_mutex_lock (&receive_list_lock);
@@ -1734,13 +1721,26 @@ static void *dispatch_thread (void __attribute__((unused)) *arg)
     if (ent == NULL)
       break;
 
-    parse_packet (ent);
+    /* Look for the correct `sockent_t' */
+    se = listen_sockets;
+    while ((se != NULL) && (se->fd != ent->fd))
+	    se = se->next;
 
+    if (se == NULL)
+    {
+	    ERROR ("network plugin: Got packet from FD %i, but can't "
+			    "find an appropriate socket entry.",
+			    ent->fd);
+	    sfree (ent);
+	    continue;
+    }
+
+    parse_packet (se, ent->data, ent->data_len, /* flags = */ 0);
     sfree (ent);
   } /* while (42) */
 
   return (NULL);
-} /* void *dispatch_thread */
+} /* }}} void *dispatch_thread */
 
 static int network_receive (void)
 {
