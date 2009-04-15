@@ -43,16 +43,42 @@ static size_t apache_buffer_size = 0;
 static size_t apache_buffer_fill = 0;
 static char   apache_curl_error[CURL_ERROR_SIZE];
 
-static const char *config_keys[] =
+struct apache_s
 {
-	"URL",
-	"User",
-	"Password",
-	"VerifyPeer",
-	"VerifyHost",
-	"CACert"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+	char *name;
+	char *host;
+	char *url;
+	char *user;
+	char *pass;
+	char *verify_peer;
+	char *verify_host;
+	char *cacert;
+	CURL *curl;
+}; /* apache_s */
+
+typedef struct apache_s apache_t;
+
+static apache_t **apache     = NULL;
+static size_t     apache_num = 0;
+
+static void apache_free (apache_t *st)
+{
+	if (st == NULL)
+		return;
+
+	sfree (st->name);
+	sfree (st->host);
+	sfree (st->url);
+	sfree (st->user);
+	sfree (st->pass);
+	sfree (st->verify_peer);
+	sfree (st->verify_host);
+	sfree (st->cacert);
+	if (st->curl) {
+		curl_easy_cleanup(st->curl);
+		st->curl = NULL;
+	}
+} /* apache_free */
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 		void __attribute__((unused)) *stream)
@@ -82,72 +108,226 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 	apache_buffer[apache_buffer_fill] = 0;
 
 	return (len);
-}
+} /* int apache_curl_callback */
 
-static int config_set (char **var, const char *value)
+/* Configuration handling functiions
+ * <Plugin apache>
+ *   <Instance "instance_name">
+ *     URL ...
+ *   </Instance>
+ *   URL ...
+ * </Plugin>
+ */ 
+static int config_set_string (char **ret_string,
+				    oconfig_item_t *ci)
 {
-	if (*var != NULL)
+	char *string;
+
+	if ((ci->values_num != 1)
+            || (ci->values[0].type != OCONFIG_TYPE_STRING))
+        {
+                WARNING ("apache plugin: The `%s' config option "
+                         "needs exactly one string argument.", ci->key);
+                return (-1);
+        }
+
+	string = strdup (ci->values[0].value.string);
+	if (string == NULL)
 	{
-		free (*var);
-		*var = NULL;
+		ERROR ("apache plugin: strdup failed.");
+		return (-1);
 	}
 
-	if ((*var = strdup (value)) == NULL)
-		return (1);
-	else
-		return (0);
-}
+	if (*ret_string != NULL)
+		free (*ret_string);
+	*ret_string = string;
 
-static int config (const char *key, const char *value)
+	return (0);
+} /* int config_set_string */
+
+static int config_add (oconfig_item_t *ci)
 {
-	if (strcasecmp (key, "url") == 0)
-		return (config_set (&url, value));
-	else if (strcasecmp (key, "user") == 0)
-		return (config_set (&user, value));
-	else if (strcasecmp (key, "password") == 0)
-		return (config_set (&pass, value));
-	else if (strcasecmp (key, "verifypeer") == 0)
-		return (config_set (&verify_peer, value));
-	else if (strcasecmp (key, "verifyhost") == 0)
-		return (config_set (&verify_host, value));
-	else if (strcasecmp (key, "cacert") == 0)
-		return (config_set (&cacert, value));
-	else
-		return (-1);
-}
+	apache_t *st;
+	int i;
+	int status;
 
-static int init (void)
+	if ((ci->values_num != 1)
+		|| (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		WARNING ("apache plugin: The `%s' config option "
+			"needs exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	st = (apache_t *) malloc (sizeof (*st));
+	if (st == NULL)
+	{
+		ERROR ("apache plugin: malloc failed.");
+		return (-1);
+	}
+
+	memset (st, 0, sizeof (*st));
+
+	status = config_set_string (&st->name, ci);
+	if (status != 0)
+	{
+	sfree (st);
+	return (status);
+	}
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("URL", child->key) == 0)
+			status = config_set_string (&st->url, child);
+		else if (strcasecmp ("Host", child->key) == 0)
+			status = config_set_string (&st->host, child);
+		else if (strcasecmp ("User", child->key) == 0)
+			status = config_set_string (&st->user, child);
+		else if (strcasecmp ("Password", child->key) == 0)
+			status = config_set_string (&st->pass, child);
+		else if (strcasecmp ("VerifyPeer", child->key) == 0)
+			status = config_set_string (&st->verify_peer, child);
+		else if (strcasecmp ("VerifyHost", child->key) == 0)
+			status = config_set_string (&st->verify_host, child);
+		else if (strcasecmp ("CACert", child->key) == 0)
+			status = config_set_string (&st->cacert, child);
+		else
+		{
+			WARNING ("apache plugin: Option `%s' not allowed here.", child->key);
+			status = -1;
+		}
+
+		if (status != 0)
+			break;
+	}
+
+	if (status == 0)
+	{
+		apache_t **temp;
+		temp = (apache_t **) realloc (apache, sizeof (*apache) * (apache_num + 1));
+		if (temp == NULL)
+		{
+			ERROR ("apache plugin: realloc failed");
+			status = -1;
+		}
+		else
+		{
+			apache = temp;
+			apache[apache_num] = st;
+			apache_num++;
+		}
+	}
+
+	if (status != 0)
+	{
+		apache_free(st);
+		return (-1);
+	}
+
+	return (0);
+} /* int config_add */
+
+static int config (oconfig_item_t *ci)
+{
+	int status = 0;
+	int i;
+	oconfig_item_t *lci = NULL; /* legacy config */
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Instance", child->key) == 0 && child->children_num > 0)
+			config_add (child);
+		else
+		{
+			/* legacy mode - convert to <Instance ...> config */
+			if (lci == NULL)
+			{
+				lci = malloc (sizeof(*lci));
+				if (lci == NULL)
+				{
+					ERROR ("apache plugin: malloc failed.");
+					return (-1);
+				}
+				memset (lci, '\0', sizeof (*lci));
+			}
+			if (strcasecmp ("Instance", child->key) == 0)
+			{
+				lci->key = child->key;
+				lci->values = child->values;
+				lci->values_num = child->values_num;
+				lci->parent = child->parent;
+			}
+			else
+			{
+				lci->children_num++;
+				lci->children =
+					realloc (lci->children,
+						 lci->children_num * sizeof (*child));
+				if (lci->children == NULL)
+				{
+					ERROR ("apache plugin: realloc failed.");
+					return (-1);
+				}
+				memcpy (&lci->children[lci->children_num-1], child, sizeof (*child));
+			}
+		}
+	} /* for (ci->children) */
+
+	if (lci)
+	{
+		// create a <Instance ""> entry
+		lci->key = "Instance";
+		lci->values_num = 1;
+		lci->values = (oconfig_value_t *) malloc (lci->values_num * sizeof (oconfig_value_t));
+		lci->values[0].type = OCONFIG_TYPE_STRING;
+		lci->values[0].value.string = "";
+
+		status = config_add (lci);
+		sfree (lci->children);
+		sfree (lci);
+	}
+
+	return status;
+} /* int config */
+
+
+// initialize curl for each host
+static int init_host (apache_t *st) /* {{{ */
 {
 	static char credentials[1024];
 
-	if (url == NULL)
+	if (st->url == NULL)
 	{
 		WARNING ("apache plugin: init: No URL configured, returning "
 				"an error.");
 		return (-1);
 	}
 
-	if (curl != NULL)
+	if (st->curl != NULL)
 	{
-		curl_easy_cleanup (curl);
+		curl_easy_cleanup (st->curl);
 	}
 
-	if ((curl = curl_easy_init ()) == NULL)
+	if ((st->curl = curl_easy_init ()) == NULL)
 	{
 		ERROR ("apache plugin: init: `curl_easy_init' failed.");
 		return (-1);
 	}
 
-	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, apache_curl_callback);
-	curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
-	curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, apache_curl_error);
+	curl_easy_setopt (st->curl, CURLOPT_WRITEFUNCTION, apache_curl_callback);
+	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+	curl_easy_setopt (st->curl, CURLOPT_ERRORBUFFER, apache_curl_error);
 
-	if (user != NULL)
+	if (st->user != NULL)
 	{
 		int status;
 
 		status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
-				user, (pass == NULL) ? "" : pass);
+				st->user, (st->pass == NULL) ? "" : st->pass);
 		if ((status < 0) || ((size_t) status >= sizeof (credentials)))
 		{
 			ERROR ("apache plugin: init: Returning an error "
@@ -156,39 +336,75 @@ static int init (void)
 			return (-1);
 		}
 
-		curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
+		curl_easy_setopt (st->curl, CURLOPT_USERPWD, credentials);
 	}
 
-	curl_easy_setopt (curl, CURLOPT_URL, url);
+	curl_easy_setopt (st->curl, CURLOPT_URL, st->url);
 
-	if ((verify_peer == NULL) || (strcmp (verify_peer, "true") == 0))
+	if ((st->verify_peer == NULL) || (strcmp (st->verify_peer, "true") == 0))
 	{
-		curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1);
+		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 1);
 	}
 	else
 	{
-		curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0);
+		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 0);
 	}
 
-	if ((verify_host == NULL) || (strcmp (verify_host, "true") == 0))
+	if ((st->verify_host == NULL) || (strcmp (st->verify_host, "true") == 0))
 	{
-		curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 2);
+		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST, 2);
 	}
 	else
 	{
-		curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST, 0);
 	}
 
-	if (cacert != NULL)
+	if (st->cacert != NULL)
 	{
-		curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
+		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
+	}
+
+	return (0);
+} /* int init_host */
+
+static int init (void)
+{
+	size_t i;
+	int success = 0;
+	int status;
+
+	for (i = 0; i < apache_num; i++)
+	{
+		status = init_host (apache[i]);
+		if (status == 0)
+			success++;
+	}
+
+	if (success == 0)
+	{
+		ERROR ("apache plugin init: No host could be initialized. Will return an error so "
+			"the plugin will be delayed.");
+		return (-1);
 	}
 
 	return (0);
 } /* int init */
 
+static void set_plugin (apache_t *st, value_list_t *vl)
+{
+	// if there is no instance name, assume apache
+	if ( (0 == strcmp(st->name, "")) )
+	{
+		sstrncpy (vl->plugin, "apache", sizeof (vl->plugin));
+	}
+	else
+	{
+		sstrncpy (vl->plugin, st->name, sizeof (vl->plugin));
+	}
+} /* void set_plugin */
+
 static void submit_counter (const char *type, const char *type_instance,
-		counter_t value)
+		counter_t value, char *host, apache_t *st)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -197,8 +413,7 @@ static void submit_counter (const char *type, const char *type_instance,
 
 	vl.values = values;
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "apache", sizeof (vl.plugin));
+	sstrncpy (vl.host, host, sizeof (vl.host));
 	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 
@@ -206,11 +421,13 @@ static void submit_counter (const char *type, const char *type_instance,
 		sstrncpy (vl.type_instance, type_instance,
 				sizeof (vl.type_instance));
 
+	set_plugin (st, &vl);
+
 	plugin_dispatch_values (&vl);
 } /* void submit_counter */
 
 static void submit_gauge (const char *type, const char *type_instance,
-		gauge_t value)
+		gauge_t value, char *host, apache_t *st)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -219,8 +436,7 @@ static void submit_gauge (const char *type, const char *type_instance,
 
 	vl.values = values;
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "apache", sizeof (vl.plugin));
+	sstrncpy (vl.host, host, sizeof (vl.host));
 	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 
@@ -228,10 +444,12 @@ static void submit_gauge (const char *type, const char *type_instance,
 		sstrncpy (vl.type_instance, type_instance,
 				sizeof (vl.type_instance));
 
+	set_plugin (st, &vl);
+
 	plugin_dispatch_values (&vl);
 } /* void submit_counter */
 
-static void submit_scoreboard (char *buf)
+static void submit_scoreboard (char *buf, char *host, apache_t *st)
 {
 	/*
 	 * Scoreboard Key:
@@ -269,20 +487,20 @@ static void submit_scoreboard (char *buf)
 		else if (buf[i] == 'I') idle_cleanup++;
 	}
 
-	submit_gauge ("apache_scoreboard", "open"     , open);
-	submit_gauge ("apache_scoreboard", "waiting"  , waiting);
-	submit_gauge ("apache_scoreboard", "starting" , starting);
-	submit_gauge ("apache_scoreboard", "reading"  , reading);
-	submit_gauge ("apache_scoreboard", "sending"  , sending);
-	submit_gauge ("apache_scoreboard", "keepalive", keepalive);
-	submit_gauge ("apache_scoreboard", "dnslookup", dnslookup);
-	submit_gauge ("apache_scoreboard", "closing"  , closing);
-	submit_gauge ("apache_scoreboard", "logging"  , logging);
-	submit_gauge ("apache_scoreboard", "finishing", finishing);
-	submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup);
+	submit_gauge ("apache_scoreboard", "open"     , open, host, st);
+	submit_gauge ("apache_scoreboard", "waiting"  , waiting, host, st);
+	submit_gauge ("apache_scoreboard", "starting" , starting, host, st);
+	submit_gauge ("apache_scoreboard", "reading"  , reading, host, st);
+	submit_gauge ("apache_scoreboard", "sending"  , sending, host, st);
+	submit_gauge ("apache_scoreboard", "keepalive", keepalive, host, st);
+	submit_gauge ("apache_scoreboard", "dnslookup", dnslookup, host, st);
+	submit_gauge ("apache_scoreboard", "closing"  , closing, host, st);
+	submit_gauge ("apache_scoreboard", "logging"  , logging, host, st);
+	submit_gauge ("apache_scoreboard", "finishing", finishing, host, st);
+	submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup, host, st);
 }
 
-static int apache_read (void)
+static int apache_read_host (apache_t *st)
 {
 	int i;
 
@@ -292,15 +510,16 @@ static int apache_read (void)
 	int   lines_num = 0;
 
 	char *fields[4];
+	char *host;
 	int   fields_num;
 
-	if (curl == NULL)
+	if (st->curl == NULL)
 		return (-1);
-	if (url == NULL)
+	if (st->url == NULL)
 		return (-1);
 
 	apache_buffer_fill = 0;
-	if (curl_easy_perform (curl) != 0)
+	if (curl_easy_perform (st->curl) != 0)
 	{
 		ERROR ("apache: curl_easy_perform failed: %s",
 				apache_curl_error);
@@ -318,6 +537,12 @@ static int apache_read (void)
 			break;
 	}
 
+	// set the host to localhost if st->host is not specified
+	if ( (st->host == NULL)
+		|| (0 == strcmp(st->host, "")) ) {
+		st->host = hostname_g;
+	}
+
 	for (i = 0; i < lines_num; i++)
 	{
 		fields_num = strsplit (lines[i], fields, 4);
@@ -327,30 +552,52 @@ static int apache_read (void)
 			if ((strcmp (fields[0], "Total") == 0)
 					&& (strcmp (fields[1], "Accesses:") == 0))
 				submit_counter ("apache_requests", "",
-						atoll (fields[2]));
+						atoll (fields[2]), st->host, st);
 			else if ((strcmp (fields[0], "Total") == 0)
 					&& (strcmp (fields[1], "kBytes:") == 0))
 				submit_counter ("apache_bytes", "",
-						1024LL * atoll (fields[2]));
+						1024LL * atoll (fields[2]), st->host, st);
 		}
 		else if (fields_num == 2)
 		{
 			if (strcmp (fields[0], "Scoreboard:") == 0)
-				submit_scoreboard (fields[1]);
+				submit_scoreboard (fields[1], st->host, st);
 			else if (strcmp (fields[0], "BusyServers:") == 0)
-				submit_gauge ("apache_connections", NULL, atol (fields[1]));
+				submit_gauge ("apache_connections", NULL, atol (fields[1]), st->host, st);
 		}
 	}
 
 	apache_buffer_fill = 0;
 
 	return (0);
-} /* int apache_read */
+} /* int apache_read_host */
+
+static int apache_read (void)
+{
+	size_t i;
+	int success = 0;
+	int status;
+
+	for (i = 0; i < apache_num; i++)
+	{
+		status = apache_read_host (apache[i]);
+		if (status == 0)
+			success++;
+	}
+
+	if (success == 0)
+	{
+		ERROR ("apache plugin: No host could be read. Will return an error so "
+		       "the plugin will be delayed.");
+		return (-1);
+	}
+
+	return (0);
+ } /* int apache_read */
 
 void module_register (void)
 {
-	plugin_register_config ("apache", config,
-			config_keys, config_keys_num);
+	plugin_register_complex_config ("apache", config);
 	plugin_register_init ("apache", init);
 	plugin_register_read ("apache", apache_read);
 } /* void module_register */
