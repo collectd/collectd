@@ -2,6 +2,7 @@
  * collectd - src/apache.c
  * Copyright (C) 2006-2008  Florian octo Forster
  * Copyright (C) 2007  Florent EppO Monbillard
+ * Copyright (C) 2009  Amit Gupta
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +21,7 @@
  *   Florian octo Forster <octo at verplant.org>
  *   Florent EppO Monbillard <eppo at darox.net>
  *   - connections/lighttpd extension
+ *   Amit Gupta <amit.gupta221 at gmail.com>
  **/
 
 #include "collectd.h"

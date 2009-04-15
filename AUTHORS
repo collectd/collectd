@@ -21,6 +21,9 @@ Alessandro Iurlano <alessandro.iurlano at gmail.com>
 Alvaro Barcellos <alvaro.barcellos at gmail.com>
  - Don't-fork patch.
 
+Amit Gupta <amit.gupta221 at gmail.com>
+ - Multiple servers in the apache plugin.
+
 Anthony Gialluca <tonyabg at charter.net>
  - apcups plugin.
 
