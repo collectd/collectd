@@ -31,15 +31,6 @@
 
 #include <curl/curl.h>
 
-static char *url         = NULL;
-static char *user        = NULL;
-static char *pass        = NULL;
-static char *verify_peer = NULL;
-static char *verify_host = NULL;
-static char *cacert      = NULL;
-
-static CURL *curl = NULL;
-
 static char  *apache_buffer = NULL;
 static size_t apache_buffer_size = 0;
 static size_t apache_buffer_fill = 0;
@@ -512,7 +503,6 @@ static int apache_read_host (apache_t *st)
 	int   lines_num = 0;
 
 	char *fields[4];
-	char *host;
 	int   fields_num;
 
 	if (st->curl == NULL)
