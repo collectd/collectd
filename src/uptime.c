@@ -24,22 +24,17 @@
 #include "plugin.h"
 
 #if KERNEL_LINUX
-# define UPTIME_FILE "/proc/uptime"
-/* No need for includes, using /proc filesystem, Linux only. */
+# define STAT_FILE "/proc/stat"
+/* Using /proc filesystem to retrieve the boot time, Linux only. */
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-/* Using kstats chain to retrieve the boot time, this applies to:
- * - Solaris / OpenSolaris
- */
+/* Using kstats chain to retrieve the boot time on Solaris / OpenSolaris systems */
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
-/* Using sysctl interface to retrieve the boot time, this applies to:
- * - *BSD
- * - Darwin / OS X
- */
+/* Using sysctl interface to retrieve the boot time on *BSD / Darwin / OS X systems */
 /* #endif HAVE_SYS_SYSCTL_H */
 
 #else
@@ -49,18 +44,13 @@
 /* 
  * Global variables
  */
-#if KERNEL_LINUX
-/* global variables not needed */
-/* #endif KERNEL_LINUX */
-
-#elif HAVE_LIBKSTAT
+/* boottime always used, no OS distinction */
 static time_t boottime;
+
+#if HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
-/* #endif HAVE_LIBKSTAT */
+#endif /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYS_SYSCTL_H
-static time_t boottime;
-#endif
 
 static void uptime_submit (gauge_t uptime)
 {
@@ -79,30 +69,74 @@ static void uptime_submit (gauge_t uptime)
 	plugin_dispatch_values (&vl);
 }
 
-#if !defined(KERNEL_LINUX) || !KERNEL_LINUX
 static int uptime_init (void)
 {
 /*	NOTE
 
-	On unix systems other than Linux there is no /proc filesystem which
-	calculates the uptime every time we call a read for the /proc/uptime
-	file, the only information available is the boot time (in unix time,
-	since epoch). Hence there is no need to read, every time the
-	plugin_read is called, a value that won't change: this is a right
-	task for the uptime_init function. However, since uptime_init is run
-	only once, if the function fails in retrieving the boot time, the
-	plugin is unregistered and there is no chance to try again later.
-	Nevertheless, this is very unlikely to happen.
+	On most unix systems the uptime is calculated by looking at the boot time
+	(stored in unix time, since epoch) and the current one. We are going to
+	do the same, reading the boot time value while executing the uptime_init
+	function (there is no need to read, every time the plugin_read is called,
+	a value that won't change). However, since uptime_init is run only once,
+	if the function fails in retrieving the boot time, the plugin is
+	unregistered and there is no chance to try again later. Nevertheless,
+	this is very unlikely to happen.
  */
 
-# if HAVE_LIBKSTAT
+#if KERNEL_LINUX
+	unsigned long starttime;
+	char buffer[1024];
+	int ret;
+	FILE *fh;
+
+	ret = 0;
+
+	fh = fopen (STAT_FILE, "r");
+
+	if (fh == NULL)
+	{
+		char errbuf[1024];
+		ERROR ("uptime plugin: Cannot open "STAT_FILE": %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	while (fgets (buffer, 1024, fh) != NULL)
+	{
+		/* look for the btime string and read the value */
+		if (( ret = sscanf(buffer, "btime %lu", &starttime) ) == 1 )
+			/* avoid further loops if btime has been found and read correctly (hopefully) */
+			break;
+		/* else continue */
+	}
+
+	fclose (fh);
+
+	/* loop done, check if no value has been found/read */
+	if ( ret != 1 )
+	{
+		ERROR ("uptime plugin: No value read from "STAT_FILE"");
+		return (-1);
+	}
+
+	boottime = (time_t) starttime;
+
+	if (boottime == 0)
+	{
+		ERROR ("uptime plugin: btime read from "STAT_FILE", "
+				"but `boottime' is zero!");
+		return (-1);
+	}
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_LIBKSTAT
 	kstat_t *ksp;
 	kstat_named_t *knp;
 
 	ksp = NULL;
 	knp = NULL;
 
-	/* kstats chain already opened by update_kstat (using *kc), let's verify everything went fine. */
+	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{
 		ERROR ("uptime plugin: kstat chain control structure not available.");
@@ -130,6 +164,13 @@ static int uptime_init (void)
 	}
 
 	boottime = (time_t) knp->value.ui32;
+
+	if (boottime == 0)
+	{
+		ERROR ("uptime plugin: kstat_data_lookup returned success, "
+			"but `boottime' is zero!");
+		return (-1);
+	}
 /* #endif HAVE_LIBKSTAT */
 
 # elif HAVE_SYS_SYSCTL_H
@@ -137,25 +178,26 @@ static int uptime_init (void)
 	size_t boottv_len;
 	int status;
 
-        int mib[2];
+	int mib[2];
 
-        mib[0] = CTL_KERN;
-        mib[1] = KERN_BOOTTIME;
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_BOOTTIME;
 
-	memset (&boottv, 0, sizeof (boottv));
-        boottv_len = sizeof (boottv);
+	boottv_len = sizeof (boottv);
+	memset (&boottv, 0, boottv_len);
 
 	status = sysctl (mib, STATIC_ARRAY_SIZE (mib), &boottv, &boottv_len,
 			/* new_value = */ NULL, /* new_length = */ 0);
 	if (status != 0)
-        {
-                char errbuf[1024];
-                ERROR ("uptime plugin: No value read from sysctl interface: %s",
-                        sstrerror (errno, errbuf, sizeof (errbuf)));
-                return (-1);
-        }
+	{
+		char errbuf[1024];
+		ERROR ("uptime plugin: No value read from sysctl interface: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
 
 	boottime = boottv.tv_sec;
+
 	if (boottime == 0)
 	{
 		ERROR ("uptime plugin: sysctl(3) returned success, "
@@ -167,42 +209,17 @@ static int uptime_init (void)
 	return (0);
 
 }
-#endif /* !KERNEL_LINUX */
+
 
 static int uptime_read (void)
 {
 	gauge_t uptime;
-
-#if KERNEL_LINUX
-	FILE *fh;
-
-	fh = fopen (UPTIME_FILE, "r");
-
-	if (fh == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("uptime plugin: Cannot open "UPTIME_FILE": %s",
-			sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
-
-	if ( fscanf (fh, "%lf", &uptime) < 1 )
-	{
-		WARNING ("uptime plugin: No value read from "UPTIME_FILE);
-		fclose (fh);
-		return (-1);
-	}
-
-	fclose (fh);
-/* #endif KERNEL_LINUX */
-
-#elif HAVE_LIBKSTAT || HAVE_SYS_SYSCTL_H
 	time_t elapsed;
 
+	/* calculate the ammount of time elapsed since boot, AKA uptime */
 	elapsed = time (NULL) - boottime;
 
 	uptime = (gauge_t) elapsed;
-#endif /* HAVE_LIBKSTAT || HAVE_SYS_SYSCTL_H */
 
 	uptime_submit (uptime);
 
@@ -211,8 +228,6 @@ static int uptime_read (void)
 
 void module_register (void)
 {
-#if !defined(KERNEL_LINUX) || !KERNEL_LINUX
 	plugin_register_init ("uptime", uptime_init);
-#endif
 	plugin_register_read ("uptime", uptime_read);
 } /* void module_register */
