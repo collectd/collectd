@@ -41,7 +41,7 @@
 # error "No applicable input method."
 #endif
 
-/* 
+/*
  * Global variables
  */
 /* boottime always used, no OS distinction */
@@ -50,7 +50,6 @@ static time_t boottime;
 #if HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif /* #endif HAVE_LIBKSTAT */
-
 
 static void uptime_submit (gauge_t uptime)
 {
@@ -69,19 +68,18 @@ static void uptime_submit (gauge_t uptime)
 	plugin_dispatch_values (&vl);
 }
 
-static int uptime_init (void)
+static int uptime_init (void) /* {{{ */
 {
-/*	NOTE
-
-	On most unix systems the uptime is calculated by looking at the boot time
-	(stored in unix time, since epoch) and the current one. We are going to
-	do the same, reading the boot time value while executing the uptime_init
-	function (there is no need to read, every time the plugin_read is called,
-	a value that won't change). However, since uptime_init is run only once,
-	if the function fails in retrieving the boot time, the plugin is
-	unregistered and there is no chance to try again later. Nevertheless,
-	this is very unlikely to happen.
- */
+	/*
+	 * On most unix systems the uptime is calculated by looking at the boot
+	 * time (stored in unix time, since epoch) and the current one. We are
+	 * going to do the same, reading the boot time value while executing
+	 * the uptime_init function (there is no need to read, every time the
+	 * plugin_read is called, a value that won't change). However, since
+	 * uptime_init is run only once, if the function fails in retrieving
+	 * the boot time, the plugin is unregistered and there is no chance to
+	 * try again later. Nevertheless, this is very unlikely to happen.
+	 */
 
 #if KERNEL_LINUX
 	unsigned long starttime;
@@ -104,16 +102,17 @@ static int uptime_init (void)
 	while (fgets (buffer, 1024, fh) != NULL)
 	{
 		/* look for the btime string and read the value */
-		if (( ret = sscanf(buffer, "btime %lu", &starttime) ) == 1 )
-			/* avoid further loops if btime has been found and read correctly (hopefully) */
+		ret = sscanf (buffer, "btime %lu", &starttime);
+		/* avoid further loops if btime has been found and read
+		 * correctly (hopefully) */
+		if (ret == 1)
 			break;
-		/* else continue */
 	}
 
 	fclose (fh);
 
 	/* loop done, check if no value has been found/read */
-	if ( ret != 1 )
+	if (ret != 1)
 	{
 		ERROR ("uptime plugin: No value read from "STAT_FILE"");
 		return (-1);
@@ -207,9 +206,7 @@ static int uptime_init (void)
 #endif /* HAVE_SYS_SYSCTL_H */
 
 	return (0);
-
-}
-
+} /* }}} int uptime_init */
 
 static int uptime_read (void)
 {
