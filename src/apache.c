@@ -272,7 +272,7 @@ static int config (oconfig_item_t *ci)
 
 	if (lci)
 	{
-		// create a <Instance ""> entry
+		/* create a <Instance ""> entry */
 		lci->key = "Instance";
 		lci->values_num = 1;
 		lci->values = (oconfig_value_t *) malloc (lci->values_num * sizeof (oconfig_value_t));
@@ -288,7 +288,7 @@ static int config (oconfig_item_t *ci)
 } /* int config */
 
 
-// initialize curl for each host
+/* initialize curl for each host */
 static int init_host (apache_t *st) /* {{{ */
 {
 	static char credentials[1024];
@@ -385,7 +385,7 @@ static int init (void)
 
 static void set_plugin (apache_t *st, value_list_t *vl)
 {
-	// if there is no instance name, assume apache
+	/* if there is no instance name, assume apache */
 	if ( (0 == strcmp(st->name, "")) )
 	{
 		sstrncpy (vl->plugin, "apache", sizeof (vl->plugin));
@@ -529,7 +529,7 @@ static int apache_read_host (apache_t *st)
 			break;
 	}
 
-	// set the host to localhost if st->host is not specified
+	/* set the host to localhost if st->host is not specified */
 	if ( (st->host == NULL)
 		|| (0 == strcmp(st->host, "")) ) {
 		st->host = hostname_g;
