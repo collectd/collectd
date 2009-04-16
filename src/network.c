@@ -993,7 +993,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 
 #else /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
-    void **ret_buffer, size_t *ret_buffer_len)
+    void **ret_buffer, size_t *ret_buffer_len, int flags)
 {
   INFO ("network plugin: Received encrypted packet, but the network "
       "plugin was not linked with libgcrypt, so I cannot "
@@ -1011,8 +1011,8 @@ static int parse_packet (sockent_t *se, /* {{{ */
 	notification_t n;
 
 	int packet_was_signed = (flags & PP_SIGNED);
-	int packet_was_encrypted = (flags & PP_ENCRYPTED);
 #if HAVE_GCRYPT_H
+        int packet_was_encrypted = (flags & PP_ENCRYPTED);
 	int printed_ignore_warning = 0;
 #endif /* HAVE_GCRYPT_H */
 
