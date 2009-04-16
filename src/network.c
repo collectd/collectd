@@ -173,6 +173,7 @@ typedef struct part_values_s part_values_t;
  * ! Hash (Bits 224 - 255)                                         !
  * +---------------------------------------------------------------+
  */
+#define PART_SIGNATURE_SHA256_SIZE 36
 struct part_signature_sha256_s
 {
   part_header_t head;
@@ -795,19 +796,29 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 static int parse_packet (sockent_t *se,
 		void *buffer, size_t buffer_size, int flags);
 
+#define BUFFER_READ(p,s) do { \
+  memcpy ((p), buffer + buffer_offset, (s)); \
+  buffer_offset += (s); \
+} while (0)
+
 #if HAVE_GCRYPT_H
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
-    void **ret_buffer, size_t *ret_buffer_len)
+    void **ret_buffer, size_t *ret_buffer_len, int flags)
 {
-  char *buffer = *ret_buffer;
-  size_t buffer_len = *ret_buffer_len;
+  char *buffer;
+  size_t buffer_len;
+  size_t buffer_offset;
 
-  part_signature_sha256_t ps_received;
-  char hash[sizeof (ps_received.hash)];
+  part_signature_sha256_t pss;
+  char hash[sizeof (pss.hash)];
 
   gcry_md_hd_t hd;
   gcry_error_t err;
   unsigned char *hash_ptr;
+
+  buffer = *ret_buffer;
+  buffer_len = *ret_buffer_len;
+  buffer_offset = 0;
 
   if (se->shared_secret == NULL)
   {
@@ -816,8 +827,20 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
     return (0);
   }
 
-  if (buffer_len < sizeof (ps_received))
+  if (buffer_len < PART_SIGNATURE_SHA256_SIZE)
     return (-ENOMEM);
+
+  BUFFER_READ (&pss.head.type, sizeof (pss.head.type));
+  BUFFER_READ (&pss.head.length, sizeof (pss.head.length));
+  BUFFER_READ (pss.hash, sizeof (pss.hash));
+
+  assert (buffer_offset == PART_SIGNATURE_SHA256_SIZE);
+
+  if (ntohs (pss.head.length) != PART_SIGNATURE_SHA256_SIZE)
+  {
+    ERROR ("network plugin: HMAC-SHA-256 with invalid length received.");
+    return (-1);
+  }
 
   hd = NULL;
   err = gcry_md_open (&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
@@ -838,13 +861,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
     return (-1);
   }
 
-  memcpy (&ps_received, buffer, sizeof (ps_received));
-  /* TODO: Check ps_received.head.length! */
-
-  buffer += sizeof (ps_received);
-  buffer_len -= sizeof (ps_received);
-
-  gcry_md_write (hd, buffer, buffer_len);
+  gcry_md_write (hd, buffer + buffer_offset, buffer_len - buffer_offset);
   hash_ptr = gcry_md_read (hd, GCRY_MD_SHA256);
   if (hash_ptr == NULL)
   {
@@ -857,24 +874,69 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   gcry_md_close (hd);
   hd = NULL;
 
-  *ret_buffer += sizeof (ps_received);
-  *ret_buffer_len -= sizeof (ps_received);
+  if (memcmp (pss.hash, hash, sizeof (pss.hash)) != 0)
+  {
+    WARNING ("network plugin: Verifying HMAC-SHA-256 signature failed: "
+        "Hash mismatch.");
+  }
+  else
+  {
+    parse_packet (se, buffer + buffer_offset, buffer_len - buffer_offset,
+        flags | PP_SIGNED);
+  }
 
-  if (memcmp (ps_received.hash, hash,
-        sizeof (ps_received.hash)) == 0)
-    return (0);
-  else /* hashes do not match. */
-    return (1);
+  *ret_buffer = buffer + buffer_len;
+  *ret_buffer_len = 0;
+
+  return (0);
 } /* }}} int parse_part_sign_sha256 */
 /* #endif HAVE_GCRYPT_H */
 
 #else /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
-    void **ret_buffer, size_t *ret_buffer_len)
+    void **ret_buffer, size_t *ret_buffer_size, int flags)
 {
-  INFO ("network plugin: Received signed packet, but the network "
-      "plugin was not linked with libgcrypt, so I cannot "
-      "verify the signature. The packet will be accepted.");
+  static int warning_has_been_printed = 0;
+
+  char *buffer;
+  size_t buffer_size;
+  size_t buffer_offset;
+
+  part_signature_sha256_t pss;
+
+  buffer = *ret_buffer;
+  buffer_size = *ret_buffer_size;
+  buffer_offset = 0;
+
+  if (buffer_size < PART_SIGNATURE_SHA256_SIZE)
+    return (-ENOMEM);
+
+  BUFFER_READ (&pss.head.type, sizeof (pss.head.type));
+  BUFFER_READ (&pss.head.length, sizeof (pss.head.length));
+  BUFFER_READ (pss.hash, sizeof (pss.hash));
+
+  assert (buffer_offset == PART_SIGNATURE_SHA256_SIZE);
+
+  if (ntohs (pss.head.length) != PART_SIGNATURE_SHA256_SIZE)
+  {
+    ERROR ("network plugin: HMAC-SHA-256 with invalid length received.");
+    return (-1);
+  }
+
+  if (warning_has_been_printed == 0)
+  {
+    WARNING ("network plugin: Received signed packet, but the network "
+        "plugin was not linked with libgcrypt, so I cannot "
+        "verify the signature. The packet will be accepted.");
+    warning_has_been_printed = 1;
+  }
+
+  parse_packet (se, buffer + buffer_offset, buffer_size - buffer_offset,
+      flags);
+
+  *ret_buffer = buffer + buffer_size;
+  *ret_buffer_size = 0;
+
   return (0);
 } /* }}} int parse_part_sign_sha256 */
 #endif /* !HAVE_GCRYPT_H */
@@ -905,11 +967,6 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   }
 
   buffer_offset = 0;
-
-#define BUFFER_READ(p,s) do { \
-  memcpy ((p), buffer + buffer_offset, (s)); \
-  buffer_offset += (s); \
-} while (0)
 
   /* Copy the unencrypted information into `pea'. */
   BUFFER_READ (&pea.head.type, sizeof (pea.head.type));
@@ -987,20 +1044,57 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   *ret_buffer_len = buffer_len - part_size;
 
   return (0);
-#undef BUFFER_READ
 } /* }}} int parse_part_encr_aes256 */
 /* #endif HAVE_GCRYPT_H */
 
 #else /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
-    void **ret_buffer, size_t *ret_buffer_len, int flags)
+    void **ret_buffer, size_t *ret_buffer_size, int flags)
 {
-  INFO ("network plugin: Received encrypted packet, but the network "
-      "plugin was not linked with libgcrypt, so I cannot "
-      "decrypt it. The packet will be discarded.");
-  return (-1);
+  static int warning_has_been_printed = 0;
+
+  char *buffer;
+  size_t buffer_size;
+  size_t buffer_offset;
+
+  part_header_t ph;
+  size_t ph_length;
+
+  buffer = *ret_buffer;
+  buffer_size = *ret_buffer_size;
+  buffer_offset = 0;
+
+  /* parse_packet assures this minimum size. */
+  assert (buffer_size >= (sizeof (ph.type) + sizeof (ph.length)));
+
+  BUFFER_READ (&ph.type, sizeof (ph.type));
+  BUFFER_READ (&ph.length, sizeof (ph.length));
+  ph_length = ntohs (ph.length);
+
+  if ((ph_length < PART_ENCRYPTION_AES256_SIZE)
+      || (ph_length > buffer_size))
+  {
+    ERROR ("network plugin: AES-256 encrypted part "
+        "with invalid length received.");
+    return (-1);
+  }
+
+  if (warning_has_been_printed == 0)
+  {
+    WARNING ("network plugin: Received encrypted packet, but the network "
+        "plugin was not linked with libgcrypt, so I cannot "
+        "decrypt it. The part will be discarded.");
+    warning_has_been_printed = 1;
+  }
+
+  *ret_buffer += ph_length;
+  *ret_buffer_size -= ph_length;
+
+  return (0);
 } /* }}} int parse_part_encr_aes256 */
 #endif /* !HAVE_GCRYPT_H */
+
+#undef BUFFER_READ
 
 static int parse_packet (sockent_t *se, /* {{{ */
 		void *buffer, size_t buffer_size, int flags)
@@ -1010,8 +1104,8 @@ static int parse_packet (sockent_t *se, /* {{{ */
 	value_list_t vl = VALUE_LIST_INIT;
 	notification_t n;
 
-	int packet_was_signed = (flags & PP_SIGNED);
 #if HAVE_GCRYPT_H
+	int packet_was_signed = (flags & PP_SIGNED);
         int packet_was_encrypted = (flags & PP_ENCRYPTED);
 	int printed_ignore_warning = 0;
 #endif /* HAVE_GCRYPT_H */
@@ -1046,8 +1140,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 		if (pkg_type == TYPE_ENCR_AES256)
 		{
 			status = parse_part_encr_aes256 (se,
-					&buffer, &buffer_size,
-					flags);
+					&buffer, &buffer_size, flags);
 			if (status != 0)
 			{
 				ERROR ("network plugin: Decrypting AES256 "
@@ -1072,23 +1165,14 @@ static int parse_packet (sockent_t *se, /* {{{ */
 #endif /* HAVE_GCRYPT_H */
 		else if (pkg_type == TYPE_SIGN_SHA256)
 		{
-			status = parse_part_sign_sha256 (se, &buffer, &buffer_size);
-			if (status < 0)
+			status = parse_part_sign_sha256 (se,
+                                        &buffer, &buffer_size, flags);
+			if (status != 0)
 			{
 				ERROR ("network plugin: Verifying HMAC-SHA-256 "
 						"signature failed "
 						"with status %i.", status);
 				break;
-			}
-			else if (status > 0)
-			{
-				ERROR ("network plugin: Ignoring packet with "
-						"invalid HMAC-SHA-256 signature.");
-				break;
-			}
-			else
-			{
-				packet_was_signed = 1;
 			}
 		}
 #if HAVE_GCRYPT_H
