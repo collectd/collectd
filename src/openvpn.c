@@ -1,7 +1,7 @@
 /**
  * collectd - src/openvpn.c
  * Copyright (C) 2008  Doug MacEachern
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

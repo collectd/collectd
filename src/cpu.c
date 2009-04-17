@@ -1,7 +1,8 @@
 /**
  * collectd - src/cpu.c
  * Copyright (C) 2005-2009  Florian octo Forster
- * Copyright (C) 2009 Simon Kuhnle
+ * Copyright (C) 2008       Oleg King
+ * Copyright (C) 2009       Simon Kuhnle
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Oleg King <king2 at kaluga.ru>
  *   Simon Kuhnle <simon at blarzwurst.de>
  **/
 

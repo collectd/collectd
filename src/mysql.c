@@ -1,8 +1,9 @@
 /**
  * collectd - src/mysql.c
  * Copyright (C) 2006-2009  Florian octo Forster
- * Copyright (C) 2009  Doug MacEachern
- * Copyright (C) 2009  Sebastian tokkee Harl
+ * Copyright (C) 2008       Mirko Buffoni
+ * Copyright (C) 2009       Doug MacEachern
+ * Copyright (C) 2009       Sebastian tokkee Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
