@@ -2084,7 +2084,7 @@ static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
   pea.orig_length = htons ((uint16_t) in_buffer_size);
 
   /* Chose a random initialization vector. */
-  gcry_randomize (&pea.iv, sizeof (pea.iv), GCRY_STRONG_RANDOM);
+  gcry_randomize ((void *) &pea.iv, sizeof (pea.iv), GCRY_STRONG_RANDOM);
 
   /* Create hash of the payload */
   gcry_md_hash_buffer (GCRY_MD_SHA1, pea.hash, in_buffer, in_buffer_size);
@@ -2092,7 +2092,7 @@ static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
   /* Fill the extra field with random values. Some entropy in the encrypted
    * data is usually not a bad thing, I hope. */
   if (padding_size > 0)
-    gcry_randomize (&pea.padding, padding_size, GCRY_STRONG_RANDOM);
+    gcry_randomize ((void *) &pea.padding, padding_size, GCRY_STRONG_RANDOM);
 
   /* Initialize the buffer */
   buffer_offset = 0;
