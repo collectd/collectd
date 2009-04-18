@@ -3275,6 +3275,7 @@ fi
 if test "x$have_sysctl" = "xyes"
 then
 	plugin_cpu="yes"
+	plugin_memory="yes"
 	plugin_swap="yes"
 	plugin_uptime="yes"
 fi
