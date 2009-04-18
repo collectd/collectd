@@ -151,8 +151,8 @@ static int irq_read (void)
 	FILE *fh;
 	char buffer[BUFSIZE];
 	unsigned int irq;
-	unsigned int irq_value;
-	long value;
+	unsigned long long irq_value;
+	unsigned long long value;
 	char *endptr;
 	int i;
 
@@ -182,7 +182,7 @@ static int irq_read (void)
 		for (i = 1; i < fields_num; i++)
 		{
 			errno = 0;
-			value = strtol (fields[i], &endptr, 10);
+			value = strtoull (fields[i], &endptr, 10);
 
 			if ((*endptr != '\0') || (errno != 0))
 				break;
