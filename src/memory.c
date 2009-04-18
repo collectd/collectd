@@ -87,6 +87,11 @@ static int memory_init (void)
 
 #elif HAVE_SYSCTL
 	pagesize = getpagesize ();
+	if (pagesize <= 0)
+	{
+		ERROR ("memory plugin: Invalid pagesize: %i", pagesize);
+		return (-1);
+	}
 /* #endif HAVE_SYSCTL */
 
 #elif HAVE_SYSCTLBYNAME
@@ -187,12 +192,6 @@ static int memory_read (void)
 	struct vmtotal vmtotal;
 	size_t size;
 
-	if (pagesize <= 0)
-	{
-		ERROR ("memory plugin: Invalid pagesize: %i", pagesize);
-		return (-1);
-	}
-
 	memset (&vmtotal, 0, sizeof (vmtotal));
 	size = sizeof (vmtotal);
 
@@ -203,6 +202,7 @@ static int memory_read (void)
 		return (-1);
 	}
 
+	assert (pagesize > 0);
 	memory_submit ("active",   vmtotal.t_arm * pagesize);
 	memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
 	memory_submit ("free",     vmtotal.t_free * pagesize);
