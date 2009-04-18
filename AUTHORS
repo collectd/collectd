@@ -113,6 +113,9 @@ Roman Klesel <roman.klesel at noris.de>
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
 
+Simon Kuhnle <simon at blarzwurst.de>
+ - OpenBSD code for the cpu and memory plugins.
+
 Sjoerd van der Berg <harekiet at gmail.com>
  - iptables plugin.
 
