@@ -53,6 +53,10 @@ static mach_port_t port_host;
 static vm_size_t pagesize;
 /* #endif HAVE_HOST_STATISTICS */
 
+#elif HAVE_SYSCTL
+static int pagesize;
+/* #endif HAVE_SYSCTL */
+
 #elif HAVE_SYSCTLBYNAME
 /* no global variables */
 /* #endif HAVE_SYSCTLBYNAME */
@@ -80,6 +84,10 @@ static int memory_init (void)
 	port_host = mach_host_self ();
 	host_page_size (port_host, &pagesize);
 /* #endif HAVE_HOST_STATISTICS */
+
+#elif HAVE_SYSCTL
+	pagesize = getpagesize ();
+/* #endif HAVE_SYSCTL */
 
 #elif HAVE_SYSCTLBYNAME
 /* no init stuff */
@@ -173,6 +181,32 @@ static int memory_read (void)
 	memory_submit ("inactive", inactive);
 	memory_submit ("free",     free);
 /* #endif HAVE_HOST_STATISTICS */
+
+#elif HAVE_SYSCTL
+	int mib[] = {CTL_VM, VM_METER};
+	struct vmtotal vmtotal;
+	size_t size;
+
+	if (pagesize <= 0)
+	{
+		ERROR ("memory plugin: Invalid pagesize: %i", pagesize);
+		return (-1);
+	}
+
+	memset (&vmtotal, 0, sizeof (vmtotal));
+	size = sizeof (vmtotal);
+
+	if (sysctl (mib, 2, &vmtotal, &size, NULL, 0) < 0) {
+		char errbuf[1024];
+		WARNING ("memory plugin: sysctl failed: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	memory_submit ("active",   vmtotal.t_arm * pagesize);
+	memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+	memory_submit ("free",     vmtotal.t_free * pagesize);
+/* #endif HAVE_SYSCTL */
 
 #elif HAVE_SYSCTLBYNAME
 	/*
