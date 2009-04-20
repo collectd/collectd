@@ -60,7 +60,7 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
     int i = 0;
 
     if (memcached_socket != NULL) {
-        
+
         struct sockaddr_un serv_addr;
 
         memset(&serv_addr, '\0', sizeof (serv_addr));
@@ -81,15 +81,15 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
             fd = -1;
         }
 
-    } else {   
+    } else {
 
         const char *host;
         const char *port;
-        
+
         struct addrinfo  ai_hints;
         struct addrinfo *ai_list, *ai_ptr;
         int              ai_return = 0;
-        
+
         memset (&ai_hints, '\0', sizeof (ai_hints));
         ai_hints.ai_flags    = 0;
 #ifdef AI_ADDRCONFIG
@@ -98,17 +98,17 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
         ai_hints.ai_family   = AF_INET;
         ai_hints.ai_socktype = SOCK_STREAM;
         ai_hints.ai_protocol = 0;
-        
+
         host = memcached_host;
         if (host == NULL) {
             host = MEMCACHED_DEF_HOST;
         }
-        
+
         port = memcached_port;
         if (strlen (port) == 0) {
             port = MEMCACHED_DEF_PORT;
         }
-        
+
         if ((ai_return = getaddrinfo (host, port, NULL, &ai_list)) != 0) {
             char errbuf[1024];
             ERROR ("memcached: getaddrinfo (%s, %s): %s",
@@ -118,7 +118,7 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
                    : gai_strerror (ai_return));
             return -1;
         }
-        
+
         fd = -1;
         for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
             /* create our socket descriptor */
@@ -127,7 +127,7 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
                 ERROR ("memcached: socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
                 continue;
             }
-            
+
             /* connect to the memcached daemon */
             if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen)) {
                 shutdown(fd, SHUT_RDWR);
@@ -135,12 +135,12 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
                 fd = -1;
                 continue;
             }
-            
+
             /* A socket could be opened and connecting succeeded. We're
              * done. */
             break;
         }
-        
+
         freeaddrinfo (ai_list);
     }
 
@@ -401,7 +401,7 @@ static int memcached_read (void) /* {{{ */
 		{
 			rusage_syst = atoll(fields[2]);
 		}
-	
+
 		/*
 		 * Number of threads of this instance
 		 */
@@ -417,7 +417,7 @@ static int memcached_read (void) /* {{{ */
 		{
 			submit_gauge ("memcached_items", "current", atof (fields[2]));
 		}
-/*		
+/*
 		else if (FIELD_IS ("total_items"))
 		{
 			total_items = atoll(fields[2]);
@@ -501,13 +501,13 @@ static int memcached_read (void) /* {{{ */
 
 	if (!isnan (bytes_used) && !isnan (bytes_total) && (bytes_used <= bytes_total))
 		submit_gauge2 ("df", "cache", bytes_used, bytes_total - bytes_used);
-	
+
 	if ((rusage_user != 0) || (rusage_syst != 0))
 		submit_counter2 ("ps_cputime", NULL, rusage_user, rusage_syst);
 
 	if ((octets_rx != 0) || (octets_tx != 0))
 		submit_counter2 ("memcached_octets", NULL, octets_rx, octets_tx);
-	
+
 	if (!isnan (gets) && !isnan (hits))
 	{
 		gauge_t rate = NAN;
