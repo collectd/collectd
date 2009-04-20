@@ -246,6 +246,15 @@ static int config_add (oconfig_item_t *ci)
 			break;
 	}
 
+	/* Check if struct is complete.. */
+	if ((status == 0) && (st->url == NULL))
+	{
+		ERROR ("apache plugin: Instance `%s': "
+				"No URL has been configured.",
+				st->name);
+		status = -1;
+	}
+
 	if (status == 0)
 	{
 		user_data_t ud;
@@ -338,16 +347,13 @@ static int init_host (apache_t *st) /* {{{ */
 {
 	static char credentials[1024];
 
-	if (st->url == NULL)
-	{
-		WARNING ("apache plugin: init_host: No URL configured, returning "
-				"an error.");
-		return (-1);
-	}
+	assert (st->url != NULL);
+	/* (Assured by `config_add') */
 
 	if (st->curl != NULL)
 	{
 		curl_easy_cleanup (st->curl);
+		st->curl = NULL;
 	}
 
 	if ((st->curl = curl_easy_init ()) == NULL)
@@ -515,6 +521,9 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 
 	st = user_data->data;
 
+	assert (st->url != NULL);
+	/* (Assured by `config_add') */
+
 	if (st->curl == NULL)
 	{
 		int status;
@@ -524,9 +533,6 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 			return (-1);
 	}
 	assert (st->curl != NULL);
-
-	if (st->url == NULL)
-		return (-1);
 
 	st->apache_buffer_fill = 0;
 	if (curl_easy_perform (st->curl) != 0)
