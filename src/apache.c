@@ -467,7 +467,6 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 	long long idle_cleanup = 0LL;
 
 	/* lighttpd specific */
-	long long connect        = 0LL;
 	long long hard_error     = 0LL;
 	long long lighttpd_read  = 0LL;
 	long long handle_request = 0LL;
@@ -491,7 +490,6 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 		else if (buf[i] == 'L') logging++;
 		else if (buf[i] == 'G') finishing++;
 		else if (buf[i] == 'I') idle_cleanup++;
-		else if (buf[i] == '.') connect++;
 		else if (buf[i] == 'r') lighttpd_read++;
 		else if (buf[i] == 'h') handle_request++;
 		else if (buf[i] == 'E') hard_error++;
@@ -516,7 +514,7 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 		submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup, st);
 	} else
 	{
-		submit_gauge ("apache_scoreboard", "connect"       , connect, st);
+		submit_gauge ("apache_scoreboard", "connect"       , open, st);
 		submit_gauge ("apache_scoreboard", "close"         , closing, st);
 		submit_gauge ("apache_scoreboard", "hard_error"    , hard_error, st);
 		submit_gauge ("apache_scoreboard", "read"          , lighttpd_read, st);
