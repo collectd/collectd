@@ -1590,6 +1590,7 @@ function load_graph_definitions($logarithmic = false, $tinylegend = false) {
 	$MetaGraphDefs['tcp_connections']   = 'meta_graph_tcp_connections';
 	$MetaGraphDefs['dns_opcode']        = 'meta_graph_dns_event';
 	$MetaGraphDefs['dns_qtype']         = 'meta_graph_dns_event';
+	$MetaGraphDefs['dns_qtype_cached']  = 'meta_graph_dns_event';
 	$MetaGraphDefs['dns_rcode']         = 'meta_graph_dns_event';
 	$MetaGraphDefs['dns_request']       = 'meta_graph_dns_event';
 	$MetaGraphDefs['dns_resolver']      = 'meta_graph_dns_event';
@@ -1757,7 +1758,10 @@ function meta_graph_memory($host, $plugin, $plugin_instance, $type, $type_instan
 		$sources[] = array('name'=>$inst, 'file'=>$file);
 	}
 
-	return collectd_draw_meta_stack($opts, $sources);
+	if ($plugin == 'bind')
+		return collectd_draw_meta_line($opts, $sources);
+	else
+		return collectd_draw_meta_stack($opts, $sources);
 }
 
 function meta_graph_vs_threads($host, $plugin, $plugin_instance, $type, $type_instances, $opts = array()) {
