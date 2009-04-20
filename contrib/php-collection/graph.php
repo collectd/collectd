@@ -164,7 +164,7 @@ $logscale   = (boolean)read_var('logarithmic', $_GET, false);
 $tinylegend = (boolean)read_var('tinylegend', $_GET, false);
 
 // Check that at least 1 RRD exists for the specified request
-$all_tinst = collectd_list_tinsts($host, $plugin, $pinst, $type);
+$all_tinst = collectd_list_types($host, $plugin, $pinst, $type);
 if (count($all_tinst) == 0)
 	return error404($graph_identifier, "No rrd file found for graphing");
 
@@ -182,7 +182,7 @@ if ($tinylegend)
 	$opts['tinylegend']  = 1;
 
 $rrd_cmd = false;
-if (isset($MetaGraphDefs[$type])) {
+if ((is_null($tinst) || $tinst == '@merge') && isset($MetaGraphDefs[$type])) {
 	$identifiers = array();
 	foreach ($all_tinst as &$atinst)
 		$identifiers[] = collectd_identifier($host, $plugin, is_null($pinst) ? '' : $pinst, $type, $atinst);

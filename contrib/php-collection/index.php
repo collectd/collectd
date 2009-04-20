@@ -39,6 +39,22 @@ function dhtml_response_list(&$items, $method) {
 	print("</response>");
 }
 
+function dhtml_response_graphs(&$graphs, $method) {
+	header("Content-Type: text/xml");
+
+	print('<?xml version="1.0" encoding="utf-8" ?>'."\n");
+	print("<response>\n");
+	printf(" <method>%s</method>\n", htmlspecialchars($method));
+	print(" <result>\n");
+	foreach ($graphs as &$graph)
+		printf('  <graph host="%s" plugin="%s" plugin_instance="%s" type="%s" type_instance="%s" timespan="%s" logarithmic="%d" tinyLegend="%d" />'."\n",
+		       htmlspecialchars($graph['host']), htmlspecialchars($graph['plugin']), htmlspecialchars($graph['pinst']),
+		       htmlspecialchars($graph['type']), htmlspecialchars($graph['tinst']), htmlspecialchars($graph['timespan']),
+		       htmlspecialchars($graph['logarithmic']), htmlspecialchars($graph['tinyLegend']));
+	print(" </result>\n");
+	print("</response>");
+}
+
 /**
  * Product page body with selection fields
  */
@@ -225,53 +241,86 @@ switch ($action) {
 	case 'list_hosts':
 		// Generate a list of hosts
 		$hosts = collectd_list_hosts();
+		if (count($hosts) > 1)
+			array_unshift($hosts, '@all');
 		return dhtml_response_list($hosts, 'ListOfHost');
 
 	case 'list_plugins':
 		// Generate list of plugins for selected hosts
-		$arg_hosts = read_var('host', $_POST, array());
-		if (!is_array($arg_hosts))
-			$arg_hosts = array($arg_hosts);
-		$plugins = collectd_list_plugins(reset($arg_hosts));
+		$arg_hosts = read_var('host', $_POST, '');
+		if (is_array($arg_hosts))
+			$arg_hosts = reset($arg_hosts);
+		$plugins = collectd_list_plugins($arg_hosts);
+		if (count($plugins) > 1)
+			array_unshift($plugins, '@all');
 		return dhtml_response_list($plugins, 'ListOfPlugin');
 
 	case 'list_pinsts':
 		// Generate list of plugin_instances for selected hosts and plugin
-		$arg_hosts = read_var('host', $_POST, array());
-		if (!is_array($arg_hosts))
-			$arg_hosts = array($arg_hosts);
+		$arg_hosts = read_var('host', $_POST, '');
+		if (is_array($arg_hosts))
+			$arg_hosts = reset($arg_hosts);
 		$arg_plugin = read_var('plugin', $_POST, '');
-		$pinsts = collectd_list_pinsts(reset($arg_hosts), $arg_plugin);
+		$pinsts = collectd_list_plugins($arg_hosts, $arg_plugin);
+		if (count($pinsts) > 1)
+			array_unshift($pinsts, '@all' /* , '@merge_sum', '@merge_avg', '@merge_stack', '@merge_line' */);
 		return dhtml_response_list($pinsts, 'ListOfPluginInstance');
 
 	case 'list_types':
 		// Generate list of types for selected hosts, plugin and plugin-instance
-		$arg_hosts  = read_var('host', $_POST, array());
-		if (!is_array($arg_hosts))
-			$arg_hosts = array($arg_hosts);
+		$arg_hosts  = read_var('host', $_POST, '');
+		if (is_array($arg_hosts))
+			$arg_hosts = reset($arg_hosts);
 		$arg_plugin = read_var('plugin', $_POST, '');
 		$arg_pinst  = read_var('plugin_instance', $_POST, '');
-		$types = collectd_list_types(reset($arg_hosts), $arg_plugin, $arg_pinst);
+		$types = collectd_list_types($arg_hosts, $arg_plugin, $arg_pinst);
+		if (count($types) > 1)
+			array_unshift($types, '@all');
 		return dhtml_response_list($types, 'ListOfType');
 
 	case 'list_tinsts':
 		// Generate list of types for selected hosts, plugin and plugin-instance
-		$arg_hosts  = read_var('host', $_POST, array());
-		if (!is_array($arg_hosts))
-			$arg_hosts = array($arg_hosts);
+		$arg_hosts  = read_var('host', $_POST, '');
+		if (is_array($arg_hosts))
+			$arg_hosts = reset($arg_hosts);
 		$arg_plugin = read_var('plugin', $_POST, '');
 		$arg_pinst  = read_var('plugin_instance', $_POST, '');
 		$arg_type   = read_var('type', $_POST, '');
-		$tinsts = collectd_list_tinsts(reset($arg_hosts), $arg_plugin, $arg_pinst, $arg_type);
-		if (count($tinsts)) {
-			require('definitions.php');
-			load_graph_definitions();
-			if (isset($MetaGraphDefs[$arg_type])) {
-				$meta_tinsts = array('@');
-				return dhtml_response_list($meta_tinsts, 'ListOfTypeInstance');
+		$tinsts = collectd_list_types($arg_hosts, $arg_plugin, $arg_pinst, $arg_type);
+		if (count($tinsts))
+			if ($arg_type != '@all') {
+				require('definitions.php');
+				load_graph_definitions();
+				if (isset($MetaGraphDefs[$arg_type]))
+					array_unshift($tinsts, '@merge');
+				if (count($tinsts) > 1)
+					array_unshift($tinsts, '@all');
+			} else {
+				array_unshift($tinsts, /* '@merge_sum', '@merge_avg', '@merge_stack', '@merge_line', */ '@merge');
+				if (count($tinsts) > 1)
+					array_unshift($tinsts, '@all');
 			}
-		}
 		return dhtml_response_list($tinsts, 'ListOfTypeInstance');
+
+	case 'list_graphs':
+		// Generate list of types for selected hosts, plugin and plugin-instance
+		$arg_hosts  = read_var('host', $_POST, '');
+		if (is_array($arg_hosts))
+			$arg_hosts = reset($arg_hosts);
+		$arg_plugin = read_var('plugin', $_POST, '');
+		$arg_pinst  = read_var('plugin_instance', $_POST, '');
+		$arg_type   = read_var('type', $_POST, '');
+		$arg_tinst  = read_var('type_instance', $_POST, '');
+		$arg_log    = (int)read_var('logarithmic', $_POST, '0');
+		$arg_legend = (int)read_var('tinyLegend', $_POST, '0');
+		$arg_period = read_var('timespan', $_POST, '');
+		$graphs = collectd_list_graphs($arg_hosts, $arg_plugin, $arg_pinst, $arg_type, $arg_tinst);
+		foreach ($graphs as &$graph) {
+			$graph['logarithmic'] = $arg_log;
+			$graph['tinyLegend']  = $arg_legend;
+			$graph['timespan']    = $arg_period;
+		}
+		return dhtml_response_graphs($graphs, 'ListOfGraph');
 
 	case 'overview':
 	default:

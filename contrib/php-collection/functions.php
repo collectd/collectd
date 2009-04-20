@@ -61,23 +61,173 @@ function collectd_compare_host($a, $b) {
 	return 0;
 }
 
+function collectd_walk(&$options) {
+	global $config;
+
+	foreach($config['datadirs'] as $datadir)
+		if ($dh = @opendir($datadir)) {
+			while (($hdent = readdir($dh)) !== false) {
+				if ($hdent == '.' || $hdent == '..' || !is_dir($datadir.'/'.$hdent))
+					continue;
+				if (!preg_match(REGEXP_HOST, $hdent))
+					continue;
+				if (isset($options['cb_host']) && ($options['cb_host'] === false || !$options['cb_host']($options, $hdent)))
+					continue;
+
+				if ($dp = @opendir($datadir.'/'.$hdent)) {
+					while (($pdent = readdir($dp)) !== false) {
+						if ($pdent == '.' || $pdent == '..' || !is_dir($datadir.'/'.$hdent.'/'.$pdent))
+							continue;
+						if ($i = strpos($pdent, '-')) {
+							$plugin = substr($pdent, 0, $i);
+							$pinst  = substr($pdent, $i+1);
+						} else {
+							$plugin = $pdent;
+							$pinst  = '';
+						}
+						if (isset($options['cb_plugin']) && ($options['cb_plugin'] === false || !$options['cb_plugin']($options, $hdent, $plugin)))
+							continue;
+						if (isset($options['cb_pinst']) && ($options['cb_pinst'] === false || !$options['cb_pinst']($options, $hdent, $plugin, $pinst)))
+							continue;
+
+						if ($dt = @opendir($datadir.'/'.$hdent.'/'.$pdent)) {
+							while (($tdent = readdir($dt)) !== false) {
+								if ($tdent == '.' || $tdent == '..' || !is_file($datadir.'/'.$hdent.'/'.$pdent.'/'.$tdent))
+									continue;
+								if (substr($tdent, strlen($tdent)-4) != '.rrd')
+									continue;
+								$tdent = substr($tdent, 0, strlen($tdent)-4);
+								if ($i = strpos($tdent, '-')) {
+									$type  = substr($tdent, 0, $i);
+									$tinst = substr($tdent, $i+1);
+								} else {
+									$type  = $tdent;
+									$tinst = '';
+								}
+								if (isset($options['cb_type']) && ($options['cb_type'] === false || !$options['cb_type']($options, $hdent, $plugin, $pinst, $type)))
+									continue;
+								if (isset($options['cb_tinst']) && ($options['cb_tinst'] === false || !$options['cb_tinst']($options, $hdent, $plugin, $pinst, $type, $tinst)))
+									continue;
+							}
+							closedir($dt);
+						}
+					}
+					closedir($dp);
+				}
+			}
+			closedir($dh);
+		} else
+			error_log('Failed to open datadir: '.$datadir);
+		return true;
+}
+
+function _collectd_list_cb_host(&$options, $host) {
+	if ($options['cb_plugin'] === false) {
+		$options['result'][] = $host;
+		return false;
+	} else if (isset($options['filter_host'])) {
+		if ($options['filter_host'] == '@all') {
+			return true; // We take anything
+		} else if (substr($options['filter_host'], 0, 2) == '@.') {
+			if ($host == substr($options['filter_host'], 2) || substr($host, 0, 1-strlen($options['filter_host'])) == substr($options['filter_host'], 1))
+				return true; // Host part of domain
+			else
+				return false;
+		} else if ($options['filter_host'] == $host) {
+			return true;
+		} else
+			return false;
+	} else
+		return true;
+}
+
+function _collectd_list_cb_plugin(&$options, $host, $plugin) {
+	if ($options['cb_pinst'] === false) {
+		$options['result'][] = $plugin;
+		return false;
+	} else if (isset($options['filter_plugin'])) {
+		if ($options['filter_plugin'] == '@all')
+			return true;
+		else if ($options['filter_plugin'] == $plugin)
+			return true;
+		else
+			return false;
+	} else
+		return true;
+}
+
+function _collectd_list_cb_pinst(&$options, $host, $plugin, $pinst) {
+	if ($options['cb_type'] === false) {
+		$options['result'][] = $pinst;
+		return false;
+	} else if (isset($options['filter_pinst'])) {
+		if ($options['filter_pinst'] == '@all')
+			return true;
+		else if (strncmp($options['filter_pinst'], '@merge_', 7) == 0)
+			return true;
+		else if ($options['filter_pinst'] == $pinst)
+			return true;
+		else
+			return false;
+	} else
+		return true;
+}
+
+function _collectd_list_cb_type(&$options, $host, $plugin, $pinst, $type) {
+	if ($options['cb_tinst'] === false) {
+		$options['result'][] = $type;
+		return false;
+	} else if (isset($options['filter_type'])) {
+		if ($options['filter_type'] == '@all')
+			return true;
+		else if ($options['filter_type'] == $type)
+			return true;
+		else
+			return false;
+	} else
+		return true;
+}
+
+function _collectd_list_cb_tinst(&$options, $host, $plugin, $pinst, $type, $tinst) {
+	$options['result'][] = $tinst;
+	return false;
+}
+
+function _collectd_list_cb_graph(&$options, $host, $plugin, $pinst, $type, $tinst) {
+	if (isset($options['filter_tinst'])) {
+		if ($options['filter_tinst'] == '@all') {
+		} else if ($options['filter_tinst'] == $tinst) {
+		} else if (strncmp($options['filter_tinst'], '@merge', 6) == 0) {
+			// Need to exclude @merge with non-existent meta graph
+		} else
+			return false;
+	}
+	if (isset($options['filter_pinst']) && strncmp($options['filter_pinst'], '@merge', 6) == 0)
+		$pinst = $options['filter_pinst'];
+	if (isset($options['filter_tinst']) && strncmp($options['filter_tinst'], '@merge', 6) == 0)
+		$tinst = $options['filter_tinst'];
+	$ident = collectd_identifier($host, $plugin, $pinst, $type, $tinst);
+	if (!in_array($ident, $options['ridentifiers'])) {
+		$options['ridentifiers'][] = $ident;
+		$options['result'][] = array('host'=>$host, 'plugin'=>$plugin, 'pinst'=>$pinst, 'type'=>$type, 'tinst'=>$tinst);
+	}
+}
+
 /**
  * Fetch list of hosts found in collectd's datadirs.
  * @return Sorted list of hosts (sorted by label from rigth to left)
  */
 function collectd_list_hosts() {
-	global $config;
-
-	$hosts = array();
-	foreach($config['datadirs'] as $datadir)
-		if ($d = @opendir($datadir)) {
-			while (($dent = readdir($d)) !== false)
-				if ($dent != '.' && $dent != '..' && is_dir($datadir.'/'.$dent) && preg_match(REGEXP_HOST, $dent))
-					$hosts[] = $dent;
-			closedir($d);
-		} else
-			error_log('Failed to open datadir: '.$datadir);
-	$hosts = array_unique($hosts);
+	$options = array(
+		'result' => array(),
+		'cb_host' => '_collectd_list_cb_host',
+		'cb_plugin' => false,
+		'cb_pinst' => false,
+		'cb_type' => false,
+		'cb_tinst' => false
+	);
+	collectd_walk($options);
+	$hosts = array_unique($options['result']);
 	usort($hosts, 'collectd_compare_host');
 	return $hosts;
 }
@@ -87,55 +237,21 @@ function collectd_list_hosts() {
  * @arg_host Name of host for which to return plugins
  * @return Sorted list of plugins (sorted alphabetically)
  */
-function collectd_list_plugins($arg_host) {
-	global $config;
-
-	$plugins = array();
-	foreach ($config['datadirs'] as $datadir)
-		if (preg_match(REGEXP_HOST, $arg_host) && ($d = @opendir($datadir.'/'.$arg_host))) {
-			while (($dent = readdir($d)) !== false)
-				if ($dent != '.' && $dent != '..' && is_dir($datadir.'/'.$arg_host.'/'.$dent)) {
-					if ($i = strpos($dent, '-'))
-						$plugins[] = substr($dent, 0, $i);
-					else
-						$plugins[] = $dent;
-				}
-			closedir($d);
-		}
-	$plugins = array_unique($plugins);
+function collectd_list_plugins($arg_host, $arg_plugin = null) {
+	$options = array(
+		'result' => array(),
+		'cb_host' => '_collectd_list_cb_host',
+		'cb_plugin' => '_collectd_list_cb_plugin',
+		'cb_pinst' => is_null($arg_plugin) ? false : '_collectd_list_cb_pinst',
+		'cb_type' => false,
+		'cb_tinst' => false,
+		'filter_host' => $arg_host,
+		'filter_plugin' => $arg_plugin
+	);
+	collectd_walk($options);
+	$plugins = array_unique($options['result']);
 	sort($plugins);
 	return $plugins;
-}
-
-/**
- * Fetch list of plugin instances found in collectd's datadirs for given host+plugin
- * @arg_host Name of host
- * @arg_plugin Name of plugin
- * @return Sorted list of plugin instances (sorted alphabetically)
- */
-function collectd_list_pinsts($arg_host, $arg_plugin) {
-	global $config;
-
-	$pinsts = array();
-	foreach ($config['datadirs'] as $datadir)
-		if (preg_match(REGEXP_HOST, $arg_host) && ($d = opendir($datadir.'/'.$arg_host))) {
-			while (($dent = readdir($d)) !== false)
-				if ($dent != '.' && $dent != '..' && is_dir($datadir.'/'.$arg_host.'/'.$dent)) {
-					if ($i = strpos($dent, '-')) {
-						$plugin = substr($dent, 0, $i);
-						$pinst  = substr($dent, $i+1);
-					} else {
-						$plugin = $dent;
-						$pinst  = '';
-					}
-					if ($plugin == $arg_plugin)
-						$pinsts[] = $pinst;
-				}
-			closedir($d);
-		}
-	$pinsts = array_unique($pinsts);
-	sort($pinsts);
-	return $pinsts;
 }
 
 /**
@@ -145,65 +261,42 @@ function collectd_list_pinsts($arg_host, $arg_plugin) {
  * @arg_pinst Plugin instance
  * @return Sorted list of types (sorted alphabetically)
  */
-function collectd_list_types($arg_host, $arg_plugin, $arg_pinst) {
-	global $config;
-
-	$types = array();
-	$my_plugin = $arg_plugin . (strlen($arg_pinst) ? '-'.$arg_pinst : '');
-	if (!preg_match(REGEXP_PLUGIN, $my_plugin))
-		return $types;
-	foreach ($config['datadirs'] as $datadir)
-		if (preg_match(REGEXP_HOST, $arg_host) && ($d = @opendir($datadir.'/'.$arg_host.'/'.$my_plugin))) {
-			while (($dent = readdir($d)) !== false)
-				if ($dent != '.' && $dent != '..' && is_file($datadir.'/'.$arg_host.'/'.$my_plugin.'/'.$dent) && substr($dent, strlen($dent)-4) == '.rrd') {
-					$dent = substr($dent, 0, strlen($dent)-4);
-					if ($i = strpos($dent, '-'))
-						$types[] = substr($dent, 0, $i);
-					else
-						$types[] = $dent;
-				}
-			closedir($d);
-		}
-	$types = array_unique($types);
+function collectd_list_types($arg_host, $arg_plugin, $arg_pinst, $arg_type = null) {
+	$options = array(
+		'result' => array(),
+		'cb_host' => '_collectd_list_cb_host',
+		'cb_plugin' => '_collectd_list_cb_plugin',
+		'cb_pinst' => '_collectd_list_cb_pinst',
+		'cb_type' => '_collectd_list_cb_type',
+		'cb_tinst' => is_null($arg_type) ? false : '_collectd_list_cb_tinst',
+		'filter_host' => $arg_host,
+		'filter_plugin' => $arg_plugin,
+		'filter_pinst' => $arg_pinst,
+		'filter_type' => $arg_type
+	);
+	collectd_walk($options);
+	$types = array_unique($options['result']);
 	sort($types);
 	return $types;
 }
 
-/**
- * Fetch list of type instances found in collectd's datadirs for given host+plugin+instance+type
- * @arg_host Name of host
- * @arg_plugin Name of plugin
- * @arg_pinst Plugin instance
- * @arg_type Type
- * @return Sorted list of type instances (sorted alphabetically)
- */
-function collectd_list_tinsts($arg_host, $arg_plugin, $arg_pinst, $arg_type) {
-	global $config;
-
-	$tinsts = array();
-	$my_plugin = $arg_plugin . (strlen($arg_pinst) ? '-'.$arg_pinst : '');
-	if (!preg_match(REGEXP_PLUGIN, $my_plugin))
-		return $types;
-	foreach ($config['datadirs'] as $datadir)
-		if (preg_match(REGEXP_HOST, $arg_host) && ($d = @opendir($datadir.'/'.$arg_host.'/'.$my_plugin))) {
-			while (($dent = readdir($d)) !== false)
-				if ($dent != '.' && $dent != '..' && is_file($datadir.'/'.$arg_host.'/'.$my_plugin.'/'.$dent) && substr($dent, strlen($dent)-4) == '.rrd') {
-					$dent = substr($dent, 0, strlen($dent)-4);
-					if ($i = strpos($dent, '-')) {
-						$type  = substr($dent, 0, $i);
-						$tinst = substr($dent, $i+1);
-					} else {
-						$type  = $dent;
-						$tinst = '';
-					}
-					if ($type == $arg_type)
-						$tinsts[] = $tinst;
-				}
-			closedir($d);
-		}
-	$tinsts = array_unique($tinsts);
-	sort($tinsts);
-	return $tinsts;
+function collectd_list_graphs($arg_host, $arg_plugin, $arg_pinst, $arg_type, $arg_tinst) {
+	$options = array(
+		'result' => array(),
+		'ridentifiers' => array(),
+		'cb_host' => '_collectd_list_cb_host',
+		'cb_plugin' => '_collectd_list_cb_plugin',
+		'cb_pinst' => '_collectd_list_cb_pinst',
+		'cb_type' => '_collectd_list_cb_type',
+		'cb_tinst' => '_collectd_list_cb_graph',
+		'filter_host' => $arg_host,
+		'filter_plugin' => $arg_plugin,
+		'filter_pinst' => $arg_pinst,
+		'filter_type' => $arg_type,
+		'filter_tinst' => $arg_tinst == '@' ? '@merge' : $arg_tinst
+	);
+	collectd_walk($options);
+	return $options['result'];
 }
 
 /**

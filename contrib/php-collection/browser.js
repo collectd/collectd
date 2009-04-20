@@ -111,9 +111,22 @@ function refillSelect(options, select) {
 			newOption.value = options[i].firstChild ? options[i].firstChild.data : '';
 			if (keepSelection && newOption.value == oldValue)
 				newOption.setAttribute('selected', 'selected');
-			if (keepSelection && optCnt == 1 && newOption.value == '@') {
+			if (newOption.value[0] == '@') {
 				newOption.setAttribute('style', 'font-style: italic');
-				newOption.appendChild(document.createTextNode('Meta graph'));
+				if (newOption.value == '@' || newOption.value == '@merge')
+					newOption.appendChild(document.createTextNode('Meta graph'));
+				else if (newOption.value == '@all')
+					newOption.appendChild(document.createTextNode('All entries'));
+				else if (newOption.value == '@merge_sum')
+					newOption.appendChild(document.createTextNode('Meta summed graph'));
+				else if (newOption.value == '@merge_avg')
+					newOption.appendChild(document.createTextNode('Meta averaged graph'));
+				else if (newOption.value == '@merge_stack')
+					newOption.appendChild(document.createTextNode('Meta stacked graph'));
+				else if (newOption.value == '@merge_line')
+					newOption.appendChild(document.createTextNode('Meta lines graph'));
+				else
+					newOption.appendChild(document.createTextNode(newOption.value));
 			} else
 				newOption.appendChild(document.createTextNode(newOption.value));
 			select.appendChild(newOption);
@@ -285,8 +298,25 @@ function GraphAppend() {
 	var time_list   = document.getElementById('timespan');
 	var timespan    = time_list.selectedIndex >= 0 ? time_list.options[time_list.selectedIndex].value : '';
 	var tinyLegend  = document.getElementById('tinylegend').checked;
-	var logarithmic = document.getElementById('logarithmic').checked
-	GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, logarithmic);
+	var logarithmic = document.getElementById('logarithmic').checked;
+	if (host[0] == '@' || plugin[0] == '@' || pinst[0] == '@' || type[0] == '@' || (tinst[0] == '@' && tinst.substr(0, 5) != '@merge')) {
+		var query = 'action=list_graphs&host='+encodeURIComponent(host)+'&plugin='+encodeURIComponent(plugin)+'&plugin_instance='+encodeURIComponent(pinst);
+		query = query+'&type='+encodeURIComponent(type)+'&type_instance='+encodeURIComponent(tinst)+'&timespan='+encodeURIComponent(timespan);
+		query = query+(logarithmic ? '&logarithmic=1' : '')+(tinyLegend ? '&tinylegend=1' : '');
+		loadXMLDoc(dhtml_url, query);
+	} else
+		GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, logarithmic);
+}
+
+function ListOfGraph(response) {
+	var graphs = response ? response.getElementsByTagName('graph') : null;
+	if (graphs && graphs.length > 0) {
+		for (i = 0; i < graphs.length; i++)
+			GraphDoAppend(graphs[i].getAttribute('host'), graphs[i].getAttribute('plugin'), graphs[i].getAttribute('plugin_instance'),
+			              graphs[i].getAttribute('type'), graphs[i].getAttribute('type_instance'), graphs[i].getAttribute('timespan'),
+			              graphs[i].getAttribute('tinyLegend') == '1', graphs[i].getAttribute('logarithmic') == '1');
+	} else
+		alert('No graph found for adding');
 }
 
 function GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, logarithmic) {
