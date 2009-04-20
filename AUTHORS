@@ -58,6 +58,9 @@ Fabian Linzberger <e at lefant.net>
 Flavio Stanchina <flavio at stanchina.net>
  - mbmon plugin.
 
+Franck Lombardi
+ - UNIX socket code for the memcached plugin.
+
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
 
