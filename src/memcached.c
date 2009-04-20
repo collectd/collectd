@@ -59,92 +59,92 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 	int fd;
 	ssize_t status;
 	int buffer_fill;
-    int i = 0;
+	int i = 0;
 
-    if (memcached_socket != NULL) {
+	if (memcached_socket != NULL) {
 
-        struct sockaddr_un serv_addr;
+		struct sockaddr_un serv_addr;
 
-        memset(&serv_addr, '\0', sizeof (serv_addr));
-        serv_addr.sun_family = AF_UNIX;
-        strncpy(serv_addr.sun_path, memcached_socket, sizeof (serv_addr.sun_path));
+		memset(&serv_addr, '\0', sizeof (serv_addr));
+		serv_addr.sun_family = AF_UNIX;
+		strncpy(serv_addr.sun_path, memcached_socket, sizeof (serv_addr.sun_path));
 
-        /* create our socket descriptor */
-        if ((fd = socket (AF_UNIX, SOCK_STREAM, 0)) < 0) {
-            char errbuf[1024];
-            ERROR ("memcached: unix socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
-            return -1;
-        }
+		/* create our socket descriptor */
+		if ((fd = socket (AF_UNIX, SOCK_STREAM, 0)) < 0) {
+			char errbuf[1024];
+			ERROR ("memcached: unix socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
+			return -1;
+		}
 
-        /* connect to the memcached daemon */
-        if (connect (fd, (struct sockaddr *) &serv_addr, SUN_LEN(&serv_addr))) {
-            shutdown(fd, SHUT_RDWR);
-            close(fd);
-            fd = -1;
-        }
+		/* connect to the memcached daemon */
+		if (connect (fd, (struct sockaddr *) &serv_addr, SUN_LEN(&serv_addr))) {
+			shutdown(fd, SHUT_RDWR);
+			close(fd);
+			fd = -1;
+		}
 
-    } else {
+	} else {
 
-        const char *host;
-        const char *port;
+		const char *host;
+		const char *port;
 
-        struct addrinfo  ai_hints;
-        struct addrinfo *ai_list, *ai_ptr;
-        int              ai_return = 0;
+		struct addrinfo  ai_hints;
+		struct addrinfo *ai_list, *ai_ptr;
+		int              ai_return = 0;
 
-        memset (&ai_hints, '\0', sizeof (ai_hints));
-        ai_hints.ai_flags    = 0;
+		memset (&ai_hints, '\0', sizeof (ai_hints));
+		ai_hints.ai_flags    = 0;
 #ifdef AI_ADDRCONFIG
-        /*	ai_hints.ai_flags   |= AI_ADDRCONFIG; */
+		/*	ai_hints.ai_flags   |= AI_ADDRCONFIG; */
 #endif
-        ai_hints.ai_family   = AF_INET;
-        ai_hints.ai_socktype = SOCK_STREAM;
-        ai_hints.ai_protocol = 0;
+		ai_hints.ai_family   = AF_INET;
+		ai_hints.ai_socktype = SOCK_STREAM;
+		ai_hints.ai_protocol = 0;
 
-        host = memcached_host;
-        if (host == NULL) {
-            host = MEMCACHED_DEF_HOST;
-        }
+		host = memcached_host;
+		if (host == NULL) {
+			host = MEMCACHED_DEF_HOST;
+		}
 
-        port = memcached_port;
-        if (strlen (port) == 0) {
-            port = MEMCACHED_DEF_PORT;
-        }
+		port = memcached_port;
+		if (strlen (port) == 0) {
+			port = MEMCACHED_DEF_PORT;
+		}
 
-        if ((ai_return = getaddrinfo (host, port, NULL, &ai_list)) != 0) {
-            char errbuf[1024];
-            ERROR ("memcached: getaddrinfo (%s, %s): %s",
-                   host, port,
-                   (ai_return == EAI_SYSTEM)
-                   ? sstrerror (errno, errbuf, sizeof (errbuf))
-                   : gai_strerror (ai_return));
-            return -1;
-        }
+		if ((ai_return = getaddrinfo (host, port, NULL, &ai_list)) != 0) {
+			char errbuf[1024];
+			ERROR ("memcached: getaddrinfo (%s, %s): %s",
+					host, port,
+					(ai_return == EAI_SYSTEM)
+					? sstrerror (errno, errbuf, sizeof (errbuf))
+					: gai_strerror (ai_return));
+			return -1;
+		}
 
-        fd = -1;
-        for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
-            /* create our socket descriptor */
-            if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0) {
-                char errbuf[1024];
-                ERROR ("memcached: socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
-                continue;
-            }
+		fd = -1;
+		for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
+			/* create our socket descriptor */
+			if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0) {
+				char errbuf[1024];
+				ERROR ("memcached: socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
+				continue;
+			}
 
-            /* connect to the memcached daemon */
-            if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen)) {
-                shutdown(fd, SHUT_RDWR);
-                close(fd);
-                fd = -1;
-                continue;
-            }
+			/* connect to the memcached daemon */
+			if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen)) {
+				shutdown(fd, SHUT_RDWR);
+				close(fd);
+				fd = -1;
+				continue;
+			}
 
-            /* A socket could be opened and connecting succeeded. We're
-             * done. */
-            break;
-        }
+			/* A socket could be opened and connecting succeeded. We're
+			 * done. */
+			break;
+		}
 
-        freeaddrinfo (ai_list);
-    }
+		freeaddrinfo (ai_list);
+	}
 
 	if (fd < 0) {
 		ERROR ("memcached: Could not connect to daemon.");
@@ -235,12 +235,12 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 
 static int memcached_config (const char *key, const char *value) /* {{{ */
 {
-    if (strcasecmp (key, "Socket") == 0) {
-        if (memcached_socket != NULL) {
-            free (memcached_socket);
-        }
-        memcached_socket = strdup (value);
-    } else if (strcasecmp (key, "Host") == 0) {
+	if (strcasecmp (key, "Socket") == 0) {
+		if (memcached_socket != NULL) {
+			free (memcached_socket);
+		}
+		memcached_socket = strdup (value);
+	} else if (strcasecmp (key, "Host") == 0) {
 		if (memcached_host != NULL) {
 			free (memcached_host);
 		}
@@ -371,13 +371,13 @@ static int memcached_read (void) /* {{{ */
 #define FIELD_IS(cnst) \
 	(((sizeof(cnst) - 1) == name_len) && (strcmp (cnst, fields[1]) == 0))
 
-    ptr = buf;
-    saveptr = NULL;
-    while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
+	ptr = buf;
+	saveptr = NULL;
+	while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
 	{
 		int name_len;
 
-        ptr = NULL;
+		ptr = NULL;
 
 		fields_num = strsplit(line, fields, 3);
 		if (fields_num != 3)
@@ -419,12 +419,6 @@ static int memcached_read (void) /* {{{ */
 		{
 			submit_gauge ("memcached_items", "current", atof (fields[2]));
 		}
-/*
-		else if (FIELD_IS ("total_items"))
-		{
-			total_items = atoll(fields[2]);
-		}
- */
 
 		/*
 		 * Number of bytes used and available (total - used)
@@ -445,20 +439,6 @@ static int memcached_read (void) /* {{{ */
 		{
 			submit_gauge ("memcached_connections", "current", atof (fields[2]));
 		}
-/*
-		else if (FIELD_IS("total_connections"))
-		{
-			total_connections = atoll(fields[2]);
-		}
-*/
-
-/*
- * ``Number of connection structures allocated by the server''
-		else if (FIELD_IS ("connection_structures"))
-		{
-			connection_structures = atof(fields[2]);
-		}
- */
 
 		/*
 		 * Commands
@@ -536,7 +516,7 @@ void module_register (void) /* {{{ */
  * tab-width: 4
  * c-basic-offset: 4
  * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
+ * vim600: sw=4 ts=4 fdm=marker noexpandtab
+ * vim<600: sw=4 ts=4 noexpandtab
  */
 
