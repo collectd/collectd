@@ -466,7 +466,7 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 	long long finishing = 0LL;
 	long long idle_cleanup = 0LL;
 
-	// lighttpd specific
+	/* lighttpd specific */
 	long long connect        = 0LL;
 	long long hard_error     = 0LL;
 	long long lighttpd_read  = 0LL;
@@ -542,7 +542,7 @@ static int apache_read_host (apache_t *st)
 
 	char *fields[4];
 	int   fields_num;
-	int server = LIGHTTPD; // default is lighttpd
+	int server = LIGHTTPD; /* default is lighttpd */
 
 	if (st->curl == NULL)
 		return (-1);
@@ -591,12 +591,13 @@ static int apache_read_host (apache_t *st)
 		}
 		else if (fields_num == 2)
 		{
-			// find out if the server is apache from the mod_status output.
-			// apache mod_status output has additional fields which lighttpd
-			// mod_status output doesn't have e.g: ReqPerSec.
-			// submit_scoreboard needs server type information and thus it is
-			// important to pick up a field before scoreboard gets parsed
-			// to set the server type
+			/* find out if the server is apache from the mod_status
+			 * output. apache mod_status output has additional
+			 * fields which lighttpd mod_status output doesn't have
+			 * e.g: ReqPerSec. submit_scoreboard needs server type
+			 * information and thus it is important to pick up a
+			 * field before scoreboard gets parsed to set the
+			 * server type */
 			if (strcmp (fields[0], "ReqPerSec:") == 0)
 				server = APACHE;
 			else if (strcmp (fields[0], "Scoreboard:") == 0)
@@ -632,7 +633,7 @@ static int apache_read (void)
 	}
 
 	return (0);
- } /* int apache_read */
+} /* int apache_read */
 
 void module_register (void)
 {
