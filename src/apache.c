@@ -31,6 +31,12 @@
 
 #include <curl/curl.h>
 
+enum server_type
+{
+	APACHE = 0,
+	LIGHTTPD
+};
+
 struct apache_s
 {
 	char *name;
@@ -434,14 +440,19 @@ static void submit_gauge (const char *type, const char *type_instance,
 	plugin_dispatch_values (&vl);
 } /* void submit_counter */
 
-static void submit_scoreboard (char *buf, apache_t *st)
+static void submit_scoreboard (char *buf, int server, apache_t *st)
 {
 	/*
 	 * Scoreboard Key:
-	 * "_" Waiting for Connection, "S" Starting up, "R" Reading Request,
+	 * "_" Waiting for Connection, "S" Starting up,
+	 * "R" Reading Request for apache and read-POST for lighttpd,
 	 * "W" Sending Reply, "K" Keepalive (read), "D" DNS Lookup,
 	 * "C" Closing connection, "L" Logging, "G" Gracefully finishing,
 	 * "I" Idle cleanup of worker, "." Open slot with no current process
+	 * Lighttpd specific legends -
+	 * "E" hard error, "." connect, "h" handle-request,
+	 * "q" request-start, "Q" request-end, "s" response-start
+	 * "S" response-end, "r" read
 	 */
 	long long open      = 0LL;
 	long long waiting   = 0LL;
@@ -454,6 +465,16 @@ static void submit_scoreboard (char *buf, apache_t *st)
 	long long logging   = 0LL;
 	long long finishing = 0LL;
 	long long idle_cleanup = 0LL;
+
+	// lighttpd specific
+	long long connect        = 0LL;
+	long long hard_error     = 0LL;
+	long long lighttpd_read  = 0LL;
+	long long handle_request = 0LL;
+	long long request_start  = 0LL;
+	long long request_end    = 0LL;
+	long long response_start = 0LL;
+	long long response_end   = 0LL;
 
 	int i;
 
@@ -470,19 +491,44 @@ static void submit_scoreboard (char *buf, apache_t *st)
 		else if (buf[i] == 'L') logging++;
 		else if (buf[i] == 'G') finishing++;
 		else if (buf[i] == 'I') idle_cleanup++;
+		else if (buf[i] == '.') connect++;
+		else if (buf[i] == 'r') lighttpd_read++;
+		else if (buf[i] == 'h') handle_request++;
+		else if (buf[i] == 'E') hard_error++;
+		else if (buf[i] == 'q') request_start++;
+		else if (buf[i] == 'Q') request_end++;
+		else if (buf[i] == 's') response_start++;
+		else if (buf[i] == 'S') response_end++;
 	}
 
-	submit_gauge ("apache_scoreboard", "open"     , open, st);
-	submit_gauge ("apache_scoreboard", "waiting"  , waiting, st);
-	submit_gauge ("apache_scoreboard", "starting" , starting, st);
-	submit_gauge ("apache_scoreboard", "reading"  , reading, st);
-	submit_gauge ("apache_scoreboard", "sending"  , sending, st);
-	submit_gauge ("apache_scoreboard", "keepalive", keepalive, st);
-	submit_gauge ("apache_scoreboard", "dnslookup", dnslookup, st);
-	submit_gauge ("apache_scoreboard", "closing"  , closing, st);
-	submit_gauge ("apache_scoreboard", "logging"  , logging, st);
-	submit_gauge ("apache_scoreboard", "finishing", finishing, st);
-	submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup, st);
+	if (server == APACHE)
+	{
+		submit_gauge ("apache_scoreboard", "open"     , open, st);
+		submit_gauge ("apache_scoreboard", "waiting"  , waiting, st);
+		submit_gauge ("apache_scoreboard", "starting" , starting, st);
+		submit_gauge ("apache_scoreboard", "reading"  , reading, st);
+		submit_gauge ("apache_scoreboard", "sending"  , sending, st);
+		submit_gauge ("apache_scoreboard", "keepalive", keepalive, st);
+		submit_gauge ("apache_scoreboard", "dnslookup", dnslookup, st);
+		submit_gauge ("apache_scoreboard", "closing"  , closing, st);
+		submit_gauge ("apache_scoreboard", "logging"  , logging, st);
+		submit_gauge ("apache_scoreboard", "finishing", finishing, st);
+		submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup, st);
+	} else
+	{
+		submit_gauge ("apache_scoreboard", "connect"       , connect, st);
+		submit_gauge ("apache_scoreboard", "close"         , closing, st);
+		submit_gauge ("apache_scoreboard", "hard_error"    , hard_error, st);
+		submit_gauge ("apache_scoreboard", "read"          , lighttpd_read, st);
+		submit_gauge ("apache_scoreboard", "read_post"     , reading, st);
+		submit_gauge ("apache_scoreboard", "write"         , sending, st);
+		submit_gauge ("apache_scoreboard", "handle_request", handle_request, st);
+		submit_gauge ("apache_scoreboard", "request_start" , request_start, st);
+		submit_gauge ("apache_scoreboard", "request_end"   , request_end, st);
+		submit_gauge ("apache_scoreboard", "response_start", response_start, st);
+		submit_gauge ("apache_scoreboard", "response_end"  , response_end, st);
+
+	}
 }
 
 static int apache_read_host (apache_t *st)
@@ -496,6 +542,7 @@ static int apache_read_host (apache_t *st)
 
 	char *fields[4];
 	int   fields_num;
+	int server = LIGHTTPD; // default is lighttpd
 
 	if (st->curl == NULL)
 		return (-1);
@@ -544,8 +591,16 @@ static int apache_read_host (apache_t *st)
 		}
 		else if (fields_num == 2)
 		{
-			if (strcmp (fields[0], "Scoreboard:") == 0)
-				submit_scoreboard (fields[1], st);
+			// find out if the server is apache from the mod_status output.
+			// apache mod_status output has additional fields which lighttpd
+			// mod_status output doesn't have e.g: ReqPerSec.
+			// submit_scoreboard needs server type information and thus it is
+			// important to pick up a field before scoreboard gets parsed
+			// to set the server type
+			if (strcmp (fields[0], "ReqPerSec:") == 0)
+				server = APACHE;
+			else if (strcmp (fields[0], "Scoreboard:") == 0)
+				submit_scoreboard (fields[1], server, st);
 			else if (strcmp (fields[0], "BusyServers:") == 0)
 				submit_gauge ("apache_connections", NULL, atol (fields[1]), st);
 		}
