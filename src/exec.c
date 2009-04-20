@@ -1,6 +1,8 @@
 /**
  * collectd - src/exec.c
- * Copyright (C) 2007,2008  Florian octo Forster
+ * Copyright (C) 2007-2009  Florian octo Forster
+ * Copyright (C) 2007-2009  Sebastian Harl
+ * Copyright (C) 2008       Peter Holik
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +19,8 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian Harl <sh at tokkee.org>
+ *   Peter Holik <peter at holik.at>
  **/
 
 #include "collectd.h"

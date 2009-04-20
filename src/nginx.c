@@ -1,6 +1,7 @@
 /**
  * collectd - src/nginx.c
  * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2008       Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
