@@ -62,29 +62,31 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 	int i = 0;
 
 	if (memcached_socket != NULL) {
-
 		struct sockaddr_un serv_addr;
 
-		memset(&serv_addr, '\0', sizeof (serv_addr));
+		memset (&serv_addr, 0, sizeof (serv_addr));
 		serv_addr.sun_family = AF_UNIX;
-		strncpy(serv_addr.sun_path, memcached_socket, sizeof (serv_addr.sun_path));
+		sstrncpy (serv_addr.sun_path, memcached_socket, sizeof (serv_addr.sun_path));
 
 		/* create our socket descriptor */
-		if ((fd = socket (AF_UNIX, SOCK_STREAM, 0)) < 0) {
+		fd = socket (AF_UNIX, SOCK_STREAM, 0);
+		if (fd < 0) {
 			char errbuf[1024];
-			ERROR ("memcached: unix socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
+			ERROR ("memcached: unix socket: %s", sstrerror (errno, errbuf,
+						sizeof (errbuf)));
 			return -1;
 		}
 
 		/* connect to the memcached daemon */
-		if (connect (fd, (struct sockaddr *) &serv_addr, SUN_LEN(&serv_addr))) {
-			shutdown(fd, SHUT_RDWR);
-			close(fd);
+		status = (ssize_t) connect (fd, (struct sockaddr *) &serv_addr,
+				SUN_LEN (&serv_addr));
+		if (status != 0) {
+			shutdown (fd, SHUT_RDWR);
+			close (fd);
 			fd = -1;
 		}
-
-	} else {
-
+	}
+	else { /* if (memcached_socket == NULL) */
 		const char *host;
 		const char *port;
 
@@ -124,16 +126,18 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 		fd = -1;
 		for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
 			/* create our socket descriptor */
-			if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0) {
+			fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+			if (fd < 0) {
 				char errbuf[1024];
 				ERROR ("memcached: socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 				continue;
 			}
 
 			/* connect to the memcached daemon */
-			if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen)) {
-				shutdown(fd, SHUT_RDWR);
-				close(fd);
+			status = (ssize_t) connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+			if (status != 0) {
+				shutdown (fd, SHUT_RDWR);
+				close (fd);
 				fd = -1;
 				continue;
 			}
