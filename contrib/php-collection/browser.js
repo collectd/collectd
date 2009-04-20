@@ -35,6 +35,7 @@ function toggleDiv(divID) {
 			label.removeChild(label.childNodes[--childCnt]);
 		label.appendChild(document.createTextNode(label_txt));
 	}
+	GraphPositionToolbox(null);
 }
 
 var req = null;
@@ -319,58 +320,12 @@ function GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, l
 		newGraph.setAttribute('class', 'graph');
 		newGraph.setAttribute('id', graph_id);
 		// Graph cell + graph
-		newDiv = document.createElement('div');
-		newDiv.setAttribute('class', 'graph_img');
 		newImg = document.createElement('img');
 		newImg.setAttribute('src', graph_src);
 		newImg.setAttribute('alt', graph_alt);
 		newImg.setAttribute('title', graph_title);
-		newDiv.appendChild(newImg);
-		newGraph.appendChild(newDiv);
-		// Graph tools
-		newDiv = document.createElement('div');
-		newDiv.setAttribute('class', 'graph_opts');
-		// - move up
-		newImg = document.createElement('img');
-		newImg.setAttribute('src', 'move-up.png');
-		newImg.setAttribute('alt', 'UP');
-		newImg.setAttribute('title', 'Move graph up');
-		newA = document.createElement('a');
-		newA.setAttribute('href', 'javascript:GraphMoveUp("'+graph_id+'")');
-		newA.appendChild(newImg);
-		newDiv.appendChild(newA);
-		newDiv.appendChild(document.createElement('br'));
-		// - refresh
-		newImg = document.createElement('img');
-		newImg.setAttribute('src', 'refresh.png');
-		newImg.setAttribute('alt', 'R');
-		newImg.setAttribute('title', 'Refresh graph');
-		newA = document.createElement('a');
-		newA.setAttribute('href', 'javascript:GraphRefresh("'+graph_id+'")');
-		newA.appendChild(newImg);
-		newDiv.appendChild(newA);
-		newDiv.appendChild(document.createElement('br'));
-		// - remove
-		newImg = document.createElement('img');
-		newImg.setAttribute('src', 'delete.png');
-		newImg.setAttribute('alt', 'RM');
-		newImg.setAttribute('title', 'Remove graph');
-		newA = document.createElement('a');
-		newA.setAttribute('href', 'javascript:GraphRemove("'+graph_id+'")');
-		newA.appendChild(newImg);
-		newDiv.appendChild(newA);
-		newDiv.appendChild(document.createElement('br'));
-		// - move down
-		newImg = document.createElement('img');
-		newImg.setAttribute('src', 'move-down.png');
-		newImg.setAttribute('alt', 'DN');
-		newImg.setAttribute('title', 'Move graph down');
-		newA = document.createElement('a');
-		newA.setAttribute('href', 'javascript:GraphMoveDown("'+graph_id+'")');
-		newA.appendChild(newImg);
-		newDiv.appendChild(newA);
-		newGraph.appendChild(newDiv);
-
+		newImg.setAttribute('onclick', 'GraphToggleTools("'+graph_id+'")');
+		newGraph.appendChild(newImg);
 		graphs.appendChild(newGraph);
 	}
 	document.getElementById('nograph').style.display = 'none';
@@ -389,25 +344,102 @@ function GraphDropAll() {
 	RefreshButtons();
 }
 
-function GraphRefresh(graph) {
-	if (graph == null) {
-		var imgs   = document.getElementById('graphs').getElementsByTagName('img');
-		var imgCnt = imgs.length;
-		var now    = new Date();
-		var newTS  = '&ts='+now.getTime();
+function GraphToggleTools(graph) {
+	var graphId = document.getElementById('ge_graphid').value;
+	var ref_img = null;
+	if (graphId == graph || graph == '') {
+		ref_img = null;
+	} else {
+		var graphDiv = document.getElementById(graph);
+		var imgs     = graphDiv ? graphDiv.getElementsByTagName('img') : null;
+		var imgCnt   = imgs ? imgs.length : 0;
 		while (imgCnt > 0)
-			if (imgs[--imgCnt].parentNode.getAttribute('class') == 'graph_img') {
-				var oldSrc = imgs[imgCnt].src;
-				var newSrc = oldSrc.replace(/&ts=[0-9]+/, newTS);
-				if (newSrc == oldSrc)
-					newSrc = newSrc + newTS;
-				imgs[imgCnt].setAttribute('src', newSrc);
+			if (imgs[--imgCnt].parentNode.getAttribute('class') == 'graph')
+				ref_img = imgs[imgCnt];
+	}
+	if (ref_img) {
+		var ts_sel  =  document.getElementById('ge_timespan');
+		var src_url = ref_img.src;
+		var ge      = document.getElementById('ge');
+		// Fix field values
+		var ts = src_url.match(/&timespan=[^&]*/);
+		ts = ts ? ts[0].substr(10) : '';
+		document.getElementById('ge_graphid').value = graph;
+		document.getElementById('ge_tinylegend').checked = src_url.match(/&tinylegend=1/);
+		document.getElementById('ge_logarithmic').checked = src_url.match(/&logarithmic=1/);
+		for (i = 0; i < ts_sel.options.length; i++)
+			if (ts_sel.options[i].value == ts) {
+				ts_sel.selectedIndex = i;
+				break;
 			}
-	} else if (document.getElementById(graph)) {
-		var imgs = document.getElementById(graph).getElementsByTagName('img');
+		// show tools box and position it properly
+		ge.style.display = 'table';
+		GraphPositionToolbox(ref_img);
+	} else {
+		// hide tools box
+		document.getElementById('ge').style.display = 'none';
+		document.getElementById('ge_graphid').value = '';
+	}
+}
+
+function GraphPositionToolbox(ref_img) {
+	var ge      = document.getElementById('ge');
+	if (ge.style.display != 'none') {
+		var wl = 0; var wt = 0;
+		var x = ref_img;
+		if (ref_img == null) {
+			var graphDiv = document.getElementById(document.getElementById('ge_graphid').value);
+			var imgs     = graphDiv ? graphDiv.getElementsByTagName('img') : null;
+			var imgCnt   = imgs ? imgs.length : 0;
+			while (imgCnt > 0)
+				if (imgs[--imgCnt].parentNode.getAttribute('class') == 'graph')
+					ref_img = imgs[imgCnt];
+
+			if (ref_img == null) {
+				document.getElementById('ge_graphid').value = '';
+				ge.style.display = 'none';
+				return;
+			} else
+				x = ref_img;
+		}
+		while (x != null) {
+			wl += x.offsetLeft;
+			wt += x.offsetTop;
+			x = x.offsetParent;
+		}
+		ge.style.left    = (wl + (ref_img.offsetWidth - ge.offsetWidth) / 2)+'px';
+		ge.style.top     = (wt + (ref_img.offsetHeight - ge.offsetHeight) / 2)+'px';
+	}
+}
+
+function GraphRefreshAll() {
+	var imgs   = document.getElementById('graphs').getElementsByTagName('img');
+	var imgCnt = imgs.length;
+	var now    = new Date();
+	var newTS  = '&ts='+now.getTime();
+	while (imgCnt > 0)
+		if (imgs[--imgCnt].parentNode.getAttribute('class') == 'graph') {
+			var oldSrc = imgs[imgCnt].src;
+			var newSrc = oldSrc.replace(/&ts=[0-9]+/, newTS);
+			if (newSrc == oldSrc)
+				newSrc = newSrc + newTS;
+			imgs[imgCnt].setAttribute('src', newSrc);
+		}
+}
+
+function GraphRefresh(graph) {
+	var graphElement = null;
+	if (graph == null) {
+		var graphId = document.getElementById('ge_graphid').value;
+		if (graphId != '')
+			graphElement = document.getElementById(graphId);
+	} else 
+		graphElement = document.getElementById(graph);
+	if (graphElement != null) {
+		var imgs = graphElement.getElementsByTagName('img');
 		var imgCnt = imgs.length;
 		while (imgCnt > 0)
-			if (imgs[--imgCnt].parentNode.getAttribute('class') == 'graph_img') {
+			if (imgs[--imgCnt].parentNode.getAttribute('class') == 'graph') {
 				var now    = new Date();
 				var newTS  = '&ts='+now.getTime();
 				var oldSrc = imgs[imgCnt].src;
@@ -420,17 +452,70 @@ function GraphRefresh(graph) {
 	}
 }
 
+function GraphAdjust(graph) {
+	var graphId = graph == null ? document.getElementById('ge_graphid').value : graph;
+	var graphElement = document.getElementById(graphId);
+	if (graphElement != null) {
+		var time_list   = document.getElementById('ge_timespan');
+		var timespan    = time_list.selectedIndex >= 0 ? time_list.options[time_list.selectedIndex].value : '';
+		var tinyLegend  = document.getElementById('ge_tinylegend').checked;
+		var logarithmic = document.getElementById('ge_logarithmic').checked
+		var imgs = graphElement.getElementsByTagName('img');
+		var imgCnt = imgs.length;
+		var ref_img     = null;
+		while (imgCnt > 0)
+			if (imgs[--imgCnt].parentNode.getAttribute('class') == 'graph') {
+				var now    = new Date();
+				var newTS  = '&ts='+now.getTime();
+				var oldSrc = imgs[imgCnt].src;
+				var newSrc = oldSrc.replace(/&ts=[^&]*/, newTS);
+				if (newSrc == oldSrc)
+					newSrc = newSrc+newTS;
+				newSrc     = newSrc.replace(/&logarithmic=[^&]*/, '');
+				if (logarithmic)
+					newSrc += '&logarithmic=1';
+				newSrc     = newSrc.replace(/&tinylegend=[^&]*/, '');
+				if (tinyLegend)
+					newSrc += '&tinylegend=1';
+				newSrc     = newSrc.replace(/&timespan=[^&]*/, '');
+				if (timespan)
+					newSrc += '&timespan='+encodeURIComponent(timespan);
+				imgs[imgCnt].setAttribute('src', newSrc);
+
+				var myList = Array();
+				for (i = 0; i < graphList.length; i++)
+					if (graphList[i].substring(0, graphId.length) == graphId && graphList[i].charAt(graphId.length) == ' ') {
+						newSrc = graphList[i];
+						newSrc = newSrc.replace(/&logarithmic=[^&]*/, '');
+						newSrc = newSrc.replace(/&tinylegend=[^&]*/, '');
+						newSrc = newSrc.replace(/&timespan=[^&]*/, '');
+						newSrc = newSrc+(logarithmic ? '&logarithmic=1' : '')+(tinyLegend ? '&tinylegend=1' : '')+'&timespan='+encodeURIComponent(timespan);
+						myList.push(newSrc);
+						continue;
+					} else
+						myList.push(graphList[i]);
+				graphList = myList;
+				window.setTimeout("GraphPositionToolbox(null)", 10);
+				// GraphPositionToolbox(imgs[imgCnt]);
+				break;
+			}
+	}
+}
+
 function GraphRemove(graph) {
 	var graphs = document.getElementById('graphs');
-	if (document.getElementById(graph)) {
-		graphs.removeChild(document.getElementById(graph));
+	var graphId = graph == null ? document.getElementById('ge_graphid').value : graph;
+	var graphElement = document.getElementById(graphId);
+	if (graphElement) {
+		GraphToggleTools('');
+		graphs.removeChild(graphElement);
 		RefreshButtons();
 		if (graphs.getElementsByTagName('div').length == 1)
 			document.getElementById('nograph').style.display = 'block';
 
 		var myList = Array();
 		for (i = 0; i < graphList.length; i++)
-			if (graphList[i].substring(0, graph.length) == graph && graphList[i].charAt(graph.length) == ' ')
+			if (graphList[i].substring(0, graphId.length) == graphId && graphList[i].charAt(graphId.length) == ' ')
 				continue;
 			else
 				myList.push(graphList[i]);
@@ -440,13 +525,14 @@ function GraphRemove(graph) {
 
 function GraphMoveUp(graph) {
 	var graphs    = document.getElementById('graphs');
+	var graphId   = graph == null ? document.getElementById('ge_graphid').value : graph;
 	var childCnt  = graphs.childNodes.length;
 	var prevGraph = null;
 	for (i = 0; i < childCnt; i++)
 		if (graphs.childNodes[i].nodeName == 'div' || graphs.childNodes[i].nodeName == 'DIV') {
 			if (graphs.childNodes[i].id == 'nograph') {
 				// Skip
-			} else if (graphs.childNodes[i].id == graph) {
+			} else if (graphs.childNodes[i].id == graphId) {
 				var myGraph = graphs.childNodes[i];
 				if (prevGraph) {
 					graphs.removeChild(myGraph);
@@ -457,7 +543,7 @@ function GraphMoveUp(graph) {
 				prevGraph = graphs.childNodes[i];
 		}
 	for (i = 0; i < graphList.length; i++)
-		if (graphList[i].substring(0, graph.length) == graph && graphList[i].charAt(graph.length) == ' ') {
+		if (graphList[i].substring(0, graphId.length) == graphId && graphList[i].charAt(graphId.length) == ' ') {
 			if (i > 0) {
 				var tmp = graphList[i-1];
 				graphList[i-1] = graphList[i];
@@ -465,10 +551,12 @@ function GraphMoveUp(graph) {
 			}
 			break;
 		}
+	GraphPositionToolbox(null);
 }
 
 function GraphMoveDown(graph) {
 	var graphs    = document.getElementById('graphs');
+	var graphId   = graph == null ? document.getElementById('ge_graphid').value : graph;
 	var childCnt  = graphs.childNodes.length;
 	var nextGraph = null;
 	var myGraph   = null;
@@ -476,7 +564,7 @@ function GraphMoveDown(graph) {
 		if (graphs.childNodes[i].nodeName == 'div' || graphs.childNodes[i].nodeName == 'DIV') {
 			if (graphs.childNodes[i].id == 'nograph') {
 				// Skip
-			} else if (graphs.childNodes[i].id == graph) {
+			} else if (graphs.childNodes[i].id == graphId) {
 				myGraph = graphs.childNodes[i];
 			} else if (myGraph) {
 				nextGraph = graphs.childNodes[i];
@@ -486,7 +574,7 @@ function GraphMoveDown(graph) {
 			}
 		}
 	for (i = 0; i < graphList.length; i++)
-		if (graphList[i].substring(0, graph.length) == graph && graphList[i].charAt(graph.length) == ' ') {
+		if (graphList[i].substring(0, graphId.length) == graphId && graphList[i].charAt(graphId.length) == ' ') {
 			if (i+1 < graphList.length) {
 				var tmp = graphList[i+1];
 				graphList[i+1] = graphList[i];
@@ -494,6 +582,7 @@ function GraphMoveDown(graph) {
 			}
 			break;
 		}
+	GraphPositionToolbox(null);
 }
 
 function GraphListFromCookie(lname) {

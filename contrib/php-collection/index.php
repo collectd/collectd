@@ -66,7 +66,7 @@ function build_page() {
 		<style type="text/css">
 			body, html { background-color: #EEEEEE; color: #000000; }
 			h1 { text-align: center; }
-			div.body { margin: auto; width: <?php echo isset($config['rrd_width']) ? 125+(int)$config['rrd_width'] : 600; ?>px; background: #FFFFFF; border: 1px solid #DDDDDD; }
+			div.body { margin: auto; width: <?php echo isset($config['rrd_width']) ? 110+(int)$config['rrd_width'] : 600; ?>px; background: #FFFFFF; border: 1px solid #DDDDDD; }
 			p.error { color: #CC0000; margin: 0em; }
 			div.selector { margin: 0.5em 2em; }
 			div.selectorbox { padding: 5px; border: 1px solid #CCCCCC; background-color: #F8F8F8; }
@@ -77,11 +77,12 @@ function build_page() {
 			div.selectorbox table td.sc { padding: 0.5em 2em; text-align: center; }
 			a img { border: none; }
 			div.graphs { border-top: 1px solid #DDDDDD; padding: 5px; overflow: auto; }
-			div.graphs_t { display: table; }
-			div.graph { display: table-row; }
-			div.graph_img { display: table-cell; vertical-align: middle; text-align: right; }
-			div.graph_opts { display: table-cell; vertical-align: middle; text-align: center; line-height: 2em; }
-			select { width: 100%; }
+			div.graphs_t { position: relative; }
+			div.graph { text-align: right; }
+			div.selector select { width: 100%; }
+			table.toolbox { border: 1px solid #5500dd; padding: 0px; margin: 0px; background: #ffffff;}
+			table.toolbox td.c1 { vertical-align: middle; text-align: left; padding-left: 0.3em; padding-right: 1em; border-right: 1px solid #5500dd; }
+			table.toolbox td.c2 { vertical-align: middle; text-align: center; padding-left: 5px; padding-right: 5px; }
 		</style>
 		<script type="text/javascript">// <![CDATA[
 var dhtml_url = '<?php echo addslashes($url_base.basename($_SERVER['PHP_SELF'])); ?>';
@@ -137,7 +138,7 @@ var graph_url = '<?php echo addslashes($url_base.'graph.php'); ?>';
 				<tr>
 					<td class="sc" colspan="3"><input id="btnAdd"     name="btnAdd"     type="button" disabled="disabled" onclick="GraphAppend()" value="Add graph" />
 					<input id="btnClear"   name="btnClear"   type="button" disabled="disabled" onclick="GraphDropAll()" value="Remove all graphs" />
-					<input id="btnRefresh" name="btnRefresh" type="button" disabled="disabled" onclick="GraphRefresh(null)" value="Refresh all graphs" /></td>
+					<input id="btnRefresh" name="btnRefresh" type="button" disabled="disabled" onclick="GraphRefreshAll()" value="Refresh all graphs" /></td>
 				</tr>
 				<tr>
 					<td class="s1" rowspan="2">Graph list favorites:</td>
@@ -193,6 +194,24 @@ var graph_url = '<?php echo addslashes($url_base.'graph.php'); ?>';
 				echo '<p class="error">Config error: RRDTOOL ('.htmlspecialchars(RRDTOOL).') is not executable</p>';
 			?></div>
 		</div></div>
+		<input type="hidden" name="ge_graphid" id="ge_graphid" value="" />
+		<table id="ge" class="toolbox" style="position: absolute; display: none; " cellspacing="1" cellpadding="0">
+			<tr>
+				<td class="c1" rowspan="3"><select id="ge_timespan" name="ge_timespan" onchange="GraphAdjust(null)"><?php
+				foreach ($config['timespan'] as &$timespan)
+					printf("\t\t\t\t\t\t<option value=\"%s\">%s</option>\n", htmlspecialchars($timespan['name']), htmlspecialchars($timespan['label']));
+				?></select><br />
+				<label><input id="ge_logarithmic"  name="ge_logarithmic" type="checkbox" value="1" onchange="GraphAdjust(null)" /> Logarithmic scale</label><br />
+				<label><input id="ge_tinylegend"  name="ge_tinylegend" type="checkbox" value="1" onchange="GraphAdjust(null)" /> Minimal legend</label></td>
+				<td class="c2"><a href="javascript:GraphMoveUp(null)"><img src="move-up.png" alt="UP" title="Move graph up"/></a></td>
+			</tr>
+			<tr>
+				<td class="c2"><a href="javascript:GraphRefresh(null)"><img src="refresh.png" alt="R" title="Refresh graph"/></a>&nbsp;<a href="javascript:GraphRemove(null)"><img src="delete.png" alt="RM" title="Remove graph"/></a></td>
+			</tr>
+			<tr>
+				<td class="c2"><a href="javascript:GraphMoveDown(null)"><img src="move-down.png" alt="DN" title="Move graph down"/></a></td>
+			</tr>
+		</table>
 	</div></body>
 </html><?php
 }
