@@ -74,9 +74,18 @@ static void apache_free (apache_t *st)
 } /* apache_free */
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
-		apache_t *st)
+		void *user_data)
 {
 	size_t len = size * nmemb;
+	apache_t *st;
+
+	st = user_data;
+	if (st == NULL)
+	{
+		ERROR ("apache plugin: apache_curl_callback: "
+				"user_data pointer is NULL.");
+		return (0);
+	}
 
 	if (len <= 0)
 		return (len);
