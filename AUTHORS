@@ -58,6 +58,9 @@ Fabian Linzberger <e at lefant.net>
 Flavio Stanchina <flavio at stanchina.net>
  - mbmon plugin.
 
+Franck Lombardi
+ - UNIX socket code for the memcached plugin.
+
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
 
@@ -113,11 +116,17 @@ Roman Klesel <roman.klesel at noris.de>
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
 
+Simon Kuhnle <simon at blarzwurst.de>
+ - OpenBSD code for the cpu and memory plugins.
+
 Sjoerd van der Berg <harekiet at gmail.com>
  - iptables plugin.
 
 Stefan Hacker <stefan.hacker at web.de>
  - teamspeak2 plugin.
+
+Tomasz Pala <gotar at pld-linux.org>
+ - conntrack plugin.
 
 Tommie Gannert <d00-tga at d.kth.se>
  - PID-file patch.

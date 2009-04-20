@@ -1,6 +1,7 @@
 /**
  * collectd - src/memory.c
- * Copyright (C) 2005-2007  Florian octo Forster
+ * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2009       Simon Kuhnle
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Simon Kuhnle <simon at blarzwurst.de>
  **/
 
 #include "collectd.h"
@@ -66,6 +68,10 @@ static int pagesize;
 static kstat_t *ksp;
 /* #endif HAVE_LIBKSTAT */
 
+#elif HAVE_SYSCTL
+static int pagesize;
+/* #endif HAVE_SYSCTL */
+
 #elif HAVE_LIBSTATGRAB
 /* no global variables */
 /* endif HAVE_LIBSTATGRAB */
@@ -97,7 +103,20 @@ static int memory_init (void)
 		ksp = NULL;
 		return (-1);
 	}
-#endif /* HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_SYSCTL
+	pagesize = getpagesize ();
+	if (pagesize <= 0)
+	{
+		ERROR ("memory plugin: Invalid pagesize: %i", pagesize);
+		return (-1);
+	}
+/* #endif HAVE_SYSCTL */
+
+#elif HAVE_LIBSTATGRAB
+/* no init stuff */
+#endif /* HAVE_LIBSTATGRAB */
 
 	return (0);
 } /* int memory_init */
@@ -314,6 +333,27 @@ static int memory_read (void)
 	memory_submit ("free",   mem_free);
 	memory_submit ("locked", mem_lock);
 /* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_SYSCTL
+	int mib[] = {CTL_VM, VM_METER};
+	struct vmtotal vmtotal;
+	size_t size;
+
+	memset (&vmtotal, 0, sizeof (vmtotal));
+	size = sizeof (vmtotal);
+
+	if (sysctl (mib, 2, &vmtotal, &size, NULL, 0) < 0) {
+		char errbuf[1024];
+		WARNING ("memory plugin: sysctl failed: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	assert (pagesize > 0);
+	memory_submit ("active",   vmtotal.t_arm * pagesize);
+	memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+	memory_submit ("free",     vmtotal.t_free * pagesize);
+/* #endif HAVE_SYSCTL */
 
 #elif HAVE_LIBSTATGRAB
 	sg_mem_stats *ios;

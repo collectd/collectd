@@ -74,6 +74,15 @@
 # define NI_MAXHOST 1025
 #endif
 
+/* OpenBSD doesn't have EPROTO, FreeBSD doesn't have EILSEQ. Oh what joy! */
+#ifndef EILSEQ
+# ifdef EPROTO
+#  define EILSEQ EPROTO
+# else
+#  define EILSEQ EINVAL
+# endif
+#endif
+
 /* Secure/static macros. They work like `strcpy' and `strcat', but assure null
  * termination. They work for static buffers only, because they use `sizeof'.
  * The `SSTRCATF' combines the functionality of `snprintf' and `strcat' which

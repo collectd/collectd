@@ -1,8 +1,8 @@
 /**
  * collectd - src/apache.c
- * Copyright (C) 2006-2008  Florian octo Forster
- * Copyright (C) 2007  Florent EppO Monbillard
- * Copyright (C) 2009  Amit Gupta
+ * Copyright (C) 2006-2009  Florian octo Forster
+ * Copyright (C) 2007       Florent EppO Monbillard
+ * Copyright (C) 2009       Amit Gupta
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -44,8 +44,8 @@ struct apache_s
 	char *url;
 	char *user;
 	char *pass;
-	char *verify_peer;
-	char *verify_host;
+	int   verify_peer;
+	int   verify_host;
 	char *cacert;
 	char *apache_buffer;
 	char apache_curl_error[CURL_ERROR_SIZE];
@@ -56,8 +56,8 @@ struct apache_s
 
 typedef struct apache_s apache_t;
 
-static apache_t **apache     = NULL;
-static size_t     apache_num = 0;
+/* TODO: Remove this prototype */
+static int apache_read_host (user_data_t *user_data);
 
 static void apache_free (apache_t *st)
 {
@@ -69,8 +69,6 @@ static void apache_free (apache_t *st)
 	sfree (st->url);
 	sfree (st->user);
 	sfree (st->pass);
-	sfree (st->verify_peer);
-	sfree (st->verify_host);
 	sfree (st->cacert);
 	sfree (st->apache_buffer);
 	if (st->curl) {
@@ -80,9 +78,18 @@ static void apache_free (apache_t *st)
 } /* apache_free */
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
-		apache_t *st)
+		void *user_data)
 {
 	size_t len = size * nmemb;
+	apache_t *st;
+
+	st = user_data;
+	if (st == NULL)
+	{
+		ERROR ("apache plugin: apache_curl_callback: "
+				"user_data pointer is NULL.");
+		return (0);
+	}
 
 	if (len <= 0)
 		return (len);
@@ -117,7 +124,7 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
  *   URL ...
  * </Plugin>
  */
-static int config_set_string (char **ret_string,
+static int config_set_string (char **ret_string, /* {{{ */
 				    oconfig_item_t *ci)
 {
 	char *string;
@@ -142,7 +149,48 @@ static int config_set_string (char **ret_string,
 	*ret_string = string;
 
 	return (0);
-} /* int config_set_string */
+} /* }}} int config_set_string */
+
+static int config_set_boolean (int *ret_boolean, /* {{{ */
+				    oconfig_item_t *ci)
+{
+	if ((ci->values_num != 1)
+			|| ((ci->values[0].type != OCONFIG_TYPE_BOOLEAN)
+				&& (ci->values[0].type != OCONFIG_TYPE_STRING)))
+	{
+		WARNING ("apache plugin: The `%s' config option "
+				"needs exactly one boolean argument.", ci->key);
+		return (-1);
+	}
+
+	if (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)
+	{
+		if (ci->values[0].value.boolean)
+			*ret_boolean = 1;
+		else
+			*ret_boolean = 0;
+	}
+	else /* if (ci->values[0].type != OCONFIG_TYPE_STRING) */
+	{
+		char *string = ci->values[0].value.string;
+		if ((strcasecmp ("true", string) == 0)
+				|| (strcasecmp ("yes", string) == 0)
+				|| (strcasecmp ("on", string) == 0))
+			*ret_boolean = 1;
+		else if ((strcasecmp ("false", string) == 0)
+				|| (strcasecmp ("no", string) == 0)
+				|| (strcasecmp ("off", string) == 0))
+			*ret_boolean = 0;
+		else
+		{
+			ERROR ("apache plugin: Cannot parse string "
+					"as boolean value: %s", string);
+			return (-1);
+		}
+	}
+
+	return (0);
+} /* }}} int config_set_boolean */
 
 static int config_add (oconfig_item_t *ci)
 {
@@ -173,6 +221,7 @@ static int config_add (oconfig_item_t *ci)
 		sfree (st);
 		return (status);
 	}
+	assert (st->name != NULL);
 
 	for (i = 0; i < ci->children_num; i++)
 	{
@@ -187,14 +236,15 @@ static int config_add (oconfig_item_t *ci)
 		else if (strcasecmp ("Password", child->key) == 0)
 			status = config_set_string (&st->pass, child);
 		else if (strcasecmp ("VerifyPeer", child->key) == 0)
-			status = config_set_string (&st->verify_peer, child);
+			status = config_set_boolean (&st->verify_peer, child);
 		else if (strcasecmp ("VerifyHost", child->key) == 0)
-			status = config_set_string (&st->verify_host, child);
+			status = config_set_boolean (&st->verify_host, child);
 		else if (strcasecmp ("CACert", child->key) == 0)
 			status = config_set_string (&st->cacert, child);
 		else
 		{
-			WARNING ("apache plugin: Option `%s' not allowed here.", child->key);
+			WARNING ("apache plugin: Option `%s' not allowed here.",
+					child->key);
 			status = -1;
 		}
 
@@ -202,21 +252,34 @@ static int config_add (oconfig_item_t *ci)
 			break;
 	}
 
+	/* Check if struct is complete.. */
+	if ((status == 0) && (st->url == NULL))
+	{
+		ERROR ("apache plugin: Instance `%s': "
+				"No URL has been configured.",
+				st->name);
+		status = -1;
+	}
+
 	if (status == 0)
 	{
-		apache_t **temp;
-		temp = (apache_t **) realloc (apache, sizeof (*apache) * (apache_num + 1));
-		if (temp == NULL)
-		{
-			ERROR ("apache plugin: realloc failed");
-			status = -1;
-		}
-		else
-		{
-			apache = temp;
-			apache[apache_num] = st;
-			apache_num++;
-		}
+		user_data_t ud;
+		char callback_name[3*DATA_MAX_NAME_LEN];
+
+		memset (&ud, 0, sizeof (ud));
+		ud.data = st;
+		ud.free_func = (void *) apache_free;
+
+		memset (callback_name, 0, sizeof (callback_name));
+		ssnprintf (callback_name, sizeof (callback_name),
+				"apache/%s/%s",
+				(st->host != NULL) ? st->host : hostname_g,
+				(st->name != NULL) ? st->name : "default"),
+
+		status = plugin_register_complex_read (callback_name,
+				/* callback  = */ apache_read_host,
+				/* interval  = */ NULL,
+				/* user_data = */ &ud);
 	}
 
 	if (status != 0)
@@ -285,27 +348,23 @@ static int config (oconfig_item_t *ci)
 	return status;
 } /* int config */
 
-
 /* initialize curl for each host */
 static int init_host (apache_t *st) /* {{{ */
 {
 	static char credentials[1024];
 
-	if (st->url == NULL)
-	{
-		WARNING ("apache plugin: init: No URL configured, returning "
-				"an error.");
-		return (-1);
-	}
+	assert (st->url != NULL);
+	/* (Assured by `config_add') */
 
 	if (st->curl != NULL)
 	{
 		curl_easy_cleanup (st->curl);
+		st->curl = NULL;
 	}
 
 	if ((st->curl = curl_easy_init ()) == NULL)
 	{
-		ERROR ("apache plugin: init: `curl_easy_init' failed.");
+		ERROR ("apache plugin: init_host: `curl_easy_init' failed.");
 		return (-1);
 	}
 
@@ -322,9 +381,11 @@ static int init_host (apache_t *st) /* {{{ */
 				st->user, (st->pass == NULL) ? "" : st->pass);
 		if ((status < 0) || ((size_t) status >= sizeof (credentials)))
 		{
-			ERROR ("apache plugin: init: Returning an error "
+			ERROR ("apache plugin: init_host: Returning an error "
 					"because the credentials have been "
 					"truncated.");
+			curl_easy_cleanup (st->curl);
+			st->curl = NULL;
 			return (-1);
 		}
 
@@ -333,7 +394,7 @@ static int init_host (apache_t *st) /* {{{ */
 
 	curl_easy_setopt (st->curl, CURLOPT_URL, st->url);
 
-	if ((st->verify_peer == NULL) || (strcmp (st->verify_peer, "true") == 0))
+	if (st->verify_peer != 0)
 	{
 		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 1);
 	}
@@ -342,7 +403,7 @@ static int init_host (apache_t *st) /* {{{ */
 		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 0);
 	}
 
-	if ((st->verify_host == NULL) || (strcmp (st->verify_host, "true") == 0))
+	if (st->verify_host != 0)
 	{
 		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST, 2);
 	}
@@ -357,88 +418,47 @@ static int init_host (apache_t *st) /* {{{ */
 	}
 
 	return (0);
-} /* int init_host */
+} /* }}} int init_host */
 
-static int init (void)
+static void submit_value (const char *type, const char *type_instance,
+		value_t value, apache_t *st)
 {
-	size_t i;
-	int success = 0;
-	int status;
-
-	for (i = 0; i < apache_num; i++)
-	{
-		status = init_host (apache[i]);
-		if (status == 0)
-			success++;
-	}
-
-	if (success == 0)
-	{
-		ERROR ("apache plugin init: No host could be initialized. Will return an error so "
-			"the plugin will be delayed.");
-		return (-1);
-	}
-
-	return (0);
-} /* int init */
-
-static void set_plugin_instance (apache_t *st, value_list_t *vl)
-{
-	/* if there is no instance name, don't set plugin_instance */
-	if ( (st->name != NULL)
-		&& (apache_num > 0) )
-	{
-		sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
-	}
-} /* void set_plugin */
-
-static void submit_counter (const char *type, const char *type_instance,
-		counter_t value, apache_t *st)
-{
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = value;
-
-	vl.values = values;
+	vl.values = &value;
 	vl.values_len = 1;
-	sstrncpy (vl.host, st->host, sizeof (vl.host));
-	sstrncpy (vl.plugin, "apache", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
 
+	sstrncpy (vl.host, (st->host != NULL) ? st->host : hostname_g,
+			sizeof (vl.host));
+
+	sstrncpy (vl.plugin, "apache", sizeof (vl.plugin));
+	if (st->name != NULL)
+		sstrncpy (vl.plugin_instance, st->name,
+				sizeof (vl.plugin_instance));
+
+	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_instance != NULL)
 		sstrncpy (vl.type_instance, type_instance,
 				sizeof (vl.type_instance));
 
-	set_plugin_instance (st, &vl);
-
 	plugin_dispatch_values (&vl);
+} /* void submit_value */
+
+static void submit_counter (const char *type, const char *type_instance,
+		counter_t c, apache_t *st)
+{
+	value_t v;
+	v.counter = c;
+	submit_value (type, type_instance, v, st);
 } /* void submit_counter */
 
 static void submit_gauge (const char *type, const char *type_instance,
-		gauge_t value, apache_t *st)
+		gauge_t g, apache_t *st)
 {
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, st->host, sizeof (vl.host));
-	sstrncpy (vl.plugin, "apache", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-
-	if (type_instance != NULL)
-		sstrncpy (vl.type_instance, type_instance,
-				sizeof (vl.type_instance));
-
-	set_plugin_instance (st, &vl);
-
-	plugin_dispatch_values (&vl);
-} /* void submit_counter */
+	value_t v;
+	v.gauge = g;
+	submit_value (type, type_instance, v, st);
+} /* void submit_gauge */
 
 static void submit_scoreboard (char *buf, int server, apache_t *st)
 {
@@ -529,7 +549,7 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 	}
 }
 
-static int apache_read_host (apache_t *st)
+static int apache_read_host (user_data_t *user_data) /* {{{ */
 {
 	int i;
 
@@ -542,10 +562,22 @@ static int apache_read_host (apache_t *st)
 	int   fields_num;
 	int server = LIGHTTPD; /* default is lighttpd */
 
+	apache_t *st;
+
+	st = user_data->data;
+
+	assert (st->url != NULL);
+	/* (Assured by `config_add') */
+
 	if (st->curl == NULL)
-		return (-1);
-	if (st->url == NULL)
-		return (-1);
+	{
+		int status;
+
+		status = init_host (st);
+		if (status != 0)
+			return (-1);
+	}
+	assert (st->curl != NULL);
 
 	st->apache_buffer_fill = 0;
 	if (curl_easy_perform (st->curl) != 0)
@@ -564,12 +596,6 @@ static int apache_read_host (apache_t *st)
 
 		if (lines_num >= 16)
 			break;
-	}
-
-	/* set the host to localhost if st->host is not specified */
-	if ( (st->host == NULL)
-		|| (0 == strcmp(st->host, "")) ) {
-		st->host = hostname_g;
 	}
 
 	for (i = 0; i < lines_num; i++)
@@ -608,34 +634,11 @@ static int apache_read_host (apache_t *st)
 	st->apache_buffer_fill = 0;
 
 	return (0);
-} /* int apache_read_host */
-
-static int apache_read (void)
-{
-	size_t i;
-	int success = 0;
-	int status;
-
-	for (i = 0; i < apache_num; i++)
-	{
-		status = apache_read_host (apache[i]);
-		if (status == 0)
-			success++;
-	}
-
-	if (success == 0)
-	{
-		ERROR ("apache plugin: No host could be read. Will return an error so "
-		       "the plugin will be delayed.");
-		return (-1);
-	}
-
-	return (0);
-} /* int apache_read */
+} /* }}} int apache_read_host */
 
 void module_register (void)
 {
 	plugin_register_complex_config ("apache", config);
-	plugin_register_init ("apache", init);
-	plugin_register_read ("apache", apache_read);
 } /* void module_register */
+
+/* vim: set sw=8 noet fdm=marker : */

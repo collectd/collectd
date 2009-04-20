@@ -386,6 +386,18 @@ function load_graph_definitions($logarithmic = false, $tinylegend = false) {
 		'GPRINT:avg:AVERAGE:%4.1lf Avg,',
 		'GPRINT:max:MAX:%4.1lf Max,',
 		'GPRINT:avg:LAST:%4.1lf Last\l');
+	$GraphDefs['conntrack'] = array(
+		'-v', 'Entries',
+		'DEF:avg={file}:entropy:AVERAGE',
+		'DEF:min={file}:entropy:MIN',
+		'DEF:max={file}:entropy:MAX',
+		"AREA:max#$HalfBlue",
+		"AREA:min#$Canvas",
+		"LINE1:avg#$FullBlue:Count",
+		'GPRINT:min:MIN:%4.0lf Min,',
+		'GPRINT:avg:AVERAGE:%4.0lf Avg,',
+		'GPRINT:max:MAX:%4.0lf Max,',
+		'GPRINT:avg:LAST:%4.0lf Last\l');
 	$GraphDefs['entropy'] = array(
 		'-v', 'Bits',
 		'DEF:avg={file}:entropy:AVERAGE',
