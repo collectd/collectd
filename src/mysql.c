@@ -794,12 +794,12 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Threads_created") == 0)
 				threads_created = val;
 		}
-		else if (strncmp (key, "Table_locks_", 12) == 0)
+		else if (strncmp (key, "Table_locks_",
+					strlen ("Table_locks_")) == 0)
 		{
-			if (val == 0ULL)
-				continue;
-
-			counter_submit ("mysql_locks", key + 12, val, db);
+			counter_submit ("mysql_locks",
+					key + strlen ("Table_locks_"),
+					val, db);
 		}
 	}
 	mysql_free_result (res); res = NULL;
