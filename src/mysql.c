@@ -4,6 +4,7 @@
  * Copyright (C) 2008       Mirko Buffoni
  * Copyright (C) 2009       Doug MacEachern
  * Copyright (C) 2009       Sebastian tokkee Harl
+ * Copyright (C) 2009       Rodolphe Quiédeville
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +24,7 @@
  *   Mirko Buffoni <briareos at eswat.org>
  *   Doug MacEachern <dougm at hyperic.com>
  *   Sebastian tokkee Harl <sh at tokkee.org>
+ *   Rodolphe Quiédevillel <rquiedeville at bearstech.com>
  **/
 
 #include "collectd.h"
@@ -791,6 +793,13 @@ static int mysql_read (user_data_t *ud)
 				threads_cached = (int) val;
 			else if (strcmp (key, "Threads_created") == 0)
 				threads_created = val;
+		}
+		else if (strncmp (key, "Table_locks_", 12) == 0)
+		{
+			if (val == 0ULL)
+				continue;
+
+			counter_submit ("mysql_locks", key + 12, val, db);
 		}
 	}
 	mysql_free_result (res); res = NULL;
