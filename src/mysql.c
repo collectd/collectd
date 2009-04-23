@@ -24,7 +24,7 @@
  *   Mirko Buffoni <briareos at eswat.org>
  *   Doug MacEachern <dougm at hyperic.com>
  *   Sebastian tokkee Harl <sh at tokkee.org>
- *   Rodolphe Quiédevillel <rquiedeville at bearstech.com>
+ *   Rodolphe Quiédeville <rquiedeville at bearstech.com>
  **/
 
 #include "collectd.h"
@@ -747,23 +747,30 @@ static int mysql_read (user_data_t *ud)
 		key = row[0];
 		val = atoll (row[1]);
 
-		if (strncmp (key, "Com_", 4) == 0)
+		if (strncmp (key, "Com_", 
+			          strlen ("Com_")) == 0)
 		{
 			if (val == 0ULL)
 				continue;
 
 			/* Ignore `prepared statements' */
-			if (strncmp (key, "Com_stmt_", 9) != 0)
-				counter_submit ("mysql_commands", key + 4, val, db);
+			if (strncmp (key, "Com_stmt_", strlen ("Com_stmt_")) != 0)
+				counter_submit ("mysql_commands", 
+						key + strlen ("Com_"), 
+						val, db);
 		}
-		else if (strncmp (key, "Handler_", 8) == 0)
+		else if (strncmp (key, "Handler_", 
+				        strlen ("Handler_")) == 0)
 		{
 			if (val == 0ULL)
 				continue;
 
-			counter_submit ("mysql_handler", key + 8, val, db);
+			counter_submit ("mysql_handler", 
+					key + strlen ("Handler_"), 
+					val, db);
 		}
-		else if (strncmp (key, "Qcache_", 7) == 0)
+		else if (strncmp (key, "Qcache_",
+       				        strlen ("Qcache_")) == 0)
 		{
 			if (strcmp (key, "Qcache_hits") == 0)
 				qcache_hits = val;
@@ -776,14 +783,16 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Qcache_queries_in_cache") == 0)
 				qcache_queries_in_cache = (int) val;
 		}
-		else if (strncmp (key, "Bytes_", 6) == 0)
+		else if (strncmp (key, "Bytes_", 
+				        strlen ("Bytes_")) == 0)
 		{
 			if (strcmp (key, "Bytes_received") == 0)
 				traffic_incoming += val;
 			else if (strcmp (key, "Bytes_sent") == 0)
 				traffic_outgoing += val;
 		}
-		else if (strncmp (key, "Threads_", 8) == 0)
+		else if (strncmp (key, "Threads_", 
+       				        strlen ("Threads_")) == 0)
 		{
 			if (strcmp (key, "Threads_running") == 0)
 				threads_running = (int) val;
