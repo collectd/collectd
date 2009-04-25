@@ -551,7 +551,8 @@ endif
 
 if BUILD_PLUGIN_NETWORK
 pkglib_LTLIBRARIES += network.la
-network_la_SOURCES = network.c network.h
+network_la_SOURCES = network.c network.h \
+		     utils_fbhash.c utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = -module -avoid-version
 network_la_LIBADD = -lpthread
