@@ -1550,45 +1550,39 @@ specified statistics will not be collected.
 
 =head2 Plugin C<network>
 
-=over 4
-
-=item B<Listen> I<Host> [I<Port>]
-
-=item B<Server> I<Host> [I<Port>]
-
-The B<Server> statement sets the server to send datagrams B<to>.  The statement
-may occur multiple times to send each datagram to multiple destinations.
-
-The B<Listen> statement sets the interfaces to bind to. When multiple
-statements are found the daemon will bind to multiple interfaces.
-
-The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. If
-the argument is a multicast address the daemon will join that multicast group.
-
-If no B<Listen> statement is found the server tries join both, the default IPv6
-multicast group and the default IPv4 multicast group. If no B<Server> statement
-is found the client will try to send data to the IPv6 multicast group first. If
-that fails the client will try the IPv4 multicast group.
+The Network plugin sends data to a remote instance of collectd, receives data
+from a remote instance, or both at the same time. Data which has been received
+from the network is usually not transmitted again, but this can be actived, see
+the B<Forward> option below.
 
 The default IPv6 multicast group is C<ff18::efc0:4a42>. The default IPv4
-multicast group is C<239.192.74.66>.
+multicast group is C<239.192.74.66>. The default I<UDP> port is B<25826>.
 
-The optional I<Port> argument sets the port to use. It can either be given
-using a numeric port number or a service name. If the argument is omitted the
-default port B<25826> is assumed.
-
-Both, B<Server> and B<Listen> can be used as block, too, to provide
-configuration options for this socket only. For example:
+Both, B<Server> and B<Listen> can be used as single option or as block. When
+used as block, given options are valid for this socket only. For example:
 
  <Plugin "network">
-   <Server "my.server.tld">
+   Server "collectd.internal.tld"
+   <Server "collectd.external.tld">
      SecurityLevel "sign"
-     Secret "ohl0eQue"
+     Username "myhostname"
+     Password "ohl0eQue"
    </Server>
  </Plugin>
 
-The following options are understood within B<E<lt>ServerE<gt>> and
-B<E<lt>ListenE<gt>> blocks:
+=over 4
+
+=item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
+
+The B<Server> statement/block sets the server to send datagrams to. The
+statement may occur multiple times to send each datagram to multiple
+destinations.
+
+The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. The
+optional second argument specifies a port number or a service name. If not
+given, the default, B<25826>, is used.
+
+The following options are recognized within B<Server> blocks:
 
 =over 4
 
@@ -1596,25 +1590,66 @@ B<E<lt>ListenE<gt>> blocks:
 
 Set the security you require for network communication. When the security level
 has been set to B<Encrypt>, data sent over the network will be encrypted using
-I<AES-256> and only encrypted data will be accepted when receiving. The
-integrity of encrypted packets is ensures using I<SHA-1>. When set to B<Sign>,
-transmitted data is signed using the I<HMAC-SHA-256> message authentication
-code and only signed and encrypted data is accepted when receiving. When set to
-B<None>, data is sent without any security and all data is accepted when
-receiving.
+I<AES-256>. The integrity of encrypted packets is ensured using I<SHA-1>. When
+set to B<Sign>, transmitted data is signed using the I<HMAC-SHA-256> message
+authentication code. When set to B<None>, data is sent without any security.
 
 This feature is only available if the I<network> plugin was linked with
 I<libgcrypt>.
 
-=item B<Secret> I<Secret>
+=item B<Username> I<Username>
 
-Sets a shared secret for this socket. All security levels except B<None>
-require this setting. For B<None> this setting is only required if you want to
-be able to decrypt encrypted data (B<SecurityLevel> is set to B<Encrypt> on the
-client).
+Sets the username to transmit. This is used by the server to lookup the
+password. See B<AuthFile> below. All security levels except B<None> require
+this setting.
 
 This feature is only available if the I<network> plugin was linked with
 I<libgcrypt>.
+
+=item B<Password> I<Password>
+
+Sets a password (shared secret) for this socket. All security levels except
+B<None> require this setting.
+
+This feature is only available if the I<network> plugin was linked with
+I<libgcrypt>.
+
+=back
+
+=item B<E<lt>Listen> I<Host> [I<Port>]B<E<gt>>
+
+The B<Listen> statement sets the interfaces to bind to. When multiple
+statements are found the daemon will bind to multiple interfaces.
+
+The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. If
+the argument is a multicast address the daemon will join that multicast group.
+The optional second argument specifies a port number or a service name. If not
+given, the default, B<25826>, is used.
+
+The following options are recognized within C<E<lt>ListenE<gt>> blocks:
+
+=over 4
+
+=item B<SecurityLevel> B<Encrypt>|B<Sign>|B<None>
+
+Set the security you require for network communication. When the security level
+has been set to B<Encrypt>, only encrypted data will be accepted. The integrity
+of encrypted packets is ensured using I<SHA-1>. When set to B<Sign>, only
+signed and encrypted data is accepted. When set to B<None>, all data will be
+accepted. If an B<AuthFile> option was given (see below), encrypted data is
+decrypted if possible.
+
+This feature is only available if the I<network> plugin was linked with
+I<libgcrypt>.
+
+=item B<AuthFile> I<Filename>
+
+Sets a file in which usernames are mapped to passwords. These passwords are
+used to verify signatures and to decrypt encrypted network packets. If
+B<SecurityLevel> is set to B<None>, this is optional. If given, signed data is
+verified and encrypted packets are decrypted. Otherwise, signed data is
+accepted without checking the signature and encrypted data cannot be decrypted.
+For the other security levels this option is mandatory.
 
 =back
 
