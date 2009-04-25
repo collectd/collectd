@@ -2545,6 +2545,7 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_set_ttl */
 
+#if HAVE_LIBGCRYPT
 static int network_config_set_string (const oconfig_item_t *ci, /* {{{ */
     char **ret_string)
 {
@@ -2566,6 +2567,7 @@ static int network_config_set_string (const oconfig_item_t *ci, /* {{{ */
 
   return (0);
 } /* }}} int network_config_set_string */
+#endif /* HAVE_LIBGCRYPT */
 
 #if HAVE_LIBGCRYPT
 static int network_config_set_security_level (oconfig_item_t *ci, /* {{{ */
@@ -2642,6 +2644,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
     }
   }
 
+#if HAVE_LIBGCRYPT
   if ((se->data.server.security_level > SECURITY_LEVEL_NONE)
       && (se->data.server.auth_file == NULL))
   {
@@ -2651,6 +2654,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
     sockent_destroy (se);
     return (-1);
   }
+#endif /* HAVE_LIBGCRYPT */
 
   status = sockent_open (se);
   if (status != 0)
@@ -2718,6 +2722,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
     }
   }
 
+#if HAVE_LIBGCRYPT
   if ((se->data.client.security_level > SECURITY_LEVEL_NONE)
       && ((se->data.client.username == NULL)
         || (se->data.client.password == NULL)))
@@ -2728,6 +2733,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
     sockent_destroy (se);
     return (-1);
   }
+#endif /* HAVE_LIBGCRYPT */
 
   status = sockent_open (se);
   if (status != 0)
