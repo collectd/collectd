@@ -68,12 +68,12 @@
 /*
  * Maximum size required for encryption / signing:
  *
- *    44 bytes for the encryption header
+ *    42 bytes for the encryption header
  * +  64 bytes for the username
  * -----------
- * = 108 bytes
+ * = 106 bytes
  */
-#define BUFF_SIG_SIZE 108
+#define BUFF_SIG_SIZE 106
 
 /*
  * Private data types
@@ -226,7 +226,7 @@ typedef struct part_signature_sha256_s part_signature_sha256_t;
  * +---------------------------------------------------------------+
  */
 /* Minimum size */
-#define PART_ENCRYPTION_AES256_SIZE 44
+#define PART_ENCRYPTION_AES256_SIZE 42
 struct part_encryption_aes256_s
 {
   part_header_t head;
