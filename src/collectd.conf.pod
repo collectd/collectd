@@ -1651,6 +1651,17 @@ verified and encrypted packets are decrypted. Otherwise, signed data is
 accepted without checking the signature and encrypted data cannot be decrypted.
 For the other security levels this option is mandatory.
 
+The file format is very simple: Each line consists of a username followed by a
+colon and any number of spaces followed by the password. To demonstrate, an
+example file could look like this:
+
+  user0: foo
+  user1: bar
+
+Each time a packet is received, the modification time of the file is checked
+using L<stat(2)>. If the file has been changed, the contents is re-read. While
+the file is being read, it is locked using L<fcntl(2)>.
+
 =back
 
 =item B<TimeToLive> I<1-255>
