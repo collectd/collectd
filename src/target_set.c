@@ -36,13 +36,10 @@
 #endif
 #define _POSIX_C_SOURCE 200112L
 
-#if 0
-/* Single UNIX needed for strdup. */
 #ifdef _XOPEN_SOURCE
 # undef _XOPEN_SOURCE
 #endif
-#define _XOPEN_SOURCE 500
-#endif
+#define _XOPEN_SOURCE 600
 
 #ifndef _REENTRANT
 # define _REENTRANT

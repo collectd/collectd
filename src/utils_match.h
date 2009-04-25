@@ -133,7 +133,7 @@ int match_apply (cu_match_t *obj, const char *str);
  *
  * DESCRIPTION
  *  Returns the pointer passed to `match_create_callback' or a pointer to the
- *  `cu_match_value_t' structure allocated by `match_create_callback'.
+ *  `cu_match_value_t' structure allocated by `match_create_simple'.
  */
 void *match_get_user_data (cu_match_t *obj);
 
