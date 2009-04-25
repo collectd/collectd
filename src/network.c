@@ -47,7 +47,7 @@
 # include <poll.h>
 #endif
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 # include <gcrypt.h>
 #endif
 
@@ -79,7 +79,7 @@
  * Private data types
  */
 #define SECURITY_LEVEL_NONE     0
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 # define SECURITY_LEVEL_SIGN    1
 # define SECURITY_LEVEL_ENCRYPT 2
 #endif
@@ -88,7 +88,7 @@ struct sockent_client
 	int fd;
 	struct sockaddr_storage *addr;
 	socklen_t                addrlen;
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 	int security_level;
 	char *username;
 	char *password;
@@ -101,7 +101,7 @@ struct sockent_server
 {
 	int *fd;
 	size_t fd_num;
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 	int security_level;
 	char *auth_file;
 	fbhash_t *userdb;
@@ -403,7 +403,7 @@ static int cache_check (const value_list_t *vl)
 	return (retval);
 } /* int cache_check */
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
     const void *iv, size_t iv_size, const char *username)
 {
@@ -478,7 +478,7 @@ static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
 
   return (*cyper_ptr);
 } /* }}} int network_get_aes256_cypher */
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
 
 static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
@@ -863,7 +863,7 @@ static int parse_packet (sockent_t *se,
   buffer_offset += (s); \
 } while (0)
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
     void **ret_buffer, size_t *ret_buffer_len, int flags)
 {
@@ -991,9 +991,9 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
   return (0);
 } /* }}} int parse_part_sign_sha256 */
-/* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_LIBGCRYPT */
 
-#else /* if !HAVE_GCRYPT_H */
+#else /* if !HAVE_LIBGCRYPT */
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
     void **ret_buffer, size_t *ret_buffer_size, int flags)
 {
@@ -1036,9 +1036,9 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
   return (0);
 } /* }}} int parse_part_sign_sha256 */
-#endif /* !HAVE_GCRYPT_H */
+#endif /* !HAVE_LIBGCRYPT */
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 		void **ret_buffer, size_t *ret_buffer_len,
 		int flags)
@@ -1151,9 +1151,9 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 
   return (0);
 } /* }}} int parse_part_encr_aes256 */
-/* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_LIBGCRYPT */
 
-#else /* if !HAVE_GCRYPT_H */
+#else /* if !HAVE_LIBGCRYPT */
 static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     void **ret_buffer, size_t *ret_buffer_size, int flags)
 {
@@ -1198,7 +1198,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 
   return (0);
 } /* }}} int parse_part_encr_aes256 */
-#endif /* !HAVE_GCRYPT_H */
+#endif /* !HAVE_LIBGCRYPT */
 
 #undef BUFFER_READ
 
@@ -1210,11 +1210,11 @@ static int parse_packet (sockent_t *se, /* {{{ */
 	value_list_t vl = VALUE_LIST_INIT;
 	notification_t n;
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 	int packet_was_signed = (flags & PP_SIGNED);
         int packet_was_encrypted = (flags & PP_ENCRYPTED);
 	int printed_ignore_warning = 0;
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
 
 
 	memset (&vl, '\0', sizeof (vl));
@@ -1255,7 +1255,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 				break;
 			}
 		}
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 		else if ((se->data.server.security_level == SECURITY_LEVEL_ENCRYPT)
 				&& (packet_was_encrypted == 0))
 		{
@@ -1268,7 +1268,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			buffer = ((char *) buffer) + pkg_length;
 			continue;
 		}
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
 		else if (pkg_type == TYPE_SIGN_SHA256)
 		{
 			status = parse_part_sign_sha256 (se,
@@ -1281,7 +1281,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 				break;
 			}
 		}
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 		else if ((se->data.server.security_level == SECURITY_LEVEL_SIGN)
 				&& (packet_was_encrypted == 0)
 				&& (packet_was_signed == 0))
@@ -1295,7 +1295,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			buffer = ((char *) buffer) + pkg_length;
 			continue;
 		}
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
 		else if (pkg_type == TYPE_VALUES)
 		{
 			status = parse_part_values (&buffer, &buffer_size,
@@ -1442,7 +1442,7 @@ static void free_sockent_client (struct sockent_client *sec) /* {{{ */
     sec->fd = -1;
   }
   sfree (sec->addr);
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
   sfree (sec->username);
   sfree (sec->password);
   if (sec->cypher != NULL)
@@ -1464,7 +1464,7 @@ static void free_sockent_server (struct sockent_server *ses) /* {{{ */
   }
 
   sfree (ses->fd);
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
   sfree (ses->auth_file);
   fbh_destroy (ses->userdb);
   if (ses->cypher != NULL)
@@ -1685,7 +1685,7 @@ static int sockent_init (sockent_t *se, int type) /* {{{ */
 	{
 		se->type = SOCKENT_TYPE_SERVER;
 		se->data.server.fd = NULL;
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 		se->data.server.security_level = SECURITY_LEVEL_NONE;
 		se->data.server.auth_file = NULL;
 		se->data.server.userdb = NULL;
@@ -1696,7 +1696,7 @@ static int sockent_init (sockent_t *se, int type) /* {{{ */
 	{
 		se->data.client.fd = -1;
 		se->data.client.addr = NULL;
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 		se->data.client.security_level = SECURITY_LEVEL_NONE;
 		se->data.client.username = NULL;
 		se->data.client.password = NULL;
@@ -1721,7 +1721,7 @@ static int sockent_open (sockent_t *se) /* {{{ */
 		return (-1);
 
 	/* Set up the security structures. */
-#if HAVE_GCRYPT_H /* {{{ */
+#if HAVE_LIBGCRYPT /* {{{ */
 	if (se->type == SOCKENT_TYPE_CLIENT)
 	{
 		if (se->data.client.security_level > SECURITY_LEVEL_NONE)
@@ -1765,7 +1765,7 @@ static int sockent_open (sockent_t *se) /* {{{ */
 			}
 		}
 	}
-#endif /* }}} HAVE_GCRYPT_H */
+#endif /* }}} HAVE_LIBGCRYPT */
 
         node = se->node;
         service = se->service;
@@ -2164,7 +2164,7 @@ static void networt_send_buffer_plain (const sockent_t *se, /* {{{ */
 	} /* while (42) */
 } /* }}} void networt_send_buffer_plain */
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 #define BUFFER_ADD(p,s) do { \
   memcpy (buffer + buffer_offset, (p), (s)); \
   buffer_offset += (s); \
@@ -2328,7 +2328,7 @@ static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
   networt_send_buffer_plain (se, buffer, buffer_size);
 } /* }}} void networt_send_buffer_encrypted */
 #undef BUFFER_ADD
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
 
 static void network_send_buffer (char *buffer, size_t buffer_len) /* {{{ */
 {
@@ -2338,13 +2338,13 @@ static void network_send_buffer (char *buffer, size_t buffer_len) /* {{{ */
 
   for (se = sending_sockets; se != NULL; se = se->next)
   {
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
     if (se->data.client.security_level == SECURITY_LEVEL_ENCRYPT)
       networt_send_buffer_encrypted (se, buffer, buffer_len);
     else if (se->data.client.security_level == SECURITY_LEVEL_SIGN)
       networt_send_buffer_signed (se, buffer, buffer_len);
     else /* if (se->data.client.security_level == SECURITY_LEVEL_NONE) */
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
       networt_send_buffer_plain (se, buffer, buffer_len);
   } /* for (sending_sockets) */
 } /* }}} void network_send_buffer */
@@ -2567,7 +2567,7 @@ static int network_config_set_string (const oconfig_item_t *ci, /* {{{ */
   return (0);
 } /* }}} int network_config_set_string */
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
 static int network_config_set_security_level (oconfig_item_t *ci, /* {{{ */
     int *retval)
 {
@@ -2595,7 +2595,7 @@ static int network_config_set_security_level (oconfig_item_t *ci, /* {{{ */
 
   return (0);
 } /* }}} int network_config_set_security_level */
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
 
 static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
 {
@@ -2628,14 +2628,14 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
     if (strcasecmp ("AuthFile", child->key) == 0)
       network_config_set_string (child, &se->data.server.auth_file);
     else if (strcasecmp ("SecurityLevel", child->key) == 0)
       network_config_set_security_level (child,
           &se->data.server.security_level);
     else
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
     {
       WARNING ("network plugin: Option `%s' is not allowed here.",
           child->key);
@@ -2702,7 +2702,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
 
-#if HAVE_GCRYPT_H
+#if HAVE_LIBGCRYPT
     if (strcasecmp ("Username", child->key) == 0)
       network_config_set_string (child, &se->data.client.username);
     else if (strcasecmp ("Password", child->key) == 0)
@@ -2711,7 +2711,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
       network_config_set_security_level (child,
           &se->data.client.security_level);
     else
-#endif /* HAVE_GCRYPT_H */
+#endif /* HAVE_LIBGCRYPT */
     {
       WARNING ("network plugin: Option `%s' is not allowed here.",
           child->key);

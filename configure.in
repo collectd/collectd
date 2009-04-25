@@ -1341,6 +1341,11 @@ fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
 
+if test "x$with_libgcrypt" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBGCRYPT, 1, [Define to 1 if you have the gcrypt library (-lgcrypt).])
+fi
+
 AC_SUBST(GCRYPT_CPPFLAGS)
 AC_SUBST(GCRYPT_LDFLAGS)
 AC_SUBST(GCRYPT_LIBS)
@@ -3613,6 +3618,7 @@ Configuration:
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libesmtp  . . . . . . $with_libesmtp
+    libgcrypt . . . . . . $with_libgcrypt
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
     libjvm  . . . . . . . $with_java
