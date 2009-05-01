@@ -134,15 +134,25 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 	}
 
 	if (len <= 0)
-		return len;
+		return (len);
 
 	/* look for the Server header */
-	if ((strstr(buf, "Server: ") != NULL) &&
-			(strstr(buf, "lighttpd") != NULL)) {
+	if (strncasecmp (buf, "Server: ", strlen ("Server: ")) != 0)
+		return (len);
+
+	if (strstr (buf, "Apache") != NULL)
+		st->server_type = APACHE;
+	else if (strstr (buf, "lighttpd") != NULL)
 		st->server_type = LIGHTTPD;
+	else
+	{
+		const char *hdr = buf;
+
+		hdr += strlen ("Server: ");
+		NOTICE ("apache plugin: Unknown server software: %s", hdr);
 	}
 
-	return len;
+	return (len);
 } /* apache_header_callback */
 
 /* Configuration handling functiions
@@ -413,6 +423,9 @@ static int init_host (apache_t *st) /* {{{ */
 			st->server_type = APACHE;
 		else if (strcasecmp(st->server, "lighttpd") == 0)
 			st->server_type = LIGHTTPD;
+		else
+			WARNING ("apache plugin: Unknown `Server' setting: %s",
+					st->server);
 	}
 
 	/* if not found register a header callback to determine the server_type */
@@ -583,7 +596,8 @@ static void submit_scoreboard (char *buf, apache_t *st)
 		submit_gauge ("apache_scoreboard", "logging"  , logging, st);
 		submit_gauge ("apache_scoreboard", "finishing", finishing, st);
 		submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup, st);
-	} else
+	}
+	else
 	{
 		submit_gauge ("apache_scoreboard", "connect"       , open, st);
 		submit_gauge ("apache_scoreboard", "close"         , closing, st);
@@ -638,7 +652,11 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 
 	/* fallback - server_type to apache if not set at this time */
 	if (st->server_type == -1)
+	{
+		WARNING ("apache plugin: Unable to determine server software "
+				"automatically. Will assume Apache.");
 		st->server_type = APACHE;
+	}
 
 	ptr = st->apache_buffer;
 	saveptr = NULL;
