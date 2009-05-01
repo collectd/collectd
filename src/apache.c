@@ -37,7 +37,6 @@ enum server_enum
 	LIGHTTPD
 };
 
-
 struct apache_s
 {
 	int server_type;
@@ -49,7 +48,7 @@ struct apache_s
 	int   verify_peer;
 	int   verify_host;
 	char *cacert;
-	char *server; // user specific server type
+	char *server; /* user specific server type */
 	char *apache_buffer;
 	char apache_curl_error[CURL_ERROR_SIZE];
 	size_t apache_buffer_size;
@@ -137,7 +136,7 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 	if (len <= 0)
 		return len;
 
-	// look for the Server header
+	/* look for the Server header */
 	if ((strstr(buf, "Server: ") != NULL) &&
 			(strstr(buf, "lighttpd") != NULL)) {
 		st->server_type = LIGHTTPD;
@@ -403,9 +402,11 @@ static int init_host (apache_t *st) /* {{{ */
 	curl_easy_setopt (st->curl, CURLOPT_WRITEFUNCTION, apache_curl_callback);
 	curl_easy_setopt (st->curl, CURLOPT_WRITEDATA, st);
 
-	st->server_type = -1; // not set as yet
-	// if the user specified string doesn't match apache or lighttpd, then
-	// ignore it. Headers will be parsed to find out the server type
+	/* not set as yet if the user specified string doesn't match apache or
+	 * lighttpd, then ignore it. Headers will be parsed to find out the
+	 * server type */
+	st->server_type = -1;
+
 	if (st->server != NULL)
 	{
 		if (strcasecmp(st->server, "apache") == 0)
@@ -414,8 +415,7 @@ static int init_host (apache_t *st) /* {{{ */
 			st->server_type = LIGHTTPD;
 	}
 
-	// if not found register a header callback to determine the
-	// server_type
+	/* if not found register a header callback to determine the server_type */
 	if (st->server_type == -1)
 	{
 		curl_easy_setopt (st->curl, CURLOPT_HEADERFUNCTION, apache_header_callback);
@@ -636,7 +636,7 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		return (-1);
 	}
 
-	// fallback - server_type to apache if not set at this time
+	/* fallback - server_type to apache if not set at this time */
 	if (st->server_type == -1)
 		st->server_type = APACHE;
 
