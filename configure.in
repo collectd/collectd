@@ -2192,7 +2192,6 @@ then
 	LDFLAGS=$SAVE_LDFLAGS
 fi
 
-c_cv_have_broken_perl_load_module="no"
 if test "x$with_libperl" = "xyes"
 then
 	SAVE_CFLAGS=$CFLAGS
