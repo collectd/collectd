@@ -31,14 +31,16 @@
 
 #include <curl/curl.h>
 
-enum server_type
+enum server_enum
 {
 	APACHE = 0,
 	LIGHTTPD
 };
 
+
 struct apache_s
 {
+	int server_type;
 	char *name;
 	char *host;
 	char *url;
@@ -47,6 +49,7 @@ struct apache_s
 	int   verify_peer;
 	int   verify_host;
 	char *cacert;
+	char *server; // user specific server type
 	char *apache_buffer;
 	char apache_curl_error[CURL_ERROR_SIZE];
 	size_t apache_buffer_size;
@@ -70,6 +73,7 @@ static void apache_free (apache_t *st)
 	sfree (st->user);
 	sfree (st->pass);
 	sfree (st->cacert);
+	sfree (st->server);
 	sfree (st->apache_buffer);
 	if (st->curl) {
 		curl_easy_cleanup(st->curl);
@@ -115,6 +119,32 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 
 	return (len);
 } /* int apache_curl_callback */
+
+static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
+		void *user_data)
+{
+	size_t len = size * nmemb;
+	apache_t *st;
+
+	st = user_data;
+	if (st == NULL)
+	{
+		ERROR ("apache plugin: apache_header_callback: "
+				"user_data pointer is NULL.");
+		return (0);
+	}
+
+	if (len <= 0)
+		return len;
+
+	// look for the Server header
+	if ((strstr(buf, "Server: ") != NULL) &&
+			(strstr(buf, "lighttpd") != NULL)) {
+		st->server_type = LIGHTTPD;
+	}
+
+	return len;
+} /* apache_header_callback */
 
 /* Configuration handling functiions
  * <Plugin apache>
@@ -241,6 +271,8 @@ static int config_add (oconfig_item_t *ci)
 			status = config_set_boolean (&st->verify_host, child);
 		else if (strcasecmp ("CACert", child->key) == 0)
 			status = config_set_string (&st->cacert, child);
+		else if (strcasecmp ("Server", child->key) == 0)
+			status = config_set_string (&st->server, child);
 		else
 		{
 			WARNING ("apache plugin: Option `%s' not allowed here.",
@@ -370,6 +402,26 @@ static int init_host (apache_t *st) /* {{{ */
 
 	curl_easy_setopt (st->curl, CURLOPT_WRITEFUNCTION, apache_curl_callback);
 	curl_easy_setopt (st->curl, CURLOPT_WRITEDATA, st);
+
+	st->server_type = -1; // not set as yet
+	// if the user specified string doesn't match apache or lighttpd, then
+	// ignore it. Headers will be parsed to find out the server type
+	if (st->server != NULL)
+	{
+		if (strcasecmp(st->server, "apache") == 0)
+			st->server_type = APACHE;
+		else if (strcasecmp(st->server, "lighttpd") == 0)
+			st->server_type = LIGHTTPD;
+	}
+
+	// if not found register a header callback to determine the
+	// server_type
+	if (st->server_type == -1)
+	{
+		curl_easy_setopt (st->curl, CURLOPT_HEADERFUNCTION, apache_header_callback);
+		curl_easy_setopt (st->curl, CURLOPT_WRITEHEADER, st);
+	}
+
 	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
 	curl_easy_setopt (st->curl, CURLOPT_ERRORBUFFER, st->apache_curl_error);
 
@@ -460,7 +512,7 @@ static void submit_gauge (const char *type, const char *type_instance,
 	submit_value (type, type_instance, v, st);
 } /* void submit_gauge */
 
-static void submit_scoreboard (char *buf, int server, apache_t *st)
+static void submit_scoreboard (char *buf, apache_t *st)
 {
 	/*
 	 * Scoreboard Key:
@@ -496,7 +548,6 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 	long long response_end   = 0LL;
 
 	int i;
-
 	for (i = 0; buf[i] != '\0'; i++)
 	{
 		if (buf[i] == '.') open++;
@@ -519,7 +570,7 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 		else if (buf[i] == 'S') response_end++;
 	}
 
-	if (server == APACHE)
+	if (st->server_type == APACHE)
 	{
 		submit_gauge ("apache_scoreboard", "open"     , open, st);
 		submit_gauge ("apache_scoreboard", "waiting"  , waiting, st);
@@ -545,7 +596,6 @@ static void submit_scoreboard (char *buf, int server, apache_t *st)
 		submit_gauge ("apache_scoreboard", "request_end"   , request_end, st);
 		submit_gauge ("apache_scoreboard", "response_start", response_start, st);
 		submit_gauge ("apache_scoreboard", "response_end"  , response_end, st);
-
 	}
 }
 
@@ -560,7 +610,6 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 
 	char *fields[4];
 	int   fields_num;
-	int server = LIGHTTPD; /* default is lighttpd */
 
 	apache_t *st;
 
@@ -586,6 +635,10 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 				st->apache_curl_error);
 		return (-1);
 	}
+
+	// fallback - server_type to apache if not set at this time
+	if (st->server_type == -1)
+		st->server_type = APACHE;
 
 	ptr = st->apache_buffer;
 	saveptr = NULL;
@@ -615,17 +668,8 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		}
 		else if (fields_num == 2)
 		{
-			/* find out if the server is apache from the mod_status
-			 * output. apache mod_status output has additional
-			 * fields which lighttpd mod_status output doesn't have
-			 * e.g: ReqPerSec. submit_scoreboard needs server type
-			 * information and thus it is important to pick up a
-			 * field before scoreboard gets parsed to set the
-			 * server type */
-			if (strcmp (fields[0], "ReqPerSec:") == 0)
-				server = APACHE;
-			else if (strcmp (fields[0], "Scoreboard:") == 0)
-				submit_scoreboard (fields[1], server, st);
+			if (strcmp (fields[0], "Scoreboard:") == 0)
+				submit_scoreboard (fields[1], st);
 			else if (strcmp (fields[0], "BusyServers:") == 0)
 				submit_gauge ("apache_connections", NULL, atol (fields[1]), st);
 		}
