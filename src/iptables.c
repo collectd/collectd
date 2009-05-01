@@ -2,6 +2,7 @@
  * collectd - src/iptables.c
  * Copyright (C) 2007 Sjoerd van der Berg
  * Copyright (C) 2007 Florian octo Forster
+ * Copyright (C) 2009 Marco Chiappero
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +21,7 @@
  * Authors:
  *  Sjoerd van der Berg <harekiet at users.sourceforge.net>
  *  Florian Forster <octo at verplant.org>
+ *  Marco Chiappero <marco at absence.it>
  **/
 
 #include "collectd.h"
@@ -29,8 +31,10 @@
 
 #if OWN_LIBIPTC
 # include "libiptc/libiptc.h"
+# include "libiptc/libip6tc.h"
 #else
 # include <libiptc/libiptc.h>
+# include <libiptc/libip6tc.h>
 #endif
 
 /*
@@ -44,9 +48,9 @@
 static const char *config_keys[] =
 {
 	"Chain",
-	NULL
+	"Chain6"
 };
-static int config_keys_num = 1;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 /*
     Each table/chain combo that will be queried goes into this list
 */
@@ -54,6 +58,11 @@ static int config_keys_num = 1;
 # define XT_TABLE_MAXNAMELEN 32
 #endif
 typedef struct {
+    enum
+    {
+        IPV4,
+        IPV6
+    } ip_version;
     char table[XT_TABLE_MAXNAMELEN];
     char chain[XT_TABLE_MAXNAMELEN];
     union
@@ -75,7 +84,15 @@ static int chain_num = 0;
 
 static int iptables_config (const char *key, const char *value)
 {
+	/* int ip_value; */
+	enum { IPV4, IPV6 } ip_protocol;
+
 	if (strcasecmp (key, "Chain") == 0)
+		ip_protocol = IPV4;
+	else if (strcasecmp (key, "Chain6") == 0)
+		ip_protocol = IPV6;
+
+	if (( ip_protocol == IPV4 ) || ( ip_protocol == IPV6 ))
 	{
 		ip_chain_t temp, *final, **list;
 		char *table;
@@ -97,6 +114,15 @@ static int iptables_config (const char *key, const char *value)
 			    sstrerror (errno, errbuf, sizeof (errbuf)));
 		    return (1);
 		}
+
+		/*
+	         *  Time to fill the temp element
+        	 *  Examine value string, it should look like:
+	         *  Chain[6] <table> <chain> [<comment|num> [name]]
+       		 */
+
+		/* set IPv4 or IPv6 */
+                temp.ip_version = ip_protocol;
 
 		/* Chain <table> <chain> [<comment|num> [name]] */
 		fields_num = strsplit (value_copy, fields, 4);
@@ -193,6 +219,66 @@ static int iptables_config (const char *key, const char *value)
 	return (0);
 } /* int iptables_config */
 
+static int submit6_match (const struct ip6t_entry_match *match,
+                const struct ip6t_entry *entry,
+                const ip_chain_t *chain,
+                int rule_num)
+{
+    int status;
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
+
+    /* Select the rules to collect */
+    if (chain->rule_type == RTYPE_NUM)
+    {
+        if (chain->rule.num != rule_num)
+            return (0);
+    }
+    else
+    {
+        if (strcmp (match->u.user.name, "comment") != 0)
+            return (0);
+        if ((chain->rule_type == RTYPE_COMMENT)
+                && (strcmp (chain->rule.comment, (char *) match->data) != 0))
+            return (0);
+    }
+
+    vl.values = values;
+    vl.values_len = 1;
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "ip6tables", sizeof (vl.plugin));
+
+    status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+            "%s-%s", chain->table, chain->chain);
+    if ((status < 1) || ((unsigned int)status >= sizeof (vl.plugin_instance)))
+        return (0);
+
+    if (chain->name[0] != '\0')
+    {
+        sstrncpy (vl.type_instance, chain->name, sizeof (vl.type_instance));
+    }
+    else
+    {
+        if (chain->rule_type == RTYPE_NUM)
+            ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+                    "%i", chain->rule.num);
+        else
+            sstrncpy (vl.type_instance, (char *) match->data,
+                    sizeof (vl.type_instance));
+    }
+
+    sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
+    values[0].counter = (counter_t) entry->counters.bcnt;
+    plugin_dispatch_values (&vl);
+
+    sstrncpy (vl.type, "ipt_packets", sizeof (vl.type));
+    values[0].counter = (counter_t) entry->counters.pcnt;
+    plugin_dispatch_values (&vl);
+
+    return (0);
+} /* int submit_match */
+
+
 /* This needs to return `int' for IPT_MATCH_ITERATE to work. */
 static int submit_match (const struct ipt_entry_match *match,
 		const struct ipt_entry *entry,
@@ -251,9 +337,44 @@ static int submit_match (const struct ipt_entry_match *match,
     plugin_dispatch_values (&vl);
 
     return (0);
-} /* void submit_match */
+} /* int submit_match */
 
-static void submit_chain( iptc_handle_t *handle, ip_chain_t *chain ) {
+
+/* ipv6 submit_chain */
+static void submit6_chain( ip6tc_handle_t *handle, ip_chain_t *chain )
+{
+    const struct ip6t_entry *entry;
+    int rule_num;
+
+    /* Find first rule for chain and use the iterate macro */
+    entry = ip6tc_first_rule( chain->chain, handle );
+    if (entry == NULL)
+    {
+        DEBUG ("ip6tc_first_rule failed: %s", ip6tc_strerror (errno));
+        return;
+    }
+
+    rule_num = 1;
+    while (entry)
+    {
+        if (chain->rule_type == RTYPE_NUM)
+        {
+            submit6_match (NULL, entry, chain, rule_num);
+        }
+        else
+        {
+            IP6T_MATCH_ITERATE( entry, submit6_match, entry, chain, rule_num );
+        }
+
+        entry = ip6tc_next_rule( entry, handle );
+        rule_num++;
+    } /* while (entry) */
+}
+
+
+/* ipv4 submit_chain */
+static void submit_chain( iptc_handle_t *handle, ip_chain_t *chain )
+{
     const struct ipt_entry *entry;
     int rule_num;
 
@@ -287,31 +408,53 @@ static int iptables_read (void)
 {
     int i;
     int num_failures = 0;
+    ip_chain_t *chain;
 
     /* Init the iptc handle structure and query the correct table */    
     for (i = 0; i < chain_num; i++)
     {
-	iptc_handle_t handle;
-	ip_chain_t *chain;
-	
 	chain = chain_list[i];
+	
 	if (!chain)
 	{
 	    DEBUG ("iptables plugin: chain == NULL");
 	    continue;
 	}
 
-	handle = iptc_init (chain->table);
-	if (!handle)
-	{
-	    ERROR ("iptables plugin: iptc_init (%s) failed: %s",
-		    chain->table, iptc_strerror (errno));
-	    num_failures++;
-	    continue;
-	}
+	if ( chain->ip_version == IPV4 )
+        {
+                iptc_handle_t handle;
+                handle = iptc_init (chain->table);
 
-	submit_chain (&handle, chain);
-	iptc_free (&handle);
+                if (!handle)
+                {
+                        ERROR ("iptables plugin: iptc_init (%s) failed: %s",
+                                chain->table, iptc_strerror (errno));
+                        num_failures++;
+                        continue;
+                }
+
+                submit_chain (&handle, chain);
+                iptc_free (&handle);
+        }
+        else if ( chain->ip_version == IPV6 )
+        {
+                ip6tc_handle_t handle;
+                handle = ip6tc_init (chain->table);
+
+                if (!handle)
+                {
+                        ERROR ("iptables plugin: ip6tc_init (%s) failed: %s",
+                                chain->table, ip6tc_strerror (errno));
+                        num_failures++;
+                        continue;
+                }
+
+                submit6_chain (&handle, chain);
+                ip6tc_free (&handle);
+        }
+        else num_failures++;
+
     } /* for (i = 0 .. chain_num) */
 
     return ((num_failures < chain_num) ? 0 : -1);
