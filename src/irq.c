@@ -191,8 +191,10 @@ static int irq_read (void)
 			irq_value += value;
 		} /* for (i) */
 
-		irq_submit (irq, irq_value);
+		/* Force 32bit wrap-around */
+		irq_submit (irq, irq_value % 4294967296ULL);
 	}
+
 	fclose (fh);
 
 	return (0);
