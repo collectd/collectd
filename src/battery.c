@@ -441,7 +441,7 @@ static int battery_read (void)
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
-	static c_complain_t acpi_dir_complaint = C_COMPLAIN_INIT_STATIC;
+	static c_complain_t acpi_dir_complaint = C_COMPLAIN_INIT;
 
 	FILE *fh;
 	char buffer[1024];
