@@ -1,6 +1,8 @@
 /**
  * collectd - src/hddtemp.c
  * Copyright (C) 2005,2006  Vincent Stehlé
+ * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2008       Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +21,7 @@
  * Authors:
  *   Vincent Stehlé <vincent.stehle at free.fr>
  *   Florian octo Forster <octo at verplant.org>
+ *   Sebastian Harl <sh at tokkee.org>
  *
  * TODO:
  *   Do a pass, some day, and spare some memory. We consume too much for now

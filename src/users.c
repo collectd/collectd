@@ -1,6 +1,9 @@
 /**
  * collectd - src/users.c
  * Copyright (C) 2005-2007  Sebastian Harl
+ * Copyright (C) 2005       Niki W. Waibel
+ * Copyright (C) 2005-2007  Florian octo Forster
+ * Copyright (C) 2008       Oleg King 
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +20,9 @@
  *
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
+ *   Niki W. Waibel <niki.waibel at newlogic.com>
+ *   Florian octo Forster <octo at verplant.org>
+ *   Oleg King <king2 at kaluga.ru>
  **/
 
 #include "collectd.h"
