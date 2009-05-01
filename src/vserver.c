@@ -1,6 +1,7 @@
 /**
  * collectd - src/vserver.c
  * Copyright (C) 2006,2007  Sebastian Harl
+ * Copyright (C) 2007,2008  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
+ *   Florian octo Forster <octo at verplant.org>
  **/
 
 #include "collectd.h"

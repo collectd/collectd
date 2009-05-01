@@ -1,8 +1,9 @@
 /**
  * collectd - src/processes.c
- * Copyright (C) 2005  Lyonel Vincent
- * Copyright (C) 2006-2008  Florian Forster (Mach code)
- * Copyright (C) 2008  Oleg King
+ * Copyright (C) 2005       Lyonel Vincent
+ * Copyright (C) 2006-2008  Florian octo Forster
+ * Copyright (C) 2008       Oleg King
+ * Copyright (C) 2009       Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

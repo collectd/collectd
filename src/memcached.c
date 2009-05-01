@@ -1,8 +1,9 @@
 /**
  * collectd - src/memcached.c, based on src/hddtemp.c
- * Copyright (C) 2007  Antony Dovgal
- * Copyright (C) 2005,2006  Vincent Stehlé
- * Copyright (C) 2009  Franck Lombardi
+ * Copyright (C) 2007       Antony Dovgal
+ * Copyright (C) 2007-2009  Florian Forster
+ * Copyright (C) 2009       Doug MacEachern
+ * Copyright (C) 2009       Franck Lombardi
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,8 +21,8 @@
  *
  * Authors:
  *   Antony Dovgal <tony at daylessday dot org>
- *   Vincent Stehlé <vincent.stehle at free.fr>
  *   Florian octo Forster <octo at verplant.org>
+ *   Doug MacEachern <dougm at hyperic.com>
  *   Franck Lombardi
  **/
 

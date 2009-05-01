@@ -1,6 +1,7 @@
 /**
  * collectd - src/iptables.c
  * Copyright (C) 2007 Sjoerd van der Berg
+ * Copyright (C) 2007 Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,7 @@
  *
  * Authors:
  *  Sjoerd van der Berg <harekiet at users.sourceforge.net>
+ *  Florian Forster <octo at verplant.org>
  **/
 
 #include "collectd.h"

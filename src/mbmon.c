@@ -1,6 +1,7 @@
 /**
  * collectd - src/mbmon.c
- * Copyright (C) 2006 Flavio Stanchina
+ * Copyright (C) 2006       Flavio Stanchina
+ * Copyright (C) 2006-2007  Florian octo Forster
  * Based on the hddtemp plugin.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -19,6 +20,7 @@
  *
  * Authors:
  *   Flavio Stanchina <flavio at stanchina.net>
+ *   Florian Forster <octo at verplant.org>
  **/
 
 #include "collectd.h"
