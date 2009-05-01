@@ -1,3 +1,45 @@
+2009-05-01, Version 4.7.0
+	* apache plugin: Support to query multiple servers has been added.
+	  Thanks to Amit Gupta for the patch.
+	* apache plugin: Handling of lighttpd's scoreboard statistics has been
+	  improved. Thanks to Amit Gupta for the patch.
+	* conntrack plugin: The new conntrack plugin collects the connection
+	  tracking table size. Thanks to Tomasz Pala for the patch.
+	* fscache plugin: The new fscache plugin collects statistics about
+	  Linux' file-system based caching framework. Thanks to Edward
+	  Konetzko for the patch.
+	* gmond plugin: The new gmond plugin can receive and interpret
+	  multicast traffic from Ganglia's gmond daemon.
+	* java plugin: The new java plugin exports the collectd API to Java,
+	  making it possible to write extensions to collectd in Java.
+	* memcachec plugin: The new memcachec plugin queries data from a
+	  memcached daemon and parses it similar to the cURL plugin. Thanks to
+	  Doug MacEachern for the initial code.
+	* memcached plugin: Support for connections over UNIX domain sockets
+	  has been added. Thanks to Franck Lombardi for the patch.
+	* memory plugin: Support for OpenBSD and possibly other *BSDs has been
+	  added. Thanks to Simon Kuhnle for the patch.
+	* mysql plugin: Support to query multiple databases has been added.
+	  Thanks to Doug MacEachern for the patch.
+	* mysql plugin: Master/slave statistics have been added.
+	* network plugin: The possibility to sign or encrypt network traffic
+	  has been added.
+	* protocols plugin: The new protocols plugin provides information
+	  about network protocols, such as IP, TCP and UDP.
+	* snmp plugin: The intervals given in the configuration of the SNMP
+	  plugin must no longer be a multiple of the global interval.
+	* table plugin: The new Table plugin provides parsing for table-like
+	  structured files, such as many files beneath /proc.
+	* ted plugin: The new TED plugin reads power consumption measurements
+	  from “The Energy Detective” (TED). Thanks to Eric Reed for this
+	  plugin.
+	* onewire plugin: The new `Interval' option allows collecting
+	  information from OneWire sensors at arbitrary intervals.
+	* ping plugin: Support for collecting the drop rate and standard
+	  deviation of round-trip times has been added.
+	* uptime plugin: The new uptime plugin can collect the server's
+	  uptime. Thanks to Marco Chiappero for the patch.
+
 2009-03-18, Version 4.6.2
 	* collectd: Some Solaris utility code has been improved.
 	* filter subsystem: Allow `Chains' without default targets.
