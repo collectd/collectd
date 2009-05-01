@@ -106,103 +106,112 @@ Ops pend=N  Number of times async ops added to pending queues
 
 63 events to collect in 13 groups
 */
-
-static int fscache_number_of_values = 62;
-
-struct fscache_values {
-    char name[20];
-    unsigned long long value;
-};  /*end struct fscache_values */
-
-static void fscache_submit(struct fscache_values submit_values[]){
-/*submit logic goes here!!!!!*/
-
+static void fscache_submit (const char *section, const char *name,
+        counter_t counter_value)
+{
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
-    int i;
 
     vl.values = values;
     vl.values_len = 1;
-    sstrncpy(vl.host, hostname_g, sizeof(vl.host));
-    sstrncpy(vl.plugin, "fscache", sizeof(vl.plugin));
-    sstrncpy(vl.plugin_instance, "fscache",
-            sizeof(vl.plugin_instance));
-    sstrncpy(vl.type, "fscache_stat", sizeof(vl.type));
 
-    for (i = 0; i < fscache_number_of_values; i++){
-        values[0].counter = submit_values[i].value;
-        sstrncpy(vl.type_instance, submit_values[i].name,
-                sizeof(vl.type_instance));
-        DEBUG("%s-%s/fscache-%s = %llu",
-                vl.plugin, vl.plugin_instance,
-                vl.type_instance, submit_values[i].value);
-        plugin_dispatch_values(&vl);
-    }
+    vl.values[0].counter = counter_value;
+
+    sstrncpy(vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy(vl.plugin, "fscache", sizeof (vl.plugin));
+    sstrncpy(vl.plugin_instance, section, sizeof (vl.plugin_instance));
+    sstrncpy(vl.type, "fscache_stat", sizeof(vl.type));
+    sstrncpy(vl.type_instance, name, sizeof(vl.type_instance));
+
+    plugin_dispatch_values (&vl);
 }
 
-static void fscache_read_stats_file(FILE *fh){
-    int forcount = 0;
-    int count = 0;
-    int start = 0;
-    int numfields = 0;
-    int valuecounter = 0;
-    char filebuffer[BUFSIZE];
-    char valuebuffer[BUFSIZE];
-    char valuename[BUFSIZE];
-    char valuevalue[BUFSIZE];
-    char sectionbuffer[BUFSIZE];
-    char tempstring[BUFSIZE];
-    char *ptrfilebuffer = filebuffer;
-    char *position = NULL;
-    char *fields[fscache_number_of_values];
-    struct fscache_values values[fscache_number_of_values];
+static void fscache_read_stats_file (FILE *fh)
+{
+    char section[DATA_MAX_NAME_LEN];
+    size_t section_len;
+
+    char linebuffer[BUFSIZE];
+
+/*
+ *  cat /proc/fs/fscache/stats
+ *      FS-Cache statistics
+ *      Cookies: idx=2 dat=0 spc=0
+ *      Objects: alc=0 nal=0 avl=0 ded=0
+ *      ChkAux : non=0 ok=0 upd=0 obs=0
+ *      Pages  : mrk=0 unc=0
+ *      Acquire: n=2 nul=0 noc=0 ok=2 nbf=0 oom=0
+ *      Lookups: n=0 neg=0 pos=0 crt=0
+ *      Updates: n=0 nul=0 run=0
+ *      Relinqs: n=0 nul=0 wcr=0
+ *      AttrChg: n=0 ok=0 nbf=0 oom=0 run=0
+ *      Allocs : n=0 ok=0 wt=0 nbf=0
+ *      Allocs : ops=0 owt=0
+ *      Retrvls: n=0 ok=0 wt=0 nod=0 nbf=0 int=0 oom=0
+ *      Retrvls: ops=0 owt=0
+ *      Stores : n=0 ok=0 agn=0 nbf=0 oom=0
+ *      Stores : ops=0 run=0
+ *      Ops    : pend=0 run=0 enq=0
+ *      Ops    : dfr=0 rel=0 gc=0
+ */
 
     /* Read file line by line */
-    while( fgets( filebuffer, BUFSIZE, fh)!= NULL){
-        /*skip first line and split file on : */
-        if (count != 0){
-            position = strchr(filebuffer,':');
-            start = strlen(filebuffer) - 1;
-            filebuffer[start] = '\0';
-            /* : is located at value 8, +1 to remove space */
-            strncpy(valuebuffer, ptrfilebuffer+9, start);
-            /*store section info for later */
-            strncpy(sectionbuffer, ptrfilebuffer, position - filebuffer);
-            position = strchr(sectionbuffer, ' ');
-            if (position != NULL){
-                sectionbuffer[position-sectionbuffer] = '\0';
-            }
+    while (fgets (linebuffer, sizeof (linebuffer), fh) != NULL)
+    {
+        char *lineptr;
+        char *fields[32];
+        int fields_num;
+        int i;
 
-            /*split rest of line by space and then split that via =*/
-            numfields = strsplit ( valuebuffer, fields,
-                    fscache_number_of_values);
-            for( forcount = 0; forcount < numfields; forcount++ ){
-                char *field = fields[forcount];
-                memset(valuename,'\0',sizeof(valuename));
-                position = strchr(field, '=');
-                /* Test to see if we actually have a metric to split on
-                 * and assign the values to the struct array */
-                if (position != NULL){
-                    strncpy(valuename, field, position - field);
-                    strncpy(valuevalue, field + (position - field + 1),
-                            strlen(field));
-                    memset(tempstring,'\0',sizeof(tempstring));
-                    strncat(tempstring,sectionbuffer,sizeof(tempstring));
-                    strncat(tempstring,"_",1);
-                    strncat(tempstring,valuename, sizeof(tempstring));
-                    memset(values[valuecounter].name,'\0',
-                            sizeof(values[valuecounter].name));
-                    strncpy(values[valuecounter].name,tempstring,
-                            sizeof(values[valuecounter].name));
-                    values[valuecounter].value = atoll(valuevalue);
-                }
-            valuecounter++;
-            }
+        /* Find the colon and replace it with a null byte */
+        lineptr = strchr (linebuffer, ':');
+        if (lineptr == NULL)
+            continue;
+        *lineptr = 0;
+        lineptr++;
+
+        /* Copy and clean up the section name */
+        sstrncpy (section, linebuffer, sizeof (section));
+        section_len = strlen (section);
+        while ((section_len > 0) && isspace ((int) section[section_len - 1]))
+        {
+            section_len--;
+            section[section_len] = 0;
         }
-    count++;
-    }
-    fscache_submit(values);
-}
+        if (section_len <= 0)
+            continue;
+
+        fields_num = strsplit (lineptr, fields, STATIC_ARRAY_SIZE (fields));
+        if (fields_num <= 0)
+            continue;
+
+        for (i = 0; i < fields_num; i++)
+        {
+            char *field_name;
+            char *field_value_str;
+            char *endptr;
+            counter_t field_value_cnt;
+
+            field_name = fields[i];
+            assert (field_name != NULL);
+
+            field_value_str = strchr (field_name, '=');
+            if (field_value_str == NULL)
+                continue;
+            *field_value_str = 0;
+            field_value_str++;
+
+            errno = 0;
+            endptr = NULL;
+            field_value_cnt = (counter_t) strtoull (field_value_str,
+                    &endptr, /* base = */ 10);
+            if ((errno != 0) || (endptr == field_value_str))
+                continue;
+
+            fscache_submit (section, field_name, field_value_cnt);
+        }
+    } /* while (fgets) */
+} /* void fscache_read_stats_file */
 
 static int fscache_read (void){
     FILE *fh;
@@ -223,3 +232,4 @@ void module_register (void)
     plugin_register_read ("fscache", fscache_read);
 } /* void module_register */
 
+/* vim: set sw=4 sts=4 et : */
