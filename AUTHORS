@@ -52,6 +52,9 @@ Doug MacEachern <dougm at hyperic.com>
  - jcollectd (two-way JMX integration).
  - A few other patches to various plugins.
 
+Edward “Koko” Konetzko <konetzed at quixoticagony.com>
+ - fscache plugin.
+
 Fabian Linzberger <e at lefant.net>
  - Percentage aggregation for `collectd-nagios'.
 

@@ -3171,6 +3171,7 @@ plugin_load="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
+plugin_fscache="no"
 plugin_perl="no"
 plugin_processes="no"
 plugin_protocols="no"
@@ -3200,6 +3201,7 @@ then
 	plugin_load="yes"
 	plugin_memory="yes"
 	plugin_nfs="yes"
+	plugin_fscache="yes"
 	plugin_processes="yes"
 	plugin_protocols="yes"
 	plugin_serial="yes"
@@ -3410,6 +3412,7 @@ AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
+AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
@@ -3693,6 +3696,7 @@ Configuration:
     netlink . . . . . . . $enable_netlink
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
+    fscache . . . . . . . $enable_fscache
     nginx . . . . . . . . $enable_nginx
     notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
