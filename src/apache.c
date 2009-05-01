@@ -31,8 +31,15 @@
 
 #include <curl/curl.h>
 
+enum server_enum
+{
+	APACHE = 0,
+	LIGHTTPD
+};
+
 struct apache_s
 {
+	int server_type;
 	char *name;
 	char *host;
 	char *url;
@@ -41,6 +48,7 @@ struct apache_s
 	int   verify_peer;
 	int   verify_host;
 	char *cacert;
+	char *server; /* user specific server type */
 	char *apache_buffer;
 	char apache_curl_error[CURL_ERROR_SIZE];
 	size_t apache_buffer_size;
@@ -64,6 +72,7 @@ static void apache_free (apache_t *st)
 	sfree (st->user);
 	sfree (st->pass);
 	sfree (st->cacert);
+	sfree (st->server);
 	sfree (st->apache_buffer);
 	if (st->curl) {
 		curl_easy_cleanup(st->curl);
@@ -109,6 +118,42 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 
 	return (len);
 } /* int apache_curl_callback */
+
+static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
+		void *user_data)
+{
+	size_t len = size * nmemb;
+	apache_t *st;
+
+	st = user_data;
+	if (st == NULL)
+	{
+		ERROR ("apache plugin: apache_header_callback: "
+				"user_data pointer is NULL.");
+		return (0);
+	}
+
+	if (len <= 0)
+		return (len);
+
+	/* look for the Server header */
+	if (strncasecmp (buf, "Server: ", strlen ("Server: ")) != 0)
+		return (len);
+
+	if (strstr (buf, "Apache") != NULL)
+		st->server_type = APACHE;
+	else if (strstr (buf, "lighttpd") != NULL)
+		st->server_type = LIGHTTPD;
+	else
+	{
+		const char *hdr = buf;
+
+		hdr += strlen ("Server: ");
+		NOTICE ("apache plugin: Unknown server software: %s", hdr);
+	}
+
+	return (len);
+} /* apache_header_callback */
 
 /* Configuration handling functiions
  * <Plugin apache>
@@ -235,6 +280,8 @@ static int config_add (oconfig_item_t *ci)
 			status = config_set_boolean (&st->verify_host, child);
 		else if (strcasecmp ("CACert", child->key) == 0)
 			status = config_set_string (&st->cacert, child);
+		else if (strcasecmp ("Server", child->key) == 0)
+			status = config_set_string (&st->server, child);
 		else
 		{
 			WARNING ("apache plugin: Option `%s' not allowed here.",
@@ -364,6 +411,30 @@ static int init_host (apache_t *st) /* {{{ */
 
 	curl_easy_setopt (st->curl, CURLOPT_WRITEFUNCTION, apache_curl_callback);
 	curl_easy_setopt (st->curl, CURLOPT_WRITEDATA, st);
+
+	/* not set as yet if the user specified string doesn't match apache or
+	 * lighttpd, then ignore it. Headers will be parsed to find out the
+	 * server type */
+	st->server_type = -1;
+
+	if (st->server != NULL)
+	{
+		if (strcasecmp(st->server, "apache") == 0)
+			st->server_type = APACHE;
+		else if (strcasecmp(st->server, "lighttpd") == 0)
+			st->server_type = LIGHTTPD;
+		else
+			WARNING ("apache plugin: Unknown `Server' setting: %s",
+					st->server);
+	}
+
+	/* if not found register a header callback to determine the server_type */
+	if (st->server_type == -1)
+	{
+		curl_easy_setopt (st->curl, CURLOPT_HEADERFUNCTION, apache_header_callback);
+		curl_easy_setopt (st->curl, CURLOPT_WRITEHEADER, st);
+	}
+
 	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
 	curl_easy_setopt (st->curl, CURLOPT_ERRORBUFFER, st->apache_curl_error);
 
@@ -458,10 +529,15 @@ static void submit_scoreboard (char *buf, apache_t *st)
 {
 	/*
 	 * Scoreboard Key:
-	 * "_" Waiting for Connection, "S" Starting up, "R" Reading Request,
+	 * "_" Waiting for Connection, "S" Starting up,
+	 * "R" Reading Request for apache and read-POST for lighttpd,
 	 * "W" Sending Reply, "K" Keepalive (read), "D" DNS Lookup,
 	 * "C" Closing connection, "L" Logging, "G" Gracefully finishing,
 	 * "I" Idle cleanup of worker, "." Open slot with no current process
+	 * Lighttpd specific legends -
+	 * "E" hard error, "." connect, "h" handle-request,
+	 * "q" request-start, "Q" request-end, "s" response-start
+	 * "S" response-end, "r" read
 	 */
 	long long open      = 0LL;
 	long long waiting   = 0LL;
@@ -475,8 +551,16 @@ static void submit_scoreboard (char *buf, apache_t *st)
 	long long finishing = 0LL;
 	long long idle_cleanup = 0LL;
 
-	int i;
+	/* lighttpd specific */
+	long long hard_error     = 0LL;
+	long long lighttpd_read  = 0LL;
+	long long handle_request = 0LL;
+	long long request_start  = 0LL;
+	long long request_end    = 0LL;
+	long long response_start = 0LL;
+	long long response_end   = 0LL;
 
+	int i;
 	for (i = 0; buf[i] != '\0'; i++)
 	{
 		if (buf[i] == '.') open++;
@@ -490,19 +574,43 @@ static void submit_scoreboard (char *buf, apache_t *st)
 		else if (buf[i] == 'L') logging++;
 		else if (buf[i] == 'G') finishing++;
 		else if (buf[i] == 'I') idle_cleanup++;
+		else if (buf[i] == 'r') lighttpd_read++;
+		else if (buf[i] == 'h') handle_request++;
+		else if (buf[i] == 'E') hard_error++;
+		else if (buf[i] == 'q') request_start++;
+		else if (buf[i] == 'Q') request_end++;
+		else if (buf[i] == 's') response_start++;
+		else if (buf[i] == 'S') response_end++;
 	}
 
-	submit_gauge ("apache_scoreboard", "open"     , open, st);
-	submit_gauge ("apache_scoreboard", "waiting"  , waiting, st);
-	submit_gauge ("apache_scoreboard", "starting" , starting, st);
-	submit_gauge ("apache_scoreboard", "reading"  , reading, st);
-	submit_gauge ("apache_scoreboard", "sending"  , sending, st);
-	submit_gauge ("apache_scoreboard", "keepalive", keepalive, st);
-	submit_gauge ("apache_scoreboard", "dnslookup", dnslookup, st);
-	submit_gauge ("apache_scoreboard", "closing"  , closing, st);
-	submit_gauge ("apache_scoreboard", "logging"  , logging, st);
-	submit_gauge ("apache_scoreboard", "finishing", finishing, st);
-	submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup, st);
+	if (st->server_type == APACHE)
+	{
+		submit_gauge ("apache_scoreboard", "open"     , open, st);
+		submit_gauge ("apache_scoreboard", "waiting"  , waiting, st);
+		submit_gauge ("apache_scoreboard", "starting" , starting, st);
+		submit_gauge ("apache_scoreboard", "reading"  , reading, st);
+		submit_gauge ("apache_scoreboard", "sending"  , sending, st);
+		submit_gauge ("apache_scoreboard", "keepalive", keepalive, st);
+		submit_gauge ("apache_scoreboard", "dnslookup", dnslookup, st);
+		submit_gauge ("apache_scoreboard", "closing"  , closing, st);
+		submit_gauge ("apache_scoreboard", "logging"  , logging, st);
+		submit_gauge ("apache_scoreboard", "finishing", finishing, st);
+		submit_gauge ("apache_scoreboard", "idle_cleanup", idle_cleanup, st);
+	}
+	else
+	{
+		submit_gauge ("apache_scoreboard", "connect"       , open, st);
+		submit_gauge ("apache_scoreboard", "close"         , closing, st);
+		submit_gauge ("apache_scoreboard", "hard_error"    , hard_error, st);
+		submit_gauge ("apache_scoreboard", "read"          , lighttpd_read, st);
+		submit_gauge ("apache_scoreboard", "read_post"     , reading, st);
+		submit_gauge ("apache_scoreboard", "write"         , sending, st);
+		submit_gauge ("apache_scoreboard", "handle_request", handle_request, st);
+		submit_gauge ("apache_scoreboard", "request_start" , request_start, st);
+		submit_gauge ("apache_scoreboard", "request_end"   , request_end, st);
+		submit_gauge ("apache_scoreboard", "response_start", response_start, st);
+		submit_gauge ("apache_scoreboard", "response_end"  , response_end, st);
+	}
 }
 
 static int apache_read_host (user_data_t *user_data) /* {{{ */
@@ -540,6 +648,14 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		ERROR ("apache: curl_easy_perform failed: %s",
 				st->apache_curl_error);
 		return (-1);
+	}
+
+	/* fallback - server_type to apache if not set at this time */
+	if (st->server_type == -1)
+	{
+		WARNING ("apache plugin: Unable to determine server software "
+				"automatically. Will assume Apache.");
+		st->server_type = APACHE;
 	}
 
 	ptr = st->apache_buffer;
