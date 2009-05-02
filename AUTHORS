@@ -78,6 +78,10 @@ Luke Herberling <collectd at c-ware.com>
 Lyonel Vincent <lyonel at ezix.org>
  - processes plugin.
 
+Marco Chiappero <marco at absence.it>
+ - uptime plugin.
+ - ip6tables support in the iptables plugin.
+
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
 
