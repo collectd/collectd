@@ -54,15 +54,19 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 /*
     Each table/chain combo that will be queried goes into this list
 */
+
+enum protocol_version_e
+{
+    IPV4,
+    IPV6
+};
+typedef enum protocol_version_e protocol_version_t;
+
 #ifndef XT_TABLE_MAXNAMELEN
 # define XT_TABLE_MAXNAMELEN 32
 #endif
 typedef struct {
-    enum
-    {
-        IPV4,
-        IPV6
-    } ip_version;
+    protocol_version_t ip_version;
     char table[XT_TABLE_MAXNAMELEN];
     char chain[XT_TABLE_MAXNAMELEN];
     union
@@ -85,14 +89,14 @@ static int chain_num = 0;
 static int iptables_config (const char *key, const char *value)
 {
 	/* int ip_value; */
-	enum { IPV4, IPV6 } ip_protocol;
+	protocol_version_t ip_version;
 
 	if (strcasecmp (key, "Chain") == 0)
-		ip_protocol = IPV4;
+		ip_version = IPV4;
 	else if (strcasecmp (key, "Chain6") == 0)
-		ip_protocol = IPV6;
+		ip_version = IPV6;
 
-	if (( ip_protocol == IPV4 ) || ( ip_protocol == IPV6 ))
+	if (( ip_version == IPV4 ) || ( ip_version == IPV6 ))
 	{
 		ip_chain_t temp, *final, **list;
 		char *table;
@@ -122,7 +126,7 @@ static int iptables_config (const char *key, const char *value)
        		 */
 
 		/* set IPv4 or IPv6 */
-                temp.ip_version = ip_protocol;
+                temp.ip_version = ip_version;
 
 		/* Chain <table> <chain> [<comment|num> [name]] */
 		fields_num = strsplit (value_copy, fields, 4);
