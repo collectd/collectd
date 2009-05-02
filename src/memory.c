@@ -209,7 +209,7 @@ static int memory_read (void)
 					NULL, 0) == 0)
 		{
 			sysctl_vals[i] = value;
-			DEBUG ("memory plugin: %26s: %6i", sysctl_keys[i], sysctl_vals[i]);
+			DEBUG ("memory plugin: %26s: %g", sysctl_keys[i], sysctl_vals[i]);
 		}
 		else
 		{
