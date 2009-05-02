@@ -360,8 +360,8 @@ static void *collect (void *arg)
 			}
 		} /* while (loop) */
 
-		log_debug ("[thread #%5lu] shutting down connection on fd #%i",
-				pthread_self (), fileno (this->socket));
+		log_debug ("Shutting down connection on fd #%i",
+				fileno (this->socket));
 
 		fclose (connection->socket);
 		free (connection);
