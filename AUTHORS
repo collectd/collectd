@@ -120,6 +120,9 @@ Richard W. M. Jones <rjones at redhat.com>
 Roman Klesel <roman.klesel at noris.de>
  - Oracle schema and sample SQL statements to be used with the Oracle plugin.
 
+Rodolphe Quiédeville <rquiedeville at bearstech.com>
+ - Lock statistics in the mysql plugin.
+
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
 
