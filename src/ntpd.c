@@ -896,25 +896,33 @@ static int ntpd_read (void)
 
 			if (ptr->v6_flag)
 			{
-				struct sockaddr_in6 *sa_ptr;
-				sa_ptr = (struct sockaddr_in6 *) &sa;
+				struct sockaddr_in6 sa6;
 
-				sa_ptr->sin6_family = AF_INET6;
-				sa_ptr->sin6_port = htons (123);
-				memcpy (&sa_ptr->sin6_addr, &ptr->srcadr6,
+				assert (sizeof (sa) >= sizeof (sa6));
+
+				memset (&sa6, 0, sizeof (sa6));
+				sa6.sin6_family = AF_INET6;
+				sa6.sin6_port = htons (123);
+				memcpy (&sa6.sin6_addr, &ptr->srcadr6,
 						sizeof (struct in6_addr));
-				sa_len = sizeof (struct sockaddr_in6);
+				sa_len = sizeof (sa6);
+
+				memcpy (&sa, &sa6, sizeof (sa6));
 			}
 			else
 			{
-				struct sockaddr_in *sa_ptr;
-				sa_ptr = (struct sockaddr_in *) &sa;
+				struct sockaddr_in sa4;
 
-				sa_ptr->sin_family = AF_INET;
-				sa_ptr->sin_port = htons (123);
-				memcpy (&sa_ptr->sin_addr, &ptr->srcadr,
+				assert (sizeof (sa) >= sizeof (sa4));
+
+				memset (&sa4, 0, sizeof (sa4));
+				sa4.sin_family = AF_INET;
+				sa4.sin_port = htons (123);
+				memcpy (&sa4.sin_addr, &ptr->srcadr,
 						sizeof (struct in_addr));
-				sa_len = sizeof (struct sockaddr_in);
+				sa_len = sizeof (sa4);
+
+				memcpy (&sa, &sa4, sizeof (sa4));
 			}
 
 			if (do_reverse_lookups == 0)
