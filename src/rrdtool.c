@@ -624,6 +624,9 @@ static void *rrd_queue_thread (void *data)
 		int    status;
 		int    i;
 
+		values = NULL;
+		values_num = 0;
+
                 pthread_mutex_lock (&queue_lock);
                 /* Wait for values to arrive */
                 while (true)
