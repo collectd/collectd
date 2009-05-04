@@ -1357,9 +1357,9 @@ static int ps_read (void)
 		pse.num_proc = 1;
 		pse.num_lwp  = procs[i].ki_numthreads;
 
-		/* pse.vmem_size = procs[i].ki_size; */
+		pse.vmem_size = procs[i].ki_size;
 		pse.vmem_rss = procs[i].ki_rssize * getpagesize();
-		/* pse.stack_size = procs[i].ki_ssize * getpagesize(); */
+		pse.stack_size = procs[i].ki_ssize * getpagesize();
 		pse.vmem_minflt = 0;
 		pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
 		pse.vmem_majflt = 0;
