@@ -855,6 +855,37 @@ AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_p
 	#include <linux/netdevice.h>
 	])
 
+AC_CHECK_MEMBERS([struct kinfo_proc.ki_pid, struct kinfo_proc.ki_rssize, struct kinfo_proc.ki_rusage],
+	[
+		AC_DEFINE(HAVE_STRUCT_KINFO_PROC_FREEBSD, 1,
+			[Define if struct kinfo_proc exists in the FreeBSD variant.])
+		have_struct_kinfo_proc_freebsd="yes"
+	],
+	[
+		have_struct_kinfo_proc_freebsd="no"
+	],
+	[
+#include <kvm.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+	])
+
+AC_CHECK_MEMBERS([struct kinfo_proc.kp_proc, struct kinfo_proc.kp_eproc],
+	[
+		AC_DEFINE(HAVE_STRUCT_KINFO_PROC_OPENBSD, 1,
+			[Define if struct kinfo_proc exists in the OpenBSD variant.])
+		have_struct_kinfo_proc_openbsd="yes"
+	],
+	[
+		have_struct_kinfo_proc_openbsd="no"
+	],
+	[
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <kvm.h>
+	])
+
 AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 [#if HAVE_STDINT_H
 # include <stdint.h>
@@ -2755,7 +2786,7 @@ then
 	plugin_processes="yes"
 fi
 
-if test "x$with_kvm_getprocs" = "xyes"
+if test "x$with_kvm_getprocs" = "xyes" && test "x$have_struct_kinfo_proc_freebsd" = "xyes"
 then
 	plugin_processes="yes"
 fi
