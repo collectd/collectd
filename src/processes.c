@@ -86,14 +86,13 @@
 #  endif
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM_GETPROCS
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
 #  include <kvm.h>
+#  include <sys/param.h>
+#  include <sys/sysctl.h>
 #  include <sys/user.h>
 #  include <sys/proc.h>
-#  if HAVE_SYS_SYSCTL_H
-#    include <sys/sysctl.h>
-#  endif
-/* #endif HAVE_LIBKVM_GETPROCS */
+/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #else
 # error "No applicable input method."
@@ -178,9 +177,9 @@ static mach_msg_type_number_t     pset_list_len;
 static long pagesize_g;
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM_GETPROCS
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
 /* no global variables */
-#endif /* HAVE_LIBKVM_GETPROCS */
+#endif /* HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 /* put name of process from config to list_head_g tree
    list_head_g is a list of 'procstat_t' structs with
@@ -537,9 +536,9 @@ static int ps_init (void)
 			pagesize_g, CONFIG_HZ);
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM_GETPROCS
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
 /* no initialization */
-#endif /* HAVE_LIBKVM_GETPROCS */
+#endif /* HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 	return (0);
 } /* int ps_init */
@@ -1279,7 +1278,7 @@ static int ps_read (void)
 		ps_submit_proc_list (ps_ptr);
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM_GETPROCS
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
 	int running  = 0;
 	int sleeping = 0;
 	int zombies  = 0;
@@ -1401,7 +1400,7 @@ static int ps_read (void)
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
-#endif /* HAVE_LIBKVM_GETPROCS */
+#endif /* HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 	return (0);
 } /* int ps_read */
