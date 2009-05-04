@@ -26,6 +26,11 @@
 # include "config.h"
 #endif
 
+/* Set to C99 and POSIX code */
+#if COLLECT_STANDARDS
+# include "standards.h"
+#endif /* COLLECT_STANDARDS */
+
 #include <stdio.h>
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>

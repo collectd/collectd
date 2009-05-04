@@ -3150,6 +3150,7 @@ collectd features:])
 # FIXME: Remove these calls to `AC_COLLECTD' and then remove that macro.
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
+AC_COLLECTD([standards], [enable],  [feature], [enable strict standards compliance mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
 dependency_error="no"
