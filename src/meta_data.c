@@ -19,44 +19,6 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-/*
- * First tell the compiler to stick to the C99 and POSIX standards as close as
- * possible.
- */
-#ifndef __STRICT_ANSI__ /* {{{ */
-# define __STRICT_ANSI__
-#endif
-
-#ifndef _ISOC99_SOURCE
-# define _ISOC99_SOURCE
-#endif
-
-#ifdef _POSIX_C_SOURCE
-# undef _POSIX_C_SOURCE
-#endif
-#define _POSIX_C_SOURCE 200112L
-
-#if 0
-/* Single UNIX needed for strdup. */
-#ifdef _XOPEN_SOURCE
-# undef _XOPEN_SOURCE
-#endif
-#define _XOPEN_SOURCE 500
-#endif
-
-#ifndef _REENTRANT
-# define _REENTRANT
-#endif
-
-#ifndef _THREAD_SAFE
-# define _THREAD_SAFE
-#endif
-
-#ifdef _GNU_SOURCE
-# undef _GNU_SOURCE
-#endif
-/* }}} */
-
 #include "collectd.h"
 #include "plugin.h"
 #include "meta_data.h"

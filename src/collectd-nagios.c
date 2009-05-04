@@ -19,36 +19,18 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
-/* Set to C99 and POSIX code */
-#ifndef _ISOC99_SOURCE
-# define _ISOC99_SOURCE
-#endif
-#ifndef _POSIX_SOURCE
-# define _POSIX_SOURCE
-#endif
-#ifndef _POSIX_C_SOURCE
-# define _POSIX_C_SOURCE 200112L
-#endif
-#ifndef _REENTRANT
-# define _REENTRANT
+#if HAVE_CONFIG_H
+# include "config.h"
 #endif
 
-/* Disable non-standard extensions */
-#ifdef _BSD_SOURCE
-# undef _BSD_SOURCE
-#endif
-#ifdef _SVID_SOURCE
-# undef _SVID_SOURCE
-#endif
-#ifdef _GNU_SOURCE
-# undef _GNU_SOURCE
-#endif
+/* Set to C99 and POSIX code */
+#if COLLECT_STANDARDS
+# include "standards.h"
+#endif /* COLLECT_STANDARDS */
 
 #if !defined(__GNUC__) || !__GNUC__
 # define __attribute__(x) /**/
 #endif
-
-#include "config.h"
 
 #include <stdlib.h>
 #include <unistd.h>
