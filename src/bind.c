@@ -21,11 +21,18 @@
  *   Florian Forster <octo at verplant.org>
  **/
 
+#define _XOPEN_SOURCE 600 /* glibc2 needs this for strptime */
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+
+/* Some versions of libcurl don't include this themselves and then don't have
+ * fd_set available. */
+#if HAVE_SYS_SELECT_H
+# include <sys/select.h>
+#endif
 
 #include <curl/curl.h>
 #include <libxml/parser.h>
@@ -459,7 +466,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
     return (-1);
   }
 
-  *ret_value = timegm(&tm);
+  *ret_value = mktime(&tm);
 
   xmlXPathFreeObject (xpathObj);
   return (0);
