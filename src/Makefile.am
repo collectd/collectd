@@ -43,6 +43,9 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_tail.c utils_tail.h \
 		   utils_threshold.c utils_threshold.h \
 		   types_list.c types_list.h
+if BUILD_FEATURE_STANDARDS
+collectd_SOURCES += standards.h
+endif
 
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
