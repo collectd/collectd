@@ -23,6 +23,8 @@
  *   Peter Holik <peter at holik.at>
  **/
 
+#define _BSD_SOURCE /* For setgroups */
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"

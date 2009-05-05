@@ -19,6 +19,8 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+#define _BSD_SOURCE /* For NI_MAXHOST */
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"

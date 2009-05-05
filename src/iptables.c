@@ -29,6 +29,8 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#include <sys/socket.h>
+
 #if OWN_LIBIPTC
 # include "libiptc/libiptc.h"
 # include "libiptc/libip6tc.h"

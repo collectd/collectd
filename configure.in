@@ -67,12 +67,26 @@ fi
 
 if test "x$ac_system" = "xSolaris"
 then
-	CPPFLAGS="$CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
+	AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1, [Define to enforce POSIX thread semantics under Solaris.])
 fi
 
 # Where to install .pc files.
 pkgconfigdir="${libdir}/pkgconfig"
 AC_SUBST(pkgconfigdir)
+
+# Check for standards compliance mode
+AC_ARG_ENABLE(standards,
+	      AS_HELP_STRING([--enable-standards], [Enable standards compliance mode]),
+	      [enable_standards="$enableval"],
+	      [enable_standards="no"])
+if test "x$enable_standards" = "xyes"
+then
+	AC_DEFINE(_ISOC99_SOURCE,        1, [Define to enforce ISO C99 compliance.])
+	AC_DEFINE(_POSIX_C_SOURCE, 200112L, [Define to enforce POSIX.1-2001 compliance.])
+	AC_DEFINE(_XOPEN_SOURCE,       600, [Define to enforce X/Open 6 (XSI) compliance.])
+	AC_DEFINE(_REENTRANT,            1, [Define to enable reentrancy interfaces.])
+fi
+AM_CONDITIONAL(BUILD_FEATURE_STANDARDS, test "x$enable_standards" = "xyes")
 
 #
 # Checks for header files.
@@ -347,7 +361,7 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #endif
 ])
 
-AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h sys/quota.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h wordexp.h)
+AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h wordexp.h)
 
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
@@ -908,7 +922,8 @@ AC_CHECK_MEMBERS([struct kinfo_proc.kp_proc, struct kinfo_proc.kp_eproc],
 	])
 
 AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
-[#if HAVE_STDINT_H
+[#define _BSD_SOURCE
+#if HAVE_STDINT_H
 # include <stdint.h>
 #endif
 #if HAVE_SYS_TYPES_H
@@ -928,7 +943,8 @@ AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 #endif
 ])
 AC_CHECK_MEMBERS([struct udphdr.dest, struct udphdr.source], [], [],
-[#if HAVE_STDINT_H
+[#define _BSD_SOURCE
+#if HAVE_STDINT_H
 # include <stdint.h>
 #endif
 #if HAVE_SYS_TYPES_H
@@ -3181,7 +3197,6 @@ collectd features:])
 # FIXME: Remove these calls to `AC_COLLECTD' and then remove that macro.
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
-AC_COLLECTD([standards], [enable],  [feature], [enable strict standards compliance mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
 dependency_error="no"

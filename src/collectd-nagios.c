@@ -23,11 +23,6 @@
 # include "config.h"
 #endif
 
-/* Set to C99 and POSIX code */
-#if COLLECT_STANDARDS
-# include "standards.h"
-#endif /* COLLECT_STANDARDS */
-
 #if !defined(__GNUC__) || !__GNUC__
 # define __attribute__(x) /**/
 #endif

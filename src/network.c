@@ -19,6 +19,8 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+#define _BSD_SOURCE /* For struct ip_mreq */
+
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"

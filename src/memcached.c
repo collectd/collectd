@@ -67,7 +67,8 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 
 		memset (&serv_addr, 0, sizeof (serv_addr));
 		serv_addr.sun_family = AF_UNIX;
-		sstrncpy (serv_addr.sun_path, memcached_socket, sizeof (serv_addr.sun_path));
+		sstrncpy (serv_addr.sun_path, memcached_socket,
+				sizeof (serv_addr.sun_path));
 
 		/* create our socket descriptor */
 		fd = socket (AF_UNIX, SOCK_STREAM, 0);
@@ -80,7 +81,7 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 
 		/* connect to the memcached daemon */
 		status = (ssize_t) connect (fd, (struct sockaddr *) &serv_addr,
-				SUN_LEN (&serv_addr));
+				sizeof (serv_addr));
 		if (status != 0) {
 			shutdown (fd, SHUT_RDWR);
 			close (fd);
