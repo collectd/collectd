@@ -89,7 +89,7 @@ static int chain_num = 0;
 static int iptables_config (const char *key, const char *value)
 {
 	/* int ip_value; */
-	protocol_version_t ip_version;
+	protocol_version_t ip_version = 0;
 
 	if (strcasecmp (key, "Chain") == 0)
 		ip_version = IPV4;
