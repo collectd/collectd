@@ -61,6 +61,10 @@
 #include "common.h"
 #include "plugin.h"
 
+#if defined(__OpenBSD__) || defined(__NetBSD__)
+#undef HAVE_SYSCTLBYNAME /* force HAVE_LIBKVM_NLIST path */
+#endif
+
 #if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_LIBKVM_NLIST
 # error "No applicable input method."
 #endif
@@ -97,7 +101,7 @@
 # include <netinet/tcp_var.h>
 /* #endif HAVE_SYSCTLBYNAME */
 
-/* This is for OpenBSD and possibly NetBSD. */
+/* This is for OpenBSD and NetBSD. */
 #elif HAVE_LIBKVM_NLIST
 # include <sys/queue.h>
 # include <sys/socket.h>
@@ -105,6 +109,7 @@
 # include <netinet/in.h>
 # include <netinet/in_systm.h>
 # include <netinet/ip.h>
+# include <netinet/ip_var.h>
 # include <netinet/in_pcb.h>
 # include <netinet/tcp.h>
 # include <netinet/tcp_timer.h>
@@ -672,7 +677,7 @@ static int conn_read (void)
   /* Get the `head' pcb */
   head = (struct inpcb *) &(inpcbtable_ptr->inpt_queue);
   /* Get the first pcb */
-  next = CIRCLEQ_FIRST (&table.inpt_queue);
+  next = (struct inpcb *)CIRCLEQ_FIRST (&table.inpt_queue);
 
   while (next != head)
   {
@@ -680,15 +685,20 @@ static int conn_read (void)
     kread ((u_long) next, &inpcb, sizeof (inpcb));
 
     /* Advance `next' */
-    next = CIRCLEQ_NEXT (&inpcb, inp_queue);
+    next = (struct inpcb *)CIRCLEQ_NEXT (&inpcb, inp_queue);
 
     /* Ignore sockets, that are not connected. */
+#ifdef __NetBSD__
+    if (inpcb.inp_af == AF_INET6)
+      continue; /* XXX see netbsd/src/usr.bin/netstat/inet6.c */
+#else
     if (!(inpcb.inp_flags & INP_IPV6)
 	&& (inet_lnaof(inpcb.inp_laddr) == INADDR_ANY))
       continue;
     if ((inpcb.inp_flags & INP_IPV6)
 	&& IN6_IS_ADDR_UNSPECIFIED (&inpcb.inp_laddr6))
       continue;
+#endif
 
     kread ((u_long) inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
     conn_handle_ports (ntohs(inpcb.inp_lport), ntohs(inpcb.inp_fport), tcpcb.t_state);
