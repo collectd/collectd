@@ -778,7 +778,6 @@ if test "x$have_getmntent" = "xc"; then
 		[c_cv_have_one_getmntent],
 		AC_COMPILE_IFELSE(
 			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include <mntent.h>
 #include "$srcdir/src/utils_mount.h"]],
 				[[
 				 FILE *fh;
@@ -795,7 +794,6 @@ if test "x$have_getmntent" = "xc"; then
 		[c_cv_have_two_getmntent],
 		AC_COMPILE_IFELSE(
 			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include <sys/mnttab.h>
 #include "$srcdir/src/utils_mount.h"]],
 				[[
 				 FILE *fh;
@@ -2741,13 +2739,39 @@ then
 	plugin_tcpconns="yes"
 fi
 
-if test "x$have_statfs" = "xyes"
+# Df plugin: Check if we know how to determine mount points first.
+#if test "x$have_listmntent" = "xyes"; then
+#	plugin_df="yes"
+#fi
+if test "x$have_getvfsstat" = "xyes" || test "x$have_getfsstat" = "xyes"
 then
 	plugin_df="yes"
 fi
-if test "x$have_statvfs" = "xyes"
+if test "x$c_cv_have_two_getmntent" = "xyes" || test "x$have_getmntent" = "xgen" || test "x$have_getmntent" = "xsun"
 then
 	plugin_df="yes"
+fi
+#if test "x$have_getmntent" = "xseq"
+#then
+#	plugin_df="yes"
+#fi
+if test "x$c_cv_have_one_getmntent" = "xyes"
+then
+	plugin_df="yes"
+fi
+
+# Df plugin: Check if we have either `statfs' or `statvfs' second.
+if test "x$plugin_df" = "xyes"
+then
+	plugin_df="no"
+	if test "x$have_statfs" = "xyes"
+	then
+		plugin_df="yes"
+	fi
+	if test "x$have_statvfs" = "xyes"
+	then
+		plugin_df="yes"
+	fi
 fi
 
 if test "x$have_getifaddrs" = "xyes"
