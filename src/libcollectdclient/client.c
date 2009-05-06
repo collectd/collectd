@@ -121,7 +121,7 @@ char *sstrerror (int errnum, char *buf, size_t buflen)
   buf[0] = 0;
 
 #if !HAVE_STRERROR_R
-  snprintf (buf, buflen "Error #%i; strerror_r is not available.", errnum);
+  snprintf (buf, buflen, "Error #%i; strerror_r is not available.", errnum);
 /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
