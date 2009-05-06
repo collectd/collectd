@@ -55,7 +55,7 @@ looks_like_a_uuid (const char *uuid)
         return 0;
 
     while (*uuid) {
-        if (!isxdigit (*uuid) && *uuid != '-') return 0;
+        if (!isxdigit ((int)*uuid) && *uuid != '-') return 0;
         uuid++;
     }
     return 1;
