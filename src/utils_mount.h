@@ -23,10 +23,8 @@
 
 /* See below for instructions how to use the public functions. */
 
-#if !COLLECTD_UTILS_MOUNT_H
+#ifndef COLLECTD_UTILS_MOUNT_H
 #define COLLECTD_UTILS_MOUNT_H 1
-
-#include "common.h"
 
 #if HAVE_FS_INFO_H
 # include <fs_info.h>
