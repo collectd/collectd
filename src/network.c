@@ -2261,9 +2261,6 @@ static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
   gcry_error_t err;
   gcry_cipher_hd_t cypher;
 
-  DEBUG ("network plugin: networt_send_buffer_encrypted: "
-      "buffer_size = %zu;", buffer_size);
-
   /* Initialize the header fields */
   memset (&pea, 0, sizeof (pea));
   pea.head.type = htons (TYPE_ENCR_AES256);
@@ -2282,6 +2279,8 @@ static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
     - sizeof (pea.hash);
 
   assert (buffer_size <= sizeof (buffer));
+  DEBUG ("network plugin: networt_send_buffer_encrypted: "
+      "buffer_size = %zu;", buffer_size);
 
   pea.head.length = htons ((uint16_t) (PART_ENCRYPTION_AES256_SIZE
         + username_len + in_buffer_size));
