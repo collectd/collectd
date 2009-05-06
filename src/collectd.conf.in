@@ -57,6 +57,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
+#@BUILD_PLUGIN_COUCHDB_TRUE@LoadPlugin couchdb
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @LOAD_PLUGIN_CSV@LoadPlugin csv
@@ -164,6 +165,37 @@ FQDNLookup   true
 #
 #    Zone "127.in-addr.arpa/IN"
 #  </View>
+#</Plugin>
+
+#<Plugin couchdb>
+## See: http://wiki.apache.org/couchdb/Runtime_Statistics
+#  <URL "http://localhost:5984/_stats">
+#    Instance "httpd"
+#    <Key "httpd/requests/count">
+#      Type "http_requests"
+#    </Key>
+#
+#    <Key "httpd_request_methods/*/count">
+#      Type "http_request_methods"
+#    </Key>
+#
+#    <Key "httpd_status_codes/*/count">
+#      Type "http_response_codes"
+#    </Key>
+#  </URL>
+## Database status metrics:
+#  <URL "http://localhost:5984/_all_dbs">
+#    Instance "dbs"
+#    <Key "*/doc_count">
+#      Type "gauge"
+#    </Key>
+#    <Key "*/doc_del_count">
+#      Type "counter"
+#    </Key>
+#    <Key "*/disk_size">
+#      Type "bytes"
+#    </Key>
+#  </URL>
 #</Plugin>
 
 #<Plugin csv>

@@ -2904,6 +2904,57 @@ AC_DEFINE_UNQUOTED(HAVE_LIBXMMS, [$with_libxmms_numeric], [Define to 1 if you ha
 AM_CONDITIONAL(BUILD_WITH_LIBXMMS, test "x$with_libxmms" = "xyes")
 # }}}
 
+# --with-libyajl {{{
+with_libyajl_cppflags=""
+with_libyajl_ldflags=""
+AC_ARG_WITH(libyajl, [AS_HELP_STRING([--with-libyajl@<:@=PREFIX@:>@], [Path to libyajl.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libyajl_cppflags="-I$withval/include"
+		with_libyajl_ldflags="-L$withval/lib"
+		with_libyajl="yes"
+	else
+		with_libyajl="$withval"
+	fi
+],
+[
+	with_libyajl="yes"
+])
+if test "x$with_libyajl" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libyajl_cppflags"
+
+	AC_CHECK_HEADERS(yajl/yajl_parse.h, [with_libyajl="yes"], [with_libyajl="no (yajl/yajl_parse.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libyajl" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libyajl_cppflags"
+	LDFLAGS="$LDFLAGS $with_libyajl_ldflags"
+
+	AC_CHECK_LIB(yajl, yajl_alloc, [with_libyajl="yes"], [with_libyajl="no (Symbol 'yajl_alloc' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libyajl" = "xyes"
+then
+	BUILD_WITH_LIBYAJL_CPPFLAGS="$with_libyajl_cppflags"
+	BUILD_WITH_LIBYAJL_LDFLAGS="$with_libyajl_ldflags"
+	BUILD_WITH_LIBYAJL_LIBS="-lyajl"
+	AC_SUBST(BUILD_WITH_LIBYAJL_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBYAJL_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBYAJL_LIBS)
+	AC_DEFINE(HAVE_LIBYAJL, 1, [Define if libyajl is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBYAJL, test "x$with_libyajl" = "xyes")
+# }}}
+
 # pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
 with_libxml2="no (pkg-config isn't available)"
 with_libxml2_cflags=""
@@ -3220,6 +3271,7 @@ plugin_ascent="no"
 plugin_battery="no"
 plugin_bind="no"
 plugin_conntrack="no"
+plugin_couchdb="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
 plugin_df="no"
@@ -3337,6 +3389,11 @@ then
 	plugin_ipmi="yes"
 fi
 
+if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"
+then
+	plugin_couchdb="yes"
+fi
+
 if test "x$have_processor_info" = "xyes"
 then
 	plugin_cpu="yes"
@@ -3440,6 +3497,7 @@ AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
+AC_PLUGIN([couchdb],     [$plugin_couchdb],    [CouchDB statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
@@ -3724,6 +3782,7 @@ Configuration:
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
     conntrack . . . . . . $enable_conntrack
+    couchdb . . . . . . . $enable_couchdb
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv

@@ -409,6 +409,106 @@ By default no detailed zone information is collected.
 
 =back
 
+=head2 Plugin C<couchdb>
+
+The couchdb plugin uses B<libcurl> (L<http://curl.haxx.se/>) and B<libyajl>
+(L<http://www.lloydforge.org/projects/yajl/>) to collect values from CouchDB
+documents (stored JSON notation).
+
+The following example will collect several values from the built-in `_stats'
+runtime statistics module (L<http://wiki.apache.org/couchdb/Runtime_Statistics>).
+
+  <Plugin couchdb>
+    <URL "http://localhost:5984/_stats">
+      Instance "httpd"
+      <Key "httpd/requests/count">
+        Type "http_requests"
+      </Key>
+
+      <Key "httpd_request_methods/*/count">
+        Type "http_request_methods"
+      </Key>
+
+      <Key "httpd_status_codes/*/count">
+        Type "http_response_codes"
+      </Key>
+    </URL>
+  </Plugin>
+
+The following example will collect the status values from each database:
+
+  <URL "http://localhost:5984/_all_dbs">
+    Instance "dbs"
+    <Key "*/doc_count">
+      Type "gauge"
+    </Key>
+    <Key "*/doc_del_count">
+      Type "counter"
+    </Key>
+    <Key "*/disk_size">
+      Type "bytes"
+    </Key>
+  </URL>
+
+In the B<Plugin> block, there may be one or more B<URL> blocks, each defining
+a URL to be fetched via HTTP (libcurl) and one or more B<Key> blocks.
+The B<Key> string argument must be in a path format, of which is used to collect
+a value from a JSON map object.  If a B<Key> path element is that of a I<*> wildcard,
+the values for all keys will be collectd.
+
+The following options are valid within B<URL> blocks:
+
+=over 4
+
+=item B<Instance> I<Instance>
+
+Sets the plugin instance to I<Instance>.
+
+=item B<User> I<Name>
+
+Username to use if authorization is required to read the page.
+
+=item B<Password> I<Password>
+
+Password to use if authorization is required to read the page.
+
+=item B<VerifyPeer> B<true>|B<false>
+
+Enable or disable peer SSL certificate verification. See
+L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
+
+=item B<VerifyHost> B<true>|B<false>
+
+Enable or disable peer host name verification. If enabled, the plugin checks if
+the C<Common Name> or a C<Subject Alternate Name> field of the SSL certificate
+matches the host name provided by the B<URL> option. If this identity check
+fails, the connection is aborted. Obviously, only works when connecting to a
+SSL enabled server. Enabled by default.
+
+=item B<CACert> I<file>
+
+File that holds one or more SSL certificates. If you want to use HTTPS you will
+possibly need this option. What CA certificates come bundled with C<libcurl>
+and are checked by default depends on the distribution you use.
+
+=back
+
+The following options are valid within B<Key> blocks:
+
+=over 4
+
+=item B<Type> I<Type>
+
+Sets the type used to dispatch the values to the daemon. Detailed information
+about types and their configuration can be found in L<types.db(5)>. This
+option is mandatory.
+
+=item B<Instance> I<Instance>
+
+Type-instance to use. Defaults to the current map key or current string array element value.
+
+=back
+
 =head2 Plugin C<cpufreq>
 
 This plugin doesn't have any options. It reads

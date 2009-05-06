@@ -45,6 +45,9 @@ files			value:GAUGE:0:U
 frequency		frequency:GAUGE:0:U
 frequency_offset	ppm:GAUGE:-1000000:1000000
 gauge			value:GAUGE:U:U
+http_requests		count:COUNTER:0:134217728
+http_request_methods	count:COUNTER:0:134217728
+http_response_codes	count:COUNTER:0:134217728
 humidity		value:GAUGE:0:100
 if_collisions		value:COUNTER:0:4294967295
 if_dropped		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295

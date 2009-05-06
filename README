@@ -43,6 +43,9 @@ Features
     - conntrack
       Number of nf_conntrack entries.
 
+    - couchdb
+      Parse statistics from CouchDB JSON documents.
+
     - cpu
       CPU utilization: Time spent in the system, user, nice, idle, and related
       states.
@@ -518,6 +521,9 @@ Prerequisites
   * libxmms (optional)
     <http://www.xmms.org/>
 
+  * libyajl (optional)
+    Parse JSON data. This is needed for the `couchdb' plugin.
+    <http://www.lloydforge.org/projects/yajl/>
 
 Configuring / Compiling / Installing
 ------------------------------------
