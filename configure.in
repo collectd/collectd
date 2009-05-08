@@ -1383,6 +1383,10 @@ then
 	AC_CHECK_LIB(gcrypt, gcry_md_hash_buffer,
 		[with_libgcrypt="yes"],
 		[with_libgcrypt="no (symbol gcry_md_hash_buffer not found)"])
+
+	if test "$with_libgcrypt" != "no"; then
+		AM_PATH_LIBGCRYPT(1:1.2.0,,with_libgcrypt="no (version 1.2.0+ required)")
+	fi
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
