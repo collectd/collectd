@@ -1444,6 +1444,11 @@ then
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_init' not found)"],
 		 [$with_mysql_libs])
+
+		AC_CHECK_LIB(mysqlclient, mysql_get_server_version,
+		 [with_libmysql="yes"],
+		 [with_libmysql="no (symbol 'mysql_get_server_version' not found)"],
+		 [$with_mysql_libs])
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
