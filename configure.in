@@ -1489,18 +1489,34 @@ if test "x$with_java" = "xyes"
 then
 	if test -d "$with_java_home"
 	then
-		if test -d "$with_java_home/include"
+		AC_MSG_CHECKING([for jni.h])
+		TMPDIR=`find -L "$with_java_home" -name jni.h -exec 'dirname' '{}' ';' | head -n 1`
+		if test "x$TMPDIR" != "x"
 		then
-			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$with_java_home/include"
+			AC_MSG_RESULT([found in $TMPDIR])
+			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$TMPDIR"
 		else
-			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$with_java_home"
+			AC_MSG_RESULT([not found])
 		fi
-		
-		if test -d "$with_java_home/lib"
+
+		AC_MSG_CHECKING([for jni_md.h])
+		TMPDIR=`find -L "$with_java_home" -name jni_md.h -exec 'dirname' '{}' ';' | head -n 1`
+		if test "x$TMPDIR" != "x"
 		then
-			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$with_java_home/lib"
+			AC_MSG_RESULT([found in $TMPDIR])
+			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$TMPDIR"
 		else
-			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$with_java_home"
+			AC_MSG_RESULT([not found])
+		fi
+
+		AC_MSG_CHECKING([for libjvm.so])
+		TMPDIR=`find -L "$with_java_home" -name libjvm.so -exec 'dirname' '{}' ';' | head -n 1`
+		if test "x$TMPDIR" != "x"
+		then
+			AC_MSG_RESULT([found in $TMPDIR])
+			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$TMPDIR"
+		else
+			AC_MSG_RESULT([not found])
 		fi
 	else if test "x$with_java_home" != "x"
 	then
