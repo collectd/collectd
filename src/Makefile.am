@@ -38,7 +38,6 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_parse_option.c utils_parse_option.h \
 		   utils_tail_match.c utils_tail_match.h \
 		   utils_match.c utils_match.h \
-		   utils_mount.c utils_mount.h \
 		   utils_subst.c utils_subst.h \
 		   utils_tail.c utils_tail.h \
 		   utils_threshold.c utils_threshold.h \
@@ -237,7 +236,7 @@ endif
 
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
-df_la_SOURCES = df.c
+df_la_SOURCES = df.c utils_mount.c utils_mount.h
 df_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" df.la
 collectd_DEPENDENCIES += df.la

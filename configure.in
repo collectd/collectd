@@ -94,8 +94,9 @@ AM_CONDITIONAL(BUILD_FEATURE_STANDARDS, test "x$enable_standards" = "xyes")
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
+AC_HEADER_STDBOOL
 
-AC_CHECK_HEADERS(stdio.h stdint.h stdbool.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h)
+AC_CHECK_HEADERS(stdio.h stdint.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h)
 
 # For ping library
 AC_CHECK_HEADERS(netinet/in_systm.h, [], [],
@@ -264,7 +265,7 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 
 # For the swap module
 have_sys_swap_h="yes"
-AC_CHECK_HEADERS(sys/swap.h, [], [have_sys_swap_h="no"],
+AC_CHECK_HEADERS(sys/swap.h vm/anon.h, [], [have_sys_swap_h="no"],
 [
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -276,7 +277,14 @@ AC_CHECK_HEADERS(sys/swap.h, [], [have_sys_swap_h="no"],
 
 if test "x$have_sys_swap_h$ac_system" = "xnoSolaris"
 then
-	AC_MSG_NOTICE([Solaris detected and sys/swap.h not found: Try building a 64bit binary.])
+	hint_64=""
+	if test "x$GCC" = "xyes"
+	then
+		hint_64="CFLAGS='-m64'"
+	else
+		hint_64="CFLAGS='-xarch=v9'"
+	fi
+	AC_MSG_NOTICE([Solaris detected and sys/swap.h not usable. Try building a 64-bit binary ($hint_64 ./configure).])
 fi
 
 # For load module
@@ -813,7 +821,6 @@ if test "x$have_getmntent" = "xc"; then
 		[c_cv_have_one_getmntent],
 		AC_COMPILE_IFELSE(
 			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include <mntent.h>
 #include "$srcdir/src/utils_mount.h"]],
 				[[
 				 FILE *fh;
@@ -830,7 +837,6 @@ if test "x$have_getmntent" = "xc"; then
 		[c_cv_have_two_getmntent],
 		AC_COMPILE_IFELSE(
 			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include <sys/mnttab.h>
 #include "$srcdir/src/utils_mount.h"]],
 				[[
 				 FILE *fh;
@@ -1694,6 +1700,11 @@ then
 		AC_CHECK_LIB(mysqlclient, mysql_init,
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_init' not found)"],
+		 [$with_mysql_libs])
+
+		AC_CHECK_LIB(mysqlclient, mysql_get_server_version,
+		 [with_libmysql="yes"],
+		 [with_libmysql="no (symbol 'mysql_get_server_version' not found)"],
 		 [$with_mysql_libs])
 	fi
 fi
@@ -3359,13 +3370,39 @@ then
 	plugin_tcpconns="yes"
 fi
 
-if test "x$have_statfs" = "xyes"
+# Df plugin: Check if we know how to determine mount points first.
+#if test "x$have_listmntent" = "xyes"; then
+#	plugin_df="yes"
+#fi
+if test "x$have_getvfsstat" = "xyes" || test "x$have_getfsstat" = "xyes"
 then
 	plugin_df="yes"
 fi
-if test "x$have_statvfs" = "xyes"
+if test "x$c_cv_have_two_getmntent" = "xyes" || test "x$have_getmntent" = "xgen" || test "x$have_getmntent" = "xsun"
 then
 	plugin_df="yes"
+fi
+#if test "x$have_getmntent" = "xseq"
+#then
+#	plugin_df="yes"
+#fi
+if test "x$c_cv_have_one_getmntent" = "xyes"
+then
+	plugin_df="yes"
+fi
+
+# Df plugin: Check if we have either `statfs' or `statvfs' second.
+if test "x$plugin_df" = "xyes"
+then
+	plugin_df="no"
+	if test "x$have_statfs" = "xyes"
+	then
+		plugin_df="yes"
+	fi
+	if test "x$have_statvfs" = "xyes"
+	then
+		plugin_df="yes"
+	fi
 fi
 
 if test "x$have_getifaddrs" = "xyes"
