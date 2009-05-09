@@ -259,7 +259,14 @@ AC_CHECK_HEADERS(sys/swap.h vm/anon.h, [], [have_sys_swap_h="no"],
 
 if test "x$have_sys_swap_h$ac_system" = "xnoSolaris"
 then
-	AC_MSG_NOTICE([Solaris detected and sys/swap.h not found: Try building a 64bit binary.])
+	hint_64=""
+	if test "x$GCC" = "xyes"
+	then
+		hint_64="CC='gcc -m64'"
+	else
+		hint_64="CC='cc -xarch=v9'"
+	fi
+	AC_MSG_NOTICE([Solaris detected and sys/swap.h not usable. Try building a 64-bit binary ($hint_64 ./configure).])
 fi
 
 # For load module
