@@ -26,6 +26,9 @@
 #if HAVE_SYS_SWAP_H
 # include <sys/swap.h>
 #endif
+#if HAVE_VM_ANON_H
+# include <vm/anon.h>
+#endif
 #if HAVE_SYS_PARAM_H
 #  include <sys/param.h>
 #endif

@@ -247,7 +247,7 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 
 # For the swap module
 have_sys_swap_h="yes"
-AC_CHECK_HEADERS(sys/swap.h, [], [have_sys_swap_h="no"],
+AC_CHECK_HEADERS(sys/swap.h vm/anon.h, [], [have_sys_swap_h="no"],
 [
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
