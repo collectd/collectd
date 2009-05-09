@@ -262,9 +262,9 @@ then
 	hint_64=""
 	if test "x$GCC" = "xyes"
 	then
-		hint_64="CC='gcc -m64'"
+		hint_64="CFLAGS='-m64'"
 	else
-		hint_64="CC='cc -xarch=v9'"
+		hint_64="CFLAGS='-xarch=v9'"
 	fi
 	AC_MSG_NOTICE([Solaris detected and sys/swap.h not usable. Try building a 64-bit binary ($hint_64 ./configure).])
 fi
