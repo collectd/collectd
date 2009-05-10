@@ -339,7 +339,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  /* Additionial sanity checks and libCURL initialization. */
+  /* Additionial sanity checks and libmemcached initialization. */
   while (status == 0)
   {
     if (page->server == NULL)
