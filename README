@@ -79,6 +79,9 @@ Features
     - filecount
       Count the number of files in directories.
 
+    - fscache
+      Linux file-system based caching framework statistics.
+
     - gmond
       Receive multicast traffic from Ganglia instances.
 
@@ -117,6 +120,9 @@ Features
     - mbmon
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
+
+    - memcachec
+      Query and parse data from a memcache daemon.
 
     - memcached
       Statistics of the memcached distributed caching system.
@@ -210,6 +216,9 @@ Features
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 
+    - table
+      Parse table-like structured files.
+
     - tail
       Follows (tails) logfiles, parses them by lines and submits matched
       values.
@@ -228,6 +237,9 @@ Features
 
     - thermal
       Linux ACPI thermal zone information.
+
+    - uptime
+      System uptime statistics.
 
     - users
       Users currently logged in.
@@ -431,6 +443,12 @@ Prerequisites
     For the `notify_email' plugin.
     <http://www.stafford.uklinux.net/libesmtp/>
 
+  * libganglia (optional)
+    Used by the `gmond' plugin to process data received from Ganglia.
+
+  * libgcrupt (optional)
+    Used by the `network' plugin for encryption and authentication.
+
   * libhal (optional)
     If present, the uuid plugin will check for UUID from HAL.
     <http://hal.freedesktop.org/>
@@ -444,6 +462,9 @@ Prerequisites
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
     used by the Java plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
+
+  * libmemcached (optional)
+    Used by the `memcachec' plugin to connect to a memcache daemon.
 
   * libmysqlclient (optional)
     Unsurprisingly used by the `mysql' plugin.
