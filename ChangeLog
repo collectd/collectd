@@ -1,4 +1,4 @@
-2009-05-01, Version 4.7.0
+2009-05-11, Version 4.7.0
 	* apache plugin: Support to query multiple servers has been added.
 	  Thanks to Amit Gupta for the patch.
 	* apache plugin: Handling of lighttpd's scoreboard statistics has been
