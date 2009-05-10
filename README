@@ -553,7 +553,10 @@ Configuring / Compiling / Installing
   will be enabled). To enable a plugin, install missing dependencies (see
   section `Prerequisites' above) and rerun `configure'. If you specify the
   `--enable-<plugin>' configure option, the script will fail if the depen-
-  dencies for the specified plugin are not met. If you specify the
+  dencies for the specified plugin are not met. In that case you can force the
+  plugin to be built using the `--enable-<plugin>=force' configure option.
+  This will most likely fail though unless you're working in a very unusual
+  setup and you really know what you're doing. If you specify the
   `--disable-<plugin>' configure option, the plugin will not be built. If you
   specify the `--enable-all-plugins' or `--disable-all-plugins' configure
   options, all plugins will be enabled or disabled respectively by default.
