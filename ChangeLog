@@ -1,3 +1,24 @@
+2009-05-09, Version 4.5.4
+	* Build system, various plugins: Many build fixes for FreeBSD,
+	  OpenBSD, NetBSD, Solaris and Mac OS X. Big thanks to Doug MacEachern
+	  for many fixes and providing a build system for many platforms,
+	  Ulf Zimmermann for providing a FreeBSD system and Simon Kuhnle for
+	  providing an OpenBSD system.
+	* collectd: Fix a potential race condition when creating directories.
+	* battery plugin: Don't complain about a missing directory every
+	  interval.
+	* dns plugin: Slight portability fixes.
+	* exec plugin: Allow executed programs to close STDERR. Thanks to
+	  Thorsten von Eicken for reporting this problem.
+	* irq plugin: Fix handling of overflowing 32-bit counters. Thanks to
+	  Tomasz Pala for the patch.
+	* perl plugin: Portability build-fixes. Thanks to Doug MacEachern for
+	  the patch.
+	* rrdtool plugin: Fix a possible race condition: If the network plugin
+	  is initialized and dispatches a value before the rrdtool plugin is
+	  initialized, the daemon may crash.
+	* memory plugin: Fix a potential problem under Solaris.
+
 2009-03-18, Version 4.6.2
 	* collectd: Some Solaris utility code has been improved.
 	* filter subsystem: Allow `Chains' without default targets.
