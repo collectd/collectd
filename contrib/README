@@ -11,6 +11,19 @@ resolution and 2200 rows (~6 hours). This will make hourly statistics much more
 interesting. Please note that no sanity- checking whatsoever is performed. You
 can seriously fuck up your RRD files if you don't know what you're doing.
 
+collectd-network.py
+-------------------
+
+  This Python module by Adrian Perez implements the collectd network protocol
+in pure Python. It currently supports to receive data and notifications from
+collectd.
+
+collectd-unixsock.py
+--------------------
+
+  This Python module by Clay Loveless provides an interface to collect's
+unixsock plugin.
+
 collectd2html.pl
 ----------------
   This script by Vincent Stehlé will search for RRD files in

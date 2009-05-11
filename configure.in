@@ -1481,6 +1481,7 @@ with_java_home="$JAVA_HOME"
 with_java_vmtype="client"
 with_java_cflags=""
 with_java_libs=""
+JAVAC="$JAVAC"
 AC_ARG_WITH(java, [AS_HELP_STRING([--with-java@<:@=PREFIX@:>@], [Path to Java home.])],
 [
 	if test "x$withval" = "xno"
@@ -1528,6 +1529,19 @@ then
 		else
 			AC_MSG_RESULT([not found])
 		fi
+
+		if test "x$JAVAC" = "x"
+		then
+			AC_MSG_CHECKING([for javac])
+			TMPDIR=`find -L "$with_java_home" -name javac | head -n 1`
+			if test "x$TMPDIR" != "x"
+			then
+				JAVAC="$TMPDIR"
+				AC_MSG_RESULT([$JAVAC])
+			else
+				AC_MSG_RESULT([not found])
+			fi
+		fi
 	else if test "x$with_java_home" != "x"
 	then
 		AC_MSG_WARN([JAVA_HOME: No such directory: $with_java_home])
@@ -1545,6 +1559,24 @@ fi
 if test "x$JAVA_LDFLAGS" != "x"
 then
 	AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
+fi
+if test "x$JAVAC" = "x"
+then
+	with_javac_path="$PATH"
+	if test "x$with_java_home" != "x"
+	then
+		with_javac_path="$with_java_home:with_javac_path"
+		if test -d "$with_java_home/bin"
+		then
+			with_javac_path="$with_java_home/bin:with_javac_path"
+		fi
+	fi
+
+	AC_PATH_PROG(JAVAC, javac, [], "$with_javac_path")
+fi
+if test "x$JAVAC" = "x"
+then
+	with_java="no (javac not found)"
 fi
 
 SAVE_CPPFLAGS="$CPPFLAGS"
@@ -3242,28 +3274,42 @@ AC_DEFUN(
   [AC_PLUGIN],
   [
     enable_plugin="no"
+    force="no"
     AC_ARG_ENABLE([$1], AC_HELP_STRING([--enable-$1], [$3]),
     [
      if test "x$enableval" = "xyes"
      then
 	     enable_plugin="yes"
-     else
-	     enable_plugin="no"
-     fi
-    ],
-    [
-     if test "x$2" = "xyes"
+     else if test "x$enableval" = "xforce"
      then
 	     enable_plugin="yes"
+	     force="yes"
      else
 	     enable_plugin="no"
-     fi
+     fi; fi
+    ],
+    [
+	 if test "x$enable_all_plugins" = "xauto"
+	 then
+	     if test "x$2" = "xyes"
+	     then
+		     enable_plugin="yes"
+	     else
+		     enable_plugin="no"
+	     fi
+	 else
+	     enable_plugin="$enable_all_plugins"
+	 fi
     ])
     if test "x$enable_plugin" = "xyes"
     then
-	    if test "x$2" = "xyes"
+	    if test "x$2" = "xyes" || test "x$force" = "xyes"
 	    then
 		    AC_DEFINE([HAVE_PLUGIN_]my_toupper([$1]), 1, [Define to 1 if the $1 plugin is enabled.])
+		    if test "x$2" != "xyes"
+		    then
+			    dependency_warning="yes"
+		    fi
 	    else # User passed "yes" but dependency checking yielded "no" => Dependency problem.
 		    dependency_error="yes"
 		    enable_plugin="no (dependency error)"
@@ -3281,7 +3327,9 @@ AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
+dependency_warning="no"
 dependency_error="no"
+
 plugin_ascent="no"
 plugin_battery="no"
 plugin_bind="no"
@@ -3531,6 +3579,24 @@ fi
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
+AC_ARG_ENABLE([all-plugins],
+		AC_HELP_STRING([--enable-all-plugins],
+				[enable all plugins (auto by def)]),
+		[
+		 if test "x$enableval" = "xyes"
+		 then
+			 enable_all_plugins="yes"
+		 else if test "x$enableval" = "xauto"
+		 then
+			 enable_all_plugins="auto"
+		 else
+			 enable_all_plugins="no"
+		 fi; fi
+		],
+		[enable_all_plugins="auto"])
+
+m4_divert_once([HELP_ENABLE], [])
+
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
@@ -3551,6 +3617,7 @@ AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
+AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
@@ -3574,7 +3641,6 @@ AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
-AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
@@ -3749,7 +3815,7 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/lcc_features.h)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"
@@ -3836,6 +3902,7 @@ Configuration:
     entropy . . . . . . . $enable_entropy
     exec  . . . . . . . . $enable_exec
     filecount . . . . . . $enable_filecount
+    fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
@@ -3859,7 +3926,6 @@ Configuration:
     netlink . . . . . . . $enable_netlink
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
-    fscache . . . . . . . $enable_fscache
     nginx . . . . . . . . $enable_nginx
     notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
@@ -3903,7 +3969,11 @@ Configuration:
 EOF
 
 if test "x$dependency_error" = "xyes"; then
-	AC_MSG_ERROR("Some plugins are missing dependencies - see above summary for details")
+	AC_MSG_ERROR("Some plugins are missing dependencies - see the summary above for details")
+fi
+
+if test "x$dependency_warning" = "xyes"; then
+	AC_MSG_WARN("Some plugins seem to have missing dependencies but have been enabled forcibly - see the summary above for details")
 fi
 
 # vim: set fdm=marker :

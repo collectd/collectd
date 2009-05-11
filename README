@@ -82,6 +82,9 @@ Features
     - filecount
       Count the number of files in directories.
 
+    - fscache
+      Linux file-system based caching framework statistics.
+
     - gmond
       Receive multicast traffic from Ganglia instances.
 
@@ -120,6 +123,9 @@ Features
     - mbmon
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
+
+    - memcachec
+      Query and parse data from a memcache daemon (memcached).
 
     - memcached
       Statistics of the memcached distributed caching system.
@@ -213,6 +219,9 @@ Features
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 
+    - table
+      Parse table-like structured files.
+
     - tail
       Follows (tails) logfiles, parses them by lines and submits matched
       values.
@@ -231,6 +240,9 @@ Features
 
     - thermal
       Linux ACPI thermal zone information.
+
+    - uptime
+      System uptime statistics.
 
     - users
       Users currently logged in.
@@ -434,6 +446,12 @@ Prerequisites
     For the `notify_email' plugin.
     <http://www.stafford.uklinux.net/libesmtp/>
 
+  * libganglia (optional)
+    Used by the `gmond' plugin to process data received from Ganglia.
+
+  * libgcrypt (optional)
+    Used by the `network' plugin for encryption and authentication.
+
   * libhal (optional)
     If present, the uuid plugin will check for UUID from HAL.
     <http://hal.freedesktop.org/>
@@ -447,6 +465,9 @@ Prerequisites
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
     used by the Java plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
+
+  * libmemcached (optional)
+    Used by the `memcachec' plugin to connect to a memcache daemon.
 
   * libmysqlclient (optional)
     Unsurprisingly used by the `mysql' plugin.
@@ -538,10 +559,16 @@ Configuring / Compiling / Installing
   will be enabled). To enable a plugin, install missing dependencies (see
   section `Prerequisites' above) and rerun `configure'. If you specify the
   `--enable-<plugin>' configure option, the script will fail if the depen-
-  dencies for the specified plugin are not met. If you specify the
-  `--disable-<plugin>' configure option, the plugin will not be built. Both
-  options are meant for package maintainers and should not be used in everyday
-  situations.
+  dencies for the specified plugin are not met. In that case you can force the
+  plugin to be built using the `--enable-<plugin>=force' configure option.
+  This will most likely fail though unless you're working in a very unusual
+  setup and you really know what you're doing. If you specify the
+  `--disable-<plugin>' configure option, the plugin will not be built. If you
+  specify the `--enable-all-plugins' or `--disable-all-plugins' configure
+  options, all plugins will be enabled or disabled respectively by default.
+  Explicitly enabling or disabling a plugin overwrites the default for the
+  specified plugin. These options are meant for package maintainers and should
+  not be used in everyday situations.
 
   By default, collectd will be installed into `/opt/collectd'. You can adjust
   this setting by specifying the `--prefix' configure option - see INSTALL for
