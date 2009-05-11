@@ -317,6 +317,19 @@ FQDNLookup   true
 #	Port "411"
 #</Plugin>
 
+#<Plugin memcachec>
+#	<Page "plugin_instance">
+#		Server "localhost"
+#		Key "page_key"
+#		<Match>
+#			Regex "(\\d+) bytes sent"
+#			DSType CounterAdd
+#			Type "ipt_octets"
+#			Instance "type_instance"
+#		</Match>
+#	</Page>
+#</Plugin>
+
 #<Plugin memcached>
 #	Host "127.0.0.1"
 #	Port "11211"
@@ -563,20 +576,20 @@ FQDNLookup   true
 #</Plugin>
 
 #<Plugin "table">
-#	<Table"/proc/slabinfo">
-#		Instance"slabinfo"
-#		Separator""
+#	<Table "/proc/slabinfo">
+#		Instance "slabinfo"
+#		Separator " "
 #		<Result>
-#			Typegauge
-#			InstancePrefix"active_objs"
-#			InstancesFrom0
-#			ValuesFrom1
+#			Type gauge
+#			InstancePrefix "active_objs"
+#			InstancesFrom 0
+#			ValuesFrom 1
 #		</Result>
 #		<Result>
-#			Typegauge
-#			InstancePrefix"objperslab"
-#			InstancesFrom0
-#			ValuesFrom4
+#			Type gauge
+#			InstancePrefix "objperslab"
+#			InstancesFrom 0
+#			ValuesFrom 4
 #		</Result>
 #	</Table>
 #</Plugin>
