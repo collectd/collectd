@@ -446,7 +446,7 @@ Prerequisites
   * libganglia (optional)
     Used by the `gmond' plugin to process data received from Ganglia.
 
-  * libgcrupt (optional)
+  * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
 
   * libhal (optional)
