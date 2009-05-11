@@ -1,5 +1,10 @@
-EXTRA_DIST = java/org/collectd/java/*.java java/org/collectd/api/*.java \
-		perl/Collectd.pm perl/Makefile.PL perl/Collectd/Makefile.PL \
+SUBDIRS =
+
+if BUILD_WITH_JAVA
+SUBDIRS += java
+endif
+
+EXTRA_DIST = perl/Collectd.pm perl/Makefile.PL perl/Collectd/Makefile.PL \
 		perl/Collectd/Unixsock.pm
 
 all-local: @PERL_BINDINGS@

@@ -1481,6 +1481,7 @@ with_java_home="$JAVA_HOME"
 with_java_vmtype="client"
 with_java_cflags=""
 with_java_libs=""
+JAVAC="$JAVAC"
 AC_ARG_WITH(java, [AS_HELP_STRING([--with-java@<:@=PREFIX@:>@], [Path to Java home.])],
 [
 	if test "x$withval" = "xno"
@@ -1528,6 +1529,19 @@ then
 		else
 			AC_MSG_RESULT([not found])
 		fi
+
+		if test "x$JAVAC" = "x"
+		then
+			AC_MSG_CHECKING([for javac])
+			TMPDIR=`find -L "$with_java_home" -name javac | head -n 1`
+			if test "x$TMPDIR" != "x"
+			then
+				JAVAC="$TMPDIR"
+				AC_MSG_RESULT([$JAVAC])
+			else
+				AC_MSG_RESULT([not found])
+			fi
+		fi
 	else if test "x$with_java_home" != "x"
 	then
 		AC_MSG_WARN([JAVA_HOME: No such directory: $with_java_home])
@@ -1545,6 +1559,24 @@ fi
 if test "x$JAVA_LDFLAGS" != "x"
 then
 	AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
+fi
+if test "x$JAVAC" = "x"
+then
+	with_javac_path="$PATH"
+	if test "x$with_java_home" != "x"
+	then
+		with_javac_path="$with_java_home:with_javac_path"
+		if test -d "$with_java_home/bin"
+		then
+			with_javac_path="$with_java_home/bin:with_javac_path"
+		fi
+	fi
+
+	AC_PATH_PROG(JAVAC, javac, [], "$with_javac_path")
+fi
+if test "x$JAVAC" = "x"
+then
+	with_java="no (javac not found)"
 fi
 
 SAVE_CPPFLAGS="$CPPFLAGS"
@@ -3691,7 +3723,7 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/lcc_features.h)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"
