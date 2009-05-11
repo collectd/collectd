@@ -1355,6 +1355,57 @@ TCP-Port to connect to. Defaults to B<411>.
 
 =back
 
+=head2 Plugin C<memcachec>
+
+The C<memcachec plugin> connects to a memcached server, queries one or more
+given I<pages> and parses the returned data according to user specification.
+The I<matches> used are the same as the matches used in the C<curl> and C<tail>
+plugins.
+
+In order to talk to the memcached server, this plugin uses the I<libmemcached>
+library. Please note that there is another library with a very similar name,
+libmemcache (notice the missing `d'), which is not applicable.
+
+Synopsis of the configuration:
+
+ <Plugin "memcachec">
+   <Page "plugin_instance">
+     Server "localhost"
+     Key "page_key"
+     <Match>
+       Regex "(\\d+) bytes sent"
+       DSType CounterAdd
+       Type "ipt_octets"
+       Instance "type_instance"
+     </Match>
+   </Page>
+ </Plugin>
+
+The configuration options are:
+
+=over 4
+
+=item E<lt>B<Page> I<Name>E<gt>
+
+Each B<Page> block defines one I<page> to be queried from the memcached server.
+The block requires one string argument which is used as I<plugin instance>.
+
+=item B<Server> I<Address>
+
+Sets the server address to connect to when querying the page. Must be inside a
+B<Page> block.
+
+=item B<Key> I<Key>
+
+When connected to the memcached server, asks for the page I<Key>.
+
+=item E<lt>B<Match>E<gt>
+
+Match blocks define which strings to look for and how matches substrings are
+interpreted. For a description of match blocks, please see L<"Plugin tail">.
+
+=back
+
 =head2 Plugin C<memcached>
 
 The C<memcached plugin> connects to a memcached server and queries statistics

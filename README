@@ -122,7 +122,7 @@ Features
       using mbmon(1).
 
     - memcachec
-      Query and parse data from a memcache daemon.
+      Query and parse data from a memcache daemon (memcached).
 
     - memcached
       Statistics of the memcached distributed caching system.
