@@ -3646,6 +3646,7 @@ AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
+AC_PLUGIN([olsrd],       [yes],                [olsrd statistics])
 AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
@@ -3931,6 +3932,7 @@ Configuration:
     notify_email  . . . . $enable_notify_email
     ntpd  . . . . . . . . $enable_ntpd
     nut . . . . . . . . . $enable_nut
+    olsrd . . . . . . . . $enable_olsrd
     onewire . . . . . . . $enable_onewire
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle
