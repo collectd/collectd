@@ -2,6 +2,25 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(collectd, m4_esyscmd(./version-gen.sh))
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
+
+m4_ifdef([LT_PACKAGE_VERSION],
+	# libtool >= 2.2
+	[
+	 LT_CONFIG_LTDL_DIR([libltdl])
+	 LT_INIT([dlopen])
+	 LTDL_INIT([convenience])
+	]
+,
+	# libtool <= 1.5
+	[
+	 AC_LIBLTDL_CONVENIENCE
+	 AC_SUBST(LTDLINCL)
+	 AC_SUBST(LIBLTDL)
+	 AC_LIBTOOL_DLOPEN
+	 AC_CONFIG_SUBDIRS(libltdl)
+	]
+)
+
 AM_INIT_AUTOMAKE(dist-bzip2)
 AC_LANG(C)
 
@@ -20,17 +39,11 @@ AC_PROG_MAKE_SET
 AM_PROG_CC_C_O
 AM_CONDITIONAL(COMPILER_IS_GCC, test "x$GCC" = "xyes")
 
-dnl configure libtool
 AC_DISABLE_STATIC
-AC_LIBLTDL_CONVENIENCE
-AC_SUBST(LTDLINCL)
-AC_SUBST(LIBLTDL)
-AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 AC_PROG_LEX
 AC_PROG_YACC
 PKG_PROG_PKG_CONFIG
-AC_CONFIG_SUBDIRS(libltdl)
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
