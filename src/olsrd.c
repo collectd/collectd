@@ -209,6 +209,31 @@ static FILE *olsrd_connect (void) /* {{{ */
   return (fh);
 } /* }}} FILE *olsrd_connect */
 
+__attribute__ ((nonnull(2)))
+static void olsrd_submit (const char *plugin_instance, /* {{{ */
+    const char *type, const char *type_instance, gauge_t value)
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  values[0].gauge = value;
+
+  vl.values = values;
+  vl.values_len = 1;
+
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "olsrd", sizeof (vl.plugin));
+  if (plugin_instance != NULL)
+    sstrncpy (vl.plugin_instance, plugin_instance,
+        sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, type, sizeof (vl.type));
+  if (type_instance != NULL)
+    sstrncpy (vl.type_instance, type_instance,
+        sizeof (vl.type_instance));
+
+  plugin_dispatch_values (&vl);
+} /* }}} void olsrd_submit */
+
 static int olsrd_cb_ignore (int lineno, /* {{{ */
     size_t fields_num, char **fields)
 {
@@ -232,7 +257,6 @@ static int olsrd_cb_links (int lineno, /* {{{ */
   static double   nlq_sum;
   static uint32_t nlq_num;
 
-  char link_name[DATA_MAX_NAME_LEN];
   double lq;  /* tx */
   double nlq; /* rx */
 
@@ -256,17 +280,23 @@ static int olsrd_cb_links (int lineno, /* {{{ */
   /* Special handling of the last line. */
   if (fields_num == 0)
   {
-    DEBUG ("olsrd plugin: fields_num = %"PRIu32";", links_num);
+    DEBUG ("olsrd plugin: Number of links: %"PRIu32, links_num);
+    olsrd_submit (/* p.-inst = */ "links", /* type = */ "links",
+        /* t.-inst = */ NULL, (gauge_t) links_num);
 
     lq = NAN;
     if (lq_num > 0)
       lq = lq_sum / ((double) lq_num);
     DEBUG ("olsrd plugin: Average  LQ: %g", lq);
+    olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
+        "average-tx", lq);
 
     nlq = NAN;
     if (nlq_num > 0)
       nlq = nlq_sum / ((double) nlq_num);
     DEBUG ("olsrd plugin: Average NLQ: %g", nlq);
+    olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
+        "average-rx", nlq);
 
     return (0);
   }
@@ -275,9 +305,6 @@ static int olsrd_cb_links (int lineno, /* {{{ */
     return (-1);
 
   links_num++;
-
-  memset (link_name, 0, sizeof (link_name));
-  ssnprintf (link_name, sizeof (link_name), "%s-%s", fields[0], fields[1]);
 
   errno = 0;
   endptr = NULL;
@@ -296,7 +323,15 @@ static int olsrd_cb_links (int lineno, /* {{{ */
 
     if (config_want_links == OLSRD_WANT_DETAIL)
     {
-      DEBUG ("olsrd plugin: %s:  LQ = %g.", link_name, lq);
+      char type_instance[DATA_MAX_NAME_LEN];
+
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-tx",
+          fields[0], fields[1]);
+
+      DEBUG ("olsrd plugin: links: type_instance = %s;  lq = %g;",
+          type_instance, lq);
+      olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
+          type_instance, lq);
     }
   }
 
@@ -317,7 +352,15 @@ static int olsrd_cb_links (int lineno, /* {{{ */
 
     if (config_want_links == OLSRD_WANT_DETAIL)
     {
-      DEBUG ("olsrd plugin: %s: NLQ = %g.", link_name, lq);
+      char type_instance[DATA_MAX_NAME_LEN];
+
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-rx",
+          fields[0], fields[1]);
+
+      DEBUG ("olsrd plugin: links: type_instance = %s; nlq = %g;",
+          type_instance, lq);
+      olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
+          type_instance, nlq);
     }
   }
 
@@ -334,9 +377,9 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
    *  3 = ETX
    *  4 = Interface */
 
+  static uint32_t routes_num;
   static uint32_t metric_sum;
   static uint32_t metric_num;
-
   static double   etx_sum;
   static uint32_t etx_num;
 
@@ -350,8 +393,12 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
   /* Special handling of the first line */
   if (lineno <= 0)
   {
+    routes_num = 0;
     metric_num = 0;
     metric_sum = 0;
+    etx_sum = 0.0;
+    etx_num = 0;
+
     return (0);
   }
 
@@ -360,21 +407,31 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
   {
     double metric_avg;
 
+    DEBUG ("olsrd plugin: Number of routes: %"PRIu32, routes_num);
+    olsrd_submit (/* p.-inst = */ "routes", /* type = */ "routes",
+        /* t.-inst = */ NULL, (gauge_t) routes_num);
+
     metric_avg = NAN;
     if (metric_num > 0)
       metric_avg = ((double) metric_sum) / ((double) metric_num);
+    DEBUG ("olsrd plugin: Average metric: %g", metric_avg);
+    olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_metric",
+        "average", metric_avg);
 
     etx = NAN;
     if (etx_num > 0)
       etx = etx_sum / ((double) etx_sum);
+    DEBUG ("olsrd plugin: Average ETX: %g", etx);
+    olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_etx",
+        "average", etx);
 
-    DEBUG ("olsrd plugin: Number of routes: %"PRIu32"; Average metric: %g",
-        metric_num, metric_avg);
     return (0);
   }
 
   if (fields_num != 5)
     return (-1);
+
+  routes_num++;
 
   errno = 0;
   endptr = NULL;
@@ -390,7 +447,10 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
 
     if (config_want_routes == OLSRD_WANT_DETAIL)
     {
-      DEBUG ("olsrd plugin: Route with metric %"PRIu32".", metric);
+      DEBUG ("olsrd plugin: destination = %s; metric = %"PRIu32";",
+          fields[0], metric);
+      olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_metric",
+          /* t.-inst = */ fields[0], (gauge_t) metric);
     }
   }
 
@@ -411,7 +471,10 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
 
     if (config_want_routes == OLSRD_WANT_DETAIL)
     {
-      DEBUG ("olsrd plugin: Route with ETX %g.", etx);
+      DEBUG ("olsrd plugin: destination = %s; etx = %g;",
+          fields[0], etx);
+      olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_etx",
+          /* t.-inst = */ fields[0], etx);
     }
   }
 
@@ -433,7 +496,6 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
 
   static uint32_t links_num;
 
-  char link_name[DATA_MAX_NAME_LEN];
   double lq;
   char *endptr;
 
@@ -453,12 +515,16 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
   /* Special handling after the last line */
   if (fields_num == 0)
   {
+    DEBUG ("olsrd plugin: topology: Number of links: %"PRIu32, links_num);
+    olsrd_submit (/* p.-inst = */ "topology", /* type = */ "links",
+        /* t.-inst = */ NULL, (gauge_t) links_num);
+
     lq = NAN;
     if (lq_num > 0)
       lq = lq_sum / ((double) lq_sum);
-
-    DEBUG ("olsrd plugin: Number of links: %"PRIu32, links_num);
-    DEBUG ("olsrd plugin: Average link quality: %g", lq);
+    DEBUG ("olsrd plugin: topology: Average link quality: %g", lq);
+    olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
+        /* t.-inst = */ "average", lq);
 
     return (0);
   }
@@ -466,8 +532,6 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
   if (fields_num != 5)
     return (-1);
 
-  memset (link_name, 0, sizeof (link_name));
-  ssnprintf (link_name, sizeof (link_name), "%s-%s", fields[0], fields[1]);
   links_num++;
 
   errno = 0;
@@ -487,7 +551,14 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
 
     if (config_want_topology == OLSRD_WANT_DETAIL)
     {
-      DEBUG ("olsrd plugin: link_name = %s; lq = %g;", link_name, lq);
+      char type_instance[DATA_MAX_NAME_LEN];
+
+      memset (type_instance, 0, sizeof (type_instance));
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-rx",
+          fields[0], fields[1]);
+      DEBUG ("olsrd plugin: type_instance = %s; lq = %g;", type_instance, lq);
+      olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
+          type_instance, lq);
     }
   }
 
@@ -504,7 +575,14 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
     }
     else
     {
-      DEBUG ("olsrd plugin: link_name = %s; nlq = %g;", link_name, nlq);
+      char type_instance[DATA_MAX_NAME_LEN];
+
+      memset (type_instance, 0, sizeof (type_instance));
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-tx",
+          fields[0], fields[1]);
+      DEBUG ("olsrd plugin: type_instance = %s; nlq = %g;", type_instance, nlq);
+      olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
+          type_instance, nlq);
     }
   }
 
