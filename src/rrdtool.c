@@ -1007,7 +1007,12 @@ static int rrd_shutdown (void)
 
 static int rrd_init (void)
 {
+	static int init_once = 0;
 	int status;
+
+	if (init_once != 0)
+		return (0);
+	init_once = 1;
 
 	if (rrdcreate_config.stepsize < 0)
 		rrdcreate_config.stepsize = 0;
