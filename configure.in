@@ -3777,6 +3777,11 @@ else
 	enable_perl="no (needs libperl)"
 fi
 
+if test "x$enable_perl" = "xno" && test "x$c_cv_have_perl_ithreads" = "xno"
+then
+	enable_perl="no (libperl doesn't support ithreads)"
+fi
+
 if test "x$with_perl_bindings" = "xyes" \
 	&& test "x$PERL_BINDINGS_OPTIONS" != "x"
 then
