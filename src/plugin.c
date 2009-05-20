@@ -1257,6 +1257,9 @@ int plugin_dispatch_values (value_list_t *vl)
 	/* Update the value cache */
 	uc_update (ds, vl);
 
+	/* Initiate threshold checking */
+	ut_check_threshold (ds, vl);
+
 	if (post_cache_chain != NULL)
 	{
 		status = fc_process_chain (ds, vl, post_cache_chain);

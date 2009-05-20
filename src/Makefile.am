@@ -1016,7 +1016,7 @@ dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
 		collectd-exec.5 \
-		collectd-java.5
+		collectd-java.5 \
 		collectdmon.1 \
 		collectd-nagios.1 \
 		collectd-perl.5 \
