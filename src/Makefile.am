@@ -653,6 +653,18 @@ collectd_LDADD += "-dlopen" nut.la
 collectd_DEPENDENCIES += nut.la
 endif
 
+if BUILD_PLUGIN_OLSRD
+pkglib_LTLIBRARIES += olsrd.la
+olsrd_la_SOURCES = olsrd.c
+olsrd_la_LDFLAGS = -module -avoid-version
+olsrd_la_LIBADD = 
+if BUILD_WITH_LIBSOCKET
+olsrd_la_LIBADD += -lsocket
+endif
+collectd_LDADD += "-dlopen" olsrd.la
+collectd_DEPENDENCIES += olsrd.la
+endif
+
 if BUILD_PLUGIN_ONEWIRE
 pkglib_LTLIBRARIES += onewire.la
 onewire_la_SOURCES = onewire.c

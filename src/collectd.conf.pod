@@ -2002,6 +2002,55 @@ L<upsc(8)>.
 
 =back
 
+=head2 Plugin C<olsrd>
+
+The I<olsrd> plugin connects to the TCP port opened by the I<txtinfo> plugin of
+the Optimized Link State Routing daemon and reads information about the current
+state of the meshed network.
+
+The following configuration options are understood:
+
+=over 4
+
+=item B<Host> I<Host>
+
+Connect to I<Host>. Defaults to B<"localhost">.
+
+=item B<Port> I<Port>
+
+Specifies the port to connect to. This must be a string, even if you give the
+port as a number rather than a service name. Defaults to B<"2006">.
+
+=item B<CollectLinks> B<No>|B<Summary>|B<Detail>
+
+Specifies what information to collect about links, i.E<nbsp>e. direct
+connections of the daemon queried. If set to B<No>, no information is
+collected. If set to B<Summary>, the number of links and the average of all
+I<link quality> (LQ) and I<neighbor link quality> (NLQ) values is calculated.
+If set to B<Detail> LQ and NLQ are collected per link.
+
+Defaults to B<Detail>.
+
+=item B<CollectRoutes> B<No>|B<Summary>|B<Detail>
+
+Specifies what information to collect about routes of the daemon queried. If
+set to B<No>, no information is collected. If set to B<Summary>, the number of
+routes and the average I<metric> and I<ETX> is calculated. If set to B<Detail>
+metric and ETX are collected per route.
+
+Defaults to B<Summary>.
+
+=item B<CollectTopology> B<No>|B<Summary>|B<Detail>
+
+Specifies what information to collect about the global topology. If set to
+B<No>, no information is collected. If set to B<Summary>, the number of links
+in the entire topology and the average I<link quality> (LQ) is calculated.
+If set to B<Detail> LQ and NLQ are collected for each link in the entire topology.
+
+Defaults to B<Summary>.
+
+=back
+
 =head2 Plugin C<onewire>
 
 B<EXPERIMENTAL!> See notes below.
