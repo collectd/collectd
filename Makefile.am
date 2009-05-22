@@ -1,3 +1,5 @@
+ACLOCAL_AMFLAGS = -I libltdl/m4
+
 SUBDIRS = libltdl src bindings
 
 INCLUDES = $(LTDLINCL)
