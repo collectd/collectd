@@ -257,8 +257,8 @@ static int olsrd_cb_links (int lineno, /* {{{ */
   static double   nlq_sum;
   static uint32_t nlq_num;
 
-  double lq;  /* tx */
-  double nlq; /* rx */
+  double lq;
+  double nlq;
 
   char *endptr;
 
@@ -289,14 +289,14 @@ static int olsrd_cb_links (int lineno, /* {{{ */
       lq = lq_sum / ((double) lq_num);
     DEBUG ("olsrd plugin: Average  LQ: %g", lq);
     olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
-        "average-tx", lq);
+        "average-lq", lq);
 
     nlq = NAN;
     if (nlq_num > 0)
       nlq = nlq_sum / ((double) nlq_num);
     DEBUG ("olsrd plugin: Average NLQ: %g", nlq);
     olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
-        "average-rx", nlq);
+        "average-nlq", nlq);
 
     return (0);
   }
@@ -325,7 +325,7 @@ static int olsrd_cb_links (int lineno, /* {{{ */
     {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-tx",
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-lq",
           fields[0], fields[1]);
 
       DEBUG ("olsrd plugin: links: type_instance = %s;  lq = %g;",
@@ -554,7 +554,7 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
       char type_instance[DATA_MAX_NAME_LEN];
 
       memset (type_instance, 0, sizeof (type_instance));
-      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-rx",
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-lq",
           fields[0], fields[1]);
       DEBUG ("olsrd plugin: type_instance = %s; lq = %g;", type_instance, lq);
       olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
@@ -578,7 +578,7 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
       char type_instance[DATA_MAX_NAME_LEN];
 
       memset (type_instance, 0, sizeof (type_instance));
-      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-tx",
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s-nlq",
           fields[0], fields[1]);
       DEBUG ("olsrd plugin: type_instance = %s; nlq = %g;", type_instance, nlq);
       olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
