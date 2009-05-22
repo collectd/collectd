@@ -95,6 +95,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
+#@BUILD_PLUGIN_OLSRD_TRUE@LoadPlugin olsrd
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
@@ -436,6 +437,14 @@ FQDNLookup   true
 
 #<Plugin nut>
 #	UPS "upsname@hostname:port"
+#</Plugin>
+
+#<Plugin olsrd>
+#	Host "127.0.0.1"
+#	Port "2006"
+#	CollectLinks "Summary"
+#	CollectRoutes "Summary"
+#	CollectTopology "Summary"
 #</Plugin>
 
 #<Plugin onewire>
