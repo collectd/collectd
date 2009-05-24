@@ -24,8 +24,10 @@
 #include "plugin.h"
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #define OLSRD_DEFAULT_NODE "localhost"
 #define OLSRD_DEFAULT_SERVICE "2006"
