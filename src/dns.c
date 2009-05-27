@@ -182,7 +182,7 @@ static void dns_child_callback (const rfc1035_header_t *dns)
 		int skip = 0;
 		if (!select_numeric_qtype)
 		{
-			char *str = qtype_str(dns->qtype);
+			const char *str = qtype_str(dns->qtype);
 			if ((str == NULL) || (str[0] == '#'))
 				skip = 1;
 		}
