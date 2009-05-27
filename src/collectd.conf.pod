@@ -2552,39 +2552,6 @@ This optional setting sets the type instance to use.
 
 =back
 
-=head2 Plugin C<teamspeak2>
-
-The C<teamspeak2 plugin> connects to the query port of a teamspeak2 server and
-polls interesting global and virtual server data. The plugin can query only one
-physical server but unlimited virtual servers. You can use the following
-options to configure it:
-
-=over 4
-
-=item B<Host> I<hostname/ip>
-
-The hostname or ip which identifies the physical server.
-Default: 127.0.0.1
-
-=item B<Port> I<port>
-
-The query port of the physical server. This needs to be a string.
-Default: "51234"
-
-=item B<Server> I<port>
-
-This option has to be added once for every virtual server the plugin should
-query. If you want to query the virtual server on port 8767 this is what the
-option would look like:
-
-  Server "8767"
-
-This option, although numeric, needs to be a string, i.E<nbsp>e. you B<must>
-use quotes around it! If no such statement is given only global information
-will be collected.
-
-=back
-
 =head2 Plugin C<tcpconns>
 
 The C<tcpconns plugin> counts the number of currently established TCP
@@ -2620,6 +2587,39 @@ connections a local service has opened to remote services, e.E<nbsp>g. how many
 connections a mail server or news server has to other mail or news servers, or
 how many connections a web proxy holds to web servers. You have to give the
 port in numeric form.
+
+=back
+
+=head2 Plugin C<teamspeak2>
+
+The C<teamspeak2 plugin> connects to the query port of a teamspeak2 server and
+polls interesting global and virtual server data. The plugin can query only one
+physical server but unlimited virtual servers. You can use the following
+options to configure it:
+
+=over 4
+
+=item B<Host> I<hostname/ip>
+
+The hostname or ip which identifies the physical server.
+Default: 127.0.0.1
+
+=item B<Port> I<port>
+
+The query port of the physical server. This needs to be a string.
+Default: "51234"
+
+=item B<Server> I<port>
+
+This option has to be added once for every virtual server the plugin should
+query. If you want to query the virtual server on port 8767 this is what the
+option would look like:
+
+  Server "8767"
+
+This option, although numeric, needs to be a string, i.E<nbsp>e. you B<must>
+use quotes around it! If no such statement is given only global information
+will be collected.
 
 =back
 
