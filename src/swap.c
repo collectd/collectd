@@ -19,6 +19,16 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+#if HAVE_CONFIG_H
+# include "config.h"
+# undef HAVE_CONFIG_H
+#endif
+/* avoid swap.h error "Cannot use swapctl in the large files compilation environment" */
+#if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
+#  undef _FILE_OFFSET_BITS
+#  undef _LARGEFILE64_SOURCE
+#endif
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
