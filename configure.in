@@ -3814,6 +3814,7 @@ Configuration:
     libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
+    libmemcached  . . . . $with_libmemcached
     libmysql  . . . . . . $with_libmysql
     libnetlink  . . . . . $with_libnetlink
     libnetsnmp  . . . . . $with_libnetsnmp
