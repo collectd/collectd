@@ -921,6 +921,10 @@ may not work on certain platforms, such as MacE<nbsp>OSE<nbsp>X.
 
 Ignore packets that originate from this address.
 
+=item B<SelectNumericQueryTypes> B<true>|B<false>
+
+Enabled by default, collects unknown (and thus presented as numeric only) query types.
+
 =back
 
 =head2 Plugin C<email>
