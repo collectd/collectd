@@ -599,7 +599,7 @@ static int rrd_cache_flush_identifier (int timeout, const char *identifier)
   status = c_avl_get (cache, key, (void *) &rc);
   if (status != 0)
   {
-    WARNING ("rrdtool plugin: rrd_cache_flush_identifier: "
+    INFO ("rrdtool plugin: rrd_cache_flush_identifier: "
         "c_avl_get (%s) failed. Does that file really exist?",
         key);
     return (status);
