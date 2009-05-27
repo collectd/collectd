@@ -1821,7 +1821,7 @@ L<http://www.postgresql.org/docs/manuals/>.
 The B<Query> block defines one database query which may later be used by a
 database definition. It accepts a single mandatory argument which specifies
 the name of the query. The names of all queries have to be unique (see the
-B<MinPGVersion> and B<MaxPGVersion> options below for an exception to this
+B<MinVersion> and B<MaxVersion> options below for an exception to this
 rule). The following configuration options are available to define the query:
 
 In each B<Query> block, there is one or more B<Result> blocks. B<Result>
@@ -1940,9 +1940,9 @@ The order of the B<Column> options defines which columns of the query result
 should be used. The first option specifies the data found in the first column,
 the second option that of the second column, and so on.
 
-=item B<MinPGVersion> I<version>
+=item B<MinVersion> I<version>
 
-=item B<MaxPGVersion> I<version>
+=item B<MaxVersion> I<version>
 
 Specify the minimum or maximum version of PostgreSQL that this query should be
 used with. Some statistics might only be available with certain versions of
@@ -1953,6 +1953,13 @@ configuration in a heterogeneous environment.
 The I<version> has to be specified as the concatenation of the major, minor
 and patch-level versions, each represented as two-decimal-digit numbers. For
 example, version 8.2.3 will become 80203.
+
+=item B<MinPGVersion> I<version>
+
+=item B<MaxPGVersion> I<version>
+
+These are deprecated synonyms for B<MinVersion> and B<MaxVersion>
+respectively. They will be removed in version 5 of collectd.
 
 =back
 
