@@ -303,13 +303,13 @@ int uc_check_timeout (void)
       sfree (key);
       cache_free (ce);
     }
-    else if (status == 1) /* persist */
+    else if (status == 2) /* persist */
     {
       DEBUG ("uc_check_timeout: %s is missing, sending notification.",
 	  keys[i]);
       ce->state = STATE_MISSING;
     }
-    else if (status == 2) /* do not persist */
+    else if (status == 1) /* do not persist */
     {
       if (ce->state == STATE_MISSING)
       {

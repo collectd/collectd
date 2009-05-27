@@ -280,6 +280,8 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 have_sys_swap_h="yes"
 AC_CHECK_HEADERS(sys/swap.h vm/anon.h, [], [have_sys_swap_h="no"],
 [
+#undef _FILE_OFFSET_BITS
+#undef _LARGEFILE64_SOURCE
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
