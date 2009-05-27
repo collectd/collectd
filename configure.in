@@ -3891,6 +3891,7 @@ Configuration:
     libvirt . . . . . . . $with_libvirt
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
+    libyajl . . . . . . . $with_libyajl
     oracle  . . . . . . . $with_oracle
 
   Features:
