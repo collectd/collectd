@@ -2179,6 +2179,15 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
   class->class = NULL;
   class->object = NULL;
 
+  { /* Replace all dots ('.') with slashes ('/'). Dots are usually used
+       thorough the Java community, but (Sun's) `FindClass' and friends need
+       slashes. */
+    size_t i;
+    for (i = 0; class->name[i] != 0; i++)
+      if (class->name[i] == '.')
+        class->name[i] = '/';
+  }
+
   DEBUG ("java plugin: Loading class %s", class->name);
 
   class->class = (*jvm_env)->FindClass (jvm_env, class->name);
