@@ -227,7 +227,7 @@ static jobject ctoj_jlong_to_number (JNIEnv *jvm_env, jlong value) /* {{{ */
   jmethodID m_long_constructor;
 
   /* Look up the java.lang.Long class */
-  c_long = (*jvm_env)->FindClass (jvm_env, "java.lang.Long");
+  c_long = (*jvm_env)->FindClass (jvm_env, "java/lang/Long");
   if (c_long == NULL)
   {
     ERROR ("java plugin: ctoj_jlong_to_number: Looking up the "
@@ -255,7 +255,7 @@ static jobject ctoj_jdouble_to_number (JNIEnv *jvm_env, jdouble value) /* {{{ */
   jmethodID m_double_constructor;
 
   /* Look up the java.lang.Long class */
-  c_double = (*jvm_env)->FindClass (jvm_env, "java.lang.Double");
+  c_double = (*jvm_env)->FindClass (jvm_env, "java/lang/Double");
   if (c_double == NULL)
   {
     ERROR ("java plugin: ctoj_jdouble_to_number: Looking up the "
@@ -608,7 +608,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
 
   /* Search for the `DataSet (String type)' constructor. */
   m_constructor = (*jvm_env)->GetMethodID (jvm_env,
-      c_dataset, "<init>", "(Ljava.lang.String;)V");
+      c_dataset, "<init>", "(Ljava/lang/String;)V");
   if (m_constructor == NULL)
   {
     ERROR ("java plugin: ctoj_data_set: Looking up the "
