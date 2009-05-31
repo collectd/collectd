@@ -3810,6 +3810,7 @@ Configuration:
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libesmtp  . . . . . . $with_libesmtp
+    libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
