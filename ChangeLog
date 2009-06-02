@@ -1,3 +1,22 @@
+2009-06-02, Version 4.7.1
+	* Build system: Detection of Java has been improved and missing
+	  details have been added to the configuration summary. Support for
+	  libtool 2.2 has been added.
+	* collectd: Two bugs with the threshold checking have been fixed. The
+	  first one prevented thresholds to be checked at all, the second one
+	  caused wrong behavior with the persistency option. Thanks to Andrés
+	  J. Díaz for fixing these problems.
+	* collectd: Handling of the `Include' configuration option has been
+	  fixed.
+	* rrdtool plugin: Make sure initialization is run only once. This
+	  resolves problems under Solaris and potentially other systems.
+	  Thanks to Amit Gupta for reporting this bug.
+	* java plugin: Make it possible to use dots ('.') instead of slashes
+	  ('/') as the class separator. Thanks to Randy Rizun for pointing
+	  this out.
+	* swap plugin: A work-around for 32-bit Solaris has been added. Thanks
+	  to Doug MacEachern for the patch.
+
 2009-05-11, Version 4.7.0
 	* apache plugin: Support to query multiple servers has been added.
 	  Thanks to Amit Gupta for the patch.
