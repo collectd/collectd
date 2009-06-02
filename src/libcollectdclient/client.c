@@ -121,7 +121,7 @@ typedef struct lcc_response_s lcc_response_t;
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
  * ignore the second argument ... -tokkee */
-char *sstrerror (int errnum, char *buf, size_t buflen)
+static char *sstrerror (int errnum, char *buf, size_t buflen)
 {
   buf[0] = 0;
 
