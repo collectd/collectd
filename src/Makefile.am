@@ -695,7 +695,7 @@ pkglib_LTLIBRARIES += ping.la
 ping_la_SOURCES = ping.c
 ping_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOPING_CPPFLAGS)
 ping_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBOPING_LDFLAGS)
-ping_la_LIBADD = -loping
+ping_la_LIBADD = -loping -lm
 collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif
