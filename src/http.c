@@ -27,16 +27,68 @@
 #include "utils_cache.h"
 #include "utils_parse_option.h"
 
+#include <curl/curl.h>
+
 /*
  * Private variables
  */
 static const char *config_keys[] =
 {
-  "Location",
+  "Location", "User", "Password"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static char *location   = NULL;
+
+char *user;
+char *pass;
+char *credentials;
+
+CURL *curl;
+char curl_errbuf[CURL_ERROR_SIZE];
+struct curl_slist *headers=NULL;
+
+static int http_init(void)
+{
+
+  curl = curl_easy_init ();
+  if (curl == NULL)
+  {
+    ERROR ("curl plugin: curl_easy_init failed.");
+    return (-1);
+  }
+
+  curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+  headers = curl_slist_append(headers, "Accept: application/vnd.absperf.ssbe+json");
+  headers = curl_slist_append(headers, "Content-Type: text/csv");
+
+  curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
+  curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, curl_errbuf);
+  curl_easy_setopt (curl, CURLOPT_URL, location);
+
+  if (user != NULL)
+  {
+    size_t credentials_size;
+
+    credentials_size = strlen (user) + 2;
+    if (pass != NULL)
+      credentials_size += strlen (pass);
+
+    credentials = (char *) malloc (credentials_size);
+    if (credentials == NULL)
+    {
+      ERROR ("curl plugin: malloc failed.");
+      return (-1);
+    }
+
+    ssnprintf (credentials, credentials_size, "%s:%s",
+        user, (pass == NULL) ? "" : pass);
+    curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
+    curl_easy_setopt (curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+  }
+
+  return (0);
+}
 
 static int value_list_to_string (char *buffer, int buffer_len,
     const data_set_t *ds, const value_list_t *vl)
@@ -196,6 +248,46 @@ static int http_config (const char *key, const char *value)
       }
     }
   }
+  else if (strcasecmp ("User", key) == 0)
+  {
+    if (user != NULL)
+      free (user);
+    user = strdup (value);
+    if (user != NULL)
+    {
+      int len = strlen (user);
+      while ((len > 0) && (user[len - 1] == '/'))
+      {
+        len--;
+        user[len] = '\0';
+      }
+      if (len <= 0)
+      {
+        free (user);
+        user = NULL;
+      }
+    }
+  }
+  else if (strcasecmp ("Password", key) == 0)
+  {
+    if (pass != NULL)
+      free (pass);
+    pass = strdup (value);
+    if (pass != NULL)
+    {
+      int len = strlen (pass);
+      while ((len > 0) && (pass[len - 1] == '/'))
+      {
+        len--;
+        pass[len] = '\0';
+      }
+      if (len <= 0)
+      {
+        free (pass);
+        pass = NULL;
+      }
+    }
+  }
   else
   {
     return (-1);
@@ -209,6 +301,10 @@ static int http_write (const data_set_t *ds, const value_list_t *vl,
   char         metric_name[512];
   char         values[512];
   char         timestamp[512];
+
+  char csv_buffer[1536];
+
+  int status;
 
   if (0 != strcmp (ds->type, vl->type)) {
     ERROR ("http plugin: DS type does not match value list type");
@@ -228,15 +324,26 @@ static int http_write (const data_set_t *ds, const value_list_t *vl,
 
   escape_string (metric_name, sizeof (metric_name));
 
-  fprintf (stdout,
+  status = ssnprintf (csv_buffer, 1536,
       "\"%s\",%s,%s\n",
       metric_name, timestamp, values);
+
+  curl_easy_setopt (curl, CURLOPT_POSTFIELDS, csv_buffer);
+  status = curl_easy_perform (curl);
+  if (status != 0)
+  {
+    ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
+        status, curl_errbuf);
+    return (-1);
+  }
+
   return (0);
 
 } /* int http_write */
 
 void module_register (void)
 {
+  plugin_register_init("http", http_init);
   plugin_register_config ("http", http_config,
       config_keys, config_keys_num);
   plugin_register_write ("http", http_write, /* user_data = */ NULL);

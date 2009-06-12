@@ -228,7 +228,13 @@ if BUILD_PLUGIN_HTTP
 pkglib_LTLIBRARIES += http.la
 http_la_SOURCES = http.c
 http_la_LDFLAGS = -module -avoid-version
+http_la_CFLAGS = $(AM_CFLAGS)
+http_la_LIBADD =
 collectd_LDADD += "-dlopen" http.la
+if BUILD_WITH_LIBCURL
+http_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+http_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
 collectd_DEPENDENCIES += http.la
 endif
 
