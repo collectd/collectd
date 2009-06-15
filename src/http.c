@@ -44,25 +44,16 @@ char *user;
 char *pass;
 char *credentials;
 
-CURL *curl;
-char curl_errbuf[CURL_ERROR_SIZE];
-struct curl_slist *headers=NULL;
-
-static int http_init(void)
+static int http_init_curl(CURL *curl, char curl_errbuf[])
 {
-
-  curl = curl_easy_init ();
-  if (curl == NULL)
-  {
-    ERROR ("curl plugin: curl_easy_init failed.");
-    return (-1);
-  }
+  struct curl_slist *headers=NULL;
 
   curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
-  headers = curl_slist_append(headers, "Accept: application/vnd.absperf.ssbe+json");
-  headers = curl_slist_append(headers, "Content-Type: text/csv");
 
+  headers = curl_slist_append(headers, "Accept: text/csv");
+  headers = curl_slist_append(headers, "Content-Type: text/csv");
   curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
+
   curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, curl_errbuf);
   curl_easy_setopt (curl, CURLOPT_URL, location);
 
@@ -87,6 +78,11 @@ static int http_init(void)
     curl_easy_setopt (curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
   }
 
+  return (0);
+}
+
+static int http_init(void)
+{
   return (0);
 }
 
@@ -287,6 +283,9 @@ static int http_config (const char *key, const char *value)
 static int http_write (const data_set_t *ds, const value_list_t *vl,
     user_data_t __attribute__((unused)) *user_data)
 {
+  CURL         *curl;
+  char curl_errbuf[CURL_ERROR_SIZE];
+
   char         metric_name[512];
   int          metric_prefix_len;
   char         value[512];
@@ -302,6 +301,15 @@ static int http_write (const data_set_t *ds, const value_list_t *vl,
     ERROR ("http plugin: DS type does not match value list type");
     return -1;
   }
+
+  curl = curl_easy_init ();
+  if (curl == NULL)
+  {
+    ERROR ("curl plugin: curl_easy_init failed.");
+    return (-1);
+  }
+
+  http_init_curl(curl, curl_errbuf);
 
   metric_prefix_len = value_list_to_metric_name (metric_name, 
       sizeof (metric_name), ds, vl);
