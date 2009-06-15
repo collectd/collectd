@@ -54,6 +54,8 @@ static int http_init_curl(CURL *curl, char curl_errbuf[])
   headers = curl_slist_append(headers, "Content-Type: text/csv");
   curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
 
+  curl_easy_setopt (curl, CURLOPT_FORBID_REUSE, 1);
+
   curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, curl_errbuf);
   curl_easy_setopt (curl, CURLOPT_URL, location);
 
