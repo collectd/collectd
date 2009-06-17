@@ -44,7 +44,7 @@ char *user;
 char *pass;
 char *credentials;
 
-static int http_init_curl(CURL *curl, char curl_errbuf[])
+static int http_init_curl(CURL *curl, char *curl_errbuf)
 {
   struct curl_slist *headers=NULL;
 
