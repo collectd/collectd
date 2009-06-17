@@ -353,6 +353,8 @@ static int http_write (const data_set_t *ds, const value_list_t *vl,
     return (-1);
   }
 
+  curl_easy_cleanup(curl);
+
   return (0);
 
 } /* int http_write */
