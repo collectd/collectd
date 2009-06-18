@@ -938,6 +938,15 @@ collectd_LDADD += "-dlopen" thermal.la
 collectd_DEPENDENCIES += thermal.la
 endif
 
+if BUILD_PLUGIN_TOKYOTYRANT
+pkglib_LTLIBRARIES += tokyotyrant.la
+tokyotyrant_la_SOURCES = tokyotyrant.c
+tokyotyrant_la_LDFLAGS = -module -avoid-version
+tokyotyrant_la_LIBADD  = $(BUILD_WITH_LIBTOKYOTYRANT_LIBS)
+collectd_LDADD += "-dlopen" tokyotyrant.la
+collectd_DEPENDENCIES += tokyotyrant.la
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \

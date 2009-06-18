@@ -1095,6 +1095,34 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_OPENFILES, test "x$with_kvm_openfiles" = "xyes")
 
+# --with-libtokyotyrant {{{
+with_libtokyotyrant_libs=""
+AC_ARG_WITH(libtokyotyrant, [AS_HELP_STRING([--with-libtokyotyrant@<:@=PREFIX@:>@], [Path to libtokyotyrant.])],
+[
+  if test "x$withval" = "xno"
+  then
+    with_libtokyotyrant="no"
+  else if test "x$withval" = "xyes"
+  then
+    with_libtokyotyrant="yes"
+  fi; fi
+],
+[
+  with_libtokyotyrant="yes"
+])
+
+if test "x$with_libtokyotyrant" = "xyes"
+then 
+  #with_libtokyotyrant_libs="-ltokyotyrant"
+  with_libtokyotyrant_libs="-ltokyotyrant -ltokyocabinet"
+
+ 
+  BUILD_WITH_LIBTOKYOTYRANT_LIBS="$with_libtokyotyrant_libs"
+  AC_SUBST(BUILD_WITH_LIBTOKYOTYRANT_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBTOKYOTYRANT, test "x$with_libtokyotyrant" = "xyes")
+# }}}
+
 # --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
@@ -3688,6 +3716,7 @@ AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
+AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
@@ -3891,6 +3920,7 @@ Configuration:
     librrd  . . . . . . . $with_librrd
     libsensors  . . . . . $with_libsensors
     libstatgrab . . . . . $with_libstatgrab
+    libtokyotyrant  . . . $with_libtokyotyrant
     libupsclient  . . . . $with_libupsclient
     libvirt . . . . . . . $with_libvirt
     libxml2 . . . . . . . $with_libxml2
