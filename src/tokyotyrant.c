@@ -34,10 +34,8 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static char *host = NULL;
-
-/* int is for opening connection, string is for plugin_instance */
-static char *port_str = NULL;
 static int   port;
+static char  port_str[5];
 
 static int tt_config (const char *key, const char *value)
 {
@@ -49,17 +47,13 @@ static int tt_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("Port", key) == 0)
 	{
-		if (port_str != NULL)
-			free (port_str);
-		port_str = strdup(value);
-
 		port = atoi(value);
-
 		if ((port < 0) || (port > 65535))
 		{
 			ERROR ("tokyotyrant plugin: error: Port %s out of range", value);
 			return (-1);
 		}
+                ssnprintf(port_str, 5, "%i", port);
 	}
 	else
 	{
