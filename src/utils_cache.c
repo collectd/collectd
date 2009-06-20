@@ -303,7 +303,18 @@ int uc_check_timeout (void)
       sfree (key);
       cache_free (ce);
     }
-    else if (status == 2) /* persist */
+
+    /* If we get here, the value is ``interesting''. Query the record from the
+     * cache and update the state field. */
+    if (c_avl_get (cache_tree, keys[i], (void *) &ce) != 0)
+    {
+      ERROR ("uc_check_timeout: cannot get data for %s from cache", keys[i]);
+      /* Do not free `keys[i]' so a notification is sent further down. */
+      continue;
+    }
+    assert (ce != NULL);
+
+    if (status == 2) /* persist */
     {
       DEBUG ("uc_check_timeout: %s is missing, sending notification.",
 	  keys[i]);
