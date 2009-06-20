@@ -27,6 +27,10 @@
 #include "utils_cache.h"
 #include "utils_parse_option.h"
 
+#if HAVE_PTHREAD_H
+# include <pthread.h>
+#endif
+
 #include <curl/curl.h>
 
 /*
@@ -44,17 +48,29 @@ char *user;
 char *pass;
 char *credentials;
 
-static int http_init_curl(CURL *curl, char *curl_errbuf)
+CURL *curl;
+char curl_errbuf[CURL_ERROR_SIZE];
+
+static pthread_mutex_t  send_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static int http_init(void) /* {{{ */
 {
+
+  curl = curl_easy_init ();
+
+  if (curl == NULL)
+  {
+    ERROR ("curl plugin: curl_easy_init failed.");
+    return (-1);
+  }
+
   struct curl_slist *headers=NULL;
 
   curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
 
-  headers = curl_slist_append(headers, "Accept: text/csv");
+  headers = curl_slist_append(headers, "Accept: text/csv;q=0.8, */*;q=0.2");
   headers = curl_slist_append(headers, "Content-Type: text/csv");
   curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
-
-  curl_easy_setopt (curl, CURLOPT_FORBID_REUSE, 1);
 
   curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, curl_errbuf);
   curl_easy_setopt (curl, CURLOPT_URL, location);
@@ -81,14 +97,9 @@ static int http_init_curl(CURL *curl, char *curl_errbuf)
   }
 
   return (0);
-}
+} /* }}} */
 
-static int http_init(void)
-{
-  return (0);
-}
-
-static int value_list_to_string (char *buffer, int buffer_len,
+static int http_value_list_to_string (char *buffer, int buffer_len, /* {{{ */
     const data_set_t *ds, const value_list_t *vl, int index)
 {
   int offset = 0;
@@ -138,9 +149,9 @@ static int value_list_to_string (char *buffer, int buffer_len,
 
   sfree (rates);
   return (0);
-} /* int value_list_to_string */
+} /* }}} int http_value_list_to_string */
 
-static int value_list_to_timestamp (char *buffer, int buffer_len,
+static int http_value_list_to_timestamp (char *buffer, int buffer_len, /* {{{ */
     const data_set_t *ds, const value_list_t *vl)
 {
   int offset = 0;
@@ -156,9 +167,9 @@ static int value_list_to_timestamp (char *buffer, int buffer_len,
   offset = status;
 
   return (0);
-} /* int value_list_to_timestamp */
+} /* }}} int http_value_list_to_timestamp */
 
-static int value_list_to_metric_name (char *buffer, int buffer_len,
+static int http_value_list_to_metric_name (char *buffer, int buffer_len, /* {{{ */
     const data_set_t *ds, const value_list_t *vl)
 {
   int offset = 0;
@@ -211,9 +222,9 @@ static int value_list_to_metric_name (char *buffer, int buffer_len,
   }
 
   return (offset);
-} /* int value_list_to_metric_name */
+} /* }}} int http_value_list_to_metric_name */
 
-static int http_config (const char *key, const char *value)
+static int http_config (const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp ("Location", key) == 0)
   {
@@ -280,20 +291,18 @@ static int http_config (const char *key, const char *value)
     return (-1);
   }
   return (0);
-} /* int http_config */
+} /* }}} int http_config */
 
-static int http_write (const data_set_t *ds, const value_list_t *vl,
+static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     user_data_t __attribute__((unused)) *user_data)
 {
-  CURL         *curl;
-  char curl_errbuf[CURL_ERROR_SIZE];
 
   char         metric_name[512];
   int          metric_prefix_len;
   char         value[512];
   char         timestamp[512];
 
-  char csv_buffer[10240];
+  char csv_buffer[1024];
 
   int status;
   int offset = 0;
@@ -304,30 +313,21 @@ static int http_write (const data_set_t *ds, const value_list_t *vl,
     return -1;
   }
 
-  curl = curl_easy_init ();
-  if (curl == NULL)
-  {
-    ERROR ("curl plugin: curl_easy_init failed.");
-    return (-1);
-  }
-
-  http_init_curl(curl, curl_errbuf);
-
-  metric_prefix_len = value_list_to_metric_name (metric_name, 
+  metric_prefix_len = http_value_list_to_metric_name (metric_name, 
       sizeof (metric_name), ds, vl);
     
   if (metric_prefix_len == -1)
     return (-1);
 
-  DEBUG ("http plugin: http_write: metric_name = %s;", metric_name);
+  DEBUG ("http plugin: http_write: metric_name = %s", metric_name);
 
-  if (value_list_to_timestamp (timestamp, sizeof (timestamp), ds, vl) != 0)
+  if (http_value_list_to_timestamp (timestamp, sizeof (timestamp), ds, vl) != 0)
     return (-1);
 
   for (i = 0; i < ds->ds_num; i++) 
   {
 
-    if (value_list_to_string (value, sizeof (value), ds, vl, i) != 0)
+    if (http_value_list_to_string (value, sizeof (value), ds, vl, i) != 0)
       return (-1);
 
     ssnprintf(metric_name + metric_prefix_len, sizeof (metric_name) - metric_prefix_len,
@@ -344,6 +344,8 @@ static int http_write (const data_set_t *ds, const value_list_t *vl,
 
   printf(csv_buffer);
 
+  pthread_mutex_lock (&send_lock);
+
   curl_easy_setopt (curl, CURLOPT_POSTFIELDS, csv_buffer);
   status = curl_easy_perform (curl);
   if (status != 0)
@@ -353,16 +355,25 @@ static int http_write (const data_set_t *ds, const value_list_t *vl,
     return (-1);
   }
 
-  curl_easy_cleanup(curl);
+  pthread_mutex_unlock (&send_lock);
 
   return (0);
 
-} /* int http_write */
+} /* }}} int http_write */
 
-void module_register (void)
+static int http_shutdown (void) /* {{{ */
+{
+        curl_easy_cleanup(curl);
+        return (0);
+}
+
+void module_register (void) /* {{{ */
 {
   plugin_register_init("http", http_init);
   plugin_register_config ("http", http_config,
       config_keys, config_keys_num);
   plugin_register_write ("http", http_write, /* user_data = */ NULL);
-} /* void module_register */
+  plugin_register_shutdown("http", http_shutdown);
+} /* }}} void module_register */
+
+/* vim: set fdm=marker sw=8 ts=8 tw=78 : */
