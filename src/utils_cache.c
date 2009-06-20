@@ -260,8 +260,9 @@ int uc_check_timeout (void)
 	  (keys_len + 1) * sizeof (char *));
       if (tmp == NULL)
       {
-	ERROR ("uc_purge: realloc failed.");
+	ERROR ("uc_check_timeout: realloc failed.");
 	c_avl_iterator_destroy (iter);
+	sfree (keys);
 	pthread_mutex_unlock (&cache_lock);
 	return (-1);
       }
@@ -277,6 +278,8 @@ int uc_check_timeout (void)
     }
   } /* while (c_avl_iterator_next) */
 
+  ce = NULL;
+
   for (i = 0; i < keys_len; i++)
   {
     int status;
@@ -287,10 +290,10 @@ int uc_check_timeout (void)
     {
       ERROR ("uc_check_timeout: ut_check_interesting failed.");
       sfree (keys[i]);
+      continue;
     }
     else if (status == 0) /* ``service'' is uninteresting */
     {
-      ce = NULL;
       DEBUG ("uc_check_timeout: %s is missing but ``uninteresting''",
 	  keys[i]);
       status = c_avl_remove (cache_tree, keys[i],
@@ -319,6 +322,7 @@ int uc_check_timeout (void)
       DEBUG ("uc_check_timeout: %s is missing, sending notification.",
 	  keys[i]);
       ce->state = STATE_MISSING;
+      /* Do not free `keys[i]' so a notification is sent further down. */
     }
     else if (status == 1) /* do not persist */
     {
@@ -327,6 +331,7 @@ int uc_check_timeout (void)
 	DEBUG ("uc_check_timeout: %s is missing but "
 	    "notification has already been sent.",
 	    keys[i]);
+	/* Set `keys[i]' to NULL to no notification is sent. */
 	sfree (keys[i]);
       }
       else /* (ce->state != STATE_MISSING) */
@@ -334,6 +339,7 @@ int uc_check_timeout (void)
 	DEBUG ("uc_check_timeout: %s is missing, sending one notification.",
 	    keys[i]);
 	ce->state = STATE_MISSING;
+	/* Do not free `keys[i]' so a notification is sent further down. */
       }
     }
     else
@@ -341,6 +347,7 @@ int uc_check_timeout (void)
       WARNING ("uc_check_timeout: ut_check_interesting (%s) returned "
 	  "invalid status %i.",
 	  keys[i], status);
+      sfree (keys[i]);
     }
   } /* for (keys[i]) */
 
