@@ -1096,6 +1096,7 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_OPENFILES, test "x$with_kvm_openfiles" = "xyes")
 
 # --with-libtokyotyrant {{{
+with_libtokyotyrant_cflags=""
 with_libtokyotyrant_libs=""
 AC_ARG_WITH(libtokyotyrant, [AS_HELP_STRING([--with-libtokyotyrant@<:@=PREFIX@:>@], [Path to libtokyotyrant.])],
 [
@@ -1113,8 +1114,8 @@ AC_ARG_WITH(libtokyotyrant, [AS_HELP_STRING([--with-libtokyotyrant@<:@=PREFIX@:>
 
 if test "x$with_libtokyotyrant" = "xyes"
 then 
-  #with_libtokyotyrant_libs="-ltokyotyrant"
-  with_libtokyotyrant_libs="-ltokyotyrant -ltokyocabinet"
+  with_libtokyotyrant_cflags="`$PKG_CONFIG --cflags tokyotyrant`"
+  with_libtokyotyrant_libs="`$PKG_CONFIG --libs tokyotyrant`"
 
  
   BUILD_WITH_LIBTOKYOTYRANT_LIBS="$with_libtokyotyrant_libs"
@@ -4011,6 +4012,7 @@ Configuration:
     tcpconns  . . . . . . $enable_tcpconns
     teamspeak2  . . . . . $enable_teamspeak2
     ted . . . . . . . . . $enable_ted
+    tokyotyrant . . . . . $enable_tokyotyrant
     thermal . . . . . . . $enable_thermal
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime

@@ -687,7 +687,8 @@ FQDNLookup   true
 #</Plugin>
 
 #<Plugin tokyotyrant>
-#	Host "localhost:1978"
+#	Host "localhost"
+#	Port 1978
 #</Plugin>
 
 #<Plugin unixsock>
