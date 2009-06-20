@@ -764,8 +764,8 @@ if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = sensors.c
 sensors_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSENSORS_CFLAGS)
-sensors_la_LDFLAGS = -module -avoid-version
-sensors_la_LIBADD = $(BUILD_WITH_LIBSENSORS_LDFLAGS)
+sensors_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBSENSORS_LDFLAGS)
+sensors_la_LIBADD = -lsensors
 collectd_LDADD += "-dlopen" sensors.la
 collectd_DEPENDENCIES += sensors.la
 endif
