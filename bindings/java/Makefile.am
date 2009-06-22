@@ -26,7 +26,7 @@ java-build-stamp: org/collectd/api/*.java
 all-local: java-build-stamp
 
 install-exec-local: java-build-stamp
-	mkdir -p "$(pkgdatadir)/java/org/collectd/api"
+	mkdir -p "$(DESTDIR)$(pkgdatadir)/java/org/collectd/api"
 	$(INSTALL) -m 644 "org/collectd/api"/*.class \
 		"$(DESTDIR)$(pkgdatadir)/java/org/collectd/api/"
 
