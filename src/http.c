@@ -307,10 +307,6 @@ static void http_init_buffer (void)  /* {{{ */
 
 static void http_send_buffer (char *buffer) /* {{{ */
 {
-        printf("Sending: --------\n");
-        printf(buffer);
-        printf("---------------\n");
-
         int status = 0;
         curl_easy_setopt (curl, CURLOPT_POSTFIELDS, buffer);
         status = curl_easy_perform (curl);
@@ -375,10 +371,6 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         "\"%s\",%s,%s\n",
         metric_name, timestamp, value);
     send_buffer_fill += status;
-
-    printf(send_buffer);
-    printf("Fill: %i\n", send_buffer_fill);
-    printf("----\n");
 
     if ((sizeof (send_buffer) - send_buffer_fill) < 128)
     {
