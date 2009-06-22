@@ -51,6 +51,11 @@ char *credentials;
 CURL *curl;
 char curl_errbuf[CURL_ERROR_SIZE];
 
+#define SEND_BUFFER_SIZE 4096
+static char   send_buffer[SEND_BUFFER_SIZE];
+static char  *send_buffer_ptr;
+static int    send_buffer_fill;
+
 static pthread_mutex_t  send_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int http_init(void) /* {{{ */
@@ -293,6 +298,38 @@ static int http_config (const char *key, const char *value) /* {{{ */
   return (0);
 } /* }}} int http_config */
 
+static void http_init_buffer (void)  /* {{{ */
+{
+        memset (send_buffer, 0, sizeof (send_buffer));
+        send_buffer_ptr = send_buffer;
+        send_buffer_fill = 0;
+} /* }}} http_init_buffer */
+
+static void http_send_buffer (char *buffer) /* {{{ */
+{
+        printf("Sending: --------\n");
+        printf(buffer);
+        printf("---------------\n");
+
+        int status = 0;
+        curl_easy_setopt (curl, CURLOPT_POSTFIELDS, buffer);
+        status = curl_easy_perform (curl);
+        if (status != 0)
+        {
+                ERROR ("http plugin: curl_easy_perform failed with staus %i: %s",
+                                status, curl_errbuf);
+        }
+} /* }}} http_send_buffer */
+
+static void http_flush_buffer (void) /* {{{ */
+{
+	DEBUG ("http plugin: flush_buffer: send_buffer_fill = %i",
+			send_buffer_fill);
+
+	http_send_buffer (send_buffer);
+	http_init_buffer ();
+} /* }}} http_flush_buffer */
+
 static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     user_data_t __attribute__((unused)) *user_data)
 {
@@ -302,10 +339,7 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   char         value[512];
   char         timestamp[512];
 
-  char csv_buffer[1024];
-
   int status;
-  int offset = 0;
   int i;
 
   if (0 != strcmp (ds->type, vl->type)) {
@@ -335,27 +369,26 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
     escape_string (metric_name, sizeof (metric_name));
 
-    status = ssnprintf (csv_buffer + offset, sizeof (csv_buffer) - offset,
+    pthread_mutex_lock (&send_lock);
+
+    status = ssnprintf (send_buffer + send_buffer_fill, sizeof (send_buffer) - send_buffer_fill,
         "\"%s\",%s,%s\n",
         metric_name, timestamp, value);
-    offset += status;
+    send_buffer_fill += status;
+
+    printf(send_buffer);
+    printf("Fill: %i\n", send_buffer_fill);
+    printf("----\n");
+
+    if ((sizeof (send_buffer) - send_buffer_fill) < 128)
+    {
+            http_flush_buffer();
+    }
+
+    pthread_mutex_unlock (&send_lock);
 
   } /* for */
 
-  printf(csv_buffer);
-
-  pthread_mutex_lock (&send_lock);
-
-  curl_easy_setopt (curl, CURLOPT_POSTFIELDS, csv_buffer);
-  status = curl_easy_perform (curl);
-  if (status != 0)
-  {
-    ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
-        status, curl_errbuf);
-    return (-1);
-  }
-
-  pthread_mutex_unlock (&send_lock);
 
   return (0);
 
