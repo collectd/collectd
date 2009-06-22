@@ -305,7 +305,7 @@ static void http_init_buffer (void)  /* {{{ */
         send_buffer_fill = 0;
 } /* }}} http_init_buffer */
 
-static void http_send_buffer (char *buffer) /* {{{ */
+static int http_send_buffer (char *buffer) /* {{{ */
 {
         int status = 0;
         curl_easy_setopt (curl, CURLOPT_POSTFIELDS, buffer);
@@ -315,15 +315,19 @@ static void http_send_buffer (char *buffer) /* {{{ */
                 ERROR ("http plugin: curl_easy_perform failed with staus %i: %s",
                                 status, curl_errbuf);
         }
+        return (status);
 } /* }}} http_send_buffer */
 
-static void http_flush_buffer (void) /* {{{ */
+static int http_flush_buffer (void) /* {{{ */
 {
+        int status = 0;
 	DEBUG ("http plugin: flush_buffer: send_buffer_fill = %i",
 			send_buffer_fill);
 
-	http_send_buffer (send_buffer);
+	status = http_send_buffer (send_buffer);
 	http_init_buffer ();
+
+        return (status);
 } /* }}} http_flush_buffer */
 
 static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
@@ -374,7 +378,10 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
     if ((sizeof (send_buffer) - send_buffer_fill) < 128)
     {
-            http_flush_buffer();
+            status = http_flush_buffer();
+            if (status != 0)
+                    return status;
+
     }
 
     pthread_mutex_unlock (&send_lock);
@@ -388,6 +395,7 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
 static int http_shutdown (void) /* {{{ */
 {
+        http_flush_buffer();
         curl_easy_cleanup(curl);
         return (0);
 }
