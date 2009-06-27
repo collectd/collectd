@@ -1540,7 +1540,7 @@ then
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
-			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$TMPDIR"
+			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$TMPDIR -Wl,-rpath -Wl,$TMPDIR"
 		else
 			AC_MSG_RESULT([not found])
 		fi
