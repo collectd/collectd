@@ -24,6 +24,7 @@
 
 #include "collectd.h"
 #include "configfile.h"
+#include "meta_data.h"
 
 #define DATA_MAX_NAME_LEN 64
 
@@ -76,11 +77,12 @@ struct value_list_s
 	char     plugin_instance[DATA_MAX_NAME_LEN];
 	char     type[DATA_MAX_NAME_LEN];
 	char     type_instance[DATA_MAX_NAME_LEN];
+	meta_data_t *meta;
 };
 typedef struct value_list_s value_list_t;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "", "" }
-#define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "", "" }
+#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "", "", NULL }
+#define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "", "", NULL }
 
 struct data_source_s
 {

@@ -1136,12 +1136,20 @@ int plugin_dispatch_values (value_list_t *vl)
 
 	data_set_t *ds;
 
+	int free_meta_data = 0;
+
 	if ((vl == NULL) || (vl->type[0] == 0)
 			|| (vl->values == NULL) || (vl->values_len < 1))
 	{
 		ERROR ("plugin_dispatch_values: Invalid value list.");
 		return (-1);
 	}
+
+	/* Free meta data only if the calling function didn't specify any. In
+	 * this case matches and targets may add some and the calling function
+	 * may not expect (and therefore free) that data. */
+	if (vl->meta == NULL)
+		free_meta_data = 1;
 
 	if (list_write == NULL)
 		c_complain_once (LOG_WARNING, &no_write_complaint,
@@ -1281,6 +1289,12 @@ int plugin_dispatch_values (value_list_t *vl)
 		free (vl->values);
 		vl->values     = saved_values;
 		vl->values_len = saved_values_len;
+	}
+
+	if ((free_meta_data != 0) && (vl->meta != NULL))
+	{
+		meta_data_destroy (vl->meta);
+		vl->meta = NULL;
 	}
 
 	return (0);
