@@ -1,6 +1,6 @@
 /**
  * collectd - src/meta_data.h
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008,2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -45,6 +45,9 @@ int meta_data_add_unsigned_int (meta_data_t *md,
 int meta_data_add_double (meta_data_t *md,
     const char *key,
     double value);
+int meta_data_add_boolean (meta_data_t *md,
+    const char *key,
+    _Bool value);
 
 int meta_data_get_string (meta_data_t *md,
     const char *key,
@@ -58,6 +61,9 @@ int meta_data_get_unsigned_int (meta_data_t *md,
 int meta_data_get_double (meta_data_t *md,
     const char *key,
     double *value);
+int meta_data_get_boolean (meta_data_t *md,
+    const char *key,
+    _Bool *value);
 
 #endif /* META_DATA_H */
 /* vim: set sw=2 sts=2 et : */

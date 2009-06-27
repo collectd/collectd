@@ -1,6 +1,6 @@
 /**
  * collectd - src/meta_data.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008,2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,6 +32,7 @@
 #define MD_TYPE_SIGNED_INT   2
 #define MD_TYPE_UNSIGNED_INT 3
 #define MD_TYPE_DOUBLE       4
+#define MD_TYPE_BOOLEAN      5
 
 /*
  * Data types
@@ -42,6 +43,7 @@ union meta_value_u
   int64_t  mv_signed_int;
   uint64_t mv_unsigned_int;
   double   mv_double;
+  _Bool    mv_boolean;
 };
 typedef union meta_value_u meta_value_t;
 
@@ -287,6 +289,9 @@ int meta_data_delete (meta_data_t *md, const char *key) /* {{{ */
   return (0);
 } /* }}} int meta_data_delete */
 
+/*
+ * Add functions
+ */
 int meta_data_add_string (meta_data_t *md, /* {{{ */
     const char *key, const char *value)
 {
@@ -365,6 +370,27 @@ int meta_data_add_double (meta_data_t *md, /* {{{ */
   return (md_entry_insert (md, e));
 } /* }}} int meta_data_add_double */
 
+int meta_data_add_boolean (meta_data_t *md, /* {{{ */
+    const char *key, _Bool value)
+{
+  meta_entry_t *e;
+
+  if ((md == NULL) || (key == NULL))
+    return (-EINVAL);
+
+  e = md_entry_alloc (key);
+  if (e == NULL)
+    return (-ENOMEM);
+
+  e->value.mv_boolean = value;
+  e->type = MD_TYPE_BOOLEAN;
+
+  return (md_entry_insert (md, e));
+} /* }}} int meta_data_add_boolean */
+
+/*
+ * Get functions
+ */
 int meta_data_get_string (meta_data_t *md, /* {{{ */
     const char *key, char **value)
 {
@@ -494,5 +520,35 @@ int meta_data_get_double (meta_data_t *md, /* {{{ */
   pthread_mutex_unlock (&md->lock);
   return (0);
 } /* }}} int meta_data_get_double */
+
+int meta_data_get_boolean (meta_data_t *md, /* {{{ */
+    const char *key, _Bool *value)
+{
+  meta_entry_t *e;
+
+  if ((md == NULL) || (key == NULL) || (value == NULL))
+    return (-EINVAL);
+
+  pthread_mutex_lock (&md->lock);
+
+  e = md_entry_lookup (md, key);
+  if (e == NULL)
+  {
+    pthread_mutex_unlock (&md->lock);
+    return (-ENOENT);
+  }
+
+  if (e->type != MD_TYPE_BOOLEAN)
+  {
+    ERROR ("meta_data_get_boolean: Type mismatch for key `%s'", e->key);
+    pthread_mutex_unlock (&md->lock);
+    return (-ENOENT);
+  }
+
+  *value = e->value.mv_boolean;
+
+  pthread_mutex_unlock (&md->lock);
+  return (0);
+} /* }}} int meta_data_get_boolean */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
