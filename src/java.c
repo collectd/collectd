@@ -1046,21 +1046,7 @@ static int jtoc_value (JNIEnv *jvm_env, /* {{{ */
 
   class_ptr = (*jvm_env)->GetObjectClass (jvm_env, object_ptr);
 
-  if (ds_type == DS_TYPE_COUNTER)
-  {
-    jlong tmp_long;
-
-    status = jtoc_long (jvm_env, &tmp_long,
-        class_ptr, object_ptr, "longValue");
-    if (status != 0)
-    {
-      ERROR ("java plugin: jtoc_value: "
-          "jtoc_long failed.");
-      return (-1);
-    }
-    (*ret_value).counter = (counter_t) tmp_long;
-  }
-  else
+  if (ds_type == DS_TYPE_GAUGE)
   {
     jdouble tmp_double;
 
@@ -1073,6 +1059,26 @@ static int jtoc_value (JNIEnv *jvm_env, /* {{{ */
       return (-1);
     }
     (*ret_value).gauge = (gauge_t) tmp_double;
+  }
+  else
+  {
+    jlong tmp_long;
+
+    status = jtoc_long (jvm_env, &tmp_long,
+        class_ptr, object_ptr, "longValue");
+    if (status != 0)
+    {
+      ERROR ("java plugin: jtoc_value: "
+          "jtoc_long failed.");
+      return (-1);
+    }
+
+    if (ds_type == DS_TYPE_DERIVE)
+      (*ret_value).derive = (derive_t) tmp_long;
+    else if (ds_type == DS_TYPE_ABSOLUTE)
+      (*ret_value).absolute = (absolute_t) tmp_long;
+    else
+      (*ret_value).counter = (counter_t) tmp_long;
   }
 
   return (0);
