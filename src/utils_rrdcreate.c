@@ -229,14 +229,14 @@ static int ds_get (char ***ret, /* {{{ */
       sstrncpy (min, "U", sizeof (min));
     }
     else
-      ssnprintf (min, sizeof (min), "%lf", d->min);
+      ssnprintf (min, sizeof (min), "%f", d->min);
 
     if (isnan (d->max))
     {
       sstrncpy (max, "U", sizeof (max));
     }
     else
-      ssnprintf (max, sizeof (max), "%lf", d->max);
+      ssnprintf (max, sizeof (max), "%f", d->max);
 
     status = ssnprintf (buffer, sizeof (buffer),
         "DS:%s:%s:%i:%s:%s",

@@ -217,10 +217,10 @@ static int value_list_to_string (char *buffer, int buffer_len,
 					":%lf", vl->values[i].gauge);
 		else if (ds->ds[i].type == DS_TYPE_DERIVE)
 			status = ssnprintf (buffer + offset, buffer_len - offset,
-					":%llu", vl->values[i].derive);
+					":%"PRIi64, vl->values[i].derive);
 		else /*if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */
 			status = ssnprintf (buffer + offset, buffer_len - offset,
-					":%llu", vl->values[i].absolute);
+					":%"PRIu64, vl->values[i].absolute);
 
 		if ((status < 1) || (status >= (buffer_len - offset)))
 			return (-1);
