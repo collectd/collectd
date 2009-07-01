@@ -66,82 +66,45 @@ static int value_list_to_string (char *buffer, int buffer_len,
 				&& (ds->ds[i].type != DS_TYPE_ABSOLUTE))
 			return (-1);
 
-		if (ds->ds[i].type == DS_TYPE_COUNTER)
-		{
-			if (store_rates == 0)
-			{
-				status = ssnprintf (buffer + offset,
-						buffer_len - offset,
-						",%llu",
-						vl->values[i].counter);
-			}
-			else /* if (store_rates == 1) */
-			{
-				if (rates == NULL)
-					rates = uc_get_rate (ds, vl);
-				if (rates == NULL)
-				{
-					WARNING ("csv plugin: "
-							"uc_get_rate failed.");
-					return (-1);
-				}
-				status = ssnprintf (buffer + offset,
-						buffer_len - offset,
-						",%lf", rates[i]);
-			}
-		}
-		else  if (ds->ds[i].type == DS_TYPE_GAUGE) 
+		if (ds->ds[i].type == DS_TYPE_GAUGE) 
 		{
 			status = ssnprintf (buffer + offset, buffer_len - offset,
 					",%lf", vl->values[i].gauge);
 		} 
+		else if (store_rates != 0)
+		{
+			if (rates == NULL)
+				rates = uc_get_rate (ds, vl);
+			if (rates == NULL)
+			{
+				WARNING ("csv plugin: "
+						"uc_get_rate failed.");
+				return (-1);
+			}
+			status = ssnprintf (buffer + offset,
+					buffer_len - offset,
+					",%lf", rates[i]);
+		}
+		else if (ds->ds[i].type == DS_TYPE_COUNTER)
+		{
+			status = ssnprintf (buffer + offset,
+					buffer_len - offset,
+					",%llu",
+					vl->values[i].counter);
+		}
 		else if (ds->ds[i].type == DS_TYPE_DERIVE)
 		{
-			if (store_rates == 0)
-			{
-				status = ssnprintf (buffer + offset,
-						buffer_len - offset,
-						",%llu",
-						vl->values[i].derive);
-			}
-			else /* if (store_rates == 1) */
-			{
-				if (rates == NULL)
-					rates = uc_get_rate (ds, vl);
-				if (rates == NULL)
-				{
-					WARNING ("csv plugin: "
-							"uc_get_rate failed.");
-					return (-1);
-				}
-				status = ssnprintf (buffer + offset,
-						buffer_len - offset,
-						",%lf", rates[i]);
-			}
+			status = ssnprintf (buffer + offset,
+					buffer_len - offset,
+					",%"PRIi64,
+					vl->values[i].derive);
 		}
 		else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
 		{
-			if (store_rates == 0)
-			{
-				status = ssnprintf (buffer + offset,
-						buffer_len - offset,
-						",%llu",
-						vl->values[i].absolute);
-			}
-			else /* if (store_rates == 1) */
-			{
-				if (rates == NULL)
-					rates = uc_get_rate (ds, vl);
-				if (rates == NULL)
-				{
-					WARNING ("csv plugin: "
-							"uc_get_rate failed.");
-					return (-1);
-				}
-				status = ssnprintf (buffer + offset,
-						buffer_len - offset,
-						",%lf", rates[i]);
-			}
+			status = ssnprintf (buffer + offset,
+					buffer_len - offset,
+					",%"PRIu64,
+					vl->values[i].absolute);
 		}
 
 		if ((status < 1) || (status >= (buffer_len - offset)))
