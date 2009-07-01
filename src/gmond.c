@@ -541,6 +541,11 @@ static int staging_entry_update (const char *host, const char *name, /* {{{ */
     se->vl.values[ds_index].counter += value.counter;
   else if (ds_type == DS_TYPE_GAUGE)
     se->vl.values[ds_index].gauge = value.gauge;
+  else if (ds_type == DS_TYPE_DERIVE)
+    se->vl.values[ds_index].DERIVE += value.derive;
+  else if (ds_type == DS_TYPE_ABSOLUTE)
+    se->vl.values[ds_index].ABSOLUTE = value.absolute;
+
   se->flags |= (0x01 << ds_index);
 
   /* Check if all values have been set and submit if so. */
@@ -565,6 +570,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
 
   value_t value_counter;
   value_t value_gauge;
+  value_t value_derive;
 
   /* Fill in `host', `name', `value_counter', and `value_gauge' according to
    * the value type, or return with an error. */
@@ -580,6 +586,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
       name = msg_uint.metric_id.name;
       value_counter.counter = (counter_t) msg_uint.ui;
       value_gauge.gauge = (gauge_t) msg_uint.ui;
+      value_derive.derive = (derive_t) msg_uint.ui;
       break;
     }
 
@@ -606,6 +613,13 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
       if ((endptr == msg_string.str) || (errno != 0))
         value_gauge.gauge = NAN;
 
+      endptr = NULL;
+      errno = 0;
+      value_derive.derive = (derive_t) strtoll (msg_string.str,
+          &endptr, /* base = */ 0);
+      if ((endptr == msg_string.str) || (errno != 0))
+        value_derive.derive = 0;
+
       break;
     }
 
@@ -619,6 +633,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
       name = msg_float.metric_id.name;
       value_counter.counter = (counter_t) msg_float.f;
       value_gauge.gauge = (gauge_t) msg_float.f;
+      value_derive.derive = (derive_t) msg_float.f;
       break;
     }
 
@@ -632,6 +647,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
       name = msg_double.metric_id.name;
       value_counter.counter = (counter_t) msg_double.d;
       value_gauge.gauge = (gauge_t) msg_double.d;
+      value_derive.derive = (derive_t) msg_double.d;
       break;
     }
     default:
@@ -644,10 +660,20 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
 
   map = metric_lookup (name);
   if (map != NULL)
+  {
+    value_t val_copy;
+
+    val_copy = value_counter;
+    if (map->ds_type == DS_TYPE_GAUGE)
+      val_copy = value_gauge;
+    else if (map->ds_type == DS_TYPE_DERIVE)
+      val_copy = value_derive;
+
     return (staging_entry_update (host, name,
           map->type, map->type_instance,
           map->ds_index, map->ds_type,
-          (map->ds_type == DS_TYPE_COUNTER) ? value_counter : value_gauge));
+          val_copy));
+  }
 
   DEBUG ("gmond plugin: Cannot find a translation for %s.", name);
   return (-1);
