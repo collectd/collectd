@@ -30,6 +30,8 @@
 
 #define DS_TYPE_COUNTER 0
 #define DS_TYPE_GAUGE   1
+#define DS_TYPE_DERIVE   2
+#define DS_TYPE_ABSOLUTE   3
 
 #ifndef LOG_ERR
 # define LOG_ERR 3
@@ -58,11 +60,15 @@
  */
 typedef unsigned long long counter_t;
 typedef double gauge_t;
+typedef unsigned long long derive_t;
+typedef unsigned long long absolute_t;
 
 union value_u
 {
 	counter_t counter;
 	gauge_t   gauge;
+	derive_t   derive;
+	absolute_t   absolute;
 };
 typedef union value_u value_t;
 

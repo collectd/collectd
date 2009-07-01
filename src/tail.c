@@ -101,6 +101,26 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
     else
       cm->flags = 0;
   }
+  else if (strncasecmp ("Derive", ci->values[0].value.string, strlen ("Derive")) == 0)
+  {
+    cm->flags = UTILS_MATCH_DS_TYPE_DERIVE;
+    if (strcasecmp ("DeriveSet", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_DERIVE_SET;
+    else if (strcasecmp ("DeriveAdd", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_DERIVE_ADD;
+    else if (strcasecmp ("DeriveInc", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_DERIVE_INC;
+    else
+      cm->flags = 0;
+  }
+  else if (strncasecmp ("Absolute", ci->values[0].value.string, strlen ("Absolute")) == 0)
+  {
+    cm->flags = UTILS_MATCH_DS_TYPE_ABSOLUTE;
+    if (strcasecmp ("AbsoluteSet", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_ABSOLUTE_SET;
+    else
+      cm->flags = 0;
+  }
   else
   {
     cm->flags = 0;

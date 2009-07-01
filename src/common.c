@@ -845,6 +845,10 @@ int parse_value (const char *value, value_t *ret_value, const data_source_t ds)
 		ret_value->counter = (counter_t)strtoll (value, &endptr, 0);
 	else if (DS_TYPE_GAUGE == ds.type)
 		ret_value->gauge = (gauge_t)strtod (value, &endptr);
+	else if (DS_TYPE_DERIVE == ds.type)
+		ret_value->counter = (derive_t)strtoll (value, &endptr, 0);
+	else if (DS_TYPE_ABSOLUTE == ds.type)
+		ret_value->counter = (absolute_t)strtoll (value, &endptr, 0);
 	else {
 		ERROR ("parse_value: Invalid data source \"%s\" "
 				"(type = %i).", ds.name, ds.type);

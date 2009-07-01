@@ -222,6 +222,29 @@ static int cc_config_add_match_dstype (int *dstype_ret, /* {{{ */
     else
       dstype = 0;
   }
+else if (strncasecmp ("Derive", ci->values[0].value.string,
+        strlen ("Derive")) == 0)
+  {
+    dstype = UTILS_MATCH_DS_TYPE_DERIVE;
+    if (strcasecmp ("DeriveSet", ci->values[0].value.string) == 0)
+      dstype |= UTILS_MATCH_CF_DERIVE_SET;
+    else if (strcasecmp ("DeriveAdd", ci->values[0].value.string) == 0)
+      dstype |= UTILS_MATCH_CF_DERIVE_ADD;
+    else if (strcasecmp ("DeriveInc", ci->values[0].value.string) == 0)
+      dstype |= UTILS_MATCH_CF_DERIVE_INC;
+    else
+      dstype = 0;
+  }
+else if (strncasecmp ("Absolute", ci->values[0].value.string,
+        strlen ("Absolute")) == 0)
+  {
+    dstype = UTILS_MATCH_DS_TYPE_ABSOLUTE;
+    if (strcasecmp ("AbsoluteSet", ci->values[0].value.string) == 0) /* Absolute DS is reset-on-read so no sense doin anything else but set */
+      dstype |= UTILS_MATCH_CF_ABSOLUTE_SET;
+    else
+      dstype = 0;
+  }
+
   else
   {
     dstype = 0;

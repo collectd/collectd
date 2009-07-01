@@ -792,6 +792,11 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
       else
         SSTRCATF (command, ":%g", vl->values[i].gauge);
     }
+    else if (vl->values_types[i] == LCC_TYPE_DERIVE)
+	SSTRCATF (command, ":%"PRIu64, vl->values[i].derive);
+    else if (vl->values_types[i] == LCC_TYPE_ABSOLUTE)
+	SSTRCATF (command, ":%"PRIu64, vl->values[i].absolute);
+
   } /* for (i = 0; i < vl->values_len; i++) */
 
   status = lcc_sendreceive (c, command, &res);

@@ -75,7 +75,9 @@ static int value_list_to_string (char *buffer, int buffer_len,
   for (i = 0; i < ds->ds_num; i++)
   {
     if ((ds->ds[i].type != DS_TYPE_COUNTER)
-        && (ds->ds[i].type != DS_TYPE_GAUGE))
+        && (ds->ds[i].type != DS_TYPE_GAUGE)
+	&& (ds->ds[i].type != DS_TYPE_DERIVE)
+	&& (ds->ds[i].type != DS_TYPE_ABSOLUTE)
       return (-1);
 
     if (ds->ds[i].type == DS_TYPE_COUNTER)
@@ -83,10 +85,19 @@ static int value_list_to_string (char *buffer, int buffer_len,
       status = ssnprintf (buffer + offset, buffer_len - offset,
           ":%llu", vl->values[i].counter);
     }
-    else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
+    else if (ds->ds[i].type == DS_TYPE_GAUGE) 
     {
       status = ssnprintf (buffer + offset, buffer_len - offset,
           ":%lf", vl->values[i].gauge);
+    }
+    else if (ds->ds[i].type == DS_TYPE_DERIVE) {
+      status = ssnprintf (buffer + offset, buffer_len - offset,
+	  ":%llu", vl->values[i].derive);
+    }
+    else /* if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */ {
+      status = ssnprintf (buffer + offset, buffer_len - offset,
+	  ":%llu", vl->values[i].absolute);
+ 
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))

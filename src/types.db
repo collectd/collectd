@@ -1,3 +1,4 @@
+absolute		count:ABSOLUTE:0:U
 apache_bytes		count:COUNTER:0:134217728
 apache_connections	count:GAUGE:0:65535
 apache_requests		count:COUNTER:0:134217728
@@ -15,6 +16,7 @@ cpufreq			value:GAUGE:0:U
 cpu			value:COUNTER:0:4294967295
 current			value:GAUGE:U:U
 delay			seconds:GAUGE:-1000000:1000000
+derive			value:DERIVE:0:U
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
 disk_merged		read:COUNTER:0:4294967295, write:COUNTER:0:4294967295
 disk_octets		read:COUNTER:0:17179869183, write:COUNTER:0:17179869183
