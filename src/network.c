@@ -733,19 +733,19 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 		switch (pkg_types[i])
 		{
 		  case DS_TYPE_COUNTER:
-		    pkg_values[i].counter = ntohll (pkg_values[i].counter);
+		    pkg_values[i].counter = (counter_t) ntohll (pkg_values[i].counter);
 		    break;
 
 		  case DS_TYPE_GAUGE:
-		    pkg_values[i].gauge = ntohd (pkg_values[i].gauge);
+		    pkg_values[i].gauge = (gauge_t) ntohd (pkg_values[i].gauge);
 		    break;
 
 		  case DS_TYPE_DERIVE:
-		    pkg_values[i].derive = ntohll (pkg_values[i].derive);
+		    pkg_values[i].derive = (derive_t) ntohll (pkg_values[i].derive);
 		    break;
 
 		  case DS_TYPE_ABSOLUTE:
-		    pkg_values[i].absolute = ntohll (pkg_values[i].absolute);
+		    pkg_values[i].absolute = (absolute_t) ntohll (pkg_values[i].absolute);
 		    break;
 
 		  default:
@@ -756,11 +756,6 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 			pkg_types[i]);
 		    return (-1);
 		} /* switch (pkg_types[i]) */
-
-		if (pkg_types[i] == DS_TYPE_COUNTER)
-			pkg_values[i].counter = ntohll (pkg_values[i].counter);
-		else if (pkg_types[i] == DS_TYPE_GAUGE)
-			pkg_values[i].gauge = ntohd (pkg_values[i].gauge);
 	}
 
 	*ret_buffer     = buffer;
