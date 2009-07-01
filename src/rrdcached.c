@@ -77,7 +77,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
     if ((ds->ds[i].type != DS_TYPE_COUNTER)
         && (ds->ds[i].type != DS_TYPE_GAUGE)
 	&& (ds->ds[i].type != DS_TYPE_DERIVE)
-	&& (ds->ds[i].type != DS_TYPE_ABSOLUTE)
+	&& (ds->ds[i].type != DS_TYPE_ABSOLUTE))
       return (-1);
 
     if (ds->ds[i].type == DS_TYPE_COUNTER)
