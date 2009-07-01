@@ -757,9 +757,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
 
   if (vl->type == ASN_OCTET_STR)
   {
-    char *endptr;
+    int status = -1;
 
-    endptr = NULL;
     if (vl->val.string != NULL)
     {
       char string[64];
@@ -770,44 +769,58 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
 	string_length = vl->val_len;
 
       /* The strings we get from the Net-SNMP library may not be null
-       * terminated. That is why we're using `membpy' here and not `strcpy'.
+       * terminated. That is why we're using `memcpy' here and not `strcpy'.
        * `string_length' is set to `vl->val_len' which holds the length of the
        * string.  -octo */
       memcpy (string, vl->val.string, string_length);
       string[string_length] = 0;
 
-      if (type == DS_TYPE_COUNTER)
+      status = parse_value (string, &ret, type);
+      if (status != 0)
       {
-	ret.counter = (counter_t) strtoll (string, &endptr, /* base = */ 0);
-	DEBUG ("snmp plugin: csnmp_value_list_to_value: String to counter: %s -> %llu",
-	    string, (unsigned long long) ret.counter);
-      }
-      else if (type == DS_TYPE_GAUGE)
-      {
-	ret.gauge = (gauge_t) strtod (string, &endptr);
-	DEBUG ("snmp plugin: csnmp_value_list_to_value: String to gauge: %s -> %g",
-	    string, (double) ret.gauge);
+	ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
+	    DS_TYPE_TO_STRING (type), string);
       }
     }
 
-    /* Check if an error occurred */
-    if ((vl->val.string == NULL) || (endptr == (char *) vl->val.string))
+    if (status != 0)
     {
-      if (type == DS_TYPE_COUNTER)
-	ret.counter = 0;
-      else if (type == DS_TYPE_GAUGE)
-	ret.gauge = NAN;
+      switch (type)
+      {
+	case DS_TYPE_COUNTER:
+	case DS_TYPE_DERIVE:
+	case DS_TYPE_ABSOLUTE:
+	  memset (&ret, 0, sizeof (ret));
+	  break;
+
+	case DS_TYPE_GAUGE:
+	  ret.gauge = NAN;
+	  break;
+
+	default:
+	  ERROR ("snmp plugin: csnmp_value_list_to_value: Unknown "
+	      "data source type: %i.", type);
+	  ret.gauge = NAN;
+      }
     }
-  }
+  } /* if (vl->type == ASN_OCTET_STR) */
   else if (type == DS_TYPE_COUNTER)
-  {
     ret.counter = temp;
-  }
   else if (type == DS_TYPE_GAUGE)
   {
     ret.gauge = NAN;
     if (defined != 0)
       ret.gauge = (scale * temp) + shift;
+  }
+  else if (type == DS_TYPE_DERIVE)
+    ret.derive = (derive_t) temp;
+  else if (type == DS_TYPE_ABSOLUTE)
+    ret.absolute = (absolute_t) temp;
+  else
+  {
+    ERROR ("snmp plugin: csnmp_value_list_to_value: Unknown data source "
+	"type: %i.", type);
+    ret.gauge = NAN;
   }
 
   return (ret);
