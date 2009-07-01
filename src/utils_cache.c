@@ -34,7 +34,7 @@ typedef struct cache_entry_s
 	char name[6 * DATA_MAX_NAME_LEN];
 	int        values_num;
 	gauge_t   *values_gauge;
-	counter_t *values_counter;
+	value_t   *values_raw;
 	/* Time contained in the package
 	 * (for calculating rates) */
 	time_t last_time;
@@ -69,12 +69,12 @@ static cache_entry_t *cache_alloc (int values_num)
   memset (ce, '\0', sizeof (cache_entry_t));
   ce->values_num = values_num;
 
-  ce->values_gauge = (gauge_t *) calloc (values_num, sizeof (gauge_t));
-  ce->values_counter = (counter_t *) calloc (values_num, sizeof (counter_t));
-  if ((ce->values_gauge == NULL) || (ce->values_counter == NULL))
+  ce->values_gauge = calloc (values_num, sizeof (*ce->values_gauge));
+  ce->values_raw   = calloc (values_num, sizeof (*ce->values_raw));
+  if ((ce->values_gauge == NULL) || (ce->values_raw == NULL))
   {
     sfree (ce->values_gauge);
-    sfree (ce->values_counter);
+    sfree (ce->values_raw);
     sfree (ce);
     ERROR ("utils_cache: cache_alloc: calloc failed.");
     return (NULL);
@@ -89,7 +89,7 @@ static void cache_free (cache_entry_t *ce)
     return;
 
   sfree (ce->values_gauge);
-  sfree (ce->values_counter);
+  sfree (ce->values_raw);
   sfree (ce);
 } /* void cache_free */
 
@@ -167,6 +167,21 @@ static int uc_send_notification (const char *name)
   return (0);
 } /* int uc_send_notification */
 
+static void uc_check_range (const data_set_t *ds, cache_entry_t *ce)
+{
+  int i;
+
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if (isnan (ce->values_gauge[i]))
+      continue;
+    else if (ce->values_gauge[i] < ds->ds[i].min)
+      ce->values_gauge[i] = NAN;
+    else if (ce->values_gauge[i] > ds->ds[i].max)
+      ce->values_gauge[i] = NAN;
+  }
+} /* void uc_check_range */
+
 static int uc_insert (const data_set_t *ds, const value_list_t *vl,
     const char *key)
 {
@@ -195,16 +210,41 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 
   for (i = 0; i < ds->ds_num; i++)
   {
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
+    switch (ds->ds[i].type)
     {
-      ce->values_gauge[i] = NAN;
-      ce->values_counter[i] = vl->values[i].counter;
-    }
-    else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
-    {
-      ce->values_gauge[i] = vl->values[i].gauge;
-    }
+      case DS_TYPE_COUNTER:
+	ce->values_gauge[i] = NAN;
+	ce->values_raw[i].counter = vl->values[i].counter;
+	break;
+
+      case DS_TYPE_GAUGE:
+	ce->values_gauge[i] = vl->values[i].gauge;
+	ce->values_raw[i].gauge = vl->values[i].gauge;
+	break;
+
+      case DS_TYPE_DERIVE:
+	ce->values_gauge[i] = NAN;
+	ce->values_raw[i].derive = vl->values[i].derive;
+	break;
+
+      case DS_TYPE_ABSOLUTE:
+	ce->values_gauge[i] = NAN;
+	if (vl->interval > 0)
+	  ce->values_gauge[i] = ((double) vl->values[i].absolute)
+	    / ((double) vl->interval);
+	ce->values_raw[i].absolute = vl->values[i].absolute;
+	break;
+	
+      default:
+	/* This shouldn't happen. */
+	ERROR ("uc_insert: Don't know how to handle data source type %i.",
+	    ds->ds[i].type);
+	return (-1);
+    } /* switch (ds->ds[i].type) */
   } /* for (i) */
+
+  /* Prune invalid gauge data */
+  uc_check_range (ds, ce);
 
   ce->last_time = vl->time;
   ce->last_update = time (NULL);
@@ -400,35 +440,69 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 
   for (i = 0; i < ds->ds_num; i++)
   {
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
+    switch (ds->ds[i].type)
     {
-      counter_t diff;
+      case DS_TYPE_COUNTER:
+	{
+	  counter_t diff;
 
-      /* check if the counter has wrapped around */
-      if (vl->values[i].counter < ce->values_counter[i])
-      {
-	if (ce->values_counter[i] <= 4294967295U)
-	  diff = (4294967295U - ce->values_counter[i])
-	    + vl->values[i].counter;
-	else
-	  diff = (18446744073709551615ULL - ce->values_counter[i])
-	    + vl->values[i].counter;
-      }
-      else /* counter has NOT wrapped around */
-      {
-	diff = vl->values[i].counter - ce->values_counter[i];
-      }
+	  /* check if the counter has wrapped around */
+	  if (vl->values[i].counter < ce->values_raw[i].counter)
+	  {
+	    if (ce->values_raw[i].counter <= 4294967295U)
+	      diff = (4294967295U - ce->values_raw[i].counter)
+		+ vl->values[i].counter;
+	    else
+	      diff = (18446744073709551615ULL - ce->values_raw[i].counter)
+		+ vl->values[i].counter;
+	  }
+	  else /* counter has NOT wrapped around */
+	  {
+	    diff = vl->values[i].counter - ce->values_raw[i].counter;
+	  }
 
-      ce->values_gauge[i] = ((double) diff)
-	/ ((double) (vl->time - ce->last_time));
-      ce->values_counter[i] = vl->values[i].counter;
-    }
-    else /* if (ds->ds[i].type == DS_TYPE_GAUGE) */
-    {
-      ce->values_gauge[i] = vl->values[i].gauge;
-    }
+	  ce->values_gauge[i] = ((double) diff)
+	    / ((double) (vl->time - ce->last_time));
+	  ce->values_raw[i].counter = vl->values[i].counter;
+	}
+	break;
+
+      case DS_TYPE_GAUGE:
+	ce->values_raw[i].gauge = vl->values[i].gauge;
+	ce->values_gauge[i] = vl->values[i].gauge;
+	break;
+
+      case DS_TYPE_DERIVE:
+	{
+	  derive_t diff;
+
+	  diff = vl->values[i].derive - ce->values_raw[i].derive;
+
+	  ce->values_gauge[i] = ((double) diff)
+	    / ((double) (vl->time - ce->last_time));
+	  ce->values_raw[i].derive = vl->values[i].derive;
+	}
+	break;
+
+      case DS_TYPE_ABSOLUTE:
+	ce->values_gauge[i] = ((double) vl->values[i].absolute)
+	  / ((double) (vl->time - ce->last_time));
+	ce->values_raw[i].absolute = vl->values[i].absolute;
+	break;
+
+      default:
+	/* This shouldn't happen. */
+	pthread_mutex_unlock (&cache_lock);
+	ERROR ("uc_update: Don't know how to handle data source type %i.",
+	    ds->ds[i].type);
+	return (-1);
+    } /* switch (ds->ds[i].type) */
+
     DEBUG ("uc_update: %s: ds[%i] = %lf", name, i, ce->values_gauge[i]);
   } /* for (i) */
+
+  /* Prune invalid gauge data */
+  uc_check_range (ds, ce);
 
   ce->last_time = vl->time;
   ce->last_update = time (NULL);
