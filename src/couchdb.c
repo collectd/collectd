@@ -142,9 +142,15 @@ static int couchcb_integer (void *ctx, long val)
 
     type = couchdb_get_type (key);
     if (type == DS_TYPE_COUNTER)
-      vt.counter = val;
+      vt.counter = (counter_t) val;
+    else if (type == DS_TYPE_GAUGE)
+      vt.gauge = (gauge_t) val;
+    else if (type == DS_TYPE_DERIVE)
+      vt.derive = (derive_t) val;
+    else if (type == DS_TYPE_ABSOLUTE)
+      vt.absolute = (absolute_t) val;
     else
-      vt.gauge = (double)val;
+      return 0;
 
     couchdb_submit (db, key, &vt);
   }
@@ -162,10 +168,16 @@ static int couchcb_double (void *ctx, double val)
     int type;
 
     type = couchdb_get_type (key);
-    if (type == DS_TYPE_GAUGE)
-      vt.gauge = val;
+    if (type == DS_TYPE_COUNTER)
+      vt.counter = (counter_t) val;
+    else if (type == DS_TYPE_GAUGE)
+      vt.gauge = (gauge_t) val;
+    else if (type == DS_TYPE_DERIVE)
+      vt.derive = (derive_t) val;
+    else if (type == DS_TYPE_ABSOLUTE)
+      vt.absolute = (absolute_t) val;
     else
-      vt.counter = val;
+      return 0;
 
     couchdb_submit (db, key, &vt);
   }
