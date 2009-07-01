@@ -269,7 +269,10 @@ static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 	if (NULL != (tmp = hv_fetch (hash, "type", 4, 0))) {
 		ds->type = SvIV (*tmp);
 
-		if ((DS_TYPE_COUNTER != ds->type) && (DS_TYPE_GAUGE != ds->type) && (DS_TYPE_DERIVE != ds->type) && (DS_TYPE_ABSOLUTE != ds->type)) {
+		if ((DS_TYPE_COUNTER != ds->type)
+				&& (DS_TYPE_GAUGE != ds->type)
+				&& (DS_TYPE_DERIVE != ds->type)
+				&& (DS_TYPE_ABSOLUTE != ds->type)) {
 			log_err ("hv2data_source: Invalid DS type.");
 			return -1;
 		}
@@ -646,9 +649,9 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 		else if (DS_TYPE_GAUGE == ds->ds[i].type)
 			val = newSVnv (vl->values[i].gauge);
 		else if (DS_TYPE_DERIVE == ds->ds[i].type)
-			val = newSVnv (vl->values[i].derive);
+			val = newSViv (vl->values[i].derive);
 		else if (DS_TYPE_ABSOLUTE == ds->ds[i].type)
-			val = newSVnv (vl->values[i].absolute);
+			val = newSViv (vl->values[i].absolute);
 
 		if (NULL == av_store (values, i, val)) {
 			av_undef (values);
