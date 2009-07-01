@@ -527,17 +527,34 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 
 	for (i = 0; i < num_values; i++)
 	{
-		if (ds->ds[i].type == DS_TYPE_COUNTER)
+		pkg_values_types[i] = (uint8_t) ds->ds[i].type;
+		switch (ds->ds[i].type)
 		{
-			pkg_values_types[i] = DS_TYPE_COUNTER;
-			pkg_values[i].counter = htonll (vl->values[i].counter);
-		}
-		else
-		{
-			pkg_values_types[i] = DS_TYPE_GAUGE;
-			pkg_values[i].gauge = htond (vl->values[i].gauge);
-		}
-	}
+			case DS_TYPE_COUNTER:
+				pkg_values[i].counter = htonll (vl->values[i].counter);
+				break;
+
+			case DS_TYPE_GAUGE:
+				pkg_values[i].gauge = htond (vl->values[i].gauge);
+				break;
+
+			case DS_TYPE_DERIVE:
+				pkg_values[i].derive = htonll (vl->values[i].derive);
+				break;
+
+			case DS_TYPE_ABSOLUTE:
+				pkg_values[i].absolute = htonll (vl->values[i].absolute);
+				break;
+
+			default:
+				free (pkg_values_types);
+				free (pkg_values);
+				ERROR ("network plugin: write_part_values: "
+						"Unknown data source type: %i",
+						ds->ds[i].type);
+				return (-1);
+		} /* switch (ds->ds[i].type) */
+	} /* for (num_values) */
 
 	/*
 	 * Use `memcpy' to write everything to the buffer, because the pointer
@@ -713,6 +730,33 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	for (i = 0; i < pkg_numval; i++)
 	{
+		switch (pkg_types[i])
+		{
+		  case DS_TYPE_COUNTER:
+		    pkg_values[i].counter = ntohll (pkg_values[i].counter);
+		    break;
+
+		  case DS_TYPE_GAUGE:
+		    pkg_values[i].gauge = ntohd (pkg_values[i].gauge);
+		    break;
+
+		  case DS_TYPE_DERIVE:
+		    pkg_values[i].derive = ntohll (pkg_values[i].derive);
+		    break;
+
+		  case DS_TYPE_ABSOLUTE:
+		    pkg_values[i].absolute = ntohll (pkg_values[i].absolute);
+		    break;
+
+		  default:
+		    sfree (pkg_types);
+		    sfree (pkg_values);
+		    NOTICE ("network plugin: parse_part_values: "
+			"Don't know how to handle data source type %"PRIu8,
+			pkg_types[i]);
+		    return (-1);
+		} /* switch (pkg_types[i]) */
+
 		if (pkg_types[i] == DS_TYPE_COUNTER)
 			pkg_values[i].counter = ntohll (pkg_values[i].counter);
 		else if (pkg_types[i] == DS_TYPE_GAUGE)
