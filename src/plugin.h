@@ -33,6 +33,13 @@
 #define DS_TYPE_DERIVE   2
 #define DS_TYPE_ABSOLUTE 3
 
+#define DS_TYPE_TO_STRING(t) (t == DS_TYPE_COUNTER)     ? "counter"  : \
+				(t == DS_TYPE_GAUGE)    ? "gauge"    : \
+				(t == DS_TYPE_DERIVE)   ? "derive"   : \
+				(t == DS_TYPE_ABSOLUTE) ? "absolute" : \
+				"unknown"
+
+
 #ifndef LOG_ERR
 # define LOG_ERR 3
 #endif

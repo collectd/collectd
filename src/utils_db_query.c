@@ -211,7 +211,7 @@ static int udb_legacy_result_handle_result (udb_result_t *r, /* {{{ */
   {
     ERROR ("db query utils: udb_legacy_result_handle_result: "
         "Parsing `%s' as %s failed.", value_str,
-        (r->ds->ds[0].type == DS_TYPE_COUNTER) ? "counter" : "gauge");
+        DS_TYPE_TO_STRING (r->ds->ds[0].type));
     errno = EINVAL;
     return (-1);
   }
@@ -367,8 +367,7 @@ static int udb_result_submit (udb_result_t *r, udb_query_t *q) /* {{{ */
     if (0 != parse_value (value_str, &vl.values[i], r->ds->ds[i].type))
     {
       ERROR ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
-          value_str,
-          (r->ds->ds[i].type == DS_TYPE_COUNTER) ? "counter" : "gauge");
+          value_str, DS_TYPE_TO_STRING (r->ds->ds[i].type));
       errno = EINVAL;
       return (-1);
     }
