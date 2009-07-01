@@ -289,7 +289,7 @@ static void submit (const char *plugin_instance, /* {{{ */
     return;
   }
 
-  if (0 != parse_value (value, &values[0], ds->ds[0]))
+  if (0 != parse_value (value, &values[0], ds->ds[0].type))
   {
     ERROR ("powerdns plugin: Cannot convert `%s' "
         "to a number.", value);

@@ -837,32 +837,41 @@ int parse_identifier (char *str, char **ret_host,
 	return (0);
 } /* int parse_identifier */
 
-int parse_value (const char *value, value_t *ret_value, const data_source_t ds)
+int parse_value (const char *value, value_t *ret_value, int ds_type)
 {
-	char *endptr = NULL;
+  char *endptr = NULL;
 
-	if (DS_TYPE_COUNTER == ds.type)
-		ret_value->counter = (counter_t)strtoll (value, &endptr, 0);
-	else if (DS_TYPE_GAUGE == ds.type)
-		ret_value->gauge = (gauge_t)strtod (value, &endptr);
-	else if (DS_TYPE_DERIVE == ds.type)
-		ret_value->counter = (derive_t)strtoll (value, &endptr, 0);
-	else if (DS_TYPE_ABSOLUTE == ds.type)
-		ret_value->counter = (absolute_t)strtoll (value, &endptr, 0);
-	else {
-		ERROR ("parse_value: Invalid data source \"%s\" "
-				"(type = %i).", ds.name, ds.type);
-		return -1;
-	}
+  switch (ds_type)
+  {
+    case DS_TYPE_COUNTER:
+      ret_value->counter = (counter_t) strtoull (value, &endptr, 0);
+      break;
 
-	if (value == endptr) {
-		ERROR ("parse_value: Failed to parse string as number: %s.", value);
-		return -1;
-	}
-	else if ((NULL != endptr) && ('\0' != *endptr))
-		WARNING ("parse_value: Ignoring trailing garbage after number: %s.",
-				endptr);
-	return 0;
+    case DS_TYPE_GAUGE:
+      ret_value->gauge = (gauge_t) strtod (value, &endptr);
+      break;
+
+    case DS_TYPE_DERIVE:
+      ret_value->counter = (derive_t) strtoll (value, &endptr, 0);
+      break;
+
+    case DS_TYPE_ABSOLUTE:
+      ret_value->counter = (absolute_t) strtoull (value, &endptr, 0);
+      break;
+
+    default:
+      ERROR ("parse_value: Invalid data source type: %i.", ds_type);
+      return -1;
+  }
+
+  if (value == endptr) {
+    ERROR ("parse_value: Failed to parse string as number: %s.", value);
+    return -1;
+  }
+  else if ((NULL != endptr) && ('\0' != *endptr))
+    WARNING ("parse_value: Ignoring trailing garbage after number: %s.",
+        endptr);
+  return 0;
 } /* int parse_value */
 
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
@@ -893,7 +902,7 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 		{
 			if ((strcmp ("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
 				vl->values[i].gauge = NAN;
-			else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i]))
+			else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i].type))
 				return -1;
 		}
 

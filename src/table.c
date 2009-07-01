@@ -383,7 +383,7 @@ static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
 		assert (res->values[i] < fields_num);
 		value = fields[res->values[i]];
 
-		if (0 != parse_value (value, &values[i], res->ds->ds[i]))
+		if (0 != parse_value (value, &values[i], res->ds->ds[i].type))
 			return -1;
 	}
 
