@@ -602,7 +602,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
 
       endptr = NULL;
       errno = 0;
-      value_counter.counter = (counter_t) strtoll (msg_string.str,
+      value_counter.counter = (counter_t) strtoull (msg_string.str,
           &endptr, /* base = */ 0);
       if ((endptr == msg_string.str) || (errno != 0))
         value_counter.counter = -1;

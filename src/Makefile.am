@@ -722,7 +722,7 @@ pkglib_LTLIBRARIES += ping.la
 ping_la_SOURCES = ping.c
 ping_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOPING_CPPFLAGS)
 ping_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBOPING_LDFLAGS)
-ping_la_LIBADD = -loping
+ping_la_LIBADD = -loping -lm
 collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif
@@ -791,8 +791,8 @@ if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = sensors.c
 sensors_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSENSORS_CFLAGS)
-sensors_la_LDFLAGS = -module -avoid-version
-sensors_la_LIBADD = $(BUILD_WITH_LIBSENSORS_LDFLAGS)
+sensors_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBSENSORS_LDFLAGS)
+sensors_la_LIBADD = -lsensors
 collectd_LDADD += "-dlopen" sensors.la
 collectd_DEPENDENCIES += sensors.la
 endif

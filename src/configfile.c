@@ -378,12 +378,12 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 	temp = NULL;
 
 	/* If (src->children_num == 0) the array size is decreased. If offset
-	 * is _not_ the last element, (offset < (src->children_num - 1)), then
+	 * is _not_ the last element, (offset < (dst->children_num - 1)), then
 	 * we need to move the trailing elements before resizing the array. */
-	if ((src->children_num == 0) && (offset < (src->children_num - 1)))
+	if ((src->children_num == 0) && (offset < (dst->children_num - 1)))
 	{
-		int nmemb = src->children_num - (offset + 1);
-		memmove (src->children + offset, src->children + offset + 1,
+		int nmemb = dst->children_num - (offset + 1);
+		memmove (dst->children + offset, dst->children + offset + 1,
 				sizeof (oconfig_item_t) * nmemb);
 	}
 
@@ -415,7 +415,7 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 				sizeof (oconfig_item_t) * nmemb);
 	}
 
-	/* Last but not least: If there are new childrem, copy them to the
+	/* Last but not least: If there are new children, copy them to the
 	 * memory reserved for them. */
 	if (src->children_num > 0)
 	{
@@ -490,6 +490,9 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 
 		/* Now replace the i'th child in `root' with `new'. */
 		cf_ci_replace_child (root, new, i);
+
+		/* ... and go back to the new i'th child. */
+		--i;
 
 		sfree (new->values);
 		sfree (new);

@@ -1540,7 +1540,7 @@ then
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
-			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$TMPDIR"
+			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$TMPDIR -Wl,-rpath -Wl,$TMPDIR"
 		else
 			AC_MSG_RESULT([not found])
 		fi
@@ -3869,6 +3869,7 @@ Configuration:
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libesmtp  . . . . . . $with_libesmtp
+    libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc

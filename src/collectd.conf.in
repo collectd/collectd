@@ -314,6 +314,15 @@ FQDNLookup   true
 #	IgnoreSelected false
 #</Plugin>
 
+#<Plugin ipmi>
+#	Sensor "some_sensor"
+#	Sensor "another_one"
+#	IgnoreSelected false
+#	NotifySensorAdd false
+#	NotifySensorRemove true
+#	NotifySensorNotPresent false
+#</Plugin>
+
 #<Plugin iptables>
 #	Chain table chain
 #</Plugin>
