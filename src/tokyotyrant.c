@@ -39,6 +39,8 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 static char *config_host = NULL;
 static char *config_port = NULL;
 
+TCRDB *rdb = NULL;
+
 static int tt_config (const char *key, const char *value)
 {
 	if (strcasecmp ("Host", key) == 0)
@@ -105,13 +107,23 @@ static void tt_submit (gauge_t val, const char* type)
 static int tt_read (void) {
 	gauge_t rnum, size;
 
+	rnum = tcrdbrnum(rdb);
+	size = tcrdbsize(rdb);
+	tt_submit (rnum, "records");
+	tt_submit (size, "file_size");
+
+	return (0);
+}
+
+static int tt_init(void) 
+{
         char* host = NULL;
         int   port;
 
         host = ((config_host != NULL) ? config_host : DEFAULT_HOST);
         port = ((config_port != NULL) ? atoi(config_port) : DEFAULT_PORT);
 
-	TCRDB *rdb = tcrdbnew();
+	rdb = tcrdbnew();
 
 	if (!tcrdbopen(rdb, host, port))
 	{
@@ -120,10 +132,13 @@ static int tt_read (void) {
 		return (1);
 	}
 
-	rnum = tcrdbrnum(rdb);
-	size = tcrdbsize(rdb);
-	tt_submit (rnum, "records");
-	tt_submit (size, "file_size");
+        return(0);
+}
+
+static int tt_shutdown(void)
+{
+        sfree(config_host);
+        sfree(config_port);
 
 	if (!tcrdbclose(rdb))
 	{
@@ -133,13 +148,6 @@ static int tt_read (void) {
 	}
 
         tcrdbdel (rdb);
-	return (0);
-}
-
-static int tt_shutdown(void)
-{
-        sfree(config_host);
-        sfree(config_port);
 
         return(0);
 }
@@ -149,6 +157,7 @@ void module_register (void)
 	plugin_register_config("tokyotyrant", tt_config,
 			config_keys, config_keys_num);
 	plugin_register_read("tokyotyrant", tt_read);
+        plugin_register_init("tokyotyrant", tt_init);
         plugin_register_shutdown("tokyotyrant", tt_shutdown);
 }
 
