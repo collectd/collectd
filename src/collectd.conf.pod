@@ -3316,6 +3316,25 @@ selection is configured at all, B<all> devices are selected.
 
 =back
 
+=head2 Plugin C<tokyotyrant>
+
+The C<tokyotyrant plugin> connects to a TokyoTyrant server and collects a 
+couple metrics: number of records, and database size on disk.
+
+=over 4
+
+=item B<Host> I<hostname/ip>
+
+The hostname or ip which identifies the server.
+Default: "127.0.0.1"
+
+=item B<Port> I<port>
+
+The query port of the server. This needs to be a string.
+Default: "1978"
+
+=back
+
 =head2 Plugin C<unixsock>
 
 =over 4
