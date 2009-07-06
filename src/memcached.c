@@ -82,7 +82,7 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 		port = MEMCACHED_DEF_PORT;
 	}
 
-	if ((ai_return = getaddrinfo (host, port, NULL, &ai_list)) != 0) {
+	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0) {
 		char errbuf[1024];
 		ERROR ("memcached: getaddrinfo (%s, %s): %s",
 				host, port,
