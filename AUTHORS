@@ -103,6 +103,9 @@ Oleg King <king2 at kaluga.ru>
    + the disk plugin, and
    + the users plugin.
 
+Paul Sadauskas <psadauskas at gmail.com>
+ - tokyotyrant plugin.
+
 Peter Holik <peter at holik.at>
  - cpufreq plugin.
  - multimeter plugin.
