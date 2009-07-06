@@ -782,7 +782,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
 
     if (sum == 0.0)
     {
-      WARNING ("Values sum for percentage seems up to zero");
+      WARNING ("Values sum for percentage sums up to zero");
       return(STATE_WARNING);
     }
 
