@@ -664,12 +664,12 @@ static int ut_report_state (const data_set_t *ds,
     {
       if (!isnan (min) && !isnan (max))
       {
-	status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	    "%f. That is within the %s region of %f and %f%s.",
-	    ds->ds[ds_index].name, values[ds_index],
-	    (state == STATE_ERROR) ? "failure" : "warning",
-	    min, max,
-	    ((th->flags & UT_FLAG_PERCENTAGE) == UT_FLAG_PERCENTAGE) ? "%" : "" );
+        status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
+            "%f. That is within the %s region of %f%s and %f%s.",
+            ds->ds[ds_index].name, values[ds_index],
+            (state == STATE_ERROR) ? "failure" : "warning",
+            min, ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "",
+            max, ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       }
       else
       {
@@ -679,7 +679,7 @@ static int ut_report_state (const data_set_t *ds,
 	    isnan (min) ? "below" : "above",
 	    (state == STATE_ERROR) ? "failure" : "warning",
 	    isnan (min) ? max : min,
-	    ((th->flags & UT_FLAG_PERCENTAGE) == UT_FLAG_PERCENTAGE) ? "%" : "" );
+	    ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       }
     }
     else /* is not inverted */
@@ -690,7 +690,7 @@ static int ut_report_state (const data_set_t *ds,
 	  (values[ds_index] < min) ? "below" : "above",
 	  (state == STATE_ERROR) ? "failure" : "warning",
 	  (values[ds_index] < min) ? min : max,
-	  ((th->flags & UT_FLAG_PERCENTAGE) == UT_FLAG_PERCENTAGE) ? "%" : "" );
+	  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
     }
     buf += status;
     bufsize -= status;
@@ -950,4 +950,4 @@ int ut_check_interesting (const char *name)
   return (2);
 } /* }}} int ut_check_interesting */
 
-/* vim: set sw=2 ts=8 sts=2 tw=78 fdm=marker : */
+/* vim: set sw=2 ts=8 sts=2 tw=78 et fdm=marker : */
