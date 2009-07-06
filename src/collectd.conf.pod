@@ -3537,6 +3537,13 @@ This applies to missing values, too: If set to B<true> a notification about a
 missing value is generated once every B<Interval> seconds. If set to B<false>
 only one such notification is generated until the value appears again.
 
+=item B<Percentage> B<true>|B<false>
+
+If set to B<true>, the minimum and maximum values given are interpreted as
+percentage value, relative to the other data sources. This is helpful for
+example for the "df" type, where you may want to issue a warning when less than
+5E<nbsp>% of the total space is available. Defaults to B<false>.
+
 =back
 
 =head1 FILTER CONFIGURATION
