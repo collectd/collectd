@@ -41,18 +41,32 @@ use Fatal qw(open close);
 use File::Basename;
 use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 
-my $DIR  = "/var/lib/collectd";
-my $HOST = undef;
+my $DIR       = "/var/lib/collectd";
+my $HOST      = undef;
+my $IMG_FMT   = "PNG";
+my $RECURSIVE = 0;
 
 GetOptions (
-    "host=s"     => \$HOST,
-    "data-dir=s" => \$DIR
+    "host=s"         => \$HOST,
+    "data-dir=s"     => \$DIR,
+    "image-format=s" => \$IMG_FMT,
+    "recursive"      => \$RECURSIVE
 );
+
+if (($DIR !~ m/\/rrd\/?$/) && (-d "$DIR/rrd")) {
+	$DIR .= "/rrd";
+}
+
+if (defined($HOST) && ($DIR !~ m/\/$HOST\/?$/) && (-d "$DIR/$HOST")) {
+	$DIR .= "/$HOST";
+}
 
 my @COLORS = (0xff7777, 0x7777ff, 0x55ff55, 0xffcc77, 0xff77ff, 0x77ffff,
 	0xffff77, 0x55aaff);
 my @tmp = `/bin/hostname`; chomp(@tmp);
 $HOST = $tmp[0] if (! defined $HOST);
+my $svg_p = ($IMG_FMT eq "SVG");
+my $IMG_SFX = $svg_p ? ".svg" : ".png";
 my $IMG_DIR = "${HOST}.dir";
 my $HTML = "${HOST}.html";
 
@@ -116,12 +130,19 @@ END
 
 # list interesting rrd
 my @rrds;
-my @list = `ls $DIR/*.rrd`; chomp(@list);
+my @list;
+
+if ($RECURSIVE) {
+	@list = `find $DIR -type f -name '*.rrd'`;
+}
+else {
+	@list = `ls $DIR/*.rrd`;
+}
+chomp(@list);
 
 foreach my $rrd (sort @list){
-	my $bn = basename($rrd);
-	$bn =~ s/\.rrd$//;
-	push(@rrds, $bn);
+	$rrd =~ m/^$DIR\/(.*)\.rrd$/;
+	push(@rrds, $1);
 }
 
 # table of contents
@@ -131,7 +152,8 @@ print OUT <<END;
 END
 
 foreach my $bn (@rrds){
-	my $cleaned_bn = $bn; $cleaned_bn =~ s/%/_/g;
+	my $cleaned_bn = $bn;
+	$cleaned_bn =~ tr/%\//__/;
 	print OUT <<END;
 <A href="#$cleaned_bn">$bn</A>
 END
@@ -142,16 +164,17 @@ print OUT <<END;
 END
 
 # graph interesting rrd
-foreach my $bn (@rrds){
+for (my $i = 0; $i < scalar(@rrds); ++$i) {
+	my $bn = $rrds[$i];
 	print "$bn\n";
 
-	my $rrd = "$DIR/${bn}.rrd";
+	my $rrd = $list[$i];
 	my $cmd = "rrdtool info $rrd |grep 'ds\\[' |sed 's/^ds\\[//'" 
 		." |sed 's/\\].*//' |sort |uniq";
 	my @dss = `$cmd`; chomp(@dss);
 
 	# all DEF
-	my $i = 0;
+	my $j = 0;
 	my $defs = "";
 
 	foreach my $ds (@dss){
@@ -160,44 +183,54 @@ foreach my $bn (@rrds){
 	}
 
 	# all AREA
-	$i = 0;
+	$j = 0;
 
 	foreach my $ds (@dss){
-		my $color = $COLORS[$i % scalar(@COLORS)]; $i++;
+		my $color = $COLORS[$j % scalar(@COLORS)]; $j++;
 		my $faded_color = fade_color($color);
 		$defs .= sprintf(" AREA:${ds}_max#%06x ", $faded_color);
 	}
 
 	# all LINE	
-	$i = 0;
+	$j = 0;
 
 	foreach my $ds (@dss){
-		my $color = $COLORS[$i % scalar(@COLORS)]; $i++;
+		my $color = $COLORS[$j % scalar(@COLORS)]; $j++;
 		$defs .= sprintf(" LINE2:${ds}_avg#%06x:$ds"
 			." GPRINT:${ds}_avg:AVERAGE:%%5.1lf%%sAvg"
 			." GPRINT:${ds}_max:MAX:%%5.1lf%%sMax"
 			, $color);
 	}
 
-	my $cleaned_bn = $bn; $cleaned_bn =~ s/%/_/g;
+	my $cleaned_bn = $bn;
+	$cleaned_bn =~ tr/%\//__/;
 	print OUT <<END;
 <A name="$cleaned_bn"></A><H1>$bn</H1>
 END
 
 	# graph various ranges
 	foreach my $span qw(1hour 1day 1week 1month){
-		my $png = "$IMG_DIR/${bn}-$span.png";
+		system("mkdir -p $IMG_DIR/" . dirname($bn));
+		my $img = "$IMG_DIR/${bn}-$span$IMG_SFX";
 
-		my $cmd = "rrdtool graph $png"
-			." -t \"$bn $span\" --imgformat PNG --width 600 --height 100"
+		my $cmd = "rrdtool graph $img"
+			." -t \"$bn $span\" --imgformat $IMG_FMT --width 600 --height 100"
 			." --start now-$span --end now --interlaced"
 			." $defs >/dev/null 2>&1";
 		system($cmd);
 
-		my $cleaned_png = $png; $cleaned_png =~ s/%/%25/g;
-		print OUT <<END;
-<P><IMG src="$cleaned_png" alt="${bn} $span"></P>
+		my $cleaned_img = $img; $cleaned_img =~ s/%/%25/g;
+		if (! $svg_p) {
+			print OUT <<END;
+<P><IMG src="$cleaned_img" alt="${bn} $span"></P>
 END
+		} else {
+			print OUT <<END;
+<P><object data="$cleaned_img" type="image/svg+xml"
+           width="670" height="179">
+  ${bn} $span</object></P>
+END
+		}
 	}
 
 	print OUT <<END;

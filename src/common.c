@@ -876,7 +876,11 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 		dummy = NULL;
 
 		if (i >= vl->values_len)
+		{
+			/* Make sure i is invalid. */
+			i = vl->values_len + 1;
 			break;
+		}
 
 		if (i == -1)
 		{
