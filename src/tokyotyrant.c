@@ -78,7 +78,7 @@ static int tt_config (const char *key, const char *value)
 	return (0);
 }
 
-static void printerr(TCRDB *rdb)
+static void printerr()
 {
 	int ecode = tcrdbecode(rdb);
 	ERROR ("tokyotyrant plugin: error: %d, %s",
@@ -108,8 +108,9 @@ static int tt_read (void) {
 	gauge_t rnum, size;
 
 	rnum = tcrdbrnum(rdb);
-	size = tcrdbsize(rdb);
 	tt_submit (rnum, "records");
+
+	size = tcrdbsize(rdb);
 	tt_submit (size, "file_size");
 
 	return (0);
@@ -127,7 +128,7 @@ static int tt_init(void)
 
 	if (!tcrdbopen(rdb, host, port))
 	{
-		printerr (rdb);
+		printerr ();
 		tcrdbdel (rdb);
 		return (1);
 	}
@@ -142,7 +143,7 @@ static int tt_shutdown(void)
 
 	if (!tcrdbclose(rdb))
 	{
-		printerr (rdb);
+		printerr ();
 		tcrdbdel (rdb);
 		return (1);
 	}
