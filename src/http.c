@@ -207,7 +207,7 @@ static int http_value_list_to_metric_name (char *buffer, int buffer_len, /* {{{ 
   }
 
   /* type (if its the same as plugin, don't bother repeating it */
-  if (0 != strcmp (vl->type, vl->plugin)) 
+  if (0 != strcmp (vl->type, vl->plugin))
   {
     status = ssnprintf (buffer + offset, buffer_len - offset,
         ",%s", vl->type);
@@ -347,9 +347,9 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return -1;
   }
 
-  metric_prefix_len = http_value_list_to_metric_name (metric_name, 
+  metric_prefix_len = http_value_list_to_metric_name (metric_name,
       sizeof (metric_name), ds, vl);
-    
+
   if (metric_prefix_len == -1)
     return (-1);
 
@@ -358,14 +358,14 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (http_value_list_to_timestamp (timestamp, sizeof (timestamp), ds, vl) != 0)
     return (-1);
 
-  for (i = 0; i < ds->ds_num; i++) 
+  for (i = 0; i < ds->ds_num; i++)
   {
 
     if (http_value_list_to_string (value, sizeof (value), ds, vl, i) != 0)
       return (-1);
 
     ssnprintf(metric_name + metric_prefix_len, sizeof (metric_name) - metric_prefix_len,
-        ",%s", ds->ds[i].name); 
+        ",%s", ds->ds[i].name);
 
     escape_string (metric_name, sizeof (metric_name));
 
