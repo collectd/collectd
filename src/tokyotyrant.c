@@ -26,6 +26,9 @@
 #include "utils_parse_option.h"
 #include <tcrdb.h>
 
+#define DEFAULT_HOST "127.0.0.1"
+#define DEFAULT_PORT 1978
+
 static const char *config_keys[] =
 {
 	"Host",
@@ -33,27 +36,36 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static char *host = NULL;
-static int   port;
-static char  port_str[5];
+static char *config_host = NULL;
+static char *config_port = NULL;
 
 static int tt_config (const char *key, const char *value)
 {
 	if (strcasecmp ("Host", key) == 0)
 	{
-		if (host != NULL)
-			free (host);
-		host = strdup(value);
+		char *temp;
+
+		temp = strdup (value);
+		if (temp == NULL)
+		{
+			ERROR("tokyotyrant plugin: Host strdup failed.");
+			return (1);
+		}
+		sfree (config_host);
+		config_host = temp;
 	}
 	else if (strcasecmp ("Port", key) == 0)
 	{
-		port = atoi(value);
-		if ((port < 0) || (port > 65535))
+		char *temp;
+
+		temp = strdup (value);
+		if (temp == NULL)
 		{
-			ERROR ("tokyotyrant plugin: error: Port %s out of range", value);
-			return (-1);
+			ERROR("tokyotyrant plugin: Port strdup failed.");
+			return (1);
 		}
-                ssnprintf(port_str, 5, "%i", port);
+		sfree (config_port);
+		config_port = temp;
 	}
 	else
 	{
@@ -81,9 +93,9 @@ static void tt_submit (gauge_t val, const char* type)
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
 
-	sstrncpy (vl.host, host, sizeof (vl.host));
+	sstrncpy (vl.host, config_host, sizeof (vl.host));
 	sstrncpy (vl.plugin, "tokyotyrant", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, port_str,
+	sstrncpy (vl.plugin_instance, config_port,
 			sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 
@@ -92,6 +104,12 @@ static void tt_submit (gauge_t val, const char* type)
 
 static int tt_read (void) {
 	gauge_t rnum, size;
+
+        char* host = NULL;
+        int   port;
+
+        host = ((config_host != NULL) ? config_host : DEFAULT_HOST);
+        port = ((config_port != NULL) ? atoi(config_port) : DEFAULT_PORT);
 
 	TCRDB *rdb = tcrdbnew();
 
@@ -114,7 +132,16 @@ static int tt_read (void) {
 		return (1);
 	}
 
+        tcrdbdel (rdb);
 	return (0);
+}
+
+static int tt_shutdown(void)
+{
+        sfree(config_host);
+        sfree(config_port);
+
+        return(0);
 }
 
 void module_register (void)
@@ -122,6 +149,7 @@ void module_register (void)
 	plugin_register_config("tokyotyrant", tt_config,
 			config_keys, config_keys_num);
 	plugin_register_read("tokyotyrant", tt_read);
+        plugin_register_shutdown("tokyotyrant", tt_shutdown);
 }
 
 /* vim: set sw=8 ts=8 tw=78 : */
