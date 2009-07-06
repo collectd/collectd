@@ -33,6 +33,7 @@
  * {{{ */
 #define UT_FLAG_INVERT  0x01
 #define UT_FLAG_PERSIST 0x02
+#define UT_FLAG_PERCENTAGE 0x04
 
 typedef struct threshold_s
 {
@@ -262,6 +263,24 @@ static int ut_config_type_persist (threshold_t *th, oconfig_item_t *ci)
   return (0);
 } /* int ut_config_type_persist */
 
+static int ut_config_type_percentage(threshold_t *th, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    WARNING ("threshold values: The `Percentage' option needs exactly one "
+	"boolean argument.");
+    return (-1);
+  }
+
+  if (ci->values[0].value.boolean)
+    th->flags |= UT_FLAG_PERCENTAGE;
+  else
+    th->flags &= ~UT_FLAG_PERCENTAGE;
+
+  return (0);
+} /* int ut_config_type_percentage */
+
 static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 {
   int i;
@@ -309,6 +328,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
       status = ut_config_type_invert (&th, option);
     else if (strcasecmp ("Persist", option->key) == 0)
       status = ut_config_type_persist (&th, option);
+    else if (strcasecmp ("Percentage", option->key) == 0)
+      status = ut_config_type_percentage (&th, option);
     else
     {
       WARNING ("threshold values: Option `%s' not allowed inside a `Type' "
@@ -467,7 +488,7 @@ int ut_config (const oconfig_item_t *ci)
   th.warning_max = NAN;
   th.failure_min = NAN;
   th.failure_max = NAN;
-    
+
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
@@ -644,29 +665,32 @@ static int ut_report_state (const data_set_t *ds,
       if (!isnan (min) && !isnan (max))
       {
 	status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	    "%f. That is within the %s region of %f and %f.",
+	    "%f. That is within the %s region of %f and %f%s.",
 	    ds->ds[ds_index].name, values[ds_index],
 	    (state == STATE_ERROR) ? "failure" : "warning",
-	    min, max);
+	    min, max,
+	    ((th->flags & UT_FLAG_PERCENTAGE) == UT_FLAG_PERCENTAGE) ? "%" : "" );
       }
       else
       {
 	status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	    "%f. That is %s the %s threshold of %f.",
+	    "%f. That is %s the %s threshold of %f%s.",
 	    ds->ds[ds_index].name, values[ds_index],
 	    isnan (min) ? "below" : "above",
 	    (state == STATE_ERROR) ? "failure" : "warning",
-	    isnan (min) ? max : min);
+	    isnan (min) ? max : min,
+	    ((th->flags & UT_FLAG_PERCENTAGE) == UT_FLAG_PERCENTAGE) ? "%" : "" );
       }
     }
     else /* is not inverted */
     {
       status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	  "%f. That is %s the %s threshold of %f.",
+	  "%f. That is %s the %s threshold of %f%s.",
 	  ds->ds[ds_index].name, values[ds_index],
 	  (values[ds_index] < min) ? "below" : "above",
 	  (state == STATE_ERROR) ? "failure" : "warning",
-	  (values[ds_index] < min) ? min : max);
+	  (values[ds_index] < min) ? min : max,
+	  ((th->flags & UT_FLAG_PERCENTAGE) == UT_FLAG_PERCENTAGE) ? "%" : "" );
     }
     buf += status;
     bufsize -= status;
@@ -699,10 +723,13 @@ static int ut_check_one_data_source (const data_set_t *ds,
   int is_failure = 0;
 
   /* check if this threshold applies to this data source */
-  ds_name = ds->ds[ds_index].name;
-  if ((th->data_source[0] != 0)
-      && (strcmp (ds_name, th->data_source) != 0))
-    return (STATE_OKAY);
+  if (ds != NULL)
+  {
+    ds_name = ds->ds[ds_index].name;
+    if ((th->data_source[0] != 0)
+	&& (strcmp (ds_name, th->data_source) != 0))
+      return (STATE_OKAY);
+  }
 
   if ((th->flags & UT_FLAG_INVERT) != 0)
   {
@@ -742,6 +769,30 @@ static int ut_check_one_threshold (const data_set_t *ds,
   int ret = -1;
   int ds_index = -1;
   int i;
+
+  if ((th->flags & UT_FLAG_PERCENTAGE) == UT_FLAG_PERCENTAGE)
+  {
+
+    gauge_t sum=0.0;
+    gauge_t percentage;
+
+    for (i = 0; i < ds->ds_num; i++)
+      if (!isnan (values[i]))
+	sum += values[i];
+
+    if (sum == 0.0)
+    {
+      WARNING ("Values sum for percentage seems up to zero");
+      return(STATE_WARNING);
+    }
+
+    percentage = 100.0 * values[0] / sum;
+
+    if (ret_ds_index != NULL)
+       *ret_ds_index = 0;
+
+    return ut_check_one_data_source (NULL, vl, th, &percentage, 0);
+  }
 
   for (i = 0; i < ds->ds_num; i++)
   {
