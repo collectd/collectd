@@ -39,7 +39,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 static char *config_host = NULL;
 static char *config_port = NULL;
 
-TCRDB *rdb = NULL;
+static TCRDB *rdb = NULL;
 
 static int tt_config (const char *key, const char *value)
 {
