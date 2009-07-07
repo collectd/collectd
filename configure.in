@@ -4009,6 +4009,7 @@ Configuration:
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
     hddtemp . . . . . . . $enable_hddtemp
+    http  . . . . . . . . $enable_http
     interface . . . . . . $enable_interface
     ipmi  . . . . . . . . $enable_ipmi
     iptables  . . . . . . $enable_iptables
