@@ -224,6 +224,14 @@ collectd_LDADD += "-dlopen" csv.la
 collectd_DEPENDENCIES += csv.la
 endif
 
+if BUILD_PLUGIN_HTTP
+pkglib_LTLIBRARIES += http.la
+http_la_SOURCES = http.c
+http_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" http.la
+collectd_DEPENDENCIES += http.la
+endif
+
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = curl.c
