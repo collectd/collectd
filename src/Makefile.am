@@ -941,8 +941,12 @@ endif
 if BUILD_PLUGIN_TOKYOTYRANT
 pkglib_LTLIBRARIES += tokyotyrant.la
 tokyotyrant_la_SOURCES = tokyotyrant.c
-tokyotyrant_la_LDFLAGS = -module -avoid-version
+tokyotyrant_la_CPPFLAGS  = $(AM_CPPFLAGS) $(BUILD_WITH_LIBTOKYOTYRANT_CPPFLAGS)
+tokyotyrant_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBTOKYOTYRANT_LDFLAGS)
 tokyotyrant_la_LIBADD  = $(BUILD_WITH_LIBTOKYOTYRANT_LIBS)
+if BUILD_WITH_LIBSOCKET
+tokyotyrant_la_LIBADD += -lsocket
+endif
 collectd_LDADD += "-dlopen" tokyotyrant.la
 collectd_DEPENDENCIES += tokyotyrant.la
 endif
