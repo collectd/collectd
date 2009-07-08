@@ -24,6 +24,11 @@
 #include "common.h"
 #include "utils_cache.h"
 #include "utils_parse_option.h"
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #include <tcrdb.h>
 
 #define DEFAULT_HOST "127.0.0.1"
@@ -40,6 +45,56 @@ static char *config_host = NULL;
 static char *config_port = NULL;
 
 static TCRDB *rdb = NULL;
+
+static int parse_service_name (const char *service_name)
+{
+	struct addrinfo *ai_list;
+	struct addrinfo *ai_ptr;
+	struct addrinfo ai_hints;
+	int status;
+	int service_number;
+
+	ai_list = NULL;
+	memset (&ai_hints, 0, sizeof (ai_hints));
+	ai_hints.ai_family = AF_UNSPEC;
+
+	status = getaddrinfo (/* node = */ NULL, service_name,
+			&ai_hints, &ai_list);
+	if (status != 0)
+	{
+		ERROR ("tokyotyrant plugin: getaddrinfo failed: %s",
+				gai_strerror (status));
+		return (-1);
+	}
+
+	service_number = -1;
+	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	{
+		if (ai_ptr->ai_family == AF_INET)
+		{
+			struct sockaddr_in *sa;
+
+			sa = (void *) ai_ptr->ai_addr;
+			service_number = (int) ntohs (sa->sin_port);
+		}
+		else if (ai_ptr->ai_family == AF_INET6)
+		{
+			struct sockaddr_in6 *sa;
+
+			sa = (void *) ai_ptr->ai_addr;
+			service_number = (int) ntohs (sa->sin6_port);
+		}
+
+		if ((service_number > 0) && (service_number <= 65535))
+			break;
+	}
+
+	freeaddrinfo (ai_list);
+
+	if ((service_number > 0) && (service_number <= 65535))
+		return (service_number);
+	return (-1);
+} /* int parse_service_name */
 
 static int tt_config (const char *key, const char *value)
 {
@@ -104,8 +159,40 @@ static void tt_submit (gauge_t val, const char* type)
 	plugin_dispatch_values (&vl);
 }
 
+static void tt_open_db (void)
+{
+	char* host = NULL;
+	int   port = DEFAULT_PORT;
+
+	if (rdb != NULL)
+		return;
+
+	host = ((config_host != NULL) ? config_host : DEFAULT_HOST);
+
+	if (config_port != NULL)
+	{
+		port = parse_service_name (config_port);
+		if (port <= 0)
+			return;
+	}
+
+	rdb = tcrdbnew ();
+	if (rdb == NULL)
+		return;
+	else if (!tcrdbopen(rdb, host, port))
+	{
+		printerr ();
+		tcrdbdel (rdb);
+		rdb = NULL;
+	}
+} /* void tt_open_db */
+
 static int tt_read (void) {
 	gauge_t rnum, size;
+
+	tt_open_db ();
+	if (rdb == NULL)
+		return (-1);
 
 	rnum = tcrdbrnum(rdb);
 	tt_submit (rnum, "records");
@@ -116,41 +203,24 @@ static int tt_read (void) {
 	return (0);
 }
 
-static int tt_init(void) 
-{
-        char* host = NULL;
-        int   port;
-
-        host = ((config_host != NULL) ? config_host : DEFAULT_HOST);
-        port = ((config_port != NULL) ? atoi(config_port) : DEFAULT_PORT);
-
-	rdb = tcrdbnew();
-
-	if (!tcrdbopen(rdb, host, port))
-	{
-		printerr ();
-		tcrdbdel (rdb);
-		return (1);
-	}
-
-        return(0);
-}
-
 static int tt_shutdown(void)
 {
-        sfree(config_host);
-        sfree(config_port);
+	sfree(config_host);
+	sfree(config_port);
 
-	if (!tcrdbclose(rdb))
+	if (rdb != NULL)
 	{
-		printerr ();
+		if (!tcrdbclose(rdb))
+		{
+			printerr ();
+			tcrdbdel (rdb);
+			return (1);
+		}
 		tcrdbdel (rdb);
-		return (1);
+		rdb = NULL;
 	}
 
-        tcrdbdel (rdb);
-
-        return(0);
+	return(0);
 }
 
 void module_register (void)
@@ -158,8 +228,7 @@ void module_register (void)
 	plugin_register_config("tokyotyrant", tt_config,
 			config_keys, config_keys_num);
 	plugin_register_read("tokyotyrant", tt_read);
-        plugin_register_init("tokyotyrant", tt_init);
-        plugin_register_shutdown("tokyotyrant", tt_shutdown);
+	plugin_register_shutdown("tokyotyrant", tt_shutdown);
 }
 
 /* vim: set sw=8 ts=8 tw=78 : */
