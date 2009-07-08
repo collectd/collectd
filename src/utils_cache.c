@@ -304,6 +304,7 @@ int uc_check_timeout (void)
       }
       sfree (keys[i]);
       sfree (key);
+      cache_free (ce);
       continue;
     }
 
