@@ -608,7 +608,7 @@ FQDNLookup   true
 #       Version 1
 #       Community "community_string"
 #       Collect "std_traffic"
-#       Inverval 120
+#       Interval 120
 #   </Host>
 #   <Host "some.server.mydomain.org">
 #       Address "192.168.0.42"
