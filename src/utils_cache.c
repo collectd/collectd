@@ -305,6 +305,7 @@ int uc_check_timeout (void)
       sfree (keys[i]);
       sfree (key);
       cache_free (ce);
+      continue;
     }
 
     /* If we get here, the value is ``interesting''. Query the record from the
