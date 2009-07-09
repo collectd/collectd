@@ -224,20 +224,6 @@ collectd_LDADD += "-dlopen" csv.la
 collectd_DEPENDENCIES += csv.la
 endif
 
-if BUILD_PLUGIN_HTTP
-pkglib_LTLIBRARIES += http.la
-http_la_SOURCES = http.c
-http_la_LDFLAGS = -module -avoid-version
-http_la_CFLAGS = $(AM_CFLAGS)
-http_la_LIBADD =
-collectd_LDADD += "-dlopen" http.la
-if BUILD_WITH_LIBCURL
-http_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-http_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
-collectd_DEPENDENCIES += http.la
-endif
-
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = curl.c
@@ -359,6 +345,20 @@ hddtemp_la_LIBADD += -lsocket
 endif
 collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
+endif
+
+if BUILD_PLUGIN_HTTP
+pkglib_LTLIBRARIES += http.la
+http_la_SOURCES = http.c
+http_la_LDFLAGS = -module -avoid-version
+http_la_CFLAGS = $(AM_CFLAGS)
+http_la_LIBADD =
+collectd_LDADD += "-dlopen" http.la
+if BUILD_WITH_LIBCURL
+http_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+http_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+collectd_DEPENDENCIES += http.la
 endif
 
 if BUILD_PLUGIN_INTERFACE
