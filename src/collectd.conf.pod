@@ -1184,6 +1184,29 @@ the next major version.
 
 =back
 
+=head2 Plugin C<http>
+
+This output plugin submits values to an http server by POST them using the
+PUTVAL plain-text protocol.
+
+The following options are accepted by the C<http>-plugin:
+
+=over 4
+
+=item B<Location> I<http://example.com/collectd-import>
+
+Set the URL location where values will be sent.
+
+=item B<User> I<Username>
+
+Optional user name needed for authentication.
+
+=item B<Password> I<Password>
+
+Optional password needed for authentication.
+
+=back
+
 =head2 Plugin C<interface>
 
 =over 4
