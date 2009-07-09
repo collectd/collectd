@@ -73,6 +73,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
 #@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
+#@BUILD_PLUGIN_HTTP_TRUE@LoadPlugin http
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
@@ -309,6 +310,12 @@ FQDNLookup   true
 #  # highly recommended.                                            #
 #  #----------------------------------------------------------------#
 #  TranslateDevicename false
+#</Plugin>
+
+#<Plugin http>
+#	URL "http://example.com/collectd-import"
+#	User "www-user"
+#	Password "secret"
 #</Plugin>
 
 #<Plugin interface>
