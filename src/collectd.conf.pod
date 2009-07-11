@@ -3323,15 +3323,16 @@ couple metrics: number of records, and database size on disk.
 
 =over 4
 
-=item B<Host> I<hostname/ip>
+=item B<Host> I<Hostname/IP>
 
 The hostname or ip which identifies the server.
-Default: "127.0.0.1"
+Default: B<127.0.0.1>
 
-=item B<Port> I<port>
+=item B<Port> I<Service/Port>
 
-The query port of the server. This needs to be a string.
-Default: "1978"
+The query port of the server. This needs to be a string, even if the port is
+given in its numeric form.
+Default: B<1978>
 
 =back
 
