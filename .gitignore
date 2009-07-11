@@ -1,29 +1,19 @@
-# svn stuff:
-.svn
-contrib/.svn
-debian/.svn
-src/.svn
-src/libconfig/.svn
-src/liboping/.svn
-
 # build.sh stuff:
-INSTALL
 Makefile.in
-aclocal.m4
-autom4te.cache
-compile
-config.guess
-config.sub
-configure
-depcomp
-install-sh
-libltdl
-ltmain.sh
-missing
-src/Makefile.in
+/INSTALL
+/aclocal.m4
+/autom4te.cache
+/autom4te.cache
+/compile
+/config.guess
+/config.sub
+/configure
+/depcomp
+/install-sh
+/libltdl/
+/ltmain.sh
+/missing
 src/config.h.in
-src/libconfig/Makefile.in
-src/liboping/Makefile.in
 
 # configure stuff:
 Makefile
@@ -37,32 +27,20 @@ src/libcollectdclient/libcollectdclient.pc
 src/stamp-h1
 
 # make stuff:
-src/.libs
-src/*.la
-src/*.lo
-src/*.o
+*.la
+*.lo
+*.o
+.libs/
 src/collectd
 src/collectd-nagios
 src/collectdmon
-src/collectd*.1
-src/collectd*.5
-src/types.db.5
-src/config.h.in~
-src/libcollectdclient/.libs
-src/libcollectdclient/*.la
-src/libcollectdclient/*.lo
-src/libcollectdclient/*.o
+src/*.1
+src/*.5
 src/libcollectdclient/lcc_features.h
-src/libiptc/.libs
-src/libiptc/*.la
-src/libiptc/*.lo
-src/liboconfig/.libs
-src/liboconfig/*.la
-src/liboconfig/*.lo
-src/liboconfig/*.o
-src/liboping/.libs
-src/liboping/*.la
-src/liboping/*.lo
+
+# patch stuff
+*.rej
+*.orig
 
 # lex / yacc stuff:
 ylwrap
@@ -70,12 +48,16 @@ src/liboconfig/parser.c
 src/liboconfig/parser.h
 src/liboconfig/scanner.c
 
+# make dist stuff:
+/collectd-*.tar.gz
+/collectd-*.tar.bz2
+
 # perl stuff:
 bindings/.perl-directory-stamp
 bindings/perl/Collectd/pm_to_blib
 bindings/perl/blib/
 bindings/perl/pm_to_blib
 
-# make dist stuff:
-collectd-*.tar.gz
-collectd-*.tar.bz2
+# java stuff
+bindings/java/java-build-stamp
+bindings/java/org/collectd/api/*.class
