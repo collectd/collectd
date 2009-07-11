@@ -241,6 +241,9 @@ Features
     - thermal
       Linux ACPI thermal zone information.
 
+    - tokyotyrant
+      Record in and file size of a Tokyo Cabinet database file.
+
     - uptime
       System uptime statistics.
 

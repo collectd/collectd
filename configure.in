@@ -2763,6 +2763,79 @@ then
 fi
 # }}}
 
+# --with-libtokyotyrant {{{
+with_libtokyotyrant_cppflags=""
+with_libtokyotyrant_ldflags=""
+with_libtokyotyrant_libs=""
+AC_ARG_WITH(libtokyotyrant, [AS_HELP_STRING([--with-libtokyotyrant@<:@=PREFIX@:>@], [Path to libtokyotyrant.])],
+[
+  if test "x$withval" = "xno"
+  then
+    with_libtokyotyrant="no"
+  else if test "x$withval" = "xyes"
+  then
+    with_libtokyotyrant="yes"
+  else
+    with_libtokyotyrant_cppflags="-I$withval/include"
+    with_libtokyotyrant_ldflags="-L$withval/include"
+    with_libtokyotyrant_libs="-ltokyotyrant"
+    with_libtokyotyrant="yes"
+  fi; fi
+],
+[
+  with_libtokyotyrant="yes"
+])
+
+if test "x$with_libtokyotyrant" = "xyes"
+then
+  if $PKG_CONFIG --exists tokyotyrant
+  then
+    with_libtokyotyrant_cppflags="$with_libtokyotyrant_cppflags `$PKG_CONFIG --cflags tokyotyrant`"
+    with_libtokyotyrant_ldflags="$with_libtokyotyrant_ldflags `pkg-config --libs-only-L tokyotyrant`"
+    with_libtokyotyrant_libs="$with_libtokyotyrant_libs `pkg-config --libs-only-l tokyotyrant`"
+  fi
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $with_libtokyotyrant_cppflags"
+LDFLAGS="$LDFLAGS $with_libtokyotyrant_ldflags"
+
+if test "x$with_libtokyotyrant" = "xyes"
+then
+  AC_CHECK_HEADERS(tcrdb.h,
+  [
+          AC_DEFINE(HAVE_TCRDB_H, 1,
+                    [Define to 1 if you have the <tcrdb.h> header file.])
+  ], [with_libtokyotyrant="no (tcrdb.h not found)"])
+fi
+
+if test "x$with_libtokyotyrant" = "xyes"
+then
+  AC_CHECK_LIB(tokyotyrant, tcrdbrnum,
+  [
+          AC_DEFINE(HAVE_LIBTOKYOTYRANT, 1,
+                    [Define to 1 if you have the tokyotyrant library (-ltokyotyrant).])
+  ],
+  [with_libtokyotyrant="no (symbol tcrdbrnum not found)"],
+  [$with_libtokyotyrant_libs])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libtokyotyrant" = "xyes"
+then 
+  BUILD_WITH_LIBTOKYOTYRANT_CPPFLAGS="$with_libtokyotyrant_cppflags"
+  BUILD_WITH_LIBTOKYOTYRANT_LDFLAGS="$with_libtokyotyrant_ldflags"
+  BUILD_WITH_LIBTOKYOTYRANT_LIBS="$with_libtokyotyrant_libs"
+  AC_SUBST(BUILD_WITH_LIBTOKYOTYRANT_CPPFLAGS)
+  AC_SUBST(BUILD_WITH_LIBTOKYOTYRANT_LDFLAGS)
+  AC_SUBST(BUILD_WITH_LIBTOKYOTYRANT_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBTOKYOTYRANT, test "x$with_libtokyotyrant" = "xyes")
+# }}}
+
 # --with-libupsclient {{{
 with_libupsclient_config=""
 with_libupsclient_cflags=""
@@ -3688,6 +3761,7 @@ AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
+AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
@@ -3891,6 +3965,7 @@ Configuration:
     librrd  . . . . . . . $with_librrd
     libsensors  . . . . . $with_libsensors
     libstatgrab . . . . . $with_libstatgrab
+    libtokyotyrant  . . . $with_libtokyotyrant
     libupsclient  . . . . $with_libupsclient
     libvirt . . . . . . . $with_libvirt
     libxml2 . . . . . . . $with_libxml2
@@ -3981,6 +4056,7 @@ Configuration:
     tcpconns  . . . . . . $enable_tcpconns
     teamspeak2  . . . . . $enable_teamspeak2
     ted . . . . . . . . . $enable_ted
+    tokyotyrant . . . . . $enable_tokyotyrant
     thermal . . . . . . . $enable_thermal
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
