@@ -220,7 +220,7 @@ static void submit (int cpu_num, const char *type_instance, counter_t value)
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
-	ssnprintf (vl.plugin_instance, sizeof (vl.type_instance),
+	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 			"%i", cpu_num);
 	sstrncpy (vl.type, "cpu", sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

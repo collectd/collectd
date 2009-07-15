@@ -6,7 +6,8 @@ check_for_application ()
 {
 	for PROG in "$@"
 	do
-		if ! which "$PROG" >/dev/null 2>&1; then
+		which "$PROG" >/dev/null 2>&1
+		if test $? -ne 0; then
 			cat >&2 <<EOF
 WARNING: \`$PROG' not found!
     Please make sure that \`$PROG' is installed and is in one of the

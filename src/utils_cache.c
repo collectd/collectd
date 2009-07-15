@@ -305,6 +305,7 @@ int uc_check_timeout (void)
       sfree (keys[i]);
       sfree (key);
       cache_free (ce);
+      continue;
     }
 
     /* If we get here, the value is ``interesting''. Query the record from the
@@ -349,6 +350,10 @@ int uc_check_timeout (void)
 	  keys[i], status);
       sfree (keys[i]);
     }
+
+    /* Make really sure the next iteration doesn't work with this pointer.
+     * There have been too many bugs in the past.. :/  -- octo */
+    ce = NULL;
   } /* for (keys[i]) */
 
   c_avl_iterator_destroy (iter);
