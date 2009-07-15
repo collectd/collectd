@@ -336,7 +336,15 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 		if (ci->children[i].children == NULL)
 			dispatch_value_plugin (name, ci->children + i);
 		else
-			{DEBUG ("No nested config blocks allowed for this plugin.");}
+		{
+			WARNING ("There is a `%s' block within the "
+					"configuration for the %s plugin. "
+					"The plugin either only expects "
+					"\"simple\" configuration statements "
+					"or wasn't loaded using `LoadPlugin'."
+					" Please check your configuration.",
+					ci->children[i].key, name);
+		}
 	}
 
 	return (0);
