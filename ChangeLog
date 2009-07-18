@@ -1,3 +1,11 @@
+2009-07-18, Version 4.6.4
+	* collectd: Okay-notifications have been fixed. Thanks to Andrés J.
+	  Díaz for fixing this bug.
+	* collectd: A programming error has been fixed in the notification
+	  code. The bug may result in an assertion failure.
+	* memcached plugin: Portability fix for Solaris. Thanks to Amit Gupta
+	  for reposting the bug.
+
 2009-06-02, Version 4.6.3
 	* Build system, various plugins: Many build fixes for FreeBSD,
 	  OpenBSD, NetBSD, Solaris and Mac OS X. Big thanks to Doug MacEachern
