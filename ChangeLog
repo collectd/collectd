@@ -1,3 +1,14 @@
+2009-07-19, Version 4.7.2
+	* Build system: Support for `DESTDIR' has been fixed in the Java
+	  bindings.
+	* collectd: Okay-notifications have been fixed. Thanks to Andrés J.
+	  Díaz for fixing this bug.
+	* collectd: A programming error has been fixed in the notification
+	  code. The bug may result in an assertion failure.
+	* memcached plugin: Portability fix for Solaris. Thanks to Amit Gupta
+	  for reposting the bug.
+	* ping plugin: Link the plugin with libm.
+
 2009-06-02, Version 4.7.1
 	* Build system: Detection of Java has been improved and missing
 	  details have been added to the configuration summary. Support for
