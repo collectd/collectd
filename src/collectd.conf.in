@@ -269,7 +269,7 @@ FQDNLookup   true
 #  Port "7634"
 #
 #  #----------------------------------------------------------------#
-#  # `TranslateDevicename' enabled backwards compatibility behavior #
+#  # `TranslateDevicename' enables backwards compatibility behavior #
 #  # and is enabled by default. Setting this option to `false' is   #
 #  # highly recommended.                                            #
 #  #----------------------------------------------------------------#
