@@ -2765,6 +2765,17 @@ Default: B<0.9>
 
 Sets the Time-To-Live of generated ICMP packets.
 
+=item B<SourceAddress> I<host>
+
+Sets the source address to use. I<host> may either be a numerical network
+address or a network hostname.
+
+=item B<Device> I<name>
+
+Sets the outgoing network device to be used. I<name> has to specify an
+interface name (e.E<nbsp>g. C<eth0>). This might not be supported by all
+operating systems.
+
 =back
 
 =head2 Plugin C<postgresql>
