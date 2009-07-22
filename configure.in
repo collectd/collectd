@@ -3717,6 +3717,7 @@ AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
+AC_PLUGIN([match_empty_counter], [yes],        [The empty counter match])
 AC_PLUGIN([match_regex], [yes],                [The regex match])
 AC_PLUGIN([match_timediff], [yes],             [The timediff match])
 AC_PLUGIN([match_value], [yes],                [The value match])
@@ -4013,6 +4014,7 @@ Configuration:
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
+    match_empty_counter . $enable_match_empty_counter
     match_regex . . . . . $enable_match_regex
     match_timediff  . . . $enable_match_timediff
     match_value . . . . . $enable_match_value

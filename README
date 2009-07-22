@@ -340,6 +340,9 @@ Features
   * Value processing can be controlled using the "filter chain" infrastructure
     and "matches" and "targets". The following plugins are available:
 
+    - match_empty_counter
+      Match counter values which are currently zero.
+
     - match_regex
       Match values by their identifier based on regular expressions.
 

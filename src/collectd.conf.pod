@@ -4057,6 +4057,19 @@ Example:
    Satisfy "Any"
  </Match>
 
+=item B<empty_counter>
+
+Matches all values with one or more data sources of type B<COUNTER> and where
+all counter values are zero. These counters usually I<never> increased since
+they started existing (and are therefore uninteresting), or got reset recently
+or overflowed and you had really, I<really> bad luck.
+
+Please keep in mind that ignoring such counters can result in confusing
+behavior: Counters which hardly ever increase will be zero for long periods of
+time. If the counter is reset for some reason (machine or service restarted,
+usually), the graph will be empty (NAN) for a long time. People may not
+understand why.
+
 =back
 
 =head2 Available targets

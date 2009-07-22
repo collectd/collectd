@@ -453,6 +453,14 @@ collectd_LDADD += "-dlopen" logfile.la
 collectd_DEPENDENCIES += logfile.la
 endif
 
+if BUILD_PLUGIN_MATCH_EMPTY_COUNTER
+pkglib_LTLIBRARIES += match_empty_counter.la
+match_empty_counter_la_SOURCES = match_empty_counter.c
+match_empty_counter_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" match_empty_counter.la
+collectd_DEPENDENCIES += match_empty_counter.la
+endif
+
 if BUILD_PLUGIN_MATCH_REGEX
 pkglib_LTLIBRARIES += match_regex.la
 match_regex_la_SOURCES = match_regex.c
