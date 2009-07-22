@@ -45,6 +45,19 @@ typedef struct cache_entry_s
 	 * (for purding old entries) */
 	int interval;
 	int state;
+
+	/*
+	 * +-----+-----+-----+-----+-----+-----+-----+-----+-----+----
+	 * !  0  !  1  !  2  !  3  !  4  !  5  !  6  !  7  !  8  ! ...
+	 * +-----+-----+-----+-----+-----+-----+-----+-----+-----+----
+	 * ! ds0 ! ds1 ! ds2 ! ds0 ! ds1 ! ds2 ! ds0 ! ds1 ! ds2 ! ...
+	 * +-----+-----+-----+-----+-----+-----+-----+-----+-----+----
+	 * !      t = 0      !      t = 1      !      t = 2      ! ...
+	 * +-----------------+-----------------+-----------------+----
+	 */
+	gauge_t *history;
+	size_t   history_index; /* points to the next position to write to. */
+	size_t   history_length;
 } cache_entry_t;
 
 static c_avl_tree_t   *cache_tree = NULL;
@@ -80,6 +93,9 @@ static cache_entry_t *cache_alloc (int values_num)
     return (NULL);
   }
 
+  ce->history = NULL;
+  ce->history_length = 0;
+
   return (ce);
 } /* cache_entry_t *cache_alloc */
 
@@ -90,6 +106,7 @@ static void cache_free (cache_entry_t *ce)
 
   sfree (ce->values_gauge);
   sfree (ce->values_raw);
+  sfree (ce->history);
   sfree (ce);
 } /* void cache_free */
 
@@ -524,6 +541,20 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     DEBUG ("uc_update: %s: ds[%i] = %lf", name, i, ce->values_gauge[i]);
   } /* for (i) */
 
+  /* Update the history if it exists. */
+  if (ce->history != NULL)
+  {
+    assert (ce->history_index < ce->history_length);
+    for (i = 0; i < ce->values_num; i++)
+    {
+      size_t hist_idx = (ce->values_num * ce->history_index) + i;
+      ce->history[hist_idx] = ce->values_gauge[i];
+    }
+
+    assert (ce->history_length > 0);
+    ce->history_index = (ce->history_index + 1) % ce->history_length;
+  }
+
   /* Prune invalid gauge data */
   uc_check_range (ds, ce);
 
@@ -757,4 +788,88 @@ int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state)
 
   return (ret);
 } /* int uc_set_state */
+
+int uc_get_history_by_name (const char *name,
+    gauge_t *ret_history, size_t num_steps, size_t num_ds)
+{
+  cache_entry_t *ce = NULL;
+  size_t i;
+  int status = 0;
+
+  pthread_mutex_lock (&cache_lock);
+
+  status = c_avl_get (cache_tree, name, (void *) &ce);
+  if (status != 0)
+  {
+    pthread_mutex_unlock (&cache_lock);
+    return (-ENOENT);
+  }
+
+  if (((size_t) ce->values_num) != num_ds)
+  {
+    pthread_mutex_unlock (&cache_lock);
+    return (-EINVAL);
+  }
+
+  /* Check if there are enough values available. If not, increase the buffer
+   * size. */
+  if (ce->history_length < num_steps)
+  {
+    gauge_t *tmp;
+    size_t i;
+
+    tmp = realloc (ce->history, sizeof (*ce->history)
+	* num_steps * ce->values_num);
+    if (tmp == NULL)
+    {
+      pthread_mutex_unlock (&cache_lock);
+      return (-ENOMEM);
+    }
+
+    for (i = ce->history_length * ce->values_num;
+	i < (num_steps * ce->values_num);
+	i++)
+      tmp[i] = NAN;
+
+    ce->history = tmp;
+    ce->history_length = num_steps;
+  } /* if (ce->history_length < num_steps) */
+
+  /* Copy the values to the output buffer. */
+  for (i = 0; i < num_steps; i++)
+  {
+    size_t src_index;
+    size_t dst_index;
+
+    if (i < ce->history_index)
+      src_index = ce->history_index - (i + 1);
+    else
+      src_index = ce->history_length + ce->history_index - (i + 1);
+    src_index = src_index * num_ds;
+
+    dst_index = i * num_ds;
+
+    memcpy (ret_history + dst_index, ce->history + src_index,
+	sizeof (*ret_history) * num_ds);
+  }
+
+  pthread_mutex_unlock (&cache_lock);
+
+  return (0);
+} /* int uc_get_history_by_name */
+
+int uc_get_history (const data_set_t *ds, const value_list_t *vl,
+    gauge_t *ret_history, size_t num_steps, size_t num_ds)
+{
+  char name[6 * DATA_MAX_NAME_LEN];
+
+  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  {
+    ERROR ("utils_cache: uc_get_history: FORMAT_VL failed.");
+    return (-1);
+  }
+
+  return (uc_get_history_by_name (name, ret_history, num_steps, num_ds));
+} /* int uc_get_history */
+
 /* vim: set sw=2 ts=8 sts=2 tw=78 : */
