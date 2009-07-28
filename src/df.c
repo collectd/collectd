@@ -48,13 +48,16 @@ static const char *config_keys[] =
 	"MountPoint",
 	"FSType",
 	"IgnoreSelected",
+        "ReportByDevice",
 	NULL
 };
-static int config_keys_num = 4;
+static int config_keys_num = 5;
 
 static ignorelist_t *il_device = NULL;
 static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
+
+static bool by_device = false;
 
 static int df_init (void)
 {
@@ -108,6 +111,16 @@ static int df_config (const char *key, const char *value)
 		}
 		return (0);
 	}
+        else if (strcasecmp (key, "ReportByDevice") == 0)
+        {
+		if ((strcasecmp (value, "True") == 0)
+				|| (strcasecmp (value, "Yes") == 0)
+				|| (strcasecmp (value, "On") == 0))
+		{
+                        by_device = false;
+		}
+		return (0);
+	}
 
 	return (-1);
 }
@@ -147,7 +160,7 @@ static int df_read (void)
 	unsigned long long blocksize;
 	gauge_t df_free;
 	gauge_t df_used;
-	char mnt_name[256];
+	char disk_name[256];
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
@@ -171,20 +184,28 @@ static int df_read (void)
 		df_free = statbuf.f_bfree * blocksize;
 		df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
 
-		if (strcmp (mnt_ptr->dir, "/") == 0)
+		if (by_device) 
 		{
-			sstrncpy (mnt_name, "root", sizeof (mnt_name));
-		}
-		else
+			// eg, /dev/hda1  -- strip off the "/dev/"
+			strncpy (disk_name, mnt_ptr->device + 5, sizeof (disk_name));
+		} 
+		else 
 		{
-			int i, len;
+			if (strcmp (mnt_ptr->dir, "/") == 0)
+			{
+				sstrncpy (disk_name, "root", sizeof (disk_name));
+			}
+			else
+			{
+				int i, len;
 
-			sstrncpy (mnt_name, mnt_ptr->dir + 1, sizeof (mnt_name));
-			len = strlen (mnt_name);
+				sstrncpy (disk_name, mnt_ptr->dir + 1, sizeof (disk_name));
+				len = strlen (disk_name);
 
-			for (i = 0; i < len; i++)
-				if (mnt_name[i] == '/')
-					mnt_name[i] = '-';
+				for (i = 0; i < len; i++)
+					if (disk_name[i] == '/')
+						disk_name[i] = '-';
+			}
 		}
 
 		if (ignorelist_match (il_device,
@@ -197,7 +218,7 @@ static int df_read (void)
 		if (ignorelist_match (il_fstype, mnt_ptr->type))
 			continue;
 
-		df_submit (mnt_name, df_used, df_free);
+		df_submit (disk_name, df_used, df_free);
 	}
 
 	cu_mount_freelist (mnt_list);
