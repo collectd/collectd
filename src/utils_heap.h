@@ -78,7 +78,7 @@ int c_heap_insert (c_heap_t *h, void *ptr);
 
 /*
  * NAME
- *   c_head_get_root
+ *   c_heap_get_root
  *
  * DESCRIPTION
  *   Removes the value at the root of the heap and returns both, key and value.
@@ -90,7 +90,7 @@ int c_heap_insert (c_heap_t *h, void *ptr);
  *   The pointer passed to `c_heap_insert' or NULL if there are no more
  *   elements in the heap (or an error occurred).
  */
-void *c_head_get_root (c_heap_t *h);
+void *c_heap_get_root (c_heap_t *h);
 
 #endif /* UTILS_HEAP_H */
 /* vim: set sw=2 sts=2 et : */

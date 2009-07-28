@@ -151,7 +151,7 @@ static void destroy_read_heap (void) /* {{{ */
 	{
 		callback_func_t *cf;
 
-		cf = c_head_get_root (read_heap);
+		cf = c_heap_get_root (read_heap);
 		if (cf == NULL)
 			break;
 
@@ -329,7 +329,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		int rf_type;
 
 		/* Get the read function that needs to be read next. */
-		rf = c_head_get_root (read_heap);
+		rf = c_heap_get_root (read_heap);
 		if (rf == NULL)
 		{
 			struct timespec abstime;
@@ -1053,7 +1053,7 @@ int plugin_read_all_once (void)
 	{
 		read_func_t *rf;
 
-		rf = c_head_get_root (read_heap);
+		rf = c_heap_get_root (read_heap);
 		if (rf == NULL)
 			break;
 

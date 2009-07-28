@@ -172,7 +172,7 @@ int c_heap_insert (c_heap_t *h, void *ptr)
   return (0);
 } /* int c_heap_insert */
 
-void *c_head_get_root (c_heap_t *h)
+void *c_heap_get_root (c_heap_t *h)
 {
   void *ret = NULL;
 
@@ -218,6 +218,6 @@ void *c_head_get_root (c_heap_t *h)
   pthread_mutex_unlock (&h->lock);
 
   return (ret);
-} /* void *c_head_get_root */
+} /* void *c_heap_get_root */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
