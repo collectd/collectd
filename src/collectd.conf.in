@@ -250,6 +250,7 @@ FQDNLookup   true
 #	MountPoint "/home"
 #	FSType "ext3"
 #	IgnoreSelected false
+#	ReportByDevice false
 #</Plugin>
 
 #<Plugin disk>
