@@ -173,7 +173,7 @@ static int register_callback (llist_t **list, /* {{{ */
 		*list = llist_create ();
 		if (*list == NULL)
 		{
-			ERROR ("plugin: create_register_callback: "
+			ERROR ("plugin: register_callback: "
 					"llist_create failed.");
 			destroy_callback (cf);
 			return (-1);
@@ -183,7 +183,7 @@ static int register_callback (llist_t **list, /* {{{ */
 	key = strdup (name);
 	if (key == NULL)
 	{
-		ERROR ("plugin: create_register_callback: strdup failed.");
+		ERROR ("plugin: register_callback: strdup failed.");
 		destroy_callback (cf);
 		return (-1);
 	}
@@ -194,7 +194,7 @@ static int register_callback (llist_t **list, /* {{{ */
 		le = llentry_create (key, cf);
 		if (le == NULL)
 		{
-			ERROR ("plugin: create_register_callback: "
+			ERROR ("plugin: register_callback: "
 					"llentry_create failed.");
 			free (key);
 			destroy_callback (cf);
