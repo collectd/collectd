@@ -117,7 +117,7 @@ static int df_config (const char *key, const char *value)
 				|| (strcasecmp (value, "Yes") == 0)
 				|| (strcasecmp (value, "On") == 0))
 		{
-                        by_device = false;
+                        by_device = true;
 		}
 		return (0);
 	}
@@ -187,7 +187,12 @@ static int df_read (void)
 		if (by_device) 
 		{
 			// eg, /dev/hda1  -- strip off the "/dev/"
-			strncpy (disk_name, mnt_ptr->device + 5, sizeof (disk_name));
+			strncpy (disk_name, mnt_ptr->spec_device + 5, sizeof (disk_name));
+			if (strlen(disk_name) < 1) 
+			{
+				DEBUG("df: no device name name for mountpoint %s, skipping", mnt_ptr->dir);
+				continue;
+			}
 		} 
 		else 
 		{

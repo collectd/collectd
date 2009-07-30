@@ -870,6 +870,12 @@ match any one of the criteria are collected. By default only selected
 partitions are collected if a selection is made. If no selection is configured
 at all, B<all> partitions are selected.
 
+=item B<ReportByDevice> I<true>|I<false>
+
+Report using the device name rather than the mountpoint. i.e. with this I<false>,
+(the default), it will report a disk as "root", but with it I<true>, it will be
+"sda1" (or whichever).
+
 =back
 
 =head2 Plugin C<disk>
