@@ -48,16 +48,15 @@ static const char *config_keys[] =
 	"MountPoint",
 	"FSType",
 	"IgnoreSelected",
-        "ReportByDevice",
-	NULL
+        "ReportByDevice"
 };
-static int config_keys_num = 5;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *il_device = NULL;
 static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
 
-static bool by_device = false;
+static _Bool by_device = false;
 
 static int df_init (void)
 {
@@ -95,9 +94,7 @@ static int df_config (const char *key, const char *value)
 	}
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
 	{
-		if ((strcasecmp (value, "True") == 0)
-				|| (strcasecmp (value, "Yes") == 0)
-				|| (strcasecmp (value, "On") == 0))
+		if (IS_TRUE (value))
 		{
 			ignorelist_set_invert (il_device, 0);
 			ignorelist_set_invert (il_mountpoint, 0);
@@ -111,14 +108,11 @@ static int df_config (const char *key, const char *value)
 		}
 		return (0);
 	}
-        else if (strcasecmp (key, "ReportByDevice") == 0)
-        {
-		if ((strcasecmp (value, "True") == 0)
-				|| (strcasecmp (value, "Yes") == 0)
-				|| (strcasecmp (value, "On") == 0))
-		{
-                        by_device = true;
-		}
+	else if (strcasecmp (key, "ReportByDevice") == 0)
+	{
+		if (IS_TRUE (value))
+			by_device = true;
+
 		return (0);
 	}
 
@@ -186,8 +180,12 @@ static int df_read (void)
 
 		if (by_device) 
 		{
-			// eg, /dev/hda1  -- strip off the "/dev/"
-			strncpy (disk_name, mnt_ptr->spec_device + 5, sizeof (disk_name));
+			/* eg, /dev/hda1  -- strip off the "/dev/" */
+			if (strncmp (mnt_ptr->spec_device, "/dev/", strlen ("/dev/")) == 0)
+				sstrncpy (disk_name, mnt_ptr->spec_device + strlen ("/dev/"), sizeof (disk_name));
+			else
+				sstrncpy (disk_name, mnt_ptr->spec_device, sizeof (disk_name));
+
 			if (strlen(disk_name) < 1) 
 			{
 				DEBUG("df: no device name name for mountpoint %s, skipping", mnt_ptr->dir);
