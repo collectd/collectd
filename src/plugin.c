@@ -210,6 +210,10 @@ static int register_callback (llist_t **list, /* {{{ */
 		old_cf = le->value;
 		le->value = cf;
 
+		WARNING ("plugin: register_callback: "
+				"a callback named `%s' already exists - "
+				"overwriting the old entry!", name);
+
 		destroy_callback (old_cf);
 		sfree (key);
 	}
