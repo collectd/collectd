@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use lib ('../lib');
+use utf8;
 
 use FindBin ('$RealBin');
 use Carp (qw(confess cluck));
