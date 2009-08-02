@@ -22,14 +22,18 @@ package org.collectd.api;
  * Java representation of collectd/src/plugin.h:data_source_t structure. 
  */
 public class DataSource {
-    public static final int TYPE_COUNTER = 0;
-    public static final int TYPE_GAUGE   = 1;
+    public static final int TYPE_COUNTER  = 0;
+    public static final int TYPE_GAUGE    = 1;
+    public static final int TYPE_DERIVE   = 2;
+    public static final int TYPE_ABSOLUTE = 3;
 
-    static final String COUNTER = "COUNTER";
-    static final String GAUGE = "GAUGE";
+    static final String COUNTER  = "COUNTER";
+    static final String GAUGE    = "GAUGE";
+    static final String DERIVE   = "DERIVE";
+    static final String ABSOLUTE = "ABSOLUTE";
 
     static final String NAN = "U";
-    private static final String[] TYPES = { COUNTER, GAUGE };
+    private static final String[] TYPES = { COUNTER, GAUGE, DERIVE, ABSOLUTE };
 
     String _name;
     int _type;
@@ -41,6 +45,10 @@ public class DataSource {
         this._type = TYPE_GAUGE;
         if (type == TYPE_COUNTER)
             this._type = TYPE_COUNTER;
+        else if (type == TYPE_DERIVE)
+            this._type = TYPE_DERIVE;
+        else if (type == TYPE_ABSOLUTE)
+            this._type = TYPE_ABSOLUTE;
         this._min = min;
         this._max = max;
     }
