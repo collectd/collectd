@@ -29,6 +29,7 @@ import java.util.ArrayList;
 
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
+import javax.management.openmbean.OpenType;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.InvalidKeyException;
 
@@ -54,7 +55,7 @@ import org.collectd.api.OConfigItem;
  */
 class GenericJMXConfValue
 {
-  private String ds_name;
+  private String _ds_name;
   private DataSet _ds;
   private List<String> _attributes;
   private String _instance_prefix;
@@ -283,9 +284,20 @@ class GenericJMXConfValue
     else
     {
       if (value instanceof CompositeData)
-        return (queryAttributeRecursive ((CompositeData) value, attrNameList));
-      else
+        return (queryAttributeRecursive((CompositeData) value, attrNameList));
+      else if (value instanceof OpenType)
+      {
+        OpenType ot = (OpenType) value;
+        Collectd.logNotice ("GenericJMXConfValue: Handling of OpenType \""
+            + ot.getTypeName () + "\" is not yet implemented.");
         return (null);
+      }
+      else
+      {
+        Collectd.logError ("GenericJMXConfValue: Received object of "
+            + "unknown class.");
+        return (null);
+      }
     }
   } /* }}} Object queryAttribute */
 
@@ -347,7 +359,7 @@ class GenericJMXConfValue
     List<OConfigItem> children;
     Iterator<OConfigItem> iter;
 
-    this.ds_name = null;
+    this._ds_name = null;
     this._ds = null;
     this._attributes = new ArrayList<String> ();
     this._instance_prefix = null;
@@ -374,7 +386,7 @@ class GenericJMXConfValue
       {
         String tmp = getConfigString (child);
         if (tmp != null)
-          this.ds_name = tmp;
+          this._ds_name = tmp;
       }
       else if (child.getKey ().equalsIgnoreCase ("Table"))
       {
@@ -399,7 +411,7 @@ class GenericJMXConfValue
               + child.getKey ()));
     }
 
-    if (this.ds_name == null)
+    if (this._ds_name == null)
       throw (new IllegalArgumentException ("No data set was defined."));
     else if (this._attributes.size () == 0)
       throw (new IllegalArgumentException ("No attribute was defined."));
@@ -423,11 +435,11 @@ class GenericJMXConfValue
 
     if (this._ds == null)
     {
-      this._ds = Collectd.getDS (this.ds_name);
+      this._ds = Collectd.getDS (this._ds_name);
       if (this._ds == null)
       {
         Collectd.logError ("GenericJMXConfValue: Unknown type: "
-            + this.ds_name);
+            + this._ds_name);
         return;
       }
     }
@@ -436,7 +448,7 @@ class GenericJMXConfValue
     if (dsrc.size () != this._attributes.size ())
     {
       Collectd.logError ("GenericJMXConfValue.query: The data set "
-          + ds_name + " has " + this._ds.getDataSources ().size ()
+          + this._ds_name + " has " + this._ds.getDataSources ().size ()
           + " data sources, but there were " + this._attributes.size ()
           + " attributes configured. This doesn't match!");
       this._ds = null;
@@ -444,7 +456,7 @@ class GenericJMXConfValue
     }
 
     vl = new ValueList (pd);
-    vl.setType (this.ds_name);
+    vl.setType (this._ds_name);
     vl.setTypeInstance (this._instance_prefix);
 
     values = new ArrayList<Object> ();
