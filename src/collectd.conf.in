@@ -338,7 +338,7 @@ FQDNLookup   true
 
 #<Plugin "java">
 #	JVMArg "-verbose:jni"
-#	JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
+#	JVMArg "-Djava.class.path=@prefix@/share/collectd/bindings/java"
 #
 #	LoadPlugin "org.collectd.java.Foobar"
 #	<Plugin "org.collectd.java.Foobar">
