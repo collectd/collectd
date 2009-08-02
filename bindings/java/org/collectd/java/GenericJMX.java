@@ -105,7 +105,17 @@ public class GenericJMX implements CollectdConfigInterface,
   public int read () /* {{{ */
   {
     for (int i = 0; i < this._connections.size (); i++)
-      this._connections.get (i).query ();
+    {
+      try
+      {
+        this._connections.get (i).query ();
+      }
+      catch (Exception e)
+      {
+        Collectd.logError ("GenericJMX: Caught unexpected exception: " + e);
+        e.printStackTrace ();
+      }
+    }
 
     return (0);
   } /* }}} int read */

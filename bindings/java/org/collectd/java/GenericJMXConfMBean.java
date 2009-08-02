@@ -21,14 +21,14 @@
 
 package org.collectd.java;
 
-import java.util.List;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import java.util.ArrayList;
 
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.MalformedObjectNameException;
-
 
 import org.collectd.api.Collectd;
 import org.collectd.api.PluginData;
@@ -139,17 +139,49 @@ class GenericJMXConfMBean
 
   } /* }}} GenericJMXConfMBean (OConfigItem ci) */
 
-  public String getName ()
+  public String getName () /* {{{ */
   {
     return (this._name);
-  }
+  } /* }}} */
 
   public void query (MBeanServerConnection conn, PluginData pd) /* {{{ */
   {
-    pd.setPluginInstance ((this._instance != null) ? this._instance : "");
+    Set<ObjectName> names;
+    Iterator<ObjectName> iter;
 
-    for (int i = 0; i < this._values.size (); i++)
-      this._values.get (i).query (conn, this._obj_name, pd);
+    try
+    {
+      names = conn.queryNames (this._obj_name, /* query = */ null);
+    }
+    catch (Exception e)
+    {
+      Collectd.logError ("GenericJMXConfMBean: queryNames failed: " + e);
+      return;
+    }
+
+    if (names.size () == 0)
+    {
+      Collectd.logWarning ("GenericJMXConfMBean: No MBean matched "
+          + "the ObjectName " + this._obj_name);
+    }
+
+    iter = names.iterator ();
+    while (iter.hasNext ())
+    {
+      ObjectName objName;
+      PluginData pd_tmp;
+
+      objName = iter.next ();
+      pd_tmp = new PluginData (pd);
+
+      Collectd.logDebug ("GenericJMXConfMBean: objName = "
+          + objName.toString ());
+
+      pd_tmp.setPluginInstance ((this._instance != null) ? this._instance : "");
+
+      for (int i = 0; i < this._values.size (); i++)
+        this._values.get (i).query (conn, objName, pd_tmp);
+    }
   } /* }}} void query */
 }
 
