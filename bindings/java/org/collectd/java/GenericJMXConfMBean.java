@@ -39,7 +39,8 @@ class GenericJMXConfMBean
 {
   private String _name; /* name by which this mapping is referenced */
   private ObjectName _obj_name;
-  private String _instance;
+  private String _instance_prefix;
+  private List<String> _instance_from;
   private List<GenericJMXConfValue> _values;
 
   private String getConfigString (OConfigItem ci) /* {{{ */
@@ -66,10 +67,27 @@ class GenericJMXConfMBean
     return (v.getString ());
   } /* }}} String getConfigString */
 
+  private String join (String separator, List<String> list) /* {{{ */
+  {
+    StringBuffer sb;
+
+    sb = new StringBuffer ();
+
+    for (int i = 0; i < list.size (); i++)
+    {
+      if (i > 0)
+        sb.append ("-");
+      sb.append (list.get (i));
+    }
+
+    return (sb.toString ());
+  } /* }}} String join */
+
 /*
  * <MBean "alias name">
- *   Instance "foobar"
  *   ObjectName "object name"
+ *   InstancePrefix "foobar"
+ *   InstanceFrom "name"
  *   <Value />
  *   <Value />
  *   :
@@ -87,6 +105,8 @@ class GenericJMXConfMBean
             + "MBean blocks need exactly one string argument."));
 
     this._obj_name = null;
+    this._instance_prefix = null;
+    this._instance_from = new ArrayList<String> ();
     this._values = new ArrayList<GenericJMXConfValue> ();
 
     children = ci.getChildren ();
@@ -97,13 +117,7 @@ class GenericJMXConfMBean
 
       Collectd.logDebug ("GenericJMXConfMBean: child.getKey () = "
           + child.getKey ());
-      if (child.getKey ().equalsIgnoreCase ("Instance"))
-      {
-        String tmp = getConfigString (child);
-        if (tmp != null)
-          this._instance = tmp;
-      }
-      else if (child.getKey ().equalsIgnoreCase ("ObjectName"))
+      if (child.getKey ().equalsIgnoreCase ("ObjectName"))
       {
         String tmp = getConfigString (child);
         if (tmp == null)
@@ -118,6 +132,18 @@ class GenericJMXConfMBean
           throw (new IllegalArgumentException ("Not a valid object name: "
                 + tmp, e));
         }
+      }
+      else if (child.getKey ().equalsIgnoreCase ("InstancePrefix"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._instance_prefix = tmp;
+      }
+      else if (child.getKey ().equalsIgnoreCase ("InstanceFrom"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._instance_from.add (tmp);
       }
       else if (child.getKey ().equalsIgnoreCase ("Value"))
       {
@@ -168,16 +194,44 @@ class GenericJMXConfMBean
     iter = names.iterator ();
     while (iter.hasNext ())
     {
-      ObjectName objName;
-      PluginData pd_tmp;
+      ObjectName   objName;
+      PluginData   pd_tmp;
+      List<String> instanceList;
+      String       instance;
 
-      objName = iter.next ();
-      pd_tmp = new PluginData (pd);
+      objName      = iter.next ();
+      pd_tmp       = new PluginData (pd);
+      instanceList = new ArrayList<String> ();
 
       Collectd.logDebug ("GenericJMXConfMBean: objName = "
           + objName.toString ());
 
-      pd_tmp.setPluginInstance ((this._instance != null) ? this._instance : "");
+      for (int i = 0; i < this._instance_from.size (); i++)
+      {
+        String propertyName;
+        String propertyValue;
+
+        propertyName = this._instance_from.get (i);
+        propertyValue = objName.getKeyProperty (propertyName);
+        if (propertyValue == null)
+        {
+          Collectd.logError ("GenericJMXConfMBean: "
+              + "No such property in object name: " + propertyName);
+        }
+        else
+        {
+          instanceList.add (propertyValue);
+        }
+      }
+
+      if (this._instance_prefix != null)
+        instance = new String (this._instance_prefix
+            + join ("-", instanceList));
+      else
+        instance = join ("-", instanceList);
+      pd_tmp.setPluginInstance (instance);
+
+      Collectd.logDebug ("GenericJMXConfMBean: instance = " + instance);
 
       for (int i = 0; i < this._values.size (); i++)
         this._values.get (i).query (conn, objName, pd_tmp);
