@@ -77,6 +77,19 @@ sub getRRDArgs
     }
   }
 
+  my $stacking = $obj->{'stacking'};
+  if ($stacking)
+  {
+    if ($stacking =~ m/^(no|false|off|none)$/i)
+    {
+      $stacking = 0;
+    }
+    else
+    {
+      $stacking = 1;
+    }
+  }
+
   if (defined $obj->{'rrd_vertical'})
   {
     push (@ret, '-v', $obj->{'rrd_vertical'});
@@ -116,7 +129,7 @@ sub getRRDArgs
     {
       $ds_name_len = length ($names[$i]);
     }
-    
+
     # Escape colons _after_ the length has been checked.
     $names[$i] =~ s/:/\\:/g;
 
@@ -126,35 +139,46 @@ sub getRRDArgs
       "DEF:max${i}=${filename}:${data_source}:MAX");
   }
 
-  for (my $i = @$idents - 1; $i >= 0; $i--)
-  {
-    if ($i == (@$idents - 1))
+  if ($stacking) {
+    for (my $i = @$idents - 1; $i >= 0; $i--)
     {
-      push (@ret,
-	"CDEF:cdef${i}=avg${i},UN,0,avg${i},IF");
+      if ($i == (@$idents - 1))
+      {
+        push (@ret,
+	  "CDEF:cdef${i}=avg${i},UN,0,avg${i},IF");
+      }
+      else
+      {
+        my $j = $i + 1;
+        push (@ret,
+          "CDEF:cdef${i}=avg${i},UN,0,avg${i},IF,cdef${j},+");
+      }
     }
-    else
+
+    for (my $i = 0; $i < @$idents; $i++)
     {
-      my $j = $i + 1;
+      my $type_instance = $idents->[$i]{'type_instance'};
+      my $color = '000000';
+      if (exists $colors->{$type_instance})
+      {
+        $color = $colors->{$type_instance};
+      }
+
+      $color = get_faded_color ($color);
+
       push (@ret,
-	"CDEF:cdef${i}=avg${i},UN,0,avg${i},IF,cdef${j},+");
+        "AREA:cdef${i}#${color}");
+    }
+  }
+  else
+  {
+    for (my $i = @$idents - 1; $i >= 0; $i--)
+    {
+      push (@ret,
+        "CDEF:cdef${i}=avg${i}");
     }
   }
 
-  for (my $i = 0; $i < @$idents; $i++)
-  {
-    my $type_instance = $idents->[$i]{'type_instance'};
-    my $color = '000000';
-    if (exists $colors->{$type_instance})
-    {
-      $color = $colors->{$type_instance};
-    }
-
-    $color = get_faded_color ($color);
-
-    push (@ret,
-      "AREA:cdef${i}#${color}");
-  }
 
   for (my $i = 0; $i < @$idents; $i++)
   {
