@@ -79,7 +79,7 @@ static void arc_submit_counts (char *type_instance, counter_t demand_data, count
 	counter_t prefetch_data, counter_t prefetch_metadata)
 {
 	value_t values[4];
-printf ("ARC: %llu\n", demand_metadata);
+
 	values[0].counter = demand_data;
 	values[1].counter = demand_metadata;
 	values[2].counter = prefetch_data;
