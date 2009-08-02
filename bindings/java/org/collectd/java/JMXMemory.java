@@ -47,7 +47,7 @@ import org.collectd.api.CollectdShutdownInterface;
 import org.collectd.api.OConfigValue;
 import org.collectd.api.OConfigItem;
 
-public class JMXMemory implements CollectdConfigInterface, /* {{{ */
+public class JMXMemory implements CollectdConfigInterface,
        CollectdInitInterface,
        CollectdReadInterface,
        CollectdShutdownInterface
@@ -227,6 +227,6 @@ public class JMXMemory implements CollectdConfigInterface, /* {{{ */
     _mbean = null;
     return (0);
   } /* }}} int shutdown */
-} /* }}} class JMXMemory */
+} /* class JMXMemory */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
