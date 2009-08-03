@@ -13,20 +13,18 @@ can seriously fuck up your RRD files if you don't know what you're doing.
 
 collectd-network.py
 -------------------
-
   This Python module by Adrian Perez implements the collectd network protocol
 in pure Python. It currently supports to receive data and notifications from
 collectd.
 
 collectd-unixsock.py
 --------------------
-
   This Python module by Clay Loveless provides an interface to collect's
 unixsock plugin.
 
 collectd2html.pl
 ----------------
-  This script by Vincent Stehl� will search for RRD files in
+  This script by Vincent Stehlé will search for RRD files in
 `/var/lib/collectd/' and generate an HTML file and a directory containing
 several PNG files which are graphs of the RRD files found.
 
@@ -71,6 +69,11 @@ fedora/
 -------
   Init-script and Spec-file that can be used when creating RPM-packages for
 Fedora.
+
+GenericJMX.conf
+---------------
+  Example configuration file for the ‘GenericJMX’ Java plugin. Please read the
+documentation at the beginning of the file for more details.
 
 migrate-3-4.px
 --------------
