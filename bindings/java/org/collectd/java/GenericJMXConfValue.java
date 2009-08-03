@@ -27,6 +27,9 @@ import java.util.Set;
 import java.util.Iterator;
 import java.util.ArrayList;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.OpenType;
@@ -61,6 +64,11 @@ class GenericJMXConfValue
   private String _instance_prefix;
   private boolean _is_table;
 
+  /**
+   * Converts a generic (OpenType) object to a number.
+   *
+   * Returns null if a conversion is not possible or not implemented.
+   */
   private Number genericObjectToNumber (Object obj, int ds_type) /* {{{ */
   {
     if (obj instanceof String)
@@ -79,6 +87,14 @@ class GenericJMXConfValue
         return (null);
       }
     }
+    else if (obj instanceof Byte)
+    {
+      return (new Byte ((Byte) obj));
+    }
+    else if (obj instanceof Short)
+    {
+      return (new Short ((Short) obj));
+    }
     else if (obj instanceof Integer)
     {
       return (new Integer ((Integer) obj));
@@ -87,9 +103,21 @@ class GenericJMXConfValue
     {
       return (new Long ((Long) obj));
     }
+    else if (obj instanceof Float)
+    {
+      return (new Float ((Float) obj));
+    }
     else if (obj instanceof Double)
     {
       return (new Double ((Double) obj));
+    }
+    else if (obj instanceof BigDecimal)
+    {
+      return (BigDecimal.ZERO.add ((BigDecimal) obj));
+    }
+    else if (obj instanceof BigInteger)
+    {
+      return (BigInteger.ZERO.add ((BigInteger) obj));
     }
 
     return (null);
