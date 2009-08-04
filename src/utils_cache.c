@@ -885,7 +885,7 @@ int uc_get_history (const data_set_t *ds, const value_list_t *vl,
  * Meta data interface
  */
 /* XXX: This function will acquire `cache_lock' but will not free it! */
-static meta_data_t *uc_get_meta (value_list_t *vl) /* {{{ */
+static meta_data_t *uc_get_meta (const value_list_t *vl) /* {{{ */
 {
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
@@ -926,10 +926,10 @@ static meta_data_t *uc_get_meta (value_list_t *vl) /* {{{ */
   pthread_mutex_unlock (&cache_lock); \
   return (status); \
 }
-int uc_meta_data_exists (value_list_t *vl, const char *key)
+int uc_meta_data_exists (const value_list_t *vl, const char *key)
   UC_WRAP (meta_data_exists)
 
-int uc_meta_data_delete (value_list_t *vl, const char *key)
+int uc_meta_data_delete (const value_list_t *vl, const char *key)
   UC_WRAP (meta_data_delete)
 #undef UC_WRAP
 
@@ -944,44 +944,44 @@ int uc_meta_data_delete (value_list_t *vl, const char *key)
   pthread_mutex_unlock (&cache_lock); \
   return (status); \
 }
-int uc_meta_data_add_string (value_list_t *vl,
+int uc_meta_data_add_string (const value_list_t *vl,
     const char *key,
     const char *value)
   UC_WRAP(meta_data_add_string)
-int uc_meta_data_add_signed_int (value_list_t *vl,
+int uc_meta_data_add_signed_int (const value_list_t *vl,
     const char *key,
     int64_t value)
   UC_WRAP(meta_data_add_signed_int)
-int uc_meta_data_add_unsigned_int (value_list_t *vl,
+int uc_meta_data_add_unsigned_int (const value_list_t *vl,
     const char *key,
     uint64_t value)
   UC_WRAP(meta_data_add_unsigned_int)
-int uc_meta_data_add_double (value_list_t *vl,
+int uc_meta_data_add_double (const value_list_t *vl,
     const char *key,
     double value)
   UC_WRAP(meta_data_add_double)
-int uc_meta_data_add_boolean (value_list_t *vl,
+int uc_meta_data_add_boolean (const value_list_t *vl,
     const char *key,
     _Bool value)
   UC_WRAP(meta_data_add_boolean)
 
-int uc_meta_data_get_string (value_list_t *vl,
+int uc_meta_data_get_string (const value_list_t *vl,
     const char *key,
     char **value)
   UC_WRAP(meta_data_get_string)
-int uc_meta_data_get_signed_int (value_list_t *vl,
+int uc_meta_data_get_signed_int (const value_list_t *vl,
     const char *key,
     int64_t *value)
   UC_WRAP(meta_data_get_signed_int)
-int uc_meta_data_get_unsigned_int (value_list_t *vl,
+int uc_meta_data_get_unsigned_int (const value_list_t *vl,
     const char *key,
     uint64_t *value)
   UC_WRAP(meta_data_get_unsigned_int)
-int uc_meta_data_get_double (value_list_t *vl,
+int uc_meta_data_get_double (const value_list_t *vl,
     const char *key,
     double *value)
   UC_WRAP(meta_data_get_double)
-int uc_meta_data_get_boolean (value_list_t *vl,
+int uc_meta_data_get_boolean (const value_list_t *vl,
     const char *key,
     _Bool *value)
   UC_WRAP(meta_data_get_boolean)

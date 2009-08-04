@@ -48,38 +48,38 @@ int uc_get_history_by_name (const char *name,
 /*
  * Meta data interface
  */
-int uc_meta_data_exists (value_list_t *vl, const char *key);
-int uc_meta_data_delete (value_list_t *vl, const char *key);
+int uc_meta_data_exists (const value_list_t *vl, const char *key);
+int uc_meta_data_delete (const value_list_t *vl, const char *key);
 
-int uc_meta_data_add_string (value_list_t *vl,
+int uc_meta_data_add_string (const value_list_t *vl,
     const char *key,
     const char *value);
-int uc_meta_data_add_signed_int (value_list_t *vl,
+int uc_meta_data_add_signed_int (const value_list_t *vl,
     const char *key,
     int64_t value);
-int uc_meta_data_add_unsigned_int (value_list_t *vl,
+int uc_meta_data_add_unsigned_int (const value_list_t *vl,
     const char *key,
     uint64_t value);
-int uc_meta_data_add_double (value_list_t *vl,
+int uc_meta_data_add_double (const value_list_t *vl,
     const char *key,
     double value);
-int uc_meta_data_add_boolean (value_list_t *vl,
+int uc_meta_data_add_boolean (const value_list_t *vl,
     const char *key,
     _Bool value);
 
-int uc_meta_data_get_string (value_list_t *vl,
+int uc_meta_data_get_string (const value_list_t *vl,
     const char *key,
     char **value);
-int uc_meta_data_get_signed_int (value_list_t *vl,
+int uc_meta_data_get_signed_int (const value_list_t *vl,
     const char *key,
     int64_t *value);
-int uc_meta_data_get_unsigned_int (value_list_t *vl,
+int uc_meta_data_get_unsigned_int (const value_list_t *vl,
     const char *key,
     uint64_t *value);
-int uc_meta_data_get_double (value_list_t *vl,
+int uc_meta_data_get_double (const value_list_t *vl,
     const char *key,
     double *value);
-int uc_meta_data_get_boolean (value_list_t *vl,
+int uc_meta_data_get_boolean (const value_list_t *vl,
     const char *key,
     _Bool *value);
 
