@@ -904,7 +904,6 @@ static meta_data_t *uc_get_meta (const value_list_t *vl) /* {{{ */
   if (status != 0)
   {
     pthread_mutex_unlock (&cache_lock);
-    NOTICE ("utils_cache: uc_get_meta: No such cache entry: %s", name);
     return (NULL);
   }
   assert (ce != NULL);
