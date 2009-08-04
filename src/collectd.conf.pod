@@ -2243,7 +2243,7 @@ slashes.
 
 =head2 Plugin C<rrdcached>
 
-The C<rrdcached> plugin uses the RRDTool accelerator daemon, L<rrdcached(1)>,
+The C<rrdcached> plugin uses the RRDtool accelerator daemon, L<rrdcached(1)>,
 to store values to RRD files in an efficient manner. The combination of the
 C<rrdcached> B<plugin> and the C<rrdcached> B<daemon> is very similar to the
 way the C<rrdtool> plugin works (see below). The added abstraction layer
@@ -2295,7 +2295,7 @@ expected. Default is B<true>.
 
 You can use the settings B<StepSize>, B<HeartBeat>, B<RRARows>, and B<XFF> to
 fine-tune your RRD-files. Please read L<rrdcreate(1)> if you encounter problems
-using these settings. If you don't want to dive into the depths of RRDTool, you
+using these settings. If you don't want to dive into the depths of RRDtool, you
 can safely ignore these settings.
 
 =over 4
