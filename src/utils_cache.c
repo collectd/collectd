@@ -98,6 +98,7 @@ static cache_entry_t *cache_alloc (int values_num)
 
   ce->history = NULL;
   ce->history_length = 0;
+  ce->meta = NULL;
 
   return (ce);
 } /* cache_entry_t *cache_alloc */
@@ -110,6 +111,11 @@ static void cache_free (cache_entry_t *ce)
   sfree (ce->values_gauge);
   sfree (ce->values_raw);
   sfree (ce->history);
+  if (ce->meta != NULL)
+  {
+    meta_data_destroy (ce->meta);
+    ce->meta = NULL;
+  }
   sfree (ce);
 } /* void cache_free */
 
