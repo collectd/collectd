@@ -441,7 +441,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   int status;
   int i;
 
-  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
     ERROR ("uc_update: FORMAT_VL failed.");
     return (-1);
@@ -638,7 +638,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   size_t ret_num = 0;
   int status;
 
-  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
     ERROR ("utils_cache: uc_get_rate: FORMAT_VL failed.");
     return (NULL);
@@ -744,7 +744,7 @@ int uc_get_state (const data_set_t *ds, const value_list_t *vl)
   cache_entry_t *ce = NULL;
   int ret = STATE_ERROR;
 
-  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
     ERROR ("uc_get_state: FORMAT_VL failed.");
     return (STATE_ERROR);
@@ -769,7 +769,7 @@ int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state)
   cache_entry_t *ce = NULL;
   int ret = -1;
 
-  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
     ERROR ("uc_get_state: FORMAT_VL failed.");
     return (STATE_ERROR);
@@ -863,7 +863,7 @@ int uc_get_history (const data_set_t *ds, const value_list_t *vl,
 {
   char name[6 * DATA_MAX_NAME_LEN];
 
-  if (FORMAT_VL (name, sizeof (name), vl, ds) != 0)
+  if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
     ERROR ("utils_cache: uc_get_history: FORMAT_VL failed.");
     return (-1);

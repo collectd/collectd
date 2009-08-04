@@ -253,9 +253,9 @@ int format_name (char *ret, int ret_len,
 		const char *hostname,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance);
-#define FORMAT_VL(ret, ret_len, vl, ds) \
+#define FORMAT_VL(ret, ret_len, vl) \
 	format_name (ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance, \
-			(ds)->type, (vl)->type_instance)
+			(vl)->type, (vl)->type_instance)
 
 int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
