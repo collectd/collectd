@@ -2768,7 +2768,7 @@ static int network_config_set_cache_flush (const oconfig_item_t *ci) /* {{{ */
 
   tmp = (int) ci->values[0].value.number;
   if (tmp > 0)
-    network_config_ttl = tmp;
+    cache_flush_interval = tmp;
 
   return (0);
 } /* }}} int network_config_set_cache_flush */
