@@ -25,6 +25,7 @@
 #include "utils_avltree.h"
 #include "utils_cache.h"
 #include "utils_threshold.h"
+#include "meta_data.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -58,6 +59,8 @@ typedef struct cache_entry_s
 	gauge_t *history;
 	size_t   history_index; /* points to the next position to write to. */
 	size_t   history_length;
+
+	meta_data_t *meta;
 } cache_entry_t;
 
 static c_avl_tree_t   *cache_tree = NULL;
@@ -871,5 +874,111 @@ int uc_get_history (const data_set_t *ds, const value_list_t *vl,
 
   return (uc_get_history_by_name (name, ret_history, num_steps, num_ds));
 } /* int uc_get_history */
+
+/*
+ * Meta data interface
+ */
+/* XXX: This function will acquire `cache_lock' but will not free it! */
+static meta_data_t *uc_get_meta (value_list_t *vl) /* {{{ */
+{
+  char name[6 * DATA_MAX_NAME_LEN];
+  cache_entry_t *ce = NULL;
+  int status;
+
+  status = FORMAT_VL (name, sizeof (name), vl);
+  if (status != 0)
+  {
+    ERROR ("utils_cache: uc_get_meta: FORMAT_VL failed.");
+    return (NULL);
+  }
+
+  pthread_mutex_lock (&cache_lock);
+
+  status = c_avl_get (cache_tree, name, (void *) &ce);
+  if (status != 0)
+  {
+    pthread_mutex_unlock (&cache_lock);
+    NOTICE ("utils_cache: uc_get_meta: No such cache entry: %s", name);
+    return (NULL);
+  }
+  assert (ce != NULL);
+
+  if (ce->meta == NULL)
+    ce->meta = meta_data_create ();
+
+  return (ce->meta);
+} /* }}} meta_data_t *uc_get_meta */
+
+/* Sorry about this preprocessor magic, but it really makes this file much
+ * shorter.. */
+#define UC_WRAP(wrap_function) { \
+  meta_data_t *meta; \
+  int status; \
+  meta = uc_get_meta (vl); \
+  if (meta == NULL) return (-1); \
+  status = wrap_function (meta, key); \
+  pthread_mutex_unlock (&cache_lock); \
+  return (status); \
+}
+int uc_meta_data_exists (value_list_t *vl, const char *key)
+  UC_WRAP (meta_data_exists)
+
+int uc_meta_data_delete (value_list_t *vl, const char *key)
+  UC_WRAP (meta_data_delete)
+#undef UC_WRAP
+
+/* We need a new version of this macro because the following functions take
+ * two argumetns. */
+#define UC_WRAP(wrap_function) { \
+  meta_data_t *meta; \
+  int status; \
+  meta = uc_get_meta (vl); \
+  if (meta == NULL) return (-1); \
+  status = wrap_function (meta, key, value); \
+  pthread_mutex_unlock (&cache_lock); \
+  return (status); \
+}
+int uc_meta_data_add_string (value_list_t *vl,
+    const char *key,
+    const char *value)
+  UC_WRAP(meta_data_add_string)
+int uc_meta_data_add_signed_int (value_list_t *vl,
+    const char *key,
+    int64_t value)
+  UC_WRAP(meta_data_add_signed_int)
+int uc_meta_data_add_unsigned_int (value_list_t *vl,
+    const char *key,
+    uint64_t value)
+  UC_WRAP(meta_data_add_unsigned_int)
+int uc_meta_data_add_double (value_list_t *vl,
+    const char *key,
+    double value)
+  UC_WRAP(meta_data_add_double)
+int uc_meta_data_add_boolean (value_list_t *vl,
+    const char *key,
+    _Bool value)
+  UC_WRAP(meta_data_add_boolean)
+
+int uc_meta_data_get_string (value_list_t *vl,
+    const char *key,
+    char **value)
+  UC_WRAP(meta_data_get_string)
+int uc_meta_data_get_signed_int (value_list_t *vl,
+    const char *key,
+    int64_t *value)
+  UC_WRAP(meta_data_get_signed_int)
+int uc_meta_data_get_unsigned_int (value_list_t *vl,
+    const char *key,
+    uint64_t *value)
+  UC_WRAP(meta_data_get_unsigned_int)
+int uc_meta_data_get_double (value_list_t *vl,
+    const char *key,
+    double *value)
+  UC_WRAP(meta_data_get_double)
+int uc_meta_data_get_boolean (value_list_t *vl,
+    const char *key,
+    _Bool *value)
+  UC_WRAP(meta_data_get_boolean)
+#undef UC_WRAP
 
 /* vim: set sw=2 ts=8 sts=2 tw=78 : */
