@@ -54,7 +54,7 @@ case "$1" in
 	start
 	;;
   condrestart)
-	[ -f /var/lock/subsys/$prog ] && restart || :
+	[ -f /var/lock/subsys/$prog ] && stop && start || :
 	;;
   *)
 	echo $"Usage: $0 {start|stop|status|restart|reload|condrestart}"
