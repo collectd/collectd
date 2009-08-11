@@ -453,6 +453,14 @@ collectd_LDADD += "-dlopen" logfile.la
 collectd_DEPENDENCIES += logfile.la
 endif
 
+if BUILD_PLUGIN_MADWIFI
+pkglib_LTLIBRARIES += madwifi.la
+madwifi_la_SOURCES = madwifi.c
+madwifi_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" madwifi.la
+collectd_DEPENDENCIES += madwifi.la
+endif
+
 if BUILD_PLUGIN_MATCH_EMPTY_COUNTER
 pkglib_LTLIBRARIES += match_empty_counter.la
 match_empty_counter_la_SOURCES = match_empty_counter.c
