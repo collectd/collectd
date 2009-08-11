@@ -78,13 +78,13 @@
  *
  *
  * By default, madwifi plugin enumerates network interfaces using /sys
- * filesystem. Configuration option DisableSysfs can change this to use
+ * filesystem. Configuration option `Source' can change this to use
  * /proc filesystem (which is useful for example when running on Linux
  * 2.4). But without /sys filesystem, Madwifi plugin cannot check whether
  * given interface is madwifi interface and there are private ioctls used,
  * which may do something completely different on non-madwifi devices.
- * Therefore, option DisableSysfs should be used together with option
- * Interface, to limit found interfaces to madwifi interfaces only.
+ * Therefore, the /proc filesystem should always be used together with option
+ * `Interface', to limit found interfaces to madwifi interfaces only.
  **/
 
 
@@ -350,7 +350,7 @@ static const char *config_keys[] =
 {
 	"Interface",
 	"IgnoreSelected",
-	"DisableSysfs",
+	"Source",
 	"WatchAdd",
 	"WatchRemove",
 	"WatchSet",
@@ -461,8 +461,20 @@ static int madwifi_config (const char *key, const char *value)
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
 		ignorelist_set_invert (ignorelist, ! bool_arg(value));
 
-	else if (strcasecmp (key, "DisableSysfs") == 0)
-		use_sysfs = ! bool_arg(value);
+	else if (strcasecmp (key, "Source") == 0)
+	{
+		if (strcasecmp (value, "ProcFS") == 0)
+			use_sysfs = 0;
+		else if (strcasecmp (value, "SysFS") == 0)
+			use_sysfs = 1;
+		else
+		{
+			ERROR ("madwifi plugin: The argument of the `Source' "
+					"option must either be `SysFS' or "
+					"`ProcFS'.");
+			return -1;
+		}
+	}
 
 	else if (strcasecmp (key, "WatchSet") == 0)
 	{
