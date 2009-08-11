@@ -356,12 +356,11 @@ static const char *config_keys[] =
 	"WatchSet",
 	"MiscAdd",
 	"MiscRemove",
-	"MiscSet",
-	NULL
+	"MiscSet"
 };
-static int config_keys_num = 9;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static ignorelist_t *ignorelist;
+static ignorelist_t *ignorelist = NULL;
 
 static int use_sysfs = 1;
 static int init_state = 0;
@@ -396,7 +395,7 @@ static inline void watchlist_set (uint32_t *wl, uint32_t val)
 /* This is horribly inefficient, but it is called only during configuration */
 static int watchitem_find (const char *name)
 {
-	int max = sizeof (specs) / sizeof (struct stat_spec);
+	int max = STATIC_ARRAY_SIZE (specs);
 	int i;
 
 	for (i = 0; i < max; i++)
@@ -413,10 +412,10 @@ static int watchitem_find (const char *name)
 
 static int madwifi_real_init (void)
 {
-	int max = sizeof (specs) / sizeof (struct stat_spec);
+	int max = STATIC_ARRAY_SIZE (specs);
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i] = 0;
 
 	watchlist_set(watch_items, 0);
@@ -433,17 +432,10 @@ static int madwifi_real_init (void)
 			misc_items[i / 32] |= FLAG (i);
 	}
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i]++;
 
 	return (0);
-}
-
-static int bool_arg (const char *value)
-{
-	return ((strcasecmp (value, "True") == 0)
-		|| (strcasecmp (value, "Yes") == 0)
-		|| (strcasecmp (value, "On") == 0));
 }
 
 static int madwifi_config (const char *key, const char *value)
@@ -459,7 +451,7 @@ static int madwifi_config (const char *key, const char *value)
 		ignorelist_add (ignorelist, value);
 
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
-		ignorelist_set_invert (ignorelist, ! bool_arg(value));
+		ignorelist_set_invert (ignorelist, IS_TRUE (value) ? 0 : 1);
 
 	else if (strcasecmp (key, "Source") == 0)
 	{
@@ -553,11 +545,10 @@ static void submit (const char *dev, const char *type, const char *ti1,
 	sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 
-	if (ti1 && !ti2)
-		sstrncpy (vl.type_instance, ti1, sizeof (vl.type_instance));
-
-	if (ti1 && ti2)
+	if ((ti1 != NULL) && (ti2 != NULL))
 		ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s", ti1, ti2);
+	else if ((ti1 != NULL) && (ti2 == NULL))
+		sstrncpy (vl.type_instance, ti1, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
@@ -587,23 +578,27 @@ static void submit_gauge (const char *dev, const char *type, const char *ti1,
 	submit (dev, type, ti1, ti2, &item, 1);
 }
 
-static void submit_antx (const char *dev, const char *name, u_int32_t *vals)
+static void submit_antx (const char *dev, const char *name,
+		u_int32_t *vals, int vals_num)
 {
-	char no[2] = {0, 0};
+	char ti2[16];
 	int i;
 
-	for (i = 0; i < 8; i++)
-		if (vals[i])
-		{
-			no[0] = '0' + i;
-			submit_counter (dev, "ath_stat", name, no, vals[i]);
-		}
+	for (i = 0; i < vals_num; i++)
+	{
+		if (vals[i] == 0)
+			continue;
+
+		ssnprintf (ti2, sizeof (ti2), "antenna%i", i);
+		submit_counter (dev, "ath_stat", name, ti2,
+				(counter_t) vals[i]);
+	}
 }
 
 static inline void
 macaddr_to_str (char *buf, size_t bufsize, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	snprintf (buf, bufsize, "%02x:%02x:%02x:%02x:%02x:%02x",
+	ssnprintf (buf, bufsize, "%02x:%02x:%02x:%02x:%02x:%02x",
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
@@ -636,7 +631,7 @@ process_athstats (int sk, const char *dev)
 	struct ifreq ifr;
 	struct ath_stats stats;
 
-	strncpy (ifr.ifr_name, dev, sizeof (ifr.ifr_name));
+	sstrncpy (ifr.ifr_name, dev, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (void *) &stats;
 	if (ioctl (sk, SIOCGATHSTATS, &ifr) < 0)
 		return;
@@ -645,10 +640,12 @@ process_athstats (int sk, const char *dev)
 	   eight values each */
 
 	if (item_watched (STAT_AST_ANT_RX))
-		submit_antx (dev, "ast_ant_rx", stats.ast_ant_rx);
+		submit_antx (dev, "ast_ant_rx", stats.ast_ant_rx,
+				STATIC_ARRAY_SIZE (stats.ast_ant_rx));
 
 	if (item_watched (STAT_AST_ANT_TX))
-		submit_antx (dev, "ast_ant_tx", stats.ast_ant_tx);
+		submit_antx (dev, "ast_ant_tx", stats.ast_ant_tx,
+				STATIC_ARRAY_SIZE (stats.ast_ant_tx));
 
 	/* All other ath statistics */
 	process_stat_struct (ATH_STAT, &stats, dev, NULL, "ath_stat", "ast_misc");
@@ -659,7 +656,7 @@ process_80211stats (int sk, const char *dev)
 {
 	struct ifreq ifr;
 	struct ieee80211_stats stats;
-	strncpy (ifr.ifr_name, dev, sizeof (ifr.ifr_name));
+	sstrncpy (ifr.ifr_name, dev, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (void *) &stats;
 	if (ioctl(sk, SIOCG80211STATS, &ifr) < 0)
 		return;
@@ -686,7 +683,7 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 		submit_gauge (dev, "node_rssi", mac, NULL, si->isi_rssi);
 
 	memset (&iwr, 0, sizeof (iwr));
-	strncpy(iwr.ifr_name, dev, sizeof (iwr.ifr_name));
+	sstrncpy(iwr.ifr_name, dev, sizeof (iwr.ifr_name));
 	iwr.u.data.pointer = (void *) &stats;
 	iwr.u.data.length = sizeof (stats);
 	memcpy(stats.is_u.macaddr, si->isi_macaddr, IEEE80211_ADDR_LEN);
@@ -716,13 +713,22 @@ process_stations (int sk, const char *dev)
 	struct iwreq iwr;
 	uint8_t *cp;
 	int len, nodes;
+	int status;
 
 	memset (&iwr, 0, sizeof (iwr));
-	strncpy (iwr.ifr_name, dev, sizeof (iwr.ifr_name));
+	sstrncpy (iwr.ifr_name, dev, sizeof (iwr.ifr_name));
 	iwr.u.data.pointer = (void *) buf;
 	iwr.u.data.length = sizeof (buf);
-	if (ioctl (sk, IEEE80211_IOCTL_STA_INFO, &iwr) < 0)
+
+	status = ioctl (sk, IEEE80211_IOCTL_STA_INFO, &iwr);
+	if (status < 0)
+	{
+		ERROR ("madwifi plugin: Sending IO-control "
+				"IEEE80211_IOCTL_STA_INFO to device %s "
+				"failed with status %i.",
+				dev, status);
 		return;
+	}
 
 	len = iwr.u.data.length;
 
@@ -765,9 +771,11 @@ check_devname (const char *dev)
 	i = readlink (buf, buf2, sizeof (buf2) - 1);
 	if (i < 0)
 		return 0;
-	buf2[i] = 0;
+	buf2[sizeof (buf2) - 1] = 0;
 
-	return (strstr (buf2, "/drivers/ath_") != NULL);
+	if (strstr (buf2, "/drivers/ath_") == NULL)
+		return 0;
+	return 1;
 }
 
 static int
@@ -805,17 +813,18 @@ procfs_iterate(int sk)
 		return (-1);
 	}
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		if (!(dummy = strchr(buffer, ':')))
+		dummy = strchr(buffer, ':');
+		if (dummy == NULL)
 			continue;
-		dummy[0] = '\0';
+		dummy[0] = 0;
 
 		device = buffer;
 		while (device[0] == ' ')
 			device++;
 
-		if (device[0] == '\0')
+		if (device[0] == 0)
 			continue;
 
 		if (ignorelist_match (ignorelist, device) == 0)
@@ -828,15 +837,17 @@ procfs_iterate(int sk)
 
 static int madwifi_read (void)
 {
+	int rv;
+	int sk;
+
 	if (init_state == 0)
 		madwifi_real_init();
 	init_state = 2;
 
-	int sk = socket(AF_INET, SOCK_DGRAM, 0);
+	sk = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sk < 0)
 		return (-1);
 
-	int rv;
 
 /* procfs iteration is not safe because it does not check whether given
    interface is madwifi interface and there are private ioctls used, which
