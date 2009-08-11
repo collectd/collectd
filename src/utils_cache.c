@@ -497,16 +497,24 @@ int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_val
   {
     assert (ce != NULL);
 
-    ret_num = ce->values_num;
-    ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
-    if (ret == NULL)
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING)
     {
-      ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
       status = -1;
     }
     else
     {
-      memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
+      ret_num = ce->values_num;
+      ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
+      if (ret == NULL)
+      {
+        ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
+        status = -1;
+      }
+      else
+      {
+        memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
+      }
     }
   }
   else
@@ -578,6 +586,10 @@ int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number)
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
   {
     char **temp;
+
+    /* remove missing values when list values */
+    if (value->state == STATE_MISSING)
+      continue;
 
     if (ret_times != NULL)
     {
