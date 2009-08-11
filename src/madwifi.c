@@ -367,21 +367,29 @@ static int init_state = 0;
 
 static inline int item_watched(int i)
 {
+	assert (i >= 0);
+	assert (i < ((STATIC_ARRAY_SIZE (watch_items) + 1) * 32));
 	return watch_items[i / 32] & FLAG (i);
 }
 
 static inline int item_summed(int i)
 {
+	assert (i >= 0);
+	assert (i < ((STATIC_ARRAY_SIZE (misc_items) + 1) * 32));
 	return misc_items[i / 32] & FLAG (i);
 }
 
 static inline void watchlist_add (uint32_t *wl, int item)
 {
+	assert (item >= 0);
+	assert (item < ((WL_LEN + 1) * 32));
 	wl[item / 32] |= FLAG (item);
 }
 
 static inline void watchlist_remove (uint32_t *wl, int item)
 {
+	assert (item >= 0);
+	assert (item < ((WL_LEN + 1) * 32));
 	wl[item / 32] &= ~FLAG (item);
 }
 
@@ -608,6 +616,9 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 {
 	uint32_t misc = 0;
 	int i;
+
+	assert (which >= 1);
+	assert (which < STATIC_ARRAY_SIZE (bounds));
 
 	for (i = bounds[which - 1]; i < bounds[which]; i++)
 	{
