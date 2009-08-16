@@ -597,7 +597,7 @@ static void submit_antx (const char *dev, const char *name,
 		if (vals[i] == 0)
 			continue;
 
-		ssnprintf (ti2, sizeof (ti2), "antenna%i", i);
+		ssnprintf (ti2, sizeof (ti2), "%i", i);
 		submit_counter (dev, "ath_stat", name, ti2,
 				(counter_t) vals[i]);
 	}
