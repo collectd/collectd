@@ -641,11 +641,20 @@ process_athstats (int sk, const char *dev)
 {
 	struct ifreq ifr;
 	struct ath_stats stats;
+	int status;
 
 	sstrncpy (ifr.ifr_name, dev, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (void *) &stats;
-	if (ioctl (sk, SIOCGATHSTATS, &ifr) < 0)
+	status = ioctl (sk, SIOCGATHSTATS, &ifr);
+	if (status < 0)
+	{
+		/* Silent, because not all interfaces support all ioctls. */
+		DEBUG ("madwifi plugin: Sending IO-control "
+				"SIOCGATHSTATS to device %s "
+				"failed with status %i.",
+				dev, status);
 		return;
+	}
 
 	/* These stats are handled as a special case, because they are
 	   eight values each */
@@ -667,10 +676,20 @@ process_80211stats (int sk, const char *dev)
 {
 	struct ifreq ifr;
 	struct ieee80211_stats stats;
+	int status;
+
 	sstrncpy (ifr.ifr_name, dev, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (void *) &stats;
-	if (ioctl(sk, SIOCG80211STATS, &ifr) < 0)
+	status = ioctl(sk, SIOCG80211STATS, &ifr);
+	if (status < 0)
+	{
+		/* Silent, because not all interfaces support all ioctls. */
+		DEBUG ("madwifi plugin: Sending IO-control "
+				"SIOCG80211STATS to device %s "
+				"failed with status %i.",
+				dev, status);
 		return;
+	}
 
 	process_stat_struct (IFA_STAT, &stats, dev, NULL, "ath_stat", "is_misc");
 }
@@ -683,6 +702,7 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 	static char mac[DATA_MAX_NAME_LEN];
 	struct ieee80211req_sta_stats stats;
 	const struct ieee80211_nodestats *ns = &stats.is_stats;
+	int status;
 
 	macaddr_to_str (mac, sizeof (mac), si->isi_macaddr);
 
@@ -698,8 +718,16 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 	iwr.u.data.pointer = (void *) &stats;
 	iwr.u.data.length = sizeof (stats);
 	memcpy(stats.is_u.macaddr, si->isi_macaddr, IEEE80211_ADDR_LEN);
-	if (ioctl(sk, IEEE80211_IOCTL_STA_STATS, &iwr) < 0)
+	status = ioctl(sk, IEEE80211_IOCTL_STA_STATS, &iwr);
+	if (status < 0)
+	{
+		/* Silent, because not all interfaces support all ioctls. */
+		DEBUG ("madwifi plugin: Sending IO-control "
+				"IEEE80211_IOCTL_STA_STATS to device %s "
+				"failed with status %i.",
+				dev, status);
 		return;
+	}
 
 	/* These two stats are handled as a special case as they are
 	   a pair of 64bit values */
@@ -734,7 +762,8 @@ process_stations (int sk, const char *dev)
 	status = ioctl (sk, IEEE80211_IOCTL_STA_INFO, &iwr);
 	if (status < 0)
 	{
-		ERROR ("madwifi plugin: Sending IO-control "
+		/* Silent, because not all interfaces support all ioctls. */
+		DEBUG ("madwifi plugin: Sending IO-control "
 				"IEEE80211_IOCTL_STA_INFO to device %s "
 				"failed with status %i.",
 				dev, status);
