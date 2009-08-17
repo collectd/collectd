@@ -24,6 +24,7 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_ignorelist.h"
+#include "utils_complain.h"
 
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
@@ -49,6 +50,8 @@ static const char *config_keys[] = {
 
 /* Connection. */
 static virConnectPtr conn = 0;
+static char *conn_string = NULL;
+static c_complain_t conn_complain = C_COMPLAIN_INIT_STATIC;
 
 /* Seconds between list refreshes, 0 disables completely. */
 static int interval = 60;
@@ -153,15 +156,13 @@ lv_config (const char *key, const char *value)
         il_interface_devices = ignorelist_create (1);
 
     if (strcasecmp (key, "Connection") == 0) {
-        if (conn != 0) {
-            ERROR ("Connection may only be given once in config file");
+        char *tmp = strdup (value);
+        if (tmp == NULL) {
+            ERROR ("libvirt plugin: Connection strdup failed.");
             return 1;
         }
-        conn = virConnectOpenReadOnly (value);
-        if (!conn) {
-            VIRT_ERROR (NULL, "connection failed");
-            return 1;
-        }
+        sfree (conn_string);
+        conn_string = tmp;
         return 0;
     }
 
@@ -253,19 +254,29 @@ lv_read (void)
     int i;
 
     if (conn == NULL) {
-        ERROR ("libvirt plugin: Not connected. Use Connection in "
-                "config file to supply connection URI.  For more information "
-                "see <http://libvirt.org/uri.html>");
-        return -1;
+        /* `conn_string == NULL' is acceptable. */
+        conn = virConnectOpenReadOnly (conn_string);
+        if (conn == NULL) {
+            c_complain (LOG_ERR, &conn_complain,
+                    "libvirt plugin: Unable to connect: "
+                    "virConnectOpenReadOnly failed.");
+            return -1;
+        }
     }
+    c_release (LOG_NOTICE, &conn_complain,
+            "libvirt plugin: Connection established.");
 
     time (&t);
 
     /* Need to refresh domain or device lists? */
     if ((last_refresh == (time_t) 0) ||
             ((interval > 0) && ((last_refresh + interval) <= t))) {
-        if (refresh_lists () != 0)
+        if (refresh_lists () != 0) {
+            if (conn != NULL)
+                virConnectClose (conn);
+            conn = NULL;
             return -1;
+        }
         last_refresh = t;
     }
 

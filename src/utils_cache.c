@@ -296,6 +296,7 @@ int uc_check_timeout (void)
     {
       DEBUG ("uc_check_timeout: %s is missing but ``uninteresting''",
 	  keys[i]);
+      ce = NULL;
       status = c_avl_remove (cache_tree, keys[i],
 	  (void *) &key, (void *) &ce);
       if (status != 0)
@@ -304,7 +305,8 @@ int uc_check_timeout (void)
       }
       sfree (keys[i]);
       sfree (key);
-      cache_free (ce);
+      if (ce != NULL)
+        cache_free (ce);
       continue;
     }
 
