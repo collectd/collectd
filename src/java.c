@@ -93,6 +93,8 @@ static cjni_callback_info_t *java_callbacks      = NULL;
 static size_t                java_callbacks_num  = 0;
 static pthread_mutex_t       java_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static oconfig_item_t       *config_block = NULL;
+
 /*
  * Prototypes
  *
@@ -2304,7 +2306,7 @@ static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int cjni_config_plugin_block */
 
-static int cjni_config (oconfig_item_t *ci) /* {{{ */
+static int cjni_config_perform (oconfig_item_t *ci) /* {{{ */
 {
   int success;
   int errors;
@@ -2359,7 +2361,55 @@ static int cjni_config (oconfig_item_t *ci) /* {{{ */
   }
 
   return (0);
-} /* }}} int cjni_config */
+} /* }}} int cjni_config_perform */
+
+/* Copy the children of `ci' to the global `config_block' variable. */
+static int cjni_config_callback (oconfig_item_t *ci) /* {{{ */
+{
+  oconfig_item_t *ci_copy;
+  oconfig_item_t *tmp;
+
+  assert (ci != NULL);
+  if (ci->children_num == 0)
+    return (0); /* nothing to do */
+
+  ci_copy = oconfig_clone (ci);
+  if (ci_copy == NULL)
+  {
+    ERROR ("java plugin: oconfig_clone failed.");
+    return (-1);
+  }
+
+  if (config_block == NULL)
+  {
+    config_block = ci_copy;
+    return (0);
+  }
+
+  tmp = realloc (config_block->children,
+      (config_block->children_num + ci_copy->children_num) * sizeof (*tmp));
+  if (tmp == NULL)
+  {
+    ERROR ("java plugin: realloc failed.");
+    oconfig_free (ci_copy);
+    return (-1);
+  }
+  config_block->children = tmp;
+
+  /* Copy the pointers */
+  memcpy (config_block->children + config_block->children_num,
+      ci_copy->children,
+      ci_copy->children_num * sizeof (*ci_copy->children));
+
+  /* Delete the pointers from the copy, so `oconfig_free' can't free them. */
+  memset (ci_copy->children, 0,
+      ci_copy->children_num * sizeof (*ci_copy->children));
+  ci_copy->children_num = 0;
+
+  oconfig_free (ci_copy);
+
+  return (0);
+} /* }}} int cjni_config_callback */
 
 /* Free the data contained in the `user_data_t' pointer passed to `cjni_read'
  * and `cjni_write'. In particular, delete the global reference to the Java
@@ -2995,6 +3045,22 @@ static int cjni_init (void) /* {{{ */
 {
   JNIEnv *jvm_env;
 
+  if ((config_block == NULL) && (jvm == NULL))
+  {
+    ERROR ("java plugin: cjni_init: No configuration block for "
+        "the java plugin was found.");
+    return (-1);
+  }
+
+  if (config_block != NULL)
+  {
+    int status;
+
+    status = cjni_config_perform (config_block);
+    oconfig_free (config_block);
+    config_block = NULL;
+  }
+
   if (jvm == NULL)
   {
     ERROR ("java plugin: cjni_init: jvm == NULL");
@@ -3013,7 +3079,7 @@ static int cjni_init (void) /* {{{ */
 
 void module_register (void)
 {
-  plugin_register_complex_config ("java", cjni_config);
+  plugin_register_complex_config ("java", cjni_config_callback);
   plugin_register_init ("java", cjni_init);
   plugin_register_shutdown ("java", cjni_shutdown);
 } /* void module_register (void) */
