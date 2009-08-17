@@ -76,7 +76,8 @@ static const char *config_keys[] =
 	"RRARows",
 	"RRATimespan",
 	"XFF",
-	"WritesPerSecond"
+	"WritesPerSecond",
+	"RandomTimeout"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -103,6 +104,8 @@ static rrdcreate_config_t rrdcreate_config =
  * ALWAYS lock `cache_lock' first! */
 static int         cache_timeout = 0;
 static int         cache_flush_timeout = 0;
+static int         random_timeout = 1;
+static int         random_timeout_mod = 1;
 static time_t      cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -739,7 +742,8 @@ static int rrd_cache_insert (const char *filename,
 			filename, rc->values_num,
 			(unsigned long)(rc->last_value - rc->first_value));
 
-	if ((rc->last_value - rc->first_value) >= cache_timeout)
+
+	if ((rc->last_value - rc->first_value) >= (cache_timeout + (random_timeout - (rand() % random_timeout_mod) ) ) )
 	{
 		/* XXX: If you need to lock both, cache_lock and queue_lock, at
 		 * the same time, ALWAYS lock `cache_lock' first! */
@@ -987,6 +991,19 @@ static int rrd_config (const char *key, const char *value)
 		{
 			write_rate = 1.0 / wps;
 		}
+	}
+	else if (strcasecmp ("RandomTimeout", key) == 0)
+        {
+		random_timeout = atoi (value);
+		if( random_timeout < 0 )
+		{
+		fprintf (stderr, "rrdtool: `RandomTimeout' must "
+			 "be greater than or equal to zero.\n");
+		ERROR ("rrdtool: `RandomTimeout' must "
+		       "be greater then or equal to zero.\n");
+		}
+		else if (random_timeout==0) {random_timeout=1;}
+		else {random_timeout_mod = random_timeout * 2;}
 	}
 	else
 	{
