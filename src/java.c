@@ -2410,6 +2410,7 @@ static int cjni_config_callback (oconfig_item_t *ci) /* {{{ */
   memcpy (config_block->children + config_block->children_num,
       ci_copy->children,
       ci_copy->children_num * sizeof (*ci_copy->children));
+  config_block->children_num += ci_copy->children_num;
 
   /* Delete the pointers from the copy, so `oconfig_free' can't free them. */
   memset (ci_copy->children, 0,
