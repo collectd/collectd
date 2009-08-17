@@ -78,7 +78,7 @@
 	* collectd: A programming error has been fixed in the notification
 	  code. The bug may result in an assertion failure.
 	* memcached plugin: Portability fix for Solaris. Thanks to Amit Gupta
-	  for reposting the bug.
+	  for reporting the bug.
 
 2009-06-02, Version 4.6.3
 	* Build system, various plugins: Many build fixes for FreeBSD,
