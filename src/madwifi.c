@@ -636,7 +636,7 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 
 }
 
-static void
+static int
 process_athstats (int sk, const char *dev)
 {
 	struct ifreq ifr;
@@ -653,7 +653,7 @@ process_athstats (int sk, const char *dev)
 				"SIOCGATHSTATS to device %s "
 				"failed with status %i.",
 				dev, status);
-		return;
+		return (status);
 	}
 
 	/* These stats are handled as a special case, because they are
@@ -669,9 +669,10 @@ process_athstats (int sk, const char *dev)
 
 	/* All other ath statistics */
 	process_stat_struct (ATH_STAT, &stats, dev, NULL, "ath_stat", "ast_misc");
+	return (0);
 }
 
-static void
+static int
 process_80211stats (int sk, const char *dev)
 {
 	struct ifreq ifr;
@@ -688,14 +689,15 @@ process_80211stats (int sk, const char *dev)
 				"SIOCG80211STATS to device %s "
 				"failed with status %i.",
 				dev, status);
-		return;
+		return (status);
 	}
 
 	process_stat_struct (IFA_STAT, &stats, dev, NULL, "ath_stat", "is_misc");
+	return (0);
 }
 
 
-static void
+static int
 process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 {
 	struct iwreq iwr;
@@ -726,7 +728,7 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 				"IEEE80211_IOCTL_STA_STATS to device %s "
 				"failed with status %i.",
 				dev, status);
-		return;
+		return (status);
 	}
 
 	/* These two stats are handled as a special case as they are
@@ -743,9 +745,10 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 
 	/* All other node statistics */
 	process_stat_struct (NOD_STAT, ns, dev, mac, "node_stat", "ns_misc");
+	return (0);
 }
 
-static void
+static int
 process_stations (int sk, const char *dev)
 {
 	uint8_t buf[24*1024];
@@ -767,7 +770,7 @@ process_stations (int sk, const char *dev)
 				"IEEE80211_IOCTL_STA_INFO to device %s "
 				"failed with status %i.",
 				dev, status);
-		return;
+		return (status);
 	}
 
 	len = iwr.u.data.length;
@@ -785,14 +788,28 @@ process_stations (int sk, const char *dev)
 
 	if (item_watched (STAT_ATH_NODES))
 		submit_gauge (dev, "ath_nodes", NULL, NULL, nodes);
+	return (0);
 }
 
-static void
+static int
 process_device (int sk, const char *dev)
 {
-	process_athstats (sk, dev);
-	process_80211stats (sk, dev);
-	process_stations (sk, dev);
+	int num_success = 0;
+	int status;
+
+	status = process_athstats (sk, dev);
+	if (status == 0)
+		num_success++;
+
+	status = process_80211stats (sk, dev);
+	if (status == 0)
+		num_success++;
+
+	status = process_stations (sk, dev);
+	if (status == 0)
+		num_success++;
+
+	return ((num_success == 0) ? -1 : 0);
 }
 
 static int
@@ -822,22 +839,46 @@ static int
 sysfs_iterate(int sk)
 {
 	struct dirent *de;
+	DIR *nets;
+	int status;
+	int num_success;
+	int num_fail;
 
-	DIR *nets = opendir ("/sys/class/net/");
+	nets = opendir ("/sys/class/net/");
 	if (nets == NULL)
 	{
 		WARNING ("madwifi plugin: opening /sys/class/net failed");
 		return (-1);
 	}
 
+	num_success = 0;
+	num_fail = 0;
 	while ((de = readdir (nets)))
-		if (check_devname (de->d_name) &&
-		    (ignorelist_match (ignorelist, de->d_name) == 0))
-			process_device (sk, de->d_name);
+	{
+		if (check_devname (de->d_name) == 0)
+			continue;
+
+		if (ignorelist_match (ignorelist, de->d_name) != 0)
+			continue;
+
+		status = process_device (sk, de->d_name);
+		if (status != 0)
+		{
+			ERROR ("madwifi plugin: Processing interface "
+					"%s failed.", de->d_name);
+			num_fail++;
+		}
+		else
+		{
+			num_success++;
+		}
+	} /* while (readdir) */
 
 	closedir(nets);
 
-	return 0;
+	if ((num_success == 0) && (num_fail != 0))
+		return (-1);
+	return (0);
 }
 
 static int
@@ -846,6 +887,9 @@ procfs_iterate(int sk)
 	char buffer[1024];
 	char *device, *dummy;
 	FILE *fh;
+	int status;
+	int num_success;
+	int num_fail;
 	
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
@@ -853,6 +897,8 @@ procfs_iterate(int sk)
 		return (-1);
 	}
 
+	num_success = 0;
+	num_fail = 0;
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		dummy = strchr(buffer, ':');
@@ -867,11 +913,26 @@ procfs_iterate(int sk)
 		if (device[0] == 0)
 			continue;
 
-		if (ignorelist_match (ignorelist, device) == 0)
-			process_device (sk, device);
-	}
+		if (ignorelist_match (ignorelist, device) != 0)
+			continue;
+
+		status = process_device (sk, device);
+		if (status != 0)
+		{
+			ERROR ("madwifi plugin: Processing interface "
+					"%s failed.", device);
+			num_fail++;
+		}
+		else
+		{
+			num_success++;
+		}
+	} /* while (fgets) */
 
 	fclose(fh);
+
+	if ((num_success == 0) && (num_fail != 0))
+		return (-1);
 	return 0;
 }
 
