@@ -138,18 +138,30 @@ static int swap_init (void)
 	return (0);
 }
 
-static void swap_submit (const char *type_instance, double value)
+static void swap_submit (const char *type_instance, derive_t value, unsigned type)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
+	switch (type)
+	{
+		case DS_TYPE_GAUGE:
+			values[0].gauge = value;
+			sstrncpy (vl.type, "swap", sizeof (vl.type));
+			break;
+		case DS_TYPE_DERIVE:
+			values[0].derive = value;
+			sstrncpy (vl.type, "swap_io", sizeof (vl.type));
+			break;
+		default:
+			ERROR ("swap plugin: swap_submit called with wrong"
+				" type");
+	}
 
 	vl.values = values;
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "swap", sizeof (vl.plugin));
-	sstrncpy (vl.type, "swap", sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
@@ -168,6 +180,8 @@ static int swap_read (void)
 	unsigned long long swap_cached = 0LL;
 	unsigned long long swap_free   = 0LL;
 	unsigned long long swap_total  = 0LL;
+	unsigned long long swap_in     = 0LL;
+	unsigned long long swap_out    = 0LL;
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
@@ -210,9 +224,46 @@ static int swap_read (void)
 
 	swap_used = swap_total - (swap_free + swap_cached);
 
-	swap_submit ("used", swap_used);
-	swap_submit ("free", swap_free);
-	swap_submit ("cached", swap_cached);
+	if ((fh = fopen ("/proc/vmstat", "r")) == NULL)
+	{
+		char errbuf[1024];
+		WARNING ("swap: fopen: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	while (fgets (buffer, 1024, fh) != NULL)
+	{
+		unsigned long long *val = NULL;
+
+		if (strncasecmp (buffer, "pswpin", 6) == 0)
+			val = &swap_in;
+		else if (strncasecmp (buffer, "pswpout", 7) == 0)
+			val = &swap_out;
+		else
+			continue;
+
+		numfields = strsplit (buffer, fields, 8);
+
+		if (numfields < 2)
+			continue;
+
+		*val = atoll (fields[1]);
+	}
+
+	if (fclose (fh))
+	{
+		char errbuf[1024];
+		WARNING ("swap: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
+
+	swap_submit ("used", swap_used, DS_TYPE_GAUGE);
+	swap_submit ("free", swap_free, DS_TYPE_GAUGE);
+	swap_submit ("cached", swap_cached, DS_TYPE_GAUGE);
+	swap_submit ("in", swap_in, DS_TYPE_DERIVE);
+	swap_submit ("out", swap_out, DS_TYPE_DERIVE);
+
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
