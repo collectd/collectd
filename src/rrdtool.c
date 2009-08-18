@@ -106,7 +106,6 @@ static rrdcreate_config_t rrdcreate_config =
 static int         cache_timeout = 0;
 static int         cache_flush_timeout = 0;
 static int         random_timeout = 1;
-static int         random_timeout_mod = 1;
 static time_t      cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -743,17 +742,29 @@ static int rrd_cache_insert (const char *filename,
 			filename, rc->values_num,
 			(unsigned long)(rc->last_value - rc->first_value));
 
-	if ((rc->last_value - rc->first_value + rc->random_variation) >= cache_timeout)
+	if ((rc->last_value + rc->random_variation - rc->first_value) >= cache_timeout)
 	{
 		/* XXX: If you need to lock both, cache_lock and queue_lock, at
 		 * the same time, ALWAYS lock `cache_lock' first! */
 		if (rc->flags == FLAG_NONE)
 		{
 			int status;
-			rc->random_variation = (random_timeout - (rand() % random_timeout_mod));
+
 			status = rrd_queue_enqueue (filename, &queue_head, &queue_tail);
 			if (status == 0)
 				rc->flags = FLAG_QUEUED;
+
+			/* Update the jitter value. Negative values are
+			 * slightly preferred. */
+			if (random_timeout > 0)
+			{
+				rc->random_variation = (rand () % (2 * random_timeout))
+					- random_timeout;
+			}
+			else
+			{
+				rc->random_variation = 0;
+			}
 		}
 		else
 		{
@@ -994,16 +1005,20 @@ static int rrd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("RandomTimeout", key) == 0)
         {
-		random_timeout = atoi (value);
-		if( random_timeout < 0 )
+		int tmp;
+
+		tmp = atoi (value);
+		if (tmp < 0)
 		{
-		fprintf (stderr, "rrdtool: `RandomTimeout' must "
-			 "be greater than or equal to zero.\n");
-		ERROR ("rrdtool: `RandomTimeout' must "
-		       "be greater then or equal to zero.\n");
+			fprintf (stderr, "rrdtool: `RandomTimeout' must "
+					"be greater than or equal to zero.\n");
+			ERROR ("rrdtool: `RandomTimeout' must "
+					"be greater then or equal to zero.");
 		}
-		else if (random_timeout==0) {random_timeout=1;}
-		else {random_timeout_mod = random_timeout * 2;}
+		else
+		{
+			random_timeout = tmp;
+		}
 	}
 	else
 	{
