@@ -40,6 +40,7 @@ struct rrd_cache_s
 	char **values;
 	time_t first_value;
 	time_t last_value;
+	int random_variation;
 	enum
 	{
 		FLAG_NONE   = 0x00,
@@ -742,15 +743,14 @@ static int rrd_cache_insert (const char *filename,
 			filename, rc->values_num,
 			(unsigned long)(rc->last_value - rc->first_value));
 
-
-	if ((rc->last_value - rc->first_value) >= (cache_timeout + (random_timeout - (rand() % random_timeout_mod) ) ) )
+	if ((rc->last_value - rc->first_value + rc->random_variation) >= cache_timeout)
 	{
 		/* XXX: If you need to lock both, cache_lock and queue_lock, at
 		 * the same time, ALWAYS lock `cache_lock' first! */
 		if (rc->flags == FLAG_NONE)
 		{
 			int status;
-
+			rc->random_variation = (random_timeout - (rand() % random_timeout_mod));
 			status = rrd_queue_enqueue (filename, &queue_head, &queue_tail);
 			if (status == 0)
 				rc->flags = FLAG_QUEUED;
