@@ -1832,6 +1832,11 @@ multicast, and IPv4 and IPv6 packets. The default is to not change this value.
 That means that multicast packets will be sent with a TTL of C<1> (one) on most
 operating systems.
 
+=item B<MaxPacketSize> I<1024-65535>
+
+Set the maximum size for datagrams received over the network. Packets larger
+than this will be truncated.
+
 =item B<Forward> I<true|false>
 
 If set to I<true>, write packets that were received via the network plugin to

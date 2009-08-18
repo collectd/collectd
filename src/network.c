@@ -54,9 +54,6 @@
 # include <gcrypt.h>
 #endif
 
-/* 1500 - 40 - 8  =  Ethernet packet - IPv6 header - UDP header */
-/* #define BUFF_SIZE 1452 */
-
 #ifndef IPV6_ADD_MEMBERSHIP
 # ifdef IPV6_JOIN_GROUP
 #  define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
@@ -64,9 +61,6 @@
 #  error "Neither IP_ADD_MEMBERSHIP nor IPV6_JOIN_GROUP is defined"
 # endif
 #endif /* !IP_ADD_MEMBERSHIP */
-
-/* Buffer size to allocate. */
-#define BUFF_SIZE 1024
 
 /*
  * Maximum size required for encryption / signing:
@@ -245,7 +239,7 @@ typedef struct part_encryption_aes256_s part_encryption_aes256_t;
 
 struct receive_list_entry_s
 {
-  char data[BUFF_SIZE];
+  char *data;
   int  data_len;
   int  fd;
   struct receive_list_entry_s *next;
@@ -256,6 +250,7 @@ typedef struct receive_list_entry_s receive_list_entry_t;
  * Private variables
  */
 static int network_config_ttl = 0;
+static size_t network_config_packet_size = 1024;
 static int network_config_forward = 0;
 
 static sockent_t *sending_sockets = NULL;
@@ -278,7 +273,7 @@ static int       dispatch_thread_running = 0;
 static pthread_t dispatch_thread_id;
 
 /* Buffer in which to-be-sent network packets are constructed. */
-static char             send_buffer[BUFF_SIZE];
+static char            *send_buffer;
 static char            *send_buffer_ptr;
 static int              send_buffer_fill;
 static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
@@ -1431,6 +1426,10 @@ static int parse_packet (sockent_t *se, /* {{{ */
 		}
 	} /* while (buffer_size > sizeof (part_header_t)) */
 
+	if (status == 0 && buffer_size > 0)
+		WARNING ("network plugin: parse_packet: Received truncated "
+				"packet, try increasing `MaxPacketSize'");
+
 	return (status);
 } /* }}} int parse_packet */
 
@@ -2007,7 +2006,7 @@ static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
 
 static int network_receive (void) /* {{{ */
 {
-	char buffer[BUFF_SIZE];
+	char buffer[network_config_packet_size];
 	int  buffer_len;
 
 	int i;
@@ -2067,6 +2066,12 @@ static int network_receive (void) /* {{{ */
 				return (-1);
 			}
 			memset (ent, 0, sizeof (receive_list_entry_t));
+			ent->data = malloc (network_config_packet_size);
+			if (ent->data == NULL)
+			{
+				ERROR ("network plugin: malloc failed.");
+				return (-1);
+			}
 			ent->fd = listen_sockets_pollfd[i].fd;
 			ent->next = NULL;
 
@@ -2551,6 +2556,24 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_set_ttl */
 
+static int network_config_set_buffer_size (const oconfig_item_t *ci) /* {{{ */
+{
+  int tmp;
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("network plugin: The `MaxPacketSize' config option needs exactly "
+        "one numeric argument.");
+    return (-1);
+  }
+
+  tmp = (int) ci->values[0].value.number;
+  if ((tmp >= 1024) && (tmp <= 65535))
+    network_config_packet_size = tmp;
+
+  return (0);
+} /* }}} int network_config_set_buffer_size */
+
 #if HAVE_LIBGCRYPT
 static int network_config_set_string (const oconfig_item_t *ci, /* {{{ */
     char **ret_string)
@@ -2774,6 +2797,8 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_server (child);
     else if (strcasecmp ("TimeToLive", child->key) == 0)
       network_config_set_ttl (child);
+    else if (strcasecmp ("MaxPacketSize", child->key) == 0)
+      network_config_set_buffer_size (child);
     else if (strcasecmp ("Forward", child->key) == 0)
       network_config_set_boolean (child, &network_config_forward);
     else if (strcasecmp ("CacheFlush", child->key) == 0)
@@ -2791,7 +2816,7 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
 static int network_notification (const notification_t *n,
 		user_data_t __attribute__((unused)) *user_data)
 {
-  char  buffer[BUFF_SIZE];
+  char  buffer[network_config_packet_size];
   char *buffer_ptr = buffer;
   int   buffer_free = sizeof (buffer);
   int   status;
@@ -2890,6 +2915,8 @@ static int network_shutdown (void)
 	if (send_buffer_fill > 0)
 		flush_buffer ();
 
+	free (send_buffer);
+
 	/* TODO: Close `sending_sockets' */
 
 	plugin_unregister_config ("network");
@@ -2912,6 +2939,12 @@ static int network_init (void)
 
 	plugin_register_shutdown ("network", network_shutdown);
 
+	send_buffer = malloc (network_config_packet_size);
+	if (send_buffer == NULL)
+	{
+		ERROR ("network plugin: malloc failed.");
+		return (-1);
+	}
 	network_init_buffer ();
 
 	/* setup socket(s) and so on */
