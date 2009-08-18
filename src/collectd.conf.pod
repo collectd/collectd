@@ -2934,6 +2934,14 @@ updates per second, writing all values to disk will take approximately
 "collection3" you'll end up with a responsive and fast system, up to date
 graphs and basically a "backup" of your values every hour.
 
+=item B<RandomTimeout> I<Seconds>
+
+When set, the actual timeout for each value is chosen randomly between
+I<CacheTimeout>-I<RandomTimeout> and I<CacheTimeout>+I<RandomTimeout>. The
+intention is to avoid high load situations that appear when many values timeout
+at the same time. This is especially a problem shortly after the daemon starts,
+because all values were added to the internal cache at roughly the same time.
+
 =back
 
 =head2 Plugin C<sensors>
