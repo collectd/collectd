@@ -455,7 +455,7 @@ endif
 
 if BUILD_PLUGIN_MADWIFI
 pkglib_LTLIBRARIES += madwifi.la
-madwifi_la_SOURCES = madwifi.c
+madwifi_la_SOURCES = madwifi.c madwifi.h
 madwifi_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" madwifi.la
 collectd_DEPENDENCIES += madwifi.la
