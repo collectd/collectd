@@ -62,6 +62,7 @@ class GenericJMXConfValue
   private DataSet _ds;
   private List<String> _attributes;
   private String _instance_prefix;
+  private List<String> _instance_from;
   private boolean _is_table;
 
   /**
@@ -123,6 +124,11 @@ class GenericJMXConfValue
     return (null);
   } /* }}} Number genericObjectToNumber */
 
+  /**
+   * Converts a generic list to a list of numbers.
+   *
+   * Returns null if one or more objects could not be converted.
+   */
   private List<Number> genericListToNumber (List<Object> objects) /* {{{ */
   {
     List<Number> ret = new ArrayList<Number> ();
@@ -143,6 +149,14 @@ class GenericJMXConfValue
     return (ret);
   } /* }}} List<Number> genericListToNumber */
 
+  /**
+   * Converts a list of CompositeData to a list of numbers.
+   *
+   * From each <em>CompositeData </em> the key <em>key</em> is received and all
+   * those values are converted to a number. If one of the
+   * <em>CompositeData</em> doesn't have the specified key or one returned
+   * object cannot converted to a number then the function will return null.
+   */
   private List<Number> genericCompositeToNumber (List<CompositeData> cdlist, /* {{{ */
       String key)
   {
@@ -168,7 +182,8 @@ class GenericJMXConfValue
     return (genericListToNumber (objects));
   } /* }}} List<Number> genericCompositeToNumber */
 
-  private void submitTable (List<Object> objects, ValueList vl) /* {{{ */
+  private void submitTable (List<Object> objects, ValueList vl, /* {{{ */
+      String instancePrefix)
   {
     List<CompositeData> cdlist;
     Set<String> keySet = null;
@@ -218,17 +233,18 @@ class GenericJMXConfValue
         continue;
       }
 
-      if (this._instance_prefix == null)
+      if (instancePrefix == null)
         vl.setTypeInstance (key);
       else
-        vl.setTypeInstance (this._instance_prefix + key);
+        vl.setTypeInstance (instancePrefix + key);
       vl.setValues (values);
 
       Collectd.dispatchValues (vl);
     }
   } /* }}} void submitTable */
 
-  private void submitScalar (List<Object> objects, ValueList vl) /* {{{ */
+  private void submitScalar (List<Object> objects, ValueList vl, /* {{{ */
+      String instancePrefix)
   {
     List<Number> values;
 
@@ -240,10 +256,10 @@ class GenericJMXConfValue
       return;
     }
 
-    if (this._instance_prefix == null)
+    if (instancePrefix == null)
       vl.setTypeInstance ("");
     else
-      vl.setTypeInstance (this._instance_prefix);
+      vl.setTypeInstance (instancePrefix);
     vl.setValues (values);
 
     Collectd.dispatchValues (vl);
@@ -329,6 +345,22 @@ class GenericJMXConfValue
     }
   } /* }}} Object queryAttribute */
 
+  private String join (String separator, List<String> list) /* {{{ */
+  {
+    StringBuffer sb;
+
+    sb = new StringBuffer ();
+
+    for (int i = 0; i < list.size (); i++)
+    {
+      if (i > 0)
+        sb.append ("-");
+      sb.append (list.get (i));
+    }
+
+    return (sb.toString ());
+  } /* }}} String join */
+
   private String getConfigString (OConfigItem ci) /* {{{ */
   {
     List<OConfigValue> values;
@@ -391,6 +423,7 @@ class GenericJMXConfValue
     this._ds = null;
     this._attributes = new ArrayList<String> ();
     this._instance_prefix = null;
+    this._instance_from = new ArrayList<String> ();
     this._is_table = false;
 
     /*
@@ -434,6 +467,12 @@ class GenericJMXConfValue
         if (tmp != null)
           this._instance_prefix = tmp;
       }
+      else if (child.getKey ().equalsIgnoreCase ("InstanceFrom"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._instance_from.add (tmp);
+      }
       else
         throw (new IllegalArgumentException ("Unknown option: "
               + child.getKey ()));
@@ -449,7 +488,7 @@ class GenericJMXConfValue
    * Query values via JMX according to the object's configuration and dispatch
    * them to collectd.
    *
-   * @param conn Connection to the MBeanServer.
+   * @param conn    Connection to the MBeanServer.
    * @param objName Object name of the MBean to query.
    * @param pd      Preset naming components. The members host, plugin and
    *                plugin instance will be used.
@@ -460,6 +499,8 @@ class GenericJMXConfValue
     ValueList vl;
     List<DataSource> dsrc;
     List<Object> values;
+    List<String> instanceList;
+    String instancePrefix;
 
     if (this._ds == null)
     {
@@ -485,10 +526,41 @@ class GenericJMXConfValue
 
     vl = new ValueList (pd);
     vl.setType (this._ds_name);
-    vl.setTypeInstance (this._instance_prefix);
 
+    /*
+     * Build the instnace prefix from the fixed string prefix and the
+     * properties of the objName.
+     */
+    instanceList = new ArrayList<String> ();
+    for (int i = 0; i < this._instance_from.size (); i++)
+    {
+      String propertyName;
+      String propertyValue;
+
+      propertyName = this._instance_from.get (i);
+      propertyValue = objName.getKeyProperty (propertyName);
+      if (propertyValue == null)
+      {
+        Collectd.logError ("GenericJMXConfMBean: "
+            + "No such property in object name: " + propertyName);
+      }
+      else
+      {
+        instanceList.add (propertyValue);
+      }
+    }
+
+    if (this._instance_prefix != null)
+      instancePrefix = new String (this._instance_prefix
+          + join ("-", instanceList));
+    else
+      instancePrefix = join ("-", instanceList);
+
+    /*
+     * Build a list of `Object's which is then passed to `submitTable' and
+     * `submitScalar'.
+     */
     values = new ArrayList<Object> ();
-
     assert (dsrc.size () == this._attributes.size ());
     for (int i = 0; i < this._attributes.size (); i++)
     {
@@ -506,10 +578,10 @@ class GenericJMXConfValue
     }
 
     if (this._is_table)
-      submitTable (values, vl);
+      submitTable (values, vl, instancePrefix);
     else
-      submitScalar (values, vl);
+      submitScalar (values, vl, instancePrefix);
   } /* }}} void query */
-}
+} /* class GenericJMXConfValue */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
