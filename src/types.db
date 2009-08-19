@@ -3,6 +3,8 @@ apache_bytes		count:COUNTER:0:134217728
 apache_connections	count:GAUGE:0:65535
 apache_requests		count:COUNTER:0:134217728
 apache_scoreboard	count:GAUGE:0:65535
+ath_nodes		value:GAUGE:0:65535
+ath_stat		value:COUNTER:0:4294967295
 bitrate			value:GAUGE:0:4294967295
 bytes			value:GAUGE:0:U
 cache_result		value:COUNTER:0:4294967295
@@ -87,6 +89,10 @@ mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created
 nfs_procedure		value:COUNTER:0:4294967295
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:COUNTER:0:134217728
+node_octets		rx:COUNTER:0:U, tx:COUNTER:0:U
+node_rssi		value:GAUGE:0:255
+node_stat		value:COUNTER:0:4294967295
+node_tx_rate		value:GAUGE:0:127
 operations		value:COUNTER:0:4294967295
 percent			percent:GAUGE:0:100.1
 pg_blks			value:COUNTER:0:U
@@ -120,8 +126,8 @@ signal_power		value:GAUGE:U:0
 signal_quality		value:GAUGE:0:U
 spam_check		value:GAUGE:0:U
 spam_score		value:GAUGE:U:U
-swap			value:GAUGE:0:1099511627776
 swap_io			value:DERIVE:0:1099511627776
+swap			value:GAUGE:0:1099511627776
 tcp_connections		value:GAUGE:0:4294967295
 temperature		value:GAUGE:-273.15:U
 threads			value:GAUGE:0:U
@@ -143,9 +149,3 @@ voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
-ath_nodes		value:GAUGE:0:65535
-ath_stat		value:COUNTER:0:4294967295
-node_octets		rx:COUNTER:0:U, tx:COUNTER:0:U
-node_rssi		value:GAUGE:0:255
-node_tx_rate		value:GAUGE:0:127
-node_stat		value:COUNTER:0:4294967295
