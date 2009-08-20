@@ -380,6 +380,18 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
       break;
     }
 
+    struct timeval timeout;
+    timeout.tv_sec=2;
+    if (timeout.tv_sec < interval_g * 3 / 4)
+      timeout.tv_sec = interval_g * 3 / 4;
+    timeout.tv_usec=0;
+    status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout));
+    if (status != 0)
+    {
+      FUNC_ERROR ("setsockopt");
+      break;
+    }
+
     status = connect (sd, (struct sockaddr *) &item->sockaddr,
         sizeof (item->sockaddr));
     if (status != 0)
