@@ -2075,11 +2075,6 @@ static int network_receive (void) /* {{{ */
 			ent->fd = listen_sockets_pollfd[i].fd;
 			ent->next = NULL;
 
-			/* Hopefully this be optimized out by the compiler. It
-			 * might help prevent stupid bugs in the future though.
-			 */
-			assert (sizeof (ent->data) == sizeof (buffer));
-
 			memcpy (ent->data, buffer, buffer_len);
 			ent->data_len = buffer_len;
 
