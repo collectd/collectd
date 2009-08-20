@@ -22,8 +22,10 @@
 package org.collectd.java;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -40,6 +42,8 @@ import org.collectd.api.OConfigItem;
 
 class GenericJMXConfConnection
 {
+  private String _username = null;
+  private String _password = null;
   private String _host = null;
   private String _service_url = null;
   private MBeanServerConnection _jmx_connection = null;
@@ -76,14 +80,29 @@ private void connect () /* {{{ */
 {
   JMXServiceURL service_url;
   JMXConnector connector;
+  Map environment;
 
   if (_jmx_connection != null)
     return;
 
+  environment = null;
+  if (this._password != null)
+  {
+    String[] credentials;
+
+    if (this._username == null)
+      this._username = new String ("monitorRole");
+
+    credentials = new String[] { this._username, this._password };
+
+    environment = new HashMap ();
+    environment.put (JMXConnector.CREDENTIALS, credentials);
+  }
+
   try
   {
     service_url = new JMXServiceURL (this._service_url);
-    connector = JMXConnectorFactory.connect (service_url);
+    connector = JMXConnectorFactory.connect (service_url, environment);
     _jmx_connection = connector.getMBeanServerConnection ();
   }
   catch (Exception e)
@@ -124,6 +143,18 @@ private void connect () /* {{{ */
         String tmp = getConfigString (child);
         if (tmp != null)
           this._host = tmp;
+      }
+      else if (child.getKey ().equalsIgnoreCase ("User"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._username = tmp;
+      }
+      else if (child.getKey ().equalsIgnoreCase ("Password"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._password = tmp;
       }
       else if (child.getKey ().equalsIgnoreCase ("ServiceURL"))
       {
