@@ -160,6 +160,7 @@ static int init (void)
 	}
 
 	curl_easy_setopt (curl, CURLOPT_URL, url);
+	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1);
 
 	if ((verify_peer == NULL) || (strcmp (verify_peer, "true") == 0))
 	{
