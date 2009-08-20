@@ -681,6 +681,6 @@ FQDNLookup   true
 # configured at all: All values will be sent to all available write plugins. #
 #----------------------------------------------------------------------------#
 
-#<Chain "Main">
+#<Chain "PostCache">
 #  Target "write"
 #</Chain>

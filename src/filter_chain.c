@@ -173,7 +173,7 @@ static char *fc_strdup (const char *orig) /* {{{ */
  *
  * The configuration looks somewhat like this:
  *
- *  <Chain "main">
+ *  <Chain "PreCache">
  *    <Rule>
  *      <Match "regex">
  *        Plugin "^mysql$"
