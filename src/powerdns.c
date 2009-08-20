@@ -923,11 +923,18 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
       powerdns_config_add_server (option);
     else if (strcasecmp ("LocalSocket", option->key) == 0)
     {
-      char *temp = strdup (option->key);
-      if (temp == NULL)
-        return (1);
-      sfree (local_sockpath);
-      local_sockpath = temp;
+      if ((option->values_num != 1) || (option->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("powerdns plugin: `%s' needs exactly one string argument.", option->key);
+      }
+      else
+      {
+        char *temp = strdup (option->values[0].value.string);
+        if (temp == NULL)
+          return (1);
+        sfree (local_sockpath);
+        local_sockpath = temp;
+      }
     }
     else
     {
