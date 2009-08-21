@@ -55,6 +55,7 @@ char curl_errbuf[CURL_ERROR_SIZE];
 static char   send_buffer[SEND_BUFFER_SIZE];
 static size_t send_buffer_free;
 static size_t send_buffer_fill;
+static time_t send_buffer_init_time;
 
 static pthread_mutex_t  send_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -226,6 +227,7 @@ static void http_init_buffer (void)  /* {{{ */
         memset (send_buffer, 0, sizeof (send_buffer));
         send_buffer_free = sizeof (send_buffer);
         send_buffer_fill = 0;
+        send_buffer_init_time = time (NULL);
 } /* }}} http_init_buffer */
 
 static int http_send_buffer (char *buffer) /* {{{ */
@@ -242,16 +244,40 @@ static int http_send_buffer (char *buffer) /* {{{ */
         return (status);
 } /* }}} http_send_buffer */
 
-static int http_flush_buffer (void) /* {{{ */
+static int http_flush_nolock (int timeout) /* {{{ */
 {
-        int status = 0;
-        DEBUG ("http plugin: flushing buffer:\n%s", send_buffer);
+        int status;
+
+        DEBUG ("http plugin: http_flush_nolock: timeout = %i; "
+                        "send_buffer =\n  %s", timeout, send_buffer);
+
+        if (timeout > 0)
+        {
+                time_t now;
+
+                now = time (NULL);
+                if ((send_buffer_init_time + timeout) > now)
+                        return (0);
+        }
 
         status = http_send_buffer (send_buffer);
         http_init_buffer ();
 
         return (status);
-} /* }}} http_flush_buffer */
+} /* }}} http_flush_nolock */
+
+static int http_flush (int timeout, /* {{{ */
+                const char *identifier __attribute__((unused)),
+                user_data_t *user_data __attribute__((unused)))
+{
+        int status;
+
+        pthread_mutex_lock (&send_lock);
+        status = http_flush_nolock (timeout);
+        pthread_mutex_unlock (&send_lock);
+
+        return (status);
+} /* }}} int http_flush */
 
 static int http_write_command (const data_set_t *ds, const value_list_t *vl) /* {{{ */
 {
@@ -297,7 +323,7 @@ static int http_write_command (const data_set_t *ds, const value_list_t *vl) /* 
         /* Check if we have enough space for this command. */
         if (command_len >= send_buffer_free)
         {
-                status = http_flush_buffer();
+                status = http_flush_nolock (/* timeout = */ -1);
                 if (status != 0)
                 {
                         pthread_mutex_unlock (&send_lock);
@@ -329,7 +355,7 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
 static int http_shutdown (void) /* {{{ */
 {
-        http_flush_buffer();
+        http_flush_nolock (/* timeout = */ -1);
         curl_easy_cleanup(curl);
         return (0);
 }
@@ -340,6 +366,7 @@ void module_register (void) /* {{{ */
         plugin_register_config ("http", http_config,
                         config_keys, config_keys_num);
         plugin_register_write ("http", http_write, /* user_data = */ NULL);
+        plugin_register_flush ("http", http_flush, /* user_data = */ NULL);
         plugin_register_shutdown("http", http_shutdown);
 } /* }}} void module_register */
 
