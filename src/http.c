@@ -257,7 +257,6 @@ static int http_flush_buffer (void) /* {{{ */
 static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
                 user_data_t __attribute__((unused)) *user_data)
 {
-
         char key[1024];
         char values[512];
 
@@ -268,16 +267,13 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
                 return -1;
         }
 
-        status = format_name( key, sizeof(key), vl->host, vl->plugin,
-                        vl->plugin_instance, vl->type, vl->type_instance );
-
+	status = FORMAT_VL (key, sizeof (key), vl);
         if (status != 0) {
                 ERROR ("http plugin: error with format_name");
                 return (status);
         }
 
         status = http_value_list_to_string (values, sizeof (values), ds, vl);
-
         if (status != 0) {
                 ERROR ("http plugin: error with http_value_list_to_string");
                 return (status);
@@ -286,9 +282,11 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
         pthread_mutex_lock (&send_lock);
 
-        status = ssnprintf (send_buffer + send_buffer_fill, sizeof (send_buffer) - send_buffer_fill,
-                        "PUTVAL %s interval=%i %u%s\n",
-                        key, interval_g, vl->time, values);
+	/* `values' has a leading `:'. */
+        status = ssnprintf (send_buffer + send_buffer_fill,
+			sizeof (send_buffer) - send_buffer_fill,
+                        "PUTVAL %s interval=%i %lu%s\n",
+                        key, interval_g, (unsigned long) vl->time, values);
         send_buffer_fill += status;
 
         if ((sizeof (send_buffer) - send_buffer_fill) < (sizeof(key) + sizeof(values)))
