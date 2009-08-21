@@ -38,7 +38,7 @@
  */
 static const char *config_keys[] =
 {
-        "Location", "User", "Password"
+        "URL", "User", "Password"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -173,7 +173,7 @@ static int http_value_list_to_string (char *buffer, int buffer_len, /* {{{ */
 
 static int http_config (const char *key, const char *value) /* {{{ */
 {
-        if (strcasecmp ("Location", key) == 0)
+        if (strcasecmp ("URL", key) == 0)
         {
                 if (location != NULL)
                         free (location);

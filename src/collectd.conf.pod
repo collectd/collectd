@@ -1193,7 +1193,7 @@ The following options are accepted by the C<http>-plugin:
 
 =over 4
 
-=item B<Location> I<http://example.com/collectd-import>
+=item B<URL> I<http://example.com/collectd-import>
 
 Set the URL location where values will be sent.
 
