@@ -229,8 +229,9 @@ static void http_init_buffer (void)  /* {{{ */
 static int http_send_buffer (char *buffer) /* {{{ */
 {
         int status = 0;
+
         curl_easy_setopt (curl, CURLOPT_POSTFIELDS, buffer);
-        //status = curl_easy_perform (curl);
+        status = curl_easy_perform (curl);
         if (status != 0)
         {
                 ERROR ("http plugin: curl_easy_perform failed with staus %i: %s",
