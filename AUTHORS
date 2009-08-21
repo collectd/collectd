@@ -109,6 +109,7 @@ Ondrej Zajicek <santiago at crfreenet.org>
 Paul Sadauskas <psadauskas at gmail.com>
  - tokyotyrant plugin.
  - `ReportByDevice' option of the df plugin.
+ - http plugin.
 
 Peter Holik <peter at holik.at>
  - cpufreq plugin.

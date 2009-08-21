@@ -1,5 +1,6 @@
 /**
  * collectd - src/http.c
+ * Copyright (C) 2009       Paul Sadauskas
  * Copyright (C) 2007-2009  Florian octo Forster
  * Copyright (C) 2009       Doug MacEachern
  *
@@ -19,6 +20,7 @@
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
  *   Doug MacEachern <dougm@hyperic.com>
+ *   Paul Sadauskas <psadauskas@gmail.com>
  **/
 
 #include "collectd.h"
