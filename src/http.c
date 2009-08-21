@@ -59,6 +59,14 @@ static time_t send_buffer_init_time;
 
 static pthread_mutex_t  send_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static void http_init_buffer (void)  /* {{{ */
+{
+        memset (send_buffer, 0, sizeof (send_buffer));
+        send_buffer_free = sizeof (send_buffer);
+        send_buffer_fill = 0;
+        send_buffer_init_time = time (NULL);
+} /* }}} http_init_buffer */
+
 static int http_init(void) /* {{{ */
 {
 
@@ -101,6 +109,8 @@ static int http_init(void) /* {{{ */
                 curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
                 curl_easy_setopt (curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
         }
+
+        http_init_buffer ();
 
         return (0);
 } /* }}} */
@@ -222,14 +232,6 @@ static int http_config (const char *key, const char *value) /* {{{ */
         return (0);
 } /* }}} int http_config */
 
-static void http_init_buffer (void)  /* {{{ */
-{
-        memset (send_buffer, 0, sizeof (send_buffer));
-        send_buffer_free = sizeof (send_buffer);
-        send_buffer_fill = 0;
-        send_buffer_init_time = time (NULL);
-} /* }}} http_init_buffer */
-
 static int http_send_buffer (char *buffer) /* {{{ */
 {
         int status = 0;
@@ -258,6 +260,12 @@ static int http_flush_nolock (int timeout) /* {{{ */
                 now = time (NULL);
                 if ((send_buffer_init_time + timeout) > now)
                         return (0);
+        }
+
+        if (send_buffer_fill <= 0)
+        {
+                send_buffer_init_time = time (NULL);
+                return (0);
         }
 
         status = http_send_buffer (send_buffer);
@@ -358,7 +366,7 @@ static int http_shutdown (void) /* {{{ */
         http_flush_nolock (/* timeout = */ -1);
         curl_easy_cleanup(curl);
         return (0);
-}
+} /* }}} int http_shutdown */
 
 void module_register (void) /* {{{ */
 {
