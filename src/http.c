@@ -124,11 +124,11 @@ static int http_value_list_to_string (char *buffer, int buffer_len, /* {{{ */
                                 && (ds->ds[i].type != DS_TYPE_ABSOLUTE))
                         return (-1);
 
-                if (ds->ds[i].type == DS_TYPE_GAUGE) 
+                if (ds->ds[i].type == DS_TYPE_GAUGE)
                 {
                         status = ssnprintf (buffer + offset, buffer_len - offset,
                                         ":%lf", vl->values[i].gauge);
-                } 
+                }
                 else if (ds->ds[i].type == DS_TYPE_COUNTER)
                 {
                         if (rates == NULL)
