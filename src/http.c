@@ -53,7 +53,6 @@ char curl_errbuf[CURL_ERROR_SIZE];
 
 #define SEND_BUFFER_SIZE 4096
 static char   send_buffer[SEND_BUFFER_SIZE];
-static char  *send_buffer_ptr;
 static int    send_buffer_fill;
 
 static pthread_mutex_t  send_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -243,7 +242,6 @@ static int http_config (const char *key, const char *value) /* {{{ */
 static void http_init_buffer (void)  /* {{{ */
 {
         memset (send_buffer, 0, sizeof (send_buffer));
-        send_buffer_ptr = send_buffer;
         send_buffer_fill = 0;
 } /* }}} http_init_buffer */
 
