@@ -53,7 +53,8 @@ char curl_errbuf[CURL_ERROR_SIZE];
 
 #define SEND_BUFFER_SIZE 4096
 static char   send_buffer[SEND_BUFFER_SIZE];
-static int    send_buffer_fill;
+static size_t send_buffer_free;
+static size_t send_buffer_fill;
 
 static pthread_mutex_t  send_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -223,6 +224,7 @@ static int http_config (const char *key, const char *value) /* {{{ */
 static void http_init_buffer (void)  /* {{{ */
 {
         memset (send_buffer, 0, sizeof (send_buffer));
+        send_buffer_free = sizeof (send_buffer);
         send_buffer_fill = 0;
 } /* }}} http_init_buffer */
 
@@ -251,11 +253,12 @@ static int http_flush_buffer (void) /* {{{ */
         return (status);
 } /* }}} http_flush_buffer */
 
-static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
-                user_data_t __attribute__((unused)) *user_data)
+static int http_write_command (const data_set_t *ds, const value_list_t *vl) /* {{{ */
 {
-        char key[1024];
+        char key[10*DATA_MAX_NAME_LEN];
         char values[512];
+        char command[1024];
+        size_t command_len;
 
         int status;
 
@@ -264,41 +267,64 @@ static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
                 return -1;
         }
 
-	status = FORMAT_VL (key, sizeof (key), vl);
+        /* Copy the identifier to `key' and escape it. */
+        status = FORMAT_VL (key, sizeof (key), vl);
         if (status != 0) {
                 ERROR ("http plugin: error with format_name");
                 return (status);
         }
+        escape_string (key, sizeof (key));
 
+        /* Convert the values to an ASCII representation and put that into
+         * `values'. */
         status = http_value_list_to_string (values, sizeof (values), ds, vl);
         if (status != 0) {
                 ERROR ("http plugin: error with http_value_list_to_string");
                 return (status);
         }
 
+        command_len = (size_t) ssnprintf (command, sizeof (command),
+                        "PUTVAL %s interval=%i %s\n",
+                        key, vl->interval, values);
+        if (command_len >= sizeof (command)) {
+                ERROR ("http plugin: Command buffer too small: "
+                                "Need %zu bytes.", command_len + 1);
+                return (-1);
+        }
 
         pthread_mutex_lock (&send_lock);
 
-	/* `values' has a leading `:'. */
-        status = ssnprintf (send_buffer + send_buffer_fill,
-			sizeof (send_buffer) - send_buffer_fill,
-                        "PUTVAL %s interval=%i %lu%s\n",
-                        key, interval_g, (unsigned long) vl->time, values);
-        send_buffer_fill += status;
-
-        if ((sizeof (send_buffer) - send_buffer_fill) < (sizeof(key) + sizeof(values)))
+        /* Check if we have enough space for this command. */
+        if (command_len >= send_buffer_free)
         {
                 status = http_flush_buffer();
                 if (status != 0)
+                {
+                        pthread_mutex_unlock (&send_lock);
                         return status;
-
+                }
         }
+        assert (command_len < send_buffer_free);
+
+        /* `command_len + 1' because `command_len' does not include the
+         * trailing null byte. Neither does `send_buffer_fill'. */
+        memcpy (send_buffer + send_buffer_fill, command, command_len + 1);
+        send_buffer_fill += command_len;
+        send_buffer_free -= command_len;
 
         pthread_mutex_unlock (&send_lock);
 
-
         return (0);
+} /* }}} int http_write_command */
 
+static int http_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
+                user_data_t __attribute__((unused)) *user_data)
+{
+        int status;
+
+        status = http_write_command (ds, vl);
+
+        return (status);
 } /* }}} int http_write */
 
 static int http_shutdown (void) /* {{{ */
@@ -317,4 +343,4 @@ void module_register (void) /* {{{ */
         plugin_register_shutdown("http", http_shutdown);
 } /* }}} void module_register */
 
-/* vim: set fdm=marker sw=8 ts=8 tw=78 : */
+/* vim: set fdm=marker sw=8 ts=8 tw=78 et : */
