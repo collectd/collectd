@@ -109,7 +109,6 @@ static int http_value_list_to_string (char *buffer, int buffer_len, /* {{{ */
         int offset = 0;
         int status;
         int i;
-        gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));
 
@@ -123,24 +122,21 @@ static int http_value_list_to_string (char *buffer, int buffer_len, /* {{{ */
                                 && (ds->ds[i].type != DS_TYPE_ABSOLUTE))
                         return (-1);
 
+		status = -1;
                 if (ds->ds[i].type == DS_TYPE_GAUGE)
                 {
                         status = ssnprintf (buffer + offset, buffer_len - offset,
                                         ":%lf", vl->values[i].gauge);
                 }
-                else if (ds->ds[i].type == DS_TYPE_COUNTER)
+                else if ((ds->ds[i].type == DS_TYPE_COUNTER)
+				|| (ds->ds[i].type == DS_TYPE_ABSOLUTE))
                 {
-                        if (rates == NULL)
-                                rates = uc_get_rate (ds, vl);
-                        if (rates == NULL)
-                        {
-                                WARNING ("csv plugin: "
-                                                "uc_get_rate failed.");
-                                return (-1);
-                        }
                         status = ssnprintf (buffer + offset,
                                         buffer_len - offset,
-                                        ":%lf", rates[i]);
+                                        ":%"PRIu64,
+					(ds->ds[i].type == DS_TYPE_COUNTER)
+                                        ? vl->values[i].counter
+                                        : vl->values[i].absolute);
                 }
                 else if (ds->ds[i].type == DS_TYPE_DERIVE)
                 {
@@ -149,24 +145,13 @@ static int http_value_list_to_string (char *buffer, int buffer_len, /* {{{ */
                                         ":%"PRIi64,
                                         vl->values[i].derive);
                 }
-                else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-                {
-                        status = ssnprintf (buffer + offset,
-                                        buffer_len - offset,
-                                        ":%"PRIu64,
-                                        vl->values[i].absolute);
-                }
 
                 if ((status < 1) || (status >= (buffer_len - offset)))
-                {
-                        sfree (rates);
-                        return (-1);
-                }
+			return (-1);
 
                 offset += status;
         } /* for ds->ds_num */
 
-        sfree (rates);
         return (0);
 } /* }}} int http_value_list_to_string */
 
