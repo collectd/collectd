@@ -4062,8 +4062,8 @@ Configuration:
     tcpconns  . . . . . . $enable_tcpconns
     teamspeak2  . . . . . $enable_teamspeak2
     ted . . . . . . . . . $enable_ted
-    tokyotyrant . . . . . $enable_tokyotyrant
     thermal . . . . . . . $enable_thermal
+    tokyotyrant . . . . . $enable_tokyotyrant
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
     users . . . . . . . . $enable_users
