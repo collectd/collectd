@@ -1958,7 +1958,7 @@ static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
     /* Lock and wait for more data to come in */
     pthread_mutex_lock (&receive_list_lock);
     while ((listen_loop == 0)
-	&& (receive_list_head == NULL))
+        && (receive_list_head == NULL))
       pthread_cond_wait (&receive_list_cond, &receive_list_lock);
 
     /* Remove the head entry and unlock */
@@ -1990,14 +1990,16 @@ static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
 
     if (se == NULL)
     {
-	    ERROR ("network plugin: Got packet from FD %i, but can't "
-			    "find an appropriate socket entry.",
-			    ent->fd);
-	    sfree (ent);
-	    continue;
+      ERROR ("network plugin: Got packet from FD %i, but can't "
+          "find an appropriate socket entry.",
+          ent->fd);
+      sfree (ent->data);
+      sfree (ent);
+      continue;
     }
 
     parse_packet (se, ent->data, ent->data_len, /* flags = */ 0);
+    sfree (ent->data);
     sfree (ent);
   } /* while (42) */
 
@@ -2910,7 +2912,7 @@ static int network_shutdown (void)
 	if (send_buffer_fill > 0)
 		flush_buffer ();
 
-	free (send_buffer);
+	sfree (send_buffer);
 
 	/* TODO: Close `sending_sockets' */
 
