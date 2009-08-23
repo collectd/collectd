@@ -277,6 +277,20 @@ AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 ])
 
 # For the swap module
+have_linux_wireless_h="no"
+if test "x$ac_system" = "xLinux"
+then
+  AC_CHECK_HEADERS(linux/wireless.h,
+		   [have_linux_wireless_h="yes"],
+		   [have_linux_wireless_h="no"],
+[
+#include <dirent.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+])
+fi
+
+# For the swap module
 have_sys_swap_h="yes"
 AC_CHECK_HEADERS(sys/swap.h vm/anon.h, [], [have_sys_swap_h="no"],
 [
@@ -3434,7 +3448,6 @@ plugin_ipvs="no"
 plugin_irq="no"
 plugin_libvirt="no"
 plugin_load="no"
-plugin_madwifi="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
@@ -3466,7 +3479,6 @@ then
 	plugin_interface="yes"
 	plugin_irq="yes"
 	plugin_load="yes"
-	plugin_madwifi="yes"
 	plugin_memory="yes"
 	plugin_nfs="yes"
 	plugin_fscache="yes"
@@ -3719,7 +3731,7 @@ AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
-AC_PLUGIN([madwifi],     [$plugin_madwifi],    [Madwifi wireless statistics])
+AC_PLUGIN([madwifi],     [$have_linux_wireless_h], [Madwifi wireless statistics])
 AC_PLUGIN([match_empty_counter], [yes],        [The empty counter match])
 AC_PLUGIN([match_regex], [yes],                [The regex match])
 AC_PLUGIN([match_timediff], [yes],             [The timediff match])
