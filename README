@@ -482,8 +482,7 @@ Prerequisites
     For the `notify_desktop' plugin.
     <http://www.galago-project.org/>
 
-  * liboping (optional, if not found a version shipped with this distribution
-    can be used)
+  * liboping (optional)
     Used by the `ping' plugin to send and receive ICMP packets.
     <http://verplant.org/liboping/>
 
