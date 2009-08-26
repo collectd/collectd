@@ -310,7 +310,7 @@ sub flush {
 				$args{"timeout"} = $value;
 			}
 			elsif ($option eq "identifier") {
-				my $id = getid (\$value);
+				my $id = getid ($value);
 				if (!$id)
 				{
 					print STDERR "Not a valid identifier: \"$value\"\n";
