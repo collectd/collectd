@@ -3436,9 +3436,9 @@ plugin_ascent="no"
 plugin_battery="no"
 plugin_bind="no"
 plugin_conntrack="no"
-plugin_couchdb="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
+plugin_curl_json="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_entropy="no"
@@ -3556,7 +3556,7 @@ fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"
 then
-	plugin_couchdb="yes"
+	plugin_curl_json="yes"
 fi
 
 if test "x$have_processor_info" = "xyes"
@@ -3706,11 +3706,11 @@ AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
-AC_PLUGIN([couchdb],     [$plugin_couchdb],    [CouchDB statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
+AC_PLUGIN([curl_json],   [$plugin_curl_json],    [CouchDB statistics])
 AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
@@ -4004,11 +4004,11 @@ Configuration:
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
     conntrack . . . . . . $enable_conntrack
-    couchdb . . . . . . . $enable_couchdb
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
     curl  . . . . . . . . $enable_curl
+    curl_json . . . . . . $enable_curl_json
     dbi . . . . . . . . . $enable_dbi
     df  . . . . . . . . . $enable_df
     disk  . . . . . . . . $enable_disk

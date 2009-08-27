@@ -51,6 +51,7 @@ Doug MacEachern <dougm at hyperic.com>
  - OpenVPN plugin.
  - jcollectd (two-way JMX integration).
  - A few other patches to various plugins.
+ - curl_json plugin.
 
 Edward “Koko” Konetzko <konetzed at quixoticagony.com>
  - fscache plugin.

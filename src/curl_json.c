@@ -1,5 +1,5 @@
 /**
- * collectd - src/couchdb.c
+ * collectd - src/curl_json.c
  * Copyright (C) 2009       Doug MacEachern
  * Copyright (C) 2006-2009  Florian octo Forster
  *
@@ -30,15 +30,15 @@
 #include <curl/curl.h>
 #include <yajl/yajl_parse.h>
 
-#define COUCHDB_DEFAULT_HOST "localhost"
-#define COUCHDB_KEY_MAGIC 0x43484b59UL /* CHKY */
-#define COUCHDB_IS_KEY(key) (key)->magic == COUCHDB_KEY_MAGIC
-#define COUCHDB_ANY "*"
+#define CJ_DEFAULT_HOST "localhost"
+#define CJ_KEY_MAGIC 0x43484b59UL /* CHKY */
+#define CJ_IS_KEY(key) (key)->magic == CJ_KEY_MAGIC
+#define CJ_ANY "*"
 #define COUCH_MIN(x,y) ((x) < (y) ? (x) : (y))
 
-struct couchdb_key_s;
-typedef struct couchdb_key_s couchdb_key_t;
-struct couchdb_key_s /* {{{ */
+struct cj_key_s;
+typedef struct cj_key_s cj_key_t;
+struct cj_key_s /* {{{ */
 {
   char *path;
   char *type;
@@ -47,7 +47,7 @@ struct couchdb_key_s /* {{{ */
 };
 /* }}} */
 
-struct couchdb_s /* {{{ */
+struct cj_s /* {{{ */
 {
   char *instance;
   char *host;
@@ -65,26 +65,26 @@ struct couchdb_s /* {{{ */
 
   yajl_handle yajl;
   c_avl_tree_t *tree;
-  couchdb_key_t *key;
+  cj_key_t *key;
   int depth;
   struct {
     union {
       c_avl_tree_t *tree;
-      couchdb_key_t *key;
+      cj_key_t *key;
     };
     char name[DATA_MAX_NAME_LEN];
   } state[YAJL_MAX_DEPTH];
 };
-typedef struct couchdb_s couchdb_t; /* }}} */
+typedef struct cj_s cj_t; /* }}} */
 
-static int couchdb_read (user_data_t *ud);
-static int couchdb_curl_perform (couchdb_t *db, CURL *curl);
-static void couchdb_submit (couchdb_t *db, couchdb_key_t *key, value_t *value);
+static int cj_read (user_data_t *ud);
+static int cj_curl_perform (cj_t *db, CURL *curl);
+static void cj_submit (cj_t *db, cj_key_t *key, value_t *value);
 
-static size_t couchdb_curl_callback (void *buf, /* {{{ */
+static size_t cj_curl_callback (void *buf, /* {{{ */
     size_t size, size_t nmemb, void *user_data)
 {
-  couchdb_t *db;
+  cj_t *db;
   size_t len;
   yajl_status status;
 
@@ -110,15 +110,15 @@ static size_t couchdb_curl_callback (void *buf, /* {{{ */
   {
     unsigned char *msg =
       yajl_get_error(db->yajl, 1, (unsigned char *)buf, len);
-    ERROR ("couchdb plugin: yajl_parse failed: %s", msg);
+    ERROR ("curl_json plugin: yajl_parse failed: %s", msg);
     yajl_free_error(db->yajl, msg);
     return (0); /* abort write callback */
   }
 
   return (len);
-} /* }}} size_t couchdb_curl_callback */
+} /* }}} size_t cj_curl_callback */
 
-static int couchdb_get_type (couchdb_key_t *key)
+static int cj_get_type (cj_key_t *key)
 {
   const data_set_t *ds;
 
@@ -130,17 +130,17 @@ static int couchdb_get_type (couchdb_key_t *key)
 }
 
 /* yajl callbacks */
-static int couchcb_integer (void *ctx, long val)
+static int cj_cb_integer (void *ctx, long val)
 {
-  couchdb_t *db = (couchdb_t *)ctx;
-  couchdb_key_t *key = db->state[db->depth].key;
+  cj_t *db = (cj_t *)ctx;
+  cj_key_t *key = db->state[db->depth].key;
 
   if (key != NULL)
   {
     value_t vt;
     int type;
 
-    type = couchdb_get_type (key);
+    type = cj_get_type (key);
     if (type == DS_TYPE_COUNTER)
       vt.counter = (counter_t) val;
     else if (type == DS_TYPE_GAUGE)
@@ -152,22 +152,22 @@ static int couchcb_integer (void *ctx, long val)
     else
       return 0;
 
-    couchdb_submit (db, key, &vt);
+    cj_submit (db, key, &vt);
   }
   return 1;
 }
 
-static int couchcb_double (void *ctx, double val)
+static int cj_cb_double (void *ctx, double val)
 {
-  couchdb_t *db = (couchdb_t *)ctx;
-  couchdb_key_t *key = db->state[db->depth].key;
+  cj_t *db = (cj_t *)ctx;
+  cj_key_t *key = db->state[db->depth].key;
 
   if (key != NULL)
   {
     value_t vt;
     int type;
 
-    type = couchdb_get_type (key);
+    type = cj_get_type (key);
     if (type == DS_TYPE_COUNTER)
       vt.counter = (counter_t) val;
     else if (type == DS_TYPE_GAUGE)
@@ -179,22 +179,22 @@ static int couchcb_double (void *ctx, double val)
     else
       return 0;
 
-    couchdb_submit (db, key, &vt);
+    cj_submit (db, key, &vt);
   }
   return 1;
 }
 
-static int couchcb_map_key (void *ctx, const unsigned char *val,
+static int cj_cb_map_key (void *ctx, const unsigned char *val,
                             unsigned int len)
 {
-  couchdb_t *db = (couchdb_t *)ctx;
+  cj_t *db = (cj_t *)ctx;
   c_avl_tree_t *tree;
 
   tree = db->state[db->depth-1].tree;
 
   if (tree != NULL)
   {
-    couchdb_key_t *value;
+    cj_key_t *value;
     char *name;
 
     name = db->state[db->depth].name;
@@ -203,7 +203,7 @@ static int couchcb_map_key (void *ctx, const unsigned char *val,
 
     if (c_avl_get (tree, name, (void *) &value) == 0)
       db->state[db->depth].key = value;
-    else if (c_avl_get (tree, COUCHDB_ANY, (void *) &value) == 0)
+    else if (c_avl_get (tree, CJ_ANY, (void *) &value) == 0)
       db->state[db->depth].key = value;
     else
       db->state[db->depth].key = NULL;
@@ -212,17 +212,17 @@ static int couchcb_map_key (void *ctx, const unsigned char *val,
   return 1;
 }
 
-static int couchcb_string (void *ctx, const unsigned char *val,
+static int cj_cb_string (void *ctx, const unsigned char *val,
                            unsigned int len)
 {
-  couchdb_t *db = (couchdb_t *)ctx;
+  cj_t *db = (cj_t *)ctx;
   c_avl_tree_t *tree;
   char *ptr;
 
   if (db->depth != 1) /* e.g. _all_dbs */
     return 1;
 
-  couchcb_map_key (ctx, val, len); /* same logic */
+  cj_cb_map_key (ctx, val, len); /* same logic */
 
   tree = db->state[db->depth].tree;
 
@@ -239,68 +239,68 @@ static int couchcb_string (void *ctx, const unsigned char *val,
 
     curl = curl_easy_duphandle (db->curl);
     curl_easy_setopt (curl, CURLOPT_URL, url);
-    couchdb_curl_perform (db, curl);
+    cj_curl_perform (db, curl);
     curl_easy_cleanup (curl);
   }
   return 1;
 }
 
-static int couchcb_start (void *ctx)
+static int cj_cb_start (void *ctx)
 {
-  couchdb_t *db = (couchdb_t *)ctx;
+  cj_t *db = (cj_t *)ctx;
   if (++db->depth >= YAJL_MAX_DEPTH)
   {
-    ERROR ("couchdb plugin: %s depth exceeds max, aborting.", db->url);
+    ERROR ("curl_json plugin: %s depth exceeds max, aborting.", db->url);
     return 0;
   }
   return 1;
 }
 
-static int couchcb_end (void *ctx)
+static int cj_cb_end (void *ctx)
 {
-  couchdb_t *db = (couchdb_t *)ctx;
+  cj_t *db = (cj_t *)ctx;
   db->state[db->depth].tree = NULL;
   --db->depth;
   return 1;
 }
 
-static int couchcb_start_map (void *ctx)
+static int cj_cb_start_map (void *ctx)
 {
-  return couchcb_start (ctx);
+  return cj_cb_start (ctx);
 }
 
-static int couchcb_end_map (void *ctx)
+static int cj_cb_end_map (void *ctx)
 {
-  return couchcb_end (ctx);
+  return cj_cb_end (ctx);
 }
 
-static int couchcb_start_array (void * ctx)
+static int cj_cb_start_array (void * ctx)
 {
-  return couchcb_start (ctx);
+  return cj_cb_start (ctx);
 }
 
-static int couchcb_end_array (void * ctx)
+static int cj_cb_end_array (void * ctx)
 {
-  return couchcb_start (ctx);
+  return cj_cb_start (ctx);
 }
 
 static yajl_callbacks ycallbacks = {
   NULL, /* null */
   NULL, /* boolean */
-  couchcb_integer,
-  couchcb_double,
+  cj_cb_integer,
+  cj_cb_double,
   NULL, /* number */
-  couchcb_string,
-  couchcb_start_map,
-  couchcb_map_key,
-  couchcb_end_map,
-  couchcb_start_array,
-  couchcb_end_array
+  cj_cb_string,
+  cj_cb_start_map,
+  cj_cb_map_key,
+  cj_cb_end_map,
+  cj_cb_start_array,
+  cj_cb_end_array
 };
 
 /* end yajl callbacks */
 
-static void couchdb_key_free (couchdb_key_t *key) /* {{{ */
+static void cj_key_free (cj_key_t *key) /* {{{ */
 {
   if (key == NULL)
     return;
@@ -310,35 +310,35 @@ static void couchdb_key_free (couchdb_key_t *key) /* {{{ */
   sfree (key->instance);
 
   sfree (key);
-} /* }}} void couchdb_key_free */
+} /* }}} void cj_key_free */
 
-static void couchdb_tree_free (c_avl_tree_t *tree) /* {{{ */
+static void cj_tree_free (c_avl_tree_t *tree) /* {{{ */
 {
   char *name;
   void *value;
 
   while (c_avl_pick (tree, (void *) &name, (void *) &value) == 0)
   {
-    couchdb_key_t *key = (couchdb_key_t *)value;
+    cj_key_t *key = (cj_key_t *)value;
 
-    if (COUCHDB_IS_KEY(key))
-      couchdb_key_free (key);
+    if (CJ_IS_KEY(key))
+      cj_key_free (key);
     else
-      couchdb_tree_free ((c_avl_tree_t *)value);
+      cj_tree_free ((c_avl_tree_t *)value);
 
     sfree (name);
   }
 
   c_avl_destroy (tree);
-} /* }}} void couchdb_tree_free */
+} /* }}} void cj_tree_free */
 
-static void couchdb_free (void *arg) /* {{{ */
+static void cj_free (void *arg) /* {{{ */
 {
-  couchdb_t *db;
+  cj_t *db;
 
-  DEBUG ("couchdb plugin: couchdb_free (arg = %p);", arg);
+  DEBUG ("curl_json plugin: cj_free (arg = %p);", arg);
 
-  db = (couchdb_t *) arg;
+  db = (cj_t *) arg;
 
   if (db == NULL)
     return;
@@ -348,7 +348,7 @@ static void couchdb_free (void *arg) /* {{{ */
   db->curl = NULL;
 
   if (db->tree != NULL)
-    couchdb_tree_free (db->tree);
+    cj_tree_free (db->tree);
   db->tree = NULL;
 
   sfree (db->instance);
@@ -361,16 +361,16 @@ static void couchdb_free (void *arg) /* {{{ */
   sfree (db->cacert);
 
   sfree (db);
-} /* }}} void couchdb_free */
+} /* }}} void cj_free */
 
 /* Configuration handling functions {{{ */
 
-static int couchdb_config_add_string (const char *name, char **dest, /* {{{ */
+static int cj_config_add_string (const char *name, char **dest, /* {{{ */
                                       oconfig_item_t *ci)
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("couchdb plugin: `%s' needs exactly one string argument.", name);
+    WARNING ("curl_json plugin: `%s' needs exactly one string argument.", name);
     return (-1);
   }
 
@@ -380,54 +380,54 @@ static int couchdb_config_add_string (const char *name, char **dest, /* {{{ */
     return (-1);
 
   return (0);
-} /* }}} int couchdb_config_add_string */
+} /* }}} int cj_config_add_string */
 
-static int couchdb_config_set_boolean (const char *name, int *dest, /* {{{ */
+static int cj_config_set_boolean (const char *name, int *dest, /* {{{ */
                                        oconfig_item_t *ci)
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
   {
-    WARNING ("couchdb plugin: `%s' needs exactly one boolean argument.", name);
+    WARNING ("curl_json plugin: `%s' needs exactly one boolean argument.", name);
     return (-1);
   }
 
   *dest = ci->values[0].value.boolean ? 1 : 0;
 
   return (0);
-} /* }}} int couchdb_config_set_boolean */
+} /* }}} int cj_config_set_boolean */
 
-static c_avl_tree_t *couchdb_avl_create(void)
+static c_avl_tree_t *cj_avl_create(void)
 {
   return c_avl_create ((int (*) (const void *, const void *)) strcmp);
 }
 
-static int couchdb_config_add_key (couchdb_t *db, /* {{{ */
+static int cj_config_add_key (cj_t *db, /* {{{ */
                                    oconfig_item_t *ci)
 {
-  couchdb_key_t *key;
+  cj_key_t *key;
   int status;
   int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("couchdb plugin: The `Key' block "
+    WARNING ("curl_json plugin: The `Key' block "
              "needs exactly one string argument.");
     return (-1);
   }
 
-  key = (couchdb_key_t *) malloc (sizeof (*key));
+  key = (cj_key_t *) malloc (sizeof (*key));
   if (key == NULL)
   {
-    ERROR ("couchdb plugin: malloc failed.");
+    ERROR ("curl_json plugin: malloc failed.");
     return (-1);
   }
   memset (key, 0, sizeof (*key));
-  key->magic = COUCHDB_KEY_MAGIC;
+  key->magic = CJ_KEY_MAGIC;
 
   if (strcasecmp ("Key", ci->key) == 0)
   {
-    status = couchdb_config_add_string ("Key", &key->path, ci);
+    status = cj_config_add_string ("Key", &key->path, ci);
     if (status != 0)
     {
       sfree (key);
@@ -436,7 +436,7 @@ static int couchdb_config_add_key (couchdb_t *db, /* {{{ */
   }
   else
   {
-    ERROR ("couchdb plugin: couchdb_config: "
+    ERROR ("curl_json plugin: cj_config: "
            "Invalid key: %s", ci->key);
     return (-1);
   }
@@ -447,12 +447,12 @@ static int couchdb_config_add_key (couchdb_t *db, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Type", child->key) == 0)
-      status = couchdb_config_add_string ("Type", &key->type, child);
+      status = cj_config_add_string ("Type", &key->type, child);
     else if (strcasecmp ("Instance", child->key) == 0)
-      status = couchdb_config_add_string ("Instance", &key->instance, child);
+      status = cj_config_add_string ("Instance", &key->instance, child);
     else
     {
-      WARNING ("couchdb plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -464,7 +464,7 @@ static int couchdb_config_add_key (couchdb_t *db, /* {{{ */
   {
     if (key->type == NULL)
     {
-      WARNING ("couchdb plugin: `Type' missing in `Key' block.");
+      WARNING ("curl_json plugin: `Type' missing in `Key' block.");
       status = -1;
     }
 
@@ -484,7 +484,7 @@ static int couchdb_config_add_key (couchdb_t *db, /* {{{ */
     c_avl_tree_t *tree;
 
     if (db->tree == NULL)
-      db->tree = couchdb_avl_create();
+      db->tree = cj_avl_create();
 
     tree = db->tree;
     name = key->path;
@@ -507,7 +507,7 @@ static int couchdb_config_add_key (couchdb_t *db, /* {{{ */
 
         if (c_avl_get (tree, ent, (void *) &value) != 0)
         {
-          value = couchdb_avl_create ();
+          value = cj_avl_create ();
           c_avl_insert (tree, strdup (ent), value);
         }
 
@@ -520,24 +520,24 @@ static int couchdb_config_add_key (couchdb_t *db, /* {{{ */
       c_avl_insert (tree, strdup(name), key);
     else
     {
-      ERROR ("couchdb plugin: invalid key: %s", key->path);
+      ERROR ("curl_json plugin: invalid key: %s", key->path);
       status = -1;
     }
   }
 
   return (status);
-} /* }}} int couchdb_config_add_key */
+} /* }}} int cj_config_add_key */
 
-static int couchdb_init_curl (couchdb_t *db) /* {{{ */
+static int cj_init_curl (cj_t *db) /* {{{ */
 {
   db->curl = curl_easy_init ();
   if (db->curl == NULL)
   {
-    ERROR ("couchdb plugin: curl_easy_init failed.");
+    ERROR ("curl_json plugin: curl_easy_init failed.");
     return (-1);
   }
 
-  curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, couchdb_curl_callback);
+  curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cj_curl_callback);
   curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
                     PACKAGE_NAME"/"PACKAGE_VERSION);
@@ -555,7 +555,7 @@ static int couchdb_init_curl (couchdb_t *db) /* {{{ */
     db->credentials = (char *) malloc (credentials_size);
     if (db->credentials == NULL)
     {
-      ERROR ("couchdb plugin: malloc failed.");
+      ERROR ("curl_json plugin: malloc failed.");
       return (-1);
     }
 
@@ -571,33 +571,33 @@ static int couchdb_init_curl (couchdb_t *db) /* {{{ */
     curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
 
   return (0);
-} /* }}} int couchdb_init_curl */
+} /* }}} int cj_init_curl */
 
-static int couchdb_config_add_url (oconfig_item_t *ci) /* {{{ */
+static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
 {
-  couchdb_t *db;
+  cj_t *db;
   int status = 0;
   int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("couchdb plugin: The `URL' block "
+    WARNING ("curl_json plugin: The `URL' block "
              "needs exactly one string argument.");
     return (-1);
   }
 
-  db = (couchdb_t *) malloc (sizeof (*db));
+  db = (cj_t *) malloc (sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("couchdb plugin: malloc failed.");
+    ERROR ("curl_json plugin: malloc failed.");
     return (-1);
   }
   memset (db, 0, sizeof (*db));
 
   if (strcasecmp ("URL", ci->key) == 0)
   {
-    status = couchdb_config_add_string ("URL", &db->url, ci);
+    status = cj_config_add_string ("URL", &db->url, ci);
     if (status != 0)
     {
       sfree (db);
@@ -606,35 +606,35 @@ static int couchdb_config_add_url (oconfig_item_t *ci) /* {{{ */
   }
   else
   {
-    ERROR ("couchdb plugin: couchdb_config: "
+    ERROR ("curl_json plugin: cj_config: "
            "Invalid key: %s", ci->key);
     return (-1);
   }
 
-  /* Fill the `couchdb_t' structure.. */
+  /* Fill the `cj_t' structure.. */
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Instance", child->key) == 0)
-      status = couchdb_config_add_string ("Instance", &db->instance, child);
+      status = cj_config_add_string ("Instance", &db->instance, child);
     else if (strcasecmp ("Host", child->key) == 0)
-      status = couchdb_config_add_string ("Host", &db->host, child);
+      status = cj_config_add_string ("Host", &db->host, child);
     else if (strcasecmp ("User", child->key) == 0)
-      status = couchdb_config_add_string ("User", &db->user, child);
+      status = cj_config_add_string ("User", &db->user, child);
     else if (strcasecmp ("Password", child->key) == 0)
-      status = couchdb_config_add_string ("Password", &db->pass, child);
+      status = cj_config_add_string ("Password", &db->pass, child);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
-      status = couchdb_config_set_boolean ("VerifyPeer", &db->verify_peer, child);
+      status = cj_config_set_boolean ("VerifyPeer", &db->verify_peer, child);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
-      status = couchdb_config_set_boolean ("VerifyHost", &db->verify_host, child);
+      status = cj_config_set_boolean ("VerifyHost", &db->verify_host, child);
     else if (strcasecmp ("CACert", child->key) == 0)
-      status = couchdb_config_add_string ("CACert", &db->cacert, child);
+      status = cj_config_add_string ("CACert", &db->cacert, child);
     else if (strcasecmp ("Key", child->key) == 0)
-      status = couchdb_config_add_key (db, child);
+      status = cj_config_add_key (db, child);
     else
     {
-      WARNING ("couchdb plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -646,12 +646,12 @@ static int couchdb_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     if (db->tree == NULL)
     {
-      WARNING ("couchdb plugin: No (valid) `Key' block "
+      WARNING ("curl_json plugin: No (valid) `Key' block "
                "within `URL' block `%s'.", db->url);
       status = -1;
     }
     if (status == 0)
-      status = couchdb_init_curl (db);
+      status = cj_init_curl (db);
   }
 
   /* If all went well, register this database for reading */
@@ -663,30 +663,30 @@ static int couchdb_config_add_url (oconfig_item_t *ci) /* {{{ */
     if (db->instance == NULL)
       db->instance = strdup("default");
 
-    DEBUG ("couchdb plugin: Registering new read callback: %s",
+    DEBUG ("curl_json plugin: Registering new read callback: %s",
            db->instance);
 
     memset (&ud, 0, sizeof (ud));
     ud.data = (void *) db;
-    ud.free_func = couchdb_free;
+    ud.free_func = cj_free;
 
-    ssnprintf (cb_name, sizeof (cb_name), "couchdb-%s-%s",
+    ssnprintf (cb_name, sizeof (cb_name), "curl_json-%s-%s",
                db->instance, db->url);
 
-    plugin_register_complex_read (cb_name, couchdb_read,
+    plugin_register_complex_read (cb_name, cj_read,
                                   /* interval = */ NULL, &ud);
   }
   else
   {
-    couchdb_free (db);
+    cj_free (db);
     return (-1);
   }
 
   return (0);
 }
- /* }}} int couchdb_config_add_database */
+ /* }}} int cj_config_add_database */
 
-static int couchdb_config (oconfig_item_t *ci) /* {{{ */
+static int cj_config (oconfig_item_t *ci) /* {{{ */
 {
   int success;
   int errors;
@@ -702,7 +702,7 @@ static int couchdb_config (oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp ("URL", child->key) == 0)
     {
-      status = couchdb_config_add_url (child);
+      status = cj_config_add_url (child);
       if (status == 0)
         success++;
       else
@@ -710,23 +710,23 @@ static int couchdb_config (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      WARNING ("couchdb plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
       errors++;
     }
   }
 
   if ((success == 0) && (errors > 0))
   {
-    ERROR ("couchdb plugin: All statements failed.");
+    ERROR ("curl_json plugin: All statements failed.");
     return (-1);
   }
 
   return (0);
-} /* }}} int couchdb_config */
+} /* }}} int cj_config */
 
 /* }}} End of configuration handling functions */
 
-static void couchdb_submit (couchdb_t *db, couchdb_key_t *key, value_t *value) /* {{{ */
+static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 {
   value_list_t vl = VALUE_LIST_INIT;
   char *host;
@@ -736,7 +736,7 @@ static void couchdb_submit (couchdb_t *db, couchdb_key_t *key, value_t *value) /
 
   if ((db->host == NULL)
       || (strcmp ("", db->host) == 0)
-      || (strcmp (COUCHDB_DEFAULT_HOST, db->host) == 0))
+      || (strcmp (CJ_DEFAULT_HOST, db->host) == 0))
     host = hostname_g;
   else
     host = db->host;
@@ -748,14 +748,14 @@ static void couchdb_submit (couchdb_t *db, couchdb_key_t *key, value_t *value) /
     sstrncpy (vl.type_instance, key->instance, sizeof (vl.type_instance));
 
   sstrncpy (vl.host, host, sizeof (vl.host));
-  sstrncpy (vl.plugin, "couchdb", sizeof (vl.plugin));
+  sstrncpy (vl.plugin, "curl_json", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, key->type, sizeof (vl.type));
 
   plugin_dispatch_values (&vl);
-} /* }}} int couchdb_submit */
+} /* }}} int cj_submit */
 
-static int couchdb_curl_perform (couchdb_t *db, CURL *curl) /* {{{ */
+static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
 {
   int status;
   long rc;
@@ -765,7 +765,7 @@ static int couchdb_curl_perform (couchdb_t *db, CURL *curl) /* {{{ */
   db->yajl = yajl_alloc (&ycallbacks, NULL, NULL, (void *)db);
   if (db->yajl == NULL)
   {
-    ERROR ("couchdb plugin: yajl_alloc failed.");
+    ERROR ("curl_json plugin: yajl_alloc failed.");
     return (-1);
   }
 
@@ -779,42 +779,44 @@ static int couchdb_curl_perform (couchdb_t *db, CURL *curl) /* {{{ */
 
   if (rc != 200)
   {
-    ERROR ("couchdb plugin: curl_easy_perform failed with response code %ld (%s)",
+    ERROR ("curl_json plugin: curl_easy_perform failed with response code %ld (%s)",
            rc, url);
     return (-1);
   }
 
   if (status != 0)
   {
-    ERROR ("couchdb plugin: curl_easy_perform failed with status %i: %s (%s)",
+    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
            status, db->curl_errbuf, url);
     return (-1);
   }
 
   return (0);
-} /* }}} int couchdb_curl_perform */
+} /* }}} int cj_curl_perform */
 
-static int couchdb_read (user_data_t *ud) /* {{{ */
+static int cj_read (user_data_t *ud) /* {{{ */
 {
-  couchdb_t *db;
+  cj_t *db;
 
   if ((ud == NULL) || (ud->data == NULL))
   {
-    ERROR ("couchdb plugin: couchdb_read: Invalid user data.");
+    ERROR ("curl_json plugin: cj_read: Invalid user data.");
     return (-1);
   }
 
-  db = (couchdb_t *) ud->data;
+  db = (cj_t *) ud->data;
 
   db->depth = 0;
   memset (&db->state, 0, sizeof(db->state));
   db->state[db->depth].tree = db->tree;
   db->key = NULL;
 
-  return couchdb_curl_perform (db, db->curl);
-} /* }}} int couchdb_read */
+  return cj_curl_perform (db, db->curl);
+} /* }}} int cj_read */
 
 void module_register (void)
 {
-  plugin_register_complex_config ("couchdb", couchdb_config);
+  plugin_register_complex_config ("curl_json", cj_config);
 } /* void module_register */
+
+/* vim: set sw=2 sts=2 et fdm=marker : */

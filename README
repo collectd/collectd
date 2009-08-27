@@ -43,8 +43,9 @@ Features
     - conntrack
       Number of nf_conntrack entries.
 
-    - couchdb
-      Parse statistics from CouchDB JSON documents.
+    - curl_json
+      Retrieves JSON data via cURL and parses it according to user
+      configuration.
 
     - cpu
       CPU utilization: Time spent in the system, user, nice, idle, and related
@@ -549,7 +550,7 @@ Prerequisites
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `couchdb' plugin.
+    Parse JSON data. This is needed for the `curl_json' plugin.
     <http://www.lloydforge.org/projects/yajl/>
 
 Configuring / Compiling / Installing

@@ -173,21 +173,6 @@ collectd_LDADD += "-dlopen" conntrack.la
 collectd_DEPENDENCIES += conntrack.la
 endif
 
-if BUILD_PLUGIN_COUCHDB
-pkglib_LTLIBRARIES += couchdb.la
-couchdb_la_SOURCES = couchdb.c
-couchdb_la_CFLAGS = $(AM_CFLAGS)
-couchdb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
-couchdb_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
-couchdb_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
-if BUILD_WITH_LIBCURL
-couchdb_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-couchdb_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
-collectd_LDADD += "-dlopen" couchdb.la
-collectd_DEPENDENCIES += couchdb.la
-endif
-
 if BUILD_PLUGIN_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c
@@ -236,6 +221,21 @@ curl_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 collectd_DEPENDENCIES += curl.la
+endif
+
+if BUILD_PLUGIN_CURL_JSON
+pkglib_LTLIBRARIES += curl_json.la
+curl_json_la_SOURCES = curl_json.c
+curl_json_la_CFLAGS = $(AM_CFLAGS)
+curl_json_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
+curl_json_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+curl_json_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+if BUILD_WITH_LIBCURL
+curl_json_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+curl_json_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+collectd_LDADD += "-dlopen" curl_json.la
+collectd_DEPENDENCIES += curl_json.la
 endif
 
 if BUILD_PLUGIN_DBI
