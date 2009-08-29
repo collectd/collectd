@@ -1,6 +1,6 @@
 /**
- * collectd - src/arc.c
- * Copyright (C) 2009	Anthony Dewhurst
+ * collectd - src/zfs_arc.c
+ * Copyright (C) 2009  Anthony Dewhurst
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,7 +29,7 @@
 static kstat_t *ksp;
 extern kstat_ctl_t *kc;
 
-static void arc_submit (const char* type, const char* type_instance, value_t values[], int values_len)
+static void za_submit (const char* type, const char* type_instance, value_t values[], int values_len)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -37,23 +37,23 @@ static void arc_submit (const char* type, const char* type_instance, value_t val
 	vl.values_len = values_len;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "arc", sizeof (vl.plugin));
+	sstrncpy (vl.plugin, "zfs_arc", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 }
 
-static void arc_submit_gauge (const char* type, const char* type_instance, gauge_t value)
+static void za_submit_gauge (const char* type, const char* type_instance, gauge_t value)
 {
 	value_t values[1];
 
 	values[0].gauge = value;
 
-	arc_submit (type, type_instance, values, STATIC_ARRAY_SIZE(values));
+	za_submit (type, type_instance, values, STATIC_ARRAY_SIZE(values));
 }
 
-static void arc_submit_size (gauge_t size, gauge_t size_target, gauge_t limit_min, gauge_t limit_max)
+static void za_submit_size (gauge_t size, gauge_t size_target, gauge_t limit_min, gauge_t limit_max)
 {
 	value_t values[4];
 
@@ -62,20 +62,20 @@ static void arc_submit_size (gauge_t size, gauge_t size_target, gauge_t limit_mi
 	values[2].gauge = limit_min;
 	values[3].gauge = limit_max;
 
-	arc_submit ("arc_size", "", values, STATIC_ARRAY_SIZE(values));
+	za_submit ("arc_size", "", values, STATIC_ARRAY_SIZE(values));
 }
 
-static void arc_submit_bytes (counter_t read, counter_t write)
+static void za_submit_bytes (counter_t read, counter_t write)
 {
 	value_t values[2];
 
 	values[0].counter = read;
 	values[1].counter = write;
 
-	arc_submit ("arc_l2_bytes", "", values, STATIC_ARRAY_SIZE(values));
+	za_submit ("arc_l2_bytes", "", values, STATIC_ARRAY_SIZE(values));
 }
 
-static void arc_submit_counts (char *type_instance, counter_t demand_data, counter_t demand_metadata,
+static void za_submit_counts (char *type_instance, counter_t demand_data, counter_t demand_metadata,
 	counter_t prefetch_data, counter_t prefetch_metadata)
 {
 	value_t values[4];
@@ -85,10 +85,10 @@ static void arc_submit_counts (char *type_instance, counter_t demand_data, count
 	values[2].counter = prefetch_data;
 	values[3].counter = prefetch_metadata;
 
-	arc_submit ("arc_counts", type_instance, values, STATIC_ARRAY_SIZE(values));
+	za_submit ("arc_counts", type_instance, values, STATIC_ARRAY_SIZE(values));
 }
 
-static int arc_read (void)
+static int za_read (void)
 {
 	gauge_t   arcsize, targetsize, minlimit, maxlimit, hits, misses, l2_size, l2_hits, l2_misses;
 	counter_t demand_data_hits, demand_metadata_hits, prefetch_data_hits, prefetch_metadata_hits;
@@ -98,7 +98,7 @@ static int arc_read (void)
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
 	{
-		ERROR ("arc plugin: Cannot find zfs:0:arcstats kstat.");
+		ERROR ("zfs_arc plugin: Cannot find zfs:0:arcstats kstat.");
 		return (-1);
 	}
 
@@ -127,38 +127,40 @@ static int arc_read (void)
 	l2_misses      = get_kstat_value(ksp, "l2_misses");
 
 
-	arc_submit_size (arcsize, targetsize, minlimit, maxlimit);
-	arc_submit_gauge ("arc_l2_size", "", l2_size);
+	za_submit_size (arcsize, targetsize, minlimit, maxlimit);
+	za_submit_gauge ("arc_l2_size", "", l2_size);
 
-	arc_submit_counts ("hits", 	demand_data_hits,     demand_metadata_hits,
-					prefetch_data_hits,   prefetch_metadata_hits);
-	arc_submit_counts ("misses", 	demand_data_misses,   demand_metadata_misses,
-					prefetch_data_misses, prefetch_metadata_misses);
+	za_submit_counts ("hits",   demand_data_hits,     demand_metadata_hits,
+	                            prefetch_data_hits,   prefetch_metadata_hits);
+	za_submit_counts ("misses", demand_data_misses,   demand_metadata_misses,
+	                            prefetch_data_misses, prefetch_metadata_misses);
 
-	arc_submit_gauge ("arc_ratio", "L1", hits / (hits + misses));
-	arc_submit_gauge ("arc_ratio", "L2", l2_hits / (l2_hits + l2_misses));
+	za_submit_gauge ("arc_ratio", "L1", hits / (hits + misses));
+	za_submit_gauge ("arc_ratio", "L2", l2_hits / (l2_hits + l2_misses));
 
-	arc_submit_bytes (l2_read_bytes, l2_write_bytes);
+	za_submit_bytes (l2_read_bytes, l2_write_bytes);
 
 	return (0);
 }
 
-static int arc_init (void) /* {{{ */
+static int za_init (void) /* {{{ */
 {
 	ksp = NULL;
 
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{
-		ERROR ("arc plugin: kstat chain control structure not available.");
+		ERROR ("zfs_arc plugin: kstat chain control structure not available.");
 		return (-1);
 	}
 
 	return (0);
-} /* }}} int arc_init */
+} /* }}} int za_init */
 
 void module_register (void)
 {
-	plugin_register_init ("arc", arc_init);
-	plugin_register_read ("arc", arc_read);
+	plugin_register_init ("zfs_arc", za_init);
+	plugin_register_read ("zfs_arc", za_read);
 } /* void module_register */
+
+/* vmi: set sw=8 noexpandtab fdm=marker : */

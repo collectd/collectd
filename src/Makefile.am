@@ -142,16 +142,6 @@ collectd_LDADD += "-dlopen" ascent.la
 collectd_DEPENDENCIES += ascent.la
 endif
 
-if BUILD_PLUGIN_ARC
-pkglib_LTLIBRARIES += arc.la
-arc_la_SOURCES = arc.c
-arc_la_CFLAGS = $(AM_CFLAGS)
-arc_la_LDFLAGS = -module -avoid-version
-arc_la_LIBADD = -lkstat
-collectd_LDADD += "-dlopen" arc.la
-collectd_DEPENDENCIES += arc.la
-endif
-
 if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c
@@ -1074,6 +1064,16 @@ xmms_la_LDFLAGS = -module -avoid-version
 xmms_la_LIBADD = $(BUILD_WITH_LIBXMMS_LIBS)
 collectd_LDADD += "-dlopen" xmms.la
 collectd_DEPENDENCIES += xmms.la
+endif
+
+if BUILD_PLUGIN_ZFS_ARC
+pkglib_LTLIBRARIES += zfs_arc.la
+zfs_arc_la_SOURCES = zfs_arc.c
+zfs_arc_la_CFLAGS = $(AM_CFLAGS)
+zfs_arc_la_LDFLAGS = -module -avoid-version
+zfs_arc_la_LIBADD = -lkstat
+collectd_LDADD += "-dlopen" zfs_arc.la
+collectd_DEPENDENCIES += zfs_arc.la
 endif
 
 

@@ -3433,7 +3433,6 @@ dependency_warning="no"
 dependency_error="no"
 
 plugin_ascent="no"
-plugin_arc="no"
 plugin_battery="no"
 plugin_bind="no"
 plugin_conntrack="no"
@@ -3467,6 +3466,7 @@ plugin_uptime="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
+plugin_zfs_arc="no"
 
 # Linux
 if test "x$ac_system" = "xLinux"
@@ -3516,7 +3516,7 @@ fi
 if test "x$with_kstat" = "xyes"
 then
 	plugin_uptime="yes"
-	plugin_arc="yes"
+	plugin_zfs_arc="yes"
 fi
 
 if test "x$with_devinfo$with_kstat" = "xyesyes"
@@ -3705,7 +3705,6 @@ AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
-AC_PLUGIN([arc],         [$plugin_arc],        [ARC statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
@@ -3790,6 +3789,7 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
+AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -4005,7 +4005,6 @@ Configuration:
     apcups  . . . . . . . $enable_apcups
     apple_sensors . . . . $enable_apple_sensors
     ascent  . . . . . . . $enable_ascent
-    arc . . . . . . . . . $enable_arc
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
     conntrack . . . . . . $enable_conntrack
@@ -4090,6 +4089,7 @@ Configuration:
     wireless  . . . . . . $enable_wireless
     write_http  . . . . . $enable_write_http
     xmms  . . . . . . . . $enable_xmms
+    zfs_arc . . . . . . . $enable_zfs_arc
 
 EOF
 
