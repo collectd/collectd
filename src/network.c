@@ -2133,7 +2133,7 @@ static void *receive_thread (void __attribute__((unused)) *arg)
 
 static void network_init_buffer (void)
 {
-	memset (send_buffer, 0, sizeof (send_buffer));
+	memset (send_buffer, 0, network_config_packet_size);
 	send_buffer_ptr = send_buffer;
 	send_buffer_fill = 0;
 
@@ -2452,7 +2452,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 	pthread_mutex_lock (&send_buffer_lock);
 
 	status = add_to_buffer (send_buffer_ptr,
-			sizeof (send_buffer) - (send_buffer_fill + BUFF_SIG_SIZE),
+			network_config_packet_size - (send_buffer_fill + BUFF_SIG_SIZE),
 			&send_buffer_vl,
 			ds, vl);
 	if (status >= 0)
@@ -2466,7 +2466,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		flush_buffer ();
 
 		status = add_to_buffer (send_buffer_ptr,
-				sizeof (send_buffer) - (send_buffer_fill + BUFF_SIG_SIZE),
+				network_config_packet_size - (send_buffer_fill + BUFF_SIG_SIZE),
 				&send_buffer_vl,
 				ds, vl);
 
@@ -2482,7 +2482,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		ERROR ("network plugin: Unable to append to the "
 				"buffer for some weird reason");
 	}
-	else if ((sizeof (send_buffer) - send_buffer_fill) < 15)
+	else if ((network_config_packet_size - send_buffer_fill) < 15)
 	{
 		flush_buffer ();
 	}
