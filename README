@@ -261,6 +261,9 @@ Features
     - wireless
       Link quality of wireless cards. Linux only.
 
+    - write_http
+      Send data to a web-server using POST requests.
+
     - xmms
       Bitrate and frequency of music played with XMMS.
 
@@ -441,7 +444,8 @@ Prerequisites
     Used by the `oracle' plugin.
 
   * libcurl (optional)
-    If you want to use the `apache', `ascent', `curl' or `nginx' plugin.
+    If you want to use the `apache', `ascent', `curl', `nginx', or `write_http'
+    plugin.
     <http://curl.haxx.se/>
 
   * libdbi (optional)

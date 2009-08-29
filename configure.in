@@ -3710,7 +3710,6 @@ AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
-AC_PLUGIN([http],        [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([ipmi],        [$plugin_ipmi],       [IPMI sensor statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
@@ -3774,6 +3773,7 @@ AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
+AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 
 dnl Default configuration file
@@ -4009,7 +4009,6 @@ Configuration:
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
     hddtemp . . . . . . . $enable_hddtemp
-    http  . . . . . . . . $enable_http
     interface . . . . . . $enable_interface
     ipmi  . . . . . . . . $enable_ipmi
     iptables  . . . . . . $enable_iptables
@@ -4073,6 +4072,7 @@ Configuration:
     vmem  . . . . . . . . $enable_vmem
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
+    write_http  . . . . . $enable_write_http
     xmms  . . . . . . . . $enable_xmms
 
 EOF
