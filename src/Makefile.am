@@ -1042,6 +1042,20 @@ collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif
 
+if BUILD_PLUGIN_WRITE_HTTP
+pkglib_LTLIBRARIES += write_http.la
+write_http_la_SOURCES = write_http.c
+write_http_la_LDFLAGS = -module -avoid-version
+write_http_la_CFLAGS = $(AM_CFLAGS)
+write_http_la_LIBADD =
+collectd_LDADD += "-dlopen" write_http.la
+if BUILD_WITH_LIBCURL
+write_http_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+write_http_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+collectd_DEPENDENCIES += write_http.la
+endif
+
 if BUILD_PLUGIN_XMMS
 pkglib_LTLIBRARIES += xmms.la
 xmms_la_SOURCES = xmms.c

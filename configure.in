@@ -3785,6 +3785,7 @@ AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
+AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 
 dnl Default configuration file
@@ -4083,6 +4084,7 @@ Configuration:
     vmem  . . . . . . . . $enable_vmem
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
+    write_http  . . . . . $enable_write_http
     xmms  . . . . . . . . $enable_xmms
 
 EOF

@@ -3454,6 +3454,56 @@ traffic (e.E<nbsp>g. due to headers and retransmission). If you want to
 collect on-wire traffic you could, for example, use the logging facilities of
 iptables to feed data for the guest IPs into the iptables plugin.
 
+=head2 Plugin C<write_http>
+
+This output plugin submits values to an http server by POST them using the
+PUTVAL plain-text protocol. Each destination you want to post data to needs to
+have one B<URL> block, within which the destination can be configured further,
+for example by specifying authentication data.
+
+Synopsis:
+
+ <Plugin "write_http">
+   <URL "http://example.com/post-collectd">
+     User "collectd"
+     Password "weCh3ik0"
+   </URL>
+ </Plugin>
+
+B<URL> blocks need one string argument which is used as the URL to which data
+is posted. The following options are understood within B<URL> blocks.
+
+=over 4
+
+=item B<User> I<Username>
+
+Optional user name needed for authentication.
+
+=item B<Password> I<Password>
+
+Optional password needed for authentication.
+
+=item B<VerifyPeer> B<true>|B<false>
+
+Enable or disable peer SSL certificate verification. See
+L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
+
+=item B<VerifyHost> B<true|false>
+
+Enable or disable peer host name verification. If enabled, the plugin checks if
+the C<Common Name> or a C<Subject Alternate Name> field of the SSL certificate
+matches the host name provided by the B<URL> option. If this identity check
+fails, the connection is aborted. Obviously, only works when connecting to a
+SSL enabled server. Enabled by default.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use HTTPS you will
+possibly need this option. What CA certificates come bundled with C<libcurl>
+and are checked by default depends on the distribution you use.
+
+=back
+
 =head1 THRESHOLD CONFIGURATION
 
 Starting with version C<4.3.0> collectd has support for B<monitoring>. By that
