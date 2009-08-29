@@ -45,6 +45,9 @@ struct wh_callback_s
         char *user;
         char *pass;
         char *credentials;
+        int   verify_peer;
+        int   verify_host;
+        char *cacert;
 
         CURL *curl;
         char curl_errbuf[CURL_ERROR_SIZE];
@@ -125,6 +128,12 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 curl_easy_setopt (cb->curl, CURLOPT_USERPWD, cb->credentials);
                 curl_easy_setopt (cb->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
         }
+
+        curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYPEER, cb->verify_peer);
+        curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYHOST,
+                        cb->verify_host ? 2 : 0);
+        if (cb->cacert != NULL)
+                curl_easy_setopt (cb->curl, CURLOPT_CAINFO, cb->cacert);
 
         wh_reset_buffer (cb);
 
@@ -207,6 +216,7 @@ static void wh_callback_free (void *data) /* {{{ */
         sfree (cb->user);
         sfree (cb->pass);
         sfree (cb->credentials);
+        sfree (cb->cacert);
 
         sfree (cb);
 } /* }}} void wh_callback_free */
@@ -258,33 +268,6 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
 
 return (0);
 } /* }}} int wh_value_list_to_string */
-
-static int config_set_string (char **ret_string, /* {{{ */
-                oconfig_item_t *ci)
-{
-        char *string;
-
-        if ((ci->values_num != 1)
-                        || (ci->values[0].type != OCONFIG_TYPE_STRING))
-        {
-                WARNING ("write_http plugin: The `%s' config option "
-                                "needs exactly one string argument.", ci->key);
-                return (-1);
-        }
-
-        string = strdup (ci->values[0].value.string);
-        if (string == NULL)
-        {
-                ERROR ("write_http plugin: strdup failed.");
-                return (-1);
-        }
-
-        if (*ret_string != NULL)
-                free (*ret_string);
-        *ret_string = string;
-
-        return (0);
-} /* }}} int config_set_string */
 
 static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{{ */
                 wh_callback_t *cb)
@@ -386,6 +369,47 @@ static int wh_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         return (status);
 } /* }}} int wh_write */
 
+static int config_set_string (char **ret_string, /* {{{ */
+                oconfig_item_t *ci)
+{
+        char *string;
+
+        if ((ci->values_num != 1)
+                        || (ci->values[0].type != OCONFIG_TYPE_STRING))
+        {
+                WARNING ("write_http plugin: The `%s' config option "
+                                "needs exactly one string argument.", ci->key);
+                return (-1);
+        }
+
+        string = strdup (ci->values[0].value.string);
+        if (string == NULL)
+        {
+                ERROR ("write_http plugin: strdup failed.");
+                return (-1);
+        }
+
+        if (*ret_string != NULL)
+                free (*ret_string);
+        *ret_string = string;
+
+        return (0);
+} /* }}} int config_set_string */
+
+static int config_set_boolean (int *dest, oconfig_item_t *ci) /* {{{ */
+{
+        if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+        {
+                WARNING ("write_http plugin: The `%s' config option "
+                                "needs exactly one boolean argument.", ci->key);
+                return (-1);
+        }
+
+        *dest = ci->values[0].value.boolean ? 1 : 0;
+
+        return (0);
+} /* }}} int config_set_boolean */
+
 static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 {
         wh_callback_t *cb;
@@ -399,6 +423,14 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 return (-1);
         }
         memset (cb, 0, sizeof (*cb));
+        cb->location = NULL;
+        cb->user = NULL;
+        cb->pass = NULL;
+        cb->credentials = NULL;
+        cb->verify_peer = 1;
+        cb->verify_host = 1;
+        cb->cacert = NULL;
+        cb->curl = NULL;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -414,6 +446,12 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                         config_set_string (&cb->user, child);
                 else if (strcasecmp ("Password", child->key) == 0)
                         config_set_string (&cb->pass, child);
+                else if (strcasecmp ("VerifyPeer", child->key) == 0)
+                        config_set_boolean (&cb->verify_peer, child);
+                else if (strcasecmp ("VerifyHost", child->key) == 0)
+                        config_set_boolean (&cb->verify_host, child);
+                else if (strcasecmp ("CACert", child->key) == 0)
+                        config_set_string (&cb->cacert, child);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
