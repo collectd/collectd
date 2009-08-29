@@ -3454,15 +3454,23 @@ iptables to feed data for the guest IPs into the iptables plugin.
 =head2 Plugin C<write_http>
 
 This output plugin submits values to an http server by POST them using the
-PUTVAL plain-text protocol.
+PUTVAL plain-text protocol. Each destination you want to post data to needs to
+have one B<URL> block, within which the destination can be configured further,
+for example by specifying authentication data.
 
-The following options are accepted by the I<write_http plugin>:
+Synopsis:
+
+ <Plugin "write_http">
+   <URL "http://example.com/post-collectd">
+     User "collectd"
+     Password "weCh3ik0"
+   </URL>
+ </Plugin>
+
+B<URL> blocks need one string argument which is used as the URL to which data
+is posted. The following options are understood within B<URL> blocks.
 
 =over 4
-
-=item B<URL> I<http://example.com/collectd-import>
-
-Set the URL location where values will be sent.
 
 =item B<User> I<Username>
 

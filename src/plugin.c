@@ -1205,8 +1205,14 @@ void plugin_shutdown_all (void)
 		(*callback) ();
 	}
 
-	destroy_all_callbacks (&list_write);
+	/* Write plugins which use the `user_data' pointer usually need the
+	 * same data available to the flush callback. If this is the case, set
+	 * the free_function to NULL when registering the flush callback and to
+	 * the real free function when registering the write callback. This way
+	 * the data isn't freed twice. */
 	destroy_all_callbacks (&list_flush);
+	destroy_all_callbacks (&list_write);
+
 	destroy_all_callbacks (&list_notification);
 	destroy_all_callbacks (&list_shutdown);
 	destroy_all_callbacks (&list_log);

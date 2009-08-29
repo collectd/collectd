@@ -127,6 +127,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
+#@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 
 ##############################################################################
@@ -711,6 +712,13 @@ FQDNLookup   true
 
 #<Plugin vmem>
 #	Verbose false
+#</Plugin>
+
+#<Plugin write_http>
+#	<URL "http://example.com/collectd-post">
+#		User "collectd"
+#		Password "weCh3ik0"
+#	</URL>
 #</Plugin>
 
 ##############################################################################
