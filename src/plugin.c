@@ -888,6 +888,14 @@ int plugin_unregister_read (const char *name) /* {{{ */
 	}
 
 	le = llist_search (read_list, name);
+	if (le == NULL)
+	{
+		pthread_mutex_unlock (&read_lock);
+		WARNING ("plugin_unregister_read: No such read function: %s",
+				name);
+		return (-ENOENT);
+	}
+
 	llist_remove (read_list, le);
 
 	rf = le->value;
