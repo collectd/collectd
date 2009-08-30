@@ -3,6 +3,11 @@ apache_bytes		count:COUNTER:0:134217728
 apache_connections	count:GAUGE:0:65535
 apache_requests		count:COUNTER:0:134217728
 apache_scoreboard	count:GAUGE:0:65535
+arc_counts		demand_data:COUNTER:0:U, demand_metadata:COUNTER:0:U, prefetch_data:COUNTER:0:U, prefetch_metadata:COUNTER:0:U
+arc_l2_bytes		read:COUNTER:0:U, write:COUNTER:0:U
+arc_l2_size		value:GAUGE:0:U
+arc_ratio		value:GAUGE:0:U
+arc_size		current:GAUGE:0:U, target:GAUGE:0:U, minlimit:GAUGE:0:U, maxlimit:GAUGE:0:U
 ath_nodes		value:GAUGE:0:65535
 ath_stat		value:COUNTER:0:4294967295
 bitrate			value:GAUGE:0:4294967295

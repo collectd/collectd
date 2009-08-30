@@ -3466,6 +3466,7 @@ plugin_uptime="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
+plugin_zfs_arc="no"
 
 # Linux
 if test "x$ac_system" = "xLinux"
@@ -3515,6 +3516,7 @@ fi
 if test "x$with_kstat" = "xyes"
 then
 	plugin_uptime="yes"
+	plugin_zfs_arc="yes"
 fi
 
 if test "x$with_devinfo$with_kstat" = "xyesyes"
@@ -3787,6 +3789,7 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
+AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -4086,6 +4089,7 @@ Configuration:
     wireless  . . . . . . $enable_wireless
     write_http  . . . . . $enable_write_http
     xmms  . . . . . . . . $enable_xmms
+    zfs_arc . . . . . . . $enable_zfs_arc
 
 EOF
 
