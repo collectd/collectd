@@ -1044,7 +1044,8 @@ endif
 
 if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
-write_http_la_SOURCES = write_http.c
+write_http_la_SOURCES = write_http.c \
+			utils_format_json.c utils_format_json.h
 write_http_la_LDFLAGS = -module -avoid-version
 write_http_la_CFLAGS = $(AM_CFLAGS)
 write_http_la_LIBADD =

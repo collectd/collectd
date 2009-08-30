@@ -3502,6 +3502,14 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<Format> B<Command>|B<JSON>
+
+Format of the output to generate. If set to B<Command>, will create output that
+is understood by the I<Exec> and I<UnixSock> plugins. When set to B<JSON>, will
+create output in the I<JavaScript Object Notation> (JSON).
+
+Defaults to B<Command>.
+
 =back
 
 =head1 THRESHOLD CONFIGURATION
