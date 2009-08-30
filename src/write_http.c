@@ -78,7 +78,7 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
         if (status != 0)
         {
                 ERROR ("write_http plugin: curl_easy_perform failed with "
-                                "staus %i: %s",
+                                "status %i: %s",
                                 status, cb->curl_errbuf);
         }
         return (status);
