@@ -129,6 +129,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
+#@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
 ##############################################################################
 # Plugin configuration                                                       #
