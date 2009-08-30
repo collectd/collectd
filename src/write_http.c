@@ -103,6 +103,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         headers = NULL;
         headers = curl_slist_append (headers, "Accept:  */*");
         headers = curl_slist_append (headers, "Content-Type: text/plain");
+        headers = curl_slist_append (headers, "Expect:");
         curl_easy_setopt (cb->curl, CURLOPT_HTTPHEADER, headers);
 
         curl_easy_setopt (cb->curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
