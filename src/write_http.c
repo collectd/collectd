@@ -304,7 +304,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         }
 
         command_len = (size_t) ssnprintf (command, sizeof (command),
-                        "PUTVAL %s interval=%i %s\n",
+                        "PUTVAL %s interval=%i %s\r\n",
                         key, vl->interval, values);
         if (command_len >= sizeof (command)) {
                 ERROR ("write_http plugin: Command buffer too small: "
