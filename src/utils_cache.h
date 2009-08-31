@@ -39,6 +39,9 @@ int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number);
 
 int uc_get_state (const data_set_t *ds, const value_list_t *vl);
 int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state);
+int uc_get_hits (const data_set_t *ds, const value_list_t *vl);
+int uc_set_hits (const data_set_t *ds, const value_list_t *vl, int hits);
+int uc_inc_hits (const data_set_t *ds, const value_list_t *vl, int step);
 
 int uc_get_history (const data_set_t *ds, const value_list_t *vl,
     gauge_t *ret_history, size_t num_steps, size_t num_ds);
