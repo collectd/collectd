@@ -2938,6 +2938,12 @@ static int network_init (void)
 	if (cache_flush_last != 0)
 		return (0);
 
+#if HAVE_LIBGCRYPT
+	gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+	gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
+	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+#endif
+
 	plugin_register_shutdown ("network", network_shutdown);
 
 	network_init_buffer ();
@@ -3029,12 +3035,6 @@ static int network_flush (int timeout,
 
 void module_register (void)
 {
-#if HAVE_LIBGCRYPT
-	gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-	gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
-	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
-#endif
-
 	plugin_register_complex_config ("network", network_config);
 	plugin_register_init   ("network", network_init);
 	plugin_register_flush   ("network", network_flush,
