@@ -89,6 +89,10 @@ sub getRRDArgs
       $stacking = 1;
     }
   }
+  else # if (!$stacking)
+  {
+    $stacking = 1;
+  }
 
   if (defined $obj->{'rrd_vertical'})
   {
@@ -139,7 +143,8 @@ sub getRRDArgs
       "DEF:max${i}=${filename}:${data_source}:MAX");
   }
 
-  if ($stacking) {
+  if ($stacking)
+  {
     for (my $i = @$idents - 1; $i >= 0; $i--)
     {
       if ($i == (@$idents - 1))
@@ -170,7 +175,7 @@ sub getRRDArgs
         "AREA:cdef${i}#${color}");
     }
   }
-  else
+  else # if (!$stacking)
   {
     for (my $i = @$idents - 1; $i >= 0; $i--)
     {
@@ -178,7 +183,6 @@ sub getRRDArgs
         "CDEF:cdef${i}=avg${i}");
     }
   }
-
 
   for (my $i = 0; $i < @$idents; $i++)
   {
