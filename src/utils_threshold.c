@@ -47,7 +47,9 @@ typedef struct threshold_s
   gauge_t warning_max;
   gauge_t failure_min;
   gauge_t failure_max;
+  gauge_t hysteresis;
   int flags;
+  int hits;
   struct threshold_s *next;
 } threshold_t;
 /* }}} */
@@ -281,6 +283,36 @@ static int ut_config_type_percentage(threshold_t *th, oconfig_item_t *ci)
   return (0);
 } /* int ut_config_type_percentage */
 
+static int ut_config_type_hits (threshold_t *th, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("threshold values: The `%s' option needs exactly one "
+      "number argument.", ci->key);
+    return (-1);
+  }
+
+  th->hits = ci->values[0].value.number;
+
+  return (0);
+} /* int ut_config_type_hits */
+
+static int ut_config_type_hysteresis (threshold_t *th, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("threshold values: The `%s' option needs exactly one "
+      "number argument.", ci->key);
+    return (-1);
+  }
+
+  th->hysteresis = ci->values[0].value.number;
+
+  return (0);
+} /* int ut_config_type_hysteresis */
+
 static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 {
   int i;
@@ -308,6 +340,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   th.warning_max = NAN;
   th.failure_min = NAN;
   th.failure_max = NAN;
+  th.hits = 0;
+  th.hysteresis = 0;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -330,6 +364,10 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
       status = ut_config_type_persist (&th, option);
     else if (strcasecmp ("Percentage", option->key) == 0)
       status = ut_config_type_percentage (&th, option);
+    else if (strcasecmp ("Hits", option->key) == 0)
+      status = ut_config_type_hits (&th, option);
+    else if (strcasecmp ("Hysteresis", option->key) == 0)
+      status = ut_config_type_hysteresis (&th, option);
     else
     {
       WARNING ("threshold values: Option `%s' not allowed inside a `Type' "
@@ -489,6 +527,9 @@ int ut_config (const oconfig_item_t *ci)
   th.failure_min = NAN;
   th.failure_max = NAN;
 
+  th.hits = 0;
+  th.hysteresis = 0;
+    
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
@@ -582,6 +623,22 @@ static int ut_report_state (const data_set_t *ds,
   size_t bufsize;
 
   int status;
+
+  /* Check if hits matched */
+  if ( (th->hits != 0) )
+  {
+    int hits = uc_get_hits(ds,vl);
+    /* The STATE_OKAY always reset hits, or if hits reaise the limit */
+    if ( (state == STATE_OKAY) || (hits > th->hits) )
+    {
+        DEBUG("ut_report_state: reset uc_get_hits = 0");
+        uc_set_hits(ds,vl,0); /* reset hit counter and notify */
+    } else {
+      DEBUG("ut_report_state: th->hits = %d, uc_get_hits = %d",th->hits,uc_get_hits(ds,vl));
+      (void) uc_inc_hits(ds,vl,1); /* increase hit counter */
+      return (0);
+    }
+  } /* end check hits */
 
   state_old = uc_get_state (ds, vl);
 
@@ -721,6 +778,7 @@ static int ut_check_one_data_source (const data_set_t *ds,
   const char *ds_name;
   int is_warning = 0;
   int is_failure = 0;
+  int prev_state = STATE_OKAY;
 
   /* check if this threshold applies to this data source */
   if (ds != NULL)
@@ -737,15 +795,39 @@ static int ut_check_one_data_source (const data_set_t *ds,
     is_failure--;
   }
 
-  if ((!isnan (th->failure_min) && (th->failure_min > values[ds_index]))
-      || (!isnan (th->failure_max) && (th->failure_max < values[ds_index])))
-    is_failure++;
+  /* XXX: This is an experimental code, not optimized, not fast, not reliable,
+   * and probably, do not work as you expect. Enjoy! :D */
+  if ( (th->hysteresis > 0) && ((prev_state = uc_get_state(ds,vl)) != STATE_OKAY) )
+  {
+    switch(prev_state)
+    {
+      case STATE_ERROR:
+	if ( (!isnan (th->failure_min) && ((th->failure_min + th->hysteresis) < values[ds_index])) ||
+	     (!isnan (th->failure_max) && ((th->failure_max - th->hysteresis) > values[ds_index])) )
+	  return (STATE_OKAY);
+	else
+	  is_failure++;
+      case STATE_WARNING:
+	if ( (!isnan (th->warning_min) && ((th->warning_min + th->hysteresis) < values[ds_index])) ||
+	     (!isnan (th->warning_max) && ((th->warning_max - th->hysteresis) > values[ds_index])) )
+	  return (STATE_OKAY);
+	else
+	  is_warning++;
+     }
+  }
+  else { /* no hysteresis */
+    if ((!isnan (th->failure_min) && (th->failure_min > values[ds_index]))
+	|| (!isnan (th->failure_max) && (th->failure_max < values[ds_index])))
+      is_failure++;
+
+    if ((!isnan (th->warning_min) && (th->warning_min > values[ds_index]))
+	|| (!isnan (th->warning_max) && (th->warning_max < values[ds_index])))
+      is_warning++;
+ }
+
   if (is_failure != 0)
     return (STATE_ERROR);
 
-  if ((!isnan (th->warning_min) && (th->warning_min > values[ds_index]))
-      || (!isnan (th->warning_max) && (th->warning_max < values[ds_index])))
-    is_warning++;
   if (is_warning != 0)
     return (STATE_WARNING);
 
