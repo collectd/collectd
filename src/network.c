@@ -51,6 +51,7 @@
 
 #if HAVE_LIBGCRYPT
 # include <gcrypt.h>
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 
 /* 1500 - 40 - 8  =  Ethernet packet - IPv6 header - UDP header */
@@ -3028,6 +3029,12 @@ static int network_flush (int timeout,
 
 void module_register (void)
 {
+#if HAVE_LIBGCRYPT
+	gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+	gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
+	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+#endif
+
 	plugin_register_complex_config ("network", network_config);
 	plugin_register_init   ("network", network_init);
 	plugin_register_flush   ("network", network_flush,
