@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEFAULT_VERSION="4.7.2.git"
+DEFAULT_VERSION="4.8.0.git"
 
 VERSION="`git describe 2> /dev/null | sed -e 's/^collectd-//'`"
 

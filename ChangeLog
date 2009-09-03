@@ -1,3 +1,51 @@
+2009-09-13, Version 4.8.0
+
+	* collectd: Two new data source types, “DERIVE” and “ABSOLUTE”, have
+	  been added. “DERIVE” can be used for counters that are reset
+	  occasionally. Thanks to Mariusz Gronczewski for implementing this.
+	* thresholds: The advanced threshold options “Percentage”, “Hits”, and
+	  “Hysteresis” have been added. Thanks to Andrés J. Díaz for hit
+	  patches.
+	* curl_json plugin: The new cURL-JSON plugin reads JSON files using
+	  the cURL library and parses the contents according to user
+	  specification. Among other things, this allows to read statistics
+	  from a CouchDB instance. Thanks to Doug MacEachern for the patch.
+	* df plugin: Using the new “ReportByDevice” option the device rather
+	  than the mount point can be used to identify partitions. Thanks to
+	  Paul Sadauskas for the patch.
+	* dns plugin: The possibility to ignore numeric QTypes has been added.
+	  Thanks to Mirko Buffoni for the patch.
+	* GenericJMX plugin: The new, Java-based GenericJMX plugin allows to
+	  query arbitrary data from a Java process using the “Java Management
+	  Extensions” (JMX).
+	* madwifi plugin: The new MadWifi plugin collects information about
+	  Atheros wireless LAN chipsets from the MadWifi driver. Thanks to
+	  Ondrej Zajicek for his patches.
+	* network plugin: The receive- and send-buffer-sizes have been made
+	  configurable, allowing for bigger and smaller packets. Thanks to
+	  Aman Gupta for the patch.
+	* olsr plugin: The new OLSR plugin queries routing information from
+	  the “Optimized Link State Routing” daemon.
+	* rrdtool plugin: A new configuration option allows to define a random
+	  write delay when writing RRD files. This spreads the load created by
+	  writing RRD files more evenly. Thanks to Mariusz Gronczewski for the
+	  patch.
+	* swap plugin: The possibility to collect swapped in/out pages has
+	  been added to the Swap plugin. Thanks to Stefan Völkel for the
+	  patch.
+	* tokyotyrant plugin: The new TokyoTyrant plugin reads the number of
+	  records and file size from a running Tokyo Tyrant server. Thanks to
+	  Paul Sadauskas for the patch.
+	* write_http plugin: The new Write HTTP plugin sends the values
+	  collected by collectd to a web-server using HTTP POST requests.
+	  Thanks to Paul Sadauskas for the patch.
+	* zfs_arc plugin: The new ZFS ARC plugin collects information about
+	  the “Adaptive Replacement Cache” (ARC) of the “Zeta File-System”
+	  (ZFS). Thanks to Anthony Dewhurst for the patch.
+	* empty_counter match: The new Empty Counter match matches value
+	  lists, where at least one data source is of type COUNTER and the
+	  counter value of all counter data sources is zero.
+
 2009-07-19, Version 4.7.2
 	* Build system: Support for `DESTDIR' has been fixed in the Java
 	  bindings.
