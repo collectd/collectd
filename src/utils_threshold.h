@@ -26,6 +26,24 @@
 #include "liboconfig/oconfig.h"
 #include "plugin.h"
 
+typedef struct threshold_s
+{
+  char host[DATA_MAX_NAME_LEN];
+  char plugin[DATA_MAX_NAME_LEN];
+  char plugin_instance[DATA_MAX_NAME_LEN];
+  char type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
+  char data_source[DATA_MAX_NAME_LEN];
+  gauge_t warning_min;
+  gauge_t warning_max;
+  gauge_t failure_min;
+  gauge_t failure_max;
+  gauge_t hysteresis;
+  int flags;
+  int hits;
+  struct threshold_s *next;
+} threshold_t;
+
 /*
  * ut_config
  *
@@ -53,5 +71,17 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl);
  *    problem disappears.)
  */
 int ut_check_interesting (const char *name);
+
+/* 
+ * Given an identifier in form of a `value_list_t', searches for the best
+ * matching threshold configuration. `ret_threshold' may be NULL.
+ *
+ * Returns:
+ *        0: Success. Threshold configuration has been copied to
+ *           `ret_threshold' (if it is non-NULL).
+ *   ENOENT: No configuration for this identifier found.
+ *     else: Error.
+ */
+int ut_search_threshold (const value_list_t *vl, threshold_t *ret_threshold);
 
 #endif /* UTILS_THRESHOLD_H */

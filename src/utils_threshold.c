@@ -24,6 +24,7 @@
 #include "plugin.h"
 #include "utils_avltree.h"
 #include "utils_cache.h"
+#include "utils_threshold.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -34,24 +35,6 @@
 #define UT_FLAG_INVERT  0x01
 #define UT_FLAG_PERSIST 0x02
 #define UT_FLAG_PERCENTAGE 0x04
-
-typedef struct threshold_s
-{
-  char host[DATA_MAX_NAME_LEN];
-  char plugin[DATA_MAX_NAME_LEN];
-  char plugin_instance[DATA_MAX_NAME_LEN];
-  char type[DATA_MAX_NAME_LEN];
-  char type_instance[DATA_MAX_NAME_LEN];
-  char data_source[DATA_MAX_NAME_LEN];
-  gauge_t warning_min;
-  gauge_t warning_max;
-  gauge_t failure_min;
-  gauge_t failure_max;
-  gauge_t hysteresis;
-  int flags;
-  int hits;
-  struct threshold_s *next;
-} threshold_t;
 /* }}} */
 
 /*
@@ -1044,5 +1027,23 @@ int ut_check_interesting (const char *name)
     return (1);
   return (2);
 } /* }}} int ut_check_interesting */
+
+int ut_search_threshold (const value_list_t *vl, /* {{{ */
+    threshold_t *ret_threshold)
+{
+  threshold_t *t;
+
+  if (vl == NULL)
+    return (EINVAL);
+
+  t = threshold_search (vl);
+  if (t == NULL)
+    return (ENOENT);
+
+  memcpy (ret_threshold, t, sizeof (*ret_threshold));
+  ret_threshold->next = NULL;
+
+  return (0);
+} /* }}} int ut_search_threshold */
 
 /* vim: set sw=2 ts=8 sts=2 tw=78 et fdm=marker : */
