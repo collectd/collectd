@@ -121,6 +121,10 @@ Features
     - libvirt
       CPU, disk and network I/O statistics from virtual machines.
 
+    - madwifi
+      Queries very detailed usage statistics from wireless LAN adapters and
+      interfaces that use the Atheros chipset and the MadWifi driver.
+
     - mbmon
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
@@ -168,6 +172,10 @@ Features
     - nut
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
+
+    - olsr
+      Queries routing information from the “Optimized Link State Routing”
+      daemon.
 
     - onewire (EXPERIMENTAL!)
       Read onewire sensors using the owcapu library of the owfs project.
@@ -243,7 +251,8 @@ Features
       Linux ACPI thermal zone information.
 
     - tokyotyrant
-      Record in and file size of a Tokyo Cabinet database file.
+      Reads the number of records and file size from a running Tokyo Tyrant
+      server.
 
     - uptime
       System uptime statistics.
@@ -261,9 +270,6 @@ Features
 
     - wireless
       Link quality of wireless cards. Linux only.
-
-    - write_http
-      Send data to a web-server using POST requests.
 
     - xmms
       Bitrate and frequency of music played with XMMS.
@@ -304,6 +310,11 @@ Features
       One can query the values from the unixsock plugin whenever they're
       needed. Please read collectd-unixsock(5) for a description on how that's
       done.
+
+    - write_http
+      Sends the values collected by collectd to a web-server using HTTP POST
+      requests. The transmitted data is either in a form understood by the
+      Exec plugin or formatted in JSON.
 
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
