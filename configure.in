@@ -1293,7 +1293,7 @@ then
 		with_own_libiptc="no"
 	],
 	[
-#include "$srcdir/src/libiptc/ipt_kernel_headers.h"
+#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
 	])
 
 	CFLAGS=$SAVE_CFLAGS
