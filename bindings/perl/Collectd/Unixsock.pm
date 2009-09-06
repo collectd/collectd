@@ -196,7 +196,7 @@ value. On error false is returned.
 
 =cut
 
-sub getval
+sub getval # {{{
 {
 	my $obj = shift;
 	my %args = @_;
@@ -242,7 +242,64 @@ sub getval
 	}
 
 	return ($ret);
-} # getval
+} # }}} sub getval
+
+=item I<$res> = I<$obj>-E<gt>B<getthreshold> (I<%identifier>);
+
+Requests a threshold from the daemon. On success a hash-ref is returned with
+the threshold data. On error false is returned.
+
+=cut
+
+sub getthreshold # {{{
+{
+	my $obj = shift;
+	my %args = @_;
+
+	my $status;
+	my $fh = $obj->{'sock'} or confess ('object has no filehandle');
+	my $msg;
+	my $identifier;
+
+	my $ret = {};
+
+	$identifier = _create_identifier (\%args) or return;
+
+	$msg = 'GETTHRESHOLD ' . _escape_argument ($identifier) . "\n";
+	_debug "-> $msg";
+	print $fh $msg;
+
+	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
+
+	($status, $msg) = split (' ', $msg, 2);
+	if ($status <= 0)
+	{
+		$obj->{'error'} = $msg;
+		return;
+	}
+
+	for (my $i = 0; $i < $status; $i++)
+	{
+		my $entry = <$fh>;
+		chomp ($entry);
+		_debug "<- $entry\n";
+
+		if ($entry =~ m/^([^:]+):\s*(\S.*)$/)
+		{
+			my $key = $1;
+			my $value = $2;
+
+			$key =~ s/^\s+//;
+			$key =~ s/\s+$//;
+
+			$ret->{$key} = $value;
+		}
+	}
+
+	return ($ret);
+} # }}} sub getthreshold
 
 =item I<$obj>-E<gt>B<putval> (I<%identifier>, B<time> =E<gt> I<$time>, B<values> =E<gt> [...]);
 
@@ -595,3 +652,5 @@ L<collectd-unixsock(5)>
 Florian octo Forster E<lt>octo@verplant.orgE<gt>
 
 =cut
+
+# vim: set fdm=marker :
