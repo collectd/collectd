@@ -1304,6 +1304,22 @@ if test "x$with_own_libiptc" = "xyes"
 then
 	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
 fi
+if test "x$with_libiptc" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
+
+	AC_CHECK_TYPES([iptc_handle_t], [], [],
+	[
+#if OWN_LIBIPTC
+# include "$srcdir/src/owniptc/libiptc.h"
+#else
+# include <libiptc/libiptc.h>
+#endif
+	])
+
+	CFLAGS=$SAVE_CFLAGS
+fi
 # }}}
 
 # --with-libmysql {{{

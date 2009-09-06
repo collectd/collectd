@@ -34,6 +34,22 @@
 #endif
 
 /*
+ * iptc_handle_t was available before libiptc was officially available as a
+ * shared library. Note, that when the shared lib was introduced, the API and
+ * ABI have changed slightly:
+ * 'iptc_handle_t' used to be 'struct iptc_handle *' and most functions used
+ * 'iptc_handle_t *' as an argument. Now, most functions use 'struct
+ * iptc_handle *' (thus removing one level of pointer indirection).
+ *
+ * HAVE_IPTC_HANDLE_T is used to determine which API ought to be used. While
+ * this is somewhat hacky, I didn't find better way to solve that :-/
+ * -tokkee
+ */
+#ifndef HAVE_IPTC_HANDLE_T
+typedef struct iptc_handle iptc_handle_t;
+#endif
+
+/*
  * (Module-)Global variables
  */
 
@@ -291,7 +307,12 @@ static int iptables_read (void)
     /* Init the iptc handle structure and query the correct table */    
     for (i = 0; i < chain_num; i++)
     {
-	iptc_handle_t handle;
+#ifdef HAVE_IPTC_HANDLE_T
+	iptc_handle_t _handle;
+	iptc_handle_t *handle = &_handle;
+#else
+	iptc_handle_t *handle;
+#endif
 	ip_chain_t *chain;
 	
 	chain = chain_list[i];
@@ -301,7 +322,11 @@ static int iptables_read (void)
 	    continue;
 	}
 
+#ifdef HAVE_IPTC_HANDLE_T
+	*handle = iptc_init (chain->table);
+#else
 	handle = iptc_init (chain->table);
+#endif
 	if (!handle)
 	{
 	    ERROR ("iptables plugin: iptc_init (%s) failed: %s",
@@ -310,8 +335,8 @@ static int iptables_read (void)
 	    continue;
 	}
 
-	submit_chain (&handle, chain);
-	iptc_free (&handle);
+	submit_chain (handle, chain);
+	iptc_free (handle);
     } /* for (i = 0 .. chain_num) */
 
     return ((num_failures < chain_num) ? 0 : -1);
