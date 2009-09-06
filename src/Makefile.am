@@ -972,6 +972,7 @@ pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_flush.h utils_cmd_flush.c \
 		      utils_cmd_getval.h utils_cmd_getval.c \
+		      utils_cmd_getthreshold.h utils_cmd_getthreshold.c \
 		      utils_cmd_listval.h utils_cmd_listval.c \
 		      utils_cmd_putval.h utils_cmd_putval.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c
