@@ -155,22 +155,6 @@ static int df_read (void)
 
 	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
-		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
-		{
-			char errbuf[1024];
-			ERROR ("statv?fs failed: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			continue;
-		}
-
-		if (!statbuf.f_blocks)
-			continue;
-
-		blocksize = BLOCKSIZE(statbuf);
-		df_free = statbuf.f_bfree * blocksize;
-		df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
-
 		if (strcmp (mnt_ptr->dir, "/") == 0)
 		{
 			sstrncpy (mnt_name, "root", sizeof (mnt_name));
@@ -196,6 +180,22 @@ static int df_read (void)
 			continue;
 		if (ignorelist_match (il_fstype, mnt_ptr->type))
 			continue;
+
+		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
+		{
+			char errbuf[1024];
+			ERROR ("statv?fs failed: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
+			continue;
+		}
+
+		if (!statbuf.f_blocks)
+			continue;
+
+		blocksize = BLOCKSIZE(statbuf);
+		df_free = statbuf.f_bfree * blocksize;
+		df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
 
 		df_submit (mnt_name, df_used, df_free);
 	}

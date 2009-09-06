@@ -186,7 +186,14 @@ sub putid {
 =cut
 
 sub cmd_help {
-	print <<HELP;
+	my $sock = shift;
+	my $line = shift || '';
+
+	my @line = tokenize($line);
+	my $cmd = shift (@line);
+
+	my %text = (
+		help => <<HELP,
 Available commands:
   HELP
   PUTVAL
@@ -198,6 +205,45 @@ Available commands:
 See the embedded Perldoc documentation for details. To do that, run:
   perldoc $0
 HELP
+		putval => <<HELP,
+PUTVAL <id> <value0> [<value1> ...]
+
+Submits a value to the daemon.
+HELP
+		getval => <<HELP,
+GETVAL <id>
+
+Retrieves the current value or values from the daemon.
+HELP
+		flush => <<HELP,
+FLUSH [plugin=<plugin>] [timeout=<timeout>] [identifier=<id>] [...]
+
+Sends a FLUSH command to the daemon.
+HELP
+		listval => <<HELP,
+LISTVAL
+
+Prints a list of available values.
+HELP
+		putnotif => <<HELP
+PUTNOTIF severity=<severity> [...] message=<message>
+
+Sends a notifications message to the daemon.
+HELP
+	);
+
+	if (!$cmd)
+	{
+		$cmd = 'help';
+	}
+	if (!exists ($text{$cmd}))
+	{
+		print STDOUT "Unknown command: " . uc ($cmd) . "\n\n";
+		$cmd = 'help';
+	}
+
+	print STDOUT $text{$cmd};
+
 	return 1;
 } # cmd_help
 
@@ -310,7 +356,7 @@ sub flush {
 				$args{"timeout"} = $value;
 			}
 			elsif ($option eq "identifier") {
-				my $id = getid (\$value);
+				my $id = getid ($value);
 				if (!$id)
 				{
 					print STDERR "Not a valid identifier: \"$value\"\n";

@@ -34,7 +34,7 @@ use Collectd::Graph::Type ();
 @Collectd::Graph::TypeLoader::EXPORT_OK = ('tl_load_type');
 
 our @ArrayMembers = (qw(data_sources rrd_opts custom_order));
-our @ScalarMembers = (qw(rrd_title rrd_format rrd_vertical scale ignore_unknown));
+our @ScalarMembers = (qw(rrd_title rrd_format rrd_vertical scale ignore_unknown stacking));
 our @DSMappedMembers = (qw(ds_names rrd_colors));
 
 our %MemberToConfigMap =
@@ -48,6 +48,7 @@ our %MemberToConfigMap =
   rrd_colors => 'color',
   scale => 'scale', # GenericIO only
   custom_order => 'order', # GenericStacked only
+  stacking => 'stacking', # GenericStacked only
   ignore_unknown => 'ignoreunknown' # GenericStacked only
 );
 

@@ -32,8 +32,8 @@
 #include <sys/socket.h>
 
 #if OWN_LIBIPTC
-# include "libiptc/libiptc.h"
-# include "libiptc/libip6tc.h"
+# include "owniptc/libiptc.h"
+# include "owniptc/libip6tc.h"
 #else
 # include <libiptc/libiptc.h>
 # include <libiptc/libip6tc.h>

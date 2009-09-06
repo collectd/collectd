@@ -361,6 +361,18 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
       break;
     }
 
+    struct timeval timeout;
+    timeout.tv_sec=2;
+    if (timeout.tv_sec < interval_g * 3 / 4)
+      timeout.tv_sec = interval_g * 3 / 4;
+    timeout.tv_usec=0;
+    status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout));
+    if (status != 0)
+    {
+      FUNC_ERROR ("setsockopt");
+      break;
+    }
+
     status = connect (sd, (struct sockaddr *) &item->sockaddr,
         sizeof (item->sockaddr));
     if (status != 0)
@@ -892,11 +904,18 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
       powerdns_config_add_server (option);
     else if (strcasecmp ("LocalSocket", option->key) == 0)
     {
-      char *temp = strdup (option->key);
-      if (temp == NULL)
-        return (1);
-      sfree (local_sockpath);
-      local_sockpath = temp;
+      if ((option->values_num != 1) || (option->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("powerdns plugin: `%s' needs exactly one string argument.", option->key);
+      }
+      else
+      {
+        char *temp = strdup (option->values[0].value.string);
+        if (temp == NULL)
+          return (1);
+        sfree (local_sockpath);
+        local_sockpath = temp;
+      }
     }
     else
     {
