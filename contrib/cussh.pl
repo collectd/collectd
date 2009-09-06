@@ -60,6 +60,7 @@ use Collectd::Unixsock();
 		HELP    => \&cmd_help,
 		PUTVAL  => \&putval,
 		GETVAL  => \&getval,
+		GETTHRESHOLD  => \&getthreshold,
 		FLUSH   => \&flush,
 		LISTVAL => \&listval,
 		PUTNOTIF => \&putnotif,
@@ -191,6 +192,7 @@ Available commands:
   HELP
   PUTVAL
   GETVAL
+  GETTHRESHOLD
   FLUSH
   LISTVAL
   PUTNOTIF
@@ -269,6 +271,48 @@ sub getval {
 	}
 
 	$vals = $sock->getval(%$id);
+
+	if (! $vals) {
+		print STDERR "socket error: " . $sock->{'error'} . $/;
+		return;
+	}
+
+	foreach my $key (keys %$vals) {
+		print "\t$key: $vals->{$key}\n";
+	}
+	return 1;
+}
+
+=item B<GETTHRESHOLD> I<Identifier>
+
+=cut
+
+sub getthreshold {
+	my $sock = shift || return;
+	my $line = shift || return;
+
+	my @line = tokenize($line);
+
+	my $id;
+	my $vals;
+
+	if (! @line) {
+		return;
+	}
+
+	if (scalar(@line) < 1) {
+		print STDERR "Synopsis: GETTHRESHOLD <id>" . $/;
+		return;
+	}
+
+	$id = getid($line[0]);
+
+	if (! $id) {
+		print STDERR "Invalid id \"$line[0]\"." . $/;
+		return;
+	}
+
+	$vals = $sock->getthreshold(%$id);
 
 	if (! $vals) {
 		print STDERR "socket error: " . $sock->{'error'} . $/;
