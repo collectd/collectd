@@ -3774,6 +3774,7 @@ AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
 AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
 AC_PLUGIN([target_notification], [yes],        [The notification target])
 AC_PLUGIN([target_replace], [yes],             [The replace target])
+AC_PLUGIN([target_scale],[yes],                [The scale target])
 AC_PLUGIN([target_set],  [yes],                [The set target])
 AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
@@ -4074,6 +4075,7 @@ Configuration:
     tape  . . . . . . . . $enable_tape
     target_notification . $enable_target_notification
     target_replace  . . . $enable_target_replace
+    target_scale  . . . . $enable_target_scale
     target_set  . . . . . $enable_target_set
     tcpconns  . . . . . . $enable_tcpconns
     teamspeak2  . . . . . $enable_teamspeak2
