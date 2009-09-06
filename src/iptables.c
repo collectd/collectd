@@ -28,7 +28,7 @@
 #include "configfile.h"
 
 #if OWN_LIBIPTC
-# include "libiptc/libiptc.h"
+# include "owniptc/libiptc.h"
 #else
 # include <libiptc/libiptc.h>
 #endif
