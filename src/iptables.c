@@ -40,6 +40,25 @@
 #endif
 
 /*
+ * iptc_handle_t was available before libiptc was officially available as a
+ * shared library. Note, that when the shared lib was introduced, the API and
+ * ABI have changed slightly:
+ * 'iptc_handle_t' used to be 'struct iptc_handle *' and most functions used
+ * 'iptc_handle_t *' as an argument. Now, most functions use 'struct
+ * iptc_handle *' (thus removing one level of pointer indirection).
+ *
+ * HAVE_IPTC_HANDLE_T is used to determine which API ought to be used. While
+ * this is somewhat hacky, I didn't find better way to solve that :-/
+ * -tokkee
+ */
+#ifndef HAVE_IPTC_HANDLE_T
+typedef struct iptc_handle iptc_handle_t;
+#endif
+#ifndef HAVE_IP6TC_HANDLE_T
+typedef struct ip6tc_handle ip6tc_handle_t;
+#endif
+
+/*
  * (Module-)Global variables
  */
 
@@ -429,8 +448,15 @@ static int iptables_read (void)
 
 	if ( chain->ip_version == IPV4 )
         {
-                iptc_handle_t handle;
+#ifdef HAVE_IPTC_HANDLE_T
+		iptc_handle_t _handle;
+		iptc_handle_t *handle = &_handle;
+
+		*handle = iptc_init (chain->table);
+#else
+		iptc_handle_t *handle;
                 handle = iptc_init (chain->table);
+#endif
 
                 if (!handle)
                 {
@@ -440,13 +466,20 @@ static int iptables_read (void)
                         continue;
                 }
 
-                submit_chain (&handle, chain);
-                iptc_free (&handle);
+                submit_chain (handle, chain);
+                iptc_free (handle);
         }
         else if ( chain->ip_version == IPV6 )
         {
-                ip6tc_handle_t handle;
+#ifdef HAVE_IP6TC_HANDLE_T
+		ip6tc_handle_t _handle;
+		ip6tc_handle_t *handle = &_handle;
+
+		*handle = ip6tc_init (chain->table);
+#else
+                ip6tc_handle_t *handle;
                 handle = ip6tc_init (chain->table);
+#endif
 
                 if (!handle)
                 {
@@ -456,8 +489,8 @@ static int iptables_read (void)
                         continue;
                 }
 
-                submit6_chain (&handle, chain);
-                ip6tc_free (&handle);
+                submit6_chain (handle, chain);
+                ip6tc_free (handle);
         }
         else num_failures++;
 

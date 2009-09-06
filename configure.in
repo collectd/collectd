@@ -1478,7 +1478,7 @@ then
 		with_own_libiptc="no"
 	],
 	[
-#include "$srcdir/src/libiptc/ipt_kernel_headers.h"
+#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
 	])
 
 	CFLAGS=$SAVE_CFLAGS
@@ -1488,6 +1488,24 @@ AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_own_libiptc" = "xyes")
 if test "x$with_own_libiptc" = "xyes"
 then
 	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
+fi
+if test "x$with_libiptc" = "xyes"
+then
+	SAVE_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
+
+	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [],
+	[
+#if OWN_LIBIPTC
+# include "$srcdir/src/owniptc/libiptc.h"
+# include "$srcdir/src/owniptc/libip6tc.h"
+#else
+# include <libiptc/libiptc.h>
+# include <libiptc/libip6tc.h>
+#endif
+	])
+
+	CFLAGS=$SAVE_CFLAGS
 fi
 # }}}
 
