@@ -1003,6 +1003,9 @@ static meta_data_t *uc_get_meta (const value_list_t *vl) /* {{{ */
   if (ce->meta == NULL)
     ce->meta = meta_data_create ();
 
+  if (ce->meta == NULL)
+    pthread_mutex_unlock (&cache_lock);
+
   return (ce->meta);
 } /* }}} meta_data_t *uc_get_meta */
 
