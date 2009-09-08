@@ -164,13 +164,13 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"latency",                "latency",      NULL},
 
   /* Other stuff.. */
-  {"corrupt-packets",        "io_packets",   "corrupt"},
+  {"corrupt-packets",        "ipt_packets",  "corrupt"},
   {"deferred-cache-inserts", "counter",      "cache-deferred_insert"},
   {"deferred-cache-lookup",  "counter",      "cache-deferred_lookup"},
   {"qsize-a",                "cache_size",   "answers"},
   {"qsize-q",                "cache_size",   "questions"},
-  {"servfail-packets",       "io_packets",   "servfail"},
-  {"timedout-packets",       "io_packets",   "timeout"},
+  {"servfail-packets",       "ipt_packets",  "servfail"},
+  {"timedout-packets",       "ipt_packets",  "timeout"},
   {"udp4-answers",           "dns_answer",   "udp4"},
   {"udp4-queries",           "dns_question", "queries-udp4"},
   {"udp6-answers",           "dns_answer",   "udp6"},
