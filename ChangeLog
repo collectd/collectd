@@ -24,7 +24,7 @@
 	* network plugin: The receive- and send-buffer-sizes have been made
 	  configurable, allowing for bigger and smaller packets. Thanks to
 	  Aman Gupta for the patch.
-	* olsr plugin: The new OLSR plugin queries routing information from
+	* olsrd plugin: The new OLSRd plugin queries routing information from
 	  the “Optimized Link State Routing” daemon.
 	* rrdtool plugin: A new configuration option allows to define a random
 	  write delay when writing RRD files. This spreads the load created by
