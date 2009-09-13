@@ -542,6 +542,138 @@ daemon:
     }
   }
 
+=head1 PLUGINS
+
+The following plugins are implemented in I<Java>. Both, the B<LoadPlugin>
+option and the B<Plugin> block must be inside the
+B<E<lt>PluginE<nbsp>javaE<gt>> block (see above).
+
+=head2 GenericJMX plugin
+
+The GenericJMX plugin reads I<Managed Beans> (MBeans) from an I<MBeanServer>
+using JMX. JMX is a generic framework to provide and query various management
+information. The interface is used by Java processes to provide internal
+statistics as well as by the I<Java Virtual Machine> (JVM) to provide
+information about the memory used, threads and so on. 
+
+The configuration of the I<GenericJMX plugin> consists of two blocks: I<MBean>
+blocks that define a mapping of MBean attributes to the “types” used by
+I<collectd>, and I<Connection> blocks which define the parameters needed to
+connect to an I<MBeanServer> and what data to collect. The configuration of the
+I<SNMP plugin> is similar in nature, in case you know it.
+
+=head3   MBean blocks
+
+I<MBean> blocks specify what data is retrieved from I<MBeans> and how that data
+is mapped on the I<collectd> data types. The block requires one string
+argument, a name. This name is used in the I<Connection> blocks (see below) to
+refer to a specific I<MBean> block. Therefore, the names must be unique.
+
+The following options are recognized within I<MBean> blocks: 
+
+=over 4
+
+=item B<ObjectName> I<pattern>
+
+Sets the pattern which is used to retrieve I<MBeans> from the I<MBeanServer>.
+If more than one MBean is returned you should use the B<InstanceFrom> option
+(see below) to make the identifiers unique.
+
+See also:
+L<http://java.sun.com/javase/6/docs/api/javax/management/ObjectName.html>
+
+=item B<InstancePrefix> I<prefix>
+
+Prefixes the generated I<plugin instance> with I<prefix>. I<(optional)>
+
+=item B<InstanceFrom> I<property>
+
+The I<object names> used by JMX to identify I<MBeans> include so called
+I<“properties”> which are basically key-value-pairs. If the given object name
+is not unique and multiple MBeans are returned, the values of those properties
+usually differ. You can use this option to build the I<plugin instance> from
+the appropriate property values. This option is optional and may be repeated to
+generate the I<plugin instance> from multiple property values. 
+
+=item B<E<lt>value /E<gt>> blocks
+
+The I<value> blocks map one or more attributes of an I<MBean> to a value list
+in I<collectd>. There must be at least one Value block within each I<MBean>
+block.
+
+=over 4
+
+=item B<Type> type
+
+Sets the data set used within I<collectd> to handle the values of the I<MBean>
+attribute.
+
+=item B<InstancePrefix> I<prefix>
+
+Works like the option of the same name directly beneath the I<MBean> block, but
+sets the type instance instead. I<(optional)>
+
+=item B<InstanceFrom> I<prefix>
+
+Works like the option of the same name directly beneath the I<MBean> block, but
+sets the type instance instead. I<(optional)>
+
+=item B<Table> B<true>|B<false>
+
+Set this to true if the returned attribute is a I<composite type>. If set to
+true, the keys within the I<composite type> is appended to the
+I<type instance>.
+
+=item B<Attribute> I<path>
+
+Sets the name of the attribute from which to read the value. You can access the
+keys of composite types by using a dot to concatenate the key name to the
+attribute name. For example: “attrib0.key42”. If B<Table> is set to B<true>
+I<path> must point to a I<composite type>, otherwise it must point to a numeric
+type. 
+
+=back
+
+=back
+
+=head3 Connection blocks
+
+Connection blocks specify I<how> to connect to an I<MBeanServer> and what data
+to retrieve. The following configuration options are available:
+
+=over 4
+
+=item B<Host> I<name>
+
+Host name used when dispatching the values to I<collectd>. The option sets this
+field only, it is I<not> used to connect to anything and doesn't need to be a
+real, resolvable name.
+
+=item B<ServiceURL> I<URL>
+
+Specifies how the I<MBeanServer> can be reached. Any string accepted by the
+I<JMXServiceURL> is valid.
+
+See also:
+L<http://java.sun.com/javase/6/docs/api/javax/management/remote/JMXServiceURL.html>
+
+=item B<User> I<name>
+
+Use I<name> to authenticate to the server. If not configured, “monitorRole”
+will be used.
+
+=item B<Password> I<password>
+
+Use I<password> to authenticate to the server. If not given, unauthenticated
+access is used.
+
+=item B<Collect> I<mbean_block_name>
+
+Configures which of the I<MBean> blocks to use with this connection. May be
+repeated to collect multiple I<MBeans> from this server. 
+
+=back
+
 =head1 SEE ALSO
 
 L<collectd(1)>,

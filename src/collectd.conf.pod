@@ -1075,6 +1075,11 @@ Controls whether or not to recurse into subdirectories. Enabled by default.
 
 =back
 
+=head2 Plugin C<GenericJMX>
+
+The I<GenericJMX plugin> is written in I<Java> and therefore documented in
+L<collectd-java(5)>.
+
 =head2 Plugin C<gmond>
 
 The I<gmond> plugin received the multicast traffic sent by B<gmond>, the
