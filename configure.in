@@ -1428,14 +1428,18 @@ AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 with_own_libiptc="no"
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" = "xshipped"
+	then
+		with_own_libiptc="yes"
+		with_libiptc="yes"
+	else if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
 		with_libiptc="yes"
 	else
 		with_libiptc="$withval"
-	fi
+	fi; fi
 ],
 [
 	if test "x$ac_system" = "xLinux"
@@ -1445,7 +1449,7 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 		with_libiptc="no (Linux only)"
 	fi
 ])
-if test "x$with_libiptc" = "xyes"
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
 	AC_CHECK_LIB(iptc, iptc_init,
 	[
@@ -1456,7 +1460,7 @@ then
 		with_own_libiptc="yes"
 	])
 fi
-if test "x$with_libiptc" = "xyes" -a "x$with_own_libiptc" != "xyes"
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
 	AC_CHECK_HEADERS(libiptc/libiptc.h,
 	[
