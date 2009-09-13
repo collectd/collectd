@@ -1,6 +1,7 @@
 /**
  * collectd - src/swap.c
  * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2009       Stefan Völkel
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
