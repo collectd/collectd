@@ -1,6 +1,7 @@
 /**
  * collectd - src/dns.c
  * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2009       Mirko Buffoni
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Mirko Buffoni <briareos at eswat.org>
  **/
 
 #define _BSD_SOURCE

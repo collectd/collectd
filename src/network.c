@@ -1,6 +1,7 @@
 /**
  * collectd - src/network.c
  * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2009       Aman Gupta
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Aman Gupta <aman at tmm1.net>
  **/
 
 #define _BSD_SOURCE /* For struct ip_mreq */
