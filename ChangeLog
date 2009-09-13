@@ -36,6 +36,8 @@
 	* tokyotyrant plugin: The new TokyoTyrant plugin reads the number of
 	  records and file size from a running Tokyo Tyrant server. Thanks to
 	  Paul Sadauskas for the patch.
+	* unixsock plugin: Add the “GETTHRESHOLD” command. This command can be
+	  used to query the thresholds configured for a particular identifier.
 	* write_http plugin: The new Write HTTP plugin sends the values
 	  collected by collectd to a web-server using HTTP POST requests.
 	  Thanks to Paul Sadauskas for the patch.
