@@ -1290,9 +1290,9 @@ sub load_graph_definitions
     'GPRINT:avg:LAST:%4.1lf Last\l'
     ],
     spam_check => [
-    'DEF:avg={file}:hits:AVERAGE',
-    'DEF:min={file}:hits:MIN',
-    'DEF:max={file}:hits:MAX',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:min={file}:value:MIN',
+    'DEF:max={file}:value:MAX',
     "AREA:max#$HalfMagenta",
     "AREA:min#$Canvas",
     "LINE1:avg#$FullMagenta:Count ",

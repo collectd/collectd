@@ -369,6 +369,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
       PACKAGE_NAME"/"PACKAGE_VERSION);
   curl_easy_setopt (wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt (wp->curl, CURLOPT_URL, wp->url);
+  curl_easy_setopt (wp->curl, CURLOPT_FOLLOWLOCATION, 1);
 
   if (wp->user != NULL)
   {

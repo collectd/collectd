@@ -46,6 +46,38 @@
 	  lists, where at least one data source is of type COUNTER and the
 	  counter value of all counter data sources is zero.
 
+2009-09-13, Version 4.7.3
+	* collectd: Fix a possible but very rare invalid “free” in the caching
+	  code. Thanks to Sebastian Harl for the patch.
+	* collectd: Remove old values when a cache entry is marked as missing.
+	  This way the “GETVAL” command of the UnixSock plugin doesn't return
+	  old, no longer valid values when this happens. Thanks to Andrés J.
+	  Díaz for the patch.
+	* collectd: The “plugin_unregister_read” function has been fixed.
+	* apache, ascent, bind, curl, nginx plugins: Advise the cURL library
+	  to follow redirects. Thanks to Joey Hess for reporting this bug.
+	* df plugin: Check the ignorelist before stating the file system,
+	  possibly reducing the number of stats considerably. Thanks to Joey
+	  Hess for reporting this bug.
+	* iptables plugin: Support for the new libiptc API has been added.
+	  Thanks to Sebastian Harl for the patch. The build system has been
+	  updated to the plugin only includes the shipped header files when it
+	  is linked with the shipped library, too.
+	* java plugin: Delay creating the JVM until after the daemon has
+	  forked. The JVM internally creates threads that are lost when
+	  forking. This means that Java-based plugins are now configured
+	  during the init-phase, i. e. later than other plugins.
+	* libvirt plugin: Re-connect to libvirtd if connecting fails. Thanks
+	  to Alan Pevec for the patch.
+	* network plugin: Fix the handling of the “CacheFlush” option: The
+	  value was assigned to a wrong variable. The initialization of the
+	  gcrypt library, which is used for signing / encrypting traffic, has
+	  been fixed. Thanks to Luke Heberling for the patch.
+	* powerdns plugin: Set a timeout when reading data from the datagram
+	  socket. Handling of the “LocalSocket” option has been fixed.  An
+	  incorrectly used “type” has been corrected. Thanks to Luke Heberling
+	  for his patches.
+
 2009-07-19, Version 4.7.2
 	* Build system: Support for `DESTDIR' has been fixed in the Java
 	  bindings.
@@ -119,6 +151,27 @@
 	  deviation of round-trip times has been added.
 	* uptime plugin: The new uptime plugin can collect the server's
 	  uptime. Thanks to Marco Chiappero for the patch.
+
+2009-09-10, Version 4.6.5
+	* collectd: Remove old values when a cache entry is marked as missing.
+	  This way the “GETVAL” command of the UnixSock plugin doesn't return
+	  old, no longer valid values when this happens. Thanks to Andrés J.
+	  Díaz for the patch.
+	* apache, ascent, bind, curl, nginx plugins: Advise the cURL library
+	  to follow redirects. Thanks to Joey Hess for reporting this bug.
+	* df plugin: Check the ignorelist before stating the file system,
+	  possibly reducing the number of stats considerably. Thanks to Joey
+	  Hess for reporting this bug.
+	* iptables plugin: Support for the new libiptc API has been added.
+	  Thanks to Sebastian Harl for the patch. The build system has been
+	  updated to the plugin only includes the shipped header files when it
+	  is linked with the shipped library, too.
+	* libvirt plugin: Re-connect to libvirtd if connecting fails. Thanks
+	  to Alan Pevec for the patch.
+	* powerdns plugin: Set a timeout when reading data from the datagram
+	  socket. Handling of the “LocalSocket” option has been fixed.  An
+	  incorrectly used “type” has been corrected. Thanks to Luke Heberling
+	  for his patches.
 
 2009-07-18, Version 4.6.4
 	* collectd: Okay-notifications have been fixed. Thanks to Andrés J.
@@ -1200,15 +1253,15 @@
 2005-07-08, Version 1.3: CPU stats
 	* Collecting CPU statistics now
 
-2004-07-12, Version 1.2: Using syslog
+2005-07-12, Version 1.2: Using syslog
 	* collectd is now using the syslog facility to report errors, warnings
 	  and the like..
 	* The default directory is now /var/db/collectd
 
-2004-07-10, Version 1.1: Minor changes
+2005-07-10, Version 1.1: Minor changes
 	* Nothing really useful to say ;)
 
-2004-07-09, Version 1.0: Initial Version
+2005-07-09, Version 1.0: Initial Version
 	* The following modules are provided:
 	  * Load average
 	  * Ping time

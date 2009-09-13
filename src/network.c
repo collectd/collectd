@@ -52,6 +52,7 @@
 
 #if HAVE_LIBGCRYPT
 # include <gcrypt.h>
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 
 #ifndef IPV6_ADD_MEMBERSHIP
@@ -2933,6 +2934,12 @@ static int network_init (void)
 	if (have_init)
 		return (0);
 	have_init = true;
+
+#if HAVE_LIBGCRYPT
+	gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+	gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
+	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+#endif
 
 	plugin_register_shutdown ("network", network_shutdown);
 

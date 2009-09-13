@@ -363,7 +363,11 @@ static MYSQL *getconnection (mysql_database_t *db)
 		int err;
 		if ((err = mysql_ping (db->con)) != 0)
 		{
-			WARNING ("mysql_ping failed: %s", mysql_error (db->con));
+			WARNING ("mysql_ping failed for %s: %s",
+					(db->instance != NULL)
+					? db->instance
+					: "<legacy>",
+					mysql_error (db->con));
 			db->state = 0;
 		}
 		else

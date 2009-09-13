@@ -299,8 +299,8 @@ sub action_show_selection
     my $file = $_;
     my $type = ucfirst (lc ($file->{'type'}));
 
-    $type =~ s/[^A-Za-z_]//g;
-    $type =~ s/_([A-Za-z])/\U$1\E/g;
+    $type =~ s/[^A-Za-z0-9_]//g;
+    $type =~ s/_([A-Za-z0-9])/\U$1\E/g;
 
     if (!defined ($types->{$type}))
     {
