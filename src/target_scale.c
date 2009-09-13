@@ -87,10 +87,10 @@ static int ts_invoke_counter (const data_set_t *ds, value_list_t *vl, /* {{{ */
 		/* Calcualte the rate */
 		if (prev_counter > curr_counter) /* => counter overflow */
 		{
-			if (prev_counter <= 4294967295) /* 32 bit overflow */
-				difference = (4294967295 - prev_counter) + curr_counter;
+			if (prev_counter <= 4294967295UL) /* 32 bit overflow */
+				difference = (4294967295UL - prev_counter) + curr_counter;
 			else /* 64 bit overflow */
-				difference = (18446744073709551615U - prev_counter) + curr_counter;
+				difference = (18446744073709551615ULL - prev_counter) + curr_counter;
 		}
 		else /* no overflow */
 		{
