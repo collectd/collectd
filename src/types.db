@@ -122,6 +122,7 @@ ps_state		value:GAUGE:0:65535
 ps_vm			value:GAUGE:0:9223372036854775807
 queue_length		value:GAUGE:0:U
 records                 count:GAUGE:0:U
+response_time		value:GAUGE:0:U
 route_etx		value:GAUGE:0:U
 route_metric		value:GAUGE:0:U
 routes			value:GAUGE:0:U

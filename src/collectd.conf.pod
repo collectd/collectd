@@ -501,6 +501,10 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<MeasureResponseTime> B<true>|B<false>
+
+Measure response time for the request. Disabled by default.
+
 =item B<E<lt>MatchE<gt>>
 
 One or more B<Match> blocks that define how to match information in the data

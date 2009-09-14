@@ -57,6 +57,7 @@ struct web_page_s /* {{{ */
   int   verify_peer;
   int   verify_host;
   char *cacert;
+  int   response_time;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -423,6 +424,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->pass = NULL;
   page->verify_peer = 1;
   page->verify_host = 1;
+  page->response_time = 0;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
@@ -448,6 +450,8 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = cc_config_set_boolean ("VerifyPeer", &page->verify_peer, child);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
       status = cc_config_set_boolean ("VerifyHost", &page->verify_host, child);
+    else if (strcasecmp ("MeasureResponseTime", child->key) == 0)
+      status = cc_config_set_boolean (child->key, &page->response_time, child);
     else if (strcasecmp ("CACert", child->key) == 0)
       status = cc_config_add_string ("CACert", &page->cacert, child);
     else if (strcasecmp ("Match", child->key) == 0)
@@ -472,11 +476,11 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = -1;
     }
 
-    if (page->matches == NULL)
+    if (page->matches == NULL && !page->response_time)
     {
       assert (page->instance != NULL);
       WARNING ("curl plugin: No (valid) `Match' block "
-          "within `Page' block `%s'.", page->instance);
+          "or MeasureResponseTime within `Page' block `%s'.", page->instance);
       status = -1;
     }
 
@@ -576,10 +580,32 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
   plugin_dispatch_values (&vl);
 } /* }}} void cc_submit */
 
+static void cc_submit_response_time (const web_page_t *wp, double seconds) /* {{{ */
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  values[0].gauge = seconds;
+
+  vl.values = values;
+  vl.values_len = 1;
+  vl.time = time (NULL);
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, "response_time", sizeof (vl.type));
+
+  plugin_dispatch_values (&vl);
+} /* }}} void cc_submit_response_time */
+
 static int cc_read_page (web_page_t *wp) /* {{{ */
 {
   web_match_t *wm;
   int status;
+  struct timeval start, end;
+
+  if (wp->response_time)
+    gettimeofday (&start, NULL);
 
   wp->buffer_fill = 0;
   status = curl_easy_perform (wp->curl);
@@ -588,6 +614,15 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
         status, wp->curl_errbuf);
     return (-1);
+  }
+
+  if (wp->response_time)
+  {
+    double secs = 0;
+    gettimeofday (&end, NULL);
+    secs += end.tv_sec - start.tv_sec;
+    secs += (end.tv_usec - start.tv_usec) / 1000000.0;
+    cc_submit_response_time (wp, secs);
   }
 
   for (wm = wp->matches; wm != NULL; wm = wm->next)
