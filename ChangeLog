@@ -1,5 +1,4 @@
 2009-09-13, Version 4.8.0
-
 	* collectd: Two new data source types, “DERIVE” and “ABSOLUTE”, have
 	  been added. “DERIVE” can be used for counters that are reset
 	  occasionally. Thanks to Mariusz Gronczewski for implementing this.
