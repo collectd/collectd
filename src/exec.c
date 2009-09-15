@@ -382,6 +382,15 @@ static void exec_child (program_list_t *pl) /* {{{ */
   exit (-1);
 } /* void exec_child }}} */
 
+static void reset_signal_mask (void) /* {{{ */
+{
+  sigset_t ss;
+
+  memset (&ss, 0, sizeof (ss));
+  sigemptyset (&ss);
+  sigprocmask (SIG_SETMASK, &ss, /* old mask = */ NULL);
+} /* }}} void reset_signal_mask */
+
 /*
  * Creates three pipes (one for reading, one for writing and one for errors),
  * forks a child, sets up the pipes so that fd_in is connected to STDIN of
@@ -467,6 +476,9 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
       dup2 (fd_pipe_err[1], STDERR_FILENO);
       close (fd_pipe_err[1]);
     }
+
+    /* Unblock all signals */
+    reset_signal_mask ();
 
     exec_child (pl);
     /* does not return */
