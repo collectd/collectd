@@ -349,10 +349,24 @@ sub getRRDArgs
     $f =~ s#:#\\:#g;
     $ds_name =~ s#:#\\:#g;
 
-    push (@ret,
-      "DEF:min${i}=${f}:${ds_name}:MIN",
-      "DEF:avg${i}=${f}:${ds_name}:AVERAGE",
-      "DEF:max${i}=${f}:${ds_name}:MAX");
+    if (exists ($obj->{'scale'}))
+    {
+      my $scale = 0.0 + $obj->{'scale'};
+      push (@ret,
+	"DEF:min${i}_raw=${f}:${ds_name}:MIN",
+	"DEF:avg${i}_raw=${f}:${ds_name}:AVERAGE",
+	"DEF:max${i}_raw=${f}:${ds_name}:MAX",
+	"CDEF:max${i}=max${i}_raw,$scale,*",
+	"CDEF:avg${i}=avg${i}_raw,$scale,*",
+	"CDEF:min${i}=min${i}_raw,$scale,*");
+    }
+    else
+    {
+      push (@ret,
+	"DEF:min${i}=${f}:${ds_name}:MIN",
+	"DEF:avg${i}=${f}:${ds_name}:AVERAGE",
+	"DEF:max${i}=${f}:${ds_name}:MAX");
+    }
   }
 
   if (@$ds == 1)

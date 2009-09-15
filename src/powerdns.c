@@ -164,13 +164,13 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"latency",                "latency",      NULL},
 
   /* Other stuff.. */
-  {"corrupt-packets",        "io_packets",   "corrupt"},
+  {"corrupt-packets",        "ipt_packets",  "corrupt"},
   {"deferred-cache-inserts", "counter",      "cache-deferred_insert"},
   {"deferred-cache-lookup",  "counter",      "cache-deferred_lookup"},
   {"qsize-a",                "cache_size",   "answers"},
   {"qsize-q",                "cache_size",   "questions"},
-  {"servfail-packets",       "io_packets",   "servfail"},
-  {"timedout-packets",       "io_packets",   "timeout"},
+  {"servfail-packets",       "ipt_packets",  "servfail"},
+  {"timedout-packets",       "ipt_packets",  "timeout"},
   {"udp4-answers",           "dns_answer",   "udp4"},
   {"udp4-queries",           "dns_question", "queries-udp4"},
   {"udp6-answers",           "dns_answer",   "udp6"},
@@ -358,6 +358,18 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     if (status != 0)
     {
       FUNC_ERROR ("chmod");
+      break;
+    }
+
+    struct timeval timeout;
+    timeout.tv_sec=2;
+    if (timeout.tv_sec < interval_g * 3 / 4)
+      timeout.tv_sec = interval_g * 3 / 4;
+    timeout.tv_usec=0;
+    status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout));
+    if (status != 0)
+    {
+      FUNC_ERROR ("setsockopt");
       break;
     }
 
@@ -892,11 +904,18 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
       powerdns_config_add_server (option);
     else if (strcasecmp ("LocalSocket", option->key) == 0)
     {
-      char *temp = strdup (option->key);
-      if (temp == NULL)
-        return (1);
-      sfree (local_sockpath);
-      local_sockpath = temp;
+      if ((option->values_num != 1) || (option->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("powerdns plugin: `%s' needs exactly one string argument.", option->key);
+      }
+      else
+      {
+        char *temp = strdup (option->values[0].value.string);
+        if (temp == NULL)
+          return (1);
+        sfree (local_sockpath);
+        local_sockpath = temp;
+      }
     }
     else
     {

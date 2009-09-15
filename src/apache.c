@@ -458,6 +458,7 @@ static int init_host (apache_t *st) /* {{{ */
 	}
 
 	curl_easy_setopt (st->curl, CURLOPT_URL, st->url);
+	curl_easy_setopt (st->curl, CURLOPT_FOLLOWLOCATION, 1);
 
 	if (st->verify_peer != 0)
 	{

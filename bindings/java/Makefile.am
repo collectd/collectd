@@ -17,10 +17,16 @@ EXTRA_DIST = org/collectd/api/CollectdConfigInterface.java \
 	     org/collectd/api/OConfigItem.java \
 	     org/collectd/api/OConfigValue.java \
 	     org/collectd/api/PluginData.java \
-	     org/collectd/api/ValueList.java
+	     org/collectd/api/ValueList.java \
+	     org/collectd/java/GenericJMXConfConnection.java \
+	     org/collectd/java/GenericJMXConfMBean.java \
+	     org/collectd/java/GenericJMXConfValue.java \
+	     org/collectd/java/GenericJMX.java \
+	     org/collectd/java/JMXMemory.java
 
 java-build-stamp: org/collectd/api/*.java
 	$(JAVAC) -d "." "$(srcdir)/org/collectd/api"/*.java
+	$(JAVAC) -d "." "$(srcdir)/org/collectd/java"/*.java
 	touch "$@"
 
 all-local: java-build-stamp
@@ -29,7 +35,11 @@ install-exec-local: java-build-stamp
 	mkdir -p "$(DESTDIR)$(pkgdatadir)/java/org/collectd/api"
 	$(INSTALL) -m 644 "org/collectd/api"/*.class \
 		"$(DESTDIR)$(pkgdatadir)/java/org/collectd/api/"
+	mkdir -p "$(DESTDIR)$(pkgdatadir)/java/org/collectd/java"
+	$(INSTALL) -m 644 "org/collectd/java"/*.class \
+		"$(DESTDIR)$(pkgdatadir)/java/org/collectd/java/"
 
 clean-local:
 	rm -f "org/collectd/api"/*.class
+	rm -f "org/collectd/java"/*.class
 	rm -f "java-build-stamp"

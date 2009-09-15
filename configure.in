@@ -359,13 +359,13 @@ have_net_ip_vs_h="no"
 have_ip_vs_h="no"
 if test "x$ac_system" = "xLinux"
 then
-	SAVE_CFLAGS=$CFLAGS
+	SAVE_CFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
 
 	AC_CHECK_HEADERS(net/ip_vs.h, [have_net_ip_vs_h="yes"])
 	AC_CHECK_HEADERS(ip_vs.h, [have_ip_vs_h="yes"])
 
-	CFLAGS=$SAVE_CFLAGS
+	CFLAGS="$SAVE_CFLAGS"
 fi
 
 # For quota module
@@ -1442,14 +1442,18 @@ AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 with_own_libiptc="no"
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" = "xshipped"
+	then
+		with_own_libiptc="yes"
+		with_libiptc="yes"
+	else if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		LDFLAGS="$LDFLAGS -L$withval/lib"
 		CPPFLAGS="$CPPFLAGS -I$withval/include"
 		with_libiptc="yes"
 	else
 		with_libiptc="$withval"
-	fi
+	fi; fi
 ],
 [
 	if test "x$ac_system" = "xLinux"
@@ -1459,7 +1463,7 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 		with_libiptc="no (Linux only)"
 	fi
 ])
-if test "x$with_libiptc" = "xyes"
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
 	AC_CHECK_LIB(iptc, iptc_init,
 	[
@@ -1470,7 +1474,7 @@ then
 		with_own_libiptc="yes"
 	])
 fi
-if test "x$with_libiptc" = "xyes" -a "x$with_own_libiptc" != "xyes"
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
 	AC_CHECK_HEADERS(libiptc/libiptc.h,
 	[
@@ -1483,7 +1487,7 @@ then
 fi
 if test "x$with_libiptc" = "xyes"
 then
-	SAVE_CFLAGS=$CFLAGS
+	SAVE_CFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
 
 	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
@@ -1492,16 +1496,34 @@ then
 		with_own_libiptc="no"
 	],
 	[
-#include "$srcdir/src/libiptc/ipt_kernel_headers.h"
+#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
 	])
 
-	CFLAGS=$SAVE_CFLAGS
+	CFLAGS="$SAVE_CFLAGS"
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_own_libiptc" = "xyes")
 if test "x$with_own_libiptc" = "xyes"
 then
 	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
+fi
+if test "x$with_libiptc" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $KERNEL_CFLAGS"
+
+	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [],
+	[
+#if OWN_LIBIPTC
+# include "$srcdir/src/owniptc/libiptc.h"
+# include "$srcdir/src/owniptc/libip6tc.h"
+#else
+# include <libiptc/libiptc.h>
+# include <libiptc/libip6tc.h>
+#endif
+	])
+
+	CFLAGS="$SAVE_CFLAGS"
 fi
 # }}}
 
@@ -1812,7 +1834,7 @@ AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Pat
 ])
 if test "x$with_libnetlink" = "xyes"
 then
-	SAVE_CFLAGS=$CFLAGS
+	SAVE_CFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS $with_libnetlink_cflags"
 
 	with_libnetlink="no (libnetlink.h not found)"
@@ -2250,8 +2272,8 @@ AC_SUBST(PERL, "$perl_interpreter")
 if test "x$with_libperl" = "xyes" \
 	&& test -n "$perl_interpreter"
 then
-  SAVE_CFLAGS=$CFLAGS
-  SAVE_LDFLAGS=$LDFLAGS
+  SAVE_CFLAGS="$CFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
 dnl ARCHFLAGS="" -> disable multi -arch on OSX (see Config_heavy.pl:fetch_string)
   PERL_CFLAGS=`ARCHFLAGS="" $perl_interpreter -MExtUtils::Embed -e ccopts`
   PERL_LDFLAGS=`ARCHFLAGS="" $perl_interpreter -MExtUtils::Embed -e ldopts`
@@ -2288,8 +2310,8 @@ dnl ARCHFLAGS="" -> disable multi -arch on OSX (see Config_heavy.pl:fetch_string
 	  with_libperl="no"
   fi
 
-  CFLAGS=$SAVE_CFLAGS
-  LDFLAGS=$SAVE_LDFLAGS
+  CFLAGS="$SAVE_CFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
 else if test -z "$perl_interpreter"; then
   with_libperl="no (no perl interpreter found)"
   c_cv_have_libperl="no"
@@ -2298,8 +2320,8 @@ AM_CONDITIONAL(BUILD_WITH_LIBPERL, test "x$with_libperl" = "xyes")
 
 if test "x$with_libperl" = "xyes"
 then
-	SAVE_CFLAGS=$CFLAGS
-	SAVE_LDFLAGS=$LDFLAGS
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
 	CFLAGS="$CFLAGS $PERL_CFLAGS"
 	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 
@@ -2327,14 +2349,14 @@ then
 		AC_DEFINE(HAVE_PERL_ITHREADS, 1, [Define if Perl supports ithreads.])
 	fi
 
-	CFLAGS=$SAVE_CFLAGS
-	LDFLAGS=$SAVE_LDFLAGS
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 
 if test "x$with_libperl" = "xyes"
 then
-	SAVE_CFLAGS=$CFLAGS
-	SAVE_LDFLAGS=$LDFLAGS
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
 	# trigger an error if Perl_load_module*() uses __attribute__nonnull__(3)
 	# (see issues #41 and #42)
 	CFLAGS="$CFLAGS $PERL_CFLAGS -Wall -Werror"
@@ -2361,16 +2383,16 @@ then
 		)
 	)
 
-	CFLAGS=$SAVE_CFLAGS
-	LDFLAGS=$SAVE_LDFLAGS
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 AM_CONDITIONAL(HAVE_BROKEN_PERL_LOAD_MODULE,
 		test "x$c_cv_have_broken_perl_load_module" = "xyes")
 
 if test "x$with_libperl" = "xyes"
 then
-	SAVE_CFLAGS=$CFLAGS
-	SAVE_LDFLAGS=$LDFLAGS
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
 	CFLAGS="$CFLAGS $PERL_CFLAGS"
 	LDFLAGS="$LDFLAGS $PERL_LDFLAGS"
 
@@ -2390,8 +2412,8 @@ then
 				  [Define if Perl's struct mgvtbl has member svt_local.])
 	fi
 
-	CFLAGS=$SAVE_CFLAGS
-	LDFLAGS=$SAVE_LDFLAGS
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
 fi
 # }}}
 
@@ -3926,7 +3948,7 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/lcc_features.h)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libiptc/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/owniptc/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"

@@ -164,6 +164,16 @@ static int df_read (void)
 
 	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
+		if (ignorelist_match (il_device,
+					(mnt_ptr->spec_device != NULL)
+					? mnt_ptr->spec_device
+					: mnt_ptr->device))
+			continue;
+		if (ignorelist_match (il_mountpoint, mnt_ptr->dir))
+			continue;
+		if (ignorelist_match (il_fstype, mnt_ptr->type))
+			continue;
+
 		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
 		{
 			char errbuf[1024];
@@ -212,16 +222,6 @@ static int df_read (void)
 						disk_name[i] = '-';
 			}
 		}
-
-		if (ignorelist_match (il_device,
-					(mnt_ptr->spec_device != NULL)
-					? mnt_ptr->spec_device
-					: mnt_ptr->device))
-			continue;
-		if (ignorelist_match (il_mountpoint, mnt_ptr->dir))
-			continue;
-		if (ignorelist_match (il_fstype, mnt_ptr->type))
-			continue;
 
 		df_submit (disk_name, df_used, df_free);
 	}

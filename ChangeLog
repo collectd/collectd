@@ -1,5 +1,4 @@
 2009-09-13, Version 4.8.0
-
 	* collectd: Two new data source types, “DERIVE” and “ABSOLUTE”, have
 	  been added. “DERIVE” can be used for counters that are reset
 	  occasionally. Thanks to Mariusz Gronczewski for implementing this.
@@ -24,7 +23,7 @@
 	* network plugin: The receive- and send-buffer-sizes have been made
 	  configurable, allowing for bigger and smaller packets. Thanks to
 	  Aman Gupta for the patch.
-	* olsr plugin: The new OLSR plugin queries routing information from
+	* olsrd plugin: The new OLSRd plugin queries routing information from
 	  the “Optimized Link State Routing” daemon.
 	* rrdtool plugin: A new configuration option allows to define a random
 	  write delay when writing RRD files. This spreads the load created by
@@ -36,6 +35,8 @@
 	* tokyotyrant plugin: The new TokyoTyrant plugin reads the number of
 	  records and file size from a running Tokyo Tyrant server. Thanks to
 	  Paul Sadauskas for the patch.
+	* unixsock plugin: Add the “GETTHRESHOLD” command. This command can be
+	  used to query the thresholds configured for a particular identifier.
 	* write_http plugin: The new Write HTTP plugin sends the values
 	  collected by collectd to a web-server using HTTP POST requests.
 	  Thanks to Paul Sadauskas for the patch.
@@ -45,6 +46,38 @@
 	* empty_counter match: The new Empty Counter match matches value
 	  lists, where at least one data source is of type COUNTER and the
 	  counter value of all counter data sources is zero.
+
+2009-09-13, Version 4.7.3
+	* collectd: Fix a possible but very rare invalid “free” in the caching
+	  code. Thanks to Sebastian Harl for the patch.
+	* collectd: Remove old values when a cache entry is marked as missing.
+	  This way the “GETVAL” command of the UnixSock plugin doesn't return
+	  old, no longer valid values when this happens. Thanks to Andrés J.
+	  Díaz for the patch.
+	* collectd: The “plugin_unregister_read” function has been fixed.
+	* apache, ascent, bind, curl, nginx plugins: Advise the cURL library
+	  to follow redirects. Thanks to Joey Hess for reporting this bug.
+	* df plugin: Check the ignorelist before stating the file system,
+	  possibly reducing the number of stats considerably. Thanks to Joey
+	  Hess for reporting this bug.
+	* iptables plugin: Support for the new libiptc API has been added.
+	  Thanks to Sebastian Harl for the patch. The build system has been
+	  updated to the plugin only includes the shipped header files when it
+	  is linked with the shipped library, too.
+	* java plugin: Delay creating the JVM until after the daemon has
+	  forked. The JVM internally creates threads that are lost when
+	  forking. This means that Java-based plugins are now configured
+	  during the init-phase, i. e. later than other plugins.
+	* libvirt plugin: Re-connect to libvirtd if connecting fails. Thanks
+	  to Alan Pevec for the patch.
+	* network plugin: Fix the handling of the “CacheFlush” option: The
+	  value was assigned to a wrong variable. The initialization of the
+	  gcrypt library, which is used for signing / encrypting traffic, has
+	  been fixed. Thanks to Luke Heberling for the patch.
+	* powerdns plugin: Set a timeout when reading data from the datagram
+	  socket. Handling of the “LocalSocket” option has been fixed.  An
+	  incorrectly used “type” has been corrected. Thanks to Luke Heberling
+	  for his patches.
 
 2009-07-19, Version 4.7.2
 	* Build system: Support for `DESTDIR' has been fixed in the Java
@@ -119,6 +152,27 @@
 	  deviation of round-trip times has been added.
 	* uptime plugin: The new uptime plugin can collect the server's
 	  uptime. Thanks to Marco Chiappero for the patch.
+
+2009-09-10, Version 4.6.5
+	* collectd: Remove old values when a cache entry is marked as missing.
+	  This way the “GETVAL” command of the UnixSock plugin doesn't return
+	  old, no longer valid values when this happens. Thanks to Andrés J.
+	  Díaz for the patch.
+	* apache, ascent, bind, curl, nginx plugins: Advise the cURL library
+	  to follow redirects. Thanks to Joey Hess for reporting this bug.
+	* df plugin: Check the ignorelist before stating the file system,
+	  possibly reducing the number of stats considerably. Thanks to Joey
+	  Hess for reporting this bug.
+	* iptables plugin: Support for the new libiptc API has been added.
+	  Thanks to Sebastian Harl for the patch. The build system has been
+	  updated to the plugin only includes the shipped header files when it
+	  is linked with the shipped library, too.
+	* libvirt plugin: Re-connect to libvirtd if connecting fails. Thanks
+	  to Alan Pevec for the patch.
+	* powerdns plugin: Set a timeout when reading data from the datagram
+	  socket. Handling of the “LocalSocket” option has been fixed.  An
+	  incorrectly used “type” has been corrected. Thanks to Luke Heberling
+	  for his patches.
 
 2009-07-18, Version 4.6.4
 	* collectd: Okay-notifications have been fixed. Thanks to Andrés J.
@@ -1200,15 +1254,15 @@
 2005-07-08, Version 1.3: CPU stats
 	* Collecting CPU statistics now
 
-2004-07-12, Version 1.2: Using syslog
+2005-07-12, Version 1.2: Using syslog
 	* collectd is now using the syslog facility to report errors, warnings
 	  and the like..
 	* The default directory is now /var/db/collectd
 
-2004-07-10, Version 1.1: Minor changes
+2005-07-10, Version 1.1: Minor changes
 	* Nothing really useful to say ;)
 
-2004-07-09, Version 1.0: Initial Version
+2005-07-09, Version 1.0: Initial Version
 	* The following modules are provided:
 	  * Load average
 	  * Ping time

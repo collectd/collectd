@@ -216,6 +216,7 @@ sub get_files_from_directory
   my $recursive = @_ ? shift : 0;
   my $dh;
   my @directories = ();
+  my @files = ();
   my $ret = [];
 
   opendir ($dh, $dir) or die ("opendir ($dir): $!");
@@ -231,14 +232,12 @@ sub get_files_from_directory
     }
     elsif (-f $entry)
     {
-      my $ident = filename_to_ident ($entry);
-      if ($ident)
-      {
-	push (@$ret, $ident);
-      }
+      push (@files, $entry);
     }
   }
   closedir ($dh);
+
+  push (@$ret, map { filename_to_ident ($_) } sort (@files));
 
   if ($recursive > 0)
   {
@@ -247,7 +246,7 @@ sub get_files_from_directory
       my $temp = get_files_from_directory ($_, $recursive - 1);
       if ($temp && @$temp)
       {
-	push (@$ret, @$temp);
+        push (@$ret, @$temp);
       }
     }
   }
