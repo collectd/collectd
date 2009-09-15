@@ -230,6 +230,23 @@ associated with a certain value.
 
 =back
 
+=head1 ENVIRONMENT
+
+The following environment variables are set by the plugin before calling
+I<exec>:
+
+=over 4
+
+=item COLLECTD_INTERVAL
+
+Value of the global interval setting.
+
+=item COLLECTD_HOSTNAME
+
+Hostname used by I<collectd> to dispatch local values.
+
+=back
+
 =head1 USING NAGIOS PLUGINS
 
 Though the interface is far from perfect, there are tons of plugins for Nagios.
