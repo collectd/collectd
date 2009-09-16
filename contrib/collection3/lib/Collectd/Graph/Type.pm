@@ -250,7 +250,11 @@ sub getTitle
   my $type_instance = $ident->{'type_instance'};
   my $instance;
 
-  if (defined $type_instance)
+  if ((defined $type_instance) && (defined $plugin_instance))
+  {
+    $instance = "$plugin_instance/$type_instance";
+  }
+  elsif (defined $type_instance)
   {
     $instance = $type_instance;
   }
