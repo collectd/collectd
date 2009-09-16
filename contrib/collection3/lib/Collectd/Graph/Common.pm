@@ -265,6 +265,7 @@ sub get_all_hosts
   {
     next if ($entry =~ m/^\./);
     next if (!-d "$data_dir/$entry");
+    next if (!-r "$data_dir/$entry" or !-x "$data_dir/$entry");
     push (@ret, sanitize_hostname ($entry));
   }
   closedir ($dh);
