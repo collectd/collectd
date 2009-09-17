@@ -356,7 +356,8 @@ endif # BUILD_PLUGIN_INTERFACE
 if BUILD_PLUGIN_IPTABLES
 pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
-iptables_la_LDFLAGS = -module -avoid-version
+iptables_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBIPTC_CPPFLAGS)
+iptables_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBIPTC_LDFLAGS)
 if BUILD_WITH_OWN_LIBIPTC
 iptables_la_LIBADD  = owniptc/libiptc.la
 iptables_la_DEPENDENCIES = owniptc/libiptc.la
