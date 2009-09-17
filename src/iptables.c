@@ -34,10 +34,13 @@
 #if OWN_LIBIPTC
 # include "owniptc/libiptc.h"
 # include "owniptc/libip6tc.h"
-#else
+
+# define HAVE_IPTC_HANDLE_T 1
+# define HAVE_IP6TC_HANDLE_T 1
+
+#else /* if !OWN_LIBIPTC */
 # include <libiptc/libiptc.h>
 # include <libiptc/libip6tc.h>
-#endif
 
 /*
  * iptc_handle_t was available before libiptc was officially available as a
@@ -51,12 +54,13 @@
  * this is somewhat hacky, I didn't find better way to solve that :-/
  * -tokkee
  */
-#ifndef HAVE_IPTC_HANDLE_T
+# ifndef HAVE_IPTC_HANDLE_T
 typedef struct iptc_handle iptc_handle_t;
-#endif
-#ifndef HAVE_IP6TC_HANDLE_T
+# endif
+# ifndef HAVE_IP6TC_HANDLE_T
 typedef struct ip6tc_handle ip6tc_handle_t;
-#endif
+# endif
+#endif /* !OWN_LIBIPTC */
 
 /*
  * (Module-)Global variables

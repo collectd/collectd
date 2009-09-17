@@ -1463,16 +1463,21 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 		with_libiptc="no (Linux only)"
 	fi
 ])
-if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBIPTC_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBIPTC_LDFLAGS"
+if test "x$with_libiptc" = "xyes"
 then
-	AC_CHECK_LIB(iptc, iptc_init,
+	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
 	[
-		AC_DEFINE(HAVE_LIBIPTC, 1, [Define to 1 if you have the iptc library (-liptc).])
+		with_libiptc="no (Linux iptables headers not found)"
+		with_own_libiptc="no"
 	],
 	[
-		with_libiptc="yes"
-		with_own_libiptc="yes"
+#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
 	])
+
 fi
 if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
@@ -1485,27 +1490,8 @@ then
 		with_own_libiptc="yes"
 	])
 fi
-if test "x$with_libiptc" = "xyes"
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $LIBIPTC_CPPFLAGS"
-
-	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
-	[
-		with_libiptc="no (Linux iptables headers not found - check KERNEL_DIR)"
-		with_own_libiptc="no"
-	],
-	[
-#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
-	])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libiptc" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $LIBIPTC_CPPFLAGS"
-
 	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [],
 	[
 #if OWN_LIBIPTC
@@ -1516,8 +1502,17 @@ then
 # include <libiptc/libip6tc.h>
 #endif
 	])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
+then
+	AC_CHECK_LIB(iptc, iptc_init,
+	[
+		AC_DEFINE(HAVE_LIBIPTC, 1, [Define to 1 if you have the iptc library (-liptc).])
+	],
+	[
+		with_libiptc="yes"
+		with_own_libiptc="yes"
+	])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_own_libiptc" = "xyes")
@@ -1532,6 +1527,8 @@ if test "x$with_own_libiptc" = "xyes"
 then
 	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
 fi
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
 # }}}
 
 # --with-java {{{
