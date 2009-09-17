@@ -145,6 +145,11 @@ typedef struct {
 	} while (0)
 
 /*
+ * Public variable
+ */
+extern char **environ;
+
+/*
  * private variables
  */
 
