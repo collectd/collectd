@@ -481,10 +481,15 @@ Prerequisites
     If present, the uuid plugin will check for UUID from HAL.
     <http://hal.freedesktop.org/>
 
-  * libiptc (optional, if not found a version shipped with this distribution
-    can be used if the Linux kernel headers are available)
+  * libiptc (optional)
     For querying iptables counters.
     <http://netfilter.org/>
+
+    If not found on the system, a version shipped with this distribution can
+    be used. It requires some Linux headers in /usr/include/linux. You can
+    force the build system to use the shipped version by specifying
+      --with-libiptc=shipped
+    when running the configure script.
 
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
