@@ -1453,18 +1453,7 @@ SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
 CPPFLAGS="$CPPFLAGS $LIBIPTC_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBIPTC_LDFLAGS"
-if test "x$with_libiptc" = "xyes"
-then
-	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h, [],
-	[
-		with_libiptc="no (Linux iptables headers not found)"
-		with_own_libiptc="no"
-	],
-	[
-#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
-	])
-
-fi
+# check whether the header file for libiptc is available.
 if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
 	AC_CHECK_HEADERS(libiptc/libiptc.h,
@@ -1478,6 +1467,20 @@ then
 fi
 if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
+	AC_CHECK_HEADERS(libiptc/libip6tc.h,
+	[
+		AC_DEFINE(HAVE_LIBIPTC_LIBIP6TC_H, 1, [Define to 1 if you have the <libiptc/libip6tc.h> header file.])
+	],
+	[
+		with_libiptc="yes"
+		with_own_libiptc="yes"
+	])
+fi
+# If the header file is available, check for the required type declaractions.
+# They may be missing in old versions of libiptc. In that case, they will be
+# declared in the iptables plugin.
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
+then
 	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [],
 	[
 #if OWN_LIBIPTC
@@ -1489,6 +1492,7 @@ then
 #endif
 	])
 fi
+# Check for the iptc_init symbol in the library.
 if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xno"
 then
 	AC_CHECK_LIB(iptc, iptc_init,
@@ -1498,6 +1502,19 @@ then
 	[
 		with_libiptc="yes"
 		with_own_libiptc="yes"
+	])
+fi
+# The system wide version failed for some reason. Check if we have the required
+# headers to build the shipped version.
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xyes"
+then
+	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h linux/netfilter/x_tables.h, [],
+	[
+		with_libiptc="no (Linux iptables headers not found)"
+		with_own_libiptc="no"
+	],
+	[
+#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
 	])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
