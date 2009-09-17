@@ -92,6 +92,10 @@ sub getRRDArgs
   {
     push (@ret, '-v', $obj->{'rrd_vertical'});
   }
+  else
+  {
+    push (@ret, '-v', "Bytes");
+  }
 
   for (@$idents)
   {
