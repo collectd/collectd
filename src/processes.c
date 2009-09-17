@@ -634,14 +634,14 @@ static int ps_read_tasks (int pid)
 
 	while ((ent = readdir (dh)) != NULL)
 	{
-		if (!isdigit (ent->d_name[0]))
+		if (!isdigit ((int) ent->d_name[0]))
 			continue;
 		else
 			count++;
 	}
 	closedir (dh);
 
-	return (count?count:1);
+	return ((count >= 1) ? count : 1);
 } /* int *ps_read_tasks */
 
 int ps_read_process (int pid, procstat_t *ps, char *state)
