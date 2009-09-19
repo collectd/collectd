@@ -573,7 +573,7 @@ Prerequisites
 
   * libyajl (optional)
     Parse JSON data. This is needed for the `curl_json' plugin.
-    <http://www.lloydforge.org/projects/yajl/>
+    <http://github.com/lloyd/yajl>
 
 Configuring / Compiling / Installing
 ------------------------------------
