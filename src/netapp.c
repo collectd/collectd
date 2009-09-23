@@ -225,15 +225,16 @@ static disk_t *get_disk(host_config_t *host, const char *name) /* {{{ */
 	return v;
 } /* }}} disk_t *get_disk */
 
-static int submit_one_value (const char *host, /* {{{ */
+static int submit_values (const char *host, /* {{{ */
 		const char *plugin_inst,
-		const char *type, const char *type_inst, value_t value,
+		const char *type, const char *type_inst,
+		value_t *values, int values_len,
 		time_t timestamp)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
-	vl.values = &value;
-	vl.values_len = 1;
+	vl.values = values;
+	vl.values_len = values_len;
 
 	if (timestamp > 0)
 		vl.time = timestamp;
@@ -252,17 +253,18 @@ static int submit_one_value (const char *host, /* {{{ */
 	return (plugin_dispatch_values (&vl));
 } /* }}} int submit_uint64 */
 
-#if 0
-static int submit_uint64 (const char *host, const char *plugin_inst, /* {{{ */
-		const char *type, const char *type_inst, uint64_t ui64)
+static int submit_two_counters (const char *host, const char *plugin_inst, /* {{{ */
+		const char *type, const char *type_inst, counter_t val0, counter_t val1,
+		time_t timestamp)
 {
-	value_t v;
+	value_t values[2];
 
-	v.counter = (counter_t) ui64;
+	values[0].counter = val0;
+	values[1].counter = val1;
 
-	return (submit_one_value (host, plugin_inst, type, type_inst, v));
-} /* }}} int submit_uint64 */
-#endif
+	return (submit_values (host, plugin_inst, type, type_inst,
+				values, 2, timestamp));
+} /* }}} int submit_two_counters */
 
 static int submit_double (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, double d, time_t timestamp)
@@ -271,7 +273,8 @@ static int submit_double (const char *host, const char *plugin_inst, /* {{{ */
 
 	v.gauge = (gauge_t) d;
 
-	return (submit_one_value (host, plugin_inst, type, type_inst, v, timestamp));
+	return (submit_values (host, plugin_inst, type, type_inst,
+				&v, 1, timestamp));
 } /* }}} int submit_uint64 */
 
 static int submit_cache_ratio (const char *host, /* {{{ */
@@ -300,7 +303,8 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 	*old_hits = new_hits;
 	*old_misses = new_misses;
 
-	return (submit_one_value (host, plugin_inst, "cache_ratio", type_inst, v, timestamp));
+	return (submit_values (host, plugin_inst, "cache_ratio", type_inst,
+				&v, 1, timestamp));
 } /* }}} int submit_cache_ratio */
 
 static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
