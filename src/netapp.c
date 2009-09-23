@@ -344,7 +344,7 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 		else if (!strcmp(name, "inode_cache_miss"))
 			inode_cache_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else
-			INFO ("netapp plugin: Found unexpected child: %s", name);
+			DEBUG("netapp plugin: Found unexpected child: %s", name);
 	}
 
 	/* Submit requested counters */
