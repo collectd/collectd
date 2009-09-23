@@ -168,152 +168,206 @@ struct host_config_s {
 
 static host_config_t *host_config;
 
-static volume_t *get_volume(host_config_t *host, const char *name) {
+static volume_t *get_volume (host_config_t *host, const char *name) /* {{{ */
+{
 	volume_t *v;
+
+	if (name == NULL)
+		return (NULL);
 	
 	for (v = host->volumes; v; v = v->next) {
-		if (!strcmp(v->name/* + 4*/, name)) return v;
+		if (strcmp(v->name, name) == 0)
+			return v;
 	}
+
 	v = malloc(sizeof(*v));
+	if (v == NULL)
+		return (NULL);
+	memset (v, 0, sizeof (*v));
+
 	v->name = strdup(name);
-	/* v->name = malloc(strlen(name) + 5); */
-	/* strcpy(v->name, "vol-"); */
-	/* strcpy(v->name + 4, name); */
-	v->perf_data.flags = 0;
-	v->volume_data.flags = 0;
+	if (v->name == NULL) {
+		sfree (v);
+		return (NULL);
+	}
+
 	v->next = host->volumes;
 	host->volumes = v;
-	return v;
-}
 
-static disk_t *get_disk(host_config_t *host, const char *name) {
+	return v;
+} /* }}} volume_t *get_volume */
+
+static disk_t *get_disk(host_config_t *host, const char *name) /* {{{ */
+{
 	disk_t *v, init = DISK_INIT;
+
+	if (name == NULL)
+		return (NULL);
 	
 	for (v = host->disks; v; v = v->next) {
-		if (!strcmp(v->name/* + 5*/, name)) return v;
+		if (strcmp(v->name, name) == 0)
+			return v;
 	}
 	v = malloc(sizeof(*v));
+	if (v == NULL)
+		return (NULL);
+
 	*v = init;
 	v->name = strdup(name);
-	/* v->name = malloc(strlen(name) + 6); */
-	/* strcpy(v->name, "disk-"); */
-	/* strcpy(v->name + 5, name); */
+	if (v->name == NULL) {
+		sfree (v);
+		return (NULL);
+	}
+
 	v->next = host->disks;
 	host->disks = v;
-	return v;
-}
 
-static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *data) {
+	return v;
+} /* }}} disk_t *get_disk */
+
+static int submit_one_value (const char *host, /* {{{ */
+		const char *plugin_inst,
+		const char *type, const char *type_inst, value_t value,
+		time_t timestamp)
+{
+	value_list_t vl = VALUE_LIST_INIT;
+
+	vl.values = &value;
+	vl.values_len = 1;
+
+	if (timestamp > 0)
+		vl.time = timestamp;
+
+	if (host != NULL)
+		sstrncpy (vl.host, host, sizeof (vl.host));
+	else
+		sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "netapp", sizeof (vl.plugin));
+	if (plugin_inst != NULL)
+		sstrncpy (vl.plugin_instance, plugin_inst, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	if (type_inst != NULL)
+		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
+
+	return (plugin_dispatch_values (&vl));
+} /* }}} int submit_uint64 */
+
+#if 0
+static int submit_uint64 (const char *host, const char *plugin_inst, /* {{{ */
+		const char *type, const char *type_inst, uint64_t ui64)
+{
+	value_t v;
+
+	v.counter = (counter_t) ui64;
+
+	return (submit_one_value (host, plugin_inst, type, type_inst, v));
+} /* }}} int submit_uint64 */
+#endif
+
+static int submit_double (const char *host, const char *plugin_inst, /* {{{ */
+		const char *type, const char *type_inst, double d, time_t timestamp)
+{
+	value_t v;
+
+	v.gauge = (gauge_t) d;
+
+	return (submit_one_value (host, plugin_inst, type, type_inst, v, timestamp));
+} /* }}} int submit_uint64 */
+
+static int submit_cache_ratio (const char *host, /* {{{ */
+		const char *plugin_inst,
+		const char *type_inst,
+		uint64_t new_hits,
+		uint64_t new_misses,
+		uint64_t *old_hits,
+		uint64_t *old_misses,
+		time_t timestamp)
+{
+	value_t v;
+
+	if ((new_hits >= (*old_hits)) && (new_misses >= (*old_misses))) {
+		uint64_t hits;
+		uint64_t misses;
+
+		hits = new_hits - (*old_hits);
+		misses = new_misses - (*old_misses);
+
+		v.gauge = 100.0 * ((gauge_t) hits) / ((gauge_t) (hits + misses));
+	} else {
+		v.gauge = NAN;
+	}
+
+	*old_hits = new_hits;
+	*old_misses = new_misses;
+
+	return (submit_one_value (host, plugin_inst, "cache_ratio", type_inst, v, timestamp));
+} /* }}} int submit_cache_ratio */
+
+static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	perf_wafl_data_t *wafl = data;
-	uint64_t name_cache_hit = 0, name_cache_miss = 0, find_dir_hit = 0, find_dir_miss = 0, buf_hash_hit = 0, buf_hash_miss = 0, inode_cache_hit = 0, inode_cache_miss = 0;
-	const char *instance, *name;
+	uint64_t name_cache_hit  = 0,  name_cache_miss  = 0;
+	uint64_t find_dir_hit    = 0,  find_dir_miss    = 0;
+	uint64_t buf_hash_hit    = 0,  buf_hash_miss    = 0;
+	uint64_t inode_cache_hit = 0,  inode_cache_miss = 0;
+	const char *plugin_inst;
 	time_t timestamp;
 	na_elem_t *counter;
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
 	
 	timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
 	out = na_elem_child(na_elem_child(out, "instances"), "instance-data");
-	instance = na_child_get_string(out, "name");
+	plugin_inst = na_child_get_string(out, "name");
 
+	/* Iterate over all counters */
 	na_elem_iter_t iter = na_child_iterator(na_elem_child(out, "counters"));
 	for (counter = na_iterator_next(&iter); counter; counter = na_iterator_next(&iter)) {
+		const char *name;
+
 		name = na_child_get_string(counter, "name");
-		if (!strcmp(name, "name_cache_hit")) {
+		if (!strcmp(name, "name_cache_hit"))
 			name_cache_hit = na_child_get_uint64(counter, "value", 0);
-		} else if (!strcmp(name, "name_cache_miss")) {
+		else if (!strcmp(name, "name_cache_miss"))
 			name_cache_miss = na_child_get_uint64(counter, "value", 0);
-		} else if (!strcmp(name, "find_dir_hit")) {
+		else if (!strcmp(name, "find_dir_hit"))
 			find_dir_hit = na_child_get_uint64(counter, "value", 0);
-		} else if (!strcmp(name, "find_dir_miss")) {
+		else if (!strcmp(name, "find_dir_miss"))
 			find_dir_miss = na_child_get_uint64(counter, "value", 0);
-		} else if (!strcmp(name, "buf_hash_hit")) {
+		else if (!strcmp(name, "buf_hash_hit"))
 			buf_hash_hit = na_child_get_uint64(counter, "value", 0);
-		} else if (!strcmp(name, "buf_hash_miss")) {
+		else if (!strcmp(name, "buf_hash_miss"))
 			buf_hash_miss = na_child_get_uint64(counter, "value", 0);
-		} else if (!strcmp(name, "inode_cache_hit")) {
+		else if (!strcmp(name, "inode_cache_hit"))
 			inode_cache_hit = na_child_get_uint64(counter, "value", 0);
-		} else if (!strcmp(name, "inode_cache_miss")) {
+		else if (!strcmp(name, "inode_cache_miss"))
 			inode_cache_miss = na_child_get_uint64(counter, "value", 0);
-		}
+		else
+			INFO ("netapp plugin: Found unexpected child: %s", name);
 	}
-	if ((wafl->flags & PERF_WAFL_NAME_CACHE) && name_cache_hit && name_cache_miss) {
-		values[0].gauge = 0;
-		if (name_cache_miss - wafl->last_name_cache_miss + name_cache_hit - wafl->last_name_cache_hit) values[0].gauge = 100.0 * (name_cache_hit - wafl->last_name_cache_hit) / (name_cache_miss - wafl->last_name_cache_miss + name_cache_hit - wafl->last_name_cache_hit);
-		vl.values = values;
-		vl.values_len = 1;
-		vl.time = timestamp;
-		vl.interval = interval_g;
-		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-		sstrncpy(vl.host, host->name, sizeof(vl.host));
-		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
-		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
-		sstrncpy(vl.type_instance, "name_cache_hit", sizeof(vl.type_instance));
-		if (wafl->last_name_cache_hit && wafl->last_name_cache_miss) {
-			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values (&vl);
-		}
-		wafl->last_name_cache_hit = name_cache_hit;
-		wafl->last_name_cache_miss = name_cache_miss;
-	}
-	if ((wafl->flags & PERF_WAFL_DIR_CACHE) && find_dir_hit && find_dir_miss) {
-		values[0].gauge = 0;
-		if (find_dir_miss - wafl->last_find_dir_miss + find_dir_hit - wafl->last_find_dir_hit) values[0].gauge = 100.0 * (find_dir_hit - wafl->last_find_dir_hit) / (find_dir_miss - wafl->last_find_dir_miss + find_dir_hit - wafl->last_find_dir_hit);
-		vl.values = values;
-		vl.values_len = 1;
-		vl.time = timestamp;
-		vl.interval = interval_g;
-		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-		sstrncpy(vl.host, host->name, sizeof(vl.host));
-		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
-		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
-		sstrncpy(vl.type_instance, "find_dir_hit", sizeof(vl.type_instance));
-		if (wafl->last_find_dir_hit && wafl->last_find_dir_miss) {
-			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values (&vl);
-		}
-		wafl->last_find_dir_hit = find_dir_hit;
-		wafl->last_find_dir_miss = find_dir_miss;
-	}
-	if ((wafl->flags & PERF_WAFL_BUF_CACHE) && buf_hash_hit && buf_hash_miss) {
-		values[0].gauge = 0;
-		if (buf_hash_miss - wafl->last_buf_hash_miss + buf_hash_hit - wafl->last_buf_hash_hit) values[0].gauge = 100.0 * (buf_hash_hit - wafl->last_buf_hash_hit) / (buf_hash_miss - wafl->last_buf_hash_miss + buf_hash_hit - wafl->last_buf_hash_hit);
-		vl.values = values;
-		vl.values_len = 1;
-		vl.time = timestamp;
-		vl.interval = interval_g;
-		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-		sstrncpy(vl.host, host->name, sizeof(vl.host));
-		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
-		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
-		sstrncpy(vl.type_instance, "buf_hash_hit", sizeof(vl.type_instance));
-		if (wafl->last_buf_hash_hit && wafl->last_buf_hash_miss) {
-			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values (&vl);
-		}
-		wafl->last_buf_hash_hit = buf_hash_hit;
-		wafl->last_buf_hash_miss = buf_hash_miss;
-	}
-	if ((wafl->flags & PERF_WAFL_INODE_CACHE) && inode_cache_hit && inode_cache_miss) {
-		values[0].gauge = 0;
-		if (inode_cache_miss - wafl->last_inode_cache_miss + inode_cache_hit - wafl->last_inode_cache_hit) values[0].gauge = 100.0 * (inode_cache_hit - wafl->last_inode_cache_hit) / (inode_cache_miss - wafl->last_inode_cache_miss + inode_cache_hit - wafl->last_inode_cache_hit);
-		vl.values = values;
-		vl.values_len = 1;
-		vl.time = timestamp;
-		vl.interval = interval_g;
-		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-		sstrncpy(vl.host, host->name, sizeof(vl.host));
-		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
-		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
-		sstrncpy(vl.type_instance, "inode_cache_hit", sizeof(vl.type_instance));
-		if (wafl->last_inode_cache_hit && wafl->last_inode_cache_miss) {
-			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values (&vl);
-		}
-		wafl->last_inode_cache_hit = inode_cache_hit;
-		wafl->last_inode_cache_miss = inode_cache_miss;
-	}
-}
+
+	/* Submit requested counters */
+	if (wafl->flags & PERF_WAFL_NAME_CACHE)
+		submit_cache_ratio (host->name, plugin_inst, "name_cache_hit",
+				name_cache_hit, name_cache_miss,
+				&wafl->last_name_cache_hit, &wafl->last_name_cache_miss,
+				timestamp);
+
+	if (wafl->flags & PERF_WAFL_DIR_CACHE)
+		submit_cache_ratio (host->name, plugin_inst, "find_dir_hit",
+				find_dir_hit, find_dir_miss,
+				&wafl->last_find_dir_hit, &wafl->last_find_dir_miss,
+				timestamp);
+
+	if (wafl->flags & PERF_WAFL_BUF_CACHE)
+		submit_cache_ratio (host->name, plugin_inst, "buf_hash_hit",
+				buf_hash_hit, buf_hash_miss,
+				&wafl->last_buf_hash_hit, &wafl->last_buf_hash_miss,
+				timestamp);
+
+	if (wafl->flags & PERF_WAFL_INODE_CACHE)
+		submit_cache_ratio (host->name, plugin_inst, "inode_cache_hit",
+				inode_cache_hit, inode_cache_miss,
+				&wafl->last_inode_cache_hit, &wafl->last_inode_cache_miss,
+				timestamp);
+} /* }}} void collect_perf_wafl_data */
 
 static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *data) {
 	perf_disk_data_t *perf = data;
@@ -321,49 +375,73 @@ static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *da
 	time_t timestamp;
 	na_elem_t *counter, *inst;
 	disk_t *disk, *worst_disk = 0;
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
 	
 	timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
 	out = na_elem_child(out, "instances");
+
+	/* Iterate over all children */
 	na_elem_iter_t inst_iter = na_child_iterator(out);
 	for (inst = na_iterator_next(&inst_iter); inst; inst = na_iterator_next(&inst_iter)) {
-		uint64_t disk_busy = 0, base_for_disk_busy = 0;
+		uint64_t disk_busy = 0;
+		uint64_t base_for_disk_busy = 0;
 
 		disk = get_disk(host, na_child_get_string(inst, "name"));
+		if (disk == NULL)
+			continue;
+
+		/* Look for the "disk_busy" and "base_for_disk_busy" counters */
 		na_elem_iter_t count_iter = na_child_iterator(na_elem_child(inst, "counters"));
 		for (counter = na_iterator_next(&count_iter); counter; counter = na_iterator_next(&count_iter)) {
 			name = na_child_get_string(counter, "name");
-			if (!strcmp(name, "disk_busy")) {
+			if (name == NULL)
+				continue;
+
+			if (strcmp(name, "disk_busy") == 0)
 				disk_busy = na_child_get_uint64(counter, "value", 0);
-			} else if (!strcmp(name, "base_for_disk_busy")) {
+			else if (strcmp(name, "base_for_disk_busy") == 0)
 				base_for_disk_busy = na_child_get_uint64(counter, "value", 0);
-			}
 		}
-		if (disk_busy && base_for_disk_busy) {
-			disk->perf_data.last_update = timestamp;
-			disk->perf_data.last_disk_busy_percent = 0;
-			if (base_for_disk_busy - disk->perf_data.last_base_for_disk_busy) disk->perf_data.last_disk_busy_percent = 100.0 * (disk_busy - disk->perf_data.last_disk_busy) / (base_for_disk_busy - disk->perf_data.last_base_for_disk_busy);
-			if (disk->perf_data.last_disk_busy && disk->perf_data.last_base_for_disk_busy && (!worst_disk || worst_disk->perf_data.last_disk_busy_percent < disk->perf_data.last_disk_busy_percent)) worst_disk = disk;
-			disk->perf_data.last_disk_busy = disk_busy;
-			disk->perf_data.last_base_for_disk_busy = base_for_disk_busy;
+
+		if ((disk_busy == 0) || (base_for_disk_busy == 0))
+		{
+			disk->perf_data.last_disk_busy = 0;
+			disk->perf_data.last_base_for_disk_busy = 0;
+			continue;
 		}
+
+		disk->perf_data.last_update = timestamp;
+		if ((disk_busy >= disk->perf_data.last_disk_busy)
+				&& (base_for_disk_busy >= disk->perf_data.last_base_for_disk_busy))
+		{
+			uint64_t disk_busy_diff;
+			uint64_t base_diff;
+
+			disk_busy_diff = disk_busy - disk->perf_data.last_disk_busy;
+			base_diff = base_for_disk_busy - disk->perf_data.last_base_for_disk_busy;
+
+			if (base_diff == 0)
+				disk->perf_data.last_disk_busy_percent = NAN;
+			else
+				disk->perf_data.last_disk_busy_percent = 100.0
+					* ((gauge_t) disk_busy_diff) / ((gauge_t) base_diff);
+		}
+		else
+		{
+			disk->perf_data.last_disk_busy_percent = NAN;
+		}
+
+		disk->perf_data.last_disk_busy = disk_busy;
+		disk->perf_data.last_base_for_disk_busy = base_for_disk_busy;
+
+		if ((worst_disk == NULL)
+				|| (worst_disk->perf_data.last_disk_busy_percent < disk->perf_data.last_disk_busy_percent))
+			worst_disk = disk;
 	}
-	if ((perf->flags & PERF_DISK_BUSIEST) && worst_disk) {
-		values[0].gauge = worst_disk->perf_data.last_disk_busy_percent;
-		vl.values = values;
-		vl.values_len = 1;
-		vl.time = timestamp;
-		vl.interval = interval_g;
-		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-		sstrncpy(vl.host, host->name, sizeof(vl.host));
-		sstrncpy(vl.plugin_instance, "system", sizeof(vl.plugin_instance));
-		sstrncpy(vl.type, "percent", sizeof(vl.type));
-		sstrncpy(vl.type_instance, "disk_busy", sizeof(vl.type_instance));
-		DEBUG("%s/netapp-system/percent-disk_busy: %lf", host->name, worst_disk->perf_data.last_disk_busy_percent);
-		plugin_dispatch_values (&vl);
-	}
-}
+
+	if ((perf->flags & PERF_DISK_BUSIEST) && (worst_disk != NULL))
+		submit_double (host->name, "system", "percent", "disk_busy",
+				worst_disk->perf_data.last_disk_busy_percent, timestamp);
+} /* void collect_perf_disk_data */
 
 static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) {
 	na_elem_t *inst, *sis;
@@ -1183,3 +1261,5 @@ void module_register() {
 	plugin_register_init("netapp", config_init);
 	plugin_register_read("netapp", netapp_read);
 }
+
+/* vim: set sw=2 ts=2 noet fdm=marker : */
