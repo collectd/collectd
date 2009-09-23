@@ -377,7 +377,7 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 				timestamp);
 } /* }}} void collect_perf_wafl_data */
 
-static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *data) {
+static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	perf_disk_data_t *perf = data;
 	const char *name;
 	time_t timestamp;
@@ -449,7 +449,7 @@ static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *da
 	if ((perf->flags & PERF_DISK_BUSIEST) && (worst_disk != NULL))
 		submit_double (host->name, "system", "percent", "disk_busy",
 				worst_disk->perf_data.last_disk_busy_percent, timestamp);
-} /* void collect_perf_disk_data */
+} /* }}} void collect_perf_disk_data */
 
 static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	na_elem_t *inst, *sis;
