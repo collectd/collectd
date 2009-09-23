@@ -247,10 +247,11 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "name_cache_hit", sizeof(vl.type_instance));
 		if (wafl->last_name_cache_hit && wafl->last_name_cache_miss) {
 			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values ("cache_ratio", &vl);
+			plugin_dispatch_values (&vl);
 		}
 		wafl->last_name_cache_hit = name_cache_hit;
 		wafl->last_name_cache_miss = name_cache_miss;
@@ -265,10 +266,11 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "find_dir_hit", sizeof(vl.type_instance));
 		if (wafl->last_find_dir_hit && wafl->last_find_dir_miss) {
 			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values ("cache_ratio", &vl);
+			plugin_dispatch_values (&vl);
 		}
 		wafl->last_find_dir_hit = find_dir_hit;
 		wafl->last_find_dir_miss = find_dir_miss;
@@ -283,10 +285,11 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "buf_hash_hit", sizeof(vl.type_instance));
 		if (wafl->last_buf_hash_hit && wafl->last_buf_hash_miss) {
 			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values ("cache_ratio", &vl);
+			plugin_dispatch_values (&vl);
 		}
 		wafl->last_buf_hash_hit = buf_hash_hit;
 		wafl->last_buf_hash_miss = buf_hash_miss;
@@ -301,10 +304,11 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "cache_ratio", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "inode_cache_hit", sizeof(vl.type_instance));
 		if (wafl->last_inode_cache_hit && wafl->last_inode_cache_miss) {
 			DEBUG("%s/netapp-%s/cache_ratio: %lf", host->name, instance, values[0].gauge);
-			plugin_dispatch_values ("cache_ratio", &vl);
+			plugin_dispatch_values (&vl);
 		}
 		wafl->last_inode_cache_hit = inode_cache_hit;
 		wafl->last_inode_cache_miss = inode_cache_miss;
@@ -354,9 +358,10 @@ static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *da
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, "system", sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "percent", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "disk_busy", sizeof(vl.type_instance));
 		DEBUG("%s/netapp-system/percent-disk_busy: %lf", host->name, worst_disk->perf_data.last_disk_busy_percent);
-		plugin_dispatch_values ("percent", &vl);
+		plugin_dispatch_values (&vl);
 	}
 }
 
@@ -385,22 +390,23 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "df_complex", sizeof(vl.type));
 
 		values[0].gauge = size_used;
 		sstrncpy(vl.type_instance, "used", sizeof(vl.type_instance));
-		DEBUG("%s/netapp-%s/df_complex-used: %llu", host->name, volume->name, size_used);
-		plugin_dispatch_values ("df_complex", &vl);
+		DEBUG("%s/netapp-%s/df_complex-used: %"PRIu64, host->name, volume->name, size_used);
+		plugin_dispatch_values (&vl);
 
 		values[0].gauge = size_free;
 		sstrncpy(vl.type_instance, "free", sizeof(vl.type_instance));
-		DEBUG("%s/netapp-%s/df_complex-free: %llu", host->name, volume->name, size_free);
-		plugin_dispatch_values ("df_complex", &vl);
+		DEBUG("%s/netapp-%s/df_complex-free: %"PRIu64, host->name, volume->name, size_free);
+		plugin_dispatch_values (&vl);
 
 		if (snap_reserved) {
 			values[0].gauge = snap_reserved;
 			sstrncpy(vl.type_instance, "snap_reserved", sizeof(vl.type_instance));
-			DEBUG("%s/netapp-%s/df_complex-snap_reserved: %llu", host->name, volume->name, snap_reserved);
-			plugin_dispatch_values ("df_complex", &vl);
+			DEBUG("%s/netapp-%s/df_complex-snap_reserved: %"PRIu64, host->name, volume->name, snap_reserved);
+			plugin_dispatch_values (&vl);
 		}
 
 		sis = na_elem_child(inst, "sis");
@@ -427,8 +433,8 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 			}
 			values[0].gauge = sis_saved;
 			sstrncpy(vl.type_instance, "sis_saved", sizeof(vl.type_instance));
-			DEBUG("%s/netapp-%s/df_complex-sis_saved: %llu", host->name, volume->name, sis_saved);
-			plugin_dispatch_values ("df_complex", &vl);
+			DEBUG("%s/netapp-%s/df_complex-sis_saved: %"PRIu64, host->name, volume->name, sis_saved);
+			plugin_dispatch_values (&vl);
 		}
 	}
 }
@@ -481,12 +487,13 @@ static void collect_perf_volume_data(host_config_t *host, na_elem_t *out, void *
 			sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 			sstrncpy(vl.host, host->name, sizeof(vl.host));
 			sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
+			sstrncpy(vl.type, "disk_ops", sizeof(vl.type));
 			vl.type_instance[0] = 0;
 			if (volume->perf_data.flags & PERF_VOLUME_OPS) {
 				/* We might need the data even if it wasn't configured to calculate
 				   the latency. Therefore we just skip the dispatch. */
-				DEBUG("%s/netapp-%s/disk_ops: %llu %llu", host->name, instance, read_ops, write_ops);
-				plugin_dispatch_values("disk_ops", &vl);
+				DEBUG("%s/netapp-%s/disk_ops: %"PRIu64" %"PRIu64, host->name, volume->name, read_ops, write_ops);
+				plugin_dispatch_values(&vl);
 			}
 			if ((volume->perf_data.flags & PERF_VOLUME_LATENCY) && read_latency && write_latency) {
 				values[0].gauge = 0;
@@ -500,10 +507,17 @@ static void collect_perf_volume_data(host_config_t *host, na_elem_t *out, void *
 				sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 				sstrncpy(vl.host, host->name, sizeof(vl.host));
 				sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
+				sstrncpy(vl.type, "disk_latency", sizeof(vl.type));
 				vl.type_instance[0] = 0;
 				if (volume->perf_data.last_read_ops && volume->perf_data.last_write_ops) {
-					DEBUG("%s/netapp-%s/disk_latency: lrlc: %llu ro: %llu lro: %llu rl: %llu lrl: %llu %llu %llu", host->name, instance, volume->perf_data.last_read_latency_counter, read_ops, volume->perf_data.last_read_ops, read_latency, volume->perf_data.last_read_latency, values[0].counter, values[1].counter);
-					plugin_dispatch_values("disk_latency", &vl);
+					DEBUG("%s/netapp-%s/disk_latency: ro: %"PRIu64" lro: %"PRIu64" "
+							"rl: %"PRIu64" lrl: %"PRIu64" "
+							"%llu %llu",
+							host->name, volume->name,
+							read_ops, volume->perf_data.last_read_ops,
+							read_latency, volume->perf_data.last_read_latency,
+							values[0].counter, values[1].counter);
+					plugin_dispatch_values(&vl);
 				}
 				volume->perf_data.last_timestamp = timestamp;
 				volume->perf_data.last_read_latency = read_latency;
@@ -522,9 +536,10 @@ static void collect_perf_volume_data(host_config_t *host, na_elem_t *out, void *
 			sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 			sstrncpy(vl.host, host->name, sizeof(vl.host));
 			sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
+			sstrncpy(vl.type, "disk_octets", sizeof(vl.type));
 			vl.type_instance[0] = 0;
-			DEBUG("%s/netapp-%s/disk_octets: %llu %llu", host->name, instance, read_data, write_data);
-			plugin_dispatch_values ("disk_octets", &vl);
+			DEBUG("%s/netapp-%s/disk_octets: %"PRIu64" %"PRIu64, host->name, volume->name, read_data, write_data);
+			plugin_dispatch_values (&vl);
 		}
 	}
 }
@@ -567,9 +582,11 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 			sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 			sstrncpy(vl.host, host->name, sizeof(vl.host));
 			sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+			sstrncpy(vl.type, "disk_ops_complex", sizeof(vl.type));
 			sstrncpy(vl.type_instance, name, sizeof(vl.plugin_instance));
-			DEBUG("%s/netapp-%s/disk_ops_complex-%s: %llu", host->name, instance, name, values[0].counter);
-			plugin_dispatch_values ("disk_ops_complex", &vl);
+			DEBUG("%s/netapp-%s/disk_ops_complex-%s: %llu",
+					host->name, instance, name, values[0].counter);
+			plugin_dispatch_values (&vl);
 		}
 	}
 	if ((perf->flags & PERF_SYSTEM_DISK) && disk_read && disk_written) {
@@ -582,9 +599,10 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "disk_octets", sizeof(vl.type));
 		vl.type_instance[0] = 0;
-		DEBUG("%s/netapp-%s/disk_octets: %llu %llu", host->name, instance, disk_read, disk_written);
-		plugin_dispatch_values ("disk_octets", &vl);
+		DEBUG("%s/netapp-%s/disk_octets: %"PRIu64" %"PRIu64, host->name, instance, disk_read, disk_written);
+		plugin_dispatch_values (&vl);
 	}
 	if ((perf->flags & PERF_SYSTEM_NET) && net_recv && net_sent) {
 		values[0].counter = net_recv;
@@ -596,9 +614,10 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "if_octets", sizeof(vl.type));
 		vl.type_instance[0] = 0;
-		DEBUG("%s/netapp-%s/if_octects: %llu %llu", host->name, instance, net_recv, net_sent);
-		plugin_dispatch_values ("if_octets", &vl);
+		DEBUG("%s/netapp-%s/if_octects: %"PRIu64" %"PRIu64, host->name, instance, net_recv, net_sent);
+		plugin_dispatch_values (&vl);
 	}
 	if ((perf->flags & PERF_SYSTEM_CPU) && cpu_busy && cpu_total) {
 //		values[0].gauge = (double) (cpu_busy - perf->last_cpu_busy) / (cpu_total - perf->last_cpu_total) * 100;
@@ -610,11 +629,12 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "cpu", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "system", sizeof(vl.plugin_instance));
 //		if (perf->last_cpu_busy && perf->last_cpu_total) printf("CPU: busy: %lf - idle: %lf\n", values[0].gauge, 100.0 - values[0].gauge);
 //		if (perf->last_cpu_busy && perf->last_cpu_total) plugin_dispatch_values ("cpu", &vl);
-		DEBUG("%s/netapp-%s/cpu: busy: %llu - idle: %llu", host->name, instance, cpu_busy / 10000, cpu_total / 10000);
-		plugin_dispatch_values ("cpu", &vl);
+		DEBUG("%s/netapp-%s/cpu: busy: %"PRIu64" - idle: %"PRIu64, host->name, instance, cpu_busy / 10000, cpu_total / 10000);
+		plugin_dispatch_values (&vl);
 
 //		values[0].gauge = 100.0 - (double) (cpu_busy - perf->last_cpu_busy) / (cpu_total - perf->last_cpu_total) * 100;
 		values[0].counter = (cpu_total - cpu_busy) / 10000;
@@ -625,9 +645,10 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
 		sstrncpy(vl.host, host->name, sizeof(vl.host));
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
+		sstrncpy(vl.type, "cpu", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "idle", sizeof(vl.plugin_instance));
 //		if (perf->last_cpu_busy && perf->last_cpu_total) plugin_dispatch_values ("cpu", &vl);
-		plugin_dispatch_values ("cpu", &vl);
+		plugin_dispatch_values (&vl);
 
 		perf->last_cpu_busy = cpu_busy;
 		perf->last_cpu_total = cpu_total;
