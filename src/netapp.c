@@ -451,79 +451,98 @@ static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *da
 				worst_disk->perf_data.last_disk_busy_percent, timestamp);
 } /* void collect_perf_disk_data */
 
-static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) {
+static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	na_elem_t *inst, *sis;
 	volume_t *volume;
 	volume_data_t *volume_data = data;
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
 
 	out = na_elem_child(out, "volumes");
 	na_elem_iter_t inst_iter = na_child_iterator(out);
 	for (inst = na_iterator_next(&inst_iter); inst; inst = na_iterator_next(&inst_iter)) {
-		uint64_t size_free = 0, size_used = 0, snap_reserved = 0, sis_saved = 0;
+		uint64_t size_free = 0, size_used = 0, snap_reserved = 0;
+		const char *sis_state;
+		uint64_t sis_saved_reported;
+		uint64_t sis_saved_percent;
+		uint64_t sis_saved;
+
 		volume = get_volume(host, na_child_get_string(inst, "name"));
-		if (!(volume->volume_data.flags & VOLUME_INIT)) volume->volume_data.flags = volume_data->flags;
-		if (!(volume->volume_data.flags & VOLUME_DF)) continue;
-		size_free = na_child_get_uint64(inst, "size-available", 0);
-		size_used = na_child_get_uint64(inst, "size-used", 0);
-		snap_reserved = na_child_get_uint64(inst, "snapshot-blocks-reserved", 0) * 1024;
+		if (volume == NULL)
+			continue;
 
-		vl.values_len = 1;
-		vl.values = values;
-		vl.time = time(0);
-		vl.interval = interval_g;
-		sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-		sstrncpy(vl.host, host->name, sizeof(vl.host));
-		sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
-		sstrncpy(vl.type, "df_complex", sizeof(vl.type));
+		if (!(volume->volume_data.flags & VOLUME_INIT))
+			volume->volume_data.flags = volume_data->flags;
 
-		values[0].gauge = size_used;
-		sstrncpy(vl.type_instance, "used", sizeof(vl.type_instance));
-		DEBUG("%s/netapp-%s/df_complex-used: %"PRIu64, host->name, volume->name, size_used);
-		plugin_dispatch_values (&vl);
+		if (!(volume->volume_data.flags & VOLUME_DF))
+			continue;
 
-		values[0].gauge = size_free;
-		sstrncpy(vl.type_instance, "free", sizeof(vl.type_instance));
-		DEBUG("%s/netapp-%s/df_complex-free: %"PRIu64, host->name, volume->name, size_free);
-		plugin_dispatch_values (&vl);
+		/* 2^4 exa-bytes? This will take a while ;) */
+		size_free = na_child_get_uint64(inst, "size-available", UINT64_MAX);
+		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
+		snap_reserved = na_child_get_uint64(inst, "snapshot-blocks-reserved", UINT64_MAX);
 
-		if (snap_reserved) {
-			values[0].gauge = snap_reserved;
-			sstrncpy(vl.type_instance, "snap_reserved", sizeof(vl.type_instance));
-			DEBUG("%s/netapp-%s/df_complex-snap_reserved: %"PRIu64, host->name, volume->name, snap_reserved);
-			plugin_dispatch_values (&vl);
-		}
+		if (size_free != UINT64_MAX)
+			submit_double (host->name, volume->name, "df_complex", "used",
+					(double) size_used, /* time = */ 0);
+
+		if (size_free != UINT64_MAX)
+			submit_double (host->name, volume->name, "df_complex", "free",
+					(double) size_free, /* time = */ 0);
+
+		if (snap_reserved != UINT64_MAX)
+			/* 1 block == 1024 bytes  as per API docs */
+			submit_double (host->name, volume->name, "df_complex", "snap_reserved",
+					(double) (1024 * snap_reserved), /* time = */ 0);
 
 		sis = na_elem_child(inst, "sis");
-		if (sis && !strcmp(na_child_get_string(sis, "state"), "enabled")) {
-			uint64_t sis_saved_reported = na_child_get_uint64(sis, "size-saved", 0), sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", 0);
-			/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
-			if (sis_saved_reported >> 32) {
-				/* In case they ever fix this bug. */
-				sis_saved = sis_saved_reported;
+		if (sis == NULL)
+			continue;
+
+		sis_state = na_child_get_string(sis, "state");
+		if ((sis_state == NULL)
+				|| (strcmp ("enabled", sis_state) != 0))
+			continue;
+
+		sis_saved_reported = na_child_get_uint64(sis, "size-saved", UINT64_MAX);
+		sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
+
+		/* sis_saved_percent == 100 leads to division by zero below */
+		if ((sis_saved_reported == UINT64_MAX) || (sis_saved_percent > 99))
+			continue;
+
+		/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
+		if ((sis_saved_reported >> 32) != 0) {
+			/* In case they ever fix this bug. */
+			sis_saved = sis_saved_reported;
+		} else {
+			/* The "size-saved" value is a 32bit unsigned integer. This is a bug and
+			 * will hopefully be fixed in later versions. To work around the bug, try
+			 * to figure out how often the 32bit integer wrapped around by using the
+			 * "percentage-saved" value. Because the percentage is in the range
+			 * [0-100], this should work as long as the saved space does not exceed
+			 * 400 GBytes. */
+			uint64_t real_saved = sis_saved_percent * size_used / (100 - sis_saved_percent);
+			uint64_t overflow_guess = real_saved >> 32;
+			uint64_t guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
+			uint64_t guess2 = (overflow_guess << 32) + sis_saved_reported;
+			uint64_t guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
+
+			if (real_saved < guess2) {
+				if ((real_saved - guess1) < (guess2 - real_saved))
+					sis_saved = guess1;
+				else
+					sis_saved = guess2;
 			} else {
-				uint64_t real_saved = sis_saved_percent * size_used / (100 - sis_saved_percent);
-				uint64_t overflow_guess = real_saved >> 32;
-				uint64_t guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
-				uint64_t guess2 = (overflow_guess << 32) + sis_saved_reported;
-				uint64_t guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
-				
-				if (real_saved < guess2) {
-					if (real_saved - guess1 < guess2 - real_saved) sis_saved = guess1;
-					else sis_saved = guess2;
-				} else {
-					if (real_saved - guess2 < guess3 - real_saved) sis_saved = guess2;
-					else sis_saved = guess3;
-				}
+				if ((real_saved - guess2) < (guess3 - real_saved))
+					sis_saved = guess2;
+				else
+					sis_saved = guess3;
 			}
-			values[0].gauge = sis_saved;
-			sstrncpy(vl.type_instance, "sis_saved", sizeof(vl.type_instance));
-			DEBUG("%s/netapp-%s/df_complex-sis_saved: %"PRIu64, host->name, volume->name, sis_saved);
-			plugin_dispatch_values (&vl);
 		}
+
+		submit_double (host->name, volume->name, "df_complex", "sis_saved",
+				(double) sis_saved, /* time = */ 0);
 	}
-}
+} /* }}} void collect_volume_data */
 
 static void collect_perf_volume_data(host_config_t *host, na_elem_t *out, void *data) {
 	perf_volume_data_t *perf = data;
