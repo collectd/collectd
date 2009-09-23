@@ -1644,330 +1644,392 @@ or SQL threads are not running.
 
 =back
 
-   Plugin "netapp"
-       The netapp plugin can collect various performance and capacity
-       informations from a netapp filer using the NetApp API.
+=head2 Plugin C<netapp>
 
-       To collect these data collectd will log in to the netapp via http(s)
-       and basic http auth.
+The netapp plugin can collect various performance and capacity informations
+from a NetApp filer using the NetApp API.
 
-       !Do not use a regular user for this! Create a special collectd user
-       with just the minimum of capabilities needed. The user only needs
-       the "login-http-admin" capability as well as a few more depending on
-       which data will be collected.
+To collect these data collectd will log in to the NetApp via HTTP(S) and HTTP
+basic authentication.
 
-       Synopsis:
+B<Do not use a regular user for this!> Create a special collectd user with just
+the minimum of capabilities needed. The user only needs the "login-http-admin"
+capability as well as a few more depending on which data will be collected.
+Required capabilities are documented below.
 
-        <Plugin "netapp">
-          <Host "netapp1.example.com">
-           Protocol      https
-           Address       10.0.0.1
-           Port          443
-           Login         "username" "password"
-           Interval      30
-           <GetSystemPerfData>
-           </GetSystemPerfData>
-           <GetWaflPerfData>
-           </GetWaflPerfData>
-           <GetDiskPerfData>
-           </GetDiskPerfData>
-           <GetVolumePerfData>
-           </GetVolumePerfData>
-           <GetVolumeData>
-           </GetVolumeData>
-          </Host>
-        </Plugin>
+=head3 Synopsis
 
-       The netapp plugin accepts the following configuration options:
+ <Plugin "netapp">
+   <Host "netapp1.example.com">
+    Protocol      "https"
+    Address       "10.0.0.1"
+    Port          443
+    Login         "username" "password"
+    Interval      30
+    <GetSystemPerfData>
+    </GetSystemPerfData>
+    <GetWaflPerfData>
+    </GetWaflPerfData>
+    <GetDiskPerfData>
+    </GetDiskPerfData>
+    <GetVolumePerfData>
+    </GetVolumePerfData>
+    <GetVolumeData>
+    </GetVolumeData>
+   </Host>
+ </Plugin>
 
-       Host Name
-           A host block defines one netapp filer. It will appear in collectd
-           with the name you specify here which does not have to be its real
-           name nor its hostname.
+The netapp plugin accepts the following configuration options:
 
-       Protocol
-           The protocol collectd will use to query this host.
+=over 4
 
-           Optional
-           Type: string
-           Default: https
-           Valid options: http, https
+=item B<Host> I<Name>
 
-       Address
-           The hostname or IP address of the host.
+A host block defines one NetApp filer. It will appear in collectd with the name
+you specify here which does not have to be its real name nor its hostname.
 
-           Optional
-           Type: string
-           Default: The hostblock's name.
+=item B<Protocol> B<httpd>|B<http>
 
-       Port
-           The TCP port to connect to on the host.
+The protocol collectd will use to query this host.
 
-           Optional
-           Type: integer
-           Default: 80 for protocol http, 443 for protocol https
+Optional
 
-       Login
-           The username and password to use to login to the netapp.
+Type: string
 
-           Mandatory
-           Type: 2 strings
+Default: https
 
-       Interval
-           TODO
+Valid options: http, https
 
+=item B<Address> I<Address>
 
-       The following options decide what kind of data will be collected. You
-       can either use them as a block and finetune various parameters inside
-       this block, use them as a single statement to just accept all default
-       values, or obmit it to not collect any data.
+The hostname or IP address of the host.
 
-       The following options are valid inside all blocks:
+Optional
 
-       Multiplier
-           The host specific interval between data collections is multiplied
-           by this value for collecting these data.
+Type: string
 
-           Optional
-           Type: integer
-           Default: 1
+Default: The "host" block's name.
 
+=item B<Port> I<Port>
 
-       The GetSystemPerfData Block:
+The TCP port to connect to on the host.
 
-           This will collect various performance data about the whole system.
+Optional
 
-           Note: To get this data the collectd user needs the
-                 "api-perf-object-get-instances" capability.
+Type: integer
 
-           GetCPULoad
-               If you set this option to true the currect CPU usage will be
-               read. This will be the average usage between all CPUs in your
-               netapp without any information about individual CPUs.
+Default: 80 for protocol "http", 443 for protocol "https"
 
-               Note: These are the same values that the netapp CLI command
-                     "sysstat" returns in the "CPU" field.
+=item B<Login> I<User> I<Password>
 
-               Optional
-               Type: boolean
-               Default: true
+The username and password to use to login to the NetApp.
 
-               Result: Two data sources of type "cpu", and type instances
-                       "idle" and "system".
+Mandatory
 
-           GetInterfaces
-               If you set this option to true the currect traffic of the
-               network interfaces will be read. This will be the total traffic
-               over all interfaces of your netapp without any information
-               about individual interfaces.
+Type: 2 strings
 
-               Note: This is the same values that the netapp CLI command
-                     "sysstat" returns in the "Net kB/s" field.
- Or is it?
+=item B<Interval> I<Interval>
 
-               Optional
-               Type: boolean
-               Default: true
+B<TODO>
 
-               Result: One data source of type "if_octects".
+=back
 
-           GetDiskIO
-               If you set this option to true the currect IO throughput will be
-               read. This will be the total IO of your netapp without any
-               information about individual disks, volumes or aggregates.
+The following options decide what kind of data will be collected. You can
+either use them as a block and fine tune various parameters inside this block,
+use them as a single statement to just accept all default values, or omit it to
+not collect any data.
 
-               Note: This is the same values that the netapp CLI command
-                     "sysstat" returns in the "Disk kB/s" field.
+The following options are valid inside all blocks:
 
-               Optional
-               Type: boolean
-               Default: true
+=over 4
 
-               Result: One data source of type "disk_octets".
+=item B<Multiplier> I<Multiplier>
 
-           GetDiskOps
-               If you set this option to true the currect number of http, nfs,
-               cifs, fcp, iscsi, ... operations will be read. This will be the
-               total number of operations on your netapp without any information
-               about individual volumes or aggregates.
+The host specific interval between data collections is multiplied by this value
+for collecting these data.
 
+Optional
 
-               Note: These are the same values that the netapp CLI command
-                     "sysstat" returns in the "NFS", "CIFS", "HTTP", "FCP" and
-                     "iSCSI" fields.
+Type: integer
 
-               Optional
-               Type: boolean
-               Default: true
+Default: 1
 
-               Result: A variable number of data sources of type
-                       "disk_ops_complex". Each type of operation will result in
-                       one data source with the name of the operation as type
-                       instance.
+=back
 
+=head3 The GetSystemPerfData block
 
-       The GetWaflPerfData block:
+This will collect various performance data about the whole system.
 
-           This will collect various performance data about the WAFL file
-           system. At the moment this just means cache performance.
+B<Note:> To get this data the collectd user needs the
+"api-perf-object-get-instances" capability.
 
-           Note: To get this data the collectd user needs the
-                 "api-perf-object-get-instances" capability.
+=over 4
 
-           Note: The interface to get these values is classified as
-                 "Diagnostics" by netapp. This means that it is not guaranteed
-                 to be stable even between minor releases.
+=item B<GetCPULoad> B<true>|B<false>
 
-           GetNameCache
-               Optional
-               Type: boolean
-               Default: true
+If you set this option to true the current CPU usage will be read. This will be
+the average usage between all CPUs in your NetApp without any information about
+individual CPUs.
 
-               Result: One data source of type "cache_ratio" and type instance
-                       "name_cache_hit".
+B<Note:> These are the same values that the NetApp CLI command "sysstat"
+returns in the "CPU" field.
 
-           GetDirCache
-               Optional
-               Type: boolean
-               Default: true
+Optional
 
-               Result: One data source of type "cache_ratio" and type instance
-                       "find_dir_hit".
+Type: boolean
 
-           GetInodeCache
-               Optional
-               Type: boolean
-               Default: true
+Default: true
 
-               Result: One data source of type "cache_ratio" and type instance
-                       "inode_cache_hit".
+Result: Two value lists of type "cpu", and type instances "idle" and "system".
 
-           GetBufCache
-               Note: This is the same value that the netapp CLI command
-                     "sysstat" returns in the "Cache hit" field.
+=item B<GetInterfaces> B<true>|B<false>
 
-               Optional
-               Type: boolean
-               Default: true
+If you set this option to true the current traffic of the network interfaces
+will be read. This will be the total traffic over all interfaces of your NetApp
+without any information about individual interfaces.
 
-               Result: One data source of type "cache_ratio" and type instance
-                       "buf_hash_hit".
+B<Note:> This is the same values that the NetApp CLI command "sysstat" returns
+in the "Net kB/s" field.
 
+B<Or is it?>
 
-       The GetDiskPerfData block:
+Optional
 
-           This will collect performance data about the individual disks in the
-           netapp.
+Type: boolean
 
-           Note: To get this data the collectd user needs the
-                 "api-perf-object-get-instances" capability.
+Default: true
 
-           GetBusy
-               If you set this option to true the busy time of all disks will be
-               calculated and the value of the busiest disk in the system will
-               be written.
+Result: One value list of type "if_octects".
 
-               Note: This is the same values that the netapp CLI command
-                     "sysstat" returns in the "Disk util" field. Probably.
+=item B<GetDiskIO> B<true>|B<false>
 
-               Optional
-               Type: boolean
-               Default: true
+If you set this option to true the current IO throughput will be read. This
+will be the total IO of your NetApp without any information about individual
+disks, volumes or aggregates.
 
-               Result: One data source of type "percent" and type instance
-                       "disk_busy".
+B<Note:> This is the same values that the NetApp CLI command "sysstat" returns
+in the "DiskE<nbsp>kB/s" field.
 
+Optional
 
-       The GetVolumePerfData block:
+Type: boolean
 
-           This will collect various performance data about the individual
-           volumes.
+Default: true
 
-           All of these options take a list of volumes as parameters. In this
-           case "volume" meas just the name of the volume, without the "/vol/"
-           prefix or anything like that.
-           The special values "-" and "+" are supported. "-" means "don't
-           collect values for any volumes". "+" means "collect values for all
-           volumes, even volumes that are created after collectd was started."
-           Additionally you can prefix a volume name with a "-" sign to exclude
-           this one volume. Eg '"+" "-vol0"' collectes values for all volumes
-           except vol0.
-           The order of the parameters is important. '"-vol0" "+"' doesn't make
-           sense because the "+" overrides the earlier "-vol0".
+Result: One value list of type "disk_octets".
 
-           Note: To get this data the collectd user needs the
-                 "api-perf-object-get-instances" capability.
+=item B<GetDiskOps> B<true>|B<false>
 
-           GetIO
-               The currect IO throughput will be read for every volume specified
-               here.
+If you set this option to true the current number of HTTP, NFS, CIFS, FCP,
+iSCSI, etc. operations will be read. This will be the total number of
+operations on your NetApp without any information about individual volumes or
+aggregates.
 
-               Optional
-               Type: list of strings
-               Default: "+"
+B<Note:> These are the same values that the NetApp CLI command "sysstat"
+returns in the "NFS", "CIFS", "HTTP", "FCP" and "iSCSI" fields.
 
-               Result: Data sources of type "disk_octets" and the name of the
-               volume as plugin_instance.
+Optional
 
-           GetOps
-               The currect number of operation will be read for every volume
-               specified here. 
+Type: boolean
 
-               Optional
-               Type: list of strings
-               Default: "+"
+Default: true
 
-               Result: Data sources of type "disk_ops" and the name of the
-               volume as plugin_instance.
+Result: A variable number of value lists of type "disk_ops_complex". Each type
+of operation will result in one value list with the name of the operation as
+type instance.
 
-           GetLatency
-               The currect latency for volume access in microseconds will be
-               read for every volume specified here. 
+=back
 
-               Optional
-               Type: list of strings
-               Default: "+"
+=head3 The GetWaflPerfData block
 
-               Result: Data sources of type "disk_latency" and the name of the
-               volume as plugin_instance.
+This will collect various performance data about the WAFL file system. At the
+moment this just means cache performance.
 
+B<Note:> To get this data the collectd user needs the
+"api-perf-object-get-instances" capability.
 
-       The GetVolumeData block:
+B<Note:> The interface to get these values is classified as "Diagnostics" by
+NetApp. This means that it is not guaranteed to be stable even between minor
+releases.
 
-           This will collect capacity data about the individual volumes.
+=over 4
 
-           All of these options take a list of volumes as parameters, just like
-           GetVolumePerfData options.
+=item B<GetNameCache> B<true>|B<false>
 
-           Note: To get this data the collectd user needs the
-                 "api-volume-list-info" capability.
+Optional
 
-           GetDiskUtil
-               The current capacity of the volume will be collected. This will
-               result in two to four data sources, depending on the
-               configuration of the volume. All data sources are of type
-               "df_complex" with the name of the volume as plugin_instance.
+Type: boolean
 
-               There will be type_instances "used" and "free" for the number
-               of used and available bytes on the volume.
-               If the volume has some space reserved for snapshots, a
-               type_instance "snap_reserved" will be available.
-               If the volume has SIS enabled, a type_instance "sis_saved" will
-               be available. This is the number of bytes saved by the SIS
-               feature.
+Default: true
 
-               Note: The current NetApp API has a bug that results in this value
-                     being reported as a 32 bit number. This plugin tries to
-                     guess the correct number which works most of the time.
-                     If you see strange values here, bug NetApp support to fix
-                     this.
+Result: One value list of type "cache_ratio" and type instance
+"name_cache_hit".
 
-               Optional
-               Type: list of strings
-               Default: "+"
+=item B<GetDirCache> B<true>|B<false>
 
-           GetSnapData
- TODO
+Optional
+
+Type: boolean
+
+Default: true
+
+Result: One value list of type "cache_ratio" and type instance "find_dir_hit".
+
+=item B<GetInodeCache> B<true>|B<false>
+
+Optional
+
+Type: boolean
+
+Default: true
+
+Result: One value list of type "cache_ratio" and type instance
+"inode_cache_hit".
+
+=item B<GetBufCache> B<true>|B<false>
+
+B<Note:> This is the same value that the NetApp CLI command "sysstat" returns
+in the "Cache hit" field.
+
+Optional
+
+Type: boolean
+
+Default: true
+
+Result: One value list of type "cache_ratio" and type instance "buf_hash_hit".
+
+=back
+
+=head3 The GetDiskPerfData block
+
+This will collect performance data about the individual disks in the NetApp.
+
+B<Note:> To get this data the collectd user needs the
+"api-perf-object-get-instances" capability.
+
+=over 4
+
+=item B<GetBusy> B<true>|B<false>
+
+If you set this option to true the busy time of all disks will be calculated
+and the value of the busiest disk in the system will be written.
+
+B<Note:> This is the same values that the NetApp CLI command "sysstat" returns
+in the "Disk util" field. Probably.
+
+Optional
+
+Type: boolean
+
+Default: true
+
+Result: One value list of type "percent" and type instance "disk_busy".
+
+=back
+
+=head3 The GetVolumePerfData block
+
+This will collect various performance data about the individual volumes.
+
+All of these options take a list of volumes as parameters. In this case
+"volume" means just the name of the volume, without the "/vol/" prefix or
+anything like that.
+
+The special values "-" and "+" are supported. "-" means "don't collect values
+for any volumes". "+" means "collect values for all volumes, even volumes that
+are created after collectd was started." Additionally you can prefix a volume
+name with a "-" sign to exclude this one volume. Eg '"+" "-vol0"' collectes
+values for all volumes except vol0.  The order of the parameters is important.
+'"-vol0" "+"' doesn't make sense because the "+" overrides the earlier "-vol0".
+
+B<Note:> To get this data the collectd user needs the
+"api-perf-object-get-instances" capability.
+
+=over 4
+
+=item B<GetIO> I<Volume> [I<Volume> ...]
+The current IO throughput will be read for every volume specified here.
+
+Optional
+
+Type: list of strings
+
+Default: "+"
+
+Result: Data sources of type "disk_octets" and the name of the volume as
+plugin_instance.
+
+=item B<GetOps> I<Volume> [I<Volume> ...]
+
+The current number of operation will be read for every volume specified here. 
+
+Optional
+
+Type: list of strings
+
+Default: "+"
+
+Result: Data sources of type "disk_ops" and the name of the volume as
+plugin_instance.
+
+=item B<GetLatency> I<Volume> [I<Volume> ...]
+
+The current latency for volume access in microseconds will be read for every
+volume specified here. 
+
+Optional
+
+Type: list of strings
+
+Default: "+"
+
+Result: Data sources of type "disk_latency" and the name of the volume as
+plugin_instance.
+
+=back
+
+=head3 The GetVolumeData block
+
+This will collect capacity data about the individual volumes.
+
+All of these options take a list of volumes as parameters, just like the
+GetVolumePerfData options.
+
+B<Note:> To get this data the collectd user needs the "api-volume-list-info"
+capability.
+
+=over 4
+
+=item B<GetDiskUtil>
+
+The current capacity of the volume will be collected. This will result in two
+to four value lists, depending on the configuration of the volume. All data
+sources are of type "df_complex" with the name of the volume as
+plugin_instance.
+
+There will be type_instances "used" and "free" for the number of used and
+available bytes on the volume.  If the volume has some space reserved for
+snapshots, a type_instance "snap_reserved" will be available.  If the volume
+has SIS enabled, a type_instance "sis_saved" will be available. This is the
+number of bytes saved by the SIS feature.
+
+B<Note:> The current NetApp API has a bug that results in this value being
+reported as a 32E<nbsp>bit number. This plugin tries to guess the correct
+number which works most of the time.  If you see strange values here, bug
+NetApp support to fix this.
+
+Optional
+
+Type: list of strings
+
+Default: "+"
+
+=item B<GetSnapData>
+
+B<TODO>
+
+=back
 
 =head2 Plugin C<netlink>
 
