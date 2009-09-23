@@ -176,9 +176,9 @@ static volume_t *get_volume(host_config_t *host, const char *name) {
 	}
 	v = malloc(sizeof(*v));
 	v->name = strdup(name);
-//	v->name = malloc(strlen(name) + 5);
-//	strcpy(v->name, "vol-");
-//	strcpy(v->name + 4, name);
+	/* v->name = malloc(strlen(name) + 5); */
+	/* strcpy(v->name, "vol-"); */
+	/* strcpy(v->name + 4, name); */
 	v->perf_data.flags = 0;
 	v->volume_data.flags = 0;
 	v->next = host->volumes;
@@ -195,9 +195,9 @@ static disk_t *get_disk(host_config_t *host, const char *name) {
 	v = malloc(sizeof(*v));
 	*v = init;
 	v->name = strdup(name);
-//	v->name = malloc(strlen(name) + 6);
-//	strcpy(v->name, "disk-");
-//	strcpy(v->name + 5, name);
+	/* v->name = malloc(strlen(name) + 6); */
+	/* strcpy(v->name, "disk-"); */
+	/* strcpy(v->name + 5, name); */
 	v->next = host->disks;
 	host->disks = v;
 	return v;
@@ -620,7 +620,7 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		plugin_dispatch_values (&vl);
 	}
 	if ((perf->flags & PERF_SYSTEM_CPU) && cpu_busy && cpu_total) {
-//		values[0].gauge = (double) (cpu_busy - perf->last_cpu_busy) / (cpu_total - perf->last_cpu_total) * 100;
+		/* values[0].gauge = (double) (cpu_busy - perf->last_cpu_busy) / (cpu_total - perf->last_cpu_total) * 100; */
 		values[0].counter = cpu_busy / 10000;
 		vl.values = values;
 		vl.values_len = 1;
@@ -631,12 +631,12 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
 		sstrncpy(vl.type, "cpu", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "system", sizeof(vl.plugin_instance));
-//		if (perf->last_cpu_busy && perf->last_cpu_total) printf("CPU: busy: %lf - idle: %lf\n", values[0].gauge, 100.0 - values[0].gauge);
-//		if (perf->last_cpu_busy && perf->last_cpu_total) plugin_dispatch_values ("cpu", &vl);
+		/* if (perf->last_cpu_busy && perf->last_cpu_total) printf("CPU: busy: %lf - idle: %lf\n", values[0].gauge, 100.0 - values[0].gauge); */
+		/* if (perf->last_cpu_busy && perf->last_cpu_total) plugin_dispatch_values ("cpu", &vl); */
 		DEBUG("%s/netapp-%s/cpu: busy: %"PRIu64" - idle: %"PRIu64, host->name, instance, cpu_busy / 10000, cpu_total / 10000);
 		plugin_dispatch_values (&vl);
 
-//		values[0].gauge = 100.0 - (double) (cpu_busy - perf->last_cpu_busy) / (cpu_total - perf->last_cpu_total) * 100;
+		/* values[0].gauge = 100.0 - (double) (cpu_busy - perf->last_cpu_busy) / (cpu_total - perf->last_cpu_total) * 100; */
 		values[0].counter = (cpu_total - cpu_busy) / 10000;
 		vl.values = values;
 		vl.values_len = 1;
@@ -647,7 +647,7 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
 		sstrncpy(vl.type, "cpu", sizeof(vl.type));
 		sstrncpy(vl.type_instance, "idle", sizeof(vl.plugin_instance));
-//		if (perf->last_cpu_busy && perf->last_cpu_total) plugin_dispatch_values ("cpu", &vl);
+		/* if (perf->last_cpu_busy && perf->last_cpu_total) plugin_dispatch_values ("cpu", &vl); */
 		plugin_dispatch_values (&vl);
 
 		perf->last_cpu_busy = cpu_busy;
@@ -712,8 +712,8 @@ int config_init() {
 				na_child_add_string(e, "foo", "buf_hash_miss");
 				na_child_add_string(e, "foo", "inode_cache_hit");
 				na_child_add_string(e, "foo", "inode_cache_miss");
-//				na_child_add_string(e, "foo", "inode_eject_time");
-//				na_child_add_string(e, "foo", "buf_eject_time");
+				/* na_child_add_string(e, "foo", "inode_eject_time"); */
+				/* na_child_add_string(e, "foo", "buf_eject_time"); */
 				na_child_add(service->query, e);
 			} else if (service->handler == collect_perf_disk_data) {
 				service->query = na_elem_new("perf-object-get-instances");
@@ -724,9 +724,9 @@ int config_init() {
 				na_child_add(service->query, e);
 			} else if (service->handler == collect_volume_data) {
 				service->query = na_elem_new("volume-list-info");
-//				na_child_add_string(service->query, "objectname", "volume");
-//			} else if (service->handler == collect_snapshot_data) {
-//				service->query = na_elem_new("snapshot-list-info");
+				/* na_child_add_string(service->query, "objectname", "volume"); */
+				/* } else if (service->handler == collect_snapshot_data) { */
+				/* service->query = na_elem_new("snapshot-list-info"); */
 			}
 		}
 	}
@@ -830,7 +830,7 @@ static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci)
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
-//		if (!item || !item->key || !*item->key) continue;
+		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
 				WARNING("netapp plugin: \"Multiplier\" of host %s service GetVolPerfData needs exactly one positive integer argument.", host->name);
@@ -877,7 +877,7 @@ static void build_volume_config(host_config_t *host, oconfig_item_t *ci) {
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
-//		if (!item || !item->key || !*item->key) continue;
+		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
 				WARNING("netapp plugin: \"Multiplier\" of host %s service GetVolPerfData needs exactly one positive integer argument.", host->name);
@@ -916,7 +916,7 @@ static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) {
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
-//		if (!item || !item->key || !*item->key) continue;
+		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
 				WARNING("netapp plugin: \"Multiplier\" of host %s service GetWaflPerfData needs exactly one positive integer argument.", ci->values[0].value.string);
@@ -956,7 +956,7 @@ static void build_perf_wafl_config(host_config_t *temp, oconfig_item_t *ci) {
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
-//		if (!item || !item->key || !*item->key) continue;
+		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
 				WARNING("netapp plugin: \"Multiplier\" of host %s service GetWaflPerfData needs exactly one positive integer argument.", ci->values[0].value.string);
@@ -1008,7 +1008,7 @@ static void build_perf_sys_config(host_config_t *temp, oconfig_item_t *ci, const
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
-//		if (!item || !item->key || !*item->key) continue;
+		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
 				WARNING("netapp plugin: \"Multiplier\" of host %s service GetSystemPerfData needs exactly one positive integer argument.", ci->values[0].value.string);
@@ -1058,7 +1058,7 @@ static host_config_t *build_host_config(const oconfig_item_t *ci, const host_con
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
 
-//		if (!item || !item->key || !*item->key) continue;
+		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Address")) {
 			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_STRING)) {
 				WARNING("netapp plugin: \"Name\" needs exactly one string argument. Ignoring host block \"%s\".", ci->values[0].value.string);
@@ -1141,7 +1141,7 @@ static int build_config (oconfig_item_t *ci) {
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
 
-//		if (!item || !item->key || !*item->key) continue;
+		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Host")) {
 			build_host_config(item, &default_host, &default_service);
 		} else {
@@ -1166,7 +1166,7 @@ static int netapp_read() {
 				ERROR("netapp plugin: Error %d from host %s: %s", netapp_errno, host->name, na_results_reason(out));
 				na_elem_free(out);
 				if (netapp_errno == EIO || netapp_errno == ETIMEDOUT) {
-					// Network problems. Just give up on all other services on this host.
+					/* Network problems. Just give up on all other services on this host. */
 					break;
 				}
 				continue;
