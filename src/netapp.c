@@ -328,45 +328,49 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 
 		name = na_child_get_string(counter, "name");
 		if (!strcmp(name, "name_cache_hit"))
-			name_cache_hit = na_child_get_uint64(counter, "value", 0);
+			name_cache_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else if (!strcmp(name, "name_cache_miss"))
-			name_cache_miss = na_child_get_uint64(counter, "value", 0);
+			name_cache_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else if (!strcmp(name, "find_dir_hit"))
-			find_dir_hit = na_child_get_uint64(counter, "value", 0);
+			find_dir_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else if (!strcmp(name, "find_dir_miss"))
-			find_dir_miss = na_child_get_uint64(counter, "value", 0);
+			find_dir_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else if (!strcmp(name, "buf_hash_hit"))
-			buf_hash_hit = na_child_get_uint64(counter, "value", 0);
+			buf_hash_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else if (!strcmp(name, "buf_hash_miss"))
-			buf_hash_miss = na_child_get_uint64(counter, "value", 0);
+			buf_hash_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else if (!strcmp(name, "inode_cache_hit"))
-			inode_cache_hit = na_child_get_uint64(counter, "value", 0);
+			inode_cache_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else if (!strcmp(name, "inode_cache_miss"))
-			inode_cache_miss = na_child_get_uint64(counter, "value", 0);
+			inode_cache_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
 		else
 			INFO ("netapp plugin: Found unexpected child: %s", name);
 	}
 
 	/* Submit requested counters */
-	if (wafl->flags & PERF_WAFL_NAME_CACHE)
+	if ((wafl->flags & PERF_WAFL_NAME_CACHE)
+			&& (name_cache_hit != UINT64_MAX) && (name_cache_miss != UINT64_MAX))
 		submit_cache_ratio (host->name, plugin_inst, "name_cache_hit",
 				name_cache_hit, name_cache_miss,
 				&wafl->last_name_cache_hit, &wafl->last_name_cache_miss,
 				timestamp);
 
-	if (wafl->flags & PERF_WAFL_DIR_CACHE)
+	if ((wafl->flags & PERF_WAFL_DIR_CACHE)
+			&& (find_dir_hit != UINT64_MAX) && (find_dir_miss != UINT64_MAX))
 		submit_cache_ratio (host->name, plugin_inst, "find_dir_hit",
 				find_dir_hit, find_dir_miss,
 				&wafl->last_find_dir_hit, &wafl->last_find_dir_miss,
 				timestamp);
 
-	if (wafl->flags & PERF_WAFL_BUF_CACHE)
+	if ((wafl->flags & PERF_WAFL_BUF_CACHE)
+			&& (buf_hash_hit != UINT64_MAX) && (buf_hash_miss != UINT64_MAX))
 		submit_cache_ratio (host->name, plugin_inst, "buf_hash_hit",
 				buf_hash_hit, buf_hash_miss,
 				&wafl->last_buf_hash_hit, &wafl->last_buf_hash_miss,
 				timestamp);
 
-	if (wafl->flags & PERF_WAFL_INODE_CACHE)
+	if ((wafl->flags & PERF_WAFL_INODE_CACHE)
+			&& (inode_cache_hit != UINT64_MAX) && (inode_cache_miss != UINT64_MAX))
 		submit_cache_ratio (host->name, plugin_inst, "inode_cache_hit",
 				inode_cache_hit, inode_cache_miss,
 				&wafl->last_inode_cache_hit, &wafl->last_inode_cache_miss,
@@ -401,12 +405,12 @@ static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *da
 				continue;
 
 			if (strcmp(name, "disk_busy") == 0)
-				disk_busy = na_child_get_uint64(counter, "value", 0);
+				disk_busy = na_child_get_uint64(counter, "value", UINT64_MAX);
 			else if (strcmp(name, "base_for_disk_busy") == 0)
-				base_for_disk_busy = na_child_get_uint64(counter, "value", 0);
+				base_for_disk_busy = na_child_get_uint64(counter, "value", UINT64_MAX);
 		}
 
-		if ((disk_busy == 0) || (base_for_disk_busy == 0))
+		if ((disk_busy == UINT64_MAX) || (base_for_disk_busy == UINT64_MAX))
 		{
 			disk->perf_data.last_disk_busy = 0;
 			disk->perf_data.last_base_for_disk_busy = 0;
