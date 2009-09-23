@@ -3858,6 +3858,7 @@ AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
+AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
 AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
@@ -4160,6 +4161,7 @@ Configuration:
     memory  . . . . . . . $enable_memory
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
+    netapp  . . . . . . . $enable_netapp
     netlink . . . . . . . $enable_netlink
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs

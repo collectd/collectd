@@ -570,6 +570,16 @@ endif
 collectd_DEPENDENCIES += mysql.la
 endif
 
+if BUILD_PLUGIN_NETAPP
+pkglib_LTLIBRARIES += netapp.la
+netapp_la_SOURCES = netapp.c
+netapp_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBNETAPP_CPPFLAGS)
+netapp_la_LDFLAGS = -module -avoid-version $(LIBNETAPP_LDFLAGS)
+netapp_la_LIBADD = $(LIBNETAPP_LIBS)
+collectd_LDADD += "-dlopen" netapp.la
+collectd_DEPENDENCIES += netapp.la
+endif
+
 if BUILD_PLUGIN_NETLINK
 pkglib_LTLIBRARIES += netlink.la
 netlink_la_SOURCES = netlink.c
