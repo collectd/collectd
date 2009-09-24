@@ -211,6 +211,11 @@ struct host_config_s {
 
 static host_config_t *host_config;
 
+/*
+ * Auxiliary functions
+ *
+ * Used to look up volumes and disks or to handle flags.
+ */
 static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
 		uint32_t vol_usage_flags, uint32_t vol_perf_flags)
 {
@@ -290,6 +295,37 @@ static disk_t *get_disk(host_config_t *host, const char *name) /* {{{ */
 	return v;
 } /* }}} disk_t *get_disk */
 
+static void set_global_perf_vol_flag(const host_config_t *host, /* {{{ */
+		uint32_t flag, _Bool set)
+{
+	volume_t *v;
+	
+	for (v = host->volumes; v; v = v->next) {
+		if (set)
+			v->perf_data.flags |= flag;
+		else /* if (!set) */
+			v->perf_data.flags &= ~flag;
+	}
+} /* }}} void set_global_perf_vol_flag */
+
+static void set_global_vol_flag(const host_config_t *host, /* {{{ */
+		uint32_t flag, _Bool set) {
+	volume_t *v;
+	
+	for (v = host->volumes; v; v = v->next) {
+		if (set)
+			v->cfg_volume_usage.flags |= flag;
+		else /* if (!set) */
+			v->cfg_volume_usage.flags &= ~flag;
+	}
+} /* }}} void set_global_vol_flag */
+
+/*
+ * Various submit functions.
+ *
+ * They all eventually call "submit_values" which creates a value_list_t and
+ * dispatches it to the daemon.
+ */
 static int submit_values (const char *host, /* {{{ */
 		const char *plugin_inst,
 		const char *type, const char *type_inst,
@@ -366,6 +402,8 @@ static int submit_double (const char *host, const char *plugin_inst, /* {{{ */
 				&v, 1, timestamp));
 } /* }}} int submit_uint64 */
 
+/* Calculate hit ratio from old and new counters and submit the resulting
+ * percentage. Used by "submit_wafl_data". */
 static int submit_cache_ratio (const char *host, /* {{{ */
 		const char *plugin_inst,
 		const char *type_inst,
@@ -393,6 +431,7 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 				&v, 1, timestamp));
 } /* }}} int submit_cache_ratio */
 
+/* Submits all the caches used by WAFL. Uses "submit_cache_ratio".
 static int submit_wafl_data (const host_config_t *host, const char *instance, /* {{{ */
 		data_wafl_t *old_data, const data_wafl_t *new_data)
 {
@@ -445,6 +484,8 @@ static int submit_wafl_data (const host_config_t *host, const char *instance, /*
 	return (0);
 } /* }}} int submit_wafl_data */
 
+/* Submits volume performance data to the daemon, taking care to honor and
+ * update flags appropriately. */
 static int submit_volume_perf_data (const host_config_t *host, /* {{{ */
 		volume_t *volume,
 		const data_volume_perf_t *new_data)
@@ -527,6 +568,13 @@ static int submit_volume_perf_data (const host_config_t *host, /* {{{ */
 	return (0);
 } /* }}} int submit_volume_perf_data */
 
+/* 
+ * Query functions
+ *
+ * These functions are called with appropriate data returned by the libnetapp
+ * interface which is parsed and submitted with the above functions.
+ */
+/* Data corresponding to <GetWaflPerfData /> */
 static void query_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	data_wafl_t *wafl = data;
 	data_wafl_t perf_data;
@@ -592,6 +640,7 @@ static void query_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /
 	submit_wafl_data (host, plugin_inst, wafl, &perf_data);
 } /* }}} void query_wafl_data */
 
+/* Data corresponding to <GetDiskPerfData /> */
 static void query_submit_disk_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	cfg_disk_t *cfg_disk = data;
 	time_t timestamp;
@@ -681,6 +730,7 @@ static void query_submit_disk_data(host_config_t *host, na_elem_t *out, void *da
 				worst_disk->disk_busy_percent, timestamp);
 } /* }}} void query_submit_disk_data */
 
+/* Data corresponding to <GetVolumeData /> */
 static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	na_elem_t *inst;
 	volume_t *volume;
@@ -783,6 +833,7 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 	}
 } /* }}} void collect_volume_data */
 
+/* Data corresponding to <GetVolumePerfData /> */
 static void query_volume_perf_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	cfg_volume_perf_t *cfg_volume_perf = data;
 	time_t timestamp;
@@ -842,6 +893,7 @@ static void query_volume_perf_data(host_config_t *host, na_elem_t *out, void *da
 	} /* for (volume) */
 } /* }}} void query_volume_perf_data */
 
+/* Data corresponding to <GetSystemPerfData /> */
 static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	counter_t disk_read = 0, disk_written = 0;
 	counter_t net_recv = 0, net_sent = 0;
@@ -915,84 +967,9 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 	}
 } /* }}} void collect_perf_system_data */
 
-static int cna_init(void) { /* {{{ */
-	char err[256];
-	na_elem_t *e;
-	host_config_t *host;
-	cfg_service_t *service;
-	
-	if (!host_config) {
-		WARNING("netapp plugin: Plugin loaded but no hosts defined.");
-		return 1;
-	}
-
-	if (!na_startup(err, sizeof(err))) {
-		ERROR("netapp plugin: Error initializing netapp API: %s", err);
-		return 1;
-	}
-
-	for (host = host_config; host; host = host->next) {
-		host->srv = na_server_open(host->host, 1, 1); 
-		na_server_set_transport_type(host->srv, host->protocol, 0);
-		na_server_set_port(host->srv, host->port);
-		na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
-		na_server_adminuser(host->srv, host->username, host->password);
-		na_server_set_timeout(host->srv, 5);
-		for (service = host->services; service; service = service->next) {
-			service->interval = host->interval * service->multiplier;
-			if (service->handler == collect_perf_system_data) {
-				service->query = na_elem_new("perf-object-get-instances");
-				na_child_add_string(service->query, "objectname", "system");
-			} else if (service->handler == query_volume_perf_data) {
-				service->query = na_elem_new("perf-object-get-instances");
-				na_child_add_string(service->query, "objectname", "volume");
-/*				e = na_elem_new("instances");
-				na_child_add_string(e, "foo", "system");
-				na_child_add(root, e);*/
-				e = na_elem_new("counters");
-				na_child_add_string(e, "foo", "read_ops");
-				na_child_add_string(e, "foo", "write_ops");
-				na_child_add_string(e, "foo", "read_data");
-				na_child_add_string(e, "foo", "write_data");
-				na_child_add_string(e, "foo", "read_latency");
-				na_child_add_string(e, "foo", "write_latency");
-				na_child_add(service->query, e);
-			} else if (service->handler == query_wafl_data) {
-				service->query = na_elem_new("perf-object-get-instances");
-				na_child_add_string(service->query, "objectname", "wafl");
-/*				e = na_elem_new("instances");
-				na_child_add_string(e, "foo", "system");
-				na_child_add(root, e);*/
-				e = na_elem_new("counters");
-				na_child_add_string(e, "foo", "name_cache_hit");
-				na_child_add_string(e, "foo", "name_cache_miss");
-				na_child_add_string(e, "foo", "find_dir_hit");
-				na_child_add_string(e, "foo", "find_dir_miss");
-				na_child_add_string(e, "foo", "buf_hash_hit");
-				na_child_add_string(e, "foo", "buf_hash_miss");
-				na_child_add_string(e, "foo", "inode_cache_hit");
-				na_child_add_string(e, "foo", "inode_cache_miss");
-				/* na_child_add_string(e, "foo", "inode_eject_time"); */
-				/* na_child_add_string(e, "foo", "buf_eject_time"); */
-				na_child_add(service->query, e);
-			} else if (service->handler == query_submit_disk_data) {
-				service->query = na_elem_new("perf-object-get-instances");
-				na_child_add_string(service->query, "objectname", "disk");
-				e = na_elem_new("counters");
-				na_child_add_string(e, "foo", "disk_busy");
-				na_child_add_string(e, "foo", "base_for_disk_busy");
-				na_child_add(service->query, e);
-			} else if (service->handler == collect_volume_data) {
-				service->query = na_elem_new("volume-list-info");
-				/* na_child_add_string(service->query, "objectname", "volume"); */
-				/* } else if (service->handler == collect_snapshot_data) { */
-				/* service->query = na_elem_new("snapshot-list-info"); */
-			}
-		}
-	}
-	return 0;
-} /* }}} int cna_init */
-
+/*
+ * Configuration handling
+ */
 static int config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
 		uint32_t *flags, uint32_t flag)
 {
@@ -1041,31 +1018,8 @@ static int config_get_multiplier (const oconfig_item_t *ci, /* {{{ */
 	return (0);
 } /* }}} int config_get_multiplier */
 
-static void set_global_perf_vol_flag(const host_config_t *host, /* {{{ */
-		uint32_t flag, _Bool set)
-{
-	volume_t *v;
-	
-	for (v = host->volumes; v; v = v->next) {
-		if (set)
-			v->perf_data.flags |= flag;
-		else /* if (!set) */
-			v->perf_data.flags &= ~flag;
-	}
-} /* }}} void set_global_perf_vol_flag */
-
-static void set_global_vol_flag(const host_config_t *host, /* {{{ */
-		uint32_t flag, _Bool set) {
-	volume_t *v;
-	
-	for (v = host->volumes; v; v = v->next) {
-		if (set)
-			v->cfg_volume_usage.flags |= flag;
-		else /* if (!set) */
-			v->cfg_volume_usage.flags &= ~flag;
-	}
-} /* }}} void set_global_vol_flag */
-
+/* Handling of the "GetIO", "GetOps" and "GetLatency" options within a
+ * <GetVolumePerfData /> block. */
 static void process_perf_volume_flag (host_config_t *host, /* {{{ */
 		cfg_volume_perf_t *perf_volume, const oconfig_item_t *item,
 		uint32_t flag)
@@ -1113,6 +1067,51 @@ static void process_perf_volume_flag (host_config_t *host, /* {{{ */
 	} /* for (i = 0 .. item->values_num) */
 } /* }}} void process_perf_volume_flag */
 
+/* Corresponds to a <GetDiskPerfData /> block */
+static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci) { /* {{{ */
+	int i, had_io = 0, had_ops = 0, had_latency = 0;
+	cfg_service_t *service;
+	cfg_volume_perf_t *perf_volume;
+	
+	service = malloc(sizeof(*service));
+	service->query = 0;
+	service->handler = query_volume_perf_data;
+	perf_volume = service->data = malloc(sizeof(*perf_volume));
+	perf_volume->flags = CFG_VOLUME_PERF_INIT;
+	service->next = host->services;
+	host->services = service;
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *item = ci->children + i;
+		
+		/* if (!item || !item->key || !*item->key) continue; */
+		if (!strcasecmp(item->key, "Multiplier")) {
+			config_get_multiplier (item, service);
+		} else if (!strcasecmp(item->key, "GetIO")) {
+			had_io = 1;
+			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_IO);
+		} else if (!strcasecmp(item->key, "GetOps")) {
+			had_ops = 1;
+			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_OPS);
+		} else if (!strcasecmp(item->key, "GetLatency")) {
+			had_latency = 1;
+			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_LATENCY);
+		}
+	}
+	if (!had_io) {
+		perf_volume->flags |= CFG_VOLUME_PERF_IO;
+		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_IO, /* set = */ true);
+	}
+	if (!had_ops) {
+		perf_volume->flags |= CFG_VOLUME_PERF_OPS;
+		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_OPS, /* set = */ true);
+	}
+	if (!had_latency) {
+		perf_volume->flags |= CFG_VOLUME_PERF_LATENCY;
+		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_LATENCY, /* set = */ true);
+	}
+} /* }}} void build_perf_vol_config */
+
+/* Handling of the "GetDiskUtil" option within a <GetVolumeData /> block. */
 static void process_volume_flag (host_config_t *host, /* {{{ */
 		cfg_volume_usage_t *cfg_volume_data, const oconfig_item_t *item, uint32_t flag)
 {
@@ -1162,49 +1161,7 @@ static void process_volume_flag (host_config_t *host, /* {{{ */
 	}
 } /* }}} void process_volume_flag */
 
-static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci) { /* {{{ */
-	int i, had_io = 0, had_ops = 0, had_latency = 0;
-	cfg_service_t *service;
-	cfg_volume_perf_t *perf_volume;
-	
-	service = malloc(sizeof(*service));
-	service->query = 0;
-	service->handler = query_volume_perf_data;
-	perf_volume = service->data = malloc(sizeof(*perf_volume));
-	perf_volume->flags = CFG_VOLUME_PERF_INIT;
-	service->next = host->services;
-	host->services = service;
-	for (i = 0; i < ci->children_num; ++i) {
-		oconfig_item_t *item = ci->children + i;
-		
-		/* if (!item || !item->key || !*item->key) continue; */
-		if (!strcasecmp(item->key, "Multiplier")) {
-			config_get_multiplier (item, service);
-		} else if (!strcasecmp(item->key, "GetIO")) {
-			had_io = 1;
-			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_IO);
-		} else if (!strcasecmp(item->key, "GetOps")) {
-			had_ops = 1;
-			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_OPS);
-		} else if (!strcasecmp(item->key, "GetLatency")) {
-			had_latency = 1;
-			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_LATENCY);
-		}
-	}
-	if (!had_io) {
-		perf_volume->flags |= CFG_VOLUME_PERF_IO;
-		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_IO, /* set = */ true);
-	}
-	if (!had_ops) {
-		perf_volume->flags |= CFG_VOLUME_PERF_OPS;
-		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_OPS, /* set = */ true);
-	}
-	if (!had_latency) {
-		perf_volume->flags |= CFG_VOLUME_PERF_LATENCY;
-		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_LATENCY, /* set = */ true);
-	}
-} /* }}} void build_perf_vol_config */
-
+/* Corresponds to a <GetVolumeData /> block */
 static void build_volume_config(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	int i, had_df = 0;
 	cfg_service_t *service;
@@ -1234,6 +1191,7 @@ static void build_volume_config(host_config_t *host, oconfig_item_t *ci) { /* {{
 	}
 } /* }}} void build_volume_config */
 
+/* Corresponds to a <GetDiskPerfData /> block */
 static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) { /* {{{ */
 	int i;
 	cfg_service_t *service;
@@ -1258,6 +1216,7 @@ static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) { /*
 	}
 } /* }}} void build_perf_disk_config */
 
+/* Corresponds to a <GetWaflPerfData /> block */
 static void build_perf_wafl_config(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	int i;
 	cfg_service_t *service;
@@ -1296,6 +1255,7 @@ static void build_perf_wafl_config(host_config_t *host, oconfig_item_t *ci) { /*
 	host->services = service;
 } /* }}} void build_perf_wafl_config */
 
+/* Corresponds to a <GetSystemPerfData /> block */
 static int build_perf_sys_config (host_config_t *host, /* {{{ */
 		oconfig_item_t *ci, const cfg_service_t *default_service)
 {
@@ -1344,7 +1304,10 @@ static int build_perf_sys_config (host_config_t *host, /* {{{ */
 	return (0);
 } /* }}} int build_perf_sys_config */
 
-static host_config_t *build_host_config(const oconfig_item_t *ci, const host_config_t *default_host, const cfg_service_t *def_def_service) { /* {{{ */
+/* Corresponds to a <Host /> block. */
+static host_config_t *build_host_config (const oconfig_item_t *ci, /* {{{ */
+		const host_config_t *default_host, const cfg_service_t *def_def_service)
+{
 	int i;
 	oconfig_item_t *item;
 	host_config_t *host, *hc, temp = *default_host;
@@ -1428,6 +1391,89 @@ static host_config_t *build_host_config(const oconfig_item_t *ci, const host_con
 	host_config = host;
 	return host;
 } /* }}} host_config_t *build_host_config */
+
+/*
+ * Callbacks registered with the daemon
+ *
+ * Pretty standard stuff here.
+ */
+static int cna_init(void) { /* {{{ */
+	char err[256];
+	na_elem_t *e;
+	host_config_t *host;
+	cfg_service_t *service;
+	
+	if (!host_config) {
+		WARNING("netapp plugin: Plugin loaded but no hosts defined.");
+		return 1;
+	}
+
+	if (!na_startup(err, sizeof(err))) {
+		ERROR("netapp plugin: Error initializing netapp API: %s", err);
+		return 1;
+	}
+
+	for (host = host_config; host; host = host->next) {
+		host->srv = na_server_open(host->host, 1, 1); 
+		na_server_set_transport_type(host->srv, host->protocol, 0);
+		na_server_set_port(host->srv, host->port);
+		na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
+		na_server_adminuser(host->srv, host->username, host->password);
+		na_server_set_timeout(host->srv, 5);
+		for (service = host->services; service; service = service->next) {
+			service->interval = host->interval * service->multiplier;
+			if (service->handler == collect_perf_system_data) {
+				service->query = na_elem_new("perf-object-get-instances");
+				na_child_add_string(service->query, "objectname", "system");
+			} else if (service->handler == query_volume_perf_data) {
+				service->query = na_elem_new("perf-object-get-instances");
+				na_child_add_string(service->query, "objectname", "volume");
+/*				e = na_elem_new("instances");
+				na_child_add_string(e, "foo", "system");
+				na_child_add(root, e);*/
+				e = na_elem_new("counters");
+				na_child_add_string(e, "foo", "read_ops");
+				na_child_add_string(e, "foo", "write_ops");
+				na_child_add_string(e, "foo", "read_data");
+				na_child_add_string(e, "foo", "write_data");
+				na_child_add_string(e, "foo", "read_latency");
+				na_child_add_string(e, "foo", "write_latency");
+				na_child_add(service->query, e);
+			} else if (service->handler == query_wafl_data) {
+				service->query = na_elem_new("perf-object-get-instances");
+				na_child_add_string(service->query, "objectname", "wafl");
+/*				e = na_elem_new("instances");
+				na_child_add_string(e, "foo", "system");
+				na_child_add(root, e);*/
+				e = na_elem_new("counters");
+				na_child_add_string(e, "foo", "name_cache_hit");
+				na_child_add_string(e, "foo", "name_cache_miss");
+				na_child_add_string(e, "foo", "find_dir_hit");
+				na_child_add_string(e, "foo", "find_dir_miss");
+				na_child_add_string(e, "foo", "buf_hash_hit");
+				na_child_add_string(e, "foo", "buf_hash_miss");
+				na_child_add_string(e, "foo", "inode_cache_hit");
+				na_child_add_string(e, "foo", "inode_cache_miss");
+				/* na_child_add_string(e, "foo", "inode_eject_time"); */
+				/* na_child_add_string(e, "foo", "buf_eject_time"); */
+				na_child_add(service->query, e);
+			} else if (service->handler == query_submit_disk_data) {
+				service->query = na_elem_new("perf-object-get-instances");
+				na_child_add_string(service->query, "objectname", "disk");
+				e = na_elem_new("counters");
+				na_child_add_string(e, "foo", "disk_busy");
+				na_child_add_string(e, "foo", "base_for_disk_busy");
+				na_child_add(service->query, e);
+			} else if (service->handler == collect_volume_data) {
+				service->query = na_elem_new("volume-list-info");
+				/* na_child_add_string(service->query, "objectname", "volume"); */
+				/* } else if (service->handler == collect_snapshot_data) { */
+				/* service->query = na_elem_new("snapshot-list-info"); */
+			}
+		}
+	}
+	return 0;
+} /* }}} int cna_init */
 
 static int cna_config (oconfig_item_t *ci) { /* {{{ */
 	int i;
