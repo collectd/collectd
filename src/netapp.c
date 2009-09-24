@@ -917,36 +917,54 @@ static void process_perf_volume_flag (host_config_t *host, /* {{{ */
 	} /* for (i = 0 .. item->values_num) */
 } /* }}} void process_perf_volume_flag */
 
-static void process_volume_flag(host_config_t *host, volume_data_t *volume_data, const oconfig_item_t *item, uint32_t flag) {
-	int n;
+static void process_volume_flag (host_config_t *host, /* {{{ */
+		volume_data_t *volume_data, const oconfig_item_t *item, uint32_t flag)
+{
+	int i;
 	
-	for (n = 0; n < item->values_num; ++n) {
-		int minus = 0;
-		const char *name = item->values[n].value.string;
+	for (i = 0; i < item->values_num; ++i) {
+		const char *name;
 		volume_t *v;
-		if (item->values[n].type != OCONFIG_TYPE_STRING) {
-			WARNING("netapp plugin: Ignoring non-string argument in \"GetVolData\" block for host %s", host->name);
+		_Bool set = true;
+
+		if (item->values[i].type != OCONFIG_TYPE_STRING) {
+			WARNING("netapp plugin: Ignoring non-string argument in \"GetVolData\""
+					"block for host %s", host->name);
 			continue;
 		}
+
+		name = item->values[i].value.string;
 		if (name[0] == '+') {
+			set = true;
 			++name;
 		} else if (name[0] == '-') {
-			minus = 1;
+			set = false;
 			++name;
 		}
+
 		if (!name[0]) {
-			volume_data->flags &= ~flag;
-			if (!minus) volume_data->flags |= flag;
-			set_global_vol_flag(host, flag,
-					/* set = */ (minus ? false : true));
+			if (set)
+				volume_data->flags |= flag;
+			else /* if (!set) */
+				volume_data->flags &= ~flag;
+
+			set_global_vol_flag(host, flag, set);
 			continue;
 		}
+
 		v = get_volume(host, name);
-		if (!v->volume_data.flags) v->volume_data.flags = volume_data->flags;
-		v->volume_data.flags &= ~flag;
-		if (!minus) v->volume_data.flags |= flag;
+		if (v == NULL)
+			continue;
+
+		if (!v->volume_data.flags)
+			v->volume_data.flags = volume_data->flags;
+
+		if (set)
+			v->volume_data.flags |= flag;
+		else /* if (!set) */
+			v->volume_data.flags &= ~flag;
 	}
-}
+} /* }}} void process_volume_flag */
 
 static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci) {
 	int i, had_io = 0, had_ops = 0, had_latency = 0;
