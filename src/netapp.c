@@ -452,7 +452,7 @@ static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *da
 } /* }}} void collect_perf_disk_data */
 
 static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
-	na_elem_t *inst, *sis;
+	na_elem_t *inst;
 	volume_t *volume;
 	volume_data_t *volume_data = data;
 
@@ -460,9 +460,10 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 	na_elem_iter_t inst_iter = na_child_iterator(out);
 	for (inst = na_iterator_next(&inst_iter); inst; inst = na_iterator_next(&inst_iter)) {
 		uint64_t size_free = 0, size_used = 0, snap_reserved = 0;
+
+		na_elem_t *sis;
 		const char *sis_state;
 		uint64_t sis_saved_reported;
-		uint64_t sis_saved_percent;
 		uint64_t sis_saved;
 
 		volume = get_volume(host, na_child_get_string(inst, "name"));
@@ -477,17 +478,16 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 
 		/* 2^4 exa-bytes? This will take a while ;) */
 		size_free = na_child_get_uint64(inst, "size-available", UINT64_MAX);
-		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
-		snap_reserved = na_child_get_uint64(inst, "snapshot-blocks-reserved", UINT64_MAX);
-
 		if (size_free != UINT64_MAX)
 			submit_double (host->name, volume->name, "df_complex", "used",
 					(double) size_used, /* time = */ 0);
 
+		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
 		if (size_free != UINT64_MAX)
 			submit_double (host->name, volume->name, "df_complex", "free",
 					(double) size_free, /* time = */ 0);
 
+		snap_reserved = na_child_get_uint64(inst, "snapshot-blocks-reserved", UINT64_MAX);
 		if (snap_reserved != UINT64_MAX)
 			/* 1 block == 1024 bytes  as per API docs */
 			submit_double (host->name, volume->name, "df_complex", "snap_reserved",
@@ -503,10 +503,7 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 			continue;
 
 		sis_saved_reported = na_child_get_uint64(sis, "size-saved", UINT64_MAX);
-		sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
-
-		/* sis_saved_percent == 100 leads to division by zero below */
-		if ((sis_saved_reported == UINT64_MAX) || (sis_saved_percent > 99))
+		if (sis_saved_reported == UINT64_MAX)
 			continue;
 
 		/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
@@ -514,30 +511,44 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 			/* In case they ever fix this bug. */
 			sis_saved = sis_saved_reported;
 		} else {
+			uint64_t sis_saved_percent;
+			uint64_t sis_saved_guess;
+			uint64_t overflow_guess;
+			uint64_t guess1, guess2, guess3;
+
+			sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
+			if (sis_saved_percent > 100)
+				continue;
+
 			/* The "size-saved" value is a 32bit unsigned integer. This is a bug and
 			 * will hopefully be fixed in later versions. To work around the bug, try
 			 * to figure out how often the 32bit integer wrapped around by using the
 			 * "percentage-saved" value. Because the percentage is in the range
 			 * [0-100], this should work as long as the saved space does not exceed
 			 * 400 GBytes. */
-			uint64_t real_saved = sis_saved_percent * size_used / (100 - sis_saved_percent);
-			uint64_t overflow_guess = real_saved >> 32;
-			uint64_t guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
-			uint64_t guess2 = (overflow_guess << 32) + sis_saved_reported;
-			uint64_t guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
+			/* percentage-saved = size-saved / (size-saved + size-used) */
+			if (sis_saved_percent < 100)
+				sis_saved_guess = size_used * sis_saved_percent / (100 - sis_saved_percent);
+			else
+				sis_saved_guess = size_used;
 
-			if (real_saved < guess2) {
-				if ((real_saved - guess1) < (guess2 - real_saved))
+			overflow_guess = sis_saved_guess >> 32;
+			guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
+			guess2 = (overflow_guess << 32) + sis_saved_reported;
+			guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
+
+			if (sis_saved_guess < guess2) {
+				if ((sis_saved_guess - guess1) < (guess2 - sis_saved_guess))
 					sis_saved = guess1;
 				else
 					sis_saved = guess2;
 			} else {
-				if ((real_saved - guess2) < (guess3 - real_saved))
+				if ((sis_saved_guess - guess2) < (guess3 - sis_saved_guess))
 					sis_saved = guess2;
 				else
 					sis_saved = guess3;
 			}
-		}
+		} /* end of 32-bit workaround */
 
 		submit_double (host->name, volume->name, "df_complex", "sis_saved",
 				(double) sis_saved, /* time = */ 0);
