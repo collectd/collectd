@@ -91,4 +91,9 @@ const char *global_option_get (const char *option);
  * success. */
 int cf_util_get_string (const oconfig_item_t *ci, char **ret_string);
 
+/* Assures that the config option is a string. The string is then converted to
+ * a port number using `service_name_to_port_number' and returned. Returns the
+ * port number in the range [1-65535] or less than zero upon failure. */
+int cf_util_get_port_number (const oconfig_item_t *ci);
+
 #endif /* defined(CONFIGFILE_H) */

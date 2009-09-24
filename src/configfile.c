@@ -942,3 +942,18 @@ int cf_util_get_string (const oconfig_item_t *ci, char **ret_string) /* {{{ */
 
 	return (0);
 } /* }}} int cf_util_get_string */
+
+/* Assures that the config option is a string. The string is then converted to
+ * a port number using `service_name_to_port_number' and returned. Returns the
+ * port number in the range [1-65535] or less than zero upon failure. */
+int cf_util_get_port_number (const oconfig_item_t *ci) /* {{{ */
+{
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		ERROR ("cf_util_get_port_number: The %s plugin requires "
+				"exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	return (service_name_to_port_number (ci->values[0].value.string));
+} /* }}} int cf_util_get_port_number */
