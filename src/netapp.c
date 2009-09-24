@@ -1162,7 +1162,7 @@ static void process_volume_flag (host_config_t *host, /* {{{ */
 	}
 } /* }}} void process_volume_flag */
 
-static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci) {
+static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci) { /* {{{ */
 	int i, had_io = 0, had_ops = 0, had_latency = 0;
 	cfg_service_t *service;
 	cfg_volume_perf_t *perf_volume;
@@ -1203,9 +1203,9 @@ static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci)
 		perf_volume->flags |= CFG_VOLUME_PERF_LATENCY;
 		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_LATENCY, /* set = */ true);
 	}
-}
+} /* }}} void build_perf_vol_config */
 
-static void build_volume_config(host_config_t *host, oconfig_item_t *ci) {
+static void build_volume_config(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	int i, had_df = 0;
 	cfg_service_t *service;
 	cfg_volume_usage_t *cfg_volume_data;
@@ -1232,9 +1232,9 @@ static void build_volume_config(host_config_t *host, oconfig_item_t *ci) {
 		cfg_volume_data->flags |= VOLUME_DF;
 		set_global_vol_flag(host, VOLUME_DF, /* set = */ true);
 	}
-}
+} /* }}} void build_volume_config */
 
-static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) {
+static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) { /* {{{ */
 	int i;
 	cfg_service_t *service;
 	cfg_disk_t *cfg_disk;
@@ -1256,7 +1256,7 @@ static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) {
 			config_bool_to_flag (item, &cfg_disk->flags, CFG_SYSTEM_CPU);
 		}
 	}
-}
+} /* }}} void build_perf_disk_config */
 
 static void build_perf_wafl_config(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	int i;
@@ -1344,7 +1344,7 @@ static int build_perf_sys_config (host_config_t *host, /* {{{ */
 	return (0);
 } /* }}} int build_perf_sys_config */
 
-static host_config_t *build_host_config(const oconfig_item_t *ci, const host_config_t *default_host, const cfg_service_t *def_def_service) {
+static host_config_t *build_host_config(const oconfig_item_t *ci, const host_config_t *default_host, const cfg_service_t *def_def_service) { /* {{{ */
 	int i;
 	oconfig_item_t *item;
 	host_config_t *host, *hc, temp = *default_host;
@@ -1427,9 +1427,9 @@ static host_config_t *build_host_config(const oconfig_item_t *ci, const host_con
 	host->next = host_config;
 	host_config = host;
 	return host;
-}
+} /* }}} host_config_t *build_host_config */
 
-static int cna_config (oconfig_item_t *ci) {
+static int cna_config (oconfig_item_t *ci) { /* {{{ */
 	int i;
 	oconfig_item_t *item;
 	host_config_t default_host = HOST_INIT;
@@ -1446,9 +1446,9 @@ static int cna_config (oconfig_item_t *ci) {
 		}
 	}
 	return 0;
-}
+} /* }}} int cna_config */
 
-static int cna_read(void) {
+static int cna_read(void) { /* {{{ */
 	na_elem_t *out;
 	host_config_t *host;
 	cfg_service_t *service;
@@ -1473,7 +1473,7 @@ static int cna_read(void) {
 		}
 	}
 	return 0;
-}
+} /* }}} int cna_read */
 
 void module_register(void) {
 	plugin_register_complex_config("netapp", cna_config);
