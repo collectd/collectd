@@ -1082,22 +1082,32 @@ static void build_perf_wafl_config(host_config_t *temp, oconfig_item_t *ci) {
 	}
 }
 
-static void build_perf_sys_config(host_config_t *temp, oconfig_item_t *ci, const service_config_t *default_service) {
+static int build_perf_sys_config (host_config_t *host, /* {{{ */
+		oconfig_item_t *ci, const service_config_t *default_service)
+{
 	int i;
 	service_config_t *service;
 	perf_system_data_t *perf_system;
 	
 	service = malloc(sizeof(*service));
+	if (service == NULL)
+		return (-1);
+	memset (service, 0, sizeof (*service));
 	*service = *default_service;
 	service->handler = collect_perf_system_data;
-	perf_system = service->data = malloc(sizeof(*perf_system));
+
+	perf_system = malloc(sizeof(*perf_system));
+	if (perf_system == NULL) {
+		sfree (service);
+		return (-1);
+	}
+	memset (perf_system, 0, sizeof (*perf_system));
 	perf_system->flags = PERF_SYSTEM_ALL;
-	service->next = temp->services;
-	temp->services = service;
+	service->data = perf_system;
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
-		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
 				WARNING("netapp plugin: \"Multiplier\" of host %s service GetSystemPerfData needs exactly one positive integer argument.", ci->values[0].value.string);
@@ -1117,7 +1127,12 @@ static void build_perf_sys_config(host_config_t *temp, oconfig_item_t *ci, const
 					"`GetSystemPerfData' blocks.", item->key);
 		}
 	}
-}
+
+	service->next = host->services;
+	host->services = service;
+
+	return (0);
+} /* }}} int build_perf_sys_config */
 
 static host_config_t *build_host_config(const oconfig_item_t *ci, const host_config_t *default_host, const service_config_t *def_def_service) {
 	int i;
