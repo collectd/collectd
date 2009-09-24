@@ -44,8 +44,6 @@ typedef void service_handler_t(host_config_t *host, na_elem_t *result, void *dat
 
 typedef struct {
 	uint32_t flags;
-	uint64_t last_cpu_busy;
-	uint64_t last_cpu_total;
 } perf_system_data_t;
 
 /*!
@@ -1090,8 +1088,6 @@ static void build_perf_sys_config(host_config_t *temp, oconfig_item_t *ci, const
 	service->handler = collect_perf_system_data;
 	perf_system = service->data = malloc(sizeof(*perf_system));
 	perf_system->flags = PERF_SYSTEM_ALL;
-	perf_system->last_cpu_busy = 0;
-	perf_system->last_cpu_total = 0;
 	service->next = temp->services;
 	temp->services = service;
 	for (i = 0; i < ci->children_num; ++i) {
