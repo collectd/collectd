@@ -25,10 +25,6 @@
 #include "utils_cache.h"
 #include "utils_parse_option.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-
 #include <tcrdb.h>
 
 #define DEFAULT_HOST "127.0.0.1"
