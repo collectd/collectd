@@ -820,6 +820,27 @@ int config_init() {
 	return 0;
 }
 
+static int config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
+		uint32_t *flags, uint32_t flag)
+{
+	if ((ci == NULL) || (flags == NULL))
+		return (EINVAL);
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+	{
+		WARNING ("netapp plugin: The %s option needs exactly one boolean argument.",
+				ci->key);
+		return (-1);
+	}
+
+	if (ci->values[0].value.boolean)
+		*flags |= flag;
+	else
+		*flags &= ~flag;
+
+	return (0);
+} /* }}} int config_bool_to_flag */
+
 static void set_global_perf_vol_flag(const host_config_t *host, uint32_t flag, int value) {
 	volume_t *v;
 	
@@ -1011,11 +1032,7 @@ static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) {
 			}
 			service->skip_countdown = service->multiplier = item->values[0].value.number;
 		} else if (!strcasecmp(item->key, "GetBusy")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetBusy\" of host %s service GetDiskPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_disk->flags = (perf_disk->flags & ~PERF_SYSTEM_CPU) | (item->values[0].value.boolean ? PERF_DISK_BUSIEST : 0);
+			config_bool_to_flag (item, &perf_disk->flags, PERF_SYSTEM_CPU);
 		}
 	}
 }
@@ -1051,29 +1068,16 @@ static void build_perf_wafl_config(host_config_t *temp, oconfig_item_t *ci) {
 			}
 			service->skip_countdown = service->multiplier = item->values[0].value.number;
 		} else if (!strcasecmp(item->key, "GetNameCache")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetNameCache\" of host %s service GetWaflPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_wafl->flags = (perf_wafl->flags & ~PERF_WAFL_NAME_CACHE) | (item->values[0].value.boolean ? PERF_WAFL_NAME_CACHE : 0);
+			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_NAME_CACHE);
 		} else if (!strcasecmp(item->key, "GetDirCache")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetDirChache\" of host %s service GetWaflPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_wafl->flags = (perf_wafl->flags & ~PERF_WAFL_DIR_CACHE) | (item->values[0].value.boolean ? PERF_WAFL_DIR_CACHE : 0);
+			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_DIR_CACHE);
 		} else if (!strcasecmp(item->key, "GetBufCache")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetBufCache\" of host %s service GetWaflPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_wafl->flags = (perf_wafl->flags & ~PERF_WAFL_BUF_CACHE) | (item->values[0].value.boolean ? PERF_WAFL_BUF_CACHE : 0);
+			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_BUF_CACHE);
 		} else if (!strcasecmp(item->key, "GetInodeCache")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetInodeCache\" of host %s service GetWaflPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_wafl->flags = (perf_wafl->flags & ~PERF_WAFL_INODE_CACHE) | (item->values[0].value.boolean ? PERF_WAFL_INODE_CACHE : 0);
+			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_INODE_CACHE);
+		} else {
+			WARNING ("netapp plugin: The %s config option is not allowed within "
+					"`GetWaflPerfData' blocks.", item->key);
 		}
 	}
 }
@@ -1101,29 +1105,16 @@ static void build_perf_sys_config(host_config_t *temp, oconfig_item_t *ci, const
 			}
 			service->skip_countdown = service->multiplier = item->values[0].value.number;
 		} else if (!strcasecmp(item->key, "GetCPULoad")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetCPULoad\" of host %s service GetSystemPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_system->flags = (perf_system->flags & ~PERF_SYSTEM_CPU) | (item->values[0].value.boolean ? PERF_SYSTEM_CPU : 0);
+			config_bool_to_flag (item, &perf_system->flags, PERF_SYSTEM_CPU);
 		} else if (!strcasecmp(item->key, "GetInterfaces")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetInterfaces\" of host %s service GetSystemPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_system->flags = (perf_system->flags & ~PERF_SYSTEM_NET) | (item->values[0].value.boolean ? PERF_SYSTEM_NET : 0);
+			config_bool_to_flag (item, &perf_system->flags, PERF_SYSTEM_NET);
 		} else if (!strcasecmp(item->key, "GetDiskOps")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetDiskOps\" of host %s service GetSystemPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_system->flags = (perf_system->flags & ~PERF_SYSTEM_OPS) | (item->values[0].value.boolean ? PERF_SYSTEM_OPS : 0);
+			config_bool_to_flag (item, &perf_system->flags, PERF_SYSTEM_OPS);
 		} else if (!strcasecmp(item->key, "GetDiskIO")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING("netapp plugin: \"GetDiskIO\" of host %s service GetSystemPerfData needs exactly one bool argument.", ci->values[0].value.string);
-				continue;
-			}
-			perf_system->flags = (perf_system->flags & ~PERF_SYSTEM_DISK) | (item->values[0].value.boolean ? PERF_SYSTEM_DISK : 0);
+			config_bool_to_flag (item, &perf_system->flags, PERF_SYSTEM_DISK);
+		} else {
+			WARNING ("netapp plugin: The %s config option is not allowed within "
+					"`GetSystemPerfData' blocks.", item->key);
 		}
 	}
 }
