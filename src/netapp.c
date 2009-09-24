@@ -742,7 +742,7 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 	}
 } /* }}} void collect_perf_system_data */
 
-int config_init() {
+static int config_init(void) { /* {{{ */
 	char err[256];
 	na_elem_t *e;
 	host_config_t *host;
@@ -818,7 +818,7 @@ int config_init() {
 		}
 	}
 	return 0;
-}
+} /* }}} int config_init */
 
 static int config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
 		uint32_t *flags, uint32_t flag)
