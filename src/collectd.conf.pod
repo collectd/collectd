@@ -1664,7 +1664,8 @@ Required capabilities are documented below.
     Protocol      "https"
     Address       "10.0.0.1"
     Port          443
-    Login         "username" "password"
+    User          "username"
+    Password      "aef4Aebe"
     Interval      30
     <GetSystemPerfData>
     </GetSystemPerfData>
@@ -1720,13 +1721,15 @@ Type: integer
 
 Default: 80 for protocol "http", 443 for protocol "https"
 
-=item B<Login> I<User> I<Password>
+=item B<User> I<User>
+
+=item B<Password> I<Password>
 
 The username and password to use to login to the NetApp.
 
 Mandatory
 
-Type: 2 strings
+Type: string
 
 =item B<Interval> I<Interval>
 

@@ -209,7 +209,71 @@ struct host_config_s {
 };
 #define HOST_INIT {NULL, NULL, NA_SERVER_TRANSPORT_HTTPS, NULL, 0, NULL, NULL, 10, NULL, NULL, NULL, NULL}
 
-static host_config_t *host_config;
+static host_config_t *global_host_config;
+
+/*
+ * Free functions
+ *
+ * Used to free the various structures above.
+ */
+static void free_volume (volume_t *volume) /* {{{ */
+{
+	volume_t *next;
+
+	next = volume->next;
+
+	sfree (volume->name);
+	sfree (volume);
+
+	free_volume (next);
+} /* }}} void free_volume */
+
+static void free_disk (disk_t *disk) /* {{{ */
+{
+	disk_t *next;
+
+	next = disk->next;
+
+	sfree (disk->name);
+	sfree (disk);
+
+	free_disk (next);
+} /* }}} void free_disk */
+
+static void free_cfg_service (cfg_service_t *service) /* {{{ */
+{
+	cfg_service_t *next;
+
+	next = service->next;
+
+	/* FIXME: Free service->data? */
+	sfree (service);
+
+	free_cfg_service (next);
+} /* }}} void free_cfg_service */
+
+static void free_host_config (host_config_t *hc) /* {{{ */
+{
+	host_config_t *next;
+
+	if (hc == NULL)
+		return;
+
+	next = hc->next;
+
+	sfree (hc->name);
+	sfree (hc->host);
+	sfree (hc->username);
+	sfree (hc->password);
+
+	free_cfg_service (hc->services);
+	free_disk (hc->disks);
+	free_volume (hc->volumes);
+
+	sfree (hc);
+
+	free_host_config (next);
+} /* }}} void free_host_config */
 
 /*
  * Auxiliary functions
@@ -1311,87 +1375,100 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 		const host_config_t *default_host, const cfg_service_t *def_def_service)
 {
-	int i;
 	oconfig_item_t *item;
-	host_config_t *host, *hc, temp = *default_host;
+	host_config_t *host, *hc;
 	cfg_service_t default_service = *def_def_service;
+	int status;
+	int i;
 	
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
 		WARNING("netapp plugin: \"Host\" needs exactly one string argument. Ignoring host block.");
 		return 0;
 	}
 
-	temp.name = ci->values[0].value.string;
+	host = malloc(sizeof(*host));
+	memcpy (host, default_host, sizeof (*host));
+
+	status = cf_util_get_string (ci, &host->name);
+	if (status != 0)
+	{
+		sfree (host);
+		return (NULL);
+	}
+
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
 
-		/* if (!item || !item->key || !*item->key) continue; */
+		status = 0;
+
 		if (!strcasecmp(item->key, "Address")) {
-			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_STRING)) {
-				WARNING("netapp plugin: \"Name\" needs exactly one string argument. Ignoring host block \"%s\".", ci->values[0].value.string);
-				return 0;
-			}
-			temp.host = item->values[0].value.string;
+			status = cf_util_get_string (item, &host->host);
 		} else if (!strcasecmp(item->key, "Port")) {
-			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_NUMBER) || (item->values[0].value.number != (int) (item->values[0].value.number)) || (item->values[0].value.number < 1) || (item->values[0].value.number > 65535)) {
-				WARNING("netapp plugin: \"Port\" needs exactly one integer argument in the range of 1-65535. Ignoring host block \"%s\".", ci->values[0].value.string);
-				return 0;
-			}
-			temp.port = item->values[0].value.number;
+			int tmp;
+
+			tmp = cf_util_get_port_number (item);
+			if (tmp > 0)
+				host->port = tmp;
 		} else if (!strcasecmp(item->key, "Protocol")) {
 			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_STRING) || (strcasecmp(item->values[0].value.string, "http") && strcasecmp(item->values[0].value.string, "https"))) {
 				WARNING("netapp plugin: \"Protocol\" needs to be either \"http\" or \"https\". Ignoring host block \"%s\".", ci->values[0].value.string);
 				return 0;
 			}
-			if (!strcasecmp(item->values[0].value.string, "http")) temp.protocol = NA_SERVER_TRANSPORT_HTTP;
-			else temp.protocol = NA_SERVER_TRANSPORT_HTTPS;
-		} else if (!strcasecmp(item->key, "Login")) {
-			if ((item->values_num != 2) || (item->values[0].type != OCONFIG_TYPE_STRING) || (item->values[1].type != OCONFIG_TYPE_STRING)) {
-				WARNING("netapp plugin: \"Login\" needs exactly two string arguments, username and password. Ignoring host block \"%s\".", ci->values[0].value.string);
-				return 0;
-			}
-			temp.username = item->values[0].value.string;
-			temp.password = item->values[1].value.string;
+			if (!strcasecmp(item->values[0].value.string, "http")) host->protocol = NA_SERVER_TRANSPORT_HTTP;
+			else host->protocol = NA_SERVER_TRANSPORT_HTTPS;
+		} else if (!strcasecmp(item->key, "User")) {
+			status = cf_util_get_string (item, &host->username);
+		} else if (!strcasecmp(item->key, "Password")) {
+			status = cf_util_get_string (item, &host->password);
 		} else if (!strcasecmp(item->key, "Interval")) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 2) {
 				WARNING("netapp plugin: \"Interval\" of host %s needs exactly one integer argument.", ci->values[0].value.string);
 				continue;
 			}
-			temp.interval = item->values[0].value.number;
+			host->interval = item->values[0].value.number;
 		} else if (!strcasecmp(item->key, "GetVolumePerfData")) {
-			cna_config_volume_performance(&temp, item);
+			cna_config_volume_performance(host, item);
 		} else if (!strcasecmp(item->key, "GetSystemPerfData")) {
-			cna_config_system(&temp, item, &default_service);
+			cna_config_system(host, item, &default_service);
 		} else if (!strcasecmp(item->key, "GetWaflPerfData")) {
-			cna_config_wafl(&temp, item);
+			cna_config_wafl(host, item);
 		} else if (!strcasecmp(item->key, "GetDiskPerfData")) {
-			cna_config_disk(&temp, item);
+			cna_config_disk(host, item);
 		} else if (!strcasecmp(item->key, "GetVolumeData")) {
-			cna_config_volume_usage(&temp, item);
+			cna_config_volume_usage(host, item);
 		} else {
 			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".",
 					item->key, ci->values[0].value.string);
 		}
+
+		if (status != 0)
+			break;
 	}
-	
-	if (!temp.host) temp.host = temp.name;
-	if (!temp.port) temp.port = temp.protocol == NA_SERVER_TRANSPORT_HTTP ? 80 : 443;
-	if (!temp.username) {
-		WARNING("netapp plugin: Please supply login information for host \"%s\". Ignoring host block.", temp.name);
-		return 0;
+
+	if (host->host == NULL)
+		host->host = strdup (host->name);
+
+	if (host->host == NULL)
+		status = -1;
+
+	if (host->port <= 0)
+		host->port = (host->protocol == NA_SERVER_TRANSPORT_HTTP) ? 80 : 443;
+
+	if ((host->username == NULL) || (host->password == NULL)) {
+		WARNING("netapp plugin: Please supply login information for host \"%s\". "
+				"Ignoring host block.", host->name);
+		status = -1;
 	}
-	for (hc = host_config; hc; hc = hc->next) {
-		if (!strcasecmp(hc->name, temp.name)) WARNING("netapp plugin: Duplicate definition of host \"%s\". This is probably a bad idea.", hc->name);
+
+	if (status != 0)
+	{
+		free_host_config (host);
+		return (NULL);
 	}
-	host = malloc(sizeof(*host));
-	*host = temp;
-	host->name = strdup(temp.name);
-	host->protocol = temp.protocol;
-	host->host = strdup(temp.host);
-	host->username = strdup(temp.username);
-	host->password = strdup(temp.password);
-	host->next = host_config;
-	host_config = host;
+
+	for (hc = global_host_config; hc; hc = hc->next) {
+		if (!strcasecmp(hc->name, host->name)) WARNING("netapp plugin: Duplicate definition of host \"%s\". This is probably a bad idea.", hc->name);
+	}
 	return host;
 } /* }}} host_config_t *cna_config_host */
 
@@ -1406,7 +1483,7 @@ static int cna_init(void) { /* {{{ */
 	host_config_t *host;
 	cfg_service_t *service;
 	
-	if (!host_config) {
+	if (!global_host_config) {
 		WARNING("netapp plugin: Plugin loaded but no hosts defined.");
 		return 1;
 	}
@@ -1416,7 +1493,7 @@ static int cna_init(void) { /* {{{ */
 		return 1;
 	}
 
-	for (host = host_config; host; host = host->next) {
+	for (host = global_host_config; host; host = host->next) {
 		host->srv = na_server_open(host->host, 1, 1); 
 		na_server_set_transport_type(host->srv, host->protocol, 0);
 		na_server_set_port(host->srv, host->port);
@@ -1489,7 +1566,29 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Host")) {
-			cna_config_host(item, &default_host, &default_service);
+			host_config_t *host;
+			host_config_t *tmp;
+
+			host = cna_config_host(item, &default_host, &default_service);
+			if (host == NULL)
+				continue;
+
+			for (tmp = global_host_config; tmp != NULL; tmp = tmp->next)
+			{
+				if (strcasecmp (host->name, tmp->name) == 0)
+					WARNING ("netapp plugin: Duplicate definition of host `%s'. "
+							"This is probably a bad idea.",
+							host->name);
+
+				if (tmp->next == NULL)
+					break;
+			}
+
+			host->next = NULL;
+			if (tmp == NULL)
+				global_host_config = host;
+			else
+				tmp->next = host;
 		} else {
 			WARNING("netapp plugin: Ignoring unknown config option \"%s\".", item->key);
 		}
@@ -1502,7 +1601,7 @@ static int cna_read(void) { /* {{{ */
 	host_config_t *host;
 	cfg_service_t *service;
 	
-	for (host = host_config; host; host = host->next) {
+	for (host = global_host_config; host; host = host->next) {
 		for (service = host->services; service; service = service->next) {
 			if (--service->skip_countdown > 0) continue;
 			service->skip_countdown = service->multiplier;
