@@ -148,6 +148,10 @@ Features
       MySQL server statistics: Commands issued, handlers triggered, thread
       usage, query cache utilization and traffic/octets sent and received.
 
+    - netapp
+      Plugin to query performance values from a NetApp storage system using the
+      “Manage ONTAP” SDK provided by NetApp.
+
     - netlink
       Very detailed Linux network interface and routing statistics. You can get
       (detailed) information on interfaces, qdiscs, classes, and, if you can
@@ -502,6 +506,10 @@ Prerequisites
   * libmysqlclient (optional)
     Unsurprisingly used by the `mysql' plugin.
     <http://dev.mysql.com/>
+
+  * libnatapp (optional)
+    Required for the “netapp” plugin.
+    This library is part of the “Manage ONTAP SDK” published by NetApp.
 
   * libnetlink (optional)
     Used, obviously, for the `netlink' plugin.
