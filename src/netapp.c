@@ -841,6 +841,33 @@ static int config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
 	return (0);
 } /* }}} int config_bool_to_flag */
 
+static int config_get_multiplier (const oconfig_item_t *ci, /* {{{ */
+		service_config_t *service)
+{
+	int tmp;
+
+	if ((ci == NULL) || (service == NULL))
+		return (EINVAL);
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+	{
+		WARNING ("netapp plugin: The `Multiplier' option needs exactly one numeric argument.");
+		return (-1);
+	}
+
+	tmp = (int) (ci->values[0].value.number + .5);
+	if (tmp < 1)
+	{
+		WARNING ("netapp plugin: The `Multiplier' option needs a positive integer argument.");
+		return (-1);
+	}
+
+	service->multiplier = tmp;
+	service->skip_countdown = tmp;
+
+	return (0);
+} /* }}} int config_get_multiplier */
+
 static void set_global_perf_vol_flag(const host_config_t *host, /* {{{ */
 		uint32_t flag, _Bool set)
 {
@@ -983,11 +1010,7 @@ static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci)
 		
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
-				WARNING("netapp plugin: \"Multiplier\" of host %s service GetVolPerfData needs exactly one positive integer argument.", host->name);
-				continue;
-			}
-			service->skip_countdown = service->multiplier = item->values[0].value.number;
+			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetIO")) {
 			had_io = 1;
 			process_perf_volume_flag(host, perf_volume, item, PERF_VOLUME_IO);
@@ -1030,11 +1053,7 @@ static void build_volume_config(host_config_t *host, oconfig_item_t *ci) {
 		
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
-				WARNING("netapp plugin: \"Multiplier\" of host %s service GetVolPerfData needs exactly one positive integer argument.", host->name);
-				continue;
-			}
-			service->skip_countdown = service->multiplier = item->values[0].value.number;
+			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetDiskUtil")) {
 			had_df = 1;
 			process_volume_flag(host, volume_data, item, VOLUME_DF);
@@ -1069,11 +1088,7 @@ static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) {
 		
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
-				WARNING("netapp plugin: \"Multiplier\" of host %s service GetWaflPerfData needs exactly one positive integer argument.", ci->values[0].value.string);
-				continue;
-			}
-			service->skip_countdown = service->multiplier = item->values[0].value.number;
+			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetBusy")) {
 			config_bool_to_flag (item, &perf_disk->flags, PERF_SYSTEM_CPU);
 		}
@@ -1105,11 +1120,7 @@ static void build_perf_wafl_config(host_config_t *temp, oconfig_item_t *ci) {
 		
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
-				WARNING("netapp plugin: \"Multiplier\" of host %s service GetWaflPerfData needs exactly one positive integer argument.", ci->values[0].value.string);
-				continue;
-			}
-			service->skip_countdown = service->multiplier = item->values[0].value.number;
+			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetNameCache")) {
 			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_NAME_CACHE);
 		} else if (!strcasecmp(item->key, "GetDirCache")) {
@@ -1152,11 +1163,7 @@ static int build_perf_sys_config (host_config_t *host, /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (!strcasecmp(item->key, "Multiplier")) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_NUMBER || item->values[0].value.number != (int) item->values[0].value.number || item->values[0].value.number < 1) {
-				WARNING("netapp plugin: \"Multiplier\" of host %s service GetSystemPerfData needs exactly one positive integer argument.", ci->values[0].value.string);
-				continue;
-			}
-			service->skip_countdown = service->multiplier = item->values[0].value.number;
+			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetCPULoad")) {
 			config_bool_to_flag (item, &perf_system->flags, PERF_SYSTEM_CPU);
 		} else if (!strcasecmp(item->key, "GetInterfaces")) {
