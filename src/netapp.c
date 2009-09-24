@@ -52,22 +52,37 @@ typedef struct {
  * \brief Persistent data for WAFL performence counters. (a.k.a. cache performence)
  */
 
-#define PERF_WAFL_NAME_CACHE       0x01
-#define PERF_WAFL_DIR_CACHE        0x02
-#define PERF_WAFL_BUF_CACHE        0x04
-#define PERF_WAFL_INODE_CACHE      0x08
-#define PERF_WAFL_ALL              0x0F
+#define CFG_WAFL_NAME_CACHE       0x01
+#define CFG_WAFL_DIR_CACHE        0x02
+#define CFG_WAFL_BUF_CACHE        0x04
+#define CFG_WAFL_INODE_CACHE      0x08
+#define CFG_WAFL_ALL              0x0F
+
+#define HAVE_WAFL_NAME_CACHE_HIT   0x0100
+#define HAVE_WAFL_NAME_CACHE_MISS  0x0200
+#define HAVE_WAFL_NAME_CACHE       (HAVE_WAFL_NAME_CACHE_HIT | HAVE_WAFL_NAME_CACHE_MISS)
+#define HAVE_WAFL_FIND_DIR_HIT     0x0400
+#define HAVE_WAFL_FIND_DIR_MISS    0x0800
+#define HAVE_WAFL_FIND_DIR         (HAVE_WAFL_FIND_DIR_HIT | HAVE_WAFL_FIND_DIR_MISS)
+#define HAVE_WAFL_BUF_HASH_HIT     0x1000
+#define HAVE_WAFL_BUF_HASH_MISS    0x2000
+#define HAVE_WAFL_BUF_HASH         (HAVE_WAFL_BUF_HASH_HIT | HAVE_WAFL_BUF_HASH_MISS)
+#define HAVE_WAFL_INODE_CACHE_HIT  0x4000
+#define HAVE_WAFL_INODE_CACHE_MISS 0x8000
+#define HAVE_WAFL_INODE_CACHE      (HAVE_WAFL_INODE_CACHE_HIT | HAVE_WAFL_INODE_CACHE_MISS)
+#define HAVE_WAFL_ALL              0xff00
 
 typedef struct {
 	uint32_t flags;
-	uint64_t last_name_cache_hit;
-	uint64_t last_name_cache_miss;
-	uint64_t last_find_dir_hit;
-	uint64_t last_find_dir_miss;
-	uint64_t last_buf_hash_hit;
-	uint64_t last_buf_hash_miss;
-	uint64_t last_inode_cache_hit;
-	uint64_t last_inode_cache_miss;
+	time_t timestamp;
+	uint64_t name_cache_hit;
+	uint64_t name_cache_miss;
+	uint64_t find_dir_hit;
+	uint64_t find_dir_miss;
+	uint64_t buf_hash_hit;
+	uint64_t buf_hash_miss;
+	uint64_t inode_cache_hit;
+	uint64_t inode_cache_miss;
 } perf_wafl_data_t;
 
 #define CFG_VOLUME_PERF_INIT           0x0001
@@ -336,30 +351,79 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 		const char *type_inst,
 		uint64_t new_hits,
 		uint64_t new_misses,
-		uint64_t *old_hits,
-		uint64_t *old_misses,
+		uint64_t old_hits,
+		uint64_t old_misses,
 		time_t timestamp)
 {
 	value_t v;
 
-	if ((new_hits >= (*old_hits)) && (new_misses >= (*old_misses))) {
+	if ((new_hits >= old_hits) && (new_misses >= old_misses)) {
 		uint64_t hits;
 		uint64_t misses;
 
-		hits = new_hits - (*old_hits);
-		misses = new_misses - (*old_misses);
+		hits = new_hits - old_hits;
+		misses = new_misses - old_misses;
 
 		v.gauge = 100.0 * ((gauge_t) hits) / ((gauge_t) (hits + misses));
 	} else {
 		v.gauge = NAN;
 	}
 
-	*old_hits = new_hits;
-	*old_misses = new_misses;
-
 	return (submit_values (host, plugin_inst, "cache_ratio", type_inst,
 				&v, 1, timestamp));
 } /* }}} int submit_cache_ratio */
+
+static int submit_wafl_data (const host_config_t *host, const char *instance, /* {{{ */
+		perf_wafl_data_t *old_data, const perf_wafl_data_t *new_data)
+{
+	/* Submit requested counters */
+	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_NAME_CACHE | HAVE_WAFL_NAME_CACHE)
+			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_NAME_CACHE))
+		submit_cache_ratio (host->name, instance, "name_cache_hit",
+				new_data->name_cache_hit, new_data->name_cache_miss,
+				old_data->name_cache_hit, old_data->name_cache_miss,
+				new_data->timestamp);
+
+	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_DIR_CACHE | HAVE_WAFL_FIND_DIR)
+			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_FIND_DIR))
+		submit_cache_ratio (host->name, instance, "find_dir_hit",
+				new_data->find_dir_hit, new_data->find_dir_miss,
+				old_data->find_dir_hit, old_data->find_dir_miss,
+				new_data->timestamp);
+
+	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_BUF_CACHE | HAVE_WAFL_BUF_HASH)
+			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_BUF_HASH))
+		submit_cache_ratio (host->name, instance, "buf_hash_hit",
+				new_data->buf_hash_hit, new_data->buf_hash_miss,
+				old_data->buf_hash_hit, old_data->buf_hash_miss,
+				new_data->timestamp);
+
+	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_INODE_CACHE | HAVE_WAFL_INODE_CACHE)
+			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_INODE_CACHE))
+		submit_cache_ratio (host->name, instance, "inode_cache_hit",
+				new_data->inode_cache_hit, new_data->inode_cache_miss,
+				old_data->inode_cache_hit, old_data->inode_cache_miss,
+				new_data->timestamp);
+
+	/* Clear old HAVE_* flags */
+	old_data->flags &= ~HAVE_WAFL_ALL;
+
+	/* Copy all counters */
+	old_data->timestamp        = new_data->timestamp;
+	old_data->name_cache_hit   = new_data->name_cache_hit;
+	old_data->name_cache_miss  = new_data->name_cache_miss;
+	old_data->find_dir_hit     = new_data->find_dir_hit;
+	old_data->find_dir_miss    = new_data->find_dir_miss;
+	old_data->buf_hash_hit     = new_data->buf_hash_hit;
+	old_data->buf_hash_miss    = new_data->buf_hash_miss;
+	old_data->inode_cache_hit  = new_data->inode_cache_hit;
+	old_data->inode_cache_miss = new_data->inode_cache_miss;
+
+	/* Copy HAVE_* flags */
+	old_data->flags |= (new_data->flags & HAVE_WAFL_ALL);
+
+	return (0);
+} /* }}} int submit_wafl_data */
 
 static int submit_volume_perf_data (const host_config_t *host, /* {{{ */
 		volume_t *volume,
@@ -443,17 +507,16 @@ static int submit_volume_perf_data (const host_config_t *host, /* {{{ */
 	return (0);
 } /* }}} int submit_volume_perf_data */
 
-static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
+static void query_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	perf_wafl_data_t *wafl = data;
-	uint64_t name_cache_hit  = 0,  name_cache_miss  = 0;
-	uint64_t find_dir_hit    = 0,  find_dir_miss    = 0;
-	uint64_t buf_hash_hit    = 0,  buf_hash_miss    = 0;
-	uint64_t inode_cache_hit = 0,  inode_cache_miss = 0;
+	perf_wafl_data_t perf_data;
 	const char *plugin_inst;
-	time_t timestamp;
 	na_elem_t *counter;
+
+	memset (&perf_data, 0, sizeof (perf_data));
 	
-	timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
+	perf_data.timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
+
 	out = na_elem_child(na_elem_child(out, "instances"), "instance-data");
 	plugin_inst = na_child_get_string(out, "name");
 
@@ -461,57 +524,47 @@ static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *da
 	na_elem_iter_t iter = na_child_iterator(na_elem_child(out, "counters"));
 	for (counter = na_iterator_next(&iter); counter; counter = na_iterator_next(&iter)) {
 		const char *name;
+		uint64_t value;
 
 		name = na_child_get_string(counter, "name");
-		if (!strcmp(name, "name_cache_hit"))
-			name_cache_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else if (!strcmp(name, "name_cache_miss"))
-			name_cache_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else if (!strcmp(name, "find_dir_hit"))
-			find_dir_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else if (!strcmp(name, "find_dir_miss"))
-			find_dir_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else if (!strcmp(name, "buf_hash_hit"))
-			buf_hash_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else if (!strcmp(name, "buf_hash_miss"))
-			buf_hash_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else if (!strcmp(name, "inode_cache_hit"))
-			inode_cache_hit = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else if (!strcmp(name, "inode_cache_miss"))
-			inode_cache_miss = na_child_get_uint64(counter, "value", UINT64_MAX);
-		else
+		if (name == NULL)
+			continue;
+
+		value = na_child_get_uint64(counter, "value", UINT64_MAX);
+		if (value == UINT64_MAX)
+			continue;
+
+		if (!strcmp(name, "name_cache_hit")) {
+			perf_data.name_cache_hit = value;
+			perf_data.flags |= HAVE_WAFL_NAME_CACHE_HIT;
+		} else if (!strcmp(name, "name_cache_miss")) {
+			perf_data.name_cache_miss = value;
+			perf_data.flags |= HAVE_WAFL_NAME_CACHE_MISS;
+		} else if (!strcmp(name, "find_dir_hit")) {
+			perf_data.find_dir_hit = value;
+			perf_data.flags |= HAVE_WAFL_FIND_DIR_HIT;
+		} else if (!strcmp(name, "find_dir_miss")) {
+			perf_data.find_dir_miss = value;
+			perf_data.flags |= HAVE_WAFL_FIND_DIR_MISS;
+		} else if (!strcmp(name, "buf_hash_hit")) {
+			perf_data.buf_hash_hit = value;
+			perf_data.flags |= HAVE_WAFL_BUF_HASH_HIT;
+		} else if (!strcmp(name, "buf_hash_miss")) {
+			perf_data.buf_hash_miss = value;
+			perf_data.flags |= HAVE_WAFL_BUF_HASH_MISS;
+		} else if (!strcmp(name, "inode_cache_hit")) {
+			perf_data.inode_cache_hit = value;
+			perf_data.flags |= HAVE_WAFL_INODE_CACHE_HIT;
+		} else if (!strcmp(name, "inode_cache_miss")) {
+			perf_data.inode_cache_miss = value;
+			perf_data.flags |= HAVE_WAFL_INODE_CACHE_MISS;
+		} else {
 			DEBUG("netapp plugin: Found unexpected child: %s", name);
+		}
 	}
 
-	/* Submit requested counters */
-	if ((wafl->flags & PERF_WAFL_NAME_CACHE)
-			&& (name_cache_hit != UINT64_MAX) && (name_cache_miss != UINT64_MAX))
-		submit_cache_ratio (host->name, plugin_inst, "name_cache_hit",
-				name_cache_hit, name_cache_miss,
-				&wafl->last_name_cache_hit, &wafl->last_name_cache_miss,
-				timestamp);
-
-	if ((wafl->flags & PERF_WAFL_DIR_CACHE)
-			&& (find_dir_hit != UINT64_MAX) && (find_dir_miss != UINT64_MAX))
-		submit_cache_ratio (host->name, plugin_inst, "find_dir_hit",
-				find_dir_hit, find_dir_miss,
-				&wafl->last_find_dir_hit, &wafl->last_find_dir_miss,
-				timestamp);
-
-	if ((wafl->flags & PERF_WAFL_BUF_CACHE)
-			&& (buf_hash_hit != UINT64_MAX) && (buf_hash_miss != UINT64_MAX))
-		submit_cache_ratio (host->name, plugin_inst, "buf_hash_hit",
-				buf_hash_hit, buf_hash_miss,
-				&wafl->last_buf_hash_hit, &wafl->last_buf_hash_miss,
-				timestamp);
-
-	if ((wafl->flags & PERF_WAFL_INODE_CACHE)
-			&& (inode_cache_hit != UINT64_MAX) && (inode_cache_miss != UINT64_MAX))
-		submit_cache_ratio (host->name, plugin_inst, "inode_cache_hit",
-				inode_cache_hit, inode_cache_miss,
-				&wafl->last_inode_cache_hit, &wafl->last_inode_cache_miss,
-				timestamp);
-} /* }}} void collect_perf_wafl_data */
+	submit_wafl_data (host, plugin_inst, wafl, &perf_data);
+} /* }}} void query_wafl_data */
 
 static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	perf_disk_data_t *perf = data;
@@ -863,7 +916,7 @@ static int config_init(void) { /* {{{ */
 				na_child_add_string(e, "foo", "read_latency");
 				na_child_add_string(e, "foo", "write_latency");
 				na_child_add(service->query, e);
-			} else if (service->handler == collect_perf_wafl_data) {
+			} else if (service->handler == query_wafl_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "wafl");
 /*				e = na_elem_new("instances");
@@ -1164,46 +1217,43 @@ static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) {
 	}
 }
 
-static void build_perf_wafl_config(host_config_t *temp, oconfig_item_t *ci) {
+static void build_perf_wafl_config(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	int i;
 	service_config_t *service;
 	perf_wafl_data_t *perf_wafl;
 	
 	service = malloc(sizeof(*service));
+	if (service == NULL)
+		return;
+	memset (service, 0, sizeof (*service));
+
 	service->query = 0;
-	service->handler = collect_perf_wafl_data;
+	service->handler = query_wafl_data;
 	perf_wafl = service->data = malloc(sizeof(*perf_wafl));
-	perf_wafl->flags = PERF_WAFL_ALL;
-	perf_wafl->last_name_cache_hit = 0;
-	perf_wafl->last_name_cache_miss = 0;
-	perf_wafl->last_find_dir_hit = 0;
-	perf_wafl->last_find_dir_miss = 0;
-	perf_wafl->last_buf_hash_hit = 0;
-	perf_wafl->last_buf_hash_miss = 0;
-	perf_wafl->last_inode_cache_hit = 0;
-	perf_wafl->last_inode_cache_miss = 0;
-	service->next = temp->services;
-	temp->services = service;
+	perf_wafl->flags = CFG_WAFL_ALL;
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
-		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetNameCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_NAME_CACHE);
+			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_NAME_CACHE);
 		} else if (!strcasecmp(item->key, "GetDirCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_DIR_CACHE);
+			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_DIR_CACHE);
 		} else if (!strcasecmp(item->key, "GetBufCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_BUF_CACHE);
+			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_BUF_CACHE);
 		} else if (!strcasecmp(item->key, "GetInodeCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, PERF_WAFL_INODE_CACHE);
+			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_INODE_CACHE);
 		} else {
 			WARNING ("netapp plugin: The %s config option is not allowed within "
 					"`GetWaflPerfData' blocks.", item->key);
 		}
 	}
-}
+
+	service->next = host->services;
+	host->services = service;
+} /* }}} void build_perf_wafl_config */
 
 static int build_perf_sys_config (host_config_t *host, /* {{{ */
 		oconfig_item_t *ci, const service_config_t *default_service)
