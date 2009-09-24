@@ -29,6 +29,8 @@
 
 #include <netapp_api.h>
 
+#define HAS_ALL_FLAGS(has,needs) (((has) & (needs)) == (needs))
+
 typedef struct host_config_s host_config_t;
 typedef void service_handler_t(host_config_t *host, na_elem_t *result, void *data);
 
@@ -68,19 +70,19 @@ typedef struct {
 	uint64_t last_inode_cache_miss;
 } perf_wafl_data_t;
 
-#define PERF_VOLUME_INIT           0x01
-#define PERF_VOLUME_IO             0x02
-#define PERF_VOLUME_OPS            0x03
-#define PERF_VOLUME_LATENCY        0x08
-#define PERF_VOLUME_ALL            0x0F
+#define CFG_VOLUME_PERF_INIT           0x0001
+#define CFG_VOLUME_PERF_IO             0x0002
+#define CFG_VOLUME_PERF_OPS            0x0003
+#define CFG_VOLUME_PERF_LATENCY        0x0008
+#define CFG_VOLUME_PERF_ALL            0x000F
 
 typedef struct {
 	uint32_t flags;
-} perf_volume_data_t;
+} cfg_volume_perf_t;
 
 typedef struct {
 	uint32_t flags;
-} volume_data_t;
+} cfg_volume_data_t;
 
 #define PERF_DISK_BUSIEST          0x01
 #define PERF_DISK_ALL              0x01
@@ -89,13 +91,22 @@ typedef struct {
 	uint32_t flags;
 } perf_disk_data_t;
 
+#define HAVE_VOLUME_PERF_BYTES_READ    0x0010
+#define HAVE_VOLUME_PERF_BYTES_WRITE   0x0020
+#define HAVE_VOLUME_PERF_OPS_READ      0x0040
+#define HAVE_VOLUME_PERF_OPS_WRITE     0x0080
+#define HAVE_VOLUME_PERF_LATENCY_READ  0x0100
+#define HAVE_VOLUME_PERF_LATENCY_WRITE 0x0200
+#define HAVE_VOLUME_PERF_ALL           0x03F0
 typedef struct {
 	uint32_t flags;
-	time_t last_timestamp;
-	uint64_t last_read_latency;
-	uint64_t last_write_latency;
-	uint64_t last_read_ops;
-	uint64_t last_write_ops;
+	time_t timestamp;
+	uint64_t read_bytes;
+	uint64_t write_bytes;
+	uint64_t read_ops;
+	uint64_t write_ops;
+	uint64_t read_latency;
+	uint64_t write_latency;
 } per_volume_perf_data_t;
 
 #define VOLUME_INIT           0x01
@@ -166,22 +177,43 @@ struct host_config_s {
 
 static host_config_t *host_config;
 
-static volume_t *get_volume (host_config_t *host, const char *name) /* {{{ */
+static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
+		uint32_t vol_data_flags, uint32_t vol_perf_flags)
 {
 	volume_t *v;
 
 	if (name == NULL)
 		return (NULL);
 	
+	/* Make sure the default flags include the init-bit. */
+	if (vol_data_flags != 0)
+		vol_data_flags |= VOLUME_INIT;
+	if (vol_perf_flags != 0)
+		vol_perf_flags |= CFG_VOLUME_PERF_INIT;
+
 	for (v = host->volumes; v; v = v->next) {
-		if (strcmp(v->name, name) == 0)
-			return v;
+		if (strcmp(v->name, name) != 0)
+			continue;
+
+		/* Check if the flags have been initialized. */
+		if (((v->volume_data.flags & VOLUME_INIT) == 0)
+				&& (vol_data_flags != 0))
+			v->volume_data.flags = vol_data_flags;
+		if (((v->perf_data.flags & CFG_VOLUME_PERF_INIT) == 0)
+				&& (vol_perf_flags != 0))
+			v->perf_data.flags = vol_perf_flags;
+
+		return v;
 	}
 
+	DEBUG ("netapp plugin: Allocating new entry for volume %s.", name);
 	v = malloc(sizeof(*v));
 	if (v == NULL)
 		return (NULL);
 	memset (v, 0, sizeof (*v));
+
+	v->volume_data.flags = vol_data_flags;
+	v->perf_data.flags = vol_perf_flags;
 
 	v->name = strdup(name);
 	if (v->name == NULL) {
@@ -275,6 +307,19 @@ static int submit_counter (const char *host, const char *plugin_inst, /* {{{ */
 				&v, 1, timestamp));
 } /* }}} int submit_counter */
 
+static int submit_two_gauge (const char *host, const char *plugin_inst, /* {{{ */
+		const char *type, const char *type_inst, gauge_t val0, gauge_t val1,
+		time_t timestamp)
+{
+	value_t values[2];
+
+	values[0].gauge = val0;
+	values[1].gauge = val1;
+
+	return (submit_values (host, plugin_inst, type, type_inst,
+				values, 2, timestamp));
+} /* }}} int submit_two_gauge */
+
 static int submit_double (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, double d, time_t timestamp)
 {
@@ -315,6 +360,88 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 	return (submit_values (host, plugin_inst, "cache_ratio", type_inst,
 				&v, 1, timestamp));
 } /* }}} int submit_cache_ratio */
+
+static int submit_volume_perf_data (const host_config_t *host, /* {{{ */
+		volume_t *volume,
+		const per_volume_perf_data_t *new_data)
+{
+	/* Check for and submit disk-octet values */
+	if (HAS_ALL_FLAGS (volume->perf_data.flags, CFG_VOLUME_PERF_IO)
+			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_BYTES_READ | HAVE_VOLUME_PERF_BYTES_WRITE))
+	{
+		submit_two_counters (host->name, volume->name, "disk_octets", /* type instance = */ NULL,
+				(counter_t) new_data->read_bytes, (counter_t) new_data->write_bytes, new_data->timestamp);
+	}
+
+	/* Check for and submit disk-operations values */
+	if (HAS_ALL_FLAGS (volume->perf_data.flags, CFG_VOLUME_PERF_OPS)
+			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE))
+	{
+		submit_two_counters (host->name, volume->name, "disk_ops", /* type instance = */ NULL,
+				(counter_t) new_data->read_ops, (counter_t) new_data->write_ops, new_data->timestamp);
+	}
+
+	/* Check for, calculate and submit disk-latency values */
+	if (HAS_ALL_FLAGS (volume->perf_data.flags, CFG_VOLUME_PERF_LATENCY
+				| HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE
+				| HAVE_VOLUME_PERF_LATENCY_READ | HAVE_VOLUME_PERF_LATENCY_WRITE)
+			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE
+				| HAVE_VOLUME_PERF_LATENCY_READ | HAVE_VOLUME_PERF_LATENCY_WRITE))
+	{
+		gauge_t latency_per_op_read;
+		gauge_t latency_per_op_write;
+
+		latency_per_op_read = NAN;
+		latency_per_op_write = NAN;
+
+		/* Check if a counter wrapped around. */
+		if ((new_data->read_ops > volume->perf_data.read_ops)
+				&& (new_data->read_latency > volume->perf_data.read_latency))
+		{
+			uint64_t diff_ops_read;
+			uint64_t diff_latency_read;
+
+			diff_ops_read = new_data->read_ops - volume->perf_data.read_ops;
+			diff_latency_read = new_data->read_latency - volume->perf_data.read_latency;
+
+			if (diff_ops_read > 0)
+				latency_per_op_read = ((gauge_t) diff_latency_read) / ((gauge_t) diff_ops_read);
+		}
+
+		if ((new_data->write_ops > volume->perf_data.write_ops)
+				&& (new_data->write_latency > volume->perf_data.write_latency))
+		{
+			uint64_t diff_ops_write;
+			uint64_t diff_latency_write;
+
+			diff_ops_write = new_data->write_ops - volume->perf_data.write_ops;
+			diff_latency_write = new_data->write_latency - volume->perf_data.write_latency;
+
+			if (diff_ops_write > 0)
+				latency_per_op_write = ((gauge_t) diff_latency_write) / ((gauge_t) diff_ops_write);
+		}
+
+		submit_two_gauge (host->name, volume->name, "disk_latency", /* type instance = */ NULL,
+				latency_per_op_read, latency_per_op_write, new_data->timestamp);
+	}
+
+	/* Clear all HAVE_* flags. */
+	volume->perf_data.flags &= ~HAVE_VOLUME_PERF_ALL;
+
+	/* Copy all counters */
+	volume->perf_data.timestamp = new_data->timestamp;
+	volume->perf_data.read_bytes = new_data->read_bytes;
+	volume->perf_data.write_bytes = new_data->write_bytes;
+	volume->perf_data.read_ops = new_data->read_ops;
+	volume->perf_data.write_ops = new_data->write_ops;
+	volume->perf_data.read_latency = new_data->read_latency;
+	volume->perf_data.write_latency = new_data->write_latency;
+
+	/* Copy the HAVE_* flags */
+	volume->perf_data.flags |= (new_data->flags & HAVE_VOLUME_PERF_ALL);
+
+	return (0);
+} /* }}} int submit_volume_perf_data */
 
 static void collect_perf_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	perf_wafl_data_t *wafl = data;
@@ -463,7 +590,7 @@ static void collect_perf_disk_data(host_config_t *host, na_elem_t *out, void *da
 static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	na_elem_t *inst;
 	volume_t *volume;
-	volume_data_t *volume_data = data;
+	cfg_volume_data_t *cfg_volume_data = data;
 
 	out = na_elem_child(out, "volumes");
 	na_elem_iter_t inst_iter = na_child_iterator(out);
@@ -475,12 +602,10 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 		uint64_t sis_saved_reported;
 		uint64_t sis_saved;
 
-		volume = get_volume(host, na_child_get_string(inst, "name"));
+		volume = get_volume(host, na_child_get_string(inst, "name"),
+				cfg_volume_data->flags, /* perf_flags = */ 0);
 		if (volume == NULL)
 			continue;
-
-		if (!(volume->volume_data.flags & VOLUME_INIT))
-			volume->volume_data.flags = volume_data->flags;
 
 		if (!(volume->volume_data.flags & VOLUME_DF))
 			continue;
@@ -564,110 +689,64 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 	}
 } /* }}} void collect_volume_data */
 
-static void collect_perf_volume_data(host_config_t *host, na_elem_t *out, void *data) {
-	perf_volume_data_t *perf = data;
-	const char *name;
+static void query_volume_perf_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
+	cfg_volume_perf_t *perf = data;
 	time_t timestamp;
 	na_elem_t *counter, *inst;
-	volume_t *volume;
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
 	
 	timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
+
 	out = na_elem_child(out, "instances");
 	na_elem_iter_t inst_iter = na_child_iterator(out);
 	for (inst = na_iterator_next(&inst_iter); inst; inst = na_iterator_next(&inst_iter)) {
-		uint64_t read_data = 0, write_data = 0, read_ops = 0, write_ops = 0, read_latency = 0, write_latency = 0;
+		per_volume_perf_data_t perf_data;
+		volume_t *volume;
 
-		volume = get_volume(host, na_child_get_string(inst, "name"));
-		if (!volume->perf_data.flags) {
-			volume->perf_data.flags = perf->flags;
-			volume->perf_data.last_read_latency = volume->perf_data.last_read_ops = 0;
-			volume->perf_data.last_write_latency = volume->perf_data.last_write_ops = 0;
-		}
+		memset (&perf_data, 0, sizeof (perf_data));
+		perf_data.timestamp = timestamp;
+
+		volume = get_volume(host, na_child_get_string(inst, "name"),
+				/* data_flags = */ 0, perf->flags);
+		if (volume == NULL)
+			continue;
+
 		na_elem_iter_t count_iter = na_child_iterator(na_elem_child(inst, "counters"));
 		for (counter = na_iterator_next(&count_iter); counter; counter = na_iterator_next(&count_iter)) {
+			const char *name;
+			uint64_t value;
+
 			name = na_child_get_string(counter, "name");
-			if (!strcmp(name, "read_ops")) {
-				read_ops = na_child_get_uint64(counter, "value", 0);
-			} else if (!strcmp(name, "write_ops")) {
-				write_ops = na_child_get_uint64(counter, "value", 0);
-			} else if (!strcmp(name, "read_data")) {
-				read_data = na_child_get_uint64(counter, "value", 0);
+			if (name == NULL)
+				continue;
+
+			value = na_child_get_uint64(counter, "value", UINT64_MAX);
+			if (value == UINT64_MAX)
+				continue;
+
+			if (!strcmp(name, "read_data")) {
+				perf_data.read_bytes = value;
+				perf_data.flags |= HAVE_VOLUME_PERF_BYTES_READ;
 			} else if (!strcmp(name, "write_data")) {
-				write_data = na_child_get_uint64(counter, "value", 0);
+				perf_data.write_bytes = value;
+				perf_data.flags |= HAVE_VOLUME_PERF_BYTES_WRITE;
+			} else if (!strcmp(name, "read_ops")) {
+				perf_data.read_ops = value;
+				perf_data.flags |= HAVE_VOLUME_PERF_OPS_READ;
+			} else if (!strcmp(name, "write_ops")) {
+				perf_data.write_ops = value;
+				perf_data.flags |= HAVE_VOLUME_PERF_OPS_WRITE;
 			} else if (!strcmp(name, "read_latency")) {
-				read_latency = na_child_get_uint64(counter, "value", 0);
+				perf_data.read_latency = value;
+				perf_data.flags |= HAVE_VOLUME_PERF_LATENCY_READ;
 			} else if (!strcmp(name, "write_latency")) {
-				write_latency = na_child_get_uint64(counter, "value", 0);
+				perf_data.write_latency = value;
+				perf_data.flags |= HAVE_VOLUME_PERF_LATENCY_WRITE;
 			}
 		}
-		if (read_ops && write_ops) {
-			values[0].counter = read_ops;
-			values[1].counter = write_ops;
-			vl.values = values;
-			vl.values_len = 2;
-			vl.time = timestamp;
-			vl.interval = interval_g;
-			sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-			sstrncpy(vl.host, host->name, sizeof(vl.host));
-			sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
-			sstrncpy(vl.type, "disk_ops", sizeof(vl.type));
-			vl.type_instance[0] = 0;
-			if (volume->perf_data.flags & PERF_VOLUME_OPS) {
-				/* We might need the data even if it wasn't configured to calculate
-				   the latency. Therefore we just skip the dispatch. */
-				DEBUG("%s/netapp-%s/disk_ops: %"PRIu64" %"PRIu64, host->name, volume->name, read_ops, write_ops);
-				plugin_dispatch_values(&vl);
-			}
-			if ((volume->perf_data.flags & PERF_VOLUME_LATENCY) && read_latency && write_latency) {
-				values[0].gauge = 0;
-				if (read_ops - volume->perf_data.last_read_ops) values[0].gauge = (read_latency - volume->perf_data.last_read_latency) * (timestamp - volume->perf_data.last_timestamp) / (read_ops - volume->perf_data.last_read_ops);
-				values[1].gauge = 0;
-				if (write_ops - volume->perf_data.last_write_ops) values[1].gauge = (write_latency - volume->perf_data.last_write_latency) * (timestamp - volume->perf_data.last_timestamp) / (write_ops - volume->perf_data.last_write_ops);
-				vl.values = values;
-				vl.values_len = 2;
-				vl.time = timestamp;
-				vl.interval = interval_g;
-				sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-				sstrncpy(vl.host, host->name, sizeof(vl.host));
-				sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
-				sstrncpy(vl.type, "disk_latency", sizeof(vl.type));
-				vl.type_instance[0] = 0;
-				if (volume->perf_data.last_read_ops && volume->perf_data.last_write_ops) {
-					DEBUG("%s/netapp-%s/disk_latency: ro: %"PRIu64" lro: %"PRIu64" "
-							"rl: %"PRIu64" lrl: %"PRIu64" "
-							"%llu %llu",
-							host->name, volume->name,
-							read_ops, volume->perf_data.last_read_ops,
-							read_latency, volume->perf_data.last_read_latency,
-							values[0].counter, values[1].counter);
-					plugin_dispatch_values(&vl);
-				}
-				volume->perf_data.last_timestamp = timestamp;
-				volume->perf_data.last_read_latency = read_latency;
-				volume->perf_data.last_read_ops = read_ops;
-				volume->perf_data.last_write_latency = write_latency;
-				volume->perf_data.last_write_ops = write_ops;
-			}
-		}
-		if ((volume->perf_data.flags & PERF_VOLUME_IO) && read_data && write_data) {
-			values[0].counter = read_data;
-			values[1].counter = write_data;
-			vl.values = values;
-			vl.values_len = 2;
-			vl.time = timestamp;
-			vl.interval = interval_g;
-			sstrncpy(vl.plugin, "netapp", sizeof(vl.plugin));
-			sstrncpy(vl.host, host->name, sizeof(vl.host));
-			sstrncpy(vl.plugin_instance, volume->name, sizeof(vl.plugin_instance));
-			sstrncpy(vl.type, "disk_octets", sizeof(vl.type));
-			vl.type_instance[0] = 0;
-			DEBUG("%s/netapp-%s/disk_octets: %"PRIu64" %"PRIu64, host->name, volume->name, read_data, write_data);
-			plugin_dispatch_values (&vl);
-		}
-	}
-}
+
+		submit_volume_perf_data (host, volume, &perf_data);
+	} /* for (volume) */
+} /* }}} void query_volume_perf_data */
 
 static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
 	counter_t disk_read = 0, disk_written = 0;
@@ -770,7 +849,7 @@ static int config_init(void) { /* {{{ */
 			if (service->handler == collect_perf_system_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "system");
-			} else if (service->handler == collect_perf_volume_data) {
+			} else if (service->handler == query_volume_perf_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "volume");
 /*				e = na_elem_new("instances");
@@ -894,7 +973,7 @@ static void set_global_vol_flag(const host_config_t *host, /* {{{ */
 } /* }}} void set_global_vol_flag */
 
 static void process_perf_volume_flag (host_config_t *host, /* {{{ */
-		perf_volume_data_t *perf_volume, const oconfig_item_t *item,
+		cfg_volume_perf_t *perf_volume, const oconfig_item_t *item,
 		uint32_t flag)
 {
 	int i;
@@ -906,7 +985,7 @@ static void process_perf_volume_flag (host_config_t *host, /* {{{ */
 
 		if (item->values[i].type != OCONFIG_TYPE_STRING) {
 			WARNING("netapp plugin: Ignoring non-string argument in "
-					"\"GetVolPerfData\" block for host %s", host->name);
+					"\"GetVolumePerfData\" block for host %s", host->name);
 			continue;
 		}
 
@@ -929,13 +1008,9 @@ static void process_perf_volume_flag (host_config_t *host, /* {{{ */
 			continue;
 		}
 
-		v = get_volume (host, name);
+		v = get_volume (host, name, /* data_flags = */ 0, perf_volume->flags);
 		if (v == NULL)
 			continue;
-
-		if (!v->perf_data.flags) {
-			v->perf_data.flags = perf_volume->flags;
-		}
 
 		if (set)
 			v->perf_data.flags |= flag;
@@ -945,7 +1020,7 @@ static void process_perf_volume_flag (host_config_t *host, /* {{{ */
 } /* }}} void process_perf_volume_flag */
 
 static void process_volume_flag (host_config_t *host, /* {{{ */
-		volume_data_t *volume_data, const oconfig_item_t *item, uint32_t flag)
+		cfg_volume_data_t *cfg_volume_data, const oconfig_item_t *item, uint32_t flag)
 {
 	int i;
 	
@@ -971,20 +1046,20 @@ static void process_volume_flag (host_config_t *host, /* {{{ */
 
 		if (!name[0]) {
 			if (set)
-				volume_data->flags |= flag;
+				cfg_volume_data->flags |= flag;
 			else /* if (!set) */
-				volume_data->flags &= ~flag;
+				cfg_volume_data->flags &= ~flag;
 
 			set_global_vol_flag(host, flag, set);
 			continue;
 		}
 
-		v = get_volume(host, name);
+		v = get_volume(host, name, cfg_volume_data->flags, /* perf_flags = */ 0);
 		if (v == NULL)
 			continue;
 
 		if (!v->volume_data.flags)
-			v->volume_data.flags = volume_data->flags;
+			v->volume_data.flags = cfg_volume_data->flags;
 
 		if (set)
 			v->volume_data.flags |= flag;
@@ -996,13 +1071,13 @@ static void process_volume_flag (host_config_t *host, /* {{{ */
 static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci) {
 	int i, had_io = 0, had_ops = 0, had_latency = 0;
 	service_config_t *service;
-	perf_volume_data_t *perf_volume;
+	cfg_volume_perf_t *perf_volume;
 	
 	service = malloc(sizeof(*service));
 	service->query = 0;
-	service->handler = collect_perf_volume_data;
+	service->handler = query_volume_perf_data;
 	perf_volume = service->data = malloc(sizeof(*perf_volume));
-	perf_volume->flags = PERF_VOLUME_INIT;
+	perf_volume->flags = CFG_VOLUME_PERF_INIT;
 	service->next = host->services;
 	host->services = service;
 	for (i = 0; i < ci->children_num; ++i) {
@@ -1013,39 +1088,39 @@ static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci)
 			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetIO")) {
 			had_io = 1;
-			process_perf_volume_flag(host, perf_volume, item, PERF_VOLUME_IO);
+			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_IO);
 		} else if (!strcasecmp(item->key, "GetOps")) {
 			had_ops = 1;
-			process_perf_volume_flag(host, perf_volume, item, PERF_VOLUME_OPS);
+			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_OPS);
 		} else if (!strcasecmp(item->key, "GetLatency")) {
 			had_latency = 1;
-			process_perf_volume_flag(host, perf_volume, item, PERF_VOLUME_LATENCY);
+			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_LATENCY);
 		}
 	}
 	if (!had_io) {
-		perf_volume->flags |= PERF_VOLUME_IO;
-		set_global_perf_vol_flag(host, PERF_VOLUME_IO, /* set = */ true);
+		perf_volume->flags |= CFG_VOLUME_PERF_IO;
+		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_IO, /* set = */ true);
 	}
 	if (!had_ops) {
-		perf_volume->flags |= PERF_VOLUME_OPS;
-		set_global_perf_vol_flag(host, PERF_VOLUME_OPS, /* set = */ true);
+		perf_volume->flags |= CFG_VOLUME_PERF_OPS;
+		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_OPS, /* set = */ true);
 	}
 	if (!had_latency) {
-		perf_volume->flags |= PERF_VOLUME_LATENCY;
-		set_global_perf_vol_flag(host, PERF_VOLUME_LATENCY, /* set = */ true);
+		perf_volume->flags |= CFG_VOLUME_PERF_LATENCY;
+		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_LATENCY, /* set = */ true);
 	}
 }
 
 static void build_volume_config(host_config_t *host, oconfig_item_t *ci) {
 	int i, had_df = 0;
 	service_config_t *service;
-	volume_data_t *volume_data;
+	cfg_volume_data_t *cfg_volume_data;
 	
 	service = malloc(sizeof(*service));
 	service->query = 0;
 	service->handler = collect_volume_data;
-	volume_data = service->data = malloc(sizeof(*volume_data));
-	volume_data->flags = VOLUME_INIT;
+	cfg_volume_data = service->data = malloc(sizeof(*cfg_volume_data));
+	cfg_volume_data->flags = VOLUME_INIT;
 	service->next = host->services;
 	host->services = service;
 	for (i = 0; i < ci->children_num; ++i) {
@@ -1056,19 +1131,13 @@ static void build_volume_config(host_config_t *host, oconfig_item_t *ci) {
 			config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetDiskUtil")) {
 			had_df = 1;
-			process_volume_flag(host, volume_data, item, VOLUME_DF);
+			process_volume_flag(host, cfg_volume_data, item, VOLUME_DF);
 		}
 	}
 	if (!had_df) {
-		volume_data->flags |= VOLUME_DF;
+		cfg_volume_data->flags |= VOLUME_DF;
 		set_global_vol_flag(host, VOLUME_DF, /* set = */ true);
 	}
-/*	service = malloc(sizeof(*service));
-	service->query = 0;
-	service->handler = collect_snapshot_data;
-	service->data = volume_data;
-	service->next = temp->services;
-	temp->services = service;*/
 }
 
 static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) {
@@ -1236,11 +1305,6 @@ static host_config_t *build_host_config(const oconfig_item_t *ci, const host_con
 			build_perf_vol_config(&temp, item);
 		} else if (!strcasecmp(item->key, "GetSystemPerfData")) {
 			build_perf_sys_config(&temp, item, &default_service);
-/*			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_STRING)) {
-				WARNING("netapp plugin: \"Collect\" needs exactly one string argument. Ignoring collect block for \"%s\".", ci->values[0].value.string);
-				continue;
-			}
-			build_collect_config(&temp, item);*/
 		} else if (!strcasecmp(item->key, "GetWaflPerfData")) {
 			build_perf_wafl_config(&temp, item);
 		} else if (!strcasecmp(item->key, "GetDiskPerfData")) {
@@ -1248,7 +1312,8 @@ static host_config_t *build_host_config(const oconfig_item_t *ci, const host_con
 		} else if (!strcasecmp(item->key, "GetVolumeData")) {
 			build_volume_config(&temp, item);
 		} else {
-			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".", item->key, ci->values[0].value.string);
+			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".",
+					item->key, ci->values[0].value.string);
 		}
 	}
 	
