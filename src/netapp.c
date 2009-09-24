@@ -841,57 +841,81 @@ static int config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
 	return (0);
 } /* }}} int config_bool_to_flag */
 
-static void set_global_perf_vol_flag(const host_config_t *host, uint32_t flag, int value) {
+static void set_global_perf_vol_flag(const host_config_t *host, /* {{{ */
+		uint32_t flag, _Bool set)
+{
 	volume_t *v;
 	
 	for (v = host->volumes; v; v = v->next) {
-		v->perf_data.flags &= ~flag;
-		if (value) v->perf_data.flags |= flag;
+		if (set)
+			v->perf_data.flags |= flag;
+		else /* if (!set) */
+			v->perf_data.flags &= ~flag;
 	}
-}
+} /* }}} void set_global_perf_vol_flag */
 
-static void set_global_vol_flag(const host_config_t *host, uint32_t flag, int value) {
+static void set_global_vol_flag(const host_config_t *host, /* {{{ */
+		uint32_t flag, _Bool set) {
 	volume_t *v;
 	
 	for (v = host->volumes; v; v = v->next) {
-		v->volume_data.flags &= ~flag;
-		if (value) v->volume_data.flags |= flag;
+		if (set)
+			v->volume_data.flags |= flag;
+		else /* if (!set) */
+			v->volume_data.flags &= ~flag;
 	}
-}
+} /* }}} void set_global_vol_flag */
 
-static void process_perf_volume_flag(host_config_t *host, perf_volume_data_t *perf_volume, const oconfig_item_t *item, uint32_t flag) {
-	int n;
+static void process_perf_volume_flag (host_config_t *host, /* {{{ */
+		perf_volume_data_t *perf_volume, const oconfig_item_t *item,
+		uint32_t flag)
+{
+	int i;
 	
-	for (n = 0; n < item->values_num; ++n) {
-		int minus = 0;
-		const char *name = item->values[n].value.string;
+	for (i = 0; i < item->values_num; ++i) {
+		const char *name;
 		volume_t *v;
-		if (item->values[n].type != OCONFIG_TYPE_STRING) {
-			WARNING("netapp plugin: Ignoring non-string argument in \"GetVolPerfData\" block for host %s", host->name);
+		_Bool set = true;
+
+		if (item->values[i].type != OCONFIG_TYPE_STRING) {
+			WARNING("netapp plugin: Ignoring non-string argument in "
+					"\"GetVolPerfData\" block for host %s", host->name);
 			continue;
 		}
+
+		name = item->values[i].value.string;
 		if (name[0] == '+') {
+			set = true;
 			++name;
 		} else if (name[0] == '-') {
-			minus = 1;
+			set = false;
 			++name;
 		}
+
 		if (!name[0]) {
-			perf_volume->flags &= ~flag;
-			if (!minus) perf_volume->flags |= flag;
-			set_global_perf_vol_flag(host, flag, !minus);
+			if (set)
+				perf_volume->flags |= flag;
+			else /* if (!set) */
+				perf_volume->flags &= ~flag;
+
+			set_global_perf_vol_flag(host, flag, set);
 			continue;
 		}
-		v = get_volume(host, name);
+
+		v = get_volume (host, name);
+		if (v == NULL)
+			continue;
+
 		if (!v->perf_data.flags) {
 			v->perf_data.flags = perf_volume->flags;
-			v->perf_data.last_read_latency = v->perf_data.last_read_ops = 0;
-			v->perf_data.last_write_latency = v->perf_data.last_write_ops = 0;
 		}
-		v->perf_data.flags &= ~flag;
-		if (!minus) v->perf_data.flags |= flag;
-	}
-}
+
+		if (set)
+			v->perf_data.flags |= flag;
+		else /* if (!set) */
+			v->perf_data.flags &= ~flag;
+	} /* for (i = 0 .. item->values_num) */
+} /* }}} void process_perf_volume_flag */
 
 static void process_volume_flag(host_config_t *host, volume_data_t *volume_data, const oconfig_item_t *item, uint32_t flag) {
 	int n;
@@ -913,7 +937,8 @@ static void process_volume_flag(host_config_t *host, volume_data_t *volume_data,
 		if (!name[0]) {
 			volume_data->flags &= ~flag;
 			if (!minus) volume_data->flags |= flag;
-			set_global_vol_flag(host, flag, !minus);
+			set_global_vol_flag(host, flag,
+					/* set = */ (minus ? false : true));
 			continue;
 		}
 		v = get_volume(host, name);
@@ -958,15 +983,15 @@ static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci)
 	}
 	if (!had_io) {
 		perf_volume->flags |= PERF_VOLUME_IO;
-		set_global_perf_vol_flag(host, PERF_VOLUME_IO, 1);
+		set_global_perf_vol_flag(host, PERF_VOLUME_IO, /* set = */ true);
 	}
 	if (!had_ops) {
 		perf_volume->flags |= PERF_VOLUME_OPS;
-		set_global_perf_vol_flag(host, PERF_VOLUME_OPS, 1);
+		set_global_perf_vol_flag(host, PERF_VOLUME_OPS, /* set = */ true);
 	}
 	if (!had_latency) {
 		perf_volume->flags |= PERF_VOLUME_LATENCY;
-		set_global_perf_vol_flag(host, PERF_VOLUME_LATENCY, 1);
+		set_global_perf_vol_flag(host, PERF_VOLUME_LATENCY, /* set = */ true);
 	}
 }
 
@@ -999,7 +1024,7 @@ static void build_volume_config(host_config_t *host, oconfig_item_t *ci) {
 	}
 	if (!had_df) {
 		volume_data->flags |= VOLUME_DF;
-		set_global_vol_flag(host, VOLUME_DF, 1);
+		set_global_vol_flag(host, VOLUME_DF, /* set = */ true);
 	}
 /*	service = malloc(sizeof(*service));
 	service->query = 0;
