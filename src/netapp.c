@@ -431,7 +431,7 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 				&v, 1, timestamp));
 } /* }}} int submit_cache_ratio */
 
-/* Submits all the caches used by WAFL. Uses "submit_cache_ratio".
+/* Submits all the caches used by WAFL. Uses "submit_cache_ratio". */
 static int submit_wafl_data (const host_config_t *host, const char *instance, /* {{{ */
 		data_wafl_t *old_data, const data_wafl_t *new_data)
 {
@@ -970,7 +970,9 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 /*
  * Configuration handling
  */
-static int config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
+/* Sets a given flag if the boolean argument is true and unsets the flag if it
+ * is false. On error, the flag-field is not changed. */
+static int cna_config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
 		uint32_t *flags, uint32_t flag)
 {
 	if ((ci == NULL) || (flags == NULL))
@@ -989,9 +991,10 @@ static int config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
 		*flags &= ~flag;
 
 	return (0);
-} /* }}} int config_bool_to_flag */
+} /* }}} int cna_config_bool_to_flag */
 
-static int config_get_multiplier (const oconfig_item_t *ci, /* {{{ */
+/* Handling of the "Multiplier" option which is allowed in every block. */
+static int cna_config_get_multiplier (const oconfig_item_t *ci, /* {{{ */
 		cfg_service_t *service)
 {
 	int tmp;
@@ -1016,11 +1019,11 @@ static int config_get_multiplier (const oconfig_item_t *ci, /* {{{ */
 	service->skip_countdown = tmp;
 
 	return (0);
-} /* }}} int config_get_multiplier */
+} /* }}} int cna_config_get_multiplier */
 
 /* Handling of the "GetIO", "GetOps" and "GetLatency" options within a
  * <GetVolumePerfData /> block. */
-static void process_perf_volume_flag (host_config_t *host, /* {{{ */
+static void cna_config_volume_performance_option (host_config_t *host, /* {{{ */
 		cfg_volume_perf_t *perf_volume, const oconfig_item_t *item,
 		uint32_t flag)
 {
@@ -1065,10 +1068,10 @@ static void process_perf_volume_flag (host_config_t *host, /* {{{ */
 		else /* if (!set) */
 			v->perf_data.flags &= ~flag;
 	} /* for (i = 0 .. item->values_num) */
-} /* }}} void process_perf_volume_flag */
+} /* }}} void cna_config_volume_performance_option */
 
 /* Corresponds to a <GetDiskPerfData /> block */
-static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci) { /* {{{ */
+static void cna_config_volume_performance(host_config_t *host, const oconfig_item_t *ci) { /* {{{ */
 	int i, had_io = 0, had_ops = 0, had_latency = 0;
 	cfg_service_t *service;
 	cfg_volume_perf_t *perf_volume;
@@ -1085,16 +1088,16 @@ static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci)
 		
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
-			config_get_multiplier (item, service);
+			cna_config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetIO")) {
 			had_io = 1;
-			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_IO);
+			cna_config_volume_performance_option(host, perf_volume, item, CFG_VOLUME_PERF_IO);
 		} else if (!strcasecmp(item->key, "GetOps")) {
 			had_ops = 1;
-			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_OPS);
+			cna_config_volume_performance_option(host, perf_volume, item, CFG_VOLUME_PERF_OPS);
 		} else if (!strcasecmp(item->key, "GetLatency")) {
 			had_latency = 1;
-			process_perf_volume_flag(host, perf_volume, item, CFG_VOLUME_PERF_LATENCY);
+			cna_config_volume_performance_option(host, perf_volume, item, CFG_VOLUME_PERF_LATENCY);
 		}
 	}
 	if (!had_io) {
@@ -1109,10 +1112,10 @@ static void build_perf_vol_config(host_config_t *host, const oconfig_item_t *ci)
 		perf_volume->flags |= CFG_VOLUME_PERF_LATENCY;
 		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_LATENCY, /* set = */ true);
 	}
-} /* }}} void build_perf_vol_config */
+} /* }}} void cna_config_volume_performance */
 
 /* Handling of the "GetDiskUtil" option within a <GetVolumeData /> block. */
-static void process_volume_flag (host_config_t *host, /* {{{ */
+static void cna_config_volume_usage_option (host_config_t *host, /* {{{ */
 		cfg_volume_usage_t *cfg_volume_data, const oconfig_item_t *item, uint32_t flag)
 {
 	int i;
@@ -1159,10 +1162,10 @@ static void process_volume_flag (host_config_t *host, /* {{{ */
 		else /* if (!set) */
 			v->cfg_volume_usage.flags &= ~flag;
 	}
-} /* }}} void process_volume_flag */
+} /* }}} void cna_config_volume_usage_option */
 
 /* Corresponds to a <GetVolumeData /> block */
-static void build_volume_config(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
+static void cna_config_volume_usage(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	int i, had_df = 0;
 	cfg_service_t *service;
 	cfg_volume_usage_t *cfg_volume_data;
@@ -1179,20 +1182,20 @@ static void build_volume_config(host_config_t *host, oconfig_item_t *ci) { /* {{
 		
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
-			config_get_multiplier (item, service);
+			cna_config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetDiskUtil")) {
 			had_df = 1;
-			process_volume_flag(host, cfg_volume_data, item, VOLUME_DF);
+			cna_config_volume_usage_option(host, cfg_volume_data, item, VOLUME_DF);
 		}
 	}
 	if (!had_df) {
 		cfg_volume_data->flags |= VOLUME_DF;
 		set_global_vol_flag(host, VOLUME_DF, /* set = */ true);
 	}
-} /* }}} void build_volume_config */
+} /* }}} void cna_config_volume_usage */
 
 /* Corresponds to a <GetDiskPerfData /> block */
-static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) { /* {{{ */
+static void cna_config_disk(host_config_t *temp, oconfig_item_t *ci) { /* {{{ */
 	int i;
 	cfg_service_t *service;
 	cfg_disk_t *cfg_disk;
@@ -1209,15 +1212,15 @@ static void build_perf_disk_config(host_config_t *temp, oconfig_item_t *ci) { /*
 		
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Multiplier")) {
-			config_get_multiplier (item, service);
+			cna_config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetBusy")) {
-			config_bool_to_flag (item, &cfg_disk->flags, CFG_SYSTEM_CPU);
+			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_SYSTEM_CPU);
 		}
 	}
-} /* }}} void build_perf_disk_config */
+} /* }}} void cna_config_disk */
 
 /* Corresponds to a <GetWaflPerfData /> block */
-static void build_perf_wafl_config(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
+static void cna_config_wafl(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	int i;
 	cfg_service_t *service;
 	data_wafl_t *perf_wafl;
@@ -1236,15 +1239,15 @@ static void build_perf_wafl_config(host_config_t *host, oconfig_item_t *ci) { /*
 		oconfig_item_t *item = ci->children + i;
 		
 		if (!strcasecmp(item->key, "Multiplier")) {
-			config_get_multiplier (item, service);
+			cna_config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetNameCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_NAME_CACHE);
+			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_NAME_CACHE);
 		} else if (!strcasecmp(item->key, "GetDirCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_DIR_CACHE);
+			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_DIR_CACHE);
 		} else if (!strcasecmp(item->key, "GetBufCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_BUF_CACHE);
+			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_BUF_CACHE);
 		} else if (!strcasecmp(item->key, "GetInodeCache")) {
-			config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_INODE_CACHE);
+			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_INODE_CACHE);
 		} else {
 			WARNING ("netapp plugin: The %s config option is not allowed within "
 					"`GetWaflPerfData' blocks.", item->key);
@@ -1253,10 +1256,10 @@ static void build_perf_wafl_config(host_config_t *host, oconfig_item_t *ci) { /*
 
 	service->next = host->services;
 	host->services = service;
-} /* }}} void build_perf_wafl_config */
+} /* }}} void cna_config_wafl */
 
 /* Corresponds to a <GetSystemPerfData /> block */
-static int build_perf_sys_config (host_config_t *host, /* {{{ */
+static int cna_config_system (host_config_t *host, /* {{{ */
 		oconfig_item_t *ci, const cfg_service_t *default_service)
 {
 	int i;
@@ -1283,15 +1286,15 @@ static int build_perf_sys_config (host_config_t *host, /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (!strcasecmp(item->key, "Multiplier")) {
-			config_get_multiplier (item, service);
+			cna_config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetCPULoad")) {
-			config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_CPU);
+			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_CPU);
 		} else if (!strcasecmp(item->key, "GetInterfaces")) {
-			config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_NET);
+			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_NET);
 		} else if (!strcasecmp(item->key, "GetDiskOps")) {
-			config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_OPS);
+			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_OPS);
 		} else if (!strcasecmp(item->key, "GetDiskIO")) {
-			config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_DISK);
+			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_DISK);
 		} else {
 			WARNING ("netapp plugin: The %s config option is not allowed within "
 					"`GetSystemPerfData' blocks.", item->key);
@@ -1302,10 +1305,10 @@ static int build_perf_sys_config (host_config_t *host, /* {{{ */
 	host->services = service;
 
 	return (0);
-} /* }}} int build_perf_sys_config */
+} /* }}} int cna_config_system */
 
 /* Corresponds to a <Host /> block. */
-static host_config_t *build_host_config (const oconfig_item_t *ci, /* {{{ */
+static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 		const host_config_t *default_host, const cfg_service_t *def_def_service)
 {
 	int i;
@@ -1356,15 +1359,15 @@ static host_config_t *build_host_config (const oconfig_item_t *ci, /* {{{ */
 			}
 			temp.interval = item->values[0].value.number;
 		} else if (!strcasecmp(item->key, "GetVolumePerfData")) {
-			build_perf_vol_config(&temp, item);
+			cna_config_volume_performance(&temp, item);
 		} else if (!strcasecmp(item->key, "GetSystemPerfData")) {
-			build_perf_sys_config(&temp, item, &default_service);
+			cna_config_system(&temp, item, &default_service);
 		} else if (!strcasecmp(item->key, "GetWaflPerfData")) {
-			build_perf_wafl_config(&temp, item);
+			cna_config_wafl(&temp, item);
 		} else if (!strcasecmp(item->key, "GetDiskPerfData")) {
-			build_perf_disk_config(&temp, item);
+			cna_config_disk(&temp, item);
 		} else if (!strcasecmp(item->key, "GetVolumeData")) {
-			build_volume_config(&temp, item);
+			cna_config_volume_usage(&temp, item);
 		} else {
 			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".",
 					item->key, ci->values[0].value.string);
@@ -1390,7 +1393,7 @@ static host_config_t *build_host_config (const oconfig_item_t *ci, /* {{{ */
 	host->next = host_config;
 	host_config = host;
 	return host;
-} /* }}} host_config_t *build_host_config */
+} /* }}} host_config_t *cna_config_host */
 
 /*
  * Callbacks registered with the daemon
@@ -1486,7 +1489,7 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Host")) {
-			build_host_config(item, &default_host, &default_service);
+			cna_config_host(item, &default_host, &default_service);
 		} else {
 			WARNING("netapp plugin: Ignoring unknown config option \"%s\".", item->key);
 		}
