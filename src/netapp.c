@@ -295,7 +295,7 @@ static disk_t *get_disk(host_config_t *host, const char *name) /* {{{ */
 	return v;
 } /* }}} disk_t *get_disk */
 
-static void set_global_perf_vol_flag(const host_config_t *host, /* {{{ */
+static void host_set_all_perf_data_flags(const host_config_t *host, /* {{{ */
 		uint32_t flag, _Bool set)
 {
 	volume_t *v;
@@ -306,9 +306,9 @@ static void set_global_perf_vol_flag(const host_config_t *host, /* {{{ */
 		else /* if (!set) */
 			v->perf_data.flags &= ~flag;
 	}
-} /* }}} void set_global_perf_vol_flag */
+} /* }}} void host_set_all_perf_data_flags */
 
-static void set_global_vol_flag(const host_config_t *host, /* {{{ */
+static void host_set_all_cfg_volume_usage_flags(const host_config_t *host, /* {{{ */
 		uint32_t flag, _Bool set) {
 	volume_t *v;
 	
@@ -318,7 +318,7 @@ static void set_global_vol_flag(const host_config_t *host, /* {{{ */
 		else /* if (!set) */
 			v->cfg_volume_usage.flags &= ~flag;
 	}
-} /* }}} void set_global_vol_flag */
+} /* }}} void host_set_all_cfg_volume_usage_flags */
 
 /*
  * Various submit functions.
@@ -1055,7 +1055,7 @@ static void cna_config_volume_performance_option (host_config_t *host, /* {{{ */
 			else /* if (!set) */
 				perf_volume->flags &= ~flag;
 
-			set_global_perf_vol_flag(host, flag, set);
+			host_set_all_perf_data_flags(host, flag, set);
 			continue;
 		}
 
@@ -1102,15 +1102,15 @@ static void cna_config_volume_performance(host_config_t *host, const oconfig_ite
 	}
 	if (!had_io) {
 		perf_volume->flags |= CFG_VOLUME_PERF_IO;
-		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_IO, /* set = */ true);
+		host_set_all_perf_data_flags(host, CFG_VOLUME_PERF_IO, /* set = */ true);
 	}
 	if (!had_ops) {
 		perf_volume->flags |= CFG_VOLUME_PERF_OPS;
-		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_OPS, /* set = */ true);
+		host_set_all_perf_data_flags(host, CFG_VOLUME_PERF_OPS, /* set = */ true);
 	}
 	if (!had_latency) {
 		perf_volume->flags |= CFG_VOLUME_PERF_LATENCY;
-		set_global_perf_vol_flag(host, CFG_VOLUME_PERF_LATENCY, /* set = */ true);
+		host_set_all_perf_data_flags(host, CFG_VOLUME_PERF_LATENCY, /* set = */ true);
 	}
 } /* }}} void cna_config_volume_performance */
 
@@ -1146,7 +1146,7 @@ static void cna_config_volume_usage_option (host_config_t *host, /* {{{ */
 			else /* if (!set) */
 				cfg_volume_data->flags &= ~flag;
 
-			set_global_vol_flag(host, flag, set);
+			host_set_all_cfg_volume_usage_flags(host, flag, set);
 			continue;
 		}
 
@@ -1190,7 +1190,7 @@ static void cna_config_volume_usage(host_config_t *host, oconfig_item_t *ci) { /
 	}
 	if (!had_df) {
 		cfg_volume_data->flags |= VOLUME_DF;
-		set_global_vol_flag(host, VOLUME_DF, /* set = */ true);
+		host_set_all_cfg_volume_usage_flags(host, VOLUME_DF, /* set = */ true);
 	}
 } /* }}} void cna_config_volume_usage */
 
