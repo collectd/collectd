@@ -85,6 +85,7 @@ Lyonel Vincent <lyonel at ezix.org>
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
  - ip6tables support in the iptables plugin.
+ - openvpn plugin (support for more status file formats)
 
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
