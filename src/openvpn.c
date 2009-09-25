@@ -492,12 +492,14 @@ static int openvpn_config (const char *key, const char *value)
 				{
 					WARNING ("status filename \"%s\" already used, \
 						please choose a different one.", status_name);
+
+					sfree (status_file);
 					return (1);
 				}
 			}
 		}
 
-		/* create a new vpn element since file and version are ok */	
+		/* create a new vpn element since file, version and name are ok */	
 		temp = (vpn_status_t *) malloc (sizeof (vpn_status_t));
 		temp->file = status_file;
 		temp->version = status_version;
@@ -506,10 +508,13 @@ static int openvpn_config (const char *key, const char *value)
 		vpn_list = (vpn_status_t **) realloc (vpn_list, (vpn_num + 1) * sizeof (vpn_status_t *));
 		if (vpn_list == NULL)
 		{
-		    char errbuf[1024];
-		    ERROR ("openvpn plugin: malloc failed: %s",
-			    sstrerror (errno, errbuf, sizeof (errbuf)));
-		    return (1);
+			char errbuf[1024];
+			ERROR ("openvpn plugin: malloc failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+
+			sfree (temp->file);
+			sfree (temp);
+			return (1);
 		}
 
 		vpn_list[vpn_num] = temp;
