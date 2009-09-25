@@ -231,30 +231,35 @@ static int multi1_read (char *name, FILE *fh)
 {
 	char buffer[1024];
 	char *fields[10];
-	const int max_fields = STATIC_ARRAY_SIZE (fields);
-	int  fields_num, read = 0, skip = 1;
+	int  fields_num, read = 0, found_header = 0;
 
 	/* read the file until the "ROUTING TABLE" line is found (no more info after) */
-	for ( ; strcmp (buffer, "ROUTING TABLE\n"); fgets (buffer, sizeof (buffer), fh))
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		if (skip) /* skip the first lines until the client list section is found */
-		{
-			/* we can't start reading data until this string is found */
-			if (strcmp (buffer, V1STRING) == 0)
-				skip = 0;
+		if (strcmp (buffer, "ROUTING TABLE\n") == 0)
+			break;
 
+		if (strcmp (buffer, V1STRING) == 0)
+		{
+			found_header = 1;
 			continue;
 		}
-		else
-		{
-			fields_num = openvpn_strsplit (buffer, fields, max_fields);
 
-			iostats_submit (name,			/* vpn instance */
-					fields[0],		/* "Common Name" */
-					atoll (fields[2]),	/* "Bytes Received" */
-					atoll (fields[3]));	/* "Bytes Sent" */
-			read = 1;
-		}
+		/* skip the first lines until the client list section is found */
+		if (found_header == 0)
+			/* we can't start reading data until this string is found */
+			continue;
+
+		fields_num = openvpn_strsplit (buffer,
+				fields, STATIC_ARRAY_SIZE (fields));
+		if (fields_num < 4)
+			continue;
+
+		iostats_submit (name,			/* vpn instance */
+				fields[0],		/* "Common Name" */
+				atoll (fields[2]),	/* "Bytes Received" */
+				atoll (fields[3]));	/* "Bytes Sent" */
+		read = 1;
 	}
 
 	return (read);
