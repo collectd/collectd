@@ -262,6 +262,22 @@ AC_CHECK_HEADERS(sys/sysctl.h, [], [],
 #endif
 ])
 
+AC_MSG_CHECKING([for sysctl kern.cp_times])
+if test -x /sbin/sysctl
+then
+	/sbin/sysctl kern.cp_times > /dev/null
+	if test $? -eq 0
+	then
+		AC_MSG_RESULT([yes])
+		AC_DEFINE(HAVE_SYSCTL_KERN_CP_TIMES, 1,
+		[Define if sysctl supports kern.cp_times])
+	else
+		AC_MSG_RESULT([no])
+	fi
+else
+	AC_MSG_RESULT([no])
+fi
+
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h libgen.h)
 
