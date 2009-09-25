@@ -2650,6 +2650,12 @@ Available options:
 
 Specifies the location of the status file.
 
+=item B<Compression> B<true>|B<false>
+
+Sets whether or not statistics about the compression used by OpenVPN should be
+collected. This information is only available in I<single> mode. Enabled by
+default.
+
 =back
 
 =head2 Plugin C<oracle>
