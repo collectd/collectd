@@ -455,7 +455,7 @@ static int openvpn_config (const char *key, const char *value)
 		fclose (fh);
 
 		if (status_version == 0)
-		{	
+		{
 			WARNING ("openvpn plugin: unable to detect status version, \
 				discarding status file \"%s\".", value);
 			return (1);
@@ -469,7 +469,7 @@ static int openvpn_config (const char *key, const char *value)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (1);
 		}
-	
+
 		/* it determines the file name as string starting at location filename + 1 */
 		filename = strrchr (status_file, (int) '/');
 		if (filename == NULL)
@@ -499,7 +499,7 @@ static int openvpn_config (const char *key, const char *value)
 			}
 		}
 
-		/* create a new vpn element since file, version and name are ok */	
+		/* create a new vpn element since file, version and name are ok */
 		temp = (vpn_status_t *) malloc (sizeof (vpn_status_t));
 		temp->file = status_file;
 		temp->version = status_version;
@@ -545,7 +545,7 @@ static int openvpn_config (const char *key, const char *value)
 static int openvpn_shutdown (void)
 {
 	int i;
-	
+
 	for (i = 0; i < vpn_num; i++)
 	{
 		sfree (vpn_list[i]->file);
