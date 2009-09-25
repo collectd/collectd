@@ -35,15 +35,15 @@
 
 struct vpn_status_s
 {
-	char	*file;
+	char *file;
 	enum
 	{
-		MULTI1 = 1,	/* status-version 1 */
-		MULTI2,		/* status-version 2 */
-		MULTI3,		/* status-version 3 */
-		SINGLE = 10	/* currently no versions for single mode, maybe in the future */
+		MULTI1 = 1, /* status-version 1 */
+		MULTI2,     /* status-version 2 */
+		MULTI3,     /* status-version 3 */
+		SINGLE = 10 /* currently no versions for single mode, maybe in the future */
 	} version;
-	char	*name;
+	char *name;
 };
 typedef struct vpn_status_s vpn_status_t;
 
@@ -60,8 +60,8 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 
-/*			Helper function			*/
-/*  copy-n-pasted from common.c - changed delim to ","  */
+/* Helper function
+ * copy-n-pasted from common.c - changed delim to ","  */
 static int openvpn_strsplit (char *string, char **fields, size_t size)
 {
 	size_t i;
@@ -94,8 +94,8 @@ static void iostats_submit (char *name, char *type, counter_t rx, counter_t tx)
 	values[1].counter = tx;
 
 	/* NOTE: using plugin_instance to identify each vpn config (and
-	 *	 status) file; using type_instance to identify the endpoint
-	 *	 host when in multimode, traffic or overhead when in single.
+	 *       status) file; using type_instance to identify the endpoint
+	 *       host when in multimode, traffic or overhead when in single.
 	 */
 
 	vl.values = values;
@@ -152,7 +152,6 @@ static int single_read (char *name, FILE *fh)
 	post_decompress = 0;
 	overhead_rx = 0;
 	overhead_tx = 0;
-
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
@@ -255,10 +254,10 @@ static int multi1_read (char *name, FILE *fh)
 		if (fields_num < 4)
 			continue;
 
-		iostats_submit (name,			/* vpn instance */
-				fields[0],		/* "Common Name" */
-				atoll (fields[2]),	/* "Bytes Received" */
-				atoll (fields[3]));	/* "Bytes Sent" */
+		iostats_submit (name,               /* vpn instance */
+				fields[0],          /* "Common Name" */
+				atoll (fields[2]),  /* "Bytes Received" */
+				atoll (fields[3])); /* "Bytes Sent" */
 		read = 1;
 	}
 
@@ -291,10 +290,10 @@ static int multi2_read (char *name, FILE *fh)
 		{
 			if (strcmp (fields[0], "CLIENT_LIST") == 0)
 			{
-				iostats_submit (name,			/* vpn instance */
-						fields[1],		/* "Common Name" */
-						atoll (fields[4]),	/* "Bytes Received" */
-						atoll (fields[5]));	/* "Bytes Sent" */
+				iostats_submit (name,               /* vpn instance */
+						fields[1],          /* "Common Name" */
+						atoll (fields[4]),  /* "Bytes Received" */
+						atoll (fields[5])); /* "Bytes Sent" */
 				read = 1;
 			}
 		}
@@ -329,10 +328,10 @@ static int multi3_read (char *name, FILE *fh)
 		{
 			if (strcmp (fields[0], "CLIENT_LIST") == 0)
 			{
-				iostats_submit (name,			/* vpn instance */
-						fields[1],		/* "Common Name" */
-						atoll (fields[4]),	/* "Bytes Received" */
-						atoll (fields[5]));	/* "Bytes Sent" */
+				iostats_submit (name,               /* vpn instance */
+						fields[1],          /* "Common Name" */
+						atoll (fields[4]),  /* "Bytes Received" */
+						atoll (fields[5])); /* "Bytes Sent" */
 				read = 1;
 			}
 		}
@@ -569,7 +568,7 @@ static int openvpn_shutdown (void)
 void module_register (void)
 {
 	plugin_register_config ("openvpn", openvpn_config,
-				config_keys, config_keys_num);
+			config_keys, config_keys_num);
 	plugin_register_read ("openvpn", openvpn_read);
 	plugin_register_shutdown ("openvpn", openvpn_shutdown);
 } /* void module_register */
