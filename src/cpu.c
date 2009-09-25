@@ -198,8 +198,10 @@ static int init (void)
 		return (-1);
 	}
 
+#ifndef HAVE_SYSCTL_KERN_CP_TIMES
 	if (numcpu != 1)
 		NOTICE ("cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
+#endif
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -464,7 +466,30 @@ static int cpu_read (void)
 		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
 	}
 /* #endif CAN_USE_SYSCTL */
+#elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES)
+	long cpuinfo[numcpu][CPUSTATES];
+	size_t cpuinfo_size;
+	int i;
 
+	memset (cpuinfo, 0, sizeof (cpuinfo));
+
+	cpuinfo_size = sizeof (cpuinfo);
+	if (sysctlbyname("kern.cp_times", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
+	{
+		char errbuf[1024];
+		ERROR ("cpu plugin: sysctlbyname failed: %s.",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	for (i = 0; i < numcpu; i++) {
+		submit (i, "user", cpuinfo[i][CP_USER]);
+		submit (i, "nice", cpuinfo[i][CP_NICE]);
+		submit (i, "system", cpuinfo[i][CP_SYS]);
+		submit (i, "idle", cpuinfo[i][CP_IDLE]);
+		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
+	}
+/* #endif HAVE_SYSCTL_KERN_CP_TIMES */
 #elif defined(HAVE_SYSCTLBYNAME)
 	long cpuinfo[CPUSTATES];
 	size_t cpuinfo_size;
