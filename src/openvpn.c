@@ -30,6 +30,7 @@
 #define V1STRING "Common Name,Real Address,Bytes Received,Bytes Sent,Connected Since\n"
 #define V2STRING "HEADER,CLIENT_LIST,Common Name,Real Address,Virtual Address,Bytes Received,Bytes Sent,Connected Since,Connected Since (time_t)\n"
 #define V3STRING "HEADER CLIENT_LIST Common Name Real Address Virtual Address Bytes Received Bytes Sent Connected Since Connected Since (time_t)\n"
+#define VSSTRING "OpenVPN STATISTICS\n"
 
 
 struct vpn_status_s
@@ -381,51 +382,70 @@ static int openvpn_read (void)
 	return (read ? 0 : -1);
 } /* int openvpn_read */
 
-static int version_detect (FILE *fh)
+static int version_detect (const char *filename)
 {
+	FILE *fh;
 	char buffer[1024];
 	int version = 0;
 
-	/* we look at the first line searching for SINGLE mode configuration */
-	if ((fscanf (fh, "%*s %s", buffer) == 1) && (strcmp (buffer, "STATISTICS") == 0))
-	{
-		DEBUG ("openvpn plugin: found status file version SINGLE");
-		version = SINGLE;
-	}
-	else    /* else multimode */
-	{
-		/* now search for the specific multimode data format */
-		while ((fgets (buffer, sizeof (buffer), fh)) != NULL)
-		{
+	/* Sanity checking. We're called from the config handling routine, so
+	 * better play it save. */
+	if ((filename == NULL) || (*filename == 0))
+		return (0);
 
-			/* searching for multi version 1 */
-			if (strcmp (buffer, V1STRING) == 0)
-			{
-				DEBUG ("openvpn plugin: found status file version MULTI1");
-				version = MULTI1;
-				break;
-			}
-			/* searching for multi version 2 */
-			else if (strcmp (buffer, V2STRING) == 0)
-			{
-				DEBUG ("openvpn plugin: found status file version MULTI2");
-				version = MULTI2;
-				break;
-			}
-			/* searching for multi version 3 */
-			else if (strcmp (buffer, V3STRING) == 0)
-			{
-				DEBUG ("openvpn plugin: found status file version MULTI3");
-				version = MULTI3;
-				break;
-			}
+	fh = fopen (filename, "r");
+	if (fh == NULL)
+	{
+		char errbuf[1024];
+		WARNING ("openvpn plugin: Unable to read \"%s\": %s", filename,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (0);
+	}
+
+	/* now search for the specific multimode data format */
+	while ((fgets (buffer, sizeof (buffer), fh)) != NULL)
+	{
+		/* we look at the first line searching for SINGLE mode configuration */
+		if (strcmp (buffer, VSSTRING) == 0)
+		{
+			DEBUG ("openvpn plugin: found status file version SINGLE");
+			version = SINGLE;
+			break;
+		}
+		/* searching for multi version 1 */
+		else if (strcmp (buffer, V1STRING) == 0)
+		{
+			DEBUG ("openvpn plugin: found status file version MULTI1");
+			version = MULTI1;
+			break;
+		}
+		/* searching for multi version 2 */
+		else if (strcmp (buffer, V2STRING) == 0)
+		{
+			DEBUG ("openvpn plugin: found status file version MULTI2");
+			version = MULTI2;
+			break;
+		}
+		/* searching for multi version 3 */
+		else if (strcmp (buffer, V3STRING) == 0)
+		{
+			DEBUG ("openvpn plugin: found status file version MULTI3");
+			version = MULTI3;
+			break;
 		}
 	}
 
 	if (version == 0)
 	{
-		DEBUG ("openvpn plugin: unknown file format, please report this as bug");
+		/* This is only reached during configuration, so complaining to
+		 * the user is in order. */
+		NOTICE ("openvpn plugin: %s: Unknown file format, please "
+				"report this as bug. Make sure to include "
+				"your status file, so the plugin can "
+				"be adapted.", filename);
 	}
+
+	fclose (fh);
 
 	return version;
 } /* int version_detect */
@@ -434,25 +454,12 @@ static int openvpn_config (const char *key, const char *value)
 {
 	if (strcasecmp ("StatusFile", key) == 0)
 	{
-		FILE    *fh;
 		char    *status_file, *status_name, *filename;
 		int     status_version, i;
 		vpn_status_t *temp;
 
-		/* check whether the status file provided is readable */
-		fh = fopen (value, "r");
-		if (fh == NULL)
-		{
-			char errbuf[1024];
-			WARNING ("openvpn plugin: unable to read \"%s\": %s",
-			value, sstrerror (errno, errbuf, sizeof (errbuf)));
-			return (1);
-		}
-
-		/* once open try to detect the status file format */
-		status_version = version_detect (fh);
-
-		fclose (fh);
+		/* try to detect the status file format */
+		status_version = version_detect (value);
 
 		if (status_version == 0)
 		{
@@ -483,19 +490,16 @@ static int openvpn_config (const char *key, const char *value)
 			status_name = filename + 1;
 		}
 
-		/* if not empty, it scans the list looking for a clone */
-		if (vpn_num)
+		/* scan the list looking for a clone */
+		for (i = 0; i < vpn_num; i++)
 		{
-			for (i = 0; i < vpn_num; i++)
+			if (strcasecmp (vpn_list[i]->name, status_name) == 0)
 			{
-				if (strcasecmp (vpn_list[i]->name, status_name) == 0)
-				{
-					WARNING ("status filename \"%s\" already used, \
-						please choose a different one.", status_name);
-
-					sfree (status_file);
-					return (1);
-				}
+				WARNING ("openvpn plugin: status filename \"%s\" "
+						"already used, please choose a "
+						"different one.", status_name);
+				sfree (status_file);
+				return (1);
 			}
 		}
 
