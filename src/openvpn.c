@@ -54,7 +54,7 @@ static int store_compression = 1;
 static const char *config_keys[] =
 {
 	"StatusFile",
-	"NoCompression"
+	"Compression"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -523,18 +523,14 @@ static int openvpn_config (const char *key, const char *value)
 		DEBUG ("openvpn plugin: status file \"%s\" added", temp->file);
 
 	}
-	else if (strcasecmp ("NoCompression", key) == 0)
+	else if (strcasecmp ("Compression", key) == 0)
 	{
-		if ((strcasecmp ("True", value) == 0)
-			|| (strcasecmp ("Yes", value) == 0)
-			|| (strcasecmp ("On", value) == 0))
+		if (IS_TRUE (value))
+			store_compression = 1;
+		else
 		{
 			store_compression = 0;
 			DEBUG ("openvpn plugin: no 'compression statistcs' collected");
-		}
-		else
-		{
-			store_compression = 1;
 		}
 	}
 	else
