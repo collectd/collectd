@@ -167,42 +167,40 @@ static int single_read (char *name, FILE *fh)
 		{
 			continue;
 		}
-		else
+
+		if (strcmp (fields[0], "TUN/TAP read bytes") == 0)
 		{
-			if (strcmp (fields[0], "TUN/TAP read bytes") == 0)
-			{
-				/* read from the system and sent over the tunnel */
-				tun_tx = atoll (fields[1]);
-			}
-			else if (strcmp (fields[0], "TUN/TAP write bytes") == 0)
-			{
-				/* read from the tunnel and written in the system */
-				tun_rx = atoll (fields[1]);
-			}
-			else if (strcmp (fields[0], "TCP/UDP read bytes") == 0)
-			{
-				link_rx = atoll (fields[1]);
-			}
-			else if (strcmp (fields[0], "TCP/UDP write bytes") == 0)
-			{
-				link_tx = atoll (fields[1]);
-			}
-			else if (strcmp (fields[0], "pre-compress bytes") == 0)
-			{
-				pre_compress = atoll (fields[1]);
-			}
-			else if (strcmp (fields[0], "post-compress bytes") == 0)
-			{
-				post_compress = atoll (fields[1]);
-			}
-			else if (strcmp (fields[0], "pre-decompress bytes") == 0)
-			{
-				pre_decompress = atoll (fields[1]);
-			}
-			else if (strcmp (fields[0], "post-decompress bytes") == 0)
-			{
-				post_decompress = atoll (fields[1]);
-			}
+			/* read from the system and sent over the tunnel */
+			tun_tx = atoll (fields[1]);
+		}
+		else if (strcmp (fields[0], "TUN/TAP write bytes") == 0)
+		{
+			/* read from the tunnel and written in the system */
+			tun_rx = atoll (fields[1]);
+		}
+		else if (strcmp (fields[0], "TCP/UDP read bytes") == 0)
+		{
+			link_rx = atoll (fields[1]);
+		}
+		else if (strcmp (fields[0], "TCP/UDP write bytes") == 0)
+		{
+			link_tx = atoll (fields[1]);
+		}
+		else if (strcmp (fields[0], "pre-compress bytes") == 0)
+		{
+			pre_compress = atoll (fields[1]);
+		}
+		else if (strcmp (fields[0], "post-compress bytes") == 0)
+		{
+			post_compress = atoll (fields[1]);
+		}
+		else if (strcmp (fields[0], "pre-decompress bytes") == 0)
+		{
+			pre_decompress = atoll (fields[1]);
+		}
+		else if (strcmp (fields[0], "post-decompress bytes") == 0)
+		{
+			post_decompress = atoll (fields[1]);
 		}
 	}
 
