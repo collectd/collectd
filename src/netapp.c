@@ -1488,29 +1488,41 @@ static int cna_init(void) { /* {{{ */
 		return 1;
 	}
 
+	memset (err, 0, sizeof (err));
 	if (!na_startup(err, sizeof(err))) {
+		err[sizeof (err) - 1] = 0;
 		ERROR("netapp plugin: Error initializing netapp API: %s", err);
 		return 1;
 	}
 
 	for (host = global_host_config; host; host = host->next) {
-		host->srv = na_server_open(host->host, 1, 1); 
-		na_server_set_transport_type(host->srv, host->protocol, 0);
+		/* Request version 1.1 of the ONTAP API */
+		host->srv = na_server_open(host->host,
+				/* major version = */ 1, /* minor version = */ 1); 
+		if (host->srv == NULL) {
+			ERROR ("netapp plugin: na_server_open (%s) failed.", host->host);
+			continue;
+		}
+
+		if (host->interval < interval_g)
+			host->interval = interval_g;
+
+		na_server_set_transport_type(host->srv, host->protocol,
+				/* transportarg = */ NULL);
 		na_server_set_port(host->srv, host->port);
 		na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
 		na_server_adminuser(host->srv, host->username, host->password);
-		na_server_set_timeout(host->srv, 5);
+		na_server_set_timeout(host->srv, 5 /* seconds */);
+
 		for (service = host->services; service; service = service->next) {
 			service->interval = host->interval * service->multiplier;
+
 			if (service->handler == collect_perf_system_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "system");
 			} else if (service->handler == query_volume_perf_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "volume");
-/*				e = na_elem_new("instances");
-				na_child_add_string(e, "foo", "system");
-				na_child_add(root, e);*/
 				e = na_elem_new("counters");
 				na_child_add_string(e, "foo", "read_ops");
 				na_child_add_string(e, "foo", "write_ops");
@@ -1522,9 +1534,6 @@ static int cna_init(void) { /* {{{ */
 			} else if (service->handler == query_wafl_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "wafl");
-/*				e = na_elem_new("instances");
-				na_child_add_string(e, "foo", "system");
-				na_child_add(root, e);*/
 				e = na_elem_new("counters");
 				na_child_add_string(e, "foo", "name_cache_hit");
 				na_child_add_string(e, "foo", "name_cache_miss");
