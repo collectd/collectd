@@ -1005,7 +1005,7 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 			cpu_total = (counter_t) value;
 			counter_flags |= 0x20;
 		} else if ((cfg_system->flags & CFG_SYSTEM_OPS)
-				&& (strlen(name) > 4)
+				&& (value > 0) && (strlen(name) > 4)
 				&& (!strcmp(name + strlen(name) - 4, "_ops"))) {
 			submit_counter (host->name, instance, "disk_ops_complex", name,
 					(counter_t) value, timestamp);
