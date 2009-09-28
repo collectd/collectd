@@ -806,6 +806,7 @@ static int cna_query_wafl (host_config_t *host) /* {{{ */
 	if (host == NULL)
 		return (EINVAL);
 
+	/* If WAFL was not configured, return without doing anything. */
 	if (host->cfg_wafl == NULL)
 		return (0);
 
@@ -998,6 +999,8 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 	if (host == NULL)
 		return (EINVAL);
 
+	/* If the user did not configure disk statistics, return without doing
+	 * anything. */
 	if (host->cfg_disk == NULL)
 		return (0);
 
