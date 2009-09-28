@@ -1667,8 +1667,13 @@ Required capabilities are documented below.
     User          "username"
     Password      "aef4Aebe"
     Interval      30
-    <GetSystemPerfData>
-    </GetSystemPerfData>
+    <System>
+      Interval 30
+      GetCPULoad     true
+      GetInterfaces  true
+      GetDiskOps     true
+      GetDiskIO      true
+    </System>
     <WAFL>
       Interval 30
       GetNameCache   true
@@ -1766,7 +1771,7 @@ Default: 1
 
 =back
 
-=head3 The GetSystemPerfData block
+=head3 The System block
 
 This will collect various performance data about the whole system.
 
@@ -1774,6 +1779,10 @@ B<Note:> To get this data the collectd user needs the
 "api-perf-object-get-instances" capability.
 
 =over 4
+
+=item B<Interval> I<Seconds>
+
+Collect disk statistics every I<Seconds> seconds.
 
 =item B<GetCPULoad> B<true>|B<false>
 

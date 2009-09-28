@@ -51,6 +51,8 @@ typedef struct cna_interval_s cna_interval_t;
 #define CFG_SYSTEM_ALL  0x0F
 typedef struct {
 	uint32_t flags;
+	cna_interval_t interval;
+	na_elem_t *query;
 } cfg_system_t;
 
 /*!
@@ -221,6 +223,7 @@ struct host_config_s {
 	cfg_service_t *services;
 	cfg_disk_t *cfg_disk;
 	cfg_wafl_t *cfg_wafl;
+	cfg_system_t *cfg_system;
 	volume_t *volumes;
 
 	struct host_config_s *next;
@@ -1193,24 +1196,45 @@ static void query_volume_perf_data(host_config_t *host, na_elem_t *out, void *da
 	} /* for (volume) */
 } /* }}} void query_volume_perf_data */
 
-/* Data corresponding to <GetSystemPerfData /> */
-static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
+/* Data corresponding to <System /> */
+static int cna_handle_system_data (const char *hostname, /* {{{ */
+		cfg_system_t *cfg_system, na_elem_t *data)
+{
+	na_elem_t *instances;
+	na_elem_t *counter;
+	na_elem_iter_t counter_iter;
+
 	counter_t disk_read = 0, disk_written = 0;
 	counter_t net_recv = 0, net_sent = 0;
 	counter_t cpu_busy = 0, cpu_total = 0;
-	unsigned int counter_flags = 0;
+	uint32_t counter_flags = 0;
 
-	cfg_system_t *cfg_system = data;
 	const char *instance;
 	time_t timestamp;
-	na_elem_t *counter;
 	
-	timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
-	out = na_elem_child(na_elem_child(out, "instances"), "instance-data");
-	instance = na_child_get_string(out, "name");
+	timestamp = (time_t) na_child_get_uint64 (data, "timestamp", 0);
 
-	na_elem_iter_t iter = na_child_iterator(na_elem_child(out, "counters"));
-	for (counter = na_iterator_next(&iter); counter; counter = na_iterator_next(&iter)) {
+	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
+	if (instances == NULL)
+	{
+		ERROR ("netapp plugin: cna_handle_system_data: "
+				"na_elem_child (\"instances\") failed.");
+		return (-1);
+	}
+
+	instance = na_child_get_string (instances, "name");
+	if (instance == NULL)
+	{
+		ERROR ("netapp plugin: cna_handle_system_data: "
+				"na_child_get_string (\"name\") failed.");
+		return (-1);
+	}
+
+	counter_iter = na_child_iterator (na_elem_child (instances, "counters"));
+	for (counter = na_iterator_next (&counter_iter);
+			counter != NULL;
+			counter = na_iterator_next (&counter_iter))
+	{
 		const char *name;
 		uint64_t value;
 
@@ -1243,29 +1267,91 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 		} else if ((cfg_system->flags & CFG_SYSTEM_OPS)
 				&& (value > 0) && (strlen(name) > 4)
 				&& (!strcmp(name + strlen(name) - 4, "_ops"))) {
-			submit_counter (host->name, instance, "disk_ops_complex", name,
+			submit_counter (hostname, instance, "disk_ops_complex", name,
 					(counter_t) value, timestamp);
 		}
 	} /* for (counter) */
 
 	if ((cfg_system->flags & CFG_SYSTEM_DISK)
-			&& ((counter_flags & 0x03) == 0x03))
-		submit_two_counters (host->name, instance, "disk_octets", NULL,
+			&& (HAS_ALL_FLAGS (counter_flags, 0x01 | 0x02)))
+		submit_two_counters (hostname, instance, "disk_octets", NULL,
 				disk_read, disk_written, timestamp);
 				
 	if ((cfg_system->flags & CFG_SYSTEM_NET)
-			&& ((counter_flags & 0x0c) == 0x0c))
-		submit_two_counters (host->name, instance, "if_octets", NULL,
+			&& (HAS_ALL_FLAGS (counter_flags, 0x04 | 0x08)))
+		submit_two_counters (hostname, instance, "if_octets", NULL,
 				net_recv, net_sent, timestamp);
 
 	if ((cfg_system->flags & CFG_SYSTEM_CPU)
-			&& ((counter_flags & 0x30) == 0x30)) {
-		submit_counter (host->name, instance, "cpu", "system",
+			&& (HAS_ALL_FLAGS (counter_flags, 0x10 | 0x20)))
+	{
+		submit_counter (hostname, instance, "cpu", "system",
 				cpu_busy, timestamp);
-		submit_counter (host->name, instance, "cpu", "idle",
+		submit_counter (hostname, instance, "cpu", "idle",
 				cpu_total - cpu_busy, timestamp);
 	}
-} /* }}} void collect_perf_system_data */
+
+	return (0);
+} /* }}} int cna_handle_system_data */
+
+static int cna_setup_system (cfg_system_t *cs) /* {{{ */
+{
+	if (cs == NULL)
+		return (EINVAL);
+
+	if (cs->query != NULL)
+		return (0);
+
+	cs->query = na_elem_new ("perf-object-get-instances");
+	if (cs->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+	na_child_add_string (cs->query, "objectname", "system");
+
+	return (0);
+} /* }}} int cna_setup_system */
+
+static int cna_query_system (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	time_t now;
+
+	if (host == NULL)
+		return (EINVAL);
+
+	/* If system statistics were not configured, return without doing anything. */
+	if (host->cfg_system == NULL)
+		return (0);
+
+	now = time (NULL);
+	if ((host->cfg_system->interval.interval + host->cfg_system->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_system (host->cfg_system);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_system->query != NULL);
+
+	data = na_server_invoke_elem(host->srv, host->cfg_system->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_system: na_server_invoke_elem failed: %s",
+				na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_system_data (host->name, host->cfg_system, data);
+
+	if (status == 0)
+		host->cfg_system->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_system */
 
 /*
  * Configuration handling
@@ -1609,35 +1695,36 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 	return (0);
 } /* }}} int cna_config_wafl */
 
-/* Corresponds to a <GetSystemPerfData /> block */
+/* Corresponds to a <System /> block */
 static int cna_config_system (host_config_t *host, /* {{{ */
 		oconfig_item_t *ci, const cfg_service_t *default_service)
 {
-	int i;
-	cfg_service_t *service;
 	cfg_system_t *cfg_system;
+	int i;
 	
-	service = malloc(sizeof(*service));
-	if (service == NULL)
-		return (-1);
-	memset (service, 0, sizeof (*service));
-	*service = *default_service;
-	service->handler = collect_perf_system_data;
+	if ((host == NULL) || (ci == NULL))
+		return (EINVAL);
 
-	cfg_system = malloc(sizeof(*cfg_system));
-	if (cfg_system == NULL) {
-		sfree (service);
-		return (-1);
+	if (host->cfg_system == NULL)
+	{
+		cfg_system = malloc (sizeof (*cfg_system));
+		if (cfg_system == NULL)
+			return (ENOMEM);
+		memset (cfg_system, 0, sizeof (*cfg_system));
+
+		/* Set default flags */
+		cfg_system->flags = CFG_SYSTEM_ALL;
+		cfg_system->query = NULL;
+
+		host->cfg_system = cfg_system;
 	}
-	memset (cfg_system, 0, sizeof (*cfg_system));
-	cfg_system->flags = CFG_SYSTEM_ALL;
-	service->data = cfg_system;
+	cfg_system = host->cfg_system;
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
-		if (!strcasecmp(item->key, "Multiplier")) {
-			cna_config_get_multiplier (item, service);
+		if (strcasecmp(item->key, "Interval") == 0) {
+			cna_config_get_interval (item, &cfg_system->interval);
 		} else if (!strcasecmp(item->key, "GetCPULoad")) {
 			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_CPU);
 		} else if (!strcasecmp(item->key, "GetInterfaces")) {
@@ -1648,12 +1735,9 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_DISK);
 		} else {
 			WARNING ("netapp plugin: The %s config option is not allowed within "
-					"`GetSystemPerfData' blocks.", item->key);
+					"`System' blocks.", item->key);
 		}
 	}
-
-	service->next = host->services;
-	host->services = service;
 
 	return (0);
 } /* }}} int cna_config_system */
@@ -1715,7 +1799,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 			host->interval = item->values[0].value.number;
 		} else if (!strcasecmp(item->key, "GetVolumePerfData")) {
 			cna_config_volume_performance(host, item);
-		} else if (!strcasecmp(item->key, "GetSystemPerfData")) {
+		} else if (!strcasecmp(item->key, "System")) {
 			cna_config_system(host, item, &default_service);
 		} else if (!strcasecmp(item->key, "WAFL")) {
 			cna_config_wafl(host, item);
@@ -1801,10 +1885,7 @@ static int cna_init(void) { /* {{{ */
 		for (service = host->services; service; service = service->next) {
 			service->interval = host->interval * service->multiplier;
 
-			if (service->handler == collect_perf_system_data) {
-				service->query = na_elem_new("perf-object-get-instances");
-				na_child_add_string(service->query, "objectname", "system");
-			} else if (service->handler == query_volume_perf_data) {
+			if (service->handler == query_volume_perf_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "volume");
 				e = na_elem_new("counters");
@@ -1894,6 +1975,7 @@ static int cna_read(void) { /* {{{ */
 
 		cna_query_wafl (host);
 		cna_query_disk (host);
+		cna_query_system (host);
 	}
 	return 0;
 } /* }}} int cna_read */
