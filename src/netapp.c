@@ -828,16 +828,21 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 		/* 2^4 exa-bytes? This will take a while ;) */
 		size_free = na_child_get_uint64(inst, "size-available", UINT64_MAX);
 		if (size_free != UINT64_MAX)
-			submit_double (host->name, volume->name, "df_complex", "used",
-					(double) size_used, /* time = */ 0);
-
-		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
-		if (size_free != UINT64_MAX)
 			submit_double (host->name, volume->name, "df_complex", "free",
 					(double) size_free, /* time = */ 0);
 
+		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
+		if (size_used != UINT64_MAX) {
+			if ((volume->cfg_volume_usage.flags & HAVE_VOLUME_USAGE_SNAP)
+					&& (size_used >= volume->cfg_volume_usage.snap_used))
+				size_used -= volume->cfg_volume_usage.snap_used;
+			submit_double (host->name, volume->name, "df_complex", "used",
+					(double) size_used, /* time = */ 0);
+		}
+
 		snap_reserved = na_child_get_uint64(inst, "snapshot-blocks-reserved", UINT64_MAX);
-		if (snap_reserved != UINT64_MAX)
+		if (!(volume->cfg_volume_usage.flags & HAVE_VOLUME_USAGE_SNAP) && (snap_reserved != UINT64_MAX))
+			/* If we have snap usage data this value has already been submitted. */
 			/* 1 block == 1024 bytes  as per API docs */
 			submit_double (host->name, volume->name, "df_complex", "snap_reserved",
 					(double) (1024 * snap_reserved), /* time = */ 0);
@@ -1389,7 +1394,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 		const host_config_t *default_host, const cfg_service_t *def_def_service)
 {
 	oconfig_item_t *item;
-	host_config_t *host, *hc;
+	host_config_t *host;
 	cfg_service_t default_service = *def_def_service;
 	int status;
 	int i;
