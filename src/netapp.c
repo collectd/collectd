@@ -143,11 +143,13 @@ typedef struct {
 /*!
  * \brief Configuration struct for volume usage data (free / used).
  */
-#define VOLUME_INIT           0x01
-#define VOLUME_DF             0x02
-#define VOLUME_SNAP           0x04
+#define CFG_VOLUME_USAGE_INIT           0x0001
+#define CFG_VOLUME_USAGE_DF             0x0002
+#define CFG_VOLUME_USAGE_SNAP           0x0004
+#define HAVE_VOLUME_USAGE_SNAP          0x0008
 typedef struct {
 	uint32_t flags;
+	uint64_t snap_used;
 } cfg_volume_usage_t;
 
 typedef struct service_config_s {
@@ -271,9 +273,14 @@ static void free_cfg_service (cfg_service_t *service) /* {{{ */
 {
 	cfg_service_t *next;
 
+	if (service == NULL)
+		return;
+	
 	next = service->next;
 
 	/* FIXME: Free service->data? */
+	na_elem_free(service->query);
+	
 	sfree (service);
 
 	free_cfg_service (next);
@@ -317,7 +324,7 @@ static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
 	
 	/* Make sure the default flags include the init-bit. */
 	if (vol_usage_flags != 0)
-		vol_usage_flags |= VOLUME_INIT;
+		vol_usage_flags |= CFG_VOLUME_USAGE_INIT;
 	if (vol_perf_flags != 0)
 		vol_perf_flags |= CFG_VOLUME_PERF_INIT;
 
@@ -326,7 +333,7 @@ static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
 			continue;
 
 		/* Check if the flags have been initialized. */
-		if (((v->cfg_volume_usage.flags & VOLUME_INIT) == 0)
+		if (((v->cfg_volume_usage.flags & CFG_VOLUME_USAGE_INIT) == 0)
 				&& (vol_usage_flags != 0))
 			v->cfg_volume_usage.flags = vol_usage_flags;
 		if (((v->perf_data.flags & CFG_VOLUME_PERF_INIT) == 0)
@@ -1039,22 +1046,27 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 		if (volume == NULL)
 			continue;
 
-		if (!(volume->cfg_volume_usage.flags & VOLUME_DF))
+		if (!(volume->cfg_volume_usage.flags & CFG_VOLUME_USAGE_DF))
 			continue;
 
 		/* 2^4 exa-bytes? This will take a while ;) */
 		size_free = na_child_get_uint64(inst, "size-available", UINT64_MAX);
 		if (size_free != UINT64_MAX)
-			submit_double (host->name, volume->name, "df_complex", "used",
-					(double) size_used, /* time = */ 0);
-
-		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
-		if (size_free != UINT64_MAX)
 			submit_double (host->name, volume->name, "df_complex", "free",
 					(double) size_free, /* time = */ 0);
 
+		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
+		if (size_used != UINT64_MAX) {
+			if ((volume->cfg_volume_usage.flags & HAVE_VOLUME_USAGE_SNAP)
+					&& (size_used >= volume->cfg_volume_usage.snap_used))
+				size_used -= volume->cfg_volume_usage.snap_used;
+			submit_double (host->name, volume->name, "df_complex", "used",
+					(double) size_used, /* time = */ 0);
+		}
+
 		snap_reserved = na_child_get_uint64(inst, "snapshot-blocks-reserved", UINT64_MAX);
-		if (snap_reserved != UINT64_MAX)
+		if (!(volume->cfg_volume_usage.flags & HAVE_VOLUME_USAGE_SNAP) && (snap_reserved != UINT64_MAX))
+			/* If we have snap usage data this value has already been submitted. */
 			/* 1 block == 1024 bytes  as per API docs */
 			submit_double (host->name, volume->name, "df_complex", "snap_reserved",
 					(double) (1024 * snap_reserved), /* time = */ 0);
@@ -1229,7 +1241,7 @@ static void collect_perf_system_data(host_config_t *host, na_elem_t *out, void *
 			cpu_total = (counter_t) value;
 			counter_flags |= 0x20;
 		} else if ((cfg_system->flags & CFG_SYSTEM_OPS)
-				&& (strlen(name) > 4)
+				&& (value > 0) && (strlen(name) > 4)
 				&& (!strcmp(name + strlen(name) - 4, "_ops"))) {
 			submit_counter (host->name, instance, "disk_ops_complex", name,
 					(counter_t) value, timestamp);
@@ -1490,7 +1502,7 @@ static void cna_config_volume_usage(host_config_t *host, oconfig_item_t *ci) { /
 	service->query = 0;
 	service->handler = collect_volume_data;
 	cfg_volume_data = service->data = malloc(sizeof(*cfg_volume_data));
-	cfg_volume_data->flags = VOLUME_INIT;
+	cfg_volume_data->flags = CFG_VOLUME_USAGE_INIT;
 	service->next = host->services;
 	host->services = service;
 	for (i = 0; i < ci->children_num; ++i) {
@@ -1501,12 +1513,18 @@ static void cna_config_volume_usage(host_config_t *host, oconfig_item_t *ci) { /
 			cna_config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetDiskUtil")) {
 			had_df = 1;
-			cna_config_volume_usage_option(host, cfg_volume_data, item, VOLUME_DF);
+			cna_config_volume_usage_option(host, cfg_volume_data, item, CFG_VOLUME_USAGE_DF);
+		} else if (!strcasecmp(item->key, "GetSnapUtil")) {
+			had_df = 1;
+			cna_config_volume_usage_option(host, cfg_volume_data, item, CFG_VOLUME_USAGE_SNAP);
 		}
 	}
 	if (!had_df) {
-		cfg_volume_data->flags |= VOLUME_DF;
-		host_set_all_cfg_volume_usage_flags(host, VOLUME_DF, /* set = */ true);
+		cfg_volume_data->flags |= CFG_VOLUME_USAGE_DF;
+		host_set_all_cfg_volume_usage_flags(host, CFG_VOLUME_USAGE_DF, /* set = */ true);
+	}
+	if (cfg_volume_data->flags & CFG_VOLUME_USAGE_SNAP) {
+		WARNING("netapp plugin: The \"GetSnapUtil\" option does not support the \"+\" wildcard.");
 	}
 } /* }}} void cna_config_volume_usage */
 
@@ -1645,7 +1663,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 		const host_config_t *default_host, const cfg_service_t *def_def_service)
 {
 	oconfig_item_t *item;
-	host_config_t *host, *hc;
+	host_config_t *host;
 	cfg_service_t default_service = *def_def_service;
 	int status;
 	int i;
@@ -1735,9 +1753,6 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 		return (NULL);
 	}
 
-	for (hc = global_host_config; hc; hc = hc->next) {
-		if (!strcasecmp(hc->name, host->name)) WARNING("netapp plugin: Duplicate definition of host \"%s\". This is probably a bad idea.", hc->name);
-	}
 	return host;
 } /* }}} host_config_t *cna_config_host */
 
@@ -1793,6 +1808,8 @@ static int cna_init(void) { /* {{{ */
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "volume");
 				e = na_elem_new("counters");
+				/* "foo" means: This string has to be here but
+				   the content doesn't matter. */
 				na_child_add_string(e, "foo", "read_ops");
 				na_child_add_string(e, "foo", "write_ops");
 				na_child_add_string(e, "foo", "read_data");
@@ -1820,7 +1837,6 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
 
-		/* if (!item || !item->key || !*item->key) continue; */
 		if (!strcasecmp(item->key, "Host")) {
 			host_config_t *host;
 			host_config_t *tmp;
