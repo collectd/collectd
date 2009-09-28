@@ -1134,7 +1134,7 @@ static void cna_config_volume_performance_option (host_config_t *host, /* {{{ */
 	} /* for (i = 0 .. item->values_num) */
 } /* }}} void cna_config_volume_performance_option */
 
-/* Corresponds to a <GetDiskPerfData /> block */
+/* Corresponds to a <GetVolumePerfData /> block */
 static void cna_config_volume_performance(host_config_t *host, const oconfig_item_t *ci) { /* {{{ */
 	int i, had_io = 0, had_ops = 0, had_latency = 0;
 	cfg_service_t *service;
