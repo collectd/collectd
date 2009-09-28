@@ -243,6 +243,9 @@ static void free_volume (volume_t *volume) /* {{{ */
 {
 	volume_t *next;
 
+	if (volume == NULL)
+		return;
+
 	next = volume->next;
 
 	sfree (volume->name);
@@ -254,6 +257,9 @@ static void free_volume (volume_t *volume) /* {{{ */
 static void free_disk (disk_t *disk) /* {{{ */
 {
 	disk_t *next;
+
+	if (disk == NULL)
+		return;
 
 	next = disk->next;
 
