@@ -57,12 +57,12 @@ typedef struct {
  * \brief Persistent data for WAFL performance counters. (a.k.a. cache performance)
  *
  * The cache counters use old counter values to calculate a hit ratio for each
- * counter. The "data_wafl_t" struct therefore contains old counter values
- * along with flags, which are set if the counter is valid.
+ * counter. The "cfg_wafl_t" struct therefore contains old counter values along
+ * with flags, which are set if the counter is valid.
  *
- * The function "query_wafl_data" will fill a new structure of this kind with
- * new values, then pass both, new and old data, to "submit_wafl_data". That
- * function calculates the hit ratios, submits the calculated values and
+ * The function "cna_handle_wafl_data" will fill a new structure of this kind
+ * with new values, then pass both, new and old data, to "submit_wafl_data".
+ * That function calculates the hit ratios, submits the calculated values and
  * updates the old counter values for the next iteration.
  */
 #define CFG_WAFL_NAME_CACHE        0x0001
@@ -85,6 +85,9 @@ typedef struct {
 #define HAVE_WAFL_ALL              0xff00
 typedef struct {
 	uint32_t flags;
+	cna_interval_t interval;
+	na_elem_t *query;
+
 	time_t timestamp;
 	uint64_t name_cache_hit;
 	uint64_t name_cache_miss;
@@ -94,7 +97,7 @@ typedef struct {
 	uint64_t buf_hash_miss;
 	uint64_t inode_cache_hit;
 	uint64_t inode_cache_miss;
-} data_wafl_t;
+} cfg_wafl_t;
 
 /*!
  * \brief Persistent data for volume performance data.
@@ -215,6 +218,7 @@ struct host_config_s {
 	na_server_t *srv;
 	cfg_service_t *services;
 	cfg_disk_t *cfg_disk;
+	cfg_wafl_t *cfg_wafl;
 	volume_t *volumes;
 
 	struct host_config_s *next;
@@ -520,34 +524,34 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 } /* }}} int submit_cache_ratio */
 
 /* Submits all the caches used by WAFL. Uses "submit_cache_ratio". */
-static int submit_wafl_data (const host_config_t *host, const char *instance, /* {{{ */
-		data_wafl_t *old_data, const data_wafl_t *new_data)
+static int submit_wafl_data (const char *hostname, const char *instance, /* {{{ */
+		cfg_wafl_t *old_data, const cfg_wafl_t *new_data)
 {
 	/* Submit requested counters */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_NAME_CACHE | HAVE_WAFL_NAME_CACHE)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_NAME_CACHE))
-		submit_cache_ratio (host->name, instance, "name_cache_hit",
+		submit_cache_ratio (hostname, instance, "name_cache_hit",
 				new_data->name_cache_hit, new_data->name_cache_miss,
 				old_data->name_cache_hit, old_data->name_cache_miss,
 				new_data->timestamp);
 
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_DIR_CACHE | HAVE_WAFL_FIND_DIR)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_FIND_DIR))
-		submit_cache_ratio (host->name, instance, "find_dir_hit",
+		submit_cache_ratio (hostname, instance, "find_dir_hit",
 				new_data->find_dir_hit, new_data->find_dir_miss,
 				old_data->find_dir_hit, old_data->find_dir_miss,
 				new_data->timestamp);
 
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_BUF_CACHE | HAVE_WAFL_BUF_HASH)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_BUF_HASH))
-		submit_cache_ratio (host->name, instance, "buf_hash_hit",
+		submit_cache_ratio (hostname, instance, "buf_hash_hit",
 				new_data->buf_hash_hit, new_data->buf_hash_miss,
 				old_data->buf_hash_hit, old_data->buf_hash_miss,
 				new_data->timestamp);
 
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_INODE_CACHE | HAVE_WAFL_INODE_CACHE)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_INODE_CACHE))
-		submit_cache_ratio (host->name, instance, "inode_cache_hit",
+		submit_cache_ratio (hostname, instance, "inode_cache_hit",
 				new_data->inode_cache_hit, new_data->inode_cache_miss,
 				old_data->inode_cache_hit, old_data->inode_cache_miss,
 				new_data->timestamp);
@@ -662,28 +666,43 @@ static int submit_volume_perf_data (const host_config_t *host, /* {{{ */
  * These functions are called with appropriate data returned by the libnetapp
  * interface which is parsed and submitted with the above functions.
  */
-/* Data corresponding to <GetWaflPerfData /> */
-static void query_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
-	data_wafl_t *wafl = data;
-	data_wafl_t perf_data;
+/* Data corresponding to <WAFL /> */
+static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* {{{ */
+		na_elem_t *data)
+{
+	cfg_wafl_t perf_data;
 	const char *plugin_inst;
+
+	na_elem_t *instances;
 	na_elem_t *counter;
+	na_elem_iter_t counter_iter;
 
 	memset (&perf_data, 0, sizeof (perf_data));
 	
-	perf_data.timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
+	perf_data.timestamp = (time_t) na_child_get_uint64 (data, "timestamp", 0);
 
-	out = na_elem_child(na_elem_child(out, "instances"), "instance-data");
-	if (out == NULL)
-		return;
+	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
+	if (instances == NULL)
+	{
+		ERROR ("netapp plugin: cna_handle_wafl_data: "
+				"na_elem_child (\"instances\") failed.");
+		return (-1);
+	}
 
-	plugin_inst = na_child_get_string(out, "name");
+	plugin_inst = na_child_get_string(instances, "name");
 	if (plugin_inst == NULL)
-		return;
+	{
+		ERROR ("netapp plugin: cna_handle_wafl_data: "
+				"na_child_get_string (\"name\") failed.");
+		return (-1);
+	}
 
 	/* Iterate over all counters */
-	na_elem_iter_t iter = na_child_iterator(na_elem_child(out, "counters"));
-	for (counter = na_iterator_next(&iter); counter; counter = na_iterator_next(&iter)) {
+	counter_iter = na_child_iterator (na_elem_child (instances, "counters"));
+	for (counter = na_iterator_next (&counter_iter);
+			counter != NULL;
+			counter = na_iterator_next (&counter_iter))
+	{
 		const char *name;
 		uint64_t value;
 
@@ -720,13 +739,92 @@ static void query_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /
 			perf_data.inode_cache_miss = value;
 			perf_data.flags |= HAVE_WAFL_INODE_CACHE_MISS;
 		} else {
-			DEBUG("netapp plugin: query_wafl_data: Found unexpected child: %s",
-					name);
+			DEBUG("netapp plugin: cna_handle_wafl_data: "
+					"Found unexpected child: %s", name);
 		}
 	}
 
-	submit_wafl_data (host, plugin_inst, wafl, &perf_data);
-} /* }}} void query_wafl_data */
+	return (submit_wafl_data (hostname, plugin_inst, cfg_wafl, &perf_data));
+} /* }}} void cna_handle_wafl_data */
+
+static int cna_setup_wafl (cfg_wafl_t *cw) /* {{{ */
+{
+	na_elem_t *e;
+
+	if (cw == NULL)
+		return (EINVAL);
+
+	if (cw->query != NULL)
+		return (0);
+
+	cw->query = na_elem_new("perf-object-get-instances");
+	if (cw->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+	na_child_add_string (cw->query, "objectname", "wafl");
+
+	e = na_elem_new("counters");
+	if (e == NULL)
+	{
+		na_elem_free (cw->query);
+		cw->query = NULL;
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+	na_child_add_string(e, "foo", "name_cache_hit");
+	na_child_add_string(e, "foo", "name_cache_miss");
+	na_child_add_string(e, "foo", "find_dir_hit");
+	na_child_add_string(e, "foo", "find_dir_miss");
+	na_child_add_string(e, "foo", "buf_hash_hit");
+	na_child_add_string(e, "foo", "buf_hash_miss");
+	na_child_add_string(e, "foo", "inode_cache_hit");
+	na_child_add_string(e, "foo", "inode_cache_miss");
+
+	na_child_add(cw->query, e);
+
+	return (0);
+} /* }}} int cna_setup_wafl */
+
+static int cna_query_wafl (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	time_t now;
+
+	if (host == NULL)
+		return (EINVAL);
+
+	if (host->cfg_wafl == NULL)
+		return (0);
+
+	now = time (NULL);
+	if ((host->cfg_wafl->interval.interval + host->cfg_wafl->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_wafl (host->cfg_wafl);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_wafl->query != NULL);
+
+	data = na_server_invoke_elem(host->srv, host->cfg_wafl->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_wafl: na_server_invoke_elem failed: %s",
+				na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_wafl_data (host->name, host->cfg_wafl, data);
+
+	if (status == 0)
+		host->cfg_wafl->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_wafl */
 
 /* Data corresponding to <Disks /> */
 static int cna_handle_disk_data (const char *hostname, /* {{{ */
@@ -1449,44 +1547,49 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	return (0);
 } /* }}} int cna_config_disk */
 
-/* Corresponds to a <GetWaflPerfData /> block */
-static void cna_config_wafl(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
+/* Corresponds to a <WAFL /> block */
+static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
+{
+	cfg_wafl_t *cfg_wafl;
 	int i;
-	cfg_service_t *service;
-	data_wafl_t *perf_wafl;
-	
-	service = malloc(sizeof(*service));
-	if (service == NULL)
-		return;
-	memset (service, 0, sizeof (*service));
 
-	service->query = 0;
-	service->handler = query_wafl_data;
-	perf_wafl = service->data = malloc(sizeof(*perf_wafl));
-	perf_wafl->flags = CFG_WAFL_ALL;
+	if ((host == NULL) || (ci == NULL))
+		return (EINVAL);
+
+	if (host->cfg_wafl == NULL)
+	{
+		cfg_wafl = malloc (sizeof (*cfg_wafl));
+		if (cfg_wafl == NULL)
+			return (ENOMEM);
+		memset (cfg_wafl, 0, sizeof (*cfg_wafl));
+
+		/* Set default flags */
+		cfg_wafl->flags = CFG_WAFL_ALL;
+
+		host->cfg_wafl = cfg_wafl;
+	}
+	cfg_wafl = host->cfg_wafl;
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
-		if (!strcasecmp(item->key, "Multiplier")) {
-			cna_config_get_multiplier (item, service);
-		} else if (!strcasecmp(item->key, "GetNameCache")) {
-			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_NAME_CACHE);
-		} else if (!strcasecmp(item->key, "GetDirCache")) {
-			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_DIR_CACHE);
-		} else if (!strcasecmp(item->key, "GetBufCache")) {
-			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_BUF_CACHE);
-		} else if (!strcasecmp(item->key, "GetInodeCache")) {
-			cna_config_bool_to_flag (item, &perf_wafl->flags, CFG_WAFL_INODE_CACHE);
-		} else {
+		if (strcasecmp(item->key, "Interval") == 0)
+			cna_config_get_interval (item, &cfg_wafl->interval);
+		else if (!strcasecmp(item->key, "GetNameCache"))
+			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_NAME_CACHE);
+		else if (!strcasecmp(item->key, "GetDirCache"))
+			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_DIR_CACHE);
+		else if (!strcasecmp(item->key, "GetBufferCache"))
+			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_BUF_CACHE);
+		else if (!strcasecmp(item->key, "GetInodeCache"))
+			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_INODE_CACHE);
+		else
 			WARNING ("netapp plugin: The %s config option is not allowed within "
-					"`GetWaflPerfData' blocks.", item->key);
-		}
+					"`WAFL' blocks.", item->key);
 	}
 
-	service->next = host->services;
-	host->services = service;
-} /* }}} void cna_config_wafl */
+	return (0);
+} /* }}} int cna_config_wafl */
 
 /* Corresponds to a <GetSystemPerfData /> block */
 static int cna_config_system (host_config_t *host, /* {{{ */
@@ -1596,7 +1699,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 			cna_config_volume_performance(host, item);
 		} else if (!strcasecmp(item->key, "GetSystemPerfData")) {
 			cna_config_system(host, item, &default_service);
-		} else if (!strcasecmp(item->key, "GetWaflPerfData")) {
+		} else if (!strcasecmp(item->key, "WAFL")) {
 			cna_config_wafl(host, item);
 		} else if (!strcasecmp(item->key, "Disks")) {
 			cna_config_disk(host, item);
@@ -1697,21 +1800,6 @@ static int cna_init(void) { /* {{{ */
 				na_child_add_string(e, "foo", "read_latency");
 				na_child_add_string(e, "foo", "write_latency");
 				na_child_add(service->query, e);
-			} else if (service->handler == query_wafl_data) {
-				service->query = na_elem_new("perf-object-get-instances");
-				na_child_add_string(service->query, "objectname", "wafl");
-				e = na_elem_new("counters");
-				na_child_add_string(e, "foo", "name_cache_hit");
-				na_child_add_string(e, "foo", "name_cache_miss");
-				na_child_add_string(e, "foo", "find_dir_hit");
-				na_child_add_string(e, "foo", "find_dir_miss");
-				na_child_add_string(e, "foo", "buf_hash_hit");
-				na_child_add_string(e, "foo", "buf_hash_miss");
-				na_child_add_string(e, "foo", "inode_cache_hit");
-				na_child_add_string(e, "foo", "inode_cache_miss");
-				/* na_child_add_string(e, "foo", "inode_eject_time"); */
-				/* na_child_add_string(e, "foo", "buf_eject_time"); */
-				na_child_add(service->query, e);
 			} else if (service->handler == collect_volume_data) {
 				service->query = na_elem_new("volume-list-info");
 				/* na_child_add_string(service->query, "objectname", "volume"); */
@@ -1788,6 +1876,7 @@ static int cna_read(void) { /* {{{ */
 			na_elem_free(out);
 		} /* for (host->services) */
 
+		cna_query_wafl (host);
 		cna_query_disk (host);
 	}
 	return 0;

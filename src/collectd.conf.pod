@@ -1669,8 +1669,13 @@ Required capabilities are documented below.
     Interval      30
     <GetSystemPerfData>
     </GetSystemPerfData>
-    <GetWaflPerfData>
-    </GetWaflPerfData>
+    <WAFL>
+      Interval 30
+      GetNameCache   true
+      GetDirCache    true
+      GetBufferCache true
+      GetInodeCache  true
+    </WAFL>
     <Disks>
       Interval 30
       GetBusy true
@@ -1845,7 +1850,7 @@ type instance.
 
 =back
 
-=head3 The GetWaflPerfData block
+=head3 The WAFL block
 
 This will collect various performance data about the WAFL file system. At the
 moment this just means cache performance.
@@ -1858,6 +1863,10 @@ NetApp. This means that it is not guaranteed to be stable even between minor
 releases.
 
 =over 4
+
+=item B<Interval> I<Seconds>
+
+Collect disk statistics every I<Seconds> seconds.
 
 =item B<GetNameCache> B<true>|B<false>
 
@@ -1891,7 +1900,7 @@ Default: true
 Result: One value list of type "cache_ratio" and type instance
 "inode_cache_hit".
 
-=item B<GetBufCache> B<true>|B<false>
+=item B<GetBufferCache> B<true>|B<false>
 
 B<Note:> This is the same value that the NetApp CLI command "sysstat" returns
 in the "Cache hit" field.
