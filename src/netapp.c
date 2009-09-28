@@ -1278,7 +1278,7 @@ static void cna_config_disk(host_config_t *temp, oconfig_item_t *ci) { /* {{{ */
 		if (!strcasecmp(item->key, "Multiplier")) {
 			cna_config_get_multiplier (item, service);
 		} else if (!strcasecmp(item->key, "GetBusy")) {
-			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_SYSTEM_CPU);
+			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_DISK_BUSIEST);
 		}
 	}
 } /* }}} void cna_config_disk */
