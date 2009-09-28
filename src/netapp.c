@@ -263,6 +263,17 @@ static void free_disk (disk_t *disk) /* {{{ */
 	free_disk (next);
 } /* }}} void free_disk */
 
+static void free_cfg_wafl (cfg_wafl_t *cw) /* {{{ */
+{
+	if (cw == NULL)
+		return;
+
+	if (cw->query != NULL)
+		na_elem_free (cw->query);
+
+	sfree (cw);
+} /* }}} void free_cfg_wafl */
+
 static void free_cfg_disk (cfg_disk_t *cfg_disk) /* {{{ */
 {
 	if (cfg_disk == NULL)
@@ -305,6 +316,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 
 	free_cfg_service (hc->services);
 	free_cfg_disk (hc->cfg_disk);
+	free_cfg_wafl (hc->cfg_wafl);
 	free_volume (hc->volumes);
 
 	sfree (hc);
@@ -1693,6 +1705,14 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 		else
 			WARNING ("netapp plugin: The %s config option is not allowed within "
 					"`WAFL' blocks.", item->key);
+	}
+
+	if ((cfg_wafl->flags & CFG_WAFL_ALL) == 0)
+	{
+		NOTICE ("netapp plugin: All WAFL related values have been disabled. "
+				"Collection of WAFL data will be disabled entirely.");
+		free_cfg_wafl (host->cfg_wafl);
+		host->cfg_wafl = NULL;
 	}
 
 	return (0);
