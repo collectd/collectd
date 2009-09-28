@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <sven.trenkel at noris.net>
+ *   Sven Trenkel <collectd at semidefinite.de>  
  **/
 
 #include "collectd.h"
