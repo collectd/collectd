@@ -1671,8 +1671,10 @@ Required capabilities are documented below.
     </GetSystemPerfData>
     <GetWaflPerfData>
     </GetWaflPerfData>
-    <GetDiskPerfData>
-    </GetDiskPerfData>
+    <Disks>
+      Interval 30
+      GetBusy true
+    </Disks>
     <GetVolumePerfData>
     </GetVolumePerfData>
     <GetVolumeData>
@@ -1904,7 +1906,7 @@ Result: One value list of type "cache_ratio" and type instance "buf_hash_hit".
 
 =back
 
-=head3 The GetDiskPerfData block
+=head3 The Disks block
 
 This will collect performance data about the individual disks in the NetApp.
 
@@ -1912,6 +1914,10 @@ B<Note:> To get this data the collectd user needs the
 "api-perf-object-get-instances" capability.
 
 =over 4
+
+=item B<Interval> I<Seconds>
+
+Collect disk statistics every I<Seconds> seconds.
 
 =item B<GetBusy> B<true>|B<false>
 

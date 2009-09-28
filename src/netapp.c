@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <sven.trenkel at noris.net>
+ *   Sven Trenkel <collectd at semidefinite.de>  
  **/
 
 #include "collectd.h"
@@ -33,6 +33,13 @@
 
 typedef struct host_config_s host_config_t;
 typedef void service_handler_t(host_config_t *host, na_elem_t *result, void *data);
+
+struct cna_interval_s
+{
+	time_t interval;
+	time_t last_read;
+};
+typedef struct cna_interval_s cna_interval_t;
 
 /*!
  * \brief Persistent data for system performance counters
@@ -170,21 +177,15 @@ typedef struct volume_s {
 	struct volume_s *next;
 } volume_t;
 
-#define CFG_DISK_BUSIEST 0x01
-#define CFG_DISK_ALL     0x01
-#define HAVE_DISK_BUSY   0x10
-#define HAVE_DISK_BASE   0x20
-#define HAVE_DISK_ALL    0x30
-typedef struct {
-	uint32_t flags;
-} cfg_disk_t;
-
 /*!
  * \brief A disk in the NetApp.
  *
  * A disk doesn't have any more information than its name at the moment.
  * The name includes the "disk_" prefix.
  */
+#define HAVE_DISK_BUSY   0x10
+#define HAVE_DISK_BASE   0x20
+#define HAVE_DISK_ALL    0x30
 typedef struct disk_s {
 	char *name;
 	uint32_t flags;
@@ -195,8 +196,16 @@ typedef struct disk_s {
 	struct disk_s *next;
 } disk_t;
 
+#define CFG_DISK_BUSIEST 0x01
+#define CFG_DISK_ALL     0x01
+typedef struct {
+	uint32_t flags;
+	cna_interval_t interval;
+	na_elem_t *query;
+	disk_t *disks;
+} cfg_disk_t;
+
 struct host_config_s {
-	na_server_t *srv;
 	char *name;
 	na_server_transport_t protocol;
 	char *host;
@@ -204,12 +213,17 @@ struct host_config_s {
 	char *username;
 	char *password;
 	int interval;
+
+	na_server_t *srv;
 	cfg_service_t *services;
-	disk_t *disks;
+	cfg_disk_t *cfg_disk;
 	volume_t *volumes;
+
 	struct host_config_s *next;
 };
-#define HOST_INIT {NULL, NULL, NA_SERVER_TRANSPORT_HTTPS, NULL, 0, NULL, NULL, 10, NULL, NULL, NULL, NULL}
+#define HOST_INIT { NULL, NA_SERVER_TRANSPORT_HTTPS, NULL, 0, NULL, NULL, 0, \
+	NULL, NULL, NULL, NULL, \
+	NULL}
 
 static host_config_t *global_host_config;
 
@@ -241,6 +255,15 @@ static void free_disk (disk_t *disk) /* {{{ */
 
 	free_disk (next);
 } /* }}} void free_disk */
+
+static void free_cfg_disk (cfg_disk_t *cfg_disk) /* {{{ */
+{
+	if (cfg_disk == NULL)
+		return;
+
+	free_disk (cfg_disk->disks);
+	sfree (cfg_disk);
+} /* }}} void free_cfg_disk */
 
 static void free_cfg_service (cfg_service_t *service) /* {{{ */
 {
@@ -274,7 +297,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	sfree (hc->password);
 
 	free_cfg_service (hc->services);
-	free_disk (hc->disks);
+	free_cfg_disk (hc->cfg_disk);
 	free_volume (hc->volumes);
 
 	sfree (hc);
@@ -337,33 +360,34 @@ static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
 	return v;
 } /* }}} volume_t *get_volume */
 
-static disk_t *get_disk(host_config_t *host, const char *name) /* {{{ */
+static disk_t *get_disk(cfg_disk_t *cd, const char *name) /* {{{ */
 {
-	disk_t *v;
+	disk_t *d;
 
-	if (name == NULL)
+	if ((cd == NULL) || (name == NULL))
 		return (NULL);
-	
-	for (v = host->disks; v; v = v->next) {
-		if (strcmp(v->name, name) == 0)
-			return v;
-	}
-	v = malloc(sizeof(*v));
-	if (v == NULL)
-		return (NULL);
-	memset (v, 0, sizeof (*v));
-	v->next = NULL;
 
-	v->name = strdup(name);
-	if (v->name == NULL) {
-		sfree (v);
-		return (NULL);
+	for (d = cd->disks; d != NULL; d = d->next) {
+		if (strcmp(d->name, name) == 0)
+			return d;
 	}
 
-	v->next = host->disks;
-	host->disks = v;
+	d = malloc(sizeof(*d));
+	if (d == NULL)
+		return (NULL);
+	memset (d, 0, sizeof (*d));
+	d->next = NULL;
 
-	return v;
+	d->name = strdup(name);
+	if (d->name == NULL) {
+		sfree (d);
+		return (NULL);
+	}
+
+	d->next = cd->disks;
+	cd->disks = d;
+
+	return d;
 } /* }}} disk_t *get_disk */
 
 static void host_set_all_perf_data_flags(const host_config_t *host, /* {{{ */
@@ -711,33 +735,55 @@ static void query_wafl_data(host_config_t *host, na_elem_t *out, void *data) { /
 	submit_wafl_data (host, plugin_inst, wafl, &perf_data);
 } /* }}} void query_wafl_data */
 
-/* Data corresponding to <GetDiskPerfData /> */
-static void query_submit_disk_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
-	cfg_disk_t *cfg_disk = data;
+/* Data corresponding to <Disks /> */
+static int cna_handle_disk_data (const char *hostname, /* {{{ */
+		cfg_disk_t *cfg_disk, na_elem_t *data)
+{
 	time_t timestamp;
-	na_elem_t *counter, *inst;
-	disk_t *worst_disk = 0;
+	na_elem_t *instances;
+	na_elem_t *instance;
+	na_elem_iter_t instance_iter;
+	disk_t *worst_disk = NULL;
+
+	if ((cfg_disk == NULL) || (data == NULL))
+		return (EINVAL);
 	
-	timestamp = (time_t) na_child_get_uint64(out, "timestamp", 0);
-	out = na_elem_child(out, "instances");
+	timestamp = (time_t) na_child_get_uint64(data, "timestamp", 0);
+
+	instances = na_elem_child (data, "instances");
+	if (instances == NULL)
+	{
+		ERROR ("netapp plugin: cna_handle_disk_data: "
+				"na_elem_child (\"instances\") failed.");
+		return (-1);
+	}
 
 	/* Iterate over all children */
-	na_elem_iter_t inst_iter = na_child_iterator(out);
-	for (inst = na_iterator_next(&inst_iter); inst; inst = na_iterator_next(&inst_iter)) {
+	instance_iter = na_child_iterator (instances);
+	for (instance = na_iterator_next (&instance_iter);
+			instance != NULL;
+			instance = na_iterator_next(&instance_iter))
+	{
 		disk_t *old_data;
 		disk_t  new_data;
+
+		na_elem_iter_t counter_iterator;
+		na_elem_t *counter;
 
 		memset (&new_data, 0, sizeof (new_data));
 		new_data.timestamp = timestamp;
 		new_data.disk_busy_percent = NAN;
 
-		old_data = get_disk(host, na_child_get_string(inst, "name"));
+		old_data = get_disk(cfg_disk, na_child_get_string (instance, "name"));
 		if (old_data == NULL)
 			continue;
 
 		/* Look for the "disk_busy" and "base_for_disk_busy" counters */
-		na_elem_iter_t count_iter = na_child_iterator(na_elem_child(inst, "counters"));
-		for (counter = na_iterator_next(&count_iter); counter; counter = na_iterator_next(&count_iter)) {
+		counter_iterator = na_child_iterator(na_elem_child(instance, "counters"));
+		for (counter = na_iterator_next(&counter_iterator);
+				counter != NULL;
+				counter = na_iterator_next(&counter_iterator))
+		{
 			const char *name;
 			uint64_t value;
 
@@ -758,6 +804,12 @@ static void query_submit_disk_data(host_config_t *host, na_elem_t *out, void *da
 			{
 				new_data.base_for_disk_busy = value;
 				new_data.flags |= HAVE_DISK_BASE;
+			}
+			else
+			{
+				DEBUG ("netapp plugin: cna_handle_disk_data: "
+						"Counter not handled: %s = %"PRIu64,
+						name, value);
 			}
 		}
 
@@ -797,9 +849,83 @@ static void query_submit_disk_data(host_config_t *host, na_elem_t *out, void *da
 	} /* for (all disks) */
 
 	if ((cfg_disk->flags & CFG_DISK_BUSIEST) && (worst_disk != NULL))
-		submit_double (host->name, "system", "percent", "disk_busy",
+		submit_double (hostname, "system", "percent", "disk_busy",
 				worst_disk->disk_busy_percent, timestamp);
-} /* }}} void query_submit_disk_data */
+
+	return (0);
+} /* }}} int cna_handle_disk_data */
+
+static int cna_setup_disk (cfg_disk_t *cd) /* {{{ */
+{
+	na_elem_t *e;
+
+	if (cd == NULL)
+		return (EINVAL);
+
+	if (cd->query != NULL)
+		return (0);
+
+	cd->query = na_elem_new ("perf-object-get-instances");
+	if (cd->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+	na_child_add_string (cd->query, "objectname", "disk");
+
+	e = na_elem_new("counters");
+	if (e == NULL)
+	{
+		na_elem_free (cd->query);
+		cd->query = NULL;
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+	na_child_add_string(e, "foo", "disk_busy");
+	na_child_add_string(e, "foo", "base_for_disk_busy");
+	na_child_add(cd->query, e);
+
+	return (0);
+} /* }}} int cna_setup_disk */
+
+static int cna_query_disk (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	time_t now;
+
+	if (host == NULL)
+		return (EINVAL);
+
+	if (host->cfg_disk == NULL)
+		return (0);
+
+	now = time (NULL);
+	if ((host->cfg_disk->interval.interval + host->cfg_disk->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_disk (host->cfg_disk);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_disk->query != NULL);
+
+	data = na_server_invoke_elem(host->srv, host->cfg_disk->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_disk: na_server_invoke_elem failed: %s",
+				na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_disk_data (host->name, host->cfg_disk, data);
+
+	if (status == 0)
+		host->cfg_disk->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_disk */
 
 /* Data corresponding to <GetVolumeData /> */
 static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
@@ -1097,6 +1223,34 @@ static int cna_config_get_multiplier (const oconfig_item_t *ci, /* {{{ */
 	return (0);
 } /* }}} int cna_config_get_multiplier */
 
+/* Handling of the "Interval" option which is allowed in every block. */
+static int cna_config_get_interval (const oconfig_item_t *ci, /* {{{ */
+		cna_interval_t *out_interval)
+{
+	time_t tmp;
+
+	if ((ci == NULL) || (out_interval == NULL))
+		return (EINVAL);
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+	{
+		WARNING ("netapp plugin: The `Multiplier' option needs exactly one numeric argument.");
+		return (-1);
+	}
+
+	tmp = (time_t) (ci->values[0].value.number + .5);
+	if (tmp < 1)
+	{
+		WARNING ("netapp plugin: The `Multiplier' option needs a positive integer argument.");
+		return (-1);
+	}
+
+	out_interval->interval = tmp;
+	out_interval->last_read = 0;
+
+	return (0);
+} /* }}} int cna_config_get_interval */
+
 /* Handling of the "GetIO", "GetOps" and "GetLatency" options within a
  * <GetVolumePerfData /> block. */
 static void cna_config_volume_performance_option (host_config_t *host, /* {{{ */
@@ -1146,7 +1300,7 @@ static void cna_config_volume_performance_option (host_config_t *host, /* {{{ */
 	} /* for (i = 0 .. item->values_num) */
 } /* }}} void cna_config_volume_performance_option */
 
-/* Corresponds to a <GetDiskPerfData /> block */
+/* Corresponds to a <GetVolumePerfData /> block */
 static void cna_config_volume_performance(host_config_t *host, const oconfig_item_t *ci) { /* {{{ */
 	int i, had_io = 0, had_ops = 0, had_latency = 0;
 	cfg_service_t *service;
@@ -1276,30 +1430,42 @@ static void cna_config_volume_usage(host_config_t *host, oconfig_item_t *ci) { /
 	}
 } /* }}} void cna_config_volume_usage */
 
-/* Corresponds to a <GetDiskPerfData /> block */
-static void cna_config_disk(host_config_t *temp, oconfig_item_t *ci) { /* {{{ */
-	int i;
-	cfg_service_t *service;
+/* Corresponds to a <Disks /> block */
+static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	cfg_disk_t *cfg_disk;
+	int i;
+
+	if ((host == NULL) || (ci == NULL))
+		return (EINVAL);
+
+	if (host->cfg_disk == NULL)
+	{
+		cfg_disk = malloc (sizeof (*cfg_disk));
+		if (cfg_disk == NULL)
+			return (ENOMEM);
+		memset (cfg_disk, 0, sizeof (*cfg_disk));
+
+		/* Set default flags */
+		cfg_disk->flags = CFG_DISK_ALL;
+		cfg_disk->query = NULL;
+		cfg_disk->disks = NULL;
+
+		host->cfg_disk = cfg_disk;
+	}
+	cfg_disk = host->cfg_disk;
 	
-	service = malloc(sizeof(*service));
-	service->query = 0;
-	service->handler = query_submit_disk_data;
-	cfg_disk = service->data = malloc(sizeof(*cfg_disk));
-	cfg_disk->flags = CFG_DISK_ALL;
-	service->next = temp->services;
-	temp->services = service;
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
 		/* if (!item || !item->key || !*item->key) continue; */
-		if (!strcasecmp(item->key, "Multiplier")) {
-			cna_config_get_multiplier (item, service);
-		} else if (!strcasecmp(item->key, "GetBusy")) {
-			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_SYSTEM_CPU);
-		}
+		if (strcasecmp(item->key, "Interval") == 0)
+			cna_config_get_interval (item, &cfg_disk->interval);
+		else if (strcasecmp(item->key, "GetBusy") == 0)
+			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_DISK_BUSIEST);
 	}
-} /* }}} void cna_config_disk */
+
+	return (0);
+} /* }}} int cna_config_disk */
 
 /* Corresponds to a <GetWaflPerfData /> block */
 static void cna_config_wafl(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
@@ -1450,7 +1616,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 			cna_config_system(host, item, &default_service);
 		} else if (!strcasecmp(item->key, "GetWaflPerfData")) {
 			cna_config_wafl(host, item);
-		} else if (!strcasecmp(item->key, "GetDiskPerfData")) {
+		} else if (!strcasecmp(item->key, "Disks")) {
 			cna_config_disk(host, item);
 		} else if (!strcasecmp(item->key, "GetVolumeData")) {
 			cna_config_volume_usage(host, item);
@@ -1503,29 +1669,41 @@ static int cna_init(void) { /* {{{ */
 		return 1;
 	}
 
+	memset (err, 0, sizeof (err));
 	if (!na_startup(err, sizeof(err))) {
+		err[sizeof (err) - 1] = 0;
 		ERROR("netapp plugin: Error initializing netapp API: %s", err);
 		return 1;
 	}
 
 	for (host = global_host_config; host; host = host->next) {
-		host->srv = na_server_open(host->host, 1, 1); 
-		na_server_set_transport_type(host->srv, host->protocol, 0);
+		/* Request version 1.1 of the ONTAP API */
+		host->srv = na_server_open(host->host,
+				/* major version = */ 1, /* minor version = */ 1); 
+		if (host->srv == NULL) {
+			ERROR ("netapp plugin: na_server_open (%s) failed.", host->host);
+			continue;
+		}
+
+		if (host->interval < interval_g)
+			host->interval = interval_g;
+
+		na_server_set_transport_type(host->srv, host->protocol,
+				/* transportarg = */ NULL);
 		na_server_set_port(host->srv, host->port);
 		na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
 		na_server_adminuser(host->srv, host->username, host->password);
-		na_server_set_timeout(host->srv, 5);
+		na_server_set_timeout(host->srv, 5 /* seconds */);
+
 		for (service = host->services; service; service = service->next) {
 			service->interval = host->interval * service->multiplier;
+
 			if (service->handler == collect_perf_system_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "system");
 			} else if (service->handler == query_volume_perf_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "volume");
-/*				e = na_elem_new("instances");
-				na_child_add_string(e, "foo", "system");
-				na_child_add(root, e);*/
 				e = na_elem_new("counters");
 				/* "foo" means: This string has to be here but
 				   the content doesn't matter. */
@@ -1539,9 +1717,6 @@ static int cna_init(void) { /* {{{ */
 			} else if (service->handler == query_wafl_data) {
 				service->query = na_elem_new("perf-object-get-instances");
 				na_child_add_string(service->query, "objectname", "wafl");
-/*				e = na_elem_new("instances");
-				na_child_add_string(e, "foo", "system");
-				na_child_add(root, e);*/
 				e = na_elem_new("counters");
 				na_child_add_string(e, "foo", "name_cache_hit");
 				na_child_add_string(e, "foo", "name_cache_miss");
@@ -1554,20 +1729,13 @@ static int cna_init(void) { /* {{{ */
 				/* na_child_add_string(e, "foo", "inode_eject_time"); */
 				/* na_child_add_string(e, "foo", "buf_eject_time"); */
 				na_child_add(service->query, e);
-			} else if (service->handler == query_submit_disk_data) {
-				service->query = na_elem_new("perf-object-get-instances");
-				na_child_add_string(service->query, "objectname", "disk");
-				e = na_elem_new("counters");
-				na_child_add_string(e, "foo", "disk_busy");
-				na_child_add_string(e, "foo", "base_for_disk_busy");
-				na_child_add(service->query, e);
 			} else if (service->handler == collect_volume_data) {
 				service->query = na_elem_new("volume-list-info");
 				/* na_child_add_string(service->query, "objectname", "volume"); */
 				/* } else if (service->handler == collect_snapshot_data) { */
 				/* service->query = na_elem_new("snapshot-list-info"); */
 			}
-		}
+		} /* for (host->services) */
 	}
 	return 0;
 } /* }}} int cna_init */
@@ -1634,7 +1802,9 @@ static int cna_read(void) { /* {{{ */
 			}
 			service->handler(host, out, service->data);
 			na_elem_free(out);
-		}
+		} /* for (host->services) */
+
+		cna_query_disk (host);
 	}
 	return 0;
 } /* }}} int cna_read */
