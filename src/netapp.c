@@ -279,9 +279,23 @@ static void free_cfg_disk (cfg_disk_t *cfg_disk) /* {{{ */
 	if (cfg_disk == NULL)
 		return;
 
+	if (cfg_disk->query != NULL)
+		na_elem_free (cfg_disk->query);
+
 	free_disk (cfg_disk->disks);
 	sfree (cfg_disk);
 } /* }}} void free_cfg_disk */
+
+static void free_cfg_system (cfg_system_t *cs) /* {{{ */
+{
+	if (cs == NULL)
+		return;
+
+	if (cs->query != NULL)
+		na_elem_free (cs->query);
+
+	sfree (cs);
+} /* }}} void free_cfg_system */
 
 static void free_cfg_service (cfg_service_t *service) /* {{{ */
 {
@@ -317,6 +331,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	free_cfg_service (hc->services);
 	free_cfg_disk (hc->cfg_disk);
 	free_cfg_wafl (hc->cfg_wafl);
+	free_cfg_system (hc->cfg_system);
 	free_volume (hc->volumes);
 
 	sfree (hc);
@@ -1663,6 +1678,14 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_DISK_BUSIEST);
 	}
 
+	if ((cfg_disk->flags & CFG_DISK_ALL) == 0)
+	{
+		NOTICE ("netapp plugin: All disk related values have been disabled. "
+				"Collection of per-disk data will be disabled entirely.");
+		free_cfg_disk (host->cfg_disk);
+		host->cfg_disk = NULL;
+	}
+
 	return (0);
 } /* }}} int cna_config_disk */
 
@@ -1760,6 +1783,14 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 			WARNING ("netapp plugin: The %s config option is not allowed within "
 					"`System' blocks.", item->key);
 		}
+	}
+
+	if ((cfg_system->flags & CFG_SYSTEM_ALL) == 0)
+	{
+		NOTICE ("netapp plugin: All system related values have been disabled. "
+				"Collection of system data will be disabled entirely.");
+		free_cfg_system (host->cfg_system);
+		host->cfg_system = NULL;
 	}
 
 	return (0);
