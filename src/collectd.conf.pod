@@ -1682,6 +1682,7 @@ Required capabilities are documented below.
     </Disks>
     
     <VolumePerf>
+      Interval 30
       GetIO      "volume0"
       IgnoreSelectedIO      false
       GetOps     "volume0"
@@ -1691,6 +1692,7 @@ Required capabilities are documented below.
     </VolumePerf>
     
     <VolumeUsage>
+      Interval 30
       GetCapacity "vol0"
       GetCapacity "vol1"
       IgnoreSelectedCapacity false
@@ -1984,6 +1986,10 @@ I<api-perf-object-get-instances> capability.
 
 =over 4
 
+=item B<Interval> I<Seconds>
+
+Collect volume performance data every I<Seconds> seconds.
+
 =item B<GetIO> I<Volume>
 
 =item B<GetOps> I<Volume>
@@ -2034,6 +2040,10 @@ B<Note:> To get this data the collectd user needs the I<api-volume-list-info>
 capability.
 
 =over 4
+
+=item B<Interval> I<Seconds>
+
+Collect volume usage statistics every I<Seconds> seconds.
 
 =item B<GetCapacity> I<VolumeName>
 
