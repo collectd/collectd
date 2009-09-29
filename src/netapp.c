@@ -1293,6 +1293,7 @@ static int cna_handle_volume_usage_data (const char *hostname, /* {{{ */
 		if ((sis_saved_reported >> 32) != 0) {
 			/* In case they ever fix this bug. */
 			v->sis_saved = sis_saved_reported;
+			v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
 		} else { /* really hacky work-around code. {{{ */
 			uint64_t sis_saved_percent;
 			uint64_t sis_saved_guess;
@@ -1336,6 +1337,7 @@ static int cna_handle_volume_usage_data (const char *hostname, /* {{{ */
 				else
 					v->sis_saved = guess3;
 			}
+			v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
 		} /* }}} end of 32-bit workaround */
 	} /* for (elem_volume) */
 
