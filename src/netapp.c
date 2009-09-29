@@ -386,6 +386,9 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 
 	sfree (hc);
 
+	if (hc->srv != NULL)
+		na_server_close (hc->srv);
+
 	free_host_config (next);
 } /* }}} void free_host_config */
 
