@@ -1236,7 +1236,6 @@ static int cna_handle_volume_usage_data (const char *hostname, /* {{{ */
 		na_elem_t *sis;
 		const char *sis_state;
 		uint64_t sis_saved_reported;
-		uint64_t sis_saved;
 
 		volume_name = na_child_get_string (elem_volume, "name");
 		if (volume_name == NULL)
@@ -1293,7 +1292,7 @@ static int cna_handle_volume_usage_data (const char *hostname, /* {{{ */
 		/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
 		if ((sis_saved_reported >> 32) != 0) {
 			/* In case they ever fix this bug. */
-			sis_saved = sis_saved_reported;
+			v->sis_saved = sis_saved_reported;
 		} else { /* really hacky work-around code. {{{ */
 			uint64_t sis_saved_percent;
 			uint64_t sis_saved_guess;
@@ -1328,14 +1327,14 @@ static int cna_handle_volume_usage_data (const char *hostname, /* {{{ */
 
 			if (sis_saved_guess < guess2) {
 				if ((sis_saved_guess - guess1) < (guess2 - sis_saved_guess))
-					sis_saved = guess1;
+					v->sis_saved = guess1;
 				else
-					sis_saved = guess2;
+					v->sis_saved = guess2;
 			} else {
 				if ((sis_saved_guess - guess2) < (guess3 - sis_saved_guess))
-					sis_saved = guess2;
+					v->sis_saved = guess2;
 				else
-					sis_saved = guess3;
+					v->sis_saved = guess3;
 			}
 		} /* }}} end of 32-bit workaround */
 	} /* for (elem_volume) */
