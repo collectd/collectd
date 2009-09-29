@@ -1923,8 +1923,8 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 	return (0);
 } /* }}} int cna_config_volume_performance */
 
-/* Handling of the "Capacity" and "Snapshot" options within a <VolumeUsage />
- * block. */
+/* Handling of the "GetCapacity" and "GetSnapshot" options within a
+ * <VolumeUsage /> block. */
 static void cna_config_volume_usage_option (cfg_volume_usage_t *cvu, /* {{{ */
 		const oconfig_item_t *ci)
 {
@@ -1940,9 +1940,9 @@ static void cna_config_volume_usage_option (cfg_volume_usage_t *cvu, /* {{{ */
 
 	name = ci->values[0].value.string;
 
-	if (strcasecmp ("Capacity", ci->key) == 0)
+	if (strcasecmp ("GetCapacity", ci->key) == 0)
 		il = cvu->il_capacity;
-	else if (strcasecmp ("Snapshot", ci->key) == 0)
+	else if (strcasecmp ("GetSnapshot", ci->key) == 0)
 		il = cvu->il_snapshot;
 	else
 		return;
@@ -2076,17 +2076,17 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 /*
  * <VolumeUsage>
- *   Capacity "vol0"
- *   Capacity "vol1"
- *   Capacity "vol2"
- *   Capacity "vol3"
- *   Capacity "vol4"
+ *   GetCapacity "vol0"
+ *   GetCapacity "vol1"
+ *   GetCapacity "vol2"
+ *   GetCapacity "vol3"
+ *   GetCapacity "vol4"
  *   IgnoreSelectedCapacity false
  *
- *   Snapshot "vol0"
- *   Snapshot "vol3"
- *   Snapshot "vol4"
- *   Snapshot "vol7"
+ *   GetSnapshot "vol0"
+ *   GetSnapshot "vol3"
+ *   GetSnapshot "vol4"
+ *   GetSnapshot "vol7"
  *   IgnoreSelectedSnapshot false
  * </VolumeUsage>
  */
@@ -2136,9 +2136,9 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_volume_usage->interval);
-		else if (!strcasecmp(item->key, "Capacity"))
+		else if (!strcasecmp(item->key, "GetCapacity"))
 			cna_config_volume_usage_option (cfg_volume_usage, item);
-		else if (!strcasecmp(item->key, "Snapshot"))
+		else if (!strcasecmp(item->key, "GetSnapshot"))
 			cna_config_volume_usage_option (cfg_volume_usage, item);
 		else if (!strcasecmp(item->key, "IgnoreSelectedCapacity"))
 			cna_config_volume_usage_default (cfg_volume_usage, item);

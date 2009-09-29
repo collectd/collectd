@@ -1691,11 +1691,11 @@ Required capabilities are documented below.
     </VolumePerf>
     
     <VolumeUsage>
-      Capacity "vol0"
-      Capacity "vol1"
+      GetCapacity "vol0"
+      GetCapacity "vol1"
       IgnoreSelectedCapacity false
-      Snapshot "vol1"
-      Snapshot "vol3"
+      GetSnapshot "vol1"
+      GetSnapshot "vol3"
       IgnoreSelectedSnapshot false
     </VolumeUsage>
     
@@ -2035,7 +2035,7 @@ capability.
 
 =over 4
 
-=item B<Capacity> I<VolumeName>
+=item B<GetCapacity> I<VolumeName>
 
 The current capacity of the volume will be collected. This will result in two
 to four value lists, depending on the configuration of the volume. All data
@@ -2057,12 +2057,12 @@ Repeat this option to specify multiple volumes.
 
 =item B<IgnoreSelectedCapacity> B<true>|B<false>
 
-Specify whether to collect only the volumes selected by the B<Capacity> option
-or to ignore those volumes. B<IgnoreSelectedCapacity> defaults to B<false>.
-However, if no B<Capacity> option is specified at all, all capacities will be
-selected anyway.
+Specify whether to collect only the volumes selected by the B<GetCapacity>
+option or to ignore those volumes. B<IgnoreSelectedCapacity> defaults to
+B<false>. However, if no B<GetCapacity> option is specified at all, all
+capacities will be selected anyway.
 
-=item B<Snapshot> I<VolumeName>
+=item B<GetSnapshot> I<VolumeName>
 
 B<Defunct!> Select volumes from which to collect snapshot information.
 
@@ -2070,10 +2070,10 @@ Repeat this option to specify multiple volumes.
 
 =item B<IgnoreSelectedSnapshot>
 
-Specify whether to collect only the volumes selected by the B<Snapshot> option
-or to ignore those volumes. B<IgnoreSelectedSnapshot> defaults to B<false>.
-However, if no B<Snapshot> option is specified at all, all capacities will be
-selected anyway.
+Specify whether to collect only the volumes selected by the B<GetSnapshot>
+option or to ignore those volumes. B<IgnoreSelectedSnapshot> defaults to
+B<false>. However, if no B<GetSnapshot> option is specified at all, all
+capacities will be selected anyway.
 
 =back
 
