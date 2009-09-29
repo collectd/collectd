@@ -1667,13 +1667,7 @@ Required capabilities are documented below.
     User          "username"
     Password      "aef4Aebe"
     Interval      30
-    <System>
-      Interval 30
-      GetCPULoad     true
-      GetInterfaces  true
-      GetDiskOps     true
-      GetDiskIO      true
-    </System>
+    
     <WAFL>
       Interval 30
       GetNameCache   true
@@ -1681,14 +1675,31 @@ Required capabilities are documented below.
       GetBufferCache true
       GetInodeCache  true
     </WAFL>
+    
     <Disks>
       Interval 30
       GetBusy true
     </Disks>
+    
     <GetVolumePerfData>
     </GetVolumePerfData>
-    <GetVolumeData>
-    </GetVolumeData>
+    
+    <VolumeUsage>
+      Capacity "vol0"
+      Capacity "vol1"
+      IgnoreSelectedCapacity false
+      Snapshot "vol1"
+      Snapshot "vol3"
+      IgnoreSelectedSnapshot false
+    </VolumeUsage>
+    
+    <System>
+      Interval 30
+      GetCPULoad     true
+      GetInterfaces  true
+      GetDiskOps     true
+      GetDiskIO      true
+    </System>
    </Host>
  </Plugin>
 
@@ -2016,19 +2027,16 @@ plugin_instance.
 
 =back
 
-=head3 The GetVolumeData block
+=head3 The VolumeUsage block
 
 This will collect capacity data about the individual volumes.
 
-All of these options take a list of volumes as parameters, just like the
-GetVolumePerfData options.
-
-B<Note:> To get this data the collectd user needs the "api-volume-list-info"
+B<Note:> To get this data the collectd user needs the I<api-volume-list-info>
 capability.
 
 =over 4
 
-=item B<GetDiskUtil>
+=item B<Capacity> I<VolumeName>
 
 The current capacity of the volume will be collected. This will result in two
 to four value lists, depending on the configuration of the volume. All data
@@ -2046,15 +2054,27 @@ reported as a 32E<nbsp>bit number. This plugin tries to guess the correct
 number which works most of the time.  If you see strange values here, bug
 NetApp support to fix this.
 
-Optional
+Repeat this option to specify multiple volumes.
 
-Type: list of strings
+=item B<IgnoreSelectedCapacity> B<true>|B<false>
 
-Default: "+"
+Specify whether to collect only the volumes selected by the B<Capacity> option
+or to ignore those volumes. B<IgnoreSelectedCapacity> defaults to B<false>.
+However, if no B<Capacity> option is specified at all, all capacities will be
+selected anyway.
 
-=item B<GetSnapData>
+=item B<Snapshot> I<VolumeName>
 
-B<TODO>
+B<Defunct!> Select volumes from which to collect snapshot information.
+
+Repeat this option to specify multiple volumes.
+
+=item B<IgnoreSelectedSnapshot>
+
+Specify whether to collect only the volumes selected by the B<Snapshot> option
+or to ignore those volumes. B<IgnoreSelectedSnapshot> defaults to B<false>.
+However, if no B<Snapshot> option is specified at all, all capacities will be
+selected anyway.
 
 =back
 

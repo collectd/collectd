@@ -26,6 +26,7 @@
 
 #include "collectd.h"
 #include "common.h"
+#include "utils_ignorelist.h"
 
 #include <netapp_api.h>
 
@@ -41,21 +42,8 @@ struct cna_interval_s
 };
 typedef struct cna_interval_s cna_interval_t;
 
-/*!
- * \brief Persistent data for system performance counters
- */
-#define CFG_SYSTEM_CPU  0x01
-#define CFG_SYSTEM_NET  0x02
-#define CFG_SYSTEM_OPS  0x04
-#define CFG_SYSTEM_DISK 0x08
-#define CFG_SYSTEM_ALL  0x0F
-typedef struct {
-	uint32_t flags;
-	cna_interval_t interval;
-	na_elem_t *query;
-} cfg_system_t;
-
-/*!
+/*! Data types for WAFL statistics {{{
+ *
  * \brief Persistent data for WAFL performance counters. (a.k.a. cache performance)
  *
  * The cache counters use old counter values to calculate a hit ratio for each
@@ -100,8 +88,40 @@ typedef struct {
 	uint64_t inode_cache_hit;
 	uint64_t inode_cache_miss;
 } cfg_wafl_t;
+/* }}} cfg_wafl_t */
 
-/*!
+/*! Data types for disk statistics {{{
+ *
+ * \brief A disk in the NetApp.
+ *
+ * A disk doesn't have any more information than its name at the moment.
+ * The name includes the "disk_" prefix.
+ */
+#define HAVE_DISK_BUSY   0x10
+#define HAVE_DISK_BASE   0x20
+#define HAVE_DISK_ALL    0x30
+typedef struct disk_s {
+	char *name;
+	uint32_t flags;
+	time_t timestamp;
+	uint64_t disk_busy;
+	uint64_t base_for_disk_busy;
+	double disk_busy_percent;
+	struct disk_s *next;
+} disk_t;
+
+#define CFG_DISK_BUSIEST 0x01
+#define CFG_DISK_ALL     0x01
+typedef struct {
+	uint32_t flags;
+	cna_interval_t interval;
+	na_elem_t *query;
+	disk_t *disks;
+} cfg_disk_t;
+/* }}} cfg_disk_t */
+
+/*! Data types for volume performance statistics {{{
+ *
  * \brief Persistent data for volume performance data.
  *
  * The code below uses the difference of the operations and latency counters to
@@ -141,18 +161,62 @@ typedef struct {
 	uint64_t read_latency;
 	uint64_t write_latency;
 } data_volume_perf_t;
+/* }}} data_volume_perf_t */
 
-/*!
+/*! Data types for volume usage statistics {{{
+ *
  * \brief Configuration struct for volume usage data (free / used).
  */
-#define CFG_VOLUME_USAGE_INIT           0x0001
 #define CFG_VOLUME_USAGE_DF             0x0002
 #define CFG_VOLUME_USAGE_SNAP           0x0004
-#define HAVE_VOLUME_USAGE_SNAP          0x0008
+#define CFG_VOLUME_USAGE_ALL            0x0006
+#define HAVE_VOLUME_USAGE_NORM_FREE     0x0010
+#define HAVE_VOLUME_USAGE_NORM_USED     0x0020
+#define HAVE_VOLUME_USAGE_SNAP_RSVD     0x0040
+#define HAVE_VOLUME_USAGE_SNAP_USED     0x0080
+#define HAVE_VOLUME_USAGE_SIS_SAVED     0x0100
+#define HAVE_VOLUME_USAGE_ALL           0x01f0
+struct data_volume_usage_s;
+typedef struct data_volume_usage_s data_volume_usage_t;
+struct data_volume_usage_s {
+	char *name;
+	uint32_t flags;
+
+	uint64_t norm_free;
+	uint64_t norm_used;
+	uint64_t snap_reserved;
+	uint64_t snap_used;
+	uint64_t sis_saved;
+
+	data_volume_usage_t *next;
+};
+
+typedef struct {
+	cna_interval_t interval;
+	na_elem_t *query;
+
+	ignorelist_t *il_capacity;
+	ignorelist_t *il_snapshot;
+
+	data_volume_usage_t *volumes;
+} cfg_volume_usage_t;
+/* }}} cfg_volume_usage_t */
+
+/*! Data types for system statistics {{{
+ *
+ * \brief Persistent data for system performance counters
+ */
+#define CFG_SYSTEM_CPU  0x01
+#define CFG_SYSTEM_NET  0x02
+#define CFG_SYSTEM_OPS  0x04
+#define CFG_SYSTEM_DISK 0x08
+#define CFG_SYSTEM_ALL  0x0F
 typedef struct {
 	uint32_t flags;
-	uint64_t snap_used;
-} cfg_volume_usage_t;
+	cna_interval_t interval;
+	na_elem_t *query;
+} cfg_system_t;
+/* }}} cfg_system_t */
 
 typedef struct service_config_s {
 	na_elem_t *query;
@@ -178,37 +242,8 @@ typedef struct service_config_s {
 typedef struct volume_s {
 	char *name;
 	data_volume_perf_t perf_data;
-	cfg_volume_usage_t cfg_volume_usage;
 	struct volume_s *next;
 } volume_t;
-
-/*!
- * \brief A disk in the NetApp.
- *
- * A disk doesn't have any more information than its name at the moment.
- * The name includes the "disk_" prefix.
- */
-#define HAVE_DISK_BUSY   0x10
-#define HAVE_DISK_BASE   0x20
-#define HAVE_DISK_ALL    0x30
-typedef struct disk_s {
-	char *name;
-	uint32_t flags;
-	time_t timestamp;
-	uint64_t disk_busy;
-	uint64_t base_for_disk_busy;
-	double disk_busy_percent;
-	struct disk_s *next;
-} disk_t;
-
-#define CFG_DISK_BUSIEST 0x01
-#define CFG_DISK_ALL     0x01
-typedef struct {
-	uint32_t flags;
-	cna_interval_t interval;
-	na_elem_t *query;
-	disk_t *disks;
-} cfg_disk_t;
 
 struct host_config_s {
 	char *name;
@@ -221,15 +256,16 @@ struct host_config_s {
 
 	na_server_t *srv;
 	cfg_service_t *services;
-	cfg_disk_t *cfg_disk;
 	cfg_wafl_t *cfg_wafl;
+	cfg_disk_t *cfg_disk;
+	cfg_volume_usage_t *cfg_volume_usage;
 	cfg_system_t *cfg_system;
 	volume_t *volumes;
 
 	struct host_config_s *next;
 };
 #define HOST_INIT { NULL, NA_SERVER_TRANSPORT_HTTPS, NULL, 0, NULL, NULL, 0, \
-	NULL, NULL, NULL, NULL, \
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
 	NULL}
 
 static host_config_t *global_host_config;
@@ -292,6 +328,33 @@ static void free_cfg_disk (cfg_disk_t *cfg_disk) /* {{{ */
 	sfree (cfg_disk);
 } /* }}} void free_cfg_disk */
 
+static void free_cfg_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
+{
+	data_volume_usage_t *data;
+
+	if (cvu == NULL)
+		return;
+
+	/* Free the ignorelists */
+	ignorelist_free (cvu->il_capacity);
+	ignorelist_free (cvu->il_snapshot);
+
+	/* Free the linked list of volumes */
+	data = cvu->volumes;
+	while (data != NULL)
+	{
+		data_volume_usage_t *next = data->next;
+		sfree (data->name);
+		sfree (data);
+		data = next;
+	}
+
+	if (cvu->query != NULL)
+		na_elem_free (cvu->query);
+
+	sfree (cvu);
+} /* }}} void free_cfg_volume_usage */
+
 static void free_cfg_system (cfg_system_t *cs) /* {{{ */
 {
 	if (cs == NULL)
@@ -337,6 +400,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	free_cfg_service (hc->services);
 	free_cfg_disk (hc->cfg_disk);
 	free_cfg_wafl (hc->cfg_wafl);
+	free_cfg_volume_usage (hc->cfg_volume_usage);
 	free_cfg_system (hc->cfg_system);
 	free_volume (hc->volumes);
 
@@ -351,7 +415,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
  * Used to look up volumes and disks or to handle flags.
  */
 static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
-		uint32_t vol_usage_flags, uint32_t vol_perf_flags)
+		uint32_t vol_perf_flags)
 {
 	volume_t *v;
 
@@ -359,8 +423,6 @@ static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
 		return (NULL);
 	
 	/* Make sure the default flags include the init-bit. */
-	if (vol_usage_flags != 0)
-		vol_usage_flags |= CFG_VOLUME_USAGE_INIT;
 	if (vol_perf_flags != 0)
 		vol_perf_flags |= CFG_VOLUME_PERF_INIT;
 
@@ -369,9 +431,6 @@ static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
 			continue;
 
 		/* Check if the flags have been initialized. */
-		if (((v->cfg_volume_usage.flags & CFG_VOLUME_USAGE_INIT) == 0)
-				&& (vol_usage_flags != 0))
-			v->cfg_volume_usage.flags = vol_usage_flags;
 		if (((v->perf_data.flags & CFG_VOLUME_PERF_INIT) == 0)
 				&& (vol_perf_flags != 0))
 			v->perf_data.flags = vol_perf_flags;
@@ -385,7 +444,6 @@ static volume_t *get_volume (host_config_t *host, const char *name, /* {{{ */
 		return (NULL);
 	memset (v, 0, sizeof (*v));
 
-	v->cfg_volume_usage.flags = vol_usage_flags;
 	v->perf_data.flags = vol_perf_flags;
 
 	v->name = strdup(name);
@@ -430,6 +488,64 @@ static disk_t *get_disk(cfg_disk_t *cd, const char *name) /* {{{ */
 	return d;
 } /* }}} disk_t *get_disk */
 
+static data_volume_usage_t *get_volume_usage (cfg_volume_usage_t *cvu, /* {{{ */
+		const char *name)
+{
+	data_volume_usage_t *last;
+	data_volume_usage_t *new;
+
+	int ignore_capacity = 0;
+	int ignore_snapshot = 0;
+
+	if ((cvu == NULL) || (name == NULL))
+		return (NULL);
+
+	last = cvu->volumes;
+	while (last != NULL)
+	{
+		if (strcmp (last->name, name) == 0)
+			return (last);
+
+		if (last->next == NULL)
+			break;
+
+		last = last->next;
+	}
+
+	/* Check the ignorelists. If *both* tell us to ignore a volume, return NULL. */
+	ignore_capacity = ignorelist_match (cvu->il_capacity, name);
+	ignore_snapshot = ignorelist_match (cvu->il_snapshot, name);
+	if ((ignore_capacity != 0) && (ignore_snapshot != 0))
+		return (NULL);
+
+	/* Not found: allocate. */
+	new = malloc (sizeof (*new));
+	if (new == NULL)
+		return (NULL);
+	memset (new, 0, sizeof (*new));
+	new->next = NULL;
+
+	new->name = strdup (name);
+	if (new->name == NULL)
+	{
+		sfree (new);
+		return (NULL);
+	}
+
+	if (ignore_capacity == 0)
+		new->flags |= CFG_VOLUME_USAGE_DF;
+	if (ignore_snapshot == 0)
+		new->flags |= CFG_VOLUME_USAGE_SNAP;
+
+	/* Add to end of list. */
+	if (last == NULL)
+		cvu->volumes = new;
+	else
+		last->next = new;
+
+	return (new);
+} /* }}} data_volume_usage_t *get_volume_usage */
+
 static void host_set_all_perf_data_flags(const host_config_t *host, /* {{{ */
 		uint32_t flag, _Bool set)
 {
@@ -442,18 +558,6 @@ static void host_set_all_perf_data_flags(const host_config_t *host, /* {{{ */
 			v->perf_data.flags &= ~flag;
 	}
 } /* }}} void host_set_all_perf_data_flags */
-
-static void host_set_all_cfg_volume_usage_flags(const host_config_t *host, /* {{{ */
-		uint32_t flag, _Bool set) {
-	volume_t *v;
-	
-	for (v = host->volumes; v; v = v->next) {
-		if (set)
-			v->cfg_volume_usage.flags |= flag;
-		else /* if (!set) */
-			v->cfg_volume_usage.flags &= ~flag;
-	}
-} /* }}} void host_set_all_cfg_volume_usage_flags */
 
 /*
  * Various submit functions.
@@ -1064,60 +1168,123 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 	return (status);
 } /* }}} int cna_query_disk */
 
-/* Data corresponding to <GetVolumeData /> */
-static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
-	na_elem_t *inst;
-	volume_t *volume;
-	cfg_volume_usage_t *cfg_volume_data = data;
+/* Data corresponding to <VolumeUsage /> */
+static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
+		cfg_volume_usage_t *cfg_volume)
+{
+	data_volume_usage_t *v;
 
-	out = na_elem_child(out, "volumes");
-	na_elem_iter_t inst_iter = na_child_iterator(out);
-	for (inst = na_iterator_next(&inst_iter); inst; inst = na_iterator_next(&inst_iter)) {
-		uint64_t size_free = 0, size_used = 0, snap_reserved = 0;
+	for (v = cfg_volume->volumes; v != NULL; v = v->next)
+	{
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_FREE))
+			submit_double (hostname, /* plugin instance = */ v->name,
+					"df_complex", "free",
+					(double) v->norm_free, /* timestamp = */ 0);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_USED))
+			submit_double (hostname, /* plugin instance = */ v->name,
+					"df_complex", "used",
+					(double) v->norm_used, /* timestamp = */ 0);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_RSVD))
+			submit_double (hostname, /* plugin instance = */ v->name,
+					"df_complex", "snap_reserved",
+					(double) v->snap_reserved, /* timestamp = */ 0);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_USED))
+			submit_double (hostname, /* plugin instance = */ v->name,
+					"df_complex", "snap_used",
+					(double) v->snap_used, /* timestamp = */ 0);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SIS_SAVED))
+			submit_double (hostname, /* plugin instance = */ v->name,
+					"df_complex", "sis_saved",
+					(double) v->sis_saved, /* timestamp = */ 0);
+
+		/* Clear all the HAVE_* flags */
+		v->flags &= ~HAVE_VOLUME_USAGE_ALL;
+	} /* for (v = cfg_volume->volumes) */
+
+	return (0);
+} /* }}} int cna_submit_volume_usage_data */
+
+static int cna_handle_volume_usage_data (const char *hostname, /* {{{ */
+		cfg_volume_usage_t *cfg_volume, na_elem_t *data)
+{
+	na_elem_t *elem_volume;
+	na_elem_t *elem_volumes;
+	na_elem_iter_t iter_volume;
+
+	elem_volumes = na_elem_child (data, "volumes");
+	if (elem_volumes == NULL)
+	{
+		ERROR ("netapp plugin: cna_handle_volume_usage_data: "
+				"na_elem_child (\"volumes\") failed.");
+		return (-1);
+	}
+
+	iter_volume = na_child_iterator (elem_volumes);
+	for (elem_volume = na_iterator_next (&iter_volume);
+			elem_volume != NULL;
+			elem_volume = na_iterator_next (&iter_volume))
+	{
+		const char *volume_name;
+
+		data_volume_usage_t *v;
+		uint64_t value;
 
 		na_elem_t *sis;
 		const char *sis_state;
 		uint64_t sis_saved_reported;
 		uint64_t sis_saved;
 
-		volume = get_volume(host, na_child_get_string(inst, "name"),
-				cfg_volume_data->flags, /* perf_flags = */ 0);
-		if (volume == NULL)
+		volume_name = na_child_get_string (elem_volume, "name");
+		if (volume_name == NULL)
 			continue;
 
-		if (!(volume->cfg_volume_usage.flags & CFG_VOLUME_USAGE_DF))
+		/* get_volume_usage may return NULL if the volume is to be ignored. */
+		v = get_volume_usage (cfg_volume, volume_name);
+		if (v == NULL)
+			continue;
+
+		if ((v->flags & CFG_VOLUME_USAGE_DF) == 0)
 			continue;
 
 		/* 2^4 exa-bytes? This will take a while ;) */
-		size_free = na_child_get_uint64(inst, "size-available", UINT64_MAX);
-		if (size_free != UINT64_MAX)
-			submit_double (host->name, volume->name, "df_complex", "free",
-					(double) size_free, /* time = */ 0);
-
-		size_used = na_child_get_uint64(inst, "size-used", UINT64_MAX);
-		if (size_used != UINT64_MAX) {
-			if ((volume->cfg_volume_usage.flags & HAVE_VOLUME_USAGE_SNAP)
-					&& (size_used >= volume->cfg_volume_usage.snap_used))
-				size_used -= volume->cfg_volume_usage.snap_used;
-			submit_double (host->name, volume->name, "df_complex", "used",
-					(double) size_used, /* time = */ 0);
+		value = na_child_get_uint64(elem_volume, "size-available", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			v->norm_free = value;
+			v->flags |= HAVE_VOLUME_USAGE_NORM_FREE;
 		}
 
-		snap_reserved = na_child_get_uint64(inst, "snapshot-blocks-reserved", UINT64_MAX);
-		if (!(volume->cfg_volume_usage.flags & HAVE_VOLUME_USAGE_SNAP) && (snap_reserved != UINT64_MAX))
-			/* If we have snap usage data this value has already been submitted. */
-			/* 1 block == 1024 bytes  as per API docs */
-			submit_double (host->name, volume->name, "df_complex", "snap_reserved",
-					(double) (1024 * snap_reserved), /* time = */ 0);
+		value = na_child_get_uint64(elem_volume, "size-used", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			v->norm_used = value;
+			v->flags |= HAVE_VOLUME_USAGE_NORM_USED;
+		}
 
-		sis = na_elem_child(inst, "sis");
+		value = na_child_get_uint64(elem_volume, "snapshot-blocks-reserved", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			/* 1 block == 1024 bytes  as per API docs */
+			v->norm_used = 1024 * value;
+			v->flags |= HAVE_VOLUME_USAGE_SNAP_RSVD;
+		}
+
+		sis = na_elem_child(elem_volume, "sis");
 		if (sis == NULL)
 			continue;
 
 		sis_state = na_child_get_string(sis, "state");
-		if ((sis_state == NULL)
-				|| (strcmp ("enabled", sis_state) != 0))
+		if (sis_state == NULL)
 			continue;
+
+		/* If SIS is not enabled, set the HAVE_VOLUME_USAGE_SIS_SAVED flag and set
+		 * sis_saved to UINT64_MAX to signal this condition to the submit function. */
+		if (strcmp ("enabled", sis_state) != 0) {
+			v->sis_saved = UINT64_MAX;
+			v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
+			continue;
+		}
 
 		sis_saved_reported = na_child_get_uint64(sis, "size-saved", UINT64_MAX);
 		if (sis_saved_reported == UINT64_MAX)
@@ -1127,11 +1294,16 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 		if ((sis_saved_reported >> 32) != 0) {
 			/* In case they ever fix this bug. */
 			sis_saved = sis_saved_reported;
-		} else {
+		} else { /* really hacky work-around code. {{{ */
 			uint64_t sis_saved_percent;
 			uint64_t sis_saved_guess;
 			uint64_t overflow_guess;
 			uint64_t guess1, guess2, guess3;
+
+			/* Check if we have v->norm_used. Without it, we cannot calculate
+			 * sis_saved_guess. */
+			if ((v->flags & HAVE_VOLUME_USAGE_NORM_USED) == 0)
+				continue;
 
 			sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
 			if (sis_saved_percent > 100)
@@ -1145,9 +1317,9 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 			 * 400 GBytes. */
 			/* percentage-saved = size-saved / (size-saved + size-used) */
 			if (sis_saved_percent < 100)
-				sis_saved_guess = size_used * sis_saved_percent / (100 - sis_saved_percent);
+				sis_saved_guess = v->norm_used * sis_saved_percent / (100 - sis_saved_percent);
 			else
-				sis_saved_guess = size_used;
+				sis_saved_guess = v->norm_used;
 
 			overflow_guess = sis_saved_guess >> 32;
 			guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
@@ -1165,12 +1337,72 @@ static void collect_volume_data(host_config_t *host, na_elem_t *out, void *data)
 				else
 					sis_saved = guess3;
 			}
-		} /* end of 32-bit workaround */
+		} /* }}} end of 32-bit workaround */
+	} /* for (elem_volume) */
 
-		submit_double (host->name, volume->name, "df_complex", "sis_saved",
-				(double) sis_saved, /* time = */ 0);
+	return (cna_submit_volume_usage_data (hostname, cfg_volume));
+} /* }}} int cna_handle_volume_usage_data */
+
+static int cna_setup_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
+{
+	if (cvu == NULL)
+		return (EINVAL);
+
+	if (cvu->query != NULL)
+		return (0);
+
+	cvu->query = na_elem_new ("volume-list-info");
+	if (cvu->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
 	}
-} /* }}} void collect_volume_data */
+
+	/* TODO: cvu->snap_query = na_elem_new("snapshot-list-info"); */
+
+	return (0);
+} /* }}} int cna_setup_volume_usage */
+
+static int cna_query_volume_usage (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	time_t now;
+
+	if (host == NULL)
+		return (EINVAL);
+
+	/* If the user did not configure volume_usage statistics, return without
+	 * doing anything. */
+	if (host->cfg_volume_usage == NULL)
+		return (0);
+
+	now = time (NULL);
+	if ((host->cfg_volume_usage->interval.interval + host->cfg_volume_usage->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_volume_usage (host->cfg_volume_usage);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_volume_usage->query != NULL);
+
+	data = na_server_invoke_elem(host->srv, host->cfg_volume_usage->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_volume_usage: na_server_invoke_elem failed: %s",
+				na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_volume_usage_data (host->name, host->cfg_volume_usage, data);
+
+	if (status == 0)
+		host->cfg_volume_usage->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_volume_usage */
 
 /* Data corresponding to <GetVolumePerfData /> */
 static void query_volume_perf_data(host_config_t *host, na_elem_t *out, void *data) { /* {{{ */
@@ -1190,7 +1422,7 @@ static void query_volume_perf_data(host_config_t *host, na_elem_t *out, void *da
 		perf_data.timestamp = timestamp;
 
 		volume = get_volume(host, na_child_get_string(inst, "name"),
-				/* data_flags = */ 0, cfg_volume_perf->flags);
+				cfg_volume_perf->flags);
 		if (volume == NULL)
 			continue;
 
@@ -1509,7 +1741,7 @@ static void cna_config_volume_performance_option (host_config_t *host, /* {{{ */
 			continue;
 		}
 
-		v = get_volume (host, name, /* data_flags = */ 0, perf_volume->flags);
+		v = get_volume (host, name, perf_volume->flags);
 		if (v == NULL)
 			continue;
 
@@ -1564,91 +1796,59 @@ static void cna_config_volume_performance(host_config_t *host, const oconfig_ite
 	}
 } /* }}} void cna_config_volume_performance */
 
-/* Handling of the "GetDiskUtil" option within a <GetVolumeData /> block. */
-static void cna_config_volume_usage_option (host_config_t *host, /* {{{ */
-		cfg_volume_usage_t *cfg_volume_data, const oconfig_item_t *item, uint32_t flag)
+/* Handling of the "Capacity" and "Snapshot" options within a <VolumeUsage />
+ * block. */
+static void cna_config_volume_usage_option (cfg_volume_usage_t *cvu, /* {{{ */
+		const oconfig_item_t *ci)
 {
-	int i;
-	
-	for (i = 0; i < item->values_num; ++i) {
-		const char *name;
-		volume_t *v;
-		_Bool set = true;
+	char *name;
+	ignorelist_t * il;
 
-		if (item->values[i].type != OCONFIG_TYPE_STRING) {
-			WARNING("netapp plugin: Ignoring non-string argument in \"GetVolData\""
-					"block for host %s", host->name);
-			continue;
-		}
-
-		name = item->values[i].value.string;
-		if (name[0] == '+') {
-			set = true;
-			++name;
-		} else if (name[0] == '-') {
-			set = false;
-			++name;
-		}
-
-		if (!name[0]) {
-			if (set)
-				cfg_volume_data->flags |= flag;
-			else /* if (!set) */
-				cfg_volume_data->flags &= ~flag;
-
-			host_set_all_cfg_volume_usage_flags(host, flag, set);
-			continue;
-		}
-
-		v = get_volume(host, name, cfg_volume_data->flags, /* perf_flags = */ 0);
-		if (v == NULL)
-			continue;
-
-		if (!v->cfg_volume_usage.flags)
-			v->cfg_volume_usage.flags = cfg_volume_data->flags;
-
-		if (set)
-			v->cfg_volume_usage.flags |= flag;
-		else /* if (!set) */
-			v->cfg_volume_usage.flags &= ~flag;
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		WARNING ("netapp plugin: The %s option requires exactly one string argument.",
+				ci->key);
+		return;
 	}
+
+	name = ci->values[0].value.string;
+
+	if (strcasecmp ("Capacity", ci->key) == 0)
+		il = cvu->il_capacity;
+	else if (strcasecmp ("Snapshot", ci->key) == 0)
+		il = cvu->il_snapshot;
+	else
+		return;
+
+	ignorelist_add (il, name);
 } /* }}} void cna_config_volume_usage_option */
 
-/* Corresponds to a <GetVolumeData /> block */
-static void cna_config_volume_usage(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
-	int i, had_df = 0;
-	cfg_service_t *service;
-	cfg_volume_usage_t *cfg_volume_data;
-	
-	service = malloc(sizeof(*service));
-	service->query = 0;
-	service->handler = collect_volume_data;
-	cfg_volume_data = service->data = malloc(sizeof(*cfg_volume_data));
-	cfg_volume_data->flags = CFG_VOLUME_USAGE_INIT;
-	service->next = host->services;
-	host->services = service;
-	for (i = 0; i < ci->children_num; ++i) {
-		oconfig_item_t *item = ci->children + i;
-		
-		/* if (!item || !item->key || !*item->key) continue; */
-		if (!strcasecmp(item->key, "Multiplier")) {
-			cna_config_get_multiplier (item, service);
-		} else if (!strcasecmp(item->key, "GetDiskUtil")) {
-			had_df = 1;
-			cna_config_volume_usage_option(host, cfg_volume_data, item, CFG_VOLUME_USAGE_DF);
-		} else if (!strcasecmp(item->key, "GetSnapUtil")) {
-			had_df = 1;
-			cna_config_volume_usage_option(host, cfg_volume_data, item, CFG_VOLUME_USAGE_SNAP);
-		}
+/* Handling of the "IgnoreSelectedCapacity" and "IgnoreSelectedSnapshot"
+ * options within a <VolumeUsage /> block. */
+static void cna_config_volume_usage_default (cfg_volume_usage_t *cvu, /* {{{ */
+		const oconfig_item_t *ci)
+{
+	ignorelist_t *il;
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+	{
+		WARNING ("netapp plugin: The %s option requires exactly one string argument.",
+				ci->key);
+		return;
 	}
-	if (!had_df) {
-		cfg_volume_data->flags |= CFG_VOLUME_USAGE_DF;
-		host_set_all_cfg_volume_usage_flags(host, CFG_VOLUME_USAGE_DF, /* set = */ true);
-	}
-	if (cfg_volume_data->flags & CFG_VOLUME_USAGE_SNAP) {
-		WARNING("netapp plugin: The \"GetSnapUtil\" option does not support the \"+\" wildcard.");
-	}
-} /* }}} void cna_config_volume_usage */
+
+	if (strcasecmp ("IgnoreSelectedCapacity", ci->key) == 0)
+		il = cvu->il_capacity;
+	else if (strcasecmp ("IgnoreSelectedSnapshot", ci->key) == 0)
+		il = cvu->il_snapshot;
+	else
+		return;
+
+	if (ci->values[0].value.boolean)
+		ignorelist_set_invert (il, /* invert = */ 0);
+	else
+		ignorelist_set_invert (il, /* invert = */ 1);
+} /* }}} void cna_config_volume_usage_default */
 
 /* Corresponds to a <Disks /> block */
 static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
@@ -1746,6 +1946,79 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 	return (0);
 } /* }}} int cna_config_wafl */
+
+/*
+ * <VolumeUsage>
+ *   Capacity "vol0"
+ *   Capacity "vol1"
+ *   Capacity "vol2"
+ *   Capacity "vol3"
+ *   Capacity "vol4"
+ *   IgnoreSelectedCapacity false
+ *
+ *   Snapshot "vol0"
+ *   Snapshot "vol3"
+ *   Snapshot "vol4"
+ *   Snapshot "vol7"
+ *   IgnoreSelectedSnapshot false
+ * </VolumeUsage>
+ */
+/* Corresponds to a <VolumeUsage /> block */
+static int cna_config_volume_usage(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
+	cfg_volume_usage_t *cfg_volume_usage;
+	int i;
+
+	if ((host == NULL) || (ci == NULL))
+		return (EINVAL);
+
+	if (host->cfg_volume_usage == NULL)
+	{
+		cfg_volume_usage = malloc (sizeof (*cfg_volume_usage));
+		if (cfg_volume_usage == NULL)
+			return (ENOMEM);
+		memset (cfg_volume_usage, 0, sizeof (*cfg_volume_usage));
+
+		/* Set default flags */
+		cfg_volume_usage->query = NULL;
+		cfg_volume_usage->volumes = NULL;
+
+		cfg_volume_usage->il_capacity = ignorelist_create (/* invert = */ 1);
+		if (cfg_volume_usage->il_capacity == NULL)
+		{
+			sfree (cfg_volume_usage);
+			return (ENOMEM);
+		}
+
+		cfg_volume_usage->il_snapshot = ignorelist_create (/* invert = */ 1);
+		if (cfg_volume_usage->il_snapshot == NULL)
+		{
+			ignorelist_free (cfg_volume_usage->il_capacity);
+			sfree (cfg_volume_usage);
+			return (ENOMEM);
+		}
+
+		host->cfg_volume_usage = cfg_volume_usage;
+	}
+	cfg_volume_usage = host->cfg_volume_usage;
+	
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *item = ci->children + i;
+		
+		/* if (!item || !item->key || !*item->key) continue; */
+		if (strcasecmp(item->key, "Interval") == 0)
+			cna_config_get_interval (item, &cfg_volume_usage->interval);
+		else if (!strcasecmp(item->key, "Capacity"))
+			cna_config_volume_usage_option (cfg_volume_usage, item);
+		else if (!strcasecmp(item->key, "Snapshot"))
+			cna_config_volume_usage_option (cfg_volume_usage, item);
+		else if (!strcasecmp(item->key, "IgnoreSelectedCapacity"))
+			cna_config_volume_usage_default (cfg_volume_usage, item);
+		else if (!strcasecmp(item->key, "IgnoreSelectedSnapshot"))
+			cna_config_volume_usage_default (cfg_volume_usage, item);
+	}
+
+	return (0);
+} /* }}} int cna_config_volume_usage */
 
 /* Corresponds to a <System /> block */
 static int cna_config_system (host_config_t *host, /* {{{ */
@@ -1857,16 +2130,16 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 				continue;
 			}
 			host->interval = item->values[0].value.number;
-		} else if (!strcasecmp(item->key, "GetVolumePerfData")) {
-			cna_config_volume_performance(host, item);
-		} else if (!strcasecmp(item->key, "System")) {
-			cna_config_system(host, item, &default_service);
 		} else if (!strcasecmp(item->key, "WAFL")) {
 			cna_config_wafl(host, item);
 		} else if (!strcasecmp(item->key, "Disks")) {
 			cna_config_disk(host, item);
-		} else if (!strcasecmp(item->key, "GetVolumeData")) {
+		} else if (!strcasecmp(item->key, "GetVolumePerfData")) {
+			cna_config_volume_performance(host, item);
+		} else if (!strcasecmp(item->key, "VolumeUsage")) {
 			cna_config_volume_usage(host, item);
+		} else if (!strcasecmp(item->key, "System")) {
+			cna_config_system(host, item, &default_service);
 		} else {
 			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".",
 					item->key, ci->values[0].value.string);
@@ -1958,11 +2231,6 @@ static int cna_init(void) { /* {{{ */
 				na_child_add_string(e, "foo", "read_latency");
 				na_child_add_string(e, "foo", "write_latency");
 				na_child_add(service->query, e);
-			} else if (service->handler == collect_volume_data) {
-				service->query = na_elem_new("volume-list-info");
-				/* na_child_add_string(service->query, "objectname", "volume"); */
-				/* } else if (service->handler == collect_snapshot_data) { */
-				/* service->query = na_elem_new("snapshot-list-info"); */
 			}
 		} /* for (host->services) */
 	}
@@ -2035,6 +2303,7 @@ static int cna_read(void) { /* {{{ */
 
 		cna_query_wafl (host);
 		cna_query_disk (host);
+		cna_query_volume_usage (host);
 		cna_query_system (host);
 	}
 	return 0;
