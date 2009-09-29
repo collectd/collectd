@@ -2402,10 +2402,19 @@ static int cna_read (void) { /* {{{ */
 	return 0;
 } /* }}} int cna_read */
 
+static int cna_shutdown (void) /* {{{ */
+{
+	free_host_config (global_host_config);
+	global_host_config = NULL;
+
+	return (0);
+} /* }}} int cna_shutdown */
+
 void module_register(void) {
 	plugin_register_complex_config("netapp", cna_config);
 	plugin_register_init("netapp", cna_init);
 	plugin_register_read("netapp", cna_read);
+	plugin_register_shutdown("netapp", cna_shutdown);
 }
 
 /* vim: set sw=2 ts=2 noet fdm=marker : */
