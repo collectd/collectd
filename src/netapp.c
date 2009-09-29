@@ -231,22 +231,6 @@ typedef struct {
 } cfg_system_t;
 /* }}} cfg_system_t */
 
-/*!
- * \brief Struct representing a volume.
- *
- * A volume currently has a name and two sets of values:
- *
- *  - Performance data, such as bytes read/written, number of operations
- *    performed and average time per operation.
- *
- *  - Usage data, i. e. amount of used and free space in the volume.
- */
-typedef struct volume_s {
-	char *name;
-	data_volume_perf_t perf_data;
-	struct volume_s *next;
-} volume_t;
-
 struct host_config_s {
 	char *name;
 	na_server_transport_t protocol;
@@ -262,12 +246,11 @@ struct host_config_s {
 	cfg_volume_perf_t *cfg_volume_perf;
 	cfg_volume_usage_t *cfg_volume_usage;
 	cfg_system_t *cfg_system;
-	volume_t *volumes;
 
 	struct host_config_s *next;
 };
 #define HOST_INIT { NULL, NA_SERVER_TRANSPORT_HTTPS, NULL, 0, NULL, NULL, 0, \
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
+	NULL, NULL, NULL, NULL, NULL, NULL, \
 	NULL}
 
 static host_config_t *global_host_config;
@@ -277,21 +260,6 @@ static host_config_t *global_host_config;
  *
  * Used to free the various structures above.
  */
-static void free_volume (volume_t *volume) /* {{{ */
-{
-	volume_t *next;
-
-	if (volume == NULL)
-		return;
-
-	next = volume->next;
-
-	sfree (volume->name);
-	sfree (volume);
-
-	free_volume (next);
-} /* }}} void free_volume */
-
 static void free_disk (disk_t *disk) /* {{{ */
 {
 	disk_t *next;
@@ -415,7 +383,6 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	free_cfg_volume_perf (hc->cfg_volume_perf);
 	free_cfg_volume_usage (hc->cfg_volume_usage);
 	free_cfg_system (hc->cfg_system);
-	free_volume (hc->volumes);
 
 	sfree (hc);
 
