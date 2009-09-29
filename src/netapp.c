@@ -231,17 +231,6 @@ typedef struct {
 } cfg_system_t;
 /* }}} cfg_system_t */
 
-typedef struct service_config_s {
-	na_elem_t *query;
-	service_handler_t *handler;
-	int multiplier;
-	int skip_countdown;
-	int interval;
-	void *data;
-	struct service_config_s *next;
-} cfg_service_t;
-#define SERVICE_INIT {0, 0, 1, 1, 0, 0, 0}
-
 /*!
  * \brief Struct representing a volume.
  *
@@ -268,7 +257,6 @@ struct host_config_s {
 	int interval;
 
 	na_server_t *srv;
-	cfg_service_t *services;
 	cfg_wafl_t *cfg_wafl;
 	cfg_disk_t *cfg_disk;
 	cfg_volume_perf_t *cfg_volume_perf;
@@ -408,23 +396,6 @@ static void free_cfg_system (cfg_system_t *cs) /* {{{ */
 	sfree (cs);
 } /* }}} void free_cfg_system */
 
-static void free_cfg_service (cfg_service_t *service) /* {{{ */
-{
-	cfg_service_t *next;
-
-	if (service == NULL)
-		return;
-	
-	next = service->next;
-
-	/* FIXME: Free service->data? */
-	na_elem_free(service->query);
-	
-	sfree (service);
-
-	free_cfg_service (next);
-} /* }}} void free_cfg_service */
-
 static void free_host_config (host_config_t *hc) /* {{{ */
 {
 	host_config_t *next;
@@ -439,7 +410,6 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	sfree (hc->username);
 	sfree (hc->password);
 
-	free_cfg_service (hc->services);
 	free_cfg_disk (hc->cfg_disk);
 	free_cfg_wafl (hc->cfg_wafl);
 	free_cfg_volume_perf (hc->cfg_volume_perf);
@@ -2217,7 +2187,7 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 
 /* Corresponds to a <System /> block */
 static int cna_config_system (host_config_t *host, /* {{{ */
-		oconfig_item_t *ci, const cfg_service_t *default_service)
+		oconfig_item_t *ci)
 {
 	cfg_system_t *cfg_system;
 	int i;
@@ -2272,11 +2242,10 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 
 /* Corresponds to a <Host /> block. */
 static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
-		const host_config_t *default_host, const cfg_service_t *def_def_service)
+		const host_config_t *default_host)
 {
 	oconfig_item_t *item;
 	host_config_t *host;
-	cfg_service_t default_service = *def_def_service;
 	int status;
 	int i;
 	
@@ -2334,7 +2303,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 		} else if (!strcasecmp(item->key, "VolumeUsage")) {
 			cna_config_volume_usage(host, item);
 		} else if (!strcasecmp(item->key, "System")) {
-			cna_config_system(host, item, &default_service);
+			cna_config_system(host, item);
 		} else {
 			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".",
 					item->key, ci->values[0].value.string);
@@ -2415,7 +2384,6 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 	int i;
 	oconfig_item_t *item;
 	host_config_t default_host = HOST_INIT;
-	cfg_service_t default_service = SERVICE_INIT;
 	
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
@@ -2424,7 +2392,7 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 			host_config_t *host;
 			host_config_t *tmp;
 
-			host = cna_config_host(item, &default_host, &default_service);
+			host = cna_config_host(item, &default_host);
 			if (host == NULL)
 				continue;
 
@@ -2452,29 +2420,9 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 } /* }}} int cna_config */
 
 static int cna_read (void) { /* {{{ */
-	na_elem_t *out;
 	host_config_t *host;
-	cfg_service_t *service;
 	
 	for (host = global_host_config; host; host = host->next) {
-		for (service = host->services; service; service = service->next) {
-			if (--service->skip_countdown > 0) continue;
-			service->skip_countdown = service->multiplier;
-			out = na_server_invoke_elem(host->srv, service->query);
-			if (na_results_status(out) != NA_OK) {
-				int netapp_errno = na_results_errno(out);
-				ERROR("netapp plugin: Error %d from host %s: %s", netapp_errno, host->name, na_results_reason(out));
-				na_elem_free(out);
-				if (netapp_errno == EIO || netapp_errno == ETIMEDOUT) {
-					/* Network problems. Just give up on all other services on this host. */
-					break;
-				}
-				continue;
-			}
-			service->handler(host, out, service->data);
-			na_elem_free(out);
-		} /* for (host->services) */
-
 		cna_query_wafl (host);
 		cna_query_disk (host);
 		cna_query_volume_perf (host);
