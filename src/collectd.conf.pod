@@ -1681,8 +1681,14 @@ Required capabilities are documented below.
       GetBusy true
     </Disks>
     
-    <GetVolumePerfData>
-    </GetVolumePerfData>
+    <VolumePerf>
+      GetIO      "volume0"
+      IgnoreSelectedIO      false
+      GetOps     "volume0"
+      IgnoreSelectedOps     false
+      GetLatency "volume0"
+      IgnoreSelectedLatency false
+    </VolumePerf>
     
     <VolumeUsage>
       Capacity "vol0"
@@ -1966,64 +1972,57 @@ Result: One value list of type "percent" and type instance "disk_busy".
 
 =back
 
-=head3 The GetVolumePerfData block
+=head3 The VolumePerf block
 
 This will collect various performance data about the individual volumes.
 
-All of these options take a list of volumes as parameters. In this case
-"volume" means just the name of the volume, without the "/vol/" prefix or
-anything like that.
-
-The special values "-" and "+" are supported. "-" means "don't collect values
-for any volumes". "+" means "collect values for all volumes, even volumes that
-are created after collectd was started." Additionally you can prefix a volume
-name with a "-" sign to exclude this one volume. Eg '"+" "-vol0"' collectes
-values for all volumes except vol0.  The order of the parameters is important.
-'"-vol0" "+"' doesn't make sense because the "+" overrides the earlier "-vol0".
+You can select which data to collect about which volume using the following
+options. They follow the standard ignorelist semantic.
 
 B<Note:> To get this data the collectd user needs the
-"api-perf-object-get-instances" capability.
+I<api-perf-object-get-instances> capability.
 
 =over 4
 
-=item B<GetIO> I<Volume> [I<Volume> ...]
-The current IO throughput will be read for every volume specified here.
+=item B<GetIO> I<Volume>
 
-Optional
+=item B<GetOps> I<Volume>
 
-Type: list of strings
+=item B<GetLatency> I<Volume>
 
-Default: "+"
+Select the given volume for IO, operations or latency statistics collection.
+The argument is the name of the volume without the C</vol/> prefix.
 
-Result: Data sources of type "disk_octets" and the name of the volume as
-plugin_instance.
+Since the standard ignorelist functionality is used here, you can use a string
+starting and ending with a slash to specify regular expression matching: To
+match the volumes "vol0", "vol2" and "vol7", you can use this regular
+expression:
 
-=item B<GetOps> I<Volume> [I<Volume> ...]
+  GetIO "/^vol[027]$/"
 
-The current number of operation will be read for every volume specified here. 
+If no regular expression is specified, an exact match is required. Both,
+regular and exact matching are case sensitive.
 
-Optional
+If no volume was specified at all for either of the three options, that data
+will be collected for all available volumes.
 
-Type: list of strings
+=item B<IgnoreSelectedIO> B<true>|B<false>
 
-Default: "+"
+=item B<IgnoreSelectedOps> B<true>|B<false>
 
-Result: Data sources of type "disk_ops" and the name of the volume as
-plugin_instance.
+=item B<IgnoreSelectedLatency> B<true>|B<false>
 
-=item B<GetLatency> I<Volume> [I<Volume> ...]
+When set to B<true>, the volumes selected for IO, operations or latency
+statistics collection will be ignored and the data will be collected for all
+other volumes.
 
-The current latency for volume access in microseconds will be read for every
-volume specified here. 
+When set to B<false>, data will only be collected for the specified volumes and
+all other volumes will be ignored.
 
-Optional
+If no volumes have been specified with the above B<Get*> options, all volumes
+will be collected regardless of the B<IgnoreSelected*> option.
 
-Type: list of strings
-
-Default: "+"
-
-Result: Data sources of type "disk_latency" and the name of the volume as
-plugin_instance.
+Defaults to B<false>
 
 =back
 
