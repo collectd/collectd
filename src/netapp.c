@@ -1378,9 +1378,21 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 				snap_reserve_free = 0;
 				snap_reserve_used = v->snap_reserved;
 				snap_norm_used = v->snap_used - v->snap_reserved;
-				if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_USED)
-						&& (norm_used >= snap_norm_used))
-					norm_used -= snap_norm_used;
+			}
+		}
+
+		/* The space used by snapshots but not reserved for them is included in
+		 * both, norm_used and snap_norm_used. If possible, subtract this here. */
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_USED | HAVE_VOLUME_USAGE_SNAP_USED))
+		{
+			if (norm_used >= snap_norm_used)
+				norm_used -= snap_norm_used;
+			else
+			{
+				ERROR ("netapp plugin: (norm_used = %"PRIu64") < (snap_norm_used = "
+						"%"PRIu64"). Invalidating both.",
+						norm_used, snap_norm_used);
+				v->flags &= ~(HAVE_VOLUME_USAGE_NORM_USED | HAVE_VOLUME_USAGE_SNAP_USED);
 			}
 		}
 
