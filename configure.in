@@ -1983,6 +1983,7 @@ then
 		[with_libnetapp="yes"],
 		[with_libnetapp="no (symbol na_server_invoke_elem not found)"],
 		[$LIBNETAPP_LIBS])
+	LIBNETAPP_LIBS="-lnetapp $LIBNETAPP_LIBS"
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
