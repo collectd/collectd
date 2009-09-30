@@ -917,3 +917,43 @@ int cf_read (char *filename)
 
 	return (0);
 } /* int cf_read */
+
+/* Assures the config option is a string, duplicates it and returns the copy in
+ * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon
+ * success. */
+int cf_util_get_string (const oconfig_item_t *ci, char **ret_string) /* {{{ */
+{
+	char *string;
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		ERROR ("cf_util_get_string: The %s plugin requires "
+				"exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	string = strdup (ci->values[0].value.string);
+	if (string == NULL)
+		return (-1);
+
+	if (*ret_string != NULL)
+		sfree (*ret_string);
+	*ret_string = string;
+
+	return (0);
+} /* }}} int cf_util_get_string */
+
+/* Assures that the config option is a string. The string is then converted to
+ * a port number using `service_name_to_port_number' and returned. Returns the
+ * port number in the range [1-65535] or less than zero upon failure. */
+int cf_util_get_port_number (const oconfig_item_t *ci) /* {{{ */
+{
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		ERROR ("cf_util_get_port_number: The %s plugin requires "
+				"exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	return (service_name_to_port_number (ci->values[0].value.string));
+} /* }}} int cf_util_get_port_number */

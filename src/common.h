@@ -1,6 +1,6 @@
 /**
  * collectd - src/common.h
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -284,5 +284,9 @@ int walk_directory (const char *dir, dirwalk_callback_f callback,
 int read_file_contents (const char *filename, char *buf, int bufsize);
 
 counter_t counter_diff (counter_t old_value, counter_t new_value);
+
+/* Converts a service name (a string) to a port number
+ * (in the range [1-65535]). Returns less than zero on error. */
+int service_name_to_port_number (const char *service_name);
 
 #endif /* COMMON_H */

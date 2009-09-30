@@ -1944,6 +1944,78 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
 # }}}
 
+# --with-libnetapp {{{
+AC_ARG_VAR([LIBNETAPP_CPPFLAGS], [C preprocessor flags required to build with libnetapp])
+AC_ARG_VAR([LIBNETAPP_LDFLAGS],  [Linker flags required to build with libnetapp])
+AC_ARG_VAR([LIBNETAPP_LIBS],     [Other libraries required to link against libnetapp])
+LIBNETAPP_CPPFLAGS="$LIBNETAPP_CPPFLAGS"
+LIBNETAPP_LDFLAGS="$LIBNETAPP_LDFLAGS"
+LIBNETAPP_LIBS="$LIBNETAPP_LIBS"
+AC_ARG_WITH(libnetapp, [AS_HELP_STRING([--with-libnetapp@<:@=PREFIX@:>@], [Path to libnetapp.])],
+[
+ if test -d "$withval"
+ then
+	 LIBNETAPP_CPPFLAGS="$LIBNETAPP_CPPFLAGS -I$withval/include"
+	 LIBNETAPP_LDFLAGS="$LIBNETAPP_LDFLAGS -L$withval/lib"
+	 with_libnetapp="yes"
+ else
+	 with_libnetapp="$withval"
+ fi
+],
+[
+ with_libnetapp="yes"
+])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBNETAPP_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBNETAPP_LDFLAGS"
+
+if test "x$with_libnetapp" = "xyes"
+then
+	if test "x$LIBNETAPP_CPPFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([netapp CPPFLAGS: $LIBNETAPP_CPPFLAGS])
+	fi
+	AC_CHECK_HEADERS(netapp_api.h,
+		[with_libnetapp="yes"],
+		[with_libnetapp="no (netapp_api.h not found)"])
+fi
+
+if test "x$with_libnetapp" = "xyes"
+then
+	if test "x$LIBNETAPP_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([netapp LDFLAGS: $LIBNETAPP_LDFLAGS])
+	fi
+
+	if test "x$LIBNETAPP_LIBS" = "x"
+	then
+		LIBNETAPP_LIBS="-lpthread -lxml -ladt -lssl -lm"
+	fi
+	AC_MSG_NOTICE([netapp LIBS: $LIBNETAPP_LIBS])
+
+	AC_CHECK_LIB(netapp, na_server_invoke_elem,
+		[with_libnetapp="yes"],
+		[with_libnetapp="no (symbol na_server_invoke_elem not found)"],
+		[$LIBNETAPP_LIBS])
+	LIBNETAPP_LIBS="-lnetapp $LIBNETAPP_LIBS"
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libnetapp" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBNETAPP, 1, [Define to 1 if you have the netapp library (-lnetapp).])
+fi
+
+AC_SUBST(LIBNETAPP_CPPFLAGS)
+AC_SUBST(LIBNETAPP_LDFLAGS)
+AC_SUBST(LIBNETAPP_LIBS)
+AM_CONDITIONAL(BUILD_WITH_LIBNETAPP, test "x$with_libnetapp" = "xyes")
+# }}}
+
 # --with-libnetsnmp {{{
 with_snmp_config="net-snmp-config"
 with_snmp_cflags=""
@@ -3803,6 +3875,7 @@ AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
+AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
 AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
@@ -4032,6 +4105,7 @@ Configuration:
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
     libmysql  . . . . . . $with_libmysql
+    libnetapp . . . . . . $with_libnetapp
     libnetlink  . . . . . $with_libnetlink
     libnetsnmp  . . . . . $with_libnetsnmp
     libnotify . . . . . . $with_libnotify
@@ -4104,6 +4178,7 @@ Configuration:
     memory  . . . . . . . $enable_memory
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
+    netapp  . . . . . . . $enable_netapp
     netlink . . . . . . . $enable_netlink
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
