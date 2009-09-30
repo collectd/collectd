@@ -384,10 +384,10 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	free_cfg_volume_usage (hc->cfg_volume_usage);
 	free_cfg_system (hc->cfg_system);
 
-	sfree (hc);
-
 	if (hc->srv != NULL)
 		na_server_close (hc->srv);
+
+	sfree (hc);
 
 	free_host_config (next);
 } /* }}} void free_host_config */
