@@ -731,11 +731,19 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
 		data_volume_perf_t *old_data,
 		const data_volume_perf_t *new_data)
 {
+	char plugin_instance[DATA_MAX_NAME_LEN];
+
+	if ((hostname == NULL) || (old_data == NULL) || (new_data == NULL))
+		return (-1);
+
+	ssnprintf (plugin_instance, sizeof (plugin_instance),
+			"volume-%s", old_data->name);
+
 	/* Check for and submit disk-octet values */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_VOLUME_PERF_IO)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_BYTES_READ | HAVE_VOLUME_PERF_BYTES_WRITE))
 	{
-		submit_two_counters (hostname, old_data->name, "disk_octets", /* type instance = */ NULL,
+		submit_two_counters (hostname, plugin_instance, "disk_octets", /* type instance = */ NULL,
 				(counter_t) new_data->read_bytes, (counter_t) new_data->write_bytes, new_data->timestamp);
 	}
 
@@ -743,7 +751,7 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_VOLUME_PERF_OPS)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE))
 	{
-		submit_two_counters (hostname, old_data->name, "disk_ops", /* type instance = */ NULL,
+		submit_two_counters (hostname, plugin_instance, "disk_ops", /* type instance = */ NULL,
 				(counter_t) new_data->read_ops, (counter_t) new_data->write_ops, new_data->timestamp);
 	}
 
@@ -787,7 +795,7 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
 				latency_per_op_write = ((gauge_t) diff_latency_write) / ((gauge_t) diff_ops_write);
 		}
 
-		submit_two_gauge (hostname, old_data->name, "disk_latency", /* type instance = */ NULL,
+		submit_two_gauge (hostname, plugin_instance, "disk_latency", /* type instance = */ NULL,
 				latency_per_op_read, latency_per_op_write, new_data->timestamp);
 	}
 
@@ -1349,12 +1357,17 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 
 	for (v = cfg_volume->volumes; v != NULL; v = v->next)
 	{
+		char plugin_instance[DATA_MAX_NAME_LEN];
+
 		uint64_t norm_used = v->norm_used;
 		uint64_t norm_free = v->norm_free;
 		uint64_t sis_saved = v->sis_saved;
 		uint64_t snap_reserve_used = 0;
 		uint64_t snap_reserve_free = v->snap_reserved;
 		uint64_t snap_norm_used = v->snap_used;
+
+		ssnprintf (plugin_instance, sizeof (plugin_instance),
+				"volume-%s", v->name);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_USED | HAVE_VOLUME_USAGE_SNAP_RSVD)) {
 			if (v->snap_reserved > v->snap_used) {
@@ -1372,32 +1385,32 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 		}
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_FREE))
-			submit_double (hostname, /* plugin instance = */ v->name,
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "free",
 					(double) norm_free, /* timestamp = */ 0);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SIS_SAVED))
-			submit_double (hostname, /* plugin instance = */ v->name,
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "sis_saved",
 					(double) sis_saved, /* timestamp = */ 0);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_USED))
-			submit_double (hostname, /* plugin instance = */ v->name,
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "used",
 					(double) norm_used, /* timestamp = */ 0);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_RSVD))
-			submit_double (hostname, /* plugin instance = */ v->name,
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "snap_reserved",
 					(double) snap_reserve_free, /* timestamp = */ 0);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_USED | HAVE_VOLUME_USAGE_SNAP_RSVD))
-			submit_double (hostname, /* plugin instance = */ v->name,
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "snap_reserve_used",
 					(double) snap_reserve_used, /* timestamp = */ 0);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_USED))
-			submit_double (hostname, /* plugin instance = */ v->name,
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "snap_normal_used",
 					(double) snap_norm_used, /* timestamp = */ 0);
 
