@@ -1439,15 +1439,17 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, data_volume_
 			elem_snap = na_iterator_next (&iter_snap))
 	{
 		value = na_child_get_uint64(elem_snap, "cumulative-total", 0);
+		/* "cumulative-total" is the total size of the oldest snapshot plus all
+		 * newer ones in blocks (1KB). We therefore are looking for the highest
+		 * number of all snapshots - that's the size required for the snapshots. */
 		if (value > snap_used)
 			snap_used = value;
 	}
 	na_elem_free (data);
-	/* snap_used is the total size of the oldest snapshot plus all
-	 * newer ones in blocks (1KB). */
+	/* snap_used is in 1024 byte blocks */
 	v->snap_used = snap_used * 1024;
 	v->flags |= HAVE_VOLUME_USAGE_SNAP_USED;
-}
+} /* }}} void cna_handle_volume_snap_usage */
 
 static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		cfg_volume_usage_t *cfg_volume, na_elem_t *data)
