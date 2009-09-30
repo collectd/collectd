@@ -1777,16 +1777,10 @@ The following options are valid inside all blocks:
 
 =over 4
 
-=item B<Multiplier> I<Multiplier>
+=item B<Interval> I<Seconds>
 
-The host specific interval between data collections is multiplied by this value
-for collecting these data.
-
-Optional
-
-Type: integer
-
-Default: 1
+Collect the respective statistics every I<Seconds> seconds. Defaults to the
+host specific setting.
 
 =back
 
@@ -2074,7 +2068,18 @@ capacities will be selected anyway.
 
 =item B<GetSnapshot> I<VolumeName>
 
-B<Defunct!> Select volumes from which to collect snapshot information.
+Select volumes from which to collect snapshot information.
+
+Usually, the space used for snapshots is included in the space reported as
+"used". If snapshot information is collected as well, the space used for
+snapshots is subtracted from the used space.
+
+To make things even more interesting, it is possible to reserve space to be
+used for snapshots. If the space required for snapshots is less than that
+reserved space, there is "reserved free" and "reserved used" space in addition
+to "free" and "used". If the space required for snapshots exceeds the reserved
+space, that part allocated in the normal space is subtracted from the "used"
+space again.
 
 Repeat this option to specify multiple volumes.
 
