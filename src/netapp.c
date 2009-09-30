@@ -1210,7 +1210,7 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 			continue;
 
 		/* get_volume_perf may return NULL if this volume is to be ignored. */
-		v = get_volume_perf (cvp, perf_data.name);
+		v = get_volume_perf (cvp, name);
 		if (v == NULL)
 			continue;
 
