@@ -190,6 +190,7 @@ typedef struct {
 #define HAVE_VOLUME_USAGE_SNAP_USED     0x0080
 #define HAVE_VOLUME_USAGE_SIS_SAVED     0x0100
 #define HAVE_VOLUME_USAGE_ALL           0x01f0
+#define IS_VOLUME_USAGE_OFFLINE         0x0200
 struct data_volume_usage_s;
 typedef struct data_volume_usage_s data_volume_usage_t;
 struct data_volume_usage_s {
@@ -1407,7 +1408,36 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 	return (0);
 } /* }}} int cna_submit_volume_usage_data */
 
-static void cna_handle_volume_snap_usage(const host_config_t *host, data_volume_usage_t *v)
+/* Switch the state of a volume between online and offline and send out a
+ * notification. */
+static int cna_change_volume_status (const char *hostname, /* {{{ */
+		data_volume_usage_t *v)
+{
+	notification_t n;
+
+	memset (&n, 0, sizeof (&n));
+	n.time = time (NULL);
+	sstrncpy (n.host, hostname, sizeof (n.host));
+	sstrncpy (n.plugin, "netapp", sizeof (n.plugin));
+	sstrncpy (n.plugin_instance, v->name, sizeof (n.plugin_instance));
+
+	if ((v->flags & IS_VOLUME_USAGE_OFFLINE) != 0) {
+		n.severity = NOTIF_OKAY;
+		ssnprintf (n.message, sizeof (n.message),
+				"Volume %s is now online.", v->name);
+		v->flags &= ~IS_VOLUME_USAGE_OFFLINE;
+	} else {
+		n.severity = NOTIF_WARNING;
+		ssnprintf (n.message, sizeof (n.message),
+				"Volume %s is now offline.", v->name);
+		v->flags |= IS_VOLUME_USAGE_OFFLINE;
+	}
+
+	return (plugin_dispatch_notification (&n));
+} /* }}} int cna_change_volume_status */
+
+static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
+		data_volume_usage_t *v)
 {
 	uint64_t snap_used = 0, value;
 	na_elem_t *data, *elem_snap, *elem_snapshots;
@@ -1416,13 +1446,20 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, data_volume_
 	data = na_server_invoke_elem(host->srv, v->snap_query);
 	if (na_results_status(data) != NA_OK)
 	{
-		if (na_results_errno(data) != EVOLUMEOFFLINE)
+		if (na_results_errno(data) == EVOLUMEOFFLINE) {
+			if ((v->flags & IS_VOLUME_USAGE_OFFLINE) == 0)
+				cna_change_volume_status (host->name, v);
+		} else {
 			ERROR ("netapp plugin: cna_handle_volume_snap_usage: na_server_invoke_elem for "
 					"volume \"%s\" failed with error %d: %s", v->name,
 					na_results_errno(data), na_results_reason(data));
+		}
 		na_elem_free(data);
 		return;
 	}
+
+	if ((v->flags & IS_VOLUME_USAGE_OFFLINE) != 0)
+		cna_change_volume_status (host->name, v);
 
 	elem_snapshots = na_elem_child (data, "snapshots");
 	if (elem_snapshots == NULL)
