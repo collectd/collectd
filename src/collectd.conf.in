@@ -175,7 +175,26 @@ FQDNLookup   true
 #  </View>
 #</Plugin>
 
-#<Plugin couchdb>
+#<Plugin csv>
+#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
+#	StoreRates false
+#</Plugin>
+
+#<Plugin curl>
+#  <Page "stock_quotes">
+#    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+#    User "foo"
+#    Password "bar"
+#    <Match>
+#      Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
+#      DSType "GaugeAverage"
+#      Type "stock_value"
+#      Instance "AMD"
+#    </Match>
+#  </Page>
+#</Plugin>
+
+#<Plugin curl_json>
 ## See: http://wiki.apache.org/couchdb/Runtime_Statistics
 #  <URL "http://localhost:5984/_stats">
 #    Instance "httpd"
@@ -204,25 +223,6 @@ FQDNLookup   true
 #      Type "bytes"
 #    </Key>
 #  </URL>
-#</Plugin>
-
-#<Plugin csv>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
-#	StoreRates false
-#</Plugin>
-
-#<Plugin curl>
-#  <Page "stock_quotes">
-#    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
-#    User "foo"
-#    Password "bar"
-#    <Match>
-#      Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
-#      DSType "GaugeAverage"
-#      Type "stock_value"
-#      Instance "AMD"
-#    </Match>
-#  </Page>
 #</Plugin>
 
 #<Plugin dbi>
@@ -263,6 +263,7 @@ FQDNLookup   true
 #<Plugin dns>
 #	Interface "eth0"
 #	IgnoreSource "192.168.0.1"
+#	SelectNumericQueryTypes true
 #</Plugin>
 
 #<Plugin email>
@@ -311,12 +312,6 @@ FQDNLookup   true
 #  # highly recommended.                                            #
 #  #----------------------------------------------------------------#
 #  TranslateDevicename false
-#</Plugin>
-
-#<Plugin http>
-#	URL "http://example.com/collectd-import"
-#	User "www-user"
-#	Password "secret"
 #</Plugin>
 
 #<Plugin interface>

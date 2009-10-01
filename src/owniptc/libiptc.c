@@ -1489,6 +1489,7 @@ TC_NEXT_RULE(const STRUCT_ENTRY *prev, TC_HANDLE_T *handle)
 }
 
 /* How many rules in this chain? */
+#if 0
 static unsigned int
 TC_NUM_RULES(const char *chain, TC_HANDLE_T *handle)
 {
@@ -1504,7 +1505,9 @@ TC_NUM_RULES(const char *chain, TC_HANDLE_T *handle)
 	
 	return c->num_rules;
 }
+#endif
 
+#if 0
 static const STRUCT_ENTRY *
 TC_GET_RULE(const char *chain, unsigned int n, TC_HANDLE_T *handle)
 {
@@ -1526,6 +1529,7 @@ TC_GET_RULE(const char *chain, unsigned int n, TC_HANDLE_T *handle)
 		return NULL;
 	return r->entry;
 }
+#endif
 
 /* Returns a pointer to the target name of this position. */
 static const char *standard_target_map(int verdict)
