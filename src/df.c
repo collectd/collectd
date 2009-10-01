@@ -122,6 +122,7 @@ static int df_config (const char *key, const char *value)
 }
 
 static void df_submit (char *df_name,
+		const char *type,
 		gauge_t df_used,
 		gauge_t df_free)
 {
@@ -136,7 +137,7 @@ static void df_submit (char *df_name,
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "df", sizeof (vl.host));
+	sstrncpy (vl.type, type, sizeof (vl.host));
 	sstrncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
@@ -156,6 +157,8 @@ static int df_read (void)
 	unsigned long long blocksize;
 	gauge_t df_free;
 	gauge_t df_used;
+	gauge_t df_inodes_free;
+	gauge_t df_inodes_used;
 	char disk_name[256];
 
 	mnt_list = NULL;
@@ -190,6 +193,9 @@ static int df_read (void)
 		df_free = statbuf.f_bfree * blocksize;
 		df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
 
+		df_inodes_used = statbuf.f_files - statbuf.f_ffree;
+		df_inodes_free = statbuf.f_ffree;
+
 		if (by_device) 
 		{
 			/* eg, /dev/hda1  -- strip off the "/dev/" */
@@ -223,7 +229,8 @@ static int df_read (void)
 			}
 		}
 
-		df_submit (disk_name, df_used, df_free);
+		df_submit (disk_name, "df", df_used, df_free);
+		df_submit (disk_name, "df_inodes", df_inodes_used, df_inodes_free);
 	}
 
 	cu_mount_freelist (mnt_list);
