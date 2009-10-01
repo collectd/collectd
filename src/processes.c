@@ -704,7 +704,10 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	else
 	{
 		if ( (ps->num_lwp = ps_read_tasks (pid)) == -1 )
-			return (-1);
+		{
+			/* returns -1 => kernel 2.4 */
+			ps->num_lwp = 1;
+		}
 		ps->num_proc = 1;
 	}
 
