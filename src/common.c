@@ -48,6 +48,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
