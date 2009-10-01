@@ -839,6 +839,65 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	}
 	return buf;
 } /* char *ps_get_cmdline (...) */
+
+static unsigned long read_fork_rate ()
+{
+	FILE *proc_stat;
+	char buf[1024];
+	unsigned long result = 0;
+	int numfields;
+	char *fields[2];
+
+	proc_stat = fopen("/proc/stat", "r");
+	if (proc_stat == NULL) {
+		char errbuf[1024];
+		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return 0;
+	}
+
+	while (fgets (buf, sizeof(buf), proc_stat) != NULL)
+	{
+		if (strncmp (buf, "processes", 9))
+			continue;
+		numfields = strsplit(buf, fields, 2);
+		if (numfields != 2) {
+			ERROR ("processes plugin: processes in /proc/stat contain more than 2 fields.");
+			break;
+		}
+
+		result = strtoul(fields[1], NULL, 10);
+		if (errno == ERANGE && result == ULONG_MAX) {
+			ERROR ("processes plugin: processes value in /proc/stat overflows.");
+			break;
+		}
+
+		break;
+	}
+
+	fclose(proc_stat);
+
+	return result;
+}
+
+static void ps_submit_fork_rate (unsigned long value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].derive = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "fork_rate", sizeof (vl.type));
+	sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+}
+
 #endif /* KERNEL_LINUX */
 
 #if HAVE_THREAD_INFO
@@ -1161,6 +1220,8 @@ static int ps_read (void)
 	procstat_entry_t pse;
 	char       state;
 
+	unsigned long fork_rate;
+
 	procstat_t *ps_ptr;
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
@@ -1234,6 +1295,9 @@ static int ps_read (void)
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
+
+	fork_rate = read_fork_rate();
+	ps_submit_fork_rate(fork_rate);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD

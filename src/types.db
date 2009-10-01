@@ -60,6 +60,7 @@ files			value:GAUGE:0:U
 frequency		frequency:GAUGE:0:U
 frequency_offset	ppm:GAUGE:-1000000:1000000
 fscache_stat		value:COUNTER:0:4294967295
+fork_rate		value:DERIVE:0:U
 gauge			value:GAUGE:U:U
 http_request_methods	count:COUNTER:0:134217728
 http_requests		count:COUNTER:0:134217728
