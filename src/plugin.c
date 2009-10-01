@@ -1444,7 +1444,12 @@ void plugin_log (int level, const char *format, ...)
 	llentry_t *le;
 
 	if (list_log == NULL)
+	{
+		va_start (ap, format);
+		vfprintf (stderr, format, ap);
+		va_end (ap);
 		return;
+	}
 
 #if !COLLECT_DEBUG
 	if (level >= LOG_DEBUG)
