@@ -12,6 +12,7 @@ ath_nodes		value:GAUGE:0:65535
 ath_stat		value:COUNTER:0:4294967295
 bitrate			value:GAUGE:0:4294967295
 bytes			value:GAUGE:0:U
+cache_ratio             value:GAUGE:0:100
 cache_result		value:COUNTER:0:4294967295
 cache_size		value:GAUGE:0:4294967295
 charge			value:GAUGE:0:U
@@ -25,9 +26,12 @@ current			value:GAUGE:U:U
 delay			seconds:GAUGE:-1000000:1000000
 derive			value:DERIVE:0:U
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
+df_complex              value:GAUGE:0:U
+disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged		read:COUNTER:0:4294967295, write:COUNTER:0:4294967295
 disk_octets		read:COUNTER:0:17179869183, write:COUNTER:0:17179869183
 disk_ops		read:COUNTER:0:4294967295, write:COUNTER:0:4294967295
+disk_ops_complex        value:COUNTER:0:4294967296
 disk_time		read:COUNTER:0:1000000, write:COUNTER:0:1000000
 dns_answer		value:COUNTER:0:65535
 dns_notify		value:COUNTER:0:65535
