@@ -173,6 +173,14 @@ collectd_LDADD += "-dlopen" conntrack.la
 collectd_DEPENDENCIES += conntrack.la
 endif
 
+if BUILD_PLUGIN_CONTEXTSWITCH
+pkglib_LTLIBRARIES += contextswitch.la
+contextswitch_la_SOURCES = contextswitch.c
+contextswitch_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" contextswitch.la
+collectd_DEPENDENCIES += contextswitch.la
+endif
+
 if BUILD_PLUGIN_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c
