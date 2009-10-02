@@ -40,6 +40,9 @@ Features
     - conntrack
       Number of nf_conntrack entries.
 
+    - contextswitch
+      Number of context switches done by the operating system.
+
     - cpu
       CPU utilization: Time spent in the system, user, nice, idle, and related
       states.
