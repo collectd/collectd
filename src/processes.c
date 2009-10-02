@@ -864,7 +864,7 @@ static unsigned long read_fork_rate ()
 		if (numfields != 2) {
 			ERROR ("processes plugin: processes in /proc/stat "
 					"contains more than 2 fields.");
-			break;
+			continue;
 		}
 		if (strcmp ("processes", fields[0]) != 0)
 			continue;
