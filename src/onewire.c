@@ -89,9 +89,7 @@ static int cow_load_config (const char *key, const char *value)
   else if (strcasecmp (key, "IgnoreSelected") == 0)
   {
     ignorelist_set_invert (sensor_list, 1);
-    if ((strcasecmp (value, "True") == 0)
-        || (strcasecmp (value, "Yes") == 0)
-        || (strcasecmp (value, "On") == 0))
+    if (IS_TRUE (value))
       ignorelist_set_invert (sensor_list, 0);
   }
   else if (strcasecmp (key, "Device") == 0)

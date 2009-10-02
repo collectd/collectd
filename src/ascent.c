@@ -562,12 +562,12 @@ static int ascent_init (void) /* {{{ */
   curl_easy_setopt (curl, CURLOPT_URL, url);
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1);
 
-  if ((verify_peer == NULL) || (strcmp (verify_peer, "true") == 0))
+  if ((verify_peer == NULL) || IS_TRUE (verify_peer))
     curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1);
   else
     curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0);
 
-  if ((verify_host == NULL) || (strcmp (verify_host, "true") == 0))
+  if ((verify_host == NULL) || IS_TRUE (verify_host))
     curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 2);
   else
     curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0);

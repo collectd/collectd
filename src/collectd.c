@@ -102,9 +102,7 @@ static int init_hostname (void)
 	}
 
 	str = global_option_get ("FQDNLookup");
-	if ((strcasecmp ("false", str) == 0)
-			|| (strcasecmp ("no", str) == 0)
-			|| (strcasecmp ("off", str) == 0))
+	if (IS_FALSE (str))
 		return (0);
 
 	memset (&ai_hints, '\0', sizeof (ai_hints));

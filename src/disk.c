@@ -132,9 +132,7 @@ static int disk_config (const char *key, const char *value)
   else if (strcasecmp ("IgnoreSelected", key) == 0)
   {
     int invert = 1;
-    if ((strcasecmp ("True", value) == 0)
-	|| (strcasecmp ("Yes", value) == 0)
-	|| (strcasecmp ("On", value) == 0))
+    if (IS_TRUE (value))
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
   }

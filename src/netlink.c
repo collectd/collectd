@@ -526,9 +526,7 @@ static int ir_config (const char *key, const char *value)
     }
     else
     {
-      if ((strcasecmp (fields[0], "yes") == 0)
-	  || (strcasecmp (fields[0], "true") == 0)
-	  || (strcasecmp (fields[0], "on") == 0))
+      if (IS_TRUE (fields[0]))
 	ir_ignorelist_invert = 0;
       else
 	ir_ignorelist_invert = 1;

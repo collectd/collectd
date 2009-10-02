@@ -198,17 +198,13 @@ static int thermal_config (const char *key, const char *value)
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
 	{
 		ignorelist_set_invert (device_list, 1);
-		if ((strcasecmp (value, "True") == 0)
-				|| (strcasecmp (value, "Yes") == 0)
-				|| (strcasecmp (value, "On") == 0))
+		if (IS_TRUE (value))
 			ignorelist_set_invert (device_list, 0);
 	}
 	else if (strcasecmp (key, "ForceUseProcfs") == 0)
 	{
 		force_procfs = 0;
-		if ((strcasecmp (value, "True") == 0)
-				|| (strcasecmp (value, "Yes") == 0)
-				|| (strcasecmp (value, "On") == 0))
+		if (IS_TRUE (value))
 			force_procfs = 1;
 	}
 	else

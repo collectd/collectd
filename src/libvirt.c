@@ -187,9 +187,7 @@ lv_config (const char *key, const char *value)
     }
 
     if (strcasecmp (key, "IgnoreSelected") == 0) {
-        if (strcasecmp (value, "True") == 0 ||
-            strcasecmp (value, "Yes") == 0 ||
-            strcasecmp (value, "On") == 0)
+        if (IS_TRUE (value))
         {
             ignorelist_set_invert (il_domains, 0);
             ignorelist_set_invert (il_block_devices, 0);

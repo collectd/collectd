@@ -212,13 +212,9 @@ static int config_set_boolean (int *ret_boolean, /* {{{ */
 	else /* if (ci->values[0].type != OCONFIG_TYPE_STRING) */
 	{
 		char *string = ci->values[0].value.string;
-		if ((strcasecmp ("true", string) == 0)
-				|| (strcasecmp ("yes", string) == 0)
-				|| (strcasecmp ("on", string) == 0))
+		if (IS_TRUE (string))
 			*ret_boolean = 1;
-		else if ((strcasecmp ("false", string) == 0)
-				|| (strcasecmp ("no", string) == 0)
-				|| (strcasecmp ("off", string) == 0))
+		else if (IS_FALSE (string))
 			*ret_boolean = 0;
 		else
 		{

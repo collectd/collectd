@@ -74,9 +74,7 @@ static int logfile_config (const char *key, const char *value)
 		log_file = strdup (value);
 	}
 	else if (0 == strcasecmp (key, "Timestamp")) {
-		if ((strcasecmp (value, "false") == 0)
-				|| (strcasecmp (value, "no") == 0)
-				|| (strcasecmp (value, "off") == 0))
+		if (IS_FALSE (value))
 			print_timestamp = 0;
 		else
 			print_timestamp = 1;

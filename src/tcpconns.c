@@ -454,9 +454,7 @@ static int conn_config (const char *key, const char *value)
 {
   if (strcasecmp (key, "ListeningPorts") == 0)
   {
-    if ((strcasecmp (value, "Yes") == 0)
-	|| (strcasecmp (value, "True") == 0)
-	|| (strcasecmp (value, "On") == 0))
+    if (IS_TRUE (value))
       port_collect_listening = 1;
     else
       port_collect_listening = 0;

@@ -233,9 +233,7 @@ static int hddtemp_config (const char *key, const char *value)
 	}
 	else if (strcasecmp (key, "TranslateDevicename") == 0)
 	{
-		if ((strcasecmp ("true", value) == 0)
-				|| (strcasecmp ("yes", value) == 0)
-				|| (strcasecmp ("on", value) == 0))
+		if (IS_TRUE (value))
 			translate_devicename = 1;
 		else
 			translate_devicename = 0;

@@ -2518,13 +2518,9 @@ static int network_config_set_boolean (const oconfig_item_t *ci, /* {{{ */
   {
     char *str = ci->values[0].value.string;
 
-    if ((strcasecmp ("true", str) == 0)
-        || (strcasecmp ("yes", str) == 0)
-        || (strcasecmp ("on", str) == 0))
+    if (IS_TRUE (str))
       *retval = 1;
-    else if ((strcasecmp ("false", str) == 0)
-        || (strcasecmp ("no", str) == 0)
-        || (strcasecmp ("off", str) == 0))
+    else if (IS_FALSE (str))
       *retval = 0;
     else
     {

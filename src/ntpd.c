@@ -278,9 +278,7 @@ static int ntpd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp (key, "ReverseLookups") == 0)
 	{
-		if ((strcasecmp (value, "True") == 0)
-				|| (strcasecmp (value, "Yes") == 0)
-				|| (strcasecmp (value, "On") == 0))
+		if (IS_TRUE (value))
 			do_reverse_lookups = 1;
 		else
 			do_reverse_lookups = 0;

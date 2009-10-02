@@ -192,18 +192,14 @@ static int rc_config (const char *key, const char *value)
   }
   else if (strcasecmp ("CreateFiles", key) == 0)
   {
-    if ((strcasecmp ("false", value) == 0)
-        || (strcasecmp ("no", value) == 0)
-        || (strcasecmp ("off", value) == 0))
+    if (IS_FALSE (value))
       config_create_files = 0;
     else
       config_create_files = 1;
   }
   else if (strcasecmp ("CollectStatistics", key) == 0)
   {
-    if ((strcasecmp ("false", value) == 0)
-        || (strcasecmp ("no", value) == 0)
-        || (strcasecmp ("off", value) == 0))
+    if (IS_FALSE (value))
       config_collect_stats = 0;
     else
       config_collect_stats = 1;

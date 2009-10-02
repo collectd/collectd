@@ -246,16 +246,10 @@ static int csv_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("StoreRates", key) == 0)
 	{
-		if ((strcasecmp ("True", value) == 0)
-				|| (strcasecmp ("Yes", value) == 0)
-				|| (strcasecmp ("On", value) == 0))
-		{
+		if (IS_TRUE (value))
 			store_rates = 1;
-		}
 		else
-		{
 			store_rates = 0;
-		}
 	}
 	else
 	{
