@@ -846,29 +846,36 @@ static unsigned long read_fork_rate ()
 	char buf[1024];
 	unsigned long result = 0;
 	int numfields;
-	char *fields[2];
+	char *fields[3];
 
 	proc_stat = fopen("/proc/stat", "r");
 	if (proc_stat == NULL) {
 		char errbuf[1024];
 		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return 0;
+		return ULONG_MAX;
 	}
 
 	while (fgets (buf, sizeof(buf), proc_stat) != NULL)
 	{
-		if (strncmp (buf, "processes", 9))
-			continue;
-		numfields = strsplit(buf, fields, 2);
+		char *endptr;
+
+		numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE (fields));
 		if (numfields != 2) {
-			ERROR ("processes plugin: processes in /proc/stat contain more than 2 fields.");
+			ERROR ("processes plugin: processes in /proc/stat "
+					"contains more than 2 fields.");
 			break;
 		}
+		if (strcmp ("processes", fields[0]) != 0)
+			continue;
 
-		result = strtoul(fields[1], NULL, 10);
-		if (errno == ERANGE && result == ULONG_MAX) {
-			ERROR ("processes plugin: processes value in /proc/stat overflows.");
+		errno = 0;
+		endptr = NULL;
+		result = strtoul(fields[1], &endptr, 10);
+		if ((endptr == fields[1]) || (errno != 0)) {
+			ERROR ("processes plugin: Cannot parse fork rate: %s",
+					fields[1]);
+			result = ULONG_MAX;
 			break;
 		}
 
@@ -885,7 +892,7 @@ static void ps_submit_fork_rate (unsigned long value)
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
+	values[0].derive = (derive_t) value;
 
 	vl.values = values;
 	vl.values_len = 1;
@@ -1297,7 +1304,8 @@ static int ps_read (void)
 		ps_submit_proc_list (ps_ptr);
 
 	fork_rate = read_fork_rate();
-	ps_submit_fork_rate(fork_rate);
+	if (fork_rate != ULONG_MAX)
+		ps_submit_fork_rate(fork_rate);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
