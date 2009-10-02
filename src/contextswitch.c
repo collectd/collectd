@@ -64,11 +64,8 @@ static int cs_read (void)
 		char *endptr;
 
 		numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields != 2) {
-			ERROR ("contextswitch plugin: ctxt in /proc/stat "
-					"contains more than 2 fields.");
+		if (numfields != 2)
 			continue;
-		}
 
 		if (strcmp("ctxt", fields[0]) != 0)
 			continue;

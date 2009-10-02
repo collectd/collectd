@@ -861,11 +861,9 @@ static unsigned long read_fork_rate ()
 		char *endptr;
 
 		numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields != 2) {
-			ERROR ("processes plugin: processes in /proc/stat "
-					"contains more than 2 fields.");
+		if (numfields != 2)
 			continue;
-		}
+
 		if (strcmp ("processes", fields[0]) != 0)
 			continue;
 
