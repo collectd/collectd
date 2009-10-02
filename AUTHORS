@@ -110,6 +110,11 @@ Oleg King <king2 at kaluga.ru>
 Ondrej Zajicek <santiago at crfreenet.org>
  - madwifi plugin.
 
+Patrik Weiskircher <weiskircher at inqnet.at>
+ - Contextswitch plugin.
+ - Forkrate counter in the processes plugin.
+ - INode count in the DF plugin.
+
 Paul Sadauskas <psadauskas at gmail.com>
  - tokyotyrant plugin.
  - `ReportByDevice' option of the df plugin.
