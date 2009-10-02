@@ -32,7 +32,7 @@ static void cs_submit (unsigned long context_switches)
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = context_switches;
+	values[0].derive = (derive_t) context_switches;
 
 	vl.values = values;
 	vl.values_len = 1;
@@ -48,8 +48,9 @@ static int cs_read (void)
 	FILE *fh;
 	char buffer[64];
 	int numfields;
-	char *fields[2];
+	char *fields[3];
 	unsigned long result = 0;
+	int status = -2;
 
 	fh = fopen ("/proc/stat", "r");
 	if (fh == NULL) {
@@ -58,35 +59,40 @@ static int cs_read (void)
 		return (-1);
 	}
 
-	while (fgets(buffer, sizeof(buffer), fh))
+	while (fgets(buffer, sizeof(buffer), fh) != NULL)
 	{
-		if (strncmp(buffer, "ctxt", 4))
+		char *endptr;
+
+		numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE (fields));
+		if (numfields != 2) {
+			ERROR ("contextswitch plugin: ctxt in /proc/stat "
+					"contains more than 2 fields.");
+			continue;
+		}
+
+		if (strcmp("ctxt", fields[0]) != 0)
 			continue;
 
-		numfields = strsplit(buffer, fields, 2);
-		if (numfields != 2) {
-			ERROR ("contextswitch plugin: ctxt in /proc/stat contains more than 2 fields.");
+		errno = 0;
+		endptr = NULL;
+		result = strtoul(fields[1], &endptr, 10);
+		if ((endptr == fields[1]) || (errno != 0)) {
+			ERROR ("contextswitch plugin: Cannot parse ctxt value: %s",
+					fields[1]);
+			status = -1;
 			break;
 		}
 
-		result = strtoul(fields[1], NULL, 10);
-		if (errno == ERANGE && result == ULONG_MAX) {
-			ERROR ("contextswitch plugin: ctxt value in /proc/stat overflows.");
-			break;
-		}
-
+		cs_submit(result);
+		status = 0;
 		break;
 	}
 	fclose(fh);
 
-	if (result == 0) {
-		ERROR ("contextswitch plugin: unable to find context switch value.");
-		return -1;
-	}
+	if (status == -2)
+		ERROR ("contextswitch plugin: Unable to find context switch value.");
 
-	cs_submit(result);
-
-	return 0;
+	return status;
 }
 
 void module_register (void)
