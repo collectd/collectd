@@ -51,7 +51,8 @@ static const char *config_keys[] =
 	"FSType",
 	"IgnoreSelected",
 	"ReportByDevice",
-	"ReportReserved"
+	"ReportReserved",
+	"ReportInodes"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -61,6 +62,7 @@ static ignorelist_t *il_fstype = NULL;
 
 static _Bool by_device = false;
 static _Bool report_reserved = false;
+static _Bool report_inodes = false;
 
 static int df_init (void)
 {
@@ -125,6 +127,15 @@ static int df_config (const char *key, const char *value)
 			report_reserved = true;
 		else
 			report_reserved = false;
+
+		return (0);
+	}
+	else if (strcasecmp (key, "ReportInodes") == 0)
+	{
+		if (IS_TRUE (value))
+			report_inodes = true;
+		else
+			report_inodes = false;
 
 		return (0);
 	}
@@ -292,6 +303,7 @@ static int df_read (void)
 		}
 
 		/* inode handling */
+		if (report_inodes)
 		{
 			uint64_t inode_free;
 			uint64_t inode_reserved;

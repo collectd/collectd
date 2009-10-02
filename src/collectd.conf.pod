@@ -899,6 +899,15 @@ set to "free", "reserved" and "used" as appropriate.
 
 Enabling this option is recommended.
 
+=item B<ReportInodes> B<true>|B<false>
+
+Enables or disables reporting of free, reserved and used inodes. Defaults to
+inode collection being disabled.
+
+Enable this option if inodes are a scarce resource for you, usually because
+many small files are stored on the disk. This is a usual scenario for mail
+transfer agents and web caches.
+
 =back
 
 =head2 Plugin C<disk>
