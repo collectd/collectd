@@ -33,9 +33,6 @@ Features
       Batterycharge, -current and voltage of ACPI and PMU based laptop
       batteries.
 
-    - curl
-      Parse statistics from websites using regular expressions.
-
     - bind
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
@@ -43,16 +40,19 @@ Features
     - conntrack
       Number of nf_conntrack entries.
 
-    - curl_json
-      Retrieves JSON data via cURL and parses it according to user
-      configuration.
-
     - cpu
       CPU utilization: Time spent in the system, user, nice, idle, and related
       states.
 
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
+
+    - curl
+      Parse statistics from websites using regular expressions.
+
+    - curl_json
+      Retrieves JSON data via cURL and parses it according to user
+      configuration.
 
     - dbi
       Executes SQL statements on various databases and interprets the returned

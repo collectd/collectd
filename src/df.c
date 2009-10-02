@@ -137,7 +137,7 @@ static void df_submit (char *df_name,
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.host));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
