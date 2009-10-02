@@ -50,7 +50,8 @@ static const char *config_keys[] =
 	"MountPoint",
 	"FSType",
 	"IgnoreSelected",
-        "ReportByDevice"
+	"ReportByDevice",
+	"ReportReserved"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -59,6 +60,7 @@ static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
 
 static _Bool by_device = false;
+static _Bool report_reserved = false;
 
 static int df_init (void)
 {
@@ -117,11 +119,21 @@ static int df_config (const char *key, const char *value)
 
 		return (0);
 	}
+	else if (strcasecmp (key, "ReportReserved") == 0)
+	{
+		if (IS_TRUE (value))
+			report_reserved = true;
+		else
+			report_reserved = false;
+
+		return (0);
+	}
+
 
 	return (-1);
 }
 
-static void df_submit (char *df_name,
+static void df_submit_two (char *df_name,
 		const char *type,
 		gauge_t df_used,
 		gauge_t df_free)
@@ -141,7 +153,32 @@ static void df_submit (char *df_name,
 	sstrncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} /* void df_submit */
+} /* void df_submit_two */
+
+__attribute__ ((nonnull(2)))
+static void df_submit_one (char *plugin_instance,
+		const char *type, const char *type_instance,
+		gauge_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
+	if (plugin_instance != NULL)
+		sstrncpy (vl.plugin_instance, plugin_instance,
+				sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	if (type_instance != NULL)
+		sstrncpy (vl.type_instance, type_instance,
+				sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+} /* void df_submit_one */
 
 static int df_read (void)
 {
@@ -154,19 +191,15 @@ static int df_read (void)
 	cu_mount_t *mnt_list;
 	cu_mount_t *mnt_ptr;
 
-	unsigned long long blocksize;
-	gauge_t df_free;
-	gauge_t df_used;
-	gauge_t df_inodes_free;
-	gauge_t df_inodes_used;
-	char disk_name[256];
-
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
 		return (-1);
 
 	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
+		unsigned long long blocksize;
+		char disk_name[256];
+
 		if (ignorelist_match (il_device,
 					(mnt_ptr->spec_device != NULL)
 					? mnt_ptr->spec_device
@@ -188,13 +221,6 @@ static int df_read (void)
 
 		if (!statbuf.f_blocks)
 			continue;
-
-		blocksize = BLOCKSIZE(statbuf);
-		df_free = statbuf.f_bfree * blocksize;
-		df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
-
-		df_inodes_used = statbuf.f_files - statbuf.f_ffree;
-		df_inodes_free = statbuf.f_ffree;
 
 		if (by_device) 
 		{
@@ -229,8 +255,65 @@ static int df_read (void)
 			}
 		}
 
-		df_submit (disk_name, "df", df_used, df_free);
-		df_submit (disk_name, "df_inodes", df_inodes_used, df_inodes_free);
+		blocksize = BLOCKSIZE(statbuf);
+
+		if (report_reserved)
+		{
+			uint64_t blk_free;
+			uint64_t blk_reserved;
+			uint64_t blk_used;
+
+			/* Sanity-check for the values in the struct */
+			if (statbuf.f_bfree < statbuf.f_bavail)
+				statbuf.f_bfree = statbuf.f_bavail;
+			if (statbuf.f_blocks < statbuf.f_bfree)
+				statbuf.f_blocks = statbuf.f_bfree;
+
+			blk_free = (uint64_t) statbuf.f_bavail;
+			blk_reserved = (uint64_t) (statbuf.f_bfree - statbuf.f_bavail);
+			blk_used = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
+			
+			df_submit_one (disk_name, "df_complex", "free",
+					(gauge_t) (blk_free * blocksize));
+			df_submit_one (disk_name, "df_complex", "reserved",
+					(gauge_t) (blk_reserved * blocksize));
+			df_submit_one (disk_name, "df_complex", "used",
+					(gauge_t) (blk_used * blocksize));
+		}
+		else /* compatibility code */
+		{
+			gauge_t df_free;
+			gauge_t df_used;
+
+			df_free = statbuf.f_bfree * blocksize;
+			df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
+
+			df_submit_two (disk_name, "df", df_used, df_free);
+		}
+
+		/* inode handling */
+		{
+			uint64_t inode_free;
+			uint64_t inode_reserved;
+			uint64_t inode_used;
+
+			/* Sanity-check for the values in the struct */
+			if (statbuf.f_ffree < statbuf.f_favail)
+				statbuf.f_ffree = statbuf.f_favail;
+			if (statbuf.f_files < statbuf.f_ffree)
+				statbuf.f_files = statbuf.f_ffree;
+
+			inode_free = (uint64_t) statbuf.f_favail;
+			inode_reserved = (uint64_t) (statbuf.f_ffree - statbuf.f_favail);
+			inode_used = (uint64_t) (statbuf.f_files - statbuf.f_ffree);
+			
+			df_submit_one (disk_name, "df_inodes", "free",
+					(gauge_t) inode_free);
+			df_submit_one (disk_name, "df_inodes", "reserved",
+					(gauge_t) inode_reserved);
+			df_submit_one (disk_name, "df_inodes", "used",
+					(gauge_t) inode_used);
+		}
 	}
 
 	cu_mount_freelist (mnt_list);

@@ -28,7 +28,7 @@ delay			seconds:GAUGE:-1000000:1000000
 derive			value:DERIVE:0:U
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
 df_complex		value:GAUGE:0:U
-df_inodes		used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
+df_inodes		value:GAUGE:0:U
 disk_latency		read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged		read:COUNTER:0:4294967295, write:COUNTER:0:4294967295
 disk_octets		read:COUNTER:0:17179869183, write:COUNTER:0:17179869183

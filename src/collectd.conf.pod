@@ -870,18 +870,34 @@ Select partitions based on the mountpoint.
 
 Select partitions based on the filesystem type.
 
-=item B<IgnoreSelected> I<true>|I<false>
+=item B<IgnoreSelected> B<true>|B<false>
 
 Invert the selection: If set to true, all partitions B<except> the ones that
 match any one of the criteria are collected. By default only selected
 partitions are collected if a selection is made. If no selection is configured
 at all, B<all> partitions are selected.
 
-=item B<ReportByDevice> I<true>|I<false>
+=item B<ReportByDevice> B<true>|B<false>
 
 Report using the device name rather than the mountpoint. i.e. with this I<false>,
 (the default), it will report a disk as "root", but with it I<true>, it will be
 "sda1" (or whichever).
+
+=item B<ReportReserved> B<true>|B<false>
+
+When enabled, the blocks reserved for root are reported separately. When
+disabled (the default for backwards compatibility reasons) the reserved space
+will be included in the "free" space.
+
+When disabled, the "df" type will be used to store "free" and "used" space. The
+mount point or disk name (see option B<ReportByDevice>) is used as type
+instance in this case (again: backwards compatibility).
+
+When enabled, the type "df_complex" is used and three files are created. The
+mount point or disk name is used as plugin instance and the type instance is
+set to "free", "reserved" and "used" as appropriate.
+
+Enabling this option is recommended.
 
 =back
 
