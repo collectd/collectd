@@ -33,9 +33,6 @@ Features
       Batterycharge, -current and voltage of ACPI and PMU based laptop
       batteries.
 
-    - curl
-      Parse statistics from websites using regular expressions.
-
     - bind
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
@@ -49,6 +46,9 @@ Features
 
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
+
+    - curl
+      Parse statistics from websites using regular expressions.
 
     - curl_json
       Retrieves JSON data via cURL and parses it according to user
