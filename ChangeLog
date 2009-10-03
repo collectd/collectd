@@ -1,3 +1,14 @@
+2009-10-03, Version 4.7.4
+	* Build system: Issues when building the iptables plugin have been
+	  fixed.
+	* exec plugin: Clear the signal block mask before calling exec(2).
+	* perl plugin: Declare the “environ” variable. This solves build
+	  issues on some platforms.
+	* processes plugin: Remove unnecessary call of realloc(3). Thanks to
+	  Andrés J. Díaz for the patch.
+	* unixsock plugin: Fix a (well hidden) race condition related to file
+	  descriptor handling.
+
 2009-09-13, Version 4.7.3
 	* collectd: Fix a possible but very rare invalid “free” in the caching
 	  code. Thanks to Sebastian Harl for the patch.
