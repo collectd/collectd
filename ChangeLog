@@ -1,4 +1,4 @@
-2009-10-04, Version 4.8.0
+2009-10-04, Version 4.8.1
 	* Build system: Issues when building the iptables plugin have been
 	  fixed.
 	* exec plugin: Clear the signal block mask before calling exec(2).
