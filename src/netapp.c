@@ -253,11 +253,6 @@ struct host_config_s {
 
 	struct host_config_s *next;
 };
-#define HOST_INIT { NULL, NA_SERVER_TRANSPORT_HTTPS, NULL, 0, NULL, NULL, 0, \
-	NULL, NULL, NULL, NULL, NULL, NULL, \
-	NULL}
-
-static host_config_t *global_host_config;
 
 /*
  * Free functions
@@ -2356,8 +2351,7 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 } /* }}} int cna_config_system */
 
 /* Corresponds to a <Host /> block. */
-static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
-		const host_config_t *default_host)
+static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 {
 	oconfig_item_t *item;
 	host_config_t *host;
@@ -2370,7 +2364,18 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
 	}
 
 	host = malloc(sizeof(*host));
-	memcpy (host, default_host, sizeof (*host));
+	memset (host, 0, sizeof (*host));
+	host->name = NULL;
+	host->protocol = NA_SERVER_TRANSPORT_HTTPS;
+	host->host = NULL;
+	host->username = NULL;
+	host->password = NULL;
+	host->srv = NULL;
+	host->cfg_wafl = NULL;
+	host->cfg_disk = NULL;
+	host->cfg_volume_perf = NULL;
+	host->cfg_volume_usage = NULL;
+	host->cfg_system = NULL;
 
 	status = cf_util_get_string (ci, &host->name);
 	if (status != 0)
@@ -2457,14 +2462,35 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci, /* {{{ */
  *
  * Pretty standard stuff here.
  */
-static int cna_init(void) { /* {{{ */
-	char err[256];
-	host_config_t *host;
-	
-	if (!global_host_config) {
-		WARNING("netapp plugin: Plugin loaded but no hosts defined.");
-		return 1;
+static int cna_init_host (host_config_t *host) /* {{{ */
+{
+	if (host == NULL)
+		return (EINVAL);
+
+	if (host->srv != NULL)
+		return (0);
+
+	/* Request version 1.1 of the ONTAP API */
+	host->srv = na_server_open(host->host,
+			/* major version = */ 1, /* minor version = */ 1); 
+	if (host->srv == NULL) {
+		ERROR ("netapp plugin: na_server_open (%s) failed.", host->host);
+		return (-1);
 	}
+
+	na_server_set_transport_type(host->srv, host->protocol,
+			/* transportarg = */ NULL);
+	na_server_set_port(host->srv, host->port);
+	na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
+	na_server_adminuser(host->srv, host->username, host->password);
+	na_server_set_timeout(host->srv, 5 /* seconds */);
+
+	return 0;
+} /* }}} int cna_init_host */
+
+static int cna_init (void) /* {{{ */
+{
+	char err[256];
 
 	memset (err, 0, sizeof (err));
 	if (!na_startup(err, sizeof(err))) {
@@ -2473,84 +2499,76 @@ static int cna_init(void) { /* {{{ */
 		return 1;
 	}
 
-	for (host = global_host_config; host; host = host->next) {
-		/* Request version 1.1 of the ONTAP API */
-		host->srv = na_server_open(host->host,
-				/* major version = */ 1, /* minor version = */ 1); 
-		if (host->srv == NULL) {
-			ERROR ("netapp plugin: na_server_open (%s) failed.", host->host);
-			continue;
-		}
+	return (0);
+} /* }}} cna_init */
 
-		if (host->interval < interval_g)
-			host->interval = interval_g;
+static int cna_read (user_data_t *ud) { /* {{{ */
+	host_config_t *host;
+	int status;
 
-		na_server_set_transport_type(host->srv, host->protocol,
-				/* transportarg = */ NULL);
-		na_server_set_port(host->srv, host->port);
-		na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
-		na_server_adminuser(host->srv, host->username, host->password);
-		na_server_set_timeout(host->srv, 5 /* seconds */);
-	}
+	if ((ud == NULL) || (ud->data == NULL))
+		return (-1);
+
+	host = ud->data;
+
+	status = cna_init_host (host);
+	if (status != 0)
+		return (status);
+	
+	cna_query_wafl (host);
+	cna_query_disk (host);
+	cna_query_volume_perf (host);
+	cna_query_volume_usage (host);
+	cna_query_system (host);
+
 	return 0;
-} /* }}} int cna_init */
+} /* }}} int cna_read */
 
 static int cna_config (oconfig_item_t *ci) { /* {{{ */
 	int i;
 	oconfig_item_t *item;
-	host_config_t default_host = HOST_INIT;
-	
+
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
 
-		if (!strcasecmp(item->key, "Host")) {
+		if (strcasecmp(item->key, "Host") == 0)
+		{
 			host_config_t *host;
-			host_config_t *tmp;
+			char cb_name[256];
+			struct timespec interval;
+			user_data_t ud;
 
-			host = cna_config_host(item, &default_host);
+			host = cna_config_host (item);
 			if (host == NULL)
 				continue;
 
-			for (tmp = global_host_config; tmp != NULL; tmp = tmp->next)
-			{
-				if (strcasecmp (host->name, tmp->name) == 0)
-					WARNING ("netapp plugin: Duplicate definition of host `%s'. "
-							"This is probably a bad idea.",
-							host->name);
+			ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
 
-				if (tmp->next == NULL)
-					break;
-			}
+			memset (&interval, 0, sizeof (interval));
+			interval.tv_sec = host->interval;
 
-			host->next = NULL;
-			if (tmp == NULL)
-				global_host_config = host;
-			else
-				tmp->next = host;
-		} else {
+			memset (&ud, 0, sizeof (ud));
+			ud.data = host;
+			ud.free_func = (void (*) (void *)) free_host_config;
+
+			plugin_register_complex_read (cb_name,
+					/* callback  = */ cna_read, 
+					/* interval  = */ (host->interval > 0) ? &interval : NULL,
+					/* user data = */ &ud);
+			continue;
+		}
+		else /* if (item->key != "Host") */
+		{
 			WARNING("netapp plugin: Ignoring unknown config option \"%s\".", item->key);
 		}
 	}
 	return 0;
 } /* }}} int cna_config */
 
-static int cna_read (void) { /* {{{ */
-	host_config_t *host;
-	
-	for (host = global_host_config; host; host = host->next) {
-		cna_query_wafl (host);
-		cna_query_disk (host);
-		cna_query_volume_perf (host);
-		cna_query_volume_usage (host);
-		cna_query_system (host);
-	}
-	return 0;
-} /* }}} int cna_read */
-
 static int cna_shutdown (void) /* {{{ */
 {
-	free_host_config (global_host_config);
-	global_host_config = NULL;
+	/* Clean up system resources and stuff. */
+	na_shutdown ();
 
 	return (0);
 } /* }}} int cna_shutdown */
@@ -2558,7 +2576,6 @@ static int cna_shutdown (void) /* {{{ */
 void module_register(void) {
 	plugin_register_complex_config("netapp", cna_config);
 	plugin_register_init("netapp", cna_init);
-	plugin_register_read("netapp", cna_read);
 	plugin_register_shutdown("netapp", cna_shutdown);
 }
 
