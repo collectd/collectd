@@ -4632,6 +4632,77 @@ time. If the counter is reset for some reason (machine or service restarted,
 usually), the graph will be empty (NAN) for a long time. People may not
 understand why.
 
+=item B<hashed>
+
+Calculates a hash value of the host name and matches values according to that
+hash value. This makes it possible to divide all hosts into groups and match
+only values that are in a specific group. The intended use is in load
+balancing, where you want to handle only part of all data and leave the rest
+for other servers.
+
+The hashing function used tries to distribute the hosts evenly. First, it
+calculates a 32E<nbsp>bit hash value using the characters of the hostname:
+
+  hash_value = 0;
+  for (i = 0; host[i] != 0; i++)
+    hash_value = (hash_value * 251) + host[i];
+
+The constant 251 is a prime number which is supposed to make this hash value
+more random. The code then checks the group for this host according to the
+I<Total> and I<Match> arguments:
+
+  if ((hash_value % Total) == Match)
+    matches;
+  else
+    does not match;
+
+Please note that when you set I<Total> to two (i.E<nbsp>e. you have only two
+groups), then the least significant bit of the hash value will be the XOR of
+all least significant bits in the host name. One consequence is that when you
+have two hosts, "server0.example.com" and "server1.example.com", where the host
+name differs in one digit only and the digits differ by one, those hosts will
+never end up in the same group.
+
+Available options:
+
+=over 4
+
+=item B<Match> I<Match> I<Total>
+
+Divide the data into I<Total> groups and match all hosts in group I<Match> as
+described above. The groups are numbered from zero, i.E<nbsp>e. I<Match> must
+be smaller than I<Total>. I<Total> must be at least one, although only values
+greater than one really do make any sense.
+
+You can repeat this option to match multiple groups, for example:
+
+  Match 3 7
+  Match 5 7
+
+The above config will divide the data into seven groups and match groups three
+and five. One use would be to keep every value on two hosts so that if one
+fails the missing data can later be reconstructed from the second host.
+
+=back
+
+Example:
+
+ # Operate on the pre-cache chain, so that ignored values are not even in the
+ # global cache.
+ <Chain "PreCache">
+   <Rule>
+     <Match "hashed">
+       # Divide all received hosts in seven groups and accept all hosts in
+       # group three.
+       Match 3 7
+     </Match>
+     # If matched: Return and continue.
+     Target "return"
+   </Rule>
+   # If not matched: Return and stop.
+   Target "stop"
+ </Chain>
+
 =back
 
 =head2 Available targets

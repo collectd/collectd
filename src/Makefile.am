@@ -478,6 +478,14 @@ collectd_LDADD += "-dlopen" match_empty_counter.la
 collectd_DEPENDENCIES += match_empty_counter.la
 endif
 
+if BUILD_PLUGIN_MATCH_HASHED
+pkglib_LTLIBRARIES += match_hashed.la
+match_hashed_la_SOURCES = match_hashed.c
+match_hashed_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" match_hashed.la
+collectd_DEPENDENCIES += match_hashed.la
+endif
+
 if BUILD_PLUGIN_MATCH_REGEX
 pkglib_LTLIBRARIES += match_regex.la
 match_regex_la_SOURCES = match_regex.c
