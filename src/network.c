@@ -255,6 +255,7 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 static int network_config_ttl = 0;
 static size_t network_config_packet_size = 1024;
 static int network_config_forward = 0;
+static int network_config_stats = 0;
 
 static sockent_t *sending_sockets = NULL;
 
@@ -262,6 +263,7 @@ static receive_list_entry_t *receive_list_head = NULL;
 static receive_list_entry_t *receive_list_tail = NULL;
 static pthread_mutex_t       receive_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t        receive_list_cond = PTHREAD_COND_INITIALIZER;
+static uint64_t              receive_list_length = 0;
 
 static sockent_t     *listen_sockets = NULL;
 static struct pollfd *listen_sockets_pollfd = NULL;
@@ -281,6 +283,22 @@ static char            *send_buffer_ptr;
 static int              send_buffer_fill;
 static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
 static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/* XXX: These counters are incremented from one place only. The spot in which
+ * the values are incremented is either only reachable by one thread (the
+ * dispatch thread, for example) or locked by some lock (send_buffer_lock for
+ * example). Only if neither is true, the stats_lock is acquired. The counters
+ * are always read without holding a lock in the hope that writing 8 bytes to
+ * memory is an atomic operation. */
+static uint64_t stats_octets_rx  = 0;
+static uint64_t stats_octets_tx  = 0;
+static uint64_t stats_packets_rx = 0;
+static uint64_t stats_packets_tx = 0;
+static uint64_t stats_values_dispatched = 0;
+static uint64_t stats_values_not_dispatched = 0;
+static uint64_t stats_values_sent = 0;
+static uint64_t stats_values_not_sent = 0;
+static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Private functions
@@ -340,12 +358,13 @@ static int network_dispatch_values (value_list_t *vl) /* {{{ */
   if (!check_receive_okay (vl))
   {
 #if COLLECT_DEBUG
-	  char name[6*DATA_MAX_NAME_LEN];
-	  FORMAT_VL (name, sizeof (name), vl);
-	  name[sizeof (name) - 1] = 0;
-	  DEBUG ("network plugin: network_dispatch_values: "
-	      "NOT dispatching %s.", name);
+    char name[6*DATA_MAX_NAME_LEN];
+    FORMAT_VL (name, sizeof (name), vl);
+    name[sizeof (name) - 1] = 0;
+    DEBUG ("network plugin: network_dispatch_values: "
+	"NOT dispatching %s.", name);
 #endif
+    stats_values_not_dispatched++;
     return (0);
   }
 
@@ -368,6 +387,7 @@ static int network_dispatch_values (value_list_t *vl) /* {{{ */
   }
 
   plugin_dispatch_values (vl);
+  stats_values_dispatched++;
 
   meta_data_destroy (vl->meta);
   vl->meta = NULL;
@@ -1968,6 +1988,7 @@ static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
     ent = receive_list_head;
     if (ent != NULL)
       receive_list_head = ent->next;
+    receive_list_length--;
     pthread_mutex_unlock (&receive_list_lock);
 
     /* Check whether we are supposed to exit. We do NOT check `listen_loop'
@@ -2019,11 +2040,13 @@ static int network_receive (void) /* {{{ */
 
 	receive_list_entry_t *private_list_head;
 	receive_list_entry_t *private_list_tail;
+	uint64_t              private_list_length;
 
         assert (listen_sockets_num > 0);
 
 	private_list_head = NULL;
 	private_list_tail = NULL;
+	private_list_length = 0;
 
 	while (listen_loop == 0)
 	{
@@ -2060,6 +2083,9 @@ static int network_receive (void) /* {{{ */
 				return (-1);
 			}
 
+			stats_octets_rx += ((uint64_t) buffer_len);
+			stats_packets_rx++;
+
 			/* TODO: Possible performance enhancement: Do not free
 			 * these entries in the dispatch thread but put them in
 			 * another list, so we don't have to allocate more and
@@ -2074,6 +2100,7 @@ static int network_receive (void) /* {{{ */
 			ent->data = malloc (network_config_packet_size);
 			if (ent->data == NULL)
 			{
+				sfree (ent);
 				ERROR ("network plugin: malloc failed.");
 				return (-1);
 			}
@@ -2088,22 +2115,28 @@ static int network_receive (void) /* {{{ */
 			else
 				private_list_tail->next = ent;
 			private_list_tail = ent;
+			private_list_length++;
 
 			/* Do not block here. Blocking here has led to
 			 * insufficient performance in the past. */
 			if (pthread_mutex_trylock (&receive_list_lock) == 0)
 			{
+				assert (((receive_list_head == NULL) && (receive_list_length == 0))
+						|| ((receive_list_head != NULL) && (receive_list_length != 0)));
+
 				if (receive_list_head == NULL)
 					receive_list_head = private_list_head;
 				else
 					receive_list_tail->next = private_list_head;
 				receive_list_tail = private_list_tail;
-
-				private_list_head = NULL;
-				private_list_tail = NULL;
+				receive_list_length += private_list_length;
 
 				pthread_cond_signal (&receive_list_cond);
 				pthread_mutex_unlock (&receive_list_lock);
+
+				private_list_head = NULL;
+				private_list_tail = NULL;
+				private_list_length = 0;
 			}
 		} /* for (listen_sockets_pollfd) */
 	} /* while (listen_loop == 0) */
@@ -2118,9 +2151,11 @@ static int network_receive (void) /* {{{ */
 		else
 			receive_list_tail->next = private_list_head;
 		receive_list_tail = private_list_tail;
+		receive_list_length += private_list_length;
 
 		private_list_head = NULL;
 		private_list_tail = NULL;
+		private_list_length = 0;
 
 		pthread_cond_signal (&receive_list_cond);
 		pthread_mutex_unlock (&receive_list_lock);
@@ -2429,6 +2464,10 @@ static void flush_buffer (void)
 			send_buffer_fill);
 
 	network_send_buffer (send_buffer, (size_t) send_buffer_fill);
+
+	stats_octets_tx += ((uint64_t) send_buffer_fill);
+	stats_packets_tx++;
+
 	network_init_buffer ();
 }
 
@@ -2446,6 +2485,11 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 	  DEBUG ("network plugin: network_write: "
 	      "NOT sending %s.", name);
 #endif
+	  /* Counter is not protected by another lock and may be reached by
+	   * multiple threads */
+	  pthread_mutex_lock (&stats_lock);
+	  stats_values_not_sent++;
+	  pthread_mutex_unlock (&stats_lock);
 	  return (0);
 	}
 
@@ -2463,6 +2507,8 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		/* status == bytes added to the buffer */
 		send_buffer_fill += status;
 		send_buffer_ptr  += status;
+
+		stats_values_sent++;
 	}
 	else
 	{
@@ -2477,6 +2523,8 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		{
 			send_buffer_fill += status;
 			send_buffer_ptr  += status;
+
+			stats_values_sent++;
 		}
 	}
 
@@ -2797,6 +2845,8 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_set_buffer_size (child);
     else if (strcasecmp ("Forward", child->key) == 0)
       network_config_set_boolean (child, &network_config_forward);
+    else if (strcasecmp ("ReportStats", child->key) == 0)
+      network_config_set_boolean (child, &network_config_stats);
     else if (strcasecmp ("CacheFlush", child->key) == 0)
       /* no op for backwards compatibility only */;
     else
@@ -2923,6 +2973,83 @@ static int network_shutdown (void)
 	return (0);
 } /* int network_shutdown */
 
+static int network_stats_read (void) /* {{{ */
+{
+	uint64_t copy_octets_rx;
+	uint64_t copy_octets_tx;
+	uint64_t copy_packets_rx;
+	uint64_t copy_packets_tx;
+	uint64_t copy_values_dispatched;
+	uint64_t copy_values_not_dispatched;
+	uint64_t copy_values_sent;
+	uint64_t copy_values_not_sent;
+	uint64_t copy_receive_list_length;
+	value_list_t vl = VALUE_LIST_INIT;
+	value_t values[2];
+
+	copy_octets_rx = stats_octets_rx;
+	copy_octets_tx = stats_octets_tx;
+	copy_packets_rx = stats_packets_rx;
+	copy_packets_tx = stats_packets_tx;
+	copy_values_dispatched = stats_values_dispatched;
+	copy_values_not_dispatched = stats_values_not_dispatched;
+	copy_values_sent = stats_values_sent;
+	copy_values_not_sent = stats_values_not_sent;
+	copy_receive_list_length = receive_list_length;
+
+	/* Initialize `vl' */
+	vl.values = values;
+	vl.values_len = 2;
+	vl.time = 0;
+	vl.interval = interval_g;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "network", sizeof (vl.plugin));
+
+	/* Octets received / sent */
+	vl.values[0].counter = (counter_t) copy_octets_rx;
+	vl.values[1].counter = (counter_t) copy_octets_tx;
+	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
+	plugin_dispatch_values (&vl);
+
+	/* Packets received / send */
+	vl.values[0].counter = (counter_t) copy_packets_rx;
+	vl.values[1].counter = (counter_t) copy_packets_tx;
+	sstrncpy (vl.type, "if_packets", sizeof (vl.type));
+	plugin_dispatch_values (&vl);
+
+	/* Values (not) dispatched and (not) send */
+	sstrncpy (vl.type, "total_values", sizeof (vl.type));
+	vl.values_len = 1;
+
+	vl.values[0].derive = (derive_t) copy_values_dispatched;
+	sstrncpy (vl.type_instance, "dispatch-accepted",
+			sizeof (vl.type_instance));
+	plugin_dispatch_values (&vl);
+
+	vl.values[0].derive = (derive_t) copy_values_not_dispatched;
+	sstrncpy (vl.type_instance, "dispatch-rejected",
+			sizeof (vl.type_instance));
+	plugin_dispatch_values (&vl);
+
+	vl.values[0].derive = (derive_t) copy_values_sent;
+	sstrncpy (vl.type_instance, "send-accepted",
+			sizeof (vl.type_instance));
+	plugin_dispatch_values (&vl);
+
+	vl.values[0].derive = (derive_t) copy_values_not_sent;
+	sstrncpy (vl.type_instance, "send-rejected",
+			sizeof (vl.type_instance));
+	plugin_dispatch_values (&vl);
+
+	/* Receive queue length */
+	vl.values[0].gauge = (gauge_t) copy_receive_list_length;
+	sstrncpy (vl.type, "queue_length", sizeof (vl.type));
+	vl.type_instance[0] = 0;
+	plugin_dispatch_values (&vl);
+
+	return (0);
+} /* }}} int network_stats_read */
+
 static int network_init (void)
 {
 	static _Bool have_init = false;
@@ -2938,6 +3065,9 @@ static int network_init (void)
 	gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
 	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
 #endif
+
+	if (network_config_stats != 0)
+		plugin_register_read ("network", network_stats_read);
 
 	plugin_register_shutdown ("network", network_shutdown);
 

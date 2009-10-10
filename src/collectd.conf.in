@@ -417,6 +417,7 @@ FQDNLookup   true
 #	TimeToLive "128"
 #	Forward false
 #	CacheFlush 1800
+#	ReportStats false
 @LOAD_PLUGIN_NETWORK@</Plugin>
 
 #<Plugin nginx>

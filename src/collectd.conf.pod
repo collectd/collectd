@@ -2341,6 +2341,14 @@ normally doesn't do much, this value should not be too small. The default is
 1800 seconds, but setting this to 86400 seconds (one day) will not do much harm
 either.
 
+=item B<ReportStats> B<true>|B<false>
+
+The network plugin cannot only receive and send statistics, it can also create
+statistics about itself. Collected data included the number of received and
+sent octets and packets, the length of the receive queue and the number of
+values handled. When set to B<true>, the I<Network plugin> will make these
+statistics available. Defaults to B<false>.
+
 =back
 
 =head2 Plugin C<nginx>
