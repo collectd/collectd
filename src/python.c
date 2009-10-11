@@ -24,6 +24,7 @@ typedef struct cpy_callback_s {
 static PyThreadState *state;
 
 static cpy_callback_t *cpy_config_callbacks;
+static cpy_callback_t *cpy_init_callbacks;
 
 typedef struct {
 	PyObject_HEAD      /* No semicolon! */
@@ -149,7 +150,7 @@ static PyTypeObject ConfigType = {
     Config_new                 /* tp_new */
 };
 
-static PyObject *cpy_register_config(PyObject *self, PyObject *args, PyObject *kwds) {
+static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
 	cpy_callback_t *c;
 	const char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
@@ -158,7 +159,7 @@ static PyObject *cpy_register_config(PyObject *self, PyObject *args, PyObject *k
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oz", kwlist, &callback, &data, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
-		return 0;
+		return NULL;
 	}
 	if (name == NULL) {
 		PyObject *mod;
@@ -168,19 +169,28 @@ static PyObject *cpy_register_config(PyObject *self, PyObject *args, PyObject *k
 		if (name == NULL) {
 			PyErr_SetString(PyExc_ValueError, "No module name specified and "
 				"callback function does not have a \"__module__\" attribute.");
-			return 0;
+			return NULL;
 		}
 	}
 	c = malloc(sizeof(*c));
 	c->name = strdup(name);
 	c->callback = callback;
 	c->data = data;
-	c->next = cpy_config_callbacks;
-	cpy_config_callbacks = c;
-	return Py_None;
+	c->next = *list_head;
+	*list_head = c;
+	Py_RETURN_NONE;
+}
+
+static PyObject *cpy_register_config(PyObject *self, PyObject *args, PyObject *kwds) {
+	return cpy_register_generic(&cpy_config_callbacks, args, kwds);
+}
+
+static PyObject *cpy_register_init(PyObject *self, PyObject *args, PyObject *kwds) {
+	return cpy_register_generic(&cpy_init_callbacks, args, kwds);
 }
 
 static PyMethodDef cpy_methods[] = {
+	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{0, 0, 0, 0}
 };
@@ -194,8 +204,22 @@ static int cpy_shutdown(void) {
 }
 
 static int cpy_init(void) {
+	cpy_callback_t *c;
+	PyObject *ret;
+	
 	PyEval_InitThreads();
 	/* Now it's finally OK to use python threads. */
+	for (c = cpy_init_callbacks; c; c = c->next) {
+		if (c->data == NULL)
+			ret = PyObject_CallObject(c->callback, NULL); /* New reference. */
+		else
+			ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
+		if (ret == NULL)
+			PyErr_Print(); /* FIXME */
+		else
+			Py_DECREF(ret);
+	}
+	state = PyEval_SaveThread();
 	return 0;
 }
 
@@ -317,8 +341,12 @@ static int cpy_config(oconfig_item_t *ci) {
 				continue;
 			}
 			free(name);
-			ret = PyObject_CallFunction(c->callback, "N",
+			if (c->data == NULL)
+				ret = PyObject_CallFunction(c->callback, "N",
 					cpy_oconfig_to_pyconfig(item, NULL)); /* New reference. */
+			else
+				ret = PyObject_CallFunction(c->callback, "NO",
+					cpy_oconfig_to_pyconfig(item, NULL), c->data); /* New reference. */
 			if (ret == NULL)
 				PyErr_Print();
 			else
