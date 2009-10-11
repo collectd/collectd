@@ -25,6 +25,7 @@ static PyThreadState *state;
 
 static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
+static cpy_callback_t *cpy_shutdown_callbacks;
 
 typedef struct {
 	PyObject_HEAD      /* No semicolon! */
@@ -172,6 +173,8 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 			return NULL;
 		}
 	}
+	Py_INCREF(callback);
+	Py_XINCREF(data);
 	c = malloc(sizeof(*c));
 	c->name = strdup(name);
 	c->callback = callback;
@@ -189,16 +192,35 @@ static PyObject *cpy_register_init(PyObject *self, PyObject *args, PyObject *kwd
 	return cpy_register_generic(&cpy_init_callbacks, args, kwds);
 }
 
+static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject *kwds) {
+	return cpy_register_generic(&cpy_shutdown_callbacks, args, kwds);
+}
+
 static PyMethodDef cpy_methods[] = {
 	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
+	{"register_shutdown", (PyCFunction) cpy_register_shutdown, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{0, 0, 0, 0}
 };
 
 static int cpy_shutdown(void) {
+	cpy_callback_t *c;
+	PyObject *ret;
+	
 	/* This can happen if the module was loaded but not configured. */
 	if (state != NULL)
 		PyEval_RestoreThread(state);
+
+	for (c = cpy_shutdown_callbacks; c; c = c->next) {
+		if (c->data == NULL)
+			ret = PyObject_CallObject(c->callback, NULL); /* New reference. */
+		else
+			ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
+		if (ret == NULL)
+			PyErr_Print(); /* FIXME */
+		else
+			Py_DECREF(ret);
+	}
 	Py_Finalize();
 	return 0;
 }
