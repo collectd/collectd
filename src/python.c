@@ -7,6 +7,7 @@
 typedef struct cpy_callback_s {
 	char *name;
 	PyObject *callback;
+	PyObject *data;
 	struct cpy_callback_s *next;
 } cpy_callback_t;
 
@@ -148,12 +149,13 @@ static PyTypeObject ConfigType = {
     Config_new                 /* tp_new */
 };
 
-static PyObject *cpy_register_config(PyObject *self, PyObject *args) {
+static PyObject *cpy_register_config(PyObject *self, PyObject *args, PyObject *kwds) {
 	cpy_callback_t *c;
 	const char *name = NULL;
-	PyObject *callback = NULL;
+	PyObject *callback = NULL, *data = NULL;
+	static char *kwlist[] = {"callback", "data", "name", NULL};
 	
-	if (PyArg_ParseTuple(args, "O|z", &callback, &name) == 0) return NULL;
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oz", kwlist, &callback, &data, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return 0;
@@ -172,13 +174,14 @@ static PyObject *cpy_register_config(PyObject *self, PyObject *args) {
 	c = malloc(sizeof(*c));
 	c->name = strdup(name);
 	c->callback = callback;
+	c->data = data;
 	c->next = cpy_config_callbacks;
 	cpy_config_callbacks = c;
 	return Py_None;
 }
 
 static PyMethodDef cpy_methods[] = {
-	{"register_config", cpy_register_config, METH_VARARGS, "foo"},
+	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{0, 0, 0, 0}
 };
 
@@ -331,6 +334,6 @@ static int cpy_config(oconfig_item_t *ci) {
 void module_register(void) {
 	plugin_register_complex_config("python", cpy_config);
 	plugin_register_init("python", cpy_init);
-//	plugin_register_read("netapp", cna_read);
-	plugin_register_shutdown("netapp", cpy_shutdown);
+//	plugin_register_read("python", cna_read);
+	plugin_register_shutdown("python", cpy_shutdown);
 }
