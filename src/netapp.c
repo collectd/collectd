@@ -925,14 +925,14 @@ static int cna_setup_wafl (cfg_wafl_t *cw) /* {{{ */
 		ERROR ("netapp plugin: na_elem_new failed.");
 		return (-1);
 	}
-	na_child_add_string(e, "foo", "name_cache_hit");
-	na_child_add_string(e, "foo", "name_cache_miss");
-	na_child_add_string(e, "foo", "find_dir_hit");
-	na_child_add_string(e, "foo", "find_dir_miss");
-	na_child_add_string(e, "foo", "buf_hash_hit");
-	na_child_add_string(e, "foo", "buf_hash_miss");
-	na_child_add_string(e, "foo", "inode_cache_hit");
-	na_child_add_string(e, "foo", "inode_cache_miss");
+	na_child_add_string(e, "counter", "name_cache_hit");
+	na_child_add_string(e, "counter", "name_cache_miss");
+	na_child_add_string(e, "counter", "find_dir_hit");
+	na_child_add_string(e, "counter", "find_dir_miss");
+	na_child_add_string(e, "counter", "buf_hash_hit");
+	na_child_add_string(e, "counter", "buf_hash_miss");
+	na_child_add_string(e, "counter", "inode_cache_hit");
+	na_child_add_string(e, "counter", "inode_cache_miss");
 
 	na_child_add(cw->query, e);
 
@@ -1125,8 +1125,8 @@ static int cna_setup_disk (cfg_disk_t *cd) /* {{{ */
 		ERROR ("netapp plugin: na_elem_new failed.");
 		return (-1);
 	}
-	na_child_add_string(e, "foo", "disk_busy");
-	na_child_add_string(e, "foo", "base_for_disk_busy");
+	na_child_add_string(e, "counter", "disk_busy");
+	na_child_add_string(e, "counter", "base_for_disk_busy");
 	na_child_add(cd->query, e);
 
 	return (0);
@@ -1291,13 +1291,12 @@ static int cna_setup_volume_perf (cfg_volume_perf_t *cd) /* {{{ */
 		ERROR ("netapp plugin: na_elem_new failed.");
 		return (-1);
 	}
-	/* "foo" means: This string has to be here but the content doesn't matter. */
-	na_child_add_string(e, "foo", "read_ops");
-	na_child_add_string(e, "foo", "write_ops");
-	na_child_add_string(e, "foo", "read_data");
-	na_child_add_string(e, "foo", "write_data");
-	na_child_add_string(e, "foo", "read_latency");
-	na_child_add_string(e, "foo", "write_latency");
+	na_child_add_string(e, "counter", "read_ops");
+	na_child_add_string(e, "counter", "write_ops");
+	na_child_add_string(e, "counter", "read_data");
+	na_child_add_string(e, "counter", "write_data");
+	na_child_add_string(e, "counter", "read_latency");
+	na_child_add_string(e, "counter", "write_latency");
 	na_child_add(cd->query, e);
 
 	return (0);
