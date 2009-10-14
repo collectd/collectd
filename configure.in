@@ -1991,7 +1991,7 @@ then
 
 	if test "x$LIBNETAPP_LIBS" = "x"
 	then
-		LIBNETAPP_LIBS="-lpthread -lxml -ladt -lssl -lm"
+		LIBNETAPP_LIBS="-lpthread -lxml -ladt -lssl -lm -lcrypto -lz"
 	fi
 	AC_MSG_NOTICE([netapp LIBS: $LIBNETAPP_LIBS])
 
