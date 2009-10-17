@@ -14,18 +14,68 @@ typedef struct cpy_callback_s {
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background
  * (the scriptwriters might have created some threads from python), we have
- * to save the state so we can resume it later from a different thread.
-
- * Technically the Global Interpreter Lock (GIL) and thread states can be
- * manipulated independently. But to keep stuff from getting too complex
- * we'll just use PyEval_SaveTread and PyEval_RestoreThreas which takes
- * care of the thread states as well as the GIL. */
+ * to save the state so we can resume it later after shutdown. */
 
 static PyThreadState *state;
+
+/* Serves the same purpose as PyEval_ThreadsInitialized but doesn't require
+ * Python 2.4. */
+ 
+static int cpy_have_threads;
+
+/* These two macros are basicly Py_BEGIN_ALLOW_THREADS and Py_BEGIN_ALLOW_THREADS
+ * from the other direction. If a Python thread calls a C function
+ * Py_BEGIN_ALLOW_THREADS is used to allow other python threads to run because
+ * we don't intend to call any Python functions.
+ *
+ * These two macros are used whenever a C thread intends to call some Python
+ * function, usually because some registered callback was triggered.
+ * Just like Py_BEGIN_ALLOW_THREADS it opens a block so these macros have to be
+ * used in pairs. They aquire the GIL, create a new Python thread state and swap
+ * the current thread state with the new one. This means this thread is now allowed
+ * to execute Python code. */
+
+#define CPY_LOCK_THREADS {\
+	PyGILState_STATE gil_state;\
+	if (cpy_have_threads)\
+		gil_state = PyGILState_Ensure();
+
+#define CPY_RELEASE_THREADS \
+	if (cpy_have_threads)\
+		PyGILState_Release(gil_state);\
+}
+
 
 static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
 static cpy_callback_t *cpy_shutdown_callbacks;
+
+static void cpy_destroy_user_data(void *data) {
+	cpy_callback_t *c = data;
+	free(c->name);
+	Py_DECREF(c->callback);
+	Py_XDECREF(c->data);
+	free(c);
+}
+
+static void cpy_log_callback(int severity, const char *message, user_data_t *data) {
+	cpy_callback_t * c = data->data;
+	PyObject *ret;
+
+	CPY_LOCK_THREADS
+	if (c->data == NULL)
+		ret = PyObject_CallFunction(c->callback, "is", severity, message); /* New reference. */
+	else
+		ret = PyObject_CallFunction(c->callback, "isO", severity, message, c->data); /* New reference. */
+
+	if (ret == NULL) {
+		/* FIXME */
+		PyErr_Print();
+	} else {
+		Py_DECREF(ret);
+	}
+	CPY_RELEASE_THREADS
+}
 
 typedef struct {
 	PyObject_HEAD      /* No semicolon! */
@@ -192,6 +242,43 @@ static PyObject *cpy_register_init(PyObject *self, PyObject *args, PyObject *kwd
 	return cpy_register_generic(&cpy_init_callbacks, args, kwds);
 }
 
+static PyObject *cpy_register_log(PyObject *self, PyObject *args, PyObject *kwds) {
+	cpy_callback_t *c = NULL;
+	user_data_t *user_data = NULL;
+	const char *name = NULL;
+	PyObject *callback = NULL, *data = NULL;
+	static char *kwlist[] = {"callback", "data", "name", NULL};
+	
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oz", kwlist, &callback, &data, &name) == 0) return NULL;
+	if (PyCallable_Check(callback) == 0) {
+		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
+		return NULL;
+	}
+	if (name == NULL) {
+		PyObject *mod;
+		
+		mod = PyObject_GetAttrString(callback, "__module__");
+		if (mod != NULL) name = PyString_AsString(mod);
+		if (name == NULL) {
+			PyErr_SetString(PyExc_ValueError, "No module name specified and "
+				"callback function does not have a \"__module__\" attribute.");
+			return NULL;
+		}
+	}
+	Py_INCREF(callback);
+	Py_XINCREF(data);
+	c = malloc(sizeof(*c));
+	c->name = strdup(name);
+	c->callback = callback;
+	c->data = data;
+	c->next = NULL;
+	user_data = malloc(sizeof(*user_data));
+	user_data->free_func = cpy_destroy_user_data;
+	user_data->data = c;
+	plugin_register_log(name, cpy_log_callback, user_data);
+	Py_RETURN_NONE;
+}
+
 static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject *kwds) {
 	return cpy_register_generic(&cpy_shutdown_callbacks, args, kwds);
 }
@@ -199,28 +286,36 @@ static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject 
 static PyObject *cpy_Error(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_ERR, "%s", text);
+	Py_END_ALLOW_THREADS
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_Warning(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_WARNING, "%s", text);
+	Py_END_ALLOW_THREADS
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_Notice(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_NOTICE, "%s", text);
+	Py_END_ALLOW_THREADS
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_Info(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_INFO, "%s", text);
+	Py_END_ALLOW_THREADS
 	Py_RETURN_NONE;
 }
 
@@ -239,6 +334,7 @@ static PyMethodDef cpy_methods[] = {
 	{"Notice", cpy_Notice, METH_VARARGS, "This is an unhelpful text."},
 	{"Warning", cpy_Warning, METH_VARARGS, "This is an unhelpful text."},
 	{"Error", cpy_Error, METH_VARARGS, "This is an unhelpful text."},
+	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_shutdown", (PyCFunction) cpy_register_shutdown, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
@@ -272,6 +368,7 @@ static int cpy_init(void) {
 	PyObject *ret;
 	
 	PyEval_InitThreads();
+	cpy_have_threads = 1;
 	/* Now it's finally OK to use python threads. */
 	for (c = cpy_init_callbacks; c; c = c->next) {
 		if (c->data == NULL)
@@ -349,6 +446,11 @@ static int cpy_config(oconfig_item_t *ci) {
 	}
 	module = Py_InitModule("collectd", cpy_methods); /* Borrowed reference. */
 	PyModule_AddObject(module, "Config", (PyObject *) &ConfigType); /* Steals a reference. */
+	PyModule_AddIntConstant(module, "LOG_DEBUG", LOG_DEBUG);
+	PyModule_AddIntConstant(module, "LOG_INFO", LOG_INFO);
+	PyModule_AddIntConstant(module, "LOG_NOTICE", LOG_NOTICE);
+	PyModule_AddIntConstant(module, "LOG_WARNING", LOG_WARNING);
+	PyModule_AddIntConstant(module, "LOG_ERROR", LOG_ERR);
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		

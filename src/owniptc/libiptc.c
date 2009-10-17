@@ -1488,45 +1488,6 @@ TC_NEXT_RULE(const STRUCT_ENTRY *prev, TC_HANDLE_T *handle)
 	return r->entry;
 }
 
-/* How many rules in this chain? */
-static unsigned int
-TC_NUM_RULES(const char *chain, TC_HANDLE_T *handle)
-{
-	struct chain_head *c;
-	iptc_fn = TC_NUM_RULES;
-	CHECK(*handle);
-
-	c = iptcc_find_label(chain, *handle);
-	if (!c) {
-		errno = ENOENT;
-		return (unsigned int)-1;
-	}
-	
-	return c->num_rules;
-}
-
-static const STRUCT_ENTRY *
-TC_GET_RULE(const char *chain, unsigned int n, TC_HANDLE_T *handle)
-{
-	struct chain_head *c;
-	struct rule_head *r;
-	
-	iptc_fn = TC_GET_RULE;
-
-	CHECK(*handle);
-
-	c = iptcc_find_label(chain, *handle);
-	if (!c) {
-		errno = ENOENT;
-		return NULL;
-	}
-
-	r = iptcc_get_rule_num(c, n);
-	if (!r)
-		return NULL;
-	return r->entry;
-}
-
 /* Returns a pointer to the target name of this position. */
 static const char *standard_target_map(int verdict)
 {

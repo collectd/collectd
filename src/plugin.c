@@ -280,7 +280,17 @@ static int plugin_load_file (char *file)
 	lt_dlinit ();
 	lt_dlerror (); /* clear errors */
 
-	if ((dlh = lt_dlopen (file)) == NULL)
+	/* XXX BUG FIXME */
+	if (strstr(file, "python") != NULL) {
+		lt_dladvise advise;
+		lt_dladvise_init(&advise);
+		lt_dladvise_global(&advise);
+		dlh = lt_dlopenadvise(file, advise);
+		lt_dladvise_destroy(&advise);
+	} else {
+        	dlh = lt_dlopen (file);
+	}
+	if (dlh == NULL)
 	{
 		const char *error = lt_dlerror ();
 
