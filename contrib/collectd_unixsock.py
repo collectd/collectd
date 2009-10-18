@@ -28,38 +28,127 @@
 # 3. This notice may not be removed or altered from any source distribution.
 
 import socket
-import string
 
 
-class Collect(object):
+class Collectd():
 
-    def __init__(self, path='/var/run/collectd-unixsock'):
+    def __init__(self, path='/var/run/collectd-unixsock', noisy=False):
+        self.noisy = noisy
         self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self._path = path
-        self._sock.connect(self._path)
+        self._sock.connect(path)
 
-    def list(self):
+    def flush(self, timeout=None, plugins=[], identifiers=[]):
+        """Send a FLUSH command.
+
+        Full documentation:
+            http://collectd.org/wiki/index.php/Plain_text_protocol#FLUSH
+
+        """
+        # have to pass at least one plugin or identifier
+        if not plugins and not identifiers:
+            return None
+        args = []
+        if timeout:
+            args.append("timeout=%s" % timeout)
+        if plugins:
+            plugin_args = map(lambda x: "plugin=%s" % x, plugins)
+            args.extend(plugin_args)
+        if identifiers:
+            identifier_args = map(lambda x: "identifier=%s" % x, identifiers)
+            args.extend(identifier_args)
+        return self._cmd('FLUSH %s' % ' '.join(args))
+
+    def getthreshold(self, identifier):
+        """Send a GETTHRESHOLD command.
+
+        Full documentation:
+            http://collectd.org/wiki/index.php/Plain_text_protocol#GETTHRESHOLD
+
+        """
+        numvalues = self._cmd('GETTHRESHOLD "%s"' % identifier)
+        lines = []
+        if numvalues:
+            lines = self._readlines(numvalues)
+        return lines
+
+    def getval(self, identifier, flush_after=True):
+        """Send a GETVAL command.
+
+        Also flushes the identifier if flush_after is True.
+
+        Full documentation:
+            http://collectd.org/wiki/index.php/Plain_text_protocol#GETVAL
+
+        """
+        numvalues = self._cmd('GETVAL "%s"' % identifier)
+        lines = []
+        if numvalues:
+            lines = self._readlines(numvalues)
+        if flush_after:
+            self.flush(identifiers=[identifier])
+        return lines
+
+    def listval(self):
+        """Send a LISTVAL command.
+
+        Full documentation:
+            http://collectd.org/wiki/index.php/Plain_text_protocol#LISTVAL
+
+        """
         numvalues = self._cmd('LISTVAL')
         lines = []
         if numvalues:
             lines = self._readlines(numvalues)
         return lines
 
-    def get(self, val, flush=True):
-        numvalues = self._cmd('GETVAL "' + val + '"')
-        lines = []
-        if numvalues:
-            lines = self._readlines(numvalues)
-        if flush:
-            self._cmd('FLUSH identifier="' + val + '"')
-        return lines
+    def putnotif(self, message, options={}):
+        """Send a PUTNOTIF command.
+
+        Options must be passed as a Python dictionary. Example:
+          options={'severity': 'failure', 'host': 'example.com'}
+
+        Full documentation:
+            http://collectd.org/wiki/index.php/Plain_text_protocol#PUTNOTIF
+
+        """
+        args = []
+        if options:
+            options_args = map(lambda x: "%s=%s" % (x, options[x]), options)
+            args.extend(options_args)
+        args.append('message="%s"' % message)
+        return self._cmd('PUTNOTIF %s' % ' '.join(args))
+
+    def putval(self, identifier, values, options={}):
+        """Send a PUTVAL command.
+
+        Options must be passed as a Python dictionary. Example:
+          options={'interval': 10}
+
+        Full documentation:
+            http://collectd.org/wiki/index.php/Plain_text_protocol#PUTVAL
+
+        """
+        args = []
+        args.append('"%s"' % identifier)
+        if options:
+            options_args = map(lambda x: "%s=%s" % (x, options[x]), options)
+            args.extend(options_args)
+        values = map(str, values)
+        args.append(':'.join(values))
+        return self._cmd('PUTVAL %s' % ' '.join(args))
 
     def _cmd(self, c):
+        if self.noisy:
+            print "[send] %s" % c
         self._sock.send(c + "\n")
-        stat = string.split(self._readline())
-        status = int(stat[0])
-        if status:
-            return status
+        status_message = self._readline()
+        if self.noisy:
+            print "[recive] %s" % status_message
+        if not status_message:
+            return None
+        code, message = status_message.split(' ', 1)
+        if int(code):
+            return int(code)
         return False
 
     def _readline(self):
@@ -96,10 +185,17 @@ class Collect(object):
 if __name__ == '__main__':
     """Collect values from socket and dump to STDOUT"""
 
-    c = Collect('/var/run/collectd-unixsock')
-    list = c.list()
-
+    c = Collectd('/var/run/collectd-unixsock', noisy=True)
+    list = c.listval()
     for val in list:
-        stamp, key = string.split(val)
-        glines = c.get(key)
-        print stamp + ' ' + key + ' ' + ', '.join(glines)
+        stamp, identifier = val.split()
+        print "\n%s" % identifier
+        print "\tUpdate time: %s" % stamp
+
+        values = c.getval(identifier)
+        print "\tValue list: %s" % ', '.join(values)
+
+        # don't fetch thresholds by default because collectd will crash
+        # if there is no treshold for the given identifier
+        #thresholds = c.getthreshold(identifier)
+        #print "\tThresholds: %s" % ', '.join(thresholds)
