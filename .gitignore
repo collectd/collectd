@@ -77,3 +77,6 @@ bindings/perl/pm_to_blib
 # make dist stuff:
 collectd-*.tar.gz
 collectd-*.tar.bz2
+
+# python stuff
+*.pyc
