@@ -27,22 +27,24 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
-import socket, string
+import socket
+import string
+
 
 class Collect(object):
 
     def __init__(self, path='/var/run/collectd-unixsock'):
         self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self._path =  path
+        self._path = path
         self._sock.connect(self._path)
-        
+
     def list(self):
         numvalues = self._cmd('LISTVAL')
         lines = []
         if numvalues:
             lines = self._readlines(numvalues)
         return lines
-        
+
     def get(self, val, flush=True):
         numvalues = self._cmd('GETVAL "' + val + '"')
         lines = []
@@ -51,7 +53,7 @@ class Collect(object):
         if flush:
             self._cmd('FLUSH identifier="' + val + '"')
         return lines
-            
+
     def _cmd(self, c):
         self._sock.send(c + "\n")
         stat = string.split(self._readline())
@@ -59,12 +61,9 @@ class Collect(object):
         if status:
             return status
         return False
-    
-    '''
-    _readline and _readlines methods borrowed from the _fileobject class 
-    in sockets.py, tweaked a little bit for use in the collectd context.
-    '''
+
     def _readline(self):
+        """Read single line from socket"""
         data = ''
         buf = []
         recv = self._sock.recv
@@ -75,8 +74,9 @@ class Collect(object):
             if data != "\n":
                 buf.append(data)
         return ''.join(buf)
-        
+
     def _readlines(self, sizehint=0):
+        """Read multiple lines from socket"""
         total = 0
         list = []
         while True:
@@ -88,19 +88,14 @@ class Collect(object):
             if sizehint and total >= sizehint:
                 break
         return list
-    
-    def __del__(self):
-        self._sock.close()    
 
+    def __del__(self):
+        self._sock.close()
 
 
 if __name__ == '__main__':
-    
-    '''
-    Example usage:
-    Collect values from socket and dump to STDOUT.
-    '''
-    
+    """Collect values from socket and dump to STDOUT"""
+
     c = Collect('/var/run/collectd-unixsock')
     list = c.list()
 
@@ -108,4 +103,3 @@ if __name__ == '__main__':
         stamp, key = string.split(val)
         glines = c.get(key)
         print stamp + ' ' + key + ' ' + ', '.join(glines)
-    
