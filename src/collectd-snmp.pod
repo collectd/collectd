@@ -184,7 +184,7 @@ This value is not applied to counter-values.
 I<Value> is added to gauge-values returned by the SNMP-agent after they have
 been multiplied by any B<Scale> value. If, for example, a thermometer returns
 degrees Kelvin you could specify a shift of B<273.15> here to store values in
-degrees Celsius. The default value is is course B<0.0>.
+degrees Celsius. The default value is of course B<0.0>.
 
 This value is not applied to counter-values.
 

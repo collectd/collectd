@@ -1573,7 +1573,7 @@ then
 	if test -d "$with_java_home"
 	then
 		AC_MSG_CHECKING([for jni.h])
-		TMPDIR=`find -L "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -1583,7 +1583,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for jni_md.h])
-		TMPDIR=`find -L "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -1593,7 +1593,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPDIR=`find -L "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -1605,7 +1605,7 @@ then
 		if test "x$JAVAC" = "x"
 		then
 			AC_MSG_CHECKING([for javac])
-			TMPDIR=`find -L "$with_java_home" -name javac -type f | head -n 1`
+			TMPDIR=`find "$with_java_home" -name javac -type f | head -n 1`
 			if test "x$TMPDIR" != "x"
 			then
 				JAVAC="$TMPDIR"
