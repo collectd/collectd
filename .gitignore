@@ -62,3 +62,6 @@ bindings/perl/pm_to_blib
 bindings/java/java-build-stamp
 bindings/java/org/collectd/api/*.class
 bindings/java/org/collectd/java/*.class
+
+# python stuff
+*.pyc
