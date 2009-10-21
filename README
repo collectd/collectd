@@ -180,7 +180,7 @@ Features
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
 
-    - olsr
+    - olsrd
       Queries routing information from the “Optimized Link State Routing”
       daemon.
 
@@ -480,9 +480,11 @@ Prerequisites
 
   * libganglia (optional)
     Used by the `gmond' plugin to process data received from Ganglia.
+    <http://ganglia.info/>
 
   * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
+    <http://www.gnupg.org/>
 
   * libhal (optional)
     If present, the uuid plugin will check for UUID from HAL.
@@ -502,9 +504,11 @@ Prerequisites
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
     used by the Java plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
+    <http://openjdk.java.net/> (and others)
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
+    <http://tangent.org/552/libmemcached.html>
 
   * libmysqlclient (optional)
     Unsurprisingly used by the `mysql' plugin.
@@ -566,6 +570,10 @@ Prerequisites
     Used by various plugins to collect statistics on systems other than Linux
     and/or Solaris.
     <http://www.i-scream.org/libstatgrab/>
+
+  * libtokyotyrant (optional)
+    Used by the tokyotyrant plugin.
+    <http://1978th.net/tokyotyrant/>
 
   * libupsclient/nut (optional)
     For the `nut' plugin which queries nut's `upsd'.
