@@ -634,7 +634,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 
 	if ( (ps->io_rchar != -1) && (ps->io_wchar != -1) )
 	{
-		sstrncpy (vl.type, "ps_diskbytes", sizeof (vl.type));
+		sstrncpy (vl.type, "ps_disk_octets", sizeof (vl.type));
 		vl.values[0].counter = ps->io_rchar;
 		vl.values[1].counter = ps->io_wchar;
 		vl.values_len = 2;
@@ -643,7 +643,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 
 	if ( (ps->io_syscr != -1) && (ps->io_syscw != -1) )
 	{
-		sstrncpy (vl.type, "ps_diskops", sizeof (vl.type));
+		sstrncpy (vl.type, "ps_disk_ops", sizeof (vl.type));
 		vl.values[0].counter = ps->io_syscr;
 		vl.values[1].counter = ps->io_syscw;
 		vl.values_len = 2;
