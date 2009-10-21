@@ -690,7 +690,7 @@ static int ps_read_tasks (int pid)
 	return ((count >= 1) ? count : 1);
 } /* int *ps_read_tasks */
 
-procstat_t *ps_read_io (int pid, procstat_t *ps)
+static procstat_t *ps_read_io (int pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
