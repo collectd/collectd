@@ -4,6 +4,8 @@
 #include "collectd.h"
 #include "common.h"
 
+#include "cpython.h"
+
 typedef struct cpy_callback_s {
 	char *name;
 	PyObject *callback;
@@ -17,34 +19,6 @@ typedef struct cpy_callback_s {
  * to save the state so we can resume it later after shutdown. */
 
 static PyThreadState *state;
-
-/* Serves the same purpose as PyEval_ThreadsInitialized but doesn't require
- * Python 2.4. */
- 
-static int cpy_have_threads;
-
-/* These two macros are basicly Py_BEGIN_ALLOW_THREADS and Py_BEGIN_ALLOW_THREADS
- * from the other direction. If a Python thread calls a C function
- * Py_BEGIN_ALLOW_THREADS is used to allow other python threads to run because
- * we don't intend to call any Python functions.
- *
- * These two macros are used whenever a C thread intends to call some Python
- * function, usually because some registered callback was triggered.
- * Just like Py_BEGIN_ALLOW_THREADS it opens a block so these macros have to be
- * used in pairs. They aquire the GIL, create a new Python thread state and swap
- * the current thread state with the new one. This means this thread is now allowed
- * to execute Python code. */
-
-#define CPY_LOCK_THREADS {\
-	PyGILState_STATE gil_state;\
-	if (cpy_have_threads)\
-		gil_state = PyGILState_Ensure();
-
-#define CPY_RELEASE_THREADS \
-	if (cpy_have_threads)\
-		PyGILState_Release(gil_state);\
-}
-
 
 static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
@@ -76,130 +50,6 @@ static void cpy_log_callback(int severity, const char *message, user_data_t *dat
 	}
 	CPY_RELEASE_THREADS
 }
-
-typedef struct {
-	PyObject_HEAD      /* No semicolon! */
-	PyObject *parent;
-	PyObject *key;
-	PyObject *values;
-	PyObject *children;
-} Config;
-
-static void Config_dealloc(PyObject *s) {
-	Config *self = (Config *) s;
-	
-	Py_XDECREF(self->parent);
-	Py_XDECREF(self->key);
-	Py_XDECREF(self->values);
-	Py_XDECREF(self->children);
-	self->ob_type->tp_free(s);
-}
-
-static PyObject *Config_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-	Config *self;
-	
-	self = (Config *) type->tp_alloc(type, 0);
-	if (self == NULL)
-		return NULL;
-	
-	self->parent = NULL;
-	self->key = NULL;
-	self->values = NULL;
-	self->children = NULL;
-	return (PyObject *) self;
-}
-
-static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
-	PyObject *key = NULL, *parent = NULL, *values = NULL, *children = NULL, *tmp;
-	Config *self = (Config *) s;
-	static char *kwlist[] = {"key", "parent", "values", "children", NULL};
-	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "S|OOO", kwlist,
-			&key, &parent, &values, &children))
-		return -1;
-	
-	if (values == NULL) {
-		values = PyTuple_New(0);
-		PyErr_Clear();
-	}
-	if (children == NULL) {
-		children = PyTuple_New(0);
-		PyErr_Clear();
-	}
-	tmp = self->key;
-	Py_INCREF(key);
-	self->key = key;
-	Py_XDECREF(tmp);
-	if (parent != NULL) {
-		tmp = self->parent;
-		Py_INCREF(parent);
-		self->parent = parent;
-		Py_XDECREF(tmp);
-	}
-	if (values != NULL) {
-		tmp = self->values;
-		Py_INCREF(values);
-		self->values = values;
-		Py_XDECREF(tmp);
-	}
-	if (children != NULL) {
-		tmp = self->children;
-		Py_INCREF(children);
-		self->children = children;
-		Py_XDECREF(tmp);
-	}
-	return 0;
-}
-
-static PyMemberDef Config_members[] = {
-    {"Parent", T_OBJECT, offsetof(Config, parent), 0, "Parent node"},
-    {"Key", T_OBJECT_EX, offsetof(Config, key), 0, "Keyword of this node"},
-    {"Values", T_OBJECT_EX, offsetof(Config, values), 0, "Values after the key"},
-    {"Children", T_OBJECT_EX, offsetof(Config, children), 0, "Childnodes of this node"},
-    {NULL}
-};
-
-static PyTypeObject ConfigType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                         /* Always 0 */
-    "collectd.Config",         /* tp_name */
-    sizeof(Config),            /* tp_basicsize */
-    0,                         /* Will be filled in later */
-    Config_dealloc,            /* tp_dealloc */
-    0,                         /* tp_print */
-    0,                         /* tp_getattr */
-    0,                         /* tp_setattr */
-    0,                         /* tp_compare */
-    0,                         /* tp_repr */
-    0,                         /* tp_as_number */
-    0,                         /* tp_as_sequence */
-    0,                         /* tp_as_mapping */
-    0,                         /* tp_hash */
-    0,                         /* tp_call */
-    0,                         /* tp_str */
-    0,                         /* tp_getattro */
-    0,                         /* tp_setattro */
-    0,                         /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-    "Cool help text later",    /* tp_doc */
-    0,		               /* tp_traverse */
-    0,		               /* tp_clear */
-    0,		               /* tp_richcompare */
-    0,		               /* tp_weaklistoffset */
-    0,		               /* tp_iter */
-    0,		               /* tp_iternext */
-    0,                         /* tp_methods */
-    Config_members,            /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    Config_init,               /* tp_init */
-    0,                         /* tp_alloc */
-    Config_new                 /* tp_new */
-};
 
 static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
 	cpy_callback_t *c;
@@ -368,7 +218,6 @@ static int cpy_init(void) {
 	PyObject *ret;
 	
 	PyEval_InitThreads();
-	cpy_have_threads = 1;
 	/* Now it's finally OK to use python threads. */
 	for (c = cpy_init_callbacks; c; c = c->next) {
 		if (c->data == NULL)
