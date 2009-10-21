@@ -3235,7 +3235,7 @@ C<I<prefix>/var/run/collectd-powerdns>.
 Select more detailed statistics of processes matching this name. The statistics
 collected for these selected processes are size of the resident segment size
 (RSS), user- and system-time used, number of processes and number of threads,
-and minor and major pagefaults.
+io data (where available) and minor and major pagefaults.
 
 =item B<ProcessMatch> I<name> I<regex>
 
