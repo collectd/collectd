@@ -1510,6 +1510,12 @@ static int ps_read (void)
 			* 1000
 			+ procs[i].ki_rusage.ru_stime.tv_usec;
 
+		/* no io data */
+		pse.io_rchar = -1;
+		pse.io_wchar = -1;
+		pse.io_syscr = -1;
+		pse.io_syscw = -1;
+
 		switch (procs[i].ki_stat)
 		{
 			case SSTOP: 	stopped++;	break;
