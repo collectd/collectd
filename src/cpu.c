@@ -123,6 +123,9 @@ static int numcpu;
 
 #elif defined(HAVE_SYSCTLBYNAME)
 static int numcpu;
+#  ifdef HAVE_SYSCTL_KERN_CP_TIMES
+static int maxcpu;
+#  endif /* HAVE_SYSCTL_KERN_CP_TIMES */
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -193,12 +196,22 @@ static int init (void)
 	if (sysctlbyname ("hw.ncpu", &numcpu, &numcpu_size, NULL, 0) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("cpu plugin: sysctlbyname: %s",
+		WARNING ("cpu plugin: sysctlbyname(hw.ncpu): %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
-#ifndef HAVE_SYSCTL_KERN_CP_TIMES
+#ifdef HAVE_SYSCTL_KERN_CP_TIMES
+	numcpu_size = sizeof (maxcpu);
+
+	if (sysctlbyname("kern.smp.maxcpus", &maxcpu, &numcpu_size, NULL, 0) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("cpu plugin: sysctlbyname(kern.smp.maxcpus): %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+#else
 	if (numcpu != 1)
 		NOTICE ("cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
 #endif
@@ -467,7 +480,7 @@ static int cpu_read (void)
 	}
 /* #endif CAN_USE_SYSCTL */
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES)
-	long cpuinfo[numcpu][CPUSTATES];
+	long cpuinfo[maxcpu][CPUSTATES];
 	size_t cpuinfo_size;
 	int i;
 
