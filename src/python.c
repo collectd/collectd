@@ -279,6 +279,7 @@ static int cpy_config(oconfig_item_t *ci) {
 	Py_Initialize();
 	
 	PyType_Ready(&ConfigType);
+	PyType_Ready(&ValuesType);
 	sys = PyImport_ImportModule("sys"); /* New reference. */
 	if (sys == NULL) {
 		ERROR("python module: Unable to import \"sys\" module.");
@@ -295,6 +296,7 @@ static int cpy_config(oconfig_item_t *ci) {
 	}
 	module = Py_InitModule("collectd", cpy_methods); /* Borrowed reference. */
 	PyModule_AddObject(module, "Config", (PyObject *) &ConfigType); /* Steals a reference. */
+	PyModule_AddObject(module, "Values", (PyObject *) &ValuesType); /* Steals a reference. */
 	PyModule_AddIntConstant(module, "LOG_DEBUG", LOG_DEBUG);
 	PyModule_AddIntConstant(module, "LOG_INFO", LOG_INFO);
 	PyModule_AddIntConstant(module, "LOG_NOTICE", LOG_NOTICE);

@@ -40,11 +40,25 @@
 #endif
 
 typedef struct {
-	PyObject_HEAD      /* No semicolon! */
-	PyObject *parent;
-	PyObject *key;
-	PyObject *values;
-	PyObject *children;
+	PyObject_HEAD        /* No semicolon! */
+	PyObject *parent;    /* Config */
+	PyObject *key;       /* String */
+	PyObject *values;    /* Sequence */
+	PyObject *children;  /* Sequence */
 } Config;
 
 PyTypeObject ConfigType;
+
+typedef struct {
+	PyObject_HEAD        /* No semicolon! */
+	PyObject *values;    /* Sequence */
+	double time;
+	int interval;
+	char host[DATA_MAX_NAME_LEN];
+	char plugin[DATA_MAX_NAME_LEN];
+	char plugin_instance[DATA_MAX_NAME_LEN];
+	char type[DATA_MAX_NAME_LEN];
+	char type_instance[DATA_MAX_NAME_LEN];
+} Values;
+
+PyTypeObject ValuesType;
