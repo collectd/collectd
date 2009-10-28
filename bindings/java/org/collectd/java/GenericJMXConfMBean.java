@@ -170,7 +170,7 @@ class GenericJMXConfMBean
     return (this._name);
   } /* }}} */
 
-  public void query (MBeanServerConnection conn, PluginData pd) /* {{{ */
+  public int query (MBeanServerConnection conn, PluginData pd) /* {{{ */
   {
     Set<ObjectName> names;
     Iterator<ObjectName> iter;
@@ -182,7 +182,7 @@ class GenericJMXConfMBean
     catch (Exception e)
     {
       Collectd.logError ("GenericJMXConfMBean: queryNames failed: " + e);
-      return;
+      return (-1);
     }
 
     if (names.size () == 0)
@@ -236,6 +236,8 @@ class GenericJMXConfMBean
       for (int i = 0; i < this._values.size (); i++)
         this._values.get (i).query (conn, objName, pd_tmp);
     }
+
+    return (0);
   } /* }}} void query */
 }
 

@@ -208,7 +208,16 @@ private void connect () /* {{{ */
     pd.setPlugin ("GenericJMX");
 
     for (int i = 0; i < this._mbeans.size (); i++)
-      this._mbeans.get (i).query (this._jmx_connection, pd);
+    {
+      int status;
+
+      status = this._mbeans.get (i).query (this._jmx_connection, pd);
+      if (status != 0)
+      {
+        this._jmx_connection = null;
+        return;
+      }
+    } /* for */
   } /* }}} void query */
 
   public String toString ()
