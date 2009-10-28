@@ -24,6 +24,7 @@
 #include "common.h"
 #include "utils_rrdcreate.h"
 
+#undef HAVE_CONFIG_H
 #include <rrd_client.h>
 
 /*
