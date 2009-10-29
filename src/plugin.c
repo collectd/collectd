@@ -270,7 +270,7 @@ static int plugin_unregister (llist_t *list, const char *name) /* {{{ */
  * object, but it will bitch about a shared object not having a
  * ``module_register'' symbol..
  */
-static int plugin_load_file (char *file)
+static int plugin_load_file (char *file, uint32_t flags)
 {
 	lt_dlhandle dlh;
 	void (*reg_handle) (void);
@@ -280,8 +280,7 @@ static int plugin_load_file (char *file)
 	lt_dlinit ();
 	lt_dlerror (); /* clear errors */
 
-	/* XXX BUG FIXME */
-	if (strstr(file, "python") != NULL) {
+	if (flags & PLUGIN_FLAGS_GLOBAL) {
 		lt_dladvise advise;
 		lt_dladvise_init(&advise);
 		lt_dladvise_global(&advise);
@@ -545,7 +544,7 @@ void plugin_set_dir (const char *dir)
 }
 
 #define BUFSIZE 512
-int plugin_load (const char *type)
+int plugin_load (const char *type, uint32_t flags)
 {
 	DIR  *dh;
 	const char *dir;
@@ -607,7 +606,7 @@ int plugin_load (const char *type)
 			continue;
 		}
 
-		if (plugin_load_file (filename) == 0)
+		if (plugin_load_file (filename, flags) == 0)
 		{
 			/* success */
 			ret = 0;

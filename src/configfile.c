@@ -75,7 +75,7 @@ typedef struct cf_global_option_s
  */
 static int dispatch_value_typesdb (const oconfig_item_t *ci);
 static int dispatch_value_plugindir (const oconfig_item_t *ci);
-static int dispatch_value_loadplugin (const oconfig_item_t *ci);
+static int dispatch_loadplugin (const oconfig_item_t *ci);
 
 /*
  * Private variables
@@ -87,7 +87,7 @@ static cf_value_map_t cf_value_map[] =
 {
 	{"TypesDB",    dispatch_value_typesdb},
 	{"PluginDir",  dispatch_value_plugindir},
-	{"LoadPlugin", dispatch_value_loadplugin}
+	{"LoadPlugin", dispatch_loadplugin}
 };
 static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
 
@@ -239,8 +239,10 @@ static int dispatch_value_plugindir (const oconfig_item_t *ci)
 	return (0);
 }
 
-static int dispatch_value_loadplugin (const oconfig_item_t *ci)
+static int dispatch_loadplugin (const oconfig_item_t *ci)
 {
+	int i;
+	uint32_t flags = 0;
 	assert (strcasecmp (ci->key, "LoadPlugin") == 0);
 
 	if (ci->values_num != 1)
@@ -248,7 +250,19 @@ static int dispatch_value_loadplugin (const oconfig_item_t *ci)
 	if (ci->values[0].type != OCONFIG_TYPE_STRING)
 		return (-1);
 
-	return (plugin_load (ci->values[0].value.string));
+	for (i = 0; i < ci->children_num; ++i) {
+		if (ci->children[i].values_num != 1 ||
+				ci->children[i].values[0].type != OCONFIG_TYPE_BOOLEAN) {
+			WARNING("Ignoring unknown LoadPlugin option %s for plugin %s", ci->children[i].key, ci->values[0].value.string);
+			continue;
+		}
+		if (strcasecmp(ci->children[i].key, "globals") == 0) {
+			flags |= PLUGIN_FLAGS_GLOBAL;
+		} else {
+			WARNING("Ignoring unknown LoadPlugin option %s for plugin %s", ci->children[i].key, ci->values[0].value.string);
+		}
+	}
+	return (plugin_load (ci->values[0].value.string, flags));
 } /* int dispatch_value_loadplugin */
 
 static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
@@ -353,7 +367,9 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 
 static int dispatch_block (oconfig_item_t *ci)
 {
-	if (strcasecmp (ci->key, "Plugin") == 0)
+	if (strcasecmp (ci->key, "LoadPlugin") == 0)
+		return (dispatch_loadplugin (ci));
+	else if (strcasecmp (ci->key, "Plugin") == 0)
 		return (dispatch_block_plugin (ci));
 	else if (strcasecmp (ci->key, "Threshold") == 0)
 		return (ut_config (ci));

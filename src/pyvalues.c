@@ -209,13 +209,13 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 			 * Not much we can do about it */
 			num = PyNumber_Long(item);
 			if (num != NULL)
-				value[i].gauge = PyLong_AsLongLong(num);
+				value[i].derive = PyLong_AsLongLong(num);
 		} else if (ds->ds->type == DS_TYPE_ABSOLUTE) {
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item);
 			if (num != NULL)
-				value[i].gauge = PyLong_AsUnsignedLongLong(num);
+				value[i].absolute = PyLong_AsUnsignedLongLong(num);
 		} else {
 			free(value);
 			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, type);
