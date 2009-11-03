@@ -14,6 +14,10 @@
 	PyGILState_STATE gil_state;\
 	gil_state = PyGILState_Ensure();
 
+#define CPY_RETURN_FROM_THREADS \
+	PyGILState_Release(gil_state);\
+	return
+
 #define CPY_RELEASE_THREADS \
 	PyGILState_Release(gil_state);\
 }
