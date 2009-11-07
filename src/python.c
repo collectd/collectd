@@ -72,10 +72,7 @@ static int cpy_read_callback(user_data_t *data) {
 	PyObject *ret;
 
 	CPY_LOCK_THREADS
-		if (c->data == NULL)
-			ret = PyObject_CallFunctionObjArgs(c->callback, (void *) 0);
-		else
-			ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0);
+		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
 			/* FIXME */
 			PyErr_Print();
@@ -129,10 +126,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				value_list->plugin_instance, value_list->type_instance, value_list->plugin,
 				value_list->host, (double) value_list->time, value_list->interval);
 		Py_DECREF(list);
-		if (c->data == NULL)
-			ret = PyObject_CallFunctionObjArgs(c->callback, v, (void *) 0);
-		else
-			ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0);
+		ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
 			/* FIXME */
 			PyErr_Print();
@@ -349,10 +343,7 @@ static int cpy_shutdown(void) {
 		PyEval_RestoreThread(state);
 
 	for (c = cpy_shutdown_callbacks; c; c = c->next) {
-		if (c->data == NULL)
-			ret = PyObject_CallObject(c->callback, NULL); /* New reference. */
-		else
-			ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
+		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
 			PyErr_Print(); /* FIXME */
 		else
@@ -369,10 +360,7 @@ static int cpy_init(void) {
 	PyEval_InitThreads();
 	/* Now it's finally OK to use python threads. */
 	for (c = cpy_init_callbacks; c; c = c->next) {
-		if (c->data == NULL)
-			ret = PyObject_CallObject(c->callback, NULL); /* New reference. */
-		else
-			ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
+		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
 			PyErr_Print(); /* FIXME */
 		else
