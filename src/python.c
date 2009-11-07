@@ -129,7 +129,10 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				value_list->plugin_instance, value_list->type_instance, value_list->plugin,
 				value_list->host, (double) value_list->time, value_list->interval);
 		Py_DECREF(list);
-		ret = PyObject_CallFunctionObjArgs(c->callback, v, (void *) 0);
+		if (c->data == NULL)
+			ret = PyObject_CallFunctionObjArgs(c->callback, v, (void *) 0);
+		else
+			ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0);
 		if (ret == NULL) {
 			/* FIXME */
 			PyErr_Print();
