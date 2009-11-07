@@ -32,6 +32,9 @@ static void cpy_destroy_user_data(void *data) {
 	free(c);
 }
 
+/* You must hold the GIL to call this function!
+ * But if you managed to extract the callback parameter then you probably already do. */
+
 static void cpy_build_name(char *buf, size_t size, PyObject *callback, const char *name) {
 	const char *module;
 	PyObject *mod = NULL, *n = NULL;
@@ -64,9 +67,28 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 	Py_XDECREF(n);
 }
 
+static int cpy_read_callback(user_data_t *data) {
+	cpy_callback_t *c = data->data;
+	PyObject *ret;
+
+	CPY_LOCK_THREADS
+		if (c->data == NULL)
+			ret = PyObject_CallFunctionObjArgs(c->callback, (void *) 0);
+		else
+			ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0);
+		if (ret == NULL) {
+			/* FIXME */
+			PyErr_Print();
+		} else {
+			Py_DECREF(ret);
+		}
+	CPY_RELEASE_THREADS
+	return 0;
+}
+
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
 	int i;
-	cpy_callback_t * c = data->data;
+	cpy_callback_t *c = data->data;
 	PyObject *ret, *v, *list;
 
 	CPY_LOCK_THREADS
@@ -210,6 +232,39 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	return PyString_FromString(buf);
 }
 
+static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwds) {
+	char buf[512];
+	cpy_callback_t *c = NULL;
+	user_data_t *user_data = NULL;
+	double interval = 0;
+	const char *name = NULL;
+	PyObject *callback = NULL, *data = NULL;
+	struct timespec ts;
+	static char *kwlist[] = {"callback", "interval", "data", "name", NULL};
+	
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|dOz", kwlist, &callback, &interval, &data, &name) == 0) return NULL;
+	if (PyCallable_Check(callback) == 0) {
+		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
+		return NULL;
+	}
+	cpy_build_name(buf, sizeof(buf), callback, name);
+	
+	Py_INCREF(callback);
+	Py_XINCREF(data);
+	c = malloc(sizeof(*c));
+	c->name = strdup(buf);
+	c->callback = callback;
+	c->data = data;
+	c->next = NULL;
+	user_data = malloc(sizeof(*user_data));
+	user_data->free_func = cpy_destroy_user_data;
+	user_data->data = c;
+	ts.tv_sec = interval;
+	ts.tv_nsec = (interval - ts.tv_sec) * 1000000000;
+	plugin_register_complex_read(buf, cpy_read_callback, &ts, user_data);
+	return PyString_FromString(buf);
+}
+
 static PyObject *cpy_register_log(PyObject *self, PyObject *args, PyObject *kwds) {
 	return cpy_register_generic_userdata(plugin_register_log, cpy_log_callback, args, kwds);
 }
@@ -276,6 +331,7 @@ static PyMethodDef cpy_methods[] = {
 	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
+	{"register_read", (PyCFunction) cpy_register_read, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_write", (PyCFunction) cpy_register_write, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_shutdown", (PyCFunction) cpy_register_shutdown, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{0, 0, 0, 0}
