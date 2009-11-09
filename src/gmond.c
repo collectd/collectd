@@ -542,9 +542,9 @@ static int staging_entry_update (const char *host, const char *name, /* {{{ */
   else if (ds_type == DS_TYPE_GAUGE)
     se->vl.values[ds_index].gauge = value.gauge;
   else if (ds_type == DS_TYPE_DERIVE)
-    se->vl.values[ds_index].DERIVE += value.derive;
+    se->vl.values[ds_index].derive += value.derive;
   else if (ds_type == DS_TYPE_ABSOLUTE)
-    se->vl.values[ds_index].ABSOLUTE = value.absolute;
+    se->vl.values[ds_index].absolute = value.absolute;
 
   se->flags |= (0x01 << ds_index);
 

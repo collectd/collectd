@@ -136,6 +136,12 @@ typedef struct procstat_entry_s
 	unsigned long cpu_user_counter;
 	unsigned long cpu_system_counter;
 
+	/* io data */
+	long io_rchar;
+	long io_wchar;
+	long io_syscr;
+	long io_syscw;
+
 	struct procstat_entry_s *next;
 } procstat_entry_t;
 
@@ -158,6 +164,12 @@ typedef struct procstat
 
 	unsigned long cpu_user_counter;
 	unsigned long cpu_system_counter;
+
+	/* io data */
+	long io_rchar;
+	long io_wchar;
+	long io_syscr;
+	long io_syscw;
 
 	struct procstat   *next;
 	struct procstat_entry_s *instances;
@@ -328,12 +340,21 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		pse->vmem_size  = entry->vmem_size;
 		pse->vmem_rss   = entry->vmem_rss;
 		pse->stack_size = entry->stack_size;
+		pse->io_rchar   = entry->io_rchar;
+		pse->io_wchar   = entry->io_wchar;
+		pse->io_syscr   = entry->io_syscr;
+		pse->io_syscw   = entry->io_syscw;
 
 		ps->num_proc   += pse->num_proc;
 		ps->num_lwp    += pse->num_lwp;
 		ps->vmem_size  += pse->vmem_size;
 		ps->vmem_rss   += pse->vmem_rss;
 		ps->stack_size += pse->stack_size;
+
+		ps->io_rchar   += ((pse->io_rchar == -1)?0:pse->io_rchar);
+		ps->io_wchar   += ((pse->io_wchar == -1)?0:pse->io_wchar);
+		ps->io_syscr   += ((pse->io_syscr == -1)?0:pse->io_syscr);
+		ps->io_syscw   += ((pse->io_syscw == -1)?0:pse->io_syscw);
 
 		if ((entry->vmem_minflt_counter == 0)
 				&& (entry->vmem_majflt_counter == 0))
@@ -425,6 +446,10 @@ static void ps_list_reset (void)
 		ps->vmem_size   = 0;
 		ps->vmem_rss    = 0;
 		ps->stack_size  = 0;
+		ps->io_rchar = -1;
+		ps->io_wchar = -1;
+		ps->io_syscr = -1;
+		ps->io_syscw = -1;
 
 		pse_prev = NULL;
 		pse = ps->instances;
@@ -607,12 +632,33 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.values_len = 2;
 	plugin_dispatch_values (&vl);
 
+	if ( (ps->io_rchar != -1) && (ps->io_wchar != -1) )
+	{
+		sstrncpy (vl.type, "ps_disk_octets", sizeof (vl.type));
+		vl.values[0].counter = ps->io_rchar;
+		vl.values[1].counter = ps->io_wchar;
+		vl.values_len = 2;
+		plugin_dispatch_values (&vl);
+	}
+
+	if ( (ps->io_syscr != -1) && (ps->io_syscw != -1) )
+	{
+		sstrncpy (vl.type, "ps_disk_ops", sizeof (vl.type));
+		vl.values[0].counter = ps->io_syscr;
+		vl.values[1].counter = ps->io_syscw;
+		vl.values_len = 2;
+		plugin_dispatch_values (&vl);
+	}
+
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
 			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "
-			"cpu_user_counter = %lu; cpu_system_counter = %lu;",
+			"cpu_user_counter = %lu; cpu_system_counter = %lu; "
+			"io_rchar = %ld; io_wchar = %ld; "
+			"io_syscr = %ld; io_syscw = %ld;",
 			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
-		       	ps->cpu_user_counter, ps->cpu_system_counter);
+			ps->cpu_user_counter, ps->cpu_system_counter,
+			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
 } /* void ps_submit_proc_list */
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
@@ -643,6 +689,52 @@ static int ps_read_tasks (int pid)
 
 	return ((count >= 1) ? count : 1);
 } /* int *ps_read_tasks */
+
+static procstat_t *ps_read_io (int pid, procstat_t *ps)
+{
+	FILE *fh;
+	char buffer[1024];
+	char filename[64];
+
+	char *fields[8];
+	int numfields;
+
+	ssnprintf (filename, sizeof (filename), "/proc/%i/io", pid);
+	if ((fh = fopen (filename, "r")) == NULL)
+		return (NULL);
+
+	while (fgets (buffer, 1024, fh) != NULL)
+	{
+		long *val = NULL;
+
+		if (strncasecmp (buffer, "rchar:", 6) == 0)
+			val = &(ps->io_rchar);
+		else if (strncasecmp (buffer, "wchar:", 6) == 0)
+			val = &(ps->io_wchar);
+		else if (strncasecmp (buffer, "syscr:", 6) == 0)
+			val = &(ps->io_syscr);
+		else if (strncasecmp (buffer, "syscw:", 6) == 0)
+			val = &(ps->io_syscw);
+		else
+			continue;
+
+		numfields = strsplit (buffer, fields, 8);
+
+		if (numfields < 2)
+			continue;
+
+		*val = atol (fields[1]);
+	}
+
+	if (fclose (fh))
+	{
+		char errbuf[1024];
+		WARNING ("processes: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
+
+	return (ps);
+} /* procstat_t *ps_read_io */
 
 int ps_read_process (int pid, procstat_t *ps, char *state)
 {
@@ -745,6 +837,17 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	ps->vmem_size = (unsigned long) vmem_size;
 	ps->vmem_rss = (unsigned long) vmem_rss;
 	ps->stack_size = (unsigned long) stack_size;
+
+	if ( (ps_read_io (pid, ps)) == NULL)
+	{
+		/* no io data */
+		ps->io_rchar = -1;
+		ps->io_wchar = -1;
+		ps->io_syscr = -1;
+		ps->io_syscw = -1;
+
+		DEBUG("ps_read_process: not get io data for pid %i",pid);
+	}
 
 	/* success */
 	return (0);
@@ -1274,6 +1377,11 @@ static int ps_read (void)
 		pse.cpu_system = 0;
 		pse.cpu_system_counter = ps.cpu_system_counter;
 
+		pse.io_rchar = ps.io_rchar;
+		pse.io_wchar = ps.io_wchar;
+		pse.io_syscr = ps.io_syscr;
+		pse.io_syscw = ps.io_syscw;
+
 		switch (state)
 		{
 			case 'R': running++;  break;
@@ -1401,6 +1509,12 @@ static int ps_read (void)
 		pse.cpu_system_counter = procs[i].ki_rusage.ru_stime.tv_sec
 			* 1000
 			+ procs[i].ki_rusage.ru_stime.tv_usec;
+
+		/* no io data */
+		pse.io_rchar = -1;
+		pse.io_wchar = -1;
+		pse.io_syscr = -1;
+		pse.io_syscw = -1;
 
 		switch (procs[i].ki_stat)
 		{
