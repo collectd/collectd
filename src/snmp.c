@@ -879,6 +879,72 @@ static int csnmp_check_res_left_subtree (const host_definition_t *host,
   return (0);
 } /* int csnmp_check_res_left_subtree */
 
+static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
+    const struct variable_list *vb, size_t dst_size)
+{
+  char *buffer_ptr;
+  size_t buffer_free;
+  size_t i;
+
+  buffer_ptr = dst;
+  buffer_free = dst_size;
+
+  for (i = 0; i < vb->val_len; i++)
+  {
+    int status;
+
+    status = snprintf (buffer_ptr, buffer_free,
+	(i == 0) ? "%02x" : ":%02x", (unsigned int) vb->val.bitstring[i]);
+
+    if (status >= buffer_free)
+    {
+      buffer_ptr += (buffer_free - 1);
+      *buffer_ptr = 0;
+      return (dst_size + (buffer_free - status));
+    }
+    else /* if (status < buffer_free) */
+    {
+      buffer_ptr += status;
+      buffer_free -= status;
+    }
+  }
+
+  return ((int) (dst_size - buffer_free));
+} /* }}} int csnmp_strvbcopy_hexstring */
+
+static int csnmp_strvbcopy (char *dst, /* {{{ */
+    const struct variable_list *vb, size_t dst_size)
+{
+  char *src;
+  size_t num_chars;
+  size_t i;
+
+  if (vb->type == ASN_OCTET_STR)
+    src = (char *) vb->val.string;
+  else if (vb->type == ASN_BIT_STR)
+    src = (char *) vb->val.bitstring;
+  else
+  {
+    dst[0] = 0;
+    return (EINVAL);
+  }
+
+  num_chars = dst_size - 1;
+  if (num_chars > vb->val_len)
+    num_chars = vb->val_len;
+
+  for (i = 0; i < num_chars; i++)
+  {
+    /* Check for control characters. */
+    if ((src[i] >= 0) && (src[i] < 32))
+      return (csnmp_strvbcopy_hexstring (dst, vb, dst_size));
+    dst[i] = src[i];
+  }
+  dst[num_chars] = 0;
+
+  return ((int) vb->val_len);
+} /* }}} int csnmp_strvbcopy */
+
 static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     csnmp_list_instances_t **tail,
     const struct snmp_pdu *res)
@@ -907,17 +973,8 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
   {
     char *ptr;
-    size_t instance_len;
 
-    memset (il->instance, 0, sizeof (il->instance));
-    instance_len = sizeof (il->instance) - 1;
-    if (instance_len > vb->val_len)
-      instance_len = vb->val_len;
-
-    sstrncpy (il->instance, (char *) ((vb->type == ASN_OCTET_STR)
-	  ? vb->val.string
-	  : vb->val.bitstring),
-	instance_len + 1);
+    csnmp_strvbcopy (il->instance, vb, sizeof (il->instance));
 
     for (ptr = il->instance; *ptr != '\0'; ptr++)
     {
