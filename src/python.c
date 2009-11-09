@@ -1,6 +1,10 @@
 #include <Python.h>
 #include <structmember.h>
 
+#if HAVE_PTHREAD_H
+# include <pthread.h>
+#endif
+
 #include "collectd.h"
 #include "common.h"
 
@@ -12,6 +16,8 @@ typedef struct cpy_callback_s {
 	PyObject *data;
 	struct cpy_callback_s *next;
 } cpy_callback_t;
+
+static int do_interactive = 0;
 
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background
@@ -320,11 +326,11 @@ static PyObject *cpy_Debug(PyObject *self, PyObject *args) {
 }
 
 static PyMethodDef cpy_methods[] = {
-	{"Debug", cpy_Debug, METH_VARARGS, "This is an unhelpful text."},
-	{"Info", cpy_Info, METH_VARARGS, "This is an unhelpful text."},
-	{"Notice", cpy_Notice, METH_VARARGS, "This is an unhelpful text."},
-	{"Warning", cpy_Warning, METH_VARARGS, "This is an unhelpful text."},
-	{"Error", cpy_Error, METH_VARARGS, "This is an unhelpful text."},
+	{"debug", cpy_Debug, METH_VARARGS, "This is an unhelpful text."},
+	{"info", cpy_Info, METH_VARARGS, "This is an unhelpful text."},
+	{"notice", cpy_Notice, METH_VARARGS, "This is an unhelpful text."},
+	{"warning", cpy_Warning, METH_VARARGS, "This is an unhelpful text."},
+	{"error", cpy_Error, METH_VARARGS, "This is an unhelpful text."},
 	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
@@ -353,9 +359,23 @@ static int cpy_shutdown(void) {
 	return 0;
 }
 
+static void *cpy_interactive(void *data) {
+	CPY_LOCK_THREADS
+		if (PyImport_ImportModule("readline") == NULL) {
+			/* This interactive session will suck. */
+			PyErr_Print(); /* FIXME */
+		}
+		PyRun_InteractiveLoop(stdin, "<stdin>");
+	CPY_RELEASE_THREADS
+	NOTICE("python: Interactive interpreter exited, stopping collectd ...");
+	raise(SIGINT);
+	return NULL;
+}
+
 static int cpy_init(void) {
 	cpy_callback_t *c;
 	PyObject *ret;
+	static pthread_t thread;
 	
 	PyEval_InitThreads();
 	/* Now it's finally OK to use python threads. */
@@ -367,6 +387,12 @@ static int cpy_init(void) {
 			Py_DECREF(ret);
 	}
 	state = PyEval_SaveThread();
+	if (do_interactive) {
+		if (pthread_create(&thread, NULL, cpy_interactive, NULL)) {
+			ERROR("python: Error creating thread for interactive interpreter.");
+		}
+	}
+
 	return 0;
 }
 
@@ -442,7 +468,12 @@ static int cpy_config(oconfig_item_t *ci) {
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
-		if (strcasecmp(item->key, "ModulePath") == 0) {
+		if (strcasecmp(item->key, "Interactive") == 0) {
+			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN ||
+					!item->values[0].value.boolean)
+				continue;
+			do_interactive = 1;
+		} else if (strcasecmp(item->key, "ModulePath") == 0) {
 			char *dir = NULL;
 			PyObject *dir_object;
 			
