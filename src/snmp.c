@@ -724,7 +724,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
     double scale, double shift)
 {
   value_t ret;
-  uint64_t temp = 0;
+  uint64_t tmp_unsigned = 0;
+  int64_t tmp_signed = 0;
   int defined = 1;
 
   if ((vl->type == ASN_INTEGER)
@@ -735,15 +736,17 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
 #endif
       || (vl->type == ASN_GAUGE))
   {
-    temp = (uint32_t) *vl->val.integer;
-    DEBUG ("snmp plugin: Parsed int32 value is %"PRIu64".", temp);
+    tmp_unsigned = (uint32_t) *vl->val.integer;
+    tmp_signed = (int32_t) *vl->val.integer;
+    DEBUG ("snmp plugin: Parsed int32 value is %"PRIi64".", tmp_signed);
   }
   else if (vl->type == ASN_COUNTER64)
   {
-    temp = (uint32_t) vl->val.counter64->high;
-    temp = temp << 32;
-    temp += (uint32_t) vl->val.counter64->low;
-    DEBUG ("snmp plugin: Parsed int64 value is %"PRIu64".", temp);
+    tmp_unsigned = (uint32_t) vl->val.counter64->high;
+    tmp_unsigned = tmp_unsigned << 32;
+    tmp_unsigned += (uint32_t) vl->val.counter64->low;
+    tmp_signed = (int64_t) tmp_unsigned;
+    DEBUG ("snmp plugin: Parsed int64 value is %"PRIu64".", tmp_unsigned);
   }
   else if (vl->type == ASN_OCTET_STR)
   {
@@ -801,13 +804,13 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   }
   else if (type == DS_TYPE_COUNTER)
   {
-    ret.counter = temp;
+    ret.counter = tmp_unsigned;
   }
   else if (type == DS_TYPE_GAUGE)
   {
     ret.gauge = NAN;
     if (defined != 0)
-      ret.gauge = (scale * temp) + shift;
+      ret.gauge = (scale * tmp_signed) + shift;
   }
 
   return (ret);
