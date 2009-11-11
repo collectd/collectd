@@ -26,6 +26,8 @@ static int do_interactive = 0;
 
 static PyThreadState *state;
 
+static PyObject *cpy_format_exception;
+
 static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
 static cpy_callback_t *cpy_shutdown_callbacks;
@@ -73,6 +75,56 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 	Py_XDECREF(n);
 }
 
+static void cpy_log_exception(const char *context) {
+	int l = 0, i;
+	const char *typename = NULL, *message = NULL;
+	PyObject *type, *value, *traceback, *tn, *m, *list;
+	
+	PyErr_Fetch(&type, &value, &traceback);
+	PyErr_NormalizeException(&type, &value, &traceback);
+	if (type == NULL) return;
+	tn = PyObject_GetAttrString(type, "__name__"); /* New reference. */
+	m = PyObject_GetAttrString(value, "message"); /* New reference. */
+	if (tn != NULL)
+		typename = PyString_AsString(tn);
+	if (m != NULL)
+		message = PyString_AsString(m);
+	if (typename == NULL)
+		typename = "NamelessException";
+	if (message == NULL)
+		message = "N/A";
+	ERROR("Unhandled python exception in %s: %s: %s", context, typename, message);
+	Py_XDECREF(tn);
+	Py_XDECREF(m);
+	if (!cpy_format_exception) {
+		PyErr_Clear();
+		Py_XDECREF(type);
+		Py_XDECREF(value);
+		Py_XDECREF(traceback);
+		return;
+	}
+	if (!traceback) {
+		PyErr_Clear();
+		return;
+	}
+	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback);
+	if (list)
+		l = PyObject_Length(list);
+	for (i = 0; i < l; ++i) {
+		char *s;
+		PyObject *line;
+		
+		line = PyList_GET_ITEM(list, i);
+		s = strdup(PyString_AsString(line));
+		Py_DECREF(line);
+		if (s[strlen(s) - 1] == '\n')
+			s[strlen(s) - 1] = 0;
+		ERROR("%s", s);
+		free(s);
+	}
+	PyErr_Clear();
+}
+
 static int cpy_read_callback(user_data_t *data) {
 	cpy_callback_t *c = data->data;
 	PyObject *ret;
@@ -80,8 +132,7 @@ static int cpy_read_callback(user_data_t *data) {
 	CPY_LOCK_THREADS
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
-			/* FIXME */
-			PyErr_Print();
+			cpy_log_exception("read callback");
 		} else {
 			Py_DECREF(ret);
 		}
@@ -97,7 +148,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 	CPY_LOCK_THREADS
 		list = PyList_New(value_list->values_len); /* New reference. */
 		if (list == NULL) {
-			PyErr_Print();
+			cpy_log_exception("write callback");
 			CPY_RETURN_FROM_THREADS 0;
 		}
 		for (i = 0; i < value_list->values_len; ++i) {
@@ -124,7 +175,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				CPY_RETURN_FROM_THREADS 0;
 			}
 			if (PyErr_Occurred() != NULL) {
-				PyErr_Print();
+				cpy_log_exception("value building for write callback");
 				CPY_RETURN_FROM_THREADS 0;
 			}
 		}
@@ -134,8 +185,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		Py_DECREF(list);
 		ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
-			/* FIXME */
-			PyErr_Print();
+			cpy_log_exception("write callback");
 		} else {
 			Py_DECREF(ret);
 		}
@@ -155,6 +205,8 @@ static void cpy_log_callback(int severity, const char *message, user_data_t *dat
 
 	if (ret == NULL) {
 		/* FIXME */
+		/* Do we really want to trigger a log callback because a log callback failed?
+		 * Probably not. */
 		PyErr_Print();
 	} else {
 		Py_DECREF(ret);
@@ -351,7 +403,7 @@ static int cpy_shutdown(void) {
 	for (c = cpy_shutdown_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
-			PyErr_Print(); /* FIXME */
+			cpy_log_exception("shutdown callback");
 		else
 			Py_DECREF(ret);
 	}
@@ -363,7 +415,7 @@ static void *cpy_interactive(void *data) {
 	CPY_LOCK_THREADS
 		if (PyImport_ImportModule("readline") == NULL) {
 			/* This interactive session will suck. */
-			PyErr_Print(); /* FIXME */
+			cpy_log_exception("interactive session init");
 		}
 		PyRun_InteractiveLoop(stdin, "<stdin>");
 	CPY_RELEASE_THREADS
@@ -382,7 +434,7 @@ static int cpy_init(void) {
 	for (c = cpy_init_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
-			PyErr_Print(); /* FIXME */
+			cpy_log_exception("init callback");
 		else
 			Py_DECREF(ret);
 	}
@@ -429,7 +481,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 
 static int cpy_config(oconfig_item_t *ci) {
 	int i;
-	PyObject *sys;
+	PyObject *sys, *tb;
 	PyObject *sys_path;
 	PyObject *module;
 	
@@ -445,16 +497,13 @@ static int cpy_config(oconfig_item_t *ci) {
 	PyType_Ready(&ValuesType);
 	sys = PyImport_ImportModule("sys"); /* New reference. */
 	if (sys == NULL) {
-		ERROR("python module: Unable to import \"sys\" module.");
-		/* Just print the default python exception text to stderr. */
-		PyErr_Print();
+		cpy_log_exception("python initialization");
 		return 1;
 	}
 	sys_path = PyObject_GetAttrString(sys, "path"); /* New reference. */
 	Py_DECREF(sys);
 	if (sys_path == NULL) {
-		ERROR("python module: Unable to read \"sys.path\".");
-		PyErr_Print();
+		cpy_log_exception("python initialization");
 		return 1;
 	}
 	module = Py_InitModule("collectd", cpy_methods); /* Borrowed reference. */
@@ -469,10 +518,28 @@ static int cpy_config(oconfig_item_t *ci) {
 		oconfig_item_t *item = ci->children + i;
 		
 		if (strcasecmp(item->key, "Interactive") == 0) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN ||
-					!item->values[0].value.boolean)
+			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
 				continue;
-			do_interactive = 1;
+			do_interactive = item->values[0].value.boolean;
+		} else if (strcasecmp(item->key, "LogTraces") == 0) {
+			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
+				continue;
+			if (!item->values[0].value.boolean) {
+				Py_XDECREF(cpy_format_exception);
+				cpy_format_exception = NULL;
+				continue;
+			}
+			if (cpy_format_exception)
+				continue;
+			tb = PyImport_ImportModule("traceback"); /* New reference. */
+			if (tb == NULL) {
+				cpy_log_exception("python initialization");
+				continue;
+			}
+			cpy_format_exception = PyObject_GetAttrString(tb, "format_exception"); /* New reference. */
+			Py_DECREF(tb);
+			if (cpy_format_exception == NULL)
+				cpy_log_exception("python initialization");
 		} else if (strcasecmp(item->key, "ModulePath") == 0) {
 			char *dir = NULL;
 			PyObject *dir_object;
@@ -484,13 +551,13 @@ static int cpy_config(oconfig_item_t *ci) {
 				ERROR("python plugin: Unable to convert \"%s\" to "
 				      "a python object.", dir);
 				free(dir);
-				PyErr_Print();
+				cpy_log_exception("python initialization");
 				continue;
 			}
 			if (PyList_Append(sys_path, dir_object) != 0) {
 				ERROR("python plugin: Unable to append \"%s\" to "
 				      "python module path.", dir);
-				PyErr_Print();
+				cpy_log_exception("python initialization");
 			}
 			Py_DECREF(dir_object);
 			free(dir);
@@ -503,6 +570,7 @@ static int cpy_config(oconfig_item_t *ci) {
 			module = PyImport_ImportModule(module_name); /* New reference. */
 			if (module == NULL) {
 				ERROR("python plugin: Error importing module \"%s\".", module_name);
+				cpy_log_exception("python initialization");
 				PyErr_Print();
 			}
 			free(module_name);
@@ -533,7 +601,7 @@ static int cpy_config(oconfig_item_t *ci) {
 				ret = PyObject_CallFunction(c->callback, "NO",
 					cpy_oconfig_to_pyconfig(item, NULL), c->data); /* New reference. */
 			if (ret == NULL)
-				PyErr_Print();
+				cpy_log_exception("loading module");
 			else
 				Py_DECREF(ret);
 		} else {
