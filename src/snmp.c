@@ -818,9 +818,9 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       ret.gauge = (scale * tmp_signed) + shift;
   }
   else if (type == DS_TYPE_DERIVE)
-    ret.derive = (derive_t) temp;
+    ret.derive = (derive_t) tmp_signed;
   else if (type == DS_TYPE_ABSOLUTE)
-    ret.absolute = (absolute_t) temp;
+    ret.absolute = (absolute_t) tmp_unsigned;
   else
   {
     ERROR ("snmp plugin: csnmp_value_list_to_value: Unknown data source "
