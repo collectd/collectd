@@ -43,11 +43,11 @@ static void cpy_destroy_user_data(void *data) {
 /* You must hold the GIL to call this function!
  * But if you managed to extract the callback parameter then you probably already do. */
 
-static void cpy_build_name(char *buf, size_t size, PyObject *callback, const char *name) {
+static void cpy_build_name(char *buf, size_t size, PyObject *callback, const char *name, int short_name) {
 	const char *module;
 	PyObject *mod = NULL, *n = NULL;
 	
-	if (name != NULL && strchr(name, '.') != NULL) {
+	if (name != NULL && (strchr(name, '.') != NULL || short_name)) {
 		snprintf(buf, size, "python.%s", name);
 		return;
 	}
@@ -57,6 +57,13 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 		module = PyString_AsString(mod);
 	else
 		module = "collectd";
+	
+	if (short_name) {
+		snprintf(buf, size, "python.%s", module);
+		Py_XDECREF(mod);
+		return;
+	}
+	
 	if (name != NULL) {
 		snprintf(buf, size, "python.%s.%s", module, name);
 		Py_XDECREF(mod);
@@ -214,7 +221,26 @@ static void cpy_log_callback(int severity, const char *message, user_data_t *dat
 	CPY_RELEASE_THREADS
 }
 
-static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
+static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
+	cpy_callback_t * c = data->data;
+	PyObject *ret;
+
+	CPY_LOCK_THREADS
+	if (c->data == NULL)
+		ret = PyObject_CallFunction(c->callback, "is", timeout, id); /* New reference. */
+	else
+		ret = PyObject_CallFunction(c->callback, "isO", timeout, id, c->data); /* New reference. */
+
+	if (ret == NULL) {
+		cpy_log_exception("flush callback");
+	} else {
+		Py_DECREF(ret);
+	}
+	CPY_RELEASE_THREADS
+}
+
+static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args, PyObject *kwds, int short_name) {
+	char buf[512];
 	cpy_callback_t *c;
 	const char *name = NULL;
 	PyObject *callback = NULL, *data = NULL, *mod = NULL;
@@ -225,39 +251,43 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
-	if (name == NULL) {
-		mod = PyObject_GetAttrString(callback, "__module__"); /* New reference. */
-		if (mod != NULL) name = PyString_AsString(mod);
-		if (name == NULL) {
-			Py_XDECREF(mod);
-			PyErr_SetString(PyExc_ValueError, "No module name specified and "
-				"callback function does not have a \"__module__\" attribute.");
-			return NULL;
-		}
-	}
+	cpy_build_name(buf, sizeof(buf), callback, name, short_name);
+
 	Py_INCREF(callback);
 	Py_XINCREF(data);
 	c = malloc(sizeof(*c));
-	c->name = strdup(name);
+	c->name = strdup(buf);
 	c->callback = callback;
 	c->data = data;
 	c->next = *list_head;
 	*list_head = c;
 	Py_XDECREF(mod);
+	return PyString_FromString(buf);
+}
+
+static PyObject *cpy_flush(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
+	int timeout = -1;
+	const char *plugin = NULL, *identifier = NULL;
+	static char *kwlist[] = {"plugin", "timeout", "identifier", NULL};
+	
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "|ziz", kwlist, &plugin, &timeout, &identifier) == 0) return NULL;
+	Py_BEGIN_ALLOW_THREADS
+	plugin_flush(plugin, timeout, identifier);
+	Py_END_ALLOW_THREADS
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_register_config(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic(&cpy_config_callbacks, args, kwds);
+	return cpy_register_generic(&cpy_config_callbacks, args, kwds, 1);
 }
 
 static PyObject *cpy_register_init(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic(&cpy_init_callbacks, args, kwds);
+	return cpy_register_generic(&cpy_init_callbacks, args, kwds, 0);
 }
 
 typedef int reg_function_t(const char *name, void *callback, void *data);
 
-static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObject *args, PyObject *kwds) {
+static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObject *args, PyObject *kwds, int short_name) {
 	char buf[512];
 	reg_function_t *register_function = (reg_function_t *) reg;
 	cpy_callback_t *c = NULL;
@@ -271,7 +301,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
-	cpy_build_name(buf, sizeof(buf), callback, name);
+	cpy_build_name(buf, sizeof(buf), callback, name, short_name);
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
@@ -302,7 +332,7 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
-	cpy_build_name(buf, sizeof(buf), callback, name);
+	cpy_build_name(buf, sizeof(buf), callback, name, 0);
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
@@ -321,18 +351,22 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 }
 
 static PyObject *cpy_register_log(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_log, cpy_log_callback, args, kwds);
+	return cpy_register_generic_userdata(plugin_register_log, cpy_log_callback, args, kwds, 0);
 }
 
 static PyObject *cpy_register_write(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_write, cpy_write_callback, args, kwds);
+	return cpy_register_generic_userdata(plugin_register_write, cpy_write_callback, args, kwds, 0);
+}
+
+static PyObject *cpy_register_flush(PyObject *self, PyObject *args, PyObject *kwds) {
+	return cpy_register_generic_userdata(plugin_register_flush, cpy_flush_callback, args, kwds, 1);
 }
 
 static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic(&cpy_shutdown_callbacks, args, kwds);
+	return cpy_register_generic(&cpy_shutdown_callbacks, args, kwds, 0);
 }
 
-static PyObject *cpy_Error(PyObject *self, PyObject *args) {
+static PyObject *cpy_error(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
@@ -341,7 +375,7 @@ static PyObject *cpy_Error(PyObject *self, PyObject *args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject *cpy_Warning(PyObject *self, PyObject *args) {
+static PyObject *cpy_warning(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
@@ -350,7 +384,7 @@ static PyObject *cpy_Warning(PyObject *self, PyObject *args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject *cpy_Notice(PyObject *self, PyObject *args) {
+static PyObject *cpy_notice(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
@@ -359,7 +393,7 @@ static PyObject *cpy_Notice(PyObject *self, PyObject *args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject *cpy_Info(PyObject *self, PyObject *args) {
+static PyObject *cpy_info(PyObject *self, PyObject *args) {
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
@@ -368,7 +402,7 @@ static PyObject *cpy_Info(PyObject *self, PyObject *args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject *cpy_Debug(PyObject *self, PyObject *args) {
+static PyObject *cpy_debug(PyObject *self, PyObject *args) {
 #ifdef COLLECT_DEBUG
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
@@ -378,16 +412,18 @@ static PyObject *cpy_Debug(PyObject *self, PyObject *args) {
 }
 
 static PyMethodDef cpy_methods[] = {
-	{"debug", cpy_Debug, METH_VARARGS, "This is an unhelpful text."},
-	{"info", cpy_Info, METH_VARARGS, "This is an unhelpful text."},
-	{"notice", cpy_Notice, METH_VARARGS, "This is an unhelpful text."},
-	{"warning", cpy_Warning, METH_VARARGS, "This is an unhelpful text."},
-	{"error", cpy_Error, METH_VARARGS, "This is an unhelpful text."},
+	{"debug", cpy_debug, METH_VARARGS, "This is an unhelpful text."},
+	{"info", cpy_info, METH_VARARGS, "This is an unhelpful text."},
+	{"notice", cpy_notice, METH_VARARGS, "This is an unhelpful text."},
+	{"warning", cpy_warning, METH_VARARGS, "This is an unhelpful text."},
+	{"error", cpy_error, METH_VARARGS, "This is an unhelpful text."},
+	{"flush", (PyCFunction) cpy_flush, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_read", (PyCFunction) cpy_register_read, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_write", (PyCFunction) cpy_register_write, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
+	{"register_flush", (PyCFunction) cpy_register_flush, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_shutdown", (PyCFunction) cpy_register_shutdown, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{0, 0, 0, 0}
 };
@@ -583,7 +619,7 @@ static int cpy_config(oconfig_item_t *ci) {
 			if (cf_util_get_string(item, &name) != 0)
 				continue;
 			for (c = cpy_config_callbacks; c; c = c->next) {
-				if (strcasecmp(c->name, name) == 0)
+				if (strcasecmp(c->name + 7, name) == 0)
 					break;
 			}
 			if (c == NULL) {
