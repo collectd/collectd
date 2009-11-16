@@ -284,7 +284,6 @@ int plugin_unregister_config (const char *name);
 int plugin_unregister_complex_config (const char *name);
 int plugin_unregister_init (const char *name);
 int plugin_unregister_read (const char *name);
-int plugin_unregister_complex_read (const char *name, void **user_data);
 int plugin_unregister_write (const char *name);
 int plugin_unregister_flush (const char *name);
 int plugin_unregister_shutdown (const char *name);
