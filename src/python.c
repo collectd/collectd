@@ -597,7 +597,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 		return NULL;
 	children = PyTuple_New(ci->children_num); /* New reference. */
 	for (i = 0; i < ci->children_num; ++i) {
-			PyTuple_SET_ITEM(children, i, cpy_oconfig_to_pyconfig(ci->children + i, item));
+		PyTuple_SET_ITEM(children, i, cpy_oconfig_to_pyconfig(ci->children + i, item));
 	}
 	tmp = ((Config *) item)->children;
 	((Config *) item)->children = children;

@@ -6,6 +6,29 @@
 
 #include "cpython.h"
 
+static const char Config_doc[] = "This represents a piece of collectd's config file.\n"
+		"It is passed to scripts with config callbacks (see \"register_config\")\n"
+		"and is of little use if created somewhere else.\n"
+		"\n"
+		"It has no methods beyond the bare minimum and only exists for its\n"
+		"data members";
+
+static char parent_doc[] = "This represents the parent of this node. On the root node\n"
+		"of the config tree it will be None.\n";
+
+static char key_doc[] = "This is the keyword of this item, ie the first word of any\n"
+		"given line in the config file. It will always be a string.\n";
+
+static char values_doc[] = "This is a tuple (which might be empty) of all value, ie words\n"
+		"following the keyword in any given line in the config file.\n"
+		"\n"
+		"Every item in this tuple will be either a string or a float or a bool,\n"
+		"depending on the contents of the configuration file.\n";
+
+static char children_doc[] = "This is a tuple of child nodes. For most nodes this will be\n"
+		"empty. If this node represents a block instead of a single line of the config\n"
+		"file it will contain all nodes in this block.\n";
+
 static PyObject *Config_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 	Config *self;
 	
@@ -92,10 +115,10 @@ static void Config_dealloc(PyObject *self) {
 }
 
 static PyMemberDef Config_members[] = {
-	{"Parent", T_OBJECT, offsetof(Config, parent), 0, "Parent node"},
-	{"Key", T_OBJECT_EX, offsetof(Config, key), 0, "Keyword of this node"},
-	{"Values", T_OBJECT_EX, offsetof(Config, values), 0, "Values after the key"},
-	{"Children", T_OBJECT_EX, offsetof(Config, children), 0, "Childnodes of this node"},
+	{"parent", T_OBJECT, offsetof(Config, parent), 0, parent_doc},
+	{"key", T_OBJECT_EX, offsetof(Config, key), 0, key_doc},
+	{"values", T_OBJECT_EX, offsetof(Config, values), 0, values_doc},
+	{"children", T_OBJECT_EX, offsetof(Config, children), 0, children_doc},
 	{NULL}
 };
 
@@ -121,7 +144,7 @@ PyTypeObject ConfigType = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
-	"Cool help text later",    /* tp_doc */
+	Config_doc,                /* tp_doc */
 	Config_traverse,           /* tp_traverse */
 	Config_clear,              /* tp_clear */
 	0,                         /* tp_richcompare */
