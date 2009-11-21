@@ -166,7 +166,7 @@ static int read_file (const char *path)
     if (key_fields_num != value_fields_num)
     {
       ERROR ("protocols plugin: Number of fields in keys and values lines "
-          "dont match: %i vs %i.",
+          "don't match: %i vs %i.",
           key_fields_num, value_fields_num);
       break;
     }
