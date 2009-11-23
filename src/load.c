@@ -1,6 +1,7 @@
 /**
  * collectd - src/load.c
  * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Manuel Sanmartin
  **/
 
 #define _BSD_SOURCE
@@ -40,6 +42,12 @@
 #define LOADAVG_15MIN 2
 #endif
 #endif /* defined(HAVE_GETLOADAVG) */
+
+#ifdef HAVE_PERFSTAT
+# include <sys/proc.h> /* AIX 5 */
+# include <sys/protosw.h>
+# include <libperfstat.h>
+#endif /* HAVE_PERFSTAT */
 
 static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
@@ -131,6 +139,25 @@ static int load_read (void)
 
 	load_submit (snum, mnum, lnum);
 /* #endif HAVE_LIBSTATGRAB */
+
+#elif HAVE_PERFSTAT
+	gauge_t snum, mnum, lnum;
+	perfstat_cpu_total_t cputotal;
+
+	if (perfstat_cpu_total(NULL,  &cputotal, sizeof(perfstat_cpu_total_t), 1) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("load: perfstat_cpu : %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	snum = (float)cputotal.loadavg[0]/(float)(1<<SBITS);
+	mnum = (float)cputotal.loadavg[1]/(float)(1<<SBITS);
+	lnum = (float)cputotal.loadavg[2]/(float)(1<<SBITS);
+
+	load_submit (snum, mnum, lnum);
+/* #endif HAVE_PERFSTAT */
 
 #else
 # error "No applicable input method."
