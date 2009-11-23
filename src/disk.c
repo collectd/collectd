@@ -1,6 +1,7 @@
 /**
  * collectd - src/disk.c
  * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Manuel Sanmartin
  **/
 
 #include "collectd.h"
@@ -63,6 +65,14 @@
 # include <statgrab.h>
 #endif
 
+#if HAVE_PERFSTAT
+# ifndef _AIXVERSION_610
+# include <sys/systemcfg.h>
+# endif
+# include <sys/protosw.h>
+# include <libperfstat.h>
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
@@ -104,6 +114,12 @@ static int numdisk = 0;
 
 #elif defined(HAVE_LIBSTATGRAB)
 /* #endif HAVE_LIBKSTATGRAB */
+
+#elif HAVE_PERFSTAT
+static perfstat_disk_t * stat_disk;
+static int numdisk;
+static int pnumdisk;
+/* #endif HAVE_PERFSTAT */
 
 #else
 # error "No applicable input method."
@@ -681,7 +697,60 @@ static int disk_read (void)
 		disk_submit (name, "disk_octets", ds->read_bytes, ds->write_bytes);
 		ds++;
 	}
-#endif /* defined(HAVE_LIBSTATGRAB) */
+/* #endif defined(HAVE_LIBSTATGRAB) */
+
+#elif defined(HAVE_PERFSTAT)
+	counter_t read_sectors;
+	counter_t write_sectors;
+	counter_t read_time;
+	counter_t write_time;
+	counter_t read_ops;
+	counter_t write_ops;
+	perfstat_id_t firstpath;
+	int rnumdisk;
+	int i;
+
+	if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0) 
+	{
+		char errbuf[1024];
+		WARNING ("disk plugin: perfstat_disk: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	if (numdisk != pnumdisk || stat_disk==NULL) {
+		if (stat_disk!=NULL) 
+			free(stat_disk);
+		stat_disk = (perfstat_disk_t *)calloc(numdisk, sizeof(perfstat_disk_t));
+	} 
+	pnumdisk = numdisk;
+
+	firstpath.name[0]='\0';
+	if ((rnumdisk = perfstat_disk(&firstpath, stat_disk, sizeof(perfstat_disk_t), numdisk)) < 0) 
+	{
+		char errbuf[1024];
+		WARNING ("disk plugin: perfstat_disk : %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	for (i = 0; i < rnumdisk; i++) 
+	{
+		read_sectors = stat_disk[i].rblks*stat_disk[i].bsize;
+		write_sectors = stat_disk[i].wblks*stat_disk[i].bsize;
+		disk_submit (stat_disk[i].name, "disk_octets", read_sectors, write_sectors);
+
+		read_ops = stat_disk[i].xrate;
+		write_ops = stat_disk[i].xfers - stat_disk[i].xrate;
+		disk_submit (stat_disk[i].name, "disk_ops", read_ops, write_ops);
+
+		read_time = stat_disk[i].rserv;
+		read_time *= ((double)(_system_configuration.Xint)/(double)(_system_configuration.Xfrac)) / 1000000.0;
+		write_time = stat_disk[i].wserv;
+		write_time *= ((double)(_system_configuration.Xint)/(double)(_system_configuration.Xfrac)) / 1000000.0;
+		disk_submit (stat_disk[i].name, "disk_time", read_time, write_time);
+	}
+#endif /* defined(HAVE_PERFSTAT) */
 
 	return (0);
 } /* int disk_read */
