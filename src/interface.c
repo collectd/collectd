@@ -1,6 +1,7 @@
 /**
  * collectd - src/interface.c
  * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,7 @@
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
  *   Sune Marcher <sm at flork.dk>
+ *   Manuel Sanmartin
  **/
 
 #include "collectd.h"
@@ -51,6 +53,11 @@
 # include <statgrab.h>
 #endif
 
+#if HAVE_PERFSTAT
+# include <sys/protosw.h>
+# include <libperfstat.h>
+#endif
+
 /*
  * Various people have reported problems with `getifaddrs' and varying versions
  * of `glibc'. That's why it's disabled by default. Since more statistics are
@@ -63,7 +70,13 @@
 # endif /* !COLLECT_GETIFADDRS */
 #endif /* KERNEL_LINUX */
 
-#if !HAVE_GETIFADDRS && !KERNEL_LINUX && !HAVE_LIBKSTAT && !HAVE_LIBSTATGRAB
+#if HAVE_PERFSTAT
+static perfstat_netinterface_t *ifstat;
+static int nif;
+static int pnif;
+#endif /* HAVE_PERFSTAT */
+
+#if !HAVE_GETIFADDRS && !KERNEL_LINUX && !HAVE_LIBKSTAT && !HAVE_LIBSTATGRAB && !HAVE_PERFSTAT
 # error "No applicable input method."
 #endif
 
@@ -308,7 +321,44 @@ static int interface_read (void)
 
 	for (i = 0; i < num; i++)
 		if_submit (ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
+
+#elif defined(HAVE_PERFSTAT)
+	perfstat_id_t id;
+	int i, ifs;
+
+	if ((nif =  perfstat_netinterface(NULL, NULL, sizeof(perfstat_netinterface_t), 0)) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("interface plugin: perfstat_netinterface: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	if (pnif != nif || ifstat == NULL)
+	{
+		if (ifstat != NULL)
+			free(ifstat);
+		ifstat = malloc(nif * sizeof(perfstat_netinterface_t));
+	}
+	pnif = nif;
+
+	id.name[0]='\0';
+	if ((ifs = perfstat_netinterface(&id, ifstat, sizeof(perfstat_netinterface_t), nif)) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("interface plugin: perfstat_netinterface (interfaces=%d): %s",
+			nif, sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	for (i = 0; i < ifs; i++)
+	{
+		if_submit (ifstat[i].name, "if_octets", ifstat[i].ibytes, ifstat[i].obytes);
+		if_submit (ifstat[i].name, "if_packets", ifstat[i].ipackets ,ifstat[i].opackets);
+		if_submit (ifstat[i].name, "if_errors", ifstat[i].ierrors, ifstat[i].oerrors );
+	}
+#endif /* HAVE_PERFSTAT */
 
 	return (0);
 } /* int interface_read */
