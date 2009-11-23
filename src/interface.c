@@ -222,7 +222,7 @@ static int interface_read (void)
 	char buffer[1024];
 	unsigned long long incoming, outgoing;
 	char *device;
-	
+
 	char *dummy;
 	char *fields[16];
 	int numfields;
@@ -248,7 +248,7 @@ static int interface_read (void)
 
 		if (device[0] == '\0')
 			continue;
-		
+
 		numfields = strsplit (dummy, fields, 16);
 
 		if (numfields < 11)

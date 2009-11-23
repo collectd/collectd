@@ -173,7 +173,7 @@ static int swap_read (void)
 #if KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
-	
+
 	char *fields[8];
 	int numfields;
 

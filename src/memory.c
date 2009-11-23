@@ -250,7 +250,7 @@ static int memory_read (void)
 #elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
-	
+
 	char *fields[8];
 	int numfields;
 

@@ -148,7 +148,7 @@ static int disk_init (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H
 	kern_return_t status;
-	
+
 	if (io_master_port != MACH_PORT_NULL)
 	{
 		mach_port_deallocate (mach_task_self (),

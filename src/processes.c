@@ -243,7 +243,7 @@ static void ps_list_register (const char *name, const char *regexp)
 		return;
 	}
 #endif
-	
+
 	for (ptr = list_head_g; ptr != NULL; ptr = ptr->next)
 	{
 		if (strcmp (ptr->name, name) == 0)
@@ -319,13 +319,13 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		if ((pse == NULL) || (pse->id != entry->id))
 		{
 			procstat_entry_t *new;
-			
+
 			new = (procstat_entry_t *) malloc (sizeof (procstat_entry_t));
 			if (new == NULL)
 				return;
 			memset (new, 0, sizeof (procstat_entry_t));
 			new->id = entry->id;
-			
+
 			if (pse == NULL)
 				ps->instances = new;
 			else
@@ -377,7 +377,7 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 				pse->vmem_minflt = entry->vmem_minflt_counter - pse->vmem_minflt_counter;
 			}
 			pse->vmem_minflt_counter = entry->vmem_minflt_counter;
-			
+
 			if (entry->vmem_majflt_counter < pse->vmem_majflt_counter)
 			{
 				pse->vmem_majflt = entry->vmem_majflt_counter
@@ -414,7 +414,7 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 				pse->cpu_user = entry->cpu_user_counter - pse->cpu_user_counter;
 			}
 			pse->cpu_user_counter = entry->cpu_user_counter;
-			
+
 			if (entry->cpu_system_counter < pse->cpu_system_counter)
 			{
 				pse->cpu_system = entry->cpu_system_counter
