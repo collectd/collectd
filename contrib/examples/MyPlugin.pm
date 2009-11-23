@@ -40,7 +40,7 @@ my $dataset =
 # This code is executed after loading the plugin to register it with collectd.
 plugin_register (TYPE_LOG, 'myplugin', 'my_log');
 plugin_register (TYPE_NOTIF, 'myplugin', 'my_notify');
-plugin_register (TYPE_DATASET, 'myplugin', $dataset);
+plugin_register (TYPE_DATASET, 'mytype', $dataset);
 plugin_register (TYPE_INIT, 'myplugin', 'my_init');
 plugin_register (TYPE_READ, 'myplugin', 'my_read');
 plugin_register (TYPE_WRITE, 'myplugin', 'my_write');
@@ -68,16 +68,17 @@ sub my_read
 
 	# do the magic to read the data:
 	# the number of values has to match the number of data sources defined in
-	# the registered data set
+	# the registered data set. The type used here (in this example:
+	# "mytype") must be defined in the types.db, see types.db(5) for
+	# details, or registered as "TYPE_DATASET".
 	$vl->{'values'} = [ rand(65535) ];
 	$vl->{'plugin'} = 'myplugin';
+	$vl->{'type'}   = 'mytype';
 	# any other elements are optional
 
 	# dispatch the values to collectd which passes them on to all registered
-	# write functions - the first argument is used to lookup the data set
-	# definition (it is strongly recommended to use a type defined in the
-	# types.db file)
-	plugin_dispatch_values ('myplugin', $vl);
+	# write functions
+	plugin_dispatch_values ($vl);
 
 	# A false return value indicates an error and the plugin will be skipped
 	# for an increasing amount of time.
