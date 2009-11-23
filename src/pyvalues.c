@@ -6,16 +6,40 @@
 
 #include "cpython.h"
 
-static PyObject *Values_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-	Values *self;
+static char time_doc[] = "This is the Unix timestap of the time this value was read.\n"
+		"For dispatching values this can be set to 0 which means \"now\".\n"
+		"This means the time the value is actually dispatched, not the time\n"
+		"it was set to 0.";
+
+static char host_doc[] = "The hostname of the host this value was read from.\n"
+		"For dispatching this can be set to an empty string which means\n"
+		"the local hostname as defined in the collectd.conf.";
+
+static char type_doc[] = "The type of this value. This type has to be defined\n"
+		"in your types.db. Attempting to set it to any other value will\n"
+		"raise a TypeError exception.\n"
+		"Assigning a type is mandetory, calling dispatch without doing\n"
+		"so will raise a RuntimeError exception.";
+
+static char type_instance_doc[] = "";
+
+static char plugin_doc[] = "The name of the plugin that read the data. Setting this\n"
+		"member to an empty string will insert \"python\" upon dispatching.";
+
+static char plugin_instance_doc[] = "";
+
+static char PluginData_doc[] = "This is an internal class that is the base for Values\n"
+		"and Notification. It is pretty useless by itself and was therefore not\n"
+		"not exported to the collectd module.";
+
+static PyObject *PluginData_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+	PluginData *self;
 	
-	self = (Values *) type->tp_alloc(type, 0);
+	self = (PluginData *) type->tp_alloc(type, 0);
 	if (self == NULL)
 		return NULL;
 	
-	self->values = PyList_New(0);
 	self->time = 0;
-	self->interval = 0;
 	self->host[0] = 0;
 	self->plugin[0] = 0;
 	self->plugin_instance[0] = 0;
@@ -24,18 +48,15 @@ static PyObject *Values_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 	return (PyObject *) self;
 }
 
-static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
-	Values *self = (Values *) s;
-	int interval = 0;
+static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
+	PluginData *self = (PluginData *) s;
 	double time = 0;
-	PyObject *values = NULL, *tmp;
 	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
-	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
-			"plugin", "host", "time", "interval", NULL};
+	static char *kwlist[] = {"type", "plugin_instance", "type_instance",
+			"plugin", "host", "time", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOssssdi", kwlist,
-			&type, &values, &plugin_instance, &type_instance,
-			&plugin, &host, &time, &interval))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sssssd", kwlist, &type,
+			&plugin_instance, &type_instance, &plugin, &host, &time))
 		return -1;
 	
 	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
@@ -43,17 +64,6 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 		return -1;
 	}
 
-	if (values == NULL) {
-		values = PyList_New(0);
-		PyErr_Clear();
-	} else {
-		Py_INCREF(values);
-	}
-	
-	tmp = self->values;
-	self->values = values;
-	Py_XDECREF(tmp);
-	
 	sstrncpy(self->host, host, sizeof(self->host));
 	sstrncpy(self->plugin, plugin, sizeof(self->plugin));
 	sstrncpy(self->plugin_instance, plugin_instance, sizeof(self->plugin_instance));
@@ -61,62 +71,32 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	sstrncpy(self->type_instance, type_instance, sizeof(self->type_instance));
 	
 	self->time = time;
-	self->interval = interval;
 	return 0;
 }
 
-static PyObject *Values_repr(PyObject *s) {
-	PyObject *ret, *valuestring = NULL;
-	Values *self = (Values *) s;
+static PyObject *PluginData_repr(PyObject *s) {
+	PluginData *self = (PluginData *) s;
 	
-	if (self->values != NULL)
-		valuestring = PyObject_Repr(self->values);
-	if (valuestring == NULL)
-		return NULL;
-	
-	ret = PyString_FromFormat("collectd.Values(type='%s%s%s%s%s%s%s%s%s',time=%lu,interval=%i,values=%s)", self->type,
+	return PyString_FromFormat("collectd.Values(type='%s%s%s%s%s%s%s%s%s',time=%lu)", self->type,
 			*self->type_instance ? "',type_instance='" : "", self->type_instance,
 			*self->plugin ? "',plugin='" : "", self->plugin,
 			*self->plugin_instance ? "',plugin_instance='" : "", self->plugin_instance,
 			*self->host ? "',host='" : "", self->host,
-			(long unsigned) self->time, self->interval,
-			valuestring ? PyString_AsString(valuestring) : "[]");
-	Py_XDECREF(valuestring);
-	return ret;
+			(long unsigned) self->time);
 }
 
-static int Values_traverse(PyObject *self, visitproc visit, void *arg) {
-	Values *v = (Values *) self;
-	Py_VISIT(v->values);
-	return 0;
-}
-
-static int Values_clear(PyObject *self) {
-	Values *v = (Values *) self;
-	Py_CLEAR(v->values);
-	return 0;
-}
-
-static void Values_dealloc(PyObject *self) {
-	Values_clear(self);
-	self->ob_type->tp_free(self);
-}
-
-static PyMemberDef Values_members[] = {
-	{"time", T_DOUBLE, offsetof(Values, time), 0, "Parent node"},
-	{"interval", T_INT, offsetof(Values, interval), 0, "Keyword of this node"},
-	{"values", T_OBJECT_EX, offsetof(Values, values), 0, "Values after the key"},
-//	{"Children", T_OBJECT_EX, offsetof(Config, children), 0, "Childnodes of this node"},
+static PyMemberDef PluginData_members[] = {
+	{"time", T_DOUBLE, offsetof(PluginData, time), 0, time_doc},
 	{NULL}
 };
 
-static PyObject *Values_getstring(PyObject *self, void *data) {
+static PyObject *PluginData_getstring(PyObject *self, void *data) {
 	const char *value = ((char *) self) + (int) data;
 	
 	return PyString_FromString(value);
 }
 
-static int Values_setstring(PyObject *self, PyObject *value, void *data) {
+static int PluginData_setstring(PyObject *self, PyObject *value, void *data) {
 	char *old;
 	const char *new;
 	
@@ -131,7 +111,7 @@ static int Values_setstring(PyObject *self, PyObject *value, void *data) {
 	return 0;
 }
 
-static int Values_settype(PyObject *self, PyObject *value, void *data) {
+static int PluginData_settype(PyObject *self, PyObject *value, void *data) {
 	char *old;
 	const char *new;
 	
@@ -152,6 +132,137 @@ static int Values_settype(PyObject *self, PyObject *value, void *data) {
 	return 0;
 }
 
+static PyGetSetDef PluginData_getseters[] = {
+	{"host", PluginData_getstring, PluginData_setstring, host_doc, (void *) offsetof(PluginData, host)},
+	{"plugin", PluginData_getstring, PluginData_setstring, plugin_doc, (void *) offsetof(PluginData, plugin)},
+	{"plugin_instance", PluginData_getstring, PluginData_setstring, plugin_instance_doc, (void *) offsetof(PluginData, plugin_instance)},
+	{"type_instance", PluginData_getstring, PluginData_setstring, type_instance_doc, (void *) offsetof(PluginData, type_instance)},
+	{"type", PluginData_getstring, PluginData_settype, type_doc, (void *) offsetof(PluginData, type)},
+	{NULL}
+};
+
+PyTypeObject PluginDataType = {
+	PyObject_HEAD_INIT(NULL)
+	0,                         /* Always 0 */
+	"collectd.PluginData",     /* tp_name */
+	sizeof(PluginData),        /* tp_basicsize */
+	0,                         /* Will be filled in later */
+	0,                         /* tp_dealloc */
+	0,                         /* tp_print */
+	0,                         /* tp_getattr */
+	0,                         /* tp_setattr */
+	0,                         /* tp_compare */
+	PluginData_repr,           /* tp_repr */
+	0,                         /* tp_as_number */
+	0,                         /* tp_as_sequence */
+	0,                         /* tp_as_mapping */
+	0,                         /* tp_hash */
+	0,                         /* tp_call */
+	0,                         /* tp_str */
+	0,                         /* tp_getattro */
+	0,                         /* tp_setattro */
+	0,                         /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE /*| Py_TPFLAGS_HAVE_GC*/, /*tp_flags*/
+	PluginData_doc        ,    /* tp_doc */
+	0,                         /* tp_traverse */
+	0,                         /* tp_clear */
+	0,                         /* tp_richcompare */
+	0,                         /* tp_weaklistoffset */
+	0,                         /* tp_iter */
+	0,                         /* tp_iternext */
+	0,                         /* tp_methods */
+	PluginData_members,        /* tp_members */
+	PluginData_getseters,      /* tp_getset */
+	0,                         /* tp_base */
+	0,                         /* tp_dict */
+	0,                         /* tp_descr_get */
+	0,                         /* tp_descr_set */
+	0,                         /* tp_dictoffset */
+	PluginData_init,           /* tp_init */
+	0,                         /* tp_alloc */
+	PluginData_new             /* tp_new */
+};
+
+static char interval_doc[] = "The interval is the timespan in seconds between two submits for\n"
+		"the same data source. This value has to be a positive integer, so you can't\n"
+		"submit more than one value per second. If this member is set to a\n"
+		"non-positive value, the default value as specified in the config file will\n"
+		"be used (default: 10).\n"
+		"\n"
+		"If you submit values more often than the specified interval, the average\n"
+		"will be used. If you submit less values, your graphes will have gaps.";
+
+static char values_doc[] = "These are the actual values that get dispatched to collectd.\n"
+		"It has to be a sequence (a tuple or list) of numbers.\n"
+		"The size of the sequence and the type of its content depend on the type\n"
+		"member your types.db file. For more information on this read the types.db\n"
+		"man page.\n"
+		"\n"
+		"If the sequence does not have the correct size upon dispatch a RuntimeError\n"
+		"exception will be raised. If the content of the sequence is not a number,\n"
+		"a TypeError exception will be raised.";
+
+static char dispatch_doc[] = "dispatch([type][, values][, plugin_instance][, type_instance]"
+		"[, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.\n"
+		"\n"
+		"Dispatch this instance to the collectd process. A values object a members\n"
+		"for each of the possible arguments for this method. For a detailed explanation\n"
+		"of these parameters see the member of the same same.\n"
+		"\n"
+		"If you do not submit a parameter the value saved in its member will be submitted.\n"
+		"If you do provide a parameter it will be used instead, without altering the member.";
+
+static char Values_doc[] = "A Values object used for dispatching values to collectd and receiving values from write callbacks.";
+
+static PyObject *Values_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+	Values *self;
+	
+	self = (Values *) PluginData_new(type, args, kwds);
+	if (self == NULL)
+		return NULL;
+	
+	self->values = PyList_New(0);
+	self->interval = 0;
+	return (PyObject *) self;
+}
+
+static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
+	Values *self = (Values *) s;
+	int interval = 0, ret;
+	double time = 0;
+	PyObject *values = NULL, *tmp;
+	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
+	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
+			"plugin", "host", "time", "interval", NULL};
+	
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOssssdi", kwlist,
+			&type, &values, &plugin_instance, &type_instance,
+			&plugin, &host, &time, &interval))
+		return -1;
+	
+	tmp = Py_BuildValue("sssssd", type, plugin_instance, type_instance, plugin, host, time);
+	if (tmp == NULL)
+		return -1;
+	ret = PluginDataType.tp_init(s, tmp, NULL);
+	Py_DECREF(tmp);
+	if (ret != 0)
+		return -1;
+	
+	if (values == NULL) {
+		values = PyList_New(0);
+		PyErr_Clear();
+	} else {
+		Py_INCREF(values);
+	}
+	
+	tmp = self->values;
+	self->values = values;
+	Py_XDECREF(tmp);
+	
+	self->interval = interval;
+	return 0;
+}
+
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	int i, ret;
 	const data_set_t *ds;
@@ -159,13 +270,13 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values;
-	double time = self->time;
+	double time = self->data.time;
 	int interval = self->interval;
-	const char *host = self->host;
-	const char *plugin = self->plugin;
-	const char *plugin_instance = self->plugin_instance;
-	const char *type = self->type;
-	const char *type_instance = self->type_instance;
+	const char *host = self->data.host;
+	const char *plugin = self->data.plugin;
+	const char *plugin_instance = self->data.plugin_instance;
+	const char *type = self->data.type;
+	const char *type_instance = self->data.type_instance;
 	
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", NULL};
@@ -251,17 +362,51 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	Py_RETURN_NONE;
 }
 
-static PyGetSetDef Values_getseters[] = {
-	{"host", Values_getstring, Values_setstring, "help text", (void *) offsetof(Values, host)},
-	{"plugin", Values_getstring, Values_setstring, "help text", (void *) offsetof(Values, plugin)},
-	{"plugin_instance", Values_getstring, Values_setstring, "help text", (void *) offsetof(Values, plugin_instance)},
-	{"type_instance", Values_getstring, Values_setstring, "help text", (void *) offsetof(Values, type_instance)},
-	{"type", Values_getstring, Values_settype, "help text", (void *) offsetof(Values, type)},
+static PyObject *Values_repr(PyObject *s) {
+	PyObject *ret, *valuestring = NULL;
+	Values *self = (Values *) s;
+	
+	if (self->values != NULL)
+		valuestring = PyObject_Repr(self->values);
+	if (valuestring == NULL)
+		return NULL;
+	
+	ret = PyString_FromFormat("collectd.Values(type='%s%s%s%s%s%s%s%s%s',time=%lu,interval=%i,values=%s)", self->data.type,
+			*self->data.type_instance ? "',type_instance='" : "", self->data.type_instance,
+			*self->data.plugin ? "',plugin='" : "", self->data.plugin,
+			*self->data.plugin_instance ? "',plugin_instance='" : "", self->data.plugin_instance,
+			*self->data.host ? "',host='" : "", self->data.host,
+			(long unsigned) self->data.time, self->interval,
+			valuestring ? PyString_AsString(valuestring) : "[]");
+	Py_XDECREF(valuestring);
+	return ret;
+}
+
+static int Values_traverse(PyObject *self, visitproc visit, void *arg) {
+	Values *v = (Values *) self;
+	Py_VISIT(v->values);
+	return 0;
+}
+
+static int Values_clear(PyObject *self) {
+	Values *v = (Values *) self;
+	Py_CLEAR(v->values);
+	return 0;
+}
+
+static void Values_dealloc(PyObject *self) {
+	Values_clear(self);
+	self->ob_type->tp_free(self);
+}
+
+static PyMemberDef Values_members[] = {
+	{"interval", T_INT, offsetof(Values, interval), 0, interval_doc},
+	{"values", T_OBJECT_EX, offsetof(Values, values), 0, values_doc},
 	{NULL}
 };
 
 static PyMethodDef Values_methods[] = {
-	{"dispatch", (PyCFunction) Values_dispatch, METH_VARARGS | METH_KEYWORDS, "help text"},
+	{"dispatch", (PyCFunction) Values_dispatch, METH_VARARGS | METH_KEYWORDS, dispatch_doc},
 	{NULL}
 };
 
@@ -287,7 +432,7 @@ PyTypeObject ValuesType = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
-	"Cool help text later",    /* tp_doc */
+	Values_doc,                /* tp_doc */
 	Values_traverse,           /* tp_traverse */
 	Values_clear,              /* tp_clear */
 	0,                         /* tp_richcompare */
@@ -296,7 +441,7 @@ PyTypeObject ValuesType = {
 	0,                         /* tp_iternext */
 	Values_methods,            /* tp_methods */
 	Values_members,            /* tp_members */
-	Values_getseters,          /* tp_getset */
+	0,                         /* tp_getset */
 	0,                         /* tp_base */
 	0,                         /* tp_dict */
 	0,                         /* tp_descr_get */
@@ -306,4 +451,3 @@ PyTypeObject ValuesType = {
 	0,                         /* tp_alloc */
 	Values_new                 /* tp_new */
 };
-

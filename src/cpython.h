@@ -55,14 +55,20 @@ PyTypeObject ConfigType;
 
 typedef struct {
 	PyObject_HEAD        /* No semicolon! */
-	PyObject *values;    /* Sequence */
 	double time;
-	int interval;
 	char host[DATA_MAX_NAME_LEN];
 	char plugin[DATA_MAX_NAME_LEN];
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	char type[DATA_MAX_NAME_LEN];
 	char type_instance[DATA_MAX_NAME_LEN];
+} PluginData;
+
+PyTypeObject PluginDataType;
+
+typedef struct {
+	PluginData data;
+	PyObject *values;    /* Sequence */
+	int interval;
 } Values;
 
 PyTypeObject ValuesType;

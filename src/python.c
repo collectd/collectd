@@ -620,6 +620,8 @@ static int cpy_config(oconfig_item_t *ci) {
 	Py_Initialize();
 	
 	PyType_Ready(&ConfigType);
+	PyType_Ready(&PluginDataType);
+	ValuesType.tp_base = &PluginDataType;
 	PyType_Ready(&ValuesType);
 	sys = PyImport_ImportModule("sys"); /* New reference. */
 	if (sys == NULL) {
