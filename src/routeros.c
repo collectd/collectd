@@ -81,6 +81,69 @@ static int handle_interface (__attribute__((unused)) ros_connection_t *c, /* {{{
   return (0);
 } /* }}} int handle_interface */
 
+static void cr_submit_gauge (const char *type, /* {{{ */
+    const char *type_instance, gauge_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = value;
+
+	vl.values = values;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "routeros", sizeof (vl.plugin));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+} /* }}} void cr_submit_gauge */
+
+static void submit_regtable (const ros_registration_table_t *r) /* {{{ */
+{
+  char type_instance[DATA_MAX_NAME_LEN];
+
+  if (r == NULL)
+    return;
+
+  /*** RX ***/
+  ssnprintf (type_instance, sizeof (type_instance), "%s-%s-rx",
+      r->interface, r->radio_name);
+  cr_submit_gauge ("bitrate", type_instance,
+      (gauge_t) (1000000.0 * r->rx_rate));
+  cr_submit_gauge ("signal_power", type_instance,
+      (gauge_t) r->rx_signal_strength);
+  cr_submit_gauge ("signal_quality", type_instance,
+      (gauge_t) r->rx_ccq);
+
+  /*** TX ***/
+  ssnprintf (type_instance, sizeof (type_instance), "%s-%s-tx",
+      r->interface, r->radio_name);
+  cr_submit_gauge ("bitrate", type_instance,
+      (gauge_t) (1000000.0 * r->tx_rate));
+  cr_submit_gauge ("signal_power", type_instance,
+      (gauge_t) r->tx_signal_strength);
+  cr_submit_gauge ("signal_quality", type_instance,
+      (gauge_t) r->tx_ccq);
+
+  /*** RX / TX ***/
+  ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
+      r->interface, r->radio_name);
+  cr_submit_io ("if_octets", type_instance,
+      (counter_t) r->rx_bytes, (counter_t) r->tx_bytes);
+  cr_submit_gauge ("snr", type_instance, (gauge_t) r->signal_to_noise);
+
+  submit_regtable (r->next);
+} /* }}} void submit_regtable */
+
+static int handle_regtable (__attribute__((unused)) ros_connection_t *c, /* {{{ */
+    const ros_registration_table_t *r,
+    __attribute__((unused)) void *user_data)
+{
+  submit_regtable (r);
+  return (0);
+} /* }}} int handle_regtable */
+
 static int cr_read (void) /* {{{ */
 {
   int status;
@@ -99,11 +162,24 @@ static int cr_read (void) /* {{{ */
   }
   assert (connection != NULL);
 
-  status = ros_interface (connection, handle_interface, /* user data = */ NULL);
+  status = ros_interface (connection, handle_interface,
+      /* user data = */ NULL);
   if (status != 0)
   {
     char errbuf[128];
     ERROR ("routeros plugin: ros_interface failed: %s",
+	sstrerror (status, errbuf, sizeof (errbuf)));
+    ros_disconnect (connection);
+    connection = NULL;
+    return (-1);
+  }
+
+  status = ros_registration_table (connection, handle_regtable,
+      /* user data = */ NULL);
+  if (status != 0)
+  {
+    char errbuf[128];
+    ERROR ("routeros plugin: ros_registration_table failed: %s",
 	sstrerror (status, errbuf, sizeof (errbuf)));
     ros_disconnect (connection);
     connection = NULL;
