@@ -200,6 +200,24 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 	return 0;
 }
 
+static int cpy_notification_callback(const notification_t *notification, user_data_t *data) {
+	cpy_callback_t *c = data->data;
+	PyObject *ret, *n;
+
+	CPY_LOCK_THREADS
+		n = PyObject_CallFunction((PyObject *) &NotificationType, "ssssssdi", notification->type, notification->message,
+				notification->plugin_instance, notification->type_instance, notification->plugin,
+				notification->host, (double) notification->time, notification->severity);
+		ret = PyObject_CallFunctionObjArgs(c->callback, n, c->data, (void *) 0); /* New reference. */
+		if (ret == NULL) {
+			cpy_log_exception("notification callback");
+		} else {
+			Py_DECREF(ret);
+		}
+	CPY_RELEASE_THREADS
+	return 0;
+}
+
 static void cpy_log_callback(int severity, const char *message, user_data_t *data) {
 	cpy_callback_t * c = data->data;
 	PyObject *ret;
@@ -358,6 +376,10 @@ static PyObject *cpy_register_write(PyObject *self, PyObject *args, PyObject *kw
 	return cpy_register_generic_userdata(plugin_register_write, cpy_write_callback, args, kwds, 0);
 }
 
+static PyObject *cpy_register_notification(PyObject *self, PyObject *args, PyObject *kwds) {
+	return cpy_register_generic_userdata(plugin_register_notification, cpy_notification_callback, args, kwds, 0);
+}
+
 static PyObject *cpy_register_flush(PyObject *self, PyObject *args, PyObject *kwds) {
 	return cpy_register_generic_userdata(plugin_register_flush, cpy_flush_callback, args, kwds, 1);
 }
@@ -486,6 +508,10 @@ static PyObject *cpy_unregister_write(PyObject *self, PyObject *arg) {
 	return cpy_unregister_generic_userdata(plugin_unregister_write, arg, "write", 0);
 }
 
+static PyObject *cpy_unregister_notification(PyObject *self, PyObject *arg) {
+	return cpy_unregister_generic_userdata(plugin_unregister_notification, arg, "notification", 0);
+}
+
 static PyObject *cpy_unregister_flush(PyObject *self, PyObject *arg) {
 	return cpy_unregister_generic_userdata(plugin_unregister_flush, arg, "flush", 1);
 }
@@ -506,6 +532,7 @@ static PyMethodDef cpy_methods[] = {
 	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_read", (PyCFunction) cpy_register_read, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_write", (PyCFunction) cpy_register_write, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
+	{"register_notification", (PyCFunction) cpy_register_notification, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_flush", (PyCFunction) cpy_register_flush, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"register_shutdown", (PyCFunction) cpy_register_shutdown, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
 	{"unregister_log", cpy_unregister_log, METH_O, "This is an unhelpful text."},
@@ -513,6 +540,7 @@ static PyMethodDef cpy_methods[] = {
 	{"unregister_config", cpy_unregister_config, METH_O, "This is an unhelpful text."},
 	{"unregister_read", cpy_unregister_read, METH_O, "This is an unhelpful text."},
 	{"unregister_write", cpy_unregister_write, METH_O, "This is an unhelpful text."},
+	{"unregister_notification", cpy_unregister_notification, METH_O, "This is an unhelpful text."},
 	{"unregister_flush", cpy_unregister_flush, METH_O, "This is an unhelpful text."},
 	{"unregister_shutdown", cpy_unregister_shutdown, METH_O, "This is an unhelpful text."},
 	{0, 0, 0, 0}
@@ -623,6 +651,8 @@ static int cpy_config(oconfig_item_t *ci) {
 	PyType_Ready(&PluginDataType);
 	ValuesType.tp_base = &PluginDataType;
 	PyType_Ready(&ValuesType);
+	NotificationType.tp_base = &PluginDataType;
+	PyType_Ready(&NotificationType);
 	sys = PyImport_ImportModule("sys"); /* New reference. */
 	if (sys == NULL) {
 		cpy_log_exception("python initialization");
@@ -637,11 +667,15 @@ static int cpy_config(oconfig_item_t *ci) {
 	module = Py_InitModule("collectd", cpy_methods); /* Borrowed reference. */
 	PyModule_AddObject(module, "Config", (PyObject *) &ConfigType); /* Steals a reference. */
 	PyModule_AddObject(module, "Values", (PyObject *) &ValuesType); /* Steals a reference. */
+	PyModule_AddObject(module, "Notification", (PyObject *) &NotificationType); /* Steals a reference. */
 	PyModule_AddIntConstant(module, "LOG_DEBUG", LOG_DEBUG);
 	PyModule_AddIntConstant(module, "LOG_INFO", LOG_INFO);
 	PyModule_AddIntConstant(module, "LOG_NOTICE", LOG_NOTICE);
 	PyModule_AddIntConstant(module, "LOG_WARNING", LOG_WARNING);
 	PyModule_AddIntConstant(module, "LOG_ERROR", LOG_ERR);
+	PyModule_AddIntConstant(module, "NOTIF_FAILURE", NOTIF_FAILURE);
+	PyModule_AddIntConstant(module, "NOTIF_WARNING", NOTIF_WARNING);
+	PyModule_AddIntConstant(module, "NOTIF_OKAY", NOTIF_OKAY);
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		

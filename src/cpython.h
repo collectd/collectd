@@ -72,3 +72,11 @@ typedef struct {
 } Values;
 
 PyTypeObject ValuesType;
+
+typedef struct {
+	PluginData data;
+	int severity;
+	char message[NOTIF_MAX_MSG_LEN];
+} Notification;
+
+PyTypeObject NotificationType;
