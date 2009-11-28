@@ -810,6 +810,16 @@ collectd_LDADD += "-dlopen" protocols.la
 collectd_DEPENDENCIES += protocols.la
 endif
 
+if BUILD_PLUGIN_ROUTEROS
+pkglib_LTLIBRARIES += routeros.la
+routeros_la_SOURCES = routeros.c
+routeros_la_CPPFLAGS = $(BUILD_WITH_LIBROUTEROS_CPPFLAGS)
+routeros_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBROUTEROS_LDFLAGS)
+routeros_la_LIBADD = -lrouteros
+collectd_LDADD += "-dlopen" routeros.la
+collectd_DEPENDENCIES += routeros.la
+endif
+
 if BUILD_PLUGIN_RRDCACHED
 pkglib_LTLIBRARIES += rrdcached.la
 rrdcached_la_SOURCES = rrdcached.c utils_rrdcreate.c utils_rrdcreate.h
