@@ -25,12 +25,16 @@
 
 #include <routeros_api.h>
 
-static ros_connection_t *connection = NULL;
+struct cr_data_s
+{
+  ros_connection_t *connection;
 
-static char *conf_node = "router.example.com";
-static char *conf_service = NULL;
-static char *conf_username = "collectd";
-static char *conf_password = "secret";
+  char *node;
+  char *service;
+  char *username;
+  char *password;
+};
+typedef struct cr_data_s cr_data_t;
 
 static void cr_submit_io (const char *type, const char *type_instance, /* {{{ */
     counter_t rx, counter_t tx)
@@ -144,15 +148,23 @@ static int handle_regtable (__attribute__((unused)) ros_connection_t *c, /* {{{ 
   return (0);
 } /* }}} int handle_regtable */
 
-static int cr_read (void) /* {{{ */
+static int cr_read (user_data_t *user_data) /* {{{ */
 {
   int status;
+  cr_data_t *rd;
 
-  if (connection == NULL)
+  if (user_data == NULL)
+    return (EINVAL);
+
+  rd = user_data->data;
+  if (rd == NULL)
+    return (EINVAL);
+
+  if (rd->connection == NULL)
   {
-    connection = ros_connect (conf_node, conf_service,
-	conf_username, conf_password);
-    if (connection == NULL)
+    rd->connection = ros_connect (rd->node, rd->service,
+	rd->username, rd->password);
+    if (rd->connection == NULL)
     {
       char errbuf[128];
       ERROR ("routeros plugin: ros_connect failed: %s",
@@ -160,38 +172,153 @@ static int cr_read (void) /* {{{ */
       return (-1);
     }
   }
-  assert (connection != NULL);
+  assert (rd->connection != NULL);
 
-  status = ros_interface (connection, handle_interface,
+  status = ros_interface (rd->connection, handle_interface,
       /* user data = */ NULL);
   if (status != 0)
   {
     char errbuf[128];
     ERROR ("routeros plugin: ros_interface failed: %s",
 	sstrerror (status, errbuf, sizeof (errbuf)));
-    ros_disconnect (connection);
-    connection = NULL;
+    ros_disconnect (rd->connection);
+    rd->connection = NULL;
     return (-1);
   }
 
-  status = ros_registration_table (connection, handle_regtable,
+  status = ros_registration_table (rd->connection, handle_regtable,
       /* user data = */ NULL);
   if (status != 0)
   {
     char errbuf[128];
     ERROR ("routeros plugin: ros_registration_table failed: %s",
 	sstrerror (status, errbuf, sizeof (errbuf)));
-    ros_disconnect (connection);
-    connection = NULL;
+    ros_disconnect (rd->connection);
+    rd->connection = NULL;
     return (-1);
   }
 
   return (0);
 } /* }}} int cr_read */
 
+static void cr_free_data (cr_data_t *ptr) /* {{{ */
+{
+  if (ptr == NULL)
+    return;
+
+  ros_disconnect (ptr->connection);
+  ptr->connection = NULL;
+
+  sfree (ptr->node);
+  sfree (ptr->service);
+  sfree (ptr->username);
+  sfree (ptr->password);
+
+  sfree (ptr);
+} /* }}} void cr_free_data */
+
+static int cr_config_router (oconfig_item_t *ci) /* {{{ */
+{
+  cr_data_t *router_data;
+  char read_name[128];
+  user_data_t user_data;
+  int status;
+  int i;
+
+  router_data = malloc (sizeof (*router_data));
+  if (router_data == NULL)
+    return (-1);
+  memset (router_data, 0, sizeof (router_data));
+  router_data->connection = NULL;
+  router_data->node = NULL;
+  router_data->service = NULL;
+  router_data->username = NULL;
+  router_data->password = NULL;
+
+  status = 0;
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Host", child->key) == 0)
+      status = cf_util_get_string (child, &router_data->node);
+    else if (strcasecmp ("Port", child->key) == 0)
+      status = cf_util_get_string (child, &router_data->service);
+    else if (strcasecmp ("User", child->key) == 0)
+      status = cf_util_get_string (child, &router_data->username);
+    else if (strcasecmp ("Password", child->key) == 0)
+      status = cf_util_get_string (child, &router_data->service);
+    else
+    {
+      WARNING ("routeros plugin: Unknown config option `%s'.", child->key);
+    }
+
+    if (status != 0)
+      break;
+  }
+
+  if (status == 0)
+  {
+    if (router_data->node == NULL)
+    {
+      ERROR ("routeros plugin: No `Host' option within a `Router' block. "
+	  "Where should I connect to?");
+      status = -1;
+    }
+
+    if (router_data->password == NULL)
+    {
+      ERROR ("routeros plugin: No `Password' option within a `Router' block. "
+	  "How should I authenticate?");
+      status = -1;
+    }
+  }
+
+  if ((status == 0) && (router_data->username == NULL))
+  {
+    router_data->username = sstrdup ("admin");
+    if (router_data->username == NULL)
+    {
+      ERROR ("routeros plugin: sstrdup failed.");
+      status = -1;
+    }
+  }
+
+  ssnprintf (read_name, sizeof (read_name), "routeros/%s", router_data->node);
+  user_data.data = router_data;
+  user_data.free_func = (void *) cr_free_data;
+  if (status == 0)
+    status = plugin_register_complex_read (read_name, cr_read,
+	/* interval = */ NULL, &user_data);
+
+  if (status != 0)
+    cr_free_data (router_data);
+
+  return (status);
+} /* }}} int cr_config_router */
+
+static int cr_config (oconfig_item_t *ci)
+{
+  int i;
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Router", child->key) == 0)
+      cr_config_router (child);
+    else
+    {
+      WARNING ("routeros plugin: Unknown config option `%s'.", child->key);
+    }
+  }
+
+  return (0);
+} /* }}} int cr_config */
+
 void module_register (void)
 {
-	plugin_register_read ("routeros", cr_read);
+  plugin_register_complex_config ("routeros", cr_config);
 } /* void module_register */
 
 /* vim: set sw=2 noet fdm=marker : */
