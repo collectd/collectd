@@ -1,5 +1,5 @@
 /**
- * collectd - src/load.c
+ * collectd - src/routeros.c
  * Copyright (C) 2009  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
