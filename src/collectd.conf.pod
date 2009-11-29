@@ -3281,6 +3281,53 @@ matching values will be ignored.
 
 =back
 
+=head2 Plugin C<routeros>
+
+The C<routeros> plugin connects to a device running I<RouterOS>, the
+Linux-based operating system for routers by I<MikroTik>. The plugin uses
+I<librouteros> to connect and reads information about the interfaces and
+wireless connections of the device. The configuration supports querying
+multiple routers:
+
+  <Plugin "routeros">
+    <Router>
+      Host "router0.example.com"
+      User "collectd"
+      Password "secr3t"
+    </Router>
+    <Router>
+      Host "router1.example.com"
+      User "collectd"
+      Password "5ecret"
+    </Router>
+  </Plugin>
+
+As you can see above, the configuration of the I<routeros> plugin consists of
+one or more B<E<lt>RouterE<gt>> blocks. Within each block, the following
+options are understood:
+
+=over 4
+
+=item B<Host> I<Host>
+
+Hostname or IP-address of the router to connect to.
+
+=item B<Port> I<Port>
+
+Port name or port number used when connecting. If left unspecified, the default
+will be chosen by I<librouteros>, currently "8728". This option expects a
+string argument, even when a numeric port number is given.
+
+=item B<User> I<User>
+
+Use the user name I<User> to authenticate. Defaults to "admin".
+
+=item B<Password> I<Password>
+
+Set the password used to authenticate.
+
+=back
+
 =head2 Plugin C<rrdcached>
 
 The C<rrdcached> plugin uses the RRDtool accelerator daemon, L<rrdcached(1)>,
