@@ -33,6 +33,9 @@ struct cr_data_s
   char *service;
   char *username;
   char *password;
+
+  _Bool collect_interface;
+  _Bool collect_regtable;
 };
 typedef struct cr_data_s cr_data_t;
 
@@ -174,28 +177,34 @@ static int cr_read (user_data_t *user_data) /* {{{ */
   }
   assert (rd->connection != NULL);
 
-  status = ros_interface (rd->connection, handle_interface,
-      /* user data = */ NULL);
-  if (status != 0)
+  if (rd->collect_interface)
   {
-    char errbuf[128];
-    ERROR ("routeros plugin: ros_interface failed: %s",
-	sstrerror (status, errbuf, sizeof (errbuf)));
-    ros_disconnect (rd->connection);
-    rd->connection = NULL;
-    return (-1);
+    status = ros_interface (rd->connection, handle_interface,
+	/* user data = */ NULL);
+    if (status != 0)
+    {
+      char errbuf[128];
+      ERROR ("routeros plugin: ros_interface failed: %s",
+	  sstrerror (status, errbuf, sizeof (errbuf)));
+      ros_disconnect (rd->connection);
+      rd->connection = NULL;
+      return (-1);
+    }
   }
 
-  status = ros_registration_table (rd->connection, handle_regtable,
-      /* user data = */ NULL);
-  if (status != 0)
+  if (rd->collect_regtable)
   {
-    char errbuf[128];
-    ERROR ("routeros plugin: ros_registration_table failed: %s",
-	sstrerror (status, errbuf, sizeof (errbuf)));
-    ros_disconnect (rd->connection);
-    rd->connection = NULL;
-    return (-1);
+    status = ros_registration_table (rd->connection, handle_regtable,
+	/* user data = */ NULL);
+    if (status != 0)
+    {
+      char errbuf[128];
+      ERROR ("routeros plugin: ros_registration_table failed: %s",
+	  sstrerror (status, errbuf, sizeof (errbuf)));
+      ros_disconnect (rd->connection);
+      rd->connection = NULL;
+      return (-1);
+    }
   }
 
   return (0);
@@ -234,6 +243,8 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   router_data->service = NULL;
   router_data->username = NULL;
   router_data->password = NULL;
+  router_data->collect_interface = false;
+  router_data->collect_regtable = false;
 
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -247,7 +258,11 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("User", child->key) == 0)
       status = cf_util_get_string (child, &router_data->username);
     else if (strcasecmp ("Password", child->key) == 0)
-      status = cf_util_get_string (child, &router_data->service);
+      status = cf_util_get_string (child, &router_data->password);
+    else if (strcasecmp ("CollectInterface", child->key) == 0)
+      cf_util_get_boolean (child, &router_data->collect_interface);
+    else if (strcasecmp ("CollectRegistrationTable", child->key) == 0)
+      cf_util_get_boolean (child, &router_data->collect_regtable);
     else
     {
       WARNING ("routeros plugin: Unknown config option `%s'.", child->key);
@@ -270,6 +285,14 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
     {
       ERROR ("routeros plugin: No `Password' option within a `Router' block. "
 	  "How should I authenticate?");
+      status = -1;
+    }
+
+    if (!router_data->collect_interface
+	&& !router_data->collect_regtable)
+    {
+      ERROR ("routeros plugin: No `Collect*' option within a `Router' block. "
+	  "What statistics should I collect?");
       status = -1;
     }
   }
