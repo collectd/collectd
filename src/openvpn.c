@@ -51,11 +51,13 @@ static vpn_status_t **vpn_list = NULL;
 static int vpn_num = 0;
 
 static int store_compression = 1;
+static int new_naming_schema = 0;
 
 static const char *config_keys[] =
 {
 	"StatusFile",
-	"Compression"
+	"Compression",
+	"ImprovedNamingSchema"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -93,7 +95,8 @@ static void iostats_submit (char *name, char *type, counter_t rx, counter_t tx)
 	values[0].counter = rx;
 	values[1].counter = tx;
 
-	/* NOTE: using plugin_instance to identify each vpn config (and
+	/* NOTE ON THE NEW NAMING SCHEMA:
+	 *       using plugin_instance to identify each vpn config (and
 	 *       status) file; using type_instance to identify the endpoint
 	 *       host when in multimode, traffic or overhead when in single.
 	 */
@@ -103,8 +106,16 @@ static void iostats_submit (char *name, char *type, counter_t rx, counter_t tx)
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "io_octets", sizeof (vl.type));
-	sstrncpy (vl.type_instance, type, sizeof (vl.type_instance));
+
+	if (type) /* new naming schema - improved naming schema option */
+	{
+		sstrncpy (vl.type, "io_octets", sizeof (vl.type));
+		sstrncpy (vl.type_instance, type, sizeof (vl.type_instance));
+	}
+	else /* old naming schema (multicontext only): plugin_instance = hostname rather than filename */
+	{
+		sstrncpy (vl.type, "if_octets", sizeof (vl.type));
+	}
 
 	plugin_dispatch_values (&vl);
 } /* void traffic_submit */
@@ -252,10 +263,21 @@ static int multi1_read (char *name, FILE *fh)
 		if (fields_num < 4)
 			continue;
 
-		iostats_submit (name,               /* vpn instance */
-				fields[0],          /* "Common Name" */
-				atoll (fields[2]),  /* "Bytes Received" */
-				atoll (fields[3])); /* "Bytes Sent" */
+		if (new_naming_schema)
+		{
+			iostats_submit (fields[0],          /* "Common Name" */
+					NULL,               /* unused when in multimode */
+					atoll (fields[2]),  /* "Bytes Received" */
+					atoll (fields[3])); /* "Bytes Sent" */
+		}
+		else
+		{
+			iostats_submit (name,               /* vpn instance */
+					fields[0],          /* "Common Name" */
+					atoll (fields[2]),  /* "Bytes Received" */
+					atoll (fields[3])); /* "Bytes Sent" */
+		}
+
 		read = 1;
 	}
 
@@ -288,10 +310,21 @@ static int multi2_read (char *name, FILE *fh)
 		{
 			if (strcmp (fields[0], "CLIENT_LIST") == 0)
 			{
-				iostats_submit (name,               /* vpn instance */
-						fields[1],          /* "Common Name" */
-						atoll (fields[4]),  /* "Bytes Received" */
-						atoll (fields[5])); /* "Bytes Sent" */
+				if (new_naming_schema)
+				{
+					iostats_submit (name,               /* vpn instance */
+							fields[1],          /* "Common Name" */
+							atoll (fields[4]),  /* "Bytes Received" */
+							atoll (fields[5])); /* "Bytes Sent" */
+				}
+				else
+				{
+					iostats_submit (fields[1],          /* "Common Name" */
+							NULL,               /* unused when in multimode */
+							atoll (fields[4]),  /* "Bytes Received" */
+							atoll (fields[5])); /* "Bytes Sent" */
+				}
+
 				read = 1;
 			}
 		}
@@ -326,10 +359,21 @@ static int multi3_read (char *name, FILE *fh)
 		{
 			if (strcmp (fields[0], "CLIENT_LIST") == 0)
 			{
-				iostats_submit (name,               /* vpn instance */
-						fields[1],          /* "Common Name" */
-						atoll (fields[4]),  /* "Bytes Received" */
-						atoll (fields[5])); /* "Bytes Sent" */
+				if (new_naming_schema)
+				{
+					iostats_submit (name,               /* vpn instance */
+							fields[1],          /* "Common Name" */
+							atoll (fields[4]),  /* "Bytes Received" */
+							atoll (fields[5])); /* "Bytes Sent" */
+				}
+				else
+				{
+					iostats_submit (fields[1],          /* "Common Name" */
+							NULL,               /* unused when in multimode */
+							atoll (fields[4]),  /* "Bytes Received" */
+							atoll (fields[5])); /* "Bytes Sent" */
+				}
+
 				read = 1;
 			}
 		}
@@ -488,7 +532,7 @@ static int openvpn_config (const char *key, const char *value)
 		}
 		else
 		{
-			/* doesn't waist memory, uses status_file starting at filename + 1 */
+			/* doesn't waste memory, uses status_file starting at filename + 1 */
 			status_name = filename + 1;
 		}
 
@@ -537,6 +581,18 @@ static int openvpn_config (const char *key, const char *value)
 		{
 			store_compression = 0;
 			DEBUG ("openvpn plugin: no 'compression statistcs' collected");
+		}
+	}
+	else if (strcasecmp ("ImprovedNamingSchema", key) == 0)
+	{
+		if (IS_TRUE (value))
+		{
+			DEBUG ("openvpn plugin: using the new naming schema");
+			new_naming_schema = 1;
+		}
+		else
+		{
+			new_naming_schema = 0;
 		}
 	}
 	else
