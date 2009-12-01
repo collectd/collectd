@@ -17,6 +17,173 @@ typedef struct cpy_callback_s {
 	struct cpy_callback_s *next;
 } cpy_callback_t;
 
+static char log_doc[] = "This function sends a string to all logging plugins.";
+
+static char flush_doc[] = "flush([plugin][, timeout][, identifier]) -> None\n"
+		"\n"
+		"Flushes the cache of another plugin.";
+
+static char unregister_doc[] = "Unregisters a callback. This function needs exactly one parameter either\n"
+		"the function to unregister or the callback identifier to unregister.";
+
+static char reg_log_doc[] = "register_log(callback[, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function for log messages.\n"
+		"\n"
+		"'callback' is a callable object that will be called every time something\n"
+		"    is logged.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function every time it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
+		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register one function multiple time you need to specify a name\n"
+		"    here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called with two or three parameters:\n"
+		"severity: An integer that should be compared to the LOG_ constants.\n"
+		"message: The text to be logged.\n"
+		"data: The optional data parameter passed to the register function.\n"
+		"    If the parameter was obmitted it will be obmitted here, too.";
+
+static char reg_init_doc[] = "register_init(callback[, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function that will be executed once after the config.\n"
+		"file has been read, all plugins heve been loaded and the collectd has\n"
+		"forked into the backgroud.\n"
+		"\n"
+		"'callback' is a callable object that will be executed.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function when it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
+		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register one function multiple time you need to specify a name\n"
+		"    here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called without parameters, except for\n"
+		"data if it was supplied.";
+
+static char reg_config_doc[] = "register_config(callback[, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function for config file entries.\n"
+		"'callback' is a callable object that will be called for every config block.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function every time it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>'. Every callback needs a unique identifier,\n"
+		"    so if you want to register one function multiple time you need to\n"
+		"    specify a name here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called with one or two parameters:\n"
+		"config: A Config object.\n"
+		"data: The optional data parameter passed to the register function.\n"
+		"    If the parameter was obmitted it will be obmitted here, too.";
+
+static char reg_read_doc[] = "register_read(callback[, interval][, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function for reading data. It will just be called\n"
+		"in a fixed interval to signal that it's time to dispatch new values.\n"
+		"'callback' is a callable object that will be called every time something\n"
+		"    is logged.\n"
+		"'interval' is the number of seconds between between calls to the callback\n"
+		"    function. Full float precision is supported here.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function every time it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
+		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register one function multiple time you need to specify a name\n"
+		"    here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called without parameters, except for\n"
+		"data if it was supplied.";
+
+static char reg_write_doc[] = "register_write(callback[, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function to receive values dispatched by other plugins.\n"
+		"'callback' is a callable object that will be called every time a value\n"
+		"    is dispatched.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function every time it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
+		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register one function multiple time you need to specify a name\n"
+		"    here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called with one or two parameters:\n"
+		"values: A Values object which is a copy of the dispatched values.\n"
+		"data: The optional data parameter passed to the register function.\n"
+		"    If the parameter was obmitted it will be obmitted here, too.";
+
+static char reg_notification_doc[] = "register_notification(callback[, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function for notifications.\n"
+		"'callback' is a callable object that will be called every time a notification\n"
+		"    is dispatched.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function every time it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
+		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register one function multiple time you need to specify a name\n"
+		"    here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called with one or two parameters:\n"
+		"notification: A copy of the notification that was dispatched.\n"
+		"data: The optional data parameter passed to the register function.\n"
+		"    If the parameter was obmitted it will be obmitted here, too.";
+
+static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function for flush messages.\n"
+		"'callback' is a callable object that will be called every time a plugin\n"
+		"    requests a flush for either this or all plugins.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function every time it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>'. Every callback needs a unique identifier,\n"
+		"    so if you want to register one function multiple time you need to\n"
+		"    specify a name here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called with two or three parameters:\n"
+		"timeout: ???.\n"
+		"id: ???.\n"
+		"data: The optional data parameter passed to the register function.\n"
+		"    If the parameter was obmitted it will be obmitted here, too.";
+
+static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) -> identifier\n"
+		"\n"
+		"Register a callback function for collectd shutdown.\n"
+		"'callback' is a callable object that will be called once collectd is\n"
+		"    shutting down.\n"
+		"'data' is an optional object that will be passed back to the callback\n"
+		"    function if it is called.\n"
+		"'name' is an optional identifier for this callback. The default name\n"
+		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
+		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register one function multiple time you need to specify a name\n"
+		"    here.\n"
+		"'identifier' is the full identifier assigned to this callback.\n"
+		"\n"
+		"The callback function will be called with no parameters except for\n"
+		"    data if it was supplied.";
+
+
 static int do_interactive = 0;
 
 /* This is our global thread state. Python saves some stuff in thread-local
@@ -114,14 +281,14 @@ static void cpy_log_exception(const char *context) {
 		PyErr_Clear();
 		return;
 	}
-	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback);
+	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback); /* New reference. */
 	if (list)
 		l = PyObject_Length(list);
 	for (i = 0; i < l; ++i) {
 		char *s;
 		PyObject *line;
 		
-		line = PyList_GET_ITEM(list, i);
+		line = PyList_GET_ITEM(list, i); /* Borrowed reference. */
 		s = strdup(PyString_AsString(line));
 		Py_DECREF(line);
 		if (s[strlen(s) - 1] == '\n')
@@ -129,6 +296,7 @@ static void cpy_log_exception(const char *context) {
 		ERROR("%s", s);
 		free(s);
 	}
+	Py_XDECREF(list);
 	PyErr_Clear();
 }
 
@@ -521,28 +689,28 @@ static PyObject *cpy_unregister_shutdown(PyObject *self, PyObject *arg) {
 }
 
 static PyMethodDef cpy_methods[] = {
-	{"debug", cpy_debug, METH_VARARGS, "This is an unhelpful text."},
-	{"info", cpy_info, METH_VARARGS, "This is an unhelpful text."},
-	{"notice", cpy_notice, METH_VARARGS, "This is an unhelpful text."},
-	{"warning", cpy_warning, METH_VARARGS, "This is an unhelpful text."},
-	{"error", cpy_error, METH_VARARGS, "This is an unhelpful text."},
-	{"flush", (PyCFunction) cpy_flush, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_read", (PyCFunction) cpy_register_read, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_write", (PyCFunction) cpy_register_write, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_notification", (PyCFunction) cpy_register_notification, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_flush", (PyCFunction) cpy_register_flush, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"register_shutdown", (PyCFunction) cpy_register_shutdown, METH_VARARGS | METH_KEYWORDS, "This is an unhelpful text."},
-	{"unregister_log", cpy_unregister_log, METH_O, "This is an unhelpful text."},
-	{"unregister_init", cpy_unregister_init, METH_O, "This is an unhelpful text."},
-	{"unregister_config", cpy_unregister_config, METH_O, "This is an unhelpful text."},
-	{"unregister_read", cpy_unregister_read, METH_O, "This is an unhelpful text."},
-	{"unregister_write", cpy_unregister_write, METH_O, "This is an unhelpful text."},
-	{"unregister_notification", cpy_unregister_notification, METH_O, "This is an unhelpful text."},
-	{"unregister_flush", cpy_unregister_flush, METH_O, "This is an unhelpful text."},
-	{"unregister_shutdown", cpy_unregister_shutdown, METH_O, "This is an unhelpful text."},
+	{"debug", cpy_debug, METH_VARARGS, log_doc},
+	{"info", cpy_info, METH_VARARGS, log_doc},
+	{"notice", cpy_notice, METH_VARARGS, log_doc},
+	{"warning", cpy_warning, METH_VARARGS, log_doc},
+	{"error", cpy_error, METH_VARARGS, log_doc},
+	{"flush", (PyCFunction) cpy_flush, METH_VARARGS | METH_KEYWORDS, flush_doc},
+	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, reg_log_doc},
+	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, reg_init_doc},
+	{"register_config", (PyCFunction) cpy_register_config, METH_VARARGS | METH_KEYWORDS, reg_config_doc},
+	{"register_read", (PyCFunction) cpy_register_read, METH_VARARGS | METH_KEYWORDS, reg_read_doc},
+	{"register_write", (PyCFunction) cpy_register_write, METH_VARARGS | METH_KEYWORDS, reg_write_doc},
+	{"register_notification", (PyCFunction) cpy_register_notification, METH_VARARGS | METH_KEYWORDS, reg_notification_doc},
+	{"register_flush", (PyCFunction) cpy_register_flush, METH_VARARGS | METH_KEYWORDS, reg_flush_doc},
+	{"register_shutdown", (PyCFunction) cpy_register_shutdown, METH_VARARGS | METH_KEYWORDS, reg_shutdown_doc},
+	{"unregister_log", cpy_unregister_log, METH_O, unregister_doc},
+	{"unregister_init", cpy_unregister_init, METH_O, unregister_doc},
+	{"unregister_config", cpy_unregister_config, METH_O, unregister_doc},
+	{"unregister_read", cpy_unregister_read, METH_O, unregister_doc},
+	{"unregister_write", cpy_unregister_write, METH_O, unregister_doc},
+	{"unregister_notification", cpy_unregister_notification, METH_O, unregister_doc},
+	{"unregister_flush", cpy_unregister_flush, METH_O, unregister_doc},
+	{"unregister_shutdown", cpy_unregister_shutdown, METH_O, unregister_doc},
 	{0, 0, 0, 0}
 };
 
@@ -732,7 +900,7 @@ static int cpy_config(oconfig_item_t *ci) {
 			module = PyImport_ImportModule(module_name); /* New reference. */
 			if (module == NULL) {
 				ERROR("python plugin: Error importing module \"%s\".", module_name);
-				cpy_log_exception("python initialization");
+				cpy_log_exception("importing module");
 				PyErr_Print();
 			}
 			free(module_name);
@@ -777,6 +945,5 @@ static int cpy_config(oconfig_item_t *ci) {
 void module_register(void) {
 	plugin_register_complex_config("python", cpy_config);
 	plugin_register_init("python", cpy_init);
-//	plugin_register_read("python", cna_read);
 	plugin_register_shutdown("python", cpy_shutdown);
 }

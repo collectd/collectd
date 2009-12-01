@@ -190,7 +190,7 @@ static char interval_doc[] = "The interval is the timespan in seconds between tw
 		"be used (default: 10).\n"
 		"\n"
 		"If you submit values more often than the specified interval, the average\n"
-		"will be used. If you submit less values, your graphes will have gaps.";
+		"will be used. If you submit less values, your graphs will have gaps.";
 
 static char values_doc[] = "These are the actual values that get dispatched to collectd.\n"
 		"It has to be a sequence (a tuple or list) of numbers.\n"
