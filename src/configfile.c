@@ -927,7 +927,7 @@ int cf_util_get_string (const oconfig_item_t *ci, char **ret_string) /* {{{ */
 
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
 	{
-		ERROR ("cf_util_get_string: The %s plugin requires "
+		ERROR ("cf_util_get_string: The %s option requires "
 				"exactly one string argument.", ci->key);
 		return (-1);
 	}
@@ -950,7 +950,7 @@ int cf_util_get_port_number (const oconfig_item_t *ci) /* {{{ */
 {
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
 	{
-		ERROR ("cf_util_get_port_number: The %s plugin requires "
+		ERROR ("cf_util_get_port_number: The %s option requires "
 				"exactly one string argument.", ci->key);
 		return (-1);
 	}
