@@ -2653,6 +2653,102 @@ AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
 AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 # }}}
 
+# --with-python {{{
+with_python_prog=""
+with_python_path="$PATH"
+AC_ARG_WITH(python, [AS_HELP_STRING([--with-python@<:@=PREFIX@:>@], [Path to the python interpreter.])],
+[
+ if test "x$withval" = "xyes" || test "x$withval" = "xno"
+ then
+	 with_python="$withval"
+ else if test -x "$withval"
+ then
+	 with_python_prog="$withval"
+	 with_python_path="`dirname \"$withval\"`$PATH_SEPARATOR$with_python_path"
+	 with_python="yes"
+ else if test -d "$withval"
+ then
+	 with_python_path="$withval$PATH_SEPARATOR$with_python_path"
+	 with_python="yes"
+ else
+	 AC_MSG_WARN([Argument not recognized: $withval])
+ fi; fi; fi
+], [with_python="yes"])
+
+SAVE_PATH="$PATH"
+PATH="$with_python_path"
+
+if test "x$with_python" = "xyes" && test "x$with_python_prog" = "x"
+then
+	AC_MSG_CHECKING([for python])
+	with_python_prog="`which python 2>/dev/null`"
+	if test "x$with_python_prog" = "x"
+	then
+		AC_MSG_RESULT([not found])
+		with_python="no (interpreter not found)"
+	else
+		AC_MSG_RESULT([$with_python_prog])
+	fi
+fi
+
+PATH="$SAVE_PATH"
+
+if test "x$with_python" = "xyes"
+then
+	AC_MSG_CHECKING([for Python CPPFLAGS])
+	python_include_path=`echo "import distutils.sysconfig;print distutils.sysconfig.get_python_inc()" | "$with_python_prog" 2>/dev/null`
+	python_config_status=$?
+
+	if test "$python_config_status" -ne 0 || test "x$python_include_path" = "x"
+	then
+		AC_MSG_RESULT([failed with status $python_config_status])
+		with_python="no"
+	else
+		AC_MSG_RESULT([$python_include_path])
+	fi
+fi
+
+if test "x$with_python" = "xyes"
+then
+	AC_MSG_CHECKING([for Python LDFLAGS])
+	python_library_path=`echo "import distutils.sysconfig;print distutils.sysconfig.get_config_vars(\"LIBDIR\").__getitem__(0)" | "$with_python_prog" 2>&1`
+	python_config_status=$?
+
+	if test "$python_config_status" -ne 0 || test "x$python_library_path" = "x"
+	then
+		AC_MSG_RESULT([failed with status $python_config_status])
+		with_python="no"
+	else
+		AC_MSG_RESULT([$python_library_path])
+	fi
+fi
+
+if test "x$with_python" = "xyes"
+then
+	AC_MSG_CHECKING([for Python LIBS])
+	python_library_flags=`echo "import distutils.sysconfig;print distutils.sysconfig.get_config_vars(\"BLDLIBRARY\").__getitem__(0)" | "$with_python_prog" 2>&1`
+	python_config_status=$?
+
+	if test "$python_config_status" -ne 0 || test "x$python_library_flags" = "x"
+	then
+		AC_MSG_RESULT([failed with status $python_config_status])
+		with_python="no"
+	else
+		AC_MSG_RESULT([$python_library_flags])
+	fi
+fi
+
+if test "x$with_python" = "xyes"
+then
+	BUILD_WITH_PYTHON_CPPFLAGS="-I$python_include_path"
+	BUILD_WITH_PYTHON_LDFLAGS="-L$python_library_path"
+	BUILD_WITH_PYTHON_LIBS="$python_library_flags"
+	AC_SUBST(BUILD_WITH_PYTHON_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_PYTHON_LDFLAGS)
+	AC_SUBST(BUILD_WITH_PYTHON_LIBS)
+fi
+# }}} --with-python
+
 # --with-librrd {{{
 # AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 librrd_cflags=""
@@ -3894,6 +3990,7 @@ AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([protocols],   [$plugin_protocols],  [Protocol (IP, TCP, ...) statistics])
+AC_PLUGIN([python],      [$with_python],       [Embed a Python interpreter])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
@@ -4126,6 +4223,7 @@ Configuration:
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl
     oracle  . . . . . . . $with_oracle
+    python  . . . . . . . $with_python
 
   Features:
     daemon mode . . . . . $enable_daemon
@@ -4197,6 +4295,7 @@ Configuration:
     powerdns  . . . . . . $enable_powerdns
     processes . . . . . . $enable_processes
     protocols . . . . . . $enable_protocols
+    python  . . . . . . . $enable_python
     rrdcached . . . . . . $enable_rrdcached
     rrdtool . . . . . . . $enable_rrdtool
     sensors . . . . . . . $enable_sensors
