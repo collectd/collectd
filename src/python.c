@@ -268,7 +268,9 @@ static void cpy_log_exception(const char *context) {
 		typename = "NamelessException";
 	if (message == NULL)
 		message = "N/A";
+	Py_BEGIN_ALLOW_THREADS
 	ERROR("Unhandled python exception in %s: %s: %s", context, typename, message);
+	Py_END_ALLOW_THREADS
 	Py_XDECREF(tn);
 	Py_XDECREF(m);
 	if (!cpy_format_exception) {
@@ -294,7 +296,9 @@ static void cpy_log_exception(const char *context) {
 		Py_DECREF(line);
 		if (s[strlen(s) - 1] == '\n')
 			s[strlen(s) - 1] = 0;
+		Py_BEGIN_ALLOW_THREADS
 		ERROR("%s", s);
+		Py_END_ALLOW_THREADS
 		free(s);
 	}
 	Py_XDECREF(list);
@@ -313,6 +317,8 @@ static int cpy_read_callback(user_data_t *data) {
 			Py_DECREF(ret);
 		}
 	CPY_RELEASE_THREADS
+	if (ret == NULL)
+		return 1;
 	return 0;
 }
 
@@ -346,7 +352,9 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				else
 					PyList_SetItem(list, i, PyLong_FromUnsignedLongLong(value_list->values[i].absolute));
 			} else {
+				Py_BEGIN_ALLOW_THREADS
 				ERROR("cpy_write_callback: Unknown value type %d.", ds->ds->type);
+				Py_END_ALLOW_THREADS
 				Py_DECREF(list);
 				CPY_RETURN_FROM_THREADS 0;
 			}
@@ -597,7 +605,9 @@ static PyObject *cpy_debug(PyObject *self, PyObject *args) {
 #ifdef COLLECT_DEBUG
 	const char *text;
 	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_DEBUG, "%s", text);
+	Py_END_ALLOW_THREADS
 #endif
 	Py_RETURN_NONE;
 }
