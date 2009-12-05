@@ -161,8 +161,9 @@ static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> ident
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called with two or three parameters:\n"
-		"timeout: ???.\n"
-		"id: ???.\n"
+		"timeout: Indicates that only data older than 'timeout' seconds is to\n"
+		"    be flushed.\n"
+		"id: Specifies which values are to be flushed.\n"
 		"data: The optional data parameter passed to the register function.\n"
 		"    If the parameter was obmitted it will be obmitted here, too.";
 
@@ -410,6 +411,8 @@ static void cpy_log_callback(int severity, const char *message, user_data_t *dat
 		/* Do we really want to trigger a log callback because a log callback failed?
 		 * Probably not. */
 		PyErr_Print();
+		/* In case someone wanted to be clever, replaced stderr and failed at that. */
+		PyErr_Clear();
 	} else {
 		Py_DECREF(ret);
 	}
