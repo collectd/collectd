@@ -36,11 +36,10 @@ static char reg_log_doc[] = "register_log(callback[, data][, name]) -> identifie
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function every time it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
-		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    is 'python.<module>'.\n"
 		"    Every callback needs a unique identifier, so if you want to\n"
-		"    register one function multiple time you need to specify a name\n"
-		"    here.\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called with two or three parameters:\n"
@@ -59,11 +58,10 @@ static char reg_init_doc[] = "register_init(callback[, data][, name]) -> identif
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function when it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
-		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    is 'python.<module>'.\n"
 		"    Every callback needs a unique identifier, so if you want to\n"
-		"    register one function multiple time you need to specify a name\n"
-		"    here.\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called without parameters, except for\n"
@@ -76,9 +74,10 @@ static char reg_config_doc[] = "register_config(callback[, data][, name]) -> ide
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function every time it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>'. Every callback needs a unique identifier,\n"
-		"    so if you want to register one function multiple time you need to\n"
-		"    specify a name here.\n"
+		"    is 'python.<module>'.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called with one or two parameters:\n"
@@ -97,11 +96,10 @@ static char reg_read_doc[] = "register_read(callback[, interval][, data][, name]
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function every time it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
-		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    is 'python.<module>'.\n"
 		"    Every callback needs a unique identifier, so if you want to\n"
-		"    register one function multiple time you need to specify a name\n"
-		"    here.\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called without parameters, except for\n"
@@ -115,11 +113,10 @@ static char reg_write_doc[] = "register_write(callback[, data][, name]) -> ident
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function every time it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
-		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    is 'python.<module>'.\n"
 		"    Every callback needs a unique identifier, so if you want to\n"
-		"    register one function multiple time you need to specify a name\n"
-		"    here.\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called with one or two parameters:\n"
@@ -135,11 +132,10 @@ static char reg_notification_doc[] = "register_notification(callback[, data][, n
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function every time it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
-		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    is 'python.<module>'.\n"
 		"    Every callback needs a unique identifier, so if you want to\n"
-		"    register one function multiple time you need to specify a name\n"
-		"    here.\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called with one or two parameters:\n"
@@ -155,9 +151,10 @@ static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> ident
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function every time it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>'. Every callback needs a unique identifier,\n"
-		"    so if you want to register one function multiple time you need to\n"
-		"    specify a name here.\n"
+		"    is 'python.<module>'.\n"
+		"    Every callback needs a unique identifier, so if you want to\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called with two or three parameters:\n"
@@ -175,11 +172,10 @@ static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) ->
 		"'data' is an optional object that will be passed back to the callback\n"
 		"    function if it is called.\n"
 		"'name' is an optional identifier for this callback. The default name\n"
-		"    is 'python.<module>.<name>'. If 'name' contains a '.' it\n"
-		"    replaces both module and name, otherwise it replaces only name.\n"
+		"    is 'python.<module>'.\n"
 		"    Every callback needs a unique identifier, so if you want to\n"
-		"    register one function multiple time you need to specify a name\n"
-		"    here.\n"
+		"    register this callback multiple time from the same module you need\n"
+		"    to specify a name here.\n"
 		"'identifier' is the full identifier assigned to this callback.\n"
 		"\n"
 		"The callback function will be called with no parameters except for\n"
@@ -212,11 +208,11 @@ static void cpy_destroy_user_data(void *data) {
 /* You must hold the GIL to call this function!
  * But if you managed to extract the callback parameter then you probably already do. */
 
-static void cpy_build_name(char *buf, size_t size, PyObject *callback, const char *name, int short_name) {
-	const char *module;
-	PyObject *mod = NULL, *n = NULL;
+static void cpy_build_name(char *buf, size_t size, PyObject *callback, const char *name) {
+	const char *module = NULL;
+	PyObject *mod = NULL;
 	
-	if (name != NULL && (strchr(name, '.') != NULL || short_name)) {
+	if (name != NULL) {
 		snprintf(buf, size, "python.%s", name);
 		return;
 	}
@@ -224,31 +220,15 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 	mod = PyObject_GetAttrString(callback, "__module__"); /* New reference. */
 	if (mod != NULL)
 		module = PyString_AsString(mod);
-	else
-		module = "collectd";
 	
-	if (short_name) {
+	if (module != NULL) {
 		snprintf(buf, size, "python.%s", module);
 		Py_XDECREF(mod);
 		return;
 	}
-	
-	if (name != NULL) {
-		snprintf(buf, size, "python.%s.%s", module, name);
-		Py_XDECREF(mod);
-		return;
-	}
-	
-	n = PyObject_GetAttrString(callback, "__name__"); /* New reference. */
-	if (n != NULL)
-		name = PyString_AsString(n);
-	
-	if (name != NULL)
-		snprintf(buf, size, "python.%s.%s", module, name);
-	else
-		snprintf(buf, size, "python.%s.%p", module, callback);
 	Py_XDECREF(mod);
-	Py_XDECREF(n);
+	
+	snprintf(buf, size, "python.%p", callback);
 }
 
 static void cpy_log_exception(const char *context) {
@@ -437,7 +417,7 @@ static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
 	CPY_RELEASE_THREADS
 }
 
-static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args, PyObject *kwds, int short_name) {
+static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
 	char buf[512];
 	cpy_callback_t *c;
 	const char *name = NULL;
@@ -449,7 +429,7 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
-	cpy_build_name(buf, sizeof(buf), callback, name, short_name);
+	cpy_build_name(buf, sizeof(buf), callback, name);
 
 	Py_INCREF(callback);
 	Py_XINCREF(data);
@@ -476,16 +456,16 @@ static PyObject *cpy_flush(cpy_callback_t **list_head, PyObject *args, PyObject 
 }
 
 static PyObject *cpy_register_config(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic(&cpy_config_callbacks, args, kwds, 1);
+	return cpy_register_generic(&cpy_config_callbacks, args, kwds);
 }
 
 static PyObject *cpy_register_init(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic(&cpy_init_callbacks, args, kwds, 0);
+	return cpy_register_generic(&cpy_init_callbacks, args, kwds);
 }
 
 typedef int reg_function_t(const char *name, void *callback, void *data);
 
-static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObject *args, PyObject *kwds, int short_name) {
+static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObject *args, PyObject *kwds) {
 	char buf[512];
 	reg_function_t *register_function = (reg_function_t *) reg;
 	cpy_callback_t *c = NULL;
@@ -499,7 +479,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
-	cpy_build_name(buf, sizeof(buf), callback, name, short_name);
+	cpy_build_name(buf, sizeof(buf), callback, name);
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
@@ -530,7 +510,7 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
-	cpy_build_name(buf, sizeof(buf), callback, name, 0);
+	cpy_build_name(buf, sizeof(buf), callback, name);
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
@@ -549,23 +529,23 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 }
 
 static PyObject *cpy_register_log(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_log, cpy_log_callback, args, kwds, 0);
+	return cpy_register_generic_userdata(plugin_register_log, cpy_log_callback, args, kwds);
 }
 
 static PyObject *cpy_register_write(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_write, cpy_write_callback, args, kwds, 0);
+	return cpy_register_generic_userdata(plugin_register_write, cpy_write_callback, args, kwds);
 }
 
 static PyObject *cpy_register_notification(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_notification, cpy_notification_callback, args, kwds, 0);
+	return cpy_register_generic_userdata(plugin_register_notification, cpy_notification_callback, args, kwds);
 }
 
 static PyObject *cpy_register_flush(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_flush, cpy_flush_callback, args, kwds, 1);
+	return cpy_register_generic_userdata(plugin_register_flush, cpy_flush_callback, args, kwds);
 }
 
 static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic(&cpy_shutdown_callbacks, args, kwds, 0);
+	return cpy_register_generic(&cpy_shutdown_callbacks, args, kwds);
 }
 
 static PyObject *cpy_error(PyObject *self, PyObject *args) {
@@ -615,7 +595,7 @@ static PyObject *cpy_debug(PyObject *self, PyObject *args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *arg, const char *desc, int short_name) {
+static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *arg, const char *desc) {
 	char buf[512];
 	const char *name;
 	cpy_callback_t *prev = NULL, *tmp;
@@ -627,7 +607,7 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 			PyErr_SetString(PyExc_TypeError, "This function needs a string or a callable object as its only parameter.");
 			return NULL;
 		}
-		cpy_build_name(buf, sizeof(buf), arg, NULL, short_name);
+		cpy_build_name(buf, sizeof(buf), arg, NULL);
 		name = buf;
 	}
 	for (tmp = *list_head; tmp; prev = tmp, tmp = tmp->next)
@@ -650,7 +630,7 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 
 typedef int cpy_unregister_function_t(const char *name);
 
-static PyObject *cpy_unregister_generic_userdata(cpy_unregister_function_t *unreg, PyObject *arg, const char *desc, int short_name) {
+static PyObject *cpy_unregister_generic_userdata(cpy_unregister_function_t *unreg, PyObject *arg, const char *desc) {
 	char buf[512];
 	const char *name;
 
@@ -661,7 +641,7 @@ static PyObject *cpy_unregister_generic_userdata(cpy_unregister_function_t *unre
 			PyErr_SetString(PyExc_TypeError, "This function needs a string or a callable object as its only parameter.");
 			return NULL;
 		}
-		cpy_build_name(buf, sizeof(buf), arg, NULL, short_name);
+		cpy_build_name(buf, sizeof(buf), arg, NULL);
 		name = buf;
 	}
 	if (unreg(name) == 0)
@@ -671,35 +651,35 @@ static PyObject *cpy_unregister_generic_userdata(cpy_unregister_function_t *unre
 }
 
 static PyObject *cpy_unregister_log(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic_userdata(plugin_unregister_log, arg, "log", 0);
+	return cpy_unregister_generic_userdata(plugin_unregister_log, arg, "log");
 }
 
 static PyObject *cpy_unregister_init(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic(&cpy_init_callbacks, arg, "init", 0);
+	return cpy_unregister_generic(&cpy_init_callbacks, arg, "init");
 }
 
 static PyObject *cpy_unregister_config(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic(&cpy_config_callbacks, arg, "config", 1);
+	return cpy_unregister_generic(&cpy_config_callbacks, arg, "config");
 }
 
 static PyObject *cpy_unregister_read(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic_userdata(plugin_unregister_read, arg, "read", 0);
+	return cpy_unregister_generic_userdata(plugin_unregister_read, arg, "read");
 }
 
 static PyObject *cpy_unregister_write(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic_userdata(plugin_unregister_write, arg, "write", 0);
+	return cpy_unregister_generic_userdata(plugin_unregister_write, arg, "write");
 }
 
 static PyObject *cpy_unregister_notification(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic_userdata(plugin_unregister_notification, arg, "notification", 0);
+	return cpy_unregister_generic_userdata(plugin_unregister_notification, arg, "notification");
 }
 
 static PyObject *cpy_unregister_flush(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic_userdata(plugin_unregister_flush, arg, "flush", 1);
+	return cpy_unregister_generic_userdata(plugin_unregister_flush, arg, "flush");
 }
 
 static PyObject *cpy_unregister_shutdown(PyObject *self, PyObject *arg) {
-	return cpy_unregister_generic(&cpy_shutdown_callbacks, arg, "shutdown", 0);
+	return cpy_unregister_generic(&cpy_shutdown_callbacks, arg, "shutdown");
 }
 
 static PyMethodDef cpy_methods[] = {

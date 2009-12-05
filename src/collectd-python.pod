@@ -107,7 +107,7 @@ block which matches the name of the callback as provided with the
 B<register_config> method - see below.
 
 Python thread support has not been initialized at this point so do not use any
-threading functions at this point!
+threading functions here!
 
 =item init functions
 
@@ -381,13 +381,11 @@ I<data> is an optional object that will be passed back to the callback function
         every time it is called. If you obmit this parameter no object is
         passed back to your callback, not even None.
 I<name> is an optional identifier for this callback. The default name is
-        B<python>.I<module>.I<name>'. I<module> and I<name> are taken from the
-        B<__module__> and B<__name__> attributes of your callback function. If
-        the parameter I<name> contains a B<.>' it replaces both I<module> and
-        I<name>, otherwise it replaces only I<name>.
+        B<python>.I<module>. I<module> is taken from the B<__module__>
+        attribute of your callback function.
         Every callback needs a unique identifier, so if you want to register
-        one function multiple time you need to specify a name here. Otherwise
-        it's save to ignore this parameter
+        the same callback multiple time in the same module you need to specify
+        a name here. Otherwise it's save to ignore this parameter
 I<identifier> is the full identifier assigned to this callback.
 
 These functions are called in the various stages of the daemon (see the
@@ -402,9 +400,7 @@ The only argument passed is a I<Config> object. See above for the layout of this
 data type.
 Note that you can not receive the whole config files this way, only B<Module>
 blocks inside the Python configuration block. Additionally you will only
-receive blocks where your callback identifier matches B<python.>I<blockname>. In
-order for this to work the way the identifier is constructed is shortened to
-not have a I<name> part.
+receive blocks where your callback identifier matches B<python.>I<blockname>.
 
 =item register_init
 
@@ -430,8 +426,8 @@ an increasing interval.
 
 =item register_flush
 
-Like B<register_config> the identifier is shortened because it determines what
-flush requests the plugin will receive.
+Like B<register_config> is important for this callbavk because it determines
+what flush requests the plugin will receive.
 
 The arguments passed are I<timeout> and I<identifier>. I<timeout> indicates
 that only data older than I<timeout> seconds is to be flushed. I<identifier>
