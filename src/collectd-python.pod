@@ -27,6 +27,8 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
+Currently only python2 is supported and at least version 2.3 is required.
+
 =head1 CONFIGURATION
 
 =over 4
@@ -40,7 +42,14 @@ see. If you don't do this or your platform does not support it, the embeded
 interpreter will start anywa but you won't be able to load certain python
 modules, e.g. "time".
 
-=item B<MudulePath> I<Name>
+=item B<Encoding> I<Name>
+
+The default encoding for unicode objects you pass to collectd. If you obmit
+this option it will default to B<ascii> on python2 and B<utf-8> on python3.
+This is hardcoded in python and will ignore everything else, including your
+locale.
+
+=item B<ModulePath> I<Name>
 
 Appends I<Name> to B<sys.path>. You won't be able to import any scripts you
 wrote unless they are located in one of the directuries in this list. Please

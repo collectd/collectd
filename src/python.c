@@ -634,7 +634,13 @@ static PyObject *cpy_unregister_generic_userdata(cpy_unregister_function_t *unre
 	char buf[512];
 	const char *name;
 
-	if (PyString_Check(arg)) {
+	if (PyUnicode_Check(arg)) {
+		arg = PyUnicode_AsEncodedString(arg, NULL, NULL);
+		if (arg == NULL)
+			return NULL;
+		name = PyString_AsString(arg);
+		Py_DECREF(arg);
+	} else if (PyString_Check(arg)) {
 		name = PyString_AsString(arg);
 	} else {
 		if (!PyCallable_Check(arg)) {
@@ -888,6 +894,12 @@ static int cpy_config(oconfig_item_t *ci) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
 				continue;
 			do_interactive = item->values[0].value.boolean;
+		} else if (strcasecmp(item->key, "Encoding") == 0) {
+			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_STRING)
+				continue;
+			/* Why is this even necessary? And undocumented? */
+			if (PyUnicode_SetDefaultEncoding(item->values[0].value.string))
+				cpy_log_exception("setting default encoding");
 		} else if (strcasecmp(item->key, "LogTraces") == 0) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
 				continue;
