@@ -224,11 +224,13 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 	if (module != NULL) {
 		snprintf(buf, size, "python.%s", module);
 		Py_XDECREF(mod);
+		PyErr_Clear();
 		return;
 	}
 	Py_XDECREF(mod);
 	
 	snprintf(buf, size, "python.%p", callback);
+	PyErr_Clear();
 }
 
 static void cpy_log_exception(const char *context) {
@@ -624,7 +626,7 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 		PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);
 		return NULL;
 	}
-	/* Yes, this is actually save. To call this function the calles has to
+	/* Yes, this is actually save. To call this function the caller has to
 	 * hold the GIL. Well, save as long as there is only one GIL anyway ... */
 	if (prev == NULL)
 		*list_head = tmp->next;
