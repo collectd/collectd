@@ -600,7 +600,13 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 	const char *name;
 	cpy_callback_t *prev = NULL, *tmp;
 
-	if (PyString_Check(arg)) {
+	if (PyUnicode_Check(arg)) {
+		arg = PyUnicode_AsEncodedString(arg, NULL, NULL);
+		if (arg == NULL)
+			return NULL;
+		name = PyString_AsString(arg);
+		Py_DECREF(arg);
+	} else if (PyString_Check(arg)) {
 		name = PyString_AsString(arg);
 	} else {
 		if (!PyCallable_Check(arg)) {
