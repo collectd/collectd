@@ -91,6 +91,10 @@ const char *global_option_get (const char *option);
  * success. */
 int cf_util_get_string (const oconfig_item_t *ci, char **ret_string);
 
+/* Assures the config option is a boolean and assignes it to `ret_bool'.
+ * Otherwise, `ret_bool' is not changed and non-zero is returned. */
+int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool);
+
 /* Assures that the config option is a string. The string is then converted to
  * a port number using `service_name_to_port_number' and returned. Returns the
  * port number in the range [1-65535] or less than zero upon failure. */

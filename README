@@ -552,6 +552,10 @@ Prerequisites
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
 
+  * librouteros (optional)
+    Used by the `routeros' plugin to connect to a device running `RouterOS'.
+    <http://verplant.org/librouteros/>
+
   * librrd (optional)
     Used by the `rrdtool' and `rrdcached' plugins. The latter requires RRDtool
     client support which was added after version 1.3 of RRDtool. Versions 1.0,
