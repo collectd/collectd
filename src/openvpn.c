@@ -568,7 +568,7 @@ static int openvpn_config (const char *key, const char *value)
 
 		DEBUG ("openvpn plugin: status file \"%s\" added", temp->file);
 
-	}
+	} /* if (strcasecmp ("StatusFile", key) == 0) */
 	else if (strcasecmp ("Compression", key) == 0)
 	{
 		if (IS_TRUE (value))
@@ -578,7 +578,7 @@ static int openvpn_config (const char *key, const char *value)
 			store_compression = 0;
 			DEBUG ("openvpn plugin: no 'compression statistcs' collected");
 		}
-	}
+	} /* if (strcasecmp ("Compression", key) == 0) */
 	else if (strcasecmp ("ImprovedNamingSchema", key) == 0)
 	{
 		if (IS_TRUE (value))
@@ -590,7 +590,7 @@ static int openvpn_config (const char *key, const char *value)
 		{
 			new_naming_schema = 0;
 		}
-	}
+	} /* if (strcasecmp ("ImprovedNamingSchema", key) == 0) */
 	else
 	{
 		return (-1);
@@ -622,3 +622,5 @@ void module_register (void)
 	plugin_register_read ("openvpn", openvpn_read);
 	plugin_register_shutdown ("openvpn", openvpn_shutdown);
 } /* void module_register */
+
+/* vim: set sw=2 ts=2 : */
