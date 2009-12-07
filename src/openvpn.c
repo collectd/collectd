@@ -301,31 +301,29 @@ static int multi2_read (char *name, FILE *fh)
 		 *  with more or less fields.
 		 */
 		if (fields_num != 8)
-		{
 			continue;
+
+		if (strcmp (fields[0], "CLIENT_LIST") != 0)
+			continue;
+
+		if (new_naming_schema)
+		{
+			/* plugin inst = file name, type inst = fields[1] */
+			iostats_submit (name,               /* vpn instance */
+					fields[1],          /* "Common Name" */
+					atoll (fields[4]),  /* "Bytes Received" */
+					atoll (fields[5])); /* "Bytes Sent" */
 		}
 		else
 		{
-			if (strcmp (fields[0], "CLIENT_LIST") == 0)
-			{
-				if (new_naming_schema)
-				{
-					iostats_submit (name,               /* vpn instance */
-							fields[1],          /* "Common Name" */
-							atoll (fields[4]),  /* "Bytes Received" */
-							atoll (fields[5])); /* "Bytes Sent" */
-				}
-				else
-				{
-					iostats_submit (fields[1],          /* "Common Name" */
-							NULL,               /* unused when in multimode */
-							atoll (fields[4]),  /* "Bytes Received" */
-							atoll (fields[5])); /* "Bytes Sent" */
-				}
-
-				read = 1;
-			}
+			/* plugin inst = fields[1], type inst = "" */
+			iostats_submit (fields[1],          /* "Common Name" */
+					NULL,               /* unused when in multimode */
+					atoll (fields[4]),  /* "Bytes Received" */
+					atoll (fields[5])); /* "Bytes Sent" */
 		}
+
+		read = 1;
 	}
 
 	return (read);
@@ -355,25 +353,25 @@ static int multi3_read (char *name, FILE *fh)
 		}
 		else
 		{
-			if (strcmp (fields[0], "CLIENT_LIST") == 0)
-			{
-				if (new_naming_schema)
-				{
-					iostats_submit (name,               /* vpn instance */
-							fields[1],          /* "Common Name" */
-							atoll (fields[4]),  /* "Bytes Received" */
-							atoll (fields[5])); /* "Bytes Sent" */
-				}
-				else
-				{
-					iostats_submit (fields[1],          /* "Common Name" */
-							NULL,               /* unused when in multimode */
-							atoll (fields[4]),  /* "Bytes Received" */
-							atoll (fields[5])); /* "Bytes Sent" */
-				}
+			if (strcmp (fields[0], "CLIENT_LIST") != 0)
+				continue;
 
-				read = 1;
+			if (new_naming_schema)
+			{
+				iostats_submit (name,               /* vpn instance */
+						fields[1],          /* "Common Name" */
+						atoll (fields[4]),  /* "Bytes Received" */
+						atoll (fields[5])); /* "Bytes Sent" */
 			}
+			else
+			{
+				iostats_submit (fields[1],          /* "Common Name" */
+						NULL,               /* unused when in multimode */
+						atoll (fields[4]),  /* "Bytes Received" */
+						atoll (fields[5])); /* "Bytes Sent" */
+			}
+
+			read = 1;
 		}
 	}
 
