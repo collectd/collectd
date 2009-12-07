@@ -91,7 +91,7 @@ static PyMemberDef PluginData_members[] = {
 };
 
 static PyObject *PluginData_getstring(PyObject *self, void *data) {
-	const char *value = ((char *) self) + (int) data;
+	const char *value = ((char *) self) + (intptr_t) data;
 	
 	return PyString_FromString(value);
 }
@@ -106,7 +106,7 @@ static int PluginData_setstring(PyObject *self, PyObject *value, void *data) {
 	}
 	new = PyString_AsString(value);
 	if (new == NULL) return -1;
-	old = ((char *) self) + (int) data;
+	old = ((char *) self) + (intptr_t) data;
 	sstrncpy(old, new, DATA_MAX_NAME_LEN);
 	return 0;
 }
@@ -127,7 +127,7 @@ static int PluginData_settype(PyObject *self, PyObject *value, void *data) {
 		return -1;
 	}
 
-	old = ((char *) self) + (int) data;
+	old = ((char *) self) + (intptr_t) data;
 	sstrncpy(old, new, DATA_MAX_NAME_LEN);
 	return 0;
 }
@@ -677,7 +677,7 @@ static int Notification_setstring(PyObject *self, PyObject *value, void *data) {
 	}
 	new = PyString_AsString(value);
 	if (new == NULL) return -1;
-	old = ((char *) self) + (int) data;
+	old = ((char *) self) + (intptr_t) data;
 	sstrncpy(old, new, NOTIF_MAX_MSG_LEN);
 	return 0;
 }
