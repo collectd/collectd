@@ -384,22 +384,32 @@ The following functions provide the C-interface to Python-modules.
 There are eight different register functions to get callback for eight
 different events. With one exception all of them are called as shown above.
 
-I<callback> is a callable object that will be called every time the event is
-        triggered.
-I<data> is an optional object that will be passed back to the callback function
-        every time it is called. If you obmit this parameter no object is
-        passed back to your callback, not even None.
-I<name> is an optional identifier for this callback. The default name is
-        B<python>.I<module>. I<module> is taken from the B<__module__>
-        attribute of your callback function.
-        Every callback needs a unique identifier, so if you want to register
-        the same callback multiple time in the same module you need to specify
-        a name here. Otherwise it's save to ignore this parameter
-I<identifier> is the full identifier assigned to this callback.
+=over 4
 
-These functions are called in the various stages of the daemon (see the
-section "WRITING YOUR OWN PLUGINS" above) and are passed the following
-arguments:
+=item
+
+I<callback> is a callable object that will be called every time the event is
+triggered.
+
+=item
+
+I<data> is an optional object that will be passed back to the callback function
+every time it is called. If you obmit this parameter no object is passed back
+to your callback, not even None.
+
+=item
+
+I<name> is an optional identifier for this callback. The default name is
+B<python>.I<module>. I<module> is taken from the B<__module__> attribute of
+your callback function. Every callback needs a unique identifier, so if you
+want to register the same callback multiple time in the same module you need to
+specify a name here. Otherwise it's save to ignore this parameter I<identifier>
+is the full identifier assigned to this callback.
+
+=back
+
+These functions are called in the various stages of the daemon (see the section
+L<"WRITING YOUR OWN PLUGINS"> above) and are passed the following arguments:
 
 =over 4
 
@@ -506,7 +516,7 @@ To register those functions with collectd:
   collectd.register_read(read);
   collectd.register_write(write);
 
-See the section "CLASSES" above for a complete documentation of the data
+See the section L<"CLASSES"> above for a complete documentation of the data
 types used by the read, write and match functions.
 
 =head1 NOTES
