@@ -641,12 +641,13 @@ L<python(1)>,
 
 =head1 AUTHOR
 
-The C<python plugin> has been written by Sebastian Harl
-E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
+The C<python plugin> has been written by
+Sven Trenkel E<lt>collectdE<nbsp>atE<nbsp>semidefinite.deE<gt>.
 
-This manpage has been written by Florian Forster
-E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt> and Sebastian Harl
-E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
+This manpage has been written by Sven Trenkel
+E<lt>collectdE<nbsp>atE<nbsp>semidefinite.deE<gt>.
+It is based on the L<collectd-perl(5)> manual page by
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt> and
+Sebastian Harl E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
 
 =cut
-
