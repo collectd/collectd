@@ -4,7 +4,7 @@ if BUILD_WITH_JAVA
 SUBDIRS += java
 endif
 
-EXTRA_DIST = perl/Collectd.pm perl/Makefile.PL perl/Collectd/Makefile.PL \
+EXTRA_DIST = perl/Collectd.pm perl/Makefile.PL \
 		perl/Collectd/Unixsock.pm
 
 all-local: @PERL_BINDINGS@
@@ -19,7 +19,7 @@ perl: perl/Makefile
 	cd perl && $(MAKE)
 
 perl/Makefile: .perl-directory-stamp perl/Makefile.PL \
-	perl/Collectd/Makefile.PL $(top_builddir)/config.status
+	$(top_builddir)/config.status
 	cd perl && @PERL@ Makefile.PL PREFIX=$(prefix) @PERL_BINDINGS_OPTIONS@
 
 .perl-directory-stamp:
@@ -28,7 +28,6 @@ perl/Makefile: .perl-directory-stamp perl/Makefile.PL \
 	  cp $(srcdir)/perl/Collectd.pm perl/; \
 	  cp $(srcdir)/perl/Makefile.PL perl/; \
 	  cp $(srcdir)/perl/Collectd/Unixsock.pm perl/Collectd/; \
-	  cp $(srcdir)/perl/Collectd/Makefile.PL perl/Collectd/; \
 	fi
 	touch $@
 
