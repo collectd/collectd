@@ -46,13 +46,13 @@ static char reg_log_doc[] = "register_log(callback[, data][, name]) -> identifie
 		"severity: An integer that should be compared to the LOG_ constants.\n"
 		"message: The text to be logged.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_init_doc[] = "register_init(callback[, data][, name]) -> identifier\n"
 		"\n"
 		"Register a callback function that will be executed once after the config.\n"
 		"file has been read, all plugins heve been loaded and the collectd has\n"
-		"forked into the backgroud.\n"
+		"forked into the background.\n"
 		"\n"
 		"'callback' is a callable object that will be executed.\n"
 		"'data' is an optional object that will be passed back to the callback\n"
@@ -83,7 +83,7 @@ static char reg_config_doc[] = "register_config(callback[, data][, name]) -> ide
 		"The callback function will be called with one or two parameters:\n"
 		"config: A Config object.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_read_doc[] = "register_read(callback[, interval][, data][, name]) -> identifier\n"
 		"\n"
@@ -122,7 +122,7 @@ static char reg_write_doc[] = "register_write(callback[, data][, name]) -> ident
 		"The callback function will be called with one or two parameters:\n"
 		"values: A Values object which is a copy of the dispatched values.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_notification_doc[] = "register_notification(callback[, data][, name]) -> identifier\n"
 		"\n"
@@ -141,7 +141,7 @@ static char reg_notification_doc[] = "register_notification(callback[, data][, n
 		"The callback function will be called with one or two parameters:\n"
 		"notification: A copy of the notification that was dispatched.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> identifier\n"
 		"\n"
@@ -162,7 +162,7 @@ static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> ident
 		"    be flushed.\n"
 		"id: Specifies which values are to be flushed.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) -> identifier\n"
 		"\n"
