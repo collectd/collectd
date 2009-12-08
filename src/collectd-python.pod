@@ -54,7 +54,8 @@ locale.
 
 Appends I<Name> to B<sys.path>. You won't be able to import any scripts you
 wrote unless they are located in one of the directories in this list. Please
-note that it only has effect on plugins loaded after this option.
+note that it only has effect on plugins loaded after this option. You can
+use multiple B<ModulePath> lines to add more than one directory.
 
 =item B<LogTraces> I<bool>
 
