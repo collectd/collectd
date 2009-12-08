@@ -274,7 +274,7 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	int i, ret;
 	const data_set_t *ds;
-	Py_ssize_t size;
+	int size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values;
@@ -306,9 +306,9 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 		PyErr_Format(PyExc_TypeError, "values must be list or tuple");
 		return NULL;
 	}
-	size = PySequence_Length(values);
+	size = (int) PySequence_Length(values);
 	if (size != ds->ds_num) {
-		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %zd", type, ds->ds_num, size);
+		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", type, ds->ds_num, size);
 		return NULL;
 	}
 	value = malloc(size * sizeof(*value));
@@ -373,7 +373,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	int i, ret;
 	const data_set_t *ds;
-	Py_ssize_t size;
+	int size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values;
@@ -406,9 +406,9 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 		PyErr_Format(PyExc_TypeError, "values must be list or tuple");
 		return NULL;
 	}
-	size = PySequence_Length(values);
+	size = (int) PySequence_Length(values);
 	if (size != ds->ds_num) {
-		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %zd", type, ds->ds_num, size);
+		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", type, ds->ds_num, size);
 		return NULL;
 	}
 	value = malloc(size * sizeof(*value));
