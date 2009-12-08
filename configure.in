@@ -1081,6 +1081,7 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_PERFSTAT, test "x$with_perfstat" = "xyes")
 
+# Processes plugin under AIX.
 if test "x$with_procinfo" = "xyes"
 then
 	AC_CHECK_HEADERS(procinfo.h,, [with_procinfo="no (procinfo.h not found)"])
@@ -1089,7 +1090,6 @@ if test "x$with_procinfo" = "xyes"
 then
 	 AC_DEFINE(HAVE_PROCINFO_H, 1, [Define to 1 if you have the procinfo.h])
 fi
-AM_CONDITIONAL(BUILD_WITH_PROCINFO_H, test "x$with_procinfo" = "xyes")
 
 if test "x$ac_system" = "xSolaris"
 then
@@ -4172,6 +4172,7 @@ Configuration:
     libopenipmi . . . . . $with_libopenipmipthread
     liboping  . . . . . . $with_liboping
     libpcap . . . . . . . $with_libpcap
+    libperfstat . . . . . $with_perfstat
     libperl . . . . . . . $with_libperl
     libpq . . . . . . . . $with_libpq
     libpthread  . . . . . $with_libpthread
