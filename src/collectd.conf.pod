@@ -3287,6 +3287,11 @@ matching values will be ignored.
 
 =back
 
+=head2 Plugin C<python>
+
+This plugin embeds a Python-interpreter into collectd and provides an interface
+to collectd's plugin system. See L<collectd-python(5)> for its documentation.
+
 =head2 Plugin C<routeros>
 
 The C<routeros> plugin connects to a device running I<RouterOS>, the
