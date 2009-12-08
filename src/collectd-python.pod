@@ -27,7 +27,8 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-Currently only python2 is supported and at least version 2.3 is required.
+Currently only I<Python 2> is supported and at least I<version 2.3> is
+required.
 
 =head1 CONFIGURATION
 
@@ -44,15 +45,15 @@ modules, e.g. "time".
 
 =item B<Encoding> I<Name>
 
-The default encoding for unicode objects you pass to collectd. If you obmit
-this option it will default to B<ascii> on python2 and B<utf-8> on python3.
-This is hardcoded in python and will ignore everything else, including your
+The default encoding for Unicode objects you pass to collectd. If you omit this
+option it will default to B<ascii> on I<Python 2> and B<utf-8> on I<Python 3>.
+This is hardcoded in Python and will ignore everything else, including your
 locale.
 
 =item B<ModulePath> I<Name>
 
 Appends I<Name> to B<sys.path>. You won't be able to import any scripts you
-wrote unless they are located in one of the directuries in this list. Please
+wrote unless they are located in one of the directories in this list. Please
 note that it only has effect on plugins loaded after this option.
 
 =item B<LogTraces> I<bool>
@@ -65,7 +66,7 @@ is very useful for development and debugging of new modules.
 
 =item B<Interactive> I<bool>
 
-This option will causethe module to launch an interactive python interpreter
+This option will cause the module to launch an interactive python interpreter
 that reads from and writes to the terminal. Note that collectd will terminate
 right after starting up if you try to run it as a daemon while this option is
 enabled to make sure to start collectd with the B<-f> option.
@@ -76,20 +77,31 @@ used as a reference guide during coding.
 
 This interactive session will behave slightly differently from a daemonized
 collectd script as well as from a normal python interpreter:
-1. collectd will try to import the B<readline> module to give you a decent
-way of entering your commmands. The daemonized collectd won't do that.
-2. collectd will block SIGINT. Pressing Ctrl+C will usually cause collectd to
-shut down. This would be problematic in an interactive session, therefore this
-signal will be blocked. You can still use it to interrupt syscalls like sleep
-and pause but it won't generate a KeyboardInterrupt exception either.
 
-To quit collectd send EOF (press Ctrl+D at the beginning of a new line).
+=over 4
+
+=item
+
+B<1.> collectd will try to import the B<readline> module to give you a decent
+way of entering your commands. The daemonized collectd won't do that.
+
+=item 
+
+B<2.> collectd will block I<SIGINT>. Pressing I<Ctrl+C> will usually cause
+collectd to shut down. This would be problematic in an interactive session,
+therefore this signal will be blocked. You can still use it to interrupt
+syscalls like sleep and pause but it won't generate a I<KeyboardInterrupt>
+exception either.
+
+To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
+
+=back
 
 =item E<lt>B<Module> I<Name>E<gt> block
 
 This block may be used to pass on configuration settings to a Python module.
-The configuration is converted into an instance of the B<Config> class which
-is passed to the registered configuration callback. See below for details about
+The configuration is converted into an instance of the B<Config> class which is
+passed to the registered configuration callback. See below for details about
 the B<Config> class and how to register callbacks.
 
 The I<name> identifies the callback.
@@ -168,8 +180,8 @@ be used to clean up the plugin (e.g. close sockets, ...).
 
 Any function (except log functions) may set throw an exception in case of any
 errors. The exception will be passed on to the user using collectd's logging
-mechanism. If a log callback throws an exception it will be printed to stderr
-instead.
+mechanism. If a log callback throws an exception it will be printed to standard
+error instead.
 
 See the documentation of the various B<register_> methods in the section
 "FUNCTIONS" below for the number and types of arguments passed to each
@@ -212,15 +224,15 @@ of the config tree it will be None.
  
 =item key
 
-This is the keyword of this item, ie the first word of any given line in the
+This is the keyword of this item, i.e. the first word of any given line in the
 config file. It will always be a string.
  
 =item values
 
-This is a tuple (which might be empty) of all value, ie words following the
+This is a tuple (which might be empty) of all value, i.e. words following the
 keyword in any given line in the config file.
 
-Every item in this tuple will be either a string or a float or a bool,
+Every item in this tuple will be either a string or a float or a boolean,
 depending on the contents of the configuration file.
  
 =item children
@@ -355,7 +367,7 @@ I<TypeError> exception will be raised.
 
 A notification is an object defining the severity and message of the status
 message as well as an identification of a data instance by means of the members
-of PluginData on which it is based.
+of I<PluginData> on which it is based.
 
 class Notification(PluginData)
 The Notification class is a wrapper around the collectd notification.
@@ -430,8 +442,8 @@ triggered.
 =item
 
 I<data> is an optional object that will be passed back to the callback function
-every time it is called. If you obmit this parameter no object is passed back
-to your callback, not even None.
+every time it is called. If you omit this parameter no object is passed back to
+your callback, not even None.
 
 =item
 
@@ -481,7 +493,7 @@ an increasing interval.
 
 =item register_flush
 
-Like B<register_config> is important for this callbavk because it determines
+Like B<register_config> is important for this callback because it determines
 what flush requests the plugin will receive.
 
 The arguments passed are I<timeout> and I<identifier>. I<timeout> indicates
@@ -498,7 +510,7 @@ and B<LOG_WARNING>. I<message> is simply a string B<without> a newline at the
 end.
 
 If this callback throws an exception it will B<not> be logged. It will just be
-printed to sys.stderr which usually means silently ignored.
+printed to B<sys.stderr> which usually means silently ignored.
 
 =item register_notification
 
@@ -510,10 +522,10 @@ data type.
 =item B<unregister_*>(I<identifier>) -> None
 
 Removes a callback or data-set from collectd's internal list of callback
-functions. Every register_* function has an unregister_* function. I<identifier>
-is either the string that was returned by the register function or a callback
-function. The identifier will be constructed in the same way as for the
-register functions.
+functions. Every I<register_*> function has an I<unregister_*> function.
+I<identifier> is either the string that was returned by the register function
+or a callback function. The identifier will be constructed in the same way as
+for the register functions.
 
 =item B<flush>(I<plugin[, I<timeout>][, I<identifier>]) -> None
 
@@ -607,11 +619,13 @@ dispatched by the python plugin after upgrades.
 
 =item
 
-This plugin is not compatible with python3. Trying to complie it with python3
+This plugin is not compatible with python3. Trying to compile it with python3
 will fail because of the ways string, unicode and bytearray bahavior was
 changed.
 
-Not all aspects of the collectd API are accessable from python. This includes
+=item
+
+Not all aspects of the collectd API are accessible from python. This includes
 but is not limited to meta-data, filters and data sets.
 
 =back
