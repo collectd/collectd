@@ -6,7 +6,7 @@
 
 #include "cpython.h"
 
-static const char Config_doc[] = "This represents a piece of collectd's config file.\n"
+static char config_doc[] = "This represents a piece of collectd's config file.\n"
 		"It is passed to scripts with config callbacks (see \"register_config\")\n"
 		"and is of little use if created somewhere else.\n"
 		"\n"
@@ -144,7 +144,7 @@ PyTypeObject ConfigType = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
-	Config_doc,                /* tp_doc */
+	config_doc,                /* tp_doc */
 	Config_traverse,           /* tp_traverse */
 	Config_clear,              /* tp_clear */
 	0,                         /* tp_richcompare */
