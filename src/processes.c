@@ -4,6 +4,7 @@
  * Copyright (C) 2006-2008  Florian octo Forster
  * Copyright (C) 2008       Oleg King
  * Copyright (C) 2009       Sebastian Harl
+ * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +25,7 @@
  *   Florian octo Forster <octo at verplant.org>
  *   Oleg King <king2 at kaluga.ru>
  *   Sebastian Harl <sh at tokkee.org>
+ *   Manuel Sanmartin
  **/
 
 #include "collectd.h"
@@ -93,6 +95,15 @@
 #  include <sys/user.h>
 #  include <sys/proc.h>
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+
+#elif HAVE_PROCINFO_H
+#  include <procinfo.h>
+#  include <sys/types.h>
+
+#define MAXPROCENTRY 32
+#define MAXTHRDENTRY 16
+#define MAXARGLN 1024
+/* #endif HAVE_PROCINFO_H */
 
 #else
 # error "No applicable input method."
@@ -191,7 +202,19 @@ static long pagesize_g;
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
 /* no global variables */
-#endif /* HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+
+#elif HAVE_PROCINFO_H
+static  struct procentry64 procentry[MAXPROCENTRY];
+static  struct thrdentry64 thrdentry[MAXTHRDENTRY];
+static int pagesize;
+
+#ifndef _AIXVERSION_610
+int     getprocs64 (void *procsinfo, int sizproc, void *fdsinfo, int sizfd, pid_t *index, int count);
+int     getthrds64( pid_t, void *, int, tid64_t *, int );
+#endif
+int getargs (struct procentry64 *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
+#endif /* HAVE_PROCINFO_H */
 
 /* put name of process from config to list_head_g tree
    list_head_g is a list of 'procstat_t' structs with
@@ -563,7 +586,11 @@ static int ps_init (void)
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
 /* no initialization */
-#endif /* HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+
+#elif HAVE_PROCINFO_H
+	pagesize = getpagesize();
+#endif /* HAVE_PROCINFO_H */
 
 	return (0);
 } /* int ps_init */
@@ -1542,7 +1569,133 @@ static int ps_read (void)
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
-#endif /* HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+
+#elif HAVE_PROCINFO_H
+	/* AIX */
+	int running  = 0;
+	int sleeping = 0;
+	int zombies  = 0;
+	int stopped  = 0;
+	int paging   = 0;
+	int blocked  = 0;
+
+	pid_t pindex = 0;
+	int nprocs;
+
+	procstat_t *ps;
+	procstat_entry_t pse;
+
+	ps_list_reset ();
+	while ((nprocs = getprocs64 (procentry, sizeof(struct procentry64),
+					/* fdsinfo = */ NULL, sizeof(struct fdsinfo64),
+					&pindex, MAXPROCENTRY)) > 0)
+	{
+		int i;
+
+		for (i = 0; i < nprocs; i++)
+		{
+			tid64_t thindex;
+			int nthreads;
+			char arglist[MAXARGLN+1];
+			char *cargs;
+			char *cmdline;
+
+			if (procentry[i].pi_state == SNONE) continue;
+			/* if (procentry[i].pi_state == SZOMB)  FIXME */
+
+			cmdline = procentry[i].pi_comm;
+			cargs = procentry[i].pi_comm;
+			if ( procentry[i].pi_flags & SKPROC )
+			{
+				if (procentry[i].pi_pid == 0)
+					cmdline = "swapper";
+				cargs = cmdline;
+ 			}
+			else
+			{
+				if (getargs(&procentry[i], sizeof(struct procentry64), arglist, MAXARGLN) >= 0)
+				{
+					int n;
+
+					n = -1;
+					while (++n < MAXARGLN)
+					{
+						if (arglist[n] == '\0')
+						{
+							if (arglist[n+1] == '\0')
+								break;
+							arglist[n] = ' ';
+						}
+					}
+					cargs = arglist;
+				}
+			}
+
+			pse.id       = procentry[i].pi_pid;
+			pse.age      = 0;
+			pse.num_lwp  = procentry[i].pi_thcount;
+			pse.num_proc = 1;
+
+			thindex=0;
+			while ((nthreads = getthrds64(procentry[i].pi_pid,
+							thrdentry, sizeof(struct thrdentry64),
+							&thindex, MAXTHRDENTRY)) > 0)
+			{
+				int j;
+
+				for (j=0; j< nthreads; j++)
+				{
+					switch (thrdentry[j].ti_state)
+					{
+						/* case TSNONE: break; */
+						case TSIDL:	blocked++;	break; /* FIXME is really blocked */
+						case TSRUN:	running++;	break;
+						case TSSLEEP:	sleeping++;	break;
+						case TSSWAP:	paging++;	break;
+						case TSSTOP:	stopped++;	break;
+						case TSZOMB:	zombies++;	break;
+					}
+				}
+				if (nthreads < MAXTHRDENTRY)
+					break;
+			}
+
+			pse.cpu_user = 0;
+			/* tv_usec is nanosec ??? */
+			pse.cpu_user_counter = procentry[i].pi_ru.ru_utime.tv_sec * 1000000 +
+				procentry[i].pi_ru.ru_utime.tv_usec / 1000;
+
+			pse.cpu_system = 0;
+			/* tv_usec is nanosec ??? */
+			pse.cpu_system_counter = procentry[i].pi_ru.ru_stime.tv_sec * 1000000 +
+				procentry[i].pi_ru.ru_stime.tv_usec / 1000;
+
+			pse.vmem_minflt = 0;
+			pse.vmem_minflt_counter = procentry[i].pi_minflt;
+			pse.vmem_majflt = 0;
+			pse.vmem_majflt_counter = procentry[i].pi_majflt;
+
+			pse.vmem_size = procentry[i].pi_tsize + procentry[i].pi_dvm * pagesize;
+			pse.vmem_rss = (procentry[i].pi_drss + procentry[i].pi_trss) * pagesize;
+			pse.stack_size =  0;
+
+			ps_list_add (cmdline, cargs, &pse);
+		} /* for (i = 0 .. nprocs) */
+
+		if (nprocs < MAXPROCENTRY)
+			break;
+	} /* while (getprocs64() > 0) */
+	ps_submit_state ("running",  running);
+	ps_submit_state ("sleeping", sleeping);
+	ps_submit_state ("zombies",  zombies);
+	ps_submit_state ("stopped",  stopped);
+	ps_submit_state ("paging",   paging);
+	ps_submit_state ("blocked",  blocked);
+
+	for (ps = list_head_g; ps != NULL; ps = ps->next)
+		ps_submit_proc_list (ps);
+#endif /* HAVE_PROCINFO_H */
 
 	return (0);
 } /* int ps_read */

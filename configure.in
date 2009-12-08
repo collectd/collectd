@@ -63,6 +63,10 @@ case $host_os in
 	*openbsd*)
 	ac_system="OpenBSD"
 	;;
+	*aix*)
+	AC_DEFINE([KERNEL_AIX], 1, [True if program is to be compiled for a AIX kernel])
+	ac_system="AIX"
+	;;
 	*)
 	ac_system="unknown"
 esac
@@ -629,6 +633,8 @@ static float foo = NAN;
   fi
 fi
 if test "x$nan_type" = "xnone"; then
+  SAVE_LDFLAGS=$LDFLAGS
+  LDFLAGS="$LDFLAGS -lm"
   AC_CACHE_CHECK([whether NAN can be defined by 0/0],
     [c_cv_have_nan_zero],
     AC_RUN_IFELSE(
@@ -655,6 +661,7 @@ static float foo = NAN;
       [c_cv_have_nan_zero="no"]
     )
   )
+  LDFLAGS=$SAVE_LDFLAGS
   if test "x$c_cv_have_nan_zero" = "xyes"
   then
     nan_type="zero"
@@ -1053,6 +1060,38 @@ fi
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
+
+AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"]) 
+
+if test "x$ac_system" = "xAIX"
+then
+	with_perfstat="yes"
+	with_procinfo="yes"
+else
+	with_perfstat="no (AIX only)"
+	with_procinfo="no (AIX only)"
+fi
+
+if test "x$with_perfstat" = "xyes"
+then
+	AC_CHECK_LIB(perfstat, perfstat_reset, [with_perfstat="yes"], [with_perfstat="no (perfstat not found)"], [])
+#	AC_CHECK_HEADERS(sys/protosw.h libperfstat.h,, [with_perfstat="no (perfstat not found)"])
+fi
+if test "x$with_perfstat" = "xyes"
+then
+	 AC_DEFINE(HAVE_PERFSTAT, 1, [Define to 1 if you have the 'perfstat' library (-lperfstat)])
+fi
+AM_CONDITIONAL(BUILD_WITH_PERFSTAT, test "x$with_perfstat" = "xyes")
+
+# Processes plugin under AIX.
+if test "x$with_procinfo" = "xyes"
+then
+	AC_CHECK_HEADERS(procinfo.h,, [with_procinfo="no (procinfo.h not found)"])
+fi
+if test "x$with_procinfo" = "xyes"
+then
+	 AC_DEFINE(HAVE_PROCINFO_H, 1, [Define to 1 if you have the procinfo.h])
+fi
 
 if test "x$ac_system" = "xSolaris"
 then
@@ -3825,6 +3864,22 @@ then
 	plugin_disk="yes"
 fi
 
+# AIX
+if test "x$with_perfstat" = "xyes"
+then
+	plugin_cpu="yes"
+	plugin_disk="yes"
+	plugin_memory="yes"
+	plugin_swap="yes"
+	plugin_interface="yes"
+	plugin_load="yes"
+fi
+
+if test "x$with_procinfo" = "xyes"
+then
+	plugin_processes="yes"
+fi
+
 # Solaris
 if test "x$with_kstat" = "xyes"
 then
@@ -4299,6 +4354,7 @@ Configuration:
     libopenipmi . . . . . $with_libopenipmipthread
     liboping  . . . . . . $with_liboping
     libpcap . . . . . . . $with_libpcap
+    libperfstat . . . . . $with_perfstat
     libperl . . . . . . . $with_libperl
     libpq . . . . . . . . $with_libpq
     libpthread  . . . . . $with_libpthread

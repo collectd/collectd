@@ -3,6 +3,7 @@
  * Copyright (C) 2005-2009  Florian octo Forster
  * Copyright (C) 2008       Oleg King
  * Copyright (C) 2009       Simon Kuhnle
+ * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +22,7 @@
  *   Florian octo Forster <octo at verplant.org>
  *   Oleg King <king2 at kaluga.ru>
  *   Simon Kuhnle <simon at blarzwurst.de>
+ *   Manuel Sanmartin
  **/
 
 #include "collectd.h"
@@ -88,8 +90,13 @@
 # include <statgrab.h>
 #endif
 
+# ifdef HAVE_PERFSTAT
+#  include <sys/protosw.h>
+#  include <libperfstat.h>
+# endif /* HAVE_PERFSTAT */
+
 #if !PROCESSOR_CPU_LOAD_INFO && !KERNEL_LINUX && !HAVE_LIBKSTAT \
-	&& !CAN_USE_SYSCTL && !HAVE_SYSCTLBYNAME && !HAVE_LIBSTATGRAB
+	&& !CAN_USE_SYSCTL && !HAVE_SYSCTLBYNAME && !HAVE_LIBSTATGRAB && !HAVE_PERFSTAT
 # error "No applicable input method."
 #endif
 
@@ -130,7 +137,13 @@ static int maxcpu;
 
 #elif defined(HAVE_LIBSTATGRAB)
 /* no variables needed */
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif  HAVE_LIBSTATGRAB */
+
+#elif defined(HAVE_PERFSTAT)
+static perfstat_cpu_t *perfcpu;
+static int numcpu;
+static int pnumcpu;
+#endif /* HAVE_PERFSTAT */
 
 static int init (void)
 {
@@ -219,7 +232,11 @@ static int init (void)
 
 #elif defined(HAVE_LIBSTATGRAB)
 	/* nothing to initialize */
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
+
+#elif defined(HAVE_PERFSTAT)
+	/* nothing to initialize */
+#endif /* HAVE_PERFSTAT */
 
 	return (0);
 } /* int init */
@@ -540,7 +557,46 @@ static int cpu_read (void)
 	submit (0, "system", (counter_t) cs->kernel);
 	submit (0, "user",   (counter_t) cs->user);
 	submit (0, "wait",   (counter_t) cs->iowait);
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
+
+#elif defined(HAVE_PERFSTAT)
+	perfstat_id_t id;
+	int i, cpus;
+
+	numcpu =  perfstat_cpu(NULL, NULL, sizeof(perfstat_cpu_t), 0);
+	if(numcpu == -1)
+	{
+		char errbuf[1024];
+		WARNING ("cpu plugin: perfstat_cpu: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+	
+	if (pnumcpu != numcpu || perfcpu == NULL) 
+	{
+		if (perfcpu != NULL) 
+			free(perfcpu);
+		perfcpu = malloc(numcpu * sizeof(perfstat_cpu_t));
+	}
+	pnumcpu = numcpu;
+
+	id.name[0] = '\0';
+	if ((cpus = perfstat_cpu(&id, perfcpu, sizeof(perfstat_cpu_t), numcpu)) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("cpu plugin: perfstat_cpu: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	for (i = 0; i < cpus; i++) 
+	{
+		submit (i, "idle",   (counter_t) perfcpu[i].idle);
+		submit (i, "system", (counter_t) perfcpu[i].sys);
+		submit (i, "user",   (counter_t) perfcpu[i].user);
+		submit (i, "wait",   (counter_t) perfcpu[i].wait);
+	}
+#endif /* HAVE_PERFSTAT */
 
 	return (0);
 }

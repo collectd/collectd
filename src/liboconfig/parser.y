@@ -46,7 +46,7 @@ extern char           *c_file;
 }
 
 %token <number> NUMBER
-%token <boolean> TRUE FALSE
+%token <boolean> BTRUE BFALSE
 %token <string> QUOTED_STRING UNQUOTED_STRING
 %token SLASH OPENBRAC CLOSEBRAC EOL
 
@@ -76,8 +76,8 @@ string:
 
 argument:
 	NUMBER			{$$.value.number = $1; $$.type = OCONFIG_TYPE_NUMBER;}
-	| TRUE			{$$.value.boolean = 1; $$.type = OCONFIG_TYPE_BOOLEAN;}
-	| FALSE			{$$.value.boolean = 0; $$.type = OCONFIG_TYPE_BOOLEAN;}
+	| BTRUE			{$$.value.boolean = 1; $$.type = OCONFIG_TYPE_BOOLEAN;}
+	| BFALSE		{$$.value.boolean = 0; $$.type = OCONFIG_TYPE_BOOLEAN;}
 	| string		{$$.value.string = $1; $$.type = OCONFIG_TYPE_STRING;}
 	;
 

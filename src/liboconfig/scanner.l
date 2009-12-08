@@ -69,8 +69,8 @@ IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
 "/"			{return (SLASH);}
 "<"			{return (OPENBRAC);}
 ">"			{return (CLOSEBRAC);}
-{BOOL_TRUE}		{yylval.boolean = 1; return (TRUE);}
-{BOOL_FALSE}		{yylval.boolean = 0; return (FALSE);}
+{BOOL_TRUE}		{yylval.boolean = 1; return (BTRUE);}
+{BOOL_FALSE}		{yylval.boolean = 0; return (BFALSE);}
 
 {IPV4_ADDR}		{yylval.string = yytext; return (UNQUOTED_STRING);}
 

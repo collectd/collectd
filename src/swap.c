@@ -2,6 +2,7 @@
  * collectd - src/swap.c
  * Copyright (C) 2005-2009  Florian octo Forster
  * Copyright (C) 2009       Stefan Völkel
+ * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Manuel Sanmartin
  **/
 
 #if HAVE_CONFIG_H
@@ -57,6 +59,11 @@
 # include <statgrab.h>
 #endif
 
+#if HAVE_PERFSTAT
+# include <sys/protosw.h>
+# include <libperfstat.h>
+#endif
+
 #undef  MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
@@ -85,6 +92,11 @@ int kvm_pagesize;
 #elif HAVE_LIBSTATGRAB
 /* No global variables */
 /* #endif HAVE_LIBSTATGRAB */
+
+#elif HAVE_PERFSTAT
+static int pagesize;
+static perfstat_memory_total_t pmemory;
+/*# endif HAVE_PERFSTAT */ 
 
 #else
 # error "No applicable input method."
@@ -134,7 +146,11 @@ static int swap_init (void)
 
 #elif HAVE_LIBSTATGRAB
 	/* No init stuff */
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
+
+#elif HAVE_PERFSTAT
+	pagesize = getpagesize();
+#endif /* HAVE_PERFSTAT */
 
 	return (0);
 }
@@ -449,7 +465,19 @@ static int swap_read (void)
 
 	swap_submit ("used", (derive_t) swap->used, DS_TYPE_GAUGE);
 	swap_submit ("free", (derive_t) swap->free, DS_TYPE_GAUGE);
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif  HAVE_LIBSTATGRAB */
+
+#elif HAVE_PERFSTAT
+        if(perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1) < 0)
+	{
+                char errbuf[1024];
+                WARNING ("memory plugin: perfstat_memory_total failed: %s",
+                        sstrerror (errno, errbuf, sizeof (errbuf)));
+                return (-1);
+        }
+	swap_submit ("used", (derive_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize, DS_TYPE_GAUGE);
+	swap_submit ("free", (derive_t) pmemory.pgsp_free * pagesize , DS_TYPE_GAUGE);
+#endif /* HAVE_PERFSTAT */
 
 	return (0);
 } /* int swap_read */

@@ -82,6 +82,17 @@ Luke Herberling <collectd at c-ware.com>
 Lyonel Vincent <lyonel at ezix.org>
  - processes plugin.
 
+Manuel Sanmartin
+ - AIX port of the following plugins:
+   + cpu
+   + disk
+   + interface
+   + load
+   + memory
+   + processes
+   + swap
+ - Various AIX-related fixes and hacks.
+
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
  - ip6tables support in the iptables plugin.

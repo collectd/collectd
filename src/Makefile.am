@@ -68,6 +68,10 @@ endif
 if BUILD_WITH_LIBDEVINFO
 collectd_LDADD += -ldevinfo
 endif
+if BUILD_AIX
+collectd_LDFLAGS += -Wl,-bexpall,-brtllib
+collectd_LDADD += -lm
+endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo
@@ -91,6 +95,10 @@ collectd_nagios_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
 endif
+if BUILD_AIX
+collectd_nagios_LDADD += -lm
+endif
+
 collectd_nagios_LDADD += libcollectdclient/libcollectdclient.la
 collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
@@ -197,6 +205,9 @@ if BUILD_WITH_LIBSTATGRAB
 cpu_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 cpu_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
+if BUILD_WITH_PERFSTAT
+cpu_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" cpu.la
 collectd_DEPENDENCIES += cpu.la
 endif
@@ -283,6 +294,9 @@ endif
 if BUILD_WITH_LIBSTATGRAB
 disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)  
 disk_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+endif
+if BUILD_WITH_PERFSTAT
+disk_la_LIBADD += -lperfstat
 endif
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
@@ -374,6 +388,9 @@ if BUILD_WITH_LIBDEVINFO
 interface_la_LIBADD += -ldevinfo
 endif # BUILD_WITH_LIBDEVINFO
 endif # !BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_PERFSTAT
+interface_la_LIBADD += -lperfstat
+endif
 endif # BUILD_PLUGIN_INTERFACE
 
 if BUILD_PLUGIN_IPTABLES
@@ -452,6 +469,9 @@ if BUILD_WITH_LIBSTATGRAB
 load_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 load_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif # BUILD_WITH_LIBSTATGRAB
+if BUILD_WITH_PERFSTAT
+load_la_LIBADD += -lperfstat
+endif
 endif # BUILD_PLUGIN_LOAD
 
 if BUILD_PLUGIN_LOGFILE
@@ -561,6 +581,9 @@ endif
 if BUILD_WITH_LIBSTATGRAB
 memory_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 memory_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+endif
+if BUILD_WITH_PERFSTAT
+memory_la_LIBADD += -lperfstat
 endif
 endif
 
@@ -906,6 +929,10 @@ if BUILD_WITH_LIBSTATGRAB
 swap_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 swap_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
+if BUILD_WITH_PERFSTAT
+swap_la_LIBADD += -lperfstat
+endif
+
 endif
 
 if BUILD_PLUGIN_SYSLOG

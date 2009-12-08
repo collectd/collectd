@@ -2,6 +2,7 @@
  * collectd - src/memory.c
  * Copyright (C) 2005-2008  Florian octo Forster
  * Copyright (C) 2009       Simon Kuhnle
+ * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +20,7 @@
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
  *   Simon Kuhnle <simon at blarzwurst.de>
+ *   Manuel Sanmartin
  **/
 
 #include "collectd.h"
@@ -49,6 +51,11 @@
 # include <statgrab.h>
 #endif
 
+#if HAVE_PERFSTAT
+# include <sys/protosw.h>
+# include <libperfstat.h>
+#endif /* HAVE_PERFSTAT */
+
 /* vm_statistics_data_t */
 #if HAVE_HOST_STATISTICS
 static mach_port_t port_host;
@@ -75,7 +82,10 @@ static int pagesize;
 #elif HAVE_LIBSTATGRAB
 /* no global variables */
 /* endif HAVE_LIBSTATGRAB */
-
+#elif HAVE_PERFSTAT
+static int pagesize;
+static perfstat_memory_total_t pmemory;
+/* endif HAVE_PERFSTAT */
 #else
 # error "No applicable input method."
 #endif
@@ -116,8 +126,11 @@ static int memory_init (void)
 
 #elif HAVE_LIBSTATGRAB
 /* no init stuff */
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
 
+#elif HAVE_PERFSTAT
+	pagesize = getpagesize ();
+#endif /* HAVE_PERFSTAT */
 	return (0);
 } /* int memory_init */
 
@@ -364,7 +377,22 @@ static int memory_read (void)
 		memory_submit ("cached", ios->cache);
 		memory_submit ("free",   ios->free);
 	}
-#endif /* HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
+
+#elif HAVE_PERFSTAT
+	if (perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("memory plugin: perfstat_memory_total failed: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+	memory_submit ("used",   pmemory.real_inuse * pagesize);
+	memory_submit ("free",   pmemory.real_free * pagesize);
+	memory_submit ("cached", pmemory.numperm * pagesize);
+	memory_submit ("system", pmemory.real_system * pagesize);
+	memory_submit ("user",   pmemory.real_process * pagesize);
+#endif /* HAVE_PERFSTAT */
 
 	return (0);
 }
