@@ -1572,6 +1572,7 @@ static int ps_read (void)
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_PROCINFO_H
+	/* AIX */
 	int running  = 0;
 	int sleeping = 0;
 	int zombies  = 0;
@@ -1580,24 +1581,26 @@ static int ps_read (void)
 	int blocked  = 0;
 
 	pid_t pindex = 0;
-	tid64_t thindex;
-	int i;
-	int j;
-	int n;
 	int nprocs;
-	int nthreads;
 
 	procstat_t *ps;
 	procstat_entry_t pse;
-	char arglist[MAXARGLN+1];
-	char *cmdline;
-	char *cargs;
 
 	ps_list_reset ();
-	while ((nprocs = getprocs64(procentry, sizeof(struct procentry64), NULL, sizeof(struct fdsinfo64), &pindex, MAXPROCENTRY)) > 0 )
+	while ((nprocs = getprocs64 (procentry, sizeof(struct procentry64),
+					/* fdsinfo = */ NULL, sizeof(struct fdsinfo64),
+					&pindex, MAXPROCENTRY)) > 0)
 	{
-		for ( i=0; i< nprocs; i++)
+		int i;
+
+		for (i = 0; i < nprocs; i++)
 		{
+			tid64_t thindex;
+			int nthreads;
+			char arglist[MAXARGLN+1];
+			char *cargs;
+			char *cmdline;
+
 			if (procentry[i].pi_state == SNONE) continue;
 			/* if (procentry[i].pi_state == SZOMB)  FIXME */
 
@@ -1613,6 +1616,8 @@ static int ps_read (void)
 			{
 				if (getargs(&procentry[i], sizeof(struct procentry64), arglist, MAXARGLN) >= 0)
 				{
+					int n;
+
 					n = -1;
 					while (++n < MAXARGLN)
 					{
@@ -1633,8 +1638,12 @@ static int ps_read (void)
 			pse.num_proc = 1;
 
 			thindex=0;
-			while ((nthreads = getthrds64(procentry[i].pi_pid, thrdentry, sizeof(struct thrdentry64), &thindex, MAXTHRDENTRY)) > 0)
+			while ((nthreads = getthrds64(procentry[i].pi_pid,
+							thrdentry, sizeof(struct thrdentry64),
+							&thindex, MAXTHRDENTRY)) > 0)
 			{
+				int j;
+
 				for (j=0; j< nthreads; j++)
 				{
 					switch (thrdentry[j].ti_state)
@@ -1672,10 +1681,11 @@ static int ps_read (void)
 			pse.stack_size =  0;
 
 			ps_list_add (cmdline, cargs, &pse);
-		}
+		} /* for (i = 0 .. nprocs) */
+
 		if (nprocs < MAXPROCENTRY)
 			break;
-	}
+	} /* while (getprocs64() > 0) */
 	ps_submit_state ("running",  running);
 	ps_submit_state ("sleeping", sleeping);
 	ps_submit_state ("zombies",  zombies);
