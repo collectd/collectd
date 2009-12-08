@@ -9,6 +9,7 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	 LT_CONFIG_LTDL_DIR([libltdl])
 	 LT_INIT([dlopen])
 	 LTDL_INIT([convenience])
+	 AC_DEFINE(LIBTOOL_VERSION, 2, [Define to used libtool version.])
 	]
 ,
 	# libtool <= 1.5
@@ -18,6 +19,7 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	 AC_SUBST(LIBLTDL)
 	 AC_LIBTOOL_DLOPEN
 	 AC_CONFIG_SUBDIRS(libltdl)
+	 AC_DEFINE(LIBTOOL_VERSION, 1, [Define to used libtool version.])
 	]
 )
 
