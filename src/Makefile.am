@@ -790,6 +790,16 @@ collectd_LDADD += "-dlopen" powerdns.la
 collectd_DEPENDENCIES += powerdns.la
 endif
 
+if BUILD_PLUGIN_PYTHON
+pkglib_LTLIBRARIES += python.la
+python_la_SOURCES = python.c pyconfig.c pyvalues.c cpython.h
+python_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_PYTHON_CPPFLAGS)
+python_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_PYTHON_LDFLAGS)
+python_la_LIBADD = $(BUILD_WITH_PYTHON_LIBS)
+collectd_LDADD += "-dlopen" python.la
+collectd_DEPENDENCIES += python.la
+endif
+
 if BUILD_PLUGIN_PROCESSES
 pkglib_LTLIBRARIES += processes.la
 processes_la_SOURCES = processes.c
@@ -1132,6 +1142,7 @@ dist_man_MANS = collectd.1 \
 		collectdmon.1 \
 		collectd-nagios.1 \
 		collectd-perl.5 \
+		collectd-python.5 \
 		collectd-snmp.5 \
 		collectd-unixsock.5 \
 		types.db.5
@@ -1147,6 +1158,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectdmon.pod \
 		collectd-nagios.pod \
 		collectd-perl.pod \
+		collectd-python.pod \
 		collectd.pod \
 		collectd-snmp.pod \
 		collectd-unixsock.pod \

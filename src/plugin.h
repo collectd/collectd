@@ -26,6 +26,8 @@
 #include "configfile.h"
 #include "meta_data.h"
 
+#define PLUGIN_FLAGS_GLOBAL 0x0001
+
 #define DATA_MAX_NAME_LEN 64
 
 #define DS_TYPE_COUNTER  0
@@ -200,7 +202,7 @@ void plugin_set_dir (const char *dir);
  *
  * ARGUMENTS
  *  `name'      Name of the plugin to load.
- *  `mr'        Types of functions to request from the plugin.
+ *  `flags'     Hints on how to handle this plugin.
  *
  * RETURN VALUE
  *  Returns zero upon success, a value greater than zero if no plugin was found
@@ -209,7 +211,7 @@ void plugin_set_dir (const char *dir);
  * NOTES
  *  No attempt is made to re-load an already loaded module.
  */
-int plugin_load (const char *name);
+int plugin_load (const char *name, uint32_t flags);
 
 void plugin_init_all (void);
 void plugin_read_all (void);
@@ -282,7 +284,6 @@ int plugin_unregister_config (const char *name);
 int plugin_unregister_complex_config (const char *name);
 int plugin_unregister_init (const char *name);
 int plugin_unregister_read (const char *name);
-int plugin_unregister_complex_read (const char *name, void **user_data);
 int plugin_unregister_write (const char *name);
 int plugin_unregister_flush (const char *name);
 int plugin_unregister_shutdown (const char *name);

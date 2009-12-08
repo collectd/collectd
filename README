@@ -217,6 +217,12 @@ Features
     - protocols
       Counts various aspects of network protocols such as IP, TCP, UDP, etc.
 
+    - python
+      The python plugin implements a Python interpreter into collectd. This
+      makes it possible to write plugins in Python which are executed by
+      collectd without the need to start a heavy interpreter every interval.
+      See collectd-python(5) for details.
+
     - rrdcached
       RRDtool caching daemon (RRDcacheD) statistics.
 
@@ -301,6 +307,10 @@ Features
       you can easily do weird stuff with the plugins we didn't dare think of
       ;) See collectd-perl(5).
 
+    - python
+      It's possible to implement write plugins in Python using the python
+      plugin. See collectd-python(5) for details.
+
     - rrdcached
       Output to round-robin-database (RRD) files using the RRDtool caching
       daemon (RRDcacheD) - see rrdcached(1). That daemon provides a general
@@ -333,6 +343,10 @@ Features
       Log messages are propagated to plugins written in Perl as well.
       See collectd-perl(5).
 
+    - python
+      It's possible to implement log plugins in Python using the python plugin.
+      See collectd-python(5) for details.
+
     - syslog
       Logs to the standard UNIX logging mechanism, syslog.
 
@@ -361,6 +375,10 @@ Features
     - perl
       Notifications are propagated to plugins written in Perl as well.
       See collectd-perl(5).
+
+    - python
+      It's possible to implement notification plugins in Python using the
+      python plugin. See collectd-python(5) for details.
 
   * Value processing can be controlled using the "filter chain" infrastructure
     and "matches" and "targets". The following plugins are available:
@@ -551,6 +569,10 @@ Prerequisites
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
+
+  * libpython (optional)
+    Used by the `python' plugin. Currently, only 2.3 ≦ Python < 3 is supported.
+    <http://www.python.org/>
 
   * librouteros (optional)
     Used by the `routeros' plugin to connect to a device running `RouterOS'.

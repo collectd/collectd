@@ -155,6 +155,7 @@ Stefan Hacker <stefan.hacker at web.de>
 
 Sven Trenkel <collectd at semidefinite.de>
  - netapp plugin.
+ - python plugin.
 
 Tomasz Pala <gotar at pld-linux.org>
  - conntrack plugin.
