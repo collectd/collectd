@@ -531,19 +531,23 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 }
 
 static PyObject *cpy_register_log(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_log, cpy_log_callback, args, kwds);
+	return cpy_register_generic_userdata((void *) plugin_register_log,
+			(void *) cpy_log_callback, args, kwds);
 }
 
 static PyObject *cpy_register_write(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_write, cpy_write_callback, args, kwds);
+	return cpy_register_generic_userdata((void *) plugin_register_write,
+			(void *) cpy_write_callback, args, kwds);
 }
 
 static PyObject *cpy_register_notification(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_notification, cpy_notification_callback, args, kwds);
+	return cpy_register_generic_userdata((void *) plugin_register_notification,
+			(void *) cpy_notification_callback, args, kwds);
 }
 
 static PyObject *cpy_register_flush(PyObject *self, PyObject *args, PyObject *kwds) {
-	return cpy_register_generic_userdata(plugin_register_flush, cpy_flush_callback, args, kwds);
+	return cpy_register_generic_userdata((void *) plugin_register_flush,
+			(void *) cpy_flush_callback, args, kwds);
 }
 
 static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject *kwds) {
