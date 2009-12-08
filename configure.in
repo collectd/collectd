@@ -2698,12 +2698,12 @@ PATH="$SAVE_PATH"
 if test "x$with_python" = "xyes"
 then
 	AC_MSG_CHECKING([for Python CPPFLAGS])
-	python_include_path=`echo "import distutils.sysconfig;print distutils.sysconfig.get_python_inc()" | "$with_python_prog" 2>/dev/null`
+	python_include_path=`echo "import distutils.sysconfig;print distutils.sysconfig.get_python_inc()" | "$with_python_prog" 2>&1`
 	python_config_status=$?
 
 	if test "$python_config_status" -ne 0 || test "x$python_include_path" = "x"
 	then
-		AC_MSG_RESULT([failed with status $python_config_status])
+		AC_MSG_RESULT([failed with status $python_config_status (output: $python_include_path)])
 		with_python="no"
 	else
 		AC_MSG_RESULT([$python_include_path])
@@ -2718,7 +2718,7 @@ then
 
 	if test "$python_config_status" -ne 0 || test "x$python_library_path" = "x"
 	then
-		AC_MSG_RESULT([failed with status $python_config_status])
+		AC_MSG_RESULT([failed with status $python_config_status (output: $python_library_path)])
 		with_python="no"
 	else
 		AC_MSG_RESULT([$python_library_path])
@@ -2733,7 +2733,7 @@ then
 
 	if test "$python_config_status" -ne 0 || test "x$python_library_flags" = "x"
 	then
-		AC_MSG_RESULT([failed with status $python_config_status])
+		AC_MSG_RESULT([failed with status $python_config_status (output: $python_library_flags)])
 		with_python="no"
 	else
 		AC_MSG_RESULT([$python_library_flags])
