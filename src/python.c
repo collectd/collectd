@@ -46,13 +46,13 @@ static char reg_log_doc[] = "register_log(callback[, data][, name]) -> identifie
 		"severity: An integer that should be compared to the LOG_ constants.\n"
 		"message: The text to be logged.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_init_doc[] = "register_init(callback[, data][, name]) -> identifier\n"
 		"\n"
 		"Register a callback function that will be executed once after the config.\n"
 		"file has been read, all plugins heve been loaded and the collectd has\n"
-		"forked into the backgroud.\n"
+		"forked into the background.\n"
 		"\n"
 		"'callback' is a callable object that will be executed.\n"
 		"'data' is an optional object that will be passed back to the callback\n"
@@ -83,7 +83,7 @@ static char reg_config_doc[] = "register_config(callback[, data][, name]) -> ide
 		"The callback function will be called with one or two parameters:\n"
 		"config: A Config object.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_read_doc[] = "register_read(callback[, interval][, data][, name]) -> identifier\n"
 		"\n"
@@ -122,7 +122,7 @@ static char reg_write_doc[] = "register_write(callback[, data][, name]) -> ident
 		"The callback function will be called with one or two parameters:\n"
 		"values: A Values object which is a copy of the dispatched values.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_notification_doc[] = "register_notification(callback[, data][, name]) -> identifier\n"
 		"\n"
@@ -141,7 +141,7 @@ static char reg_notification_doc[] = "register_notification(callback[, data][, n
 		"The callback function will be called with one or two parameters:\n"
 		"notification: A copy of the notification that was dispatched.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> identifier\n"
 		"\n"
@@ -162,7 +162,7 @@ static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> ident
 		"    be flushed.\n"
 		"id: Specifies which values are to be flushed.\n"
 		"data: The optional data parameter passed to the register function.\n"
-		"    If the parameter was obmitted it will be obmitted here, too.";
+		"    If the parameter was omitted it will be omitted here, too.";
 
 static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) -> identifier\n"
 		"\n"
@@ -346,7 +346,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				CPY_RETURN_FROM_THREADS 0;
 			}
 		}
-		v = PyObject_CallFunction((PyObject *) &ValuesType, "sOssssdi", value_list->type, list,
+		v = PyObject_CallFunction((void *) &ValuesType, "sOssssdi", value_list->type, list,
 				value_list->plugin_instance, value_list->type_instance, value_list->plugin,
 				value_list->host, (double) value_list->time, value_list->interval);
 		Py_DECREF(list);
@@ -365,7 +365,7 @@ static int cpy_notification_callback(const notification_t *notification, user_da
 	PyObject *ret, *n;
 
 	CPY_LOCK_THREADS
-		n = PyObject_CallFunction((PyObject *) &NotificationType, "ssssssdi", notification->type, notification->message,
+		n = PyObject_CallFunction((void *) &NotificationType, "ssssssdi", notification->type, notification->message,
 				notification->plugin_instance, notification->type_instance, notification->plugin,
 				notification->host, (double) notification->time, notification->severity);
 		ret = PyObject_CallFunctionObjArgs(c->callback, n, c->data, (void *) 0); /* New reference. */
@@ -839,7 +839,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 		}
 	}
 	
-	item = PyObject_CallFunction((PyObject *) &ConfigType, "sONO", ci->key, parent, values, Py_None);
+	item = PyObject_CallFunction((void *) &ConfigType, "sONO", ci->key, parent, values, Py_None);
 	if (item == NULL)
 		return NULL;
 	children = PyTuple_New(ci->children_num); /* New reference. */
@@ -884,9 +884,9 @@ static int cpy_config(oconfig_item_t *ci) {
 		return 1;
 	}
 	module = Py_InitModule("collectd", cpy_methods); /* Borrowed reference. */
-	PyModule_AddObject(module, "Config", (PyObject *) &ConfigType); /* Steals a reference. */
-	PyModule_AddObject(module, "Values", (PyObject *) &ValuesType); /* Steals a reference. */
-	PyModule_AddObject(module, "Notification", (PyObject *) &NotificationType); /* Steals a reference. */
+	PyModule_AddObject(module, "Config", (void *) &ConfigType); /* Steals a reference. */
+	PyModule_AddObject(module, "Values", (void *) &ValuesType); /* Steals a reference. */
+	PyModule_AddObject(module, "Notification", (void *) &NotificationType); /* Steals a reference. */
 	PyModule_AddIntConstant(module, "LOG_DEBUG", LOG_DEBUG);
 	PyModule_AddIntConstant(module, "LOG_INFO", LOG_INFO);
 	PyModule_AddIntConstant(module, "LOG_NOTICE", LOG_NOTICE);
