@@ -2678,6 +2678,10 @@ AC_ARG_WITH(python, [AS_HELP_STRING([--with-python@<:@=PREFIX@:>@], [Path to the
 ], [with_python="yes"])
 
 SAVE_PATH="$PATH"
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
+
 PATH="$with_python_path"
 
 if test "x$with_python" = "xyes" && test "x$with_python_prog" = "x"
@@ -2693,8 +2697,6 @@ then
 	fi
 fi
 
-PATH="$SAVE_PATH"
-
 if test "x$with_python" = "xyes"
 then
 	AC_MSG_CHECKING([for Python CPPFLAGS])
@@ -2708,6 +2710,14 @@ then
 	else
 		AC_MSG_RESULT([$python_include_path])
 	fi
+fi
+
+if test "x$with_python" = "xyes"
+then
+	CPPFLAGS="-I$python_include_path $CPPFLAGS"
+	AC_CHECK_HEADERS(Python.h,
+			 [with_python="yes"],
+			 [with_python="no ('Python.h' not found)"])
 fi
 
 if test "x$with_python" = "xyes"
@@ -2739,6 +2749,21 @@ then
 		AC_MSG_RESULT([$python_library_flags])
 	fi
 fi
+
+if test "x$with_python" = "xyes"
+then
+	LDFLAGS="-L$python_library_path $LDFLAGS"
+	LIBS="$python_library_flags $LIBS"
+
+	AC_CHECK_FUNC(PyObject_CallFunction,
+		      [with_python="yes"],
+		      [with_python="no (Symbol 'PyObject_CallFunction' not found)"])
+fi
+
+PATH="$SAVE_PATH"
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
 
 if test "x$with_python" = "xyes"
 then
