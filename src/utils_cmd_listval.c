@@ -79,8 +79,14 @@ int handle_listval (FILE *fh, char *buffer)
   print_to_socket (fh, "%i Value%s found\n",
       (int) number, (number == 1) ? "" : "s");
   for (i = 0; i < number; i++)
+  {
     print_to_socket (fh, "%u %s\n", (unsigned int) times[i], names[i]);
+    sfree(names[i]);
+  }
 
+  sfree(names);
+  sfree(times);
+   
   return (0);
 } /* int handle_listval */
 
