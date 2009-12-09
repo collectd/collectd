@@ -149,7 +149,7 @@ static void *ping_thread (void *arg) /* {{{ */
   struct timespec ts_int;
 
   hostlist_t *hl;
-  int status;
+  int count;
 
   pthread_mutex_lock (&ping_lock);
 
@@ -178,18 +178,18 @@ static void *ping_thread (void *arg) /* {{{ */
   ping_setopt (pingobj, PING_OPT_TTL, (void *) &ping_ttl);
 
   /* Add all the hosts to the ping object. */
-  status = 0;
+  count = 0;
   for (hl = hostlist_head; hl != NULL; hl = hl->next)
   {
-    int tmp_status;
-    tmp_status = ping_host_add (pingobj, hl->host);
-    if (tmp_status != 0)
+    int status;
+    status = ping_host_add (pingobj, hl->host);
+    if (status != 0)
       WARNING ("ping plugin: ping_host_add (%s) failed.", hl->host);
     else
-      status++;
+      count++;
   }
 
-  if (status == 0)
+  if (count == 0)
   {
     ERROR ("ping plugin: No host could be added to ping object. Giving up.");
     ping_thread_error = 1;
