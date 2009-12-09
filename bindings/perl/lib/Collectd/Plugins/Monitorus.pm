@@ -36,7 +36,6 @@ my $prev_value :shared;
 $prev_value=0;
 
 plugin_register (TYPE_READ, "monitorus", "monitorus_read");
-plugin_register (TYPE_LOG, "monitorus", "monitorus_log");
 
 sub monitorus_read
 {
@@ -101,15 +100,5 @@ sub monitorus_read
 
         return 1;
 }
-
-# This function is called when plugin_log () has been used.
-sub monitorus_log
-{
-        my $level = shift;
-        my $msg   = shift;
-
-        print "LOG: $level - $msg\n";
-        return 1;
-} # monitorus_log ()
 
 1;
