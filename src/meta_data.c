@@ -262,6 +262,27 @@ int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
   return 0;
 } /* }}} int meta_data_type */
 
+int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
+{
+  int i = 0, count = 0;
+  meta_entry_t *e;
+
+  if ((md == NULL) || (toc == NULL))
+    return -1;
+
+  pthread_mutex_lock (&md->lock);
+
+  for (e = md->head; e != NULL; e = e->next)
+    ++count;    
+
+  *toc = malloc(count * sizeof(**toc));
+  for (e = md->head; e != NULL; e = e->next)
+    (*toc)[i++] = strdup(e->key);
+  
+  pthread_mutex_unlock (&md->lock);
+  return count;
+} /* }}} int meta_data_toc */
+
 int meta_data_delete (meta_data_t *md, const char *key) /* {{{ */
 {
   meta_entry_t *this;

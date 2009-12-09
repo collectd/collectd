@@ -41,6 +41,7 @@ void meta_data_destroy (meta_data_t *md);
 
 int meta_data_exists (meta_data_t *md, const char *key);
 int meta_data_type (meta_data_t *md, const char *key);
+int meta_data_toc (meta_data_t *md, char ***toc);
 int meta_data_delete (meta_data_t *md, const char *key);
 
 int meta_data_add_string (meta_data_t *md,
