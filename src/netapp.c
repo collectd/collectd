@@ -837,7 +837,8 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 	if (instances == NULL)
 	{
 		ERROR ("netapp plugin: cna_handle_wafl_data: "
-				"na_elem_child (\"instances\") failed.");
+				"na_elem_child (\"instances\") failed "
+				"for host %s.", hostname);
 		return (-1);
 	}
 
@@ -845,7 +846,8 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 	if (plugin_inst == NULL)
 	{
 		ERROR ("netapp plugin: cna_handle_wafl_data: "
-				"na_child_get_string (\"name\") failed.");
+				"na_child_get_string (\"name\") failed "
+				"for host %s.", hostname);
 		return (-1);
 	}
 
@@ -892,7 +894,8 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 			perf_data.flags |= HAVE_WAFL_INODE_CACHE_MISS;
 		} else {
 			DEBUG("netapp plugin: cna_handle_wafl_data: "
-					"Found unexpected child: %s", name);
+					"Found unexpected child: %s "
+					"for host %s.", name, hostname);
 		}
 	}
 
@@ -964,8 +967,8 @@ static int cna_query_wafl (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_wafl->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_wafl: na_server_invoke_elem failed: %s",
-				na_results_reason (data));
+		ERROR ("netapp plugin: cna_query_wafl: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
 	}
@@ -998,7 +1001,8 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 	if (instances == NULL)
 	{
 		ERROR ("netapp plugin: cna_handle_disk_data: "
-				"na_elem_child (\"instances\") failed.");
+				"na_elem_child (\"instances\") failed "
+				"for host %s.", hostname);
 		return (-1);
 	}
 
@@ -1158,8 +1162,8 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_disk->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_disk: na_server_invoke_elem failed: %s",
-				na_results_reason (data));
+		ERROR ("netapp plugin: cna_query_disk: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
 	}
@@ -1188,7 +1192,8 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 	if (elem_instances == NULL)
 	{
 		ERROR ("netapp plugin: handle_volume_perf_data: "
-				"na_elem_child (\"instances\") failed.");
+				"na_elem_child (\"instances\") failed "
+				"for host %s.", hostname);
 		return (-1);
 	}
 
@@ -1328,8 +1333,8 @@ static int cna_query_volume_perf (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem (host->srv, host->cfg_volume_perf->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_volume_perf: na_server_invoke_elem failed: %s",
-				na_results_reason (data));
+		ERROR ("netapp plugin: cna_query_volume_perf: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
 	}
@@ -1384,8 +1389,8 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 			else
 			{
 				ERROR ("netapp plugin: (norm_used = %"PRIu64") < (snap_norm_used = "
-						"%"PRIu64"). Invalidating both.",
-						norm_used, snap_norm_used);
+						"%"PRIu64") for host %s. Invalidating both.",
+						norm_used, snap_norm_used, hostname);
 				v->flags &= ~(HAVE_VOLUME_USAGE_NORM_USED | HAVE_VOLUME_USAGE_SNAP_USED);
 			}
 		}
@@ -1470,8 +1475,8 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 				cna_change_volume_status (host->name, v);
 		} else {
 			ERROR ("netapp plugin: cna_handle_volume_snap_usage: na_server_invoke_elem for "
-					"volume \"%s\" failed with error %d: %s", v->name,
-					na_results_errno(data), na_results_reason(data));
+					"volume \"%s\" on host %s failed with error %d: %s", v->name,
+					host->name, na_results_errno(data), na_results_reason(data));
 		}
 		na_elem_free(data);
 		return;
@@ -1484,7 +1489,8 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 	if (elem_snapshots == NULL)
 	{
 		ERROR ("netapp plugin: cna_handle_volume_snap_usage: "
-				"na_elem_child (\"snapshots\") failed.");
+				"na_elem_child (\"snapshots\") failed "
+				"for host %s.", hostname);
 		na_elem_free(data);
 		return;
 	}
@@ -1518,7 +1524,8 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 	if (elem_volumes == NULL)
 	{
 		ERROR ("netapp plugin: cna_handle_volume_usage_data: "
-				"na_elem_child (\"volumes\") failed.");
+				"na_elem_child (\"volumes\") failed "
+				"for host %s.", hostname);
 		return (-1);
 	}
 
@@ -1690,8 +1697,8 @@ static int cna_query_volume_usage (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_volume_usage->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_volume_usage: na_server_invoke_elem failed: %s",
-				na_results_reason (data));
+		ERROR ("netapp plugin: cna_query_volume_usage: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
 	}
@@ -1727,7 +1734,8 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 	if (instances == NULL)
 	{
 		ERROR ("netapp plugin: cna_handle_system_data: "
-				"na_elem_child (\"instances\") failed.");
+				"na_elem_child (\"instances\") failed "
+				"for host %s.", hostname);
 		return (-1);
 	}
 
@@ -1735,7 +1743,8 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 	if (instance == NULL)
 	{
 		ERROR ("netapp plugin: cna_handle_system_data: "
-				"na_child_get_string (\"name\") failed.");
+				"na_child_get_string (\"name\") failed "
+				"for host %s.", hostname);
 		return (-1);
 	}
 
@@ -1847,8 +1856,8 @@ static int cna_query_system (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_system->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_system: na_server_invoke_elem failed: %s",
-				na_results_reason (data));
+		ERROR ("netapp plugin: cna_query_system: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
 	}
