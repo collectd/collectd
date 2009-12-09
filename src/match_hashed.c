@@ -159,7 +159,7 @@ static int mh_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
   for (host_ptr = vl->host; *host_ptr != 0; host_ptr++)
   {
     /* 2184401929 is some appropriately sized prime number. */
-    hash_val = (hash_val * 2184401929) + ((uint32_t) *host_ptr);
+    hash_val = (hash_val * UINT32_C (2184401929)) + ((uint32_t) *host_ptr);
   }
   DEBUG ("hashed match: host = %s; hash_val = %"PRIu32";", vl->host, hash_val);
 
