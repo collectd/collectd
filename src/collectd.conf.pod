@@ -1674,6 +1674,15 @@ or SQL threads are not running.
 The netapp plugin can collect various performance and capacity informations
 from a NetApp filer using the NetApp API.
 
+Please note that NetApp has a wide line of products and a lot of different
+software versions for each of these products. This plugin was developed for a
+NetApp FAS3040 running OnTap 7.2.3P8 and tested on FAS2050 7.3.1.1L1,
+FAS3140 7.2.5.1 and FAS3020 7.2.4P9. It I<should> work for most combinations of
+model and software version but it is very hard to test this.
+If you have used this plugin with other models and/or software version, feel
+free to send us a mail to tell us about the results, even if it's just a short
+"It works".
+
 To collect these data collectd will log in to the NetApp via HTTP(S) and HTTP
 basic authentication.
 
