@@ -1,3 +1,42 @@
+2009-12-21, Version 4.9.0
+	* contextswitch plugin: The new ContextSwitch plugin gathers the
+	  number of context switches done by the CPU. Thanks to Patrik
+	  Weiskircher for the patch.
+	* cpu plugin: Support for SMP (multiple processors) under FreeBSD has
+	  been added. Thanks to Doug MacEachern for the patch.
+	* curl plugin: The “MeasureResponseTime” option has been added. Thanks
+	  to Aman Gupta for the patch.
+	* df plugin: Collecting the inode count and reserved space has been
+	  added. Thanks to Patrik Weiskircher for the patch.
+	* exec plugin: The environment variables “COLLECTD_INTERVAL” and
+	  “COLLECTD_HOSTNAME” are now set before executing the application.
+	* Monitorus plugin: This Perl-based plugin to query statistics from
+	  mon.itor.us has been added. Thanks to Jeff Green for the patch.
+	* netapp plugin: New plugin to collect statistics from NetApp filers.
+	  Thanks to Sven Trenkel of the noris network AG for the patch.
+	* network plugin: Statistics collection about the plugin itself has
+	  been implemented.
+	* openvpn plugin: Add support for more versions of the “status file”.
+	  Thanks to Marco Chiappero for the patch.
+	* OpenVZ plugin: This Perl-based plugin to gather OpenVZ statistics
+	  has been added. Thanks to Jonathan Kolb for the patch.
+	* ping plugin: The config options "SourceAddress" and "Device"
+	  have been added. Thanks to Sebastian Harl for the patch.
+	* processes plugin: Collection of IO-metrics has been added. Thanks to
+	  Andrés J. Díaz for the patch.
+	* python plugin: The new Python plugin integrates a Python interpreter
+	  into collectd and allows to execute plugins written in the scripting
+	  language. Thanks to Sven Trenkel for his work.
+	* routeros plugin: The new RouterOS plugin queries interface and
+	  wireless registration statistics from RouterOS.
+	* Various plugins: AIX support has been added to the cpu, disk,
+	  interface, load, memory, processes, and swap plugins. Thanks to
+	  Manuel Sanmartin for his patches.
+	* hashed match: This match for simple load balancing and redundant
+	  storage has been added.
+	* scale target: This target to scale (multiply) values by an arbitrary
+	  value has been added.
+
 2009-10-04, Version 4.8.1
 	* Build system: Issues when building the iptables plugin have been
 	  fixed.
