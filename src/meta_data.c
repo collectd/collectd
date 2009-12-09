@@ -245,7 +245,7 @@ int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return 0;
+    return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
@@ -268,7 +268,7 @@ int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (toc == NULL))
-    return -1;
+    return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
