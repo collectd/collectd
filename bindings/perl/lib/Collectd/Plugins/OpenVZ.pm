@@ -69,7 +69,7 @@ sub openvz_read
             {
                 $v{'type'} = $if_instances[$key];
                 $v{'values'} = [ $counters[$key], $counters[$key + 8] ];
-                plugin_dispatch_values($if_instances[$key], \%v);
+                plugin_dispatch_values(\%v);
             }
         }
 
@@ -105,7 +105,7 @@ sub openvz_read
             {
                 $v{'type_instance'} = $cpu_instances[$key];
                 $v{'values'} = [ $counters[$key] ];
-                plugin_dispatch_values('cpu', \%v);
+                plugin_dispatch_values(\%v);
             }
         }
 
@@ -129,7 +129,7 @@ sub openvz_read
 
             $v{'type_instance'} = $val;
             $v{'values'} = [ $parts[5] * ($parts[6] - $parts[7]), $parts[5] * $parts[7] ];
-            plugin_dispatch_values('df', \%v);
+            plugin_dispatch_values(\%v);
         }
 
         #####################################################################
@@ -142,7 +142,7 @@ sub openvz_read
 
         @parts = split(/ +/, `$vzctl exec $veid cat /proc/loadavg`);
         $v{'values'} = [ $parts[0], $parts[1], $parts[2] ];
-        plugin_dispatch_values('load', \%v);
+        plugin_dispatch_values(\%v);
 
         #####################################################################
         # processes
@@ -166,7 +166,7 @@ sub openvz_read
         {
             $v{'type_instance'} = $key;
             $v{'values'} = [ $ps_states->{$key} ];
-            plugin_dispatch_values('ps_state', \%v);
+            plugin_dispatch_values(\%v);
         }
 
         #####################################################################
@@ -179,7 +179,7 @@ sub openvz_read
 
         @lines = split(/\n/, `$vzctl exec $veid w -h`);
         $v{'values'} = [ scalar(@lines) ];
-        plugin_dispatch_values('users', \%v);
+        plugin_dispatch_values(\%v);
     }
 
     return 1;
