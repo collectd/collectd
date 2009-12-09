@@ -39,12 +39,12 @@ plugin_register (TYPE_READ, "monitorus", "monitorus_read");
 
 sub monitorus_read
 {
-        my $vl = { plugin => 'monitorus' };
+        my $vl = { plugin => 'monitorus', type => 'gauge' };
 
         # Only retrieve a value occasionally in order to not overload mon.itor.us
         if (++$intervalcnt<NUM_OF_INTERVALS) { # e.g. 180 * 10 secs / 60 seconds/min = 30 minutes
                 $vl->{'values'} = [ $prev_value ];
-                plugin_dispatch_values ('gauge', $vl);
+                plugin_dispatch_values ($vl);
                 return 1;
         }
 
@@ -96,7 +96,7 @@ sub monitorus_read
 
         $prev_value = $value;
         $vl->{'values'} = [ $value ];
-        plugin_dispatch_values ('gauge', $vl);
+        plugin_dispatch_values ($vl);
 
         return 1;
 }
