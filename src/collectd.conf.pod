@@ -503,14 +503,16 @@ and are checked by default depends on the distribution you use.
 
 =item B<MeasureResponseTime> B<true>|B<false>
 
-Measure response time for the request. Disabled by default.
+Measure response time for the request. If this setting is enabled, B<Match>
+blocks (see below) are optional. Disabled by default.
 
 =item B<E<lt>MatchE<gt>>
 
 One or more B<Match> blocks that define how to match information in the data
 returned by C<libcurl>. The C<curl> plugin uses the same infrastructure that's
 used by the C<tail> plugin, so please see the documentation of the C<tail>
-plugin below on how matches are defined.
+plugin below on how matches are defined. If the B<MeasureResponseTime> option
+is set to B<true>, B<Match> blocks are optional.
 
 =back
 
