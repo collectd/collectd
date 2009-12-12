@@ -4,6 +4,7 @@
  * Copyright (C) 2006-2008  Florian octo Forster
  * Copyright (C) 2008       Oleg King
  * Copyright (C) 2009       Sebastian Harl
+ * Copyright (C) 2009       Andrés J. Díaz
  * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -25,6 +26,7 @@
  *   Florian octo Forster <octo at verplant.org>
  *   Oleg King <king2 at kaluga.ru>
  *   Sebastian Harl <sh at tokkee.org>
+ *   Andrés J. Díaz <ajdiaz at connectical.com>
  *   Manuel Sanmartin
  **/
 

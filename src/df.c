@@ -1,6 +1,6 @@
 /**
  * collectd - src/df.c
- * Copyright (C) 2005-2007  Florian octo Forster
+ * Copyright (C) 2005-2009  Florian octo Forster
  * Copyright (C) 2009       Paul Sadauskas
  *
  * This program is free software; you can redistribute it and/or modify it
