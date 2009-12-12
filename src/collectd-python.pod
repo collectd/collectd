@@ -86,7 +86,7 @@ collectd script as well as from a normal python interpreter:
 B<1.> collectd will try to import the B<readline> module to give you a decent
 way of entering your commands. The daemonized collectd won't do that.
 
-=item 
+=item
 
 B<2.> collectd will block I<SIGINT>. Pressing I<Ctrl+C> will usually cause
 collectd to shut down. This would be problematic in an interactive session,
@@ -217,17 +217,17 @@ It has no methods beyond the bare minimum and only exists for its data members.
 Data descriptors defined here:
 
 =over 4
- 
+
 =item parent
 
 This represents the parent of this node. On the root node
 of the config tree it will be None.
- 
+
 =item key
 
 This is the keyword of this item, i.e. the first word of any given line in the
 config file. It will always be a string.
- 
+
 =item values
 
 This is a tuple (which might be empty) of all value, i.e. words following the
@@ -235,7 +235,7 @@ keyword in any given line in the config file.
 
 Every item in this tuple will be either a string or a float or a boolean,
 depending on the contents of the configuration file.
- 
+
 =item children
 
 This is a tuple of child nodes. For most nodes this will be empty. If this node
@@ -319,7 +319,7 @@ Methods defined here:
 =over 4
 
 =item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.
-    
+
 Dispatch this instance to the collectd process. The object has members for each
 of the possible arguments for this method. For a detailed explanation of these
 parameters see the member of the same same.
@@ -347,7 +347,7 @@ The interval is the timespan in seconds between two submits for the same data
 source. This value has to be a positive integer, so you can't submit more than
 one value per second. If this member is set to a non-positive value, the
 default value as specified in the config file will be used (default: 10).
-    
+
 If you submit values more often than the specified interval, the average will
 be used. If you submit less values, your graphs will have gaps.
 
@@ -395,11 +395,11 @@ Methods defined here:
 =over 4
 
 =item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.
-    
+
 Dispatch this instance to the collectd process. The object has members for each
 of the possible arguments for this method. For a detailed explanation of these
 parameters see the member of the same same.
-    
+
 If you do not submit a parameter the value saved in its member will be
 submitted. If you do provide a parameter it will be used instead, without
 altering the member.
