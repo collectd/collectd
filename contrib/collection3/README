@@ -29,6 +29,7 @@ Dependencies
   distribution itself:
 
   * Config::General
+  * Regexp::Common
   * HTML::Entities
   * RRDs
 
