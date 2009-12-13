@@ -3219,7 +3219,7 @@ AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], 
 			with_libupsclient="use_libupsclient_config"
 		else if test -x "$withval/bin/libupsclient-config"
 		then
-			with_libupsclient_config="$withval/bin/net-snmp-config"
+			with_libupsclient_config="$withval/bin/libupsclient-config"
 			with_libupsclient="use_libupsclient_config"
 		else
 			AC_MSG_NOTICE([Not checking for libupsclient: Manually configured])
