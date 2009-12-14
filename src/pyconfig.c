@@ -74,10 +74,17 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	Config *self = (Config *) s;
 	static char *kwlist[] = {"key", "parent", "values", "children", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "S|OOO", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOO", kwlist,
 			&key, &parent, &values, &children))
 		return -1;
 	
+	if (!IS_BYTES_OR_UNICODE(key)) {
+		PyErr_SetString(PyExc_TypeError, "argument 1 must be str");
+		Py_XDECREF(parent);
+		Py_XDECREF(values);
+		Py_XDECREF(children);
+		return -1;
+	}
 	if (values == NULL) {
 		values = PyTuple_New(0);
 		PyErr_Clear();
@@ -111,11 +118,11 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	return 0;
 }
 
-static PyObject *Config_repr(PyObject *s) {
+/*static PyObject *Config_repr(PyObject *s) {
 	Config *self = (Config *) s;
 	
 	return PyString_FromFormat("<collectd.Config %snode %s>", self->parent == Py_None ? "root " : "", PyString_AsString(PyObject_Str(self->key)));
-}
+}*/
 
 static int Config_traverse(PyObject *self, visitproc visit, void *arg) {
 	Config *c = (Config *) self;
@@ -149,8 +156,7 @@ static PyMemberDef Config_members[] = {
 };
 
 PyTypeObject ConfigType = {
-	PyObject_HEAD_INIT(NULL)
-	0,                         /* Always 0 */
+	CPY_INIT_TYPE
 	"collectd.Config",         /* tp_name */
 	sizeof(Config),            /* tp_basicsize */
 	0,                         /* Will be filled in later */
@@ -159,7 +165,7 @@ PyTypeObject ConfigType = {
 	0,                         /* tp_getattr */
 	0,                         /* tp_setattr */
 	0,                         /* tp_compare */
-	Config_repr,               /* tp_repr */
+	0/*Config_repr*/,               /* tp_repr */
 	0,                         /* tp_as_number */
 	0,                         /* tp_as_sequence */
 	0,                         /* tp_as_mapping */

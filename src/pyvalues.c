@@ -100,7 +100,7 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	return 0;
 }
 
-static PyObject *PluginData_repr(PyObject *s) {
+/*static PyObject *PluginData_repr(PyObject *s) {
 	PluginData *self = (PluginData *) s;
 	
 	return PyString_FromFormat("collectd.Values(type='%s%s%s%s%s%s%s%s%s',time=%lu)", self->type,
@@ -109,7 +109,7 @@ static PyObject *PluginData_repr(PyObject *s) {
 			*self->plugin_instance ? "',plugin_instance='" : "", self->plugin_instance,
 			*self->host ? "',host='" : "", self->host,
 			(long unsigned) self->time);
-}
+}*/
 
 static PyMemberDef PluginData_members[] = {
 	{"time", T_DOUBLE, offsetof(PluginData, time), 0, time_doc},
@@ -119,7 +119,7 @@ static PyMemberDef PluginData_members[] = {
 static PyObject *PluginData_getstring(PyObject *self, void *data) {
 	const char *value = ((char *) self) + (intptr_t) data;
 	
-	return PyString_FromString(value);
+	return cpy_string_to_unicode_or_bytes(value);
 }
 
 static int PluginData_setstring(PyObject *self, PyObject *value, void *data) {
@@ -130,10 +130,15 @@ static int PluginData_setstring(PyObject *self, PyObject *value, void *data) {
 		PyErr_SetString(PyExc_TypeError, "Cannot delete this attribute");
 		return -1;
 	}
-	new = PyString_AsString(value);
-	if (new == NULL) return -1;
+	Py_INCREF(value);
+	new = cpy_unicode_or_bytes_to_string(&value);
+	if (new == NULL) {
+		Py_DECREF(value);
+		return -1;
+	}
 	old = ((char *) self) + (intptr_t) data;
 	sstrncpy(old, new, DATA_MAX_NAME_LEN);
+	Py_DECREF(value);
 	return 0;
 }
 
@@ -145,16 +150,22 @@ static int PluginData_settype(PyObject *self, PyObject *value, void *data) {
 		PyErr_SetString(PyExc_TypeError, "Cannot delete this attribute");
 		return -1;
 	}
-	new = PyString_AsString(value);
-	if (new == NULL) return -1;
+	Py_INCREF(value);
+	new = cpy_unicode_or_bytes_to_string(&value);
+	if (new == NULL) {
+		Py_DECREF(value);
+		return -1;
+	}
 
 	if (plugin_get_ds(new) == NULL) {
 		PyErr_Format(PyExc_TypeError, "Dataset %s not found", new);
+		Py_DECREF(value);
 		return -1;
 	}
 
 	old = ((char *) self) + (intptr_t) data;
 	sstrncpy(old, new, DATA_MAX_NAME_LEN);
+	Py_DECREF(value);
 	return 0;
 }
 
@@ -168,8 +179,7 @@ static PyGetSetDef PluginData_getseters[] = {
 };
 
 PyTypeObject PluginDataType = {
-	PyObject_HEAD_INIT(NULL)
-	0,                         /* Always 0 */
+	CPY_INIT_TYPE
 	"collectd.PluginData",     /* tp_name */
 	sizeof(PluginData),        /* tp_basicsize */
 	0,                         /* Will be filled in later */
@@ -178,7 +188,7 @@ PyTypeObject PluginDataType = {
 	0,                         /* tp_getattr */
 	0,                         /* tp_setattr */
 	0,                         /* tp_compare */
-	PluginData_repr,           /* tp_repr */
+	0/*PluginData_repr*/,           /* tp_repr */
 	0,                         /* tp_as_number */
 	0,                         /* tp_as_sequence */
 	0,                         /* tp_as_mapping */
@@ -496,7 +506,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	Py_RETURN_NONE;
 }
 
-static PyObject *Values_repr(PyObject *s) {
+/*static PyObject *Values_repr(PyObject *s) {
 	PyObject *ret, *valuestring = NULL;
 	Values *self = (Values *) s;
 	
@@ -511,10 +521,10 @@ static PyObject *Values_repr(PyObject *s) {
 			*self->data.plugin_instance ? "',plugin_instance='" : "", self->data.plugin_instance,
 			*self->data.host ? "',host='" : "", self->data.host,
 			(long unsigned) self->data.time, self->interval,
-			valuestring ? PyString_AsString(valuestring) : "[]");
+			valuestring ? cpy_unicode_or_bytes_to_string(valuestring) : "[]");
 	Py_XDECREF(valuestring);
 	return ret;
-}
+}*/
 
 static int Values_traverse(PyObject *self, visitproc visit, void *arg) {
 	Values *v = (Values *) self;
@@ -546,8 +556,7 @@ static PyMethodDef Values_methods[] = {
 };
 
 PyTypeObject ValuesType = {
-	PyObject_HEAD_INIT(NULL)
-	0,                         /* Always 0 */
+	CPY_INIT_TYPE
 	"collectd.Values",         /* tp_name */
 	sizeof(Values),            /* tp_basicsize */
 	0,                         /* Will be filled in later */
@@ -556,7 +565,7 @@ PyTypeObject ValuesType = {
 	0,                         /* tp_getattr */
 	0,                         /* tp_setattr */
 	0,                         /* tp_compare */
-	Values_repr,               /* tp_repr */
+	0/*Values_repr*/,               /* tp_repr */
 	0,                         /* tp_as_number */
 	0,                         /* tp_as_sequence */
 	0,                         /* tp_as_mapping */
@@ -701,14 +710,19 @@ static int Notification_setstring(PyObject *self, PyObject *value, void *data) {
 		PyErr_SetString(PyExc_TypeError, "Cannot delete this attribute");
 		return -1;
 	}
-	new = PyString_AsString(value);
-	if (new == NULL) return -1;
+	Py_INCREF(value);
+	new = cpy_unicode_or_bytes_to_string(&value);
+	if (new == NULL) {
+		Py_DECREF(value);
+		return -1;
+	}
 	old = ((char *) self) + (intptr_t) data;
 	sstrncpy(old, new, NOTIF_MAX_MSG_LEN);
+	Py_DECREF(value);
 	return 0;
 }
 
-static PyObject *Notification_repr(PyObject *s) {
+/*static PyObject *Notification_repr(PyObject *s) {
 	PyObject *ret;
 	Notification *self = (Notification *) s;
 	
@@ -720,7 +734,7 @@ static PyObject *Notification_repr(PyObject *s) {
 			*self->message ? "',message='" : "", self->message,
 			(long unsigned) self->data.time, self->severity);
 	return ret;
-}
+}*/
 
 static PyMethodDef Notification_methods[] = {
 	{"dispatch", (PyCFunction) Notification_dispatch, METH_VARARGS | METH_KEYWORDS, dispatch_doc},
@@ -738,8 +752,7 @@ static PyGetSetDef Notification_getseters[] = {
 };
 
 PyTypeObject NotificationType = {
-	PyObject_HEAD_INIT(NULL)
-	0,                         /* Always 0 */
+	CPY_INIT_TYPE
 	"collectd.Notification",   /* tp_name */
 	sizeof(Notification),      /* tp_basicsize */
 	0,                         /* Will be filled in later */
@@ -748,7 +761,7 @@ PyTypeObject NotificationType = {
 	0,                         /* tp_getattr */
 	0,                         /* tp_setattr */
 	0,                         /* tp_compare */
-	Notification_repr,         /* tp_repr */
+	0/*Notification_repr*/,         /* tp_repr */
 	0,                         /* tp_as_number */
 	0,                         /* tp_as_sequence */
 	0,                         /* tp_as_mapping */

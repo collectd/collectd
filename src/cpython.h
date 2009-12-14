@@ -74,6 +74,50 @@
 # define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
+
+/* Python3 compatibility layer. To keep the actual code as clean as possible
+ * do a lot of defines here. */
+
+#if PY_MAJOR_VERSION >= 3
+#define IS_PY3K
+#endif
+
+#ifdef IS_PY3K
+#define PyInt_FromLong PyLong_FromLong
+//#define PyString_FromString PyBytes_FromString
+#define CPY_INIT_TYPE         PyVarObject_HEAD_INIT(NULL, 0)
+#define IS_BYTES_OR_UNICODE(o) (PyUnicode_Check(o) || PyBytes_Check(o))
+#else
+#define CPY_INIT_TYPE         PyObject_HEAD_INIT(NULL) 0,
+#define IS_BYTES_OR_UNICODE(o) (PyUnicode_Check(o) || PyString_Check(o))
+#endif
+
+static inline const char *cpy_unicode_or_bytes_to_string(PyObject **o) {
+	if (PyUnicode_Check(*o)) {
+		PyObject *tmp;
+		tmp = PyUnicode_AsEncodedString(*o, NULL, NULL); /* New reference. */
+		if (tmp == NULL)
+			return NULL;
+		Py_DECREF(*o);
+		*o = tmp;
+	}
+	return PyBytes_AsString(*o);
+}
+
+static inline PyObject *cpy_string_to_unicode_or_bytes(const char *buf) {
+#ifdef IS_PY3K
+/* Python3 preferrs unicode */
+	PyObject *ret;
+	ret = PyUnicode_Decode(buf, strlen(buf), NULL, NULL);
+	if (ret != NULL)
+		return ret;
+	PyErr_Clear();
+#endif	
+	return PyBytes_FromString(buf);
+}
+
+ /* Python object declarations. */
+
 typedef struct {
 	PyObject_HEAD        /* No semicolon! */
 	PyObject *parent;    /* Config */
