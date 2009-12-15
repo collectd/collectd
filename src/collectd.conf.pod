@@ -2787,6 +2787,13 @@ Sets the outgoing network device to be used. I<name> has to specify an
 interface name (e.E<nbsp>g. C<eth0>). This might not be supported by all
 operating systems.
 
+=item B<MaxMissed> I<Packets>
+
+Trigger a DNS resolv after the host has not replied to I<Packets> packets. This
+enables the use of dynamic DNS services (like dyndns.org) with the ping plugin.
+
+Default: B<-1> (disabled)
+
 =back
 
 =head2 Plugin C<postgresql>
