@@ -145,10 +145,10 @@ static int memory_read (void)
 	vm_statistics_data_t   vm_data;
 	mach_msg_type_number_t vm_data_len;
 
-	long long wired;
-	long long active;
-	long long inactive;
-	long long free;
+	gauge_t wired;
+	gauge_t active;
+	gauge_t inactive;
+	gauge_t free;
 
 	if (!port_host || !pagesize)
 		return (-1);
@@ -182,10 +182,10 @@ static int memory_read (void)
 	 *   This memory is not being used.
 	 */
 
-	wired    = vm_data.wire_count     * pagesize;
-	active   = vm_data.active_count   * pagesize;
-	inactive = vm_data.inactive_count * pagesize;
-	free     = vm_data.free_count     * pagesize;
+	wired    = (gauge_t) (((uint64_t) vm_data.wire_count)     * ((uint64_t) pagesize));
+	active   = (gauge_t) (((uint64_t) vm_data.active_count)   * ((uint64_t) pagesize));
+	inactive = (gauge_t) (((uint64_t) vm_data.inactive_count) * ((uint64_t) pagesize));
+	free     = (gauge_t) (((uint64_t) vm_data.free_count)     * ((uint64_t) pagesize));
 
 	memory_submit ("wired",    wired);
 	memory_submit ("active",   active);
