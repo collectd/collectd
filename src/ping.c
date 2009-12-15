@@ -49,6 +49,7 @@ struct hostlist_s
 
   uint32_t pkg_sent;
   uint32_t pkg_recv;
+  uint32_t pkg_missed;
 
   double latency_total;
   double latency_squared;
@@ -69,6 +70,7 @@ static char  *ping_device = NULL;
 static int    ping_ttl = PING_DEF_TTL;
 static double ping_interval = 1.0;
 static double ping_timeout = 0.9;
+static int    ping_max_missed = -1;
 
 static int             ping_thread_loop = 0;
 static int             ping_thread_error = 0;
@@ -85,7 +87,8 @@ static const char *config_keys[] =
 #endif
   "TTL",
   "Interval",
-  "Timeout"
+  "Timeout",
+  "MaxMissed"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -284,7 +287,37 @@ static void *ping_thread (void *arg) /* {{{ */
         hl->pkg_recv++;
         hl->latency_total += latency;
         hl->latency_squared += (latency * latency);
-      }
+
+        /* reset missed packages counter */
+        hl->pkg_missed = 0;
+      } else
+        hl->pkg_missed++;
+
+      /* if the host did not answer our last N packages, trigger a resolv. */
+      if (ping_max_missed >= 0 && hl->pkg_missed >= ping_max_missed)
+      { /* {{{ */
+        /* we reset the missed package counter here, since we only want to
+         * trigger a resolv every N packages and not every package _AFTER_ N
+         * missed packages */
+        hl->pkg_missed = 0;
+
+        WARNING ("ping plugin: host %s has not answered %d PING requests,"
+          " triggering resolve", hl->host, ping_max_missed);
+
+        /* we trigger the resolv simply be removeing and adding the host to our
+         * ping object */
+        status = ping_host_remove (pingobj, hl->host);
+        if (status != 0)
+        {
+          WARNING ("ping plugin: ping_host_remove (%s) failed.", hl->host);
+        }
+        else
+        {
+          status = ping_host_add (pingobj, hl->host);
+          if (status != 0)
+            WARNING ("ping plugin: ping_host_add (%s) failed.", hl->host);
+        }
+      } /* }}} ping_max_missed */
     } /* }}} for (iter) */
 
     if (gettimeofday (&tv_end, NULL) < 0)
@@ -436,6 +469,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     hl->host = host;
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
+    hl->pkg_missed = 0;
     hl->latency_total = 0.0;
     hl->latency_squared = 0.0;
     hl->next = hostlist_head;
@@ -484,6 +518,12 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     else
       WARNING ("ping plugin: Ignoring invalid timeout %g (%s)",
           tmp, value);
+  }
+  else if (strcasecmp (key, "MaxMissed") == 0)
+  {
+    ping_max_missed = atoi (value);
+    if (ping_max_missed < 0)
+      INFO ("ping plugin: MaxMissed < 0, disabled re-resolving of hosts");
   }
   else
   {
