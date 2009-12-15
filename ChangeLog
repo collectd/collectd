@@ -53,7 +53,7 @@
 	  been added. “DERIVE” can be used for counters that are reset
 	  occasionally. Thanks to Mariusz Gronczewski for implementing this.
 	* thresholds: The advanced threshold options “Percentage”, “Hits”, and
-	  “Hysteresis” have been added. Thanks to Andrés J. Díaz for hit
+	  “Hysteresis” have been added. Thanks to Andrés J. Díaz for his
 	  patches.
 	* curl_json plugin: The new cURL-JSON plugin reads JSON files using
 	  the cURL library and parses the contents according to user

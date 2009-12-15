@@ -135,6 +135,12 @@ my %fc_exec_names = (
 	FC_TARGET, "invoke"
 );
 
+my %fc_cb_types = (
+	FC_CB_EXEC, "exec",
+	FC_CB_CREATE, "create",
+	FC_CB_DESTROY, "destroy"
+);
+
 foreach my $type (keys %types) {
 	$plugins[$type] = &share ({});
 }
@@ -172,7 +178,9 @@ sub plugin_call_all {
 	}
 
 	if (TYPE_LOG != $type) {
-		DEBUG ("Collectd::plugin_call: type = \"$type\", args=\"@_\"");
+		DEBUG ("Collectd::plugin_call: type = \"$type\" ("
+			. $types{$type} . "), args=\""
+			. join(', ', map { defined($_) ? $_ : '<undef>' } @_) . "\"");
 	}
 
 	if (! defined $plugins[$type]) {
@@ -267,7 +275,8 @@ sub plugin_register {
 	my $data = shift;
 
 	DEBUG ("Collectd::plugin_register: "
-		. "type = \"$type\", name = \"$name\", data = \"$data\"");
+		. "type = \"$type\" (" . $types{$type}
+		. "), name = \"$name\", data = \"$data\"");
 
 	if (! ((defined $type) && (defined $name) && (defined $data))) {
 		ERROR ("Usage: Collectd::plugin_register (type, name, data)");
@@ -322,7 +331,8 @@ sub plugin_unregister {
 	my $type = shift;
 	my $name = shift;
 
-	DEBUG ("Collectd::plugin_unregister: type = \"$type\", name = \"$name\"");
+	DEBUG ("Collectd::plugin_unregister: type = \"$type\" ("
+		. $types{$type} . "), name = \"$name\"");
 
 	if (! ((defined $type) && (defined $name))) {
 		ERROR ("Usage: Collectd::plugin_unregister (type, name)");
@@ -511,7 +521,9 @@ sub fc_call {
 	}
 
 	DEBUG ("Collectd::fc_call: "
-		. "type = \"$type\", name = \"$name\", cb_type = \"$cb_type\"");
+		. "type = \"$type\" (" . $fc_types{$type}
+		. "), name = \"$name\", cb_type = \"$cb_type\" ("
+		. $fc_cb_types{$cb_type} . ")");
 
 	{
 		lock %{$fc_plugins[$type]};
@@ -564,7 +576,8 @@ sub fc_register {
 	my %fc : shared;
 
 	DEBUG ("Collectd::fc_register: "
-		. "type = \"$type\", name = \"$name\", proc = \"$proc\"");
+		. "type = \"$type\" (" . $fc_types{$type}
+		. "), name = \"$name\", proc = \"$proc\"");
 
 	if (! ((defined $type) && (defined $name) && (defined $proc))) {
 		ERROR ("Usage: Collectd::fc_register(type, name, proc)");

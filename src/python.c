@@ -302,7 +302,6 @@ static void cpy_log_exception(const char *context) {
 		
 		line = PyList_GET_ITEM(list, i); /* Borrowed reference. */
 		s = strdup(PyString_AsString(line));
-		Py_DECREF(line);
 		if (s[strlen(s) - 1] == '\n')
 			s[strlen(s) - 1] = 0;
 		Py_BEGIN_ALLOW_THREADS
