@@ -598,6 +598,41 @@ static int o_read_database (o_database_t *db) /* {{{ */
   size_t i;
   int status;
 
+  if (db->oci_service_context != NULL)
+  {
+    OCIServer *server_handle;
+    ub4 connection_status;
+
+    server_handle = NULL;
+    status = OCIAttrGet ((void *) db->oci_service_context, OCI_HTYPE_SVCCTX, 
+        (void *) &server_handle, /* size pointer = */ NULL,
+        OCI_ATTR_SERVER, oci_error);
+    if (status != OCI_SUCCESS)
+    {
+      o_report_error ("o_read_database", "OCIAttrGet", oci_error);
+      return (-1);
+    }
+    assert (server_handle != NULL);
+
+    connection_status = 0;
+    status = OCIAttrGet ((void *) server_handle, OCI_HTYPE_SERVER,
+        (void *) &connection_status, /* size pointer = */ NULL,
+        OCI_ATTR_SERVER_STATUS, oci_error);
+    if (status != OCI_SUCCESS)
+    {
+      o_report_error ("o_read_database", "OCIAttrGet", oci_error);
+      return (-1);
+    }
+
+    if (connection_status != OCI_SERVER_NORMAL)
+    {
+      INFO ("oracle plugin: Connection to %s lost. Trying to reconnect.",
+          db->name);
+      OCIHandleFree (db->oci_service_context, OCI_HTYPE_SVCCTX);
+      db->oci_service_context = NULL;
+    }
+  } /* if (db->oci_service_context != NULL) */
+
   if (db->oci_service_context == NULL)
   {
     status = OCILogon (oci_env, oci_error,
