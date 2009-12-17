@@ -300,5 +300,6 @@ typedef bool _Bool;
 
 extern char hostname_g[];
 extern int  interval_g;
+extern int  timeout_g;
 
 #endif /* COLLECTD_H */

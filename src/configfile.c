@@ -99,6 +99,7 @@ static cf_global_option_t cf_global_options[] =
 	{"FQDNLookup",  NULL, "false"},
 	{"Interval",    NULL, "10"},
 	{"ReadThreads", NULL, "5"},
+	{"Timeout",     NULL, "2"},
 	{"PreCacheChain",  NULL, "PreCache"},
 	{"PostCacheChain", NULL, "PostCache"}
 };

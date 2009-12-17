@@ -319,7 +319,7 @@ int uc_check_timeout (void)
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
   {
     /* If entry has not been updated, add to `keys' array */
-    if ((now - ce->last_update) >= (2 * ce->interval))
+    if ((now - ce->last_update) >= (timeout_g * ce->interval))
     {
       char **tmp;
 
