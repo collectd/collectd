@@ -37,6 +37,25 @@
 	* scale target: This target to scale (multiply) values by an arbitrary
 	  value has been added.
 
+2009-12-18, Version 4.8.2
+	* Build system, java plugin: Don't use “find -L” to search for Java
+	  headers, because it's a GNU extension.
+	* Build system: Support for parallel builds has been improved. Thanks
+	  Sebastian Harl and Stefan Völkel for looking into this.
+	* collectd: Print error messages to STDERR if no log plugin has been
+	  loaded.
+	* genericjmx plugin: Close and re-open the connection upon I/O-errors.
+	* gmond plugin: Fix typos which caused syntax errors.
+	* memory plugin: Handling of >4 Gbyte of memory has been fixed.
+	* network plugin: The license has been changed to LGPL 2.1.
+	* oracle plugin: Reconnect to the database if the connection dies.
+	* rrdcached plugin: Work-around for a bug in RRDtool 1.4rc2 has been
+	  added.
+	* snmp plugin: Handling of negative values has been fixed. Strings
+	  containing control characters are now interpreted as hex-strings.
+	* unixsock plugin: A memory leak in the LISTVAL command has been
+	  fixed. Thanks to Ben Knight for his patch.
+
 2009-10-04, Version 4.8.1
 	* Build system: Issues when building the iptables plugin have been
 	  fixed.
@@ -96,6 +115,23 @@
 	* empty_counter match: The new Empty Counter match matches value
 	  lists, where at least one data source is of type COUNTER and the
 	  counter value of all counter data sources is zero.
+
+2009-12-18, Version 4.7.5
+	* Build system, java plugin: Don't use “find -L” to search for Java
+	  headers, because it's a GNU extension.
+	* Build system: Support for parallel builds has been improved. Thanks
+	  Sebastian Harl and Stefan Völkel for looking into this.
+	* collectd: Print error messages to STDERR if no log plugin has been
+	  loaded.
+	* memory plugin: Handling of >4 Gbyte of memory has been fixed.
+	* network plugin: The license has been changed to LGPL 2.1.
+	* oracle plugin: Reconnect to the database if the connection dies.
+	* rrdcached plugin: Work-around for a bug in RRDtool 1.4rc2 has been
+	  added.
+	* snmp plugin: Handling of negative values has been fixed. Strings
+	  containing control characters are now interpreted as hex-strings.
+	* unixsock plugin: A memory leak in the LISTVAL command has been
+	  fixed. Thanks to Ben Knight for his patch.
 
 2009-10-03, Version 4.7.4
 	* Build system: Issues when building the iptables plugin have been
