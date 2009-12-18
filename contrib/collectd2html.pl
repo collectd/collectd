@@ -44,7 +44,7 @@ use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 my $DIR       = "/var/lib/collectd";
 my $HOST      = undef;
 my $IMG_FMT   = "PNG";
-my $RECURSIVE = 0;
+my $RECURSIVE = 1;
 
 GetOptions (
     "host=s"         => \$HOST,
@@ -63,7 +63,7 @@ if (defined($HOST) && ($DIR !~ m/\/$HOST\/?$/) && (-d "$DIR/$HOST")) {
 
 my @COLORS = (0xff7777, 0x7777ff, 0x55ff55, 0xffcc77, 0xff77ff, 0x77ffff,
 	0xffff77, 0x55aaff);
-my @tmp = `/bin/hostname`; chomp(@tmp);
+my @tmp = `/bin/hostname -f`; chomp(@tmp);
 $HOST = $tmp[0] if (! defined $HOST);
 my $svg_p = ($IMG_FMT eq "SVG");
 my $IMG_SFX = $svg_p ? ".svg" : ".png";
@@ -140,7 +140,8 @@ else {
 }
 chomp(@list);
 
-foreach my $rrd (sort @list){
+@list = sort @list;
+foreach my $rrd (@list){
 	$rrd =~ m/^$DIR\/(.*)\.rrd$/;
 	push(@rrds, $1);
 }
