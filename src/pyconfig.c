@@ -118,11 +118,37 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	return 0;
 }
 
-/*static PyObject *Config_repr(PyObject *s) {
+static PyObject *Config_repr(PyObject *s) {
 	Config *self = (Config *) s;
+	PyObject *name, *tmp, *ret = NULL;
+	static PyObject *node_prefix = NULL, *root_prefix = NULL, *ending = NULL;
 	
-	return PyString_FromFormat("<collectd.Config %snode %s>", self->parent == Py_None ? "root " : "", PyString_AsString(PyObject_Str(self->key)));
-}*/
+	/* This is ok because we have the GIL, so this is thread-save by default. */
+	if (node_prefix == NULL)
+		node_prefix = cpy_string_to_unicode_or_bytes("<collectd.Config node '");
+	if (root_prefix == NULL)
+		root_prefix = cpy_string_to_unicode_or_bytes("<collectd.Config root node '");
+	if (ending == NULL)
+		ending = cpy_string_to_unicode_or_bytes("'>");
+	if (node_prefix == NULL || root_prefix == NULL || ending == NULL)
+		return NULL;
+	
+	name = PyObject_Str(self->key);
+	if (name == NULL)
+		return NULL;
+
+	if (self->parent == NULL || self->parent == Py_None)
+		tmp = CPY_STRCAT(root_prefix, name);
+	else
+		tmp = CPY_STRCAT(node_prefix, name);
+	
+	Py_DECREF(name);
+	if (tmp != NULL)
+		ret = CPY_STRCAT(tmp, ending);
+	Py_DECREF(tmp);
+	
+	return ret;
+}
 
 static int Config_traverse(PyObject *self, visitproc visit, void *arg) {
 	Config *c = (Config *) self;
@@ -130,8 +156,7 @@ static int Config_traverse(PyObject *self, visitproc visit, void *arg) {
 	Py_VISIT(c->key);
 	Py_VISIT(c->values);
 	Py_VISIT(c->children);
-	return 0;
-}
+	return 0;}
 
 static int Config_clear(PyObject *self) {
 	Config *c = (Config *) self;
@@ -165,7 +190,7 @@ PyTypeObject ConfigType = {
 	0,                         /* tp_getattr */
 	0,                         /* tp_setattr */
 	0,                         /* tp_compare */
-	0/*Config_repr*/,               /* tp_repr */
+	Config_repr,               /* tp_repr */
 	0,                         /* tp_as_number */
 	0,                         /* tp_as_sequence */
 	0,                         /* tp_as_mapping */

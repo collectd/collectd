@@ -83,13 +83,18 @@
 #endif
 
 #ifdef IS_PY3K
+
 #define PyInt_FromLong PyLong_FromLong
-//#define PyString_FromString PyBytes_FromString
 #define CPY_INIT_TYPE         PyVarObject_HEAD_INIT(NULL, 0)
 #define IS_BYTES_OR_UNICODE(o) (PyUnicode_Check(o) || PyBytes_Check(o))
+#define CPY_STRCAT PyUnicode_Concat
+
 #else
+
 #define CPY_INIT_TYPE         PyObject_HEAD_INIT(NULL) 0,
 #define IS_BYTES_OR_UNICODE(o) (PyUnicode_Check(o) || PyString_Check(o))
+#define CPY_STRCAT PyString_Concat
+
 #endif
 
 static inline const char *cpy_unicode_or_bytes_to_string(PyObject **o) {
