@@ -120,7 +120,7 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 
 static PyObject *Config_repr(PyObject *s) {
 	Config *self = (Config *) s;
-	PyObject *name, *tmp, *ret = NULL;
+	PyObject *ret = NULL;
 	static PyObject *node_prefix = NULL, *root_prefix = NULL, *ending = NULL;
 	
 	/* This is ok because we have the GIL, so this is thread-save by default. */
@@ -133,19 +133,12 @@ static PyObject *Config_repr(PyObject *s) {
 	if (node_prefix == NULL || root_prefix == NULL || ending == NULL)
 		return NULL;
 	
-	name = PyObject_Str(self->key);
-	if (name == NULL)
-		return NULL;
-
+	ret = PyObject_Str(self->key);
 	if (self->parent == NULL || self->parent == Py_None)
-		tmp = CPY_STRCAT(root_prefix, name);
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, root_prefix, ret);
 	else
-		tmp = CPY_STRCAT(node_prefix, name);
-	
-	Py_DECREF(name);
-	if (tmp != NULL)
-		ret = CPY_STRCAT(tmp, ending);
-	Py_DECREF(tmp);
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, node_prefix, ret);
+	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, ending);
 	
 	return ret;
 }

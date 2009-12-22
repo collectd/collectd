@@ -74,6 +74,20 @@
 # define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
+/* This macro is a shortcut for calls like
+ * x = PyObject_Repr(x);
+ * This can't be done like this example because this would leak
+ * a reference the the original x and crash in case of x == NULL.
+ * This calling syntax is less than elegant but it works, saves
+ * a lot of lines and avoids potential refcount errors. */
+
+#define CPY_SUBSTITUTE(func, a, ...) do {\
+	if ((a) != NULL) {\
+		PyObject *tmp = (a);\
+		(a) = func(__VA_ARGS__);\
+		Py_DECREF(tmp);\
+	}\
+} while(0)
 
 /* Python3 compatibility layer. To keep the actual code as clean as possible
  * do a lot of defines here. */
