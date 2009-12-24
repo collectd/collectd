@@ -43,8 +43,8 @@ struct cr_data_s
 };
 typedef struct cr_data_s cr_data_t;
 
-static void cr_submit_io (const char *type, const char *type_instance, /* {{{ */
-    counter_t rx, counter_t tx)
+static void cr_submit_io (cr_data_t *rd, const char *type, /* {{{ */
+    const char *type_instance, counter_t rx, counter_t tx)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -54,7 +54,7 @@ static void cr_submit_io (const char *type, const char *type_instance, /* {{{ */
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.host, rd->node, sizeof (vl.host));
 	sstrncpy (vl.plugin, "routeros", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -62,37 +62,41 @@ static void cr_submit_io (const char *type, const char *type_instance, /* {{{ */
 	plugin_dispatch_values (&vl);
 } /* }}} void cr_submit_io */
 
-static void submit_interface (const ros_interface_t *i) /* {{{ */
+static void submit_interface (cr_data_t *rd, /* {{{ */
+    const ros_interface_t *i)
 {
   if (i == NULL)
     return;
 
   if (!i->running)
   {
-    submit_interface (i->next);
+    submit_interface (rd, i->next);
     return;
   }
 
-  cr_submit_io ("if_packets", i->name,
+  cr_submit_io (rd, "if_packets", i->name,
       (counter_t) i->rx_packets, (counter_t) i->tx_packets);
-  cr_submit_io ("if_octets", i->name,
+  cr_submit_io (rd, "if_octets", i->name,
       (counter_t) i->rx_bytes, (counter_t) i->tx_bytes);
-  cr_submit_io ("if_errors", i->name,
+  cr_submit_io (rd, "if_errors", i->name,
       (counter_t) i->rx_errors, (counter_t) i->tx_errors);
-  cr_submit_io ("if_dropped", i->name,
+  cr_submit_io (rd, "if_dropped", i->name,
       (counter_t) i->rx_drops, (counter_t) i->tx_drops);
 
-  submit_interface (i->next);
+  submit_interface (rd, i->next);
 } /* }}} void submit_interface */
 
 static int handle_interface (__attribute__((unused)) ros_connection_t *c, /* {{{ */
-    const ros_interface_t *i, __attribute__((unused)) void *user_data)
+    const ros_interface_t *i, void *user_data)
 {
-  submit_interface (i);
+  if ((i == NULL) || (user_data == NULL))
+    return (EINVAL);
+
+  submit_interface (user_data, i);
   return (0);
 } /* }}} int handle_interface */
 
-static void cr_submit_gauge (const char *type, /* {{{ */
+static void cr_submit_gauge (cr_data_t *rd, const char *type, /* {{{ */
     const char *type_instance, gauge_t value)
 {
 	value_t values[1];
@@ -102,7 +106,7 @@ static void cr_submit_gauge (const char *type, /* {{{ */
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.host, rd->node, sizeof (vl.host));
 	sstrncpy (vl.plugin, "routeros", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -111,7 +115,7 @@ static void cr_submit_gauge (const char *type, /* {{{ */
 } /* }}} void cr_submit_gauge */
 
 #if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
-static void cr_submit_counter (const char *type, /* {{{ */
+static void cr_submit_counter (cr_data_t *rd, const char *type, /* {{{ */
     const char *type_instance, counter_t value)
 {
 	value_t values[1];
@@ -121,7 +125,7 @@ static void cr_submit_counter (const char *type, /* {{{ */
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host)); /* FIXME */
+	sstrncpy (vl.host, rd->node, sizeof (vl.host)); /* FIXME */
 	sstrncpy (vl.plugin, "routeros", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -130,7 +134,8 @@ static void cr_submit_counter (const char *type, /* {{{ */
 } /* }}} void cr_submit_gauge */
 #endif
 
-static void submit_regtable (const ros_registration_table_t *r) /* {{{ */
+static void submit_regtable (cr_data_t *rd, /* {{{ */
+    const ros_registration_table_t *r)
 {
   char type_instance[DATA_MAX_NAME_LEN];
 
@@ -140,38 +145,40 @@ static void submit_regtable (const ros_registration_table_t *r) /* {{{ */
   /*** RX ***/
   ssnprintf (type_instance, sizeof (type_instance), "%s-%s-rx",
       r->interface, r->radio_name);
-  cr_submit_gauge ("bitrate", type_instance,
+  cr_submit_gauge (rd, "bitrate", type_instance,
       (gauge_t) (1000000.0 * r->rx_rate));
-  cr_submit_gauge ("signal_power", type_instance,
+  cr_submit_gauge (rd, "signal_power", type_instance,
       (gauge_t) r->rx_signal_strength);
-  cr_submit_gauge ("signal_quality", type_instance,
+  cr_submit_gauge (rd, "signal_quality", type_instance,
       (gauge_t) r->rx_ccq);
 
   /*** TX ***/
   ssnprintf (type_instance, sizeof (type_instance), "%s-%s-tx",
       r->interface, r->radio_name);
-  cr_submit_gauge ("bitrate", type_instance,
+  cr_submit_gauge (rd, "bitrate", type_instance,
       (gauge_t) (1000000.0 * r->tx_rate));
-  cr_submit_gauge ("signal_power", type_instance,
+  cr_submit_gauge (rd, "signal_power", type_instance,
       (gauge_t) r->tx_signal_strength);
-  cr_submit_gauge ("signal_quality", type_instance,
+  cr_submit_gauge (rd, "signal_quality", type_instance,
       (gauge_t) r->tx_ccq);
 
   /*** RX / TX ***/
   ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
       r->interface, r->radio_name);
-  cr_submit_io ("if_octets", type_instance,
+  cr_submit_io (rd, "if_octets", type_instance,
       (counter_t) r->rx_bytes, (counter_t) r->tx_bytes);
-  cr_submit_gauge ("snr", type_instance, (gauge_t) r->signal_to_noise);
+  cr_submit_gauge (rd, "snr", type_instance, (gauge_t) r->signal_to_noise);
 
-  submit_regtable (r->next);
+  submit_regtable (rd, r->next);
 } /* }}} void submit_regtable */
 
 static int handle_regtable (__attribute__((unused)) ros_connection_t *c, /* {{{ */
-    const ros_registration_table_t *r,
-    __attribute__((unused)) void *user_data)
+    const ros_registration_table_t *r, void *user_data)
 {
-  submit_regtable (r);
+  if ((r == NULL) || (user_data == NULL))
+    return (EINVAL);
+
+  submit_regtable (user_data, r);
   return (0);
 } /* }}} int handle_regtable */
 
@@ -187,26 +194,26 @@ static int handle_system_resource (__attribute__((unused)) ros_connection_t *c, 
   rd = user_data;
 
   if (rd->collect_cpu_load)
-    cr_submit_gauge ("gauge", "cpu_load", (gauge_t) r->cpu_load);
+    cr_submit_gauge (rd, "gauge", "cpu_load", (gauge_t) r->cpu_load);
 
   if (rd->collect_memory)
   {
-    cr_submit_gauge ("memory", "used",
+    cr_submit_gauge (rd, "memory", "used",
 	(gauge_t) (r->total_memory - r->free_memory));
-    cr_submit_gauge ("memory", "free", (gauge_t) r->free_memory);
+    cr_submit_gauge (rd, "memory", "free", (gauge_t) r->free_memory);
   }
 
   if (rd->collect_df)
   {
-    cr_submit_gauge ("df_complex", "used",
+    cr_submit_gauge (rd, "df_complex", "used",
 	(gauge_t) (r->total_memory - r->free_memory));
-    cr_submit_gauge ("df_complex", "free", (gauge_t) r->free_memory);
+    cr_submit_gauge (rd, "df_complex", "free", (gauge_t) r->free_memory);
   }
 
   if (rd->collect_disk)
   {
-    cr_submit_counter ("counter", "secors_written", (counter_t) r->write_sect_total);
-    cr_submit_gauge ("gauge", "bad_blocks", (gauge_t) r->bad_blocks);
+    cr_submit_counter (rd, "counter", "secors_written", (counter_t) r->write_sect_total);
+    cr_submit_gauge (rd, "gauge", "bad_blocks", (gauge_t) r->bad_blocks);
   }
 
   return (0);
@@ -242,7 +249,7 @@ static int cr_read (user_data_t *user_data) /* {{{ */
   if (rd->collect_interface)
   {
     status = ros_interface (rd->connection, handle_interface,
-	/* user data = */ NULL);
+	/* user data = */ rd);
     if (status != 0)
     {
       char errbuf[128];
@@ -257,7 +264,7 @@ static int cr_read (user_data_t *user_data) /* {{{ */
   if (rd->collect_regtable)
   {
     status = ros_registration_table (rd->connection, handle_regtable,
-	/* user data = */ NULL);
+	/* user data = */ rd);
     if (status != 0)
     {
       char errbuf[128];
