@@ -311,8 +311,8 @@ static int fc_config_add_dir_size (fc_directory_conf_t *dir,
   return (0);
 } /* int fc_config_add_dir_size */
 
-static int fc_config_add_dir_recursive (fc_directory_conf_t *dir,
-    oconfig_item_t *ci)
+static int fc_config_add_dir_option (fc_directory_conf_t *dir,
+    oconfig_item_t *ci, int bit)
 {
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
@@ -323,31 +323,12 @@ static int fc_config_add_dir_recursive (fc_directory_conf_t *dir,
   }
 
   if (ci->values[0].value.boolean)
-    dir->options |= FC_RECURSIVE;
+    dir->options |= bit;
   else
-    dir->options &= ~FC_RECURSIVE;
+    dir->options &= ~bit;
 
   return (0);
-} /* int fc_config_add_dir_recursive */
-
-static int fc_config_add_dir_hidden (fc_directory_conf_t *dir,
-    oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("filecount plugin: The `Hidden' config options needs exactly "
-        "one boolean argument.");
-    return (-1);
-  }
-
-  if (ci->values[0].value.boolean)
-    dir->options |= FC_HIDDEN;
-  else
-    dir->options &= ~FC_HIDDEN;
-
-  return (0);
-} /* int fc_config_add_dir_hidden */
+} /* int fc_config_add_dir_option */
 
 static int fc_config_add_dir (oconfig_item_t *ci)
 {
@@ -400,9 +381,9 @@ static int fc_config_add_dir (oconfig_item_t *ci)
     else if (strcasecmp ("Size", option->key) == 0)
       status = fc_config_add_dir_size (dir, option);
     else if (strcasecmp ("Recursive", option->key) == 0)
-      status = fc_config_add_dir_recursive (dir, option);
-    else if (strcasecmp ("Hidden", option->key) == 0)
-      status = fc_config_add_dir_hidden (dir, option);
+      status = fc_config_add_dir_option (dir, option, FC_RECURSIVE);
+    else if (strcasecmp ("IncludeHidden", option->key) == 0)
+      status = fc_config_add_dir_option (dir, option, FC_HIDDEN);
     else
     {
       WARNING ("filecount plugin: fc_config_add_dir: "
