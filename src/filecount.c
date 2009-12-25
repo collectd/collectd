@@ -32,6 +32,7 @@
 #include <fnmatch.h>
 
 #define FC_RECURSIVE 1
+#define FC_HIDDEN 1
 
 struct fc_directory_conf_s
 {
@@ -329,6 +330,25 @@ static int fc_config_add_dir_recursive (fc_directory_conf_t *dir,
   return (0);
 } /* int fc_config_add_dir_recursive */
 
+static int fc_config_add_dir_hidden (fc_directory_conf_t *dir,
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    WARNING ("filecount plugin: The `Hidden' config options needs exactly "
+        "one boolean argument.");
+    return (-1);
+  }
+
+  if (ci->values[0].value.boolean)
+    dir->options |= FC_HIDDEN;
+  else
+    dir->options &= ~FC_HIDDEN;
+
+  return (0);
+} /* int fc_config_add_dir_hidden */
+
 static int fc_config_add_dir (oconfig_item_t *ci)
 {
   fc_directory_conf_t *dir;
@@ -361,6 +381,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   fc_config_set_instance (dir, dir->path);
 
   dir->options = FC_RECURSIVE;
+  dir->options = FC_HIDDEN;
 
   dir->name = NULL;
   dir->mtime = 0;
@@ -381,6 +402,8 @@ static int fc_config_add_dir (oconfig_item_t *ci)
       status = fc_config_add_dir_size (dir, option);
     else if (strcasecmp ("Recursive", option->key) == 0)
       status = fc_config_add_dir_recursive (dir, option);
+    else if (strcasecmp ("Hidden", option->key) == 0)
+      status = fc_config_add_dir_hidden (dir, option);
     else
     {
       WARNING ("filecount plugin: fc_config_add_dir: "
@@ -475,8 +498,10 @@ static int fc_read_dir_callback (const char *dirname, const char *filename,
 
   if (S_ISDIR (statbuf.st_mode) && (dir->options & FC_RECURSIVE))
   {
-    status = walk_directory (abs_path, fc_read_dir_callback, dir,
-        /* include hidden = */ 0);
+    if(dir->options & FC_HIDDEN)
+	status = walk_directory (abs_path, fc_read_dir_callback, dir,/* include hidden */1);
+    else
+	status = walk_directory (abs_path, fc_read_dir_callback, dir,/* include hidden */ 0);
     return (status);
   }
   else if (!S_ISREG (statbuf.st_mode))
@@ -538,9 +563,11 @@ static int fc_read_dir (fc_directory_conf_t *dir)
 
   if (dir->mtime != 0)
     dir->now = time (NULL);
-
-  status = walk_directory (dir->path, fc_read_dir_callback, dir,
-      /* include hidden = */ 0);
+    
+  if(dir->options & FC_HIDDEN)
+    status = walk_directory (dir->path, fc_read_dir_callback, dir,/* include hidden */ 1);
+  else
+    status = walk_directory (dir->path, fc_read_dir_callback, dir,/* include hidden */ 0);
   if (status != 0)
   {
     WARNING ("filecount plugin: walk_directory (%s) failed.", dir->path);
