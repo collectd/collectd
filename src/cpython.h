@@ -83,9 +83,9 @@
 
 #define CPY_SUBSTITUTE(func, a, ...) do {\
 	if ((a) != NULL) {\
-		PyObject *tmp = (a);\
+		PyObject *__tmp = (a);\
 		(a) = func(__VA_ARGS__);\
-		Py_DECREF(tmp);\
+		Py_DECREF(__tmp);\
 	}\
 } while(0)
 
