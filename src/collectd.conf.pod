@@ -1104,6 +1104,12 @@ note that there are 1000 bytes in a kilobyte, not 1024.
 
 Controls whether or not to recurse into subdirectories. Enabled by default.
 
+=item B<IncludeHidden> I<true>|I<false>
+
+Controls whether or not to include "hidden" files and directories in the count.
+"Hidden" files and directories are those, whose name begins with a dot.
+Defaults to I<false>, i.e. by default hidden files and directories are ignored.
+
 =back
 
 =head2 Plugin C<GenericJMX>
