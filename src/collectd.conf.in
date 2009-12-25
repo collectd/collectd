@@ -107,6 +107,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
+#@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
@@ -582,6 +583,17 @@ FQDNLookup   true
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin routeros>
+#	<Router>
+#		Host "router.example.com"
+#		Port "8728"
+#		User "admin"
+#		Password "dozaiTh4"
+#		CollectInterface true
+#		CollectRegistrationTable true
+#	</Router>
 #</Plugin>
 
 #<Plugin rrdcached>
