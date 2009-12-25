@@ -32,7 +32,7 @@
 #include <fnmatch.h>
 
 #define FC_RECURSIVE 1
-#define FC_HIDDEN 1
+#define FC_HIDDEN 2
 
 struct fc_directory_conf_s
 {
@@ -381,7 +381,6 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   fc_config_set_instance (dir, dir->path);
 
   dir->options = FC_RECURSIVE;
-  dir->options = FC_HIDDEN;
 
   dir->name = NULL;
   dir->mtime = 0;
