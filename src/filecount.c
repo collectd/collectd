@@ -478,10 +478,8 @@ static int fc_read_dir_callback (const char *dirname, const char *filename,
 
   if (S_ISDIR (statbuf.st_mode) && (dir->options & FC_RECURSIVE))
   {
-    if(dir->options & FC_HIDDEN)
-	status = walk_directory (abs_path, fc_read_dir_callback, dir,/* include hidden */1);
-    else
-	status = walk_directory (abs_path, fc_read_dir_callback, dir,/* include hidden */ 0);
+    status = walk_directory (abs_path, fc_read_dir_callback, dir,
+        /* include hidden = */ (dir->options & FC_HIDDEN) ? 1 : 0);
     return (status);
   }
   else if (!S_ISREG (statbuf.st_mode))
@@ -544,10 +542,8 @@ static int fc_read_dir (fc_directory_conf_t *dir)
   if (dir->mtime != 0)
     dir->now = time (NULL);
     
-  if(dir->options & FC_HIDDEN)
-    status = walk_directory (dir->path, fc_read_dir_callback, dir,/* include hidden */ 1);
-  else
-    status = walk_directory (dir->path, fc_read_dir_callback, dir,/* include hidden */ 0);
+  status = walk_directory (dir->path, fc_read_dir_callback, dir,
+      /* include hidden */ (dir->options & FC_HIDDEN) ? 1 : 0);
   if (status != 0)
   {
     WARNING ("filecount plugin: walk_directory (%s) failed.", dir->path);
