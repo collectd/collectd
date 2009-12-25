@@ -108,6 +108,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
+#@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
@@ -636,6 +637,17 @@ FQDNLookup   true
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin python>
+#	ModulePath "/path/to/your/python/modules"
+#	LogTraces true
+#	Interactive true
+#	Import "spam"
+#
+#	<Module spam>
+#		spam "wonderful" "lovely"
+#	</Module>
 #</Plugin>
 
 #<Plugin routeros>
