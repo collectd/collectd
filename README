@@ -223,6 +223,9 @@ Features
       collectd without the need to start a heavy interpreter every interval.
       See collectd-python(5) for details.
 
+    - routeros
+      Query interface and wireless registration statistics from RouterOS.
+
     - rrdcached
       RRDtool caching daemon (RRDcacheD) statistics.
 
@@ -386,6 +389,9 @@ Features
     - match_empty_counter
       Match counter values which are currently zero.
 
+    - match_hashed
+      Match values using a hash function of the hostname.
+
     - match_regex
       Match values by their identifier based on regular expressions.
 
@@ -400,6 +406,9 @@ Features
 
     - target_replace
       Replace parts of an identifier using regular expressions.
+
+    - target_scale
+      Scale (multiply) values by an arbitrary value.
 
     - target_set
       Set (overwrite) entire parts of an identifier.
