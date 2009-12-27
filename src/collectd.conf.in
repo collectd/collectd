@@ -563,7 +563,8 @@ FQDNLookup   true
 #	IncludeDir "/my/include/path"
 #	BaseName "Collectd::Plugin"
 #	EnableDebugger ""
-#	LoadPlugin foo
+#	LoadPlugin Monitorus
+#	LoadPlugin OpenVZ
 #
 #	<Plugin foo>
 #		Foo "Bar"
