@@ -81,8 +81,8 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	static char *kwlist[] = {"type", "plugin_instance", "type_instance",
 			"plugin", "host", "time", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sssssd", kwlist, &type,
-			&plugin_instance, &type_instance, &plugin, &host, &time))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetd", kwlist, NULL, &type,
+			NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin, NULL, &host, &time))
 		return -1;
 	
 	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
@@ -342,26 +342,30 @@ static PyObject *Values_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 
 static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	Values *self = (Values *) s;
-	int interval = 0, ret;
+	int interval = 0;
 	double time = 0;
 	PyObject *values = NULL, *tmp;
 	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOssssdi", kwlist,
-			&type, &values, &plugin_instance, &type_instance,
-			&plugin, &host, &time, &interval))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdi", kwlist,
+			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
+			NULL, &plugin, NULL, &host, &time, &interval))
 		return -1;
 	
-	tmp = Py_BuildValue("sssssd", type, plugin_instance, type_instance, plugin, host, time);
-	if (tmp == NULL)
+	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
+		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
 		return -1;
-	ret = PluginDataType.tp_init(s, tmp, NULL);
-	Py_DECREF(tmp);
-	if (ret != 0)
-		return -1;
-	
+	}
+
+	sstrncpy(self->data.host, host, sizeof(self->data.host));
+	sstrncpy(self->data.plugin, plugin, sizeof(self->data.plugin));
+	sstrncpy(self->data.plugin_instance, plugin_instance, sizeof(self->data.plugin_instance));
+	sstrncpy(self->data.type, type, sizeof(self->data.type));
+	sstrncpy(self->data.type_instance, type_instance, sizeof(self->data.type_instance));
+	self->data.time = time;
+
 	if (values == NULL) {
 		values = PyList_New(0);
 		PyErr_Clear();
@@ -394,9 +398,9 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOzsssdi", kwlist,
-			&type, &values, &plugin_instance, &type_instance,
-			&plugin, &host, &time, &interval))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdi", kwlist,
+			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
+			NULL, &plugin, NULL, &host, &time, &interval))
 		return NULL;
 
 	if (type[0] == 0) {
@@ -494,9 +498,9 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	
 	static char *kwlist[] = {"destination", "type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOssssdi", kwlist,
-			&type, &values, &plugin_instance, &type_instance,
-			&plugin, &host, &time, &interval))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdi", kwlist,
+			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
+			NULL, &plugin, NULL, &host, &time, &interval))
 		return NULL;
 
 	if (type[0] == 0) {
@@ -679,27 +683,30 @@ static char Notification_doc[] = "The Notification class is a wrapper around the
 
 static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	Notification *self = (Notification *) s;
-	PyObject *tmp;
-	int severity = 0, ret;
+	int severity = 0;
 	double time = 0;
 	const char *message = "";
 	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ssssssdi", kwlist,
-			&type, &message, &plugin_instance, &type_instance,
-			&plugin, &host, &time, &severity))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist,
+			NULL, &type, NULL, &message, NULL, &plugin_instance, NULL, &type_instance,
+			NULL, &plugin, NULL, &host, &time, &severity))
 		return -1;
 	
-	tmp = Py_BuildValue("sssssd", type, plugin_instance, type_instance, plugin, host, time);
-	if (tmp == NULL)
+	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
+		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
 		return -1;
-	ret = PluginDataType.tp_init(s, tmp, NULL);
-	Py_DECREF(tmp);
-	if (ret != 0)
-		return -1;
-	
+	}
+
+	sstrncpy(self->data.host, host, sizeof(self->data.host));
+	sstrncpy(self->data.plugin, plugin, sizeof(self->data.plugin));
+	sstrncpy(self->data.plugin_instance, plugin_instance, sizeof(self->data.plugin_instance));
+	sstrncpy(self->data.type, type, sizeof(self->data.type));
+	sstrncpy(self->data.type_instance, type_instance, sizeof(self->data.type_instance));
+	self->data.time = time;
+
 	sstrncpy(self->message, message, sizeof(self->message));
 	self->severity = severity;
 	return 0;
@@ -720,9 +727,9 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 	
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ssssssdi", kwlist,
-			&type, &message, &plugin_instance, &type_instance,
-			&plugin, &host, &t, &severity))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist,
+			NULL, &type, NULL, &message, NULL, &plugin_instance, NULL, &type_instance,
+			NULL, &plugin, NULL, &host, &t, &severity))
 		return NULL;
 
 	if (type[0] == 0) {
