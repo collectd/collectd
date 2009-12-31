@@ -202,7 +202,7 @@ static int config_set_boolean (int *ret_boolean, /* {{{ */
 		return (-1);
 	}
 
-	if (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)
+	if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
 	{
 		if (ci->values[0].value.boolean)
 			*ret_boolean = 1;
