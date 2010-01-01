@@ -420,13 +420,14 @@ static int cpy_notification_callback(const notification_t *notification, user_da
 
 static void cpy_log_callback(int severity, const char *message, user_data_t *data) {
 	cpy_callback_t * c = data->data;
-	PyObject *ret;
+	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
+	text = cpy_string_to_unicode_or_bytes(message);
 	if (c->data == NULL)
-		ret = PyObject_CallFunction(c->callback, "is", severity, message); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iN", severity, text); /* New reference. */
 	else
-		ret = PyObject_CallFunction(c->callback, "isO", severity, message, c->data); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iNO", severity, text, c->data); /* New reference. */
 
 	if (ret == NULL) {
 		/* FIXME */
@@ -443,13 +444,14 @@ static void cpy_log_callback(int severity, const char *message, user_data_t *dat
 
 static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
 	cpy_callback_t * c = data->data;
-	PyObject *ret;
+	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
+	text = cpy_string_to_unicode_or_bytes(id);
 	if (c->data == NULL)
-		ret = PyObject_CallFunction(c->callback, "is", timeout, id); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iN", timeout, text); /* New reference. */
 	else
-		ret = PyObject_CallFunction(c->callback, "isO", timeout, id, c->data); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iNO", timeout, text, c->data); /* New reference. */
 
 	if (ret == NULL) {
 		cpy_log_exception("flush callback");
@@ -879,7 +881,8 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 		}
 	}
 	
-	item = PyObject_CallFunction((void *) &ConfigType, "sONO", ci->key, parent, values, Py_None);
+	tmp = cpy_string_to_unicode_or_bytes(ci->key);
+	item = PyObject_CallFunction((void *) &ConfigType, "NONO", tmp, parent, values, Py_None);
 	if (item == NULL)
 		return NULL;
 	children = PyTuple_New(ci->children_num); /* New reference. */
@@ -895,7 +898,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 static struct PyModuleDef collectdmodule = {
 	PyModuleDef_HEAD_INIT,
 	"collectd",   /* name of module */
-	"Where does this go?", /* module documentation, may be NULL */
+	"The python interface to collectd", /* module documentation, may be NULL */
 	-1,
 	cpy_methods
 };
