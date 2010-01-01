@@ -32,6 +32,84 @@
 
 #include "cpython.h"
 
+static PyObject *cpy_common_repr(PyObject *s) {
+	PyObject *ret, *tmp;
+	static PyObject *l_type = NULL, *l_type_instance = NULL, *l_plugin = NULL, *l_plugin_instance = NULL;
+	static PyObject *l_host = NULL, *l_time = NULL;
+	PluginData *self = (PluginData *) s;
+	
+	if (l_type == NULL)
+		l_type = cpy_string_to_unicode_or_bytes("(type=");
+	if (l_type_instance == NULL)
+		l_type_instance = cpy_string_to_unicode_or_bytes(",type_instance=");
+	if (l_plugin == NULL)
+		l_plugin = cpy_string_to_unicode_or_bytes(",plugin=");
+	if (l_plugin_instance == NULL)
+		l_plugin_instance = cpy_string_to_unicode_or_bytes(",plugin_instance=");
+	if (l_host == NULL)
+		l_host = cpy_string_to_unicode_or_bytes(",host=");
+	if (l_time == NULL)
+		l_time = cpy_string_to_unicode_or_bytes(",time=");
+	
+	if (!l_type || !l_type_instance || !l_plugin || !l_plugin_instance || !l_host || !l_time)
+		return NULL;
+	
+	ret = cpy_string_to_unicode_or_bytes(s->ob_type->tp_name);
+
+	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_type);
+	tmp = cpy_string_to_unicode_or_bytes(self->type);
+	CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
+	if (tmp)
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+	Py_XDECREF(tmp);
+
+	if (self->type_instance[0] != 0) {
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_type_instance);
+		tmp = cpy_string_to_unicode_or_bytes(self->type_instance);
+		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
+		if (tmp)
+			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+		Py_XDECREF(tmp);
+	}
+
+	if (self->plugin[0] != 0) {
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_plugin);
+		tmp = cpy_string_to_unicode_or_bytes(self->plugin);
+		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
+		if (tmp)
+			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+		Py_XDECREF(tmp);
+	}
+
+	if (self->plugin_instance[0] != 0) {
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_plugin_instance);
+		tmp = cpy_string_to_unicode_or_bytes(self->plugin_instance);
+		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
+		if (tmp)
+			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+		Py_XDECREF(tmp);
+	}
+
+	if (self->host[0] != 0) {
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_host);
+		tmp = cpy_string_to_unicode_or_bytes(self->host);
+		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
+		if (tmp)
+			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+		Py_XDECREF(tmp);
+	}
+
+	if (self->time != 0) {
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_time);
+		tmp = PyInt_FromLong(self->time);
+		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
+		if (tmp)
+			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+		Py_XDECREF(tmp);
+	}
+	return ret;
+}
+
 static char time_doc[] = "This is the Unix timestap of the time this value was read.\n"
 		"For dispatching values this can be set to 0 which means \"now\".\n"
 		"This means the time the value is actually dispatched, not the time\n"
@@ -101,82 +179,16 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 }
 
 static PyObject *PluginData_repr(PyObject *s) {
-	PyObject *ret, *tmp;
-	static PyObject *l_type = NULL, *l_type_instance = NULL, *l_plugin = NULL, *l_plugin_instance = NULL;
-	static PyObject *l_host = NULL, *l_time = NULL, *l_closing = NULL;
-	PluginData *self = (PluginData *) s;
+	PyObject *ret;
+	static PyObject *l_closing = NULL;
 	
-	if (l_type == NULL)
-		l_type = cpy_string_to_unicode_or_bytes("(type=");
-	if (l_type_instance == NULL)
-		l_type_instance = cpy_string_to_unicode_or_bytes(",type_instance=");
-	if (l_plugin == NULL)
-		l_plugin = cpy_string_to_unicode_or_bytes(",plugin=");
-	if (l_plugin_instance == NULL)
-		l_plugin_instance = cpy_string_to_unicode_or_bytes(",plugin_instance=");
-	if (l_host == NULL)
-		l_host = cpy_string_to_unicode_or_bytes(",host=");
-	if (l_time == NULL)
-		l_time = cpy_string_to_unicode_or_bytes(",time=");
 	if (l_closing == NULL)
 		l_closing = cpy_string_to_unicode_or_bytes(")");
 	
-	if (!l_type || !l_type_instance || !l_plugin || !l_plugin_instance || !l_host || !l_time)
+	if (l_closing == NULL)
 		return NULL;
 	
-	ret = cpy_string_to_unicode_or_bytes(s->ob_type->tp_name);
-
-	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_type);
-	tmp = cpy_string_to_unicode_or_bytes(self->type);
-	CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-	if (tmp)
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-	Py_XDECREF(tmp);
-
-	if (self->type_instance[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_type_instance);
-		tmp = cpy_string_to_unicode_or_bytes(self->type_instance);
-		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
-	}
-
-	if (self->plugin[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_plugin);
-		tmp = cpy_string_to_unicode_or_bytes(self->plugin);
-		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
-	}
-
-	if (self->plugin_instance[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_plugin_instance);
-		tmp = cpy_string_to_unicode_or_bytes(self->plugin_instance);
-		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
-	}
-
-	if (self->host[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_host);
-		tmp = cpy_string_to_unicode_or_bytes(self->host);
-		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
-	}
-
-	if (self->time != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_time);
-		tmp = PyInt_FromLong(self->time);
-		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
-	}
+	ret = cpy_common_repr(s);
 	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_closing);
 	return ret;
 }
@@ -580,25 +592,40 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	Py_RETURN_NONE;
 }
 
-/*static PyObject *Values_repr(PyObject *s) {
-	PyObject *ret, *valuestring = NULL;
+static PyObject *Values_repr(PyObject *s) {
+	PyObject *ret, *tmp;
+	static PyObject *l_interval = NULL, *l_values = NULL, *l_closing = NULL;
 	Values *self = (Values *) s;
 	
-	if (self->values != NULL)
-		valuestring = PyObject_Repr(self->values);
-	if (valuestring == NULL)
+	if (l_interval == NULL)
+		l_interval = cpy_string_to_unicode_or_bytes(",interval=");
+	if (l_values == NULL)
+		l_values = cpy_string_to_unicode_or_bytes(",values=");
+	if (l_closing == NULL)
+		l_closing = cpy_string_to_unicode_or_bytes(")");
+	
+	if (l_interval == NULL || l_values == NULL || l_closing == NULL)
 		return NULL;
 	
-	ret = PyString_FromFormat("collectd.Values(type='%s%s%s%s%s%s%s%s%s',time=%lu,interval=%i,values=%s)", self->data.type,
-			*self->data.type_instance ? "',type_instance='" : "", self->data.type_instance,
-			*self->data.plugin ? "',plugin='" : "", self->data.plugin,
-			*self->data.plugin_instance ? "',plugin_instance='" : "", self->data.plugin_instance,
-			*self->data.host ? "',host='" : "", self->data.host,
-			(long unsigned) self->data.time, self->interval,
-			valuestring ? cpy_unicode_or_bytes_to_string(valuestring) : "[]");
-	Py_XDECREF(valuestring);
+	ret = cpy_common_repr(s);
+	if (self->interval != 0) {
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_interval);
+		tmp = PyInt_FromLong(self->interval);
+		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
+		if (tmp)
+			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+		Py_XDECREF(tmp);
+	}
+	if (self->values != NULL && PySequence_Length(self->values) > 0) {
+		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_values);
+		tmp = PyObject_Repr(self->values);
+		if (tmp)
+			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
+		Py_XDECREF(tmp);
+	}
+	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_closing);
 	return ret;
-}*/
+}
 
 static int Values_traverse(PyObject *self, visitproc visit, void *arg) {
 	Values *v = (Values *) self;
@@ -639,7 +666,7 @@ PyTypeObject ValuesType = {
 	0,                         /* tp_getattr */
 	0,                         /* tp_setattr */
 	0,                         /* tp_compare */
-	0/*Values_repr*/,               /* tp_repr */
+	Values_repr,               /* tp_repr */
 	0,                         /* tp_as_number */
 	0,                         /* tp_as_sequence */
 	0,                         /* tp_as_mapping */
