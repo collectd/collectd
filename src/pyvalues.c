@@ -56,56 +56,44 @@ static PyObject *cpy_common_repr(PyObject *s) {
 	
 	ret = cpy_string_to_unicode_or_bytes(s->ob_type->tp_name);
 
-	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_type);
+	CPY_STRCAT(&ret, l_type);
 	tmp = cpy_string_to_unicode_or_bytes(self->type);
 	CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-	if (tmp)
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-	Py_XDECREF(tmp);
+	CPY_STRCAT_AND_DEL(&ret, tmp);
 
 	if (self->type_instance[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_type_instance);
+		CPY_STRCAT(&ret, l_type_instance);
 		tmp = cpy_string_to_unicode_or_bytes(self->type_instance);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 
 	if (self->plugin[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_plugin);
+		CPY_STRCAT(&ret, l_plugin);
 		tmp = cpy_string_to_unicode_or_bytes(self->plugin);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 
 	if (self->plugin_instance[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_plugin_instance);
+		CPY_STRCAT(&ret, l_plugin_instance);
 		tmp = cpy_string_to_unicode_or_bytes(self->plugin_instance);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 
 	if (self->host[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_host);
+		CPY_STRCAT(&ret, l_host);
 		tmp = cpy_string_to_unicode_or_bytes(self->host);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 
 	if (self->time != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_time);
+		CPY_STRCAT(&ret, l_time);
 		tmp = PyInt_FromLong(self->time);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 	return ret;
 }
@@ -189,7 +177,7 @@ static PyObject *PluginData_repr(PyObject *s) {
 		return NULL;
 	
 	ret = cpy_common_repr(s);
-	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_closing);
+	CPY_STRCAT(&ret, l_closing);
 	return ret;
 }
 
@@ -609,21 +597,17 @@ static PyObject *Values_repr(PyObject *s) {
 	
 	ret = cpy_common_repr(s);
 	if (self->interval != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_interval);
+		CPY_STRCAT(&ret, l_interval);
 		tmp = PyInt_FromLong(self->interval);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 	if (self->values != NULL && PySequence_Length(self->values) > 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_values);
+		CPY_STRCAT(&ret, l_values);
 		tmp = PyObject_Repr(self->values);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
-	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_closing);
+	CPY_STRCAT(&ret, l_closing);
 	return ret;
 }
 
@@ -843,22 +827,18 @@ static PyObject *Notification_repr(PyObject *s) {
 	
 	ret = cpy_common_repr(s);
 	if (self->severity != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_severity);
+		CPY_STRCAT(&ret, l_severity);
 		tmp = PyInt_FromLong(self->severity);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 	if (self->message[0] != 0) {
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_message);
+		CPY_STRCAT(&ret, l_message);
 		tmp = cpy_string_to_unicode_or_bytes(self->message);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
-		if (tmp)
-			CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, tmp);
-		Py_XDECREF(tmp);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
-	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, l_closing);
+	CPY_STRCAT(&ret, l_closing);
 	return ret;
 }
 

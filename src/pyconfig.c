@@ -136,10 +136,10 @@ static PyObject *Config_repr(PyObject *s) {
 	ret = PyObject_Str(self->key);
 	CPY_SUBSTITUTE(PyObject_Repr, ret, ret);
 	if (self->parent == NULL || self->parent == Py_None)
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, root_prefix, ret);
+		CPY_STRCAT(&ret, root_prefix);
 	else
-		CPY_SUBSTITUTE(CPY_STRCAT, ret, node_prefix, ret);
-	CPY_SUBSTITUTE(CPY_STRCAT, ret, ret, ending);
+		CPY_STRCAT(&ret, node_prefix);
+	CPY_STRCAT(&ret, ending);
 	
 	return ret;
 }

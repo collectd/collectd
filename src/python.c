@@ -691,18 +691,18 @@ static PyObject *cpy_unregister_generic_userdata(cpy_unregister_function_t *unre
 		PyErr_Clear();
 		if (!PyCallable_Check(arg)) {
 			PyErr_SetString(PyExc_TypeError, "This function needs a string or a callable object as its only parameter.");
-			Py_DECREF(&arg);
+			Py_DECREF(arg);
 			return NULL;
 		}
 		cpy_build_name(buf, sizeof(buf), arg, NULL);
 		name = buf;
 	}
 	if (unreg(name) == 0) {
-		Py_DECREF(&arg);
+		Py_DECREF(arg);
 		Py_RETURN_NONE;
 	}
 	PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);
-	Py_DECREF(&arg);
+	Py_DECREF(arg);
 	return NULL;
 }
 
@@ -895,6 +895,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 	return item;
 }
 
+#ifdef IS_PY3K
 static struct PyModuleDef collectdmodule = {
 	PyModuleDef_HEAD_INIT,
 	"collectd",   /* name of module */
@@ -906,6 +907,7 @@ static struct PyModuleDef collectdmodule = {
 PyMODINIT_FUNC PyInit_collectd(void) {
 	return PyModule_Create(&collectdmodule);
 }
+#endif
 
 static int cpy_config(oconfig_item_t *ci) {
 	int i;

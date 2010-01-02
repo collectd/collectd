@@ -101,12 +101,26 @@
 #define PyInt_FromLong PyLong_FromLong
 #define CPY_INIT_TYPE         PyVarObject_HEAD_INIT(NULL, 0)
 #define IS_BYTES_OR_UNICODE(o) (PyUnicode_Check(o) || PyBytes_Check(o))
-#define CPY_STRCAT PyUnicode_Concat
+#define CPY_STRCAT_AND_DEL(a, b) do {\
+	CPY_STRCAT((a), (b));\
+	Py_XDECREF((b));\
+} while (0)
+static inline void CPY_STRCAT(PyObject **a, PyObject *b) {
+	PyObject *ret;
+	
+	if (!a || !*a)
+		return;
+	
+	ret = PyUnicode_Concat(*a, b);
+	Py_DECREF(*a);
+	*a = ret;
+}
 
 #else
 
 #define CPY_INIT_TYPE         PyObject_HEAD_INIT(NULL) 0,
 #define IS_BYTES_OR_UNICODE(o) (PyUnicode_Check(o) || PyString_Check(o))
+#define CPY_STRCAT_AND_DEL PyString_ConcatAndDel
 #define CPY_STRCAT PyString_Concat
 
 #endif
@@ -120,7 +134,11 @@ static inline const char *cpy_unicode_or_bytes_to_string(PyObject **o) {
 		Py_DECREF(*o);
 		*o = tmp;
 	}
+#ifdef IS_PY3K
 	return PyBytes_AsString(*o);
+#else
+	return PyString_AsString(*o);
+#endif
 }
 
 static inline PyObject *cpy_string_to_unicode_or_bytes(const char *buf) {
@@ -131,8 +149,10 @@ static inline PyObject *cpy_string_to_unicode_or_bytes(const char *buf) {
 	if (ret != NULL)
 		return ret;
 	PyErr_Clear();
-#endif	
 	return PyBytes_FromString(buf);
+#else
+	return PyString_FromString(buf);
+#endif	
 }
 
  /* Python object declarations. */
