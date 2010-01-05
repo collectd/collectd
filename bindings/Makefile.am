@@ -7,6 +7,7 @@ endif
 EXTRA_DIST = perl/Makefile.PL \
 	     perl/lib/Collectd.pm \
 	     perl/lib/Collectd/Unixsock.pm \
+	     perl/lib/Collectd/Plugins/Monitorus.pm \
 	     perl/lib/Collectd/Plugins/OpenVZ.pm
 
 all-local: @PERL_BINDINGS@
