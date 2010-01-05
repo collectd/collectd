@@ -245,7 +245,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 	
 	mod = PyObject_GetAttrString(callback, "__module__"); /* New reference. */
 	if (mod != NULL)
-		module = PyString_AsString(mod);
+		module = cpy_unicode_or_bytes_to_string(&mod);
 	
 	if (module != NULL) {
 		snprintf(buf, size, "python.%s", module);
@@ -268,11 +268,11 @@ static void cpy_log_exception(const char *context) {
 	PyErr_NormalizeException(&type, &value, &traceback);
 	if (type == NULL) return;
 	tn = PyObject_GetAttrString(type, "__name__"); /* New reference. */
-	m = PyObject_GetAttrString(value, "message"); /* New reference. */
+	m = PyObject_Str(value); /* New reference. */
 	if (tn != NULL)
-		typename = PyString_AsString(tn);
+		typename = cpy_unicode_or_bytes_to_string(&tn);
 	if (m != NULL)
-		message = PyString_AsString(m);
+		message = cpy_unicode_or_bytes_to_string(&m);
 	if (typename == NULL)
 		typename = "NamelessException";
 	if (message == NULL)
@@ -301,7 +301,9 @@ static void cpy_log_exception(const char *context) {
 		PyObject *line;
 		
 		line = PyList_GET_ITEM(list, i); /* Borrowed reference. */
-		s = strdup(PyString_AsString(line));
+		Py_INCREF(line);
+		s = strdup(cpy_unicode_or_bytes_to_string(&line));
+		Py_DECREF(line);
 		if (s[strlen(s) - 1] == '\n')
 			s[strlen(s) - 1] = 0;
 		Py_BEGIN_ALLOW_THREADS
@@ -333,7 +335,8 @@ static int cpy_read_callback(user_data_t *data) {
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
 	int i;
 	cpy_callback_t *c = data->data;
-	PyObject *ret, *v, *list;
+	PyObject *ret, *list;
+	Values *v;
 
 	CPY_LOCK_THREADS
 		list = PyList_New(value_list->values_len); /* New reference. */
@@ -371,10 +374,15 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				CPY_RETURN_FROM_THREADS 0;
 			}
 		}
-		v = PyObject_CallFunction((void *) &ValuesType, "sOssssdi", value_list->type, list,
-				value_list->plugin_instance, value_list->type_instance, value_list->plugin,
-				value_list->host, (double) value_list->time, value_list->interval);
-		Py_DECREF(list);
+		v = PyObject_New(Values, (void *) &ValuesType);
+		sstrncpy(v->data.host, value_list->host, sizeof(v->data.host));
+		sstrncpy(v->data.type, value_list->type, sizeof(v->data.type));
+		sstrncpy(v->data.type_instance, value_list->type_instance, sizeof(v->data.type_instance));
+		sstrncpy(v->data.plugin, value_list->plugin, sizeof(v->data.plugin));
+		sstrncpy(v->data.plugin_instance, value_list->plugin_instance, sizeof(v->data.plugin_instance));
+		v->data.time = value_list->time;
+		v->interval = value_list->interval;
+		v->values = list;
 		ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
 			cpy_log_exception("write callback");
@@ -387,12 +395,19 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 
 static int cpy_notification_callback(const notification_t *notification, user_data_t *data) {
 	cpy_callback_t *c = data->data;
-	PyObject *ret, *n;
+	PyObject *ret;
+	Notification *n;
 
 	CPY_LOCK_THREADS
-		n = PyObject_CallFunction((void *) &NotificationType, "ssssssdi", notification->type, notification->message,
-				notification->plugin_instance, notification->type_instance, notification->plugin,
-				notification->host, (double) notification->time, notification->severity);
+		n = PyObject_New(Notification, (void *) &NotificationType);
+		sstrncpy(n->data.host, notification->host, sizeof(n->data.host));
+		sstrncpy(n->data.type, notification->type, sizeof(n->data.type));
+		sstrncpy(n->data.type_instance, notification->type_instance, sizeof(n->data.type_instance));
+		sstrncpy(n->data.plugin, notification->plugin, sizeof(n->data.plugin));
+		sstrncpy(n->data.plugin_instance, notification->plugin_instance, sizeof(n->data.plugin_instance));
+		n->data.time = notification->time;
+		sstrncpy(n->message, notification->message, sizeof(n->message));
+		n->severity = notification->severity;
 		ret = PyObject_CallFunctionObjArgs(c->callback, n, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
 			cpy_log_exception("notification callback");
@@ -405,13 +420,14 @@ static int cpy_notification_callback(const notification_t *notification, user_da
 
 static void cpy_log_callback(int severity, const char *message, user_data_t *data) {
 	cpy_callback_t * c = data->data;
-	PyObject *ret;
+	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
+	text = cpy_string_to_unicode_or_bytes(message);
 	if (c->data == NULL)
-		ret = PyObject_CallFunction(c->callback, "is", severity, message); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iN", severity, text); /* New reference. */
 	else
-		ret = PyObject_CallFunction(c->callback, "isO", severity, message, c->data); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iNO", severity, text, c->data); /* New reference. */
 
 	if (ret == NULL) {
 		/* FIXME */
@@ -428,13 +444,14 @@ static void cpy_log_callback(int severity, const char *message, user_data_t *dat
 
 static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
 	cpy_callback_t * c = data->data;
-	PyObject *ret;
+	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
+	text = cpy_string_to_unicode_or_bytes(id);
 	if (c->data == NULL)
-		ret = PyObject_CallFunction(c->callback, "is", timeout, id); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iN", timeout, text); /* New reference. */
 	else
-		ret = PyObject_CallFunction(c->callback, "isO", timeout, id, c->data); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iNO", timeout, text, c->data); /* New reference. */
 
 	if (ret == NULL) {
 		cpy_log_exception("flush callback");
@@ -451,7 +468,7 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	PyObject *callback = NULL, *data = NULL, *mod = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
 	
-	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oz", kwlist, &callback, &data, &name) == 0) return NULL;
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oet", kwlist, &callback, &data, NULL, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
@@ -467,7 +484,7 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	c->next = *list_head;
 	*list_head = c;
 	Py_XDECREF(mod);
-	return PyString_FromString(buf);
+	return cpy_string_to_unicode_or_bytes(buf);
 }
 
 static PyObject *cpy_flush(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
@@ -475,7 +492,7 @@ static PyObject *cpy_flush(cpy_callback_t **list_head, PyObject *args, PyObject 
 	const char *plugin = NULL, *identifier = NULL;
 	static char *kwlist[] = {"plugin", "timeout", "identifier", NULL};
 	
-	if (PyArg_ParseTupleAndKeywords(args, kwds, "|ziz", kwlist, &plugin, &timeout, &identifier) == 0) return NULL;
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "|etiet", kwlist, NULL, &plugin, &timeout, NULL, &identifier) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_flush(plugin, timeout, identifier);
 	Py_END_ALLOW_THREADS
@@ -501,7 +518,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	PyObject *callback = NULL, *data = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
 	
-	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oz", kwlist, &callback, &data, &name) == 0) return NULL;
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oet", kwlist, &callback, &data, NULL, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
@@ -519,7 +536,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	user_data->free_func = cpy_destroy_user_data;
 	user_data->data = c;
 	register_function(buf, handler, user_data);
-	return PyString_FromString(buf);
+	return cpy_string_to_unicode_or_bytes(buf);
 }
 
 static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwds) {
@@ -532,7 +549,7 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	struct timespec ts;
 	static char *kwlist[] = {"callback", "interval", "data", "name", NULL};
 	
-	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|dOz", kwlist, &callback, &interval, &data, &name) == 0) return NULL;
+	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|dOet", kwlist, &callback, &interval, &data, NULL, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
@@ -552,7 +569,7 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	ts.tv_sec = interval;
 	ts.tv_nsec = (interval - ts.tv_sec) * 1000000000;
 	plugin_register_complex_read(buf, cpy_read_callback, &ts, user_data);
-	return PyString_FromString(buf);
+	return cpy_string_to_unicode_or_bytes(buf);
 }
 
 static PyObject *cpy_register_log(PyObject *self, PyObject *args, PyObject *kwds) {
@@ -581,7 +598,7 @@ static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject 
 
 static PyObject *cpy_error(PyObject *self, PyObject *args) {
 	const char *text;
-	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_ERR, "%s", text);
 	Py_END_ALLOW_THREADS
@@ -590,7 +607,7 @@ static PyObject *cpy_error(PyObject *self, PyObject *args) {
 
 static PyObject *cpy_warning(PyObject *self, PyObject *args) {
 	const char *text;
-	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_WARNING, "%s", text);
 	Py_END_ALLOW_THREADS
@@ -599,7 +616,7 @@ static PyObject *cpy_warning(PyObject *self, PyObject *args) {
 
 static PyObject *cpy_notice(PyObject *self, PyObject *args) {
 	const char *text;
-	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_NOTICE, "%s", text);
 	Py_END_ALLOW_THREADS
@@ -608,7 +625,7 @@ static PyObject *cpy_notice(PyObject *self, PyObject *args) {
 
 static PyObject *cpy_info(PyObject *self, PyObject *args) {
 	const char *text;
-	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_INFO, "%s", text);
 	Py_END_ALLOW_THREADS
@@ -618,7 +635,7 @@ static PyObject *cpy_info(PyObject *self, PyObject *args) {
 static PyObject *cpy_debug(PyObject *self, PyObject *args) {
 #ifdef COLLECT_DEBUG
 	const char *text;
-	if (PyArg_ParseTuple(args, "s", &text) == 0) return NULL;
+	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_DEBUG, "%s", text);
 	Py_END_ALLOW_THREADS
@@ -631,17 +648,13 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 	const char *name;
 	cpy_callback_t *prev = NULL, *tmp;
 
-	if (PyUnicode_Check(arg)) {
-		arg = PyUnicode_AsEncodedString(arg, NULL, NULL);
-		if (arg == NULL)
-			return NULL;
-		name = PyString_AsString(arg);
-		Py_DECREF(arg);
-	} else if (PyString_Check(arg)) {
-		name = PyString_AsString(arg);
-	} else {
+	Py_INCREF(arg);
+	name = cpy_unicode_or_bytes_to_string(&arg);
+	if (name == NULL) {
+		PyErr_Clear();
 		if (!PyCallable_Check(arg)) {
 			PyErr_SetString(PyExc_TypeError, "This function needs a string or a callable object as its only parameter.");
+			Py_DECREF(arg);
 			return NULL;
 		}
 		cpy_build_name(buf, sizeof(buf), arg, NULL);
@@ -651,6 +664,7 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 		if (strcmp(name, tmp->name) == 0)
 			break;
 	
+	Py_DECREF(arg);
 	if (tmp == NULL) {
 		PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);
 		return NULL;
@@ -671,25 +685,24 @@ static PyObject *cpy_unregister_generic_userdata(cpy_unregister_function_t *unre
 	char buf[512];
 	const char *name;
 
-	if (PyUnicode_Check(arg)) {
-		arg = PyUnicode_AsEncodedString(arg, NULL, NULL);
-		if (arg == NULL)
-			return NULL;
-		name = PyString_AsString(arg);
-		Py_DECREF(arg);
-	} else if (PyString_Check(arg)) {
-		name = PyString_AsString(arg);
-	} else {
+	Py_INCREF(arg);
+	name = cpy_unicode_or_bytes_to_string(&arg);
+	if (name == NULL) {
+		PyErr_Clear();
 		if (!PyCallable_Check(arg)) {
 			PyErr_SetString(PyExc_TypeError, "This function needs a string or a callable object as its only parameter.");
+			Py_DECREF(arg);
 			return NULL;
 		}
 		cpy_build_name(buf, sizeof(buf), arg, NULL);
 		name = buf;
 	}
-	if (unreg(name) == 0)
+	if (unreg(name) == 0) {
+		Py_DECREF(arg);
 		Py_RETURN_NONE;
+	}
 	PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);
+	Py_DECREF(arg);
 	return NULL;
 }
 
@@ -860,7 +873,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 	values = PyTuple_New(ci->values_num); /* New reference. */
 	for (i = 0; i < ci->values_num; ++i) {
 		if (ci->values[i].type == OCONFIG_TYPE_STRING) {
-			PyTuple_SET_ITEM(values, i, PyString_FromString(ci->values[i].value.string));
+			PyTuple_SET_ITEM(values, i, cpy_string_to_unicode_or_bytes(ci->values[i].value.string));
 		} else if (ci->values[i].type == OCONFIG_TYPE_NUMBER) {
 			PyTuple_SET_ITEM(values, i, PyFloat_FromDouble(ci->values[i].value.number));
 		} else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN) {
@@ -868,7 +881,8 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 		}
 	}
 	
-	item = PyObject_CallFunction((void *) &ConfigType, "sONO", ci->key, parent, values, Py_None);
+	tmp = cpy_string_to_unicode_or_bytes(ci->key);
+	item = PyObject_CallFunction((void *) &ConfigType, "NONO", tmp, parent, values, Py_None);
 	if (item == NULL)
 		return NULL;
 	children = PyTuple_New(ci->children_num); /* New reference. */
@@ -880,6 +894,20 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 	Py_XDECREF(tmp);
 	return item;
 }
+
+#ifdef IS_PY3K
+static struct PyModuleDef collectdmodule = {
+	PyModuleDef_HEAD_INIT,
+	"collectd",   /* name of module */
+	"The python interface to collectd", /* module documentation, may be NULL */
+	-1,
+	cpy_methods
+};
+
+PyMODINIT_FUNC PyInit_collectd(void) {
+	return PyModule_Create(&collectdmodule);
+}
+#endif
 
 static int cpy_config(oconfig_item_t *ci) {
 	int i;
@@ -893,6 +921,12 @@ static int cpy_config(oconfig_item_t *ci) {
 	 * python code during the config callback so we have to start
 	 * the interpreter here. */
 	/* Do *not* use the python "thread" module at this point! */
+
+#ifdef IS_PY3K
+	/* Add a builtin module, before Py_Initialize */
+	PyImport_AppendInittab("collectd", PyInit_collectd);
+#endif
+	
 	Py_Initialize();
 	
 	PyType_Ready(&ConfigType);
@@ -912,7 +946,11 @@ static int cpy_config(oconfig_item_t *ci) {
 		cpy_log_exception("python initialization");
 		return 1;
 	}
+#ifdef IS_PY3K
+	module = PyImport_ImportModule("collectd");
+#else
 	module = Py_InitModule("collectd", cpy_methods); /* Borrowed reference. */
+#endif
 	PyModule_AddObject(module, "Config", (void *) &ConfigType); /* Steals a reference. */
 	PyModule_AddObject(module, "Values", (void *) &ValuesType); /* Steals a reference. */
 	PyModule_AddObject(module, "Notification", (void *) &NotificationType); /* Steals a reference. */
@@ -962,7 +1000,7 @@ static int cpy_config(oconfig_item_t *ci) {
 			
 			if (cf_util_get_string(item, &dir) != 0) 
 				continue;
-			dir_object = PyString_FromString(dir); /* New reference. */
+			dir_object = cpy_string_to_unicode_or_bytes(dir); /* New reference. */
 			if (dir_object == NULL) {
 				ERROR("python plugin: Unable to convert \"%s\" to "
 				      "a python object.", dir);
@@ -987,7 +1025,6 @@ static int cpy_config(oconfig_item_t *ci) {
 			if (module == NULL) {
 				ERROR("python plugin: Error importing module \"%s\".", module_name);
 				cpy_log_exception("importing module");
-				PyErr_Print();
 			}
 			free(module_name);
 			Py_XDECREF(module);

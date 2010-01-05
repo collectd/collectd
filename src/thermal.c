@@ -218,13 +218,13 @@ static int thermal_config (const char *key, const char *value)
 static int thermal_sysfs_read (void)
 {
 	return walk_directory (dirname_sysfs, thermal_sysfs_device_read,
-			/* user_data = */ NULL);
+			/* user_data = */ NULL, /* include hidden */ 0);
 }
 
 static int thermal_procfs_read (void)
 {
 	return walk_directory (dirname_procfs, thermal_procfs_device_read,
-			/* user_data = */ NULL);
+			/* user_data = */ NULL, /* include hidden */ 0);
 }
 
 static int thermal_init (void)

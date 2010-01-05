@@ -514,7 +514,8 @@ static int battery_read (void)
 
 	if (0 == access (battery_acpi_dir, R_OK))
 		walk_directory (battery_acpi_dir, battery_read_acpi,
-				/* user_data = */ NULL);
+				/* user_data = */ NULL,
+				/* include hidden */ 0);
 	else
 	{
 		char errbuf[1024];

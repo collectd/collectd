@@ -19,7 +19,7 @@
 #   Jeff Green <jeff at kikisoso.org>
 #
 
-package Collectd::Plugin::Monitorus;
+package Collectd::Plugins::Monitorus;
 
 use strict;
 use warnings;

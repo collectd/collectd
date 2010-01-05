@@ -27,8 +27,7 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-Currently only I<Python 2> is supported and at least I<version 2.3> is
-required.
+At least python I<version 2.3> is required.
 
 =head1 CONFIGURATION
 
@@ -118,6 +117,29 @@ the B<Config> class and how to register callbacks.
 The I<name> identifies the callback.
 
 =back
+
+=head1 STRINGS
+
+There are a lot of places where strings are send from collectd to python and
+from python to collectd. How exactly this works depends on wheather byte or
+unicode strings or python2 or python3 are used.
+
+Python2 has I<str>, which is just bytes, and I<unicode>. Python3 has I<str>,
+which is a unicode object, and I<bytes>.
+
+When passing strings from python to collectd all of these object are supported
+in all places, however I<str> should be used if possible. These strings must
+not contain a NUL byte. Ignoring this will result in a I<TypeError> exception.
+If a byte string was used it will be used as is by collectd. If a unicode
+object was used it will be encoded using the default encoding (see above). If
+this is not possible python will raise a I<UnicodeEncodeError> exception.
+
+Wenn passing strings from collectd to python the behavior depends on the
+python version used. Python2 will always receive a I<str> object. Python3 will
+usually receive a I<str> object as well, however the original string will be
+decoded to unicode using the default encoding. If this fails because the
+string is not a valid sequence for this encoding a I<bytes> object will be
+returned instead.
 
 =head1 WRITING YOUR OWN PLUGINS
 
