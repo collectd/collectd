@@ -74,10 +74,17 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	Config *self = (Config *) s;
 	static char *kwlist[] = {"key", "parent", "values", "children", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "S|OOO", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOO", kwlist,
 			&key, &parent, &values, &children))
 		return -1;
 	
+	if (!IS_BYTES_OR_UNICODE(key)) {
+		PyErr_SetString(PyExc_TypeError, "argument 1 must be str");
+		Py_XDECREF(parent);
+		Py_XDECREF(values);
+		Py_XDECREF(children);
+		return -1;
+	}
 	if (values == NULL) {
 		values = PyTuple_New(0);
 		PyErr_Clear();
@@ -113,8 +120,28 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 
 static PyObject *Config_repr(PyObject *s) {
 	Config *self = (Config *) s;
+	PyObject *ret = NULL;
+	static PyObject *node_prefix = NULL, *root_prefix = NULL, *ending = NULL;
 	
-	return PyString_FromFormat("<collectd.Config %snode %s>", self->parent == Py_None ? "root " : "", PyString_AsString(PyObject_Str(self->key)));
+	/* This is ok because we have the GIL, so this is thread-save by default. */
+	if (node_prefix == NULL)
+		node_prefix = cpy_string_to_unicode_or_bytes("<collectd.Config node ");
+	if (root_prefix == NULL)
+		root_prefix = cpy_string_to_unicode_or_bytes("<collectd.Config root node ");
+	if (ending == NULL)
+		ending = cpy_string_to_unicode_or_bytes(">");
+	if (node_prefix == NULL || root_prefix == NULL || ending == NULL)
+		return NULL;
+	
+	ret = PyObject_Str(self->key);
+	CPY_SUBSTITUTE(PyObject_Repr, ret, ret);
+	if (self->parent == NULL || self->parent == Py_None)
+		CPY_STRCAT(&ret, root_prefix);
+	else
+		CPY_STRCAT(&ret, node_prefix);
+	CPY_STRCAT(&ret, ending);
+	
+	return ret;
 }
 
 static int Config_traverse(PyObject *self, visitproc visit, void *arg) {
@@ -123,8 +150,7 @@ static int Config_traverse(PyObject *self, visitproc visit, void *arg) {
 	Py_VISIT(c->key);
 	Py_VISIT(c->values);
 	Py_VISIT(c->children);
-	return 0;
-}
+	return 0;}
 
 static int Config_clear(PyObject *self) {
 	Config *c = (Config *) self;
@@ -149,8 +175,7 @@ static PyMemberDef Config_members[] = {
 };
 
 PyTypeObject ConfigType = {
-	PyObject_HEAD_INIT(NULL)
-	0,                         /* Always 0 */
+	CPY_INIT_TYPE
 	"collectd.Config",         /* tp_name */
 	sizeof(Config),            /* tp_basicsize */
 	0,                         /* Will be filled in later */
