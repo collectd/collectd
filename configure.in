@@ -2739,7 +2739,7 @@ fi
 if test "x$with_python" = "xyes"
 then
 	AC_MSG_CHECKING([for Python CPPFLAGS])
-	python_include_path=`echo "import distutils.sysconfig;print distutils.sysconfig.get_python_inc()" | "$with_python_prog" 2>&1`
+	python_include_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_python_inc())" | "$with_python_prog" 2>&1`
 	python_config_status=$?
 
 	if test "$python_config_status" -ne 0 || test "x$python_include_path" = "x"
@@ -2762,7 +2762,7 @@ fi
 if test "x$with_python" = "xyes"
 then
 	AC_MSG_CHECKING([for Python LDFLAGS])
-	python_library_path=`echo "import distutils.sysconfig;print distutils.sysconfig.get_config_vars(\"LIBDIR\").__getitem__(0)" | "$with_python_prog" 2>&1`
+	python_library_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"LIBDIR\").__getitem__(0))" | "$with_python_prog" 2>&1`
 	python_config_status=$?
 
 	if test "$python_config_status" -ne 0 || test "x$python_library_path" = "x"
@@ -2777,7 +2777,7 @@ fi
 if test "x$with_python" = "xyes"
 then
 	AC_MSG_CHECKING([for Python LIBS])
-	python_library_flags=`echo "import distutils.sysconfig;print distutils.sysconfig.get_config_vars(\"BLDLIBRARY\").__getitem__(0)" | "$with_python_prog" 2>&1`
+	python_library_flags=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"BLDLIBRARY\").__getitem__(0))" | "$with_python_prog" 2>&1`
 	python_config_status=$?
 
 	if test "$python_config_status" -ne 0 || test "x$python_library_flags" = "x"
