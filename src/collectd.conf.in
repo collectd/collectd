@@ -665,6 +665,10 @@ FQDNLookup   true
 #		Password "dozaiTh4"
 #		CollectInterface true
 #		CollectRegistrationTable true
+#		CollectCPULoad true
+#		CollectMemory true
+#		CollectDF true
+#		CollectDisk true
 #	</Router>
 #</Plugin>
 
