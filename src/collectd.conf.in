@@ -89,6 +89,7 @@ FQDNLookup   true
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
+#@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
 #@BUILD_PLUGIN_NETLINK_TRUE@LoadPlugin netlink
 @LOAD_PLUGIN_NETWORK@LoadPlugin network
 #@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
@@ -107,6 +108,8 @@ FQDNLookup   true
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
+#@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
+#@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
@@ -414,6 +417,58 @@ FQDNLookup   true
 #	</Database>
 #</Plugin>
 
+#<Plugin netapp>
+#	<Host "netapp1.example.com">
+#		Protocol      "https"
+#		Address       "10.0.0.1"
+#		Port          443
+#		User          "username"
+#		Password      "aef4Aebe"
+#		Interval      30
+#
+#		<WAFL>
+#			Interval 30
+#			GetNameCache   true
+#			GetDirCache    true
+#			GetBufferCache true
+#			GetInodeCache  true
+#		</WAFL>
+#
+#		<Disks>
+#			Interval 30
+#			GetBusy true
+#		</Disks>
+#
+#		<VolumePerf>
+#			Interval 30
+#			GetIO      "volume0"
+#			IgnoreSelectedIO      false
+#			GetOps     "volume0"
+#			IgnoreSelectedOps     false
+#			GetLatency "volume0"
+#			IgnoreSelectedLatency false
+#		</VolumePerf>
+#
+#		<VolumeUsage>
+#			Interval 30
+#			GetCapacity "vol0"
+#			GetCapacity "vol1"
+#			IgnoreSelectedCapacity false
+#			GetSnapshot "vol1"
+#			GetSnapshot "vol3"
+#			IgnoreSelectedSnapshot false
+#		</VolumeUsage>
+#
+#		<System>
+#			Interval 30
+#			GetCPULoad     true
+#			GetInterfaces  true
+#			GetDiskOps     true
+#			GetDiskIO      true
+#		</System>
+#	</Host>
+#</Plugin>
+
 #<Plugin netlink>
 #	Interface "All"
 #	VerboseInterface "All"
@@ -582,6 +637,28 @@ FQDNLookup   true
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin python>
+#	ModulePath "/path/to/your/python/modules"
+#	LogTraces true
+#	Interactive true
+#	Import "spam"
+#
+#	<Module spam>
+#		spam "wonderful" "lovely"
+#	</Module>
+#</Plugin>
+
+#<Plugin routeros>
+#	<Router>
+#		Host "router.example.com"
+#		Port "8728"
+#		User "admin"
+#		Password "dozaiTh4"
+#		CollectInterface true
+#		CollectRegistrationTable true
+#	</Router>
 #</Plugin>
 
 #<Plugin rrdcached>

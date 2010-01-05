@@ -676,6 +676,7 @@ static int rrd_cache_insert (const char *filename,
 		rc->values = NULL;
 		rc->first_value = 0;
 		rc->last_value = 0;
+		rc->random_variation = 0;
 		rc->flags = FLAG_NONE;
 		new_rc = 1;
 	}

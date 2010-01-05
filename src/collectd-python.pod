@@ -96,6 +96,16 @@ exception either.
 
 To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
 
+=item
+
+B<3.> collectd handles I<SIGCHLD>. This means that python won't be able to
+determine the return code of spawned processes with system(), popen() and
+subprocess. This will result in python not using external programs like less
+to display help texts. You can override this behavior with the B<PAGER>
+environment variable, e.g. I<export PAGER=less> before starting collectd.
+Depending on your version of python this might or might not result in an
+B<OSError> exception which can be ignored.
+
 =back
 
 =item E<lt>B<Module> I<Name>E<gt> block
