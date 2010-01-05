@@ -190,6 +190,7 @@ FQDNLookup   true
 #    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
 #    User "foo"
 #    Password "bar"
+#    MeasureResponseTime false
 #    <Match>
 #      Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
 #      DSType "GaugeAverage"
@@ -563,7 +564,8 @@ FQDNLookup   true
 #	IncludeDir "/my/include/path"
 #	BaseName "Collectd::Plugin"
 #	EnableDebugger ""
-#	LoadPlugin foo
+#	LoadPlugin Monitorus
+#	LoadPlugin OpenVZ
 #
 #	<Plugin foo>
 #		Foo "Bar"
@@ -573,7 +575,12 @@ FQDNLookup   true
 
 #<Plugin ping>
 #	Host "host.foo.bar"
+#	Interval 1.0
+#	Timeout 0.9
 #	TTL 255
+#	SourceAddress "1.2.3.4"
+#	Device "eth0"
+#	MaxMissed -1
 #</Plugin>
 
 #<Plugin postgresql>
@@ -819,6 +826,7 @@ FQDNLookup   true
 
 # Load required matches:
 #@BUILD_PLUGIN_MATCH_EMPTY_COUNTER_TRUE@LoadPlugin match_empty_counter
+#@BUILD_PLUGIN_MATCH_HASHED_TRUE@LoadPlugin match_hashed
 #@BUILD_PLUGIN_MATCH_REGEX_TRUE@LoadPlugin match_regex
 #@BUILD_PLUGIN_MATCH_VALUE_TRUE@LoadPlugin match_value
 #@BUILD_PLUGIN_MATCH_TIMEDIFF_TRUE@LoadPlugin match_timediff
@@ -826,6 +834,7 @@ FQDNLookup   true
 # Load required targets:
 #@BUILD_PLUGIN_TARGET_NOTIFICATION_TRUE@LoadPlugin target_notification
 #@BUILD_PLUGIN_TARGET_REPLACE_TRUE@LoadPlugin target_replace
+#@BUILD_PLUGIN_TARGET_SCALE_TRUE@LoadPlugin target_scale
 #@BUILD_PLUGIN_TARGET_SET_TRUE@LoadPlugin target_set
 
 #----------------------------------------------------------------------------#
