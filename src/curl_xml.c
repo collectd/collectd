@@ -251,7 +251,6 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
 
   xmlXPathObjectPtr base_node_obj = NULL;
   xmlXPathObjectPtr instance_node_obj = NULL;
-  xmlXPathObjectPtr values_node_obj = NULL;
   xmlNodeSetPtr base_nodes = NULL;
   xmlNodeSetPtr instance_node = NULL;
   xmlNodeSetPtr values_node = NULL;
@@ -337,11 +336,16 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
           xmlXPathFreeObject (instance_node_obj);
           continue;
         }
-     }
+     } /* if (xpath->instance != NULL) */
 
      for (j = 0; j < xpath->values_len; j++)
      {
+       xmlXPathObjectPtr values_node_obj;
+
        values_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST xpath->values[j].path);
+       if (values_node_obj == NULL)
+         continue; /* Error already logged. */
+
        values_node = values_node_obj->nodesetval;
        tmp_size = (values_node) ? values_node->nodeNr : 0;
 
