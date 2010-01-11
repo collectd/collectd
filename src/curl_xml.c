@@ -69,8 +69,8 @@ struct cx_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  int   verify_peer;
-  int   verify_host;
+  _Bool verify_peer;
+  _Bool verify_host;
   char *cacert;
 
   CURL *curl;
@@ -579,37 +579,6 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   return (0); 
 } /* }}} cx_config_add_values */
 
-static int cx_config_add_string (const char *name, char **dest, /* {{{ */
-                                      oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("curl_xml plugin: `%s' needs exactly one string argument.", name);
-    return (-1);
-  }
-
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
-  if (*dest == NULL)
-    return (-1);
-
-  return (0);
-} /* }}} int cx_config_add_string */
-
-static int cx_config_set_boolean (const char *name, int *dest, /* {{{ */
-                                       oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("curl_xml plugin: `%s' needs exactly one boolean argument.", name);
-    return (-1);
-  }
-
-  *dest = ci->values[0].value.boolean ? 1 : 0;
-
-  return (0);
-} /* }}} int cx_config_set_boolean */
-
 static c_avl_tree_t *cx_avl_create(void) /* {{{ */
 {
   return c_avl_create ((int (*) (const void *, const void *)) strcmp);
@@ -641,7 +610,7 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
 
   if (strcasecmp ("xpath", ci->key) == 0)
   {
-    status = cx_config_add_string ("xpath", &xpath->path, ci);
+    status = cf_util_get_string (ci, &xpath->path);
     if (status != 0)
     {
       sfree (xpath);
@@ -661,11 +630,11 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Type", child->key) == 0)
-      status = cx_config_add_string ("Type", &xpath->type, child);
+      status = cf_util_get_string (child, &xpath->type);
     else if (strcasecmp ("InstancePrefix", child->key) == 0)
-      status = cx_config_add_string ("InstancePrefix", &xpath->instance_prefix, child);
+      status = cf_util_get_string (child, &xpath->instance_prefix);
     else if (strcasecmp ("Instance", child->key) == 0)
-      status = cx_config_add_string ("Instance", &xpath->instance, child);
+      status = cf_util_get_string (child, &xpath->instance);
     else if (strcasecmp ("Values", child->key) == 0)
       status = cx_config_add_values ("Values", xpath, child);
     else
@@ -712,6 +681,7 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
   return (status);
 } /* }}} int cx_config_add_xpath */
 
+/* Initialize db->curl */
 static int cx_init_curl (cx_t *db) /* {{{ */
 {
   db->curl = curl_easy_init ();
@@ -781,7 +751,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
 
   if (strcasecmp ("URL", ci->key) == 0)
   {
-    status = cx_config_add_string ("URL", &db->url, ci);
+    status = cf_util_get_string (ci, &db->url);
     if (status != 0)
     {
       sfree (db);
@@ -801,19 +771,19 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Instance", child->key) == 0)
-      status = cx_config_add_string ("Instance", &db->instance, child);
+      status = cf_util_get_string (child, &db->instance);
     else if (strcasecmp ("Host", child->key) == 0)
-      status = cx_config_add_string ("Host", &db->host, child);
+      status = cf_util_get_string (child, &db->host);
     else if (strcasecmp ("User", child->key) == 0)
-      status = cx_config_add_string ("User", &db->user, child);
+      status = cf_util_get_string (child, &db->user);
     else if (strcasecmp ("Password", child->key) == 0)
-      status = cx_config_add_string ("Password", &db->pass, child);
+      status = cf_util_get_string (child, &db->pass);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
-      status = cx_config_set_boolean ("VerifyPeer", &db->verify_peer, child);
+      status = cf_util_get_boolean (child, &db->verify_peer);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
-      status = cx_config_set_boolean ("VerifyHost", &db->verify_host, child);
+      status = cf_util_get_boolean (child, &db->verify_host);
     else if (strcasecmp ("CACert", child->key) == 0)
-      status = cx_config_add_string ("CACert", &db->cacert, child);
+      status = cf_util_get_string (child, &db->cacert);
     else if (strcasecmp ("xpath", child->key) == 0)
       status = cx_config_add_xpath (db, child);
     else
