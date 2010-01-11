@@ -416,6 +416,8 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
          if (instance_node != NULL)
            sstrncpy (vl.type_instance, (char *) xmlNodeGetContent(instance_node->nodeTab[0]),
                      sizeof (vl.type_instance));
+         else
+           vl.type_instance[0] = 0;
        }
 
        /* free up object */
