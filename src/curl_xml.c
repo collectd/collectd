@@ -1,6 +1,6 @@
 /**
  * collectd - src/curl_xml.c
- * Copyright (C) 2009       Amit Gupta
+ * Copyright (C) 2009,2010       Amit Gupta
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
