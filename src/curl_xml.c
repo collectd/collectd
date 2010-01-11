@@ -402,7 +402,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   if (xpath->instance_prefix != NULL)
   {
     if (instance_node != NULL)
-      ssnprintf (vl->type_instance, sizeof (vl->type_instance),"%s-%s",
+      ssnprintf (vl->type_instance, sizeof (vl->type_instance),"%s%s",
           xpath->instance_prefix, (char *) xmlNodeGetContent(instance_node->nodeTab[0]));
     else
       sstrncpy (vl->type_instance, xpath->instance_prefix,
