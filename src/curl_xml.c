@@ -238,6 +238,89 @@ static int cx_if_not_text_node (xmlNodePtr node) /* {{{ */
   return -1;
 } /* }}} cx_if_not_text_node */
 
+static int cx_set_type_instance (xmlXPathContextPtr xpath_ctx, /* {{{ */
+    cx_xpath_t *xpath, value_list_t *vl,
+    _Bool is_table)
+{
+  xmlXPathObjectPtr instance_node_obj = NULL;
+  xmlNodeSetPtr instance_node = NULL;
+
+  memset (vl->type_instance, 0, sizeof (vl->type_instance));
+
+  if (is_table && (vl->type_instance == NULL))
+  {
+    WARNING ("curl_xml plugin: "
+        "Base-XPath %s is a table, but no instance-XPath has been defined.",
+        xpath->path);
+    return (-1);
+  }
+
+  /* instance has to be an xpath expression */
+  if (xpath->instance != NULL)
+  {
+    int tmp_size;
+
+    instance_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST xpath->instance);
+    if (instance_node_obj == NULL)
+      return (-1); /* error is logged already */
+
+    instance_node = instance_node_obj->nodesetval;
+    tmp_size = (instance_node) ? instance_node->nodeNr : 0;
+
+    if ( (tmp_size == 0) && (is_table) )
+    {
+      WARNING ("curl_xml plugin: "
+          "relative xpath expression for 'Instance' \"%s\" doesn't match "
+          "any of the nodes. Skipping the node.", xpath->instance);
+      xmlXPathFreeObject (instance_node_obj);
+      return (-1);
+    }
+
+    if (tmp_size > 1)
+    {
+      WARNING ("curl_xml plugin: "
+          "relative xpath expression for 'Instance' \"%s\" is expected "
+          "to return only one text node. Skipping the node.", xpath->instance);
+      xmlXPathFreeObject (instance_node_obj);
+      return (-1);
+    }
+
+    /* ignoring the element if other than textnode/attribute */
+    if (cx_if_not_text_node(instance_node->nodeTab[0]))
+    {
+      WARNING ("curl_xml plugin: "
+          "relative xpath expression \"%s\" is expected to return only text node "
+          "which is not the case. Skipping the node.", xpath->instance);
+      xmlXPathFreeObject (instance_node_obj);
+      return (-1);
+    }
+  } /* if (xpath->instance != NULL) */
+
+  if (xpath->instance_prefix != NULL)
+  {
+    if (instance_node != NULL)
+      ssnprintf (vl->type_instance, sizeof (vl->type_instance),"%s-%s",
+          xpath->instance_prefix, (char *) xmlNodeGetContent(instance_node->nodeTab[0]));
+    else
+      sstrncpy (vl->type_instance, xpath->instance_prefix,
+          sizeof (vl->type_instance));
+  }
+  else
+  {
+    /* If instance_prefix and instance_node are NULL, then
+     * don't set the type_instance */
+    if (instance_node != NULL)
+      sstrncpy (vl->type_instance, (char *) xmlNodeGetContent(instance_node->nodeTab[0]),
+          sizeof (vl->type_instance));
+  }
+
+  /* Free `instance_node_obj' this late, because `instance_node' points to
+   * somewhere inside this structure. */
+  xmlXPathFreeObject (instance_node_obj);
+
+  return (0);
+} /* }}} int cx_set_type_instance */
+
 static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
     xmlXPathContextPtr xpath_ctx, 
     char *base_xpath, cx_xpath_t *xpath)
@@ -250,10 +333,7 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
   char *node_value;
 
   xmlXPathObjectPtr base_node_obj = NULL;
-  xmlXPathObjectPtr instance_node_obj = NULL;
   xmlNodeSetPtr base_nodes = NULL;
-  xmlNodeSetPtr instance_node = NULL;
-  xmlNodeSetPtr values_node = NULL;
 
   value_list_t vl = VALUE_LIST_INIT;
   const data_set_t *ds;
@@ -296,52 +376,15 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
   {
      xpath_ctx->node = base_nodes->nodeTab[i];
 
-     /* instance has to be an xpath expression */
-     if (xpath->instance != NULL)
-     {
-        assert (instance_node_obj == NULL);
-        instance_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST xpath->instance);
-        if (instance_node_obj == NULL)
-          continue; /* error is logged already */
-
-        instance_node = instance_node_obj->nodesetval;
-        tmp_size = (instance_node) ? instance_node->nodeNr : 0;
-
-        if ( (tmp_size == 0) && (total_nodes > 1) )
-        {
-           WARNING ("curl_xml plugin: "
-                    "relative xpath expression for 'Instance' \"%s\" doesn't match "
-                    "any of the nodes. Skipping the node - %s", 
-                    xpath->instance, base_nodes->nodeTab[i]->name);
-           xmlXPathFreeObject (instance_node_obj);
-           continue;
-        }
-
-        if (tmp_size > 1)
-        {
-          WARNING ("curl_xml plugin: "
-                   "relative xpath expression for 'Instance' \"%s\" is expected "
-                   "to return only one text node. Skipping the node - %s", 
-                   xpath->instance, base_nodes->nodeTab[i]->name);
-          xmlXPathFreeObject (instance_node_obj);
-          continue;
-        }
-
-        /* ignoring the element if other than textnode/attribute */
-        if (cx_if_not_text_node(instance_node->nodeTab[0]))
-        {
-          WARNING ("curl_xml plugin: "
-                   "relative xpath expression \"%s\" is expected to return only text node "
-                    "which is not the case. Skipping the node - %s",
-                    xpath->instance, base_nodes->nodeTab[i]->name);
-          xmlXPathFreeObject (instance_node_obj);
-          continue;
-        }
-     } /* if (xpath->instance != NULL) */
+     status = cx_set_type_instance (xpath_ctx, xpath, &vl,
+         /* is_table = */ (total_nodes > 1));
+     if (status != 0)
+       continue; /* An error has already been reported. */
 
      for (j = 0; j < xpath->values_len; j++)
      {
        xmlXPathObjectPtr values_node_obj;
+       xmlNodeSetPtr values_node;
 
        values_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST xpath->values[j].path);
        if (values_node_obj == NULL)
@@ -384,7 +427,6 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
        {
          ERROR ("curl_xml plugin: malloc failed.");
          xmlXPathFreeObject (base_node_obj);
-         xmlXPathFreeObject (instance_node_obj);
          xmlXPathFreeObject (values_node_obj);
          return (-1);
        } 
@@ -405,26 +447,6 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
            vl.values[j].absolute = atoi(node_value);
        }
       
-       if (xpath->instance_prefix != NULL)
-       {
-         if (instance_node != NULL)
-           ssnprintf (vl.type_instance, sizeof (vl.type_instance),"%s-%s",
-                      xpath->instance_prefix, (char *) xmlNodeGetContent(instance_node->nodeTab[0]));
-         else
-           sstrncpy (vl.type_instance, xpath->instance_prefix,
-                     sizeof (vl.type_instance));
-       }
-       else
-       {
-         /* If instance_prefix and instance_node are NULL, then
-          * don't set the type_instance */
-         if (instance_node != NULL)
-           sstrncpy (vl.type_instance, (char *) xmlNodeGetContent(instance_node->nodeTab[0]),
-                     sizeof (vl.type_instance));
-         else
-           vl.type_instance[0] = 0;
-       }
-
        /* free up object */
        xmlXPathFreeObject (values_node_obj);
 
@@ -438,11 +460,6 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
        plugin_dispatch_values (&vl);
 
      sfree(vl.values);
-     if (instance_node_obj != NULL)
-     {
-       xmlXPathFreeObject (instance_node_obj);
-       instance_node_obj = NULL;
-     }
   } /* for (i = 0; i < total_nodes; i++) */
 
   /* free up the allocated memory */
