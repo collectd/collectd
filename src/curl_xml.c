@@ -216,7 +216,7 @@ static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{
 {
   xmlXPathObjectPtr xpath_obj;
 
-  // XXX: When to free this?
+  /* XXX: When to free this? */
   xpath_obj = xmlXPathEvalExpression(BAD_CAST expr, xpath_ctx);
   if (xpath_obj == NULL)
   {
@@ -327,7 +327,7 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
           continue;
         }
 
-        // ignoring the element if other than textnode/attribute
+        /* ignoring the element if other than textnode/attribute */
         if (cx_if_not_text_node(instance_node->nodeTab[0]))
         {
           WARNING ("curl_xml plugin: "
@@ -411,8 +411,8 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
        }
        else
        {
-         /* If instance_prefix and instance_node are NULL , then */
-         /* don't set the type_instance */
+         /* If instance_prefix and instance_node are NULL, then
+          * don't set the type_instance */
          if (instance_node != NULL)
            sstrncpy (vl.type_instance, (char *) xmlNodeGetContent(instance_node->nodeTab[0]),
                      sizeof (vl.type_instance));
@@ -423,10 +423,10 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
        /* free up object */
        xmlXPathFreeObject (values_node_obj);
 
-       /* We have reached here which means that */
-       /* we have got something to work */
+       /* We have reached here which means that
+        * we have got something to work */
        status = 0;
-     }
+     } /* for (j = 0; j < xpath->values_len; j++) */
 
      /* submit the values */
      if (vl.values)
