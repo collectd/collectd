@@ -346,10 +346,14 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
 
   memset (vl->type_instance, 0, sizeof (vl->type_instance));
 
+  /* If the base xpath returns more than one block, the result is assumed to be
+   * a table. The `Instnce' option is not optional in this case. Check for the
+   * condition and inform the user. */
   if (is_table && (vl->type_instance == NULL))
   {
     WARNING ("curl_xml plugin: "
-        "Base-XPath %s is a table, but no instance-XPath has been defined.",
+        "Base-XPath %s is a table (more than one result was returned), "
+        "but no instance-XPath has been defined.",
         xpath->path);
     return (-1);
   }
@@ -474,7 +478,7 @@ static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
     xpath_ctx->node = base_nodes->nodeTab[i];
 
     status = cx_handle_instance_xpath (xpath_ctx, xpath, &vl,
-        /* is_table = */ (total_nodes > 1)); /* FIXME */
+        /* is_table = */ (total_nodes > 1));
     if (status != 0)
       continue; /* An error has already been reported. */
 
