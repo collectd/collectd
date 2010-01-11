@@ -1,0 +1,924 @@
+/**
+ * collectd - src/curl_xml.c
+ * Copyright (C) 2009       Amit Gupta
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; only version 2 of the License is applicable.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ *
+ * Authors:
+ *   Amit Gupta <amit.gupta221 at gmail.com>
+ **/
+
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
+#include "configfile.h"
+#include "utils_avltree.h"
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
+
+#include <curl/curl.h>
+
+#define CX_DEFAULT_HOST "localhost"
+#define CX_KEY_MAGIC 0x43484b59UL /* CHKY */
+#define CX_IS_KEY(key) (key)->magic == CX_KEY_MAGIC
+
+struct cx_values_s /* {{{ */
+{
+  char path[DATA_MAX_NAME_LEN];
+  size_t path_len;
+};
+typedef struct cx_values_s cx_values_t;
+/* }}} */
+
+struct cx_xpath_s /* {{{ */
+{
+  char *path;
+  char *type;
+  cx_values_t *values;
+  int values_len;
+  char *instance_prefix;
+  char *instance;
+  int is_table;
+  unsigned long magic;
+};
+typedef struct cx_xpath_s cx_xpath_t;
+/* }}} */
+
+struct cx_s /* {{{ */
+{
+  char *instance;
+  char *host;
+
+  char *url;
+  char *user;
+  char *pass;
+  char *credentials;
+  int   verify_peer;
+  int   verify_host;
+  char *cacert;
+
+  CURL *curl;
+  char curl_errbuf[CURL_ERROR_SIZE];
+  char *buffer;
+  size_t buffer_size;
+  size_t buffer_fill;
+
+  c_avl_tree_t *tree; /* tree of xpath blocks */
+};
+typedef struct cx_s cx_t; /* }}} */
+
+static int cx_read (user_data_t *ud);
+static int cx_curl_perform (cx_t *db, CURL *curl);
+static int cx_parse_stats_xml (xmlChar *ptr, cx_t *db);
+static int cx_submit_statistics(xmlDocPtr doc, xmlXPathContextPtr xpath_ctx,
+                       cx_t *db);
+static int cx_submit_xpath_values (char *plugin_instance, xmlXPathContextPtr xpath_ctx, 
+                                    char *base_xpath, cx_xpath_t *xpath);
+static int cx_if_not_text_node (xmlNodePtr node);
+static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, 
+                                         xmlChar *expr);
+static int cx_check_type (cx_xpath_t *xpath);
+
+static size_t cx_curl_callback (void *buf, /* {{{ */
+    size_t size, size_t nmemb, void *user_data)
+{
+  size_t len = size * nmemb;
+  cx_t *db;
+
+  db = user_data;
+  if (db == NULL)
+  {
+    ERROR ("curl_xml plugin: cx_curl_callback: "
+           "user_data pointer is NULL.");
+    return (0);
+  }
+
+   if (len <= 0)
+    return (len);
+
+  if ((db->buffer_fill + len) >= db->buffer_size)
+  {
+    char *temp;
+
+    temp = (char *) realloc (db->buffer,
+                    db->buffer_fill + len + 1);
+    if (temp == NULL)
+    {
+      ERROR ("curl_xml plugin: realloc failed.");
+      return (0);
+    }
+    db->buffer = temp;
+    db->buffer_size = db->buffer_fill + len + 1;
+  }
+
+  memcpy (db->buffer + db->buffer_fill, (char *) buf, len);
+  db->buffer_fill += len;
+  db->buffer[db->buffer_fill] = 0;
+
+  return (len);
+} /* }}} size_t cx_curl_callback */
+
+static void cx_xpath_free (cx_xpath_t *xpath) /* {{{ */
+{
+  if (xpath == NULL)
+    return;
+
+  sfree (xpath->path);
+  sfree (xpath->type);
+  sfree (xpath->instance_prefix);
+  sfree (xpath->instance);
+  sfree (xpath->values);
+  sfree (xpath);
+} /* }}} void cx_xpath_free */
+
+static void cx_tree_free (c_avl_tree_t *tree) /* {{{ */
+{
+  char *name;
+  void *value;
+
+  while (c_avl_pick (tree, (void *) &name, (void *) &value) == 0)
+  {
+    cx_xpath_t *key = (cx_xpath_t *)value;
+
+    if (CX_IS_KEY(key))
+      cx_xpath_free (key);
+    else
+      cx_tree_free ((c_avl_tree_t *)value);
+
+    sfree (name);
+  }
+
+  c_avl_destroy (tree);
+} /* }}} void cx_tree_free */
+
+static void cx_free (void *arg) /* {{{ */
+{
+  cx_t *db;
+
+  DEBUG ("curl_xml plugin: cx_free (arg = %p);", arg);
+
+  db = (cx_t *) arg;
+
+  if (db == NULL)
+    return;
+
+  if (db->curl != NULL)
+    curl_easy_cleanup (db->curl);
+  db->curl = NULL;
+
+  if (db->tree != NULL)
+    cx_tree_free (db->tree);
+  db->tree = NULL;
+
+  sfree (db->buffer);
+  sfree (db->instance);
+  sfree (db->host);
+
+  sfree (db->url);
+  sfree (db->user);
+  sfree (db->pass);
+  sfree (db->credentials);
+  sfree (db->cacert);
+
+  sfree (db);
+} /* }}} void cx_free */
+
+/* Configuration handling functions {{{ */
+
+static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
+                                      oconfig_item_t *ci)
+{
+  int i;
+
+  if (ci->values_num < 1)
+  {
+    WARNING ("curl_xml plugin: `Values' needs at least one argument.");
+    return (-1);
+  }
+
+  for (i = 0; i < ci->values_num; i++)
+    if (ci->values[i].type != OCONFIG_TYPE_STRING)
+    {
+      WARNING ("curl_xml plugin: `Values' needs only string argument.");
+      return (-1);
+    }
+
+  sfree (xpath->values);
+
+  xpath->values_len = 0;
+  xpath->values = (cx_values_t *) malloc (sizeof (cx_values_t) * ci->values_num);
+  if (xpath->values == NULL)
+    return (-1);
+  xpath->values_len = ci->values_num;
+
+  /* populate cx_values_t structure */
+  for (i = 0; i < ci->values_num; i++)
+  {
+    xpath->values[i].path_len = sizeof (ci->values[i].value.string);
+    sstrncpy (xpath->values[i].path, ci->values[i].value.string, sizeof (xpath->values[i].path));
+  }
+
+  return (0); 
+} /* }}} cx_config_add_values */
+
+static int cx_config_add_string (const char *name, char **dest, /* {{{ */
+                                      oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_xml plugin: `%s' needs exactly one string argument.", name);
+    return (-1);
+  }
+
+  sfree (*dest);
+  *dest = strdup (ci->values[0].value.string);
+  if (*dest == NULL)
+    return (-1);
+
+  return (0);
+} /* }}} int cx_config_add_string */
+
+static int cx_config_set_boolean (const char *name, int *dest, /* {{{ */
+                                       oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    WARNING ("curl_xml plugin: `%s' needs exactly one boolean argument.", name);
+    return (-1);
+  }
+
+  *dest = ci->values[0].value.boolean ? 1 : 0;
+
+  return (0);
+} /* }}} int cx_config_set_boolean */
+
+static c_avl_tree_t *cx_avl_create(void) /* {{{ */
+{
+  return c_avl_create ((int (*) (const void *, const void *)) strcmp);
+} /* }}} cx_avl_create */
+
+static int cx_config_add_xpath (cx_t *db, /* {{{ */
+                                   oconfig_item_t *ci)
+{
+  cx_xpath_t *xpath;
+  int status;
+  int i;
+
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_xml plugin: The `xpath' block "
+             "needs exactly one string argument.");
+    return (-1);
+  }
+
+  xpath = (cx_xpath_t *) malloc (sizeof (*xpath));
+  if (xpath == NULL)
+  {
+    ERROR ("curl_xml plugin: malloc failed.");
+    return (-1);
+  }
+  memset (xpath, 0, sizeof (*xpath));
+  xpath->magic = CX_KEY_MAGIC;
+
+  if (strcasecmp ("xpath", ci->key) == 0)
+  {
+    status = cx_config_add_string ("xpath", &xpath->path, ci);
+    if (status != 0)
+    {
+      sfree (xpath);
+      return (status);
+    }
+  }
+  else
+  {
+    ERROR ("curl_xml plugin: cx_config: "
+           "Invalid key: %s", ci->key);
+    return (-1);
+  }
+
+  status = 0;
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Type", child->key) == 0)
+      status = cx_config_add_string ("Type", &xpath->type, child);
+    else if (strcasecmp ("InstancePrefix", child->key) == 0)
+      status = cx_config_add_string ("InstancePrefix", &xpath->instance_prefix, child);
+    else if (strcasecmp ("Instance", child->key) == 0)
+      status = cx_config_add_string ("Instance", &xpath->instance, child);
+    else if (strcasecmp ("Values", child->key) == 0)
+      status = cx_config_add_values ("Values", xpath, child);
+    else
+    {
+      WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
+  } /* for (i = 0; i < ci->children_num; i++) */
+
+  while (status == 0)
+  {
+    if (xpath->type == NULL)
+    {
+      WARNING ("curl_xml plugin: `Type' missing in `xpath' block.");
+      status = -1;
+    }
+
+    break;
+  } /* while (status == 0) */
+
+  if (status == 0)
+  {
+    char *name;
+    c_avl_tree_t *tree;
+
+    if (db->tree == NULL)
+      db->tree = cx_avl_create();
+
+    tree = db->tree;
+    name = xpath->path;
+
+    if (*name)
+      c_avl_insert (tree, strdup(name), xpath);
+    else
+    {
+      ERROR ("curl_xml plugin: invalid key: %s", xpath->path);
+      status = -1;
+    }
+  }
+
+  return (status);
+} /* }}} int cx_config_add_xpath */
+
+static int cx_init_curl (cx_t *db) /* {{{ */
+{
+  db->curl = curl_easy_init ();
+  if (db->curl == NULL)
+  {
+    ERROR ("curl_xml plugin: curl_easy_init failed.");
+    return (-1);
+  }
+
+  curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cx_curl_callback);
+  curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
+  curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
+                    PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
+  curl_easy_setopt (db->curl, CURLOPT_URL, db->url);
+
+  if (db->user != NULL)
+  {
+    size_t credentials_size;
+
+    credentials_size = strlen (db->user) + 2;
+    if (db->pass != NULL)
+      credentials_size += strlen (db->pass);
+
+    db->credentials = (char *) malloc (credentials_size);
+    if (db->credentials == NULL)
+    {
+      ERROR ("curl_xml plugin: malloc failed.");
+      return (-1);
+    }
+
+    ssnprintf (db->credentials, credentials_size, "%s:%s",
+               db->user, (db->pass == NULL) ? "" : db->pass);
+    curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
+  }
+
+  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, db->verify_peer);
+  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYHOST,
+                    db->verify_host ? 2 : 0);
+  if (db->cacert != NULL)
+    curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
+
+  return (0);
+} /* }}} int cx_init_curl */
+
+static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
+{
+  cx_t *db;
+  int status = 0;
+  int i;
+
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_xml plugin: The `URL' block "
+             "needs exactly one string argument.");
+    return (-1);
+  }
+
+  db = (cx_t *) malloc (sizeof (*db));
+  if (db == NULL)
+  {
+    ERROR ("curl_xml plugin: malloc failed.");
+    return (-1);
+  }
+  memset (db, 0, sizeof (*db));
+
+  if (strcasecmp ("URL", ci->key) == 0)
+  {
+    status = cx_config_add_string ("URL", &db->url, ci);
+    if (status != 0)
+    {
+      sfree (db);
+      return (status);
+    }
+  }
+  else
+  {
+    ERROR ("curl_xml plugin: cx_config: "
+           "Invalid key: %s", ci->key);
+    return (-1);
+  }
+
+  /* Fill the `cx_t' structure.. */
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Instance", child->key) == 0)
+      status = cx_config_add_string ("Instance", &db->instance, child);
+    else if (strcasecmp ("Host", child->key) == 0)
+      status = cx_config_add_string ("Host", &db->host, child);
+    else if (strcasecmp ("User", child->key) == 0)
+      status = cx_config_add_string ("User", &db->user, child);
+    else if (strcasecmp ("Password", child->key) == 0)
+      status = cx_config_add_string ("Password", &db->pass, child);
+    else if (strcasecmp ("VerifyPeer", child->key) == 0)
+      status = cx_config_set_boolean ("VerifyPeer", &db->verify_peer, child);
+    else if (strcasecmp ("VerifyHost", child->key) == 0)
+      status = cx_config_set_boolean ("VerifyHost", &db->verify_host, child);
+    else if (strcasecmp ("CACert", child->key) == 0)
+      status = cx_config_add_string ("CACert", &db->cacert, child);
+    else if (strcasecmp ("xpath", child->key) == 0)
+      status = cx_config_add_xpath (db, child);
+    else
+    {
+      WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
+  }
+
+  if (status == 0)
+  {
+    if (db->tree == NULL)
+    {
+      WARNING ("curl_xml plugin: No (valid) `Key' block "
+               "within `URL' block `%s'.", db->url);
+      status = -1;
+    }
+    if (status == 0)
+      status = cx_init_curl (db);
+  }
+
+  /* If all went well, register this database for reading */
+  if (status == 0)
+  {
+    user_data_t ud;
+    char cb_name[DATA_MAX_NAME_LEN];
+
+    if (db->instance == NULL)
+      db->instance = strdup("default");
+
+    DEBUG ("curl_xml plugin: Registering new read callback: %s",
+           db->instance);
+
+    memset (&ud, 0, sizeof (ud));
+    ud.data = (void *) db;
+    ud.free_func = cx_free;
+
+    ssnprintf (cb_name, sizeof (cb_name), "curl_xml-%s-%s",
+               db->instance, db->url);
+
+    plugin_register_complex_read (cb_name, cx_read,
+                                  /* interval = */ NULL, &ud);
+  }
+  else
+  {
+    cx_free (db);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int cx_config_add_url */
+
+static int cx_config (oconfig_item_t *ci) /* {{{ */
+{
+  int success;
+  int errors;
+  int status;
+  int i;
+
+  success = 0;
+  errors = 0;
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("URL", child->key) == 0)
+    {
+      status = cx_config_add_url (child);
+      if (status == 0)
+        success++;
+      else
+        errors++;
+    }
+    else
+    {
+      WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
+      errors++;
+    }
+  }
+
+  if ((success == 0) && (errors > 0))
+  {
+    ERROR ("curl_xml plugin: All statements failed.");
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int cx_config */
+
+/* }}} End of configuration handling functions */
+
+static int cx_read (user_data_t *ud) /* {{{ */
+{
+  cx_t *db;
+
+  if ((ud == NULL) || (ud->data == NULL))
+  {
+    ERROR ("curl_xml plugin: cx_read: Invalid user data.");
+    return (-1);
+  }
+
+  db = (cx_t *) ud->data;
+
+  return cx_curl_perform (db, db->curl);
+} /* }}} int cx_read */
+
+static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
+{
+  int status;
+  long rc;
+  char *ptr;
+  char *url;
+
+  db->buffer_fill = 0; 
+  status = curl_easy_perform (curl);
+
+  curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
+
+  if (rc != 200)
+  {
+    ERROR ("curl_xml plugin: curl_easy_perform failed with response code %ld (%s)",
+           rc, url);
+    return (-1);
+  }
+
+  if (status != 0)
+  {
+    ERROR ("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
+           status, db->curl_errbuf, url);
+    return (-1);
+  }
+
+  ptr = db->buffer;
+
+  status = cx_parse_stats_xml(BAD_CAST ptr, db);
+  db->buffer_fill = 0;
+
+  return status;
+} /* }}} int cx_curl_perform */
+
+static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
+{
+  int status;
+  xmlDocPtr doc;
+  xmlXPathContextPtr xpath_ctx;
+
+  /* Load the XML */
+  doc = xmlParseDoc(xml);
+  if (doc == NULL)
+  {
+    ERROR ("curl_xml plugin: Failed to parse the xml document  - %s", xml);
+    return (-1);
+  }
+
+  xpath_ctx = xmlXPathNewContext(doc);
+  if(xpath_ctx == NULL)
+  {
+    ERROR ("curl_xml plugin: Failed to create the xml context");
+    xmlFreeDoc(doc);
+    return (-1);
+  }
+
+  status = cx_submit_statistics (doc, xpath_ctx, db);
+  /* Cleanup */
+  xmlXPathFreeContext(xpath_ctx);
+  xmlFreeDoc(doc);
+  return status;
+} /* }}} cx_parse_stats_xml */
+
+static int cx_submit_statistics(xmlDocPtr doc, /* {{{ */ 
+                       xmlXPathContextPtr xpath_ctx, cx_t *db)
+{
+  c_avl_iterator_t *iter;
+  char *key;
+  cx_xpath_t *value;
+  int status=-1;
+  
+  iter = c_avl_get_iterator (db->tree);
+  while (c_avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
+  {
+    if (cx_check_type(value) == -1)
+      continue;
+
+    if (cx_submit_xpath_values(db->instance, xpath_ctx, key, value) == 0)
+      status = 0; /* we got atleast one success */
+  } /* while (c_avl_iterator_next) */
+
+  return status;
+} /* }}} cx_submit_statistics */
+
+static int cx_check_type (cx_xpath_t *xpath) /* {{{ */
+{
+  const data_set_t *ds;
+  
+  ds = plugin_get_ds (xpath->type);
+  if (!ds)
+  {
+    WARNING ("curl_xml plugin: DataSet `%s' not defined.", xpath->type);
+    return (-1);
+  }
+
+  if (ds->ds_num != xpath->values_len)
+  {
+    WARNING ("curl_xml plugin: DataSet `%s' requires %i values, but config talks about %i",
+        xpath->type, ds->ds_num, xpath->values_len);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} cx_check_type */
+
+static xmlXPathObjectPtr /* {{{ */ 
+       cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, xmlChar *expr)
+{
+  xmlXPathObjectPtr xpath_obj;
+
+  // XXX: When to free this?
+  xpath_obj = xmlXPathEvalExpression(BAD_CAST expr, xpath_ctx);
+  if (xpath_obj == NULL)
+  {
+     WARNING ("curl_xml plugin: "
+               "Error unable to evaluate xpath expression \"%s\". Skipping...", expr);
+     return NULL;
+  }
+
+  return xpath_obj;
+} /* }}} cx_evaluate_xpath */
+
+static int cx_if_not_text_node (xmlNodePtr node) /* {{{ */
+{
+  if (node->type == XML_TEXT_NODE || node->type == XML_ATTRIBUTE_NODE)
+    return (0);
+
+  WARNING ("curl_xml plugin: "
+           "Node \"%s\" doesn't seem to be a text node. Skipping...", node->name);
+  return -1;
+} /* }}} cx_if_not_text_node */
+
+static int  /* {{{ */
+cx_submit_xpath_values (char *plugin_instance, 
+                        xmlXPathContextPtr xpath_ctx, 
+                        char *base_xpath, cx_xpath_t *xpath)
+{
+  int i;
+  int j;
+  int total_nodes;
+  int tmp_size;
+  int status=-1;
+  char *node_value;
+
+  xmlXPathObjectPtr base_node_obj = NULL;
+  xmlXPathObjectPtr instance_node_obj = NULL;
+  xmlXPathObjectPtr values_node_obj = NULL;
+  xmlNodeSetPtr base_nodes = NULL;
+  xmlNodeSetPtr instance_node = NULL;
+  xmlNodeSetPtr values_node = NULL;
+
+  value_list_t vl = VALUE_LIST_INIT;
+  const data_set_t *ds;
+
+  base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath); 
+  if (base_node_obj == NULL)
+    return -1; /* error is logged already */
+
+  base_nodes = base_node_obj->nodesetval;
+  total_nodes = (base_nodes) ? base_nodes->nodeNr : 0;
+
+  if (total_nodes == 0)
+  {
+     ERROR ("curl_xml plugin: "
+              "xpath expression \"%s\" doesn't match any of the node. Skipping...", base_xpath);
+     xmlXPathFreeObject (base_node_obj);
+     return -1;
+  }
+
+  /* If base_xpath returned multiple results, then */
+  /* Instance in the xpath block is required */ 
+  if (total_nodes > 1 && xpath->instance == NULL)
+  {
+    ERROR ("curl_xml plugin: "
+             "Instance is must in xpath block since the base xpath expression \"%s\" "
+             "returned multiple results. Skipping the xpath block...", base_xpath);
+    return -1;
+  }
+
+  /* set the values for the value_list */
+  ds = plugin_get_ds (xpath->type);
+  vl.values_len = ds->ds_num;
+  sstrncpy (vl.type, xpath->type, sizeof (vl.type));
+  sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  if (plugin_instance != NULL)
+    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance)); 
+
+  for (i = 0; i < total_nodes; i++)
+  {
+     xpath_ctx->node = base_nodes->nodeTab[i];
+
+     /* instance has to be an xpath expression */
+     if (xpath->instance != NULL)
+     {
+        instance_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST xpath->instance);
+        if (instance_node_obj == NULL)
+          continue; /* error is logged already */
+
+        instance_node = instance_node_obj->nodesetval;
+        tmp_size = (instance_node) ? instance_node->nodeNr : 0;
+
+        if ( (tmp_size == 0) && (total_nodes > 1) )
+        {
+           WARNING ("curl_xml plugin: "
+                    "relative xpath expression for 'Instance' \"%s\" doesn't match "
+                    "any of the nodes. Skipping the node - %s", 
+                    xpath->instance, base_nodes->nodeTab[i]->name);
+           xmlXPathFreeObject (instance_node_obj);
+           continue;
+        }
+
+        if (tmp_size > 1)
+        {
+          WARNING ("curl_xml plugin: "
+                   "relative xpath expression for 'Instance' \"%s\" is expected "
+                   "to return only one text node. Skipping the node - %s", 
+                   xpath->instance, base_nodes->nodeTab[i]->name);
+          xmlXPathFreeObject (instance_node_obj);
+          continue;
+        }
+
+        // ignoring the element if other than textnode/attribute
+        if (cx_if_not_text_node(instance_node->nodeTab[0]))
+        {
+          WARNING ("curl_xml plugin: "
+                   "relative xpath expression \"%s\" is expected to return only text node "
+                    "which is not the case. Skipping the node - %s",
+                    xpath->instance, base_nodes->nodeTab[i]->name);
+          xmlXPathFreeObject (instance_node_obj);
+          continue;
+        }
+     }
+
+     for (j = 0; j < xpath->values_len; j++)
+     {
+       values_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST xpath->values[j].path);
+       values_node = values_node_obj->nodesetval;
+       tmp_size = (values_node) ? values_node->nodeNr : 0;
+
+       if (tmp_size == 0)
+       {
+         WARNING ("curl_xml plugin: "
+                "relative xpath expression \"%s\" doesn't match any of the nodes. "
+                "Skipping...", xpath->values[j].path);
+         xmlXPathFreeObject (values_node_obj);
+         continue;
+       }
+
+       if (tmp_size > 1)
+       {
+         WARNING ("curl_xml plugin: "
+                  "relative xpath expression \"%s\" is expected to return "
+                  "only one node. Skipping...", xpath->values[j].path);
+         xmlXPathFreeObject (values_node_obj);
+         continue;
+       }
+
+       /* ignoring the element if other than textnode/attribute*/
+       if (cx_if_not_text_node(values_node->nodeTab[0]))
+       {
+         WARNING ("curl_xml plugin: "
+                  "relative xpath expression \"%s\" is expected to return "
+                  "only text/attribute node which is not the case. Skipping...", 
+                  xpath->values[j].path);
+         xmlXPathFreeObject (values_node_obj);
+         continue;
+       }
+
+       vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
+       if (vl.values == NULL)
+       {
+         ERROR ("curl_xml plugin: malloc failed.");
+         xmlXPathFreeObject (base_node_obj);
+         xmlXPathFreeObject (instance_node_obj);
+         xmlXPathFreeObject (values_node_obj);
+         return (-1);
+       } 
+
+       node_value = (char *) xmlNodeGetContent(values_node->nodeTab[0]);
+       switch (ds->ds[j].type)
+       {
+         case DS_TYPE_COUNTER:
+           vl.values[j].counter = atoi(node_value);
+           break;
+         case DS_TYPE_DERIVE:
+           vl.values[j].derive = atoi(node_value);
+           break;
+         case DS_TYPE_ABSOLUTE:
+           vl.values[j].absolute = atoi(node_value);
+           break;
+         case DS_TYPE_GAUGE: 
+           vl.values[j].absolute = atoi(node_value);
+       }
+      
+       if (xpath->instance_prefix != NULL)
+       {
+         if (instance_node != NULL)
+           ssnprintf (vl.type_instance, sizeof (vl.type_instance),"%s-%s",
+                      xpath->instance_prefix, (char *) xmlNodeGetContent(instance_node->nodeTab[0]));
+         else
+           sstrncpy (vl.type_instance, xpath->instance_prefix,
+                     sizeof (vl.type_instance));
+       }
+       else
+       {
+         /* If instance_prefix and instance_node are NULL , then */
+         /* don't set the type_instance */
+         if (instance_node != NULL)
+           sstrncpy (vl.type_instance, (char *) xmlNodeGetContent(instance_node->nodeTab[0]),
+                     sizeof (vl.type_instance));
+       }
+
+       /* free up object */
+       xmlXPathFreeObject (values_node_obj);
+
+       /* We have reached here which means that */
+       /* we have got something to work */
+       status = 0;
+     }
+
+     /* submit the values */
+     if (vl.values)
+       plugin_dispatch_values (&vl);
+
+     sfree(vl.values);
+     if (instance_node_obj != NULL)
+       xmlXPathFreeObject (instance_node_obj);
+  }
+
+  /* free up the allocated memory */
+  xmlXPathFreeObject (base_node_obj); 
+
+  return status; 
+} /* }}} cx_submit_xpath_values */
+
+void module_register (void)
+{
+  plugin_register_complex_config ("curl_xml", cx_config);
+} /* void module_register */
+
+/* vim: set sw=2 sts=2 et fdm=marker : */
