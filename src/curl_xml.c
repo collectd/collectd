@@ -299,6 +299,7 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
      /* instance has to be an xpath expression */
      if (xpath->instance != NULL)
      {
+        assert (instance_node_obj == NULL);
         instance_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST xpath->instance);
         if (instance_node_obj == NULL)
           continue; /* error is logged already */
@@ -438,8 +439,11 @@ static int  cx_submit_xpath_values (char *plugin_instance, /* {{{ */
 
      sfree(vl.values);
      if (instance_node_obj != NULL)
+     {
        xmlXPathFreeObject (instance_node_obj);
-  }
+       instance_node_obj = NULL;
+     }
+  } /* for (i = 0; i < total_nodes; i++) */
 
   /* free up the allocated memory */
   xmlXPathFreeObject (base_node_obj); 
