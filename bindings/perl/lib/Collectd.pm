@@ -116,6 +116,7 @@ my @fc_plugins : shared = ();
 my %cf_callbacks : shared = ();
 
 my %types = (
+	TYPE_CONFIG,   "config",
 	TYPE_INIT,     "init",
 	TYPE_READ,     "read",
 	TYPE_WRITE,    "write",
