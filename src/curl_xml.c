@@ -373,7 +373,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     if ( (tmp_size == 0) && (is_table) )
     {
       WARNING ("curl_xml plugin: "
-          "relative xpath expression for 'Instance' \"%s\" doesn't match "
+          "relative xpath expression for 'InstanceFrom' \"%s\" doesn't match "
           "any of the nodes. Skipping the node.", xpath->instance);
       xmlXPathFreeObject (instance_node_obj);
       return (-1);
@@ -382,7 +382,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     if (tmp_size > 1)
     {
       WARNING ("curl_xml plugin: "
-          "relative xpath expression for 'Instance' \"%s\" is expected "
+          "relative xpath expression for 'InstanceFrom' \"%s\" is expected "
           "to return only one text node. Skipping the node.", xpath->instance);
       xmlXPathFreeObject (instance_node_obj);
       return (-1);
@@ -457,7 +457,7 @@ static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
   if (total_nodes > 1 && xpath->instance == NULL)
   {
     ERROR ("curl_xml plugin: "
-             "Instance is must in xpath block since the base xpath expression \"%s\" "
+             "InstanceFrom is must in xpath block since the base xpath expression \"%s\" "
              "returned multiple results. Skipping the xpath block...", base_xpath);
     return -1;
   }
@@ -602,14 +602,14 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
 
   if (ci->values_num < 1)
   {
-    WARNING ("curl_xml plugin: `Values' needs at least one argument.");
+    WARNING ("curl_xml plugin: `ValuesFrom' needs at least one argument.");
     return (-1);
   }
 
   for (i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
-      WARNING ("curl_xml plugin: `Values' needs only string argument.");
+      WARNING ("curl_xml plugin: `ValuesFrom' needs only string argument.");
       return (-1);
     }
 
@@ -685,10 +685,10 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
       status = cf_util_get_string (child, &xpath->type);
     else if (strcasecmp ("InstancePrefix", child->key) == 0)
       status = cf_util_get_string (child, &xpath->instance_prefix);
-    else if (strcasecmp ("Instance", child->key) == 0)
+    else if (strcasecmp ("InstanceFrom", child->key) == 0)
       status = cf_util_get_string (child, &xpath->instance);
-    else if (strcasecmp ("Values", child->key) == 0)
-      status = cx_config_add_values ("Values", xpath, child);
+    else if (strcasecmp ("ValuesFrom", child->key) == 0)
+      status = cx_config_add_values ("ValuesFrom", xpath, child);
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
