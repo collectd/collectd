@@ -57,6 +57,10 @@ Features
       Retrieves JSON data via cURL and parses it according to user
       configuration.
 
+    - curl_xml
+      Retrieves XML data via cURL and parses it according to user
+      configuration.
+
     - dbi
       Executes SQL statements on various databases and interprets the returned
       data.
