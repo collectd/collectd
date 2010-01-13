@@ -23,7 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_avltree.h"
+#include "utils_llist.h"
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -32,8 +32,6 @@
 #include <curl/curl.h>
 
 #define CX_DEFAULT_HOST "localhost"
-#define CX_KEY_MAGIC 0x43484b59UL /* CHKY */
-#define CX_IS_KEY(key) (key)->magic == CX_KEY_MAGIC
 
 /*
  * Private data structures
@@ -79,7 +77,7 @@ struct cx_s /* {{{ */
   size_t buffer_size;
   size_t buffer_fill;
 
-  c_avl_tree_t *tree; /* tree of xpath blocks */
+  llist_t *list; /* list of xpath blocks */
 };
 typedef struct cx_s cx_t; /* }}} */
 
@@ -138,25 +136,26 @@ static void cx_xpath_free (cx_xpath_t *xpath) /* {{{ */
   sfree (xpath);
 } /* }}} void cx_xpath_free */
 
-static void cx_tree_free (c_avl_tree_t *tree) /* {{{ */
+static void cx_list_free (llist_t *list) /* {{{ */
 {
-  char *name;
-  void *value;
+  llentry_t *le;
 
-  while (c_avl_pick (tree, (void *) &name, (void *) &value) == 0)
+  le = llist_head (list);
+  while (le != NULL)
   {
-    cx_xpath_t *key = (cx_xpath_t *)value;
+    llentry_t *le_next;
 
-    if (CX_IS_KEY(key))
-      cx_xpath_free (key);
-    else
-      cx_tree_free ((c_avl_tree_t *)value);
+    le_next = le->next;
 
-    sfree (name);
+    sfree (le->key);
+    cx_xpath_free (le->value);
+
+    le = le_next;
   }
 
-  c_avl_destroy (tree);
-} /* }}} void cx_tree_free */
+  llist_destroy (list);
+  list = NULL;
+} /* }}} void cx_list_free */
 
 static void cx_free (void *arg) /* {{{ */
 {
@@ -173,9 +172,8 @@ static void cx_free (void *arg) /* {{{ */
     curl_easy_cleanup (db->curl);
   db->curl = NULL;
 
-  if (db->tree != NULL)
-    cx_tree_free (db->tree);
-  db->tree = NULL;
+  if (db->list != NULL)
+    cx_list_free (db->list);
 
   sfree (db->buffer);
   sfree (db->instance);
@@ -190,11 +188,8 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db);
 } /* }}} void cx_free */
 
-static int cx_check_type (cx_xpath_t *xpath) /* {{{ */
+static int cx_check_type (const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
 {
-  const data_set_t *ds;
-  
-  ds = plugin_get_ds (xpath->type);
   if (!ds)
   {
     WARNING ("curl_xml plugin: DataSet `%s' not defined.", xpath->type);
@@ -425,7 +420,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
 } /* }}} int cx_handle_instance_xpath */
 
 static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
-    xmlXPathContextPtr xpath_ctx, 
+    xmlXPathContextPtr xpath_ctx, const data_set_t *ds, 
     char *base_xpath, cx_xpath_t *xpath)
 {
   int total_nodes;
@@ -435,7 +430,6 @@ static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
   xmlNodeSetPtr base_nodes = NULL;
 
   value_list_t vl = VALUE_LIST_INIT;
-  const data_set_t *ds;
 
   base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath); 
   if (base_node_obj == NULL)
@@ -447,7 +441,8 @@ static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
   if (total_nodes == 0)
   {
      ERROR ("curl_xml plugin: "
-              "xpath expression \"%s\" doesn't match any of the node. Skipping...", base_xpath);
+              "xpath expression \"%s\" doesn't match any of the nodes. "
+              "Skipping the xpath block...", base_xpath);
      xmlXPathFreeObject (base_node_obj);
      return -1;
   }
@@ -463,7 +458,6 @@ static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
   }
 
   /* set the values for the value_list */
-  ds = plugin_get_ds (xpath->type);
   vl.values_len = ds->ds_num;
   sstrncpy (vl.type, xpath->type, sizeof (vl.type));
   sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
@@ -496,20 +490,25 @@ static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
 static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */ 
                        xmlXPathContextPtr xpath_ctx, cx_t *db)
 {
-  c_avl_iterator_t *iter;
-  char *key;
-  cx_xpath_t *value;
+  llentry_t *le;
+  const data_set_t *ds;
+  cx_xpath_t *xpath;
   int status=-1;
   
-  iter = c_avl_get_iterator (db->tree);
-  while (c_avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
-  {
-    if (cx_check_type(value) == -1)
-      continue;
 
-    if (cx_handle_base_xpath(db->instance, xpath_ctx, key, value) == 0)
+  le = llist_head (db->list);
+  while (le != NULL)
+  {
+    /* get the ds */
+    xpath = (cx_xpath_t *) le->value;
+    ds = plugin_get_ds (xpath->type);
+
+    if ( (cx_check_type(ds, xpath) == 0) &&
+         (cx_handle_base_xpath(db->instance, xpath_ctx, ds, le->key, xpath) == 0) )
       status = 0; /* we got atleast one success */
-  } /* while (c_avl_iterator_next) */
+
+    le = le->next;
+  } /* while (le != NULL) */
 
   return status;
 } /* }}} cx_handle_parsed_xml */
@@ -631,25 +630,12 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   return (0); 
 } /* }}} cx_config_add_values */
 
-static c_avl_tree_t *cx_avl_create(void) /* {{{ */
-{
-  return c_avl_create ((int (*) (const void *, const void *)) strcmp);
-} /* }}} cx_avl_create */
-
 static int cx_config_add_xpath (cx_t *db, /* {{{ */
                                    oconfig_item_t *ci)
 {
   cx_xpath_t *xpath;
   int status;
   int i;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("curl_xml plugin: The `xpath' block "
-             "needs exactly one string argument.");
-    return (-1);
-  }
 
   xpath = (cx_xpath_t *) malloc (sizeof (*xpath));
   if (xpath == NULL)
@@ -658,21 +644,19 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
     return (-1);
   }
   memset (xpath, 0, sizeof (*xpath));
-  xpath->magic = CX_KEY_MAGIC;
 
-  if (strcasecmp ("xpath", ci->key) == 0)
+  status = cf_util_get_string (ci, &xpath->path);
+  if (status != 0)
   {
-    status = cf_util_get_string (ci, &xpath->path);
-    if (status != 0)
-    {
-      sfree (xpath);
-      return (status);
-    }
+    sfree (xpath);
+    return (status);
   }
-  else
+
+  /* error out if xpath->path is an empty string */
+  if (*xpath->path == 0)
   {
-    ERROR ("curl_xml plugin: cx_config: "
-           "Invalid key: %s", ci->key);
+    ERROR ("curl_xml plugin: invalid xpath. "
+           "xpath value can't be an empty string");
     return (-1);
   }
 
@@ -699,35 +683,42 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  while (status == 0)
+  if (status == 0 && xpath->type == NULL)
   {
-    if (xpath->type == NULL)
-    {
-      WARNING ("curl_xml plugin: `Type' missing in `xpath' block.");
-      status = -1;
-    }
-
-    break;
-  } /* while (status == 0) */
+    WARNING ("curl_xml plugin: `Type' missing in `xpath' block.");
+    status = -1;
+  }
 
   if (status == 0)
   {
     char *name;
-    c_avl_tree_t *tree;
+    llentry_t *le;
 
-    if (db->tree == NULL)
-      db->tree = cx_avl_create();
-
-    tree = db->tree;
-    name = xpath->path;
-
-    if (*name)
-      c_avl_insert (tree, strdup(name), xpath);
-    else
+    if (db->list == NULL)
     {
-      ERROR ("curl_xml plugin: invalid key: %s", xpath->path);
-      status = -1;
+      db->list = llist_create();
+      if (db->list == NULL)
+      {
+        ERROR ("curl_xml plugin: list creation failed.");
+        return (-1);
+      }
     }
+
+    name = strdup(xpath->path);
+    if (name == NULL)
+    {
+        ERROR ("curl_xml plugin: strdup failed.");
+        return (-1);
+    }
+
+    le = llentry_create (name, xpath);
+    if (le == NULL)
+    {
+      ERROR ("curl_xml plugin: llentry_create failed.");
+      return (-1);
+    }
+
+    llist_append (db->list, le);
   }
 
   return (status);
@@ -850,7 +841,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
 
   if (status == 0)
   {
-    if (db->tree == NULL)
+    if (db->list == NULL)
     {
       WARNING ("curl_xml plugin: No (valid) `Key' block "
                "within `URL' block `%s'.", db->url);
