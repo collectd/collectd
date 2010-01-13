@@ -556,9 +556,9 @@ The following example will collect the status values from each database:
 
 In the B<Plugin> block, there may be one or more B<URL> blocks, each defining
 a URL to be fetched via HTTP (using libcurl) and one or more B<Key> blocks.
-The B<Key> string argument must be in a path format, of which is used to collect
-a value from a JSON map object.  If a B<Key> path element is that of a I<*> wildcard,
-the values for all keys will be collectd.
+The B<Key> string argument must be in a path format, which is used to collect a
+value from a JSON map object. If a path element of B<Key> is the
+I<*>E<nbsp>wildcard, the values for all keys will be collectd.
 
 The following options are valid within B<URL> blocks:
 
