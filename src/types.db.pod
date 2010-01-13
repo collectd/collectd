@@ -21,7 +21,8 @@ The format of the data-source specification has been inspired by RRDtool's
 data-source specification. Each data-source is defined by a quadruple made up
 of the data-source name, type, minimal and maximal values, delimited by colons
 (":"): I<ds-name>:I<ds-type>:I<min>:I<max>. I<ds-type> may be either
-B<COUNTER> or B<GAUGE>. I<min> and I<max> define the range of valid values for
+B<ABSOLUTE>, B<COUNTER>, B<DERIVE>, or B<GAUGE>. I<min> and I<max> define the
+range of valid values for
 data stored for this data-source. If B<U> is specified for either the min or
 max value, it will be set to unknown, meaning that no range checks will
 happen. See L<rrdcreate(1)> for more details.
