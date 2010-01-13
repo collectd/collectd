@@ -663,7 +663,7 @@ The following is a complete list of options:
 Query blocks define I<SQL> statements and how the returned data should be
 interpreted. They are identified by the name that is given in the opening line
 of the block. Thus the name needs to be unique. Other than that, the name is
-not used in collectd. 
+not used in collectd.
 
 In each B<Query> block, there is one or more B<Result> blocks. B<Result> blocks
 define which column holds which value or instance information. You can use
@@ -721,7 +721,7 @@ options to provide multiple queries with the same name but with a slightly
 different syntax. The plugin will use only those queries, where the specified
 minimum and maximum versions fit the version of the database in use.
 
-The database version is determined by C<dbi_conn_get_engine_version>, see the 
+The database version is determined by C<dbi_conn_get_engine_version>, see the
 L<libdbi documentation|http://libdbi.sourceforge.net/docs/programmers-guide/reference-conn.html#DBI-CONN-GET-ENGINE-VERSION>
 for details. Basically, each part of the version is assumed to be in the range
 from B<00> to B<99> and all dots are removed. So version "4.1.2" becomes
@@ -3345,7 +3345,7 @@ selection is configured at all, B<all> devices are selected.
 
 =head2 Plugin C<tokyotyrant>
 
-The C<tokyotyrant plugin> connects to a TokyoTyrant server and collects a 
+The C<tokyotyrant plugin> connects to a TokyoTyrant server and collects a
 couple metrics: number of records, and database size on disk.
 
 =over 4
@@ -3913,7 +3913,7 @@ This is the same as writing:
 
 =back
 
-=head2 Built-in targets 
+=head2 Built-in targets
 
 The following targets are built into the core daemon and therefore need no
 plugins to be loaded:
