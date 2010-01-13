@@ -257,6 +257,17 @@ collectd_LDADD += "-dlopen" curl_json.la
 collectd_DEPENDENCIES += curl_json.la
 endif
 
+if BUILD_PLUGIN_CURL_XML
+pkglib_LTLIBRARIES += curl_xml.la
+curl_xml_la_SOURCES = curl_xml.c
+curl_xml_la_LDFLAGS = -module -avoid-version
+curl_xml_la_CFLAGS = $(AM_CFLAGS) \
+		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+curl_xml_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+collectd_LDADD += "-dlopen" curl_xml.la
+collectd_DEPENDENCIES += curl_xml.la
+endif
+
 if BUILD_PLUGIN_DBI
 pkglib_LTLIBRARIES += dbi.la
 dbi_la_SOURCES = dbi.c \

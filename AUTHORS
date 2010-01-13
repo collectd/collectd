@@ -23,6 +23,7 @@ Alvaro Barcellos <alvaro.barcellos at gmail.com>
 
 Amit Gupta <amit.gupta221 at gmail.com>
  - Multiple servers in the apache plugin.
+ - curl_xml plugin.
 
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
