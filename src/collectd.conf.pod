@@ -619,6 +619,110 @@ Type-instance to use. Defaults to the current map key or current string array el
 
 =back
 
+=head2 Plugin C<curl_xml>
+
+The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
+(L<http://xmlsoft.org/>) to retrieve XML data via cURL.
+
+ <Plugin "curl_xml">
+   <URL "http://localhost/stats.xml">
+     Host "my_host"
+     Instance "some_instance"
+     User "collectd"
+     Password "thaiNg0I"
+     VerifyPeer true
+     VerifyHost true
+     CACert "/path/to/ca.crt"
+
+     <XPath "table[@id=\"magic_level\"]/tr">
+       Type "magic_level"
+       #InstancePrefix "prefix-"
+       InstanceFrom "td[1]"
+       ValuesFrom "td[2]/span[@class=\"level\"]"
+     </XPath>
+   </URL>
+ </Plugin>
+
+In the B<Plugin> block, there may be one or more B<URL> blocks, each defining a
+URL to be fetched via HTTP (using libcurl). Within each B<URL> block there are
+options which specify the connection parameters, for example authentication
+information, and one or more B<XPath> blocks.
+
+Each B<XPath> block specifies how to get one type of information. The
+string argument must be a valid XPath expression which returns a list
+of "base elements". One value is dispatched for each "base element". The
+I<type instance> and values are looked up using further I<XPath> expressions
+that should be relative to the base element.
+
+Within the B<URL> block the following options are accepted:
+
+=over 4
+
+=item B<Host> I<Name>
+
+Use I<Name> as the host name when submitting values. Defaults to the global
+host name setting.
+
+=item B<Instance> I<Instance>
+
+Use I<Instance> as the plugin instance when submitting values. Defaults to an
+empty string (no plugin instance).
+
+=item B<User> I<User>
+=item B<Password> I<Password>
+=item B<VerifyPeer> B<true>|B<false>
+=item B<VerifyHost> B<true>|B<false>
+=item B<CACert> I<CA Cert File>
+
+These options behave exactly equivalent to the appropriate options of the
+I<cURL> and I<cURL-JSON> plugins. Please see there for a detailed description.
+
+=item E<lt>B<XPath> I<XPath-expression>E<gt>
+
+Within each B<URL> block, there must be one or more B<XPath> blocks. Each
+B<XPath> block specifies how to get one type of information. The string
+argument must be a valid XPath expression which returns a list of "base
+elements". One value is dispatched for each "base element".
+
+Within the B<XPath> block the following options are accepted:
+
+=over 4
+
+=item B<Type> I<Type>
+
+Specifies the I<Type> used for submitting patches. This determines the number
+of values that are required / expected and whether the strings are parsed as
+signed or unsigned integer or as double values. See L<types.db(5)> for details.
+This option is required.
+
+=item B<InstancePrefix> I<InstancePrefix>
+
+Prefix the I<type instance> with I<InstancePrefix>. The values are simply
+concatenated together without any separator.
+This option is optional.
+
+=item B<InstanceFrom> I<InstanceFrom>
+
+Specifies a XPath expression to use for determining the I<type instance>. The
+XPath expression must return exactly one element. The element's value is then
+used as I<type instance>, possibly prefixed with I<InstancePrefix> (see above).
+
+This value is required. As a special exception, if the "base XPath expression"
+(the argument to the B<XPath> block) returns exactly one argument, then this
+option may be omitted.
+
+=item B<ValuesFrom> I<ValuesFrom> [I<ValuesFrom> ...]
+
+Specifies one or more XPath expression to use for reading the values. The
+number of XPath expressions must match the number of data sources in the
+I<type> specified with B<Type> (see above). Each XPath expression must return
+exactly one element. The element's value is then parsed as a number and used as
+value for the appropriate value in the value list dispatched to the daemon.
+
+=back
+
+=back
+
 =head2 Plugin C<dbi>
 
 This plugin uses the B<dbi> library (L<http://libdbi.sourceforge.net/>) to
