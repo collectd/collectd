@@ -3341,6 +3341,8 @@ multiple routers:
       User "collectd"
       Password "secr3t"
       CollectInterface true
+      CollectCPULoad true
+      CollectMemory true
     </Router>
     <Router>
       Host "router1.example.com"
@@ -3348,6 +3350,8 @@ multiple routers:
       Password "5ecret"
       CollectInterface true
       CollectRegistrationTable true
+      CollectDF true
+      CollectDisk true
     </Router>
   </Plugin>
 
@@ -3384,6 +3388,29 @@ present on the device. Defaults to B<false>.
 
 When set to B<true>, information about wireless LAN connections will be
 collected. Defaults to B<false>.
+
+=item B<CollectCPULoad> B<true>|B<false>
+
+When set to B<true>, information about the CPU usage will be collected. The
+number is a dimensionless value where zero indicates no CPU usage at all.
+Defaults to B<false>.
+
+=item B<CollectMemory> B<true>|B<false>
+
+When enabled, the amount of used and free memory will be collected. How used
+memory is calculated is unknown, for example whether or not caches are counted
+as used space.
+Defaults to B<false>.
+
+=item B<CollectDF> B<true>|B<false>
+
+When enabled, the amount of used and free disk space will be collected.
+Defaults to B<false>.
+
+=item B<CollectDisk> B<true>|B<false>
+
+When enabled, the number of sectors written and bad blocks will be collected.
+Defaults to B<false>.
 
 =back
 

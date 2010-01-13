@@ -36,6 +36,10 @@ struct cr_data_s
 
   _Bool collect_interface;
   _Bool collect_regtable;
+  _Bool collect_cpu_load;
+  _Bool collect_memory;
+  _Bool collect_df;
+  _Bool collect_disk;
 };
 typedef struct cr_data_s cr_data_t;
 
@@ -110,6 +114,26 @@ static void cr_submit_gauge (cr_data_t *rd, const char *type, /* {{{ */
 	plugin_dispatch_values (&vl);
 } /* }}} void cr_submit_gauge */
 
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
+static void cr_submit_counter (cr_data_t *rd, const char *type, /* {{{ */
+    const char *type_instance, counter_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].counter = value;
+
+	vl.values = values;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
+	sstrncpy (vl.host, rd->node, sizeof (vl.host)); /* FIXME */
+	sstrncpy (vl.plugin, "routeros", sizeof (vl.plugin));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+} /* }}} void cr_submit_gauge */
+#endif
+
 static void submit_regtable (cr_data_t *rd, /* {{{ */
     const ros_registration_table_t *r)
 {
@@ -157,6 +181,44 @@ static int handle_regtable (__attribute__((unused)) ros_connection_t *c, /* {{{ 
   submit_regtable (user_data, r);
   return (0);
 } /* }}} int handle_regtable */
+
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0) /* FIXME */
+static int handle_system_resource (__attribute__((unused)) ros_connection_t *c, /* {{{ */
+        const ros_system_resource_t *r,
+	__attribute__((unused)) void *user_data)
+{
+  cr_data_t *rd;
+
+  if ((r == NULL) || (user_data == NULL))
+    return (EINVAL);
+  rd = user_data;
+
+  if (rd->collect_cpu_load)
+    cr_submit_gauge (rd, "gauge", "cpu_load", (gauge_t) r->cpu_load);
+
+  if (rd->collect_memory)
+  {
+    cr_submit_gauge (rd, "memory", "used",
+	(gauge_t) (r->total_memory - r->free_memory));
+    cr_submit_gauge (rd, "memory", "free", (gauge_t) r->free_memory);
+  }
+
+  if (rd->collect_df)
+  {
+    cr_submit_gauge (rd, "df_complex", "used",
+	(gauge_t) (r->total_memory - r->free_memory));
+    cr_submit_gauge (rd, "df_complex", "free", (gauge_t) r->free_memory);
+  }
+
+  if (rd->collect_disk)
+  {
+    cr_submit_counter (rd, "counter", "secors_written", (counter_t) r->write_sect_total);
+    cr_submit_gauge (rd, "gauge", "bad_blocks", (gauge_t) r->bad_blocks);
+  }
+
+  return (0);
+} /* }}} int handle_system_resource */
+#endif
 
 static int cr_read (user_data_t *user_data) /* {{{ */
 {
@@ -214,6 +276,26 @@ static int cr_read (user_data_t *user_data) /* {{{ */
     }
   }
 
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0) /* FIXME */
+  if (rd->collect_cpu_load
+      || rd->collect_memory
+      || rd->collect_df
+      || rd->collect_disk)
+  {
+    status = ros_system_resource (rd->connection, handle_system_resource,
+	/* user data = */ rd);
+    if (status != 0)
+    {
+      char errbuf[128];
+      ERROR ("routeros plugin: ros_system_resource failed: %s",
+	  sstrerror (status, errbuf, sizeof (errbuf)));
+      ros_disconnect (rd->connection);
+      rd->connection = NULL;
+      return (-1);
+    }
+  }
+#endif
+
   return (0);
 } /* }}} int cr_read */
 
@@ -250,8 +332,6 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   router_data->service = NULL;
   router_data->username = NULL;
   router_data->password = NULL;
-  router_data->collect_interface = false;
-  router_data->collect_regtable = false;
 
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -270,6 +350,16 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &router_data->collect_interface);
     else if (strcasecmp ("CollectRegistrationTable", child->key) == 0)
       cf_util_get_boolean (child, &router_data->collect_regtable);
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0) /* FIXME */
+    else if (strcasecmp ("CollectCPULoad", child->key) == 0)
+      cf_util_get_boolean (child, &router_data->collect_cpu_load);
+    else if (strcasecmp ("CollectMemory", child->key) == 0)
+      cf_util_get_boolean (child, &router_data->collect_memory);
+    else if (strcasecmp ("CollectDF", child->key) == 0)
+      cf_util_get_boolean (child, &router_data->collect_df);
+    else if (strcasecmp ("CollectDisk", child->key) == 0)
+      cf_util_get_boolean (child, &router_data->collect_disk);
+#endif
     else
     {
       WARNING ("routeros plugin: Unknown config option `%s'.", child->key);
