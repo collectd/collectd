@@ -150,10 +150,10 @@ typedef struct procstat_entry_s
 	unsigned long cpu_system_counter;
 
 	/* io data */
-	long io_rchar;
-	long io_wchar;
-	long io_syscr;
-	long io_syscw;
+	derive_t io_rchar;
+	derive_t io_wchar;
+	derive_t io_syscr;
+	derive_t io_syscw;
 
 	struct procstat_entry_s *next;
 } procstat_entry_t;
@@ -179,10 +179,10 @@ typedef struct procstat
 	unsigned long cpu_system_counter;
 
 	/* io data */
-	long io_rchar;
-	long io_wchar;
-	long io_syscr;
-	long io_syscw;
+	derive_t io_rchar;
+	derive_t io_wchar;
+	derive_t io_syscr;
+	derive_t io_syscw;
 
 	struct procstat   *next;
 	struct procstat_entry_s *instances;
@@ -664,8 +664,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	if ( (ps->io_rchar != -1) && (ps->io_wchar != -1) )
 	{
 		sstrncpy (vl.type, "ps_disk_octets", sizeof (vl.type));
-		vl.values[0].counter = ps->io_rchar;
-		vl.values[1].counter = ps->io_wchar;
+		vl.values[0].derive = ps->io_rchar;
+		vl.values[1].derive = ps->io_wchar;
 		vl.values_len = 2;
 		plugin_dispatch_values (&vl);
 	}
@@ -673,8 +673,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	if ( (ps->io_syscr != -1) && (ps->io_syscw != -1) )
 	{
 		sstrncpy (vl.type, "ps_disk_ops", sizeof (vl.type));
-		vl.values[0].counter = ps->io_syscr;
-		vl.values[1].counter = ps->io_syscw;
+		vl.values[0].derive = ps->io_syscr;
+		vl.values[1].derive = ps->io_syscw;
 		vl.values_len = 2;
 		plugin_dispatch_values (&vl);
 	}
@@ -682,8 +682,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
 			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "
 			"cpu_user_counter = %lu; cpu_system_counter = %lu; "
-			"io_rchar = %ld; io_wchar = %ld; "
-			"io_syscr = %ld; io_syscw = %ld;",
+			"io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
+			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
 			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
 			ps->cpu_user_counter, ps->cpu_system_counter,
@@ -734,7 +734,9 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 
 	while (fgets (buffer, 1024, fh) != NULL)
 	{
-		long *val = NULL;
+		derive_t *val = NULL;
+		long long tmp;
+		char *endptr;
 
 		if (strncasecmp (buffer, "rchar:", 6) == 0)
 			val = &(ps->io_rchar);
@@ -752,8 +754,14 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 		if (numfields < 2)
 			continue;
 
-		*val = atol (fields[1]);
-	}
+		errno = 0;
+		endptr = NULL;
+		tmp = strtoll (fields[1], &endptr, /* base = */ 10);
+		if ((errno != 0) || (endptr == fields[1]))
+			*val = -1;
+		else
+			*val = (derive_t) tmp;
+	} /* while (fgets) */
 
 	if (fclose (fh))
 	{
