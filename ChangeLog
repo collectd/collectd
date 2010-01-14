@@ -52,6 +52,13 @@
 	* scale target: This target to scale (multiply) values by an arbitrary
 	  value has been added.
 
+2010-01-14, Version 4.8.3
+	* Documentation: Some manpage fixes.
+	* rrdtool plugin: Fix a bug with random write timeouts. Due to an
+	  incorrect initialization some files may be suspended basically
+	  indefinitely. After flushing the files they were written regularly
+	  again.
+
 2009-12-18, Version 4.8.2
 	* Build system, java plugin: Don't use “find -L” to search for Java
 	  headers, because it's a GNU extension.
