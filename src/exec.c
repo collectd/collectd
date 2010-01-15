@@ -281,8 +281,8 @@ static void exec_child (program_list_t *pl) /* {{{ */
   status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
   if (status != 0)
   {
-    ERROR ("exec plugin: getpwnam_r failed: %s",
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
+	pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
   if (sp_ptr == NULL)
@@ -311,7 +311,8 @@ static void exec_child (program_list_t *pl) /* {{{ */
       status = getgrnam_r (pl->group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
       if (0 != status)
       {
-	ERROR ("exec plugin: getgrnam_r failed: %s",
+	ERROR ("exec plugin: Failed to get group information "
+	    "for group ``%s'': %s", pl->group,
 	    sstrerror (errno, errbuf, sizeof (errbuf)));
 	exit (-1);
       }
@@ -377,8 +378,8 @@ static void exec_child (program_list_t *pl) /* {{{ */
 
   status = execvp (pl->exec, pl->argv);
 
-  ERROR ("exec plugin: exec failed: %s",
-      sstrerror (errno, errbuf, sizeof (errbuf)));
+  ERROR ("exec plugin: Failed to execute ``%s'': %s",
+      pl->exec, sstrerror (errno, errbuf, sizeof (errbuf)));
   exit (-1);
 } /* void exec_child }}} */
 
