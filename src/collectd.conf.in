@@ -63,6 +63,7 @@ FQDNLookup   true
 @LOAD_PLUGIN_CSV@LoadPlugin csv
 #@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
+#@BUILD_PLUGIN_CURL_XML_TRUE@LoadPlugin curl_xml
 #@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
@@ -228,6 +229,25 @@ FQDNLookup   true
 #    <Key "*/disk_size">
 #      Type "bytes"
 #    </Key>
+#  </URL>
+#</Plugin>
+
+#<Plugin "curl_xml">
+#  <URL "http://localhost/stats.xml">
+#    Host "my_host"
+#    Instance "some_instance"
+#    User "collectd"
+#    Password "thaiNg0I"
+#    VerifyPeer true
+#    VerifyHost true
+#    CACert "/path/to/ca.crt"
+#
+#    <XPath "table[@id=\"magic_level\"]/tr">
+#      Type "magic_level"
+#      #InstancePrefix "prefix-"
+#      InstanceFrom "td[1]"
+#      ValuesFrom "td[2]/span[@class=\"level\"]"
+#    </XPath>
 #  </URL>
 #</Plugin>
 
