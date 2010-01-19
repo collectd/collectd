@@ -259,9 +259,10 @@ static void exit_usage (int status)
 #endif
 			"    -h              Display help (this message)\n"
 			"\nBuiltin defaults:\n"
-			"  Config-File       "CONFIGFILE"\n"
-			"  PID-File          "PIDFILE"\n"
-			"  Data-Directory    "PKGLOCALSTATEDIR"\n"
+			"  Config file       "CONFIGFILE"\n"
+			"  PID file          "PIDFILE"\n"
+			"  Plugin directory  "PLUGINDIR"\n"
+			"  Data directory    "PKGLOCALSTATEDIR"\n"
 			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
 			"by Florian octo Forster <octo@verplant.org>\n"
 			"for contributions see `AUTHORS'\n");
