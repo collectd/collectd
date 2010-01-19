@@ -193,6 +193,8 @@ static int swap_read (void)
 	char *fields[8];
 	int numfields;
 
+	unsigned int old_kernel=0;
+
 	derive_t swap_used   = 0;
 	derive_t swap_cached = 0;
 	derive_t swap_free   = 0;
@@ -243,30 +245,48 @@ static int swap_read (void)
 
 	if ((fh = fopen ("/proc/vmstat", "r")) == NULL)
 	{
-		char errbuf[1024];
-		WARNING ("swap: fopen: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
-
-	while (fgets (buffer, 1024, fh) != NULL)
-	{
-		derive_t *val = NULL;
-
-		if (strncasecmp (buffer, "pswpin", 6) == 0)
-			val = &swap_in;
-		else if (strncasecmp (buffer, "pswpout", 7) == 0)
-			val = &swap_out;
+		// /proc/vmstat does not exist in kernels <2.6
+		if ((fh = fopen ("/proc/stat", "r")) == NULL )
+		{
+			char errbuf[1024];
+			WARNING ("swap: fopen: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			return (-1);
+		}
 		else
-			continue;
-
-		numfields = strsplit (buffer, fields, 8);
-
-		if (numfields < 2)
-			continue;
-
-		*val = (derive_t) atoll (fields[1]);
+			old_kernel = 1;
 	}
+
+	if ( old_kernel ) 
+		while (fgets (buffer, 1024, fh) != NULL)
+		{
+			if (strncasecmp (buffer, "page",4) == 0) 
+			{
+				numfields = strsplit(buffer,fields,3);
+				if ( numfields < 3 )
+					continue;
+				swap_in  = (derive_t) atoll(fields[1]);
+				swap_out = (derive_t) atoll(fields[2]);
+			}
+		}
+	else 
+		while (fgets (buffer, 1024, fh) != NULL)
+		{
+			derive_t *val = NULL;
+			if (strncasecmp (buffer, "pswpin", 6) == 0)
+				val = &swap_in;
+			else if (strncasecmp (buffer, "pswpout", 7) == 0)
+				val = &swap_out;
+			else
+				continue;
+			
+			numfields = strsplit (buffer, fields, 8);
+
+			if (numfields < 2)
+				continue;
+
+			*val = (derive_t) atoll (fields[1]);
+		}
 
 	if (fclose (fh))
 	{
