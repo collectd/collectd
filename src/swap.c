@@ -96,7 +96,7 @@ int kvm_pagesize;
 #elif HAVE_PERFSTAT
 static int pagesize;
 static perfstat_memory_total_t pmemory;
-/*# endif HAVE_PERFSTAT */ 
+/*# endif HAVE_PERFSTAT */
 
 #else
 # error "No applicable input method."
@@ -257,10 +257,10 @@ static int swap_read (void)
 			old_kernel = 1;
 	}
 
-	if ( old_kernel ) 
+	if ( old_kernel )
 		while (fgets (buffer, 1024, fh) != NULL)
 		{
-			if (strncasecmp (buffer, "page",4) == 0) 
+			if (strncasecmp (buffer, "page",4) == 0)
 			{
 				numfields = strsplit(buffer,fields,3);
 				if ( numfields < 3 )
@@ -269,7 +269,7 @@ static int swap_read (void)
 				swap_out = (derive_t) atoll(fields[2]);
 			}
 		}
-	else 
+	else
 		while (fgets (buffer, 1024, fh) != NULL)
 		{
 			derive_t *val = NULL;
@@ -279,7 +279,7 @@ static int swap_read (void)
 				val = &swap_out;
 			else
 				continue;
-			
+
 			numfields = strsplit (buffer, fields, 8);
 
 			if (numfields < 2)
@@ -330,7 +330,7 @@ static int swap_read (void)
 	 * However, Solaris does not allow to allocated/reserved more than the
 	 * available swap (physical memory + disk swap), so the pedant may
 	 * prefer: allocated + unallocated = reserved, available
-	 * 
+	 *
 	 * We map the above to: used + resv = n/a, free
 	 *
 	 * Does your brain hurt yet?  - Christophe Kalt
