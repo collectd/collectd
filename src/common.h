@@ -289,4 +289,6 @@ counter_t counter_diff (counter_t old_value, counter_t new_value);
  * (in the range [1-65535]). Returns less than zero on error. */
 int service_name_to_port_number (const char *service_name);
 
+int strtoderive (const char *string, derive_t *ret_value);
+
 #endif /* COMMON_H */
