@@ -193,7 +193,7 @@ static int swap_read (void)
 	char *fields[8];
 	int numfields;
 
-	unsigned int old_kernel=0;
+	_Bool old_kernel=0;
 
 	derive_t swap_used   = 0;
 	derive_t swap_cached = 0;
@@ -257,36 +257,32 @@ static int swap_read (void)
 			old_kernel = 1;
 	}
 
-	if ( old_kernel )
-		while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, 1024, fh) != NULL)
+	{
+		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
+
+		if (!old_kernel)
 		{
-			if (strncasecmp (buffer, "page",4) == 0)
+			if (numfields != 2)
+				continue;
+
+			if (strcasecmp ("pswpin", fields[0]) != 0)
+				strtoderive (fields[1], &swap_in);
+			else if (strcasecmp ("pswpout", fields[0]) == 0)
+				strtoderive (fields[1], &swap_out);
+		}
+		else /* if (old_kernel) */
+		{
+			if (numfields != 3)
+				continue;
+
+			if (strcasecmp ("page", fields[0]) == 0)
 			{
-				numfields = strsplit(buffer,fields,3);
-				if ( numfields < 3 )
-					continue;
-				swap_in  = (derive_t) atoll(fields[1]);
-				swap_out = (derive_t) atoll(fields[2]);
+				strtoderive (fields[1], &swap_in);
+				strtoderive (fields[2], &swap_out);
 			}
 		}
-	else
-		while (fgets (buffer, 1024, fh) != NULL)
-		{
-			derive_t *val = NULL;
-			if (strncasecmp (buffer, "pswpin", 6) == 0)
-				val = &swap_in;
-			else if (strncasecmp (buffer, "pswpout", 7) == 0)
-				val = &swap_out;
-			else
-				continue;
-
-			numfields = strsplit (buffer, fields, 8);
-
-			if (numfields < 2)
-				continue;
-
-			*val = (derive_t) atoll (fields[1]);
-		}
+	} /* while (fgets) */
 
 	if (fclose (fh))
 	{
@@ -300,7 +296,6 @@ static int swap_read (void)
 	swap_submit ("cached", swap_cached, DS_TYPE_GAUGE);
 	swap_submit ("in", swap_in, DS_TYPE_DERIVE);
 	swap_submit ("out", swap_out, DS_TYPE_DERIVE);
-
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
