@@ -761,9 +761,9 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
   }
 
-  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, db->verify_peer);
+  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, db->verify_peer ? 1L : 0L);
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYHOST,
-                    db->verify_host ? 2 : 0);
+                    db->verify_host ? 2L : 0L);
   if (db->cacert != NULL)
     curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
 
