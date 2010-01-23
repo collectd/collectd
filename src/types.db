@@ -1,6 +1,7 @@
 absolute		count:ABSOLUTE:0:U
 apache_bytes		count:COUNTER:0:134217728
 apache_connections	count:GAUGE:0:65535
+apache_idle_workers	count:GAUGE:0:65535
 apache_requests		count:COUNTER:0:134217728
 apache_scoreboard	count:GAUGE:0:65535
 arc_counts		demand_data:COUNTER:0:U, demand_metadata:COUNTER:0:U, prefetch_data:COUNTER:0:U, prefetch_metadata:COUNTER:0:U

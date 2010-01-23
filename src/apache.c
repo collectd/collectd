@@ -687,6 +687,9 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 				submit_scoreboard (fields[1], st);
 			else if (strcmp (fields[0], "BusyServers:") == 0)
 				submit_gauge ("apache_connections", NULL, atol (fields[1]), st);
+			else if ((strcmp (fields[0], "IdleServers:") == 0) /* Apache 1.x */
+					|| (strcmp (fields[0], "IdleWorkers:") == 0) /* Apache 2.x */)
+				submit_gauge ("apache_idle_workers", NULL, atol (fields[1]), st);
 		}
 	}
 
