@@ -112,7 +112,7 @@ a value higher than the number of plugins you've loaded is totally useless.
 =item B<Hostname> I<Name>
 
 Sets the hostname that identifies a host. If you omit this setting, the
-hostname will be determinded using the L<gethostname(2)> system call.
+hostname will be determined using the L<gethostname(2)> system call.
 
 =item B<FQDNLookup> B<true|false>
 
@@ -443,7 +443,7 @@ The curl plugin uses the B<libcurl> (L<http://curl.haxx.se/>) to read web pages
 and the match infrastructure (the same code used by the tail plugin) to use
 regular expressions with the received data.
 
-The following example will read the current value of AMD stock from google's
+The following example will read the current value of AMD stock from Google's
 finance page and dispatch the value to collectd.
 
   <Plugin curl>
@@ -921,7 +921,7 @@ is set to B<true>, all disks are collected B<except> the ones matched.
 
 =item B<Interface> I<Interface>
 
-The dns plugin uses B<libpcap> to capture dns traffic and analyses it. This
+The dns plugin uses B<libpcap> to capture dns traffic and analyzes it. This
 option sets the interface that should be used. If this option is not set, or
 set to "any", the plugin will try to get packets from B<all> interfaces. This
 may not work on certain platforms, such as MacE<nbsp>OSE<nbsp>X.
@@ -1709,7 +1709,7 @@ Here are some examples to help you understand the above text more easily:
 
 =item B<IgnoreSelected>
 
-The behaviour is the same as with all other similar plugins: If nothing is
+The behavior is the same as with all other similar plugins: If nothing is
 selected at all, everything is collected. If some things are selected using the
 options described above, only these statistics are collected. If you set
 B<IgnoreSelected> to B<true>, this behavior is inverted, i.E<nbsp>e. the
@@ -1721,7 +1721,7 @@ specified statistics will not be collected.
 
 The Network plugin sends data to a remote instance of collectd, receives data
 from a remote instance, or both at the same time. Data which has been received
-from the network is usually not transmitted again, but this can be actived, see
+from the network is usually not transmitted again, but this can be activated, see
 the B<Forward> option below.
 
 The default IPv6 multicast group is C<ff18::efc0:4a42>. The default IPv4
@@ -2007,7 +2007,7 @@ UDP-Port to connect to. Defaults to B<123>.
 
 =item B<ReverseLookups> B<true>|B<false>
 
-Sets wether or not to perform reverse lookups on peers. Since the name or
+Sets whether or not to perform reverse lookups on peers. Since the name or
 IP-address may be used in a filename it is recommended to disable reverse
 lookups. The default is to do reverse lookups to preserve backwards
 compatibility, though.
