@@ -1673,7 +1673,7 @@ or SQL threads are not running.
 
 =head2 Plugin C<netapp>
 
-The netapp plugin can collect various performance and capacity informations
+The netapp plugin can collect various performance and capacity information
 from a NetApp filer using the NetApp API.
 
 Please note that NetApp has a wide line of products and a lot of different
