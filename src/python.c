@@ -335,7 +335,7 @@ static int cpy_read_callback(user_data_t *data) {
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
 	int i;
 	cpy_callback_t *c = data->data;
-	PyObject *ret, *list;
+	PyObject *ret, *list, *temp, *dict = NULL;
 	Values *v;
 
 	CPY_LOCK_THREADS
@@ -374,6 +374,60 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				CPY_RETURN_FROM_THREADS 0;
 			}
 		}
+		dict = PyDict_New();
+		if (value_list->meta) {
+			int i, num;
+			char **table;
+			meta_data_t *meta = value_list->meta;
+
+			num = meta_data_toc(meta, &table);
+			for (i = 0; i < num; ++i) {
+				int type;
+				char *string;
+				int64_t si;
+				uint64_t ui;
+				double d;
+				_Bool b;
+				
+				type = meta_data_type(meta, table[i]);
+				if (type == MD_TYPE_STRING) {
+					if (meta_data_get_string(meta, table[i], &string))
+						continue;
+					temp = cpy_string_to_unicode_or_bytes(string);
+					free(string);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_SIGNED_INT) {
+					if (meta_data_get_signed_int(meta, table[i], &si))
+						continue;
+					temp = PyLong_FromLongLong(si);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_UNSIGNED_INT) {
+					if (meta_data_get_unsigned_int(meta, table[i], &ui))
+						continue;
+					temp = PyLong_FromUnsignedLongLong(ui);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_DOUBLE) {
+					if (meta_data_get_double(meta, table[i], &d))
+						continue;
+					temp = PyFloat_FromDouble(d);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_BOOLEAN) {
+					if (meta_data_get_boolean(meta, table[i], &b))
+						continue;
+					if (b)
+						temp = Py_True;
+					else
+						temp = Py_False;
+					PyDict_SetItemString(dict, table[i], temp);
+				}
+				free(table[i]);
+			}
+			free(table);
+		}
 		v = PyObject_New(Values, (void *) &ValuesType);
 		sstrncpy(v->data.host, value_list->host, sizeof(v->data.host));
 		sstrncpy(v->data.type, value_list->type, sizeof(v->data.type));
@@ -383,6 +437,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		v->data.time = value_list->time;
 		v->interval = value_list->interval;
 		v->values = list;
+		v->meta = dict;
 		ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
 			cpy_log_exception("write callback");

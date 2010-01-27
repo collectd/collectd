@@ -308,6 +308,10 @@ static char values_doc[] = "These are the actual values that get dispatched to c
 		"exception will be raised. If the content of the sequence is not a number,\n"
 		"a TypeError exception will be raised.";
 
+static char meta_doc[] = "These are the meta data for this Value object.\n"
+		"It has to be a dictionary of numbers, strings or bools.\n"
+		"If the dict contains anything else a TypeError exception will be raised.";
+
 static char dispatch_doc[] = "dispatch([type][, values][, plugin_instance][, type_instance]"
 		"[, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.\n"
 		"\n"
@@ -344,14 +348,14 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	Values *self = (Values *) s;
 	int interval = 0;
 	double time = 0;
-	PyObject *values = NULL, *tmp;
+	PyObject *values = NULL, *meta = NULL, *tmp;
 	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
-			"plugin", "host", "time", "interval", NULL};
+			"plugin", "host", "time", "interval", "meta", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdi", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdiO", kwlist,
 			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
-			NULL, &plugin, NULL, &host, &time, &interval))
+			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return -1;
 	
 	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
@@ -373,8 +377,16 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 		Py_INCREF(values);
 	}
 	
+	if (meta == NULL) {
+		meta = PyDict_New();
+		PyErr_Clear();
+	} else {
+		Py_INCREF(meta);
+	}
+	
 	tmp = self->values;
 	self->values = values;
+	self->meta = meta;
 	Py_XDECREF(tmp);
 	
 	self->interval = interval;
@@ -582,17 +594,19 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 
 static PyObject *Values_repr(PyObject *s) {
 	PyObject *ret, *tmp;
-	static PyObject *l_interval = NULL, *l_values = NULL, *l_closing = NULL;
+	static PyObject *l_interval = NULL, *l_values = NULL, *l_meta = NULL, *l_closing = NULL;
 	Values *self = (Values *) s;
 	
 	if (l_interval == NULL)
 		l_interval = cpy_string_to_unicode_or_bytes(",interval=");
 	if (l_values == NULL)
 		l_values = cpy_string_to_unicode_or_bytes(",values=");
+	if (l_meta == NULL)
+		l_meta = cpy_string_to_unicode_or_bytes(",meta=");
 	if (l_closing == NULL)
 		l_closing = cpy_string_to_unicode_or_bytes(")");
 	
-	if (l_interval == NULL || l_values == NULL || l_closing == NULL)
+	if (l_interval == NULL || l_values == NULL || l_meta == NULL || l_closing == NULL)
 		return NULL;
 	
 	ret = cpy_common_repr(s);
@@ -602,9 +616,14 @@ static PyObject *Values_repr(PyObject *s) {
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
 		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
-	if (self->values != NULL && PySequence_Length(self->values) > 0) {
+	if (self->values && (!PyList_Check(self->values) || PySequence_Length(self->values) > 0)) {
 		CPY_STRCAT(&ret, l_values);
 		tmp = PyObject_Repr(self->values);
+		CPY_STRCAT_AND_DEL(&ret, tmp);
+	}
+	if (self->meta && (!PyDict_Check(self->meta) || PyDict_Size(self->meta) > 0)) {
+		CPY_STRCAT(&ret, l_meta);
+		tmp = PyObject_Repr(self->meta);
 		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
 	CPY_STRCAT(&ret, l_closing);
@@ -614,12 +633,14 @@ static PyObject *Values_repr(PyObject *s) {
 static int Values_traverse(PyObject *self, visitproc visit, void *arg) {
 	Values *v = (Values *) self;
 	Py_VISIT(v->values);
+	Py_VISIT(v->meta);
 	return 0;
 }
 
 static int Values_clear(PyObject *self) {
 	Values *v = (Values *) self;
 	Py_CLEAR(v->values);
+	Py_CLEAR(v->meta);
 	return 0;
 }
 
@@ -631,6 +652,7 @@ static void Values_dealloc(PyObject *self) {
 static PyMemberDef Values_members[] = {
 	{"interval", T_INT, offsetof(Values, interval), 0, interval_doc},
 	{"values", T_OBJECT_EX, offsetof(Values, values), 0, values_doc},
+	{"meta", T_OBJECT_EX, offsetof(Values, meta), 0, meta_doc},
 	{NULL}
 };
 

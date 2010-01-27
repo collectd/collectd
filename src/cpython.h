@@ -182,6 +182,7 @@ PyTypeObject PluginDataType;
 typedef struct {
 	PluginData data;
 	PyObject *values;    /* Sequence */
+	PyObject *meta;      /* dict */
 	int interval;
 } Values;
 
