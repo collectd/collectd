@@ -160,7 +160,8 @@ static void *ping_thread (void *arg) /* {{{ */
     int tmp_status;
     tmp_status = ping_host_add (pingobj, hl->host);
     if (tmp_status != 0)
-      WARNING ("ping plugin: ping_host_add (%s) failed.", hl->host);
+      WARNING ("ping plugin: ping_host_add (%s) failed: %s",
+          hl->host, ping_get_error (pingobj));
     else
       status++;
   }
@@ -190,7 +191,9 @@ static void *ping_thread (void *arg) /* {{{ */
 
     if (gettimeofday (&tv_begin, NULL) < 0)
     {
-      ERROR ("ping plugin: gettimeofday failed");
+      char errbuf[1024];
+      ERROR ("ping plugin: gettimeofday failed: %s",
+          sstrerror (errno, errbuf, sizeof (errbuf)));
       ping_thread_error = 1;
       break;
     }
@@ -265,7 +268,9 @@ static void *ping_thread (void *arg) /* {{{ */
 
     if (gettimeofday (&tv_end, NULL) < 0)
     {
-      ERROR ("ping plugin: gettimeofday failed");
+      char errbuf[1024];
+      ERROR ("ping plugin: gettimeofday failed: %s",
+          sstrerror (errno, errbuf, sizeof (errbuf)));
       ping_thread_error = 1;
       break;
     }
