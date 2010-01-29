@@ -259,7 +259,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 	PyErr_Clear();
 }
 
-static void cpy_log_exception(const char *context) {
+void cpy_log_exception(const char *context) {
 	int l = 0, i;
 	const char *typename = NULL, *message = NULL;
 	PyObject *type, *value, *traceback, *tn, *m, *list;
@@ -400,13 +400,13 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				} else if (type == MD_TYPE_SIGNED_INT) {
 					if (meta_data_get_signed_int(meta, table[i], &si))
 						continue;
-					temp = PyLong_FromLongLong(si);
+					temp = PyObject_CallFunctionObjArgs((void *) &SignedType, PyLong_FromLongLong(si), (void *) 0);
 					PyDict_SetItemString(dict, table[i], temp);
 					Py_XDECREF(temp);
 				} else if (type == MD_TYPE_UNSIGNED_INT) {
 					if (meta_data_get_unsigned_int(meta, table[i], &ui))
 						continue;
-					temp = PyLong_FromUnsignedLongLong(ui);
+					temp = PyObject_CallFunctionObjArgs((void *) &UnsignedType, PyLong_FromUnsignedLongLong(ui), (void *) 0);
 					PyDict_SetItemString(dict, table[i], temp);
 					Py_XDECREF(temp);
 				} else if (type == MD_TYPE_DOUBLE) {
@@ -990,6 +990,10 @@ static int cpy_config(oconfig_item_t *ci) {
 	PyType_Ready(&ValuesType);
 	NotificationType.tp_base = &PluginDataType;
 	PyType_Ready(&NotificationType);
+	SignedType.tp_base = &PyLong_Type;
+	PyType_Ready(&SignedType);
+	UnsignedType.tp_base = &PyLong_Type;
+	PyType_Ready(&UnsignedType);
 	sys = PyImport_ImportModule("sys"); /* New reference. */
 	if (sys == NULL) {
 		cpy_log_exception("python initialization");
@@ -1009,6 +1013,8 @@ static int cpy_config(oconfig_item_t *ci) {
 	PyModule_AddObject(module, "Config", (void *) &ConfigType); /* Steals a reference. */
 	PyModule_AddObject(module, "Values", (void *) &ValuesType); /* Steals a reference. */
 	PyModule_AddObject(module, "Notification", (void *) &NotificationType); /* Steals a reference. */
+	PyModule_AddObject(module, "Signed", (void *) &SignedType); /* Steals a reference. */
+	PyModule_AddObject(module, "Unsigned", (void *) &UnsignedType); /* Steals a reference. */
 	PyModule_AddIntConstant(module, "LOG_DEBUG", LOG_DEBUG);
 	PyModule_AddIntConstant(module, "LOG_INFO", LOG_INFO);
 	PyModule_AddIntConstant(module, "LOG_NOTICE", LOG_NOTICE);
