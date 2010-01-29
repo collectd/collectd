@@ -309,8 +309,12 @@ static char values_doc[] = "These are the actual values that get dispatched to c
 		"a TypeError exception will be raised.";
 
 static char meta_doc[] = "These are the meta data for this Value object.\n"
-		"It has to be a dictionary of numbers, strings or bools.\n"
-		"If the dict contains anything else a TypeError exception will be raised.";
+		"It has to be a dictionary of numbers, strings or bools. All keys must be\n"
+		"strings. int and long objects will be dispatched as signed integers unless\n"
+		"they are between 2**63 and 2**64-1, which will result in a unsigned integer.\n"
+		"You can force one of these storage classes by using the classes\n"
+		"collectd.Signed and collectd.Unsigned. A meta object received by a write\n"
+		"callback will always contain Signed or Unsigned objects.";
 
 static char dispatch_doc[] = "dispatch([type][, values][, plugin_instance][, type_instance]"
 		"[, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.\n"
@@ -340,6 +344,7 @@ static PyObject *Values_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 		return NULL;
 	
 	self->values = PyList_New(0);
+	self->meta = PyDict_New();
 	self->interval = 0;
 	return (PyObject *) self;
 }
@@ -386,9 +391,12 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	
 	tmp = self->values;
 	self->values = values;
-	self->meta = meta;
 	Py_XDECREF(tmp);
 	
+	tmp = self->meta;
+	self->meta = meta;
+	Py_XDECREF(tmp);
+
 	self->interval = interval;
 	return 0;
 }
@@ -1001,6 +1009,9 @@ PyTypeObject NotificationType = {
 	Notification_new           /* tp_new */
 };
 
+static const char Signed_doc[] = "This is a long by another name. Use it in meta data dicts\n"
+		"to choose the way it is stored in the meta data.";
+
 PyTypeObject SignedType = {
 	CPY_INIT_TYPE
 	"collectd.Signed",         /* tp_name */
@@ -1022,7 +1033,11 @@ PyTypeObject SignedType = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+	Signed_doc                 /* tp_doc */
 };
+
+static const char Unsigned_doc[] = "This is a long by another name. Use it in meta data dicts\n"
+		"to choose the way it is stored in the meta data.";
 
 PyTypeObject UnsignedType = {
 	CPY_INIT_TYPE
@@ -1045,4 +1060,5 @@ PyTypeObject UnsignedType = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+	Unsigned_doc               /* tp_doc */
 };
