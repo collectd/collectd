@@ -98,7 +98,12 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
       BUFFER_ADD (",");
 
     if (ds->ds[i].type == DS_TYPE_GAUGE)
-      BUFFER_ADD ("%g", vl->values[i].gauge);
+    {
+      if(isnan(vl->values[i].gauge) || isinf(vl->values[i].gauge))
+        BUFFER_ADD ("null");
+      else
+        BUFFER_ADD ("%g", vl->values[i].gauge);
+    }
     else if (ds->ds[i].type == DS_TYPE_COUNTER)
       BUFFER_ADD ("%llu", vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
