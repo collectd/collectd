@@ -1279,6 +1279,57 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_OPENFILES, test "x$with_kvm_openfiles" = "xyes")
 
+# --with-librabbitmq {{{
+with_librabbitmq_cppflags=""
+with_librabbitmq_ldflags=""
+AC_ARG_WITH(librabbitmq, [AS_HELP_STRING([--with-librabbitmq@<:@=PREFIX@:>@], [Path to librabbitmq.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_librabbitmq_cppflags="-I$withval/include"
+		with_librabbitmq_ldflags="-L$withval/lib"
+		with_librabbitmq="yes"
+	else
+		with_librabbitmq="$withval"
+	fi
+],
+[
+	with_librabbitmq="yes"
+])
+if test "x$with_librabbitmq" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+
+	AC_CHECK_HEADERS(amqp.h, [with_librabbitmq="yes"], [with_librabbitmq="no (amqp.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_librabbitmq" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+	LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
+
+	AC_CHECK_LIB(rabbitmq, amqp_basic_publish, [with_librabbitmq="yes"], [with_librabbitmq="no (Symbol 'amqp_basic_publish' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_librabbitmq" = "xyes"
+then
+	BUILD_WITH_LIBRABBITMQ_CPPFLAGS="$with_librabbitmq_cppflags"
+	BUILD_WITH_LIBRABBITMQ_LDFLAGS="$with_librabbitmq_ldflags"
+	BUILD_WITH_LIBRABBITMQ_LIBS="-lrabbitmq"
+	AC_SUBST(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRABBITMQ_LIBS)
+	AC_DEFINE(HAVE_LIBRABBITMQ, 1, [Define if librabbitmq is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBRABBITMQ, test "x$with_librabbitmq" = "xyes")
+# }}}
+
 # --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
@@ -4403,6 +4454,7 @@ AC_ARG_ENABLE([all-plugins],
 
 m4_divert_once([HELP_ENABLE], [])
 
+AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
@@ -4699,6 +4751,7 @@ Configuration:
     libperl . . . . . . . $with_libperl
     libpq . . . . . . . . $with_libpq
     libpthread  . . . . . $with_libpthread
+    librabbitmq . . . . . $with_librabbitmq
     librouteros . . . . . $with_librouteros
     librrd  . . . . . . . $with_librrd
     libsensors  . . . . . $with_libsensors
@@ -4723,6 +4776,7 @@ Configuration:
     perl  . . . . . . . . $with_perl_bindings
 
   Modules:
+    amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
     apple_sensors . . . . $enable_apple_sensors
