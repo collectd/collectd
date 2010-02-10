@@ -1668,10 +1668,10 @@ then
 	with_jar_path="$PATH"
 	if test "x$with_java_home" != "x"
 	then
-		with_jar_path="$with_java_home:with_jar_path"
+		with_jar_path="$with_java_home:$with_jar_path"
 		if test -d "$with_java_home/bin"
 		then
-			with_jar_path="$with_jar_home/bin:with_jar_path"
+			with_jar_path="$with_java_home/bin:$with_jar_path"
 		fi
 	fi
 
