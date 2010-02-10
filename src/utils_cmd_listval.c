@@ -27,12 +27,23 @@
 #include "utils_cache.h"
 #include "utils_parse_option.h"
 
+#define free_everything_and_return(status) do { \
+    size_t j; \
+    for (j = 0; j < number; j++) { \
+      sfree(names[j]); \
+      names[j] = NULL; \
+    } \
+    sfree(names); \
+    sfree(times); \
+    return (status); \
+  } while (0)
+
 #define print_to_socket(fh, ...) \
   if (fprintf (fh, __VA_ARGS__) < 0) { \
     char errbuf[1024]; \
     WARNING ("handle_listval: failed to write to socket #%i: %s", \
 	fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
-    return -1; \
+    free_everything_and_return (-1); \
   }
 
 int handle_listval (FILE *fh, char *buffer)
@@ -52,20 +63,20 @@ int handle_listval (FILE *fh, char *buffer)
   if (status != 0)
   {
     print_to_socket (fh, "-1 Cannot parse command.\n");
-    return (-1);
+    free_everything_and_return (-1);
   }
   assert (command != NULL);
 
   if (strcasecmp ("LISTVAL", command) != 0)
   {
     print_to_socket (fh, "-1 Unexpected command: `%s'.\n", command);
-    return (-1);
+    free_everything_and_return (-1);
   }
 
   if (*buffer != 0)
   {
     print_to_socket (fh, "-1 Garbage after end of command: %s\n", buffer);
-    return (-1);
+    free_everything_and_return (-1);
   }
 
   status = uc_get_names (&names, &times, &number);
@@ -73,21 +84,15 @@ int handle_listval (FILE *fh, char *buffer)
   {
     DEBUG ("command listval: uc_get_names failed with status %i", status);
     print_to_socket (fh, "-1 uc_get_names failed.\n");
-    return (-1);
+    free_everything_and_return (-1);
   }
 
   print_to_socket (fh, "%i Value%s found\n",
       (int) number, (number == 1) ? "" : "s");
   for (i = 0; i < number; i++)
-  {
     print_to_socket (fh, "%u %s\n", (unsigned int) times[i], names[i]);
-    sfree(names[i]);
-  }
 
-  sfree(names);
-  sfree(times);
-   
-  return (0);
+  free_everything_and_return (0);
 } /* int handle_listval */
 
 /* vim: set sw=2 sts=2 ts=8 : */
