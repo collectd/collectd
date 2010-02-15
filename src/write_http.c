@@ -49,6 +49,7 @@ struct wh_callback_s
         int   verify_peer;
         int   verify_host;
         char *cacert;
+        int   store_rates;
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
@@ -271,11 +272,13 @@ static void wh_callback_free (void *data) /* {{{ */
 
 static int wh_value_list_to_string (char *buffer, /* {{{ */
                 size_t buffer_size,
-                const data_set_t *ds, const value_list_t *vl)
+                const data_set_t *ds, const value_list_t *vl,
+                wh_callback_t *cb)
 {
         size_t offset = 0;
         int status;
         int i;
+	gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));
 
@@ -299,7 +302,22 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
         if (ds->ds[i].type == DS_TYPE_GAUGE)
                 BUFFER_ADD (":%f", vl->values[i].gauge);
         else if (ds->ds[i].type == DS_TYPE_COUNTER)
-                BUFFER_ADD (":%llu", vl->values[i].counter);
+        {
+                if (cb->store_rates != 0) 
+                {
+			if (rates == NULL)
+				rates = uc_get_rate (ds, vl);
+			if (rates == NULL)
+			{
+				WARNING ("write_http plugin: "
+						"uc_get_rate failed.");
+				return (-1);
+			}
+                        BUFFER_ADD (":%lf", rates[i]);
+                }
+                else
+                        BUFFER_ADD (":%llu", vl->values[i].counter);
+        }
         else if (ds->ds[i].type == DS_TYPE_DERIVE)
                 BUFFER_ADD (":%"PRIi64, vl->values[i].derive);
         else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
@@ -343,7 +361,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
 
         /* Convert the values to an ASCII representation and put that into
          * `values'. */
-        status = wh_value_list_to_string (values, sizeof (values), ds, vl);
+        status = wh_value_list_to_string (values, sizeof (values), ds, vl, cb);
         if (status != 0) {
                 ERROR ("write_http plugin: error with "
                                 "wh_value_list_to_string");
@@ -589,6 +607,8 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                         config_set_string (&cb->cacert, child);
                 else if (strcasecmp ("Format", child->key) == 0)
                         config_set_format (cb, child);
+                else if (strcasecmp ("StoreRates", child->key) == 0)
+                        config_set_boolean (&cb->store_rates, child);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "

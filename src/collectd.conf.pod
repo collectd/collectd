@@ -4237,6 +4237,12 @@ create output in the I<JavaScript Object Notation> (JSON).
 
 Defaults to B<Command>.
 
+=item B<StoreRates> B<true|false>
+
+If set to B<true>, convert counter values to rates. If set to B<false> (the
+default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
+
 =back
 
 =head1 THRESHOLD CONFIGURATION
