@@ -288,9 +288,15 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
         status = ssnprintf (buffer + offset, buffer_size - offset, \
                         __VA_ARGS__); \
         if (status < 1) \
+        { \
+                sfree (rates); \
                 return (-1); \
+        } \
         else if (((size_t) status) >= (buffer_size - offset)) \
+        { \
+                sfree (rates); \
                 return (-1); \
+        } \
         else \
                 offset += ((size_t) status); \
 } while (0)
@@ -332,6 +338,7 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
 
 #undef BUFFER_ADD
 
+sfree (rates);
 return (0);
 } /* }}} int wh_value_list_to_string */
 
