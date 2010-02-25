@@ -397,7 +397,7 @@ static MYSQL *getconnection (mysql_database_t *db)
 	}
 	else
 	{
-		INFO ("mysql plugin: Sucessfully connected to database %s "
+		INFO ("mysql plugin: Successfully connected to database %s "
 				"at server %s (server version: %s, protocol version: %d)",
 				(db->database != NULL) ? db->database : "<none>",
 				mysql_get_host_info (db->con),

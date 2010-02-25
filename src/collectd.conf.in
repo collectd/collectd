@@ -349,7 +349,7 @@ FQDNLookup   true
 
 #<Plugin "java">
 #	JVMArg "-verbose:jni"
-#	JVMArg "-Djava.class.path=@prefix@/share/collectd/java"
+#	JVMArg "-Djava.class.path=@prefix@/share/collectd/java/collectd-api.jar"
 #
 #	LoadPlugin "org.collectd.java.Foobar"
 #	<Plugin "org.collectd.java.Foobar">

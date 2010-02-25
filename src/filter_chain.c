@@ -1,6 +1,6 @@
 /**
  * collectd - src/filter_chain.h
- * Copyright (C) 2008,2009  Florian octo Forster
+ * Copyright (C) 2008-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -693,7 +693,14 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
   if ((plugin_list == NULL) || (plugin_list[0] == NULL))
   {
     status = plugin_write (/* plugin = */ NULL, ds, vl);
-    if (status != 0)
+    if (status == ENOENT)
+    {
+      INFO ("Filter subsystem: Built-in target `write': Dispatching value to "
+          "all write plugins failed with status %i (ENOENT). "
+          "Most likely this means you didn't load any write plugins.",
+          status);
+    }
+    else if (status != 0)
     {
       INFO ("Filter subsystem: Built-in target `write': Dispatching value to "
           "all write plugins failed with status %i.", status);
