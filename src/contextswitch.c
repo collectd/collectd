@@ -27,7 +27,7 @@
 # error "No applicable input method."
 #endif
 
-static void cs_submit (unsigned long context_switches)
+static void cs_submit (derive_t context_switches)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -49,7 +49,7 @@ static int cs_read (void)
 	char buffer[64];
 	int numfields;
 	char *fields[3];
-	unsigned long result = 0;
+	derive_t result = 0;
 	int status = -2;
 
 	fh = fopen ("/proc/stat", "r");
@@ -72,7 +72,7 @@ static int cs_read (void)
 
 		errno = 0;
 		endptr = NULL;
-		result = strtoul(fields[1], &endptr, 10);
+		result = (derive_t) strtoll (fields[1], &endptr, /* base = */ 10);
 		if ((endptr == fields[1]) || (errno != 0)) {
 			ERROR ("contextswitch plugin: Cannot parse ctxt value: %s",
 					fields[1]);

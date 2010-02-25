@@ -1611,6 +1611,7 @@ with_java_vmtype="client"
 with_java_cflags=""
 with_java_libs=""
 JAVAC="$JAVAC"
+JAR="$JAR"
 AC_ARG_WITH(java, [AS_HELP_STRING([--with-java@<:@=PREFIX@:>@], [Path to Java home.])],
 [
 	if test "x$withval" = "xno"
@@ -1671,6 +1672,18 @@ then
 				AC_MSG_RESULT([not found])
 			fi
 		fi
+		if test "x$JAR" = "x"
+		then
+			AC_MSG_CHECKING([for jar])
+			TMPDIR=`find "$with_java_home" -name jar -type f | head -n 1`
+			if test "x$TMPDIR" != "x"
+			then
+				JAR="$TMPDIR"
+				AC_MSG_RESULT([$JAR])
+			else
+				AC_MSG_RESULT([not found])
+			fi
+		fi
 	else if test "x$with_java_home" != "x"
 	then
 		AC_MSG_WARN([JAVA_HOME: No such directory: $with_java_home])
@@ -1706,6 +1719,24 @@ fi
 if test "x$JAVAC" = "x"
 then
 	with_java="no (javac not found)"
+fi
+if test "x$JAR" = "x"
+then
+	with_jar_path="$PATH"
+	if test "x$with_java_home" != "x"
+	then
+		with_jar_path="$with_java_home:$with_jar_path"
+		if test -d "$with_java_home/bin"
+		then
+			with_jar_path="$with_java_home/bin:$with_jar_path"
+		fi
+	fi
+
+	AC_PATH_PROG(JAR, jar, [], "$with_jar_path")
+fi
+if test "x$JAR" = "x"
+then
+	with_java="no (jar not found)"
 fi
 
 SAVE_CPPFLAGS="$CPPFLAGS"

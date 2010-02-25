@@ -13,6 +13,7 @@ use Data::Dumper ();
 
 our $Config = "/etc/collection.conf";
 our @DataDirs = ();
+our @DontShowTypes = ();
 our $LibDir;
 
 our $ValidTimespan =
@@ -77,6 +78,10 @@ sub read_config
 		{
 			$value =~ s#/*$##;
 			$LibDir = $value;
+		}
+		elsif ($key eq 'dontshowtype')
+		{
+		  push (@DontShowTypes, $value);
 		}
 		else
 		{
@@ -239,6 +244,7 @@ sub _find_types
       my $name = "$_";
       $name =~ s/\.rrd$//i;
       my ($type, $instance) = split (m/-/, $name, 2);
+      if (grep { $_ eq $type } @DontShowTypes) { next; }
       $types{$type} = [] if (!$types{$type});
       push (@{$types{$type}}, $instance) if (defined ($instance));
     }

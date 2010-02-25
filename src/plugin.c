@@ -323,6 +323,13 @@ static int plugin_load_file (char *file, uint32_t flags)
 	return (0);
 }
 
+static _Bool timeout_reached(struct timespec timeout)
+{
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	return (now.tv_sec >= timeout.tv_sec && now.tv_usec >= (timeout.tv_nsec / 1000));
+}
+
 static void *plugin_read_thread (void __attribute__((unused)) *args)
 {
 	while (read_loop != 0)
@@ -331,6 +338,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		struct timeval now;
 		int status;
 		int rf_type;
+		int rc;
 
 		/* Get the read function that needs to be read next. */
 		rf = c_heap_get_root (read_heap);
@@ -366,8 +374,16 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		/* sleep until this entry is due,
 		 * using pthread_cond_timedwait */
 		pthread_mutex_lock (&read_lock);
-		pthread_cond_timedwait (&read_cond, &read_lock,
+		/* In pthread_cond_timedwait, spurious wakeups are possible
+		 * (and really happen, at least on NetBSD with > 1 CPU), thus
+		 * we need to re-evaluate the condition every time
+		 * pthread_cond_timedwait returns. */
+		rc = 0;
+		while (!timeout_reached(rf->rf_next_read) && rc == 0) {
+			rc = pthread_cond_timedwait (&read_cond, &read_lock,
 				&rf->rf_next_read);
+		}
+
 		/* Must hold `real_lock' when accessing `rf->rf_type'. */
 		rf_type = rf->rf_type;
 		pthread_mutex_unlock (&read_lock);

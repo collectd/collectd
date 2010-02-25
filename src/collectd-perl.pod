@@ -163,7 +163,7 @@ and collectd:
 
 =item Config-Item
 
-A config-item is one structure which keeps the informations provided in the
+A config-item is one structure which keeps the information provided in the
 configuration file. The array of children keeps one entry for each
 configuration option. Each such entry is another config-item structure, which
 may nest further if nested blocks are used.

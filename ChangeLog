@@ -1,3 +1,18 @@
+2010-01-14, Version 4.9.1
+	* Documentation: Some manpage fixes.
+	* Default config: Added sample configuration for missing plugins.
+	* apache plugin: Fix a segmentation fault in the config handling of
+	  VerifyPeer / VerifyHost. Thanks to "plazmus" for his or her patch.
+	* processes plugin: Fix handling of derive data sources.
+	* rrdtool plugin: Fix a bug with random write timeouts. Due to an
+	  incorrect initialization some files may be suspended basically
+	  indefinitely. After flushing the files they were written regularly
+	  again.
+	* routeros plugin: Use the node name for the "host" field.
+	* Monitorus.pm: Put the plugin into the "Collectd::Plugins" namespace.
+	* Perl bindings: Fix a warning that was printed when building
+	  debugging output.
+
 2009-12-21, Version 4.9.0
 	* contextswitch plugin: The new ContextSwitch plugin gathers the
 	  number of context switches done by the CPU. Thanks to Patrik
@@ -36,6 +51,13 @@
 	  storage has been added.
 	* scale target: This target to scale (multiply) values by an arbitrary
 	  value has been added.
+
+2010-01-14, Version 4.8.3
+	* Documentation: Some manpage fixes.
+	* rrdtool plugin: Fix a bug with random write timeouts. Due to an
+	  incorrect initialization some files may be suspended basically
+	  indefinitely. After flushing the files they were written regularly
+	  again.
 
 2009-12-18, Version 4.8.2
 	* Build system, java plugin: Don't use “find -L” to search for Java

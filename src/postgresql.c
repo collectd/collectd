@@ -345,7 +345,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 		 * `BAIL_OUT'. */
 		column_names[col] = PQfname (res, col);
 		if (NULL == column_names[col]) {
-			log_err ("Failed to resolv name of column %i.", col);
+			log_err ("Failed to resolve name of column %i.", col);
 			BAIL_OUT (-1);
 		}
 	}
@@ -496,7 +496,7 @@ static int c_psql_init (void)
 
 		server_host    = PQhost (db->conn);
 		server_version = PQserverVersion (db->conn);
-		log_info ("Sucessfully connected to database %s (user %s) "
+		log_info ("Successfully connected to database %s (user %s) "
 				"at server %s%s%s (server version: %d.%d.%d, "
 				"protocol version: %d, pid: %d)",
 				PQdb (db->conn), PQuser (db->conn),

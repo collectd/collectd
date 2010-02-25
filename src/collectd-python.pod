@@ -38,8 +38,8 @@ At least python I<version 2.3> is required.
 Loads the Python plugin I<Plugin>. Unlike most other LoadPlugin lines, this one
 should be a block containing the line "Globals true". This will cause collectd
 to export the name of all objects in the python interpreter for all plugins to
-see. If you don't do this or your platform does not support it, the embeded
-interpreter will start anywa but you won't be able to load certain python
+see. If you don't do this or your platform does not support it, the embedded
+interpreter will start anyway but you won't be able to load certain python
 modules, e.g. "time".
 
 =item B<Encoding> I<Name>
@@ -233,7 +233,7 @@ and collectd:
 
 =head2 Config
 
-The Config class is an object which keeps the informations provided in the
+The Config class is an object which keeps the information provided in the
 configuration file. The sequence of children keeps one entry for each
 configuration option. Each such entry is another Config instance, which
 may nest further if nested blocks are used.
@@ -653,7 +653,7 @@ dispatched by the python plugin after upgrades.
 =item
 
 This plugin is not compatible with python3. Trying to compile it with python3
-will fail because of the ways string, unicode and bytearray bahavior was
+will fail because of the ways string, unicode and bytearray behavior was
 changed.
 
 =item

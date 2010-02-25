@@ -142,7 +142,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 ssnprintf (cb->credentials, credentials_size, "%s:%s",
                                 cb->user, (cb->pass == NULL) ? "" : cb->pass);
                 curl_easy_setopt (cb->curl, CURLOPT_USERPWD, cb->credentials);
-                curl_easy_setopt (cb->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+                curl_easy_setopt (cb->curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
         }
 
         curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYPEER, cb->verify_peer);
