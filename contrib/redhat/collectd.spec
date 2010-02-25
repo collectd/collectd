@@ -1,12 +1,17 @@
+
+%define with_java %(test -z "$JAVA_HOME" ; echo $?)
+
 Summary:	Statistics collection daemon for filling RRD files.
 Name:		collectd
-Version:	4.3.1
-Release:	0.centos5
+Version:	4.9.0
+Release:	1%{?dist}
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildPrereq:	lm_sensors-devel, mysql-devel, rrdtool-devel, curl-devel, libpcap-devel, net-snmp-devel, libstatgrab-devel, mysql-devel, libxml2-devel, libiptcdata-devel
+BuildPrereq:	lm_sensors-devel, rrdtool-devel, libpcap-devel, net-snmp-devel, libstatgrab-devel, libxml2-devel, libiptcdata-devel
+# libcurl deps
+BuildPrereq:	curl-devel,libidn-devel,openssl-devel
 Requires:	rrdtool, perl-Regexp-Common, libstatgrab
 Packager:	RightScale <support@rightscale.com>
 Vendor:		collectd development team <collectd@verplant.org>
@@ -18,6 +23,7 @@ is written in C for performance. Since the daemon doesn't need to startup
 every time it wants to update the values it's very fast and easy on the
 system. Also, the statistics are very fine grained since the files are updated
 every 10 seconds.
+
 
 %package apache
 Summary:	apache-plugin for collectd.
@@ -62,12 +68,25 @@ Requires:	collectd = %{version}, net-snmp
 %description snmp
 This plugin for collectd allows querying of network equipment using SNMP.
 
+%if %with_java
+%package java
+Summary:	java-module for collectd.
+Group:		System Environment/Daemons
+Requires:	collectd = %{version}, jdk >= 1.6
+BuildPrereq:	jdk >= 1.6
+%description java
+This plugin for collectd allows plugins to be written in Java and executed
+in an embedded JVM.
+%endif
+
 %prep
 rm -rf $RPM_BUILD_ROOT
 %setup
 
 %build
-./configure CFLAGS=-"DLT_LAZY_OR_NOW='RTLD_LAZY|RTLD_GLOBAL'" --prefix=%{_prefix} --sbindir=%{_sbindir} --mandir=%{_mandir} --libdir=%{_libdir} --sysconfdir=%{_sysconfdir} --enable-apache --enable-email --enable-mysql --enable-dns
+./configure CFLAGS=-"DLT_LAZY_OR_NOW='RTLD_LAZY|RTLD_GLOBAL'" --prefix=%{_prefix} --sbindir=%{_sbindir} --mandir=%{_mandir} --libdir=%{_libdir} --sysconfdir=%{_sysconfdir} \
+    %{!?with_java:"--with-java=$JAVA_HOME --enable-java"} \
+    --disable-battery
 make
 
 %install
@@ -80,14 +99,17 @@ mkdir -p $RPM_BUILD_ROOT/etc/collectd.d
 mkdir -p $RPM_BUILD_ROOT/var/lib/collectd
 ### Clean up docs
 find contrib/ -type f -exec %{__chmod} a-x {} \;
+
 ###Modify Config for Redhat Based Distros
-cp contrib/redhat/collectd.conf $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#BaseDir     "/usr/var/lib/collectd":BaseDir     "/var/lib/collectd":' $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#PIDFile     "/usr/var/run/collectd.pid":PIDFile     "/var/run/collectd.pid":' $RPM_BUILD_ROOT/etc/collectd.conf
-sed -i 's:#PluginDir   "/usr/lib/collectd":PluginDir   "/usr/lib/collectd":' $RPM_BUILD_ROOT/etc/collectd.conf
+sed -i 's:#PluginDir   "/usr/lib/collectd":PluginDir   "%{_libdir}/collectd":' $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#TypesDB     "/usr/share/collectd/types.db":TypesDB     "/usr/share/collectd/types.db":' $RPM_BUILD_ROOT/etc/collectd.conf
-sed -i 's:#Interval     10:Interval     10:' $RPM_BUILD_ROOT/etc/collectd.conf
+sed -i 's:#Interval     10:Interval     30:' $RPM_BUILD_ROOT/etc/collectd.conf
 sed -i 's:#ReadThreads  5:ReadThreads  5:' $RPM_BUILD_ROOT/etc/collectd.conf
+###Include broken out config directory
+echo -e '\nInclude "/etc/collectd.d"' >> $RPM_BUILD_ROOT/etc/collectd.conf
+
 ##Move config contribs
 cp contrib/redhat/apache.conf $RPM_BUILD_ROOT/etc/collectd.d/apache.conf
 cp contrib/redhat/email.conf $RPM_BUILD_ROOT/etc/collectd.d/email.conf
@@ -120,7 +142,7 @@ exit 0
 %files
 %defattr(-,root,root)
 %doc AUTHORS COPYING ChangeLog INSTALL NEWS README contrib/
-%attr(0644,root,root) %config(noreplace) /etc/collectd.conf
+%config %attr(0644,root,root) /etc/collectd.conf
 %attr(0755,root,root) /etc/rc.d/init.d/collectd
 %attr(0755,root,root) /var/www/cgi-bin/collection.cgi
 %attr(0755,root,root) %{_sbindir}/collectd
@@ -130,167 +152,142 @@ exit 0
 %attr(0644,root,root) %{_mandir}/man5/*
 %dir /etc/collectd.d
 
-%attr(0644,root,root) %{_libdir}/%{name}/apcups.so*
-%attr(0644,root,root) %{_libdir}/%{name}/apcups.la
+# client
+%attr(0644,root,root) /usr/include/collectd/client.h
+%attr(0644,root,root) /usr/include/collectd/lcc_features.h
 
-#%attr(0644,root,root) %{_libdir}/%{name}/apple_sensors.so*
-#%attr(0644,root,root) %{_libdir}/%{name}/apple_sensors.la
+%attr(0644,root,root) %{_libdir}/libcollectdclient.*
+%attr(0644,root,root) %{_libdir}/pkgconfig/libcollectdclient.pc
 
-%attr(0644,root,root) %{_libdir}/%{name}/battery.so*
-%attr(0644,root,root) %{_libdir}/%{name}/battery.la
+# macro to grab binaries for a plugin, given a name
+%define plugin_macro() \
+%attr(0644,root,root) %{_libdir}/%{name}/%1.a \
+%attr(0644,root,root) %{_libdir}/%{name}/%1.so* \
+%attr(0644,root,root) %{_libdir}/%{name}/%1.la
 
-%attr(0644,root,root) %{_libdir}/%{name}/conntrack.so*
-%attr(0644,root,root) %{_libdir}/%{name}/conntrack.la
+%plugin_macro apcups
+%plugin_macro ascent
+%plugin_macro bind
+%plugin_macro conntrack
+%plugin_macro contextswitch
+%plugin_macro cpufreq
+%plugin_macro cpu
+%plugin_macro csv
+%plugin_macro curl
+%plugin_macro df
+%plugin_macro disk
+%plugin_macro dns
+%plugin_macro entropy
+%plugin_macro email
+%plugin_macro exec
+%plugin_macro filecount
+%plugin_macro fscache
+%plugin_macro hddtemp
+%plugin_macro interface
+%plugin_macro iptables
+%plugin_macro irq
+%plugin_macro load
+%plugin_macro logfile
+%plugin_macro madwifi
 
-%attr(0644,root,root) %{_libdir}/%{name}/cpufreq.so*
-%attr(0644,root,root) %{_libdir}/%{name}/cpufreq.la
+%plugin_macro match_empty_counter
+%plugin_macro match_hashed
+%plugin_macro match_regex
+%plugin_macro match_timediff
+%plugin_macro match_value
 
-%attr(0644,root,root) %{_libdir}/%{name}/cpu.so*
-%attr(0644,root,root) %{_libdir}/%{name}/cpu.la
+%plugin_macro mbmon
+%plugin_macro memcached
+%plugin_macro memory
+%plugin_macro multimeter
+%plugin_macro network
+%plugin_macro nfs
+%plugin_macro ntpd
+%plugin_macro openvpn
+%plugin_macro olsrd
+%plugin_macro perl
+%plugin_macro powerdns
+%plugin_macro processes
+%plugin_macro protocols
+%plugin_macro python
+%plugin_macro rrdtool
+%plugin_macro serial
+%plugin_macro sensors
+%plugin_macro swap
+%plugin_macro syslog
+%plugin_macro table
+%plugin_macro tail
 
-%attr(0644,root,root) %{_libdir}/%{name}/csv.so*
-%attr(0644,root,root) %{_libdir}/%{name}/csv.la
+%plugin_macro target_notification
+%plugin_macro target_replace
+%plugin_macro target_scale
+%plugin_macro target_set
 
-%attr(0644,root,root) %{_libdir}/%{name}/df.so*
-%attr(0644,root,root) %{_libdir}/%{name}/df.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/disk.so*
-%attr(0644,root,root) %{_libdir}/%{name}/disk.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/dns.so*
-%attr(0644,root,root) %{_libdir}/%{name}/dns.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/entropy.so*
-%attr(0644,root,root) %{_libdir}/%{name}/entropy.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/exec.so*
-%attr(0644,root,root) %{_libdir}/%{name}/exec.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/hddtemp.so*
-%attr(0644,root,root) %{_libdir}/%{name}/hddtemp.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/interface.so*
-%attr(0644,root,root) %{_libdir}/%{name}/interface.la
-
-#%attr(0644,root,root) %{_libdir}/%{name}/iptables.so*
-#%attr(0644,root,root) %{_libdir}/%{name}/iptables.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/irq.so*
-%attr(0644,root,root) %{_libdir}/%{name}/irq.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/load.so*
-%attr(0644,root,root) %{_libdir}/%{name}/load.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/logfile.so*
-%attr(0644,root,root) %{_libdir}/%{name}/logfile.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/mbmon.so
-%attr(0644,root,root) %{_libdir}/%{name}/mbmon.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/memcached.so*
-%attr(0644,root,root) %{_libdir}/%{name}/memcached.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/memory.so*
-%attr(0644,root,root) %{_libdir}/%{name}/memory.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/multimeter.so*
-%attr(0644,root,root) %{_libdir}/%{name}/multimeter.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/network.so*
-%attr(0644,root,root) %{_libdir}/%{name}/network.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/nfs.so*
-%attr(0644,root,root) %{_libdir}/%{name}/nfs.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/ntpd.so*
-%attr(0644,root,root) %{_libdir}/%{name}/ntpd.la
-
-#%attr(0644,root,root) %{_libdir}/%{name}/nut.so*
-#%attr(0644,root,root) %{_libdir}/%{name}/nut.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/perl.so*
-%attr(0644,root,root) %{_libdir}/%{name}/perl.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/ping.so*
-%attr(0644,root,root) %{_libdir}/%{name}/ping.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/processes.so*
-%attr(0644,root,root) %{_libdir}/%{name}/processes.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/rrdtool.so*
-%attr(0644,root,root) %{_libdir}/%{name}/rrdtool.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/serial.so*
-%attr(0644,root,root) %{_libdir}/%{name}/serial.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/swap.so*
-%attr(0644,root,root) %{_libdir}/%{name}/swap.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/syslog.so*
-%attr(0644,root,root) %{_libdir}/%{name}/syslog.la
-
-#%attr(0644,root,root) %{_libdir}/%{name}/tape.so*
-#%attr(0644,root,root) %{_libdir}/%{name}/tape.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/tcpconns.so*
-%attr(0644,root,root) %{_libdir}/%{name}/tcpconns.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/unixsock.so*
-%attr(0644,root,root) %{_libdir}/%{name}/unixsock.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/users.so*
-%attr(0644,root,root) %{_libdir}/%{name}/users.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/uuid.so*
-%attr(0644,root,root) %{_libdir}/%{name}/uuid.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/vserver.so*
-%attr(0644,root,root) %{_libdir}/%{name}/vserver.la
-
-%attr(0644,root,root) %{_libdir}/%{name}/wireless.so*
-%attr(0644,root,root) %{_libdir}/%{name}/wireless.la
+%plugin_macro tcpconns
+%plugin_macro teamspeak2
+%plugin_macro ted
+%plugin_macro thermal
+%plugin_macro unixsock
+%plugin_macro uptime
+%plugin_macro users
+%plugin_macro uuid
+%plugin_macro vmem
+%plugin_macro vserver
+%plugin_macro wireless
+%plugin_macro write_http
 
 %attr(0644,root,root) %{_datadir}/%{name}/types.db
 
 %exclude %{_libdir}/perl5/5.8.8/%{_arch}-linux-thread-multi/perllocal.pod
-%attr(0644,root,root) %{_libdir}/perl5/site_perl/5.8.8/Collectd.pm
-%attr(0644,root,root) %{_libdir}/perl5/site_perl/5.8.8/Collectd/Unixsock.pm
 %attr(0644,root,root) %{_libdir}/perl5/site_perl/5.8.8/%{_arch}-linux-thread-multi/auto/Collectd/.packlist
+%attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd.pm
+%attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd/Unixsock.pm
+%attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd/Plugins/OpenVZ.pm
 %attr(0644,root,root) /usr/share/man/man3/Collectd::Unixsock.3pm.gz
+
+%exclude /usr/share/collectd/postgresql_default.conf
 
 %dir /var/lib/collectd
 
+%if %with_java
+%files java
+%attr(0644,root,root) /usr/share/%{name}/java/org/collectd/api/*.class
+%attr(0644,root,root) /usr/share/%{name}/java/org/collectd/java/*.class
+%plugin_macro java
+%endif
+
 %files apache
-%attr(0644,root,root) %{_libdir}/%{name}/apache.so*
-%attr(0644,root,root) %{_libdir}/%{name}/apache.la
-%attr(0644,root,root) /etc/collectd.d/apache.conf
+%config %attr(0644,root,root) /etc/collectd.d/apache.conf
+%plugin_macro apache
 
 %files email
 %attr(0644,root,root) %{_libdir}/%{name}/email.so*
 %attr(0644,root,root) %{_libdir}/%{name}/email.la
-%attr(0644,root,root) /etc/collectd.d/email.conf
+%config %attr(0644,root,root) /etc/collectd.d/email.conf
 
 %files mysql
-%attr(0644,root,root) %{_libdir}/%{name}/mysql.so*
-%attr(0644,root,root) %{_libdir}/%{name}/mysql.la
-%attr(0644,root,root) /etc/collectd.d/mysql.conf
+%config %attr(0644,root,root) /etc/collectd.d/mysql.conf
+%plugin_macro mysql
 
 %files nginx
-%attr(0644,root,root) %{_libdir}/%{name}/nginx.so*
-%attr(0644,root,root) %{_libdir}/%{name}/nginx.la
-%attr(0644,root,root) /etc/collectd.d/nginx.conf
+%config %attr(0644,root,root) /etc/collectd.d/nginx.conf
+%plugin_macro nginx
 
 %files sensors
 %attr(0644,root,root) %{_libdir}/%{name}/sensors.so*
 %attr(0644,root,root) %{_libdir}/%{name}/sensors.la
-%attr(0644,root,root) /etc/collectd.d/sensors.conf
+%config %attr(0644,root,root) /etc/collectd.d/sensors.conf
 
 %files snmp
-%attr(0644,root,root) %{_libdir}/%{name}/snmp.so*
-%attr(0644,root,root) %{_libdir}/%{name}/snmp.la
 %attr(0644,root,root) /etc/collectd.d/snmp.conf
+%plugin_macro snmp
 
 %changelog
+* Tue Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
+- New upstream version
+- Changes to support 4.9.0
+- Added support for Java/GenericJMX plugin
+
 * Mon Mar 17 2008 RightScale <support@rightscale.com> 4.3.1
 - New upstream version
 - Changes to support 4.3.1
