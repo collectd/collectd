@@ -1302,6 +1302,7 @@ static int ps_read (void)
 				}
 
 				pse.num_proc++;
+				pse.vmem_size = task_basic_info.virtual_size;
 				pse.vmem_rss = task_basic_info.resident_size;
 				/* Does not seem to be easily exposed */
 				pse.vmem_data = 0;
