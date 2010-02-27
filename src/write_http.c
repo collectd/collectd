@@ -278,7 +278,7 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
         size_t offset = 0;
         int status;
         int i;
-	gauge_t *rates = NULL;
+        gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));
 
@@ -311,14 +311,14 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
         {
                 if (cb->store_rates != 0) 
                 {
-			if (rates == NULL)
-				rates = uc_get_rate (ds, vl);
-			if (rates == NULL)
-			{
-				WARNING ("write_http plugin: "
-						"uc_get_rate failed.");
-				return (-1);
-			}
+                        if (rates == NULL)
+                                rates = uc_get_rate (ds, vl);
+                        if (rates == NULL)
+                        {
+                                WARNING ("write_http plugin: "
+                                                "uc_get_rate failed.");
+                                return (-1);
+                        }
                         BUFFER_ADD (":%lf", rates[i]);
                 }
                 else
