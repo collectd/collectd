@@ -537,7 +537,13 @@ static void *exec_read_one (void *arg) /* {{{ */
 
   status = fork_child (pl, NULL, &fd, &fd_err);
   if (status < 0)
+  {
+    /* Reset the "running" flag */
+    pthread_mutex_lock (&pl_lock);
+    pl->flags &= ~PL_RUNNING;
+    pthread_mutex_unlock (&pl_lock);
     pthread_exit ((void *) 1);
+  }
   pl->pid = status;
 
   assert (pl->pid != 0);
