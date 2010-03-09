@@ -265,6 +265,7 @@ static int exec_config (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* int exec_config }}} */
 
+__attribute__((noreturn))
 static void exec_child (program_list_t *pl) /* {{{ */
 {
   int status;
