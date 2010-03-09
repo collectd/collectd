@@ -38,6 +38,11 @@
 # include <netinet/in.h>
 # include <netinet/tcp.h>
 
+/* Hack to work around the missing define in AIX */
+#ifndef MSG_DONTWAIT
+# define MSG_DONTWAIT MSG_NONBLOCK
+#endif
+
 #define MEMCACHED_DEF_HOST "127.0.0.1"
 #define MEMCACHED_DEF_PORT "11211"
 
