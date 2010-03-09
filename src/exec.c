@@ -800,7 +800,7 @@ static int exec_read (void) /* {{{ */
   return (0);
 } /* int exec_read }}} */
 
-static int exec_notification (const notification_t *n,
+static int exec_notification (const notification_t *n, /* {{{ */
     user_data_t __attribute__((unused)) *user_data)
 {
   program_list_t *pl;
