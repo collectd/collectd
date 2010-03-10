@@ -959,6 +959,27 @@ int cf_util_get_string (const oconfig_item_t *ci, char **ret_string) /* {{{ */
 	return (0);
 } /* }}} int cf_util_get_string */
 
+/* Assures the config option is a string and copies it to the provided buffer.
+ * Assures null-termination. */
+int cf_util_get_string_buffer (const oconfig_item_t *ci, char *buffer, /* {{{ */
+		size_t buffer_size)
+{
+	if ((ci == NULL) || (buffer == NULL) || (buffer_size < 1))
+		return (EINVAL);
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		ERROR ("cf_util_get_string_buffer: The %s option requires "
+				"exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	strncpy (buffer, ci->values[0].value.string, buffer_size);
+	buffer[buffer_size - 1] = 0;
+
+	return (0);
+} /* }}} int cf_util_get_string_buffer */
+
 int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 {
 	if ((ci == NULL) || (ret_bool == NULL))

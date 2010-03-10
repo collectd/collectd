@@ -91,6 +91,11 @@ const char *global_option_get (const char *option);
  * success. */
 int cf_util_get_string (const oconfig_item_t *ci, char **ret_string);
 
+/* Assures the config option is a string and copies it to the provided buffer.
+ * Assures null-termination. */
+int cf_util_get_string_buffer (const oconfig_item_t *ci, char *buffer,
+		size_t buffer_size);
+
 /* Assures the config option is a boolean and assignes it to `ret_bool'.
  * Otherwise, `ret_bool' is not changed and non-zero is returned. */
 int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool);
