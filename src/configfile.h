@@ -96,6 +96,9 @@ int cf_util_get_string (const oconfig_item_t *ci, char **ret_string);
 int cf_util_get_string_buffer (const oconfig_item_t *ci, char *buffer,
 		size_t buffer_size);
 
+/* Assures the config option is a number and returns it as an int. */
+int cf_util_get_int (const oconfig_item_t *ci, int *ret_value);
+
 /* Assures the config option is a boolean and assignes it to `ret_bool'.
  * Otherwise, `ret_bool' is not changed and non-zero is returned. */
 int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool);
