@@ -1006,7 +1006,7 @@ int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
 	{
 		ERROR ("cf_util_get_boolean: The %s option requires "
-				"exactly one string argument.", ci->key);
+				"exactly one boolean argument.", ci->key);
 		return (-1);
 	}
 
