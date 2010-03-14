@@ -98,26 +98,26 @@ static void logfile_print (const char *msg, int severity, time_t timestamp_time)
 	int do_close = 0;
 	struct tm timestamp_tm;
 	char timestamp_str[64];
-	char level_str[16];
+	char level_str[16] = "";
 
 	if (print_level)
 	{
 		switch (severity)
 		{
 		case LOG_ERR:
-			snprintf(level_str, 15, "[error] ");
+			snprintf(level_str, sizeof (level_str), "[error] ");
 			break;	
 		case LOG_WARNING:
-			snprintf(level_str, 15, "[warning] ");
+			snprintf(level_str, sizeof (level_str), "[warning] ");
 			break;
 		case LOG_NOTICE:
-			snprintf(level_str, 15, "[notice] ");
+			snprintf(level_str, sizeof (level_str), "[notice] ");
 			break;	
 		case LOG_INFO:
-			snprintf(level_str, 15, "[info] ");
+			snprintf(level_str, sizeof (level_str), "[info] ");
 			break;	
 		case LOG_DEBUG:
-			snprintf(level_str, 15, "[debug] ");
+			snprintf(level_str, sizeof (level_str), "[debug] ");
 			break;	
 		default:
 			break;
@@ -160,12 +160,9 @@ static void logfile_print (const char *msg, int severity, time_t timestamp_time)
 	else
 	{
 		if (print_timestamp)
-			fprintf (fh, "[%s] %s%s\n", timestamp_str,
-					print_level ? level_str : "",
-					msg);
+			fprintf (fh, "[%s] %s%s\n", timestamp_str, level_str, msg);
 		else
-			fprintf (fh, "%s%s\n", print_level ? level_str : "",
-						msg);
+			fprintf (fh, "%s%s\n", level_str, msg);
 
 		if (do_close != 0)
 			fclose (fh);
