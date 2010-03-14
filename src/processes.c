@@ -759,15 +759,16 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof(buffer), fh) != NULL)
 	{
 		long long tmp;
 		char *endptr;
 
-		if (strncasecmp (buffer, "Vm", 2) != 0)
+		if (strncmp (buffer, "Vm", 2) != 0)
 			continue;
 
-		numfields = strsplit (buffer, fields, 8);
+		numfields = strsplit (buffer, fields,
+                                      STATIC_ARRAY_SIZE (fields));
 
 		if (numfields < 2)
 			continue;
