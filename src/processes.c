@@ -6,6 +6,7 @@
  * Copyright (C) 2009       Sebastian Harl
  * Copyright (C) 2009       Andrés J. Díaz
  * Copyright (C) 2009       Manuel Sanmartin
+ * Copyright (C) 2010       Clément Stenac
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,6 +29,7 @@
  *   Sebastian Harl <sh at tokkee.org>
  *   Andrés J. Díaz <ajdiaz at connectical.com>
  *   Manuel Sanmartin
+ *   Clément Stenac <clement.stenac at diwi.org>
  **/
 
 #include "collectd.h"
