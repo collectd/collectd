@@ -1583,6 +1583,11 @@ running in foreground- or non-daemon-mode.
 
 Prefix all lines printed by the current time. Defaults to B<true>.
 
+=item B<PrintSeverity> B<true>|B<false>
+
+When enabled, all lines are prefixed by the severity of the log message, for
+example "warning". Defaults to B<false>.
+
 =back
 
 B<Note>: There is no need to notify the daemon after moving or removing the
