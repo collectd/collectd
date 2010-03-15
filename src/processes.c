@@ -121,8 +121,6 @@
 #  define ARG_MAX 4096
 #endif
 
-#define BUFSIZE 256
-
 static const char *config_keys[] =
 {
 	"Process",
@@ -821,7 +819,7 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		derive_t *val = NULL;
 		long long tmp;
@@ -838,7 +836,8 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 		else
 			continue;
 
-		numfields = strsplit (buffer, fields, 8);
+		numfields = strsplit (buffer, fields,
+				STATIC_ARRAY_SIZE (fields));
 
 		if (numfields < 2)
 			continue;
@@ -890,7 +889,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (-1);
 	buffer[i] = 0;
 
-	fields_len = strsplit (buffer, fields, 64);
+	fields_len = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 	if (fields_len < 24)
 	{
 		DEBUG ("processes plugin: ps_read_process (pid = %i):"
@@ -1106,7 +1105,7 @@ static unsigned long read_fork_rate ()
 
 		errno = 0;
 		endptr = NULL;
-		result = strtoul(fields[1], &endptr, 10);
+		result = strtoul(fields[1], &endptr, /* base = */ 10);
 		if ((endptr == fields[1]) || (errno != 0)) {
 			ERROR ("processes plugin: Cannot parse fork rate: %s",
 					fields[1]);
