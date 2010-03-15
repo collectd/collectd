@@ -204,7 +204,8 @@ dump_entry(struct ip6t_entry *e, const ip6tc_handle_t handle)
 	t = ip6t_get_target(e);
 	printf("Target name: `%s' [%u]\n", t->u.user.name, t->u.target_size);
 	if (strcmp(t->u.user.name, IP6T_STANDARD_TARGET) == 0) {
-		int pos = *(int *)t->data;
+		const unsigned char *data = t->data;
+		int pos = *(const int *)data;
 		if (pos < 0)
 			printf("verdict=%s\n",
 			       pos == -NF_ACCEPT-1 ? "NF_ACCEPT"
