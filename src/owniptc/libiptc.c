@@ -744,14 +744,16 @@ static void iptcc_delete_rule(struct rule_head *r)
  * to be called from specific places within the parser */
 static int __iptcc_p_del_policy(TC_HANDLE_T h, unsigned int num)
 {
+	const unsigned char *data;
+
 	if (h->chain_iterator_cur) {
 		/* policy rule is last rule */
 		struct rule_head *pr = (struct rule_head *)
 			h->chain_iterator_cur->rules.prev;
 
 		/* save verdict */
-		h->chain_iterator_cur->verdict = 
-			*(int *)GET_TARGET(pr->entry)->data;
+		data = GET_TARGET(pr->entry)->data;
+		h->chain_iterator_cur->verdict = *(const int *)data;
 
 		/* save counter and counter_map information */
 		h->chain_iterator_cur->counter_map.maptype = 
@@ -1563,6 +1565,7 @@ const char *TC_GET_TARGET(const STRUCT_ENTRY *ce,
 {
 	STRUCT_ENTRY *e = (STRUCT_ENTRY *)ce;
 	struct rule_head *r = container_of(e, struct rule_head, entry[0]);
+	const unsigned char *data;
 
 	iptc_fn = TC_GET_TARGET;
 
@@ -1576,7 +1579,8 @@ const char *TC_GET_TARGET(const STRUCT_ENTRY *ce,
 			return r->jump->name;
 			break;
 		case IPTCC_R_STANDARD:
-			spos = *(int *)GET_TARGET(e)->data;
+			data = GET_TARGET(e)->data;
+			spos = *(const int *)data;
 			DEBUGP("r=%p, spos=%d'\n", r, spos);
 			return standard_target_map(spos);
 			break;

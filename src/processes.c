@@ -262,7 +262,7 @@ static void ps_list_register (const char *name, const char *regexp)
 		ERROR ("processes plugin: ps_list_register: "
 				"Regular expression \"%s\" found in config "
 				"file, but support for regular expressions "
-				"has been dispabled at compile time.",
+				"has been disabled at compile time.",
 				regexp);
 		sfree (new);
 		return;

@@ -612,16 +612,22 @@ static int o_read_database (o_database_t *db) /* {{{ */
       o_report_error ("o_read_database", "OCIAttrGet", oci_error);
       return (-1);
     }
-    assert (server_handle != NULL);
 
-    connection_status = 0;
-    status = OCIAttrGet ((void *) server_handle, OCI_HTYPE_SERVER,
-        (void *) &connection_status, /* size pointer = */ NULL,
-        OCI_ATTR_SERVER_STATUS, oci_error);
-    if (status != OCI_SUCCESS)
+    if (server_handle == NULL)
     {
-      o_report_error ("o_read_database", "OCIAttrGet", oci_error);
-      return (-1);
+      connection_status = OCI_SERVER_NOT_CONNECTED;
+    }
+    else /* if (server_handle != NULL) */
+    {
+      connection_status = 0;
+      status = OCIAttrGet ((void *) server_handle, OCI_HTYPE_SERVER,
+          (void *) &connection_status, /* size pointer = */ NULL,
+          OCI_ATTR_SERVER_STATUS, oci_error);
+      if (status != OCI_SUCCESS)
+      {
+        o_report_error ("o_read_database", "OCIAttrGet", oci_error);
+        return (-1);
+      }
     }
 
     if (connection_status != OCI_SERVER_NORMAL)

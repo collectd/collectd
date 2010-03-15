@@ -1,6 +1,6 @@
 /**
  * collectd - src/exec.c
- * Copyright (C) 2007-2009  Florian octo Forster
+ * Copyright (C) 2007-2010  Florian octo Forster
  * Copyright (C) 2007-2009  Sebastian Harl
  * Copyright (C) 2008       Peter Holik
  *
@@ -276,6 +276,7 @@ static void set_environment (void) /* {{{ */
   setenv ("COLLECTD_HOSTNAME", buffer, /* overwrite = */ 1);
 } /* }}} void set_environment */
 
+__attribute__((noreturn))
 static void exec_child (program_list_t *pl) /* {{{ */
 {
   int status;
@@ -550,7 +551,13 @@ static void *exec_read_one (void *arg) /* {{{ */
 
   status = fork_child (pl, NULL, &fd, &fd_err);
   if (status < 0)
+  {
+    /* Reset the "running" flag */
+    pthread_mutex_lock (&pl_lock);
+    pl->flags &= ~PL_RUNNING;
+    pthread_mutex_unlock (&pl_lock);
     pthread_exit ((void *) 1);
+  }
   pl->pid = status;
 
   assert (pl->pid != 0);
@@ -806,7 +813,7 @@ static int exec_read (void) /* {{{ */
   return (0);
 } /* int exec_read }}} */
 
-static int exec_notification (const notification_t *n,
+static int exec_notification (const notification_t *n, /* {{{ */
     user_data_t __attribute__((unused)) *user_data)
 {
   program_list_t *pl;

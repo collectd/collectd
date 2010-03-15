@@ -931,6 +931,27 @@ if test "x$have_getmntent" = "xgen"; then
 		  [Define if the function getmntent exists. It's the version from libgen.])
 fi
 
+# Check for htonll
+AC_MSG_CHECKING([if have htonll defined])
+
+    have_htonll="no"
+    AC_RUN_IFELSE([
+       AC_LANG_PROGRAM([
+#include <sys/types.h>
+#include <netinet/in.h>
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h> 
+#endif
+       ], [
+          return htonll(0);
+       ])
+    ], [
+      have_htonll="yes"
+      AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
+    ])
+ 
+AC_MSG_RESULT([$have_htonll])
+
 # Check for structures
 AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_opackets, struct if_data.ifi_ierrors],
 	[AC_DEFINE(HAVE_STRUCT_IF_DATA, 1, [Define if struct if_data exists and is usable.])],

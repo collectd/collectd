@@ -668,6 +668,7 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 }
 #endif /* HAVE_LIBKSTAT */
 
+#ifndef HAVE_HTONLL
 unsigned long long ntohll (unsigned long long n)
 {
 #if BYTE_ORDER == BIG_ENDIAN
@@ -685,6 +686,7 @@ unsigned long long htonll (unsigned long long n)
 	return (((unsigned long long) htonl (n)) << 32) + htonl (n >> 32);
 #endif
 } /* unsigned long long htonll */
+#endif /* HAVE_HTONLL */
 
 #if FP_LAYOUT_NEED_NOTHING
 /* Well, we need nothing.. */
