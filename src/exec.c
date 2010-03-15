@@ -1,6 +1,6 @@
 /**
  * collectd - src/exec.c
- * Copyright (C) 2007-2009  Florian octo Forster
+ * Copyright (C) 2007-2010  Florian octo Forster
  * Copyright (C) 2007-2009  Sebastian Harl
  * Copyright (C) 2008       Peter Holik
  *
