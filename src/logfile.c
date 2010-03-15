@@ -39,14 +39,14 @@ static pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static char *log_file = NULL;
 static int print_timestamp = 1;
-static int print_level = 0;
+static int print_severity = 0;
 
 static const char *config_keys[] =
 {
 	"LogLevel",
 	"File",
 	"Timestamp",
-	"PrintLevel"
+	"PrintSeverity"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -80,11 +80,11 @@ static int logfile_config (const char *key, const char *value)
 			print_timestamp = 0;
 		else
 			print_timestamp = 1;
-	} else if (0 == strcasecmp(key, "PrintLevel")) {
+	} else if (0 == strcasecmp(key, "PrintSeverity")) {
 		if (IS_FALSE (value))
-			print_level = 0;
+			print_severity = 0;
 		else
-			print_level = 1;
+			print_severity = 1;
 	}
 	else {
 		return -1;
@@ -100,7 +100,7 @@ static void logfile_print (const char *msg, int severity, time_t timestamp_time)
 	char timestamp_str[64];
 	char level_str[16] = "";
 
-	if (print_level)
+	if (print_severity)
 	{
 		switch (severity)
 		{
