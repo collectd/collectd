@@ -4263,6 +4263,7 @@ AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
 AC_PLUGIN([memcachec],   [$with_libmemcached], [memcachec statistics])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
+AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
@@ -4575,6 +4576,7 @@ Configuration:
     memcachec . . . . . . $enable_memcachec
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
+    modbus  . . . . . . . $enable_modbus
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
