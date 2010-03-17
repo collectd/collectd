@@ -575,14 +575,14 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 		ERROR ("configfile: malloc failed.");
 		return (NULL);
 	}
-	memset (root, '\0', sizeof (oconfig_item_t));
+	memset (root, 0, sizeof (oconfig_item_t));
 
 	while ((de = readdir (dh)) != NULL)
 	{
 		char   name[1024];
 		char **tmp;
 
-		if ((de->d_name[0] == '.') || (de->d_name[0] == '\0'))
+		if ((de->d_name[0] == '.') || (de->d_name[0] == 0))
 			continue;
 
 		status = ssnprintf (name, sizeof (name), "%s/%s",
@@ -624,13 +624,11 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 		char *name = filenames[i];
 
 		temp = cf_read_generic (name, depth);
-		if (temp == NULL) {
-			int j;
-			for (j = i; j < filenames_num; ++j)
-				free (filenames[j]);
-			free (filenames);
-			oconfig_free (root);
-			return (NULL);
+		if (temp == NULL)
+		{
+			/* An error should already have been reported. */
+			sfree (name);
+			continue;
 		}
 
 		cf_ci_append_children (root, temp);

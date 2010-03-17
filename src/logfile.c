@@ -39,12 +39,14 @@ static pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static char *log_file = NULL;
 static int print_timestamp = 1;
+static int print_severity = 0;
 
 static const char *config_keys[] =
 {
 	"LogLevel",
 	"File",
-	"Timestamp"
+	"Timestamp",
+	"PrintSeverity"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -78,6 +80,11 @@ static int logfile_config (const char *key, const char *value)
 			print_timestamp = 0;
 		else
 			print_timestamp = 1;
+	} else if (0 == strcasecmp(key, "PrintSeverity")) {
+		if (IS_FALSE (value))
+			print_severity = 0;
+		else
+			print_severity = 1;
 	}
 	else {
 		return -1;
@@ -85,12 +92,37 @@ static int logfile_config (const char *key, const char *value)
 	return 0;
 } /* int logfile_config (const char *, const char *) */
 
-static void logfile_print (const char *msg, time_t timestamp_time)
+static void logfile_print (const char *msg, int severity, time_t timestamp_time)
 {
 	FILE *fh;
 	int do_close = 0;
 	struct tm timestamp_tm;
 	char timestamp_str[64];
+	char level_str[16] = "";
+
+	if (print_severity)
+	{
+		switch (severity)
+		{
+		case LOG_ERR:
+			snprintf(level_str, sizeof (level_str), "[error] ");
+			break;	
+		case LOG_WARNING:
+			snprintf(level_str, sizeof (level_str), "[warning] ");
+			break;
+		case LOG_NOTICE:
+			snprintf(level_str, sizeof (level_str), "[notice] ");
+			break;	
+		case LOG_INFO:
+			snprintf(level_str, sizeof (level_str), "[info] ");
+			break;	
+		case LOG_DEBUG:
+			snprintf(level_str, sizeof (level_str), "[debug] ");
+			break;	
+		default:
+			break;
+		}
+	}
 
 	if (print_timestamp)
 	{
@@ -128,9 +160,9 @@ static void logfile_print (const char *msg, time_t timestamp_time)
 	else
 	{
 		if (print_timestamp)
-			fprintf (fh, "[%s] %s\n", timestamp_str, msg);
+			fprintf (fh, "[%s] %s%s\n", timestamp_str, level_str, msg);
 		else
-			fprintf (fh, "%s\n", msg);
+			fprintf (fh, "%s%s\n", level_str, msg);
 
 		if (do_close != 0)
 			fclose (fh);
@@ -147,7 +179,7 @@ static void logfile_log (int severity, const char *msg,
 	if (severity > log_level)
 		return;
 
-	logfile_print (msg, time (NULL));
+	logfile_print (msg, severity, time (NULL));
 } /* void logfile_log (int, const char *) */
 
 static int logfile_notification (const notification_t *n,
@@ -185,7 +217,7 @@ static int logfile_notification (const notification_t *n,
 
 	buf[sizeof (buf) - 1] = '\0';
 
-	logfile_print (buf,
+	logfile_print (buf, LOG_INFO,
 			(n->time > 0) ? n->time : time (NULL));
 
 	return (0);

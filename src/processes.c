@@ -6,6 +6,7 @@
  * Copyright (C) 2009       Sebastian Harl
  * Copyright (C) 2009       Andrés J. Díaz
  * Copyright (C) 2009       Manuel Sanmartin
+ * Copyright (C) 2010       Clément Stenac
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,6 +29,7 @@
  *   Sebastian Harl <sh at tokkee.org>
  *   Andrés J. Díaz <ajdiaz at connectical.com>
  *   Manuel Sanmartin
+ *   Clément Stenac <clement.stenac at diwi.org>
  **/
 
 #include "collectd.h"
@@ -119,8 +121,6 @@
 #  define ARG_MAX 4096
 #endif
 
-#define BUFSIZE 256
-
 static const char *config_keys[] =
 {
 	"Process",
@@ -137,6 +137,8 @@ typedef struct procstat_entry_s
 	unsigned long num_lwp;
 	unsigned long vmem_size;
 	unsigned long vmem_rss;
+	unsigned long vmem_data;
+	unsigned long vmem_code;
 	unsigned long stack_size;
 
 	unsigned long vmem_minflt;
@@ -170,6 +172,8 @@ typedef struct procstat
 	unsigned long num_lwp;
 	unsigned long vmem_size;
 	unsigned long vmem_rss;
+	unsigned long vmem_data;
+	unsigned long vmem_code;
 	unsigned long stack_size;
 
 	unsigned long vmem_minflt_counter;
@@ -262,7 +266,7 @@ static void ps_list_register (const char *name, const char *regexp)
 		ERROR ("processes plugin: ps_list_register: "
 				"Regular expression \"%s\" found in config "
 				"file, but support for regular expressions "
-				"has been dispabled at compile time.",
+				"has been disabled at compile time.",
 				regexp);
 		sfree (new);
 		return;
@@ -364,6 +368,8 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		pse->num_lwp    = entry->num_lwp;
 		pse->vmem_size  = entry->vmem_size;
 		pse->vmem_rss   = entry->vmem_rss;
+		pse->vmem_data  = entry->vmem_data;
+		pse->vmem_code  = entry->vmem_code;
 		pse->stack_size = entry->stack_size;
 		pse->io_rchar   = entry->io_rchar;
 		pse->io_wchar   = entry->io_wchar;
@@ -374,6 +380,8 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		ps->num_lwp    += pse->num_lwp;
 		ps->vmem_size  += pse->vmem_size;
 		ps->vmem_rss   += pse->vmem_rss;
+		ps->vmem_data  += pse->vmem_data;
+		ps->vmem_code  += pse->vmem_code;
 		ps->stack_size += pse->stack_size;
 
 		ps->io_rchar   += ((pse->io_rchar == -1)?0:pse->io_rchar);
@@ -470,6 +478,8 @@ static void ps_list_reset (void)
 		ps->num_lwp     = 0;
 		ps->vmem_size   = 0;
 		ps->vmem_rss    = 0;
+		ps->vmem_data   = 0;
+		ps->vmem_code   = 0;
 		ps->stack_size  = 0;
 		ps->io_rchar = -1;
 		ps->io_wchar = -1;
@@ -638,6 +648,16 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
 
+	sstrncpy (vl.type, "ps_data", sizeof (vl.type));
+	vl.values[0].gauge = ps->vmem_data;
+	vl.values_len = 1;
+	plugin_dispatch_values (&vl);
+
+	sstrncpy (vl.type, "ps_code", sizeof (vl.type));
+	vl.values[0].gauge = ps->vmem_code;
+	vl.values_len = 1;
+	plugin_dispatch_values (&vl);
+
 	sstrncpy (vl.type, "ps_stacksize", sizeof (vl.type));
 	vl.values[0].gauge = ps->stack_size;
 	vl.values_len = 1;
@@ -679,12 +699,16 @@ static void ps_submit_proc_list (procstat_t *ps)
 		plugin_dispatch_values (&vl);
 	}
 
-	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; vmem_rss = %lu; "
+	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
+                        "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+			"vmem_code = %lu; "
 			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "
 			"cpu_user_counter = %lu; cpu_system_counter = %lu; "
 			"io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
 			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
-			ps->name, ps->num_proc, ps->num_lwp, ps->vmem_rss,
+			ps->name, ps->num_proc, ps->num_lwp,
+			ps->vmem_size, ps->vmem_rss,
+			ps->vmem_data, ps->vmem_code,
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
 			ps->cpu_user_counter, ps->cpu_system_counter,
 			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
@@ -719,6 +743,69 @@ static int ps_read_tasks (int pid)
 	return ((count >= 1) ? count : 1);
 } /* int *ps_read_tasks */
 
+/* Read advanced virtual memory data from /proc/pid/status */
+static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
+{
+	FILE *fh;
+	char buffer[1024];
+	char filename[64];
+	unsigned long long lib = 0;
+	unsigned long long exe = 0;
+	unsigned long long data = 0;
+	char *fields[8];
+	int numfields;
+
+	ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
+	if ((fh = fopen (filename, "r")) == NULL)
+		return (NULL);
+
+	while (fgets (buffer, sizeof(buffer), fh) != NULL)
+	{
+		long long tmp;
+		char *endptr;
+
+		if (strncmp (buffer, "Vm", 2) != 0)
+			continue;
+
+		numfields = strsplit (buffer, fields,
+                                      STATIC_ARRAY_SIZE (fields));
+
+		if (numfields < 2)
+			continue;
+
+		errno = 0;
+		endptr = NULL;
+		tmp = strtoll (fields[1], &endptr, /* base = */ 10);
+		if ((errno == 0) && (endptr != fields[1]))
+		{
+			if (strncmp (buffer, "VmData", 6) == 0) 
+			{
+				data = tmp;
+			}
+			else if (strncmp (buffer, "VmLib", 5) == 0)
+			{
+				lib = tmp;
+			}
+			else if  (strncmp(buffer, "VmExe", 5) == 0)
+			{
+				exe = tmp;
+			}
+		}
+	} /* while (fgets) */
+
+	if (fclose (fh))
+	{
+		char errbuf[1024];
+		WARNING ("processes: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
+
+	ps->vmem_data = data * 1024;
+	ps->vmem_code = (exe + lib) * 1024;
+
+	return (ps);
+} /* procstat_t *ps_read_vmem */
+
 static procstat_t *ps_read_io (int pid, procstat_t *ps)
 {
 	FILE *fh;
@@ -732,7 +819,7 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		derive_t *val = NULL;
 		long long tmp;
@@ -749,7 +836,8 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 		else
 			continue;
 
-		numfields = strsplit (buffer, fields, 8);
+		numfields = strsplit (buffer, fields,
+				STATIC_ARRAY_SIZE (fields));
 
 		if (numfields < 2)
 			continue;
@@ -801,7 +889,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (-1);
 	buffer[i] = 0;
 
-	fields_len = strsplit (buffer, fields, 64);
+	fields_len = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 	if (fields_len < 24)
 	{
 		DEBUG ("processes plugin: ps_read_process (pid = %i):"
@@ -868,6 +956,14 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	cpu_user_counter   = cpu_user_counter   * 1000000 / CONFIG_HZ;
 	cpu_system_counter = cpu_system_counter * 1000000 / CONFIG_HZ;
 	vmem_rss = vmem_rss * pagesize_g;
+
+	if ( (ps_read_vmem(pid, ps)) == NULL)
+	{
+		/* No VMem data */
+		ps->vmem_data = -1;
+		ps->vmem_code = -1;
+		DEBUG("ps_read_process: did not get vmem data for pid %i",pid);
+	}
 
 	ps->cpu_user_counter = (unsigned long) cpu_user_counter;
 	ps->cpu_system_counter = (unsigned long) cpu_system_counter;
@@ -1009,7 +1105,7 @@ static unsigned long read_fork_rate ()
 
 		errno = 0;
 		endptr = NULL;
-		result = strtoul(fields[1], &endptr, 10);
+		result = strtoul(fields[1], &endptr, /* base = */ 10);
 		if ((endptr == fields[1]) || (errno != 0)) {
 			ERROR ("processes plugin: Cannot parse fork rate: %s",
 					fields[1]);
@@ -1208,7 +1304,11 @@ static int ps_read (void)
 				}
 
 				pse.num_proc++;
+				pse.vmem_size = task_basic_info.virtual_size;
 				pse.vmem_rss = task_basic_info.resident_size;
+				/* Does not seem to be easily exposed */
+				pse.vmem_data = 0;
+				pse.vmem_code = 0;
 
 				pse.vmem_minflt_counter = task_events_info.cow_faults;
 				pse.vmem_majflt_counter = task_events_info.faults;
@@ -1402,6 +1502,8 @@ static int ps_read (void)
 		pse.num_lwp    = ps.num_lwp;
 		pse.vmem_size  = ps.vmem_size;
 		pse.vmem_rss   = ps.vmem_rss;
+		pse.vmem_data  = ps.vmem_data;
+		pse.vmem_code  = ps.vmem_code;
 		pse.stack_size = ps.stack_size;
 
 		pse.vmem_minflt = 0;
@@ -1532,6 +1634,8 @@ static int ps_read (void)
 
 		pse.vmem_size = procs[i].ki_size;
 		pse.vmem_rss = procs[i].ki_rssize * getpagesize();
+		pse.vmem_data = procs[i].ki_dsize * getpagesize();
+		pse.vmem_code = procs[i].ki_tsize * getpagesize();
 		pse.stack_size = procs[i].ki_ssize * getpagesize();
 		pse.vmem_minflt = 0;
 		pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
@@ -1688,6 +1792,9 @@ static int ps_read (void)
 
 			pse.vmem_size = procentry[i].pi_tsize + procentry[i].pi_dvm * pagesize;
 			pse.vmem_rss = (procentry[i].pi_drss + procentry[i].pi_trss) * pagesize;
+			/* Not supported */
+			pse.vmem_data = 0;
+			pse.vmem_code = 0;
 			pse.stack_size =  0;
 
 			ps_list_add (cmdline, cargs, &pse);
