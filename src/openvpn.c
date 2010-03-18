@@ -53,15 +53,13 @@ static int vpn_num = 0;
 static int store_compression = 1;
 static int new_naming_schema = 0;
 static int sumover_allusers  = 0;
-static long long sum_rx = 0;
-static long long sum_tx = 0;
 
 static const char *config_keys[] =
 {
 	"StatusFile",
 	"Compression",
 	"ImprovedNamingSchema",
-  "SumOverAllUsers"
+ "SumOverAllUsers"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -242,6 +240,8 @@ static int multi1_read (char *name, FILE *fh)
 	char buffer[1024];
 	char *fields[10];
 	int  fields_num, read = 0, found_header = 0;
+ long long sum_rx = 0;
+ long long sum_tx = 0;
 
 	/* read the file until the "ROUTING TABLE" line is found (no more info after) */
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
@@ -310,6 +310,8 @@ static int multi2_read (char *name, FILE *fh)
 	char *fields[10];
 	const int max_fields = STATIC_ARRAY_SIZE (fields);
 	int  fields_num, read = 0;
+ long long sum_rx = 0;
+ long long sum_tx = 0;
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
@@ -373,6 +375,8 @@ static int multi3_read (char *name, FILE *fh)
 	char *fields[15];
 	const int max_fields = STATIC_ARRAY_SIZE (fields);
 	int  fields_num, read = 0;
+ long long sum_rx = 0;
+ long long sum_tx = 0;
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
