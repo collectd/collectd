@@ -297,7 +297,7 @@ static int multi1_read (char *name, FILE *fh)
 			iostats_submit (name,               /* vpn instance */
 					"OverAllTraffic",          /* "Common Name" */
 					sum_rx,  /* "Bytes Received" */
-					sum_rx); /* "Bytes Sent" */
+					sum_tx); /* "Bytes Sent" */
 		}
 
 	return (read);
