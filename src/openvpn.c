@@ -53,13 +53,15 @@ static int vpn_num = 0;
 static int store_compression = 1;
 static int new_naming_schema = 0;
 static int number_connectedusers  = 0;
+static int number_connectedusers_only  = 0;
 
 static const char *config_keys[] =
 {
 	"StatusFile",
 	"Compression",
 	"ImprovedNamingSchema",
- "AggregateUsers"
+ "AggregateUsers",
+ "OnlyAggregateUsers"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -290,28 +292,31 @@ static int multi1_read (char *name, FILE *fh)
 		{
 		 sum_users += 1;
 		}
-
-		if (new_naming_schema)
+  if (number_connectedusers_only==0) 
 		{
-			iostats_submit (fields[0],          /* "Common Name" */
-					NULL,               /* unused when in multimode */
-					atoll (fields[2]),  /* "Bytes Received" */
-					atoll (fields[3])); /* "Bytes Sent" */
-		}
-		else
-		{
-			iostats_submit (name,               /* vpn instance */
-					fields[0],          /* "Common Name" */
-					atoll (fields[2]),  /* "Bytes Received" */
-					atoll (fields[3])); /* "Bytes Sent" */
+			if (new_naming_schema)
+			{
+				iostats_submit (fields[0],          /* "Common Name" */
+						NULL,               /* unused when in multimode */
+						atoll (fields[2]),  /* "Bytes Received" */
+						atoll (fields[3])); /* "Bytes Sent" */
+			}
+			else
+			{
+				iostats_submit (name,               /* vpn instance */
+						fields[0],          /* "Common Name" */
+						atoll (fields[2]),  /* "Bytes Received" */
+						atoll (fields[3])); /* "Bytes Sent" */
+			}
 		}
 
 		read = 1;
 	}
 
-	if (number_connectedusers && read == 1)
+	if (number_connectedusers)
 	{
 			numusers_submit(name, name, sum_users);
+			read = 1;
 	}
 
 	return (read);
@@ -347,31 +352,34 @@ static int multi2_read (char *name, FILE *fh)
 		{
 		 sum_users += 1;
 		}
-
-		if (new_naming_schema)
+  if (number_connectedusers_only==0) 
 		{
-			/* plugin inst = file name, type inst = fields[1] */
-			iostats_submit (name,               /* vpn instance */
-					fields[1],          /* "Common Name" */
-					atoll (fields[4]),  /* "Bytes Received" */
-					atoll (fields[5])); /* "Bytes Sent" */
-		}
-		else
-		{
-			/* plugin inst = fields[1], type inst = "" */
-			iostats_submit (fields[1],          /* "Common Name" */
-					NULL,               /* unused when in multimode */
-					atoll (fields[4]),  /* "Bytes Received" */
-					atoll (fields[5])); /* "Bytes Sent" */
+			if (new_naming_schema)
+			{
+				/* plugin inst = file name, type inst = fields[1] */
+				iostats_submit (name,               /* vpn instance */
+						fields[1],          /* "Common Name" */
+						atoll (fields[4]),  /* "Bytes Received" */
+						atoll (fields[5])); /* "Bytes Sent" */
+			}
+			else
+			{
+				/* plugin inst = fields[1], type inst = "" */
+				iostats_submit (fields[1],          /* "Common Name" */
+						NULL,               /* unused when in multimode */
+						atoll (fields[4]),  /* "Bytes Received" */
+						atoll (fields[5])); /* "Bytes Sent" */
+			}
 		}
 
 		read = 1;
 	}
 
-	if (number_connectedusers && read == 1)
+	if (number_connectedusers)
 	{
-			numusers_submit(name, name, sum_users);
-		}
+		numusers_submit(name, name, sum_users);
+		read = 1;
+	}
 
 	return (read);
 } /* int multi2_read */
@@ -410,28 +418,32 @@ static int multi3_read (char *name, FILE *fh)
 		  sum_users += 1;
 			}
 
-			if (new_naming_schema)
+   if (number_connectedusers_only==0) 
 			{
-				iostats_submit (name,               /* vpn instance */
-						fields[1],          /* "Common Name" */
-						atoll (fields[4]),  /* "Bytes Received" */
-						atoll (fields[5])); /* "Bytes Sent" */
-			}
-			else
-			{
-				iostats_submit (fields[1],          /* "Common Name" */
-						NULL,               /* unused when in multimode */
-						atoll (fields[4]),  /* "Bytes Received" */
-						atoll (fields[5])); /* "Bytes Sent" */
+				if (new_naming_schema)
+				{
+					iostats_submit (name,               /* vpn instance */
+							fields[1],          /* "Common Name" */
+							atoll (fields[4]),  /* "Bytes Received" */
+							atoll (fields[5])); /* "Bytes Sent" */
+				}
+				else
+				{
+					iostats_submit (fields[1],          /* "Common Name" */
+							NULL,               /* unused when in multimode */
+							atoll (fields[4]),  /* "Bytes Received" */
+							atoll (fields[5])); /* "Bytes Sent" */
+				}
 			}
 
 		 read = 1;
 		}
 	}
 
-	if (number_connectedusers && read == 1)
+	if (number_connectedusers)
 	{
 			numusers_submit(name, name, sum_users);
+			read = 1;
 	}
 
 	return (read);
@@ -662,6 +674,19 @@ static int openvpn_config (const char *key, const char *value)
 		 number_connectedusers = 0;
 		}
 	} /* if (strcasecmp("AggregateUsers", key) == 0) */
+	else if (strcasecmp("OnlyAggregateUsers", key) == 0)
+	{
+		if (IS_TRUE(value))
+		{
+			DEBUG ("openvpn plugin: Summing up all users");
+		 number_connectedusers_only = 1;
+		 number_connectedusers = 1;
+		}
+		else
+		{
+		 number_connectedusers_only = 0;
+		}
+	} /* if (strcasecmp("OnlyAggregateUsers", key) == 0) */
 	else
 	{
 		return (-1);
