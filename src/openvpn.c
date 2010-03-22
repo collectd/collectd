@@ -263,15 +263,15 @@ static int multi1_read (char *name, FILE *fh)
 
 		if (new_naming_schema)
 		{
-			iostats_submit (fields[0],          /* "Common Name" */
-					NULL,               /* unused when in multimode */
+			iostats_submit (name,               /* vpn instance */
+					fields[0],          /* "Common Name" */
 					atoll (fields[2]),  /* "Bytes Received" */
 					atoll (fields[3])); /* "Bytes Sent" */
 		}
 		else
 		{
-			iostats_submit (name,               /* vpn instance */
-					fields[0],          /* "Common Name" */
+			iostats_submit (fields[0],          /* "Common Name" */
+					NULL,               /* unused when in multimode */
 					atoll (fields[2]),  /* "Bytes Received" */
 					atoll (fields[3])); /* "Bytes Sent" */
 		}
