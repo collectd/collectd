@@ -116,7 +116,11 @@ static int amqp_write(const data_set_t *ds, const value_list_t *vl, user_data_t 
         return (1);
     }
     amqp_set_sockfd(conn, sockfd);
-    reply = amqp_login(conn, vhost, 0, 131072, 0, AMQP_SASL_METHOD_PLAIN, user, password);
+    reply = amqp_login(conn, vhost,
+            /* channel max = */      0,
+            /* frame max = */   131072,
+            /* heartbeat = */        0,
+            /* authentication: */ AMQP_SASL_METHOD_PLAIN, user, password);
     if (reply.reply_type != AMQP_RESPONSE_NORMAL)
     {
         amqp_destroy_connection(conn);
@@ -140,13 +144,13 @@ static int amqp_write(const data_set_t *ds, const value_list_t *vl, user_data_t 
     format_json_finalize(buffer, &bfill, &bfree);
     props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
     props.content_type = amqp_cstring_bytes("application/json");
-    props.delivery_mode = 2; // persistent delivery mode
+    props.delivery_mode = 2; /* persistent delivery mode */
     error = amqp_basic_publish(conn,
-                1,
+                /* channel = */ 1,
                 amqp_cstring_bytes(exchange),
                 amqp_cstring_bytes(routingkey),
-                0,
-                0,
+                /* mandatory = */ 0,
+                /* immediate = */ 0,
                 &props,
                 amqp_cstring_bytes(buffer));
     reply = amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS);
@@ -179,3 +183,4 @@ void module_register(void)
     plugin_register_shutdown(PLUGIN_NAME, shutdown);
 }
 
+/* vim: set sw=4 sts=4 et : */
