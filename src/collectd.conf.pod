@@ -2661,6 +2661,13 @@ Available options:
 
 Specifies the location of the status file.
 
+=item B<ImprovedNamingSchema> B<true>|B<false>
+
+When enabled, the filename of the status file will be used as plugin instance
+and the client's "common name" will be used as type instance. This is required
+when reading multiple status files. Enabling this option is recommended, but to
+maintain backwards compatibility this option is disabled by default.
+
 =item B<Compression> B<true>|B<false>
 
 Sets whether or not statistics about the compression used by OpenVPN should be
