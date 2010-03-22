@@ -82,7 +82,17 @@ static int config(const char *key, const char *value)
         return (config_set(&host, value));
     else if(strcasecmp(key, "port") == 0)
     {
-        port = atoi(value);
+        int tmp;
+
+        tmp = service_name_to_port_number (value);
+        if (tmp <= 0)
+        {
+            ERROR ("AMQP plugin: Cannot parse `%s' as a "
+                    "service name (port number).", value);
+            return (1);
+        }
+
+        port = tmp;
         return (0);
     }
     else if (strcasecmp(key, "vhost") == 0)
