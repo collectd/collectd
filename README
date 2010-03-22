@@ -311,6 +311,10 @@ Features
   * Output can be written or sent to various destinations by the following
     plugins:
 
+    - amqp
+      Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
+      server, such as RabbitMQ.
+
     - csv
       Write to comma separated values (CSV) files. This needs lots of
       diskspace but is extremely portable and can be analysed with almost
@@ -606,6 +610,10 @@ Prerequisites
   * libpython (optional)
     Used by the `python' plugin. Currently, only 2.3 ≦ Python < 3 is supported.
     <http://www.python.org/>
+
+  * librabbitmq (optional; also called “rabbitmq-c”)
+    Used by the AMQP plugin for AMQP connections, for example to RabbitMQ.
+    <http://hg.rabbitmq.com/rabbitmq-c/>
 
   * librouteros (optional)
     Used by the `routeros' plugin to connect to a device running `RouterOS'.
