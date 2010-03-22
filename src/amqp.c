@@ -124,7 +124,7 @@ static int amqp_write(const data_set_t *ds, const value_list_t *vl, user_data_t 
         return (1);
     }
     amqp_channel_open(conn, 1);
-    if (amqp_rpc_reply.reply_type != AMQP_RESPONSE_NORMAL)
+    if (reply.reply_type != AMQP_RESPONSE_NORMAL)
     {
         amqp_connection_close(conn, AMQP_REPLY_SUCCESS);
         amqp_destroy_connection(conn);
