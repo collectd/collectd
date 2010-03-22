@@ -52,18 +52,19 @@ typedef struct vpn_status_s vpn_status_t;
 static vpn_status_t **vpn_list = NULL;
 static int vpn_num = 0;
 
-static int store_compression = 1;
-static int new_naming_schema = 0;
-static int number_connectedusers  = 0;
-static int number_connectedusers_only  = 0;
+static _Bool new_naming_schema = 0;
+static _Bool collect_compression = 1;
+static _Bool collect_user_count  = 0;
+static _Bool collect_individual_users  = 1;
 
 static const char *config_keys[] =
 {
 	"StatusFile",
-	"Compression",
+	"Compression", /* old, deprecated name */
 	"ImprovedNamingSchema",
-	"AggregateUsers",
-	"OnlyAggregateUsers"
+	"CollectCompression",
+	"CollectUserCount",
+	"CollectIndividualUsers"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -248,7 +249,7 @@ static int single_read (char *name, FILE *fh)
 
 	iostats_submit (name, "overhead", overhead_rx, overhead_tx);
 
-	if (store_compression)
+	if (collect_compression)
 	{
 		compression_submit (name, "data_in", post_decompress, pre_decompress);
 		compression_submit (name, "data_out", pre_compress, post_compress);
@@ -289,12 +290,12 @@ static int multi1_read (char *name, FILE *fh)
 		if (fields_num < 4)
 			continue;
 
-		if (number_connectedusers)
+		if (collect_user_count)
 			/* If so, sum all users, ignore the individuals*/
 		{
 			sum_users += 1;
 		}
-		if (number_connectedusers_only==0) 
+		if (collect_individual_users)
 		{
 			if (new_naming_schema)
 			{
@@ -315,7 +316,7 @@ static int multi1_read (char *name, FILE *fh)
 		read = 1;
 	}
 
-	if (number_connectedusers)
+	if (collect_user_count)
 	{
 		numusers_submit(name, name, sum_users);
 		read = 1;
@@ -349,12 +350,12 @@ static int multi2_read (char *name, FILE *fh)
 		if (strcmp (fields[0], "CLIENT_LIST") != 0)
 			continue;
 
-		if (number_connectedusers)
+		if (collect_user_count)
 			/* If so, sum all users, ignore the individuals*/
 		{
 			sum_users += 1;
 		}
-		if (number_connectedusers_only==0) 
+		if (collect_individual_users)
 		{
 			if (new_naming_schema)
 			{
@@ -377,7 +378,7 @@ static int multi2_read (char *name, FILE *fh)
 		read = 1;
 	}
 
-	if (number_connectedusers)
+	if (collect_user_count)
 	{
 		numusers_submit(name, name, sum_users);
 		read = 1;
@@ -414,13 +415,13 @@ static int multi3_read (char *name, FILE *fh)
 			if (strcmp (fields[0], "CLIENT_LIST") != 0)
 				continue;
 
-			if (number_connectedusers)
+			if (collect_user_count)
 				/* If so, sum all users, ignore the individuals*/
 			{
 				sum_users += 1;
 			}
 
-			if (number_connectedusers_only==0) 
+			if (collect_individual_users)
 			{
 				if (new_naming_schema)
 				{
@@ -442,7 +443,7 @@ static int multi3_read (char *name, FILE *fh)
 		}
 	}
 
-	if (number_connectedusers)
+	if (collect_user_count)
 	{
 		numusers_submit(name, name, sum_users);
 		read = 1;
@@ -642,16 +643,14 @@ static int openvpn_config (const char *key, const char *value)
 		DEBUG ("openvpn plugin: status file \"%s\" added", temp->file);
 
 	} /* if (strcasecmp ("StatusFile", key) == 0) */
-	else if (strcasecmp ("Compression", key) == 0)
+	else if ((strcasecmp ("CollectCompression", key) == 0)
+		|| (strcasecmp ("Compression", key) == 0)) /* old, deprecated name */
 	{
-		if (IS_TRUE (value))
-			store_compression = 1;
+		if (IS_FALSE (value))
+			collect_compression = 0;
 		else
-		{
-			store_compression = 0;
-			DEBUG ("openvpn plugin: no 'compression statistcs' collected");
-		}
-	} /* if (strcasecmp ("Compression", key) == 0) */
+			collect_compression = 1;
+	} /* if (strcasecmp ("CollectCompression", key) == 0) */
 	else if (strcasecmp ("ImprovedNamingSchema", key) == 0)
 	{
 		if (IS_TRUE (value))
@@ -664,31 +663,20 @@ static int openvpn_config (const char *key, const char *value)
 			new_naming_schema = 0;
 		}
 	} /* if (strcasecmp ("ImprovedNamingSchema", key) == 0) */
-	else if (strcasecmp("AggregateUsers", key) == 0)
+	else if (strcasecmp("CollectUserCount", key) == 0)
 	{
 		if (IS_TRUE(value))
-		{
-			DEBUG ("openvpn plugin: Summing up all users");
-			number_connectedusers = 1;
-		}
+			collect_user_count = 1;
 		else
-		{
-			number_connectedusers = 0;
-		}
-	} /* if (strcasecmp("AggregateUsers", key) == 0) */
-	else if (strcasecmp("OnlyAggregateUsers", key) == 0)
+			collect_user_count = 0;
+	} /* if (strcasecmp("CollectUserCount", key) == 0) */
+	else if (strcasecmp("CollectIndividualUsers", key) == 0)
 	{
-		if (IS_TRUE(value))
-		{
-			DEBUG ("openvpn plugin: Summing up all users");
-			number_connectedusers_only = 1;
-			number_connectedusers = 1;
-		}
+		if (IS_FALSE (value))
+			collect_individual_users = 0;
 		else
-		{
-			number_connectedusers_only = 0;
-		}
-	} /* if (strcasecmp("OnlyAggregateUsers", key) == 0) */
+			collect_individual_users = 1;
+	} /* if (strcasecmp("CollectIndividualUsers", key) == 0) */
 	else
 	{
 		return (-1);
@@ -713,12 +701,29 @@ static int openvpn_shutdown (void)
 	return (0);
 } /* int openvpn_shutdown */
 
+static int openvpn_init (void)
+{
+	if (!collect_individual_users
+			&& !collect_compression
+			&& !collect_user_count)
+	{
+		WARNING ("OpenVPN plugin: Neither `CollectIndividualUsers', "
+				"`CollectCompression', nor `CollectUserCount' is true. There's no "
+				"data left to collect.");
+		return (-1);
+	}
+
+	plugin_register_read ("openvpn", openvpn_read);
+	plugin_register_shutdown ("openvpn", openvpn_shutdown);
+
+	return (0);
+} /* int openvpn_init */
+
 void module_register (void)
 {
 	plugin_register_config ("openvpn", openvpn_config,
 			config_keys, config_keys_num);
-	plugin_register_read ("openvpn", openvpn_read);
-	plugin_register_shutdown ("openvpn", openvpn_shutdown);
+	plugin_register_init ("openvpn", openvpn_init);
 } /* void module_register */
 
 /* vim: set sw=2 ts=2 : */
