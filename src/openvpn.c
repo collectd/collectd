@@ -3,6 +3,7 @@
  * Copyright (C) 2008  Doug MacEachern
  * Copyright (C) 2009  Florian octo Forster
  * Copyright (C) 2009  Marco Chiappero
+ * Copyright (C) 2009  Fabian Schuh
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +22,7 @@
  *   Doug MacEachern <dougm at hyperic.com>
  *   Florian octo Forster <octo at verplant.org>
  *   Marco Chiappero <marco at absence.it>
+ *   Fabian Schuh <mail at xeroc.org>
  **/
 
 #include "collectd.h"
