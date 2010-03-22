@@ -113,8 +113,8 @@ CLEANFILES =
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c utils_format_json.c utils_format_json.h
-amqp_la_LDFLAGS = -module -avoid-version
-amqp_la_CFLAGS = $(BUILD_WITH_LIBRABBITMQ_CFLAGS)
+amqp_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
+amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
 amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS)
 collectd_LDADD += "-dlopen" amqp.la
 collectd_DEPENDENCIES += amqp.la
