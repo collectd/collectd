@@ -60,8 +60,8 @@ static const char *config_keys[] =
 	"StatusFile",
 	"Compression",
 	"ImprovedNamingSchema",
- "AggregateUsers",
- "OnlyAggregateUsers"
+	"AggregateUsers",
+	"OnlyAggregateUsers"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -288,11 +288,11 @@ static int multi1_read (char *name, FILE *fh)
 			continue;
 
 		if (number_connectedusers)
-		/* If so, sum all users, ignore the individuals*/
+			/* If so, sum all users, ignore the individuals*/
 		{
-		 sum_users += 1;
+			sum_users += 1;
 		}
-  if (number_connectedusers_only==0) 
+		if (number_connectedusers_only==0) 
 		{
 			if (new_naming_schema)
 			{
@@ -315,8 +315,8 @@ static int multi1_read (char *name, FILE *fh)
 
 	if (number_connectedusers)
 	{
-			numusers_submit(name, name, sum_users);
-			read = 1;
+		numusers_submit(name, name, sum_users);
+		read = 1;
 	}
 
 	return (read);
@@ -348,11 +348,11 @@ static int multi2_read (char *name, FILE *fh)
 			continue;
 
 		if (number_connectedusers)
-		/* If so, sum all users, ignore the individuals*/
+			/* If so, sum all users, ignore the individuals*/
 		{
-		 sum_users += 1;
+			sum_users += 1;
 		}
-  if (number_connectedusers_only==0) 
+		if (number_connectedusers_only==0) 
 		{
 			if (new_naming_schema)
 			{
@@ -413,12 +413,12 @@ static int multi3_read (char *name, FILE *fh)
 				continue;
 
 			if (number_connectedusers)
-		 /* If so, sum all users, ignore the individuals*/
+				/* If so, sum all users, ignore the individuals*/
 			{
-		  sum_users += 1;
+				sum_users += 1;
 			}
 
-   if (number_connectedusers_only==0) 
+			if (number_connectedusers_only==0) 
 			{
 				if (new_naming_schema)
 				{
@@ -436,14 +436,14 @@ static int multi3_read (char *name, FILE *fh)
 				}
 			}
 
-		 read = 1;
+			read = 1;
 		}
 	}
 
 	if (number_connectedusers)
 	{
-			numusers_submit(name, name, sum_users);
-			read = 1;
+		numusers_submit(name, name, sum_users);
+		read = 1;
 	}
 
 	return (read);
@@ -465,7 +465,7 @@ static int openvpn_read (void)
 		{
 			char errbuf[1024];
 			WARNING ("openvpn plugin: fopen(%s) failed: %s", vpn_list[i]->file,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 
 			continue;
 		}
@@ -577,7 +577,7 @@ static int openvpn_config (const char *key, const char *value)
 		if (status_version == 0)
 		{
 			WARNING ("openvpn plugin: unable to detect status version, \
-				discarding status file \"%s\".", value);
+					discarding status file \"%s\".", value);
 			return (1);
 		}
 
@@ -586,7 +586,7 @@ static int openvpn_config (const char *key, const char *value)
 		{
 			char errbuf[1024];
 			WARNING ("openvpn plugin: sstrdup failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (1);
 		}
 
@@ -627,7 +627,7 @@ static int openvpn_config (const char *key, const char *value)
 		{
 			char errbuf[1024];
 			ERROR ("openvpn plugin: malloc failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 
 			sfree (temp->file);
 			sfree (temp);
@@ -667,11 +667,11 @@ static int openvpn_config (const char *key, const char *value)
 		if (IS_TRUE(value))
 		{
 			DEBUG ("openvpn plugin: Summing up all users");
-		 number_connectedusers = 1;
+			number_connectedusers = 1;
 		}
 		else
 		{
-		 number_connectedusers = 0;
+			number_connectedusers = 0;
 		}
 	} /* if (strcasecmp("AggregateUsers", key) == 0) */
 	else if (strcasecmp("OnlyAggregateUsers", key) == 0)
@@ -679,12 +679,12 @@ static int openvpn_config (const char *key, const char *value)
 		if (IS_TRUE(value))
 		{
 			DEBUG ("openvpn plugin: Summing up all users");
-		 number_connectedusers_only = 1;
-		 number_connectedusers = 1;
+			number_connectedusers_only = 1;
+			number_connectedusers = 1;
 		}
 		else
 		{
-		 number_connectedusers_only = 0;
+			number_connectedusers_only = 0;
 		}
 	} /* if (strcasecmp("OnlyAggregateUsers", key) == 0) */
 	else
