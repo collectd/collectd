@@ -62,15 +62,9 @@ static const char *config_keys[] =
 
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static void config_free(char *var)
-{
-    if (var != NULL)
-        free(var);
-}
-
 static int config_set(char **var, const char *value)
 {
-    config_free(*var);
+    sfree(*var);
     if ((*var = strdup(value)) == NULL)
         return (1);
     return (0);
@@ -177,12 +171,12 @@ static int amqp_write(const data_set_t *ds, const value_list_t *vl, user_data_t 
 
 static int shutdown(void)
 {
-    config_free(host);
-    config_free(vhost);
-    config_free(user);
-    config_free(password);
-    config_free(exchange);
-    config_free(routingkey);
+    sfree(host);
+    sfree(vhost);
+    sfree(user);
+    sfree(password);
+    sfree(exchange);
+    sfree(routingkey);
     return (0);
 }
 
