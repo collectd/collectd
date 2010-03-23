@@ -3872,6 +3872,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
       </Match>
       <Match>
         Regex "\\<R=local_user\\>"
+        ExcludeRegex "\\<R=local_user\\>.*mail_spool defer"
         DSType "CounterInc"
         Type "counter"
         Instance "local_user"
@@ -3905,6 +3906,13 @@ collectd's config parsing you need to escape backslashes, though. So if you
 want to match literal parentheses you need to do the following:
 
   Regex "SPAM \\(Score: (-?[0-9]+\\.[0-9]+)\\)"
+
+=item B<ExcludeRegex> I<regex>
+
+Sets an optional regular expression to use for excluding lines from the match.
+An example which excludes all connections from localhost from the match:
+
+  ExcludeRegex "127\\.0\\.0\\.1"
 
 =item B<DSType> I<Type>
 

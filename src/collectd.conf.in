@@ -784,6 +784,7 @@ FQDNLookup   true
 #    </Match>
 #    <Match>
 #      Regex "\\<R=local_user\\>"
+#      ExcludeRegex "\\<R=local_user\\>.*mail_spool defer"
 #      DSType "CounterInc"
 #      Type "counter"
 #      Instance "local_user"
