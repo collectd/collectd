@@ -30,6 +30,7 @@
  *	Instance "exim"
  *	<Match>
  *	  Regex "S=([1-9][0-9]*)"
+ *	  ExcludeRegex "U=root.*S="
  *	  DSType "CounterAdd"
  *	  Type "ipt_bytes"
  *	  Instance "total"
@@ -41,6 +42,7 @@
 struct ctail_config_match_s
 {
   char *regex;
+  char *excluderegex;
   int flags;
   char *type;
   char *type_instance;
@@ -157,6 +159,9 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
 
     if (strcasecmp ("Regex", option->key) == 0)
       status = ctail_config_add_string ("Regex", &cm.regex, option);
+    else if (strcasecmp ("ExcludeRegex", option->key) == 0)
+      status = ctail_config_add_string ("ExcludeRegex", &cm.excluderegex,
+					option);
     else if (strcasecmp ("DSType", option->key) == 0)
       status = ctail_config_add_match_dstype (&cm, option);
     else if (strcasecmp ("Type", option->key) == 0)
@@ -201,8 +206,8 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
 
   if (status == 0)
   {
-    status = tail_match_add_match_simple (tm, cm.regex, cm.flags,
-	"tail", plugin_instance, cm.type, cm.type_instance);
+    status = tail_match_add_match_simple (tm, cm.regex, cm.excluderegex,
+	cm.flags, "tail", plugin_instance, cm.type, cm.type_instance);
 
     if (status != 0)
     {
@@ -211,6 +216,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
   }
 
   sfree (cm.regex);
+  sfree (cm.excluderegex);
   sfree (cm.type);
   sfree (cm.type_instance);
 

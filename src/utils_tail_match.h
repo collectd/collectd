@@ -97,12 +97,13 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
  *  The values gathered are dispatched by the tail_match module in this case. The
  *  passed `plugin', `plugin_instance', `type', and `type_instance' are
  *  directly used when submitting these values.
+ *  With excluderegex it is possible to exlude lines from the match.
  *
  * RETURN VALUE
  *   Zero upon success, non-zero otherwise.
  */
 int tail_match_add_match_simple (cu_tail_match_t *obj,
-    const char *regex, int ds_type,
+    const char *regex, const char *excluderegex, int ds_type,
     const char *plugin, const char *plugin_instance,
     const char *type, const char *type_instance);
 

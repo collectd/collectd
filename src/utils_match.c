@@ -29,10 +29,12 @@
 #include <regex.h>
 
 #define UTILS_MATCH_FLAGS_FREE_USER_DATA 0x01
+#define UTILS_MATCH_FLAGS_EXCLUDE_REGEX 0x02
 
 struct cu_match_s
 {
   regex_t regex;
+  regex_t excluderegex;
   int flags;
 
   int (*callback) (const char *str, char * const *matches, size_t matches_num,
@@ -210,7 +212,7 @@ static int default_callback (const char __attribute__((unused)) *str,
 /*
  * Public functions
  */
-cu_match_t *match_create_callback (const char *regex,
+cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
 		int (*callback) (const char *str,
 		  char * const *matches, size_t matches_num, void *user_data),
 		void *user_data)
@@ -218,7 +220,8 @@ cu_match_t *match_create_callback (const char *regex,
   cu_match_t *obj;
   int status;
 
-  DEBUG ("utils_match: match_create_callback: regex = %s", regex);
+  DEBUG ("utils_match: match_create_callback: regex = %s, excluderegex = %s",
+	 regex, excluderegex);
 
   obj = (cu_match_t *) malloc (sizeof (cu_match_t));
   if (obj == NULL)
@@ -233,13 +236,26 @@ cu_match_t *match_create_callback (const char *regex,
     return (NULL);
   }
 
+  if (excluderegex && strcmp(excluderegex, "") != 0) {
+    status = regcomp (&obj->excluderegex, excluderegex, REG_EXTENDED);
+    if (status != 0)
+    {
+	ERROR ("Compiling the excluding regular expression \"%s\" failed.",
+	       excluderegex);
+	sfree (obj);
+	return (NULL);
+    }
+    obj->flags |= UTILS_MATCH_FLAGS_EXCLUDE_REGEX;
+  }
+
   obj->callback = callback;
   obj->user_data = user_data;
 
   return (obj);
 } /* cu_match_t *match_create_callback */
 
-cu_match_t *match_create_simple (const char *regex, int match_ds_type)
+cu_match_t *match_create_simple (const char *regex,
+				 const char *excluderegex, int match_ds_type)
 {
   cu_match_value_t *user_data;
   cu_match_t *obj;
@@ -250,7 +266,8 @@ cu_match_t *match_create_simple (const char *regex, int match_ds_type)
   memset (user_data, '\0', sizeof (cu_match_value_t));
   user_data->ds_type = match_ds_type;
 
-  obj = match_create_callback (regex, default_callback, user_data);
+  obj = match_create_callback (regex, excluderegex,
+			       default_callback, user_data);
   if (obj == NULL)
   {
     sfree (user_data);
@@ -285,6 +302,17 @@ int match_apply (cu_match_t *obj, const char *str)
 
   if ((obj == NULL) || (str == NULL))
     return (-1);
+
+  if (obj->flags & UTILS_MATCH_FLAGS_EXCLUDE_REGEX) {
+    status = regexec (&obj->excluderegex, str,
+		      STATIC_ARRAY_SIZE (re_match), re_match,
+		      /* eflags = */ 0);
+    /* Regex did match, so exclude this line */
+    if (status == 0) {
+      DEBUG("ExludeRegex matched, don't count that line\n");
+      return (0);
+    }
+  }
 
   status = regexec (&obj->regex, str,
       STATIC_ARRAY_SIZE (re_match), re_match,

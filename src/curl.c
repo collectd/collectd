@@ -333,7 +333,7 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
   if (status != 0)
     return (status);
 
-  match->match = match_create_simple (match->regex, match->dstype);
+  match->match = match_create_simple (match->regex, NULL, match->dstype);
   if (match->match == NULL)
   {
     ERROR ("curl plugin: tail_match_add_match_simple failed.");
