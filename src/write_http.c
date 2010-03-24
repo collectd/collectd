@@ -304,12 +304,10 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
         BUFFER_ADD ("%lu", (unsigned long) vl->time);
 
         for (i = 0; i < ds->ds_num; i++)
-{
-        if (ds->ds[i].type == DS_TYPE_GAUGE)
-                BUFFER_ADD (":%f", vl->values[i].gauge);
-        else if (ds->ds[i].type == DS_TYPE_COUNTER)
         {
-                if (cb->store_rates != 0) 
+                if (ds->ds[i].type == DS_TYPE_GAUGE)
+                        BUFFER_ADD (":%f", vl->values[i].gauge);
+                else if (cb->store_rates)
                 {
                         if (rates == NULL)
                                 rates = uc_get_rate (ds, vl);
@@ -319,27 +317,27 @@ static int wh_value_list_to_string (char *buffer, /* {{{ */
                                                 "uc_get_rate failed.");
                                 return (-1);
                         }
-                        BUFFER_ADD (":%lf", rates[i]);
+                        BUFFER_ADD (":%g", rates[i]);
                 }
-                else
+                else if (ds->ds[i].type == DS_TYPE_COUNTER)
                         BUFFER_ADD (":%llu", vl->values[i].counter);
-        }
-        else if (ds->ds[i].type == DS_TYPE_DERIVE)
-                BUFFER_ADD (":%"PRIi64, vl->values[i].derive);
-        else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-                BUFFER_ADD (":%"PRIu64, vl->values[i].absolute);
-        else
-        {
-                ERROR ("write_http plugin: Unknown data source type: %i",
-                                ds->ds[i].type);
-                return (-1);
-        }
-} /* for ds->ds_num */
+                else if (ds->ds[i].type == DS_TYPE_DERIVE)
+                        BUFFER_ADD (":%"PRIi64, vl->values[i].derive);
+                else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+                        BUFFER_ADD (":%"PRIu64, vl->values[i].absolute);
+                else
+                {
+                        ERROR ("write_http plugin: Unknown data source type: %i",
+                                        ds->ds[i].type);
+                        sfree (rates);
+                        return (-1);
+                }
+        } /* for ds->ds_num */
 
 #undef BUFFER_ADD
 
-sfree (rates);
-return (0);
+        sfree (rates);
+        return (0);
 } /* }}} int wh_value_list_to_string */
 
 static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{{ */
