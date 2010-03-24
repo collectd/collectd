@@ -2559,7 +2559,7 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 			ud.data = host;
 			ud.free_func = (void (*) (void *)) free_host_config;
 
-			plugin_register_complex_read (cb_name,
+			plugin_register_complex_read (/* group = */ NULL, cb_name,
 					/* callback  = */ cna_read, 
 					/* interval  = */ (host->interval > 0) ? &interval : NULL,
 					/* user data = */ &ud);

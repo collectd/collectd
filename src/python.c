@@ -568,7 +568,8 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	user_data->data = c;
 	ts.tv_sec = interval;
 	ts.tv_nsec = (interval - ts.tv_sec) * 1000000000;
-	plugin_register_complex_read(buf, cpy_read_callback, &ts, user_data);
+	plugin_register_complex_read(/* group = */ NULL, buf,
+			cpy_read_callback, &ts, user_data);
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 

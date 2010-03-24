@@ -673,7 +673,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     ssnprintf (cb_name, sizeof (cb_name), "curl_json-%s-%s",
                db->instance, db->url);
 
-    plugin_register_complex_read (cb_name, cj_read,
+    plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
                                   /* interval = */ NULL, &ud);
   }
   else

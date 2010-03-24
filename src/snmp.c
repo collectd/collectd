@@ -655,8 +655,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   if (hd->interval != 0)
     cb_interval.tv_sec = (time_t) hd->interval;
 
-  status = plugin_register_complex_read (cb_name, csnmp_read_host,
-      /* interval = */ &cb_interval, /* user_data = */ &cb_data);
+  status = plugin_register_complex_read (/* group = */ NULL, cb_name,
+      csnmp_read_host, /* interval = */ &cb_interval,
+      /* user_data = */ &cb_data);
   if (status != 0)
   {
     ERROR ("snmp plugin: Registering complex read function failed.");

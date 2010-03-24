@@ -408,8 +408,8 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   user_data.data = router_data;
   user_data.free_func = (void *) cr_free_data;
   if (status == 0)
-    status = plugin_register_complex_read (read_name, cr_read,
-	/* interval = */ NULL, &user_data);
+    status = plugin_register_complex_read (/* group = */ NULL, read_name,
+	cr_read, /* interval = */ NULL, &user_data);
 
   if (status != 0)
     cr_free_data (router_data);

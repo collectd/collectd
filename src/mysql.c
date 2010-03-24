@@ -342,7 +342,8 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 		else
 			sstrncpy (cb_name, "mysql", sizeof (cb_name));
 
-		plugin_register_complex_read (cb_name, mysql_read,
+		plugin_register_complex_read (/* group = */ NULL, cb_name,
+					      mysql_read,
 					      /* interval = */ NULL, &ud);
 	}
 	else

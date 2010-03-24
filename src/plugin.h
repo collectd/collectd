@@ -264,7 +264,7 @@ int plugin_register_init (const char *name,
 		plugin_init_cb callback);
 int plugin_register_read (const char *name,
 		int (*callback) (void));
-int plugin_register_complex_read (const char *name,
+int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
 		const struct timespec *interval,
 		user_data_t *user_data);
@@ -284,6 +284,7 @@ int plugin_unregister_config (const char *name);
 int plugin_unregister_complex_config (const char *name);
 int plugin_unregister_init (const char *name);
 int plugin_unregister_read (const char *name);
+int plugin_unregister_read_group (const char *group);
 int plugin_unregister_write (const char *name);
 int plugin_unregister_flush (const char *name);
 int plugin_unregister_shutdown (const char *name);

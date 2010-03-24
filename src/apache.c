@@ -313,7 +313,8 @@ static int config_add (oconfig_item_t *ci)
 				(st->host != NULL) ? st->host : hostname_g,
 				(st->name != NULL) ? st->name : "default"),
 
-		status = plugin_register_complex_read (callback_name,
+		status = plugin_register_complex_read (/* group = */ NULL,
+				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
 				/* interval  = */ NULL,
 				/* user_data = */ &ud);

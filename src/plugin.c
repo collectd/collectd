@@ -59,6 +59,7 @@ struct read_func_s
 #define rf_callback rf_super.cf_callback
 #define rf_udata rf_super.cf_udata
 	callback_func_t rf_super;
+	char rf_group[DATA_MAX_NAME_LEN];
 	char rf_name[DATA_MAX_NAME_LEN];
 	int rf_type;
 	struct timespec rf_interval;
@@ -772,6 +773,7 @@ int plugin_register_read (const char *name,
 	rf->rf_callback = (void *) callback;
 	rf->rf_udata.data = NULL;
 	rf->rf_udata.free_func = NULL;
+	rf->rf_group[0] = '\0';
 	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
 	rf->rf_type = RF_SIMPLE;
 	rf->rf_interval.tv_sec = 0;
@@ -781,7 +783,7 @@ int plugin_register_read (const char *name,
 	return (plugin_insert_read (rf));
 } /* int plugin_register_read */
 
-int plugin_register_complex_read (const char *name,
+int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
 		const struct timespec *interval,
 		user_data_t *user_data)
@@ -797,6 +799,10 @@ int plugin_register_complex_read (const char *name,
 
 	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
+	if (group != NULL)
+		sstrncpy (rf->rf_group, group, sizeof (rf->rf_group));
+	else
+		rf->rf_group[0] = '\0';
 	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
 	rf->rf_type = RF_COMPLEX;
 	if (interval != NULL)
@@ -947,6 +953,67 @@ int plugin_unregister_read (const char *name) /* {{{ */
 
 	return (0);
 } /* }}} int plugin_unregister_read */
+
+static int compare_read_func_group (llentry_t *e, void *ud) /* {{{ */
+{
+	read_func_t *rf    = e->value;
+	char        *group = ud;
+
+	return strcmp (rf->rf_group, (const char *)group);
+} /* }}} int compare_read_func_group */
+
+int plugin_unregister_read_group (const char *group) /* {{{ */
+{
+	llentry_t *le;
+	read_func_t *rf;
+
+	int found = 0;
+
+	if (group == NULL)
+		return (-ENOENT);
+
+	pthread_mutex_lock (&read_lock);
+
+	if (read_list == NULL)
+	{
+		pthread_mutex_unlock (&read_lock);
+		return (-ENOENT);
+	}
+
+	while (42)
+	{
+		le = llist_search_custom (read_list,
+				compare_read_func_group, (void *)group);
+
+		if (le == NULL)
+			break;
+
+		++found;
+
+		llist_remove (read_list, le);
+
+		rf = le->value;
+		assert (rf != NULL);
+		rf->rf_type = RF_REMOVE;
+
+		llentry_destroy (le);
+
+		DEBUG ("plugin_unregister_read_group: "
+				"Marked `%s' (group `%s') for removal.",
+				rf->rf_name, group);
+	}
+
+	pthread_mutex_unlock (&read_lock);
+
+	if (found == 0)
+	{
+		WARNING ("plugin_unregister_read_group: No such "
+				"group of read function: %s", group);
+		return (-ENOENT);
+	}
+
+	return (0);
+} /* }}} int plugin_unregister_read_group */
 
 int plugin_unregister_write (const char *name)
 {

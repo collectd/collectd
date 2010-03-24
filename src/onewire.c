@@ -310,7 +310,7 @@ static int cow_init (void)
   if (ow_interval > 0)
     cb_interval.tv_sec = (time_t) ow_interval;
 
-  plugin_register_complex_read ("onewire", cow_read,
+  plugin_register_complex_read (/* group = */ NULL, "onewire", cow_read,
       &cb_interval, /* user data = */ NULL);
   plugin_register_shutdown ("onewire", cow_shutdown);
 
