@@ -37,6 +37,7 @@ typedef struct web_match_s web_match_t;
 struct web_match_s /* {{{ */
 {
   char *regex;
+  char *exclude_regex;
   int dstype;
   char *type;
   char *instance;
@@ -220,6 +221,8 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
 
     if (strcasecmp ("Regex", child->key) == 0)
       status = cmc_config_add_string ("Regex", &match->regex, child);
+    else if (strcasecmp ("ExcludeRegex", child->key) == 0)
+      status = cmc_config_add_string ("ExcludeRegex", &match->exclude_regex, child);
     else if (strcasecmp ("DSType", child->key) == 0)
       status = cmc_config_add_match_dstype (&match->dstype, child);
     else if (strcasecmp ("Type", child->key) == 0)
@@ -262,7 +265,8 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
   if (status != 0)
     return (status);
 
-  match->match = match_create_simple (match->regex, NULL, match->dstype);
+  match->match = match_create_simple (match->regex, match->exclude_regex,
+      match->dstype);
   if (match->match == NULL)
   {
     ERROR ("memcachec plugin: tail_match_add_match_simple failed.");
