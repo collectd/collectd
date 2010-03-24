@@ -1697,21 +1697,29 @@ values (two registers interpreted as IEEE floats in big endian notation).
 
 Synopsis:
 
- <Data "data_name">
-   RegisterBase 1234
+ <Data "voltage-input-1">
+   RegisterBase 0
    RegisterType float
-   Type gauge
-   Instance "..."
+   Type voltage
+   Instance "input-1"
  </Data>
  
- <Host "name">
-   Address "addr"
-   Port "1234"
+ <Data "voltage-input-2">
+   RegisterBase 2
+   RegisterType float
+   Type voltage
+   Instance "input-2"
+ </Data>
+ 
+ <Host "modbus.example.com">
+   Address "192.168.0.42"
+   Port    "502"
    Interval 60
-
+   
    <Slave 1>
-     Instance "foobar" # optional
-     Collect "data_name"
+     Instance "power-supply"
+     Collect  "voltage-input-1"
+     Collect  "voltage-input-2"
    </Slave>
  </Host>
 
