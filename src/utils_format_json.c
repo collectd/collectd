@@ -112,27 +112,24 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
       else
         BUFFER_ADD ("null");
     }
-    else if (ds->ds[i].type == DS_TYPE_COUNTER)
+    else if (store_rates)
     {
-      if (store_rates != 0)
+      if (rates == NULL)
+        rates = uc_get_rate (ds, vl);
+      if (rates == NULL)
       {
-        if (rates == NULL)
-          rates = uc_get_rate (ds, vl);
-        if (rates == NULL)
-        {
-          WARNING ("utils_format_json: "
-                    "uc_get_rate failed.");
-          sfree(rates);
-          return (-1);
-        }
-        if(isfinite (rates[i]))
-          BUFFER_ADD ("%g", rates[i]);
-        else
-          BUFFER_ADD ("null");
+        WARNING ("utils_format_json: uc_get_rate failed.");
+        sfree(rates);
+        return (-1);
       }
+
+      if(isfinite (rates[i]))
+        BUFFER_ADD ("%g", rates[i]);
       else
-        BUFFER_ADD ("%llu", vl->values[i].counter);
+        BUFFER_ADD ("null");
     }
+    else if (ds->ds[i].type == DS_TYPE_COUNTER)
+      BUFFER_ADD ("%llu", vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BUFFER_ADD ("%"PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
@@ -141,6 +138,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
     {
       ERROR ("format_json: Unknown data source type: %i",
           ds->ds[i].type);
+      sfree (rates);
       return (-1);
     }
   } /* for ds->ds_num */
