@@ -139,16 +139,35 @@ int llist_size (llist_t *l)
 	return (l ? l->size : 0);
 }
 
+static int llist_strcmp (llentry_t *e, void *ud)
+{
+	if ((e == NULL) || (ud == NULL))
+		return (-1);
+	return (strcmp (e->key, (const char *)ud));
+}
+
 llentry_t *llist_search (llist_t *l, const char *key)
+{
+	return (llist_search_custom (l, llist_strcmp, (void *)key));
+}
+
+llentry_t *llist_search_custom (llist_t *l,
+		int (*compare) (llentry_t *, void *), void *user_data)
 {
 	llentry_t *e;
 
 	if (l == NULL)
 		return (NULL);
 
-	for (e = l->head; e != NULL; e = e->next)
-		if (strcmp (key, e->key) == 0)
+	e = l->head;
+	while (e != NULL) {
+		llentry_t *next = e->next;
+
+		if (compare (e, user_data) == 0)
 			break;
+
+		e = next;
+	}
 
 	return (e);
 }
