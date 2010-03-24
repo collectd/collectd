@@ -204,6 +204,29 @@ static int data_copy_by_name (mb_data_t **dst, mb_data_t *src, /* {{{ */
 
 /* Read functions */
 
+static int mb_submit (mb_host_t *host, mb_slave_t *slave, /* {{{ */
+    mb_data_t *data, value_t value)
+{
+  value_list_t vl = VALUE_LIST_INIT;
+
+  if ((host == NULL) || (slave == NULL) || (data == NULL))
+    return (EINVAL);
+
+  if (slave->instance[0] == 0)
+    ssnprintf (slave->instance, sizeof (slave->instance), "slave_%i",
+        slave->id);
+
+  vl.values = &value;
+  vl.values_len = 1;
+  sstrncpy (vl.host, host->host, sizeof (vl.host));
+  sstrncpy (vl.plugin, "modbus", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, slave->instance, sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, data->type, sizeof (vl.type));
+  sstrncpy (vl.type_instance, data->instance, sizeof (vl.type_instance));
+
+  return (plugin_dispatch_values (&vl));
+} /* }}} int mb_submit */
+
 static float mb_register_to_float (uint16_t hi, uint16_t lo) /* {{{ */
 {
   union
@@ -270,6 +293,17 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   return (0);
 } /* }}} int mb_init_connection */
 
+#define CAST_TO_VALUE_T(ds,vt,raw) do { \
+  if ((ds)->ds[0].type == DS_TYPE_COUNTER) \
+    (vt).counter = (counter_t) (raw); \
+  else if ((ds)->ds[0].type == DS_TYPE_GAUGE) \
+    (vt).gauge = (gauge_t) (raw); \
+  else if ((ds)->ds[0].type == DS_TYPE_DERIVE) \
+    (vt).derive = (derive_t) (raw); \
+  else /* if (ds->ds[0].type == DS_TYPE_ABSOLUTE) */ \
+    (vt).absolute = (absolute_t) (raw); \
+} while (0)
+
 static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_data_t *data)
 {
@@ -295,6 +329,14 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
         "I can only handle data sets with only one data source.",
         data->type, ds->ds_num);
     return (-1);
+  }
+
+  if ((ds->ds[0].type != DS_TYPE_GAUGE)
+      && (data->register_type != REG_TYPE_UINT32))
+  {
+    NOTICE ("Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
+        "This will most likely result in problems, because the register type "
+        "is not UINT32.", data->type, DS_TYPE_TO_STRING (ds->ds[0].type));
   }
 
   memset (values, 0, sizeof (values));
@@ -347,11 +389,37 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
   if (data->register_type == REG_TYPE_FLOAT)
   {
-    float value;
+    float float_value;
+    value_t vt;
 
-    value = mb_register_to_float (values[0], values[1]);
+    float_value = mb_register_to_float (values[0], values[1]);
     DEBUG ("Modbus plugin: mb_read_data: "
-        "Returned float value is %g", (double) value);
+        "Returned float value is %g", (double) float_value);
+
+    CAST_TO_VALUE_T (ds, vt, float_value);
+    mb_submit (host, slave, data, vt);
+  }
+  else if (data->register_type == REG_TYPE_UINT32)
+  {
+    uint32_t v32;
+    value_t vt;
+
+    v32 = (values[0] << 16) | values[1];
+    DEBUG ("Modbus plugin: mb_read_data: "
+        "Returned uint32 value is %"PRIu32, v32);
+
+    CAST_TO_VALUE_T (ds, vt, v32);
+    mb_submit (host, slave, data, vt);
+  }
+  else /* if (data->register_type == REG_TYPE_UINT16) */
+  {
+    value_t vt;
+
+    DEBUG ("Modbus plugin: mb_read_data: "
+        "Returned uint16 value is %"PRIu16, values[0]);
+
+    CAST_TO_VALUE_T (ds, vt, values[0]);
+    mb_submit (host, slave, data, vt);
   }
 
   return (0);
