@@ -49,17 +49,17 @@
 /*
  * Data structures
  */
-enum mb_register_type_e
+enum mb_register_type_e /* {{{ */
 {
   REG_TYPE_UINT16,
   REG_TYPE_UINT32,
   REG_TYPE_FLOAT
-};
+}; /* }}} */
 typedef enum mb_register_type_e mb_register_type_t;
 
 struct mb_data_s;
 typedef struct mb_data_s mb_data_t;
-struct mb_data_s
+struct mb_data_s /* {{{ */
 {
   char *name;
   int register_base;
@@ -68,17 +68,17 @@ struct mb_data_s
   char instance[DATA_MAX_NAME_LEN];
 
   mb_data_t *next;
-};
+}; /* }}} */
 
-struct mb_slave_s
+struct mb_slave_s /* {{{ */
 {
   int id;
   char instance[DATA_MAX_NAME_LEN];
   mb_data_t *collect;
-};
+}; /* }}} */
 typedef struct mb_slave_s mb_slave_t;
 
-struct mb_host_s
+struct mb_host_s /* {{{ */
 {
   char host[DATA_MAX_NAME_LEN];
   char node[NI_MAXHOST];
@@ -92,18 +92,18 @@ struct mb_host_s
   modbus_param_t connection;
   _Bool is_connected;
   _Bool have_reconnected;
-};
+}; /* }}} */
 typedef struct mb_host_s mb_host_t;
 
 struct mb_data_group_s;
 typedef struct mb_data_group_s mb_data_group_t;
-struct mb_data_group_s
+struct mb_data_group_s /* {{{ */
 {
   mb_data_t *registers;
   size_t registers_num;
 
   mb_data_group_t *next;
-};
+}; /* }}} */
 
 /*
  * Global variables
