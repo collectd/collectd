@@ -2776,11 +2776,30 @@ Available options:
 
 Specifies the location of the status file.
 
-=item B<Compression> B<true>|B<false>
+=item B<ImprovedNamingSchema> B<true>|B<false>
+
+When enabled, the filename of the status file will be used as plugin instance
+and the client's "common name" will be used as type instance. This is required
+when reading multiple status files. Enabling this option is recommended, but to
+maintain backwards compatibility this option is disabled by default.
+
+=item B<CollectCompression> B<true>|B<false>
 
 Sets whether or not statistics about the compression used by OpenVPN should be
 collected. This information is only available in I<single> mode. Enabled by
 default.
+
+=item B<CollectIndividualUsers> B<true>|B<false>
+
+Sets whether or not traffic information is collected for each connected client
+individually. If set to false, currently no traffic data is collected at all
+because aggregating this data in a save manner is tricky. Defaults to B<true>.
+
+=item B<CollectUserCount> B<true>|B<false>
+
+When enabled, the number of currently connected clients or users is collected.
+This is expecially interesting when B<CollectIndividualUsers> is disabled, but
+can be configured independently from that option. Defaults to B<false>.
 
 =back
 
