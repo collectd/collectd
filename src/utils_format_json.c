@@ -151,6 +151,85 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
   return (0);
 } /* }}} int values_to_json */
 
+static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
+                const data_set_t *ds, const value_list_t *vl)
+{
+  size_t offset = 0;
+  int i;
+
+  memset (buffer, 0, buffer_size);
+
+#define BUFFER_ADD(...) do { \
+  int status; \
+  status = ssnprintf (buffer + offset, buffer_size - offset, \
+      __VA_ARGS__); \
+  if (status < 1) \
+    return (-1); \
+  else if (((size_t) status) >= (buffer_size - offset)) \
+    return (-ENOMEM); \
+  else \
+  offset += ((size_t) status); \
+} while (0)
+
+  BUFFER_ADD ("[");
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if (i > 0)
+      BUFFER_ADD (",");
+
+    BUFFER_ADD ("\"");
+    BUFFER_ADD(DS_TYPE_TO_STRING(ds->ds[i].type));
+    BUFFER_ADD ("\"");
+  } /* for ds->ds_num */
+  BUFFER_ADD ("]");
+
+#undef BUFFER_ADD
+
+  DEBUG ("format_json: dstypes_to_json: buffer = %s;", buffer);
+
+  return (0);
+} /* }}} int dstypes_to_json */
+
+static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
+                const data_set_t *ds, const value_list_t *vl)
+{
+  size_t offset = 0;
+  int i;
+
+  memset (buffer, 0, buffer_size);
+
+#define BUFFER_ADD(...) do { \
+  int status; \
+  status = ssnprintf (buffer + offset, buffer_size - offset, \
+      __VA_ARGS__); \
+  if (status < 1) \
+    return (-1); \
+  else if (((size_t) status) >= (buffer_size - offset)) \
+    return (-ENOMEM); \
+  else \
+  offset += ((size_t) status); \
+} while (0)
+
+  BUFFER_ADD ("[");
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if (i > 0)
+      BUFFER_ADD (",");
+
+    BUFFER_ADD ("\"");
+    BUFFER_ADD(ds->ds[i].name);
+    BUFFER_ADD ("\"");
+
+  } /* for ds->ds_num */
+  BUFFER_ADD ("]");
+
+#undef BUFFER_ADD
+
+  DEBUG ("format_json: dsnames_to_json: buffer = %s;", buffer);
+
+  return (0);
+} /* }}} int dsnames_to_json */
+
 static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
 {
@@ -179,6 +258,16 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   if (status != 0)
     return (status);
   BUFFER_ADD ("\"values\":%s", temp);
+
+  status = dstypes_to_json (temp, sizeof (temp), ds, vl);
+  if (status != 0)
+    return (status);
+  BUFFER_ADD (",\"dstypes\":%s", temp);
+
+  status = dsnames_to_json (temp, sizeof (temp), ds, vl);
+  if (status != 0)
+    return (status);
+  BUFFER_ADD (",\"dsnames\":%s", temp);
 
   BUFFER_ADD (",\"time\":%lu", (unsigned long) vl->time);
   BUFFER_ADD (",\"interval\":%i", vl->interval);
