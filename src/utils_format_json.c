@@ -168,7 +168,7 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
   else if (((size_t) status) >= (buffer_size - offset)) \
     return (-ENOMEM); \
   else \
-  offset += ((size_t) status); \
+    offset += ((size_t) status); \
 } while (0)
 
   BUFFER_ADD ("[");
@@ -177,9 +177,7 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
     if (i > 0)
       BUFFER_ADD (",");
 
-    BUFFER_ADD ("\"");
-    BUFFER_ADD(DS_TYPE_TO_STRING(ds->ds[i].type));
-    BUFFER_ADD ("\"");
+    BUFFER_ADD ("\"%s\"", DS_TYPE_TO_STRING (ds->ds[i].type));
   } /* for ds->ds_num */
   BUFFER_ADD ("]");
 
@@ -207,7 +205,7 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
   else if (((size_t) status) >= (buffer_size - offset)) \
     return (-ENOMEM); \
   else \
-  offset += ((size_t) status); \
+    offset += ((size_t) status); \
 } while (0)
 
   BUFFER_ADD ("[");
@@ -216,10 +214,7 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
     if (i > 0)
       BUFFER_ADD (",");
 
-    BUFFER_ADD ("\"");
-    BUFFER_ADD(ds->ds[i].name);
-    BUFFER_ADD ("\"");
-
+    BUFFER_ADD ("\"%s\"", ds->ds[i].name);
   } /* for ds->ds_num */
   BUFFER_ADD ("]");
 
