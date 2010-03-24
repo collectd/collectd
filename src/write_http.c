@@ -446,7 +446,7 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
         status = format_json_value_list (cb->send_buffer,
                         &cb->send_buffer_fill,
                         &cb->send_buffer_free,
-                        ds, vl);
+                        ds, vl, cb->store_rates);
         if (status == (-ENOMEM))
         {
                 status = wh_flush_nolock (/* timeout = */ -1, cb);
@@ -460,7 +460,7 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
                 status = format_json_value_list (cb->send_buffer,
                                 &cb->send_buffer_fill,
                                 &cb->send_buffer_free,
-                                ds, vl);
+                                ds, vl, cb->store_rates);
         }
         if (status != 0)
         {
