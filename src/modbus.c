@@ -212,12 +212,16 @@ static int mb_submit (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   if ((host == NULL) || (slave == NULL) || (data == NULL))
     return (EINVAL);
 
+  if (host->interval <= 0)
+    host->interval = interval_g;
+
   if (slave->instance[0] == 0)
     ssnprintf (slave->instance, sizeof (slave->instance), "slave_%i",
         slave->id);
 
   vl.values = &value;
   vl.values_len = 1;
+  vl.interval = host->interval;
   sstrncpy (vl.host, host->host, sizeof (vl.host));
   sstrncpy (vl.plugin, "modbus", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, slave->instance, sizeof (vl.plugin_instance));
