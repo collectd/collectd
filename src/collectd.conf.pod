@@ -1688,6 +1688,124 @@ TCP-Port to connect to. Defaults to B<11211>.
 
 =back
 
+=head2 Plugin C<modbus>
+
+The B<modbus plugin> connects to a Modbus "slave" via Modbus/TCP and reads
+register values. It supports reading single registers (unsigned 16E<nbsp>bit
+values), large integer values (unsigned 32E<nbsp>bit values) and floating point
+values (two registers interpreted as IEEE floats in big endian notation).
+
+Synopsis:
+
+ <Data "data_name">
+   RegisterBase 1234
+   RegisterType float
+   Type gauge
+   Instance "..."
+ </Data>
+ 
+ <Host "name">
+   Address "addr"
+   Port "1234"
+   Interval 60
+
+   <Slave 1>
+     Instance "foobar" # optional
+     Collect "data_name"
+   </Slave>
+ </Host>
+
+=over 4
+
+=item E<lt>B<Data> I<Name>E<gt> blocks
+
+Data blocks define a mapping between register numbers and the "types" used by
+I<collectd>.
+
+Within E<lt>DataE<nbsp>/E<gt> blocks, the following options are allowed:
+
+=over 4
+
+=item B<RegisterBase> I<Number>
+
+Configures the base register to read from the device. If the option
+B<RegisterType> has been set to B<Uint32> or B<Float>, this and the next
+register will be read (the register number is increased by one).
+
+=item B<RegisterType> B<Uint16>|B<Uint32>|B<Float>
+
+Specifies what kind of data is returned by the device. If the type is B<Uint32>
+or B<Float>, two 16E<nbsp>bit registers will be read and the data is combined
+into one value. Defaults to B<Uint16>.
+
+=item B<Type> I<Type>
+
+Specifies the "type" (data set) to use when dispatching the value to
+I<collectd>. Currently, only data sets with exactly one data source are
+supported.
+
+=item B<Instance> I<Instance>
+
+Sets the type instance to use when dispatching the value to I<collectd>. If
+unset, an empty string (no type instance) is used.
+
+=back
+
+=item E<lt>B<Host> I<Name>E<gt> blocks
+
+Host blocks are used to specify to which hosts to connect and what data to read
+from their "slaves". The string argument I<Name> is used as hostname when
+dispatching the values to I<collectd>.
+
+Within E<lt>HostE<nbsp>/E<gt> blocks, the following options are allowed:
+
+=over 4
+
+=item B<Address> I<Hostname>
+
+Specifies the node name (the actual network address) used to connect to the
+host. This may be an IP address or a hostname. Please note that the used
+I<libmodbus> library only supports IPv4 at the moment.
+
+=item B<Port> I<Service>
+
+Specifies the port used to connect to the host. The port can either be given as
+a number or as a service name. Please note that the I<Service> argument must be
+a string, even if ports are given in their numerical form. Defaults to "502".
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+host. By default the global B<Interval> setting will be used.
+
+=item E<lt>B<Slave> I<ID>E<gt>
+
+Over each TCP connection, multiple Modbus devices may be reached. The slave ID
+is used to specify which device should be addressed. For each device you want
+to query, one B<Slave> block must be given.
+
+Within E<lt>SlaveE<nbsp>/E<gt> blocks, the following options are allowed:
+
+=over 4
+
+=item B<Instance> I<Instance>
+
+Specify the plugin instance to use when dispatching the values to I<collectd>.
+By default "slave_I<ID>" is used.
+
+=item B<Collect> I<DataName>
+
+Specifies which data to retrieve from the device. I<DataName> must be the same
+string as the I<Name> argument passed to a B<Data> block. You can specify this
+option multiple times to collect more than one value from a slave. At least one
+B<Collect> option is mandatory.
+
+=back
+
+=back
+
+=back
+
 =head2 Plugin C<mysql>
 
 The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to
