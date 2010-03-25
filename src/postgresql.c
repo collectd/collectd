@@ -132,21 +132,15 @@ static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
 static udb_query_t      **queries       = NULL;
 static size_t             queries_num   = 0;
 
-static c_psql_database_t *databases     = NULL;
-static int                databases_num = 0;
-
 static c_psql_database_t *c_psql_database_new (const char *name)
 {
 	c_psql_database_t *db;
 
-	++databases_num;
-	if (NULL == (databases = (c_psql_database_t *)realloc (databases,
-				databases_num * sizeof (*databases)))) {
+	db = (c_psql_database_t *)malloc (sizeof (*db));
+	if (NULL == db) {
 		log_err ("Out of memory.");
 		exit (5);
 	}
-
-	db = databases + (databases_num - 1);
 
 	db->conn = NULL;
 
@@ -174,8 +168,10 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	return db;
 } /* c_psql_database_new */
 
-static void c_psql_database_delete (c_psql_database_t *db)
+static void c_psql_database_delete (void *data)
 {
+	c_psql_database_t *db = data;
+
 	PQfinish (db->conn);
 	db->conn = NULL;
 
@@ -447,57 +443,41 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 #undef BAIL_OUT
 } /* c_psql_exec_query */
 
-static int c_psql_read (void)
+static int c_psql_read (user_data_t *ud)
 {
-	int success = 0;
+	c_psql_database_t *db;
 	int i;
 
-	for (i = 0; i < databases_num; ++i) {
-		c_psql_database_t *db = databases + i;
-
-		int j;
-
-		assert (NULL != db->database);
-
-		if (0 != c_psql_check_connection (db))
-			continue;
-
-		for (j = 0; j < db->queries_num; ++j)
-		{
-			udb_query_t *q;
-
-			q = db->queries[j];
-
-			if ((0 != db->server_version)
-				&& (udb_query_check_version (q, db->server_version) <= 0))
-				continue;
-
-			c_psql_exec_query (db, q);
-		}
-
-		++success;
+	if ((ud == NULL) || (ud->data == NULL)) {
+		log_err ("c_psql_read: Invalid user data.");
+		return -1;
 	}
 
-	if (! success)
+	db = ud->data;
+
+	assert (NULL != db->database);
+
+	if (0 != c_psql_check_connection (db))
 		return -1;
+
+	for (i = 0; i < db->queries_num; ++i)
+	{
+		udb_query_t *q;
+
+		q = db->queries[i];
+
+		if ((0 != db->server_version)
+			&& (udb_query_check_version (q, db->server_version) <= 0))
+			return -1;
+
+		c_psql_exec_query (db, q);
+	}
 	return 0;
 } /* c_psql_read */
 
 static int c_psql_shutdown (void)
 {
-	int i;
-
-	if ((NULL == databases) || (0 == databases_num))
-		return 0;
-
-	plugin_unregister_read ("postgresql");
-	plugin_unregister_shutdown ("postgresql");
-
-	for (i = 0; i < databases_num; ++i)
-		c_psql_database_delete (databases + i);
-
-	sfree (databases);
-	databases_num = 0;
+	plugin_unregister_read_group ("postgresql");
 
 	udb_query_free (queries, queries_num);
 	queries = NULL;
@@ -505,16 +485,6 @@ static int c_psql_shutdown (void)
 
 	return 0;
 } /* c_psql_shutdown */
-
-static int c_psql_init (void)
-{
-	if ((NULL == databases) || (0 == databases_num))
-		return 0;
-
-	plugin_register_read ("postgresql", c_psql_read);
-	plugin_register_shutdown ("postgresql", c_psql_shutdown);
-	return 0;
-} /* c_psql_init */
 
 static int config_set_s (char *name, char **var, const oconfig_item_t *ci)
 {
@@ -589,6 +559,9 @@ static int c_psql_config_database (oconfig_item_t *ci)
 {
 	c_psql_database_t *db;
 
+	char cb_name[DATA_MAX_NAME_LEN];
+	user_data_t ud;
+
 	int i;
 
 	if ((1 != ci->values_num)
@@ -596,6 +569,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		log_err ("<Database> expects a single string argument.");
 		return 1;
 	}
+
+	memset (&ud, 0, sizeof (ud));
 
 	db = c_psql_database_new (ci->values[0].value.string);
 
@@ -638,6 +613,14 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		if ((data != NULL) && (data->params_num > db->max_params_num))
 			db->max_params_num = data->params_num;
 	}
+
+	ud.data = db;
+	ud.free_func = c_psql_database_delete;
+
+	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->database);
+
+	plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
+			/* interval = */ NULL, &ud);
 	return 0;
 } /* c_psql_config_database */
 
@@ -681,7 +664,7 @@ static int c_psql_config (oconfig_item_t *ci)
 void module_register (void)
 {
 	plugin_register_complex_config ("postgresql", c_psql_config);
-	plugin_register_init ("postgresql", c_psql_init);
+	plugin_register_shutdown ("postgresql", c_psql_shutdown);
 } /* module_register */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
