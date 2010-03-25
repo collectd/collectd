@@ -277,7 +277,7 @@ Features
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
 
-  * Output can be written or send to various destinations by the following
+  * Output can be written or sent to various destinations by the following
     plugins:
 
     - csv
