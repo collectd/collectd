@@ -3052,7 +3052,8 @@ The username used to connect to the database.
 
 =item I<interval>
 
-The interval collectd is using (as specified by the B<Interval> option).
+The interval with which this database is queried (as specified by the database
+specific or global B<Interval> options).
 
 =back
 

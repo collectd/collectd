@@ -315,7 +315,8 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 				params[i] = db->user;
 				break;
 			case C_PSQL_PARAM_INTERVAL:
-				ssnprintf (interval, sizeof (interval), "%i", interval_g);
+				ssnprintf (interval, sizeof (interval), "%i",
+						db->interval > 0 ? db->interval : interval_g);
 				params[i] = interval;
 				break;
 			default:
