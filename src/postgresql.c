@@ -105,6 +105,8 @@ typedef struct {
 	udb_query_t    **queries;
 	size_t           queries_num;
 
+	int interval;
+
 	char *host;
 	char *port;
 	char *database;
@@ -153,6 +155,8 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->queries        = NULL;
 	db->queries_num    = 0;
+
+	db->interval   = 0;
 
 	db->database   = sstrdup (name);
 	db->host       = NULL;
@@ -499,6 +503,28 @@ static int config_set_s (char *name, char **var, const oconfig_item_t *ci)
 	return 0;
 } /* config_set_s */
 
+static int config_set_i (char *name, int *var,
+		const oconfig_item_t *ci, int min)
+{
+	int value;
+
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_NUMBER != ci->values[0].type)) {
+		log_err ("%s expects a single number argument.", name);
+		return 1;
+	}
+
+	value = (int)ci->values[0].value.number;
+
+	if (value < min) {
+		log_err ("%s expects a number greater or equal to %i.", name, min);
+		return 1;
+	}
+
+	*var = value;
+	return 0;
+} /* config_set_s */
+
 static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 {
 	c_psql_user_data_t *data;
@@ -560,6 +586,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	c_psql_database_t *db;
 
 	char cb_name[DATA_MAX_NAME_LEN];
+	struct timespec cb_interval;
 	user_data_t ud;
 
 	int i;
@@ -594,6 +621,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		else if (0 == strcasecmp (c->key, "Query"))
 			udb_query_pick_from_list (c, queries, queries_num,
 					&db->queries, &db->queries_num);
+		else if (0 == strcasecmp (c->key, "Interval"))
+			config_set_i ("Interval", &db->interval, c, /* min = */ 1);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
@@ -619,8 +648,12 @@ static int c_psql_config_database (oconfig_item_t *ci)
 
 	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->database);
 
+	memset (&cb_interval, 0, sizeof (cb_interval));
+	if (db->interval > 0)
+		cb_interval.tv_sec = (time_t)db->interval;
+
 	plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
-			/* interval = */ NULL, &ud);
+			/* interval = */ &cb_interval, &ud);
 	return 0;
 } /* c_psql_config_database */
 

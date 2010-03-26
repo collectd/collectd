@@ -2988,6 +2988,7 @@ L<http://www.postgresql.org/docs/manuals/>.
     </Database>
 
     <Database bar>
+      Interval 300
       Service "service_name"
       Query backend # predefined
       Query rt36_tickets
@@ -3188,6 +3189,11 @@ the user collectd is run as and special environment variables. See the manpage
 for details.
 
 =over 4
+
+=item B<Interval> I<seconds>
+
+Specify the interval with which the database should be queried. The default is
+to use the global B<Interval> setting.
 
 =item B<Host> I<hostname>
 
