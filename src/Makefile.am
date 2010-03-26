@@ -53,6 +53,9 @@ collectd_DEPENDENCIES =
 if BUILD_WITH_LIBRT
 collectd_LDADD += -lrt
 endif
+if BUILD_WITH_LIBPOSIX4
+collectd_LDADD += -lposix4
+endif
 if BUILD_WITH_LIBSOCKET
 collectd_LDADD += -lsocket
 endif
