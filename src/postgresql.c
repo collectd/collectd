@@ -472,8 +472,8 @@ static int c_psql_read (user_data_t *ud)
 		q = db->queries[i];
 
 		if ((0 != db->server_version)
-			&& (udb_query_check_version (q, db->server_version) <= 0))
-			return -1;
+				&& (udb_query_check_version (q, db->server_version) <= 0))
+			continue;
 
 		c_psql_exec_query (db, q);
 	}
