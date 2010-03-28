@@ -58,6 +58,7 @@ struct mr_match_s
 	mr_regex_t *plugin_instance;
 	mr_regex_t *type;
 	mr_regex_t *type_instance;
+	int invert;
 };
 
 /*
@@ -121,6 +122,25 @@ static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
 
 	return (FC_MATCH_MATCHES);
 } /* }}} int mr_match_regexen */
+
+static int mr_config_add_boolean (int *ret_value, /* {{{ */
+    oconfig_item_t *ci)
+{
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    ERROR ("`regex' match: `%s' needs exactly one boolean argument.",
+        ci->key);
+    return (-1);
+  }
+
+  if (ci->values[0].value.boolean)
+    *ret_value = 1;
+  else
+    *ret_value = 0;
+
+  return (0);
+} /* }}} int mv_config_add_boolean */
 
 static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
 		oconfig_item_t *ci)
@@ -195,6 +215,8 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 		return (-ENOMEM);
 	}
 	memset (m, 0, sizeof (*m));
+	
+  m->invert = 0;
 
 	status = 0;
 	for (i = 0; i < ci->children_num; i++)
@@ -212,6 +234,8 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 			status = mr_config_add_regex (&m->type, child);
 		else if (strcasecmp ("TypeInstance", child->key) == 0)
 			status = mr_config_add_regex (&m->type_instance, child);
+		else if (strcasecmp ("Invert", child->key) == 0)
+      status = mr_config_add_boolean(&m->invert, child);
 		else
 		{
 			log_err ("The `%s' configuration option is not understood and "
@@ -268,21 +292,30 @@ static int mr_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 		return (-1);
 
 	m = *user_data;
-
+	
+  int match_value = FC_MATCH_MATCHES;
+  int nomatch_value = FC_MATCH_NO_MATCH;
+  
+  if (m->invert)
+  {
+    match_value = FC_MATCH_NO_MATCH;
+    nomatch_value = FC_MATCH_MATCHES;
+  }
+  
 	if (mr_match_regexen (m->host, vl->host) == FC_MATCH_NO_MATCH)
-		return (FC_MATCH_NO_MATCH);
+		return (nomatch_value);
 	if (mr_match_regexen (m->plugin, vl->plugin) == FC_MATCH_NO_MATCH)
-		return (FC_MATCH_NO_MATCH);
+		return (nomatch_value);
 	if (mr_match_regexen (m->plugin_instance,
 				vl->plugin_instance) == FC_MATCH_NO_MATCH)
-		return (FC_MATCH_NO_MATCH);
+		return (nomatch_value);
 	if (mr_match_regexen (m->type, vl->type) == FC_MATCH_NO_MATCH)
-		return (FC_MATCH_NO_MATCH);
+		return (nomatch_value);
 	if (mr_match_regexen (m->type_instance,
 				vl->type_instance) == FC_MATCH_NO_MATCH)
-		return (FC_MATCH_NO_MATCH);
+		return (nomatch_value);
 
-	return (FC_MATCH_MATCHES);
+	return (match_value);
 } /* }}} int mr_match */
 
 void module_register (void)
