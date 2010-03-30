@@ -566,7 +566,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
 
   udb_query_prepare_result (q, prep_area, hostname_g,
       /* plugin = */ "dbi", db->name,
-      column_names, column_num);
+      column_names, column_num, /* interval = */ -1);
 
   /* 0 = error; 1 = success; */
   status = dbi_result_first_row (res); /* {{{ */

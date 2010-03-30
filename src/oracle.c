@@ -585,7 +585,8 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   /* }}} End of the ``define'' stuff. */
 
   status = udb_query_prepare_result (q, prep_area, hostname_g,
-      /* plugin = */ "oracle", db->name, column_names, column_num);
+      /* plugin = */ "oracle", db->name, column_names, column_num,
+      /* interval = */ -1);
   if (status != 0)
   {
     ERROR ("oracle plugin: o_read_database_query (%s, %s): "

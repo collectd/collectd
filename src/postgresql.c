@@ -424,7 +424,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		host = db->host;
 
 	status = udb_query_prepare_result (q, prep_area, host, "postgresql",
-			db->database, column_names, (size_t) column_num);
+			db->database, column_names, (size_t) column_num, db->interval);
 	if (0 != status) {
 		log_err ("udb_query_prepare_result failed with status %i.",
 				status);
