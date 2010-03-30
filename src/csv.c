@@ -299,7 +299,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 
 		fprintf (use_stdio == 1 ? stdout : stderr,
 			 "PUTVAL %s interval=%i %s\n",
-			 filename, interval_g, values);
+			 filename, vl->interval, values);
 		return (0);
 	}
 
