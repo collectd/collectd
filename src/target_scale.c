@@ -302,11 +302,15 @@ static int ts_config_set_double (double *ret, oconfig_item_t *ci) /* {{{ */
 
 static int ts_destroy (void **user_data) /* {{{ */
 {
+	ts_data_t **data;
+
 	if (user_data == NULL)
 		return (-EINVAL);
 
-	free (*user_data);
-	*user_data = NULL;
+	data = (ts_data_t **) user_data;
+
+	free (*data);
+	*data = NULL;
 
 	return (0);
 } /* }}} int ts_destroy */
