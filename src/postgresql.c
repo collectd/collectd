@@ -463,6 +463,8 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 static int c_psql_read (user_data_t *ud)
 {
 	c_psql_database_t *db;
+
+	int success = 0;
 	int i;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
@@ -489,8 +491,12 @@ static int c_psql_read (user_data_t *ud)
 				&& (udb_query_check_version (q, db->server_version) <= 0))
 			continue;
 
-		c_psql_exec_query (db, q, prep_area);
+		if (0 == c_psql_exec_query (db, q, prep_area))
+			success = 1;
 	}
+
+	if (! success)
+		return -1;
 	return 0;
 } /* c_psql_read */
 
