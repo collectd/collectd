@@ -62,6 +62,7 @@ struct o_database_s
   char *username;
   char *password;
 
+  udb_query_preparation_area_t **q_prep_areas;
   udb_query_t **queries;
   size_t        queries_num;
 
@@ -121,6 +122,8 @@ static void o_report_error (const char *where, /* {{{ */
 
 static void o_database_free (o_database_t *db) /* {{{ */
 {
+  size_t i;
+
   if (db == NULL)
     return;
 
@@ -129,6 +132,11 @@ static void o_database_free (o_database_t *db) /* {{{ */
   sfree (db->username);
   sfree (db->password);
   sfree (db->queries);
+
+  if (db->q_prep_areas != NULL)
+    for (i = 0; i < db->queries_num; ++i)
+      udb_query_delete_preparation_area (db->q_prep_areas[i]);
+  free (db->q_prep_areas);
 
   sfree (db);
 } /* }}} void o_database_free */
@@ -256,6 +264,34 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     break;
   } /* while (status == 0) */
 
+  while ((status == 0) && (db->queries_num > 0))
+  {
+    db->q_prep_areas = (udb_query_preparation_area_t **) calloc (
+        db->queries_num, sizeof (*db->q_prep_areas));
+
+    if (db->q_prep_areas == NULL)
+    {
+      WARNING ("oracle plugin: malloc failed");
+      status = -1;
+      break;
+    }
+
+    for (i = 0; i < db->queries_num; ++i)
+    {
+      db->q_prep_areas[i]
+        = udb_query_allocate_preparation_area (db->queries[i]);
+
+      if (db->q_prep_areas[i] == NULL)
+      {
+        WARNING ("oracle plugin: udb_query_allocate_preparation_area failed");
+        status = -1;
+        break;
+      }
+    }
+
+    break;
+  }
+
   /* If all went well, add this query to the list of queries within the
    * database structure. */
   if (status == 0)
@@ -349,7 +385,7 @@ static int o_init (void) /* {{{ */
 } /* }}} int o_init */
 
 static int o_read_database_query (o_database_t *db, /* {{{ */
-    udb_query_t *q)
+    udb_query_t *q, udb_query_preparation_area_t *prep_area)
 {
   char **column_names;
   char **column_values;
@@ -548,8 +584,8 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   } /* for (j = 1; j <= param_counter; j++) */
   /* }}} End of the ``define'' stuff. */
 
-  status = udb_query_prepare_result (q, hostname_g, /* plugin = */ "oracle",
-      db->name, column_names, column_num);
+  status = udb_query_prepare_result (q, prep_area, hostname_g,
+      /* plugin = */ "oracle", db->name, column_names, column_num);
   if (status != 0)
   {
     ERROR ("oracle plugin: o_read_database_query (%s, %s): "
@@ -576,7 +612,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
       break;
     }
 
-    status = udb_query_handle_result (q, column_values);
+    status = udb_query_handle_result (q, prep_area, column_values);
     if (status != 0)
     {
       WARNING ("oracle plugin: o_read_database_query (%s, %s): "
@@ -661,7 +697,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
       db->connect_id, db->oci_service_context);
 
   for (i = 0; i < db->queries_num; i++)
-    o_read_database_query (db, db->queries[i]);
+    o_read_database_query (db, db->queries[i], db->q_prep_areas[i]);
 
   return (0);
 } /* }}} int o_read_database */

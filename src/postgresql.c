@@ -102,6 +102,7 @@ typedef struct {
 	int max_params_num;
 
 	/* user configuration */
+	udb_query_preparation_area_t **q_prep_areas;
 	udb_query_t    **queries;
 	size_t           queries_num;
 
@@ -141,7 +142,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	db = (c_psql_database_t *)malloc (sizeof (*db));
 	if (NULL == db) {
 		log_err ("Out of memory.");
-		exit (5);
+		return NULL;
 	}
 
 	db->conn = NULL;
@@ -153,6 +154,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->max_params_num = 0;
 
+	db->q_prep_areas   = NULL;
 	db->queries        = NULL;
 	db->queries_num    = 0;
 
@@ -174,10 +176,17 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 static void c_psql_database_delete (void *data)
 {
+	size_t i;
+
 	c_psql_database_t *db = data;
 
 	PQfinish (db->conn);
 	db->conn = NULL;
+
+	if (db->q_prep_areas)
+		for (i = 0; i < db->queries_num; ++i)
+			udb_query_delete_preparation_area (db->q_prep_areas[i]);
+	free (db->q_prep_areas);
 
 	sfree (db->queries);
 	db->queries_num = 0;
@@ -330,7 +339,8 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 			NULL, NULL, /* return text data */ 0);
 } /* c_psql_exec_query_params */
 
-static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
+static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
+		udb_query_preparation_area_t *prep_area)
 {
 	PGresult *res;
 
@@ -413,7 +423,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 	else
 		host = db->host;
 
-	status = udb_query_prepare_result (q, host, "postgresql",
+	status = udb_query_prepare_result (q, prep_area, host, "postgresql",
 			db->database, column_names, (size_t) column_num);
 	if (0 != status) {
 		log_err ("udb_query_prepare_result failed with status %i.",
@@ -437,12 +447,14 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q)
 		if (col < column_num)
 			continue;
 
-		status = udb_query_handle_result (q, column_values);
+		status = udb_query_handle_result (q, prep_area, column_values);
 		if (status != 0) {
 			log_err ("udb_query_handle_result failed with status %i.",
 					status);
 		}
 	} /* for (row = 0; row < rows_num; ++row) */
+
+	udb_query_finish_result (q, prep_area);
 
 	BAIL_OUT (0);
 #undef BAIL_OUT
@@ -467,15 +479,17 @@ static int c_psql_read (user_data_t *ud)
 
 	for (i = 0; i < db->queries_num; ++i)
 	{
+		udb_query_preparation_area_t *prep_area;
 		udb_query_t *q;
 
+		prep_area = db->q_prep_areas[i];
 		q = db->queries[i];
 
 		if ((0 != db->server_version)
 				&& (udb_query_check_version (q, db->server_version) <= 0))
 			continue;
 
-		c_psql_exec_query (db, q);
+		c_psql_exec_query (db, q, prep_area);
 	}
 	return 0;
 } /* c_psql_read */
@@ -601,6 +615,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	memset (&ud, 0, sizeof (ud));
 
 	db = c_psql_database_new (ci->values[0].value.string);
+	if (db == NULL)
+		return -1;
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
@@ -629,12 +645,22 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	}
 
 	/* If no `Query' options were given, add the default queries.. */
-	if (db->queries_num == 0)
-	{
+	if (db->queries_num == 0) {
 		for (i = 0; i < def_queries_num; i++)
 			udb_query_pick_from_list_by_name (def_queries[i],
 					queries, queries_num,
 					&db->queries, &db->queries_num);
+	}
+
+	if (db->queries_num > 0) {
+		db->q_prep_areas = (udb_query_preparation_area_t **) calloc (
+				db->queries_num, sizeof (*db->q_prep_areas));
+
+		if (db->q_prep_areas == NULL) {
+			log_err ("Out of memory.");
+			c_psql_database_delete (db);
+			return -1;
+		}
 	}
 
 	for (i = 0; (size_t)i < db->queries_num; ++i) {
@@ -642,6 +668,15 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		data = udb_query_get_user_data (db->queries[i]);
 		if ((data != NULL) && (data->params_num > db->max_params_num))
 			db->max_params_num = data->params_num;
+
+		db->q_prep_areas[i]
+			= udb_query_allocate_preparation_area (db->queries[i]);
+
+		if (db->q_prep_areas[i] == NULL) {
+			log_err ("Out of memory.");
+			c_psql_database_delete (db);
+			return -1;
+		}
 	}
 
 	ud.data = db;

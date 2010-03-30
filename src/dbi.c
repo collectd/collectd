@@ -46,6 +46,7 @@ struct cdbi_database_s /* {{{ */
   cdbi_driver_option_t *driver_options;
   size_t driver_options_num;
 
+  udb_query_preparation_area_t **q_prep_areas;
   udb_query_t **queries;
   size_t        queries_num;
 
@@ -161,6 +162,11 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
     sfree (db->driver_options[i].value);
   }
   sfree (db->driver_options);
+
+  if (db->q_prep_areas)
+    for (i = 0; i < db->queries_num; ++i)
+      udb_query_delete_preparation_area (db->q_prep_areas[i]);
+  free (db->q_prep_areas);
 
   sfree (db);
 } /* }}} void cdbi_database_free */
@@ -328,6 +334,34 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     break;
   } /* while (status == 0) */
 
+  while ((status == 0) && (db->queries_num > 0))
+  {
+    db->q_prep_areas = (udb_query_preparation_area_t **) calloc (
+        db->queries_num, sizeof (*db->q_prep_areas));
+
+    if (db->q_prep_areas == NULL)
+    {
+      WARNING ("dbi plugin: malloc failed");
+      status = -1;
+      break;
+    }
+
+    for (i = 0; i < db->queries_num; ++i)
+    {
+      db->q_prep_areas[i]
+        = udb_query_allocate_preparation_area (db->queries[i]);
+
+      if (db->q_prep_areas[i] == NULL)
+      {
+        WARNING ("dbi plugin: udb_query_allocate_preparation_area failed");
+        status = -1;
+        break;
+      }
+    }
+
+    break;
+  }
+
   /* If all went well, add this database to the global list of databases. */
   if (status == 0)
   {
@@ -422,7 +456,7 @@ static int cdbi_init (void) /* {{{ */
 } /* }}} int cdbi_init */
 
 static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
-    udb_query_t *q)
+    udb_query_t *q, udb_query_preparation_area_t *prep_area)
 {
   const char *statement;
   dbi_result res;
@@ -530,7 +564,8 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
     sstrncpy (column_names[i], column_name, DATA_MAX_NAME_LEN);
   } /* }}} for (i = 0; i < column_num; i++) */
 
-  udb_query_prepare_result (q, hostname_g, /* plugin = */ "dbi", db->name,
+  udb_query_prepare_result (q, prep_area, hostname_g,
+      /* plugin = */ "dbi", db->name,
       column_names, column_num);
 
   /* 0 = error; 1 = success; */
@@ -543,7 +578,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
         "return any rows?",
         db->name, udb_query_get_name (q),
         cdbi_strerror (db->connection, errbuf, sizeof (errbuf)));
-    udb_query_finish_result (q);
+    udb_query_finish_result (q, prep_area);
     BAIL_OUT (-1);
   } /* }}} */
 
@@ -572,7 +607,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
      * to dispatch the row to the daemon. */
     if (status == 0) /* {{{ */
     {
-      status = udb_query_handle_result (q, column_values);
+      status = udb_query_handle_result (q, prep_area, column_values);
       if (status != 0)
       {
         ERROR ("dbi plugin: cdbi_read_database_query (%s, %s): "
@@ -598,7 +633,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
   } /* }}} while (42) */
 
   /* Tell the db query interface that we're done with this query. */
-  udb_query_finish_result (q);
+  udb_query_finish_result (q, prep_area);
 
   /* Clean up and return `status = 0' (success) */
   BAIL_OUT (0);
@@ -741,7 +776,8 @@ static int cdbi_read_database (cdbi_database_t *db) /* {{{ */
         && (udb_query_check_version (db->queries[i], db_version) == 0))
       continue;
 
-    status = cdbi_read_database_query (db, db->queries[i]);
+    status = cdbi_read_database_query (db,
+        db->queries[i], db->q_prep_areas[i]);
     if (status == 0)
       success++;
   }
