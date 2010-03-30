@@ -3789,7 +3789,7 @@ AC_DEFUN(
 	     enable_plugin="yes"
 	     force="yes"
      else
-	     enable_plugin="no"
+	     enable_plugin="no (disabled on command line)"
      fi; fi
     ],
     [
