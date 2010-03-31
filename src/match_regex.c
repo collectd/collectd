@@ -58,7 +58,7 @@ struct mr_match_s
 	mr_regex_t *plugin_instance;
 	mr_regex_t *type;
 	mr_regex_t *type_instance;
-	int invert;
+	_Bool invert;
 };
 
 /*
@@ -122,25 +122,6 @@ static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
 
 	return (FC_MATCH_MATCHES);
 } /* }}} int mr_match_regexen */
-
-static int mr_config_add_boolean (int *ret_value, /* {{{ */
-    oconfig_item_t *ci)
-{
-
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    ERROR ("`regex' match: `%s' needs exactly one boolean argument.",
-        ci->key);
-    return (-1);
-  }
-
-  if (ci->values[0].value.boolean)
-    *ret_value = 1;
-  else
-    *ret_value = 0;
-
-  return (0);
-} /* }}} int mv_config_add_boolean */
 
 static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
 		oconfig_item_t *ci)
@@ -235,7 +216,7 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 		else if (strcasecmp ("TypeInstance", child->key) == 0)
 			status = mr_config_add_regex (&m->type_instance, child);
 		else if (strcasecmp ("Invert", child->key) == 0)
-      status = mr_config_add_boolean(&m->invert, child);
+      status = cf_util_get_boolean(child, &m->invert);
 		else
 		{
 			log_err ("The `%s' configuration option is not understood and "
