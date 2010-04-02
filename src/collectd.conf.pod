@@ -2571,10 +2571,12 @@ operating systems.
 
 =item B<Interface> I<Interface name>
 
-Set the outgoing or incoming interface for multicast packets. This applies
-at least to IPv6 packets and if possible to IPv4. If it is not applicable or
-defined the default behaviour is to let the kernel choose the appropriate
-interface.
+Set the outgoing or incoming interface for IP packets. This applies at least
+to IPv6 packets and if possible to IPv4. If this option is not applicable,
+undefined or a non-existent interface name is specified, the default
+behaviour is to let the kernel choose the appropriate interface. Be warned
+that the manual selection of an interface for unicast traffic is only
+necessary in rare cases.
 
 =item B<MaxPacketSize> I<1024-65535>
 

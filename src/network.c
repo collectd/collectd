@@ -1597,25 +1597,69 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 	if (ai->ai_family == AF_INET)
 	{
 		struct sockaddr_in *addr = (struct sockaddr_in *) ai->ai_addr;
+
+		if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
+		{
 #if KERNEL_LINUX
-		struct ip_mreqn mreq;
+			struct ip_mreqn mreq;
 #else
-		struct ip_mreq mreq;
+			struct ip_mreq mreq;
 #endif
 
-		if (! IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
+			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
+#if KERNEL_LINUX
+			mreq.imr_address.s_addr = ntohl (INADDR_ANY);
+			mreq.imr_ifindex = network_config_interface_idx;
+#else
+			mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
+#endif
+
+			if (setsockopt (se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF,
+						&mreq, sizeof (mreq)) == -1)
+			{
+				char errbuf[1024];
+				ERROR ("setsockopt: %s",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
+				return (-1);
+			}
+
 			return (0);
+		}
+	}
+	else if (ai->ai_family == AF_INET6)
+	{
+		struct sockaddr_in6 *addr = (struct sockaddr_in6 *) ai->ai_addr;
 
-		mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
+		if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
+		{
+			if (setsockopt (se->data.client.fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
+						&network_config_interface_idx,
+						sizeof (network_config_interface_idx)) == -1)
+			{
+				char errbuf[1024];
+				ERROR ("setsockopt: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
+				return (-1);
+			}
+
+			return (0);
+		}
+	}
+
 #if KERNEL_LINUX
-		mreq.imr_address.s_addr = ntohl (INADDR_ANY);
-		mreq.imr_ifindex = network_config_interface_idx;
-#else
-		mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
-#endif
+	if (network_config_interface_idx != 0)
+	{
+		char interface_name[IFNAMSIZ];
 
-		if (setsockopt (se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF,
-					&mreq, sizeof (mreq)) == -1)
+		if (if_indextoname (network_config_interface_idx, interface_name) == NULL)
+			return (-1);
+
+		DEBUG ("network plugin: Binding socket to interface %s", interface_name);
+
+		if (setsockopt (se->data.client.fd, SOL_SOCKET, SO_BINDTODEVICE,
+					interface_name,
+					sizeof(interface_name)) == -1 )
 		{
 			char errbuf[1024];
 			ERROR ("setsockopt: %s",
@@ -1623,24 +1667,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 			return (-1);
 		}
 	}
-	else if (ai->ai_family == AF_INET6)
-	{
-		struct sockaddr_in6 *addr = (struct sockaddr_in6 *) ai->ai_addr;
-
-		if (! IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
-			return (0);
-
-		if (setsockopt (se->data.client.fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
-					&network_config_interface_idx,
-					sizeof (network_config_interface_idx)) == -1)
-		{
-			char errbuf[1024];
-			ERROR ("setsockopt: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return (-1);
-		}
-	}
+#endif
 
 	return (0);
 } /* }}} network_set_interface */
@@ -1709,6 +1736,8 @@ static int network_bind_socket (int fd, const struct addrinfo *ai)
 							sizeof (errbuf)));
 				return (-1);
 			}
+
+			return (0);
 		}
 	}
 	else if (ai->ai_family == AF_INET6)
@@ -1755,8 +1784,35 @@ static int network_bind_socket (int fd, const struct addrinfo *ai)
 							sizeof (errbuf)));
 				return (-1);
 			}
+
+			return (0);
 		}
 	}
+
+#if KERNEL_LINUX
+	/* if a specific interface was set, bind the socket to it. But to avoid
+ 	 * possible problems with multicast routing, only do that for non-multicast
+	 * addresses */
+	if (network_config_interface_idx != 0)
+	{
+		char interface_name[IFNAMSIZ];
+
+		if (if_indextoname (network_config_interface_idx, interface_name) == NULL)
+			return (-1);
+
+		DEBUG ("fd = %i; Binding socket to interface %s", fd, interface_name);
+
+		if (setsockopt (fd, SOL_SOCKET, SO_BINDTODEVICE,
+					interface_name,
+					sizeof(interface_name)) == -1 )
+		{
+			char errbuf[1024];
+			ERROR ("setsockopt: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			return (-1);
+		}
+	}
+#endif
 
 	return (0);
 } /* int network_bind_socket */
