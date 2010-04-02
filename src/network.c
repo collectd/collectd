@@ -121,6 +121,7 @@ typedef struct sockent
 
 	char *node;
 	char *service;
+	int interface;
 
 	union
 	{
@@ -257,7 +258,6 @@ typedef struct receive_list_entry_s receive_list_entry_t;
  * Private variables
  */
 static int network_config_ttl = 0;
-static int network_config_interface_idx = 0;
 static size_t network_config_packet_size = 1024;
 static int network_config_forward = 0;
 static int network_config_stats = 0;
@@ -1590,7 +1590,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 static int network_set_interface (const sockent_t *se, const struct addrinfo *ai) /* {{{ */
 {
 	DEBUG ("network plugin: network_set_interface: interface index = %i;",
-			network_config_interface_idx);
+			se->interface);
 
         assert (se->type == SOCKENT_TYPE_CLIENT);
 
@@ -1609,7 +1609,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
 #if KERNEL_LINUX
 			mreq.imr_address.s_addr = ntohl (INADDR_ANY);
-			mreq.imr_ifindex = network_config_interface_idx;
+			mreq.imr_ifindex = se->interface;
 #else
 			mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
 #endif
@@ -1633,8 +1633,8 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 		if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
 		{
 			if (setsockopt (se->data.client.fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
-						&network_config_interface_idx,
-						sizeof (network_config_interface_idx)) == -1)
+						&se->interface,
+						sizeof (se->interface)) == -1)
 			{
 				char errbuf[1024];
 				ERROR ("setsockopt: %s",
@@ -1648,11 +1648,11 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 	}
 
 #if KERNEL_LINUX
-	if (network_config_interface_idx != 0)
+	if (se->interface != 0)
 	{
 		char interface_name[IFNAMSIZ];
 
-		if (if_indextoname (network_config_interface_idx, interface_name) == NULL)
+		if (if_indextoname (se->interface, interface_name) == NULL)
 			return (-1);
 
 		DEBUG ("network plugin: Binding socket to interface %s", interface_name);
@@ -1672,7 +1672,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 	return (0);
 } /* }}} network_set_interface */
 
-static int network_bind_socket (int fd, const struct addrinfo *ai)
+static int network_bind_socket (int fd, const struct addrinfo *ai, const int interface_idx)
 {
 	int loop = 0;
 	int yes  = 1;
@@ -1712,7 +1712,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai)
 			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
 #if KERNEL_LINUX
 			mreq.imr_address.s_addr = ntohl (INADDR_ANY);
-			mreq.imr_ifindex = network_config_interface_idx;
+			mreq.imr_ifindex = interface_idx;
 #else
 			mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
 #endif
@@ -1763,7 +1763,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai)
 			 * single interface; programs running on
 			 * multihomed hosts may need to join the same
 			 * group on more than one interface.*/
-			mreq.ipv6mr_interface = network_config_interface_idx;
+			mreq.ipv6mr_interface = interface_idx;
 
 			if (setsockopt (fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
@@ -1793,11 +1793,11 @@ static int network_bind_socket (int fd, const struct addrinfo *ai)
 	/* if a specific interface was set, bind the socket to it. But to avoid
  	 * possible problems with multicast routing, only do that for non-multicast
 	 * addresses */
-	if (network_config_interface_idx != 0)
+	if (interface_idx != 0)
 	{
 		char interface_name[IFNAMSIZ];
 
-		if (if_indextoname (network_config_interface_idx, interface_name) == NULL)
+		if (if_indextoname (interface_idx, interface_name) == NULL)
 			return (-1);
 
 		DEBUG ("fd = %i; Binding socket to interface %s", fd, interface_name);
@@ -1829,6 +1829,7 @@ static int sockent_init (sockent_t *se, int type) /* {{{ */
 	se->type = SOCKENT_TYPE_CLIENT;
 	se->node = NULL;
 	se->service = NULL;
+	se->interface = 0;
 	se->next = NULL;
 
 	if (type == SOCKENT_TYPE_SERVER)
@@ -1977,7 +1978,7 @@ static int sockent_open (sockent_t *se) /* {{{ */
 				continue;
 			}
 
-			status = network_bind_socket (*tmp, ai_ptr);
+			status = network_bind_socket (*tmp, ai_ptr, se->interface);
 			if (status != 0)
 			{
 				close (*tmp);
@@ -2729,7 +2730,8 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_set_ttl */
 
-static int network_config_set_interface (const oconfig_item_t *ci) /* {{{ */
+static int network_config_set_interface (const oconfig_item_t *ci, /* {{{ */
+    int *interface)
 {
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -2739,7 +2741,10 @@ static int network_config_set_interface (const oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  network_config_interface_idx = if_nametoindex (ci->values[0].value.string);
+  if (interface == NULL)
+    return (-1);
+
+  *interface = if_nametoindex (ci->values[0].value.string);
 
   return (0);
 } /* }}} int network_config_set_interface */
@@ -2855,6 +2860,10 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
           &se->data.server.security_level);
     else
 #endif /* HAVE_LIBGCRYPT */
+    if (strcasecmp ("Interface", child->key) == 0)
+      network_config_set_interface (child,
+          &se->interface);
+    else
     {
       WARNING ("network plugin: Option `%s' is not allowed here.",
           child->key);
@@ -2933,6 +2942,10 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
           &se->data.client.security_level);
     else
 #endif /* HAVE_LIBGCRYPT */
+    if (strcasecmp ("Interface", child->key) == 0)
+      network_config_set_interface (child,
+          &se->interface);
+    else
     {
       WARNING ("network plugin: Option `%s' is not allowed here.",
           child->key);
@@ -2985,8 +2998,6 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_server (child);
     else if (strcasecmp ("TimeToLive", child->key) == 0)
       network_config_set_ttl (child);
-    else if (strcasecmp ("Interface", child->key) == 0)
-      network_config_set_interface (child);
     else if (strcasecmp ("MaxPacketSize", child->key) == 0)
       network_config_set_buffer_size (child);
     else if (strcasecmp ("Forward", child->key) == 0)

@@ -2512,6 +2512,15 @@ B<None> require this setting.
 This feature is only available if the I<network> plugin was linked with
 I<libgcrypt>.
 
+=item B<Interface> I<Interface name>
+
+Set the outgoing interface for IP packets. This applies at least
+to IPv6 packets and if possible to IPv4. If this option is not applicable,
+undefined or a non-existent interface name is specified, the default
+behaviour is to let the kernel choose the appropriate interface. Be warned
+that the manual selection of an interface for unicast traffic is only
+necessary in rare cases.
+
 =back
 
 =item B<E<lt>Listen> I<Host> [I<Port>]B<E<gt>>
@@ -2560,6 +2569,14 @@ Each time a packet is received, the modification time of the file is checked
 using L<stat(2)>. If the file has been changed, the contents is re-read. While
 the file is being read, it is locked using L<fcntl(2)>.
 
+=item B<Interface> I<Interface name>
+
+Set the incoming interface for IP packets explicitly. This applies at least
+to IPv6 packets and if possible to IPv4. If this option is not applicable,
+undefined or a non-existent interface name is specified, the default
+behaviour is, to let the kernel choose the appropriate interface. Thus incoming
+traffic gets only accepted, if it arrives on the given interface.
+
 =back
 
 =item B<TimeToLive> I<1-255>
@@ -2568,15 +2585,6 @@ Set the time-to-live of sent packets. This applies to all, unicast and
 multicast, and IPv4 and IPv6 packets. The default is to not change this value.
 That means that multicast packets will be sent with a TTL of C<1> (one) on most
 operating systems.
-
-=item B<Interface> I<Interface name>
-
-Set the outgoing or incoming interface for IP packets. This applies at least
-to IPv6 packets and if possible to IPv4. If this option is not applicable,
-undefined or a non-existent interface name is specified, the default
-behaviour is to let the kernel choose the appropriate interface. Be warned
-that the manual selection of an interface for unicast traffic is only
-necessary in rare cases.
 
 =item B<MaxPacketSize> I<1024-65535>
 
