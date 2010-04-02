@@ -52,6 +52,9 @@
 #if HAVE_POLL_H
 # include <poll.h>
 #endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
 
 #if HAVE_LIBGCRYPT
 # include <gcrypt.h>
@@ -254,6 +257,7 @@ typedef struct receive_list_entry_s receive_list_entry_t;
  * Private variables
  */
 static int network_config_ttl = 0;
+static int network_config_interface_idx = 0;
 static size_t network_config_packet_size = 1024;
 static int network_config_forward = 0;
 static int network_config_stats = 0;
@@ -1583,6 +1587,64 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 	return (0);
 } /* int network_set_ttl */
 
+static int network_set_interface (const sockent_t *se, const struct addrinfo *ai) /* {{{ */
+{
+	DEBUG ("network plugin: network_set_interface: interface index = %i;",
+			network_config_interface_idx);
+
+        assert (se->type == SOCKENT_TYPE_CLIENT);
+
+	if (ai->ai_family == AF_INET)
+	{
+		struct sockaddr_in *addr = (struct sockaddr_in *) ai->ai_addr;
+#if KERNEL_LINUX
+		struct ip_mreqn mreq;
+#else
+		struct ip_mreq mreq;
+#endif
+
+		if (! IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
+			return (0);
+
+		mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
+#if KERNEL_LINUX
+		mreq.imr_address.s_addr = ntohl (INADDR_ANY);
+		mreq.imr_ifindex = network_config_interface_idx;
+#else
+		mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
+#endif
+
+		if (setsockopt (se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF,
+					&mreq, sizeof (mreq)) == -1)
+		{
+			char errbuf[1024];
+			ERROR ("setsockopt: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			return (-1);
+		}
+	}
+	else if (ai->ai_family == AF_INET6)
+	{
+		struct sockaddr_in6 *addr = (struct sockaddr_in6 *) ai->ai_addr;
+
+		if (! IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
+			return (0);
+
+		if (setsockopt (se->data.client.fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
+					&network_config_interface_idx,
+					sizeof (network_config_interface_idx)) == -1)
+		{
+			char errbuf[1024];
+			ERROR ("setsockopt: %s",
+					sstrerror (errno, errbuf,
+						sizeof (errbuf)));
+			return (-1);
+		}
+	}
+
+	return (0);
+} /* }}} network_set_interface */
+
 static int network_bind_socket (int fd, const struct addrinfo *ai)
 {
 	int loop = 0;
@@ -1612,12 +1674,21 @@ static int network_bind_socket (int fd, const struct addrinfo *ai)
 		struct sockaddr_in *addr = (struct sockaddr_in *) ai->ai_addr;
 		if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
 		{
+#if KERNEL_LINUX
+			struct ip_mreqn mreq;
+#else
 			struct ip_mreq mreq;
+#endif
 
 			DEBUG ("fd = %i; IPv4 multicast address found", fd);
 
 			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-			mreq.imr_interface.s_addr = htonl (INADDR_ANY);
+#if KERNEL_LINUX
+			mreq.imr_address.s_addr = ntohl (INADDR_ANY);
+			mreq.imr_ifindex = network_config_interface_idx;
+#else
+			mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
+#endif
 
 			if (setsockopt (fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
@@ -1663,7 +1734,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai)
 			 * single interface; programs running on
 			 * multihomed hosts may need to join the same
 			 * group on more than one interface.*/
-			mreq.ipv6mr_interface = 0;
+			mreq.ipv6mr_interface = network_config_interface_idx;
 
 			if (setsockopt (fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 						&loop, sizeof (loop)) == -1)
@@ -1890,6 +1961,7 @@ static int sockent_open (sockent_t *se) /* {{{ */
 			se->data.client.addrlen = ai_ptr->ai_addrlen;
 
 			network_set_ttl (se, ai_ptr);
+			network_set_interface (se, ai_ptr);
 
 			/* We don't open more than one write-socket per
 			 * node/service pair.. */
@@ -2601,6 +2673,21 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_set_ttl */
 
+static int network_config_set_interface (const oconfig_item_t *ci) /* {{{ */
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("network plugin: The `Interface' config option needs exactly "
+        "one string argument.");
+    return (-1);
+  }
+
+  network_config_interface_idx = if_nametoindex (ci->values[0].value.string);
+
+  return (0);
+} /* }}} int network_config_set_interface */
+
 static int network_config_set_buffer_size (const oconfig_item_t *ci) /* {{{ */
 {
   int tmp;
@@ -2842,6 +2929,8 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_server (child);
     else if (strcasecmp ("TimeToLive", child->key) == 0)
       network_config_set_ttl (child);
+    else if (strcasecmp ("Interface", child->key) == 0)
+      network_config_set_interface (child);
     else if (strcasecmp ("MaxPacketSize", child->key) == 0)
       network_config_set_buffer_size (child);
     else if (strcasecmp ("Forward", child->key) == 0)

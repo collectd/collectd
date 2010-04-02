@@ -2569,6 +2569,13 @@ multicast, and IPv4 and IPv6 packets. The default is to not change this value.
 That means that multicast packets will be sent with a TTL of C<1> (one) on most
 operating systems.
 
+=item B<Interface> I<Interface name>
+
+Set the outgoing or incoming interface for multicast packets. This applies
+at least to IPv6 packets and if possible to IPv4. If it is not applicable or
+defined the default behaviour is to let the kernel choose the appropriate
+interface.
+
 =item B<MaxPacketSize> I<1024-65535>
 
 Set the maximum size for datagrams received over the network. Packets larger
