@@ -197,7 +197,7 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 	}
 	memset (m, 0, sizeof (*m));
 	
-  m->invert = 0;
+	m->invert = 0;
 
 	status = 0;
 	for (i = 0; i < ci->children_num; i++)
@@ -216,7 +216,7 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 		else if (strcasecmp ("TypeInstance", child->key) == 0)
 			status = mr_config_add_regex (&m->type_instance, child);
 		else if (strcasecmp ("Invert", child->key) == 0)
-      status = cf_util_get_boolean(child, &m->invert);
+			status = cf_util_get_boolean(child, &m->invert);
 		else
 		{
 			log_err ("The `%s' configuration option is not understood and "
@@ -268,21 +268,20 @@ static int mr_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 		void **user_data)
 {
 	mr_match_t *m;
+	int match_value = FC_MATCH_MATCHES;
+	int nomatch_value = FC_MATCH_NO_MATCH;
 
 	if ((user_data == NULL) || (*user_data == NULL))
 		return (-1);
 
 	m = *user_data;
-	
-  int match_value = FC_MATCH_MATCHES;
-  int nomatch_value = FC_MATCH_NO_MATCH;
-  
-  if (m->invert)
-  {
-    match_value = FC_MATCH_NO_MATCH;
-    nomatch_value = FC_MATCH_MATCHES;
-  }
-  
+
+	if (m->invert)
+	{
+		match_value = FC_MATCH_NO_MATCH;
+		nomatch_value = FC_MATCH_MATCHES;
+	}
+
 	if (mr_match_regexen (m->host, vl->host) == FC_MATCH_NO_MATCH)
 		return (nomatch_value);
 	if (mr_match_regexen (m->plugin, vl->plugin) == FC_MATCH_NO_MATCH)
