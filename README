@@ -541,7 +541,7 @@ Prerequisites
     Unsurprisingly used by the `mysql' plugin.
     <http://dev.mysql.com/>
 
-  * libnatapp (optional)
+  * libnetapp (optional)
     Required for the “netapp” plugin.
     This library is part of the “Manage ONTAP SDK” published by NetApp.
 
