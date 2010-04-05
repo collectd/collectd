@@ -971,6 +971,13 @@ AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_p
 	#include <linux/netdevice.h>
 	])
 
+AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], [],
+	[],
+	[
+	#include <netinet/in.h>
+	#include <net/if.h>
+	])
+
 AC_CHECK_MEMBERS([struct kinfo_proc.ki_pid, struct kinfo_proc.ki_rssize, struct kinfo_proc.ki_rusage],
 	[
 		AC_DEFINE(HAVE_STRUCT_KINFO_PROC_FREEBSD, 1,

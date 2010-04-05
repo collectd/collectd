@@ -1600,17 +1600,23 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 
 		if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
 		{
-#if KERNEL_LINUX
+#if HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
+			/* If possible, use the "ip_mreqn" structure which has
+			 * an "interface index" member. Using the interface
+			 * index is preferred here, because of its similarity
+			 * to the way IPv6 handles this. Unfortunately, it
+			 * appears not to be portable. */
 			struct ip_mreqn mreq;
-#else
-			struct ip_mreq mreq;
-#endif
 
+			memset (&mreq, 0, sizeof (mreq));
 			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-#if KERNEL_LINUX
 			mreq.imr_address.s_addr = ntohl (INADDR_ANY);
 			mreq.imr_ifindex = se->interface;
 #else
+			struct ip_mreq mreq;
+
+			memset (&mreq, 0, sizeof (mreq));
+			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
 			mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
 #endif
 
@@ -1701,7 +1707,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 		struct sockaddr_in *addr = (struct sockaddr_in *) ai->ai_addr;
 		if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
 		{
-#if KERNEL_LINUX
+#if HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
 			struct ip_mreqn mreq;
 #else
 			struct ip_mreq mreq;
@@ -1710,7 +1716,10 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 			DEBUG ("fd = %i; IPv4 multicast address found", fd);
 
 			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-#if KERNEL_LINUX
+#if HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
+			/* Set the interface using the interface index if
+			 * possible (available). Unfortunately, the struct
+			 * ip_mreqn is not portable. */
 			mreq.imr_address.s_addr = ntohl (INADDR_ANY);
 			mreq.imr_ifindex = interface_idx;
 #else
