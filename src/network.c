@@ -1653,7 +1653,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 		}
 	}
 
-#if KERNEL_LINUX
+#if defined(HAVE_IF_INDEXTONAME) && HAVE_IF_INDEXTONAME && defined(SO_BINDTODEVICE)
 	if (se->interface != 0)
 	{
 		char interface_name[IFNAMSIZ];
@@ -1673,7 +1673,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 			return (-1);
 		}
 	}
-#endif
+#endif /* HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 	return (0);
 } /* }}} network_set_interface */
@@ -1798,7 +1798,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 		}
 	}
 
-#if KERNEL_LINUX
+#if defined(HAVE_IF_INDEXTONAME) && HAVE_IF_INDEXTONAME && defined(SO_BINDTODEVICE)
 	/* if a specific interface was set, bind the socket to it. But to avoid
  	 * possible problems with multicast routing, only do that for non-multicast
 	 * addresses */
@@ -1821,7 +1821,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 			return (-1);
 		}
 	}
-#endif
+#endif /* HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 	return (0);
 } /* int network_bind_socket */
