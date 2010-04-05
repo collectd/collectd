@@ -4782,6 +4782,12 @@ Match values where the given regular expressions match the various fields of
 the identifier of a value. If multiple regular expressions are given, B<all>
 regexen must match for a value to match.
 
+=item B<Invert> B<false>|B<true>
+
+When set to B<true>, the result of the match is inverted, i.e. all value lists
+where all regular expressions apply are not matched, all other value lists are
+matched. Defaults to B<false>.
+
 =back
 
 Example:
