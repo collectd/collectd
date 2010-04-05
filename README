@@ -147,6 +147,10 @@ Features
       Memory utilization: Memory occupied by running processes, page cache,
       buffer cache and free.
 
+    - modbus
+      Reads values from Modbus/TCP enabled devices. Supports reading values
+      from multiple "slaves" so gateway devices can be used.
+
     - multimeter
       Information provided by serial multimeters, such as the `Metex
       M-4650CR'.
@@ -540,6 +544,10 @@ Prerequisites
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
+
+  * libmodbus (optional)
+    Used by the `modbus' plugin to communicate with Modbus/TCP devices.
+    <https://launchpad.net/libmodbus>
 
   * libmysqlclient (optional)
     Unsurprisingly used by the `mysql' plugin.

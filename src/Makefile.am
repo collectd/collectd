@@ -598,6 +598,16 @@ memory_la_LIBADD += -lperfstat
 endif
 endif
 
+if BUILD_PLUGIN_MODBUS
+pkglib_LTLIBRARIES += modbus.la
+modbus_la_SOURCES = modbus.c
+modbus_la_LDFLAGS = -module -avoid-version
+modbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMODBUS_CFLAGS)
+modbus_la_LIBADD = $(BUILD_WITH_LIBMODBUS_LIBS)
+collectd_LDADD += "-dlopen" modbus.la
+collectd_DEPENDENCIES += modbus.la
+endif
+
 if BUILD_PLUGIN_MULTIMETER
 pkglib_LTLIBRARIES += multimeter.la
 multimeter_la_SOURCES = multimeter.c

@@ -1846,6 +1846,98 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBMEMCACHED, test "x$with_libmemcached" = "xyes")
 # }}}
 
+# --with-libmodbus {{{
+with_libmodbus_config=""
+with_libmodbus_cflags=""
+with_libmodbus_libs=""
+AC_ARG_WITH(libmodbus, [AS_HELP_STRING([--with-libmodbus@<:@=PREFIX@:>@], [Path to the modbus library.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libmodbus="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libmodbus="use_pkgconfig"
+	else if test -d "$with_libmodbus/lib"
+	then
+		AC_MSG_NOTICE([Not checking for libmodbus: Manually configured])
+		with_libmodbus_cflags="-I$withval/include"
+		with_libmodbus_libs="-L$withval/lib -lmodbus"
+		with_libmodbus="yes"
+	fi; fi; fi
+],
+[with_libmodbus="use_pkgconfig"])
+
+# configure using pkg-config
+if test "x$with_libmodbus" = "xuse_pkgconfig"
+then
+	if test "x$PKG_CONFIG" = "x"
+	then
+		with_libmodbus="no (Don't have pkg-config)"
+	fi
+fi
+if test "x$with_libmodbus" = "xuse_pkgconfig"
+then
+	AC_MSG_NOTICE([Checking for modbus using $PKG_CONFIG])
+	$PKG_CONFIG --exists 'modbus' 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libmodbus="no (pkg-config doesn't know library)"
+	fi
+fi
+if test "x$with_libmodbus" = "xuse_pkgconfig"
+then
+	with_libmodbus_cflags="`$PKG_CONFIG --cflags 'modbus'`"
+	if test $? -ne 0
+	then
+		with_libmodbus="no ($PKG_CONFIG failed)"
+	fi
+	with_libmodbus_libs="`$PKG_CONFIG --libs 'modbus'`"
+	if test $? -ne 0
+	then
+		with_libmodbus="no ($PKG_CONFIG failed)"
+	fi
+fi
+if test "x$with_libmodbus" = "xuse_pkgconfig"
+then
+	with_libmodbus="yes"
+fi
+
+# with_libmodbus_cflags and with_libmodbus_libs are set up now, let's do
+# the actual checks.
+if test "x$with_libmodbus" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libmodbus_cflags"
+
+	AC_CHECK_HEADERS(modbus/modbus.h, [], [with_libmodbus="no (modbus/modbus.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libmodbus" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CPPFLAGS="$CPPFLAGS $with_libmodbus_cflags"
+	LDFLAGS="$LDFLAGS $with_libmodbus_libs"
+
+	AC_CHECK_LIB(modbus, modbus_init_tcp,
+		     [with_libmodbus="yes"],
+		     [with_libmodbus="no (symbol modbus_init_tcp not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libmodbus" = "xyes"
+then
+	BUILD_WITH_LIBMODBUS_CFLAGS="$with_libmodbus_cflags"
+	BUILD_WITH_LIBMODBUS_LIBS="$with_libmodbus_libs"
+	AC_SUBST(BUILD_WITH_LIBMODBUS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMODBUS_LIBS)
+fi
+# }}}
+
 # --with-libmysql {{{
 with_mysql_config="mysql_config"
 with_mysql_cflags=""
@@ -4171,6 +4263,7 @@ AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
 AC_PLUGIN([memcachec],   [$with_libmemcached], [memcachec statistics])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
+AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
@@ -4404,6 +4497,7 @@ Configuration:
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
+    libmodbus . . . . . . $with_libmodbus
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
     libnetlink  . . . . . $with_libnetlink
@@ -4482,6 +4576,7 @@ Configuration:
     memcachec . . . . . . $enable_memcachec
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
+    modbus  . . . . . . . $enable_modbus
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
