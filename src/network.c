@@ -1621,7 +1621,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 #endif
 
 			if (setsockopt (se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF,
-						&mreq, sizeof (mreq)) == -1)
+						&mreq, sizeof (mreq)) != 0)
 			{
 				char errbuf[1024];
 				ERROR ("setsockopt: %s",
@@ -1640,7 +1640,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 		{
 			if (setsockopt (se->data.client.fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
 						&se->interface,
-						sizeof (se->interface)) == -1)
+						sizeof (se->interface)) != 0)
 			{
 				char errbuf[1024];
 				ERROR ("setsockopt: %s",
