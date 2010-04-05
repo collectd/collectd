@@ -1529,7 +1529,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 
 		if (setsockopt (se->data.client.fd, IPPROTO_IP, optname,
 					&network_config_ttl,
-					sizeof (network_config_ttl)) == -1)
+					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
 			ERROR ("setsockopt: %s",
@@ -1550,7 +1550,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 
 		if (setsockopt (se->data.client.fd, IPPROTO_IPV6, optname,
 					&network_config_ttl,
-					sizeof (network_config_ttl)) == -1)
+					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
 			ERROR ("setsockopt: %s",
