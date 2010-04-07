@@ -1144,7 +1144,10 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   cypher = network_get_aes256_cypher (se, pea.iv, sizeof (pea.iv),
       pea.username);
   if (cypher == NULL)
+  {
+    sfree (pea.username);
     return (-1);
+  }
 
   payload_len = part_size - (PART_ENCRYPTION_AES256_SIZE + username_len);
   assert (payload_len > 0);
@@ -1156,6 +1159,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
       /* in = */ NULL, /* in len = */ 0);
   if (err != 0)
   {
+    sfree (pea.username);
     ERROR ("network plugin: gcry_cipher_decrypt returned: %s",
         gcry_strerror (err));
     return (-1);
@@ -1174,6 +1178,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
       buffer + buffer_offset, payload_len);
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
+    sfree (pea.username);
     ERROR ("network plugin: Decryption failed: Checksum mismatch.");
     return (-1);
   }
@@ -1184,6 +1189,8 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   /* Update return values */
   *ret_buffer =     buffer     + part_size;
   *ret_buffer_len = buffer_len - part_size;
+
+  sfree (pea.username);
 
   return (0);
 } /* }}} int parse_part_encr_aes256 */
@@ -1553,7 +1560,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 
 		if (setsockopt (se->data.client.fd, IPPROTO_IP, optname,
 					&network_config_ttl,
-					sizeof (network_config_ttl)) == -1)
+					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
 			ERROR ("setsockopt: %s",
@@ -1574,7 +1581,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 
 		if (setsockopt (se->data.client.fd, IPPROTO_IPV6, optname,
 					&network_config_ttl,
-					sizeof (network_config_ttl)) == -1)
+					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
 			ERROR ("setsockopt: %s",

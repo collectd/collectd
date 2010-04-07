@@ -582,7 +582,7 @@ FQDNLookup   true
 
 #<Plugin perl>
 #	IncludeDir "/my/include/path"
-#	BaseName "Collectd::Plugin"
+#	BaseName "Collectd::Plugins"
 #	EnableDebugger ""
 #	LoadPlugin Monitorus
 #	LoadPlugin OpenVZ
