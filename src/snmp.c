@@ -1127,7 +1127,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
       char temp[DATA_MAX_NAME_LEN];
 
       if (instance_list_ptr == NULL)
-	ssnprintf (temp, sizeof (temp), "%u", (uint32_t) subid);
+	ssnprintf (temp, sizeof (temp), "%"PRIu32, (uint32_t) subid);
       else
 	sstrncpy (temp, instance_list_ptr->instance, sizeof (temp));
 

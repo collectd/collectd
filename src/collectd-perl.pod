@@ -8,7 +8,7 @@ collectd-perl - Documentation of collectd's C<perl plugin>
   # ...
   <Plugin perl>
     IncludeDir "/path/to/perl/plugins"
-    BaseName "Collectd::Plugin"
+    BaseName "Collectd::Plugins"
     EnableDebugger ""
     LoadPlugin "FooBar"
 
@@ -38,7 +38,9 @@ causes the Perl-interpreter to be initialized.
 =item B<BaseName> I<Name>
 
 Prepends I<Name>B<::> to all plugin names loaded after this option. This is
-provided for convenience to keep plugin names short.
+provided for convenience to keep plugin names short. All Perl-based plugins
+provided with the I<collectd> distributions reside in the C<Collectd::Plugins>
+namespace.
 
 =item E<lt>B<Plugin> I<Name>E<gt> block
 
@@ -713,7 +715,7 @@ types used by the read, write and match functions.
 
 =item
 
-Please feel free to send in new plugins to collectd's mailinglist at
+Please feel free to send in new plugins to collectd's mailing list at
 E<lt>collectdE<nbsp>atE<nbsp>verplant.orgE<gt> for review and, possibly,
 inclusion in the main distribution. In the latter case, we will take care of
 keeping the plugin up to date and adapting it to new versions of collectd.

@@ -293,7 +293,7 @@ Features
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
 
-  * Output can be written or send to various destinations by the following
+  * Output can be written or sent to various destinations by the following
     plugins:
 
     - csv
@@ -426,7 +426,7 @@ Features
     network plugins, makes sure your resources are used efficiently. Also,
     since collectd is programmed multithreaded it benefits from hyperthreading
     and multicore processors and makes sure that the daemon isn't idle if only
-    one plugins waits for an IO-operation to complete.
+    one plugin waits for an IO-operation to complete.
 
   * Once set up, hardly any maintenance is necessary. Setup is kept as easy
     as possible and the default values should be okay for most users.
