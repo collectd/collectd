@@ -118,14 +118,18 @@ open(OUT, ">$HTML");
 my $title="Rrd plot for $HOST";
 
 print OUT <<END;
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-   "http://www.w3.org/TR/html4/loose.dtd">
-<html>
+<!DOCTYPE html PUBLIC
+  "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
+<style type="text/css" media="screen">
+body { text-align: center; }
+</style>
 <title>$title</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 </head>
 <body>
-<center>
 END
 
 # list interesting rrd
@@ -148,20 +152,20 @@ foreach my $rrd (@list){
 
 # table of contents
 print OUT <<END;
-<A name="top"></A><H1>$title</H1>
-<P>
+<h1><a id="top">$title</a></h1>
+<p>
 END
 
 foreach my $bn (@rrds){
 	my $cleaned_bn = $bn;
 	$cleaned_bn =~ tr/%\//__/;
 	print OUT <<END;
-<A href="#$cleaned_bn">$bn</A>
+<a href="#$cleaned_bn">$bn</a>
 END
 }
 
 print OUT <<END;
-</P>
+</p>
 END
 
 # graph interesting rrd
@@ -206,7 +210,7 @@ for (my $i = 0; $i < scalar(@rrds); ++$i) {
 	my $cleaned_bn = $bn;
 	$cleaned_bn =~ tr/%\//__/;
 	print OUT <<END;
-<A name="$cleaned_bn"></A><H1>$bn</H1>
+<h1><a id="$cleaned_bn">$bn</a></h1>
 END
 
 	# graph various ranges
@@ -223,24 +227,23 @@ END
 		my $cleaned_img = $img; $cleaned_img =~ s/%/%25/g;
 		if (! $svg_p) {
 			print OUT <<END;
-<P><IMG src="$cleaned_img" alt="${bn} $span"></P>
+<p><img src="$cleaned_img" alt="${bn} $span" /></p>
 END
 		} else {
 			print OUT <<END;
-<P><object data="$cleaned_img" type="image/svg+xml"
+<p><object data="$cleaned_img" type="image/svg+xml"
            width="670" height="179">
-  ${bn} $span</object></P>
+  ${bn} $span</object></p>
 END
 		}
 	}
 
 	print OUT <<END;
-<A href="#top">[top]</A>
+<p><a href="#top">[top]</a></p>
 END
 }
 
 print OUT <<END;
-</center>
 </body>
 </html>
 END
