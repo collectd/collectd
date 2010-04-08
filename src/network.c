@@ -350,7 +350,8 @@ static _Bool check_send_okay (const value_list_t *vl) /* {{{ */
   return (!received);
 } /* }}} _Bool check_send_okay */
 
-static int network_dispatch_values (value_list_t *vl) /* {{{ */
+static int network_dispatch_values (value_list_t *vl, /* {{{ */
+    const char *username)
 {
   int status;
 
@@ -389,6 +390,18 @@ static int network_dispatch_values (value_list_t *vl) /* {{{ */
     meta_data_destroy (vl->meta);
     vl->meta = NULL;
     return (status);
+  }
+
+  if (username != NULL)
+  {
+    status = meta_data_add_string (vl->meta, "network:username", username);
+    if (status != 0)
+    {
+      ERROR ("network plugin: meta_data_add_string failed.");
+      meta_data_destroy (vl->meta);
+      vl->meta = NULL;
+      return (status);
+    }
   }
 
   plugin_dispatch_values (vl);
@@ -892,7 +905,8 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 #define PP_SIGNED    0x01
 #define PP_ENCRYPTED 0x02
 static int parse_packet (sockent_t *se,
-		void *buffer, size_t buffer_size, int flags);
+		void *buffer, size_t buffer_size, int flags,
+		const char *username);
 
 #define BUFFER_READ(p,s) do { \
   memcpy ((p), buffer + buffer_offset, (s)); \
@@ -987,6 +1001,8 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   {
     ERROR ("network plugin: gcry_md_setkey failed: %s", gcry_strerror (err));
     gcry_md_close (hd);
+    sfree (secret);
+    sfree (pss.username);
     return (-1);
   }
 
@@ -1008,9 +1024,6 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   gcry_md_close (hd);
   hd = NULL;
 
-  sfree (secret);
-  sfree (pss.username);
-
   if (memcmp (pss.hash, hash, sizeof (pss.hash)) != 0)
   {
     WARNING ("network plugin: Verifying HMAC-SHA-256 signature failed: "
@@ -1019,8 +1032,11 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   else
   {
     parse_packet (se, buffer + buffer_offset, buffer_len - buffer_offset,
-        flags | PP_SIGNED);
+        flags | PP_SIGNED, pss.username);
   }
+
+  sfree (secret);
+  sfree (pss.username);
 
   *ret_buffer = buffer + buffer_len;
   *ret_buffer_len = 0;
@@ -1065,7 +1081,8 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
     warning_has_been_printed = 1;
   }
 
-  parse_packet (se, buffer + part_len, buffer_size - part_len, flags);
+  parse_packet (se, buffer + part_len, buffer_size - part_len, flags,
+      /* username = */ NULL);
 
   *ret_buffer = buffer + buffer_size;
   *ret_buffer_size = 0;
@@ -1184,7 +1201,9 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   }
 
   parse_packet (se, buffer + buffer_offset, payload_len,
-      flags | PP_ENCRYPTED);
+      flags | PP_ENCRYPTED, pea.username);
+
+  /* XXX: Free pea.username?!? */
 
   /* Update return values */
   *ret_buffer =     buffer     + part_size;
@@ -1246,7 +1265,8 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
 #undef BUFFER_READ
 
 static int parse_packet (sockent_t *se, /* {{{ */
-		void *buffer, size_t buffer_size, int flags)
+		void *buffer, size_t buffer_size, int flags,
+		const char *username)
 {
 	int status;
 
@@ -1346,7 +1366,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			if (status != 0)
 				break;
 
-			network_dispatch_values (&vl);
+			network_dispatch_values (&vl, username);
 
 			sfree (vl.values);
 		}
@@ -2180,7 +2200,8 @@ static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
       continue;
     }
 
-    parse_packet (se, ent->data, ent->data_len, /* flags = */ 0);
+    parse_packet (se, ent->data, ent->data_len, /* flags = */ 0,
+	/* username = */ NULL);
     sfree (ent->data);
     sfree (ent);
   } /* while (42) */
