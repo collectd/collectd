@@ -807,6 +807,14 @@ collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
 endif
 
+if BUILD_PLUGIN_PINBA
+pkglib_LTLIBRARIES += pinba.la
+pinba_la_SOURCES = pinba.c pinba-pb.c
+pinba_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" pinba.la
+collectd_DEPENDENCIES += pinba.la
+endif
+
 if BUILD_PLUGIN_PING
 pkglib_LTLIBRARIES += ping.la
 ping_la_SOURCES = ping.c
@@ -1184,15 +1192,6 @@ collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
 
-if BUILD_PLUGIN_PINBA
-pkglib_LTLIBRARIES += pinba.la
-pinba_la_SOURCES = pinba.c pinba-pb.c
-pinba_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" pinba.la
-collectd_DEPENDENCIES += pinba.la
-endif
-
-
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
@@ -1208,7 +1207,7 @@ dist_man_MANS = collectd.1 \
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db
+EXTRA_DIST = types.db pinba.proto
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
