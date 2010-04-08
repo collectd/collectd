@@ -170,3 +170,4 @@ voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
+pinba_view              req_per_sec:GAUGE:0:U, req_time:GAUGE:0:U, ru_utime:GAUGE:0:U, ru_stime:GAUGE:0:U, doc_size:GAUGE:0:U, mem_peak:GAUGE:0:U

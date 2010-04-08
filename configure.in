@@ -4331,6 +4331,7 @@ AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
+AC_PLUGIN([pinba],       [$plugin_pinba],      [Pinba PHP statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
