@@ -1,5 +1,6 @@
 /**
- * collectd - src/pinba.c
+ * collectd - src/pinba.c (based on code from pinba_engine 0.0.5)
+ * Copyright (c) 2007-2009  Antony Dovgal
  * Copyright (C) 2010       Phoenix Kayo
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,6 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Antony Dovgal <tony at daylessday.org>
  *   Phoenix Kayo <kayo.k11.4 at gmail.com>
  **/
 
