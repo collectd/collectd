@@ -33,6 +33,8 @@
 
 #include "pinba.pb-c.h"
 
+typedef uint8_t u_char;
+
 #include <event.h>
 
 /*
@@ -62,7 +64,8 @@ struct _pinba_socket_ {
 typedef double pinba_time;
 typedef uint32_t pinba_size;
 
-static pinba_time now(){
+static pinba_time now (void)
+{
   static struct timeval tv;
   
   gettimeofday (&tv, /* tz = */ NULL);
@@ -104,8 +107,8 @@ char service_status=0;
 char *service_address = PINBA_DEFAULT_ADDRESS;
 unsigned int service_port=PINBA_DEFAULT_PORT;
 
-static void
-service_statnode_reset(pinba_statnode *node){
+static void service_statnode_reset (pinba_statnode *node) /* {{{ */
+{
   node->last_coll=now();
   node->req_count=0;
   node->req_time=0.0;
@@ -113,9 +116,9 @@ service_statnode_reset(pinba_statnode *node){
   node->ru_stime=0.0;
   node->doc_size=0;
   node->mem_peak=0;
-}
+} /* }}} void service_statnode_reset */
 
-static void strset (char **str, const char *new)
+static void strset (char **str, const char *new) /* {{{ */
 {
   char *tmp;
 
@@ -128,13 +131,13 @@ static void strset (char **str, const char *new)
 
   sfree (*str);
   *str = tmp;
-} /* void strset */
+} /* }}} void strset */
 
-static void
-service_statnode_add(const char *name,
-		     const char *host,
-		     const char *server,
-		     const char *script){
+static void service_statnode_add(const char *name, /* {{{ */
+    const char *host,
+    const char *server,
+    const char *script)
+{
   pinba_statnode *node;
   DEBUG("adding node `%s' to collector { %s, %s, %s }", name, host?host:"", server?server:"", script?script:"");
   
@@ -163,7 +166,7 @@ service_statnode_add(const char *name,
   
   /* increment counter */
   stat_nodes_count++;
-}
+} /* }}} void service_statnode_add */
 
 static void service_statnode_free (void)
 {
@@ -186,8 +189,8 @@ static void service_statnode_free (void)
   pthread_rwlock_destroy (&temp_lock);
 }
 
-static void
-service_statnode_init(){
+static void service_statnode_init (void)
+{
   /* only total info collect by default */
   service_statnode_free();
   
@@ -195,21 +198,22 @@ service_statnode_init(){
   pthread_rwlock_init(&temp_lock, 0);
 }
 
-static void
-service_statnode_begin(){
+static void service_statnode_begin (void)
+{
   service_statnode_init();
   pthread_rwlock_wrlock(&temp_lock);
   
   service_statnode_add("total", NULL, NULL, NULL);
 }
 
-static void
-service_statnode_end(){
+static void service_statnode_end (void)
+{
   pthread_rwlock_unlock(&temp_lock);
 }
 
-static unsigned int
-service_statnode_collect(pinba_statres *res, unsigned int i){
+static unsigned int service_statnode_collect (pinba_statres *res,
+    unsigned int i)
+{
   pinba_statnode* node;
   
   if(stat_nodes_count==0) return 0;
@@ -248,9 +252,9 @@ service_statnode_collect(pinba_statres *res, unsigned int i){
   return ++i;
 }
 
-static void
-service_statnode_process(pinba_statnode *node,
-			 Pinba__Request* request){
+static void service_statnode_process (pinba_statnode *node,
+    Pinba__Request* request)
+{
   node->req_count++;
   node->req_time+=request->request_time;
   node->ru_utime+=request->ru_utime;
@@ -259,7 +263,7 @@ service_statnode_process(pinba_statnode *node,
   node->mem_peak+=request->memory_peak;
 }
 
-static void service_process_request(Pinba__Request *request)
+static void service_process_request (Pinba__Request *request)
 {
   unsigned int i;
 
@@ -280,36 +284,8 @@ static void service_process_request(Pinba__Request *request)
   pthread_rwlock_unlock(&temp_lock);
 }
 
-static void
-service_config(const char* address,
-	       unsigned int port){
-  char need_restart=0;
-  
-  if(address && (service_address && strcmp(service_address, address))){
-    strset(&service_address, address);
-    need_restart++;
-  }
-  
-  if(port>0 && port<65536 && service_port!=port){
-    service_port=port;
-    need_restart++;
-  }
-  
-  if(service_status && need_restart){
-    service_stop();
-    service_start();
-  }
-}
-
-static void
-pinba_socket_free (pinba_socket *socket);
-
-static pinba_socket *
-pinba_socket_open (const char *ip,
-		   int listen_port);
-
-static void *
-pinba_main(void *arg){
+static void *pinba_main (void *arg)
+{
   DEBUG("entering listen-loop..");
   
   service_status=1;
@@ -319,60 +295,30 @@ pinba_main(void *arg){
   return NULL;
 }
 
-static int
-service_cleanup(){
-  DEBUG("closing socket..");
-  if(temp_sock){
-    pthread_rwlock_wrlock(&temp_lock);
-    pinba_socket_free(temp_sock);
-    pthread_rwlock_unlock(&temp_lock);
+static void pinba_socket_free (pinba_socket *socket) /* {{{ */
+{
+  if (!socket)
+    return;
+  
+  if (socket->listen_sock >= 0)
+  {
+    close(socket->listen_sock);
+    socket->listen_sock = -1;
   }
   
-  DEBUG("shutdowning event..");
-  event_base_free(temp_base);
-  
-  DEBUG("shutting down..");
-}
-
-static int
-service_start(){
-  DEBUG("starting up..");
-  
-  DEBUG("initializing event..");
-  temp_base = event_base_new();
-  
-  DEBUG("opening socket..");
-  
-  temp_sock = pinba_socket_open(service_address, service_port);
-  
-  if (!temp_sock) {
-    service_cleanup();
-    return 1;
+  if (socket->accept_event)
+  {
+    event_del(socket->accept_event);
+    free(socket->accept_event);
+    socket->accept_event = NULL;
   }
   
-  if (pthread_create(&temp_thrd, NULL, pinba_main, NULL)) {
-    service_cleanup();
-    return 1;
-  }
-  
-  return 0;
-}
+  free(socket);
+} /* }}} void pinba_socket_free */
 
-static int
-service_stop(){
-  pthread_cancel(temp_thrd);
-  pthread_join(temp_thrd, NULL);
-  service_status=0;
-  DEBUG("terminating listen-loop..");
-  
-  service_cleanup();
-  
-  return 0;
-}
-
-static int
-pinba_process_stats_packet (const unsigned char *buf,
-			    int buf_len) {
+static int pinba_process_stats_packet (const unsigned char *buf,
+    int buf_len)
+{
   Pinba__Request *request;  
   
   request = pinba__request__unpack(NULL, buf_len, buf);
@@ -388,10 +334,8 @@ pinba_process_stats_packet (const unsigned char *buf,
   }
 }
 
-static void
-pinba_udp_read_callback_fn (int sock,
-			    short event,
-			    void *arg) {
+static void pinba_udp_read_callback_fn (int sock, short event, void *arg)
+{
   if (event & EV_READ) {
     int ret;
     unsigned char buf[PINBA_UDP_BUFFER_SIZE];
@@ -414,27 +358,9 @@ pinba_udp_read_callback_fn (int sock,
   }
 }
 
-static void
-pinba_socket_free (pinba_socket *socket) {
-  if (!socket) return;
-  
-  if (socket->listen_sock >= 0) {
-    close(socket->listen_sock);
-    socket->listen_sock = -1;
-  }
-  
-  if (socket->accept_event) {
-    event_del(socket->accept_event);
-    free(socket->accept_event);
-    socket->accept_event = NULL;
-  }
-  
-  free(socket);
-}
-
-static pinba_socket *
-pinba_socket_open (const char *ip,
-		   int listen_port) {
+static pinba_socket *pinba_socket_open (const char *ip, /* {{{ */
+    int listen_port)
+{
   struct sockaddr_in addr;
   pinba_socket *s;
   int sfd, flags, yes = 1;
@@ -494,16 +420,90 @@ pinba_socket_open (const char *ip,
   event_add(s->accept_event, NULL);
   
   return s;
+} /* }}} */
+
+static int service_cleanup (void)
+{
+  DEBUG("closing socket..");
+  if(temp_sock){
+    pthread_rwlock_wrlock(&temp_lock);
+    pinba_socket_free(temp_sock);
+    pthread_rwlock_unlock(&temp_lock);
+  }
+  
+  DEBUG("shutdowning event..");
+  event_base_free(temp_base);
+  
+  DEBUG("shutting down..");
+
+  return (0);
 }
+
+static int service_start(void)
+{
+  DEBUG("starting up..");
+  
+  DEBUG("initializing event..");
+  temp_base = event_base_new();
+  
+  DEBUG("opening socket..");
+  
+  temp_sock = pinba_socket_open(service_address, service_port);
+  
+  if (!temp_sock) {
+    service_cleanup();
+    return 1;
+  }
+  
+  if (pthread_create(&temp_thrd, NULL, pinba_main, NULL)) {
+    service_cleanup();
+    return 1;
+  }
+  
+  return 0;
+}
+
+static int service_stop (void)
+{
+  pthread_cancel(temp_thrd);
+  pthread_join(temp_thrd, NULL);
+  service_status=0;
+  DEBUG("terminating listen-loop..");
+  
+  service_cleanup();
+  
+  return 0;
+}
+
+static void service_config (const char *address, unsigned int port) /* {{{ */
+{
+  int need_restart = 0;
+
+  if (address && service_address && (strcmp(service_address, address) != 0))
+  {
+    strset (&service_address, address);
+    need_restart++;
+  }
+
+  if ((port > 0) && (port < 65536) && (service_port != port))
+  {
+    service_port=port;
+    need_restart++;
+  }
+
+  if(service_status && need_restart)
+  {
+    service_stop();
+    service_start();
+  }
+} /* }}} void service_config */
 
 /*
  * Plugin declaration section
  */
 
-#include<stdint.h>
-
-static int
-config_set (char **var, const char *value) {
+static int config_set (char **var, const char *value)
+{
   /* code from nginx plugin for collectd */
   if (*var != NULL) {
     free (*var);
@@ -514,8 +514,8 @@ config_set (char **var, const char *value) {
   else return (0);
 }
 
-static int
-plugin_config (oconfig_item_t *ci) {
+static int plugin_config (oconfig_item_t *ci)
+{
   unsigned int i, o;
   int pinba_port = 0;
   char *pinba_address = NULL;
@@ -587,15 +587,15 @@ plugin_config (oconfig_item_t *ci) {
   service_config(pinba_address, pinba_port);
 } /* int pinba_config */
 
-static int
-plugin_init (void) {
+static int plugin_init (void)
+{
   INFO("Pinba Starting..");
   service_start();
   return 0;
 }
 
-static int
-plugin_shutdown (void) {
+static int plugin_shutdown (void)
+{
   INFO("Pinba Stopping..");
   service_stop();
   service_statnode_free();
@@ -642,7 +642,8 @@ static int plugin_read (void)
   return 0;
 }
 
-void module_register (void) {
+void module_register (void)
+{
   plugin_register_complex_config ("pinba", plugin_config);
   plugin_register_init ("pinba", plugin_init);
   plugin_register_read ("pinba", plugin_read);
