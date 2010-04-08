@@ -19,84 +19,39 @@
  *   Phoenix Kayo <kayo.k11.4 at gmail.com>
  **/
 
+#define _XOPEN_SOURCE 500
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
 
+#include <pthread.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include "pinba.pb-c.h"
+
+#include <event.h>
+
 /*
  *  Service declaration section
  */
-
 #ifndef PINBA_UDP_BUFFER_SIZE
-#define PINBA_UDP_BUFFER_SIZE 65536
+# define PINBA_UDP_BUFFER_SIZE 65536
 #endif
 
 typedef struct _pinba_statres_ pinba_statres;
 struct _pinba_statres_ {
   const char *name;
-  float req_per_sec;
-  float req_time;
-  float ru_utime;
-  float ru_stime;
-  float doc_size;
-  float mem_peak;
+  double req_per_sec;
+  double req_time;
+  double ru_utime;
+  double ru_stime;
+  double doc_size;
+  double mem_peak;
 };
-
-/*
- *  Fetch collection datas
- *
- *  Return value: id of next data, zero if no data.
- */
-static unsigned int
-service_statnode_collect(pinba_statres *res,
-			 unsigned int id);
-static void
-service_statnode_begin();
-static void
-service_statnode_end();
-static void
-service_statnode_free();
-static void
-service_statnode_init();
-static void
-service_statnode_add(const char *name,
-		     const char *host,
-		     const char *server,
-		     const char *script);
-
-static void
-service_config(const char* address,
-	       unsigned int port);
-static int
-service_start();
-static int
-service_stop();
-
-/*
- *  Service implementation section
- */
-
-#include"pinba.pb-c.h"
-
-#include<stdarg.h>
-#include<stdlib.h>
-#include<stdio.h>
-#include<string.h>
-#include<unistd.h>
-#include<errno.h>
-#include<fcntl.h>
-
-#include<sys/types.h>
-#include<math.h>
-#include<pthread.h>
-
-#include<sys/time.h>
-#include<event.h>
-
-#include<netinet/in.h>
-#include<arpa/inet.h>
-#include<sys/socket.h>
 
 typedef struct _pinba_socket_ pinba_socket;
 struct _pinba_socket_ {
@@ -107,27 +62,21 @@ struct _pinba_socket_ {
 typedef double pinba_time;
 typedef uint32_t pinba_size;
 
-static pinba_time
-now(){
+static pinba_time now(){
   static struct timeval tv;
-  static struct timezone tz;
   
-  gettimeofday(&tv, &tz);
+  gettimeofday (&tv, /* tz = */ NULL);
   
   return (double)tv.tv_sec+((double)tv.tv_usec/(double)1000000);
 }
 
-static pthread_rwlock_t
-temp_lock;
+static pthread_rwlock_t temp_lock;
 
-static struct event_base *
-temp_base=NULL;
+static struct event_base *temp_base = NULL;
 
-static pinba_socket *
-temp_sock=NULL;
+static pinba_socket *temp_sock = NULL;
 
-static pthread_t
-temp_thrd;
+static pthread_t temp_thrd;
 
 typedef struct _pinba_statnode_ pinba_statnode;
 struct _pinba_statnode_{
@@ -147,11 +96,13 @@ struct _pinba_statnode_{
   pinba_size mem_peak;
 };
 
-static unsigned int
-stat_nodes_count=0;
+static unsigned int stat_nodes_count=0;
 
-static pinba_statnode *
-stat_nodes=NULL;
+static pinba_statnode *stat_nodes = NULL;
+
+char service_status=0;
+char *service_address = PINBA_DEFAULT_ADDRESS;
+unsigned int service_port=PINBA_DEFAULT_PORT;
 
 static void
 service_statnode_reset(pinba_statnode *node){
@@ -164,17 +115,20 @@ service_statnode_reset(pinba_statnode *node){
   node->mem_peak=0;
 }
 
-static inline void
-strdel(char **str){
-  if(*str)free(*str);
-  *str=NULL;
-}
+static void strset (char **str, const char *new)
+{
+  char *tmp;
 
-static inline void
-strset(char **str, const char *new){
-  strdel(str);
-  new && (*str=strdup(new));
-}
+  if (!str || !new)
+    return;
+
+  tmp = strdup (new);
+  if (tmp == NULL)
+    return;
+
+  sfree (*str);
+  *str = tmp;
+} /* void strset */
 
 static void
 service_statnode_add(const char *name,
@@ -211,25 +165,25 @@ service_statnode_add(const char *name,
   stat_nodes_count++;
 }
 
-static void
-service_statnode_free(){
-  if(stat_nodes_count){
-    DEBUG("shutdowning collector..");
-    unsigned int i;
-    
-    for(i=0;i<stat_nodes_count;i++){
-      /* free strings */
-      strdel(&stat_nodes[i].name);
-      strdel(&stat_nodes[i].host);
-      strdel(&stat_nodes[i].server);
-      strdel(&stat_nodes[i].script);
-    }
-    
-    free(stat_nodes);
-    stat_nodes_count=0;
-    
-    pthread_rwlock_destroy(&temp_lock);
+static void service_statnode_free (void)
+{
+  unsigned int i;
+
+  if(stat_nodes_count < 1)
+    return;
+
+  for (i = 0; i < stat_nodes_count; i++)
+  {
+    sfree (stat_nodes[i].name);
+    sfree (stat_nodes[i].host);
+    sfree (stat_nodes[i].server);
+    sfree (stat_nodes[i].script);
   }
+
+  sfree (stat_nodes);
+  stat_nodes_count = 0;
+
+  pthread_rwlock_destroy (&temp_lock);
 }
 
 static void
@@ -305,30 +259,26 @@ service_statnode_process(pinba_statnode *node,
   node->mem_peak+=request->memory_peak;
 }
 
-static void
-service_process_request(Pinba__Request* request){
+static void service_process_request(Pinba__Request *request)
+{
   unsigned int i;
-  pthread_rwlock_wrlock(&temp_lock);
+
+  pthread_rwlock_wrlock (&temp_lock);
   
-  DEBUG("Process request..");
-  for(i=0;i<stat_nodes_count;i++){
-    if(stat_nodes[i].host && strcmp(request->hostname, stat_nodes[i].host))continue;
-    if(stat_nodes[i].server && strcmp(request->server_name, stat_nodes[i].server))continue;
-    if(stat_nodes[i].script && strcmp(request->script_name, stat_nodes[i].script))continue;
+  for (i = 0; i < stat_nodes_count; i++)
+  {
+    if(stat_nodes[i].host && strcmp(request->hostname, stat_nodes[i].host))
+      continue;
+    if(stat_nodes[i].server && strcmp(request->server_name, stat_nodes[i].server))
+      continue;
+    if(stat_nodes[i].script && strcmp(request->script_name, stat_nodes[i].script))
+      continue;
+
     service_statnode_process(&stat_nodes[i], request);
   }
   
   pthread_rwlock_unlock(&temp_lock);
 }
-
-char
-service_status=0;
-
-char *
-service_address=PINBA_DEFAULT_ADDRESS;
-
-unsigned int
-service_port=PINBA_DEFAULT_PORT;
 
 static void
 service_config(const char* address,
@@ -675,15 +625,17 @@ plugin_submit (const char *plugin_instance,
   sstrncpy (vl.type, type, sizeof (vl.type));
   INFO("Pinba Dispatch");
   plugin_dispatch_values (&vl);
+
+  return (0);
 }
 
-static int
-plugin_read (void) {
-  DEBUG("Pinba Read..");
+static int plugin_read (void)
+{
   unsigned int i=0;
   static pinba_statres res;
   
-  for(; i=service_statnode_collect(&res, i); ){
+  while ((i = service_statnode_collect (&res, i)) != 0)
+  {
     plugin_submit(res.name, "pinba_view", &res);
   }
   
@@ -697,3 +649,4 @@ void module_register (void) {
   plugin_register_shutdown ("pinba", plugin_shutdown);
 } /* void module_register */
 
+/* vim: set sw=2 sts=2 et : */
