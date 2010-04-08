@@ -3978,6 +3978,7 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
+plugin_pinba="no"
 
 # Linux
 if test "x$ac_system" = "xLinux"
@@ -4537,6 +4538,8 @@ Configuration:
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl
+    libevent  . . . . . . $with_libevent
+    protobuf-c  . . . . . $with_protobuf_c
     oracle  . . . . . . . $with_oracle
     python  . . . . . . . $with_python
 
@@ -4610,6 +4613,7 @@ Configuration:
     oracle  . . . . . . . $enable_oracle
     perl  . . . . . . . . $enable_perl
     ping  . . . . . . . . $enable_ping
+    pinba . . . . . . . . $enable_pinba
     postgresql  . . . . . $enable_postgresql
     powerdns  . . . . . . $enable_powerdns
     processes . . . . . . $enable_processes

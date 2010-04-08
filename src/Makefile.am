@@ -1184,6 +1184,14 @@ collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
 
+if BUILD_PLUGIN_PINBA
+pkglib_LTLIBRARIES += pinba.la
+pinba_la_SOURCES = pinba.c pinba-pb.c
+pinba_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" pinba.la
+collectd_DEPENDENCIES += pinba.la
+endif
+
 
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
