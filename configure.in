@@ -47,6 +47,8 @@ AC_PROG_LEX
 AC_PROG_YACC
 PKG_PROG_PKG_CONFIG
 
+AC_CHECK_PROG([HAVE_PROTOC_C], [protoc-c], [yes], [no])
+
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
 	*linux*)
@@ -3978,7 +3980,6 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
-plugin_pinba="no"
 
 # Linux
 if test "x$ac_system" = "xLinux"
@@ -4296,6 +4297,8 @@ AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
+# FIXME: Check for libevent, too.
+AC_PLUGIN([pinba],       [$HAVE_PROTOC_C],     [Pinba statistics])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
@@ -4332,7 +4335,6 @@ AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
-AC_PLUGIN([pinba],       [$plugin_pinba],      [Pinba PHP statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -4539,7 +4541,7 @@ Configuration:
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl
     libevent  . . . . . . $with_libevent
-    protobuf-c  . . . . . $with_protobuf_c
+    protobuf-c  . . . . . $HAVE_PROTOC_C
     oracle  . . . . . . . $with_oracle
     python  . . . . . . . $with_python
 
@@ -4612,8 +4614,8 @@ Configuration:
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle
     perl  . . . . . . . . $enable_perl
-    ping  . . . . . . . . $enable_ping
     pinba . . . . . . . . $enable_pinba
+    ping  . . . . . . . . $enable_ping
     postgresql  . . . . . $enable_postgresql
     powerdns  . . . . . . $enable_powerdns
     processes . . . . . . $enable_processes
