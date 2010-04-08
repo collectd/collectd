@@ -809,7 +809,7 @@ endif
 
 if BUILD_PLUGIN_PINBA
 pkglib_LTLIBRARIES += pinba.la
-pinba_la_SOURCES = pinba.c pinba-pb.c
+pinba_la_SOURCES = pinba.c pinba.pb-c.c pinba.pb-c.h
 pinba_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" pinba.la
 collectd_DEPENDENCIES += pinba.la
@@ -1238,6 +1238,11 @@ EXTRA_DIST +=   collectd.conf.pod \
 	then \
 		echo "$@ has some POD errors!"; false; \
 	fi
+
+if HAVE_PROTOC_C
+pinba.pb-c.c pinba.pb-c.h: pinba.proto
+	protoc-c --c_out $(builddir) pinba.proto
+endif
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)

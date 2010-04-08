@@ -47,7 +47,8 @@ AC_PROG_LEX
 AC_PROG_YACC
 PKG_PROG_PKG_CONFIG
 
-AC_CHECK_PROG([HAVE_PROTOC_C], [protoc-c], [yes], [no])
+AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
+AM_CONDITIONAL(HAVE_PROTOC_C, test "x$have_protoc_c" = "xyes")
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
@@ -4298,7 +4299,7 @@ AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 # FIXME: Check for libevent, too.
-AC_PLUGIN([pinba],       [$HAVE_PROTOC_C],     [Pinba statistics])
+AC_PLUGIN([pinba],       [$have_protoc_c],     [Pinba statistics])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
@@ -4541,7 +4542,7 @@ Configuration:
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl
     libevent  . . . . . . $with_libevent
-    protobuf-c  . . . . . $HAVE_PROTOC_C
+    protobuf-c  . . . . . $have_protoc_c
     oracle  . . . . . . . $with_oracle
     python  . . . . . . . $with_python
 
