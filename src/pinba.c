@@ -57,25 +57,13 @@
 /*
  * Private data structures
  */
-typedef struct _pinba_statres_ pinba_statres_t;
-struct _pinba_statres_ {
-  const char *name;
-  double req_per_sec;
-  double req_time;
-  double ru_utime;
-  double ru_stime;
-  double doc_size;
-  double mem_peak;
-};
-
-struct pinba_socket_s {
+/* {{{ */
+struct pinba_socket_s
+{
   struct pollfd fd[PINBA_MAX_SOCKETS];
   nfds_t fd_num;
 };
 typedef struct pinba_socket_s pinba_socket_t;
-
-typedef double pinba_time_t;
-typedef uint32_t pinba_size_t;
 
 /* Fixed point counter value. n is the decimal part multiplied by 10^9. */
 struct float_counter_s
@@ -87,7 +75,7 @@ typedef struct float_counter_s float_counter_t;
 
 struct pinba_statnode_s
 {
-  /* collector name */
+  /* collector name, used as plugin instance */
   char *name;
 
   /* query data */
@@ -105,10 +93,12 @@ struct pinba_statnode_s
   gauge_t mem_peak;
 };
 typedef struct pinba_statnode_s pinba_statnode_t;
+/* }}} */
 
 /*
  * Module global variables
  */
+/* {{{ */
 static pinba_statnode_t *stat_nodes = NULL;
 static unsigned int stat_nodes_num = 0;
 static pthread_mutex_t stat_nodes_lock;
@@ -119,6 +109,7 @@ static char *conf_service = NULL;
 static _Bool collector_thread_running = 0;
 static _Bool collector_thread_do_shutdown = 0;
 static pthread_t collector_thread_id;
+/* }}} */
 
 /*
  * Functions
