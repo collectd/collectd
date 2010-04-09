@@ -628,7 +628,7 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
   pthread_mutex_unlock(&stat_nodes_lock);
   
   return (0);
-} /* int pinba_config */
+} /* }}} int pinba_config */
 
 static int plugin_init (void) /* {{{ */
 {
