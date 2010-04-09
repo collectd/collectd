@@ -30,8 +30,8 @@
 
 #include <pthread.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <netdb.h>
+#include <poll.h>
 
 #include "pinba.pb-c.h"
 
@@ -54,6 +54,14 @@ typedef uint8_t u_char;
 # define PINBA_DEFAULT_PORT 12345 /* FIXME */
 #endif
 
+#ifndef PINBA_MAX_SOCKETS
+# define PINBA_MAX_SOCKETS 16
+#endif
+
+#ifndef NI_MAXSERV
+# define NI_MAXSERV 32
+#endif
+
 /*
  * Private data structures
  */
@@ -68,11 +76,14 @@ struct _pinba_statres_ {
   double mem_peak;
 };
 
-typedef struct _pinba_socket_ pinba_socket;
-struct _pinba_socket_ {
+struct pinba_socket_s {
   int listen_sock;
   struct event *accept_event;
+
+  struct pollfd fd[PINBA_MAX_SOCKETS];
+  nfds_t fd_num;
 };
+typedef struct pinba_socket_s pinba_socket_t;
 
 typedef double pinba_time_t;
 typedef uint32_t pinba_size_t;
@@ -396,68 +407,113 @@ static void pinba_udp_read_callback_fn (int sock, short event, void *arg) /* {{{
   } /* while (42) */
 } /* }}} void pinba_udp_read_callback_fn */
 
-static pinba_socket_t *pinba_socket_open (const char *ip, /* {{{ */
+static int pb_add_socket (pinba_socket_t *s, /* {{{ */
+    const struct addrinfo *ai)
+{
+  int fd;
+  int tmp;
+  int status;
+
+  if (s->fd_num == PINBA_MAX_SOCKETS)
+  {
+    WARNING ("pinba plugin: Sorry, you have hit the built-in limit of "
+        "%i sockets. Please complain to the collectd developers so we can "
+        "raise the limit.", PINBA_MAX_SOCKETS);
+    return (-1);
+  }
+
+  fd = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+  if (fd < 0)
+  {
+    char errbuf[1024];
+    ERROR ("pinba plugin: socket(2) failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (0);
+  }
+
+  tmp = 1;
+  status = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof (tmp));
+  if (status != 0)
+  {
+    char errbuf[1024];
+    WARNING ("pinba plugin: setsockopt(SO_REUSEADDR) failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+  }
+
+  status = bind (fd, ai->ai_addr, ai->ai_addrlen);
+  if (status != 0)
+  {
+    char errbuf[1024];
+    ERROR ("pinba plugin: bind(2) failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (0);
+  }
+
+  s->fd[s->fd_num].fd = fd;
+  s->fd[s->fd_num].events = POLLIN | POLLPRI;
+  s->fd[s->fd_num].revents = 0;
+  s->fd_num++;
+
+  return (0);
+} /* }}} int pb_add_socket */
+
+static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
     int listen_port)
 {
-  struct sockaddr_in addr;
   pinba_socket_t *s;
-  int sfd, flags, yes = 1;
-  
-  if ((sfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-    ERROR("socket() failed: %s (%d)", strerror(errno), errno);
-    return NULL;
+  struct addrinfo *ai_list;
+  struct addrinfo *ai_ptr;
+  struct addrinfo  ai_hints;
+  int status;
+
+  char service[NI_MAXSERV]; /* FIXME */
+  snprintf (service, sizeof (service), "%i", listen_port);
+
+  memset (&ai_hints, 0, sizeof (ai_hints));
+  ai_hints.ai_flags = AI_PASSIVE;
+  ai_hints.ai_family = AF_UNSPEC;
+  ai_hints.ai_socktype = SOCK_DGRAM;
+  ai_hints.ai_addr = NULL;
+  ai_hints.ai_canonname = NULL;
+  ai_hints.ai_next = NULL;
+
+  ai_list = NULL;
+  status = getaddrinfo (node, service,
+      &ai_hints, &ai_list);
+  if (status != 0)
+  {
+    ERROR ("pinba plugin: getaddrinfo(3) failed: %s",
+        gai_strerror (status));
+    return (NULL);
   }
-  
-  if ((flags = fcntl(sfd, F_GETFL, 0)) < 0 || fcntl(sfd, F_SETFL, flags | O_NONBLOCK) < 0) {
-    close(sfd);
-    return NULL;
+  assert (ai_list != NULL);
+
+  s = malloc (sizeof (*s));
+  if (s != NULL)
+  {
+    freeaddrinfo (ai_list);
+    ERROR ("pinba plugin: malloc failed.");
+    return (NULL);
   }
+  memset (s, 0, sizeof (*s));
+
+  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  {
+    status = pb_add_socket (s, ai_ptr);
+    if (status != 0)
+      break;
+  } /* for (ai_list) */
   
-  if(setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-    close(sfd);
-    return NULL;
+  freeaddrinfo (ai_list);
+
+  if (s->fd_num < 1)
+  {
+    WARNING ("pinba plugin: Unable to open socket for address %s.", node);
+    sfree (s);
+    s = NULL;
   }
-  
-  s = (pinba_socket_t *)calloc(1, sizeof(pinba_socket_t));
-  if (!s) {
-    return NULL;
-  }
-  s->listen_sock = sfd;
-  
-  memset(&addr, 0, sizeof(addr));
-  
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(listen_port);
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  
-  if (ip && *ip) {
-    struct in_addr tmp;
-    
-    if (inet_aton(ip, &tmp)) {
-      addr.sin_addr.s_addr = tmp.s_addr;
-    } else {
-      WARNING("inet_aton(%s) failed, listening on ANY IP-address", ip);
-    }
-  }
-  
-  if (bind(s->listen_sock, (struct sockaddr *)&addr, sizeof(addr))) {
-    pinba_socket_free(s);
-    ERROR("bind() failed: %s (%d)", strerror(errno), errno);
-    return NULL;
-  }
-  
-  s->accept_event = (struct event *)calloc(1, sizeof(struct event));
-  if (!s->accept_event) {
-    ERROR("calloc() failed: %s (%d)", strerror(errno), errno);
-    pinba_socket_free(s);
-    return NULL;
-  }
-  
-  event_set(s->accept_event, s->listen_sock, EV_READ | EV_PERSIST, pinba_udp_read_callback_fn, s);
-  event_base_set(temp_base, s->accept_event);
-  event_add(s->accept_event, NULL);
-  
-  return s;
+
+  return (s);
 } /* }}} pinba_socket_open */
 
 static int service_cleanup (void)
