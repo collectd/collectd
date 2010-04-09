@@ -224,46 +224,45 @@ static void service_statnode_end (void)
   pthread_rwlock_unlock(&temp_lock);
 }
 
-static unsigned int service_statnode_collect (pinba_statres *res,
-    unsigned int i)
+static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
+    unsigned int index)
 {
   pinba_statnode* node;
+  pinba_time delta;
   
-  if(stat_nodes_count==0) return 0;
+  if (stat_nodes_count == 0)
+    return 0;
   
   /* begin collecting */
-  if(i==0){
-    pthread_rwlock_wrlock(&temp_lock);
-  }
-  
-  /* find non-empty node */
-  //for(node=stat_nodes+i; node->req_count==0 && ++i<stat_nodes_count; node=stat_nodes+i);
+  if (index == 0)
+    pthread_rwlock_wrlock (&temp_lock);
   
   /* end collecting */
-  if(i>=stat_nodes_count){
-    pthread_rwlock_unlock(&temp_lock);
+  if (index >= stat_nodes_count)
+  {
+    pthread_rwlock_unlock (&temp_lock);
     return 0;
   }
   
-  node=stat_nodes+i;
+  node = stat_nodes + index;
+  delta = now() - node->last_coll;
   
-  pinba_time delta=now()-node->last_coll;
+  res->name = node->name;
+  res->req_per_sec = node->req_count / delta;
   
-  res->name=node->name;
+  if (node->req_count == 0)
+    node->req_count = 1;
+
+  res->req_time = node->req_time / node->req_count;
+  res->ru_utime = node->ru_utime / node->req_count;
+  res->ru_stime = node->ru_stime / node->req_count;
+  res->ru_stime = node->ru_stime / node->req_count;
+  res->doc_size = node->doc_size / node->req_count;
+  res->mem_peak = node->mem_peak / node->req_count;
   
-  res->req_per_sec=node->req_count/delta;
-  
-  if(node->req_count==0)node->req_count=1;
-  res->req_time=node->req_time/node->req_count;
-  res->ru_utime=node->ru_utime/node->req_count;
-  res->ru_stime=node->ru_stime/node->req_count;
-  res->ru_stime=node->ru_stime/node->req_count;
-  res->doc_size=node->doc_size/node->req_count;
-  res->mem_peak=node->mem_peak/node->req_count;
-  
-  service_statnode_reset(node);
-  return ++i;
-}
+  service_statnode_reset (node);
+  return (index + 1);
+} /* }}} unsigned int service_statnode_collect */
 
 static void service_statnode_process (pinba_statnode *node,
     Pinba__Request* request)
@@ -433,7 +432,7 @@ static pinba_socket *pinba_socket_open (const char *ip, /* {{{ */
   event_add(s->accept_event, NULL);
   
   return s;
-} /* }}} */
+} /* }}} pinba_socket_open */
 
 static int service_cleanup (void)
 {
@@ -615,8 +614,7 @@ static int plugin_shutdown (void)
   return 0;
 }
 
-static int
-plugin_submit (const char *plugin_instance,
+static int plugin_submit (const char *plugin_instance,
 	       const char *type,
 	       const pinba_statres *res) {
   value_t values[6];
@@ -663,4 +661,4 @@ void module_register (void)
   plugin_register_shutdown ("pinba", plugin_shutdown);
 } /* void module_register */
 
-/* vim: set sw=2 sts=2 et : */
+/* vim: set sw=2 sts=2 et fdm=marker : */
