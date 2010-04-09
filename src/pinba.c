@@ -43,11 +43,11 @@
 #endif
 
 #ifndef PINBA_DEFAULT_NODE
-# define PINBA_DEFAULT_NODE "127.0.0.1" /* FIXME */
+# define PINBA_DEFAULT_NODE "::0"
 #endif
 
 #ifndef PINBA_DEFAULT_SERVICE
-# define PINBA_DEFAULT_SERVICE "12345" /* FIXME */
+# define PINBA_DEFAULT_SERVICE "30002"
 #endif
 
 #ifndef PINBA_MAX_SOCKETS
