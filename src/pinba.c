@@ -559,89 +559,72 @@ static void *collector_thread (void *arg) /* {{{ */
 /*
  * Plugin declaration section
  */
-
-static int config_set (char **var, const char *value) /* {{{ */
+static int pinba_config_view (const oconfig_item_t *ci) /* {{{ */
 {
-  /* code from nginx plugin for collectd */
-  if (*var != NULL) {
-    free (*var);
-    *var = NULL;
+  char *name   = NULL;
+  char *host   = NULL;
+  char *server = NULL;
+  char *script = NULL;
+  int status;
+  int i;
+
+  status = cf_util_get_string (ci, &name);
+  if (status != 0)
+    return (status);
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Host", child->key) == 0)
+      status = cf_util_get_string (child, &host);
+    else if (strcasecmp ("Server", child->key) == 0)
+      status = cf_util_get_string (child, &server);
+    else if (strcasecmp ("Script", child->key) == 0)
+      status = cf_util_get_string (child, &script);
+    else
+    {
+      WARNING ("pinba plugin: Unknown config option: %s", child->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
   }
-  
-  if ((*var = strdup (value)) == NULL) return (1);
-  else return (0);
-} /* }}} int config_set */
+
+  if (status == 0)
+    service_statnode_add (name, host, server, script);
+
+  sfree (name);
+  sfree (host);
+  sfree (server);
+  sfree (script);
+
+  return (status);
+} /* }}} int pinba_config_view */
 
 static int plugin_config (oconfig_item_t *ci) /* {{{ */
 {
-  unsigned int i, o;
+  int i;
   
+  /* The lock should not be necessary in the config callback, but let's be
+   * sure.. */
   pthread_mutex_lock (&stat_nodes_lock);
-  /* FIXME XXX: Remove all those return statements that don't free the lock. */
 
-  if (stat_nodes == NULL)
+  for (i = 0; i < ci->children_num; i++)
   {
-    /* Collect the "total" data by default. */
-    service_statnode_add ("total",
-        /* host = */ NULL,
-        /* server = */ NULL,
-        /* script = */ NULL);
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Address", child->key) == 0)
+      cf_util_get_string (child, &conf_node);
+    else if (strcasecmp ("Port", child->key) == 0)
+      cf_util_get_string (child, &conf_service);
+    else if (strcasecmp ("View", child->key) == 0)
+      pinba_config_view (child);
+    else
+      WARNING ("pinba plugin: Unknown config option: %s", child->key);
   }
 
-  for (i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *child = ci->children + i;
-    if (strcasecmp ("Address", child->key) == 0) {
-      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING)){
-	WARNING ("pinba plugin: `Address' needs exactly one string argument.");
-	return (-1);
-      }
-      config_set(&conf_node, child->values[0].value.string);
-    } else if (strcasecmp ("Port", child->key) == 0) {
-      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING)){
-	WARNING ("pinba plugin: `Port' needs exactly one string argument.");
-	return (-1);
-      }
-      config_set(&conf_service, child->values[0].value.string);
-    } else if (strcasecmp ("View", child->key) == 0) {
-      const char *name=NULL, *host=NULL, *server=NULL, *script=NULL;
-      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING) || strlen(child->values[0].value.string)==0){
-	WARNING ("pinba plugin: `View' needs exactly one non-empty string argument.");
-	return (-1);
-      }
-      name = child->values[0].value.string;
-      for(o=0; o<child->children_num; o++){
-	oconfig_item_t *node = child->children + o;
-	if (strcasecmp ("Host", node->key) == 0) {
-	  if ((node->values_num != 1) || (node->values[0].type != OCONFIG_TYPE_STRING) || strlen(node->values[0].value.string)==0){
-	    WARNING ("pinba plugin: `View->Host' needs exactly one non-empty string argument.");
-	    return (-1);
-	  }
-	  host = node->values[0].value.string;
-	} else if (strcasecmp ("Server", node->key) == 0) {
-	  if ((node->values_num != 1) || (node->values[0].type != OCONFIG_TYPE_STRING) || strlen(node->values[0].value.string)==0){
-	    WARNING ("pinba plugin: `View->Server' needs exactly one non-empty string argument.");
-	    return (-1);
-	  }
-	  server = node->values[0].value.string;
-	} else if (strcasecmp ("Script", node->key) == 0) {
-	  if ((node->values_num != 1) || (node->values[0].type != OCONFIG_TYPE_STRING) || strlen(node->values[0].value.string)==0){
-	    WARNING ("pinba plugin: `View->Script' needs exactly one non-empty string argument.");
-	    return (-1);
-	  }
-	  script = node->values[0].value.string;
-	} else {
-	  WARNING ("pinba plugin: In `<View>' context allowed only `Host', `Server' and `Script' options but not the `%s'.", node->key);
-	  return (-1);
-	}
-      }
-      /* add new statnode */
-      service_statnode_add(name, host, server, script);
-    } else {
-      WARNING ("pinba plugin: In `<Plugin pinba>' context allowed only `Address', `Port' and `Observe' options but not the `%s'.", child->key);
-      return (-1);
-    }
-  }
-  
   pthread_mutex_unlock(&stat_nodes_lock);
   
   return (0);
@@ -650,6 +633,15 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
 static int plugin_init (void) /* {{{ */
 {
   int status;
+
+  if (stat_nodes == NULL)
+  {
+    /* Collect the "total" data by default. */
+    service_statnode_add ("total",
+        /* host   = */ NULL,
+        /* server = */ NULL,
+        /* script = */ NULL);
+  }
 
   if (collector_thread_running)
     return (0);
