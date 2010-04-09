@@ -74,10 +74,10 @@ struct _pinba_socket_ {
   struct event *accept_event;
 };
 
-typedef double pinba_time;
-typedef uint32_t pinba_size;
+typedef double pinba_time_t;
+typedef uint32_t pinba_size_t;
 
-static pinba_time now (void)
+static pinba_time_t now (void)
 {
   static struct timeval tv;
   
@@ -90,7 +90,7 @@ static pthread_rwlock_t temp_lock;
 
 static struct event_base *temp_base = NULL;
 
-static pinba_socket *temp_sock = NULL;
+static pinba_socket_t *temp_sock = NULL;
 
 static pthread_t temp_thrd;
 
@@ -103,13 +103,13 @@ struct _pinba_statnode_{
   char *server;
   char *script;
   /* collected data */
-  pinba_time last_coll;
-  pinba_size req_count;
-  pinba_time req_time;
-  pinba_time ru_utime;
-  pinba_time ru_stime;
-  pinba_size doc_size;
-  pinba_size mem_peak;
+  pinba_time_t last_coll;
+  pinba_size_t req_count;
+  pinba_time_t req_time;
+  pinba_time_t ru_utime;
+  pinba_time_t ru_stime;
+  pinba_size_t doc_size;
+  pinba_size_t mem_peak;
 };
 
 static unsigned int stat_nodes_count=0;
@@ -228,7 +228,7 @@ static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
     unsigned int index)
 {
   pinba_statnode* node;
-  pinba_time delta;
+  pinba_time_t delta;
   
   if (stat_nodes_count == 0)
     return 0;
@@ -307,7 +307,7 @@ static void *pinba_main (void *arg)
   return NULL;
 }
 
-static void pinba_socket_free (pinba_socket *socket) /* {{{ */
+static void pinba_socket_free (pinba_socket_t *socket) /* {{{ */
 {
   if (!socket)
     return;
@@ -396,11 +396,11 @@ static void pinba_udp_read_callback_fn (int sock, short event, void *arg) /* {{{
   } /* while (42) */
 } /* }}} void pinba_udp_read_callback_fn */
 
-static pinba_socket *pinba_socket_open (const char *ip, /* {{{ */
+static pinba_socket_t *pinba_socket_open (const char *ip, /* {{{ */
     int listen_port)
 {
   struct sockaddr_in addr;
-  pinba_socket *s;
+  pinba_socket_t *s;
   int sfd, flags, yes = 1;
   
   if ((sfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
@@ -418,7 +418,7 @@ static pinba_socket *pinba_socket_open (const char *ip, /* {{{ */
     return NULL;
   }
   
-  s = (pinba_socket *)calloc(1, sizeof(pinba_socket));
+  s = (pinba_socket_t *)calloc(1, sizeof(pinba_socket_t));
   if (!s) {
     return NULL;
   }
