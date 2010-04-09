@@ -328,47 +328,73 @@ static void pinba_socket_free (pinba_socket *socket) /* {{{ */
   free(socket);
 } /* }}} void pinba_socket_free */
 
-static int pinba_process_stats_packet (const unsigned char *buf,
-    int buf_len)
+static int pinba_process_stats_packet (const uint8_t *buffer, /* {{{ */
+    size_t buffer_size)
 {
   Pinba__Request *request;  
   
-  request = pinba__request__unpack(NULL, buf_len, buf);
+  request = pinba__request__unpack (NULL, buffer_size, buffer);
   
-  if (!request) {
-    return P_FAILURE;
-  } else {
-    service_process_request(request);
-    
-    pinba__request__free_unpacked(request, NULL);
-    
-    return P_SUCCESS;
-  }
-}
+  if (!request)
+    return (-1);
 
-static void pinba_udp_read_callback_fn (int sock, short event, void *arg)
-{
-  if (event & EV_READ) {
-    int ret;
-    unsigned char buf[PINBA_UDP_BUFFER_SIZE];
-    struct sockaddr_in from;
-    socklen_t fromlen = sizeof(struct sockaddr_in);
+  service_process_request(request);
+  pinba__request__free_unpacked (request, NULL);
     
-    ret = recvfrom(sock, buf, PINBA_UDP_BUFFER_SIZE-1, MSG_DONTWAIT, (struct sockaddr *)&from, &fromlen);
-    if (ret > 0) {
-      if (pinba_process_stats_packet(buf, ret) != P_SUCCESS) {
-	DEBUG("failed to parse data received from %s", inet_ntoa(from.sin_addr));
+  return (0);
+} /* }}} int pinba_process_stats_packet */
+
+static void pinba_udp_read_callback_fn (int sock, short event, void *arg) /* {{{ */
+{
+  uint8_t buffer[PINBA_UDP_BUFFER_SIZE];
+  size_t buffer_size;
+  int status;
+
+  if ((event & EV_READ) == 0)
+    return;
+
+  while (42)
+  {
+    buffer_size = sizeof (buffer);
+    status = recvfrom (sock, buffer, buffer_size - 1, MSG_DONTWAIT, /* from = */ NULL, /* from len = */ 0);
+    if (status < 0)
+    {
+      char errbuf[1024];
+
+      if ((errno == EINTR)
+#ifdef EWOULDBLOCK
+          || (errno == EWOULDBLOCK)
+#endif
+          || (errno == EAGAIN))
+      {
+        continue;
       }
-    } else if (ret < 0) {
-      if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-	return;
-      }
-      WARNING("recv() failed: %s (%d)", strerror(errno), errno);
-    } else {
-      WARNING("recv() returned 0");
+
+      WARNING("pinba plugin: recvfrom(2) failed: %s",
+          sstrerror (errno, errbuf, sizeof (errbuf)));
+      return;
     }
-  }
-}
+    else if (status == 0)
+    {
+      DEBUG ("pinba plugin: recvfrom(2) returned unexpected status zero.");
+      return;
+    }
+    else /* if (status > 0) */
+    {
+      assert (((size_t) status) < buffer_size);
+      buffer_size = (size_t) status;
+      buffer[buffer_size] = 0;
+
+      status = pinba_process_stats_packet (buffer, buffer_size);
+      if (status != 0)
+        DEBUG("pinba plugin: Parsing packet failed.");
+      return;
+    }
+
+    /* not reached */
+    assert (23 == 42);
+  } /* while (42) */
+} /* }}} void pinba_udp_read_callback_fn */
 
 static pinba_socket *pinba_socket_open (const char *ip, /* {{{ */
     int listen_port)
