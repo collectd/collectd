@@ -186,10 +186,10 @@ static void service_statnode_add(const char *name, /* {{{ */
   node->mem_peak = NAN;
   
   /* fill query data */
-  strset(&node->name, name);
-  strset(&node->host, host);
-  strset(&node->server, server);
-  strset(&node->script, script);
+  strset (&node->name, name);
+  strset (&node->host, host);
+  strset (&node->server, server);
+  strset (&node->script, script);
   
   /* increment counter */
   stat_nodes_num++;
@@ -251,11 +251,16 @@ static void service_process_request (Pinba__Request *request) /* {{{ */
   
   for (i = 0; i < stat_nodes_num; i++)
   {
-    if(stat_nodes[i].host && strcmp(request->hostname, stat_nodes[i].host))
+    if ((stat_nodes[i].host != NULL)
+        && (strcmp (request->hostname, stat_nodes[i].host) != 0))
       continue;
-    if(stat_nodes[i].server && strcmp(request->server_name, stat_nodes[i].server))
+
+    if ((stat_nodes[i].server != NULL)
+      && (strcmp (request->server_name, stat_nodes[i].server) != 0))
       continue;
-    if(stat_nodes[i].script && strcmp(request->script_name, stat_nodes[i].script))
+
+    if ((stat_nodes[i].script != NULL)
+      && (strcmp (request->script_name, stat_nodes[i].script) != 0))
       continue;
 
     service_statnode_process(&stat_nodes[i], request);
