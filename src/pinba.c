@@ -36,7 +36,7 @@
 #include "pinba.pb-c.h"
 
 /*
- *  Service declaration section
+ * Defines
  */
 #ifndef PINBA_UDP_BUFFER_SIZE
 # define PINBA_UDP_BUFFER_SIZE 65536
@@ -57,7 +57,7 @@
 /*
  * Private data structures
  */
-typedef struct _pinba_statres_ pinba_statres;
+typedef struct _pinba_statres_ pinba_statres_t;
 struct _pinba_statres_ {
   const char *name;
   double req_per_sec;
@@ -77,25 +77,38 @@ typedef struct pinba_socket_s pinba_socket_t;
 typedef double pinba_time_t;
 typedef uint32_t pinba_size_t;
 
-typedef struct pinba_statnode_s pinba_statnode_t;
+/* Fixed point counter value. n is the decimal part multiplied by 10^9. */
+struct float_counter_s
+{
+  uint64_t i;
+  uint64_t n; /* nanos */
+};
+typedef struct float_counter_s float_counter_t;
+
 struct pinba_statnode_s
 {
   /* collector name */
   char *name;
+
   /* query data */
   char *host;
   char *server;
   char *script;
-  /* collected data */
-  pinba_time_t last_coll;
-  pinba_size_t req_count;
-  pinba_time_t req_time;
-  pinba_time_t ru_utime;
-  pinba_time_t ru_stime;
-  pinba_size_t doc_size;
-  pinba_size_t mem_peak;
-};
 
+  derive_t req_count;
+
+  float_counter_t req_time;
+  float_counter_t ru_utime;
+  float_counter_t ru_stime;
+
+  derive_t doc_size;
+  gauge_t mem_peak;
+};
+typedef struct pinba_statnode_s pinba_statnode_t;
+
+/*
+ * Module global variables
+ */
 static pinba_statnode_t *stat_nodes = NULL;
 static unsigned int stat_nodes_num = 0;
 static pthread_mutex_t stat_nodes_lock;
@@ -107,25 +120,37 @@ static _Bool collector_thread_running = 0;
 static _Bool collector_thread_do_shutdown = 0;
 static pthread_t collector_thread_id;
 
-static pinba_time_t now (void) /* {{{ */
+/*
+ * Functions
+ */
+static void float_counter_add (float_counter_t *fc, float val) /* {{{ */
 {
-  static struct timeval tv;
-  
-  gettimeofday (&tv, /* tz = */ NULL);
-  
-  return (double)tv.tv_sec+((double)tv.tv_usec/(double)1000000);
-} /* }}} pinba_time_t now */
+  uint64_t tmp;
 
-static void service_statnode_reset (pinba_statnode_t *node) /* {{{ */
+  if (val < 0.0)
+    return;
+
+  tmp = (uint64_t) val;
+  val -= (double) tmp;
+
+  fc->i += tmp;
+  fc->n += (uint64_t) ((val * 1000000000.0) + .5);
+
+  if (fc->n >= 1000000000)
+  {
+    fc->i += 1;
+    fc->n -= 1000000000;
+    assert (fc->n < 1000000000);
+  }
+} /* }}} void float_counter_add */
+
+static derive_t float_counter_get (const float_counter_t *fc) /* {{{ */
 {
-  node->last_coll=now();
-  node->req_count=0;
-  node->req_time=0.0;
-  node->ru_utime=0.0;
-  node->ru_stime=0.0;
-  node->doc_size=0;
-  node->mem_peak=0;
-} /* }}} void service_statnode_reset */
+  if (fc->n >= 500000000)
+    return ((derive_t) (fc->i + 1));
+  else
+    return ((derive_t) fc->i);
+} /* }}} derive_t float_counter_get */
 
 static void strset (char **str, const char *new) /* {{{ */
 {
@@ -148,24 +173,26 @@ static void service_statnode_add(const char *name, /* {{{ */
     const char *script)
 {
   pinba_statnode_t *node;
-  DEBUG("adding node `%s' to collector { %s, %s, %s }", name, host?host:"", server?server:"", script?script:"");
   
-  stat_nodes=realloc(stat_nodes, sizeof(pinba_statnode_t)*(stat_nodes_num+1));
-  if(!stat_nodes){
-    ERROR("Realloc failed!");
-    exit(-1);
+  node = realloc (stat_nodes,
+      sizeof (*stat_nodes) * (stat_nodes_num + 1));
+  if (node == NULL)
+  {
+    ERROR ("pinba plugin: realloc failed");
+    return;
   }
-  
-  node=&stat_nodes[stat_nodes_num];
-  
-  /* reset stat data */
-  service_statnode_reset(node);
+  stat_nodes = node;
+
+  node = stat_nodes + stat_nodes_num;
+  memset (node, 0, sizeof (*node));
   
   /* reset strings */
-  node->name=NULL;
-  node->host=NULL;
-  node->server=NULL;
-  node->script=NULL;
+  node->name   = NULL;
+  node->host   = NULL;
+  node->server = NULL;
+  node->script = NULL;
+
+  node->mem_peak = NAN;
   
   /* fill query data */
   strset(&node->name, name);
@@ -177,54 +204,13 @@ static void service_statnode_add(const char *name, /* {{{ */
   stat_nodes_num++;
 } /* }}} void service_statnode_add */
 
-static void service_statnode_free (void) /* {{{ */
-{
-  unsigned int i;
-
-  if(stat_nodes_num < 1)
-    return;
-
-  for (i = 0; i < stat_nodes_num; i++)
-  {
-    sfree (stat_nodes[i].name);
-    sfree (stat_nodes[i].host);
-    sfree (stat_nodes[i].server);
-    sfree (stat_nodes[i].script);
-  }
-
-  sfree (stat_nodes);
-  stat_nodes_num = 0;
-
-  pthread_mutex_destroy (&stat_nodes_lock);
-} /* }}} void service_statnode_free */
-
-static void service_statnode_init (void) /* {{{ */
-{
-  /* only total info collect by default */
-  service_statnode_free();
-  
-  DEBUG("initializing collector..");
-  pthread_mutex_init(&stat_nodes_lock, 0);
-} /* }}} void service_statnode_init */
-
-static void service_statnode_begin (void) /* {{{ */
-{
-  service_statnode_init();
-  pthread_mutex_lock(&stat_nodes_lock);
-  
-  service_statnode_add("total", NULL, NULL, NULL);
-} /* }}} void service_statnode_begin */
-
-static void service_statnode_end (void) /* {{{ */
-{
-  pthread_mutex_unlock(&stat_nodes_lock);
-} /* }}} void service_statnode_end */
-
-static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
+/* Copy the data from the global "stat_nodes" list into the buffer pointed to
+ * by "res", doing the derivation in the process. Returns the next index or
+ * zero if the end of the list has been reached. */
+static unsigned int service_statnode_collect (pinba_statnode_t *res, /* {{{ */
     unsigned int index)
 {
-  pinba_statnode_t* node;
-  pinba_time_t delta;
+  pinba_statnode_t *node;
   
   if (stat_nodes_num == 0)
     return 0;
@@ -239,24 +225,13 @@ static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
     pthread_mutex_unlock (&stat_nodes_lock);
     return 0;
   }
-  
-  node = stat_nodes + index;
-  delta = now() - node->last_coll;
-  
-  res->name = node->name;
-  res->req_per_sec = node->req_count / delta;
-  
-  if (node->req_count == 0)
-    node->req_count = 1;
 
-  res->req_time = node->req_time / node->req_count;
-  res->ru_utime = node->ru_utime / node->req_count;
-  res->ru_stime = node->ru_stime / node->req_count;
-  res->ru_stime = node->ru_stime / node->req_count;
-  res->doc_size = node->doc_size / node->req_count;
-  res->mem_peak = node->mem_peak / node->req_count;
+  node = stat_nodes + index;
+  memcpy (res, node, sizeof (*res));
+
+  /* reset node */
+  node->mem_peak = NAN;
   
-  service_statnode_reset (node);
   return (index + 1);
 } /* }}} unsigned int service_statnode_collect */
 
@@ -264,11 +239,17 @@ static void service_statnode_process (pinba_statnode_t *node, /* {{{ */
     Pinba__Request* request)
 {
   node->req_count++;
-  node->req_time+=request->request_time;
-  node->ru_utime+=request->ru_utime;
-  node->ru_stime+=request->ru_stime;
-  node->doc_size+=request->document_size;
-  node->mem_peak+=request->memory_peak;
+
+  float_counter_add (&node->req_time, request->request_time);
+  float_counter_add (&node->ru_utime, request->ru_utime);
+  float_counter_add (&node->ru_stime, request->ru_stime);
+
+  node->doc_size += request->document_size;
+
+  if (isnan (node->mem_peak)
+      || (node->mem_peak < ((gauge_t) request->memory_peak)))
+    node->mem_peak = (gauge_t) request->memory_peak;
+
 } /* }}} void service_statnode_process */
 
 static void service_process_request (Pinba__Request *request) /* {{{ */
@@ -595,8 +576,18 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
 {
   unsigned int i, o;
   
-  service_statnode_begin();
-  
+  pthread_mutex_lock (&stat_nodes_lock);
+  /* FIXME XXX: Remove all those return statements that don't free the lock. */
+
+  if (stat_nodes == NULL)
+  {
+    /* Collect the "total" data by default. */
+    service_statnode_add ("total",
+        /* host = */ NULL,
+        /* server = */ NULL,
+        /* script = */ NULL);
+  }
+
   for (i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Address", child->key) == 0) {
@@ -651,7 +642,7 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
     }
   }
   
-  service_statnode_end();
+  pthread_mutex_unlock(&stat_nodes_lock);
   
   return (0);
 } /* int pinba_config */
@@ -703,27 +694,38 @@ static int plugin_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int plugin_shutdown */
 
-static int plugin_submit (const char *plugin_instance, /* {{{ */
-	       const char *type,
-	       const pinba_statres *res) {
-  value_t values[6];
+static int plugin_submit (const pinba_statnode_t *res) /* {{{ */
+{
+  value_t value;
   value_list_t vl = VALUE_LIST_INIT;
   
-  values[0].gauge = res->req_per_sec;
-  values[1].gauge = res->req_time;
-  values[2].gauge = res->ru_utime;
-  values[3].gauge = res->ru_stime;
-  values[4].gauge = res->doc_size;
-  values[5].gauge = res->mem_peak;
-  
-  vl.values = values;
-  vl.values_len = 6;
+  vl.values = &value;
+  vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "pinba", sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, plugin_instance,
-	    sizeof(vl.plugin_instance));
-  sstrncpy (vl.type, type, sizeof (vl.type));
-  INFO("Pinba Dispatch");
+  sstrncpy (vl.plugin_instance, res->name, sizeof (vl.plugin_instance));
+
+  value.derive = res->req_count;
+  sstrncpy (vl.type, "requests", sizeof (vl.type)); 
+  plugin_dispatch_values (&vl);
+
+  value.derive = float_counter_get (&res->req_time);
+  sstrncpy (vl.type, "total_time", sizeof (vl.type)); 
+  plugin_dispatch_values (&vl);
+
+  value.derive = float_counter_get (&res->ru_utime);
+  sstrncpy (vl.type, "cpu", sizeof (vl.type));
+  sstrncpy (vl.type_instance, "user", sizeof (vl.type_instance));
+  plugin_dispatch_values (&vl);
+
+  value.derive = float_counter_get (&res->ru_stime);
+  sstrncpy (vl.type, "cpu", sizeof (vl.type));
+  sstrncpy (vl.type_instance, "system", sizeof (vl.type_instance));
+  plugin_dispatch_values (&vl);
+
+  value.gauge = res->mem_peak;
+  sstrncpy (vl.type, "memory", sizeof (vl.type));
+  sstrncpy (vl.type_instance, "peak", sizeof (vl.type_instance));
   plugin_dispatch_values (&vl);
 
   return (0);
@@ -732,11 +734,11 @@ static int plugin_submit (const char *plugin_instance, /* {{{ */
 static int plugin_read (void) /* {{{ */
 {
   unsigned int i=0;
-  static pinba_statres res;
+  pinba_statnode_t data;
   
-  while ((i = service_statnode_collect (&res, i)) != 0)
+  while ((i = service_statnode_collect (&data, i)) != 0)
   {
-    plugin_submit(res.name, "pinba_view", &res);
+    plugin_submit (&data);
   }
   
   return 0;
