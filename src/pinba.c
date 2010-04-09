@@ -54,10 +54,6 @@
 # define PINBA_MAX_SOCKETS 16
 #endif
 
-#ifndef NI_MAXSERV
-# define NI_MAXSERV 32
-#endif
-
 /*
  * Private data structures
  */
