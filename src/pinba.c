@@ -46,6 +46,17 @@ typedef uint8_t u_char;
 # define PINBA_UDP_BUFFER_SIZE 65536
 #endif
 
+#ifndef PINBA_DEFAULT_ADDRESS
+# define PINBA_DEFAULT_ADDRESS "127.0.0.1" /* FIXME */
+#endif
+
+#ifndef PINBA_DEFAULT_PORT
+# define PINBA_DEFAULT_PORT 12345 /* FIXME */
+#endif
+
+/*
+ * Private data structures
+ */
 typedef struct _pinba_statres_ pinba_statres;
 struct _pinba_statres_ {
   const char *name;
