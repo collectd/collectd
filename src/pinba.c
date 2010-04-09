@@ -42,12 +42,12 @@
 # define PINBA_UDP_BUFFER_SIZE 65536
 #endif
 
-#ifndef PINBA_DEFAULT_ADDRESS
-# define PINBA_DEFAULT_ADDRESS "127.0.0.1" /* FIXME */
+#ifndef PINBA_DEFAULT_NODE
+# define PINBA_DEFAULT_NODE "127.0.0.1" /* FIXME */
 #endif
 
-#ifndef PINBA_DEFAULT_PORT
-# define PINBA_DEFAULT_PORT 12345 /* FIXME */
+#ifndef PINBA_DEFAULT_SERVICE
+# define PINBA_DEFAULT_SERVICE "12345" /* FIXME */
 #endif
 
 #ifndef PINBA_MAX_SOCKETS
@@ -104,9 +104,8 @@ static pinba_statnode_t *stat_nodes = NULL;
 static unsigned int stat_nodes_num = 0;
 static pthread_mutex_t stat_nodes_lock;
 
-char service_status=0;
-char *service_address = PINBA_DEFAULT_ADDRESS;
-unsigned int service_port=PINBA_DEFAULT_PORT;
+static char *conf_node = NULL;
+static char *conf_service = NULL;
 
 static _Bool collector_thread_running = 0;
 static _Bool collector_thread_do_shutdown = 0;
@@ -368,16 +367,13 @@ static int pb_add_socket (pinba_socket_t *s, /* {{{ */
 } /* }}} int pb_add_socket */
 
 static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
-    int listen_port)
+    const char *service)
 {
   pinba_socket_t *s;
   struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
   struct addrinfo  ai_hints;
   int status;
-
-  char service[NI_MAXSERV]; /* FIXME */
-  snprintf (service, sizeof (service), "%i", listen_port);
 
   memset (&ai_hints, 0, sizeof (ai_hints));
   ai_hints.ai_flags = AI_PASSIVE;
@@ -386,6 +382,12 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   ai_hints.ai_addr = NULL;
   ai_hints.ai_canonname = NULL;
   ai_hints.ai_next = NULL;
+
+  if (node == NULL)
+    node = PINBA_DEFAULT_NODE;
+
+  if (service == NULL)
+    service = PINBA_DEFAULT_SERVICE;
 
   ai_list = NULL;
   status = getaddrinfo (node, service,
@@ -514,7 +516,7 @@ static int receive_loop (void) /* {{{ */
 {
   pinba_socket_t *s;
 
-  s = pinba_socket_open (service_address, service_port);
+  s = pinba_socket_open (conf_node, conf_service);
   if (s == NULL)
   {
     ERROR ("pinba plugin: Collector thread is exiting prematurely.");
@@ -596,16 +598,8 @@ static int config_set (char **var, const char *value) /* {{{ */
 static int plugin_config (oconfig_item_t *ci) /* {{{ */
 {
   unsigned int i, o;
-  int pinba_port = 0;
-  char *pinba_address = NULL;
-  
-  INFO("Pinba Configure..");
   
   service_statnode_begin();
-  
-  /* Set default values */
-  config_set(&pinba_address, PINBA_DEFAULT_ADDRESS);
-  pinba_port = PINBA_DEFAULT_PORT;
   
   for (i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -614,13 +608,13 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
 	WARNING ("pinba plugin: `Address' needs exactly one string argument.");
 	return (-1);
       }
-      config_set(&pinba_address, child->values[0].value.string);
+      config_set(&conf_node, child->values[0].value.string);
     } else if (strcasecmp ("Port", child->key) == 0) {
-      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER)){
-	WARNING ("pinba plugin: `Port' needs exactly one number argument.");
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING)){
+	WARNING ("pinba plugin: `Port' needs exactly one string argument.");
 	return (-1);
       }
-      pinba_port=child->values[0].value.number;
+      config_set(&conf_service, child->values[0].value.string);
     } else if (strcasecmp ("View", child->key) == 0) {
       const char *name=NULL, *host=NULL, *server=NULL, *script=NULL;
       if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING) || strlen(child->values[0].value.string)==0){
