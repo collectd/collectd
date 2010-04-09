@@ -119,7 +119,7 @@ static pinba_time_t now (void) /* {{{ */
   gettimeofday (&tv, /* tz = */ NULL);
   
   return (double)tv.tv_sec+((double)tv.tv_usec/(double)1000000);
-} /* }}} */
+} /* }}} pinba_time_t now */
 
 static void service_statnode_reset (pinba_statnode_t *node) /* {{{ */
 {
@@ -182,7 +182,7 @@ static void service_statnode_add(const char *name, /* {{{ */
   stat_nodes_num++;
 } /* }}} void service_statnode_add */
 
-static void service_statnode_free (void)
+static void service_statnode_free (void) /* {{{ */
 {
   unsigned int i;
 
@@ -201,29 +201,29 @@ static void service_statnode_free (void)
   stat_nodes_num = 0;
 
   pthread_mutex_destroy (&stat_nodes_lock);
-}
+} /* }}} void service_statnode_free */
 
-static void service_statnode_init (void)
+static void service_statnode_init (void) /* {{{ */
 {
   /* only total info collect by default */
   service_statnode_free();
   
   DEBUG("initializing collector..");
   pthread_mutex_init(&stat_nodes_lock, 0);
-}
+} /* }}} void service_statnode_init */
 
-static void service_statnode_begin (void)
+static void service_statnode_begin (void) /* {{{ */
 {
   service_statnode_init();
   pthread_mutex_lock(&stat_nodes_lock);
   
   service_statnode_add("total", NULL, NULL, NULL);
-}
+} /* }}} void service_statnode_begin */
 
-static void service_statnode_end (void)
+static void service_statnode_end (void) /* {{{ */
 {
   pthread_mutex_unlock(&stat_nodes_lock);
-}
+} /* }}} void service_statnode_end */
 
 static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
     unsigned int index)
@@ -265,7 +265,7 @@ static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
   return (index + 1);
 } /* }}} unsigned int service_statnode_collect */
 
-static void service_statnode_process (pinba_statnode_t *node,
+static void service_statnode_process (pinba_statnode_t *node, /* {{{ */
     Pinba__Request* request)
 {
   node->req_count++;
@@ -274,9 +274,9 @@ static void service_statnode_process (pinba_statnode_t *node,
   node->ru_stime+=request->ru_stime;
   node->doc_size+=request->document_size;
   node->mem_peak+=request->memory_peak;
-}
+} /* }}} void service_statnode_process */
 
-static void service_process_request (Pinba__Request *request)
+static void service_process_request (Pinba__Request *request) /* {{{ */
 {
   unsigned int i;
 
@@ -295,7 +295,7 @@ static void service_process_request (Pinba__Request *request)
   }
   
   pthread_mutex_unlock(&stat_nodes_lock);
-}
+} /* }}} void service_process_request */
 
 static int pb_del_socket (pinba_socket_t *s, /* {{{ */
     nfds_t index)
@@ -581,7 +581,7 @@ static void *collector_thread (void *arg) /* {{{ */
  * Plugin declaration section
  */
 
-static int config_set (char **var, const char *value)
+static int config_set (char **var, const char *value) /* {{{ */
 {
   /* code from nginx plugin for collectd */
   if (*var != NULL) {
@@ -591,9 +591,9 @@ static int config_set (char **var, const char *value)
   
   if ((*var = strdup (value)) == NULL) return (1);
   else return (0);
-}
+} /* }}} int config_set */
 
-static int plugin_config (oconfig_item_t *ci)
+static int plugin_config (oconfig_item_t *ci) /* {{{ */
 {
   unsigned int i, o;
   int pinba_port = 0;
@@ -713,7 +713,7 @@ static int plugin_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int plugin_shutdown */
 
-static int plugin_submit (const char *plugin_instance,
+static int plugin_submit (const char *plugin_instance, /* {{{ */
 	       const char *type,
 	       const pinba_statres *res) {
   value_t values[6];
@@ -737,9 +737,9 @@ static int plugin_submit (const char *plugin_instance,
   plugin_dispatch_values (&vl);
 
   return (0);
-}
+} /* }}} int plugin_submit */
 
-static int plugin_read (void)
+static int plugin_read (void) /* {{{ */
 {
   unsigned int i=0;
   static pinba_statres res;
@@ -750,14 +750,14 @@ static int plugin_read (void)
   }
   
   return 0;
-}
+} /* }}} int plugin_read */
 
-void module_register (void)
+void module_register (void) /* {{{ */
 {
   plugin_register_complex_config ("pinba", plugin_config);
   plugin_register_init ("pinba", plugin_init);
   plugin_register_read ("pinba", plugin_read);
   plugin_register_shutdown ("pinba", plugin_shutdown);
-} /* void module_register */
+} /* }}} void module_register */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
