@@ -21,8 +21,6 @@
  *   Phoenix Kayo <kayo.k11.4 at gmail.com>
  **/
 
-#define _XOPEN_SOURCE 500
-
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -88,27 +86,17 @@ typedef struct pinba_socket_s pinba_socket_t;
 typedef double pinba_time_t;
 typedef uint32_t pinba_size_t;
 
-static pinba_time_t now (void)
-{
-  static struct timeval tv;
-  
-  gettimeofday (&tv, /* tz = */ NULL);
-  
-  return (double)tv.tv_sec+((double)tv.tv_usec/(double)1000000);
-}
-
-static pthread_rwlock_t temp_lock;
-
 static struct event_base *temp_base = NULL;
 
 static pinba_socket_t *temp_sock = NULL;
 
 static pthread_t temp_thrd;
 
-typedef struct _pinba_statnode_ pinba_statnode;
-struct _pinba_statnode_{
+typedef struct pinba_statnode_s pinba_statnode_t;
+struct pinba_statnode_s
+{
   /* collector name */
-  char* name;
+  char *name;
   /* query data */
   char *host;
   char *server;
@@ -123,15 +111,24 @@ struct _pinba_statnode_{
   pinba_size_t mem_peak;
 };
 
-static unsigned int stat_nodes_count=0;
-
-static pinba_statnode *stat_nodes = NULL;
+static pinba_statnode_t *stat_nodes = NULL;
+static unsigned int stat_nodes_num = 0;
+static pthread_mutex_t stat_nodes_lock;
 
 char service_status=0;
 char *service_address = PINBA_DEFAULT_ADDRESS;
 unsigned int service_port=PINBA_DEFAULT_PORT;
 
-static void service_statnode_reset (pinba_statnode *node) /* {{{ */
+static pinba_time_t now (void) /* {{{ */
+{
+  static struct timeval tv;
+  
+  gettimeofday (&tv, /* tz = */ NULL);
+  
+  return (double)tv.tv_sec+((double)tv.tv_usec/(double)1000000);
+} /* }}} */
+
+static void service_statnode_reset (pinba_statnode_t *node) /* {{{ */
 {
   node->last_coll=now();
   node->req_count=0;
@@ -162,16 +159,16 @@ static void service_statnode_add(const char *name, /* {{{ */
     const char *server,
     const char *script)
 {
-  pinba_statnode *node;
+  pinba_statnode_t *node;
   DEBUG("adding node `%s' to collector { %s, %s, %s }", name, host?host:"", server?server:"", script?script:"");
   
-  stat_nodes=realloc(stat_nodes, sizeof(pinba_statnode)*(stat_nodes_count+1));
+  stat_nodes=realloc(stat_nodes, sizeof(pinba_statnode_t)*(stat_nodes_num+1));
   if(!stat_nodes){
     ERROR("Realloc failed!");
     exit(-1);
   }
   
-  node=&stat_nodes[stat_nodes_count];
+  node=&stat_nodes[stat_nodes_num];
   
   /* reset stat data */
   service_statnode_reset(node);
@@ -189,17 +186,17 @@ static void service_statnode_add(const char *name, /* {{{ */
   strset(&node->script, script);
   
   /* increment counter */
-  stat_nodes_count++;
+  stat_nodes_num++;
 } /* }}} void service_statnode_add */
 
 static void service_statnode_free (void)
 {
   unsigned int i;
 
-  if(stat_nodes_count < 1)
+  if(stat_nodes_num < 1)
     return;
 
-  for (i = 0; i < stat_nodes_count; i++)
+  for (i = 0; i < stat_nodes_num; i++)
   {
     sfree (stat_nodes[i].name);
     sfree (stat_nodes[i].host);
@@ -208,9 +205,9 @@ static void service_statnode_free (void)
   }
 
   sfree (stat_nodes);
-  stat_nodes_count = 0;
+  stat_nodes_num = 0;
 
-  pthread_rwlock_destroy (&temp_lock);
+  pthread_mutex_destroy (&stat_nodes_lock);
 }
 
 static void service_statnode_init (void)
@@ -219,39 +216,39 @@ static void service_statnode_init (void)
   service_statnode_free();
   
   DEBUG("initializing collector..");
-  pthread_rwlock_init(&temp_lock, 0);
+  pthread_mutex_init(&stat_nodes_lock, 0);
 }
 
 static void service_statnode_begin (void)
 {
   service_statnode_init();
-  pthread_rwlock_wrlock(&temp_lock);
+  pthread_mutex_lock(&stat_nodes_lock);
   
   service_statnode_add("total", NULL, NULL, NULL);
 }
 
 static void service_statnode_end (void)
 {
-  pthread_rwlock_unlock(&temp_lock);
+  pthread_mutex_unlock(&stat_nodes_lock);
 }
 
 static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
     unsigned int index)
 {
-  pinba_statnode* node;
+  pinba_statnode_t* node;
   pinba_time_t delta;
   
-  if (stat_nodes_count == 0)
+  if (stat_nodes_num == 0)
     return 0;
   
   /* begin collecting */
   if (index == 0)
-    pthread_rwlock_wrlock (&temp_lock);
+    pthread_mutex_lock (&stat_nodes_lock);
   
   /* end collecting */
-  if (index >= stat_nodes_count)
+  if (index >= stat_nodes_num)
   {
-    pthread_rwlock_unlock (&temp_lock);
+    pthread_mutex_unlock (&stat_nodes_lock);
     return 0;
   }
   
@@ -275,7 +272,7 @@ static unsigned int service_statnode_collect (pinba_statres *res, /* {{{ */
   return (index + 1);
 } /* }}} unsigned int service_statnode_collect */
 
-static void service_statnode_process (pinba_statnode *node,
+static void service_statnode_process (pinba_statnode_t *node,
     Pinba__Request* request)
 {
   node->req_count++;
@@ -290,9 +287,9 @@ static void service_process_request (Pinba__Request *request)
 {
   unsigned int i;
 
-  pthread_rwlock_wrlock (&temp_lock);
+  pthread_mutex_lock (&stat_nodes_lock);
   
-  for (i = 0; i < stat_nodes_count; i++)
+  for (i = 0; i < stat_nodes_num; i++)
   {
     if(stat_nodes[i].host && strcmp(request->hostname, stat_nodes[i].host))
       continue;
@@ -304,7 +301,7 @@ static void service_process_request (Pinba__Request *request)
     service_statnode_process(&stat_nodes[i], request);
   }
   
-  pthread_rwlock_unlock(&temp_lock);
+  pthread_mutex_unlock(&stat_nodes_lock);
 }
 
 static void *pinba_main (void *arg)
@@ -520,9 +517,9 @@ static int service_cleanup (void)
 {
   DEBUG("closing socket..");
   if(temp_sock){
-    pthread_rwlock_wrlock(&temp_lock);
+    pthread_mutex_lock(&stat_nodes_lock);
     pinba_socket_free(temp_sock);
-    pthread_rwlock_unlock(&temp_lock);
+    pthread_mutex_unlock(&stat_nodes_lock);
   }
   
   DEBUG("shutdowning event..");
@@ -679,6 +676,7 @@ static int plugin_config (oconfig_item_t *ci)
   service_statnode_end();
   
   service_config(pinba_address, pinba_port);
+  return (0);
 } /* int pinba_config */
 
 static int plugin_init (void)
