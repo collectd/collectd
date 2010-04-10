@@ -104,6 +104,7 @@ FQDNLookup   true
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
+#@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
@@ -591,6 +592,16 @@ FQDNLookup   true
 #		Foo "Bar"
 #		Qux "Baz"
 #	</Plugin>
+#</Plugin>
+
+#<Plugin pinba>
+#	Address "::0"
+#	Port "30002"
+#	<View "name">
+#		Host "host name"
+#		Server "server name"
+#		Script "script name"
+#	</View>
 #</Plugin>
 
 #<Plugin ping>
