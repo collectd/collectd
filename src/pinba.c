@@ -374,7 +374,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   assert (ai_list != NULL);
 
   s = malloc (sizeof (*s));
-  if (s != NULL)
+  if (s == NULL)
   {
     freeaddrinfo (ai_list);
     ERROR ("pinba plugin: malloc failed.");
