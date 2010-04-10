@@ -135,12 +135,15 @@ static void float_counter_add (float_counter_t *fc, float val) /* {{{ */
   }
 } /* }}} void float_counter_add */
 
-static derive_t float_counter_get (const float_counter_t *fc) /* {{{ */
+static derive_t float_counter_get (const float_counter_t *fc, /* {{{ */
+    uint64_t factor)
 {
-  if (fc->n >= 500000000)
-    return ((derive_t) (fc->i + 1));
-  else
-    return ((derive_t) fc->i);
+  derive_t ret;
+
+  ret = (derive_t) (fc->i * factor);
+  ret += (derive_t) (fc->n / (1000000000 / factor));
+
+  return (ret);
 } /* }}} derive_t float_counter_get */
 
 static void strset (char **str, const char *new) /* {{{ */
@@ -697,16 +700,16 @@ static int plugin_submit (const pinba_statnode_t *res) /* {{{ */
   sstrncpy (vl.type, "requests", sizeof (vl.type)); 
   plugin_dispatch_values (&vl);
 
-  value.derive = float_counter_get (&res->req_time);
-  sstrncpy (vl.type, "total_time", sizeof (vl.type)); 
+  value.derive = float_counter_get (&res->req_time, /* factor = */ 1000);
+  sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type)); 
   plugin_dispatch_values (&vl);
 
-  value.derive = float_counter_get (&res->ru_utime);
+  value.derive = float_counter_get (&res->ru_utime, /* factor = */ 100);
   sstrncpy (vl.type, "cpu", sizeof (vl.type));
   sstrncpy (vl.type_instance, "user", sizeof (vl.type_instance));
   plugin_dispatch_values (&vl);
 
-  value.derive = float_counter_get (&res->ru_stime);
+  value.derive = float_counter_get (&res->ru_stime, /* factor = */ 100);
   sstrncpy (vl.type, "cpu", sizeof (vl.type));
   sstrncpy (vl.type_instance, "system", sizeof (vl.type_instance));
   plugin_dispatch_values (&vl);

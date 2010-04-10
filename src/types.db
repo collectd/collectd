@@ -156,7 +156,6 @@ timeleft		timeleft:GAUGE:0:3600
 time_offset		seconds:GAUGE:-1000000:1000000
 total_requests		value:DERIVE:0:U
 total_time_in_ms	value:DERIVE:0:U
-total_time		value:DERIVE:0:U
 total_values		value:DERIVE:0:U
 uptime			value:GAUGE:0:4294967295
 users			users:GAUGE:0:65535
