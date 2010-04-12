@@ -697,11 +697,15 @@ static int plugin_submit (const pinba_statnode_t *res) /* {{{ */
   sstrncpy (vl.plugin_instance, res->name, sizeof (vl.plugin_instance));
 
   value.derive = res->req_count;
-  sstrncpy (vl.type, "requests", sizeof (vl.type)); 
+  sstrncpy (vl.type, "total_requests", sizeof (vl.type)); 
   plugin_dispatch_values (&vl);
 
   value.derive = float_counter_get (&res->req_time, /* factor = */ 1000);
   sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type)); 
+  plugin_dispatch_values (&vl);
+
+  value.derive = res->doc_size;
+  sstrncpy (vl.type, "total_bytes", sizeof (vl.type)); 
   plugin_dispatch_values (&vl);
 
   value.derive = float_counter_get (&res->ru_utime, /* factor = */ 100);
