@@ -52,6 +52,37 @@
 	* scale target: This target to scale (multiply) values by an arbitrary
 	  value has been added.
 
+2010-04-07, Version 4.8.4
+	* Build system, various plugins: Fixes for AIX compatibility have been
+	  added. Thanks to Manuel Sanmartin for his patches.
+	* Build system: Checking for "nanosleep" on old Solaris machines has
+	  been fixed. Thanks to Vincent McIntyre and Sebastian Harl for
+	  figuring out a way to make this work.
+	* collectd: Serialization of NANs in JSON format has been fixed.
+	  Thanks to Chris Buben for pointing out the resulting syntax error.
+	* collectd: Checks whether a "sleep" returned early have been added;
+	  the cases are now handled correctly. Thanks to Michael Stapelberg
+	  for the patch.
+	* collectd: Continue reading files in a directory when parsing one
+	  file fails.
+	* apache plugin: Collection of the number of active connections has
+	  been fixed for Apache 2.*.
+	* exec plugin: Error messages have been improved. The "running" flag
+	  is now cleared correctly when forking a child fails.
+	* iptables plugin: Fix a violation of aliasing rules. This resolves a
+	  warning / error with new GCC versions. Thanks to Jan Engelhardt for
+	  the work-around.
+	* java plugin: The Java API files are now packaged into a .jar file.
+	  Thanks to Amit Gupta for his patch.
+	* network plugin: A memory leak when receiving encrypted network
+	  packets has been fixed.
+	* oracle plugin: Fix checking for lost connections and reconnect in
+	  this case. Thanks to Sven Trenkel for pointing out the problem.
+	* unixsock plugin: A memory leak in the "LISTVAL" command has been
+	  fixed. Thanks to Peter Warasin for pointing it out.
+	* write_http plugin: Use the "any" authentication schema. This used to
+	  be "digest". Thanks to Paul Sadauskas for the patch.
+
 2010-01-14, Version 4.8.3
 	* Documentation: Some manpage fixes.
 	* rrdtool plugin: Fix a bug with random write timeouts. Due to an

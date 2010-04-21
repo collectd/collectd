@@ -88,6 +88,8 @@ with the C<exec-plugin>).
 
 =back
 
+=back
+
 =cut
 
 sub handle_config_addtype
@@ -293,7 +295,7 @@ sub execute_script
       
       if ($perfdata)
       {
-	push (@serviceperfdata, split (' ', $perfdata));
+        push (@serviceperfdata, split (' ', $perfdata));
       }
 
       $state = 1;
@@ -308,8 +310,8 @@ sub execute_script
 
       if ($perfdata)
       {
-	push (@serviceperfdata, split (' ', $perfdata));
-	$state = 2;
+        push (@serviceperfdata, split (' ', $perfdata));
+        $state = 2;
       }
     }
     else # ($state == 2)
@@ -347,7 +349,7 @@ sub execute_script
     for (@serviceperfdata)
     {
       handle_performance_data ($host, 'nagios', $pinst, $script->{'type'},
-	$time, $_);
+        $time, $_);
     }
   }
 } # execute_script
