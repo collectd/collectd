@@ -810,9 +810,8 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
     else
       interval.tv_sec = 0;
 
-    plugin_register_complex_read (name, mb_read,
-        (interval.tv_sec > 0) ? &interval : NULL,
-        &ud);
+    plugin_register_complex_read (/* group = */ NULL, name,
+        mb_read, (interval.tv_sec > 0) ? &interval : NULL, &ud);
   }
   else
   {
