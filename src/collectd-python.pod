@@ -105,6 +105,15 @@ environment variable, e.g. I<export PAGER=less> before starting collectd.
 Depending on your version of python this might or might not result in an
 B<OSError> exception which can be ignored.
 
+If you really need to spawn new processes from python you can register an init
+callback and reset the action for SIGCHLD to the default behavior. Please note
+that this I<will> break the exec plugin. Do not even load the exec plugin if
+you intend to do this!
+
+There is an example script located in B<contrib/python/getsigchld.py>  to do
+this. If you import this from I<collectd.conf> SIGCHLD will be handled
+normally and spawning processes from python will work as intended.
+
 =back
 
 =item E<lt>B<Module> I<Name>E<gt> block
