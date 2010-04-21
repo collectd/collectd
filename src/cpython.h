@@ -24,6 +24,10 @@
  *   Sven Trenkel <collectd at semidefinite.de>  
  **/
 
+/* Some python versions don't include this by default. */
+
+#include <longintrepr.h>
+
 /* These two macros are basicly Py_BEGIN_ALLOW_THREADS and Py_BEGIN_ALLOW_THREADS
  * from the other direction. If a Python thread calls a C function
  * Py_BEGIN_ALLOW_THREADS is used to allow other python threads to run because

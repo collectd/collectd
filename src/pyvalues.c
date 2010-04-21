@@ -473,7 +473,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 		if (PyErr_Occurred())
 			cpy_log_exception("building meta data");
 		Py_XDECREF(value);
-		Py_DECREF(keystring);
+		Py_DECREF(key);
 	}
 	return m;
 }
