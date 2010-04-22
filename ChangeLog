@@ -52,6 +52,11 @@
 	* scale target: This target to scale (multiply) values by an arbitrary
 	  value has been added.
 
+2010-04-22, Version 4.8.5
+	* collectd: Append a newline to messages written to STDERR.
+	* network plugin: Fix a segmentation fault when receiving packets with
+	  an unknown data source type.
+
 2010-04-07, Version 4.8.4
 	* Build system, various plugins: Fixes for AIX compatibility have been
 	  added. Thanks to Manuel Sanmartin for his patches.
