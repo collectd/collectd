@@ -24,6 +24,10 @@
  *   Sven Trenkel <collectd at semidefinite.de>  
  **/
 
+/* Some python versions don't include this by default. */
+
+#include <longintrepr.h>
+
 /* These two macros are basicly Py_BEGIN_ALLOW_THREADS and Py_BEGIN_ALLOW_THREADS
  * from the other direction. If a Python thread calls a C function
  * Py_BEGIN_ALLOW_THREADS is used to allow other python threads to run because
@@ -155,7 +159,9 @@ static inline PyObject *cpy_string_to_unicode_or_bytes(const char *buf) {
 #endif	
 }
 
- /* Python object declarations. */
+void cpy_log_exception(const char *context);
+
+/* Python object declarations. */
 
 typedef struct {
 	PyObject_HEAD        /* No semicolon! */
@@ -164,7 +170,6 @@ typedef struct {
 	PyObject *values;    /* Sequence */
 	PyObject *children;  /* Sequence */
 } Config;
-
 PyTypeObject ConfigType;
 
 typedef struct {
@@ -176,15 +181,14 @@ typedef struct {
 	char type[DATA_MAX_NAME_LEN];
 	char type_instance[DATA_MAX_NAME_LEN];
 } PluginData;
-
 PyTypeObject PluginDataType;
 
 typedef struct {
 	PluginData data;
 	PyObject *values;    /* Sequence */
+	PyObject *meta;      /* dict */
 	int interval;
 } Values;
-
 PyTypeObject ValuesType;
 
 typedef struct {
@@ -192,5 +196,10 @@ typedef struct {
 	int severity;
 	char message[NOTIF_MAX_MSG_LEN];
 } Notification;
-
 PyTypeObject NotificationType;
+
+typedef PyLongObject Signed;
+PyTypeObject SignedType;
+
+typedef PyLongObject Unsigned;
+PyTypeObject UnsignedType;

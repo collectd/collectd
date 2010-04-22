@@ -259,7 +259,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 	PyErr_Clear();
 }
 
-static void cpy_log_exception(const char *context) {
+void cpy_log_exception(const char *context) {
 	int l = 0, i;
 	const char *typename = NULL, *message = NULL;
 	PyObject *type, *value, *traceback, *tn, *m, *list;
@@ -335,7 +335,7 @@ static int cpy_read_callback(user_data_t *data) {
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
 	int i;
 	cpy_callback_t *c = data->data;
-	PyObject *ret, *list;
+	PyObject *ret, *list, *temp, *dict = NULL;
 	Values *v;
 
 	CPY_LOCK_THREADS
@@ -374,6 +374,60 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				CPY_RETURN_FROM_THREADS 0;
 			}
 		}
+		dict = PyDict_New();
+		if (value_list->meta) {
+			int i, num;
+			char **table;
+			meta_data_t *meta = value_list->meta;
+
+			num = meta_data_toc(meta, &table);
+			for (i = 0; i < num; ++i) {
+				int type;
+				char *string;
+				int64_t si;
+				uint64_t ui;
+				double d;
+				_Bool b;
+				
+				type = meta_data_type(meta, table[i]);
+				if (type == MD_TYPE_STRING) {
+					if (meta_data_get_string(meta, table[i], &string))
+						continue;
+					temp = cpy_string_to_unicode_or_bytes(string);
+					free(string);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_SIGNED_INT) {
+					if (meta_data_get_signed_int(meta, table[i], &si))
+						continue;
+					temp = PyObject_CallFunctionObjArgs((void *) &SignedType, PyLong_FromLongLong(si), (void *) 0);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_UNSIGNED_INT) {
+					if (meta_data_get_unsigned_int(meta, table[i], &ui))
+						continue;
+					temp = PyObject_CallFunctionObjArgs((void *) &UnsignedType, PyLong_FromUnsignedLongLong(ui), (void *) 0);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_DOUBLE) {
+					if (meta_data_get_double(meta, table[i], &d))
+						continue;
+					temp = PyFloat_FromDouble(d);
+					PyDict_SetItemString(dict, table[i], temp);
+					Py_XDECREF(temp);
+				} else if (type == MD_TYPE_BOOLEAN) {
+					if (meta_data_get_boolean(meta, table[i], &b))
+						continue;
+					if (b)
+						temp = Py_True;
+					else
+						temp = Py_False;
+					PyDict_SetItemString(dict, table[i], temp);
+				}
+				free(table[i]);
+			}
+			free(table);
+		}
 		v = PyObject_New(Values, (void *) &ValuesType);
 		sstrncpy(v->data.host, value_list->host, sizeof(v->data.host));
 		sstrncpy(v->data.type, value_list->type, sizeof(v->data.type));
@@ -383,6 +437,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		v->data.time = value_list->time;
 		v->interval = value_list->interval;
 		v->values = list;
+		v->meta = dict;
 		ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL) {
 			cpy_log_exception("write callback");
@@ -936,6 +991,10 @@ static int cpy_config(oconfig_item_t *ci) {
 	PyType_Ready(&ValuesType);
 	NotificationType.tp_base = &PluginDataType;
 	PyType_Ready(&NotificationType);
+	SignedType.tp_base = &PyLong_Type;
+	PyType_Ready(&SignedType);
+	UnsignedType.tp_base = &PyLong_Type;
+	PyType_Ready(&UnsignedType);
 	sys = PyImport_ImportModule("sys"); /* New reference. */
 	if (sys == NULL) {
 		cpy_log_exception("python initialization");
@@ -955,6 +1014,8 @@ static int cpy_config(oconfig_item_t *ci) {
 	PyModule_AddObject(module, "Config", (void *) &ConfigType); /* Steals a reference. */
 	PyModule_AddObject(module, "Values", (void *) &ValuesType); /* Steals a reference. */
 	PyModule_AddObject(module, "Notification", (void *) &NotificationType); /* Steals a reference. */
+	PyModule_AddObject(module, "Signed", (void *) &SignedType); /* Steals a reference. */
+	PyModule_AddObject(module, "Unsigned", (void *) &UnsignedType); /* Steals a reference. */
 	PyModule_AddIntConstant(module, "LOG_DEBUG", LOG_DEBUG);
 	PyModule_AddIntConstant(module, "LOG_INFO", LOG_INFO);
 	PyModule_AddIntConstant(module, "LOG_NOTICE", LOG_NOTICE);

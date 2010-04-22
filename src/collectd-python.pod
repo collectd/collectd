@@ -105,6 +105,15 @@ environment variable, e.g. I<export PAGER=less> before starting collectd.
 Depending on your version of python this might or might not result in an
 B<OSError> exception which can be ignored.
 
+If you really need to spawn new processes from python you can register an init
+callback and reset the action for SIGCHLD to the default behavior. Please note
+that this I<will> break the exec plugin. Do not even load the exec plugin if
+you intend to do this!
+
+There is an example script located in B<contrib/python/getsigchld.py>  to do
+this. If you import this from I<collectd.conf> SIGCHLD will be handled
+normally and spawning processes from python will work as intended.
+
 =back
 
 =item E<lt>B<Module> I<Name>E<gt> block
@@ -230,6 +239,28 @@ collectd you're done.
 
 The following complex types are used to pass values between the Python plugin
 and collectd:
+
+=head2 Signed
+
+The Signed class is just a long. It has all its methods and behaves exactly
+like any other long object. It is used to indicate if an integer was or should
+be stored as a signed or unsigned integer object.
+
+ class Signed(long)
+
+This is a long by another name. Use it in meta data dicts
+to choose the way it is stored in the meta data.
+
+=head2 Unsigned
+
+The Unsigned class is just a long. It has all its methods and behaves exactly
+like any other long object. It is used to indicate if an integer was or should
+be stored as a signed or unsigned integer object.
+
+ class Unsigned(long)
+
+This is a long by another name. Use it in meta data dicts
+to choose the way it is stored in the meta data.
 
 =head2 Config
 
@@ -393,6 +424,15 @@ information on this read the L<types.db(5)> manual page.
 If the sequence does not have the correct size upon dispatch a I<RuntimeError>
 exception will be raised. If the content of the sequence is not a number, a
 I<TypeError> exception will be raised.
+
+=item meta
+These are the meta data for this Value object.
+It has to be a dictionary of numbers, strings or bools. All keys must be
+strings. I<int> and <long> objects will be dispatched as signed integers unless
+they are between 2**63 and 2**64-1, which will result in a unsigned integer.
+You can force one of these storage classes by using the classes
+B<collectd.Signed> and B<collectd.Unsigned>. A meta object received by a write
+callback will always contain B<Signed> or B<Unsigned> objects.
 
 =back
 
