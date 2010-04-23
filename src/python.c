@@ -419,10 +419,9 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 					if (meta_data_get_boolean(meta, table[i], &b))
 						continue;
 					if (b)
-						temp = Py_True;
+						PyDict_SetItemString(dict, table[i], Py_True);
 					else
-						temp = Py_False;
-					PyDict_SetItemString(dict, table[i], temp);
+						PyDict_SetItemString(dict, table[i], Py_False);
 				}
 				free(table[i]);
 			}
