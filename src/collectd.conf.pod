@@ -102,6 +102,16 @@ Configures the interval in which to query the read plugins. Obviously smaller
 values lead to a higher system load produced by collectd, while higher values
 lead to more coarse statistics.
 
+=item B<Timeout> I<Iterations>
+
+Consider a value list "missing" when no update has been read or received for
+I<Iterations> iterations. By default, I<collectd> considers a value list
+missing when no update has been received for twice the update interval. Since
+this setting uses iterations, the maximum allowed time without update depends
+on the I<Interval> information contained in each value list. This is used in
+the I<Threshold> configuration to dispatch notifications about missing values,
+see L<"THRESHOLD CONFIGURATION"> below.
+
 =item B<ReadThreads> I<Num>
 
 Number of threads to start for reading plugins. The default value is B<5>, but
@@ -4446,10 +4456,12 @@ as a moving average or similar - at least not now.
 
 Also, all values that match a threshold are considered to be relevant or
 "interesting". As a consequence collectd will issue a notification if they are
-not received for twice the last timeout of the values. If, for example, some
-hosts sends it's CPU statistics to the server every 60 seconds, a notification
-will be dispatched after about 120 seconds. It may take a little longer because
-the timeout is checked only once each B<Interval> on the server.
+not received for B<Timeout> iterations. The B<Timeout> configuration option is
+explained in section L<"GLOBAL OPTIONS">. If, for example, B<Timeout> is set to
+"2" (the default) and some hosts sends it's CPU statistics to the server every
+60 seconds, a notification will be dispatched after about 120 seconds. It may
+take a little longer because the timeout is checked only once each B<Interval>
+on the server.
 
 When a value comes within range again or is received after it was missing, an
 "OKAY-notification" is dispatched.
