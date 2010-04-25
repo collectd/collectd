@@ -151,9 +151,9 @@ static int init_global_variables (void)
 
 	str = global_option_get ("Timeout");
 	if (str == NULL)
-		str = "10";
+		str = "2";
 	timeout_g = atoi (str);
-	if (timeout_g <= 0)
+	if (timeout_g <= 1)
 	{
 		fprintf (stderr, "Cannot set the timeout to a correct value.\n"
 				"Please check your settings.\n");
