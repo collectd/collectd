@@ -690,6 +690,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
+#include <inttypes.h>
 #if HAVE_STDBOOL_H
 # include <stdbool.h>
 #endif
@@ -734,6 +735,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
+#include <inttypes.h>
 #if HAVE_STDBOOL_H
 # include <stdbool.h>
 #endif
@@ -786,6 +788,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
+#include <inttypes.h>
 #if HAVE_STDBOOL_H
 # include <stdbool.h>
 #endif
