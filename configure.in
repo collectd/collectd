@@ -481,6 +481,13 @@ AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr 
 
 AC_FUNC_STRERROR_R
 
+SAVE_CFLAGS="$CFLAGS"
+# Emulate behavior of src/Makefile.am
+if test "x$GCC" = "xyes"
+then
+	CFLAGS="$CFLAGS -Wall -Werror"
+fi
+
 AC_CACHE_CHECK([for strtok_r],
   [c_cv_have_strtok_r_default],
   AC_LINK_IFELSE(
@@ -511,7 +518,6 @@ AC_CACHE_CHECK([for strtok_r],
 
 if test "x$c_cv_have_strtok_r_default" = "xno"
 then
-  SAVE_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -D_REENTRANT=1"
 
   AC_CACHE_CHECK([if strtok_r needs _REENTRANT],
@@ -541,6 +547,12 @@ then
       [AC_MSG_FAILURE([strtok_r isn't available. Please file a bugreport!])]
     )
   )
+fi
+
+CFLAGS="$SAVE_CFLAGS"
+if test "x$c_cv_have_strtok_r_reentrant" = "xyes"
+then
+	CFLAGS="$CFLAGS -D_REENTRANT=1"
 fi
 
 AC_CHECK_FUNCS(getpwnam_r getgrnam_r setgroups regcomp regerror regexec regfree)
