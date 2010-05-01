@@ -316,7 +316,7 @@ static int do_check_con_none (size_t values_num,
 	{
 		printf (" |");
 		for (i = 0; i < values_num; i++)
-			printf (" %s=%g;;;;", values_names[i], values[i]);
+			printf (" %s=%f;;;;", values_names[i], values[i]);
 	}
 	printf ("\n");
 
@@ -370,7 +370,7 @@ static int do_check_con_average (size_t values_num,
 
 	printf ("%s: %g average |", status_str, average);
 	for (i = 0; i < values_num; i++)
-		printf (" %s=%g;;;;", values_names[i], values[i]);
+		printf (" %s=%f;;;;", values_names[i], values[i]);
 	printf ("\n");
 
 	return (status_code);
@@ -420,7 +420,7 @@ static int do_check_con_sum (size_t values_num,
 
 	printf ("%s: %g sum |", status_str, total);
 	for (i = 0; i < values_num; i++)
-		printf (" %s=%g;;;;", values_names[i], values[i]);
+		printf (" %s=%f;;;;", values_names[i], values[i]);
 	printf ("\n");
 
 	return (status_code);
