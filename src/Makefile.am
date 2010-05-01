@@ -1036,6 +1036,14 @@ collectd_LDADD += "-dlopen" target_set.la
 collectd_DEPENDENCIES += target_set.la
 endif
 
+if BUILD_PLUGIN_TARGET_V5UPGRADE
+pkglib_LTLIBRARIES += target_v5upgrade.la
+target_v5upgrade_la_SOURCES = target_v5upgrade.c
+target_v5upgrade_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" target_v5upgrade.la
+collectd_DEPENDENCIES += target_v5upgrade.la
+endif
+
 if BUILD_PLUGIN_TCPCONNS
 pkglib_LTLIBRARIES += tcpconns.la
 tcpconns_la_SOURCES = tcpconns.c

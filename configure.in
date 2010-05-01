@@ -4342,6 +4342,7 @@ AC_PLUGIN([target_notification], [yes],        [The notification target])
 AC_PLUGIN([target_replace], [yes],             [The replace target])
 AC_PLUGIN([target_scale],[yes],                [The scale target])
 AC_PLUGIN([target_set],  [yes],                [The set target])
+AC_PLUGIN([target_v5upgrade], [yes],           [The v5upgrade target])
 AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
@@ -4658,6 +4659,7 @@ Configuration:
     target_replace  . . . $enable_target_replace
     target_scale  . . . . $enable_target_scale
     target_set  . . . . . $enable_target_set
+    target_v5upgrade  . . $enable_target_v5upgrade
     tcpconns  . . . . . . $enable_tcpconns
     teamspeak2  . . . . . $enable_teamspeak2
     ted . . . . . . . . . $enable_ted
