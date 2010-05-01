@@ -28,14 +28,15 @@
 # 3. This notice may not be removed or altered from any source distribution.
 
 import socket
+import sys
 
 
 class Collectd():
 
     def __init__(self, path='/var/run/collectd-unixsock', noisy=False):
         self.noisy = noisy
-        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self._sock.connect(path)
+        self.path = path
+        self._sock = self._connect()
 
     def flush(self, timeout=None, plugins=[], identifiers=[]):
         """Send a FLUSH command.
@@ -138,8 +139,20 @@ class Collectd():
         return self._cmd('PUTVAL %s' % ' '.join(args))
 
     def _cmd(self, c):
+        try:
+            return self._cmdattempt(c)
+        except socket.error, (errno, errstr):
+            sys.stderr.write("[error] Sending to socket failed: [%d] %s\n"
+                             % (errno, errstr))
+            self._sock = self._connect()
+            return self._cmdattempt(c)
+
+    def _cmdattempt(self, c):
         if self.noisy:
             print "[send] %s" % c
+        if not self._sock:
+            sys.stderr.write("[error] Socket unavailable. Can not send.")
+            return False
         self._sock.send(c + "\n")
         status_message = self._readline()
         if self.noisy:
@@ -151,18 +164,39 @@ class Collectd():
             return int(code)
         return False
 
+    def _connect(self):
+        try:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(self.path)
+            if self.noisy:
+                print "[socket] connected to %s" % self.path
+            return sock
+        except socket.error, (errno, errstr):
+            sys.stderror.write("[error] Connecting to socket failed: [%d] %s"
+                               % (errno, errstr))
+            return None
+
     def _readline(self):
         """Read single line from socket"""
-        data = ''
-        buf = []
-        recv = self._sock.recv
-        while data != "\n":
-            data = recv(1)
-            if not data:
-                break
-            if data != "\n":
-                buf.append(data)
-        return ''.join(buf)
+        if not self._sock:
+            sys.stderr.write("[error] Socket unavailable. Can not read.")
+            return None
+        try:
+            data = ''
+            buf = []
+            recv = self._sock.recv
+            while data != "\n":
+                data = recv(1)
+                if not data:
+                    break
+                if data != "\n":
+                    buf.append(data)
+            return ''.join(buf)
+        except socket.error, (errno, errstr):
+            sys.stderror.write("[error] Reading from socket failed: [%d] %s"
+                               % (errno, errstr))
+            self._sock = self._connect()
+            return None
 
     def _readlines(self, sizehint=0):
         """Read multiple lines from socket"""
@@ -179,7 +213,13 @@ class Collectd():
         return list
 
     def __del__(self):
-        self._sock.close()
+        if not self._sock:
+            return
+        try:
+            self._sock.close()
+        except socket.error, (errno, errstr):
+            sys.stderror.write("[error] Closing socket failed: [%d] %s"
+                               % (errno, errstr))
 
 
 if __name__ == '__main__':
