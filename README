@@ -208,6 +208,10 @@ Features
       write your own plugins in Perl and return arbitrary values using this
       API. See collectd-perl(5).
 
+    - pinba
+      Receive and dispatch timing values from Pinba, a profiling extension for
+      PHP.
+
     - ping
       Network latency: Time to reach the default gateway or another given
       host.
@@ -590,6 +594,11 @@ Prerequisites
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
+
+  * libprotobuf-c, protoc-c (optional)
+    Used by the `pinba' plugin to generate a parser for the network packets
+    sent by the Pinba PHP extension.
+    <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
     Used by the `python' plugin. Currently, only 2.3 ≦ Python < 3 is supported.
