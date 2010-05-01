@@ -1,0 +1,22 @@
+package Pinba;
+option optimize_for = SPEED;
+
+message Request {
+	required string hostname		= 1;
+	required string server_name		= 2;
+	required string script_name		= 3;
+	required uint32 request_count	= 4;
+	required uint32 document_size	= 5;
+	required uint32 memory_peak		= 6;
+	required float request_time		= 7;
+	required float ru_utime			= 8;
+	required float ru_stime			= 9;
+
+	repeated uint32 timer_hit_count = 10;
+	repeated float timer_value      = 11;
+	repeated uint32 timer_tag_count = 12;
+	repeated uint32 timer_tag_name  = 13;
+	repeated uint32 timer_tag_value = 14;
+	repeated string dictionary      = 15;
+	optional uint32 status          = 16;
+}
