@@ -128,13 +128,8 @@ hostname will be determined using the L<gethostname(2)> system call.
 
 If B<Hostname> is determined automatically this setting controls whether or not
 the daemon should try to figure out the "fully qualified domain name", FQDN.
-This is done using a lookup of the name returned by C<gethostname>.
-
-Using this feature (i.E<nbsp>e. setting this option to B<true>) is recommended.
-However, to preserve backwards compatibility the default is set to B<false>.
-The sample config file that is installed with C<makeE<nbsp>install> includes a
-line which sets this option, though, so that default installations will have
-this setting enabled.
+This is done using a lookup of the name returned by C<gethostname>. This option
+is enabled by default.
 
 =item B<PreCacheChain> I<ChainName>
 

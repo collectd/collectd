@@ -96,7 +96,7 @@ static cf_global_option_t cf_global_options[] =
 	{"BaseDir",     NULL, PKGLOCALSTATEDIR},
 	{"PIDFile",     NULL, PIDFILE},
 	{"Hostname",    NULL, NULL},
-	{"FQDNLookup",  NULL, "false"},
+	{"FQDNLookup",  NULL, "true"},
 	{"Interval",    NULL, "10"},
 	{"ReadThreads", NULL, "5"},
 	{"Timeout",     NULL, "2"},
