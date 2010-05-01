@@ -61,7 +61,6 @@ static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
 
 static _Bool by_device = false;
-static _Bool report_reserved = false;
 static _Bool report_inodes = false;
 
 static int df_init (void)
@@ -123,11 +122,7 @@ static int df_config (const char *key, const char *value)
 	}
 	else if (strcasecmp (key, "ReportReserved") == 0)
 	{
-		if (IS_TRUE (value))
-			report_reserved = true;
-		else
-			report_reserved = false;
-
+		/* Nop for backwards compatibility. */
 		return (0);
 	}
 	else if (strcasecmp (key, "ReportInodes") == 0)
@@ -143,28 +138,6 @@ static int df_config (const char *key, const char *value)
 
 	return (-1);
 }
-
-static void df_submit_two (char *df_name,
-		const char *type,
-		gauge_t df_used,
-		gauge_t df_free)
-{
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].gauge = df_used;
-	values[1].gauge = df_free;
-
-	vl.values = values;
-	vl.values_len = 2;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	sstrncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
-
-	plugin_dispatch_values (&vl);
-} /* void df_submit_two */
 
 __attribute__ ((nonnull(2)))
 static void df_submit_one (char *plugin_instance,
@@ -210,6 +183,9 @@ static int df_read (void)
 	{
 		unsigned long long blocksize;
 		char disk_name[256];
+		uint64_t blk_free;
+		uint64_t blk_reserved;
+		uint64_t blk_used;
 
 		if (ignorelist_match (il_device,
 					(mnt_ptr->spec_device != NULL)
@@ -268,39 +244,22 @@ static int df_read (void)
 
 		blocksize = BLOCKSIZE(statbuf);
 
-		if (report_reserved)
-		{
-			uint64_t blk_free;
-			uint64_t blk_reserved;
-			uint64_t blk_used;
+		/* Sanity-check for the values in the struct */
+		if (statbuf.f_bfree < statbuf.f_bavail)
+			statbuf.f_bfree = statbuf.f_bavail;
+		if (statbuf.f_blocks < statbuf.f_bfree)
+			statbuf.f_blocks = statbuf.f_bfree;
 
-			/* Sanity-check for the values in the struct */
-			if (statbuf.f_bfree < statbuf.f_bavail)
-				statbuf.f_bfree = statbuf.f_bavail;
-			if (statbuf.f_blocks < statbuf.f_bfree)
-				statbuf.f_blocks = statbuf.f_bfree;
+		blk_free     = (uint64_t) statbuf.f_bavail;
+		blk_reserved = (uint64_t) (statbuf.f_bfree - statbuf.f_bavail);
+		blk_used     = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
 
-			blk_free = (uint64_t) statbuf.f_bavail;
-			blk_reserved = (uint64_t) (statbuf.f_bfree - statbuf.f_bavail);
-			blk_used = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
-			
-			df_submit_one (disk_name, "df_complex", "free",
-					(gauge_t) (blk_free * blocksize));
-			df_submit_one (disk_name, "df_complex", "reserved",
-					(gauge_t) (blk_reserved * blocksize));
-			df_submit_one (disk_name, "df_complex", "used",
-					(gauge_t) (blk_used * blocksize));
-		}
-		else /* compatibility code */
-		{
-			gauge_t df_free;
-			gauge_t df_used;
-
-			df_free = statbuf.f_bfree * blocksize;
-			df_used = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
-
-			df_submit_two (disk_name, "df", df_used, df_free);
-		}
+		df_submit_one (disk_name, "df_complex", "free",
+				(gauge_t) (blk_free * blocksize));
+		df_submit_one (disk_name, "df_complex", "reserved",
+				(gauge_t) (blk_reserved * blocksize));
+		df_submit_one (disk_name, "df_complex", "used",
+				(gauge_t) (blk_used * blocksize));
 
 		/* inode handling */
 		if (report_inodes)
