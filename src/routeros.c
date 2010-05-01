@@ -125,7 +125,7 @@ static void cr_submit_counter (cr_data_t *rd, const char *type, /* {{{ */
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, rd->node, sizeof (vl.host)); /* FIXME */
+	sstrncpy (vl.host, rd->node, sizeof (vl.host));
 	sstrncpy (vl.plugin, "routeros", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -182,7 +182,7 @@ static int handle_regtable (__attribute__((unused)) ros_connection_t *c, /* {{{ 
   return (0);
 } /* }}} int handle_regtable */
 
-#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0) /* FIXME */
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
 static int handle_system_resource (__attribute__((unused)) ros_connection_t *c, /* {{{ */
         const ros_system_resource_t *r,
 	__attribute__((unused)) void *user_data)
@@ -276,7 +276,7 @@ static int cr_read (user_data_t *user_data) /* {{{ */
     }
   }
 
-#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0) /* FIXME */
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
   if (rd->collect_cpu_load
       || rd->collect_memory
       || rd->collect_df
@@ -350,7 +350,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &router_data->collect_interface);
     else if (strcasecmp ("CollectRegistrationTable", child->key) == 0)
       cf_util_get_boolean (child, &router_data->collect_regtable);
-#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0) /* FIXME */
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
     else if (strcasecmp ("CollectCPULoad", child->key) == 0)
       cf_util_get_boolean (child, &router_data->collect_cpu_load);
     else if (strcasecmp ("CollectMemory", child->key) == 0)
