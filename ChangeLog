@@ -31,7 +31,7 @@
 	  multiple users. Thanks to Fabian Schuh for his work.
 	* pinba plugin: This new plugin receives timing information from the
 	  Pinba PHP extension, which can be used for profiling PHP code and
-	  webserver performance.
+	  webserver performance. Thanks to Phoenix Kayo for his work.
 	* ping plugin: The new "MaxMissed" allows to re-resolve a hosts
 	  address when it doesn't reply to a number of ping requests. Thanks
 	  to Stefan Völkel for the patch.
