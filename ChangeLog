@@ -1,3 +1,56 @@
+2010-05-01, Version 4.10.0
+	* collectd: JSON output now includes the "dstypes" and "dsnames"
+	  fields. This makes it easier for external applications to interpret
+	  the data. Thanks to Chris Buben for his work.
+	* collectd: The new "Timeout" option can be used to specify a
+	  "timeout" for missing values. This is used in the threshold checking
+	  code to detect missing values. Thanks to Andrés J. Díaz for the
+	  patch.
+	* apache plugin: Support for "IdleWorkers" (Apache 1.*: "IdleServers")
+	  has been added.
+	* curl plugin: The new "ExcludeRegex" allows to easily exclude certain
+	  lines from the match.
+	* curl_xml plugin: This new plugin allows to read XML files using cURL
+	  and extract metrics included in the files. Thanks to Amit Gupta for
+	  his work.
+	* filecount plugin: The new "IncludeHidden" option allows to include
+	  "hidden" files and directories in the statistics. Thanks to Vaclav
+	  Malek for the patch.
+	* logfile plugin: The new "PrintSeverity" option allows to include the
+	  severity of a message in the output. Thanks to Clément Stenac for
+	  his patch.
+	* memcachec plugin: The new "ExcludeRegex" allows to easily exclude
+	  certain lines from the match.
+	* modbus plugin: This new plugin allows to read registers from
+	  Modbus-TCP enabled devices.
+	* network plugin: The new "Interface" option allows to set the
+	  interface to be used for multicast and, if supported, unicast
+	  traffic. Thanks to Max Henkel for his work.
+	* openvpn plugin: The "CollectUserCount" and "CollectIndividualUsers"
+	  options allow more detailed control over how to report sessions of
+	  multiple users. Thanks to Fabian Schuh for his work.
+	* ping plugin: The new "MaxMissed" allows to re-resolve a hosts
+	  address when it doesn't reply to a number of ping requests. Thanks
+	  to Stefan Völkel for the patch.
+	* postgresql plugin: The "Interval" config option has been added. The
+	  plugin has been relicensed under the 2-clause BSD license. Thanks to
+	  Sebastian Harl for his work.
+	* processes plugin: Support for "code" and "data" virtual memory sizes
+	  has been added. Thanks to Clément Stenac for his patch.
+	* python plugin: Support for Python 3 has been implemented. Thanks to
+	  Sven Trenkel for his work.
+	* routeros plugin: Support for collecting CPU load, memory usage, used
+	  and free disk space, sectors written and number of bad blocks from
+	  MikroTik devices has been added.
+	* swap plugin: Support for Linux < 2.6 has been added. Thanks to Lorin
+	  Scraba for his patch.
+	* tail plugin: The new "ExcludeRegex" allows to easily exclude certain
+	  lines from the match. Thanks to Peter Warasin for his patch.
+	* write_http plugin: The "StoreRates" option has been added. Thanks to
+	  Paul Sadauskas for his patch.
+	* regex match: The "Invert" option has been added. Thanks to Julien
+	  Ammous for his patch.
+
 2010-04-22, Version 4.9.2
 	* Build system, various plugins: Fixes for AIX compatibility have been
 	  added. Thanks to Manuel Sanmartin for his patches.
