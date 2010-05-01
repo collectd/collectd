@@ -107,6 +107,8 @@ collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 pkglib_LTLIBRARIES = 
 
+BUILT_SOURCES = 
+
 if BUILD_PLUGIN_APACHE
 pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = apache.c
@@ -808,6 +810,7 @@ collectd_DEPENDENCIES += perl.la
 endif
 
 if BUILD_PLUGIN_PINBA
+BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 pkglib_LTLIBRARIES += pinba.la
 pinba_la_SOURCES = pinba.c pinba.pb-c.c pinba.pb-c.h
 pinba_la_LDFLAGS = -module -avoid-version
