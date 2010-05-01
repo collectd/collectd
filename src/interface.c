@@ -171,8 +171,8 @@ static void if_submit (const char *dev, const char *type,
 	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "interface", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
-	sstrncpy (vl.type_instance, dev, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void if_submit */
