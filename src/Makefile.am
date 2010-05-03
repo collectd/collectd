@@ -853,6 +853,10 @@ if BUILD_PLUGIN_PYTHON
 pkglib_LTLIBRARIES += python.la
 python_la_SOURCES = python.c pyconfig.c pyvalues.c cpython.h
 python_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_PYTHON_CPPFLAGS)
+python_la_CFLAGS = $(AM_CFLAGS)
+if COMPILER_IS_GCC
+python_la_CFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
+endif
 python_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_PYTHON_LDFLAGS)
 python_la_LIBADD = $(BUILD_WITH_PYTHON_LIBS)
 collectd_LDADD += "-dlopen" python.la
