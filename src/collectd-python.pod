@@ -426,6 +426,7 @@ exception will be raised. If the content of the sequence is not a number, a
 I<TypeError> exception will be raised.
 
 =item meta
+
 These are the meta data for this Value object.
 It has to be a dictionary of numbers, strings or bools. All keys must be
 strings. I<int> and <long> objects will be dispatched as signed integers unless
