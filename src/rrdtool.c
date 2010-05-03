@@ -679,7 +679,7 @@ static int rrd_cache_insert (const char *filename,
 	if (rc->last_value >= value_time)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		WARNING ("rrdtool plugin: (rc->last_value = %u) >= (value_time = %u)",
+		DEBUG ("rrdtool plugin: (rc->last_value = %u) >= (value_time = %u)",
 				(unsigned int) rc->last_value,
 				(unsigned int) value_time);
 		return (-1);
