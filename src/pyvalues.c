@@ -1009,7 +1009,7 @@ PyTypeObject NotificationType = {
 	Notification_new           /* tp_new */
 };
 
-static const char Signed_doc[] = "This is a long by another name. Use it in meta data dicts\n"
+static char Signed_doc[] = "This is a long by another name. Use it in meta data dicts\n"
 		"to choose the way it is stored in the meta data.";
 
 PyTypeObject SignedType = {
@@ -1036,7 +1036,7 @@ PyTypeObject SignedType = {
 	Signed_doc                 /* tp_doc */
 };
 
-static const char Unsigned_doc[] = "This is a long by another name. Use it in meta data dicts\n"
+static char Unsigned_doc[] = "This is a long by another name. Use it in meta data dicts\n"
 		"to choose the way it is stored in the meta data.";
 
 PyTypeObject UnsignedType = {
