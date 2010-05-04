@@ -588,6 +588,55 @@ AC_CHECK_FUNCS(syslog, [have_syslog="yes"], [have_syslog="no"])
 AC_CHECK_FUNCS(getutent, [have_getutent="yes"], [have_getutent="no"])
 AC_CHECK_FUNCS(getutxent, [have_getutxent="yes"], [have_getutxent="no"])
 AC_CHECK_FUNCS(swapctl, [have_swapctl="yes"], [have_swapctl="no"])
+if test "x$have_swapctl" = "xyes"; then
+        AC_CACHE_CHECK([whether swapctl takes two arguments],
+                [c_cv_have_swapctl_two_args],
+                AC_COMPILE_IFELSE(
+                        AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+#if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
+#  undef _FILE_OFFSET_BITS
+#  undef _LARGEFILE64_SOURCE
+#endif
+#include <sys/stat.h>
+#include <sys/swap.h>]],
+                                [[
+                                int num = swapctl(0, NULL);
+                                ]]
+                        ),
+                        [c_cv_have_swapctl_two_args="yes"],
+                        [c_cv_have_swapctl_two_args="no"]
+                )
+        )
+        AC_CACHE_CHECK([whether swapctl takes three arguments],
+                [c_cv_have_swapctl_three_args],
+                AC_COMPILE_IFELSE(
+                        AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+#if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
+#  undef _FILE_OFFSET_BITS
+#  undef _LARGEFILE64_SOURCE
+#endif
+#include <sys/stat.h>
+#include <sys/swap.h>]],
+                                [[
+                                int num = swapctl(0, NULL,0);
+                                ]]
+                        ),
+                        [c_cv_have_swapctl_three_args="yes"],
+                        [c_cv_have_swapctl_three_args="no"]
+                )
+        )
+fi
+# Check for different versions of `swapctl' here..
+if test "x$have_swapctl" = "xyes"; then
+        if test "x$c_cv_have_swapctl_two_args" = "xyes"; then
+                AC_DEFINE(HAVE_SWAPCTL_TWO_ARGS, 1,
+                          [Define if the function swapctl exists and takes two arguments.])
+        fi
+        if test "x$c_cv_have_swapctl_three_args" = "xyes"; then
+                AC_DEFINE(HAVE_SWAPCTL_THREE_ARGS, 1,
+                          [Define if the function swapctl exists and takes three arguments.])
+        fi
+fi
 
 # For load module
 AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
