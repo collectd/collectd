@@ -76,8 +76,8 @@ static derive_t pagesize;
 static kstat_t *ksp;
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SWAPCTL
-/* No global variables */
+#elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
+static derive_t pagesize;
 /* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
@@ -115,8 +115,9 @@ static int swap_init (void)
 		ksp = NULL;
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SWAPCTL
-	/* No init stuff */
+#elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
+	/* getpagesize(3C) tells me this does not fail.. */
+	pagesize = (derive_t) getpagesize ();
 /* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
@@ -345,6 +346,73 @@ static int swap_read (void)
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SWAPCTL
+ #if HAVE_SWAPCTL_TWO_ARGS
+        swaptbl_t *s;
+        char strtab[255];
+        int swap_num;
+        int status;
+        int i;
+
+        derive_t avail = 0;
+        derive_t total = 0;
+
+        swap_num = swapctl (SC_GETNSWP, NULL);
+        if (swap_num < 0)
+        {
+                ERROR ("swap plugin: swapctl (SC_GETNSWP) failed with status %i.",
+                                swap_num);
+                return (-1);
+        }
+        else if (swap_num == 0)
+                return (0);
+
+        s = (swaptbl_t *) smalloc (swap_num * sizeof (swapent_t) + sizeof (struct swaptable));
+        if (s == NULL)
+        {
+                ERROR ("swap plugin: smalloc failed.");
+                return (-1);
+        }
+        /* Initialize string pointers. We have them share the same buffer as we don't care
+	 * about the device's name, only its size. This saves memory and alloc/free ops */
+        for (i = 0; i < (swap_num + 1); i++) {
+                s->swt_ent[i].ste_path = strtab;
+        }
+        s->swt_n = swap_num + 1;
+        status = swapctl (SC_LIST, s);
+        if (status != swap_num)
+        {
+                ERROR ("swap plugin: swapctl (SC_LIST) failed with status %i.",
+                                status);
+                sfree (s);
+                return (-1);
+        }
+
+        for (i = 0; i < swap_num; i++)
+        {
+                if ((s->swt_ent[i].ste_flags & ST_INDEL) != 0)
+                        continue;
+
+                avail += ((derive_t) s->swt_ent[i].ste_free)
+                         * pagesize;
+                total += ((derive_t) s->swt_ent[i].ste_pages)
+                         * pagesize;
+        }
+
+        if (total < avail)
+        {
+                ERROR ("swap plugin: Total swap space (%"PRIu64") "
+                                "is less than free swap space (%"PRIu64").",
+                                total, avail);
+                return (-1);
+        }
+
+        swap_submit ("used", total - avail, DS_TYPE_GAUGE);
+        swap_submit ("free", avail, DS_TYPE_GAUGE);
+
+        sfree (s);
+ /* #endif HAVE_SWAPCTL_TWO_ARGS */
+ #elif HAVE_SWAPCTL_THREE_ARGS
+
 	struct swapent *swap_entries;
 	int swap_num;
 	int status;
@@ -353,18 +421,6 @@ static int swap_read (void)
 	derive_t used  = 0;
 	derive_t total = 0;
 
-	/*
-	 * XXX: This is the syntax for the *BSD `swapctl', which has the
-	 * following prototype:
-	 *   swapctl (int cmd, void *arg, int misc);
-	 *
-	 * HP-UX and Solaris (and possibly other UNIXes) provide `swapctl',
-	 * too, but with the following prototype:
-	 *   swapctl (int cmd, void *arg);
-	 *
-	 * Solaris is usually handled in the KSTAT case above. For other UNIXes
-	 * a separate case for the other version of `swapctl' may be necessary.
-	 */
 	swap_num = swapctl (SWAP_NSWAP, NULL, 0);
 	if (swap_num < 0)
 	{
@@ -420,6 +476,7 @@ static int swap_read (void)
 	swap_submit ("free", total - used, DS_TYPE_GAUGE);
 
 	sfree (swap_entries);
+ #endif /* HAVE_SWAPCTL_THREE_ARGS */
 /* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
