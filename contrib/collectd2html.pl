@@ -68,7 +68,7 @@ $HOST = $tmp[0] if (! defined $HOST);
 my $svg_p = ($IMG_FMT eq "SVG");
 my $IMG_SFX = $svg_p ? ".svg" : ".png";
 my $IMG_DIR = "${HOST}.dir";
-my $HTML = "${HOST}.html";
+my $HTML = "${HOST}.xhtml";
 
 ################################################################################
 #
@@ -124,10 +124,12 @@ print OUT <<END;
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <style type="text/css" media="screen">
-body { text-align: center; }
+.graph { text-align: center; }
+object.graph { width: 670; height: 179; }
 </style>
 <title>$title</title>
-<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta http-equiv="Content-Type"
+      content="application/xhtml+xml; charset=us-ascii" />
 </head>
 <body>
 END
@@ -210,7 +212,7 @@ for (my $i = 0; $i < scalar(@rrds); ++$i) {
 	my $cleaned_bn = $bn;
 	$cleaned_bn =~ tr/%\//__/;
 	print OUT <<END;
-<h1><a id="$cleaned_bn">$bn</a></h1>
+<h2><a id="$cleaned_bn">$bn</a></h2>
 END
 
 	# graph various ranges
@@ -227,12 +229,11 @@ END
 		my $cleaned_img = $img; $cleaned_img =~ s/%/%25/g;
 		if (! $svg_p) {
 			print OUT <<END;
-<p><img src="$cleaned_img" alt="${bn} $span" /></p>
+<p class="graph"><img src="$cleaned_img" alt="${bn} $span" /></p>
 END
 		} else {
 			print OUT <<END;
-<p><object data="$cleaned_img" type="image/svg+xml"
-           width="670" height="179">
+<p class="graph"><object data="$cleaned_img" type="image/svg+xml">
   ${bn} $span</object></p>
 END
 		}
@@ -244,6 +245,12 @@ END
 }
 
 print OUT <<END;
+<hr />
+<p>
+  <a href="http://validator.w3.org/check?uri=referer"><img
+     src="http://www.w3.org/Icons/valid-xhtml10"
+     alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a>
+</p>
 </body>
 </html>
 END
