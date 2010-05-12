@@ -965,7 +965,7 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
   for (i = 0; i < num_chars; i++)
   {
     /* Check for control characters. */
-    if ((src[i] >= 0) && (src[i] < 32))
+    if ((unsigned char)src[i] < 32)
       return (csnmp_strvbcopy_hexstring (dst, vb, dst_size));
     dst[i] = src[i];
   }
