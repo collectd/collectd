@@ -1690,6 +1690,11 @@ static int ps_read (void)
 			pse.vmem_rss = (procentry[i].pi_drss + procentry[i].pi_trss) * pagesize;
 			pse.stack_size =  0;
 
+			pse.io_rchar = -1;
+			pse.io_wchar = -1;
+			pse.io_syscr = -1;
+			pse.io_syscw = -1;
+
 			ps_list_add (cmdline, cargs, &pse);
 		} /* for (i = 0 .. nprocs) */
 
