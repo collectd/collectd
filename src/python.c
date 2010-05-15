@@ -368,14 +368,17 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 			}
 			if (PyErr_Occurred() != NULL) {
 				cpy_log_exception("value building for write callback");
+				Py_DECREF(list);
 				CPY_RETURN_FROM_THREADS 0;
 			}
 		}
-		v = PyObject_CallFunction((void *) &ValuesType, "sOssssdi", value_list->type, list,
-				value_list->plugin_instance, value_list->type_instance, value_list->plugin,
-				value_list->host, (double) value_list->time, value_list->interval);
+		v = PyObject_CallFunction((void *) &ValuesType, "sOssssdi", value_list->type,
+				list, value_list->plugin_instance, value_list->type_instance,
+				value_list->plugin, value_list->host, (double) value_list->time,
+				value_list->interval); /* New reference. */
 		Py_DECREF(list);
 		ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0); /* New reference. */
+		Py_XDECREF(v);
 		if (ret == NULL) {
 			cpy_log_exception("write callback");
 		} else {
@@ -392,8 +395,9 @@ static int cpy_notification_callback(const notification_t *notification, user_da
 	CPY_LOCK_THREADS
 		n = PyObject_CallFunction((void *) &NotificationType, "ssssssdi", notification->type, notification->message,
 				notification->plugin_instance, notification->type_instance, notification->plugin,
-				notification->host, (double) notification->time, notification->severity);
+				notification->host, (double) notification->time, notification->severity); /* New reference. */
 		ret = PyObject_CallFunctionObjArgs(c->callback, n, c->data, (void *) 0); /* New reference. */
+		Py_XDECREF(n);
 		if (ret == NULL) {
 			cpy_log_exception("notification callback");
 		} else {
