@@ -777,9 +777,9 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
     SSTRCATF (command, " interval=%i", vl->interval);
 
   if (vl->time > 0)
-    SSTRCATF (command, "%u", (unsigned int) vl->time);
+    SSTRCATF (command, " %u", (unsigned int) vl->time);
   else
-    SSTRCAT (command, "N");
+    SSTRCAT (command, " N");
 
   for (i = 0; i < vl->values_len; i++)
   {
