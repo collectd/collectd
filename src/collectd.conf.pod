@@ -3023,6 +3023,83 @@ refer to them from.
 This plugin embeds a Perl-interpreter into collectd and provides an interface
 to collectd's plugin system. See L<collectd-perl(5)> for its documentation.
 
+=head2 Plugin C<pinba>
+
+The I<Pinba plugin> receives profiling information from I<Pinba>, an extension
+for the I<PHP> interpreter. At the end of executing a script, i.e. after a
+PHP-based webpage has been delivered, the extension will send a UDP packet
+containing timing information, peak memory usage and so on. The plugin will
+wait for such packets, parse them and account the provided information, which
+is then dispatched to the daemon once per interval.
+
+Synopsis:
+
+ <Plugin pinba>
+   Address "::0"
+   Port "30002"
+   # Overall statistics for the website.
+   <View "www-total">
+     Server "www.example.com"
+   </View>
+   # Statistics for www-a only
+   <View "www-a">
+     Host "www-a.example.com"
+     Server "www.example.com"
+   </View>
+   # Statistics for www-b only
+   <View "www-b">
+     Host "www-b.example.com"
+     Server "www.example.com"
+   </View>
+ </Plugin>
+
+The plugin provides the following configuration options:
+
+=over 4
+
+=item B<Address> I<Node>
+
+Configures the address used to open a listening socket. By default, plugin will
+bind to the I<any> address C<::0>.
+
+=item B<Port> I<Service>
+
+Configures the port (service) to bind to. By default the default Pinba port
+"30002" will be used. The option accepts service names in addition to port
+numbers and thus requires a I<string> argument.
+
+=item E<lt>B<View> I<Name>E<gt> block
+
+The packets sent by the Pinba extension include the hostname of the server, the
+server name (the name of the virtual host) and the script that was executed.
+Using B<View> blocks it is possible to separate the data into multiple groups
+to get more meaningful statistics. Each packet is added to all matching groups,
+so that a packet may be accounted for more than once.
+
+=over 4
+
+=item B<Host> I<Host>
+
+Matches the hostname of the system the webserver / script is running on. This
+will contain the result of the L<gethostname(2)> system call. If not
+configured, all hostnames will be accepted.
+
+=item B<Server> I<Server>
+
+Matches the name of the I<virtual host>, i.e. the contents of the
+C<$_SERVER["SERVER_NAME"]> variable when within PHP. If not configured, all
+server names will be accepted.
+
+=item B<Script> I<Script>
+
+Matches the name of the I<script name>, i.e. the contents of the
+C<$_SERVER["SCRIPT_NAME"]> variable when within PHP. If not configured, all
+script names will be accepted.
+
+=back
+
+=back
+
 =head2 Plugin C<ping>
 
 The I<Ping> plugin starts a new thread which sends ICMP "ping" packets to the
