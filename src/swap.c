@@ -400,9 +400,10 @@ static int swap_read (void)
 
         if (total < avail)
         {
-                ERROR ("swap plugin: Total swap space (%"PRIu64") "
-                                "is less than free swap space (%"PRIu64").",
+                ERROR ("swap plugin: Total swap space (%"PRIi64") "
+                                "is less than free swap space (%"PRIi64").",
                                 total, avail);
+                sfree (s);
                 return (-1);
         }
 
