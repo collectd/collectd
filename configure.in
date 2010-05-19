@@ -967,7 +967,7 @@ fi
 AC_MSG_CHECKING([if have htonll defined])
 
     have_htonll="no"
-    AC_RUN_IFELSE([
+    AC_LINK_IFELSE([
        AC_LANG_PROGRAM([
 #include <sys/types.h>
 #include <netinet/in.h>
