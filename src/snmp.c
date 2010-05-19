@@ -752,16 +752,23 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   {
     /* We'll handle this later.. */
   }
-#ifdef ASN_NULL
-  else if (vl->type == ASN_NULL)
-  {
-    /* Don't print a warning. */
-    defined = 0;
-  }
-#endif
   else
   {
-    WARNING ("snmp plugin: I don't know the ASN type `%i'", (int) vl->type);
+    char oid_buffer[1024];
+
+    memset (oid_buffer, 0, sizeof (oid_buffer));
+    snprint_objid (oid_buffer, sizeof (oid_buffer) - 1,
+	vl->name, vl->name_length);
+
+#ifdef ASN_NULL
+    if (vl->type == ASN_NULL)
+      INFO ("snmp plugin: OID \"%s\" is undefined (type ASN_NULL)",
+	  oid_buffer);
+    else
+#endif
+      WARNING ("snmp plugin: I don't know the ASN type \"%i\" (OID: %s)",
+	  (int) vl->type, oid_buffer);
+
     defined = 0;
   }
 
