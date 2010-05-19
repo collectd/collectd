@@ -752,6 +752,13 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   {
     /* We'll handle this later.. */
   }
+#ifdef ASN_NULL
+  else if (vl->type == ASN_NULL)
+  {
+    /* Don't print a warning. */
+    defined = 0;
+  }
+#endif
   else
   {
     WARNING ("snmp plugin: I don't know the ASN type `%i'", (int) vl->type);
