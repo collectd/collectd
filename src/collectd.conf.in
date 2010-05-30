@@ -386,6 +386,7 @@
 #	InterfaceDevice "name:device"
 #	IgnoreSelected false
 #	HostnameFormat name
+#	InterfaceFormat name
 #</Plugin>
 
 #<Plugin madwifi>
