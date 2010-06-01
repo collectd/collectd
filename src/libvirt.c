@@ -225,7 +225,7 @@ lv_config (const char *key, const char *value)
 
         n = strsplit (value_copy, fields, HF_MAX_FIELDS);
         if (n < 1) {
-            free (value_copy);
+            sfree (value_copy);
             ERROR ("HostnameFormat: no fields");
             return -1;
         }
@@ -238,12 +238,12 @@ lv_config (const char *key, const char *value)
             else if (strcasecmp (fields[i], "uuid") == 0)
                 hostname_format[i] = hf_uuid;
             else {
-                free (value_copy);
+                sfree (value_copy);
                 ERROR ("unknown HostnameFormat field: %s", fields[i]);
                 return -1;
             }
         }
-        free (value_copy);
+        sfree (value_copy);
 
         for (i = n; i < HF_MAX_FIELDS; ++i)
             hostname_format[i] = hf_none;
@@ -332,7 +332,7 @@ lv_read (void)
 
         if (virDomainGetVcpus (domains[i], vinfo, info.nrVirtCpu,
                     NULL, 0) != 0) {
-            free (vinfo);
+            sfree (vinfo);
             continue;
         }
 
@@ -340,7 +340,7 @@ lv_read (void)
             vcpu_submit (vinfo[j].cpuTime,
                     t, domains[i], vinfo[j].number, "virt_vcpu");
 
-        free (vinfo);
+        sfree (vinfo);
     }
 
     /* Get block device stats for each domain. */
@@ -424,7 +424,7 @@ refresh_lists (void)
         n = virConnectListDomains (conn, domids, n);
         if (n < 0) {
             VIRT_ERROR (conn, "reading list of domains");
-            free (domids);
+            sfree (domids);
             return -1;
         }
 
@@ -552,10 +552,10 @@ refresh_lists (void)
             if (xpath_obj) xmlXPathFreeObject (xpath_obj);
             if (xpath_ctx) xmlXPathFreeContext (xpath_ctx);
             if (xml_doc) xmlFreeDoc (xml_doc);
-            if (xml) free (xml);
+            sfree (xml);
         }
 
-        free (domids);
+        sfree (domids);
     }
 
     return 0;
@@ -569,7 +569,7 @@ free_domains ()
     if (domains) {
         for (i = 0; i < nr_domains; ++i)
             virDomainFree (domains[i]);
-        free (domains);
+        sfree (domains);
     }
     domains = NULL;
     nr_domains = 0;
@@ -601,8 +601,8 @@ free_block_devices ()
 
     if (block_devices) {
         for (i = 0; i < nr_block_devices; ++i)
-            free (block_devices[i].path);
-        free (block_devices);
+            sfree (block_devices[i].path);
+        sfree (block_devices);
     }
     block_devices = NULL;
     nr_block_devices = 0;
@@ -625,7 +625,7 @@ add_block_device (virDomainPtr dom, const char *path)
         new_ptr = malloc (new_size);
 
     if (new_ptr == NULL) {
-        free (path_copy);
+        sfree (path_copy);
         return -1;
     }
     block_devices = new_ptr;
@@ -641,10 +641,10 @@ free_interface_devices ()
 
     if (interface_devices) {
         for (i = 0; i < nr_interface_devices; ++i) {
-            free (interface_devices[i].path);
-            free (interface_devices[i].address);
+            sfree (interface_devices[i].path);
+            sfree (interface_devices[i].address);
         }
-        free (interface_devices);
+        sfree (interface_devices);
     }
     interface_devices = NULL;
     nr_interface_devices = 0;
@@ -669,8 +669,8 @@ add_interface_device (virDomainPtr dom, const char *path, const char *address)
         new_ptr = malloc (new_size);
 
     if (new_ptr == NULL) {
-        free (path_copy);
-        free (address_copy);
+        sfree (path_copy);
+        sfree (address_copy);
         return -1;
     }
     interface_devices = new_ptr;
@@ -694,7 +694,7 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
     }
     ssnprintf (name, n, "%s:%s", domname, devpath);
     r = ignorelist_match (il, name);
-    free (name);
+    sfree (name);
     return r;
 }
 
