@@ -113,7 +113,6 @@ static enum hf_field hostname_format[HF_MAX_FIELDS] =
     { hf_name };
 
 /* InterfaceFormat. */
-
 enum if_field {
     if_address,
     if_name
@@ -253,24 +252,14 @@ lv_config (const char *key, const char *value)
     }
 
     if (strcasecmp (key, "InterfaceFormat") == 0) {
-        char *value_copy;
-
-        value_copy = strdup (value);
-        if (value_copy == NULL) {
-            ERROR ("libvirt plugin: strdup failed.");
-            return -1;
-        }
-
-        if (strcasecmp (value_copy, "name") == 0)
+        if (strcasecmp (value, "name") == 0)
             interface_format = if_name;
-        else if (strcasecmp (value_copy, "address") == 0)
+        else if (strcasecmp (value, "address") == 0)
             interface_format = if_address;
         else {
-            free (value_copy);
-            ERROR ("unknown InterfaceFormat: %s", value_copy);
+            ERROR ("unknown InterfaceFormat: %s", value);
             return -1;
         }
-        free (value_copy);
         return 0;
     }
 
