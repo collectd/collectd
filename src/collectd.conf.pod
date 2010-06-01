@@ -1563,13 +1563,15 @@ You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
 between, thus I<"foo:1234-1234-1234-1234">).
 
-=item B<InterfaceFormat> B<name|address|...>
+=item B<InterfaceFormat> B<name>|B<address>
 
-When the libvirt plugin logs interface data, it sets the name of the collected data according to this setting.
-The default is to use the path as provided by the hypervisor (the ’dev’ property of the target node), which is equal to setting B<name>.
+When the libvirt plugin logs interface data, it sets the name of the collected
+data according to this setting. The default is to use the path as provided by
+the hypervisor (the "dev" property of the target node), which is equal to
+setting B<name>.
 
-B<address> means use the interface's mac address.
-This is useful since the interface path might change between reboots of a guest or across migrations.
+B<address> means use the interface's mac address. This is useful since the
+interface path might change between reboots of a guest or across migrations.
 
 =back
 
