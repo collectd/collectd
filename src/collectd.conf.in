@@ -849,6 +849,7 @@
 #  MonitorESI yes
 #  MonitorBackend yes
 #  MonitorFetch yes
+#  MonitorHCB yes
 #</Plugin>
 
 #<Plugin vmem>

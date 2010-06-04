@@ -25,7 +25,7 @@
 
 #include <varnish/varnishapi.h>
 
-#define USER_CONFIG_INIT {0, 0, 0, 0, 0}
+#define USER_CONFIG_INIT {0, 0, 0, 0, 0,0}
 #define SET_MONITOR_FLAG(name, flag, value) if((strcasecmp(name, key) == 0) && IS_TRUE(value)) user_config.flag = 1
 
 /* {{{ user_config_s */
@@ -35,6 +35,7 @@ struct user_config_s {
 	int monitor_esi;
 	int monitor_backend;
 	int monitor_fetch;
+	int monitor_hcb;
 };
 
 typedef struct user_config_s user_config_t; /* }}} */
@@ -48,7 +49,8 @@ static const char *config_keys[] =
   "MonitorConnections",
   "MonitorESI",
   "MonitorBackend",
-  "MonitorFetch"
+  "MonitorFetch",
+  "MonitorHCB"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
@@ -60,6 +62,7 @@ static int varnish_config(const char *key, const char *value) /* {{{ */
 	SET_MONITOR_FLAG("MonitorESI", monitor_esi, value);
 	SET_MONITOR_FLAG("MonitorBackend", monitor_backend, value);
 	SET_MONITOR_FLAG("MonitorFetch", monitor_fetch, value);
+	SET_MONITOR_FLAG("MonitorHCB", monitor_hcb, value);
 
 	return (0);
 } /* }}} */
@@ -126,6 +129,13 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_fetch", "fetch_oldhttp"    , VSL_stats->fetch_oldhttp); /* Fetch pre HTTP/1.1 closed */
 		varnish_submit("varnish_fetch", "fetch_zero"       , VSL_stats->fetch_zero);    /* Fetch zero len            */
 		varnish_submit("varnish_fetch", "fetch_failed"     , VSL_stats->fetch_failed);  /* Fetch failed              */
+	}
+
+	if(user_config.monitor_hcb == 1)
+	{
+		varnish_submit("varnish_hcb", "hcb_nolock", VSL_stats->hcb_nolock); /* HCB Lookups without lock */
+		varnish_submit("varnish_hcb", "hcb_lock"  , VSL_stats->hcb_lock);   /* HCB Lookups with lock    */
+		varnish_submit("varnish_hcb", "hcb_insert", VSL_stats->hcb_insert); /* HCB Inserts              */
 	}
 } /* }}} */
 
