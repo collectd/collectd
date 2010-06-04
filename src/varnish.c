@@ -19,6 +19,109 @@
  *   Jerome Renard <jerome.renard@gmail.com>
  **/
 
+/**
+ * Current list of what is monitored and what is not monitored (yet)
+ *
+ * Field name           Description                           Monitored
+ * ----------           -----------                           ---------
+ * uptime               Child uptime                              N
+ * client_conn          Client connections accepted               Y
+ * client_drop          Connection dropped, no sess               Y
+ * client_req           Client requests received                  Y
+ * cache_hit            Cache hits                                Y
+ * cache_hitpass        Cache hits for pass                       Y
+ * cache_miss           Cache misses                              Y
+ * backend_conn         Backend conn. success                     Y
+ * backend_unhealthy    Backend conn. not attempted               Y
+ * backend_busy         Backend conn. too many                    Y
+ * backend_fail         Backend conn. failures                    Y
+ * backend_reuse        Backend conn. reuses                      Y
+ * backend_toolate      Backend conn. was closed                  Y
+ * backend_recycle      Backend conn. recycles                    Y
+ * backend_unused       Backend conn. unused                      Y
+ * fetch_head           Fetch head                                Y
+ * fetch_length         Fetch with Length                         Y
+ * fetch_chunked        Fetch chunked                             Y
+ * fetch_eof            Fetch EOF                                 Y
+ * fetch_bad            Fetch had bad headers                     Y
+ * fetch_close          Fetch wanted close                        Y
+ * fetch_oldhttp        Fetch pre HTTP/1.1 closed                 Y
+ * fetch_zero           Fetch zero len                            Y
+ * fetch_failed         Fetch failed                              Y
+ * n_sess_mem           N struct sess_mem                         N
+ * n_sess               N struct sess                             N
+ * n_object             N struct object                           N
+ * n_vampireobject      N unresurrected objects                   N
+ * n_objectcore         N struct objectcore                       N
+ * n_objecthead         N struct objecthead                       N
+ * n_smf                N struct smf                              N
+ * n_smf_frag           N small free smf                          N
+ * n_smf_large          N large free smf                          N
+ * n_vbe_conn           N struct vbe_conn                         N
+ * n_wrk                N worker threads                          N
+ * n_wrk_create         N worker threads created                  N
+ * n_wrk_failed         N worker threads not created              N
+ * n_wrk_max            N worker threads limited                  N
+ * n_wrk_queue          N queued work requests                    N
+ * n_wrk_overflow       N overflowed work requests                N
+ * n_wrk_drop           N dropped work requests                   N
+ * n_backend            N backends                                N
+ * n_expired            N expired objects                         N
+ * n_lru_nuked          N LRU nuked objects                       N
+ * n_lru_saved          N LRU saved objects                       N
+ * n_lru_moved          N LRU moved objects                       N
+ * n_deathrow           N objects on deathrow                     N
+ * losthdr              HTTP header overflows                     N
+ * n_objsendfile        Objects sent with sendfile                N
+ * n_objwrite           Objects sent with write                   N
+ * n_objoverflow        Objects overflowing workspace             N
+ * s_sess               Total Sessions                            N
+ * s_req                Total Requests                            N
+ * s_pipe               Total pipe                                N
+ * s_pass               Total pass                                N
+ * s_fetch              Total fetch                               N
+ * s_hdrbytes           Total header bytes                        N
+ * s_bodybytes          Total body bytes                          N
+ * sess_closed          Session Closed                            N
+ * sess_pipeline        Session Pipeline                          N
+ * sess_readahead       Session Read Ahead                        N
+ * sess_linger          Session Linger                            N
+ * sess_herd            Session herd                              N
+ * shm_records          SHM records                               N
+ * shm_writes           SHM writes                                N
+ * shm_flushes          SHM flushes due to overflow               N
+ * shm_cont             SHM MTX contention                        N
+ * shm_cycles           SHM cycles through buffer                 N
+ * sm_nreq              allocator requests                        N
+ * sm_nobj              outstanding allocations                   N
+ * sm_balloc            bytes allocated                           N
+ * sm_bfree             bytes free                                N
+ * sma_nreq             SMA allocator requests                    N
+ * sma_nobj             SMA outstanding allocations               N
+ * sma_nbytes           SMA outstanding bytes                     N
+ * sma_balloc           SMA bytes allocated                       N
+ * sma_bfree            SMA bytes free                            N
+ * sms_nreq             SMS allocator requests                    N
+ * sms_nobj             SMS outstanding allocations               N
+ * sms_nbytes           SMS outstanding bytes                     N
+ * sms_balloc           SMS bytes allocated                       N
+ * sms_bfree            SMS bytes freed                           N
+ * backend_req          Backend requests made                     N
+ * n_vcl                N vcl total                               N
+ * n_vcl_avail          N vcl available                           N
+ * n_vcl_discard        N vcl discarded                           N
+ * n_purge              N total active purges                     N
+ * n_purge_add          N new purges added                        N
+ * n_purge_retire       N old purges deleted                      N
+ * n_purge_obj_test     N objects tested                          N
+ * n_purge_re_test      N regexps tested against                  N
+ * n_purge_dups         N duplicate purges removed                N
+ * hcb_nolock           HCB Lookups without lock                  Y
+ * hcb_lock             HCB Lookups with lock                     Y
+ * hcb_insert           HCB Inserts                               Y
+ * esi_parse            Objects ESI parsed (unlock)               Y
+ * esi_errors           ESI parse errors (unlock)                 Y
+ */
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
