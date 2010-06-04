@@ -82,22 +82,22 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 {
 	if(user_config.monitor_cache == 1)
 	{
-		varnish_submit("varnish_cache_ratio", "cache_hit"    , VSL_stats->cache_hit);
-		varnish_submit("varnish_cache_ratio", "cache_miss"   , VSL_stats->cache_miss);
-		varnish_submit("varnish_cache_ratio", "cache_hitpass", VSL_stats->cache_hitpass);
+		varnish_submit("varnish_cache_ratio", "cache_hit"    , VSL_stats->cache_hit);     /* Cache hits          */
+		varnish_submit("varnish_cache_ratio", "cache_miss"   , VSL_stats->cache_miss);    /* Cache misses        */
+		varnish_submit("varnish_cache_ratio", "cache_hitpass", VSL_stats->cache_hitpass); /* Cache hits for pass */
 	}
 
 	if(user_config.monitor_connections == 1)
 	{
-		varnish_submit("varnish_connections", "client_connections-accepted", VSL_stats->client_conn);
-		varnish_submit("varnish_connections", "client_connections-dropped" , VSL_stats->client_drop);
-		varnish_submit("varnish_connections", "client_connections-received", VSL_stats->client_req);
+		varnish_submit("varnish_connections", "client_connections-accepted", VSL_stats->client_conn); /* Client connections accepted */
+		varnish_submit("varnish_connections", "client_connections-dropped" , VSL_stats->client_drop); /* Connection dropped, no sess */
+		varnish_submit("varnish_connections", "client_connections-received", VSL_stats->client_req);  /* Client requests received    */
 	}
 
 	if(user_config.monitor_esi == 1)
 	{
-		varnish_submit("varnish_esi", "esi_parsed", VSL_stats->esi_parse);
-		varnish_submit("varnish_esi", "esi_errors", VSL_stats->esi_errors);
+		varnish_submit("varnish_esi", "esi_parsed", VSL_stats->esi_parse);  /* Objects ESI parsed (unlock) */
+		varnish_submit("varnish_esi", "esi_errors", VSL_stats->esi_errors); /* ESI parse errors (unlock)   */
 	}
 
 	if(user_config.monitor_backend == 1)
