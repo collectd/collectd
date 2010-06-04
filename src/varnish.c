@@ -162,13 +162,13 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
 
 static int varnish_config(const char *key, const char *value) /* {{{ */
 {
-	SET_MONITOR_FLAG("MonitorCache", monitor_cache, value);
+	SET_MONITOR_FLAG("MonitorCache"      , monitor_cache      , value);
 	SET_MONITOR_FLAG("MonitorConnections", monitor_connections, value);
-	SET_MONITOR_FLAG("MonitorESI", monitor_esi, value);
-	SET_MONITOR_FLAG("MonitorBackend", monitor_backend, value);
-	SET_MONITOR_FLAG("MonitorFetch", monitor_fetch, value);
-	SET_MONITOR_FLAG("MonitorHCB", monitor_hcb, value);
-	SET_MONITOR_FLAG("MonitorSHM", monitor_shm, value);
+	SET_MONITOR_FLAG("MonitorESI"        , monitor_esi        , value);
+	SET_MONITOR_FLAG("MonitorBackend"    , monitor_backend    , value);
+	SET_MONITOR_FLAG("MonitorFetch"      , monitor_fetch      , value);
+	SET_MONITOR_FLAG("MonitorHCB"        , monitor_hcb        , value);
+	SET_MONITOR_FLAG("MonitorSHM"        , monitor_shm        , value);
 
 	return (0);
 } /* }}} */
