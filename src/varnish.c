@@ -25,7 +25,7 @@
 
 #include <varnish/varnishapi.h>
 
-#define USER_CONFIG_INIT {0, 0, 0, 0}
+#define USER_CONFIG_INIT {0, 0, 0, 0, 0}
 #define SET_MONITOR_FLAG(name, flag, value) if((strcasecmp(name, key) == 0) && IS_TRUE(value)) user_config.flag = 1
 
 /* {{{ user_config_s */
@@ -34,6 +34,7 @@ struct user_config_s {
 	int monitor_connections;
 	int monitor_esi;
 	int monitor_backend;
+	int monitor_fetch;
 };
 
 typedef struct user_config_s user_config_t; /* }}} */
@@ -47,6 +48,7 @@ static const char *config_keys[] =
   "MonitorConnections",
   "MonitorESI",
   "MonitorBackend",
+  "MonitorFetch"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
@@ -57,6 +59,7 @@ static int varnish_config(const char *key, const char *value) /* {{{ */
 	SET_MONITOR_FLAG("MonitorConnections", monitor_connections, value);
 	SET_MONITOR_FLAG("MonitorESI", monitor_esi, value);
 	SET_MONITOR_FLAG("MonitorBackend", monitor_backend, value);
+	SET_MONITOR_FLAG("MonitorFetch", monitor_fetch, value);
 
 	return (0);
 } /* }}} */
@@ -110,6 +113,19 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_backend_connections", "backend_connections-was-closed"   , VSL_stats->backend_toolate);   /* Backend conn. was closed    */
 		varnish_submit("varnish_backend_connections", "backend_connections-recycles"     , VSL_stats->backend_recycle);   /* Backend conn. recycles      */
 		varnish_submit("varnish_backend_connections", "backend_connections-unused"       , VSL_stats->backend_unused);    /* Backend conn. unused        */
+	}
+
+	if(user_config.monitor_fetch == 1)
+	{
+		varnish_submit("varnish_fetch", "fetch_head"       , VSL_stats->fetch_head);    /* Fetch head                */
+		varnish_submit("varnish_fetch", "fetch_length"     , VSL_stats->fetch_length);  /* Fetch with length         */
+		varnish_submit("varnish_fetch", "fetch_chunked"    , VSL_stats->fetch_chunked); /* Fetch chunked             */
+		varnish_submit("varnish_fetch", "fetch_eof"        , VSL_stats->fetch_eof);     /* Fetch EOF                 */
+		varnish_submit("varnish_fetch", "fetch_bad-headers", VSL_stats->fetch_bad);     /* Fetch bad headers         */
+		varnish_submit("varnish_fetch", "fetch_close"      , VSL_stats->fetch_close);   /* Fetch wanted close        */
+		varnish_submit("varnish_fetch", "fetch_oldhttp"    , VSL_stats->fetch_oldhttp); /* Fetch pre HTTP/1.1 closed */
+		varnish_submit("varnish_fetch", "fetch_zero"       , VSL_stats->fetch_zero);    /* Fetch zero len            */
+		varnish_submit("varnish_fetch", "fetch_failed"     , VSL_stats->fetch_failed);  /* Fetch failed              */
 	}
 } /* }}} */
 
