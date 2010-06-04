@@ -87,11 +87,11 @@
  * sess_readahead       Session Read Ahead                        N
  * sess_linger          Session Linger                            N
  * sess_herd            Session herd                              N
- * shm_records          SHM records                               N
- * shm_writes           SHM writes                                N
- * shm_flushes          SHM flushes due to overflow               N
- * shm_cont             SHM MTX contention                        N
- * shm_cycles           SHM cycles through buffer                 N
+ * shm_records          SHM records                               Y
+ * shm_writes           SHM writes                                Y
+ * shm_flushes          SHM flushes due to overflow               Y
+ * shm_cont             SHM MTX contention                        Y
+ * shm_cycles           SHM cycles through buffer                 Y
  * sm_nreq              allocator requests                        N
  * sm_nobj              outstanding allocations                   N
  * sm_balloc            bytes allocated                           N
@@ -128,7 +128,7 @@
 
 #include <varnish/varnishapi.h>
 
-#define USER_CONFIG_INIT {0, 0, 0, 0, 0,0}
+#define USER_CONFIG_INIT {0, 0, 0, 0, 0, 0, 0}
 #define SET_MONITOR_FLAG(name, flag, value) if((strcasecmp(name, key) == 0) && IS_TRUE(value)) user_config.flag = 1
 
 /* {{{ user_config_s */
@@ -139,6 +139,7 @@ struct user_config_s {
 	int monitor_backend;
 	int monitor_fetch;
 	int monitor_hcb;
+	int monitor_shm;
 };
 
 typedef struct user_config_s user_config_t; /* }}} */
@@ -153,7 +154,8 @@ static const char *config_keys[] =
   "MonitorESI",
   "MonitorBackend",
   "MonitorFetch",
-  "MonitorHCB"
+  "MonitorHCB",
+  "MonitorSHM"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
@@ -166,6 +168,7 @@ static int varnish_config(const char *key, const char *value) /* {{{ */
 	SET_MONITOR_FLAG("MonitorBackend", monitor_backend, value);
 	SET_MONITOR_FLAG("MonitorFetch", monitor_fetch, value);
 	SET_MONITOR_FLAG("MonitorHCB", monitor_hcb, value);
+	SET_MONITOR_FLAG("MonitorSHM", monitor_shm, value);
 
 	return (0);
 } /* }}} */
@@ -239,6 +242,15 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_hcb", "hcb_nolock", VSL_stats->hcb_nolock); /* HCB Lookups without lock */
 		varnish_submit("varnish_hcb", "hcb_lock"  , VSL_stats->hcb_lock);   /* HCB Lookups with lock    */
 		varnish_submit("varnish_hcb", "hcb_insert", VSL_stats->hcb_insert); /* HCB Inserts              */
+	}
+
+	if(user_config.monitor_shm == 1)
+	{
+		varnish_submit("varnish_shm", "shm_records"   , VSL_stats->shm_records); /* SHM records                 */
+		varnish_submit("varnish_shm", "shm_writes"    , VSL_stats->shm_writes);  /* SHM writes                  */
+		varnish_submit("varnish_shm", "shm_flushes"   , VSL_stats->shm_flushes); /* SHM flushes due to overflow */
+		varnish_submit("varnish_shm", "shm_contention", VSL_stats->shm_cont);    /* SHM MTX contention          */
+		varnish_submit("varnish_shm", "shm_cycles"    , VSL_stats->shm_cycles);  /* SHM cycles through buffer   */
 	}
 } /* }}} */
 

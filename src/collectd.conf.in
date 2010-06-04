@@ -850,6 +850,7 @@
 #  MonitorBackend yes
 #  MonitorFetch yes
 #  MonitorHCB yes
+#  MonitorSHM yes
 #</Plugin>
 
 #<Plugin vmem>
