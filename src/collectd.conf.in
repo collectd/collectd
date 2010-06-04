@@ -130,6 +130,7 @@
 #@BUILD_PLUGIN_UPTIME_TRUE@LoadPlugin uptime
 #@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 #@BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
+#@BUILD_PLUGIN_VARNISH_TRUE@LoadPlugin varnish
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
@@ -840,6 +841,12 @@
 
 #<Plugin uuid>
 #	UUIDFile "/etc/uuid"
+#</Plugin>
+
+#<Plugin varnish>
+#  MonitorCache yes
+#  MonitorConnections yes
+#  MonitorESI yes
 #</Plugin>
 
 #<Plugin vmem>

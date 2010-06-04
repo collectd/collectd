@@ -3686,6 +3686,61 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBYAJL, test "x$with_libyajl" = "xyes")
 # }}}
 
+# --with-libvarnish {{{
+with_libvarnish_cppflags=""
+with_libvarnish_ldflags=""
+with_libvarnish_cflags="-lvarnish -lvarnishcompat -lvarnishapi"
+AC_ARG_WITH(libvarnish, [AS_HELP_STRING([--with-libvarnish@<:@=PREFIX@:>@], [Path to libvarnish.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libvarnish_cppflags="-I$withval/include"
+		with_libvarnish_ldflags="-L$withval/lib"
+		with_libvarnish="yes"
+	else
+		with_libvarnish="$withval"
+	fi
+],
+[
+	with_libvarnish="yes"
+])
+if test "x$with_libvarnish" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libvarnish_cppflags"
+
+	AC_CHECK_HEADERS(varnish/varnishapi.h, [with_libvarnish="yes"], [with_libvarnish="no (varnish/varnishapi.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libvarnish" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_CFLAGS="$CFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libvarnish_cppflags"
+	LDFLAGS="$LDFLAGS $with_libvarnish_ldflags"
+	CFLAGS="$CFLAGS $with_libvarnish_cflags"
+
+	AC_CHECK_LIB(varnishapi, VSL_OpenStats, [with_libvarnish="yes"], [with_libvarnish="no (Symbol 'VSL_OpenStats' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+	CFLAGS="$SAVE_CFLAGS"
+fi
+if test "x$with_libvarnish" = "xyes"
+then
+	BUILD_WITH_LIBVARNISH_CPPFLAGS="$with_libvarnish_cppflags"
+	BUILD_WITH_LIBVARNISH_LDFLAGS="$with_libvarnish_ldflags"
+	BUILD_WITH_LIBVARNISH_LIBS="-lvarnishcompat -lvarnish -lvarnishapi"
+	AC_SUBST(BUILD_WITH_LIBVARNISH_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBVARNISH_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBVARNISH_LIBS)
+	AC_DEFINE(HAVE_LIBVARNISH, 1, [Define if libvarnish is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBVARNISH, test "x$with_libvarnish" = "xyes")
+# }}}
+
 # pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
 with_libxml2="no (pkg-config isn't available)"
 with_libxml2_cflags=""
@@ -4401,6 +4456,7 @@ AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
+AC_PLUGIN([varnish],     [$with_libvarnish],   [Varnish cache statistics])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
@@ -4608,6 +4664,7 @@ Configuration:
     libstatgrab . . . . . $with_libstatgrab
     libtokyotyrant  . . . $with_libtokyotyrant
     libupsclient  . . . . $with_libupsclient
+    libvarnish  . . . . . $with_libvarnish
     libvirt . . . . . . . $with_libvirt
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
@@ -4718,6 +4775,7 @@ Configuration:
     uptime  . . . . . . . $enable_uptime
     users . . . . . . . . $enable_users
     uuid  . . . . . . . . $enable_uuid
+    varnish . . . . . . . $enable_varnish
     vmem  . . . . . . . . $enable_vmem
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless

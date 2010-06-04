@@ -650,6 +650,10 @@ Prerequisites
     Parse JSON data. This is needed for the `curl_json' plugin.
     <http://github.com/lloyd/yajl>
 
+  * libvarnish (optional)
+     Fetches statistics from a Varnish instance. This is needed for the Varnish plugin
+     <http://varnish-cache.org>
+
 Configuring / Compiling / Installing
 ------------------------------------
 
