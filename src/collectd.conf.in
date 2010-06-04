@@ -847,6 +847,7 @@
 #  MonitorCache yes
 #  MonitorConnections yes
 #  MonitorESI yes
+#  MonitorBackend yes
 #</Plugin>
 
 #<Plugin vmem>

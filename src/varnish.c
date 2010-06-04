@@ -25,7 +25,7 @@
 
 #include <varnish/varnishapi.h>
 
-#define USER_CONFIG_INIT {0, 0, 0}
+#define USER_CONFIG_INIT {0, 0, 0, 0}
 #define SET_MONITOR_FLAG(name, flag, value) if((strcasecmp(name, key) == 0) && IS_TRUE(value)) user_config.flag = 1
 
 /* {{{ user_config_s */
@@ -33,6 +33,7 @@ struct user_config_s {
 	int monitor_cache;
 	int monitor_connections;
 	int monitor_esi;
+	int monitor_backend;
 };
 
 typedef struct user_config_s user_config_t; /* }}} */
@@ -44,7 +45,8 @@ static const char *config_keys[] =
 {
   "MonitorCache",
   "MonitorConnections",
-  "MonitorESI"
+  "MonitorESI",
+  "MonitorBackend",
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
@@ -54,6 +56,7 @@ static int varnish_config(const char *key, const char *value) /* {{{ */
 	SET_MONITOR_FLAG("MonitorCache", monitor_cache, value);
 	SET_MONITOR_FLAG("MonitorConnections", monitor_connections, value);
 	SET_MONITOR_FLAG("MonitorESI", monitor_esi, value);
+	SET_MONITOR_FLAG("MonitorBackend", monitor_backend, value);
 
 	return (0);
 } /* }}} */
@@ -95,6 +98,18 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 	{
 		varnish_submit("varnish_esi", "esi_parsed", VSL_stats->esi_parse);
 		varnish_submit("varnish_esi", "esi_errors", VSL_stats->esi_errors);
+	}
+
+	if(user_config.monitor_backend == 1)
+	{
+		varnish_submit("varnish_backend_connections", "backend_connections-success"      , VSL_stats->backend_conn);      /* Backend conn. success       */
+		varnish_submit("varnish_backend_connections", "backend_connections-not-attempted", VSL_stats->backend_unhealthy); /* Backend conn. not attempted */
+		varnish_submit("varnish_backend_connections", "backend_connections-too-many"     , VSL_stats->backend_busy);      /* Backend conn. too many      */
+		varnish_submit("varnish_backend_connections", "backend_connections-failures"     , VSL_stats->backend_fail);      /* Backend conn. failures      */
+		varnish_submit("varnish_backend_connections", "backend_connections-reuses"       , VSL_stats->backend_reuse);     /* Backend conn. reuses        */
+		varnish_submit("varnish_backend_connections", "backend_connections-was-closed"   , VSL_stats->backend_toolate);   /* Backend conn. was closed    */
+		varnish_submit("varnish_backend_connections", "backend_connections-recycles"     , VSL_stats->backend_recycle);   /* Backend conn. recycles      */
+		varnish_submit("varnish_backend_connections", "backend_connections-unused"       , VSL_stats->backend_unused);    /* Backend conn. unused        */
 	}
 } /* }}} */
 
