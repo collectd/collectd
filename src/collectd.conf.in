@@ -844,12 +844,58 @@
 #</Plugin>
 
 #<Plugin varnish>
+#  Will monitor :
+#  - cache hits
+#  - cache misses
+#  - cache hits for pass
 #  MonitorCache yes
+#
+#  Will monitor :
+#  - client connections accepted
+#  - connection dropped
+#  - client requests received
 #  MonitorConnections yes
+#
+#  Will monitor:
+#  - Objects ESI parsed
+#  - ESI parse errors
 #  MonitorESI yes
+#
+#  Will monitor:
+#  - backend connection : success
+#  - backend connection : not attempted
+#  - backend connection : too many
+#  - backend connection : failures
+#  - backend connection : reuses
+#  - backend connection : was closed
+#  - backend connection : recycles
+#  - backend connection : unused
 #  MonitorBackend yes
+#
+#  Will monitor:
+#  - fetch head
+#  - fetch with Length
+#  - fetch chunked
+#  - fetch EOF
+#  - fetch had bad headers
+#  - fetch wanted close
+#  - fetch pre HTTP/1.1 closed
+#  - fetch zero length
+#  - fetch failed
 #  MonitorFetch yes
+#
+#  Will monitor:
+#  - HCB lookups without lock
+#  - HCB lookups with lock
+#  - HCB inserts
 #  MonitorHCB yes
+#
+#  Will monitor:
+#  - SHM records
+#  - SHM writes
+#  - SHM flushes due to overflow
+#  - SHM MTX contention
+#  - SHM cycles through buffer
 #  MonitorSHM yes
 #</Plugin>
 
