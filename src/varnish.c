@@ -128,7 +128,7 @@
 
 #include <varnish/varnishapi.h>
 
-#define USER_CONFIG_INIT {0, 0, 0, 0, 0, 0, 0}
+#define USER_CONFIG_INIT {0, 0, 0, 0, 0, 0, 0, 0}
 #define SET_MONITOR_FLAG(name, flag, value) if((strcasecmp(name, key) == 0) && IS_TRUE(value)) user_config.flag = 1
 
 /* {{{ user_config_s */
