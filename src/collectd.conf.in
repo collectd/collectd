@@ -897,6 +897,14 @@
 #  - SHM MTX contention
 #  - SHM cycles through buffer
 #  MonitorSHM yes
+#
+#  Will monitor:
+#  - SMA allocator requests
+#  - SMA outstanding allocations
+#  - SMA outstanding bytes
+#  - SMA bytes allocated
+#  - SMA bytes free
+#  MonitorSMA yes
 #</Plugin>
 
 #<Plugin vmem>

@@ -96,11 +96,11 @@
  * sm_nobj              outstanding allocations                   N
  * sm_balloc            bytes allocated                           N
  * sm_bfree             bytes free                                N
- * sma_nreq             SMA allocator requests                    N
- * sma_nobj             SMA outstanding allocations               N
- * sma_nbytes           SMA outstanding bytes                     N
- * sma_balloc           SMA bytes allocated                       N
- * sma_bfree            SMA bytes free                            N
+ * sma_nreq             SMA allocator requests                    Y
+ * sma_nobj             SMA outstanding allocations               Y
+ * sma_nbytes           SMA outstanding bytes                     Y
+ * sma_balloc           SMA bytes allocated                       Y
+ * sma_bfree            SMA bytes free                            Y
  * sms_nreq             SMS allocator requests                    N
  * sms_nobj             SMS outstanding allocations               N
  * sms_nbytes           SMS outstanding bytes                     N
@@ -140,6 +140,7 @@ struct user_config_s {
 	int monitor_fetch;
 	int monitor_hcb;
 	int monitor_shm;
+	int monitor_sma;
 };
 
 typedef struct user_config_s user_config_t; /* }}} */
@@ -155,7 +156,8 @@ static const char *config_keys[] =
   "MonitorBackend",
   "MonitorFetch",
   "MonitorHCB",
-  "MonitorSHM"
+  "MonitorSHM",
+  "MonitorSMA"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
@@ -169,6 +171,7 @@ static int varnish_config(const char *key, const char *value) /* {{{ */
 	SET_MONITOR_FLAG("MonitorFetch"      , monitor_fetch      , value);
 	SET_MONITOR_FLAG("MonitorHCB"        , monitor_hcb        , value);
 	SET_MONITOR_FLAG("MonitorSHM"        , monitor_shm        , value);
+	SET_MONITOR_FLAG("MonitorSMA"        , monitor_sma        , value);
 
 	return (0);
 } /* }}} */
@@ -251,6 +254,15 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_shm", "shm_flushes"   , VSL_stats->shm_flushes); /* SHM flushes due to overflow */
 		varnish_submit("varnish_shm", "shm_contention", VSL_stats->shm_cont);    /* SHM MTX contention          */
 		varnish_submit("varnish_shm", "shm_cycles"    , VSL_stats->shm_cycles);  /* SHM cycles through buffer   */
+	}
+
+	if(user_config.monitor_sma == 1)
+	{
+		varnish_submit("varnish_sma", "sma_req"   , VSL_stats->sma_nreq);   /* SMA allocator requests      */
+		varnish_submit("varnish_sma", "sma_nobj"  , VSL_stats->sma_nobj);   /* SMA outstanding allocations */
+		varnish_submit("varnish_sma", "sma_nbytes", VSL_stats->sma_nbytes); /* SMA outstanding bytes       */
+		varnish_submit("varnish_sma", "sma_balloc", VSL_stats->sma_balloc); /* SMA bytes allocated         */
+		varnish_submit("varnish_sma", "sma_bfree" , VSL_stats->sma_bfree);  /* SMA bytes free              */
 	}
 } /* }}} */
 
