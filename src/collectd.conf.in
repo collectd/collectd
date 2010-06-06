@@ -914,6 +914,13 @@
 #  - SMS bytes freed
 #  MonitorSMS yes
 #
+#  Will monitor:
+#  - allocator requests
+#  - outstanding allocations
+#  - bytes allocated
+#  - bytes free
+#  MonitorSM yes
+#
 #</Plugin>
 
 #<Plugin vmem>
