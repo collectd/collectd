@@ -101,11 +101,11 @@
  * sma_nbytes           SMA outstanding bytes                     Y
  * sma_balloc           SMA bytes allocated                       Y
  * sma_bfree            SMA bytes free                            Y
- * sms_nreq             SMS allocator requests                    N
- * sms_nobj             SMS outstanding allocations               N
- * sms_nbytes           SMS outstanding bytes                     N
- * sms_balloc           SMS bytes allocated                       N
- * sms_bfree            SMS bytes freed                           N
+ * sms_nreq             SMS allocator requests                    Y
+ * sms_nobj             SMS outstanding allocations               Y
+ * sms_nbytes           SMS outstanding bytes                     Y
+ * sms_balloc           SMS bytes allocated                       Y
+ * sms_bfree            SMS bytes freed                           Y
  * backend_req          Backend requests made                     N
  * n_vcl                N vcl total                               N
  * n_vcl_avail          N vcl available                           N
@@ -128,7 +128,7 @@
 
 #include <varnish/varnishapi.h>
 
-#define USER_CONFIG_INIT {0, 0, 0, 0, 0, 0, 0, 0}
+#define USER_CONFIG_INIT {0, 0, 0, 0, 0, 0, 0, 0, 0}
 #define SET_MONITOR_FLAG(name, flag, value) if((strcasecmp(name, key) == 0) && IS_TRUE(value)) user_config.flag = 1
 
 /* {{{ user_config_s */
@@ -141,6 +141,7 @@ struct user_config_s {
 	int monitor_hcb;
 	int monitor_shm;
 	int monitor_sma;
+	int monitor_sms;
 };
 
 typedef struct user_config_s user_config_t; /* }}} */
@@ -157,7 +158,8 @@ static const char *config_keys[] =
   "MonitorFetch",
   "MonitorHCB",
   "MonitorSHM",
-  "MonitorSMA"
+  "MonitorSMA",
+  "MonitorSMS"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
@@ -172,6 +174,7 @@ static int varnish_config(const char *key, const char *value) /* {{{ */
 	SET_MONITOR_FLAG("MonitorHCB"        , monitor_hcb        , value);
 	SET_MONITOR_FLAG("MonitorSHM"        , monitor_shm        , value);
 	SET_MONITOR_FLAG("MonitorSMA"        , monitor_sma        , value);
+	SET_MONITOR_FLAG("MonitorSMS"        , monitor_sms        , value);
 
 	return (0);
 } /* }}} */
@@ -263,6 +266,15 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_sma", "sma_nbytes", VSL_stats->sma_nbytes); /* SMA outstanding bytes       */
 		varnish_submit("varnish_sma", "sma_balloc", VSL_stats->sma_balloc); /* SMA bytes allocated         */
 		varnish_submit("varnish_sma", "sma_bfree" , VSL_stats->sma_bfree);  /* SMA bytes free              */
+	}
+
+	if(user_config.monitor_sms == 1)
+	{
+		varnish_submit("varnish_sms", "sms_nreq"  , VSL_stats->sms_nreq);   /* SMS allocator requests      */
+		varnish_submit("varnish_sms", "sms_nobj"  , VSL_stats->sms_nobj);   /* SMS outstanding allocations */
+		varnish_submit("varnish_sms", "sms_nbytes", VSL_stats->sms_nbytes); /* SMS outstanding bytes       */
+		varnish_submit("varnish_sms", "sms_balloc", VSL_stats->sms_balloc); /* SMS bytes allocated         */
+		varnish_submit("varnish_sms", "sms_bfree" , VSL_stats->sms_bfree);  /* SMS bytes freed             */
 	}
 } /* }}} */
 

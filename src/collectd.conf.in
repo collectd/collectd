@@ -905,6 +905,15 @@
 #  - SMA bytes allocated
 #  - SMA bytes free
 #  MonitorSMA yes
+#
+#  Will monitor:
+#  - SMS allocator requests
+#  - SMS outstanding allocations
+#  - SMS outstanding bytes
+#  - SMS bytes allocated
+#  - SMS bytes freed
+#  MonitorSMS yes
+#
 #</Plugin>
 
 #<Plugin vmem>
