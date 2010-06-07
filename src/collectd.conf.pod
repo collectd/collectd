@@ -2527,7 +2527,7 @@ I<libgcrypt>.
 Set the outgoing interface for IP packets. This applies at least
 to IPv6 packets and if possible to IPv4. If this option is not applicable,
 undefined or a non-existent interface name is specified, the default
-behaviour is to let the kernel choose the appropriate interface. Be warned
+behavior is to let the kernel choose the appropriate interface. Be warned
 that the manual selection of an interface for unicast traffic is only
 necessary in rare cases.
 
@@ -2584,7 +2584,7 @@ the file is being read, it is locked using L<fcntl(2)>.
 Set the incoming interface for IP packets explicitly. This applies at least
 to IPv6 packets and if possible to IPv4. If this option is not applicable,
 undefined or a non-existent interface name is specified, the default
-behaviour is, to let the kernel choose the appropriate interface. Thus incoming
+behavior is, to let the kernel choose the appropriate interface. Thus incoming
 traffic gets only accepted, if it arrives on the given interface.
 
 =back
@@ -2951,7 +2951,7 @@ because aggregating this data in a save manner is tricky. Defaults to B<true>.
 =item B<CollectUserCount> B<true>|B<false>
 
 When enabled, the number of currently connected clients or users is collected.
-This is expecially interesting when B<CollectIndividualUsers> is disabled, but
+This is especially interesting when B<CollectIndividualUsers> is disabled, but
 can be configured independently from that option. Defaults to B<false>.
 
 =back
@@ -3153,7 +3153,7 @@ operating systems.
 
 =item B<MaxMissed> I<Packets>
 
-Trigger a DNS resolv after the host has not replied to I<Packets> packets. This
+Trigger a DNS resolve after the host has not replied to I<Packets> packets. This
 enables the use of dynamic DNS services (like dyndns.org) with the ping plugin.
 
 Default: B<-1> (disabled)
