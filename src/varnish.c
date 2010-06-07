@@ -133,18 +133,17 @@
 
 /* {{{ user_config_s */
 struct user_config_s {
-	int monitor_cache;
-	int monitor_connections;
-	int monitor_esi;
-	int monitor_backend;
-	int monitor_fetch;
-	int monitor_hcb;
-	int monitor_shm;
-	int monitor_sma;
-	int monitor_sms;
-	int monitor_sm;
+	_Bool monitor_cache;
+	_Bool monitor_connections;
+	_Bool monitor_esi;
+	_Bool monitor_backend;
+	_Bool monitor_fetch;
+	_Bool monitor_hcb;
+	_Bool monitor_shm;
+	_Bool monitor_sma;
+	_Bool monitor_sms;
+	_Bool monitor_sm;
 };
-
 typedef struct user_config_s user_config_t; /* }}} */
 
 /* {{{ Configuration directives */
@@ -201,27 +200,27 @@ static void varnish_submit(const char *type, const char *type_instance, gauge_t 
 
 static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 {
-	if(user_config.monitor_cache == 1)
+	if(user_config.monitor_cache)
 	{
 		varnish_submit("varnish_cache_ratio", "cache_hit"    , VSL_stats->cache_hit);     /* Cache hits          */
 		varnish_submit("varnish_cache_ratio", "cache_miss"   , VSL_stats->cache_miss);    /* Cache misses        */
 		varnish_submit("varnish_cache_ratio", "cache_hitpass", VSL_stats->cache_hitpass); /* Cache hits for pass */
 	}
 
-	if(user_config.monitor_connections == 1)
+	if(user_config.monitor_connections)
 	{
 		varnish_submit("varnish_connections", "client_connections-accepted", VSL_stats->client_conn); /* Client connections accepted */
 		varnish_submit("varnish_connections", "client_connections-dropped" , VSL_stats->client_drop); /* Connection dropped, no sess */
 		varnish_submit("varnish_connections", "client_connections-received", VSL_stats->client_req);  /* Client requests received    */
 	}
 
-	if(user_config.monitor_esi == 1)
+	if(user_config.monitor_esi)
 	{
 		varnish_submit("varnish_esi", "esi_parsed", VSL_stats->esi_parse);  /* Objects ESI parsed (unlock) */
 		varnish_submit("varnish_esi", "esi_errors", VSL_stats->esi_errors); /* ESI parse errors (unlock)   */
 	}
 
-	if(user_config.monitor_backend == 1)
+	if(user_config.monitor_backend)
 	{
 		varnish_submit("varnish_backend_connections", "backend_connections-success"      , VSL_stats->backend_conn);      /* Backend conn. success       */
 		varnish_submit("varnish_backend_connections", "backend_connections-not-attempted", VSL_stats->backend_unhealthy); /* Backend conn. not attempted */
@@ -233,7 +232,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_backend_connections", "backend_connections-unused"       , VSL_stats->backend_unused);    /* Backend conn. unused        */
 	}
 
-	if(user_config.monitor_fetch == 1)
+	if(user_config.monitor_fetch)
 	{
 		varnish_submit("varnish_fetch", "fetch_head"       , VSL_stats->fetch_head);    /* Fetch head                */
 		varnish_submit("varnish_fetch", "fetch_length"     , VSL_stats->fetch_length);  /* Fetch with length         */
@@ -246,14 +245,14 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_fetch", "fetch_failed"     , VSL_stats->fetch_failed);  /* Fetch failed              */
 	}
 
-	if(user_config.monitor_hcb == 1)
+	if(user_config.monitor_hcb)
 	{
 		varnish_submit("varnish_hcb", "hcb_nolock", VSL_stats->hcb_nolock); /* HCB Lookups without lock */
 		varnish_submit("varnish_hcb", "hcb_lock"  , VSL_stats->hcb_lock);   /* HCB Lookups with lock    */
 		varnish_submit("varnish_hcb", "hcb_insert", VSL_stats->hcb_insert); /* HCB Inserts              */
 	}
 
-	if(user_config.monitor_shm == 1)
+	if(user_config.monitor_shm)
 	{
 		varnish_submit("varnish_shm", "shm_records"   , VSL_stats->shm_records); /* SHM records                 */
 		varnish_submit("varnish_shm", "shm_writes"    , VSL_stats->shm_writes);  /* SHM writes                  */
@@ -262,7 +261,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_shm", "shm_cycles"    , VSL_stats->shm_cycles);  /* SHM cycles through buffer   */
 	}
 
-	if(user_config.monitor_sma == 1)
+	if(user_config.monitor_sma)
 	{
 		varnish_submit("varnish_sma", "sma_req"   , VSL_stats->sma_nreq);   /* SMA allocator requests      */
 		varnish_submit("varnish_sma", "sma_nobj"  , VSL_stats->sma_nobj);   /* SMA outstanding allocations */
@@ -271,7 +270,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_sma", "sma_bfree" , VSL_stats->sma_bfree);  /* SMA bytes free              */
 	}
 
-	if(user_config.monitor_sms == 1)
+	if(user_config.monitor_sms)
 	{
 		varnish_submit("varnish_sms", "sms_nreq"  , VSL_stats->sms_nreq);   /* SMS allocator requests      */
 		varnish_submit("varnish_sms", "sms_nobj"  , VSL_stats->sms_nobj);   /* SMS outstanding allocations */
@@ -280,7 +279,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_sms", "sms_bfree" , VSL_stats->sms_bfree);  /* SMS bytes freed             */
 	}
 
-	if(user_config.monitor_sm == 1)
+	if(user_config.monitor_sm)
 	{
 		varnish_submit("varnish_sm", "sm_nreq"  , VSL_stats->sm_nreq);   /* allocator requests      */
 		varnish_submit("varnish_sm", "sm_nobj"  , VSL_stats->sm_nobj);   /* outstanding allocations */
