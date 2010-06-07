@@ -125,6 +125,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "configfile.h"
 
 #include <varnish/varnishapi.h>
 
@@ -133,6 +134,8 @@
 
 /* {{{ user_config_s */
 struct user_config_s {
+	char *instance;
+
 	_Bool monitor_cache;
 	_Bool monitor_connections;
 	_Bool monitor_esi;
@@ -146,40 +149,7 @@ struct user_config_s {
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
-/* {{{ Configuration directives */
-static user_config_t user_config = USER_CONFIG_INIT;
-
-static const char *config_keys[] =
-{
-  "MonitorCache",
-  "MonitorConnections",
-  "MonitorESI",
-  "MonitorBackend",
-  "MonitorFetch",
-  "MonitorHCB",
-  "MonitorSHM",
-  "MonitorSMA",
-  "MonitorSMS",
-  "MonitorSM"
-};
-
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
-
-static int varnish_config(const char *key, const char *value) /* {{{ */
-{
-	SET_MONITOR_FLAG("MonitorCache"      , monitor_cache      , value);
-	SET_MONITOR_FLAG("MonitorConnections", monitor_connections, value);
-	SET_MONITOR_FLAG("MonitorESI"        , monitor_esi        , value);
-	SET_MONITOR_FLAG("MonitorBackend"    , monitor_backend    , value);
-	SET_MONITOR_FLAG("MonitorFetch"      , monitor_fetch      , value);
-	SET_MONITOR_FLAG("MonitorHCB"        , monitor_hcb        , value);
-	SET_MONITOR_FLAG("MonitorSHM"        , monitor_shm        , value);
-	SET_MONITOR_FLAG("MonitorSMA"        , monitor_sma        , value);
-	SET_MONITOR_FLAG("MonitorSMS"        , monitor_sms        , value);
-	SET_MONITOR_FLAG("MonitorSM"         , monitor_sm         , value);
-
-	return (0);
-} /* }}} */
+static _Bool have_instance = 0;
 
 static void varnish_submit(const char *type, const char *type_instance, gauge_t value) /* {{{ */
 {
@@ -198,29 +168,29 @@ static void varnish_submit(const char *type, const char *type_instance, gauge_t 
 	plugin_dispatch_values(&vl);
 } /* }}} */
 
-static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
+static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL_stats) /* {{{ */
 {
-	if(user_config.monitor_cache)
+	if(conf->monitor_cache)
 	{
 		varnish_submit("varnish_cache_ratio", "cache_hit"    , VSL_stats->cache_hit);     /* Cache hits          */
 		varnish_submit("varnish_cache_ratio", "cache_miss"   , VSL_stats->cache_miss);    /* Cache misses        */
 		varnish_submit("varnish_cache_ratio", "cache_hitpass", VSL_stats->cache_hitpass); /* Cache hits for pass */
 	}
 
-	if(user_config.monitor_connections)
+	if(conf->monitor_connections)
 	{
 		varnish_submit("varnish_connections", "client_connections-accepted", VSL_stats->client_conn); /* Client connections accepted */
 		varnish_submit("varnish_connections", "client_connections-dropped" , VSL_stats->client_drop); /* Connection dropped, no sess */
 		varnish_submit("varnish_connections", "client_connections-received", VSL_stats->client_req);  /* Client requests received    */
 	}
 
-	if(user_config.monitor_esi)
+	if(conf->monitor_esi)
 	{
 		varnish_submit("varnish_esi", "esi_parsed", VSL_stats->esi_parse);  /* Objects ESI parsed (unlock) */
 		varnish_submit("varnish_esi", "esi_errors", VSL_stats->esi_errors); /* ESI parse errors (unlock)   */
 	}
 
-	if(user_config.monitor_backend)
+	if(conf->monitor_backend)
 	{
 		varnish_submit("varnish_backend_connections", "backend_connections-success"      , VSL_stats->backend_conn);      /* Backend conn. success       */
 		varnish_submit("varnish_backend_connections", "backend_connections-not-attempted", VSL_stats->backend_unhealthy); /* Backend conn. not attempted */
@@ -232,7 +202,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_backend_connections", "backend_connections-unused"       , VSL_stats->backend_unused);    /* Backend conn. unused        */
 	}
 
-	if(user_config.monitor_fetch)
+	if(conf->monitor_fetch)
 	{
 		varnish_submit("varnish_fetch", "fetch_head"       , VSL_stats->fetch_head);    /* Fetch head                */
 		varnish_submit("varnish_fetch", "fetch_length"     , VSL_stats->fetch_length);  /* Fetch with length         */
@@ -245,14 +215,14 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_fetch", "fetch_failed"     , VSL_stats->fetch_failed);  /* Fetch failed              */
 	}
 
-	if(user_config.monitor_hcb)
+	if(conf->monitor_hcb)
 	{
 		varnish_submit("varnish_hcb", "hcb_nolock", VSL_stats->hcb_nolock); /* HCB Lookups without lock */
 		varnish_submit("varnish_hcb", "hcb_lock"  , VSL_stats->hcb_lock);   /* HCB Lookups with lock    */
 		varnish_submit("varnish_hcb", "hcb_insert", VSL_stats->hcb_insert); /* HCB Inserts              */
 	}
 
-	if(user_config.monitor_shm)
+	if(conf->monitor_shm)
 	{
 		varnish_submit("varnish_shm", "shm_records"   , VSL_stats->shm_records); /* SHM records                 */
 		varnish_submit("varnish_shm", "shm_writes"    , VSL_stats->shm_writes);  /* SHM writes                  */
@@ -261,7 +231,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_shm", "shm_cycles"    , VSL_stats->shm_cycles);  /* SHM cycles through buffer   */
 	}
 
-	if(user_config.monitor_sma)
+	if(conf->monitor_sma)
 	{
 		varnish_submit("varnish_sma", "sma_req"   , VSL_stats->sma_nreq);   /* SMA allocator requests      */
 		varnish_submit("varnish_sma", "sma_nobj"  , VSL_stats->sma_nobj);   /* SMA outstanding allocations */
@@ -270,7 +240,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_sma", "sma_bfree" , VSL_stats->sma_bfree);  /* SMA bytes free              */
 	}
 
-	if(user_config.monitor_sms)
+	if(conf->monitor_sms)
 	{
 		varnish_submit("varnish_sms", "sms_nreq"  , VSL_stats->sms_nreq);   /* SMS allocator requests      */
 		varnish_submit("varnish_sms", "sms_nobj"  , VSL_stats->sms_nobj);   /* SMS outstanding allocations */
@@ -279,7 +249,7 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 		varnish_submit("varnish_sms", "sms_bfree" , VSL_stats->sms_bfree);  /* SMS bytes freed             */
 	}
 
-	if(user_config.monitor_sm)
+	if(conf->monitor_sm)
 	{
 		varnish_submit("varnish_sm", "sm_nreq"  , VSL_stats->sm_nreq);   /* allocator requests      */
 		varnish_submit("varnish_sm", "sm_nobj"  , VSL_stats->sm_nobj);   /* outstanding allocations */
@@ -288,27 +258,199 @@ static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
 	}
 } /* }}} */
 
-static int varnish_read(void) /* {{{ */
+static int varnish_read(user_data_t *ud) /* {{{ */
 {
 	struct varnish_stats *VSL_stats;
-	const char *varnish_instance_name = NULL;
+	user_config_t *conf;
 
-	if ((VSL_stats = VSL_OpenStats(varnish_instance_name)) == NULL)
+	if ((ud == NULL) || (ud->data == NULL))
+		return (EINVAL);
+
+	conf = ud->data;
+
+	VSL_stats = VSL_OpenStats(conf->instance);
+	if (VSL_stats == NULL)
 	{
 		ERROR("Varnish plugin : unable to load statistics");
 
 		return (-1);
 	}
 
-	varnish_monitor(VSL_stats);
+	varnish_monitor(conf, VSL_stats);
 
     return (0);
 } /* }}} */
 
+static void varnish_config_free (void *ptr) /* {{{ */
+{
+	user_config_t *conf = ptr;
+
+	if (conf == NULL)
+		return;
+
+	sfree (conf->instance);
+	sfree (conf);
+} /* }}} */
+
+static int varnish_init (void) /* {{{ */
+{
+	user_config_t *conf;
+	user_data_t ud;
+
+	if (have_instance)
+		return (0);
+
+	conf = malloc (sizeof (*conf));
+	if (conf == NULL)
+		return (ENOMEM);
+	memset (conf, 0, sizeof (*conf));
+
+	/* Default settings: */
+	conf->instance = NULL;
+	conf->monitor_cache = 1;
+	conf->monitor_connections = 1;
+
+	ud.data = conf;
+	ud.free_func = varnish_config_free;
+
+	plugin_register_complex_read (/* group = */ "varnish",
+			/* name      = */ "varnish/localhost",
+			/* callback  = */ varnish_read,
+			/* interval  = */ NULL,
+			/* user data = */ &ud);
+
+	return (0);
+} /* }}} int varnish_init */
+
+static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
+{
+	user_config_t *conf;
+	user_data_t ud;
+	char callback_name[DATA_MAX_NAME_LEN];
+	int i;
+
+	conf = malloc (sizeof (*conf));
+	if (conf == NULL)
+		return (ENOMEM);
+	memset (conf, 0, sizeof (*conf));
+	conf->instance = NULL;
+
+	if (ci->values_num == 1)
+	{
+		int status;
+
+		status = cf_util_get_string (ci, &conf->instance);
+		if (status != 0)
+		{
+			sfree (conf);
+			return (status);
+		}
+		assert (conf->instance != NULL);
+
+		if (strcmp ("localhost", conf->instance) == 0)
+		{
+			sfree (conf->instance);
+			conf->instance = NULL;
+		}
+	}
+	else if (ci->values_num > 1)
+	{
+		WARNING ("Varnish plugin: \"Instance\" blocks accept only "
+				"one argument.");
+		return (EINVAL);
+	}
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("MonitorCache", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_cache);
+		else if (strcasecmp ("MonitorConnections", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_connections);
+		else if (strcasecmp ("MonitorESI", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_esi);
+		else if (strcasecmp ("MonitorBackend", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_backend);
+		else if (strcasecmp ("MonitorFetch", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_fetch);
+		else if (strcasecmp ("MonitorHCB", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_hcb);
+		else if (strcasecmp ("MonitorSHM", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_shm);
+		else if (strcasecmp ("MonitorSMA", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_sma);
+		else if (strcasecmp ("MonitorSMS", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_sms);
+		else if (strcasecmp ("MonitorSM", child->key) == 0)
+			cf_util_get_boolean (child, &conf->monitor_sm);
+		else
+		{
+			WARNING ("Varnish plugin: Ignoring unknown "
+					"configuration option: \"%s\"",
+					child->key);
+		}
+	}
+
+	if (!conf->monitor_cache
+			&& !conf->monitor_connections
+			&& !conf->monitor_esi
+			&& !conf->monitor_backend
+			&& !conf->monitor_fetch
+			&& !conf->monitor_hcb
+			&& !conf->monitor_shm
+			&& !conf->monitor_sma
+			&& !conf->monitor_sms
+			&& !conf->monitor_sm)
+	{
+		WARNING ("Varnish plugin: No metric has been configured for "
+				"instance \"%s\". Disabling this instance.",
+				(conf->instance == NULL) ? "localhost" : conf->instance);
+		return (EINVAL);
+	}
+
+	ssnprintf (callback_name, sizeof (callback_name), "varnish/%s",
+			(conf->instance == NULL) ? "localhost" : conf->instance);
+
+	ud.data = conf;
+	ud.free_func = varnish_config_free;
+
+	plugin_register_complex_read (/* group = */ "varnish",
+			/* name      = */ callback_name,
+			/* callback  = */ varnish_read,
+			/* interval  = */ NULL,
+			/* user data = */ &ud);
+
+	have_instance = 1;
+
+	return (0);
+} /* }}} int varnish_config_instance */
+
+static int varnish_config (oconfig_item_t *ci) /* {{{ */
+{
+	int i;
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Instance", child->key) == 0)
+			varnish_config_instance (child);
+		else
+		{
+			WARNING ("Varnish plugin: Ignoring unknown "
+					"configuration option: \"%s\"",
+					child->key);
+		}
+	}
+
+	return (0);
+} /* }}} int varnish_config */
+
 void module_register (void) /* {{{ */
 {
-	plugin_register_config("varnish", varnish_config, config_keys, config_keys_num);
-	plugin_register_read("varnish", varnish_read);
+	plugin_register_complex_config("varnish", varnish_config);
+	plugin_register_init ("varnish", varnish_init);
 } /* }}} */
 
 /* vim: set sw=8 noet fdm=marker : */
