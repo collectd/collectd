@@ -844,7 +844,7 @@
 #</Plugin>
 
 #<Plugin varnish>
-#   This tag support an argument if you want to 
+#   This tag support an argument if you want to
 #   monitor the local instance just use </Instance>
 #   If you prefer defining another instance you can do
 #   so by using <Instance "myinstance">
