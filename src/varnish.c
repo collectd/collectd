@@ -309,7 +309,9 @@ static int varnish_init (void) /* {{{ */
 	/* Default settings: */
 	conf->instance = NULL;
 	conf->monitor_cache = 1;
+	conf->monitor_backend = 1;
 	conf->monitor_connections = 1;
+	conf->monitor_shm = 1;
 
 	ud.data = conf;
 	ud.free_func = varnish_config_free;
