@@ -367,25 +367,25 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	{
 		oconfig_item_t *child = ci->children + i;
 
-		if (strcasecmp ("MonitorCache", child->key) == 0)
+		if (strcasecmp ("CollectCache", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_cache);
-		else if (strcasecmp ("MonitorConnections", child->key) == 0)
+		else if (strcasecmp ("CollectConnections", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_connections);
-		else if (strcasecmp ("MonitorESI", child->key) == 0)
+		else if (strcasecmp ("CollectESI", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_esi);
-		else if (strcasecmp ("MonitorBackend", child->key) == 0)
+		else if (strcasecmp ("CollectBackend", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_backend);
-		else if (strcasecmp ("MonitorFetch", child->key) == 0)
+		else if (strcasecmp ("CollectFetch", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_fetch);
-		else if (strcasecmp ("MonitorHCB", child->key) == 0)
+		else if (strcasecmp ("CollectHCB", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_hcb);
-		else if (strcasecmp ("MonitorSHM", child->key) == 0)
+		else if (strcasecmp ("CollectSHM", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_shm);
-		else if (strcasecmp ("MonitorSMA", child->key) == 0)
+		else if (strcasecmp ("CollectSMA", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_sma);
-		else if (strcasecmp ("MonitorSMS", child->key) == 0)
+		else if (strcasecmp ("CollectSMS", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_sms);
-		else if (strcasecmp ("MonitorSM", child->key) == 0)
+		else if (strcasecmp ("CollectSM", child->key) == 0)
 			cf_util_get_boolean (child, &conf->monitor_sm);
 		else
 		{
