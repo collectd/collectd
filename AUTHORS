@@ -72,6 +72,9 @@ Franck Lombardi
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
 
+Jérôme Renard <jerome.renard at gmail.com>
+ - varnish plugin.
+
 Luboš Staněk <kolektor at atlas.cz>
  - sensors plugin improvements.
  - Time and effort to find a nasty bug in the ntpd-plugin.
