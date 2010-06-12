@@ -16,6 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Florian octo Forster <octo at verplant.org>
  *   Jerome Renard <jerome.renard@gmail.com>
  **/
 
