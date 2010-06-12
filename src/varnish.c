@@ -385,6 +385,19 @@ static void varnish_config_free (void *ptr) /* {{{ */
 	sfree (conf);
 } /* }}} */
 
+static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
+{
+	if (conf == NULL)
+		return (EINVAL);
+
+	conf->collect_cache = 1;
+	conf->collect_backend = 1;
+	conf->collect_connections = 1;
+	conf->collect_shm = 1;
+	
+	return (0);
+} /* }}} int varnish_config_apply_default */
+
 static int varnish_init (void) /* {{{ */
 {
 	user_config_t *conf;
@@ -400,10 +413,8 @@ static int varnish_init (void) /* {{{ */
 
 	/* Default settings: */
 	conf->instance = NULL;
-	conf->collect_cache = 1;
-	conf->collect_backend = 1;
-	conf->collect_connections = 1;
-	conf->collect_shm = 1;
+
+	varnish_config_apply_default (conf);
 
 	ud.data = conf;
 	ud.free_func = varnish_config_free;
@@ -501,10 +512,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			&& !conf->collect_sm
 			&& !conf->collect_totals)
 	{
-		WARNING ("Varnish plugin: No metric has been configured for "
-				"instance \"%s\". Disabling this instance.",
-				(conf->instance == NULL) ? "localhost" : conf->instance);
-		return (EINVAL);
+		varnish_config_apply_default (conf);
 	}
 
 	ssnprintf (callback_name, sizeof (callback_name), "varnish/%s",
