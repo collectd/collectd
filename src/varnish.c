@@ -135,16 +135,16 @@
 struct user_config_s {
 	char *instance;
 
-	_Bool monitor_cache;
-	_Bool monitor_connections;
-	_Bool monitor_esi;
-	_Bool monitor_backend;
-	_Bool monitor_fetch;
-	_Bool monitor_hcb;
-	_Bool monitor_shm;
-	_Bool monitor_sma;
-	_Bool monitor_sms;
-	_Bool monitor_sm;
+	_Bool collect_cache;
+	_Bool collect_connections;
+	_Bool collect_esi;
+	_Bool collect_backend;
+	_Bool collect_fetch;
+	_Bool collect_hcb;
+	_Bool collect_shm;
+	_Bool collect_sma;
+	_Bool collect_sms;
+	_Bool collect_sm;
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
@@ -197,7 +197,7 @@ static int varnish_submit_derive (const char *plugin_instance, /* {{{ */
 
 static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL_stats) /* {{{ */
 {
-	if(conf->monitor_cache)
+	if(conf->collect_cache)
 	{
 		/* Cache hits */
 		varnish_submit_derive (conf->instance, "cache_result", "hit"    , VSL_stats->cache_hit);
@@ -207,7 +207,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "cache_result", "hitpass", VSL_stats->cache_hitpass);
 	}
 
-	if(conf->monitor_connections)
+	if(conf->collect_connections)
 	{
 		/* Client connections accepted */
 		varnish_submit_derive (conf->instance, "connections", "client-accepted", VSL_stats->client_conn);
@@ -217,7 +217,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "connections", "client-received", VSL_stats->client_req);
 	}
 
-	if(conf->monitor_esi)
+	if(conf->collect_esi)
 	{
 		/* Objects ESI parsed (unlock) */
 		varnish_submit_derive (conf->instance, "total_operations", "esi-parsed", VSL_stats->esi_parse);
@@ -225,7 +225,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "total_operations", "esi-error", VSL_stats->esi_errors);
 	}
 
-	if(conf->monitor_backend)
+	if(conf->collect_backend)
 	{
 		/* Backend conn. success       */
 		varnish_submit_derive (conf->instance, "connections", "backend-success"      , VSL_stats->backend_conn);
@@ -245,7 +245,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "connections", "backend-unused"       , VSL_stats->backend_unused);
 	}
 
-	if(conf->monitor_fetch)
+	if(conf->collect_fetch)
 	{
 		/* Fetch head                */
 		varnish_submit_derive (conf->instance, "http_requests", "fetch-head"       , VSL_stats->fetch_head);
@@ -267,7 +267,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "http_requests", "fetch-failed"     , VSL_stats->fetch_failed);
 	}
 
-	if(conf->monitor_hcb)
+	if(conf->collect_hcb)
 	{
 		/* HCB Lookups without lock */
 		varnish_submit_derive (conf->instance, "cache_operation", "lookup_nolock", VSL_stats->hcb_nolock);
@@ -277,7 +277,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "cache_operation", "insert",        VSL_stats->hcb_insert);
 	}
 
-	if(conf->monitor_shm)
+	if(conf->collect_shm)
 	{
 		/* SHM records                 */
 		varnish_submit_derive (conf->instance, "total_operations", "shmlog-records"   , VSL_stats->shm_records);
@@ -291,7 +291,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "total_operations", "shmlog-cycles"    , VSL_stats->shm_cycles);
 	}
 
-	if(conf->monitor_sm)
+	if(conf->collect_sm)
 	{
 		/* allocator requests */
 		varnish_submit_derive (conf->instance, "total_requests", "storage-file",      VSL_stats->sm_nreq);
@@ -303,7 +303,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_gauge (conf->instance, "bytes", "storage-file-free",           VSL_stats->sm_bfree);
 	}
 
-	if(conf->monitor_sma)
+	if(conf->collect_sma)
 	{
 		/* SMA allocator requests */
 		varnish_submit_derive (conf->instance, "total_requests", "storage-mem",      VSL_stats->sma_nreq);
@@ -317,7 +317,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_gauge (conf->instance, "bytes", "storage-mem-free" ,          VSL_stats->sma_bfree);
 	}
 
-	if(conf->monitor_sms)
+	if(conf->collect_sms)
 	{
 		/* SMS allocator requests */
 		varnish_submit_derive (conf->instance, "total_requests", "storage-synth",      VSL_stats->sms_nreq);
@@ -381,10 +381,10 @@ static int varnish_init (void) /* {{{ */
 
 	/* Default settings: */
 	conf->instance = NULL;
-	conf->monitor_cache = 1;
-	conf->monitor_backend = 1;
-	conf->monitor_connections = 1;
-	conf->monitor_shm = 1;
+	conf->collect_cache = 1;
+	conf->collect_backend = 1;
+	conf->collect_connections = 1;
+	conf->collect_shm = 1;
 
 	ud.data = conf;
 	ud.free_func = varnish_config_free;
@@ -441,25 +441,25 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *child = ci->children + i;
 
 		if (strcasecmp ("CollectCache", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_cache);
+			cf_util_get_boolean (child, &conf->collect_cache);
 		else if (strcasecmp ("CollectConnections", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_connections);
+			cf_util_get_boolean (child, &conf->collect_connections);
 		else if (strcasecmp ("CollectESI", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_esi);
+			cf_util_get_boolean (child, &conf->collect_esi);
 		else if (strcasecmp ("CollectBackend", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_backend);
+			cf_util_get_boolean (child, &conf->collect_backend);
 		else if (strcasecmp ("CollectFetch", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_fetch);
+			cf_util_get_boolean (child, &conf->collect_fetch);
 		else if (strcasecmp ("CollectHCB", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_hcb);
+			cf_util_get_boolean (child, &conf->collect_hcb);
 		else if (strcasecmp ("CollectSHM", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_shm);
+			cf_util_get_boolean (child, &conf->collect_shm);
 		else if (strcasecmp ("CollectSMA", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_sma);
+			cf_util_get_boolean (child, &conf->collect_sma);
 		else if (strcasecmp ("CollectSMS", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_sms);
+			cf_util_get_boolean (child, &conf->collect_sms);
 		else if (strcasecmp ("CollectSM", child->key) == 0)
-			cf_util_get_boolean (child, &conf->monitor_sm);
+			cf_util_get_boolean (child, &conf->collect_sm);
 		else
 		{
 			WARNING ("Varnish plugin: Ignoring unknown "
@@ -468,16 +468,16 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 		}
 	}
 
-	if (!conf->monitor_cache
-			&& !conf->monitor_connections
-			&& !conf->monitor_esi
-			&& !conf->monitor_backend
-			&& !conf->monitor_fetch
-			&& !conf->monitor_hcb
-			&& !conf->monitor_shm
-			&& !conf->monitor_sma
-			&& !conf->monitor_sms
-			&& !conf->monitor_sm)
+	if (!conf->collect_cache
+			&& !conf->collect_connections
+			&& !conf->collect_esi
+			&& !conf->collect_backend
+			&& !conf->collect_fetch
+			&& !conf->collect_hcb
+			&& !conf->collect_shm
+			&& !conf->collect_sma
+			&& !conf->collect_sms
+			&& !conf->collect_sm)
 	{
 		WARNING ("Varnish plugin: No metric has been configured for "
 				"instance \"%s\". Disabling this instance.",
