@@ -76,13 +76,13 @@
  * n_objsendfile        Objects sent with sendfile                N
  * n_objwrite           Objects sent with write                   N
  * n_objoverflow        Objects overflowing workspace             N
- * s_sess               Total Sessions                            N
- * s_req                Total Requests                            N
- * s_pipe               Total pipe                                N
- * s_pass               Total pass                                N
- * s_fetch              Total fetch                               N
- * s_hdrbytes           Total header bytes                        N
- * s_bodybytes          Total body bytes                          N
+ * s_sess               Total Sessions                            Y
+ * s_req                Total Requests                            Y
+ * s_pipe               Total pipe                                Y
+ * s_pass               Total pass                                Y
+ * s_fetch              Total fetch                               Y
+ * s_hdrbytes           Total header bytes                        Y
+ * s_bodybytes          Total body bytes                          Y
  * sess_closed          Session Closed                            N
  * sess_pipeline        Session Pipeline                          N
  * sess_readahead       Session Read Ahead                        N
@@ -145,6 +145,7 @@ struct user_config_s {
 	_Bool collect_sma;
 	_Bool collect_sms;
 	_Bool collect_sm;
+	_Bool collect_totals;
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
@@ -330,6 +331,24 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		/* SMS bytes freed */
 		varnish_submit_gauge (conf->instance, "bytes", "storage-synth-free",           VSL_stats->sms_bfree);
 	}
+
+	if(conf->collect_totals)
+	{
+		/* Total Sessions */
+		varnish_submit_derive (conf->instance, "total_counters", "sessions", VSL_stats->s_sess);
+		/* Total Requests */
+		varnish_submit_derive (conf->instance, "total_requests", "requests", VSL_stats->s_req);
+		/* Total pipe */
+		varnish_submit_derive (conf->instance, "total_operations", "pipe", VSL_stats->s_pipe);
+		/* Total pass */
+		varnish_submit_derive (conf->instance, "total_operations", "pass", VSL_stats->s_pass);
+		/* Total fetch */
+		varnish_submit_derive (conf->instance, "total_operations", "fetches", VSL_stats->s_fetch);
+		/* Total header bytes */
+		varnish_submit_derive (conf->instance, "total_bytes", "header-bytes", VSL_stats->s_hdrbytes);
+		/* Total body byte */
+		varnish_submit_derive (conf->instance, "total_bytes", "body-bytes", VSL_stats->s_bodybytes);
+	}
 } /* }}} void varnish_monitor */
 
 static int varnish_read(user_data_t *ud) /* {{{ */
@@ -460,6 +479,8 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_sms);
 		else if (strcasecmp ("CollectSM", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_sm);
+		else if (strcasecmp ("CollectTotals", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_totals);
 		else
 		{
 			WARNING ("Varnish plugin: Ignoring unknown "
@@ -477,7 +498,8 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			&& !conf->collect_shm
 			&& !conf->collect_sma
 			&& !conf->collect_sms
-			&& !conf->collect_sm)
+			&& !conf->collect_sm
+			&& !conf->collect_totals)
 	{
 		WARNING ("Varnish plugin: No metric has been configured for "
 				"instance \"%s\". Disabling this instance.",

@@ -925,6 +925,16 @@
 #        - bytes allocated
 #        - bytes free
 #      CollectSM false
+#
+#      Will monitor:
+#      - Total Sessions
+#      - Total Requests
+#      - Total pipe
+#      - Total pass
+#      - Total fetch
+#      - Total header bytes
+#      - Total body bytes
+#      CollectTotals false
 #   </Instance>
 #</Plugin>
 
