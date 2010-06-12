@@ -849,91 +849,16 @@
 #   If you prefer defining another instance you can do
 #   so by using <Instance "myinstance">
 #   <Instance>
-#      Will monitor :
-#        - cache hits
-#        - cache misses
-#        - cache hits for pass
 #      CollectCache true
-#
-#      Will monitor:
-#        - backend connection : success
-#        - backend connection : not attempted
-#        - backend connection : too many
-#        - backend connection : failures
-#        - backend connection : reuses
-#        - backend connection : was closed
-#        - backend connection : recycles
-#        - backend connection : unused
 #      CollectBackend true
-#
-#      Will monitor :
-#        - client connections accepted
-#        - connection dropped
-#        - client requests received
 #      CollectConnections true
-#
-#      Will monitor:
-#        - SHM records
-#        - SHM writes
-#        - SHM flushes due to overflow
-#        - SHM MTX contention
-#        - SHM cycles through buffer
 #      CollectSHM true
-#
-#      Will monitor:
-#        - Objects ESI parsed
-#        - ESI parse errors
 #      CollectESI false
-#
-#      Will monitor:
-#        - fetch head
-#        - fetch with Length
-#        - fetch chunked
-#        - fetch EOF
-#        - fetch had bad headers
-#        - fetch wanted close
-#        - fetch pre HTTP/1.1 closed
-#        - fetch zero length
-#        - fetch failed
 #      CollectFetch false
-#
-#      Will monitor:
-#       - HCB lookups without lock
-#       - HCB lookups with lock
-#       - HCB inserts
 #      CollectHCB false
-#
-#      Will monitor:
-#        - SMA allocator requests
-#        - SMA outstanding allocations
-#        - SMA outstanding bytes
-#        - SMA bytes allocated
-#        - SMA bytes free
 #      CollectSMA false
-#
-#      Will monitor:
-#        - SMS allocator requests
-#        - SMS outstanding allocations
-#        - SMS outstanding bytes
-#        - SMS bytes allocated
-#        - SMS bytes freed
 #      CollectSMS false
-#
-#      Will monitor:
-#        - allocator requests
-#        - outstanding allocations
-#        - bytes allocated
-#        - bytes free
 #      CollectSM false
-#
-#      Will monitor:
-#      - Total Sessions
-#      - Total Requests
-#      - Total pipe
-#      - Total pass
-#      - Total fetch
-#      - Total header bytes
-#      - Total body bytes
 #      CollectTotals false
 #   </Instance>
 #</Plugin>
