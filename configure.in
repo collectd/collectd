@@ -104,9 +104,13 @@ AC_ARG_ENABLE(standards,
 if test "x$enable_standards" = "xyes"
 then
 	AC_DEFINE(_ISOC99_SOURCE,        1, [Define to enforce ISO C99 compliance.])
-	AC_DEFINE(_POSIX_C_SOURCE, 200112L, [Define to enforce POSIX.1-2001 compliance.])
-	AC_DEFINE(_XOPEN_SOURCE,       600, [Define to enforce X/Open 6 (XSI) compliance.])
+	AC_DEFINE(_POSIX_C_SOURCE, 200809L, [Define to enforce POSIX.1-2008 compliance.])
+	AC_DEFINE(_XOPEN_SOURCE,       700, [Define to enforce X/Open 7 (XSI) compliance.])
 	AC_DEFINE(_REENTRANT,            1, [Define to enable reentrancy interfaces.])
+	if test "x$GCC" = "xyes"
+	then
+		CFLAGS="$CFLAGS -std=c99"
+	fi
 fi
 AM_CONDITIONAL(BUILD_FEATURE_STANDARDS, test "x$enable_standards" = "xyes")
 
