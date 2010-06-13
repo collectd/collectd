@@ -3688,57 +3688,94 @@ AM_CONDITIONAL(BUILD_WITH_LIBYAJL, test "x$with_libyajl" = "xyes")
 
 # --with-libvarnish {{{
 with_libvarnish_cppflags=""
-with_libvarnish_ldflags=""
-with_libvarnish_cflags="-lvarnish -lvarnishcompat -lvarnishapi"
+with_libvarnish_cflags=""
+with_libvarnish_libs=""
 AC_ARG_WITH(libvarnish, [AS_HELP_STRING([--with-libvarnish@<:@=PREFIX@:>@], [Path to libvarnish.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" = "xno"
 	then
-		with_libvarnish_cppflags="-I$withval/include"
-		with_libvarnish_ldflags="-L$withval/lib"
+		with_libvarnish="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libvarnish="use_pkgconfig"
+	else if test -d "$with_libvarnish/lib"
+	then
+		AC_MSG_NOTICE([Not checking for libvarnish: Manually configured])
+		with_libvarnish_cflags="-I$withval/include"
+		with_libvarnish_libs="-L$withval/lib -lvarnish -lvarnishcompat -lvarnishapi"
 		with_libvarnish="yes"
-	else
-		with_libvarnish="$withval"
-	fi
+	fi; fi; fi
 ],
-[
+[with_libvarnish="use_pkgconfig"])
+
+# configure using pkg-config
+if test "x$with_libvarnish" = "xuse_pkgconfig"
+then
+	if test "x$PKG_CONFIG" = "x"
+	then
+		with_libvarnish="no (Don't have pkg-config)"
+	fi
+fi
+if test "x$with_libvarnish" = "xuse_pkgconfig"
+then
+	AC_MSG_NOTICE([Checking for varnishapi using $PKG_CONFIG])
+	$PKG_CONFIG --exists 'varnishapi' 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libvarnish="no (pkg-config doesn't know library)"
+	fi
+fi
+if test "x$with_libvarnish" = "xuse_pkgconfig"
+then
+	with_libvarnish_cflags="`$PKG_CONFIG --cflags 'varnishapi'`"
+	if test $? -ne 0
+	then
+		with_libvarnish="no ($PKG_CONFIG failed)"
+	fi
+	with_libvarnish_libs="`$PKG_CONFIG --libs 'varnishapi'`"
+	if test $? -ne 0
+	then
+		with_libvarnish="no ($PKG_CONFIG failed)"
+	fi
+fi
+if test "x$with_libvarnish" = "xuse_pkgconfig"
+then
 	with_libvarnish="yes"
-])
+fi
+
+# with_libvarnish_cflags and with_libvarnish_libs are set up now, let's do
+# the actual checks.
 if test "x$with_libvarnish" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libvarnish_cppflags"
-
-	AC_CHECK_HEADERS(varnish/varnishapi.h, [with_libvarnish="yes"], [with_libvarnish="no (varnish/varnishapi.h not found)"])
+	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
+	AC_CHECK_HEADERS(varnish/varnishapi.h, [], [with_libvarnish="no (varnish/varnishapi.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 if test "x$with_libvarnish" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-	SAVE_CFLAGS="$CFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libvarnish_cppflags"
-	LDFLAGS="$LDFLAGS $with_libvarnish_ldflags"
-	CFLAGS="$CFLAGS $with_libvarnish_cflags"
+	#SAVE_LDFLAGS="$LDFLAGS"
 
-	AC_CHECK_LIB(varnishapi, VSL_OpenStats, [with_libvarnish="yes"], [with_libvarnish="no (Symbol 'VSL_OpenStats' not found)"])
+	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
+	#LDFLAGS="$LDFLAGS $with_libvarnish_libs"
+
+	AC_CHECK_LIB(varnishapi, VSL_OpenStats,
+		     [with_libvarnish="yes"],
+		     [with_libvarnish="no (symbol VSL_OpenStats not found)"],
+		     [$with_libvarnish_libs])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-	CFLAGS="$SAVE_CFLAGS"
+	#LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_libvarnish" = "xyes"
 then
-	BUILD_WITH_LIBVARNISH_CPPFLAGS="$with_libvarnish_cppflags"
-	BUILD_WITH_LIBVARNISH_LDFLAGS="$with_libvarnish_ldflags"
-	BUILD_WITH_LIBVARNISH_LIBS="-lvarnishcompat -lvarnish -lvarnishapi"
-	AC_SUBST(BUILD_WITH_LIBVARNISH_CPPFLAGS)
-	AC_SUBST(BUILD_WITH_LIBVARNISH_LDFLAGS)
+	BUILD_WITH_LIBVARNISH_CFLAGS="$with_libvarnish_cflags"
+	BUILD_WITH_LIBVARNISH_LIBS="$with_libvarnish_libs"
+	AC_SUBST(BUILD_WITH_LIBVARNISH_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBVARNISH_LIBS)
-	AC_DEFINE(HAVE_LIBVARNISH, 1, [Define if libvarnish is present and usable.])
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBVARNISH, test "x$with_libvarnish" = "xyes")
 # }}}
 
 # pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{

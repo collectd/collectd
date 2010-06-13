@@ -844,9 +844,24 @@
 #</Plugin>
 
 #<Plugin varnish>
-#  MonitorCache yes
-#  MonitorConnections yes
-#  MonitorESI yes
+#   This tag support an argument if you want to
+#   monitor the local instance just use </Instance>
+#   If you prefer defining another instance you can do
+#   so by using <Instance "myinstance">
+#   <Instance>
+#      CollectCache true
+#      CollectBackend true
+#      CollectConnections true
+#      CollectSHM true
+#      CollectESI false
+#      CollectFetch false
+#      CollectHCB false
+#      CollectSMA false
+#      CollectSMS false
+#      CollectSM false
+#      CollectTotals false
+#      CollectWorkers false
+#   </Instance>
 #</Plugin>
 
 #<Plugin vmem>

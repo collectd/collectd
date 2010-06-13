@@ -16,109 +16,581 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Florian octo Forster <octo at verplant.org>
  *   Jerome Renard <jerome.renard@gmail.com>
  **/
 
+/**
+ * Current list of what is monitored and what is not monitored (yet)
+ * {{{
+ * Field name           Description                           Monitored
+ * ----------           -----------                           ---------
+ * uptime               Child uptime                              N
+ * client_conn          Client connections accepted               Y
+ * client_drop          Connection dropped, no sess               Y
+ * client_req           Client requests received                  Y
+ * cache_hit            Cache hits                                Y
+ * cache_hitpass        Cache hits for pass                       Y
+ * cache_miss           Cache misses                              Y
+ * backend_conn         Backend conn. success                     Y
+ * backend_unhealthy    Backend conn. not attempted               Y
+ * backend_busy         Backend conn. too many                    Y
+ * backend_fail         Backend conn. failures                    Y
+ * backend_reuse        Backend conn. reuses                      Y
+ * backend_toolate      Backend conn. was closed                  Y
+ * backend_recycle      Backend conn. recycles                    Y
+ * backend_unused       Backend conn. unused                      Y
+ * fetch_head           Fetch head                                Y
+ * fetch_length         Fetch with Length                         Y
+ * fetch_chunked        Fetch chunked                             Y
+ * fetch_eof            Fetch EOF                                 Y
+ * fetch_bad            Fetch had bad headers                     Y
+ * fetch_close          Fetch wanted close                        Y
+ * fetch_oldhttp        Fetch pre HTTP/1.1 closed                 Y
+ * fetch_zero           Fetch zero len                            Y
+ * fetch_failed         Fetch failed                              Y
+ * n_sess_mem           N struct sess_mem                         N
+ * n_sess               N struct sess                             N
+ * n_object             N struct object                           N
+ * n_vampireobject      N unresurrected objects                   N
+ * n_objectcore         N struct objectcore                       N
+ * n_objecthead         N struct objecthead                       N
+ * n_smf                N struct smf                              N
+ * n_smf_frag           N small free smf                          N
+ * n_smf_large          N large free smf                          N
+ * n_vbe_conn           N struct vbe_conn                         N
+ * n_wrk                N worker threads                          Y
+ * n_wrk_create         N worker threads created                  Y
+ * n_wrk_failed         N worker threads not created              Y
+ * n_wrk_max            N worker threads limited                  Y
+ * n_wrk_queue          N queued work requests                    Y
+ * n_wrk_overflow       N overflowed work requests                Y
+ * n_wrk_drop           N dropped work requests                   Y
+ * n_backend            N backends                                N
+ * n_expired            N expired objects                         N
+ * n_lru_nuked          N LRU nuked objects                       N
+ * n_lru_saved          N LRU saved objects                       N
+ * n_lru_moved          N LRU moved objects                       N
+ * n_deathrow           N objects on deathrow                     N
+ * losthdr              HTTP header overflows                     N
+ * n_objsendfile        Objects sent with sendfile                N
+ * n_objwrite           Objects sent with write                   N
+ * n_objoverflow        Objects overflowing workspace             N
+ * s_sess               Total Sessions                            Y
+ * s_req                Total Requests                            Y
+ * s_pipe               Total pipe                                Y
+ * s_pass               Total pass                                Y
+ * s_fetch              Total fetch                               Y
+ * s_hdrbytes           Total header bytes                        Y
+ * s_bodybytes          Total body bytes                          Y
+ * sess_closed          Session Closed                            N
+ * sess_pipeline        Session Pipeline                          N
+ * sess_readahead       Session Read Ahead                        N
+ * sess_linger          Session Linger                            N
+ * sess_herd            Session herd                              N
+ * shm_records          SHM records                               Y
+ * shm_writes           SHM writes                                Y
+ * shm_flushes          SHM flushes due to overflow               Y
+ * shm_cont             SHM MTX contention                        Y
+ * shm_cycles           SHM cycles through buffer                 Y
+ * sm_nreq              allocator requests                        Y
+ * sm_nobj              outstanding allocations                   Y
+ * sm_balloc            bytes allocated                           Y
+ * sm_bfree             bytes free                                Y
+ * sma_nreq             SMA allocator requests                    Y
+ * sma_nobj             SMA outstanding allocations               Y
+ * sma_nbytes           SMA outstanding bytes                     Y
+ * sma_balloc           SMA bytes allocated                       Y
+ * sma_bfree            SMA bytes free                            Y
+ * sms_nreq             SMS allocator requests                    Y
+ * sms_nobj             SMS outstanding allocations               Y
+ * sms_nbytes           SMS outstanding bytes                     Y
+ * sms_balloc           SMS bytes allocated                       Y
+ * sms_bfree            SMS bytes freed                           Y
+ * backend_req          Backend requests made                     N
+ * n_vcl                N vcl total                               N
+ * n_vcl_avail          N vcl available                           N
+ * n_vcl_discard        N vcl discarded                           N
+ * n_purge              N total active purges                     N
+ * n_purge_add          N new purges added                        N
+ * n_purge_retire       N old purges deleted                      N
+ * n_purge_obj_test     N objects tested                          N
+ * n_purge_re_test      N regexps tested against                  N
+ * n_purge_dups         N duplicate purges removed                N
+ * hcb_nolock           HCB Lookups without lock                  Y
+ * hcb_lock             HCB Lookups with lock                     Y
+ * hcb_insert           HCB Inserts                               Y
+ * esi_parse            Objects ESI parsed (unlock)               Y
+ * esi_errors           ESI parse errors (unlock)                 Y
+ * }}}
+ */
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "configfile.h"
 
 #include <varnish/varnishapi.h>
 
-#define USER_CONFIG_INIT {0, 0, 0}
-#define SET_MONITOR_FLAG(name, flag, value) if((strcasecmp(name, key) == 0) && IS_TRUE(value)) user_config.flag = 1
-
 /* {{{ user_config_s */
 struct user_config_s {
-	int monitor_cache;
-	int monitor_connections;
-	int monitor_esi;
-};
+	char *instance;
 
+	_Bool collect_cache;
+	_Bool collect_connections;
+	_Bool collect_esi;
+	_Bool collect_backend;
+	_Bool collect_fetch;
+	_Bool collect_hcb;
+	_Bool collect_shm;
+	_Bool collect_sma;
+	_Bool collect_sms;
+	_Bool collect_sm;
+	_Bool collect_totals;
+	_Bool collect_workers;
+};
 typedef struct user_config_s user_config_t; /* }}} */
 
-/* {{{ Configuration directives */
-static user_config_t user_config = USER_CONFIG_INIT;
+static _Bool have_instance = 0;
 
-static const char *config_keys[] =
+static int varnish_submit (const char *plugin_instance, /* {{{ */
+		const char *type, const char *type_instance, value_t value)
 {
-  "MonitorCache",
-  "MonitorConnections",
-  "MonitorESI"
-};
-
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys); /* }}} */
-
-static int varnish_config(const char *key, const char *value) /* {{{ */
-{
-	SET_MONITOR_FLAG("MonitorCache", monitor_cache, value);
-	SET_MONITOR_FLAG("MonitorConnections", monitor_connections, value);
-	SET_MONITOR_FLAG("MonitorESI", monitor_esi, value);
-
-	return (0);
-} /* }}} */
-
-static void varnish_submit(const char *type, const char *type_instance, gauge_t value) /* {{{ */
-{
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
+	vl.values = &value;
 	vl.values_len = 1;
-	vl.values = values;
 
-	sstrncpy(vl.host         , hostname_g   , sizeof(vl.host));
-	sstrncpy(vl.plugin       , "varnish"    , sizeof(vl.plugin));
-	sstrncpy(vl.type         , type         , sizeof(vl.type));
-	sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+	sstrncpy(vl.host, hostname_g, sizeof(vl.host));
 
-	plugin_dispatch_values(&vl);
-} /* }}} */
+	sstrncpy(vl.plugin, "varnish", sizeof(vl.plugin));
+	if (plugin_instance != NULL)
+		sstrncpy (vl.plugin_instance, plugin_instance,
+				sizeof (vl.plugin_instance));
 
-static void varnish_monitor(struct varnish_stats *VSL_stats) /* {{{ */
+	sstrncpy(vl.type, type, sizeof(vl.type));
+	if (type_instance != NULL)
+		sstrncpy(vl.type_instance, type_instance,
+				sizeof(vl.type_instance));
+
+	return (plugin_dispatch_values(&vl));
+} /* }}} int varnish_submit */
+
+static int varnish_submit_gauge (const char *plugin_instance, /* {{{ */
+		const char *type, const char *type_instance,
+		uint64_t gauge_value)
 {
-	if(user_config.monitor_cache == 1)
+	value_t value;
+
+	value.gauge = (gauge_t) gauge_value;
+
+	return (varnish_submit (plugin_instance, type, type_instance, value));
+} /* }}} int varnish_submit_gauge */
+
+static int varnish_submit_derive (const char *plugin_instance, /* {{{ */
+		const char *type, const char *type_instance,
+		uint64_t derive_value)
+{
+	value_t value;
+
+	value.derive = (derive_t) derive_value;
+
+	return (varnish_submit (plugin_instance, type, type_instance, value));
+} /* }}} int varnish_submit_derive */
+
+static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL_stats) /* {{{ */
+{
+	if(conf->collect_cache)
 	{
-		varnish_submit("varnish_cache_ratio", "cache_hit"    , VSL_stats->cache_hit);
-		varnish_submit("varnish_cache_ratio", "cache_miss"   , VSL_stats->cache_miss);
-		varnish_submit("varnish_cache_ratio", "cache_hitpass", VSL_stats->cache_hitpass);
+		/* Cache hits */
+		varnish_submit_derive (conf->instance, "cache_result", "hit"    , VSL_stats->cache_hit);
+		/* Cache misses */
+		varnish_submit_derive (conf->instance, "cache_result", "miss"   , VSL_stats->cache_miss);
+		/* Cache hits for pass */
+		varnish_submit_derive (conf->instance, "cache_result", "hitpass", VSL_stats->cache_hitpass);
 	}
 
-	if(user_config.monitor_connections == 1)
+	if(conf->collect_connections)
 	{
-		varnish_submit("varnish_connections", "client_connections-accepted", VSL_stats->client_conn);
-		varnish_submit("varnish_connections", "client_connections-dropped" , VSL_stats->client_drop);
-		varnish_submit("varnish_connections", "client_connections-received", VSL_stats->client_req);
+		/* Client connections accepted */
+		varnish_submit_derive (conf->instance, "connections", "client-accepted", VSL_stats->client_conn);
+		/* Connection dropped, no sess */
+		varnish_submit_derive (conf->instance, "connections", "client-dropped" , VSL_stats->client_drop);
+		/* Client requests received    */
+		varnish_submit_derive (conf->instance, "connections", "client-received", VSL_stats->client_req);
 	}
 
-	if(user_config.monitor_esi == 1)
+	if(conf->collect_esi)
 	{
-		varnish_submit("varnish_esi", "esi_parsed", VSL_stats->esi_parse);
-		varnish_submit("varnish_esi", "esi_errors", VSL_stats->esi_errors);
+		/* Objects ESI parsed (unlock) */
+		varnish_submit_derive (conf->instance, "total_operations", "esi-parsed", VSL_stats->esi_parse);
+		/* ESI parse errors (unlock)   */
+		varnish_submit_derive (conf->instance, "total_operations", "esi-error", VSL_stats->esi_errors);
 	}
-} /* }}} */
 
-static int varnish_read(void) /* {{{ */
+	if(conf->collect_backend)
+	{
+		/* Backend conn. success       */
+		varnish_submit_derive (conf->instance, "connections", "backend-success"      , VSL_stats->backend_conn);
+		/* Backend conn. not attempted */
+		varnish_submit_derive (conf->instance, "connections", "backend-not-attempted", VSL_stats->backend_unhealthy);
+		/* Backend conn. too many      */
+		varnish_submit_derive (conf->instance, "connections", "backend-too-many"     , VSL_stats->backend_busy);
+		/* Backend conn. failures      */
+		varnish_submit_derive (conf->instance, "connections", "backend-failures"     , VSL_stats->backend_fail);
+		/* Backend conn. reuses        */
+		varnish_submit_derive (conf->instance, "connections", "backend-reuses"       , VSL_stats->backend_reuse);
+		/* Backend conn. was closed    */
+		varnish_submit_derive (conf->instance, "connections", "backend-was-closed"   , VSL_stats->backend_toolate);
+		/* Backend conn. recycles      */
+		varnish_submit_derive (conf->instance, "connections", "backend-recycled"     , VSL_stats->backend_recycle);
+		/* Backend conn. unused        */
+		varnish_submit_derive (conf->instance, "connections", "backend-unused"       , VSL_stats->backend_unused);
+	}
+
+	if(conf->collect_fetch)
+	{
+		/* Fetch head                */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-head"       , VSL_stats->fetch_head);
+		/* Fetch with length         */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-length"     , VSL_stats->fetch_length);
+		/* Fetch chunked             */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-chunked"    , VSL_stats->fetch_chunked);
+		/* Fetch EOF                 */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-eof"        , VSL_stats->fetch_eof);
+		/* Fetch bad headers         */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-bad_headers", VSL_stats->fetch_bad);
+		/* Fetch wanted close        */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-close"      , VSL_stats->fetch_close);
+		/* Fetch pre HTTP/1.1 closed */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-oldhttp"    , VSL_stats->fetch_oldhttp);
+		/* Fetch zero len            */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-zero"       , VSL_stats->fetch_zero);
+		/* Fetch failed              */
+		varnish_submit_derive (conf->instance, "http_requests", "fetch-failed"     , VSL_stats->fetch_failed);
+	}
+
+	if(conf->collect_hcb)
+	{
+		/* HCB Lookups without lock */
+		varnish_submit_derive (conf->instance, "cache_operation", "lookup_nolock", VSL_stats->hcb_nolock);
+		/* HCB Lookups with lock    */
+		varnish_submit_derive (conf->instance, "cache_operation", "lookup_lock",   VSL_stats->hcb_lock);
+		/* HCB Inserts              */
+		varnish_submit_derive (conf->instance, "cache_operation", "insert",        VSL_stats->hcb_insert);
+	}
+
+	if(conf->collect_shm)
+	{
+		/* SHM records                 */
+		varnish_submit_derive (conf->instance, "total_operations", "shmlog-records"   , VSL_stats->shm_records);
+		/* SHM writes                  */
+		varnish_submit_derive (conf->instance, "total_operations", "shmlog-writes"    , VSL_stats->shm_writes);
+		/* SHM flushes due to overflow */
+		varnish_submit_derive (conf->instance, "total_operations", "shmlog-flushes"   , VSL_stats->shm_flushes);
+		/* SHM MTX contention          */
+		varnish_submit_derive (conf->instance, "total_operations", "shmlog-contention", VSL_stats->shm_cont);
+		/* SHM cycles through buffer   */
+		varnish_submit_derive (conf->instance, "total_operations", "shmlog-cycles"    , VSL_stats->shm_cycles);
+	}
+
+	if(conf->collect_sm)
+	{
+		/* allocator requests */
+		varnish_submit_derive (conf->instance, "total_requests", "storage-file",      VSL_stats->sm_nreq);
+		/* outstanding allocations */
+		varnish_submit_gauge (conf->instance, "requests", "storage-file-outstanding", VSL_stats->sm_nobj);
+		/* bytes allocated */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-file-allocated",      VSL_stats->sm_balloc);
+		/* bytes free */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-file-free",           VSL_stats->sm_bfree);
+	}
+
+	if(conf->collect_sma)
+	{
+		/* SMA allocator requests */
+		varnish_submit_derive (conf->instance, "total_requests", "storage-mem",      VSL_stats->sma_nreq);
+		/* SMA outstanding allocations */
+		varnish_submit_gauge (conf->instance, "requests", "storage-mem-outstanding", VSL_stats->sma_nobj);
+		/* SMA outstanding bytes */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-mem-outstanding",    VSL_stats->sma_nbytes);
+		/* SMA bytes allocated */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-mem-allocated",      VSL_stats->sma_balloc);
+		/* SMA bytes free */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-mem-free" ,          VSL_stats->sma_bfree);
+	}
+
+	if(conf->collect_sms)
+	{
+		/* SMS allocator requests */
+		varnish_submit_derive (conf->instance, "total_requests", "storage-synth",      VSL_stats->sms_nreq);
+		/* SMS outstanding allocations */
+		varnish_submit_gauge (conf->instance, "requests", "storage-synth-outstanding", VSL_stats->sms_nobj);
+		/* SMS outstanding bytes */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-synth-outstanding",    VSL_stats->sms_nbytes);
+		/* SMS bytes allocated */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-synth-allocated",      VSL_stats->sms_balloc);
+		/* SMS bytes freed */
+		varnish_submit_gauge (conf->instance, "bytes", "storage-synth-free",           VSL_stats->sms_bfree);
+	}
+
+	if(conf->collect_totals)
+	{
+		/* Total Sessions */
+		varnish_submit_derive (conf->instance, "total_counters", "sessions", VSL_stats->s_sess);
+		/* Total Requests */
+		varnish_submit_derive (conf->instance, "total_requests", "requests", VSL_stats->s_req);
+		/* Total pipe */
+		varnish_submit_derive (conf->instance, "total_operations", "pipe", VSL_stats->s_pipe);
+		/* Total pass */
+		varnish_submit_derive (conf->instance, "total_operations", "pass", VSL_stats->s_pass);
+		/* Total fetch */
+		varnish_submit_derive (conf->instance, "total_operations", "fetches", VSL_stats->s_fetch);
+		/* Total header bytes */
+		varnish_submit_derive (conf->instance, "total_bytes", "header-bytes", VSL_stats->s_hdrbytes);
+		/* Total body byte */
+		varnish_submit_derive (conf->instance, "total_bytes", "body-bytes", VSL_stats->s_bodybytes);
+	}
+
+	if(conf->collect_workers)
+	{
+		/* worker threads */
+		varnish_submit_gauge (conf->instance, "threads", "worker", VSL_stats->n_wrk);
+		/* worker threads created */
+		varnish_submit_gauge (conf->instance, "total_threads", "threads-created", VSL_stats->n_wrk_create);
+		/* worker threads not created */
+		varnish_submit_gauge (conf->instance, "total_threads", "threads-failed", VSL_stats->n_wrk_failed);
+		/* worker threads limited */
+		varnish_submit_gauge (conf->instance, "total_threads", "threads-limited", VSL_stats->n_wrk_max);
+		/* queued work requests */
+		varnish_submit_gauge (conf->instance, "total_requests", "worker-queued", VSL_stats->n_wrk_queue);
+		/* overflowed work requests */
+		varnish_submit_gauge (conf->instance, "total_requests", "worker-overflowed", VSL_stats->n_wrk_overflow);
+		/* dropped work requests */
+		varnish_submit_gauge (conf->instance, "total_requests", "worker-dropped", VSL_stats->n_wrk_drop);
+	}
+} /* }}} void varnish_monitor */
+
+static int varnish_read(user_data_t *ud) /* {{{ */
 {
 	struct varnish_stats *VSL_stats;
-	const char *varnish_instance_name = NULL;
+	user_config_t *conf;
 
-	if ((VSL_stats = VSL_OpenStats(varnish_instance_name)) == NULL)
+	if ((ud == NULL) || (ud->data == NULL))
+		return (EINVAL);
+
+	conf = ud->data;
+
+	VSL_stats = VSL_OpenStats(conf->instance);
+	if (VSL_stats == NULL)
 	{
 		ERROR("Varnish plugin : unable to load statistics");
 
 		return (-1);
 	}
 
-	varnish_monitor(VSL_stats);
+	varnish_monitor(conf, VSL_stats);
 
     return (0);
 } /* }}} */
 
+static void varnish_config_free (void *ptr) /* {{{ */
+{
+	user_config_t *conf = ptr;
+
+	if (conf == NULL)
+		return;
+
+	sfree (conf->instance);
+	sfree (conf);
+} /* }}} */
+
+static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
+{
+	if (conf == NULL)
+		return (EINVAL);
+
+	conf->collect_backend     = 1;
+	conf->collect_cache       = 1;
+	conf->collect_connections = 1;
+	conf->collect_esi         = 0;
+	conf->collect_fetch       = 0;
+	conf->collect_hcb         = 0;
+	conf->collect_shm         = 1;
+	conf->collect_sm          = 0;
+	conf->collect_sma         = 0;
+	conf->collect_sms         = 0;
+	conf->collect_totals      = 0;
+	
+	return (0);
+} /* }}} int varnish_config_apply_default */
+
+static int varnish_init (void) /* {{{ */
+{
+	user_config_t *conf;
+	user_data_t ud;
+
+	if (have_instance)
+		return (0);
+
+	conf = malloc (sizeof (*conf));
+	if (conf == NULL)
+		return (ENOMEM);
+	memset (conf, 0, sizeof (*conf));
+
+	/* Default settings: */
+	conf->instance = NULL;
+
+	varnish_config_apply_default (conf);
+
+	ud.data = conf;
+	ud.free_func = varnish_config_free;
+
+	plugin_register_complex_read (/* group = */ "varnish",
+			/* name      = */ "varnish/localhost",
+			/* callback  = */ varnish_read,
+			/* interval  = */ NULL,
+			/* user data = */ &ud);
+
+	return (0);
+} /* }}} int varnish_init */
+
+static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
+{
+	user_config_t *conf;
+	user_data_t ud;
+	char callback_name[DATA_MAX_NAME_LEN];
+	int i;
+
+	conf = malloc (sizeof (*conf));
+	if (conf == NULL)
+		return (ENOMEM);
+	memset (conf, 0, sizeof (*conf));
+	conf->instance = NULL;
+
+	varnish_config_apply_default (conf);
+
+	if (ci->values_num == 1)
+	{
+		int status;
+
+		status = cf_util_get_string (ci, &conf->instance);
+		if (status != 0)
+		{
+			sfree (conf);
+			return (status);
+		}
+		assert (conf->instance != NULL);
+
+		if (strcmp ("localhost", conf->instance) == 0)
+		{
+			sfree (conf->instance);
+			conf->instance = NULL;
+		}
+	}
+	else if (ci->values_num > 1)
+	{
+		WARNING ("Varnish plugin: \"Instance\" blocks accept only "
+				"one argument.");
+		return (EINVAL);
+	}
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("CollectCache", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_cache);
+		else if (strcasecmp ("CollectConnections", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_connections);
+		else if (strcasecmp ("CollectESI", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_esi);
+		else if (strcasecmp ("CollectBackend", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_backend);
+		else if (strcasecmp ("CollectFetch", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_fetch);
+		else if (strcasecmp ("CollectHCB", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_hcb);
+		else if (strcasecmp ("CollectSHM", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_shm);
+		else if (strcasecmp ("CollectSMA", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_sma);
+		else if (strcasecmp ("CollectSMS", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_sms);
+		else if (strcasecmp ("CollectSM", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_sm);
+		else if (strcasecmp ("CollectTotals", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_totals);
+		else if (strcasecmp ("CollectWorkers", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_workers);
+		else
+		{
+			WARNING ("Varnish plugin: Ignoring unknown "
+					"configuration option: \"%s\"",
+					child->key);
+		}
+	}
+
+	if (!conf->collect_cache
+			&& !conf->collect_connections
+			&& !conf->collect_esi
+			&& !conf->collect_backend
+			&& !conf->collect_fetch
+			&& !conf->collect_hcb
+			&& !conf->collect_shm
+			&& !conf->collect_sma
+			&& !conf->collect_sms
+			&& !conf->collect_sm
+			&& !conf->collect_totals
+			&& !conf->collect_workers)
+	{
+		WARNING ("Varnish plugin: No metric has been configured for "
+				"instance \"%s\". Disabling this instance.",
+				(conf->instance == NULL) ? "localhost" : conf->instance);
+		return (EINVAL);
+	}
+
+	ssnprintf (callback_name, sizeof (callback_name), "varnish/%s",
+			(conf->instance == NULL) ? "localhost" : conf->instance);
+
+	ud.data = conf;
+	ud.free_func = varnish_config_free;
+
+	plugin_register_complex_read (/* group = */ "varnish",
+			/* name      = */ callback_name,
+			/* callback  = */ varnish_read,
+			/* interval  = */ NULL,
+			/* user data = */ &ud);
+
+	have_instance = 1;
+
+	return (0);
+} /* }}} int varnish_config_instance */
+
+static int varnish_config (oconfig_item_t *ci) /* {{{ */
+{
+	int i;
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Instance", child->key) == 0)
+			varnish_config_instance (child);
+		else
+		{
+			WARNING ("Varnish plugin: Ignoring unknown "
+					"configuration option: \"%s\"",
+					child->key);
+		}
+	}
+
+	return (0);
+} /* }}} int varnish_config */
+
 void module_register (void) /* {{{ */
 {
-	plugin_register_config("varnish", varnish_config, config_keys, config_keys_num);
-	plugin_register_read("varnish", varnish_read);
+	plugin_register_complex_config("varnish", varnish_config);
+	plugin_register_init ("varnish", varnish_init);
 } /* }}} */
 
 /* vim: set sw=8 noet fdm=marker : */
