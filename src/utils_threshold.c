@@ -218,78 +218,6 @@ static int ut_config_type_min (threshold_t *th, oconfig_item_t *ci)
   return (0);
 } /* int ut_config_type_min */
 
-static int ut_config_type_interesting (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("threshold values: The `Interesting' option needs exactly one "
-   "boolean argument.");
-    return (-1);
-  }
-
-  if (ci->values[0].value.boolean)
-    th->flags |= UT_FLAG_INTERESTING;
-  else
-    th->flags &= ~UT_FLAG_INTERESTING;
-
-  return (0);
-} /* int ut_config_type_interesting */
-
-static int ut_config_type_invert (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("threshold values: The `Invert' option needs exactly one "
-	"boolean argument.");
-    return (-1);
-  }
-
-  if (ci->values[0].value.boolean)
-    th->flags |= UT_FLAG_INVERT;
-  else
-    th->flags &= ~UT_FLAG_INVERT;
-
-  return (0);
-} /* int ut_config_type_invert */
-
-static int ut_config_type_persist (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("threshold values: The `Persist' option needs exactly one "
-	"boolean argument.");
-    return (-1);
-  }
-
-  if (ci->values[0].value.boolean)
-    th->flags |= UT_FLAG_PERSIST;
-  else
-    th->flags &= ~UT_FLAG_PERSIST;
-
-  return (0);
-} /* int ut_config_type_persist */
-
-static int ut_config_type_percentage(threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("threshold values: The `Percentage' option needs exactly one "
-	"boolean argument.");
-    return (-1);
-  }
-
-  if (ci->values[0].value.boolean)
-    th->flags |= UT_FLAG_PERCENTAGE;
-  else
-    th->flags &= ~UT_FLAG_PERCENTAGE;
-
-  return (0);
-} /* int ut_config_type_percentage */
-
 static int ut_config_type_hits (threshold_t *th, oconfig_item_t *ci)
 {
   if ((ci->values_num != 1)
@@ -367,13 +295,13 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 	|| (strcasecmp ("FailureMin", option->key) == 0))
       status = ut_config_type_min (&th, option);
     else if (strcasecmp ("Interesting", option->key) == 0)
-      status = ut_config_type_interesting (&th, option);
+      status = cf_util_get_flag (option, &th.flags, UT_FLAG_INTERESTING);
     else if (strcasecmp ("Invert", option->key) == 0)
-      status = ut_config_type_invert (&th, option);
+      status = cf_util_get_flag (option, &th.flags, UT_FLAG_INVERT);
     else if (strcasecmp ("Persist", option->key) == 0)
-      status = ut_config_type_persist (&th, option);
+      status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERSIST);
     else if (strcasecmp ("Percentage", option->key) == 0)
-      status = ut_config_type_percentage (&th, option);
+      status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERCENTAGE);
     else if (strcasecmp ("Hits", option->key) == 0)
       status = ut_config_type_hits (&th, option);
     else if (strcasecmp ("Hysteresis", option->key) == 0)

@@ -39,7 +39,7 @@ typedef struct threshold_s
   gauge_t failure_min;
   gauge_t failure_max;
   gauge_t hysteresis;
-  int flags;
+  unsigned int flags;
   int hits;
   struct threshold_s *next;
 } threshold_t;
