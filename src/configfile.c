@@ -1,6 +1,6 @@
 /**
  * collectd - src/configfile.c
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1009,10 +1009,36 @@ int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 		return (-1);
 	}
 
-	*ret_bool = ci->values[0].value.boolean ? true : false;
+	*ret_bool = ci->values[0].value.boolean ? 1 : 0;
 
 	return (0);
 } /* }}} int cf_util_get_boolean */
+
+int cf_util_get_flag (const oconfig_item_t *ci, /* {{{ */
+		unsigned int *ret_value, unsigned int flag)
+{
+	int status;
+	_Bool b;
+
+	if (ret_value == NULL)
+		return (EINVAL);
+
+	b = 0;
+	status = cf_util_get_boolean (ci, &b);
+	if (status != 0)
+		return (status);
+
+	if (b)
+	{
+		*ret_value |= flag;
+	}
+	else
+	{
+		*ret_value &= ~flag;
+	}
+
+	return (0);
+} /* }}} int cf_util_get_flag */
 
 /* Assures that the config option is a string. The string is then converted to
  * a port number using `service_name_to_port_number' and returned. Returns the

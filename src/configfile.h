@@ -2,7 +2,7 @@
 #define CONFIGFILE_H
 /**
  * collectd - src/configfile.h
- * Copyright (C) 2005,2006  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -102,6 +102,11 @@ int cf_util_get_int (const oconfig_item_t *ci, int *ret_value);
 /* Assures the config option is a boolean and assignes it to `ret_bool'.
  * Otherwise, `ret_bool' is not changed and non-zero is returned. */
 int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool);
+
+/* Assures the config option is a boolean and set or unset the given flag in
+ * `ret_value' as appropriate. Returns non-zero on error. */
+int cf_util_get_flag (const oconfig_item_t *ci,
+		unsigned int *ret_value, unsigned int flag);
 
 /* Assures that the config option is a string. The string is then converted to
  * a port number using `service_name_to_port_number' and returned. Returns the
