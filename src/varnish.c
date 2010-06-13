@@ -59,13 +59,13 @@
  * n_smf_frag           N small free smf                          N
  * n_smf_large          N large free smf                          N
  * n_vbe_conn           N struct vbe_conn                         N
- * n_wrk                N worker threads                          N
- * n_wrk_create         N worker threads created                  N
- * n_wrk_failed         N worker threads not created              N
- * n_wrk_max            N worker threads limited                  N
- * n_wrk_queue          N queued work requests                    N
- * n_wrk_overflow       N overflowed work requests                N
- * n_wrk_drop           N dropped work requests                   N
+ * n_wrk                N worker threads                          Y
+ * n_wrk_create         N worker threads created                  Y
+ * n_wrk_failed         N worker threads not created              Y
+ * n_wrk_max            N worker threads limited                  Y
+ * n_wrk_queue          N queued work requests                    Y
+ * n_wrk_overflow       N overflowed work requests                Y
+ * n_wrk_drop           N dropped work requests                   Y
  * n_backend            N backends                                N
  * n_expired            N expired objects                         N
  * n_lru_nuked          N LRU nuked objects                       N
@@ -146,6 +146,7 @@ struct user_config_s {
 	_Bool collect_sms;
 	_Bool collect_sm;
 	_Bool collect_totals;
+	_Bool collect_workers;
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
@@ -349,6 +350,24 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		/* Total body byte */
 		varnish_submit_derive (conf->instance, "total_bytes", "body-bytes", VSL_stats->s_bodybytes);
 	}
+
+	if(conf->collect_workers)
+	{
+		/* worker threads */
+		varnish_submit_gauge ( conf->instance, "threads", "threads", VSL_stats-> n_wrk );
+		/* worker threads created */
+		varnish_submit_gauge ( conf->instance , "threads", "threads-created", VSL_stats-> n_wrk_create );
+		/* worker threads not created */
+		varnish_submit_gauge ( conf->instance, "threads", "threads-failed", VSL_stats-> n_wrk_failed );
+		/* worker threads limited */
+		varnish_submit_gauge ( conf->instance, "threads", "threads-limited", VSL_stats-> n_wrk_max );
+		/* queued work requests */
+		varnish_submit_gauge ( conf->instance, "threads", "queued-requests", VSL_stats-> n_wrk_queue );
+		/* overflowed work requests */
+		varnish_submit_gauge ( conf->instance, "threads", "overflowed-requests", VSL_stats-> n_wrk_overflow );
+		/* dropped work requests */
+		varnish_submit_gauge ( conf->instance, "threads", "dropped-requests", VSL_stats-> n_wrk_drop );
+	}
 } /* }}} void varnish_monitor */
 
 static int varnish_read(user_data_t *ud) /* {{{ */
@@ -501,6 +520,8 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_sm);
 		else if (strcasecmp ("CollectTotals", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_totals);
+		else if (strcasecmp ("CollectWorkers", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_workers);
 		else
 		{
 			WARNING ("Varnish plugin: Ignoring unknown "
@@ -519,7 +540,8 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			&& !conf->collect_sma
 			&& !conf->collect_sms
 			&& !conf->collect_sm
-			&& !conf->collect_totals)
+			&& !conf->collect_totals
+			&& !conf->collect_workers)
 	{
 		WARNING ("Varnish plugin: No metric has been configured for "
 				"instance \"%s\". Disabling this instance.",
