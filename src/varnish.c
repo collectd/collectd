@@ -354,19 +354,19 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 	if(conf->collect_workers)
 	{
 		/* worker threads */
-		varnish_submit_gauge ( conf->instance, "threads", "threads", VSL_stats-> n_wrk );
+		varnish_submit_gauge (conf->instance, "threads", "worker", VSL_stats->n_wrk);
 		/* worker threads created */
-		varnish_submit_gauge ( conf->instance , "threads", "threads-created", VSL_stats-> n_wrk_create );
+		varnish_submit_gauge (conf->instance, "total_threads", "threads-created", VSL_stats->n_wrk_create);
 		/* worker threads not created */
-		varnish_submit_gauge ( conf->instance, "threads", "threads-failed", VSL_stats-> n_wrk_failed );
+		varnish_submit_gauge (conf->instance, "total_threads", "threads-failed", VSL_stats->n_wrk_failed);
 		/* worker threads limited */
-		varnish_submit_gauge ( conf->instance, "threads", "threads-limited", VSL_stats-> n_wrk_max );
+		varnish_submit_gauge (conf->instance, "total_threads", "threads-limited", VSL_stats->n_wrk_max);
 		/* queued work requests */
-		varnish_submit_gauge ( conf->instance, "threads", "queued-requests", VSL_stats-> n_wrk_queue );
+		varnish_submit_gauge (conf->instance, "total_requests", "worker-queued", VSL_stats->n_wrk_queue);
 		/* overflowed work requests */
-		varnish_submit_gauge ( conf->instance, "threads", "overflowed-requests", VSL_stats-> n_wrk_overflow );
+		varnish_submit_gauge (conf->instance, "total_requests", "worker-overflowed", VSL_stats->n_wrk_overflow);
 		/* dropped work requests */
-		varnish_submit_gauge ( conf->instance, "threads", "dropped-requests", VSL_stats-> n_wrk_drop );
+		varnish_submit_gauge (conf->instance, "total_requests", "worker-dropped", VSL_stats->n_wrk_drop);
 	}
 } /* }}} void varnish_monitor */
 
