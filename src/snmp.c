@@ -755,7 +755,21 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   }
   else
   {
-    WARNING ("snmp plugin: I don't know the ASN type `%i'", (int) vl->type);
+    char oid_buffer[1024];
+
+    memset (oid_buffer, 0, sizeof (oid_buffer));
+    snprint_objid (oid_buffer, sizeof (oid_buffer) - 1,
+	vl->name, vl->name_length);
+
+#ifdef ASN_NULL
+    if (vl->type == ASN_NULL)
+      INFO ("snmp plugin: OID \"%s\" is undefined (type ASN_NULL)",
+	  oid_buffer);
+    else
+#endif
+      WARNING ("snmp plugin: I don't know the ASN type \"%i\" (OID: %s)",
+	  (int) vl->type, oid_buffer);
+
     defined = 0;
   }
 
@@ -952,7 +966,7 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
   for (i = 0; i < num_chars; i++)
   {
     /* Check for control characters. */
-    if ((src[i] >= 0) && (src[i] < 32))
+    if ((unsigned char)src[i] < 32)
       return (csnmp_strvbcopy_hexstring (dst, vb, dst_size));
     dst[i] = src[i];
   }

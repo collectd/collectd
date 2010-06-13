@@ -44,7 +44,7 @@ use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 my $DIR       = "/var/lib/collectd";
 my $HOST      = undef;
 my $IMG_FMT   = "PNG";
-my $RECURSIVE = 0;
+my $RECURSIVE = 1;
 
 GetOptions (
     "host=s"         => \$HOST,
@@ -63,12 +63,12 @@ if (defined($HOST) && ($DIR !~ m/\/$HOST\/?$/) && (-d "$DIR/$HOST")) {
 
 my @COLORS = (0xff7777, 0x7777ff, 0x55ff55, 0xffcc77, 0xff77ff, 0x77ffff,
 	0xffff77, 0x55aaff);
-my @tmp = `/bin/hostname`; chomp(@tmp);
+my @tmp = `/bin/hostname -f`; chomp(@tmp);
 $HOST = $tmp[0] if (! defined $HOST);
 my $svg_p = ($IMG_FMT eq "SVG");
 my $IMG_SFX = $svg_p ? ".svg" : ".png";
 my $IMG_DIR = "${HOST}.dir";
-my $HTML = "${HOST}.html";
+my $HTML = "${HOST}.xhtml";
 
 ################################################################################
 #
@@ -118,14 +118,20 @@ open(OUT, ">$HTML");
 my $title="Rrd plot for $HOST";
 
 print OUT <<END;
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-   "http://www.w3.org/TR/html4/loose.dtd">
-<html>
+<!DOCTYPE html PUBLIC
+  "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
+<style type="text/css" media="screen">
+.graph { text-align: center; }
+object.graph { width: 670; height: 179; }
+</style>
 <title>$title</title>
+<meta http-equiv="Content-Type"
+      content="application/xhtml+xml; charset=us-ascii" />
 </head>
 <body>
-<center>
 END
 
 # list interesting rrd
@@ -140,27 +146,28 @@ else {
 }
 chomp(@list);
 
-foreach my $rrd (sort @list){
+@list = sort @list;
+foreach my $rrd (@list){
 	$rrd =~ m/^$DIR\/(.*)\.rrd$/;
 	push(@rrds, $1);
 }
 
 # table of contents
 print OUT <<END;
-<A name="top"></A><H1>$title</H1>
-<P>
+<h1><a id="top">$title</a></h1>
+<p>
 END
 
 foreach my $bn (@rrds){
 	my $cleaned_bn = $bn;
 	$cleaned_bn =~ tr/%\//__/;
 	print OUT <<END;
-<A href="#$cleaned_bn">$bn</A>
+<a href="#$cleaned_bn">$bn</a>
 END
 }
 
 print OUT <<END;
-</P>
+</p>
 END
 
 # graph interesting rrd
@@ -205,7 +212,7 @@ for (my $i = 0; $i < scalar(@rrds); ++$i) {
 	my $cleaned_bn = $bn;
 	$cleaned_bn =~ tr/%\//__/;
 	print OUT <<END;
-<A name="$cleaned_bn"></A><H1>$bn</H1>
+<h2><a id="$cleaned_bn">$bn</a></h2>
 END
 
 	# graph various ranges
@@ -222,24 +229,28 @@ END
 		my $cleaned_img = $img; $cleaned_img =~ s/%/%25/g;
 		if (! $svg_p) {
 			print OUT <<END;
-<P><IMG src="$cleaned_img" alt="${bn} $span"></P>
+<p class="graph"><img src="$cleaned_img" alt="${bn} $span" /></p>
 END
 		} else {
 			print OUT <<END;
-<P><object data="$cleaned_img" type="image/svg+xml"
-           width="670" height="179">
-  ${bn} $span</object></P>
+<p class="graph"><object data="$cleaned_img" type="image/svg+xml">
+  ${bn} $span</object></p>
 END
 		}
 	}
 
 	print OUT <<END;
-<A href="#top">[top]</A>
+<p><a href="#top">[top]</a></p>
 END
 }
 
 print OUT <<END;
-</center>
+<hr />
+<p>
+  <a href="http://validator.w3.org/check?uri=referer"><img
+     src="http://www.w3.org/Icons/valid-xhtml10"
+     alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a>
+</p>
 </body>
 </html>
 END

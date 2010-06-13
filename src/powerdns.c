@@ -46,12 +46,12 @@
 #define FUNC_ERROR(func) do { char errbuf[1024]; ERROR ("powerdns plugin: %s failed: %s", func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
 
 #define SERVER_SOCKET  LOCALSTATEDIR"/run/pdns.controlsocket"
-#define SERVER_COMMAND "SHOW *"
+#define SERVER_COMMAND "SHOW * \n"
 
 #define RECURSOR_SOCKET  LOCALSTATEDIR"/run/pdns_recursor.controlsocket"
 #define RECURSOR_COMMAND "get noerror-answers nxdomain-answers " \
   "servfail-answers sys-msec user-msec qa-latency cache-entries cache-hits " \
-  "cache-misses questions"
+  "cache-misses questions\n"
 
 struct list_item_s;
 typedef struct list_item_s list_item_t;
@@ -439,6 +439,11 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
     return (-1);
   }
 
+  struct timeval timeout;
+  timeout.tv_sec=5;
+  timeout.tv_usec=0;
+  status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout));
+
   status = connect (sd, (struct sockaddr *) &item->sockaddr,
       sizeof (item->sockaddr));
   if (status != 0)
@@ -531,7 +536,7 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
   int fields_num;
 
   if (item->command == NULL)
-    item->command = strdup ("SHOW *");
+    item->command = strdup (SERVER_COMMAND);
   if (item->command == NULL)
   {
     ERROR ("powerdns plugin: strdup failed.");
@@ -612,13 +617,21 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
   else
   {
     sstrncpy (buffer, "get ", sizeof (buffer));
-    status = strjoin (&buffer[4], sizeof (buffer) - strlen ("get "),
+    status = strjoin (&buffer[strlen("get ")], sizeof (buffer) - strlen ("get "),
 	li->fields, li->fields_num,
 	/* seperator = */ " ");
     if (status < 0)
     {
       ERROR ("powerdns plugin: strjoin failed.");
       return (-1);
+    }
+    buffer[sizeof (buffer) - 1] = 0;
+    int i = strlen (buffer);
+    if (i < sizeof (buffer) - 2)
+    {
+      buffer[i++] = ' ';
+      buffer[i++] = '\n';
+      buffer[i++] = '\0';
     }
   }
 
