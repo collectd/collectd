@@ -4504,6 +4504,13 @@ information.
          WarningMin 100000000
        </Type>
      </Plugin>
+
+     <Type "load">
+     	DataSource "midterm"
+     	FailureMax 4
+     	Hits 3
+     	Hysteresis 3
+     </Type>
    </Host>
  </Threshold>
 
@@ -4575,6 +4582,27 @@ If set to B<true>, the minimum and maximum values given are interpreted as
 percentage value, relative to the other data sources. This is helpful for
 example for the "df" type, where you may want to issue a warning when less than
 5E<nbsp>% of the total space is available. Defaults to B<false>.
+
+=item B<Hits> I<Value>
+
+Sets the number of occurrences which the threshold must be arised before to
+dispatch any notification or, in other words, the number of B<Interval>s
+than the threshold must be match before dispatch any notification.
+
+=item B<Hysteresis> I<Value>
+
+Sets the hysteresis value for threshold. The hysteresis is a method to
+prevent flapping between states, until a new received value for
+a previously matched threshold down below the threshold condition
+(B<WarningMax>, B<FailureMin> or everthing else) minus the hysteresis value,
+the failure (respectively warning) state will be keep.
+
+=item B<Interesting> B<true>|B<false>
+
+If set to B<true> (the default), the threshold must be treated as
+interesting and, when a number of B<Timeout> values will lost, then
+a missing notification will be dispatched. On the other hand, if set to
+B<false>, the missing notification will never dispatched for this threshold.
 
 =back
 
