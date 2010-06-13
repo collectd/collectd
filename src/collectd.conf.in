@@ -860,6 +860,7 @@
 #      CollectSMS false
 #      CollectSM false
 #      CollectTotals false
+#      CollectWorkers false
 #   </Instance>
 #</Plugin>
 
