@@ -40,6 +40,7 @@
 #define UT_FLAG_INVERT  0x01
 #define UT_FLAG_PERSIST 0x02
 #define UT_FLAG_PERCENTAGE 0x04
+#define UT_FLAG_INTERESTING 0x08
 /* }}} */
 
 /*
@@ -217,6 +218,24 @@ static int ut_config_type_min (threshold_t *th, oconfig_item_t *ci)
   return (0);
 } /* int ut_config_type_min */
 
+static int ut_config_type_interesting (threshold_t *th, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    WARNING ("threshold values: The `Interesting' option needs exactly one "
+   "boolean argument.");
+    return (-1);
+  }
+
+  if (ci->values[0].value.boolean)
+    th->flags |= UT_FLAG_INTERESTING;
+  else
+    th->flags &= ~UT_FLAG_INTERESTING;
+
+  return (0);
+} /* int ut_config_type_interesting */
+
 static int ut_config_type_invert (threshold_t *th, oconfig_item_t *ci)
 {
   if ((ci->values_num != 1)
@@ -330,6 +349,7 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   th.failure_max = NAN;
   th.hits = 0;
   th.hysteresis = 0;
+  th.flags = UT_FLAG_INTERESTING; /* interesting by default */
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -346,6 +366,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
     else if ((strcasecmp ("WarningMin", option->key) == 0)
 	|| (strcasecmp ("FailureMin", option->key) == 0))
       status = ut_config_type_min (&th, option);
+    else if (strcasecmp ("Interesting", option->key) == 0)
+      status = ut_config_type_interesting (&th, option);
     else if (strcasecmp ("Invert", option->key) == 0)
       status = ut_config_type_invert (&th, option);
     else if (strcasecmp ("Persist", option->key) == 0)
@@ -517,6 +539,7 @@ int ut_config (const oconfig_item_t *ci)
 
   th.hits = 0;
   th.hysteresis = 0;
+  th.flags = UT_FLAG_INTERESTING; /* interesting by default */
     
   for (i = 0; i < ci->children_num; i++)
   {
@@ -1028,6 +1051,10 @@ int ut_check_interesting (const char *name)
   th = threshold_search (&vl);
   if (th == NULL)
     return (0);
+
+  if ((th->flags & UT_FLAG_INTERESTING) == 0)
+    return (0);
+
   if ((th->flags & UT_FLAG_PERSIST) == 0)
     return (1);
   return (2);
