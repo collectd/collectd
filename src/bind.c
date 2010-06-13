@@ -21,7 +21,11 @@
  *   Florian Forster <octo at verplant.org>
  **/
 
-#define _XOPEN_SOURCE 600 /* glibc2 needs this for strptime */
+#include "config.h"
+
+#ifndef _XOPEN_SOURCE
+# define _XOPEN_SOURCE 600 /* glibc2 needs this for strptime */
+#endif
 
 #include "collectd.h"
 #include "common.h"
