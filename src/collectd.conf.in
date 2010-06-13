@@ -17,6 +17,7 @@
 #PluginDir   "@prefix@/lib/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 #Interval     10
+#Timeout      2
 #ReadThreads  5
 
 ##############################################################################
@@ -34,6 +35,7 @@
 #	LogLevel @DEFAULT_LOG_LEVEL@
 #	File STDOUT
 #	Timestamp true
+#	PrintSeverity false
 #</Plugin>
 
 #<Plugin syslog>
@@ -88,6 +90,7 @@
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
+#@BUILD_PLUGIN_MODBUS_TRUE@LoadPlugin modbus
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
 #@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
@@ -315,6 +318,7 @@
 #		MTime "-5m"
 #		Size "+10k"
 #		Recursive true
+#		IncludeHidden false
 #	</Directory>
 #</Plugin>
 
@@ -412,6 +416,7 @@
 #		Key "page_key"
 #		<Match>
 #			Regex "(\\d+) bytes sent"
+#			ExcludeRegex "<lines to be excluded>"
 #			DSType CounterAdd
 #			Type "ipt_octets"
 #			Instance "type_instance"
@@ -422,6 +427,26 @@
 #<Plugin memcached>
 #	Host "127.0.0.1"
 #	Port "11211"
+#</Plugin>
+
+#<Plugin modbus>
+#	<Data "data_name">
+#		RegisterBase 1234
+#		RegisterType float
+#		Type gauge
+#		Instance "..."
+#	</Data>
+#
+#	<Host "name">
+#		Address "addr"
+#		Port "1234"
+#		Interval 60
+#
+#		<Slave 1>
+#			Instance "foobar" # optional
+#			Collect "data_name"
+#		</Slave>
+#	</Host>
 #</Plugin>
 
 #<Plugin mysql>
@@ -503,14 +528,33 @@
 #</Plugin>
 
 @LOAD_PLUGIN_NETWORK@<Plugin network>
+#	# client setup:
 @LOAD_PLUGIN_NETWORK@	Server "ff18::efc0:4a42" "25826"
-@LOAD_PLUGIN_NETWORK@	Server "239.192.74.66" "25826"
-#	Listen "ff18::efc0:4a42" "25826"
-#	Listen "239.192.74.66" "25826"
+@LOAD_PLUGIN_NETWORK@	<Server "239.192.74.66" "25826">
+#		SecurityLevel Encrypt
+#		Username "user"
+#		Password "secret"
+#		Interface "eth0"
+@LOAD_PLUGIN_NETWORK@	</Server>
 #	TimeToLive "128"
-#	Forward false
-#	CacheFlush 1800
+#
+#	# server setup:
+#	Listen "ff18::efc0:4a42" "25826"
+#	<Listen "239.192.74.66" "25826">
+#		SecurityLevel Sign
+#		AuthFile "/etc/collectd/passwd"
+#		Interface "eth0"
+#	</Listen>
+#	MaxPacketSize 1024
+#
+#	# proxy setup (client and server as above):
+#	Forward true
+#
+#	# statistics about the network plugin itself
 #	ReportStats false
+#
+#	# "garbage collection"
+#	CacheFlush 1800
 @LOAD_PLUGIN_NETWORK@</Plugin>
 
 #<Plugin nginx>
@@ -564,6 +608,10 @@
 
 #<Plugin openvpn>
 #	StatusFile "/etc/openvpn/openvpn-status.log"
+#	ImprovedNamingSchema false
+#	CollectCompression true
+#	CollectIndividualUsers true
+#	CollectUserCount false
 #</Plugin>
 
 #<Plugin oracle>
@@ -650,6 +698,7 @@
 #		Query magic
 #	</Database>
 #	<Database bar>
+#		Interval 60
 #		Service "service_name"
 #		Query backend # predefined
 #		Query rt36_tickets
@@ -872,6 +921,11 @@
 #	<URL "http://example.com/collectd-post">
 #		User "collectd"
 #		Password "weCh3ik0"
+#		VerifyPeer true
+#		VerifyHost true
+#		CACert "/etc/ssl/ca.crt"
+#		Format "Command"
+#		StoreRates false
 #	</URL>
 #</Plugin>
 
