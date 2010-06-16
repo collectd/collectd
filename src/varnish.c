@@ -336,7 +336,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 	if(conf->collect_totals)
 	{
 		/* Total Sessions */
-		varnish_submit_derive (conf->instance, "total_counters", "sessions", VSL_stats->s_sess);
+		varnish_submit_derive (conf->instance, "total_sessions", "sessions", VSL_stats->s_sess);
 		/* Total Requests */
 		varnish_submit_derive (conf->instance, "total_requests", "requests", VSL_stats->s_req);
 		/* Total pipe */

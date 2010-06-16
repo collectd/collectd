@@ -159,6 +159,7 @@ time_offset		seconds:GAUGE:-1000000:1000000
 total_bytes		value:DERIVE:0:U
 total_operations	value:DERIVE:0:U
 total_requests		value:DERIVE:0:U
+total_sessions		value:DERIVE:0:U
 total_threads		value:DERIVE:0:U
 total_time_in_ms	value:DERIVE:0:U
 total_values		value:DERIVE:0:U
