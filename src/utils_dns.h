@@ -42,6 +42,8 @@
 # include <pcap.h>
 #endif
 
+#define DNS_MSG_HDR_SZ 12
+
 #define T_MAX 65536
 #define OP_MAX 16
 #define C_MAX 65536
