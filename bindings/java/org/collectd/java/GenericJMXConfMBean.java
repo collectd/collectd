@@ -1,6 +1,6 @@
 /*
  * collectd/java - org/collectd/java/GenericJMXConfMBean.java
- * Copyright (C) 2009  Florian octo Forster
+ * Copyright (C) 2009,2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -66,22 +66,6 @@ class GenericJMXConfMBean
 
     return (v.getString ());
   } /* }}} String getConfigString */
-
-  private String join (String separator, List<String> list) /* {{{ */
-  {
-    StringBuffer sb;
-
-    sb = new StringBuffer ();
-
-    for (int i = 0; i < list.size (); i++)
-    {
-      if (i > 0)
-        sb.append ("-");
-      sb.append (list.get (i));
-    }
-
-    return (sb.toString ());
-  } /* }}} String join */
 
 /*
  * <MBean "alias name">
@@ -170,7 +154,8 @@ class GenericJMXConfMBean
     return (this._name);
   } /* }}} */
 
-  public int query (MBeanServerConnection conn, PluginData pd) /* {{{ */
+  public int query (MBeanServerConnection conn, PluginData pd, /* {{{ */
+      String instance_prefix)
   {
     Set<ObjectName> names;
     Iterator<ObjectName> iter;
@@ -197,11 +182,12 @@ class GenericJMXConfMBean
       ObjectName   objName;
       PluginData   pd_tmp;
       List<String> instanceList;
-      String       instance;
+      StringBuffer instance;
 
       objName      = iter.next ();
       pd_tmp       = new PluginData (pd);
       instanceList = new ArrayList<String> ();
+      instance     = new StringBuffer ();
 
       Collectd.logDebug ("GenericJMXConfMBean: objName = "
           + objName.toString ());
@@ -224,14 +210,22 @@ class GenericJMXConfMBean
         }
       }
 
-      if (this._instance_prefix != null)
-        instance = new String (this._instance_prefix
-            + join ("-", instanceList));
-      else
-        instance = join ("-", instanceList);
-      pd_tmp.setPluginInstance (instance);
+      if (instance_prefix != null)
+        instance.append (instance_prefix);
 
-      Collectd.logDebug ("GenericJMXConfMBean: instance = " + instance);
+      if (this._instance_prefix != null)
+        instance.append (this._instance_prefix);
+
+      for (int i = 0; i < instanceList.size (); i++)
+      {
+        if (i > 0)
+          instance.append ("-");
+        instance.append (instanceList.get (i));
+      }
+
+      pd_tmp.setPluginInstance (instance.toString ());
+
+      Collectd.logDebug ("GenericJMXConfMBean: instance = " + instance.toString ());
 
       for (int i = 0; i < this._values.size (); i++)
         this._values.get (i).query (conn, objName, pd_tmp);

@@ -667,6 +667,14 @@ will be used.
 Use I<password> to authenticate to the server. If not given, unauthenticated
 access is used.
 
+=item B<InstancePrefix> I<prefix>
+
+Prefixes the generated I<plugin instance> with I<prefix>. If a second
+I<InstancePrefix> is specified in a referenced I<MBean> block, the prefix
+specified in the I<Connection> block will appear at the beginning of the
+I<plugin instance>, the prefix specified in the I<MBean> block will be appended
+to it.
+
 =item B<Collect> I<mbean_block_name>
 
 Configures which of the I<MBean> blocks to use with this connection. May be
