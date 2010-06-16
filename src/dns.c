@@ -80,14 +80,10 @@ static counter_list_t *counter_list_search (counter_list_t **list, unsigned int 
 {
 	counter_list_t *entry;
 
-	DEBUG ("counter_list_search (list = %p, key = %u)",
-			(void *) *list, key);
-
 	for (entry = *list; entry != NULL; entry = entry->next)
 		if (entry->key == key)
 			break;
 
-	DEBUG ("return (%p)", (void *) entry);
 	return (entry);
 }
 
@@ -95,9 +91,6 @@ static counter_list_t *counter_list_create (counter_list_t **list,
 		unsigned int key, unsigned int value)
 {
 	counter_list_t *entry;
-
-	DEBUG ("counter_list_create (list = %p, key = %u, value = %u)",
-			(void *) *list, key, value);
 
 	entry = (counter_list_t *) malloc (sizeof (counter_list_t));
 	if (entry == NULL)
@@ -122,7 +115,6 @@ static counter_list_t *counter_list_create (counter_list_t **list,
 		last->next = entry;
 	}
 
-	DEBUG ("return (%p)", (void *) entry);
 	return (entry);
 }
 
@@ -130,9 +122,6 @@ static void counter_list_add (counter_list_t **list,
 		unsigned int key, unsigned int increment)
 {
 	counter_list_t *entry;
-
-	DEBUG ("counter_list_add (list = %p, key = %u, increment = %u)",
-			(void *) *list, key, increment);
 
 	entry = counter_list_search (list, key);
 
@@ -144,7 +133,6 @@ static void counter_list_add (counter_list_t **list,
 	{
 		counter_list_create (list, key, increment);
 	}
-	DEBUG ("return ()");
 }
 
 static int dns_config (const char *key, const char *value)
@@ -261,7 +249,7 @@ static void *dns_child_loop (void __attribute__((unused)) *dummy)
 		return (NULL);
 	}
 
-	DEBUG ("PCAP object created.");
+	DEBUG ("dns plugin: PCAP object created.");
 
 	dnstop_set_pcap_obj (pcap_obj);
 	dnstop_set_callback (dns_child_callback);
@@ -274,7 +262,7 @@ static void *dns_child_loop (void __attribute__((unused)) *dummy)
 		ERROR ("dns plugin: Listener thread is exiting "
 				"abnormally: %s", pcap_geterr (pcap_obj));
 
-	DEBUG ("child is exiting");
+	DEBUG ("dns plugin: Child is exiting.");
 
 	pcap_close (pcap_obj);
 	listen_thread_init = 0;
@@ -375,7 +363,7 @@ static int dns_read (void)
 
 	for (i = 0; i < len; i++)
 	{
-		DEBUG ("qtype = %u; counter = %u;", keys[i], values[i]);
+		DEBUG ("dns plugin: qtype = %u; counter = %u;", keys[i], values[i]);
 		submit_counter ("dns_qtype", qtype_str (keys[i]), values[i]);
 	}
 
@@ -391,7 +379,7 @@ static int dns_read (void)
 
 	for (i = 0; i < len; i++)
 	{
-		DEBUG ("opcode = %u; counter = %u;", keys[i], values[i]);
+		DEBUG ("dns plugin: opcode = %u; counter = %u;", keys[i], values[i]);
 		submit_counter ("dns_opcode", opcode_str (keys[i]), values[i]);
 	}
 
@@ -407,7 +395,7 @@ static int dns_read (void)
 
 	for (i = 0; i < len; i++)
 	{
-		DEBUG ("rcode = %u; counter = %u;", keys[i], values[i]);
+		DEBUG ("dns plugin: rcode = %u; counter = %u;", keys[i], values[i]);
 		submit_counter ("dns_rcode", rcode_str (keys[i]), values[i]);
 	}
 

@@ -358,10 +358,10 @@ handle_dns(const char *buf, int len)
     uint16_t us;
     off_t offset;
     char *t;
-    int x;
+    int status;
 
     /* The DNS header is 12 bytes long */
-    if (len < 12)
+    if (len < DNS_MSG_HDR_SZ)
 	return 0;
 
     memcpy(&us, buf + 0, 2);
@@ -392,11 +392,15 @@ handle_dns(const char *buf, int len)
     memcpy(&us, buf + 10, 2);
     qh.arcount = ntohs(us);
 
-    offset = 12;
+    offset = DNS_MSG_HDR_SZ;
     memset(qh.qname, '\0', MAX_QNAME_SZ);
-    x = rfc1035NameUnpack(buf, len, &offset, qh.qname, MAX_QNAME_SZ);
-    if (0 != x)
+    status = rfc1035NameUnpack(buf, len, &offset, qh.qname, MAX_QNAME_SZ);
+    if (status != 0)
+    {
+	INFO ("utils_dns: handle_dns: rfc1035NameUnpack failed "
+		"with status %i.", status);
 	return 0;
+    }
     if ('\0' == qh.qname[0])
 	sstrncpy (qh.qname, ".", sizeof (qh.qname));
     while ((t = strchr(qh.qname, '\n')))
@@ -660,10 +664,6 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
 {
     int status;
 
-    DEBUG ("handle_pcap (udata = %p, hdr = %p, pkt = %p): hdr->caplen = %i\n",
-		    (void *) udata, (void *) hdr, (void *) pkt,
-		    hdr->caplen);
-
     if (hdr->caplen < ETHER_HDR_LEN)
 	return;
 
@@ -697,7 +697,7 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr, const u_char *pkt
 	    break;
 
 	default:
-	    ERROR ("handle_pcap: unsupported data link type %d\n",
+	    ERROR ("handle_pcap: unsupported data link type %d",
 		    pcap_datalink(pcap_obj));
 	    status = 0;
 	    break;
