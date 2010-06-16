@@ -4421,6 +4421,68 @@ Take the UUID from the given file (default I</etc/uuid>).
 
 =back
 
+=head2 Plugin C<varnish>
+
+The Varnish plugin collects information about Varnish, an HTTP accelerator.
+
+=over 4
+
+=item B<CollectCache> B<true>|B<false>
+
+Cache hits and misses. True by default.
+
+=item B<CollectConnections> B<true>|B<false>
+
+Number of client connections received, accepted and dropped. True by default.
+
+=item B<CollectBackend> B<true>|B<false>
+
+Back-end connection statistics, such as successful, reused,
+and closed connections. True by default.
+
+=item B<CollectSHM> B<true>|B<false>
+
+Statistics about the shared memory log, a memory region to store
+log messages which is flushed to disk when full. True by default.
+
+=item B<CollectESI> B<true>|B<false>
+
+Edge Side Includes (ESI) parse statistics. False by default.
+
+=item B<CollectFetch> B<true>|B<false>
+
+Statistics about fetches (HTTP requests sent to the backend). False by default.
+
+=item B<CollectHCB> B<true>|B<false>
+
+Inserts and look-ups in the crit bit tree based hash. Look-ups are
+divided into locked and unlocked look-ups. False by default.
+
+=item B<CollectSMA> B<true>|B<false>
+
+malloc or umem (umem_alloc(3MALLOC) based) storage statistics.
+The umem storage component is Solaris specific. False by default.
+
+=item B<CollectSMS> B<true>|B<false>
+
+synth (synthetic content) storage statistics. This storage
+component is used internally only. False by default.
+
+=item B<CollectSM> B<true>|B<false>
+
+file (memory mapped file) storage statistics. False by default.
+
+=item B<CollectTotals> B<true>|B<false>
+
+Collects overview counters, such as the number of sessions created,
+the number of requests and bytes transferred. False by default.
+
+=item B<CollectWorkers> B<true>|B<false>
+
+Collect statistics about worker threads. False by default.
+
+=back
+
 =head2 Plugin C<vmem>
 
 The C<vmem> plugin collects information about the usage of virtual memory.
