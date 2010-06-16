@@ -182,6 +182,7 @@ typedef struct {
 	char type_instance[DATA_MAX_NAME_LEN];
 } PluginData;
 PyTypeObject PluginDataType;
+#define PluginData_New() PyObject_CallFunctionObjArgs((PyObject *) &PluginDataType, (void *) 0)
 
 typedef struct {
 	PluginData data;
@@ -190,6 +191,7 @@ typedef struct {
 	int interval;
 } Values;
 PyTypeObject ValuesType;
+#define Values_New() PyObject_CallFunctionObjArgs((PyObject *) &ValuesType, (void *) 0)
 
 typedef struct {
 	PluginData data;
@@ -197,9 +199,11 @@ typedef struct {
 	char message[NOTIF_MAX_MSG_LEN];
 } Notification;
 PyTypeObject NotificationType;
+#define Notification_New() PyObject_CallFunctionObjArgs((PyObject *) &NotificationType, (void *) 0)
 
 typedef PyLongObject Signed;
 PyTypeObject SignedType;
 
 typedef PyLongObject Unsigned;
 PyTypeObject UnsignedType;
+
