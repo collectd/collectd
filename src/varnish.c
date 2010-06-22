@@ -160,23 +160,23 @@ static int varnish_submit (const char *plugin_instance, /* {{{ */
 	vl.values = &value;
 	vl.values_len = 1;
 
-	sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 
-	sstrncpy(vl.plugin, "varnish", sizeof(vl.plugin));
+	sstrncpy (vl.plugin, "varnish", sizeof (vl.plugin));
 
 	if (plugin_instance == NULL)
 		plugin_instance = "default";
 
-	ssnprintf(vl.plugin_instance, sizeof (vl.plugin_instance),
+	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 		"%s-%s", plugin_instance, category);
 
-	sstrncpy(vl.type, type, sizeof(vl.type));
+	sstrncpy (vl.type, type, sizeof (vl.type));
 
 	if (type_instance != NULL)
-		sstrncpy(vl.type_instance, type_instance,
-				sizeof(vl.type_instance));
+		sstrncpy (vl.type_instance, type_instance,
+				sizeof (vl.type_instance));
 
-	return (plugin_dispatch_values(&vl));
+	return (plugin_dispatch_values (&vl));
 } /* }}} int varnish_submit */
 
 static int varnish_submit_gauge (const char *plugin_instance, /* {{{ */
@@ -201,9 +201,9 @@ static int varnish_submit_derive (const char *plugin_instance, /* {{{ */
 	return (varnish_submit (plugin_instance, category, type, type_instance, value));
 } /* }}} int varnish_submit_derive */
 
-static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL_stats) /* {{{ */
+static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VSL_stats) /* {{{ */
 {
-	if(conf->collect_cache)
+	if (conf->collect_cache)
 	{
 		/* Cache hits */
 		varnish_submit_derive (conf->instance, "cache", "cache_result", "hit",     VSL_stats->cache_hit);
@@ -213,7 +213,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "cache", "cache_result", "hitpass", VSL_stats->cache_hitpass);
 	}
 
-	if(conf->collect_connections)
+	if (conf->collect_connections)
 	{
 		/* Client connections accepted */
 		varnish_submit_derive (conf->instance, "client", "connections", "accepted", VSL_stats->client_conn);
@@ -223,7 +223,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "client", "connections", "received", VSL_stats->client_req);
 	}
 
-	if(conf->collect_esi)
+	if (conf->collect_esi)
 	{
 		/* Objects ESI parsed (unlock) */
 		varnish_submit_derive (conf->instance, "esi", "total_operations", "parsed", VSL_stats->esi_parse);
@@ -231,7 +231,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "esi", "total_operations", "error",  VSL_stats->esi_errors);
 	}
 
-	if(conf->collect_backend)
+	if (conf->collect_backend)
 	{
 		/* Backend conn. success       */
 		varnish_submit_derive (conf->instance, "backend", "connections", "success"      , VSL_stats->backend_conn);
@@ -251,7 +251,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "backend", "connections", "unused"       , VSL_stats->backend_unused);
 	}
 
-	if(conf->collect_fetch)
+	if (conf->collect_fetch)
 	{
 		/* Fetch head                */
 		varnish_submit_derive (conf->instance, "fetch", "http_requests", "head"       , VSL_stats->fetch_head);
@@ -273,7 +273,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "fetch", "http_requests", "failed"     , VSL_stats->fetch_failed);
 	}
 
-	if(conf->collect_hcb)
+	if (conf->collect_hcb)
 	{
 		/* HCB Lookups without lock */
 		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "lookup_nolock", VSL_stats->hcb_nolock);
@@ -283,7 +283,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "insert",        VSL_stats->hcb_insert);
 	}
 
-	if(conf->collect_shm)
+	if (conf->collect_shm)
 	{
 		/* SHM records                 */
 		varnish_submit_derive (conf->instance, "shm", "total_operations", "records"   , VSL_stats->shm_records);
@@ -297,7 +297,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "shm", "total_operations", "cycles"    , VSL_stats->shm_cycles);
 	}
 
-	if(conf->collect_sm)
+	if (conf->collect_sm)
 	{
 		/* allocator requests */
 		varnish_submit_derive (conf->instance, "sm", "total_requests", "nreq",  VSL_stats->sm_nreq);
@@ -309,7 +309,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_gauge (conf->instance,  "sm", "bytes", "free",           VSL_stats->sm_bfree);
 	}
 
-	if(conf->collect_sma)
+	if (conf->collect_sma)
 	{
 		/* SMA allocator requests */
 		varnish_submit_derive (conf->instance, "sma", "total_requests", "nreq",  VSL_stats->sma_nreq);
@@ -323,7 +323,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_gauge (conf->instance,  "sma", "bytes", "free" ,          VSL_stats->sma_bfree);
 	}
 
-	if(conf->collect_sms)
+	if (conf->collect_sms)
 	{
 		/* SMS allocator requests */
 		varnish_submit_derive (conf->instance, "sms", "total_requests", "allocator", VSL_stats->sms_nreq);
@@ -337,7 +337,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_gauge (conf->instance,  "sms", "bytes", "free",               VSL_stats->sms_bfree);
 	}
 
-	if(conf->collect_totals)
+	if (conf->collect_totals)
 	{
 		/* Total Sessions */
 		varnish_submit_derive (conf->instance, "s", "total_sessions", "sessions",  VSL_stats->s_sess);
@@ -355,7 +355,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 		varnish_submit_derive (conf->instance, "s", "total_bytes", "body-bytes",   VSL_stats->s_bodybytes);
 	}
 
-	if(conf->collect_workers)
+	if (conf->collect_workers)
 	{
 		/* worker threads */
 		varnish_submit_gauge (conf->instance, "n_wrk", "threads", "worker",            VSL_stats->n_wrk);
@@ -374,7 +374,7 @@ static void varnish_monitor(const user_config_t *conf, struct varnish_stats *VSL
 	}
 } /* }}} void varnish_monitor */
 
-static int varnish_read(user_data_t *ud) /* {{{ */
+static int varnish_read (user_data_t *ud) /* {{{ */
 {
 	struct varnish_stats *VSL_stats;
 	user_config_t *conf;
@@ -384,15 +384,15 @@ static int varnish_read(user_data_t *ud) /* {{{ */
 
 	conf = ud->data;
 
-	VSL_stats = VSL_OpenStats(conf->instance);
+	VSL_stats = VSL_OpenStats (conf->instance);
 	if (VSL_stats == NULL)
 	{
-		ERROR("Varnish plugin : unable to load statistics");
+		ERROR ("Varnish plugin : unable to load statistics");
 
 		return (-1);
 	}
 
-	varnish_monitor(conf, VSL_stats);
+	varnish_monitor (conf, VSL_stats);
 
     return (0);
 } /* }}} */
@@ -593,7 +593,7 @@ static int varnish_config (oconfig_item_t *ci) /* {{{ */
 
 void module_register (void) /* {{{ */
 {
-	plugin_register_complex_config("varnish", varnish_config);
+	plugin_register_complex_config ("varnish", varnish_config);
 	plugin_register_init ("varnish", varnish_init);
 } /* }}} */
 
