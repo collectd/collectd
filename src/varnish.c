@@ -216,11 +216,11 @@ static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VS
 	if (conf->collect_connections)
 	{
 		/* Client connections accepted */
-		varnish_submit_derive (conf->instance, "client", "connections", "accepted", VSL_stats->client_conn);
+		varnish_submit_derive (conf->instance, "connections", "connections", "accepted", VSL_stats->client_conn);
 		/* Connection dropped, no sess */
-		varnish_submit_derive (conf->instance, "client", "connections", "dropped" , VSL_stats->client_drop);
+		varnish_submit_derive (conf->instance, "connections", "connections", "dropped" , VSL_stats->client_drop);
 		/* Client requests received    */
-		varnish_submit_derive (conf->instance, "client", "connections", "received", VSL_stats->client_req);
+		varnish_submit_derive (conf->instance, "connections", "connections", "received", VSL_stats->client_req);
 	}
 
 	if (conf->collect_esi)
@@ -340,37 +340,37 @@ static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VS
 	if (conf->collect_totals)
 	{
 		/* Total Sessions */
-		varnish_submit_derive (conf->instance, "s", "total_sessions", "sessions",  VSL_stats->s_sess);
+		varnish_submit_derive (conf->instance, "totals", "total_sessions", "sessions",  VSL_stats->s_sess);
 		/* Total Requests */
-		varnish_submit_derive (conf->instance, "s", "total_requests", "requests",  VSL_stats->s_req);
+		varnish_submit_derive (conf->instance, "totals", "total_requests", "requests",  VSL_stats->s_req);
 		/* Total pipe */
-		varnish_submit_derive (conf->instance, "s", "total_operations", "pipe",    VSL_stats->s_pipe);
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "pipe",    VSL_stats->s_pipe);
 		/* Total pass */
-		varnish_submit_derive (conf->instance, "s", "total_operations", "pass",    VSL_stats->s_pass);
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "pass",    VSL_stats->s_pass);
 		/* Total fetch */
-		varnish_submit_derive (conf->instance, "s", "total_operations", "fetches", VSL_stats->s_fetch);
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "fetches", VSL_stats->s_fetch);
 		/* Total header bytes */
-		varnish_submit_derive (conf->instance, "s", "total_bytes", "header-bytes", VSL_stats->s_hdrbytes);
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "header-bytes", VSL_stats->s_hdrbytes);
 		/* Total body byte */
-		varnish_submit_derive (conf->instance, "s", "total_bytes", "body-bytes",   VSL_stats->s_bodybytes);
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "body-bytes",   VSL_stats->s_bodybytes);
 	}
 
 	if (conf->collect_workers)
 	{
 		/* worker threads */
-		varnish_submit_gauge (conf->instance, "n_wrk", "threads", "worker",            VSL_stats->n_wrk);
+		varnish_submit_gauge (conf->instance, "workers", "threads", "worker",            VSL_stats->n_wrk);
 		/* worker threads created */
-		varnish_submit_gauge (conf->instance, "n_wrk", "total_threads", "created",     VSL_stats->n_wrk_create);
+		varnish_submit_gauge (conf->instance, "workers", "total_threads", "created",     VSL_stats->n_wrk_create);
 		/* worker threads not created */
-		varnish_submit_gauge (conf->instance, "n_wrk", "total_threads", "failed",      VSL_stats->n_wrk_failed);
+		varnish_submit_gauge (conf->instance, "workers", "total_threads", "failed",      VSL_stats->n_wrk_failed);
 		/* worker threads limited */
-		varnish_submit_gauge (conf->instance, "n_wrk", "total_threads", "limited",     VSL_stats->n_wrk_max);
+		varnish_submit_gauge (conf->instance, "workers", "total_threads", "limited",     VSL_stats->n_wrk_max);
 		/* queued work requests */
-		varnish_submit_gauge (conf->instance, "n_wrk", "total_requests", "queued",     VSL_stats->n_wrk_queue);
+		varnish_submit_gauge (conf->instance, "workers", "total_requests", "queued",     VSL_stats->n_wrk_queue);
 		/* overflowed work requests */
-		varnish_submit_gauge (conf->instance, "n_wrk", "total_requests", "overflowed", VSL_stats->n_wrk_overflow);
+		varnish_submit_gauge (conf->instance, "workers", "total_requests", "overflowed", VSL_stats->n_wrk_overflow);
 		/* dropped work requests */
-		varnish_submit_gauge (conf->instance, "n_wrk", "total_requests", "dropped",    VSL_stats->n_wrk_drop);
+		varnish_submit_gauge (conf->instance, "workers", "total_requests", "dropped",    VSL_stats->n_wrk_drop);
 	}
 } /* }}} void varnish_monitor */
 
