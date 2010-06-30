@@ -1,6 +1,6 @@
 /**
  * collectd-nagios - src/collectd-nagios.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -96,6 +96,7 @@ static char *hostname_g = NULL;
 static range_t range_critical_g;
 static range_t range_warning_g;
 static int consolitation_g = CON_NONE;
+static _Bool nan_is_error_g = 0;
 
 static char **match_ds_g = NULL;
 static int    match_ds_num_g = 0;
@@ -254,6 +255,7 @@ static void usage (const char *name)
 			"  -H <host>      Hostname to query the values for.\n"
 			"  -c <range>     Critical range\n"
 			"  -w <range>     Warning range\n"
+			"  -m             Treat \"Not a Number\" (NaN) as critical (default: warning)\n"
 			"\n"
 			"Consolidation functions:\n"
 			"  none:          Apply the warning- and critical-ranges to each data-source\n"
@@ -280,7 +282,12 @@ static int do_check_con_none (size_t values_num,
 	for (i = 0; i < values_num; i++)
 	{
 		if (isnan (values[i]))
-			num_warning++;
+		{
+			if (nan_is_error_g)
+				num_critical++;
+			else
+				num_warning++;
+		}
 		else if (match_range (&range_critical_g, values[i]) != 0)
 			num_critical++;
 		else if (match_range (&range_warning_g, values[i]) != 0)
@@ -337,11 +344,18 @@ static int do_check_con_average (size_t values_num,
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
-		if (!isnan (values[i]))
+		if (isnan (values[i]))
 		{
-			total += values[i];
-			total_num++;
+			if (!nan_is_error_g)
+				continue;
+
+			printf ("CRITICAL: Data source \"%s\" is NaN\n",
+					values_names[i]);
+			return (RET_CRITICAL);
 		}
+
+		total += values[i];
+		total_num++;
 	}
 
 	if (total_num == 0)
@@ -389,11 +403,18 @@ static int do_check_con_sum (size_t values_num,
 	total_num = 0;
 	for (i = 0; i < values_num; i++)
 	{
-		if (!isnan (values[i]))
+		if (isnan (values[i]))
 		{
-			total += values[i];
-			total_num++;
+			if (!nan_is_error_g)
+				continue;
+
+			printf ("CRITICAL: Data source \"%s\" is NaN\n",
+					values_names[i]);
+			return (RET_CRITICAL);
 		}
+
+		total += values[i];
+		total_num++;
 	}
 
 	if (total_num == 0)
@@ -443,8 +464,19 @@ static int do_check_con_percentage (size_t values_num,
 	}
 
 	for (i = 0; i < values_num; i++)
-		if (!isnan (values[i]))
-			sum += values[i];
+	{
+		if (isnan (values[i]))
+		{
+			if (!nan_is_error_g)
+				continue;
+
+			printf ("CRITICAL: Data source \"%s\" is NaN\n",
+					values_names[i]);
+			return (RET_CRITICAL);
+		}
+
+		sum += values[i];
+	}
 
 	if (sum == 0.0)
 	{
@@ -563,7 +595,7 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		c = getopt (argc, argv, "w:c:s:n:H:g:d:h");
+		c = getopt (argc, argv, "w:c:s:n:H:g:d:hm");
 		if (c < 0)
 			break;
 
@@ -623,6 +655,9 @@ int main (int argc, char **argv)
 				match_ds_num_g++;
 				break;
 			}
+			case 'm':
+				nan_is_error_g = 1;
+				break;
 			default:
 				usage (argv[0]);
 		} /* switch (c) */

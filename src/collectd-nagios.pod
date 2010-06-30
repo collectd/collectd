@@ -94,6 +94,12 @@ I<min> (and the colon) may be omitted,
 I<min> is then assumed to be zero. If I<max> (but not the trailing colon) is
 omitted, I<max> is assumed to be positive infinity.
 
+=item B<-m>
+
+If this option is given, "Not a Number" (NaN) is treated as I<critical>. By
+default, the I<none> consolidation reports NaNs as I<warning>. Other
+consolidations simply ignore NaN values.
+
 =back
 
 =head1 RETURN VALUE
