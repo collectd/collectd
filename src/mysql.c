@@ -352,20 +352,14 @@ static void gauge_submit (const char *type, const char *type_instance,
 	submit (type, type_instance, values, STATIC_ARRAY_SIZE (values), db);
 } /* void gauge_submit */
 
-static void qcache_submit (counter_t hits, counter_t inserts,
-		counter_t not_cached, counter_t lowmem_prunes,
-		gauge_t queries_in_cache, mysql_database_t *db)
+static void derive_submit (const char *type, const char *type_instance,
+		derive_t value, mysql_database_t *db)
 {
-	value_t values[5];
+	value_t values[1];
 
-	values[0].counter = hits;
-	values[1].counter = inserts;
-	values[2].counter = not_cached;
-	values[3].counter = lowmem_prunes;
-	values[4].gauge   = queries_in_cache;
-
-	submit ("mysql_qcache", NULL, values, STATIC_ARRAY_SIZE (values), db);
-} /* void qcache_submit */
+	values[0].derive = value;
+	submit (type, type_instance, values, STATIC_ARRAY_SIZE (values), db);
+} /* void derive_submit */
 
 static void threads_submit (gauge_t running, gauge_t connected, gauge_t cached,
 		counter_t created, mysql_database_t *db)
@@ -588,11 +582,11 @@ static int mysql_read (user_data_t *ud)
 	char      *query;
 	int        field_num;
 
-	unsigned long long qcache_hits          = 0ULL;
-	unsigned long long qcache_inserts       = 0ULL;
-	unsigned long long qcache_not_cached    = 0ULL;
-	unsigned long long qcache_lowmem_prunes = 0ULL;
-	int qcache_queries_in_cache = -1;
+	derive_t qcache_hits          = 0;
+	derive_t qcache_inserts       = 0;
+	derive_t qcache_not_cached    = 0;
+	derive_t qcache_lowmem_prunes = 0;
+	gauge_t qcache_queries_in_cache = NAN;
 
 	int threads_running   = -1;
 	int threads_connected = -1;
@@ -657,15 +651,15 @@ static int mysql_read (user_data_t *ud)
        				        strlen ("Qcache_")) == 0)
 		{
 			if (strcmp (key, "Qcache_hits") == 0)
-				qcache_hits = val;
+				qcache_hits = (derive_t) val;
 			else if (strcmp (key, "Qcache_inserts") == 0)
-				qcache_inserts = val;
+				qcache_inserts = (derive_t) val;
 			else if (strcmp (key, "Qcache_not_cached") == 0)
-				qcache_not_cached = val;
+				qcache_not_cached = (derive_t) val;
 			else if (strcmp (key, "Qcache_lowmem_prunes") == 0)
-				qcache_lowmem_prunes = val;
+				qcache_lowmem_prunes = (derive_t) val;
 			else if (strcmp (key, "Qcache_queries_in_cache") == 0)
-				qcache_queries_in_cache = (int) val;
+				qcache_queries_in_cache = (gauge_t) val;
 		}
 		else if (strncmp (key, "Bytes_", 
 				        strlen ("Bytes_")) == 0)
@@ -697,12 +691,23 @@ static int mysql_read (user_data_t *ud)
 	}
 	mysql_free_result (res); res = NULL;
 
-	if ((qcache_hits != 0ULL)
-			|| (qcache_inserts != 0ULL)
-			|| (qcache_not_cached != 0ULL)
-			|| (qcache_lowmem_prunes != 0ULL))
-		qcache_submit (qcache_hits, qcache_inserts, qcache_not_cached,
-			       qcache_lowmem_prunes, qcache_queries_in_cache, db);
+	if ((qcache_hits != 0)
+			|| (qcache_inserts != 0)
+			|| (qcache_not_cached != 0)
+			|| (qcache_lowmem_prunes != 0))
+	{
+		derive_submit ("cache_result", "qcache-hits",
+				qcache_hits, db);
+		derive_submit ("cache_result", "qcache-inserts",
+				qcache_inserts, db);
+		derive_submit ("cache_result", "qcache-not_cached",
+				qcache_not_cached, db);
+		derive_submit ("cache_result", "qcache-prunes",
+				qcache_lowmem_prunes, db);
+
+		gauge_submit ("cache_size", "qcache",
+				qcache_queries_in_cache, db);
+	}
 
 	if (threads_created != 0ULL)
 		threads_submit (threads_running, threads_connected,
