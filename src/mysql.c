@@ -361,19 +361,6 @@ static void derive_submit (const char *type, const char *type_instance,
 	submit (type, type_instance, values, STATIC_ARRAY_SIZE (values), db);
 } /* void derive_submit */
 
-static void threads_submit (gauge_t running, gauge_t connected, gauge_t cached,
-		counter_t created, mysql_database_t *db)
-{
-	value_t values[4];
-
-	values[0].gauge   = running;
-	values[1].gauge   = connected;
-	values[2].gauge   = cached;
-	values[3].counter = created;
-
-	submit ("mysql_threads", NULL, values, STATIC_ARRAY_SIZE (values), db);
-} /* void threads_submit */
-
 static void traffic_submit (counter_t rx, counter_t tx, mysql_database_t *db)
 {
 	value_t values[2];
@@ -588,10 +575,10 @@ static int mysql_read (user_data_t *ud)
 	derive_t qcache_lowmem_prunes = 0;
 	gauge_t qcache_queries_in_cache = NAN;
 
-	int threads_running   = -1;
-	int threads_connected = -1;
-	int threads_cached    = -1;
-	unsigned long long threads_created = 0ULL;
+	gauge_t threads_running   = NAN;
+	gauge_t threads_connected = NAN;
+	gauge_t threads_cached    = NAN;
+	derive_t threads_created = 0;
 
 	unsigned long long traffic_incoming = 0ULL;
 	unsigned long long traffic_outgoing = 0ULL;
@@ -673,13 +660,13 @@ static int mysql_read (user_data_t *ud)
        				        strlen ("Threads_")) == 0)
 		{
 			if (strcmp (key, "Threads_running") == 0)
-				threads_running = (int) val;
+				threads_running = (gauge_t) val;
 			else if (strcmp (key, "Threads_connected") == 0)
-				threads_connected = (int) val;
+				threads_connected = (gauge_t) val;
 			else if (strcmp (key, "Threads_cached") == 0)
-				threads_cached = (int) val;
+				threads_cached = (gauge_t) val;
 			else if (strcmp (key, "Threads_created") == 0)
-				threads_created = val;
+				threads_created = (derive_t) val;
 		}
 		else if (strncmp (key, "Table_locks_",
 					strlen ("Table_locks_")) == 0)
@@ -709,9 +696,18 @@ static int mysql_read (user_data_t *ud)
 				qcache_queries_in_cache, db);
 	}
 
-	if (threads_created != 0ULL)
-		threads_submit (threads_running, threads_connected,
-				threads_cached, threads_created, db);
+	if (threads_created != 0)
+	{
+		gauge_submit ("threads", "running",
+				threads_running, db);
+		gauge_submit ("threads", "connected",
+				threads_connected, db);
+		gauge_submit ("threads", "cached",
+				threads_cached, db);
+
+		derive_submit ("total_threads", "created",
+				threads_created, db);
+	}
 
 	traffic_submit  (traffic_incoming, traffic_outgoing, db);
 
