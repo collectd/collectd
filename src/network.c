@@ -3053,8 +3053,6 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_set_boolean (child, &network_config_forward);
     else if (strcasecmp ("ReportStats", child->key) == 0)
       network_config_set_boolean (child, &network_config_stats);
-    else if (strcasecmp ("CacheFlush", child->key) == 0)
-      /* no op for backwards compatibility only */;
     else
     {
       WARNING ("network plugin: Option `%s' is not allowed here.",

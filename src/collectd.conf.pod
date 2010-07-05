@@ -2592,16 +2592,6 @@ the same multicast group. While this results in more network traffic than
 necessary it's not a huge problem since the plugin has a duplicate detection,
 so the values will not loop.
 
-=item B<CacheFlush> I<Seconds>
-
-For each host/plugin/type combination the C<network plugin> caches the time of
-the last value being sent or received. Every I<Seconds> seconds the plugin
-searches and removes all entries that are older than I<Seconds> seconds, thus
-freeing the unused memory again. Since this process is somewhat expensive and
-normally doesn't do much, this value should not be too small. The default is
-1800 seconds, but setting this to 86400 seconds (one day) will not do much harm
-either.
-
 =item B<ReportStats> B<true>|B<false>
 
 The network plugin cannot only receive and send statistics, it can also create
