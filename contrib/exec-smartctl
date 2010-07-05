@@ -18,31 +18,29 @@
 # smart   ALL = (root) NOPASSWD: SMARTCTL
 # -- >8 --
 
-HOST="huhu"
-INTERVAL=60
+HOSTNAME="${COLLECTD_HOSTNAME:-`hostname -f`}"
+INTERVAL="${COLLECTD_INTERVAL:-60}"
 
-while true
+while sleep "$INTERVAL"
 do
 	TEMP=$((sudo smartctl -d 3ware,0 -A /dev/twe0 | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
 	if [ $? -ne 0 ]
 	then
 		TEMP="U"
 	fi
-	echo "PUTVAL $HOST/exec-smart/temperature-3ware_0 interval=$INTERVAL N:$TEMP"
+	echo "PUTVAL $HOSTNAME/exec-smart/temperature-3ware_0 interval=$INTERVAL N:$TEMP"
 
 	TEMP=$((sudo smartctl -d 3ware,1 -A /dev/twe0 | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
 	if [ $? -ne 0 ]
 	then
 		TEMP="U"
 	fi
-	echo "PUTVAL $HOST/exec-smart/temperature-3ware_1 interval=$INTERVAL N:$TEMP"
+	echo "PUTVAL $HOSTNAME/exec-smart/temperature-3ware_1 interval=$INTERVAL N:$TEMP"
 
 	TEMP=$((sudo smartctl -d ata -A /dev/sda | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
 	if [ $? -ne 0 ]
 	then
 		TEMP="U"
 	fi
-	echo "PUTVAL $HOST/exec-smart/temperature-sata_0 interval=$INTERVAL N:$TEMP"
-
-	sleep $INTERVAL
+	echo "PUTVAL $HOSTNAME/exec-smart/temperature-sata_0 interval=$INTERVAL N:$TEMP"
 done
