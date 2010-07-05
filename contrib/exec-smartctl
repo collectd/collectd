@@ -28,21 +28,21 @@ do
 	then
 		TEMP="U"
 	fi
-	echo "$HOST/exec-smart/temperature-3ware_0 interval=$INTERVAL N:$TEMP"
+	echo "PUTVAL $HOST/exec-smart/temperature-3ware_0 interval=$INTERVAL N:$TEMP"
 
 	TEMP=$((sudo smartctl -d 3ware,1 -A /dev/twe0 | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
 	if [ $? -ne 0 ]
 	then
 		TEMP="U"
 	fi
-	echo "$HOST/exec-smart/temperature-3ware_1 interval=$INTERVAL N:$TEMP"
+	echo "PUTVAL $HOST/exec-smart/temperature-3ware_1 interval=$INTERVAL N:$TEMP"
 
 	TEMP=$((sudo smartctl -d ata -A /dev/sda | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
 	if [ $? -ne 0 ]
 	then
 		TEMP="U"
 	fi
-	echo "$HOST/exec-smart/temperature-sata_0 interval=$INTERVAL N:$TEMP"
+	echo "PUTVAL $HOST/exec-smart/temperature-sata_0 interval=$INTERVAL N:$TEMP"
 
 	sleep $INTERVAL
 done
