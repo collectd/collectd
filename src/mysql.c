@@ -51,12 +51,12 @@ struct mysql_database_s /* {{{ */
 	char *socket;
 	int   port;
 
-	int   master_stats;
-	int   slave_stats;
+	_Bool master_stats;
+	_Bool slave_stats;
 
-	int   slave_notif;
-	int   slave_io_running;
-	int   slave_sql_running;
+	_Bool slave_notif;
+	_Bool slave_io_running;
+	_Bool slave_sql_running;
 
 	MYSQL *con;
 	int    state;
@@ -98,88 +98,9 @@ static void mysql_database_free (void *arg) /* {{{ */
  *   </Database>
  * </Plugin>
  */
-
-static int mysql_config_set_string (char **ret_string, /* {{{ */
-				    oconfig_item_t *ci)
-{
-	char *string;
-
-	if ((ci->values_num != 1)
-	    || (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		WARNING ("mysql plugin: The `%s' config option "
-			 "needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	string = strdup (ci->values[0].value.string);
-	if (string == NULL)
-	{
-		ERROR ("mysql plugin: strdup failed.");
-		return (-1);
-	}
-
-	if (*ret_string != NULL)
-		free (*ret_string);
-	*ret_string = string;
-
-	return (0);
-} /* }}} int mysql_config_set_string */
-
-static int mysql_config_set_int (int *ret_int, /* {{{ */
-				 oconfig_item_t *ci)
-{
-	if ((ci->values_num != 1)
-	    || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-	{
-		WARNING ("mysql plugin: The `%s' config option "
-			 "needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	*ret_int = ci->values[0].value.number;
-
-	return (0);
-} /* }}} int mysql_config_set_int */
-
-static int mysql_config_set_boolean (int *ret_boolean, /* {{{ */
-				oconfig_item_t *ci)
-{
-	int status = 0;
-
-	if (ci->values_num != 1)
-		status = -1;
-
-	if (status == 0)
-	{
-		if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
-			*ret_boolean = ci->values[0].value.boolean;
-		else if (ci->values[0].type == OCONFIG_TYPE_STRING)
-		{
-			if (IS_TRUE (ci->values[0].value.string))
-				*ret_boolean = 1;
-			else if (IS_FALSE (ci->values[0].value.string))
-				*ret_boolean = 0;
-			else
-				status = -1;
-		}
-		else
-			status = -1;
-	}
-
-	if (status != 0)
-	{
-		WARNING ("mysql plugin: The `%s' config option "
-			"needs exactly one boolean argument.", ci->key);
-		return (-1);
-	}
-	return (0);
-} /* }}} mysql_config_set_boolean */
-
-static int mysql_config (oconfig_item_t *ci) /* {{{ */
+static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 {
 	mysql_database_t *db;
-	int plugin_block;
 	int status = 0;
 	int i;
 
@@ -211,28 +132,13 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 	db->slave_io_running  = 1;
 	db->slave_sql_running = 1;
 
-	plugin_block = 1;
-	if (strcasecmp ("Plugin", ci->key) == 0)
+	status = cf_util_get_string (ci, &db->instance);
+	if (status != 0)
 	{
-		db->instance = NULL;
+		sfree (db);
+		return (status);
 	}
-	else if (strcasecmp ("Database", ci->key) == 0)
-	{
-		plugin_block = 0;
-		status = mysql_config_set_string (&db->instance, ci);
-		if (status != 0)
-		{
-			sfree (db);
-			return (status);
-		}
-		assert (db->instance != NULL);
-	}
-	else
-	{
-		ERROR ("mysql plugin: mysql_config: "
-				"Invalid key: %s", ci->key);
-		return (-1);
-	}
+	assert (db->instance != NULL);
 
 	/* Fill the `mysql_database_t' structure.. */
 	for (i = 0; i < ci->children_num; i++)
@@ -240,36 +146,30 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *child = ci->children + i;
 
 		if (strcasecmp ("Host", child->key) == 0)
-			status = mysql_config_set_string (&db->host, child);
+			status = cf_util_get_string (child, &db->host);
 		else if (strcasecmp ("User", child->key) == 0)
-			status = mysql_config_set_string (&db->user, child);
+			status = cf_util_get_string (child, &db->user);
 		else if (strcasecmp ("Password", child->key) == 0)
-			status = mysql_config_set_string (&db->pass, child);
+			status = cf_util_get_string (child, &db->pass);
 		else if (strcasecmp ("Port", child->key) == 0)
-			status = mysql_config_set_int (&db->port, child);
-		else if (strcasecmp ("Socket", child->key) == 0)
-			status = mysql_config_set_string (&db->socket, child);
-		/* Check if we're currently handling the `Plugin' block. If so,
-		 * handle `Database' _blocks_, too. */
-		else if ((plugin_block != 0)
-				&& (strcasecmp ("Database", child->key) == 0)
-				&& (child->children != NULL))
 		{
-			/* If `plugin_block > 1', there has been at least one
-			 * `Database' block */
-			plugin_block++;
-			status = mysql_config (child);
+			status = cf_util_get_port_number (child);
+			if (status > 0)
+			{
+				db->port = status;
+				status = 0;
+			}
 		}
-		/* Now handle ordinary `Database' options (without children) */
-		else if ((strcasecmp ("Database", child->key) == 0)
-				&& (child->children == NULL))
-			status = mysql_config_set_string (&db->database, child);
+		else if (strcasecmp ("Socket", child->key) == 0)
+			status = cf_util_get_string (child, &db->socket);
+		else if (strcasecmp ("Database", child->key) == 0)
+			status = cf_util_get_string (child, &db->database);
 		else if (strcasecmp ("MasterStats", child->key) == 0)
-			status = mysql_config_set_boolean (&db->master_stats, child);
+			status = cf_util_get_boolean (child, &db->master_stats);
 		else if (strcasecmp ("SlaveStats", child->key) == 0)
-			status = mysql_config_set_boolean (&db->slave_stats, child);
+			status = cf_util_get_boolean (child, &db->slave_stats);
 		else if (strcasecmp ("SlaveNotifications", child->key) == 0)
-			status = mysql_config_set_boolean (&db->slave_notif, child);
+			status = cf_util_get_boolean (child, &db->slave_notif);
 		else
 		{
 			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
@@ -279,49 +179,6 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 		if (status != 0)
 			break;
 	}
-
-	/* Check if there were any `Database' blocks. */
-	if (plugin_block > 1)
-	{
-		/* There were connection blocks. Don't use any legacy stuff. */
-		if ((db->host != NULL)
-			|| (db->user != NULL)
-			|| (db->pass != NULL)
-			|| (db->database != NULL)
-			|| (db->socket != NULL)
-			|| (db->port != 0))
-		{
-			WARNING ("mysql plugin: At least one <Database> "
-					"block has been found. The legacy "
-					"configuration will be ignored.");
-		}
-		mysql_database_free (db);
-		return (0);
-	}
-	else if (plugin_block != 0)
-	{
-		WARNING ("mysql plugin: You're using the legacy "
-				"configuration options. Please consider "
-				"updating your configuration!");
-	}
-
-	/* Check that all necessary options have been given. */
-	while (status == 0)
-	{
-		/* Zero is allowed and automatically handled by
-		 * `mysql_real_connect'. */
-		if ((db->port < 0) || (db->port > 65535))
-		{
-			ERROR ("mysql plugin: Database %s: Port number out "
-					"of range: %i",
-					(db->instance != NULL)
-					? db->instance
-					: "<legacy>",
-					db->port);
-			status = -1;
-		}
-		break;
-	} /* while (status == 0) */
 
 	/* If all went well, register this database for reading */
 	if (status == 0)
@@ -350,6 +207,28 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 	{
 		mysql_database_free (db);
 		return (-1);
+	}
+
+	return (0);
+} /* }}} int mysql_config_database */
+
+static int mysql_config (oconfig_item_t *ci) /* {{{ */
+{
+	int i;
+
+	if (ci == NULL)
+		return (EINVAL);
+
+	/* Fill the `mysql_database_t' structure.. */
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Database", child->key) == 0)
+			mysql_config_database (child);
+		else
+			WARNING ("mysql plugin: Option \"%s\" not allowed here.",
+					child->key);
 	}
 
 	return (0);

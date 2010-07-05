@@ -1834,7 +1834,7 @@ B<Collect> option is mandatory.
 The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to
 one or more databases when started and keeps the connection up as long as
 possible. When the connection is interrupted for whatever reason it will try
-to re-connect. The plugin will complaint loudly in case anything goes wrong.
+to re-connect. The plugin will complain loudly in case anything goes wrong.
 
 This plugin issues the MySQL C<SHOW STATUS> / C<SHOW GLOBAL STATUS> command
 and collects information about MySQL network traffic, executed statements,
