@@ -120,11 +120,6 @@ static int df_config (const char *key, const char *value)
 
 		return (0);
 	}
-	else if (strcasecmp (key, "ReportReserved") == 0)
-	{
-		/* Nop for backwards compatibility. */
-		return (0);
-	}
 	else if (strcasecmp (key, "ReportInodes") == 0)
 	{
 		if (IS_TRUE (value))

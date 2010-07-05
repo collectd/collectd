@@ -994,22 +994,6 @@ Report using the device name rather than the mountpoint. i.e. with this I<false>
 (the default), it will report a disk as "root", but with it I<true>, it will be
 "sda1" (or whichever).
 
-=item B<ReportReserved> B<true>|B<false>
-
-When enabled, the blocks reserved for root are reported separately. When
-disabled (the default for backwards compatibility reasons) the reserved space
-will be included in the "free" space.
-
-When disabled, the "df" type will be used to store "free" and "used" space. The
-mount point or disk name (see option B<ReportByDevice>) is used as type
-instance in this case (again: backwards compatibility).
-
-When enabled, the type "df_complex" is used and three files are created. The
-mount point or disk name is used as plugin instance and the type instance is
-set to "free", "reserved" and "used" as appropriate.
-
-Enabling this option is recommended.
-
 =item B<ReportInodes> B<true>|B<false>
 
 Enables or disables reporting of free, reserved and used inodes. Defaults to
