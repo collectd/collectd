@@ -68,15 +68,15 @@ static int v5_df (const data_set_t *ds, value_list_t *vl) /* {{{ */
     v5_swap_instances (&new_vl);
 
   /* Change the type to "df_complex" */
-  memcpy (new_vl.type, "df_complex", sizeof (new_vl.type));
+  sstrncpy (new_vl.type, "df_complex", sizeof (new_vl.type));
 
   /* Dispatch two new value lists instead of this one */
   new_vl.values[0].gauge = vl->values[0].gauge;
-  memcpy (new_vl.type_instance, "used", sizeof (new_vl.type_instance));
+  sstrncpy (new_vl.type_instance, "used", sizeof (new_vl.type_instance));
   plugin_dispatch_values (&new_vl);
 
   new_vl.values[0].gauge = vl->values[1].gauge;
-  memcpy (new_vl.type_instance, "free", sizeof (new_vl.type_instance));
+  sstrncpy (new_vl.type_instance, "free", sizeof (new_vl.type_instance));
   plugin_dispatch_values (&new_vl);
 
   /* Abort processing */
