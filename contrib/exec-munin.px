@@ -206,8 +206,11 @@ sub execute_script
       my $field = $1;
       my $value = $2;
       my $type = (defined ($TypeMap->{$field})) ? $TypeMap->{$field} : $field;
+      my $ident = "$host/munin-$pinst/$type";
 
-      print "$host/munin-$pinst/$type interval=$Interval $time:$value\n";
+      $ident =~ s/"/\\"/g;
+
+      print qq(PUTVAL "$ident" interval=$Interval $time:$value\n);
     }
   }
 
