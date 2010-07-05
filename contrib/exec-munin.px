@@ -46,7 +46,8 @@ use Regexp::Common ('number');
 our $ConfigFile = '/etc/exec-munin.conf';
 our $TypeMap = {};
 our $Scripts = [];
-our $Interval = 300;
+our $Interval = defined ($ENV{'COLLECTD_INTERVAL'}) ? (0 + $ENV{'COLLECTD_INTERVAL'}) : 300;
+our $Hostname = defined ($ENV{'COLLECTD_HOSTNAME'}) ? $ENV{'COLLECTD_HOSTNAME'} : '';
 
 main ();
 exit (0);
@@ -189,7 +190,7 @@ sub execute_script
   my $pinst;
   my $time = time ();
   my $script = shift;
-  my $host = hostname () || 'localhost';
+  my $host = $Hostname || hostname () || 'localhost';
   if (!open ($fh, '-|', $script))
   {
     print STDERR "Cannot execute $script: $!";
