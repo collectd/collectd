@@ -235,6 +235,7 @@ sub handle_performance_data
   my $type = shift;
   my $time = shift;
   my $line = shift;
+  my $ident = "$host/$plugin-$pinst/$type-$tinst";
 
   my $tinst;
   my $value;
@@ -250,7 +251,9 @@ sub handle_performance_data
     return;
   }
 
-  print "PUTVAL $host/$plugin-$pinst/$type-$tinst interval=$Interval ${time}:$value\n";
+  $ident =~ s/"/\\"/g;
+
+  print qq(PUTVAL "$ident" interval=$Interval ${time}:$value\n);
 }
 
 sub execute_script
