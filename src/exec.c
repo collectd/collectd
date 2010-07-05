@@ -541,12 +541,9 @@ static int parse_line (char *buffer) /* {{{ */
     return (handle_putnotif (stdout, buffer));
   else
   {
-    /* For backwards compatibility */
-    char tmp[1220];
-    /* Let's annoy the user a bit.. */
-    INFO ("exec plugin: Prepending `PUTVAL' to this line: %s", buffer);
-    ssnprintf (tmp, sizeof (tmp), "PUTVAL %s", buffer);
-    return (handle_putval (stdout, tmp));
+    ERROR ("exec plugin: Unable to parse command, ignoring line: \"%s\"",
+	buffer);
+    return (-1);
   }
 } /* int parse_line }}} */
 
