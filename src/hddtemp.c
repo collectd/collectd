@@ -1,7 +1,7 @@
 /**
  * collectd - src/hddtemp.c
  * Copyright (C) 2005,2006  Vincent Stehlé
- * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -50,23 +50,12 @@
 static const char *config_keys[] =
 {
 	"Host",
-	"Port",
-	"TranslateDevicename"
+	"Port"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-typedef struct hddname
-{
-	int major;
-	int minor;
-	char *name;
-	struct hddname *next;
-} hddname_t;
-
-static hddname_t *first_hddname = NULL;
 static char *hddtemp_host = NULL;
 static char hddtemp_port[16];
-static int translate_devicename = 1;
 
 /*
  * NAME
@@ -231,212 +220,12 @@ static int hddtemp_config (const char *key, const char *value)
 		else
 			sstrncpy (hddtemp_port, value, sizeof (hddtemp_port));
 	}
-	else if (strcasecmp (key, "TranslateDevicename") == 0)
-	{
-		if (IS_TRUE (value))
-			translate_devicename = 1;
-		else
-			translate_devicename = 0;
-	}
 	else
 	{
 		return (-1);
 	}
 
 	return (0);
-}
-
-/* In the init-function we initialize the `hddname_t' list used to translate
- * disk-names. Under Linux that's done using `/proc/partitions'. Under other
- * operating-systems, it's not done at all. */
-static int hddtemp_init (void)
-{
-#if KERNEL_LINUX
-	FILE *fh;
-	char buf[1024];
-	int buflen;
-
-	char *fields[16];
-	int num_fields;
-
-	int major;
-	int minor;
-	char *name;
-	hddname_t *next;
-	hddname_t *entry;
-
-	next = first_hddname;
-	while (next != NULL)
-	{
-		entry = next;
-		next = entry->next;
-
-		free (entry->name);
-		free (entry);
-	}
-	first_hddname = NULL;
-
-	if ((fh = fopen ("/proc/partitions", "r")) != NULL)
-	{
-		DEBUG ("hddtemp plugin: Looking at /proc/partitions...");
-
-		while (fgets (buf, sizeof (buf), fh) != NULL)
-		{
-			/* Delete trailing newlines */
-			buflen = strlen (buf);
-
-			while ((buflen > 0) && ((buf[buflen-1] == '\n') || (buf[buflen-1] == '\r')))
-				buf[--buflen] = '\0';
-
-			/* We want lines of the form:
-			 *
-			 *     3     1   77842926 hda1
-			 *
-			 * ...so, skip everything else. */
-			if (buflen == 0)
-				continue;
-			
-			num_fields = strsplit (buf, fields, 16);
-
-			if (num_fields != 4)
-				continue;
-
-			major = atoi (fields[0]);
-			minor = atoi (fields[1]);
-
-			/* We try to keep only entries, which may correspond to
-			 * physical disks and that may have a corresponding
-			 * entry in the hddtemp daemon. Basically, this means
-			 * IDE and SCSI. */
-			switch (major)
-			{
-				/* SCSI. */
-				case SCSI_DISK0_MAJOR:
-				case SCSI_DISK1_MAJOR:
-				case SCSI_DISK2_MAJOR:
-				case SCSI_DISK3_MAJOR:
-				case SCSI_DISK4_MAJOR:
-				case SCSI_DISK5_MAJOR:
-				case SCSI_DISK6_MAJOR:
-				case SCSI_DISK7_MAJOR:
-#ifdef SCSI_DISK8_MAJOR
-				case SCSI_DISK8_MAJOR:
-				case SCSI_DISK9_MAJOR:
-				case SCSI_DISK10_MAJOR:
-				case SCSI_DISK11_MAJOR:
-				case SCSI_DISK12_MAJOR:
-				case SCSI_DISK13_MAJOR:
-				case SCSI_DISK14_MAJOR:
-				case SCSI_DISK15_MAJOR:
-#endif /* SCSI_DISK8_MAJOR */
-					/* SCSI disks minors are multiples of 16.
-					 * Keep only those. */
-					if (minor % 16)
-						continue;
-					break;
-
-				/* IDE. */
-				case IDE0_MAJOR:
-				case IDE1_MAJOR:
-				case IDE2_MAJOR:
-				case IDE3_MAJOR:
-				case IDE4_MAJOR:
-				case IDE5_MAJOR:
-				case IDE6_MAJOR:
-				case IDE7_MAJOR:
-				case IDE8_MAJOR:
-				case IDE9_MAJOR:
-					/* IDE disks minors can only be 0 or 64.
-					 * Keep only those. */
-					if(minor != 0 && minor != 64)
-						continue;
-					break;
-
-				/* Skip all other majors. */
-				default:
-					DEBUG ("hddtemp plugin: Skipping unknown major %i", major);
-					continue;
-			} /* switch (major) */
-
-			if ((name = strdup (fields[3])) == NULL)
-			{
-				ERROR ("hddtemp plugin: strdup(%s) == NULL", fields[3]);
-				continue;
-			}
-
-			if ((entry = (hddname_t *) malloc (sizeof (hddname_t))) == NULL)
-			{
-				ERROR ("hddtemp plugin: malloc (%u) == NULL",
-						(unsigned int) sizeof (hddname_t));
-				free (name);
-				continue;
-			}
-
-			DEBUG ("hddtemp plugin: Found disk: %s (%u:%u).", name, major, minor);
-
-			entry->major = major;
-			entry->minor = minor;
-			entry->name  = name;
-			entry->next  = NULL;
-
-			if (first_hddname == NULL)
-			{
-				first_hddname = entry;
-			}
-			else
-			{
-				entry->next = first_hddname;
-				first_hddname = entry;
-			}
-		}
-		fclose (fh);
-	}
-#if COLLECT_DEBUG
-	else
-	{
-		char errbuf[1024];
-		DEBUG ("hddtemp plugin: Could not open /proc/partitions: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-	}
-#endif /* COLLECT_DEBUG */
-#endif /* KERNEL_LINUX */
-
-	return (0);
-} /* int hddtemp_init */
-
-/*
- * hddtemp_get_major_minor
- *
- * Description:
- *   Try to "cook" a bit the drive name as returned
- *   by the hddtemp daemon. The intend is to transform disk
- *   names into <major>-<minor> when possible.
- */
-static char *hddtemp_get_major_minor (char *drive)
-{
-	hddname_t *list;
-	char *ret;
-
-	for (list = first_hddname; list != NULL; list = list->next)
-		if (strcmp (drive, list->name) == 0)
-			break;
-
-	if (list == NULL)
-	{
-		DEBUG ("hddtemp plugin: Don't know %s, keeping name as-is.", drive);
-		return (strdup (drive));
-	}
-
-	if ((ret = (char *) malloc (128 * sizeof (char))) == NULL)
-		return (NULL);
-
-	if (ssnprintf (ret, 128, "%i-%i", list->major, list->minor) >= 128)
-	{
-		free (ret);
-		return (NULL);
-	}
-
-	return (ret);
 }
 
 static void hddtemp_submit (char *type_instance, double value)
@@ -487,7 +276,7 @@ static int hddtemp_read (void)
 
 	for (i = 0; i < num_disks; i++)
 	{
-		char *name, *major_minor;
+		char *name;
 		double temperature;
 		char *mode;
 
@@ -504,16 +293,7 @@ static int hddtemp_read (void)
 		if (mode[0] == 'F')
 			temperature = (temperature - 32.0) * 5.0 / 9.0;
 
-		if (translate_devicename
-				&& (major_minor = hddtemp_get_major_minor (name)) != NULL)
-		{
-			hddtemp_submit (major_minor, temperature);
-			free (major_minor);
-		}
-		else
-		{
-			hddtemp_submit (name, temperature);
-		}
+		hddtemp_submit (name, temperature);
 	}
 	
 	return (0);
@@ -525,6 +305,5 @@ void module_register (void)
 {
 	plugin_register_config ("hddtemp", hddtemp_config,
 			config_keys, config_keys_num);
-	plugin_register_init ("hddtemp", hddtemp_init);
 	plugin_register_read ("hddtemp", hddtemp_read);
 }
