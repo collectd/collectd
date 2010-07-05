@@ -273,6 +273,14 @@ to make use of collectd's more powerful interface.
 The user, the binary is executed as, may not have root privileges, i.E<nbsp>e.
 must have an UID that is non-zero. This is for your own good.
 
+=item
+
+Early versions of the plugin did not use a command but treated all lines as if
+they were arguments to the I<PUTVAL> command. When the I<PUTNOTIF> command was
+implemented, this behavior was kept for lines which start with an unknown
+command for backwards compatibility. This compatibility code has been removed
+in I<collectdE<nbsp>5>.
+
 =back
 
 =head1 SEE ALSO
