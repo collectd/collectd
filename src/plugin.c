@@ -379,12 +379,15 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		 * we need to re-evaluate the condition every time
 		 * pthread_cond_timedwait returns. */
 		rc = 0;
-		while (!timeout_reached(rf->rf_next_read) && rc == 0) {
+		while ((read_loop != 0)
+				&& !timeout_reached(rf->rf_next_read)
+				&& rc == 0)
+		{
 			rc = pthread_cond_timedwait (&read_cond, &read_lock,
 				&rf->rf_next_read);
 		}
 
-		/* Must hold `real_lock' when accessing `rf->rf_type'. */
+		/* Must hold `read_lock' when accessing `rf->rf_type'. */
 		rf_type = rf->rf_type;
 		pthread_mutex_unlock (&read_lock);
 
