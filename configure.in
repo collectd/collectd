@@ -4175,7 +4175,7 @@ then
 	plugin_vserver="yes"
 	plugin_wireless="yes"
 
-	if test "x$have_net_ip_vs_h" = "xyes" -o "x$have_ip_vs_h" = "xyes"
+	if test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"
 	then
 		plugin_ipvs="yes"
 	fi
@@ -4647,7 +4647,7 @@ then
 	with_librrd="yes (warning: librrd is not thread-safe)"
 fi
 
-if test "x$with_libiptc" = "xyes" -a "x$with_own_libiptc" = "xyes"
+if test "x$with_libiptc" = "xyes" && test "x$with_own_libiptc" = "xyes"
 then
 	with_libiptc="yes (shipped version)"
 fi

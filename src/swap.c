@@ -211,25 +211,18 @@ static int swap_read (void)
 		return (-1);
 	}
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		derive_t *val = NULL;
-
-		if (strncasecmp (buffer, "SwapTotal:", 10) == 0)
-			val = &swap_total;
-		else if (strncasecmp (buffer, "SwapFree:", 9) == 0)
-			val = &swap_free;
-		else if (strncasecmp (buffer, "SwapCached:", 11) == 0)
-			val = &swap_cached;
-		else
-			continue;
-
-		numfields = strsplit (buffer, fields, 8);
-
+		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 		if (numfields < 2)
 			continue;
 
-		*val = (derive_t) atoll (fields[1]) * 1024LL;
+		if (strcasecmp (fields[0], "SwapTotal:") == 0)
+			strtoderive (fields[1], &swap_total);
+		else if (strcasecmp (fields[0], "SwapFree:") == 0)
+			strtoderive (fields[1], &swap_free);
+		else if (strcasecmp (fields[0], "SwapCached:") == 0)
+			strtoderive (fields[1], &swap_cached);
 	}
 
 	if (fclose (fh))
@@ -258,7 +251,7 @@ static int swap_read (void)
 			old_kernel = 1;
 	}
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 
@@ -292,10 +285,10 @@ static int swap_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	swap_submit ("used", swap_used, DS_TYPE_GAUGE);
-	swap_submit ("free", swap_free, DS_TYPE_GAUGE);
-	swap_submit ("cached", swap_cached, DS_TYPE_GAUGE);
-	swap_submit ("in", swap_in, DS_TYPE_DERIVE);
+	swap_submit ("used",   1024 * swap_used,   DS_TYPE_GAUGE);
+	swap_submit ("free",   1024 * swap_free,   DS_TYPE_GAUGE);
+	swap_submit ("cached", 1024 * swap_cached, DS_TYPE_GAUGE);
+	swap_submit ("in",  swap_in,  DS_TYPE_DERIVE);
 	swap_submit ("out", swap_out, DS_TYPE_DERIVE);
 /* #endif KERNEL_LINUX */
 

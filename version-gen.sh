@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEFAULT_VERSION="4.10.0.git"
+DEFAULT_VERSION="4.10.1.git"
 
 VERSION="`git describe 2> /dev/null | sed -e 's/^collectd-//'`"
 
@@ -10,7 +10,7 @@ fi
 
 VERSION="`echo \"$VERSION\" | sed -e 's/-/./g'`"
 
-if test "x`uname -s`" = "xAIX" ; then 
+if test "x`uname -s`" = "xAIX" || test "x`uname -s`" = "xSunOS" ; then
 	echo "$VERSION\c"
 else 
 	echo -n "$VERSION"

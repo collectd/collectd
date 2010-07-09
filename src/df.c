@@ -172,7 +172,10 @@ static int df_read (void)
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
+	{
+		ERROR ("df plugin: cu_mount_getlist failed.");
 		return (-1);
+	}
 
 	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
