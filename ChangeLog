@@ -1,4 +1,4 @@
-2010-07-06, Version 4.9.3
+2010-07-09, Version 4.9.3
 	* Build system: Checking for "strtok_r" under Solaris has been fixed.
 	* Portability: Fixes for Solaris 8 have been applied. Thanks to
 	  Aurélien Reynaud and Alexander Wuerstlein for their patches.
