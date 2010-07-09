@@ -284,10 +284,10 @@ static int swap_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	swap_submit ("used", swap_used, DS_TYPE_GAUGE);
-	swap_submit ("free", swap_free, DS_TYPE_GAUGE);
-	swap_submit ("cached", swap_cached, DS_TYPE_GAUGE);
-	swap_submit ("in", swap_in, DS_TYPE_DERIVE);
+	swap_submit ("used",   1024 * swap_used,   DS_TYPE_GAUGE);
+	swap_submit ("free",   1024 * swap_free,   DS_TYPE_GAUGE);
+	swap_submit ("cached", 1024 * swap_cached, DS_TYPE_GAUGE);
+	swap_submit ("in",  swap_in,  DS_TYPE_DERIVE);
 	swap_submit ("out", swap_out, DS_TYPE_DERIVE);
 /* #endif KERNEL_LINUX */
 
