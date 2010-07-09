@@ -1,3 +1,27 @@
+2010-07-06, Version 4.9.3
+	* Build system: Checking for "strtok_r" under Solaris has been fixed.
+	* Portability: Fixes for Solaris 8 have been applied. Thanks to
+	  Aurélien Reynaud and Alexander Wuerstlein for their patches.
+	* collectd: The shutdown speed when terminating the read threads has
+	  been improved.
+	* collectd-nagios: The format of the performance data has been fixed.
+	* libcollectdclient: A format error in the PUTVAL command has been
+	  removed. Thanks to Johan Van den Brande for fixing this.
+	* df plugin: An error message shown when "cu_mount_getlist" fails has
+	  been added.
+	* processes plugin: Missing initialization code for IO members of a
+	  struct has been added. Thanks to Aurélien Reynaud for fixing this.
+	* python plugin: Memory leaks in the write and notification callbacks
+	  have been fixed. A possible crash when the plugin was loaded but not
+	  configured has been fixed. Thanks to Sven Trenkel for his patches.
+	* rrdcached plugin: A build issue has been resolved. Thanks to
+	  Thorsten von Eicken for the patch.
+	* snmp plugin: Verbosity with regard to unknown ASN types has been
+	  increased. A build problem on PowerPC and ARM processors has been
+	  fixed by Aurélien Reynaud; thanks!
+	* powerdns plugin: Compatibility changes for PowerDNS 2.9.22 and above
+	  have been applied. Thanks to Luke Heberling for his changes.
+
 2010-04-22, Version 4.9.2
 	* Build system, various plugins: Fixes for AIX compatibility have been
 	  added. Thanks to Manuel Sanmartin for his patches.
