@@ -1,6 +1,8 @@
 /**
  * collectd - src/varnish.c
- * Copyright (C) 2010 Jerome Renard
+ * Copyright (C) 2010 Jérôme Renard
+ * Copyright (C) 2010 Marc Fournier
+ * Copyright (C) 2010 Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,8 +18,9 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Jérôme Renard <jerome.renard at gmail.com>
+ *   Marc Fournier <marc.fournier at camptocamp.com>
  *   Florian octo Forster <octo at verplant.org>
- *   Jerome Renard <jerome.renard@gmail.com>
  **/
 
 /**
