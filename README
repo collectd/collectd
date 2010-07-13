@@ -288,6 +288,9 @@ Features
     - users
       Users currently logged in.
 
+    - varnish
+      Various statistics from Varnish, an HTTP accelerator.
+
     - vmem
       Virtual memory statistics, e. g. the number of page-ins/-outs or the
       number of pagefaults.
