@@ -172,8 +172,8 @@ class Collectd():
                 print "[socket] connected to %s" % self.path
             return sock
         except socket.error, (errno, errstr):
-            sys.stderror.write("[error] Connecting to socket failed: [%d] %s"
-                               % (errno, errstr))
+            sys.stderr.write("[error] Connecting to socket failed: [%d] %s"
+                             % (errno, errstr))
             return None
 
     def _readline(self):
@@ -193,8 +193,8 @@ class Collectd():
                     buf.append(data)
             return ''.join(buf)
         except socket.error, (errno, errstr):
-            sys.stderror.write("[error] Reading from socket failed: [%d] %s"
-                               % (errno, errstr))
+            sys.stderr.write("[error] Reading from socket failed: [%d] %s"
+                             % (errno, errstr))
             self._sock = self._connect()
             return None
 
@@ -218,8 +218,8 @@ class Collectd():
         try:
             self._sock.close()
         except socket.error, (errno, errstr):
-            sys.stderror.write("[error] Closing socket failed: [%d] %s"
-                               % (errno, errstr))
+            sys.stderr.write("[error] Closing socket failed: [%d] %s"
+                             % (errno, errstr))
 
 
 if __name__ == '__main__':
