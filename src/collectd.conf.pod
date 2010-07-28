@@ -57,6 +57,33 @@ directory for the daemon.
 Loads the plugin I<Plugin>. There must be at least one such line or B<collectd>
 will be mostly useless.
 
+Starting with collectd 4.9, this may also be a block in which further options
+affecting the behavior of B<LoadPlugin> may be specified. The following
+options are allowed inside a B<LoadPlugin> block:
+
+  <LoadPlugin perl>
+    Globals true
+  </LoadPlugin>
+
+=over 4
+
+=item B<Globals> B<true|false>
+
+If enabled, collectd will export all global symbols of the plugin (and of all
+libraries loaded as dependencies of the plugin) and, thus, makes those symbols
+available for resolving unresolved symbols in subsequently loaded plugins if
+that is supported by your system. By default, this is disabled.
+
+This is useful (or possibly even required), e.E<nbsp>g., when loading a plugin
+that embeds some scripting language into the daemon (e.E<nbsp>g. the C<perl>
+or C<python> plugins). Scripting languages usually provide means to load
+extensions written in C. Those extensions require symbols provided by the
+interpreter, which is loaded as a dependency of the respective collectd
+plugin. See the documentation of those plugins (e.E<nbsp>g.,
+L<collectd-perl(5)> or L<collectd-python(5)>) for details.
+
+=back
+
 =item B<Include> I<Path>
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
