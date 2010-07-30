@@ -3751,6 +3751,49 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<redis>
+
+The C<redis> plugin connect to a list of redis servers and gather
+information about the server state. The C<redis> plugin support multiserver
+configuration, each server configuration block is called node and identify
+one redis instance (host and port). If no B<Node> block found, then any
+configuration option is assigned to a virtual node called C<default>. Here
+are a configuration example code:
+
+  <Plugin redis>
+    <Node example>
+        Host "localhost"
+        Port 6379
+        Timeout 2000
+    </Node>
+  </Plugin>
+
+=over 4
+
+=item B<Node> I<Nodename>
+
+The B<Node> block identify a new redis node, that is a new redis instance
+running in an specified host and port, the name for node is a canonical
+identifier which is used as plugin instance, it's limited to 64 characters
+length.
+
+=item B<Host> I<Hostname>
+
+The B<Host> option is the hostname or IP address (setting as string) where
+redis instance is running on.
+
+=item B<Port> I<Port>
+
+The B<Port> option is the TCP port where redis instance in IP address or
+hostname setted in B<Host> option is running.
+
+=item B<Timeout> I<Timeout in miliseconds>
+
+The B<Timeout> option set the socket timeout for node response. Since the
+redis read function is blocking, you may keep this value as low as possible.
+Keep in mind that the sum of all Timeout values for all Nodes might be lower
+than B<Interval> defined globally.
+
 =head2 Plugin C<rrdcached>
 
 The C<rrdcached> plugin uses the RRDtool accelerator daemon, L<rrdcached(1)>,

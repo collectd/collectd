@@ -65,3 +65,9 @@ bindings/java/org/collectd/java/*.class
 
 # python stuff
 *.pyc
+
+# tag stuff
+src/tags
+
+# backup stuff
+*~

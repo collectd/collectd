@@ -177,3 +177,11 @@ vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
 pinba_view              req_per_sec:GAUGE:0:U, req_time:GAUGE:0:U, ru_utime:GAUGE:0:U, ru_stime:GAUGE:0:U, doc_size:GAUGE:0:U, mem_peak:GAUGE:0:U
+connected_clients   value:GAUGE:0:4294967295
+connected_slaves    value:GAUGE:0:4294967295
+used_memory         value:GAUGE:0:U
+changes_since_last_save    value:GAUGE:0:4294967295
+bgsave_in_progress     value:GAUGE:0:4294967295
+total_connections_received     value:COUNTER:0:9223372036854775807
+total_commands_processed      value:COUNTER:0:9223372036854775807
+uptime_in_seconds     value:COUNTER:0:4294967295

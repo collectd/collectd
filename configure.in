@@ -3051,6 +3051,64 @@ then
 fi
 # }}} --with-python
 
+# --with-libcredis {{{
+AC_ARG_WITH(libcredis, [AS_HELP_STRING([--with-libcredis@<:@=PREFIX@:>@], [Path to libcredis.])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_libcredis="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libcredis="no"
+ else
+	 with_libcredis="yes"
+	 LIBCREDIS_CPPFLAGS="$LIBCREDIS_CPPFLAGS -I$withval/include"
+	 LIBCREDIS_LDFLAGS="$LIBCREDIS_LDFLAGS -L$withval/lib"
+ fi; fi
+],
+[with_libcredis="yes"])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBCREDIS_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBCREDIS_LDFLAGS"
+
+if test "x$with_libcredis" = "xyes"
+then
+	if test "x$LIBCREDIS_CPPFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libcredis CPPFLAGS: $LIBCREDIS_CPPFLAGS])
+	fi
+	AC_CHECK_HEADERS(credis.h,
+	[with_libcredis="yes"],
+	[with_libcredis="no ('credis.h' not found)"])
+fi
+if test "x$with_libcredis" = "xyes"
+then
+	if test "x$LIBCREDIS_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libcredis LDFLAGS: $LIBCREDIS_LDFLAGS])
+	fi
+	AC_CHECK_LIB(credis, credis_info,
+	[with_libcredis="yes"],
+	[with_libcredis="no (symbol 'credis_info' not found)"])
+
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libcredis" = "xyes"
+then
+	BUILD_WITH_LIBCREDIS_CPPFLAGS="$LIBCREDIS_CPPFLAGS"
+	BUILD_WITH_LIBCREDIS_LDFLAGS="$LIBCREDIS_LDFLAGS"
+	AC_SUBST(BUILD_WITH_LIBCREDIS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBCREDIS_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBCREDIS, test "x$with_libcredis" = "xyes")
+# }}}
+
 # --with-librouteros {{{
 AC_ARG_WITH(librouteros, [AS_HELP_STRING([--with-librouteros@<:@=PREFIX@:>@], [Path to librouteros.])],
 [
@@ -4472,6 +4530,7 @@ AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([protocols],   [$plugin_protocols],  [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],      [$with_python],       [Embed a Python interpreter])
+AC_PLUGIN([redis],       [$with_libcredis],    [Redis plugin])
 AC_PLUGIN([routeros],    [$with_librouteros],  [RouterOS plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
@@ -4676,6 +4735,7 @@ Configuration:
   Libraries:
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
+    libcredis . . . . . . $with_libcredis
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
@@ -4791,6 +4851,7 @@ Configuration:
     processes . . . . . . $enable_processes
     protocols . . . . . . $enable_protocols
     python  . . . . . . . $enable_python
+    redis . . . . . . . . $enable_redis
     routeros  . . . . . . $enable_routeros
     rrdcached . . . . . . $enable_rrdcached
     rrdtool . . . . . . . $enable_rrdtool
