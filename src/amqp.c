@@ -53,6 +53,7 @@ static char *password   = NULL;
 static char *exchange   = NULL;
 static char *routingkey = NULL;
 static uint8_t delivery_mode = AMQP_DM_VOLATILE;
+static _Bool store_rates = 0;
 
 static amqp_connection_state_t amqp_conn = NULL;
 static pthread_mutex_t amqp_conn_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -66,7 +67,8 @@ static const char *config_keys[] =
     "Password",
     "Exchange",
     "RoutingKey",
-    "Persistent"
+    "Persistent",
+    "StoreRates"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -114,6 +116,14 @@ static int config(const char *key, const char *value)
             delivery_mode = AMQP_DM_PERSISTENT;
         else
             delivery_mode = AMQP_DM_VOLATILE;
+        return (0);
+    }
+    else if (strcasecmp ("StoreRates", key) == 0)
+    {
+        if (IS_TRUE (value))
+            store_rates = 1;
+        else
+            store_rates = 0;
         return (0);
     }
     return (-1);
@@ -237,10 +247,9 @@ static int amqp_write (const data_set_t *ds, const value_list_t *vl,
     bfree = sizeof (buffer);
     bfill = 0;
 
-    format_json_initialize(buffer, &bfill, &bfree);
-    /* TODO: Possibly add a config option "StoreRates" and pass the value along here. */
-    format_json_value_list(buffer, &bfill, &bfree, ds, vl, /* rates = */ 0);
-    format_json_finalize(buffer, &bfill, &bfree);
+    format_json_initialize (buffer, &bfill, &bfree);
+    format_json_value_list (buffer, &bfill, &bfree, ds, vl, store_rates);
+    format_json_finalize (buffer, &bfill, &bfree);
 
     pthread_mutex_lock (&amqp_conn_lock);
     status = amqp_write_locked (buffer);
