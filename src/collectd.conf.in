@@ -150,12 +150,12 @@
 ##############################################################################
 
 #<Plugin "amqp">
-#	Host "host"
+#	Host "localhost"
 #	Port "5672"
-#	VHost "vhost"
+#	VHost "/"
 #	User "collectd"
 #	Password "aiwaeZ0y"
-#	Exchange "exchange"
+#	Exchange "amq.direct"
 #	RoutingKey "routing_key"
 #</Plugin>
 
