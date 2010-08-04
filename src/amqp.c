@@ -144,7 +144,9 @@ static int amqp_write(const data_set_t *ds, const value_list_t *vl, user_data_t 
     bfree = sizeof(buffer);
     bfill = 0;
     format_json_initialize(buffer, &bfill, &bfree);
-    format_json_value_list(buffer, &bfill, &bfree, ds, vl);
+    /* TODO: Possibly add a config option "StoreRates" and pass the value along here. */
+    format_json_value_list(buffer, &bfill, &bfree, ds, vl,
+            /* rates = */ 0);
     format_json_finalize(buffer, &bfill, &bfree);
     props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
     props.content_type = amqp_cstring_bytes("application/json");
