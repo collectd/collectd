@@ -81,7 +81,7 @@ static int redis_config_node (redis_node_t *rn, oconfig_item_t *ci) /* {{{ */
     status = 0;
 
     if (strcasecmp ("Host", option->key) == 0)
-      status = cf_util_get_string_buffer (option, rn->host, HOST_NAME_MAX);
+      status = cf_util_get_string_buffer (option, rn->host, sizeof (rn->host));
     else if (strcasecmp ("Port", option->key) == 0)
       status = rn->port = cf_util_get_port_number (option);
     else if (strcasecmp ("Timeout", option->key) == 0)
@@ -125,7 +125,7 @@ static int redis_node_add (const redis_node_t *rn) /* {{{ */
   memcpy (rn_copy, rn, sizeof (redis_node_t));
   if (*rn_copy->name == '\0')
   {
-    (void) strncpy(rn_copy->name, "default", MAX_REDIS_NODE_NAME); /* in theory never fails */
+    (void) strncpy(rn_copy->name, "default", sizeof (rn_copy->name)); /* in theory never fails */
   }
 
   DEBUG ("redis plugin: adding entry `%s' to the tree.", rn_copy->name);
@@ -183,7 +183,7 @@ static int redis_config (oconfig_item_t *ci) /* {{{ */
         status = redis_node_add (&rn);
     }
     else if (strcasecmp ("Host", option->key) == 0)
-      status = cf_util_get_string_buffer (option, rn.host, HOST_NAME_MAX);
+      status = cf_util_get_string_buffer (option, rn.host, sizeof (rn.host));
     else if (strcasecmp ("Port", option->key) == 0)
       status = rn.port = cf_util_get_port_number (option);
     else if (strcasecmp ("Timeout", option->key) == 0)
