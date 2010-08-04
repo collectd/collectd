@@ -207,7 +207,7 @@ static int cj_cb_map_key (void *ctx, const unsigned char *val,
       db->state[db->depth].key = NULL;
   }
 
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_string (void *ctx, const unsigned char *val,
@@ -218,7 +218,7 @@ static int cj_cb_string (void *ctx, const unsigned char *val,
   char *ptr;
 
   if (db->depth != 1) /* e.g. _all_dbs */
-    return 1;
+    return (CJ_CB_CONTINUE);
 
   cj_cb_map_key (ctx, val, len); /* same logic */
 
@@ -240,7 +240,7 @@ static int cj_cb_string (void *ctx, const unsigned char *val,
     cj_curl_perform (db, curl);
     curl_easy_cleanup (curl);
   }
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_start (void *ctx)
@@ -249,9 +249,9 @@ static int cj_cb_start (void *ctx)
   if (++db->depth >= YAJL_MAX_DEPTH)
   {
     ERROR ("curl_json plugin: %s depth exceeds max, aborting.", db->url);
-    return 0;
+    return (CJ_CB_ABORT);
   }
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_end (void *ctx)
@@ -259,7 +259,7 @@ static int cj_cb_end (void *ctx)
   cj_t *db = (cj_t *)ctx;
   db->state[db->depth].tree = NULL;
   --db->depth;
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_start_map (void *ctx)
