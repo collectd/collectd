@@ -3794,6 +3794,8 @@ redis read function is blocking, you may keep this value as low as possible.
 Keep in mind that the sum of all Timeout values for all Nodes might be lower
 than B<Interval> defined globally.
 
+=back
+
 =head2 Plugin C<rrdcached>
 
 The C<rrdcached> plugin uses the RRDtool accelerator daemon, L<rrdcached(1)>,
