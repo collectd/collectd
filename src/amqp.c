@@ -45,7 +45,7 @@
 #define AMQP_DM_VOLATILE   1
 #define AMQP_DM_PERSISTENT 2
 
-static int  port;
+static int   port       = 5672;
 static char *host       = NULL;
 static char *vhost      = NULL;
 static char *user       = NULL;
