@@ -52,6 +52,7 @@
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
+#@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
@@ -147,6 +148,16 @@
 # In this section configuration stubs for each plugin are provided. A desc-  #
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
+
+#<Plugin "amqp">
+#	Host "host"
+#	Port "5672"
+#	VHost "vhost"
+#	User "collectd"
+#	Password "aiwaeZ0y"
+#	Exchange "exchange"
+#	RoutingKey "routing_key"
+#</Plugin>
 
 #<Plugin apache>
 #	URL "http://localhost/status?auto"
