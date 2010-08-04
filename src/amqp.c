@@ -1,30 +1,30 @@
-/*
-**
-** collectd-amqp
-** Copyright (c) <2009> <sebastien.pahl@dotcloud.com>
-**
-** Permission is hereby granted, free of charge, to any person
-** obtaining a copy of this software and associated documentation
-** files (the "Software"), to deal in the Software without
-** restriction, including without limitation the rights to use,
-** copy, modify, merge, publish, distribute, sublicense, and/or sell
-** copies of the Software, and to permit persons to whom the
-** Software is furnished to do so, subject to the following
-** conditions:
-**
-** The above copyright notice and this permission notice shall be
-** included in all copies or substantial portions of the Software.
-**
-** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-** EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-** OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-** NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-** HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-** WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-** FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-** OTHER DEALINGS IN THE SOFTWARE.
-**
-*/
+/**
+ * collectd - src/amqp.c
+ * Copyright (C) 2009  Sebastien Pahl
+ * Copyright (C) 2010  Florian Forster
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ * Authors:
+ *   Sebastien Pahl <sebastien.pahl at dotcloud.com>
+ *   Florian Forster <octo at verplant.org>
+ **/
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -45,6 +45,9 @@
 #define AMQP_DM_VOLATILE   1
 #define AMQP_DM_PERSISTENT 2
 
+/*
+ * Global variables
+ */
 static int   port       = 5672;
 static char *host       = NULL;
 static char *vhost      = NULL;
@@ -70,16 +73,18 @@ static const char *config_keys[] =
     "Persistent",
     "StoreRates"
 };
-
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
+/*
+ * Functions
+ */
 static int config_set(char **var, const char *value)
 {
     sfree(*var);
     if ((*var = strdup(value)) == NULL)
         return (1);
     return (0);
-}
+} /* int config_set */
 
 static int config(const char *key, const char *value)
 {
@@ -127,7 +132,7 @@ static int config(const char *key, const char *value)
         return (0);
     }
     return (-1);
-}
+} /* int config */
 
 static int amqp_connect (void)
 {
@@ -258,7 +263,7 @@ static int amqp_write (const data_set_t *ds, const value_list_t *vl,
     return (status);
 } /* int amqp_write */
 
-static int shutdown(void)
+static int shutdown (void)
 {
     pthread_mutex_lock (&amqp_conn_lock);
     if (amqp_conn != NULL)
@@ -282,13 +287,13 @@ static int shutdown(void)
     sfree(routingkey);
 
     return (0);
-}
+} /* int shutdown */
 
-void module_register(void)
+void module_register (void)
 {
-    plugin_register_config("amqp", config, config_keys, config_keys_num);
-    plugin_register_write("amqp", amqp_write, NULL);
-    plugin_register_shutdown("amqp", shutdown);
-}
+    plugin_register_config ("amqp", config, config_keys, config_keys_num);
+    plugin_register_write ("amqp", amqp_write, NULL);
+    plugin_register_shutdown ("amqp", shutdown);
+} /* void module_register */
 
 /* vim: set sw=4 sts=4 et : */
