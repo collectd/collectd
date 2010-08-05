@@ -150,15 +150,17 @@
 ##############################################################################
 
 #<Plugin "amqp">
-#	Host "localhost"
-#	Port "5672"
-#	VHost "/"
-#	User "collectd"
-#	Password "aiwaeZ0y"
-#	Exchange "amq.direct"
-#	RoutingKey "routing_key"
-#	Persistent false
-#	StoreRates false
+#  <Publish "name">
+#    Host "localhost"
+#    Port "5672"
+#    VHost "/"
+#    User "guest"
+#    Password "guest"
+#    Exchange "amq.fanout"
+#    RoutingKey "collectd"
+#    Persistent false
+#    StoreRates false
+#  </Publish>
 #</Plugin>
 
 #<Plugin apache>
