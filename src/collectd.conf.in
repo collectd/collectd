@@ -157,6 +157,8 @@
 #	Password "aiwaeZ0y"
 #	Exchange "amq.direct"
 #	RoutingKey "routing_key"
+#	Persistent false
+#	StoreRates false
 #</Plugin>
 
 #<Plugin apache>
