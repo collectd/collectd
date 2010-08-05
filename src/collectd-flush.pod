@@ -1,0 +1,71 @@
+=head1 NAME
+
+collectd-flush - Small command line utility to flush collectd
+
+=head1 SYNOPSIS
+
+collectd-flush I<[options]>
+
+=head1 DESCRIPTION
+
+This small command line utitilty uses C<libcollectdclient> to flush collectd 
+through a socket from the L<unixsock plugin>. Useful if you want to be sure 
+you have the latest values in your RRD files before graphing them or copying 
+them somewhere else.
+
+=head1 ARGUMENTS AND OPTIONS
+
+The following arguments and options are understood by collectd-flush. The order
+of the arguments generally doesn't matter, as long as no argument is passed 
+more than once.
+
+=over 4
+
+=item B<-h>, B<--help>
+
+Display information about the options.
+
+=item B<-s>, B<--socket=>I<socket>
+
+Path to the UNIX socket opened by collectd's C<unixsock plugin>. 
+Default: /var/run/collectd-unixsock
+
+=item B<-p>, B<--plugin=>I<plugin>
+
+Plugin to flush I<to>. Example: B<rrdtool>.
+
+=item B<-i>, B<--identifier=>I<identifier>
+
+If this option is present, only the data specified by I<identifier> will be flushed.
+I<identifier> has the following format:
+
+[I<hostname>/]I<plugin>[-I<plugin_instance>]/I<type>[-I<type_instance>]
+
+Examples:
+ somehost/cpu-0/cpu-idle
+ uptime/uptime
+ otherhost/memory/memory-used
+
+Hostname defaults to the local hostname if omitted. No error is returned if the
+specified identifier does not exist (this is a limitation in the 
+C<libcollectdclient> library).You can only specify one identifier each time you
+run this program (even though L<collectd-unixsock(5)> supports multiple
+identifiers).
+
+=item B<-t>, B<--timeout=>I<timeout>
+
+Only flush values older than I<timeout>.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>
+L<collectd.conf(5)>
+L<collectd-unixsock(5)>
+
+=head1 AUTHOR
+
+Håkon J Dugstad Johnsen E<lt>hakon-dugstad.johnsenE<nbsp>atE<nbsp>telenor.comE<gt>
+
+=cut
