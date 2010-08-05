@@ -126,7 +126,7 @@ static void camqp_config_free (void *ptr) /* {{{ */
     sfree (conf);
 } /* }}} void camqp_config_free */
 
-static int amqp_connect (camqp_config_t *conf) /* {{{ */
+static int camqp_connect (camqp_config_t *conf) /* {{{ */
 {
     amqp_rpc_reply_t reply;
     int sockfd;
@@ -187,15 +187,15 @@ static int amqp_connect (camqp_config_t *conf) /* {{{ */
     INFO ("amqp plugin: Successfully opened connection to vhost \"%s\" "
             "on %s:%i.", CONF(conf, vhost), CONF(conf, host), conf->port);
     return (0);
-} /* }}} int amqp_connect */
+} /* }}} int camqp_connect */
 
-static int amqp_write_locked (camqp_config_t *conf, /* {{{ */
+static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
         const char *buffer)
 {
     amqp_basic_properties_t props;
     int status;
 
-    status = amqp_connect (conf);
+    status = camqp_connect (conf);
     if (status != 0)
         return (status);
 
@@ -223,9 +223,9 @@ static int amqp_write_locked (camqp_config_t *conf, /* {{{ */
     }
 
     return (status);
-} /* }}} int amqp_write_locked */
+} /* }}} int camqp_write_locked */
 
-static int amqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         user_data_t *user_data)
 {
     camqp_config_t *conf = user_data->data;
@@ -246,11 +246,11 @@ static int amqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     format_json_finalize (buffer, &bfill, &bfree);
 
     pthread_mutex_lock (&conf->lock);
-    status = amqp_write_locked (conf, buffer);
+    status = camqp_write_locked (conf, buffer);
     pthread_mutex_unlock (&conf->lock);
 
     return (status);
-} /* }}} int amqp_write */
+} /* }}} int camqp_write */
 
 static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
         _Bool publish)
@@ -364,7 +364,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
 
         ssnprintf (cbname, sizeof (cbname), "amqp/%s", conf->name);
 
-        status = plugin_register_write (cbname, amqp_write, &ud);
+        status = plugin_register_write (cbname, camqp_write, &ud);
         if (status != 0)
         {
             camqp_config_free (conf);
