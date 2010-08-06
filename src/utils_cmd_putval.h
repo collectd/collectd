@@ -24,6 +24,11 @@
 
 #include <stdio.h>
 
+#include "plugin.h"
+
 int handle_putval (FILE *fh, char *buffer);
+
+int create_putval (char *ret, size_t ret_len,
+		const data_set_t *ds, const value_list_t *vl);
 
 #endif /* UTILS_CMD_PUTVAL_H */
