@@ -299,6 +299,9 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
             camqp_close_connection (conf);
             return (-1);
         }
+
+        DEBUG ("amqp plugin: Successfully bound queue \"%s\" to exchange \"%s\".",
+                conf->queue, conf->exchange);
     } /* if (conf->exchange != NULL) */
 
     cm_ret = amqp_basic_consume (conf->connection,
