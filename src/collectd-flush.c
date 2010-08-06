@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+
 #include "libcollectdclient/client.h"
 
 extern char *optarg;
@@ -38,23 +39,21 @@ static int flush (
   lcc_connection_t *connection;
   lcc_identifier_t ident;
 
-  // Pointer which is passed to lcc_flush.
-  //Either a null pointer or it points to ident
+  /* Pointer which is passed to lcc_flush.
+   * Either a null pointer or it points to ident */
   lcc_identifier_t *identp;
   int status;
 
   connection = NULL;
   status = lcc_connect(address, &connection);
-  if (status != 0)
-  {
-		fprintf (stderr, "ERROR: Connecting to daemon at %s failed: %s.\n",
-				address, strerror (errno));
-		return 1;
-	}
+  if (status != 0) {
+    fprintf (stderr, "ERROR: Connecting to daemon at %s failed: %s.\n",
+        address, strerror (errno));
+    return 1;
+  }
 
   identp = NULL;
   if (ident_str != NULL && *ident_str != '\0') {
-    identp = &ident;
     status = lcc_string_to_identifier (connection, &ident, ident_str);
     if (status != 0) {
       fprintf (stderr, "ERROR: Creating and identifier failed: %s.\n",
@@ -63,6 +62,7 @@ static int flush (
 
       return 1;
     }
+    identp = &ident;
   }
 
   status = lcc_flush (connection, plugin, identp, timeout);
@@ -142,21 +142,21 @@ int main (int argc, char **argv) {
         break;
       case 'i':
         if(charoccurences(optarg, '/') == 1) {
-          // The user has omitted the hostname part of the identifier
-          // (there is only one '/' in the identifier)
-          // Let's add the local hostname
+          /* The user has omitted the hostname part of the identifier
+           * (there is only one '/' in the identifier)
+           * Let's add the local hostname */
           if(gethostname(hostname, sizeof(hostname)) != 0) {
             fprintf (stderr, "Could not get local hostname: %s", strerror(errno));
             return 1;
           }
-          // Make sure hostname is zero-terminated
+          /* Make sure hostname is zero-terminated */
           hostname[sizeof(hostname)-1] = '\0';
           snprintf (ident_str, sizeof (ident_str), "%s/%s", hostname, optarg);
-          // Make sure ident_str is zero terminated
+          /* Make sure ident_str is zero terminated */
           ident_str[sizeof(ident_str)-1] = '\0';
         } else {
           strncpy(ident_str, optarg, sizeof (ident_str));
-          // Make sure identifier is zero terminated
+          /* Make sure identifier is zero terminated */
           ident_str[sizeof(ident_str)-1] = '\0';
         }
         break;
