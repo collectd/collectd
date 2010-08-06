@@ -136,6 +136,7 @@ int main (int argc, char **argv) {
     switch (c) {
       case 's':
         snprintf (address, sizeof (address), "unix:%s", optarg);
+        break;
       case 'p':
         plugin = optarg;
         break;
