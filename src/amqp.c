@@ -62,12 +62,15 @@ struct camqp_config_s
     char   *password;
 
     char   *exchange;
+    char   *routingkey;
+
+    /* publish only */
+    uint8_t delivery_mode;
+    _Bool   store_rates;
+
+    /* subscribe only */
     char   *exchange_type;
     char   *queue;
-    char   *routingkey;
-    uint8_t delivery_mode;
-
-    _Bool   store_rates;
 
     amqp_connection_state_t connection;
     pthread_mutex_t lock;
@@ -636,11 +639,14 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     conf->user = NULL;
     conf->password = NULL;
     conf->exchange = NULL;
-    conf->exchange_type = NULL;
-    conf->queue = NULL;
     conf->routingkey = NULL;
+    /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
     conf->store_rates = 0;
+    /* subscribe only */
+    conf->exchange_type = NULL;
+    conf->queue = NULL;
+    /* general */
     conf->connection = NULL;
     pthread_mutex_init (&conf->lock, /* attr = */ NULL);
     /* }}} */
@@ -681,7 +687,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             status = cf_util_get_string (child, &conf->queue);
         else if (strcasecmp ("RoutingKey", child->key) == 0)
             status = cf_util_get_string (child, &conf->routingkey);
-        else if (strcasecmp ("Persistent", child->key) == 0)
+        else if ((strcasecmp ("Persistent", child->key) == 0) && publish)
         {
             _Bool tmp = 0;
             status = cf_util_get_boolean (child, &tmp);
