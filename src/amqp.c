@@ -470,8 +470,28 @@ static int camqp_read_body (camqp_config_t *conf, /* {{{ */
         received += frame.payload.body_fragment.len;
     } /* while (received < body_size) */
 
-    DEBUG ("amqp plugin: camqp_read_body: body = %s", body);
+    if (conf->format == CAMQP_FORMAT_COMMAND)
+    {
+        status = handle_putval (stderr, body);
+        if (status != 0)
+            ERROR ("amqp plugin: handle_putval failed with status %i.",
+                    status);
+        return (status);
+    }
+    else if (conf->format == CAMQP_FORMAT_JSON)
+    {
+        ERROR ("amqp plugin: camqp_read_body: Parsing JSON data has not "
+                "been implemented yet. FIXME!");
+        return (0);
+    }
+    else
+    {
+        ERROR ("amqp plugin: camqp_read_body: Unknown format option (%i).",
+                conf->format);
+        return (EINVAL);
+    }
 
+    /* not reached */
     return (0);
 } /* }}} int camqp_read_body */
 
