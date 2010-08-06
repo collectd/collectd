@@ -687,7 +687,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             else
                 conf->delivery_mode = CAMQP_DM_VOLATILE;
         }
-        else if (strcasecmp ("StoreRates", child->key) == 0)
+        else if ((strcasecmp ("StoreRates", child->key) == 0) && publish)
             status = cf_util_get_boolean (child, &conf->store_rates);
         else
             WARNING ("amqp plugin: Ignoring unknown "
