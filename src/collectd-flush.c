@@ -19,6 +19,12 @@
  *   Håkon J Dugstad Johnsen <hakon-dugstad.johnsen at telenor.com>
  **/
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "libcollectdclient/client.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -26,7 +32,7 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#include "libcollectdclient/client.h"
+#define DEFAULT_SOCK LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 
 extern char *optarg;
 
@@ -85,7 +91,7 @@ static void exit_usage (const char *name, int status) {
 
       "Available options:\n"
       "  -s             Path to collectd's UNIX socket.\n"
-      "                 Default: /var/run/collectd-unixsock\n"
+      "                 Default: "DEFAULT_SOCK"\n"
       "  -p <plugin>    Plugin to be flushed.\n"
       "  -i <id>        Flush data identified by <id> only (see below).\n"
       "  -t <seconds>   Flush values older than this value only.\n"
@@ -128,7 +134,7 @@ static int charoccurences (const char *str, char chr) {
 }
 
 int main (int argc, char **argv) {
-  char address[1024] = "unix:/var/run/collectd-unixsock";
+  char address[1024] = "unix:"DEFAULT_SOCK;
   char *plugin = NULL;
   char ident_str[1024] = "";
   int timeout = -1;
