@@ -1237,6 +1237,7 @@ dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
 		collectd-exec.5 \
+		collectd-flush.1 \
 		collectd-java.5 \
 		collectdmon.1 \
 		collectd-nagios.1 \
@@ -1253,6 +1254,7 @@ EXTRA_DIST = types.db pinba.proto
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
 		collectd-exec.pod \
+		collectd-flush.pod \
 		collectd-java.pod \
 		collectdmon.pod \
 		collectd-nagios.pod \
