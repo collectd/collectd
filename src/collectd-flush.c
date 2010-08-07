@@ -80,22 +80,35 @@ static int flush (
 }
 
 static void exit_usage (const char *name, int status) {
-  fprintf ((status == 0) ? stdout : stderr, "Usage: %s [options]\n"
-      "\n"
-      "Valid options are:\n"
-      "  -h, --help               Display this help message.\n"
-      "  -s, --socket=<socket>    Path to collectd's UNIX socket. Default: /var/run/collectd-unixsock\n"
-      "  -p, --plugin=<plugin>    Plugin to flush _to_ (not from). Example: rrdtool\n"
-      "  -i, --identifier=<identifier>\n"
-      "                           Only flush data specified by <identifier>, which has the format: \n"
-      "\n"
-      "                             [<hostname>/]<plugin>[-<plugin_instance>]/<type>[-<type_instance>]\n"
-      "\n"
-      "                           Hostname defaults to the local hostname if omitted.\n"
-      "                           No error is returned if the specified identifier does not exist.\n"
-      "                           Examples: uptime/uptime\n"
-      "                                     somehost/cpu-0/cpu-wait\n"
-      "  -t, --timeout=<timeout>  Only flush values older than this timeout.\n", name);
+  fprintf ((status == 0) ? stdout : stderr,
+      "Usage: %s [options]\n\n"
+
+      "Available options:\n"
+      "  -s             Path to collectd's UNIX socket.\n"
+      "                 Default: /var/run/collectd-unixsock\n"
+      "  -p <plugin>    Plugin to be flushed.\n"
+      "  -i <id>        Flush data identified by <id> only (see below).\n"
+      "  -t <seconds>   Flush values older than this value only.\n"
+
+      "\n  -h             Display this help and exit.\n"
+
+      "\nIdentfiers:\n\n"
+
+      "An identifier (as accepted by the -i option) has the following\n"
+      "format:\n\n"
+
+      "  [<hostname>/]<plugin>[-<plugin_instance>]/<type>[-<type_instance>]\n\n"
+
+      "Hostname defaults to the local hostname if omitted (e.g., uptime/uptime).\n"
+      "No error is returned if the specified identifier does not exist.\n"
+
+      "\nExample:\n\n"
+
+      "  collectd-flush -p rrdtool -i somehost/cpu-0/cpu-wait\n\n"
+
+      "Flushes all CPU wait RRD values of the first CPU of the local host.\n"
+      "I.e., writes all pending RRD updates of that data-source to disk.\n"
+      , name);
   exit (status);
 }
 
@@ -120,45 +133,41 @@ int main (int argc, char **argv) {
   char ident_str[1024] = "";
   int timeout = -1;
   char hostname[1024];
-  char c;
 
-  static struct option long_options[] =
-    {
-      {"help", no_argument, 0, 'h'},
-      {"socket", required_argument, 0, 's'},
-      {"plugin", required_argument, 0, 'p'},
-      {"identifier", required_argument, 0, 'i'},
-      {"timeout", required_argument, 0, 't'}
-    };
-  int option_index = 0;
+  while (42) {
+    int c;
 
+    c = getopt (argc, argv, "s:p:i:ht:");
 
-  while ((c = getopt_long (argc, argv, "s:p:i:ht:", long_options, &option_index)) != -1) {
+    if (c == -1)
+      break;
+
     switch (c) {
       case 's':
         snprintf (address, sizeof (address), "unix:%s", optarg);
+        address[sizeof (address) - 1] = '\0';
         break;
       case 'p':
         plugin = optarg;
         break;
       case 'i':
-        if(charoccurences(optarg, '/') == 1) {
+        if (charoccurences (optarg, '/') == 1) {
           /* The user has omitted the hostname part of the identifier
            * (there is only one '/' in the identifier)
            * Let's add the local hostname */
-          if(gethostname(hostname, sizeof(hostname)) != 0) {
-            fprintf (stderr, "Could not get local hostname: %s", strerror(errno));
+          if (gethostname (hostname, sizeof (hostname)) != 0) {
+            fprintf (stderr, "Could not get local hostname: %s", strerror (errno));
             return 1;
           }
           /* Make sure hostname is zero-terminated */
-          hostname[sizeof(hostname)-1] = '\0';
+          hostname[sizeof (hostname) - 1] = '\0';
           snprintf (ident_str, sizeof (ident_str), "%s/%s", hostname, optarg);
           /* Make sure ident_str is zero terminated */
-          ident_str[sizeof(ident_str)-1] = '\0';
+          ident_str[sizeof(ident_str) - 1] = '\0';
         } else {
-          strncpy(ident_str, optarg, sizeof (ident_str));
+          strncpy (ident_str, optarg, sizeof (ident_str));
           /* Make sure identifier is zero terminated */
-          ident_str[sizeof(ident_str)-1] = '\0';
+          ident_str[sizeof (ident_str) - 1] = '\0';
         }
         break;
       case 't':
@@ -166,6 +175,7 @@ int main (int argc, char **argv) {
         break;
       case 'h':
         exit_usage (argv[0], 0);
+        break;
       default:
         exit_usage (argv[0], 1);
     }
