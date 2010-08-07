@@ -114,6 +114,10 @@ static void exit_usage (const char *name, int status) {
 
       "Flushes all CPU wait RRD values of the first CPU of the local host.\n"
       "I.e., writes all pending RRD updates of that data-source to disk.\n"
+
+      "\n"PACKAGE" "VERSION", http://collectd.org/\n"
+      "by Florian octo Forster <octo@verplant.org>\n"
+      "for contributions see `AUTHORS'\n"
       , name);
   exit (status);
 }
