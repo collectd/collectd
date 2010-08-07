@@ -79,8 +79,8 @@ static int flush (
   return 0;
 }
 
-void usage (const char *name) {
-  fprintf (stderr, "Usage: %s [options]\n"
+static void exit_usage (const char *name, int status) {
+  fprintf ((status == 0) ? stdout : stderr, "Usage: %s [options]\n"
       "\n"
       "Valid options are:\n"
       "  -h, --help               Display this help message.\n"
@@ -96,12 +96,13 @@ void usage (const char *name) {
       "                           Examples: uptime/uptime\n"
       "                                     somehost/cpu-0/cpu-wait\n"
       "  -t, --timeout=<timeout>  Only flush values older than this timeout.\n", name);
+  exit (status);
 }
 
 /*
  * Count how many occurences there are of a char in a string.
  */
-int charoccurences (const char *str, char chr) {
+static int charoccurences (const char *str, char chr) {
   int count = 0;
   while (*str != '\0') {
     if (*str == chr) {
@@ -164,13 +165,14 @@ int main (int argc, char **argv) {
         timeout = atoi (optarg);
         break;
       case 'h':
-        usage (argv[0]);
-        return 0;
+        exit_usage (argv[0], 0);
       default:
-        usage (argv[0]);
-        return 1;
+        exit_usage (argv[0], 1);
     }
   }
 
   return flush(address, plugin, ident_str, timeout);
 }
+
+/* vim: set sw=2 ts=2 tw=78 expandtab : */
+
