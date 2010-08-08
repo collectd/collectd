@@ -174,8 +174,10 @@ static int getval (lcc_connection_t *c, int argc, char **argv)
 
   status = lcc_getval (c, &ident,
       &ret_values_num, &ret_values, &ret_values_names);
-  if (status != 0)
+  if (status != 0) {
+    fprintf (stderr, "ERROR: %s\n", lcc_strerror (c));
     BAIL_OUT (-1);
+  }
 
   for (i = 0; i < ret_values_num; ++i)
     printf ("%s=%e\n", ret_values_names[i], ret_values[i]);
@@ -273,8 +275,10 @@ static int listval (lcc_connection_t *c, int argc, char **argv)
   } while (0)
 
   status = lcc_listval (c, &ret_ident, &ret_ident_num);
-  if (status != 0)
+  if (status != 0) {
+    fprintf (stderr, "ERROR: %s\n", lcc_strerror (c));
     BAIL_OUT (status);
+  }
 
   for (i = 0; i < ret_ident_num; ++i) {
     char id[1024];
@@ -282,7 +286,7 @@ static int listval (lcc_connection_t *c, int argc, char **argv)
     status = lcc_identifier_to_string (c, id, sizeof (id), ret_ident + i);
     if (status != 0) {
       fprintf (stderr, "ERROR: listval: Failed to convert returned "
-          "identifier to a string.\n");
+          "identifier to a string: %s\n", lcc_strerror (c));
       continue;
     }
 
