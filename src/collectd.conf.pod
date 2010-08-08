@@ -170,6 +170,7 @@ possibly filtering or messages.
      User "guest"
      Password "guest"
      Exchange "amq.fanout"
+ #   ExchangeType "fanout"
  #   RoutingKey "collectd"
  #   Persistent false
  #   Format "command"
@@ -230,10 +231,11 @@ In I<Subscribe> blocks this option is optional. If given, a I<binding> between
 the given exchange and the I<queue> is created, using the I<routing key> if
 configured. See the B<Queue> and B<RoutingKey> options below.
 
-=item B<ExchangeType> I<Type> (Subscribe only)
+=item B<ExchangeType> I<Type>
 
 If given, the plugin will try to create the configured I<exchange> with this
-I<type> after connecting and bind its I<queue> to it.
+I<type> after connecting. When in a I<Subscribe> block, the I<queue> will then
+be bound to this exchange.
 
 =item B<Queue> I<Queue> (Subscribe only)
 

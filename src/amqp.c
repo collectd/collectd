@@ -220,6 +220,37 @@ static char *camqp_strerror (camqp_config_t *conf, /* {{{ */
     return (buffer);
 } /* }}} char *camqp_strerror */
 
+static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
+{
+    amqp_exchange_declare_ok_t *ed_ret;
+
+    if (conf->exchange_type == NULL)
+        return (0);
+
+    ed_ret = amqp_exchange_declare (conf->connection,
+            /* channel     = */ CAMQP_CHANNEL,
+            /* exchange    = */ amqp_cstring_bytes (conf->exchange),
+            /* type        = */ amqp_cstring_bytes (conf->exchange_type),
+            /* passive     = */ 0,
+            /* durable     = */ 0,
+            /* auto_delete = */ 1,
+            /* arguments   = */ AMQP_EMPTY_TABLE);
+    if ((ed_ret == NULL) && camqp_is_error (conf))
+    {
+        char errbuf[1024];
+        ERROR ("amqp plugin: amqp_exchange_declare failed: %s",
+                camqp_strerror (conf, errbuf, sizeof (errbuf)));
+        camqp_close_connection (conf);
+        return (-1);
+    }
+
+    INFO ("amqp plugin: Successfully created exchange \"%s\" "
+            "with type \"%s\".",
+            conf->exchange, conf->exchange_type);
+
+    return (0);
+} /* }}} int camqp_create_exchange */
+
 static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
 {
     amqp_queue_declare_ok_t *qd_ret;
@@ -260,29 +291,6 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
     if (conf->exchange != NULL)
     {
         amqp_queue_bind_ok_t *qb_ret;
-
-        /* create the exchange */
-        if (conf->exchange_type != NULL)
-        {
-            amqp_exchange_declare_ok_t *ed_ret;
-
-            ed_ret = amqp_exchange_declare (conf->connection,
-                    /* channel     = */ CAMQP_CHANNEL,
-                    /* exchange    = */ amqp_cstring_bytes (conf->exchange),
-                    /* type        = */ amqp_cstring_bytes (conf->exchange_type),
-                    /* passive     = */ 0,
-                    /* durable     = */ 0,
-                    /* auto_delete = */ 1,
-                    /* arguments   = */ AMQP_EMPTY_TABLE);
-            if ((ed_ret == NULL) && camqp_is_error (conf))
-            {
-                char errbuf[1024];
-                ERROR ("amqp plugin: amqp_exchange_declare failed: %s",
-                        camqp_strerror (conf, errbuf, sizeof (errbuf)));
-                camqp_close_connection (conf);
-                return (-1);
-            }
-        }
 
         assert (conf->queue != NULL);
         qb_ret = amqp_queue_bind (conf->connection,
@@ -385,6 +393,10 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
 
     INFO ("amqp plugin: Successfully opened connection to vhost \"%s\" "
             "on %s:%i.", CONF(conf, vhost), CONF(conf, host), conf->port);
+
+    status = camqp_create_exchange (conf);
+    if (status != 0)
+        return (status);
 
     if (!conf->publish)
         return (camqp_setup_queue (conf));
