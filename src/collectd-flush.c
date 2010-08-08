@@ -54,6 +54,7 @@ static void exit_usage (const char *name, int status) {
 
       "\nAvailable commands:\n\n"
 
+      " * getval <identifier>\n"
       " * flush [timeout=<seconds>] [plugin=<name>] [identifier=<id>]\n"
 
       "\nIdentifiers:\n\n"
