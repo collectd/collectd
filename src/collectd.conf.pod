@@ -256,6 +256,7 @@ interested in CPU statistics, you could use the routing key "collectd.*.cpu.#"
 for example.
 
 =item B<Persistent> B<true>|B<false> (Publish only)
+
 Selects the I<delivery method> to use. If set to B<true>, the I<persistent>
 mode will be used, i.e. delivery is guaranteed. If set to B<false> (the
 default), the I<transient> delivery mode will be used, i.e. messages may be
