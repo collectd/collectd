@@ -25,83 +25,40 @@
 
 #include "libcollectdclient/client.h"
 
+#include <assert.h>
+
+#include <errno.h>
+
+#include <getopt.h>
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
+
 #include <unistd.h>
-#include <getopt.h>
 
 #define DEFAULT_SOCK LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 
 extern char *optarg;
-
-static int flush (
-    const char *address,
-    const char *plugin,
-    const char *ident_str,
-    int timeout)
-{
-  lcc_connection_t *connection;
-  lcc_identifier_t ident;
-
-  /* Pointer which is passed to lcc_flush.
-   * Either a null pointer or it points to ident */
-  lcc_identifier_t *identp;
-  int status;
-
-  connection = NULL;
-  status = lcc_connect(address, &connection);
-  if (status != 0) {
-    fprintf (stderr, "ERROR: Connecting to daemon at %s failed: %s.\n",
-        address, strerror (errno));
-    return 1;
-  }
-
-  identp = NULL;
-  if (ident_str != NULL && *ident_str != '\0') {
-    status = lcc_string_to_identifier (connection, &ident, ident_str);
-    if (status != 0) {
-      fprintf (stderr, "ERROR: Creating and identifier failed: %s.\n",
-          lcc_strerror(connection));
-      LCC_DESTROY (connection);
-
-      return 1;
-    }
-    identp = &ident;
-  }
-
-  status = lcc_flush (connection, plugin, identp, timeout);
-  if (status != 0) {
-    fprintf (stderr, "ERROR: Flushing failed: %s.\n",
-        lcc_strerror (connection));
-    LCC_DESTROY (connection);
-
-    return 1;
-  }
-
-  LCC_DESTROY (connection);
-
-  return 0;
-}
+extern int   optind;
 
 static void exit_usage (const char *name, int status) {
   fprintf ((status == 0) ? stdout : stderr,
-      "Usage: %s [options]\n\n"
+      "Usage: %s [options] <command> [cmd options]\n\n"
 
       "Available options:\n"
-      "  -s             Path to collectd's UNIX socket.\n"
-      "                 Default: "DEFAULT_SOCK"\n"
-      "  -p <plugin>    Plugin to be flushed.\n"
-      "  -i <id>        Flush data identified by <id> only (see below).\n"
-      "  -t <seconds>   Flush values older than this value only.\n"
+      "  -s       Path to collectd's UNIX socket.\n"
+      "           Default: "DEFAULT_SOCK"\n"
 
-      "\n  -h             Display this help and exit.\n"
+      "\n  -h       Display this help and exit.\n"
 
-      "\nIdentfiers:\n\n"
+      "\nAvailable commands:\n\n"
 
-      "An identifier (as accepted by the -i option) has the following\n"
-      "format:\n\n"
+      " * flush [timeout=<seconds>] [plugin=<name>] [identifier=<id>]\n"
+
+      "\nIdentifiers:\n\n"
+
+      "An identifier has the following format:\n\n"
 
       "  [<hostname>/]<plugin>[-<plugin_instance>]/<type>[-<type_instance>]\n\n"
 
@@ -110,7 +67,7 @@ static void exit_usage (const char *name, int status) {
 
       "\nExample:\n\n"
 
-      "  collectd-flush -p rrdtool -i somehost/cpu-0/cpu-wait\n\n"
+      "  collectd-flush flush plugin=rrdtool identifie=somehost/cpu-0/cpu-wait\n\n"
 
       "Flushes all CPU wait RRD values of the first CPU of the local host.\n"
       "I.e., writes all pending RRD updates of that data-source to disk.\n"
@@ -122,11 +79,11 @@ static void exit_usage (const char *name, int status) {
   exit (status);
 }
 
-/*
- * Count how many occurences there are of a char in a string.
- */
-static int charoccurences (const char *str, char chr) {
+/* Count the number of occurrences of the character 'chr'
+ * in the specified string. */
+static int count_chars (const char *str, char chr) {
   int count = 0;
+
   while (*str != '\0') {
     if (*str == chr) {
       count++;
@@ -135,19 +92,121 @@ static int charoccurences (const char *str, char chr) {
   }
 
   return count;
-}
+} /* count_chars */
+
+static int flush (const char *address, int argc, char **argv)
+{
+  lcc_connection_t *connection;
+
+  lcc_identifier_t  ident;
+  lcc_identifier_t *identp = NULL;
+
+  char *plugin  = NULL;
+  int   timeout = -1;
+
+  int status;
+  int i;
+
+  assert (strcasecmp (argv[0], "flush") == 0);
+
+  connection = NULL;
+  status = lcc_connect (address, &connection);
+  if (status != 0) {
+    fprintf (stderr, "ERROR: Failed to connect to daemon at %s: %s.\n",
+        address, strerror (errno));
+    return (1);
+  }
+
+  for (i = 1; i < argc; ++i) {
+    char *key, *value;
+
+    key   = argv[i];
+    value = strchr (argv[i], (int)'=');
+
+    if (! value) {
+      fprintf (stderr, "ERROR: Invalid option ``%s''.\n", argv[i]);
+      return (-1);
+    }
+
+    *value = '\0';
+    ++value;
+
+    if (strcasecmp (key, "timeout") == 0) {
+      char *endptr = NULL;
+
+      timeout = strtol (value, &endptr, 0);
+
+      if (endptr == value) {
+        fprintf (stderr, "ERROR: Failed to parse timeout as number: %s.\n",
+            value);
+        return (-1);
+      }
+      else if ((endptr != NULL) && (*endptr != '\0')) {
+        fprintf (stderr, "WARNING: Ignoring trailing garbage after timeout: "
+            "%s.\n", endptr);
+      }
+    }
+    else if (strcasecmp (key, "plugin") == 0) {
+      plugin = value;
+    }
+    else if (strcasecmp (key, "identifier") == 0) {
+      char hostname[1024];
+      char ident_str[1024] = "";
+      int  n_slashes;
+
+      n_slashes = count_chars (value, '/');
+      if (n_slashes == 1) {
+        /* The user has omitted the hostname part of the identifier
+         * (there is only one '/' in the identifier)
+         * Let's add the local hostname */
+        if (gethostname (hostname, sizeof (hostname)) != 0) {
+          fprintf (stderr, "ERROR: Failed to get local hostname: %s",
+              strerror (errno));
+          return (-1);
+        }
+        hostname[sizeof (hostname) - 1] = '\0';
+
+        snprintf (ident_str, sizeof (ident_str), "%s/%s", hostname, value);
+        ident_str[sizeof(ident_str) - 1] = '\0';
+      }
+      else {
+        strncpy (ident_str, value, sizeof (ident_str));
+        ident_str[sizeof (ident_str) - 1] = '\0';
+      }
+
+      status = lcc_string_to_identifier (connection, &ident, ident_str);
+      if (status != 0) {
+        fprintf (stderr, "ERROR: Failed to parse identifier ``%s'': %s.\n",
+            ident_str, lcc_strerror(connection));
+        LCC_DESTROY (connection);
+        return (-1);
+      }
+      identp = &ident;
+    }
+  }
+
+  status = lcc_flush (connection, plugin, identp, timeout);
+  if (status != 0) {
+    fprintf (stderr, "ERROR: Flushing failed: %s.\n",
+        lcc_strerror (connection));
+    LCC_DESTROY (connection);
+    return (-1);
+  }
+
+  LCC_DESTROY (connection);
+
+  return 0;
+} /* flush */
 
 int main (int argc, char **argv) {
   char address[1024] = "unix:"DEFAULT_SOCK;
-  char *plugin = NULL;
-  char ident_str[1024] = "";
-  int timeout = -1;
-  char hostname[1024];
+
+  int status;
 
   while (42) {
     int c;
 
-    c = getopt (argc, argv, "s:p:i:ht:");
+    c = getopt (argc, argv, "s:h");
 
     if (c == -1)
       break;
@@ -157,32 +216,6 @@ int main (int argc, char **argv) {
         snprintf (address, sizeof (address), "unix:%s", optarg);
         address[sizeof (address) - 1] = '\0';
         break;
-      case 'p':
-        plugin = optarg;
-        break;
-      case 'i':
-        if (charoccurences (optarg, '/') == 1) {
-          /* The user has omitted the hostname part of the identifier
-           * (there is only one '/' in the identifier)
-           * Let's add the local hostname */
-          if (gethostname (hostname, sizeof (hostname)) != 0) {
-            fprintf (stderr, "Could not get local hostname: %s", strerror (errno));
-            return 1;
-          }
-          /* Make sure hostname is zero-terminated */
-          hostname[sizeof (hostname) - 1] = '\0';
-          snprintf (ident_str, sizeof (ident_str), "%s/%s", hostname, optarg);
-          /* Make sure ident_str is zero terminated */
-          ident_str[sizeof(ident_str) - 1] = '\0';
-        } else {
-          strncpy (ident_str, optarg, sizeof (ident_str));
-          /* Make sure identifier is zero terminated */
-          ident_str[sizeof (ident_str) - 1] = '\0';
-        }
-        break;
-      case 't':
-        timeout = atoi (optarg);
-        break;
       case 'h':
         exit_usage (argv[0], 0);
         break;
@@ -191,8 +224,22 @@ int main (int argc, char **argv) {
     }
   }
 
-  return flush(address, plugin, ident_str, timeout);
-}
+  if (optind >= argc) {
+    fprintf (stderr, "%s: missing command\n", argv[0]);
+    exit_usage (argv[0], 1);
+  }
+
+  if (strcasecmp (argv[optind], "flush") == 0)
+    status = flush (address, argc - optind, argv + optind);
+  else {
+    fprintf (stderr, "%s: invalid command: %s\n", argv[0], argv[optind]);
+    return (1);
+  }
+
+  if (status != 0)
+    return (status);
+  return (0);
+} /* main */
 
 /* vim: set sw=2 ts=2 tw=78 expandtab : */
 
