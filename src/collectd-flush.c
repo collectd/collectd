@@ -94,10 +94,8 @@ static int count_chars (const char *str, char chr) {
   return count;
 } /* count_chars */
 
-static int flush (const char *address, int argc, char **argv)
+static int flush (lcc_connection_t *c, int argc, char **argv)
 {
-  lcc_connection_t *connection;
-
   lcc_identifier_t  ident;
   lcc_identifier_t *identp = NULL;
 
@@ -108,14 +106,6 @@ static int flush (const char *address, int argc, char **argv)
   int i;
 
   assert (strcasecmp (argv[0], "flush") == 0);
-
-  connection = NULL;
-  status = lcc_connect (address, &connection);
-  if (status != 0) {
-    fprintf (stderr, "ERROR: Failed to connect to daemon at %s: %s.\n",
-        address, strerror (errno));
-    return (1);
-  }
 
   for (i = 1; i < argc; ++i) {
     char *key, *value;
@@ -174,32 +164,30 @@ static int flush (const char *address, int argc, char **argv)
         ident_str[sizeof (ident_str) - 1] = '\0';
       }
 
-      status = lcc_string_to_identifier (connection, &ident, ident_str);
+      status = lcc_string_to_identifier (c, &ident, ident_str);
       if (status != 0) {
         fprintf (stderr, "ERROR: Failed to parse identifier ``%s'': %s.\n",
-            ident_str, lcc_strerror(connection));
-        LCC_DESTROY (connection);
+            ident_str, lcc_strerror(c));
         return (-1);
       }
       identp = &ident;
     }
   }
 
-  status = lcc_flush (connection, plugin, identp, timeout);
+  status = lcc_flush (c, plugin, identp, timeout);
   if (status != 0) {
     fprintf (stderr, "ERROR: Flushing failed: %s.\n",
-        lcc_strerror (connection));
-    LCC_DESTROY (connection);
+        lcc_strerror (c));
     return (-1);
   }
-
-  LCC_DESTROY (connection);
 
   return 0;
 } /* flush */
 
 int main (int argc, char **argv) {
   char address[1024] = "unix:"DEFAULT_SOCK;
+
+  lcc_connection_t *c;
 
   int status;
 
@@ -229,12 +217,22 @@ int main (int argc, char **argv) {
     exit_usage (argv[0], 1);
   }
 
+  c = NULL;
+  status = lcc_connect (address, &c);
+  if (status != 0) {
+    fprintf (stderr, "ERROR: Failed to connect to daemon at %s: %s.\n",
+        address, strerror (errno));
+    return (1);
+  }
+
   if (strcasecmp (argv[optind], "flush") == 0)
-    status = flush (address, argc - optind, argv + optind);
+    status = flush (c, argc - optind, argv + optind);
   else {
     fprintf (stderr, "%s: invalid command: %s\n", argv[0], argv[optind]);
     return (1);
   }
+
+  LCC_DESTROY (c);
 
   if (status != 0)
     return (status);
