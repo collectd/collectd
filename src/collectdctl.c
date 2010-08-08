@@ -1,6 +1,7 @@
 /**
- * collectd-flush - src/collectd-flush.c
+ * collectd - src/collectdctl.c
  * Copyright (C) 2010 Håkon J Dugstad Johnsen
+ * Copyright (C) 2010 Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Håkon J Dugstad Johnsen <hakon-dugstad.johnsen at telenor.com>
+ *   Sebastian "tokkee" Harl <sh@tokkee.org>
  **/
 
 #if HAVE_CONFIG_H
@@ -68,7 +70,7 @@ static void exit_usage (const char *name, int status) {
 
       "\nExample:\n\n"
 
-      "  collectd-flush flush plugin=rrdtool identifie=somehost/cpu-0/cpu-wait\n\n"
+      "  collectdctl flush plugin=rrdtool identifie=somehost/cpu-0/cpu-wait\n\n"
 
       "Flushes all CPU wait RRD values of the first CPU of the local host.\n"
       "I.e., writes all pending RRD updates of that data-source to disk.\n"

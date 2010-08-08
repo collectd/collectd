@@ -21,7 +21,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
-bin_PROGRAMS = collectd-nagios collectd-flush
+bin_PROGRAMS = collectd-nagios collectdctl
 
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
@@ -106,16 +106,16 @@ collectd_nagios_LDADD += libcollectdclient/libcollectdclient.la
 collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
-collectd_flush_SOURCES = collectd-flush.c
-collectd_flush_LDADD =
+collectdctl_SOURCES = collectdctl.c
+collectdctl_LDADD =
 if BUILD_WITH_LIBSOCKET
-collectd_flush_LDADD += -lsocket
+collectdctl_LDADD += -lsocket
 endif
 if BUILD_AIX
-collectd_flush_LDADD += -lm
+collectdctl_LDADD += -lm
 endif
-collectd_flush_LDADD += libcollectdclient/libcollectdclient.la
-collectd_flush_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+collectdctl_LDADD += libcollectdclient/libcollectdclient.la
+collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 pkglib_LTLIBRARIES = 
@@ -1237,7 +1237,7 @@ dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
 		collectd-exec.5 \
-		collectd-flush.1 \
+		collectdctl.1 \
 		collectd-java.5 \
 		collectdmon.1 \
 		collectd-nagios.1 \
@@ -1254,7 +1254,7 @@ EXTRA_DIST = types.db pinba.proto
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
 		collectd-exec.pod \
-		collectd-flush.pod \
+		collectdctl.pod \
 		collectd-java.pod \
 		collectdmon.pod \
 		collectd-nagios.pod \
