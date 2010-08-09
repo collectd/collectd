@@ -83,7 +83,7 @@ static int redis_config_node (redis_node_t *rn, oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Host", option->key) == 0)
       status = cf_util_get_string_buffer (option, rn->host, sizeof (rn->host));
     else if (strcasecmp ("Port", option->key) == 0)
-      status = rn->port = cf_util_get_port_number (option);
+      rn->port = cf_util_get_port_number (option);
     else if (strcasecmp ("Timeout", option->key) == 0)
       status = cf_util_get_int (option, &rn->timeout);
     else
@@ -182,12 +182,6 @@ static int redis_config (oconfig_item_t *ci) /* {{{ */
       if ( (status = redis_config_node (&rn, option)) == 0 )
         status = redis_node_add (&rn);
     }
-    else if (strcasecmp ("Host", option->key) == 0)
-      status = cf_util_get_string_buffer (option, rn.host, sizeof (rn.host));
-    else if (strcasecmp ("Port", option->key) == 0)
-      status = rn.port = cf_util_get_port_number (option);
-    else if (strcasecmp ("Timeout", option->key) == 0)
-      status = cf_util_get_int (option, &rn.timeout);
     else
     {
       WARNING ("redis plugin: Option `%s' not allowed in redis"
@@ -198,10 +192,6 @@ static int redis_config (oconfig_item_t *ci) /* {{{ */
 
     if (status != 0)
       break;
-  }
-
-  if ( status == 0 && *rn.name != '\0') {
-    status = redis_node_add (&rn);
   }
 
   return (status);
@@ -276,7 +266,7 @@ static int redis_read (void) /* {{{ */
 
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &rn) == 0)
   {
-    DEBUG ("redis plugin: querying info from node `%s'.", rn->name);
+    DEBUG ("redis plugin: querying info from node `%s' (%s:%d).", rn->name, rn->host, rn->port);
 
     if ( (rh = credis_connect (rn->host, rn->port, rn->timeout)) == NULL )
     {

@@ -743,8 +743,7 @@
 #<Plugin redis>
 #   <Node example>
 #      Host "redis.example.com"
-#      Port 6379
-#      Database 0
+#      Port "6379"
 #      Timeout 2000
 #   </Node>
 #</Plugin>

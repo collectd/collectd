@@ -3756,14 +3756,12 @@ Defaults to B<false>.
 The C<redis> plugin connect to a list of redis servers and gather
 information about the server state. The C<redis> plugin support multiserver
 configuration, each server configuration block is called node and identify
-one redis instance (host and port). If no B<Node> block found, then any
-configuration option is assigned to a virtual node called C<default>. Here
-are a configuration example code:
+one redis instance (host and port).  Here is a configuration example code:
 
   <Plugin redis>
     <Node example>
         Host "localhost"
-        Port 6379
+        Port "6379"
         Timeout 2000
     </Node>
   </Plugin>
