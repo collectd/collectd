@@ -98,6 +98,23 @@ static int count_chars (const char *str, char chr) {
   return count;
 } /* count_chars */
 
+static int array_grow (void **array, int *array_len, size_t elem_size)
+{
+  void *tmp;
+
+  assert ((array != NULL) && (array_len != NULL));
+
+  tmp = realloc (*array, (*array_len + 1) * elem_size);
+  if (tmp == NULL) {
+    fprintf (stderr, "ERROR: Failed to allocate memory.\n");
+    return (-1);
+  }
+
+  *array = tmp;
+  ++(*array_len);
+  return (0);
+} /* array_grow */
+
 static int parse_identifier (lcc_connection_t *c,
     const char *value, lcc_identifier_t *ident)
 {
@@ -182,20 +199,34 @@ static int getval (lcc_connection_t *c, int argc, char **argv)
   for (i = 0; i < ret_values_num; ++i)
     printf ("%s=%e\n", ret_values_names[i], ret_values[i]);
   BAIL_OUT (0);
+#undef BAIL_OUT
 } /* getval */
 
 static int flush (lcc_connection_t *c, int argc, char **argv)
 {
-  lcc_identifier_t  ident;
-  lcc_identifier_t *identp = NULL;
+  int timeout = -1;
 
-  char *plugin  = NULL;
-  int   timeout = -1;
+  lcc_identifier_t *identifiers = NULL;
+  int identifiers_num = 0;
+
+  char **plugins = NULL;
+  int plugins_num = 0;
 
   int status;
   int i;
 
   assert (strcasecmp (argv[0], "flush") == 0);
+
+#define BAIL_OUT(s) \
+  do { \
+    if (identifiers != NULL) \
+      free (identifiers); \
+    identifiers_num = 0; \
+    if (plugins != NULL) \
+      free (plugins); \
+    plugins_num = 0; \
+    return (s); \
+  } while (0)
 
   for (i = 1; i < argc; ++i) {
     char *key, *value;
@@ -205,7 +236,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
 
     if (! value) {
       fprintf (stderr, "ERROR: flush: Invalid option ``%s''.\n", argv[i]);
-      return (-1);
+      BAIL_OUT (-1);
     }
 
     *value = '\0';
@@ -219,7 +250,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
       if (endptr == value) {
         fprintf (stderr, "ERROR: Failed to parse timeout as number: %s.\n",
             value);
-        return (-1);
+        BAIL_OUT (-1);
       }
       else if ((endptr != NULL) && (*endptr != '\0')) {
         fprintf (stderr, "WARNING: Ignoring trailing garbage after timeout: "
@@ -227,27 +258,62 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
       }
     }
     else if (strcasecmp (key, "plugin") == 0) {
-      plugin = value;
+      status = array_grow ((void **)&plugins, &plugins_num,
+          sizeof (*plugins));
+      if (status != 0)
+        BAIL_OUT (status);
+
+      plugins[plugins_num - 1] = value;
     }
     else if (strcasecmp (key, "identifier") == 0) {
-      int status;
-
-      memset (&ident, 0, sizeof (ident));
-      status = parse_identifier (c, value, &ident);
+      status = array_grow ((void **)&identifiers, &identifiers_num,
+          sizeof (*identifiers));
       if (status != 0)
-        return (status);
-      identp = &ident;
+        BAIL_OUT (status);
+
+      memset (identifiers + (identifiers_num - 1), 0, sizeof (*identifiers));
+      status = parse_identifier (c, value,
+          identifiers + (identifiers_num - 1));
+      if (status != 0)
+        BAIL_OUT (status);
     }
   }
 
-  status = lcc_flush (c, plugin, identp, timeout);
-  if (status != 0) {
-    fprintf (stderr, "ERROR: Flushing failed: %s.\n",
-        lcc_strerror (c));
-    return (-1);
+  if (plugins_num == 0) {
+    status = array_grow ((void **)&plugins, &plugins_num, sizeof (*plugins));
+    if (status != 0)
+      BAIL_OUT (status);
+
+    assert (plugins_num == 1);
+    plugins[0] = NULL;
   }
 
-  return 0;
+  for (i = 0; i < plugins_num; ++i) {
+    if (identifiers_num == 0) {
+      status = lcc_flush (c, plugins[i], NULL, timeout);
+      if (status != 0)
+        fprintf (stderr, "ERROR: Failed to flush plugin `%s': %s.\n",
+            (plugins[i] == NULL) ? "(all)" : plugins[i], lcc_strerror (c));
+    }
+    else {
+      int j;
+
+      for (j = 0; j < identifiers_num; ++j) {
+        status = lcc_flush (c, plugins[i], identifiers + j, timeout);
+        if (status != 0) {
+          char id[1024];
+
+          lcc_identifier_to_string (c, id, sizeof (id), identifiers + j);
+          fprintf (stderr, "ERROR: Failed to flush plugin `%s', "
+              "identifier `%s': %s.\n",
+              (plugins[i] == NULL) ? "(all)" : plugins[i],
+              id, lcc_strerror (c));
+        }
+      }
+    }
+  }
+
+  BAIL_OUT (0);
 #undef BAIL_OUT
 } /* flush */
 

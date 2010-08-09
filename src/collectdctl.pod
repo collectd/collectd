@@ -72,9 +72,9 @@ plugins (e.E<nbsp>g., the C<network> plugin does not support this).
 
 =back
 
-In contrast to the plain-text protocol used by the C<unixsock> plugin, the
-B<plugin> and B<identifier> options may only be specified once. If specified
-multiple times, the last one overwrites the ones before.
+The B<plugin> and B<identifier> options may be specified more than once. In
+that case, all combinations of specified plugins and identifiers will be
+flushed only.
 
 =item B<listval>
 
