@@ -83,6 +83,18 @@ C<unixsock> plugin. Each value is printed on its own line. I.E<nbsp>e., this
 command returns a list of valid identifiers that may be used with the other
 commands.
 
+=item B<putval> I<E<lt>identifierE<gt>> [B<interval=>I<E<lt>secondsE<gt>>]
+I<E<lt>value-list(s)E<gt>>
+
+Submit one or more values (identified by I<E<lt>identifierE<gt>>, see below)
+to the daemon which will then dispatch them to the write plugins. B<interval>
+specifies the interval (in seconds) used to collect the values following that
+option. It defaults to the default of the running collectd instance receiving
+the data. Multiple I<E<lt>value-list(s)E<gt>> (see below) may be specified.
+Each of them will be submitted to the daemon. The values have to match the
+data-set definition specified by the type as given in the identifier (see
+L<types.db(5)> for details).
+
 =back
 
 =head1 IDENTIFIERS
@@ -99,6 +111,16 @@ Examples:
 Hostname defaults to the local (non-fully qualified) hostname if omitted. No
 error is returned if the specified identifier does not exist (this is a
 limitation in the C<libcollectdclient> library).
+
+=head1 VALUE-LIST
+
+A value list describes one data-set as handled by collectd. It is a colon
+(C<:>) separated list of the time and the values. Each value is either given
+as an integer if the data-type is a counter, or as a double if the data-type
+is a gauge value. The number of values and the data-types have to match the
+type specified in the identifier (see L<types.db(5)> for details). The time is
+specified as epoch (i.E<nbsp>e., standard UNIX time) or as a literal C<N>
+which will be interpreted as now.
 
 =head1 EXAMPLES
 
@@ -120,9 +142,10 @@ collectd instance.
 
 =head1 SEE ALSO
 
-L<collectd(1)>
-L<collectd.conf(5)>
-L<collectd-unixsock(5)>
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-unixsock(5)>,
+L<types.db(5)>
 
 =head1 AUTHOR
 
