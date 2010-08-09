@@ -788,7 +788,7 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
     else if (vl->values_types[i] == LCC_TYPE_GAUGE)
     {
       if (isnan (vl->values[i].gauge))
-        SSTRCPY (command, ":U");
+        SSTRCATF (command, ":U");
       else
         SSTRCATF (command, ":%g", vl->values[i].gauge);
     }
