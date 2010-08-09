@@ -33,6 +33,8 @@
 
 #include <getopt.h>
 
+#include <math.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -469,7 +471,12 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
          * anyway. Also, lcc uses the type information for formatting the
          * number only, so the real meaning does not matter. -tokkee */
         dot = strchr (value, (int)'.');
-        if (dot) { /* floating point value */
+        endptr = NULL;
+        if (strcasecmp (value, "U") == 0) {
+          values[values_len].gauge = NAN;
+          values_types[values_len] = LCC_TYPE_GAUGE;
+        }
+        else if (dot) { /* floating point value */
           values[values_len].gauge = strtod (value, &endptr);
           values_types[values_len] = LCC_TYPE_GAUGE;
         }

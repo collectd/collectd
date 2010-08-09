@@ -117,10 +117,11 @@ limitation in the C<libcollectdclient> library).
 A value list describes one data-set as handled by collectd. It is a colon
 (C<:>) separated list of the time and the values. Each value is either given
 as an integer if the data-type is a counter, or as a double if the data-type
-is a gauge value. The number of values and the data-types have to match the
-type specified in the identifier (see L<types.db(5)> for details). The time is
-specified as epoch (i.E<nbsp>e., standard UNIX time) or as a literal C<N>
-which will be interpreted as now.
+is a gauge value. A literal C<U> is interpreted as an undefined gauge value.
+The number of values and the data-types have to match the type specified in
+the identifier (see L<types.db(5)> for details). The time is specified as
+epoch (i.E<nbsp>e., standard UNIX time) or as a literal C<N> which will be
+interpreted as now.
 
 =head1 EXAMPLES
 
