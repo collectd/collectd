@@ -271,6 +271,10 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
       if (status != 0)
         BAIL_OUT (status);
     }
+    else {
+      fprintf (stderr, "ERROR: flush: Unknown option `%s'.\n", key);
+      BAIL_OUT (-1);
+    }
   }
 
   if (plugins_num == 0) {
