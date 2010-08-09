@@ -100,6 +100,24 @@ Hostname defaults to the local (non-fully qualified) hostname if omitted. No
 error is returned if the specified identifier does not exist (this is a
 limitation in the C<libcollectdclient> library).
 
+=head1 EXAMPLES
+
+=over 4
+
+=item C<collectdctl flush plugin=rrdtool identifier=somehost/cpu-0/cpu-wait>
+
+Flushes all CPU wait RRD values of the first CPU of the local host.
+I.E<nbsp>e., writes all pending RRD updates of that data-source to disk.
+
+=item C<for ident in `collectdctl listval | grep users/users`; do
+      collectdctl getval $ident;
+  done>
+
+Query the latest number of logged in users on all hosts known to the local
+collectd instance.
+
+=back
+
 =head1 SEE ALSO
 
 L<collectd(1)>

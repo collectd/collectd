@@ -69,13 +69,6 @@ static void exit_usage (const char *name, int status) {
       "Hostname defaults to the local hostname if omitted (e.g., uptime/uptime).\n"
       "No error is returned if the specified identifier does not exist.\n"
 
-      "\nExample:\n\n"
-
-      "  collectdctl flush plugin=rrdtool identifie=somehost/cpu-0/cpu-wait\n\n"
-
-      "Flushes all CPU wait RRD values of the first CPU of the local host.\n"
-      "I.e., writes all pending RRD updates of that data-source to disk.\n"
-
       "\n"PACKAGE" "VERSION", http://collectd.org/\n"
       "by Florian octo Forster <octo@verplant.org>\n"
       "for contributions see `AUTHORS'\n"
