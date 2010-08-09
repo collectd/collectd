@@ -84,7 +84,7 @@ struct lcc_value_list_s
   lcc_identifier_t identifier;
 };
 typedef struct lcc_value_list_s lcc_value_list_t;
-#define LCC_VALUE_LIST_INIT { NULL, 0, 0, 0, LCC_IDENTIFIER_INIT }
+#define LCC_VALUE_LIST_INIT { NULL, NULL, 0, 0, 0, LCC_IDENTIFIER_INIT }
 
 struct lcc_connection_s;
 typedef struct lcc_connection_s lcc_connection_t;
