@@ -29,16 +29,17 @@
 #include <pthread.h>
 #include <credis.h>
 
-#define REDIS_DEF_HOST "127.0.0.1"
-#define REDIS_DEF_PORT 6379
+#define REDIS_DEF_HOST   "localhost"
+#define REDIS_DEF_PORT    6379
+#define REDIS_DEF_TIMEOUT 2000
 #define MAX_REDIS_NODE_NAME 64
 
 /* Redis plugin configuration example:
  *
  * <Plugin redis>
- *   <Node mynode>
- *     Host localhost
- *     Port 6379
+ *   <Node "mynode">
+ *     Host "localhost"
+ *     Port "6379"
  *     Timeout 2000
  *   </Node>
  * </Plugin>
@@ -53,52 +54,6 @@ typedef struct redis_node_s {
   int port;
   int timeout;
 } redis_node_t;
-
-static int redis_config_node (redis_node_t *rn, oconfig_item_t *ci) /* {{{ */
-{
-  int i;
-  int status = 0;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("redis plugin: The `Node' block needs exactly one string "
-        "argument.");
-    return (-1);
-  }
-
-  if (ci->children_num < 1)
-  {
-    WARNING ("redis plugin: The `Node' block needs at least one option.");
-    return (-1);
-  }
-
-  sstrncpy (rn->name, ci->values[0].value.string, sizeof (rn->name));
-
-  for (i = 0; i < ci->children_num; i++)
-  {
-    oconfig_item_t *option = ci->children + i;
-    status = 0;
-
-    if (strcasecmp ("Host", option->key) == 0)
-      status = cf_util_get_string_buffer (option, rn->host, sizeof (rn->host));
-    else if (strcasecmp ("Port", option->key) == 0)
-      rn->port = cf_util_get_port_number (option);
-    else if (strcasecmp ("Timeout", option->key) == 0)
-      status = cf_util_get_int (option, &rn->timeout);
-    else
-    {
-      WARNING ("redis plugin: Option `%s' not allowed inside a `Node' "
-          "block.", option->key);
-      status = -1;
-    }
-
-    if (status != 0)
-      break;
-  }
-
-  return (status);
-} /* }}} */
 
 static redis_node_t *redis_node_get (const char *name, redis_node_t *rn) /* {{{ */
 {
@@ -115,26 +70,42 @@ static int redis_node_add (const redis_node_t *rn) /* {{{ */
   redis_node_t *rn_ptr;
   redis_node_t  rn_get;
 
-  rn_copy = (redis_node_t *) malloc (sizeof (redis_node_t));
+  if (redis_tree == NULL)
+  {
+    redis_tree = c_avl_create ((void *) strcmp);
+    if (redis_tree == NULL)
+    {
+      ERROR ("redis plugin: c_avl_create failed.");
+      return (-1);
+    }
+  }
+
+  rn_copy = malloc (sizeof (*rn_copy));
   if (rn_copy == NULL)
   {
-    sfree (rn_copy);
     ERROR ("redis plugin: malloc failed adding redis_node to the tree.");
     return (-1);
   }
-  memcpy (rn_copy, rn, sizeof (redis_node_t));
-  if (*rn_copy->name == '\0')
+
+  memcpy (rn_copy, rn, sizeof (*rn_copy));
+  if (rn_copy->name[0] == 0)
   {
-    (void) strncpy(rn_copy->name, "default", sizeof (rn_copy->name)); /* in theory never fails */
+    /* in theory never fails */
+    (void) strncpy(rn_copy->name, "default", sizeof (rn_copy->name));
   }
 
   DEBUG ("redis plugin: adding entry `%s' to the tree.", rn_copy->name);
 
   pthread_mutex_lock (&redis_lock);
 
-  if ( (rn_ptr = redis_node_get (rn_copy->name, &rn_get)) != NULL )
+  rn_ptr = redis_node_get (rn_copy->name, &rn_get);
+  if (rn_ptr != NULL)
   {
-    WARNING ("redis plugin: the node `%s' override a previous node with same node.", rn_copy->name);
+    pthread_mutex_unlock (&redis_lock);
+    ERROR ("redis plugin: A node with the name `%s' already exists.",
+        rn_copy->name);
+    sfree (rn_copy);
+    return (-1);
   }
 
   status = c_avl_insert (redis_tree, rn_copy->name, rn_copy);
@@ -142,59 +113,83 @@ static int redis_node_add (const redis_node_t *rn) /* {{{ */
 
   if (status != 0)
   {
-    ERROR ("redis plugin: c_avl_insert (%s) failed adding noew node.", rn_copy->name);
+    ERROR ("redis plugin: c_avl_insert (%s) failed adding new node.",
+        rn_copy->name);
     sfree (rn_copy);
-    return (-1);
+    return (status);
   }
 
-  return (status);
+  return (0);
 } /* }}} */
 
-static int redis_config (oconfig_item_t *ci) /* {{{ */
+static int redis_config_node (oconfig_item_t *ci) /* {{{ */
 {
-  int status;
+  redis_node_t rn;
   int i;
+  int status;
 
-  redis_node_t rn = {
-    .name = "",
-    .host = "",
-    .port = REDIS_DEF_PORT,
-    .timeout = 2000
-  };
+  memset (&rn, 0, sizeof (rn));
+  sstrncpy (rn.host, REDIS_DEF_HOST, sizeof (rn.host));
+  rn.port = REDIS_DEF_PORT;
+  rn.timeout = REDIS_DEF_TIMEOUT;
 
-  if (redis_tree == NULL)
-  {
-    redis_tree = c_avl_create ((void *) strcmp);
-    if (redis_tree == NULL)
-    {
-      ERROR ("redis plugin: c_avl_create failed reading config.");
-      return (-1);
-    }
-  }
+  status = cf_util_get_string_buffer (ci, rn.name, sizeof (rn.name));
+  if (status != 0)
+    return (status);
 
-  status = 0;
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp ("Node", option->key) == 0)
+    if (strcasecmp ("Host", option->key) == 0)
+      status = cf_util_get_string_buffer (option, rn.host, sizeof (rn.host));
+    else if (strcasecmp ("Port", option->key) == 0)
     {
-      if ( (status = redis_config_node (&rn, option)) == 0 )
-        status = redis_node_add (&rn);
+      status = cf_util_get_port_number (option);
+      if (status > 0)
+      {
+        rn.port = status;
+        status = 0;
+      }
     }
+    else if (strcasecmp ("Timeout", option->key) == 0)
+      status = cf_util_get_int (option, &rn.timeout);
     else
-    {
-      WARNING ("redis plugin: Option `%s' not allowed in redis"
-          " configuration.", option->key);
-      status = -1;
-    }
-
+      WARNING ("redis plugin: Option `%s' not allowed inside a `Node' "
+          "block. I'll ignore this option.", option->key);
 
     if (status != 0)
       break;
   }
 
-  return (status);
+  if (status != 0)
+    return (status);
+
+  return (redis_node_add (&rn));
+} /* }}} int redis_config_node */
+
+static int redis_config (oconfig_item_t *ci) /* {{{ */
+{
+  int i;
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *option = ci->children + i;
+
+    if (strcasecmp ("Node", option->key) == 0)
+      redis_config_node (option);
+    else
+      WARNING ("redis plugin: Option `%s' not allowed in redis"
+          " configuration. It will be ignored.", option->key);
+  }
+
+  if (redis_tree == NULL)
+  {
+    ERROR ("redis plugin: No valid node configuration could be found.");
+    return (ENOENT);
+  }
+
+  return (0);
 } /* }}} */
 
   __attribute__ ((nonnull(2)))
