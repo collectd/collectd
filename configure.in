@@ -4495,6 +4495,7 @@ AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
+AC_PLUGIN([lpar],        [$with_perfstat],     [AIX logical partitions statistics])
 AC_PLUGIN([madwifi],     [$have_linux_wireless_h], [Madwifi wireless statistics])
 AC_PLUGIN([match_empty_counter], [yes],        [The empty counter match])
 AC_PLUGIN([match_hashed], [yes],               [The hashed match])
@@ -4818,6 +4819,7 @@ Configuration:
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
+    lpar... . . . . . . . $enable_lpar
     madwifi . . . . . . . $enable_madwifi
     match_empty_counter . $enable_match_empty_counter
     match_hashed  . . . . $enable_match_hashed
