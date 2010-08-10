@@ -862,15 +862,16 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             break;
     } /* for (i = 0; i < ci->children_num; i++) */
 
-    if ((status == 0) && !publish && (conf->exchange == NULL))
+    if ((status == 0) && (conf->exchange == NULL))
     {
-        if (conf->routing_key != NULL)
-            WARNING ("amqp plugin: The option \"RoutingKey\" was given "
-                    "without the \"Exchange\" option. It will be ignored.");
-
         if (conf->exchange_type != NULL)
             WARNING ("amqp plugin: The option \"ExchangeType\" was given "
                     "without the \"Exchange\" option. It will be ignored.");
+
+        if (!publish && (conf->routing_key != NULL))
+            WARNING ("amqp plugin: The option \"RoutingKey\" was given "
+                    "without the \"Exchange\" option. It will be ignored.");
+
     }
 
     if (status != 0)
