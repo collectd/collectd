@@ -241,7 +241,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
     if (strcasecmp (key, "timeout") == 0) {
       char *endptr = NULL;
 
-      timeout = strtol (value, &endptr, 0);
+      timeout = (int) strtol (value, &endptr, 0);
 
       if (endptr == value) {
         fprintf (stderr, "ERROR: Failed to parse timeout as number: %s.\n",
