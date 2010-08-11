@@ -3225,11 +3225,6 @@ allowed as long as a single non-empty command has been specified only.
 
 The returned lines will be handled separately one after another.
 
-=item B<Query> I<sql query statement>
-
-This is a deprecated synonym for B<Statement>. It will be removed in version 5
-of collectd.
-
 =item B<Param> I<hostname>|I<database>|I<username>|I<interval>
 
 Specify the parameters which should be passed to the SQL query. The parameters
@@ -3305,21 +3300,6 @@ This option is required inside a B<Result> block and may be specified multiple
 times. If multiple B<ValuesFrom> options are specified, the columns are read
 in the given order.
 
-=item B<Column> I<type> [I<type instance>]
-
-This is a deprecated alternative to a B<Result> block. It will be removed in
-version 5 of collectd. It is equivalent to the following B<Result> block:
-
-  <Result>
-    Type I<type>
-    InstancePrefix I<type instance>
-    ValuesFrom I<name of the x. column>
-  </Result>
-
-The order of the B<Column> options defines which columns of the query result
-should be used. The first option specifies the data found in the first column,
-the second option that of the second column, and so on.
-
 =item B<MinVersion> I<version>
 
 =item B<MaxVersion> I<version>
@@ -3333,13 +3313,6 @@ configuration in a heterogeneous environment.
 The I<version> has to be specified as the concatenation of the major, minor
 and patch-level versions, each represented as two-decimal-digit numbers. For
 example, version 8.2.3 will become 80203.
-
-=item B<MinPGVersion> I<version>
-
-=item B<MaxPGVersion> I<version>
-
-These are deprecated synonyms for B<MinVersion> and B<MaxVersion>
-respectively. They will be removed in version 5 of collectd.
 
 =back
 

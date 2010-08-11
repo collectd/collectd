@@ -737,8 +737,7 @@ static int c_psql_config (oconfig_item_t *ci)
 
 		if (0 == strcasecmp (c->key, "Query"))
 			udb_query_create (&queries, &queries_num, c,
-					/* callback = */ config_query_callback,
-					/* legacy mode = */ 1);
+					/* callback = */ config_query_callback);
 		else if (0 == strcasecmp (c->key, "Database"))
 			c_psql_config_database (c);
 		else
