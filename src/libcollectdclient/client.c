@@ -27,7 +27,7 @@
 # define __attribute__(x) /**/
 #endif
 
-#include "lcc_features.h"
+#include "collectd/lcc_features.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,7 +41,7 @@
 #include <math.h>
 #include <netdb.h>
 
-#include "client.h"
+#include "collectd/client.h"
 
 /* NI_MAXHOST has been obsoleted by RFC 3493 which is a reason for SunOS 5.11
  * to no longer define it. We'll use the old, RFC 2553 value here. */

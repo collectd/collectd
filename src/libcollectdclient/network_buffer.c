@@ -27,7 +27,7 @@
 #include <errno.h>
 #include <arpa/inet.h> /* htons */
 
-#include "network_buffer.h"
+#include "collectd/network_buffer.h"
 
 #define TYPE_HOST            0x0000
 #define TYPE_TIME            0x0001

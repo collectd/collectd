@@ -25,7 +25,7 @@
 # include "config.h"
 #endif
 
-#include "libcollectdclient/client.h"
+#include "libcollectdclient/collectd/client.h"
 
 #include <assert.h>
 

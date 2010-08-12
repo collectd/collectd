@@ -38,7 +38,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "libcollectdclient/client.h"
+#include "libcollectdclient/collectd/client.h"
 
 /*
  * This is copied directly from collectd.h. Make changes there!
