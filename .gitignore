@@ -33,6 +33,7 @@ src/stamp-h1
 .libs/
 src/collectd
 src/collectd-nagios
+src/collectdctl
 src/collectdmon
 src/*.1
 src/*.5
