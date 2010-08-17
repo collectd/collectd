@@ -36,7 +36,7 @@ static int conf_num_hosts = 1000;
 static int conf_num_plugins = 20;
 static int conf_num_values = 100000;
 
-static lcc_network_buffer_t *nb;
+static lcc_network_t *net;
 
 static lcc_value_list_t **values;
 static size_t values_num;
@@ -69,6 +69,7 @@ static int get_boundet_random (int min, int max) /* {{{ */
   return (min + ((int) (((double) range) * ((double) random ()) / (((double) RAND_MAX) + 1.0))));
 } /* }}} int get_boundet_random */
 
+#if 0
 static int dump_network_buffer (void) /* {{{ */
 {
   char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT];
@@ -115,6 +116,7 @@ static int dump_network_buffer (void) /* {{{ */
 
   return (0);
 } /* }}} int dump_network_buffer */
+#endif
 
 static lcc_value_list_t *create_value_list (void) /* {{{ */
 {
@@ -190,15 +192,9 @@ static int send_value (lcc_value_list_t *vl) /* {{{ */
   else
     vl->values[0].derive += get_boundet_random (0, 100);
 
-  status = lcc_network_buffer_add_value (nb, vl);
+  status = lcc_network_values_send (net, vl);
   if (status != 0)
-  {
-    lcc_network_buffer_finalize (nb);
-    dump_network_buffer ();
-    lcc_network_buffer_initialize (nb);
-
-    status = lcc_network_buffer_add_value (nb, vl);
-  }
+    fprintf (stderr, "lcc_network_values_send failed with status %i.\n", status);
 
   vl->time += vl->interval;
 
@@ -209,11 +205,24 @@ int main (int argc, char **argv) /* {{{ */
 {
   size_t i;
 
-  nb = lcc_network_buffer_create (/* size = */ 0);
-  if (nb == NULL)
+  net = lcc_network_create ();
+  if (net == NULL)
   {
-    fprintf (stderr, "lcc_network_buffer_create failed.\n");
+    fprintf (stderr, "lcc_network_create failed.\n");
     exit (EXIT_FAILURE);
+  }
+  else
+  {
+    lcc_server_t *srv;
+    
+    srv = lcc_server_create (net, NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT);
+    if (srv == NULL)
+    {
+      fprintf (stderr, "lcc_server_create failed.\n");
+      exit (EXIT_FAILURE);
+    }
+
+    lcc_server_set_ttl (srv, 42);
   }
 
   values_num = (size_t) conf_num_values;
@@ -242,17 +251,14 @@ int main (int argc, char **argv) /* {{{ */
   qsort (values, values_num, sizeof (*values), compare_time);
   fprintf (stdout, "done\n");
 
-  lcc_network_buffer_initialize (nb);
   for (i = 0; i < values_num; i++)
     send_value (values[i]);
-  lcc_network_buffer_finalize (nb);
-  dump_network_buffer ();
 
   for (i = 0; i < values_num; i++)
     destroy_value_list (values[i]);
   free (values);
 
-  lcc_network_buffer_destroy (nb);
+  lcc_network_destroy (net);
   exit (EXIT_SUCCESS);
   return (0);
 } /* }}} int main */
