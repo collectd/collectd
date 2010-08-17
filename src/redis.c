@@ -45,39 +45,35 @@
  * </Plugin>
  */
 
-static c_avl_tree_t *redis_tree = NULL;
-static pthread_mutex_t redis_lock = PTHREAD_MUTEX_INITIALIZER;
-
-typedef struct redis_node_s {
+struct redis_node_s;
+typedef struct redis_node_s redis_node_t;
+struct redis_node_s
+{
   char name[MAX_REDIS_NODE_NAME];
   char host[HOST_NAME_MAX];
   int port;
   int timeout;
-} redis_node_t;
 
-static redis_node_t *redis_node_get (const char *name, redis_node_t *rn) /* {{{ */
-{
-  if (c_avl_get (redis_tree, name, (void *) rn) == 0)
-    return (rn);
-  else
-    return (NULL);
-} /* }}} */
+  redis_node_t *next;
+};
+
+static redis_node_t *nodes_head = NULL;
 
 static int redis_node_add (const redis_node_t *rn) /* {{{ */
 {
-  int status;
-  redis_node_t *rn_copy = NULL;
+  redis_node_t *rn_copy;
   redis_node_t *rn_ptr;
-  redis_node_t  rn_get;
 
-  if (redis_tree == NULL)
+  /* Check for duplicates first */
+  for (rn_ptr = nodes_head; rn_ptr != NULL; rn_ptr = rn_ptr->next)
+    if (strcmp (rn->name, rn_ptr->name) == 0)
+      break;
+
+  if (rn_ptr != NULL)
   {
-    redis_tree = c_avl_create ((void *) strcmp);
-    if (redis_tree == NULL)
-    {
-      ERROR ("redis plugin: c_avl_create failed.");
-      return (-1);
-    }
+    ERROR ("redis plugin: A node with the name `%s' already exists.",
+        rn->name);
+    return (-1);
   }
 
   rn_copy = malloc (sizeof (*rn_copy));
@@ -88,35 +84,18 @@ static int redis_node_add (const redis_node_t *rn) /* {{{ */
   }
 
   memcpy (rn_copy, rn, sizeof (*rn_copy));
-  if (rn_copy->name[0] == 0)
+  rn_copy->next = NULL;
+
+  DEBUG ("redis plugin: Adding node \"%s\".", rn->name);
+
+  if (nodes_head == NULL)
+    nodes_head = rn_copy;
+  else
   {
-    /* in theory never fails */
-    (void) strncpy(rn_copy->name, "default", sizeof (rn_copy->name));
-  }
-
-  DEBUG ("redis plugin: adding entry `%s' to the tree.", rn_copy->name);
-
-  pthread_mutex_lock (&redis_lock);
-
-  rn_ptr = redis_node_get (rn_copy->name, &rn_get);
-  if (rn_ptr != NULL)
-  {
-    pthread_mutex_unlock (&redis_lock);
-    ERROR ("redis plugin: A node with the name `%s' already exists.",
-        rn_copy->name);
-    sfree (rn_copy);
-    return (-1);
-  }
-
-  status = c_avl_insert (redis_tree, rn_copy->name, rn_copy);
-  pthread_mutex_unlock (&redis_lock);
-
-  if (status != 0)
-  {
-    ERROR ("redis plugin: c_avl_insert (%s) failed adding new node.",
-        rn_copy->name);
-    sfree (rn_copy);
-    return (status);
+    rn_ptr = nodes_head;
+    while (rn_ptr->next != NULL)
+      rn_ptr = rn_ptr->next;
+    rn_ptr->next = rn_copy;
   }
 
   return (0);
@@ -183,7 +162,7 @@ static int redis_config (oconfig_item_t *ci) /* {{{ */
           " configuration. It will be ignored.", option->key);
   }
 
-  if (redis_tree == NULL)
+  if (nodes_head == NULL)
   {
     ERROR ("redis plugin: No valid node configuration could be found.");
     return (ENOENT);
@@ -247,19 +226,10 @@ static int redis_read (void) /* {{{ */
   REDIS rh;
   REDIS_INFO info;
 
-  char key[64];
   int status;
-  c_avl_iterator_t *iter;
   redis_node_t *rn;
 
-  status = -1;
-  if ( (iter = c_avl_get_iterator (redis_tree)) == NULL )
-  {
-    ERROR ("redis plugin: unable to iterate redis tree.");
-    return (-1);
-  }
-
-  while (c_avl_iterator_next (iter, (void *) &key, (void *) &rn) == 0)
+  for (rn = nodes_head; rn != NULL; rn = rn->next)
   {
     DEBUG ("redis plugin: querying info from node `%s' (%s:%d).", rn->name, rn->host, rn->port);
 
@@ -312,12 +282,6 @@ static int redis_read (void) /* {{{ */
 
     credis_close (rh);
     status = 0;
-  }
-
-  c_avl_iterator_destroy(iter);
-  if ( status != 0 )
-  {
-    return (-1);
   }
 
   return 0;
