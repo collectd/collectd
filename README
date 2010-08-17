@@ -235,6 +235,10 @@ Features
       collectd without the need to start a heavy interpreter every interval.
       See collectd-python(5) for details.
 
+    - redis
+      The redis plugin gathers information from a redis server, including:
+      uptime, used memory, total connections etc.
+
     - routeros
       Query interface and wireless registration statistics from RouterOS.
 
@@ -506,6 +510,10 @@ Prerequisites
 
   * libclntsh (optional)
     Used by the `oracle' plugin.
+
+  * libcredis (optional)
+    Used by the redis plugin. Please note that you require a 0.2.2 version
+    or higher. <http://code.google.com/p/credis/>
 
   * libcurl (optional)
     If you want to use the `apache', `ascent', `curl', `nginx', or `write_http'
