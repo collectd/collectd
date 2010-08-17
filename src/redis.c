@@ -220,30 +220,44 @@ static void redis_submit_c (char *plugin_instance,
   plugin_dispatch_values (&vl);
 } /* }}} */
 
+static int redis_init (void) /* {{{ */
+{
+  redis_node_t rn = { "default", REDIS_DEF_HOST, REDIS_DEF_PORT,
+    REDIS_DEF_TIMEOUT, /* next = */ NULL };
+
+  if (nodes_head == NULL)
+    redis_node_add (&rn);
+
+  return (0);
+} /* }}} int redis_init */
+
 static int redis_read (void) /* {{{ */
 {
-  REDIS rh;
-  REDIS_INFO info;
-
-  int status;
   redis_node_t *rn;
 
   for (rn = nodes_head; rn != NULL; rn = rn->next)
   {
+    REDIS rh;
+    REDIS_INFO info;
+
+    int status;
+
     DEBUG ("redis plugin: querying info from node `%s' (%s:%d).", rn->name, rn->host, rn->port);
 
-    if ( (rh = credis_connect (rn->host, rn->port, rn->timeout)) == NULL )
+    rh = credis_connect (rn->host, rn->port, rn->timeout);
+    if (rh == NULL)
     {
       ERROR ("redis plugin: unable to connect to node `%s' (%s:%d).", rn->name, rn->host, rn->port);
-      status = -1;
-      break;
+      continue;
     }
 
-    if ( (status = credis_info (rh, &info)) == -1 )
+    memset (&info, 0, sizeof (info));
+    status = credis_info (rh, &info);
+    if (status != 0)
     {
       WARNING ("redis plugin: unable to get info from node `%s'.", rn->name);
       credis_close (rh);
-      break;
+      continue;
     }
 
     /* typedef struct _cr_info {
@@ -287,6 +301,7 @@ static int redis_read (void) /* {{{ */
 void module_register (void) /* {{{ */
 {
   plugin_register_complex_config ("redis", redis_config);
+  plugin_register_init ("redis", redis_init);
   plugin_register_read ("redis", redis_read);
   /* TODO: plugin_register_write: one redis list per value id with
    * X elements */

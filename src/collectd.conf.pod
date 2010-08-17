@@ -3765,6 +3765,9 @@ which configures the connection parameters for this node.
     </Node>
   </Plugin>
 
+The information shown in the synopsis above is the I<default configuration>
+which is used by the plugin if no configuration is present.
+
 =over 4
 
 =item B<Node> I<Nodename>
