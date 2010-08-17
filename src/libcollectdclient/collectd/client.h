@@ -116,6 +116,12 @@ int lcc_identifier_to_string (lcc_connection_t *c,
 int lcc_string_to_identifier (lcc_connection_t *c,
     lcc_identifier_t *ident, const char *string);
 
+/* Compares the identifiers "i0" and "i1" and returns less than zero or greater
+ * than zero if "i0" is smaller than or greater than "i1", respectively. If
+ * "i0" and "i1" are identical, zero is returned. */
+int lcc_identifier_compare (const lcc_identifier_t *i0,
+    const lcc_identifier_t *i1);
+
 LCC_END_DECLS
 
 /* vim: set sw=2 sts=2 et : */
