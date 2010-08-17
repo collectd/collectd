@@ -10,5 +10,5 @@ nodist_pkgconfig_DATA = libcollectdclient.pc
 
 BUILT_SOURCES = collectd/lcc_features.h
 
-libcollectdclient_la_SOURCES = client.c network_buffer.c
+libcollectdclient_la_SOURCES = client.c network.c network_buffer.c
 libcollectdclient_la_LDFLAGS = -version-info 0:0:0
