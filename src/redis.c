@@ -24,7 +24,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "utils_avltree.h"
 
 #include <pthread.h>
 #include <credis.h>
@@ -271,17 +270,14 @@ static int redis_read (void) /* {{{ */
         info.total_connections_received, info.total_commands_processed,
         info.uptime_in_seconds);
 
-    redis_submit_g (rn->name, "connected_clients", NULL, info.connected_clients);
-    redis_submit_g (rn->name, "connected_slaves", NULL, info.connected_slaves);
-    redis_submit_g (rn->name, "used_memory", NULL, info.used_memory);
-    redis_submit_g (rn->name, "changes_since_last_save", NULL, info.changes_since_last_save);
-    redis_submit_g (rn->name, "bgsave_in_progress", NULL, info.bgsave_in_progress);
-    redis_submit_c (rn->name, "total_connections_received", NULL, info.total_connections_received);
-    redis_submit_c (rn->name, "total_commands_processed", NULL, info.total_commands_processed);
-    redis_submit_c (rn->name, "uptime_in_seconds", NULL, info.uptime_in_seconds);
+    redis_submit_g (rn->name, "current_connections", "clients", info.connected_clients);
+    redis_submit_g (rn->name, "current_connections", "slaves", info.connected_slaves);
+    redis_submit_g (rn->name, "memory", "used", info.used_memory);
+    redis_submit_g (rn->name, "volatile_changes", NULL, info.changes_since_last_save);
+    redis_submit_c (rn->name, "total_connections", NULL, info.total_connections_received);
+    redis_submit_c (rn->name, "total_operations", NULL, info.total_commands_processed);
 
     credis_close (rh);
-    status = 0;
   }
 
   return 0;

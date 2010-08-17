@@ -27,6 +27,7 @@ counter			value:COUNTER:U:U
 cpufreq			value:GAUGE:0:U
 cpu			value:COUNTER:0:4294967295
 current			value:GAUGE:U:U
+current_connections	value:GAUGE:0:U
 delay			seconds:GAUGE:-1000000:1000000
 derive			value:DERIVE:0:U
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
@@ -157,6 +158,7 @@ time_dispersion		seconds:GAUGE:-1000000:1000000
 timeleft		timeleft:GAUGE:0:3600
 time_offset		seconds:GAUGE:-1000000:1000000
 total_bytes		value:DERIVE:0:U
+total_connections	value:DERIVE:0:U
 total_operations	value:DERIVE:0:U
 total_requests		value:DERIVE:0:U
 total_sessions		value:DERIVE:0:U
@@ -171,17 +173,10 @@ vmpage_action		value:COUNTER:0:4294967295
 vmpage_faults		minflt:COUNTER:0:9223372036854775807, majflt:COUNTER:0:9223372036854775807
 vmpage_io		in:COUNTER:0:4294967295, out:COUNTER:0:4294967295
 vmpage_number		value:GAUGE:0:4294967295
+volatile_changes	value:GAUGE:0:U
 voltage_threshold	value:GAUGE:U:U, threshold:GAUGE:U:U
 voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
 pinba_view              req_per_sec:GAUGE:0:U, req_time:GAUGE:0:U, ru_utime:GAUGE:0:U, ru_stime:GAUGE:0:U, doc_size:GAUGE:0:U, mem_peak:GAUGE:0:U
-connected_clients   value:GAUGE:0:4294967295
-connected_slaves    value:GAUGE:0:4294967295
-used_memory         value:GAUGE:0:U
-changes_since_last_save    value:GAUGE:0:4294967295
-bgsave_in_progress     value:GAUGE:0:4294967295
-total_connections_received     value:COUNTER:0:9223372036854775807
-total_commands_processed      value:COUNTER:0:9223372036854775807
-uptime_in_seconds     value:COUNTER:0:4294967295
