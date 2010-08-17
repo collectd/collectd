@@ -53,6 +53,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     user_data_t *ud)
 {
   wr_node_t *node = ud->data;
+  char ident[512];
   char key[512];
   char value[512];
   size_t value_size;
@@ -60,10 +61,10 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   int status;
   int i;
 
-  status = FORMAT_VL (value, sizeof (value), vl);
+  status = FORMAT_VL (ident, sizeof (ident), vl);
   if (status != 0)
     return (status);
-  ssnprintf (key, sizeof (key), "collectd/%s", value);
+  ssnprintf (key, sizeof (key), "collectd/%s", ident);
 
   memset (value, 0, sizeof (value));
   value_size = sizeof (value);
@@ -119,6 +120,8 @@ static int wr_write (const data_set_t *ds, /* {{{ */
    * have a meaningful assertion message than a normal segmentation fault. */
   assert (node->conn != NULL);
   status = credis_zadd (node->conn, key, (double) vl->time, value);
+
+  credis_sadd (node->conn, "collectd/values", ident);
 
   pthread_mutex_unlock (&node->lock);
 
