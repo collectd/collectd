@@ -139,6 +139,7 @@
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
+#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -936,6 +937,14 @@
 #		Format "Command"
 #		StoreRates false
 #	</URL>
+#</Plugin>
+
+#<Plugin write_redis>
+#	<Node "example">
+#		Host "localhost"
+#		Port "6379"
+#		Timeout 1000
+#	</Node>
 #</Plugin>
 
 ##############################################################################
