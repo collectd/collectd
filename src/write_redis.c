@@ -55,35 +55,50 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   wr_node_t *node = ud->data;
   char key[512];
   char value[512];
-  char tmp[512];
+  size_t value_size;
+  char *value_ptr;
   int status;
   int i;
 
-  status = FORMAT_VL (tmp, sizeof (tmp), vl);
+  status = FORMAT_VL (value, sizeof (value), vl);
   if (status != 0)
     return (status);
-  ssnprintf (key, sizeof (key), "collectd/%s", tmp);
+  ssnprintf (key, sizeof (key), "collectd/%s", value);
 
-  ssnprintf (value, sizeof (value), "%lu", (unsigned long) vl->time);
+  memset (value, 0, sizeof (value));
+  value_size = sizeof (value);
+  value_ptr = &value[0];
+
+#define APPEND(...) do {                                             \
+  status = snprintf (value_ptr, value_size, __VA_ARGS__);            \
+  if (((size_t) status) > value_size)                                \
+  {                                                                  \
+    value_ptr += value_size;                                         \
+    value_size = 0;                                                  \
+  }                                                                  \
+  else                                                               \
+  {                                                                  \
+    value_ptr += status;                                             \
+    value_size -= status;                                            \
+  }                                                                  \
+} while (0)
+
+  APPEND ("%lu", (unsigned long) vl->time);
   for (i = 0; i < ds->ds_num; i++)
   {
     if (ds->ds[i].type == DS_TYPE_COUNTER)
-      ssnprintf (tmp, sizeof (tmp), "%s:%llu",
-          value, vl->values[i].counter);
+      APPEND ("%llu", vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      ssnprintf (tmp, sizeof (tmp), "%s:%g",
-          value, vl->values[i].gauge);
+      APPEND ("%g", vl->values[i].gauge);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      ssnprintf (tmp, sizeof (tmp), "%s:%"PRIi64,
-          value, vl->values[i].derive);
+      APPEND ("%"PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      ssnprintf (tmp, sizeof (tmp), "%s:%"PRIu64,
-          value, vl->values[i].absolute);
+      APPEND ("%"PRIu64, vl->values[i].absolute);
     else
       assert (23 == 42);
-
-    memcpy (value, tmp, sizeof (value));
   }
+
+#undef APPEND
 
   pthread_mutex_lock (&node->lock);
 
