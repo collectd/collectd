@@ -21,7 +21,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
-bin_PROGRAMS = collectd-nagios collectdctl
+bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
@@ -116,6 +116,17 @@ collectdctl_LDADD += -lm
 endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+
+collectd_tg_SOURCES = collectd-tg.c
+collectd_tg_LDADD =
+if BUILD_WITH_LIBSOCKET
+collectd_tg_LDADD += -lsocket
+endif
+if BUILD_AIX
+collectd_tg_LDADD += -lm
+endif
+collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
+collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 pkglib_LTLIBRARIES = 
