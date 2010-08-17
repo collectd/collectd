@@ -20,12 +20,21 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <assert.h>
 #include <errno.h>
 #include <arpa/inet.h> /* htons */
+
+#include <pthread.h>
+
+#if HAVE_LIBGCRYPT
+#include <gcrypt.h>
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
+#endif
 
 #include "collectd/network_buffer.h"
 
@@ -45,6 +54,8 @@
 #define TYPE_SIGN_SHA256     0x0200
 #define TYPE_ENCR_AES256     0x0210
 
+#define PART_SIGNATURE_SHA256_SIZE 36
+
 /*
  * Data types
  */
@@ -56,6 +67,10 @@ struct lcc_network_buffer_s
   lcc_value_list_t state;
   char *ptr;
   size_t free;
+
+  lcc_security_level_t seclevel;
+  char *username;
+  char *password;
 };
 
 #define SSTRNCPY(dst,src,sz) do { \
@@ -66,6 +81,27 @@ struct lcc_network_buffer_s
 /*
  * Private functions
  */
+static _Bool have_gcrypt (void) /* {{{ */
+{
+  static _Bool result = 0;
+  static _Bool need_init = 1;
+
+  if (!need_init)
+    return (result);
+  need_init = 0;
+
+  gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+
+  if (!gcry_check_version (GCRYPT_VERSION))
+    return (0);
+
+  gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
+  gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+
+  result = 1;
+  return (1);
+} /* }}} _Bool have_gcrypt */
+
 static uint64_t htonll (uint64_t val) /* {{{ */
 {
   static int config = 0;
@@ -413,6 +449,52 @@ static int nb_add_value_list (lcc_network_buffer_t *nb, /* {{{ */
   return (0);
 } /* }}} int nb_add_value_list */
 
+static int nb_add_signature (lcc_network_buffer_t *nb) /* {{{ */
+{
+  char *buffer;
+  size_t buffer_size;
+
+  gcry_md_hd_t hd;
+  gcry_error_t err;
+  unsigned char *hash;
+  const size_t hash_length = 32;
+
+  /* The type, length and username have already been filled in by
+   * "lcc_network_buffer_initialize". All we do here is calculate the hash over
+   * the username and the data and add the hash value to the buffer. */
+
+  buffer = nb->buffer + PART_SIGNATURE_SHA256_SIZE;
+  assert (nb->size >= (nb->free + PART_SIGNATURE_SHA256_SIZE));
+  buffer_size = nb->size - (nb->free + PART_SIGNATURE_SHA256_SIZE);
+
+  hd = NULL;
+  err = gcry_md_open (&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
+  if (err != 0)
+    return (-1);
+
+  assert (nb->password != NULL);
+  err = gcry_md_setkey (hd, nb->password, strlen (nb->password));
+  if (err != 0)
+  {
+    gcry_md_close (hd);
+    return (-1);
+  }
+
+  gcry_md_write (hd, buffer, buffer_size);
+  hash = gcry_md_read (hd, GCRY_MD_SHA256);
+  if (hash == NULL)
+  {
+    gcry_md_close (hd);
+    return (-1);
+  }
+
+  assert (((2 * sizeof (uint16_t)) + hash_length) == PART_SIGNATURE_SHA256_SIZE);
+  memcpy (nb->buffer + (2 * sizeof (uint16_t)), hash, hash_length);
+
+  gcry_md_close (hd);
+  return (0);
+} /* }}} int nb_add_signature */
+
 /*
  * Public functions
  */
@@ -446,6 +528,10 @@ lcc_network_buffer_t *lcc_network_buffer_create (size_t size) /* {{{ */
   nb->ptr = nb->buffer;
   nb->free = nb->size;
 
+  nb->seclevel = NONE;
+  nb->username = NULL;
+  nb->password = NULL;
+
   return (nb);
 } /* }}} lcc_network_buffer_t *lcc_network_buffer_create */
 
@@ -460,10 +546,42 @@ void lcc_network_buffer_destroy (lcc_network_buffer_t *nb) /* {{{ */
 
 int lcc_network_buffer_set_security_level (lcc_network_buffer_t *nb, /* {{{ */
     lcc_security_level_t level,
-    const char *user, const char *password)
+    const char *username, const char *password)
 {
-  /* FIXME: Not yet implemented */
-  return (-1);
+  char *username_copy;
+  char *password_copy;
+
+  if (level == NONE)
+  {
+    free (nb->username);
+    free (nb->password);
+    nb->username = NULL;
+    nb->password = NULL;
+    nb->seclevel = NONE;
+    lcc_network_buffer_initialize (nb);
+    return (0);
+  }
+
+  if (!have_gcrypt ())
+    return (ENOTSUP);
+
+  username_copy = strdup (username);
+  password_copy = strdup (password);
+  if ((username_copy == NULL) || (password_copy == NULL))
+  {
+    free (username_copy);
+    free (password_copy);
+    return (ENOMEM);
+  }
+
+  free (nb->username);
+  free (nb->password);
+  nb->username = username_copy;
+  nb->password = password_copy;
+  nb->seclevel = level;
+
+  lcc_network_buffer_initialize (nb);
+  return (0);
 } /* }}} int lcc_network_buffer_set_security_level */
 
 int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
@@ -476,6 +594,27 @@ int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
   nb->ptr = nb->buffer;
   nb->free = nb->size;
 
+  if (nb->seclevel == SIGN)
+  {
+    size_t username_len;
+    uint16_t pkg_type = htons (TYPE_SIGN_SHA256);
+    uint16_t pkg_length = PART_SIGNATURE_SHA256_SIZE;
+
+    assert (nb->username != NULL);
+    username_len = strlen (nb->username);
+    pkg_length = htons (pkg_length + ((uint16_t) username_len));
+
+    /* Fill in everything but the hash value here. */
+    memcpy (nb->ptr, &pkg_type, sizeof (pkg_type));
+    memcpy (nb->ptr + sizeof (pkg_type), &pkg_length, sizeof (pkg_length));
+    nb->ptr += PART_SIGNATURE_SHA256_SIZE;
+    nb->free -= PART_SIGNATURE_SHA256_SIZE;
+
+    memcpy (nb->ptr, nb->username, username_len);
+    nb->ptr += username_len;
+    nb->free -= username_len;
+  }
+
   /* FIXME: If security is enabled, reserve space for the signature /
    * encryption block here. */
 
@@ -487,6 +626,8 @@ int lcc_network_buffer_finalize (lcc_network_buffer_t *nb) /* {{{ */
   if (nb == NULL)
     return (EINVAL);
 
+  if (nb->seclevel == SIGN)
+    nb_add_signature (nb);
   /* FIXME: If security is enabled, sign or encrypt the packet here. */
 
   return (0);

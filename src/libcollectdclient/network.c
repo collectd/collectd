@@ -370,45 +370,12 @@ int lcc_server_set_ttl (lcc_server_t *srv, uint8_t ttl) /* {{{ */
 } /* }}} int lcc_server_set_ttl */
 
 int lcc_server_set_security_level (lcc_server_t *srv, /* {{{ */
-    lcc_security_level_t level)
-{
-  if ((srv == NULL)
-      || ((level != NONE) && (level != SIGN) && (level != ENCRYPT)))
-    return (EINVAL);
-
-  srv->security_level = level;
-
-  return (0);
-} /* }}} int lcc_server_set_security_level */
-
-int lcc_server_set_credentials (lcc_server_t *srv, /* {{{ */
+    lcc_security_level_t level,
     const char *username, const char *password)
 {
-  char *tmp_username;
-  char *tmp_password;
-
-  if ((srv == NULL) || (username == NULL) || (password == NULL))
-    return (EINVAL);
-
-  tmp_username = strdup (username);
-  if (tmp_username == NULL)
-    return (ENOMEM);
-
-  tmp_password = strdup (password);
-  if (tmp_password == NULL)
-  {
-    free (tmp_username);
-    return (ENOMEM);
-  }
-
-  free (srv->username);
-  free (srv->password);
-
-  srv->username = tmp_username;
-  srv->password = tmp_password;
-
-  return (0);
-} /* }}} int lcc_server_set_credentials */
+  return (lcc_network_buffer_set_security_level (srv->buffer,
+        level, username, password));
+} /* }}} int lcc_server_set_security_level */
 
 int lcc_network_values_send (lcc_network_t *net, /* {{{ */
     const lcc_value_list_t *vl)
