@@ -4,7 +4,9 @@ collectd-perl - Documentation of collectd's C<perl plugin>
 
 =head1 SYNOPSIS
 
-  LoadPlugin perl
+  <LoadPlugin perl>
+    Globals true
+  </LoadPlugin>
   # ...
   <Plugin perl>
     IncludeDir "/path/to/perl/plugins"
@@ -24,6 +26,12 @@ interface to collectd's plugin system. This makes it possible to write plugins
 for collectd in Perl. This is a lot more efficient than executing a
 Perl-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
+
+When loading the C<perl plugin>, the B<Globals> option should be enabled.
+Else, the perl plugin will fail to load any Perl modules implemented in C,
+which includes, amongst many others, the B<threads> module used by the plugin
+itself. See the documentation of the B<Globals> option in L<collectd.conf(5)>
+for details.
 
 =head1 CONFIGURATION
 

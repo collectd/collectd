@@ -701,11 +701,10 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 		if (status != 0)
 		{
 			char errbuf[1024];
-			ERROR ("configfile: stat (%s) failed: %s",
+			WARNING ("configfile: stat (%s) failed: %s",
 					path_ptr,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
-			oconfig_free (root);
-			return (NULL);
+			continue;
 		}
 
 		if (S_ISREG (statbuf.st_mode))
@@ -714,7 +713,7 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 			temp = cf_read_dir (path_ptr, depth);
 		else
 		{
-			ERROR ("configfile: %s is neither a file nor a "
+			WARNING ("configfile: %s is neither a file nor a "
 					"directory.", path);
 			continue;
 		}
@@ -730,6 +729,12 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 	}
 
 	wordfree (&we);
+
+	if (root->children == NULL)
+	{
+		oconfig_free (root);
+		return (NULL);
+	}
 
 	return (root);
 } /* oconfig_item_t *cf_read_generic */
