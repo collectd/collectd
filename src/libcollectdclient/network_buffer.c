@@ -55,6 +55,17 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #define TYPE_ENCR_AES256     0x0210
 
 #define PART_SIGNATURE_SHA256_SIZE 36
+#define PART_ENCRYPTION_AES256_SIZE 42
+
+#define ADD_GENERIC(nb,srcptr,size) do {         \
+  assert ((size) <= (nb)->free);                 \
+  memcpy ((nb)->ptr, (srcptr), (size));          \
+  (nb)->ptr += (size);                           \
+  (nb)->free -= (size);                          \
+} while (0)
+
+#define ADD_STATIC(nb,var) \
+  ADD_GENERIC(nb,&(var),sizeof(var));
 
 /*
  * Data types
@@ -71,6 +82,10 @@ struct lcc_network_buffer_s
   lcc_security_level_t seclevel;
   char *username;
   char *password;
+
+  gcry_cipher_hd_t encr_cypher;
+  size_t encr_header_len;
+  char encr_iv[16];
 };
 
 #define SSTRNCPY(dst,src,sz) do { \
@@ -495,6 +510,87 @@ static int nb_add_signature (lcc_network_buffer_t *nb) /* {{{ */
   return (0);
 } /* }}} int nb_add_signature */
 
+static int nb_add_encryption (lcc_network_buffer_t *nb) /* {{{ */
+{
+  size_t package_length;
+  char *encr_ptr; /* pointer to data being encrypted */
+  size_t encr_size;
+
+  char *hash_ptr; /* pointer to data being hashed */
+  size_t hash_size;
+  char hash[20];
+
+  uint16_t pkg_length;
+  gcry_error_t err;
+
+  /* Fill in the package length */
+  package_length = nb->size - nb->free;
+  pkg_length = htons ((uint16_t) package_length);
+  memcpy (nb->buffer + 2, &pkg_length, sizeof (pkg_length));
+
+  /* Calculate what to hash */
+  hash_ptr = nb->buffer + PART_ENCRYPTION_AES256_SIZE;
+  hash_size = package_length - nb->encr_header_len;
+
+  /* Calculate what to encrypt */
+  encr_ptr = hash_ptr - sizeof (hash);
+  encr_size = hash_size + sizeof (hash);
+
+  /* Calculate the SHA-1 hash */
+  gcry_md_hash_buffer (GCRY_MD_SHA1, hash, hash_ptr, hash_size);
+  memcpy (encr_ptr, hash, sizeof (hash));
+
+  if (nb->encr_cypher == NULL)
+  {
+    unsigned char password_hash[32];
+
+    err = gcry_cipher_open (&nb->encr_cypher,
+        GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_OFB, /* flags = */ 0);
+    if (err != 0)
+      return (-1);
+
+    /* Calculate our 256bit key used for AES */
+    gcry_md_hash_buffer (GCRY_MD_SHA256, password_hash,
+        nb->password, strlen (nb->password));
+
+    err = gcry_cipher_setkey (nb->encr_cypher,
+        password_hash, sizeof (password_hash));
+    if (err != 0)
+    {
+      gcry_cipher_close (nb->encr_cypher);
+      nb->encr_cypher = NULL;
+      return (-1);
+    }
+  }
+  else /* if (nb->encr_cypher != NULL) */
+  {
+    gcry_cipher_reset (nb->encr_cypher);
+  }
+
+  /* Set the initialization vector */
+  err = gcry_cipher_setiv (nb->encr_cypher,
+      nb->encr_iv, sizeof (nb->encr_iv));
+  if (err != 0)
+  {
+    gcry_cipher_close (nb->encr_cypher);
+    nb->encr_cypher = NULL;
+    return (-1);
+  }
+
+  /* Encrypt the buffer in-place */
+  err = gcry_cipher_encrypt (nb->encr_cypher,
+      encr_ptr, encr_size,
+      /* in = */ NULL, /* in len = */ 0);
+  if (err != 0)
+  {
+    gcry_cipher_close (nb->encr_cypher);
+    nb->encr_cypher = NULL;
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int nb_add_encryption */
+
 /*
  * Public functions
  */
@@ -614,9 +710,31 @@ int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
     nb->ptr += username_len;
     nb->free -= username_len;
   }
+  else if (nb->seclevel == ENCRYPT)
+  {
+    size_t username_length = strlen (nb->username);
+    uint16_t pkg_type = htons (TYPE_ENCR_AES256);
+    uint16_t pkg_length = 0; /* Filled in in finalize. */
+    uint16_t pkg_user_len = htons ((uint16_t) username_length);
+    char hash[20];
 
-  /* FIXME: If security is enabled, reserve space for the signature /
-   * encryption block here. */
+    nb->encr_header_len = username_length;
+    nb->encr_header_len += PART_ENCRYPTION_AES256_SIZE;
+
+    gcry_randomize ((void *) &nb->encr_iv, sizeof (nb->encr_iv),
+        GCRY_STRONG_RANDOM);
+
+    /* Filled in in finalize. */
+    memset (hash, 0, sizeof (hash));
+
+    ADD_STATIC (nb, pkg_type);
+    ADD_STATIC (nb, pkg_length);
+    ADD_STATIC (nb, pkg_user_len);
+    ADD_GENERIC (nb, nb->username, username_length);
+    ADD_GENERIC (nb, nb->encr_iv, sizeof (nb->encr_iv));
+    ADD_GENERIC (nb, hash, sizeof (hash));
+    assert ((nb->encr_header_len + nb->free) == nb->size);
+  }
 
   return (0);
 } /* }}} int lcc_network_buffer_initialize */
@@ -628,7 +746,8 @@ int lcc_network_buffer_finalize (lcc_network_buffer_t *nb) /* {{{ */
 
   if (nb->seclevel == SIGN)
     nb_add_signature (nb);
-  /* FIXME: If security is enabled, sign or encrypt the packet here. */
+  else if (nb->seclevel == ENCRYPT)
+    nb_add_encryption (nb);
 
   return (0);
 } /* }}} int lcc_network_buffer_finalize */
