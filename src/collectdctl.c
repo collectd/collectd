@@ -254,7 +254,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
       }
     }
     else if (strcasecmp (key, "plugin") == 0) {
-      status = array_grow ((void **)&plugins, &plugins_num,
+      status = array_grow ((void *)&plugins, &plugins_num,
           sizeof (*plugins));
       if (status != 0)
         BAIL_OUT (status);
@@ -262,7 +262,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
       plugins[plugins_num - 1] = value;
     }
     else if (strcasecmp (key, "identifier") == 0) {
-      status = array_grow ((void **)&identifiers, &identifiers_num,
+      status = array_grow ((void *)&identifiers, &identifiers_num,
           sizeof (*identifiers));
       if (status != 0)
         BAIL_OUT (status);
@@ -280,7 +280,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
   }
 
   if (plugins_num == 0) {
-    status = array_grow ((void **)&plugins, &plugins_num, sizeof (*plugins));
+    status = array_grow ((void *)&plugins, &plugins_num, sizeof (*plugins));
     if (status != 0)
       BAIL_OUT (status);
 
