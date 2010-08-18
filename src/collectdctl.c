@@ -443,7 +443,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
 
         vl.time = strtol (argv[i], &endptr, 0);
 
-        if (endptr == value) {
+        if (endptr == argv[i]) {
           fprintf (stderr, "ERROR: Failed to parse time as number: %s.\n",
               argv[i]);
           return (-1);
