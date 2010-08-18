@@ -22,6 +22,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
 #include <sys/protosw.h>
 #include <libperfstat.h>
 #include <sys/systemcfg.h>
@@ -31,9 +32,6 @@
 # define XINTFRAC ((double)(_system_configuration.Xint) / \
                    (double)(_system_configuration.Xfrac))
 #endif
-
-/* Max length of the type instance string */
-#define TYPE_INST_LEN (sizeof("lpar--total") + 2*sizeof(int) + 1)
 
 static const char *config_keys[] =
 {
@@ -48,8 +46,6 @@ static int pool_stats = 0;
  * track on which physical server we are currently on. This is done
  * through the plugin instance which holds the chassis' serial.
  */
-static char plugin_inst[SYS_NMLN];
-
 static u_longlong_t last_time_base;
 static u_longlong_t last_pcpu_user,
                     last_pcpu_sys,
@@ -124,7 +120,7 @@ static int lpar_init (void)
 	return (0);
 } /* int lpar_init */
 
-static void lpar_submit (const char *type_instance, double value)
+static void lpar_submit (const char *plugin_inst, const char *type_instance, double value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -142,12 +138,32 @@ static void lpar_submit (const char *type_instance, double value)
 	plugin_dispatch_values (&vl);
 }
 
+static int submit_counter (const char *plugin_instance, /* {{{ */
+		const char *type, const char *type_instance, counter_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].counter = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "lpar", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, plugin_inst, sizeof (vl.plugin));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	return (plugin_dispatch_values (&vl));
+} /* }}} int submit_counter */
+
 static int lpar_read (void)
 {
-	u_longlong_t dlt_pcpu_user, dlt_pcpu_sys, dlt_pcpu_idle, dlt_pcpu_wait;
 	u_longlong_t delta_time_base;
 	perfstat_partition_total_t lparstats;
 	struct utsname name;
+	char plugin_inst[DATA_MAX_NAME_LEN];
+	_Bool have_donate = 0;
 
 	/* retrieve the current physical server's id and build the plugin
 	   instance's name */
@@ -159,12 +175,17 @@ static int lpar_read (void)
 	sstrncpy (plugin_inst, name.machine, sizeof (plugin_inst));
 
 	/* retrieve the current metrics */
-	if (!perfstat_partition_total (NULL, &lparstats,
-	                               sizeof (perfstat_partition_total_t), 1))
+	if (!perfstat_partition_total (/* name = */ NULL, /* "must be set to NULL" */
+				&lparstats, sizeof (lparstats),
+				/* desired_number = */ 1 /* "must be set to 1" */))
 	{
 		ERROR ("lpar plugin: perfstat_partition_total failed.");
 		return (-1);
 	}
+
+	if (!lparstats.type.b.shared_enabled
+			&& lparstats.type.b.donate_enabled)
+		have_donate = 1;
 
 	delta_time_base = lparstats.timebase_last - last_time_base;
 	if (delta_time_base == 0)
@@ -173,54 +194,49 @@ static int lpar_read (void)
 		return (0);
 	}
 
-	dlt_pcpu_user = lparstats.puser - last_pcpu_user;
-	dlt_pcpu_sys  = lparstats.psys  - last_pcpu_sys;
-	dlt_pcpu_idle = lparstats.pidle - last_pcpu_idle;
-	dlt_pcpu_wait = lparstats.pwait - last_pcpu_wait;
+	submit_counter (plugin_inst, "cpu", "user",   (counter_t) lparstats.puser);
+	submit_counter (plugin_inst, "cpu", "system", (counter_t) lparstats.psys);
+	submit_counter (plugin_inst, "cpu", "idle",   (counter_t) lparstats.pidle);
+	submit_counter (plugin_inst, "cpu", "wait",   (counter_t) lparstats.pwait);
 
-	lpar_submit ("user", (double)dlt_pcpu_user / delta_time_base);
-	lpar_submit ("sys",  (double)dlt_pcpu_sys  / delta_time_base);
-	lpar_submit ("wait", (double)dlt_pcpu_wait / delta_time_base);
-	lpar_submit ("idle", (double)dlt_pcpu_idle / delta_time_base);
-	lpar_submit ("ent",  (double)lparstats.entitled_proc_capacity / 100.0);
-	lpar_submit ("max",  (double)lparstats.max_proc_capacity / 100.0);
-	lpar_submit ("min",  (double)lparstats.min_proc_capacity / 100.0);
+	/* FIXME: Use an appropriate GAUGE type here. */
+	lpar_submit (plugin_inst, "ent",  (double)lparstats.entitled_proc_capacity / 100.0);
+	lpar_submit (plugin_inst, "max",  (double)lparstats.max_proc_capacity / 100.0);
+	lpar_submit (plugin_inst, "min",  (double)lparstats.min_proc_capacity / 100.0);
 
-	if (donate_flag)
+	if (have_donate)
 	{
-		u_longlong_t dlt_busy_stolen, dlt_idle_stolen;
-		u_longlong_t dlt_idle_donated, dlt_busy_donated;
-
 		dlt_idle_donated = lparstats.idle_donated_purr - last_idle_donated_purr;
 		dlt_busy_donated = lparstats.busy_donated_purr - last_busy_donated_purr;
 		dlt_idle_stolen  = lparstats.idle_stolen_purr  - last_idle_stolen_purr;
 		dlt_busy_stolen  = lparstats.busy_stolen_purr  - last_busy_stolen_purr;
 
-		lpar_submit ("idle_donated", (double)dlt_idle_donated / delta_time_base);
-		lpar_submit ("busy_donated", (double)dlt_busy_donated / delta_time_base);
-		lpar_submit ("idle_stolen",  (double)dlt_idle_stolen  / delta_time_base);
-		lpar_submit ("busy_stolen",  (double)dlt_busy_stolen  / delta_time_base);
+		submit_counter (plugin_inst, "cpu", "donated-idle", (counter_t) lparstats.idle_donated_purr);
+		submit_counter (plugin_inst, "cpu", "donated-busy", (counter_t) lparstats.busy_donated_purr);
+		submit_counter (plugin_inst, "cpu", "stolen-idle",  (counter_t) lparstats.idle_stolen_purr);
+		submit_counter (plugin_inst, "cpu", "stolen-busy",  (counter_t) lparstats.busy_stolen_purr);
 	}
 
 	if (pool_stats)
 	{
 		if (!lparstats.type.b.pool_util_authority)
 		{
-			WARNING ("lpar plugin: this system does not have pool authority.");
+			WARNING ("lpar plugin: Pool utilization data is not available.");
 		}
 		else
 		{
 			u_longlong_t dlt_pit;
 			double total, idle;
-			char type[TYPE_INST_LEN];
+			char type[DATA_MAX_NAME_LEN];
 
+			/* FIXME: The pool id should probably be used as plugin instance. */
 			dlt_pit = lparstats.pool_idle_time - last_pool_idle_time;
 			total = (double)lparstats.phys_cpus_pool;
 			idle  = (double)dlt_pit / XINTFRAC / (double)delta_time_base;
 			ssnprintf (type, sizeof(type), "pool-%X-total", lparstats.pool_id);
-			lpar_submit (type, total);
+			lpar_submit (plugin_inst, type, total);
 			ssnprintf (type, sizeof(type), "pool-%X-used", lparstats.pool_id);
-			lpar_submit (type, total - idle);
+			lpar_submit (plugin_inst, type, total - idle);
 		}
 	}
 
@@ -237,5 +253,5 @@ void module_register (void)
 	plugin_register_read ("lpar", lpar_read);
 } /* void module_register */
 
-/* vim: set sw=2 sts=2 ts=8 : */
+/* vim: set sw=8 sts=8 ts=8 noet : */
 
