@@ -21,25 +21,34 @@
  *   Sebastian "tokkee" Harl <sh@tokkee.org>
  **/
 
+#ifndef _ISOC99_SOURCE
+# define _ISOC99_SOURCE
+#endif
+
+#ifndef _POSIX_C_SOURCE
+# define _POSIX_C_SOURCE 200112L
+#endif
+
+#ifndef _XOPEN_SOURCE
+# define _XOPEN_SOURCE 600
+#endif
+
 #if HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include "libcollectdclient/client.h"
-
-#include <assert.h>
-
-#include <errno.h>
-
-#include <getopt.h>
-
-#include <math.h>
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
 #include <unistd.h>
+#include <string.h>
+#include <strings.h>
+
+#include <assert.h>
+#include <errno.h>
+#include <math.h>
+
+#include "libcollectdclient/client.h"
+
 
 #define DEFAULT_SOCK LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 
