@@ -28,6 +28,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "utils_heap.h"
+
 #include "libcollectdclient/collectd/client.h"
 #include "libcollectdclient/collectd/network.h"
 #include "libcollectdclient/collectd/network_buffer.h"
@@ -38,8 +40,7 @@ static int conf_num_values = 100000;
 
 static lcc_network_t *net;
 
-static lcc_value_list_t **values;
-static size_t values_num;
+static c_heap_t *values_heap = NULL;
 
 static int compare_time (const void *v0, const void *v1) /* {{{ */
 {
@@ -203,7 +204,14 @@ static int send_value (lcc_value_list_t *vl) /* {{{ */
 
 int main (int argc, char **argv) /* {{{ */
 {
-  size_t i;
+  int i;
+
+  values_heap = c_heap_create (compare_time);
+  if (values_heap == NULL)
+  {
+    fprintf (stderr, "c_heap_create failed.\n");
+    exit (EXIT_FAILURE);
+  }
 
   net = lcc_network_create ();
   if (net == NULL)
@@ -223,40 +231,41 @@ int main (int argc, char **argv) /* {{{ */
     }
 
     lcc_server_set_ttl (srv, 42);
-  }
-
-  values_num = (size_t) conf_num_values;
-  values = calloc (values_num, sizeof (*values));
-  if (values == NULL)
-  {
-    fprintf (stderr, "calloc failed.\n");
-    exit (EXIT_FAILURE);
+#if 0
+    lcc_server_set_security_level (srv, ENCRYPT,
+        "admin", "password1");
+#endif
   }
 
   fprintf (stdout, "Creating %i values ... ", conf_num_values);
   fflush (stdout);
-  for (i = 0; i < values_num; i++)
+  for (i = 0; i < conf_num_values; i++)
   {
-    values[i] = create_value_list ();
-    if (values[i] == NULL)
+    lcc_value_list_t *vl;
+
+    vl = create_value_list ();
+    if (vl == NULL)
     {
       fprintf (stderr, "create_value_list failed.\n");
       exit (EXIT_FAILURE);
     }
+
+    c_heap_insert (values_heap, vl);
   }
   fprintf (stdout, "done\n");
 
-  fprintf (stdout, "Sorting values by time ... ");
-  fflush (stdout);
-  qsort (values, values_num, sizeof (*values), compare_time);
-  fprintf (stdout, "done\n");
+  while (42)
+  {
+    lcc_value_list_t *vl = c_heap_get_root (values_heap);
 
-  for (i = 0; i < values_num; i++)
-    send_value (values[i]);
+    if (vl == NULL)
+      break;
 
-  for (i = 0; i < values_num; i++)
-    destroy_value_list (values[i]);
-  free (values);
+    send_value (vl);
+    destroy_value_list (vl);
+  }
+
+  c_heap_destroy (values_heap);
 
   lcc_network_destroy (net);
   exit (EXIT_SUCCESS);

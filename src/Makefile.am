@@ -117,7 +117,8 @@ endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
-collectd_tg_SOURCES = collectd-tg.c
+collectd_tg_SOURCES = collectd-tg.c \
+		      utils_heap.c utils_heap.h
 collectd_tg_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
