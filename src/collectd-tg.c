@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h>
 
 #include "utils_heap.h"
 
@@ -42,18 +43,27 @@ static lcc_network_t *net;
 
 static c_heap_t *values_heap = NULL;
 
+static struct sigaction sigint_action;
+static struct sigaction sigterm_action;
+
+static _Bool loop = 1;
+
+static void signal_handler (int signal) /* {{{ */
+{
+  loop = 0;
+} /* }}} void signal_handler */
+
 static int compare_time (const void *v0, const void *v1) /* {{{ */
 {
-  lcc_value_list_t * const *vl0 = v0;
-  lcc_value_list_t * const *vl1 = v1;
+  const lcc_value_list_t *vl0 = v0;
+  const lcc_value_list_t *vl1 = v1;
 
-  if ((*vl0)->time < (*vl1)->time)
+  if (vl0->time < vl1->time)
     return (-1);
-  else if ((*vl0)->time > (*vl1)->time)
+  else if (vl0->time > vl1->time)
     return (1);
   else
-    return (lcc_identifier_compare (&(*vl0)->identifier, /* Ouch, somebody */
-          &(*vl1)->identifier));          /* is going to hate me for this. */
+    return (0);
 } /* }}} int compare_time */
 
 static int get_boundet_random (int min, int max) /* {{{ */
@@ -205,6 +215,15 @@ static int send_value (lcc_value_list_t *vl) /* {{{ */
 int main (int argc, char **argv) /* {{{ */
 {
   int i;
+  time_t last_time;
+  int values_sent = 0;
+
+  sigint_action.sa_handler = signal_handler;
+  sigaction (SIGINT, &sigint_action, /* old = */ NULL);
+
+  sigterm_action.sa_handler = signal_handler;
+  sigaction (SIGTERM, &sigterm_action, /* old = */ NULL);
+
 
   values_heap = c_heap_create (compare_time);
   if (values_heap == NULL)
@@ -254,17 +273,47 @@ int main (int argc, char **argv) /* {{{ */
   }
   fprintf (stdout, "done\n");
 
-  while (42)
+  last_time = 0;
+  while (loop)
   {
     lcc_value_list_t *vl = c_heap_get_root (values_heap);
 
     if (vl == NULL)
       break;
 
+    if (vl->time != last_time)
+    {
+      printf ("%i values have been sent.\n", values_sent);
+
+      /* Check if we need to sleep */
+      time_t now = time (NULL);
+
+      while (now < vl->time)
+      {
+        /* 1 / 100 second */
+        struct timespec ts = { 0, 10000000 };
+        nanosleep (&ts, /* remaining = */ NULL);
+        now = time (NULL);
+      }
+      last_time = vl->time;
+    }
+
     send_value (vl);
-    destroy_value_list (vl);
+    values_sent++;
+
+    c_heap_insert (values_heap, vl);
   }
 
+  fprintf (stdout, "Shutting down.\n");
+  fflush (stdout);
+
+  while (42)
+  {
+    lcc_value_list_t *vl = c_heap_get_root (values_heap);
+    if (vl == NULL)
+      break;
+    destroy_value_list (vl);
+  }
   c_heap_destroy (values_heap);
 
   lcc_network_destroy (net);
