@@ -53,13 +53,15 @@
 #include "libcollectdclient/collectd/network.h"
 #include "libcollectdclient/collectd/network_buffer.h"
 
-#define DEF_NUM_HOSTS 1000
-#define DEF_NUM_PLUGINS 20
+#define DEF_NUM_HOSTS    1000
+#define DEF_NUM_PLUGINS    20
 #define DEF_NUM_VALUES 100000
+#define DEF_INTERVAL       10
 
 static int conf_num_hosts = DEF_NUM_HOSTS;
 static int conf_num_plugins = DEF_NUM_PLUGINS;
 static int conf_num_values = DEF_NUM_VALUES;
+static int conf_interval = DEF_INTERVAL;
 static const char *conf_destination = NET_DEFAULT_V6_ADDR;
 static const char *conf_service = NET_DEFAULT_PORT;
 
@@ -84,6 +86,7 @@ static void exit_usage (int exit_status) /* {{{ */
       "    -n <number>    Number of value lists. (Default: %i)\n"
       "    -H <number>    Number of hosts to emulate. (Default: %i)\n"
       "    -p <number>    Number of plugins to emulate. (Default: %i)\n"
+      "    -i <seconds>   Interval of each value in seconds. (Default: %i)\n"
       "    -d <dest>      Destination address of the network packets.\n"
       "                   (Default: %s)\n"
       "    -D <port>      Destination port of the network packets.\n"
@@ -93,6 +96,7 @@ static void exit_usage (int exit_status) /* {{{ */
       "Copyright (C) 2010  Florian Forster\n"
       "Licensed under the GNU General Public License, version 2 (GPLv2)\n",
       DEF_NUM_VALUES, DEF_NUM_HOSTS, DEF_NUM_PLUGINS,
+      DEF_INTERVAL,
       NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT);
   exit (exit_status);
 } /* }}} void exit_usage */
@@ -259,6 +263,10 @@ static int read_options (int argc, char **argv) /* {{{ */
 
       case 'p':
         get_integer_opt (optarg, &conf_num_plugins);
+        break;
+
+      case 'i':
+        get_integer_opt (optarg, &conf_interval);
         break;
 
       case 'd':
