@@ -129,55 +129,6 @@ static int get_boundet_random (int min, int max) /* {{{ */
   return (min + ((int) (((double) range) * ((double) random ()) / (((double) RAND_MAX) + 1.0))));
 } /* }}} int get_boundet_random */
 
-#if 0
-static int dump_network_buffer (void) /* {{{ */
-{
-  char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT];
-  size_t buffer_size;
-  int status;
-  size_t offset;
-
-  memset (buffer, 0, sizeof (buffer));
-  buffer_size = sizeof (buffer);
-
-  status = lcc_network_buffer_get (nb, buffer, &buffer_size);
-  if (status != 0)
-  {
-    fprintf (stderr, "lcc_network_buffer_get failed with status %i.\n",
-        status);
-    return (status);
-  }
-
-  if (buffer_size > sizeof (buffer))
-    buffer_size = sizeof (buffer);
-
-  for (offset = 0; offset < buffer_size; offset += 16)
-  {
-    size_t i;
-
-    for (i = 0; (i < 16) && ((offset + i) < buffer_size); i++)
-    {
-      uint8_t v = (uint8_t) buffer[offset + i];
-      printf ("%02"PRIx8" ", v);
-    }
-    for (; i < 16; i++)
-      printf ("   ");
-    printf ("   ");
-    for (i = 0; (i < 16) && ((offset + i) < buffer_size); i++)
-    {
-      uint8_t v = (uint8_t) buffer[offset + i];
-      if ((v >= 32) && (v < 128))
-        printf ("%c", (int) buffer[offset + i]);
-      else
-        printf (".");
-    }
-    printf ("\n");
-  }
-
-  return (0);
-} /* }}} int dump_network_buffer */
-#endif
-
 static lcc_value_list_t *create_value_list (void) /* {{{ */
 {
   lcc_value_list_t *vl;
