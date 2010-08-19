@@ -163,8 +163,8 @@ static lcc_value_list_t *create_value_list (void) /* {{{ */
 
   host_num = get_boundet_random (0, conf_num_hosts);
 
-  vl->interval = 10;
-  vl->time = time (NULL) - (host_num % vl->interval);
+  vl->interval = conf_interval;
+  vl->time = time (NULL) + (host_num % vl->interval) + 1;
 
   if (get_boundet_random (0, 2) == 0)
     vl->values_types[0] = LCC_TYPE_GAUGE;
@@ -364,6 +364,9 @@ int main (int argc, char **argv) /* {{{ */
         struct timespec ts = { 0, 10000000 };
         nanosleep (&ts, /* remaining = */ NULL);
         now = time (NULL);
+
+        if (!loop)
+          break;
       }
       last_time = vl->time;
     }
