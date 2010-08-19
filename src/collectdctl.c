@@ -21,6 +21,10 @@
  *   Sebastian "tokkee" Harl <sh@tokkee.org>
  **/
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #ifndef _ISOC99_SOURCE
 # define _ISOC99_SOURCE
 #endif
@@ -33,13 +37,9 @@
 # define _XOPEN_SOURCE 600
 #endif
 
-#if HAVE_CONFIG_H
-# include "config.h"
-#endif
-
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <string.h>
 #include <strings.h>
 
