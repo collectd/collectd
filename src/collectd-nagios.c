@@ -50,9 +50,6 @@
 
 #include "libcollectdclient/client.h"
 
-/*
- * This is copied directly from collectd.h. Make changes there!
- */
 #define RET_OKAY     0
 #define RET_WARNING  1
 #define RET_CRITICAL 2
