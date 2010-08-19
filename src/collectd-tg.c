@@ -1,5 +1,5 @@
 /**
- * collectd - src/collectd-tg.c
+ * collectd-td - collectd traffic generator
  * Copyright (C) 2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -23,7 +23,24 @@
 # include "config.h"
 #endif
 
+#ifndef _ISOC99_SOURCE
+# define _ISOC99_SOURCE
+#endif
+
+#ifndef _POSIX_C_SOURCE
+# define _POSIX_C_SOURCE 200809L
+#endif
+
+#ifndef _XOPEN_SOURCE
+# define _XOPEN_SOURCE 700
+#endif
+
+#if !__GNUC__
+# define __attribute__(x) /**/
+#endif
+
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -35,9 +52,15 @@
 #include "libcollectdclient/collectd/network.h"
 #include "libcollectdclient/collectd/network_buffer.h"
 
-static int conf_num_hosts = 1000;
-static int conf_num_plugins = 20;
-static int conf_num_values = 100000;
+#define DEF_NUM_HOSTS 1000
+#define DEF_NUM_PLUGINS 20
+#define DEF_NUM_VALUES 100000
+
+static int conf_num_hosts = DEF_NUM_HOSTS;
+static int conf_num_plugins = DEF_NUM_PLUGINS;
+static int conf_num_values = DEF_NUM_VALUES;
+static const char *conf_destination = NET_DEFAULT_V6_ADDR;
+static const char *conf_service = NET_DEFAULT_PORT;
 
 static lcc_network_t *net;
 
@@ -47,6 +70,31 @@ static struct sigaction sigint_action;
 static struct sigaction sigterm_action;
 
 static _Bool loop = 1;
+
+__attribute__((noreturn))
+static void exit_usage (int exit_status) /* {{{ */
+{
+  fprintf ((exit_status == EXIT_FAILURE) ? stderr : stdout,
+      "collectd-tg -- collectd traffic generator\n"
+      "\n"
+      "  Usage: collectd-ng [OPTION]\n"
+      "\n"
+      "  Valid options:\n"
+      "    -n <number>    Number of value lists. (Default: %i)\n"
+      "    -H <number>    Number of hosts to emulate. (Default: %i)\n"
+      "    -p <number>    Number of plugins to emulate. (Default: %i)\n"
+      "    -d <dest>      Destination address of the network packets.\n"
+      "                   (Default: %s)\n"
+      "    -D <port>      Destination port of the network packets.\n"
+      "                   (Default: %s)\n"
+      "    -h             Print usage information (this output).\n"
+      "\n"
+      "Copyright (C) 2010  Florian Forster\n"
+      "Licensed under the GNU General Public License, version 2 (GPLv2)\n",
+      DEF_NUM_VALUES, DEF_NUM_HOSTS, DEF_NUM_PLUGINS,
+      NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT);
+  exit (exit_status);
+} /* }}} void exit_usage */
 
 static void signal_handler (int signal) /* {{{ */
 {
@@ -212,11 +260,79 @@ static int send_value (lcc_value_list_t *vl) /* {{{ */
   return (0);
 } /* }}} int send_value */
 
+static int read_options (int argc, char **argv) /* {{{ */
+{
+  int opt;
+
+  while ((opt = getopt (argc, argv, "n:H:p:d:D:h")) != -1)
+  {
+    switch (opt)
+    {
+      case 'n':
+        {
+          int tmp = atoi (optarg);
+          if (tmp < 1)
+          {
+            fprintf (stderr, "Unable to parse option as a number: \"%s\"\n",
+                optarg);
+            exit (EXIT_FAILURE);
+          }
+          conf_num_values = tmp;
+        }
+        break;
+
+      case 'H':
+        {
+          int tmp = atoi (optarg);
+          if (tmp < 1)
+          {
+            fprintf (stderr, "Unable to parse option as a number: \"%s\"\n",
+                optarg);
+            exit (EXIT_FAILURE);
+          }
+          conf_num_hosts = tmp;
+        }
+        break;
+
+      case 'p':
+        {
+          int tmp = atoi (optarg);
+          if (tmp < 1)
+          {
+            fprintf (stderr, "Unable to parse option as a number: \"%s\"\n",
+                optarg);
+            exit (EXIT_FAILURE);
+          }
+          conf_num_plugins = tmp;
+        }
+        break;
+
+      case 'd':
+        conf_destination = optarg;
+        break;
+
+      case 'D':
+        conf_service = optarg;
+        break;
+
+      case 'h':
+        exit_usage (EXIT_SUCCESS);
+
+      default:
+        exit_usage (EXIT_FAILURE);
+    } /* switch (opt) */
+  } /* while (getopt) */
+
+  return (0);
+} /* }}} int read_options */
+
 int main (int argc, char **argv) /* {{{ */
 {
   int i;
   time_t last_time;
   int values_sent = 0;
+
+  read_options (argc, argv);
 
   sigint_action.sa_handler = signal_handler;
   sigaction (SIGINT, &sigint_action, /* old = */ NULL);
@@ -242,7 +358,7 @@ int main (int argc, char **argv) /* {{{ */
   {
     lcc_server_t *srv;
     
-    srv = lcc_server_create (net, NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT);
+    srv = lcc_server_create (net, conf_destination, conf_service);
     if (srv == NULL)
     {
       fprintf (stderr, "lcc_server_create failed.\n");
