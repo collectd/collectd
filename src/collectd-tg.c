@@ -45,6 +45,7 @@
 #include <string.h>
 #include <time.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "utils_heap.h"
 
@@ -260,51 +261,53 @@ static int send_value (lcc_value_list_t *vl) /* {{{ */
   return (0);
 } /* }}} int send_value */
 
+static int get_integer_opt (const char *str, int *ret_value) /* {{{ */
+{
+  char *endptr;
+  int tmp;
+
+  errno = 0;
+  endptr = NULL;
+  tmp = (int) strtol (str, &endptr, /* base = */ 0);
+  if (errno != 0)
+  {
+    fprintf (stderr, "Unable to parse option as a number: \"%s\": %s\n",
+        str, strerror (errno));
+    exit (EXIT_FAILURE);
+  }
+  else if (endptr == str)
+  {
+    fprintf (stderr, "Unable to parse option as a number: \"%s\"\n", str);
+    exit (EXIT_FAILURE);
+  }
+  else if (*endptr != 0)
+  {
+    fprintf (stderr, "Garbage after end of value: \"%s\"\n", str);
+    exit (EXIT_FAILURE);
+  }
+
+  *ret_value = tmp;
+  return (0);
+} /* }}} int get_integer_opt */
+
 static int read_options (int argc, char **argv) /* {{{ */
 {
   int opt;
 
-  while ((opt = getopt (argc, argv, "n:H:p:d:D:h")) != -1)
+  while ((opt = getopt (argc, argv, "n:H:p:i:d:D:h")) != -1)
   {
     switch (opt)
     {
       case 'n':
-        {
-          int tmp = atoi (optarg);
-          if (tmp < 1)
-          {
-            fprintf (stderr, "Unable to parse option as a number: \"%s\"\n",
-                optarg);
-            exit (EXIT_FAILURE);
-          }
-          conf_num_values = tmp;
-        }
+        get_integer_opt (optarg, &conf_num_values);
         break;
 
       case 'H':
-        {
-          int tmp = atoi (optarg);
-          if (tmp < 1)
-          {
-            fprintf (stderr, "Unable to parse option as a number: \"%s\"\n",
-                optarg);
-            exit (EXIT_FAILURE);
-          }
-          conf_num_hosts = tmp;
-        }
+        get_integer_opt (optarg, &conf_num_hosts);
         break;
 
       case 'p':
-        {
-          int tmp = atoi (optarg);
-          if (tmp < 1)
-          {
-            fprintf (stderr, "Unable to parse option as a number: \"%s\"\n",
-                optarg);
-            exit (EXIT_FAILURE);
-          }
-          conf_num_plugins = tmp;
-        }
+        get_integer_opt (optarg, &conf_num_plugins);
         break;
 
       case 'd':
