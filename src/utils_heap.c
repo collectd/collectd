@@ -96,7 +96,7 @@ static void reheap (c_heap_t *h, size_t root, enum reheap_direction dir)
     return;
 
   if (dir == DIR_UP)
-    reheap (h, root / 2, dir);
+    reheap (h, (root - 1) / 2, dir);
   else if (dir == DIR_DOWN)
     reheap (h, min, dir);
 } /* void reheap */
@@ -140,6 +140,8 @@ void c_heap_destroy (c_heap_t *h)
 
 int c_heap_insert (c_heap_t *h, void *ptr)
 {
+  size_t index;
+
   if ((h == NULL) || (ptr == NULL))
     return (-EINVAL);
 
@@ -162,11 +164,12 @@ int c_heap_insert (c_heap_t *h, void *ptr)
   }
 
   /* Insert the new node as a leaf. */
-  h->list[h->list_len] = ptr;
+  index = h->list_len;
+  h->list[index] = ptr;
   h->list_len++;
 
   /* Reorganize the heap from bottom up. */
-  reheap (h, /* parent of this node = */ (h->list_len - 1) / 2, DIR_UP);
+  reheap (h, /* parent of this node = */ (index - 1) / 2, DIR_UP);
   
   pthread_mutex_unlock (&h->lock);
   return (0);

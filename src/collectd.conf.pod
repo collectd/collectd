@@ -57,6 +57,33 @@ directory for the daemon.
 Loads the plugin I<Plugin>. There must be at least one such line or B<collectd>
 will be mostly useless.
 
+Starting with collectd 4.9, this may also be a block in which further options
+affecting the behavior of B<LoadPlugin> may be specified. The following
+options are allowed inside a B<LoadPlugin> block:
+
+  <LoadPlugin perl>
+    Globals true
+  </LoadPlugin>
+
+=over 4
+
+=item B<Globals> B<true|false>
+
+If enabled, collectd will export all global symbols of the plugin (and of all
+libraries loaded as dependencies of the plugin) and, thus, makes those symbols
+available for resolving unresolved symbols in subsequently loaded plugins if
+that is supported by your system. By default, this is disabled.
+
+This is useful (or possibly even required), e.E<nbsp>g., when loading a plugin
+that embeds some scripting language into the daemon (e.E<nbsp>g. the C<perl>
+or C<python> plugins). Scripting languages usually provide means to load
+extensions written in C. Those extensions require symbols provided by the
+interpreter, which is loaded as a dependency of the respective collectd
+plugin. See the documentation of those plugins (e.E<nbsp>g.,
+L<collectd-perl(5)> or L<collectd-python(5)>) for details.
+
+=back
+
 =item B<Include> I<Path>
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
@@ -3724,6 +3751,52 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<redis>
+
+The I<Redis plugin> connects to one or more Redis servers and gathers
+information about each server's state. For each server there is a I<Node> block
+which configures the connection parameters for this node.
+
+  <Plugin redis>
+    <Node "example">
+        Host "localhost"
+        Port "6379"
+        Timeout 2000
+    </Node>
+  </Plugin>
+
+The information shown in the synopsis above is the I<default configuration>
+which is used by the plugin if no configuration is present.
+
+=over 4
+
+=item B<Node> I<Nodename>
+
+The B<Node> block identifies a new Redis node, that is a new Redis instance
+running in an specified host and port. The name for node is a canonical
+identifier which is used as I<plugin instance>. It is limited to
+64E<nbsp>characters in length.
+
+=item B<Host> I<Hostname>
+
+The B<Host> option is the hostname or IP-address where the Redis instance is
+running on.
+
+=item B<Port> I<Port>
+
+The B<Port> option is the TCP port on which the Redis instance accepts
+connections. Either a service name of a port number may be given. Please note
+that numerical port numbers must be given as a string, too.
+
+=item B<Timeout> I<Timeout in miliseconds>
+
+The B<Timeout> option set the socket timeout for node response. Since the Redis
+read function is blocking, you should keep this value as low as possible. Keep
+in mind that the sum of all B<Timeout> values for all B<Nodes> should be lower
+than B<Interval> defined globally.
+
+=back
+
 =head2 Plugin C<rrdcached>
 
 The C<rrdcached> plugin uses the RRDtool accelerator daemon, L<rrdcached(1)>,
@@ -4120,25 +4193,37 @@ Use the last number found.
 
 =item B<CounterSet>
 
-The matched number is a counter. Simply sets the internal counter to this
-value.
+=item B<DeriveSet>
+
+=item B<AbsoluteSet>
+
+The matched number is a counter. Simply I<sets> the internal counter to this
+value. Variants exist for C<COUNTER>, C<DERIVE>, and C<ABSOLUTE> data sources.
 
 =item B<CounterAdd>
 
-Add the matched value to the internal counter.
+=item B<DeriveAdd>
+
+Add the matched value to the internal counter. In case of B<DeriveAdd>, the
+matched number may be negative, which will effectively subtract from the
+internal counter.
 
 =item B<CounterInc>
 
-Increase the internal counter by one. This B<DSType> is the only one that does
-not use the matched subexpression, but simply counts the number of matched
+=item B<DeriveInc>
+
+Increase the internal counter by one. These B<DSType> are the only ones that do
+not use the matched subexpression, but simply count the number of matched
 lines. Thus, you may use a regular expression without submatch in this case.
 
 =back
 
 As you'd expect the B<Gauge*> types interpret the submatch as a floating point
-number, using L<strtod(3)>. The B<CounterSet> and B<CounterAdd> interpret the
-submatch as an integer using L<strtoll(3)>. B<CounterInc> does not use the
-submatch at all and it may be omitted in this case.
+number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types interpret
+the submatch as an unsigned integer using L<strtoull(3)>. The B<Derive*> types
+interpret the submatch as a signed integer using L<strtoll(3)>. B<CounterInc>
+and B<DeriveInc> do not use the submatch at all and it may be omitted in this
+case.
 
 =item B<Type> I<Type>
 

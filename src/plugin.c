@@ -1374,7 +1374,12 @@ int plugin_dispatch_values (value_list_t *vl)
 
 	if (c_avl_get (data_sets, vl->type, (void *) &ds) != 0)
 	{
-		INFO ("plugin_dispatch_values: Dataset not found: %s", vl->type);
+		char ident[6 * DATA_MAX_NAME_LEN];
+
+		FORMAT_VL (ident, sizeof (ident), vl);
+		INFO ("plugin_dispatch_values: Dataset not found: %s "
+				"(from \"%s\"), check your types.db!",
+				vl->type, ident);
 		return (-1);
 	}
 

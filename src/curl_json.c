@@ -1,7 +1,7 @@
 /**
  * collectd - src/curl_json.c
  * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2006-2009  Florian octo Forster
+ * Copyright (C) 2006-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -130,59 +130,57 @@ static int cj_get_type (cj_key_t *key)
 }
 
 /* yajl callbacks */
-static int cj_cb_integer (void *ctx, long val)
+#define CJ_CB_ABORT    0
+#define CJ_CB_CONTINUE 1
+
+/* "number" may not be null terminated, so copy it into a buffer before
+ * parsing. */
+static int cj_cb_number (void *ctx,
+    const char *number, unsigned int number_len)
 {
+  char buffer[number_len + 1];
+
   cj_t *db = (cj_t *)ctx;
   cj_key_t *key = db->state[db->depth].key;
+  char *endptr;
+  value_t vt;
+  int type;
 
-  if (key != NULL)
+  if (key == NULL)
+    return (CJ_CB_CONTINUE);
+
+  memcpy (buffer, number, number_len);
+  buffer[sizeof (buffer) - 1] = 0;
+
+  type = cj_get_type (key);
+
+  endptr = NULL;
+  errno = 0;
+
+  if (type == DS_TYPE_COUNTER)
+    vt.counter = (counter_t) strtoull (buffer, &endptr, /* base = */ 0);
+  else if (type == DS_TYPE_GAUGE)
+    vt.gauge = (gauge_t) strtod (buffer, &endptr);
+  else if (type == DS_TYPE_DERIVE)
+    vt.derive = (derive_t) strtoll (buffer, &endptr, /* base = */ 0);
+  else if (type == DS_TYPE_ABSOLUTE)
+    vt.absolute = (absolute_t) strtoull (buffer, &endptr, /* base = */ 0);
+  else
   {
-    value_t vt;
-    int type;
-
-    type = cj_get_type (key);
-    if (type == DS_TYPE_COUNTER)
-      vt.counter = (counter_t) val;
-    else if (type == DS_TYPE_GAUGE)
-      vt.gauge = (gauge_t) val;
-    else if (type == DS_TYPE_DERIVE)
-      vt.derive = (derive_t) val;
-    else if (type == DS_TYPE_ABSOLUTE)
-      vt.absolute = (absolute_t) val;
-    else
-      return 0;
-
-    cj_submit (db, key, &vt);
+    ERROR ("curl_json plugin: Unknown data source type: \"%s\"", key->type);
+    return (CJ_CB_ABORT);
   }
-  return 1;
-}
 
-static int cj_cb_double (void *ctx, double val)
-{
-  cj_t *db = (cj_t *)ctx;
-  cj_key_t *key = db->state[db->depth].key;
-
-  if (key != NULL)
+  if ((endptr == &buffer[0]) || (errno != 0))
   {
-    value_t vt;
-    int type;
-
-    type = cj_get_type (key);
-    if (type == DS_TYPE_COUNTER)
-      vt.counter = (counter_t) val;
-    else if (type == DS_TYPE_GAUGE)
-      vt.gauge = (gauge_t) val;
-    else if (type == DS_TYPE_DERIVE)
-      vt.derive = (derive_t) val;
-    else if (type == DS_TYPE_ABSOLUTE)
-      vt.absolute = (absolute_t) val;
-    else
-      return 0;
-
-    cj_submit (db, key, &vt);
+    NOTICE ("curl_json plugin: Overflow while parsing number. "
+        "Ignoring this value.");
+    return (CJ_CB_CONTINUE);
   }
-  return 1;
-}
+
+  cj_submit (db, key, &vt);
+  return (CJ_CB_CONTINUE);
+} /* int cj_cb_number */
 
 static int cj_cb_map_key (void *ctx, const unsigned char *val,
                             unsigned int len)
@@ -209,7 +207,7 @@ static int cj_cb_map_key (void *ctx, const unsigned char *val,
       db->state[db->depth].key = NULL;
   }
 
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_string (void *ctx, const unsigned char *val,
@@ -220,7 +218,7 @@ static int cj_cb_string (void *ctx, const unsigned char *val,
   char *ptr;
 
   if (db->depth != 1) /* e.g. _all_dbs */
-    return 1;
+    return (CJ_CB_CONTINUE);
 
   cj_cb_map_key (ctx, val, len); /* same logic */
 
@@ -242,7 +240,7 @@ static int cj_cb_string (void *ctx, const unsigned char *val,
     cj_curl_perform (db, curl);
     curl_easy_cleanup (curl);
   }
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_start (void *ctx)
@@ -251,9 +249,9 @@ static int cj_cb_start (void *ctx)
   if (++db->depth >= YAJL_MAX_DEPTH)
   {
     ERROR ("curl_json plugin: %s depth exceeds max, aborting.", db->url);
-    return 0;
+    return (CJ_CB_ABORT);
   }
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_end (void *ctx)
@@ -261,7 +259,7 @@ static int cj_cb_end (void *ctx)
   cj_t *db = (cj_t *)ctx;
   db->state[db->depth].tree = NULL;
   --db->depth;
-  return 1;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_start_map (void *ctx)
@@ -287,9 +285,9 @@ static int cj_cb_end_array (void * ctx)
 static yajl_callbacks ycallbacks = {
   NULL, /* null */
   NULL, /* boolean */
-  cj_cb_integer,
-  cj_cb_double,
-  NULL, /* number */
+  NULL, /* integer */
+  NULL, /* double */
+  cj_cb_number,
   cj_cb_string,
   cj_cb_start_map,
   cj_cb_map_key,
@@ -777,7 +775,8 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
 
-  if (rc != 200)
+  /* The response code is zero if a non-HTTP transport was used. */
+  if ((rc != 0) && (rc != 200))
   {
     ERROR ("curl_json plugin: curl_easy_perform failed with response code %ld (%s)",
            rc, url);

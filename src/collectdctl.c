@@ -25,21 +25,30 @@
 # include "config.h"
 #endif
 
-#include "libcollectdclient/collectd/client.h"
+#ifndef _ISOC99_SOURCE
+# define _ISOC99_SOURCE
+#endif
+
+#ifndef _POSIX_C_SOURCE
+# define _POSIX_C_SOURCE 200112L
+#endif
+
+#ifndef _XOPEN_SOURCE
+# define _XOPEN_SOURCE 600
+#endif
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
 
 #include <assert.h>
-
 #include <errno.h>
-
-#include <getopt.h>
-
 #include <math.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "libcollectdclient/collectd/client.h"
 
-#include <unistd.h>
 
 #define DEFAULT_SOCK LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 
@@ -254,7 +263,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
       }
     }
     else if (strcasecmp (key, "plugin") == 0) {
-      status = array_grow ((void **)&plugins, &plugins_num,
+      status = array_grow ((void *)&plugins, &plugins_num,
           sizeof (*plugins));
       if (status != 0)
         BAIL_OUT (status);
@@ -262,7 +271,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
       plugins[plugins_num - 1] = value;
     }
     else if (strcasecmp (key, "identifier") == 0) {
-      status = array_grow ((void **)&identifiers, &identifiers_num,
+      status = array_grow ((void *)&identifiers, &identifiers_num,
           sizeof (*identifiers));
       if (status != 0)
         BAIL_OUT (status);
@@ -280,7 +289,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
   }
 
   if (plugins_num == 0) {
-    status = array_grow ((void **)&plugins, &plugins_num, sizeof (*plugins));
+    status = array_grow ((void *)&plugins, &plugins_num, sizeof (*plugins));
     if (status != 0)
       BAIL_OUT (status);
 
@@ -443,7 +452,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
 
         vl.time = strtol (argv[i], &endptr, 0);
 
-        if (endptr == value) {
+        if (endptr == argv[i]) {
           fprintf (stderr, "ERROR: Failed to parse time as number: %s.\n",
               argv[i]);
           return (-1);

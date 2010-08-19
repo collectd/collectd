@@ -114,6 +114,7 @@
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
+#@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
@@ -138,6 +139,7 @@
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
+#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -739,6 +741,14 @@
 #	</Module>
 #</Plugin>
 
+#<Plugin redis>
+#   <Node example>
+#      Host "redis.example.com"
+#      Port "6379"
+#      Timeout 2000
+#   </Node>
+#</Plugin>
+
 #<Plugin routeros>
 #	<Router>
 #		Host "router.example.com"
@@ -927,6 +937,14 @@
 #		Format "Command"
 #		StoreRates false
 #	</URL>
+#</Plugin>
+
+#<Plugin write_redis>
+#	<Node "example">
+#		Host "localhost"
+#		Port "6379"
+#		Timeout 1000
+#	</Node>
 #</Plugin>
 
 ##############################################################################
