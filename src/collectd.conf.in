@@ -480,11 +480,11 @@ FQDNLookup   true
 #</Plugin>
 
 @LOAD_PLUGIN_NETWORK@<Plugin network>
+#	TimeToLive "128"
 @LOAD_PLUGIN_NETWORK@	Server "ff18::efc0:4a42" "25826"
 @LOAD_PLUGIN_NETWORK@	Server "239.192.74.66" "25826"
 #	Listen "ff18::efc0:4a42" "25826"
 #	Listen "239.192.74.66" "25826"
-#	TimeToLive "128"
 #	Forward false
 #	CacheFlush 1800
 #	ReportStats false
