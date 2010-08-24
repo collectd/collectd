@@ -4334,6 +4334,7 @@ then
 fi
 if test "x$have_sysctlbyname" = "xyes"
 then
+	plugin_contextswitch="yes"
 	plugin_cpu="yes"
 	plugin_memory="yes"
 	plugin_tcpconns="yes"

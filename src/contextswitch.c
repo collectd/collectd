@@ -23,7 +23,19 @@
 #include "common.h"
 #include "plugin.h"
 
-#if !KERNEL_LINUX
+#ifdef HAVE_SYS_SYSCTL_H
+# include <sys/sysctl.h>
+#endif
+
+#if HAVE_SYSCTLBYNAME
+/* no global variables */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif KERNEL_LINUX
+/* no global variables */
+/* #endif KERNEL_LINUX */
+
+#else
 # error "No applicable input method."
 #endif
 
@@ -45,12 +57,29 @@ static void cs_submit (derive_t context_switches)
 
 static int cs_read (void)
 {
+	int status = -2;
+#if HAVE_SYSCTLBYNAME
+	int value;
+	size_t value_len = sizeof (value);
+
+	if (sysctlbyname ("vm.stats.sys.v_swtch", (void *) &value, &value_len,
+			NULL, 0) == 0)
+	{
+		cs_submit(value);
+		status = 0;
+	}
+	else
+	{
+		ERROR("contextswitch plugin: sysctlbyname failed");
+	}
+
+/* #endif HAVE_SYSCTLBYNAME */
+#elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[64];
 	int numfields;
 	char *fields[3];
 	derive_t result = 0;
-	int status = -2;
 
 	fh = fopen ("/proc/stat", "r");
 	if (fh == NULL) {
@@ -88,6 +117,7 @@ static int cs_read (void)
 
 	if (status == -2)
 		ERROR ("contextswitch plugin: Unable to find context switch value.");
+#endif /* KERNEL_LINUX */
 
 	return status;
 }
