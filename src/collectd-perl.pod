@@ -376,11 +376,6 @@ is found (and the number of values matches the number of data-sources) then the
 type, data-set and value-list is passed to all write-callbacks that are
 registered with the daemon.
 
-B<Note>: Prior to version 4.4 of collectd, the data-set type used to be passed
-as the first argument to B<plugin_register>. This syntax is still supported
-for backwards compatibility but has been deprecated and will be removed in
-some future version of collectd.
-
 =item B<plugin_write> ([B<plugins> => I<...>][, B<datasets> => I<...>],
 B<valuelists> => I<...>)
 

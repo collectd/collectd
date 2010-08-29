@@ -1610,40 +1610,29 @@ static XS (Collectd_plugin_unregister_ds)
 static XS (Collectd_plugin_dispatch_values)
 {
 	SV *values     = NULL;
-	int values_idx = 0;
 
 	int ret = 0;
 
 	dXSARGS;
 
-	if (2 == items) {
-		log_warn ("Collectd::plugin_dispatch_values with two arguments "
-				"is deprecated - pass the type through values->{type}.");
-		values_idx = 1;
-	}
-	else if (1 != items) {
+	if (1 != items) {
 		log_err ("Usage: Collectd::plugin_dispatch_values(values)");
 		XSRETURN_EMPTY;
 	}
 
 	log_debug ("Collectd::plugin_dispatch_values: values=\"%s\"",
-			SvPV_nolen (ST (values_idx)));
+			SvPV_nolen (ST (/* stack index = */ 0)));
 
-	values = ST (values_idx);
+	values = ST (/* stack index = */ 0);
 
+	/* Make sure the argument is a hash reference. */
 	if (! (SvROK (values) && (SVt_PVHV == SvTYPE (SvRV (values))))) {
 		log_err ("Collectd::plugin_dispatch_values: Invalid values.");
 		XSRETURN_EMPTY;
 	}
 
-	if (((2 == items) && (NULL == ST (0))) || (NULL == values))
+	if (NULL == values)
 		XSRETURN_EMPTY;
-
-	if ((2 == items) && (NULL == hv_store ((HV *)SvRV (values), "type", 4,
-			newSVsv (ST (0)), 0))) {
-		log_err ("Collectd::plugin_dispatch_values: Could not store type.");
-		XSRETURN_EMPTY;
-	}
 
 	ret = pplugin_dispatch_values (aTHX_ (HV *)SvRV (values));
 
