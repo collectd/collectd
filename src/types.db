@@ -88,7 +88,6 @@ irq			value:COUNTER:U:65535
 latency			value:GAUGE:0:65535
 links			value:GAUGE:0:U
 load			shortterm:GAUGE:0:100, midterm:GAUGE:0:100, longterm:GAUGE:0:100
-lpar_pcpu		value:GAUGE:0:U
 memcached_command	value:COUNTER:0:U
 memcached_connections	value:GAUGE:0:U
 memcached_items		value:GAUGE:0:U
