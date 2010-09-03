@@ -22,19 +22,10 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
 #include <sys/protosw.h>
 #include <libperfstat.h>
 #include <sys/utsname.h>
-
-#ifndef XINTFRAC
-# include <sys/systemcfg.h>
-# define XINTFRAC ((double)(_system_configuration.Xint) / \
-                   (double)(_system_configuration.Xfrac))
-#endif
-#define HTIC2SEC(x)	((double)x * XINTFRAC / 1000000000.0)
-
-/* Max length of the type instance string */
-#define TYPE_INST_LEN (sizeof("pool--total") + 2*sizeof(int) + 1)
 
 static const char *config_keys[] =
 {
@@ -45,11 +36,6 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static _Bool pool_stats = 0;
 static _Bool report_by_serial = 0;
-
-static u_longlong_t last_time_base;
-static u_longlong_t ent_counter;
-static _Bool donate_flag = 0;
-
 
 static int lpar_config (const char *key, const char *value)
 {
@@ -75,38 +61,7 @@ static int lpar_config (const char *key, const char *value)
 	return (0);
 } /* int lpar_config */
 
-static int lpar_init (void)
-{
-	perfstat_partition_total_t lparstats;
-
-	/* Retrieve the initial metrics */
-	if (!perfstat_partition_total (NULL, &lparstats,
-	                               sizeof (perfstat_partition_total_t), 1))
-	{
-		ERROR ("lpar plugin: perfstat_partition_total failed.");
-		return (-1);
-	}
-
-	if (!lparstats.type.b.shared_enabled && lparstats.type.b.donate_enabled)
-	{
-		donate_flag = 1;
-	}
-
-	if (pool_stats && !lparstats.type.b.pool_util_authority)
-	{
-		WARNING ("lpar plugin: this system does not have pool authority. "
-			"Disabling CPU pool statistics collection.");
-		pool_stats = 0;
-	}
-
-	/* Initialize the fake counter for entitled capacity */
-	last_time_base = lparstats.timebase_last;
-	ent_counter = 0;
-
-	return (0);
-} /* int lpar_init */
-
-static void lpar_submit (const char *type_instance, double value)
+static void lpar_submit (const char *type_instance, counter_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -116,7 +71,7 @@ static void lpar_submit (const char *type_instance, double value)
 	   integer part is very small and the resulting graphs get blocky. We regain
 	   some precision by applying a x100 factor before casting it to a counter,
 	   turning the final value into CPU units instead of CPUs. */
-	values[0].counter = (counter_t)(value * 100.0 + 0.5);
+	values[0].counter = value;
 
 	vl.values = values;
 	vl.values_len = 1;
@@ -146,9 +101,104 @@ static void lpar_submit (const char *type_instance, double value)
 	plugin_dispatch_values (&vl);
 }
 
+static int lpar_read_shared_partition (const perfstat_partition_total_t *data)
+{
+	static counter_t time_old;
+	static counter_t user_old;
+	static counter_t syst_old;
+	static counter_t wait_old;
+	static counter_t idle_old;
+	static counter_t unav_old;
+
+	counter_t user = (counter_t) data->puser;
+	counter_t syst = (counter_t) data->psys;
+	counter_t wait = (counter_t) data->pwait;
+	counter_t idle = (counter_t) data->pidle;
+	counter_t unav = 0;
+
+	/*
+	 * On a shared partition, we're "entitled" to a certain amount of
+	 * processing power, for example 250/100 of a physical CPU. Processing
+	 * capacity not used by the partition may be assigned to a different
+	 * partition by the hypervisor, so "idle" is hopefully a very small
+	 * number.
+	 *
+	 * We calculate the amount of ticks assigned to a different partition
+	 * from the number of ticks we're entitled to and the number of ticks
+	 * we used up.
+	 */
+	if (time_old != 0)
+	{
+		counter_t time_diff;
+		counter_t entitled_ticks;
+		counter_t consumed_ticks;
+		counter_t user_diff;
+		counter_t syst_diff;
+		counter_t wait_diff;
+		counter_t idle_diff;
+		counter_t unav_diff;
+
+		double entitled_pool_capacity;
+
+		/* Number of ticks since we last run. */
+		time_diff = ((counter_t) data->timebase_last) - time_old;
+
+		/* entitled_pool_capacity is in 1/100th of a CPU */
+		entitled_pool_capacity = 0.01 * ((double) data->entitled_pool_capacity);
+
+		/* The number of ticks this partition would have been entitled to. */
+		entitled_ticks = (counter_t) ((entitled_pool_capacity * ((double) time_diff)) + .5);
+
+		/* The number of ticks actually spent in the various states */
+		user_diff = user - user_old;
+		syst_diff = syst - syst_old;
+		wait_diff = wait - wait_old;
+		idle_diff = idle - idle_old;
+		consumed_ticks = user_diff + syst_diff + wait_diff + idle_diff;
+
+		if (entitled_ticks >= consumed_ticks)
+			unav_diff = entitled_ticks - consumed_ticks;
+		else
+			unav_diff = 0;
+		unav = unav_old + unav_diff;
+
+		lpar_submit ("user", user);
+		lpar_submit ("system", syst);
+		lpar_submit ("wait", wait);
+		lpar_submit ("idle", idle);
+		lpar_submit ("unavailable", unav);
+	}
+
+	time_old = (counter_t) data->timebase_last;
+	user_old = user;
+	syst_old = syst;
+	wait_old = wait;
+	idle_old = idle;
+	unav_old = unav;
+
+	return (0);
+} /* int lpar_read_shared_partition */
+
+static int lpar_read_dedicated_partition (const perfstat_partition_total_t *data)
+{
+	lpar_submit ("user",   (counter_t) data->puser);
+	lpar_submit ("system", (counter_t) data->psys);
+	lpar_submit ("wait",   (counter_t) data->pwait);
+	lpar_submit ("idle",   (counter_t) data->pidle);
+
+	if (data->type.b.donate_enabled)
+	{
+		lpar_submit ("idle_donated", (counter_t) data->idle_donated_purr);
+		lpar_submit ("busy_donated", (counter_t) data->busy_donated_purr);
+		lpar_submit ("idle_stolen",  (counter_t) data->idle_stolen_purr);
+		lpar_submit ("busy_stolen",  (counter_t) data->busy_stolen_purr);
+	}
+
+	return (0);
+} /* int lpar_read_dedicated_partition */
+
 static int lpar_read (void)
 {
-	u_longlong_t delta_time_base;
 	perfstat_partition_total_t lparstats;
 
 	/* Retrieve the current metrics */
@@ -159,30 +209,21 @@ static int lpar_read (void)
 		return (-1);
 	}
 
-	delta_time_base = lparstats.timebase_last - last_time_base;
-	last_time_base  = lparstats.timebase_last;
+	if (lparstats.type.b.shared_enabled)
+		lpar_read_shared_partition (&lparstats);
+	else /* if (!shared_enabled) */
+		lpar_read_dedicated_partition (&lparstats);
 
-	lpar_submit ("user", HTIC2SEC(lparstats.puser));
-	lpar_submit ("sys",  HTIC2SEC(lparstats.psys));
-	lpar_submit ("wait", HTIC2SEC(lparstats.pwait));
-	lpar_submit ("idle", HTIC2SEC(lparstats.pidle));
-	/* Entitled capacity is reported as an absolute value instead of a counter,
-	   so we fake one. It's also in CPU units, hence the division by 100 before
-	   submission. */
-	ent_counter += lparstats.entitled_proc_capacity * delta_time_base;
-	lpar_submit ("ent",  HTIC2SEC(ent_counter) / 100.0);
-
-	if (donate_flag)
+	if (pool_stats && !lparstats.type.b.pool_util_authority)
 	{
-		lpar_submit ("idle_donated", HTIC2SEC(lparstats.idle_donated_purr));
-		lpar_submit ("busy_donated", HTIC2SEC(lparstats.busy_donated_purr));
-		lpar_submit ("idle_stolen",  HTIC2SEC(lparstats.idle_stolen_purr));
-		lpar_submit ("busy_stolen",  HTIC2SEC(lparstats.busy_stolen_purr));
+		WARNING ("lpar plugin: This partition does not have pool authority. "
+				"Disabling CPU pool statistics collection.");
+		pool_stats = 0;
 	}
 
 	if (pool_stats)
 	{
-		char typinst[TYPE_INST_LEN];
+		char typinst[DATA_MAX_NAME_LEN];
 
 		/* Pool stats are in CPU x ns */
 		ssnprintf (typinst, sizeof(typinst), "pool-%X-busy", lparstats.pool_id);
@@ -199,7 +240,6 @@ void module_register (void)
 {
 	plugin_register_config ("lpar", lpar_config,
 	                        config_keys, config_keys_num);
-	plugin_register_init ("lpar", lpar_init);
 	plugin_register_read ("lpar", lpar_read);
 } /* void module_register */
 
