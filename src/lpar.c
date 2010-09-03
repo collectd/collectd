@@ -42,12 +42,13 @@ static const char *config_keys[] =
   "ReportBySerial"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-static int pool_stats = 0,
-           report_by_serial = 0;
+
+static _Bool pool_stats = 0;
+static _Bool report_by_serial = 0;
 
 static u_longlong_t last_time_base;
 static u_longlong_t ent_counter;
-static int donate_flag = 0;
+static _Bool donate_flag = 0;
 
 
 static int lpar_config (const char *key, const char *value)
@@ -56,11 +57,15 @@ static int lpar_config (const char *key, const char *value)
 	{
 		if (IS_TRUE (value))
 			pool_stats = 1;
+		else
+			pool_stats = 0;
 	}
 	else if (strcasecmp ("ReportBySerial", key) == 0)
 	{
 		if (IS_TRUE (value))
 			report_by_serial = 1;
+		else
+			report_by_serial = 0;
 	}
 	else
 	{
@@ -198,5 +203,5 @@ void module_register (void)
 	plugin_register_read ("lpar", lpar_read);
 } /* void module_register */
 
-/* vim: set sw=2 sts=2 ts=8 : */
+/* vim: set sw=8 noet : */
 
