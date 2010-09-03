@@ -156,6 +156,8 @@ static int lpar_read_shared_partition (const perfstat_partition_total_t *data)
 		idle_diff = idle - idle_old;
 		consumed_ticks = user_diff + syst_diff + wait_diff + idle_diff;
 
+		/* "uncapped" partitions are allowed to consume more ticks than
+		 * they are entitled to. */
 		if (entitled_ticks >= consumed_ticks)
 			unav_diff = entitled_ticks - consumed_ticks;
 		else
