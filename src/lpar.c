@@ -190,6 +190,8 @@ static int lpar_read_dedicated_partition (const perfstat_partition_total_t *data
 
 	if (data->type.b.donate_enabled)
 	{
+		/* FYI:  PURR == Processor Utilization of Resources Register
+		 *      SPURR == Scaled PURR */
 		lpar_submit ("idle_donated", (counter_t) data->idle_donated_purr);
 		lpar_submit ("busy_donated", (counter_t) data->busy_donated_purr);
 		lpar_submit ("idle_stolen",  (counter_t) data->idle_stolen_purr);
@@ -202,12 +204,18 @@ static int lpar_read_dedicated_partition (const perfstat_partition_total_t *data
 static int lpar_read (void)
 {
 	perfstat_partition_total_t lparstats;
+	int status;
 
-	/* Retrieve the current metrics */
-	if (!perfstat_partition_total (NULL, &lparstats,
-	                               sizeof (perfstat_partition_total_t), 1))
+	/* Retrieve the current metrics. Returns the number of structures filled. */
+	status = perfstat_partition_total (/* name = */ NULL, /* (must be NULL) */
+			&lparstats, sizeof (perfstat_partition_total_t),
+			/* number = */ 1 /* (must be 1) */);
+	if (status != 1)
 	{
-		ERROR ("lpar plugin: perfstat_partition_total failed.");
+		char errbuf[1024];
+		ERROR ("lpar plugin: perfstat_partition_total failed: %s (%i)",
+				sstrerror (errno, errbuf, sizeof (errbuf)),
+				status);
 		return (-1);
 	}
 
