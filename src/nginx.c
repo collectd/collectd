@@ -38,10 +38,9 @@ static char *cacert      = NULL;
 
 static CURL *curl = NULL;
 
-#define ABUFFER_SIZE 16384
-static char nginx_buffer[ABUFFER_SIZE];
-static int  nginx_buffer_len = 0;
-static char nginx_curl_error[CURL_ERROR_SIZE];
+static char   nginx_buffer[16384];
+static size_t nginx_buffer_len = 0;
+static char   nginx_curl_error[CURL_ERROR_SIZE];
 
 static const char *config_keys[] =
 {
@@ -59,17 +58,19 @@ static size_t nginx_curl_callback (void *buf, size_t size, size_t nmemb,
 {
   size_t len = size * nmemb;
 
-  if ((nginx_buffer_len + len) >= ABUFFER_SIZE)
+  /* Check if the data fits into the memory. If not, truncate it. */
+  if ((nginx_buffer_len + len) >= sizeof (nginx_buffer))
   {
-    len = (ABUFFER_SIZE - 1) - nginx_buffer_len;
+    assert (sizeof (nginx_buffer) > nginx_buffer_len);
+    len = (sizeof (nginx_buffer) - 1) - nginx_buffer_len;
   }
 
   if (len <= 0)
     return (len);
 
-  memcpy (nginx_buffer + nginx_buffer_len, (char *) buf, len);
+  memcpy (&nginx_buffer[nginx_buffer_len], buf, len);
   nginx_buffer_len += len;
-  nginx_buffer[nginx_buffer_len] = '\0';
+  nginx_buffer[nginx_buffer_len] = 0;
 
   return (len);
 }
