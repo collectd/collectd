@@ -272,6 +272,12 @@ static int notify_email_notification (const notification_t *n,
 
   pthread_mutex_lock (&session_lock);
 
+  if (session == NULL) {
+    /* Initialization failed or we're in the process of shutting down. */
+    pthread_mutex_unlock (&session_lock);
+    return (-1);
+  }
+
   if (!(message = smtp_add_message (session))) {
     pthread_mutex_unlock (&session_lock);
     ERROR ("notify_email plugin: cannot set SMTP message");
