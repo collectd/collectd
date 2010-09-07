@@ -2444,7 +2444,8 @@ and are checked by default depends on the distribution you use.
 This plugin sends a desktop notification to a notification daemon, as defined
 in the Desktop Notification Specification. To actually display the
 notifications, B<notification-daemon> is required and B<collectd> has to be
-able to access the X server.
+able to access the X server (i.E<nbsp>e., the C<DISPLAY> and C<XAUTHORITY>
+environment variables have to be set correctly) and the D-Bus message bus.
 
 The Desktop Notification Specification can be found at
 L<http://www.galago-project.org/specs/notification/>.
