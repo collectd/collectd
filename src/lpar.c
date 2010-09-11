@@ -217,6 +217,10 @@ static int lpar_read (void)
 	 * capacity not used by the partition may be assigned to a different
 	 * partition by the hypervisor, so "idle" is hopefully a very small
 	 * number.
+	 *
+	 * A dedicated partition may donate its CPUs to another partition and
+	 * may steal ticks from somewhere else (another partition or maybe the
+	 * shared pool, I don't know --octo).
 	 */
 
 	/* entitled_proc_capacity is in 1/100th of a CPU */
@@ -237,18 +241,18 @@ static int lpar_read (void)
 
 	if (donate_flag)
 	{
+		/* donated => ticks given to another partition
+		 * stolen  => ticks received from another partition */
 		u_longlong_t idle_donated_ticks, busy_donated_ticks;
 		u_longlong_t idle_stolen_ticks, busy_stolen_ticks;
 
+		/* FYI:  PURR == Processor Utilization of Resources Register
+		 *      SPURR == Scaled PURR */
 		idle_donated_ticks = lparstats.idle_donated_purr - idle_donated_old;
 		busy_donated_ticks = lparstats.busy_donated_purr - busy_donated_old;
 		idle_stolen_ticks  = lparstats.idle_stolen_purr  - idle_stolen_old;
 		busy_stolen_ticks  = lparstats.busy_stolen_purr  - busy_stolen_old;
 
-		/* FYI:  PURR == Processor Utilization of Resources Register
-		 *      SPURR == Scaled PURR */
-		/* donated => ticks given to another partition
-		 * stolen  => ticks received from another partition */
 		lpar_submit ("idle_donated", (double) idle_donated_ticks / (double) ticks);
 		lpar_submit ("busy_donated", (double) busy_donated_ticks / (double) ticks);
 		lpar_submit ("idle_stolen",  (double) idle_stolen_ticks  / (double) ticks);
