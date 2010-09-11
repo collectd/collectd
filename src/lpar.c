@@ -231,7 +231,7 @@ static int lpar_read (void)
 	consumed_ticks = user_ticks + syst_ticks + wait_ticks + idle_ticks;
 
 	lpar_submit ("user", (double) user_ticks / (double) ticks);
-	lpar_submit ("sys",  (double) syst_ticks / (double) ticks);
+	lpar_submit ("system", (double) syst_ticks / (double) ticks);
 	lpar_submit ("wait", (double) wait_ticks / (double) ticks);
 	lpar_submit ("idle", (double) idle_ticks / (double) ticks);
 
