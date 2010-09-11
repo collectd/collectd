@@ -201,14 +201,6 @@ static int lpar_read (void)
 		return (-1);
 	}
 
-	/*
-	 * On a shared partition, we're "entitled" to a certain amount of
-	 * processing power, for example 250/100 of a physical CPU. Processing
-	 * capacity not used by the partition may be assigned to a different
-	 * partition by the hypervisor, so "idle" is hopefully a very small
-	 * number.
-	 */
-
 	/* Number of ticks since we last run. */
 	ticks = lparstats.timebase_last - time_old;
 	if (ticks == 0)
@@ -216,6 +208,14 @@ static int lpar_read (void)
 		/* The stats have not been updated. Return now to avoid dividing by zero */
 		return (0);
 	}
+
+	/*
+	 * On a shared partition, we're "entitled" to a certain amount of
+	 * processing power, for example 250/100 of a physical CPU. Processing
+	 * capacity not used by the partition may be assigned to a different
+	 * partition by the hypervisor, so "idle" is hopefully a very small
+	 * number.
+	 */
 
 	/* entitled_proc_capacity is in 1/100th of a CPU */
 	entitled_proc_capacity = 0.01 * ((double) lparstats.entitled_proc_capacity);
@@ -245,6 +245,8 @@ static int lpar_read (void)
 
 		/* FYI:  PURR == Processor Utilization of Resources Register
 		 *      SPURR == Scaled PURR */
+		/* donated => ticks given to another partition
+		 * stolen  => ticks received from another partition */
 		lpar_submit ("idle_donated", (double) idle_donated_ticks / (double) ticks);
 		lpar_submit ("busy_donated", (double) busy_donated_ticks / (double) ticks);
 		lpar_submit ("idle_stolen",  (double) idle_stolen_ticks  / (double) ticks);
