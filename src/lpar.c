@@ -34,6 +34,8 @@
                    (double)(_system_configuration.Xfrac))
 #endif
 
+#define NS_TO_TICKS(ns) ((ns) / XINTFRAC)
+
 static const char *config_keys[] =
 {
   "CpuPoolStats",
@@ -268,10 +270,10 @@ static int lpar_read (void)
 
 		/* Pool stats are in CPU x ns */
 		ssnprintf (typinst, sizeof (typinst), "pool-%X-busy", lparstats.pool_id);
-		lpar_submit (typinst, (double) pool_busy_ns / XINTFRAC / (double) ticks);
+		lpar_submit (typinst, NS_TO_TICKS ((double) pool_busy_ns) / (double) ticks);
 
 		ssnprintf (typinst, sizeof (typinst), "pool-%X-total", lparstats.pool_id);
-		lpar_submit (typinst, (double) pool_max_ns / XINTFRAC / (double) ticks);
+		lpar_submit (typinst, NS_TO_TICKS ((double) pool_max_ns) / (double) ticks);
 	}
 
 	save_last_values (&lparstats);
