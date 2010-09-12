@@ -267,17 +267,21 @@ static int lpar_read (void)
 	if (pool_stats)
 	{
 		char typinst[DATA_MAX_NAME_LEN];
-		u_longlong_t pool_busy_ns, pool_max_ns;
+		u_longlong_t pool_busy_ns;
+	       	u_longlong_t pool_max_ns;
+		u_longlong_t pool_idle_ns = 0;
 
 		pool_busy_ns = lparstats.pool_busy_time - pool_busy_time_old;
 		pool_max_ns  = lparstats.pool_max_time  - pool_max_time_old;
+		if (pool_max_ns > pool_busy_ns)
+			pool_idle_ns = pool_max_ns - pool_busy_ns;
 
 		/* Pool stats are in CPU x ns */
 		ssnprintf (typinst, sizeof (typinst), "pool-%X-busy", lparstats.pool_id);
 		lpar_submit (typinst, NS_TO_TICKS ((double) pool_busy_ns) / (double) ticks);
 
-		ssnprintf (typinst, sizeof (typinst), "pool-%X-total", lparstats.pool_id);
-		lpar_submit (typinst, NS_TO_TICKS ((double) pool_max_ns) / (double) ticks);
+		ssnprintf (typinst, sizeof (typinst), "pool-%X-idle", lparstats.pool_id);
+		lpar_submit (typinst, NS_TO_TICKS ((double) pool_idle_ns) / (double) ticks);
 	}
 
 	save_last_values (&lparstats);
