@@ -48,42 +48,7 @@ static _Bool report_by_serial = 0;
 static _Bool donate_flag = 0;
 static char serial[SYS_NMLN];
 
-static u_longlong_t time_old;
-static u_longlong_t user_old,
-                    syst_old,
-                    idle_old,
-                    wait_old;
-static u_longlong_t pool_busy_time_old,
-                    pool_max_time_old;
-static u_longlong_t idle_donated_old,
-                    busy_donated_old,
-                    busy_stolen_old,
-                    idle_stolen_old;
-
-
-static void save_last_values (perfstat_partition_total_t *lparstats)
-{
-	time_old = lparstats->timebase_last;
-
-	user_old = lparstats->puser;
-	syst_old = lparstats->psys;
-	idle_old = lparstats->pidle;
-	wait_old = lparstats->pwait;
-
-	if (donate_flag)
-	{
-		idle_donated_old = lparstats->idle_donated_purr;
-		busy_donated_old = lparstats->busy_donated_purr;
-		busy_stolen_old  = lparstats->busy_stolen_purr;
-		idle_stolen_old  = lparstats->idle_stolen_purr;
-	}
-
-	if (pool_stats)
-	{
-		pool_busy_time_old = lparstats->pool_busy_time;
-		pool_max_time_old  = lparstats->pool_max_time;
-	}
-} /* void save_last_values */
+static perfstat_partition_total_t lparstats_old;
 
 static int lpar_config (const char *key, const char *value)
 {
@@ -111,12 +76,11 @@ static int lpar_config (const char *key, const char *value)
 
 static int lpar_init (void)
 {
-	perfstat_partition_total_t lparstats;
 	int status;
 
 	/* Retrieve the initial metrics. Returns the number of structures filled. */
 	status = perfstat_partition_total (/* name = */ NULL, /* (must be NULL) */
-			&lparstats, sizeof (perfstat_partition_total_t),
+			&lparstats_old, sizeof (perfstat_partition_total_t),
 			/* number = */ 1 /* (must be 1) */);
 	if (status != 1)
 	{
@@ -127,20 +91,18 @@ static int lpar_init (void)
 		return (-1);
 	}
 
-	if (!lparstats.type.b.shared_enabled && lparstats.type.b.donate_enabled)
+	if (!lparstats_old.type.b.shared_enabled
+		       	&& lparstats_old.type.b.donate_enabled)
 	{
 		donate_flag = 1;
 	}
 
-	if (pool_stats && !lparstats.type.b.pool_util_authority)
+	if (pool_stats && !lparstats_old.type.b.pool_util_authority)
 	{
 		WARNING ("lpar plugin: This partition does not have pool authority. "
 				"Disabling CPU pool statistics collection.");
 		pool_stats = 0;
 	}
-
-	/* Save the initial data */
-	save_last_values (&lparstats);
 
 	return (0);
 } /* int lpar_init */
@@ -204,10 +166,11 @@ static int lpar_read (void)
 	}
 
 	/* Number of ticks since we last run. */
-	ticks = lparstats.timebase_last - time_old;
+	ticks = lparstats.timebase_last - lparstats_old.timebase_last;
 	if (ticks == 0)
 	{
-		/* The stats have not been updated. Return now to avoid dividing by zero */
+		/* The stats have not been updated. Return now to avoid
+		 * dividing by zero */
 		return (0);
 	}
 
@@ -228,10 +191,10 @@ static int lpar_read (void)
 	lpar_submit ("entitled", entitled_proc_capacity);
 
 	/* The number of ticks actually spent in the various states */
-	user_ticks = lparstats.puser - user_old;
-	syst_ticks = lparstats.psys  - syst_old;
-	wait_ticks = lparstats.pwait - wait_old;
-	idle_ticks = lparstats.pidle - idle_old;
+	user_ticks = lparstats.puser - lparstats_old.puser;
+	syst_ticks = lparstats.psys  - lparstats_old.psys;
+	wait_ticks = lparstats.pwait - lparstats_old.pwait;
+	idle_ticks = lparstats.pidle - lparstats_old.pidle;
 	consumed_ticks = user_ticks + syst_ticks + wait_ticks + idle_ticks;
 
 	lpar_submit ("user", (double) user_ticks / (double) ticks);
@@ -248,10 +211,10 @@ static int lpar_read (void)
 
 		/* FYI:  PURR == Processor Utilization of Resources Register
 		 *      SPURR == Scaled PURR */
-		idle_donated_ticks = lparstats.idle_donated_purr - idle_donated_old;
-		busy_donated_ticks = lparstats.busy_donated_purr - busy_donated_old;
-		idle_stolen_ticks  = lparstats.idle_stolen_purr  - idle_stolen_old;
-		busy_stolen_ticks  = lparstats.busy_stolen_purr  - busy_stolen_old;
+		idle_donated_ticks = lparstats.idle_donated_purr - lparstats_old.idle_donated_purr;
+		busy_donated_ticks = lparstats.busy_donated_purr - lparstats_old.busy_donated_purr;
+		idle_stolen_ticks  = lparstats.idle_stolen_purr  - lparstats_old.idle_stolen_purr;
+		busy_stolen_ticks  = lparstats.busy_stolen_purr  - lparstats_old.busy_stolen_purr;
 
 		lpar_submit ("idle_donated", (double) idle_donated_ticks / (double) ticks);
 		lpar_submit ("busy_donated", (double) busy_donated_ticks / (double) ticks);
@@ -271,8 +234,8 @@ static int lpar_read (void)
 	       	u_longlong_t pool_max_ns;
 		u_longlong_t pool_idle_ns = 0;
 
-		pool_busy_ns = lparstats.pool_busy_time - pool_busy_time_old;
-		pool_max_ns  = lparstats.pool_max_time  - pool_max_time_old;
+		pool_busy_ns = lparstats.pool_busy_time - lparstats_old.pool_busy_time;
+		pool_max_ns  = lparstats.pool_max_time  - lparstats_old.pool_max_time;
 		if (pool_max_ns > pool_busy_ns)
 			pool_idle_ns = pool_max_ns - pool_busy_ns;
 
@@ -284,7 +247,7 @@ static int lpar_read (void)
 		lpar_submit (typinst, NS_TO_TICKS ((double) pool_idle_ns) / (double) ticks);
 	}
 
-	save_last_values (&lparstats);
+	memcpy (&lparstats_old, &lparstats, sizeof (lparstats_old));
 
 	return (0);
 } /* int lpar_read */
