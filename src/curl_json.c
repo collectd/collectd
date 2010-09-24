@@ -764,6 +764,7 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   if (db->yajl == NULL)
   {
     ERROR ("curl_json plugin: yajl_alloc failed.");
+    db->yajl = yprev;
     return (-1);
   }
 
