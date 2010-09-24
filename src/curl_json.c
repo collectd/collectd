@@ -98,18 +98,12 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
     return (0);
 
   status = yajl_parse(db->yajl, (unsigned char *)buf, len);
-  if (status == yajl_status_ok)
-  {
-    status = yajl_parse_complete(db->yajl);
-    return (len);
-  }
-  else if (status == yajl_status_insufficient_data)
-    return (len);
-
-  if (status != yajl_status_ok)
+  if ((status != yajl_status_ok)
+      && (status != yajl_status_insufficient_data))
   {
     unsigned char *msg =
-      yajl_get_error(db->yajl, 1, (unsigned char *)buf, len);
+      yajl_get_error(db->yajl, /* verbose = */ 1,
+          /* jsonText = */ (unsigned char *) buf, (unsigned int) len);
     ERROR ("curl_json plugin: yajl_parse failed: %s", msg);
     yajl_free_error(db->yajl, msg);
     return (0); /* abort write callback */
@@ -768,9 +762,14 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   }
 
   status = curl_easy_perform (curl);
-
-  yajl_free (db->yajl);
-  db->yajl = yprev;
+  if (status != 0)
+  {
+    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
+           status, db->curl_errbuf, url);
+    yajl_free (db->yajl);
+    db->yajl = yprev;
+    return (-1);
+  }
 
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
@@ -778,18 +777,30 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   /* The response code is zero if a non-HTTP transport was used. */
   if ((rc != 0) && (rc != 200))
   {
-    ERROR ("curl_json plugin: curl_easy_perform failed with response code %ld (%s)",
-           rc, url);
+    ERROR ("curl_json plugin: curl_easy_perform failed with "
+        "response code %ld (%s)", rc, url);
+    yajl_free (db->yajl);
+    db->yajl = yprev;
     return (-1);
   }
 
-  if (status != 0)
+  status = yajl_parse_complete (db->yajl);
+  if (status != yajl_status_ok)
   {
-    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, url);
+    unsigned char *errmsg;
+
+    errmsg = yajl_get_error (db->yajl, /* verbose = */ 0,
+        /* jsonText = */ NULL, /* jsonTextLen = */ 0);
+    ERROR ("curl_json plugin: yajl_parse_complete failed: %s",
+        (char *) errmsg);
+    yajl_free_error (db->yajl, errmsg);
+    yajl_free (db->yajl);
+    db->yajl = yprev;
     return (-1);
   }
 
+  yajl_free (db->yajl);
+  db->yajl = yprev;
   return (0);
 } /* }}} int cj_curl_perform */
 
