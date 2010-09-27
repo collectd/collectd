@@ -151,10 +151,12 @@
 ##############################################################################
 
 #<Plugin apache>
-#	URL "http://localhost/status?auto"
-#	User "www-user"
-#	Password "secret"
-#	CACert "/etc/ssl/ca.crt"
+#  <Instance "local">
+#    URL "http://localhost/status?auto"
+#    User "www-user"
+#    Password "secret"
+#    CACert "/etc/ssl/ca.crt"
+#  </Instance>
 #</Plugin>
 
 #<Plugin apcups>
