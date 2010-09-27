@@ -42,7 +42,6 @@
 
 struct mysql_database_s /* {{{ */
 {
-	/* instance == NULL  =>  legacy mode */
 	char *instance;
 	char *host;
 	char *user;
@@ -243,10 +242,10 @@ static MYSQL *getconnection (mysql_database_t *db)
 		int err;
 		if ((err = mysql_ping (db->con)) != 0)
 		{
-			WARNING ("mysql_ping failed for %s: %s",
-					(db->instance != NULL)
-					? db->instance
-					: "<legacy>",
+			/* Assured by "mysql_config_database" */
+			assert (db->instance != NULL);
+			WARNING ("mysql_ping failed for instance \"%s\": %s",
+					db->instance,
 					mysql_error (db->con));
 			db->state = 0;
 		}
@@ -290,29 +289,13 @@ static MYSQL *getconnection (mysql_database_t *db)
 
 static void set_host (mysql_database_t *db, char *buf, size_t buflen)
 {
-	/* XXX legacy mode - use hostname_g */
-	if (db->instance == NULL)
+	if ((db->host == NULL)
+			|| (strcmp ("", db->host) == 0)
+			|| (strcmp ("localhost", db->host) == 0))
 		sstrncpy (buf, hostname_g, buflen);
 	else
-	{
-		if ((db->host == NULL)
-				|| (strcmp ("", db->host) == 0)
-				|| (strcmp ("localhost", db->host) == 0))
-			sstrncpy (buf, hostname_g, buflen);
-		else
-			sstrncpy (buf, db->host, buflen);
-	}
-}
-
-static void set_plugin_instance (mysql_database_t *db,
-		char *buf, size_t buflen)
-{
-	/* XXX legacy mode - no plugin_instance */
-	if (db->instance == NULL)
-		sstrncpy (buf, "", buflen);
-	else
-		sstrncpy (buf, db->instance, buflen);
-}
+		sstrncpy (buf, db->host, buflen);
+} /* void set_host */
 
 static void submit (const char *type, const char *type_instance,
 		value_t *values, size_t values_len, mysql_database_t *db)
@@ -325,7 +308,10 @@ static void submit (const char *type, const char *type_instance,
 	set_host (db, vl.host, sizeof (vl.host));
 
 	sstrncpy (vl.plugin, "mysql", sizeof (vl.plugin));
-	set_plugin_instance (db, vl.plugin_instance, sizeof (vl.plugin_instance));
+
+	/* Assured by "mysql_config_database" */
+	assert (db->instance != NULL);
+	sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
 
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_instance != NULL)
@@ -508,8 +494,10 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 		sql = row[SLAVE_SQL_RUNNING_IDX];
 
 		set_host (db, n.host, sizeof (n.host));
-		set_plugin_instance (db,
-				n.plugin_instance, sizeof (n.plugin_instance));
+
+		/* Assured by "mysql_config_database" */
+		assert (db->instance != NULL);
+		sstrncpy (n.plugin_instance, db->instance, sizeof (n.plugin_instance));
 
 		if (((io == NULL) || (strcasecmp (io, "yes") != 0))
 				&& (db->slave_io_running))
