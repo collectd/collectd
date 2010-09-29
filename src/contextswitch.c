@@ -59,29 +59,31 @@ static void cs_submit (derive_t context_switches)
 
 static int cs_read (void)
 {
-	int status = -2;
 #if HAVE_SYSCTLBYNAME
-	int value;
+	int value = 0;
 	size_t value_len = sizeof (value);
+	int status;
 
-	if (sysctlbyname ("vm.stats.sys.v_swtch", (void *) &value, &value_len,
-			NULL, 0) == 0)
+	status = sysctlbyname ("vm.stats.sys.v_swtch",
+			&value, &value_len,
+			/* new pointer = */ NULL, /* new length = */ 0);
+	if (status != 0)
 	{
-		cs_submit(value);
-		status = 0;
-	}
-	else
-	{
-		ERROR("contextswitch plugin: sysctlbyname failed");
+		ERROR("contextswitch plugin: sysctlbyname "
+				"(vm.stats.sys.v_swtch) failed");
+		return (-1);
 	}
 
+	cs_submit (value);
 /* #endif HAVE_SYSCTLBYNAME */
+
 #elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[64];
 	int numfields;
 	char *fields[3];
 	derive_t result = 0;
+	int status = -2;
 
 	fh = fopen ("/proc/stat", "r");
 	if (fh == NULL) {
