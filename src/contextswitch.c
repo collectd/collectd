@@ -1,6 +1,7 @@
 /**
  * collectd - src/contextswitch.c
  * Copyright (C) 2009  Patrik Weiskircher
+ * Copyright (C) 2010  Kimo Rosenbaum
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Patrik Weiskircher <weiskircher at inqnet.at>
+ *   Kimo Rosenbaum <http://github.com/kimor79>
  **/
 
 #include "collectd.h"
