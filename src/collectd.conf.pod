@@ -2626,7 +2626,7 @@ operating systems.
 =item B<MaxPacketSize> I<1024-65535>
 
 Set the maximum size for datagrams received over the network. Packets larger
-than this will be truncated.
+than this will be truncated. Defaults to 1452E<nbsp>bytes.
 
 =item B<Forward> I<true|false>
 
