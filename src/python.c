@@ -892,6 +892,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 
 static int cpy_config(oconfig_item_t *ci) {
 	int i;
+	char *argv = "";
 	PyObject *sys, *tb;
 	PyObject *sys_path;
 	PyObject *module;
@@ -921,6 +922,9 @@ static int cpy_config(oconfig_item_t *ci) {
 		cpy_log_exception("python initialization");
 		return 1;
 	}
+	PySys_SetArgv(1, &argv);
+	PyList_SetSlice(sys_path, 0, 1, NULL);
+
 	module = Py_InitModule("collectd", cpy_methods); /* Borrowed reference. */
 	PyModule_AddObject(module, "Config", (void *) &ConfigType); /* Steals a reference. */
 	PyModule_AddObject(module, "Values", (void *) &ValuesType); /* Steals a reference. */
