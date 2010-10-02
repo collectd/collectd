@@ -61,47 +61,33 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   char collection_name[512];
   int status;
   int i;
-  bson record[1];
-  bson_buffer record_buf[1];
+  bson record;
+  bson_buffer record_buf;
 
   ssnprintf(collection_name, sizeof (collection_name), "collectd.%s", vl->plugin);
 
-  bson_buffer_init(record_buf);
-  bson_append_time_t(record_buf,"ts",vl->time);
-  bson_append_string(record_buf,"h",vl->host);
-  bson_append_string(record_buf,"i",vl->plugin_instance);
-  bson_append_string(record_buf,"t",vl->plugin_instance);
-  bson_append_string(record_buf,"ti",vl->plugin_instance);
+  bson_buffer_init(&record_buf);
+  bson_append_time_t(&record_buf,"ts",vl->time);
+  bson_append_string(&record_buf,"h",vl->host);
+  bson_append_string(&record_buf,"i",vl->plugin_instance);
+  bson_append_string(&record_buf,"t",vl->type);
+  bson_append_string(&record_buf,"ti",vl->type_instance);
 
-  if (ds->ds_num == 1) {
-    if (ds->ds[0].type == DS_TYPE_COUNTER)
-      bson_append_long(record_buf, "v", vl->values[0].counter);
-    else if (ds->ds[0].type == DS_TYPE_GAUGE)
-      bson_append_double(record_buf, "v", vl->values[0].gauge);
-    else if (ds->ds[0].type == DS_TYPE_DERIVE)
-      bson_append_long(record_buf, "v", vl->values[0].derive);
-    else if (ds->ds[0].type == DS_TYPE_ABSOLUTE)
-      bson_append_long(record_buf, "v", vl->values[0].absolute);
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if (ds->ds[i].type == DS_TYPE_COUNTER)
+      bson_append_long(&record_buf, ds->ds[i].name, vl->values[i].counter);
+    else if (ds->ds[i].type == DS_TYPE_GAUGE)
+      bson_append_double(&record_buf, ds->ds[i].name, vl->values[i].gauge);
+    else if (ds->ds[i].type == DS_TYPE_DERIVE)
+      bson_append_long(&record_buf, ds->ds[i].name, vl->values[i].derive);
+    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+      bson_append_long(&record_buf, ds->ds[i].name, vl->values[i].absolute);
     else
       assert (23 == 42);
-  } else {
-    bson_append_start_object(record_buf,"v");
-    for (i = 0; i < ds->ds_num; i++)
-    {
-      if (ds->ds[i].type == DS_TYPE_COUNTER)
-        bson_append_long(record_buf, ds->ds[i].name, vl->values[i].counter);
-      else if (ds->ds[i].type == DS_TYPE_GAUGE)
-        bson_append_double(record_buf, ds->ds[i].name, vl->values[i].gauge);
-      else if (ds->ds[i].type == DS_TYPE_DERIVE)
-        bson_append_long(record_buf, ds->ds[i].name, vl->values[i].derive);
-      else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-        bson_append_long(record_buf, ds->ds[i].name, vl->values[i].absolute);
-      else
-        assert (23 == 42);
-    }
-    bson_append_finish_object(record_buf);
   }
-  bson_from_buffer(record,record_buf);
+
+  bson_from_buffer(&record,&record_buf);
 
   pthread_mutex_lock (&node->lock);
 
@@ -114,7 +100,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
     if (status!=mongo_conn_success) {
       ERROR ("write_mongo plugin: Connecting to host \"%s\" (port %i) failed.",
           (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 6379);
+          (node->port != 0) ? node->port : 27017);
+      mongo_destroy(node->conn);
       pthread_mutex_unlock (&node->lock);
       return (-1);
     } else {
@@ -125,9 +112,11 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /* Assert if the connection has been established */
   assert (node->connected == 1);
 
-  mongo_insert(node->conn,collection_name,record);
+  mongo_insert(node->conn,collection_name,&record);
 
   pthread_mutex_unlock (&node->lock);
+
+  bson_buffer_destroy(&record_buf);
 
   return (0);
 } /* }}} int wm_write */
