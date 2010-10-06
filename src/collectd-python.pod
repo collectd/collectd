@@ -693,14 +693,8 @@ dispatched by the python plugin after upgrades.
 
 =item
 
-This plugin is not compatible with python3. Trying to compile it with python3
-will fail because of the ways string, unicode and bytearray behavior was
-changed.
-
-=item
-
 Not all aspects of the collectd API are accessible from python. This includes
-but is not limited to meta-data, filters and data sets.
+but is not limited to filters and data sets.
 
 =back
 
