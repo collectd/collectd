@@ -230,21 +230,25 @@ static int lpar_read (void)
 	if (pool_stats)
 	{
 		char typinst[DATA_MAX_NAME_LEN];
-		u_longlong_t pool_busy_ns;
-	       	u_longlong_t pool_max_ns;
-		u_longlong_t pool_idle_ns = 0;
+		u_longlong_t pool_idle_ns;
+		double pool_idle_cpus;
+		double pool_busy_cpus;
 
-		pool_busy_ns = lparstats.pool_busy_time - lparstats_old.pool_busy_time;
-		pool_max_ns  = lparstats.pool_max_time  - lparstats_old.pool_max_time;
-		if (pool_max_ns > pool_busy_ns)
-			pool_idle_ns = pool_max_ns - pool_busy_ns;
+		/* We're calculating "busy" from "idle" and the total number of
+		 * CPUs, because according to Aurélien Reynaud using the "busy"
+		 * member yields values that differ from the values produced by
+		 * the LPAR command line tools. --octo */
+		pool_idle_ns = lparstats.pool_idle_time - lparstats_old.pool_idle_time;
+		pool_idle_cpus = NS_TO_TICKS ((double) pool_idle_ns) / (double) ticks;
+		pool_busy_cpus = ((double) lparstats.phys_cpus_pool) - pool_idle_cpus;
+		if (pool_busy_cpus < 0.0)
+			pool_busy_cpus = 0.0;
 
-		/* Pool stats are in CPU x ns */
 		ssnprintf (typinst, sizeof (typinst), "pool-%X-busy", lparstats.pool_id);
-		lpar_submit (typinst, NS_TO_TICKS ((double) pool_busy_ns) / (double) ticks);
+		lpar_submit (typinst, pool_busy_cpus);
 
 		ssnprintf (typinst, sizeof (typinst), "pool-%X-idle", lparstats.pool_id);
-		lpar_submit (typinst, NS_TO_TICKS ((double) pool_idle_ns) / (double) ticks);
+		lpar_submit (typinst, pool_idle_cpus);
 	}
 
 	memcpy (&lparstats_old, &lparstats, sizeof (lparstats_old));
