@@ -566,7 +566,7 @@ static int submit_values (const char *host, /* {{{ */
 		const char *plugin_inst,
 		const char *type, const char *type_inst,
 		value_t *values, int values_len,
-		time_t timestamp)
+		time_t timestamp, int interval)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -575,6 +575,9 @@ static int submit_values (const char *host, /* {{{ */
 
 	if (timestamp > 0)
 		vl.time = timestamp;
+
+	if (interval > 0)
+		vl.interval = interval;
 
 	if (host != NULL)
 		sstrncpy (vl.host, host, sizeof (vl.host));
@@ -592,7 +595,7 @@ static int submit_values (const char *host, /* {{{ */
 
 static int submit_two_counters (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, counter_t val0, counter_t val1,
-		time_t timestamp)
+		time_t timestamp, int interval)
 {
 	value_t values[2];
 
@@ -600,23 +603,23 @@ static int submit_two_counters (const char *host, const char *plugin_inst, /* {{
 	values[1].counter = val1;
 
 	return (submit_values (host, plugin_inst, type, type_inst,
-				values, 2, timestamp));
+				values, 2, timestamp, interval));
 } /* }}} int submit_two_counters */
 
 static int submit_counter (const char *host, const char *plugin_inst, /* {{{ */
-		const char *type, const char *type_inst, counter_t counter, time_t timestamp)
+		const char *type, const char *type_inst, counter_t counter, time_t timestamp, int interval)
 {
 	value_t v;
 
 	v.counter = counter;
 
 	return (submit_values (host, plugin_inst, type, type_inst,
-				&v, 1, timestamp));
+				&v, 1, timestamp, interval));
 } /* }}} int submit_counter */
 
 static int submit_two_gauge (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, gauge_t val0, gauge_t val1,
-		time_t timestamp)
+		time_t timestamp, int interval)
 {
 	value_t values[2];
 
@@ -624,18 +627,18 @@ static int submit_two_gauge (const char *host, const char *plugin_inst, /* {{{ *
 	values[1].gauge = val1;
 
 	return (submit_values (host, plugin_inst, type, type_inst,
-				values, 2, timestamp));
+				values, 2, timestamp, interval));
 } /* }}} int submit_two_gauge */
 
 static int submit_double (const char *host, const char *plugin_inst, /* {{{ */
-		const char *type, const char *type_inst, double d, time_t timestamp)
+		const char *type, const char *type_inst, double d, time_t timestamp, int interval)
 {
 	value_t v;
 
 	v.gauge = (gauge_t) d;
 
 	return (submit_values (host, plugin_inst, type, type_inst,
-				&v, 1, timestamp));
+				&v, 1, timestamp, interval));
 } /* }}} int submit_uint64 */
 
 /* Calculate hit ratio from old and new counters and submit the resulting
@@ -647,7 +650,8 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 		uint64_t new_misses,
 		uint64_t old_hits,
 		uint64_t old_misses,
-		time_t timestamp)
+		time_t timestamp,
+		int interval)
 {
 	value_t v;
 
@@ -664,12 +668,12 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 	}
 
 	return (submit_values (host, plugin_inst, "cache_ratio", type_inst,
-				&v, 1, timestamp));
+				&v, 1, timestamp, interval));
 } /* }}} int submit_cache_ratio */
 
 /* Submits all the caches used by WAFL. Uses "submit_cache_ratio". */
 static int submit_wafl_data (const char *hostname, const char *instance, /* {{{ */
-		cfg_wafl_t *old_data, const cfg_wafl_t *new_data)
+		cfg_wafl_t *old_data, const cfg_wafl_t *new_data, int interval)
 {
 	/* Submit requested counters */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_NAME_CACHE | HAVE_WAFL_NAME_CACHE)
@@ -677,28 +681,28 @@ static int submit_wafl_data (const char *hostname, const char *instance, /* {{{ 
 		submit_cache_ratio (hostname, instance, "name_cache_hit",
 				new_data->name_cache_hit, new_data->name_cache_miss,
 				old_data->name_cache_hit, old_data->name_cache_miss,
-				new_data->timestamp);
+				new_data->timestamp, interval);
 
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_DIR_CACHE | HAVE_WAFL_FIND_DIR)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_FIND_DIR))
 		submit_cache_ratio (hostname, instance, "find_dir_hit",
 				new_data->find_dir_hit, new_data->find_dir_miss,
 				old_data->find_dir_hit, old_data->find_dir_miss,
-				new_data->timestamp);
+				new_data->timestamp, interval);
 
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_BUF_CACHE | HAVE_WAFL_BUF_HASH)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_BUF_HASH))
 		submit_cache_ratio (hostname, instance, "buf_hash_hit",
 				new_data->buf_hash_hit, new_data->buf_hash_miss,
 				old_data->buf_hash_hit, old_data->buf_hash_miss,
-				new_data->timestamp);
+				new_data->timestamp, interval);
 
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_INODE_CACHE | HAVE_WAFL_INODE_CACHE)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_WAFL_INODE_CACHE))
 		submit_cache_ratio (hostname, instance, "inode_cache_hit",
 				new_data->inode_cache_hit, new_data->inode_cache_miss,
 				old_data->inode_cache_hit, old_data->inode_cache_miss,
-				new_data->timestamp);
+				new_data->timestamp, interval);
 
 	/* Clear old HAVE_* flags */
 	old_data->flags &= ~HAVE_WAFL_ALL;
@@ -724,7 +728,7 @@ static int submit_wafl_data (const char *hostname, const char *instance, /* {{{ 
  * update flags appropriately. */
 static int submit_volume_perf_data (const char *hostname, /* {{{ */
 		data_volume_perf_t *old_data,
-		const data_volume_perf_t *new_data)
+		const data_volume_perf_t *new_data, int interval)
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
 
@@ -739,7 +743,7 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_BYTES_READ | HAVE_VOLUME_PERF_BYTES_WRITE))
 	{
 		submit_two_counters (hostname, plugin_instance, "disk_octets", /* type instance = */ NULL,
-				(counter_t) new_data->read_bytes, (counter_t) new_data->write_bytes, new_data->timestamp);
+				(counter_t) new_data->read_bytes, (counter_t) new_data->write_bytes, new_data->timestamp, interval);
 	}
 
 	/* Check for and submit disk-operations values */
@@ -747,7 +751,7 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE))
 	{
 		submit_two_counters (hostname, plugin_instance, "disk_ops", /* type instance = */ NULL,
-				(counter_t) new_data->read_ops, (counter_t) new_data->write_ops, new_data->timestamp);
+				(counter_t) new_data->read_ops, (counter_t) new_data->write_ops, new_data->timestamp, interval);
 	}
 
 	/* Check for, calculate and submit disk-latency values */
@@ -791,7 +795,7 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
 		}
 
 		submit_two_gauge (hostname, plugin_instance, "disk_latency", /* type instance = */ NULL,
-				latency_per_op_read, latency_per_op_write, new_data->timestamp);
+				latency_per_op_read, latency_per_op_write, new_data->timestamp, interval);
 	}
 
 	/* Clear all HAVE_* flags. */
@@ -820,7 +824,7 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
  */
 /* Data corresponding to <WAFL /> */
 static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* {{{ */
-		na_elem_t *data)
+		na_elem_t *data, int interval)
 {
 	cfg_wafl_t perf_data;
 	const char *plugin_inst;
@@ -899,7 +903,7 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 		}
 	}
 
-	return (submit_wafl_data (hostname, plugin_inst, cfg_wafl, &perf_data));
+	return (submit_wafl_data (hostname, plugin_inst, cfg_wafl, &perf_data, interval));
 } /* }}} void cna_handle_wafl_data */
 
 static int cna_setup_wafl (cfg_wafl_t *cw) /* {{{ */
@@ -973,7 +977,7 @@ static int cna_query_wafl (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_wafl_data (host->name, host->cfg_wafl, data);
+	status = cna_handle_wafl_data (host->name, host->cfg_wafl, data, host->interval);
 
 	if (status == 0)
 		host->cfg_wafl->interval.last_read = now;
@@ -984,7 +988,7 @@ static int cna_query_wafl (host_config_t *host) /* {{{ */
 
 /* Data corresponding to <Disks /> */
 static int cna_handle_disk_data (const char *hostname, /* {{{ */
-		cfg_disk_t *cfg_disk, na_elem_t *data)
+		cfg_disk_t *cfg_disk, na_elem_t *data, int interval)
 {
 	time_t timestamp;
 	na_elem_t *instances;
@@ -1098,7 +1102,7 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 
 	if ((cfg_disk->flags & CFG_DISK_BUSIEST) && (worst_disk != NULL))
 		submit_double (hostname, "system", "percent", "disk_busy",
-				worst_disk->disk_busy_percent, timestamp);
+				worst_disk->disk_busy_percent, timestamp, interval);
 
 	return (0);
 } /* }}} int cna_handle_disk_data */
@@ -1168,7 +1172,7 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_disk_data (host->name, host->cfg_disk, data);
+	status = cna_handle_disk_data (host->name, host->cfg_disk, data, host->interval);
 
 	if (status == 0)
 		host->cfg_disk->interval.last_read = now;
@@ -1179,7 +1183,7 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 
 /* Data corresponding to <VolumePerf /> */
 static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
-		cfg_volume_perf_t *cvp, na_elem_t *data)
+		cfg_volume_perf_t *cvp, na_elem_t *data, int interval)
 {
 	time_t timestamp;
 	na_elem_t *elem_instances;
@@ -1264,7 +1268,7 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 			}
 		} /* for (elem_counter) */
 
-		submit_volume_perf_data (hostname, v, &perf_data);
+		submit_volume_perf_data (hostname, v, &perf_data, interval);
 	} /* for (volume) */
 
 	return (0);
@@ -1339,7 +1343,7 @@ static int cna_query_volume_perf (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_volume_perf_data (host->name, host->cfg_volume_perf, data);
+	status = cna_handle_volume_perf_data (host->name, host->cfg_volume_perf, data, host->interval);
 
 	if (status == 0)
 		host->cfg_volume_perf->interval.last_read = now;
@@ -1350,7 +1354,7 @@ static int cna_query_volume_perf (host_config_t *host) /* {{{ */
 
 /* Data corresponding to <VolumeUsage /> */
 static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
-		cfg_volume_usage_t *cfg_volume)
+		cfg_volume_usage_t *cfg_volume, int interval)
 {
 	data_volume_usage_t *v;
 
@@ -1398,32 +1402,32 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_FREE))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "free",
-					(double) norm_free, /* timestamp = */ 0);
+					(double) norm_free, /* timestamp = */ 0, interval);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SIS_SAVED))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "sis_saved",
-					(double) sis_saved, /* timestamp = */ 0);
+					(double) sis_saved, /* timestamp = */ 0, interval);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_USED))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "used",
-					(double) norm_used, /* timestamp = */ 0);
+					(double) norm_used, /* timestamp = */ 0, interval);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_RSVD))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "snap_reserved",
-					(double) snap_reserve_free, /* timestamp = */ 0);
+					(double) snap_reserve_free, /* timestamp = */ 0, interval);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_USED | HAVE_VOLUME_USAGE_SNAP_RSVD))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "snap_reserve_used",
-					(double) snap_reserve_used, /* timestamp = */ 0);
+					(double) snap_reserve_used, /* timestamp = */ 0, interval);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_SNAP_USED))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "snap_normal_used",
-					(double) snap_norm_used, /* timestamp = */ 0);
+					(double) snap_norm_used, /* timestamp = */ 0, interval);
 
 		/* Clear all the HAVE_* flags */
 		v->flags &= ~HAVE_VOLUME_USAGE_ALL;
@@ -1650,7 +1654,7 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		} /* }}} end of 32-bit workaround */
 	} /* for (elem_volume) */
 
-	return (cna_submit_volume_usage_data (host->name, cfg_volume));
+	return (cna_submit_volume_usage_data (host->name, cfg_volume, host->interval));
 } /* }}} int cna_handle_volume_usage_data */
 
 static int cna_setup_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
@@ -1714,7 +1718,7 @@ static int cna_query_volume_usage (host_config_t *host) /* {{{ */
 
 /* Data corresponding to <System /> */
 static int cna_handle_system_data (const char *hostname, /* {{{ */
-		cfg_system_t *cfg_system, na_elem_t *data)
+		cfg_system_t *cfg_system, na_elem_t *data, int interval)
 {
 	na_elem_t *instances;
 	na_elem_t *counter;
@@ -1786,27 +1790,27 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 				&& (value > 0) && (strlen(name) > 4)
 				&& (!strcmp(name + strlen(name) - 4, "_ops"))) {
 			submit_counter (hostname, instance, "disk_ops_complex", name,
-					(counter_t) value, timestamp);
+					(counter_t) value, timestamp, interval);
 		}
 	} /* for (counter) */
 
 	if ((cfg_system->flags & CFG_SYSTEM_DISK)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x01 | 0x02)))
 		submit_two_counters (hostname, instance, "disk_octets", NULL,
-				disk_read, disk_written, timestamp);
+				disk_read, disk_written, timestamp, interval);
 				
 	if ((cfg_system->flags & CFG_SYSTEM_NET)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x04 | 0x08)))
 		submit_two_counters (hostname, instance, "if_octets", NULL,
-				net_recv, net_sent, timestamp);
+				net_recv, net_sent, timestamp, interval);
 
 	if ((cfg_system->flags & CFG_SYSTEM_CPU)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x10 | 0x20)))
 	{
 		submit_counter (hostname, instance, "cpu", "system",
-				cpu_busy, timestamp);
+				cpu_busy, timestamp, interval);
 		submit_counter (hostname, instance, "cpu", "idle",
-				cpu_total - cpu_busy, timestamp);
+				cpu_total - cpu_busy, timestamp, interval);
 	}
 
 	return (0);
@@ -1862,7 +1866,7 @@ static int cna_query_system (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_system_data (host->name, host->cfg_system, data);
+	status = cna_handle_system_data (host->name, host->cfg_system, data, host->interval);
 
 	if (status == 0)
 		host->cfg_system->interval.last_read = now;
