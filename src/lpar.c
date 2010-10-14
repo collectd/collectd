@@ -241,9 +241,8 @@ static int lpar_read (void)
 		double pool_busy_cpus;
 
 		/* We're calculating "busy" from "idle" and the total number of
-		 * CPUs, because according to Aurélien Reynaud using the "busy"
-		 * member yields values that differ from the values produced by
-		 * the LPAR command line tools. --octo */
+		 * CPUs, because the "busy" member didn't exist in early versions
+		 * of libperfstat. It was added somewhere between AIX 5.3 ML5 and ML9. */
 		pool_idle_ns = lparstats.pool_idle_time - lparstats_old.pool_idle_time;
 		pool_idle_cpus = NS_TO_TICKS ((double) pool_idle_ns) / (double) ticks;
 		pool_busy_cpus = ((double) lparstats.phys_cpus_pool) - pool_idle_cpus;
