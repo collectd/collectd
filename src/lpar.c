@@ -34,7 +34,7 @@
                    (double)(_system_configuration.Xfrac))
 #endif
 
-#define NS_TO_TICKS(ns) ((ns) / XINTFRAC)
+#define CLOCKTICKS_TO_TICKS(cticks) ((cticks) / XINTFRAC)
 
 static const char *config_keys[] =
 {
@@ -236,15 +236,15 @@ static int lpar_read (void)
 	if (pool_stats)
 	{
 		char typinst[DATA_MAX_NAME_LEN];
-		u_longlong_t pool_idle_ns;
+		u_longlong_t pool_idle_cticks;
 		double pool_idle_cpus;
 		double pool_busy_cpus;
 
 		/* We're calculating "busy" from "idle" and the total number of
 		 * CPUs, because the "busy" member didn't exist in early versions
 		 * of libperfstat. It was added somewhere between AIX 5.3 ML5 and ML9. */
-		pool_idle_ns = lparstats.pool_idle_time - lparstats_old.pool_idle_time;
-		pool_idle_cpus = NS_TO_TICKS ((double) pool_idle_ns) / (double) ticks;
+		pool_idle_cticks = lparstats.pool_idle_time - lparstats_old.pool_idle_time;
+		pool_idle_cpus = CLOCKTICKS_TO_TICKS ((double) pool_idle_cticks) / (double) ticks;
 		pool_busy_cpus = ((double) lparstats.phys_cpus_pool) - pool_idle_cpus;
 		if (pool_busy_cpus < 0.0)
 			pool_busy_cpus = 0.0;
