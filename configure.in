@@ -1193,6 +1193,12 @@ fi
 if test "x$with_perfstat" = "xyes"
 then
 	 AC_DEFINE(HAVE_PERFSTAT, 1, [Define to 1 if you have the 'perfstat' library (-lperfstat)])
+	 # struct members pertaining to donation have been added to libperfstat somewhere between AIX5.3ML5 and AIX5.3ML9
+	 AC_CHECK_MEMBER([perfstat_partition_type_t.b.donate_enabled], [], [], [[#include <libperfstat.h]])
+	 if test "x$av_cv_member_perfstat_partition_type_t_b_donate_enabled" = "xyes"
+	 then
+		AC_DEFINE(PERFSTAT_SUPPORTS_DONATION, 1, [Define to 1 if your version of the 'perfstat' library supports donation])
+	 fi
 fi
 AM_CONDITIONAL(BUILD_WITH_PERFSTAT, test "x$with_perfstat" = "xyes")
 

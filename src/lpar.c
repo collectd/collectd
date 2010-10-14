@@ -45,7 +45,9 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static _Bool pool_stats = 0;
 static _Bool report_by_serial = 0;
+#if PERFSTAT_SUPPORTS_DONATION
 static _Bool donate_flag = 0;
+#endif
 static char serial[SYS_NMLN];
 
 static perfstat_partition_total_t lparstats_old;
@@ -91,11 +93,13 @@ static int lpar_init (void)
 		return (-1);
 	}
 
+#if PERFSTAT_SUPPORTS_DONATION
 	if (!lparstats_old.type.b.shared_enabled
 		       	&& lparstats_old.type.b.donate_enabled)
 	{
 		donate_flag = 1;
 	}
+#endif
 
 	if (pool_stats && !lparstats_old.type.b.pool_util_authority)
 	{
@@ -202,6 +206,7 @@ static int lpar_read (void)
 	lpar_submit ("wait", (double) wait_ticks / (double) ticks);
 	lpar_submit ("idle", (double) idle_ticks / (double) ticks);
 
+#if PERFSTAT_SUPPORTS_DONATION
 	if (donate_flag)
 	{
 		/* donated => ticks given to another partition
@@ -224,6 +229,7 @@ static int lpar_read (void)
 		/* Donated ticks will be accounted for as stolen ticks in other LPARs */
 		consumed_ticks += idle_stolen_ticks + busy_stolen_ticks;
 	}
+#endif
 
 	lpar_submit ("consumed", (double) consumed_ticks / (double) ticks);
 
