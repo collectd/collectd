@@ -302,7 +302,6 @@ static void submit_counter2 (const char *type, const char *type_inst,
 
 	vl.values = values;
 	vl.values_len = 2;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
@@ -323,7 +322,6 @@ static void submit_gauge (const char *type, const char *type_inst,
 
 	vl.values = values;
 	vl.values_len = 1;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
@@ -345,7 +343,6 @@ static void submit_gauge2 (const char *type, const char *type_inst,
 
 	vl.values = values;
 	vl.values_len = 2;
-	vl.time = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
