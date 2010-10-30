@@ -577,7 +577,6 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
@@ -596,7 +595,6 @@ static void cc_submit_response_time (const web_page_t *wp, double seconds) /* {{
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = time (NULL);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
