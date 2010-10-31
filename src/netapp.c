@@ -2547,7 +2547,7 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 
 			ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
 
-			interval = CDTIME_T_TO_TIMESPEC (host->interval);
+			CDTIME_T_TO_TIMESPEC (host->interval, &interval);
 
 			memset (&ud, 0, sizeof (ud));
 			ud.data = host;

@@ -106,10 +106,10 @@ static int cow_load_config (const char *key, const char *value)
   }
   else if (strcasecmp ("Interval", key) == 0)
   {
-    int tmp;
-    tmp = atoi (value);
-    if (tmp > 0)
-      ow_interval = tmp;
+    double tmp;
+    tmp = atof (value);
+    if (tmp > 0.0)
+      ow_interval = DOUBLE_TO_CDTIME_T (tmp);
     else
       ERROR ("onewire plugin: Invalid `Interval' setting: %s", value);
   }
@@ -306,9 +306,7 @@ static int cow_init (void)
     return (1);
   }
 
-  memset (&cb_interval, 0, sizeof (cb_interval));
-  if (ow_interval > 0)
-    cb_interval.tv_sec = (time_t) ow_interval;
+  CDTIME_T_TO_TIMESPEC (ow_interval, &cb_interval);
 
   plugin_register_complex_read (/* group = */ NULL, "onewire", cow_read,
       &cb_interval, /* user data = */ NULL);
