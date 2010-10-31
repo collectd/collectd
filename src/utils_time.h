@@ -49,19 +49,20 @@ typedef uint64_t cdtime_t;
 #define CDTIME_T_TO_NS(t)  ((long)        (((double) (t))  / 1.073741824))
 
 #define CDTIME_T_TO_TIMEVAL(cdt,tvp) do {                                    \
-	(tvp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                            \
-	(tvp)->tv_used = CDTIME_T_TO_US ((cdt) % 1073741824)                 \
+        (tvp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                            \
+        (tvp)->tv_usec = CDTIME_T_TO_US ((cdt) % 1073741824);                \
 } while (0)
-#define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_T ((tv).tv_sec) \
-		+ US_TO_CDTIME_T ((tv).tv_usec))
+#define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_T ((tv).tv_sec)            \
+    + US_TO_CDTIME_T ((tv).tv_usec))
 
 #define CDTIME_T_TO_TIMESPEC(cdt,tsp) do {                                   \
-	(tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                            \
-	(tsp)->tv_nsec = CDTIME_T_TO_NS ((cdt) % 1073741824);                \
+  (tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                                  \
+  (tsp)->tv_nsec = CDTIME_T_TO_NS ((cdt) % 1073741824);                      \
 } while (0)
-#define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME_T ((ts).tv_sec) \
-		+ NS_TO_CDTIME_T ((ts).tv_nsec))
+#define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME_T ((ts).tv_sec)           \
+    + NS_TO_CDTIME_T ((ts).tv_nsec))
 
 cdtime_t cdtime (void);
 
 #endif /* UTILS_TIME_H */
+/* vim: set sw=2 sts=2 et : */
