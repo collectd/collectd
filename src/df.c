@@ -60,8 +60,8 @@ static ignorelist_t *il_device = NULL;
 static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
 
-static _Bool by_device = false;
-static _Bool report_inodes = false;
+static _Bool by_device = 0;
+static _Bool report_inodes = 0;
 
 static int df_init (void)
 {
@@ -116,16 +116,16 @@ static int df_config (const char *key, const char *value)
 	else if (strcasecmp (key, "ReportByDevice") == 0)
 	{
 		if (IS_TRUE (value))
-			by_device = true;
+			by_device = 1;
 
 		return (0);
 	}
 	else if (strcasecmp (key, "ReportInodes") == 0)
 	{
 		if (IS_TRUE (value))
-			report_inodes = true;
+			report_inodes = 1;
 		else
-			report_inodes = false;
+			report_inodes = 0;
 
 		return (0);
 	}

@@ -33,6 +33,10 @@
 
 #include "configfile.h"
 
+#if HAVE_STDBOOL_H
+# include <stdbool.h>
+#endif
+
 #include <EXTERN.h>
 #include <perl.h>
 

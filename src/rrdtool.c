@@ -303,7 +303,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 
                 pthread_mutex_lock (&queue_lock);
                 /* Wait for values to arrive */
-                while (true)
+                while (42)
                 {
                   struct timespec ts_wait;
 
@@ -342,7 +342,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
                       &ts_wait);
                   if (status == ETIMEDOUT)
                     break;
-                } /* while (true) */
+                } /* while (42) */
 
                 /* XXX: If you need to lock both, cache_lock and queue_lock, at
                  * the same time, ALWAYS lock `cache_lock' first! */

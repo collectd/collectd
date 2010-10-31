@@ -135,7 +135,7 @@ typedef struct notification_meta_s
 		int64_t nm_signed_int;
 		uint64_t nm_unsigned_int;
 		double nm_double;
-		bool nm_boolean;
+		_Bool nm_boolean;
 	} nm_value;
 	struct notification_meta_s *next;
 } notification_meta_t;
@@ -340,7 +340,7 @@ int plugin_notification_meta_add_double (notification_t *n,
     double value);
 int plugin_notification_meta_add_boolean (notification_t *n,
     const char *name,
-    bool value);
+    _Bool value);
 
 int plugin_notification_meta_copy (notification_t *dst,
     const notification_t *src);
