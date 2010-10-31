@@ -41,6 +41,8 @@ typedef uint64_t cdtime_t;
 #define CDTIME_T_TO_DOUBLE(t) (((double) (t)) / 1073741824.0)
 #define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1073741824.0))
 
+#define CDTIME_T_TO_MS(t)  ((long)        (((double) (t))  / 1073741.824))
+
 #define US_TO_CDTIME_T(us) ((cdtime_t)    (((double) (us)) * 1073.741824))
 #define CDTIME_T_TO_US(t)  ((suseconds_t) (((double) (t))  / 1073.741824))
 #define NS_TO_CDTIME_T(ns) ((cdtime_t)    (((double) (ns)) * 1.073741824))

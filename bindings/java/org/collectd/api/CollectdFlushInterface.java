@@ -29,5 +29,5 @@ package org.collectd.api;
  */
 public interface CollectdFlushInterface
 {
-	public int flush (int timeout, String identifier);
+	public int flush (Number timeout, String identifier);
 }

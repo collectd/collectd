@@ -109,7 +109,7 @@ static int cjni_callback_register (JNIEnv *jvm_env, jobject o_name,
 static int cjni_read (user_data_t *user_data);
 static int cjni_write (const data_set_t *ds, const value_list_t *vl,
     user_data_t *ud);
-static int cjni_flush (int timeout, const char *identifier, user_data_t *ud);
+static int cjni_flush (cdtime_t timeout, const char *identifier, user_data_t *ud);
 static void cjni_log (int severity, const char *message, user_data_t *ud);
 static int cjni_notification (const notification_t *n, user_data_t *ud);
 
@@ -809,7 +809,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
 #undef SET_STRING
 
   /* Set the `time' member. Java stores time in milliseconds. */
-  status = ctoj_long (jvm_env, ((jlong) vl->time) * ((jlong) 1000),
+  status = ctoj_long (jvm_env, (jlong) CDTIME_T_TO_MS (vl->time),
       c_valuelist, o_valuelist, "setTime");
   if (status != 0)
   {
@@ -1729,7 +1729,7 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
 
     case CB_TYPE_FLUSH:
       method_name = "flush";
-      method_signature = "(ILjava/lang/String;)I";
+      method_signature = "(Ljava/lang/Number;Ljava/lang/String;)I";
       break;
 
     case CB_TYPE_SHUTDOWN:
@@ -2551,11 +2551,12 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 } /* }}} int cjni_write */
 
 /* Call the CB_TYPE_FLUSH callback pointed to by the `user_data_t' pointer. */
-static int cjni_flush (int timeout, const char *identifier, /* {{{ */
+static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
     user_data_t *ud)
 {
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
+  jobject o_timeout;
   jobject o_identifier;
   int status;
   int ret_status;
@@ -2578,21 +2579,32 @@ static int cjni_flush (int timeout, const char *identifier, /* {{{ */
 
   cbi = (cjni_callback_info_t *) ud->data;
 
+  o_timeout = ctoj_jdouble_to_number (jvm_env,
+      (jdouble) CDTIME_T_TO_DOUBLE (timeout));
+  if (o_timeout == NULL)
+  {
+    ERROR ("java plugin: cjni_flush: Converting double "
+        "to Number object failed.");
+    return (-1);
+  }
+
   o_identifier = NULL;
   if (identifier != NULL)
   {
     o_identifier = (*jvm_env)->NewStringUTF (jvm_env, identifier);
     if (o_identifier == NULL)
     {
+      (*jvm_env)->DeleteLocalRef (jvm_env, o_timeout);
       ERROR ("java plugin: cjni_flush: NewStringUTF failed.");
       return (-1);
     }
   }
 
   ret_status = (*jvm_env)->CallIntMethod (jvm_env,
-      cbi->object, cbi->method, (jint) timeout, o_identifier);
+      cbi->object, cbi->method, o_timeout, o_identifier);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_identifier);
+  (*jvm_env)->DeleteLocalRef (jvm_env, o_timeout);
 
   status = cjni_thread_detach ();
   if (status != 0)
