@@ -1654,7 +1654,7 @@ static int plugin_notification_meta_add (notification_t *n,
     }
     case NM_TYPE_BOOLEAN:
     {
-      meta->nm_value.nm_boolean = *((bool *) value);
+      meta->nm_value.nm_boolean = *((_Bool *) value);
       break;
     }
     default:
@@ -1708,7 +1708,7 @@ int plugin_notification_meta_add_double (notification_t *n,
 
 int plugin_notification_meta_add_boolean (notification_t *n,
     const char *name,
-    bool value)
+    _Bool value)
 {
   return (plugin_notification_meta_add (n, name, NM_TYPE_BOOLEAN, &value));
 }

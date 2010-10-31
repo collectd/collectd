@@ -319,30 +319,30 @@ static _Bool check_receive_okay (const value_list_t *vl) /* {{{ */
   /* This is a value we already sent. Don't allow it to be received again in
    * order to avoid looping. */
   if ((status == 0) && (time_sent >= ((uint64_t) vl->time)))
-    return (false);
+    return (0);
 
-  return (true);
+  return (1);
 } /* }}} _Bool check_receive_okay */
 
 static _Bool check_send_okay (const value_list_t *vl) /* {{{ */
 {
-  _Bool received = false;
+  _Bool received = 0;
   int status;
 
   if (network_config_forward != 0)
-    return (true);
+    return (1);
 
   if (vl->meta == NULL)
-    return (true);
+    return (1);
 
   status = meta_data_get_boolean (vl->meta, "network:received", &received);
   if (status == -ENOENT)
-    return (true);
+    return (1);
   else if (status != 0)
   {
     ERROR ("network plugin: check_send_okay: meta_data_get_boolean failed "
 	"with status %i.", status);
-    return (true);
+    return (1);
   }
 
   /* By default, only *send* value lists that were not *received* by the
@@ -383,7 +383,7 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
     return (-ENOMEM);
   }
 
-  status = meta_data_add_boolean (vl->meta, "network:received", true);
+  status = meta_data_add_boolean (vl->meta, "network:received", 1);
   if (status != 0)
   {
     ERROR ("network plugin: meta_data_add_boolean failed.");
@@ -3259,13 +3259,13 @@ static int network_stats_read (void) /* {{{ */
 
 static int network_init (void)
 {
-	static _Bool have_init = false;
+	static _Bool have_init = 0;
 
 	/* Check if we were already initialized. If so, just return - there's
 	 * nothing more to do (for now, that is). */
 	if (have_init)
 		return (0);
-	have_init = true;
+	have_init = 1;
 
 #if HAVE_LIBGCRYPT
 	gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
