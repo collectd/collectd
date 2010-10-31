@@ -323,7 +323,7 @@ static int srrd_create (const char *filename, /* {{{ */
     last_up = time (NULL) - 10;
 
   ssnprintf (pdp_step_str, sizeof (pdp_step_str), "%lu", pdp_step);
-  ssnprintf (last_up_str, sizeof (last_up_str), "%u", (unsigned int) last_up);
+  ssnprintf (last_up_str, sizeof (last_up_str), "%lu", (unsigned long) last_up);
 
   new_argv[0] = "create";
   new_argv[1] = (void *) filename;
@@ -368,6 +368,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   char **ds_def;
   int ds_num;
   int status = 0;
+  time_t last_up;
 
   if (check_create_dir (filename))
     return (-1);
@@ -398,10 +399,15 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   memcpy (argv + ds_num, rra_def, rra_num * sizeof (char *));
   argv[ds_num + rra_num] = NULL;
 
+  if (vl->time == 0)
+    last_up = time (NULL) - 10;
+  else
+    last_up = CDTIME_T_TO_TIME_T (vl->time) - 10;
+
   assert (vl->time > 10);
   status = srrd_create (filename,
       (cfg->stepsize > 0) ? cfg->stepsize : vl->interval,
-      vl->time - 10,
+      last_up,
       argc, (const char **) argv);
 
   free (argv);

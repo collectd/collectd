@@ -209,7 +209,7 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   /* Initialize the structure. */
   memset (&n, 0, sizeof (n));
   n.severity = data->severity;
-  n.time = time (NULL);
+  n.time = cdtime ();
   sstrncpy (n.message, data->message, sizeof (n.message));
   sstrncpy (n.host, vl->host, sizeof (n.host));
   sstrncpy (n.plugin, vl->plugin, sizeof (n.plugin));

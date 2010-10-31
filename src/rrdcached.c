@@ -64,12 +64,14 @@ static int value_list_to_string (char *buffer, int buffer_len,
   int offset;
   int status;
   int i;
+  time_t t;
 
   assert (0 == strcmp (ds->type, vl->type));
 
   memset (buffer, '\0', buffer_len);
 
-  status = ssnprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
+  t = CDTIME_T_TO_TIME_T (vl->time);
+  status = ssnprintf (buffer, buffer_len, "%lu", (unsigned long) t);
   if ((status < 1) || (status >= buffer_len))
     return (-1);
   offset = status;
