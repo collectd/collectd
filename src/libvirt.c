@@ -125,23 +125,119 @@ static time_t last_refresh = (time_t) 0;
 
 static int refresh_lists (void);
 
-/* Submit functions. */
-static void cpu_submit (unsigned long long cpu_time,
-                        time_t t,
-                        virDomainPtr dom, const char *type);
-static void vcpu_submit (unsigned long long cpu_time,
-                         time_t t,
-                         virDomainPtr dom, int vcpu_nr, const char *type);
-static void submit_counter2 (const char *type, counter_t v0, counter_t v1,
-             time_t t,
-             virDomainPtr dom, const char *devname);
-
 /* ERROR(...) macro for virterrors. */
 #define VIRT_ERROR(conn,s) do {                 \
         virErrorPtr err;                        \
         err = (conn) ? virConnGetLastError ((conn)) : virGetLastError (); \
         if (err) ERROR ("%s: %s", (s), err->message);                   \
     } while(0)
+
+static void
+init_value_list (value_list_t *vl, virDomainPtr dom)
+{
+    int i, n;
+    const char *name;
+    char uuid[VIR_UUID_STRING_BUFLEN];
+    char  *host_ptr;
+    size_t host_len;
+
+    vl->interval = interval_g;
+
+    sstrncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
+
+    vl->host[0] = '\0';
+    host_ptr = vl->host;
+    host_len = sizeof (vl->host);
+
+    /* Construct the hostname field according to HostnameFormat. */
+    for (i = 0; i < HF_MAX_FIELDS; ++i) {
+        if (hostname_format[i] == hf_none)
+            continue;
+
+        n = DATA_MAX_NAME_LEN - strlen (vl->host) - 2;
+
+        if (i > 0 && n >= 1) {
+            strncat (vl->host, ":", 1);
+            n--;
+        }
+
+        switch (hostname_format[i]) {
+        case hf_none: break;
+        case hf_hostname:
+            strncat (vl->host, hostname_g, n);
+            break;
+        case hf_name:
+            name = virDomainGetName (dom);
+            if (name)
+                strncat (vl->host, name, n);
+            break;
+        case hf_uuid:
+            if (virDomainGetUUIDString (dom, uuid) == 0)
+                strncat (vl->host, uuid, n);
+            break;
+        }
+    }
+
+    vl->host[sizeof (vl->host) - 1] = '\0';
+} /* void init_value_list */
+
+static void
+cpu_submit (unsigned long long cpu_time,
+            virDomainPtr dom, const char *type)
+{
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
+
+    init_value_list (&vl, dom);
+
+    values[0].counter = cpu_time;
+
+    vl.values = values;
+    vl.values_len = 1;
+
+    sstrncpy (vl.type, type, sizeof (vl.type));
+
+    plugin_dispatch_values (&vl);
+}
+
+static void
+vcpu_submit (counter_t cpu_time,
+             virDomainPtr dom, int vcpu_nr, const char *type)
+{
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
+
+    init_value_list (&vl, dom);
+
+    values[0].counter = cpu_time;
+    vl.values = values;
+    vl.values_len = 1;
+
+    sstrncpy (vl.type, type, sizeof (vl.type));
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%d", vcpu_nr);
+
+    plugin_dispatch_values (&vl);
+}
+
+static void
+submit_counter2 (const char *type, counter_t v0, counter_t v1,
+             virDomainPtr dom, const char *devname)
+{
+    value_t values[2];
+    value_list_t vl = VALUE_LIST_INIT;
+
+    init_value_list (&vl, dom);
+
+    values[0].counter = v0;
+    values[1].counter = v1;
+    vl.values = values;
+    vl.values_len = 2;
+
+    sstrncpy (vl.type, type, sizeof (vl.type));
+    sstrncpy (vl.type_instance, devname, sizeof (vl.type_instance));
+
+    plugin_dispatch_values (&vl);
+} /* void submit_counter2 */
 
 static int
 lv_init (void)
@@ -322,7 +418,7 @@ lv_read (void)
         if (virDomainGetInfo (domains[i], &info) != 0)
             continue;
 
-        cpu_submit (info.cpuTime, t, domains[i], "virt_cpu_total");
+        cpu_submit (info.cpuTime, domains[i], "virt_cpu_total");
 
         vinfo = malloc (info.nrVirtCpu * sizeof vinfo[0]);
         if (vinfo == NULL) {
@@ -338,7 +434,7 @@ lv_read (void)
 
         for (j = 0; j < info.nrVirtCpu; ++j)
             vcpu_submit (vinfo[j].cpuTime,
-                    t, domains[i], vinfo[j].number, "virt_vcpu");
+                    domains[i], vinfo[j].number, "virt_vcpu");
 
         sfree (vinfo);
     }
@@ -354,12 +450,12 @@ lv_read (void)
         if ((stats.rd_req != -1) && (stats.wr_req != -1))
             submit_counter2 ("disk_ops",
                     (counter_t) stats.rd_req, (counter_t) stats.wr_req,
-                    t, block_devices[i].dom, block_devices[i].path);
+                    block_devices[i].dom, block_devices[i].path);
 
         if ((stats.rd_bytes != -1) && (stats.wr_bytes != -1))
             submit_counter2 ("disk_octets",
                     (counter_t) stats.rd_bytes, (counter_t) stats.wr_bytes,
-                    t, block_devices[i].dom, block_devices[i].path);
+                    block_devices[i].dom, block_devices[i].path);
     } /* for (nr_block_devices) */
 
     /* Get interface stats for each domain. */
@@ -378,22 +474,22 @@ lv_read (void)
 	if ((stats.rx_bytes != -1) && (stats.tx_bytes != -1))
 	    submit_counter2 ("if_octets",
 		    (counter_t) stats.rx_bytes, (counter_t) stats.tx_bytes,
-		    t, interface_devices[i].dom, display_name);
+		    interface_devices[i].dom, display_name);
 
 	if ((stats.rx_packets != -1) && (stats.tx_packets != -1))
 	    submit_counter2 ("if_packets",
 		    (counter_t) stats.rx_packets, (counter_t) stats.tx_packets,
-		    t, interface_devices[i].dom, display_name);
+		    interface_devices[i].dom, display_name);
 
 	if ((stats.rx_errs != -1) && (stats.tx_errs != -1))
 	    submit_counter2 ("if_errors",
 		    (counter_t) stats.rx_errs, (counter_t) stats.tx_errs,
-		    t, interface_devices[i].dom, display_name);
+		    interface_devices[i].dom, display_name);
 
 	if ((stats.rx_drop != -1) && (stats.tx_drop != -1))
 	    submit_counter2 ("if_dropped",
 		    (counter_t) stats.rx_drop, (counter_t) stats.tx_drop,
-		    t, interface_devices[i].dom, display_name);
+		    interface_devices[i].dom, display_name);
     } /* for (nr_interface_devices) */
 
     return 0;
@@ -697,117 +793,6 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
     sfree (name);
     return r;
 }
-
-static void
-init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
-{
-    int i, n;
-    const char *name;
-    char uuid[VIR_UUID_STRING_BUFLEN];
-    char  *host_ptr;
-    size_t host_len;
-
-    vl->time = t;
-    vl->interval = interval_g;
-
-    sstrncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
-
-    vl->host[0] = '\0';
-    host_ptr = vl->host;
-    host_len = sizeof (vl->host);
-
-    /* Construct the hostname field according to HostnameFormat. */
-    for (i = 0; i < HF_MAX_FIELDS; ++i) {
-        if (hostname_format[i] == hf_none)
-            continue;
-
-        n = DATA_MAX_NAME_LEN - strlen (vl->host) - 2;
-
-        if (i > 0 && n >= 1) {
-            strncat (vl->host, ":", 1);
-            n--;
-        }
-
-        switch (hostname_format[i]) {
-        case hf_none: break;
-        case hf_hostname:
-            strncat (vl->host, hostname_g, n);
-            break;
-        case hf_name:
-            name = virDomainGetName (dom);
-            if (name)
-                strncat (vl->host, name, n);
-            break;
-        case hf_uuid:
-            if (virDomainGetUUIDString (dom, uuid) == 0)
-                strncat (vl->host, uuid, n);
-            break;
-        }
-    }
-
-    vl->host[sizeof (vl->host) - 1] = '\0';
-} /* void init_value_list */
-
-static void
-cpu_submit (unsigned long long cpu_time,
-            time_t t,
-            virDomainPtr dom, const char *type)
-{
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
-
-    init_value_list (&vl, t, dom);
-
-    values[0].counter = cpu_time;
-
-    vl.values = values;
-    vl.values_len = 1;
-
-    sstrncpy (vl.type, type, sizeof (vl.type));
-
-    plugin_dispatch_values (&vl);
-}
-
-static void
-vcpu_submit (counter_t cpu_time,
-             time_t t,
-             virDomainPtr dom, int vcpu_nr, const char *type)
-{
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
-
-    init_value_list (&vl, t, dom);
-
-    values[0].counter = cpu_time;
-    vl.values = values;
-    vl.values_len = 1;
-
-    sstrncpy (vl.type, type, sizeof (vl.type));
-    ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%d", vcpu_nr);
-
-    plugin_dispatch_values (&vl);
-}
-
-static void
-submit_counter2 (const char *type, counter_t v0, counter_t v1,
-             time_t t,
-             virDomainPtr dom, const char *devname)
-{
-    value_t values[2];
-    value_list_t vl = VALUE_LIST_INIT;
-
-    init_value_list (&vl, t, dom);
-
-    values[0].counter = v0;
-    values[1].counter = v1;
-    vl.values = values;
-    vl.values_len = 2;
-
-    sstrncpy (vl.type, type, sizeof (vl.type));
-    sstrncpy (vl.type_instance, devname, sizeof (vl.type_instance));
-
-    plugin_dispatch_values (&vl);
-} /* void submit_counter2 */
 
 static int
 lv_shutdown (void)
