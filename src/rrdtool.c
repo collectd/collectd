@@ -109,7 +109,7 @@ static rrdcreate_config_t rrdcreate_config =
  * ALWAYS lock `cache_lock' first! */
 static cdtime_t    cache_timeout = 0;
 static cdtime_t    cache_flush_timeout = 0;
-static cdtime_t    random_timeout = 1;
+static cdtime_t    random_timeout = TIME_T_TO_CDTIME_T (1);
 static cdtime_t    cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -674,9 +674,6 @@ static int64_t rrd_get_random_variation (void)
   if (negative)
     ret *= -1;
 
-  DEBUG ("rrdtool plugin: random_variation = %.3f s",
-      (negative ? -1.0 : 1.0) * dbl_timeout * rand_fact);
-
   return (ret);
 } /* int64_t rrd_get_random_variation */
 
@@ -709,7 +706,7 @@ static int rrd_cache_insert (const char *filename,
 		rc->values = NULL;
 		rc->first_value = 0;
 		rc->last_value = 0;
-		rc->random_variation = 0;
+		rc->random_variation = rrd_get_random_variation ();
 		rc->flags = FLAG_NONE;
 		new_rc = 1;
 	}
@@ -780,7 +777,7 @@ static int rrd_cache_insert (const char *filename,
 			filename, rc->values_num,
 			CDTIME_T_TO_DOUBLE (rc->last_value - rc->first_value));
 
-	if ((rc->last_value + rc->random_variation - rc->first_value) >= cache_timeout)
+	if ((rc->last_value - rc->first_value) >= (cache_timeout + rc->random_variation))
 	{
 		/* XXX: If you need to lock both, cache_lock and queue_lock, at
 		 * the same time, ALWAYS lock `cache_lock' first! */
@@ -1101,7 +1098,7 @@ static int rrd_config (const char *key, const char *value)
 		}
 		else
 		{
-			cache_timeout = DOUBLE_TO_CDTIME_T (tmp);
+			random_timeout = DOUBLE_TO_CDTIME_T (tmp);
 		}
 	}
 	else
