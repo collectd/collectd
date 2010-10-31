@@ -235,8 +235,6 @@ static void cipvs_submit_connections (char *pi, char *ti, counter_t value)
 	vl.values     = values;
 	vl.values_len = 1;
 
-	vl.interval = interval_g;
-
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
@@ -259,8 +257,6 @@ static void cipvs_submit_if (char *pi, char *t, char *ti,
 
 	vl.values     = values;
 	vl.values_len = 2;
-
-	vl.interval = interval_g;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
