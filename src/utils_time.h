@@ -32,7 +32,9 @@
  * manner is that comparing times and calculating differences is as simple as
  * it is with "time_t", i.e. a simple integer comparison / subtraction works.
  */
-typedef uint64_t cdtime_t;
+/* 
+ * cdtime_t is defined in "collectd.h" */
+/* typedef uint64_t cdtime_t; */
 
 /* 2^30 = 1073741824 */
 #define TIME_T_TO_CDTIME_T(t) (((cdtime_t) (t)) * 1073741824)
