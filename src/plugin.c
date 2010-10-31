@@ -1251,7 +1251,7 @@ int plugin_write (const char *plugin, /* {{{ */
   return (status);
 } /* }}} int plugin_write */
 
-int plugin_flush (const char *plugin, int timeout, const char *identifier)
+int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
 {
   llentry_t *le;
 

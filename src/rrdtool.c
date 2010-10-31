@@ -512,10 +512,11 @@ static int rrd_queue_dequeue (const char *filename,
   return (0);
 } /* int rrd_queue_dequeue */
 
-static void rrd_cache_flush (int timeout)
+/* XXX: You must hold "cache_lock" when calling this function! */
+static void rrd_cache_flush (cdtime_t timeout)
 {
 	rrd_cache_t *rc;
-	time_t       now;
+	cdtime_t     now;
 
 	char **keys = NULL;
 	int    keys_num = 0;
@@ -524,9 +525,11 @@ static void rrd_cache_flush (int timeout)
 	c_avl_iterator_t *iter;
 	int i;
 
-	DEBUG ("rrdtool plugin: Flushing cache, timeout = %i", timeout);
+	DEBUG ("rrdtool plugin: Flushing cache, timeout = %.3f",
+			CDTIME_T_TO_DOUBLE (timeout));
 
-	now = time (NULL);
+	now = cdtime ();
+	timeout = TIME_T_TO_CDTIME_T (timeout);
 
 	/* Build a list of entries to be flushed */
 	iter = c_avl_get_iterator (cache);
@@ -534,7 +537,9 @@ static void rrd_cache_flush (int timeout)
 	{
 		if (rc->flags != FLAG_NONE)
 			continue;
-		else if ((now - rc->first_value) < timeout)
+		/* timeout == 0  =>  flush everything */
+		else if ((timeout != 0)
+				&& ((now - rc->first_value) < timeout))
 			continue;
 		else if (rc->values_num > 0)
 		{
@@ -587,10 +592,11 @@ static void rrd_cache_flush (int timeout)
 	cache_flush_last = now;
 } /* void rrd_cache_flush */
 
-static int rrd_cache_flush_identifier (int timeout, const char *identifier)
+static int rrd_cache_flush_identifier (cdtime_t timeout,
+    const char *identifier)
 {
   rrd_cache_t *rc;
-  time_t now;
+  cdtime_t now;
   int status;
   char key[2048];
 
@@ -600,7 +606,7 @@ static int rrd_cache_flush_identifier (int timeout, const char *identifier)
     return (0);
   }
 
-  now = time (NULL);
+  now = cdtime ();
 
   if (datadir == NULL)
     snprintf (key, sizeof (key), "%s.rrd",
@@ -921,8 +927,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 	return (status);
 } /* int rrd_write */
 
-static int rrd_flush (int timeout, const char *identifier,
-		user_data_t __attribute__((unused)) *user_data)
+static int rrd_flush (cdtime_t timeout, const char *identifier,
+		__attribute__((unused)) user_data_t *user_data)
 {
 	pthread_mutex_lock (&cache_lock);
 
@@ -1108,7 +1114,7 @@ static int rrd_config (const char *key, const char *value)
 static int rrd_shutdown (void)
 {
 	pthread_mutex_lock (&cache_lock);
-	rrd_cache_flush (-1);
+	rrd_cache_flush (0);
 	pthread_mutex_unlock (&cache_lock);
 
 	pthread_mutex_lock (&queue_lock);
@@ -1176,10 +1182,9 @@ static int rrd_init (void)
 		return (-1);
 	}
 
-	cache_flush_last = time (NULL);
-	if (cache_timeout < 2)
+	cache_flush_last = cdtime ();
+	if (cache_timeout == 0)
 	{
-		cache_timeout = 0;
 		cache_flush_timeout = 0;
 	}
 	else if (cache_flush_timeout < cache_timeout)

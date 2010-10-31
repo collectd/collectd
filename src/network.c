@@ -3351,9 +3351,9 @@ static int network_init (void)
  * just send the buffer if `flush'  is called - if the requested value was in
  * there, good. If not, well, then there is nothing to flush.. -octo
  */
-static int network_flush (int timeout,
-		const char __attribute__((unused)) *identifier,
-		user_data_t __attribute__((unused)) *user_data)
+static int network_flush (__attribute__((unused)) cdtime_t timeout,
+		__attribute__((unused)) const char *identifier,
+		__attribute__((unused)) user_data_t *user_data)
 {
 	pthread_mutex_lock (&send_buffer_lock);
 
