@@ -319,7 +319,8 @@ int uc_check_timeout (void)
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
   {
     /* If entry has not been updated, add to `keys' array */
-    if ((now - ce->last_update) >= (timeout_g * ce->interval))
+    /* FIXME: Remove macro once "ce->interval" is of type cdtime_t. */
+    if ((now - ce->last_update) >= TIME_T_TO_CDTIME_T (timeout_g * ce->interval))
     {
       char **tmp;
 
