@@ -1377,8 +1377,8 @@ static int parse_packet (sockent_t *se, /* {{{ */
 					&tmp);
 			if (status == 0)
 			{
-				vl.time = (time_t) tmp;
-				n.time = (time_t) tmp;
+				vl.time = TIME_T_TO_CDTIME_T (tmp);
+				n.time = TIME_T_TO_CDTIME_T (tmp);
 			}
 		}
 		else if (pkg_type == TYPE_INTERVAL)
@@ -2583,8 +2583,9 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 
 	if (vl_def->time != vl->time)
 	{
+		time_t tmp = CDTIME_T_TO_TIME_T (vl->time);
 		if (write_part_number (&buffer, &buffer_size, TYPE_TIME,
-					(uint64_t) vl->time))
+					(uint64_t) tmp))
 			return (-1);
 		vl_def->time = vl->time;
 	}
@@ -3070,12 +3071,14 @@ static int network_notification (const notification_t *n,
   char *buffer_ptr = buffer;
   int   buffer_free = sizeof (buffer);
   int   status;
+  time_t tmp;
 
   memset (buffer, '\0', sizeof (buffer));
 
 
+  tmp = CDTIME_T_TO_TIME_T (n->time);
   status = write_part_number (&buffer_ptr, &buffer_free, TYPE_TIME,
-      (uint64_t) n->time);
+      (uint64_t) tmp);
   if (status != 0)
     return (-1);
 

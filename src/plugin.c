@@ -1384,16 +1384,16 @@ int plugin_dispatch_values (value_list_t *vl)
 	}
 
 	if (vl->time == 0)
-		vl->time = time (NULL);
+		vl->time = cdtime ();
 
 	if (vl->interval <= 0)
 		vl->interval = interval_g;
 
-	DEBUG ("plugin_dispatch_values: time = %u; interval = %i; "
+	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %i; "
 			"host = %s; "
 			"plugin = %s; plugin_instance = %s; "
 			"type = %s; type_instance = %s;",
-			(unsigned int) vl->time, vl->interval,
+			CDTIME_T_TO_DOUBLE (vl->time), vl->interval,
 			vl->host,
 			vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);
@@ -1518,9 +1518,9 @@ int plugin_dispatch_notification (const notification_t *notif)
 	/* Possible TODO: Add flap detection here */
 
 	DEBUG ("plugin_dispatch_notification: severity = %i; message = %s; "
-			"time = %u; host = %s;",
+			"time = %.3f; host = %s;",
 			notif->severity, notif->message,
-			(unsigned int) notif->time, notif->host);
+			CDTIME_T_TO_DOUBLE (notif->time), notif->host);
 
 	/* Nobody cares for notifications */
 	if (list_notification == NULL)

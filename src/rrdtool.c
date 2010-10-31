@@ -40,11 +40,11 @@
  */
 struct rrd_cache_s
 {
-	int    values_num;
-	char **values;
-	time_t first_value;
-	time_t last_value;
-	int random_variation;
+	int      values_num;
+	char   **values;
+	cdtime_t first_value;
+	cdtime_t last_value;
+	int64_t  random_variation;
 	enum
 	{
 		FLAG_NONE   = 0x00,
@@ -107,10 +107,10 @@ static rrdcreate_config_t rrdcreate_config =
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
  * ALWAYS lock `cache_lock' first! */
-static int         cache_timeout = 0;
-static int         cache_flush_timeout = 0;
-static int         random_timeout = 1;
-static time_t      cache_flush_last;
+static cdtime_t    cache_timeout = 0;
+static cdtime_t    cache_flush_timeout = 0;
+static cdtime_t    random_timeout = 1;
+static cdtime_t    cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -199,11 +199,13 @@ static int value_list_to_string (char *buffer, int buffer_len,
 {
 	int offset;
 	int status;
+	time_t tt;
 	int i;
 
 	memset (buffer, '\0', buffer_len);
 
-	status = ssnprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
+	tt = CDTIME_T_TO_TIME_T (vl->time);
+	status = ssnprintf (buffer, buffer_len, "%u", (unsigned int) tt);
 	if ((status < 1) || (status >= buffer_len))
 		return (-1);
 	offset = status;
@@ -642,8 +644,38 @@ static int rrd_cache_flush_identifier (int timeout, const char *identifier)
   return (status);
 } /* int rrd_cache_flush_identifier */
 
+static int64_t rrd_get_random_variation (void)
+{
+  double dbl_timeout;
+  cdtime_t ctm_timeout;
+  double rand_fact;
+  _Bool negative;
+  int64_t ret;
+
+  if (random_timeout <= 0)
+    return (0);
+
+  /* This seems a bit complicated, but "random_timeout" is likely larger than
+   * RAND_MAX, so we can't simply use modulo here. */
+  dbl_timeout = CDTIME_T_TO_DOUBLE (random_timeout);
+  rand_fact = ((double) random ())
+    / ((double) RAND_MAX);
+  negative = (_Bool) (random () % 2);
+
+  ctm_timeout = DOUBLE_TO_CDTIME_T (dbl_timeout * rand_fact);
+
+  ret = (int64_t) ctm_timeout;
+  if (negative)
+    ret *= -1;
+
+  DEBUG ("rrdtool plugin: random_variation = %.3f s",
+      (negative ? -1.0 : 1.0) * dbl_timeout * rand_fact);
+
+  return (ret);
+} /* int64_t rrd_get_random_variation */
+
 static int rrd_cache_insert (const char *filename,
-		const char *value, time_t value_time)
+		const char *value, cdtime_t value_time)
 {
 	rrd_cache_t *rc = NULL;
 	int new_rc = 0;
@@ -664,7 +696,7 @@ static int rrd_cache_insert (const char *filename,
 
 	if (rc == NULL)
 	{
-		rc = (rrd_cache_t *) malloc (sizeof (rrd_cache_t));
+		rc = malloc (sizeof (*rc));
 		if (rc == NULL)
 			return (-1);
 		rc->values_num = 0;
@@ -679,9 +711,9 @@ static int rrd_cache_insert (const char *filename,
 	if (rc->last_value >= value_time)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		DEBUG ("rrdtool plugin: (rc->last_value = %u) >= (value_time = %u)",
-				(unsigned int) rc->last_value,
-				(unsigned int) value_time);
+		DEBUG ("rrdtool plugin: (rc->last_value = %"PRIu64") "
+				">= (value_time = %"PRIu64")",
+				rc->last_value, value_time);
 		return (-1);
 	}
 
@@ -738,9 +770,9 @@ static int rrd_cache_insert (const char *filename,
 	}
 
 	DEBUG ("rrdtool plugin: rrd_cache_insert: file = %s; "
-			"values_num = %i; age = %lu;",
+			"values_num = %i; age = %.3f;",
 			filename, rc->values_num,
-			(unsigned long)(rc->last_value - rc->first_value));
+			CDTIME_T_TO_DOUBLE (rc->last_value - rc->first_value));
 
 	if ((rc->last_value + rc->random_variation - rc->first_value) >= cache_timeout)
 	{
@@ -754,17 +786,7 @@ static int rrd_cache_insert (const char *filename,
 			if (status == 0)
 				rc->flags = FLAG_QUEUED;
 
-			/* Update the jitter value. Negative values are
-			 * slightly preferred. */
-			if (random_timeout > 0)
-			{
-				rc->random_variation = (rand () % (2 * random_timeout))
-					- random_timeout;
-			}
-			else
-			{
-				rc->random_variation = 0;
-			}
+                        rc->random_variation = rrd_get_random_variation ();
 		}
 		else
 		{
@@ -773,7 +795,7 @@ static int rrd_cache_insert (const char *filename,
 	}
 
 	if ((cache_timeout > 0) &&
-			((time (NULL) - cache_flush_last) > cache_flush_timeout))
+			((cdtime () - cache_flush_last) > cache_flush_timeout))
 		rrd_cache_flush (cache_flush_timeout);
 
 	pthread_mutex_unlock (&cache_lock);
@@ -919,7 +941,7 @@ static int rrd_config (const char *key, const char *value)
 {
 	if (strcasecmp ("CacheTimeout", key) == 0)
 	{
-		int tmp = atoi (value);
+		double tmp = atof (value);
 		if (tmp < 0)
 		{
 			fprintf (stderr, "rrdtool: `CacheTimeout' must "
@@ -928,7 +950,7 @@ static int rrd_config (const char *key, const char *value)
 					"be greater than 0.\n");
 			return (1);
 		}
-		cache_timeout = tmp;
+		cache_timeout = DOUBLE_TO_CDTIME_T (tmp);
 	}
 	else if (strcasecmp ("CacheFlush", key) == 0)
 	{
@@ -1061,10 +1083,10 @@ static int rrd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("RandomTimeout", key) == 0)
         {
-		int tmp;
+		double tmp;
 
-		tmp = atoi (value);
-		if (tmp < 0)
+		tmp = atof (value);
+		if (tmp < 0.0)
 		{
 			fprintf (stderr, "rrdtool: `RandomTimeout' must "
 					"be greater than or equal to zero.\n");
@@ -1073,7 +1095,7 @@ static int rrd_config (const char *key, const char *value)
 		}
 		else
 		{
-			random_timeout = tmp;
+			cache_timeout = DOUBLE_TO_CDTIME_T (tmp);
 		}
 	}
 	else

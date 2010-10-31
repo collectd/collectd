@@ -53,7 +53,8 @@ static int value_list_to_string (char *buffer, int buffer_len,
 
 	memset (buffer, '\0', buffer_len);
 
-	status = ssnprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
+	status = ssnprintf (buffer, buffer_len, "%.3f",
+			CDTIME_T_TO_DOUBLE (vl->time));
 	if ((status < 1) || (status >= buffer_len))
 		return (-1);
 	offset = status;

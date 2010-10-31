@@ -38,10 +38,10 @@ typedef struct cache_entry_s
 	value_t   *values_raw;
 	/* Time contained in the package
 	 * (for calculating rates) */
-	time_t last_time;
+	cdtime_t last_time;
 	/* Time according to the local clock
 	 * (for purging old entries) */
-	time_t last_update;
+	cdtime_t last_update;
 	/* Interval in which the data is collected
 	 * (for purding old entries) */
 	int interval;
@@ -164,7 +164,7 @@ static int uc_send_notification (const char *name)
    * acquiring the lock takes and we will use this time later to decide
    * whether or not the state is OKAY.
    */
-  n.time = time (NULL);
+  n.time = cdtime ();
 
   status = c_avl_get (cache_tree, name, (void *) &ce);
   if (status != 0)
@@ -184,8 +184,8 @@ static int uc_send_notification (const char *name)
   }
 
   ssnprintf (n.message, sizeof (n.message),
-      "%s has not been updated for %i seconds.", name,
-      (int) (n.time - ce->last_update));
+      "%s has not been updated for %.3f seconds.", name,
+      CDTIME_T_TO_DOUBLE (n.time - ce->last_update));
 
   pthread_mutex_unlock (&cache_lock);
 
@@ -274,7 +274,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
   uc_check_range (ds, ce);
 
   ce->last_time = vl->time;
-  ce->last_update = time (NULL);
+  ce->last_update = cdtime ();
   ce->interval = vl->interval;
   ce->state = STATE_OKAY;
 
@@ -300,7 +300,7 @@ int uc_init (void)
 
 int uc_check_timeout (void)
 {
-  time_t now;
+  cdtime_t now;
   cache_entry_t *ce;
 
   char **keys = NULL;
@@ -312,7 +312,7 @@ int uc_check_timeout (void)
   
   pthread_mutex_lock (&cache_lock);
 
-  now = time (NULL);
+  now = cdtime ();
 
   /* Build a list of entries to be flushed */
   iter = c_avl_get_iterator (cache_tree);
@@ -448,7 +448,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int send_okay_notification = 0;
-  time_t update_delay = 0;
+  cdtime_t update_delay = 0;
   notification_t n;
   int status;
   int i;
@@ -475,9 +475,11 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   if (ce->last_time >= vl->time)
   {
     pthread_mutex_unlock (&cache_lock);
-    NOTICE ("uc_update: Value too old: name = %s; value time = %u; "
-	"last cache update = %u;",
-	name, (unsigned int) vl->time, (unsigned int) ce->last_time);
+    NOTICE ("uc_update: Value too old: name = %s; value time = %.3f; "
+	"last cache update = %.3f;",
+	name,
+	CDTIME_T_TO_DOUBLE (vl->time),
+	CDTIME_T_TO_DOUBLE (ce->last_time));
     return (-1);
   }
 
@@ -487,7 +489,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   {
     send_okay_notification = 1;
     ce->state = STATE_OKAY;
-    update_delay = time (NULL) - ce->last_update;
+    update_delay = cdtime () - ce->last_update;
   }
 
   for (i = 0; i < ds->ds_num; i++)
@@ -514,7 +516,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	  }
 
 	  ce->values_gauge[i] = ((double) diff)
-	    / ((double) (vl->time - ce->last_time));
+	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	  ce->values_raw[i].counter = vl->values[i].counter;
 	}
 	break;
@@ -531,14 +533,14 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	  diff = vl->values[i].derive - ce->values_raw[i].derive;
 
 	  ce->values_gauge[i] = ((double) diff)
-	    / ((double) (vl->time - ce->last_time));
+	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	  ce->values_raw[i].derive = vl->values[i].derive;
 	}
 	break;
 
       case DS_TYPE_ABSOLUTE:
 	ce->values_gauge[i] = ((double) vl->values[i].absolute)
-	  / ((double) (vl->time - ce->last_time));
+	  / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	ce->values_raw[i].absolute = vl->values[i].absolute;
 	break;
 
@@ -571,7 +573,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   uc_check_range (ds, ce);
 
   ce->last_time = vl->time;
-  ce->last_update = time (NULL);
+  ce->last_update = cdtime ();
   ce->interval = vl->interval;
 
   pthread_mutex_unlock (&cache_lock);
@@ -682,14 +684,14 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   return (ret);
 } /* gauge_t *uc_get_rate */
 
-int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number)
+int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
 {
   c_avl_iterator_t *iter;
   char *key;
   cache_entry_t *value;
 
   char **names = NULL;
-  time_t *times = NULL;
+  cdtime_t *times = NULL;
   size_t number = 0;
 
   int status = 0;
@@ -710,9 +712,9 @@ int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number)
 
     if (ret_times != NULL)
     {
-      time_t *tmp_times;
+      cdtime_t *tmp_times;
 
-      tmp_times = (time_t *) realloc (times, sizeof (time_t) * (number + 1));
+      tmp_times = (cdtime_t *) realloc (times, sizeof (cdtime_t) * (number + 1));
       if (tmp_times == NULL)
       {
 	status = -1;

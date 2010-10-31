@@ -25,6 +25,7 @@
 #include "collectd.h"
 #include "configfile.h"
 #include "meta_data.h"
+#include "utils_time.h"
 
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
@@ -85,7 +86,7 @@ struct value_list_s
 {
 	value_t *values;
 	int      values_len;
-	time_t   time;
+	cdtime_t time;
 	int      interval;
 	char     host[DATA_MAX_NAME_LEN];
 	char     plugin[DATA_MAX_NAME_LEN];
@@ -143,7 +144,7 @@ typedef struct notification_meta_s
 typedef struct notification_s
 {
 	int    severity;
-	time_t time;
+	cdtime_t time;
 	char   message[NOTIF_MAX_MSG_LEN];
 	char   host[DATA_MAX_NAME_LEN];
 	char   plugin[DATA_MAX_NAME_LEN];

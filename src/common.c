@@ -833,7 +833,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
                 offset += ((size_t) status); \
 } while (0)
 
-        BUFFER_ADD ("%lu", (unsigned long) vl->time);
+        BUFFER_ADD ("%.3f", CDTIME_T_TO_DOUBLE (vl->time));
 
         for (i = 0; i < ds->ds_num; i++)
         {
@@ -979,9 +979,10 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 		if (i == -1)
 		{
 			if (strcmp ("N", ptr) == 0)
-				vl->time = time (NULL);
+				vl->time = cdtime ();
 			else
-				vl->time = (time_t) atoi (ptr);
+				/* FIXME: Add error checking here. */
+				vl->time = DOUBLE_TO_CDTIME_T (atof (ptr));
 		}
 		else
 		{
