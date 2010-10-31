@@ -41,11 +41,22 @@ typedef uint64_t cdtime_t;
 #define CDTIME_T_TO_DOUBLE(t) (((double) (t)) / 1073741824.0)
 #define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1073741824.0))
 
-#define US_TO_CDTIME_T(us) ((cdtime_t) (((double) (us)) * 1073.741824))
-#define NS_TO_CDTIME_T(ns) ((cdtime_t) (((double) (ns)) * 1.073741824))
+#define US_TO_CDTIME_T(us) ((cdtime_t)    (((double) (us)) * 1073.741824))
+#define CDTIME_T_TO_US(t)  ((suseconds_t) (((double) (t))  / 1073.741824))
+#define NS_TO_CDTIME_T(ns) ((cdtime_t)    (((double) (ns)) * 1.073741824))
+#define CDTIME_T_TO_NS(t)  ((long)        (((double) (t))  / 1.073741824))
 
+#define CDTIME_T_TO_TIMEVAL(t) { \
+	CDTIME_T_TO_TIME_T (t), \
+	CDTIME_T_TO_US (t % 1073741824) \
+}
 #define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_T ((tv).tv_sec) \
 		+ US_TO_CDTIME_T ((tv).tv_usec))
+
+#define CDTIME_T_TO_TIMESPEC(t) { \
+	CDTIME_T_TO_TIME_T (t), \
+	CDTIME_T_TO_NS (t % 1073741824) \
+}
 #define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME_T ((ts).tv_sec) \
 		+ NS_TO_CDTIME_T ((ts).tv_nsec))
 
