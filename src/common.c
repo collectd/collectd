@@ -981,8 +981,20 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 			if (strcmp ("N", ptr) == 0)
 				vl->time = cdtime ();
 			else
-				/* FIXME: Add error checking here. */
-				vl->time = DOUBLE_TO_CDTIME_T (atof (ptr));
+			{
+				char *endptr = NULL;
+				double tmp;
+
+				errno = 0;
+				tmp = strtod (ptr, &endptr);
+				if ((errno != 0)                    /* Overflow */
+						|| (endptr == ptr)  /* Invalid string */
+						|| (endptr == NULL) /* This should not happen */
+						|| (*endptr != 0))  /* Trailing chars */
+					return (-1);
+
+				vl->time = DOUBLE_TO_CDTIME_T (tmp);
+			}
 		}
 		else
 		{
