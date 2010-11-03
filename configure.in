@@ -4937,6 +4937,7 @@ AC_PLUGIN([md],          [$have_linux_raid_md_u_h], [md (Linux software RAID) de
 AC_PLUGIN([memcachec],   [$with_libmemcached], [memcachec statistics])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
+AC_PLUGIN([mongo],       [$with_libmongoc],    [MongoDB statistics])
 AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
@@ -5273,6 +5274,7 @@ Configuration:
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
     modbus  . . . . . . . $enable_modbus
+    mongo  . . . . . .  . $enable_mongo
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
