@@ -691,6 +691,15 @@ collectd_LDADD += "-dlopen" modbus.la
 collectd_DEPENDENCIES += modbus.la
 endif
 
+if BUILD_PLUGIN_MONGODB
+pkglib_LTLIBRARIES += mongodb.la
+mongodb_la_SOURCES = mongodb.c
+mongodb_la_LDFLAGS = -module -avoid-version
+mongodb_la_LIBADD = -lmongoc
+collectd_LDADD += "-dlopen" mongodb.la
+collectd_DEPENDENCIES += mongodb.la
+endif
+
 if BUILD_PLUGIN_MULTIMETER
 pkglib_LTLIBRARIES += multimeter.la
 multimeter_la_SOURCES = multimeter.c
