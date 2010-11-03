@@ -19,14 +19,21 @@
  *   Ryan Cox <ryan.a.cox@gmail.com> 
  **/
 
+#include "collectd.h"
+#include "common.h" 
+#include "plugin.h" 
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <mongo/mongo.h>
-#include "collectd.h"
-#include "common.h" 
-#include "plugin.h" 
+
+#if HAVE_STDINT_H
+# define MONGO_HAVE_STDINT 1
+#else
+# define MONGO_USE_LONG_LONG_INT 1
+#endif
+#include <mongo.h>
 
 #define MC_PLUGIN_NAME "mongo"
 #define MC_MONGO_DEF_HOST "127.0.0.1"
@@ -43,7 +50,8 @@ static char *mc_db = NULL;
 static char *mc_host = NULL;
 static int  mc_port = MC_MONGO_DEF_PORT;
 
-static mongo_connection conn[1];
+static mongo_connection mc_connection;
+static _Bool mc_have_connection = 0;
 
 static const char *config_keys[] = {
 	"User",
@@ -52,34 +60,25 @@ static const char *config_keys[] = {
 	"Host",
 	"Port"
 };
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+static void submit (const char *type, const char *instance,
+        value_t *values, size_t values_len)
+{
+    value_list_t v = VALUE_LIST_INIT;
 
-static void submit(const char *type, const char *instance, value_t *values, size_t values_len) {
-    INFO("Submiting [%d] for type [%s]",values_len,type);
-	value_list_t v = VALUE_LIST_INIT;
+    v.values = values;
+    v.values_len = values_len;
 
-	v.values = values;
-	v.values_len = values_len;
+    sstrncpy (v.host, hostname_g, sizeof(v.host));
+    sstrncpy (v.plugin, MC_PLUGIN_NAME, sizeof(v.plugin));
+    ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%i", mc_port);
+    sstrncpy (v.type, type, sizeof(v.type));
 
-    if( instance != NULL ) {
-       sstrncpy(v.type_instance,instance,sizeof(v.type_instance)); 
-    }
+    if (instance != NULL)
+        sstrncpy (v.type_instance, instance, sizeof (v.type_instance)); 
 
-    sstrncpy(v.host, hostname_g, sizeof(v.host));
-    sstrncpy(v.plugin, MC_PLUGIN_NAME, sizeof(v.plugin));
-    char port[12];
-    sprintf(port, "%d",mc_port);
-    sstrncpy(v.plugin_instance, port, sizeof(v.plugin_instance));
-    sstrncpy(v.type, type, sizeof(v.type));
-
-    plugin_dispatch_values(&v);
-}
-
-static void submit_counter(const char *type, const char *instance, int64_t counter ) {
-	value_t v[1];
-	v[0].counter = counter;
-	submit(type, instance, v, STATIC_ARRAY_SIZE (v));
+    plugin_dispatch_values (&v);
 }
 
 static void submit_gauge(const char *type, const char *instance, gauge_t gauge ) {
@@ -207,7 +206,6 @@ static void handle_index_counters(bson* obj) {
     if(bson_find(&icit, obj, "indexCounters")) {
         bson oic;
         bson_iterator_subobject(&icit, &oic);
-        bson_iterator bit;
         if(bson_find(&icit, &oic, "btree")) {
             bson obt;
             bson_iterator_subobject(&icit, &obt);
@@ -215,6 +213,8 @@ static void handle_index_counters(bson* obj) {
             bson_iterator_init(&bit, oic.data);
             int accesses; 
             int misses;
+            double ratio;
+
             while(bson_iterator_next(&bit)) {
                 if(strcmp(bson_iterator_key(&bit),"accesses") == 0) {
                     accesses = bson_iterator_int(&bit); 
@@ -224,11 +224,11 @@ static void handle_index_counters(bson* obj) {
                 }
             }
 
-            double ratio = 0;
-            if( misses > 0 ) {
-                double ratio = accesses/misses;
-            }
+            ratio = NAN;
+            if (misses <= accesses)
+                ratio = ((double) misses) / ((double) accesses);
             submit_gauge("cache_ratio", "cache_misses", ratio );
+
             bson_destroy(&obt);
         }
         bson_destroy(&oic);
@@ -285,10 +285,9 @@ static void handle_stats_sizes(bson* obj) {
         }
     }
 
-    value_t values[3];
-    submit_gauge("file_size", "storage",storageSize );
-    submit_gauge("file_size", "index",indexSize );
-    submit_gauge("file_size", "data",dataSize );
+    submit_gauge ("file_size", "storage", storageSize);
+    submit_gauge ("file_size", "index", indexSize);
+    submit_gauge ("file_size", "data", dataSize);
 }
 
 static int do_stats(void) {
@@ -305,7 +304,7 @@ static int do_stats(void) {
         implement retries ? noticed that if db is unavailable, collectd dies
     */
 
-    if( !mongo_simple_int_command(conn, mc_db, "dbstats", 1, &obj) ) {
+    if( !mongo_simple_int_command(&mc_connection, mc_db, "dbstats", 1, &obj) ) {
         ERROR("Mongo: failed to call stats Host [%s] Port [%d] User [%s]", 
             mc_host, mc_port, mc_user);
         return FAILURE;
@@ -326,7 +325,7 @@ static int do_stats(void) {
 static int do_server_status(void) {
     bson obj;
 
-    if( !mongo_simple_int_command(conn, mc_db, "serverStatus", 1, &obj) ) {
+    if( !mongo_simple_int_command(&mc_connection, mc_db, "serverStatus", 1, &obj) ) {
         ERROR("Mongo: failed to call serverStatus Host [%s] Port [%d] User [%s]", 
             mc_host, mc_port, mc_user);
         return FAILURE;
@@ -369,51 +368,48 @@ static void config_set(char** dest, const char* src ) {
         sstrncpy(*dest,src,strlen(src)+1);
 }
 
-static int mc_config(const char *key, const char *value) { 
-
+static int mc_config(const char *key, const char *value)
+{ 
     DEBUG("Mongo: config key [%s] value [%s]", key, value); 
-	if(strcasecmp("Host", key) == 0) {
+
+    if(strcasecmp("Host", key) == 0) {
         config_set(&mc_host,value);
-        return SUCCESS;
-	}
-
-	if(strcasecmp("Port", key) == 0) {
-        long l = strtol(value,NULL,10);
-
-        if((errno == ERANGE && (l == LONG_MAX || l == LONG_MIN))
-            || (errno != 0 && l == 0)) {
-            ERROR("Mongo: failed to parse Port value [%s]", value);
-            return FAILURE;
+    }
+    else if(strcasecmp("Port", key) == 0)
+    {
+        int tmp;
+        
+        tmp = service_name_to_port_number (value);
+        if (tmp > 0)
+            mc_port = tmp;
+        else
+        {
+            ERROR("mongodb plugin: failed to parse Port value: %s", value);
+            return (-1);
         }
-
-        if( l < MC_MIN_PORT || l > MC_MAX_PORT ) {
-            ERROR("Mongo: failed Port value [%s] outside range [1..65535]", value);
-            return FAILURE;
-        }
-
-		mc_port = l;
-        return SUCCESS;
-	}
-
-	if(strcasecmp("User", key) == 0) {
+    }
+    else if(strcasecmp("User", key) == 0) {
         config_set(&mc_user,value);
-        return SUCCESS;
-	}
-
-	if(strcasecmp("Password", key) == 0) {
+    }
+    else if(strcasecmp("Password", key) == 0) {
         config_set(&mc_password,value);
-        return SUCCESS;
-	}
-
-	if(strcasecmp("Database", key) == 0) {
+    }
+    else if(strcasecmp("Database", key) == 0) {
         config_set(&mc_db,value);
-        return SUCCESS;
-	}
+    }
+    else
+    {
+        ERROR ("mongodb plugin: Unknown config option: %s", key);
+        return (-1);
+    }
 
     return SUCCESS;
 } 
 
-static int mc_init(void) {
+static int mc_init(void)
+{
+    if (mc_have_connection)
+        return (0);
 
     DEBUG("mongo driver initializing"); 
     if( !mc_host) {
@@ -430,44 +426,41 @@ static int mc_init(void) {
     sstrncpy(opts.host, mc_host, sizeof(opts.host));
     opts.port = mc_port; 
 
-    if(mongo_connect( conn , &opts )){
+    if(mongo_connect(&mc_connection, &opts )){
         ERROR("Mongo: driver failed to connect. Host [%s] Port [%d] User [%s]", 
                 mc_host, mc_port, mc_user);
         return FAILURE;     
     }
 
+    mc_have_connection = 1;
     return SUCCESS;
 } 
 
-static int mc_shutdown(void) {
+static int mc_shutdown(void)
+{
     DEBUG("Mongo: driver shutting down"); 
 
-    if( conn ) {
-        mongo_disconnect(conn);
-        mongo_destroy(conn);
-    }
-    if( mc_user ) {
-        sfree(mc_user);
+    if (mc_have_connection) {
+        mongo_disconnect (&mc_connection);
+        mongo_destroy (&mc_connection);
+        mc_have_connection = 0;
     }
 
-    if( mc_password ) {
-        sfree(mc_password);
-    }
+    sfree(mc_user);
+    sfree(mc_password);
+    sfree(mc_db);
+    sfree(mc_host);
 
-    if( mc_db ) {
-        sfree(mc_db);
-    }
-
-    if( mc_host ) {
-        sfree(mc_host);
-    }
+    return (0);
 }
 
 
 void module_register(void)  {       
-    plugin_register_config(MC_PLUGIN_NAME, mc_config,config_keys,config_keys_num);
-    plugin_register_read(MC_PLUGIN_NAME, mc_read);
-    plugin_register_init(MC_PLUGIN_NAME, mc_init);
-    plugin_register_shutdown(MC_PLUGIN_NAME, mc_shutdown);
-    DEBUG("Mongo: driver registered"); 
+    plugin_register_config (MC_PLUGIN_NAME, mc_config,
+            config_keys, config_keys_num);
+    plugin_register_read (MC_PLUGIN_NAME, mc_read);
+    plugin_register_init (MC_PLUGIN_NAME, mc_init);
+    plugin_register_shutdown (MC_PLUGIN_NAME, mc_shutdown);
 }
+
+/* vim: set sw=4 sts=4 et fdm=marker : */
