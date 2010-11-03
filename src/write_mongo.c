@@ -31,8 +31,13 @@
 #include "configfile.h"
 
 #include <pthread.h>
-#include "libmongo/bson.h"
-#include "libmongo/mongo.h"
+
+#if HAVE_STDINT_H
+# define MONGO_HAVE_STDINT 1
+#else
+# define MONGO_USE_LONG_LONG_INT 1
+#endif
+#include <mongo.h>
 
 struct wm_node_s
 {
@@ -93,7 +98,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   if (node->connected == 0)
   {
-    strcpy(node->opts->host, node->host);
+    sstrncpy(node->opts->host, node->host,
+        sizeof (node->opts->host));
     node->opts->port = node->port;
 
     status = mongo_connect(node->conn,node->opts);

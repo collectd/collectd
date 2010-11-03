@@ -4688,7 +4688,7 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
-AC_PLUGIN([write_mongo], [yes],    [Mongo output plugin])
+AC_PLUGIN([write_mongo], [$with_libmongoc],    [MongoDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
 
