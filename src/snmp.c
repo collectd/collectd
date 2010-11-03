@@ -1057,7 +1057,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   sstrncpy (vl.host, host->name, sizeof (vl.host));
   sstrncpy (vl.plugin, "snmp", sizeof (vl.plugin));
 
-  vl.interval = (int) CDTIME_T_TO_TIME_T (host->interval);
+  vl.interval = host->interval;
 
   subid = 0;
   have_more = 1;
@@ -1445,7 +1445,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   sstrncpy (vl.type, data->type, sizeof (vl.type));
   sstrncpy (vl.type_instance, data->instance.string, sizeof (vl.type_instance));
 
-  vl.interval = (int) CDTIME_T_TO_TIME_T (host->interval);
+  vl.interval = host->interval;
 
   req = snmp_pdu_create (SNMP_MSG_GET);
   if (req == NULL)
@@ -1518,9 +1518,8 @@ static int csnmp_read_host (user_data_t *ud)
 
   host = ud->data;
 
-  /* FIXME: Convert "interval_g" to cdtime_t, too. */
   if (host->interval == 0)
-    host->interval = TIME_T_TO_CDTIME_T (interval_g);
+    host->interval = interval_g;
 
   time_start = cdtime ();
 

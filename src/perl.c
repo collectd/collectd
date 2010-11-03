@@ -235,15 +235,6 @@ struct {
 	{ "", NULL }
 };
 
-struct {
-	char  name[64];
-	int  *var;
-} g_integers[] =
-{
-	{ "Collectd::interval_g", &interval_g },
-	{ "", NULL }
-};
-
 /*
  * Helper functions for data type conversion.
  */
@@ -403,7 +394,10 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 	}
 
 	if (NULL != (tmp = hv_fetch (hash, "interval", 8, 0)))
-		vl->interval = SvIV (*tmp);
+	{
+		double t = SvNV (*tmp);
+		vl->interval = DOUBLE_TO_CDTIME_T (t);
+	}
 
 	if (NULL != (tmp = hv_fetch (hash, "host", 4, 0)))
 		sstrncpy (vl->host, SvPV_nolen (*tmp), sizeof (vl->host));
@@ -684,8 +678,11 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 			return -1;
 	}
 
-	if (NULL == hv_store (hash, "interval", 8, newSViv (vl->interval), 0))
-		return -1;
+	{
+		double t = CDTIME_T_TO_DOUBLE (vl->interval);
+		if (NULL == hv_store (hash, "interval", 8, newSVnv (t), 0))
+			return -1;
+	}
 
 	if ('\0' != vl->host[0])
 		if (NULL == hv_store (hash, "host", 4, newSVpv (vl->host, 0), 0))
@@ -2104,19 +2101,27 @@ static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 	return 0;
 } /* static int g_pv_set (pTHX_ SV *, MAGIC *) */
 
-static int g_iv_get (pTHX_ SV *var, MAGIC *mg)
+static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 {
-	int *iv = (int *)mg->mg_ptr;
-	sv_setiv (var, *iv);
-	return 0;
-} /* static int g_iv_get (pTHX_ SV *, MAGIC *) */
+	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
+	double nv;
 
-static int g_iv_set (pTHX_ SV *var, MAGIC *mg)
-{
-	int *iv = (int *)mg->mg_ptr;
-	*iv = (int)SvIV (var);
+	nv = CDTIME_T_TO_DOUBLE (*interval);
+
+	sv_setnv (var, nv);
 	return 0;
-} /* static int g_iv_set (pTHX_ SV *, MAGIC *) */
+} /* static int g_interval_get (pTHX_ SV *, MAGIC *) */
+
+static int g_interval_set (pTHX_ SV *var, MAGIC *mg)
+{
+	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
+	double nv;
+
+	nv = (double)SvNV (var);
+
+	*interval = DOUBLE_TO_CDTIME_T (nv);
+	return 0;
+} /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
 static MGVTBL g_pv_vtbl = {
 	g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL
@@ -2124,8 +2129,8 @@ static MGVTBL g_pv_vtbl = {
 		, NULL
 #endif
 };
-static MGVTBL g_iv_vtbl = {
-	g_iv_get, g_iv_set, NULL, NULL, NULL, NULL, NULL
+static MGVTBL g_interval_vtbl = {
+	g_interval_get, g_interval_set, NULL, NULL, NULL, NULL, NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
 		, NULL
 #endif
@@ -2167,12 +2172,11 @@ static void xs_init (pTHX)
 				g_strings[i].var, 0);
 	}
 
-	/* global integers */
-	for (i = 0; '\0' != g_integers[i].name[0]; ++i) {
-		tmp = get_sv (g_integers[i].name, 1);
-		sv_magicext (tmp, NULL, PERL_MAGIC_ext, &g_iv_vtbl,
-				(char *)g_integers[i].var, 0);
-	}
+	tmp = get_sv ("Collectd::interval_g", /* create = */ 1);
+	sv_magicext (tmp, NULL, /* how = */ PERL_MAGIC_ext,
+			/* vtbl = */ &g_interval_vtbl,
+			/* name = */ (char *) &interval_g, /* namelen = */ 0);
+
 	return;
 } /* static void xs_init (pTHX) */
 

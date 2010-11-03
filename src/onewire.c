@@ -59,7 +59,7 @@ static ow_family_features_t ow_family_features[] =
 static int ow_family_features_num = STATIC_ARRAY_SIZE (ow_family_features);
 
 static char *device_g = NULL;
-static int   ow_interval = 0;
+static cdtime_t ow_interval = 0;
 
 static const char *config_keys[] =
 {
@@ -309,7 +309,8 @@ static int cow_init (void)
   CDTIME_T_TO_TIMESPEC (ow_interval, &cb_interval);
 
   plugin_register_complex_read (/* group = */ NULL, "onewire", cow_read,
-      &cb_interval, /* user data = */ NULL);
+      (ow_interval != 0) ? &cb_interval : NULL,
+      /* user data = */ NULL);
   plugin_register_shutdown ("onewire", cow_shutdown);
 
   return (0);

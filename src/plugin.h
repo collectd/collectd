@@ -87,7 +87,7 @@ struct value_list_s
 	value_t *values;
 	int      values_len;
 	cdtime_t time;
-	int      interval;
+	cdtime_t interval;
 	char     host[DATA_MAX_NAME_LEN];
 	char     plugin[DATA_MAX_NAME_LEN];
 	char     plugin_instance[DATA_MAX_NAME_LEN];

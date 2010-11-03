@@ -364,9 +364,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
       break;
     }
 
-    /* TODO: Remove the macro once interval_g is of type cdtime_t. */
-    cdt_timeout = TIME_T_TO_CDTIME_T (interval_g);
-    cdt_timeout = cdt_timeout * 3 / 4;
+    cdt_timeout = interval_g * 3 / 4;
     if (cdt_timeout < TIME_T_TO_CDTIME_T (2))
       cdt_timeout = TIME_T_TO_CDTIME_T (2);
 

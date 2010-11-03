@@ -117,7 +117,7 @@ typedef struct {
 	udb_query_t    **queries;
 	size_t           queries_num;
 
-	int interval;
+	cdtime_t interval;
 
 	char *host;
 	char *port;
@@ -335,8 +335,9 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 				params[i] = db->user;
 				break;
 			case C_PSQL_PARAM_INTERVAL:
-				ssnprintf (interval, sizeof (interval), "%i",
-						db->interval > 0 ? db->interval : interval_g);
+				ssnprintf (interval, sizeof (interval), "%.3f",
+						(db->interval > 0)
+						? CDTIME_T_TO_DOUBLE (db->interval) : interval_g);
 				params[i] = interval;
 				break;
 			default:
@@ -535,28 +536,6 @@ static int config_set_s (char *name, char **var, const oconfig_item_t *ci)
 	return 0;
 } /* config_set_s */
 
-static int config_set_i (char *name, int *var,
-		const oconfig_item_t *ci, int min)
-{
-	int value;
-
-	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_NUMBER != ci->values[0].type)) {
-		log_err ("%s expects a single number argument.", name);
-		return 1;
-	}
-
-	value = (int)ci->values[0].value.number;
-
-	if (value < min) {
-		log_err ("%s expects a number greater or equal to %i.", name, min);
-		return 1;
-	}
-
-	*var = value;
-	return 0;
-} /* config_set_s */
-
 static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 {
 	c_psql_user_data_t *data;
@@ -618,7 +597,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	c_psql_database_t *db;
 
 	char cb_name[DATA_MAX_NAME_LEN];
-	struct timespec cb_interval;
+	struct timespec cb_interval = { 0, 0 };
 	user_data_t ud;
 
 	int i;
@@ -656,7 +635,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 			udb_query_pick_from_list (c, queries, queries_num,
 					&db->queries, &db->queries_num);
 		else if (0 == strcasecmp (c->key, "Interval"))
-			config_set_i ("Interval", &db->interval, c, /* min = */ 1);
+			cf_util_get_cdtime (c, &db->interval);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
@@ -701,12 +680,11 @@ static int c_psql_config_database (oconfig_item_t *ci)
 
 	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->database);
 
-	memset (&cb_interval, 0, sizeof (cb_interval));
-	if (db->interval > 0)
-		cb_interval.tv_sec = (time_t)db->interval;
+	CDTIME_T_TO_TIMESPEC (db->interval, &cb_interval);
 
 	plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
-			/* interval = */ &cb_interval, &ud);
+			/* interval = */ (db->interval > 0) ? &cb_interval : NULL,
+			&ud);
 	return 0;
 } /* c_psql_config_database */
 

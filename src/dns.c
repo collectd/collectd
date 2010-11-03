@@ -226,7 +226,7 @@ static void *dns_child_loop (void __attribute__((unused)) *dummy)
 	pcap_obj = pcap_open_live ((pcap_device != NULL) ? pcap_device : "any",
 			PCAP_SNAPLEN,
 			0 /* Not promiscuous */,
-			interval_g,
+			(int) CDTIME_T_TO_MS (interval_g / 2),
 			pcap_error);
 	if (pcap_obj == NULL)
 	{

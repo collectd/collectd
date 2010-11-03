@@ -43,8 +43,8 @@
 #define CDTIME_T_TO_DOUBLE(t) (((double) (t)) / 1073741824.0)
 #define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1073741824.0))
 
+#define MS_TO_CDTIME_T(ms) ((cdtime_t)    (((double) (ms)) * 1073741.824))
 #define CDTIME_T_TO_MS(t)  ((long)        (((double) (t))  / 1073741.824))
-
 #define US_TO_CDTIME_T(us) ((cdtime_t)    (((double) (us)) * 1073.741824))
 #define CDTIME_T_TO_US(t)  ((suseconds_t) (((double) (t))  / 1073.741824))
 #define NS_TO_CDTIME_T(ns) ((cdtime_t)    (((double) (ns)) * 1.073741824))
@@ -61,8 +61,8 @@
   (tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                                  \
   (tsp)->tv_nsec = CDTIME_T_TO_NS ((cdt) % 1073741824);                      \
 } while (0)
-#define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME_T ((ts).tv_sec)           \
-    + NS_TO_CDTIME_T ((ts).tv_nsec))
+#define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME_T ((ts)->tv_sec)           \
+    + NS_TO_CDTIME_T ((ts)->tv_nsec))
 
 cdtime_t cdtime (void);
 

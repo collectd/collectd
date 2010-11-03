@@ -96,7 +96,7 @@ static int ts_invoke_counter (const data_set_t *ds, value_list_t *vl, /* {{{ */
 		{
 			difference = curr_counter - prev_counter;
 		}
-		rate = ((double) difference) / ((double) vl->interval);
+		rate = ((double) difference) / CDTIME_T_TO_DOUBLE (vl->interval);
 
 		/* Modify the rate. */
 		if (!isnan (data->factor))
@@ -105,7 +105,7 @@ static int ts_invoke_counter (const data_set_t *ds, value_list_t *vl, /* {{{ */
 			rate += data->offset;
 
 		/* Calculate the internal counter. */
-		int_fraction += (rate * ((double) vl->interval));
+		int_fraction += (rate * CDTIME_T_TO_DOUBLE (vl->interval));
 		difference = (uint64_t) int_fraction;
 		int_fraction -= ((double) difference);
 		int_counter  += difference;
@@ -199,7 +199,7 @@ static int ts_invoke_derive (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 		/* Calcualte the rate */
 		difference = curr_derive - prev_derive;
-		rate = ((double) difference) / ((double) vl->interval);
+		rate = ((double) difference) / CDTIME_T_TO_DOUBLE (vl->interval);
 
 		/* Modify the rate. */
 		if (!isnan (data->factor))
@@ -208,7 +208,7 @@ static int ts_invoke_derive (const data_set_t *ds, value_list_t *vl, /* {{{ */
 			rate += data->offset;
 
 		/* Calculate the internal derive. */
-		int_fraction += (rate * ((double) vl->interval));
+		int_fraction += (rate * CDTIME_T_TO_DOUBLE (vl->interval));
 		if (int_fraction < 0.0) /* handle negative integer rounding correctly */
 			difference = ((int64_t) int_fraction) - 1;
 		else
@@ -263,7 +263,7 @@ static int ts_invoke_absolute (const data_set_t *ds, value_list_t *vl, /* {{{ */
 	if (status != 0)
 		int_fraction = 0.0;
 
-	rate = ((double) curr_absolute) / ((double) vl->interval);
+	rate = ((double) curr_absolute) / CDTIME_T_TO_DOUBLE (vl->interval);
 
 	/* Modify the rate. */
 	if (!isnan (data->factor))
@@ -272,7 +272,7 @@ static int ts_invoke_absolute (const data_set_t *ds, value_list_t *vl, /* {{{ */
 		rate += data->offset;
 
 	/* Calculate the new absolute. */
-	int_fraction += (rate * ((double) vl->interval));
+	int_fraction += (rate * CDTIME_T_TO_DOUBLE (vl->interval));
 	curr_absolute = (uint64_t) int_fraction;
 	int_fraction -= ((double) curr_absolute);
 

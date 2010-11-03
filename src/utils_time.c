@@ -38,7 +38,7 @@ cdtime_t cdtime (void) /* {{{ */
     return (0);
   }
 
-  return (TIMESPEC_TO_CDTIME_T (ts));
+  return (TIMESPEC_TO_CDTIME_T (&ts));
 } /* }}} cdtime_t cdtime */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

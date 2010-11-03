@@ -103,7 +103,10 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  ss = (cfg->stepsize > 0) ? cfg->stepsize : vl->interval;
+  if (cfg->stepsize > 0)
+    ss = cfg->stepsize;
+  else
+    ss = (int) CDTIME_T_TO_TIME_T (vl->interval);
   if (ss <= 0)
   {
     *ret = NULL;
@@ -241,7 +244,9 @@ static int ds_get (char ***ret, /* {{{ */
     status = ssnprintf (buffer, sizeof (buffer),
         "DS:%s:%s:%i:%s:%s",
         d->name, type,
-        (cfg->heartbeat > 0) ? cfg->heartbeat : (2 * vl->interval),
+        (cfg->heartbeat > 0)
+        ? cfg->heartbeat
+        : (int) CDTIME_T_TO_TIME_T (2 * vl->interval),
         min, max);
     if ((status < 1) || ((size_t) status >= sizeof (buffer)))
       break;
@@ -369,6 +374,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   int ds_num;
   int status = 0;
   time_t last_up;
+  int stepsize;
 
   if (check_create_dir (filename))
     return (-1);
@@ -404,10 +410,14 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   else
     last_up = CDTIME_T_TO_TIME_T (vl->time) - 10;
 
+  if (cfg->stepsize > 0)
+    stepsize = cfg->stepsize;
+  else
+    stepsize = (int) CDTIME_T_TO_TIME_T (vl->interval);
+
   assert (vl->time > 10);
   status = srrd_create (filename,
-      (cfg->stepsize > 0) ? cfg->stepsize : vl->interval,
-      last_up,
+      stepsize, last_up,
       argc, (const char **) argv);
 
   free (argv);

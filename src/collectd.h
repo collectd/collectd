@@ -286,8 +286,8 @@
 /* Type for time as used by "utils_time.h" */
 typedef uint64_t cdtime_t;
 
-extern char hostname_g[];
-extern int  interval_g;
-extern int  timeout_g;
+extern char     hostname_g[];
+extern cdtime_t interval_g;
+extern int      timeout_g;
 
 #endif /* COLLECTD_H */

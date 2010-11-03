@@ -819,7 +819,8 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   }
 
   /* Set the `interval' member.. */
-  status = ctoj_long (jvm_env, (jlong) vl->interval,
+  status = ctoj_long (jvm_env,
+      (jlong) CDTIME_T_TO_MS (vl->interval),
       c_valuelist, o_valuelist, "setInterval");
   if (status != 0)
   {
@@ -914,7 +915,7 @@ static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
     return (NULL);
   }
 
-  /* Set the `interval' member.. */
+  /* Set the `severity' member.. */
   status = ctoj_int (jvm_env, (jint) n->severity,
       c_notification, o_notification, "setSeverity");
   if (status != 0)
@@ -1242,7 +1243,7 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     return (-1);
   }
   /* Java measures time in milliseconds. */
-  vl->time = (time_t) (tmp_long / ((jlong) 1000));
+  vl->time = MS_TO_CDTIME_T (tmp_long);
 
   status = jtoc_long (jvm_env, &tmp_long,
       class_ptr, object_ptr, "getInterval");
@@ -1251,7 +1252,7 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     ERROR ("java plugin: jtoc_value_list: jtoc_long (getInterval) failed.");
     return (-1);
   }
-  vl->interval = (int) tmp_long;
+  vl->interval = MS_TO_CDTIME_T (tmp_long);
 
   status = jtoc_values_array (jvm_env, ds, vl, class_ptr, object_ptr);
   if (status != 0)

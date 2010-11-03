@@ -1387,7 +1387,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			status = parse_part_number (&buffer, &buffer_size,
 					&tmp);
 			if (status == 0)
-				vl.interval = (int) tmp;
+				vl.interval = TIME_T_TO_CDTIME_T (tmp);
 		}
 		else if (pkg_type == TYPE_HOST)
 		{
@@ -2592,8 +2592,9 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 
 	if (vl_def->interval != vl->interval)
 	{
+		/* TODO: Create a new type for sub-second intervals. */
 		if (write_part_number (&buffer, &buffer_size, TYPE_INTERVAL,
-					(uint64_t) vl->interval))
+					(uint64_t) CDTIME_T_TO_TIME_T (vl->interval)))
 			return (-1);
 		vl_def->interval = vl->interval;
 	}

@@ -336,7 +336,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 	while (read_loop != 0)
 	{
 		read_func_t *rf;
-		struct timeval now;
+		cdtime_t now;
 		int status;
 		int rf_type;
 		int rc;
@@ -347,10 +347,9 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		{
 			struct timespec abstime;
 
-			gettimeofday (&now, /* timezone = */ NULL);
+			now = cdtime ();
 
-			abstime.tv_sec = now.tv_sec + interval_g;
-			abstime.tv_nsec = 1000 * now.tv_usec;
+			CDTIME_T_TO_TIMESPEC (now + interval_g, &abstime);
 
 			pthread_mutex_lock (&read_lock);
 			pthread_cond_timedwait (&read_cond, &read_lock,
@@ -361,15 +360,13 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 
 		if ((rf->rf_interval.tv_sec == 0) && (rf->rf_interval.tv_nsec == 0))
 		{
-			gettimeofday (&now, /* timezone = */ NULL);
+			now = cdtime ();
 
-			rf->rf_interval.tv_sec = interval_g;
-			rf->rf_interval.tv_nsec = 0;
+			CDTIME_T_TO_TIMESPEC (interval_g, &rf->rf_interval);
 
 			rf->rf_effective_interval = rf->rf_interval;
 
-			rf->rf_next_read.tv_sec = now.tv_sec;
-			rf->rf_next_read.tv_nsec = 1000 * now.tv_usec;
+			CDTIME_T_TO_TIMESPEC (now, &rf->rf_next_read);
 		}
 
 		/* sleep until this entry is due,
@@ -459,7 +456,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		}
 
 		/* update the ``next read due'' field */
-		gettimeofday (&now, /* timezone = */ NULL);
+		now = cdtime ();
 
 		DEBUG ("plugin_read_thread: Effective interval of the "
 				"%s plugin is %i.%09i.",
@@ -476,15 +473,12 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		NORMALIZE_TIMESPEC (rf->rf_next_read);
 
 		/* Check, if `rf_next_read' is in the past. */
-		if ((rf->rf_next_read.tv_sec < now.tv_sec)
-				|| ((rf->rf_next_read.tv_sec == now.tv_sec)
-					&& (rf->rf_next_read.tv_nsec < (1000 * now.tv_usec))))
+		if (TIMESPEC_TO_CDTIME_T (&rf->rf_next_read) < now)
 		{
 			/* `rf_next_read' is in the past. Insert `now'
 			 * so this value doesn't trail off into the
 			 * past too much. */
-			rf->rf_next_read.tv_sec = now.tv_sec;
-			rf->rf_next_read.tv_nsec = 1000 * now.tv_usec;
+			CDTIME_T_TO_TIMESPEC (now, &rf->rf_next_read);
 		}
 
 		DEBUG ("plugin_read_thread: Next read of the %s plugin at %i.%09i.",
@@ -1389,11 +1383,12 @@ int plugin_dispatch_values (value_list_t *vl)
 	if (vl->interval <= 0)
 		vl->interval = interval_g;
 
-	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %i; "
+	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
 			"host = %s; "
 			"plugin = %s; plugin_instance = %s; "
 			"type = %s; type_instance = %s;",
-			CDTIME_T_TO_DOUBLE (vl->time), vl->interval,
+			CDTIME_T_TO_DOUBLE (vl->time),
+			CDTIME_T_TO_DOUBLE (vl->interval),
 			vl->host,
 			vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);

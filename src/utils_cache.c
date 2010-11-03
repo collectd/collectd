@@ -44,7 +44,7 @@ typedef struct cache_entry_s
 	cdtime_t last_update;
 	/* Interval in which the data is collected
 	 * (for purding old entries) */
-	int interval;
+	cdtime_t interval;
 	int state;
 	int hits;
 
@@ -258,7 +258,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 	ce->values_gauge[i] = NAN;
 	if (vl->interval > 0)
 	  ce->values_gauge[i] = ((double) vl->values[i].absolute)
-	    / ((double) vl->interval);
+	    / CDTIME_T_TO_DOUBLE (vl->interval);
 	ce->values_raw[i].absolute = vl->values[i].absolute;
 	break;
 	
@@ -319,8 +319,7 @@ int uc_check_timeout (void)
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
   {
     /* If entry has not been updated, add to `keys' array */
-    /* FIXME: Remove macro once "ce->interval" is of type cdtime_t. */
-    if ((now - ce->last_update) >= TIME_T_TO_CDTIME_T (timeout_g * ce->interval))
+    if ((now - ce->last_update) >= (ce->interval * timeout_g))
     {
       char **tmp;
 
