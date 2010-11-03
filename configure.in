@@ -1241,6 +1241,15 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 #
 # Checks for libraries begin here
 #
+
+with_libmongoc="yes"
+AC_CHECK_LIB(mongoc, mongo_run_command,
+[
+	AC_DEFINE(HAVE_LIBMONGOC, 1, [Define to 1 if you have the 'mongoc' library (-lmongoc).])
+],
+[with_libmongoc="no"])
+AM_CONDITIONAL(BUILD_WITH_LIBMONGOC, test "x$with_libmongoc" = "xyes")
+
 with_libresolv="yes"
 AC_CHECK_LIB(resolv, res_search,
 [
