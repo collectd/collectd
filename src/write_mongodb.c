@@ -1,5 +1,5 @@
 /**
- * collectd - src/write_mongo.c
+ * collectd - src/write_mongodb.c
  * Copyright (C) 2010  Florian Forster, Akkarit Sangpetch
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -104,7 +104,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
     status = mongo_connect(node->conn,node->opts);
     if (status!=mongo_conn_success) {
-      ERROR ("write_mongo plugin: Connecting to host \"%s\" (port %i) failed.",
+      ERROR ("write_mongodb plugin: Connecting to host \"%s\" (port %i) failed.",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : 27017);
       mongo_destroy(node->conn);
@@ -186,7 +186,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &node->timeout);
     else
-      WARNING ("write_mongo plugin: Ignoring unknown config option \"%s\".",
+      WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);
 
     if (status != 0)
@@ -198,13 +198,13 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     char cb_name[DATA_MAX_NAME_LEN];
     user_data_t ud;
 
-    ssnprintf (cb_name, sizeof (cb_name), "write_mongo/%s", node->name);
+    ssnprintf (cb_name, sizeof (cb_name), "write_mongodb/%s", node->name);
 
     ud.data = node;
     ud.free_func = wm_config_free;
 
     status = plugin_register_write (cb_name, wm_write, &ud);
-    INFO ("write_mongo plugin: registered write plugin %s %d",cb_name,status);
+    INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
   }
 
   if (status != 0)
@@ -224,7 +224,7 @@ static int wm_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Node", child->key) == 0)
       wm_config_node (child);
     else
-      WARNING ("write_mongo plugin: Ignoring unknown "
+      WARNING ("write_mongodb plugin: Ignoring unknown "
           "configuration option \"%s\" at top level.", child->key);
   }
 
@@ -233,7 +233,7 @@ static int wm_config (oconfig_item_t *ci) /* {{{ */
 
 void module_register (void)
 {
-  plugin_register_complex_config ("write_mongo", wm_config);
+  plugin_register_complex_config ("write_mongodb", wm_config);
 }
 
 /* vim: set sw=2 sts=2 tw=78 et fdm=marker : */
