@@ -99,201 +99,229 @@ static void submit_derive (const char *type, const char *instance, /* {{{ */
 	submit(type, instance, &v, /* values_len = */ 1);
 } /* }}} void submit_derive */
 
-static int handle_opcounters (bson *obj) /* {{{ */
+static int handle_field (bson *obj, const char *field, /* {{{ */
+        int (*func) (bson_iterator *))
 {
     bson_type type;
     bson subobj;
     bson_iterator i;
     bson_iterator j;
+    int status = 0;
 
-    type = bson_find (&i, obj, "opcounters");
-    if ((type != bson_object) && (type != bson_array))
+    type = bson_find (&i, obj, field);
+    if (type != bson_object)
         return (EINVAL);
 
     bson_iterator_subobject (&i, &subobj);
-
     bson_iterator_init (&j, subobj.data);
     while (bson_iterator_next (&j))
     {
-        const char *key;
-        derive_t value;
-
-        type = bson_iterator_type (&j);
-        if ((type != bson_long) && (type != bson_int))
-            continue;
-
-        key = bson_iterator_key (&j);
-        if (key == NULL)
-            continue;
-
-        value = (derive_t) bson_iterator_long (&j);
-
-        submit_derive ("total_operations", key, value);
+        status = (*func) (&j);
+        if (status != 0)
+            break;
     }
     bson_destroy (&subobj);
 
+    return (status);
+} /* }}} int handle_field */
+
+static int handle_opcounters (bson_iterator *iter) /* {{{ */
+{
+    bson_type type;
+    const char *key;
+    derive_t value;
+
+    type = bson_iterator_type (iter);
+    if ((type != bson_long) && (type != bson_int))
+        return (0);
+
+    key = bson_iterator_key (iter);
+    if (key == NULL)
+        return (0);
+
+    value = (derive_t) bson_iterator_long (iter);
+
+    submit_derive ("total_operations", key, value);
     return (0);
 } /* }}} int handle_opcounters */
 
-static void handle_mem(bson* obj) {
-    INFO("handle mem");
-    bson_iterator it;
-    if(bson_find(&it, obj, "mem")) {
-        bson subobj;
-        bson_iterator_subobject(&it, &subobj);
-        bson_iterator it2;
-        bson_iterator_init(&it2, subobj.data);
-        int64_t resident = 0;
-        int64_t virtual = 0;
-        int64_t mapped = 0;
-        while(bson_iterator_next(&it2)) {
-            if(strcmp(bson_iterator_key(&it2),"resident") == 0) {
-                resident = bson_iterator_long(&it2);
-            }
-            if(strcmp(bson_iterator_key(&it2),"virtual") == 0) {
-                virtual = bson_iterator_long(&it2);
-            }
-            if(strcmp(bson_iterator_key(&it2),"mapped") == 0) {
-                mapped = bson_iterator_long(&it2);
-            }
-        }
-        value_t values[3];
-        values[0].gauge = resident;
-        values[1].gauge = virtual;
-        values[2].gauge = mapped;
-        submit_gauge("memory", "resident", resident );
-        submit_gauge("memory", "virtual", virtual );
-        submit_gauge("memory", "mapped", mapped );
-        bson_destroy(&subobj);
-    }
-}
+static int handle_mem (bson_iterator *iter) /* {{{ */
+{
+    bson_type type;
+    const char *key;
+    gauge_t value;
 
-static void handle_connections(bson* obj) {
-    INFO("handle connections");
-    bson_iterator it;
-    if(bson_find(&it, obj, "connections")) {
+    type = bson_iterator_type (iter);
+    if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+        return (0);
+
+    key = bson_iterator_key (iter);
+    if (key == NULL)
+        return (0);
+
+    /* Is "virtual" really interesting?
+     * What exactly does "mapped" mean? */
+    if ((strcasecmp ("mapped", key) != 0)
+            && (strcasecmp ("resident", key) != 0)
+            && (strcasecmp ("virtual", key) != 0))
+        return (0);
+
+    value = (gauge_t) bson_iterator_double (iter);
+    /* All values are in MByte */
+    value *= 1048576.0;
+
+    submit_gauge ("memory", key, value);
+    return (0);
+} /* }}} int handle_mem */
+
+static int handle_connections (bson_iterator *iter) /* {{{ */
+{
+    bson_type type;
+    const char *key;
+    gauge_t value;
+
+    type = bson_iterator_type (iter);
+    if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+        return (0);
+
+    key = bson_iterator_key (iter);
+    if (key == NULL)
+        return (0);
+
+    if (strcmp ("current", key) != 0)
+        return (0);
+
+    value = (gauge_t) bson_iterator_double (iter);
+
+    submit_gauge ("current_connections", NULL, value);
+    return (0);
+} /* }}} int handle_connections */
+
+static int handle_lock (bson_iterator *iter) /* {{{ */
+{
+    bson_type type;
+    const char *key;
+    derive_t value;
+
+    type = bson_iterator_type (iter);
+    if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+        return (0);
+
+    key = bson_iterator_key (iter);
+    if (key == NULL)
+        return (0);
+
+    if (strcmp ("lockTime", key) != 0)
+        return (0);
+
+    value = (derive_t) bson_iterator_long (iter);
+    /* The time is measured in microseconds (us). We convert it to
+     * milliseconds (ms). */
+    value = value / 1000;
+
+    submit_derive ("total_time_in_ms", "lock_held", value);
+    return (0);
+} /* }}} int handle_lock */
+
+static int handle_btree (bson *obj) /* {{{ */
+{
+    bson_iterator i;
+
+    bson_iterator_init (&i, obj->data);
+    while (bson_iterator_next (&i))
+    {
+        bson_type type;
+        const char *key;
+        gauge_t value;
+
+        type = bson_iterator_type (&i);
+        if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+            continue;
+
+        key = bson_iterator_key (&i);
+        if (key == NULL)
+            continue;
+
+        value = (gauge_t) bson_iterator_double (&i);
+
+        if (strcmp ("hits", key) == 0)
+            submit_gauge ("cache_result", "hit", value);
+        else if (strcmp ("misses", key) != 0)
+            submit_gauge ("cache_result", "miss", value);
+    }
+
+    return (0);
+} /* }}} int handle_btree */
+
+static int handle_index_counters (bson_iterator *iter) /* {{{ */
+{
+    bson_type type;
+    const char *key;
     bson subobj;
-        bson_iterator_subobject(&it, &subobj);
-        bson_iterator it2;
-        bson_iterator_init(&it2, subobj.data);
-        while(bson_iterator_next(&it2)) {
-            if(strcmp(bson_iterator_key(&it2),"current") == 0) {
-                submit_gauge("connections", "connections", bson_iterator_int(&it2));
-                break;
-            }
-        }
-        bson_destroy(&subobj);
-    }
-}
+    int status;
 
-static void handle_lock(bson* obj) {
-    INFO("handle lock");
-    bson_iterator it;
-    if(bson_find(&it, obj, "globalLock")) {
-        bson subobj;
-        bson_iterator_subobject(&it, &subobj);
-        bson_iterator it2;
-        bson_iterator_init(&it2, subobj.data);
-        while(bson_iterator_next(&it2)) {
-            if(strcmp(bson_iterator_key(&it2),"ratio") == 0) {
-                submit_gauge("percent", "lock_ratio", bson_iterator_double(&it2));
-            }
-        }
-        bson_destroy(&subobj);
-    }
-}
+    type = bson_iterator_type (iter);
+    if (type != bson_object)
+        return (0);
 
-static void handle_index_counters(bson* obj) {
-    INFO("handle index counters");
-    bson_iterator icit;
-    if(bson_find(&icit, obj, "indexCounters")) {
-        bson oic;
-        bson_iterator_subobject(&icit, &oic);
-        if(bson_find(&icit, &oic, "btree")) {
-            bson obt;
-            bson_iterator_subobject(&icit, &obt);
-            bson_iterator bit;
-            bson_iterator_init(&bit, oic.data);
-            int accesses; 
-            int misses;
-            double ratio;
+    key = bson_iterator_key (iter);
+    if (key == NULL)
+        return (0);
 
-            while(bson_iterator_next(&bit)) {
-                if(strcmp(bson_iterator_key(&bit),"accesses") == 0) {
-                    accesses = bson_iterator_int(&bit); 
-                }
-                if(strcmp(bson_iterator_key(&bit),"misses") == 0) {
-                    misses = bson_iterator_int(&bit); 
-                }
-            }
+    if (strcmp ("btree", key) != 0)
+        return (0);
 
-            ratio = NAN;
-            if (misses <= accesses)
-                ratio = ((double) misses) / ((double) accesses);
-            submit_gauge("cache_ratio", "cache_misses", ratio );
+    bson_iterator_subobject (iter, &subobj);
+    status = handle_btree (&subobj);
+    bson_destroy (&subobj);
 
-            bson_destroy(&obt);
-        }
-        bson_destroy(&oic);
-    }
-}
+    return (status);
+} /* }}} int handle_index_counters */
 
-static void handle_stats_counts(bson* obj) {
+static int handle_dbstats (bson *obj)
+{
+    bson_iterator i;
 
-    INFO("handle stats counts");
-    bson_iterator it;
-    bson_iterator_init(&it, obj->data);
-    int64_t collections = 0;
-    int64_t objects = 0;
-    int64_t numExtents = 0;
-    int64_t indexes = 0;
+    bson_iterator_init (&i, obj->data);
+    while (bson_iterator_next (&i))
+    {
+        bson_type type;
+        const char *key;
+        gauge_t value;
 
-    while(bson_iterator_next(&it)) {
-        if(strcmp(bson_iterator_key(&it),"collections") == 0) {
-            collections = bson_iterator_long(&it); 
-        }
-        if(strcmp(bson_iterator_key(&it),"objects") == 0) {
-            objects = bson_iterator_long(&it); 
-        }
-        if(strcmp(bson_iterator_key(&it),"numExtents") == 0) {
-            numExtents = bson_iterator_long(&it); 
-        }
-        if(strcmp(bson_iterator_key(&it),"indexes") == 0) {
-            indexes = bson_iterator_long(&it); 
-        }
+        type = bson_iterator_type (&i);
+        if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+            return (0);
+
+        key = bson_iterator_key (&i);
+        if (key == NULL)
+            return (0);
+
+        value = (gauge_t) bson_iterator_double (&i);
+
+        /* counts */
+        if (strcmp ("collections", key) == 0)
+            submit_gauge ("gauge", "collections", value);
+        else if (strcmp ("objects", key) == 0)
+            submit_gauge ("gauge", "objects", value);
+        else if (strcmp ("numExtents", key) == 0)
+            submit_gauge ("gauge", "num_extents", value);
+        else if (strcmp ("indexes", key) == 0)
+            submit_gauge ("gauge", "indexes", value);
+        /* sizes */
+        else if (strcmp ("dataSize", key) == 0)
+            submit_gauge ("bytes", "data", value);
+        else if (strcmp ("storageSize", key) == 0)
+            submit_gauge ("bytes", "storage", value);
+        else if (strcmp ("indexSize", key) == 0)
+            submit_gauge ("bytes", "index", value);
     }
 
-    submit_gauge("counter","object_count",objects);
+    return (0);
+} /* }}} int handle_dbstats */
 
-    submit_gauge("counter", "collections",collections); 
-    submit_gauge("counter", "num_extents",numExtents); 
-    submit_gauge("counter", "indexes",indexes); 
-}
-
-static void handle_stats_sizes(bson* obj) {
-    bson_iterator it;
-    bson_iterator_init(&it, obj->data);
-    int64_t storageSize = 0;
-    int64_t dataSize = 0;
-    int64_t indexSize = 0;
-    while(bson_iterator_next(&it)) {
-        if(strcmp(bson_iterator_key(&it),"storageSize") == 0) {
-            storageSize = bson_iterator_long(&it); 
-        }
-        if(strcmp(bson_iterator_key(&it),"dataSize") == 0) {
-            dataSize = bson_iterator_long(&it); 
-        }
-        if(strcmp(bson_iterator_key(&it),"indexSize") == 0) {
-            indexSize = bson_iterator_long(&it); 
-        }
-    }
-
-    submit_gauge ("file_size", "storage", storageSize);
-    submit_gauge ("file_size", "index", indexSize);
-    submit_gauge ("file_size", "data", dataSize);
-}
-
-static int do_stats(void) {
+static int do_stats (void) /* {{{ */
+{
     bson obj;
 
     /* TODO: 
@@ -313,38 +341,36 @@ static int do_stats(void) {
         return FAILURE;
     }
     
-    bson_print(&obj);
-    
-    handle_stats_sizes(&obj);
-    handle_stats_counts(&obj);
+    handle_dbstats (&obj);
 
+    bson_destroy (&obj);
 
-    bson_destroy(&obj);
+    return (0);
+} /* }}} int do_stats */
 
-    return SUCCESS;
-}
-
-
-static int do_server_status(void) {
+static int do_server_status (void) /* {{{ */
+{
     bson obj;
+    bson_bool_t status;
 
-    if( !mongo_simple_int_command(&mc_connection, mc_db, "serverStatus", 1, &obj) ) {
-        ERROR("Mongo: failed to call serverStatus Host [%s] Port [%d] User [%s]", 
-            mc_host, mc_port, mc_user);
-        return FAILURE;
+    status = mongo_simple_int_command (&mc_connection, /* db = */ mc_db,
+            /* command = */ "serverStatus", /* arg = */ 1, /* out = */ &obj);
+    if (!status)
+    {
+        ERROR("mongodb plugin: mongo_simple_int_command (%s:%i, serverStatus) "
+                "failed.", mc_host, mc_port);
+        return (-1);
     }
 
-    bson_print(&obj);
-
-    handle_opcounters(&obj);
-    handle_mem(&obj);
-    handle_connections(&obj);
-    handle_index_counters(&obj);
-    handle_lock(&obj);
+    handle_field (&obj, "opcounters",    handle_opcounters);
+    handle_field (&obj, "mem",           handle_mem);
+    handle_field (&obj, "connections",   handle_connections);
+    handle_field (&obj, "globalLock",    handle_lock);
+    handle_field (&obj, "indexCounters", handle_index_counters);
 
     bson_destroy(&obj);
-    return SUCCESS;
-}
+    return (0);
+} /* }}} int do_server_status */
 
 static int mc_read(void) {
     DEBUG("Mongo: mongo driver read"); 
