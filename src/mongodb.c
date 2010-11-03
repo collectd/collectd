@@ -81,56 +81,59 @@ static void submit (const char *type, const char *instance,
     plugin_dispatch_values (&v);
 }
 
-static void submit_gauge(const char *type, const char *instance, gauge_t gauge ) {
-	value_t v[1];
-	v[0].gauge = gauge;
-	submit(type, instance, v, STATIC_ARRAY_SIZE (v));
-}
+static void submit_gauge (const char *type, const char *instance, /* {{{ */
+        gauge_t gauge)
+{
+	value_t v;
 
+	v.gauge = gauge;
+	submit(type, instance, &v, /* values_len = */ 1);
+} /* }}} void submit_gauge */
 
-static void handle_opcounters(bson* obj) {
-    INFO("handle op counters");
-    bson_iterator it;
-    if(bson_find(&it, obj, "opcounters")) {
-        bson subobj;
-        bson_iterator_subobject(&it, &subobj);
-        bson_iterator it2;
-        bson_iterator_init(&it2, subobj.data);
+static void submit_derive (const char *type, const char *instance, /* {{{ */
+        derive_t derive)
+{
+	value_t v;
 
-        int64_t insert = 0;
-        int64_t query = 0;
-        int64_t delete = 0;
-        int64_t getmore = 0;
-        int64_t command = 0;
+	v.derive = derive;
+	submit(type, instance, &v, /* values_len = */ 1);
+} /* }}} void submit_derive */
 
-        while(bson_iterator_next(&it2)){
-            if(strcmp(bson_iterator_key(&it2),"insert") == 0) {
-                insert = bson_iterator_long(&it2);
-            }
-            if(strcmp(bson_iterator_key(&it2),"query") == 0) {
-                query = bson_iterator_long(&it2);
-            }
-            if(strcmp(bson_iterator_key(&it2),"delete") == 0) {
-                delete = bson_iterator_long(&it2);
-            }
-            if(strcmp(bson_iterator_key(&it2),"getmore") == 0) {
-                getmore = bson_iterator_long(&it2);
-            }
-            if(strcmp(bson_iterator_key(&it2),"command") == 0) {
-                command = bson_iterator_long(&it2);
-            }
-        }
+static int handle_opcounters (bson *obj) /* {{{ */
+{
+    bson_type type;
+    bson subobj;
+    bson_iterator i;
+    bson_iterator j;
 
-        bson_destroy(&subobj);
+    type = bson_find (&i, obj, "opcounters");
+    if ((type != bson_object) && (type != bson_array))
+        return (EINVAL);
 
-        submit_gauge("mongo_counter", "indert", insert );
-        submit_gauge("mongo_counter", "query", query );
-        submit_gauge("mongo_counter", "delete", delete );
-        submit_gauge("mongo_counter", "getmore", getmore );
-        submit_gauge("mongo_counter", "command", command );
-        submit_gauge("mongo_counter", "insert", insert );
+    bson_iterator_subobject (&i, &subobj);
+
+    bson_iterator_init (&j, subobj.data);
+    while (bson_iterator_next (&j))
+    {
+        const char *key;
+        derive_t value;
+
+        type = bson_iterator_type (&j);
+        if ((type != bson_long) && (type != bson_int))
+            continue;
+
+        key = bson_iterator_key (&j);
+        if (key == NULL)
+            continue;
+
+        value = (derive_t) bson_iterator_long (&j);
+
+        submit_derive ("total_operations", key, value);
     }
-}
+    bson_destroy (&subobj);
+
+    return (0);
+} /* }}} int handle_opcounters */
 
 static void handle_mem(bson* obj) {
     INFO("handle mem");
