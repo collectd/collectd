@@ -106,7 +106,9 @@ sub group_files_by_plugin_instance
   for (my $i = 0; $i < @files; $i++)
   {
     my $file = $files[$i];
-    my $key = $file->{'plugin_instance'} || '';
+    my $key1 = $file->{'hostname'} || '';
+    my $key2 = $file->{'plugin_instance'} || '';
+    my $key = "$key1-$key2";
 
     $data->{$key} ||= [];
     push (@{$data->{$key}}, $file);

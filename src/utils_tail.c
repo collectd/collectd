@@ -220,6 +220,8 @@ int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
 
 	while (42)
 	{
+		size_t len;
+
 		status = cu_tail_readline (obj, buf, buflen);
 		if (status != 0)
 		{
@@ -231,6 +233,13 @@ int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
 		/* check for EOF */
 		if (buf[0] == 0)
 			break;
+
+		len = strlen (buf);
+		while (len > 0) {
+			if (buf[len - 1] != '\n')
+				break;
+			buf[len - 1] = '\0';
+		}
 
 		status = callback (data, buf, buflen);
 		if (status != 0)

@@ -31,6 +31,7 @@
 #include "utils_fbhash.h"
 #include "utils_avltree.h"
 #include "utils_cache.h"
+#include "utils_complain.h"
 
 #include "network.h"
 
@@ -917,6 +918,8 @@ static int parse_packet (sockent_t *se,
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
     void **ret_buffer, size_t *ret_buffer_len, int flags)
 {
+  static c_complain_t complain_no_users = C_COMPLAIN_INIT_STATIC;
+
   char *buffer;
   size_t buffer_len;
   size_t buffer_offset;
@@ -938,8 +941,9 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
   if (se->data.server.userdb == NULL)
   {
-    NOTICE ("network plugin: Received signed network packet but can't verify "
-        "it because no user DB has been configured. Will accept it.");
+    c_complain (LOG_NOTICE, &complain_no_users,
+        "network plugin: Received signed network packet but can't verify it "
+        "because no user DB has been configured. Will accept it.");
     return (0);
   }
 
