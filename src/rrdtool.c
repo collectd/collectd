@@ -661,6 +661,14 @@ static int64_t rrd_get_random_variation (void)
   if (random_timeout <= 0)
     return (0);
 
+  /* Assure that "cache_timeout + random_variation" is never negative. */
+  if (random_timeout > cache_timeout)
+  {
+	  INFO ("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
+			  CDTIME_T_TO_DOUBLE (cache_timeout));
+	  random_timeout = cache_timeout;
+  }
+
   /* This seems a bit complicated, but "random_timeout" is likely larger than
    * RAND_MAX, so we can't simply use modulo here. */
   dbl_timeout = CDTIME_T_TO_DOUBLE (random_timeout);
