@@ -28,6 +28,7 @@ cpufreq			value:GAUGE:0:U
 cpu			value:COUNTER:0:4294967295
 current			value:GAUGE:U:U
 current_connections	value:GAUGE:0:U
+current_sessions	value:GAUGE:0:U
 delay			seconds:GAUGE:-1000000:1000000
 derive			value:DERIVE:0:U
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
