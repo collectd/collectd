@@ -34,6 +34,10 @@ Anthony Gialluca <tonyabg at charter.net>
 Antony Dovgal <tony at daylessday.org>
  - memcached plugin.
 
+Aurélien Reynaud <collectd at wattapower.net>
+ - LPAR plugin.
+ - Various fixes for AIX, HP-UX and Solaris.
+
 Bruno Prémont <bonbons at linux-vserver.org>
  - BIND plugin.
  - Many bugreports and -fixes in various plugins,
