@@ -399,7 +399,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
     return (0);
 } /* }}} int camqp_connect */
 
-static int shutdown (void) /* {{{ */
+static int camqp_shutdown (void) /* {{{ */
 {
     size_t i;
 
@@ -422,7 +422,7 @@ static int shutdown (void) /* {{{ */
     DEBUG ("amqp plugin: All subscriber threads exited.");
 
     return (0);
-} /* }}} int shutdown */
+} /* }}} int camqp_shutdown */
 
 /*
  * Subscribing code
@@ -932,7 +932,7 @@ static int camqp_config (oconfig_item_t *ci) /* {{{ */
 void module_register (void)
 {
     plugin_register_complex_config ("amqp", camqp_config);
-    plugin_register_shutdown ("amqp", shutdown);
+    plugin_register_shutdown ("amqp", camqp_shutdown);
 } /* void module_register */
 
 /* vim: set sw=4 sts=4 et fdm=marker : */
