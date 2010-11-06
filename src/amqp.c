@@ -625,6 +625,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
 /*
  * Publishing code
  */
+/* XXX: You must hold "conf->lock" when calling this function! */
 static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
         const char *buffer, const char *routing_key)
 {
