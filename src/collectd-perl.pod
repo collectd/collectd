@@ -376,11 +376,6 @@ is found (and the number of values matches the number of data-sources) then the
 type, data-set and value-list is passed to all write-callbacks that are
 registered with the daemon.
 
-B<Note>: Prior to version 4.4 of collectd, the data-set type used to be passed
-as the first argument to B<plugin_register>. This syntax is still supported
-for backwards compatibility but has been deprecated and will be removed in
-some future version of collectd.
-
 =item B<plugin_write> ([B<plugins> => I<...>][, B<datasets> => I<...>],
 B<valuelists> => I<...>)
 
@@ -404,23 +399,6 @@ to C<-1>. The identifier defaults to the undefined value. If the B<plugins>
 argument has been specified, only named plugins will be flushed. The value of
 the B<plugins> and B<identifiers> arguments may either be a string or a
 reference to an array of strings.
-
-=item B<plugin_flush_one> (I<timeout>, I<plugin>)
-
-This is identical to using "plugin_flush (timeout =E<gt> I<timeout>, plugins
-=E<gt> I<plugin>".
-
-B<Note>: Starting with version 4.5 of collectd, B<plugin_flush_one> has been
-deprecated and will be removed in some future version of collectd. Use
-B<plugin_flush> instead.
-
-=item B<plugin_flush_all> (I<timeout>)
-
-This is identical to using "plugin_flush (timeout =E<gt> I<timeout>)".
-
-B<Note>: Starting with version 4.5 of collectd, B<plugin_flush_all> has been
-deprecated and will be removed in some future version of collectd. Use
-B<plugin_flush> instead.
 
 =item B<plugin_dispatch_notification> (I<notification>)
 

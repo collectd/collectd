@@ -1,6 +1,7 @@
 /**
  * collectd - src/contextswitch.c
  * Copyright (C) 2009  Patrik Weiskircher
+ * Copyright (C) 2010  Kimo Rosenbaum
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,13 +18,26 @@
  *
  * Authors:
  *   Patrik Weiskircher <weiskircher at inqnet.at>
+ *   Kimo Rosenbaum <http://github.com/kimor79>
  **/
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 
-#if !KERNEL_LINUX
+#ifdef HAVE_SYS_SYSCTL_H
+# include <sys/sysctl.h>
+#endif
+
+#if HAVE_SYSCTLBYNAME
+/* no global variables */
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif KERNEL_LINUX
+/* no global variables */
+/* #endif KERNEL_LINUX */
+
+#else
 # error "No applicable input method."
 #endif
 
@@ -45,6 +59,25 @@ static void cs_submit (derive_t context_switches)
 
 static int cs_read (void)
 {
+#if HAVE_SYSCTLBYNAME
+	int value = 0;
+	size_t value_len = sizeof (value);
+	int status;
+
+	status = sysctlbyname ("vm.stats.sys.v_swtch",
+			&value, &value_len,
+			/* new pointer = */ NULL, /* new length = */ 0);
+	if (status != 0)
+	{
+		ERROR("contextswitch plugin: sysctlbyname "
+				"(vm.stats.sys.v_swtch) failed");
+		return (-1);
+	}
+
+	cs_submit (value);
+/* #endif HAVE_SYSCTLBYNAME */
+
+#elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[64];
 	int numfields;
@@ -88,6 +121,7 @@ static int cs_read (void)
 
 	if (status == -2)
 		ERROR ("contextswitch plugin: Unable to find context switch value.");
+#endif /* KERNEL_LINUX */
 
 	return status;
 }

@@ -465,35 +465,6 @@ sub plugin_flush {
 	}
 }
 
-sub plugin_flush_one {
-	my $timeout = shift;
-	my $name    = shift;
-
-	WARNING ("Collectd::plugin_flush_one is deprecated - "
-		. "use Collectd::plugin_flush instead.");
-
-	if (! (defined ($timeout) && defined ($name))) {
-		ERROR ("Usage: Collectd::plugin_flush_one(timeout, name)");
-		return;
-	}
-
-	plugin_flush (plugins => $name, timeout => $timeout);
-}
-
-sub plugin_flush_all {
-	my $timeout = shift;
-
-	WARNING ("Collectd::plugin_flush_all is deprecated - "
-		. "use Collectd::plugin_flush instead.");
-
-	if (! defined ($timeout)) {
-		ERROR ("Usage: Collectd::plugin_flush_all(timeout)");
-		return;
-	}
-
-	plugin_flush (timeout => $timeout);
-}
-
 sub fc_call {
 	my $type    = shift;
 	my $name    = shift;

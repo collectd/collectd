@@ -28,6 +28,7 @@ cpufreq			value:GAUGE:0:U
 cpu			value:COUNTER:0:4294967295
 current			value:GAUGE:U:U
 current_connections	value:GAUGE:0:U
+current_sessions	value:GAUGE:0:U
 delay			seconds:GAUGE:-1000000:1000000
 derive			value:DERIVE:0:U
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
@@ -100,8 +101,6 @@ mysql_handler		value:COUNTER:0:U
 mysql_locks		value:COUNTER:0:U
 mysql_log_position	value:COUNTER:0:4294967295
 mysql_octets		rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
-mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
-mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U
 nfs_procedure		value:COUNTER:0:4294967295
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:COUNTER:0:134217728
@@ -167,6 +166,7 @@ total_time_in_ms	value:DERIVE:0:U
 total_values		value:DERIVE:0:U
 uptime			value:GAUGE:0:4294967295
 users			users:GAUGE:0:65535
+vcpu			value:GAUGE:0:U
 virt_cpu_total		ns:COUNTER:0:256000000000
 virt_vcpu		ns:COUNTER:0:1000000000
 vmpage_action		value:COUNTER:0:4294967295
@@ -179,4 +179,3 @@ voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
-pinba_view              req_per_sec:GAUGE:0:U, req_time:GAUGE:0:U, ru_utime:GAUGE:0:U, ru_stime:GAUGE:0:U, doc_size:GAUGE:0:U, mem_peak:GAUGE:0:U

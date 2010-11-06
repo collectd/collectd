@@ -91,6 +91,10 @@ if test "x$ac_system" = "xSolaris"
 then
 	AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1, [Define to enforce POSIX thread semantics under Solaris.])
 fi
+if test "x$ac_system" = "xAIX"
+then
+	AC_DEFINE(_THREAD_SAFE_ERRNO, 1, [Define to use the thread-safe version of errno under AIX.])
+fi
 
 # Where to install .pc files.
 pkgconfigdir="${libdir}/pkgconfig"
@@ -1193,6 +1197,12 @@ fi
 if test "x$with_perfstat" = "xyes"
 then
 	 AC_DEFINE(HAVE_PERFSTAT, 1, [Define to 1 if you have the 'perfstat' library (-lperfstat)])
+	 # struct members pertaining to donation have been added to libperfstat somewhere between AIX5.3ML5 and AIX5.3ML9
+	 AC_CHECK_MEMBER([perfstat_partition_type_t.b.donate_enabled], [], [], [[#include <libperfstat.h]])
+	 if test "x$av_cv_member_perfstat_partition_type_t_b_donate_enabled" = "xyes"
+	 then
+		AC_DEFINE(PERFSTAT_SUPPORTS_DONATION, 1, [Define to 1 if your version of the 'perfstat' library supports donation])
+	 fi
 fi
 AM_CONDITIONAL(BUILD_WITH_PERFSTAT, test "x$with_perfstat" = "xyes")
 
@@ -3109,6 +3119,57 @@ then
 fi
 # }}} --with-python
 
+# --with-librabbitmq {{{
+with_librabbitmq_cppflags=""
+with_librabbitmq_ldflags=""
+AC_ARG_WITH(librabbitmq, [AS_HELP_STRING([--with-librabbitmq@<:@=PREFIX@:>@], [Path to librabbitmq.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_librabbitmq_cppflags="-I$withval/include"
+		with_librabbitmq_ldflags="-L$withval/lib"
+		with_librabbitmq="yes"
+	else
+		with_librabbitmq="$withval"
+	fi
+],
+[
+	with_librabbitmq="yes"
+])
+if test "x$with_librabbitmq" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+
+	AC_CHECK_HEADERS(amqp.h, [with_librabbitmq="yes"], [with_librabbitmq="no (amqp.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_librabbitmq" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+	LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
+
+	AC_CHECK_LIB(rabbitmq, amqp_basic_publish, [with_librabbitmq="yes"], [with_librabbitmq="no (Symbol 'amqp_basic_publish' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_librabbitmq" = "xyes"
+then
+	BUILD_WITH_LIBRABBITMQ_CPPFLAGS="$with_librabbitmq_cppflags"
+	BUILD_WITH_LIBRABBITMQ_LDFLAGS="$with_librabbitmq_ldflags"
+	BUILD_WITH_LIBRABBITMQ_LIBS="-lrabbitmq"
+	AC_SUBST(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRABBITMQ_LIBS)
+	AC_DEFINE(HAVE_LIBRABBITMQ, 1, [Define if librabbitmq is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBRABBITMQ, test "x$with_librabbitmq" = "xyes")
+# }}}
+
 # --with-librouteros {{{
 AC_ARG_WITH(librouteros, [AS_HELP_STRING([--with-librouteros@<:@=PREFIX@:>@], [Path to librouteros.])],
 [
@@ -4334,6 +4395,7 @@ then
 fi
 if test "x$have_sysctlbyname" = "xyes"
 then
+	plugin_contextswitch="yes"
 	plugin_cpu="yes"
 	plugin_memory="yes"
 	plugin_tcpconns="yes"
@@ -4461,6 +4523,7 @@ AC_ARG_ENABLE([all-plugins],
 
 m4_divert_once([HELP_ENABLE], [])
 
+AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
@@ -4495,6 +4558,7 @@ AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
+AC_PLUGIN([lpar],        [$with_perfstat],     [AIX logical partitions statistics])
 AC_PLUGIN([madwifi],     [$have_linux_wireless_h], [Madwifi wireless statistics])
 AC_PLUGIN([match_empty_counter], [yes],        [The empty counter match])
 AC_PLUGIN([match_hashed], [yes],               [The hashed match])
@@ -4760,6 +4824,7 @@ Configuration:
     libperl . . . . . . . $with_libperl
     libpq . . . . . . . . $with_libpq
     libpthread  . . . . . $with_libpthread
+    librabbitmq . . . . . $with_librabbitmq
     librouteros . . . . . $with_librouteros
     librrd  . . . . . . . $with_librrd
     libsensors  . . . . . $with_libsensors
@@ -4784,6 +4849,7 @@ Configuration:
     perl  . . . . . . . . $with_perl_bindings
 
   Modules:
+    amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
     apple_sensors . . . . $enable_apple_sensors
@@ -4818,6 +4884,7 @@ Configuration:
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
+    lpar... . . . . . . . $enable_lpar
     madwifi . . . . . . . $enable_madwifi
     match_empty_counter . $enable_match_empty_counter
     match_hashed  . . . . $enable_match_hashed

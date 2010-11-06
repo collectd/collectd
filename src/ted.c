@@ -271,7 +271,6 @@ static void ted_submit (char *type, double value)
 
     values[0].gauge = value;
 
-    vl.time = time (NULL);
     vl.values = values;
     vl.values_len = 1;
     sstrncpy (vl.host, hostname_g, sizeof (vl.host));

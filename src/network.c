@@ -31,6 +31,7 @@
 #include "utils_fbhash.h"
 #include "utils_avltree.h"
 #include "utils_cache.h"
+#include "utils_complain.h"
 
 #include "network.h"
 
@@ -258,7 +259,7 @@ typedef struct receive_list_entry_s receive_list_entry_t;
  * Private variables
  */
 static int network_config_ttl = 0;
-static size_t network_config_packet_size = 1024;
+static size_t network_config_packet_size = 1452;
 static int network_config_forward = 0;
 static int network_config_stats = 0;
 
@@ -319,30 +320,30 @@ static _Bool check_receive_okay (const value_list_t *vl) /* {{{ */
   /* This is a value we already sent. Don't allow it to be received again in
    * order to avoid looping. */
   if ((status == 0) && (time_sent >= ((uint64_t) vl->time)))
-    return (false);
+    return (0);
 
-  return (true);
+  return (1);
 } /* }}} _Bool check_receive_okay */
 
 static _Bool check_send_okay (const value_list_t *vl) /* {{{ */
 {
-  _Bool received = false;
+  _Bool received = 0;
   int status;
 
   if (network_config_forward != 0)
-    return (true);
+    return (1);
 
   if (vl->meta == NULL)
-    return (true);
+    return (1);
 
   status = meta_data_get_boolean (vl->meta, "network:received", &received);
   if (status == -ENOENT)
-    return (true);
+    return (1);
   else if (status != 0)
   {
     ERROR ("network plugin: check_send_okay: meta_data_get_boolean failed "
 	"with status %i.", status);
-    return (true);
+    return (1);
   }
 
   /* By default, only *send* value lists that were not *received* by the
@@ -383,7 +384,7 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
     return (-ENOMEM);
   }
 
-  status = meta_data_add_boolean (vl->meta, "network:received", true);
+  status = meta_data_add_boolean (vl->meta, "network:received", 1);
   if (status != 0)
   {
     ERROR ("network plugin: meta_data_add_boolean failed.");
@@ -917,6 +918,8 @@ static int parse_packet (sockent_t *se,
 static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
     void **ret_buffer, size_t *ret_buffer_len, int flags)
 {
+  static c_complain_t complain_no_users = C_COMPLAIN_INIT_STATIC;
+
   char *buffer;
   size_t buffer_len;
   size_t buffer_offset;
@@ -938,8 +941,9 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
   if (se->data.server.userdb == NULL)
   {
-    NOTICE ("network plugin: Received signed network packet but can't verify "
-        "it because no user DB has been configured. Will accept it.");
+    c_complain (LOG_NOTICE, &complain_no_users,
+        "network plugin: Received signed network packet but can't verify it "
+        "because no user DB has been configured. Will accept it.");
     return (0);
   }
 
@@ -3256,13 +3260,13 @@ static int network_stats_read (void) /* {{{ */
 
 static int network_init (void)
 {
-	static _Bool have_init = false;
+	static _Bool have_init = 0;
 
 	/* Check if we were already initialized. If so, just return - there's
 	 * nothing more to do (for now, that is). */
 	if (have_init)
 		return (0);
-	have_init = true;
+	have_init = 1;
 
 #if HAVE_LIBGCRYPT
 	gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);

@@ -175,7 +175,7 @@ static int uc_send_notification (const char *name)
   }
     
   /* Check if the entry has been updated in the meantime */
-  if ((n.time - ce->last_update) < (2 * ce->interval))
+  if ((n.time - ce->last_update) < (timeout_g * ce->interval))
   {
     ce->state = STATE_OKAY;
     pthread_mutex_unlock (&cache_lock);

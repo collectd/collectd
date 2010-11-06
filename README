@@ -125,6 +125,10 @@ Features
     - load
       System load average over the last 1, 5 and 15 minutes.
 
+    - lpar
+      Detailed CPU statistics of the “Logical Partitions” virtualization
+      technique built into IBM's POWER processors.
+
     - libvirt
       CPU, disk and network I/O statistics from virtual machines.
 
@@ -314,6 +318,10 @@ Features
 
   * Output can be written or sent to various destinations by the following
     plugins:
+
+    - amqp
+      Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
+      server, such as RabbitMQ.
 
     - csv
       Write to comma separated values (CSV) files. This needs lots of
@@ -597,6 +605,9 @@ Prerequisites
     Used to capture packets by the `dns' plugin.
     <http://www.tcpdump.org/>
 
+  * libperfstat (optional)
+    Used by various plugins to gather statistics under AIX.
+
   * libperl (optional)
     Obviously used by the `perl' plugin. The library has to be compiled with
     ithread support (introduced in Perl 5.6.0).
@@ -614,6 +625,10 @@ Prerequisites
   * libpython (optional)
     Used by the `python' plugin. Currently, only 2.3 ≦ Python < 3 is supported.
     <http://www.python.org/>
+
+  * librabbitmq (optional; also called “rabbitmq-c”)
+    Used by the AMQP plugin for AMQP connections, for example to RabbitMQ.
+    <http://hg.rabbitmq.com/rabbitmq-c/>
 
   * librouteros (optional)
     Used by the `routeros' plugin to connect to a device running `RouterOS'.

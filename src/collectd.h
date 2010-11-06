@@ -56,21 +56,6 @@
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
-#if HAVE_STDBOOL_H
-# include <stdbool.h>
-#else
-# ifndef HAVE__BOOL
-#  ifdef __cplusplus
-typedef bool _Bool;
-#  else
-#   define _Bool signed char
-#  endif
-# endif
-# define bool _Bool
-# define false 0
-# define true 1
-# define __bool_true_false_are_defined 1
-#endif
 #if HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -225,10 +210,6 @@ typedef bool _Bool;
 
 #if HAVE_KSTAT_H
 # include <kstat.h>
-#endif
-
-#if HAVE_SENSORS_SENSORS_H
-# include <sensors/sensors.h>
 #endif
 
 #ifndef PACKAGE_NAME
