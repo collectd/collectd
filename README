@@ -125,6 +125,10 @@ Features
     - load
       System load average over the last 1, 5 and 15 minutes.
 
+    - lpar
+      Detailed CPU statistics of the “Logical Partitions” virtualization
+      technique built into IBM's POWER processors.
+
     - libvirt
       CPU, disk and network I/O statistics from virtual machines.
 
