@@ -162,6 +162,9 @@ Rodolphe Quiédeville <rquiedeville at bearstech.com>
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
 
+Sebastien Pahl <sebastien.pahl at dotcloud.com>
+ - AMQP plugin.
+
 Simon Kuhnle <simon at blarzwurst.de>
  - OpenBSD code for the cpu and memory plugins.
 
