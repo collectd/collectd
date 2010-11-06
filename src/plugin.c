@@ -1290,7 +1290,8 @@ void plugin_shutdown_all (void)
 
 	destroy_read_heap ();
 
-	plugin_flush (/* plugin = */ NULL, /* timeout = */ -1,
+	plugin_flush (/* plugin = */ NULL,
+			/* timeout = */ 0,
 			/* identifier = */ NULL);
 
 	le = NULL;

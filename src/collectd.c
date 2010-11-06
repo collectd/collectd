@@ -51,7 +51,9 @@ static int loop = 0;
 static void *do_flush (void __attribute__((unused)) *arg)
 {
 	INFO ("Flushing all data.");
-	plugin_flush (NULL, -1, NULL);
+	plugin_flush (/* plugin = */ NULL,
+			/* timeout = */ 0,
+			/* ident = */ NULL);
 	INFO ("Finished flushing all data.");
 	pthread_exit (NULL);
 	return NULL;
