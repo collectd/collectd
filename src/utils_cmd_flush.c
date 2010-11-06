@@ -54,7 +54,7 @@ int handle_flush (FILE *fh, char *buffer)
 	int success = 0;
 	int error   = 0;
 
-	int timeout = -1;
+	double timeout = 0.0;
 	char **plugins = NULL;
 	int plugins_num = 0;
 	char **identifiers = NULL;
@@ -106,9 +106,9 @@ int handle_flush (FILE *fh, char *buffer)
 			
 			errno = 0;
 			endptr = NULL;
-			timeout = strtol (opt_value, &endptr, 0);
+			timeout = strtod (opt_value, &endptr);
 
-			if ((endptr == opt_value) || (errno != 0))
+			if ((endptr == opt_value) || (errno != 0) || (!isfinite (timeout)))
 			{
 				print_to_socket (fh, "-1 Invalid value for option `timeout': "
 						"%s\n", opt_value);
@@ -116,8 +116,10 @@ int handle_flush (FILE *fh, char *buffer)
 				sfree (identifiers);
 				return (-1);
 			}
-			else if (timeout <= 0)
-				timeout = -1;
+			else if (timeout < 0.0)
+			{
+				timeout = 0.0;
+			}
 		}
 		else
 		{
@@ -149,7 +151,9 @@ int handle_flush (FILE *fh, char *buffer)
 			int status;
 
 			identifier = identifiers[j];
-			status = plugin_flush (plugin, timeout, identifier);
+			status = plugin_flush (plugin,
+					DOUBLE_TO_CDTIME_T (timeout),
+					identifier);
 			if (status == 0)
 				success++;
 			else
