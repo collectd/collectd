@@ -26,17 +26,13 @@
  *   Florian Forster <octo at verplant.org>
  **/
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <strings.h>
-#include <pthread.h>
-
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_json.h"
+
+#include <pthread.h>
 
 #include <amqp.h>
 #include <amqp_framing.h>
