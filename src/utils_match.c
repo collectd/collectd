@@ -228,7 +228,7 @@ cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
     return (NULL);
   memset (obj, '\0', sizeof (cu_match_t));
 
-  status = regcomp (&obj->regex, regex, REG_EXTENDED);
+  status = regcomp (&obj->regex, regex, REG_EXTENDED | REG_NEWLINE);
   if (status != 0)
   {
     ERROR ("Compiling the regular expression \"%s\" failed.", regex);

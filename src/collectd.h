@@ -212,10 +212,6 @@
 # include <kstat.h>
 #endif
 
-#if HAVE_SENSORS_SENSORS_H
-# include <sensors/sensors.h>
-#endif
-
 #ifndef PACKAGE_NAME
 #define PACKAGE_NAME "collectd"
 #endif
