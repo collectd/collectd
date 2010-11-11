@@ -398,10 +398,9 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   memcpy (argv + ds_num, rra_def, rra_num * sizeof (char *));
   argv[ds_num + rra_num] = NULL;
 
-  assert (vl->time > 10);
   status = srrd_create (filename,
       (cfg->stepsize > 0) ? cfg->stepsize : vl->interval,
-      vl->time - 10,
+      (vl->time > 10) ? (vl->time - 10) : vl->time,
       argc, (const char **) argv);
 
   free (argv);
