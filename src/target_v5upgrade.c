@@ -210,6 +210,213 @@ static int v5_mysql_threads (const data_set_t *ds, value_list_t *vl) /* {{{ */
   return (FC_TARGET_STOP);
 } /* }}} int v5_mysql_threads */
 
+/*
+ * ZFS ARC hit and miss counters
+ *
+ * 4.* uses the flawed "arc_counts" type. In 5.* this has been replaced by the
+ * more generic "cache_result" type.
+ */
+static int v5_zfs_arc_counts (const data_set_t *ds, value_list_t *vl) /* {{{ */
+{
+  value_list_t new_vl;
+  value_t new_value;
+  _Bool is_hits;
+
+  if (vl->values_len != 4)
+    return (FC_TARGET_STOP);
+
+  if (strcmp ("hits", vl->type_instance) == 0)
+    is_hits = 1;
+  else if (strcmp ("misses", vl->type_instance) == 0)
+    is_hits = 0;
+  else
+    return (FC_TARGET_STOP);
+
+  /* Copy everything: Time, interval, host, ... */
+  memcpy (&new_vl, vl, sizeof (new_vl));
+
+  /* Reset data we can't simply copy */
+  new_vl.values = &new_value;
+  new_vl.values_len = 1;
+  new_vl.meta = NULL;
+
+  /* Change the type to "cache_result" */
+  sstrncpy (new_vl.type, "cache_result", sizeof (new_vl.type));
+
+  /* Dispatch new value lists instead of this one */
+  new_vl.values[0].derive = (derive_t) vl->values[0].counter;
+  ssnprintf (new_vl.type_instance, sizeof (new_vl.type_instance),
+      "demand_data-%s",
+      is_hits ? "hit" : "miss");
+  plugin_dispatch_values (&new_vl);
+
+  new_vl.values[0].derive = (derive_t) vl->values[1].counter;
+  ssnprintf (new_vl.type_instance, sizeof (new_vl.type_instance),
+      "demand_metadata-%s",
+      is_hits ? "hit" : "miss");
+  plugin_dispatch_values (&new_vl);
+
+  new_vl.values[0].derive = (derive_t) vl->values[2].counter;
+  ssnprintf (new_vl.type_instance, sizeof (new_vl.type_instance),
+      "prefetch_data-%s",
+      is_hits ? "hit" : "miss");
+  plugin_dispatch_values (&new_vl);
+
+  new_vl.values[0].derive = (derive_t) vl->values[3].counter;
+  ssnprintf (new_vl.type_instance, sizeof (new_vl.type_instance),
+      "prefetch_metadata-%s",
+      is_hits ? "hit" : "miss");
+  plugin_dispatch_values (&new_vl);
+
+  /* Abort processing */
+  return (FC_TARGET_STOP);
+} /* }}} int v5_zfs_arc_counts */
+
+/*
+ * ZFS ARC L2 bytes
+ *
+ * "arc_l2_bytes" -> "io_octets-L2".
+ */
+static int v5_zfs_arc_l2_bytes (const data_set_t *ds, value_list_t *vl) /* {{{ */
+{
+  value_list_t new_vl;
+  value_t new_values[2];
+
+  if (vl->values_len != 2)
+    return (FC_TARGET_STOP);
+
+  /* Copy everything: Time, interval, host, ... */
+  memcpy (&new_vl, vl, sizeof (new_vl));
+
+  /* Reset data we can't simply copy */
+  new_vl.values = new_values;
+  new_vl.values_len = 2;
+  new_vl.meta = NULL;
+
+  /* Change the type/-instance to "io_octets-L2" */
+  sstrncpy (new_vl.type, "io_octets", sizeof (new_vl.type));
+  sstrncpy (new_vl.type_instance, "L2", sizeof (new_vl.type_instance));
+
+  /* Copy the actual values. */
+  new_vl.values[0].derive = (derive_t) vl->values[0].counter;
+  new_vl.values[1].derive = (derive_t) vl->values[1].counter;
+
+  /* Dispatch new value lists instead of this one */
+  plugin_dispatch_values (&new_vl);
+
+  /* Abort processing */
+  return (FC_TARGET_STOP);
+} /* }}} int v5_zfs_arc_l2_bytes */
+
+/*
+ * ZFS ARC L2 cache size
+ *
+ * 4.* uses a separate type for this. 5.* uses the generic "cache_size" type
+ * instead.
+ */
+static int v5_zfs_arc_l2_size (const data_set_t *ds, value_list_t *vl) /* {{{ */
+{
+  value_list_t new_vl;
+  value_t new_value;
+
+  if (vl->values_len != 1)
+    return (FC_TARGET_STOP);
+
+  /* Copy everything: Time, interval, host, ... */
+  memcpy (&new_vl, vl, sizeof (new_vl));
+
+  /* Reset data we can't simply copy */
+  new_vl.values = &new_value;
+  new_vl.values_len = 1;
+  new_vl.meta = NULL;
+
+  new_vl.values[0].gauge = (gauge_t) vl->values[0].gauge;
+
+  /* Change the type to "cache_size" */
+  sstrncpy (new_vl.type, "cache_size", sizeof (new_vl.type));
+
+  /* Adapt the type instance */
+  sstrncpy (new_vl.type_instance, "L2", sizeof (new_vl.type_instance));
+
+  /* Dispatch new value lists instead of this one */
+  plugin_dispatch_values (&new_vl);
+
+  /* Abort processing */
+  return (FC_TARGET_STOP);
+} /* }}} int v5_zfs_arc_l2_size */
+
+/*
+ * ZFS ARC ratio
+ *
+ * "arc_ratio-L1" -> "cache_ratio-arc"
+ * "arc_ratio-L2" -> "cache_ratio-L2"
+ */
+static int v5_zfs_arc_ratio (const data_set_t *ds, value_list_t *vl) /* {{{ */
+{
+  value_list_t new_vl;
+  value_t new_value;
+
+  if (vl->values_len != 1)
+    return (FC_TARGET_STOP);
+
+  /* Copy everything: Time, interval, host, ... */
+  memcpy (&new_vl, vl, sizeof (new_vl));
+
+  /* Reset data we can't simply copy */
+  new_vl.values = &new_value;
+  new_vl.values_len = 1;
+  new_vl.meta = NULL;
+
+  new_vl.values[0].gauge = (gauge_t) vl->values[0].gauge;
+
+  /* Change the type to "cache_ratio" */
+  sstrncpy (new_vl.type, "cache_ratio", sizeof (new_vl.type));
+
+  /* Adapt the type instance */
+  if (strcmp ("L1", vl->type_instance) == 0)
+    sstrncpy (new_vl.type_instance, "arc", sizeof (new_vl.type_instance));
+
+  /* Dispatch new value lists instead of this one */
+  plugin_dispatch_values (&new_vl);
+
+  /* Abort processing */
+  return (FC_TARGET_STOP);
+} /* }}} int v5_zfs_arc_ratio */
+
+/*
+ * ZFS ARC size
+ *
+ * 4.* uses the "arc_size" type with four data sources. In 5.* this has been
+ * replaces with the "cache_size" type and static data has been removed.
+ */
+static int v5_zfs_arc_size (const data_set_t *ds, value_list_t *vl) /* {{{ */
+{
+  value_list_t new_vl;
+  value_t new_value;
+
+  if (vl->values_len != 4)
+    return (FC_TARGET_STOP);
+
+  /* Copy everything: Time, interval, host, ... */
+  memcpy (&new_vl, vl, sizeof (new_vl));
+
+  /* Reset data we can't simply copy */
+  new_vl.values = &new_value;
+  new_vl.values_len = 1;
+  new_vl.meta = NULL;
+
+  /* Change the type to "cache_size" */
+  sstrncpy (new_vl.type, "cache_size", sizeof (new_vl.type));
+
+  /* Dispatch new value lists instead of this one */
+  new_vl.values[0].derive = (derive_t) vl->values[0].counter;
+  sstrncpy (new_vl.type_instance, "arc", sizeof (new_vl.type_instance));
+  plugin_dispatch_values (&new_vl);
+
+  /* Abort processing */
+  return (FC_TARGET_STOP);
+} /* }}} int v5_zfs_arc_size */
+
 static int v5_destroy (void **user_data) /* {{{ */
 {
   return (0);
@@ -236,6 +443,16 @@ static int v5_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     return (v5_mysql_qcache (ds, vl));
   else if (strcmp ("mysql_threads", vl->type) == 0)
     return (v5_mysql_threads (ds, vl));
+  else if (strcmp ("arc_counts", vl->type) == 0)
+    return (v5_zfs_arc_counts (ds, vl));
+  else if (strcmp ("arc_l2_bytes", vl->type) == 0)
+    return (v5_zfs_arc_l2_bytes (ds, vl));
+  else if (strcmp ("arc_l2_size", vl->type) == 0)
+    return (v5_zfs_arc_l2_size (ds, vl));
+  else if (strcmp ("arc_ratio", vl->type) == 0)
+    return (v5_zfs_arc_ratio (ds, vl));
+  else if (strcmp ("arc_size", vl->type) == 0)
+    return (v5_zfs_arc_size (ds, vl));
 
   return (FC_TARGET_CONTINUE);
 } /* }}} int v5_invoke */
