@@ -91,7 +91,7 @@ static PyObject *cpy_common_repr(PyObject *s) {
 
 	if (self->time != 0) {
 		CPY_STRCAT(&ret, l_time);
-		tmp = PyInt_FromLong(self->time);
+		tmp = PyFloat_FromDouble(self->time);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
 		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
@@ -351,14 +351,13 @@ static PyObject *Values_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 
 static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	Values *self = (Values *) s;
-	int interval = 0;
-	double time = 0;
+	double interval = 0, time = 0;
 	PyObject *values = NULL, *meta = NULL, *tmp;
 	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdiO", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
 			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
 			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return -1;
@@ -485,8 +484,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
-	double time = self->data.time;
-	int interval = self->interval;
+	double time = self->data.time, interval = self->interval;
 	const char *host = self->data.host;
 	const char *plugin = self->data.plugin;
 	const char *plugin_instance = self->data.plugin_instance;
@@ -495,7 +493,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdiO", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
 			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
 			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return NULL;
@@ -559,8 +557,8 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	value_list.values = value;
 	value_list.meta = cpy_build_meta(meta);
 	value_list.values_len = size;
-	value_list.time = time;
-	value_list.interval = interval;
+	value_list.time = DOUBLE_TO_CDTIME_T(time);
+	value_list.interval = DOUBLE_TO_CDTIME_T(interval);
 	sstrncpy(value_list.host, host, sizeof(value_list.host));
 	sstrncpy(value_list.plugin, plugin, sizeof(value_list.plugin));
 	sstrncpy(value_list.plugin_instance, plugin_instance, sizeof(value_list.plugin_instance));
@@ -588,8 +586,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
-	double time = self->data.time;
-	int interval = self->interval;
+	double time = self->data.time, interval = self->interval;
 	const char *host = self->data.host;
 	const char *plugin = self->data.plugin;
 	const char *plugin_instance = self->data.plugin_instance;
@@ -599,7 +596,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	
 	static char *kwlist[] = {"destination", "type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdiO", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
 			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
 			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return NULL;
@@ -658,8 +655,8 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	}
 	value_list.values = value;
 	value_list.values_len = size;
-	value_list.time = time;
-	value_list.interval = interval;
+	value_list.time = DOUBLE_TO_CDTIME_T(time);
+	value_list.interval = DOUBLE_TO_CDTIME_T(interval);
 	sstrncpy(value_list.host, host, sizeof(value_list.host));
 	sstrncpy(value_list.plugin, plugin, sizeof(value_list.plugin));
 	sstrncpy(value_list.plugin_instance, plugin_instance, sizeof(value_list.plugin_instance));
@@ -701,7 +698,7 @@ static PyObject *Values_repr(PyObject *s) {
 	ret = cpy_common_repr(s);
 	if (self->interval != 0) {
 		CPY_STRCAT(&ret, l_interval);
-		tmp = PyInt_FromLong(self->interval);
+		tmp = PyFloat_FromDouble(self->interval);
 		CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
 		CPY_STRCAT_AND_DEL(&ret, tmp);
 	}
@@ -864,7 +861,7 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 		return NULL;
 	}
 
-	notification.time = t;
+	notification.time = DOUBLE_TO_CDTIME_T(t);
 	notification.severity = severity;
 	sstrncpy(notification.message, message, sizeof(notification.message));
 	sstrncpy(notification.host, host, sizeof(notification.host));
@@ -873,8 +870,8 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 	sstrncpy(notification.type, type, sizeof(notification.type));
 	sstrncpy(notification.type_instance, type_instance, sizeof(notification.type_instance));
 	notification.meta = NULL;
-	if (notification.time < 1)
-		notification.time = time(0);
+	if (notification.time == 0)
+		notification.time = cdtime();
 	if (notification.host[0] == 0)
 		sstrncpy(notification.host, hostname_g, sizeof(notification.host));
 	if (notification.plugin[0] == 0)

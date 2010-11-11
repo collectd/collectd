@@ -435,8 +435,8 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		sstrncpy(v->data.type_instance, value_list->type_instance, sizeof(v->data.type_instance));
 		sstrncpy(v->data.plugin, value_list->plugin, sizeof(v->data.plugin));
 		sstrncpy(v->data.plugin_instance, value_list->plugin_instance, sizeof(v->data.plugin_instance));
-		v->data.time = value_list->time;
-		v->interval = value_list->interval;
+		v->data.time = CDTIME_T_TO_DOUBLE(value_list->time);
+		v->interval = CDTIME_T_TO_DOUBLE(value_list->interval);
 		Py_CLEAR(v->values);
 		v->values = list;
 		Py_CLEAR(v->meta);
@@ -465,7 +465,7 @@ static int cpy_notification_callback(const notification_t *notification, user_da
 		sstrncpy(n->data.type_instance, notification->type_instance, sizeof(n->data.type_instance));
 		sstrncpy(n->data.plugin, notification->plugin, sizeof(n->data.plugin));
 		sstrncpy(n->data.plugin_instance, notification->plugin_instance, sizeof(n->data.plugin_instance));
-		n->data.time = notification->time;
+		n->data.time = CDTIME_T_TO_DOUBLE(notification->time);
 		sstrncpy(n->message, notification->message, sizeof(n->message));
 		n->severity = notification->severity;
 		ret = PyObject_CallFunctionObjArgs(c->callback, n, c->data, (void *) 0); /* New reference. */
