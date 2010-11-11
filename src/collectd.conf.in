@@ -913,6 +913,7 @@
 #	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-unixsock"
 #	SocketGroup "collectd"
 #	SocketPerms "0660"
+#	DeleteSocket false
 #</Plugin>
 
 #<Plugin uuid>

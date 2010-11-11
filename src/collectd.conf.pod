@@ -4558,6 +4558,13 @@ Change the file permissions of the UNIX-socket after it has been created. The
 permissions must be given as a numeric, octal value as you would pass to
 L<chmod(1)>. Defaults to B<0770>.
 
+=item B<DeleteSocket> B<false>|B<true>
+
+If set to B<true>, delete the socket file before calling L<bind(2)>, if a file
+with the given name already exists. If I<collectd> crashes a socket file may be
+left over, preventing the daemon from opening a new socket when restarted.
+Since this is potentially dangerous, this defaults to B<false>.
+
 =back
 
 =head2 Plugin C<uuid>
