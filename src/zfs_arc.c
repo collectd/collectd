@@ -114,15 +114,15 @@ static int za_read (void)
 	prefetch_data_misses     = get_kstat_value(ksp, "prefetch_data_misses");
 	prefetch_metadata_misses = get_kstat_value(ksp, "prefetch_metadata_misses");
 
-	za_submit_derive ("cache_result", "hit-demand_data",       demand_data_hits);
-	za_submit_derive ("cache_result", "hit-demand_metadata",   demand_metadata_hits);
-	za_submit_derive ("cache_result", "hit-prefetch_data",     prefetch_data_hits);
-	za_submit_derive ("cache_result", "hit-prefetch_metadata", prefetch_metadata_hits);
+	za_submit_derive ("cache_result", "demand_data-hit",       demand_data_hits);
+	za_submit_derive ("cache_result", "demand_metadata-hit",   demand_metadata_hits);
+	za_submit_derive ("cache_result", "prefetch_data-hit",     prefetch_data_hits);
+	za_submit_derive ("cache_result", "prefetch_metadata-hit", prefetch_metadata_hits);
 
-	za_submit_derive ("cache_result", "miss-demand_data",       demand_data_misses);
-	za_submit_derive ("cache_result", "miss-demand_metadata",   demand_metadata_misses);
-	za_submit_derive ("cache_result", "miss-prefetch_data",     prefetch_data_misses);
-	za_submit_derive ("cache_result", "miss-prefetch_metadata", prefetch_metadata_misses);
+	za_submit_derive ("cache_result", "demand_data-miss",       demand_data_misses);
+	za_submit_derive ("cache_result", "demand_metadata-miss",   demand_metadata_misses);
+	za_submit_derive ("cache_result", "prefetch_data-miss",     prefetch_data_misses);
+	za_submit_derive ("cache_result", "prefetch_metadata-miss", prefetch_metadata_misses);
 
 	/* Ratios */
 	arc_hits   = (gauge_t) get_kstat_value(ksp, "hits");
