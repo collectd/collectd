@@ -129,6 +129,10 @@ Configures the interval in which to query the read plugins. Obviously smaller
 values lead to a higher system load produced by collectd, while higher values
 lead to more coarse statistics.
 
+B<Warning:> You should set this once and then never touch it again. If you do,
+I<you will have to delete all your RRD files> or know some serious RRDtool
+magic! (Assuming you're using the I<RRDtool> or I<RRDCacheD> plugin.)
+
 =item B<ReadThreads> I<Num>
 
 Number of threads to start for reading plugins. The default value is B<5>, but
