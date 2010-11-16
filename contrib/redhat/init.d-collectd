@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # collectd    Startup script for the Collectd statistics gathering daemon
-# chkconfig: - 86 15
+# chkconfig: - 99 01
 # description: Collectd is a statistics gathering daemon used to collect \
 #   system information ie. cpu, memory, disk, network
 # processname: collectd
@@ -15,6 +15,7 @@
 RETVAL=0
 ARGS=""
 prog="collectdmon"
+service="collectd"
 CONFIG=/etc/collectd.conf
 COLLECTD=/usr/sbin/collectd
 COLLECTDMONPID=/var/run/collectdmon.pid
@@ -30,7 +31,7 @@ start () {
 		daemon $prog -P $COLLECTDMONPID -c $COLLECTD -- -C "$CONFIG"
 		RETVAL=$?
 		echo
-		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$service
 	fi
 }
 stop () {
@@ -38,7 +39,7 @@ stop () {
 	killproc $prog
 	RETVAL=$?
 	echo
-	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$service
 }
 # See how we were called.
 case "$1" in
