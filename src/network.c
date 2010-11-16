@@ -1378,7 +1378,18 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			if (status == 0)
 			{
 				vl.time = TIME_T_TO_CDTIME_T (tmp);
-				n.time = TIME_T_TO_CDTIME_T (tmp);
+				n.time  = TIME_T_TO_CDTIME_T (tmp);
+			}
+		}
+		else if (pkg_type == TYPE_TIME_HR)
+		{
+			uint64_t tmp = 0;
+			status = parse_part_number (&buffer, &buffer_size,
+					&tmp);
+			if (status == 0)
+			{
+				vl.time = (cdtime_t) tmp;
+				n.time  = (cdtime_t) tmp;
 			}
 		}
 		else if (pkg_type == TYPE_INTERVAL)
@@ -1388,6 +1399,14 @@ static int parse_packet (sockent_t *se, /* {{{ */
 					&tmp);
 			if (status == 0)
 				vl.interval = TIME_T_TO_CDTIME_T (tmp);
+		}
+		else if (pkg_type == TYPE_INTERVAL_HR)
+		{
+			uint64_t tmp = 0;
+			status = parse_part_number (&buffer, &buffer_size,
+					&tmp);
+			if (status == 0)
+				vl.interval = (cdtime_t) tmp;
 		}
 		else if (pkg_type == TYPE_HOST)
 		{
@@ -2583,18 +2602,16 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 
 	if (vl_def->time != vl->time)
 	{
-		time_t tmp = CDTIME_T_TO_TIME_T (vl->time);
-		if (write_part_number (&buffer, &buffer_size, TYPE_TIME,
-					(uint64_t) tmp))
+		if (write_part_number (&buffer, &buffer_size, TYPE_TIME_HR,
+					(uint64_t) vl->time))
 			return (-1);
 		vl_def->time = vl->time;
 	}
 
 	if (vl_def->interval != vl->interval)
 	{
-		/* TODO: Create a new type for sub-second intervals. */
-		if (write_part_number (&buffer, &buffer_size, TYPE_INTERVAL,
-					(uint64_t) CDTIME_T_TO_TIME_T (vl->interval)))
+		if (write_part_number (&buffer, &buffer_size, TYPE_INTERVAL_HR,
+					(uint64_t) vl->interval))
 			return (-1);
 		vl_def->interval = vl->interval;
 	}
@@ -3072,14 +3089,11 @@ static int network_notification (const notification_t *n,
   char *buffer_ptr = buffer;
   int   buffer_free = sizeof (buffer);
   int   status;
-  time_t tmp;
 
   memset (buffer, '\0', sizeof (buffer));
 
-
-  tmp = CDTIME_T_TO_TIME_T (n->time);
-  status = write_part_number (&buffer_ptr, &buffer_free, TYPE_TIME,
-      (uint64_t) tmp);
+  status = write_part_number (&buffer_ptr, &buffer_free, TYPE_TIME_HR,
+      (uint64_t) n->time);
   if (status != 0)
     return (-1);
 

@@ -56,12 +56,14 @@
 
 #define TYPE_HOST            0x0000
 #define TYPE_TIME            0x0001
+#define TYPE_TIME_HR         0x0008
 #define TYPE_PLUGIN          0x0002
 #define TYPE_PLUGIN_INSTANCE 0x0003
 #define TYPE_TYPE            0x0004
 #define TYPE_TYPE_INSTANCE   0x0005
 #define TYPE_VALUES          0x0006
 #define TYPE_INTERVAL        0x0007
+#define TYPE_INTERVAL_HR     0x0009
 
 /* Types to transmit notifications */
 #define TYPE_MESSAGE         0x0100
