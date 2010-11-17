@@ -188,7 +188,7 @@ typedef struct {
 	PluginData data;
 	PyObject *values;    /* Sequence */
 	PyObject *meta;      /* dict */
-	int interval;
+	double interval;
 } Values;
 PyTypeObject ValuesType;
 #define Values_New() PyObject_CallFunctionObjArgs((PyObject *) &ValuesType, (void *) 0)

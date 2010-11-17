@@ -485,7 +485,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 
 	if (db->slave_notif)
 	{
-		notification_t n = { 0, time (NULL), "", "",
+		notification_t n = { 0, cdtime (), "", "",
 			"mysql", "", "time_offset", "", NULL };
 
 		char *io, *sql;

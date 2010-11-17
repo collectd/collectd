@@ -23,6 +23,7 @@
  **/
 
 #include "collectd.h"
+#include "utils_time.h"
 #include "liboconfig/oconfig.h"
 
 /*
@@ -112,5 +113,7 @@ int cf_util_get_flag (const oconfig_item_t *ci,
  * a port number using `service_name_to_port_number' and returned. Returns the
  * port number in the range [1-65535] or less than zero upon failure. */
 int cf_util_get_port_number (const oconfig_item_t *ci);
+
+int cf_util_get_cdtime (const oconfig_item_t *ci, cdtime_t *ret_value);
 
 #endif /* defined(CONFIGFILE_H) */

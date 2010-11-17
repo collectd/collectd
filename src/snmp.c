@@ -69,7 +69,7 @@ struct host_definition_s
   int version;
   void *sess_handle;
   c_complain_t complaint;
-  uint32_t interval;
+  cdtime_t interval;
   data_definition_t **data_list;
   int data_list_len;
 };
@@ -159,7 +159,6 @@ static void csnmp_host_definition_destroy (void *arg) /* {{{ */
  *      +-> csnmp_config_add_host_community
  *      +-> csnmp_config_add_host_version
  *      +-> csnmp_config_add_host_collect
- *      +-> csnmp_config_add_host_interval
  */
 static void call_snmp_init_once (void)
 {
@@ -543,22 +542,6 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   return (0);
 } /* int csnmp_config_add_host_collect */
 
-static int csnmp_config_add_host_interval (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("snmp plugin: The `Interval' config option needs exactly one number argument.");
-    return (-1);
-  }
-
-  hd->interval = ci->values[0].value.number >= 0
-    ? (uint32_t) ci->values[0].value.number
-    : 0;
-
-  return (0);
-} /* int csnmp_config_add_host_interval */
-
 static int csnmp_config_add_host (oconfig_item_t *ci)
 {
   host_definition_t *hd;
@@ -607,7 +590,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
     else if (strcasecmp ("Collect", option->key) == 0)
       csnmp_config_add_host_collect (hd, option);
     else if (strcasecmp ("Interval", option->key) == 0)
-      csnmp_config_add_host_interval (hd, option);
+      cf_util_get_cdtime (option, &hd->interval);
     else
     {
       WARNING ("snmp plugin: csnmp_config_add_host: Option `%s' not allowed here.", option->key);
@@ -651,9 +634,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   cb_data.data = hd;
   cb_data.free_func = csnmp_host_definition_destroy;
 
-  memset (&cb_interval, 0, sizeof (cb_interval));
-  if (hd->interval != 0)
-    cb_interval.tv_sec = (time_t) hd->interval;
+  CDTIME_T_TO_TIMESPEC (hd->interval, &cb_interval);
 
   status = plugin_register_complex_read (/* group = */ NULL, cb_name,
       csnmp_read_host, /* interval = */ &cb_interval,
@@ -1529,8 +1510,8 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_host (user_data_t *ud)
 {
   host_definition_t *host;
-  time_t time_start;
-  time_t time_end;
+  cdtime_t time_start;
+  cdtime_t time_end;
   int status;
   int success;
   int i;
@@ -1540,9 +1521,7 @@ static int csnmp_read_host (user_data_t *ud)
   if (host->interval == 0)
     host->interval = interval_g;
 
-  time_start = time (NULL);
-  DEBUG ("snmp plugin: csnmp_read_host (%s) started at %u;", host->name,
-      (unsigned int) time_start);
+  time_start = cdtime ();
 
   if (host->sess_handle == NULL)
     csnmp_host_open_session (host);
@@ -1564,14 +1543,14 @@ static int csnmp_read_host (user_data_t *ud)
       success++;
   }
 
-  time_end = time (NULL);
-  DEBUG ("snmp plugin: csnmp_read_host (%s) finished at %u;", host->name,
-      (unsigned int) time_end);
-  if ((uint32_t) (time_end - time_start) > host->interval)
+  time_end = cdtime ();
+  if ((time_end - time_start) > host->interval)
   {
-    WARNING ("snmp plugin: Host `%s' should be queried every %"PRIu32
-	" seconds, but reading all values takes %u seconds.",
-	host->name, host->interval, (unsigned int) (time_end - time_start));
+    WARNING ("snmp plugin: Host `%s' should be queried every %.3f "
+	"seconds, but reading all values takes %.3f seconds.",
+	host->name,
+	CDTIME_T_TO_DOUBLE (host->interval),
+	CDTIME_T_TO_DOUBLE (time_end - time_start));
   }
 
   if (success == 0)

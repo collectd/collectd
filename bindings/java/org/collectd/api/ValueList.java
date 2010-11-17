@@ -87,10 +87,16 @@ public class ValueList extends PluginData {
         _ds = new DataSet (_type, dsrc);
     }
 
+    /**
+     * Returns the interval (in milliseconds) of the value list.
+     */
     public long getInterval() {
         return _interval;
     }
 
+    /**
+     * Sets the interval (in milliseconds) of the value list.
+     */
     public void setInterval(long interval) {
         _interval = interval;
     }

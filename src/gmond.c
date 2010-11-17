@@ -719,7 +719,7 @@ static int mc_handle_metadata_msg (Ganglia_metadata_msg *msg) /* {{{ */
           map->type, map->type_instance,
           ds->ds_num);
       if (se != NULL)
-        se->vl.interval = (int) msg_meta.metric.tmax;
+        se->vl.interval = TIME_T_TO_CDTIME_T (msg_meta.metric.tmax);
       pthread_mutex_unlock (&staging_lock);
 
       if (se == NULL)

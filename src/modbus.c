@@ -94,7 +94,7 @@ struct mb_host_s /* {{{ */
   char node[NI_MAXHOST];
   /* char service[NI_MAXSERV]; */
   int port;
-  int interval;
+  cdtime_t interval;
 
   mb_slave_t *slaves;
   size_t slaves_num;
@@ -771,7 +771,7 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
         status = -1;
     }
     else if (strcasecmp ("Interval", child->key) == 0)
-      status = cf_util_get_int (child, &host->interval);
+      status = cf_util_get_cdtime (child, &host->interval);
     else if (strcasecmp ("Slave", child->key) == 0)
       /* Don't set status: Gracefully continue if a slave fails. */
       mb_config_add_slave (host, child);
@@ -797,21 +797,19 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
   {
     user_data_t ud;
     char name[1024];
-    struct timespec interval;
+    struct timespec interval = { 0, 0 };
 
     ud.data = host;
     ud.free_func = host_free;
 
     ssnprintf (name, sizeof (name), "modbus-%s", host->host);
 
-    interval.tv_nsec = 0;
-    if (host->interval > 0)
-      interval.tv_sec = host->interval;
-    else
-      interval.tv_sec = 0;
+    CDTIME_T_TO_TIMESPEC (host->interval, &interval);
 
     plugin_register_complex_read (/* group = */ NULL, name,
-        mb_read, (interval.tv_sec > 0) ? &interval : NULL, &ud);
+        /* callback = */ mb_read,
+        /* interval = */ (host->interval > 0) ? &interval : NULL,
+        &ud);
   }
   else
   {

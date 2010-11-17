@@ -1381,8 +1381,19 @@ static int parse_packet (sockent_t *se, /* {{{ */
 					&tmp);
 			if (status == 0)
 			{
-				vl.time = (time_t) tmp;
-				n.time = (time_t) tmp;
+				vl.time = TIME_T_TO_CDTIME_T (tmp);
+				n.time  = TIME_T_TO_CDTIME_T (tmp);
+			}
+		}
+		else if (pkg_type == TYPE_TIME_HR)
+		{
+			uint64_t tmp = 0;
+			status = parse_part_number (&buffer, &buffer_size,
+					&tmp);
+			if (status == 0)
+			{
+				vl.time = (cdtime_t) tmp;
+				n.time  = (cdtime_t) tmp;
 			}
 		}
 		else if (pkg_type == TYPE_INTERVAL)
@@ -1391,7 +1402,15 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			status = parse_part_number (&buffer, &buffer_size,
 					&tmp);
 			if (status == 0)
-				vl.interval = (int) tmp;
+				vl.interval = TIME_T_TO_CDTIME_T (tmp);
+		}
+		else if (pkg_type == TYPE_INTERVAL_HR)
+		{
+			uint64_t tmp = 0;
+			status = parse_part_number (&buffer, &buffer_size,
+					&tmp);
+			if (status == 0)
+				vl.interval = (cdtime_t) tmp;
 		}
 		else if (pkg_type == TYPE_HOST)
 		{
@@ -2587,7 +2606,7 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 
 	if (vl_def->time != vl->time)
 	{
-		if (write_part_number (&buffer, &buffer_size, TYPE_TIME,
+		if (write_part_number (&buffer, &buffer_size, TYPE_TIME_HR,
 					(uint64_t) vl->time))
 			return (-1);
 		vl_def->time = vl->time;
@@ -2595,7 +2614,7 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 
 	if (vl_def->interval != vl->interval)
 	{
-		if (write_part_number (&buffer, &buffer_size, TYPE_INTERVAL,
+		if (write_part_number (&buffer, &buffer_size, TYPE_INTERVAL_HR,
 					(uint64_t) vl->interval))
 			return (-1);
 		vl_def->interval = vl->interval;
@@ -3077,8 +3096,7 @@ static int network_notification (const notification_t *n,
 
   memset (buffer, '\0', sizeof (buffer));
 
-
-  status = write_part_number (&buffer_ptr, &buffer_free, TYPE_TIME,
+  status = write_part_number (&buffer_ptr, &buffer_free, TYPE_TIME_HR,
       (uint64_t) n->time);
   if (status != 0)
     return (-1);
@@ -3352,9 +3370,9 @@ static int network_init (void)
  * just send the buffer if `flush'  is called - if the requested value was in
  * there, good. If not, well, then there is nothing to flush.. -octo
  */
-static int network_flush (int timeout,
-		const char __attribute__((unused)) *identifier,
-		user_data_t __attribute__((unused)) *user_data)
+static int network_flush (__attribute__((unused)) cdtime_t timeout,
+		__attribute__((unused)) const char *identifier,
+		__attribute__((unused)) user_data_t *user_data)
 {
 	pthread_mutex_lock (&send_buffer_lock);
 

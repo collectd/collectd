@@ -265,7 +265,7 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD (",\"dsnames\":%s", temp);
 
   BUFFER_ADD (",\"time\":%lu", (unsigned long) vl->time);
-  BUFFER_ADD (",\"interval\":%i", vl->interval);
+  BUFFER_ADD (",\"interval\":%.3f", CDTIME_T_TO_DOUBLE (vl->interval));
 
 #define BUFFER_ADD_KEYVAL(key, value) do { \
   status = escape_string (temp, sizeof (temp), (value)); \

@@ -68,7 +68,7 @@ int udb_query_check_version (udb_query_t *q, unsigned int version);
 int udb_query_prepare_result (const udb_query_t const *q,
     udb_query_preparation_area_t *prep_area,
     const char *host, const char *plugin, const char *db_name,
-    char **column_names, size_t column_num, int interval);
+    char **column_names, size_t column_num, cdtime_t interval);
 int udb_query_handle_result (const udb_query_t const *q,
     udb_query_preparation_area_t *prep_area, char **column_values);
 void udb_query_finish_result (const udb_query_t const *q,

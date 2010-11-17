@@ -241,7 +241,7 @@ static void submit (time_t ts, const char *plugin_instance, /* {{{ */
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = ts;
+  vl.time = TIME_T_TO_CDTIME_T (ts);
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "bind", sizeof(vl.plugin));
   if (plugin_instance) {

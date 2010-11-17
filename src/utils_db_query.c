@@ -73,7 +73,7 @@ struct udb_query_preparation_area_s /* {{{ */
   char *plugin;
   char *db_name;
 
-  int interval;
+  cdtime_t interval;
 
   udb_result_preparation_area_t *result_prep_areas;
 }; /* }}} */
@@ -839,7 +839,7 @@ void udb_query_finish_result (const udb_query_t const *q, /* {{{ */
   sfree (prep_area->plugin);
   sfree (prep_area->db_name);
 
-  prep_area->interval = -1;
+  prep_area->interval = 0;
 
   for (r = q->results, r_area = prep_area->result_prep_areas;
       r != NULL; r = r->next, r_area = r_area->next)
@@ -907,7 +907,7 @@ int udb_query_handle_result (const udb_query_t const *q, /* {{{ */
 int udb_query_prepare_result (const udb_query_t const *q, /* {{{ */
     udb_query_preparation_area_t *prep_area,
     const char *host, const char *plugin, const char *db_name,
-    char **column_names, size_t column_num, int interval)
+    char **column_names, size_t column_num, cdtime_t interval)
 {
   udb_result_preparation_area_t *r_area;
   udb_result_t *r;

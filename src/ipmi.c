@@ -136,7 +136,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
 
         if (c_ipmi_nofiy_notpresent)
         {
-          notification_t n = { NOTIF_WARNING, time(NULL), "", "", "ipmi",
+          notification_t n = { NOTIF_WARNING, cdtime (), "", "", "ipmi",
             "", "", "", NULL };
 
           sstrncpy (n.host, hostname_g, sizeof (n.host));
@@ -190,7 +190,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
 
     if (c_ipmi_nofiy_notpresent)
     {
-      notification_t n = { NOTIF_OKAY, time(NULL), "", "", "ipmi",
+      notification_t n = { NOTIF_OKAY, cdtime (), "", "", "ipmi",
         "", "", "", NULL };
 
       sstrncpy (n.host, hostname_g, sizeof (n.host));
@@ -363,7 +363,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
 
   if (c_ipmi_nofiy_add && (c_ipmi_init_in_progress == 0))
   {
-    notification_t n = { NOTIF_OKAY, time(NULL), "", "", "ipmi",
+    notification_t n = { NOTIF_OKAY, cdtime (), "", "", "ipmi",
                          "", "", "", NULL };
 
     sstrncpy (n.host, hostname_g, sizeof (n.host));
@@ -417,7 +417,7 @@ static int sensor_list_remove (ipmi_sensor_t *sensor)
 
   if (c_ipmi_nofiy_remove && c_ipmi_active)
   {
-    notification_t n = { NOTIF_WARNING, time(NULL), "", "",
+    notification_t n = { NOTIF_WARNING, cdtime (), "", "",
                          "ipmi", "", "", "", NULL };
 
     sstrncpy (n.host, hostname_g, sizeof (n.host));
@@ -664,7 +664,8 @@ static int c_ipmi_init (void)
   int status;
 
   /* Don't send `ADD' notifications during startup (~ 1 minute) */
-  c_ipmi_init_in_progress = 1 + (60 / interval_g);
+  time_t iv = CDTIME_T_TO_TIME_T (interval_g);
+  c_ipmi_init_in_progress = 1 + (60 / iv);
 
   c_ipmi_active = 1;
 

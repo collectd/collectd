@@ -40,7 +40,7 @@
  * Global variables
  */
 char hostname_g[DATA_MAX_NAME_LEN];
-int  interval_g;
+cdtime_t interval_g;
 int  timeout_g;
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
@@ -51,7 +51,9 @@ static int loop = 0;
 static void *do_flush (void __attribute__((unused)) *arg)
 {
 	INFO ("Flushing all data.");
-	plugin_flush (NULL, -1, NULL);
+	plugin_flush (/* plugin = */ NULL,
+			/* timeout = */ 0,
+			/* ident = */ NULL);
 	INFO ("Finished flushing all data.");
 	pthread_exit (NULL);
 	return NULL;
@@ -139,15 +141,25 @@ static int init_global_variables (void)
 
 	str = global_option_get ("Interval");
 	if (str == NULL)
-		str = "10";
-	interval_g = atoi (str);
-	if (interval_g <= 0)
 	{
-		fprintf (stderr, "Cannot set the interval to a correct value.\n"
-				"Please check your settings.\n");
-		return (-1);
+		interval_g = TIME_T_TO_CDTIME_T (10);
 	}
-	DEBUG ("interval_g = %i;", interval_g);
+	else
+	{
+		double tmp;
+
+		tmp = atof (str);
+		if (tmp <= 0.0)
+		{
+			fprintf (stderr, "Cannot set the interval to a "
+					"correct value.\n"
+					"Please check your settings.\n");
+			return (-1);
+		}
+
+		interval_g = DOUBLE_TO_CDTIME_T (tmp);
+	}
+	DEBUG ("interval_g = %.3f;", CDTIME_T_TO_DOUBLE (interval_g));
 
 	str = global_option_get ("Timeout");
 	if (str == NULL)
@@ -311,22 +323,14 @@ static int do_init (void)
 
 static int do_loop (void)
 {
-	struct timeval tv_now;
-	struct timeval tv_next;
-	struct timeval tv_wait;
-	struct timespec ts_wait;
+	cdtime_t wait_until;
+
+	wait_until = cdtime () + interval_g;
 
 	while (loop == 0)
 	{
-		if (gettimeofday (&tv_next, NULL) < 0)
-		{
-			char errbuf[1024];
-			ERROR ("gettimeofday failed: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return (-1);
-		}
-		tv_next.tv_sec += interval_g;
+		struct timespec ts_wait = { 0, 0 };
+		cdtime_t now;
 
 #if HAVE_LIBKSTAT
 		update_kstat ();
@@ -335,27 +339,20 @@ static int do_loop (void)
 		/* Issue all plugins */
 		plugin_read_all ();
 
-		if (gettimeofday (&tv_now, NULL) < 0)
-		{
-			char errbuf[1024];
-			ERROR ("gettimeofday failed: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return (-1);
-		}
-
-		if (timeval_cmp (tv_next, tv_now, &tv_wait) <= 0)
+		now = cdtime ();
+		if (now >= wait_until)
 		{
 			WARNING ("Not sleeping because the next interval is "
-					"%i.%06i seconds in the past!",
-					(int) tv_wait.tv_sec, (int) tv_wait.tv_usec);
+					"%.3f seconds in the past!",
+					CDTIME_T_TO_DOUBLE (now - wait_until));
+			wait_until = now + interval_g;
 			continue;
 		}
 
-		ts_wait.tv_sec  = tv_wait.tv_sec;
-		ts_wait.tv_nsec = (long) (1000 * tv_wait.tv_usec);
+		CDTIME_T_TO_TIMESPEC (wait_until - now, &ts_wait);
+		wait_until = wait_until + interval_g;
 
-		while ((loop == 0) && (nanosleep (&ts_wait, &ts_wait) == -1))
+		while ((loop == 0) && (nanosleep (&ts_wait, &ts_wait) != 0))
 		{
 			if (errno != EINTR)
 			{
@@ -368,7 +365,6 @@ static int do_loop (void)
 		}
 	} /* while (loop == 0) */
 
-	DEBUG ("return (0);");
 	return (0);
 } /* int do_loop */
 

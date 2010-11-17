@@ -25,6 +25,7 @@
 #include "collectd.h"
 #include "configfile.h"
 #include "meta_data.h"
+#include "utils_time.h"
 
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
@@ -85,8 +86,8 @@ struct value_list_s
 {
 	value_t *values;
 	int      values_len;
-	time_t   time;
-	int      interval;
+	cdtime_t time;
+	cdtime_t interval;
 	char     host[DATA_MAX_NAME_LEN];
 	char     plugin[DATA_MAX_NAME_LEN];
 	char     plugin_instance[DATA_MAX_NAME_LEN];
@@ -143,7 +144,7 @@ typedef struct notification_meta_s
 typedef struct notification_s
 {
 	int    severity;
-	time_t time;
+	cdtime_t time;
 	char   message[NOTIF_MAX_MSG_LEN];
 	char   host[DATA_MAX_NAME_LEN];
 	char   plugin[DATA_MAX_NAME_LEN];
@@ -167,7 +168,7 @@ typedef int (*plugin_init_cb) (void);
 typedef int (*plugin_read_cb) (user_data_t *);
 typedef int (*plugin_write_cb) (const data_set_t *, const value_list_t *,
 		user_data_t *);
-typedef int (*plugin_flush_cb) (int timeout, const char *identifier,
+typedef int (*plugin_flush_cb) (cdtime_t timeout, const char *identifier,
 		user_data_t *);
 typedef void (*plugin_log_cb) (int severity, const char *message,
 		user_data_t *);
@@ -248,7 +249,7 @@ void plugin_shutdown_all (void);
 int plugin_write (const char *plugin,
     const data_set_t *ds, const value_list_t *vl);
 
-int plugin_flush (const char *plugin, int timeout, const char *identifier);
+int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier);
 
 /*
  * The `plugin_register_*' functions are used to make `config', `init',

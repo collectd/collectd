@@ -29,13 +29,17 @@
 # error "This module is for Linux only."
 #endif
 
+static const char *config_keys[] = {
+	"Device",
+	"IgnoreSelected",
+	"ForceUseProcfs"
+};
+
 const char *const dirname_sysfs = "/sys/class/thermal";
 const char *const dirname_procfs = "/proc/acpi/thermal_zone";
 
-static char force_procfs = 0;
+static _Bool force_procfs = 0;
 static ignorelist_t *device_list;
-static value_list_t vl_temp_template = VALUE_LIST_STATIC;
-static value_list_t vl_state_template = VALUE_LIST_STATIC;
 
 enum dev_type {
 	TEMP = 0,
@@ -45,16 +49,18 @@ enum dev_type {
 static void thermal_submit (const char *plugin_instance, enum dev_type dt,
 		gauge_t value)
 {
-	value_list_t vl = (dt == TEMP) ? vl_temp_template : vl_state_template;
-	value_t vt;
+	value_list_t vl = VALUE_LIST_INIT;
+	value_t v;
 
-	vt.gauge = value;
+	v.gauge = value;
+	vl.values = &v;
 
-	vl.values = &vt;
 	sstrncpy (vl.plugin, "thermal", sizeof(vl.plugin));
-	sstrncpy (vl.plugin_instance, plugin_instance,
-			sizeof(vl.plugin_instance));
-	sstrncpy (vl.type, (dt == TEMP) ? "temperature" : "gauge",
+	if (plugin_instance != NULL)
+		sstrncpy (vl.plugin_instance, plugin_instance,
+				sizeof (vl.plugin_instance));
+	sstrncpy (vl.type,
+			(dt == TEMP) ? "temperature" : "gauge",
 			sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
@@ -66,7 +72,7 @@ static int thermal_sysfs_device_read (const char __attribute__((unused)) *dir,
 	char filename[256];
 	char data[1024];
 	int len;
-	int ok = 0;
+	_Bool success = 0;
 
 	if (device_list && ignorelist_match (device_list, name))
 		return -1;
@@ -87,7 +93,7 @@ static int thermal_sysfs_device_read (const char __attribute__((unused)) *dir,
 
 		if (endptr == data + len && errno == 0) {
 			thermal_submit(name, TEMP, temp);
-			++ok;
+			success = 1;
 		}
 	}
 
@@ -107,11 +113,11 @@ static int thermal_sysfs_device_read (const char __attribute__((unused)) *dir,
 
 		if (endptr == data + len && errno == 0) {
 			thermal_submit(name, COOLING_DEV, state);
-			++ok;
+			success = 1;
 		}
 	}
 
-	return ok ? 0 : -1;
+	return (success ? 0 : -1);
 }
 
 static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
@@ -141,17 +147,17 @@ static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
 			&& (! strncmp(data, str_temp, sizeof(str_temp)-1))) {
 		char *endptr = NULL;
 		double temp;
-		double celsius, add;
+		double factor, add;
 		
 		if (data[--len] == 'C') {
 			add = 0;
-			celsius = 1;
+			factor = 1.0;
 		} else if (data[len] == 'F') {
 			add = -32;
-			celsius = 5/9;
+			factor = 5.0/9.0;
 		} else if (data[len] == 'K') {
 			add = -273.15;
-			celsius = 1;
+			factor = 1.0;
 		} else
 			return -1;
 
@@ -164,7 +170,7 @@ static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
 		++len;
 
 		errno = 0;
-		temp = (strtod (data + len, &endptr) + add) * celsius;
+		temp = (strtod (data + len, &endptr) + add) * factor;
 
 		if (endptr != data + len && errno == 0) {
 			thermal_submit(name, TEMP, temp);
@@ -174,12 +180,6 @@ static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
 
 	return -1;
 }
-
-static const char *config_keys[] = {
-	"Device",
-	"IgnoreSelected",
-	"ForceUseProcfs"
-};
 
 static int thermal_config (const char *key, const char *value)
 {
@@ -235,21 +235,6 @@ static int thermal_init (void)
 		ret = plugin_register_read ("thermal", thermal_sysfs_read);
 	} else if (access (dirname_procfs, R_OK | X_OK) == 0) {
 		ret = plugin_register_read ("thermal", thermal_procfs_read);
-	}
-
-	if (!ret) {
-		vl_temp_template.values_len = 1;
-		vl_temp_template.interval = interval_g;
-		sstrncpy (vl_temp_template.host, hostname_g,
-			sizeof(vl_temp_template.host));
-		sstrncpy (vl_temp_template.plugin, "thermal",
-			sizeof(vl_temp_template.plugin));
-		sstrncpy (vl_temp_template.type_instance, "temperature",
-			sizeof(vl_temp_template.type_instance));
-
-		vl_state_template = vl_temp_template;
-		sstrncpy (vl_state_template.type_instance, "cooling_state",
-			sizeof(vl_state_template.type_instance));
 	}
 
 	return ret;

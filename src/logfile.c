@@ -92,7 +92,8 @@ static int logfile_config (const char *key, const char *value)
 	return 0;
 } /* int logfile_config (const char *, const char *) */
 
-static void logfile_print (const char *msg, int severity, time_t timestamp_time)
+static void logfile_print (const char *msg, int severity,
+	   	cdtime_t timestamp_time)
 {
 	FILE *fh;
 	int do_close = 0;
@@ -126,7 +127,8 @@ static void logfile_print (const char *msg, int severity, time_t timestamp_time)
 
 	if (print_timestamp)
 	{
-		localtime_r (&timestamp_time, &timestamp_tm);
+		time_t tt = CDTIME_T_TO_TIME_T (timestamp_time);
+		localtime_r (&tt, &timestamp_tm);
 
 		strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S",
 				&timestamp_tm);
@@ -179,7 +181,7 @@ static void logfile_log (int severity, const char *msg,
 	if (severity > log_level)
 		return;
 
-	logfile_print (msg, severity, time (NULL));
+	logfile_print (msg, severity, cdtime ());
 } /* void logfile_log (int, const char *) */
 
 static int logfile_notification (const notification_t *n,
@@ -218,7 +220,7 @@ static int logfile_notification (const notification_t *n,
 	buf[sizeof (buf) - 1] = '\0';
 
 	logfile_print (buf, LOG_INFO,
-			(n->time > 0) ? n->time : time (NULL));
+			(n->time != 0) ? n->time : cdtime ());
 
 	return (0);
 } /* int logfile_notification */
