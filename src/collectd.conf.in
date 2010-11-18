@@ -86,6 +86,7 @@
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
 #@BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
+#@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
@@ -411,6 +412,11 @@
 #	IgnoreSelected false
 #	HostnameFormat name
 #	InterfaceFormat name
+#</Plugin>
+
+#<Plugin lpar>
+#	CpuPoolStats   false
+#	ReportBySerial false
 #</Plugin>
 
 #<Plugin madwifi>
