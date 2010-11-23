@@ -1,6 +1,6 @@
 /**
  * collectd - src/plugin.c
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
@@ -74,6 +74,7 @@ typedef struct read_func_s read_func_t;
 static llist_t *list_init;
 static llist_t *list_write;
 static llist_t *list_flush;
+static llist_t *list_missing;
 static llist_t *list_shutdown;
 static llist_t *list_log;
 static llist_t *list_notification;
@@ -836,6 +837,13 @@ int plugin_register_flush (const char *name,
 				(void *) callback, ud));
 } /* int plugin_register_flush */
 
+int plugin_register_missing (const char *name,
+		plugin_missing_cb callback, user_data_t *ud)
+{
+	return (create_register_callback (&list_missing, name,
+				(void *) callback, ud));
+} /* int plugin_register_missing */
+
 int plugin_register_shutdown (char *name,
 		int (*callback) (void))
 {
@@ -1020,6 +1028,11 @@ int plugin_unregister_write (const char *name)
 int plugin_unregister_flush (const char *name)
 {
 	return (plugin_unregister (list_flush, name));
+}
+
+int plugin_unregister_missing (const char *name)
+{
+	return (plugin_unregister (list_missing, name));
 }
 
 int plugin_unregister_shutdown (const char *name)
@@ -1321,12 +1334,51 @@ void plugin_shutdown_all (void)
 	 * the real free function when registering the write callback. This way
 	 * the data isn't freed twice. */
 	destroy_all_callbacks (&list_flush);
+	destroy_all_callbacks (&list_missing);
 	destroy_all_callbacks (&list_write);
 
 	destroy_all_callbacks (&list_notification);
 	destroy_all_callbacks (&list_shutdown);
 	destroy_all_callbacks (&list_log);
 } /* void plugin_shutdown_all */
+
+int plugin_dispatch_missing (const value_list_t *vl) /* {{{ */
+{
+  llentry_t *le;
+
+  if (list_missing == NULL)
+    return (0);
+
+  le = llist_head (list_missing);
+  while (le != NULL)
+  {
+    callback_func_t *cf;
+    plugin_missing_cb callback;
+    int status;
+
+    cf = le->value;
+    callback = cf->cf_callback;
+
+    status = (*callback) (vl);
+    if (status != 0)
+    {
+      if (status < 0)
+      {
+        ERROR ("plugin_dispatch_missing: Callback function \"%s\" "
+            "failed with status %i.",
+            le->key, status);
+        return (status);
+      }
+      else
+      {
+        return (0);
+      }
+    }
+
+    le = le->next;
+  }
+  return (0);
+} /* int }}} plugin_dispatch_missing */
 
 int plugin_dispatch_values (value_list_t *vl)
 {

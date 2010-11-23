@@ -2,7 +2,7 @@
 #define PLUGIN_H
 /**
  * collectd - src/plugin.h
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
@@ -170,6 +170,10 @@ typedef int (*plugin_write_cb) (const data_set_t *, const value_list_t *,
 		user_data_t *);
 typedef int (*plugin_flush_cb) (cdtime_t timeout, const char *identifier,
 		user_data_t *);
+/* "missing" callback. Returns less than zero on failure, zero if other
+ * callbacks should be called, greater than zero if no more callbacks should be
+ * called. */
+typedef int (*plugin_missing_cb) (const value_list_t *);
 typedef void (*plugin_log_cb) (int severity, const char *message,
 		user_data_t *);
 typedef int (*plugin_shutdown_cb) (void);
@@ -273,6 +277,8 @@ int plugin_register_write (const char *name,
 		plugin_write_cb callback, user_data_t *user_data);
 int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *user_data);
+int plugin_register_missing (const char *name,
+		plugin_missing_cb callback, user_data_t *user_data);
 int plugin_register_shutdown (char *name,
 		plugin_shutdown_cb callback);
 int plugin_register_data_set (const data_set_t *ds);
@@ -288,6 +294,7 @@ int plugin_unregister_read (const char *name);
 int plugin_unregister_read_group (const char *group);
 int plugin_unregister_write (const char *name);
 int plugin_unregister_flush (const char *name);
+int plugin_unregister_missing (const char *name);
 int plugin_unregister_shutdown (const char *name);
 int plugin_unregister_data_set (const char *name);
 int plugin_unregister_log (const char *name);
@@ -309,6 +316,7 @@ int plugin_unregister_notification (const char *name);
  *              function.
  */
 int plugin_dispatch_values (value_list_t *vl);
+int plugin_dispatch_missing (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);
 
