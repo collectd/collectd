@@ -1,6 +1,6 @@
 /**
  * collectd - src/common.c
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Niki W. Waibel <niki.waibel@gmx.net>
  *   Sebastian Harl <sh at tokkee.org>
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
@@ -917,6 +917,36 @@ int parse_identifier (char *str, char **ret_host,
 	*ret_type_instance = type_instance;
 	return (0);
 } /* int parse_identifier */
+
+int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
+{
+	char str_copy[6 * DATA_MAX_NAME_LEN];
+	char *host = NULL;
+	char *plugin = NULL;
+	char *plugin_instance = NULL;
+	char *type = NULL;
+	char *type_instance = NULL;
+	int status;
+
+	if ((str == NULL) || (vl == NULL))
+		return (EINVAL);
+
+	sstrncpy (str_copy, str, sizeof (str_copy));
+
+	status = parse_identifier (str_copy, &host,
+			&plugin, &plugin_instance,
+			&type, &type_instance);
+	if (status != 0)
+		return (status);
+
+	sstrncpy (vl->host, host, sizeof (host));
+	sstrncpy (vl->plugin, plugin, sizeof (plugin));
+	sstrncpy (vl->plugin_instance, plugin_instance, sizeof (plugin_instance));
+	sstrncpy (vl->type, type, sizeof (type));
+	sstrncpy (vl->type_instance, type_instance, sizeof (type_instance));
+
+	return (0);
+} /* }}} int parse_identifier_vl */
 
 int parse_value (const char *value, value_t *ret_value, int ds_type)
 {
