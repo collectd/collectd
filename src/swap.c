@@ -259,7 +259,7 @@ static int swap_read (void)
 			if (numfields != 2)
 				continue;
 
-			if (strcasecmp ("pswpin", fields[0]) != 0)
+			if (strcasecmp ("pswpin", fields[0]) == 0)
 				strtoderive (fields[1], &swap_in);
 			else if (strcasecmp ("pswpout", fields[0]) == 0)
 				strtoderive (fields[1], &swap_out);
