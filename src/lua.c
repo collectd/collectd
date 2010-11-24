@@ -31,8 +31,6 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
-#include "lua_exports.c"
-
 typedef struct lua_script_s {
   char          *script_path;
   lua_State     *lua_state;
@@ -40,8 +38,77 @@ typedef struct lua_script_s {
   struct lua_script_s  *next;
 } lua_script_t;
 
+struct lua_c_functions_s
+{
+  char         *name;
+  lua_CFunction func;
+};
+typedef struct lua_c_functions_s lua_c_functions_t;
+
 static char           base_path[PATH_MAX + 1] = "";
 static lua_script_t  *scripts = NULL;
+
+/* Cleans up the stack, pushes the return value as a number onto the stack and
+ * returns the number of values returned (1). */
+#define RETURN_LUA(l,status) do {                    \
+  lua_State *_l_state = (l);                         \
+  lua_settop (_l_state, 0);                          \
+  lua_pushnumber (_l_state, (lua_Number) (status));  \
+  return (1);                                        \
+} while (0)
+
+/*
+ * Exported functions
+ */
+static int lua_cb_log (lua_State *l) /* {{{ */
+{
+  int nargs = lua_gettop (l); /* number of arguments */
+  int severity;
+  const char *msg;
+
+  if (nargs != 2)
+  {
+    WARNING ("lua plugin: collectd_log() called with an invalid number of arguments (%i).",
+        nargs);
+    RETURN_LUA (l, -1);
+  }
+
+  if (!lua_isnumber (l, 1))
+  {
+    WARNING ("lua plugin: The first argument to collectd_log() must be a number.");
+    RETURN_LUA (l, -1);
+  }
+
+  if (!lua_isstring (l, 2))
+  {
+    WARNING ("lua plugin: The second argument to collectd_log() must be a string.");
+    RETURN_LUA (l, -1);
+  }
+
+  severity = (int) lua_tonumber (l, /* stack pos = */ 1);
+  if ((severity != LOG_ERR)
+      && (severity != LOG_WARNING)
+      && (severity != LOG_NOTICE)
+      && (severity != LOG_INFO)
+      && (severity != LOG_DEBUG))
+    severity = LOG_ERR;
+
+  msg = lua_tostring (l, 2);
+  if (msg == NULL)
+  {
+    ERROR ("lua plugin: lua_tostring failed.");
+    RETURN_LUA (l, -1);
+  }
+
+  plugin_log (severity, "%s", msg);
+
+  RETURN_LUA (l, 0);
+} /* }}} int lua_cb_log */
+
+static lua_c_functions_t lua_c_functions[] =
+{
+  { "collectd_log", lua_cb_log }
+};
 
 /* Declare the Lua libraries we wish to use.
  * Note: If you are opening and running a file containing Lua code using
@@ -49,6 +116,8 @@ static lua_script_t  *scripts = NULL;
  * that file here also. */
 static const luaL_reg lua_load_libs[] =
 {
+  { LUA_COLIBNAME,   luaopen_base   },
+  /* { "luaopen_loadlib", luaopen_loadlib }, */
 #if COLLECT_DEBUG
   { LUA_DBLIBNAME,   luaopen_debug  },
 #endif
@@ -107,7 +176,9 @@ static int lua_script_init (lua_script_t *script) /* {{{ */
   }
 
   /* Register all the functions we implement in C */
-  register_exported_functions (script->lua_state);
+  for (i = 0; i < STATIC_ARRAY_SIZE (lua_c_functions); i++)
+    lua_register (script->lua_state,
+        lua_c_functions[i].name, lua_c_functions[i].func);
 
   return (0);
 } /* }}} int lua_script_init */
@@ -139,7 +210,7 @@ static int lua_script_load (const char *script_path) /* {{{ */
     return (-1);
   }
 
-  status = luaL_loadfile (script->lua_state, script->script_path);
+  status = lua_dofile (script->lua_state, script->script_path);
   if (status != 0)
   {
     const char *errmsg;
