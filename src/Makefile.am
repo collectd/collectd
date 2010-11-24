@@ -150,17 +150,6 @@ endif
 collectd_DEPENDENCIES += apache.la
 endif
 
-if BUILD_PLUGIN_LUA
-pkglib_LTLIBRARIES += lua.la
-lua_la_SOURCES = lua.c
-lua_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LUA_CFLAGS)
-lua_la_LDFLAGS = -module -avoid-version
-lua_la_LIBADD = $(BUILD_WITH_LUA_LIBS)
-collectd_LDADD += "-dlopen" lua.la
-collectd_DEPENDENCIES += lua.la
-endif
-
-
 if BUILD_PLUGIN_APCUPS
 pkglib_LTLIBRARIES += apcups.la
 apcups_la_SOURCES = apcups.c
@@ -543,6 +532,16 @@ lpar_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" lpar.la
 collectd_DEPENDENCIES += lpar.la
 lpar_la_LIBADD = -lperfstat
+endif
+
+if BUILD_PLUGIN_LUA
+pkglib_LTLIBRARIES += lua.la
+lua_la_SOURCES = lua.c
+lua_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLUA_CPPFLAGS)
+lua_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBLUA_LDFLAGS)
+lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
+collectd_LDADD += "-dlopen" lua.la
+collectd_DEPENDENCIES += lua.la
 endif
 
 if BUILD_PLUGIN_MADWIFI
