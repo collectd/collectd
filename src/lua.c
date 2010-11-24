@@ -40,113 +40,199 @@ typedef struct lua_script_s {
   struct lua_script_s  *next;
 } lua_script_t;
 
+static char           base_path[PATH_MAX + 1] = "";
+static lua_script_t  *scripts = NULL;
 
-static char           base_path[MAXPATHLEN];
-static lua_script_t   scripts;
-
-
-
-/* Declare the Lua libraries we wish to use. */
-/* Note: If you are opening and running a file containing Lua code */
-/* using 'lua_dofile(l, "myfile.lua") - you must delcare all the libraries */
-/* used in that file here also. */
-static const luaL_reg lualibs[] =
+/* Declare the Lua libraries we wish to use.
+ * Note: If you are opening and running a file containing Lua code using
+ * 'lua_dofile(l, "myfile.lua") - you must delcare all the libraries used in
+ * that file here also. */
+static const luaL_reg lua_load_libs[] =
 {
-        // { "base",       luaopen_base },
-        { NULL,         NULL }
+#if COLLECT_DEBUG
+  { LUA_DBLIBNAME,   luaopen_debug  },
+#endif
+  { LUA_TABLIBNAME,  luaopen_table  },
+  { LUA_IOLIBNAME,   luaopen_io     },
+  { LUA_STRLIBNAME,  luaopen_string },
+  { LUA_MATHLIBNAME, luaopen_math   }
 };
 
-/* A function to open up all the Lua libraries you declared above. */
-static void openlualibs(lua_State *l)
+static void lua_script_free (lua_script_t *script) /* {{{ */
 {
-  const luaL_reg *lib;
-  for( lib = lualibs; lib->func != NULL; lib++) {
-    lib->func(l);
-    lua_settop(l, 0);
+  lua_script_t *next;
+
+  if (script == NULL)
+    return;
+
+  next = script->next;
+
+  if (script->lua_state != NULL)
+  {
+    lua_close (script->lua_state);
+    script->lua_state = NULL;
   }
-}
 
+  sfree (script->script_path);
+  sfree (script);
 
+  lua_script_free (next);
+} /* }}} void lua_script_free */
 
-
-
-static int lua_config_base_path (const oconfig_item_t *ci)
+static int lua_script_init (lua_script_t *script) /* {{{ */
 {
-  if( (ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING) ){
-    ERROR("lua plugin: The '%s' config option requires a single string argument", ci->key);
-    return -1;
-  }
-  
-  strncpy(base_path, ci->values[0].value.string, sizeof(base_path));
-  
-  /* add ending slash if not provided */
-  if( base_path[strlen(base_path) - 1] != '/' ){
-    base_path[strlen(base_path)] = '/';
-  }
-  
-  INFO("lua plugin: BasePath = '%s'", base_path);
-  return 0;
-}
+  size_t i;
 
-static int lua_config_script (const oconfig_item_t *ci)
-{
-  lua_script_t *script = &scripts;
-  
-  if( (ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING) ){
-    ERROR("lua plugin: The '%s' config option requires a single string argument", ci->key);
-    return -1;
-  }
-  
-  /* find a free slot for the structure */
-  while( script->next != NULL ){
-    script = script->next;
-  }
-  
-  /* build full path : base_path + given path + \0 */
-  script->script_path = malloc(
-      strlen(base_path) +
-      strlen(ci->values[0].value.string) + 1
-    );
-  
-  strncpy(script->script_path, base_path, sizeof(script->script_path));
-  strncpy(script->script_path + strlen(base_path), ci->values[0].value.string, sizeof(script->script_path));
-  
-  /* check if the file exists and we can read it */
-  if( access(script->script_path, R_OK) == -1 ) {
-    ERROR("lua plugin: Cannot read file '%s' : %s", script->script_path, strerror(errno));
-    free(script->script_path);
-    return -1;
-  }
-  
+  memset (script, 0, sizeof (*script));
+  script->script_path = NULL;
+  script->next = NULL;
+
   /* initialize the lua context */
   script->lua_state = lua_open();
-  
-  openlualibs(script->lua_state);
-  
-  if( register_exported_functions(script->lua_state) != 0 ) {
-    ERROR("lua plugin: Cannot register exported functions, aborting");
-    free(script->script_path);
-    return -1;
+  if (script->lua_state == NULL)
+  {
+    ERROR ("lua plugin: lua_open failed.");
+    return (-1);
   }
-  
-  /* and try to load the file */
-  if( luaL_dofile(script->lua_state, "script.lua") != 0 ) {
-    ERROR("lua plugin: error while loading '%s' => %s\n", script->script_path, lua_tostring(script->lua_state, -1));
-    free(script->script_path);
-    return -1;
+
+  /* Open up all the Lua libraries declared above. */
+  for (i = 0; i < STATIC_ARRAY_SIZE (lua_load_libs); i++)
+  {
+    int status;
+
+    status = (*lua_load_libs[i].func) (script->lua_state);
+    if (status != 0)
+      WARNING ("lua plugin: Loading library \"%s\" failed.",
+          lua_load_libs[i].name);
   }
-  
-  INFO("lua plugin: file '%s' loaded succesfully", script->script_path);
+
+  /* Register all the functions we implement in C */
+  register_exported_functions (script->lua_state);
+
+  return (0);
+} /* }}} int lua_script_init */
+
+static int lua_script_load (const char *script_path) /* {{{ */
+{
+  lua_script_t *script;
+  int status;
+
+  script = malloc (sizeof (*script));
+  if (script == NULL)
+  {
+    ERROR ("lua plugin: malloc failed.");
+    return (-1);
+  }
+
+  status = lua_script_init (script);
+  if (status != 0)
+  {
+    lua_script_free (script);
+    return (status);
+  }
+
+  script->script_path = strdup (script_path);
+  if (script->script_path == NULL)
+  {
+    ERROR ("lua plugin: strdup failed.");
+    lua_script_free (script);
+    return (-1);
+  }
+
+  status = luaL_loadfile (script->lua_state, script->script_path);
+  if (status != 0)
+  {
+    const char *errmsg;
+
+    switch (status)
+    {
+      case LUA_ERRSYNTAX: errmsg = "Syntax error"; break;
+      case LUA_ERRFILE:   errmsg = "File I/O error"; break;
+      case LUA_ERRMEM:    errmsg = "Memory allocation error"; break;
+      default:            errmsg = "Unexpected error";
+    }
+
+    ERROR ("lua plugin: Loading script \"%s\" failed: %s",
+        script->script_path, errmsg);
+
+    lua_script_free (script);
+    return (-1);
+  }
+
+  /* Append this script to the global list of scripts. */
+  if (scripts == NULL)
+  {
+    scripts = script;
+  }
+  else
+  {
+    lua_script_t *last;
+
+    last = scripts;
+    while (last->next != NULL)
+      last = last->next;
+
+    last->next = script;
+  }
+
+  return (0);
+} /* }}} int lua_script_load */
+
+static int lua_config_base_path (const oconfig_item_t *ci) /* {{{ */
+{
+  int status;
+  size_t len;
+
+  status = cf_util_get_string_buffer (ci, base_path, sizeof (base_path));
+  if (status != 0)
+    return (status);
+
+  len = strlen (base_path);
+  while ((len > 0) && (base_path[len - 1] == '/'))
+  {
+    len--;
+    base_path[len] = 0;
+  }
+
+  DEBUG ("lua plugin: base_path = \"%s\";", base_path);
+
+  return (0);
+} /* }}} int lua_config_base_path */
+
+static int lua_config_script (const oconfig_item_t *ci) /* {{{ */
+{
+  char rel_path[PATH_MAX + 1];
+  char abs_path[PATH_MAX + 1];
+  int status;
+
+  status = cf_util_get_string_buffer (ci, rel_path, sizeof (rel_path));
+  if (status != 0)
+    return (status);
+
+  if (base_path[0] == 0)
+    sstrncpy (abs_path, rel_path, sizeof (abs_path));
+  else
+    ssnprintf (abs_path, sizeof (abs_path), "%s/%s", base_path, rel_path);
+
+  DEBUG ("lua plugin: abs_path = \"%s\";", abs_path);
+
+  status = lua_script_load (abs_path);
+  if (status != 0)
+    return (status);
+
+  INFO("lua plugin: File \"%s\" loaded succesfully", abs_path);
   
   return 0;
-}
+} /* }}} int lua_config_script */
 
-// <Plugin lua>
-//   BasePath /
-//   Script script1.lua
-//   Script script2.lua
-// </Plugin>
-static int lua_config(oconfig_item_t *ci)
+/*
+ * <Plugin lua>
+ *   BasePath "/"
+ *   Script "script1.lua"
+ *   Script "script2.lua"
+ * </Plugin>
+ */
+static int lua_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
 
@@ -168,20 +254,20 @@ static int lua_config(oconfig_item_t *ci)
   }
   
   return 0;
-}
+} /* }}} int lua_config */
 
-static int lua_init()
+static int lua_shutdown (void) /* {{{ */
 {
-  INFO("Lua plugin loaded.");
-  
-  return 0;
-}
+  lua_script_free (scripts);
+  scripts = NULL;
+
+  return (0);
+} /* }}} int lua_shutdown */
 
 void module_register()
 {
   plugin_register_complex_config("lua", lua_config);
-  plugin_register_init("lua", lua_init);
+  plugin_register_shutdown("lua", lua_shutdown);
 }
 
-
-
+/* vim: set sw=2 sts=2 et fdm=marker : */
