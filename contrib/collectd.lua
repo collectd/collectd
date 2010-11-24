@@ -1,7 +1,7 @@
 -- contrib/collectd.lua
 --
 -- Auxilliary functions to use in plugins written in Lua. Load this file using
---   dofile ("collectd.lua");
+--   require ("collectd.lua");
 -- at the beginning of your script.
 
 function collectd_error (msg)
