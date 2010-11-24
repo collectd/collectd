@@ -1,6 +1,7 @@
 /**
  * collectd - src/lua.c
  * Copyright (C) 2010       Julien Ammous
+ * Copyright (C) 2010       Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,6 +19,7 @@
  *
  * Authors:
  *   Julien Ammous
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -38,6 +40,13 @@ typedef struct lua_script_s {
   struct lua_script_s  *next;
 } lua_script_t;
 
+struct clua_read_function_s
+{
+  lua_State *lua_state;
+  char *lua_function_name;
+};
+typedef struct clua_read_function_s clua_read_function_t;
+
 struct lua_c_functions_s
 {
   char         *name;
@@ -47,6 +56,42 @@ typedef struct lua_c_functions_s lua_c_functions_t;
 
 static char           base_path[PATH_MAX + 1] = "";
 static lua_script_t  *scripts = NULL;
+
+static int clua_read (user_data_t *ud) /* {{{ */
+{
+  clua_read_function_t *rf = ud->data;
+  int status;
+
+  /* Load the function to the stack */
+  lua_pushstring (rf->lua_state, rf->lua_function_name);
+  lua_gettable (rf->lua_state, LUA_REGISTRYINDEX);
+
+  if (!lua_isfunction (rf->lua_state, /* stack pos = */ -1))
+  {
+    ERROR ("lua plugin: Unable to lookup the read function \"%s\".",
+        rf->lua_function_name);
+    /* pop the value again */
+    lua_settop (rf->lua_state, -2);
+    return (-1);
+  }
+
+  lua_call (rf->lua_state, /* nargs = */ 0, /* nresults = */ 1);
+
+  if (lua_isnumber (rf->lua_state, -1))
+  {
+    status = (int) lua_tonumber (rf->lua_state, -1);
+  }
+  else
+  {
+    ERROR ("lua plugin: Read function \"%s\" did not return a numeric status.",
+        rf->lua_function_name);
+    status = -1;
+  }
+  /* pop the value */
+  lua_settop (rf->lua_state, -2);
+
+  return (status);
+} /* }}} int clua_read */
 
 /* Cleans up the stack, pushes the return value as a number onto the stack and
  * returns the number of values returned (1). */
@@ -105,9 +150,76 @@ static int lua_cb_log (lua_State *l) /* {{{ */
   RETURN_LUA (l, 0);
 } /* }}} int lua_cb_log */
 
+static int lua_cb_register_read (lua_State *l) /* {{{ */
+{
+  static int count = 0;
+  int nargs = lua_gettop (l); /* number of arguments */
+  clua_read_function_t *rf;
+
+  int num = count++; /* XXX FIXME: Not thread-safe! */
+  char function_name[64];
+
+  if (nargs != 1)
+  {
+    WARNING ("lua plugin: collectd_register_read() called with an invalid "
+        "number of arguments (%i).", nargs);
+    RETURN_LUA (l, -1);
+  }
+
+  /* If the argument is a string, assume it's a global function and try to look
+   * it up. */
+  if (lua_isstring (l, /* stack pos = */ 1))
+    lua_gettable (l, LUA_GLOBALSINDEX);
+
+  if (!lua_isfunction (l, /* stack pos = */ 1))
+  {
+    WARNING ("lua plugin: The first argument of collectd_register_read() "
+        "must be a function.");
+    RETURN_LUA (l, -1);
+  }
+
+  ssnprintf (function_name, sizeof (function_name), "collectd.read_func_%i", num);
+
+  /* Push the name of the global variable */
+  lua_pushstring (l, function_name);
+  /* Push the name down to the first position */
+  lua_insert (l, 1);
+  /* Now set the global variable called "collectd". */
+  lua_settable (l, LUA_REGISTRYINDEX);
+
+  rf = malloc (sizeof (*rf));
+  if (rf == NULL)
+  {
+    ERROR ("lua plugin: malloc failed.");
+    RETURN_LUA (l, -1);
+  }
+  else
+  {
+    user_data_t ud = { rf, /* free func */ NULL /* FIXME */ };
+    char cb_name[DATA_MAX_NAME_LEN];
+
+    memset (rf, 0, sizeof (*rf));
+    rf->lua_state = l;
+    rf->lua_function_name = strdup (function_name);
+
+    ssnprintf (cb_name, sizeof (cb_name), "lua/read_func_%i", num);
+
+    plugin_register_complex_read (/* group = */ "lua",
+        /* name      = */ cb_name,
+        /* callback  = */ clua_read,
+        /* interval  = */ NULL,
+        /* user_data = */ &ud);
+  }
+
+  DEBUG ("lua plugin: Successful call to lua_cb_register_read().");
+
+  RETURN_LUA (l, 0);
+} /* }}} int lua_cb_register_read */
+
 static lua_c_functions_t lua_c_functions[] =
 {
-  { "collectd_log", lua_cb_log }
+  { "collectd_log", lua_cb_log },
+  { "collectd_register_read", lua_cb_register_read }
 };
 
 /* Declare the Lua libraries we wish to use.
