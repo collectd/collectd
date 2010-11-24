@@ -20,19 +20,16 @@
  *   Julien Ammous
  **/
 
-#include <unistd.h> // access
-
-/* Include the Lua API header files. */
-#define lua_c
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
 #include "utils_cache.h"
+
+/* Include the Lua API header files. */
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 
 #include "lua_exports.c"
 
