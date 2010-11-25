@@ -4611,6 +4611,7 @@ plugin_thermal="no"
 plugin_users="no"
 plugin_uptime="no"
 plugin_vmem="no"
+plugin_vmware="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
@@ -4721,6 +4722,9 @@ then
 	then
 		plugin_bind="yes"
 	fi
+
+	# FIXME: Check for the required library.
+	plugin_vmware="yes"
 fi
 
 if test "x$with_libopenipmipthread" = "xyes"
@@ -4993,6 +4997,7 @@ AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([varnish],     [$with_libvarnish],   [Varnish cache statistics])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
+AC_PLUGIN([vmware],      [$plugin_vmware],     [VMware client statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
@@ -5327,6 +5332,7 @@ Configuration:
     uuid  . . . . . . . . $enable_uuid
     varnish . . . . . . . $enable_varnish
     vmem  . . . . . . . . $enable_vmem
+    vmware  . . . . . . . $enable_vmware
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
     write_graphite  . . . $enable_write_graphite
