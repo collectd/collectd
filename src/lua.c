@@ -111,6 +111,102 @@ static int clua_read (user_data_t *ud) /* {{{ */
   return (1);                                        \
 } while (0)
 
+static int ltoc_string_buffer (lua_State *l, /* {{{ */
+    char *buffer, size_t buffer_size,
+    _Bool consume)
+{
+  const char *str;
+
+  str = lua_tostring (l, /* stack pos = */ -1);
+  if (str != NULL)
+    sstrncpy (buffer, str, buffer_size);
+
+  if (consume)
+    lua_pop (l, /* nelem = */ 1);
+
+  return ((str != NULL) ? 0 : -1);
+} /* }}} int ltoc_string_buffer */
+
+static int ltoc_table_string_buffer (lua_State *l, /* {{{ */
+    const char *table_key,
+    char *buffer, size_t buffer_size)
+{
+  lua_pushstring (l, table_key);
+  lua_gettable (l, -2);
+
+  if (!lua_isstring (l, /* stack pos = */ -1))
+  {
+    lua_pop (l, /* nelem = */ 1);
+    return (-1);
+  }
+
+  return (ltoc_string_buffer (l, buffer, buffer_size, /* consume = */ 1));
+} /* }}} int ltoc_table_string_buffer */
+
+static int ltoc_table_cdtime (lua_State *l, /* {{{ */
+    const char *table_key, cdtime_t *ret_time)
+{
+  double d;
+
+  lua_pushstring (l, table_key);
+  lua_gettable (l, -2);
+
+  if (!lua_isnumber (l, /* stack pos = */ -1))
+  {
+    lua_pop (l, /* nelem = */ 1);
+    return (-1);
+  }
+
+  d = (double) lua_tonumber (l, -1);
+  lua_pop (l, /* nelem = */ 1);
+
+  *ret_time = DOUBLE_TO_CDTIME_T (d);
+  return (0);
+} /* }}} int ltoc_table_cdtime */
+
+static value_list_t *ltoc_value_list (lua_State *l) /* {{{ */
+{
+  value_list_t *vl;
+  int status;
+
+  vl = malloc (sizeof (*vl));
+  if (vl == NULL)
+    return (NULL);
+  memset (vl, 0, sizeof (*vl));
+  vl->values = NULL;
+  vl->meta = NULL;
+
+#define COPY_FIELD(field,def) do {                                              \
+  status = ltoc_table_string_buffer (l, #field, vl->field, sizeof (vl->field)); \
+  if (status != 0) {                                                            \
+    if ((def) == NULL)                                                          \
+      return (NULL);                                                            \
+    else                                                                        \
+      sstrncpy (vl->field, (def), sizeof (vl->field));                          \
+  }                                                                             \
+} while (0)
+
+  COPY_FIELD (host, hostname_g);
+  COPY_FIELD (plugin, NULL);
+  COPY_FIELD (plugin_instance, "");
+  COPY_FIELD (type, NULL);
+  COPY_FIELD (type_instance, "");
+
+#undef COPY_FIELD
+
+  status = ltoc_table_cdtime (l, "time", &vl->time);
+  if (status != 0)
+    vl->time = cdtime ();
+
+  status = ltoc_table_cdtime (l, "interval", &vl->interval);
+  if (status != 0)
+    vl->interval = interval_g;
+
+  /* TODO: values */
+
+  return (vl);
+} /* }}} value_list_t *ltoc_value_list */
+
 /*
  * Exported functions
  */
@@ -158,6 +254,42 @@ static int lua_cb_log (lua_State *l) /* {{{ */
 
   RETURN_LUA (l, 0);
 } /* }}} int lua_cb_log */
+
+static int lua_cb_dispatch_values (lua_State *l) /* {{{ */
+{
+  value_list_t *vl;
+  int nargs = lua_gettop (l); /* number of arguments */
+  char identifier[6 * DATA_MAX_NAME_LEN];
+
+  if (nargs != 1)
+  {
+    WARNING ("lua plugin: collectd_dispatch_values() called "
+        "with an invalid number of arguments (%i).", nargs);
+    RETURN_LUA (l, -1);
+  }
+
+  if (!lua_istable (l, 1))
+  {
+    WARNING ("lua plugin: The first argument to collectd_dispatch_values() "
+        "must be a table.");
+    RETURN_LUA (l, -1);
+  }
+
+  vl = ltoc_value_list (l);
+  if (vl == NULL)
+  {
+    WARNING ("lua plugin: ltoc_value_list failed.");
+    RETURN_LUA (l, -1);
+  }
+
+  FORMAT_VL (identifier, sizeof (identifier), vl);
+
+  DEBUG ("lua plugin: collectd_dispatch_values: Received value list \"%s\", time %.3f, interval %.3f.",
+      identifier, CDTIME_T_TO_DOUBLE (vl->time), CDTIME_T_TO_DOUBLE (vl->interval));
+
+  sfree (vl);
+  RETURN_LUA (l, 0);
+} /* }}} lua_cb_dispatch_values */
 
 static int lua_cb_register_read (lua_State *l) /* {{{ */
 {
@@ -228,6 +360,7 @@ static int lua_cb_register_read (lua_State *l) /* {{{ */
 static lua_c_functions_t lua_c_functions[] =
 {
   { "collectd_log", lua_cb_log },
+  { "collectd_dispatch_values", lua_cb_dispatch_values },
   { "collectd_register_read", lua_cb_register_read }
 };
 
