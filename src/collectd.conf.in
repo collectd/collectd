@@ -87,6 +87,7 @@
 #@BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
+#@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
@@ -417,6 +418,12 @@
 #<Plugin lpar>
 #	CpuPoolStats   false
 #	ReportBySerial false
+#</Plugin>
+
+#<Plugin lua>
+#	BasePath "@prefix@/share/@PACKAGE_NAME@/lua"
+#	Script "script1.lua"
+#	Script "script2.lua"
 #</Plugin>
 
 #<Plugin madwifi>
