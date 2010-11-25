@@ -1590,6 +1590,9 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		if (sis == NULL)
 			continue;
 
+		if (na_elem_child(sis, "sis-info"))
+			sis = na_elem_child(sis, "sis-info");
+		
 		sis_state = na_child_get_string(sis, "state");
 		if (sis_state == NULL)
 			continue;
