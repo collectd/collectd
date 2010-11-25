@@ -111,6 +111,102 @@ static int clua_read (user_data_t *ud) /* {{{ */
   return (1);                                        \
 } while (0)
 
+static int ltoc_value (lua_State *l, /* {{{ */
+    int ds_type, value_t *ret_value)
+{
+  if (!lua_isnumber (l, /* stack pos = */ -1))
+    return (-1);
+
+  if (ds_type == DS_TYPE_GAUGE)
+    ret_value->gauge = (gauge_t) lua_tonumber (l, /* stack pos = */ -1);
+  else if (ds_type == DS_TYPE_DERIVE)
+    ret_value->derive = (derive_t) lua_tointeger (l, /* stack pos = */ -1);
+  else if (ds_type == DS_TYPE_COUNTER)
+    ret_value->counter = (counter_t) lua_tointeger (l, /* stack pos = */ -1);
+  else if (ds_type == DS_TYPE_ABSOLUTE)
+    ret_value->absolute = (absolute_t) lua_tointeger (l, /* stack pos = */ -1);
+  else
+    assert (23 == 42);
+
+  return (0);
+} /* }}} int ltoc_value */
+
+static int ltoc_values (lua_State *l, /* {{{ */
+    const data_set_t *ds,
+    value_t *ret_values)
+{
+  size_t i;
+  int status = 0;
+
+  if (!lua_istable (l, -1))
+  {
+    lua_pop (l, /* nelem = */ 1);
+    return (-1);
+  }
+
+  /* Push initial key */
+  lua_pushnil (l);
+  for (i = 0; i < ((size_t) ds->ds_num); i++)
+  {
+    /* Pops old key and pushed new key and value. */
+    status = lua_next (l, -2);
+    if (status == 0) /* no more elements */
+      break;
+
+    status = ltoc_value (l, ds->ds[i].type, ret_values + i);
+    if (status != 0)
+    {
+      DEBUG ("ltoc_value failed.");
+      break;
+    }
+
+    /* Pop the value */
+    lua_pop (l, /* nelems = */ 1);
+  }
+  /* Pop the key and the table itself */
+  lua_pop (l, /* nelems = */ 2);
+
+  return (status);
+} /* }}} int ltoc_values */
+
+static int ltoc_table_values (lua_State *l, /* {{{ */
+    const data_set_t *ds, value_list_t *vl)
+{
+  int status;
+
+  lua_pushstring (l, "values");
+  lua_gettable (l, -2);
+
+  if (!lua_istable (l, -1))
+  {
+    NOTICE ("lua plugin: ltoc_table_values: The \"values\" member is not a table.");
+    lua_pop (l, /* nelem = */ 1);
+    return (-1);
+  }
+
+  vl->values_len = ds->ds_num;
+  vl->values = calloc ((size_t) vl->values_len, sizeof (*vl->values));
+  if (vl->values == NULL)
+  {
+    ERROR ("lua plugin: calloc failed.");
+    vl->values_len = 0;
+    lua_pop (l, /* nelem = */ 1);
+    return (-1);
+  }
+
+  status = ltoc_values (l, ds, vl->values);
+
+  lua_pop (l, /* nelem = */ 1);
+
+  if (status != 0)
+  {
+    vl->values_len = 0;
+    sfree (vl->values);
+  }
+
+  return (status);
+} /* }}} int ltoc_table_values */
+
 static int ltoc_string_buffer (lua_State *l, /* {{{ */
     char *buffer, size_t buffer_size,
     _Bool consume)
@@ -166,6 +262,7 @@ static int ltoc_table_cdtime (lua_State *l, /* {{{ */
 
 static value_list_t *ltoc_value_list (lua_State *l) /* {{{ */
 {
+  const data_set_t *ds;
   value_list_t *vl;
   int status;
 
@@ -194,6 +291,14 @@ static value_list_t *ltoc_value_list (lua_State *l) /* {{{ */
 
 #undef COPY_FIELD
 
+  ds = plugin_get_ds (vl->type);
+  if (ds == NULL)
+  {
+    INFO ("lua plugin: Unable to lookup type \"%s\".", vl->type);
+    sfree (vl);
+    return (NULL);
+  }
+
   status = ltoc_table_cdtime (l, "time", &vl->time);
   if (status != 0)
     vl->time = cdtime ();
@@ -202,7 +307,13 @@ static value_list_t *ltoc_value_list (lua_State *l) /* {{{ */
   if (status != 0)
     vl->interval = interval_g;
 
-  /* TODO: values */
+  status = ltoc_table_values (l, ds, vl);
+  if (status != 0)
+  {
+    WARNING ("lua plugin: ltoc_table_values failed.");
+    sfree (vl);
+    return (NULL);
+  }
 
   return (vl);
 } /* }}} value_list_t *ltoc_value_list */
@@ -287,6 +398,7 @@ static int lua_cb_dispatch_values (lua_State *l) /* {{{ */
   DEBUG ("lua plugin: collectd_dispatch_values: Received value list \"%s\", time %.3f, interval %.3f.",
       identifier, CDTIME_T_TO_DOUBLE (vl->time), CDTIME_T_TO_DOUBLE (vl->interval));
 
+  sfree (vl->values);
   sfree (vl);
   RETURN_LUA (l, 0);
 } /* }}} lua_cb_dispatch_values */
