@@ -231,23 +231,6 @@ static lua_c_functions_t lua_c_functions[] =
   { "collectd_register_read", lua_cb_register_read }
 };
 
-/* Declare the Lua libraries we wish to use.
- * Note: If you are opening and running a file containing Lua code using
- * 'lua_dofile(l, "myfile.lua") - you must delcare all the libraries used in
- * that file here also. */
-static const luaL_reg lua_load_libs[] =
-{
-  { LUA_COLIBNAME,   luaopen_base   },
-  /* { "luaopen_loadlib", luaopen_loadlib }, */
-#if COLLECT_DEBUG
-  { LUA_DBLIBNAME,   luaopen_debug  },
-#endif
-  { LUA_TABLIBNAME,  luaopen_table  },
-  { LUA_IOLIBNAME,   luaopen_io     },
-  { LUA_STRLIBNAME,  luaopen_string },
-  { LUA_MATHLIBNAME, luaopen_math   }
-};
-
 static void lua_script_free (lua_script_t *script) /* {{{ */
 {
   lua_script_t *next;
@@ -285,16 +268,8 @@ static int lua_script_init (lua_script_t *script) /* {{{ */
     return (-1);
   }
 
-  /* Open up all the Lua libraries declared above. */
-  for (i = 0; i < STATIC_ARRAY_SIZE (lua_load_libs); i++)
-  {
-    int status;
-
-    status = (*lua_load_libs[i].func) (script->lua_state);
-    if (status != 0)
-      WARNING ("lua plugin: Loading library \"%s\" failed.",
-          lua_load_libs[i].name);
-  }
+  /* Open up all the standard Lua libraries. */
+  luaL_openlibs (script->lua_state);
 
   /* Register all the functions we implement in C */
   for (i = 0; i < STATIC_ARRAY_SIZE (lua_c_functions); i++)
