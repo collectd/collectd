@@ -1967,78 +1967,48 @@ AM_CONDITIONAL(BUILD_WITH_JAVA, test "x$with_java" = "xyes")
 # }}}
 
 # --with-liblua {{{
-with_liblua_config="lua-config50"
 with_liblua_cppflags=""
 with_liblua_ldflags=""
 with_liblua_libs=""
-AC_ARG_WITH(liblua, [AS_HELP_STRING([--with-liblua@<:@=lua-config50@:>@], [Path to the Lua config script.])],
-[
-    if test "x$withval" = "xno" || test "x$withval" = "xyes"
-    then
-	    with_liblua="$withval"
-    else
-	    if test -f "$withval" && test -x "$withval"
-	    then
-		    with_liblua_config="$withval"
-		    with_liblua="yes"
-	    else if test -x "$withval/bin/lua-config50"
-	    then
-		    with_liblua_config="$withval/bin/lua-config50"
-		    with_liblua="yes"
-	    else
-		    AC_MSG_ERROR("not an executable: $withval")
-	    fi; fi
-    fi
-],
-[
-    with_liblua="yes"
-])
+with_liblua="yes"
+
 if test "x$with_liblua" = "xyes"
 then
-	with_liblua_cppflags=`$with_liblua_config --include 2>/dev/null`
+	$PKG_CONFIG --exists lua5.1 2>/dev/null
 	lua_config_status=$?
 
-	if test $lua_config_status -ne 0
+	if test 0 -ne $lua_config_status
 	then
-		with_liblua="no ($with_liblua_config failed)"
-	else
-		SAVE_CPPFLAGS="$CPPFLAGS"
-		CPPFLAGS="$CPPFLAGS $with_liblua_cppflags"
-
-		AC_CHECK_HEADERS(lua.h, [], [with_liblua="no (lua.h not found)"], [])
-
-		CPPFLAGS="$SAVE_CPPFLAGS"
+		with_liblua="no"
 	fi
+fi
+
+if test "x$with_liblua" = "xyes"
+then
+	with_liblua_cppflags=`$PKG_CONFIG --cflags-only-I lua5.1` || with_liblua="no"
+	with_liblua_ldflags=`$PKG_CONFIG --libs-only-L lua5.1` || with_liblua="no"
+	with_liblua_libs=`$PKG_CONFIG --libs-only-l lua5.1` || with_liblua="no"
 fi
 if test "x$with_liblua" = "xyes"
 then
-	with_liblua_ldflags=`$with_liblua_config --libs-only-L 2>/dev/null`
-	lua_config_status=$?
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_liblua_cppflags"
 
-	if test $lua_config_status -ne 0
-	then
-		with_liblua="no ($with_liblua_config failed)"
-	fi
+	AC_CHECK_HEADERS(lua.h lauxlib.h lualib.h, [], [with_liblua="no (header not found)"], [])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 if test "x$with_liblua" = "xyes"
 then
-	with_liblua_libs=`$with_liblua_config --libs-only-l 2>/dev/null`
-	lua_config_status=$?
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_LIBS="$LIBS"
+	LDFLAGS="$SAVE_LDFLAGS $with_liblua_ldflags"
+	LIBS="$LIBS $with_liblua_libs"
 
-	if test $lua_config_status -ne 0
-	then
-		with_liblua="no ($with_liblua_config failed)"
-	else
-		SAVE_LDFLAGS="$LDFLAGS"
-		SAVE_LIBS="$LIBS"
-		LDFLAGS="$SAVE_LDFLAGS $with_liblua_ldflags"
-		LIBS="$LIBS $with_liblua_libs"
+	AC_CHECK_FUNC(lua_settop, [with_liblua="yes"], [with_liblua="no (symbol 'lua_settop' not found)"])
 
-		AC_CHECK_FUNC(lua_settop, [with_liblua="yes"], [with_liblua="no (symbol 'lua_settop' not found)"])
-
-		LDFLAGS="$SAVE_LDFLAGS"
-		LIBS="$SAVE_LIBS"
-	fi
+	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
 fi
 if test "x$with_liblua" = "xyes"
 then

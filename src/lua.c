@@ -22,6 +22,10 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
+/* <lua5.1/luaconf.h> defines a macro using "sprintf". Although not used here,
+ * GCC will complain about the macro definition. */
+#define DONT_POISON_SPRINTF_YET
+
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
@@ -32,6 +36,11 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+
+#if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
+# undef sprintf
+# pragma GCC poison sprintf
+#endif
 
 typedef struct lua_script_s {
   char          *script_path;
@@ -322,7 +331,7 @@ static int lua_script_load (const char *script_path) /* {{{ */
     return (-1);
   }
 
-  status = lua_dofile (script->lua_state, script->script_path);
+  status = luaL_dofile (script->lua_state, script->script_path);
   if (status != 0)
   {
     const char *errmsg;
