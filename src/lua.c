@@ -306,21 +306,31 @@ static int lua_script_load (const char *script_path) /* {{{ */
     return (-1);
   }
 
-  status = luaL_dofile (script->lua_state, script->script_path);
+  status = luaL_loadfile (script->lua_state, script->script_path);
+  if (status != 0)
+  {
+    ERROR ("lua plugin: luaL_loadfile failed with status %i", status);
+    lua_script_free (script);
+    return (-1);
+  }
+
+  status = lua_pcall (script->lua_state,
+      /* nargs = */    0,
+      /* nresults = */ LUA_MULTRET,
+      /* errfunc = */  0);
   if (status != 0)
   {
     const char *errmsg;
 
-    switch (status)
-    {
-      case LUA_ERRSYNTAX: errmsg = "Syntax error"; break;
-      case LUA_ERRFILE:   errmsg = "File I/O error"; break;
-      case LUA_ERRMEM:    errmsg = "Memory allocation error"; break;
-      default:            errmsg = "Unexpected error";
-    }
+    errmsg = lua_tostring (script->lua_state, /* stack pos = */ -1);
 
-    ERROR ("lua plugin: Loading script \"%s\" failed: %s",
-        script->script_path, errmsg);
+    if (errmsg == NULL)
+      ERROR ("lua plugin: lua_pcall failed with status %i. "
+          "In addition, no error message could be retrieved from the stack.",
+          status);
+    else
+      ERROR ("lua plugin: Executing script \"%s\" failed:\n%s",
+          script->script_path, errmsg);
 
     lua_script_free (script);
     return (-1);
