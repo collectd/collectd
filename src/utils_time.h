@@ -54,8 +54,8 @@
         (tvp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                            \
         (tvp)->tv_usec = CDTIME_T_TO_US ((cdt) % 1073741824);                \
 } while (0)
-#define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_T ((tv).tv_sec)            \
-    + US_TO_CDTIME_T ((tv).tv_usec))
+#define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_T ((tv)->tv_sec)           \
+    + US_TO_CDTIME_T ((tv)->tv_usec))
 
 #define CDTIME_T_TO_TIMESPEC(cdt,tsp) do {                                   \
   (tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                                  \
