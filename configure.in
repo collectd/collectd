@@ -574,13 +574,24 @@ AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$socket_needs_socket" = "xyes")
 
 clock_gettime_needs_rt="no"
 clock_gettime_needs_posix4="no"
-AC_CHECK_FUNCS(clock_gettime,
-    [],
-    AC_CHECK_LIB(rt, clock_gettime,
-        [clock_gettime_needs_rt="yes"],
-        AC_CHECK_LIB(posix4, clock_gettime,
-            [clock_gettime_needs_posix4="yes"],
-            AC_MSG_ERROR(cannot find clock_gettime))))
+have_clock_gettime="no"
+AC_CHECK_FUNCS(clock_gettime, [have_clock_gettime="yes"])
+if test "x$have_clock_gettime" = "xno"
+then
+	AC_CHECK_LIB(rt, clock_gettime, [clock_gettime_needs_rt="yes"
+					 have_clock_gettime="yes"])
+fi
+if test "x$have_clock_gettime" = "xno"
+then
+	AC_CHECK_LIB(posix4, clock_gettime, [clock_gettime_needs_posix4="yes"
+					     have_clock_gettime="yes"])
+fi
+if test "x$have_clock_gettime" = "xyes"
+then
+	AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [Define if the clock_gettime(2) function is available.])
+else
+	AC_MSG_WARN(cannot find clock_gettime)
+fi
 
 nanosleep_needs_rt="no"
 nanosleep_needs_posix4="no"
