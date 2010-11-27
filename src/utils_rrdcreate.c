@@ -405,19 +405,19 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   memcpy (argv + ds_num, rra_def, rra_num * sizeof (char *));
   argv[ds_num + rra_num] = NULL;
 
-  if (vl->time == 0)
-    last_up = time (NULL) - 10;
-  else
-    last_up = CDTIME_T_TO_TIME_T (vl->time) - 10;
+  last_up = CDTIME_T_TO_TIME_T (vl->time);
+  if (last_up <= 10)
+    last_up = time (NULL);
+  last_up -= 10;
 
   if (cfg->stepsize > 0)
     stepsize = cfg->stepsize;
   else
     stepsize = (int) CDTIME_T_TO_TIME_T (vl->interval);
 
-  assert (vl->time > 10);
   status = srrd_create (filename,
-      stepsize, last_up,
+      (cfg->stepsize > 0) ? cfg->stepsize : vl->interval,
+      last_up,
       argc, (const char **) argv);
 
   free (argv);

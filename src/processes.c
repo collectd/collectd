@@ -999,13 +999,18 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	if ((pid < 1) || (NULL == buf) || (buf_len < 2))
 		return NULL;
 
-	ssnprintf (file, sizeof (file), "/proc/%u/cmdline", pid);
+	ssnprintf (file, sizeof (file), "/proc/%u/cmdline",
+		       	(unsigned int) pid);
 
+	errno = 0;
 	fd = open (file, O_RDONLY);
 	if (fd < 0) {
 		char errbuf[4096];
-		WARNING ("processes plugin: Failed to open `%s': %s.", file,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		/* ENOENT means the process exited while we were handling it.
+		 * Don't complain about this, it only fills the logs. */
+		if (errno != ENOENT)
+			WARNING ("processes plugin: Failed to open `%s': %s.", file,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
 		return NULL;
 	}
 
@@ -1020,7 +1025,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 		status = read (fd, (void *)buf_ptr, len);
 
 		if (status < 0) {
-			char errbuf[4096];
+			char errbuf[1024];
 
 			if ((EAGAIN == errno) || (EINTR == errno))
 				continue;
