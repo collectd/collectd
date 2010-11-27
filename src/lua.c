@@ -670,7 +670,7 @@ static int lua_config (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      WARNING ("network plugin: Option `%s' is not allowed here.",
+      WARNING ("lua plugin: Option `%s' is not allowed here.",
           child->key);
     }
   }
