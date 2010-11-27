@@ -235,15 +235,6 @@ struct {
 	{ "", NULL }
 };
 
-struct {
-	char  name[64];
-	int  *var;
-} g_integers[] =
-{
-	{ "Collectd::interval_g", &interval_g },
-	{ "", NULL }
-};
-
 /*
  * Helper functions for data type conversion.
  */
@@ -397,10 +388,16 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 	}
 
 	if (NULL != (tmp = hv_fetch (hash, "time", 4, 0)))
-		vl->time = (time_t)SvIV (*tmp);
+	{
+		double t = SvNV (*tmp);
+		vl->time = DOUBLE_TO_CDTIME_T (t);
+	}
 
 	if (NULL != (tmp = hv_fetch (hash, "interval", 8, 0)))
-		vl->interval = SvIV (*tmp);
+	{
+		double t = SvNV (*tmp);
+		vl->interval = DOUBLE_TO_CDTIME_T (t);
+	}
 
 	if (NULL != (tmp = hv_fetch (hash, "host", 4, 0)))
 		sstrncpy (vl->host, SvPV_nolen (*tmp), sizeof (vl->host));
@@ -552,9 +549,12 @@ static int hv2notification (pTHX_ HV *hash, notification_t *n)
 		n->severity = NOTIF_FAILURE;
 
 	if (NULL != (tmp = hv_fetch (hash, "time", 4, 0)))
-		n->time = (time_t)SvIV (*tmp);
+	{
+		double t = SvNV (*tmp);
+		n->time = DOUBLE_TO_CDTIME_T (t);
+	}
 	else
-		n->time = time (NULL);
+		n->time = cdtime ();
 
 	if (NULL != (tmp = hv_fetch (hash, "message", 7, 0)))
 		sstrncpy (n->message, SvPV_nolen (*tmp), sizeof (n->message));
@@ -672,11 +672,17 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 		return -1;
 
 	if (0 != vl->time)
-		if (NULL == hv_store (hash, "time", 4, newSViv (vl->time), 0))
+	{
+		double t = CDTIME_T_TO_DOUBLE (vl->time);
+		if (NULL == hv_store (hash, "time", 4, newSVnv (t), 0))
 			return -1;
+	}
 
-	if (NULL == hv_store (hash, "interval", 8, newSViv (vl->interval), 0))
-		return -1;
+	{
+		double t = CDTIME_T_TO_DOUBLE (vl->interval);
+		if (NULL == hv_store (hash, "interval", 8, newSVnv (t), 0))
+			return -1;
+	}
 
 	if ('\0' != vl->host[0])
 		if (NULL == hv_store (hash, "host", 4, newSVpv (vl->host, 0), 0))
@@ -754,8 +760,11 @@ static int notification2hv (pTHX_ notification_t *n, HV *hash)
 		return -1;
 
 	if (0 != n->time)
-		if (NULL == hv_store (hash, "time", 4, newSViv (n->time), 0))
+	{
+		double t = CDTIME_T_TO_DOUBLE (n->time);
+		if (NULL == hv_store (hash, "time", 4, newSVnv (t), 0))
 			return -1;
+	}
 
 	if ('\0' != *n->message)
 		if (NULL == hv_store (hash, "message", 7, newSVpv (n->message, 0), 0))
@@ -1106,11 +1115,15 @@ static int pplugin_call_all (pTHX_ int type, ...)
 		XPUSHs (sv_2mortal (newRV_noinc ((SV *)notif)));
 	}
 	else if (PLUGIN_FLUSH == type) {
+		cdtime_t timeout;
+
 		/*
 		 * $_[0] = $timeout;
 		 * $_[1] = $identifier;
 		 */
-		XPUSHs (sv_2mortal (newSViv (va_arg (ap, int))));
+		timeout = va_arg (ap, cdtime_t);
+
+		XPUSHs (sv_2mortal (newSVnv (CDTIME_T_TO_DOUBLE (timeout))));
 		XPUSHs (sv_2mortal (newSVpv (va_arg (ap, char *), 0)));
 	}
 
@@ -1986,7 +1999,7 @@ static int perl_notify (const notification_t *notif,
 	return pplugin_call_all (aTHX_ PLUGIN_NOTIF, notif);
 } /* static int perl_notify (const notification_t *) */
 
-static int perl_flush (int timeout, const char *identifier,
+static int perl_flush (cdtime_t timeout, const char *identifier,
 		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
@@ -2088,19 +2101,27 @@ static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 	return 0;
 } /* static int g_pv_set (pTHX_ SV *, MAGIC *) */
 
-static int g_iv_get (pTHX_ SV *var, MAGIC *mg)
+static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 {
-	int *iv = (int *)mg->mg_ptr;
-	sv_setiv (var, *iv);
-	return 0;
-} /* static int g_iv_get (pTHX_ SV *, MAGIC *) */
+	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
+	double nv;
 
-static int g_iv_set (pTHX_ SV *var, MAGIC *mg)
-{
-	int *iv = (int *)mg->mg_ptr;
-	*iv = (int)SvIV (var);
+	nv = CDTIME_T_TO_DOUBLE (*interval);
+
+	sv_setnv (var, nv);
 	return 0;
-} /* static int g_iv_set (pTHX_ SV *, MAGIC *) */
+} /* static int g_interval_get (pTHX_ SV *, MAGIC *) */
+
+static int g_interval_set (pTHX_ SV *var, MAGIC *mg)
+{
+	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
+	double nv;
+
+	nv = (double)SvNV (var);
+
+	*interval = DOUBLE_TO_CDTIME_T (nv);
+	return 0;
+} /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
 static MGVTBL g_pv_vtbl = {
 	g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL
@@ -2108,8 +2129,8 @@ static MGVTBL g_pv_vtbl = {
 		, NULL
 #endif
 };
-static MGVTBL g_iv_vtbl = {
-	g_iv_get, g_iv_set, NULL, NULL, NULL, NULL, NULL
+static MGVTBL g_interval_vtbl = {
+	g_interval_get, g_interval_set, NULL, NULL, NULL, NULL, NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
 		, NULL
 #endif
@@ -2151,12 +2172,11 @@ static void xs_init (pTHX)
 				g_strings[i].var, 0);
 	}
 
-	/* global integers */
-	for (i = 0; '\0' != g_integers[i].name[0]; ++i) {
-		tmp = get_sv (g_integers[i].name, 1);
-		sv_magicext (tmp, NULL, PERL_MAGIC_ext, &g_iv_vtbl,
-				(char *)g_integers[i].var, 0);
-	}
+	tmp = get_sv ("Collectd::interval_g", /* create = */ 1);
+	sv_magicext (tmp, NULL, /* how = */ PERL_MAGIC_ext,
+			/* vtbl = */ &g_interval_vtbl,
+			/* name = */ (char *) &interval_g, /* namelen = */ 0);
+
 	return;
 } /* static void xs_init (pTHX) */
 

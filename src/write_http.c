@@ -61,7 +61,7 @@ struct wh_callback_s
         char   send_buffer[4096];
         size_t send_buffer_free;
         size_t send_buffer_fill;
-        time_t send_buffer_init_time;
+        cdtime_t send_buffer_init_time;
 
         pthread_mutex_t send_lock;
 };
@@ -72,7 +72,7 @@ static void wh_reset_buffer (wh_callback_t *cb)  /* {{{ */
         memset (cb->send_buffer, 0, sizeof (cb->send_buffer));
         cb->send_buffer_free = sizeof (cb->send_buffer);
         cb->send_buffer_fill = 0;
-        cb->send_buffer_init_time = time (NULL);
+        cb->send_buffer_init_time = cdtime ();
 
         if (cb->format == WH_FORMAT_JSON)
         {
@@ -157,19 +157,21 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         return (0);
 } /* }}} int wh_callback_init */
 
-static int wh_flush_nolock (int timeout, wh_callback_t *cb) /* {{{ */
+static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
 {
         int status;
 
-        DEBUG ("write_http plugin: wh_flush_nolock: timeout = %i; "
+        DEBUG ("write_http plugin: wh_flush_nolock: timeout = %.3f; "
                         "send_buffer_fill = %zu;",
-                        timeout, cb->send_buffer_fill);
+                        CDTIME_T_TO_DOUBLE (timeout),
+                        cb->send_buffer_fill);
 
+        /* timeout == 0  => flush unconditionally */
         if (timeout > 0)
         {
-                time_t now;
+                cdtime_t now;
 
-                now = time (NULL);
+                now = cdtime ();
                 if ((cb->send_buffer_init_time + timeout) > now)
                         return (0);
         }
@@ -178,7 +180,7 @@ static int wh_flush_nolock (int timeout, wh_callback_t *cb) /* {{{ */
         {
                 if (cb->send_buffer_fill <= 0)
                 {
-                        cb->send_buffer_init_time = time (NULL);
+                        cb->send_buffer_init_time = cdtime ();
                         return (0);
                 }
 
@@ -189,7 +191,7 @@ static int wh_flush_nolock (int timeout, wh_callback_t *cb) /* {{{ */
         {
                 if (cb->send_buffer_fill <= 2)
                 {
-                        cb->send_buffer_init_time = time (NULL);
+                        cb->send_buffer_init_time = cdtime ();
                         return (0);
                 }
 
@@ -218,7 +220,7 @@ static int wh_flush_nolock (int timeout, wh_callback_t *cb) /* {{{ */
         return (status);
 } /* }}} wh_flush_nolock */
 
-static int wh_flush (int timeout, /* {{{ */
+static int wh_flush (cdtime_t timeout, /* {{{ */
                 const char *identifier __attribute__((unused)),
                 user_data_t *user_data)
 {
@@ -258,7 +260,7 @@ static void wh_callback_free (void *data) /* {{{ */
 
         cb = data;
 
-        wh_flush_nolock (/* timeout = */ -1, cb);
+        wh_flush_nolock (/* timeout = */ 0, cb);
 
         curl_easy_cleanup (cb->curl);
         sfree (cb->location);
@@ -304,8 +306,10 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         }
 
         command_len = (size_t) ssnprintf (command, sizeof (command),
-                        "PUTVAL %s interval=%i %s\r\n",
-                        key, vl->interval, values);
+                        "PUTVAL %s interval=%.3f %s\r\n",
+                        key,
+                        CDTIME_T_TO_DOUBLE (vl->interval),
+                        values);
         if (command_len >= sizeof (command)) {
                 ERROR ("write_http plugin: Command buffer too small: "
                                 "Need %zu bytes.", command_len + 1);
@@ -327,7 +331,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
 
         if (command_len >= cb->send_buffer_free)
         {
-                status = wh_flush_nolock (/* timeout = */ -1, cb);
+                status = wh_flush_nolock (/* timeout = */ 0, cb);
                 if (status != 0)
                 {
                         pthread_mutex_unlock (&cb->send_lock);
@@ -379,7 +383,7 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
                         ds, vl, cb->store_rates);
         if (status == (-ENOMEM))
         {
-                status = wh_flush_nolock (/* timeout = */ -1, cb);
+                status = wh_flush_nolock (/* timeout = */ 0, cb);
                 if (status != 0)
                 {
                         wh_reset_buffer (cb);

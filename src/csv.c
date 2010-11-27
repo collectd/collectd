@@ -53,7 +53,8 @@ static int value_list_to_string (char *buffer, int buffer_len,
 
 	memset (buffer, '\0', buffer_len);
 
-	status = ssnprintf (buffer, buffer_len, "%u", (unsigned int) vl->time);
+	status = ssnprintf (buffer, buffer_len, "%.3f",
+			CDTIME_T_TO_DOUBLE (vl->time));
 	if ((status < 1) || (status >= buffer_len))
 		return (-1);
 	offset = status;
@@ -298,8 +299,10 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 		}
 
 		fprintf (use_stdio == 1 ? stdout : stderr,
-			 "PUTVAL %s interval=%i %s\n",
-			 filename, vl->interval, values);
+			 "PUTVAL %s interval=%.3f %s\n",
+			 filename,
+			 CDTIME_T_TO_DOUBLE (vl->interval),
+			 values);
 		return (0);
 	}
 

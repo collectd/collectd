@@ -35,7 +35,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl);
 int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_values_num);
 gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl);
 
-int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number);
+int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
 
 int uc_get_state (const data_set_t *ds, const value_list_t *vl);
 int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state);

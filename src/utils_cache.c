@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_cache.c
- * Copyright (C) 2007,2008  Florian octo Forster
+ * Copyright (C) 2007-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Author:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -38,13 +38,13 @@ typedef struct cache_entry_s
 	value_t   *values_raw;
 	/* Time contained in the package
 	 * (for calculating rates) */
-	time_t last_time;
+	cdtime_t last_time;
 	/* Time according to the local clock
 	 * (for purging old entries) */
-	time_t last_update;
+	cdtime_t last_update;
 	/* Interval in which the data is collected
 	 * (for purding old entries) */
-	int interval;
+	cdtime_t interval;
 	int state;
 	int hits;
 
@@ -120,6 +120,7 @@ static void cache_free (cache_entry_t *ce)
   sfree (ce);
 } /* void cache_free */
 
+__attribute__((unused))
 static int uc_send_notification (const char *name)
 {
   cache_entry_t *ce = NULL;
@@ -164,7 +165,7 @@ static int uc_send_notification (const char *name)
    * acquiring the lock takes and we will use this time later to decide
    * whether or not the state is OKAY.
    */
-  n.time = time (NULL);
+  n.time = cdtime ();
 
   status = c_avl_get (cache_tree, name, (void *) &ce);
   if (status != 0)
@@ -184,8 +185,8 @@ static int uc_send_notification (const char *name)
   }
 
   ssnprintf (n.message, sizeof (n.message),
-      "%s has not been updated for %i seconds.", name,
-      (int) (n.time - ce->last_update));
+      "%s has not been updated for %.3f seconds.", name,
+      CDTIME_T_TO_DOUBLE (n.time - ce->last_update));
 
   pthread_mutex_unlock (&cache_lock);
 
@@ -258,7 +259,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 	ce->values_gauge[i] = NAN;
 	if (vl->interval > 0)
 	  ce->values_gauge[i] = ((double) vl->values[i].absolute)
-	    / ((double) vl->interval);
+	    / CDTIME_T_TO_DOUBLE (vl->interval);
 	ce->values_raw[i].absolute = vl->values[i].absolute;
 	break;
 	
@@ -274,7 +275,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
   uc_check_range (ds, ce);
 
   ce->last_time = vl->time;
-  ce->last_update = time (NULL);
+  ce->last_update = cdtime ();
   ce->interval = vl->interval;
   ce->state = STATE_OKAY;
 
@@ -300,145 +301,133 @@ int uc_init (void)
 
 int uc_check_timeout (void)
 {
-  time_t now;
+  cdtime_t now;
   cache_entry_t *ce;
 
   char **keys = NULL;
+  cdtime_t *keys_time = NULL;
+  cdtime_t *keys_interval = NULL;
   int keys_len = 0;
 
   char *key;
   c_avl_iterator_t *iter;
+
+  int status;
   int i;
   
   pthread_mutex_lock (&cache_lock);
 
-  now = time (NULL);
+  now = cdtime ();
 
   /* Build a list of entries to be flushed */
   iter = c_avl_get_iterator (cache_tree);
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
   {
+    char **tmp;
+    cdtime_t *tmp_time;
+
+    /* If the entry is fresh enough, continue. */
+    if ((now - ce->last_update) < (ce->interval * timeout_g))
+      continue;
+
     /* If entry has not been updated, add to `keys' array */
-    if ((now - ce->last_update) >= (timeout_g * ce->interval))
+    tmp = (char **) realloc ((void *) keys,
+	(keys_len + 1) * sizeof (char *));
+    if (tmp == NULL)
     {
-      char **tmp;
-
-      tmp = (char **) realloc ((void *) keys,
-	  (keys_len + 1) * sizeof (char *));
-      if (tmp == NULL)
-      {
-	ERROR ("uc_check_timeout: realloc failed.");
-	c_avl_iterator_destroy (iter);
-	sfree (keys);
-	pthread_mutex_unlock (&cache_lock);
-	return (-1);
-      }
-
-      keys = tmp;
-      keys[keys_len] = strdup (key);
-      if (keys[keys_len] == NULL)
-      {
-	ERROR ("uc_check_timeout: strdup failed.");
-	continue;
-      }
-      keys_len++;
+      ERROR ("uc_check_timeout: realloc failed.");
+      continue;
     }
+    keys = tmp;
+
+    tmp_time = realloc (keys_time, (keys_len + 1) * sizeof (*keys_time));
+    if (tmp_time == NULL)
+    {
+      ERROR ("uc_check_timeout: realloc failed.");
+      continue;
+    }
+    keys_time = tmp_time;
+
+    tmp_time = realloc (keys_interval, (keys_len + 1) * sizeof (*keys_interval));
+    if (tmp_time == NULL)
+    {
+      ERROR ("uc_check_timeout: realloc failed.");
+      continue;
+    }
+    keys_interval = tmp_time;
+
+    keys[keys_len] = strdup (key);
+    if (keys[keys_len] == NULL)
+    {
+      ERROR ("uc_check_timeout: strdup failed.");
+      continue;
+    }
+    keys_time[keys_len] = ce->last_time;
+    keys_interval[keys_len] = ce->interval;
+
+    keys_len++;
   } /* while (c_avl_iterator_next) */
 
-  ce = NULL;
-
-  for (i = 0; i < keys_len; i++)
-  {
-    int status;
-
-    status = ut_check_interesting (keys[i]);
-
-    if (status < 0)
-    {
-      ERROR ("uc_check_timeout: ut_check_interesting failed.");
-      sfree (keys[i]);
-      continue;
-    }
-    else if (status == 0) /* ``service'' is uninteresting */
-    {
-      DEBUG ("uc_check_timeout: %s is missing but ``uninteresting''",
-	  keys[i]);
-      ce = NULL;
-      status = c_avl_remove (cache_tree, keys[i],
-	  (void *) &key, (void *) &ce);
-      if (status != 0)
-      {
-	ERROR ("uc_check_timeout: c_avl_remove (%s) failed.", keys[i]);
-      }
-      sfree (keys[i]);
-      sfree (key);
-      if (ce != NULL)
-        cache_free (ce);
-      continue;
-    }
-
-    /* If we get here, the value is ``interesting''. Query the record from the
-     * cache and update the state field. */
-    if (c_avl_get (cache_tree, keys[i], (void *) &ce) != 0)
-    {
-      ERROR ("uc_check_timeout: cannot get data for %s from cache", keys[i]);
-      /* Do not free `keys[i]' so a notification is sent further down. */
-      continue;
-    }
-    assert (ce != NULL);
-
-    if (status == 2) /* persist */
-    {
-      DEBUG ("uc_check_timeout: %s is missing, sending notification.",
-	  keys[i]);
-      ce->state = STATE_MISSING;
-      /* Do not free `keys[i]' so a notification is sent further down. */
-    }
-    else if (status == 1) /* do not persist */
-    {
-      if (ce->state == STATE_MISSING)
-      {
-	DEBUG ("uc_check_timeout: %s is missing but "
-	    "notification has already been sent.",
-	    keys[i]);
-	/* Set `keys[i]' to NULL to no notification is sent. */
-	sfree (keys[i]);
-      }
-      else /* (ce->state != STATE_MISSING) */
-      {
-	DEBUG ("uc_check_timeout: %s is missing, sending one notification.",
-	    keys[i]);
-	ce->state = STATE_MISSING;
-	/* Do not free `keys[i]' so a notification is sent further down. */
-      }
-    }
-    else
-    {
-      WARNING ("uc_check_timeout: ut_check_interesting (%s) returned "
-	  "invalid status %i.",
-	  keys[i], status);
-      sfree (keys[i]);
-    }
-
-    /* Make really sure the next iteration doesn't work with this pointer.
-     * There have been too many bugs in the past.. :/  -- octo */
-    ce = NULL;
-  } /* for (keys[i]) */
-
   c_avl_iterator_destroy (iter);
-
   pthread_mutex_unlock (&cache_lock);
 
+  if (keys_len == 0)
+    return (0);
+
+  /* Call the "missing" callback for each value. Do this before removing the
+   * value from the cache, so that callbacks can still access the data stored,
+   * including plugin specific meta data, rates, history, …. This must be done
+   * without holding the lock, otherwise we will run into a deadlock if a
+   * plugin calls the cache interface. */
   for (i = 0; i < keys_len; i++)
   {
-    if (keys[i] == NULL)
-      continue;
+    value_list_t vl = VALUE_LIST_INIT;
 
-    uc_send_notification (keys[i]);
+    vl.values = NULL;
+    vl.values_len = 0;
+    vl.meta = NULL;
+
+    status = parse_identifier_vl (keys[i], &vl);
+    if (status != 0)
+    {
+      ERROR ("uc_check_timeout: parse_identifier_vl (\"%s\") failed.", keys[i]);
+      cache_free (ce);
+      continue;
+    }
+
+    vl.time = keys_time[i];
+    vl.interval = keys_interval[i];
+
+    plugin_dispatch_missing (&vl);
+  } /* for (i = 0; i < keys_len; i++) */
+
+  /* Now actually remove all the values from the cache. We don't re-evaluate
+   * the timestamp again, so in theory it is possible we remove a value after
+   * it is updated here. */
+  pthread_mutex_lock (&cache_lock);
+  for (i = 0; i < keys_len; i++)
+  {
+    key = NULL;
+    ce = NULL;
+
+    status = c_avl_remove (cache_tree, keys[i],
+	(void *) &key, (void *) &ce);
+    if (status != 0)
+    {
+      ERROR ("uc_check_timeout: c_avl_remove (\"%s\") failed.", keys[i]);
+      sfree (keys[i]);
+      continue;
+    }
+
     sfree (keys[i]);
-  }
+    sfree (key);
+    cache_free (ce);
+  } /* for (i = 0; i < keys_len; i++) */
+  pthread_mutex_unlock (&cache_lock);
 
   sfree (keys);
+  sfree (keys_time);
+  sfree (keys_interval);
 
   return (0);
 } /* int uc_check_timeout */
@@ -448,7 +437,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int send_okay_notification = 0;
-  time_t update_delay = 0;
+  cdtime_t update_delay = 0;
   notification_t n;
   int status;
   int i;
@@ -475,9 +464,11 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   if (ce->last_time >= vl->time)
   {
     pthread_mutex_unlock (&cache_lock);
-    NOTICE ("uc_update: Value too old: name = %s; value time = %u; "
-	"last cache update = %u;",
-	name, (unsigned int) vl->time, (unsigned int) ce->last_time);
+    NOTICE ("uc_update: Value too old: name = %s; value time = %.3f; "
+	"last cache update = %.3f;",
+	name,
+	CDTIME_T_TO_DOUBLE (vl->time),
+	CDTIME_T_TO_DOUBLE (ce->last_time));
     return (-1);
   }
 
@@ -487,7 +478,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   {
     send_okay_notification = 1;
     ce->state = STATE_OKAY;
-    update_delay = time (NULL) - ce->last_update;
+    update_delay = cdtime () - ce->last_update;
   }
 
   for (i = 0; i < ds->ds_num; i++)
@@ -514,7 +505,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	  }
 
 	  ce->values_gauge[i] = ((double) diff)
-	    / ((double) (vl->time - ce->last_time));
+	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	  ce->values_raw[i].counter = vl->values[i].counter;
 	}
 	break;
@@ -531,14 +522,14 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	  diff = vl->values[i].derive - ce->values_raw[i].derive;
 
 	  ce->values_gauge[i] = ((double) diff)
-	    / ((double) (vl->time - ce->last_time));
+	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	  ce->values_raw[i].derive = vl->values[i].derive;
 	}
 	break;
 
       case DS_TYPE_ABSOLUTE:
 	ce->values_gauge[i] = ((double) vl->values[i].absolute)
-	  / ((double) (vl->time - ce->last_time));
+	  / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	ce->values_raw[i].absolute = vl->values[i].absolute;
 	break;
 
@@ -571,7 +562,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   uc_check_range (ds, ce);
 
   ce->last_time = vl->time;
-  ce->last_update = time (NULL);
+  ce->last_update = cdtime ();
   ce->interval = vl->interval;
 
   pthread_mutex_unlock (&cache_lock);
@@ -682,14 +673,14 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   return (ret);
 } /* gauge_t *uc_get_rate */
 
-int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number)
+int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
 {
   c_avl_iterator_t *iter;
   char *key;
   cache_entry_t *value;
 
   char **names = NULL;
-  time_t *times = NULL;
+  cdtime_t *times = NULL;
   size_t number = 0;
 
   int status = 0;
@@ -710,9 +701,9 @@ int uc_get_names (char ***ret_names, time_t **ret_times, size_t *ret_number)
 
     if (ret_times != NULL)
     {
-      time_t *tmp_times;
+      cdtime_t *tmp_times;
 
-      tmp_times = (time_t *) realloc (times, sizeof (time_t) * (number + 1));
+      tmp_times = (cdtime_t *) realloc (times, sizeof (cdtime_t) * (number + 1));
       if (tmp_times == NULL)
       {
 	status = -1;

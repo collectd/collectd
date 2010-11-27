@@ -1,6 +1,6 @@
-/*
- * collectd/java - org/collectd/api/CollectdFlushInterface.java
- * Copyright (C) 2009  Florian octo Forster
+/**
+ * collectd - src/utils_time.h
+ * Copyright (C) 2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,18 +16,29 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
- */
+ *   Florian octo Forster <ff at octo.it>
+ **/
 
-package org.collectd.api;
+#include "collectd.h"
+#include "utils_time.h"
+#include "plugin.h"
+#include "common.h"
 
-/**
- * Interface for objects implementing a flush method.
- *
- * @author Florian Forster &lt;octo at verplant.org&gt;
- * @see Collectd#registerFlush
- */
-public interface CollectdFlushInterface
+cdtime_t cdtime (void) /* {{{ */
 {
-	public int flush (Number timeout, String identifier);
-}
+  int status;
+  struct timespec ts = { 0, 0 };
+
+  status = clock_gettime (CLOCK_REALTIME, &ts);
+  if (status != 0)
+  {
+    char errbuf[1024];
+    ERROR ("cdtime: clock_gettime failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (0);
+  }
+
+  return (TIMESPEC_TO_CDTIME_T (&ts));
+} /* }}} cdtime_t cdtime */
+
+/* vim: set sw=2 sts=2 et fdm=marker : */

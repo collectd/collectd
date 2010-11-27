@@ -1,6 +1,6 @@
 /**
  * collectd - src/common.h
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Niki W. Waibel <niki.waibel@gmx.net>
 **/
 
@@ -265,6 +265,7 @@ int format_values (char *ret, size_t ret_len,
 int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
 		char **ret_type, char **ret_type_instance);
+int parse_identifier_vl (const char *str, value_list_t *vl);
 int parse_value (const char *value, value_t *ret_value, int ds_type);
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);
 

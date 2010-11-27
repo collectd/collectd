@@ -56,16 +56,16 @@ static int set_option (value_list_t *vl, const char *key, const char *value)
 
 	if (strcasecmp ("interval", key) == 0)
 	{
-		int tmp;
+		double tmp;
 		char *endptr;
 
 		endptr = NULL;
 		errno = 0;
-		tmp = strtol (value, &endptr, 0);
+		tmp = strtod (value, &endptr);
 
 		if ((errno == 0) && (endptr != NULL)
-				&& (endptr != value) && (tmp > 0))
-			vl->interval = tmp;
+				&& (endptr != value) && (tmp > 0.0))
+			vl->interval = DOUBLE_TO_CDTIME_T (tmp);
 	}
 	else
 		return (1);
@@ -246,9 +246,11 @@ int create_putval (char *ret, size_t ret_len, /* {{{ */
 	escape_string (buffer_values, sizeof (buffer_values));
 
 	ssnprintf (ret, ret_len,
-			"PUTVAL %s interval=%i %s",
+			"PUTVAL %s interval=%.3f %s",
 			buffer_ident,
-			(vl->interval > 0) ? vl->interval : interval_g,
+			(vl->interval > 0)
+			? CDTIME_T_TO_DOUBLE (vl->interval)
+			: CDTIME_T_TO_DOUBLE (interval_g),
 			buffer_values);
 
 	return (0);

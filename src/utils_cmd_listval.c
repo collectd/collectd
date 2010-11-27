@@ -50,7 +50,7 @@ int handle_listval (FILE *fh, char *buffer)
 {
   char *command;
   char **names = NULL;
-  time_t *times = NULL;
+  cdtime_t *times = NULL;
   size_t number = 0;
   size_t i;
   int status;
@@ -90,7 +90,8 @@ int handle_listval (FILE *fh, char *buffer)
   print_to_socket (fh, "%i Value%s found\n",
       (int) number, (number == 1) ? "" : "s");
   for (i = 0; i < number; i++)
-    print_to_socket (fh, "%u %s\n", (unsigned int) times[i], names[i]);
+    print_to_socket (fh, "%.3f %s\n", CDTIME_T_TO_DOUBLE (times[i]),
+       	names[i]);
 
   free_everything_and_return (0);
 } /* int handle_listval */

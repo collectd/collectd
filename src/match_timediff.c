@@ -34,29 +34,13 @@ struct mt_match_s;
 typedef struct mt_match_s mt_match_t;
 struct mt_match_s
 {
-  time_t future;
-  time_t past;
+  cdtime_t future;
+  cdtime_t past;
 };
 
 /*
  * internal helper functions
  */
-static int mt_config_add_time_t (time_t *ret_value, /* {{{ */
-    oconfig_item_t *ci)
-{
-
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    ERROR ("timediff match: `%s' needs exactly one numeric argument.",
-        ci->key);
-    return (-1);
-  }
-
-  *ret_value = (time_t) ci->values[0].value.number;
-
-  return (0);
-} /* }}} int mt_config_add_time_t */
-
 static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mt_match_t *m;
@@ -80,9 +64,9 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Future", child->key) == 0)
-      status = mt_config_add_time_t (&m->future, child);
+      status = cf_util_get_cdtime (child, &m->future);
     else if (strcasecmp ("Past", child->key) == 0)
-      status = mt_config_add_time_t (&m->past, child);
+      status = cf_util_get_cdtime (child, &m->past);
     else
     {
       ERROR ("timediff match: The `%s' configuration option is not "
@@ -132,13 +116,13 @@ static int mt_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
     notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
   mt_match_t *m;
-  time_t now;
+  cdtime_t now;
 
   if ((user_data == NULL) || (*user_data == NULL))
     return (-1);
 
   m = *user_data;
-  now = time (NULL);
+  now = cdtime ();
 
   if (m->future != 0)
   {

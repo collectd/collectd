@@ -230,6 +230,7 @@ static int notify_email_notification (const notification_t *n,
 {
   smtp_recipient_t recipient;
 
+  time_t tt;
   struct tm timestamp_tm;
   char timestamp_str[64];
 
@@ -249,7 +250,8 @@ static int notify_email_notification (const notification_t *n,
       (email_subject == NULL) ? DEFAULT_SMTP_SUBJECT : email_subject,
       severity, n->host);
 
-  localtime_r (&n->time, &timestamp_tm);
+  tt = CDTIME_T_TO_TIME_T (n->time);
+  localtime_r (&tt, &timestamp_tm);
   strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S",
       &timestamp_tm);
   timestamp_str[sizeof (timestamp_str) - 1] = '\0';

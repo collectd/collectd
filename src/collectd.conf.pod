@@ -1750,8 +1750,8 @@ debugging support.
 
 Sets the file to write log messages to. The special strings B<stdout> and
 B<stderr> can be used to write to the standard output and standard error
-channels, respectively. This, of course, only makes much sense when collectd is
-running in foreground- or non-daemon-mode.
+channels, respectively. This, of course, only makes much sense when I<collectd>
+is running in foreground- or non-daemon-mode.
 
 =item B<Timestamp> B<true>|B<false>
 
@@ -1767,6 +1767,33 @@ example "warning". Defaults to B<false>.
 B<Note>: There is no need to notify the daemon after moving or removing the
 log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
 for each line it writes.
+
+=head2 Plugin C<lpar>
+
+The I<LPAR plugin> reads CPU statistics of I<Logical Partitions>, a
+virtualization technique for IBM POWER processors. It takes into account CPU
+time stolen from or donated to a partition, in addition to the usual user,
+system, I/O statistics.
+
+The following configuration options are available:
+
+=over 4
+
+=item B<CpuPoolStats> B<false>|B<true>
+
+When enabled, statistics about the processor pool are read, too. The partition
+needs to have pool authority in order to be able to acquire this information.
+Defaults to false.
+
+=item B<ReportBySerial> B<false>|B<true>
+
+If enabled, the serial of the physical machine the partition is currently
+running on is reported as I<hostname> and the logical hostname of the machine
+is reported in the I<plugin instance>. Otherwise, the logical hostname will be
+used (just like other plugins) and the I<plugin instance> will be empty.
+Defaults to false.
+
+=back
 
 =head2 Plugin C<mbmon>
 
@@ -4557,6 +4584,13 @@ created. Defaults to B<collectd>.
 Change the file permissions of the UNIX-socket after it has been created. The
 permissions must be given as a numeric, octal value as you would pass to
 L<chmod(1)>. Defaults to B<0770>.
+
+=item B<DeleteSocket> B<false>|B<true>
+
+If set to B<true>, delete the socket file before calling L<bind(2)>, if a file
+with the given name already exists. If I<collectd> crashes a socket file may be
+left over, preventing the daemon from opening a new socket when restarted.
+Since this is potentially dangerous, this defaults to B<false>.
 
 =back
 

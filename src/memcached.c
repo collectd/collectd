@@ -176,12 +176,14 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 		p.events = POLLIN | POLLERR | POLLHUP;
 		p.revents = 0;
 
-		status = poll (&p, /* nfds = */ 1, /* timeout = */ 1000 * interval_g);
+		status = poll (&p, /* nfds = */ 1,
+				/* timeout = */ CDTIME_T_TO_MS (interval_g));
 		if (status <= 0)
 		{
 			if (status == 0)
 			{
-				ERROR ("memcached: poll(2) timed out after %i seconds.", interval_g);
+				ERROR ("memcached: poll(2) timed out after %.3f seconds.",
+						CDTIME_T_TO_DOUBLE (interval_g));
 			}
 			else
 			{
