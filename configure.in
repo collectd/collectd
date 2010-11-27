@@ -2045,7 +2045,7 @@ with_liblua="yes"
 
 if test "x$with_liblua" = "xyes"
 then
-	$PKG_CONFIG --exists lua5.1 2>/dev/null
+	$PKG_CONFIG --exists "lua >= 5.1" 2>/dev/null
 	lua_config_status=$?
 
 	if test 0 -ne $lua_config_status
@@ -2056,9 +2056,9 @@ fi
 
 if test "x$with_liblua" = "xyes"
 then
-	with_liblua_cppflags=`$PKG_CONFIG --cflags-only-I lua5.1` || with_liblua="no"
-	with_liblua_ldflags=`$PKG_CONFIG --libs-only-L lua5.1` || with_liblua="no"
-	with_liblua_libs=`$PKG_CONFIG --libs-only-l lua5.1` || with_liblua="no"
+	with_liblua_cppflags=`$PKG_CONFIG --cflags-only-I lua` || with_liblua="no"
+	with_liblua_ldflags=`$PKG_CONFIG --libs-only-L lua` || with_liblua="no"
+	with_liblua_libs=`$PKG_CONFIG --libs-only-l lua` || with_liblua="no"
 fi
 if test "x$with_liblua" = "xyes"
 then
