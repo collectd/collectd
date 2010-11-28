@@ -80,7 +80,7 @@ static int clua_store_callback (lua_State *l, int idx) /* {{{ */
   int callback_id;
 
   /* XXX FIXME: Not thread-safe! */
-  callback_id = callback_num++;
+  callback_id = ++callback_num;
 
   if (idx < 0)
     idx += lua_gettop (l) + 1;
@@ -149,22 +149,37 @@ static int clua_read (user_data_t *ud) /* {{{ */
         cb->lua_function_name, cb->callback_id);
     return (-1);
   }
-  /* +1 */
+  /* +1 = 1 */
 
-  lua_call (cb->lua_state, /* nargs = */ 0, /* nresults = */ 1); /* +1 */
-
-  if (lua_isnumber (cb->lua_state, /* idx = */ -1))
+  status = lua_pcall (cb->lua_state,
+      /* nargs    = */ 0,
+      /* nresults = */ 1,
+      /* errfunc  = */ 0); /* -1+1 = 1 */
+  if (status != 0)
   {
-    status = (int) lua_tointeger (cb->lua_state, /* idx = */ -1);
+    const char *errmsg = lua_tostring (cb->lua_state, /* idx = */ -1);
+    if (errmsg == NULL)
+      ERROR ("lua plugin: Calling a read callback failed. "
+          "In addition, retrieving the error message failed.");
+    else
+      ERROR ("lua plugin: Calling a read callback failed: %s", errmsg);
+    lua_pop (cb->lua_state, /* nelems = */ 1); /* -1 = 0 */
+    return (-1);
   }
-  else
+
+  if (!lua_isnumber (cb->lua_state, /* idx = */ -1))
   {
     ERROR ("lua plugin: Read function \"%s\" (id %i) did not return a numeric status.",
         cb->lua_function_name, cb->callback_id);
     status = -1;
   }
+  else
+  {
+    status = (int) lua_tointeger (cb->lua_state, /* idx = */ -1);
+  }
+
   /* pop return value and function */
-  lua_settop (cb->lua_state, /* idx = */ -2); /* -2 */
+  lua_pop (cb->lua_state, /* nelems = */ 1); /* -1 = 0 */
 
   return (status);
 } /* }}} int clua_read */
@@ -310,7 +325,7 @@ static int lua_cb_dispatch_values (lua_State *l) /* {{{ */
   vl = luaC_tovaluelist (l, /* idx = */ -1);
   if (vl == NULL)
   {
-    WARNING ("lua plugin: ltoc_value_list failed.");
+    WARNING ("lua plugin: luaC_tovaluelist failed.");
     RETURN_LUA (l, -1);
   }
 
