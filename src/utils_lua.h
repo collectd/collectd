@@ -19,12 +19,16 @@
  * Authors:
  *   Florian Forster <octo at collectd.org>
  **/
+
 #ifndef UTILS_LUA_H
 #define UTILS_LUA_H 1
 
 #include "collectd.h"
 #include "plugin.h"
 
+#ifndef DONT_POISON_SPRINTF_YET
+# error "Files including utils_lua.h need to define DONT_POISON_SPRINTF_YET."
+#endif
 #include <lua.h>
 
 /*

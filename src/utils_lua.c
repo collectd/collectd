@@ -20,6 +20,10 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
+/* <lua5.1/luaconf.h> defines a macro using "sprintf". Although not used here,
+ * GCC will complain about the macro definition. */
+#define DONT_POISON_SPRINTF_YET
+
 #include "utils_lua.h"
 #include "common.h"
 
@@ -28,29 +32,33 @@ static int ltoc_values (lua_State *l, /* {{{ */
     value_t *ret_values)
 {
   size_t i;
-  int status = 0;
 
   if (!lua_istable (l, -1))
     return (-1);
 
   /* Push initial key */
-  lua_pushnil (l);
-  for (i = 0; i < ((size_t) ds->ds_num); i++)
+  lua_pushnil (l); /* +1 = 1 */
+  i = 0;
+  while (lua_next (l, /* idx = */ -2) != 0) /* -1+2 = 2 || -1 = 0 */
   {
-    /* Pops old key and pushed new key and value. */
-    status = lua_next (l, -2);
-    if (status == 0) /* no more elements */
+    if (i >= ((size_t) ds->ds_num))
+    {
+      lua_pop (l, /* nelems = */ 2); /* -2 = 0 */
+      i++;
       break;
+    }
 
     ret_values[i] = luaC_tovalue (l, /* idx = */ -1, ds->ds[i].type);
 
     /* Pop the value */
-    lua_pop (l, /* nelems = */ 1);
-  }
-  /* Pop the key */
-  lua_pop (l, /* nelems = */ 1);
+    lua_pop (l, /* nelems = */ 1); /* -1 = 1 */
+    i++;
+  } /* while (lua_next) */
 
-  return (status);
+  if (i == ((size_t) ds->ds_num))
+    return (0);
+  else
+    return (-1);
 } /* }}} int ltoc_values */
 
 static int ltoc_table_values (lua_State *l, int idx, /* {{{ */
@@ -62,12 +70,11 @@ static int ltoc_table_values (lua_State *l, int idx, /* {{{ */
    * absolute index (i.e. a positive number) */
   assert (idx > 0);
 
-  lua_pushstring (l, "values");
-  lua_gettable (l, idx);
-
+  lua_getfield (l, idx, "values");
   if (!lua_istable (l, -1))
   {
-    NOTICE ("lua plugin: ltoc_table_values: The \"values\" member is not a table.");
+    WARNING ("utils_lua: ltoc_table_values: The \"values\" member is a %s value, not a table.",
+        lua_typename (l, lua_type (l, -1)));
     lua_pop (l, /* nelem = */ 1);
     return (-1);
   }
@@ -76,7 +83,7 @@ static int ltoc_table_values (lua_State *l, int idx, /* {{{ */
   vl->values = calloc ((size_t) vl->values_len, sizeof (*vl->values));
   if (vl->values == NULL)
   {
-    ERROR ("lua plugin: calloc failed.");
+    ERROR ("utils_lua: calloc failed.");
     vl->values_len = 0;
     lua_pop (l, /* nelem = */ 1);
     return (-1);
@@ -258,13 +265,11 @@ value_list_t *luaC_tovaluelist (lua_State *l, int idx) /* {{{ */
     /* Pop the value */
     lua_pop (l, 1);
   }
-  /* Pop the key */
-  lua_pop (l, 1);
 
   ds = plugin_get_ds (vl->type);
   if (ds == NULL)
   {
-    INFO ("lua plugin: Unable to lookup type \"%s\".", vl->type);
+    INFO ("utils_lua: Unable to lookup type \"%s\".", vl->type);
     sfree (vl);
     return (NULL);
   }
@@ -272,7 +277,7 @@ value_list_t *luaC_tovaluelist (lua_State *l, int idx) /* {{{ */
   status = ltoc_table_values (l, idx, ds, vl);
   if (status != 0)
   {
-    WARNING ("lua plugin: ltoc_table_values failed.");
+    WARNING ("utils_lua: ltoc_table_values failed.");
     sfree (vl);
     return (NULL);
   }
