@@ -95,6 +95,53 @@ static int ltoc_table_values (lua_State *l, int idx, /* {{{ */
   return (status);
 } /* }}} int ltoc_table_values */
 
+static int luaC_pushvalues (lua_State *l, const data_set_t *ds, const value_list_t *vl) /* {{{ */
+{
+  int i;
+
+  assert (vl->values_len == ds->ds_num);
+
+  lua_newtable (l);
+  for (i = 0; i < vl->values_len; i++)
+  {
+    lua_pushinteger (l, (lua_Integer) i);
+    luaC_pushvalue (l, vl->values[i], ds->ds[i].type);
+    lua_settable (l, /* idx = */ -3);
+  }
+
+  return (0);
+} /* }}} int luaC_pushvalues */
+
+static int luaC_pushdstypes (lua_State *l, const data_set_t *ds) /* {{{ */
+{
+  int i;
+
+  lua_newtable (l);
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    lua_pushinteger (l, (lua_Integer) i);
+    lua_pushstring (l, DS_TYPE_TO_STRING (ds->ds[i].type));
+    lua_settable (l, /* idx = */ -3);
+  }
+
+  return (0);
+} /* }}} int luaC_pushdstypes */
+
+static int luaC_pushdsnames (lua_State *l, const data_set_t *ds) /* {{{ */
+{
+  int i;
+
+  lua_newtable (l);
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    lua_pushinteger (l, (lua_Integer) i);
+    lua_pushstring (l, ds->ds[i].name);
+    lua_settable (l, /* idx = */ -3);
+  }
+
+  return (0);
+} /* }}} int luaC_pushdsnames */
+
 /*
  * Public functions
  */
@@ -235,5 +282,63 @@ value_list_t *luaC_tovaluelist (lua_State *l, int idx) /* {{{ */
 #endif
   return (vl);
 } /* }}} value_list_t *luaC_tovaluelist */
+
+int luaC_pushcdtime (lua_State *l, cdtime_t t) /* {{{ */
+{
+  double d = CDTIME_T_TO_DOUBLE (t);
+
+  lua_pushnumber (l, (lua_Number) d);
+  return (0);
+} /* }}} int luaC_pushcdtime */
+
+int luaC_pushvalue (lua_State *l, value_t v, int ds_type) /* {{{ */
+{
+  if (ds_type == DS_TYPE_GAUGE)
+    lua_pushnumber (l, (lua_Number) v.gauge);
+  else if (ds_type == DS_TYPE_DERIVE)
+    lua_pushinteger (l, (lua_Integer) v.derive);
+  else if (ds_type == DS_TYPE_COUNTER)
+    lua_pushinteger (l, (lua_Integer) v.counter);
+  else if (ds_type == DS_TYPE_ABSOLUTE)
+    lua_pushinteger (l, (lua_Integer) v.absolute);
+  else
+    return (-1);
+  return (0);
+} /* }}} int luaC_pushvalue */
+
+int luaC_pushvaluelist (lua_State *l, const data_set_t *ds, const value_list_t *vl) /* {{{ */
+{
+  lua_newtable (l);
+
+  lua_pushstring (l, vl->host);
+  lua_setfield (l, /* idx = */ -2, "host");
+
+  lua_pushstring (l, vl->plugin);
+  lua_setfield (l, /* idx = */ -2, "plugin");
+  lua_pushstring (l, vl->plugin_instance);
+  lua_setfield (l, /* idx = */ -2, "plugin_instance");
+
+  lua_pushstring (l, vl->type);
+  lua_setfield (l, /* idx = */ -2, "type");
+  lua_pushstring (l, vl->type_instance);
+  lua_setfield (l, /* idx = */ -2, "type_instance");
+
+  luaC_pushvalues (l, ds, vl);
+  lua_setfield (l, /* idx = */ -2, "values");
+
+  luaC_pushdstypes (l, ds);
+  lua_setfield (l, /* idx = */ -2, "dstypes");
+
+  luaC_pushdsnames (l, ds);
+  lua_setfield (l, /* idx = */ -2, "dsnames");
+
+  luaC_pushcdtime (l, vl->time);
+  lua_setfield (l, /* idx = */ -2, "time");
+
+  luaC_pushcdtime (l, vl->interval);
+  lua_setfield (l, /* idx = */ -2, "interval");
+
+  return (0);
+} /* }}} int luaC_pushvaluelist */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
