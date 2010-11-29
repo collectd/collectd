@@ -131,6 +131,19 @@ static int ltoc_value (lua_State *l, /* {{{ */
   return (0);
 } /* }}} int ltoc_value */
 
+static lua_Number ctol_value(int ds_type, const value_t *value, lua_Number *lua_num)
+{
+  switch(ds_type){
+    case DS_TYPE_GAUGE    : *lua_num = (lua_Number) value->gauge; break;
+    case DS_TYPE_DERIVE   : *lua_num = (lua_Number) value->derive; break;
+    case DS_TYPE_COUNTER  : *lua_num = (lua_Number) value->counter; break;
+    case DS_TYPE_ABSOLUTE : *lua_num = (lua_Number) value->absolute; break;
+    default               : return -1;
+  }
+  
+  return 0;
+}
+
 static int ltoc_values (lua_State *l, /* {{{ */
     const data_set_t *ds,
     value_t *ret_values)
@@ -397,11 +410,72 @@ static int lua_cb_dispatch_values (lua_State *l) /* {{{ */
 
   DEBUG ("lua plugin: collectd_dispatch_values: Received value list \"%s\", time %.3f, interval %.3f.",
       identifier, CDTIME_T_TO_DOUBLE (vl->time), CDTIME_T_TO_DOUBLE (vl->interval));
-
+  
+  plugin_dispatch_values(vl);
+  
   sfree (vl->values);
   sfree (vl);
   RETURN_LUA (l, 0);
 } /* }}} lua_cb_dispatch_values */
+
+static int dispatch_notification(lua_State *l)
+{
+  notification_t  notif;
+  char            tmp[255];
+  DEBUG("NOTIF");
+  if( lua_istable(l, 1) == 0 ){
+    WARNING("lua plugin: collectd_dispatch_notification() expects a table");
+    RETURN_LUA(l, -1);
+  }
+  
+  //  now extract data from the table
+  // severity
+  if( ltoc_table_string_buffer(l, "severity", tmp, sizeof(tmp)) != 0 ){
+    WARNING("lua plugin: collectd_dispatch_notification : severity is required and must be a string");
+    RETURN_LUA(l, -1);
+  }
+  
+  if( (strcasecmp(tmp, "failure") == 0) || (strcasecmp(tmp, "fail") == 0) ){
+    notif.severity = NOTIF_FAILURE;
+  }
+  else if( (strcasecmp(tmp, "warning") == 0) || (strcasecmp(tmp, "warn") == 0) ){
+    notif.severity = NOTIF_WARNING;
+  }
+  else if( (strcasecmp(tmp, "okay") == 0) || (strcasecmp(tmp, "ok") == 0) ){
+    notif.severity = NOTIF_OKAY;
+  }
+  
+  // time
+  if( ltoc_table_cdtime (l, "time", &notif.time) != 0 ){
+    notif.time = cdtime();
+  }
+  
+#define LUA_COPY_FIELD(field, def) do {                                                 \
+  if( ltoc_table_string_buffer(l, #field, notif.field, sizeof(notif.field)) != 0 ){     \
+    if( def != NULL ){                                                                  \
+      sstrncpy( notif.field, def, sizeof(notif.field));                                 \
+    }                                                                                   \
+    else {                                                                              \
+      WARNING("lua plugin: collectd_dispatch_notification : " #field " is required");   \
+      RETURN_LUA(l, -1);                                                                \
+    }                                                                                   \
+  }                                                                                     \
+} while (0)
+  
+  LUA_COPY_FIELD(message, NULL);
+  LUA_COPY_FIELD(host, hostname_g);
+  LUA_COPY_FIELD(plugin, NULL);
+  LUA_COPY_FIELD(plugin_instance, "");
+  LUA_COPY_FIELD(type, NULL);
+  LUA_COPY_FIELD(type_instance, "");
+  
+#undef LUA_COPY_FIELD
+
+  // TODO: meta data ?
+  plugin_dispatch_notification(&notif);
+  
+  RETURN_LUA(l, 0);
+}
 
 static int lua_cb_register_read (lua_State *l) /* {{{ */
 {
@@ -469,10 +543,106 @@ static int lua_cb_register_read (lua_State *l) /* {{{ */
   RETURN_LUA (l, 0);
 } /* }}} int lua_cb_register_read */
 
+static int lua_read_cb()
+{
+  /* loop through all the loaded scripts and call the cb_read function
+     on each one
+  */
+  DEBUG("[LUA] READ");
+  lua_script_t *current_script = scripts;
+  
+  while( current_script != NULL ){
+    
+    lua_getfield(current_script->lua_state, LUA_GLOBALSINDEX, "cb_read");
+    if( lua_isfunction(current_script->lua_state, -1) == 0){
+      DEBUG("function cb_read is not defined for script %s", current_script->script_path);
+    }
+    else {
+      lua_call(current_script->lua_state, 0, 0);
+    }
+    
+    current_script = current_script->next;
+  }
+  
+  return 0;
+}
+
+static int lua_write_cb(const data_set_t *ds, const value_list_t *vl,
+		user_data_t __attribute__((unused)) *user_data)
+{
+  /* loop through all the loaded scripts and call the cb_write function
+     on each one
+  */
+  int i;
+  lua_Number lua_num;
+       
+  DEBUG("[LUA] WRITE");
+  lua_script_t *current_script = scripts;
+  
+  while( current_script != NULL ){
+    
+    lua_getfield(current_script->lua_state, LUA_GLOBALSINDEX, "cb_write");
+    if( lua_isfunction(current_script->lua_state, -1) == 0){
+      DEBUG("function cb_write is not defined for script %s", current_script->script_path);
+    }
+    else {
+      // {
+      //   values = {
+      //     {type = "gauge", value = 42},
+      //     {type = "counter", value = 4}
+      //   },
+      //   host = "toto",
+      //   plugin = "lua",
+      //   plugin_instance = "",
+      //   type = "gauge",
+      //   type_instance = ""
+      // }
+      
+#define SET_TABLE_KEY(key) do {                           \
+      lua_pushstring(current_script->lua_state, vl->key); \
+      lua_setfield(current_script->lua_state, -2, #key);  \
+} while(0)
+      
+      lua_createtable(current_script->lua_state, 1, 5);
+      
+      SET_TABLE_KEY(host);
+      SET_TABLE_KEY(plugin);
+      SET_TABLE_KEY(plugin_instance);
+      SET_TABLE_KEY(type);
+      SET_TABLE_KEY(type_instance);
+
+#undef SET_TABLE_KEY
+      
+      // and values
+      lua_createtable(current_script->lua_state, 0, vl->values_len);
+      for(i = 0; i< vl->values_len; i++){
+        
+        if( ctol_value(ds->ds[i].type, &vl->values[i], &lua_num) == 0 ){
+          lua_pushnumber(current_script->lua_state, lua_num);
+          lua_rawseti(current_script->lua_state, -2, i + 1);
+        }
+        else {
+          ERROR("lua plugin: ctol_value failed");
+        }
+      }
+      
+      lua_setfield(current_script->lua_state, -2, "values");
+      
+      // accept one argument and returns nothing
+      lua_call(current_script->lua_state, 1, 0);
+    }
+    
+    current_script = current_script->next;
+  }
+  
+  return 0;
+}
+
 static lua_c_functions_t lua_c_functions[] =
 {
   { "collectd_log", lua_cb_log },
   { "collectd_dispatch_values", lua_cb_dispatch_values },
+  { "collectd_dispatch_notification", dispatch_notification },
   { "collectd_register_read", lua_cb_register_read }
 };
 
@@ -690,6 +860,8 @@ void module_register()
 {
   plugin_register_complex_config("lua", lua_config);
   plugin_register_shutdown("lua", lua_shutdown);
+  plugin_register_read("lua", lua_read_cb);
+  plugin_register_write("lua", lua_write_cb, NULL);
 }
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
