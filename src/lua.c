@@ -526,101 +526,6 @@ static int lua_cb_register_read (lua_State *l) /* {{{ */
   RETURN_LUA (l, 0);
 } /* }}} int lua_cb_register_read */
 
-static int lua_read_cb()
-{
-  /* loop through all the loaded scripts and call the cb_read function
-     on each one
-  */
-  DEBUG("[LUA] READ");
-  lua_script_t *current_script = scripts;
-  
-  while( current_script != NULL ){
-    
-    lua_getfield(current_script->lua_state, LUA_GLOBALSINDEX, "cb_read");
-    if( lua_isfunction(current_script->lua_state, -1) == 0){
-      DEBUG("function cb_read is not defined for script %s", current_script->script_path);
-    }
-    else {
-      lua_call(current_script->lua_state, 0, 0);
-    }
-    
-    current_script = current_script->next;
-  }
-  
-  return 0;
-}
-
-static int lua_write_cb(const data_set_t *ds, const value_list_t *vl,
-		user_data_t __attribute__((unused)) *user_data)
-{
-  /* loop through all the loaded scripts and call the cb_write function
-     on each one
-  */
-  int i;
-  lua_Number lua_num;
-       
-  DEBUG("[LUA] WRITE");
-  lua_script_t *current_script = scripts;
-  
-  while( current_script != NULL ){
-    
-    lua_getfield(current_script->lua_state, LUA_GLOBALSINDEX, "cb_write");
-    if( lua_isfunction(current_script->lua_state, -1) == 0){
-      DEBUG("function cb_write is not defined for script %s", current_script->script_path);
-    }
-    else {
-      // {
-      //   values = {
-      //     {type = "gauge", value = 42},
-      //     {type = "counter", value = 4}
-      //   },
-      //   host = "toto",
-      //   plugin = "lua",
-      //   plugin_instance = "",
-      //   type = "gauge",
-      //   type_instance = ""
-      // }
-      
-#define SET_TABLE_KEY(key) do {                           \
-      lua_pushstring(current_script->lua_state, vl->key); \
-      lua_setfield(current_script->lua_state, -2, #key);  \
-} while(0)
-      
-      lua_createtable(current_script->lua_state, 1, 5);
-      
-      SET_TABLE_KEY(host);
-      SET_TABLE_KEY(plugin);
-      SET_TABLE_KEY(plugin_instance);
-      SET_TABLE_KEY(type);
-      SET_TABLE_KEY(type_instance);
-
-#undef SET_TABLE_KEY
-      
-      // and values
-      lua_createtable(current_script->lua_state, 0, vl->values_len);
-      for(i = 0; i< vl->values_len; i++){
-        
-        if( ctol_value(ds->ds[i].type, &vl->values[i], &lua_num) == 0 ){
-          lua_pushnumber(current_script->lua_state, lua_num);
-          lua_rawseti(current_script->lua_state, -2, i + 1);
-        }
-        else {
-          ERROR("lua plugin: ctol_value failed");
-        }
-      }
-      
-      lua_setfield(current_script->lua_state, -2, "values");
-      
-      // accept one argument and returns nothing
-      lua_call(current_script->lua_state, 1, 0);
-    }
-    
-    current_script = current_script->next;
-  }
-  
-  return 0;
-}
-
 static int lua_cb_register_write (lua_State *l) /* {{{ */
 {
   int nargs = lua_gettop (l); /* number of arguments */
@@ -911,8 +816,6 @@ void module_register()
 {
   plugin_register_complex_config("lua", lua_config);
   plugin_register_shutdown("lua", lua_shutdown);
-  plugin_register_read("lua", lua_read_cb);
-  plugin_register_write("lua", lua_write_cb, NULL);
 }
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
