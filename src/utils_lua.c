@@ -111,7 +111,7 @@ static int luaC_pushvalues (lua_State *l, const data_set_t *ds, const value_list
   lua_newtable (l);
   for (i = 0; i < vl->values_len; i++)
   {
-    lua_pushinteger (l, (lua_Integer) i);
+    lua_pushinteger (l, (lua_Integer) i+1);
     luaC_pushvalue (l, vl->values[i], ds->ds[i].type);
     lua_settable (l, /* idx = */ -3);
   }
