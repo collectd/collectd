@@ -73,6 +73,7 @@ typedef struct read_func_s read_func_t;
  */
 static llist_t *list_init;
 static llist_t *list_write;
+static llist_t *list_filter = NULL;
 static llist_t *list_flush;
 static llist_t *list_missing;
 static llist_t *list_shutdown;
@@ -830,6 +831,13 @@ int plugin_register_write (const char *name,
 				(void *) callback, ud));
 } /* int plugin_register_write */
 
+int plugin_register_filter (const char *name,
+		plugin_filter_cb callback, user_data_t *ud)
+{
+	return (create_register_callback (&list_filter, name,
+				(void *) callback, ud));
+}
+
 int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *ud)
 {
@@ -1023,6 +1031,11 @@ int plugin_unregister_read_group (const char *group) /* {{{ */
 int plugin_unregister_write (const char *name)
 {
 	return (plugin_unregister (list_write, name));
+}
+
+int plugin_unregister_filter(const char *name)
+{
+  return (plugin_unregister (list_filter, name));
 }
 
 int plugin_unregister_flush (const char *name)
@@ -1384,7 +1397,8 @@ int plugin_dispatch_values (value_list_t *vl)
 {
 	int status;
 	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
-
+	llentry_t *le;
+	
 	value_t *saved_values;
 	int      saved_values_len;
 
@@ -1435,7 +1449,25 @@ int plugin_dispatch_values (value_list_t *vl)
 
 	if (vl->interval <= 0)
 		vl->interval = interval_g;
+	
+	if( list_filter ) {
+		le = llist_head (list_filter);
+		while (le != NULL)
+		{
+			callback_func_t *cf = le->value;
+			plugin_write_cb callback;
 
+			DEBUG ("plugin: plugin_dispatch_values: filtering values via %s.", le->key);
+			callback = cf->cf_callback;
+			status = (*callback) (ds, vl, &cf->cf_udata);
+			if (status != 0) {
+        DEBUG("plugin: plugin_dispatch_values: %s failed.", le->key);
+			}
+			
+			le = le->next;
+		}
+	}
+	
 	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
 			"host = %s; "
 			"plugin = %s; plugin_instance = %s; "

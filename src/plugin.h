@@ -179,7 +179,7 @@ typedef void (*plugin_log_cb) (int severity, const char *message,
 typedef int (*plugin_shutdown_cb) (void);
 typedef int (*plugin_notification_cb) (const notification_t *,
 		user_data_t *);
-
+typedef int (*plugin_filter_cb) (const data_set_t *, value_list_t *, user_data_t *);
 /*
  * NAME
  *  plugin_set_dir
@@ -286,6 +286,9 @@ int plugin_register_log (const char *name,
 		plugin_log_cb callback, user_data_t *user_data);
 int plugin_register_notification (const char *name,
 		plugin_notification_cb callback, user_data_t *user_data);
+		
+int plugin_register_filter(const char *name,
+		plugin_filter_cb callback, user_data_t *user_data);
 
 int plugin_unregister_config (const char *name);
 int plugin_unregister_complex_config (const char *name);
@@ -299,6 +302,7 @@ int plugin_unregister_shutdown (const char *name);
 int plugin_unregister_data_set (const char *name);
 int plugin_unregister_log (const char *name);
 int plugin_unregister_notification (const char *name);
+int plugin_unregister_filter(const char *name);
 
 
 /*
