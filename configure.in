@@ -2043,9 +2043,15 @@ with_liblua_ldflags=""
 with_liblua_libs=""
 with_liblua="yes"
 
+AC_ARG_VAR([LIBLUA_PKG_CONFIG_NAME], [Name of liblua used by pkg-config])
+if test "x$LIBLUA_PKG_CONFIG_NAME" = "x"
+then
+       LIBLUA_PKG_CONFIG_NAME="lua5.1"
+fi
+
 if test "x$with_liblua" = "xyes"
 then
-	$PKG_CONFIG --exists "lua >= 5.1" 2>/dev/null
+	$PKG_CONFIG --exists $LIBLUA_PKG_CONFIG_NAME 2>/dev/null
 	lua_config_status=$?
 
 	if test 0 -ne $lua_config_status
@@ -2056,9 +2062,9 @@ fi
 
 if test "x$with_liblua" = "xyes"
 then
-	with_liblua_cppflags=`$PKG_CONFIG --cflags-only-I lua` || with_liblua="no"
-	with_liblua_ldflags=`$PKG_CONFIG --libs-only-L lua` || with_liblua="no"
-	with_liblua_libs=`$PKG_CONFIG --libs-only-l lua` || with_liblua="no"
+	with_liblua_cppflags=`$PKG_CONFIG --cflags-only-I $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
+	with_liblua_ldflags=`$PKG_CONFIG --libs-only-L $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
+	with_liblua_libs=`$PKG_CONFIG --libs-only-l $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
 fi
 if test "x$with_liblua" = "xyes"
 then

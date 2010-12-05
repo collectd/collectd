@@ -36,25 +36,33 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#include "utils_lua.h"
+
+#include <pthread.h>
 
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
 # undef sprintf
 # pragma GCC poison sprintf
 #endif
 
-typedef struct lua_script_s {
+struct lua_script_s;
+typedef struct lua_script_s lua_script_t;
+struct lua_script_s
+{
   char          *script_path;
   lua_State     *lua_state;
   
-  struct lua_script_s  *next;
-} lua_script_t;
+  lua_script_t  *next;
+};
 
-struct clua_read_function_s
+struct clua_callback_data_s
 {
   lua_State *lua_state;
   char *lua_function_name;
+  pthread_mutex_t lock;
+  int callback_id;
 };
-typedef struct clua_read_function_s clua_read_function_t;
+typedef struct clua_callback_data_s clua_callback_data_t;
 
 struct lua_c_functions_s
 {
@@ -66,70 +74,68 @@ typedef struct lua_c_functions_s lua_c_functions_t;
 static char           base_path[PATH_MAX + 1] = "";
 static lua_script_t  *scripts = NULL;
 
-static int clua_read (user_data_t *ud) /* {{{ */
+static int clua_store_callback (lua_State *l, int idx) /* {{{ */
 {
-  clua_read_function_t *rf = ud->data;
-  int status;
+  static int callback_num = 0;
+  int callback_id;
 
-  /* Load the function to the stack */
-  lua_pushstring (rf->lua_state, rf->lua_function_name);
-  lua_gettable (rf->lua_state, LUA_REGISTRYINDEX);
+  /* XXX FIXME: Not thread-safe! */
+  callback_id = ++callback_num;
 
-  if (!lua_isfunction (rf->lua_state, /* stack pos = */ -1))
+  if (idx < 0)
+    idx += lua_gettop (l) + 1;
+
+  lua_getfield (l, LUA_REGISTRYINDEX, "collectd_callbacks"); /* +1 = 1 */
+  if (!lua_istable (l, /* idx = */ -1))
   {
-    ERROR ("lua plugin: Unable to lookup the read function \"%s\".",
-        rf->lua_function_name);
-    /* pop the value again */
-    lua_settop (rf->lua_state, -2);
+    lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+    lua_newtable (l); /* +1 = 1 */
+    lua_pushvalue (l, -1); /* +1 = 2 */
+    lua_setfield (l, LUA_REGISTRYINDEX, "collectd_callbacks"); /* -1 = 1 */
+  }
+
+  /* The table is now on top of the stack */
+  lua_pushinteger (l, (lua_Integer) callback_id); /* +1 = 2 */
+
+  /* Copy the function pointer */
+  lua_pushvalue (l, idx); /* +1 = 3 */
+  /* Lookup function if it's a string */
+  if (lua_isstring (l, /* idx = */ -1))
+    lua_gettable (l, LUA_GLOBALSINDEX); /* +-0 = 3 */
+
+  if (!lua_isfunction (l, /* idx = */ -1))
+  {
+    lua_pop (l, /* nelems = */ 3); /* -3 = 0 */
     return (-1);
   }
 
-  lua_call (rf->lua_state, /* nargs = */ 0, /* nresults = */ 1);
+  lua_settable (l, /* idx = */ -3); /* -2 = 1 */
+  lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+  return (callback_id);
+} /* }}} int clua_store_callback */
 
-  if (lua_isnumber (rf->lua_state, -1))
-  {
-    status = (int) lua_tonumber (rf->lua_state, -1);
-  }
-  else
-  {
-    ERROR ("lua plugin: Read function \"%s\" did not return a numeric status.",
-        rf->lua_function_name);
-    status = -1;
-  }
-  /* pop the value */
-  lua_settop (rf->lua_state, -2);
-
-  return (status);
-} /* }}} int clua_read */
-
-/* Cleans up the stack, pushes the return value as a number onto the stack and
- * returns the number of values returned (1). */
-#define RETURN_LUA(l,status) do {                    \
-  lua_State *_l_state = (l);                         \
-  lua_settop (_l_state, 0);                          \
-  lua_pushnumber (_l_state, (lua_Number) (status));  \
-  return (1);                                        \
-} while (0)
-
-static int ltoc_value (lua_State *l, /* {{{ */
-    int ds_type, value_t *ret_value)
+static int clua_load_callback (lua_State *l, int callback_id) /* {{{ */
 {
-  if (!lua_isnumber (l, /* stack pos = */ -1))
+  lua_getfield (l, LUA_REGISTRYINDEX, "collectd_callbacks"); /* +1 */
+  if (!lua_istable (l, /* idx = */ -1))
+  {
+    lua_pop (l, /* nelems = */ 1); /* -1 */
     return (-1);
+  }
 
-  if (ds_type == DS_TYPE_GAUGE)
-    ret_value->gauge = (gauge_t) lua_tonumber (l, /* stack pos = */ -1);
-  else if (ds_type == DS_TYPE_DERIVE)
-    ret_value->derive = (derive_t) lua_tointeger (l, /* stack pos = */ -1);
-  else if (ds_type == DS_TYPE_COUNTER)
-    ret_value->counter = (counter_t) lua_tointeger (l, /* stack pos = */ -1);
-  else if (ds_type == DS_TYPE_ABSOLUTE)
-    ret_value->absolute = (absolute_t) lua_tointeger (l, /* stack pos = */ -1);
-  else
-    assert (23 == 42);
+  lua_pushinteger (l, (lua_Integer) callback_id); /* + 1 */
+  lua_gettable (l, /* idx = */ -2); /* +-0 */
 
+  if (!lua_isfunction (l, -1))
+  {
+    lua_pop (l, /* nelems = */ 2); /* -2 */
+    return (-1);
+  }
+
+  /* Remove table */
+  lua_remove (l, /* idx = */ -2); /* -1 */
   return (0);
-} /* }}} int ltoc_value */
+} /* }}} int clua_load_callback */
 
 static lua_Number ctol_value(int ds_type, const value_t *value, lua_Number *lua_num)
 {
@@ -144,192 +150,166 @@ static lua_Number ctol_value(int ds_type, const value_t *value, lua_Number *lua_
   return 0;
 }
 
-static int ltoc_values (lua_State *l, /* {{{ */
-    const data_set_t *ds,
-    value_t *ret_values)
+/* Store the threads in a global variable so they are not cleaned up by the
+ * garbage collector. */
+static int clua_store_thread (lua_State *l, int idx, int callback_id) /* {{{ */
 {
-  size_t i;
-  int status = 0;
+  if (idx < 0)
+    idx += lua_gettop (l) + 1;
 
-  if (!lua_istable (l, -1))
+  lua_getfield (l, LUA_REGISTRYINDEX, "collectd_threads"); /* +1 = 1 */
+  if (!lua_istable (l, /* idx = */ -1))
   {
-    lua_pop (l, /* nelem = */ 1);
+    lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+    lua_newtable (l); /* +1 = 1 */
+    lua_pushvalue (l, -1); /* +1 = 2 */
+    lua_setfield (l, LUA_REGISTRYINDEX, "collectd_threads"); /* -1 = 1 */
+  }
+
+  /* The table is now on top of the stack */
+  lua_pushinteger (l, (lua_Integer) callback_id); /* +1 = 2 */
+
+  /* Copy the thread pointer */
+  lua_pushvalue (l, idx); /* +1 = 3 */
+
+  if (!lua_isthread (l, /* idx = */ -1))
+  {
+    lua_pop (l, /* nelems = */ 3); /* -3 = 0 */
     return (-1);
   }
 
-  /* Push initial key */
-  lua_pushnil (l);
-  for (i = 0; i < ((size_t) ds->ds_num); i++)
-  {
-    /* Pops old key and pushed new key and value. */
-    status = lua_next (l, -2);
-    if (status == 0) /* no more elements */
-      break;
-
-    status = ltoc_value (l, ds->ds[i].type, ret_values + i);
-    if (status != 0)
-    {
-      DEBUG ("ltoc_value failed.");
-      break;
-    }
-
-    /* Pop the value */
-    lua_pop (l, /* nelems = */ 1);
-  }
-  /* Pop the key and the table itself */
-  lua_pop (l, /* nelems = */ 2);
-
-  return (status);
-} /* }}} int ltoc_values */
-
-static int ltoc_table_values (lua_State *l, /* {{{ */
-    const data_set_t *ds, value_list_t *vl)
-{
-  int status;
-
-  lua_pushstring (l, "values");
-  lua_gettable (l, -2);
-
-  if (!lua_istable (l, -1))
-  {
-    NOTICE ("lua plugin: ltoc_table_values: The \"values\" member is not a table.");
-    lua_pop (l, /* nelem = */ 1);
-    return (-1);
-  }
-
-  vl->values_len = ds->ds_num;
-  vl->values = calloc ((size_t) vl->values_len, sizeof (*vl->values));
-  if (vl->values == NULL)
-  {
-    ERROR ("lua plugin: calloc failed.");
-    vl->values_len = 0;
-    lua_pop (l, /* nelem = */ 1);
-    return (-1);
-  }
-
-  status = ltoc_values (l, ds, vl->values);
-
-  lua_pop (l, /* nelem = */ 1);
-
-  if (status != 0)
-  {
-    vl->values_len = 0;
-    sfree (vl->values);
-  }
-
-  return (status);
-} /* }}} int ltoc_table_values */
-
-static int ltoc_string_buffer (lua_State *l, /* {{{ */
-    char *buffer, size_t buffer_size,
-    _Bool consume)
-{
-  const char *str;
-
-  str = lua_tostring (l, /* stack pos = */ -1);
-  if (str != NULL)
-    sstrncpy (buffer, str, buffer_size);
-
-  if (consume)
-    lua_pop (l, /* nelem = */ 1);
-
-  return ((str != NULL) ? 0 : -1);
-} /* }}} int ltoc_string_buffer */
-
-static int ltoc_table_string_buffer (lua_State *l, /* {{{ */
-    const char *table_key,
-    char *buffer, size_t buffer_size)
-{
-  lua_pushstring (l, table_key);
-  lua_gettable (l, -2);
-
-  if (!lua_isstring (l, /* stack pos = */ -1))
-  {
-    lua_pop (l, /* nelem = */ 1);
-    return (-1);
-  }
-
-  return (ltoc_string_buffer (l, buffer, buffer_size, /* consume = */ 1));
-} /* }}} int ltoc_table_string_buffer */
-
-static int ltoc_table_cdtime (lua_State *l, /* {{{ */
-    const char *table_key, cdtime_t *ret_time)
-{
-  double d;
-
-  lua_pushstring (l, table_key);
-  lua_gettable (l, -2);
-
-  if (!lua_isnumber (l, /* stack pos = */ -1))
-  {
-    lua_pop (l, /* nelem = */ 1);
-    return (-1);
-  }
-
-  d = (double) lua_tonumber (l, -1);
-  lua_pop (l, /* nelem = */ 1);
-
-  *ret_time = DOUBLE_TO_CDTIME_T (d);
+  lua_settable (l, /* idx = */ -3); /* -2 = 1 */
+  lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
   return (0);
-} /* }}} int ltoc_table_cdtime */
+} /* }}} int clua_store_thread */
 
-static value_list_t *ltoc_value_list (lua_State *l) /* {{{ */
+static int clua_read (user_data_t *ud) /* {{{ */
 {
-  const data_set_t *ds;
-  value_list_t *vl;
+  clua_callback_data_t *cb = ud->data;
   int status;
+  lua_State *l;
 
-  vl = malloc (sizeof (*vl));
-  if (vl == NULL)
-    return (NULL);
-  memset (vl, 0, sizeof (*vl));
-  vl->values = NULL;
-  vl->meta = NULL;
+  pthread_mutex_lock (&cb->lock);
 
-#define COPY_FIELD(field,def) do {                                              \
-  status = ltoc_table_string_buffer (l, #field, vl->field, sizeof (vl->field)); \
-  if (status != 0) {                                                            \
-    if ((def) == NULL)                                                          \
-      return (NULL);                                                            \
-    else                                                                        \
-      sstrncpy (vl->field, (def), sizeof (vl->field));                          \
-  }                                                                             \
+  l = cb->lua_state;
+
+  status = clua_load_callback (l, cb->callback_id);
+  if (status != 0)
+  {
+    ERROR ("lua plugin: Unable to load callback \"%s\" (id %i).",
+        cb->lua_function_name, cb->callback_id);
+    pthread_mutex_unlock (&cb->lock);
+    return (-1);
+  }
+  /* +1 = 1 */
+
+  status = lua_pcall (l,
+      /* nargs    = */ 0,
+      /* nresults = */ 1,
+      /* errfunc  = */ 0); /* -1+1 = 1 */
+  if (status != 0)
+  {
+    const char *errmsg = lua_tostring (l, /* idx = */ -1);
+    if (errmsg == NULL)
+      ERROR ("lua plugin: Calling a read callback failed. "
+          "In addition, retrieving the error message failed.");
+    else
+      ERROR ("lua plugin: Calling a read callback failed: %s", errmsg);
+    lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+    pthread_mutex_unlock (&cb->lock);
+    return (-1);
+  }
+
+  if (!lua_isnumber (l, /* idx = */ -1))
+  {
+    ERROR ("lua plugin: Read function \"%s\" (id %i) did not return a numeric status.",
+        cb->lua_function_name, cb->callback_id);
+    status = -1;
+  }
+  else
+  {
+    status = (int) lua_tointeger (l, /* idx = */ -1);
+  }
+
+  /* pop return value and function */
+  lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+
+  pthread_mutex_unlock (&cb->lock);
+  return (status);
+} /* }}} int clua_read */
+
+static int clua_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
+    user_data_t *ud)
+{
+  clua_callback_data_t *cb = ud->data;
+  int status;
+  lua_State *l;
+
+  pthread_mutex_lock (&cb->lock);
+
+  l = cb->lua_state;
+
+  status = clua_load_callback (l, cb->callback_id);
+  if (status != 0)
+  {
+    ERROR ("lua plugin: Unable to load callback \"%s\" (id %i).",
+        cb->lua_function_name, cb->callback_id);
+    pthread_mutex_unlock (&cb->lock);
+    return (-1);
+  }
+  /* +1 = 1 */
+
+  status = luaC_pushvaluelist (l, ds, vl);
+  if (status != 0)
+  {
+    lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+    pthread_mutex_unlock (&cb->lock);
+    ERROR ("lua plugin: luaC_pushvaluelist failed.");
+    return (-1);
+  }
+  /* +1 = 2 */
+
+  status = lua_pcall (l,
+      /* nargs    = */ 1,
+      /* nresults = */ 1,
+      /* errfunc  = */ 0); /* -2+1 = 1 */
+  if (status != 0)
+  {
+    const char *errmsg = lua_tostring (l, /* idx = */ -1);
+    if (errmsg == NULL)
+      ERROR ("lua plugin: Calling the write callback failed. "
+          "In addition, retrieving the error message failed.");
+    else
+      ERROR ("lua plugin: Calling the write callback failed:\n%s", errmsg);
+    lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+    pthread_mutex_unlock (&cb->lock);
+    return (-1);
+  }
+
+  if (!lua_isnumber (l, /* idx = */ -1))
+  {
+    ERROR ("lua plugin: Write function \"%s\" (id %i) did not return a numeric value.",
+        cb->lua_function_name, cb->callback_id);
+    status = -1;
+  }
+  else
+  {
+    status = (int) lua_tointeger (l, /* idx = */ -1);
+  }
+
+  lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
+  pthread_mutex_unlock (&cb->lock);
+  return (status);
+} /* }}} int clua_write */
+
+/* Cleans up the stack, pushes the return value as a number onto the stack and
+ * returns the number of values returned (1). */
+#define RETURN_LUA(l,status) do {                    \
+  lua_State *_l_state = (l);                         \
+  lua_settop (_l_state, 0);                          \
+  lua_pushnumber (_l_state, (lua_Number) (status));  \
+  return (1);                                        \
 } while (0)
-
-  COPY_FIELD (host, hostname_g);
-  COPY_FIELD (plugin, NULL);
-  COPY_FIELD (plugin_instance, "");
-  COPY_FIELD (type, NULL);
-  COPY_FIELD (type_instance, "");
-
-#undef COPY_FIELD
-
-  ds = plugin_get_ds (vl->type);
-  if (ds == NULL)
-  {
-    INFO ("lua plugin: Unable to lookup type \"%s\".", vl->type);
-    sfree (vl);
-    return (NULL);
-  }
-
-  status = ltoc_table_cdtime (l, "time", &vl->time);
-  if (status != 0)
-    vl->time = cdtime ();
-
-  status = ltoc_table_cdtime (l, "interval", &vl->interval);
-  if (status != 0)
-    vl->interval = interval_g;
-
-  status = ltoc_table_values (l, ds, vl);
-  if (status != 0)
-  {
-    WARNING ("lua plugin: ltoc_table_values failed.");
-    sfree (vl);
-    return (NULL);
-  }
-
-  return (vl);
-} /* }}} value_list_t *ltoc_value_list */
 
 /*
  * Exported functions
@@ -395,14 +375,14 @@ static int lua_cb_dispatch_values (lua_State *l) /* {{{ */
   if (!lua_istable (l, 1))
   {
     WARNING ("lua plugin: The first argument to collectd_dispatch_values() "
-        "must be a table.");
+        "must be a \"value list\" (i.e. a table).");
     RETURN_LUA (l, -1);
   }
 
-  vl = ltoc_value_list (l);
+  vl = luaC_tovaluelist (l, /* idx = */ -1);
   if (vl == NULL)
   {
-    WARNING ("lua plugin: ltoc_value_list failed.");
+    WARNING ("lua plugin: luaC_tovaluelist failed.");
     RETURN_LUA (l, -1);
   }
 
@@ -479,12 +459,13 @@ static int dispatch_notification(lua_State *l)
 
 static int lua_cb_register_read (lua_State *l) /* {{{ */
 {
-  static int count = 0;
   int nargs = lua_gettop (l); /* number of arguments */
-  clua_read_function_t *rf;
+  clua_callback_data_t *cb;
+  user_data_t ud;
+  lua_State *thread;
 
-  int num = count++; /* XXX FIXME: Not thread-safe! */
-  char function_name[64];
+  int callback_id;
+  char function_name[DATA_MAX_NAME_LEN] = "";
 
   if (nargs != 1)
   {
@@ -493,50 +474,52 @@ static int lua_cb_register_read (lua_State *l) /* {{{ */
     RETURN_LUA (l, -1);
   }
 
-  /* If the argument is a string, assume it's a global function and try to look
-   * it up. */
   if (lua_isstring (l, /* stack pos = */ 1))
-    lua_gettable (l, LUA_GLOBALSINDEX);
-
-  if (!lua_isfunction (l, /* stack pos = */ 1))
   {
-    WARNING ("lua plugin: The first argument of collectd_register_read() "
-        "must be a function.");
+    const char *tmp = lua_tostring (l, /* idx = */ 1);
+    ssnprintf (function_name, sizeof (function_name), "lua/%s", tmp);
+  }
+
+  callback_id = clua_store_callback (l, /* idx = */ 1);
+  if (callback_id < 0)
+  {
+    ERROR ("lua plugin: Storing callback function failed.");
     RETURN_LUA (l, -1);
   }
 
-  ssnprintf (function_name, sizeof (function_name), "collectd.read_func_%i", num);
+  thread = lua_newthread (l);
+  if (thread == NULL)
+  {
+    ERROR ("lua plugin: lua_newthread failed.");
+    RETURN_LUA (l, -1);
+  }
+  clua_store_thread (l, /* idx = */ -1, callback_id);
+  lua_pop (l, /* nelems = */ 1);
 
-  /* Push the name of the global variable */
-  lua_pushstring (l, function_name);
-  /* Push the name down to the first position */
-  lua_insert (l, 1);
-  /* Now set the global variable called "collectd". */
-  lua_settable (l, LUA_REGISTRYINDEX);
+  if (function_name[0] == 0)
+    ssnprintf (function_name, sizeof (function_name), "lua/callback_%i", callback_id);
 
-  rf = malloc (sizeof (*rf));
-  if (rf == NULL)
+  cb = malloc (sizeof (*cb));
+  if (cb == NULL)
   {
     ERROR ("lua plugin: malloc failed.");
     RETURN_LUA (l, -1);
   }
-  else
-  {
-    user_data_t ud = { rf, /* free func */ NULL /* FIXME */ };
-    char cb_name[DATA_MAX_NAME_LEN];
 
-    memset (rf, 0, sizeof (*rf));
-    rf->lua_state = l;
-    rf->lua_function_name = strdup (function_name);
+  memset (cb, 0, sizeof (*cb));
+  cb->lua_state = thread;
+  cb->callback_id = callback_id;
+  cb->lua_function_name = strdup (function_name);
+  pthread_mutex_init (&cb->lock, /* attr = */ NULL);
 
-    ssnprintf (cb_name, sizeof (cb_name), "lua/read_func_%i", num);
+  ud.data = cb;
+  ud.free_func = NULL; /* FIXME */
 
-    plugin_register_complex_read (/* group = */ "lua",
-        /* name      = */ cb_name,
-        /* callback  = */ clua_read,
-        /* interval  = */ NULL,
-        /* user_data = */ &ud);
-  }
+  plugin_register_complex_read (/* group = */ "lua",
+      /* name      = */ function_name,
+      /* callback  = */ clua_read,
+      /* interval  = */ NULL,
+      /* user_data = */ &ud);
 
   DEBUG ("lua plugin: Successful call to lua_cb_register_read().");
 
@@ -638,12 +621,80 @@ static int lua_write_cb(const data_set_t *ds, const value_list_t *vl,
   return 0;
 }
 
+static int lua_cb_register_write (lua_State *l) /* {{{ */
+{
+  int nargs = lua_gettop (l); /* number of arguments */
+  clua_callback_data_t *cb;
+  user_data_t ud;
+  lua_State *thread;
+
+  int callback_id;
+  char function_name[DATA_MAX_NAME_LEN] = "";
+
+  if (nargs != 1)
+  {
+    WARNING ("lua plugin: collectd_register_read() called with an invalid "
+        "number of arguments (%i).", nargs);
+    RETURN_LUA (l, -1);
+  }
+
+  if (lua_isstring (l, /* stack pos = */ 1))
+  {
+    const char *tmp = lua_tostring (l, /* idx = */ 1);
+    ssnprintf (function_name, sizeof (function_name), "lua/%s", tmp);
+  }
+
+  callback_id = clua_store_callback (l, /* idx = */ 1);
+  if (callback_id < 0)
+  {
+    ERROR ("lua plugin: Storing callback function failed.");
+    RETURN_LUA (l, -1);
+  }
+
+  thread = lua_newthread (l);
+  if (thread == NULL)
+  {
+    ERROR ("lua plugin: lua_newthread failed.");
+    RETURN_LUA (l, -1);
+  }
+  clua_store_thread (l, /* idx = */ -1, callback_id);
+  lua_pop (l, /* nelems = */ 1);
+
+  if (function_name[0] == 0)
+    ssnprintf (function_name, sizeof (function_name), "lua/callback_%i", callback_id);
+
+  cb = malloc (sizeof (*cb));
+  if (cb == NULL)
+  {
+    ERROR ("lua plugin: malloc failed.");
+    RETURN_LUA (l, -1);
+  }
+
+  memset (cb, 0, sizeof (*cb));
+  cb->lua_state = thread;
+  cb->callback_id = callback_id;
+  cb->lua_function_name = strdup (function_name);
+  pthread_mutex_init (&cb->lock, /* attr = */ NULL);
+
+  ud.data = cb;
+  ud.free_func = NULL; /* FIXME */
+
+  plugin_register_write (/* name = */ function_name,
+      /* callback  = */ clua_write,
+      /* user_data = */ &ud);
+
+  DEBUG ("lua plugin: Successful call to lua_cb_register_write().");
+
+  RETURN_LUA (l, 0);
+} /* }}} int lua_cb_register_write */
+
 static lua_c_functions_t lua_c_functions[] =
 {
   { "collectd_log", lua_cb_log },
   { "collectd_dispatch_values", lua_cb_dispatch_values },
   { "collectd_dispatch_notification", dispatch_notification },
-  { "collectd_register_read", lua_cb_register_read }
+  { "collectd_register_read", lua_cb_register_read },
+  { "collectd_register_write", lua_cb_register_write }
 };
 
 static void lua_script_free (lua_script_t *script) /* {{{ */

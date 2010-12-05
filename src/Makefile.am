@@ -547,7 +547,8 @@ endif
 
 if BUILD_PLUGIN_LUA
 pkglib_LTLIBRARIES += lua.la
-lua_la_SOURCES = lua.c
+lua_la_SOURCES = lua.c \
+		 utils_lua.c utils_lua.h
 lua_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLUA_CPPFLAGS)
 lua_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBLUA_LDFLAGS)
 lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
