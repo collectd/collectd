@@ -1358,7 +1358,7 @@ int plugin_dispatch_missing (const value_list_t *vl) /* {{{ */
     cf = le->value;
     callback = cf->cf_callback;
 
-    status = (*callback) (vl);
+    status = (*callback) (vl, &cf->cf_udata);
     if (status != 0)
     {
       if (status < 0)

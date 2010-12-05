@@ -173,7 +173,7 @@ typedef int (*plugin_flush_cb) (cdtime_t timeout, const char *identifier,
 /* "missing" callback. Returns less than zero on failure, zero if other
  * callbacks should be called, greater than zero if no more callbacks should be
  * called. */
-typedef int (*plugin_missing_cb) (const value_list_t *);
+typedef int (*plugin_missing_cb) (const value_list_t *, user_data_t *);
 typedef void (*plugin_log_cb) (int severity, const char *message,
 		user_data_t *);
 typedef int (*plugin_shutdown_cb) (void);
