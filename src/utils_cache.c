@@ -24,7 +24,6 @@
 #include "plugin.h"
 #include "utils_avltree.h"
 #include "utils_cache.h"
-#include "utils_threshold.h"
 #include "meta_data.h"
 
 #include <assert.h>
@@ -436,9 +435,6 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 {
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
-  int send_okay_notification = 0;
-  cdtime_t update_delay = 0;
-  notification_t n;
   int status;
   int i;
 
@@ -470,15 +466,6 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	CDTIME_T_TO_DOUBLE (vl->time),
 	CDTIME_T_TO_DOUBLE (ce->last_time));
     return (-1);
-  }
-
-  /* Send a notification (after the lock has been released) if we switch the
-   * state from something else to `okay'. */
-  if (ce->state == STATE_MISSING)
-  {
-    send_okay_notification = 1;
-    ce->state = STATE_OKAY;
-    update_delay = cdtime () - ce->last_update;
   }
 
   for (i = 0; i < ds->ds_num; i++)
@@ -566,28 +553,6 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   ce->interval = vl->interval;
 
   pthread_mutex_unlock (&cache_lock);
-
-  if (send_okay_notification == 0)
-    return (0);
-
-  /* Do not send okay notifications for uninteresting values, i. e. values for
-   * which no threshold is configured. */
-  status = ut_check_interesting (name);
-  if (status <= 0)
-    return (0);
-
-  /* Initialize the notification */
-  memset (&n, '\0', sizeof (n));
-  NOTIFICATION_INIT_VL (&n, vl, ds);
-
-  n.severity = NOTIF_OKAY;
-  n.time = vl->time;
-
-  ssnprintf (n.message, sizeof (n.message),
-      "Received a value for %s. It was missing for %u seconds.",
-      name, (unsigned int) update_delay);
-
-  plugin_dispatch_notification (&n);
 
   return (0);
 } /* int uc_update */

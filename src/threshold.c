@@ -1,9 +1,8 @@
 /**
- * collectd - src/utils_threshold.c
- * Copyright (C) 2007-2009  Florian octo Forster
+ * collectd - src/threshold.c
+ * Copyright (C) 2007-2010  Florian Forster
  * Copyright (C) 2008-2009  Sebastian Harl
  * Copyright (C) 2009       Andrés J. Díaz
- *
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Author:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  *   Andrés J. Díaz <ajdiaz at connectical.com>
  **/
@@ -29,7 +28,6 @@
 #include "plugin.h"
 #include "utils_avltree.h"
 #include "utils_cache.h"
-#include "utils_threshold.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -41,6 +39,23 @@
 #define UT_FLAG_PERSIST 0x02
 #define UT_FLAG_PERCENTAGE 0x04
 #define UT_FLAG_INTERESTING 0x08
+typedef struct threshold_s
+{
+  char host[DATA_MAX_NAME_LEN];
+  char plugin[DATA_MAX_NAME_LEN];
+  char plugin_instance[DATA_MAX_NAME_LEN];
+  char type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
+  char data_source[DATA_MAX_NAME_LEN];
+  gauge_t warning_min;
+  gauge_t warning_max;
+  gauge_t failure_min;
+  gauge_t failure_max;
+  gauge_t hysteresis;
+  unsigned int flags;
+  int hits;
+  struct threshold_s *next;
+} threshold_t;
 /* }}} */
 
 /*
@@ -55,11 +70,18 @@ static pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
  * ====================
  * The following functions add, delete, search, etc. configured thresholds to
  * the underlying AVL trees.
- * {{{ */
+ */
+/*
+ * threshold_t *threshold_get
+ *
+ * Retrieve one specific threshold configuration. For looking up a threshold
+ * matching a value_list_t, see "threshold_search" below. Returns NULL if the
+ * specified threshold doesn't exist.
+ */
 static threshold_t *threshold_get (const char *hostname,
     const char *plugin, const char *plugin_instance,
     const char *type, const char *type_instance)
-{
+{ /* {{{ */
   char name[6 * DATA_MAX_NAME_LEN];
   threshold_t *th = NULL;
 
@@ -73,10 +95,17 @@ static threshold_t *threshold_get (const char *hostname,
     return (th);
   else
     return (NULL);
-} /* threshold_t *threshold_get */
+} /* }}} threshold_t *threshold_get */
 
+/*
+ * int ut_threshold_add
+ *
+ * Adds a threshold configuration to the list of thresholds. The threshold_t
+ * structure is copied and may be destroyed after this call. Returns zero on
+ * success, non-zero otherwise.
+ */
 static int ut_threshold_add (const threshold_t *th)
-{
+{ /* {{{ */
   char name[6 * DATA_MAX_NAME_LEN];
   char *name_copy;
   threshold_t *th_copy;
@@ -139,10 +168,59 @@ static int ut_threshold_add (const threshold_t *th)
   }
 
   return (status);
-} /* int ut_threshold_add */
-/*
- * End of the threshold management functions
- * }}} */
+} /* }}} int ut_threshold_add */
+
+/* 
+ * threshold_t *threshold_search
+ *
+ * Searches for a threshold configuration using all the possible variations of
+ * "Host", "Plugin" and "Type" blocks. Returns NULL if no threshold could be
+ * found.
+ * XXX: This is likely the least efficient function in collectd.
+ */
+static threshold_t *threshold_search (const value_list_t *vl)
+{ /* {{{ */
+  threshold_t *th;
+
+  if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
+	  vl->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
+	  vl->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
+	  vl->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
+	  vl->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, "", NULL,
+	  vl->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get (vl->host, "", NULL,
+	  vl->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
+	  vl->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
+	  vl->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, NULL,
+	  vl->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", vl->plugin, NULL,
+	  vl->type, NULL)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", "", NULL,
+	  vl->type, vl->type_instance)) != NULL)
+    return (th);
+  else if ((th = threshold_get ("", "", NULL,
+	  vl->type, NULL)) != NULL)
+    return (th);
+
+  return (NULL);
+} /* }}} threshold_t *threshold_search */
 
 /*
  * Configuration
@@ -435,7 +513,7 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
   return (status);
 } /* int ut_config_host */
 
-int ut_config (const oconfig_item_t *ci)
+int ut_config (oconfig_item_t *ci)
 {
   int i;
   int status = 0;
@@ -496,50 +574,6 @@ int ut_config (const oconfig_item_t *ci)
  * End of the functions used to configure threshold values.
  */
 /* }}} */
-
-static threshold_t *threshold_search (const value_list_t *vl)
-{
-  threshold_t *th;
-
-  if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, "", NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, "", NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", "", NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", "", NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-
-  return (NULL);
-} /* threshold_t *threshold_search */
 
 /*
  * int ut_report_state
@@ -644,7 +678,12 @@ static int ut_report_state (const data_set_t *ds,
   /* Send an okay notification */
   if (state == STATE_OKAY)
   {
-    status = ssnprintf (buf, bufsize, ": All data sources are within range again.");
+    if (state_old == STATE_MISSING)
+      status = ssnprintf (buf, bufsize,
+          ": Value is no longer missing.");
+    else
+      status = ssnprintf (buf, bufsize,
+          ": All data sources are within range again.");
     buf += status;
     bufsize -= status;
   }
@@ -855,7 +894,8 @@ static int ut_check_one_threshold (const data_set_t *ds,
  * Returns zero on success and if no threshold has been configured. Returns
  * less than zero on failure.
  */
-int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
+static int ut_check_threshold (const data_set_t *ds, const value_list_t *vl,
+    __attribute__((unused)) user_data_t *ud)
 { /* {{{ */
   threshold_t *th;
   gauge_t *values;
@@ -918,92 +958,11 @@ int ut_check_threshold (const data_set_t *ds, const value_list_t *vl)
   return (0);
 } /* }}} int ut_check_threshold */
 
-/*
- * int ut_check_interesting (PUBLIC)
- *
- * Given an identification returns
- * 0: No threshold is defined.
- * 1: A threshold has been found. The flag `persist' is off.
- * 2: A threshold has been found. The flag `persist' is on.
- *    (That is, it is expected that many notifications are sent until the
- *    problem disappears.)
- */
-int ut_check_interesting (const char *name)
-{ /* {{{ */
-  char *name_copy = NULL;
-  char *host = NULL;
-  char *plugin = NULL;
-  char *plugin_instance = NULL;
-  char *type = NULL;
-  char *type_instance = NULL;
-  int status;
-  data_set_t ds;
-  value_list_t vl;
-  threshold_t *th;
-
-  /* If there is no tree nothing is interesting. */
-  if (threshold_tree == NULL)
-    return (0);
-
-  name_copy = strdup (name);
-  if (name_copy == NULL)
-  {
-    ERROR ("ut_check_interesting: strdup failed.");
-    return (-1);
-  }
-
-  status = parse_identifier (name_copy, &host,
-      &plugin, &plugin_instance, &type, &type_instance);
-  if (status != 0)
-  {
-    ERROR ("ut_check_interesting: parse_identifier failed.");
-    sfree (name_copy);
-    return (-1);
-  }
-
-  memset (&ds, '\0', sizeof (ds));
-  memset (&vl, '\0', sizeof (vl));
-
-  sstrncpy (vl.host, host, sizeof (vl.host));
-  sstrncpy (vl.plugin, plugin, sizeof (vl.plugin));
-  if (plugin_instance != NULL)
-    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-  sstrncpy (ds.type, type, sizeof (ds.type));
-  sstrncpy (vl.type, type, sizeof (vl.type));
-  if (type_instance != NULL)
-    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-  sfree (name_copy);
-  host = plugin = plugin_instance = type = type_instance = NULL;
-
-  th = threshold_search (&vl);
-  if (th == NULL)
-    return (0);
-
-  if ((th->flags & UT_FLAG_INTERESTING) == 0)
-    return (0);
-
-  if ((th->flags & UT_FLAG_PERSIST) == 0)
-    return (1);
-  return (2);
-} /* }}} int ut_check_interesting */
-
-int ut_search_threshold (const value_list_t *vl, /* {{{ */
-    threshold_t *ret_threshold)
+void module_register (void)
 {
-  threshold_t *t;
-
-  if (vl == NULL)
-    return (EINVAL);
-
-  t = threshold_search (vl);
-  if (t == NULL)
-    return (ENOENT);
-
-  memcpy (ret_threshold, t, sizeof (*ret_threshold));
-  ret_threshold->next = NULL;
-
-  return (0);
-} /* }}} int ut_search_threshold */
+  plugin_register_complex_config ("threshold", ut_config);
+  plugin_register_write ("threshold", ut_check_threshold,
+      /* user data = */ NULL);
+}
 
 /* vim: set sw=2 ts=8 sts=2 tw=78 et fdm=marker : */

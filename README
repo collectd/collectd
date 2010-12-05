@@ -442,6 +442,10 @@ Features
 
   * Miscellaneous plugins:
 
+    - threshold
+      Checks values against configured thresholds and creates notifications if
+      values are out of bounds. See collectd-threshold(5) for details.
+
     - uuid
       Sets the hostname to an unique identifier. This is meant for setups
       where each client may migrate to another physical host, possibly going

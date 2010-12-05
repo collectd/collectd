@@ -36,7 +36,6 @@
 #include "utils_llist.h"
 #include "utils_heap.h"
 #include "utils_cache.h"
-#include "utils_threshold.h"
 #include "filter_chain.h"
 
 /*
@@ -1524,9 +1523,6 @@ int plugin_dispatch_values (value_list_t *vl)
 
 	/* Update the value cache */
 	uc_update (ds, vl);
-
-	/* Initiate threshold checking */
-	ut_check_threshold (ds, vl);
 
 	if (post_cache_chain != NULL)
 	{

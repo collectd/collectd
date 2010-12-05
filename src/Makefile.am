@@ -40,7 +40,6 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_match.c utils_match.h \
 		   utils_subst.c utils_subst.h \
 		   utils_tail.c utils_tail.h \
-		   utils_threshold.c utils_threshold.h \
 		   utils_time.c utils_time.h \
 		   types_list.c types_list.h
 
@@ -1131,6 +1130,14 @@ collectd_LDADD += "-dlopen" thermal.la
 collectd_DEPENDENCIES += thermal.la
 endif
 
+if BUILD_PLUGIN_THRESHOLD
+pkglib_LTLIBRARIES += threshold.la
+threshold_la_SOURCES = threshold.c
+threshold_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" threshold.la
+collectd_DEPENDENCIES += threshold.la
+endif
+
 if BUILD_PLUGIN_TOKYOTYRANT
 pkglib_LTLIBRARIES += tokyotyrant.la
 tokyotyrant_la_SOURCES = tokyotyrant.c
@@ -1149,7 +1156,6 @@ pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_flush.h utils_cmd_flush.c \
 		      utils_cmd_getval.h utils_cmd_getval.c \
-		      utils_cmd_getthreshold.h utils_cmd_getthreshold.c \
 		      utils_cmd_listval.h utils_cmd_listval.c \
 		      utils_cmd_putval.h utils_cmd_putval.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c
@@ -1286,6 +1292,7 @@ dist_man_MANS = collectd.1 \
 		collectd-perl.5 \
 		collectd-python.5 \
 		collectd-snmp.5 \
+		collectd-threshold.5 \
 		collectd-unixsock.5 \
 		types.db.5
 
@@ -1304,6 +1311,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-python.pod \
 		collectd.pod \
 		collectd-snmp.pod \
+		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
 		types.db.pod

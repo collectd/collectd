@@ -1000,3 +1000,52 @@
 #<Chain "PostCache">
 #  Target "write"
 #</Chain>
+
+##############################################################################
+# Threshold configuration                                                    #
+#----------------------------------------------------------------------------#
+# The following outlines how to configure collectd's threshold checking      #
+# plugin. The plugin and possible configuration options are documented in    #
+# the collectd-threshold(5) manual page.                                     #
+##############################################################################
+
+#@BUILD_PLUGIN_THRESHOLD_TRUE@LoadPlugin "threshold"
+#<Plugin "threshold">
+#  <Type "foo">
+#    WarningMin    0.00
+#    WarningMax 1000.00
+#    FailureMin    0.00
+#    FailureMax 1200.00
+#    Invert false
+#    Instance "bar"
+#  </Type>
+#
+#  <Plugin "interface">
+#    Instance "eth0"
+#    <Type "if_octets">
+#      FailureMax 10000000
+#      DataSource "rx"
+#    </Type>
+#  </Plugin>
+#
+#  <Host "hostname">
+#    <Type "cpu">
+#      Instance "idle"
+#      FailureMin 10
+#    </Type>
+#
+#    <Plugin "memory">
+#      <Type "memory">
+#        Instance "cached"
+#        WarningMin 100000000
+#      </Type>
+#    </Plugin>
+#
+#    <Type "load">
+#    	DataSource "midterm"
+#    	FailureMax 4
+#    	Hits 3
+#    	Hysteresis 3
+#    </Type>
+#  </Host>
+#</Plugin>

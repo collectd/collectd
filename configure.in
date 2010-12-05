@@ -4637,6 +4637,7 @@ AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
+AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
@@ -4962,6 +4963,7 @@ Configuration:
     teamspeak2  . . . . . $enable_teamspeak2
     ted . . . . . . . . . $enable_ted
     thermal . . . . . . . $enable_thermal
+    threshold . . . . . . $enable_threshold
     tokyotyrant . . . . . $enable_tokyotyrant
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
