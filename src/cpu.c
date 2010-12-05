@@ -1,6 +1,6 @@
 /**
  * collectd - src/cpu.c
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  * Copyright (C) 2008       Oleg King
  * Copyright (C) 2009       Simon Kuhnle
  * Copyright (C) 2009       Manuel Sanmartin
@@ -241,12 +241,12 @@ static int init (void)
 	return (0);
 } /* int init */
 
-static void submit (int cpu_num, const char *type_instance, counter_t value)
+static void submit (int cpu_num, const char *type_instance, derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = value;
+	values[0].derive = value;
 
 	vl.values = values;
 	vl.values_len = 1;
@@ -298,10 +298,10 @@ static int cpu_read (void)
 			continue;
 		}
 
-		submit (cpu, "user", (counter_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
-		submit (cpu, "nice", (counter_t) cpu_info.cpu_ticks[CPU_STATE_NICE]);
-		submit (cpu, "system", (counter_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
-		submit (cpu, "idle", (counter_t) cpu_info.cpu_ticks[CPU_STATE_IDLE]);
+		submit (cpu, "user", (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
+		submit (cpu, "nice", (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE]);
+		submit (cpu, "system", (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
+		submit (cpu, "idle", (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE]);
 #endif /* PROCESSOR_CPU_LOAD_INFO */
 #if PROCESSOR_TEMPERATURE
 		/*
@@ -352,8 +352,8 @@ static int cpu_read (void)
 
 #elif defined(KERNEL_LINUX)
 	int cpu;
-	counter_t user, nice, syst, idle;
-	counter_t wait, intr, sitr; /* sitr == soft interrupt */
+	derive_t user, nice, syst, idle;
+	derive_t wait, intr, sitr; /* sitr == soft interrupt */
 	FILE *fh;
 	char buf[1024];
 
@@ -410,7 +410,7 @@ static int cpu_read (void)
 
 #elif defined(HAVE_LIBKSTAT)
 	int cpu;
-	counter_t user, syst, idle, wait;
+	derive_t user, syst, idle, wait;
 	static cpu_stat_t cs;
 
 	if (kc == NULL)
@@ -421,10 +421,10 @@ static int cpu_read (void)
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
 
-		idle = (counter_t) cs.cpu_sysinfo.cpu[CPU_IDLE];
-		user = (counter_t) cs.cpu_sysinfo.cpu[CPU_USER];
-		syst = (counter_t) cs.cpu_sysinfo.cpu[CPU_KERNEL];
-		wait = (counter_t) cs.cpu_sysinfo.cpu[CPU_WAIT];
+		idle = (derive_t) cs.cpu_sysinfo.cpu[CPU_IDLE];
+		user = (derive_t) cs.cpu_sysinfo.cpu[CPU_USER];
+		syst = (derive_t) cs.cpu_sysinfo.cpu[CPU_KERNEL];
+		wait = (derive_t) cs.cpu_sysinfo.cpu[CPU_WAIT];
 
 		submit (ksp[cpu]->ks_instance, "user", user);
 		submit (ksp[cpu]->ks_instance, "system", syst);
@@ -551,12 +551,12 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	submit (0, "idle",   (counter_t) cs->idle);
-	submit (0, "nice",   (counter_t) cs->nice);
-	submit (0, "swap",   (counter_t) cs->swap);
-	submit (0, "system", (counter_t) cs->kernel);
-	submit (0, "user",   (counter_t) cs->user);
-	submit (0, "wait",   (counter_t) cs->iowait);
+	submit (0, "idle",   (derive_t) cs->idle);
+	submit (0, "nice",   (derive_t) cs->nice);
+	submit (0, "swap",   (derive_t) cs->swap);
+	submit (0, "system", (derive_t) cs->kernel);
+	submit (0, "user",   (derive_t) cs->user);
+	submit (0, "wait",   (derive_t) cs->iowait);
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
@@ -591,10 +591,10 @@ static int cpu_read (void)
 
 	for (i = 0; i < cpus; i++) 
 	{
-		submit (i, "idle",   (counter_t) perfcpu[i].idle);
-		submit (i, "system", (counter_t) perfcpu[i].sys);
-		submit (i, "user",   (counter_t) perfcpu[i].user);
-		submit (i, "wait",   (counter_t) perfcpu[i].wait);
+		submit (i, "idle",   (derive_t) perfcpu[i].idle);
+		submit (i, "system", (derive_t) perfcpu[i].sys);
+		submit (i, "user",   (derive_t) perfcpu[i].user);
+		submit (i, "wait",   (derive_t) perfcpu[i].wait);
 	}
 #endif /* HAVE_PERFSTAT */
 

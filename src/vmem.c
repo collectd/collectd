@@ -1,6 +1,6 @@
 /**
  * collectd - src/vmem.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -57,12 +57,12 @@ static void submit (const char *plugin_instance, const char *type,
 } /* void vmem_submit */
 
 static void submit_two (const char *plugin_instance, const char *type,
-    const char *type_instance, counter_t c0, counter_t c1)
+    const char *type_instance, derive_t c0, derive_t c1)
 {
   value_t values[2];
 
-  values[0].counter = c0;
-  values[1].counter = c1;
+  values[0].derive = c0;
+  values[1].derive = c1;
 
   submit (plugin_instance, type, type_instance, values, 2);
 } /* void submit_one */
@@ -93,16 +93,16 @@ static int vmem_config (const char *key, const char *value)
 static int vmem_read (void)
 {
 #if KERNEL_LINUX
-  counter_t pgpgin = 0;
-  counter_t pgpgout = 0;
+  derive_t pgpgin = 0;
+  derive_t pgpgout = 0;
   int pgpgvalid = 0;
 
-  counter_t pswpin = 0;
-  counter_t pswpout = 0;
+  derive_t pswpin = 0;
+  derive_t pswpout = 0;
   int pswpvalid = 0;
 
-  counter_t pgfault = 0;
-  counter_t pgmajfault = 0;
+  derive_t pgfault = 0;
+  derive_t pgmajfault = 0;
   int pgfaultvalid = 0;
 
   FILE *fh;
@@ -123,7 +123,7 @@ static int vmem_read (void)
     int fields_num;
     char *key;
     char *endptr;
-    counter_t counter;
+    derive_t counter;
     gauge_t gauge;
 
     fields_num = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
@@ -205,31 +205,31 @@ static int vmem_read (void)
     else if (strncmp ("pgalloc_", key, strlen ("pgalloc_")) == 0)
     {
       char *inst = key + strlen ("pgalloc_");
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (inst, "vmpage_action", "alloc", value);
     }
     else if (strncmp ("pgrefill_", key, strlen ("pgrefill_")) == 0)
     {
       char *inst = key + strlen ("pgrefill_");
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (inst, "vmpage_action", "refill", value);
     }
     else if (strncmp ("pgsteal_", key, strlen ("pgsteal_")) == 0)
     {
       char *inst = key + strlen ("pgsteal_");
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (inst, "vmpage_action", "steal", value);
     }
     else if (strncmp ("pgscan_kswapd_", key, strlen ("pgscan_kswapd_")) == 0)
     {
       char *inst = key + strlen ("pgscan_kswapd_");
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (inst, "vmpage_action", "scan_kswapd", value);
     }
     else if (strncmp ("pgscan_direct_", key, strlen ("pgscan_direct_")) == 0)
     {
       char *inst = key + strlen ("pgscan_direct_");
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (inst, "vmpage_action", "scan_direct", value);
     }
 
@@ -241,17 +241,17 @@ static int vmem_read (void)
      */
     else if (strcmp ("pgfree", key) == 0)
     {
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (NULL, "vmpage_action", "free", value);
     }
     else if (strcmp ("pgactivate", key) == 0)
     {
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (NULL, "vmpage_action", "activate", value);
     }
     else if (strcmp ("pgdeactivate", key) == 0)
     {
-      value_t value  = { .counter = counter };
+      value_t value  = { .derive = counter };
       submit_one (NULL, "vmpage_action", "deactivate", value);
     }
   } /* while (fgets) */

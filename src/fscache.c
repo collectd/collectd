@@ -107,15 +107,12 @@ Ops pend=N  Number of times async ops added to pending queues
 63 events to collect in 13 groups
 */
 static void fscache_submit (const char *section, const char *name,
-        counter_t counter_value)
+        value_t value)
 {
-    value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
-    vl.values = values;
+    vl.values = &value;
     vl.values_len = 1;
-
-    vl.values[0].counter = counter_value;
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "fscache", sizeof (vl.plugin));
@@ -189,8 +186,8 @@ static void fscache_read_stats_file (FILE *fh)
         {
             char *field_name;
             char *field_value_str;
-            char *endptr;
-            counter_t field_value_cnt;
+            value_t field_value_cnt;
+            int status;
 
             field_name = fields[i];
             assert (field_name != NULL);
@@ -201,11 +198,9 @@ static void fscache_read_stats_file (FILE *fh)
             *field_value_str = 0;
             field_value_str++;
 
-            errno = 0;
-            endptr = NULL;
-            field_value_cnt = (counter_t) strtoull (field_value_str,
-                    &endptr, /* base = */ 10);
-            if ((errno != 0) || (endptr == field_value_str))
+            status = parse_value (field_value_str, &field_value_cnt,
+                    DS_TYPE_DERIVE);
+            if (status != 0)
                 continue;
 
             fscache_submit (section, field_name, field_value_cnt);

@@ -1,7 +1,7 @@
 /**
  * collectd - src/vserver.c
  * Copyright (C) 2006,2007  Sebastian Harl
- * Copyright (C) 2007,2008  Florian octo Forster
+ * Copyright (C) 2007-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -48,13 +48,13 @@ static int vserver_init (void)
 } /* static void vserver_init(void) */
 
 static void traffic_submit (const char *plugin_instance,
-		const char *type_instance, counter_t rx, counter_t tx)
+		const char *type_instance, derive_t rx, derive_t tx)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = rx;
-	values[1].counter = tx;
+	values[0].derive = rx;
+	values[1].derive = tx;
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -107,14 +107,21 @@ static void submit_gauge (const char *plugin_instance, const char *type,
 	plugin_dispatch_values (&vl);
 } /* void submit_gauge */
 
-static inline long long __get_sock_bytes(const char *s)
+static derive_t vserver_get_sock_bytes(const char *s)
 {
+	value_t v;
+	int status;
+
 	while (s[0] != '/')
 		++s;
 
 	/* Remove '/' */
 	++s;
-	return atoll(s);
+
+	status = parse_value (s, &v, DS_TYPE_DERIVE);
+	if (status != 0)
+		return (-1);
+	return (v.derive);
 }
 
 static int vserver_read (void)
@@ -201,8 +208,8 @@ static int vserver_read (void)
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{
-			counter_t rx;
-			counter_t tx;
+			derive_t rx;
+			derive_t tx;
 			char *type_instance;
 
 			if (strsplit (buffer, cols, 4) < 4)
@@ -221,8 +228,8 @@ static int vserver_read (void)
 			else
 				continue;
 
-			rx = __get_sock_bytes (cols[1]);
-			tx = __get_sock_bytes (cols[2]);
+			rx = vserver_get_sock_bytes (cols[1]);
+			tx = vserver_get_sock_bytes (cols[2]);
 			/* cols[3] == errors */
 
 			traffic_submit (dent->d_name, type_instance, rx, tx);

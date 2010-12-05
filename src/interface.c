@@ -1,6 +1,6 @@
 /**
  * collectd - src/interface.c
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -128,7 +128,7 @@ static int interface_config (const char *key, const char *value)
 static int interface_init (void)
 {
 	kstat_t *ksp_chain;
-	unsigned long long val;
+	derive_t val;
 
 	numif = 0;
 
@@ -155,8 +155,8 @@ static int interface_init (void)
 #endif /* HAVE_LIBKSTAT */
 
 static void if_submit (const char *dev, const char *type,
-		unsigned long long rx,
-		unsigned long long tx)
+		derive_t rx,
+		derive_t tx)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -164,8 +164,8 @@ static void if_submit (const char *dev, const char *type,
 	if (ignorelist_match (ignorelist, dev) != 0)
 		return;
 
-	values[0].counter = rx;
-	values[1].counter = tx;
+	values[0].derive = rx;
+	values[1].derive = tx;
 
 	vl.values = values;
 	vl.values_len = 2;
@@ -233,7 +233,7 @@ static int interface_read (void)
 #elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
-	unsigned long long incoming, outgoing;
+	derive_t incoming, outgoing;
 	char *device;
 
 	char *dummy;
@@ -285,8 +285,8 @@ static int interface_read (void)
 
 #elif HAVE_LIBKSTAT
 	int i;
-	unsigned long long rx;
-	unsigned long long tx;
+	derive_t rx;
+	derive_t tx;
 
 	if (kc == NULL)
 		return (-1);

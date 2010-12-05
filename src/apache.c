@@ -476,13 +476,13 @@ static void submit_value (const char *type, const char *type_instance,
 	plugin_dispatch_values (&vl);
 } /* void submit_value */
 
-static void submit_counter (const char *type, const char *type_instance,
-		counter_t c, apache_t *st)
+static void submit_derive (const char *type, const char *type_instance,
+		derive_t c, apache_t *st)
 {
 	value_t v;
-	v.counter = c;
+	v.derive = c;
 	submit_value (type, type_instance, v, st);
-} /* void submit_counter */
+} /* void submit_derive */
 
 static void submit_gauge (const char *type, const char *type_instance,
 		gauge_t g, apache_t *st)
@@ -644,11 +644,11 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		{
 			if ((strcmp (fields[0], "Total") == 0)
 					&& (strcmp (fields[1], "Accesses:") == 0))
-				submit_counter ("apache_requests", "",
+				submit_derive ("apache_requests", "",
 						atoll (fields[2]), st);
 			else if ((strcmp (fields[0], "Total") == 0)
 					&& (strcmp (fields[1], "kBytes:") == 0))
-				submit_counter ("apache_bytes", "",
+				submit_derive ("apache_bytes", "",
 						1024LL * atoll (fields[2]), st);
 		}
 		else if (fields_num == 2)

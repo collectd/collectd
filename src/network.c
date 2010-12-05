@@ -1,6 +1,6 @@
 /**
  * collectd - src/network.c
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  * Copyright (C) 2009       Aman Gupta
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -296,14 +296,14 @@ static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
  * example). Only if neither is true, the stats_lock is acquired. The counters
  * are always read without holding a lock in the hope that writing 8 bytes to
  * memory is an atomic operation. */
-static uint64_t stats_octets_rx  = 0;
-static uint64_t stats_octets_tx  = 0;
-static uint64_t stats_packets_rx = 0;
-static uint64_t stats_packets_tx = 0;
-static uint64_t stats_values_dispatched = 0;
-static uint64_t stats_values_not_dispatched = 0;
-static uint64_t stats_values_sent = 0;
-static uint64_t stats_values_not_sent = 0;
+static derive_t stats_octets_rx  = 0;
+static derive_t stats_octets_tx  = 0;
+static derive_t stats_packets_rx = 0;
+static derive_t stats_packets_tx = 0;
+static derive_t stats_values_dispatched = 0;
+static derive_t stats_values_not_dispatched = 0;
+static derive_t stats_values_sent = 0;
+static derive_t stats_values_not_sent = 0;
 static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
@@ -3201,15 +3201,15 @@ static int network_shutdown (void)
 
 static int network_stats_read (void) /* {{{ */
 {
-	uint64_t copy_octets_rx;
-	uint64_t copy_octets_tx;
-	uint64_t copy_packets_rx;
-	uint64_t copy_packets_tx;
-	uint64_t copy_values_dispatched;
-	uint64_t copy_values_not_dispatched;
-	uint64_t copy_values_sent;
-	uint64_t copy_values_not_sent;
-	uint64_t copy_receive_list_length;
+	derive_t copy_octets_rx;
+	derive_t copy_octets_tx;
+	derive_t copy_packets_rx;
+	derive_t copy_packets_tx;
+	derive_t copy_values_dispatched;
+	derive_t copy_values_not_dispatched;
+	derive_t copy_values_sent;
+	derive_t copy_values_not_sent;
+	derive_t copy_receive_list_length;
 	value_list_t vl = VALUE_LIST_INIT;
 	value_t values[2];
 
@@ -3232,14 +3232,14 @@ static int network_stats_read (void) /* {{{ */
 	sstrncpy (vl.plugin, "network", sizeof (vl.plugin));
 
 	/* Octets received / sent */
-	vl.values[0].counter = (counter_t) copy_octets_rx;
-	vl.values[1].counter = (counter_t) copy_octets_tx;
+	vl.values[0].derive = (derive_t) copy_octets_rx;
+	vl.values[1].derive = (derive_t) copy_octets_tx;
 	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
 	plugin_dispatch_values (&vl);
 
 	/* Packets received / send */
-	vl.values[0].counter = (counter_t) copy_packets_rx;
-	vl.values[1].counter = (counter_t) copy_packets_tx;
+	vl.values[0].derive = (derive_t) copy_packets_rx;
+	vl.values[1].derive = (derive_t) copy_packets_tx;
 	sstrncpy (vl.type, "if_packets", sizeof (vl.type));
 	plugin_dispatch_values (&vl);
 

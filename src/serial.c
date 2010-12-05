@@ -30,13 +30,13 @@
 #endif
 
 static void serial_submit (const char *type_instance,
-		counter_t rx, counter_t tx)
+		derive_t rx, derive_t tx)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = rx;
-	values[1].counter = tx;
+	values[0].derive = rx;
+	values[1].derive = tx;
 
 	vl.values = values;
 	vl.values_len = 2;
@@ -54,8 +54,8 @@ static int serial_read (void)
 	FILE *fh;
 	char buffer[1024];
 
-	counter_t rx = 0;
-	counter_t tx = 0;
+	derive_t rx = 0;
+	derive_t tx = 0;
 	
 	char *fields[16];
 	int i, numfields;

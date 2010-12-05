@@ -593,30 +593,30 @@ static int submit_values (const char *host, /* {{{ */
 	return (plugin_dispatch_values (&vl));
 } /* }}} int submit_uint64 */
 
-static int submit_two_counters (const char *host, const char *plugin_inst, /* {{{ */
-		const char *type, const char *type_inst, counter_t val0, counter_t val1,
+static int submit_two_derive (const char *host, const char *plugin_inst, /* {{{ */
+		const char *type, const char *type_inst, derive_t val0, derive_t val1,
 		cdtime_t timestamp, cdtime_t interval)
 {
 	value_t values[2];
 
-	values[0].counter = val0;
-	values[1].counter = val1;
+	values[0].derive = val0;
+	values[1].derive = val1;
 
 	return (submit_values (host, plugin_inst, type, type_inst,
 				values, 2, timestamp, interval));
-} /* }}} int submit_two_counters */
+} /* }}} int submit_two_derive */
 
-static int submit_counter (const char *host, const char *plugin_inst, /* {{{ */
-		const char *type, const char *type_inst, counter_t counter,
+static int submit_derive (const char *host, const char *plugin_inst, /* {{{ */
+		const char *type, const char *type_inst, derive_t counter,
 		cdtime_t timestamp, cdtime_t interval)
 {
 	value_t v;
 
-	v.counter = counter;
+	v.derive = counter;
 
 	return (submit_values (host, plugin_inst, type, type_inst,
 				&v, 1, timestamp, interval));
-} /* }}} int submit_counter */
+} /* }}} int submit_derive */
 
 static int submit_two_gauge (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, gauge_t val0, gauge_t val1,
@@ -744,16 +744,16 @@ static int submit_volume_perf_data (const char *hostname, /* {{{ */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_VOLUME_PERF_IO)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_BYTES_READ | HAVE_VOLUME_PERF_BYTES_WRITE))
 	{
-		submit_two_counters (hostname, plugin_instance, "disk_octets", /* type instance = */ NULL,
-				(counter_t) new_data->read_bytes, (counter_t) new_data->write_bytes, new_data->timestamp, interval);
+		submit_two_derive (hostname, plugin_instance, "disk_octets", /* type instance = */ NULL,
+				(derive_t) new_data->read_bytes, (derive_t) new_data->write_bytes, new_data->timestamp, interval);
 	}
 
 	/* Check for and submit disk-operations values */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_VOLUME_PERF_OPS)
 			&& HAS_ALL_FLAGS (new_data->flags, HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE))
 	{
-		submit_two_counters (hostname, plugin_instance, "disk_ops", /* type instance = */ NULL,
-				(counter_t) new_data->read_ops, (counter_t) new_data->write_ops, new_data->timestamp, interval);
+		submit_two_derive (hostname, plugin_instance, "disk_ops", /* type instance = */ NULL,
+				(derive_t) new_data->read_ops, (derive_t) new_data->write_ops, new_data->timestamp, interval);
 	}
 
 	/* Check for, calculate and submit disk-latency values */
@@ -1739,9 +1739,9 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 	na_elem_t *counter;
 	na_elem_iter_t counter_iter;
 
-	counter_t disk_read = 0, disk_written = 0;
-	counter_t net_recv = 0, net_sent = 0;
-	counter_t cpu_busy = 0, cpu_total = 0;
+	derive_t disk_read = 0, disk_written = 0;
+	derive_t net_recv = 0, net_sent = 0;
+	derive_t cpu_busy = 0, cpu_total = 0;
 	uint32_t counter_flags = 0;
 
 	const char *instance;
@@ -1784,47 +1784,47 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 			continue;
 
 		if (!strcmp(name, "disk_data_read")) {
-			disk_read = (counter_t) (value * 1024);
+			disk_read = (derive_t) (value * 1024);
 			counter_flags |= 0x01;
 		} else if (!strcmp(name, "disk_data_written")) {
-			disk_written = (counter_t) (value * 1024);
+			disk_written = (derive_t) (value * 1024);
 			counter_flags |= 0x02;
 		} else if (!strcmp(name, "net_data_recv")) {
-			net_recv = (counter_t) (value * 1024);
+			net_recv = (derive_t) (value * 1024);
 			counter_flags |= 0x04;
 		} else if (!strcmp(name, "net_data_sent")) {
-			net_sent = (counter_t) (value * 1024);
+			net_sent = (derive_t) (value * 1024);
 			counter_flags |= 0x08;
 		} else if (!strcmp(name, "cpu_busy")) {
-			cpu_busy = (counter_t) value;
+			cpu_busy = (derive_t) value;
 			counter_flags |= 0x10;
 		} else if (!strcmp(name, "cpu_elapsed_time")) {
-			cpu_total = (counter_t) value;
+			cpu_total = (derive_t) value;
 			counter_flags |= 0x20;
 		} else if ((cfg_system->flags & CFG_SYSTEM_OPS)
 				&& (value > 0) && (strlen(name) > 4)
 				&& (!strcmp(name + strlen(name) - 4, "_ops"))) {
-			submit_counter (hostname, instance, "disk_ops_complex", name,
-					(counter_t) value, timestamp, interval);
+			submit_derive (hostname, instance, "disk_ops_complex", name,
+					(derive_t) value, timestamp, interval);
 		}
 	} /* for (counter) */
 
 	if ((cfg_system->flags & CFG_SYSTEM_DISK)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x01 | 0x02)))
-		submit_two_counters (hostname, instance, "disk_octets", NULL,
+		submit_two_derive (hostname, instance, "disk_octets", NULL,
 				disk_read, disk_written, timestamp, interval);
 				
 	if ((cfg_system->flags & CFG_SYSTEM_NET)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x04 | 0x08)))
-		submit_two_counters (hostname, instance, "if_octets", NULL,
+		submit_two_derive (hostname, instance, "if_octets", NULL,
 				net_recv, net_sent, timestamp, interval);
 
 	if ((cfg_system->flags & CFG_SYSTEM_CPU)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x10 | 0x20)))
 	{
-		submit_counter (hostname, instance, "cpu", "system",
+		submit_derive (hostname, instance, "cpu", "system",
 				cpu_busy, timestamp, interval);
-		submit_counter (hostname, instance, "cpu", "idle",
+		submit_derive (hostname, instance, "cpu", "idle",
 				cpu_total - cpu_busy, timestamp, interval);
 	}
 

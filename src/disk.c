@@ -1,6 +1,6 @@
 /**
  * collectd - src/disk.c
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2010  Florian octo Forster
  * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -85,19 +85,19 @@ typedef struct diskstats
 	/* This overflows in roughly 1361 years */
 	unsigned int poll_count;
 
-	counter_t read_sectors;
-	counter_t write_sectors;
+	derive_t read_sectors;
+	derive_t write_sectors;
 
-	counter_t read_bytes;
-	counter_t write_bytes;
+	derive_t read_bytes;
+	derive_t write_bytes;
 
-	counter_t read_ops;
-	counter_t write_ops;
-	counter_t read_time;
-	counter_t write_time;
+	derive_t read_ops;
+	derive_t write_ops;
+	derive_t read_time;
+	derive_t write_time;
 
-	counter_t avg_read_time;
-	counter_t avg_write_time;
+	derive_t avg_read_time;
+	derive_t avg_write_time;
 
 	struct diskstats *next;
 } diskstats_t;
@@ -212,7 +212,7 @@ static int disk_init (void)
 
 static void disk_submit (const char *plugin_instance,
 		const char *type,
-		counter_t read, counter_t write)
+		derive_t read, derive_t write)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -221,8 +221,8 @@ static void disk_submit (const char *plugin_instance,
 	if (ignorelist_match (ignorelist, plugin_instance) != 0)
 	  return;
 
-	values[0].counter = read;
-	values[1].counter = write;
+	values[0].derive = read;
+	values[1].derive = write;
 
 	vl.values = values;
 	vl.values_len = 2;
@@ -429,15 +429,15 @@ static int disk_read (void)
 	int major = 0;
 	int minor = 0;
 
-	counter_t read_sectors  = 0;
-	counter_t write_sectors = 0;
+	derive_t read_sectors  = 0;
+	derive_t write_sectors = 0;
 
-	counter_t read_ops      = 0;
-	counter_t read_merged   = 0;
-	counter_t read_time     = 0;
-	counter_t write_ops     = 0;
-	counter_t write_merged  = 0;
-	counter_t write_time    = 0;
+	derive_t read_ops      = 0;
+	derive_t read_merged   = 0;
+	derive_t read_time     = 0;
+	derive_t write_ops     = 0;
+	derive_t write_merged  = 0;
+	derive_t write_time    = 0;
 	int is_disk = 0;
 
 	diskstats_t *ds, *pre_ds;
@@ -523,8 +523,8 @@ static int disk_read (void)
 		}
 
 		{
-			counter_t diff_read_sectors;
-			counter_t diff_write_sectors;
+			derive_t diff_read_sectors;
+			derive_t diff_write_sectors;
 
 		/* If the counter wraps around, it's only 32 bits.. */
 			if (read_sectors < ds->read_sectors)
@@ -547,18 +547,18 @@ static int disk_read (void)
 		/* Calculate the average time an io-op needs to complete */
 		if (is_disk)
 		{
-			counter_t diff_read_ops;
-			counter_t diff_write_ops;
-			counter_t diff_read_time;
-			counter_t diff_write_time;
+			derive_t diff_read_ops;
+			derive_t diff_write_ops;
+			derive_t diff_read_time;
+			derive_t diff_write_time;
 
 			if (read_ops < ds->read_ops)
 				diff_read_ops = 1 + read_ops
 					+ (UINT_MAX - ds->read_ops);
 			else
 				diff_read_ops = read_ops - ds->read_ops;
-			DEBUG ("disk plugin: disk_name = %s; read_ops = %llu; "
-					"ds->read_ops = %llu; diff_read_ops = %llu;",
+			DEBUG ("disk plugin: disk_name = %s; read_ops = %"PRIi64"; "
+					"ds->read_ops = %"PRIi64"; diff_read_ops = %"PRIi64";",
 					disk_name,
 					read_ops, ds->read_ops, diff_read_ops);
 
@@ -700,12 +700,12 @@ static int disk_read (void)
 /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
-	counter_t read_sectors;
-	counter_t write_sectors;
-	counter_t read_time;
-	counter_t write_time;
-	counter_t read_ops;
-	counter_t write_ops;
+	derive_t read_sectors;
+	derive_t write_sectors;
+	derive_t read_time;
+	derive_t write_time;
+	derive_t read_ops;
+	derive_t write_ops;
 	perfstat_id_t firstpath;
 	int rnumdisk;
 	int i;

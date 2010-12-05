@@ -1,7 +1,7 @@
 /**
  * collectd - src/processes.c
  * Copyright (C) 2005       Lyonel Vincent
- * Copyright (C) 2006-2008  Florian octo Forster
+ * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Oleg King
  * Copyright (C) 2009       Sebastian Harl
  * Copyright (C) 2009       Andrés J. Díaz
@@ -143,13 +143,13 @@ typedef struct procstat_entry_s
 
 	unsigned long vmem_minflt;
 	unsigned long vmem_majflt;
-	unsigned long vmem_minflt_counter;
-	unsigned long vmem_majflt_counter;
+	derive_t      vmem_minflt_counter;
+	derive_t      vmem_majflt_counter;
 
 	unsigned long cpu_user;
 	unsigned long cpu_system;
-	unsigned long cpu_user_counter;
-	unsigned long cpu_system_counter;
+	derive_t      cpu_user_counter;
+	derive_t      cpu_system_counter;
 
 	/* io data */
 	derive_t io_rchar;
@@ -176,11 +176,11 @@ typedef struct procstat
 	unsigned long vmem_code;
 	unsigned long stack_size;
 
-	unsigned long vmem_minflt_counter;
-	unsigned long vmem_majflt_counter;
+	derive_t vmem_minflt_counter;
+	derive_t vmem_majflt_counter;
 
-	unsigned long cpu_user_counter;
-	unsigned long cpu_system_counter;
+	derive_t cpu_user_counter;
+	derive_t cpu_system_counter;
 
 	/* io data */
 	derive_t io_rchar;
@@ -664,8 +664,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "ps_cputime", sizeof (vl.type));
-	vl.values[0].counter = ps->cpu_user_counter;
-	vl.values[1].counter = ps->cpu_system_counter;
+	vl.values[0].derive = ps->cpu_user_counter;
+	vl.values[1].derive = ps->cpu_system_counter;
 	vl.values_len = 2;
 	plugin_dispatch_values (&vl);
 
@@ -676,8 +676,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "ps_pagefaults", sizeof (vl.type));
-	vl.values[0].counter = ps->vmem_minflt_counter;
-	vl.values[1].counter = ps->vmem_majflt_counter;
+	vl.values[0].derive = ps->vmem_minflt_counter;
+	vl.values[1].derive = ps->vmem_majflt_counter;
 	vl.values_len = 2;
 	plugin_dispatch_values (&vl);
 
@@ -702,8 +702,8 @@ static void ps_submit_proc_list (procstat_t *ps)
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
                         "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
 			"vmem_code = %lu; "
-			"vmem_minflt_counter = %lu; vmem_majflt_counter = %lu; "
-			"cpu_user_counter = %lu; cpu_system_counter = %lu; "
+			"vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
+			"cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
 			"io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
 			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
 			ps->name, ps->num_proc, ps->num_lwp,
@@ -874,8 +874,8 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	int   ppid;
 	int   name_len;
 
-	long long unsigned cpu_user_counter;
-	long long unsigned cpu_system_counter;
+	derive_t cpu_user_counter;
+	derive_t cpu_system_counter;
 	long long unsigned vmem_size;
 	long long unsigned vmem_rss;
 	long long unsigned stack_size;
@@ -940,8 +940,8 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	cpu_system_counter = atoll (fields[14]);
 	vmem_size          = atoll (fields[22]);
 	vmem_rss           = atoll (fields[23]);
-	ps->vmem_minflt_counter = atol (fields[9]);
-	ps->vmem_majflt_counter = atol (fields[11]);
+	ps->vmem_minflt_counter = atoll (fields[9]);
+	ps->vmem_majflt_counter = atoll (fields[11]);
 
 	{
 		unsigned long long stack_start = atoll (fields[27]);
@@ -965,8 +965,8 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		DEBUG("ps_read_process: did not get vmem data for pid %i",pid);
 	}
 
-	ps->cpu_user_counter = (unsigned long) cpu_user_counter;
-	ps->cpu_system_counter = (unsigned long) cpu_system_counter;
+	ps->cpu_user_counter = cpu_user_counter;
+	ps->cpu_system_counter = cpu_system_counter;
 	ps->vmem_size = (unsigned long) vmem_size;
 	ps->vmem_rss = (unsigned long) vmem_rss;
 	ps->stack_size = (unsigned long) stack_size;
