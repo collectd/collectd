@@ -137,18 +137,18 @@ static int clua_load_callback (lua_State *l, int callback_id) /* {{{ */
   return (0);
 } /* }}} int clua_load_callback */
 
-static lua_Number ctol_value(int ds_type, const value_t *value, lua_Number *lua_num)
-{
-  switch(ds_type){
-    case DS_TYPE_GAUGE    : *lua_num = (lua_Number) value->gauge; break;
-    case DS_TYPE_DERIVE   : *lua_num = (lua_Number) value->derive; break;
-    case DS_TYPE_COUNTER  : *lua_num = (lua_Number) value->counter; break;
-    case DS_TYPE_ABSOLUTE : *lua_num = (lua_Number) value->absolute; break;
-    default               : return -1;
-  }
-  
-  return 0;
-}
+// static lua_Number ctol_value(int ds_type, const value_t *value, lua_Number *lua_num)
+// {
+//   switch(ds_type){
+//     case DS_TYPE_GAUGE    : *lua_num = (lua_Number) value->gauge; break;
+//     case DS_TYPE_DERIVE   : *lua_num = (lua_Number) value->derive; break;
+//     case DS_TYPE_COUNTER  : *lua_num = (lua_Number) value->counter; break;
+//     case DS_TYPE_ABSOLUTE : *lua_num = (lua_Number) value->absolute; break;
+//     default               : return -1;
+//   }
+//   
+//   return 0;
+// }
 
 /* Store the threads in a global variable so they are not cleaned up by the
  * garbage collector. */
@@ -398,38 +398,38 @@ static int lua_cb_dispatch_values (lua_State *l) /* {{{ */
   RETURN_LUA (l, 0);
 } /* }}} lua_cb_dispatch_values */
 
-static int dispatch_notification(lua_State *l)
-{
-  notification_t  notif;
-  char            tmp[255];
-  DEBUG("NOTIF");
-  if( lua_istable(l, 1) == 0 ){
-    WARNING("lua plugin: collectd_dispatch_notification() expects a table");
-    RETURN_LUA(l, -1);
-  }
-  
-  //  now extract data from the table
-  // severity
-  if( ltoc_table_string_buffer(l, "severity", tmp, sizeof(tmp)) != 0 ){
-    WARNING("lua plugin: collectd_dispatch_notification : severity is required and must be a string");
-    RETURN_LUA(l, -1);
-  }
-  
-  if( (strcasecmp(tmp, "failure") == 0) || (strcasecmp(tmp, "fail") == 0) ){
-    notif.severity = NOTIF_FAILURE;
-  }
-  else if( (strcasecmp(tmp, "warning") == 0) || (strcasecmp(tmp, "warn") == 0) ){
-    notif.severity = NOTIF_WARNING;
-  }
-  else if( (strcasecmp(tmp, "okay") == 0) || (strcasecmp(tmp, "ok") == 0) ){
-    notif.severity = NOTIF_OKAY;
-  }
-  
-  // time
-  if( ltoc_table_cdtime (l, "time", &notif.time) != 0 ){
-    notif.time = cdtime();
-  }
-  
+// static int dispatch_notification(lua_State *l)
+// {
+//   notification_t  notif;
+//   char            tmp[255];
+//   DEBUG("NOTIF");
+//   if( lua_istable(l, 1) == 0 ){
+//     WARNING("lua plugin: collectd_dispatch_notification() expects a table");
+//     RETURN_LUA(l, -1);
+//   }
+//   
+//   //  now extract data from the table
+//   // severity
+//   if( ltoc_table_string_buffer(l, "severity", tmp, sizeof(tmp)) != 0 ){
+//     WARNING("lua plugin: collectd_dispatch_notification : severity is required and must be a string");
+//     RETURN_LUA(l, -1);
+//   }
+//   
+//   if( (strcasecmp(tmp, "failure") == 0) || (strcasecmp(tmp, "fail") == 0) ){
+//     notif.severity = NOTIF_FAILURE;
+//   }
+//   else if( (strcasecmp(tmp, "warning") == 0) || (strcasecmp(tmp, "warn") == 0) ){
+//     notif.severity = NOTIF_WARNING;
+//   }
+//   else if( (strcasecmp(tmp, "okay") == 0) || (strcasecmp(tmp, "ok") == 0) ){
+//     notif.severity = NOTIF_OKAY;
+//   }
+//   
+//   // time
+//   if( ltoc_table_cdtime (l, "time", &notif.time) != 0 ){
+//     notif.time = cdtime();
+//   }
+//   
 #define LUA_COPY_FIELD(field, def) do {                                                 \
   if( ltoc_table_string_buffer(l, #field, notif.field, sizeof(notif.field)) != 0 ){     \
     if( def != NULL ){                                                                  \
@@ -441,21 +441,21 @@ static int dispatch_notification(lua_State *l)
     }                                                                                   \
   }                                                                                     \
 } while (0)
-  
-  LUA_COPY_FIELD(message, NULL);
-  LUA_COPY_FIELD(host, hostname_g);
-  LUA_COPY_FIELD(plugin, NULL);
-  LUA_COPY_FIELD(plugin_instance, "");
-  LUA_COPY_FIELD(type, NULL);
-  LUA_COPY_FIELD(type_instance, "");
-  
+//   
+//   LUA_COPY_FIELD(message, NULL);
+//   LUA_COPY_FIELD(host, hostname_g);
+//   LUA_COPY_FIELD(plugin, NULL);
+//   LUA_COPY_FIELD(plugin_instance, "");
+//   LUA_COPY_FIELD(type, NULL);
+//   LUA_COPY_FIELD(type_instance, "");
+//   
 #undef LUA_COPY_FIELD
-
-  // TODO: meta data ?
-  plugin_dispatch_notification(&notif);
-  
-  RETURN_LUA(l, 0);
-}
+// 
+//   // TODO: meta data ?
+//   plugin_dispatch_notification(&notif);
+//   
+//   RETURN_LUA(l, 0);
+// }
 
 static int lua_cb_register_read (lua_State *l) /* {{{ */
 {
@@ -597,7 +597,7 @@ static lua_c_functions_t lua_c_functions[] =
 {
   { "collectd_log", lua_cb_log },
   { "collectd_dispatch_values", lua_cb_dispatch_values },
-  { "collectd_dispatch_notification", dispatch_notification },
+  // { "collectd_dispatch_notification", dispatch_notification },
   { "collectd_register_read", lua_cb_register_read },
   { "collectd_register_write", lua_cb_register_write }
 };
