@@ -886,7 +886,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
 } /* }}} int ut_check_one_threshold */
 
 /*
- * int ut_check_threshold (PUBLIC)
+ * int ut_check_threshold
  *
  * Gets a list of matching thresholds and searches for the worst status by one
  * of the thresholds. Then reports that status using the ut_report_state
@@ -958,9 +958,41 @@ static int ut_check_threshold (const data_set_t *ds, const value_list_t *vl,
   return (0);
 } /* }}} int ut_check_threshold */
 
+/*
+ * int ut_missing
+ *
+ * This function is called whenever a value goes "missing".
+ */
+static int ut_missing (const value_list_t *vl,
+    __attribute__((unused)) user_data_t *ud)
+{ /* {{{ */
+  threshold_t *th;
+  cdtime_t missing_time;
+  char identifier[6 * DATA_MAX_NAME_LEN];
+  notification_t n;
+
+  th = threshold_search (vl);
+  if (th == NULL)
+    return (0);
+
+  missing_time = cdtime () - vl->time;
+  FORMAT_VL (identifier, sizeof (identifier), vl);
+
+  NOTIFICATION_INIT_VL (&n, vl);
+  ssnprintf (n.message, sizeof (n.message),
+      "%s has not been updated for %.3f seconds.",
+      identifier, CDTIME_T_TO_DOUBLE (missing_time));
+
+  plugin_dispatch_notification (&n);
+
+  return (0);
+} /* }}} int ut_missing */
+
 void module_register (void)
 {
   plugin_register_complex_config ("threshold", ut_config);
+  plugin_register_missing ("threshold", ut_missing,
+      /* user data = */ NULL);
   plugin_register_write ("threshold", ut_check_threshold,
       /* user data = */ NULL);
 }
