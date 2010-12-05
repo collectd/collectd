@@ -33,8 +33,10 @@ static int ltoc_values (lua_State *l, /* {{{ */
 {
   size_t i;
 
-  if (!lua_istable (l, -1))
+  if (!lua_istable (l, -1)){
+    WARNING("ltoc_values: not a table");
     return (-1);
+  }
 
   /* Push initial key */
   lua_pushnil (l); /* +1 = 1 */
@@ -55,10 +57,12 @@ static int ltoc_values (lua_State *l, /* {{{ */
     i++;
   } /* while (lua_next) */
 
-  if (i == ((size_t) ds->ds_num))
-    return (0);
-  else
+  if (i != ((size_t) ds->ds_num)) {
+    WARNING("ltoc_values: invalid size for datasource \"%s\": expected %d, got %ld", ds->type, ds->ds_num, i );
     return (-1);
+  }
+  
+  return (0);
 } /* }}} int ltoc_values */
 
 static int ltoc_table_values (lua_State *l, int idx, /* {{{ */
@@ -213,12 +217,16 @@ value_list_t *luaC_tovaluelist (lua_State *l, int idx) /* {{{ */
     idx += lua_gettop (l) + 1;
 
   /* Check that idx is in the valid range */
-  if ((idx < 1) || (idx > lua_gettop (l)))
+  if ((idx < 1) || (idx > lua_gettop (l))){
+    DEBUG("luaC_tovaluelist: idx(%d), top(%d)", idx, stack_top_before);
     return (NULL);
+  }
 
   vl = malloc (sizeof (*vl));
-  if (vl == NULL)
+  if (vl == NULL){
+    DEBUG("luaC_tovaluelist: malloc failed");
     return (NULL);
+  }
   memset (vl, 0, sizeof (*vl));
   vl->values = NULL;
   vl->meta = NULL;
