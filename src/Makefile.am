@@ -150,16 +150,6 @@ endif
 collectd_DEPENDENCIES += apache.la
 endif
 
-if BUILD_PLUGIN_LUA
-pkglib_LTLIBRARIES += lua.la
-lua_la_SOURCES = lua.c
-lua_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LUA_CFLAGS)
-lua_la_LDFLAGS = -module -avoid-version
-lua_la_LIBADD = $(BUILD_WITH_LUA_LIBS)
-collectd_LDADD += "-dlopen" lua.la
-collectd_DEPENDENCIES += lua.la
-endif
-
 
 if BUILD_PLUGIN_APCUPS
 pkglib_LTLIBRARIES += apcups.la
