@@ -1,6 +1,6 @@
 /**
  * collectd - src/netlink.c
- * Copyright (C) 2007  Florian octo Forster
+ * Copyright (C) 2007-2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -161,12 +161,12 @@ static int check_ignorelist (const char *dev,
 } /* int check_ignorelist */
 
 static void submit_one (const char *dev, const char *type,
-    const char *type_instance, counter_t value)
+    const char *type_instance, derive_t value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].counter = value;
+  values[0].derive = value;
 
   vl.values = values;
   vl.values_len = 1;
@@ -183,13 +183,13 @@ static void submit_one (const char *dev, const char *type,
 
 static void submit_two (const char *dev, const char *type,
     const char *type_instance,
-    counter_t rx, counter_t tx)
+    derive_t rx, derive_t tx)
 {
   value_t values[2];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].counter = rx;
-  values[1].counter = tx;
+  values[0].derive = rx;
+  values[1].derive = tx;
 
   vl.values = values;
   vl.values_len = 2;

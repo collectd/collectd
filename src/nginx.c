@@ -1,6 +1,6 @@
 /**
  * collectd - src/nginx.c
- * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Sebastian Harl
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
@@ -178,7 +178,7 @@ static void submit (char *type, char *inst, long long value)
   if (strcmp (type, "nginx_connections") == 0)
     values[0].gauge = value;
   else if (strcmp (type, "nginx_requests") == 0)
-    values[0].counter = value;
+    values[0].derive = value;
   else
     return;
 

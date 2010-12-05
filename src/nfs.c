@@ -195,7 +195,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 
 	for (i = 0; i < len; i++)
 	{
-		values[0].counter = val[i];
+		values[0].derive = val[i];
 		sstrncpy (vl.type_instance, names[i],
 				sizeof (vl.type_instance));
 		DEBUG ("%s-%s/nfs_procedure-%s = %llu",

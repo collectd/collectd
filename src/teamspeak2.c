@@ -146,7 +146,7 @@ static void tss2_submit_gauge (const char *plugin_instance,
 } /* void tss2_submit_gauge */
 
 static void tss2_submit_io (const char *plugin_instance, const char *type,
-		counter_t rx, counter_t tx)
+		derive_t rx, derive_t tx)
 {
 	/*
 	 * Submits the io rx/tx tuple to the collectd daemon
@@ -154,8 +154,8 @@ static void tss2_submit_io (const char *plugin_instance, const char *type,
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = rx;
-	values[1].counter = tx;
+	values[0].derive = rx;
+	values[1].derive = tx;
 
 	vl.values     = values;
 	vl.values_len = 2;
@@ -498,10 +498,10 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	gauge_t users = NAN;
 	gauge_t channels = NAN;
 	gauge_t servers = NAN;
-	counter_t rx_octets = 0;
-	counter_t tx_octets = 0;
-	counter_t rx_packets = 0;
-	counter_t tx_packets = 0;
+	derive_t rx_octets = 0;
+	derive_t tx_octets = 0;
+	derive_t rx_packets = 0;
+	derive_t tx_packets = 0;
 	gauge_t packet_loss = NAN;
 	int valid = 0;
 

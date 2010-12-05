@@ -1,6 +1,6 @@
 /**
  * collectd - src/gmond.c
- * Copyright (C) 2009  Florian octo Forster
+ * Copyright (C) 2009,2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -545,6 +545,8 @@ static int staging_entry_update (const char *host, const char *name, /* {{{ */
     se->vl.values[ds_index].derive += value.derive;
   else if (ds_type == DS_TYPE_ABSOLUTE)
     se->vl.values[ds_index].absolute = value.absolute;
+  else
+    assert (23 == 42);
 
   se->flags |= (0x01 << ds_index);
 
@@ -593,32 +595,24 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
     case gmetric_string:
     {
       Ganglia_gmetric_string msg_string;
-      char *endptr;
+      int status;
 
       msg_string = msg->Ganglia_value_msg_u.gstr;
 
       host = msg_string.metric_id.host;
       name = msg_string.metric_id.name;
 
-      endptr = NULL;
-      errno = 0;
-      value_counter.counter = (counter_t) strtoull (msg_string.str,
-          &endptr, /* base = */ 0);
-      if ((endptr == msg_string.str) || (errno != 0))
-        value_counter.counter = -1;
+      status = parse_value (msg_string.str, &value_derive, DS_TYPE_DERIVE);
+      if (status != 0)
+        value_derive.derive = -1;
 
-      endptr = NULL;
-      errno = 0;
-      value_gauge.gauge = (gauge_t) strtod (msg_string.str, &endptr);
-      if ((endptr == msg_string.str) || (errno != 0))
+      status = parse_value (msg_string.str, &value_gauge, DS_TYPE_GAUGE);
+      if (status != 0)
         value_gauge.gauge = NAN;
 
-      endptr = NULL;
-      errno = 0;
-      value_derive.derive = (derive_t) strtoll (msg_string.str,
-          &endptr, /* base = */ 0);
-      if ((endptr == msg_string.str) || (errno != 0))
-        value_derive.derive = 0;
+      status = parse_value (msg_string.str, &value_counter, DS_TYPE_COUNTER);
+      if (status != 0)
+        value_counter.counter = 0;
 
       break;
     }
@@ -663,11 +657,15 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
   {
     value_t val_copy;
 
-    val_copy = value_counter;
+    if ((map->ds_type == DS_TYPE_COUNTER)
+        || (map->ds_type == DS_TYPE_ABSOLUTE))
+      val_copy = value_counter;
     if (map->ds_type == DS_TYPE_GAUGE)
       val_copy = value_gauge;
     else if (map->ds_type == DS_TYPE_DERIVE)
       val_copy = value_derive;
+    else
+      assert (23 == 42);
 
     return (staging_entry_update (host, name,
           map->type, map->type_instance,

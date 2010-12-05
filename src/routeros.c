@@ -1,6 +1,6 @@
 /**
  * collectd - src/routeros.c
- * Copyright (C) 2009  Florian octo Forster
+ * Copyright (C) 2009,2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -44,13 +44,13 @@ struct cr_data_s
 typedef struct cr_data_s cr_data_t;
 
 static void cr_submit_io (cr_data_t *rd, const char *type, /* {{{ */
-    const char *type_instance, counter_t rx, counter_t tx)
+    const char *type_instance, derive_t rx, derive_t tx)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = rx;
-	values[1].counter = tx;
+	values[0].derive = rx;
+	values[1].derive = tx;
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -75,13 +75,13 @@ static void submit_interface (cr_data_t *rd, /* {{{ */
   }
 
   cr_submit_io (rd, "if_packets", i->name,
-      (counter_t) i->rx_packets, (counter_t) i->tx_packets);
+      (derive_t) i->rx_packets, (derive_t) i->tx_packets);
   cr_submit_io (rd, "if_octets", i->name,
-      (counter_t) i->rx_bytes, (counter_t) i->tx_bytes);
+      (derive_t) i->rx_bytes, (derive_t) i->tx_bytes);
   cr_submit_io (rd, "if_errors", i->name,
-      (counter_t) i->rx_errors, (counter_t) i->tx_errors);
+      (derive_t) i->rx_errors, (derive_t) i->tx_errors);
   cr_submit_io (rd, "if_dropped", i->name,
-      (counter_t) i->rx_drops, (counter_t) i->tx_drops);
+      (derive_t) i->rx_drops, (derive_t) i->tx_drops);
 
   submit_interface (rd, i->next);
 } /* }}} void submit_interface */
@@ -116,12 +116,12 @@ static void cr_submit_gauge (cr_data_t *rd, const char *type, /* {{{ */
 
 #if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
 static void cr_submit_counter (cr_data_t *rd, const char *type, /* {{{ */
-    const char *type_instance, counter_t value)
+    const char *type_instance, derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = value;
+	values[0].derive = value;
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -166,7 +166,7 @@ static void submit_regtable (cr_data_t *rd, /* {{{ */
   ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
       r->interface, r->radio_name);
   cr_submit_io (rd, "if_octets", type_instance,
-      (counter_t) r->rx_bytes, (counter_t) r->tx_bytes);
+      (derive_t) r->rx_bytes, (derive_t) r->tx_bytes);
   cr_submit_gauge (rd, "snr", type_instance, (gauge_t) r->signal_to_noise);
 
   submit_regtable (rd, r->next);
@@ -212,7 +212,7 @@ static int handle_system_resource (__attribute__((unused)) ros_connection_t *c, 
 
   if (rd->collect_disk)
   {
-    cr_submit_counter (rd, "counter", "secors_written", (counter_t) r->write_sect_total);
+    cr_submit_counter (rd, "counter", "secors_written", (derive_t) r->write_sect_total);
     cr_submit_gauge (rd, "gauge", "bad_blocks", (gauge_t) r->bad_blocks);
   }
 

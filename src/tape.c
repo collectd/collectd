@@ -58,13 +58,13 @@ static int tape_init (void)
 
 static void tape_submit (const char *plugin_instance,
 		const char *type,
-		counter_t read, counter_t write)
+		derive_t read, derive_t write)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = read;
-	values[1].counter = write;
+	values[0].derive = read;
+	values[1].derive = write;
 
 	vl.values = values;
 	vl.values_len = 2;

@@ -321,11 +321,11 @@ static void submit (const char *type, const char *type_instance,
 } /* submit */
 
 static void counter_submit (const char *type, const char *type_instance,
-		counter_t value, mysql_database_t *db)
+		derive_t value, mysql_database_t *db)
 {
 	value_t values[1];
 
-	values[0].counter = value;
+	values[0].derive = value;
 	submit (type, type_instance, values, STATIC_ARRAY_SIZE (values), db);
 } /* void counter_submit */
 
@@ -347,12 +347,12 @@ static void derive_submit (const char *type, const char *type_instance,
 	submit (type, type_instance, values, STATIC_ARRAY_SIZE (values), db);
 } /* void derive_submit */
 
-static void traffic_submit (counter_t rx, counter_t tx, mysql_database_t *db)
+static void traffic_submit (derive_t rx, derive_t tx, mysql_database_t *db)
 {
 	value_t values[2];
 
-	values[0].counter = rx;
-	values[1].counter = tx;
+	values[0].derive = rx;
+	values[1].derive = tx;
 
 	submit ("mysql_octets", NULL, values, STATIC_ARRAY_SIZE (values), db);
 } /* void traffic_submit */

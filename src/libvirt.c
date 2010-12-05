@@ -190,7 +190,7 @@ cpu_submit (unsigned long long cpu_time,
 
     init_value_list (&vl, dom);
 
-    values[0].counter = cpu_time;
+    values[0].derive = cpu_time;
 
     vl.values = values;
     vl.values_len = 1;
@@ -201,7 +201,7 @@ cpu_submit (unsigned long long cpu_time,
 }
 
 static void
-vcpu_submit (counter_t cpu_time,
+vcpu_submit (derive_t cpu_time,
              virDomainPtr dom, int vcpu_nr, const char *type)
 {
     value_t values[1];
@@ -209,7 +209,7 @@ vcpu_submit (counter_t cpu_time,
 
     init_value_list (&vl, dom);
 
-    values[0].counter = cpu_time;
+    values[0].derive = cpu_time;
     vl.values = values;
     vl.values_len = 1;
 
@@ -220,7 +220,7 @@ vcpu_submit (counter_t cpu_time,
 }
 
 static void
-submit_counter2 (const char *type, counter_t v0, counter_t v1,
+submit_derive2 (const char *type, derive_t v0, derive_t v1,
              virDomainPtr dom, const char *devname)
 {
     value_t values[2];
@@ -228,8 +228,8 @@ submit_counter2 (const char *type, counter_t v0, counter_t v1,
 
     init_value_list (&vl, dom);
 
-    values[0].counter = v0;
-    values[1].counter = v1;
+    values[0].derive = v0;
+    values[1].derive = v1;
     vl.values = values;
     vl.values_len = 2;
 
@@ -237,7 +237,7 @@ submit_counter2 (const char *type, counter_t v0, counter_t v1,
     sstrncpy (vl.type_instance, devname, sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl);
-} /* void submit_counter2 */
+} /* void submit_derive2 */
 
 static int
 lv_init (void)
@@ -448,13 +448,13 @@ lv_read (void)
             continue;
 
         if ((stats.rd_req != -1) && (stats.wr_req != -1))
-            submit_counter2 ("disk_ops",
-                    (counter_t) stats.rd_req, (counter_t) stats.wr_req,
+            submit_derive2 ("disk_ops",
+                    (derive_t) stats.rd_req, (derive_t) stats.wr_req,
                     block_devices[i].dom, block_devices[i].path);
 
         if ((stats.rd_bytes != -1) && (stats.wr_bytes != -1))
-            submit_counter2 ("disk_octets",
-                    (counter_t) stats.rd_bytes, (counter_t) stats.wr_bytes,
+            submit_derive2 ("disk_octets",
+                    (derive_t) stats.rd_bytes, (derive_t) stats.wr_bytes,
                     block_devices[i].dom, block_devices[i].path);
     } /* for (nr_block_devices) */
 
@@ -472,23 +472,23 @@ lv_read (void)
             continue;
 
 	if ((stats.rx_bytes != -1) && (stats.tx_bytes != -1))
-	    submit_counter2 ("if_octets",
-		    (counter_t) stats.rx_bytes, (counter_t) stats.tx_bytes,
+	    submit_derive2 ("if_octets",
+		    (derive_t) stats.rx_bytes, (derive_t) stats.tx_bytes,
 		    interface_devices[i].dom, display_name);
 
 	if ((stats.rx_packets != -1) && (stats.tx_packets != -1))
-	    submit_counter2 ("if_packets",
-		    (counter_t) stats.rx_packets, (counter_t) stats.tx_packets,
+	    submit_derive2 ("if_packets",
+		    (derive_t) stats.rx_packets, (derive_t) stats.tx_packets,
 		    interface_devices[i].dom, display_name);
 
 	if ((stats.rx_errs != -1) && (stats.tx_errs != -1))
-	    submit_counter2 ("if_errors",
-		    (counter_t) stats.rx_errs, (counter_t) stats.tx_errs,
+	    submit_derive2 ("if_errors",
+		    (derive_t) stats.rx_errs, (derive_t) stats.tx_errs,
 		    interface_devices[i].dom, display_name);
 
 	if ((stats.rx_drop != -1) && (stats.tx_drop != -1))
-	    submit_counter2 ("if_dropped",
-		    (counter_t) stats.rx_drop, (counter_t) stats.tx_drop,
+	    submit_derive2 ("if_dropped",
+		    (derive_t) stats.rx_drop, (derive_t) stats.tx_drop,
 		    interface_devices[i].dom, display_name);
     } /* for (nr_interface_devices) */
 

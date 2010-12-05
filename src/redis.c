@@ -196,14 +196,14 @@ static void redis_submit_g (char *plugin_instance,
 } /* }}} */
 
   __attribute__ ((nonnull(2)))
-static void redis_submit_c (char *plugin_instance,
+static void redis_submit_d (char *plugin_instance,
     const char *type, const char *type_instance,
-    counter_t value) /* {{{ */
+    derive_t value) /* {{{ */
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].counter = value;
+  values[0].derive = value;
 
   vl.values = values;
   vl.values_len = 1;
@@ -288,8 +288,8 @@ static int redis_read (void) /* {{{ */
     redis_submit_g (rn->name, "current_connections", "slaves", info.connected_slaves);
     redis_submit_g (rn->name, "memory", "used", info.used_memory);
     redis_submit_g (rn->name, "volatile_changes", NULL, info.changes_since_last_save);
-    redis_submit_c (rn->name, "total_connections", NULL, info.total_connections_received);
-    redis_submit_c (rn->name, "total_operations", NULL, info.total_commands_processed);
+    redis_submit_d (rn->name, "total_connections", NULL, info.total_connections_received);
+    redis_submit_d (rn->name, "total_operations", NULL, info.total_commands_processed);
 
     credis_close (rh);
   }

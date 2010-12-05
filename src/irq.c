@@ -116,7 +116,7 @@ static int check_ignore_irq (const unsigned int irq)
 	return (1 - irq_list_action);
 }
 
-static void irq_submit (unsigned int irq, counter_t value)
+static void irq_submit (unsigned int irq, derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -125,7 +125,7 @@ static void irq_submit (unsigned int irq, counter_t value)
 	if (check_ignore_irq (irq))
 		return;
 
-	values[0].counter = value;
+	values[0].derive = value;
 
 	vl.values = values;
 	vl.values_len = 1;
@@ -143,35 +143,34 @@ static void irq_submit (unsigned int irq, counter_t value)
 
 static int irq_read (void)
 {
-#undef BUFSIZE
-#define BUFSIZE 256
-
 	FILE *fh;
-	char buffer[BUFSIZE];
-	unsigned int irq;
-	unsigned long long irq_value;
-	unsigned long long value;
-	char *endptr;
-	int i;
+	char buffer[1024];
 
-	char *fields[64];
-	int fields_num;
-
-	if ((fh = fopen ("/proc/interrupts", "r")) == NULL)
+	fh = fopen ("/proc/interrupts", "r");
+	if (fh == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("irq plugin: fopen (/proc/interrupts): %s",
+		ERROR ("irq plugin: fopen (/proc/interrupts): %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
+
 	while (fgets (buffer, BUFSIZE, fh) != NULL)
 	{
+		unsigned int irq;
+		derive_t irq_value;
+		char *endptr;
+		int i;
+
+		char *fields[64];
+		int fields_num;
+
 		fields_num = strsplit (buffer, fields, 64);
 		if (fields_num < 2)
 			continue;
 
 		errno = 0;    /* To distinguish success/failure after call */
-		irq = strtol (fields[0], &endptr, 10);
+		irq = (unsigned int) strtoul (fields[0], &endptr, /* base = */ 10);
 
 		if ((endptr == fields[0]) || (errno != 0) || (*endptr != ':'))
 			continue;
@@ -179,17 +178,21 @@ static int irq_read (void)
 		irq_value = 0;
 		for (i = 1; i < fields_num; i++)
 		{
-			errno = 0;
-			value = strtoull (fields[i], &endptr, 10);
+			/* Per-CPU value */
+			value_t v;
+			int status;
 
-			if ((*endptr != '\0') || (errno != 0))
+			status = parse_value (fields[i], &v, DS_TYPE_DERIVE);
+			if (status != 0)
 				break;
 
-			irq_value += value;
+			irq_value += v.derive;
 		} /* for (i) */
 
-		/* Force 32bit wrap-around */
-		irq_submit (irq, irq_value % 4294967296ULL);
+		if (i < fields_num)
+			continue;
+
+		irq_submit (irq, irq_value);
 	}
 
 	fclose (fh);

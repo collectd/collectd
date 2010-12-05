@@ -1,8 +1,8 @@
 /**
  * collectd - src/iptables.c
- * Copyright (C) 2007 Sjoerd van der Berg
- * Copyright (C) 2007 Florian octo Forster
- * Copyright (C) 2009 Marco Chiappero
+ * Copyright (C) 2007       Sjoerd van der Berg
+ * Copyright (C) 2007-2010  Florian octo Forster
+ * Copyright (C) 2009       Marco Chiappero
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
  *
  * Authors:
  *  Sjoerd van der Berg <harekiet at users.sourceforge.net>
- *  Florian Forster <octo at verplant.org>
+ *  Florian Forster <octo at collectd.org>
  *  Marco Chiappero <marco at absence.it>
  **/
 
@@ -297,11 +297,11 @@ static int submit6_match (const struct ip6t_entry_match *match,
     }
 
     sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
-    values[0].counter = (counter_t) entry->counters.bcnt;
+    values[0].derive = (derive_t) entry->counters.bcnt;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "ipt_packets", sizeof (vl.type));
-    values[0].counter = (counter_t) entry->counters.pcnt;
+    values[0].derive = (derive_t) entry->counters.pcnt;
     plugin_dispatch_values (&vl);
 
     return (0);
@@ -358,11 +358,11 @@ static int submit_match (const struct ipt_entry_match *match,
     }
 
     sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
-    values[0].counter = (counter_t) entry->counters.bcnt;
+    values[0].derive = (derive_t) entry->counters.bcnt;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "ipt_packets", sizeof (vl.type));
-    values[0].counter = (counter_t) entry->counters.pcnt;
+    values[0].derive = (derive_t) entry->counters.pcnt;
     plugin_dispatch_values (&vl);
 
     return (0);

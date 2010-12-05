@@ -1,6 +1,6 @@
 /**
  * collectd - src/protocols.c
- * Copyright (C) 2009  Florian octo Forster
+ * Copyright (C) 2009,2010  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -51,14 +51,10 @@ static void submit (const char *protocol_name,
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
+  int status;
 
-  char *tmp_ptr;
-
-  errno = 0;
-  tmp_ptr = NULL;
-  values[0].counter = (counter_t) strtoll (str_value, &tmp_ptr,
-      /* base = */ 0);
-  if ((errno != 0) || (tmp_ptr == str_value))
+  status = parse_value (str_value, values, DS_TYPE_DERIVE);
+  if (status != 0)
   {
     ERROR ("protocols plugin: Parsing string as integer failed: %s",
         str_value);

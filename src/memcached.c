@@ -1,7 +1,7 @@
 /**
  * collectd - src/memcached.c, based on src/hddtemp.c
  * Copyright (C) 2007       Antony Dovgal
- * Copyright (C) 2007-2009  Florian Forster
+ * Copyright (C) 2007-2010  Florian Forster
  * Copyright (C) 2009       Doug MacEachern
  * Copyright (C) 2009       Franck Lombardi
  *
@@ -21,7 +21,7 @@
  *
  * Authors:
  *   Antony Dovgal <tony at daylessday dot org>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Doug MacEachern <dougm at hyperic.com>
  *   Franck Lombardi
  **/
@@ -273,13 +273,13 @@ static int memcached_config (const char *key, const char *value) /* {{{ */
 }
 /* }}} */
 
-static void submit_counter (const char *type, const char *type_inst,
-		counter_t value) /* {{{ */
+static void submit_derive (const char *type, const char *type_inst,
+		derive_t value) /* {{{ */
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = value;
+	values[0].derive = value;
 
 	vl.values = values;
 	vl.values_len = 1;
@@ -293,14 +293,14 @@ static void submit_counter (const char *type, const char *type_inst,
 } /* void memcached_submit_cmd */
 /* }}} */
 
-static void submit_counter2 (const char *type, const char *type_inst,
-		counter_t value0, counter_t value1) /* {{{ */
+static void submit_derive2 (const char *type, const char *type_inst,
+		derive_t value0, derive_t value1) /* {{{ */
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = value0;
-	values[1].counter = value1;
+	values[0].derive = value0;
+	values[1].derive = value1;
 
 	vl.values = values;
 	vl.values_len = 2;
@@ -368,10 +368,10 @@ static int memcached_read (void) /* {{{ */
 	gauge_t bytes_total = NAN;
 	gauge_t hits = NAN;
 	gauge_t gets = NAN;
-	counter_t rusage_user = 0;
-	counter_t rusage_syst = 0;
-	counter_t octets_rx = 0;
-	counter_t octets_tx = 0;
+	derive_t rusage_user = 0;
+	derive_t rusage_syst = 0;
+	derive_t octets_rx = 0;
+	derive_t octets_tx = 0;
 
 	/* get data from daemon */
 	if (memcached_query_daemon (buf, sizeof (buf)) < 0) {
@@ -456,7 +456,7 @@ static int memcached_read (void) /* {{{ */
 		else if ((name_len > 4) && (strncmp (fields[1], "cmd_", 4) == 0))
 		{
 			const char *name = fields[1] + 4;
-			submit_counter ("memcached_command", name, atoll (fields[2]));
+			submit_derive ("memcached_command", name, atoll (fields[2]));
 			if (strcmp (name, "get") == 0)
 				gets = atof (fields[2]);
 		}
@@ -466,16 +466,16 @@ static int memcached_read (void) /* {{{ */
 		 */
 		else if (FIELD_IS ("get_hits"))
 		{
-			submit_counter ("memcached_ops", "hits", atoll (fields[2]));
+			submit_derive ("memcached_ops", "hits", atoll (fields[2]));
 			hits = atof (fields[2]);
 		}
 		else if (FIELD_IS ("get_misses"))
 		{
-			submit_counter ("memcached_ops", "misses", atoll (fields[2]));
+			submit_derive ("memcached_ops", "misses", atoll (fields[2]));
 		}
 		else if (FIELD_IS ("evictions"))
 		{
-			submit_counter ("memcached_ops", "evictions", atoll (fields[2]));
+			submit_derive ("memcached_ops", "evictions", atoll (fields[2]));
 		}
 
 		/*
@@ -495,10 +495,10 @@ static int memcached_read (void) /* {{{ */
 		submit_gauge2 ("df", "cache", bytes_used, bytes_total - bytes_used);
 
 	if ((rusage_user != 0) || (rusage_syst != 0))
-		submit_counter2 ("ps_cputime", NULL, rusage_user, rusage_syst);
+		submit_derive2 ("ps_cputime", NULL, rusage_user, rusage_syst);
 
 	if ((octets_rx != 0) || (octets_tx != 0))
-		submit_counter2 ("memcached_octets", NULL, octets_rx, octets_tx);
+		submit_derive2 ("memcached_octets", NULL, octets_rx, octets_tx);
 
 	if (!isnan (gets) && !isnan (hits))
 	{

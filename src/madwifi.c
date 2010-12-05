@@ -561,20 +561,20 @@ static void submit (const char *dev, const char *type, const char *ti1,
 	plugin_dispatch_values (&vl);
 }
 
-static void submit_counter (const char *dev, const char *type, const char *ti1,
-				const char *ti2, counter_t val)
+static void submit_derive (const char *dev, const char *type, const char *ti1,
+				const char *ti2, derive_t val)
 {
 	value_t item;
-	item.counter = val;
+	item.derive = val;
 	submit (dev, type, ti1, ti2, &item, 1);
 }
 
-static void submit_counter2 (const char *dev, const char *type, const char *ti1,
-				const char *ti2, counter_t val1, counter_t val2)
+static void submit_derive2 (const char *dev, const char *type, const char *ti1,
+				const char *ti2, derive_t val1, derive_t val2)
 {
 	value_t items[2];
-	items[0].counter = val1;
-	items[1].counter = val2;
+	items[0].derive = val1;
+	items[1].derive = val2;
 	submit (dev, type, ti1, ti2, items, 2);
 }
 
@@ -598,8 +598,8 @@ static void submit_antx (const char *dev, const char *name,
 			continue;
 
 		ssnprintf (ti2, sizeof (ti2), "%i", i);
-		submit_counter (dev, "ath_stat", name, ti2,
-				(counter_t) vals[i]);
+		submit_derive (dev, "ath_stat", name, ti2,
+				(derive_t) vals[i]);
 	}
 }
 
@@ -625,14 +625,14 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 		uint32_t val = *(uint32_t *)(((char *) ptr) + specs[i].offset) ;
 
 		if (item_watched (i) && (val != 0))
-			submit_counter (dev, type_name, specs[i].name, mac, val);
+			submit_derive (dev, type_name, specs[i].name, mac, val);
 
 		if (item_summed (i))
 			misc += val;
 	}
 	
 	if (misc != 0)
-		submit_counter (dev, type_name, misc_name, mac, misc);
+		submit_derive (dev, type_name, misc_name, mac, misc);
 
 }
 
@@ -734,13 +734,13 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 	/* These two stats are handled as a special case as they are
 	   a pair of 64bit values */
 	if (item_watched (STAT_NODE_OCTETS))
-		submit_counter2 (dev, "node_octets", mac, NULL,
+		submit_derive2 (dev, "node_octets", mac, NULL,
 			ns->ns_rx_bytes, ns->ns_tx_bytes);
 
 	/* This stat is handled as a special case, because it is stored
 	   as uin64_t, but we will ignore upper half */
 	if (item_watched (STAT_NS_RX_BEACONS))
-		submit_counter (dev, "node_stat", "ns_rx_beacons", mac,
+		submit_derive (dev, "node_stat", "ns_rx_beacons", mac,
 			(ns->ns_rx_beacons & 0xFFFFFFFF));
 
 	/* All other node statistics */
