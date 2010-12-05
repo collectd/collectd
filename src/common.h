@@ -278,10 +278,10 @@ int notification_init (notification_t *n, int severity, const char *message,
 		const char *host,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance);
-#define NOTIFICATION_INIT_VL(n, vl, ds) \
+#define NOTIFICATION_INIT_VL(n, vl) \
 	notification_init (n, NOTIF_FAILURE, NULL, \
 			(vl)->host, (vl)->plugin, (vl)->plugin_instance, \
-			(ds)->type, (vl)->type_instance)
+			(vl)->type, (vl)->type_instance)
 
 typedef int (*dirwalk_callback_f)(const char *dirname, const char *filename,
 		void *user_data);

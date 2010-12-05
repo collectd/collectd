@@ -628,7 +628,7 @@ static int ut_report_state (const data_set_t *ds,
   if (state != state_old)
     uc_set_state (ds, vl, state);
 
-  NOTIFICATION_INIT_VL (&n, vl, ds);
+  NOTIFICATION_INIT_VL (&n, vl);
 
   buf = n.message;
   bufsize = sizeof (n.message);
