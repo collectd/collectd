@@ -863,11 +863,11 @@ int parse_value (const char *value, value_t *ret_value, int ds_type)
       break;
 
     case DS_TYPE_DERIVE:
-      ret_value->counter = (derive_t) strtoll (value, &endptr, 0);
+      ret_value->derive = (derive_t) strtoll (value, &endptr, 0);
       break;
 
     case DS_TYPE_ABSOLUTE:
-      ret_value->counter = (absolute_t) strtoull (value, &endptr, 0);
+      ret_value->absolute = (absolute_t) strtoull (value, &endptr, 0);
       break;
 
     default:
