@@ -564,6 +564,13 @@ static int swap_read (void) /* {{{ */
 {
 	int status;
 
+	if (!report_physical && !report_virtual)
+	{
+		WARNING ("swap plugin: Neither the \"ReportPhysical\" nor the \"ReportVirtual\" option "
+				"has been activated. This plugin will not collect any data.");
+		return (-1);
+	}
+
 	if (report_physical)
 	{
 		status = swap_read_swapctl2 ();
