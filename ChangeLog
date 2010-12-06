@@ -23,6 +23,7 @@
 	* python plugin: Set "sys.argv", since many scripts don't expect that
 	  it may not be set. Thanks to Sven Trenkel for the patch.
 	* rrdtool, rrdcached plugin: Fix a too strict assertion when creating
+	  RRD files.
 	* swap plugin: A bug which lead to incorrect I/O values has been
 	  fixed.
 	* value match: A minor memory leak has been fixed. Thanks to Sven
