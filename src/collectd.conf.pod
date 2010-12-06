@@ -4146,7 +4146,7 @@ because all values were added to the internal cache at roughly the same time.
 
 =head2 Plugin C<sensors>
 
-The C<sensors plugin> uses B<lm_sensors> to retrieve sensor-values. This means
+The I<Sensors plugin> uses B<lm_sensors> to retrieve sensor-values. This means
 that all the needed modules have to be loaded and lm_sensors has to be
 configured (most likely by editing F</etc/sensors.conf>. Read
 L<sensors.conf(5)> for details.
@@ -4180,6 +4180,39 @@ and all other sensors are collected.
 Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
+
+=head2 Plugin C<swap>
+
+The I<Swap plugin> collects information about used and available swap space. On
+Solaris, it is possible to collect information on physical swap devices and the
+view of the virtual memory subsystem on the matter. On I<Solaris>, the
+following options are available:
+
+=over 4
+
+=item B<ReportPhysical> B<combined>|B<separate>|B<false>
+
+Configures how to report physical swap devices. If B<combined> is used (the
+default), the summary over all swap devices is reported only, i.e. the globally
+used and available space over all devices. If B<separate> is configured, the
+used and available space of each device will be reported separately. B<false>
+deactivates collection of physical swap information (only valid if collection
+via L<kstat(3KSTAT)> is available).
+
+This option is only available if the I<Swap plugin> can use the L<swapctl(2)>
+mechanism under I<Solaris>.
+
+=item B<ReportVirtual> B<false>|B<true>
+
+Configures whether or not to report the view of the virtual memory subsystem on
+swap space. This information is used under Solaris if L<swapctl(2)> is not
+available and was the default behavior under I<Solaris> in I<collectdE<nbsp>4>.
+
+This option is only available if the I<Swap plugin> can use L<swapctl(2)> and
+L<kstat(3KSTAT)> to collect swap statistics under I<Solaris>. It defaults to
+B<false>.
+
+=back
 
 =head2 Plugin C<syslog>
 
