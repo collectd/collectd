@@ -1,3 +1,71 @@
+yyyy-mm-dd, Version 5.0.0
+	* collectd: The "FQDNLookup" option is now enabled by default.
+	* collectd: The internal representation of time has been changed to
+	  allow a higher accuracy than one second.
+	* collectdcmd: This new command line utility can send various commands
+	  to collectd using the UnixSock plugin. Thanks to Håkon Dugstad
+	  Johnsen and Sebastian Harl for their code.
+	* collectd-nagios: The "-m" option has been implemented (treat NaNs as
+	  critical).
+	* collectd-tg: Traffic generator creating bogus network traffic
+	  compatible to the Network plugin. This utility can be used to
+	  stress-test new write plugins and collectd in general.
+	* libcollectdclient: Creating and sending network packets has been
+	  added to the collectd client library.
+	* All data sets: The data source name of all data sets with exactly
+	  one data source has been changed to "value".
+	* All plugins: All "counter" data sources have been converted to
+	  "derive" data sources. All plugins now use "derive" by default, but
+	  plugins such as the network plugin can still handle "counter", of
+	  course. The minimum value of all derive data sources is zero, the
+	  maximum value is unspecified.
+	* amqp plugin: The new AMQP plugin can send data to and receive data
+	  from an AMQP broker. Thanks to Sebastien Pahl for his code.
+	* apache plugin: Backwards compatibility code has been removed.
+	  Support for the IBM HTTP Server has been added. Thanks to Manuel
+	  Luis Sanmartín Rozada for his patch.
+	* contextswitch plugin: Support for sysctlbyname(3) has been added.
+	  Thanks to Kimo Rosenbaum for his patch.
+	* df plugin: The default behavior has been changed to be equivalent to
+	  the "ReportReserved" behavior of v4.
+	* dns plugin: Improved RFC 1035 name parsing has been imported from
+	  "dnstop".
+	* exec plugin: Backwards compatibility code has been removed.
+	* GenericJMX plugin: The "InstancePrefix" option has been added to
+	  "Connection" blocks.
+	* hddtemp plugin: The "TranslateDevicename" config option has been
+	  removed.
+	* interface plugin: Use the "plugin instance" to store the interface
+	  value.
+	* libvirt plugin: The "InterfaceFormat" option has been added. Thanks
+	  to Ruben Kerkhof for his patch.
+	* lpar plugin: New plugins for "logical partitions", a virtualization
+	  technique of POWER CPUs. Thanks to Aurélien Reynaud for his code and
+	  patience.
+	* mysql plugin: Backwards compatibility code has been removed. The
+	  data sets used have been improved.
+	* network plugin: The default buffer size has been increased to
+	  1452 bytes.
+	* perl plugin: Backwards compatibility code has been removed.
+	* postgresql plugin: Backwards compatibility code has been removed.
+	* redis plugin: Plugin for collecting statistics from Redis, a key-
+	  value store, has been added. Thanks to Andres J. Diaz for his code.
+	* swap plugin: Implement collection of physical and virtual memory
+	  statistics under Solaris. The new default is collecting physical
+	  memory. Thanks to Aurélien Reynaud for his patches.
+	* threshold plugin: The threshold configuration has been moved into
+	  this separate plugin.
+	* unixsock plugin: The "DeleteSocket" option has been added.
+	* varnish plugin: The new Varnish plugin reads statistics from
+	  Varnish, a web accelerator. Thanks to Jérôme Renard and Marc
+	  Fournier for their contributions.
+	* write_redis: New plugin for writing data to Redis, a key-value
+	  store.
+	* zfs_arc plugin: The data sets have been replaced by more elegant
+	  alternatives.
+	* v5upgrade target: Target for converting v4 data sets to the v5
+	  schema.
+
 2010-11-27, Version 4.10.2
 	* Documentation: Various documentation fixes.
 	* collectd: If including one configuration file fails, continue with
