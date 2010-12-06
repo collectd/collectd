@@ -3391,7 +3391,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBTOKYOTYRANT, test "x$with_libtokyotyrant" = "xyes")
 with_libupsclient_config=""
 with_libupsclient_cflags=""
 with_libupsclient_libs=""
-AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], [Path to the Net-SNMPD library.])],
+AC_ARG_WITH(libupsclient, [AS_HELP_STRING([--with-libupsclient@<:@=PREFIX@:>@], [Path to the upsclient library.])],
 [
 	if test "x$withval" = "xno"
 	then
