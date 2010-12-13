@@ -279,7 +279,7 @@ static int cj_cb_start_array (void * ctx)
 
 static int cj_cb_end_array (void * ctx)
 {
-  return cj_cb_start (ctx);
+  return cj_cb_end (ctx);
 }
 
 static yajl_callbacks ycallbacks = {
