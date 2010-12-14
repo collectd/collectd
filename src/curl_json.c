@@ -32,7 +32,7 @@
 
 #define CJ_DEFAULT_HOST "localhost"
 #define CJ_KEY_MAGIC 0x43484b59UL /* CHKY */
-#define CJ_IS_KEY(key) (key)->magic == CJ_KEY_MAGIC
+#define CJ_IS_KEY(key) ((key)->magic == CJ_KEY_MAGIC)
 #define CJ_ANY "*"
 #define COUCH_MIN(x,y) ((x) < (y) ? (x) : (y))
 
@@ -136,39 +136,21 @@ static int cj_cb_number (void *ctx,
 
   cj_t *db = (cj_t *)ctx;
   cj_key_t *key = db->state[db->depth].key;
-  char *endptr;
   value_t vt;
   int type;
+  int status;
 
-  if (key == NULL)
+  if ((key == NULL) || !CJ_IS_KEY (key))
     return (CJ_CB_CONTINUE);
 
   memcpy (buffer, number, number_len);
   buffer[sizeof (buffer) - 1] = 0;
 
   type = cj_get_type (key);
-
-  endptr = NULL;
-  errno = 0;
-
-  if (type == DS_TYPE_COUNTER)
-    vt.counter = (counter_t) strtoull (buffer, &endptr, /* base = */ 0);
-  else if (type == DS_TYPE_GAUGE)
-    vt.gauge = (gauge_t) strtod (buffer, &endptr);
-  else if (type == DS_TYPE_DERIVE)
-    vt.derive = (derive_t) strtoll (buffer, &endptr, /* base = */ 0);
-  else if (type == DS_TYPE_ABSOLUTE)
-    vt.absolute = (absolute_t) strtoull (buffer, &endptr, /* base = */ 0);
-  else
+  status = parse_value (buffer, &vt, type);
+  if (status != 0)
   {
-    ERROR ("curl_json plugin: Unknown data source type: \"%s\"", key->type);
-    return (CJ_CB_ABORT);
-  }
-
-  if ((endptr == &buffer[0]) || (errno != 0))
-  {
-    NOTICE ("curl_json plugin: Overflow while parsing number. "
-        "Ignoring this value.");
+    NOTICE ("curl_json plugin: Unable to parse number: \"%s\"", buffer);
     return (CJ_CB_CONTINUE);
   }
 
