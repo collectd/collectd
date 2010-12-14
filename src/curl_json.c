@@ -56,8 +56,8 @@ struct cj_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  int   verify_peer;
-  int   verify_host;
+  _Bool verify_peer;
+  _Bool verify_host;
   char *cacert;
 
   CURL *curl;
@@ -357,37 +357,6 @@ static void cj_free (void *arg) /* {{{ */
 
 /* Configuration handling functions {{{ */
 
-static int cj_config_add_string (const char *name, char **dest, /* {{{ */
-                                      oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("curl_json plugin: `%s' needs exactly one string argument.", name);
-    return (-1);
-  }
-
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
-  if (*dest == NULL)
-    return (-1);
-
-  return (0);
-} /* }}} int cj_config_add_string */
-
-static int cj_config_set_boolean (const char *name, int *dest, /* {{{ */
-                                       oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("curl_json plugin: `%s' needs exactly one boolean argument.", name);
-    return (-1);
-  }
-
-  *dest = ci->values[0].value.boolean ? 1 : 0;
-
-  return (0);
-} /* }}} int cj_config_set_boolean */
-
 static c_avl_tree_t *cj_avl_create(void)
 {
   return c_avl_create ((int (*) (const void *, const void *)) strcmp);
@@ -419,7 +388,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
 
   if (strcasecmp ("Key", ci->key) == 0)
   {
-    status = cj_config_add_string ("Key", &key->path, ci);
+    status = cf_util_get_string (ci, &key->path);
     if (status != 0)
     {
       sfree (key);
@@ -439,9 +408,9 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Type", child->key) == 0)
-      status = cj_config_add_string ("Type", &key->type, child);
+      status = cf_util_get_string (child, &key->type);
     else if (strcasecmp ("Instance", child->key) == 0)
-      status = cj_config_add_string ("Instance", &key->instance, child);
+      status = cf_util_get_string (child, &key->instance);
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
@@ -556,9 +525,9 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
   }
 
-  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, db->verify_peer);
+  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, (int) db->verify_peer);
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYHOST,
-                    db->verify_host ? 2 : 0);
+                    (int) (db->verify_host ? 2 : 0));
   if (db->cacert != NULL)
     curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
 
@@ -589,7 +558,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
 
   if (strcasecmp ("URL", ci->key) == 0)
   {
-    status = cj_config_add_string ("URL", &db->url, ci);
+    status = cf_util_get_string (ci, &db->url);
     if (status != 0)
     {
       sfree (db);
@@ -609,19 +578,19 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Instance", child->key) == 0)
-      status = cj_config_add_string ("Instance", &db->instance, child);
+      status = cf_util_get_string (child, &db->instance);
     else if (strcasecmp ("Host", child->key) == 0)
-      status = cj_config_add_string ("Host", &db->host, child);
+      status = cf_util_get_string (child, &db->host);
     else if (strcasecmp ("User", child->key) == 0)
-      status = cj_config_add_string ("User", &db->user, child);
+      status = cf_util_get_string (child, &db->user);
     else if (strcasecmp ("Password", child->key) == 0)
-      status = cj_config_add_string ("Password", &db->pass, child);
+      status = cf_util_get_string (child, &db->pass);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
-      status = cj_config_set_boolean ("VerifyPeer", &db->verify_peer, child);
+      status = cf_util_get_boolean (child, &db->verify_peer);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
-      status = cj_config_set_boolean ("VerifyHost", &db->verify_host, child);
+      status = cf_util_get_boolean (child, &db->verify_host);
     else if (strcasecmp ("CACert", child->key) == 0)
-      status = cj_config_add_string ("CACert", &db->cacert, child);
+      status = cf_util_get_string (child, &db->cacert);
     else if (strcasecmp ("Key", child->key) == 0)
       status = cj_config_add_key (db, child);
     else
