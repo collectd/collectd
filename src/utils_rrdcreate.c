@@ -416,7 +416,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
     stepsize = (int) CDTIME_T_TO_TIME_T (vl->interval);
 
   status = srrd_create (filename,
-      (cfg->stepsize > 0) ? cfg->stepsize : vl->interval,
+      (cfg->stepsize > 0) ? cfg->stepsize : CDTIME_T_TO_TIME_T (vl->interval),
       last_up,
       argc, (const char **) argv);
 
