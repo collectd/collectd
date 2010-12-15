@@ -281,10 +281,8 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
 
   modbus_set_debug (&host->connection, 1);
 
-#if 0
   /* We'll do the error handling ourselves. */
   modbus_set_error_handling (&host->connection, NOP_ON_ERROR);
-#endif
 
   if ((host->port < 1) || (host->port > 65535))
     host->port = MODBUS_TCP_DEFAULT_PORT;
@@ -293,10 +291,8 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
       host->node, host->port);
 
   modbus_init_tcp (&host->connection,
-      /* host = */ host->node);
-#if 0
+      /* host = */ host->node,
       /* port = */ host->port);
-#endif
 
   status = modbus_connect (&host->connection);
   if (status != 0)
@@ -325,7 +321,7 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
 static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_data_t *data)
 {
-  int values[2];
+  uint16_t values[2];
   int values_num;
   const data_set_t *ds;
   int status;
