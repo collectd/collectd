@@ -190,34 +190,26 @@ static int cj_cb_string (void *ctx, const unsigned char *val,
                            unsigned int len)
 {
   cj_t *db = (cj_t *)ctx;
-  c_avl_tree_t *tree;
-  char *ptr;
+  char str[len + 1];
 
-  if (db->depth != 1) /* e.g. _all_dbs */
+  /* Create a null-terminated version of the string. */
+  memcpy (str, val, len);
+  str[len] = 0;
+
+  /* No configuration for this string -> simply return. */
+  if (db->state[db->depth].key == NULL)
     return (CJ_CB_CONTINUE);
 
-  cj_cb_map_key (ctx, val, len); /* same logic */
-
-  tree = db->state[db->depth].tree;
-
-  if ((tree != NULL) && (ptr = rindex (db->url, '/')))
+  if (!CJ_IS_KEY (db->state[db->depth].key))
   {
-    char url[PATH_MAX];
-    CURL *curl;
-
-    /* url =~ s,[^/]+$,$name, */
-    len = (ptr - db->url) + 1;
-    ptr = url;
-    sstrncpy (ptr, db->url, sizeof (url));
-    sstrncpy (ptr + len, db->state[db->depth].name, sizeof (url) - len);
-
-    curl = curl_easy_duphandle (db->curl);
-    curl_easy_setopt (curl, CURLOPT_URL, url);
-    cj_curl_perform (db, curl);
-    curl_easy_cleanup (curl);
+    NOTICE ("curl_json plugin: Found string \"%s\", but the configuration "
+        "expects a map here.", str);
+    return (CJ_CB_CONTINUE);
   }
-  return (CJ_CB_CONTINUE);
-}
+
+  /* Handle the string as if it was a number. */
+  return (cj_cb_number (ctx, (const char *) val, len));
+} /* int cj_cb_string */
 
 static int cj_cb_start (void *ctx)
 {

@@ -735,22 +735,6 @@ runtime statistics module of CouchDB
     </URL>
   </Plugin>
 
-Another CouchDB example:
-The following example will collect the status values from each database:
-
-  <URL "http://localhost:5984/_all_dbs">
-    Instance "dbs"
-    <Key "*/doc_count">
-      Type "gauge"
-    </Key>
-    <Key "*/doc_del_count">
-      Type "counter"
-    </Key>
-    <Key "*/disk_size">
-      Type "bytes"
-    </Key>
-  </URL>
-
 In the B<Plugin> block, there may be one or more B<URL> blocks, each defining
 a URL to be fetched via HTTP (using libcurl) and one or more B<Key> blocks.
 The B<Key> string argument must be in a path format, which is used to collect a
