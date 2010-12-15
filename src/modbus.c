@@ -28,6 +28,13 @@
 
 #include <modbus/modbus.h>
 
+#ifndef LIBMODBUS_VERSION_CHECK
+/* Assume version 2.0.3 */
+# define LEGACY_LIBMODBUS 1
+#else
+/* Assume version 2.9.2 */
+#endif
+
 #ifndef MODBUS_TCP_DEFAULT_PORT
 # ifdef MODBUS_TCP_PORT
 #  define MODBUS_TCP_DEFAULT_PORT MODBUS_TCP_PORT
@@ -99,7 +106,11 @@ struct mb_host_s /* {{{ */
   mb_slave_t *slaves;
   size_t slaves_num;
 
+#if LEGACY_LIBMODBUS
   modbus_param_t connection;
+#else
+  modbus_t *connection;
+#endif
   _Bool is_connected;
   _Bool have_reconnected;
 }; /* }}} */
@@ -265,6 +276,8 @@ static float mb_register_to_float (uint16_t hi, uint16_t lo) /* {{{ */
   return (conv.f);
 } /* }}} float mb_register_to_float */
 
+#if LEGACY_LIBMODBUS
+/* Version 2.0.3 */
 static int mb_init_connection (mb_host_t *host) /* {{{ */
 {
   int status;
@@ -306,6 +319,57 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   host->have_reconnected = 1;
   return (0);
 } /* }}} int mb_init_connection */
+/* #endif LEGACY_LIBMODBUS */
+
+#else /* if !LEGACY_LIBMODBUS */
+/* Version 2.9.2 */
+static int mb_init_connection (mb_host_t *host) /* {{{ */
+{
+  int status;
+
+  if (host == NULL)
+    return (EINVAL);
+
+  if (host->connection != NULL)
+    return (0);
+
+  /* Only reconnect once per interval. */
+  if (host->have_reconnected)
+    return (-1);
+
+  if ((host->port < 1) || (host->port > 65535))
+    host->port = MODBUS_TCP_DEFAULT_PORT;
+
+  DEBUG ("Modbus plugin: Trying to connect to \"%s\", port %i.",
+      host->node, host->port);
+
+  host->connection = modbus_new_tcp (host->node, host->port);
+  if (host->connection == NULL)
+  {
+    host->have_reconnected = 1;
+    ERROR ("Modbus plugin: Creating new Modbus/TCP object failed.");
+    return (-1);
+  }
+
+  modbus_set_debug (host->connection, 1);
+
+  /* We'll do the error handling ourselves. */
+  modbus_set_error_recovery (host->connection, 0);
+
+  status = modbus_connect (host->connection);
+  if (status != 0)
+  {
+    ERROR ("Modbus plugin: modbus_connect (%s, %i) failed with status %i.",
+        host->node, host->port, status);
+    modbus_free (host->connection);
+    host->connection = NULL;
+    return (status);
+  }
+
+  host->have_reconnected = 1;
+  return (0);
+} /* }}} int mb_init_connection */
+#endif /* !LEGACY_LIBMODBUS */
 
 #define CAST_TO_VALUE_T(ds,vt,raw) do { \
   if ((ds)->ds[0].type == DS_TYPE_COUNTER) \
@@ -360,22 +424,46 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   else
     values_num = 1;
 
+#if LEGACY_LIBMODBUS
+  /* Version 2.0.3: Pass the connection struct as a pointer and pass the slave
+   * id to each call of "read_holding_registers". */
+# define modbus_read_registers(ctx, addr, nb, dest) \
+  read_holding_registers (&(ctx), slave->id, (addr), (nb), (dest))
+#else /* if !LEGACY_LIBMODBUS */
+  /* Version 2.9.2: Set the slave id once before querying the registers. */
+  status = modbus_set_slave (host->connection, slave->id);
+  if (status != 0)
+  {
+    ERROR ("Modbus plugin: modbus_set_slave (%i) failed with status %i.",
+        slave->id, status);
+    return (-1);
+  }
+#endif
+
   for (i = 0; i < 2; i++)
   {
-    status = read_holding_registers (&host->connection,
-        /* slave = */ slave->id, /* start_addr = */ data->register_base,
+    status = modbus_read_registers (host->connection,
+        /* start_addr = */ data->register_base,
         /* num_registers = */ values_num, /* buffer = */ values);
     if (status > 0)
       break;
 
     if (host->is_connected)
+    {
+#if LEGACY_LIBMODBUS
       modbus_close (&host->connection);
-    host->is_connected = 0;
+      host->is_connected = 0;
+#else
+      modbus_close (host->connection);
+      modbus_free (host->connection);
+      host->connection = NULL;
+#endif
+    }
 
     /* If we already tried reconnecting this round, give up. */
     if (host->have_reconnected)
     {
-      ERROR ("Modbus plugin: read_holding_registers (%s) failed. "
+      ERROR ("Modbus plugin: modbus_read_registers (%s) failed. "
           "Reconnecting has already been tried. Giving up.", host->host);
       return (-1);
     }
@@ -385,7 +473,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     status = mb_init_connection (host);
     if (status != 0)
     {
-      ERROR ("Modbus plugin: read_holding_registers (%s) failed. "
+      ERROR ("Modbus plugin: modbus_read_registers (%s) failed. "
           "While trying to reconnect, connecting to \"%s\" failed. "
           "Giving up.",
           host->host, host->node);
@@ -399,7 +487,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   } /* for (i = 0, 1) */
 
   DEBUG ("Modbus plugin: mb_read_data: Success! "
-      "read_holding_registers returned with status %i.", status);
+      "modbus_read_registers returned with status %i.", status);
 
   if (data->register_type == REG_TYPE_FLOAT)
   {

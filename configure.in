@@ -2104,9 +2104,9 @@ then
 	CPPFLAGS="$CPPFLAGS $with_libmodbus_cflags"
 	LDFLAGS="$LDFLAGS $with_libmodbus_libs"
 
-	AC_CHECK_LIB(modbus, modbus_init_tcp,
+	AC_CHECK_LIB(modbus, modbus_connect,
 		     [with_libmodbus="yes"],
-		     [with_libmodbus="no (symbol modbus_init_tcp not found)"])
+		     [with_libmodbus="no (symbol modbus_connect not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
