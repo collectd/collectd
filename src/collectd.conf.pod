@@ -72,15 +72,19 @@ options are allowed inside a B<LoadPlugin> block:
 If enabled, collectd will export all global symbols of the plugin (and of all
 libraries loaded as dependencies of the plugin) and, thus, makes those symbols
 available for resolving unresolved symbols in subsequently loaded plugins if
-that is supported by your system. By default, this is disabled.
+that is supported by your system.
 
-This is useful (or possibly even required), e.E<nbsp>g., when loading a plugin
-that embeds some scripting language into the daemon (e.E<nbsp>g. the C<perl>
-or C<python> plugins). Scripting languages usually provide means to load
+This is useful (or possibly even required), e.g., when loading a plugin that
+embeds some scripting language into the daemon (e.g. the I<Perl> and
+I<Python plugins>). Scripting languages usually provide means to load
 extensions written in C. Those extensions require symbols provided by the
-interpreter, which is loaded as a dependency of the respective collectd
-plugin. See the documentation of those plugins (e.E<nbsp>g.,
-L<collectd-perl(5)> or L<collectd-python(5)>) for details.
+interpreter, which is loaded as a dependency of the respective collectd plugin.
+See the documentation of those plugins (e.g., L<collectd-perl(5)> or
+L<collectd-python(5)>) for details.
+
+By default, this is disabled. As a special exception, if the plugin name is
+either C<perl> or C<python>, the default is changed to enabled in order to keep
+the average user from ever having to deal with this low level linking stuff.
 
 =back
 
