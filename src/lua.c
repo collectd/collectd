@@ -291,6 +291,17 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl, user_data_t *ud) 
       }
     }
   }
+  else if( lua_isnumber(l, -1) ) {
+    lua_Integer ret = lua_tointeger(l, -1);
+    
+    if( ret == 1 ){
+      /* discard the value list */
+      status = 1;
+    }
+    else {
+      ERROR("lua plugin: unknown integer returned: %d", (int)ret);
+    }
+  }
 
   /* pop return value and function */
   lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
