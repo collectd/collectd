@@ -74,31 +74,15 @@ typedef struct lua_c_functions_s lua_c_functions_t;
 static char           base_path[PATH_MAX + 1] = "";
 static lua_script_t  *scripts = NULL;
 
+
+// store a reference to the function on the top of the stack
 static int clua_store_callback (lua_State *l, int idx) /* {{{ */
 {
-  static int callback_num = 0;
-  int callback_id;
-
-  /* XXX FIXME: Not thread-safe! */
-  callback_id = ++callback_num;
-
-  if (idx < 0)
-    idx += lua_gettop (l) + 1;
-
-  lua_getfield (l, LUA_REGISTRYINDEX, "collectd_callbacks"); /* +1 = 1 */
-  if (!lua_istable (l, /* idx = */ -1))
-  {
-    lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
-    lua_newtable (l); /* +1 = 1 */
-    lua_pushvalue (l, -1); /* +1 = 2 */
-    lua_setfield (l, LUA_REGISTRYINDEX, "collectd_callbacks"); /* -1 = 1 */
-  }
-
-  /* The table is now on top of the stack */
-  lua_pushinteger (l, (lua_Integer) callback_id); /* +1 = 2 */
-
+  int callback_ref;
+  
   /* Copy the function pointer */
   lua_pushvalue (l, idx); /* +1 = 3 */
+  
   /* Lookup function if it's a string */
   if (lua_isstring (l, /* idx = */ -1))
     lua_gettable (l, LUA_GLOBALSINDEX); /* +-0 = 3 */
@@ -108,32 +92,22 @@ static int clua_store_callback (lua_State *l, int idx) /* {{{ */
     lua_pop (l, /* nelems = */ 3); /* -3 = 0 */
     return (-1);
   }
-
-  lua_settable (l, /* idx = */ -3); /* -2 = 1 */
+  
+  callback_ref = luaL_ref(l, LUA_REGISTRYINDEX);
+  
   lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
-  return (callback_id);
+  return (callback_ref);
 } /* }}} int clua_store_callback */
 
-static int clua_load_callback (lua_State *l, int callback_id) /* {{{ */
+static int clua_load_callback (lua_State *l, int callback_ref) /* {{{ */
 {
-  lua_getfield (l, LUA_REGISTRYINDEX, "collectd_callbacks"); /* +1 */
-  if (!lua_istable (l, /* idx = */ -1))
-  {
-    lua_pop (l, /* nelems = */ 1); /* -1 */
+  lua_rawgeti(l, LUA_REGISTRYINDEX, callback_ref);
+
+  if (!lua_isfunction (l, -1)) {
+    lua_pop (l, /* nelems = */ 1);
     return (-1);
   }
-
-  lua_pushinteger (l, (lua_Integer) callback_id); /* + 1 */
-  lua_gettable (l, /* idx = */ -2); /* +-0 */
-
-  if (!lua_isfunction (l, -1))
-  {
-    lua_pop (l, /* nelems = */ 2); /* -2 */
-    return (-1);
-  }
-
-  /* Remove table */
-  lua_remove (l, /* idx = */ -2); /* -1 */
+  
   return (0);
 } /* }}} int clua_load_callback */
 
@@ -152,33 +126,20 @@ static int clua_load_callback (lua_State *l, int callback_id) /* {{{ */
 
 /* Store the threads in a global variable so they are not cleaned up by the
  * garbage collector. */
-static int clua_store_thread (lua_State *l, int idx, int callback_id) /* {{{ */
+static int clua_store_thread (lua_State *l, int idx) /* {{{ */
 {
   if (idx < 0)
     idx += lua_gettop (l) + 1;
 
-  lua_getfield (l, LUA_REGISTRYINDEX, "collectd_threads"); /* +1 = 1 */
-  if (!lua_istable (l, /* idx = */ -1))
-  {
-    lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
-    lua_newtable (l); /* +1 = 1 */
-    lua_pushvalue (l, -1); /* +1 = 2 */
-    lua_setfield (l, LUA_REGISTRYINDEX, "collectd_threads"); /* -1 = 1 */
-  }
-
-  /* The table is now on top of the stack */
-  lua_pushinteger (l, (lua_Integer) callback_id); /* +1 = 2 */
-
   /* Copy the thread pointer */
   lua_pushvalue (l, idx); /* +1 = 3 */
-
   if (!lua_isthread (l, /* idx = */ -1))
   {
     lua_pop (l, /* nelems = */ 3); /* -3 = 0 */
     return (-1);
   }
 
-  lua_settable (l, /* idx = */ -3); /* -2 = 1 */
+  luaL_ref(l, LUA_REGISTRYINDEX);
   lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
   return (0);
 } /* }}} int clua_store_thread */
@@ -584,7 +545,7 @@ static int lua_cb_register_read (lua_State *l) /* {{{ */
     ERROR ("lua plugin: lua_newthread failed.");
     RETURN_LUA (l, -1);
   }
-  clua_store_thread (l, /* idx = */ -1, callback_id);
+  clua_store_thread (l, /* idx = */ -1);
   lua_pop (l, /* nelems = */ 1);
 
   if (function_name[0] == 0)
@@ -653,7 +614,7 @@ static int lua_cb_register_write (lua_State *l) /* {{{ */
     ERROR ("lua plugin: lua_newthread failed.");
     RETURN_LUA (l, -1);
   }
-  clua_store_thread (l, /* idx = */ -1, callback_id);
+  clua_store_thread (l, /* idx = */ -1);
   lua_pop (l, /* nelems = */ 1);
 
   if (function_name[0] == 0)
