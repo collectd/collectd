@@ -732,7 +732,12 @@ static int lua_script_load (const char *script_path) /* {{{ */
   status = luaL_loadfile (script->lua_state, script->script_path);
   if (status != 0)
   {
-    ERROR ("lua plugin: luaL_loadfile failed with status %i", status);
+    if( status == LUA_ERRSYNTAX ){
+      ERROR ("lua plugin: syntax error: %s\n", lua_tostring(script->lua_state, -1));
+    }
+    else {
+      ERROR ("lua plugin: luaL_loadfile failed with status %i", status);
+    }
     lua_script_free (script);
     return (-1);
   }
