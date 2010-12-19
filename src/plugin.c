@@ -1460,7 +1460,12 @@ int plugin_dispatch_values (value_list_t *vl)
 			DEBUG ("plugin: plugin_dispatch_values: filtering values via %s.", le->key);
 			callback = cf->cf_callback;
 			status = (*callback) (ds, vl, &cf->cf_udata);
-			if (status != 0) {
+			if( status == 1 ) {
+			  /* plugin wants this value to be discarded */
+        DEBUG("plugin: discarded value list");
+        return 0;
+			}
+			else if( status < 0 ) {
         DEBUG("plugin: plugin_dispatch_values: %s failed.", le->key);
 			}
 			
