@@ -23,9 +23,17 @@
 
 #include "config.h"
 
-#ifndef _XOPEN_SOURCE
-# define _XOPEN_SOURCE 600 /* glibc2 needs this for strptime */
-#endif
+#if STRPTIME_NEEDS_STANDARDS
+# ifndef _ISOC99_SOURCE
+#  define _ISOC99_SOURCE 1
+# endif
+# ifndef _POSIX_C_SOURCE
+#  define _POSIX_C_SOURCE 200112L
+# endif
+# ifndef _XOPEN_SOURCE
+#  define _XOPEN_SOURCE 500
+# endif
+#endif /* STRPTIME_NEEDS_STANDARDS */
 
 #include "collectd.h"
 #include "common.h"
