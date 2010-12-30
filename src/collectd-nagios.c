@@ -23,18 +23,6 @@
 # include "config.h"
 #endif
 
-#ifndef _ISOC99_SOURCE
-# define _ISOC99_SOURCE
-#endif
-
-#ifndef _POSIX_C_SOURCE
-# define _POSIX_C_SOURCE 200112L
-#endif
-
-#ifndef _XOPEN_SOURCE
-# define _XOPEN_SOURCE 600
-#endif
-
 #if !defined(__GNUC__) || !__GNUC__
 # define __attribute__(x) /**/
 #endif
@@ -46,7 +34,37 @@
 #include <string.h>
 #include <strings.h>
 #include <assert.h>
-#include <math.h>
+
+#if NAN_STATIC_DEFAULT
+# include <math.h>
+/* #endif NAN_STATIC_DEFAULT*/
+#elif NAN_STATIC_ISOC
+# ifndef __USE_ISOC99
+#  define DISABLE_ISOC99 1
+#  define __USE_ISOC99 1
+# endif /* !defined(__USE_ISOC99) */
+# include <math.h>
+# if DISABLE_ISOC99
+#  undef DISABLE_ISOC99
+#  undef __USE_ISOC99
+# endif /* DISABLE_ISOC99 */
+/* #endif NAN_STATIC_ISOC */
+#elif NAN_ZERO_ZERO
+# include <math.h>
+# ifdef NAN
+#  undef NAN
+# endif
+# define NAN (0.0 / 0.0)
+# ifndef isnan
+#  define isnan(f) ((f) != (f))
+# endif /* !defined(isnan) */
+# ifndef isfinite
+#  define isfinite(f) (((f) - (f)) == 0.0)
+# endif
+# ifndef isinf
+#  define isinf(f) (!isfinite(f) && !isnan(f))
+# endif
+#endif /* NAN_ZERO_ZERO */
 
 #include "libcollectdclient/client.h"
 

@@ -756,7 +756,7 @@ if test "x$nan_type" = "xnone"; then
       [[
 #include <stdlib.h>
 #include <math.h>
-static float foo = NAN;
+static double foo = NAN;
       ]],
       [[
        if (isnan (foo))
@@ -782,7 +782,7 @@ if test "x$nan_type" = "xnone"; then
 #include <stdlib.h>
 #define __USE_ISOC99 1
 #include <math.h>
-static float foo = NAN;
+static double foo = NAN;
       ]],
       [[
        if (isnan (foo))
@@ -816,7 +816,7 @@ if test "x$nan_type" = "xnone"; then
 #ifndef isnan
 # define isnan(f) ((f) != (f))
 #endif
-static float foo = NAN;
+static double foo = NAN;
       ]],
       [[
        if (isnan (foo))
