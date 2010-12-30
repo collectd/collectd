@@ -73,28 +73,17 @@
 /* No global variables */
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKSTAT || (HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS)
+#elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 static derive_t pagesize;
-# if HAVE_LIBKSTAT
-static kstat_t *ksp;
-# endif /* HAVE_LIBKSTAT */
 
-# if HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 static const char *config_keys[] =
 {
-#  if HAVE_LIBKSTAT
-	"ReportVirtual",
-#  endif
-	"ReportPhysical"
+	"ReportByDevice"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-#  if HAVE_LIBKSTAT
-static _Bool report_virtual  = 0;
-#  endif
-static int   report_physical = 1;
-# endif /* HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
-/* #endif HAVE_LIBKSTAT || (HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS) */
+static _Bool report_by_device = 0;
+/* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif defined(VM_SWAPUSAGE)
 /* No global variables */
@@ -123,13 +112,6 @@ static int swap_init (void)
 #if KERNEL_LINUX
 	/* No init stuff */
 /* #endif KERNEL_LINUX */
-
-#elif HAVE_LIBKSTAT
-	/* getpagesize(3C) tells me this does not fail.. */
-	pagesize = (derive_t) getpagesize ();
-	if (get_kstat (&ksp, "unix", 0, "system_pages"))
-		ksp = NULL;
-/* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 	/* getpagesize(3C) tells me this does not fail.. */
@@ -320,14 +302,16 @@ static int swap_read (void) /* {{{ */
 } /* }}} int swap_read */
 /* #endif KERNEL_LINUX */
 
-/* Sorry for the amount of preprocessor magic that follows. Under Solaris, two
- * mechanisms can be used to read swap statistics, swapctl and kstat. The
- * former reads physical space used on a device, the latter reports the view
- * from the virtual memory system. The following magic tries to be as flexible
- * as possible by allowing either mechanism to be missing and act correctly in
- * the event that both are available, i.e. let the user decide what to do. */
-#elif HAVE_LIBKSTAT || (HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS)
-# if HAVE_LIBKSTAT
+/*
+ * Under Solaris, two mechanisms can be used to read swap statistics, swapctl
+ * and kstat. The former reads physical space used on a device, the latter
+ * reports the view from the virtual memory system. It was decided that the
+ * kstat-based information should be moved to the "vmem" plugin, but nobody
+ * with enough Solaris experience was available at that time to do this. The
+ * code below is still there for your reference but it won't be activated in
+ * *this* plugin again. --octo
+ */
+#elif 0 && HAVE_LIBKSTAT
 /* kstat-based read function */
 static int swap_read_kstat (void) /* {{{ */
 {
@@ -377,11 +361,11 @@ static int swap_read_kstat (void) /* {{{ */
 
 	return (0);
 } /* }}} int swap_read_kstat */
-# endif /* HAVE_LIBKSTAT */
+/* #endif 0 && HAVE_LIBKSTAT */
 
-# if HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
+#elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 /* swapctl-based read function */
-static int swap_read_swapctl2 (void) /* {{{ */
+static int swap_read (void) /* {{{ */
 {
         swaptbl_t *s;
 	char *s_paths;
@@ -463,7 +447,7 @@ static int swap_read_swapctl2 (void) /* {{{ */
 		this_avail = ((derive_t) s->swt_ent[i].ste_free)  * pagesize;
 
 		/* Shortcut for the "combined" setting (default) */
-		if (report_physical != 2)
+		if (!report_by_device)
 		{
 			avail += this_avail;
 			total += this_total;
@@ -501,9 +485,9 @@ static int swap_read_swapctl2 (void) /* {{{ */
                 return (-1);
         }
 
-	/* If the "separate" option was specified (report_physical == 2), all
+	/* If the "separate" option was specified (report_by_device == 2), all
 	 * values have already been dispatched from within the loop. */
-	if (report_physical != 2)
+	if (!report_by_device)
 	{
 		swap_submit ("used", total - avail, DS_TYPE_GAUGE);
 		swap_submit ("free", avail, DS_TYPE_GAUGE);
@@ -517,36 +501,13 @@ static int swap_read_swapctl2 (void) /* {{{ */
 /* Configuration: Present when swapctl or both methods are available. */
 static int swap_config (const char *key, const char *value) /* {{{ */
 {
-	if (strcasecmp ("ReportPhysical", key) == 0)
-	{
-		if (strcasecmp ("combined", value) == 0)
-			report_physical = 1;
-		else if (strcasecmp ("separate", value) == 0)
-			report_physical = 2;
-# if HAVE_LIBKSTAT
-		else if (IS_TRUE (value))
-			report_physical = 1;
-		else if (IS_FALSE (value))
-			report_physical = 0;
-# endif
-		else
-			WARNING ("swap plugin: The value \"%s\" is not "
-					"recognized by the ReportPhysical option.",
-					value);
-	}
-# if HAVE_LIBKSTAT
-	else if (strcasecmp ("ReportVirtual", key) == 0)
+	if (strcasecmp ("ReportByDevice", key) == 0)
 	{
 		if (IS_TRUE (value))
-			report_physical = 1;
-		else if (IS_FALSE (value))
-			report_physical = 0;
+			report_by_device = 1;
 		else
-			WARNING ("swap plugin: The value \"%s\" is not "
-					"recognized by the ReportVirtual option.",
-					value);
+			report_by_device = 0;
 	}
-# endif /* HAVE_LIBKSTAT */
 	else
 	{
 		return (-1);
@@ -554,45 +515,7 @@ static int swap_config (const char *key, const char *value) /* {{{ */
 
 	return (0);
 } /* }}} int swap_config */
-# endif /* HAVE_SWAPCTL_TWO_ARGS */
-
-/* If both methods are available, check the config variables to decide which
- * function to call. Otherwise, add aliases for the functions so we can
- * "swap_read" in "module_register". */
-# if HAVE_LIBKSTAT && HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
-static int swap_read (void) /* {{{ */
-{
-	int status;
-
-	if (!report_physical && !report_virtual)
-	{
-		WARNING ("swap plugin: Neither the \"ReportPhysical\" nor the \"ReportVirtual\" option "
-				"has been activated. This plugin will not collect any data.");
-		return (-1);
-	}
-
-	if (report_physical)
-	{
-		status = swap_read_swapctl2 ();
-		if (status != 0)
-			return (status);
-	}
-
-	if (report_virtual)
-	{
-		status = swap_read_kstat ();
-		if (status != 0)
-			return (status);
-	}
-
-	return (0);
-} /* }}} int swap_read */
-# elif HAVE_LIBKSTAT
-#  define swap_read swap_read_kstat
-# else /* if HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
-#  define swap_read swap_read_swapctl2
-# endif
-/* #endif HAVE_LIBKSTAT || (HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS) */
+/* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
 static int swap_read (void) /* {{{ */
@@ -663,7 +586,7 @@ static int swap_read (void) /* {{{ */
 
 	return (0);
 } /* }}} int swap_read */
-/* #endif HAVE_SWAPCTL */
+/* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS */
 
 #elif defined(VM_SWAPUSAGE)
 static int swap_read (void) /* {{{ */

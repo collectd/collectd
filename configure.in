@@ -4366,11 +4366,6 @@ then
 	plugin_tape="yes"
 fi
 
-if test "x$have_sys_swap_h$with_kstat$ac_system" = "xyesyesSolaris"
-then
-	plugin_swap="yes"
-fi
-
 # libstatgrab
 if test "x$with_libstatgrab" = "xyes"
 then
