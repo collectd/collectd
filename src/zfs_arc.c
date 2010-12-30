@@ -86,7 +86,7 @@ static int za_read (void)
 		 demand_metadata_misses,
 		 prefetch_data_misses,
 		 prefetch_metadata_misses;
-	gauge_t  arc_hits, arc_misses, arc_ratio, l2_hits, l2_misses, l2_ratio;
+	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
 	value_t  l2_io[2];
 
 	get_kstat (&ksp, "zfs", 0, "arcstats");
