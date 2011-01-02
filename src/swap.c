@@ -496,7 +496,7 @@ static int swap_read (void) /* {{{ */
 	sfree (s_paths);
         sfree (s);
 	return (0);
-} /* }}} int swap_read_swapctl2 */
+} /* }}} int swap_read */
 
 /* Configuration: Present when swapctl or both methods are available. */
 static int swap_config (const char *key, const char *value) /* {{{ */
