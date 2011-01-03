@@ -705,17 +705,19 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
     return (-1);
   }
 
+  url = NULL;
+  curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
+
   status = curl_easy_perform (curl);
   if (status != 0)
   {
     ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, url);
+           status, db->curl_errbuf, (url != NULL) ? url : "<null>");
     yajl_free (db->yajl);
     db->yajl = yprev;
     return (-1);
   }
 
-  curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
 
   /* The response code is zero if a non-HTTP transport was used. */
