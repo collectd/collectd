@@ -1,6 +1,6 @@
 /**
  * collectd - src/dns.c
- * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2006-2011  Florian octo Forster
  * Copyright (C) 2009       Mirko Buffoni
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -17,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Mirko Buffoni <briareos at eswat.org>
  **/
 
@@ -30,8 +30,12 @@
 
 #include "utils_dns.h"
 #include <pthread.h>
-#include <pcap.h>
 #include <poll.h>
+
+#include <pcap.h>
+#if HAVE_PCAP_BPF_H
+# include <pcap-bpf.h>
+#endif
 
 /*
  * Private data types
@@ -218,7 +222,7 @@ static void dns_child_callback (const rfc1035_header_t *dns)
 	pthread_mutex_unlock (&opcode_mutex);
 }
 
-static void *dns_child_loop (void __attribute__((unused)) *dummy)
+static void *dns_child_loop (__attribute__((unused)) void *dummy)
 {
 	pcap_t *pcap_obj;
 	char    pcap_error[PCAP_ERRBUF_SIZE];
