@@ -1931,7 +1931,9 @@ static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
   api_class_ptr = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/Collectd");
   if (api_class_ptr == NULL)
   {
-    ERROR ("cjni_init_native: Cannot find API class `org/collectd/api/Collectd'.");
+    ERROR ("cjni_init_native: Cannot find the API class \"org.collectd.api"
+        ".Collectd\". Please set the correct class path "
+        "using 'JVMArg \"-Djava.class.path=...\"'.");
     return (-1);
   }
 

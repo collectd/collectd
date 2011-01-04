@@ -2556,19 +2556,13 @@ then
 fi
 if test "x$with_libpcap" = "xyes"
 then
-	AC_CHECK_HEADERS(pcap.h,
-	[
-		AC_DEFINE(HAVE_PCAP_H, 1, [Define to 1 if you have the <pcap.h> header file.])
-	], [with_libpcap="no (pcap.h not found)"])
+	AC_CHECK_HEADERS(pcap.h,,
+			 [with_libpcap="no (pcap.h not found)"])
 fi
 if test "x$with_libpcap" = "xyes"
 then
-	collect_libpcap=1
-else
-	collect_libpcap=0
+	AC_CHECK_HEADERS(pcap-bpf.h)
 fi
-AC_DEFINE_UNQUOTED(COLLECT_LIBPCAP, [$collect_libpcap],
-	[Wether or not to use the pcap library])
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 # }}}
 
