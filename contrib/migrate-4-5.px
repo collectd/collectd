@@ -33,7 +33,7 @@ use File::Basename ('dirname');
 
 our $InDir = '/var/lib/collectd';
 our $OutDir = '/tmp/collectd-5';
-our $Hostname = 'localhost';
+our $RRDtool = 'rrdtool';
 
 our %TypesCounterToDerive = # {{{
 (
@@ -167,7 +167,7 @@ sub handle_file # {{{
   if ($TypesRenameDataSource{$type})
   {
     my $old_ds = $TypesRenameDataSource{$type};
-    print "rrdtool tune \"$path\" --data-source-rename ${old_ds}:value\n";
+    print "$RRDtool tune \"$path\" --data-source-rename ${old_ds}:value\n";
   }
 
   if ($TypesCounterToDerive{$type})
@@ -177,7 +177,7 @@ sub handle_file # {{{
     for (@$ds_names)
     {
       my $name = $_;
-      print "rrdtool tune \"$path\" --data-source-type ${name}:DERIVE --minimum ${name}:0 --maximum ${name}:U\n";
+      print "$RRDtool tune \"$path\" --data-source-type ${name}:DERIVE --minimum ${name}:0 --maximum ${name}:U\n";
     }
   }
 
@@ -216,6 +216,29 @@ sub scan_dir # {{{
   }
   closedir ($dh);
 } # }}} sub scan_dir
+
+sub exit_usage # {{{
+{
+  print STDERR <<EOF;
+migrate-4-5.px [OPTIONS]
+
+Valid options are:
+
+  --indir <dir>      Source directory
+                     Default: $InDir
+  --outdir <dir>     Destination directory
+                     Default: $OutDir
+  --rrdtool <path>   Path to the RRDtool binary
+                     Default: $RRDtool
+
+EOF
+  exit (1);
+} # }}} sub exit_usage
+
+GetOptions ("indir|i=s" => \$InDir,
+	"outdir|o=s" => \$OutDir,
+        "rrdtool=s" => \$RRDtool,
+        "help|h" => \&exit_usage) or exit_usage ();
 
 scan_dir ($InDir);
 
