@@ -1933,11 +1933,11 @@ Configures the base register to read from the device. If the option
 B<RegisterType> has been set to B<Uint32> or B<Float>, this and the next
 register will be read (the register number is increased by one).
 
-=item B<RegisterType> B<Uint16>|B<Uint32>|B<Float>
+=item B<RegisterType> B<Int16>|B<Int32>|B<Uint16>|B<Uint32>|B<Float>
 
-Specifies what kind of data is returned by the device. If the type is B<Uint32>
-or B<Float>, two 16E<nbsp>bit registers will be read and the data is combined
-into one value. Defaults to B<Uint16>.
+Specifies what kind of data is returned by the device. If the type is B<Int32>,
+B<Uint32> or B<Float>, two 16E<nbsp>bit registers will be read and the data is
+combined into one value. Defaults to B<Uint16>.
 
 =item B<Type> I<Type>
 
