@@ -42,6 +42,8 @@ yyyy-mm-dd, Version 5.0.0
 	* lpar plugin: New plugins for "logical partitions", a virtualization
 	  technique of POWER CPUs. Thanks to Aurélien Reynaud for his code and
 	  patience.
+	* modbus plugin: Support for libmodbus 2.9.2 has been added and the
+	  license has been changes to LGPLv2.1.
 	* mysql plugin: Backwards compatibility code has been removed. The
 	  data sets used have been improved.
 	* network plugin: The default buffer size has been increased to
