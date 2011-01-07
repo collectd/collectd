@@ -4,11 +4,6 @@ apache_connections	value:GAUGE:0:65535
 apache_idle_workers	value:GAUGE:0:65535
 apache_requests		value:DERIVE:0:U
 apache_scoreboard	value:GAUGE:0:65535
-arc_counts		demand_data:DERIVE:0:U, demand_metadata:DERIVE:0:U, prefetch_data:DERIVE:0:U, prefetch_metadata:DERIVE:0:U
-arc_l2_bytes		read:DERIVE:0:U, write:DERIVE:0:U
-arc_l2_size		value:GAUGE:0:U
-arc_ratio		value:GAUGE:0:U
-arc_size		current:GAUGE:0:U, target:GAUGE:0:U, minlimit:GAUGE:0:U, maxlimit:GAUGE:0:U
 ath_nodes		value:GAUGE:0:65535
 ath_stat		value:DERIVE:0:U
 bitrate			value:GAUGE:0:4294967295
@@ -179,3 +174,14 @@ voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
+#
+# Legacy types
+# (required for the v5 upgrade target)
+#
+arc_counts		demand_data:COUNTER:0:U, demand_metadata:COUNTER:0:U, prefetch_data:COUNTER:0:U, prefetch_metadata:COUNTER:0:U
+arc_l2_bytes		read:COUNTER:0:U, write:COUNTER:0:U
+arc_l2_size		value:GAUGE:0:U
+arc_ratio		value:GAUGE:0:U
+arc_size		current:GAUGE:0:U, target:GAUGE:0:U, minlimit:GAUGE:0:U, maxlimit:GAUGE:0:U
+mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
+mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U
