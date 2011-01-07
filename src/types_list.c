@@ -102,6 +102,10 @@ static void parse_line (char *buf)
   if (fields_num < 2)
     return;
 
+  /* Ignore lines which begin with a hash sign. */
+  if (fields[0][0] == '#')
+    return;
+
   ds = (data_set_t *) malloc (sizeof (data_set_t));
   if (ds == NULL)
     return;
