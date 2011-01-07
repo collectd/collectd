@@ -2765,7 +2765,8 @@ then
 fi
 if test "x$with_libpcap" = "xyes"
 then
-	AC_CHECK_HEADERS(pcap-bpf.h)
+	AC_CHECK_HEADERS(pcap-bpf.h,,
+			 [with_libpcap="no (pcap-bpf.h not found)"])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 # }}}

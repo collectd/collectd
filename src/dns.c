@@ -33,9 +33,7 @@
 #include <poll.h>
 
 #include <pcap.h>
-#if HAVE_PCAP_BPF_H
-# include <pcap-bpf.h>
-#endif
+#include <pcap-bpf.h>
 
 /*
  * Private data types
