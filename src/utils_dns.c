@@ -441,6 +441,7 @@ handle_udp(const struct udphdr *udp, int len)
     return 1;
 }
 
+#if HAVE_NETINET_IP6_H
 static int
 handle_ipv6 (struct ip6_hdr *ipv6, int len)
 {
@@ -512,6 +513,16 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
 
     return (1); /* Success */
 } /* int handle_ipv6 */
+/* #endif HAVE_NETINET_IP6_H */
+
+#else /* if !HAVE_NETINET_IP6_H */
+static int
+handle_ipv6 (__attribute__((unused)) void *pkg,
+	__attribute__((unused)) int len)
+{
+    return (0);
+}
+#endif /* !HAVE_NETINET_IP6_H */
 
 static int
 handle_ip(const struct ip *ip, int len)
@@ -522,7 +533,7 @@ handle_ip(const struct ip *ip, int len)
     struct in6_addr d_addr;
 
     if (ip->ip_v == 6)
-	return (handle_ipv6 ((struct ip6_hdr *) ip, len));
+	return (handle_ipv6 ((void *) ip, len));
 
     in6_addr_from_buffer (&s_addr, &ip->ip_src.s_addr, sizeof (ip->ip_src.s_addr), AF_INET);
     in6_addr_from_buffer (&d_addr, &ip->ip_dst.s_addr, sizeof (ip->ip_dst.s_addr), AF_INET);
@@ -620,7 +631,7 @@ handle_ether(const u_char * pkt, int len)
 	return 0;
     memcpy(buf, pkt, len);
     if (ETHERTYPE_IPV6 == etype)
-	return (handle_ipv6 ((struct ip6_hdr *) buf, len));
+	return (handle_ipv6 ((void *) buf, len));
     else
 	return handle_ip((struct ip *) buf, len);
 }
@@ -653,7 +664,7 @@ handle_linux_sll (const u_char *pkt, int len)
 	return 0;
 
     if (ETHERTYPE_IPV6 == etype)
-	return (handle_ipv6 ((struct ip6_hdr *) pkt, len));
+	return (handle_ipv6 ((void *) pkt, len));
     else
 	return handle_ip((struct ip *) pkt, len);
 }
