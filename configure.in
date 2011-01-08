@@ -1407,7 +1407,7 @@ then
 	fi
 	AC_CHECK_HEADERS(credis.h,
 	[with_libcredis="yes"],
-	[with_libcredis="no ('credis.h' not found)"])
+	[with_libcredis="no (credis.h not found)"])
 fi
 if test "x$with_libcredis" = "xyes"
 then
@@ -2129,7 +2129,7 @@ then
 	$PKG_CONFIG --exists 'modbus' 2>/dev/null
 	if test $? -ne 0
 	then
-		with_libmodbus="no (pkg-config doesn't know library)"
+		with_libmodbus="no (pkg-config doesn't know modbus)"
 	fi
 fi
 if test "x$with_libmodbus" = "xuse_pkgconfig"
@@ -2594,7 +2594,7 @@ then
 	fi
 	AC_CHECK_HEADERS(oping.h,
 	[with_liboping="yes"],
-	[with_liboping="no ('oping.h' not found)"])
+	[with_liboping="no (oping.h not found)"])
 fi
 if test "x$with_liboping" = "xyes"
 then
@@ -3283,7 +3283,7 @@ then
 	fi
 	AC_CHECK_HEADERS(routeros_api.h,
 	[with_librouteros="yes"],
-	[with_librouteros="no ('routeros_api.h' not found)"])
+	[with_librouteros="no (routeros_api.h not found)"])
 fi
 if test "x$with_librouteros" = "xyes"
 then
@@ -3482,7 +3482,7 @@ then
     if test "$?" != "0"
     then
       with_libstatgrab_pkg_config="no"
-      with_libstatgrab="no ($PKG_CONFIG doesn't know libstatgrab)"
+      with_libstatgrab="no (pkg-config doesn't know libstatgrab)"
       temp_result="not found"
     fi
     AC_MSG_RESULT([$temp_result])
@@ -3702,7 +3702,7 @@ then
 	$PKG_CONFIG --exists 'libupsclient' 2>/dev/null
 	if test $? -ne 0
 	then
-		with_libupsclient="no (pkg-config doesn't know library)"
+		with_libupsclient="no (pkg-config doesn't know libupsclient)"
 	fi
 fi
 if test "x$with_libupsclient" = "xuse_pkgconfig"
@@ -3927,7 +3927,7 @@ then
 	$PKG_CONFIG --exists 'varnishapi' 2>/dev/null
 	if test $? -ne 0
 	then
-		with_libvarnish="no (pkg-config doesn't know library)"
+		with_libvarnish="no (pkg-config doesn't know varnishapi)"
 	fi
 fi
 if test "x$with_libvarnish" = "xuse_pkgconfig"
@@ -3997,7 +3997,7 @@ then
 	then
 		with_libxml2="yes"
 	else
-		with_libxml2="no (pkg-config doesn't know library)"
+		with_libxml2="no (pkg-config doesn't know libxml-2.0)"
 	fi
 
 	pkg-config --exists libvirt 2>/dev/null
@@ -4005,7 +4005,7 @@ then
 	then
 		with_libvirt="yes"
 	else
-		with_libvirt="no (pkg-config doesn't know library)"
+		with_libvirt="no (pkg-config doesn't know libvirt)"
 	fi
 fi
 if test "x$with_libxml2" = "xyes"
@@ -4122,7 +4122,7 @@ then
 	$PKG_CONFIG --exists OpenIPMIpthread 2>/dev/null
 	if test "$?" != "0"
 	then
-		with_libopenipmipthread="no ($PKG_CONFIG doesn't know OpenIPMIpthread)"
+		with_libopenipmipthread="no (pkg-config doesn't know OpenIPMIpthread)"
 	fi
 	AC_MSG_RESULT([$with_libopenipmipthread])
 fi
@@ -4183,7 +4183,11 @@ fi
 
 PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		[with_libnotify="yes"],
-		[with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"])
+		[if test "x$LIBNOTIFY_PKG_ERRORS" = "x"; then
+			 with_libnotify="no"
+		 else
+			 with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"
+		 fi])
 
 # Check for enabled/disabled features
 #
