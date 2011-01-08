@@ -164,11 +164,13 @@ static int lcc_set_errno (lcc_connection_t *c, int err) /* {{{ */
   return (0);
 } /* }}} int lcc_set_errno */
 
-__attribute__((nonnull (1, 2)))
 static char *lcc_strescape (char *dest, const char *src, size_t dest_size) /* {{{ */
 {
   size_t dest_pos;
   size_t src_pos;
+
+  if ((dest == NULL) || (src == NULL))
+    return (NULL);
 
   dest_pos = 0;
   src_pos = 0;
