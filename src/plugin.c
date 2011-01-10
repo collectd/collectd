@@ -728,25 +728,35 @@ static int plugin_insert_read (read_func_t *rf)
 		}
 	}
 
-	le = llentry_create (rf->rf_name, rf);
+	le = llist_search (read_list, rf->rf_name);
 	if (le == NULL)
 	{
-		pthread_mutex_unlock (&read_lock);
-		ERROR ("plugin_insert_read: llentry_create failed.");
-		return (-1);
-	}
+		le = llentry_create (rf->rf_name, rf);
+		if (le == NULL)
+		{
+			pthread_mutex_unlock (&read_lock);
+			ERROR ("plugin_insert_read: llentry_create failed.");
+			return (-1);
+		}
 
-	status = c_heap_insert (read_heap, rf);
-	if (status != 0)
+		status = c_heap_insert (read_heap, rf);
+		if (status != 0)
+		{
+			pthread_mutex_unlock (&read_lock);
+			ERROR ("plugin_insert_read: c_heap_insert failed.");
+			llentry_destroy (le);
+			return (-1);
+		}
+
+		/* This does not fail. */
+		llist_append (read_list, le);
+	}
+	else
 	{
-		pthread_mutex_unlock (&read_lock);
-		ERROR ("plugin_insert_read: c_heap_insert failed.");
-		llentry_destroy (le);
-		return (-1);
+		INFO ("plugin: plugin_insert_read: "
+				"read function for plugin `%s' already added.",
+				rf->rf_name);
 	}
-
-	/* This does not fail. */
-	llist_append (read_list, le);
 
 	pthread_mutex_unlock (&read_lock);
 	return (0);
