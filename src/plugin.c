@@ -1,6 +1,6 @@
 /**
  * collectd - src/plugin.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2011  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -729,34 +729,35 @@ static int plugin_insert_read (read_func_t *rf)
 	}
 
 	le = llist_search (read_list, rf->rf_name);
+	if (le != NULL)
+	{
+		pthread_mutex_unlock (&read_lock);
+		WARNING ("The read function \"%s\" is already registered. "
+				"Check for duplicate \"LoadPlugin\" lines "
+				"in your configuration!",
+				rf->rf_name);
+		return (EINVAL);
+	}
+
+	le = llentry_create (rf->rf_name, rf);
 	if (le == NULL)
 	{
-		le = llentry_create (rf->rf_name, rf);
-		if (le == NULL)
-		{
-			pthread_mutex_unlock (&read_lock);
-			ERROR ("plugin_insert_read: llentry_create failed.");
-			return (-1);
-		}
-
-		status = c_heap_insert (read_heap, rf);
-		if (status != 0)
-		{
-			pthread_mutex_unlock (&read_lock);
-			ERROR ("plugin_insert_read: c_heap_insert failed.");
-			llentry_destroy (le);
-			return (-1);
-		}
-
-		/* This does not fail. */
-		llist_append (read_list, le);
+		pthread_mutex_unlock (&read_lock);
+		ERROR ("plugin_insert_read: llentry_create failed.");
+		return (-1);
 	}
-	else
+
+	status = c_heap_insert (read_heap, rf);
+	if (status != 0)
 	{
-		INFO ("plugin: plugin_insert_read: "
-				"read function for plugin `%s' already added.",
-				rf->rf_name);
+		pthread_mutex_unlock (&read_lock);
+		ERROR ("plugin_insert_read: c_heap_insert failed.");
+		llentry_destroy (le);
+		return (-1);
 	}
+
+	/* This does not fail. */
+	llist_append (read_list, le);
 
 	pthread_mutex_unlock (&read_lock);
 	return (0);
