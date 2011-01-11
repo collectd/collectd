@@ -767,14 +767,13 @@ int plugin_register_read (const char *name,
 		int (*callback) (void))
 {
 	read_func_t *rf;
+	int status;
 
-	rf = (read_func_t *) malloc (sizeof (read_func_t));
+	rf = malloc (sizeof (*rf));
 	if (rf == NULL)
 	{
-		char errbuf[1024];
-		ERROR ("plugin_register_read: malloc failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
+		ERROR ("plugin_register_read: malloc failed.");
+		return (ENOMEM);
 	}
 
 	memset (rf, 0, sizeof (read_func_t));
@@ -788,7 +787,11 @@ int plugin_register_read (const char *name,
 	rf->rf_interval.tv_nsec = 0;
 	rf->rf_effective_interval = rf->rf_interval;
 
-	return (plugin_insert_read (rf));
+	status = plugin_insert_read (rf);
+	if (status != 0)
+		sfree (rf);
+
+	return (status);
 } /* int plugin_register_read */
 
 int plugin_register_complex_read (const char *group, const char *name,
@@ -797,12 +800,13 @@ int plugin_register_complex_read (const char *group, const char *name,
 		user_data_t *user_data)
 {
 	read_func_t *rf;
+	int status;
 
-	rf = (read_func_t *) malloc (sizeof (read_func_t));
+	rf = malloc (sizeof (*rf));
 	if (rf == NULL)
 	{
 		ERROR ("plugin_register_complex_read: malloc failed.");
-		return (-1);
+		return (ENOMEM);
 	}
 
 	memset (rf, 0, sizeof (read_func_t));
@@ -830,7 +834,11 @@ int plugin_register_complex_read (const char *group, const char *name,
 		rf->rf_udata = *user_data;
 	}
 
-	return (plugin_insert_read (rf));
+	status = plugin_insert_read (rf);
+	if (status != 0)
+		sfree (rf);
+
+	return (status);
 } /* int plugin_register_complex_read */
 
 int plugin_register_write (const char *name,

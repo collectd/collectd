@@ -269,6 +269,8 @@ int plugin_register_init (const char *name,
 		plugin_init_cb callback);
 int plugin_register_read (const char *name,
 		int (*callback) (void));
+/* "user_data" will be freed automatically, unless
+ * "plugin_register_complex_read" returns an error (non-zero). */
 int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
 		const struct timespec *interval,
