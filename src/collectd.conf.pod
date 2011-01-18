@@ -4261,6 +4261,10 @@ The following options are accepted within each I<Instance> block:
 
 Sets the URL of the C<openldap> server. This option is I<mandatory>.
 
+=item B<StartTLS> B<true|false>
+
+If the ldap server requires tls, set this. Disabled by default.
+
 =item B<VerifyHost> B<true|false>
 
 Enable or disable peer host name verification. If enabled, the plugin checks
