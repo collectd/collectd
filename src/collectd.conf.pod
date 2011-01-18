@@ -4229,6 +4229,53 @@ short: If it works for you: Great! But keep in mind that the config I<might>
 change, though this is unlikely. Oh, and if you want to help improving this
 plugin, just send a short notice to the mailing list. ThanksE<nbsp>:)
 
+=head2 Plugin C<openldap>
+
+To configure the C<openldap>-plugin you first need to configure the OpenLDAP
+server correctly. The backend database C<monitor> needs to be loaded and
+working.
+
+The configuration of the I<openldap> plugin consists of one or more
+C<E<lt>InstanceE<nbsp>/E<gt>> blocks. Each block requires one string argument
+as the instance name. For example:
+
+ <Plugin "openldap">
+   <Instance "">
+     URL "ldap://localhost/"
+   </Instance>
+   <Instance "">
+     URL "ldaps://localhost/"
+   </Instance>
+ </Plugin>
+
+The instance name will be used as the I<plugin instance>. To emulate the old
+(versionE<nbsp>4) behavior, you can use an empty string (""). In order for the
+plugin to work correctly, each instance name must be unique. This is not
+enforced by the plugin and it is your responsibility to ensure it.
+
+The following options are accepted within each I<Instance> block:
+
+=over 4
+
+=item B<URL> I<ldap://host/binddn>
+
+Sets the URL of the C<openldap> server. This option is I<mandatory>.
+
+=item B<VerifyHost> B<true|false>
+
+Enable or disable peer host name verification. If enabled, the plugin checks
+if the C<Common Name> or a C<Subject Alternate Name> field of the SSL
+certificate matches the host name provided by the B<URL> option. If this
+identity check fails, the connection is aborted. Enabled by default.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use TLS/SSL you may
+possibly need this option. What CA certificates come bundled with C<libldap>
+and are checked by default depends on the distribution you use.
+
+=back
+
 =head2 Plugin C<openvpn>
 
 The OpenVPN plugin reads a status file maintained by OpenVPN and gathers
