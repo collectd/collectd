@@ -27,6 +27,9 @@
 /*
  * Data types
  */
+struct udb_result_s; /* {{{ */
+typedef struct udb_result_s udb_result_t;
+
 struct udb_query_s;
 typedef struct udb_query_s udb_query_t;
 

@@ -90,6 +90,57 @@
 	C_PSQL_IS_UNIX_DOMAIN_SOCKET (host) ? "/.s.PGSQL." : ":", \
 	port
 
+/*
+ * Data types
+ */
+struct udb_result_s
+{
+  char    *type;
+  char    *instance_prefix;
+  char   **instances;
+  size_t   instances_num;
+  char   **values;
+  size_t   values_num;
+
+  udb_result_t *next;
+};
+
+struct udb_query_s
+{
+  char *name;
+  char *statement;
+  void *user_data;
+
+  unsigned int min_version;
+  unsigned int max_version;
+
+  udb_result_t *results;
+};
+
+struct udb_result_preparation_area_s
+{
+  const   data_set_t *ds;
+  size_t *instances_pos;
+  size_t *values_pos;
+  char  **instances_buffer;
+  char  **values_buffer;
+
+  struct udb_result_preparation_area_s *next;
+};
+typedef struct udb_result_preparation_area_s udb_result_preparation_area_t;
+
+struct udb_query_preparation_area_s
+{
+  size_t column_num;
+  char *host;
+  char *plugin;
+  char *db_name;
+
+  cdtime_t interval;
+
+  udb_result_preparation_area_t *result_prep_areas;
+};
+
 typedef enum {
 	C_PSQL_PARAM_HOST = 1,
 	C_PSQL_PARAM_DB,
@@ -130,6 +181,11 @@ typedef struct {
 	char *krbsrvname;
 
 	char *service;
+
+	int datname_column;
+	int schemaname_column;
+	int tablename_column;
+	int indexname_column;
 } c_psql_database_t;
 
 static char *def_queries[] = {
@@ -182,6 +238,11 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	db->krbsrvname = NULL;
 
 	db->service    = NULL;
+
+	db->datname_column = -1;
+	db->schemaname_column = -1;
+	db->tablename_column = -1;
+	db->indexname_column = -1;
 	return db;
 } /* c_psql_database_new */
 
@@ -213,6 +274,11 @@ static void c_psql_database_delete (void *data)
 	sfree (db->krbsrvname);
 
 	sfree (db->service);
+
+	db->datname_column = -1;
+	db->schemaname_column = -1;
+	db->tablename_column = -1;
+	db->indexname_column = -1;
 	return;
 } /* c_psql_database_delete */
 
@@ -351,6 +417,220 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 			NULL, NULL, /* return text data */ 0);
 } /* c_psql_exec_query_params */
 
+static int c_psql_result_submit (udb_result_t *r, /* {{{ */
+		udb_result_preparation_area_t *r_area,
+		const udb_query_t const *q, udb_query_preparation_area_t *q_area,
+		char *datname, char *schemaname, char *tablename, char *indexname)
+{
+	int status;
+	value_list_t vl = VALUE_LIST_INIT;
+	size_t i;
+
+	assert (r != NULL);
+	assert (r_area->ds != NULL);
+	assert (((size_t) r_area->ds->ds_num) == r->values_num);
+
+	vl.values = (value_t *) calloc (r_area->ds->ds_num, sizeof (value_t));
+	if (vl.values == NULL)
+	{
+		ERROR ("db query utils: malloc failed.");
+		return (-1);
+	}
+	vl.values_len = r_area->ds->ds_num;
+
+	for (i = 0; i < r->values_num; i++)
+	{
+		char *value_str = r_area->values_buffer[i];
+
+		if (0 != parse_value (value_str, &vl.values[i], r_area->ds->ds[i].type))
+		{
+			ERROR ("postgresql: c_psql_result_submit: Parsing `%s' as %s failed.",
+					value_str, DS_TYPE_TO_STRING (r_area->ds->ds[i].type));
+			errno = EINVAL;
+			return (-1);
+		}
+	}
+
+	if (q_area->interval > 0)
+		vl.interval = q_area->interval;
+
+	sstrncpy (vl.host, q_area->host, sizeof (vl.host));
+	sstrncpy (vl.plugin, q_area->plugin, sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.type_instance));
+	sstrncpy (vl.type, r->type, sizeof (vl.type));
+
+	/* Set vl.type_instance {{{ */
+	if (r->instances_num <= 0)
+	{
+		if (r->instance_prefix == NULL)
+			vl.type_instance[0] = 0;
+		else
+			sstrncpy (vl.type_instance, r->instance_prefix,
+					sizeof (vl.type_instance));
+	}
+	else /* if ((r->instances_num > 0) */
+	{
+		if (r->instance_prefix == NULL)
+		{
+			strjoin (vl.type_instance, sizeof (vl.type_instance),
+					r_area->instances_buffer, r->instances_num, "-");
+		}
+		else
+		{
+			char tmp[DATA_MAX_NAME_LEN];
+
+			strjoin (tmp, sizeof (tmp), r_area->instances_buffer,
+					r->instances_num, "-");
+			tmp[sizeof (tmp) - 1] = 0;
+
+			snprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
+					r->instance_prefix, tmp);
+		}
+	}
+	vl.type_instance[sizeof (vl.type_instance) - 1] = 0;
+	/* }}} */
+
+	vl.meta = meta_data_create ();
+	if (vl.meta == NULL)
+	{
+		ERROR ("postgresql plugin: meta_data_create failed.");
+		return (-ENOMEM);
+	}
+
+	if (datname == NULL || datname[0] == '\0')
+		status = meta_data_add_string (vl.meta, "database",
+				vl.plugin_instance);
+	else
+		status = meta_data_add_string (vl.meta, "database", datname);
+	if (status != 0)
+	{
+		ERROR ("postgresql plugin: meta_data_add_string failed.");
+		meta_data_destroy (vl.meta);
+		vl.meta = NULL;
+		return (status);
+	}
+
+	if (schemaname != NULL)
+	{
+		status = meta_data_add_string (vl.meta, "schema", schemaname);
+		if (status != 0)
+		{
+			ERROR ("postgresql plugin: meta_data_add_string failed.");
+			meta_data_destroy (vl.meta);
+			vl.meta = NULL;
+			return (status);
+		}
+	}
+
+	if (tablename != NULL)
+	{
+		status = meta_data_add_string (vl.meta, "table", tablename);
+		if (status != 0)
+		{
+			ERROR ("postgresql plugin: meta_data_add_string failed.");
+			meta_data_destroy (vl.meta);
+			vl.meta = NULL;
+			return (status);
+		}
+	}
+
+	if (indexname != NULL)
+	{
+		status = meta_data_add_string (vl.meta, "index", indexname);
+		if (status != 0)
+		{
+			ERROR ("postgresql plugin: meta_data_add_string failed.");
+			meta_data_destroy (vl.meta);
+			vl.meta = NULL;
+			return (status);
+		}
+	}
+
+	plugin_dispatch_values (&vl);
+
+	if (schemaname != NULL || tablename != NULL || indexname != NULL)
+	{
+		meta_data_destroy (vl.meta);
+		vl.meta = NULL;
+	}
+	sfree (vl.values);
+	return (0);
+} /* }}} void c_psql_result_submit */
+
+static int c_psql_result_handle_result (udb_result_t *r, /* {{{ */
+		udb_query_preparation_area_t *q_area,
+		udb_result_preparation_area_t *r_area,
+		const udb_query_t const *q, char **column_values, char *datname,
+		char *schemaname, char *tablename, char *indexname)
+{
+	size_t i;
+
+	assert (r && q_area && r_area);
+
+	for (i = 0; i < r->instances_num; i++)
+		r_area->instances_buffer[i] = column_values[r_area->instances_pos[i]];
+
+	for (i = 0; i < r->values_num; i++)
+		r_area->values_buffer[i] = column_values[r_area->values_pos[i]];
+
+	return c_psql_result_submit (r, r_area, q, q_area, datname, schemaname,
+			tablename, indexname);
+} /* }}} int c_psql_result_handle_result */
+
+int c_psql_query_handle_result (const udb_query_t const *q, /* {{{ */
+	udb_query_preparation_area_t *prep_area, char **column_values,
+	char *datname, char *schemaname, char *tablename, char *indexname)
+{
+	udb_result_preparation_area_t *r_area;
+	udb_result_t *r;
+	int success;
+	int status;
+
+	if ((q == NULL) || (prep_area == NULL))
+		return (-EINVAL);
+
+	if ((prep_area->column_num < 1) || (prep_area->host == NULL)
+			|| (prep_area->plugin == NULL) || (prep_area->db_name == NULL))
+	{
+		ERROR ("db query utils: Query `%s': Query is not prepared; "
+				"can't handle result.", q->name);
+		return (-EINVAL);
+	}
+
+#if defined(COLLECT_DEBUG) && COLLECT_DEBUG /* {{{ */
+	do
+	{
+		size_t i;
+
+		for (i = 0; i < prep_area->column_num; i++)
+		{
+			DEBUG ("db query utils: c_psql_query_handle_result (%s, %s): "
+					"column[%zu] = %s;",
+					prep_area->db_name, q->name, i, column_values[i]);
+		}
+	} while (0);
+#endif /* }}} */
+
+	success = 0;
+	for (r = q->results, r_area = prep_area->result_prep_areas;
+			r != NULL; r = r->next, r_area = r_area->next)
+	{
+		status = c_psql_result_handle_result (r, prep_area, r_area,
+				q, column_values, datname, schemaname, tablename, indexname);
+		if (status == 0)
+			success++;
+	}
+
+	if (success == 0)
+	{
+		ERROR ("db query utils: c_psql_query_handle_result (%s, %s): "
+				"All results failed.", prep_area->db_name, q->name);
+		return (-1);
+	}
+
+	return (0);
+} /* }}} int c_psql_query_handle_result */
+
 static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		udb_query_preparation_area_t *prep_area)
 {
@@ -418,7 +698,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		log_err ("calloc failed.");
 		BAIL_OUT (-1);
 	}
-	
+
 	for (col = 0; col < column_num; ++col) {
 		/* Pointers returned by `PQfname' are freed by `PQclear' via
 		 * `BAIL_OUT'. */
@@ -444,6 +724,11 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	}
 
 	for (row = 0; row < rows_num; ++row) {
+		char *datname = NULL;
+		char *schemaname = NULL;
+		char *tablename = NULL;
+		char *indexname = NULL;
+
 		for (col = 0; col < column_num; ++col) {
 			/* Pointers returned by `PQgetvalue' are freed by `PQclear' via
 			 * `BAIL_OUT'. */
@@ -459,9 +744,28 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		if (col < column_num)
 			continue;
 
-		status = udb_query_handle_result (q, prep_area, column_values);
+		/*
+		 * PQgetvalue() returns empty string when the value is NULL.  Prefer
+		 * the following values remain NULL if any of the queried values is an
+		 * empty string from being NULL or not.
+		 */
+		if (db->datname_column >= 0 &&
+				column_values[db->datname_column] != '\0')
+			datname = column_values[db->datname_column];
+		if (db->schemaname_column >= 0 &&
+				column_values[db->schemaname_column] != '\0')
+			schemaname = column_values[db->schemaname_column];
+		if (db->tablename_column >= 0 &&
+				column_values[db->tablename_column][0] != '\0')
+			tablename = column_values[db->tablename_column];
+		if (db->indexname_column >= 0 &&
+				column_values[db->indexname_column][0] != '\0')
+			indexname = column_values[db->indexname_column];
+
+		status = c_psql_query_handle_result (q, prep_area, column_values,
+				datname, schemaname, tablename, indexname);
 		if (status != 0) {
-			log_err ("udb_query_handle_result failed with status %i.",
+			log_err ("c_psql_query_handle_result failed with status %i.",
 					status);
 		}
 	} /* for (row = 0; row < rows_num; ++row) */
@@ -522,6 +826,28 @@ static int c_psql_shutdown (void)
 
 	return 0;
 } /* c_psql_shutdown */
+
+static int config_set_i (char *name, int *var,
+		const oconfig_item_t *ci, int min)
+{
+	int value;
+
+	if ((0 != ci->children_num) || (1 != ci->values_num)
+			|| (OCONFIG_TYPE_NUMBER != ci->values[0].type)) {
+		log_err ("%s expects a single number argument.", name);
+		return 1;
+	}
+
+	value = (int)ci->values[0].value.number;
+
+	if (value < min) {
+		log_err ("%s expects a number greater or equal to %i.", name, min);
+		return 1;
+	}
+
+	*var = value;
+	return 0;
+} /* config_set_i */
 
 static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 {
@@ -623,6 +949,14 @@ static int c_psql_config_database (oconfig_item_t *ci)
 					&db->queries, &db->queries_num);
 		else if (0 == strcasecmp (c->key, "Interval"))
 			cf_util_get_cdtime (c, &db->interval);
+		else if (0 == strcasecmp (c->key, "DatabasenameColumn"))
+			config_set_i ("DatabasenameColumn", &db->datname_column, c, 0);
+		else if (0 == strcasecmp (c->key, "SchemanameColumn"))
+			config_set_i ("SchemanameColumn", &db->schemaname_column, c, 0);
+		else if (0 == strcasecmp (c->key, "TablenameColumn"))
+			config_set_i ("TablenameColumn", &db->tablename_column, c, 0);
+		else if (0 == strcasecmp (c->key, "IndexnameColumn"))
+			config_set_i ("IndexnameColumn", &db->indexname_column, c, 0);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
