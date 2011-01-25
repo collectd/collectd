@@ -1,6 +1,6 @@
 /**
  * collectd - src/configfile.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2011  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
