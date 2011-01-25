@@ -1058,19 +1058,40 @@ int cf_util_get_flag (const oconfig_item_t *ci, /* {{{ */
 	return (0);
 } /* }}} int cf_util_get_flag */
 
-/* Assures that the config option is a string. The string is then converted to
- * a port number using `service_name_to_port_number' and returned. Returns the
- * port number in the range [1-65535] or less than zero upon failure. */
+/* Assures that the config option is a string or a number if the correct range
+ * of 1-65535. The string is then converted to a port number using
+ * `service_name_to_port_number' and returned.
+ * Returns the port number in the range [1-65535] or less than zero upon
+ * failure. */
 int cf_util_get_port_number (const oconfig_item_t *ci) /* {{{ */
 {
-	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	int tmp;
+
+	if ((ci->values_num != 1)
+			|| ((ci->values[0].type != OCONFIG_TYPE_STRING)
+				&& (ci->values[0].type != OCONFIG_TYPE_NUMBER)))
 	{
-		ERROR ("cf_util_get_port_number: The %s option requires "
+		ERROR ("cf_util_get_port_number: The \"%s\" option requires "
 				"exactly one string argument.", ci->key);
 		return (-1);
 	}
 
-	return (service_name_to_port_number (ci->values[0].value.string));
+	if (ci->values[0].type == OCONFIG_TYPE_STRING)
+		return (service_name_to_port_number (ci->values[0].value.string));
+
+	assert (ci->values[0].type == OCONFIG_TYPE_NUMBER);
+	tmp = (int) (ci->values[0].value.number + 0.5);
+	if ((tmp < 1) || (tmp > 65535))
+	{
+		ERROR ("cf_util_get_port_number: The \"%s\" option requires "
+				"a service name or a port number. The number "
+				"you specified, %i, is not in the valid "
+				"range of 1-65535.",
+				ci->key, tmp);
+		return (-1);
+	}
+
+	return (tmp);
 } /* }}} int cf_util_get_port_number */
 
 int cf_util_get_cdtime (const oconfig_item_t *ci, cdtime_t *ret_value) /* {{{ */

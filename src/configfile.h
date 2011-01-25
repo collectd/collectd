@@ -109,9 +109,11 @@ int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool);
 int cf_util_get_flag (const oconfig_item_t *ci,
 		unsigned int *ret_value, unsigned int flag);
 
-/* Assures that the config option is a string. The string is then converted to
- * a port number using `service_name_to_port_number' and returned. Returns the
- * port number in the range [1-65535] or less than zero upon failure. */
+/* Assures that the config option is a string or a number if the correct range
+ * of 1-65535. The string is then converted to a port number using
+ * `service_name_to_port_number' and returned.
+ * Returns the port number in the range [1-65535] or less than zero upon
+ * failure. */
 int cf_util_get_port_number (const oconfig_item_t *ci);
 
 int cf_util_get_cdtime (const oconfig_item_t *ci, cdtime_t *ret_value);
