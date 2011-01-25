@@ -1,6 +1,6 @@
 /**
  * collectd - src/mysql.c
- * Copyright (C) 2006-2009  Florian octo Forster
+ * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Mirko Buffoni
  * Copyright (C) 2009       Doug MacEachern
  * Copyright (C) 2009       Sebastian tokkee Harl
@@ -20,7 +20,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Mirko Buffoni <briareos at eswat.org>
  *   Doug MacEachern <dougm at hyperic.com>
  *   Sebastian tokkee Harl <sh at tokkee.org>
