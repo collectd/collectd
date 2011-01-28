@@ -784,15 +784,15 @@ static int ntpd_read (void)
 			0, 0, NULL, /* request data */
 			&ik_num, &ik_size, (char **) ((void *) &ik), /* response data */
 			sizeof (struct info_kernel));
-
 	if (status != 0)
 	{
-		DEBUG ("ntpd_do_query failed with status %i", status);
-		return (-1);
+		ERROR ("ntpd plugin: ntpd_do_query (REQ_GET_KERNEL) failed with status %i", status);
+		return (status);
 	}
-	if ((ik == NULL) || (ik_num == 0) || (ik_size == 0))
+	else if ((ik == NULL) || (ik_num == 0) || (ik_size == 0))
 	{
-		DEBUG ("ntpd_do_query returned: ik = %p; ik_num = %i; ik_size = %i;",
+		ERROR ("ntpd plugin: ntpd_do_query returned unexpected data. "
+				"(ik = %p; ik_num = %i; ik_size = %i)",
 				(void *) ik, ik_num, ik_size);
 		return (-1);
 	}
@@ -820,12 +820,13 @@ static int ntpd_read (void)
 			sizeof (struct info_peer_summary));
 	if (status != 0)
 	{
-		DEBUG ("ntpd_do_query failed with status %i", status);
-		return (-1);
+		ERROR ("ntpd plugin: ntpd_do_query (REQ_PEER_LIST_SUM) failed with status %i", status);
+		return (status);
 	}
-	if ((ps == NULL) || (ps_num == 0) || (ps_size == 0))
+	else if ((ps == NULL) || (ps_num == 0) || (ps_size == 0))
 	{
-		DEBUG ("ntpd_do_query returned: ps = %p; ps_num = %i; ps_size = %i;",
+		ERROR ("ntpd plugin: ntpd_do_query returned unexpected data. "
+				"(ps = %p; ps_num = %i; ps_size = %i)",
 				(void *) ps, ps_num, ps_size);
 		return (-1);
 	}
