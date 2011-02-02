@@ -4567,7 +4567,7 @@ then
 	plugin_swap="yes"
 fi
 
-if test "x$have_swapctl" = "xyes"
+if test "x$have_swapctl" = "xyes" && test "x$c_cv_have_swapctl_two_args" = "xyes"
 then
 	plugin_swap="yes"
 fi
