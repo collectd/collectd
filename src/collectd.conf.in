@@ -359,13 +359,6 @@
 #<Plugin hddtemp>
 #  Host "127.0.0.1"
 #  Port "7634"
-#
-#  #----------------------------------------------------------------#
-#  # `TranslateDevicename' enables backwards compatibility behavior #
-#  # and is enabled by default. Setting this option to `false' is   #
-#  # highly recommended.                                            #
-#  #----------------------------------------------------------------#
-#  TranslateDevicename false
 #</Plugin>
 
 #<Plugin interface>
