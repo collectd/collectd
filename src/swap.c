@@ -205,6 +205,7 @@ static void swap_submit_gauge (const char *plugin_instance, /* {{{ */
 	swap_submit (plugin_instance, "swap", type_instance, v);
 } /* }}} void swap_submit_gauge */
 
+#if KERNEL_LINUX
 static void swap_submit_derive (const char *plugin_instance, /* {{{ */
 		const char *type_instance, derive_t value)
 {
@@ -214,8 +215,6 @@ static void swap_submit_derive (const char *plugin_instance, /* {{{ */
 	swap_submit (plugin_instance, "swap_io", type_instance, v);
 } /* }}} void swap_submit_derive */
 
-
-#if KERNEL_LINUX
 static int swap_read_separate (void) /* {{{ */
 {
 	FILE *fh;
