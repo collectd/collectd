@@ -842,6 +842,10 @@
 #   </Host>
 #</Plugin>
 
+#<Plugin "swap">
+#	ReportByDevice false
+#</Plugin>
+
 #<Plugin "table">
 #	<Table "/proc/slabinfo">
 #		Instance "slabinfo"

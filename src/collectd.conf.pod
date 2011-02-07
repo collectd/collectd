@@ -4172,19 +4172,19 @@ L<collectd-snmp(5)>. Please see there for details.
 =head2 Plugin C<swap>
 
 The I<Swap plugin> collects information about used and available swap space. On
-I<Solaris>, the following options are available:
+I<Linux> and I<Solaris>, the following options are available:
 
 =over 4
 
 =item B<ReportByDevice> B<false>|B<true>
 
-Configures how to report physical swap devices. If set to B<false> is used (the
+Configures how to report physical swap devices. If set to B<false> (the
 default), the summary over all swap devices is reported only, i.e. the globally
 used and available space over all devices. If B<true> is configured, the used
 and available space of each device will be reported separately.
 
-This option is only available if the I<Swap plugin> can use the L<swapctl(2)>
-mechanism under I<Solaris>.
+This option is only available if the I<Swap plugin> can read C</proc/swaps>
+(under Linux) or use the L<swapctl(2)> mechanism (under I<Solaris>).
 
 =back
 
