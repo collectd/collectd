@@ -328,7 +328,7 @@ static int rc_init (void)
 static int rc_write (const data_set_t *ds, const value_list_t *vl,
     user_data_t __attribute__((unused)) *user_data)
 {
-  char filename[512];
+  char filename[PATH_MAX];
   char values[512];
   char *values_array[2];
   int status;
@@ -406,6 +406,41 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
   return (0);
 } /* int rc_write */
 
+static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
+    const char *identifier,
+    __attribute__((unused)) user_data_t *ud)
+{
+  char filename[PATH_MAX + 1];
+  int status;
+
+  if (identifier == NULL)
+    return (EINVAL);
+
+  if (datadir != NULL)
+    ssnprintf (filename, sizeof (filename), "%s/%s.rrd", datadir, identifier);
+  else
+    ssnprintf (filename, sizeof (filename), "%s.rrd", identifier);
+
+  status = rrdc_connect (daemon_address);
+  if (status != 0)
+  {
+    ERROR ("rrdcached plugin: rrdc_connect (%s) failed with status %i.",
+        daemon_address, status);
+    return (-1);
+  }
+
+  status = rrdc_flush (filename);
+  if (status != 0)
+  {
+    ERROR ("rrdcached plugin: rrdc_flush (%s) failed with status %i.",
+        filename, status);
+    return (-1);
+  }
+  DEBUG ("rrdcached plugin: rrdc_flush (%s): Success.", filename);
+
+  return (0);
+} /* }}} int rc_flush */
+
 static int rc_shutdown (void)
 {
   rrdc_disconnect ();
@@ -418,6 +453,7 @@ void module_register (void)
       config_keys, config_keys_num);
   plugin_register_init ("rrdcached", rc_init);
   plugin_register_write ("rrdcached", rc_write, /* user_data = */ NULL);
+  plugin_register_flush ("rrdcached", rc_flush, /* user_data = */ NULL);
   plugin_register_shutdown ("rrdcached", rc_shutdown);
 } /* void module_register */
 
