@@ -1,6 +1,6 @@
 /**
  * collectd - src/modbus.c
- * Copyright (C) 2010  noris network AG
+ * Copyright (C) 2010,2011  noris network AG
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -69,6 +69,8 @@
  */
 enum mb_register_type_e /* {{{ */
 {
+  REG_TYPE_INT16,
+  REG_TYPE_INT32,
   REG_TYPE_UINT16,
   REG_TYPE_UINT32,
   REG_TYPE_FLOAT
@@ -411,6 +413,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
 
   if ((ds->ds[0].type != DS_TYPE_GAUGE)
+      && (data->register_type != REG_TYPE_INT32)
       && (data->register_type != REG_TYPE_UINT32))
   {
     NOTICE ("Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
@@ -419,7 +422,8 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
 
   memset (values, 0, sizeof (values));
-  if ((data->register_type == REG_TYPE_UINT32)
+  if ((data->register_type == REG_TYPE_INT32)
+      || (data->register_type == REG_TYPE_UINT32)
       || (data->register_type == REG_TYPE_FLOAT))
     values_num = 2;
   else
@@ -502,12 +506,47 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     CAST_TO_VALUE_T (ds, vt, float_value);
     mb_submit (host, slave, data, vt);
   }
+  else if (data->register_type == REG_TYPE_INT32)
+  {
+    union
+    {
+      uint32_t u32;
+      int32_t  i32;
+    } v;
+    value_t vt;
+
+    v.u32 = (((uint32_t) values[0]) << 16)
+      | ((uint32_t) values[1]);
+    DEBUG ("Modbus plugin: mb_read_data: "
+        "Returned int32 value is %"PRIi32, v.i32);
+
+    CAST_TO_VALUE_T (ds, vt, v.i32);
+    mb_submit (host, slave, data, vt);
+  }
+  else if (data->register_type == REG_TYPE_INT16)
+  {
+    union
+    {
+      uint16_t u16;
+      int16_t  i16;
+    } v;
+    value_t vt;
+
+    v.u16 = values[0];
+
+    DEBUG ("Modbus plugin: mb_read_data: "
+        "Returned int16 value is %"PRIi16, v.i16);
+
+    CAST_TO_VALUE_T (ds, vt, v.i16);
+    mb_submit (host, slave, data, vt);
+  }
   else if (data->register_type == REG_TYPE_UINT32)
   {
     uint32_t v32;
     value_t vt;
 
-    v32 = (values[0] << 16) | values[1];
+    v32 = (((uint32_t) values[0]) << 16)
+      | ((uint32_t) values[1]);
     DEBUG ("Modbus plugin: mb_read_data: "
         "Returned uint32 value is %"PRIu32, v32);
 
@@ -663,6 +702,10 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string_buffer (child, tmp, sizeof (tmp));
       if (status != 0)
         /* do nothing */;
+      else if (strcasecmp ("Int16", tmp) == 0)
+        data.register_type = REG_TYPE_INT16;
+      else if (strcasecmp ("Int32", tmp) == 0)
+        data.register_type = REG_TYPE_INT32;
       else if (strcasecmp ("Uint16", tmp) == 0)
         data.register_type = REG_TYPE_UINT16;
       else if (strcasecmp ("Uint32", tmp) == 0)
