@@ -727,15 +727,41 @@ static int ut_report_state (const data_set_t *ds,
 	    ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       }
     }
+    else if (th->flags & UT_FLAG_PERCENTAGE)
+    {
+      gauge_t value;
+      gauge_t sum;
+      int i;
+
+      sum = 0.0;
+      for (i = 0; i < vl->values_len; i++)
+      {
+        if (isnan (values[i]))
+          continue;
+
+        sum += values[i];
+      }
+
+      if (sum == 0.0)
+        value = NAN;
+      else
+        value = 100.0 * values[ds_index] / sum;
+
+      status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
+          "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
+          ds->ds[ds_index].name, values[ds_index], value,
+          (value < min) ? "below" : "above",
+          (state == STATE_ERROR) ? "failure" : "warning",
+          (value < min) ? min : max);
+    }
     else /* is not inverted */
     {
       status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	  "%f. That is %s the %s threshold of %f%s.",
+	  "%f. That is %s the %s threshold of %f.",
 	  ds->ds[ds_index].name, values[ds_index],
 	  (values[ds_index] < min) ? "below" : "above",
 	  (state == STATE_ERROR) ? "failure" : "warning",
-	  (values[ds_index] < min) ? min : max,
-	  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
+	  (values[ds_index] < min) ? min : max);
     }
     buf += status;
     bufsize -= status;
