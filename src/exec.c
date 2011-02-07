@@ -283,10 +283,6 @@ static void set_environment (void) /* {{{ */
   ssnprintf (buffer, sizeof (buffer), "COLLECTD_HOSTNAME=%s", hostname_g);
   putenv (buffer);
 #endif
-
-#ifdef HAVE_SETENV
-#else
-#endif
 } /* }}} void set_environment */
 
 __attribute__((noreturn))
