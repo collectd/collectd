@@ -30,8 +30,8 @@ BEGIN
   {
     if ($ENV{'SCRIPT_FILENAME'} =~ m{^(/.+)/bin/[^/]+$})
     {
-      $BASE_DIR = $1;
-      unshift (@INC, "$BASE_DIR/lib");
+      $::BASE_DIR = $1;
+      unshift (@::INC, "$::BASE_DIR/lib");
     }
   }
 }
@@ -65,19 +65,66 @@ my %Actions =
   show_selection => \&action_show_selection
 );
 
-my $have_init = 0;
-sub init
+sub base_dir
 {
-  if ($have_init)
+  if (defined $::BASE_DIR)
+  {
+    return ($::BASE_DIR);
+  }
+
+  if (!defined ($ENV{'SCRIPT_FILENAME'}))
   {
     return;
   }
 
-  print STDERR "INC = (" . join (', ', @INC) . ");\n";
+  if ($ENV{'SCRIPT_FILENAME'} =~ m{^(/.+)/bin/[^/]+$})
+  {
+    $::BASE_DIR = $1;
+    return ($::BASE_DIR);
+  }
 
-  gc_read_config ("$BASE_DIR/etc/collection.conf");
+  return;
+}
 
-  $have_init = 1;
+sub lib_dir
+{
+  my $base = base_dir ();
+
+  if ($base)
+  {
+    return "$base/lib";
+  }
+  else
+  {
+    return "../lib";
+  }
+}
+
+sub sysconf_dir
+{
+  my $base = base_dir ();
+
+  if ($base)
+  {
+    return "$base/etc";
+  }
+  else
+  {
+    return "../etc";
+  }
+}
+
+sub init
+{
+  my $lib_dir = lib_dir ();
+  my $sysconf_dir = sysconf_dir ();
+
+  if (!grep { $lib_dir eq $_ } (@::INC))
+  {
+    unshift (@::INC, $lib_dir);
+  }
+
+  gc_read_config ("$sysconf_dir/collection.conf");
 }
 
 sub main
@@ -339,7 +386,7 @@ sub action_show_selection
       $types->{$type} = tl_load_type ($file->{'type'});
       if (!$types->{$type})
       {
-        cluck ("tl_load_type (" . $file->{'type'} . ") failed");
+        warn ("tl_load_type (" . $file->{'type'} . ") failed");
         next;
       }
     }

@@ -30,8 +30,8 @@ BEGIN
   {
     if ($ENV{'SCRIPT_FILENAME'} =~ m{^(/.+)/bin/[^/]+$})
     {
-      $BASE_DIR = $1;
-      unshift (@INC, "$BASE_DIR/lib");
+      $::BASE_DIR = $1;
+      unshift (@::INC, "$::BASE_DIR/lib");
     }
   }
 }
@@ -48,20 +48,66 @@ use Collectd::Graph::Common (qw(sanitize_type get_selected_files
       epoch_to_rfc1123 flush_files));
 use Collectd::Graph::Type ();
 
-$::MODPERL = 1;
-
-my $have_init = 0;
-sub init
+sub base_dir
 {
-  if ($have_init)
+  if (defined $::BASE_DIR)
+  {
+    return ($::BASE_DIR);
+  }
+
+  if (!defined ($ENV{'SCRIPT_FILENAME'}))
   {
     return;
   }
 
-  #gc_read_config ("$RealBin/../etc/collection.conf");
-  gc_read_config ("$BASE_DIR/etc/collection.conf");
+  if ($ENV{'SCRIPT_FILENAME'} =~ m{^(/.+)/bin/[^/]+$})
+  {
+    $::BASE_DIR = $1;
+    return ($::BASE_DIR);
+  }
 
-  $have_init = 1;
+  return;
+}
+
+sub lib_dir
+{
+  my $base = base_dir ();
+
+  if ($base)
+  {
+    return "$base/lib";
+  }
+  else
+  {
+    return "../lib";
+  }
+}
+
+sub sysconf_dir
+{
+  my $base = base_dir ();
+
+  if ($base)
+  {
+    return "$base/etc";
+  }
+  else
+  {
+    return "../etc";
+  }
+}
+
+sub init
+{
+  my $lib_dir = lib_dir ();
+  my $sysconf_dir = sysconf_dir ();
+
+  if (!grep { $lib_dir eq $_ } (@::INC))
+  {
+    unshift (@::INC, $lib_dir);
+  }
+
+  gc_read_config ("$sysconf_dir/collection.conf");
 }
 
 sub main
@@ -73,6 +119,8 @@ sub main
   my $Index = param ('index') || 0;
   my $OutputFormat = 'PNG';
   my $ContentType = 'image/png';
+
+  init ();
 
   if (param ('format'))
   {
@@ -97,8 +145,6 @@ Content-Type: text/plain
 HTTP
     $ContentType = 'text/plain';
   }
-
-  init ();
 
   if ($GraphWidth)
   {

@@ -92,7 +92,8 @@ sub _load_module_from_config
     $obj = _create_object ($module);
     if (!$obj)
     {
-      cluck ("Creating an $module object failed");
+      #cluck ("Creating an $module object failed");
+      warn ("Creating an $module object failed");
       return;
     }
   }
