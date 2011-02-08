@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
-# Copyright (C) 2008  Florian octo Forster <octo at verplant.org>
+# Copyright (C) 2008-2011  Florian Forster
+# Copyright (C) 2011       noris network AG
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -14,14 +15,28 @@
 # You should have received a copy of the GNU General Public License along with
 # this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# Authors:
+#   Florian "octo" Forster <octo at collectd.org>
 
 use strict;
 use warnings;
-use lib ('../lib');
 use utf8;
+use vars (qw($BASE_DIR));
+
+BEGIN
+{
+  if (defined $ENV{'SCRIPT_FILENAME'})
+  {
+    if ($ENV{'SCRIPT_FILENAME'} =~ m{^(/.+)/bin/[^/]+$})
+    {
+      $BASE_DIR = $1;
+      unshift (@INC, "$BASE_DIR/lib");
+    }
+  }
+}
 
 use Carp (qw(cluck confess));
-use FindBin ('$RealBin');
 use CGI (':cgi');
 use CGI::Carp ('fatalsToBrowser');
 use HTML::Entities ('encode_entities');
@@ -35,8 +50,6 @@ use Collectd::Graph::Common (qw(get_files_from_directory get_all_hosts
       get_plugin_selection flush_files));
 use Collectd::Graph::Type ();
 
-our $Debug = param ('debug') ? 1 : 0;
-
 our $TimeSpans =
 {
   Hour  =>        3600,
@@ -46,23 +59,43 @@ our $TimeSpans =
   Year  => 366 * 86400
 };
 
-my $action = param ('action') || 'list_hosts';
-our %Actions =
+my %Actions =
 (
   list_hosts => \&action_list_hosts,
   show_selection => \&action_show_selection
 );
 
-if (!exists ($Actions{$action}))
+my $have_init = 0;
+sub init
 {
-  print STDERR "No such action: $action\n";
-  exit 1;
+  if ($have_init)
+  {
+    return;
+  }
+
+  print STDERR "INC = (" . join (', ', @INC) . ");\n";
+
+  gc_read_config ("$BASE_DIR/etc/collection.conf");
+
+  $have_init = 1;
 }
 
-gc_read_config ("$RealBin/../etc/collection.conf");
+sub main
+{
+  my $Debug = param ('debug') ? 1 : 0;
+  my $action = param ('action') || 'list_hosts';
 
-$Actions{$action}->();
-exit (0);
+  if (!exists ($Actions{$action}))
+  {
+    print STDERR "No such action: $action\n";
+    return (1);
+  }
+
+  init ();
+
+  $Actions{$action}->();
+  return (1);
+} # sub main
 
 sub can_handle_xhtml
 {
@@ -104,7 +137,7 @@ sub can_handle_xhtml
   }
 } # can_handle_xhtml
 
-{my $html_started;
+my $html_started;
 sub start_html
 {
   return if ($html_started);
@@ -119,9 +152,8 @@ sub start_html
 
   if (can_handle_xhtml ())
   {
+    print header (-Content_Type => 'application/xhtml+xml; charset=UTF-8');
     print <<HTML;
-Content-Type: application/xhtml+xml; charset=UTF-8
-
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
     "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -133,9 +165,8 @@ HTML
   }
   else
   {
+    print header (-Content_Type => 'text/html; charset=UTF-8');
     print <<HTML;
-Content-Type: text/html; charset=UTF-8
-
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
     "http://www.w3.org/TR/html4/strict.dtd">
 <html>
@@ -151,7 +182,7 @@ HTML
   <body onload="nav_init ($begin, $end);">
 HTML
   $html_started = 1;
-}}
+}
 
 sub end_html
 {
@@ -159,6 +190,7 @@ sub end_html
   </body>
 </html>
 HTML
+  $html_started = 0;
 }
 
 sub show_selector
@@ -282,7 +314,7 @@ sub action_show_selection
   $all_files = get_selected_files ();
   $timespan = get_timespan_selection ();
 
-  if ($Debug)
+  if (param ('debug'))
   {
     print "<pre>", Data::Dumper->Dump ([$all_files], ['all_files']), "</pre>\n";
   }
@@ -320,6 +352,12 @@ sub action_show_selection
   for (sort (keys %$types))
   {
     my $type = $_;
+
+    if (!defined ($types->{$type}))
+    {
+      next;
+    }
+
     my $graphs_num = $types->{$type}->getGraphsNum ();
 
     for (my $i = 0; $i < $graphs_num; $i++)
@@ -373,6 +411,8 @@ EOF
   print "    </table>\n";
   end_html ();
 }
+
+main ();
 
 =head1 SEE ALSO
 

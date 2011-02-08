@@ -1,5 +1,24 @@
 package Collectd::Graph::Common;
 
+# Copyright (C) 2008-2011  Florian Forster
+# Copyright (C) 2011       noris network AG
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; only version 2 of the License is applicable.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# Authors:
+#   Florian "octo" Forster <octo at collectd.org>
+
 use strict;
 use warnings;
 
@@ -10,6 +29,8 @@ use Carp (qw(confess cluck));
 use CGI (':cgi');
 use Exporter;
 use Collectd::Graph::Config (qw(gc_get_scalar));
+
+our $Cache = {};
 
 $ColorCanvas   = 'FFFFFF';
 $ColorFullBlue = '0000FF';
@@ -191,22 +212,48 @@ sub ident_to_filename
   return ($ret);
 } # ident_to_filename
 
+sub _part_to_string
+{
+  my $part = shift;
+
+  if (!defined ($part))
+  {
+    return ("(UNDEF)");
+  }
+  if (ref ($part) eq 'ARRAY')
+  {
+    if (1 == @$part)
+    {
+      return ($part->[0]);
+    }
+    else
+    {
+      return ('(' . join (',', @$part) . ')');
+    }
+  }
+  else
+  {
+    return ($part);
+  }
+} # _part_to_string
+
 sub ident_to_string
 {
   my $ident = shift;
 
   my $ret = '';
 
-  $ret .= $ident->{'hostname'} . '/' . $ident->{'plugin'};
+  $ret .= _part_to_string ($ident->{'hostname'})
+  . '/' . _part_to_string ($ident->{'plugin'});
   if (defined ($ident->{'plugin_instance'}))
   {
-    $ret .= '-' . $ident->{'plugin_instance'};
+    $ret .= '-' . _part_to_string ($ident->{'plugin_instance'});
   }
 
-  $ret .= '/' . $ident->{'type'};
+  $ret .= '/' . _part_to_string ($ident->{'type'});
   if (defined ($ident->{'type_instance'}))
   {
-    $ret .= '-' . $ident->{'type_instance'};
+    $ret .= '-' . _part_to_string ($ident->{'type_instance'});
   }
 
   return ($ret);
@@ -258,27 +305,36 @@ sub get_files_from_directory
 
 sub get_all_hosts
 {
-  my $dh;
-  my @ret = ();
-  my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
+  my $ret = [];
 
-  opendir ($dh, "$data_dir") or confess ("opendir ($data_dir): $!");
-  while (my $entry = readdir ($dh))
+  if (defined ($Cache->{'get_all_hosts'}))
   {
-    next if ($entry =~ m/^\./);
-    next if (!-d "$data_dir/$entry");
-    next if (!-r "$data_dir/$entry" or !-x "$data_dir/$entry");
-    push (@ret, sanitize_hostname ($entry));
+    $ret = $Cache->{'get_all_hosts'};
   }
-  closedir ($dh);
+  else
+  {
+    my $dh;
+    my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
+
+    opendir ($dh, "$data_dir") or confess ("opendir ($data_dir): $!");
+    while (my $entry = readdir ($dh))
+    {
+      next if ($entry =~ m/^\./);
+      next if (!-d "$data_dir/$entry");
+      push (@$ret, sanitize_hostname ($entry));
+    }
+    closedir ($dh);
+
+    $Cache->{'get_all_hosts'} = $ret;
+  }
 
   if (wantarray ())
   {
-    return (@ret);
+    return (@$ret);
   }
-  elsif (@ret)
+  elsif (@$ret)
   {
-    return (\@ret);
+    return ($ret);
   }
   else
   {
@@ -292,10 +348,30 @@ sub get_all_plugins
   my $ret = {};
   my $dh;
   my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
+  my $cache_key;
 
-  if (!@hosts)
+  if (@hosts)
   {
+    $cache_key = join (';', @hosts);
+  }
+  else
+  {
+    $cache_key = "/*/";
     @hosts = get_all_hosts ();
+  }
+
+  if (defined ($Cache->{'get_all_plugins'}{$cache_key}))
+  {
+    $ret = $Cache->{'get_all_plugins'}{$cache_key};
+
+    if (wantarray ())
+    {
+      return (sort (keys %$ret));
+    }
+    else
+    {
+      return ($ret);
+    }
   }
 
   for (@hosts)
@@ -331,6 +407,7 @@ sub get_all_plugins
     closedir ($dh);
   } # for (@hosts)
 
+  $Cache->{'get_all_plugins'}{$cache_key} = $ret;
   if (wantarray ())
   {
     return (sort (keys %$ret));
@@ -386,24 +463,44 @@ sub _filter_ident
   return (0);
 } # _filter_ident
 
+sub _get_all_files
+{
+  my $ret;
+
+  if (defined ($Cache->{'_get_all_files'}))
+  {
+    $ret = $Cache->{'_get_all_files'};
+  }
+  else
+  {
+    my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
+
+    $ret = get_files_from_directory ($data_dir, 3);
+    $Cache->{'_get_all_files'} = $ret;
+  }
+
+  return ($ret);
+} # _get_all_files
+
 sub get_files_by_ident
 {
   my $ident = shift;
   my $all_files;
   my @ret = ();
-  my $data_dir = gc_get_scalar ('DataDir', $DefaultDataDir);
 
-  #if ($ident->{'hostname'})
-  #{
-  #$all_files = get_files_for_host ($ident->{'hostname'});
-  #}
-  #else
-  #{
-    $all_files = get_files_from_directory ($data_dir, 3);
-    #}
+  my $cache_key = ident_to_string ($ident);
+  if (defined ($Cache->{'get_files_by_ident'}{$cache_key}))
+  {
+    my $ret = $Cache->{'get_files_by_ident'}{$cache_key};
+
+    return ($ret)
+  }
+
+  $all_files = _get_all_files ();
 
   @ret = grep { _filter_ident ($ident, $_) == 0 } (@$all_files);
 
+  $Cache->{'get_files_by_ident'}{$cache_key} = \@ret;
   return (\@ret);
 } # get_files_by_ident
 
