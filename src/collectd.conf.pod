@@ -1822,6 +1822,32 @@ TCP-Port to connect to. Defaults to B<411>.
 
 =back
 
+=head2 Plugin C<md>
+
+The C<md plugin> collects information from Linux Software-RAID devices (md).
+
+All reported values are of the type C<md_disks>. Reported type instances are
+"number" (number of component devices), "raid" (number of devices in the
+array), "active", "working", "failed" (number of failed disks) and "spare"
+(number of spare disks).
+
+=over 4
+
+=item B<Device> I<Device>
+
+Select md devices based on device name. The I<device name> is the basename of
+the device, i.e. the name of the block device without the leading C</dev/>.
+See B<IgnoreSelected> for more details.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+Invert device selection: If set to true, all md devices B<except> those listed
+using B<Device> are collected. If false (the default), only those listed are
+collected. If no configuration is given, the B<md> plugin will collect data
+from all md devices.
+
+=back
+
 =head2 Plugin C<memcachec>
 
 The C<memcachec plugin> connects to a memcached server, queries one or more

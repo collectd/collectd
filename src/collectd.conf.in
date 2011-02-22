@@ -89,6 +89,7 @@
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
+#@BUILD_PLUGIN_MD_TRUE@LoadPlugin md
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
@@ -433,6 +434,11 @@
 #<Plugin mbmon>
 #	Host "127.0.0.1"
 #	Port "411"
+#</Plugin>
+
+#<Plugin md>
+#	Device "/dev/md0"
+#	IgnoreSelected false
 #</Plugin>
 
 #<Plugin memcachec>

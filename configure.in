@@ -299,6 +299,21 @@ fi
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h libgen.h)
 
+# For md module (Linux only)
+if test "x$ac_system" = "xLinux"
+then
+	AC_CHECK_HEADERS(linux/raid/md_u.h,
+			 [have_linux_raid_md_u_h="yes"],
+			 [have_linux_raid_md_u_h="no"],
+[
+#include <sys/ioctl.h>
+#include <linux/major.h>
+#include <linux/types.h>
+])
+else
+	have_linux_raid_md_u_h="no"
+fi
+
 # For the battery plugin
 AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 [
@@ -4750,6 +4765,7 @@ AC_PLUGIN([match_regex], [yes],                [The regex match])
 AC_PLUGIN([match_timediff], [yes],             [The timediff match])
 AC_PLUGIN([match_value], [yes],                [The value match])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
+AC_PLUGIN([md],          [$have_linux_raid_md_u_h], [md (Linux software RAID) devices])
 AC_PLUGIN([memcachec],   [$with_libmemcached], [memcachec statistics])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
@@ -5079,6 +5095,7 @@ Configuration:
     match_timediff  . . . $enable_match_timediff
     match_value . . . . . $enable_match_value
     mbmon . . . . . . . . $enable_mbmon
+    md  . . . . . . . . . $enable_md
     memcachec . . . . . . $enable_memcachec
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
