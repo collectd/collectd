@@ -520,13 +520,6 @@ int ut_config (oconfig_item_t *ci)
 
   threshold_t th;
 
-  if (ci->values_num != 0)
-  {
-    ERROR ("threshold values: The `Threshold' block may not have any "
-	"arguments.");
-    return (-1);
-  }
-
   if (threshold_tree == NULL)
   {
     threshold_tree = c_avl_create ((void *) strcmp);
