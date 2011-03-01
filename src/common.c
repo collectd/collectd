@@ -939,15 +939,15 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 	if (status != 0)
 		return (status);
 
-	sstrncpy (vl->host, host, sizeof (host));
-	sstrncpy (vl->plugin, plugin, sizeof (plugin));
+	sstrncpy (vl->host, host, sizeof (vl->host));
+	sstrncpy (vl->plugin, plugin, sizeof (vl->plugin));
 	sstrncpy (vl->plugin_instance,
 			(plugin_instance != NULL) ? plugin_instance : "",
-			sizeof (plugin_instance));
-	sstrncpy (vl->type, type, sizeof (type));
+			sizeof (vl->plugin_instance));
+	sstrncpy (vl->type, type, sizeof (vl->type));
 	sstrncpy (vl->type_instance,
 			(type_instance != NULL) ? type_instance : "",
-			sizeof (type_instance));
+			sizeof (vl->type_instance));
 
 	return (0);
 } /* }}} int parse_identifier_vl */
