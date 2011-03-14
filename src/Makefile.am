@@ -106,13 +106,10 @@ collectd_nagios_LDADD += libcollectdclient/libcollectdclient.la
 collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
-collectdctl_SOURCES = collectdctl.c
-collectdctl_LDADD =
+collectdctl_SOURCES = collectdctl.c collectdctl-show.c
+collectdctl_LDADD = -lm
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
-endif
-if BUILD_AIX
-collectdctl_LDADD += -lm
 endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la

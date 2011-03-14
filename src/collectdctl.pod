@@ -95,6 +95,54 @@ Each of them will be submitted to the daemon. The values have to match the
 data-set definition specified by the type as given in the identifier (see
 L<types.db(5)> for details).
 
+=item B<show> I<E<lt>selectorE<gt>> I<E<lt>aggregationE<gt>> [I<E<lt>aggregationE<gt>> ...]
+
+Show values or an aggregation of values. The I<selector> selects which values
+to show. It is basically an I<identifier> with special meaning for C<+> and
+C<*>. If a hostname, plugin, type or one of the two instances is C<+> or C<*>,
+any string will match the selector. The difference between the two is that all
+identifiers with the same substitution for C<+> are grouped and aggregated by
+the specified aggregation function(s). For example, the selector
+
+  +/cpu-*/cpu-+
+
+will return the CPU states of each host, aggregated over all CPUs of each
+system. Please see L</"IDENTIFIERS"> for a description of identifiers.
+
+The I<aggregation> setting defines how multiple values are combined into one
+value. Valid values are:
+
+=over 4
+
+=item B<count>
+
+Number of non-NAN values. This value may be zero if all individual values are
+NAN.
+
+=item B<min>
+
+Minimum value.
+
+=item B<max>
+
+Maximum value.
+
+=item B<avg>
+
+Average of all values.
+
+=item B<sum>
+
+Sum of all values.
+
+=item B<sdev>
+
+Standard deviation of all non-NAN values. The standard deviation is NAN if
+there were no non-NAN values (B<count> reportsE<nbsp>0) and zero if there was
+exactly one non-NAN value.
+
+=back
+
 =back
 
 =head1 IDENTIFIERS

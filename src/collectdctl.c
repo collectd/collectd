@@ -72,6 +72,10 @@
 extern char *optarg;
 extern int   optind;
 
+/* This function is implemented in collectdctl-show.c, because it requires
+ * some state which is kept in global variables there. */
+int show (lcc_connection_t *c, int argc, char **argv);
+
 static void exit_usage (const char *name, int status) {
   fprintf ((status == 0) ? stdout : stderr,
       "Usage: %s [options] <command> [cmd options]\n\n"
@@ -88,6 +92,7 @@ static void exit_usage (const char *name, int status) {
       " * flush [timeout=<seconds>] [plugin=<name>] [identifier=<id>]\n"
       " * listval\n"
       " * putval <identifier> [interval=<seconds>] <value-list(s)>\n"
+      " * show <selector> <aggregation> [<aggregation> ...]\n"
 
       "\nIdentifiers:\n\n"
 
@@ -592,6 +597,8 @@ int main (int argc, char **argv) {
     status = listval (c, argc - optind, argv + optind);
   else if (strcasecmp (argv[optind], "putval") == 0)
     status = putval (c, argc - optind, argv + optind);
+  else if (strcasecmp (argv[optind], "show") == 0)
+    status = show (c, argc - optind, argv + optind);
   else {
     fprintf (stderr, "%s: invalid command: %s\n", argv[0], argv[optind]);
     return (1);
@@ -605,4 +612,3 @@ int main (int argc, char **argv) {
 } /* main */
 
 /* vim: set sw=2 ts=2 tw=78 expandtab : */
-
