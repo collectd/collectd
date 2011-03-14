@@ -22,6 +22,7 @@
 #include "collectd.h"
 #include "configfile.h"
 #include "plugin.h"
+#include "utils_complain.h"
 #include "common.h"
 #include "filter_chain.h"
 
@@ -692,10 +693,15 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
 
   if ((plugin_list == NULL) || (plugin_list[0] == NULL))
   {
+    static c_complain_t enoent_complaint = C_COMPLAIN_INIT_STATIC;
+
     status = plugin_write (/* plugin = */ NULL, ds, vl);
     if (status == ENOENT)
     {
-      INFO ("Filter subsystem: Built-in target `write': Dispatching value to "
+      /* in most cases this is a permanent error, so use the complain
+       * mechanism rather than spamming the logs */
+      c_complain (LOG_INFO, &enoent_complaint,
+          "Filter subsystem: Built-in target `write': Dispatching value to "
           "all write plugins failed with status %i (ENOENT). "
           "Most likely this means you didn't load any write plugins.",
           status);
@@ -704,6 +710,13 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
     {
       INFO ("Filter subsystem: Built-in target `write': Dispatching value to "
           "all write plugins failed with status %i.", status);
+    }
+    else
+    {
+      assert (status == 0);
+      c_release (LOG_INFO, &enoent_complaint, "Filter subsystem: "
+          "Built-in target `write': Some write plugin is back to normal "
+          "operation. `write' succeeded.");
     }
   }
   else
