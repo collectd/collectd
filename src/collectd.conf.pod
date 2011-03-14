@@ -1911,8 +1911,10 @@ Hostname of the database server. Defaults to B<localhost>.
 =item B<User> I<Username>
 
 Username to use when connecting to the database. The user does not have to be
-granted any privileges (which is synonym to granting the C<USAGE> privilege).
-Any existing MySQL user will do.
+granted any privileges (which is synonym to granting the C<USAGE> privilege),
+unless you want to collectd replication statistics (see B<MasterStats> and
+B<SlaveStats> below). In this case, the user needs the C<REPLICATION CLIENT>
+(or C<SUPER>) privileges. Else, any existing MySQL user will do.
 
 =item B<Password> I<Password>
 
@@ -1944,7 +1946,9 @@ C<mysql_real_connect> function for details.
 
 =item B<SlaveStats> I<true|false>
 
-Enable the collection of master / slave statistics in a replication setup.
+Enable the collection of master / slave statistics in a replication setup. In
+order to be able to get access to these statistics, the user needs special
+privileges. See the B<User> documentation above.
 
 =item B<SlaveNotifications> I<true|false>
 
@@ -2712,7 +2716,8 @@ and are checked by default depends on the distribution you use.
 This plugin sends a desktop notification to a notification daemon, as defined
 in the Desktop Notification Specification. To actually display the
 notifications, B<notification-daemon> is required and B<collectd> has to be
-able to access the X server.
+able to access the X server (i.E<nbsp>e., the C<DISPLAY> and C<XAUTHORITY>
+environment variables have to be set correctly) and the D-Bus message bus.
 
 The Desktop Notification Specification can be found at
 L<http://www.galago-project.org/specs/notification/>.
