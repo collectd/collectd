@@ -856,9 +856,15 @@ int lcc_flush (lcc_connection_t *c, const char *plugin, /* {{{ */
 
 /* TODO: Implement lcc_putnotif */
 
-int lcc_listval (lcc_connection_t *c, /* {{{ */
+int lcc_listval_with_selection (lcc_connection_t *c, /* {{{ */
+    const char *re_host,
+    const char *re_plugin,
+    const char *re_plugin_instance,
+    const char *re_type,
+    const char *re_type_instance,
     lcc_identifier_t **ret_ident, size_t *ret_ident_num)
 {
+  char command[1024]; /* Buffer size copied from src/unixsock.c */
   lcc_response_t res;
   size_t i;
   int status;
@@ -875,7 +881,28 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
     return (-1);
   }
 
-  status = lcc_sendreceive (c, "LISTVAL", &res);
+  strncpy (command, "LISTVAL", sizeof (command));
+
+#define ADD_SELECTOR(field)                                                  \
+  if (re_##field != NULL)                                                    \
+  {                                                                          \
+    char tmp_re[sizeof (command)];                                           \
+      char tmp_cmd[sizeof (command)];                                        \
+      snprintf (tmp_cmd, sizeof (tmp_cmd), "%s %s=%s", command, #field,      \
+          lcc_strescape (tmp_re, re_##field, sizeof (tmp_re)));              \
+      memcpy (command, tmp_cmd, sizeof (command));                           \
+      command[sizeof (command) - 1] = 0;                                     \
+  }
+
+  ADD_SELECTOR (host)
+  ADD_SELECTOR (plugin)
+  ADD_SELECTOR (plugin_instance)
+  ADD_SELECTOR (type)
+  ADD_SELECTOR (type_instance)
+
+#undef ADD_SELECTOR
+
+  status = lcc_sendreceive (c, command, &res);
   if (status != 0)
     return (status);
 
@@ -937,6 +964,18 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
   *ret_ident_num = ident_num;
 
   return (0);
+} /* }}} int lcc_listval_with_selection */
+
+int lcc_listval (lcc_connection_t *c, /* {{{ */
+    lcc_identifier_t **ret_ident, size_t *ret_ident_num)
+{
+  return (lcc_listval_with_selection (c,
+        /* host            = */ NULL,
+        /* plugin          = */ NULL,
+        /* plugin_instance = */ NULL,
+        /* type            = */ NULL,
+        /* type_instance   = */ NULL,
+        ret_ident, ret_ident_num));
 } /* }}} int lcc_listval */
 
 const char *lcc_strerror (lcc_connection_t *c) /* {{{ */
