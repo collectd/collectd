@@ -90,8 +90,17 @@ typedef struct aggregation_group_s aggregation_group_t;
 /*
  * Global variables
  */
-static lcc_identifier_t *selector;
+/* Selection */
+static const char *re_host = NULL;
+static const char *re_plugin = NULL;
+static const char *re_plugin_instance = NULL;
+static const char *re_type = NULL;
+static const char *re_type_instance = NULL;
 
+/* Grouping */
+static uint16_t grouping = 0;
+
+/* Aggregation */
 static int *aggregation_types = NULL;
 static size_t aggregation_types_num = 0;
 
@@ -176,97 +185,48 @@ static int aggregation_type_add (const char *str_type) /* {{{ */
   return (0);
 } /* }}} int aggregation_type_add */
 
-static int group_name_from_ident (const lcc_identifier_t *selector, /* {{{ */
-    const lcc_identifier_t *identifier,
+static int group_name_from_ident (const lcc_identifier_t *identifier, /* {{{ */
     char *buffer, size_t buffer_size)
 {
-  if ((selector == NULL)
-      || (identifier == NULL)
+  if ((identifier == NULL)
       || (buffer == NULL) || (buffer_size < 2))
     return (EINVAL);
 
-  /* Check if there is no "grouping" wildcard. If there isn't, return "all" as
-   * the default value. */
-  if ((strcmp ("+", selector->host) != 0)
-      && (strcmp ("+", selector->plugin) != 0)
-      && (strcmp ("+", selector->plugin_instance) != 0)
-      && (strcmp ("+", selector->type) != 0)
-      && (strcmp ("+", selector->type_instance) != 0))
+  if (grouping == 0)
   {
-    /* There is no wildcard at all => use the identifier. */
-    if ((strcmp ("*", selector->host) != 0)
-        && (strcmp ("*", selector->plugin) != 0)
-        && (strcmp ("*", selector->plugin_instance) != 0)
-        && (strcmp ("*", selector->type) != 0)
-        && (strcmp ("*", selector->type_instance) != 0))
-      lcc_identifier_to_string (/* connection = */ NULL,
-          buffer, buffer_size, identifier);
-    else /* there's wildcards but no grouping */
-      strncpy (buffer, "all", buffer_size);
+    lcc_identifier_to_string (/* connection = */ NULL,
+                              buffer, buffer_size, identifier);
     buffer[buffer_size - 1] = 0;
     return (0);
   }
 
   memset (buffer, 0, buffer_size);
 
-#define COPY_FIELD(field) do {                                               \
-  if (strcmp ("+", selector->field) != 0)                                    \
-    break;                                                                   \
-  if (buffer[0] == 0)                                                        \
-    strncpy (buffer, identifier->field, buffer_size);                        \
-  else                                                                       \
+#define COPY_FIELD(field,index) do {                                         \
+  if ((grouping & (1 << index)) != 0)                                        \
   {                                                                          \
-    char tmp[buffer_size];                                                   \
-    snprintf (tmp, buffer_size, "%s/%s", buffer, identifier->field);         \
-    memcpy (buffer, tmp, buffer_size);                                       \
+    if (buffer[0] == 0)                                                      \
+      strncpy (buffer, identifier->field, buffer_size);                      \
+    else                                                                     \
+    {                                                                        \
+      char tmp[buffer_size];                                                 \
+          snprintf (tmp, buffer_size, "%s/%s", buffer, identifier->field);   \
+          memcpy (buffer, tmp, buffer_size);                                 \
+    }                                                                        \
+    buffer[buffer_size - 1] = 0;                                             \
   }                                                                          \
-  buffer[buffer_size - 1] = 0;                                               \
 } while (0)
 
-  COPY_FIELD (host);
-  COPY_FIELD (plugin);
-  COPY_FIELD (plugin_instance);
-  COPY_FIELD (type);
-  COPY_FIELD (type_instance);
+  COPY_FIELD (host, 0);
+  COPY_FIELD (plugin, 1);
+  COPY_FIELD (plugin_instance, 2);
+  COPY_FIELD (type, 3);
+  COPY_FIELD (type_instance, 4);
 
 #undef COPY_FIELD
 
   return (0);
 } /* }}} int group_name_from_ident */
-
-static _Bool ident_matches_selector (const lcc_identifier_t *selector, /* {{{ */
-    const lcc_identifier_t *identifier)
-{
-  if ((selector == NULL) || (identifier == NULL))
-    return (0);
-
-  if ((strcmp (identifier->host, selector->host) != 0)
-      && (strcmp ("*", selector->host) != 0)
-      && (strcmp ("+", selector->host) != 0))
-    return (0);
-
-  if ((strcmp (identifier->plugin, selector->plugin) != 0)
-      && (strcmp ("*", selector->plugin) != 0)
-      && (strcmp ("+", selector->plugin) != 0))
-    return (0);
-
-  if ((strcmp (identifier->plugin_instance, selector->plugin_instance) != 0)
-      && (strcmp ("*", selector->plugin_instance) != 0)
-      && (strcmp ("+", selector->plugin_instance) != 0))
-    return (0);
-
-  if ((strcmp (identifier->type, selector->type) != 0)
-      && (strcmp ("*", selector->type) != 0)
-      && (strcmp ("+", selector->type) != 0))
-    return (0);
-
-  if ((strcmp (identifier->type_instance, selector->type_instance) != 0)
-      && (strcmp ("*", selector->type_instance) != 0)
-      && (strcmp ("+", selector->type_instance) != 0))
-    return (0);
-
-  return (1);
-} /* }}} _Bool ident_matches_selector */
 
 static aggregation_group_t *aggregation_get_group ( const lcc_identifier_t *identifier) /* {{{ */
 {
@@ -278,7 +238,7 @@ static aggregation_group_t *aggregation_get_group ( const lcc_identifier_t *iden
   if (identifier == NULL)
     return (NULL);
 
-  status = group_name_from_ident (selector, identifier,
+  status = group_name_from_ident (identifier,
       group_name, sizeof (group_name));
   if (status != 0)
     return (NULL);
@@ -362,10 +322,17 @@ static int read_data (lcc_connection_t *c) /* {{{ */
   int status;
   size_t i;
 
-  status = lcc_listval (c, &ret_ident, &ret_ident_num);
+  status = lcc_listval_with_selection (c,
+                                       re_host,
+                                       re_plugin,
+                                       re_plugin_instance,
+                                       re_type,
+                                       re_type_instance,
+                                       &ret_ident, &ret_ident_num);
   if (status != 0)
   {
-    fprintf (stderr, "ERROR: lcc_listval: %s\n", lcc_strerror (c));
+    fprintf (stderr, "ERROR: lcc_listval_with_selection: %s\n",
+             lcc_strerror (c));
     return (-1);
   }
   assert ((ret_ident != NULL) || (ret_ident_num == 0));
@@ -376,9 +343,6 @@ static int read_data (lcc_connection_t *c) /* {{{ */
   {
     size_t   ret_values_num   = 0;
     gauge_t *ret_values       = NULL;
-
-    if (!ident_matches_selector (selector, ret_ident + i))
-      continue;
 
     status = lcc_getval (c, ret_ident + i,
         &ret_values_num, &ret_values, /* values_names = */ NULL);
@@ -414,6 +378,8 @@ static int print_horizontal_line (int name_len_max) /* {{{ */
 
   for (j = 0; j < aggregation_types_num; j++)
     printf ("------------+");
+  if (aggregation_types_num == 0)
+    printf ("------------+");
 
   printf ("\n");
 
@@ -436,6 +402,8 @@ static int write_data (void) /* {{{ */
   printf ("! %-*s !", name_len_max, "Name");
   for (i = 0; i < aggregation_types_num; i++)
     printf (" %10s !", aggr_type_to_string (aggregation_types[i]));
+  if (aggregation_types_num == 0)
+    printf (" %10s !", "Value");
   printf ("\n");
   print_horizontal_line (name_len_max);
 
@@ -478,6 +446,12 @@ static int write_data (void) /* {{{ */
 
       printf (" %10g !", value);
     }
+    if (aggregation_types_num == 0)
+    {
+      /* g->num may be zero if the value is NAN. */
+      assert (g->num < 2);
+      printf (" %10g !", g->min);
+    }
 
     printf ("\n");
   }
@@ -490,41 +464,185 @@ static int write_data (void) /* {{{ */
 __attribute__((noreturn))
 static void exit_usage (int status) /* {{{ */
 {
-  printf ("Usage: collectdctl show <selector> <aggregation> "
-          "[<aggregation> ...]\n"
+  printf ("Usage: collectdctl show [<Selection>] [<Aggregation> <Grouping>]\n"
           "\n"
-          "Selector:\n"
-          "  A selector is an identifier, where each part may be replaced "
-          "with either\n"
-          "  \"*\" or \"+\".\n"
+          "Selection:\n"
+          "\n"
+          "  host=<regex>                      Regex for the host name.\n"
+          "  plugin=<regex>                    Regex for the plugin.\n"
+          "  plugin_instance=<regex>           Regex for the plugin instance.\n"
+          "  type=<regex>                      Regex for the type.\n"
+          "  type_instance=<regex>             Regex for the type instance.\n"
           "\n"
           "Aggregation:\n"
-          "  count\n"
-          "  min\n"
-          "  max\n"
-          "  avg\n"
+          "\n"
+          "  aggregate=<aggr>[,<aggr>[...]]    List of aggregations to use when\n"
+          "                                    combining multiple values.\n"
+          "                                    Valid aggregations are:\n"
+          "                                    count, min, max, avg, sum, stddev\n"
+          "\n"
+          "Grouping:\n"
+          "\n"
+          "  group=<field>[,<field>[...]]      List of fields to group by.\n"
+          "                                    Valid fields are:\n"
+          "                                    host, plugin, plugin_instance,\n"
+          "                                    type, type_instance\n"
           "\n");
   exit (status);
 } /* }}} void exit_usage */
 
+static int parse_aggregate (const char *aggr) /* {{{ */
+{
+  char *aggr_copy;
+  char *dummy;
+  char *a;
+
+  aggr_copy = strdup (aggr);
+  if (aggr_copy == NULL)
+    return (ENOMEM);
+
+  free (aggregation_types);
+  aggregation_types = NULL;
+  aggregation_types_num = 0;
+
+  dummy = aggr_copy;
+  while ((a = strtok (dummy, ",")) != NULL)
+  {
+    int status;
+
+    dummy = NULL;
+
+    status = aggregation_type_add (a);
+    if (status != 0)
+      exit_usage (EXIT_FAILURE);
+  } /* while (strtok) */
+
+  free (aggr_copy);
+
+  return (0);
+} /* }}} int parse_group */
+
+static int parse_group (const char *group) /* {{{ */
+{
+  char *group_copy;
+  char *dummy;
+  char *g;
+
+  group_copy = strdup (group);
+  if (group_copy == NULL)
+    return (ENOMEM);
+
+  grouping = 0;
+
+  dummy = group_copy;
+  while ((g = strtok (dummy, ",")) != NULL)
+  {
+    int pos = 0;
+
+    dummy = NULL;
+
+    if (strcasecmp ("host", g) == 0)
+      pos = 0;
+    else if (strcasecmp ("plugin", g) == 0)
+      pos = 1;
+    else if ((strcasecmp ("plugin_instance", g) == 0)
+        || (strcasecmp ("plugininstance", g) == 0)
+        || (strcasecmp ("pinst", g) == 0))
+      pos = 2;
+    else if (strcasecmp ("type", g) == 0)
+      pos = 3;
+    else if ((strcasecmp ("type_instance", g) == 0)
+        || (strcasecmp ("typeinstance", g) == 0)
+        || (strcasecmp ("tinst", g) == 0))
+      pos = 4;
+    else
+    {
+      fprintf (stderr, "Unknown grouping field: \"%s\"\n", g);
+      exit_usage (EXIT_FAILURE);
+    }
+
+    grouping |= 1 << pos;
+  } /* while (strtok) */
+
+  free (group_copy);
+
+  return (0);
+} /* }}} int parse_group */
+
+static int parse_arg (const char *arg) /* {{{ */
+{
+  if (arg == NULL)
+    return (EINVAL);
+  else if (strncasecmp ("host=", arg, strlen ("host=")) == 0)
+    re_host = arg + strlen ("host=");
+  else if (strncasecmp ("plugin=", arg, strlen ("plugin=")) == 0)
+    re_plugin = arg + strlen ("plugin=");
+  else if (strncasecmp ("plugin_instance=", arg, strlen ("plugin_instance=")) == 0)
+    re_plugin_instance = arg + strlen ("plugin_instance=");
+  else if (strncasecmp ("type=", arg, strlen ("type=")) == 0)
+    re_type = arg + strlen ("type=");
+  else if (strncasecmp ("type_instance=", arg, strlen ("type_instance=")) == 0)
+    re_type_instance = arg + strlen ("type_instance=");
+
+  /* Grouping */
+  else if (strncasecmp ("group=", arg, strlen ("group=")) == 0)
+    return (parse_group (arg + strlen ("group=")));
+
+  /* Aggregations */
+  else if (strncasecmp ("aggregate=", arg, strlen ("aggregate=")) == 0)
+    return (parse_aggregate (arg + strlen ("aggregate=")));
+
+  /* Some alternative spellings to make it easier to guess a working argument
+   * name: */
+  else if (strncasecmp ("hostname=", arg, strlen ("hostname=")) == 0)
+    re_host = arg + strlen ("hostname=");
+  else if (strncasecmp ("plugininstance=", arg, strlen ("plugininstance=")) == 0)
+    re_plugin_instance = arg + strlen ("plugininstance=");
+  else if (strncasecmp ("typeinstance=", arg, strlen ("typeinstance=")) == 0)
+    re_type_instance = arg + strlen ("typeinstance=");
+  else if (strncasecmp ("pinst=", arg, strlen ("pinst=")) == 0)
+    re_plugin_instance = arg + strlen ("pinst=");
+  else if (strncasecmp ("tinst=", arg, strlen ("tinst=")) == 0)
+    re_type_instance = arg + strlen ("tinst=");
+  else if (strncasecmp ("aggr=", arg, strlen ("aggr=")) == 0)
+    return (parse_aggregate (arg + strlen ("aggr=")));
+
+  /* Don't know what that is ... */
+  else
+  {
+    fprintf (stderr, "Unknown argument: \"%s\"\n", arg);
+    exit_usage (EXIT_FAILURE);
+  }
+
+  return (0);
+} /* }}} int parse_arg */
+
 int show (lcc_connection_t *c, int argc, char **argv) /* {{{ */
 {
-  lcc_identifier_t tmp;
   int status;
   int i;
   size_t j;
 
-  if (argc < 3)
+  for (i = 1; i < argc; i++)
+  {
+    status = parse_arg (argv[i]);
+    /* parse_arg calls exit_usage() on error. */
+    assert (status == 0);
+  }
+
+  if ((grouping == 0) && (aggregation_types_num > 0))
+  {
+    fprintf (stderr, "One or more aggregations were specified, but no fields "
+        "were selected for grouping values. Please use the ""\"group=...\" "
+        "option.\n");
     exit_usage (EXIT_FAILURE);
-
-  memset (&tmp, 0, sizeof (tmp));
-  status = lcc_string_to_identifier (c, &tmp, argv[1]);
-  if (status != 0)
-    return (status);
-  selector = &tmp;
-
-  for (i = 2; i < argc; i++)
-    aggregation_type_add (argv[i]);
+  }
+  else if ((grouping != 0) && (aggregation_types_num == 0))
+  {
+    fprintf (stderr, "One or more fields were specified for grouping but no "
+        "aggregation was given. Please use the \"aggregate=...\" option.\n");
+    exit_usage (EXIT_FAILURE);
+  }
 
   status = read_data (c);
   if (status != 0)

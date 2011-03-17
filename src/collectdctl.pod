@@ -95,22 +95,28 @@ Each of them will be submitted to the daemon. The values have to match the
 data-set definition specified by the type as given in the identifier (see
 L<types.db(5)> for details).
 
-=item B<show> I<E<lt>selectorE<gt>> I<E<lt>aggregationE<gt>> [I<E<lt>aggregationE<gt>> ...]
+=item B<show> [I<E<lt>SelectionE<gt>>] [I<E<lt>AggregationE<gt>> I<E<lt>GroupingE<gt>>]
 
-Show values or an aggregation of values. The I<selector> selects which values
-to show. It is basically an I<identifier> with special meaning for C<+> and
-C<*>. If a hostname, plugin, type or one of the two instances is C<+> or C<*>,
-any string will match the selector. The difference between the two is that all
-identifiers with the same substitution for C<+> are grouped and aggregated by
-the specified aggregation function(s). For example, the selector
+Show values or an aggregation of values. The I<Selection> selects which values
+to show. The selection consists of the five options B<host>, B<plugin>,
+B<plugin_instance>, B<type> and B<type_instance> which take a regular
+expression each. The regular expressions are passed on to the C<LISTVAL>
+command so they will behave exactly as documented in L<collectd-unixsock(5)>.
 
-  +/cpu-*/cpu-+
+Example: Show CPU statistics only.
 
-will return the CPU states of each host, aggregated over all CPUs of each
-system. Please see L</"IDENTIFIERS"> for a description of identifiers.
+    collectdctl show plugin="^cpu$" type="^cpu$"
 
-The I<aggregation> setting defines how multiple values are combined into one
-value. Valid values are:
+If you're not interested in single values, but aggregations of values, you can
+use the I<Aggregation> and I<Grouping> options to get an overview over your
+system(s) and such. The two options to this effect are:
+
+=over 4
+
+=item B<aggregate=>I<aggr>[B<,>I<aggr>[...]]
+
+List all the aggregation functions that shall be used to combine multiple
+values. Available aggregation functions are:
 
 =over 4
 
@@ -142,6 +148,21 @@ there were no non-NAN values (B<count> reportsE<nbsp>0) and zero if there was
 exactly one non-NAN value.
 
 =back
+
+=item B<group=>I<field>[B<,>I<field>[...]]
+
+Chose the fields of the I<identifier> you want to group values by. Valid
+I<fields> are B<host>, B<plugin>, B<plugin_instance>, B<type> and
+B<type_instance>. In 99E<nbsp>% of all cases, you want to make sure all values
+have the same I<type> -- either by using a construct like C<type='^foo$'>
+or by adding B<type> to the B<group> option (e.g. C<group=type>).
+
+=back
+
+Example: Print the minimum, average and maximum time spent in each CPU state
+for all your web servers:
+
+    collectdctl show host="^www[0-9]\\." plugin="^cpu$" type="^cpu$" aggregate=min,avg,max group=type_instance
 
 =back
 
@@ -198,11 +219,12 @@ L<types.db(5)>
 
 =head1 AUTHOR
 
-collectd has been written by Florian Forster E<lt>octo at verplant.orgE<gt>
+collectd has been written by Florian Forster E<lt>octo at collectd.orgE<gt>
 and many contributors (see `AUTHORS').
 
 collectdctl has been written by
-Håkon J Dugstad Johnsen E<lt>hakon-dugstad.johnsenE<nbsp>atE<nbsp>telenor.comE<gt>
-and Sebastian Harl E<lt>sh at tokkee.orgE<gt>.
+Håkon J Dugstad Johnsen E<lt>hakon-dugstad.johnsenE<nbsp>atE<nbsp>telenor.comE<gt>,
+Sebastian Harl E<lt>sh at tokkee.orgE<gt> and
+Florian Forster E<lt>octo at collectd.orgE<gt>.
 
 =cut
