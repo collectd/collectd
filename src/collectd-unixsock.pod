@@ -59,7 +59,7 @@ Example:
   <- | 1 Value found
   <- | value=1.260000e+00
 
-=item B<LISTVAL>
+=item B<LISTVAL> [I<OptionList>]
 
 Returns a list of the values available in the value cache together with the
 time of the last update, so that querying applications can issue a B<GETVAL>
@@ -77,6 +77,28 @@ Example:
   <- | 1182204284 myhost/cpu-0/cpu-system
   <- | 1182204284 myhost/cpu-0/cpu-user
   ...
+
+Valid options are B<host>, B<plugin>, B<plugin_instance>, B<type> and
+B<type_instance>. Each option takes a regular expression as its argument. If at
+least one regular expression is supplied, only values where each appropriate
+part of the identifier satisfies the given regular expression are returned.
+
+Example:
+  -> | LISTVAL plugin_instance="^$"
+  <- | 5 Matching values
+  <- | 1300311250.802 myhost/load/load
+  <- | 1300311250.802 myhost/memory/memory-buffered
+  <- | 1300311250.802 myhost/memory/memory-cached
+  <- | 1300311250.804 myhost/memory/memory-free
+  <- | 1300311250.802 myhost/memory/memory-used
+
+Regular expressions follow the I<Extended Regular Expression> syntax (ERE)
+described in L<regex(7)> and will match case-sensitive. It is recommended to
+enclose the regular expression in double quotes. Please note that you will
+need to escape the backslash and double quote characters in this case. To
+request all values from hosts with the German top level domain ".de", for
+example, use:
+  LISTVAL host="\\.de$"
 
 =item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
 

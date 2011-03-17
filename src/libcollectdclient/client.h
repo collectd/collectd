@@ -107,6 +107,14 @@ int lcc_flush (lcc_connection_t *c, const char *plugin,
 int lcc_listval (lcc_connection_t *c,
     lcc_identifier_t **ret_ident, size_t *ret_ident_num);
 
+int lcc_listval_with_selection (lcc_connection_t *c,
+    const char *re_host,
+    const char *re_plugin,
+    const char *re_plugin_instance,
+    const char *re_type,
+    const char *re_type_instance,
+    lcc_identifier_t **ret_ident, size_t *ret_ident_num);
+
 /* TODO: putnotif */
 
 const char *lcc_strerror (lcc_connection_t *c);

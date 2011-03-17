@@ -127,7 +127,7 @@ int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
 
   /* Look for the equal sign */
   buffer = key;
-  while (isalnum ((int) *buffer))
+  while (isalnum ((int) *buffer) || (*buffer == '_'))
     buffer++;
   if ((*buffer != '=') || (buffer == key))
     return (1);
