@@ -272,7 +272,7 @@ int plugin_register_write (const char *name,
 		plugin_write_cb callback, user_data_t *user_data);
 int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *user_data);
-int plugin_register_shutdown (char *name,
+int plugin_register_shutdown (const char *name,
 		plugin_shutdown_cb callback);
 int plugin_register_data_set (const data_set_t *ds);
 int plugin_register_log (const char *name,
