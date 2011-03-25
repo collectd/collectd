@@ -96,6 +96,7 @@ data-set definition specified by the type as given in the identifier (see
 L<types.db(5)> for details).
 
 =item B<show> [I<E<lt>SelectionE<gt>>] [I<E<lt>AggregationE<gt>> I<E<lt>GroupingE<gt>>]
+[I<E<lt>FormatE<gt>>]
 
 Show values or an aggregation of values. The I<Selection> selects which values
 to show. The selection consists of the five options B<host>, B<plugin>,
@@ -156,6 +157,23 @@ I<fields> are B<host>, B<plugin>, B<plugin_instance>, B<type> and
 B<type_instance>. In 99E<nbsp>% of all cases, you want to make sure all values
 have the same I<type> -- either by using a construct like C<type='^foo$'>
 or by adding B<type> to the B<group> option (e.g. C<group=type>).
+
+=back
+
+The output formatting may be specified using the B<format=>I<format> option.
+The following formats are available:
+
+=over 4
+
+=item B<table> (default)
+
+Output an aligned table formatted using ASCII characters.
+
+=item B<latex>
+
+Output a table intended to be included in a LaTeX document. This is not a
+complete document. In order to compile the document, you have to have a
+complete document wrapper.
 
 =back
 

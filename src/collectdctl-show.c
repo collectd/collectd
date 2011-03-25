@@ -87,6 +87,37 @@ struct aggregation_group_s
 };
 typedef struct aggregation_group_s aggregation_group_t;
 
+struct data_formatter_s
+{
+  char *name;
+
+  /*
+   * title line: name, aggr type 1, ...
+   */
+  char *title_name_fmt;
+  char *title_type_fmt;
+
+  /*
+   * aggregation group: group name, value 1, ...
+   */
+  char *group_name_fmt;
+  char *group_val_fmt;
+
+  /*
+   * separators
+   */
+  char *field_sep;
+  char *rec_sep;
+
+  /*
+   * lines, etc.
+   */
+  int (*print_header) (int);
+  int (*print_line) (int);
+  int (*print_footer) (int);
+};
+typedef struct data_formatter_s data_formatter_t;
+
 /*
  * Global variables
  */
@@ -364,6 +395,7 @@ static int read_data (lcc_connection_t *c) /* {{{ */
   return (0);
 } /* }}} int read_data */
 
+/* Formatting */
 static int print_horizontal_line (int name_len_max) /* {{{ */
 {
   int i;
@@ -386,6 +418,84 @@ static int print_horizontal_line (int name_len_max) /* {{{ */
   return (0);
 } /* }}} int print_horizontal_line */
 
+static int print_header_latex (int name_len_max) /* {{{ */
+{
+  size_t i;
+
+  printf ("\\begin{tabular}{| l |");
+
+  for (i = 0; i < aggregation_types_num; i++)
+    printf (" r |");
+  if (aggregation_types_num == 0)
+    printf (" r |");
+
+  printf ("}\n"
+      "\\hline\n");
+
+  return (0);
+} /* }}} int print_header_latex */
+
+static int print_horizontal_line_latex (int __attribute__((unused)) n) /* {{{ */
+{
+  printf ("\\hline\n");
+
+  return (0);
+} /* }}} int print_horizontal_line_latex */
+
+static int print_footer_latex (int __attribute__((unused)) n) /* {{{ */
+{
+  printf ("\\hline\n"
+      "\\end{tabular}\n");
+
+  return (0);
+} /* }}} int print_footer_latex */
+
+/* Formatting configuration {{{ */
+data_formatter_t formatter_list[] = {
+  {
+    "table",
+
+    /* title line */
+    "! %-*s",
+    " %10s",
+
+    /* aggr group */
+    "! %-*s",
+    " %10g",
+
+    /* separators */
+    " !",
+    " !\n",
+
+    print_horizontal_line,
+    print_horizontal_line,
+    print_horizontal_line
+  },
+  {
+    "latex",
+
+    /* title line */
+    "{\\itshape %-*s}",
+    " {\\itshape %10s}",
+
+    /* aggr group */
+    "%-*s",
+    " %10g",
+
+    /* separators */
+    " &",
+    " \\\\\n",
+
+    print_header_latex,
+    print_horizontal_line_latex,
+    print_footer_latex
+  }
+};
+static size_t formatter_list_len = sizeof (formatter_list) / sizeof (formatter_list[0]);
+
+static data_formatter_t *formatter = &formatter_list[0];
+/* }}} */
+
 static int write_data (void) /* {{{ */
 {
   int name_len_max = 4;
@@ -398,14 +508,21 @@ static int write_data (void) /* {{{ */
       name_len_max = name_len;
   }
 
-  print_horizontal_line (name_len_max);
-  printf ("! %-*s !", name_len_max, "Name");
+  formatter->print_header (name_len_max);
+  printf (formatter->title_name_fmt, name_len_max, "Name");
+  printf ("%s", formatter->field_sep);
   for (i = 0; i < aggregation_types_num; i++)
-    printf (" %10s !", aggr_type_to_string (aggregation_types[i]));
+  {
+    printf (formatter->title_type_fmt, aggr_type_to_string (aggregation_types[i]));
+    if (i < aggregation_types_num - 1)
+      printf ("%s", formatter->field_sep);
+  }
+
   if (aggregation_types_num == 0)
-    printf (" %10s !", "Value");
-  printf ("\n");
-  print_horizontal_line (name_len_max);
+    printf (formatter->title_type_fmt, "Value");
+
+  printf ("%s", formatter->rec_sep);
+  formatter->print_line (name_len_max);
 
   for (i = 0; i < aggregation_groups_num; i++)
   {
@@ -413,7 +530,8 @@ static int write_data (void) /* {{{ */
 
     aggregation_group_t *g = aggregation_groups + i;
 
-    printf ("! %-*s !", name_len_max, g->name);
+    printf (formatter->group_name_fmt, name_len_max, g->name);
+    printf ("%s", formatter->field_sep);
 
     for (j = 0; j < aggregation_types_num; j++)
     {
@@ -444,19 +562,21 @@ static int write_data (void) /* {{{ */
               / ((double) (g->num - 1)));
       }
 
-      printf (" %10g !", value);
+      printf (formatter->group_val_fmt, value);
+      if (j < aggregation_types_num - 1)
+        printf ("%s", formatter->field_sep);
     }
     if (aggregation_types_num == 0)
     {
       /* g->num may be zero if the value is NAN. */
       assert (g->num < 2);
-      printf (" %10g !", g->min);
+      printf (formatter->group_val_fmt, g->min);
     }
 
-    printf ("\n");
+    printf ("%s", formatter->rec_sep);
   }
 
-  print_horizontal_line (name_len_max);
+  formatter->print_footer (name_len_max);
 
   return (0);
 } /* }}} int write_data */
@@ -569,6 +689,27 @@ static int parse_group (const char *group) /* {{{ */
   return (0);
 } /* }}} int parse_group */
 
+static int parse_format (const char *name) /* {{{ */
+{
+  int i;
+
+  for (i = 0; i < formatter_list_len; ++i)
+  {
+    if (strcasecmp (formatter_list[i].name, name) == 0)
+    {
+      formatter = formatter_list + i;
+      break;
+    }
+  }
+
+  if (i >= formatter_list_len) {
+    fprintf (stderr, "Unknown format: \"%s\"\n", name);
+    exit_usage (EXIT_FAILURE);
+  }
+
+  return (0);
+} /* }}} int parse_format */
+
 static int parse_arg (const char *arg) /* {{{ */
 {
   if (arg == NULL)
@@ -606,6 +747,10 @@ static int parse_arg (const char *arg) /* {{{ */
     re_type_instance = arg + strlen ("tinst=");
   else if (strncasecmp ("aggr=", arg, strlen ("aggr=")) == 0)
     return (parse_aggregate (arg + strlen ("aggr=")));
+
+  /* Formatting */
+  else if (strncasecmp ("format=", arg, strlen ("format=")) == 0)
+    return (parse_format (arg + strlen ("format=")));
 
   /* Don't know what that is ... */
   else
