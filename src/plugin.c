@@ -872,7 +872,7 @@ int plugin_register_missing (const char *name,
 				(void *) callback, ud));
 } /* int plugin_register_missing */
 
-int plugin_register_shutdown (char *name,
+int plugin_register_shutdown (const char *name,
 		int (*callback) (void))
 {
 	return (create_register_callback (&list_shutdown, name,

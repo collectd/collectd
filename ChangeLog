@@ -68,6 +68,24 @@ yyyy-mm-dd, Version 5.0.0
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
 
+2011-03-26, Version 4.10.3
+	* Documentation: Several updates and additions. Thanks to Sebastian Harl.
+	* collectd: Build issues (compiler warnings) have been fixed. Thanks to
+	  Bruno Prémont.
+	* collectd: Threshold subsection: Handling of NAN values in the
+	  percentage calculation has been fixed.
+	* collectd, java plugin, ntpd plugin: Several diagnostic messages have
+	  been improved.
+	* curl_json plugin: Handling of arrays has been fixed.
+	* libvirt plugin: A bug in reading the virtual CPU statistics has been
+	  fixed. Thanks to “JLPC” for reporting this problem.
+	* modbus plugin: Compatibility with libmodbus 2.0.3 has been restored.
+	* processes plugin: Potentially erroneous behavior has been fixed in an
+	  error handling case.
+	* python plugin: Fix dispatching of values from Python scripts to
+	  collectd. Thanks to Gregory Szorc for finding and fixing this
+	  problem.
+
 2010-11-27, Version 4.10.2
 	* Documentation: Various documentation fixes.
 	* collectd: If including one configuration file fails, continue with
@@ -175,6 +193,22 @@ yyyy-mm-dd, Version 5.0.0
 	  Paul Sadauskas for his patch.
 	* regex match: The "Invert" option has been added. Thanks to Julien
 	  Ammous for his patch.
+
+2011-03-26, Version 4.9.5
+	* Documentation: Several updates and additions. Thanks to Sebastian Harl.
+	* collectd: Build issues (compiler warnings) have been fixed. Thanks to
+	  Bruno Prémont.
+	* collectd: Threshold subsection: Handling of NAN values in the
+	  percentage calculation has been fixed.
+	* collectd, java plugin, ntpd plugin: Several diagnostic messages have
+	  been improved.
+	* libvirt plugin: A bug in reading the virtual CPU statistics has been
+	  fixed. Thanks to “JLPC” for reporting this problem.
+	* processes plugin: Potentially erroneous behavior has been fixed in an
+	  error handling case.
+	* python plugin: Fix dispatching of values from Python scripts to
+	  collectd. Thanks to Gregory Szorc for finding and fixing this
+	  problem.
 
 2010-11-27, Version 4.9.4
 	* Documentation: Various documentation fixes.
