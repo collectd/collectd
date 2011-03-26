@@ -852,7 +852,7 @@ int plugin_register_flush (const char *name,
 				(void *) callback, ud));
 } /* int plugin_register_flush */
 
-int plugin_register_shutdown (char *name,
+int plugin_register_shutdown (const char *name,
 		int (*callback) (void))
 {
 	return (create_register_callback (&list_shutdown, name,

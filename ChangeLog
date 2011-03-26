@@ -106,6 +106,22 @@
 	* regex match: The "Invert" option has been added. Thanks to Julien
 	  Ammous for his patch.
 
+2011-03-26, Version 4.9.5
+	* collectd: Build issues (compiler warnings) have been fixed. Thanks to
+	  Bruno Prémont.
+	* collectd, java plugin, ntpd plugin: Several diagnostic messages have
+	  been improved.
+	* collectd: Threshold subsection: Handling of NAN values in the
+	  percentage calculation has been fixed.
+	* Documentation: Several updates and additions. Thanks to Sebastian Harl.
+	* libvirt plugin: A bug in reading the virtual CPU statistics has been
+	  fixed. Thanks to “JLPC” for reporting this problem.
+	* python plugin: Fix dispatching of values from Python scripts to
+	  collectd. Thanks to Gregory Szorc for finding and fixing this
+	  problem.
+	* processes plugin: Potentially erroneous behavior has been fixed in an
+	  error handling case.
+
 2010-11-27, Version 4.9.4
 	* Documentation: Various documentation fixes.
 	* collectd: If including one configuration file fails, continue with
