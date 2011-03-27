@@ -1594,9 +1594,9 @@ static int ps_read (void)
 	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count);
 	if (procs == NULL)
 	{
-		kvm_close (kd);
 		ERROR ("processes plugin: Cannot get kvm processes list: %s",
 				kvm_geterr(kd));
+		kvm_close (kd);
 		return (0);
 	}
 

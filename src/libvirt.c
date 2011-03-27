@@ -413,22 +413,32 @@ lv_read (void)
     for (i = 0; i < nr_domains; ++i) {
         virDomainInfo info;
         virVcpuInfoPtr vinfo = NULL;
+        int status;
         int j;
 
-        if (virDomainGetInfo (domains[i], &info) != 0)
+        status = virDomainGetInfo (domains[i], &info);
+        if (status != 0)
+        {
+            ERROR ("libvirt plugin: virDomainGetInfo failed with status %i.",
+                    status);
             continue;
+        }
 
         cpu_submit (info.cpuTime, domains[i], "virt_cpu_total");
 
-        vinfo = malloc (info.nrVirtCpu * sizeof vinfo[0]);
+        vinfo = malloc (info.nrVirtCpu * sizeof (vinfo[0]));
         if (vinfo == NULL) {
             ERROR ("libvirt plugin: malloc failed.");
             continue;
         }
 
-        if (virDomainGetVcpus (domains[i], vinfo, info.nrVirtCpu,
-                    NULL, 0) != 0) {
-            sfree (vinfo);
+        status = virDomainGetVcpus (domains[i], vinfo, info.nrVirtCpu,
+                /* cpu map = */ NULL, /* cpu map length = */ 0);
+        if (status < 0)
+        {
+            ERROR ("libvirt plugin: virDomainGetVcpus failed with status %i.",
+                    status);
+            free (vinfo);
             continue;
         }
 
