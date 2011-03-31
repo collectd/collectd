@@ -745,9 +745,15 @@
 #</Plugin>
 
 #<Plugin netcmd>
-#	Listen "192.168.0.1"
-#	Listen "unix:/var/run/collectd-netcmd"
-#	SocketPerms "0660"
+#  <Listen>
+#    Address "::1"
+#    Port "1234"
+#    TLSCertFile "/path/to/cert"
+#    TLSKeyFile  "/path/to/key"
+#    TLSCAFile   "/path/to/ca"
+#    TLSCRLFile  "/path/to/crl"
+#    TLSVerifyPeer yes|no
+#  </Listen>
 #</Plugin>
 
 #<Plugin netlink>

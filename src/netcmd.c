@@ -46,7 +46,10 @@
 
 #include <grp.h>
 
-#define NC_DEFAULT_PORT "25826"
+#include <gnutls/gnutls.h>
+
+#define NC_DEFAULT_SERVICE "25826"
+#define NC_TLS_DH_BITS 1024
 
 /*
  * Private data structures
@@ -55,9 +58,30 @@ struct nc_peer_s
 {
   char *node;
   char *service;
-  int fd;
+  int *fds;
+  size_t fds_num;
+
+  char *tls_cert_file;
+  char *tls_key_file;
+  char *tls_ca_file;
+  char *tls_crl_file;
+  _Bool tls_verify_peer;
+
+  gnutls_certificate_credentials_t tls_credentials;
+  gnutls_dh_params_t tls_dh_params;
+  gnutls_priority_t tls_priority;
+
 };
 typedef struct nc_peer_s nc_peer_t;
+
+struct nc_connection_s
+{
+  int fd;
+
+  gnutls_session_t tls_session;
+  _Bool have_tls_session;
+};
+typedef struct nc_connection_s nc_connection_t;
 
 /*
  * Private variables
@@ -77,27 +101,114 @@ static pthread_t listen_thread;
 /*
  * Functions
  */
-static int nc_register_fd (int fd, const char *path) /* {{{ */
+static nc_peer_t *nc_fd_to_peer (int fd) /* {{{ */
 {
-  struct pollfd *tmp;
+  size_t i;
 
-  tmp = realloc (pollfd, (pollfd_num + 1) * sizeof (*pollfd));
-  if (tmp == NULL)
+  for (i = 0; i < peers_num; i++)
+  {
+    size_t j;
+
+    for (j = 0; j < peers[i].fds_num; j++)
+      if (peers[i].fds[j] == fd)
+        return (peers + i);
+  }
+
+  return (NULL);
+} /* }}} nc_peer_t *nc_fd_to_peer */
+
+static int nc_register_fd (nc_peer_t *peer, int fd) /* {{{ */
+{
+  struct pollfd *poll_ptr;
+  int *fd_ptr;
+
+  poll_ptr = realloc (pollfd, (pollfd_num + 1) * sizeof (*pollfd));
+  if (poll_ptr == NULL)
   {
     ERROR ("netcmd plugin: realloc failed.");
     return (-1);
   }
-  pollfd = tmp;
+  pollfd = poll_ptr;
 
   memset (&pollfd[pollfd_num], 0, sizeof (pollfd[pollfd_num]));
   pollfd[pollfd_num].fd = fd;
   pollfd[pollfd_num].events = POLLIN | POLLPRI;
   pollfd[pollfd_num].revents = 0;
-
   pollfd_num++;
+
+  if (peer == NULL)
+    return (0);
+
+  fd_ptr = realloc (peer->fds, (peer->fds_num + 1) * sizeof (*peer->fds));
+  if (fd_ptr == NULL)
+  {
+    ERROR ("netcmd plugin: realloc failed.");
+    return (-1);
+  }
+  peer->fds = fd_ptr;
+  peer->fds[peer->fds_num] = fd;
+  peer->fds_num++;
 
   return (0);
 } /* }}} int nc_register_fd */
+
+static int nc_tls_init (nc_peer_t *peer) /* {{{ */
+{
+  if (peer == NULL)
+    return (EINVAL);
+
+  if ((peer->tls_cert_file == NULL)
+      || (peer->tls_key_file == NULL))
+    return (0);
+
+  /* Initialize the structure holding our certificate information. */
+  gnutls_certificate_allocate_credentials (&peer->tls_credentials);
+
+  /* Set up the configured certificates. */
+  if (peer->tls_ca_file != NULL)
+    gnutls_certificate_set_x509_trust_file (peer->tls_credentials,
+        peer->tls_ca_file, GNUTLS_X509_FMT_PEM);
+  if (peer->tls_crl_file != NULL)
+      gnutls_certificate_set_x509_crl_file (peer->tls_credentials,
+          peer->tls_crl_file, GNUTLS_X509_FMT_PEM);
+  gnutls_certificate_set_x509_key_file (peer->tls_credentials,
+      peer->tls_cert_file, peer->tls_key_file, GNUTLS_X509_FMT_PEM);
+
+  /* Initialize Diffie-Hellman parameters. */
+  gnutls_dh_params_init (&peer->tls_dh_params);
+  gnutls_dh_params_generate2 (peer->tls_dh_params, NC_TLS_DH_BITS);
+  gnutls_certificate_set_dh_params (peer->tls_credentials,
+      peer->tls_dh_params);
+
+  /* Initialize a "priority cache". This will tell GNUTLS which algorithms to
+   * use and which to avoid. We use the "NORMAL" method for now. */
+  gnutls_priority_init (&peer->tls_priority,
+     /* priority = */ "NORMAL", /* errpos = */ NULL);
+
+  return (0);
+} /* }}} int nc_tls_init */
+
+static gnutls_session_t nc_tls_get_session (nc_peer_t *peer) /* {{{ */
+{
+  gnutls_session_t session;
+
+  if (peer->tls_credentials == NULL)
+    return (NULL);
+
+  /* Initialize new session. */
+  gnutls_init (&session, GNUTLS_SERVER);
+
+  /* Set cipher priority and credentials based on the information stored with
+   * the peer. */
+  gnutls_priority_set (session, peer->tls_priority);
+  gnutls_credentials_set (session,
+      GNUTLS_CRD_CERTIFICATE, peer->tls_credentials);
+
+  /* Request the client certificate. */
+  gnutls_certificate_server_set_request (session, GNUTLS_CERT_REQUEST);
+
+  return (session);
+} /* }}} gnutls_session_t nc_tls_get_session */
 
 static int nc_open_socket (nc_peer_t *peer) /* {{{ */
 {
@@ -116,7 +227,7 @@ static int nc_open_socket (nc_peer_t *peer) /* {{{ */
   }
 
   if (service == NULL)
-    service = NC_DEFAULT_PORT;
+    service = NC_DEFAULT_SERVICE;
 
   memset (&ai_hints, 0, sizeof (ai_hints));
 #ifdef AI_PASSIVE
@@ -131,7 +242,7 @@ static int nc_open_socket (nc_peer_t *peer) /* {{{ */
   ai_list = NULL;
 
   if (service == NULL)
-    service = NC_DEFAULT_PORT;
+    service = NC_DEFAULT_SERVICE;
 
   status = getaddrinfo (node, service, &ai_hints, &ai_list);
   if (status != 0)
@@ -173,7 +284,7 @@ static int nc_open_socket (nc_peer_t *peer) /* {{{ */
       continue;
     }
 
-    status = nc_register_fd (fd, /* path = */ NULL);
+    status = nc_register_fd (peer, fd);
     if (status != 0)
     {
       close (fd);
@@ -183,35 +294,58 @@ static int nc_open_socket (nc_peer_t *peer) /* {{{ */
 
   freeaddrinfo (ai_list);
 
-  return (0);
+  return (nc_tls_init (peer));
 } /* }}} int nc_open_socket */
+
+static void nc_connection_close (nc_connection_t *conn) /* {{{ */
+{
+  if (conn == NULL)
+    return;
+
+  if (conn->fd >= 0)
+  {
+    close (conn->fd);
+    conn->fd = -1;
+  }
+
+  if (conn->have_tls_session)
+  {
+    gnutls_deinit (conn->tls_session);
+    conn->have_tls_session = 0;
+  }
+
+  sfree (conn);
+} /* }}} void nc_connection_close */
 
 static void *nc_handle_client (void *arg) /* {{{ */
 {
-  int fd;
+  nc_connection_t *conn;
   FILE *fhin, *fhout;
   char errbuf[1024];
 
-  fd = *((int *) arg);
-  sfree (arg);
+  conn = arg;
 
-  DEBUG ("netcmd plugin: nc_handle_client: Reading from fd #%i", fd);
+  DEBUG ("netcmd plugin: nc_handle_client: Reading from fd #%i", conn->fd);
 
-  fhin  = fdopen (fd, "r");
+  fhin  = fdopen (conn->fd, "r");
   if (fhin == NULL)
   {
     ERROR ("netcmd plugin: fdopen failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
-    close (fd);
+    nc_connection_close (conn);
     pthread_exit ((void *) 1);
   }
 
-  fhout = fdopen (fd, "w");
+  /* FIXME: dup conn->fd before calling fdopen! */
+  fhout = fdopen (conn->fd, "w");
+  /* Prevent nc_connection_close from calling close(2) on this fd. */
+  conn->fd = -1;
   if (fhout == NULL)
   {
     ERROR ("netcmd plugin: fdopen failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     fclose (fhin); /* this closes fd as well */
+    nc_connection_close (conn);
     pthread_exit ((void *) 1);
   }
 
@@ -220,8 +354,7 @@ static void *nc_handle_client (void *arg) /* {{{ */
   {
     ERROR ("netcmd plugin: setvbuf failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
-    fclose (fhin);
-    fclose (fhout);
+    nc_connection_close (conn);
     pthread_exit ((void *) 1);
   }
 
@@ -260,7 +393,7 @@ static void *nc_handle_client (void *arg) /* {{{ */
 
     if (fields_num < 1)
     {
-      close (fd);
+      nc_connection_close (conn);
       break;
     }
 
@@ -297,8 +430,10 @@ static void *nc_handle_client (void *arg) /* {{{ */
   } /* while (fgets) */
 
   DEBUG ("netcmd plugin: nc_handle_client: Exiting..");
+  /* XXX: Is this calling close on the same FD twice? */
   fclose (fhin);
   fclose (fhout);
+  nc_connection_close (conn);
 
   pthread_exit ((void *) 0);
   return ((void *) 0);
@@ -340,7 +475,8 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
 
     for (i = 0; i < pollfd_num; i++)
     {
-      int *client_fd;
+      nc_peer_t *peer;
+      nc_connection_t *conn;
 
       if (pollfd[i].revents == 0)
       {
@@ -359,40 +495,57 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
       }
       pollfd[i].revents = 0;
 
+      peer = nc_fd_to_peer (pollfd[i].fd);
+      if (peer == NULL)
+      {
+        ERROR ("netcmd plugin: Unable to find peer structure for file "
+            "descriptor #%i.", pollfd[i].fd);
+        continue;
+      }
+
       status = accept (pollfd[i].fd,
           /* sockaddr = */ NULL,
           /* sockaddr_len = */ NULL);
       if (status < 0)
       {
-        if (errno == EINTR)
-          continue;
-
-        ERROR ("netcmd plugin: accept failed: %s",
-            sstrerror (errno, errbuf, sizeof (errbuf)));
+        if (errno != EINTR)
+          ERROR ("netcmd plugin: accept failed: %s",
+              sstrerror (errno, errbuf, sizeof (errbuf)));
         continue;
       }
 
-      client_fd = malloc (sizeof (*client_fd));
-      if (client_fd == NULL)
+      conn = malloc (sizeof (*conn));
+      if (conn == NULL)
       {
         ERROR ("netcmd plugin: malloc failed.");
         close (status);
         continue;
       }
-      *client_fd = status;
+      memset (conn, 0, sizeof (*conn));
 
-      DEBUG ("Spawning child to handle connection on fd %i", *client_fd);
+      conn->fd = status;
+      if ((peer != NULL)
+          && (peer->tls_cert_file != NULL))
+      {
+        DEBUG ("netcmd plugin: Starting TLS session on [%s]:%s",
+            (peer->node != NULL) ? peer->node : "any",
+            (peer->service != NULL) ? peer->service : NC_DEFAULT_SERVICE);
+        conn->tls_session = nc_tls_get_session (peer);
+        conn->have_tls_session = 1;
+      }
+
+      DEBUG ("Spawning child to handle connection on fd %i", conn->fd);
 
       pthread_attr_init (&th_attr);
       pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
 
       status = pthread_create (&th, &th_attr, nc_handle_client,
-          client_fd);
+          conn);
       if (status != 0)
       {
         WARNING ("netcmd plugin: pthread_create failed: %s",
             sstrerror (errno, errbuf, sizeof (errbuf)));
-        close (*client_fd);
+        nc_connection_close (conn);
         continue;
       }
     }
@@ -424,11 +577,11 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
  *     TLSKeyFile  "/path/to/key"
  *     TLSCAFile   "/path/to/ca"
  *     TLSCRLFile  "/path/to/crl"
- *     VerifyPeer yes|no
+ *     TLSVerifyPeer yes|no
  *   </Listen>
  * </Plugin>
  */
-static int nc_config_peer (const oconfig_item_t *ci)
+static int nc_config_peer (const oconfig_item_t *ci) /* {{{ */
 {
   nc_peer_t *p;
   int i;
@@ -444,6 +597,11 @@ static int nc_config_peer (const oconfig_item_t *ci)
   memset (p, 0, sizeof (*p));
   p->node = NULL;
   p->service = NULL;
+  p->tls_cert_file = NULL;
+  p->tls_key_file = NULL;
+  p->tls_ca_file = NULL;
+  p->tls_crl_file = NULL;
+  p->tls_verify_peer = 1;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -453,10 +611,22 @@ static int nc_config_peer (const oconfig_item_t *ci)
       cf_util_get_string (child, &p->node);
     else if (strcasecmp ("Port", child->key) == 0)
       cf_util_get_string (child, &p->service);
+    else if (strcasecmp ("TLSCertFile", child->key) == 0)
+      cf_util_get_string (child, &p->tls_cert_file);
+    else if (strcasecmp ("TLSKeyFile", child->key) == 0)
+      cf_util_get_string (child, &p->tls_key_file);
+    else if (strcasecmp ("TLSCAFile", child->key) == 0)
+      cf_util_get_string (child, &p->tls_ca_file);
+    else if (strcasecmp ("TLSCRLFile", child->key) == 0)
+      cf_util_get_string (child, &p->tls_crl_file);
     else
       WARNING ("netcmd plugin: The option \"%s\" is not recognized within "
           "a \"%s\" block.", child->key, ci->key);
   }
+
+  DEBUG ("netcmd plugin: node = \"%s\"; service = \"%s\";", p->node, p->service);
+
+  peers_num++;
 
   return (0);
 } /* }}} int nc_config_peer */
