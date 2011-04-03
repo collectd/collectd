@@ -1,7 +1,4 @@
 SUBDIRS = libcollectdclient
-if BUILD_WITH_OWN_LIBIPTC
-SUBDIRS += owniptc
-endif
 if BUILD_WITH_OWN_LIBOCONFIG
 SUBDIRS += liboconfig
 endif
@@ -440,12 +437,7 @@ pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
 iptables_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBIPTC_CPPFLAGS)
 iptables_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBIPTC_LDFLAGS)
-if BUILD_WITH_OWN_LIBIPTC
-iptables_la_LIBADD  = owniptc/libiptc.la
-iptables_la_DEPENDENCIES = owniptc/libiptc.la
-else
 iptables_la_LIBADD = -liptc
-endif
 collectd_LDADD += "-dlopen" iptables.la
 collectd_DEPENDENCIES += iptables.la
 endif
