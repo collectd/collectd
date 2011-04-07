@@ -74,9 +74,24 @@ struct nc_peer_s
 };
 typedef struct nc_peer_s nc_peer_t;
 
+#if defined(PAGESIZE)
+# define NC_READ_BUFFER_SIZE PAGESIZE
+#elif defined(PAGE_SIZE)
+# define NC_READ_BUFFER_SIZE PAGE_SIZE
+#else
+# define NC_READ_BUFFER_SIZE 4096
+#endif
+
 struct nc_connection_s
 {
+  /* TLS fields */
   int fd;
+  char *read_buffer;
+  size_t read_buffer_fill;
+
+  /* non-TLS fields */
+  FILE *fh_in;
+  FILE *fh_out;
 
   gnutls_session_t tls_session;
   _Bool have_tls_session;
@@ -308,6 +323,18 @@ static void nc_connection_close (nc_connection_t *conn) /* {{{ */
     conn->fd = -1;
   }
 
+  if (conn->fh_in != NULL)
+  {
+    fclose (conn->fh_in);
+    conn->fh_in = NULL;
+  }
+
+  if (conn->fh_out != NULL)
+  {
+    fclose (conn->fh_out);
+    conn->fh_out = NULL;
+  }
+
   if (conn->have_tls_session)
   {
     gnutls_deinit (conn->tls_session);
@@ -317,43 +344,191 @@ static void nc_connection_close (nc_connection_t *conn) /* {{{ */
   sfree (conn);
 } /* }}} void nc_connection_close */
 
+static int nc_connection_init (nc_connection_t *conn) /* {{{ */
+{
+  int fd_copy;
+  char errbuf[1024];
+
+  if (conn->have_tls_session)
+  {
+    conn->read_buffer = malloc (NC_READ_BUFFER_SIZE);
+    if (conn->read_buffer == NULL)
+      return (ENOMEM);
+    memset (conn->read_buffer, 0, NC_READ_BUFFER_SIZE);
+
+    gnutls_transport_set_ptr (conn->tls_session, &conn->fd);
+    return (0);
+  }
+
+  /* Duplicate the file descriptor. We need two file descriptors, because we
+   * create two FILE* objects. If they pointed to the same FD and we called
+   * fclose() on each, that would call close() twice on the same FD. If
+   * another file is opened in between those two calls, it could get assigned
+   * that FD and weird stuff would happen. */
+  fd_copy = dup (conn->fd);
+  if (fd_copy < 0)
+  {
+    ERROR ("netcmd plugin: dup(2) failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  conn->fh_in  = fdopen (conn->fd, "r");
+  if (conn->fh_in == NULL)
+  {
+    ERROR ("netcmd plugin: fdopen failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+  /* Prevent other code from using the FD directly. */
+  conn->fd = -1;
+
+  conn->fh_out = fdopen (fd_copy, "w");
+  /* Prevent nc_connection_close from calling close(2) on this fd. */
+  if (conn->fh_out == NULL)
+  {
+    ERROR ("netcmd plugin: fdopen failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  /* change output buffer to line buffered mode */
+  if (setvbuf (conn->fh_out, NULL, _IOLBF, 0) != 0)
+  {
+    ERROR ("netcmd plugin: setvbuf failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    nc_connection_close (conn);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int nc_connection_init */
+
+static char *nc_connection_gets (nc_connection_t *conn, /* {{{ */
+    char *buffer, size_t buffer_size)
+{
+  ssize_t status;
+  char *orig_buffer = buffer;
+
+  if (conn == NULL)
+  {
+    errno = EINVAL;
+    return (NULL);
+  }
+
+  if (!conn->have_tls_session)
+    return (fgets (buffer, (int) buffer_size, conn->fh_in));
+
+  if ((buffer == NULL) || (buffer_size < 2))
+  {
+    errno = EINVAL;
+    return (NULL);
+  }
+
+  /* ensure null termination */
+  memset (buffer, 0, buffer_size);
+  buffer_size--;
+
+  while (42)
+  {
+    size_t max_copy_bytes;
+    size_t newline_pos;
+    _Bool found_newline;
+    size_t i;
+
+    /* If there's no more data in the read buffer, read another chunk from the
+     * socket. */
+    if (conn->read_buffer_fill < 1)
+    {
+      status = gnutls_record_recv (conn->tls_session,
+          conn->read_buffer, NC_READ_BUFFER_SIZE);
+      if (status < 0) /* error */
+      {
+        ERROR ("netcmd plugin: Error while reading from TLS stream.");
+        return (NULL);
+      }
+      else if (status == 0) /* we reached end of file */
+      {
+        if (orig_buffer == buffer) /* nothing has been written to the buffer yet */
+          return (NULL); /* end of file */
+        else
+          return (orig_buffer);
+      }
+      else
+      {
+        conn->read_buffer_fill = (size_t) status;
+      }
+    }
+    assert (conn->read_buffer_fill > 0);
+
+    /* Determine where the first newline character is in the buffer. We're not
+     * using strcspn(3) here, becaus the buffer is possibly not
+     * null-terminated. */
+    newline_pos = conn->read_buffer_fill;
+    found_newline = 0;
+    for (i = 0; i < conn->read_buffer_fill; i++)
+    {
+      if (conn->read_buffer[i] == '\n')
+      {
+        newline_pos = i;
+        found_newline = 1;
+        break;
+      }
+    }
+
+    /* Determine how many bytes to copy at most. This is MIN(buffer available,
+     * read buffer size, characters to newline). */
+    max_copy_bytes = buffer_size;
+    if (max_copy_bytes > conn->read_buffer_fill)
+      max_copy_bytes = conn->read_buffer_fill;
+    if (max_copy_bytes > (newline_pos + 1))
+      max_copy_bytes = newline_pos + 1;
+    assert (max_copy_bytes > 0);
+
+    /* Copy bytes to the output buffer. */
+    memcpy (buffer, conn->read_buffer, max_copy_bytes);
+    buffer += max_copy_bytes;
+    assert (buffer_size >= max_copy_bytes);
+    buffer_size -= max_copy_bytes;
+
+    /* If there is data left in the read buffer, move it to the front of the
+     * buffer. */
+    if (max_copy_bytes < conn->read_buffer_fill)
+    {
+      size_t data_left_size = conn->read_buffer_fill - max_copy_bytes;
+      memmove (conn->read_buffer, conn->read_buffer + max_copy_bytes,
+          data_left_size);
+      conn->read_buffer_fill -= max_copy_bytes;
+    }
+    else
+    {
+      assert (max_copy_bytes == conn->read_buffer_fill);
+      conn->read_buffer_fill = 0;
+    }
+
+    if (found_newline)
+      break;
+
+    if (buffer_size == 0) /* no more space in the output buffer */
+      break;
+  }
+
+  return (orig_buffer);
+} /* }}} char *nc_connection_gets */
+
 static void *nc_handle_client (void *arg) /* {{{ */
 {
   nc_connection_t *conn;
-  FILE *fhin, *fhout;
   char errbuf[1024];
+  int status;
 
   conn = arg;
 
   DEBUG ("netcmd plugin: nc_handle_client: Reading from fd #%i", conn->fd);
 
-  fhin  = fdopen (conn->fd, "r");
-  if (fhin == NULL)
+  status = nc_connection_init (conn);
+  if (status != 0)
   {
-    ERROR ("netcmd plugin: fdopen failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
-    nc_connection_close (conn);
-    pthread_exit ((void *) 1);
-  }
-
-  /* FIXME: dup conn->fd before calling fdopen! */
-  fhout = fdopen (conn->fd, "w");
-  /* Prevent nc_connection_close from calling close(2) on this fd. */
-  conn->fd = -1;
-  if (fhout == NULL)
-  {
-    ERROR ("netcmd plugin: fdopen failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
-    fclose (fhin); /* this closes fd as well */
-    nc_connection_close (conn);
-    pthread_exit ((void *) 1);
-  }
-
-  /* change output buffer to line buffered mode */
-  if (setvbuf (fhout, NULL, _IOLBF, 0) != 0)
-  {
-    ERROR ("netcmd plugin: setvbuf failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
     nc_connection_close (conn);
     pthread_exit ((void *) 1);
   }
@@ -367,12 +542,12 @@ static void *nc_handle_client (void *arg) /* {{{ */
     int   len;
 
     errno = 0;
-    if (fgets (buffer, sizeof (buffer), fhin) == NULL)
+    if (nc_connection_gets (conn, buffer, sizeof (buffer)) == NULL)
     {
       if (errno != 0)
       {
         WARNING ("netcmd plugin: failed to read from socket #%i: %s",
-            fileno (fhin),
+            fileno (conn->fh_in),
             sstrerror (errno, errbuf, sizeof (errbuf)));
       }
       break;
@@ -399,30 +574,30 @@ static void *nc_handle_client (void *arg) /* {{{ */
 
     if (strcasecmp (fields[0], "getval") == 0)
     {
-      handle_getval (fhout, buffer);
+      handle_getval (conn->fh_out, buffer);
     }
     else if (strcasecmp (fields[0], "putval") == 0)
     {
-      handle_putval (fhout, buffer);
+      handle_putval (conn->fh_out, buffer);
     }
     else if (strcasecmp (fields[0], "listval") == 0)
     {
-      handle_listval (fhout, buffer);
+      handle_listval (conn->fh_out, buffer);
     }
     else if (strcasecmp (fields[0], "putnotif") == 0)
     {
-      handle_putnotif (fhout, buffer);
+      handle_putnotif (conn->fh_out, buffer);
     }
     else if (strcasecmp (fields[0], "flush") == 0)
     {
-      handle_flush (fhout, buffer);
+      handle_flush (conn->fh_out, buffer);
     }
     else
     {
-      if (fprintf (fhout, "-1 Unknown command: %s\n", fields[0]) < 0)
+      if (fprintf (conn->fh_out, "-1 Unknown command: %s\n", fields[0]) < 0)
       {
         WARNING ("netcmd plugin: failed to write to socket #%i: %s",
-            fileno (fhout),
+            fileno (conn->fh_out),
             sstrerror (errno, errbuf, sizeof (errbuf)));
         break;
       }
@@ -430,9 +605,6 @@ static void *nc_handle_client (void *arg) /* {{{ */
   } /* while (fgets) */
 
   DEBUG ("netcmd plugin: nc_handle_client: Exiting..");
-  /* XXX: Is this calling close on the same FD twice? */
-  fclose (fhin);
-  fclose (fhout);
   nc_connection_close (conn);
 
   pthread_exit ((void *) 0);
@@ -522,6 +694,8 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
         continue;
       }
       memset (conn, 0, sizeof (*conn));
+      conn->fh_in = NULL;
+      conn->fh_out = NULL;
 
       conn->fd = status;
       if ((peer != NULL)
