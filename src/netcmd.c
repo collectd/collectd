@@ -169,25 +169,72 @@ static int nc_register_fd (nc_peer_t *peer, int fd) /* {{{ */
 
 static int nc_tls_init (nc_peer_t *peer) /* {{{ */
 {
+  int status;
+
   if (peer == NULL)
     return (EINVAL);
 
   if ((peer->tls_cert_file == NULL)
       || (peer->tls_key_file == NULL))
+  {
+    DEBUG ("netcmd plugin: Not setting up TLS environment for peer.");
     return (0);
+  }
+
+  DEBUG ("netcmd plugin: Setting up TLS environment for peer.");
 
   /* Initialize the structure holding our certificate information. */
-  gnutls_certificate_allocate_credentials (&peer->tls_credentials);
+  status = gnutls_certificate_allocate_credentials (&peer->tls_credentials);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_certificate_allocate_credentials failed: %s",
+        gnutls_strerror (status));
+    return (status);
+  }
 
   /* Set up the configured certificates. */
   if (peer->tls_ca_file != NULL)
-    gnutls_certificate_set_x509_trust_file (peer->tls_credentials,
+  {
+    status = gnutls_certificate_set_x509_trust_file (peer->tls_credentials,
         peer->tls_ca_file, GNUTLS_X509_FMT_PEM);
+    if (status < 0)
+    {
+      ERROR ("netcmd plugin: gnutls_certificate_set_x509_trust_file (%s) "
+          "failed: %s",
+          peer->tls_ca_file, gnutls_strerror (status));
+      return (status);
+    }
+    else
+    {
+      DEBUG ("netcmd plugin: Successfully loaded %i CA(s).", status);
+    }
+  }
+
   if (peer->tls_crl_file != NULL)
-      gnutls_certificate_set_x509_crl_file (peer->tls_credentials,
-          peer->tls_crl_file, GNUTLS_X509_FMT_PEM);
-  gnutls_certificate_set_x509_key_file (peer->tls_credentials,
+  {
+    status = gnutls_certificate_set_x509_crl_file (peer->tls_credentials,
+        peer->tls_crl_file, GNUTLS_X509_FMT_PEM);
+    if (status < 0)
+    {
+      ERROR ("netcmd plugin: gnutls_certificate_set_x509_crl_file (%s) "
+          "failed: %s",
+          peer->tls_crl_file, gnutls_strerror (status));
+      return (status);
+    }
+    else
+    {
+      DEBUG ("netcmd plugin: Successfully loaded %i CRL(s).", status);
+    }
+  }
+
+  status = gnutls_certificate_set_x509_key_file (peer->tls_credentials,
       peer->tls_cert_file, peer->tls_key_file, GNUTLS_X509_FMT_PEM);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_certificate_set_x509_key_file failed: %s",
+        gnutls_strerror (status));
+    return (status);
+  }
 
   /* Initialize Diffie-Hellman parameters. */
   gnutls_dh_params_init (&peer->tls_dh_params);
@@ -206,21 +253,41 @@ static int nc_tls_init (nc_peer_t *peer) /* {{{ */
 static gnutls_session_t nc_tls_get_session (nc_peer_t *peer) /* {{{ */
 {
   gnutls_session_t session;
+  int status;
 
   if (peer->tls_credentials == NULL)
     return (NULL);
+
+  DEBUG ("netcmd plugin: nc_tls_get_session (%s)", peer->node);
 
   /* Initialize new session. */
   gnutls_init (&session, GNUTLS_SERVER);
 
   /* Set cipher priority and credentials based on the information stored with
    * the peer. */
-  gnutls_priority_set (session, peer->tls_priority);
-  gnutls_credentials_set (session,
-      GNUTLS_CRD_CERTIFICATE, peer->tls_credentials);
+  status = gnutls_priority_set (session, peer->tls_priority);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_priority_set failed: %s",
+        gnutls_strerror (status));
+    gnutls_deinit (session);
+    return (NULL);
+  }
 
-  /* Request the client certificate. */
-  gnutls_certificate_server_set_request (session, GNUTLS_CERT_REQUEST);
+  status = gnutls_credentials_set (session,
+      GNUTLS_CRD_CERTIFICATE, peer->tls_credentials);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_credentials_set failed: %s",
+        gnutls_strerror (status));
+    gnutls_deinit (session);
+    return (NULL);
+  }
+
+  /* Request the client certificate. If TLSVerifyPeer is set to true,
+   * *require* a client certificate. */
+  gnutls_certificate_server_set_request (session,
+      peer->tls_verify_peer ? GNUTLS_CERT_REQUIRE : GNUTLS_CERT_REQUEST);
 
   return (session);
 } /* }}} gnutls_session_t nc_tls_get_session */
@@ -349,14 +416,35 @@ static int nc_connection_init (nc_connection_t *conn) /* {{{ */
   int fd_copy;
   char errbuf[1024];
 
+  DEBUG ("netcmd plugin: nc_connection_init();");
+
   if (conn->have_tls_session)
   {
+    int status;
+
     conn->read_buffer = malloc (NC_READ_BUFFER_SIZE);
     if (conn->read_buffer == NULL)
       return (ENOMEM);
     memset (conn->read_buffer, 0, NC_READ_BUFFER_SIZE);
 
-    gnutls_transport_set_ptr (conn->tls_session, &conn->fd);
+    gnutls_transport_set_ptr (conn->tls_session,
+       (gnutls_transport_ptr_t) conn->fd);
+
+    while (42)
+    {
+      status = gnutls_handshake (conn->tls_session);
+      if (status == GNUTLS_E_SUCCESS)
+        break;
+      else if ((status == GNUTLS_E_AGAIN) || (status == GNUTLS_E_INTERRUPTED))
+        continue;
+      else
+      {
+        ERROR ("netcmd plugin: gnutls_handshake failed: %s",
+            gnutls_strerror (status));
+        return (-1);
+      }
+    }
+
     return (0);
   }
 
@@ -793,6 +881,8 @@ static int nc_config_peer (const oconfig_item_t *ci) /* {{{ */
       cf_util_get_string (child, &p->tls_ca_file);
     else if (strcasecmp ("TLSCRLFile", child->key) == 0)
       cf_util_get_string (child, &p->tls_crl_file);
+    else if (strcasecmp ("TLSVerifyPeer", child->key) == 0)
+      cf_util_get_boolean (child, &p->tls_verify_peer);
     else
       WARNING ("netcmd plugin: The option \"%s\" is not recognized within "
           "a \"%s\" block.", child->key, ci->key);
@@ -833,6 +923,8 @@ static int nc_init (void)
   if (have_init != 0)
     return (0);
   have_init = 1;
+
+  gnutls_global_init ();
 
   listen_thread_loop = 1;
 
