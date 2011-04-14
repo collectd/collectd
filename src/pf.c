@@ -60,10 +60,10 @@ submit_counter(const char *type, const char *inst, counter_t val)
 	value_t		values[1];
 	value_list_t	vl = VALUE_LIST_INIT;
 
-	values[0].counter = val;
+	values[0].gauge = val;
+
 	vl.values = values;
 	vl.values_len = 1;
-
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "pf", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof(vl.type));
