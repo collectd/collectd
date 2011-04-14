@@ -44,14 +44,14 @@ typedef u_int64_t	counter_t;
 #define PF_SOCKET "/dev/pf"
 
 struct pfdata {
-	int		pd_dev;
+	int	pd_dev;
 };
 
 static struct pfdata 	pd;
 
-static int		pf_init(void);
-static int		pf_read(void);
-static void		submit_counter(const char *, const char *, counter_t);
+static int	pf_init(void);
+static int	pf_read(void);
+static void	submit_counter(const char *, const char *, counter_t);
 
 void
 submit_counter(const char *type, const char *inst, counter_t val)
@@ -88,22 +88,23 @@ pf_init(void)
 	if (ioctl(pd.pd_dev, DIOCGETSTATUS, &status) == -1) {
 		return (-1);
 	}
-        close(pd.pd_dev);
+
+	close(pd.pd_dev);
 	if (!status.running)
 		return (-1);
-	
+
 	return (0);
 }
 
 int
 pf_read(void)
 {
-	int			 i;
-	struct pf_status	 status;
+	int			i;
+	struct pf_status	status;
 
-	char 		*cnames[] = PFRES_NAMES;
-	char 		*lnames[] = LCNT_NAMES;
-	char 		*names[] = { "searches", "inserts", "removals" };
+	char		*cnames[] = PFRES_NAMES;
+	char		*lnames[] = LCNT_NAMES;
+	char		*names[] = { "searches", "inserts", "removals" };
 
 	if ((pd.pd_dev = open(PF_SOCKET, O_RDWR)) == -1) {
 		return (-1);
@@ -111,7 +112,8 @@ pf_read(void)
 	if (ioctl(pd.pd_dev, DIOCGETSTATUS, &status) == -1) {
 		return (-1);
 	}
-        close(pd.pd_dev);
+
+	close(pd.pd_dev);
 	for (i = 0; i < PFRES_MAX; i++)
 		submit_counter("pf_counters", cnames[i], status.counters[i]);
 	for (i = 0; i < LCNT_MAX; i++)
