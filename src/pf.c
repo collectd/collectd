@@ -28,11 +28,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
 
 #ifndef TEST
 #include "collectd.h"
+#include "common.h"
 #include "plugin.h"
+#include "configfile.h"
 #else
+#include <err.h>
 typedef u_int64_t	counter_t;
 #endif
 
@@ -59,10 +63,10 @@ submit_counter(const char *type, const char *inst, counter_t val)
 	vl.values = values;
 	vl.values_len = 1;
 
-	strlcpy(vl.host, hostname_g, sizeof(vl.host));
-	strlcpy(vl.plugin, "pf", sizeof(vl.plugin));
-	strlcpy(vl.type, type, sizeof(vl.type));
-	strlcpy(vl.type_instance, inst, sizeof(vl.type_instance));
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "pf", sizeof (vl.plugin));
+	sstrncpy (vl.type, type, sizeof(vl.type));
+	sstrncpy (vl.type_instance, inst, sizeof(vl.type_instance));
 	plugin_dispatch_values(&vl);
 #else
 	printf("%s.%s: %lld\n", type, inst, val);
@@ -76,7 +80,7 @@ pf_init(void)
 	struct pf_status	status;
 
 	memset(&pd, '\0', sizeof(pd));
-	
+
 	if ((pd.pd_dev = open(PF_SOCKET, O_RDWR)) == -1) {
 		return (-1);
 	}
@@ -134,3 +138,4 @@ void module_register(void) {
 	plugin_register_read("pf", pf_read);
 }
 #endif
+
