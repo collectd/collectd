@@ -1,4 +1,4 @@
-pf_counters	value:COUNTER:0:U
-pf_limits	value:COUNTER:0:U
-pf_state	value:COUNTER:0:U
-pf_source	value:COUNTER:0:U
+pf_counters	value:GAUGE:U:U
+pf_limits	value:GAUGE:U:U
+pf_state	value:GAUGE:U:U
+pf_source	value:GAUGE:U:U
