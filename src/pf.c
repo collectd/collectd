@@ -15,39 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-
-#include <net/if.h>
-#include <net/pfvar.h>
-
-#include <limits.h>
-#include <fcntl.h>
-#include <paths.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
-
-#ifndef TEST
-#include "collectd.h"
-#include "common.h"
-#include "plugin.h"
-#include "configfile.h"
-#else
-#include <err.h>
-typedef u_int64_t	counter_t;
-#endif
-
-#define PF_SOCKET "/dev/pf"
-
-struct pfdata {
-	int	pd_dev;
-};
-
-static struct pfdata 	pd;
+#include "pfcommon.h"
 
 static int	pf_init(void);
 static int	pf_read(void);
@@ -80,16 +48,14 @@ pf_init(void)
 {
 	struct pf_status	status;
 
-	memset(&pd, '\0', sizeof(pd));
-
-	if ((pd.pd_dev = open(PF_SOCKET, O_RDWR)) == -1) {
+	if ((dev = open(PF_SOCKET, O_RDWR)) == -1) {
 		return (-1);
 	}
-	if (ioctl(pd.pd_dev, DIOCGETSTATUS, &status) == -1) {
+	if (ioctl(dev, DIOCGETSTATUS, &status) == -1) {
 		return (-1);
 	}
 
-	close(pd.pd_dev);
+	close(dev);
 	if (!status.running)
 		return (-1);
 
@@ -106,14 +72,14 @@ pf_read(void)
 	char		*lnames[] = LCNT_NAMES;
 	char		*names[] = { "searches", "inserts", "removals" };
 
-	if ((pd.pd_dev = open(PF_SOCKET, O_RDWR)) == -1) {
+	if ((dev = open(PF_SOCKET, O_RDWR)) == -1) {
 		return (-1);
 	}
-	if (ioctl(pd.pd_dev, DIOCGETSTATUS, &status) == -1) {
+	if (ioctl(dev, DIOCGETSTATUS, &status) == -1) {
 		return (-1);
 	}
 
-	close(pd.pd_dev);
+	close(dev);
 	for (i = 0; i < PFRES_MAX; i++)
 		submit_counter("pf_counters", cnames[i], status.counters[i]);
 	for (i = 0; i < LCNT_MAX; i++)
