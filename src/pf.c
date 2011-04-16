@@ -48,14 +48,14 @@ pf_init(void)
 {
 	struct pf_status	status;
 
-	if ((dev = open(PF_SOCKET, O_RDWR)) == -1) {
+	if ((pfdev = open(PF_SOCKET, O_RDWR)) == -1) {
 		return (-1);
 	}
-	if (ioctl(dev, DIOCGETSTATUS, &status) == -1) {
+	if (ioctl(pfdev, DIOCGETSTATUS, &status) == -1) {
 		return (-1);
 	}
 
-	close(dev);
+	close(pfdev);
 	if (!status.running)
 		return (-1);
 
@@ -72,14 +72,14 @@ pf_read(void)
 	char		*lnames[] = LCNT_NAMES;
 	char		*names[] = { "searches", "inserts", "removals" };
 
-	if ((dev = open(PF_SOCKET, O_RDWR)) == -1) {
+	if ((pfdev = open(PF_SOCKET, O_RDWR)) == -1) {
 		return (-1);
 	}
-	if (ioctl(dev, DIOCGETSTATUS, &status) == -1) {
+	if (ioctl(pfdev, DIOCGETSTATUS, &status) == -1) {
 		return (-1);
 	}
 
-	close(dev);
+	close(pfdev);
 	for (i = 0; i < PFRES_MAX; i++)
 		submit_counter("pf_counters", cnames[i], status.counters[i]);
 	for (i = 0; i < LCNT_MAX; i++)
