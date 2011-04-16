@@ -1,8 +1,4 @@
-scrub_states_current	value:GAUGE:U:U
-scrub_states_total	value:GAUGE:U:U
-scrub_evaluations	value:GAUGE:U:U
-scrub_bytes		value:GAUGE:U:U
-rule_states_current	value:GAUGE:U:U
-rule_states_total	value:GAUGE:U:U
-rule_evaluations	value:GAUGE:U:U
-rule_bytes		value:GAUGE:U:U
+states_cur	value:GAUGE:U:U
+states_tot	value:GAUGE:U:U
+evaluations	value:GAUGE:U:U
+bytes		value:GAUGE:U:U
