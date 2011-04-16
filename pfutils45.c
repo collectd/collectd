@@ -992,4 +992,61 @@ found:
 	return (buf);
 }
 
+int
+pfctl_get_pool(int dev, struct pf_pool *pool, u_int32_t nr,
+    u_int32_t ticket, int r_action, char *anchorname)
+{
+	struct pfioc_pooladdr pp;
+	struct pf_pooladdr *pa;
+	u_int32_t pnr, mpnr;
+
+	memset(&pp, 0, sizeof(pp));
+	memcpy(pp.anchor, anchorname, sizeof(pp.anchor));
+	pp.r_action = r_action;
+	pp.r_num = nr;
+	pp.ticket = ticket;
+	if (ioctl(dev, DIOCGETADDRS, &pp)) {
+		warn("DIOCGETADDRS");
+		return (-1);
+	}
+	mpnr = pp.nr;
+	TAILQ_INIT(&pool->list);
+	for (pnr = 0; pnr < mpnr; ++pnr) {
+		pp.nr = pnr;
+		if (ioctl(dev, DIOCGETADDR, &pp)) {
+			warn("DIOCGETADDR");
+			return (-1);
+		}
+		pa = calloc(1, sizeof(struct pf_pooladdr));
+		if (pa == NULL)
+			err(1, "calloc");
+		bcopy(&pp.addr, pa, sizeof(struct pf_pooladdr));
+		TAILQ_INSERT_TAIL(&pool->list, pa, entries);
+	}
+
+	return (0);
+}
+
+void
+pfctl_move_pool(struct pf_pool *src, struct pf_pool *dst)
+{
+	struct pf_pooladdr *pa;
+
+	while ((pa = TAILQ_FIRST(&src->list)) != NULL) {
+		TAILQ_REMOVE(&src->list, pa, entries);
+		TAILQ_INSERT_TAIL(&dst->list, pa, entries);
+	}
+}
+
+void
+pfctl_clear_pool(struct pf_pool *pool)
+{
+	struct pf_pooladdr *pa;
+
+	while ((pa = TAILQ_FIRST(&pool->list)) != NULL) {
+		TAILQ_REMOVE(&pool->list, pa, entries);
+		free(pa);
+	}
+}
+
 
