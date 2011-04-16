@@ -23,7 +23,7 @@
 #include <ifaddrs.h>
 #include <unistd.h>
 
-#include "pfutils.h"
+#include "pfutils45.h"
 
 void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
 		    struct pf_rule_addr *, u_int8_t, u_int8_t, int);
