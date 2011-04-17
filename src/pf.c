@@ -28,7 +28,7 @@ submit_counter(const char *type, const char *inst, counter_t val)
 	value_t		values[1];
 	value_list_t	vl = VALUE_LIST_INIT;
 
-	values[0].gauge = val;
+	values[0].counter = val;
 
 	vl.values = values;
 	vl.values_len = 1;
