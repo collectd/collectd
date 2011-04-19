@@ -5,4 +5,7 @@ pf_source	value:COUNTER:0:U
 states_cur	value:GAUGE:0:U
 states_tot	value:COUNTER:0:U
 evaluations	value:COUNTER:0:U
-pf_bytes	value:COUNTER:0:U
+pf_bytes_in	value:COUNTER:0:U
+pf_bytes_out	value:COUNTER:0:U
+pf_packets_in	value:COUNTER:0:U
+pf_packets_out	value:COUNTER:0:U
