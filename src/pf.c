@@ -30,12 +30,12 @@ pf_init(void)
 	int			pfdev = -1;
 
 	if ((pfdev = open(pf_device, O_RDONLY)) == -1) {
-		warn("unable to open %s", pf_device);
+		ERROR("unable to open %s", pf_device);
 		return (-1);
 	}
 
 	if (ioctl(pfdev, DIOCGETSTATUS, &status) == -1) {
-		warn("DIOCGETSTATUS: %i", pfdev);
+		ERROR("DIOCGETSTATUS: %i", pfdev);
 		close(pfdev);
 		return (-1);
 	}
@@ -59,12 +59,12 @@ pf_read(void)
 	char		*names[] = { "searches", "inserts", "removals" };
 
 	if ((pfdev = open(pf_device, O_RDONLY)) == -1) {
-		warn("unable to open %s", pf_device);
+		ERROR("unable to open %s", pf_device);
 		return (-1);
 	}
 
 	if (ioctl(pfdev, DIOCGETSTATUS, &status) == -1) {
-		warn("DIOCGETSTATUS: %i", pfdev);
+		ERROR("DIOCGETSTATUS: %i", pfdev);
 		close(pfdev);
 		return (-1);
 	}
