@@ -21,19 +21,25 @@ static int	pf_init(void);
 static int	pf_read(void);
 static void	submit_counter(const char *, const char *, counter_t);
 
+int	pfdev = -1;
+
 int
 pf_init(void)
 {
 	struct pf_status	status;
 
-	if ((dev = open(PF_SOCKET, O_RDONLY)) == -1) {
-		return (-1);
-	}
-	if (ioctl(dev, DIOCGETSTATUS, &status) == -1) {
+	if ((pfdev = open(PF_SOCKET, O_RDONLY)) == -1) {
+		warn("unable to open %s", PF_SOCKET);
 		return (-1);
 	}
 
-	close(dev);
+	if (ioctl(pfdev, DIOCGETSTATUS, &status) == -1) {
+		warn("DIOCGETSTATUS: %i", pfdev);
+		close(pfdev);
+		return (-1);
+	}
+
+	close(pfdev);
 	if (!status.running)
 		return (-1);
 
@@ -50,14 +56,19 @@ pf_read(void)
 	char		*lnames[] = LCNT_NAMES;
 	char		*names[] = { "searches", "inserts", "removals" };
 
-	if ((dev = open(PF_SOCKET, O_RDONLY)) == -1) {
-		return (-1);
-	}
-	if (ioctl(dev, DIOCGETSTATUS, &status) == -1) {
+	if ((pfdev = open(PF_SOCKET, O_RDONLY)) == -1) {
+		warn("unable tot open %s", PF_SOCKET);
 		return (-1);
 	}
 
-	close(dev);
+	if (ioctl(pfdev, DIOCGETSTATUS, &status) == -1) {
+		warn("DIOCGETSTATUS: %i", pfdev);
+		close(pfdev);
+		return (-1);
+	}
+
+	close(pfdev);
+
 	for (i = 0; i < PFRES_MAX; i++)
 		submit_counter("pf_counters", cnames[i], status.counters[i]);
 	for (i = 0; i < LCNT_MAX; i++)
@@ -66,6 +77,7 @@ pf_read(void)
 		submit_counter("pf_state", names[i], status.fcounters[i]);
 	for (i = 0; i < SCNT_MAX; i++)
 		submit_counter("pf_source", names[i], status.scounters[i]);
+
 	return (0);
 }
 
