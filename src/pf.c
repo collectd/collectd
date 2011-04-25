@@ -17,19 +17,20 @@
 
 #include "pfcommon.h"
 
-static int	pf_init(void);
-static int	pf_read(void);
-static void	submit_counter(const char *, const char *, counter_t);
+static int	 pf_init(void);
+static int	 pf_read(void);
+static void	 submit_counter(const char *, const char *, counter_t);
 
-int	pfdev = -1;
+char		*pf_device = "/dev/pf";
 
 int
 pf_init(void)
 {
 	struct pf_status	status;
+	int			pfdev = -1;
 
-	if ((pfdev = open(PF_SOCKET, O_RDONLY)) == -1) {
-		warn("unable to open %s", PF_SOCKET);
+	if ((pfdev = open(pf_device, O_RDONLY)) == -1) {
+		warn("unable to open %s", pf_device);
 		return (-1);
 	}
 
@@ -49,15 +50,16 @@ pf_init(void)
 int
 pf_read(void)
 {
-	int			i;
 	struct pf_status	status;
+	int			pfdev = -1;
+	int			i;
 
 	char		*cnames[] = PFRES_NAMES;
 	char		*lnames[] = LCNT_NAMES;
 	char		*names[] = { "searches", "inserts", "removals" };
 
-	if ((pfdev = open(PF_SOCKET, O_RDONLY)) == -1) {
-		warn("unable tot open %s", PF_SOCKET);
+	if ((pfdev = open(pf_device, O_RDONLY)) == -1) {
+		warn("unable to open %s", pf_device);
 		return (-1);
 	}
 
