@@ -45,7 +45,6 @@ our %TypesCounterToDerive = # {{{
   connections => ["value"],
   cpu => ["value"],
   current => ["value"],
-  df => ["used", "free"],
   disk_merged => ["read", "write"],
   disk_octets => ["read", "write"],
   disk_ops => ["read", "write"],
