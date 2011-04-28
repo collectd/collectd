@@ -19,7 +19,7 @@
 
 static int	 pf_init(void);
 static int	 pf_read(void);
-static void	 submit_counter(const char *, const char *, counter_t);
+static void	 submit_counter(const char *, const char *, counter_t, int);
 
 char		*pf_device = "/dev/pf";
 
@@ -72,25 +72,30 @@ pf_read(void)
 	close(pfdev);
 
 	for (i = 0; i < PFRES_MAX; i++)
-		submit_counter("pf_counters", cnames[i], status.counters[i]);
+		submit_counter("pf_counters", cnames[i], status.counters[i], 0);
 	for (i = 0; i < LCNT_MAX; i++)
-		submit_counter("pf_limits", lnames[i], status.lcounters[i]);
+		submit_counter("pf_limits", lnames[i], status.lcounters[i], 0);
 	for (i = 0; i < FCNT_MAX; i++)
-		submit_counter("pf_state", names[i], status.fcounters[i]);
+		submit_counter("pf_state", names[i], status.fcounters[i], 0);
 	for (i = 0; i < SCNT_MAX; i++)
-		submit_counter("pf_source", names[i], status.scounters[i]);
+		submit_counter("pf_source", names[i], status.scounters[i], 0);
+
+	submit_counter("pf_states", "current", status.states, 1);
 
 	return (0);
 }
 
 void
-submit_counter(const char *type, const char *inst, counter_t val)
+submit_counter(const char *type, const char *inst, counter_t val, int usegauge)
 {
 #ifndef TEST
 	value_t		values[1];
 	value_list_t	vl = VALUE_LIST_INIT;
 
-	values[0].counter = val;
+	if (usegauge)
+		values[0].gauge = val;
+	else
+		values[0].counter = val;
 
 	vl.values = values;
 	vl.values_len = 1;
