@@ -269,6 +269,42 @@ static void usage (const char *name)
 	exit (1);
 } /* void usage */
 
+static int do_listval (lcc_connection_t *connection)
+{
+	lcc_identifier_t *ret_ident = NULL;
+	size_t ret_ident_num = 0;
+
+	int status;
+	size_t i;
+
+	status = lcc_listval (connection, &ret_ident, &ret_ident_num);
+	if (status != 0) {
+		printf ("UNKNOWN: %s\n", lcc_strerror (connection));
+		if (ret_ident != NULL)
+			free (ret_ident);
+		return (RET_UNKNOWN);
+	}
+
+	for (i = 0; i < ret_ident_num; ++i) {
+		char id[1024];
+
+		status = lcc_identifier_to_string (connection,
+				id, sizeof (id), ret_ident + i);
+		if (status != 0) {
+			printf ("ERROR: listval: Failed to convert returned "
+					"identifier to a string: %s\n",
+					lcc_strerror (connection));
+			continue;
+		}
+
+		printf ("%s\n", id);
+	}
+
+	if (ret_ident != NULL)
+		free (ret_ident);
+	return (RET_OKAY);
+} /* int do_listval */
+
 static int do_check_con_none (size_t values_num,
 		double *values, char **values_names)
 {
@@ -508,33 +544,19 @@ static int do_check_con_percentage (size_t values_num,
 	return (status_code);
 } /* int do_check_con_percentage */
 
-static int do_check (void)
+static int do_check (lcc_connection_t *connection)
 {
-	lcc_connection_t *connection;
 	gauge_t *values;
 	char   **values_names;
 	size_t   values_num;
-	char address[1024];
 	char ident_str[1024];
 	lcc_identifier_t ident;
 	size_t i;
 	int status;
 
-	snprintf (address, sizeof (address), "unix:%s", socket_file_g);
-	address[sizeof (address) - 1] = 0;
-
 	snprintf (ident_str, sizeof (ident_str), "%s/%s",
 			hostname_g, value_string_g);
 	ident_str[sizeof (ident_str) - 1] = 0;
-
-	connection = NULL;
-	status = lcc_connect (address, &connection);
-	if (status != 0)
-	{
-		printf ("ERROR: Connecting to daemon at %s failed.\n",
-				socket_file_g);
-		return (RET_CRITICAL);
-	}
 
 	memset (&ident, 0, sizeof (ident));
 	status = lcc_string_to_identifier (connection, &ident, ident_str);
@@ -583,6 +605,11 @@ static int do_check (void)
 
 int main (int argc, char **argv)
 {
+	char address[1024];
+	lcc_connection_t *connection;
+
+	int status;
+
 	range_critical_g.min = NAN;
 	range_critical_g.max = NAN;
 	range_critical_g.invert = 0;
@@ -664,11 +691,26 @@ int main (int argc, char **argv)
 	}
 
 	if ((socket_file_g == NULL) || (value_string_g == NULL)
-			|| (hostname_g == NULL))
+			|| ((hostname_g == NULL) && (strcasecmp (value_string_g, "LIST"))))
 	{
 		fprintf (stderr, "Missing required arguments.\n");
 		usage (argv[0]);
 	}
 
-	return (do_check ());
+	snprintf (address, sizeof (address), "unix:%s", socket_file_g);
+	address[sizeof (address) - 1] = 0;
+
+	connection = NULL;
+	status = lcc_connect (address, &connection);
+	if (status != 0)
+	{
+		printf ("ERROR: Connecting to daemon at %s failed.\n",
+				socket_file_g);
+		return (RET_CRITICAL);
+	}
+
+	if (0 == strcasecmp (value_string_g, "LIST"))
+		return (do_listval (connection));
+
+	return (do_check (connection));
 } /* int main */
