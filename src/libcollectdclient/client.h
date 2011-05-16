@@ -116,6 +116,9 @@ int lcc_identifier_to_string (lcc_connection_t *c,
 int lcc_string_to_identifier (lcc_connection_t *c,
     lcc_identifier_t *ident, const char *string);
 
+int lcc_sort_identifiers (lcc_connection_t *c,
+    lcc_identifier_t *idents, size_t idents_num);
+
 LCC_END_DECLS
 
 /* vim: set sw=2 sts=2 et : */
