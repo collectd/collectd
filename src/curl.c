@@ -370,6 +370,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     return (-1);
   }
 
+  curl_easy_setopt (wp->curl, CURLOPT_NOSIGNAL, 1);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEFUNCTION, cc_curl_callback);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEDATA, wp);
   curl_easy_setopt (wp->curl, CURLOPT_USERAGENT,

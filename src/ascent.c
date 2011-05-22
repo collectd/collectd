@@ -539,6 +539,7 @@ static int ascent_init (void) /* {{{ */
     return (-1);
   }
 
+  curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1);
   curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, ascent_curl_callback);
   curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
   curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, ascent_curl_error);
