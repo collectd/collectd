@@ -4358,6 +4358,12 @@ then
 fi
 
 # AIX
+
+if test "x$ac_system" = "xAIX"
+then
+        plugin_tcpconns="yes"
+fi
+
 if test "x$with_perfstat" = "xyes"
 then
 	plugin_cpu="yes"

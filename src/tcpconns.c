@@ -65,7 +65,7 @@
 #undef HAVE_SYSCTLBYNAME /* force HAVE_LIBKVM_NLIST path */
 #endif
 
-#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_LIBKVM_NLIST
+#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_LIBKVM_NLIST && !KERNEL_AIX
 # error "No applicable input method."
 #endif
 
@@ -118,7 +118,12 @@
 # include <arpa/inet.h>
 # include <nlist.h>
 # include <kvm.h>
-#endif /* HAVE_LIBKVM_NLIST */
+/* #endif HAVE_LIBKVM_NLIST */
+
+#elif KERNEL_AIX
+# include <arpa/inet.h>
+# include <sys/socketvar.h>
+#endif /* KERNEL_AIX */
 
 #if KERNEL_LINUX
 static const char *tcp_state[] =
@@ -186,7 +191,49 @@ struct inpcbtable *inpcbtable_ptr = NULL;
 # define TCP_STATE_LISTEN 1
 # define TCP_STATE_MIN 1
 # define TCP_STATE_MAX 10
-#endif /* HAVE_LIBKVM_NLIST */
+/* #endif HAVE_LIBKVM_NLIST */
+
+#elif KERNEL_AIX
+static const char *tcp_state[] =
+{
+  "CLOSED",
+  "LISTEN",
+  "SYN_SENT",
+  "SYN_RCVD",
+  "ESTABLISHED",
+  "CLOSE_WAIT",
+  "FIN_WAIT_1",
+  "CLOSING",
+  "LAST_ACK",
+  "FIN_WAIT_2",
+  "TIME_WAIT"
+};
+
+# define TCP_STATE_LISTEN 1
+# define TCP_STATE_MIN 0
+# define TCP_STATE_MAX 10
+
+struct netinfo_conn {
+  uint32_t unknow1[2];
+  uint16_t dstport;
+  uint16_t unknow2;
+  struct in6_addr dstaddr;
+  uint16_t srcport;
+  uint16_t unknow3;
+  struct in6_addr srcaddr;
+  uint32_t unknow4[36];
+  uint16_t tcp_state;
+  uint16_t unknow5[7];
+};
+
+struct netinfo_header {
+  unsigned int proto;
+  unsigned int size;
+};
+
+# define NETINFO_TCP 3
+extern int netinfo (int proto, void *data, int *size,  int n);
+#endif /* KERNEL_AIX */
 
 #define PORT_COLLECT_LOCAL  0x01
 #define PORT_COLLECT_REMOTE 0x02
@@ -706,7 +753,67 @@ static int conn_read (void)
 
   return (0);
 }
-#endif /* HAVE_LIBKVM_NLIST */
+/* #endif HAVE_LIBKVM_NLIST */
+
+#elif KERNEL_AIX
+
+static int conn_read (void)
+{
+  int size;
+  int i;
+  int nconn;
+  void *data;
+  struct netinfo_header *header;
+  struct netinfo_conn *conn;
+
+  conn_reset_port_entry ();
+
+  size = netinfo(NETINFO_TCP, 0, 0, 0);
+  if (size < 0)
+  {
+    ERROR ("tcpconns plugin: netinfo failed return: %i", size);
+    return (-1);
+  }
+
+  if (size == 0)
+    return (0);
+
+  if ((size - sizeof (struct netinfo_header)) % sizeof (struct netinfo_conn))
+  {
+    ERROR ("tcpconns plugin: invalid buffer size");
+    return (-1);
+  }
+
+  data = malloc(size);
+  if (data == NULL)
+  {
+    ERROR ("tcpconns plugin: malloc failed");
+    return (-1);
+  }
+
+  if (netinfo(NETINFO_TCP, data, &size, 0) < 0)
+  {
+    ERROR ("tcpconns plugin: netinfo failed");
+    free(data);
+    return (-1);
+  }
+
+  header = (struct netinfo_header *)data;
+  nconn = header->size;
+  conn = (struct netinfo_conn *)(data + sizeof(struct netinfo_header));
+
+  for (i=0; i < nconn; conn++, i++)
+  {
+    conn_handle_ports (conn->srcport, conn->dstport, conn->tcp_state);
+  }
+
+  free(data);
+
+  conn_submit_all ();
+
+  return (0);
+}
+#endif /* KERNEL_AIX */
 
 void module_register (void)
 {
@@ -718,6 +825,8 @@ void module_register (void)
 	/* no initialization */
 #elif HAVE_LIBKVM_NLIST
 	plugin_register_init ("tcpconns", conn_init);
+#elif KERNEL_AIX
+	/* no initialization */
 #endif
 	plugin_register_read ("tcpconns", conn_read);
 } /* void module_register */
