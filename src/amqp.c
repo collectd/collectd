@@ -551,7 +551,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         if (status != 0)
         {
             ERROR ("amqp plugin: camqp_connect failed. "
-                    "Will sleep for %i seconds.", interval_g);
+                    "Will sleep for %lli seconds.", (long long int)interval_g);
             sleep (interval_g);
             continue;
         }
@@ -560,7 +560,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         if (status < 0)
         {
             ERROR ("amqp plugin: amqp_simple_wait_frame failed. "
-                    "Will sleep for %i seconds.", interval_g);
+                    "Will sleep for %lli seconds.", (long long int)interval_g);
             camqp_close_connection (conf);
             sleep (interval_g);
             continue;
