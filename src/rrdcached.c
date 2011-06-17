@@ -49,6 +49,14 @@ static rrdcreate_config_t rrdcreate_config =
 	/* consolidation_functions_num = */ 0
 };
 
+/*
+ * Prototypes.
+ */
+static int rc_write (const data_set_t *ds, const value_list_t *vl,
+    user_data_t __attribute__((unused)) *user_data);
+static int rc_flush (__attribute__((unused)) cdtime_t timeout,
+    const char *identifier, __attribute__((unused)) user_data_t *ud);
+
 static int value_list_to_string (char *buffer, int buffer_len,
     const data_set_t *ds, const value_list_t *vl)
 {
@@ -226,6 +234,11 @@ static int rc_config (oconfig_item_t *ci)
       WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
       continue;
     }
+  }
+
+  if (daemon_address != NULL) {
+    plugin_register_write ("rrdcached", rc_write, /* user_data = */ NULL);
+    plugin_register_flush ("rrdcached", rc_flush, /* user_data = */ NULL);
   }
   return (0);
 } /* int rc_config */
@@ -466,8 +479,6 @@ void module_register (void)
 {
   plugin_register_complex_config ("rrdcached", rc_config);
   plugin_register_init ("rrdcached", rc_init);
-  plugin_register_write ("rrdcached", rc_write, /* user_data = */ NULL);
-  plugin_register_flush ("rrdcached", rc_flush, /* user_data = */ NULL);
   plugin_register_shutdown ("rrdcached", rc_shutdown);
 } /* void module_register */
 
