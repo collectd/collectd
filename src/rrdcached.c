@@ -31,15 +31,6 @@
 /*
  * Private variables
  */
-static const char *config_keys[] =
-{
-  "DaemonAddress",
-  "DataDir",
-  "CreateFiles",
-  "CollectStatistics"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
 static char *datadir = NULL;
 static char *daemon_address = NULL;
 static int config_create_files = 1;
@@ -162,55 +153,79 @@ static int value_list_to_filename (char *buffer, int buffer_len,
   return (0);
 } /* int value_list_to_filename */
 
-static int rc_config (const char *key, const char *value)
+static const char *config_get_string (oconfig_item_t *ci)
 {
-  if (strcasecmp ("DataDir", key) == 0)
+  if ((ci->children_num != 0) || (ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    if (datadir != NULL)
-      free (datadir);
-    datadir = strdup (value);
-    if (datadir != NULL)
+    ERROR ("rrdcached plugin: %s expects a single string argument.",
+        ci->key);
+    return (NULL);
+  }
+
+  return (ci->values[0].value.string);
+} /* const char *config_get_string */
+
+static int rc_config (oconfig_item_t *ci)
+{
+  int i;
+
+  for (i = 0; i < ci->children_num; ++i) {
+    const char *key = ci->children[i].key;
+    const char *value = config_get_string (ci->children + i);
+
+    if (value == NULL) /* config_get_strings prints error message */
+      continue;
+
+    if (strcasecmp ("DataDir", key) == 0)
     {
-      int len = strlen (datadir);
-      while ((len > 0) && (datadir[len - 1] == '/'))
-      {
-        len--;
-        datadir[len] = '\0';
-      }
-      if (len <= 0)
-      {
+      if (datadir != NULL)
         free (datadir);
-        datadir = NULL;
+      datadir = strdup (value);
+      if (datadir != NULL)
+      {
+        int len = strlen (datadir);
+        while ((len > 0) && (datadir[len - 1] == '/'))
+        {
+          len--;
+          datadir[len] = '\0';
+        }
+        if (len <= 0)
+        {
+          free (datadir);
+          datadir = NULL;
+        }
       }
     }
-  }
-  else if (strcasecmp ("DaemonAddress", key) == 0)
-  {
-    sfree (daemon_address);
-    daemon_address = strdup (value);
-    if (daemon_address == NULL)
+    else if (strcasecmp ("DaemonAddress", key) == 0)
     {
-      ERROR ("rrdcached plugin: strdup failed.");
-      return (1);
+      sfree (daemon_address);
+      daemon_address = strdup (value);
+      if (daemon_address == NULL)
+      {
+        ERROR ("rrdcached plugin: strdup failed.");
+        continue;
+      }
     }
-  }
-  else if (strcasecmp ("CreateFiles", key) == 0)
-  {
-    if (IS_FALSE (value))
-      config_create_files = 0;
+    else if (strcasecmp ("CreateFiles", key) == 0)
+    {
+      if (IS_FALSE (value))
+        config_create_files = 0;
+      else
+        config_create_files = 1;
+    }
+    else if (strcasecmp ("CollectStatistics", key) == 0)
+    {
+      if (IS_FALSE (value))
+        config_collect_stats = 0;
+      else
+        config_collect_stats = 1;
+    }
     else
-      config_create_files = 1;
-  }
-  else if (strcasecmp ("CollectStatistics", key) == 0)
-  {
-    if (IS_FALSE (value))
-      config_collect_stats = 0;
-    else
-      config_collect_stats = 1;
-  }
-  else
-  {
-    return (-1);
+    {
+      WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
+      continue;
+    }
   }
   return (0);
 } /* int rc_config */
@@ -449,8 +464,7 @@ static int rc_shutdown (void)
 
 void module_register (void)
 {
-  plugin_register_config ("rrdcached", rc_config,
-      config_keys, config_keys_num);
+  plugin_register_complex_config ("rrdcached", rc_config);
   plugin_register_init ("rrdcached", rc_init);
   plugin_register_write ("rrdcached", rc_write, /* user_data = */ NULL);
   plugin_register_flush ("rrdcached", rc_flush, /* user_data = */ NULL);
