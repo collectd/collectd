@@ -51,6 +51,7 @@ struct c_avl_tree_s
 {
 	c_avl_node_t *root;
 	int (*compare) (const void *, const void *);
+	int size;
 };
 
 struct c_avl_iterator_s
@@ -479,6 +480,7 @@ c_avl_tree_t *c_avl_create (int (*compare) (const void *, const void *))
 
 	t->root = NULL;
 	t->compare = compare;
+	t->size = 0;
 
 	return (t);
 }
@@ -553,6 +555,7 @@ int c_avl_insert (c_avl_tree_t *t, void *key, void *value)
 	} /* while (42) */
 
 	verify_tree (t->root);
+	++t->size;
 	return (0);
 } /* int c_avl_insert */
 
@@ -574,6 +577,7 @@ int c_avl_remove (c_avl_tree_t *t, const void *key, void **rkey, void **rvalue)
 
 	status = _remove (t, n);
 	verify_tree (t->root);
+	--t->size;
 	return (status);
 } /* void *c_avl_remove */
 
@@ -709,4 +713,11 @@ int c_avl_iterator_prev (c_avl_iterator_t *iter, void **key, void **value)
 void c_avl_iterator_destroy (c_avl_iterator_t *iter)
 {
 	free (iter);
+}
+
+int c_avl_size (c_avl_tree_t *t)
+{
+	if (t == NULL)
+		return (0);
+	return (t->size);
 }

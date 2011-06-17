@@ -148,4 +148,19 @@ int c_avl_iterator_next (c_avl_iterator_t *iter, void **key, void **value);
 int c_avl_iterator_prev (c_avl_iterator_t *iter, void **key, void **value);
 void c_avl_iterator_destroy (c_avl_iterator_t *iter);
 
+/*
+ * NAME
+ *   c_avl_size
+ *
+ * DESCRIPTION
+ *   Return the size (number of nodes) of the specified tree.
+ *
+ * PARAMETERS
+ *   `t'        AVL-tree to get the size of.
+ *
+ * RETURN VALUE
+ *   Number of nodes in the tree, 0 if the tree is empty or NULL.
+ */
+int c_avl_size (c_avl_tree_t *t);
+
 #endif /* UTILS_AVLTREE_H */
