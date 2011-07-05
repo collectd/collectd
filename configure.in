@@ -3607,6 +3607,7 @@ then
 	CPPFLAGS="$CPPFLAGS $with_libyajl_cppflags"
 
 	AC_CHECK_HEADERS(yajl/yajl_parse.h, [with_libyajl="yes"], [with_libyajl="no (yajl/yajl_parse.h not found)"])
+	AC_CHECK_HEADERS(yajl/yajl_version.h)
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
