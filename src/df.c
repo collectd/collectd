@@ -204,6 +204,7 @@ static int df_read (void)
 	{
 		unsigned long long blocksize;
 		char disk_name[256];
+        cu_mount_t *mnt_dup_ptr;
 		uint64_t blk_free;
 		uint64_t blk_reserved;
 		uint64_t blk_used;
@@ -218,6 +219,20 @@ static int df_read (void)
 			continue;
 		if (ignorelist_match (il_fstype, mnt_ptr->type))
 			continue;
+
+		/* ignore duplicates */
+		for (mnt_dup_ptr = mnt_ptr; mnt_dup_ptr != NULL; mnt_dup_ptr = mnt_dup_ptr->next)
+		{
+			if (by_device) {
+				if (strcmp (mnt_ptr->spec_device, mnt_dup_ptr->spec_device) == 0)
+					continue;
+			}
+			else
+			{
+				if (strcmp (mnt_ptr->dir, mnt_dup_ptr->dir) == 0)
+					continue;
+			}
+		}
 
 		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
 		{
