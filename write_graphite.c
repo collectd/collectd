@@ -203,6 +203,7 @@ static void wg_callback_free (void *data) /* {{{ */
     wg_flush_nolock (/* timeout = */ 0, cb);
 
     close(cb->sock_fd);
+    sfree(cb->name);
     sfree(cb->host);
     sfree(cb->prefix);
 
