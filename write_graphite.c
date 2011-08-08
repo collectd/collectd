@@ -21,6 +21,17 @@
  *   based on the excellent write_http plugin
  **/
 
+ /* write_graphite plugin configuation example
+  *
+  * <Plugin write_graphite>
+  *   <Carbon "local-agent">
+  *     Host "localhost"
+  *     Port 2003
+  *     Prefix "collectd"
+  *   </Carbon>
+  * </Plugin>
+  */
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -50,6 +61,8 @@
  */
 struct wg_callback
 {
+    char    *name;
+
     int      sock_fd;
     struct hostent *server;
 
@@ -608,21 +621,24 @@ static int wg_config_carbon (oconfig_item_t *ci) /* {{{ */
     memset (cb, 0, sizeof (*cb));
     cb->sock_fd = -1;
     cb->host = NULL;
+    cb->name = NULL;
     cb->port = 2003;
     cb->prefix = NULL;
     cb->server = NULL;
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
-    config_set_string (&cb->host, ci);
-    if (cb->host == NULL)
+    config_set_string (&cb->name, ci);
+    if (cb->name == NULL)
         return (-1);
 
     for (i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
-        if (strcasecmp ("Port", child->key) == 0)
+        if (strcasecmp ("Host", child->key) == 0)
+            config_set_string (&cb->host, child);
+        else if (strcasecmp ("Port", child->key) == 0)
             config_set_number (&cb->port, child);
         else if (strcasecmp ("Prefix", child->key) == 0)
             config_set_string (&cb->prefix, child);
