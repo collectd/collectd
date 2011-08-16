@@ -298,14 +298,11 @@ static int notify_email_notification (const notification_t *n,
     return (-1);
   } else {
     #if COLLECT_DEBUG
-      const smtp_status_t *status;
-      /* Report on the success or otherwise of the mail transfer. */
-      status = smtp_message_transfer_status (message);
-      DEBUG ("notify_email plugin: SMTP server report: %d %s",
-        status->code, (status->text != NULL) ? status->text : "\n");
-    #else
-      //I don't know if the function below has side affects so i'm calling it to be on the safe side.
-      smtp_message_transfer_status (message);
+    const smtp_status_t *status;
+    /* Report on the success or otherwise of the mail transfer. */
+    status = smtp_message_transfer_status (message);
+    DEBUG ("notify_email plugin: SMTP server report: %d %s",
+      status->code, (status->text != NULL) ? status->text : "\n");
     #endif
     smtp_enumerate_recipients (message, print_recipient_status, NULL);
   }
