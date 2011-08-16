@@ -742,7 +742,6 @@ static int mysql_read (user_data_t *ud)
 	if (res == NULL)
 		return (-1);
 
-	mysql_num_fields (res);
 	while ((row = mysql_fetch_row (res)))
 	{
 		char *key;
