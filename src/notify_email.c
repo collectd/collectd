@@ -228,7 +228,6 @@ static int notify_email_config (const char *key, const char *value)
 static int notify_email_notification (const notification_t *n,
     user_data_t __attribute__((unused)) *user_data)
 {
-  smtp_recipient_t recipient;
 
   struct tm timestamp_tm;
   char timestamp_str[64];
@@ -288,7 +287,7 @@ static int notify_email_notification (const notification_t *n,
   smtp_set_message_str (message, buf);
 
   for (i = 0; i < recipients_len; i++)
-    recipient = smtp_add_recipient (message, recipients[i]);
+    smtp_add_recipient (message, recipients[i]);
 
   /* Initiate a connection to the SMTP server and transfer the message. */
   if (!smtp_start_session (session)) {
@@ -298,11 +297,16 @@ static int notify_email_notification (const notification_t *n,
     pthread_mutex_unlock (&session_lock);
     return (-1);
   } else {
-    const smtp_status_t *status;
-    /* Report on the success or otherwise of the mail transfer. */
-    status = smtp_message_transfer_status (message);
-    DEBUG ("notify_email plugin: SMTP server report: %d %s",
+    #if COLLECT_DEBUG
+      const smtp_status_t *status;
+      /* Report on the success or otherwise of the mail transfer. */
+      status = smtp_message_transfer_status (message);
+      DEBUG ("notify_email plugin: SMTP server report: %d %s",
         status->code, (status->text != NULL) ? status->text : "\n");
+    #else
+      //I don't know if the function below has side affects so i'm calling it to be on the safe side.
+      smtp_message_transfer_status (message);
+    #endif
     smtp_enumerate_recipients (message, print_recipient_status, NULL);
   }
 

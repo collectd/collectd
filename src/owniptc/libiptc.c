@@ -549,7 +549,7 @@ static int iptcc_chain_index_rebuild(TC_HANDLE_T h)
  */
 static int iptcc_chain_index_delete_chain(struct chain_head *c, TC_HANDLE_T h)
 {
-	struct list_head *index_ptr, *index_ptr2, *next;
+	struct list_head *index_ptr, *next;
 	struct chain_head *c2;
 	unsigned int idx, idx2;
 
@@ -569,7 +569,7 @@ static int iptcc_chain_index_delete_chain(struct chain_head *c, TC_HANDLE_T h)
 		 * is located in the same index bucket.
 		 */
 		c2         = list_entry(next, struct chain_head, list);
-		index_ptr2 = iptcc_bsearch_chain_index(c2->name, &idx2, h);
+		iptcc_bsearch_chain_index(c2->name, &idx2, h);
 		if (idx != idx2) {
 			/* Rebuild needed */
 			return iptcc_chain_index_rebuild(h);
@@ -1192,10 +1192,8 @@ static int iptcc_compile_table(TC_HANDLE_T h, STRUCT_REPLACE *repl)
 static TC_HANDLE_T
 alloc_handle(const char *tablename, unsigned int size, unsigned int num_rules)
 {
-	size_t len;
 	TC_HANDLE_T h;
 
-	len = sizeof(STRUCT_TC_HANDLE) + size;
 
 	h = malloc(sizeof(STRUCT_TC_HANDLE));
 	if (!h) {

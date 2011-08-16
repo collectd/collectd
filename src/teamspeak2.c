@@ -299,6 +299,13 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 		char *buffer_ptr;
 
 		buffer_ptr = fgets (buffer, sizeof (buffer), global_read_fh);
+		if (buffer_ptr == NULL)
+		{
+			WARNING ("teamspeak2 plugin: Unexpected EOF received "
+					"from remote host %s:%s.",
+					config_host ? config_host : DEFAULT_HOST,
+					config_port ? config_port : DEFAULT_PORT);
+		}
 		buffer[sizeof (buffer) - 1] = 0;
 
 		if (memcmp ("[TS]\r\n", buffer, 6) != 0)

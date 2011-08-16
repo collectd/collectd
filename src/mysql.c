@@ -707,7 +707,6 @@ static int mysql_read (user_data_t *ud)
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
 	char      *query;
-	int        field_num;
 
 	unsigned long long qcache_hits          = 0ULL;
 	unsigned long long qcache_inserts       = 0ULL;
@@ -743,7 +742,7 @@ static int mysql_read (user_data_t *ud)
 	if (res == NULL)
 		return (-1);
 
-	field_num = mysql_num_fields (res);
+	mysql_num_fields (res);
 	while ((row = mysql_fetch_row (res)))
 	{
 		char *key;

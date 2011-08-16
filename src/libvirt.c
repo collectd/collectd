@@ -665,8 +665,6 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
     int i, n;
     const char *name;
     char uuid[VIR_UUID_STRING_BUFLEN];
-    char  *host_ptr;
-    size_t host_len;
 
     vl->time = t;
     vl->interval = interval_g;
@@ -674,8 +672,6 @@ init_value_list (value_list_t *vl, time_t t, virDomainPtr dom)
     sstrncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
 
     vl->host[0] = '\0';
-    host_ptr = vl->host;
-    host_len = sizeof (vl->host);
 
     /* Construct the hostname field according to HostnameFormat. */
     for (i = 0; i < HF_MAX_FIELDS; ++i) {
