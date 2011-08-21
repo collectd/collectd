@@ -426,7 +426,6 @@ static int disk_read (void)
 	int numfields;
 	int fieldshift = 0;
 
-	int major = 0;
 	int minor = 0;
 
 	derive_t read_sectors  = 0;
@@ -464,7 +463,6 @@ static int disk_read (void)
 		if ((numfields != (14 + fieldshift)) && (numfields != 7))
 			continue;
 
-		major = atoll (fields[0]);
 		minor = atoll (fields[1]);
 
 		disk_name = fields[2 + fieldshift];

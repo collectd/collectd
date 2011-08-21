@@ -73,7 +73,6 @@ static int mec_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
     const value_list_t *vl,
     notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
-  mec_match_t *m;
   int num_counters;
   int num_empty;
   int i;
@@ -81,7 +80,6 @@ static int mec_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
   if ((user_data == NULL) || (*user_data == NULL))
     return (-1);
 
-  m = *user_data;
 
   num_counters = 0;
   num_empty = 0;

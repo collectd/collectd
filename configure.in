@@ -2,6 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(collectd, m4_esyscmd(./version-gen.sh))
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
+AC_CONFIG_AUX_DIR([libltdl/config])
 
 m4_ifdef([LT_PACKAGE_VERSION],
 	# libtool >= 2.2
@@ -1841,7 +1842,8 @@ then
 	[
 		with_libiptc="yes"
 		with_own_libiptc="yes"
-	])
+	],
+	[-lip4tc -lip6tc])
 fi
 # The system wide version failed for some reason. Check if we have the required
 # headers to build the shipped version.
@@ -3863,6 +3865,7 @@ then
 	CPPFLAGS="$CPPFLAGS $with_libyajl_cppflags"
 
 	AC_CHECK_HEADERS(yajl/yajl_parse.h, [with_libyajl="yes"], [with_libyajl="no (yajl/yajl_parse.h not found)"])
+	AC_CHECK_HEADERS(yajl/yajl_version.h)
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi

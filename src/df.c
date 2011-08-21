@@ -33,12 +33,14 @@
 #  include <sys/statvfs.h>
 # endif
 # define STATANYFS statvfs
+# define STATANYFS_STR "statvfs"
 # define BLOCKSIZE(s) ((s).f_frsize ? (s).f_frsize : (s).f_bsize)
 #elif HAVE_STATFS
 # if HAVE_SYS_STATFS_H
 #  include <sys/statfs.h>
 # endif
 # define STATANYFS statfs
+# define STATANYFS_STR "statfs"
 # define BLOCKSIZE(s) (s).f_bsize
 #else
 # error "No applicable input method."
@@ -198,7 +200,8 @@ static int df_read (void)
 		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
 		{
 			char errbuf[1024];
-			ERROR ("statv?fs failed: %s",
+			ERROR (STATANYFS_STR"(%s) failed: %s",
+					mnt_ptr->dir,
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			continue;

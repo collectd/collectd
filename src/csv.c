@@ -264,7 +264,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 {
 	struct stat  statbuf;
 	char         filename[512];
-	char         values[512];
+	char         values[4096];
 	FILE        *csv;
 	int          csv_fd;
 	struct flock fl;

@@ -734,6 +734,7 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     return (-1);
   }
 
+  curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1);
   curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cx_curl_callback);
   curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
