@@ -1638,7 +1638,8 @@ then
 	[
 		with_libiptc="yes"
 		with_own_libiptc="yes"
-	])
+	],
+	[-lip4tc -lip6tc])
 fi
 # The system wide version failed for some reason. Check if we have the required
 # headers to build the shipped version.
