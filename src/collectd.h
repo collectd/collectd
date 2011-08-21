@@ -97,6 +97,12 @@
 # define assert(...) /* nop */
 #endif
 
+#if !defined(HAVE__BOOL) || !HAVE__BOOL
+typedef int _Bool;
+# undef HAVE__BOOL
+# define HAVE__BOOL 1
+#endif
+
 #if NAN_STATIC_DEFAULT
 # include <math.h>
 /* #endif NAN_STATIC_DEFAULT*/

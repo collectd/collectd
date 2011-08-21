@@ -215,6 +215,7 @@ void meta_data_destroy (meta_data_t *md) /* {{{ */
     return;
 
   md_entry_free (md->head);
+  pthread_mutex_destroy (&md->lock);
   free (md);
 } /* }}} void meta_data_destroy */
 

@@ -373,6 +373,7 @@ static int init_host (apache_t *st) /* {{{ */
 		return (-1);
 	}
 
+	curl_easy_setopt (st->curl, CURLOPT_NOSIGNAL, 1);
 	curl_easy_setopt (st->curl, CURLOPT_WRITEFUNCTION, apache_curl_callback);
 	curl_easy_setopt (st->curl, CURLOPT_WRITEDATA, st);
 

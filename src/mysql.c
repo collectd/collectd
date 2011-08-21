@@ -555,7 +555,6 @@ static int mysql_read (user_data_t *ud)
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
 	char      *query;
-	int        field_num;
 
 	derive_t qcache_hits          = 0;
 	derive_t qcache_inserts       = 0;
@@ -591,7 +590,6 @@ static int mysql_read (user_data_t *ud)
 	if (res == NULL)
 		return (-1);
 
-	field_num = mysql_num_fields (res);
 	while ((row = mysql_fetch_row (res)))
 	{
 		char *key;

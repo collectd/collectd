@@ -450,7 +450,6 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
     int nexthdr;
 
     struct in6_addr s_addr;
-    struct in6_addr d_addr;
     uint16_t payload_len;
 
     if (0 > len)
@@ -459,7 +458,6 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
     offset = sizeof (struct ip6_hdr);
     nexthdr = ipv6->ip6_nxt;
     s_addr = ipv6->ip6_src;
-    d_addr = ipv6->ip6_dst;
     payload_len = ntohs (ipv6->ip6_plen);
 
     if (ignore_list_match (&s_addr))

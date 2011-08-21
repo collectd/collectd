@@ -998,7 +998,7 @@ static int rrd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("StepSize", key) == 0)
 	{
-		int temp = atoi (value);
+		unsigned long temp = strtoul (value, NULL, 0);
 		if (temp > 0)
 			rrdcreate_config.stepsize = temp;
 	}
@@ -1161,8 +1161,6 @@ static int rrd_init (void)
 		return (0);
 	init_once = 1;
 
-	if (rrdcreate_config.stepsize < 0)
-		rrdcreate_config.stepsize = 0;
 	if (rrdcreate_config.heartbeat <= 0)
 		rrdcreate_config.heartbeat = 2 * rrdcreate_config.stepsize;
 
@@ -1206,7 +1204,7 @@ static int rrd_init (void)
 	}
 	queue_thread_running = 1;
 
-	DEBUG ("rrdtool plugin: rrd_init: datadir = %s; stepsize = %i;"
+	DEBUG ("rrdtool plugin: rrd_init: datadir = %s; stepsize = %lu;"
 			" heartbeat = %i; rrarows = %i; xff = %lf;",
 			(datadir == NULL) ? "(null)" : datadir,
 			rrdcreate_config.stepsize,

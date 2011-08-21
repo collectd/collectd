@@ -32,7 +32,6 @@ use Data::Dumper ();
 use File::Basename ('dirname');
 
 our $InDir = '/var/lib/collectd';
-our $OutDir = '/tmp/collectd-5';
 our $RRDtool = 'rrdtool';
 
 our %TypesCounterToDerive = # {{{
@@ -46,7 +45,6 @@ our %TypesCounterToDerive = # {{{
   connections => ["value"],
   cpu => ["value"],
   current => ["value"],
-  df => ["used", "free"],
   disk_merged => ["read", "write"],
   disk_octets => ["read", "write"],
   disk_ops => ["read", "write"],
@@ -226,8 +224,6 @@ Valid options are:
 
   --indir <dir>      Source directory
                      Default: $InDir
-  --outdir <dir>     Destination directory
-                     Default: $OutDir
   --rrdtool <path>   Path to the RRDtool binary
                      Default: $RRDtool
 
@@ -236,7 +232,6 @@ EOF
 } # }}} sub exit_usage
 
 GetOptions ("indir|i=s" => \$InDir,
-	"outdir|o=s" => \$OutDir,
         "rrdtool=s" => \$RRDtool,
         "help|h" => \&exit_usage) or exit_usage ();
 

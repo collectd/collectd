@@ -374,7 +374,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   int ds_num;
   int status = 0;
   time_t last_up;
-  int stepsize;
+  unsigned long stepsize;
 
   if (check_create_dir (filename))
     return (-1);
@@ -413,11 +413,9 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   if (cfg->stepsize > 0)
     stepsize = cfg->stepsize;
   else
-    stepsize = (int) CDTIME_T_TO_TIME_T (vl->interval);
+    stepsize = (unsigned long) CDTIME_T_TO_TIME_T (vl->interval);
 
-  status = srrd_create (filename,
-      (cfg->stepsize > 0) ? cfg->stepsize : CDTIME_T_TO_TIME_T (vl->interval),
-      last_up,
+  status = srrd_create (filename, stepsize, last_up,
       argc, (const char **) argv);
 
   free (argv);

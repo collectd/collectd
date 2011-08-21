@@ -871,7 +871,6 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	int   i;
 
-	int   ppid;
 	int   name_len;
 
 	derive_t cpu_user_counter;
@@ -909,7 +908,6 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	fields[1][name_len] = '\0';
 	strncpy (ps->name, fields[1], PROCSTAT_NAME_LEN);
 
-	ppid = atoi (fields[3]);
 
 	*state = fields[2][0];
 
