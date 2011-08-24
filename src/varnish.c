@@ -307,9 +307,9 @@ static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VS
 		/* outstanding allocations */
 		varnish_submit_gauge (conf->instance,  "sm", "requests", "outstanding", VSL_stats->sm_nobj);
 		/* bytes allocated */
-		varnish_submit_gauge (conf->instance,  "sm", "total_bytes", "allocated",      VSL_stats->sm_balloc);
+		varnish_submit_derive (conf->instance,  "sm", "total_bytes", "allocated",      VSL_stats->sm_balloc);
 		/* bytes free */
-		varnish_submit_gauge (conf->instance,  "sm", "total_bytes", "free",           VSL_stats->sm_bfree);
+		varnish_submit_derive (conf->instance,  "sm", "total_bytes", "free",           VSL_stats->sm_bfree);
 	}
 
 	if (conf->collect_sma)
@@ -321,9 +321,9 @@ static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VS
 		/* SMA outstanding bytes */
 		varnish_submit_gauge (conf->instance,  "sma", "bytes", "outstanding",    VSL_stats->sma_nbytes);
 		/* SMA bytes allocated */
-		varnish_submit_gauge (conf->instance,  "sma", "total_bytes", "allocated",      VSL_stats->sma_balloc);
+		varnish_submit_derive (conf->instance,  "sma", "total_bytes", "allocated",      VSL_stats->sma_balloc);
 		/* SMA bytes free */
-		varnish_submit_gauge (conf->instance,  "sma", "total_bytes", "free" ,          VSL_stats->sma_bfree);
+		varnish_submit_derive (conf->instance,  "sma", "total_bytes", "free" ,          VSL_stats->sma_bfree);
 	}
 
 	if (conf->collect_sms)
@@ -335,9 +335,9 @@ static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VS
 		/* SMS outstanding bytes */
 		varnish_submit_gauge (conf->instance,  "sms", "bytes", "outstanding",        VSL_stats->sms_nbytes);
 		/* SMS bytes allocated */
-		varnish_submit_gauge (conf->instance,  "sms", "total_bytes", "allocated",          VSL_stats->sms_balloc);
+		varnish_submit_derive (conf->instance,  "sms", "total_bytes", "allocated",          VSL_stats->sms_balloc);
 		/* SMS bytes freed */
-		varnish_submit_gauge (conf->instance,  "sms", "total_bytes", "free",               VSL_stats->sms_bfree);
+		varnish_submit_derive (conf->instance,  "sms", "total_bytes", "free",               VSL_stats->sms_bfree);
 	}
 
 	if (conf->collect_totals)
@@ -363,17 +363,17 @@ static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VS
 		/* worker threads */
 		varnish_submit_gauge (conf->instance, "workers", "threads", "worker",            VSL_stats->n_wrk);
 		/* worker threads created */
-		varnish_submit_gauge (conf->instance, "workers", "total_threads", "created",     VSL_stats->n_wrk_create);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "created",     VSL_stats->n_wrk_create);
 		/* worker threads not created */
-		varnish_submit_gauge (conf->instance, "workers", "total_threads", "failed",      VSL_stats->n_wrk_failed);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "failed",      VSL_stats->n_wrk_failed);
 		/* worker threads limited */
-		varnish_submit_gauge (conf->instance, "workers", "total_threads", "limited",     VSL_stats->n_wrk_max);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "limited",     VSL_stats->n_wrk_max);
 		/* queued work requests */
-		varnish_submit_gauge (conf->instance, "workers", "total_requests", "queued",     VSL_stats->n_wrk_queue);
+		varnish_submit_derive (conf->instance, "workers", "total_requests", "queued",     VSL_stats->n_wrk_queue);
 		/* overflowed work requests */
-		varnish_submit_gauge (conf->instance, "workers", "total_requests", "overflowed", VSL_stats->n_wrk_overflow);
+		varnish_submit_derive (conf->instance, "workers", "total_requests", "overflowed", VSL_stats->n_wrk_overflow);
 		/* dropped work requests */
-		varnish_submit_gauge (conf->instance, "workers", "total_requests", "dropped",    VSL_stats->n_wrk_drop);
+		varnish_submit_derive (conf->instance, "workers", "total_requests", "dropped",    VSL_stats->n_wrk_drop);
 	}
 } /* }}} void varnish_monitor */
 
