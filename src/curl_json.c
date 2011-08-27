@@ -26,6 +26,7 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_avltree.h"
+#include "utils_complain.h"
 
 #include <curl/curl.h>
 #include <yajl/yajl_parse.h>
@@ -143,9 +144,31 @@ static int cj_get_type (cj_key_t *key)
 
   ds = plugin_get_ds (key->type);
   if (ds == NULL)
-    return -1; /* let plugin_write do the complaining */
-  else
-    return ds->ds[0].type; /* XXX support ds->ds_len > 1 */
+  {
+    static char type[DATA_MAX_NAME_LEN] = "!!!invalid!!!";
+
+    assert (key->type != NULL);
+    if (strcmp (type, key->type) != 0)
+    {
+      ERROR ("curl_json plugin: Unable to look up DS type \"%s\".",
+          key->type);
+      sstrncpy (type, key->type, sizeof (type));
+    }
+
+    return -1;
+  }
+  else if (ds->ds_num > 1)
+  {
+    static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
+
+    c_complain_once (LOG_WARNING, &complaint,
+        "curl_json plugin: The type \"%s\" has more than one data source. "
+        "This is currently not supported. I will return the type of the "
+        "first data source, but this will likely lead to problems later on.",
+        key->type);
+  }
+
+  return ds->ds[0].type;
 }
 
 /* yajl callbacks */
@@ -172,6 +195,8 @@ static int cj_cb_number (void *ctx,
   buffer[sizeof (buffer) - 1] = 0;
 
   type = cj_get_type (key);
+  if (type < 0)
+    return (CJ_CB_CONTINUE);
 
   endptr = NULL;
   errno = 0;
@@ -760,8 +785,13 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
     host = db->host;
 
   if (key->instance == NULL)
-    ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
-               db->state[db->depth-1].name, db->state[db->depth].name);
+  {
+    if ((db->depth == 0) || (strcmp ("", db->state[db->depth-1].name) == 0))
+      sstrncpy (vl.type_instance, db->state[db->depth].name, sizeof (vl.type_instance));
+    else
+      ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
+          db->state[db->depth-1].name, db->state[db->depth].name);
+  }
   else
     sstrncpy (vl.type_instance, key->instance, sizeof (vl.type_instance));
 
