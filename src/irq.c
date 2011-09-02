@@ -29,8 +29,6 @@
 # error "No applicable input method."
 #endif
 
-#define BUFSIZE 128
-
 /*
  * (Module-)Global variables
  */
@@ -41,8 +39,8 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static unsigned int *irq_list;
-static unsigned int irq_list_num;
+static char         **irq_list;
+static unsigned int   irq_list_num = 0;
 
 /* 
  * irq_list_action:
@@ -55,11 +53,9 @@ static int irq_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "Irq") == 0)
 	{
-		unsigned int *temp;
-		unsigned int irq;
-		char *endptr;
+		char **temp;
 
-		temp = (unsigned int *) realloc (irq_list, (irq_list_num + 1) * sizeof (unsigned int *));
+		temp = realloc (irq_list, (irq_list_num + 1) * sizeof (*irq_list));
 		if (temp == NULL)
 		{
 			fprintf (stderr, "irq plugin: Cannot allocate more memory.\n");
@@ -68,19 +64,13 @@ static int irq_config (const char *key, const char *value)
 		}
 		irq_list = temp;
 
-		/* Clear errno, because we need it to see if an error occured. */
-		errno = 0;
-
-		irq = strtol(value, &endptr, 10);
-		if ((endptr == value) || (errno != 0))
+		irq_list[irq_list_num] = strdup (value);
+		if (irq_list[irq_list_num] == NULL)
 		{
-			fprintf (stderr, "irq plugin: Irq value is not a "
-					"number: `%s'\n", value);
-			ERROR ("irq plugin: Irq value is not a "
-					"number: `%s'", value);
+			ERROR ("irq plugin: strdup(3) failed.");
 			return (1);
 		}
-		irq_list[irq_list_num] = irq;
+
 		irq_list_num++;
 	}
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
@@ -102,27 +92,26 @@ static int irq_config (const char *key, const char *value)
  * both, `submit' and `write' to give client and server the ability to
  * ignore certain stuff..
  */
-static int check_ignore_irq (const unsigned int irq)
+static int check_ignore_irq (const char *irq)
 {
-	int i;
+	unsigned int i;
 
 	if (irq_list_num < 1)
 		return (0);
 
-	for (i = 0; (unsigned int)i < irq_list_num; i++)
-		if (irq == irq_list[i])
+	for (i = 0; i < irq_list_num; i++)
+		if (strcmp (irq, irq_list[i]) == 0)
 			return (irq_list_action);
 
 	return (1 - irq_list_action);
 }
 
-static void irq_submit (unsigned int irq, derive_t value)
+static void irq_submit (const char *irq_name, derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
-	int status;
 
-	if (check_ignore_irq (irq))
+	if (check_ignore_irq (irq_name))
 		return;
 
 	values[0].derive = value;
@@ -132,11 +121,7 @@ static void irq_submit (unsigned int irq, derive_t value)
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "irq", sizeof (vl.plugin));
 	sstrncpy (vl.type, "irq", sizeof (vl.type));
-
-	status = ssnprintf (vl.type_instance, sizeof (vl.type_instance),
-			"%u", irq);
-	if ((status < 1) || ((unsigned int)status >= sizeof (vl.type_instance)))
-		return;
+	sstrncpy (vl.type_instance, irq_name, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void irq_submit */
@@ -155,11 +140,11 @@ static int irq_read (void)
 		return (-1);
 	}
 
-	while (fgets (buffer, BUFSIZE, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		unsigned int irq;
+		char *irq_name;
+		size_t irq_name_len;
 		derive_t irq_value;
-		char *endptr;
 		int i;
 
 		char *fields[64];
@@ -169,11 +154,18 @@ static int irq_read (void)
 		if (fields_num < 2)
 			continue;
 
-		errno = 0;    /* To distinguish success/failure after call */
-		irq = (unsigned int) strtoul (fields[0], &endptr, /* base = */ 10);
-
-		if ((endptr == fields[0]) || (errno != 0) || (*endptr != ':'))
+		irq_name = fields[0];
+		irq_name_len = strlen (irq_name);
+		if (irq_name_len < 2)
 			continue;
+
+		/* Check if irq name ends with colon.
+		 * Otherwise it's a header. */
+		if (irq_name[irq_name_len - 1] != ':')
+			continue;
+
+		irq_name[irq_name_len - 1] = 0;
+		irq_name_len--;
 
 		irq_value = 0;
 		for (i = 1; i < fields_num; i++)
@@ -189,10 +181,11 @@ static int irq_read (void)
 			irq_value += v.derive;
 		} /* for (i) */
 
-		if (i < fields_num)
+		/* No valid fields -> do not submit anything. */
+		if (i <= 1)
 			continue;
 
-		irq_submit (irq, irq_value);
+		irq_submit (irq_name, irq_value);
 	}
 
 	fclose (fh);
@@ -206,5 +199,3 @@ void module_register (void)
 			config_keys, config_keys_num);
 	plugin_register_read ("irq", irq_read);
 } /* void module_register */
-
-#undef BUFSIZE

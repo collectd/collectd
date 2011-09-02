@@ -1423,7 +1423,8 @@ int plugin_dispatch_values (value_list_t *vl)
 	if ((vl == NULL) || (vl->type[0] == 0)
 			|| (vl->values == NULL) || (vl->values_len < 1))
 	{
-		ERROR ("plugin_dispatch_values: Invalid value list.");
+		ERROR ("plugin_dispatch_values: Invalid value list "
+				"from plugin %s.", vl->plugin);
 		return (-1);
 	}
 

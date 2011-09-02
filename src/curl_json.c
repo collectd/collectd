@@ -763,7 +763,11 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
     return (-1);
   }
 
-  status = yajl_parse_complete (db->yajl);
+#if HAVE_YAJL_V2
+    status = yajl_complete_parse(db->yajl);
+#else
+    status = yajl_parse_complete(db->yajl);
+#endif
   if (status != yajl_status_ok)
   {
     unsigned char *errmsg;
