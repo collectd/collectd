@@ -141,11 +141,17 @@ static int interface_init (void)
 	{
 		if (strncmp (ksp_chain->ks_class, "net", 3))
 			continue;
+		/* Ignore kstat entry if not the regular statistic set. This
+		 * avoids problems with "bogus" interfaces, such as
+		 * "wrsmd<num>" */
+		if (strncmp (ksp_chain->ks_name, ksp_chain->ks_module,
+					strlen (ksp_chain->ks_module)) != 0)
+			continue;
 		if (ksp_chain->ks_type != KSTAT_TYPE_NAMED)
 			continue;
 		if (kstat_read (kc, ksp_chain, NULL) == -1)
 			continue;
-		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
+		if ((val = get_kstat_value (ksp_chain, "ifspeed")) == -1LL)
 			continue;
 		ksp[numif++] = ksp_chain;
 	}
