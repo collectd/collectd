@@ -421,14 +421,18 @@ static int nc_connection_init (nc_connection_t *conn) /* {{{ */
   if (conn->have_tls_session)
   {
     int status;
+    intptr_t fd;
 
     conn->read_buffer = malloc (NC_READ_BUFFER_SIZE);
     if (conn->read_buffer == NULL)
       return (ENOMEM);
     memset (conn->read_buffer, 0, NC_READ_BUFFER_SIZE);
 
+    /* Make (relatively) sure that 'fd' and 'void*' have the same size to make
+     * GCC happy. */
+    fd = (intptr_t) conn->fd;
     gnutls_transport_set_ptr (conn->tls_session,
-       (gnutls_transport_ptr_t) conn->fd);
+        (gnutls_transport_ptr_t) fd);
 
     while (42)
     {
