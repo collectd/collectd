@@ -4243,6 +4243,39 @@ then
 fi
 # }}}
 
+# --with-libvmware {{{
+with_libvmware_cflags=""
+AC_ARG_WITH(libvmware, [AS_HELP_STRING([--with-libvmware@<:@=PREFIX@:>@], [Path to libvmware.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libvmware_cflags="-I$withval"
+		with_libvmware="yes"
+	else
+		with_libvmware="$withval"
+	fi
+],
+[
+	with_libvmware="yes"
+])
+if test "x$with_libvmware" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $with_libvmware_cflags"
+
+	AC_CHECK_HEADERS(vmGuestLib.h, [with_libvmware="yes"], [with_libvmware="no (vmGuestLib.h not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+fi
+if test "x$with_libvmware" = "xyes"
+then
+	BUILD_WITH_LIBVMWARE_CFLAGS="$with_libvmware_cflags"
+	AC_SUBST(BUILD_WITH_LIBVMWARE_CFLAGS)
+	#AC_DEFINE(HAVE_LIBVMWARE, 1, [Define if libvmware is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBVMWARE, test "x$with_libvmware" = "xyes")
+# }}}
+
 # pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
 with_libxml2="no (pkg-config isn't available)"
 with_libxml2_cflags=""
@@ -4640,6 +4673,7 @@ then
 	plugin_tcpconns="yes"
 	plugin_thermal="yes"
 	plugin_uptime="yes"
+	plugin_vmware="yes"
 	plugin_vmem="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
@@ -4722,9 +4756,6 @@ then
 	then
 		plugin_bind="yes"
 	fi
-
-	# FIXME: Check for the required library.
-	plugin_vmware="yes"
 fi
 
 if test "x$with_libopenipmipthread" = "xyes"
@@ -4997,7 +5028,7 @@ AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([varnish],     [$with_libvarnish],   [Varnish cache statistics])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
-AC_PLUGIN([vmware],      [$plugin_vmware],     [VMware client statistics])
+AC_PLUGIN([vmware],      [$with_libvmware],    [VMware client statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
@@ -5211,6 +5242,7 @@ Configuration:
     libupsclient  . . . . $with_libupsclient
     libvarnish  . . . . . $with_libvarnish
     libvirt . . . . . . . $with_libvirt
+    libvmware . . . . . . $with_libvmware
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl

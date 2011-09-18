@@ -5477,6 +5477,11 @@ Take the UUID from the given file (default I</etc/uuid>).
 
 The Varnish plugin collects information about Varnish, an HTTP accelerator.
 
+=head2 Plugin C<vmware>
+
+The VMware plugin collects information exposed to a guest virtual machine
+running on a VMware hypervisor through the VMware Guest SDK.
+
 =over 4
 
 =item B<CollectCache> B<true>|B<false>
