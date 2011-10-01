@@ -52,8 +52,9 @@
 
 #ifndef WG_FORMAT_NAME
 #define WG_FORMAT_NAME(ret, ret_len, vl, prefix, name) \
-        wg_format_name (ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance, \
-                        (vl)->type, (vl)->type_instance, prefix, name)
+        wg_format_name (ret, ret_len, (vl)->host, (vl)->plugin, \
+                         (vl)->plugin_instance, (vl)->type, \
+                         (vl)->type_instance, prefix, name)
 #endif
 
 #ifndef WG_SEND_BUF_SIZE
@@ -175,11 +176,13 @@ static int wg_callback_init (struct wg_callback *cb)
     memset (&serv_addr, 0, sizeof (serv_addr));
     serv_addr.sin_family = AF_INET;
     memcpy (&serv_addr.sin_addr.s_addr,
-                cb->server->h_addr,
-                cb->server->h_length);
+             cb->server->h_addr,
+             cb->server->h_length);
     serv_addr.sin_port = htons(cb->port);
 
-    status = connect(cb->sock_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+    status = connect(cb->sock_fd,
+                      (struct sockaddr *) &serv_addr,
+                      sizeof(serv_addr));
     if (status < 0)
     {
         char errbuf[1024];
@@ -330,10 +333,10 @@ static int normalize_hostname (char *dst, const char *src)
 }
 
 static int wg_format_name (char *ret, int ret_len,
-                const char *hostname,
-                const char *plugin, const char *plugin_instance,
-                const char *type, const char *type_instance,
-                const char *prefix, const char *ds_name)
+        const char *hostname,
+        const char *plugin, const char *plugin_instance,
+        const char *type, const char *type_instance,
+        const char *prefix, const char *ds_name)
 {
     int  status;
     char *n_hostname;
@@ -409,7 +412,8 @@ static int wg_format_name (char *ret, int ret_len,
     return (0);
 }
 
-static int wg_send_message (const char* key, const char* value, cdtime_t time, struct wg_callback *cb)
+static int wg_send_message (const char* key, const char* value,
+        cdtime_t time, struct wg_callback *cb)
 {
     int status;
     size_t message_len;
@@ -472,7 +476,7 @@ static int wg_send_message (const char* key, const char* value, cdtime_t time, s
 }
 
 static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
-                        struct wg_callback *cb)
+        struct wg_callback *cb)
 {
     char key[10*DATA_MAX_NAME_LEN];
     char values[512];
@@ -491,7 +495,8 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         for (i = 0; i < ds->ds_num; i++)
         {
             /* Copy the identifier to `key' and escape it. */
-            status = WG_FORMAT_NAME (key, sizeof (key), vl, cb->prefix, ds->ds[i].name);
+            status = WG_FORMAT_NAME (key, sizeof (key), vl, cb->prefix, \
+                    ds->ds[i].name);
             if (status != 0)
             {
                 ERROR ("write_graphite plugin: error with format_name");
@@ -499,8 +504,8 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
             }
 
             escape_string (key, sizeof (key));
-            /* Convert the values to an ASCII representation and put that into
-             * `values'. */
+            /* Convert the values to an ASCII representation and put that
+             * into `values'. */
             status = wg_format_values (values, sizeof (values), i, ds, vl, 0);
             if (status != 0)
             {
@@ -681,7 +686,7 @@ static int wg_config (oconfig_item_t *ci)
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
-                        "option: %s.", child->key);
+                    "option: %s.", child->key);
         }
     }
 
