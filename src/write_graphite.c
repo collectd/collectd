@@ -56,6 +56,10 @@
                         (vl)->type, (vl)->type_instance, prefix, name)
 #endif
 
+#ifndef WG_SEND_BUF_SIZE
+#define WG_SEND_BUF_SIZE 4096
+#endif
+
 /*
  * Private variables
  */
@@ -70,7 +74,7 @@ struct wg_callback
     int      port;
     char    *prefix;
 
-    char     send_buf[4096];
+    char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
     size_t   send_buf_fill;
     cdtime_t send_buf_init_time;
