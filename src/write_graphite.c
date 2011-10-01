@@ -353,11 +353,11 @@ static int wg_format_name (char *ret, int ret_len,
         return (-1);
     }
 
-    if ((plugin_instance == NULL) || (strlen (plugin_instance) == 0))
+    if ((plugin_instance == NULL) || (plugin_instance[0] == '\0'))
     {
-        if ((type_instance == NULL) || (strlen (type_instance) == 0))
+        if ((type_instance == NULL) || (type_instance[0] == '\0'))
         {
-            if ((ds_name == NULL) || (strlen (ds_name) == 0))
+            if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s",
                         prefix, n_hostname, plugin, type);
             else
@@ -366,7 +366,7 @@ static int wg_format_name (char *ret, int ret_len,
         }
         else
         {
-            if ((ds_name == NULL) || (strlen (ds_name) == 0))
+            if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s-%s",
                         prefix, n_hostname, plugin, type,
                         type_instance);
@@ -378,9 +378,9 @@ static int wg_format_name (char *ret, int ret_len,
     }
     else
     {
-        if ((type_instance == NULL) || (strlen (type_instance) == 0))
+        if ((type_instance == NULL) || (type_instance[0] == '\0'))
         {
-            if ((ds_name == NULL) || (strlen (ds_name) == 0))
+            if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
                         prefix, n_hostname, plugin,
                         plugin_instance, type);
@@ -391,7 +391,7 @@ static int wg_format_name (char *ret, int ret_len,
         }
         else
         {
-            if ((ds_name == NULL) || (strlen (ds_name) == 0))
+            if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s-%s",
                         prefix, n_hostname, plugin,
                         plugin_instance, type, type_instance);
