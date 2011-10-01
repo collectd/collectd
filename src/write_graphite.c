@@ -82,15 +82,15 @@ struct wg_callback
 /*
  * Functions
  */
-static void wg_reset_buffer (struct wg_callback *cb) /* {{{ */
+static void wg_reset_buffer (struct wg_callback *cb)
 {
     memset (cb->send_buf, 0, sizeof (cb->send_buf));
     cb->send_buf_free = sizeof (cb->send_buf);
     cb->send_buf_fill = 0;
     cb->send_buf_init_time = cdtime ();
-} /* }}} wg_reset_buffer */
+}
 
-static int wg_send_buffer (struct wg_callback *cb) /* {{{ */
+static int wg_send_buffer (struct wg_callback *cb)
 {
     int status = 0;
 
@@ -114,9 +114,9 @@ static int wg_send_buffer (struct wg_callback *cb) /* {{{ */
         return (-1);
     }
     return (0);
-} /* }}} wg_send_buffer */
+}
 
-static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb) /* {{{ */
+static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 {
     int status;
 
@@ -145,9 +145,9 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb) /* {{{ */
     wg_reset_buffer (cb);
 
     return (status);
-} /* }}} wg_flush_nolock */
+}
 
-static int wg_callback_init (struct wg_callback *cb) /* {{{ */
+static int wg_callback_init (struct wg_callback *cb)
 {
     int status;
 
@@ -189,9 +189,9 @@ static int wg_callback_init (struct wg_callback *cb) /* {{{ */
     wg_reset_buffer (cb);
 
     return (0);
-} /* }}} int wg_callback_init */
+}
 
-static void wg_callback_free (void *data) /* {{{ */
+static void wg_callback_free (void *data)
 {
     struct wg_callback *cb;
 
@@ -208,9 +208,9 @@ static void wg_callback_free (void *data) /* {{{ */
     sfree(cb->prefix);
 
     sfree(cb);
-} /* }}} void wg_callback_free */
+}
 
-static int wg_flush (cdtime_t timeout, /* {{{ */
+static int wg_flush (cdtime_t timeout,
         const char *identifier __attribute__((unused)),
         user_data_t *user_data)
 {
@@ -239,9 +239,9 @@ static int wg_flush (cdtime_t timeout, /* {{{ */
     pthread_mutex_unlock (&cb->send_lock);
 
     return (status);
-} /* }}} int wg_flush */
+}
 
-static int wg_format_values (char *ret, size_t ret_len, /* {{{ */
+static int wg_format_values (char *ret, size_t ret_len,
         int ds_num, const data_set_t *ds, const value_list_t *vl,
         _Bool store_rates)
 {
@@ -302,9 +302,9 @@ static int wg_format_values (char *ret, size_t ret_len, /* {{{ */
 
     sfree (rates);
     return (0);
-} /* }}} int wg_format_values */
+}
 
-static int normalize_hostname (char *dst, const char *src) /* {{{ */
+static int normalize_hostname (char *dst, const char *src)
 {
     size_t i;
 
@@ -323,9 +323,9 @@ static int normalize_hostname (char *dst, const char *src) /* {{{ */
     dst[i] = '\0';
 
     return reps;
-} /* }}} int normalize_hostname */
+}
 
-static int wg_format_name (char *ret, int ret_len, /* {{{ */
+static int wg_format_name (char *ret, int ret_len,
                 const char *hostname,
                 const char *plugin, const char *plugin_instance,
                 const char *type, const char *type_instance,
@@ -403,9 +403,9 @@ static int wg_format_name (char *ret, int ret_len, /* {{{ */
     if ((status < 1) || (status >= ret_len))
         return (-1);
     return (0);
-} /* }}} int wg_format_name */
+}
 
-static int wg_send_message (const char* key, const char* value, cdtime_t time, struct wg_callback *cb) /* {{{ */
+static int wg_send_message (const char* key, const char* value, cdtime_t time, struct wg_callback *cb)
 {
     int status;
     size_t message_len;
@@ -465,9 +465,9 @@ static int wg_send_message (const char* key, const char* value, cdtime_t time, s
     pthread_mutex_unlock (&cb->send_lock);
 
     return (0);
-} /* }}} int wg_send_message */
+}
 
-static int wg_write_messages (const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
                         struct wg_callback *cb)
 {
     char key[10*DATA_MAX_NAME_LEN];
@@ -547,9 +547,9 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl, /* {
     }
 
     return (0);
-} /* }}} int wg_write_messages */
+}
 
-static int wg_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int wg_write (const data_set_t *ds, const value_list_t *vl,
         user_data_t *user_data)
 {
     struct wg_callback *cb;
@@ -563,9 +563,9 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     status = wg_write_messages (ds, vl, cb);
 
     return (status);
-} /* }}} int wg_write */
+}
 
-static int config_set_number (int *dest, /* {{{ */
+static int config_set_number (int *dest,
         oconfig_item_t *ci)
 {
     if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
@@ -578,9 +578,9 @@ static int config_set_number (int *dest, /* {{{ */
     *dest = ci->values[0].value.number;
 
     return (0);
-} /* }}} int config_set_number */
+}
 
-static int config_set_string (char **ret_string, /* {{{ */
+static int config_set_string (char **ret_string,
         oconfig_item_t *ci)
 {
     char *string;
@@ -605,9 +605,9 @@ static int config_set_string (char **ret_string, /* {{{ */
     *ret_string = string;
 
     return (0);
-} /* }}} int config_set_string */
+}
 
-static int wg_config_carbon (oconfig_item_t *ci) /* {{{ */
+static int wg_config_carbon (oconfig_item_t *ci)
 {
     struct wg_callback *cb;
     user_data_t user_data;
@@ -662,9 +662,9 @@ static int wg_config_carbon (oconfig_item_t *ci) /* {{{ */
     plugin_register_write ("write_graphite", wg_write, &user_data);
 
     return (0);
-} /* }}} int wg_config_carbon */
+}
 
-static int wg_config (oconfig_item_t *ci) /* {{{ */
+static int wg_config (oconfig_item_t *ci)
 {
     int i;
 
@@ -682,11 +682,11 @@ static int wg_config (oconfig_item_t *ci) /* {{{ */
     }
 
     return (0);
-} /* }}} int wg_config */
+}
 
-void module_register (void) /* {{{ */
+void module_register (void)
 {
     plugin_register_complex_config ("write_graphite", wg_config);
-} /* }}} void module_register */
+}
 
-/* vim: set fdm=marker sw=4 ts=4 sts=4 tw=78 et : */
+/* vim: set sw=4 ts=4 sts=4 tw=78 et : */
