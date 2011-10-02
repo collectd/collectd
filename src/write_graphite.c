@@ -308,7 +308,7 @@ static int wg_format_values (char *ret, size_t ret_len,
     return (0);
 }
 
-static int normalize_hostname (char *dst, const char *src)
+static int mangle_dots (char *dst, const char *src)
 {
     size_t i;
 
@@ -336,7 +336,8 @@ static int wg_format_name (char *ret, int ret_len,
         const char *prefix, const char *ds_name)
 {
     int  status;
-    char *n_hostname;
+    char *n_hostname = 0;
+    char *n_ds_name = 0;
 
     assert (plugin != NULL);
     assert (type != NULL);
@@ -347,10 +348,18 @@ static int wg_format_name (char *ret, int ret_len,
         return (-1);
     }
 
-    if (normalize_hostname(n_hostname, hostname) == -1)
+    if (mangle_dots(n_hostname, hostname) == -1)
     {
         ERROR ("Unable to normalize hostname");
         return (-1);
+    }
+
+    if (ds_name && ds_name[0] != '\0') {
+        if (mangle_dots(n_ds_name, ds_name) == -1)
+        {
+            ERROR ("Unable to normalize datasource name");
+            return (-1);
+        }
     }
 
     if ((plugin_instance == NULL) || (plugin_instance[0] == '\0'))
