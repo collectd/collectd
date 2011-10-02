@@ -371,7 +371,7 @@ static int wg_format_name (char *ret, int ret_len,
                         prefix, n_hostname, plugin, type);
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
-                        prefix, n_hostname, plugin, type, ds_name);
+                        prefix, n_hostname, plugin, type, n_ds_name);
         }
         else
         {
@@ -382,7 +382,7 @@ static int wg_format_name (char *ret, int ret_len,
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s-%s.%s",
                         prefix, n_hostname, plugin, type,
-                        type_instance, ds_name);
+                        type_instance, n_ds_name);
         }
     }
     else
@@ -396,7 +396,7 @@ static int wg_format_name (char *ret, int ret_len,
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s.%s",
                         prefix, n_hostname, plugin,
-                        plugin_instance, type, ds_name);
+                        plugin_instance, type, n_ds_name);
         }
         else
         {
@@ -407,11 +407,12 @@ static int wg_format_name (char *ret, int ret_len,
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s-%s.%s",
                         prefix, n_hostname, plugin,
-                        plugin_instance, type, type_instance, ds_name);
+                        plugin_instance, type, type_instance, n_ds_name);
         }
     }
 
     sfree(n_hostname);
+    sfree(n_ds_name);
 
     if ((status < 1) || (status >= ret_len))
         return (-1);
