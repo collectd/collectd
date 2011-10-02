@@ -354,6 +354,12 @@ static int wg_format_name (char *ret, int ret_len,
         return (-1);
     }
 
+    if ((n_ds_name = malloc(strlen(ds_name)+1)) == NULL)
+    {
+        ERROR ("Unable to allocate memory for normalized datasource name buffer");
+        return (-1);
+    }
+
     if (ds_name && ds_name[0] != '\0') {
         if (mangle_dots(n_ds_name, ds_name) == -1)
         {
