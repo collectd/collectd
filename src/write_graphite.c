@@ -24,7 +24,7 @@
  /* write_graphite plugin configuation example
   *
   * <Plugin write_graphite>
-  *   <Carbon "local-agent">
+  *   <Carbon>
   *     Host "localhost"
   *     Port 2003
   *     Prefix "collectd"
@@ -66,8 +66,6 @@
  */
 struct wg_callback
 {
-    char    *name;
-
     int      sock_fd;
     struct hostent *server;
 
@@ -210,7 +208,6 @@ static void wg_callback_free (void *data)
     wg_flush_nolock (/* timeout = */ 0, cb);
 
     close(cb->sock_fd);
-    sfree(cb->name);
     sfree(cb->host);
     sfree(cb->prefix);
 
@@ -631,16 +628,11 @@ static int wg_config_carbon (oconfig_item_t *ci)
     memset (cb, 0, sizeof (*cb));
     cb->sock_fd = -1;
     cb->host = NULL;
-    cb->name = NULL;
     cb->port = 2003;
     cb->prefix = NULL;
     cb->server = NULL;
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
-
-    config_set_string (&cb->name, ci);
-    if (cb->name == NULL)
-        return (-1);
 
     for (i = 0; i < ci->children_num; i++)
     {
