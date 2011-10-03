@@ -337,7 +337,7 @@ static int wg_format_name (char *ret, int ret_len,
 {
     int  status;
     char *n_hostname = 0;
-    char *n_ds_name = 0;
+    char *n_type_instance = 0;
 
     assert (plugin != NULL);
     assert (type != NULL);
@@ -354,14 +354,13 @@ static int wg_format_name (char *ret, int ret_len,
         return (-1);
     }
 
-    if ((n_ds_name = malloc(strlen(ds_name)+1)) == NULL)
-    {
-        ERROR ("Unable to allocate memory for normalized datasource name buffer");
-        return (-1);
-    }
-
-    if (ds_name && ds_name[0] != '\0') {
-        if (mangle_dots(n_ds_name, ds_name) == -1)
+    if (type_instance && type_instance[0] != '\0') {
+        if ((n_type_instance = malloc(strlen(type_instance)+1)) == NULL)
+        {
+            ERROR ("Unable to allocate memory for normalized datasource name buffer");
+            return (-1);
+        }
+        if (mangle_dots(n_type_instance, type_instance) == -1)
         {
             ERROR ("Unable to normalize datasource name");
             return (-1);
@@ -370,30 +369,30 @@ static int wg_format_name (char *ret, int ret_len,
 
     if ((plugin_instance == NULL) || (plugin_instance[0] == '\0'))
     {
-        if ((type_instance == NULL) || (type_instance[0] == '\0'))
+        if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s",
                         prefix, n_hostname, plugin, type);
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
-                        prefix, n_hostname, plugin, type, n_ds_name);
+                        prefix, n_hostname, plugin, type, ds_name);
         }
         else
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s-%s",
                         prefix, n_hostname, plugin, type,
-                        type_instance);
+                        n_type_instance);
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s-%s.%s",
                         prefix, n_hostname, plugin, type,
-                        type_instance, n_ds_name);
+                        n_type_instance, ds_name);
         }
     }
     else
     {
-        if ((type_instance == NULL) || (type_instance[0] == '\0'))
+        if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
@@ -402,23 +401,23 @@ static int wg_format_name (char *ret, int ret_len,
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s.%s",
                         prefix, n_hostname, plugin,
-                        plugin_instance, type, n_ds_name);
+                        plugin_instance, type, ds_name);
         }
         else
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s-%s",
                         prefix, n_hostname, plugin,
-                        plugin_instance, type, type_instance);
+                        plugin_instance, type, n_type_instance);
             else
                 status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s-%s.%s",
                         prefix, n_hostname, plugin,
-                        plugin_instance, type, type_instance, n_ds_name);
+                        plugin_instance, type, n_type_instance, ds_name);
         }
     }
 
     sfree(n_hostname);
-    sfree(n_ds_name);
+    sfree(n_type_instance);
 
     if ((status < 1) || (status >= ret_len))
         return (-1);
