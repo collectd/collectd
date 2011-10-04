@@ -4745,6 +4745,7 @@ AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
 AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
+AC_PLUGIN([ethstat],     [yes],                [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
@@ -5076,6 +5077,7 @@ Configuration:
     dns . . . . . . . . . $enable_dns
     email . . . . . . . . $enable_email
     entropy . . . . . . . $enable_entropy
+    ethstat . . . . . . . $enable_ethstat
     exec  . . . . . . . . $enable_exec
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
