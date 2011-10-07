@@ -1,3 +1,27 @@
+2011-10-07, Version 4.10.4
+	* collectd: A mutex leak has been fixed in the meta data code. Thanks
+	  to Rafal Lesniak for his patch.
+	* collectd: Compatibility fixes for GCC 4.6 have been applied.
+	* csv plugin: The line buffer size has been increased. Thanks to Colin
+	  McCabe for the patch.
+	* curl_json plugin: Don't use the "parent" node to build the type
+	  instance, if it is empty. Compatibility with libyajl 2 has been
+	  added. Thanks to "spupykin" of the Arch Linux project for the initial
+	  code.
+	* iptables plugin: Fix linking with some versions of libiptc.
+	* irq plugin: Fix support for interrupts under Linux. The old code
+	  assumed that interrupts have a numeric value -- this is no longer
+	  true for Linux. Thanks to Bostjan Skufca for implementing this.
+	* notify_desktop plugin: Compatibility with libnotify 0.7 has been
+	  added. Thanks to Samuli Suominen for his patch.
+	* processes plugin: Fix handling of regular expressions containing
+	  spaces. Thanks for Sebastian Harl for fixing this.
+	* rrdtool, rrdcached plugins: Improve precision of the XFF parameter.
+	  Previously, values like 0.999 would have been rounded to 1.0. Thanks
+	  to Francois-Xavier Bourlet for fixing this.
+	* Various plugin: Set a multi-threading flag in libcurl. Thanks to Mike
+	  Flisher for the fix.
+
 2011-03-26, Version 4.10.3
 	* Documentation: Several updates and additions. Thanks to Sebastian Harl.
 	* collectd: Build issues (compiler warnings) have been fixed. Thanks to
