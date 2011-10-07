@@ -747,7 +747,7 @@
 #<Plugin netcmd>
 #  <Listen>
 #    Address "::1"
-#    Port "1234"
+#    Port "25826"
 #    TLSCertFile "/path/to/cert"
 #    TLSKeyFile  "/path/to/key"
 #    TLSCAFile   "/path/to/ca"
