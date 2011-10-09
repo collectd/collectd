@@ -378,20 +378,20 @@ static int wg_format_name (char *ret, int ret_len,
         if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
                         prefix, n_hostname, postfix, plugin, type);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
                         prefix, n_hostname, postfix, plugin, type, ds_name);
         }
         else
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s-%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s-%s",
                         prefix, n_hostname, postfix, plugin, type,
                         n_type_instance);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s-%s.%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s-%s.%s",
                         prefix, n_hostname, postfix, plugin, type,
                         n_type_instance, ds_name);
         }
@@ -401,22 +401,22 @@ static int wg_format_name (char *ret, int ret_len,
         if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
                         prefix, n_hostname, postfix, plugin,
                         plugin_instance, type);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s.%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s.%s",
                         prefix, n_hostname, postfix, plugin,
                         plugin_instance, type, ds_name);
         }
         else
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s-%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s-%s",
                         prefix, n_hostname, postfix, plugin,
                         plugin_instance, type, n_type_instance);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s-%s.%s",
+                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s-%s.%s",
                         prefix, n_hostname, postfix, plugin,
                         plugin_instance, type, n_type_instance, ds_name);
         }
@@ -692,10 +692,19 @@ static int wg_config_carbon (oconfig_item_t *ci)
         }
     }
 
+    if (cb->prefix == NULL) {
+        if ((cb->prefix = malloc((int)sizeof(char))) == NULL)
+        {
+            ERROR ("Unable to allocate memory for hostname prefix buffer");
+            return (-1);
+        }
+        cb->postfix[0] = '\0';
+    }
+
     if (cb->postfix == NULL) {
         if ((cb->postfix = malloc((int)sizeof(char))) == NULL)
         {
-            ERROR ("Unable to allocate memory for normalized hostname buffer");
+            ERROR ("Unable to allocate memory for hostname postfix buffer");
             return (-1);
         }
         cb->postfix[0] = '\0';
