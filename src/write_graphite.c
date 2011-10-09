@@ -54,7 +54,8 @@
 #define WG_FORMAT_NAME(ret, ret_len, vl, cb, name) \
         wg_format_name (ret, ret_len, (vl)->host, (vl)->plugin, \
                          (vl)->plugin_instance, (vl)->type, \
-                         (vl)->type_instance, (cb)->prefix, name, (cb)->dotchar)
+                         (vl)->type_instance, (cb)->prefix, (cb)->postfix, \
+                         name, (cb)->dotchar)
 #endif
 
 #ifndef WG_SEND_BUF_SIZE
@@ -72,6 +73,7 @@ struct wg_callback
     char    *host;
     int      port;
     char    *prefix;
+    char    *postfix;
     char     dotchar;
 
     char     send_buf[WG_SEND_BUF_SIZE];
@@ -211,6 +213,7 @@ static void wg_callback_free (void *data)
     close(cb->sock_fd);
     sfree(cb->host);
     sfree(cb->prefix);
+    sfree(cb->postfix);
 
     sfree(cb);
 }
@@ -335,7 +338,8 @@ static int wg_format_name (char *ret, int ret_len,
         const char *hostname,
         const char *plugin, const char *plugin_instance,
         const char *type, const char *type_instance,
-        const char *prefix, const char *ds_name, const char dotchar)
+        const char *prefix, const char *postfix,
+        const char *ds_name, const char dotchar)
 {
     int  status;
     char *n_hostname = 0;
@@ -374,21 +378,21 @@ static int wg_format_name (char *ret, int ret_len,
         if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s",
-                        prefix, n_hostname, plugin, type);
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s",
+                        prefix, n_hostname, postfix, plugin, type);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
-                        prefix, n_hostname, plugin, type, ds_name);
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s",
+                        prefix, n_hostname, postfix, plugin, type, ds_name);
         }
         else
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s-%s",
-                        prefix, n_hostname, plugin, type,
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s-%s",
+                        prefix, n_hostname, postfix, plugin, type,
                         n_type_instance);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s-%s.%s",
-                        prefix, n_hostname, plugin, type,
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s-%s.%s",
+                        prefix, n_hostname, postfix, plugin, type,
                         n_type_instance, ds_name);
         }
     }
@@ -397,23 +401,23 @@ static int wg_format_name (char *ret, int ret_len,
         if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
-                        prefix, n_hostname, plugin,
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s",
+                        prefix, n_hostname, postfix, plugin,
                         plugin_instance, type);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s.%s",
-                        prefix, n_hostname, plugin,
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s.%s",
+                        prefix, n_hostname, postfix, plugin,
                         plugin_instance, type, ds_name);
         }
         else
         {
             if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s-%s",
-                        prefix, n_hostname, plugin,
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s-%s",
+                        prefix, n_hostname, postfix, plugin,
                         plugin_instance, type, n_type_instance);
             else
-                status = ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s-%s.%s",
-                        prefix, n_hostname, plugin,
+                status = ssnprintf (ret, ret_len, "%s.%s%s.%s.%s.%s-%s.%s",
+                        prefix, n_hostname, postfix, plugin,
                         plugin_instance, type, n_type_instance, ds_name);
         }
     }
@@ -661,6 +665,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->host = NULL;
     cb->port = 2003;
     cb->prefix = NULL;
+    cb->postfix = NULL;
     cb->server = NULL;
     cb->dotchar = '_';
 
@@ -676,6 +681,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             config_set_number (&cb->port, child);
         else if (strcasecmp ("Prefix", child->key) == 0)
             config_set_string (&cb->prefix, child);
+        else if (strcasecmp ("Postfix", child->key) == 0)
+            config_set_string (&cb->postfix, child);
         else if (strcasecmp ("DotCharacter", child->key) == 0)
             config_set_char (&cb->dotchar, child);
         else
@@ -683,6 +690,15 @@ static int wg_config_carbon (oconfig_item_t *ci)
             ERROR ("write_graphite plugin: Invalid configuration "
                         "option: %s.", child->key);
         }
+    }
+
+    if (cb->postfix == NULL) {
+        if ((cb->postfix = malloc((int)sizeof(char))) == NULL)
+        {
+            ERROR ("Unable to allocate memory for normalized hostname buffer");
+            return (-1);
+        }
+        cb->postfix[0] = '\0';
     }
 
     DEBUG ("write_graphite: Registering write callback to carbon agent "
