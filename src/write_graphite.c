@@ -51,10 +51,10 @@
 #include <netdb.h>
 
 #ifndef WG_FORMAT_NAME
-#define WG_FORMAT_NAME(ret, ret_len, vl, prefix, name) \
+#define WG_FORMAT_NAME(ret, ret_len, vl, cb, name) \
         wg_format_name (ret, ret_len, (vl)->host, (vl)->plugin, \
                          (vl)->plugin_instance, (vl)->type, \
-                         (vl)->type_instance, prefix, name)
+                         (vl)->type_instance, (cb)->prefix, name, (cb)->dotchar)
 #endif
 
 #ifndef WG_SEND_BUF_SIZE
@@ -72,6 +72,7 @@ struct wg_callback
     char    *host;
     int      port;
     char    *prefix;
+    char     dotchar;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -308,7 +309,8 @@ static int wg_format_values (char *ret, size_t ret_len,
     return (0);
 }
 
-static int mangle_dots (char *dst, const char *src)
+static int swap_chars (char *dst, const char *src,
+        const char from, const char to)
 {
     size_t i;
 
@@ -316,9 +318,9 @@ static int mangle_dots (char *dst, const char *src)
 
     for (i = 0; i < strlen(src) ; i++)
     {
-        if (src[i] == '.')
+        if (src[i] == from)
         {
-            dst[i] = '_';
+            dst[i] = to;
             ++reps;
         }
         else
@@ -333,7 +335,7 @@ static int wg_format_name (char *ret, int ret_len,
         const char *hostname,
         const char *plugin, const char *plugin_instance,
         const char *type, const char *type_instance,
-        const char *prefix, const char *ds_name)
+        const char *prefix, const char *ds_name, const char dotchar)
 {
     int  status;
     char *n_hostname = 0;
@@ -348,7 +350,7 @@ static int wg_format_name (char *ret, int ret_len,
         return (-1);
     }
 
-    if (mangle_dots(n_hostname, hostname) == -1)
+    if (swap_chars(n_hostname, hostname, '.', dotchar) == -1)
     {
         ERROR ("Unable to normalize hostname");
         return (-1);
@@ -360,7 +362,7 @@ static int wg_format_name (char *ret, int ret_len,
             ERROR ("Unable to allocate memory for normalized datasource name buffer");
             return (-1);
         }
-        if (mangle_dots(n_type_instance, type_instance) == -1)
+        if (swap_chars(n_type_instance, type_instance, '.', dotchar) == -1)
         {
             ERROR ("Unable to normalize datasource name");
             return (-1);
@@ -507,8 +509,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         for (i = 0; i < ds->ds_num; i++)
         {
             /* Copy the identifier to `key' and escape it. */
-            status = WG_FORMAT_NAME (key, sizeof (key), vl, cb->prefix, \
-                    ds->ds[i].name);
+            status = WG_FORMAT_NAME (key, sizeof (key), vl, cb, ds->ds[i].name);
             if (status != 0)
             {
                 ERROR ("write_graphite plugin: error with format_name");
@@ -539,7 +540,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
     else
     {
         /* Copy the identifier to `key' and escape it. */
-        status = WG_FORMAT_NAME (key, sizeof (key), vl, cb->prefix, NULL);
+        status = WG_FORMAT_NAME (key, sizeof (key), vl, cb, NULL);
         if (status != 0)
         {
             ERROR ("write_graphite plugin: error with format_name");
@@ -601,6 +602,21 @@ static int config_set_number (int *dest,
     return (0);
 }
 
+static int config_set_char (char *dest,
+        oconfig_item_t *ci)
+{
+    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+    {
+        WARNING ("write_graphite plugin: The `%s' config option "
+                "needs exactly one string argument.", ci->key);
+        return (-1);
+    }
+
+    *dest = ci->values[0].value.string[0];
+
+    return (0);
+}
+
 static int config_set_string (char **ret_string,
         oconfig_item_t *ci)
 {
@@ -646,6 +662,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->port = 2003;
     cb->prefix = NULL;
     cb->server = NULL;
+    cb->dotchar = '_';
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -659,6 +676,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             config_set_number (&cb->port, child);
         else if (strcasecmp ("Prefix", child->key) == 0)
             config_set_string (&cb->prefix, child);
+        else if (strcasecmp ("DotCharacter", child->key) == 0)
+            config_set_char (&cb->dotchar, child);
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
