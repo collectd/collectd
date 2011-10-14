@@ -1,5 +1,4 @@
 2011-10-07, Version 5.0.1
-
 	* collectd: A mutex leak has been fixed in the meta data code. Thanks
 	  to Rafal Lesniak for his patch.
 	* collectd: Compatibility fixes for GCC 4.6 have been applied. Thanks
