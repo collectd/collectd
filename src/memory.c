@@ -321,9 +321,16 @@ static int memory_read (void)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
+        /* Most of the additions here were taken as-is from the k9toolkit from
+         * Brendan Gregg and are subject to change I guess */
 	long long mem_used;
 	long long mem_free;
 	long long mem_lock;
+	long long mem_kern;
+	long long mem_unus;
+
+	long long pp_kernel;
+	long long physmem;
 
 	if (ksp == NULL)
 		return (-1);
@@ -331,20 +338,43 @@ static int memory_read (void)
 	mem_used = get_kstat_value (ksp, "pagestotal");
 	mem_free = get_kstat_value (ksp, "pagesfree");
 	mem_lock = get_kstat_value (ksp, "pageslocked");
+	mem_kern = 0;
+	mem_unus = 0;
+
+	pp_kernel = get_kstat_value (ksp, "pp_kernel");
+	physmem = get_kstat_value (ksp, "physmem");
 
 	if ((mem_used < 0LL) || (mem_free < 0LL) || (mem_lock < 0LL))
 		return (-1);
 	if (mem_used < (mem_free + mem_lock))
 		return (-1);
 
+	mem_unus = physmem - mem_used;
 	mem_used -= mem_free + mem_lock;
+
+	/* mem_kern is accounted for in mem_lock */
+	if ( pp_kernel < mem_lock )
+	{
+		mem_kern = pp_kernel;
+		mem_lock -= pp_kernel;
+	}
+	else
+	{
+		mem_kern = mem_lock;
+		mem_lock = 0;
+	}
+
 	mem_used *= pagesize; /* If this overflows you have some serious */
 	mem_free *= pagesize; /* memory.. Why not call me up and give me */
 	mem_lock *= pagesize; /* some? ;) */
+	mem_kern *= pagesize; /* it's 2011 RAM is cheap */
+	mem_unus *= pagesize;
 
 	memory_submit ("used",   mem_used);
 	memory_submit ("free",   mem_free);
 	memory_submit ("locked", mem_lock);
+	memory_submit ("kernel", mem_kern);
+	memory_submit ("unusable", mem_unus);
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
