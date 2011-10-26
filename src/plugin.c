@@ -1660,6 +1660,44 @@ void plugin_log (int level, const char *format, ...)
 	}
 } /* void plugin_log */
 
+int parse_log_severity (const char *severity)
+{
+	int log_level = -1;
+
+	if ((0 == strcasecmp (severity, "emerg"))
+			|| (0 == strcasecmp (severity, "alert"))
+			|| (0 == strcasecmp (severity, "crit"))
+			|| (0 == strcasecmp (severity, "err")))
+		log_level = LOG_ERR;
+	else if (0 == strcasecmp (severity, "warning"))
+		log_level = LOG_WARNING;
+	else if (0 == strcasecmp (severity, "notice"))
+		log_level = LOG_NOTICE;
+	else if (0 == strcasecmp (severity, "info"))
+		log_level = LOG_INFO;
+#if COLLECT_DEBUG
+	else if (0 == strcasecmp (severity, "debug"))
+		log_level = LOG_DEBUG;
+#endif /* COLLECT_DEBUG */
+
+	return (log_level);
+} /* int parse_log_severity */
+
+int parse_notif_severity (const char *severity)
+{
+	int notif_severity = -1;
+
+	if (strcasecmp (severity, "FAILURE"))
+		notif_severity = NOTIF_FAILURE;
+	else if (strcmp (severity, "OKAY"))
+		notif_severity = NOTIF_OKAY;
+	else if ((strcmp (severity, "WARNING"))
+		|| (strcmp (severity, "WARN")))
+		notif_severity = NOTIF_WARNING;
+
+	return (notif_severity);
+} /* int parse_notif_severity */
+
 const data_set_t *plugin_get_ds (const char *name)
 {
 	data_set_t *ds;

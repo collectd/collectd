@@ -33,10 +33,12 @@ static int log_level = LOG_DEBUG;
 #else
 static int log_level = LOG_INFO;
 #endif /* COLLECT_DEBUG */
+static int notif_severity = -1;
 
 static const char *config_keys[] =
 {
-	"LogLevel"
+	"LogLevel",
+	"NotifyLevel",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -44,26 +46,13 @@ static int sl_config (const char *key, const char *value)
 {
 	if (strcasecmp (key, "LogLevel") == 0)
 	{
-		if ((strcasecmp (value, "emerg") == 0)
-				|| (strcasecmp (value, "alert") == 0)
-				|| (strcasecmp (value, "crit") == 0)
-				|| (strcasecmp (value, "err") == 0))
-			log_level = LOG_ERR;
-		else if (strcasecmp (value, "warning") == 0)
-			log_level = LOG_WARNING;
-		else if (strcasecmp (value, "notice") == 0)
-			log_level = LOG_NOTICE;
-		else if (strcasecmp (value, "info") == 0)
-			log_level = LOG_INFO;
-#if COLLECT_DEBUG
-		else if (strcasecmp (value, "debug") == 0)
-			log_level = LOG_DEBUG;
-#endif
-		else
-			return (1);
+		log_level = parse_log_severity (value);
+		if (log_level == -1) return (1);
 	}
-	else
-		return (-1);
+	else if (strcasecmp (key, "NotifyLevel") == 0)
+	{
+		notif_severity = parse_notif_severity(key);
+	}
 
 	return (0);
 } /* int sl_config */
@@ -84,11 +73,74 @@ static int sl_shutdown (void)
 	return (0);
 }
 
+static int sl_notification (const notification_t *n,
+		user_data_t __attribute__((unused)) *user_data)
+{
+	char  buf[1024] = "";
+	char *buf_ptr = buf;
+	int   buf_len = sizeof (buf);
+	int status;
+	int severity;
+
+	/* do nothing if parsing of NotifSeverity failed */
+	if (notif_severity == -1)
+		return 0;
+	/* do nothing if NotifSeverity is higer than notification
+	 * note that OKAY notifs will always be displayed */
+	if ((notif_severity == NOTIF_FAILURE) && (n -> severity == NOTIF_WARNING))
+		return 0;
+
+	status = ssnprintf (buf_ptr, buf_len, "Notification: severity = %s",
+			(n->severity == NOTIF_FAILURE) ? "FAILURE"
+			: ((n->severity == NOTIF_WARNING) ? "WARNING"
+				: ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
+	if (status > 0)
+	{
+		buf_ptr += status;
+		buf_len -= status;
+	}
+
+#define APPEND(bufptr, buflen, key, value) \
+	if ((buflen > 0) && (strlen (value) > 0)) { \
+		int status = ssnprintf (bufptr, buflen, ", %s = %s", key, value); \
+		if (status > 0) { \
+			bufptr += status; \
+			buflen -= status; \
+		} \
+	}
+	APPEND (buf_ptr, buf_len, "host", n->host);
+	APPEND (buf_ptr, buf_len, "plugin", n->plugin);
+	APPEND (buf_ptr, buf_len, "plugin_instance", n->plugin_instance);
+	APPEND (buf_ptr, buf_len, "type", n->type);
+	APPEND (buf_ptr, buf_len, "type_instance", n->type_instance);
+	APPEND (buf_ptr, buf_len, "message", n->message);
+
+	buf[sizeof (buf) - 1] = '\0';
+
+	switch (n->severity)
+	{
+		case NOTIF_FAILURE:
+			severity = LOG_ERR;
+			break;
+		case NOTIF_WARNING:
+			severity = LOG_WARNING;
+			break;
+		case NOTIF_OKAY:
+			severity = LOG_WARNING;
+			break;
+		default: severity = LOG_INFO;
+	}
+	sl_log (severity, buf, NULL);
+
+	return (0);
+} /* int sl_notification */
+
 void module_register (void)
 {
 	openlog ("collectd", LOG_CONS | LOG_PID, LOG_DAEMON);
 
 	plugin_register_config ("syslog", sl_config, config_keys, config_keys_num);
 	plugin_register_log ("syslog", sl_log, /* user_data = */ NULL);
+	plugin_register_notification ("syslog", sl_notification, NULL);
 	plugin_register_shutdown ("syslog", sl_shutdown);
 } /* void module_register(void) */

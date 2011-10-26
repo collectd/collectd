@@ -4206,6 +4206,15 @@ syslog-daemon.
 Please note that B<debug> is only available if collectd has been compiled with
 debugging support.
 
+=item B<NotifyLevel> B<WARNING>|B<FAILURE>
+
+Controls which notifications should be sent to syslog. The default behaviour is
+not to send any. If either of C<WARNING> or C<FAILURE> is used, C<OKAY> notifications
+will also be sent to syslog.
+Notifications will be sent using severities based on their own levels. B<OKAY>
+and B<WARNING> will be sent using syslog B<WARNING> severity, whereas B<FAILURE>
+will yield a B<ERROR> syslog entry.
+
 =back
 
 =head2 Plugin C<table>
@@ -5445,7 +5454,7 @@ convert counter values to rates.
 
 Please note that these placeholders are B<case sensitive>!
 
-=item B<Severity> B<"FATAL">|B<"WARNING">|B<"OKAY">
+=item B<Severity> B<"FAILURE">|B<"WARNING">|B<"OKAY">
 
 Sets the severity of the message. If omitted, the severity B<"WARNING"> is
 used.
