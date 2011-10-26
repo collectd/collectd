@@ -4072,7 +4072,7 @@ then
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 	#LDFLAGS="$LDFLAGS $with_libvarnish_libs"
 
-    AC_CHECK_FUNC([VSL_OpenStats],
+    AC_CHECK_FUNC(VSL_OpenStats,
                   [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
                   [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])])
 
