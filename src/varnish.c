@@ -133,6 +133,14 @@
 #include "configfile.h"
 
 #include <varnish/varnishapi.h>
+#if HAVE_VARNISH_V3
+	#include <varnish/vsc.h>
+    #define STAT_STRUCT VSC_C_main
+#endif
+
+#if HAVE_VARNISH_V2
+	#define STAT_STRUCT VSL_stats
+#endif
 
 /* {{{ user_config_s */
 struct user_config_s {
@@ -145,9 +153,11 @@ struct user_config_s {
 	_Bool collect_fetch;
 	_Bool collect_hcb;
 	_Bool collect_shm;
-	_Bool collect_sma;
 	_Bool collect_sms;
+#if HAVE_VARNISH_V2
 	_Bool collect_sm;
+	_Bool collect_sma;
+#endif
 	_Bool collect_totals;
 	_Bool collect_workers;
 };
@@ -204,182 +214,203 @@ static int varnish_submit_derive (const char *plugin_instance, /* {{{ */
 	return (varnish_submit (plugin_instance, category, type, type_instance, value));
 } /* }}} int varnish_submit_derive */
 
+#if HAVE_VARNISH_V2
 static void varnish_monitor (const user_config_t *conf, struct varnish_stats *VSL_stats) /* {{{ */
+#endif
+#if HAVE_VARNISH_V3
+static void varnish_monitor (const user_config_t *conf, const struct VSC_C_main *VSC_C_main)
+#endif
 {
 	if (conf->collect_cache)
 	{
 		/* Cache hits */
-		varnish_submit_derive (conf->instance, "cache", "cache_result", "hit",     VSL_stats->cache_hit);
+		varnish_submit_derive (conf->instance, "cache", "cache_result", "hit",     STAT_STRUCT->cache_hit);
 		/* Cache misses */
-		varnish_submit_derive (conf->instance, "cache", "cache_result", "miss",    VSL_stats->cache_miss);
+		varnish_submit_derive (conf->instance, "cache", "cache_result", "miss",    STAT_STRUCT->cache_miss);
 		/* Cache hits for pass */
-		varnish_submit_derive (conf->instance, "cache", "cache_result", "hitpass", VSL_stats->cache_hitpass);
+		varnish_submit_derive (conf->instance, "cache", "cache_result", "hitpass", STAT_STRUCT->cache_hitpass);
 	}
 
 	if (conf->collect_connections)
 	{
 		/* Client connections accepted */
-		varnish_submit_derive (conf->instance, "connections", "connections", "accepted", VSL_stats->client_conn);
+		varnish_submit_derive (conf->instance, "connections", "connections", "accepted", STAT_STRUCT->client_conn);
 		/* Connection dropped, no sess */
-		varnish_submit_derive (conf->instance, "connections", "connections", "dropped" , VSL_stats->client_drop);
+		varnish_submit_derive (conf->instance, "connections", "connections", "dropped" , STAT_STRUCT->client_drop);
 		/* Client requests received    */
-		varnish_submit_derive (conf->instance, "connections", "connections", "received", VSL_stats->client_req);
+		varnish_submit_derive (conf->instance, "connections", "connections", "received", STAT_STRUCT->client_req);
 	}
 
 	if (conf->collect_esi)
 	{
+#if HAVE_VARNISH_V2
 		/* Objects ESI parsed (unlock) */
-		varnish_submit_derive (conf->instance, "esi", "total_operations", "parsed", VSL_stats->esi_parse);
+		varnish_submit_derive (conf->instance, "esi", "total_operations", "parsed", STAT_STRUCT->esi_parse);
+#endif
 		/* ESI parse errors (unlock)   */
-		varnish_submit_derive (conf->instance, "esi", "total_operations", "error",  VSL_stats->esi_errors);
+		varnish_submit_derive (conf->instance, "esi", "total_operations", "error",  STAT_STRUCT->esi_errors);
 	}
 
 	if (conf->collect_backend)
 	{
 		/* Backend conn. success       */
-		varnish_submit_derive (conf->instance, "backend", "connections", "success"      , VSL_stats->backend_conn);
+		varnish_submit_derive (conf->instance, "backend", "connections", "success"      , STAT_STRUCT->backend_conn);
 		/* Backend conn. not attempted */
-		varnish_submit_derive (conf->instance, "backend", "connections", "not-attempted", VSL_stats->backend_unhealthy);
+		varnish_submit_derive (conf->instance, "backend", "connections", "not-attempted", STAT_STRUCT->backend_unhealthy);
 		/* Backend conn. too many      */
-		varnish_submit_derive (conf->instance, "backend", "connections", "too-many"     , VSL_stats->backend_busy);
+		varnish_submit_derive (conf->instance, "backend", "connections", "too-many"     , STAT_STRUCT->backend_busy);
 		/* Backend conn. failures      */
-		varnish_submit_derive (conf->instance, "backend", "connections", "failures"     , VSL_stats->backend_fail);
+		varnish_submit_derive (conf->instance, "backend", "connections", "failures"     , STAT_STRUCT->backend_fail);
 		/* Backend conn. reuses        */
-		varnish_submit_derive (conf->instance, "backend", "connections", "reuses"       , VSL_stats->backend_reuse);
+		varnish_submit_derive (conf->instance, "backend", "connections", "reuses"       , STAT_STRUCT->backend_reuse);
 		/* Backend conn. was closed    */
-		varnish_submit_derive (conf->instance, "backend", "connections", "was-closed"   , VSL_stats->backend_toolate);
+		varnish_submit_derive (conf->instance, "backend", "connections", "was-closed"   , STAT_STRUCT->backend_toolate);
 		/* Backend conn. recycles      */
-		varnish_submit_derive (conf->instance, "backend", "connections", "recycled"     , VSL_stats->backend_recycle);
+		varnish_submit_derive (conf->instance, "backend", "connections", "recycled"     , STAT_STRUCT->backend_recycle);
+#if HAVE_VARNISH_V2
 		/* Backend conn. unused        */
-		varnish_submit_derive (conf->instance, "backend", "connections", "unused"       , VSL_stats->backend_unused);
+		varnish_submit_derive (conf->instance, "backend", "connections", "unused"       , STAT_STRUCT->backend_unused);
+#endif
 	}
 
 	if (conf->collect_fetch)
 	{
 		/* Fetch head                */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "head"       , VSL_stats->fetch_head);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "head"       , STAT_STRUCT->fetch_head);
 		/* Fetch with length         */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "length"     , VSL_stats->fetch_length);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "length"     , STAT_STRUCT->fetch_length);
 		/* Fetch chunked             */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "chunked"    , VSL_stats->fetch_chunked);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "chunked"    , STAT_STRUCT->fetch_chunked);
 		/* Fetch EOF                 */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "eof"        , VSL_stats->fetch_eof);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "eof"        , STAT_STRUCT->fetch_eof);
 		/* Fetch bad headers         */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "bad_headers", VSL_stats->fetch_bad);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "bad_headers", STAT_STRUCT->fetch_bad);
 		/* Fetch wanted close        */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "close"      , VSL_stats->fetch_close);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "close"      , STAT_STRUCT->fetch_close);
 		/* Fetch pre HTTP/1.1 closed */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "oldhttp"    , VSL_stats->fetch_oldhttp);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "oldhttp"    , STAT_STRUCT->fetch_oldhttp);
 		/* Fetch zero len            */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "zero"       , VSL_stats->fetch_zero);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "zero"       , STAT_STRUCT->fetch_zero);
 		/* Fetch failed              */
-		varnish_submit_derive (conf->instance, "fetch", "http_requests", "failed"     , VSL_stats->fetch_failed);
+		varnish_submit_derive (conf->instance, "fetch", "http_requests", "failed"     , STAT_STRUCT->fetch_failed);
 	}
 
 	if (conf->collect_hcb)
 	{
 		/* HCB Lookups without lock */
-		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "lookup_nolock", VSL_stats->hcb_nolock);
+		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "lookup_nolock", STAT_STRUCT->hcb_nolock);
 		/* HCB Lookups with lock    */
-		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "lookup_lock",   VSL_stats->hcb_lock);
+		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "lookup_lock",   STAT_STRUCT->hcb_lock);
 		/* HCB Inserts              */
-		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "insert",        VSL_stats->hcb_insert);
+		varnish_submit_derive (conf->instance, "hcb", "cache_operation", "insert",        STAT_STRUCT->hcb_insert);
 	}
 
 	if (conf->collect_shm)
 	{
 		/* SHM records                 */
-		varnish_submit_derive (conf->instance, "shm", "total_operations", "records"   , VSL_stats->shm_records);
+		varnish_submit_derive (conf->instance, "shm", "total_operations", "records"   , STAT_STRUCT->shm_records);
 		/* SHM writes                  */
-		varnish_submit_derive (conf->instance, "shm", "total_operations", "writes"    , VSL_stats->shm_writes);
+		varnish_submit_derive (conf->instance, "shm", "total_operations", "writes"    , STAT_STRUCT->shm_writes);
 		/* SHM flushes due to overflow */
-		varnish_submit_derive (conf->instance, "shm", "total_operations", "flushes"   , VSL_stats->shm_flushes);
+		varnish_submit_derive (conf->instance, "shm", "total_operations", "flushes"   , STAT_STRUCT->shm_flushes);
 		/* SHM MTX contention          */
-		varnish_submit_derive (conf->instance, "shm", "total_operations", "contention", VSL_stats->shm_cont);
+		varnish_submit_derive (conf->instance, "shm", "total_operations", "contention", STAT_STRUCT->shm_cont);
 		/* SHM cycles through buffer   */
-		varnish_submit_derive (conf->instance, "shm", "total_operations", "cycles"    , VSL_stats->shm_cycles);
+		varnish_submit_derive (conf->instance, "shm", "total_operations", "cycles"    , STAT_STRUCT->shm_cycles);
 	}
 
+#if HAVE_VARNISH_V2
 	if (conf->collect_sm)
 	{
 		/* allocator requests */
-		varnish_submit_derive (conf->instance, "sm", "total_requests", "nreq",  VSL_stats->sm_nreq);
+		varnish_submit_derive (conf->instance, "sm", "total_requests", "nreq",  STAT_STRUCT->sm_nreq);
 		/* outstanding allocations */
-		varnish_submit_gauge (conf->instance,  "sm", "requests", "outstanding", VSL_stats->sm_nobj);
+		varnish_submit_gauge (conf->instance,  "sm", "requests", "outstanding", STAT_STRUCT->sm_nobj);
 		/* bytes allocated */
-		varnish_submit_derive (conf->instance,  "sm", "total_bytes", "allocated",      VSL_stats->sm_balloc);
+		varnish_submit_derive (conf->instance,  "sm", "total_bytes", "allocated",      STAT_STRUCT->sm_balloc);
 		/* bytes free */
-		varnish_submit_derive (conf->instance,  "sm", "total_bytes", "free",           VSL_stats->sm_bfree);
+		varnish_submit_derive (conf->instance,  "sm", "total_bytes", "free",           STAT_STRUCT->sm_bfree);
 	}
 
 	if (conf->collect_sma)
 	{
 		/* SMA allocator requests */
-		varnish_submit_derive (conf->instance, "sma", "total_requests", "nreq",  VSL_stats->sma_nreq);
+		varnish_submit_derive (conf->instance, "sma", "total_requests", "nreq",  STAT_STRUCT->sma_nreq);
 		/* SMA outstanding allocations */
-		varnish_submit_gauge (conf->instance,  "sma", "requests", "outstanding", VSL_stats->sma_nobj);
+		varnish_submit_gauge (conf->instance,  "sma", "requests", "outstanding", STAT_STRUCT->sma_nobj);
 		/* SMA outstanding bytes */
-		varnish_submit_gauge (conf->instance,  "sma", "bytes", "outstanding",    VSL_stats->sma_nbytes);
+		varnish_submit_gauge (conf->instance,  "sma", "bytes", "outstanding",    STAT_STRUCT->sma_nbytes);
 		/* SMA bytes allocated */
-		varnish_submit_derive (conf->instance,  "sma", "total_bytes", "allocated",      VSL_stats->sma_balloc);
+		varnish_submit_derive (conf->instance,  "sma", "total_bytes", "allocated",      STAT_STRUCT->sma_balloc);
 		/* SMA bytes free */
-		varnish_submit_derive (conf->instance,  "sma", "total_bytes", "free" ,          VSL_stats->sma_bfree);
+		varnish_submit_derive (conf->instance,  "sma", "total_bytes", "free" ,          STAT_STRUCT->sma_bfree);
 	}
+#endif
 
 	if (conf->collect_sms)
 	{
 		/* SMS allocator requests */
-		varnish_submit_derive (conf->instance, "sms", "total_requests", "allocator", VSL_stats->sms_nreq);
+		varnish_submit_derive (conf->instance, "sms", "total_requests", "allocator", STAT_STRUCT->sms_nreq);
 		/* SMS outstanding allocations */
-		varnish_submit_gauge (conf->instance,  "sms", "requests", "outstanding",     VSL_stats->sms_nobj);
+		varnish_submit_gauge (conf->instance,  "sms", "requests", "outstanding",     STAT_STRUCT->sms_nobj);
 		/* SMS outstanding bytes */
-		varnish_submit_gauge (conf->instance,  "sms", "bytes", "outstanding",        VSL_stats->sms_nbytes);
+		varnish_submit_gauge (conf->instance,  "sms", "bytes", "outstanding",        STAT_STRUCT->sms_nbytes);
 		/* SMS bytes allocated */
-		varnish_submit_derive (conf->instance,  "sms", "total_bytes", "allocated",          VSL_stats->sms_balloc);
+		varnish_submit_derive (conf->instance,  "sms", "total_bytes", "allocated",          STAT_STRUCT->sms_balloc);
 		/* SMS bytes freed */
-		varnish_submit_derive (conf->instance,  "sms", "total_bytes", "free",               VSL_stats->sms_bfree);
+		varnish_submit_derive (conf->instance,  "sms", "total_bytes", "free",               STAT_STRUCT->sms_bfree);
 	}
 
 	if (conf->collect_totals)
 	{
 		/* Total Sessions */
-		varnish_submit_derive (conf->instance, "totals", "total_sessions", "sessions",  VSL_stats->s_sess);
+		varnish_submit_derive (conf->instance, "totals", "total_sessions", "sessions",  STAT_STRUCT->s_sess);
 		/* Total Requests */
-		varnish_submit_derive (conf->instance, "totals", "total_requests", "requests",  VSL_stats->s_req);
+		varnish_submit_derive (conf->instance, "totals", "total_requests", "requests",  STAT_STRUCT->s_req);
 		/* Total pipe */
-		varnish_submit_derive (conf->instance, "totals", "total_operations", "pipe",    VSL_stats->s_pipe);
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "pipe",    STAT_STRUCT->s_pipe);
 		/* Total pass */
-		varnish_submit_derive (conf->instance, "totals", "total_operations", "pass",    VSL_stats->s_pass);
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "pass",    STAT_STRUCT->s_pass);
 		/* Total fetch */
-		varnish_submit_derive (conf->instance, "totals", "total_operations", "fetches", VSL_stats->s_fetch);
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "fetches", STAT_STRUCT->s_fetch);
 		/* Total header bytes */
-		varnish_submit_derive (conf->instance, "totals", "total_bytes", "header-bytes", VSL_stats->s_hdrbytes);
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "header-bytes", STAT_STRUCT->s_hdrbytes);
 		/* Total body byte */
-		varnish_submit_derive (conf->instance, "totals", "total_bytes", "body-bytes",   VSL_stats->s_bodybytes);
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "body-bytes",   STAT_STRUCT->s_bodybytes);
 	}
 
 	if (conf->collect_workers)
 	{
 		/* worker threads */
-		varnish_submit_gauge (conf->instance, "workers", "threads", "worker",            VSL_stats->n_wrk);
+		varnish_submit_gauge (conf->instance, "workers", "threads", "worker",            STAT_STRUCT->n_wrk);
 		/* worker threads created */
-		varnish_submit_derive (conf->instance, "workers", "total_threads", "created",     VSL_stats->n_wrk_create);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "created",     STAT_STRUCT->n_wrk_create);
 		/* worker threads not created */
-		varnish_submit_derive (conf->instance, "workers", "total_threads", "failed",      VSL_stats->n_wrk_failed);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "failed",      STAT_STRUCT->n_wrk_failed);
 		/* worker threads limited */
-		varnish_submit_derive (conf->instance, "workers", "total_threads", "limited",     VSL_stats->n_wrk_max);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "limited",     STAT_STRUCT->n_wrk_max);
+#ifdef HAVE_VARNISH_V2
 		/* queued work requests */
-		varnish_submit_derive (conf->instance, "workers", "total_requests", "queued",     VSL_stats->n_wrk_queue);
+		varnish_submit_derive (conf->instance, "workers", "total_requests", "queued",     STAT_STRUCT->n_wrk_queue);
 		/* overflowed work requests */
-		varnish_submit_derive (conf->instance, "workers", "total_requests", "overflowed", VSL_stats->n_wrk_overflow);
+		varnish_submit_derive (conf->instance, "workers", "total_requests", "overflowed", STAT_STRUCT->n_wrk_overflow);
+#endif
 		/* dropped work requests */
-		varnish_submit_derive (conf->instance, "workers", "total_requests", "dropped",    VSL_stats->n_wrk_drop);
+		varnish_submit_derive (conf->instance, "workers", "total_requests", "dropped",    STAT_STRUCT->n_wrk_drop);
 	}
 } /* }}} void varnish_monitor */
 
 static int varnish_read (user_data_t *ud) /* {{{ */
 {
+#ifdef HAVE_VARNISH_V2
 	struct varnish_stats *VSL_stats;
+#endif
+
+#ifdef HAVE_VARNISH_V3
+    struct VSM_data *vd;
+	const struct VSC_C_main *VSC_C_main;
+#endif
+
 	user_config_t *conf;
 
 	if ((ud == NULL) || (ud->data == NULL))
@@ -387,6 +418,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 
 	conf = ud->data;
 
+#ifdef HAVE_VARNISH_V2
 	VSL_stats = VSL_OpenStats (conf->instance);
 	if (VSL_stats == NULL)
 	{
@@ -396,6 +428,22 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	}
 
 	varnish_monitor (conf, VSL_stats);
+#endif
+
+#ifdef HAVE_VARNISH_V3
+	vd = VSM_New();
+	VSC_Setup(vd);
+	if (VSC_Open(vd, 1))
+	{
+		ERROR ("Varnish plugin : unable to load statistics");
+
+		return (-1);
+	}
+
+	VSC_C_main = VSC_Main(vd);
+
+	varnish_monitor (conf, VSC_C_main);
+#endif
 
     return (0);
 } /* }}} */
@@ -423,11 +471,13 @@ static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
 	conf->collect_fetch       = 0;
 	conf->collect_hcb         = 0;
 	conf->collect_shm         = 1;
+#if HAVE_VARNISH_V2
 	conf->collect_sm          = 0;
 	conf->collect_sma         = 0;
+#endif
 	conf->collect_sms         = 0;
 	conf->collect_totals      = 0;
-	
+
 	return (0);
 } /* }}} int varnish_config_apply_default */
 
@@ -519,12 +569,14 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_hcb);
 		else if (strcasecmp ("CollectSHM", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_shm);
-		else if (strcasecmp ("CollectSMA", child->key) == 0)
-			cf_util_get_boolean (child, &conf->collect_sma);
 		else if (strcasecmp ("CollectSMS", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_sms);
+#if HAVE_VARNISH_V2
+		else if (strcasecmp ("CollectSMA", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_sma);
 		else if (strcasecmp ("CollectSM", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_sm);
+#endif
 		else if (strcasecmp ("CollectTotals", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_totals);
 		else if (strcasecmp ("CollectWorkers", child->key) == 0)
@@ -544,9 +596,11 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			&& !conf->collect_fetch
 			&& !conf->collect_hcb
 			&& !conf->collect_shm
-			&& !conf->collect_sma
 			&& !conf->collect_sms
+#if HAVE_VARNISH_V2
+			&& !conf->collect_sma
 			&& !conf->collect_sm
+#endif
 			&& !conf->collect_totals
 			&& !conf->collect_workers)
 	{
