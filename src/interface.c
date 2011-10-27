@@ -302,16 +302,29 @@ static int interface_read (void)
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
 
-		rx = get_kstat_value (ksp[i], "rbytes");
-		tx = get_kstat_value (ksp[i], "obytes");
+		/* try to get 64bit counters */
+		rx = get_kstat_value (ksp[i], "rbytes64");
+		tx = get_kstat_value (ksp[i], "obytes64");
+		/* or fallback to 32bit */
+		if (rx == -1LL)
+			rx = get_kstat_value (ksp[i], "rbytes");
+		if (tx == -1LL)
+			tx = get_kstat_value (ksp[i], "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
 			if_submit (ksp[i]->ks_name, "if_octets", rx, tx);
 
-		rx = get_kstat_value (ksp[i], "ipackets");
-		tx = get_kstat_value (ksp[i], "opackets");
+		/* try to get 64bit counters */
+		rx = get_kstat_value (ksp[i], "ipackets64");
+		tx = get_kstat_value (ksp[i], "opackets64");
+		/* or fallback to 32bit */
+		if (rx == -1LL)
+			rx = get_kstat_value (ksp[i], "ipackets");
+		if (tx == -1LL)
+			tx = get_kstat_value (ksp[i], "opackets");
 		if ((rx != -1LL) || (tx != -1LL))
 			if_submit (ksp[i]->ks_name, "if_packets", rx, tx);
 
+		/* no 64bit error counters yet */
 		rx = get_kstat_value (ksp[i], "ierrors");
 		tx = get_kstat_value (ksp[i], "oerrors");
 		if ((rx != -1LL) || (tx != -1LL))
