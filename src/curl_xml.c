@@ -555,7 +555,8 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
 
-  if (rc != 200)
+  /* The response code is zero if a non-HTTP transport was used. */
+  if ((rc != 0) && (rc != 200))
   {
     ERROR ("curl_xml plugin: curl_easy_perform failed with response code %ld (%s)",
            rc, url);
