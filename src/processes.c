@@ -880,10 +880,10 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	char *fields[64];
 	char  fields_len;
+	char *bufp, *namep;
 
 	int   i;
 
-	int   name_len;
 
 	long long unsigned cpu_user_counter;
 	long long unsigned cpu_system_counter;
@@ -900,6 +900,21 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (-1);
 	buffer[i] = 0;
 
+	/* Parse out ps->name while sanitizing any whitespace ( \t\r\n) in
+		the process name before calling strsplit
+	 */
+	for (bufp = buffer; *bufp != '\0' && *bufp != '('; bufp++);
+	if (*bufp == '\0' || *(++bufp) == '\0')
+		return (-1);
+	namep = ps->name;
+	while (*bufp != '\0' && *bufp != ')') {
+		*namep++ = *bufp;
+		if (*bufp == ' ' || *bufp == '\t' || *bufp == '\r' || *bufp == '\n')
+			*bufp = '_';
+		bufp++;
+	}
+	*namep = '\0';
+
 	fields_len = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 	if (fields_len < 24)
 	{
@@ -908,18 +923,6 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 				(int) pid, filename, fields_len);
 		return (-1);
 	}
-
-	/* copy the name, strip brackets in the process */
-	name_len = strlen (fields[1]) - 2;
-	if ((fields[1][0] != '(') || (fields[1][name_len + 1] != ')'))
-	{
-		DEBUG ("No brackets found in process name: `%s'", fields[1]);
-		return (-1);
-	}
-	fields[1] = fields[1] + 1;
-	fields[1][name_len] = '\0';
-	strncpy (ps->name, fields[1], PROCSTAT_NAME_LEN);
-
 
 	*state = fields[2][0];
 
