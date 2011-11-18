@@ -108,7 +108,7 @@ static int wg_send_buffer (struct wg_callback *cb)
                 status,
                 strerror (errno));
 
-        pthread_mutex_lock (&cb->send_lock);
+        pthread_mutex_trylock (&cb->send_lock);
 
         DEBUG ("write_graphite plugin: closing socket and restting fd "
                 "so reinit will occur");
