@@ -685,7 +685,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
  </Plugin>
 
 In the B<Plugin> block, there may be one or more B<URL> blocks, each defining a
-URL to be fetched via HTTP (using libcurl). Within each B<URL> block there are
+URL to be fetched using libcurl. Within each B<URL> block there are
 options which specify the connection parameters, for example authentication
 information, and one or more B<XPath> blocks.
 
