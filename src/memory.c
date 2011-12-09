@@ -331,6 +331,7 @@ static int memory_read (void)
 
 	long long pp_kernel;
 	long long physmem;
+	long long availrmem;
 
 	if (ksp == NULL)
 		return (-1);
@@ -343,14 +344,32 @@ static int memory_read (void)
 
 	pp_kernel = get_kstat_value (ksp, "pp_kernel");
 	physmem = get_kstat_value (ksp, "physmem");
+	availrmem = get_kstat_value (ksp, "availrmem");
 
 	if ((mem_used < 0LL) || (mem_free < 0LL) || (mem_lock < 0LL))
+	{
+		WARNING ("memory plugin: one of used, free or locked is negative.");
 		return (-1);
-	if (mem_used < (mem_free + mem_lock))
-		return (-1);
+	}
 
 	mem_unus = physmem - mem_used;
-	mem_used -= mem_free + mem_lock;
+
+	if (mem_used < (mem_free + mem_lock))
+	{
+		/* source: http://wesunsolve.net/bugid/id/4909199
+		 * this seems to happen when swap space is small, e.g. 2G on a 32G system
+		 * we will make some assumptions here
+		 * educated solaris internals help welcome here */
+		DEBUG ("memory plugin: pages total is smaller than \"free\" "
+				"+ \"locked\". This is probably due to small "
+				"swap space");
+		mem_free = availrmem;
+		mem_used = 0;
+	}
+	else
+	{
+		mem_used -= mem_free + mem_lock;
+	}
 
 	/* mem_kern is accounted for in mem_lock */
 	if ( pp_kernel < mem_lock )
