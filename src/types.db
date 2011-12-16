@@ -22,6 +22,7 @@ contextswitch		value:DERIVE:0:U
 counter			value:COUNTER:U:U
 cpufreq			value:GAUGE:0:U
 cpu			value:DERIVE:0:U
+cpuacct			value:DERIVE:0:U
 current_connections	value:GAUGE:0:U
 current_sessions	value:GAUGE:0:U
 current			value:GAUGE:U:U

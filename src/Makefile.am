@@ -230,6 +230,14 @@ collectd_LDADD += "-dlopen" bind.la
 collectd_DEPENDENCIES += bind.la
 endif
 
+if BUILD_PLUGIN_CGROUPS_CPUACCT
+pkglib_LTLIBRARIES += cgroups_cpuacct.la
+cgroups_cpuacct_la_SOURCES = cgroups_cpuacct.c utils_mount.c utils_mount.h
+cgroups_cpuacct_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" cgroups_cpuacct.la
+collectd_DEPENDENCIES += cgroups_cpuacct.la
+endif
+
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
 conntrack_la_SOURCES = conntrack.c
