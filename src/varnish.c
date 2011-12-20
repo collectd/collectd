@@ -443,6 +443,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	VSC_C_main = VSC_Main(vd);
 
 	varnish_monitor (conf, VSC_C_main);
+	VSM_Close(vd);
 #endif
 
     return (0);
