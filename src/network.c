@@ -1683,9 +1683,9 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 	}
 
 	/* else: Not a multicast interface. */
-#if defined(HAVE_IF_INDEXTONAME) && HAVE_IF_INDEXTONAME && defined(SO_BINDTODEVICE)
 	if (se->interface != 0)
 	{
+#if defined(HAVE_IF_INDEXTONAME) && HAVE_IF_INDEXTONAME && defined(SO_BINDTODEVICE)
 		char interface_name[IFNAMSIZ];
 
 		if (if_indextoname (se->interface, interface_name) == NULL)
@@ -1702,19 +1702,20 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
-	}
 /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
-	WARNING ("network plugin: Cannot set the interface on a unicast "
+		WARNING ("network plugin: Cannot set the interface on a unicast "
 			"socket because "
 # if !defined(SO_BINDTODEVICE)
-			"the the \"SO_BINDTODEVICE\" socket option "
+			"the \"SO_BINDTODEVICE\" socket option "
 # else
 			"the \"if_indextoname\" function "
 # endif
 			"is not available on your system.");
 #endif
+
+	}
 
 	return (0);
 } /* }}} network_set_interface */
