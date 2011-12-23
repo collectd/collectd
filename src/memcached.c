@@ -5,6 +5,14 @@
  * Copyright (C) 2009       Doug MacEachern
  * Copyright (C) 2009       Franck Lombardi
  *
+ * ############################
+ * ##### BIG FAT WARNING ######
+ * ############################
+ * Experimental multi instances version by Nicolas Szalay <nico@rottenbytes.info>
+ * Parts for config parsing taken from src/apache.c
+ *
+ *
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -48,52 +56,59 @@
 
 #define MEMCACHED_RETRY_COUNT 100
 
-static const char *config_keys[] =
+struct memcached_s
 {
-	"Socket",
-	"Host",
-	"Port"
+        char *name;
+        char *socket;
+	char *host;
+	char *port;
 };
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static char *memcached_socket = NULL;
-static char *memcached_host = NULL;
-static char memcached_port[16];
+typedef struct memcached_s memcached_t;
 
-static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
+/* Tina says : "we don't need another hero^W^Wader" */
+static int memcached_read (user_data_t *user_data);
+
+static void memcached_free (memcached_t *st)
 {
-	int fd;
+	if (st == NULL)
+		return;
+
+        sfree (st->name);
+        sfree (st->socket);
+	sfree (st->host);
+	sfree (st->port);
+}
+
+static int memcached_query_daemon (char *buffer, int buffer_size, user_data_t *user_data)
+{
+	int fd=-1;
 	ssize_t status;
 	int buffer_fill;
 	int i = 0;
 
-	if (memcached_socket != NULL) {
-		struct sockaddr_un serv_addr;
+        memcached_t *st;
+        st = user_data->data;
+        if (st->socket != NULL) {
+               struct sockaddr_un serv_addr;
 
-		memset (&serv_addr, 0, sizeof (serv_addr));
-		serv_addr.sun_family = AF_UNIX;
-		sstrncpy (serv_addr.sun_path, memcached_socket,
-				sizeof (serv_addr.sun_path));
+               memset (&serv_addr, 0, sizeof (serv_addr));
+               serv_addr.sun_family = AF_UNIX;
+               sstrncpy (serv_addr.sun_path, st->socket,
+                               sizeof (serv_addr.sun_path));
 
-		/* create our socket descriptor */
-		fd = socket (AF_UNIX, SOCK_STREAM, 0);
-		if (fd < 0) {
-			char errbuf[1024];
-			ERROR ("memcached: unix socket: %s", sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return -1;
-		}
-
-		/* connect to the memcached daemon */
-		status = (ssize_t) connect (fd, (struct sockaddr *) &serv_addr,
-				sizeof (serv_addr));
-		if (status != 0) {
-			shutdown (fd, SHUT_RDWR);
-			close (fd);
-			fd = -1;
-		}
-	}
-	else { /* if (memcached_socket == NULL) */
+               /* create our socket descriptor */
+               fd = socket (AF_UNIX, SOCK_STREAM, 0);
+               if (fd < 0) {
+                       char errbuf[1024];
+                       ERROR ("memcached: unix socket: %s", sstrerror (errno, errbuf,
+                                               sizeof (errbuf)));
+                       return -1;
+               }
+        }
+	else
+        {
+          if (st->port != NULL) {
 		const char *host;
 		const char *port;
 
@@ -110,12 +125,12 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 		ai_hints.ai_socktype = SOCK_STREAM;
 		ai_hints.ai_protocol = 0;
 
-		host = memcached_host;
+		host = st->host;
 		if (host == NULL) {
 			host = MEMCACHED_DEF_HOST;
 		}
 
-		port = memcached_port;
+		port = st->port;
 		if (strlen (port) == 0) {
 			port = MEMCACHED_DEF_PORT;
 		}
@@ -156,6 +171,7 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 
 		freeaddrinfo (ai_list);
 	}
+        }
 
 	if (fd < 0) {
 		ERROR ("memcached: Could not connect to daemon.");
@@ -244,37 +260,148 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 	close(fd);
 	return 0;
 }
-/* }}} */
 
-static int memcached_config (const char *key, const char *value) /* {{{ */
+/* Configuration handling functiions
+ * <Plugin memcached>
+ *   <Instance "instance_name">
+ *     Host foo.zomg.com
+ *     Port 1234
+ *   </Instance>
+ * </Plugin>
+ */
+static int config_set_string (char **ret_string, oconfig_item_t *ci)
 {
-	if (strcasecmp (key, "Socket") == 0) {
-		if (memcached_socket != NULL) {
-			free (memcached_socket);
-		}
-		memcached_socket = strdup (value);
-	} else if (strcasecmp (key, "Host") == 0) {
-		if (memcached_host != NULL) {
-			free (memcached_host);
-		}
-		memcached_host = strdup (value);
-	} else if (strcasecmp (key, "Port") == 0) {
-		int port = (int) (atof (value));
-		if ((port > 0) && (port <= 65535)) {
-			ssnprintf (memcached_port, sizeof (memcached_port), "%i", port);
-		} else {
-			sstrncpy (memcached_port, value, sizeof (memcached_port));
-		}
-	} else {
-		return -1;
+	char *string;
+
+	if ((ci->values_num != 1)
+			|| (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		WARNING ("memcached plugin: The `%s' config option "
+				"needs exactly one string argument.", ci->key);
+		return (-1);
 	}
 
-	return 0;
+	string = strdup (ci->values[0].value.string);
+	if (string == NULL)
+	{
+		ERROR ("memcached plugin: strdup failed.");
+		return (-1);
+	}
+
+	if (*ret_string != NULL)
+		free (*ret_string);
+	*ret_string = string;
+
+	return (0);
 }
-/* }}} */
+
+static int config_add (oconfig_item_t *ci)
+{
+	memcached_t *st;
+	int i;
+	int status;
+
+	if ((ci->values_num != 1)
+		|| (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		WARNING ("memcached plugin: The `%s' config option "
+			"needs exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	st = (memcached_t *) malloc (sizeof (*st));
+	if (st == NULL)
+	{
+		ERROR ("memcached plugin: malloc failed.");
+		return (-1);
+	}
+
+	memset (st, 0, sizeof (*st));
+
+	status = config_set_string (&st->name, ci);
+	if (status != 0)
+	{
+		sfree (st);
+		return (status);
+	}
+	assert (st->name != NULL);
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+                if (strcasecmp ("Socket", child->key) == 0)
+			status = config_set_string (&st->socket, child);
+		else if (strcasecmp ("Host", child->key) == 0)
+			status = config_set_string (&st->host, child);
+		else if (strcasecmp ("Port", child->key) == 0)
+			status = config_set_string (&st->port, child);
+		else
+		{
+			WARNING ("memcached plugin: Option `%s' not allowed here.",
+					child->key);
+			status = -1;
+		}
+
+		if (status != 0)
+			break;
+	}
+
+	if (status == 0)
+	{
+		user_data_t ud;
+		char callback_name[3*DATA_MAX_NAME_LEN];
+
+		memset (&ud, 0, sizeof (ud));
+		ud.data = st;
+		ud.free_func = (void *) memcached_free;
+
+		memset (callback_name, 0, sizeof (callback_name));
+		ssnprintf (callback_name, sizeof (callback_name),
+				"memcached/%s/%s",
+				(st->host != NULL) ? st->host : hostname_g,
+				(st->port != NULL) ? st->port : "default"),
+
+		status = plugin_register_complex_read (/* group = */ NULL,
+				/* name      = */ callback_name,
+				/* callback  = */ memcached_read,
+				/* interval  = */ NULL,
+				/* user_data = */ &ud);
+	}
+
+	if (status != 0)
+	{
+		memcached_free(st);
+		return (-1);
+	}
+
+	return (0);
+}
+
+static int config (oconfig_item_t *ci)
+{
+	int status = 0;
+	int i;
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Instance", child->key) == 0)
+			config_add (child);
+		else
+			WARNING ("memcached plugin: The configuration option "
+					"\"%s\" is not allowed here. Did you "
+					"forget to add an <Instance /> block "
+					"around the configuration?",
+					child->key);
+	} /* for (ci->children) */
+
+	return (status);
+}
 
 static void submit_derive (const char *type, const char *type_inst,
-		derive_t value) /* {{{ */
+		derive_t value, memcached_t *st)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -285,16 +412,17 @@ static void submit_derive (const char *type, const char *type_inst,
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
+        if (st->name != NULL)
+                sstrncpy (vl.plugin_instance, st->name,	sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} /* void memcached_submit_cmd */
-/* }}} */
+}
 
 static void submit_derive2 (const char *type, const char *type_inst,
-		derive_t value0, derive_t value1) /* {{{ */
+		derive_t value0, derive_t value1, memcached_t *st)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -306,16 +434,17 @@ static void submit_derive2 (const char *type, const char *type_inst,
 	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
+        if (st->name != NULL)
+                sstrncpy (vl.plugin_instance, st->name,	sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} /* void memcached_submit_cmd */
-/* }}} */
+}
 
 static void submit_gauge (const char *type, const char *type_inst,
-		gauge_t value) /* {{{ */
+		gauge_t value, memcached_t *st)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -326,16 +455,17 @@ static void submit_gauge (const char *type, const char *type_inst,
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
+        if (st->name != NULL)
+                sstrncpy (vl.plugin_instance, st->name,	sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
-/* }}} */
 
 static void submit_gauge2 (const char *type, const char *type_inst,
-		gauge_t value0, gauge_t value1) /* {{{ */
+		gauge_t value0, gauge_t value1, memcached_t *st)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -347,15 +477,16 @@ static void submit_gauge2 (const char *type, const char *type_inst,
 	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
+        if (st->name != NULL)
+                sstrncpy (vl.plugin_instance, st->name,	sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
 		sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
-/* }}} */
 
-static int memcached_read (void) /* {{{ */
+static int memcached_read (user_data_t *user_data)
 {
 	char buf[4096];
 	char *fields[3];
@@ -373,8 +504,11 @@ static int memcached_read (void) /* {{{ */
 	derive_t octets_rx = 0;
 	derive_t octets_tx = 0;
 
+        memcached_t *st;
+        st = user_data->data;
+
 	/* get data from daemon */
-	if (memcached_query_daemon (buf, sizeof (buf)) < 0) {
+	if (memcached_query_daemon (buf, sizeof (buf), user_data) < 0) {
 		return -1;
 	}
 
@@ -419,7 +553,7 @@ static int memcached_read (void) /* {{{ */
 		 */
 		else if (FIELD_IS ("threads"))
 		{
-			submit_gauge2 ("ps_count", NULL, NAN, atof (fields[2]));
+			submit_gauge2 ("ps_count", NULL, NAN, atof (fields[2]), st);
 		}
 
 		/*
@@ -427,7 +561,7 @@ static int memcached_read (void) /* {{{ */
 		 */
 		else if (FIELD_IS ("curr_items"))
 		{
-			submit_gauge ("memcached_items", "current", atof (fields[2]));
+			submit_gauge ("memcached_items", "current", atof (fields[2]), st);
 		}
 
 		/*
@@ -447,7 +581,7 @@ static int memcached_read (void) /* {{{ */
 		 */
 		else if (FIELD_IS ("curr_connections"))
 		{
-			submit_gauge ("memcached_connections", "current", atof (fields[2]));
+			submit_gauge ("memcached_connections", "current", atof (fields[2]), st);
 		}
 
 		/*
@@ -456,7 +590,7 @@ static int memcached_read (void) /* {{{ */
 		else if ((name_len > 4) && (strncmp (fields[1], "cmd_", 4) == 0))
 		{
 			const char *name = fields[1] + 4;
-			submit_derive ("memcached_command", name, atoll (fields[2]));
+			submit_derive ("memcached_command", name, atoll (fields[2]), st);
 			if (strcmp (name, "get") == 0)
 				gets = atof (fields[2]);
 		}
@@ -466,16 +600,16 @@ static int memcached_read (void) /* {{{ */
 		 */
 		else if (FIELD_IS ("get_hits"))
 		{
-			submit_derive ("memcached_ops", "hits", atoll (fields[2]));
+			submit_derive ("memcached_ops", "hits", atoll (fields[2]), st);
 			hits = atof (fields[2]);
 		}
 		else if (FIELD_IS ("get_misses"))
 		{
-			submit_derive ("memcached_ops", "misses", atoll (fields[2]));
+			submit_derive ("memcached_ops", "misses", atoll (fields[2]), st);
 		}
 		else if (FIELD_IS ("evictions"))
 		{
-			submit_derive ("memcached_ops", "evictions", atoll (fields[2]));
+			submit_derive ("memcached_ops", "evictions", atoll (fields[2]), st);
 		}
 
 		/*
@@ -492,13 +626,13 @@ static int memcached_read (void) /* {{{ */
 	} /* while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL) */
 
 	if (!isnan (bytes_used) && !isnan (bytes_total) && (bytes_used <= bytes_total))
-		submit_gauge2 ("df", "cache", bytes_used, bytes_total - bytes_used);
+		submit_gauge2 ("df", "cache", bytes_used, bytes_total - bytes_used, st);
 
 	if ((rusage_user != 0) || (rusage_syst != 0))
-		submit_derive2 ("ps_cputime", NULL, rusage_user, rusage_syst);
+		submit_derive2 ("ps_cputime", NULL, rusage_user, rusage_syst, st);
 
 	if ((octets_rx != 0) || (octets_tx != 0))
-		submit_derive2 ("memcached_octets", NULL, octets_rx, octets_tx);
+		submit_derive2 ("memcached_octets", NULL, octets_rx, octets_tx, st);
 
 	if (!isnan (gets) && !isnan (hits))
 	{
@@ -507,26 +641,13 @@ static int memcached_read (void) /* {{{ */
 		if (gets != 0.0)
 			rate = 100.0 * hits / gets;
 
-		submit_gauge ("percent", "hitratio", rate);
+		submit_gauge ("percent", "hitratio", rate, st);
 	}
 
 	return 0;
 }
-/* }}} */
 
-void module_register (void) /* {{{ */
+void module_register (void)
 {
-	plugin_register_config ("memcached", memcached_config, config_keys, config_keys_num);
-	plugin_register_read ("memcached", memcached_read);
+        plugin_register_complex_config ("memcached", config);
 }
-/* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker noexpandtab
- * vim<600: sw=4 ts=4 noexpandtab
- */
-
