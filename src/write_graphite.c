@@ -698,7 +698,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
             ERROR ("Unable to allocate memory for hostname prefix buffer");
             return (-1);
         }
-        cb->postfix[0] = '\0';
+        cb->prefix[0] = '\0';
     }
 
     if (cb->postfix == NULL) {
