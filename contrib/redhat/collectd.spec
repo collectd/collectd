@@ -3,7 +3,7 @@
 
 Summary:	Statistics collection daemon for filling RRD files.
 Name:		collectd
-Version:	4.9.0
+Version:	5.0.1
 Release:	1%{?dist}
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPL
@@ -147,6 +147,7 @@ exit 0
 %attr(0755,root,root) /var/www/cgi-bin/collection.cgi
 %attr(0755,root,root) %{_sbindir}/collectd
 %attr(0755,root,root) %{_bindir}/collectd-nagios
+%attr(0755,root,root) %{_bindir}/collectdctl
 %attr(0755,root,root) %{_sbindir}/collectdmon
 %attr(0644,root,root) %{_mandir}/man1/*
 %attr(0644,root,root) %{_mandir}/man5/*
@@ -174,6 +175,7 @@ exit 0
 %plugin_macro cpu
 %plugin_macro csv
 %plugin_macro curl
+%plugin_macro curl_xml
 %plugin_macro df
 %plugin_macro disk
 %plugin_macro dns
@@ -197,6 +199,7 @@ exit 0
 %plugin_macro match_value
 
 %plugin_macro mbmon
+%plugin_macro memcachec
 %plugin_macro memcached
 %plugin_macro memory
 %plugin_macro multimeter
@@ -222,11 +225,14 @@ exit 0
 %plugin_macro target_replace
 %plugin_macro target_scale
 %plugin_macro target_set
+%plugin_macro target_v5upgrade
 
 %plugin_macro tcpconns
 %plugin_macro teamspeak2
 %plugin_macro ted
 %plugin_macro thermal
+%plugin_macro threshold
+
 %plugin_macro unixsock
 %plugin_macro uptime
 %plugin_macro users
@@ -243,6 +249,7 @@ exit 0
 %attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd.pm
 %attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd/Unixsock.pm
 %attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd/Plugins/OpenVZ.pm
+%attr(0644,root,root) /usr/lib/perl5/site_perl/5.8.8/Collectd/Plugins/Monitorus.pm
 %attr(0644,root,root) /usr/share/man/man3/Collectd::Unixsock.3pm.gz
 
 %exclude /usr/share/collectd/postgresql_default.conf
@@ -251,8 +258,8 @@ exit 0
 
 %if %with_java
 %files java
-%attr(0644,root,root) /usr/share/%{name}/java/org/collectd/api/*.class
-%attr(0644,root,root) /usr/share/%{name}/java/org/collectd/java/*.class
+/usr/share/collectd/java/collectd-api.jar
+/usr/share/collectd/java/generic-jmx.jar
 %plugin_macro java
 %endif
 
@@ -283,6 +290,10 @@ exit 0
 %plugin_macro snmp
 
 %changelog
+* Tue Jan 03 2011 Monetate <jason.stelzer@monetate.com> 5.0.1
+- New upstream version
+- Changes to support 5.0.1
+
 * Tue Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
 - New upstream version
 - Changes to support 4.9.0
@@ -299,7 +310,7 @@ exit 0
 
 * Wed Jul 25 2007 Kjell Randa <Kjell.Randa@broadpark.no> 4.0.5
 - New major releas
-- Changes to support 4.0.5 
+- Changes to support 4.0.5
 
 * Wed Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
 - fixed spec file to build correctly on fedora core
