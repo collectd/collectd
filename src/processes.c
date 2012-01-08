@@ -200,7 +200,7 @@ static long pagesize_g;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
-/* no global variables */
+static int pagesize;
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_PROCINFO_H
@@ -609,7 +609,7 @@ static int ps_init (void)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
-/* no initialization */
+	pagesize = getpagesize();
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_PROCINFO_H
@@ -790,7 +790,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 		tmp = strtoll (fields[1], &endptr, /* base = */ 10);
 		if ((errno == 0) && (endptr != fields[1]))
 		{
-			if (strncmp (buffer, "VmData", 6) == 0) 
+			if (strncmp (buffer, "VmData", 6) == 0)
 			{
 				data = tmp;
 			}
@@ -1586,6 +1586,8 @@ static int ps_read (void)
   	int count;                         /* returns number of processes */
 	int i;
 
+	struct kinfo_proc *prev_pp = NULL;
+
 	procstat_t *ps_ptr;
 	procstat_entry_t pse;
 
@@ -1599,7 +1601,6 @@ static int ps_read (void)
 				errbuf);
 		return (0);
 	}
-
 	/* Get the list of processes. */
 	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count);
 	if (procs == NULL)
@@ -1613,64 +1614,84 @@ static int ps_read (void)
 	/* Iterate through the processes in kinfo_proc */
 	for (i = 0; i < count; i++)
 	{
-		/* retrieve the arguments */
-		cmdline[0] = 0;
-		cmdline_ptr = NULL;
-
-		argv = kvm_getargv (kd, (const struct kinfo_proc *) &(procs[i]), 0);
-		if (argv != NULL)
+		if (prev_pp == NULL || prev_pp->ki_pid != procs[i].ki_pid)
 		{
-			int status;
-			int argc;
-
-			argc = 0;
-			while (argv[argc] != NULL)
-				argc++;
-
-			status = strjoin (cmdline, sizeof (cmdline),
-					argv, argc, " ");
-
-			if (status < 0)
+			/* store previos structure */
+			prev_pp = &(procs[i]);
+			/* retrieve the arguments */
+			cmdline[0] = 0;
+			cmdline_ptr = NULL;
+			/* not probe system processes and processes without arguments*/
+			if ( !(procs[i].ki_flag & P_SYSTEM) && procs[i].ki_args != NULL )
 			{
-				WARNING ("processes plugin: Command line did "
-						"not fit into buffer.");
+				argv = kvm_getargv (kd, (const struct kinfo_proc *) &(procs[i]), 0);
+				if ( argv != NULL && *argv)
+				{
+					int status;
+					int argc;
+
+					argc = 0;
+					while (argv[argc] != NULL)
+						argc++;
+
+					status = strjoin (cmdline, sizeof (cmdline),
+							argv, argc, " ");
+
+					if (status < 0)
+					{
+						WARNING ("processes plugin: Command line did "
+								"not fit into buffer.");
+					}
+					else
+					{
+						cmdline_ptr = &cmdline[0];
+					}
+				}
 			}
-			else
+
+			pse.id       = procs[i].ki_pid;
+			pse.age      = 0;
+
+			pse.num_proc = 1;
+			pse.num_lwp  = procs[i].ki_numthreads;
+
+			pse.vmem_size = procs[i].ki_size;
+			pse.vmem_rss = procs[i].ki_rssize * pagesize;
+			pse.vmem_data = procs[i].ki_dsize * pagesize;
+			pse.vmem_code = procs[i].ki_tsize * pagesize;
+			pse.stack_size = procs[i].ki_ssize * pagesize;
+			pse.vmem_minflt = 0;
+			pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
+			pse.vmem_majflt = 0;
+			pse.vmem_majflt_counter = procs[i].ki_rusage.ru_majflt;
+
+			pse.cpu_user = 0;
+			pse.cpu_system = 0;
+			/*
+			 * The u-area might be swapped out, and we can't get
+			 * at it because we have a crashdump and no swap.
+			 * If it's here fill in these fields, otherwise, just
+			 * leave them 0.
+			 */
+			if (procs[i].ki_flag & P_INMEM)
 			{
-				cmdline_ptr = &cmdline[0];
+				pse.cpu_user_counter = 1000000lu
+					* procs[i].ki_rusage.ru_utime.tv_sec
+					+ procs[i].ki_rusage.ru_utime.tv_usec;
+				pse.cpu_system_counter = 1000000lu
+					* procs[i].ki_rusage.ru_stime.tv_sec
+					+ procs[i].ki_rusage.ru_stime.tv_usec;
 			}
+
+			/* no io data */
+			pse.io_rchar = -1;
+			pse.io_wchar = -1;
+			pse.io_syscr = -1;
+			pse.io_syscw = -1;
+
+			ps_list_add (procs[i].ki_comm, cmdline_ptr, &pse);
+
 		}
-
-		pse.id       = procs[i].ki_pid;
-		pse.age      = 0;
-
-		pse.num_proc = 1;
-		pse.num_lwp  = procs[i].ki_numthreads;
-
-		pse.vmem_size = procs[i].ki_size;
-		pse.vmem_rss = procs[i].ki_rssize * getpagesize();
-		pse.vmem_data = procs[i].ki_dsize * getpagesize();
-		pse.vmem_code = procs[i].ki_tsize * getpagesize();
-		pse.stack_size = procs[i].ki_ssize * getpagesize();
-		pse.vmem_minflt = 0;
-		pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
-		pse.vmem_majflt = 0;
-		pse.vmem_majflt_counter = procs[i].ki_rusage.ru_majflt;
-
-		pse.cpu_user = 0;
-		pse.cpu_user_counter = procs[i].ki_rusage.ru_utime.tv_sec
-			* 1000
-			+ procs[i].ki_rusage.ru_utime.tv_usec;
-		pse.cpu_system = 0;
-		pse.cpu_system_counter = procs[i].ki_rusage.ru_stime.tv_sec
-			* 1000
-			+ procs[i].ki_rusage.ru_stime.tv_usec;
-
-		/* no io data */
-		pse.io_rchar = -1;
-		pse.io_wchar = -1;
-		pse.io_syscr = -1;
-		pse.io_syscw = -1;
 
 		switch (procs[i].ki_stat)
 		{
@@ -1683,11 +1704,9 @@ static int ps_read (void)
 			case SZOMB:	zombies++;	break;
 		}
 
-		ps_list_add (procs[i].ki_comm, cmdline_ptr, &pse);
 	}
 
 	kvm_close(kd);
-
 	ps_submit_state ("running",  running);
 	ps_submit_state ("sleeping", sleeping);
 	ps_submit_state ("zombies",  zombies);
@@ -1695,7 +1714,6 @@ static int ps_read (void)
 	ps_submit_state ("blocked",  blocked);
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("wait",     wait);
-
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
