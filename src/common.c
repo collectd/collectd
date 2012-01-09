@@ -542,7 +542,8 @@ int check_create_dir (const char *file_orig)
 		}
 
 		while (42) {
-			if (stat (dir, &statbuf) == -1)
+			if ((stat (dir, &statbuf) == -1)
+					&& (lstat (dir, &statbuf) == -1))
 			{
 				if (errno == ENOENT)
 				{
