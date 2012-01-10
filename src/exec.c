@@ -580,9 +580,17 @@ static void *exec_read_one (void *arg) /* {{{ */
   /* We use a copy of fdset, as select modifies it */
   copy = fdset;
 
-  while (select(highest_fd + 1, &copy, NULL, NULL, NULL ) > 0)
+  while (1)
   {
     int len;
+
+    status = select (highest_fd + 1, &copy, NULL, NULL, NULL);
+    if (status < 0)
+    {
+      if (errno == EINTR)
+	continue;
+      break;
+    }
 
     if (FD_ISSET(fd, &copy))
     {
