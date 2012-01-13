@@ -39,6 +39,14 @@
 #endif
 #include <mongo.h>
 
+struct mongo_options
+{
+  char *host;
+  int port;
+  int timeout;
+};
+typedef struct mongo_options mongo_options;
+
 struct wm_node_s
 {
   char name[DATA_MAX_NAME_LEN];
@@ -49,8 +57,8 @@ struct wm_node_s
 
   int connected;
 
-  mongo_connection conn[1];
-  mongo_connection_options opts[1];
+  mongo conn[1];
+  mongo_options opts[1];
   pthread_mutex_t lock;
 };
 typedef struct wm_node_s wm_node_t;
@@ -67,32 +75,32 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   int status;
   int i;
   bson record;
-  bson_buffer record_buf;
+  /*bson_data record_buf; */
 
   ssnprintf(collection_name, sizeof (collection_name), "collectd.%s", vl->plugin);
 
-  bson_buffer_init(&record_buf);
-  bson_append_time_t(&record_buf,"ts",vl->time);
-  bson_append_string(&record_buf,"h",vl->host);
-  bson_append_string(&record_buf,"i",vl->plugin_instance);
-  bson_append_string(&record_buf,"t",vl->type);
-  bson_append_string(&record_buf,"ti",vl->type_instance);
+  bson_init(&record);
+  bson_append_time_t(&record,"ts",vl->time);
+  bson_append_string(&record,"h",vl->host);
+  bson_append_string(&record,"i",vl->plugin_instance);
+  bson_append_string(&record,"t",vl->type);
+  bson_append_string(&record,"ti",vl->type_instance);
 
   for (i = 0; i < ds->ds_num; i++)
   {
     if (ds->ds[i].type == DS_TYPE_COUNTER)
-      bson_append_long(&record_buf, ds->ds[i].name, vl->values[i].counter);
+      bson_append_long(&record, ds->ds[i].name, vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      bson_append_double(&record_buf, ds->ds[i].name, vl->values[i].gauge);
+      bson_append_double(&record, ds->ds[i].name, vl->values[i].gauge);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      bson_append_long(&record_buf, ds->ds[i].name, vl->values[i].derive);
+      bson_append_long(&record, ds->ds[i].name, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      bson_append_long(&record_buf, ds->ds[i].name, vl->values[i].absolute);
+      bson_append_long(&record, ds->ds[i].name, vl->values[i].absolute);
     else
       assert (23 == 42);
   }
 
-  bson_from_buffer(&record,&record_buf);
+  /* bson_from_buffer(&record,&record_buf); */
 
   pthread_mutex_lock (&node->lock);
 
@@ -102,8 +110,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
         sizeof (node->opts->host));
     node->opts->port = node->port;
 
-    status = mongo_connect(node->conn,node->opts);
-    if (status!=mongo_conn_success) {
+    status = mongo_connect(node->conn,node->opts->host, node->opts->port);
+    if (status!=MONGO_OK) {
       ERROR ("write_mongodb plugin: Connecting to host \"%s\" (port %i) failed.",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : 27017);
@@ -122,7 +130,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   pthread_mutex_unlock (&node->lock);
 
-  bson_buffer_destroy(&record_buf);
+  /* bson_buffer_destroy(&record_buf); */
 
   return (0);
 } /* }}} int wm_write */
