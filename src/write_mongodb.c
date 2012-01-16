@@ -77,7 +77,6 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   int status;
   int i;
   bson record;
-  /*bson_data record_buf; */
 
   ssnprintf(collection_name, sizeof (collection_name), "collectd.%s", vl->plugin);
 
@@ -102,7 +101,6 @@ static int wm_write (const data_set_t *ds, /* {{{ */
       assert (23 == 42);
   }
   bson_finish(&record);
-
 
   pthread_mutex_lock (&node->lock);
 
@@ -139,14 +137,14 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   if(status != MONGO_OK)
   {
     ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err);
-    if(node->conn->err == MONGO_BSON_INVALID) 
+    if(node->conn->err == MONGO_BSON_INVALID)
     {
       ERROR (node->conn->errstr);
     } else if ( record.err)
     {
       ERROR (record.errstr);
     }
-    
+
   }
 
 
