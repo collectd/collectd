@@ -39,6 +39,7 @@
 #endif
 #include <mongo.h>
 
+/*
 struct mongo_options
 {
   char *host;
@@ -46,6 +47,7 @@ struct mongo_options
   int timeout;
 };
 typedef struct mongo_options mongo_options;
+*/
 
 struct wm_node_s
 {
@@ -58,7 +60,7 @@ struct wm_node_s
   int connected;
 
   mongo conn[1];
-  mongo_options opts[1];
+/*  mongo_options opts[1]; */
   pthread_mutex_t lock;
 };
 typedef struct wm_node_s wm_node_t;
@@ -100,21 +102,23 @@ static int wm_write (const data_set_t *ds, /* {{{ */
       assert (23 == 42);
   }
 
-  /* bson_from_buffer(&record,&record_buf); */
 
   pthread_mutex_lock (&node->lock);
 
   if (node->connected == 0)
   {
+/*
     sstrncpy(node->opts->host, node->host,
         sizeof (node->opts->host));
     node->opts->port = node->port;
+*/
 
-    status = mongo_connect(node->conn,node->opts->host, node->opts->port);
-    if (status!=MONGO_OK) {
+ /*   status = mongo_connect(node->conn,node->opts->host, node->opts->port);*/
+    status = mongo_connect(node->conn, node->host, node->port);
+    if (status != MONGO_OK) {
       ERROR ("write_mongodb plugin: Connecting to host \"%s\" (port %i) failed.",
           (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 27017);
+          (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
       mongo_destroy(node->conn);
       pthread_mutex_unlock (&node->lock);
       return (-1);
@@ -126,11 +130,22 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /* Assert if the connection has been established */
   assert (node->connected == 1);
 
-  mongo_insert(node->conn,collection_name,&record);
+  DEBUG ( "write_mongodb plugin: writing record");
+  /* bson_print(&record); */
+
+  status = mongo_insert(node->conn,collection_name,&record);
+
+  if(status != MONGO_OK)
+  {
+    ERROR ( "write_mongodb plugin: error inserting record: ");
+    if(node->conn->err == MONGO_BSON_INVALID) 
+    {
+      ERROR (record.errstr);
+    }
+  }
+
 
   pthread_mutex_unlock (&node->lock);
-
-  /* bson_buffer_destroy(&record_buf); */
 
   return (0);
 } /* }}} int wm_write */
