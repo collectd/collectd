@@ -318,8 +318,7 @@ class GenericJMXConfValue
       }
       catch (javax.management.AttributeNotFoundException e)
       {
-        value = conn.invoke (objName, key,
-                            /* parameters */ null, /* signature */ null);
+        value = conn.invoke (objName, key, /* args = */ null, /* types = */ null);
       }
     }
     catch (Exception e)
