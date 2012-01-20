@@ -39,16 +39,6 @@
 #endif
 #include <mongo.h>
 
-/*
-struct mongo_options
-{
-  char *host;
-  int port;
-  int timeout;
-};
-typedef struct mongo_options mongo_options;
-*/
-
 struct wm_node_s
 {
   char name[DATA_MAX_NAME_LEN];
@@ -60,7 +50,6 @@ struct wm_node_s
   int connected;
 
   mongo conn[1];
-/*  mongo_options opts[1]; */
   pthread_mutex_t lock;
 };
 typedef struct wm_node_s wm_node_t;
@@ -81,7 +70,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   ssnprintf(collection_name, sizeof (collection_name), "collectd.%s", vl->plugin);
 
   bson_init(&record);
-  bson_append_time_t(&record,"ts",vl->time);
+  bson_append_time_t(&record,"ts",CDTIME_T_TO_TIME_T(vl->time));
   bson_append_string(&record,"h",vl->host);
   bson_append_string(&record,"i",vl->plugin_instance);
   bson_append_string(&record,"t",vl->type);
