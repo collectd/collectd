@@ -16,6 +16,7 @@
 	  as the hostname, subsequent values in the same network packets could
 	  have ended up using the modified name rather than the original name.
 	  Thanks to Sebastian Harl for identifying the problem.
+	* oracle plugin: A memory leak has been fixed in the parameter handling.
 	* python plugin: A memory leak has been fixed. Thanks to Sven Trenkel
 	  for fixing this bug!
 
@@ -136,6 +137,7 @@
 	  as the hostname, subsequent values in the same network packets could
 	  have ended up using the modified name rather than the original name.
 	  Thanks to Sebastian Harl for identifying the problem.
+	* oracle plugin: A memory leak has been fixed in the parameter handling.
 	* python plugin: A memory leak has been fixed. Thanks to Sven Trenkel
 	  for fixing this bug!
 
