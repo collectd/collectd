@@ -1,0 +1,79 @@
+#!/bin/sh
+#
+# description: collectd startup script
+#
+# March 2010, Aurelien Reynaud <collectd@wattapower.net>
+#
+
+# Some plugins need libs in non-standard paths
+case `uname` in
+	SunOS)
+		LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib:/usr/local/ssl/lib"
+		export LD_LIBRARY_PATH
+		;;
+	*)
+		;;
+esac
+
+# Set umask
+umask 022
+
+COLLECTD_BIN=/opt/freeware/sbin/collectd
+PIDFILE=/opt/freeware/var/run/collectd.pid
+
+# Check for missing binaries (stale symlinks should not happen)
+if [ ! -x $COLLECTD_BIN ]; then
+	echo "$COLLECTD_BIN not installed"
+	[ "$1" = "stop" ] && exit 0
+	exit 5
+fi
+
+# Check for existence of needed config file and read it
+COLLECTD_CONFIG=/opt/freeware/etc/collectd.conf
+if [ ! -r $COLLECTD_CONFIG ]; then
+	echo "$COLLECTD_CONFIG not existing"
+	[ "$1" = "stop" ] && exit 0
+	exit 6
+fi
+
+case "$1" in
+    start)
+	if [ -r $PIDFILE ]; then
+	    echo "collectd daemon is already running with PID `cat $PIDFILE`."
+	    exit 1
+	fi
+	echo "Starting collectd..."
+
+	## Start daemon
+	$COLLECTD_BIN
+	;;
+    stop)
+	echo "Shutting down collectd daemon... "
+	## Stop daemon.
+	if [ -r $PIDFILE ]; then
+	    pid=`cat $PIDFILE`
+	    kill -15 $pid
+	    while ps -p $pid >/dev/null; do
+	        sleep 1
+	    done
+	    rm -f $PIDFILE
+	fi
+	;;
+    status)
+	if [ -r $PIDFILE ]; then
+	    echo "collectd daemon is running with PID `cat $PIDFILE`."
+	else
+	    echo "collectd daemon is not running."
+	fi
+	;;
+    restart)
+	## Stop the service and regardless of whether it was
+	## running or not, start it again.
+	$0 stop
+	$0 start
+	;;
+    *)
+	echo "Usage: $0 {start|stop|status|restart}"
+	exit 1
+	;;
+esac

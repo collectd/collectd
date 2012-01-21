@@ -1,6 +1,7 @@
 /**
  * collectd - src/oracle.c
- * Copyright (C) 2008,2009  Florian octo Forster
+ * Copyright (C) 2008,2009  noris network AG
+ * Copyright (C) 2012       Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -41,7 +42,7 @@
  * affiliates. Other names may be trademarks of their respective owners.
  *
  * Authors:
- *   Florian octo Forster <octo at noris.net>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -91,32 +92,44 @@ static void o_report_error (const char *where, /* {{{ */
   sb4 error_code;
   int status;
 
-  status = OCIErrorGet (eh, /* record number = */ 1,
-      /* sqlstate = */ NULL,
-      &error_code,
-      (text *) &buffer[0],
-      (ub4) sizeof (buffer),
-      OCI_HTYPE_ERROR);
-  buffer[sizeof (buffer) - 1] = 0;
-
-  if (status == OCI_SUCCESS)
+  /* An operation may cause / return multiple errors. Loop until we have
+   * handled all errors available. */
+  while (42)
   {
-    size_t buffer_length;
+    memset (buffer, 0, sizeof (buffer));
+    error_code = -1;
 
-    buffer_length = strlen (buffer);
-    while ((buffer_length > 0) && (buffer[buffer_length - 1] < 32))
+    status = OCIErrorGet (eh, /* record number = */ 1,
+        /* sqlstate = */ NULL,
+        &error_code,
+        (text *) &buffer[0],
+        (ub4) sizeof (buffer),
+        OCI_HTYPE_ERROR);
+    buffer[sizeof (buffer) - 1] = 0;
+
+    if (status == OCI_NO_DATA)
+      return;
+
+    if (status == OCI_SUCCESS)
     {
-      buffer_length--;
-      buffer[buffer_length] = 0;
-    }
+      size_t buffer_length;
 
-    ERROR ("oracle plugin: %s: %s failed: %s",
-        where, what, buffer);
-  }
-  else
-  {
-    ERROR ("oracle plugin: %s: %s failed. Additionally, OCIErrorGet failed with status %i.",
-        where, what, status);
+      buffer_length = strlen (buffer);
+      while ((buffer_length > 0) && (buffer[buffer_length - 1] < 32))
+      {
+        buffer_length--;
+        buffer[buffer_length] = 0;
+      }
+
+      ERROR ("oracle plugin: %s: %s failed: %s",
+          where, what, buffer);
+    }
+    else
+    {
+      ERROR ("oracle plugin: %s: %s failed. Additionally, OCIErrorGet failed with status %i.",
+          where, what, status);
+      return;
+    }
   }
 } /* }}} void o_report_error */
 
@@ -555,10 +568,14 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
         &column_name, &column_name_length, OCI_ATTR_NAME, oci_error);
     if (status != OCI_SUCCESS)
     {
+      OCIDescriptorFree (oci_param, OCI_DTYPE_PARAM);
       o_report_error ("o_read_database_query", "OCIAttrGet (OCI_ATTR_NAME)",
           oci_error);
       continue;
     }
+
+    OCIDescriptorFree (oci_param, OCI_DTYPE_PARAM);
+    oci_param = NULL;
 
     /* Copy the name to column_names. Warning: The ``string'' returned by OCI
      * may not be null terminated! */
@@ -737,6 +754,7 @@ static int o_shutdown (void) /* {{{ */
   }
   
   OCIHandleFree (oci_env, OCI_HTYPE_ENV);
+  oci_env = NULL;
 
   udb_query_free (queries, queries_num);
   queries = NULL;
