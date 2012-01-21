@@ -97,6 +97,27 @@
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
 
+2012-01-21, Version 4.10.5
+	* curl_xml plugin: Fix handling of file:// and other URLs (which don't
+	  follow HTTP status codes). Thanks to Fabien Wernli for his patch!
+	* df plugin: Fix handling of negative "available" counts. This can
+	  occur with some file systems, for example UFS. Thanks to Toni Ylenius
+	  for his patch.
+	* interface plugin: "mac" interfaces are now ignored on Solaris. These
+	  pseudo-interfaces occur multiple times, causing warnings. Also switch
+	  to 64-bit counters on Solaris, improving overflow behavior for
+	  high-speed interfaces. Thanks to Eddy Geez and Fabien Wernli for
+	  their patches.
+	* memory plugin: Account kernel and unused memory under Solaris. Thanks
+	  to Fabien Wernli for his patch.
+	* network plugin: A bug in the interaction between the Network plugin
+	  and filter chains has been fixed: When a filter modified a field such
+	  as the hostname, subsequent values in the same network packets could
+	  have ended up using the modified name rather than the original name.
+	  Thanks to Sebastian Harl for identifying the problem.
+	* python plugin: A memory leak has been fixed. Thanks to Sven Trenkel
+	  for fixing this bug!
+
 2011-10-14, Version 4.10.4
 	* collectd: A mutex leak has been fixed in the meta data code. Thanks
 	  to Rafal Lesniak for his patch.

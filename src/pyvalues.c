@@ -408,8 +408,12 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 	if (!meta)
 		return NULL;
 
+	l = PyDict_Items(meta); /* New reference. */
+	if (!l) {
+		cpy_log_exception("building meta data");
+		return NULL;
+	}
 	m = meta_data_create();
-	l = PyDict_Items(meta);
 	s = PyList_Size(l);
 	for (i = 0; i < s; ++i) {
 		const char *string, *keystring;
@@ -474,6 +478,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 		Py_XDECREF(value);
 		Py_DECREF(key);
 	}
+	Py_XDECREF(l);
 	return m;
 }
 
@@ -523,27 +528,35 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	value = malloc(size * sizeof(*value));
 	for (i = 0; i < size; ++i) {
 		PyObject *item, *num;
-		item = PySequence_GetItem(values, i);
+		item = PySequence_Fast_GET_ITEM(values, i); /* Borrowed reference. */
 		if (ds->ds->type == DS_TYPE_COUNTER) {
-			num = PyNumber_Long(item);
-			if (num != NULL)
+			num = PyNumber_Long(item); /* New reference. */
+			if (num != NULL) {
 				value[i].counter = PyLong_AsUnsignedLongLong(num);
+				Py_XDECREF(num);
+			}
 		} else if (ds->ds->type == DS_TYPE_GAUGE) {
-			num = PyNumber_Float(item);
-			if (num != NULL)
+			num = PyNumber_Float(item); /* New reference. */
+			if (num != NULL) {
 				value[i].gauge = PyFloat_AsDouble(num);
+				Py_XDECREF(num);
+			}
 		} else if (ds->ds->type == DS_TYPE_DERIVE) {
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
-			num = PyNumber_Long(item);
-			if (num != NULL)
+			num = PyNumber_Long(item); /* New reference. */
+			if (num != NULL) {
 				value[i].derive = PyLong_AsLongLong(num);
+				Py_XDECREF(num);
+			}
 		} else if (ds->ds->type == DS_TYPE_ABSOLUTE) {
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
-			num = PyNumber_Long(item);
-			if (num != NULL)
+			num = PyNumber_Long(item); /* New reference. */
+			if (num != NULL) {
 				value[i].absolute = PyLong_AsUnsignedLongLong(num);
+				Py_XDECREF(num);
+			}
 		} else {
 			free(value);
 			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, type);
@@ -571,11 +584,12 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	Py_BEGIN_ALLOW_THREADS;
 	ret = plugin_dispatch_values(&value_list);
 	Py_END_ALLOW_THREADS;
+	meta_data_destroy(value_list.meta);
+	free(value);
 	if (ret != 0) {
 		PyErr_SetString(PyExc_RuntimeError, "error dispatching values, read the logs");
 		return NULL;
 	}
-	free(value);
 	Py_RETURN_NONE;
 }
 
@@ -622,27 +636,35 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	value = malloc(size * sizeof(*value));
 	for (i = 0; i < size; ++i) {
 		PyObject *item, *num;
-		item = PySequence_GetItem(values, i);
+		item = PySequence_Fast_GET_ITEM(values, i); /* Borrowed reference. */
 		if (ds->ds->type == DS_TYPE_COUNTER) {
-			num = PyNumber_Long(item);
-			if (num != NULL)
+			num = PyNumber_Long(item); /* New reference. */
+			if (num != NULL) {
 				value[i].counter = PyLong_AsUnsignedLongLong(num);
+				Py_XDECREF(num);
+			}
 		} else if (ds->ds->type == DS_TYPE_GAUGE) {
-			num = PyNumber_Float(item);
-			if (num != NULL)
+			num = PyNumber_Float(item); /* New reference. */
+			if (num != NULL) {
 				value[i].gauge = PyFloat_AsDouble(num);
+				Py_XDECREF(num);
+			}
 		} else if (ds->ds->type == DS_TYPE_DERIVE) {
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
-			num = PyNumber_Long(item);
-			if (num != NULL)
+			num = PyNumber_Long(item); /* New reference. */
+			if (num != NULL) {
 				value[i].derive = PyLong_AsLongLong(num);
+				Py_XDECREF(num);
+			}
 		} else if (ds->ds->type == DS_TYPE_ABSOLUTE) {
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
-			num = PyNumber_Long(item);
-			if (num != NULL)
+			num = PyNumber_Long(item); /* New reference. */
+			if (num != NULL) {
 				value[i].absolute = PyLong_AsUnsignedLongLong(num);
+				Py_XDECREF(num);
+			}
 		} else {
 			free(value);
 			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, type);
@@ -670,11 +692,12 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	Py_BEGIN_ALLOW_THREADS;
 	ret = plugin_write(dest, NULL, &value_list);
 	Py_END_ALLOW_THREADS;
+	meta_data_destroy(value_list.meta);
+	free(value);
 	if (ret != 0) {
 		PyErr_SetString(PyExc_RuntimeError, "error dispatching values, read the logs");
 		return NULL;
 	}
-	free(value);
 	Py_RETURN_NONE;
 }
 

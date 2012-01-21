@@ -67,6 +67,9 @@ Edward “Koko” Konetzko <konetzed at quixoticagony.com>
 Fabian Linzberger <e at lefant.net>
  - Percentage aggregation for `collectd-nagios'.
 
+Fabien Wernli <cpan at faxm0dem.org>
+ - Solaris improvements in the memory and interfaces plugin.
+
 Flavio Stanchina <flavio at stanchina.net>
  - mbmon plugin.
 
