@@ -568,10 +568,14 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
         &column_name, &column_name_length, OCI_ATTR_NAME, oci_error);
     if (status != OCI_SUCCESS)
     {
+      OCIDescriptorFree (oci_param, OCI_DTYPE_PARAM);
       o_report_error ("o_read_database_query", "OCIAttrGet (OCI_ATTR_NAME)",
           oci_error);
       continue;
     }
+
+    OCIDescriptorFree (oci_param, OCI_DTYPE_PARAM);
+    oci_param = NULL;
 
     /* Copy the name to column_names. Warning: The ``string'' returned by OCI
      * may not be null terminated! */
@@ -750,6 +754,7 @@ static int o_shutdown (void) /* {{{ */
   }
   
   OCIHandleFree (oci_env, OCI_HTYPE_ENV);
+  oci_env = NULL;
 
   udb_query_free (queries, queries_num);
   queries = NULL;
