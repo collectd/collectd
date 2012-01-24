@@ -95,13 +95,6 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   if (node->connected == 0)
   {
-/*
-    sstrncpy(node->opts->host, node->host,
-        sizeof (node->opts->host));
-    node->opts->port = node->port;
-*/
-
- /*   status = mongo_connect(node->conn,node->opts->host, node->opts->port);*/
     status = mongo_connect(node->conn, node->host, node->port);
     if (status != MONGO_OK) {
       ERROR ("write_mongodb plugin: Connecting to host \"%s\" (port %i) failed.",
