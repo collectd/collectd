@@ -122,16 +122,11 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   if(status != MONGO_OK)
   {
     ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err);
-    if(node->conn->err == MONGO_BSON_INVALID)
-    {
-      ERROR (node->conn->errstr);
-    } else if ( record.err)
-    {
-      ERROR (record.errstr);
-    }
-
+    if (node->conn->err == MONGO_BSON_INVALID)
+      ERROR ("write_mongodb plugin: %s", node->conn->errstr);
+    else if (record.err)
+      ERROR ("write_mongodb plugin: %s", record.errstr);
   }
-
 
   pthread_mutex_unlock (&node->lock);
 
