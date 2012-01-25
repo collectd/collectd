@@ -1,6 +1,8 @@
 /**
  * collectd - src/write_mongodb.c
- * Copyright (C) 2010  Florian Forster, Akkarit Sangpetch
+ * Copyright (C) 2010  Florian Forster
+ * Copyright (C) 2010  Akkarit Sangpetch
+ * Copyright (C) 2012  Chris Lundquist
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +24,8 @@
  *
  * Authors:
  *   Florian Forster <ff at octo.it>
- *   Akkarit Sangpetch <asangpet@andrew.cmu.edu>
+ *   Akkarit Sangpetch <asangpet at andrew.cmu.edu>
+ *   Chris Lundquist <clundquist at bluebox.net>
  **/
 
 #include "collectd.h"

@@ -15,6 +15,9 @@ Sebastian "tokkee" Harl <sh at tokkee.org>
 Contributors (sorted alphabetically)
 ====================================
 
+Akkarit Sangpetch <asangpet at andrew.cmu.edu>
+ - write_mongodb plugin.
+
 Alessandro Iurlano <alessandro.iurlano at gmail.com>
  - Initial filecount plugin.
 
@@ -43,6 +46,9 @@ Bruno Prémont <bonbons at linux-vserver.org>
  - Many bugreports and -fixes in various plugins,
    especially a nasty bug in the network plugin.
  - Wireshark dissector.
+
+Chris Lundquist <clundquist at bluebox.net>
+ - Improvements to the write_mongodb plugin.
 
 Christophe Kalt <collectd at klb.taranis.org>
  - The version 3 `log' mode.
