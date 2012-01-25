@@ -185,6 +185,9 @@ Roman Klesel <roman.klesel at noris.de>
 Rodolphe Quiédeville <rquiedeville at bearstech.com>
  - Lock statistics in the mysql plugin.
 
+Ryan Cox <ryan.a.cox at gmail.com>
+ - mongodb plugin.
+
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
 
