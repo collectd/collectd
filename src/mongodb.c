@@ -278,8 +278,8 @@ static int query_server_status (void) /* {{{ */
             &result);
     if (status != MONGO_OK)
     {
-        ERROR ("mongodb plugin: Calling {\"serverStatus\": 1} failed: %i",
-                (int) mc_connection.err);
+        ERROR ("mongodb plugin: Calling {\"serverStatus\": 1} failed: %s",
+                mc_connection.errstr);
         return (-1);
     }
 
@@ -358,8 +358,8 @@ static int query_dbstats (void) /* {{{ */
             &result);
     if (status != MONGO_OK)
     {
-        ERROR ("mongodb plugin: Calling {\"dbstats\": 1} failed: %i",
-                (int) mc_connection.err);
+        ERROR ("mongodb plugin: Calling {\"dbstats\": 1} failed: %s",
+                mc_connection.errstr);
         return (-1);
     }
 
@@ -432,10 +432,10 @@ static int mc_init (void) /* {{{ */
             (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT);
     if (status != MONGO_OK)
     {
-        ERROR ("mongo plugin: Connecting to %s:%i failed with status %i.",
+        ERROR ("mongo plugin: Connecting to %s:%i failed: %s",
                 (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
                 (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
-                (int) mc_connection.err);
+                mc_connection.errstr);
         return (-1);
     }
 
