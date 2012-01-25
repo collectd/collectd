@@ -1,6 +1,6 @@
 /**
  * collectd - src/mongo.c
- * Copyright (C) 2010 Ryan Cox 
+ * Copyright (C) 2010 Ryan Cox
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,17 +16,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Ryan Cox <ryan.a.cox@gmail.com> 
+ *   Ryan Cox <ryan.a.cox@gmail.com>
  **/
 
 #include "collectd.h"
-#include "common.h" 
-#include "plugin.h" 
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
+#include "common.h"
+#include "plugin.h"
 
 #if HAVE_STDINT_H
 # define MONGO_HAVE_STDINT 1
@@ -37,28 +32,28 @@
 
 #define MC_PLUGIN_NAME "mongo"
 #define MC_MONGO_DEF_HOST "127.0.0.1"
-#define MC_MONGO_DEF_PORT 27017 
+#define MC_MONGO_DEF_PORT 27017
 #define MC_MONGO_DEF_DB "admin"
 #define MC_MIN_PORT 1
-#define MC_MAX_PORT 65535 
-#define SUCCESS 0 
-#define FAILURE -1 
+#define MC_MAX_PORT 65535
+#define SUCCESS 0
+#define FAILURE -1
 
-static char *mc_user = NULL;
+static char *mc_user     = NULL;
 static char *mc_password = NULL;
-static char *mc_db = NULL; 
-static char *mc_host = NULL;
-static int  mc_port = MC_MONGO_DEF_PORT;
+static char *mc_db       = NULL;
+static char *mc_host     = NULL;
+static int   mc_port     = MC_MONGO_DEF_PORT;
 
 static mongo_connection mc_connection;
 static _Bool mc_have_connection = 0;
 
 static const char *config_keys[] = {
-	"User",
-	"Password",
-	"Database",
-	"Host",
-	"Port"
+    "User",
+    "Password",
+    "Database",
+    "Host",
+    "Port"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -76,7 +71,7 @@ static void submit (const char *type, const char *instance,
     sstrncpy (v.type, type, sizeof(v.type));
 
     if (instance != NULL)
-        sstrncpy (v.type_instance, instance, sizeof (v.type_instance)); 
+        sstrncpy (v.type_instance, instance, sizeof (v.type_instance));
 
     plugin_dispatch_values (&v);
 }
@@ -84,19 +79,19 @@ static void submit (const char *type, const char *instance,
 static void submit_gauge (const char *type, const char *instance, /* {{{ */
         gauge_t gauge)
 {
-	value_t v;
+    value_t v;
 
-	v.gauge = gauge;
-	submit(type, instance, &v, /* values_len = */ 1);
+    v.gauge = gauge;
+    submit(type, instance, &v, /* values_len = */ 1);
 } /* }}} void submit_gauge */
 
 static void submit_derive (const char *type, const char *instance, /* {{{ */
         derive_t derive)
 {
-	value_t v;
+    value_t v;
 
-	v.derive = derive;
-	submit(type, instance, &v, /* values_len = */ 1);
+    v.derive = derive;
+    submit(type, instance, &v, /* values_len = */ 1);
 } /* }}} void submit_derive */
 
 static int handle_field (bson *obj, const char *field, /* {{{ */
@@ -324,23 +319,23 @@ static int do_stats (void) /* {{{ */
 {
     bson obj;
 
-    /* TODO: 
-
-        change this to raw runCommand
-             db.runCommand( { dbstats : 1 } ); 
-             succeeds but is getting back all zeros !?!
-        modify bson_print to print type 18
-        repro problem w/o db name - show dbs doesn't work again
-        why does db.admin.dbstats() work fine in shell?
-        implement retries ? noticed that if db is unavailable, collectd dies
-    */
+    /* TODO:
+     *
+     *  change this to raw runCommand
+     *       db.runCommand( { dbstats : 1 } );
+     *       succeeds but is getting back all zeros !?!
+     *  modify bson_print to print type 18
+     *  repro problem w/o db name - show dbs doesn't work again
+     *  why does db.admin.dbstats() work fine in shell?
+     *  implement retries ? noticed that if db is unavailable, collectd dies
+     */
 
     if( !mongo_simple_int_command(&mc_connection, mc_db, "dbstats", 1, &obj) ) {
-        ERROR("Mongo: failed to call stats Host [%s] Port [%d] User [%s]", 
+        ERROR("Mongo: failed to call stats Host [%s] Port [%d] User [%s]",
             mc_host, mc_port, mc_user);
         return FAILURE;
     }
-    
+
     handle_dbstats (&obj);
 
     bson_destroy (&obj);
@@ -373,33 +368,32 @@ static int do_server_status (void) /* {{{ */
 } /* }}} int do_server_status */
 
 static int mc_read(void) {
-    DEBUG("Mongo: mongo driver read"); 
+    DEBUG("Mongo: mongo driver read");
 
     if(do_server_status() != SUCCESS) {
-        ERROR("Mongo: do server status failed"); 
+        ERROR("Mongo: do server status failed");
         return FAILURE;
     }
 
     if(do_stats() != SUCCESS) {
-        ERROR("Mongo: do stats status failed"); 
+        ERROR("Mongo: do stats status failed");
         return FAILURE;
     }
 
     return SUCCESS;
 }
 
-
 static void config_set(char** dest, const char* src ) {
-        if( *dest ) {
-            sfree(*dest);
-        }
-		*dest= malloc(strlen(src)+1);
-        sstrncpy(*dest,src,strlen(src)+1);
+    if( *dest ) {
+        sfree(*dest);
+    }
+    *dest= malloc(strlen(src)+1);
+    sstrncpy(*dest,src,strlen(src)+1);
 }
 
 static int mc_config(const char *key, const char *value)
-{ 
-    DEBUG("Mongo: config key [%s] value [%s]", key, value); 
+{
+    DEBUG("Mongo: config key [%s] value [%s]", key, value);
 
     if(strcasecmp("Host", key) == 0) {
         config_set(&mc_host,value);
@@ -407,7 +401,7 @@ static int mc_config(const char *key, const char *value)
     else if(strcasecmp("Port", key) == 0)
     {
         int tmp;
-        
+
         tmp = service_name_to_port_number (value);
         if (tmp > 0)
             mc_port = tmp;
@@ -433,41 +427,41 @@ static int mc_config(const char *key, const char *value)
     }
 
     return SUCCESS;
-} 
+}
 
 static int mc_init(void)
 {
     if (mc_have_connection)
         return (0);
 
-    DEBUG("mongo driver initializing"); 
+    DEBUG("mongo driver initializing");
     if( !mc_host) {
-        DEBUG("Mongo: Host not specified. Using default [%s]",MC_MONGO_DEF_HOST); 
+        DEBUG("Mongo: Host not specified. Using default [%s]",MC_MONGO_DEF_HOST);
         config_set(&mc_host, MC_MONGO_DEF_HOST);
     }
 
     if( !mc_db) {
-        DEBUG("Mongo: Database not specified. Using default [%s]",MC_MONGO_DEF_DB); 
+        DEBUG("Mongo: Database not specified. Using default [%s]",MC_MONGO_DEF_DB);
         config_set(&mc_db, MC_MONGO_DEF_DB);
     }
 
     mongo_connection_options opts;
     sstrncpy(opts.host, mc_host, sizeof(opts.host));
-    opts.port = mc_port; 
+    opts.port = mc_port;
 
     if(mongo_connect(&mc_connection, &opts )){
-        ERROR("Mongo: driver failed to connect. Host [%s] Port [%d] User [%s]", 
+        ERROR("Mongo: driver failed to connect. Host [%s] Port [%d] User [%s]",
                 mc_host, mc_port, mc_user);
-        return FAILURE;     
+        return FAILURE;
     }
 
     mc_have_connection = 1;
     return SUCCESS;
-} 
+}
 
 static int mc_shutdown(void)
 {
-    DEBUG("Mongo: driver shutting down"); 
+    DEBUG("Mongo: driver shutting down");
 
     if (mc_have_connection) {
         mongo_disconnect (&mc_connection);
@@ -483,8 +477,7 @@ static int mc_shutdown(void)
     return (0);
 }
 
-
-void module_register(void)  {       
+void module_register(void) {
     plugin_register_config (MC_PLUGIN_NAME, mc_config,
             config_keys, config_keys_num);
     plugin_register_read (MC_PLUGIN_NAME, mc_read);
