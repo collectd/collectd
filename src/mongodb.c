@@ -1,6 +1,7 @@
 /**
  * collectd - src/mongo.c
  * Copyright (C) 2010 Ryan Cox
+ * Copyright (C) 2012 Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +17,8 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Ryan Cox <ryan.a.cox@gmail.com>
+ *   Ryan Cox <ryan.a.cox at gmail.com>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -30,22 +32,16 @@
 #endif
 #include <mongo.h>
 
-#define MC_PLUGIN_NAME "mongo"
 #define MC_MONGO_DEF_HOST "127.0.0.1"
-#define MC_MONGO_DEF_PORT 27017
 #define MC_MONGO_DEF_DB "admin"
-#define MC_MIN_PORT 1
-#define MC_MAX_PORT 65535
-#define SUCCESS 0
-#define FAILURE -1
 
 static char *mc_user     = NULL;
 static char *mc_password = NULL;
 static char *mc_db       = NULL;
 static char *mc_host     = NULL;
-static int   mc_port     = MC_MONGO_DEF_PORT;
+static int   mc_port     = 0;
 
-static mongo_connection mc_connection;
+static mongo mc_connection;
 static _Bool mc_have_connection = 0;
 
 static const char *config_keys[] = {
@@ -57,7 +53,7 @@ static const char *config_keys[] = {
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static void submit (const char *type, const char *instance,
+static void submit (const char *type, const char *instance, /* {{{ */
         value_t *values, size_t values_len)
 {
     value_list_t v = VALUE_LIST_INIT;
@@ -66,7 +62,7 @@ static void submit (const char *type, const char *instance,
     v.values_len = values_len;
 
     sstrncpy (v.host, hostname_g, sizeof(v.host));
-    sstrncpy (v.plugin, MC_PLUGIN_NAME, sizeof(v.plugin));
+    sstrncpy (v.plugin, "mongodb", sizeof(v.plugin));
     ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%i", mc_port);
     sstrncpy (v.type, type, sizeof(v.type));
 
@@ -74,7 +70,7 @@ static void submit (const char *type, const char *instance,
         sstrncpy (v.type_instance, instance, sizeof (v.type_instance));
 
     plugin_dispatch_values (&v);
-}
+} /* }}} void submit */
 
 static void submit_gauge (const char *type, const char *instance, /* {{{ */
         gauge_t gauge)
@@ -98,24 +94,22 @@ static int handle_field (bson *obj, const char *field, /* {{{ */
         int (*func) (bson_iterator *))
 {
     bson_type type;
-    bson subobj;
-    bson_iterator i;
-    bson_iterator j;
+    bson_iterator iter;
+    bson_iterator subiter;
     int status = 0;
 
-    type = bson_find (&i, obj, field);
-    if (type != bson_object)
+    type = bson_find (&iter, obj, field);
+    if (type != BSON_OBJECT)
         return (EINVAL);
 
-    bson_iterator_subobject (&i, &subobj);
-    bson_iterator_init (&j, subobj.data);
-    while (bson_iterator_next (&j))
+    bson_iterator_subiterator (&iter, &subiter);
+    while (bson_iterator_more (&subiter))
     {
-        status = (*func) (&j);
+        (void) bson_iterator_next (&subiter);
+        status = (*func) (&subiter);
         if (status != 0)
             break;
     }
-    bson_destroy (&subobj);
 
     return (status);
 } /* }}} int handle_field */
@@ -127,7 +121,7 @@ static int handle_opcounters (bson_iterator *iter) /* {{{ */
     derive_t value;
 
     type = bson_iterator_type (iter);
-    if ((type != bson_long) && (type != bson_int))
+    if ((type != BSON_INT) && (type != BSON_LONG))
         return (0);
 
     key = bson_iterator_key (iter);
@@ -147,7 +141,7 @@ static int handle_mem (bson_iterator *iter) /* {{{ */
     gauge_t value;
 
     type = bson_iterator_type (iter);
-    if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+    if ((type != BSON_DOUBLE) && (type != BSON_LONG) && (type != BSON_INT))
         return (0);
 
     key = bson_iterator_key (iter);
@@ -176,7 +170,7 @@ static int handle_connections (bson_iterator *iter) /* {{{ */
     gauge_t value;
 
     type = bson_iterator_type (iter);
-    if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+    if ((type != BSON_DOUBLE) && (type != BSON_LONG) && (type != BSON_INT))
         return (0);
 
     key = bson_iterator_key (iter);
@@ -199,7 +193,7 @@ static int handle_lock (bson_iterator *iter) /* {{{ */
     derive_t value;
 
     type = bson_iterator_type (iter);
-    if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+    if ((type != BSON_DOUBLE) && (type != BSON_LONG) && (type != BSON_INT))
         return (0);
 
     key = bson_iterator_key (iter);
@@ -218,11 +212,11 @@ static int handle_lock (bson_iterator *iter) /* {{{ */
     return (0);
 } /* }}} int handle_lock */
 
-static int handle_btree (bson *obj) /* {{{ */
+static int handle_btree (const bson *obj) /* {{{ */
 {
     bson_iterator i;
 
-    bson_iterator_init (&i, obj->data);
+    bson_iterator_init (&i, obj);
     while (bson_iterator_next (&i))
     {
         bson_type type;
@@ -230,7 +224,7 @@ static int handle_btree (bson *obj) /* {{{ */
         gauge_t value;
 
         type = bson_iterator_type (&i);
-        if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+        if ((type != BSON_DOUBLE) && (type != BSON_LONG) && (type != BSON_INT))
             continue;
 
         key = bson_iterator_key (&i);
@@ -256,7 +250,7 @@ static int handle_index_counters (bson_iterator *iter) /* {{{ */
     int status;
 
     type = bson_iterator_type (iter);
-    if (type != bson_object)
+    if (type != BSON_OBJECT)
         return (0);
 
     key = bson_iterator_key (iter);
@@ -273,11 +267,37 @@ static int handle_index_counters (bson_iterator *iter) /* {{{ */
     return (status);
 } /* }}} int handle_index_counters */
 
-static int handle_dbstats (bson *obj)
+static int query_server_status (void) /* {{{ */
+{
+    bson result;
+    int status;
+
+    status = mongo_simple_int_command (&mc_connection,
+            (mc_db != NULL) ? mc_db : MC_MONGO_DEF_DB,
+            /* cmd = */ "serverStatus", /* arg = */ 1,
+            &result);
+    if (status != MONGO_OK)
+    {
+        ERROR ("mongodb plugin: Calling {\"serverStatus\": 1} failed: %i",
+                (int) mc_connection.err);
+        return (-1);
+    }
+
+    handle_field (&result, "opcounters",    handle_opcounters);
+    handle_field (&result, "mem",           handle_mem);
+    handle_field (&result, "connections",   handle_connections);
+    handle_field (&result, "globalLock",    handle_lock);
+    handle_field (&result, "indexCounters", handle_index_counters);
+
+    bson_destroy(&result);
+    return (0);
+} /* }}} int query_server_status */
+
+static int handle_dbstats (const bson *obj) /* {{{ */
 {
     bson_iterator i;
 
-    bson_iterator_init (&i, obj->data);
+    bson_iterator_init (&i, obj);
     while (bson_iterator_next (&i))
     {
         bson_type type;
@@ -285,7 +305,7 @@ static int handle_dbstats (bson *obj)
         gauge_t value;
 
         type = bson_iterator_type (&i);
-        if ((type != bson_double) && (type != bson_long) && (type != bson_int))
+        if ((type != BSON_DOUBLE) && (type != BSON_LONG) && (type != BSON_INT))
             return (0);
 
         key = bson_iterator_key (&i);
@@ -315,9 +335,10 @@ static int handle_dbstats (bson *obj)
     return (0);
 } /* }}} int handle_dbstats */
 
-static int do_stats (void) /* {{{ */
+static int query_dbstats (void) /* {{{ */
 {
-    bson obj;
+    bson result;
+    int status;
 
     /* TODO:
      *
@@ -330,75 +351,46 @@ static int do_stats (void) /* {{{ */
      *  implement retries ? noticed that if db is unavailable, collectd dies
      */
 
-    if( !mongo_simple_int_command(&mc_connection, mc_db, "dbstats", 1, &obj) ) {
-        ERROR("Mongo: failed to call stats Host [%s] Port [%d] User [%s]",
-            mc_host, mc_port, mc_user);
-        return FAILURE;
-    }
-
-    handle_dbstats (&obj);
-
-    bson_destroy (&obj);
-
-    return (0);
-} /* }}} int do_stats */
-
-static int do_server_status (void) /* {{{ */
-{
-    bson obj;
-    bson_bool_t status;
-
-    status = mongo_simple_int_command (&mc_connection, /* db = */ mc_db,
-            /* command = */ "serverStatus", /* arg = */ 1, /* out = */ &obj);
-    if (!status)
+    memset (&result, 0, sizeof (result));
+    status = mongo_simple_int_command (&mc_connection,
+            (mc_db != NULL) ? mc_db : MC_MONGO_DEF_DB,
+            /* cmd = */ "dbstats", /* arg = */ 1,
+            &result);
+    if (status != MONGO_OK)
     {
-        ERROR("mongodb plugin: mongo_simple_int_command (%s:%i, serverStatus) "
-                "failed.", mc_host, mc_port);
+        ERROR ("mongodb plugin: Calling {\"dbstats\": 1} failed: %i",
+                (int) mc_connection.err);
         return (-1);
     }
 
-    handle_field (&obj, "opcounters",    handle_opcounters);
-    handle_field (&obj, "mem",           handle_mem);
-    handle_field (&obj, "connections",   handle_connections);
-    handle_field (&obj, "globalLock",    handle_lock);
-    handle_field (&obj, "indexCounters", handle_index_counters);
+    handle_dbstats (&result);
 
-    bson_destroy(&obj);
+    bson_destroy (&result);
     return (0);
-} /* }}} int do_server_status */
+} /* }}} int query_dbstats */
 
-static int mc_read(void) {
-    DEBUG("Mongo: mongo driver read");
-
-    if(do_server_status() != SUCCESS) {
-        ERROR("Mongo: do server status failed");
-        return FAILURE;
-    }
-
-    if(do_stats() != SUCCESS) {
-        ERROR("Mongo: do stats status failed");
-        return FAILURE;
-    }
-
-    return SUCCESS;
-}
-
-static void config_set(char** dest, const char* src ) {
-    if( *dest ) {
-        sfree(*dest);
-    }
-    *dest= malloc(strlen(src)+1);
-    sstrncpy(*dest,src,strlen(src)+1);
-}
-
-static int mc_config(const char *key, const char *value)
+static int mc_read(void) /* {{{ */
 {
-    DEBUG("Mongo: config key [%s] value [%s]", key, value);
+    if (query_server_status () != 0)
+        return (-1);
 
-    if(strcasecmp("Host", key) == 0) {
-        config_set(&mc_host,value);
-    }
-    else if(strcasecmp("Port", key) == 0)
+    if (query_dbstats () != 0)
+        return (-1);
+
+    return (0);
+} /* }}} int mc_read */
+
+static void mc_config_set (char **dest, const char *src ) /* {{{ */
+{
+    sfree(*dest);
+    *dest = strdup (src);
+} /* }}} void mc_config_set */
+
+static int mc_config (const char *key, const char *value) /* {{{ */
+{
+    if (strcasecmp("Host", key) == 0)
+        mc_config_set(&mc_host,value);
+    else if (strcasecmp("Port", key) == 0)
     {
         int tmp;
 
@@ -411,78 +403,69 @@ static int mc_config(const char *key, const char *value)
             return (-1);
         }
     }
-    else if(strcasecmp("User", key) == 0) {
-        config_set(&mc_user,value);
-    }
-    else if(strcasecmp("Password", key) == 0) {
-        config_set(&mc_password,value);
-    }
-    else if(strcasecmp("Database", key) == 0) {
-        config_set(&mc_db,value);
-    }
+    else if(strcasecmp("User", key) == 0)
+        mc_config_set(&mc_user,value);
+    else if(strcasecmp("Password", key) == 0)
+        mc_config_set(&mc_password,value);
+    else if(strcasecmp("Database", key) == 0)
+        mc_config_set(&mc_db,value);
     else
     {
         ERROR ("mongodb plugin: Unknown config option: %s", key);
         return (-1);
     }
 
-    return SUCCESS;
-}
+    return (0);
+} /* }}} int mc_config */
 
-static int mc_init(void)
+static int mc_init (void) /* {{{ */
 {
+    int status;
+
     if (mc_have_connection)
         return (0);
 
-    DEBUG("mongo driver initializing");
-    if( !mc_host) {
-        DEBUG("Mongo: Host not specified. Using default [%s]",MC_MONGO_DEF_HOST);
-        config_set(&mc_host, MC_MONGO_DEF_HOST);
-    }
+    mongo_init (&mc_connection);
 
-    if( !mc_db) {
-        DEBUG("Mongo: Database not specified. Using default [%s]",MC_MONGO_DEF_DB);
-        config_set(&mc_db, MC_MONGO_DEF_DB);
-    }
-
-    mongo_connection_options opts;
-    sstrncpy(opts.host, mc_host, sizeof(opts.host));
-    opts.port = mc_port;
-
-    if(mongo_connect(&mc_connection, &opts )){
-        ERROR("Mongo: driver failed to connect. Host [%s] Port [%d] User [%s]",
-                mc_host, mc_port, mc_user);
-        return FAILURE;
+    status = mongo_connect (&mc_connection,
+            (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+            (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT);
+    if (status != MONGO_OK)
+    {
+        ERROR ("mongo plugin: Connecting to %s:%i failed with status %i.",
+                (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+                (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
+                (int) mc_connection.err);
+        return (-1);
     }
 
     mc_have_connection = 1;
-    return SUCCESS;
-}
+    return (0);
+} /* }}} int mc_init */
 
-static int mc_shutdown(void)
+static int mc_shutdown(void) /* {{{ */
 {
-    DEBUG("Mongo: driver shutting down");
-
     if (mc_have_connection) {
         mongo_disconnect (&mc_connection);
         mongo_destroy (&mc_connection);
         mc_have_connection = 0;
     }
 
-    sfree(mc_user);
-    sfree(mc_password);
-    sfree(mc_db);
-    sfree(mc_host);
+    sfree (mc_user);
+    sfree (mc_password);
+    sfree (mc_db);
+    sfree (mc_host);
 
     return (0);
-}
+} /* }}} int mc_shutdown */
 
-void module_register(void) {
-    plugin_register_config (MC_PLUGIN_NAME, mc_config,
+void module_register(void)
+{
+    plugin_register_config ("mongodb", mc_config,
             config_keys, config_keys_num);
-    plugin_register_read (MC_PLUGIN_NAME, mc_read);
-    plugin_register_init (MC_PLUGIN_NAME, mc_init);
-    plugin_register_shutdown (MC_PLUGIN_NAME, mc_shutdown);
+    plugin_register_read ("mongodb", mc_read);
+    plugin_register_init ("mongodb", mc_init);
+    plugin_register_shutdown ("mongodb", mc_shutdown);
 }
 
 /* vim: set sw=4 sts=4 et fdm=marker : */

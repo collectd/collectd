@@ -694,7 +694,8 @@ endif
 if BUILD_PLUGIN_MONGODB
 pkglib_LTLIBRARIES += mongodb.la
 mongodb_la_SOURCES = mongodb.c
-mongodb_la_LDFLAGS = -module -avoid-version
+mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
+mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 mongodb_la_LIBADD = -lmongoc
 collectd_LDADD += "-dlopen" mongodb.la
 collectd_DEPENDENCIES += mongodb.la
