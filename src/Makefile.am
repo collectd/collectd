@@ -1243,6 +1243,16 @@ endif
 collectd_DEPENDENCIES += write_http.la
 endif
 
+if BUILD_PLUGIN_WRITE_MONGODB
+pkglib_LTLIBRARIES += write_mongodb.la
+write_mongodb_la_SOURCES = write_mongodb.c
+write_mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
+write_mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
+write_mongodb_la_LIBADD = -lmongoc
+collectd_LDADD += "-dlopen" write_mongodb.la
+collectd_DEPENDENCIES += write_mongodb.la
+endif
+
 if BUILD_PLUGIN_WRITE_REDIS
 pkglib_LTLIBRARIES += write_redis.la
 write_redis_la_SOURCES = write_redis.c
