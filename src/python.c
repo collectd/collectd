@@ -217,7 +217,7 @@ static int do_interactive = 0;
 
 static PyThreadState *state;
 
-static PyObject *cpy_format_exception;
+static PyObject *sys_path, *cpy_format_exception;
 
 static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
@@ -976,19 +976,10 @@ PyMODINIT_FUNC PyInit_collectd(void) {
 }
 #endif
 
-static int cpy_config(oconfig_item_t *ci) {
-	int i;
+static int cpy_init_python() {
 	char *argv = "";
-	PyObject *sys, *tb;
-	PyObject *sys_path;
+	PyObject *sys;
 	PyObject *module;
-	
-	/* Ok in theory we shouldn't do initialization at this point
-	 * but we have to. In order to give python scripts a chance
-	 * to register a config callback we need to be able to execute
-	 * python code during the config callback so we have to start
-	 * the interpreter here. */
-	/* Do *not* use the python "thread" module at this point! */
 
 #ifdef IS_PY3K
 	/* Add a builtin module, before Py_Initialize */
@@ -1039,6 +1030,22 @@ static int cpy_config(oconfig_item_t *ci) {
 	PyModule_AddIntConstant(module, "NOTIF_FAILURE", NOTIF_FAILURE);
 	PyModule_AddIntConstant(module, "NOTIF_WARNING", NOTIF_WARNING);
 	PyModule_AddIntConstant(module, "NOTIF_OKAY", NOTIF_OKAY);
+	return 0;
+}
+
+static int cpy_config(oconfig_item_t *ci) {
+	int i;
+	PyObject *tb;
+
+	/* Ok in theory we shouldn't do initialization at this point
+	 * but we have to. In order to give python scripts a chance
+	 * to register a config callback we need to be able to execute
+	 * python code during the config callback so we have to start
+	 * the interpreter here. */
+	/* Do *not* use the python "thread" module at this point! */
+
+	if (!Py_IsInitialized() && cpy_init_python()) return 1;
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 		
@@ -1138,7 +1145,6 @@ static int cpy_config(oconfig_item_t *ci) {
 			WARNING("python plugin: Ignoring unknown config key \"%s\".", item->key);
 		}
 	}
-	Py_DECREF(sys_path);
 	return 0;
 }
 
