@@ -3879,6 +3879,69 @@ Collect SnapVault(R) statistics every I<Seconds> seconds.
 
 =back
 
+=head2 Plugin C<netcmd>
+
+The C<netcmd> plugin provides a management interface for I<collectd> much like
+the C<unixsock> plugin. Please see L<collectd-unixsock(5)> for a description of
+the commands understood on the socket. Optionally, network traffic is encrypted
+and authenticated using I<Transport Layer Security> (TLS).
+
+The configuration of the C<netcmd> plugin consists of one or more B<Listen>
+block, each defining a socket to bind to and listen on. Example:
+
+  <Plugin netcmd>
+    <Listen>
+      Address "::1"
+      Port "25826"
+      TLSCertFile "/path/to/cert"
+      TLSKeyFile  "/path/to/key"
+      TLSCAFile   "/path/to/ca"
+      TLSCRLFile  "/path/to/crl"
+      TLSVerifyPeer true
+    </Listen>
+  </Plugin>
+
+Valid options inside a B<Listen> block are:
+
+=over 4
+
+=item B<Address> I<Address>|I<Hostname>
+
+Address or hostname to bind to. If not specified, bind to the I<any> address.
+
+=item B<Port> I<Port>|I<Service>
+
+Port number or service name to bind to. Defaults to C<"25826">. Please note
+that even numeric ports must be specified as a string.
+
+=item B<TLSCertFile> I<Path>
+
+Path to the TLS certificate file.
+
+=item B<TLSKeyFile> I<Path>
+
+Path to the TLS key file.
+
+=item B<TLSCAFile> I<Path>
+
+Path to the TLS I<Certificate Authority> (CA) file.
+
+=item B<TLSCRLFile> I<Path>
+
+Path to the TLS I<Certificate Revokation List> (CRL) file.
+
+=item B<TLSVerifyPeer> B<true>|B<false>
+
+Controlls whether or not to verify the client certificate of connecting peers.
+The plugin will I<request> a client certificate either way, but it will only
+I<require> a valid certificate when this option is set to B<true>. Defaults to
+B<false>.
+
+If set to B<true>, the options B<TLSCertFile>, B<TLSKeyFile> and B<TLSCAFile>
+are I<required>.
+
+=back
+
 =head2 Plugin C<netlink>
 
 The C<netlink> plugin uses a netlink socket to query the Linux kernel about
