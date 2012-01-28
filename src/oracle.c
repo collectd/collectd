@@ -91,15 +91,16 @@ static void o_report_error (const char *where, /* {{{ */
   char buffer[2048];
   sb4 error_code;
   int status;
+  unsigned int record_number;
 
   /* An operation may cause / return multiple errors. Loop until we have
-   * handled all errors available. */
-  while (42)
+   * handled all errors available (with a fail-save limit of 16). */
+  for (record_number = 1; record_number <= 16; record_number++)
   {
     memset (buffer, 0, sizeof (buffer));
     error_code = -1;
 
-    status = OCIErrorGet (eh, /* record number = */ 1,
+    status = OCIErrorGet (eh, (ub4) record_number,
         /* sqlstate = */ NULL,
         &error_code,
         (text *) &buffer[0],
@@ -121,8 +122,7 @@ static void o_report_error (const char *where, /* {{{ */
         buffer[buffer_length] = 0;
       }
 
-      ERROR ("oracle plugin: %s: %s failed: %s",
-          where, what, buffer);
+      ERROR ("oracle plugin: %s: %s failed: %s", where, what, buffer);
     }
     else
     {
@@ -700,13 +700,17 @@ static int o_read_database (o_database_t *db) /* {{{ */
         (OraText *) db->username, (ub4) strlen (db->username),
         (OraText *) db->password, (ub4) strlen (db->password),
         (OraText *) db->connect_id, (ub4) strlen (db->connect_id));
-    if (status != OCI_SUCCESS)
+    if ((status != OCI_SUCCESS) && (status != OCI_SUCCESS_WITH_INFO))
     {
       o_report_error ("o_read_database", "OCILogon", oci_error);
       DEBUG ("oracle plugin: OCILogon (%s): db->oci_service_context = %p;",
           db->connect_id, db->oci_service_context);
       db->oci_service_context = NULL;
       return (-1);
+    }
+    else if (status == OCI_SUCCESS_WITH_INFO)
+    {
+      /* TODO: Print NOTIFY message. */
     }
     assert (db->oci_service_context != NULL);
   }
