@@ -363,6 +363,9 @@ Features
       requests. The transmitted data is either in a form understood by the
       Exec plugin or formatted in JSON.
 
+    - write_redis
+      Sends the values to a Redis key-value database server.
+
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
 
