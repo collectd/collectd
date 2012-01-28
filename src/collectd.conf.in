@@ -1001,6 +1001,7 @@
 #@BUILD_PLUGIN_TARGET_REPLACE_TRUE@LoadPlugin target_replace
 #@BUILD_PLUGIN_TARGET_SCALE_TRUE@LoadPlugin target_scale
 #@BUILD_PLUGIN_TARGET_SET_TRUE@LoadPlugin target_set
+#@BUILD_PLUGIN_TARGET_V5UPGRADE_TRUE@LoadPlugin target_v5upgrade
 
 #----------------------------------------------------------------------------#
 # The following block demonstrates the default behavior if no filtering is   #

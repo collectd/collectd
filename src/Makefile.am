@@ -455,7 +455,9 @@ endif
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
+if IP_VS_H_NEEDS_KERNEL_CFLAGS
 ipvs_la_CFLAGS = $(AM_CFLAGS) $(KERNEL_CFLAGS)
+endif
 ipvs_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" ipvs.la
 collectd_DEPENDENCIES += ipvs.la
