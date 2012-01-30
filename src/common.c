@@ -543,7 +543,8 @@ int check_create_dir (const char *file_orig)
 		}
 
 		while (42) {
-			if (stat (dir, &statbuf) == -1)
+			if ((stat (dir, &statbuf) == -1)
+					&& (lstat (dir, &statbuf) == -1))
 			{
 				if (errno == ENOENT)
 				{
@@ -980,12 +981,15 @@ int parse_value (const char *value, value_t *ret_value, int ds_type)
   }
 
   if (value == endptr) {
-    ERROR ("parse_value: Failed to parse string as number: %s.", value);
+    ERROR ("parse_value: Failed to parse string as %s: %s.",
+        DS_TYPE_TO_STRING (ds_type), value);
     return -1;
   }
   else if ((NULL != endptr) && ('\0' != *endptr))
-    WARNING ("parse_value: Ignoring trailing garbage after number: %s.",
-        endptr);
+    INFO ("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
+        "Input string was \"%s\".",
+        endptr, DS_TYPE_TO_STRING (ds_type), value);
+
   return 0;
 } /* int parse_value */
 

@@ -21,7 +21,7 @@ collectd-python - Documentation of collectd's C<python plugin>
   <Plugin python>
     ModulePath "/path/to/your/python/modules"
     LogTraces true
-    Interactive true
+    Interactive false
     Import "spam"
 
     <Module spam>

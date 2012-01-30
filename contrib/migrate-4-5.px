@@ -183,6 +183,7 @@ sub handle_file # {{{
     && (!$plugin_inst) && ($type_inst))
   {
     my $dir = join ('/', @path);
+    print "mkdir -p \"$dir/$plugin-$type_inst\"\n";
     print "mv \"$path\" \"$dir/$plugin-$type_inst/$type.rrd\"\n";
   }
 } # }}} sub handle_file

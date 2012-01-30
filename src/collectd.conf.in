@@ -108,14 +108,18 @@
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
-#@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
+#@BUILD_PLUGIN_PERL_TRUE@<LoadPlugin perl>
+#@BUILD_PLUGIN_PERL_TRUE@  Globals true
+#@BUILD_PLUGIN_PERL_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
-#@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
+#@BUILD_PLUGIN_PYTHON_TRUE@<LoadPlugin python>
+#@BUILD_PLUGIN_PYTHON_TRUE@  Globals true
+#@BUILD_PLUGIN_PYTHON_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
@@ -142,6 +146,7 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
+#@BUILD_PLUGIN_WRITE_MONGO_TRUE@LoadPlugin write_mongo
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -968,6 +973,14 @@
 #	</Node>
 #</Plugin>
 
+#<Plugin write_mongo>
+#	<Node "example">
+#		Host "localhost"
+#		Port "27017"
+#		Timeout 1000
+#	</Node>
+#</Plugin>
+
 ##############################################################################
 # Filter configuration                                                       #
 #----------------------------------------------------------------------------#
@@ -988,6 +1001,7 @@
 #@BUILD_PLUGIN_TARGET_REPLACE_TRUE@LoadPlugin target_replace
 #@BUILD_PLUGIN_TARGET_SCALE_TRUE@LoadPlugin target_scale
 #@BUILD_PLUGIN_TARGET_SET_TRUE@LoadPlugin target_set
+#@BUILD_PLUGIN_TARGET_V5UPGRADE_TRUE@LoadPlugin target_v5upgrade
 
 #----------------------------------------------------------------------------#
 # The following block demonstrates the default behavior if no filtering is   #

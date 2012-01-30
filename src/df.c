@@ -245,7 +245,22 @@ static int df_read (void)
 
 		blocksize = BLOCKSIZE(statbuf);
 
-		/* Sanity-check for the values in the struct */
+		/*
+		 * Sanity-check for the values in the struct
+		 */
+		/* Check for negative "available" byes. For example UFS can
+		 * report negative free space for user. Notice. blk_reserved
+		 * will start to diminish after this. */
+#if HAVE_STATVFS
+		/* Cast is needed to avoid compiler warnings.
+		 * ((struct statvfs).f_bavail is unsigned (POSIX)) */
+		if (((int64_t) statbuf.f_bavail) < 0)
+			statbuf.f_bavail = 0;
+#elif HAVE_STATFS
+		if (statbuf.f_bavail < 0)
+			statbuf.f_bavail = 0;
+#endif
+		/* Make sure that f_blocks >= f_bfree >= f_bavail */
 		if (statbuf.f_bfree < statbuf.f_bavail)
 			statbuf.f_bfree = statbuf.f_bavail;
 		if (statbuf.f_blocks < statbuf.f_bfree)

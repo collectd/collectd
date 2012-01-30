@@ -2,7 +2,7 @@
 #define PLUGIN_H
 /**
  * collectd - src/plugin.h
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2011  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -318,6 +318,7 @@ int plugin_unregister_notification (const char *name);
  *              function.
  */
 int plugin_dispatch_values (value_list_t *vl);
+int plugin_dispatch_values_secure (const value_list_t *vl);
 int plugin_dispatch_missing (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);
