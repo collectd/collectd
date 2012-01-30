@@ -2020,6 +2020,93 @@ AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # }}}
 
+# --with-libgnutls {{{
+with_libgnutls_cflags="$GNUTLS_CFLAGS"
+with_libgnutls_libs="$GNUTLS_LIBS"
+AC_ARG_WITH(libgnutls, [AS_HELP_STRING([--with-libgnutls@<:@=PREFIX@:>@], [Path to GnuTLS.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libgnutls="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libgnutls="use_pkgconfig"
+	else if test -d "$with_libgnutls/lib"
+	then
+		AC_MSG_NOTICE([Not checking for libgnutls: Manually configured])
+		with_libgnutls_cflags="-I$withval/include"
+		with_libgnutls_libs="-L$withval/lib -lgnutls"
+		with_libgnutls="yes"
+	fi; fi; fi
+],
+[with_libgnutls="use_pkgconfig"])
+
+# configure using pkg-config
+if test "x$with_libgnutls" = "xuse_pkgconfig"
+then
+	if test "x$PKG_CONFIG" = "x"
+	then
+		with_libgnutls="no (Don't have pkg-config)"
+	fi
+fi
+if test "x$with_libgnutls" = "xuse_pkgconfig"
+then
+	AC_MSG_NOTICE([Checking for gnutls using $PKG_CONFIG])
+	$PKG_CONFIG --exists 'gnutls' 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libgnutls="no (pkg-config doesn't know gnutls)"
+	fi
+fi
+if test "x$with_libgnutls" = "xuse_pkgconfig"
+then
+	with_libgnutls_cflags="`$PKG_CONFIG --cflags 'gnutls'`"
+	if test $? -ne 0
+	then
+		with_libgnutls="no ($PKG_CONFIG failed)"
+	fi
+	with_libgnutls_libs="`$PKG_CONFIG --libs 'gnutls'`"
+	if test $? -ne 0
+	then
+		with_libgnutls="no ($PKG_CONFIG failed)"
+	fi
+fi
+if test "x$with_libgnutls" = "xuse_pkgconfig"
+then
+	with_libgnutls="yes"
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $with_libgnutls_cflags"
+
+# with_libgnutls_cflags and with_libgnutls_libs are set up now, let's do
+# the actual checks.
+if test "x$with_libgnutls" = "xyes"
+then
+	AC_CHECK_HEADERS(gnutls/gnutls.h, [], [with_libgnutls="no (gnutls/gnutls.h not found)"])
+fi
+if test "x$with_libgnutls" = "xyes"
+then
+	AC_CHECK_HEADERS(gnutls/dtls.h gnutls/openpgp.h)
+fi
+if test "x$with_libgnutls" = "xyes"
+then
+	AC_CHECK_LIB(gnutls, gnutls_global_init,
+		     [with_libgnutls="yes"],
+		     [with_libgnutls="no (symbol gnutls_global_init not found)"],
+		     [$with_libgnutls_libs])
+fi
+if test "x$with_libgnutls" = "xyes"
+then
+	BUILD_WITH_LIBGNUTLS_CFLAGS="$with_libgnutls_cflags"
+	BUILD_WITH_LIBGNUTLS_LIBS="$with_libgnutls_libs"
+	AC_SUBST(BUILD_WITH_LIBGNUTLS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBGNUTLS_LIBS)
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+# }}}
+
 # --with-libiptc {{{
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
@@ -5586,7 +5673,7 @@ AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
-AC_PLUGIN([netcmd],      [yes],                [Network control socket])
+AC_PLUGIN([netcmd],      [$with_libgnutls],    [Network control socket])
 AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
@@ -5850,6 +5937,7 @@ Configuration:
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
+    libgnutls . . . . . . $with_libgnutls
     libhal  . . . . . . . $with_libhal
     libhiredis  . . . . . $with_libhiredis
     libi2c-dev  . . . . . $with_libi2c

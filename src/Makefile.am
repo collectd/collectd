@@ -658,8 +658,8 @@ netcmd_la_SOURCES = netcmd.c \
 		      utils_cmd_putval.h utils_cmd_putval.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c
 netcmd_la_LDFLAGS = -module -avoid-version -lpthread
-# FIXME: Add configure check for (lib)gnutls!
-netcmd_la_LIBADD = -lgnutls
+netcmd_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBGNUTLS_CFLAGS)
+netcmd_la_LIBADD = $(BUILD_WITH_LIBGNUTLS_LIBS)
 if BUILD_WITH_LIBSOCKET
 netcmd_la_LIBADD += -lsocket
 endif
