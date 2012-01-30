@@ -132,7 +132,7 @@ static nc_peer_t *nc_fd_to_peer (int fd) /* {{{ */
   return (NULL);
 } /* }}} nc_peer_t *nc_fd_to_peer */
 
-static void nc_free_peer (nc_peer_t *p)
+static void nc_free_peer (nc_peer_t *p) /* {{{ */
 {
   size_t i;
   if (p == NULL)
@@ -143,7 +143,8 @@ static void nc_free_peer (nc_peer_t *p)
 
   for (i = 0; i < p->fds_num; i++)
   {
-    close (p->fds[i]);
+    if (p->fds[i] >= 0)
+      close (p->fds[i]);
     p->fds[i] = -1;
   }
   p->fds_num = 0;
@@ -154,7 +155,9 @@ static void nc_free_peer (nc_peer_t *p)
   sfree (p->tls_ca_file);
   sfree (p->tls_crl_file);
 
-  /* TODO(octo): Clean up TLS stuff. */
+  gnutls_certificate_free_credentials (p->tls_credentials);
+  gnutls_dh_params_deinit (p->tls_dh_params);
+  gnutls_priority_deinit (p->tls_priority);
 } /* }}} void nc_free_peer */
 
 static int nc_register_fd (nc_peer_t *peer, int fd) /* {{{ */
@@ -995,6 +998,8 @@ static int nc_init (void) /* {{{ */
 
 static int nc_shutdown (void) /* {{{ */
 {
+  size_t i;
+
   listen_thread_loop = 0;
 
   if (listen_thread != (pthread_t) 0)
@@ -1008,6 +1013,11 @@ static int nc_shutdown (void) /* {{{ */
 
   plugin_unregister_init ("netcmd");
   plugin_unregister_shutdown ("netcmd");
+
+  for (i = 0; i < peers_num; i++)
+    nc_free_peer (peers + i);
+  peers_num = 0;
+  sfree (peers);
 
   return (0);
 } /* }}} int nc_shutdown */
