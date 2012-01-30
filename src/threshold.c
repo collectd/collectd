@@ -39,6 +39,7 @@
 #define UT_FLAG_PERSIST 0x02
 #define UT_FLAG_PERCENTAGE 0x04
 #define UT_FLAG_INTERESTING 0x08
+#define UT_FLAG_PERSIST_OK 0x10
 typedef struct threshold_s
 {
   char host[DATA_MAX_NAME_LEN];
@@ -378,6 +379,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_INVERT);
     else if (strcasecmp ("Persist", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERSIST);
+    else if (strcasecmp ("PersistOK", option->key) == 0)
+      status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERSIST_OK);
     else if (strcasecmp ("Percentage", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERCENTAGE);
     else if (strcasecmp ("Hits", option->key) == 0)
@@ -543,8 +546,9 @@ static int ut_report_state (const data_set_t *ds,
   if ( (th->hits != 0) )
   {
     int hits = uc_get_hits(ds,vl);
-    /* The STATE_OKAY always reset hits, or if hits reaise the limit */
-    if ( (state == STATE_OKAY) || (hits > th->hits) )
+    /* STATE_OKAY resets hits unless PERSIST_OK flag is set. Hits resets if
+     * threshold is hit. */
+    if ( ( (state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0) ) || (hits > th->hits) )
     {
         DEBUG("ut_report_state: reset uc_get_hits = 0");
         uc_set_hits(ds,vl,0); /* reset hit counter and notify */
@@ -557,13 +561,13 @@ static int ut_report_state (const data_set_t *ds,
 
   state_old = uc_get_state (ds, vl);
 
-  /* If the state didn't change, only report if `persistent' is specified and
-   * the state is not `okay'. */
+  /* If the state didn't change, report if `persistent' is specified. If the
+   * state is `okay', then only report if `persist_ok` flag is set. */
   if (state == state_old)
   {
     if ((th->flags & UT_FLAG_PERSIST) == 0)
       return (0);
-    else if (state == STATE_OKAY)
+    else if ( (state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0) )
       return (0);
   }
 
