@@ -92,6 +92,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
     else
       assert (23 == 42);
   }
+  /* We must finish the record, other wise the insert will fail */
   bson_finish(&record);
 
   pthread_mutex_lock (&node->lock);
@@ -129,6 +130,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   }
 
   pthread_mutex_unlock (&node->lock);
+  /* free our resource as not to leak memory */
+  bson_destroy(&record);
 
   return (0);
 } /* }}} int wm_write */
