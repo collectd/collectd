@@ -2102,21 +2102,21 @@ then
 fi
 if test "x$with_libmodbus" = "xuse_pkgconfig"
 then
-	AC_MSG_NOTICE([Checking for modbus using $PKG_CONFIG])
-	$PKG_CONFIG --exists 'modbus' 2>/dev/null
+	AC_MSG_NOTICE([Checking for libmodbus using $PKG_CONFIG])
+	$PKG_CONFIG --exists 'libmodbus' 2>/dev/null
 	if test $? -ne 0
 	then
-		with_libmodbus="no (pkg-config doesn't know modbus)"
+		with_libmodbus="no (pkg-config doesn't know libmodbus)"
 	fi
 fi
 if test "x$with_libmodbus" = "xuse_pkgconfig"
 then
-	with_libmodbus_cflags="`$PKG_CONFIG --cflags 'modbus'`"
+	with_libmodbus_cflags="`$PKG_CONFIG --cflags 'libmodbus'`"
 	if test $? -ne 0
 	then
 		with_libmodbus="no ($PKG_CONFIG failed)"
 	fi
-	with_libmodbus_libs="`$PKG_CONFIG --libs 'modbus'`"
+	with_libmodbus_libs="`$PKG_CONFIG --libs 'libmodbus'`"
 	if test $? -ne 0
 	then
 		with_libmodbus="no ($PKG_CONFIG failed)"
