@@ -26,7 +26,7 @@
   * <Plugin write_graphite>
   *   <Carbon>
   *     Host "localhost"
-  *     Port 2003
+  *     Port "2003"
   *     Prefix "collectd"
   *   </Carbon>
   * </Plugin>
@@ -58,8 +58,16 @@
                          name, (cb)->dotchar)
 #endif
 
+#ifndef WG_DEFAULT_NODE
+# define WG_DEFAULT_NODE "localhost"
+#endif
+
+#ifndef WG_DEFAULT_SERVICE
+# define WG_DEFAULT_SERVICE "2003"
+#endif
+
 #ifndef WG_SEND_BUF_SIZE
-#define WG_SEND_BUF_SIZE 4096
+# define WG_SEND_BUF_SIZE 4096
 #endif
 
 /*
@@ -70,8 +78,8 @@ struct wg_callback
     int      sock_fd;
     struct hostent *server;
 
-    char    *host;
-    int      port;
+    char    *node;
+    char    *service;
     char    *prefix;
     char    *postfix;
     char     dotchar;
@@ -155,42 +163,62 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 
 static int wg_callback_init (struct wg_callback *cb)
 {
+    struct addrinfo ai_hints;
+    struct addrinfo *ai_list;
+    struct addrinfo *ai_ptr;
     int status;
 
-    struct sockaddr_in serv_addr;
+    const char *node = cb->node ? cb->node : WG_DEFAULT_NODE;
+    const char *service = cb->service ? cb->service : WG_DEFAULT_SERVICE;
 
     if (cb->sock_fd > 0)
         return (0);
 
-    cb->sock_fd = socket (AF_INET, SOCK_STREAM, 0);
+    memset (&ai_hints, 0, sizeof (ai_hints));
+#ifdef AI_ADDRCONFIG
+    ai_hints.ai_flags |= AI_ADDRCONFIG;
+#endif
+    ai_hints.ai_family = AF_UNSPEC;
+    ai_hints.ai_socktype = SOCK_STREAM;
+
+    ai_list = NULL;
+
+    status = getaddrinfo (node, service, &ai_hints, &ai_list);
+    if (status != 0)
+    {
+        ERROR ("write_graphite plugin: getaddrinfo (%s, %s) failed: %s",
+                node, service, gai_strerror (status));
+        return (-1);
+    }
+
+    assert (ai_list != NULL);
+    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    {
+        cb->sock_fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
+                ai_ptr->ai_protocol);
+        if (cb->sock_fd < 0)
+            continue;
+
+        status = connect (cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+        if (status != 0)
+        {
+            close (cb->sock_fd);
+            cb->sock_fd = -1;
+            continue;
+        }
+
+        break;
+    }
+
+    freeaddrinfo (ai_list);
+
     if (cb->sock_fd < 0)
     {
-        ERROR ("write_graphite plugin: socket failed: %s", strerror (errno));
-        return (-1);
-    }
-    cb->server = gethostbyname(cb->host);
-    if (cb->server == NULL)
-    {
-        ERROR ("write_graphite plugin: no such host");
-        return (-1);
-    }
-    memset (&serv_addr, 0, sizeof (serv_addr));
-    serv_addr.sin_family = AF_INET;
-    memcpy (&serv_addr.sin_addr.s_addr,
-             cb->server->h_addr,
-             cb->server->h_length);
-    serv_addr.sin_port = htons(cb->port);
-
-    status = connect(cb->sock_fd,
-                      (struct sockaddr *) &serv_addr,
-                      sizeof(serv_addr));
-    if (status < 0)
-    {
         char errbuf[1024];
-        sstrerror (errno, errbuf, sizeof (errbuf));
-        ERROR ("write_graphite plugin: connect failed: %s", errbuf);
+        ERROR ("write_graphite plugin: Connecting to %s:%s failed. "
+                "The last error was: %s", node, service,
+                sstrerror (errno, errbuf, sizeof (errbuf)));
         close (cb->sock_fd);
-        cb->sock_fd = -1;
         return (-1);
     }
 
@@ -211,7 +239,8 @@ static void wg_callback_free (void *data)
     wg_flush_nolock (/* timeout = */ 0, cb);
 
     close(cb->sock_fd);
-    sfree(cb->host);
+    sfree(cb->node);
+    sfree(cb->service);
     sfree(cb->prefix);
     sfree(cb->postfix);
 
@@ -480,9 +509,9 @@ static int wg_send_message (const char* key, const char* value,
     cb->send_buf_fill += message_len;
     cb->send_buf_free -= message_len;
 
-    DEBUG ("write_graphite plugin: <%s:%d> buf %zu/%zu (%g%%) \"%s\"",
-            cb->host,
-            cb->port,
+    DEBUG ("write_graphite plugin: <%s:%s> buf %zu/%zu (%g%%) \"%s\"",
+            cb->node,
+            cb->service,
             cb->send_buf_fill, sizeof (cb->send_buf),
             100.0 * ((double) cb->send_buf_fill) / ((double) sizeof (cb->send_buf)),
             message);
@@ -591,21 +620,6 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl,
     return (status);
 }
 
-static int config_set_number (int *dest,
-        oconfig_item_t *ci)
-{
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-    {
-        WARNING ("write_graphite plugin: The `%s' config option "
-                "needs exactly one numeric argument.", ci->key);
-        return (-1);
-    }
-
-    *dest = ci->values[0].value.number;
-
-    return (0);
-}
-
 static int config_set_char (char *dest,
         oconfig_item_t *ci)
 {
@@ -617,33 +631,6 @@ static int config_set_char (char *dest,
     }
 
     *dest = ci->values[0].value.string[0];
-
-    return (0);
-}
-
-static int config_set_string (char **ret_string,
-        oconfig_item_t *ci)
-{
-    char *string;
-
-    if ((ci->values_num != 1)
-            || (ci->values[0].type != OCONFIG_TYPE_STRING))
-    {
-        WARNING ("write_graphite plugin: The `%s' config option "
-                "needs exactly one string argument.", ci->key);
-        return (-1);
-    }
-
-    string = strdup (ci->values[0].value.string);
-    if (string == NULL)
-    {
-        ERROR ("write_graphite plugin: strdup failed.");
-        return (-1);
-    }
-
-    if (*ret_string != NULL)
-        sfree (*ret_string);
-    *ret_string = string;
 
     return (0);
 }
@@ -662,8 +649,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
     }
     memset (cb, 0, sizeof (*cb));
     cb->sock_fd = -1;
-    cb->host = NULL;
-    cb->port = 2003;
+    cb->node = NULL;
+    cb->service = NULL;
     cb->prefix = NULL;
     cb->postfix = NULL;
     cb->server = NULL;
@@ -676,13 +663,13 @@ static int wg_config_carbon (oconfig_item_t *ci)
         oconfig_item_t *child = ci->children + i;
 
         if (strcasecmp ("Host", child->key) == 0)
-            config_set_string (&cb->host, child);
+            cf_util_get_string (child, &cb->node);
         else if (strcasecmp ("Port", child->key) == 0)
-            config_set_number (&cb->port, child);
+            cf_util_get_string (child, &cb->service);
         else if (strcasecmp ("Prefix", child->key) == 0)
-            config_set_string (&cb->prefix, child);
+            cf_util_get_string (child, &cb->prefix);
         else if (strcasecmp ("Postfix", child->key) == 0)
-            config_set_string (&cb->postfix, child);
+            cf_util_get_string (child, &cb->postfix);
         else if (strcasecmp ("DotCharacter", child->key) == 0)
             config_set_char (&cb->dotchar, child);
         else
@@ -710,8 +697,9 @@ static int wg_config_carbon (oconfig_item_t *ci)
         cb->postfix[0] = '\0';
     }
 
-    DEBUG ("write_graphite: Registering write callback to carbon agent "
-            "%s:%d", cb->host, cb->port);
+    DEBUG ("write_graphite: Registering write callback to carbon agent %s:%s",
+            cb->node ? cb->node : WG_DEFAULT_NODE,
+            cb->service ? cb->service : WG_DEFAULT_SERVICE);
 
     memset (&user_data, 0, sizeof (user_data));
     user_data.data = cb;
