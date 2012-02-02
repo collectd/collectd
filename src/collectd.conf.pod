@@ -2786,7 +2786,18 @@ operating systems.
 =item B<MaxPacketSize> I<1024-65535>
 
 Set the maximum size for datagrams received over the network. Packets larger
-than this will be truncated. Defaults to 1452E<nbsp>bytes.
+than this will be truncated. Defaults to 1452E<nbsp>bytes, which is the maximum
+payload size that can be transmitted in one Ethernet frame using IPv6E<nbsp>/
+UDP.
+
+On the server side, this limit should be set to the largest value used on
+I<any> client. Likewise, the value on the client must not be larger than the
+value on the server, or data will be lost.
+
+B<Compatibility:> Versions prior to I<versionE<nbsp>4.8> used a fixed sized
+buffer of 1024E<nbsp>bytes. Versions I<4.8>, I<4.9> and I<4.10> used a default
+value of 1024E<nbsp>bytes to avoid problems when sending data to an older
+server.
 
 =item B<Forward> I<true|false>
 
