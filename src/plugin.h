@@ -65,6 +65,8 @@
 #define NOTIF_WARNING 2
 #define NOTIF_OKAY    4
 
+#define plugin_interval (plugin_get_ctx().interval)
+
 /*
  * Public data types
  */
@@ -97,7 +99,9 @@ struct value_list_s
 };
 typedef struct value_list_s value_list_t;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "", "", NULL }
+#define VALUE_LIST_INIT { NULL, 0, 0, \
+	(plugin_interval > 0) ? plugin_interval : interval_g, \
+	"localhost", "", "", "", "", NULL }
 #define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "", "", NULL }
 
 struct data_source_s
@@ -160,6 +164,12 @@ struct user_data_s
 	void (*free_func) (void *);
 };
 typedef struct user_data_s user_data_t;
+
+struct plugin_ctx_s
+{
+	cdtime_t interval;
+};
+typedef struct plugin_ctx_s plugin_ctx_t;
 
 /*
  * Callback types
@@ -358,5 +368,14 @@ int plugin_notification_meta_copy (notification_t *dst,
     const notification_t *src);
 
 int plugin_notification_meta_free (notification_meta_t *n);
+
+/*
+ * Plugin context management.
+ */
+
+void plugin_init_ctx (void);
+
+plugin_ctx_t plugin_get_ctx (void);
+plugin_ctx_t plugin_set_ctx (plugin_ctx_t ctx);
 
 #endif /* PLUGIN_H */

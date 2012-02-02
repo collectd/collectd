@@ -468,6 +468,8 @@ int main (int argc, char **argv)
 	if (optind < argc)
 		exit_usage (1);
 
+	plugin_init_ctx ();
+
 	/*
 	 * Read options from the config file, the environment and the command
 	 * line (in that order, with later options overwriting previous ones in

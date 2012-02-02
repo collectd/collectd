@@ -45,6 +45,7 @@ struct callback_func_s
 {
 	void *cf_callback;
 	user_data_t cf_udata;
+	plugin_ctx_t cf_ctx;
 };
 typedef struct callback_func_s callback_func_t;
 
@@ -57,6 +58,7 @@ struct read_func_s
 	 * The `rf_super' member MUST be the first one in this structure! */
 #define rf_callback rf_super.cf_callback
 #define rf_udata rf_super.cf_udata
+#define rf_ctx rf_super.cf_ctx
 	callback_func_t rf_super;
 	char rf_group[DATA_MAX_NAME_LEN];
 	char rf_name[DATA_MAX_NAME_LEN];
@@ -92,6 +94,8 @@ static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  read_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t      *read_threads = NULL;
 static int             read_threads_num = 0;
+
+static pthread_key_t   plugin_ctx_key;
 
 /*
  * Static functions
@@ -246,6 +250,8 @@ static int create_register_callback (llist_t **list, /* {{{ */
 		cf->cf_udata = *ud;
 	}
 
+	cf->cf_ctx = plugin_get_ctx ();
+
 	return (register_callback (list, name, cf));
 } /* }}} int create_register_callback */
 
@@ -346,6 +352,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 	while (read_loop != 0)
 	{
 		read_func_t *rf;
+		plugin_ctx_t old_ctx;
 		cdtime_t now;
 		int status;
 		int rf_type;
@@ -423,6 +430,8 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 
 		DEBUG ("plugin_read_thread: Handling `%s'.", rf->rf_name);
 
+		old_ctx = plugin_set_ctx (rf->rf_ctx);
+
 		if (rf_type == RF_SIMPLE)
 		{
 			int (*callback) (void);
@@ -439,6 +448,8 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 			callback = rf->rf_callback;
 			status = (*callback) (&rf->rf_udata);
 		}
+
+		plugin_set_ctx (old_ctx);
 
 		/* If the function signals failure, we will increase the
 		 * intervals in which it will be called. */
@@ -773,11 +784,38 @@ static int plugin_insert_read (read_func_t *rf)
 	return (0);
 } /* int plugin_insert_read */
 
+static int read_cb_wrapper (user_data_t *ud)
+{
+	int (*callback) (void);
+
+	if (ud == NULL)
+		return -1;
+
+	callback = ud->data;
+	return callback();
+} /* int read_cb_wrapper */
+
 int plugin_register_read (const char *name,
 		int (*callback) (void))
 {
 	read_func_t *rf;
+	plugin_ctx_t ctx = plugin_get_ctx ();
 	int status;
+
+	if (ctx.interval != 0) {
+		struct timespec interval;
+		user_data_t user_data;
+
+		DEBUG ("plugin_register_read: plugin_interval = %.3f",
+				CDTIME_T_TO_DOUBLE(plugin_interval));
+
+		user_data.data = callback;
+		user_data.free_func = NULL;
+
+		CDTIME_T_TO_TIMESPEC (ctx.interval, &interval);
+		return plugin_register_complex_read (/* group = */ NULL,
+				name, read_cb_wrapper, &interval, &user_data);
+	}
 
 	rf = malloc (sizeof (*rf));
 	if (rf == NULL)
@@ -790,6 +828,7 @@ int plugin_register_read (const char *name,
 	rf->rf_callback = (void *) callback;
 	rf->rf_udata.data = NULL;
 	rf->rf_udata.free_func = NULL;
+	rf->rf_ctx = ctx;
 	rf->rf_group[0] = '\0';
 	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
 	rf->rf_type = RF_SIMPLE;
@@ -810,6 +849,7 @@ int plugin_register_complex_read (const char *group, const char *name,
 		user_data_t *user_data)
 {
 	read_func_t *rf;
+	plugin_ctx_t ctx = plugin_get_ctx ();
 	int status;
 
 	rf = malloc (sizeof (*rf));
@@ -831,6 +871,10 @@ int plugin_register_complex_read (const char *group, const char *name,
 	{
 		rf->rf_interval = *interval;
 	}
+	else if (ctx.interval != 0)
+	{
+		CDTIME_T_TO_TIMESPEC (ctx.interval, &rf->rf_interval);
+	}
 	rf->rf_effective_interval = rf->rf_interval;
 
 	/* Set user data */
@@ -843,6 +887,8 @@ int plugin_register_complex_read (const char *group, const char *name,
 	{
 		rf->rf_udata = *user_data;
 	}
+
+	rf->rf_ctx = ctx;
 
 	status = plugin_insert_read (rf);
 	if (status != 0)
@@ -1121,10 +1167,13 @@ void plugin_init_all (void)
 	{
 		callback_func_t *cf;
 		plugin_init_cb callback;
+		plugin_ctx_t old_ctx;
 
 		cf = le->value;
+		old_ctx = plugin_set_ctx (cf->cf_ctx);
 		callback = cf->cf_callback;
 		status = (*callback) ();
+		plugin_set_ctx (old_ctx);
 
 		if (status != 0)
 		{
@@ -1177,10 +1226,13 @@ int plugin_read_all_once (void)
 	while (42)
 	{
 		read_func_t *rf;
+		plugin_ctx_t old_ctx;
 
 		rf = c_heap_get_root (read_heap);
 		if (rf == NULL)
 			break;
+
+		old_ctx = plugin_set_ctx (rf->rf_ctx);
 
 		if (rf->rf_type == RF_SIMPLE)
 		{
@@ -1196,6 +1248,8 @@ int plugin_read_all_once (void)
 			callback = rf->rf_callback;
 			status = (*callback) (&rf->rf_udata);
 		}
+
+		plugin_set_ctx (old_ctx);
 
 		if (status != 0)
 		{
@@ -1242,6 +1296,7 @@ int plugin_write (const char *plugin, /* {{{ */
     {
       callback_func_t *cf = le->value;
       plugin_write_cb callback;
+      plugin_ctx_t old_ctx = plugin_set_ctx (cf->cf_ctx);
 
       DEBUG ("plugin: plugin_write: Writing values via %s.", le->key);
       callback = cf->cf_callback;
@@ -1250,6 +1305,8 @@ int plugin_write (const char *plugin, /* {{{ */
         failure++;
       else
         success++;
+
+      plugin_set_ctx (old_ctx);
 
       le = le->next;
     }
@@ -1263,6 +1320,7 @@ int plugin_write (const char *plugin, /* {{{ */
   {
     callback_func_t *cf;
     plugin_write_cb callback;
+    plugin_ctx_t old_ctx;
 
     le = llist_head (list_write);
     while (le != NULL)
@@ -1278,9 +1336,13 @@ int plugin_write (const char *plugin, /* {{{ */
 
     cf = le->value;
 
+    old_ctx = plugin_set_ctx (cf->cf_ctx);
+
     DEBUG ("plugin: plugin_write: Writing values via %s.", le->key);
     callback = cf->cf_callback;
     status = (*callback) (ds, vl, &cf->cf_udata);
+
+    plugin_set_ctx (old_ctx);
   }
 
   return (status);
@@ -1298,6 +1360,7 @@ int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
   {
     callback_func_t *cf;
     plugin_flush_cb callback;
+    plugin_ctx_t old_ctx;
 
     if ((plugin != NULL)
         && (strcmp (plugin, le->key) != 0))
@@ -1307,9 +1370,12 @@ int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
     }
 
     cf = le->value;
+    old_ctx = plugin_set_ctx (cf->cf_ctx);
     callback = cf->cf_callback;
 
     (*callback) (timeout, identifier, &cf->cf_udata);
+
+    plugin_set_ctx (old_ctx);
 
     le = le->next;
   }
@@ -1343,8 +1409,10 @@ void plugin_shutdown_all (void)
 	{
 		callback_func_t *cf;
 		plugin_shutdown_cb callback;
+		plugin_ctx_t old_ctx;
 
 		cf = le->value;
+		old_ctx = plugin_set_ctx (cf->cf_ctx);
 		callback = cf->cf_callback;
 
 		/* Advance the pointer before calling the callback allows
@@ -1354,6 +1422,8 @@ void plugin_shutdown_all (void)
 		le = le->next;
 
 		(*callback) ();
+
+		plugin_set_ctx (old_ctx);
 	}
 
 	/* Write plugins which use the `user_data' pointer usually need the
@@ -1382,12 +1452,15 @@ int plugin_dispatch_missing (const value_list_t *vl) /* {{{ */
   {
     callback_func_t *cf;
     plugin_missing_cb callback;
+    plugin_ctx_t old_ctx;
     int status;
 
     cf = le->value;
+    old_ctx = plugin_set_ctx (cf->cf_ctx);
     callback = cf->cf_callback;
 
     status = (*callback) (vl, &cf->cf_udata);
+    plugin_set_ctx (old_ctx);
     if (status != 0)
     {
       if (status < 0)
@@ -1462,8 +1535,14 @@ int plugin_dispatch_values (value_list_t *vl)
 	if (vl->time == 0)
 		vl->time = cdtime ();
 
-	if (vl->interval <= 0)
-		vl->interval = interval_g;
+	if (vl->interval <= 0) {
+		plugin_ctx_t ctx = plugin_get_ctx ();
+
+		if (ctx.interval != 0)
+			vl->interval = ctx.interval;
+		else
+			vl->interval = interval_g;
+	}
 
 	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
 			"host = %s; "
@@ -1651,11 +1730,14 @@ int plugin_dispatch_notification (const notification_t *notif)
 	{
 		callback_func_t *cf;
 		plugin_notification_cb callback;
+		plugin_ctx_t old_ctx;
 		int status;
 
 		cf = le->value;
+		old_ctx = plugin_set_ctx (cf->cf_ctx);
 		callback = cf->cf_callback;
 		status = (*callback) (notif, &cf->cf_udata);
+		plugin_set_ctx (old_ctx);
 		if (status != 0)
 		{
 			WARNING ("plugin_dispatch_notification: Notification "
@@ -1696,12 +1778,15 @@ void plugin_log (int level, const char *format, ...)
 	{
 		callback_func_t *cf;
 		plugin_log_cb callback;
+		plugin_ctx_t old_ctx;
 
 		cf = le->value;
+		old_ctx = plugin_set_ctx (cf->cf_ctx);
 		callback = cf->cf_callback;
 
 		(*callback) (level, msg, &cf->cf_udata);
 
+		plugin_set_ctx (old_ctx);
 		le = le->next;
 	}
 } /* void plugin_log */
@@ -1893,5 +1978,71 @@ int plugin_notification_meta_free (notification_meta_t *n)
 
   return (0);
 } /* int plugin_notification_meta_free */
+
+static void plugin_ctx_destructor (void *ctx)
+{
+	sfree (ctx);
+} /* void plugin_ctx_destructor */
+
+static plugin_ctx_t ctx_init = { /* interval = */ 0 };
+
+static plugin_ctx_t *plugin_ctx_create (void)
+{
+	plugin_ctx_t *ctx;
+
+	ctx = malloc (sizeof (*ctx));
+	if (ctx == NULL) {
+		char errbuf[1024];
+		ERROR ("Failed to allocate plugin context: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return NULL;
+	}
+
+	*ctx = ctx_init;
+	pthread_setspecific (plugin_ctx_key, ctx);
+	DEBUG("Created new plugin context.");
+	return (ctx);
+} /* int plugin_ctx_create */
+
+void plugin_init_ctx (void)
+{
+	pthread_key_create (&plugin_ctx_key, plugin_ctx_destructor);
+} /* void plugin_init_ctx */
+
+plugin_ctx_t plugin_get_ctx (void)
+{
+	plugin_ctx_t *ctx;
+
+	ctx = pthread_getspecific (plugin_ctx_key);
+
+	if (ctx == NULL) {
+		ctx = plugin_ctx_create ();
+		/* this must no happen -- exit() instead? */
+		if (ctx == NULL)
+			return ctx_init;
+	}
+
+	return (*ctx);
+} /* plugin_ctx_t plugin_get_ctx */
+
+plugin_ctx_t plugin_set_ctx (plugin_ctx_t ctx)
+{
+	plugin_ctx_t *c;
+	plugin_ctx_t old;
+
+	c = pthread_getspecific (plugin_ctx_key);
+
+	if (c == NULL) {
+		c = plugin_ctx_create ();
+		/* this must no happen -- exit() instead? */
+		if (c == NULL)
+			return ctx_init;
+	}
+
+	old = *c;
+	*c = ctx;
+
+	return (old);
+} /* void plugin_set_ctx */
 
 /* vim: set sw=8 ts=8 noet fdm=marker : */
