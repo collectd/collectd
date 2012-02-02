@@ -377,6 +377,12 @@ static int wg_format_name (char *ret, int ret_len,
     assert (plugin != NULL);
     assert (type != NULL);
 
+    if (prefix == NULL)
+        prefix = "";
+
+    if (postfix == NULL)
+        postfix = "";
+
     if ((n_hostname = malloc(strlen(hostname)+1)) == NULL)
     {
         ERROR ("Unable to allocate memory for normalized hostname buffer");
@@ -677,24 +683,6 @@ static int wg_config_carbon (oconfig_item_t *ci)
             ERROR ("write_graphite plugin: Invalid configuration "
                         "option: %s.", child->key);
         }
-    }
-
-    if (cb->prefix == NULL) {
-        if ((cb->prefix = malloc((int)sizeof(char))) == NULL)
-        {
-            ERROR ("Unable to allocate memory for hostname prefix buffer");
-            return (-1);
-        }
-        cb->prefix[0] = '\0';
-    }
-
-    if (cb->postfix == NULL) {
-        if ((cb->postfix = malloc((int)sizeof(char))) == NULL)
-        {
-            ERROR ("Unable to allocate memory for hostname postfix buffer");
-            return (-1);
-        }
-        cb->postfix[0] = '\0';
     }
 
     DEBUG ("write_graphite: Registering write callback to carbon agent %s:%s",
