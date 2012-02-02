@@ -1230,6 +1230,21 @@ collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif
 
+if BUILD_PLUGIN_WRITE_GRAPHITE
+pkglib_LTLIBRARIES += write_graphite.la
+write_graphite_la_SOURCES = write_graphite.c \
+			utils_format_json.c utils_format_json.h
+write_graphite_la_LDFLAGS = -module -avoid-version
+write_graphite_la_CFLAGS = $(AM_CFLAGS)
+write_graphite_la_LIBADD =
+collectd_LDADD += "-dlopen" write_graphite.la
+if BUILD_WITH_LIBCURL
+write_graphite_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+write_graphite_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+collectd_DEPENDENCIES += write_graphite.la
+endif
+
 if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = write_http.c \
