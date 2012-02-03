@@ -44,10 +44,6 @@
 #include <pthread.h>
 
 #include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#include <netinet/in.h>
 #include <netdb.h>
 
 #ifndef WG_FORMAT_NAME
