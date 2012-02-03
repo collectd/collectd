@@ -378,4 +378,11 @@ void plugin_init_ctx (void);
 plugin_ctx_t plugin_get_ctx (void);
 plugin_ctx_t plugin_set_ctx (plugin_ctx_t ctx);
 
+/*
+ * Context-aware thread management.
+ */
+
+int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
+		void *(*start_routine) (void *), void *arg);
+
 #endif /* PLUGIN_H */
