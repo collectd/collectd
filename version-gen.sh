@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 DEFAULT_VERSION="5.0.2.git"
 
