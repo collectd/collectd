@@ -47,11 +47,12 @@
 #include <netdb.h>
 
 #ifndef WG_FORMAT_NAME
-#define WG_FORMAT_NAME(ret, ret_len, vl, cb, name) \
-        wg_format_name (ret, ret_len, (vl)->host, (vl)->plugin, \
-                         (vl)->plugin_instance, (vl)->type, \
-                         (vl)->type_instance, (cb)->prefix, (cb)->postfix, \
-                         name, (cb)->dotchar)
+#define WG_FORMAT_NAME(ret, ret_len, vl, cb, ds_name) \
+        wg_format_name (ret, ret_len, (vl)->host, \
+                         (vl)->plugin, (vl)->plugin_instance, \
+                         (vl)->type, (vl)->type_instance, \
+                         (cb)->prefix, (cb)->postfix, \
+                         ds_name, (cb)->escape_char)
 #endif
 
 #ifndef WG_DEFAULT_NODE
@@ -78,7 +79,7 @@ struct wg_callback
     char    *service;
     char    *prefix;
     char    *postfix;
-    char     dotchar;
+    char     escape_char;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -337,19 +338,28 @@ static int wg_format_values (char *ret, size_t ret_len,
     return (0);
 }
 
-static void swap_chars (char *dst, const char *src,
-        const char from, const char to)
+static void wg_copy_escape_part (char *dst, const char *src, size_t dst_len,
+    char escape_char)
 {
     size_t i;
 
-    for (i = 0; i < strlen(src) ; i++)
+    memset (dst, 0, dst_len);
+
+    if (src == NULL)
+        return;
+
+    for (i = 0; i < dst_len; i++)
     {
-        if (src[i] == from)
-            dst[i] = to;
+        if ((src[i] == '.')
+                || isspace ((int) src[i])
+                || iscntrl ((int) src[i]))
+            dst[i] = escape_char;
         else
             dst[i] = src[i];
+
+        if (src[i] == 0)
+            break;
     }
-    dst[i] = '\0';
 }
 
 static int wg_format_name (char *ret, int ret_len,
@@ -357,17 +367,19 @@ static int wg_format_name (char *ret, int ret_len,
         const char *plugin, const char *plugin_instance,
         const char *type, const char *type_instance,
         const char *prefix, const char *postfix,
-        const char *ds_name, const char dotchar)
+        const char *ds_name, char escape_char)
 {
+    char n_hostname[DATA_MAX_NAME_LEN];
+    char n_plugin[DATA_MAX_NAME_LEN];
+    char n_plugin_instance[DATA_MAX_NAME_LEN];
+    char n_type[DATA_MAX_NAME_LEN];
+    char n_type_instance[DATA_MAX_NAME_LEN];
     int  status;
-    char *n_hostname = NULL;
-    char *n_plugin = NULL;
-    char *n_plugin_instance = NULL;
-    char *n_type = NULL;
-    char *n_type_instance = NULL;
 
+    assert (hostname != NULL);
     assert (plugin != NULL);
     assert (type != NULL);
+    assert (ds_name != NULL);
 
     if (prefix == NULL)
         prefix = "";
@@ -375,106 +387,50 @@ static int wg_format_name (char *ret, int ret_len,
     if (postfix == NULL)
         postfix = "";
 
-    if ((n_hostname = malloc(strlen(hostname)+1)) == NULL)
-    {
-        ERROR ("Unable to allocate memory for normalized hostname buffer");
-        return (-1);
-    }
+    wg_copy_escape_part (n_hostname, hostname,
+            sizeof (n_hostname), escape_char);
+    wg_copy_escape_part (n_plugin, plugin,
+            sizeof (n_plugin), escape_char);
+    wg_copy_escape_part (n_plugin_instance, plugin_instance,
+            sizeof (n_plugin_instance), escape_char);
+    wg_copy_escape_part (n_type, type,
+            sizeof (n_type), escape_char);
+    wg_copy_escape_part (n_type_instance, type_instance,
+            sizeof (n_type_instance), escape_char);
 
-    if ((n_plugin = malloc(strlen(plugin)+1)) == NULL)
+    if (n_plugin_instance[0] == '\0')
     {
-        ERROR ("Unable to allocate memory for normalized plugin buffer");
-        return (-1);
-    }
-
-    if ((n_type = malloc(strlen(type)+1)) == NULL)
-    {
-        ERROR ("Unable to allocate memory for normalized type buffer");
-        return (-1);
-    }
-
-    swap_chars(n_hostname, hostname, '.', dotchar);
-    swap_chars(n_plugin, plugin, ' ', '_');
-    swap_chars(n_type, type, ' ', '_');
-
-    if (type_instance != NULL && type_instance[0] != '\0')
-    {
-        if ((n_type_instance = malloc(strlen(type_instance)+1)) == NULL)
+        if (n_type_instance[0] == '\0')
         {
-            ERROR ("Unable to allocate memory for normalized datasource name buffer");
-            return (-1);
-        }
-        swap_chars(n_type_instance, type_instance, '.', dotchar);
-        swap_chars(n_type_instance, type_instance, ' ', '_');
-    }
-
-    if (plugin_instance != NULL && plugin_instance[0] != '\0')
-    {
-        if ((n_plugin_instance = malloc(strlen(plugin_instance)+1)) == NULL)
-        {
-            ERROR ("Unable to allocate memory for normalized plugin instance buffer");
-            return (-1);
-        }
-        swap_chars(n_plugin_instance, plugin_instance, ' ', '_');
-    }
-
-    if ((n_plugin_instance == NULL) || (n_plugin_instance[0] == '\0'))
-    {
-        if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
-        {
-            if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
-                        prefix, n_hostname, postfix, n_plugin, n_type);
-            else
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
-                        prefix, n_hostname, postfix, n_plugin, n_type, ds_name);
+            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
+                    prefix, n_hostname, postfix, n_plugin, n_type, ds_name);
         }
         else
         {
-            if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s-%s",
-                        prefix, n_hostname, postfix, n_plugin, n_type,
-                        n_type_instance);
-            else
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s-%s.%s",
-                        prefix, n_hostname, postfix, n_plugin, n_type,
-                        n_type_instance, ds_name);
+            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s-%s.%s",
+                    prefix, n_hostname, postfix, n_plugin, n_type,
+                    n_type_instance, ds_name);
         }
     }
     else
     {
-        if ((n_type_instance == NULL) || (n_type_instance[0] == '\0'))
+        if (n_type_instance[0] == '\0')
         {
-            if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
-                        prefix, n_hostname, postfix, n_plugin,
-                        n_plugin_instance, n_type);
-            else
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s.%s",
-                        prefix, n_hostname, postfix, n_plugin,
-                        n_plugin_instance, n_type, ds_name);
+            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s.%s",
+                    prefix, n_hostname, postfix, n_plugin,
+                    n_plugin_instance, n_type, ds_name);
         }
         else
         {
-            if ((ds_name == NULL) || (ds_name[0] == '\0'))
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s-%s",
-                        prefix, n_hostname, postfix, n_plugin,
-                        n_plugin_instance, n_type, n_type_instance);
-            else
-                status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s-%s.%s",
-                        prefix, n_hostname, postfix, n_plugin,
-                        n_plugin_instance, n_type, n_type_instance, ds_name);
+            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s-%s.%s",
+                    prefix, n_hostname, postfix, n_plugin,
+                    n_plugin_instance, n_type, n_type_instance, ds_name);
         }
     }
 
-    sfree(n_hostname);
-    sfree(n_type_instance);
-    sfree(n_type);
-    sfree(n_plugin);
-    sfree(n_plugin_instance);
-
     if ((status < 1) || (status >= ret_len))
         return (-1);
+
     return (0);
 }
 
@@ -673,7 +629,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->prefix = NULL;
     cb->postfix = NULL;
     cb->server = NULL;
-    cb->dotchar = '_';
+    cb->escape_char = '_';
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -689,8 +645,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_string (child, &cb->prefix);
         else if (strcasecmp ("Postfix", child->key) == 0)
             cf_util_get_string (child, &cb->postfix);
-        else if (strcasecmp ("DotCharacter", child->key) == 0)
-            config_set_char (&cb->dotchar, child);
+        else if (strcasecmp ("EscapeCharacter", child->key) == 0)
+            config_set_char (&cb->escape_char, child);
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
