@@ -341,26 +341,19 @@ static int wg_format_values (char *ret, size_t ret_len,
     return (0);
 }
 
-static int swap_chars (char *dst, const char *src,
+static void swap_chars (char *dst, const char *src,
         const char from, const char to)
 {
     size_t i;
 
-    int reps = 0;
-
     for (i = 0; i < strlen(src) ; i++)
     {
         if (src[i] == from)
-        {
             dst[i] = to;
-            ++reps;
-        }
         else
             dst[i] = src[i];
     }
     dst[i] = '\0';
-
-    return reps;
 }
 
 static int wg_format_name (char *ret, int ret_len,
@@ -380,6 +373,12 @@ static int wg_format_name (char *ret, int ret_len,
     assert (plugin != NULL);
     assert (type != NULL);
 
+    if (prefix == NULL)
+        prefix = "";
+
+    if (postfix == NULL)
+        postfix = "";
+
     if ((n_hostname = malloc(strlen(hostname)+1)) == NULL)
     {
         ERROR ("Unable to allocate memory for normalized hostname buffer");
@@ -398,23 +397,9 @@ static int wg_format_name (char *ret, int ret_len,
         return (-1);
     }
 
-    if (swap_chars(n_hostname, hostname, '.', dotchar) == -1)
-    {
-        ERROR ("Unable to normalize hostname");
-        return (-1);
-    }
-
-    if (swap_chars(n_plugin, plugin, ' ', '_') == -1)
-    {
-        ERROR ("Unable to normalize plugin");
-        return (-1);
-    }
-
-    if (swap_chars(n_type, type, ' ', '_') == -1)
-    {
-        ERROR ("Unable to normalize type");
-        return (-1);
-    }
+    swap_chars(n_hostname, hostname, '.', dotchar);
+    swap_chars(n_plugin, plugin, ' ', '_');
+    swap_chars(n_type, type, ' ', '_');
 
     if (type_instance != NULL && type_instance[0] != '\0')
     {
@@ -423,16 +408,8 @@ static int wg_format_name (char *ret, int ret_len,
             ERROR ("Unable to allocate memory for normalized datasource name buffer");
             return (-1);
         }
-        if (swap_chars(n_type_instance, type_instance, '.', dotchar) == -1)
-        {
-            ERROR ("Unable to normalize datasource name");
-            return (-1);
-        }
-        if (swap_chars(n_type_instance, type_instance, ' ', '_') == -1)
-        {
-            ERROR ("Unable to normalize datasource name");
-            return (-1);
-        }
+        swap_chars(n_type_instance, type_instance, '.', dotchar);
+        swap_chars(n_type_instance, type_instance, ' ', '_');
     }
 
     if (plugin_instance != NULL && plugin_instance[0] != '\0')
@@ -442,11 +419,7 @@ static int wg_format_name (char *ret, int ret_len,
             ERROR ("Unable to allocate memory for normalized plugin instance buffer");
             return (-1);
         }
-        if (swap_chars(n_plugin_instance, plugin_instance, ' ', '_') == -1)
-        {
-            ERROR ("Unable to normalize datasource name");
-            return (-1);
-        }
+        swap_chars(n_plugin_instance, plugin_instance, ' ', '_');
     }
 
     if ((n_plugin_instance == NULL) || (n_plugin_instance[0] == '\0'))
