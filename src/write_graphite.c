@@ -81,7 +81,6 @@
 struct wg_callback
 {
     int      sock_fd;
-    struct hostent *server;
 
     char    *node;
     char    *service;
@@ -636,7 +635,6 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->service = NULL;
     cb->prefix = NULL;
     cb->postfix = NULL;
-    cb->server = NULL;
     cb->escape_char = '_';
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
