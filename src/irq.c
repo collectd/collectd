@@ -94,6 +94,8 @@ static int irq_read (void)
 {
 	FILE *fh;
 	char buffer[1024];
+	int  cpu_count;
+	char *fields[64];
 
 	fh = fopen ("/proc/interrupts", "r");
 	if (fh == NULL)
@@ -104,20 +106,36 @@ static int irq_read (void)
 		return (-1);
 	}
 
+	/* Get CPU count from the first line */
+	if(fgets (buffer, sizeof (buffer), fh) != NULL) {
+		cpu_count = strsplit (buffer, fields, 64);
+	} else {
+		ERROR ("irq plugin: unable to get CPU count from first line of /proc/interrupts");
+		return (-1);
+	}
+
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		char *irq_name;
 		size_t irq_name_len;
 		derive_t irq_value;
 		int i;
-
-		char *fields[64];
 		int fields_num;
+		int irq_values_to_parse;
 
 		fields_num = strsplit (buffer, fields, 64);
 		if (fields_num < 2)
 			continue;
 
+		/* Parse this many numeric fields, skip the rest
+		 * (+1 because first there is a name of irq in each line) */
+		if (fields_num >= cpu_count+1) {
+			irq_values_to_parse = cpu_count;
+		} else {
+			irq_values_to_parse = fields_num - 1;
+		}
+
+		/* First field is irq name */
 		irq_name = fields[0];
 		irq_name_len = strlen (irq_name);
 		if (irq_name_len < 2)
@@ -132,7 +150,7 @@ static int irq_read (void)
 		irq_name_len--;
 
 		irq_value = 0;
-		for (i = 1; i < fields_num; i++)
+		for (i = 1; i <= irq_values_to_parse; i++)
 		{
 			/* Per-CPU value */
 			value_t v;
