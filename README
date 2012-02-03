@@ -358,6 +358,9 @@ Features
       needed. Please read collectd-unixsock(5) for a description on how that's
       done.
 
+    - write_graphite
+      Sends data to Carbon, the storage layer of Graphite.
+
     - write_http
       Sends the values collected by collectd to a web-server using HTTP POST
       requests. The transmitted data is either in a form understood by the
