@@ -1,6 +1,10 @@
 /**
  * collectd - src/write_graphite.c
- * Copyright (C) 2011  Scott Sanders
+ * Copyright (C) 2012       Pierre-Yves Ritschard
+ * Copyright (C) 2011       Scott Sanders
+ * Copyright (C) 2009       Paul Sadauskas
+ * Copyright (C) 2009       Doug MacEachern
+ * Copyright (C) 2007-2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -15,10 +19,14 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
- * Author:
- *   Scott Sanders <scott@jssjr.com>
+ * Authors:
+ *   Florian octo Forster <octo at collectd.org>
+ *   Doug MacEachern <dougm at hyperic.com>
+ *   Paul Sadauskas <psadauskas at gmail.com>
+ *   Scott Sanders <scott at jssjr.com>
+ *   Pierre-Yves Ritschard <pyr at spootnik.org>
  *
- *   based on the excellent write_http plugin
+ * Based on the write_http plugin.
  **/
 
  /* write_graphite plugin configuation example
