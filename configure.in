@@ -1665,7 +1665,7 @@ CPPFLAGS="$SAVE_CPPFLAGS"
 
 if test "x$with_libiptc" = "xown"
 then
-	with_libiptc_cflags="-I${srcdir}/src/owniptc"
+	with_libiptc_cflags=""
 	with_libiptc_libs=""
 fi
 if test "x$with_libiptc" = "xown"
