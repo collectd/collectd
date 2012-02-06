@@ -523,19 +523,6 @@ static int c_psql_shutdown (void)
 	return 0;
 } /* c_psql_shutdown */
 
-static int config_set_s (char *name, char **var, const oconfig_item_t *ci)
-{
-	if ((0 != ci->children_num) || (1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("%s expects a single string argument.", name);
-		return 1;
-	}
-
-	sfree (*var);
-	*var = sstrdup (ci->values[0].value.string);
-	return 0;
-} /* config_set_s */
-
 static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 {
 	c_psql_user_data_t *data;
@@ -618,19 +605,19 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Host"))
-			config_set_s ("Host", &db->host, c);
+			cf_util_get_string (c, &db->host);
 		else if (0 == strcasecmp (c->key, "Port"))
-			config_set_s ("Port", &db->port, c);
+			cf_util_get_service (c, &db->port);
 		else if (0 == strcasecmp (c->key, "User"))
-			config_set_s ("User", &db->user, c);
+			cf_util_get_string (c, &db->user);
 		else if (0 == strcasecmp (c->key, "Password"))
-			config_set_s ("Password", &db->password, c);
+			cf_util_get_string (c, &db->password);
 		else if (0 == strcasecmp (c->key, "SSLMode"))
-			config_set_s ("SSLMode", &db->sslmode, c);
+			cf_util_get_string (c, &db->sslmode);
 		else if (0 == strcasecmp (c->key, "KRBSrvName"))
-			config_set_s ("KRBSrvName", &db->krbsrvname, c);
+			cf_util_get_string (c, &db->krbsrvname);
 		else if (0 == strcasecmp (c->key, "Service"))
-			config_set_s ("Service", &db->service, c);
+			cf_util_get_string (c, &db->service);
 		else if (0 == strcasecmp (c->key, "Query"))
 			udb_query_pick_from_list (c, queries, queries_num,
 					&db->queries, &db->queries_num);
