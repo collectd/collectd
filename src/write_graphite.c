@@ -651,7 +651,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
         if (strcasecmp ("Host", child->key) == 0)
             cf_util_get_string (child, &cb->node);
         else if (strcasecmp ("Port", child->key) == 0)
-            cf_util_get_string (child, &cb->service);
+            cf_util_get_service (child, &cb->service);
         else if (strcasecmp ("Prefix", child->key) == 0)
             cf_util_get_string (child, &cb->prefix);
         else if (strcasecmp ("Postfix", child->key) == 0)
