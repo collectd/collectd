@@ -71,6 +71,10 @@
 # define WG_DEFAULT_SERVICE "2003"
 #endif
 
+#ifndef WG_DEFAULT_ESCAPE
+# define WG_DEFAULT_ESCAPE '_'
+#endif
+
 #ifndef WG_SEND_BUF_SIZE
 # define WG_SEND_BUF_SIZE 4096
 #endif
@@ -636,7 +640,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->service = NULL;
     cb->prefix = NULL;
     cb->postfix = NULL;
-    cb->escape_char = '_';
+    cb->escape_char = WG_DEFAULT_ESCAPE;
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
