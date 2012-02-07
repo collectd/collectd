@@ -364,15 +364,18 @@ static void wg_copy_escape_part (char *dst, const char *src, size_t dst_len,
 
     for (i = 0; i < dst_len; i++)
     {
+        if (src[i] == 0)
+        {
+            dst[i] = 0;
+            break;
+        }
+
         if ((src[i] == '.')
                 || isspace ((int) src[i])
                 || iscntrl ((int) src[i]))
             dst[i] = escape_char;
         else
             dst[i] = src[i];
-
-        if (src[i] == 0)
-            break;
     }
 }
 
