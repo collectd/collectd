@@ -54,15 +54,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#ifndef WG_FORMAT_NAME
-#define WG_FORMAT_NAME(ret, ret_len, vl, cb, ds_name) \
-        wg_format_name (ret, ret_len, (vl)->host, \
-                         (vl)->plugin, (vl)->plugin_instance, \
-                         (vl)->type, (vl)->type_instance, \
-                         (cb)->prefix, (cb)->postfix, \
-                         ds_name, (cb)->escape_char)
-#endif
-
 #ifndef WG_DEFAULT_NODE
 # define WG_DEFAULT_NODE "localhost"
 #endif
@@ -93,6 +84,7 @@ struct wg_callback
     char     escape_char;
 
     _Bool    store_rates;
+    _Bool    always_append_ds;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -380,73 +372,59 @@ static void wg_copy_escape_part (char *dst, const char *src, size_t dst_len,
 }
 
 static int wg_format_name (char *ret, int ret_len,
-        const char *hostname,
-        const char *plugin, const char *plugin_instance,
-        const char *type, const char *type_instance,
-        const char *prefix, const char *postfix,
-        const char *ds_name, char escape_char)
+        const value_list_t *vl,
+        const struct wg_callback *cb,
+        const char *ds_name)
 {
-    char n_hostname[DATA_MAX_NAME_LEN];
+    char n_host[DATA_MAX_NAME_LEN];
     char n_plugin[DATA_MAX_NAME_LEN];
     char n_plugin_instance[DATA_MAX_NAME_LEN];
     char n_type[DATA_MAX_NAME_LEN];
     char n_type_instance[DATA_MAX_NAME_LEN];
-    int  status;
 
-    assert (hostname != NULL);
-    assert (plugin != NULL);
-    assert (type != NULL);
-    assert (ds_name != NULL);
+    char *prefix;
+    char *postfix;
 
+    char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
+    char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
+
+    prefix = cb->prefix;
     if (prefix == NULL)
         prefix = "";
 
+    postfix = cb->postfix;
     if (postfix == NULL)
         postfix = "";
 
-    wg_copy_escape_part (n_hostname, hostname,
-            sizeof (n_hostname), escape_char);
-    wg_copy_escape_part (n_plugin, plugin,
-            sizeof (n_plugin), escape_char);
-    wg_copy_escape_part (n_plugin_instance, plugin_instance,
-            sizeof (n_plugin_instance), escape_char);
-    wg_copy_escape_part (n_type, type,
-            sizeof (n_type), escape_char);
-    wg_copy_escape_part (n_type_instance, type_instance,
-            sizeof (n_type_instance), escape_char);
+    wg_copy_escape_part (n_host, vl->host,
+            sizeof (n_host), cb->escape_char);
+    wg_copy_escape_part (n_plugin, vl->plugin,
+            sizeof (n_plugin), cb->escape_char);
+    wg_copy_escape_part (n_plugin_instance, vl->plugin_instance,
+            sizeof (n_plugin_instance), cb->escape_char);
+    wg_copy_escape_part (n_type, vl->type,
+            sizeof (n_type), cb->escape_char);
+    wg_copy_escape_part (n_type_instance, vl->type_instance,
+            sizeof (n_type_instance), cb->escape_char);
 
-    if (n_plugin_instance[0] == '\0')
-    {
-        if (n_type_instance[0] == '\0')
-        {
-            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
-                    prefix, n_hostname, postfix, n_plugin, n_type, ds_name);
-        }
-        else
-        {
-            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s-%s.%s",
-                    prefix, n_hostname, postfix, n_plugin, n_type,
-                    n_type_instance, ds_name);
-        }
-    }
+    if (n_plugin_instance[0] != '\0')
+        ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s-%s",
+            n_plugin, n_plugin_instance);
     else
-    {
-        if (n_type_instance[0] == '\0')
-        {
-            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s.%s",
-                    prefix, n_hostname, postfix, n_plugin,
-                    n_plugin_instance, n_type, ds_name);
-        }
-        else
-        {
-            status = ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s-%s.%s",
-                    prefix, n_hostname, postfix, n_plugin,
-                    n_plugin_instance, n_type, n_type_instance, ds_name);
-        }
-    }
+        sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
-    if ((status < 1) || (status >= ret_len))
-        return (-1);
+    if (n_type_instance[0] != '\0')
+        ssnprintf (tmp_type, sizeof (tmp_type), "%s-%s",
+            n_type, n_type_instance);
+    else
+        sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+
+    if (ds_name != NULL)
+        ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
+            prefix, n_host, postfix, tmp_plugin, tmp_type, ds_name);
+    else
+        ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
+            prefix, n_host, postfix, tmp_plugin, tmp_type);
 
     return (0);
 }
@@ -534,7 +512,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         for (i = 0; i < ds->ds_num; i++)
         {
             /* Copy the identifier to `key' and escape it. */
-            status = WG_FORMAT_NAME (key, sizeof (key), vl, cb, ds->ds[i].name);
+            status = wg_format_name (key, sizeof (key), vl, cb, ds->ds[i].name);
             if (status != 0)
             {
                 ERROR ("write_graphite plugin: error with format_name");
@@ -566,7 +544,8 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
     else
     {
         /* Copy the identifier to `key' and escape it. */
-        status = WG_FORMAT_NAME (key, sizeof (key), vl, cb, NULL);
+        status = wg_format_name (key, sizeof (key), vl, cb,
+            cb->always_append_ds ? ds->ds[0].name : NULL);
         if (status != 0)
         {
             ERROR ("write_graphite plugin: error with format_name");
@@ -605,7 +584,7 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl,
     int status;
 
     if (user_data == NULL)
-        return (-EINVAL);
+        return (EINVAL);
 
     cb = user_data->data;
 
@@ -665,6 +644,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_string (child, &cb->postfix);
         else if (strcasecmp ("StoreRates", child->key) == 0)
             cf_util_get_boolean (child, &cb->store_rates);
+        else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
+            cf_util_get_boolean (child, &cb->always_append_ds);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
         else
