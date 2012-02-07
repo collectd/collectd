@@ -144,6 +144,7 @@
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
+#@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_MONGO_TRUE@LoadPlugin write_mongo
@@ -951,6 +952,18 @@
 
 #<Plugin vmem>
 #	Verbose false
+#</Plugin>
+
+#<Plugin write_graphite>
+#  <Carbon>
+#    Host "localhost"
+#    Port "2003"
+#    Prefix "collectd"
+#    Postfix "collectd"
+#    StoreRates false
+#    AlwaysAppendDS false
+#    EscapeCharacter "_"
+#  </Carbon>
 #</Plugin>
 
 #<Plugin write_http>
