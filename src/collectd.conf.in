@@ -146,7 +146,7 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
-#@BUILD_PLUGIN_WRITE_MONGO_TRUE@LoadPlugin write_mongo
+#@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -973,7 +973,7 @@
 #	</Node>
 #</Plugin>
 
-#<Plugin write_mongo>
+#<Plugin write_mongodb>
 #	<Node "example">
 #		Host "localhost"
 #		Port "27017"
