@@ -92,6 +92,8 @@ struct wg_callback
     char    *postfix;
     char     escape_char;
 
+    _Bool    store_rates;
+
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
     size_t   send_buf_fill;
@@ -539,7 +541,8 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
             escape_string (key, sizeof (key));
             /* Convert the values to an ASCII representation and put that
              * into `values'. */
-            status = wg_format_values (values, sizeof (values), i, ds, vl, 0);
+            status = wg_format_values (values, sizeof (values), i, ds, vl,
+                    cb->store_rates);
             if (status != 0)
             {
                 ERROR ("write_graphite plugin: error with "
@@ -570,7 +573,8 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         escape_string (key, sizeof (key));
         /* Convert the values to an ASCII representation and put that into
          * `values'. */
-        status = wg_format_values (values, sizeof (values), 0, ds, vl, 0);
+        status = wg_format_values (values, sizeof (values), 0, ds, vl,
+                    cb->store_rates);
         if (status != 0)
         {
             ERROR ("write_graphite plugin: error with "
@@ -656,6 +660,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_string (child, &cb->prefix);
         else if (strcasecmp ("Postfix", child->key) == 0)
             cf_util_get_string (child, &cb->postfix);
+        else if (strcasecmp ("StoreRates", child->key) == 0)
+            cf_util_get_boolean (child, &cb->store_rates);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
         else

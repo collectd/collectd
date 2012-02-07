@@ -4798,6 +4798,12 @@ in the identifier. The B<EscapeCharacter> option determines which character
 dots, whitespace and control characters are replaced with. Defaults to
 underscore (C<_>).
 
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true>, convert counter values to rates. If set to B<false> (the
+default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
+
 =back
 
 =head2 Plugin C<write_http>
