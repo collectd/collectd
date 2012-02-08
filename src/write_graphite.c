@@ -109,21 +109,22 @@ static void wg_reset_buffer (struct wg_callback *cb)
 
 static int wg_send_buffer (struct wg_callback *cb)
 {
-    int status = 0;
+    ssize_t status = 0;
 
-    status = write (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
+    status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
     if (status < 0)
     {
-        ERROR ("write_graphite plugin: send failed with "
-                "status %i (%s)",
-                status,
-                strerror (errno));
+        char errbuf[1024];
+        ERROR ("write_graphite plugin: send failed with status %zi (%s)",
+                status, sstrerror (errno, errbuf, sizeof (errbuf)));
+
 
         close (cb->sock_fd);
         cb->sock_fd = -1;
 
         return (-1);
     }
+
     return (0);
 }
 
