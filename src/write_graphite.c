@@ -66,8 +66,9 @@
 # define WG_DEFAULT_ESCAPE '_'
 #endif
 
+/* Ethernet - (IPv6 + TCP) = 1500 - (40 + 32) = 1428 */
 #ifndef WG_SEND_BUF_SIZE
-# define WG_SEND_BUF_SIZE 4096
+# define WG_SEND_BUF_SIZE 1428
 #endif
 
 /*
