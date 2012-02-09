@@ -598,14 +598,30 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl,
 static int config_set_char (char *dest,
         oconfig_item_t *ci)
 {
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+    char buffer[4];
+    int status;
+
+    memset (buffer, 0, sizeof (buffer));
+
+    status = cf_util_get_string_buffer (ci, buffer, sizeof (buffer));
+    if (status != 0)
+        return (status);
+
+    if (buffer[0] == 0)
     {
-        WARNING ("write_graphite plugin: The `%s' config option "
-                "needs exactly one string argument.", ci->key);
+        ERROR ("write_graphite plugin: Cannot use an empty string for the "
+                "\"EscapeCharacter\" option.");
         return (-1);
     }
 
-    *dest = ci->values[0].value.string[0];
+    if (buffer[1] != 0)
+    {
+        WARNING ("write_graphite plugin: Only the first character of the "
+                "\"EscapeCharacter\" option ('%c') will be used.",
+                (int) buffer[0]);
+    }
+
+    *dest = buffer[0];
 
     return (0);
 }
