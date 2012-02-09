@@ -439,10 +439,10 @@ static int wg_send_message (const char* key, const char* value,
     char message[1024];
 
     message_len = (size_t) ssnprintf (message, sizeof (message),
-            "%s %s %.0f\r\n",
+            "%s %s %u\r\n",
             key,
             value,
-            CDTIME_T_TO_DOUBLE(time));
+            (unsigned int) CDTIME_T_TO_TIME_T (time));
     if (message_len >= sizeof (message)) {
         ERROR ("write_graphite plugin: message buffer too small: "
                 "Need %zu bytes.", message_len + 1);
