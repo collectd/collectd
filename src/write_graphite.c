@@ -449,7 +449,6 @@ static int wg_send_message (const char* key, const char* value,
         return (-1);
     }
 
-
     pthread_mutex_lock (&cb->send_lock);
 
     if (cb->sock_fd < 0)
@@ -472,6 +471,8 @@ static int wg_send_message (const char* key, const char* value,
             return (status);
         }
     }
+
+    /* Assert that we have enough space for this message. */
     assert (message_len < cb->send_buf_free);
 
     /* `message_len + 1' because `message_len' does not include the
@@ -488,7 +489,6 @@ static int wg_send_message (const char* key, const char* value,
             100.0 * ((double) cb->send_buf_fill) / ((double) sizeof (cb->send_buf)),
             message);
 
-    /* Check if we have enough space for this message. */
     pthread_mutex_unlock (&cb->send_lock);
 
     return (0);
@@ -509,45 +509,15 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return -1;
     }
 
-    if (ds->ds_num > 1)
+    for (i = 0; i < ds->ds_num; i++)
     {
-        for (i = 0; i < ds->ds_num; i++)
-        {
-            /* Copy the identifier to `key' and escape it. */
-            status = wg_format_name (key, sizeof (key), vl, cb, ds->ds[i].name);
-            if (status != 0)
-            {
-                ERROR ("write_graphite plugin: error with format_name");
-                return (status);
-            }
+        const char *ds_name = NULL;
 
-            escape_string (key, sizeof (key));
-            /* Convert the values to an ASCII representation and put that
-             * into `values'. */
-            status = wg_format_values (values, sizeof (values), i, ds, vl,
-                    cb->store_rates);
-            if (status != 0)
-            {
-                ERROR ("write_graphite plugin: error with "
-                        "wg_format_values");
-                return (status);
-            }
+        if (cb->always_append_ds || (ds->ds_num > 1))
+            ds_name = ds->ds[i].name;
 
-            /* Send the message to graphite */
-            status = wg_send_message (key, values, vl->time, cb);
-            if (status != 0)
-            {
-                ERROR ("write_graphite plugin: error with "
-                        "wg_send_message");
-                return (status);
-            }
-        }
-    }
-    else
-    {
         /* Copy the identifier to `key' and escape it. */
-        status = wg_format_name (key, sizeof (key), vl, cb,
-            cb->always_append_ds ? ds->ds[0].name : NULL);
+        status = wg_format_name (key, sizeof (key), vl, cb, ds_name);
         if (status != 0)
         {
             ERROR ("write_graphite plugin: error with format_name");
@@ -557,7 +527,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         escape_string (key, sizeof (key));
         /* Convert the values to an ASCII representation and put that into
          * `values'. */
-        status = wg_format_values (values, sizeof (values), 0, ds, vl,
+        status = wg_format_values (values, sizeof (values), i, ds, vl,
                     cb->store_rates);
         if (status != 0)
         {
