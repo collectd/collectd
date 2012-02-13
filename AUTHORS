@@ -175,6 +175,9 @@ Rodolphe Quiédeville <rquiedeville at bearstech.com>
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
 
+Scott Sanders <scott at jssjr.com>
+ - Write-Graphite plugin.
+
 Sebastien Pahl <sebastien.pahl at dotcloud.com>
  - AMQP plugin.
 

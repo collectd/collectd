@@ -4756,6 +4756,65 @@ traffic (e.E<nbsp>g. due to headers and retransmission). If you want to
 collect on-wire traffic you could, for example, use the logging facilities of
 iptables to feed data for the guest IPs into the iptables plugin.
 
+=head2 Plugin C<write_graphite>
+
+The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
+storage and graphing project. The plugin connects to I<Carbon>, the data layer
+of I<Graphite>, and sends data via the "line based" protocol (per default using
+portE<nbsp>2003). The data will be sent in blocks of at most 1428 bytes to
+minimize the number of network packets.
+
+Synopsis:
+
+ <Plugin write_graphite>
+   <Carbon>
+     Host "localhost"
+     Port "2003"
+     Prefix "collectd"
+   </Carbon>
+ </Plugin>
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<2003>.
+
+=item B<Prefix> I<String>
+
+When set, I<String> is added in front of the host name. Dots and whitespace are
+I<not> escaped in this string (see B<EscapeCharacter> below).
+
+=item B<Postfix> I<String>
+
+When set, I<String> is appended to the host name. Dots and whitespace are
+I<not> escaped in this string (see B<EscapeCharacter> below).
+
+=item B<EscapeCharacter> I<Char>
+
+I<Carbon> uses the dot (C<.>) as escape character and doesn't allow whitespace
+in the identifier. The B<EscapeCharacter> option determines which character
+dots, whitespace and control characters are replaced with. Defaults to
+underscore (C<_>).
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true>, convert counter values to rates. If set to B<false> (the
+default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set the B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
+
+=back
+
 =head2 Plugin C<write_http>
 
 This output plugin submits values to an http server by POST them using the
