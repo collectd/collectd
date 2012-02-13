@@ -482,7 +482,7 @@ static int wg_send_message (const char* key, const char* value,
     cb->send_buf_fill += message_len;
     cb->send_buf_free -= message_len;
 
-    DEBUG ("write_graphite plugin: <%s:%s> buf %zu/%zu (%g%%) \"%s\"",
+    DEBUG ("write_graphite plugin: [%s]:%s buf %zu/%zu (%.1f %%) \"%s\"",
             cb->node,
             cb->service,
             cb->send_buf_fill, sizeof (cb->send_buf),
@@ -600,6 +600,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
 {
     struct wg_callback *cb;
     user_data_t user_data;
+    char callback_name[DATA_MAX_NAME_LEN];
     int i;
 
     cb = malloc (sizeof (*cb));
@@ -643,17 +644,17 @@ static int wg_config_carbon (oconfig_item_t *ci)
         }
     }
 
-    DEBUG ("write_graphite: Registering write callback to carbon agent %s:%s",
-            cb->node ? cb->node : WG_DEFAULT_NODE,
-            cb->service ? cb->service : WG_DEFAULT_SERVICE);
+    ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s/%s",
+            cb->node != NULL ? cb->node : WG_DEFAULT_NODE,
+            cb->service != NULL ? cb->service : WG_DEFAULT_SERVICE);
 
     memset (&user_data, 0, sizeof (user_data));
     user_data.data = cb;
-    user_data.free_func = NULL;
-    plugin_register_flush ("write_graphite", wg_flush, &user_data);
-
     user_data.free_func = wg_callback_free;
-    plugin_register_write ("write_graphite", wg_write, &user_data);
+    plugin_register_write (callback_name, wg_write, &user_data);
+
+    user_data.free_func = NULL;
+    plugin_register_flush (callback_name, wg_flush, &user_data);
 
     return (0);
 }
