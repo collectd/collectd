@@ -4758,8 +4758,11 @@ iptables to feed data for the guest IPs into the iptables plugin.
 
 =head2 Plugin C<write_graphite>
 
-The C<write_graphite> plugin writes data to I<Carbon>, the storage layer of
-I<Graphite>.
+The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
+storage and graphing project. The plugin connects to I<Carbon>, the data layer
+of I<Graphite>, and sends data via the "line based" protocol (per default using
+portE<nbsp>2003). The data will be sent in blocks of at most 1428 bytes to
+minimize the number of network packets.
 
 Synopsis:
 
