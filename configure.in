@@ -2064,7 +2064,7 @@ then
 fi
 if test "x$with_libmysql" = "xyes"
 then
-	with_mysql_libs=`$with_mysql_config --libs 2>/dev/null`
+	with_mysql_libs=`$with_mysql_config --libs_r 2>/dev/null`
 	mysql_config_status=$?
 
 	if test $mysql_config_status -ne 0
