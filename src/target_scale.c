@@ -366,22 +366,23 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
 
 static int ts_destroy (void **user_data) /* {{{ */
 {
-	ts_data_t **data;
+	ts_data_t *data;
 
 	if (user_data == NULL)
 		return (-EINVAL);
 
-	data = (ts_data_t **) user_data;
+	data = (ts_data_t *) *user_data;
 
-	if (*data && (*data)->data_sources) {
+	if ((data != NULL) && (data->data_sources != NULL))
+	{
 		size_t i;
-		for (i = 0; i < (*data)->data_sources_num; i++)
-			free((*data)->data_sources[i]);
-		free((*data)->data_sources);
+		for (i = 0; i < data->data_sources_num; i++)
+			sfree (data->data_sources[i]);
+		sfree (data->data_sources);
 	}
 
-	free (*data);
-	*data = NULL;
+	sfree (data);
+	*user_data = NULL;
 
 	return (0);
 } /* }}} int ts_destroy */
