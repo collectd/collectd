@@ -1,3 +1,24 @@
+2012-02-19, Version 5.0.3
+	* Build system: Fix problems when building the ipvs and iptables
+	  plugins. Thanks to Sebastian Harl for his patch. A bashism in the
+	  version-gen.sh script has been fixed. Thanks to Jo-Philipp Wich for
+	  his patch.
+	* csv and rrdtool plugins: Print a more helpful error message when the
+	  DataDir is a symlink pointing to a non-existing location. Thanks to
+	  Jonathan Nieder for his patch.
+	* exec plugin: Fix a problem when using select(2) to read from file
+	  handles. Thanks to Gerrie Roos for his patch.
+	* network plugin: An incorrect error message in the handling of the
+	  "Interface" configuration option has been fixed. Thanks to Gerrie
+	  Roos for his patch.
+	* oracle plugin: A potential endless loop in the error handling has
+	  been fixed.
+	* python plugin: A crash bug in the configuration handling has been
+	  fixed. Thanks to Sven Trenkel for his patch.
+	* interfaces plugin: The change which was supposed to ignore "bogus"
+	  interfaces has been reverted, since it ignored legit interfaces, such
+	  as bonding pseudo-devices as well.
+
 2012-01-21, Version 5.0.2
 	* curl_xml plugin: Fix handling of file:// and other URLs (which don't
 	  follow HTTP status codes). Thanks to Fabien Wernli for his patch!
@@ -118,6 +139,27 @@
 	  alternatives.
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
+
+2012-02-19, Version 4.10.6
+	* Build system: Fix problems when building the ipvs and iptables
+	  plugins. Thanks to Sebastian Harl for his patch. A bashism in the
+	  version-gen.sh script has been fixed. Thanks to Jo-Philipp Wich for
+	  his patch.
+	* csv and rrdtool plugins: Print a more helpful error message when the
+	  DataDir is a symlink pointing to a non-existing location. Thanks to
+	  Jonathan Nieder for his patch.
+	* exec plugin: Fix a problem when using select(2) to read from file
+	  handles. Thanks to Gerrie Roos for his patch.
+	* network plugin: An incorrect error message in the handling of the
+	  "Interface" configuration option has been fixed. Thanks to Gerrie
+	  Roos for his patch.
+	* oracle plugin: A potential endless loop in the error handling has
+	  been fixed.
+	* python plugin: A crash bug in the configuration handling has been
+	  fixed. Thanks to Sven Trenkel for his patch.
+	* interfaces plugin: The change which was supposed to ignore "bogus"
+	  interfaces has been reverted, since it ignored legit interfaces, such
+	  as bonding pseudo-devices as well.
 
 2012-01-21, Version 4.10.5
 	* curl_xml plugin: Fix handling of file:// and other URLs (which don't

@@ -1786,68 +1786,118 @@ AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # --with-libiptc {{{
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" = "xshipped"
 	then
-		LIBIPTC_CPPFLAGS="$LIBIPTC_CPPFLAGS -I$withval/include"
-		LIBIPTC_LDFLAGS="$LIBIPTC_LDFLAGS -L$withval/lib"
-		with_libiptc="yes"
+		with_libiptc="own"
+	else if test "x$withval" = "xyes"
+	then
+		with_libiptc="pkgconfig"
+	else if test "x$withval" = "xno"
+	then
+		with_libiptc="no"
 	else
-		with_libiptc="$withval"
-	fi
+		with_libiptc="yes"
+		with_libiptc_cflags="-I$withval/include"
+		with_libiptc_libs="-L$withval/lib"
+	fi; fi; fi
 ],
 [
 	if test "x$ac_system" = "xLinux"
 	then
-		with_libiptc="yes"
+		with_libiptc="pkgconfig"
 	else
 		with_libiptc="no (Linux only)"
 	fi
 ])
-SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-CPPFLAGS="$CPPFLAGS $LIBIPTC_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBIPTC_LDFLAGS"
-# check whether the header file for libiptc is available.
-if test "x$with_libiptc" = "xyes"
+
+if test "x$with_libiptc" = "xpkgconfig" && test "x$PKG_CONFIG" = "x"
 then
-	AC_CHECK_HEADERS(libiptc/libiptc.h,
-			 [with_libiptc="yes"],
-			 [with_libiptc="no (libiptc/libiptc.h not found)"])
+	with_libiptc="no (Don't have pkg-config)"
 fi
-if test "x$with_libiptc" = "xyes"
+
+if test "x$with_libiptc" = "xpkgconfig"
 then
-	AC_CHECK_HEADERS(libiptc/libip6tc.h,
-			 [with_libiptc="yes"],
-			 [with_libiptc="no (libiptc/libip6tc.h not found)"])
+	$PKG_CONFIG --exists 'libiptc' 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libiptc="no (pkg-config doesn't know libiptc)"
+	fi
+fi
+if test "x$with_libiptc" = "xpkgconfig"
+then
+	with_libiptc_cflags="`$PKG_CONFIG --cflags 'libiptc'`"
+	if test $? -ne 0
+	then
+		with_libiptc="no ($PKG_CONFIG failed)"
+	fi
+	with_libiptc_libs="`$PKG_CONFIG --libs 'libiptc'`"
+	if test $? -ne 0
+	then
+		with_libiptc="no ($PKG_CONFIG failed)"
+	fi
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $with_libiptc_cflags"
+
+# check whether the header file for libiptc is available.
+if test "x$with_libiptc" = "xpkgconfig"
+then
+	AC_CHECK_HEADERS(libiptc/libiptc.h libiptc/libip6tc.h, ,
+			[with_libiptc="no (header file missing)"])
 fi
 # If the header file is available, check for the required type declaractions.
 # They may be missing in old versions of libiptc. In that case, they will be
 # declared in the iptables plugin.
-if test "x$with_libiptc" = "xyes"
+if test "x$with_libiptc" = "xpkgconfig"
 then
-	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [],
-	[
-#include <libiptc/libiptc.h>
-#include <libiptc/libip6tc.h>
-	])
+	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [])
 fi
 # Check for the iptc_init symbol in the library.
-if test "x$with_libiptc" = "xyes"
+if test "x$with_libiptc" = "xpkgconfig"
 then
 	AC_CHECK_LIB(iptc, iptc_init,
-		     [with_libiptc="yes"],
-		     [with_libiptc="no (symbol 'iptc_init' not found)"])
+			[with_libiptc="pkgconfig"],
+			[with_libiptc="no"],
+			[$with_libiptc_libs])
 fi
+if test "x$with_libiptc" = "xpkgconfig"
+then
+	with_libiptc="yes"
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+
+if test "x$with_libiptc" = "xown"
+then
+	with_libiptc_cflags=""
+	with_libiptc_libs=""
+fi
+if test "x$with_libiptc" = "xown"
+then
+	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h linux/netfilter/x_tables.h, [],
+	[
+		with_libiptc="no (Linux iptables headers not found)"
+	],
+	[
+#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
+	])
+fi
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_libiptc" = "xown")
+if test "x$with_libiptc" = "xown"
+then
+	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
+	with_libiptc="yes"
+fi
+
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 if test "x$with_libiptc" = "xyes"
 then
-	BUILD_WITH_LIBIPTC_CPPFLAGS="$LIBIPTC_CPPFLAGS"
-	BUILD_WITH_LIBIPTC_LDFLAGS="$LIBIPTC_LDFLAGS"
+	BUILD_WITH_LIBIPTC_CPPFLAGS="$with_libiptc_cflags"
+	BUILD_WITH_LIBIPTC_LDFLAGS="$with_libiptc_libs"
 	AC_SUBST(BUILD_WITH_LIBIPTC_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_LIBIPTC_LDFLAGS)
 fi
-CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
 # }}}
 
 # --with-java {{{
@@ -2282,7 +2332,7 @@ then
 fi
 if test "x$with_libmysql" = "xyes"
 then
-	with_mysql_libs=`$with_mysql_config --libs 2>/dev/null`
+	with_mysql_libs=`$with_mysql_config --libs_r 2>/dev/null`
 	mysql_config_status=$?
 
 	if test $mysql_config_status -ne 0
