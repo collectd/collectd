@@ -1579,14 +1579,12 @@ static int ps_read (void)
 
 	kvm_t *kd;
 	char errbuf[1024];
-	char cmdline[ARG_MAX];
-	char *cmdline_ptr;
   	struct kinfo_proc *procs;          /* array of processes */
   	char **argv;
   	int count;                         /* returns number of processes */
 	int i;
 
-	struct kinfo_proc *prev_pp = NULL;
+	struct kinfo_proc *proc_ptr = NULL;
 
 	procstat_t *ps_ptr;
 	procstat_entry_t pse;
@@ -1614,17 +1612,22 @@ static int ps_read (void)
 	/* Iterate through the processes in kinfo_proc */
 	for (i = 0; i < count; i++)
 	{
-		if (prev_pp == NULL || prev_pp->ki_pid != procs[i].ki_pid)
+		/* Create only one process list entry per _process_, i.e.
+		 * filter out threads (duplicate PID entries). */
+		if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid))
 		{
-			/* store previos structure */
-			prev_pp = &(procs[i]);
-			/* retrieve the arguments */
-			cmdline[0] = 0;
-			cmdline_ptr = NULL;
+			char cmdline[ARG_MAX];
+			_Bool have_cmdline = 0;
+
+			memset (cmdline, 0, sizeof (cmdline));
+
+			proc_ptr = &(procs[i]);
 			/* not probe system processes and processes without arguments*/
-			if ( !(procs[i].ki_flag & P_SYSTEM) && procs[i].ki_args != NULL )
+			if (((procs[i].ki_flag & P_SYSTEM) == 0)
+					&& (procs[i].ki_args != NULL ))
 			{
-				argv = kvm_getargv (kd, (const struct kinfo_proc *) &(procs[i]), 0);
+				/* retrieve the arguments */
+				argv = kvm_getargv (kd, proc_ptr, /* nchr = */ 0);
 				if ( argv != NULL && *argv)
 				{
 					int status;
@@ -1638,14 +1641,10 @@ static int ps_read (void)
 							argv, argc, " ");
 
 					if (status < 0)
-					{
-						WARNING ("processes plugin: Command line did "
-								"not fit into buffer.");
-					}
+						WARNING ("processes plugin: Command line did not fit into buffer.");
 					else
-					{
-						cmdline_ptr = &cmdline[0];
-					}
+						have_cmdline = 1;
+
 				}
 			}
 
@@ -1667,6 +1666,8 @@ static int ps_read (void)
 
 			pse.cpu_user = 0;
 			pse.cpu_system = 0;
+			pse.cpu_user_counter = 0;
+			pse.cpu_system_counter = 0;
 			/*
 			 * The u-area might be swapped out, and we can't get
 			 * at it because we have a crashdump and no swap.
@@ -1675,23 +1676,20 @@ static int ps_read (void)
 			 */
 			if (procs[i].ki_flag & P_INMEM)
 			{
-				pse.cpu_user_counter = 1000000lu
-					* procs[i].ki_rusage.ru_utime.tv_sec
-					+ procs[i].ki_rusage.ru_utime.tv_usec;
-				pse.cpu_system_counter = 1000000lu
-					* procs[i].ki_rusage.ru_stime.tv_sec
-					+ procs[i].ki_rusage.ru_stime.tv_usec;
+				pse.cpu_user_counter = procs[i].ki_rusage.ru_utime.tv_usec
+				       	+ (1000000lu * procs[i].ki_rusage.ru_utime.tv_sec);
+				pse.cpu_system_counter = procs[i].ki_rusage.ru_stime.tv_usec
+					+ (1000000lu * procs[i].ki_rusage.ru_stime.tv_sec);
 			}
 
-			/* no io data */
+			/* no I/O data */
 			pse.io_rchar = -1;
 			pse.io_wchar = -1;
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			ps_list_add (procs[i].ki_comm, cmdline_ptr, &pse);
-
-		}
+			ps_list_add (procs[i].ki_comm, have_cmdline ? cmdline : NULL, &pse);
+		} /* if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid)) */
 
 		switch (procs[i].ki_stat)
 		{
