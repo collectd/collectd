@@ -621,6 +621,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->prefix = NULL;
     cb->postfix = NULL;
     cb->escape_char = WG_DEFAULT_ESCAPE;
+    cb->store_rates = 1;
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 

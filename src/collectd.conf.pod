@@ -4814,8 +4814,8 @@ underscore (C<_>).
 
 =item B<StoreRates> B<false>|B<true>
 
-If set to B<true>, convert counter values to rates. If set to B<false> (the
-default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
 
 =item B<SeparateInstances> B<false>|B<true>
