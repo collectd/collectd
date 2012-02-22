@@ -195,6 +195,7 @@
 
 #<Plugin "bind">
 #  URL "http://localhost:8053/"
+#  ParseTime       false
 #  OpCodes         true
 #  QTypes          true
 #
