@@ -483,6 +483,7 @@ Synopsis:
 
  <Plugin "bind">
    URL "http://localhost:8053/"
+   ParseTime       false
    OpCodes         true
    QTypes          true
  
@@ -509,35 +510,44 @@ The bind plugin accepts the following configuration options:
 URL from which to retrieve the XML data. If not specified,
 C<http://localhost:8053/> will be used.
 
-=item B<OpCodes> I<true>|I<false>
+=item B<ParseTime> B<true>|B<false>
+
+When set to B<true>, the time provided by BIND will be parsed and used to
+dispatch the values. When set to B<false>, the local time source is queried.
+
+This setting is set to B<true> by default for backwards compatibility; setting
+this to B<false> is I<recommended> to avoid problems with timezones and
+localization.
+
+=item B<OpCodes> B<true>|B<false>
 
 When enabled, statistics about the I<"OpCodes">, for example the number of
 C<QUERY> packets, are collected.
 
 Default: Enabled.
 
-=item B<QTypes> I<true>|I<false>
+=item B<QTypes> B<true>|B<false>
 
 When enabled, the number of I<incoming> queries by query types (for example
 C<A>, C<MX>, C<AAAA>) is collected.
 
 Default: Enabled.
 
-=item B<ServerStats> I<true>|I<false>
+=item B<ServerStats> B<true>|B<false>
 
 Collect global server statistics, such as requests received over IPv4 and IPv6,
 successful queries, and failed updates.
 
 Default: Enabled.
 
-=item B<ZoneMaintStats> I<true>|I<false>
+=item B<ZoneMaintStats> B<true>|B<false>
 
 Collect zone maintenance statistics, mostly information about notifications
 (zone updates) and zone transfers.
 
 Default: Enabled.
 
-=item B<ResolverStats> I<true>|I<false>
+=item B<ResolverStats> B<true>|B<false>
 
 Collect resolver statistics, i.E<nbsp>e. statistics about outgoing requests
 (e.E<nbsp>g. queries over IPv4, lame servers). Since the global resolver
@@ -566,21 +576,21 @@ configured, no detailed view statistics will be collected.
 
 =over 4
 
-=item B<QTypes> I<true>|I<false>
+=item B<QTypes> B<true>|B<false>
 
 If enabled, the number of I<outgoing> queries by query type (e.E<nbsp>g. C<A>,
 C<MX>) is collected.
 
 Default: Enabled.
 
-=item B<ResolverStats> I<true>|I<false>
+=item B<ResolverStats> B<true>|B<false>
 
 Collect resolver statistics, i.E<nbsp>e. statistics about outgoing requests
 (e.E<nbsp>g. queries over IPv4, lame servers).
 
 Default: Enabled.
 
-=item B<CacheRRSets> I<true>|I<false>
+=item B<CacheRRSets> B<true>|B<false>
 
 If enabled, the number of entries (I<"RR sets">) in the view's cache by query
 type is collected. Negative entries (queries which resulted in an error, for
