@@ -4170,6 +4170,11 @@ L<http://secure.netroedge.com/~lm78/>.
 
 =over 4
 
+=item B<SensorConfigFile> I<File>
+
+Read the I<lm_sensors> configuration from I<File>. When unset (recommended),
+the library's default will be used.
+
 =item B<Sensor> I<chip-bus-address/type-feature>
 
 Selects the name of the sensor which you want to collect or ignore, depending

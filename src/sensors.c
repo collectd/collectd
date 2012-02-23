@@ -27,6 +27,10 @@
  *   - honor sensors.conf's ignored
  *   - config Sensor option
  *   - config IgnoreSelected option
+ *
+ *   Henrique de Moraes Holschuh <hmh at debian.org>
+ *   - use default libsensors config file on API 0x400
+ *   - config SensorConfigFile option
  **/
 
 #include "collectd.h"
@@ -132,7 +136,8 @@ static int known_features_num = STATIC_ARRAY_SIZE (known_features);
 static const char *config_keys[] =
 {
 	"Sensor",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"SensorConfigFile"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -148,6 +153,7 @@ typedef struct featurelist
 # ifndef SENSORS_CONF_PATH
 #  define SENSORS_CONF_PATH "/etc/sensors.conf"
 # endif
+static char *conffile = SENSORS_CONF_PATH;
 /* #endif SENSORS_API_VERSION < 0x400 */
 
 #elif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
@@ -159,9 +165,7 @@ typedef struct featurelist
 	struct featurelist         *next;
 } featurelist_t;
 
-# ifndef SENSORS_CONF_PATH
-#  define SENSORS_CONF_PATH "/etc/sensors3.conf"
-# endif
+static char *conffile = NULL;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -169,10 +173,8 @@ typedef struct featurelist
 	"as bug."
 #endif
 
-static const char *conffile = SENSORS_CONF_PATH;
 featurelist_t *first_feature = NULL;
 static ignorelist_t *sensor_list;
-static time_t sensors_config_mtime = 0;
 
 #if SENSORS_API_VERSION < 0x400
 /* full chip name logic borrowed from lm_sensors */
@@ -225,7 +227,19 @@ static int sensors_config (const char *key, const char *value)
 	if (sensor_list == NULL)
 		sensor_list = ignorelist_create (1);
 
-	if (strcasecmp (key, "Sensor") == 0)
+	/* TODO: This setting exists for compatibility with old versions of
+	 * lm-sensors. Remove support for those ancient versions in the next
+	 * major release. */
+	if (strcasecmp (key, "SensorConfigFile") == 0)
+	{
+		char *tmp = strdup (value);
+		if (tmp != NULL)
+		{
+			sfree (conffile);
+			conffile = tmp;
+		}
+	}
+	else if (strcasecmp (key, "Sensor") == 0)
 	{
 		if (ignorelist_add (sensor_list, value))
 		{
@@ -268,55 +282,43 @@ void sensors_free_features (void)
 
 static int sensors_load_conf (void)
 {
-	FILE *fh;
+	static int call_once = 0;
+
+	FILE *fh = NULL;
 	featurelist_t *last_feature = NULL;
 	
 	const sensors_chip_name *chip;
 	int chip_num;
 
-	struct stat statbuf;
 	int status;
-	
-	status = stat (conffile, &statbuf);
-	if (status != 0)
-	{
-		char errbuf[1024];
-		ERROR ("sensors plugin: stat (%s) failed: %s", conffile,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		sensors_config_mtime = 0;
-	}
 
-	if ((sensors_config_mtime != 0)
-			&& (sensors_config_mtime == statbuf.st_mtime))
-		return (0);
+	if (call_once)
+		return 0;
 
-	if (sensors_config_mtime != 0)
-	{
-		NOTICE ("sensors plugin: Reloading config from %s",
-				conffile);
-		sensors_free_features ();
-		sensors_config_mtime = 0;
-	}
+	call_once = 1;
 
-	fh = fopen (conffile, "r");
-	if (fh == NULL)
+	if (conffile != NULL)
 	{
-		char errbuf[1024];
-		ERROR ("sensors plugin: fopen(%s) failed: %s", conffile,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
+		fh = fopen (conffile, "r");
+		if (fh == NULL)
+		{
+			char errbuf[1024];
+			ERROR ("sensors plugin: fopen(%s) failed: %s", conffile,
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			return (-1);
+		}
 	}
 
 	status = sensors_init (fh);
-	fclose (fh);
+	if (fh)
+		fclose (fh);
+
 	if (status != 0)
 	{
 		ERROR ("sensors plugin: Cannot initialize sensors. "
 				"Data will not be collected.");
 		return (-1);
 	}
-
-	sensors_config_mtime = statbuf.st_mtime;
 
 #if SENSORS_API_VERSION < 0x400
 	chip_num = 0;
