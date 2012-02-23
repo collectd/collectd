@@ -227,12 +227,17 @@ static int sensors_config (const char *key, const char *value)
 	if (sensor_list == NULL)
 		sensor_list = ignorelist_create (1);
 
+	/* TODO: This setting exists for compatibility with old versions of
+	 * lm-sensors. Remove support for those ancient versions in the next
+	 * major release. */
 	if (strcasecmp (key, "SensorConfigFile") == 0)
 	{
-		/* we will leak memory here if SensorConfigFile is
-		   used more than once, maybe we can just drop support
-		   for broken, extremely ancient libsensors? */
-		conffile = strdup (value);
+		char *tmp = strdup (value);
+		if (tmp != NULL)
+		{
+			sfree (conffile);
+			conffile = tmp;
+		}
 	}
 	else if (strcasecmp (key, "Sensor") == 0)
 	{
