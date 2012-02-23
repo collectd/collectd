@@ -24,9 +24,9 @@
 #include "common.h"
 #include "plugin.h"
 
+#if HAVE_KSTAT_H
 #include <kstat.h>
-#include <stdio.h>
-#include <stdint.h>
+#endif
 
 /*
 see /proc/net/rpc/nfs
