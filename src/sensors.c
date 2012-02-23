@@ -153,7 +153,7 @@ typedef struct featurelist
 # ifndef SENSORS_CONF_PATH
 #  define SENSORS_CONF_PATH "/etc/sensors.conf"
 # endif
-static const char *conffile = SENSORS_CONF_PATH;
+static char *conffile = SENSORS_CONF_PATH;
 /* #endif SENSORS_API_VERSION < 0x400 */
 
 #elif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
@@ -165,7 +165,7 @@ typedef struct featurelist
 	struct featurelist         *next;
 } featurelist_t;
 
-static const char *conffile = NULL;
+static char *conffile = NULL;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -297,7 +297,7 @@ static int sensors_load_conf (void)
 
 	call_once = 1;
 
-	if (conffile)
+	if (conffile != NULL)
 	{
 		fh = fopen (conffile, "r");
 		if (fh == NULL)
