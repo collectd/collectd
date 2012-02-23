@@ -72,3 +72,4 @@ src/tags
 
 # backup stuff
 *~
+/nbproject/private/
