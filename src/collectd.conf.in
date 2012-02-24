@@ -195,6 +195,7 @@
 
 #<Plugin "bind">
 #  URL "http://localhost:8053/"
+#  ParseTime       false
 #  OpCodes         true
 #  QTypes          true
 #
@@ -800,6 +801,7 @@
 #</Plugin>
 
 #<Plugin sensors>
+#	SensorConfigFile "/etc/sensors.conf"
 #	Sensor "it8712-isa-0290/temperature-temp1"
 #	Sensor "it8712-isa-0290/fanspeed-fan3"
 #	Sensor "it8712-isa-0290/voltage-in8"
