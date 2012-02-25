@@ -83,7 +83,7 @@ static int sl_notification (const notification_t *n,
 	char *buf_ptr = buf;
 	int   buf_len = sizeof (buf);
 	int status;
-	int severity;
+	int log_severity;
 
 	if (n->severity > notif_severity)
 		return (0);
@@ -113,22 +113,25 @@ static int sl_notification (const notification_t *n,
 	APPEND (buf_ptr, buf_len, "type_instance", n->type_instance);
 	APPEND (buf_ptr, buf_len, "message", n->message);
 
+#undef APPEND
+
 	buf[sizeof (buf) - 1] = '\0';
 
 	switch (n->severity)
 	{
 		case NOTIF_FAILURE:
-			severity = LOG_ERR;
+			log_severity = LOG_ERR;
 			break;
 		case NOTIF_WARNING:
-			severity = LOG_WARNING;
+			log_severity = LOG_WARNING;
 			break;
 		case NOTIF_OKAY:
-			severity = LOG_WARNING;
+			log_severity = LOG_NOTICE;
 			break;
-		default: severity = LOG_INFO;
+		default:
+			log_severity = LOG_ERR;
 	}
-	sl_log (severity, buf, NULL);
+	sl_log (log_severity, buf, NULL);
 
 	return (0);
 } /* int sl_notification */
