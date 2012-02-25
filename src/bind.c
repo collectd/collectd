@@ -791,7 +791,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info =
     {
       plugin_instance,
-      /* type = */ "dns_qtype_gauge"
+      /* type = */ "dns_qtype"
     };
 
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-qtypes",
@@ -822,13 +822,14 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
         doc, path_ctx, current_time, DS_TYPE_COUNTER);
   } /* }}} */
 
+  /* Record types in the cache */
   if (view->cacherrsets != 0) /* {{{ */
   {
     char plugin_instance[DATA_MAX_NAME_LEN];
     list_info_ptr_t list_info =
     {
       plugin_instance,
-      /* type = */ "dns_qtype_gauge"
+      /* type = */ "dns_qtype_cached"
     };
 
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-cache_rr_sets",
