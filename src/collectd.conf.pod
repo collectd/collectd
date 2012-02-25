@@ -4232,14 +4232,14 @@ syslog-daemon.
 Please note that B<debug> is only available if collectd has been compiled with
 debugging support.
 
-=item B<NotifyLevel> B<WARNING>|B<FAILURE>
+=item B<NotifyLevel> B<OKAY>|B<WARNING>|B<FAILURE>
 
 Controls which notifications should be sent to syslog. The default behaviour is
-not to send any. If either of C<WARNING> or C<FAILURE> is used, C<OKAY> notifications
-will also be sent to syslog.
-Notifications will be sent using severities based on their own levels. B<OKAY>
-and B<WARNING> will be sent using syslog B<WARNING> severity, whereas B<FAILURE>
-will yield a B<ERROR> syslog entry.
+not to send any. Less severe notifications always imply logging more severe
+notifications: Setting this to B<OKAY> means all notifications will be sent to
+syslog, setting this to B<WARNING> will send B<WARNING> and B<FAILURE>
+notifications but will dismiss B<OKAY> notifications. Setting this option to
+B<FAILURE> will only send failures to syslog.
 
 =back
 

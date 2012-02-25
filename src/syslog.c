@@ -85,13 +85,8 @@ static int sl_notification (const notification_t *n,
 	int status;
 	int severity;
 
-	/* do nothing if parsing of NotifSeverity failed */
-	if (notif_severity == -1)
-		return 0;
-	/* do nothing if NotifSeverity is higer than notification
-	 * note that OKAY notifs will always be displayed */
-	if ((notif_severity == NOTIF_FAILURE) && (n -> severity == NOTIF_WARNING))
-		return 0;
+	if (n->severity > notif_severity)
+		return (0);
 
 	status = ssnprintf (buf_ptr, buf_len, "Notification: severity = %s",
 			(n->severity == NOTIF_FAILURE) ? "FAILURE"
