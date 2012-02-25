@@ -325,6 +325,8 @@ int plugin_dispatch_notification (const notification_t *notif);
 
 void plugin_log (int level, const char *format, ...)
 	__attribute__ ((format(printf,2,3)));
+
+/* These functions return the parsed severity or less than zero on failure. */
 int parse_log_severity (const char *severity);
 int parse_notif_severity (const char *severity);
 
