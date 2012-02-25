@@ -80,57 +80,62 @@ static int sl_notification (const notification_t *n,
 		user_data_t __attribute__((unused)) *user_data)
 {
 	char  buf[1024] = "";
-	char *buf_ptr = buf;
-	int   buf_len = sizeof (buf);
-	int status;
+	size_t offset = 0;
 	int log_severity;
+	char *severity_string;
+	int status;
 
 	if (n->severity > notif_severity)
 		return (0);
 
-	status = ssnprintf (buf_ptr, buf_len, "Notification: severity = %s",
-			(n->severity == NOTIF_FAILURE) ? "FAILURE"
-			: ((n->severity == NOTIF_WARNING) ? "WARNING"
-				: ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
-	if (status > 0)
-	{
-		buf_ptr += status;
-		buf_len -= status;
-	}
-
-#define APPEND(bufptr, buflen, key, value) \
-	if ((buflen > 0) && (strlen (value) > 0)) { \
-		int status = ssnprintf (bufptr, buflen, ", %s = %s", key, value); \
-		if (status > 0) { \
-			bufptr += status; \
-			buflen -= status; \
-		} \
-	}
-	APPEND (buf_ptr, buf_len, "host", n->host);
-	APPEND (buf_ptr, buf_len, "plugin", n->plugin);
-	APPEND (buf_ptr, buf_len, "plugin_instance", n->plugin_instance);
-	APPEND (buf_ptr, buf_len, "type", n->type);
-	APPEND (buf_ptr, buf_len, "type_instance", n->type_instance);
-	APPEND (buf_ptr, buf_len, "message", n->message);
-
-#undef APPEND
-
-	buf[sizeof (buf) - 1] = '\0';
-
 	switch (n->severity)
 	{
 		case NOTIF_FAILURE:
+			severity_string = "FAILURE";
 			log_severity = LOG_ERR;
 			break;
 		case NOTIF_WARNING:
+			severity_string = "WARNING";
 			log_severity = LOG_WARNING;
 			break;
 		case NOTIF_OKAY:
+			severity_string = "OKAY";
 			log_severity = LOG_NOTICE;
 			break;
 		default:
+			severity_string = "UNKNOWN";
 			log_severity = LOG_ERR;
 	}
+
+#define BUFFER_ADD(...) do { \
+	status = ssnprintf (&buf[offset], sizeof (buf) - offset, \
+			__VA_ARGS__); \
+	if (status < 1) \
+		return (-1); \
+	else if (((size_t) status) >= (sizeof (buf) - offset)) \
+		return (-ENOMEM); \
+	else \
+		offset += ((size_t) status); \
+} while (0)
+
+#define BUFFER_ADD_FIELD(field) do { \
+	if (n->field[0]) \
+		BUFFER_ADD (", " #field " = %s", n->field); \
+} while (0)
+
+	BUFFER_ADD ("Notification: severity = %s", severity_string);
+	BUFFER_ADD_FIELD (host);
+	BUFFER_ADD_FIELD (plugin);
+	BUFFER_ADD_FIELD (plugin_instance);
+	BUFFER_ADD_FIELD (type);
+	BUFFER_ADD_FIELD (type_instance);
+	BUFFER_ADD_FIELD (message);
+
+#undef BUFFER_ADD_FIELD
+#undef BUFFER_ADD
+
+	buf[sizeof (buf) - 1] = '\0';
+
 	sl_log (log_severity, buf, NULL);
 
 	return (0);
