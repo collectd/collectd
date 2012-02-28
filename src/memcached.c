@@ -357,7 +357,7 @@ static void submit_gauge2 (const char *type, const char *type_inst,
 
 static int memcached_read (void) /* {{{ */
 {
-	char buf[1024];
+	char buf[2048];
 	char *fields[3];
 	char *ptr;
 	char *line;
