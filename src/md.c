@@ -91,6 +91,7 @@ static void md_process (const int minor, const char *path)
   int fd;
   struct stat st;
   mdu_array_info_t array;
+  gauge_t disks_missing;
 
   fd = open (path, O_RDONLY);
   if (fd < 0)
@@ -134,14 +135,27 @@ static void md_process (const int minor, const char *path)
 
   close (fd);
 
-  md_submit (minor, "number",  (gauge_t) array.nr_disks);
-  md_submit (minor, "raid",    (gauge_t) array.raid_disks);
+  /*
+   * The mdu_array_info_t structure contains numbers of disks in the array.
+   * However, disks are accounted for more than once:
+   *
+   * active:  Number of active (in sync) disks.
+   * spare:   Number of stand-by disks.
+   * working: Number of working disks. (active + sync)
+   * failed:  Number of failed disks.
+   * nr:      Number of physically present disks. (working + failed)
+   * raid:    Number of disks in the RAID. This may be larger than "nr" if
+   *          disks are missing and smaller than "nr" when spare disks are
+   *          around.
+   */
   md_submit (minor, "active",  (gauge_t) array.active_disks);
-  md_submit (minor, "working", (gauge_t) array.working_disks);
   md_submit (minor, "failed",  (gauge_t) array.failed_disks);
   md_submit (minor, "spare",   (gauge_t) array.spare_disks);
 
-  return;
+  disks_missing = 0.0;
+  if (array.raid_disks > array.nr_disks)
+    disks_missing = (gauge_t) (array.raid_disks - array.nr_disks);
+  md_submit (minor, "missing", disks_missing);
 } /* void md_process */
 
 static int md_read (void)
