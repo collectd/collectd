@@ -993,6 +993,7 @@
 #		Host "localhost"
 #		Port "27017"
 #		Timeout 1000
+#		StoreRates false
 #	</Node>
 #</Plugin>
 
