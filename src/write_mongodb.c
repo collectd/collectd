@@ -1,8 +1,8 @@
 /**
  * collectd - src/write_mongodb.c
- * Copyright (C) 2010  Florian Forster
- * Copyright (C) 2010  Akkarit Sangpetch
- * Copyright (C) 2012  Chris Lundquist
+ * Copyright (C) 2010-2012  Florian Forster
+ * Copyright (C) 2010       Akkarit Sangpetch
+ * Copyright (C) 2012       Chris Lundquist
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,7 @@
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
+#include "utils_cache.h"
 
 #include <pthread.h>
 
@@ -52,6 +53,8 @@ struct wm_node_s
 
   int connected;
 
+  _Bool store_rates;
+
   mongo conn[1];
   pthread_mutex_t lock;
 };
@@ -70,21 +73,34 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   int i;
   bson record;
 
+  gauge_t *rates = NULL;
+  if (node->store_rates)
+  {
+    rates = uc_get_rate (ds, vl);
+    if (rates == NULL)
+    {
+      ERROR ("write_mongodb plugin: uc_get_rate() failed.");
+      return (-1);
+    }
+  }
+
   ssnprintf(collection_name, sizeof (collection_name), "collectd.%s", vl->plugin);
 
   bson_init(&record);
-  bson_append_time_t(&record,"ts",CDTIME_T_TO_TIME_T(vl->time));
-  bson_append_string(&record,"h",vl->host);
-  bson_append_string(&record,"i",vl->plugin_instance);
-  bson_append_string(&record,"t",vl->type);
-  bson_append_string(&record,"ti",vl->type_instance);
+  bson_append_double (&record, "time", CDTIME_T_TO_DOUBLE (vl->time));
+  bson_append_string (&record, "host", vl->host);
+  bson_append_string (&record, "plugin_instance", vl->plugin_instance);
+  bson_append_string (&record, "type", vl->type);
+  bson_append_string (&record, "type_instance", vl->type_instance);
 
   for (i = 0; i < ds->ds_num; i++)
   {
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
-      bson_append_long(&record, ds->ds[i].name, vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_GAUGE)
+    if (ds->ds[i].type == DS_TYPE_GAUGE)
       bson_append_double(&record, ds->ds[i].name, vl->values[i].gauge);
+    else if (node->store_rates)
+      bson_append_double(&record, ds->ds[i].name, (double) rates[i]);
+    else if (ds->ds[i].type == DS_TYPE_COUNTER)
+      bson_append_long(&record, ds->ds[i].name, vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       bson_append_long(&record, ds->ds[i].name, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
@@ -94,6 +110,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   }
   /* We must finish the record, other wise the insert will fail */
   bson_finish(&record);
+
+  sfree (rates);
 
   pthread_mutex_lock (&node->lock);
 
@@ -167,6 +185,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   node->port = 0;
   node->timeout = 1000;
   node->connected = 0;
+  node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -194,6 +213,8 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &node->timeout);
+    else if (strcasecmp ("StoreRates", child->key) == 0)
+      status = cf_util_get_boolean (child, &node->store_rates);
     else
       WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);
