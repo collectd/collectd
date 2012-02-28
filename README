@@ -140,6 +140,10 @@ Features
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
 
+    - md
+      Linux software-RAID device information (number of active, failed, spare
+      and missing disks).
+
     - memcachec
       Query and parse data from a memcache daemon (memcached).
 
