@@ -587,6 +587,14 @@ collectd_LDADD += "-dlopen" mbmon.la
 collectd_DEPENDENCIES += mbmon.la
 endif
 
+if BUILD_PLUGIN_MD
+pkglib_LTLIBRARIES += md.la
+md_la_SOURCES = md.c
+md_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" md.la
+collectd_DEPENDENCIES += md.la
+endif
+
 if BUILD_PLUGIN_MEMCACHEC
 pkglib_LTLIBRARIES += memcachec.la
 memcachec_la_SOURCES = memcachec.c
