@@ -4658,6 +4658,7 @@ AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
 AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
+AC_PLUGIN([ethstat],     [yes],                [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
@@ -4716,6 +4717,7 @@ AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
+AC_PLUGIN([sysconfig],   [yes],                [Sysconfig plugin])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
 AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
@@ -4730,6 +4732,7 @@ AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
+AC_PLUGIN([top],         [yes],                [Top notification])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
@@ -4740,6 +4743,7 @@ AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
+AC_PLUGIN([write_mysql], [$with_libmysql],     [MySQL output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
@@ -4985,6 +4989,7 @@ Configuration:
     dns . . . . . . . . . $enable_dns
     email . . . . . . . . $enable_email
     entropy . . . . . . . $enable_entropy
+    ethstat . . . . . . . $enable_ethstat
     exec  . . . . . . . . $enable_exec
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
@@ -5042,6 +5047,7 @@ Configuration:
     serial  . . . . . . . $enable_serial
     snmp  . . . . . . . . $enable_snmp
     swap  . . . . . . . . $enable_swap
+    sysconfig . . . . . . $enable_sysconfig
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table
     tail  . . . . . . . . $enable_tail
@@ -5056,6 +5062,7 @@ Configuration:
     ted . . . . . . . . . $enable_ted
     thermal . . . . . . . $enable_thermal
     threshold . . . . . . $enable_threshold
+    top . . . . . . . . . $enable_top
     tokyotyrant . . . . . $enable_tokyotyrant
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
@@ -5066,6 +5073,7 @@ Configuration:
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
     write_http  . . . . . $enable_write_http
+    write_mysql . . . . . $enable_write_mysql
     write_redis . . . . . $enable_write_redis
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc

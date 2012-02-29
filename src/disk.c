@@ -579,12 +579,10 @@ static int disk_read (void)
 				diff_write_time = write_time - ds->write_time;
 
 			if (diff_read_ops != 0)
-				ds->avg_read_time += (diff_read_time
-						+ (diff_read_ops / 2))
+				ds->avg_read_time += diff_read_time
 					/ diff_read_ops;
 			if (diff_write_ops != 0)
-				ds->avg_write_time += (diff_write_time
-						+ (diff_write_ops / 2))
+				ds->avg_write_time += diff_write_time
 					/ diff_write_ops;
 
 			ds->read_ops = read_ops;
