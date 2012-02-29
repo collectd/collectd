@@ -4882,6 +4882,49 @@ more than one DS.
 
 =back
 
+=head2 Plugin C<write_mongodb>
+
+The I<write_mongodb plugin> will send values to I<MongoDB>, a schema-less
+NoSQL database.
+
+B<Synopsis:>
+
+ <Plugin "write_mongodb">
+   <Node "default">
+     Host "localhost"
+     Port "27017"
+     Timeout 1000
+     StoreRates true
+   </Node>
+ </Plugin>
+
+The plugin can send values to multiple instances of I<MongoDB> by specifying
+one B<Node> block for each instance. Within the B<Node> blocks, the following
+options are available:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<27017>.
+
+=item B<Timeout> I<Timeout>
+
+Set the timeout for each operation on I<MongoDB> to I<Timeout> milliseconds.
+Setting this option to zero means no timeout, which is the default.
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer
+number.
+
+=back
+
 =head2 Plugin C<write_http>
 
 This output plugin submits values to an http server by POST them using the
