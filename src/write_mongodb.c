@@ -125,9 +125,17 @@ static int wm_write (const data_set_t *ds, /* {{{ */
       mongo_destroy(node->conn);
       pthread_mutex_unlock (&node->lock);
       return (-1);
-    } else {
-      node->connected = 1;
     }
+
+    if (node->timeout > 0) {
+      status = mongo_set_op_timeout (node->conn, node->timeout);
+      if (status != MONGO_OK) {
+        WARNING ("write_mongodb plugin: mongo_set_op_timeout(%i) failed: %s",
+            node->timeout, node->conn->errstr);
+      }
+    }
+
+    node->connected = 1;
   }
 
   /* Assert if the connection has been established */
@@ -182,9 +190,6 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     return (ENOMEM);
   memset (node, 0, sizeof (*node));
   node->host = NULL;
-  node->port = 0;
-  node->timeout = 1000;
-  node->connected = 0;
   node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
