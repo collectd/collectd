@@ -75,6 +75,45 @@ static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t mi
 	za_submit_gauge ("cache_ratio", type_instance, ratio);
 }
 
+static void za_submit_evict_counts (counter_t evict_l2_cached, counter_t evict_l2_eligible,
+	counter_t evict_l2_ineligible)
+{
+	value_t values[3];
+
+	values[0].counter = evict_l2_cached;
+	values[1].counter = evict_l2_eligible;
+	values[2].counter = evict_l2_ineligible;
+
+	za_submit ("evict", "counts", values, STATIC_ARRAY_SIZE(values));
+}
+
+static void za_submit_mutex_counts (counter_t mutex_miss)
+{
+	value_t values[1];
+
+	values[0].counter = mutex_miss;
+
+	za_submit ("mutex", "counts", values, STATIC_ARRAY_SIZE(values));
+}
+
+static void za_submit_deleted_counts (counter_t deleted)
+{
+	value_t values[1];
+
+	values[0].counter = deleted;
+
+	za_submit ("deleted", "counts", values, STATIC_ARRAY_SIZE(values));
+}
+
+static void za_submit_hash_counts (counter_t hash_collisions)
+{
+	value_t values[1];
+
+	values[0].counter = hash_collisions;
+
+	za_submit ("hash", "counts", values, STATIC_ARRAY_SIZE(values));
+}
+
 static int za_read (void)
 {
 	gauge_t  arc_size, l2_size;
@@ -88,6 +127,10 @@ static int za_read (void)
 		 prefetch_metadata_misses;
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
 	value_t  l2_io[2];
+	counter_t mutex_miss;
+	counter_t deleted;
+	counter_t evict_l2_cached, evict_l2_eligible, evict_l2_ineligible;
+	counter_t hash_collisions;
 
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
@@ -102,6 +145,16 @@ static int za_read (void)
 
 	za_submit_gauge ("cache_size", "arc", arc_size);
 	za_submit_gauge ("cache_size", "L2", l2_size);
+
+	mutex_miss               = get_kstat_value(ksp, "mutex_miss"); 
+
+	deleted                  = get_kstat_value(ksp, "deleted");
+	
+	evict_l2_cached          = get_kstat_value(ksp, "evict_l2_cached");
+	evict_l2_eligible        = get_kstat_value(ksp, "evict_l2_eligible");
+	evict_l2_ineligible      = get_kstat_value(ksp, "evict_l2_ineligible");
+	
+	hash_collisions          = get_kstat_value(ksp, "hash_collisions");
 
 	/* Hits / misses */
 	demand_data_hits       = get_kstat_value(ksp, "demand_data_hits");
@@ -138,6 +191,14 @@ static int za_read (void)
 	l2_io[1].derive = get_kstat_value(ksp, "l2_write_bytes");
 
 	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
+
+	za_submit_evict_counts (evict_l2_cached, evict_l2_eligible, evict_l2_ineligible);
+
+	za_submit_mutex_counts (mutex_miss);
+
+	za_submit_deleted_counts (deleted);
+
+	za_submit_hash_counts (deleted);
 
 	return (0);
 } /* int za_read */
