@@ -880,10 +880,13 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	char *fields[64];
 	char  fields_len;
-	char *bufp, *namep;
 
-	int   i;
+	int   buffer_len;
 
+	char *buffer_ptr;
+	size_t name_start_pos;
+	size_t name_end_pos;
+	size_t name_len;
 
 	long long unsigned cpu_user_counter;
 	long long unsigned cpu_system_counter;
@@ -895,28 +898,48 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
 
-	i = read_file_contents (filename, buffer, sizeof(buffer) - 1);
-	if (i <= 0)
+	buffer_len = read_file_contents (filename,
+			buffer, sizeof(buffer) - 1);
+	if (buffer_len <= 0)
 		return (-1);
-	buffer[i] = 0;
+	buffer[buffer_len] = 0;
 
-	/* Parse out ps->name while sanitizing any whitespace ( \t\r\n) in
-		the process name before calling strsplit
-	 */
-	for (bufp = buffer; *bufp != '\0' && *bufp != '('; bufp++);
-	if (*bufp == '\0' || *(++bufp) == '\0')
+	/* The name of the process is enclosed in parens. Since the name can
+	 * contain parens itself, spaces, numbers and pretty much everything
+	 * else, use these to determine the process name. We don't use
+	 * strchr(3) and strrchr(3) to avoid pointer arithmetic which would
+	 * otherwise be required to determine name_len. */
+	name_start_pos = 0;
+	while ((buffer[name_start_pos] != '(')
+			&& (name_start_pos < buffer_len))
+		name_start_pos++;
+
+	name_end_pos = buffer_len;
+	while ((buffer[name_end_pos] != ')')
+			&& (name_end_pos > 0))
+		name_end_pos--;
+
+	/* Either '(' or ')' is not found or they are in the wrong order.
+	 * Anyway, something weird that shouldn't happen ever. */
+	if (name_start_pos >= name_end_pos)
+	{
+		ERROR ("processes plugin: name_start_pos = %zu >= name_end_pos = %zu",
+				name_start_pos, name_end_pos);
 		return (-1);
-	namep = ps->name;
-	while (*bufp != '\0' && *bufp != ')') {
-		*namep++ = *bufp;
-		if (*bufp == ' ' || *bufp == '\t' || *bufp == '\r' || *bufp == '\n')
-			*bufp = '_';
-		bufp++;
 	}
-	*namep = '\0';
 
-	fields_len = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
-	if (fields_len < 24)
+	name_len = (name_end_pos - name_start_pos) - 1;
+	if (name_len >= sizeof (ps->name))
+		name_len = sizeof (ps->name) - 1;
+
+	sstrncpy (ps->name, &buffer[name_start_pos + 1], name_len + 1);
+
+	if ((buffer_len - name_end_pos) < 2)
+		return (-1);
+	buffer_ptr = &buffer[name_end_pos + 2];
+
+	fields_len = strsplit (buffer_ptr, fields, STATIC_ARRAY_SIZE (fields));
+	if (fields_len < 22)
 	{
 		DEBUG ("processes plugin: ps_read_process (pid = %i):"
 				" `%s' has only %i fields..",
@@ -924,7 +947,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (-1);
 	}
 
-	*state = fields[2][0];
+	*state = fields[0][0];
 
 	if (*state == 'Z')
 	{
@@ -949,16 +972,16 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (0);
 	}
 
-	cpu_user_counter   = atoll (fields[13]);
-	cpu_system_counter = atoll (fields[14]);
-	vmem_size          = atoll (fields[22]);
-	vmem_rss           = atoll (fields[23]);
-	ps->vmem_minflt_counter = atol (fields[9]);
-	ps->vmem_majflt_counter = atol (fields[11]);
+	cpu_user_counter   = atoll (fields[11]);
+	cpu_system_counter = atoll (fields[12]);
+	vmem_size          = atoll (fields[20]);
+	vmem_rss           = atoll (fields[21]);
+	ps->vmem_minflt_counter = atol (fields[7]);
+	ps->vmem_majflt_counter = atol (fields[9]);
 
 	{
-		unsigned long long stack_start = atoll (fields[27]);
-		unsigned long long stack_ptr   = atoll (fields[28]);
+		unsigned long long stack_start = atoll (fields[25]);
+		unsigned long long stack_ptr   = atoll (fields[26]);
 
 		stack_size = (stack_start > stack_ptr)
 			? stack_start - stack_ptr
