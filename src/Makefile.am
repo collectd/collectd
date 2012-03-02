@@ -201,6 +201,14 @@ collectd_LDADD += "-dlopen" bind.la
 collectd_DEPENDENCIES += bind.la
 endif
 
+if BUILD_PLUGIN_BEANCOUNTER
+pkglib_LTLIBRARIES += beancounter.la
+beancounter_la_SOURCES = beancounter.c
+beancounter_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" beancounter.la
+collectd_DEPENDENCIES += beancounter.la
+endif
+
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
 conntrack_la_SOURCES = conntrack.c
