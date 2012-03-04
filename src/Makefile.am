@@ -772,6 +772,14 @@ collectd_LDADD += "-dlopen" ntpd.la
 collectd_DEPENDENCIES += ntpd.la
 endif
 
+if BUILD_PLUGIN_NUMA
+pkglib_LTLIBRARIES += numa.la
+numa_la_SOURCES = numa.c
+numa_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" numa.la
+collectd_DEPENDENCIES += numa.la
+endif
+
 if BUILD_PLUGIN_NUT
 pkglib_LTLIBRARIES += nut.la
 nut_la_SOURCES = nut.c
