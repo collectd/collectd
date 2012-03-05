@@ -87,7 +87,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   ssnprintf(collection_name, sizeof (collection_name), "collectd.%s", vl->plugin);
 
   bson_init(&record);
-  bson_append_double (&record, "time", CDTIME_T_TO_DOUBLE (vl->time));
+  bson_append_date (&record, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
   bson_append_string (&record, "host", vl->host);
   bson_append_string (&record, "plugin_instance", vl->plugin_instance);
   bson_append_string (&record, "type", vl->type);
