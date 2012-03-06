@@ -550,21 +550,25 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         status = camqp_connect (conf);
         if (status != 0)
         {
+            struct timespec ts_interval;
             ERROR ("amqp plugin: camqp_connect failed. "
                     "Will sleep for %.3f seconds.",
                     CDTIME_T_TO_DOUBLE (interval_g));
-            sleep (interval_g);
+            CDTIME_T_TO_TIMESPEC (interval_g, &ts_interval);
+            nanosleep (&ts_interval, /* remaining = */ NULL);
             continue;
         }
 
         status = amqp_simple_wait_frame (conf->connection, &frame);
         if (status < 0)
         {
+            struct timespec ts_interval;
             ERROR ("amqp plugin: amqp_simple_wait_frame failed. "
                     "Will sleep for %.3f seconds.",
                     CDTIME_T_TO_DOUBLE (interval_g));
             camqp_close_connection (conf);
-            sleep (interval_g);
+            CDTIME_T_TO_TIMESPEC (interval_g, &ts_interval);
+            nanosleep (&ts_interval, /* remaining = */ NULL);
             continue;
         }
 

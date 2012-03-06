@@ -252,9 +252,11 @@ static int df_read (void)
 		 * report negative free space for user. Notice. blk_reserved
 		 * will start to diminish after this. */
 #if HAVE_STATVFS
-		/* Cast is needed to avoid compiler warnings.
+		/* Cast and temporary variable are needed to avoid
+		 * compiler warnings.
 		 * ((struct statvfs).f_bavail is unsigned (POSIX)) */
-		if (((int64_t) statbuf.f_bavail) < 0)
+		int64_t signed_bavail = (int64_t) statbuf.f_bavail;
+		if (signed_bavail < 0)
 			statbuf.f_bavail = 0;
 #elif HAVE_STATFS
 		if (statbuf.f_bavail < 0)

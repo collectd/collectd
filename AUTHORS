@@ -115,6 +115,9 @@ Marco Chiappero <marco at absence.it>
  - ip6tables support in the iptables plugin.
  - openvpn plugin (support for more status file formats)
 
+Michael Hanselmann <public at hansmi.ch>
+ - md plugin.
+
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
 

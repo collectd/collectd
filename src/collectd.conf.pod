@@ -1822,6 +1822,31 @@ TCP-Port to connect to. Defaults to B<411>.
 
 =back
 
+=head2 Plugin C<md>
+
+The C<md plugin> collects information from Linux Software-RAID devices (md).
+
+All reported values are of the type C<md_disks>. Reported type instances are
+I<active>, I<failed> (present but not operational), I<spare> (hot stand-by) and
+I<missing> (physically absent) disks.
+
+=over 4
+
+=item B<Device> I<Device>
+
+Select md devices based on device name. The I<device name> is the basename of
+the device, i.e. the name of the block device without the leading C</dev/>.
+See B<IgnoreSelected> for more details.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Invert device selection: If set to B<true>, all md devices B<except> those
+listed using B<Device> are collected. If B<false> (the default), only those
+listed are collected. If no configuration is given, the B<md> plugin will
+collect data from all md devices.
+
+=back
+
 =head2 Plugin C<memcachec>
 
 The C<memcachec plugin> connects to a memcached server, queries one or more
@@ -4232,6 +4257,15 @@ syslog-daemon.
 Please note that B<debug> is only available if collectd has been compiled with
 debugging support.
 
+=item B<NotifyLevel> B<OKAY>|B<WARNING>|B<FAILURE>
+
+Controls which notifications should be sent to syslog. The default behaviour is
+not to send any. Less severe notifications always imply logging more severe
+notifications: Setting this to B<OKAY> means all notifications will be sent to
+syslog, setting this to B<WARNING> will send B<WARNING> and B<FAILURE>
+notifications but will dismiss B<OKAY> notifications. Setting this option to
+B<FAILURE> will only send failures to syslog.
+
 =back
 
 =head2 Plugin C<table>
@@ -4845,6 +4879,49 @@ instance) are put into once component, for example C<host.cpu-0.cpu-idle>.
 If set the B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
+
+=back
+
+=head2 Plugin C<write_mongodb>
+
+The I<write_mongodb plugin> will send values to I<MongoDB>, a schema-less
+NoSQL database.
+
+B<Synopsis:>
+
+ <Plugin "write_mongodb">
+   <Node "default">
+     Host "localhost"
+     Port "27017"
+     Timeout 1000
+     StoreRates true
+   </Node>
+ </Plugin>
+
+The plugin can send values to multiple instances of I<MongoDB> by specifying
+one B<Node> block for each instance. Within the B<Node> blocks, the following
+options are available:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<27017>.
+
+=item B<Timeout> I<Timeout>
+
+Set the timeout for each operation on I<MongoDB> to I<Timeout> milliseconds.
+Setting this option to zero means no timeout, which is the default.
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer
+number.
 
 =back
 
@@ -5537,7 +5614,7 @@ convert counter values to rates.
 
 Please note that these placeholders are B<case sensitive>!
 
-=item B<Severity> B<"FATAL">|B<"WARNING">|B<"OKAY">
+=item B<Severity> B<"FAILURE">|B<"WARNING">|B<"OKAY">
 
 Sets the severity of the message. If omitted, the severity B<"WARNING"> is
 used.
