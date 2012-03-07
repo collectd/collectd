@@ -1172,20 +1172,21 @@ static void ps_submit_fork_rate (unsigned long value)
 static char *ps_get_cmdline(pid_t pid)
 {
 	char f_psinfo[64];
+	char cmdline[80];
 	char *buffer = NULL;
 	psinfo_t *myInfo;
 
 	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%i/psinfo", pid);
 
-	buffer = malloc(sizeof (psinfo_t));
+	buffer = (char *)malloc(sizeof (psinfo_t));
+	memset(buffer, 0, sizeof(psinfo_t));
 	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
-	buffer[sizeof (psinfo_t)] = 0;
 	myInfo = (psinfo_t *) buffer;
 
-	sstrncpy(buffer, myInfo->pr_psargs, sizeof (myInfo->pr_psargs));
+	sstrncpy(cmdline, myInfo->pr_psargs, sizeof (myInfo->pr_psargs));
 
-	free(myInfo);
-	return strtok(buffer, " ");
+	sfree(myInfo);
+	return strtok(cmdline, " ");
 }
 
 /*
@@ -1213,15 +1214,17 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 
 
 	buffer = malloc(sizeof (pstatus_t));
+	memset(buffer, 0, sizeof (pstatus_t));
 	read_file_contents(filename, buffer, sizeof (pstatus_t));
 	myStatus = (pstatus_t *) buffer;
 
 	buffer = malloc(sizeof (psinfo_t));
+	memset(buffer, 0, sizeof(psinfo_t));
 	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
-	buffer[sizeof (psinfo_t)] = 0;
 	myInfo = (psinfo_t *) buffer;
 
 	buffer = malloc(sizeof (prusage_t));
+	memset(buffer, 0, sizeof(prusage_t));
 	read_file_contents(f_usage, buffer, sizeof (prusage_t));
 	myUsage = (prusage_t *) buffer;
 
@@ -1294,9 +1297,9 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 	else if (myStatus->pr_flags & PR_ORPHAN)
 		*state = (char) 'O';
 
-	free(myStatus);
-	free(myInfo);
-	free(myUsage);
+	sfree(myStatus);
+	sfree(myInfo);
+	sfree(myUsage);
 
 	return (0);
 }
