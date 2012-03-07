@@ -17,6 +17,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
+ *   Cosmin Ioiart <cioiart at gmail.com>
  **/
 
 #include "collectd.h"
@@ -24,12 +25,21 @@
 #include "plugin.h"
 #include "utils_ignorelist.h"
 
-#if !KERNEL_LINUX
+#if !(KERNEL_LINUX || KERNEL_SOLARIS)
 # error "No applicable input method."
 #endif
 
+#if KERNEL_LINUX
 #define SNMP_FILE "/proc/net/snmp"
 #define NETSTAT_FILE "/proc/net/netstat"
+#endif
+
+/*
+ * On Solaris, all the key/value pairs are read via kstat
+ */
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif 
 
 /*
  * Global variables
@@ -72,6 +82,7 @@ static void submit (const char *protocol_name,
   plugin_dispatch_values (&vl);
 } /* void submit */
 
+#if KERNEL_LINUX
 static int read_file (const char *path)
 {
   FILE *fh;
@@ -188,12 +199,18 @@ static int read_file (const char *path)
 
   return (status);
 } /* int read_file */
+#endif
+
+static int read_kstat(void)
+{
+	return (0);
+}
 
 static int protocols_read (void)
 {
   int status;
   int success = 0;
-
+#if KERNEL_LINUX
   status = read_file (SNMP_FILE);
   if (status == 0)
     success++;
@@ -201,7 +218,11 @@ static int protocols_read (void)
   status = read_file (NETSTAT_FILE);
   if (status == 0)
     success++;
-
+#elif KERNEL_SOLARIS
+  status = read_kstat();
+  if(status == 0)
+	  success++;
+#endif
   if (success == 0)
     return (-1);
 
