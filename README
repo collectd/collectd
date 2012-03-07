@@ -196,6 +196,9 @@ Features
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
 
+    - numa
+      Information about Non-Uniform Memory Access (NUMA).
+
     - olsrd
       Queries routing information from the “Optimized Link State Routing”
       daemon.
