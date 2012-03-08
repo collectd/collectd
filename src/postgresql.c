@@ -371,9 +371,6 @@ static int c_psql_check_connection (c_psql_database_t *db)
 		c_psql_connect (db);
 	}
 
-	/* "ping" */
-	PQclear (PQexec (db->conn, "SELECT 42;"));
-
 	if (CONNECTION_OK != PQstatus (db->conn)) {
 		PQreset (db->conn);
 
