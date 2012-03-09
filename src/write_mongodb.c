@@ -51,8 +51,6 @@ struct wm_node_s
   int port;
   int timeout;
 
-  int connected;
-
   _Bool store_rates;
 
   mongo conn[1];
@@ -170,14 +168,17 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   pthread_mutex_lock (&node->lock);
 
-  if (node->connected == 0)
+  if (!mongo_is_connected (node->conn))
   {
-    status = mongo_connect(node->conn, node->host, node->port);
+    INFO ("write_mongodb plugin: Connecting to [%s]:%i",
+        (node->host != NULL) ? node->host : "localhost",
+        (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
+    status = mongo_connect (node->conn, node->host, node->port);
     if (status != MONGO_OK) {
-      ERROR ("write_mongodb plugin: Connecting to host \"%s\" (port %i) failed.",
+      ERROR ("write_mongodb plugin: Connecting to [%s]:%i failed.",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
-      mongo_destroy(node->conn);
+      mongo_destroy (node->conn);
       pthread_mutex_unlock (&node->lock);
       return (-1);
     }
@@ -189,21 +190,24 @@ static int wm_write (const data_set_t *ds, /* {{{ */
             node->timeout, node->conn->errstr);
       }
     }
-
-    node->connected = 1;
   }
 
   /* Assert if the connection has been established */
-  assert (node->connected == 1);
+  assert (mongo_is_connected (node->conn));
 
   status = mongo_insert (node->conn, collection_name, bson_record);
   if(status != MONGO_OK)
   {
     ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err);
-    if (node->conn->err == MONGO_BSON_INVALID)
+    if (node->conn->err != MONGO_BSON_INVALID)
       ERROR ("write_mongodb plugin: %s", node->conn->errstr);
     else if (bson_record->err)
       ERROR ("write_mongodb plugin: %s", bson_record->errstr);
+
+    /* Disconnect except on data errors. */
+    if ((node->conn->err != MONGO_BSON_INVALID)
+        && (node->conn->err != MONGO_BSON_NOT_FINISHED))
+      mongo_destroy (node->conn);
   }
 
   pthread_mutex_unlock (&node->lock);
@@ -221,11 +225,8 @@ static void wm_config_free (void *ptr) /* {{{ */
   if (node == NULL)
     return;
 
-  if (node->connected != 0)
-  {
-    mongo_destroy(node->conn);
-    node->connected = 0;
-  }
+  if (mongo_is_connected (node->conn))
+    mongo_destroy (node->conn);
 
   sfree (node->host);
   sfree (node);
@@ -241,6 +242,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   if (node == NULL)
     return (ENOMEM);
   memset (node, 0, sizeof (*node));
+  mongo_init (node->conn);
   node->host = NULL;
   node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
