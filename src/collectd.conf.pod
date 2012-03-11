@@ -2502,10 +2502,18 @@ The default IPv6 multicast group is C<ff18::efc0:4a42>. The default IPv4
 multicast group is C<239.192.74.66>. The default I<UDP> port is B<25826>.
 
 Both, B<Server> and B<Listen> can be used as single option or as block. When
-used as block, given options are valid for this socket only. For example:
+used as block, given options are valid for this socket only. The following
+example will export the metrics twice: Once to an "internal" server (without
+encryption and signing) and one to an external server (with cryptographic
+signature):
 
  <Plugin "network">
+   # Export to an internal server
+   # (demonstrates usage without additional options)
    Server "collectd.internal.tld"
+   
+   # Export to an external server
+   # (demonstrates usage with signature options)
    <Server "collectd.external.tld">
      SecurityLevel "sign"
      Username "myhostname"
