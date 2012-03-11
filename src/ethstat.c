@@ -20,27 +20,15 @@
  *   Cyril Feraudet <cyril at feraudet.com>
  **/
 
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <time.h>
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include <sys/types.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <net/if.h>
-#include <linux/sockios.h> 
 #include "ethstat.h"
 
-# if KERNEL_LINUX
-
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <linux/sockios.h>
 
 static int ethstat_config (const char *key, const char *value)
 {
@@ -174,5 +162,3 @@ void module_register (void)
 			config_keys, config_keys_num);
 	plugin_register_read ("ethstat", ethstat_read);
 }
-
-#endif
