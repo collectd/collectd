@@ -24,146 +24,195 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
-#include "ethstat.h"
 
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <linux/sockios.h>
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#if HAVE_LINUX_SOCKIOS_H
+# include <linux/sockios.h>
+#endif
+#if HAVE_LINUX_ETHTOOL_H
+# include <linux/ethtool.h>
+#endif
+
+static const char *config_keys[] =
+{
+	"Interface"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static char **interfaces = NULL;
+static size_t interfaces_num = 0;
 
 static int ethstat_config (const char *key, const char *value)
 {
-	if (strcasecmp ("Iface", key) == 0)
+	if (strcasecmp ("Interface", key) == 0)
 	{
 		char **tmp;
 
-		tmp = realloc (ifacelist,
-				sizeof (*ifacelist) * (ifacenumber + 1));
+		tmp = realloc (interfaces,
+				sizeof (*interfaces) * (interfaces_num + 1));
 		if (tmp == NULL)
 			return (-1);
-		ifacelist = tmp;
+		interfaces = tmp;
 
-		ifacelist[ifacenumber] = strdup (value);
-		if (ifacelist[ifacenumber] == NULL)
+		interfaces[interfaces_num] = strdup (value);
+		if (interfaces[interfaces_num] == NULL)
 		{
 			ERROR ("ethstat plugin: strdup() failed.");
 			return (-1);
 		}
 
-		ifacenumber++;
+		interfaces_num++;
 		INFO("ethstat plugin: Registred interface %s", value);
 	}
 	return (0);
 }
 
-static void ethstat_submit_value (char *devname, char *counter, unsigned long long value)
+static void ethstat_submit_value (const char *device,
+		const char *type_instance, derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].counter = value;
-
+	values[0].derive = value;
 	vl.values = values;
 	vl.values_len = 1;
+
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ethstat", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, devname, sizeof (vl.plugin_instance));
+	sstrncpy (vl.plugin_instance, device, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "derive", sizeof (vl.type));
-	sstrncpy (vl.type_instance, counter, sizeof (vl.type_instance));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
 
-
-static int getstats(char *devname, struct ifreq *ifr) {
+static int ethstat_read_interface (char *device)
+{
         int fd;
+	struct ifreq req;
 	struct ethtool_drvinfo drvinfo;
 	struct ethtool_gstrings *strings;
 	struct ethtool_stats *stats;
-	unsigned int n_stats, sz_str, sz_stats, i;
-	int err;
+	size_t n_stats;
+	size_t strings_size;
+	size_t stats_size;
+	size_t i;
+	int status;
 
+        memset (&req, 0, sizeof (req));
+        sstrncpy(req.ifr_name, device, sizeof (req.ifr_name));
 
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-        if (fd < 0) {
-                ERROR("ethstat - %s : Cannot get control socket", devname);
-                return 1;
-        }
+	fd = socket(AF_INET, SOCK_DGRAM, /* protocol = */ 0);
+        if (fd < 0)
+	{
+		char errbuf[1024];
+		ERROR("ethstat plugin: Failed to open control socket: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return 1;
+	}
 
+	memset (&drvinfo, 0, sizeof (drvinfo));
         drvinfo.cmd = ETHTOOL_GDRVINFO;
-        ifr->ifr_data = (caddr_t)&drvinfo;
-        err = ioctl(fd, SIOCETHTOOL, ifr);
-        if (err < 0) {
-                ERROR("ethstat - %s : Cannot get driver information", devname);
-                return 1;
+        req.ifr_data = (void *) &drvinfo;
+        status = ioctl (fd, SIOCETHTOOL, &req);
+        if (status < 0)
+	{
+		char errbuf[1024];
+		close (fd);
+		ERROR ("ethstat plugin: Failed to get driver information "
+				"from %s: %s", device,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+                return (-1);
         }
 
-
-        n_stats = drvinfo.n_stats;
-        if (n_stats < 1) {
-                ERROR("ethstat - %s : No stats available", devname);
-                return 1;
+        n_stats = (size_t) drvinfo.n_stats;
+        if (n_stats < 1)
+	{
+		close (fd);
+                ERROR("ethstat plugin: No stats available for %s", device);
+                return (-1);
         }
 
-        sz_str = n_stats * ETH_GSTRING_LEN;
-        sz_stats = n_stats * sizeof(u64);
+        strings_size = sizeof (struct ethtool_gstrings)
+		+ (n_stats * ETH_GSTRING_LEN);
+        stats_size = sizeof (struct ethtool_stats)
+		+ (n_stats * sizeof (uint64_t));
 
-        strings = calloc(1, sz_str + sizeof(struct ethtool_gstrings));
-        stats = calloc(1, sz_stats + sizeof(struct ethtool_stats));
-        if (!strings || !stats) {
-                ERROR("ethstat - %s No memory available", devname);
-                return 1;
+        strings = malloc (strings_size);
+        stats = malloc (stats_size);
+        if ((strings == NULL) || (stats == NULL))
+	{
+		close (fd);
+		sfree (strings);
+		sfree (stats);
+                ERROR("ethstat plugin: malloc(3) failed.");
+                return (-1);
         }
 
         strings->cmd = ETHTOOL_GSTRINGS;
         strings->string_set = ETH_SS_STATS;
         strings->len = n_stats;
-        ifr->ifr_data = (caddr_t) strings;
-        err = ioctl(fd, SIOCETHTOOL, ifr);
-        if (err < 0) {
-                ERROR("ethstat - %s : Cannot get stats strings information", devname);
-                free(strings);
-                free(stats);
-                return 96;
+        req.ifr_data = (void *) strings;
+        status = ioctl (fd, SIOCETHTOOL, &req);
+        if (status < 0)
+	{
+		char errbuf[1024];
+		close (fd);
+                free (strings);
+                free (stats);
+                ERROR ("ethstat plugin: Cannot get strings from %s: %s",
+				device,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+                return (-1);
         }
 
         stats->cmd = ETHTOOL_GSTATS;
         stats->n_stats = n_stats;
-        ifr->ifr_data = (caddr_t) stats;
-        err = ioctl(fd, SIOCETHTOOL, ifr);
-        if (err < 0) {
-                ERROR("ethstat - %s : Cannot get stats information", devname);
-                free(strings);
-                free(stats);
-                return 97;
+        req.ifr_data = (void *) stats;
+        status = ioctl (fd, SIOCETHTOOL, &req);
+        if (status < 0)
+	{
+		char errbuf[1024];
+		close (fd);
+		free(strings);
+		free(stats);
+		ERROR("ethstat plugin: Reading statistics from %s failed: %s",
+				device,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+        for (i = 0; i < n_stats; i++)
+	{
+		const char *stat_name;
+
+		stat_name = (void *) &strings->data[i * ETH_GSTRING_LEN],
+                DEBUG("ethstat plugin: device = \"%s\": %s = %"PRIu64,
+				device, stat_name,
+				(uint64_t) stats->data[i]);
+		ethstat_submit_value (device,
+				stat_name, (derive_t) stats->data[i]);
         }
 
-        for (i = 0; i < n_stats; i++) {
-                DEBUG("ethstat - %s : %s: %llu",
-			devname,
-                        &strings->data[i * ETH_GSTRING_LEN],
-                        stats->data[i]);
-		ethstat_submit_value (
-			devname,
-			(char*)&strings->data[i * ETH_GSTRING_LEN],
-			stats->data[i]);
-        }
-        free(strings);
-        free(stats);
+	close (fd);
+        sfree (strings);
+        sfree (stats);
 
-	return 0;
-}
+	return (0);
+} /* }}} ethstat_read_interface */
 
 static int ethstat_read(void)
 {
-	struct ifreq ifr;
-	int i;
+	size_t i;
 
-	for (i = 0 ; i < ifacenumber ; i++) {
-		DEBUG("ethstat - Processing : %s\n", ifacelist[i]);
-		memset(&ifr, 0, sizeof(ifr));
-		sstrncpy(ifr.ifr_name, ifacelist[i], sizeof (ifr.ifr_name));
-		getstats(ifacelist[i], &ifr);
-	}
+	for (i = 0; i < interfaces_num; i++)
+		ethstat_read_interface (interfaces[i]);
+
 	return 0;
 }
 
