@@ -44,7 +44,7 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static char **ifacelist;
+static char **ifacelist = NULL;
 static int ifacenumber = 0;
 struct ethtool_drvinfo {
         __u32   cmd;

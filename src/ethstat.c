@@ -32,14 +32,28 @@
 
 static int ethstat_config (const char *key, const char *value)
 {
-	if (strcasecmp (key, "Iface") == 0) {
-		ifacelist[ifacenumber] = malloc(strlen(value) + 1);
-		strcpy(ifacelist[ifacenumber++], value);
-		INFO("ethstat: Registred iface %s", value);
+	if (strcasecmp ("Iface", key) == 0)
+	{
+		char **tmp;
+
+		tmp = realloc (ifacelist,
+				sizeof (*ifacelist) * (ifacenumber + 1));
+		if (tmp == NULL)
+			return (-1);
+		ifacelist = tmp;
+
+		ifacelist[ifacenumber] = strdup (value);
+		if (ifacelist[ifacenumber] == NULL)
+		{
+			ERROR ("ethstat plugin: strdup() failed.");
+			return (-1);
+		}
+
+		ifacenumber++;
+		INFO("ethstat plugin: Registred interface %s", value);
 	}
 	return (0);
 }
-
 
 static void ethstat_submit_value (char *devname, char *counter, unsigned long long value)
 {
@@ -136,10 +150,8 @@ static int getstats(char *devname, struct ifreq *ifr) {
         free(strings);
         free(stats);
 
-
 	return 0;
 }
-
 
 static int ethstat_read(void)
 {
@@ -149,7 +161,7 @@ static int ethstat_read(void)
 	for (i = 0 ; i < ifacenumber ; i++) {
 		DEBUG("ethstat - Processing : %s\n", ifacelist[i]);
 		memset(&ifr, 0, sizeof(ifr));
-        	strcpy(ifr.ifr_name, ifacelist[i]);
+		sstrncpy(ifr.ifr_name, ifacelist[i], sizeof (ifr.ifr_name));
 		getstats(ifacelist[i], &ifr);
 	}
 	return 0;
@@ -157,7 +169,6 @@ static int ethstat_read(void)
 
 void module_register (void)
 {
-	ifacelist = malloc(sizeof(char*));
 	plugin_register_config ("ethstat", ethstat_config,
 			config_keys, config_keys_num);
 	plugin_register_read ("ethstat", ethstat_read);
