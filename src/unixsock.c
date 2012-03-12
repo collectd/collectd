@@ -231,8 +231,8 @@ static void *us_handle_client (void *arg)
 
 	while (42)
 	{
-		char buffer[1024];
-		char buffer_copy[1024];
+		char buffer[NOTIF_MAX_MSG_LEN + 1024];
+		char buffer_copy[NOTIF_MAX_MSG_LEN + 1024];
 		char *fields[128];
 		int   fields_num;
 		int   len;

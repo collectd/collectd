@@ -1034,6 +1034,50 @@ static char *ps_get_cmdline(pid_t pid, char *name, char *buf, size_t buf_len)
 	return buf;
 } /* char *ps_get_cmdline (...) */
 
+static unsigned long read_ctxsw_rate()
+{
+	FILE *proc_stat;
+	char buf[1024];
+	unsigned long result = 0;
+	int numfields;
+	char *fields[3];
+
+	proc_stat = fopen("/proc/stat", "r");
+	if (proc_stat == NULL) {
+		char errbuf[1024];
+		ERROR("processes plugin: fopen (/proc/stat) failed: %s",
+		      sstrerror(errno, errbuf, sizeof (errbuf)));
+		return ULONG_MAX;
+	}
+
+	while (fgets(buf, sizeof (buf), proc_stat) != NULL) {
+		char *endptr;
+
+		numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE(fields));
+		if (numfields != 2)
+			continue;
+
+		if (strcmp("ctxt", fields[0]) != 0)
+			continue;
+
+		errno = 0;
+		endptr = NULL;
+		result = strtoul(fields[1], &endptr, /* base = */ 10);
+		if ((endptr == fields[1]) || (errno != 0)) {
+			ERROR("processes plugin: Cannot parse context switch rate: %s",
+			      fields[1]);
+			result = ULONG_MAX;
+			break;
+		}
+
+		break;
+	}
+
+	fclose(proc_stat);
+
+	return result;
+}
+
 static unsigned long read_fork_rate()
 {
 	FILE *proc_stat;
@@ -1077,7 +1121,26 @@ static unsigned long read_fork_rate()
 
 	return result;
 }
-#endif /*KERNEL_LINUX */
+
+static void ps_submit_ctxsw_rate (unsigned long value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].derive = (derive_t) value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
+	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
+	sstrncpy(vl.type, "context_switch_rate", sizeof (vl.type));
+	sstrncpy(vl.type_instance, "", sizeof (vl.type_instance));
+
+	plugin_dispatch_values(&vl);
+}
+#endif /* KERNEL_LINUX */
+
 #if KERNEL_LINUX || KERNEL_SOLARIS
 
 static void ps_submit_fork_rate(unsigned long value)
@@ -1098,10 +1161,6 @@ static void ps_submit_fork_rate(unsigned long value)
 	plugin_dispatch_values(&vl);
 }
 
-#endif /* KERNEL_LINUX || KERNEL_SOLARIS*/
-
-#if KERNEL_SOLARIS
-
 static char *ps_get_cmdline(pid_t pid)
 {
 	char f_psinfo[64];
@@ -1111,8 +1170,8 @@ static char *ps_get_cmdline(pid_t pid)
 
 	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%i/psinfo", pid);
 
-	buffer = (char *)malloc(sizeof (psinfo_t));
-	memset(buffer, 0, sizeof(psinfo_t));
+	buffer = (char *) malloc(sizeof (psinfo_t));
+	memset(buffer, 0, sizeof (psinfo_t));
 	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
 	myInfo = (psinfo_t *) buffer;
 
@@ -1152,12 +1211,12 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 	myStatus = (pstatus_t *) buffer;
 
 	buffer = malloc(sizeof (psinfo_t));
-	memset(buffer, 0, sizeof(psinfo_t));
+	memset(buffer, 0, sizeof (psinfo_t));
 	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
 	myInfo = (psinfo_t *) buffer;
 
 	buffer = malloc(sizeof (prusage_t));
-	memset(buffer, 0, sizeof(prusage_t));
+	memset(buffer, 0, sizeof (prusage_t));
 	read_file_contents(f_usage, buffer, sizeof (prusage_t));
 	myUsage = (prusage_t *) buffer;
 
@@ -1252,10 +1311,10 @@ static unsigned long read_fork_rate()
 		return ULONG_MAX;
 
 	for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
-	     ksp_chain = ksp_chain->ks_next) {
+	ksp_chain = ksp_chain->ks_next) {
 		if ((strncmp(ksp_chain->ks_module, "cpu", 3) == 0) &&
-		    (strncmp(ksp_chain->ks_name, "sys", 3) == 0) &&
-		    (strncmp(ksp_chain->ks_class, "misc", 4) == 0)) {
+		(strncmp(ksp_chain->ks_name, "sys", 3) == 0) &&
+		(strncmp(ksp_chain->ks_class, "misc", 4) == 0)) {
 			kstat_read(kc, ksp_chain, NULL);
 			result += get_kstat_value(ksp_chain, "nthreads");
 		}
@@ -1572,6 +1631,7 @@ static int ps_read(void)
 	char state;
 
 	unsigned long fork_rate;
+	unsigned long ctxsw_rate;
 
 	procstat_t *ps_ptr;
 
@@ -1659,7 +1719,9 @@ static int ps_read(void)
 	fork_rate = read_fork_rate();
 	if (fork_rate != ULONG_MAX)
 		ps_submit_fork_rate(fork_rate);
-	/* #endif KERNEL_LINUX */
+	ctxsw_rate = read_ctxsw_rate();
+	if (ctxsw_rate != ULONG_MAX)
+		ps_submit_ctxsw_rate(ctxsw_rate);
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
 	int running = 0;
@@ -1931,7 +1993,7 @@ static int ps_read(void)
 	int running = 0;
 	int sleeping = 0;
 	int zombies = 0;
-	int stopped = 0;	
+	int stopped = 0;
 	int detached = 0;
 	int daemon = 0;
 	int system = 0;
@@ -1939,13 +2001,13 @@ static int ps_read(void)
 	unsigned long fork_rate;
 	struct dirent *ent;
 	DIR *proc;
-	int pid;	
+	int pid;
 
 	int status;
 	struct procstat ps;
 	procstat_entry_t pse;
 	procstat_t *ps_ptr;
-	char state;	
+	char state;
 
 	ps_list_reset();
 
@@ -2020,7 +2082,7 @@ static int ps_read(void)
 	ps_submit_state("running", running);
 	ps_submit_state("sleeping", sleeping);
 	ps_submit_state("zombies", zombies);
-	ps_submit_state("stopped", stopped);	
+	ps_submit_state("stopped", stopped);
 	ps_submit_state("detached", detached);
 	ps_submit_state("daemon", daemon);
 	ps_submit_state("system", system);
