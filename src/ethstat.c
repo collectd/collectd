@@ -24,6 +24,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_avltree.h"
 
 #if HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
@@ -38,45 +39,128 @@
 # include <linux/ethtool.h>
 #endif
 
-static const char *config_keys[] =
+struct value_map_s
 {
-	"Interface"
+  char type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
 };
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+typedef struct value_map_s value_map_t;
 
 static char **interfaces = NULL;
 static size_t interfaces_num = 0;
 
-static int ethstat_config (const char *key, const char *value)
+static c_avl_tree_t *value_map = NULL;
+
+static int ethstat_add_interface (const oconfig_item_t *ci) /* {{{ */
 {
-	if (strcasecmp ("Interface", key) == 0)
-	{
-		char **tmp;
+  char **tmp;
+  int status;
 
-		tmp = realloc (interfaces,
-				sizeof (*interfaces) * (interfaces_num + 1));
-		if (tmp == NULL)
-			return (-1);
-		interfaces = tmp;
+  tmp = realloc (interfaces,
+      sizeof (*interfaces) * (interfaces_num + 1));
+  if (tmp == NULL)
+    return (-1);
+  interfaces = tmp;
 
-		interfaces[interfaces_num] = strdup (value);
-		if (interfaces[interfaces_num] == NULL)
-		{
-			ERROR ("ethstat plugin: strdup() failed.");
-			return (-1);
-		}
+  status = cf_util_get_string (ci, interfaces + interfaces_num);
+  if (status != 0)
+    return (status);
 
-		interfaces_num++;
-		INFO("ethstat plugin: Registred interface %s", value);
-	}
-	return (0);
-}
+  interfaces_num++;
+  INFO("ethstat plugin: Registred interface %s",
+      interfaces[interfaces_num - 1]);
+
+  return (0);
+} /* }}} int ethstat_add_interface */
+
+static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
+{
+  value_map_t *map;
+  int status;
+
+  if ((ci->values_num < 2)
+      || (ci->values_num > 3)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING)
+      || (ci->values[1].type != OCONFIG_TYPE_STRING)
+      || ((ci->values_num == 3)
+        && (ci->values[2].type != OCONFIG_TYPE_STRING)))
+  {
+    ERROR ("ethstat plugin: The %s option requires "
+        "two or three string arguments.", ci->key);
+    return (-1);
+  }
+
+  map = malloc (sizeof (*map));
+  if (map == NULL)
+  {
+    ERROR ("ethstat plugin: malloc(3) failed.");
+    return (ENOMEM);
+  }
+  memset (map, 0, sizeof (*map));
+
+  sstrncpy (map->type, ci->values[1].value.string, sizeof (map->type));
+  if (ci->values_num == 2)
+    sstrncpy (map->type_instance, ci->values[2].value.string,
+        sizeof (map->type_instance));
+
+  if (value_map == NULL)
+  {
+    value_map = c_avl_create ((void *) strcmp);
+    if (value_map == NULL)
+    {
+      sfree (map);
+      ERROR ("ethstat plugin: c_avl_create() failed.");
+      return (-1);
+    }
+  }
+
+  status = c_avl_insert (value_map,
+      /* key = */ ci->values[0].value.string,
+      /* value = */ map);
+  if (status != 0)
+  {
+    sfree (map);
+    if (status > 0)
+      ERROR ("ethstat plugin: Multiple mappings for \"%s\".",
+          ci->values[0].value.string);
+    else
+      ERROR ("ethstat plugin: c_avl_insert(\"%s\") failed.",
+          ci->values[0].value.string);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int ethstat_add_map */
+
+static int ethstat_config (oconfig_item_t *ci) /* {{{ */
+{
+  int i;
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Interface", child->key) == 0)
+      ethstat_add_interface (child);
+    else if (strcasecmp ("Map", child->key) == 0)
+      ethstat_add_map (child);
+    else
+      WARNING ("ethstat plugin: The config option \"%s\" is unknown.",
+          child->key);
+  }
+
+  return (0);
+} /* }}} */
 
 static void ethstat_submit_value (const char *device,
 		const char *type_instance, derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
+        value_map_t *map = NULL;
+
+        if (value_map != NULL)
+          c_avl_get (value_map, type_instance, (void *) &map);
 
 	values[0].derive = value;
 	vl.values = values;
@@ -85,8 +169,17 @@ static void ethstat_submit_value (const char *device,
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ethstat", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, device, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "derive", sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+        if (map != NULL)
+        {
+          sstrncpy (vl.type, map->type, sizeof (vl.type));
+          sstrncpy (vl.type_instance, map->type_instance,
+              sizeof (vl.type_instance));
+        }
+        else
+        {
+          sstrncpy (vl.type, "derive", sizeof (vl.type));
+          sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+        }
 
 	plugin_dispatch_values (&vl);
 }
@@ -218,7 +311,8 @@ static int ethstat_read(void)
 
 void module_register (void)
 {
-	plugin_register_config ("ethstat", ethstat_config,
-			config_keys, config_keys_num);
+	plugin_register_complex_config ("ethstat", ethstat_config);
 	plugin_register_read ("ethstat", ethstat_read);
 }
+
+/* vim: set sw=2 sts=2 et fdm=marker : */

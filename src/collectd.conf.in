@@ -338,6 +338,8 @@
 
 #<Plugin ethstat>
 #	Interface "eth0"
+#	Map "rx_csum_offload_errors" "if_rx_errors" "checksum_offload"
+#	Map "multicast" "if_multicast"
 #</Plugin>
 
 #<Plugin exec>
