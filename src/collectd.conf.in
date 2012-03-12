@@ -73,6 +73,7 @@
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
+#@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
@@ -333,6 +334,10 @@
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
+#</Plugin>
+
+#<Plugin ethstat>
+#	Interface "eth0"
 #</Plugin>
 
 #<Plugin exec>

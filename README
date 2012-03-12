@@ -83,6 +83,9 @@ Features
     - entropy
       Amount of entropy available to the system.
 
+    - ethstat
+      Network interface card statistics.
+
     - exec
       Values gathered by a custom program or script.
       See collectd-exec(5).
