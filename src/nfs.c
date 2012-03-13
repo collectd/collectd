@@ -125,6 +125,7 @@ static const char *nfs3_procedures_names[] =
 };
 static int nfs3_procedures_names_num = 22;
 
+#if HAVE_LIBKSTAT
 static const char *nfs4_procedures_names[] =
 {
 	"null",
@@ -169,6 +170,7 @@ static const char *nfs4_procedures_names[] =
 	NULL
 };
 static int nfs4_procedures_names_num = 39;
+#endif
 
 #if HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
@@ -224,7 +226,7 @@ static int nfs_init (void)
 #if HAVE_LIBKSTAT
 
 static void nfs2_procedures_submit(unsigned long long *val,
-        const char *plugin_instance, char *nfs_ver, int len)
+		const char *plugin_instance, char *nfs_ver, int len)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -265,7 +267,7 @@ static void nfs2_procedures_submit(unsigned long long *val,
 #endif
 
 static void nfs_procedures_submit (const char *plugin_instance,
-        unsigned long long *val, const char **names, int len)
+		unsigned long long *val, const char **names, int len)
 {
 
 	value_t values[1];
@@ -280,7 +282,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 			sizeof (vl.plugin_instance));
 	sstrncpy(vl.type, "nfs_procedure", sizeof (vl.type));
 
-	for (i = 0; (val[i] != NULL) && (i < len); i++) {
+	for (i = 0; (i < len); i++) {
 		values[0].derive = val[i];
 		sstrncpy(vl.type_instance, names[i],
 				sizeof (vl.type_instance));
