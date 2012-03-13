@@ -122,7 +122,7 @@ static const char *nfs3_procedures_names[] ={
     NULL
 };
 static int nfs3_procedures_names_num = 22;
-
+#if HAVE_LIBKSTAT
 static const char *nfs4_procedures_names[] = {
     "null",
     "compound",
@@ -166,6 +166,7 @@ static const char *nfs4_procedures_names[] = {
     NULL
 };
 static int nfs4_procedures_names_num = 39;
+#endif
 
 #if HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
@@ -275,7 +276,7 @@ static void nfs_procedures_submit(const char *plugin_instance,
             sizeof (vl.plugin_instance));
     sstrncpy(vl.type, "nfs_procedure", sizeof (vl.type));
 
-    for (i = 0; (val[i] != NULL) && (i < len); i++) {
+    for (i = 0; (i < len); i++) {
         values[0].derive = val[i];
         sstrncpy(vl.type_instance, names[i],
                 sizeof (vl.type_instance));

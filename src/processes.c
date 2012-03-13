@@ -1160,7 +1160,9 @@ static void ps_submit_fork_rate(unsigned long value)
 
 	plugin_dispatch_values(&vl);
 }
+#endif
 
+#if KERNEL_SOLARIS
 static char *ps_get_cmdline(pid_t pid)
 {
 	char f_psinfo[64];
