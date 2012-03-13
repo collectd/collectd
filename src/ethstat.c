@@ -19,6 +19,7 @@
  * Authors:
  *   Cyril Feraudet <cyril at feraudet.com>
  **/
+#if KERNEL_LINUX
 
 #include <stdlib.h>
 #include <string.h>
@@ -35,12 +36,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <net/if.h>
+#include <net/if.h>:
 #include <linux/sockios.h> 
 #include "ethstat.h"
-
-# if KERNEL_LINUX
-
 
 static int ethstat_config (const char *key, const char *value)
 {
