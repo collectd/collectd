@@ -97,6 +97,7 @@ typedef struct csnmp_table_values_s csnmp_table_values_t;
  * Private variables
  */
 static data_definition_t *data_head = NULL;
+static int close_host_sessions = 0;
 
 /*
  * Prototypes
@@ -653,6 +654,10 @@ static int csnmp_config (oconfig_item_t *ci)
 {
   int i;
 
+  /* maxhostbcs - close host sessions if hostcount exceeds it */
+  int hostcount = 0;
+  int maxhostbcs = -1;
+
   call_snmp_init_once ();
 
   for (i = 0; i < ci->children_num; i++)
@@ -661,12 +666,37 @@ static int csnmp_config (oconfig_item_t *ci)
     if (strcasecmp ("Data", child->key) == 0)
       csnmp_config_add_data (child);
     else if (strcasecmp ("Host", child->key) == 0)
+    {
       csnmp_config_add_host (child);
+      hostcount++;
+    }
+    else if (strcasecmp ("MaxHostsBCS", child->key) == 0)
+    {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("snmp plugin: The `MaxHostsBCS' option needs "
+                 "exactly one integer argument.");
+        return (-1);
+      }
+      if (child->values[0].type == OCONFIG_TYPE_NUMBER)
+      {
+	maxhostbcs = (int) child->values[0].value.number;
+      }
+    }
     else
     {
       WARNING ("snmp plugin: Ignoring unknown config option `%s'.", child->key);
     }
   } /* for (ci->children) */
+
+  /* set close_host_sessions to 1, this is looked at in csnmp_read_host
+   * and if true, csnmp_host_close_session is called after the read
+   */
+  if (maxhostbcs >= 0 && hostcount > maxhostbcs)
+  {
+    WARNING ("snmp plugin: Enabling maxhostbcs.");
+    close_host_sessions = 1;
+  }
 
   return (0);
 } /* int csnmp_config */
@@ -1558,6 +1588,9 @@ static int csnmp_read_host (user_data_t *ud)
 	CDTIME_T_TO_DOUBLE (host->interval),
 	CDTIME_T_TO_DOUBLE (time_end - time_start));
   }
+
+  if (close_host_sessions)
+    csnmp_host_close_session (host);
 
   if (success == 0)
     return (-1);
