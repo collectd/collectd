@@ -4524,6 +4524,7 @@ fi
 if test "x$with_procinfo" = "xyes"
 then
 	plugin_processes="yes"
+        plugin_top="yes"
 fi
 
 # Solaris
