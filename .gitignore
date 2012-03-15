@@ -35,6 +35,7 @@ src/collectd
 src/collectd-nagios
 src/collectdctl
 src/collectdmon
+src/collectdproxy
 src/*.1
 src/*.5
 src/libcollectdclient/lcc_features.h
