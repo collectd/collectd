@@ -4989,6 +4989,50 @@ number.
 
 =back
 
+=head2 Plugin C<write_mysql>
+
+This output plugin submits values to a MySQL server. 
+You need first to create database and tables on your MySQL server as described
+in C<contrib/write_mysql.sql> .
+
+Synopsis of the configuration is:
+
+ <Plugin write_mysql>
+     Host "localhost"
+     User "root"
+     Passwd ""
+     Database "collectd"
+     Port "3306"
+ </Plugin>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+MySQL server hostname to connect to. Default is localhost.
+
+=item B<User> I<Username>
+
+User name needed for MySQL authentication. Default is root.
+
+=item B<Password> I<Password>
+
+Password needed for MySQL authentication. Default is empty.
+
+=item B<Database> I<Database>
+
+Database where located tables to insert to. Default is collectd.
+
+=item B<Port> I<Port>
+
+MySQL server port to connect to. Default is 3306.
+
+=item B<Replace>  B<true|false>
+
+If true, write_mysql plugin will replace data into data table. Default is true.
+
+=back
+
 =head1 FILTER CONFIGURATION
 
 Starting with collectd 4.6 there is a powerful filtering infrastructure

@@ -18,7 +18,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
-bin_PROGRAMS = collectd-nagios collectdctl
+bin_PROGRAMS = collectd-nagios collectdctl collectdproxy
 
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
@@ -113,6 +113,17 @@ collectdctl_LDADD += -lm
 endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+
+collectdproxy_SOURCES = collectdproxy.c
+collectdproxy_LDADD =
+if BUILD_WITH_LIBSOCKET
+collectdproxy_LDADD += -lsocket
+endif
+if BUILD_AIX
+collectdproxy_LDADD += -lm
+endif
+collectdproxy_LDADD += libcollectdclient/libcollectdclient.la
+collectdproxy_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 pkglib_LTLIBRARIES = 
@@ -256,6 +267,26 @@ collectd_LDADD += "-dlopen" csv.la
 collectd_DEPENDENCIES += csv.la
 endif
 
+if BUILD_PLUGIN_TOP
+pkglib_LTLIBRARIES += top.la
+top_la_SOURCES = top.c
+top_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" top.la
+collectd_DEPENDENCIES += top.la
+endif
+
+if BUILD_PLUGIN_WRITE_MYSQL
+pkglib_LTLIBRARIES += write_mysql.la
+write_mysql_la_SOURCES = write_mysql.c
+write_mysql_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" write_mysql.la
+if BUILD_WITH_LIBMYSQL
+write_mysql_la_CFLAGS = $(BUILD_WITH_LIBMYSQL_CFLAGS)
+write_mysql_la_LIBADD = $(BUILD_WITH_LIBMYSQL_LIBS) -lmysqlclient_r
+endif
+collectd_DEPENDENCIES += write_mysql.la
+endif
+
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = curl.c
@@ -376,6 +407,14 @@ exec_la_LDFLAGS = -module -avoid-version
 exec_la_LIBADD = -lpthread
 collectd_LDADD += "-dlopen" exec.la
 collectd_DEPENDENCIES += exec.la
+endif
+
+if BUILD_PLUGIN_ETHSTAT
+pkglib_LTLIBRARIES += ethstat.la
+ethstat_la_SOURCES = ethstat.c
+ethstat_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" ethstat.la
+collectd_DEPENDENCIES += ethstat.la
 endif
 
 if BUILD_PLUGIN_FILECOUNT
@@ -1037,6 +1076,14 @@ syslog_la_SOURCES = syslog.c
 syslog_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" syslog.la
 collectd_DEPENDENCIES += syslog.la
+endif
+
+if BUILD_PLUGIN_SYSCONFIG
+pkglib_LTLIBRARIES += sysconfig.la
+sysconfig_la_SOURCES = sysconfig.c
+sysconfig_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" sysconfig.la
+collectd_DEPENDENCIES += sysconfig.la
 endif
 
 if BUILD_PLUGIN_TABLE

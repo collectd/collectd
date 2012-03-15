@@ -668,6 +668,39 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 		 
 	return (retval);
 }
+
+int get_kstat_value_to_string(kstat_named_t *kn, char *ret_name, char *ret_value)
+{
+	char tmp_val[16];
+	
+	if(kn == NULL)
+		return (-1);	
+	sstrncpy(ret_name, kn->name, sizeof(kn->name));	
+	
+	switch (kn->data_type) {
+	case KSTAT_DATA_CHAR:		
+		sprintf(tmp_val, "%.16s", kn->value.c);
+		break;
+	case KSTAT_DATA_INT32:		
+		sprintf(tmp_val, "%" PRId32, kn->value.i32);
+		break;
+	case KSTAT_DATA_UINT32:		
+		sprintf(tmp_val, "%" PRIu32, kn->value.ui32);
+		break;
+	case KSTAT_DATA_INT64:		
+		sprintf(tmp_val, "%" PRId64, kn->value.i64);
+		break;
+	case KSTAT_DATA_UINT64:		
+		sprintf(tmp_val, "%" PRIu64, kn->value.ui64);
+		break;
+	default:
+		sstrncpy(tmp_val, "-1", 2);		
+		break;
+	}
+	
+	sstrncpy(ret_value, tmp_val, sizeof(tmp_val));		
+	return 0;
+}
 #endif /* HAVE_LIBKSTAT */
 
 #ifndef HAVE_HTONLL

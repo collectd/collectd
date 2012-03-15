@@ -148,6 +148,7 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
+#@BUILD_PLUGIN_WRITE_MYSQL_TRUE@LoadPlugin write_mysql
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
@@ -985,6 +986,14 @@
 #		Format "Command"
 #		StoreRates false
 #	</URL>
+#</Plugin>
+
+#<Plugin write_mysql>
+#	Host "localhost"
+#	User "root"
+#	Passwd ""
+#	Database "collectd"
+#	Port "3306"
 #</Plugin>
 
 #<Plugin write_redis>
