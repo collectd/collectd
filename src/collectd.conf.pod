@@ -4704,6 +4704,34 @@ percentage value, relative to the other data sources. This is helpful for
 example for the "df" type, where you may want to issue a warning when less than
 5E<nbsp>% of the total space is available. Defaults to B<false>.
 
+=item B<Hits> I<Number>
+
+Delay creating the notification until the threshold has been passed I<Number>
+times. When a notification has been generated, or when a subsequent value is
+inside the threshold, the counter is reset. If, for example, a value is
+collected once every 10E<nbsp>seconds and B<Hits> is set to 3, a notification
+will be dispatched at most once every 30E<nbsp>seconds.
+
+This is useful when short bursts are not a problem. If, for example, 100% CPU
+usage for up to a minute is normal (and data is collected every
+10E<nbsp>seconds), you could set B<Hits> to B<6> to account for this.
+
+=item B<Hysteresis> I<Number>
+
+When set to non-zero, a hysteresis value is applied when checking minimum and
+maximum bounds. This is useful for values that increase slowly and fluctuate a
+bit while doing so. When these values come close to the threshold, they may
+"flap", i.e. switch between failure / warning case and okay case repeatedly.
+
+If, for example, the threshold is configures as
+
+  WarningMax 100.0
+  Hysteresis 1.0
+
+then a I<Warning> notification is created when the value exceeds I<101> and the
+corresponding I<Okay> notification is only created once the value falls below
+I<99>, thus avoiding the "flapping".
+
 =back
 
 =head1 FILTER CONFIGURATION
