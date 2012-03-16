@@ -28,7 +28,8 @@
 #if KERNEL_LINUX
 #include <pwd.h>
 #include <unistd.h>
-#elif KERNEL_LINUX || KERNEL_SOLARIS
+#endif
+#if KERNEL_LINUX || KERNEL_SOLARIS
 #include <grp.h>
 #else
 
