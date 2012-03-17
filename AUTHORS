@@ -54,6 +54,9 @@ Christophe Kalt <collectd at klb.taranis.org>
  - The version 3 `log' mode.
  - Many Solaris related hints and fixes.
 
+Cyril Feraudet <cyril at feraudet.com>
+ - ethstat plugin.
+
 Dan Berrange <berrange at redhat.com>
  - uuid plugin.
 
