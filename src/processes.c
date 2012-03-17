@@ -1580,7 +1580,6 @@ static int ps_read (void)
 	kvm_t *kd;
 	char errbuf[1024];
   	struct kinfo_proc *procs;          /* array of processes */
-  	char **argv;
   	int count;                         /* returns number of processes */
 	int i;
 
@@ -1616,37 +1615,33 @@ static int ps_read (void)
 		 * filter out threads (duplicate PID entries). */
 		if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid))
 		{
-			char cmdline[ARG_MAX];
+			char cmdline[ARG_MAX] = "";
 			_Bool have_cmdline = 0;
 
-			memset (cmdline, 0, sizeof (cmdline));
-
 			proc_ptr = &(procs[i]);
-			/* not probe system processes and processes without arguments*/
+			/* Don't probe system processes and processes without arguments */
 			if (((procs[i].ki_flag & P_SYSTEM) == 0)
-					&& (procs[i].ki_args != NULL ))
+					&& (procs[i].ki_args != NULL))
 			{
+				char **argv;
+				int argc;
+				int status;
+
 				/* retrieve the arguments */
 				argv = kvm_getargv (kd, proc_ptr, /* nchr = */ 0);
-				if ( argv != NULL && *argv)
+				argc = 0;
+				if ((argv != NULL) && (argv[0] != NULL))
 				{
-					int status;
-					int argc;
-
-					argc = 0;
 					while (argv[argc] != NULL)
 						argc++;
 
-					status = strjoin (cmdline, sizeof (cmdline),
-							argv, argc, " ");
-
+					status = strjoin (cmdline, sizeof (cmdline), argv, argc, " ");
 					if (status < 0)
 						WARNING ("processes plugin: Command line did not fit into buffer.");
 					else
 						have_cmdline = 1;
-
 				}
-			}
+			} /* if (process has argument list) */
 
 			pse.id       = procs[i].ki_pid;
 			pse.age      = 0;
