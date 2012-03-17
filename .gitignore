@@ -72,3 +72,10 @@ src/tags
 
 # backup stuff
 *~
+/nbproject/private/
+collectd.conf
+configure.in.new
+configure.in.newvi
+nbproject/
+src/python_la-python.loT
+
