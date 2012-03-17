@@ -1300,6 +1300,11 @@ instance> set to I<Name>, the name of the metric as reported by the driver. If
 an appropriate B<Map> option exists, the given I<Type> and, optionally,
 I<TypeInstance> will be used.
 
+=item B<MappedOnly> B<true>|B<false>
+
+When set to B<true>, only metrics that can be mapped to to a I<type> will be
+collected, all other metrics will be ignored. Defaults to B<false>.
+
 =back
 
 =head2 Plugin C<exec>

@@ -1,6 +1,7 @@
 /**
  * collectd - src/ethstat.c
  * Copyright (C) 2011       Cyril Feraudet
+ * Copyright (C) 2012       Florian "octo" Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,7 @@
  *
  * Authors:
  *   Cyril Feraudet <cyril at feraudet.com>
+ *   Florian "octo" Forster <octo@collectd.org>
  **/
 
 #include "collectd.h"
@@ -25,6 +27,7 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_avltree.h"
+#include "utils_complain.h"
 
 #if HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
@@ -50,6 +53,8 @@ static char **interfaces = NULL;
 static size_t interfaces_num = 0;
 
 static c_avl_tree_t *value_map = NULL;
+
+static _Bool collect_mapped_only = 0;
 
 static int ethstat_add_interface (const oconfig_item_t *ci) /* {{{ */
 {
@@ -144,6 +149,8 @@ static int ethstat_config (oconfig_item_t *ci) /* {{{ */
       ethstat_add_interface (child);
     else if (strcasecmp ("Map", child->key) == 0)
       ethstat_add_map (child);
+    else if (strcasecmp ("MappedOnly", child->key) == 0)
+      (void) cf_util_get_boolean (child, &collect_mapped_only);
     else
       WARNING ("ethstat plugin: The config option \"%s\" is unknown.",
           child->key);
@@ -155,12 +162,24 @@ static int ethstat_config (oconfig_item_t *ci) /* {{{ */
 static void ethstat_submit_value (const char *device,
     const char *type_instance, derive_t value)
 {
+  static c_complain_t complain_no_map = C_COMPLAIN_INIT_STATIC;
+
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   value_map_t *map = NULL;
 
   if (value_map != NULL)
     c_avl_get (value_map, type_instance, (void *) &map);
+
+  /* If the "MappedOnly" option is specified, ignore unmapped values. */
+  if (collect_mapped_only && (map == NULL))
+  {
+    if (value_map == NULL)
+      c_complain (LOG_WARNING, &complain_no_map,
+          "ethstat plugin: The \"MappedOnly\" option has been set to true, "
+          "but no mapping has been configured. All values will be ignored!");
+    return;
+  }
 
   values[0].derive = value;
   vl.values = values;
