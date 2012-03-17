@@ -1580,10 +1580,9 @@ static int ps_read (void)
 	kvm_t *kd;
 	char errbuf[1024];
   	struct kinfo_proc *procs;          /* array of processes */
+	struct kinfo_proc *proc_ptr = NULL;
   	int count;                         /* returns number of processes */
 	int i;
-
-	struct kinfo_proc *proc_ptr = NULL;
 
 	procstat_t *ps_ptr;
 	procstat_entry_t pse;
@@ -1598,6 +1597,7 @@ static int ps_read (void)
 				errbuf);
 		return (0);
 	}
+
 	/* Get the list of processes. */
 	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count);
 	if (procs == NULL)
@@ -1696,10 +1696,10 @@ static int ps_read (void)
 			case SLOCK:	blocked++;	break;
 			case SZOMB:	zombies++;	break;
 		}
-
 	}
 
 	kvm_close(kd);
+
 	ps_submit_state ("running",  running);
 	ps_submit_state ("sleeping", sleeping);
 	ps_submit_state ("zombies",  zombies);
@@ -1707,6 +1707,7 @@ static int ps_read (void)
 	ps_submit_state ("blocked",  blocked);
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("wait",     wait);
+
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
