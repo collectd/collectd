@@ -378,6 +378,14 @@ collectd_LDADD += "-dlopen" exec.la
 collectd_DEPENDENCIES += exec.la
 endif
 
+if BUILD_PLUGIN_ETHSTAT
+pkglib_LTLIBRARIES += ethstat.la
+ethstat_la_SOURCES = ethstat.c
+ethstat_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" ethstat.la
+collectd_DEPENDENCIES += ethstat.la
+endif
+
 if BUILD_PLUGIN_FILECOUNT
 pkglib_LTLIBRARIES += filecount.la
 filecount_la_SOURCES = filecount.c
