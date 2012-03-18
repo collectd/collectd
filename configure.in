@@ -1234,6 +1234,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "x
 AC_CHECK_LIB(kvm, kvm_nlist, [with_kvm_nlist="yes"], [with_kvm_nlist="no"])
 if test "x$with_kvm_nlist" = "xyes"
 then
+	AC_CHECK_HEADERS(bsd/nlist.h nlist.h)
 	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
 		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
 	with_libkvm="yes"
