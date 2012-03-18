@@ -737,6 +737,26 @@ static void ps_submit_proc_list (procstat_t *ps)
 			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
 } /* void ps_submit_proc_list */
 
+#if KERNEL_LINUX || KERNEL_SOLARIS
+static void ps_submit_fork_rate (derive_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].derive = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
+	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
+	sstrncpy(vl.type, "fork_rate", sizeof (vl.type));
+	sstrncpy(vl.type_instance, "", sizeof (vl.type_instance));
+
+	plugin_dispatch_values(&vl);
+}
+#endif /* KERNEL_LINUX || KERNEL_SOLARIS*/
+
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
 static int ps_read_tasks (int pid)
@@ -1102,71 +1122,51 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	return buf;
 } /* char *ps_get_cmdline (...) */
 
-static unsigned long read_fork_rate ()
+static int read_fork_rate ()
 {
 	FILE *proc_stat;
-	char buf[1024];
-	unsigned long result = 0;
-	int numfields;
-	char *fields[3];
+	char buffer[1024];
+	value_t value;
+	_Bool value_valid = 0;
 
-	proc_stat = fopen("/proc/stat", "r");
-	if (proc_stat == NULL) {
+	proc_stat = fopen ("/proc/stat", "r");
+	if (proc_stat == NULL)
+	{
 		char errbuf[1024];
 		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return ULONG_MAX;
+		return (-1);
 	}
 
-	while (fgets (buf, sizeof(buf), proc_stat) != NULL)
+	while (fgets (buffer, sizeof (buffer), proc_stat) != NULL)
 	{
-		char *endptr;
+		int status;
+		char *fields[3];
+		int fields_num;
 
-		numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields != 2)
+		fields_num = strsplit (buffer, fields,
+				STATIC_ARRAY_SIZE (fields));
+		if (fields_num != 2)
 			continue;
 
 		if (strcmp ("processes", fields[0]) != 0)
 			continue;
 
-		errno = 0;
-		endptr = NULL;
-		result = strtoul(fields[1], &endptr, /* base = */ 10);
-		if ((endptr == fields[1]) || (errno != 0)) {
-			ERROR ("processes plugin: Cannot parse fork rate: %s",
-					fields[1]);
-			result = ULONG_MAX;
-			break;
-		}
+		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
+		if (status == 0)
+			value_valid = 1;
 
 		break;
 	}
-
 	fclose(proc_stat);
 
-	return result;
+	if (!value_valid)
+		return (-1);
+
+	ps_submit_fork_rate (value.derive);
+	return (0);
 }
 #endif /*KERNEL_LINUX */
-
-#if KERNEL_LINUX || KERNEL_SOLARIS
-static void ps_submit_fork_rate (unsigned long value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = (derive_t) value;
-
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
-	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy(vl.type, "fork_rate", sizeof (vl.type));
-	sstrncpy(vl.type_instance, "", sizeof (vl.type_instance));
-
-	plugin_dispatch_values(&vl);
-}
-#endif /* KERNEL_LINUX || KERNEL_SOLARIS*/
 
 #if KERNEL_SOLARIS
 static char *ps_get_cmdline(pid_t pid)
@@ -1197,7 +1197,6 @@ static char *ps_get_cmdline(pid_t pid)
  */
 static int ps_read_process(int pid, procstat_t *ps, char *state)
 {
-
 	char filename[64];
 	char f_psinfo[64], f_usage[64];
 	int i;
@@ -1309,25 +1308,35 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
  * are retrieved from kstat (module cpu, name sys, class misc, stat nthreads).
  * The result is the sum for all the threads created on each cpu
  */
-static unsigned long read_fork_rate()
+static int read_fork_rate()
 {
 	extern kstat_ctl_t *kc;
 	kstat_t *ksp_chain = NULL;
-	unsigned long result = 0;
+	derive_t result = 0;
 
 	if (kc == NULL)
-		return ULONG_MAX;
+		return (-1);
 
-	for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
-	     ksp_chain = ksp_chain->ks_next) {
-		if ((strncmp(ksp_chain->ks_module, "cpu", 3) == 0) &&
-		    (strncmp(ksp_chain->ks_name, "sys", 3) == 0) &&
-		    (strncmp(ksp_chain->ks_class, "misc", 4) == 0)) {
-			kstat_read(kc, ksp_chain, NULL);
-			result += get_kstat_value(ksp_chain, "nthreads");
+	for (ksp_chain = kc->kc_chain;
+			ksp_chain != NULL;
+			ksp_chain = ksp_chain->ks_next)
+	{
+		if ((strcmp (ksp_chain->ks_module, "cpu") == 0)
+				&& (strcmp (ksp_chain->ks_name, "sys") == 0)
+				&& (strcmp (ksp_chain->ks_class, "misc") == 0))
+		{
+			long long tmp;
+
+			kstat_read (kc, ksp_chain, NULL);
+
+			tmp = get_kstat_value(ksp_chain, "nthreads");
+			if (tmp != -1LL)
+				result += tmp;
 		}
 	}
-	return result;
+
+	ps_submit_fork_rate (result);
+	return (0);
 }
 #endif /* KERNEL_SOLARIS */
 
@@ -1655,8 +1664,6 @@ static int ps_read (void)
 	procstat_entry_t pse;
 	char       state;
 
-	unsigned long fork_rate;
-
 	procstat_t *ps_ptr;
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
@@ -1738,9 +1745,7 @@ static int ps_read (void)
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
-	fork_rate = read_fork_rate();
-	if (fork_rate != ULONG_MAX)
-		ps_submit_fork_rate(fork_rate);
+	read_fork_rate();
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
@@ -2024,7 +2029,6 @@ static int ps_read (void)
 	int daemon = 0;
 	int system = 0;
 	int orphan = 0;
-	unsigned long fork_rate;
 	struct dirent *ent;
 	DIR *proc;
 	int pid;
@@ -2103,26 +2107,21 @@ static int ps_read (void)
 		ps_list_add(ps.name, ps_get_cmdline(pid), &pse);
 
 	} // while()
-	closedir(proc);
+	closedir (proc);
 
-	ps_submit_state("running", running);
-	ps_submit_state("sleeping", sleeping);
-	ps_submit_state("zombies", zombies);
-	ps_submit_state("stopped", stopped);
-	ps_submit_state("detached", detached);
-	ps_submit_state("daemon", daemon);
-	ps_submit_state("system", system);
-	ps_submit_state("orphan", orphan);
+	ps_submit_state ("running",  running);
+	ps_submit_state ("sleeping", sleeping);
+	ps_submit_state ("zombies",  zombies);
+	ps_submit_state ("stopped",  stopped);
+	ps_submit_state ("detached", detached);
+	ps_submit_state ("daemon",   daemon);
+	ps_submit_state ("system",   system);
+	ps_submit_state ("orphan",   orphan);
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-		ps_submit_proc_list(ps_ptr);
+		ps_submit_proc_list (ps_ptr);
 
-
-	fork_rate = read_fork_rate();
-	if (fork_rate != ULONG_MAX) {
-		ps_submit_fork_rate(fork_rate);
-	}
-
+	read_fork_rate();
 #endif /* KERNEL_SOLARIS */
 
 	return (0);
