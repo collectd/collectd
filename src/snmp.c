@@ -98,7 +98,8 @@ typedef struct csnmp_table_values_s csnmp_table_values_t;
  */
 static data_definition_t *data_head = NULL;
 static int close_host_sessions = 0;
-
+static long snmp_session_timeout = -1;
+static int snmp_session_retries = -1;
 /*
  * Prototypes
  */
@@ -683,6 +684,32 @@ static int csnmp_config (oconfig_item_t *ci)
 	maxhostbcs = (int) child->values[0].value.number;
       }
     }
+    else if (strcasecmp ("SessionTimeout", child->key) == 0)
+    {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("snmp plugin: The `SessionTimeout' option needs "
+                 "exactly one integer(microseconds) argument.");
+        return (-1);
+      }
+      if (child->values[0].type == OCONFIG_TYPE_NUMBER)
+      {
+	snmp_session_timeout = (long) child->values[0].value.number;
+      }
+    }
+    else if (strcasecmp ("SessionRetries", child->key) == 0)
+    {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("snmp plugin: The `SessionRetries' option needs "
+                 "exactly one integer argument.");
+        return (-1);
+      }
+      if (child->values[0].type == OCONFIG_TYPE_NUMBER)
+      {
+	snmp_session_retries = (int) child->values[0].value.number;
+      }
+    }
     else
     {
       WARNING ("snmp plugin: Ignoring unknown config option `%s'.", child->key);
@@ -715,6 +742,13 @@ static void csnmp_host_open_session (host_definition_t *host)
   sess.community = (u_char *) host->community;
   sess.community_len = strlen (host->community);
   sess.version = (host->version == 1) ? SNMP_VERSION_1 : SNMP_VERSION_2c;
+  
+  if (snmp_session_timeout > 0)
+    sess.timeout = snmp_session_timeout;
+  
+  if (snmp_session_retries > 0)
+    sess.retries = snmp_session_retries;
+  
 
   /* snmp_sess_open will copy the `struct snmp_session *'. */
   host->sess_handle = snmp_sess_open (&sess);
