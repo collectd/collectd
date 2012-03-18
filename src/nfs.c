@@ -234,11 +234,11 @@ static void nfs_procedures_submit (const char *plugin_instance,
 	size_t i;
 
 	vl.values_len = 1;
-	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy(vl.plugin, "nfs", sizeof (vl.plugin));
-	sstrncpy(vl.plugin_instance, plugin_instance,
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "nfs", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
-	sstrncpy(vl.type, "nfs_procedure", sizeof (vl.type));
+	sstrncpy (vl.type, "nfs_procedure", sizeof (vl.type));
 
 	for (i = 0; i < values_num; i++)
 	{
