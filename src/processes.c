@@ -227,8 +227,8 @@ int getargs (struct procentry64 *processBuffer, int bufferLen, char *argsBuffer,
 #endif /* HAVE_PROCINFO_H */
 
 /* put name of process from config to list_head_g tree
-   list_head_g is a list of 'procstat_t' structs with
-   processes names we want to watch */
+ * list_head_g is a list of 'procstat_t' structs with
+ * processes names we want to watch */
 static void ps_list_register (const char *name, const char *regexp)
 {
 	procstat_t *new;
@@ -723,7 +723,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 	}
 
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
-                        "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+			"vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
 			"vmem_code = %lu; "
 			"vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
 			"cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
@@ -811,7 +811,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 			continue;
 
 		numfields = strsplit (buffer, fields,
-                                      STATIC_ARRAY_SIZE (fields));
+				STATIC_ARRAY_SIZE (fields));
 
 		if (numfields < 2)
 			continue;
@@ -1766,9 +1766,9 @@ static int ps_read (void)
 	char errbuf[1024];
 	char cmdline[ARG_MAX];
 	char *cmdline_ptr;
-  	struct kinfo_proc *procs;          /* array of processes */
-  	char **argv;
-  	int count;                         /* returns number of processes */
+	struct kinfo_proc *procs;          /* array of processes */
+	char **argv;
+	int count;                         /* returns number of processes */
 	int i;
 
 	procstat_t *ps_ptr;
@@ -1925,7 +1925,7 @@ static int ps_read (void)
 				if (procentry[i].pi_pid == 0)
 					cmdline = "swapper";
 				cargs = cmdline;
- 			}
+			}
 			else
 			{
 				if (getargs(&procentry[i], sizeof(struct procentry64), arglist, MAXARGLN) >= 0)
@@ -2021,10 +2021,10 @@ static int ps_read (void)
 
 #elif KERNEL_SOLARIS
 	/*
-         * The Solaris section adds a few more process states and removes some
-         * process states compared to linux. Most notably there is no "PAGING"
-         * and "BLOCKED" state for a process.  The rest is similar to the linux
-         * code.
+	 * The Solaris section adds a few more process states and removes some
+	 * process states compared to linux. Most notably there is no "PAGING"
+	 * and "BLOCKED" state for a process.  The rest is similar to the linux
+	 * code.
 	 */
 	int running = 0;
 	int sleeping = 0;
@@ -2034,13 +2034,11 @@ static int ps_read (void)
 	int daemon = 0;
 	int system = 0;
 	int orphan = 0;
+
 	struct dirent *ent;
 	DIR *proc;
-	int pid;
 
 	int status;
-	struct procstat ps;
-	procstat_entry_t pse;
 	procstat_t *ps_ptr;
 	char state;
 
@@ -2048,32 +2046,38 @@ static int ps_read (void)
 
 	ps_list_reset ();
 
-	proc = opendir("/proc");
-	if (proc == NULL) {
+	proc = opendir ("/proc");
+	if (proc == NULL)
 		return (-1);
-	}
 
-	while ((ent = readdir(proc)) != NULL) {
-		if (!isdigit(ent->d_name[0]))
+	while ((ent = readdir(proc)) != NULL)
+	{
+		int pid;
+		struct procstat ps;
+		procstat_entry_t pse;
+
+		if (!isdigit ((int) ent->d_name[0]))
 			continue;
 
-		if ((pid = atoi(ent->d_name)) < 1)
+		if ((pid = atoi (ent->d_name)) < 1)
 			continue;
 
-		status = ps_read_process(pid, &ps, &state);
-		if (status != 0) {
+		status = ps_read_process (pid, &ps, &state);
+		if (status != 0)
+		{
 			DEBUG("ps_read_process failed: %i", status);
 			continue;
 		}
+
 		pse.id = pid;
 		pse.age = 0;
 
-		pse.num_proc = ps.num_proc;
-		pse.num_lwp = ps.num_lwp;
-		pse.vmem_size = ps.vmem_size;
-		pse.vmem_rss = ps.vmem_rss;
-		pse.vmem_data = ps.vmem_data;
-		pse.vmem_code = ps.vmem_code;
+		pse.num_proc   = ps.num_proc;
+		pse.num_lwp    = ps.num_lwp;
+		pse.vmem_size  = ps.vmem_size;
+		pse.vmem_rss   = ps.vmem_rss;
+		pse.vmem_data  = ps.vmem_data;
+		pse.vmem_code  = ps.vmem_code;
 		pse.stack_size = ps.stack_size;
 
 		pse.vmem_minflt = 0;
@@ -2091,23 +2095,16 @@ static int ps_read (void)
 		pse.io_syscr = ps.io_syscr;
 		pse.io_syscw = ps.io_syscw;
 
-		switch (state) {
-		case 'R': running++;
-			break;
-		case 'S': sleeping++;
-			break;
-		case 'E': detached++;
-			break;
-		case 'Z': zombies++;
-			break;
-		case 'T': stopped++;
-			break;
-		case 'A': daemon++;
-			break;
-		case 'Y': system++;
-			break;
-		case 'O': orphan++;
-			break;
+		switch (state)
+		{
+			case 'R': running++;  break;
+			case 'S': sleeping++; break;
+			case 'E': detached++; break;
+			case 'Z': zombies++;  break;
+			case 'T': stopped++;  break;
+			case 'A': daemon++;   break;
+			case 'Y': system++;   break;
+			case 'O': orphan++;   break;
 		}
 
 
