@@ -2715,7 +2715,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		ERROR ("network plugin: Unable to append to the "
 				"buffer for some weird reason");
 	}
-	else if ((network_config_packet_size - send_buffer_fill) < 15)
+	else if (send_buffer_fill >= 1452 - 15)
 	{
 		flush_buffer ();
 	}
