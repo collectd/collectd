@@ -1169,25 +1169,30 @@ static int read_fork_rate ()
 #endif /*KERNEL_LINUX */
 
 #if KERNEL_SOLARIS
-static char *ps_get_cmdline(pid_t pid)
+static const char *ps_get_cmdline (pid_t pid, /* {{{ */
+		char *buffer, size_t buffer_size)
 {
-	char f_psinfo[64];
-	char cmdline[80];
-	char *buffer = NULL;
-	psinfo_t *myInfo;
+	char path[PATH_MAX];
+	psinfo_t info;
+	int status;
 
-	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%i/psinfo", pid);
+	snprintf(path, sizeof (path), "/proc/%i/psinfo", pid);
 
-	buffer = (char *)malloc(sizeof (psinfo_t));
-	memset(buffer, 0, sizeof(psinfo_t));
-	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
-	myInfo = (psinfo_t *) buffer;
+	status = read_file_contents (path, (void *) &info, sizeof (info));
+	if (status != ((int) buffer_size))
+	{
+		ERROR ("processes plugin: Unexpected return value "
+				"while reading \"%s\": "
+				"Returned %i but expected %zu.",
+				path, status, buffer_size);
+		return (NULL);
+	}
 
-	sstrncpy(cmdline, myInfo->pr_psargs, sizeof (myInfo->pr_psargs));
+	info.pr_psargs[sizeof (info.pr_psargs) - 1] = 0;
+	sstrncpy (buffer, info.pr_psargs, buffer_size);
 
-	sfree(myInfo);
-	return strtok(cmdline, " ");
-}
+	return (buffer);
+} /* }}} int ps_get_cmdline */
 
 /*
  * Reads process information on the Solaris OS. The information comes mainly from
@@ -2039,8 +2044,9 @@ static int ps_read (void)
 	procstat_t *ps_ptr;
 	char state;
 
-	ps_list_reset();
+	char cmdline[ARG_MAX];
 
+	ps_list_reset ();
 
 	proc = opendir("/proc");
 	if (proc == NULL) {
@@ -2104,9 +2110,12 @@ static int ps_read (void)
 			break;
 		}
 
-		ps_list_add(ps.name, ps_get_cmdline(pid), &pse);
 
-	} // while()
+		ps_list_add (ps.name,
+				ps_get_cmdline ((pid_t) pid,
+					cmdline, sizeof (cmdline)),
+				&pse);
+	} /* while(readdir) */
 	closedir (proc);
 
 	ps_submit_state ("running",  running);
