@@ -104,6 +104,7 @@
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
+#@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 #@BUILD_PLUGIN_OLSRD_TRUE@LoadPlugin olsrd
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire

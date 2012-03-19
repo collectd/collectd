@@ -18,6 +18,7 @@
  * Authors:
  *   Jason Pepas <cell at ices.utexas.edu>
  *   Florian octo Forster <octo at verplant.org>
+ *   Cosmin Ioiart <cioiart at gmail.com>
  **/
 
 #include "collectd.h"
@@ -71,101 +72,102 @@ Number      Procedures  Procedures
 19                      fsinfo
 20                      pathconf
 21                      commit
- */
+*/
 
-static const char *nfs2_procedures_names[] ={
-    "null",
-    "getattr",
-    "setattr",
-    "root",
-    "lookup",
-    "readlink",
-    "read",
-    "wrcache",
-    "write",
-    "create",
-    "remove",
-    "rename",
-    "link",
-    "symlink",
-    "mkdir",
-    "rmdir",
-    "readdir",
-    "fsstat",
-    NULL
+static const char *nfs2_procedures_names[] =
+{
+	"null",
+	"getattr",
+	"setattr",
+	"root",
+	"lookup",
+	"readlink",
+	"read",
+	"wrcache",
+	"write",
+	"create",
+	"remove",
+	"rename",
+	"link",
+	"symlink",
+	"mkdir",
+	"rmdir",
+	"readdir",
+	"fsstat"
 };
-static int nfs2_procedures_names_num = 18;
+static size_t nfs2_procedures_names_num = STATIC_ARRAY_SIZE (nfs2_procedures_names);
 
-static const char *nfs3_procedures_names[] ={
-    "null",
-    "getattr",
-    "setattr",
-    "lookup",
-    "access",
-    "readlink",
-    "read",
-    "write",
-    "create",
-    "mkdir",
-    "symlink",
-    "mknod",
-    "remove",
-    "rmdir",
-    "rename",
-    "link",
-    "readdir",
-    "readdirplus",
-    "fsstat",
-    "fsinfo",
-    "pathconf",
-    "commit",
-    NULL
+static const char *nfs3_procedures_names[] =
+{
+	"null",
+	"getattr",
+	"setattr",
+	"lookup",
+	"access",
+	"readlink",
+	"read",
+	"write",
+	"create",
+	"mkdir",
+	"symlink",
+	"mknod",
+	"remove",
+	"rmdir",
+	"rename",
+	"link",
+	"readdir",
+	"readdirplus",
+	"fsstat",
+	"fsinfo",
+	"pathconf",
+	"commit"
 };
-static int nfs3_procedures_names_num = 22;
+static size_t nfs3_procedures_names_num = STATIC_ARRAY_SIZE (nfs3_procedures_names);
+
 #if HAVE_LIBKSTAT
-static const char *nfs4_procedures_names[] = {
-    "null",
-    "compound",
-    "reserved",
-    "access",
-    "close",
-    "commit",
-    "create",
-    "delegpurge",
-    "delegreturn",
-    "getattr",
-    "getfh",
-    "link",
-    "lock",
-    "lockt",
-    "locku",
-    "lookup",
-    "lookupp",
-    "nverify",
-    "open",
-    "openattr",
-    "open_confirm",
-    "open_downgrade",
-    "putfh",
-    "putpubfh",
-    "putrootfh",
-    "read",
-    "readdir",
-    "readlink",
-    "remove",
-    "rename",
-    "renew",
-    "restorefh",
-    "savefh",
-    "secinfo",
-    "setattr",
-    "setclientid",
-    "setclientid_confirm",
-    "verify",
-    "write",
-    NULL
+static const char *nfs4_procedures_names[] =
+{
+	"null",
+	"compound",
+	"reserved",
+	"access",
+	"close",
+	"commit",
+	"create",
+	"delegpurge",
+	"delegreturn",
+	"getattr",
+	"getfh",
+	"link",
+	"lock",
+	"lockt",
+	"locku",
+	"lookup",
+	"lookupp",
+	"nverify",
+	"open",
+	"openattr",
+	"open_confirm",
+	"open_downgrade",
+	"putfh",
+	"putpubfh",
+	"putrootfh",
+	"read",
+	"readdir",
+	"readlink",
+	"remove",
+	"rename",
+	"renew",
+	"restorefh",
+	"savefh",
+	"secinfo",
+	"setattr",
+	"setclientid",
+	"setclientid_confirm",
+	"verify",
+	"write"
 };
-static int nfs4_procedures_names_num = 39;
+static size_t nfs4_procedures_names_num = STATIC_ARRAY_SIZE (nfs4_procedures_names);
 #endif
 
 #if HAVE_LIBKSTAT
@@ -180,345 +182,206 @@ static kstat_t *nfs4_ksp_server;
 
 /* Possibly TODO: NFSv4 statistics */
 
-#if HAVE_LIBKSTAT
+#if KERNEL_LINUX
+static int nfs_init (void)
+{
+	return (0);
+}
+/* #endif KERNEL_LINUX */
 
-static int nfs_init(void) {
+#elif HAVE_LIBKSTAT
+static int nfs_init (void)
+{
+	kstat_t *ksp_chain = NULL;
 
+	nfs2_ksp_client = NULL;
+	nfs2_ksp_server = NULL;
+	nfs3_ksp_client = NULL;
+	nfs3_ksp_server = NULL;
+	nfs4_ksp_client = NULL;
+	nfs4_ksp_server = NULL;
 
-    kstat_t *ksp_chain = NULL;
+	if (kc == NULL)
+		return (-1);
 
-    nfs2_ksp_client = NULL;
-    nfs2_ksp_server = NULL;
-    nfs3_ksp_client = NULL;
-    nfs3_ksp_server = NULL;
-    nfs4_ksp_client = NULL;
-    nfs4_ksp_server = NULL;
+	for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
+			ksp_chain = ksp_chain->ks_next)
+	{
+		if (strncmp (ksp_chain->ks_module, "nfs", 3) != 0)
+			continue;
+		else if (strncmp (ksp_chain->ks_name, "rfsproccnt_v2", 13) == 0)
+			nfs2_ksp_server = ksp_chain;
+		else if (strncmp (ksp_chain->ks_name, "rfsproccnt_v3", 13) == 0)
+			nfs3_ksp_server = ksp_chain;
+		else if (strncmp (ksp_chain->ks_name, "rfsproccnt_v4", 13) == 0)
+			nfs4_ksp_server = ksp_chain;
+		else if (strncmp (ksp_chain->ks_name, "rfsreqcnt_v2", 12) == 0)
+			nfs2_ksp_client = ksp_chain;
+		else if (strncmp (ksp_chain->ks_name, "rfsreqcnt_v3", 12) == 0)
+			nfs3_ksp_client = ksp_chain;
+		else if (strncmp (ksp_chain->ks_name, "rfsreqcnt_v4", 12) == 0)
+			nfs4_ksp_client = ksp_chain;
+	}
 
-    if (kc == NULL)
-        return (-1);
-
-    for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
-            ksp_chain = ksp_chain->ks_next) {
-        if (strncmp(ksp_chain->ks_module, "nfs", 3) != 0) 
-            continue;
-        else if (strncmp(ksp_chain->ks_name, "rfsproccnt_v2", 13) == 0)
-            nfs2_ksp_server = ksp_chain;
-        else if (strncmp(ksp_chain->ks_name, "rfsproccnt_v3", 13) == 0)
-            nfs3_ksp_server = ksp_chain;
-        else if (strncmp(ksp_chain->ks_name, "rfsproccnt_v4", 13) == 0)
-            nfs4_ksp_server = ksp_chain;
-        else if (strncmp(ksp_chain->ks_name, "rfsreqcnt_v2", 12) == 0)
-            nfs2_ksp_client = ksp_chain;
-        else if (strncmp(ksp_chain->ks_name, "rfsreqcnt_v3", 12) == 0)
-            nfs3_ksp_client = ksp_chain;
-        else if (strncmp(ksp_chain->ks_name, "rfsreqcnt_v4", 12) == 0)
-            nfs4_ksp_client = ksp_chain;
-    }
-
-    return (0);
+	return (0);
 } /* int nfs_init */
 #endif
 
-#define BUFSIZE 1024
-#if HAVE_LIBKSTAT
+static void nfs_procedures_submit (const char *plugin_instance,
+		const char **type_instances,
+		value_t *values, size_t values_num)
+{
+	value_list_t vl = VALUE_LIST_INIT;
+	size_t i;
 
-static void nfs2_procedures_submit(unsigned long long *val,
-        const char *plugin_instance, char *nfs_ver, int len) {
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
-    char pl_instance[30];
-    int i;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "nfs", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, plugin_instance,
+			sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "nfs_procedure", sizeof (vl.type));
 
-    vl.values = values;
-    vl.values_len = 1;
-    sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "nfs", sizeof (vl.plugin));
-    sstrncpy(pl_instance, nfs_ver, strlen(nfs_ver) + 1);
-    strcat(pl_instance, plugin_instance);
-    sstrncpy(vl.plugin_instance, pl_instance,
-            sizeof (vl.plugin_instance));
-    sstrncpy(vl.type, "nfs_procedure", sizeof (vl.type));
-
-
-    for (i = 0; i < len; i++) {
-        values[0].derive = val[i];
-        if (strcmp(nfs_ver, "nfs2") == 0)
-            sstrncpy(vl.type_instance, nfs2_procedures_names[i],
-                sizeof (vl.type_instance));
-        else if (strcmp(nfs_ver, "nfs3") == 0)
-            sstrncpy(vl.type_instance, nfs3_procedures_names[i],
-                sizeof (vl.type_instance));
-        else if (strcmp(nfs_ver, "nfs4") == 0) {
-            sstrncpy(vl.type_instance, nfs4_procedures_names[i],
-                    sizeof (vl.type_instance));
-        }
-
-        DEBUG("%s-%s/nfs_procedure-%s = %lld",
-                vl.plugin, vl.plugin_instance,
-                vl.type_instance, val[i]);
-        plugin_dispatch_values(&vl);
-    }
-}
-#endif
-
-static void nfs_procedures_submit(const char *plugin_instance,
-        unsigned long long *val, const char **names, int len) {
-
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
-    int i;
-
-    vl.values = values;
-    vl.values_len = 1;
-    sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "nfs", sizeof (vl.plugin));
-    sstrncpy(vl.plugin_instance, plugin_instance,
-            sizeof (vl.plugin_instance));
-    sstrncpy(vl.type, "nfs_procedure", sizeof (vl.type));
-
-    for (i = 0; (i < len); i++) {
-        values[0].derive = val[i];
-        sstrncpy(vl.type_instance, names[i],
-                sizeof (vl.type_instance));
-        DEBUG("%s-%s/nfs_procedure-%s = %llu",
-                vl.plugin, vl.plugin_instance,
-                vl.type_instance, val[i]);
-        plugin_dispatch_values(&vl);
-    }
+	for (i = 0; i < values_num; i++)
+	{
+		vl.values = values + i;
+		sstrncpy (vl.type_instance, type_instances[i],
+				sizeof (vl.type_instance));
+		plugin_dispatch_values_secure (&vl);
+	}
 } /* void nfs_procedures_submit */
 
-static void nfs_read_stats_file(FILE *fh, char *inst) {
-    char buffer[BUFSIZE];
+#if KERNEL_LINUX
+static int nfs_submit_fields (int nfs_version, const char *instance,
+		char **fields, size_t fields_num,
+		const char **proc_names, size_t proc_names_num)
+{
+	char plugin_instance[DATA_MAX_NAME_LEN];
+	value_t values[fields_num];
+	size_t i;
 
-    char plugin_instance[DATA_MAX_NAME_LEN];
+	if (fields_num != proc_names_num)
+	{
+		WARNING ("nfs plugin: Wrong number of fields for "
+				"NFSv%i %s statistics. Expected %zu, got %zu.",
+				nfs_version, instance,
+				proc_names_num, fields_num);
+		return (EINVAL);
+	}
 
-    char *fields[48];
-    int numfields = 0;
+	ssnprintf (plugin_instance, sizeof (plugin_instance), "v%i%s",
+			nfs_version, instance);
 
-    if (fh == NULL)
-        return;
+	for (i = 0; i < proc_names_num; i++)
+		(void) parse_value (fields[i], &values[i], DS_TYPE_DERIVE);
 
-    while (fgets(buffer, BUFSIZE, fh) != NULL) {
-        numfields = strsplit(buffer, fields, 48);
+	nfs_procedures_submit (plugin_instance, proc_names, values,
+			proc_names_num);
 
-        if (((numfields - 2) != nfs2_procedures_names_num)
-                && ((numfields - 2)
-                != nfs3_procedures_names_num))
-            continue;
+	return (0);
+}
 
-        if (strcmp(fields[0], "proc2") == 0) {
-            int i;
-            unsigned long long *values;
+static void nfs_read_linux (FILE *fh, char *inst)
+{
+	char buffer[1024];
 
-            if ((numfields - 2) != nfs2_procedures_names_num) {
-                WARNING("nfs plugin: Wrong "
-                        "number of fields (= %i) "
-                        "for NFSv2 statistics.",
-                        numfields - 2);
-                continue;
-            }
+	char *fields[48];
+	int fields_num = 0;
 
-            ssnprintf(plugin_instance, sizeof (plugin_instance),
-                    "v2%s", inst);
+	if (fh == NULL)
+		return;
 
-            values = (unsigned long long *) malloc(nfs2_procedures_names_num * sizeof (unsigned long long));
-            if (values == NULL) {
-                char errbuf[1024];
-                ERROR("nfs plugin: malloc "
-                        "failed: %s",
-                        sstrerror(errno, errbuf, sizeof (errbuf)));
-                continue;
-            }
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
+	{
+		fields_num = strsplit (buffer,
+				fields, STATIC_ARRAY_SIZE (fields));
 
-            for (i = 0; i < nfs2_procedures_names_num; i++)
-                values[i] = atoll(fields[i + 2]);
+		if (fields_num < 3)
+			continue;
 
-            nfs_procedures_submit(plugin_instance, values,
-                    nfs2_procedures_names,
-                    nfs2_procedures_names_num);
-
-            free(values);
-        } else if (strncmp(fields[0], "proc3", 5) == 0) {
-            int i;
-            unsigned long long *values;
-
-            if ((numfields - 2) != nfs3_procedures_names_num) {
-                WARNING("nfs plugin: Wrong "
-                        "number of fields (= %i) "
-                        "for NFSv3 statistics.",
-                        numfields - 2);
-                continue;
-            }
-
-            ssnprintf(plugin_instance, sizeof (plugin_instance),
-                    "v3%s", inst);
-
-            values = (unsigned long long *) malloc(nfs3_procedures_names_num * sizeof (unsigned long long));
-            if (values == NULL) {
-                char errbuf[1024];
-                ERROR("nfs plugin: malloc "
-                        "failed: %s",
-                        sstrerror(errno, errbuf, sizeof (errbuf)));
-                continue;
-            }
-
-            for (i = 0; i < nfs3_procedures_names_num; i++)
-                values[i] = atoll(fields[i + 2]);
-
-            nfs_procedures_submit(plugin_instance, values,
-                    nfs3_procedures_names,
-                    nfs3_procedures_names_num);
-
-            free(values);
-        }
-    } /* while (fgets (buffer, BUFSIZE, fh) != NULL) */
-} /* void nfs_read_stats_file */
-#undef BUFSIZE
+		if (strcmp (fields[0], "proc2") == 0)
+		{
+			nfs_submit_fields (/* version = */ 2, inst,
+					fields + 2, (size_t) (fields_num - 2),
+					nfs2_procedures_names,
+					nfs2_procedures_names_num);
+		}
+		else if (strncmp (fields[0], "proc3", 5) == 0)
+		{
+			nfs_submit_fields (/* version = */ 3, inst,
+					fields + 2, (size_t) (fields_num - 2),
+					nfs3_procedures_names,
+					nfs3_procedures_names_num);
+		}
+	} /* while (fgets) */
+} /* void nfs_read_linux */
+#endif /* KERNEL_LINUX */
 
 #if HAVE_LIBKSTAT
+static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst,
+		const char **proc_names, size_t proc_names_num)
+{
+	char plugin_instance[DATA_MAX_NAME_LEN];
+	value_t values[proc_names_num];
+	size_t i;
 
-static void nfs2_read_kstat(kstat_t *ksp, char *inst) {
+	if (ksp == NULL)
+		return (EINVAL);
 
-    unsigned long long values[nfs2_procedures_names_num];
+	ssnprintf (plugin_instance, sizeof (plugin_instance), "v%i%s",
+			nfs_version, inst);
 
-    kstat_read(kc, ksp, NULL);
-    values[0] = get_kstat_value(ksp, "null");
-    values[1] = get_kstat_value(ksp, "getattr");
-    values[2] = get_kstat_value(ksp, "setattr");
-    values[3] = get_kstat_value(ksp, "root");
-    values[4] = get_kstat_value(ksp, "lookup");
-    values[5] = get_kstat_value(ksp, "readlink");
-    values[6] = get_kstat_value(ksp, "read");
-    values[7] = get_kstat_value(ksp, "wrcache");
-    values[8] = get_kstat_value(ksp, "write");
-    values[9] = get_kstat_value(ksp, "create");
-    values[10] = get_kstat_value(ksp, "remove");
-    values[11] = get_kstat_value(ksp, "rename");
-    values[12] = get_kstat_value(ksp, "link");
-    values[13] = get_kstat_value(ksp, "symlink");
-    values[14] = get_kstat_value(ksp, "mkdir");
-    values[15] = get_kstat_value(ksp, "rmdir");
-    values[16] = get_kstat_value(ksp, "readdir");
-    values[17] = get_kstat_value(ksp, "statfs");
+	kstat_read(kc, ksp, NULL);
+	for (i = 0; i < proc_names_num; i++)
+		values[i].counter = (derive_t) get_kstat_value (ksp, proc_names[i]);
 
-    nfs2_procedures_submit(values, inst, "nfs2", nfs2_procedures_names_num);
-}
-
-static void nfs3_read_kstat(kstat_t *ksp, char *inst) {
-    unsigned long long values[nfs3_procedures_names_num];
-
-
-    kstat_read(kc, ksp, NULL);
-    values[0] = get_kstat_value(ksp, "null");
-    values[1] = get_kstat_value(ksp, "getattr");
-    values[2] = get_kstat_value(ksp, "setattr");
-    values[3] = get_kstat_value(ksp, "lookup");
-    values[4] = get_kstat_value(ksp, "access");
-    values[5] = get_kstat_value(ksp, "readlink");
-    values[6] = get_kstat_value(ksp, "read");
-    values[7] = get_kstat_value(ksp, "write");
-    values[8] = get_kstat_value(ksp, "create");
-    values[9] = get_kstat_value(ksp, "mkdir");
-    values[10] = get_kstat_value(ksp, "symlink");
-    values[11] = get_kstat_value(ksp, "mknod");
-    values[12] = get_kstat_value(ksp, "remove");
-    values[13] = get_kstat_value(ksp, "rmdir");
-    values[14] = get_kstat_value(ksp, "rename");
-    values[15] = get_kstat_value(ksp, "link");
-    values[16] = get_kstat_value(ksp, "readdir");
-    values[17] = get_kstat_value(ksp, "readdirplus");
-    values[18] = get_kstat_value(ksp, "fsstat");
-    values[19] = get_kstat_value(ksp, "fsinfo");
-    values[20] = get_kstat_value(ksp, "pathconf");
-    values[21] = get_kstat_value(ksp, "commit");
-
-    nfs2_procedures_submit(values, inst, "nfs3", nfs3_procedures_names_num);
-
-}
-
-static void nfs4_read_kstat(kstat_t *ksp, char *inst) {
-    unsigned long long values[nfs4_procedures_names_num];
-
-    kstat_read(kc, ksp, NULL);
-
-    values[0] = get_kstat_value(ksp, "null");
-    values[1] = get_kstat_value(ksp, "compound");
-    values[2] = get_kstat_value(ksp, "reserved");
-    values[3] = get_kstat_value(ksp, "access");
-    values[4] = get_kstat_value(ksp, "close");
-    values[5] = get_kstat_value(ksp, "commit");
-    values[6] = get_kstat_value(ksp, "create");
-    values[7] = get_kstat_value(ksp, "delegpurge");
-    values[8] = get_kstat_value(ksp, "delegreturn");
-    values[9] = get_kstat_value(ksp, "getattr");
-    values[10] = get_kstat_value(ksp, "getfh");
-    values[11] = get_kstat_value(ksp, "link");
-    values[12] = get_kstat_value(ksp, "lock");
-    values[13] = get_kstat_value(ksp, "lockt");
-    values[14] = get_kstat_value(ksp, "locku");
-    values[15] = get_kstat_value(ksp, "lookup");
-    values[16] = get_kstat_value(ksp, "lookupp");
-    values[17] = get_kstat_value(ksp, "nverify");
-    values[18] = get_kstat_value(ksp, "open");
-    values[19] = get_kstat_value(ksp, "openattr");
-    values[20] = get_kstat_value(ksp, "open_confirm");
-    values[21] = get_kstat_value(ksp, "open_downgrade");
-    values[22] = get_kstat_value(ksp, "putfh");
-    values[23] = get_kstat_value(ksp, "putpubfh");
-    values[24] = get_kstat_value(ksp, "putrootfh");
-    values[25] = get_kstat_value(ksp, "read");
-    values[26] = get_kstat_value(ksp, "readdir");
-    values[27] = get_kstat_value(ksp, "readlink");
-    values[28] = get_kstat_value(ksp, "remove");
-    values[29] = get_kstat_value(ksp, "rename");
-    values[30] = get_kstat_value(ksp, "renew");
-    values[31] = get_kstat_value(ksp, "restorefh");
-    values[32] = get_kstat_value(ksp, "savefh");
-    values[33] = get_kstat_value(ksp, "secinfo");
-    values[34] = get_kstat_value(ksp, "setattr");
-    values[35] = get_kstat_value(ksp, "setclientid");
-    values[36] = get_kstat_value(ksp, "setclientid_confirm");
-    values[37] = get_kstat_value(ksp, "verify");
-    values[38] = get_kstat_value(ksp, "write");
-
-    nfs2_procedures_submit(values, inst, "nfs4", nfs4_procedures_names_num);
-
+	nfs_procedures_submit (plugin_instance, proc_names, values,
+			proc_names_num);
 }
 #endif
 
-static int nfs_read(void) {
-    FILE *fh;
+#if KERNEL_LINUX
+static int nfs_read (void)
+{
+	FILE *fh;
 
-    if ((fh = fopen("/proc/net/rpc/nfs", "r")) != NULL) {
-        nfs_read_stats_file(fh, "client");
-        fclose(fh);
-    }
+	if ((fh = fopen ("/proc/net/rpc/nfs", "r")) != NULL)
+	{
+		nfs_read_linux (fh, "client");
+		fclose (fh);
+	}
 
-    if ((fh = fopen("/proc/net/rpc/nfsd", "r")) != NULL) {
-        nfs_read_stats_file(fh, "server");
-        fclose(fh);
-    }
+	if ((fh = fopen ("/proc/net/rpc/nfsd", "r")) != NULL)
+	{
+		nfs_read_linux (fh, "server");
+		fclose (fh);
+	}
 
-#if HAVE_LIBKSTAT                    
-    nfs_init();
-    if (nfs2_ksp_client != NULL)
-        nfs2_read_kstat(nfs2_ksp_client, "client");
-    if (nfs2_ksp_server != NULL)
-        nfs2_read_kstat(nfs2_ksp_server, "server");
-    if (nfs3_ksp_client != NULL)
-        nfs3_read_kstat(nfs3_ksp_client, "client");
-    if (nfs3_ksp_server != NULL)
-        nfs3_read_kstat(nfs3_ksp_server, "server");
-    if (nfs4_ksp_client != NULL)
-        nfs4_read_kstat(nfs4_ksp_client, "client");
-    if (nfs4_ksp_server != NULL)
-        nfs4_read_kstat(nfs4_ksp_server, "server");
-    //nfs_kstat(nfs3_ksp_client);
-#endif /* defined(HAVE_LIBKSTAT) */
-
-    return (0);
+	return (0);
 }
+/* #endif KERNEL_LINUX */
 
-void module_register(void) {
-    plugin_register_read("nfs", nfs_read);
+#elif HAVE_LIBKSTAT
+static int nfs_read (void)
+{
+	nfs_read_kstat (nfs2_ksp_client, /* version = */ 2, "client",
+			nfs2_procedures_names, nfs2_procedures_names_num);
+	nfs_read_kstat (nfs2_ksp_server, /* version = */ 2, "server",
+			nfs2_procedures_names, nfs2_procedures_names_num);
+	nfs_read_kstat (nfs3_ksp_client, /* version = */ 3, "client",
+			nfs3_procedures_names, nfs3_procedures_names_num);
+	nfs_read_kstat (nfs3_ksp_server, /* version = */ 3, "server",
+			nfs3_procedures_names, nfs3_procedures_names_num);
+	nfs_read_kstat (nfs4_ksp_client, /* version = */ 4, "client",
+			nfs4_procedures_names, nfs4_procedures_names_num);
+	nfs_read_kstat (nfs4_ksp_server, /* version = */ 4, "server",
+			nfs4_procedures_names, nfs4_procedures_names_num);
+
+	return (0);
+}
+#endif /* HAVE_LIBKSTAT */
+
+void module_register (void)
+{
+	plugin_register_init ("nfs", nfs_init);
+	plugin_register_read ("nfs", nfs_read);
 } /* void module_register */
