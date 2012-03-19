@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, m4_esyscmd(./version-gen.sh))
+AC_INIT(collectd, [m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
@@ -4558,6 +4558,7 @@ fi
 # Solaris
 if test "x$with_kstat" = "xyes"
 then
+	plugin_nfs="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
 fi
