@@ -1342,6 +1342,7 @@ if test "x$ac_system" = "xSolaris"
 then
 	with_kstat="yes"
 	with_devinfo="yes"
+        with_processes="yes"
 else
 	with_kstat="no (Solaris only)"
 	with_devinfo="no (Solaris only)"
