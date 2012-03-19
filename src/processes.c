@@ -471,13 +471,13 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 /* remove old entries from instances of processes in list_head_g */
 static void ps_list_reset (void)
-{
+{        
 	procstat_t *ps;
 	procstat_entry_t *pse;
 	procstat_entry_t *pse_prev;
-
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
-	{
+        
+ 	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	{        
 		ps->num_proc    = 0;
 		ps->num_lwp     = 0;
 		ps->vmem_size   = 0;
@@ -525,7 +525,7 @@ static void ps_list_reset (void)
 
 /* put all pre-defined 'Process' names from config to list_head_g tree */
 static int ps_config (oconfig_item_t *ci)
-{
+{  
 	int i;
 
 	for (i = 0; i < ci->children_num; ++i) {
@@ -1178,20 +1178,25 @@ static const char *ps_get_cmdline (pid_t pid, /* {{{ */
 
 	snprintf(path, sizeof (path), "/proc/%i/psinfo", pid);
 
-	status = read_file_contents (path, (void *) &info, sizeof (info));
-	if (status != ((int) buffer_size))
+        /*
+         * Under Solaris, the file is binary. Therefore all the psinfo
+         * files will be the same size. The actual process name and its arguments 
+         * is stored in pr_psargs, which has a maximum size of 80.
+         */
+	status = read_file_contents (path, (void *) &info, sizeof (info));         
+	if (status != sizeof(info))
 	{
 		ERROR ("processes plugin: Unexpected return value "
 				"while reading \"%s\": "
 				"Returned %i but expected %zu.",
-				path, status, buffer_size);
+				path, status, sizeof(info));
 		return (NULL);
 	}
-
+        
 	info.pr_psargs[sizeof (info.pr_psargs) - 1] = 0;
 	sstrncpy (buffer, info.pr_psargs, buffer_size);
-
-	return (buffer);
+        
+	return (strtok(buffer, " "));
 } /* }}} int ps_get_cmdline */
 
 /*
@@ -1338,7 +1343,7 @@ static int read_fork_rate()
 			if (tmp != -1LL)
 				result += tmp;
 		}
-	}
+	}        
 
 	ps_submit_fork_rate (result);
 	return (0);
@@ -2042,11 +2047,15 @@ static int ps_read (void)
 	procstat_t *ps_ptr;
 	char state;
 
-	char cmdline[ARG_MAX];
-
+        /*
+         * The Solaris psinfo command line has a fixed length, fixed by the
+         * PRARGSZ in procfs.h. 
+         */       
+	char cmdline[PRARGSZ]; 
+        
 	ps_list_reset ();
 
-	proc = opendir ("/proc");
+	proc = opendir ("/proc");       
 	if (proc == NULL)
 		return (-1);
 
@@ -2061,7 +2070,7 @@ static int ps_read (void)
 
 		if ((pid = atoi (ent->d_name)) < 1)
 			continue;
-
+                
 		status = ps_read_process (pid, &ps, &state);
 		if (status != 0)
 		{
@@ -2107,14 +2116,14 @@ static int ps_read (void)
 			case 'O': orphan++;   break;
 		}
 
-
+               
 		ps_list_add (ps.name,
 				ps_get_cmdline ((pid_t) pid,
 					cmdline, sizeof (cmdline)),
 				&pse);
 	} /* while(readdir) */
 	closedir (proc);
-
+        
 	ps_submit_state ("running",  running);
 	ps_submit_state ("sleeping", sleeping);
 	ps_submit_state ("zombies",  zombies);
@@ -2123,10 +2132,10 @@ static int ps_read (void)
 	ps_submit_state ("daemon",   daemon);
 	ps_submit_state ("system",   system);
 	ps_submit_state ("orphan",   orphan);
-
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	
+        for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
-
+        
 	read_fork_rate();
 #endif /* KERNEL_SOLARIS */
 
