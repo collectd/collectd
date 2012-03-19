@@ -41,6 +41,7 @@ static rrdcreate_config_t rrdcreate_config =
   /* heartbeat = */ 0,
   /* rrarows = */ 1200,
   /* xff = */ 0.1,
+  /* disable_min = */ 0, 
 
   /* timespans = */ NULL,
   /* timespans_num = */ 0,
@@ -326,6 +327,13 @@ static int rc_config (oconfig_item_t *ci)
 		}
 		rrdcreate_config.xff = tmp;
 	}
+    else if (strcasecmp ("DisableMINRRA", key) == 0)
+    {
+      if (IS_FALSE (value))
+        rrdcreate_config.disable_min = 0;
+      else
+        rrdcreate_config.disable_min = 1;
+    }
     else
     {
       WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);

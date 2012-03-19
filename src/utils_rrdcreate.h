@@ -32,6 +32,7 @@ struct rrdcreate_config_s
   int    heartbeat;
   int    rrarows;
   double xff;
+  int    disable_min;
 
   int *timespans;
   size_t timespans_num;
