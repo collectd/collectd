@@ -95,7 +95,7 @@ memcached_octets	rx:DERIVE:0:U, tx:DERIVE:0:U
 memcached_ops		value:DERIVE:0:U
 memory			value:GAUGE:0:281474976710656
 multimeter		value:GAUGE:U:U
-mutex                   mutex_miss:COUNTER:0:U
+mutex_operations	value:DERIVE:0:U
 mysql_commands		value:DERIVE:0:U
 mysql_handler		value:DERIVE:0:U
 mysql_locks		value:DERIVE:0:U

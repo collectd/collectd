@@ -75,15 +75,6 @@ static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t mi
 	za_submit_gauge ("cache_ratio", type_instance, ratio);
 }
 
-static void za_submit_mutex_counts (derive_t mutex_miss)
-{
-	value_t values[1];
-
-	values[0].counter = mutex_miss;
-
-	za_submit ("mutex", "counts", values, STATIC_ARRAY_SIZE(values));
-}
-
 static void za_submit_deleted_counts (derive_t deleted)
 {
 	value_t values[1];
@@ -134,7 +125,8 @@ static int za_read (void)
 	za_submit_gauge ("cache_size", "arc", arc_size);
 	za_submit_gauge ("cache_size", "L2", l2_size);
 
-	mutex_miss               = get_kstat_value(ksp, "mutex_miss"); 
+	mutex_miss = get_kstat_value (ksp, "mutex_miss");
+	za_submit_derive ("mutex_operation", "miss", mutex_miss);
 
 	deleted                  = get_kstat_value(ksp, "deleted");
 	
@@ -183,8 +175,6 @@ static int za_read (void)
 	l2_io[1].derive = get_kstat_value(ksp, "l2_write_bytes");
 
 	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
-
-	za_submit_mutex_counts (mutex_miss);
 
 	za_submit_deleted_counts (deleted);
 
