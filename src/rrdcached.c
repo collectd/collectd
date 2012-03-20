@@ -162,26 +162,6 @@ static int value_list_to_filename (char *buffer, int buffer_len,
   return (0);
 } /* int value_list_to_filename */
 
-static const char *config_get_string (oconfig_item_t *ci)
-{
-  if ((ci->children_num != 0) || (ci->values_num != 1)
-      || ((ci->values[0].type != OCONFIG_TYPE_STRING)
-        && (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)))
-  {
-    ERROR ("rrdcached plugin: %s expects a single string argument.",
-        ci->key);
-    return (NULL);
-  }
-
-  if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN) {
-    if (ci->values[0].value.boolean)
-      return "true";
-    else
-      return "false";
-  }
-  return (ci->values[0].value.string);
-} /* const char *config_get_string */
-
 static int rrd_compare_numeric (const void *a_ptr, const void *b_ptr)
 {
         int a = *((int *) a_ptr);
@@ -200,17 +180,19 @@ static int rc_config (oconfig_item_t *ci)
   int i;
 
   for (i = 0; i < ci->children_num; ++i) {
-    const char *key = ci->children[i].key;
-    const char *value = config_get_string (ci->children + i);
+    
+    oconfig_item_t *child = ci->children + i;
 
-    if (value == NULL) /* config_get_strings prints error message */
-      continue;
-
-    if (strcasecmp ("DataDir", key) == 0)
+    if (strcasecmp ("DataDir", child->key) == 0)
     {
       if (datadir != NULL)
         free (datadir);
-      datadir = strdup (value);
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING))
+      {
+          WARNING ("rrdcached plugin: `DataDir' needs exactly one string argument.");
+          return (-1);
+      }
+      datadir = strdup (child->values[0].value.string);
       if (datadir != NULL)
       {
         int len = strlen (datadir);
@@ -226,97 +208,125 @@ static int rc_config (oconfig_item_t *ci)
         }
       }
     }
-    else if (strcasecmp ("DaemonAddress", key) == 0)
+    else if (strcasecmp ("DaemonAddress", child->key) == 0)
     {
       sfree (daemon_address);
-      daemon_address = strdup (value);
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("rrdcached plugin: `DaemonAddress' needs exactly one string argument.");
+        return (-1);
+      }
+      daemon_address = strdup (child->values[0].value.string);
       if (daemon_address == NULL)
       {
         ERROR ("rrdcached plugin: strdup failed.");
         continue;
       }
     }
-    else if (strcasecmp ("CreateFiles", key) == 0)
+    else if (strcasecmp ("CreateFiles", child->key) == 0)
     {
-      if (IS_FALSE (value))
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_BOOLEAN))
+      {
+        WARNING ("rrdcached plugin: `CreateFiles' needs exactly one boolean argument.");
+        return (-1);
+      }
+      if (IS_FALSE (child->values[0].value.string))
         config_create_files = 0;
       else
         config_create_files = 1;
     }
-    else if (strcasecmp ("CollectStatistics", key) == 0)
+    else if (strcasecmp ("CollectStatistics", child->key) == 0)
     {
-      if (IS_FALSE (value))
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_BOOLEAN))
+      {
+        WARNING ("rrdcached plugin: `CreateFiles' needs exactly one boolean argument.");
+        return (-1);
+      }
+      if (IS_FALSE (child->values[0].value.string))
         config_collect_stats = 0;
       else
         config_collect_stats = 1;
     }
-    else if (strcasecmp ("StepSize", key) == 0)
+    else if (strcasecmp ("StepSize", child->key) == 0)
 	{
-		unsigned long temp = strtoul (value, NULL, 0);
-		if (temp > 0)
-			rrdcreate_config.stepsize = temp;
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("rrdcached plugin: `StepSize' needs exactly one numeber argument.");
+        return (-1);
+      }
+	  unsigned long temp = (long) child->values[0].value.number;
+	  if (temp > 0)
+		rrdcreate_config.stepsize = temp;
 	}
-	else if (strcasecmp ("HeartBeat", key) == 0)
+	else if (strcasecmp ("HeartBeat", child->key) == 0)
 	{
-		int temp = atoi (value);
-		if (temp > 0)
-			rrdcreate_config.heartbeat = temp;
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("rrdcached plugin: `HeartBeat' needs exactly one numeber argument.");
+        return (-1);
+      }
+	  int temp = (int) child->values[0].value.number;
+	  if (temp > 0)
+	    rrdcreate_config.heartbeat = temp;
 	}
-	else if (strcasecmp ("RRARows", key) == 0)
+	else if (strcasecmp ("RRARows", child->key) == 0)
 	{
-		int tmp = atoi (value);
-		if (tmp <= 0)
-		{
-			fprintf (stderr, "rrdtool: `RRARows' must "
-					"be greater than 0.\n");
-			ERROR ("rrdtool: `RRARows' must "
-					"be greater than 0.\n");
-			return (1);
-		}
-		rrdcreate_config.rrarows = tmp;
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("rrdcached plugin: `HeartBeat' needs exactly one numeber argument.");
+        return (-1);
+      }
+	  int tmp = (int) child->values[0].value.number;
+	  if (tmp <= 0)
+	  {
+		fprintf (stderr, "rrdtool: `RRARows' must "
+				"be greater than 0.\n");
+		ERROR ("rrdtool: `RRARows' must "
+				"be greater than 0.\n");
+		return (1);
+	  }
+	  rrdcreate_config.rrarows = tmp;
 	}
-	else if (strcasecmp ("RRATimespan", key) == 0)
+	else if (strcasecmp ("RRATimespan", child->key) == 0)
 	{
-		char *saveptr = NULL;
-		char *dummy;
-		char *ptr;
-		char *value_copy;
-		int *tmp_alloc;
+        if ((child->values_num < 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+        {
+          WARNING ("rrdcached plugin: `RRATimespan' needs list of numeber arguments.");
+          return (-1);
+        }
+        
+        int *tmp_alloc;
 
-		value_copy = strdup (value);
-		if (value_copy == NULL)
-			return (1);
-
-		dummy = value_copy;
-		while ((ptr = strtok_r (dummy, ", \t", &saveptr)) != NULL)
-		{
-			dummy = NULL;
-			
+        int j;
+        for (j = 0; j < child->values_num; j++)
+        {
 			tmp_alloc = realloc (rrdcreate_config.timespans,
 					sizeof (int) * (rrdcreate_config.timespans_num + 1));
 			if (tmp_alloc == NULL)
 			{
 				fprintf (stderr, "rrdtool: realloc failed.\n");
 				ERROR ("rrdtool: realloc failed.\n");
-				free (value_copy);
 				return (1);
 			}
 			rrdcreate_config.timespans = tmp_alloc;
-			rrdcreate_config.timespans[rrdcreate_config.timespans_num] = atoi (ptr);
+			rrdcreate_config.timespans[rrdcreate_config.timespans_num] = child->values[j].value.number;
 			if (rrdcreate_config.timespans[rrdcreate_config.timespans_num] != 0)
 				rrdcreate_config.timespans_num++;
-		} /* while (strtok_r) */
+		}
 
 		qsort (/* base = */ rrdcreate_config.timespans,
 				/* nmemb  = */ rrdcreate_config.timespans_num,
 				/* size   = */ sizeof (rrdcreate_config.timespans[0]),
 				/* compar = */ rrd_compare_numeric);
-
-		free (value_copy);
 	}
-	else if (strcasecmp ("XFF", key) == 0)
+	else if (strcasecmp ("XFF", child->key) == 0)
 	{
-		double tmp = atof (value);
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("rrdcached plugin: `XFF' needs exactly one numeber argument.");
+        return (-1);
+      }
+		double tmp = (double) child->values[0].value.number;
 		if ((tmp < 0.0) || (tmp >= 1.0))
 		{
 			fprintf (stderr, "rrdtool: `XFF' must "
@@ -327,16 +337,21 @@ static int rc_config (oconfig_item_t *ci)
 		}
 		rrdcreate_config.xff = tmp;
 	}
-    else if (strcasecmp ("DisableMINRRA", key) == 0)
+    else if (strcasecmp ("DisableMINRRA", child->key) == 0)
     {
-      if (IS_FALSE (value))
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_BOOLEAN))
+      {
+        WARNING ("rrdcached plugin: `CreateFiles' needs exactly one boolean argument.");
+        return (-1);
+      }
+      if (IS_FALSE (child->values[0].value.string))
         rrdcreate_config.disable_min = 0;
       else
         rrdcreate_config.disable_min = 1;
     }
     else
     {
-      WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
+      WARNING ("rrdcached plugin: Ignoring invalid option %s.", child->key);
       continue;
     }
   }
