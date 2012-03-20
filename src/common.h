@@ -234,6 +234,12 @@ int check_create_dir (const char *file_orig);
 #ifdef HAVE_LIBKSTAT
 int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name);
 long long get_kstat_value (kstat_t *ksp, char *name);
+/*
+* kstat_value_to_string returns the value of a kstat in char format.
+* It is useful when we want all the values and don't necessarily know the name
+* of the field
+*/
+int get_kstat_value_to_string(kstat_named_t *kn, char *ret_name, char *ret_value);
 #endif
 
 #ifndef HAVE_HTONLL
