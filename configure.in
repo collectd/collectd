@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([collectd], [m4_esyscmd(./version-gen.sh)])
+AC_INIT(collectd, [m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
@@ -75,6 +75,22 @@ case $host_os in
 	ac_system="unknown"
 esac
 AC_MSG_RESULT([$ac_system])
+
+if test "x$ac_system" = "xSolaris"
+then    
+        AC_MSG_CHECKING([for Solaris platform type ($host_cpu)])
+        case $host_cpu in
+            *sparc*)
+            AC_DEFINE([PLATFORM_SPARC], 1, [True if SPARC platform])
+            ac_platform="sparc"
+            ;;
+            *86*)
+            AC_DEFINE([PLATFORM_X86], 1, [True if x86 platform])
+            ac_platform="x86"
+            ;;
+        esac
+        AC_MSG_RESULT([$ac_platform])
+fi
 
 if test "x$ac_system" = "xLinux"
 then
@@ -1341,8 +1357,7 @@ fi
 if test "x$ac_system" = "xSolaris"
 then
 	with_kstat="yes"
-	with_devinfo="yes"
-        with_processes="yes"
+	with_devinfo="yes"        
 else
 	with_kstat="no (Solaris only)"
 	with_devinfo="no (Solaris only)"
