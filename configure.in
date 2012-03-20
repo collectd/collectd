@@ -419,6 +419,33 @@ AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 #endif
 ])
 
+# For ethstat module
+AC_CHECK_HEADERS(linux/sockios.h,
+    [have_linux_sockios_h="yes"],
+    [have_linux_sockios_h="no"],
+    [
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+    ])
+AC_CHECK_HEADERS(linux/ethtool.h,
+    [have_linux_ethtool_h="yes"],
+    [have_linux_ethtool_h="no"],
+    [
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#if HAVE_LINUX_SOCKIOS_H
+# include <linux/sockios.h>
+#endif
+    ])
+
 # For ipvs module
 have_linux_ip_vs_h="no"
 have_net_ip_vs_h="no"
@@ -4088,10 +4115,9 @@ then
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 	#LDFLAGS="$LDFLAGS $with_libvarnish_libs"
 
-	AC_CHECK_LIB(varnishapi, VSL_OpenStats,
-		     [with_libvarnish="yes"],
-		     [with_libvarnish="no (symbol VSL_OpenStats not found)"],
-		     [$with_libvarnish_libs])
+    AC_CHECK_HEADERS(varnish/vsc.h,
+        [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
+        [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	#LDFLAGS="$SAVE_LDFLAGS"
@@ -4449,6 +4475,7 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_entropy="no"
+plugin_ethstat="no"
 plugin_fscache="no"
 plugin_interface="no"
 plugin_ipmi="no"
@@ -4658,6 +4685,11 @@ then
 	fi
 fi
 
+if test "x$have_linux_sockios_h$have_linux_ethtool_h" = "xyesyes"
+then
+	plugin_ethstat="yes"
+fi
+
 if test "x$have_getifaddrs" = "xyes"
 then
 	plugin_interface="yes"
@@ -4766,7 +4798,7 @@ AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
 AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
-AC_PLUGIN([ethstat],     [yes],                [Stats from NIC driver])
+AC_PLUGIN([ethstat],     [$plugin_ethstat],    [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
