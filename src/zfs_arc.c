@@ -178,7 +178,7 @@ static int za_read (void)
 
 	za_submit_deleted_counts (deleted);
 
-	za_submit_hash_counts (deleted);
+	za_submit_hash_counts (hash_collisions);
 
 	return (0);
 } /* int za_read */
