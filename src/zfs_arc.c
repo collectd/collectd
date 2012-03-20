@@ -96,7 +96,7 @@ static void za_submit_mutex_counts (counter_t mutex_miss)
 	za_submit ("mutex", "counts", values, STATIC_ARRAY_SIZE(values));
 }
 
-static void za_submit_deleted_counts (counter_t deleted)
+static void za_submit_deleted_counts (derive_t deleted)
 {
 	value_t values[1];
 
@@ -105,7 +105,7 @@ static void za_submit_deleted_counts (counter_t deleted)
 	za_submit ("deleted", "counts", values, STATIC_ARRAY_SIZE(values));
 }
 
-static void za_submit_hash_counts (counter_t hash_collisions)
+static void za_submit_hash_counts (derive_t hash_collisions)
 {
 	value_t values[1];
 
@@ -127,10 +127,10 @@ static int za_read (void)
 		 prefetch_metadata_misses;
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
 	value_t  l2_io[2];
-	counter_t mutex_miss;
-	counter_t deleted;
-	counter_t evict_l2_cached, evict_l2_eligible, evict_l2_ineligible;
-	counter_t hash_collisions;
+	derive_t mutex_miss;
+	derive_t deleted;
+	derive_t evict_l2_cached, evict_l2_eligible, evict_l2_ineligible;
+	derive_t hash_collisions;
 
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
