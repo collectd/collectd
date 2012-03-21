@@ -88,6 +88,10 @@ static int za_read (void)
 		 prefetch_metadata_misses;
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
 	value_t  l2_io[2];
+	derive_t mutex_miss;
+	derive_t allocated, deleted, stolen;
+	derive_t evict_l2_cached, evict_l2_eligible, evict_l2_ineligible;
+	derive_t hash_collisions;
 
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
@@ -102,6 +106,27 @@ static int za_read (void)
 
 	za_submit_gauge ("cache_size", "arc", arc_size);
 	za_submit_gauge ("cache_size", "L2", l2_size);
+
+	mutex_miss = get_kstat_value (ksp, "mutex_miss");
+	za_submit_derive ("mutex_operation", "miss", mutex_miss);
+
+	allocated = get_kstat_value(ksp, "allocated");
+	deleted   = get_kstat_value(ksp, "deleted");
+	stolen    = get_kstat_value(ksp, "stolen");
+	za_submit_derive ("cache_operation", "allocated", allocated);
+	za_submit_derive ("cache_operation", "deleted",   deleted);
+	za_submit_derive ("cache_operation", "stolen",    stolen);
+
+	hash_collisions = get_kstat_value(ksp, "hash_collisions");
+	za_submit_derive ("hash_collisions", "", hash_collisions);
+	
+	evict_l2_cached          = get_kstat_value(ksp, "evict_l2_cached");
+	evict_l2_eligible        = get_kstat_value(ksp, "evict_l2_eligible");
+	evict_l2_ineligible      = get_kstat_value(ksp, "evict_l2_ineligible");
+	
+	za_submit_derive ("cache_eviction", "cached",     evict_l2_cached);
+	za_submit_derive ("cache_eviction", "eligible",   evict_l2_eligible);
+	za_submit_derive ("cache_eviction", "ineligible", evict_l2_ineligible);
 
 	/* Hits / misses */
 	demand_data_hits       = get_kstat_value(ksp, "demand_data_hits");
