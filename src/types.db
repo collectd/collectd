@@ -26,7 +26,6 @@ current_connections	value:GAUGE:0:U
 current_sessions	value:GAUGE:0:U
 current			value:GAUGE:U:U
 delay			value:GAUGE:-1000000:1000000
-deleted                 deleted:COUNTER:0:U
 derive			value:DERIVE:0:U
 df_complex		value:GAUGE:0:U
 df_inodes		value:GAUGE:0:U
@@ -65,7 +64,7 @@ frequency		value:GAUGE:0:U
 frequency_offset	value:GAUGE:-1000000:1000000
 fscache_stat		value:DERIVE:0:U
 gauge			value:GAUGE:U:U
-hash                    hash_collisions:COUNTER:0:U
+hash_collisions		value:DERIVE:0:U
 http_request_methods	value:DERIVE:0:U
 http_requests		value:DERIVE:0:U
 http_response_codes	value:DERIVE:0:U
