@@ -17,13 +17,17 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Cosmin Ioiart <cioiart at gmail.com>
  **/
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#if HAVE_LIBKSTAT
+#include <kstat.h>
+#endif
 
-#if KERNEL_LINUX
+#if KERNEL_LINUX || KERNEL_SOLARIS
 static const char *config_keys[] =
 {
   "Verbose"
@@ -36,6 +40,10 @@ static int verbose_output = 0;
 #else
 # error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
+
+#if HAVE_LIBKSTAT
+extern kstat_ctl_t *kc;
+#endif
 
 static void submit (const char *plugin_instance, const char *type,
     const char *type_instance, value_t *values, int values_len)
@@ -268,6 +276,9 @@ static int vmem_read (void)
   if (pswpvalid == 0x03)
     submit_two (NULL, "vmpage_io", "swap", pswpin, pswpout);
 #endif /* KERNEL_LINUX */
+  
+#if KERNEL_SOLARIS
+#endif /* KERNEL_SOLARIS */
 
   return (0);
 } /* int vmem_read */
