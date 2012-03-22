@@ -1,6 +1,7 @@
 /**
  * collectd - src/zfs_arc.c
  * Copyright (C) 2009  Anthony Dewhurst
+ * Copyright (C) 2012  Aurelien Rougemont
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Anthony Dewhurst <dewhurst at gmail>
+ *   Aurelien Rougemont <beorn at gandi.net>
  **/
 
 #include "collectd.h"
