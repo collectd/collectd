@@ -355,7 +355,7 @@ static int vmem_read (void)
   derive_t scan = 0;
   
   if(kc == NULL)
-    return (-1);
+    return (-1);  
   
   for(ksp_chain = kc->kc_chain; ksp_chain != NULL; ksp_chain = ksp_chain->ks_next)
     {
@@ -368,35 +368,37 @@ static int vmem_read (void)
       /*
        * Storing total values (sum for each cpu instance)
        */
+      kstat_read(kc, ksp_chain, NULL);
+      
       pgpin += get_kstat_value (ksp_chain, "pgpin");      
-      pgpgout += get_kstat_value (ksp_chain, "pgpgout"); 
-      submit_two(NULL, "vmpage_io", "memory", pgpin, pgpgout);
+      pgpgout += get_kstat_value (ksp_chain, "pgpgout");       
+      submit_two(NULL, "vmpage_io", "memory", pgpin, pgpgout);      
       
       execpgin += get_kstat_value (ksp_chain, "execpgin"); 
       execfree += get_kstat_value (ksp_chain, "execfree");
-      submit_two(NULL, "vmpage_io", "exec", execpgin, execfree);
+      submit_two(NULL, "vmpage_io", "exec", execpgin, execfree);      
       
       anonfree += get_kstat_value (ksp_chain, "anonfree");
       anonpgin += get_kstat_value (ksp_chain, "anonpgin");
       anonpgout += get_kstat_value (ksp_chain, "anonpgout");
-      submit_three(NULL, "vmpage_io", "anon", anonpgin, anonpgout, anonfree);
+      submit_three(NULL, "vmpage_io", "anon", anonpgin, anonpgout, anonfree);      
       
       fsfree += get_kstat_value (ksp_chain, "fsfree");
       fspgin += get_kstat_value (ksp_chain, "fspgin");
       fspgout += get_kstat_value (ksp_chain, "fspgout");
-      submit_three (NULL, "vmpage_io", "fs", fspgin, fspgout, fsfree);
-      
+      submit_three (NULL, "vmpage_io", "fs", fspgin, fspgout, fsfree);      
+     
       pgswapin += get_kstat_value (ksp_chain, "pgswapin");
       pgswapout += get_kstat_value  (ksp_chain, "pgswapout");
-      submit_two (NULL, "vmpage_io", "swap", pgswapin, pgswapout);
+      submit_two (NULL, "vmpage_io", "swap", pgswapin, pgswapout);      
       
       rev += get_kstat_value (ksp_chain, "rev");
       value.derive = rev;
-      submit_one (NULL, "vmpage_action", "rec", value);
+      submit_one (NULL, "vmpage_action", "rec", value);      
       
       scan += get_kstat_value (ksp_chain, "scan");
       value.derive = scan;
-      submit_one(NULL, "vmpage_action", "scan", value);              
+      submit_one(NULL, "vmpage_action", "scan", value);                    
     }
   
 #endif /* KERNEL_SOLARIS */
