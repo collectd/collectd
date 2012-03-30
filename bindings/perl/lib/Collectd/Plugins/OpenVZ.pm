@@ -72,6 +72,19 @@ sub openvz_read
                 plugin_dispatch_values(\%v);
             }
         }
+        #####################################################################
+        # I/O
+
+        $v{'plugin'} = 'disk';
+        delete $v{'plugin_instance'};
+
+        @lines = split(/\n/, `cat /proc/bc/$veid/ioacct`);
+        (my $ioread= $lines[0]) =~ s/^\s*read\s*(.*?)\s*$/$1/;
+        (my $iowrite= $lines[1]) =~ s/^\s*write\s*(.*?)\s*$/$1/;
+        $v{'type_instance'} = 'disk_octets';
+        $v{'type'} = 'disk_octets';
+        $v{'values'} = [ $ioread,  $iowrite ];
+        plugin_dispatch_values(\%v);
 
         #####################################################################
         # cpu
