@@ -1,3 +1,57 @@
+2012-04-01, Version 5.1.0
+	* Build system, iptables plugin: The shipped version of libiptc has
+	  been removed.
+	* collectd-nagios: A list of value lists can now be queried using
+	  "-n LIST". Thanks to Sebastian Harl for his patches.
+	* bind plugin: The "ParseTime" option has been added. It allows to use
+	  the system time rather than the time reported by BIND.
+	* curl, memcachec, tail plugins: The "ExcludeRegexp" option has been
+	  added. Thanks to Peter Warasin for his initial patch.
+	* ethstat plugin: The new "ethstat" plugin reads performance statistics
+	  directly from ethernet cards. Thanks to Cyril Feraudet for his patch.
+	* GenericJMX plugin: Support for querying MBean "Operations" (in
+	  addition to "Attributes") has been added. Thanks to Pierre-Yves
+	  Ritschard for his patch.
+	* irq plugin: The selection / ignore code now uses the default
+	  ignorelist infrastructure, providing the standard feature set, e.g.
+	  regex matching.
+	* md plugin: The new "md" plugin reports the number of disks in various
+	  states in Linux software RAID devices. Thanks to Michael Hanselmann
+	  for his patch.
+	* modbus plugin: Support for signed integer register types has been
+	  added.
+	* nfs plugin: Support for Solaris has been added. Thanks to Cosmin
+	  Ioiart for his patch.
+	* numa plugin: The new "numa" plugin reports statistics of the
+	  Non-Uniform Memory Access (NUMA) subsystem of Linux.
+	* processes plugin: Various fixes for the FreeBSD implementation.
+	  Thanks to Phil Kulin for his patch.
+	* rrdcached plugin: Passing flushes to the caching daemon has been
+	  added.
+	* sensors plugin: The initialization code has been improved. Thanks to
+	  Henrique de Moraes Holschuh for his patch.
+	* swap plugin: The "ReportByDevice" option has been added.
+	* syslog plugin: Support for writing notifications has been added.
+	  Thanks to Fabien Wernli for his patch.
+	* tcpconns plugin: Support for AIX has been added. Thanks to Manuel
+	  Luis Sanmartín Rozada for his patch.
+	* threshold plugin: The "PersistOK" option has been added. Thanks to
+	  Aaron Brady for his patch.
+	* varnish plugin: Support for Varnish 3.0 has been added. Thanks to
+	  Jérôme Renard for his patches.
+	* write_mongodb plugin: The new "write_mongodb" plugin writes value
+	  lists to MongoDB, a shema-less database. Thanks to Akkarit Sangpetch
+	  and Chris Lundquist for their work.
+	* write_graphite plugin: The new "write_graphite" plugin writes value
+	  lists to Carbon, the storage layer of the Graphite time-series
+	  database. Thanks to Scott Sanders and Pierre-Yves Ritschard for their
+	  work.
+	* zfs_arc plugin: Several new statistics have been added. Thanks to
+	  Aurelien Rougemont for his patches.
+	* scale target: Support for scaling specific data sources only has been
+	  added. Thanks to Gerrie Roos for his patch.
+
+
 2012-04-01, Version 5.0.4
 	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
 	  for fixing this. Adresses some issues with building the iptables
