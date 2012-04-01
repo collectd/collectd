@@ -85,7 +85,7 @@ endif
 
 if BUILD_WITH_OWN_LIBOCONFIG
 collectd_LDADD += $(LIBLTDL) liboconfig/liboconfig.la
-collectd_DEPENDENCIES += $(LIBLTDL) liboconfig/liboconfig.la
+collectd_DEPENDENCIES += liboconfig/liboconfig.la
 else
 collectd_LDADD += -loconfig
 endif

@@ -1380,6 +1380,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "x
 AC_CHECK_LIB(kvm, kvm_nlist, [with_kvm_nlist="yes"], [with_kvm_nlist="no"])
 if test "x$with_kvm_nlist" = "xyes"
 then
+	AC_CHECK_HEADERS(bsd/nlist.h nlist.h)
 	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
 		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
 	with_libkvm="yes"
@@ -1853,9 +1854,10 @@ then
 	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [])
 fi
 # Check for the iptc_init symbol in the library.
+# This could be in iptc or ip4tc
 if test "x$with_libiptc" = "xpkgconfig"
 then
-	AC_CHECK_LIB(iptc, iptc_init,
+	AC_SEARCH_LIBS(iptc_init, [iptc ip4tc],
 			[with_libiptc="pkgconfig"],
 			[with_libiptc="no"],
 			[$with_libiptc_libs])

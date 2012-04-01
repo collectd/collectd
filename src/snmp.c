@@ -708,7 +708,9 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   value_t ret;
   uint64_t tmp_unsigned = 0;
   int64_t tmp_signed = 0;
-  int defined = 1;
+  _Bool defined = 1;
+  /* Set to true when the original SNMP type appears to have been signed. */
+  _Bool prefer_signed = 0;
 
   if ((vl->type == ASN_INTEGER)
       || (vl->type == ASN_UINTEGER)
@@ -720,7 +722,12 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   {
     tmp_unsigned = (uint32_t) *vl->val.integer;
     tmp_signed = (int32_t) *vl->val.integer;
-    DEBUG ("snmp plugin: Parsed int32 value is %"PRIi64".", tmp_signed);
+
+    if ((vl->type == ASN_INTEGER)
+        || (vl->type == ASN_GAUGE))
+      prefer_signed = 1;
+
+    DEBUG ("snmp plugin: Parsed int32 value is %"PRIu64".", tmp_unsigned);
   }
   else if (vl->type == ASN_COUNTER64)
   {
@@ -809,14 +816,24 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   }
   else if (type == DS_TYPE_GAUGE)
   {
-    ret.gauge = NAN;
-    if (defined != 0)
+    if (!defined)
+      ret.gauge = NAN;
+    else if (prefer_signed)
       ret.gauge = (scale * tmp_signed) + shift;
+    else
+      ret.gauge = (scale * tmp_unsigned) + shift;
   }
   else if (type == DS_TYPE_DERIVE)
-    ret.derive = (derive_t) tmp_signed;
+  {
+    if (prefer_signed)
+      ret.derive = (derive_t) tmp_signed;
+    else
+      ret.derive = (derive_t) tmp_unsigned;
+  }
   else if (type == DS_TYPE_ABSOLUTE)
+  {
     ret.absolute = (absolute_t) tmp_unsigned;
+  }
   else
   {
     ERROR ("snmp plugin: csnmp_value_list_to_value: Unknown data source "

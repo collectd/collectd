@@ -733,6 +733,8 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   if (ret_values_names != NULL)
     *ret_values_names = values_names;
 
+  lcc_response_free (&res);
+
   return (0);
 } /* }}} int lcc_getval */
 

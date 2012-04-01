@@ -140,6 +140,35 @@
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
 
+2012-03-23, Version 4.10.7
+	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
+	  for fixing this. Adresses some issues with building the iptables
+	  plugin under Gentoo.
+	* libcollectdclient: A memory leak in the lcc_getval() function has
+	  been fixed. Thanks to Jason Schmidlapp for finding and fixing this
+	  issue.
+	* bind plugin: The use of 'QType" types has been fixed.
+	* df plugin: Fixed compiler issue under Mac OS X 10.7.
+	* conntrack plugin: Support zero as legitimate value. Thanks to Louis
+	  Opter for his patch.
+	* memcached plugin: Increased the size of a static buffer, which was
+	  truncating status messages form memcached. Thanks to Timon for the
+	  patch.
+	* network plugin: Forwarding of notifications has been disabled. This
+	  was a contition not checked for before, which may retult in an
+	  endless loop.
+	* processes plugin: Support for process names with spaces has been
+	  added to the Linux implementation. Thanks to Darrell Bishop for his
+	  patch.
+	* perl plugin: A race condition in several callbacks, including log and
+	  write callbacks, has been fixed. Thanks to "Rrpv" for reporting this
+	  bug.
+	* snmp plugin: A bug when casting unsigned integers to gauge values has
+	  been fixed: Unsigned integers would be cast to a signed integer and
+	  then to a gauge, possibly resulting in a negative value.
+	* tcpconns plugin: Compilation with newer versions of the FreeBSD
+	  runtime has been fixed.
+
 2012-02-19, Version 4.10.6
 	* Build system: Fix problems when building the ipvs and iptables
 	  plugins. Thanks to Sebastian Harl for his patch. A bashism in the
