@@ -1,4 +1,4 @@
-2012-03-23, Version 4.10.7
+2012-04-01, Version 4.10.7
 	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
 	  for fixing this. Adresses some issues with building the iptables
 	  plugin under Gentoo.
