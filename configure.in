@@ -1423,6 +1423,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "x
 AC_CHECK_LIB(kvm, kvm_nlist, [with_kvm_nlist="yes"], [with_kvm_nlist="no"])
 if test "x$with_kvm_nlist" = "xyes"
 then
+	AC_CHECK_HEADERS(bsd/nlist.h nlist.h)
 	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
 		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
 	with_libkvm="yes"
@@ -1896,9 +1897,10 @@ then
 	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [])
 fi
 # Check for the iptc_init symbol in the library.
+# This could be in iptc or ip4tc
 if test "x$with_libiptc" = "xpkgconfig"
 then
-	AC_CHECK_LIB(iptc, iptc_init,
+	AC_SEARCH_LIBS(iptc_init, [iptc ip4tc],
 			[with_libiptc="pkgconfig"],
 			[with_libiptc="no"],
 			[$with_libiptc_libs])
@@ -3350,26 +3352,39 @@ AC_ARG_WITH(librabbitmq, [AS_HELP_STRING([--with-librabbitmq@<:@=PREFIX@:>@], [P
 [
 	with_librabbitmq="yes"
 ])
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
 if test "x$with_librabbitmq" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
-
 	AC_CHECK_HEADERS(amqp.h, [with_librabbitmq="yes"], [with_librabbitmq="no (amqp.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 if test "x$with_librabbitmq" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
-	LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
-
+	# librabbitmq up to version 0.9.1 provides "library_errno", later
+	# versions use "library_error". The library does not provide a version
+	# macro :( Use "AC_CHECK_MEMBERS" (plural) for automatic defines.
+	AC_CHECK_MEMBERS([amqp_rpc_reply_t.library_errno],,,
+			 [
+#if HAVE_STDLIB_H
+# include <stdlib.h>
+#endif
+#if HAVE_STDIO_H
+# include <stdio.h>
+#endif
+#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
+#include <amqp.h>
+                         ])
+fi
+if test "x$with_librabbitmq" = "xyes"
+then
 	AC_CHECK_LIB(rabbitmq, amqp_basic_publish, [with_librabbitmq="yes"], [with_librabbitmq="no (Symbol 'amqp_basic_publish' not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_librabbitmq" = "xyes"
 then
@@ -3381,6 +3396,8 @@ then
 	AC_SUBST(BUILD_WITH_LIBRABBITMQ_LIBS)
 	AC_DEFINE(HAVE_LIBRABBITMQ, 1, [Define if librabbitmq is present and usable.])
 fi
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
 AM_CONDITIONAL(BUILD_WITH_LIBRABBITMQ, test "x$with_librabbitmq" = "xyes")
 # }}}
 
