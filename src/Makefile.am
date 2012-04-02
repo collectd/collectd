@@ -655,6 +655,16 @@ collectd_LDADD += "-dlopen" mbmon.la
 collectd_DEPENDENCIES += mbmon.la
 endif
 
+if BUILD_PLUGIN_MBUS
+pkglib_LTLIBRARIES += mbus.la
+mbus_la_SOURCES = mbus.c mbus_utils.c
+mbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMBUS_CFLAGS)
+mbus_la_LDFLAGS = -module -avoid-version
+mbus_la_LIBADD = $(BUILD_WITH_LIBMBUS_LIBS)
+collectd_LDADD += "-dlopen" mbus.la
+collectd_DEPENDENCIES += mbus.la
+endif
+
 if BUILD_PLUGIN_MD
 pkglib_LTLIBRARIES += md.la
 md_la_SOURCES = md.c
@@ -1527,6 +1537,7 @@ install-exec-hook:
 	fi; \
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
 	$(INSTALL) -m 0644 $(srcdir)/types.db $(DESTDIR)$(pkgdatadir)/types.db;
+	$(INSTALL) -m 0644 $(srcdir)/types.mbus.db $(DESTDIR)$(pkgdatadir)/types.mbus.db;
 	$(INSTALL) -m 0644 $(srcdir)/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 

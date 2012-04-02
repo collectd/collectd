@@ -2215,6 +2215,98 @@ then
 	AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
 fi
 
+# --with-libmbus {{{
+with_libmbus_config=""
+with_libmbus_cflags=""
+with_libmbus_libs=""
+AC_ARG_WITH(libmbus, [AS_HELP_STRING([--with-libmbus@<:@=PREFIX@:>@], [Path to the libmbus library.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libmbus="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libmbus="use_pkgconfig"
+	else if test -d "$with_libmbus/lib"
+	then
+		AC_MSG_NOTICE([Not checking for libmbus: Manually configured])
+		with_libmbus_cflags="-I$withval/include"
+		with_libmbus_libs="-L$withval/lib -lmbus"
+		with_libmbus="yes"
+	fi; fi; fi
+],
+[with_libmbus="use_pkgconfig"])
+
+# configure using pkg-config
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	if test "x$PKG_CONFIG" = "x"
+	then
+		with_libmbus="no (Don't have pkg-config)"
+	fi
+fi
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	AC_MSG_NOTICE([Checking for libmbus using $PKG_CONFIG])
+	$PKG_CONFIG --exists libmbus 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libmbus="no (pkg-config doesn't know libmbus)"
+	fi
+fi
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	with_libmbus_cflags="`$PKG_CONFIG --cflags libmbus`"
+	if test $? -ne 0
+	then
+		with_libmbus="no ($PKG_CONFIG failed)"
+	fi
+	with_libmbus_libs="`$PKG_CONFIG --libs libmbus`"
+	if test $? -ne 0
+	then
+		with_libmbus="no ($PKG_CONFIG failed)"
+	fi
+fi
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	with_libmbus="yes"
+fi
+
+# with_libmbus_cflags and with_libmbus_libs are set up now, let's do
+# the actual checks.
+if test "x$with_libmbus" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libmbus_cflags"
+
+	AC_CHECK_HEADERS(mbus/mbus-protocol.h, [], [with_libmbus="no (mbus/mbus-protocol.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libmbus" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CPPFLAGS="$CPPFLAGS $with_libmbus_cflags"
+	LDFLAGS="$LDFLAGS $with_libmbus_libs"
+
+	AC_CHECK_LIB(mbus, mbus_init,
+		     [with_libmbus="yes"],
+		     [with_libmbus="no (symbol mbus_init not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libmbus" = "xyes"
+then
+	BUILD_WITH_LIBMBUS_CFLAGS="$with_libmbus_cflags"
+	BUILD_WITH_LIBMBUS_LIBS="$with_libmbus_libs"
+	AC_SUBST(BUILD_WITH_LIBMBUS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMBUS_LIBS)
+fi
+# }}}
+
 CPPFLAGS="$SAVE_CPPFLAGS"
 CFLAGS="$SAVE_CFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
@@ -5128,6 +5220,7 @@ AC_PLUGIN([match_regex], [yes],                [The regex match])
 AC_PLUGIN([match_timediff], [yes],             [The timediff match])
 AC_PLUGIN([match_value], [yes],                [The value match])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
+AC_PLUGIN([mbus],        [$with_libmbus],      [Query meter(s) on MBus])
 AC_PLUGIN([md],          [$have_linux_raid_md_u_h], [md (Linux software RAID) devices])
 AC_PLUGIN([memcachec],   [$with_libmemcached], [memcachec statistics])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
@@ -5383,6 +5476,7 @@ Configuration:
     libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
+    libmbus.  . . . . . . $with_libmbus
     libmemcached  . . . . $with_libmemcached
     libmnl  . . . . . . . $with_libmnl
     libmodbus . . . . . . $with_libmodbus
@@ -5472,6 +5566,7 @@ Configuration:
     match_timediff  . . . $enable_match_timediff
     match_value . . . . . $enable_match_value
     mbmon . . . . . . . . $enable_mbmon
+    mbus. . . . . . . . . $enable_mbus
     md  . . . . . . . . . $enable_md
     memcachec . . . . . . $enable_memcachec
     memcached . . . . . . $enable_memcached
