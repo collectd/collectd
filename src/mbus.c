@@ -42,7 +42,7 @@ static pthread_mutex_t plugin_lock; /**< Global lock fof the MBus access */
 /* this plugin represents only a single bus and collectd does not support multiple */
 /* instances of a single plugin. */
 
-static _Bool conf_is_serial = -1;
+static _Bool conf_is_serial;
 static char *conf_device    = NULL;
 static char *conf_host      = NULL;
 static int   conf_port      = 0;
@@ -67,8 +67,11 @@ static int collectd_mbus_config_slave (oconfig_item_t *ci)
     oconfig_item_t *child           = NULL;
     _Bool           ignore_selected = 1;
     int             record_number;
+    int             conf_res;
+    size_t          str_len;
 
-    if((slave = mbus_slave_new()) == NULL)
+    slave = mbus_slave_new();
+    if(slave == NULL)
     {
         ERROR("mbus: collectd_mbus_config_slave - cannot allocate new slave");
         return -2;
@@ -82,7 +85,9 @@ static int collectd_mbus_config_slave (oconfig_item_t *ci)
         {
             address->is_primary = 0;
             address->secondary = NULL;
-            if(!cf_util_get_string (ci, &(address->secondary)) && strlen(address->secondary)==16)
+            conf_res = cf_util_get_string (ci, &(address->secondary));
+            str_len = strlen(address->secondary);
+            if(!conf_res && str_len==16)
             {
                 DEBUG("mbus: collectd_mbus_config_slave - slave with primary address %s", address->secondary);
             }
@@ -98,7 +103,8 @@ static int collectd_mbus_config_slave (oconfig_item_t *ci)
             if(ci->values[0].type == OCONFIG_TYPE_NUMBER)
             {
                 address->is_primary = 1;
-                if(!cf_util_get_int (ci, &(address->primary)) && address->primary<=250 && address->primary>=1)
+                conf_res = cf_util_get_int (ci, &(address->primary));
+                if(!conf_res && address->primary<=250 && address->primary>=1)
                 {
                     DEBUG("mbus: collectd_mbus_config_slave - slave with primary address %d", address->primary);
                 }
@@ -128,7 +134,8 @@ static int collectd_mbus_config_slave (oconfig_item_t *ci)
     for (i = 0; i < ci->children_num; i++)
     {
         child = ci->children + i;
-        if ((strcasecmp ("IgnoreSelected", child->key) == 0) && (!cf_util_get_boolean (child, &ignore_selected)))
+        conf_res = cf_util_get_boolean (child, &ignore_selected);
+        if ((strcasecmp ("IgnoreSelected", child->key) == 0) && (!conf_res))
         {
             DEBUG("mbus: collectd_mbus_config_slave - IgnoreSelected = %d", ignore_selected);
         }
@@ -142,7 +149,8 @@ static int collectd_mbus_config_slave (oconfig_item_t *ci)
     {
         child = ci->children + i;
 
-        if ((strcasecmp ("Record", child->key) == 0) && (!cf_util_get_int (child, &record_number)))
+        conf_res = cf_util_get_int (child, &record_number);
+        if ((strcasecmp ("Record", child->key) == 0) && (!conf_res))
         {
             if(ignore_selected)
                 mbus_slave_record_remove(slave, record_number);
@@ -168,6 +176,8 @@ static int collectd_mbus_config (oconfig_item_t *ci)
 {
     int i;
     int result = 0;
+    int conf_res;
+    int configured = 1;
     
     DEBUG("==collectd_mbus_config==");
 
@@ -177,25 +187,48 @@ static int collectd_mbus_config (oconfig_item_t *ci)
     {
         oconfig_item_t *child = ci->children + i;
         
-        if ((strcasecmp ("IsSerial", child->key) == 0) && (!cf_util_get_boolean (child, &conf_is_serial)))
-            ;
-        else if ((strcasecmp ("SerialDevice", child->key) == 0) && (!cf_util_get_string (child, &conf_device)))
-            ;
-        else if ((strcasecmp ("Host", child->key) == 0) && (!cf_util_get_string (child, &conf_host)))
-            ;
-        else if ((strcasecmp ("Port", child->key) == 0) && (!cf_util_get_int (child, &conf_port)))
-            ;
-        else if ((strcasecmp ("Slave", child->key) == 0) && (!collectd_mbus_config_slave (child)))
-            ;
-        else
-            WARNING ("mbus: collectd_mbus_config - unknown config option or unsupported config value: %s", child->key);
+        conf_res = cf_util_get_boolean (child, &conf_is_serial);
+        if ((strcasecmp ("IsSerial", child->key) == 0) && (!conf_res))
+            configured = 0;
+        else 
+        {
+            conf_res = cf_util_get_string (child, &conf_device);
+            if ((strcasecmp ("SerialDevice", child->key) == 0) && (!conf_res))
+                ;
+            else 
+            {
+                conf_res = cf_util_get_string (child, &conf_host);
+                if ((strcasecmp ("Host", child->key) == 0) && (!conf_res))
+                    ;
+                else
+                {
+                    conf_res = cf_util_get_int (child, &conf_port);
+                    if ((strcasecmp ("Port", child->key) == 0) && (!conf_res))
+                        ;
+                    else
+                    { 
+                        conf_res = collectd_mbus_config_slave (child);
+                        if ((strcasecmp ("Slave", child->key) == 0) && (!conf_res))
+                            ;
+                        else
+                            WARNING ("mbus: collectd_mbus_config - unknown config option or unsupported config value: %s", 
+                                     child->key);
+                    }
+                }
+            }
+        }
     }
     
     pthread_mutex_unlock(&plugin_lock);
 
     DEBUG("mbus: collectd_mbus_config - IsSerial = %d", conf_is_serial);
 
-    if(conf_is_serial > 0)
+    if(!configured)
+    {
+        ERROR("mbus: collectd_mbus_config - IsSerial not configured");
+        result = -1;
+    }
+    else if(conf_is_serial)
     {
         if(conf_device)
             DEBUG("mbus: collectd_mbus_config - Device = %s", conf_device);
@@ -205,7 +238,7 @@ static int collectd_mbus_config (oconfig_item_t *ci)
             result = -1;
         }
     }
-    else if(conf_is_serial == 0)
+    else
     {
         if(conf_host)
             DEBUG("mbus: collectd_mbus_config - Host = %s", conf_host);
@@ -222,11 +255,6 @@ static int collectd_mbus_config (oconfig_item_t *ci)
             ERROR("mbus: collectd_mbus_config - Port not configured");
             result = -1;
         }
-    }
-    else
-    {
-        ERROR("mbus: collectd_mbus_config - IsSerial not configured");
-        result = -1;
     }
     
     return (result);
@@ -249,9 +277,10 @@ static int collectd_mbus_init (void)
     DEBUG("mbus: collectd_mbus_init");
 
     pthread_mutex_lock (&plugin_lock);
-    if(conf_is_serial)
+    if(conf_is_serial > 0)
     {
-        if ((handle = mbus_connect_serial(conf_device)) == NULL)
+        handle = mbus_connect_serial(conf_device);
+        if (handle == NULL)
         {
             ERROR("mbus: collectd_mbus_init - Failed to setup serial connection to M-bus gateway");
             pthread_mutex_unlock (&plugin_lock);
@@ -260,7 +289,8 @@ static int collectd_mbus_init (void)
     }
     else
     {
-        if ((handle = mbus_connect_tcp(conf_host, conf_port)) == NULL)
+        handle = mbus_connect_tcp(conf_host, conf_port);
+        if (handle == NULL)
         {
             ERROR("mbus: collectd_mbus_init - Failed to setup tcp connection to M-bus gateway");
             pthread_mutex_unlock (&plugin_lock);
@@ -342,6 +372,7 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
     value_list_t    vl = VALUE_LIST_INIT;
     mbus_frame_data frame_data;
     mbus_address   *address;
+    int             result;
 
     DEBUG("mbus: parse_and_submit");
     
@@ -365,7 +396,8 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
                   sizeof (vl.plugin_instance));
     }
     
-    if(mbus_frame_data_parse(frame, &frame_data) == -1)
+    result = mbus_frame_data_parse(frame, &frame_data);
+    if(result == -1)
     {
         ERROR("mbus: parse_and_submit - failed mbus_frame_data_parse");
         return -1;
@@ -391,11 +423,12 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
         DEBUG("mbus: parse_and_submit -     Medium        = %s", tmp_string);
         sstrncpy (vl.type_instance, tmp_string, sizeof (vl.type_instance));
 
-
-        if(mbus_slave_record_check(slave,0))
+        result = mbus_slave_record_check(slave,0);
+        if(result)
         {
             DEBUG("mbus: parse_and_submit -   Record #0 enabled by mask");
-            if(NULL != (record = mbus_parse_fixed_record(data->status, data->cnt1_type, data->cnt1_val)))
+            record = mbus_parse_fixed_record(data->status, data->cnt1_type, data->cnt1_val);
+            if(NULL != record)
             {
                 DEBUG("mbus: parse_and_submit -   Record #0");
                 
@@ -415,7 +448,7 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
                     if(record->is_numeric)
                         values[0].gauge = record->value.real_val;
                     else
-                        values[0].gauge = 0;
+                        values[0].gauge = NAN;
                     
                     DEBUG("mbus: parse_and_submit -     Value           = %lf", values[0].gauge);
                     
@@ -430,7 +463,7 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
             else
             {
                 ERROR("mbus: parse_and_submit - failed parsing fixed record");
-                values[0].gauge = 0;
+                values[0].gauge = NAN;
             }
         }
         else
@@ -438,10 +471,12 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
             DEBUG("mbus: parse_and_submit -   Record #0 disabled by mask");
         }
         
-        if(mbus_slave_record_check(slave,1))
+        result = mbus_slave_record_check(slave, 1);
+        if(result)
         {
             DEBUG("mbus: parse_and_submit -   Record #1 enabled by mask");
-            if(NULL != (record = mbus_parse_fixed_record(data->status, data->cnt2_type, data->cnt2_val)))
+            record = mbus_parse_fixed_record(data->status, data->cnt2_type, data->cnt2_val);
+            if(NULL != record)
             {
                 DEBUG("mbus: parse_and_submit -   Record #1");
                 
@@ -461,7 +496,7 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
                     if(record->is_numeric)
                         values[0].gauge = record->value.real_val;
                     else
-                        values[0].gauge = 0;
+                        values[0].gauge = NAN;
                 
                     DEBUG("mbus: parse_and_submit -     Value           = %lf", values[0].gauge);
                     
@@ -502,11 +537,13 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
                  data_record != NULL; 
                  data_record = (mbus_data_record *) (data_record->next), i++)
             {
-                if(mbus_slave_record_check(slave,i))
+                result = mbus_slave_record_check(slave, i);
+                if(result)
                 {
                     DEBUG("mbus: parse_and_submit -   Record #%d enabled by mask", (int) i);
                     
-                    if(NULL != (record = mbus_parse_variable_record(data_record)))
+                    record = mbus_parse_variable_record(data_record);
+                    if(NULL != record)
                     {
                         if(record->quantity == NULL)
                         {
@@ -528,7 +565,7 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
                         if(record->is_numeric)
                             values[0].gauge = record->value.real_val;
                         else
-                            values[0].gauge = 0;
+                            values[0].gauge = NAN;
                         
                         DEBUG("mbus: parse_and_submit -     Value           = %lf", values[0].gauge);
                         
@@ -570,14 +607,15 @@ static int collectd_mbus_read (void)
 {
     mbus_frame reply;
     mbus_slave * current_slave;
-
+    int        result;
 
     DEBUG("mbus: collectd_mbus_read");
     pthread_mutex_lock (&plugin_lock);
 
     for(current_slave = mbus_slaves; current_slave != NULL; current_slave = current_slave->next_slave)
     {
-        if(mbus_read_slave(handle, &(current_slave->address), &reply))
+        result = mbus_read_slave(handle, &(current_slave->address), &reply);
+        if(result)
         {
             if(current_slave->address.is_primary)
             {
@@ -598,7 +636,6 @@ static int collectd_mbus_read (void)
     pthread_mutex_unlock (&plugin_lock);
     return (0);
 }
-
 
 
 /* =============================== REGISTER ================================= */

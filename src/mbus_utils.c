@@ -27,11 +27,11 @@
 mbus_slave * mbus_slave_new(void)
 {
     DEBUG("mbus: mbus_slave_new - creating new slave");
-    mbus_slave * slave = (mbus_slave *) malloc(sizeof(mbus_slave));
+    mbus_slave * slave = (mbus_slave *) malloc(sizeof(*slave));
     if(slave == NULL)
         return NULL;
     
-    memset(slave, 0, sizeof(mbus_slave));
+    memset(slave, 0, sizeof(*slave));
     slave->address.is_primary = 1;
     slave->address.secondary = NULL;
     slave->next_slave = NULL;
