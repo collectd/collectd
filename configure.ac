@@ -339,6 +339,17 @@ else
 	have_linux_raid_md_u_h="no"
 fi
 
+# For the battery plugin
+AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
+[
+#if HAVE_IOKIT_IOKITLIB_H
+#  include <IOKit/IOKitLib.h>
+#endif
+#if HAVE_IOKIT_IOTYPES_H
+#  include <IOKit/IOTypes.h>
+#endif
+])
+
 # For the swap module
 have_linux_wireless_h="no"
 if test "x$ac_system" = "xLinux"
@@ -753,6 +764,7 @@ then
 #ifndef _XOPEN_SOURCE
 # define _XOPEN_SOURCE 500
 #endif
+AC_INCLUDES_DEFAULT
 #include <time.h>
 ]]],
 [[[
@@ -775,6 +787,7 @@ if test "x$GCC" = "xyes"
 then
 	CFLAGS="$SAVE_CFLAGS"
 fi
+
 # }}} Check for strptime
 
 AC_CHECK_FUNCS(swapctl, [have_swapctl="yes"], [have_swapctl="no"])
@@ -5573,10 +5586,12 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 		PERL_BINDINGS_OPTIONS="$withval"
 		with_perl_bindings="yes"
 	else
+		PERL_BINDINGS_OPTIONS=""
 		with_perl_bindings="$withval"
 	fi
 ],
 [
+	PERL_BINDINGS_OPTIONS=""
 	if test -n "$perl_interpreter"
 	then
 		with_perl_bindings="yes"
@@ -5661,6 +5676,7 @@ Configuration:
     libmodbus . . . . . . $with_libmodbus
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
+    libnetlink  . . . . . $with_libnetlink
     libnetsnmp  . . . . . $with_libnetsnmp
     libnotify . . . . . . $with_libnotify
     liboconfig  . . . . . $with_liboconfig
