@@ -468,7 +468,6 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
         if (frame_data.type == MBUS_DATA_TYPE_VARIABLE)
         {
             mbus_data_variable        *data;
-            mbus_data_variable_header *header;
             mbus_data_record          *data_record;
             size_t                     i;
             mbus_record               *record;
@@ -476,7 +475,6 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
 
             DEBUG("mbus: parse_and_submit -   Variable record");
             data = &(frame_data.data_var);
-            header = &(data->header);
 
             for (data_record = data->record, i = 0; 
                  data_record != NULL; 
@@ -484,25 +482,25 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
             {
                 if(mbus_slave_record_check(slave,i))
                 {
-                    DEBUG("mbus: parse_and_submit -   Record #%d enabled by mask", i);
+                    DEBUG("mbus: parse_and_submit -   Record #%d enabled by mask", (int) i);
                     
                     if(NULL != (record = mbus_parse_variable_record(data_record)))
                     {
                         if(record->quantity == NULL)
                         {
-                            WARNING("mbus: parse_and_submit - missing quantity for record #%d", i);
+                            WARNING("mbus: parse_and_submit - missing quantity for record #%d", (int) i);
                             mbus_record_free(record);
                             record = NULL;
                             continue;
                         }
                         
-                        DEBUG("mbus: parse_and_submit -   Record %d", i);
+                        DEBUG("mbus: parse_and_submit -   Record %d", (int) i);
                         
                         str_char_replace(record->quantity, ' ', '_');
                         DEBUG("mbus: parse_and_submit -     Type            = %s", record->quantity);
                         sstrncpy (vl.type, record->quantity, sizeof (vl.type));
                         
-                        DEBUG("mbus: parse_and_submit -     Type instance   = %d", i);
+                        DEBUG("mbus: parse_and_submit -     Type instance   = %d", (int) i);
                         ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%d", i);
                         
                         if(record->is_numeric)
@@ -526,7 +524,7 @@ static int parse_and_submit (mbus_slave * slave, mbus_frame * frame)
                 }
                 else
                 {
-                    DEBUG("mbus: parse_and_submit -   Record #%d disabled by mask", i);
+                    DEBUG("mbus: parse_and_submit -   Record #%d disabled by mask", (int) i);
                 }
             }
         }
