@@ -216,7 +216,7 @@ static int varnish_submit_derive (const char *plugin_instance, /* {{{ */
 } /* }}} int varnish_submit_derive */
 
 static void varnish_monitor (const user_config_t *conf, /* {{{ */
-		c_varnish_stats_t *stats)
+		const c_varnish_stats_t *stats)
 {
 	if (conf->collect_cache)
 	{
