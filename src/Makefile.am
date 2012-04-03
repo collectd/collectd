@@ -657,7 +657,7 @@ endif
 
 if BUILD_PLUGIN_MBUS
 pkglib_LTLIBRARIES += mbus.la
-mbus_la_SOURCES = mbus.c mbus_utils.c
+mbus_la_SOURCES = mbus.c
 mbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMBUS_CFLAGS)
 mbus_la_LDFLAGS = -module -avoid-version
 mbus_la_LIBADD = $(BUILD_WITH_LIBMBUS_LIBS)

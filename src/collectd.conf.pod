@@ -2290,6 +2290,19 @@ TCP-Port to connect to. Defaults to B<411>.
 The C<mbus plugin> uses M-Bus (or meter bus) to retreive various records from instruments like
 utility meters (electricity, gas, heat, etc.).
 
+The plugin is based on the libmbus from FreeSCADA (see http://www.rscada.se/libmbus). There
+are supported two types of MBus gateways: serial and network.
+
+The serial is basically a locally connected MBus signal levels converter (plus optional
+galvanic isolation). It is connected to a serial port (either a "real" one like /dev/ttyS0
+or using some USB converter - /dev/ttyUSB0 or anything else with the characteristics of
+a serial interface).
+
+Network gateway provides the MBus data remotely over TCP/IP.
+
+In both cases the data and message format are the same. For more details please refer to the
+libmbus documentation.
+
 It is recommended to scan your MBus using libmbus utilities and also do one read of the devices
 so that you get the full information and know how to configure this plugin (what records you
 actually need to read/collect).
@@ -2300,6 +2313,16 @@ For the plugin configuration you have to setup the MBus gateway - either serial 
 Then you have to list all MBus slaves you want to query using either primary address (integer 1 
 to 250) or secondary address (16 digits). For each slave you define the record selection logic
 (whether only the listed records are read or only these are omitted).
+
+The available data structure is driven by the principles of the MBus. I.e. on a single bus
+there are (in general) multiple devices - here simply refered as (MBus) "slaves". Each slave
+can provide several records (values/data) in a single read. The actual meaning (quantity 
+type, units) and number of records are dynamic and are described in the response/record as well. 
+
+The records are internally numbered (starting from zero) so that we can select/filter out only
+certain records.
+
+The record quantity and value is normalized (where possible) by the libmbus.
 
 Only numerical records are supported and all are stored as GAUGE. The output structure is:
 
@@ -2313,7 +2336,12 @@ The reason for this is because we want a separate rrdtool database for each reco
 I<types.db> is "indexed" by value_type.
 
 Note that the standard I<types.db> does not support all MBus types and you need to use your
-own (or the provided I<types.mbus.db>).
+own (or the provided I<types.mbus.db>). I.e. every used "value_type" which is filled by the
+MBus record quantity has to be in the types database.
+
+Note that the other record details provided by the MBus are not propagated to the collectd
+data (e.g. quantity unit, quantity medium or function). However thanks to normalization this
+should not be a showstopper.
 
 Synopsis of the configuration is:
 
@@ -2321,14 +2349,14 @@ Synopsis of the configuration is:
      IsSerial     true
      SerialDevice "/dev/ttyUSB0"
      Host         "none"
-     Port         256
+     Port         "256"
      <Slave 59>
          IgnoreSelected true
          Record         2
          Record         5
          Record         6
      </Slave>
-     <Slave 237483A847B34800>
+     <Slave "237483A847B34800">
          IgnoreSelected false
          Record         1
      </Slave>
@@ -2338,7 +2366,7 @@ Synopsis of the configuration is:
 
 =item B<IsSerial> I<Boolean>
 
-Are we using serial gateway (B<true>) or network (B<false>).
+Are we using serial gateway (B<true>) or network (B<false>). See the explanation above.
 
 =item B<SerialDevice> I<Serial device>
 
@@ -2350,12 +2378,14 @@ Hostname to connect to (when using network gateway).
 
 =item B<Port> I<Port>
 
-TCP-Port to connect to (when using network gateway).
+TCP-Port / service (string) to connect to (when using network gateway).
 
 =item E<lt>B<Slave> I<Address>E<gt> blocks
 
-Slave blocks define individual MBus slaves - devices t be read. B<Address> is either primary
-address (integer 1 to 250) or secondary address (16 digits). Multiple slave blocks can be used.
+Slave blocks define individual MBus slaves - devices to be read. B<Address> is either primary
+address (integer 1 to 250) or secondary address (string, 16 digits). The formal type (numeric
+versus string) is important as it is used to distinguish the two address types.
+Multiple slave blocks can be used.
 
 Within E<lt>B<Slave>E<gt> blocks, the following options are used:
 

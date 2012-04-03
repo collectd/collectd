@@ -507,14 +507,14 @@
 #    IsSerial     true
 #    SerialDevice "/dev/ttyUSB0"
 #    Host         "none"
-#    Port         256
+#    Port         "1256"
 #    <Slave 59>
 #        IgnoreSelected false
 #        Record         2
 #        Record         5
 #        Record         6
 #    </Slave>
-#    <Slave 237483A847B34800>
+#    <Slave "237483A847B34800">
 #        IgnoreSelected false
 #        Record         1
 #    </Slave>
