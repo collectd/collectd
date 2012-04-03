@@ -87,6 +87,7 @@ struct wg_callback
     _Bool    store_rates;
     _Bool    separate_instances;
     _Bool    always_append_ds;
+    _Bool    include_type;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -405,8 +406,9 @@ static int wg_format_name (char *ret, int ret_len,
             sizeof (n_plugin), cb->escape_char);
     wg_copy_escape_part (n_plugin_instance, vl->plugin_instance,
             sizeof (n_plugin_instance), cb->escape_char);
-    wg_copy_escape_part (n_type, vl->type,
-            sizeof (n_type), cb->escape_char);
+    if (cb->include_type)
+        wg_copy_escape_part (n_type, vl->type,
+                sizeof (n_type), cb->escape_char);
     wg_copy_escape_part (n_type_instance, vl->type_instance,
             sizeof (n_type_instance), cb->escape_char);
 
@@ -418,13 +420,23 @@ static int wg_format_name (char *ret, int ret_len,
     else
         sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
-    if (n_type_instance[0] != '\0')
-        ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
-            n_type,
-            cb->separate_instances ? '.' : '-',
-            n_type_instance);
+    if (cb->include_type)
+    {
+        if (n_type_instance[0] != '\0')
+            ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
+                n_type,
+                cb->separate_instances ? '.' : '-',
+                n_type_instance);
+        else
+            sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    }
     else
-        sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    {
+        if (n_type_instance[0] != '\0')
+            sstrncpy (tmp_type, n_type_instance, sizeof (tmp_type));
+        else
+            sstrncpy (tmp_type, "", sizeof (tmp_type));
+    }
 
     if (ds_name != NULL)
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
@@ -622,6 +634,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->postfix = NULL;
     cb->escape_char = WG_DEFAULT_ESCAPE;
     cb->store_rates = 1;
+    cb->include_type = 1;
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -643,6 +656,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_boolean (child, &cb->separate_instances);
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
             cf_util_get_boolean (child, &cb->always_append_ds);
+        else if (strcasecmp ("IncludeType", child->key) == 0)
+            cf_util_get_boolean (child, &cb->include_type);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
         else
