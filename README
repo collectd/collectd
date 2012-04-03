@@ -157,6 +157,10 @@ Features
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
 
+    - mbus
+      MBus sensors: any numerical value from any MBus (meter bus) connected device
+      (typically utility meter like power, gas, water, heat, etc.).
+
     - md
       Linux software-RAID device information (number of active, failed, spare
       and missing disks).
@@ -639,6 +643,11 @@ Prerequisites
     used by the Java plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
     <http://openjdk.java.net/> (and others)
+
+  * libmbus (optional)
+    Used by the “mbus” plugin to communicate with MBus devices. The
+    “mbus” plugin works with version 0.6.1 and higher of the library (tested also with 0.7.0).
+    <http://www.rscada.se/libmbus/>
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
