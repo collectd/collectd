@@ -54,6 +54,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#if HAVE_CTYPE_H
+#  include <ctype.h>
+#endif
+
 #ifndef WG_DEFAULT_NODE
 # define WG_DEFAULT_NODE "localhost"
 #endif
@@ -88,6 +92,7 @@ struct wg_callback
     _Bool    separate_instances;
     _Bool    always_append_ds;
     _Bool    include_type;
+    _Bool    lowercase_metric_names;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -392,6 +397,8 @@ static int wg_format_name (char *ret, int ret_len,
     char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
     char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
 
+    int i;
+
     prefix = cb->prefix;
     if (prefix == NULL)
         prefix = "";
@@ -444,6 +451,18 @@ static int wg_format_name (char *ret, int ret_len,
     else
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
             prefix, n_host, postfix, tmp_plugin, tmp_type);
+
+
+    if (cb->lowercase_metric_names)
+    {
+        for (i = 0; i < ret_len; i++)
+        {
+            if (ret[i] == '\0')
+                break;
+            else if (isalnum (ret[i]))
+                ret[i] = (char) tolower (ret[i]);
+        }
+    }
 
     return (0);
 }
@@ -660,6 +679,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_boolean (child, &cb->include_type);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
+        else if (strcasecmp ("LowercaseMetricNames", child->key) == 0)
+            cf_util_get_boolean (child, &cb->lowercase_metric_names);
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
