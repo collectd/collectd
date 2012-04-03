@@ -274,9 +274,9 @@ static int collectd_mbus_config_slave (oconfig_item_t *ci)
     for (i = 0; i < ci->children_num; i++)
     {
         child = ci->children + i;
-        conf_res = cf_util_get_boolean (child, &ignore_selected);
-        if ((strcasecmp ("IgnoreSelected", child->key) == 0) && (!conf_res))
+        if (strcasecmp ("IgnoreSelected", child->key) == 0)
         {
+            cf_util_get_boolean (child, &ignore_selected);
             DEBUG("mbus: collectd_mbus_config_slave - IgnoreSelected = %d", ignore_selected);
         }
     }
@@ -289,13 +289,16 @@ static int collectd_mbus_config_slave (oconfig_item_t *ci)
     {
         child = ci->children + i;
 
-        conf_res = cf_util_get_int (child, &record_number);
-        if ((strcasecmp ("Record", child->key) == 0) && (!conf_res))
+        if (strcasecmp ("Record", child->key) == 0)
         {
-            if(ignore_selected)
-                mbus_slave_record_remove(slave, record_number);
-            else
-                mbus_slave_record_add(slave, record_number);
+            conf_res = cf_util_get_int (child, &record_number);
+            if (!conf_res)
+            {
+                if(ignore_selected)
+                    mbus_slave_record_remove(slave, record_number);
+                else
+                    mbus_slave_record_add(slave, record_number);
+            }
         }
     }
 
@@ -316,8 +319,7 @@ static int collectd_mbus_config (oconfig_item_t *ci)
 {
     int i;
     int result = 0;
-    int conf_res;
-    int configured = 1;
+    int conf_res = 0;   /**< signalling config parse outcome, zero is OK */
     
     DEBUG("==collectd_mbus_config==");
 
@@ -327,32 +329,39 @@ static int collectd_mbus_config (oconfig_item_t *ci)
     {
         oconfig_item_t *child = ci->children + i;
         
-        conf_res = cf_util_get_boolean (child, &conf_is_serial);
-        if ((strcasecmp ("IsSerial", child->key) == 0) && (!conf_res))
-            configured = 0;
+        if (strcasecmp ("IsSerial", child->key) == 0)
+        {
+            conf_res = cf_util_get_boolean (child, &conf_is_serial);
+        }
         else 
         {
-            conf_res = cf_util_get_string (child, &conf_device);
-            if ((strcasecmp ("SerialDevice", child->key) == 0) && (!conf_res))
-                ;
+            if (strcasecmp ("SerialDevice", child->key) == 0)
+            {
+                conf_res = cf_util_get_string (child, &conf_device);
+            }
             else 
             {
-                conf_res = cf_util_get_string (child, &conf_host);
-                if ((strcasecmp ("Host", child->key) == 0) && (!conf_res))
-                    ;
+                if (strcasecmp ("Host", child->key) == 0)
+                {
+                    conf_res = cf_util_get_string (child, &conf_host);
+                }
                 else
                 {
                     if (strcasecmp ("Port", child->key) == 0)
                     {
                         conf_res = cf_util_get_port_number (child);
                         if (conf_res > 0)
+                        {
                             conf_port = conf_res;
+                            conf_res = 0;
+                        }
                     }
                     else
                     { 
-                        conf_res = collectd_mbus_config_slave (child);
-                        if ((strcasecmp ("Slave", child->key) == 0) && (!conf_res))
-                            ;
+                        if (strcasecmp ("Slave", child->key) == 0)
+                        {
+                            conf_res = collectd_mbus_config_slave (child);
+                        }
                         else
                             WARNING ("mbus: collectd_mbus_config - unknown config option or unsupported config value: %s", 
                                      child->key);
@@ -360,15 +369,17 @@ static int collectd_mbus_config (oconfig_item_t *ci)
                 }
             }
         }
+        if (conf_res)
+            break;
     }
     
     pthread_mutex_unlock(&plugin_lock);
 
     DEBUG("mbus: collectd_mbus_config - IsSerial = %d", conf_is_serial);
 
-    if(!configured)
+    if(conf_res)
     {
-        ERROR("mbus: collectd_mbus_config - IsSerial not configured");
+        ERROR("mbus: collectd_mbus_config - configuration failed");
         result = -1;
     }
     else if(conf_is_serial)
