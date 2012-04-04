@@ -397,8 +397,6 @@ static int wg_format_name (char *ret, int ret_len,
     char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
     char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
 
-    int i;
-
     prefix = cb->prefix;
     if (prefix == NULL)
         prefix = "";
@@ -455,6 +453,7 @@ static int wg_format_name (char *ret, int ret_len,
 
     if (cb->lowercase_metric_names)
     {
+        int i;
         for (i = 0; i < ret_len; i++)
         {
             if (ret[i] == '\0')
