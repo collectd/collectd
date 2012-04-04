@@ -3112,12 +3112,35 @@ B<EXPERIMENTAL!> See notes below.
 The C<onewire> plugin uses the B<owcapi> library from the B<owfs> project
 L<http://owfs.org/> to read sensors connected via the onewire bus.
 
-Currently only temperature sensors (sensors with the family code C<10>,
-e.E<nbsp>g. DS1820, DS18S20, DS1920) can be read. If you have other sensors you
-would like to have included, please send a sort request to the mailing list.
+It can be used in two possible modes - standard or advanced.
+
+In the standard mode only temperature sensors (sensors with the family code
+C<10>, C<22> and C<28> - e.g. DS1820, DS18S20, DS1920) can be read. If you have
+other sensors you would like to have included, please send a sort request to
+the mailing list. You can select sensors to be read or to be ignored depending
+on the option B<IgnoreSelected>). When no list is provided the whole bus is
+walked and all sensors are read.
 
 Hubs (the DS2409 chips) are working, but read the note, why this plugin is
 experimental, below.
+
+In the advanced mode you can configure any sensor to be read (only numerical
+value) using full OWFS path (e.g. "/uncached/10.F10FCA000800/temperature").
+In this mode you have to list all the sensors. Neither default bus walk nor
+B<IgnoreSelected> are used here. Address and type (file) is extracted from
+the path automatically and should produce compatible structure with the "standard"
+mode (basically the path is expected as for example
+"/uncached/10.F10FCA000800/temperature" where it would extract address part
+"F10FCA000800" and the rest after the slash is considered the type - here
+"temperature").
+There are two advantages to this mode - you can access virtually any sensor
+(not just temperature), select whether to use cached or directly read values
+and it is slighlty faster. The downside is more complex configuration.
+
+The two modes are distinguished automatically by the format of the address.
+It is not possible to mix the two modes. Once a full path is detected in any
+B<Sensor> then the whole addressing (all sensors) is considered to be this way
+(and as standard addresses will fail parsing they will be ignored).
 
 =over 4
 
@@ -3139,20 +3162,31 @@ This directive is B<required> and does not have a default value.
 
 =item B<Sensor> I<Sensor>
 
-Selects sensors to collect or to ignore, depending on B<IgnoreSelected>, see
-below. Sensors are specified without the family byte at the beginning, to you'd
-use C<F10FCA000800>, and B<not> include the leading C<10.> family byte and
-point.
+In the standard mode selects sensors to collect or to ignore
+(depending on B<IgnoreSelected>, see below). Sensors are specified without
+the family byte at the beginning, so you have to use for example C<F10FCA000800>,
+and B<not> include the leading C<10.> family byte and point.
+When no B<Sensor> is configured the whole Onewire bus is walked and all supported
+sensors (see above) are read.
+
+In the advanced mode the B<Sensor> specifies full OWFS path - e.g.
+C</uncached/10.F10FCA000800/temperature> (or when cached values are OK
+C</10.F10FCA000800/temperature>). B<IgnoreSelected> is not used.
+
+As there can be multiple devices on the bus you can list multiple sensor (use
+multiple B<Sensor> elements).
 
 =item B<IgnoreSelected> I<true>|I<false>
 
-If no configuration if given, the B<onewire> plugin will collect data from all
+If no configuration is given, the B<onewire> plugin will collect data from all
 sensors found. This may not be practical, especially if sensors are added and
 removed regularly. Sometimes, however, it's easier/preferred to collect only
 specific sensors or all sensors I<except> a few specified ones. This option
 enables you to do that: By setting B<IgnoreSelected> to I<true> the effect of
 B<Sensor> is inverted: All selected interfaces are ignored and all other
 interfaces are collected.
+
+Used only in the standard mode - see above.
 
 =item B<Interval> I<Seconds>
 
