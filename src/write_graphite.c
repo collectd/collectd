@@ -92,7 +92,7 @@ struct wg_callback
     _Bool    separate_instances;
     _Bool    always_append_ds;
     _Bool    include_type;
-    _Bool    lowercase_metric_names;
+    _Bool    lowercase_identifier;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -451,7 +451,7 @@ static int wg_format_name (char *ret, int ret_len,
             prefix, n_host, postfix, tmp_plugin, tmp_type);
 
 
-    if (cb->lowercase_metric_names)
+    if (cb->lowercase_identifier)
     {
         int i;
         for (i = 0; i < ret_len; i++)
@@ -678,8 +678,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_boolean (child, &cb->include_type);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
-        else if (strcasecmp ("LowercaseMetricNames", child->key) == 0)
-            cf_util_get_boolean (child, &cb->lowercase_metric_names);
+        else if (strcasecmp ("LowercaseIdentifier", child->key) == 0)
+            cf_util_get_boolean (child, &cb->lowercase_identifier);
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
