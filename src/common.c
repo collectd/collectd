@@ -547,7 +547,7 @@ int check_create_dir (const char *file_orig)
 			{
 				if (errno == ENOENT)
 				{
-					if (mkdir (dir, 0755) == 0)
+					if (mkdir (dir, S_IRWXU | S_IRWXG | S_IRWXO) == 0)
 						break;
 
 					/* this might happen, if a different thread created
