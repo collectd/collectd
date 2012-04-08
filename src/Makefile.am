@@ -178,6 +178,15 @@ collectd_LDADD += "-dlopen" ascent.la
 collectd_DEPENDENCIES += ascent.la
 endif
 
+if BUILD_PLUGIN_BAROMETER
+pkglib_LTLIBRARIES += barometer.la
+barometer_la_SOURCES = barometer.c
+barometer_la_LDFLAGS = -module -avoid-version
+barometer_la_LIBADD = -lm
+collectd_LDADD += "-dlopen" barometer.la
+collectd_DEPENDENCIES += barometer.la
+endif
+
 if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c

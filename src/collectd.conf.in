@@ -57,6 +57,7 @@
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
 #@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
+#@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
@@ -194,6 +195,14 @@
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#</Plugin>
+
+#<Plugin "barometer">
+#   Device            "/dev/i2c-0";
+#   Averaging         512
+#   Normalization     2
+#   Altitude          238.0
+#   TemperatureSensor "myserver/onewire-F10FCA000800/temperature"
 #</Plugin>
 
 #<Plugin "bind">

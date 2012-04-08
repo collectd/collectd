@@ -460,6 +460,95 @@ and are checked by default depends on the distribution you use.
 
 =back
 
+=head2 Plugin C<barometer>
+
+This plugin reads absolute air pressure using digital barometer sensor MPL115A2
+from Freescale (sensor attached to any I2C bus available in the computer, for HW
+details 
+see I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A>).
+
+It was developed and tested under Linux only. The only platform dependency is
+the standard Linux i2c-dev interface (the and the particular bus driver has to
+support the SM Bus command subset).
+
+The plugin provides absolute barometric pressure, air pressure reduced to sea
+level (several possible approximations) and as an auxiliary value also internal
+sensor temperature. It uses (expects/provides) typical metric units - pressure
+in [hPa], temperature in [C], altitude in [m].
+
+The reduction or normalization to mean sea level pressure requires (depedning on
+selected method/approximation) also altitude and reference to temperature sensor(s).
+When multiple temperature sensors are configured the minumum of their values is
+always used (expecting that the warmer ones are affected by e.g. direct sun light
+at that moment).
+
+To filter out sensor noise a simple averaging using floating window of configurable
+size is used.
+
+Synopsis:
+
+ <Plugin "barometer">
+    Device            "/dev/i2c-0";
+    Averaging         512
+    Normalization     2
+    Altitude          238.0
+    TemperatureSensor "myserver/onewire-F10FCA000800/temperature"
+ </Plugin>
+
+=over 4
+
+=item B<Device> I<device>
+
+Device name of the I2C bus to which the sensor is connected. Note that typically
+you need to have loaded the i2c-dev module.
+
+=item B<Averaging> I<window_size>
+
+Size of the averaging window. The plugin will use average of the last C<window_size>
+measurements (value of 1 means no averaging). Minimal size is 1, maximal 1024.
+
+=item B<Normalization> I<method>
+
+Normalization method - what approximation/model is used to compute mean sea
+level pressure from the air absolute pressure.
+
+Supported values of the C<method> (integer between from 0 to 2) are:
+
+=over 5
+
+=item B<0> - no conversion, absolute pressrure is simply copied over. For this method you
+       do not need to configure C<Altitude> or C<TemperatureSensor>.
+
+=item B<1> - international formula for conversion ,
+See I<http://en.wikipedia.org/wiki/Atmospheric_pressure#Altitude_atmospheric_pressure_variation>.
+For this method you have to configure C<Altitude> but do not need C<TemperatureSensor>
+(uses fixed global temperature average instead).
+
+=item B<2> - formula as recommended by the Deutsche Wetterdienst (German
+Meteorological Service).
+See I<http://de.wikipedia.org/wiki/Barometrische_H%C3%B6henformel#Theorie>
+For this method you have to configure both  C<Altitude> and C<TemperatureSensor>.
+
+=back
+
+=item B<Altitude> I<altitude>
+
+The altitude (in meters) of the location where you meassure the pressure.
+
+=item B<TemperatureSensor> I<reference>
+
+Temperature sensor which should be used as a reference when normalizing the pressure.
+When specified more sensors a minumum is found and uses each time.
+The temperature reading directly from this pressure sensor/plugin
+is typically not suitable as the pressure sensor
+will be probably inside while we want outside temperature. 
+The collectd reference name is something like
+<hostname>/<plugin_name>-<plugin_instance>/<type>-<type_instance>
+(<type_instance> is usually omitted when there is just single value type).
+Or you can figure it out from the path of the output data files.
+
+=back
+
 =head2 Plugin C<bind>
 
 Starting with BIND 9.5.0, the most widely used DNS server software provides
