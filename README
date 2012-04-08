@@ -29,6 +29,10 @@ Features
     - ascent
       Statistics about Ascent, a free server for the game `World of Warcraft'.
 
+    - barometer
+      Using digital barometer sensor MPL115A2 from Freescale provides absolute
+      barometric pressure, air pressure reduced to sea level and temperature.
+
     - battery
       Batterycharge, -current and voltage of ACPI and PMU based laptop
       batteries.
