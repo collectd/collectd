@@ -411,9 +411,8 @@ static int wg_format_name (char *ret, int ret_len,
             sizeof (n_plugin), cb->escape_char);
     wg_copy_escape_part (n_plugin_instance, vl->plugin_instance,
             sizeof (n_plugin_instance), cb->escape_char);
-    if (cb->include_type)
-        wg_copy_escape_part (n_type, vl->type,
-                sizeof (n_type), cb->escape_char);
+    wg_copy_escape_part (n_type, vl->type,
+            sizeof (n_type), cb->escape_char);
     wg_copy_escape_part (n_type_instance, vl->type_instance,
             sizeof (n_type_instance), cb->escape_char);
 
@@ -440,7 +439,7 @@ static int wg_format_name (char *ret, int ret_len,
         if (n_type_instance[0] != '\0')
             sstrncpy (tmp_type, n_type_instance, sizeof (tmp_type));
         else
-            sstrncpy (tmp_type, "", sizeof (tmp_type));
+            sstrncpy (tmp_type, n_type, sizeof (tmp_type));
     }
 
     if (ds_name != NULL)
