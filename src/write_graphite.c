@@ -429,8 +429,10 @@ static int wg_format_name (char *ret, int ret_len,
             n_type,
             cb->separate_instances ? '.' : '-',
             n_type_instance);
-    else
+    else if (n_type_instance[0] == '\0')
         sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    else
+        sstrncpy (tmp_type, "", sizeof (tmp_type));
 
     if (ds_name != NULL)
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
