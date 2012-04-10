@@ -424,15 +424,23 @@ static int wg_format_name (char *ret, int ret_len,
     else
         sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
-    if (cb->include_type && n_type_instance[0] != '\0')
-        ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
-            n_type,
-            cb->separate_instances ? '.' : '-',
-            n_type_instance);
-    else if (n_type_instance[0] == '\0')
-        sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    if (cb->include_type)
+    {
+        if (n_type_instance[0] != '\0')
+            ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
+                n_type,
+                cb->separate_instances ? '.' : '-',
+                n_type_instance);
+        else
+            sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    }
     else
-        sstrncpy (tmp_type, "", sizeof (tmp_type));
+    {
+        if (n_type_instance[0] != '\0')
+            sstrncpy (tmp_type, n_type_instance, sizeof (tmp_type));
+        else
+            sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    }
 
     if (ds_name != NULL)
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
