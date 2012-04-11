@@ -100,6 +100,22 @@ mysql_handler		value:DERIVE:0:U
 mysql_locks		value:DERIVE:0:U
 mysql_log_position	value:DERIVE:0:U
 mysql_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
+mysql_open              value:COUNTER:0:U
+mysql_opened            value:COUNTER:0:U
+mysql_semisync          value:COUNTER:0:U
+mysql_innodb            value:COUNTER:0:U
+mysql_sort              value:COUNTER:0:U
+mysql_select            value:COUNTER:0:U
+mysql_questions         value:COUNTER:0:U
+mysql_slow              value:COUNTER:0:U
+mysql_aborted           value:COUNTER:0:U
+mysql_binlog            value:COUNTER:0:U
+mysql_connections       value:COUNTER:0:U
+mysql_key               value:COUNTER:0:U
+mysql_max_used_connections  value:COUNTER:0:U
+mysql_queries           value:COUNTER:0:U
+mysql_table             value:COUNTER:0:U
+mysql_created           value:COUNTER:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U
