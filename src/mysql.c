@@ -25,6 +25,7 @@
  *   Doug MacEachern <dougm at hyperic.com>
  *   Sebastian tokkee Harl <sh at tokkee.org>
  *   Rodolphe Quiédeville <rquiedeville at bearstech.com>
+ *   Shawn Sterling <shawn at systemtemplar.org>
  **/
 
 #include "collectd.h"
@@ -598,7 +599,7 @@ static int mysql_read (user_data_t *ud)
 		key = row[0];
 		val = atoll (row[1]);
 
-		if (strncmp (key, "Com_", 
+		if (strncmp (key, "Com_",
 			          strlen ("Com_")) == 0)
 		{
 			if (val == 0ULL)
@@ -606,18 +607,184 @@ static int mysql_read (user_data_t *ud)
 
 			/* Ignore `prepared statements' */
 			if (strncmp (key, "Com_stmt_", strlen ("Com_stmt_")) != 0)
-				counter_submit ("mysql_commands", 
-						key + strlen ("Com_"), 
+				counter_submit ("mysql_commands",
+						key + strlen ("Com_"),
 						val, db);
 		}
-		else if (strncmp (key, "Handler_", 
-				        strlen ("Handler_")) == 0)
+
+                /* obsessive info start */
+
+                else if (strncmp (key, "Binlog_",
+                                        strlen ("Binlog_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ("mysql_binlog",
+                                        key + strlen ("Binlog_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Connections",
+                                        strlen ("Connections")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ("mysql_connections",
+                                        key + strlen ("Connections"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Aborted_",
+                                        strlen ("Aborted_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_aborted",
+                                        key + strlen ("Aborted_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Max_used_connections",
+                                        strlen ("Max_used_connections")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_max_used_connections",
+                                        key + strlen ("Max_used_connections"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Key_",
+                                        strlen ("Key_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_key",
+                                        key + strlen ("Key_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Queries",
+                                        strlen ("Queries")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_queries",
+                                        key + strlen ("Queries"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Questions",
+                                        strlen ("Questions")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_questions",
+                                        key + strlen ("Questions"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Select_",
+                                        strlen ("Select_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_select",
+                                        key + strlen ("Select_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Sort_",
+                                        strlen ("Sort_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_sort",
+                                        key + strlen ("Sort_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Slow_",
+                                        strlen ("Slow_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_slow",
+                                        key + strlen ("Slow_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Table_",
+                                        strlen ("Table_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ( "mysql_table",
+                                        key + strlen ("Table_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Innodb_",
+                                        strlen ("Innodb_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ("mysql_innodb",
+                                        key + strlen ("Innodb_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Open_",
+                                        strlen ("Open_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ("mysql_open",
+                                        key + strlen ("Open_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Opened_",
+                                        strlen ("Opened_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ("mysql_opened",
+                                        key + strlen ("Opened_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Rpl_",
+                                        strlen ("Rpl_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ("mysql_semisync",
+                                        key + strlen ("Rpl_"),
+                                        val, db);
+                }
+                else if (strncmp (key, "Created_",
+                                        strlen ("Created_")) == 0)
+                {
+                        if (val == 0ULL)
+                                continue;
+
+                        counter_submit ("mysql_created",
+                                        key + strlen ("Created_"),
+                                        val, db);
+                }
+
+                /* obsessive info ends */
+
+		else if (strncmp (key, "Handler_",
+		                strlen ("Handler_")) == 0)
 		{
 			if (val == 0ULL)
 				continue;
 
-			counter_submit ("mysql_handler", 
-					key + strlen ("Handler_"), 
+			counter_submit ("mysql_handler",
+					key + strlen ("Handler_"),
 					val, db);
 		}
 		else if (strncmp (key, "Qcache_",
@@ -634,7 +801,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Qcache_queries_in_cache") == 0)
 				qcache_queries_in_cache = (gauge_t) val;
 		}
-		else if (strncmp (key, "Bytes_", 
+		else if (strncmp (key, "Bytes_",
 				        strlen ("Bytes_")) == 0)
 		{
 			if (strcmp (key, "Bytes_received") == 0)
@@ -642,7 +809,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Bytes_sent") == 0)
 				traffic_outgoing += val;
 		}
-		else if (strncmp (key, "Threads_", 
+		else if (strncmp (key, "Threads_",
        				        strlen ("Threads_")) == 0)
 		{
 			if (strcmp (key, "Threads_running") == 0)
