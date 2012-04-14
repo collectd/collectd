@@ -305,8 +305,7 @@ static int ethstat_read_interface (char *device)
 
     stat_name = (void *) &strings->data[i * ETH_GSTRING_LEN];
     DEBUG("ethstat plugin: device = \"%s\": %s = %"PRIu64,
-        device, stat_name,
-        (uint64_t) stats->data[i]);
+        device, stat_name, (uint64_t) stats->data[i]);
     ethstat_submit_value (device,
         stat_name, (derive_t) stats->data[i]);
   }
