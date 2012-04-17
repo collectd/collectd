@@ -225,6 +225,9 @@ static void *us_handle_client (void *arg)
 		errno = 0;
 		if (fgets (buffer, sizeof (buffer), fhin) == NULL)
 		{
+			if ((errno == EINTR) || (errno == EAGAIN))
+				continue;
+
 			if (errno != 0)
 			{
 				char errbuf[1024];
