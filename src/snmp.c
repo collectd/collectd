@@ -742,7 +742,7 @@ static void csnmp_host_open_session (host_definition_t *host)
   sess.community = (u_char *) host->community;
   sess.community_len = strlen (host->community);
   sess.version = (host->version == 1) ? SNMP_VERSION_1 : SNMP_VERSION_2c;
-  
+
   if (snmp_session_timeout > 0)
     sess.timeout = snmp_session_timeout;
   
@@ -1310,6 +1310,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   instance_list_ptr = NULL;
 
   status = 0;
+  
+  int successful = 0;
+
   while (status == 0)
   {
     req = snmp_pdu_create (SNMP_MSG_GETNEXT);
@@ -1341,12 +1344,15 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       res = NULL;
 
       sfree (errstr);
-      csnmp_host_close_session (host);
+
+      if (!successful)
+        csnmp_host_close_session (host);
 
       status = -1;
       break;
     }
     status = 0;
+
     assert (res != NULL);
     c_release (LOG_INFO, &host->complaint,
 	"snmp plugin: host %s: snmp_sess_synch_response successful.",
@@ -1442,6 +1448,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       memcpy (oid_list[i].oid, vb->name, sizeof (oid) * vb->name_length);
       oid_list[i].oid_len = vb->name_length;
     } /* for (i = data->values_len) */
+
+    if (!successful)
+      successful = 1;
 
     if (res != NULL)
       snmp_free_pdu (res);
@@ -1561,7 +1570,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     res = NULL;
 
     sfree (errstr);
-    csnmp_host_close_session (host);
+    //csnmp_host_close_session (host);
 
     return (-1);
   }
@@ -1601,6 +1610,7 @@ static int csnmp_read_host (user_data_t *ud)
   cdtime_t time_end;
   int status;
   int success;
+  int failure_th = 20;
   int i;
 
   host = ud->data;
@@ -1628,6 +1638,14 @@ static int csnmp_read_host (user_data_t *ud)
 
     if (status == 0)
       success++;
+    else
+      failure_th--;
+
+    if (failure_th <= 0)
+    {
+      WARNING ("snmp plugin: Host '%s' has failed in too many snmp queries, giving up", host->name);
+      break;
+    }
   }
 
   time_end = cdtime ();
