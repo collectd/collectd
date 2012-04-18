@@ -1641,7 +1641,7 @@ static int csnmp_read_host (user_data_t *ud)
     else
       failure_th--;
 
-    if (failure_th <= 0)
+    if (failure_th <= 0 || (!success && i < 2))
     {
       WARNING ("snmp plugin: Host '%s' has failed in too many snmp queries, giving up", host->name);
       break;
