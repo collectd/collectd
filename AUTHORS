@@ -54,6 +54,9 @@ Christophe Kalt <collectd at klb.taranis.org>
  - The version 3 `log' mode.
  - Many Solaris related hints and fixes.
 
+Cyril Feraudet <cyril at feraudet.com>
+ - ethstat plugin.
+
 Dan Berrange <berrange at redhat.com>
  - uuid plugin.
 
@@ -115,6 +118,9 @@ Marco Chiappero <marco at absence.it>
  - ip6tables support in the iptables plugin.
  - openvpn plugin (support for more status file formats)
 
+Michael Hanselmann <public at hansmi.ch>
+ - md plugin.
+
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
 
@@ -174,6 +180,9 @@ Rodolphe Quiédeville <rquiedeville at bearstech.com>
 
 Scott Garrett <sgarrett at technomancer.com>
  - tape plugin.
+
+Scott Sanders <scott at jssjr.com>
+ - Write-Graphite plugin.
 
 Sebastien Pahl <sebastien.pahl at dotcloud.com>
  - AMQP plugin.

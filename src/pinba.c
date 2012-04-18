@@ -617,7 +617,7 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Address", child->key) == 0)
       cf_util_get_string (child, &conf_node);
     else if (strcasecmp ("Port", child->key) == 0)
-      cf_util_get_string (child, &conf_service);
+      cf_util_get_service (child, &conf_service);
     else if (strcasecmp ("View", child->key) == 0)
       pinba_config_view (child);
     else

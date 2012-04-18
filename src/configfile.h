@@ -116,6 +116,12 @@ int cf_util_get_flag (const oconfig_item_t *ci,
  * failure. */
 int cf_util_get_port_number (const oconfig_item_t *ci);
 
+/* Assures that the config option is either a service name (a string) or a port
+ * number (an integer in the appropriate range) and returns a newly allocated
+ * string. If ret_string points to a non-NULL pointer, it is freed before
+ * assigning a new value. */
+int cf_util_get_service (const oconfig_item_t *ci, char **ret_string);
+
 int cf_util_get_cdtime (const oconfig_item_t *ci, cdtime_t *ret_value);
 
 #endif /* defined(CONFIGFILE_H) */

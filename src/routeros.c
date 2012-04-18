@@ -341,7 +341,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Host", child->key) == 0)
       status = cf_util_get_string (child, &router_data->node);
     else if (strcasecmp ("Port", child->key) == 0)
-      status = cf_util_get_string (child, &router_data->service);
+      status = cf_util_get_service (child, &router_data->service);
     else if (strcasecmp ("User", child->key) == 0)
       status = cf_util_get_string (child, &router_data->username);
     else if (strcasecmp ("Password", child->key) == 0)

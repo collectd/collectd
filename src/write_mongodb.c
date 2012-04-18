@@ -1,8 +1,8 @@
 /**
  * collectd - src/write_mongodb.c
- * Copyright (C) 2010  Florian Forster
- * Copyright (C) 2010  Akkarit Sangpetch
- * Copyright (C) 2012  Chris Lundquist
+ * Copyright (C) 2010-2012  Florian Forster
+ * Copyright (C) 2010       Akkarit Sangpetch
+ * Copyright (C) 2012       Chris Lundquist
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,7 @@
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
+#include "utils_cache.h"
 
 #include <pthread.h>
 
@@ -50,7 +51,7 @@ struct wm_node_s
   int port;
   int timeout;
 
-  int connected;
+  _Bool store_rates;
 
   mongo conn[1];
   pthread_mutex_t lock;
@@ -60,75 +61,159 @@ typedef struct wm_node_s wm_node_t;
 /*
  * Functions
  */
+static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
+    const value_list_t *vl,
+    _Bool store_rates)
+{
+  bson *ret;
+  gauge_t *rates;
+  int i;
+
+  ret = bson_create ();
+  if (ret == NULL)
+  {
+    ERROR ("write_mongodb plugin: bson_create failed.");
+    return (NULL);
+  }
+
+  if (store_rates)
+  {
+    rates = uc_get_rate (ds, vl);
+    if (rates == NULL)
+    {
+      ERROR ("write_mongodb plugin: uc_get_rate() failed.");
+      return (NULL);
+    }
+  }
+  else
+  {
+    rates = NULL;
+  }
+
+  bson_init (ret);
+  bson_append_date (ret, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
+  bson_append_string (ret, "host", vl->host);
+  bson_append_string (ret, "plugin", vl->plugin);
+  bson_append_string (ret, "plugin_instance", vl->plugin_instance);
+  bson_append_string (ret, "type", vl->type);
+  bson_append_string (ret, "type_instance", vl->type_instance);
+
+  bson_append_start_array (ret, "values"); /* {{{ */
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    char key[16];
+
+    ssnprintf (key, sizeof (key), "%i", i);
+
+    if (ds->ds[i].type == DS_TYPE_GAUGE)
+      bson_append_double(ret, key, vl->values[i].gauge);
+    else if (store_rates)
+      bson_append_double(ret, key, (double) rates[i]);
+    else if (ds->ds[i].type == DS_TYPE_COUNTER)
+      bson_append_long(ret, key, vl->values[i].counter);
+    else if (ds->ds[i].type == DS_TYPE_DERIVE)
+      bson_append_long(ret, key, vl->values[i].derive);
+    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+      bson_append_long(ret, key, vl->values[i].absolute);
+    else
+      assert (23 == 42);
+  }
+  bson_append_finish_array (ret); /* }}} values */
+
+  bson_append_start_array (ret, "dstypes"); /* {{{ */
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    char key[16];
+
+    ssnprintf (key, sizeof (key), "%i", i);
+
+    if (store_rates)
+      bson_append_string (ret, key, "gauge");
+    else
+      bson_append_string (ret, key, DS_TYPE_TO_STRING (ds->ds[i].type));
+  }
+  bson_append_finish_array (ret); /* }}} dstypes */
+
+  bson_append_start_array (ret, "dsnames"); /* {{{ */
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    char key[16];
+
+    ssnprintf (key, sizeof (key), "%i", i);
+    bson_append_string (ret, key, ds->ds[i].name);
+  }
+  bson_append_finish_array (ret); /* }}} dsnames */
+
+  bson_finish (ret);
+
+  sfree (rates);
+  return (ret);
+} /* }}} bson *wm_create_bson */
+
 static int wm_write (const data_set_t *ds, /* {{{ */
     const value_list_t *vl,
     user_data_t *ud)
 {
   wm_node_t *node = ud->data;
   char collection_name[512];
+  bson *bson_record;
   int status;
-  int i;
-  bson record;
 
-  ssnprintf(collection_name, sizeof (collection_name), "collectd.%s", vl->plugin);
+  ssnprintf (collection_name, sizeof (collection_name), "collectd.%s",
+      vl->plugin);
 
-  bson_init(&record);
-  bson_append_time_t(&record,"ts",CDTIME_T_TO_TIME_T(vl->time));
-  bson_append_string(&record,"h",vl->host);
-  bson_append_string(&record,"i",vl->plugin_instance);
-  bson_append_string(&record,"t",vl->type);
-  bson_append_string(&record,"ti",vl->type_instance);
-
-  for (i = 0; i < ds->ds_num; i++)
-  {
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
-      bson_append_long(&record, ds->ds[i].name, vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      bson_append_double(&record, ds->ds[i].name, vl->values[i].gauge);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      bson_append_long(&record, ds->ds[i].name, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      bson_append_long(&record, ds->ds[i].name, vl->values[i].absolute);
-    else
-      assert (23 == 42);
-  }
-  bson_finish(&record);
+  bson_record = wm_create_bson (ds, vl, node->store_rates);
+  if (bson_record == NULL)
+    return (ENOMEM);
 
   pthread_mutex_lock (&node->lock);
 
-  if (node->connected == 0)
+  if (!mongo_is_connected (node->conn))
   {
-    status = mongo_connect(node->conn, node->host, node->port);
+    INFO ("write_mongodb plugin: Connecting to [%s]:%i",
+        (node->host != NULL) ? node->host : "localhost",
+        (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
+    status = mongo_connect (node->conn, node->host, node->port);
     if (status != MONGO_OK) {
-      ERROR ("write_mongodb plugin: Connecting to host \"%s\" (port %i) failed.",
+      ERROR ("write_mongodb plugin: Connecting to [%s]:%i failed.",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
-      mongo_destroy(node->conn);
+      mongo_destroy (node->conn);
       pthread_mutex_unlock (&node->lock);
       return (-1);
-    } else {
-      node->connected = 1;
+    }
+
+    if (node->timeout > 0) {
+      status = mongo_set_op_timeout (node->conn, node->timeout);
+      if (status != MONGO_OK) {
+        WARNING ("write_mongodb plugin: mongo_set_op_timeout(%i) failed: %s",
+            node->timeout, node->conn->errstr);
+      }
     }
   }
 
   /* Assert if the connection has been established */
-  assert (node->connected == 1);
+  assert (mongo_is_connected (node->conn));
 
-  DEBUG ( "write_mongodb plugin: writing record");
-  /* bson_print(&record); */
-
-  status = mongo_insert(node->conn,collection_name,&record);
-
+  status = mongo_insert (node->conn, collection_name, bson_record);
   if(status != MONGO_OK)
   {
     ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err);
-    if (node->conn->err == MONGO_BSON_INVALID)
+    if (node->conn->err != MONGO_BSON_INVALID)
       ERROR ("write_mongodb plugin: %s", node->conn->errstr);
-    else if (record.err)
-      ERROR ("write_mongodb plugin: %s", record.errstr);
+    else if (bson_record->err)
+      ERROR ("write_mongodb plugin: %s", bson_record->errstr);
+
+    /* Disconnect except on data errors. */
+    if ((node->conn->err != MONGO_BSON_INVALID)
+        && (node->conn->err != MONGO_BSON_NOT_FINISHED))
+      mongo_destroy (node->conn);
   }
 
   pthread_mutex_unlock (&node->lock);
+
+  /* free our resource as not to leak memory */
+  bson_dispose (bson_record);
 
   return (0);
 } /* }}} int wm_write */
@@ -140,11 +225,8 @@ static void wm_config_free (void *ptr) /* {{{ */
   if (node == NULL)
     return;
 
-  if (node->connected != 0)
-  {
-    mongo_destroy(node->conn);
-    node->connected = 0;
-  }
+  if (mongo_is_connected (node->conn))
+    mongo_destroy (node->conn);
 
   sfree (node->host);
   sfree (node);
@@ -160,10 +242,9 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   if (node == NULL)
     return (ENOMEM);
   memset (node, 0, sizeof (*node));
+  mongo_init (node->conn);
   node->host = NULL;
-  node->port = 0;
-  node->timeout = 1000;
-  node->connected = 0;
+  node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -191,6 +272,8 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &node->timeout);
+    else if (strcasecmp ("StoreRates", child->key) == 0)
+      status = cf_util_get_boolean (child, &node->store_rates);
     else
       WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);

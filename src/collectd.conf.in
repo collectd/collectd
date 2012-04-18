@@ -73,6 +73,7 @@
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
+#@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
@@ -89,6 +90,7 @@
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
+#@BUILD_PLUGIN_MD_TRUE@LoadPlugin md
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
@@ -103,6 +105,7 @@
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
+#@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 #@BUILD_PLUGIN_OLSRD_TRUE@LoadPlugin olsrd
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
@@ -144,9 +147,10 @@
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
+#@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
-#@BUILD_PLUGIN_WRITE_MONGO_TRUE@LoadPlugin write_mongo
+#@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -194,6 +198,7 @@
 
 #<Plugin "bind">
 #  URL "http://localhost:8053/"
+#  ParseTime       false
 #  OpCodes         true
 #  QTypes          true
 #
@@ -331,6 +336,13 @@
 #	MaxConns 5
 #</Plugin>
 
+#<Plugin ethstat>
+#	Interface "eth0"
+#	Map "rx_csum_offload_errors" "if_rx_errors" "checksum_offload"
+#	Map "multicast" "if_multicast"
+#	MappedOnly false
+#</Plugin>
+
 #<Plugin exec>
 #	Exec "user:group" "/path/to/exec"
 #	NotificationExec "user:group" "/path/to/exec"
@@ -431,6 +443,11 @@
 #<Plugin mbmon>
 #	Host "127.0.0.1"
 #	Port "411"
+#</Plugin>
+
+#<Plugin md>
+#	Device "/dev/md0"
+#	IgnoreSelected false
 #</Plugin>
 
 #<Plugin memcachec>
@@ -799,6 +816,7 @@
 #</Plugin>
 
 #<Plugin sensors>
+#	SensorConfigFile "/etc/sensors.conf"
 #	Sensor "it8712-isa-0290/temperature-temp1"
 #	Sensor "it8712-isa-0290/fanspeed-fan3"
 #	Sensor "it8712-isa-0290/voltage-in8"
@@ -953,6 +971,18 @@
 #	Verbose false
 #</Plugin>
 
+#<Plugin write_graphite>
+#  <Carbon>
+#    Host "localhost"
+#    Port "2003"
+#    Prefix "collectd"
+#    Postfix "collectd"
+#    StoreRates false
+#    AlwaysAppendDS false
+#    EscapeCharacter "_"
+#  </Carbon>
+#</Plugin>
+
 #<Plugin write_http>
 #	<URL "http://example.com/collectd-post">
 #		User "collectd"
@@ -973,11 +1003,12 @@
 #	</Node>
 #</Plugin>
 
-#<Plugin write_mongo>
+#<Plugin write_mongodb>
 #	<Node "example">
 #		Host "localhost"
 #		Port "27017"
 #		Timeout 1000
+#		StoreRates false
 #	</Node>
 #</Plugin>
 

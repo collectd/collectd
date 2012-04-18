@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, m4_esyscmd(./version-gen.sh))
+AC_INIT(collectd, [m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
@@ -299,6 +299,21 @@ fi
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h libgen.h)
 
+# For md module (Linux only)
+if test "x$ac_system" = "xLinux"
+then
+	AC_CHECK_HEADERS(linux/raid/md_u.h,
+			 [have_linux_raid_md_u_h="yes"],
+			 [have_linux_raid_md_u_h="no"],
+[
+#include <sys/ioctl.h>
+#include <linux/major.h>
+#include <linux/types.h>
+])
+else
+	have_linux_raid_md_u_h="no"
+fi
+
 # For the battery plugin
 AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
 [
@@ -387,6 +402,33 @@ AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 # include <linux/if.h>
 #endif
 ])
+
+# For ethstat module
+AC_CHECK_HEADERS(linux/sockios.h,
+    [have_linux_sockios_h="yes"],
+    [have_linux_sockios_h="no"],
+    [
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+    ])
+AC_CHECK_HEADERS(linux/ethtool.h,
+    [have_linux_ethtool_h="yes"],
+    [have_linux_ethtool_h="no"],
+    [
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#if HAVE_LINUX_SOCKIOS_H
+# include <linux/sockios.h>
+#endif
+    ])
 
 # For ipvs module
 have_linux_ip_vs_h="no"
@@ -1381,6 +1423,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBKVM_GETSWAPINFO, test "x$with_kvm_getswapinfo" = "x
 AC_CHECK_LIB(kvm, kvm_nlist, [with_kvm_nlist="yes"], [with_kvm_nlist="no"])
 if test "x$with_kvm_nlist" = "xyes"
 then
+	AC_CHECK_HEADERS(bsd/nlist.h nlist.h)
 	AC_DEFINE(HAVE_LIBKVM_NLIST, 1,
 		  [Define to 1 if you have the 'kvm' library with the 'kvm_nlist' symbol (-lkvm)])
 	with_libkvm="yes"
@@ -1786,68 +1829,119 @@ AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # --with-libiptc {{{
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" = "xshipped"
 	then
-		LIBIPTC_CPPFLAGS="$LIBIPTC_CPPFLAGS -I$withval/include"
-		LIBIPTC_LDFLAGS="$LIBIPTC_LDFLAGS -L$withval/lib"
-		with_libiptc="yes"
+		with_libiptc="own"
+	else if test "x$withval" = "xyes"
+	then
+		with_libiptc="pkgconfig"
+	else if test "x$withval" = "xno"
+	then
+		with_libiptc="no"
 	else
-		with_libiptc="$withval"
-	fi
+		with_libiptc="yes"
+		with_libiptc_cflags="-I$withval/include"
+		with_libiptc_libs="-L$withval/lib"
+	fi; fi; fi
 ],
 [
 	if test "x$ac_system" = "xLinux"
 	then
-		with_libiptc="yes"
+		with_libiptc="pkgconfig"
 	else
 		with_libiptc="no (Linux only)"
 	fi
 ])
-SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-CPPFLAGS="$CPPFLAGS $LIBIPTC_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBIPTC_LDFLAGS"
-# check whether the header file for libiptc is available.
-if test "x$with_libiptc" = "xyes"
+
+if test "x$with_libiptc" = "xpkgconfig" && test "x$PKG_CONFIG" = "x"
 then
-	AC_CHECK_HEADERS(libiptc/libiptc.h,
-			 [with_libiptc="yes"],
-			 [with_libiptc="no (libiptc/libiptc.h not found)"])
+	with_libiptc="no (Don't have pkg-config)"
 fi
-if test "x$with_libiptc" = "xyes"
+
+if test "x$with_libiptc" = "xpkgconfig"
 then
-	AC_CHECK_HEADERS(libiptc/libip6tc.h,
-			 [with_libiptc="yes"],
-			 [with_libiptc="no (libiptc/libip6tc.h not found)"])
+	$PKG_CONFIG --exists 'libiptc' 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libiptc="no (pkg-config doesn't know libiptc)"
+	fi
+fi
+if test "x$with_libiptc" = "xpkgconfig"
+then
+	with_libiptc_cflags="`$PKG_CONFIG --cflags 'libiptc'`"
+	if test $? -ne 0
+	then
+		with_libiptc="no ($PKG_CONFIG failed)"
+	fi
+	with_libiptc_libs="`$PKG_CONFIG --libs 'libiptc'`"
+	if test $? -ne 0
+	then
+		with_libiptc="no ($PKG_CONFIG failed)"
+	fi
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $with_libiptc_cflags"
+
+# check whether the header file for libiptc is available.
+if test "x$with_libiptc" = "xpkgconfig"
+then
+	AC_CHECK_HEADERS(libiptc/libiptc.h libiptc/libip6tc.h, ,
+			[with_libiptc="no (header file missing)"])
 fi
 # If the header file is available, check for the required type declaractions.
 # They may be missing in old versions of libiptc. In that case, they will be
 # declared in the iptables plugin.
-if test "x$with_libiptc" = "xyes"
+if test "x$with_libiptc" = "xpkgconfig"
 then
-	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [],
-	[
-#include <libiptc/libiptc.h>
-#include <libiptc/libip6tc.h>
-	])
+	AC_CHECK_TYPES([iptc_handle_t, ip6tc_handle_t], [], [])
 fi
 # Check for the iptc_init symbol in the library.
-if test "x$with_libiptc" = "xyes"
+# This could be in iptc or ip4tc
+if test "x$with_libiptc" = "xpkgconfig"
 then
-	AC_CHECK_LIB(iptc, iptc_init,
-		     [with_libiptc="yes"],
-		     [with_libiptc="no (symbol 'iptc_init' not found)"])
+	AC_SEARCH_LIBS(iptc_init, [iptc ip4tc],
+			[with_libiptc="pkgconfig"],
+			[with_libiptc="no"],
+			[$with_libiptc_libs])
 fi
+if test "x$with_libiptc" = "xpkgconfig"
+then
+	with_libiptc="yes"
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+
+if test "x$with_libiptc" = "xown"
+then
+	with_libiptc_cflags=""
+	with_libiptc_libs=""
+fi
+if test "x$with_libiptc" = "xown"
+then
+	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h linux/netfilter/x_tables.h, [],
+	[
+		with_libiptc="no (Linux iptables headers not found)"
+	],
+	[
+#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
+	])
+fi
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_libiptc" = "xown")
+if test "x$with_libiptc" = "xown"
+then
+	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
+	with_libiptc="yes"
+fi
+
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 if test "x$with_libiptc" = "xyes"
 then
-	BUILD_WITH_LIBIPTC_CPPFLAGS="$LIBIPTC_CPPFLAGS"
-	BUILD_WITH_LIBIPTC_LDFLAGS="$LIBIPTC_LDFLAGS"
+	BUILD_WITH_LIBIPTC_CPPFLAGS="$with_libiptc_cflags"
+	BUILD_WITH_LIBIPTC_LDFLAGS="$with_libiptc_libs"
 	AC_SUBST(BUILD_WITH_LIBIPTC_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_LIBIPTC_LDFLAGS)
 fi
-CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
 # }}}
 
 # --with-java {{{
@@ -2102,21 +2196,21 @@ then
 fi
 if test "x$with_libmodbus" = "xuse_pkgconfig"
 then
-	AC_MSG_NOTICE([Checking for modbus using $PKG_CONFIG])
-	$PKG_CONFIG --exists 'modbus' 2>/dev/null
+	AC_MSG_NOTICE([Checking for libmodbus using $PKG_CONFIG])
+	$PKG_CONFIG --exists 'libmodbus' 2>/dev/null
 	if test $? -ne 0
 	then
-		with_libmodbus="no (pkg-config doesn't know modbus)"
+		with_libmodbus="no (pkg-config doesn't know libmodbus)"
 	fi
 fi
 if test "x$with_libmodbus" = "xuse_pkgconfig"
 then
-	with_libmodbus_cflags="`$PKG_CONFIG --cflags 'modbus'`"
+	with_libmodbus_cflags="`$PKG_CONFIG --cflags 'libmodbus'`"
 	if test $? -ne 0
 	then
 		with_libmodbus="no ($PKG_CONFIG failed)"
 	fi
-	with_libmodbus_libs="`$PKG_CONFIG --libs 'modbus'`"
+	with_libmodbus_libs="`$PKG_CONFIG --libs 'libmodbus'`"
 	if test $? -ne 0
 	then
 		with_libmodbus="no ($PKG_CONFIG failed)"
@@ -2282,7 +2376,7 @@ then
 fi
 if test "x$with_libmysql" = "xyes"
 then
-	with_mysql_libs=`$with_mysql_config --libs 2>/dev/null`
+	with_mysql_libs=`$with_mysql_config --libs_r 2>/dev/null`
 	mysql_config_status=$?
 
 	if test $mysql_config_status -ne 0
@@ -3258,26 +3352,39 @@ AC_ARG_WITH(librabbitmq, [AS_HELP_STRING([--with-librabbitmq@<:@=PREFIX@:>@], [P
 [
 	with_librabbitmq="yes"
 ])
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
 if test "x$with_librabbitmq" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
-
 	AC_CHECK_HEADERS(amqp.h, [with_librabbitmq="yes"], [with_librabbitmq="no (amqp.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 if test "x$with_librabbitmq" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
-	LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
-
+	# librabbitmq up to version 0.9.1 provides "library_errno", later
+	# versions use "library_error". The library does not provide a version
+	# macro :( Use "AC_CHECK_MEMBERS" (plural) for automatic defines.
+	AC_CHECK_MEMBERS([amqp_rpc_reply_t.library_errno],,,
+			 [
+#if HAVE_STDLIB_H
+# include <stdlib.h>
+#endif
+#if HAVE_STDIO_H
+# include <stdio.h>
+#endif
+#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
+#include <amqp.h>
+                         ])
+fi
+if test "x$with_librabbitmq" = "xyes"
+then
 	AC_CHECK_LIB(rabbitmq, amqp_basic_publish, [with_librabbitmq="yes"], [with_librabbitmq="no (Symbol 'amqp_basic_publish' not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_librabbitmq" = "xyes"
 then
@@ -3289,6 +3396,8 @@ then
 	AC_SUBST(BUILD_WITH_LIBRABBITMQ_LIBS)
 	AC_DEFINE(HAVE_LIBRABBITMQ, 1, [Define if librabbitmq is present and usable.])
 fi
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
 AM_CONDITIONAL(BUILD_WITH_LIBRABBITMQ, test "x$with_librabbitmq" = "xyes")
 # }}}
 
@@ -4007,10 +4116,9 @@ then
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 	#LDFLAGS="$LDFLAGS $with_libvarnish_libs"
 
-	AC_CHECK_LIB(varnishapi, VSL_OpenStats,
-		     [with_libvarnish="yes"],
-		     [with_libvarnish="no (symbol VSL_OpenStats not found)"],
-		     [$with_libvarnish_libs])
+    AC_CHECK_HEADERS(varnish/vsc.h,
+        [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
+        [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	#LDFLAGS="$SAVE_LDFLAGS"
@@ -4368,6 +4476,8 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_entropy="no"
+plugin_ethstat="no"
+plugin_fscache="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -4377,7 +4487,7 @@ plugin_load="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
-plugin_fscache="no"
+plugin_numa="no"
 plugin_perl="no"
 plugin_processes="no"
 plugin_protocols="no"
@@ -4404,12 +4514,13 @@ then
 	plugin_cpufreq="yes"
 	plugin_disk="yes"
 	plugin_entropy="yes"
+	plugin_fscache="yes"
 	plugin_interface="yes"
 	plugin_irq="yes"
 	plugin_load="yes"
 	plugin_memory="yes"
 	plugin_nfs="yes"
-	plugin_fscache="yes"
+	plugin_numa="yes"
 	plugin_processes="yes"
 	plugin_protocols="yes"
 	plugin_serial="yes"
@@ -4464,6 +4575,7 @@ fi
 # Solaris
 if test "x$with_kstat" = "xyes"
 then
+	plugin_nfs="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
 fi
@@ -4568,6 +4680,11 @@ then
 	then
 		plugin_df="yes"
 	fi
+fi
+
+if test "x$have_linux_sockios_h$have_linux_ethtool_h" = "xyesyes"
+then
+	plugin_ethstat="yes"
 fi
 
 if test "x$have_getifaddrs" = "xyes"
@@ -4678,6 +4795,7 @@ AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
 AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
+AC_PLUGIN([ethstat],     [$plugin_ethstat],    [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
@@ -4700,6 +4818,7 @@ AC_PLUGIN([match_regex], [yes],                [The regex match])
 AC_PLUGIN([match_timediff], [yes],             [The timediff match])
 AC_PLUGIN([match_value], [yes],                [The value match])
 AC_PLUGIN([mbmon],       [yes],                [Query mbmond])
+AC_PLUGIN([md],          [$have_linux_raid_md_u_h], [md (Linux software RAID) devices])
 AC_PLUGIN([memcachec],   [$with_libmemcached], [memcachec statistics])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
@@ -4714,6 +4833,7 @@ AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
+AC_PLUGIN([numa],        [$plugin_numa],       [NUMA virtual memory statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([olsrd],       [yes],                [olsrd statistics])
 AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
@@ -4759,6 +4879,7 @@ AC_PLUGIN([varnish],     [$with_libvarnish],   [Varnish cache statistics])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
+AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
@@ -5006,6 +5127,7 @@ Configuration:
     dns . . . . . . . . . $enable_dns
     email . . . . . . . . $enable_email
     entropy . . . . . . . $enable_entropy
+    ethstat . . . . . . . $enable_ethstat
     exec  . . . . . . . . $enable_exec
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
@@ -5028,6 +5150,7 @@ Configuration:
     match_timediff  . . . $enable_match_timediff
     match_value . . . . . $enable_match_value
     mbmon . . . . . . . . $enable_mbmon
+    md  . . . . . . . . . $enable_md
     memcachec . . . . . . $enable_memcachec
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
@@ -5042,6 +5165,7 @@ Configuration:
     notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
     ntpd  . . . . . . . . $enable_ntpd
+    numa  . . . . . . . . $enable_numa
     nut . . . . . . . . . $enable_nut
     olsrd . . . . . . . . $enable_olsrd
     onewire . . . . . . . $enable_onewire
@@ -5086,6 +5210,7 @@ Configuration:
     vmem  . . . . . . . . $enable_vmem
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
+    write_graphite  . . . $enable_write_graphite
     write_http  . . . . . $enable_write_http
     write_redis . . . . . $enable_write_redis
     write_mongodb . . . . $enable_write_mongodb

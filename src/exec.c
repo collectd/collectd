@@ -93,7 +93,7 @@ static void sigchld_handler (int __attribute__((unused)) signal) /* {{{ */
     program_list_t *pl;
     for (pl = pl_head; pl != NULL; pl = pl->next)
       if (pl->pid == pid)
-	break;
+        break;
     if (pl != NULL)
       pl->status = status;
   } /* while (waitpid) */
@@ -108,20 +108,20 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   if (ci->children_num != 0)
   {
     WARNING ("exec plugin: The config option `%s' may not be a block.",
-	ci->key);
+        ci->key);
     return (-1);
   }
   if (ci->values_num < 2)
   {
     WARNING ("exec plugin: The config option `%s' needs at least two "
-	"arguments.", ci->key);
+        "arguments.", ci->key);
     return (-1);
   }
   if ((ci->values[0].type != OCONFIG_TYPE_STRING)
       || (ci->values[1].type != OCONFIG_TYPE_STRING))
   {
     WARNING ("exec plugin: The first two arguments to the `%s' option must "
-	"be string arguments.", ci->key);
+        "be string arguments.", ci->key);
     return (-1);
   }
 
@@ -201,15 +201,15 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     {
       if (ci->values[i + 1].type == OCONFIG_TYPE_NUMBER)
       {
-	ssnprintf (buffer, sizeof (buffer), "%lf",
-	    ci->values[i + 1].value.number);
+        ssnprintf (buffer, sizeof (buffer), "%lf",
+            ci->values[i + 1].value.number);
       }
       else
       {
-	if (ci->values[i + 1].value.boolean)
-	  sstrncpy (buffer, "true", sizeof (buffer));
-	else
-	  sstrncpy (buffer, "false", sizeof (buffer));
+        if (ci->values[i + 1].value.boolean)
+          sstrncpy (buffer, "true", sizeof (buffer));
+        else
+          sstrncpy (buffer, "false", sizeof (buffer));
       }
 
       pl->argv[i] = strdup (buffer);
@@ -254,7 +254,7 @@ static int exec_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
     if ((strcasecmp ("Exec", child->key) == 0)
-	|| (strcasecmp ("NotificationExec", child->key) == 0))
+        || (strcasecmp ("NotificationExec", child->key) == 0))
       exec_config_exec (child);
     else
     {
@@ -303,7 +303,7 @@ static void exec_child (program_list_t *pl) /* {{{ */
   if (status != 0)
   {
     ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
-	pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
+        pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
   if (sp_ptr == NULL)
@@ -332,15 +332,15 @@ static void exec_child (program_list_t *pl) /* {{{ */
       status = getgrnam_r (pl->group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
       if (0 != status)
       {
-	ERROR ("exec plugin: Failed to get group information "
-	    "for group ``%s'': %s", pl->group,
-	    sstrerror (errno, errbuf, sizeof (errbuf)));
-	exit (-1);
+        ERROR ("exec plugin: Failed to get group information "
+            "for group ``%s'': %s", pl->group,
+            sstrerror (errno, errbuf, sizeof (errbuf)));
+        exit (-1);
       }
       if (NULL == gr_ptr)
       {
-	ERROR ("exec plugin: No such group: `%s'", pl->group);
-	exit (-1);
+        ERROR ("exec plugin: No such group: `%s'", pl->group);
+        exit (-1);
       }
 
       egid = gr.gr_gid;
@@ -374,7 +374,7 @@ static void exec_child (program_list_t *pl) /* {{{ */
   if (status != 0)
   {
     ERROR ("exec plugin: setgid (%i) failed: %s",
-	gid, sstrerror (errno, errbuf, sizeof (errbuf)));
+        gid, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
 
@@ -384,7 +384,7 @@ static void exec_child (program_list_t *pl) /* {{{ */
     if (status != 0)
     {
       ERROR ("exec plugin: setegid (%i) failed: %s",
-	  egid, sstrerror (errno, errbuf, sizeof (errbuf)));
+          egid, sstrerror (errno, errbuf, sizeof (errbuf)));
       exit (-1);
     }
   }
@@ -393,7 +393,7 @@ static void exec_child (program_list_t *pl) /* {{{ */
   if (status != 0)
   {
     ERROR ("exec plugin: setuid (%i) failed: %s",
-	uid, sstrerror (errno, errbuf, sizeof (errbuf)));
+        uid, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
 
@@ -435,7 +435,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   if (status != 0)
   {
     ERROR ("exec plugin: pipe failed: %s",
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+        sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
 
@@ -443,7 +443,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   if (status != 0)
   {
     ERROR ("exec plugin: pipe failed: %s",
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+        sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
 
@@ -451,7 +451,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   if (status != 0)
   {
     ERROR ("exec plugin: pipe failed: %s",
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+        sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
 
@@ -459,7 +459,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   if (pid < 0)
   {
     ERROR ("exec plugin: fork failed: %s",
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+        sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
   else if (pid == 0)
@@ -472,9 +472,9 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
     for (fd = 0; fd < fd_num; fd++)
     {
       if ((fd == fd_pipe_in[0])
-	  || (fd == fd_pipe_out[1])
-	  || (fd == fd_pipe_err[1]))
-	continue;
+          || (fd == fd_pipe_out[1])
+          || (fd == fd_pipe_err[1]))
+        continue;
       close (fd);
     }
 
@@ -578,9 +578,17 @@ static void *exec_read_one (void *arg) /* {{{ */
   /* We use a copy of fdset, as select modifies it */
   copy = fdset;
 
-  while (select(highest_fd + 1, &copy, NULL, NULL, NULL ) > 0)
+  while (1)
   {
     int len;
+
+    status = select (highest_fd + 1, &copy, NULL, NULL, NULL);
+    if (status < 0)
+    {
+      if (errno == EINTR)
+        continue;
+      break;
+    }
 
     if (FD_ISSET(fd, &copy))
     {
@@ -632,14 +640,14 @@ static void *exec_read_one (void *arg) /* {{{ */
       }
       else if (len == 0)
       {
-	/* We've reached EOF */
-	NOTICE ("exec plugin: Program `%s' has closed STDERR.",
-	    pl->exec);
-	close (fd_err);
-	FD_CLR (fd_err, &fdset);
-	highest_fd = fd;
-	fd_err = -1;
-	continue;
+        /* We've reached EOF */
+        NOTICE ("exec plugin: Program `%s' has closed STDERR.",
+            pl->exec);
+        close (fd_err);
+        FD_CLR (fd_err, &fdset);
+        highest_fd = fd;
+        fd_err = -1;
+        continue;
       }
 
       pbuffer_err[len] = '\0';
@@ -713,7 +721,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   {
     char errbuf[1024];
     ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+        sstrerror (errno, errbuf, sizeof (errbuf)));
     kill (pl->pid, SIGTERM);
     pl->pid = 0;
     close (fd);
@@ -756,7 +764,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
       fprintf (fh, "%s: %e\n", meta->name, meta->nm_value.nm_double);
     else if (meta->type == NM_TYPE_BOOLEAN)
       fprintf (fh, "%s: %s\n", meta->name,
-	  meta->nm_value.nm_boolean ? "true" : "false");
+          meta->nm_value.nm_boolean ? "true" : "false");
   }
 
   fprintf (fh, "\n%s\n", n->message);
@@ -839,7 +847,7 @@ static int exec_notification (const notification_t *n, /* {{{ */
       continue;
 
     pln = (program_list_and_notification_t *) malloc (sizeof
-	(program_list_and_notification_t));
+        (program_list_and_notification_t));
     if (pln == NULL)
     {
       ERROR ("exec plugin: malloc failed.");

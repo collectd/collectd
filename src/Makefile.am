@@ -82,7 +82,7 @@ endif
 
 if BUILD_WITH_OWN_LIBOCONFIG
 collectd_LDADD += $(LIBLTDL) liboconfig/liboconfig.la
-collectd_DEPENDENCIES += $(LIBLTDL) liboconfig/liboconfig.la
+collectd_DEPENDENCIES += liboconfig/liboconfig.la
 else
 collectd_LDADD += -loconfig
 endif
@@ -378,6 +378,14 @@ collectd_LDADD += "-dlopen" exec.la
 collectd_DEPENDENCIES += exec.la
 endif
 
+if BUILD_PLUGIN_ETHSTAT
+pkglib_LTLIBRARIES += ethstat.la
+ethstat_la_SOURCES = ethstat.c
+ethstat_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" ethstat.la
+collectd_DEPENDENCIES += ethstat.la
+endif
+
 if BUILD_PLUGIN_FILECOUNT
 pkglib_LTLIBRARIES += filecount.la
 filecount_la_SOURCES = filecount.c
@@ -587,6 +595,14 @@ collectd_LDADD += "-dlopen" mbmon.la
 collectd_DEPENDENCIES += mbmon.la
 endif
 
+if BUILD_PLUGIN_MD
+pkglib_LTLIBRARIES += md.la
+md_la_SOURCES = md.c
+md_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" md.la
+collectd_DEPENDENCIES += md.la
+endif
+
 if BUILD_PLUGIN_MEMCACHEC
 pkglib_LTLIBRARIES += memcachec.la
 memcachec_la_SOURCES = memcachec.c
@@ -762,6 +778,14 @@ ntpd_la_LIBADD += -lsocket
 endif
 collectd_LDADD += "-dlopen" ntpd.la
 collectd_DEPENDENCIES += ntpd.la
+endif
+
+if BUILD_PLUGIN_NUMA
+pkglib_LTLIBRARIES += numa.la
+numa_la_SOURCES = numa.c
+numa_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" numa.la
+collectd_DEPENDENCIES += numa.la
 endif
 
 if BUILD_PLUGIN_NUT
@@ -1228,6 +1252,15 @@ wireless_la_SOURCES = wireless.c
 wireless_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
+endif
+
+if BUILD_PLUGIN_WRITE_GRAPHITE
+pkglib_LTLIBRARIES += write_graphite.la
+write_graphite_la_SOURCES = write_graphite.c \
+			utils_format_json.c utils_format_json.h
+write_graphite_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" write_graphite.la
+collectd_DEPENDENCIES += write_graphite.la
 endif
 
 if BUILD_PLUGIN_WRITE_HTTP

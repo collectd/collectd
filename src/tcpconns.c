@@ -116,7 +116,11 @@
 # include <netinet/tcp_var.h>
 # include <netdb.h>
 # include <arpa/inet.h>
-# include <nlist.h>
+# if !defined(HAVE_BSD_NLIST_H) || !HAVE_BSD_NLIST_H
+#  include <nlist.h>
+# else /* HAVE_BSD_NLIST_H */
+#  include <bsd/nlist.h>
+# endif
 # include <kvm.h>
 /* #endif HAVE_LIBKVM_NLIST */
 
