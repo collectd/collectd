@@ -193,6 +193,9 @@ Simon Kuhnle <simon at blarzwurst.de>
 Sjoerd van der Berg <harekiet at gmail.com>
  - iptables plugin.
 
+Shawn Sterling <shawn at systemtemplar.org>
+ - Extended mysql plugin
+
 Stefan Hacker <stefan.hacker at web.de>
  - teamspeak2 plugin.
 
