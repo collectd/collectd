@@ -7,6 +7,7 @@
  * Copyright (C) 2009       Andrés J. Díaz
  * Copyright (C) 2009       Manuel Sanmartin
  * Copyright (C) 2010       Clément Stenac
+ * Copyright (C) 2012       Cosmin Ioiart
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,6 +31,7 @@
  *   Andrés J. Díaz <ajdiaz at connectical.com>
  *   Manuel Sanmartin
  *   Clément Stenac <clement.stenac at diwi.org>
+ *   Cosmin Ioiart <cioiart at gmail.com>
  **/
 
 #include "collectd.h"
@@ -109,12 +111,21 @@
 #define MAXARGLN 1024
 /* #endif HAVE_PROCINFO_H */
 
+#elif KERNEL_SOLARIS
+# include <procfs.h>
+# include <dirent.h>
+/* #endif KERNEL_SOLARIS */
+
 #else
 # error "No applicable input method."
 #endif
 
 #if HAVE_REGEX_H
 # include <regex.h>
+#endif
+
+#if HAVE_KSTAT_H
+# include <kstat.h>
 #endif
 
 #ifndef ARG_MAX
@@ -200,7 +211,7 @@ static long pagesize_g;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
-/* no global variables */
+static int pagesize;
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_PROCINFO_H
@@ -216,8 +227,8 @@ int getargs (struct procentry64 *processBuffer, int bufferLen, char *argsBuffer,
 #endif /* HAVE_PROCINFO_H */
 
 /* put name of process from config to list_head_g tree
-   list_head_g is a list of 'procstat_t' structs with
-   processes names we want to watch */
+ * list_head_g is a list of 'procstat_t' structs with
+ * processes names we want to watch */
 static void ps_list_register (const char *name, const char *regexp)
 {
 	procstat_t *new;
@@ -460,13 +471,13 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 /* remove old entries from instances of processes in list_head_g */
 static void ps_list_reset (void)
-{
+{        
 	procstat_t *ps;
 	procstat_entry_t *pse;
 	procstat_entry_t *pse_prev;
-
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
-	{
+        
+ 	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	{        
 		ps->num_proc    = 0;
 		ps->num_lwp     = 0;
 		ps->vmem_size   = 0;
@@ -514,7 +525,7 @@ static void ps_list_reset (void)
 
 /* put all pre-defined 'Process' names from config to list_head_g tree */
 static int ps_config (oconfig_item_t *ci)
-{
+{  
 	int i;
 
 	for (i = 0; i < ci->children_num; ++i) {
@@ -609,7 +620,7 @@ static int ps_init (void)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
-/* no initialization */
+	pagesize = getpagesize();
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_PROCINFO_H
@@ -712,7 +723,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 	}
 
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
-                        "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+			"vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
 			"vmem_code = %lu; "
 			"vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
 			"cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
@@ -725,6 +736,26 @@ static void ps_submit_proc_list (procstat_t *ps)
 			ps->cpu_user_counter, ps->cpu_system_counter,
 			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
 } /* void ps_submit_proc_list */
+
+#if KERNEL_LINUX || KERNEL_SOLARIS
+static void ps_submit_fork_rate (derive_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].derive = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
+	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
+	sstrncpy(vl.type, "fork_rate", sizeof (vl.type));
+	sstrncpy(vl.type_instance, "", sizeof (vl.type_instance));
+
+	plugin_dispatch_values(&vl);
+}
+#endif /* KERNEL_LINUX || KERNEL_SOLARIS*/
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
@@ -780,7 +811,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 			continue;
 
 		numfields = strsplit (buffer, fields,
-                                      STATIC_ARRAY_SIZE (fields));
+				STATIC_ARRAY_SIZE (fields));
 
 		if (numfields < 2)
 			continue;
@@ -790,7 +821,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 		tmp = strtoll (fields[1], &endptr, /* base = */ 10);
 		if ((errno == 0) && (endptr != fields[1]))
 		{
-			if (strncmp (buffer, "VmData", 6) == 0) 
+			if (strncmp (buffer, "VmData", 6) == 0)
 			{
 				data = tmp;
 			}
@@ -881,9 +912,12 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	char *fields[64];
 	char  fields_len;
 
-	int   i;
+	int   buffer_len;
 
-	int   name_len;
+	char *buffer_ptr;
+	size_t name_start_pos;
+	size_t name_end_pos;
+	size_t name_len;
 
 	derive_t cpu_user_counter;
 	derive_t cpu_system_counter;
@@ -895,13 +929,48 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
 
-	i = read_file_contents (filename, buffer, sizeof(buffer) - 1);
-	if (i <= 0)
+	buffer_len = read_file_contents (filename,
+			buffer, sizeof(buffer) - 1);
+	if (buffer_len <= 0)
 		return (-1);
-	buffer[i] = 0;
+	buffer[buffer_len] = 0;
 
-	fields_len = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
-	if (fields_len < 24)
+	/* The name of the process is enclosed in parens. Since the name can
+	 * contain parens itself, spaces, numbers and pretty much everything
+	 * else, use these to determine the process name. We don't use
+	 * strchr(3) and strrchr(3) to avoid pointer arithmetic which would
+	 * otherwise be required to determine name_len. */
+	name_start_pos = 0;
+	while ((buffer[name_start_pos] != '(')
+			&& (name_start_pos < buffer_len))
+		name_start_pos++;
+
+	name_end_pos = buffer_len;
+	while ((buffer[name_end_pos] != ')')
+			&& (name_end_pos > 0))
+		name_end_pos--;
+
+	/* Either '(' or ')' is not found or they are in the wrong order.
+	 * Anyway, something weird that shouldn't happen ever. */
+	if (name_start_pos >= name_end_pos)
+	{
+		ERROR ("processes plugin: name_start_pos = %zu >= name_end_pos = %zu",
+				name_start_pos, name_end_pos);
+		return (-1);
+	}
+
+	name_len = (name_end_pos - name_start_pos) - 1;
+	if (name_len >= sizeof (ps->name))
+		name_len = sizeof (ps->name) - 1;
+
+	sstrncpy (ps->name, &buffer[name_start_pos + 1], name_len + 1);
+
+	if ((buffer_len - name_end_pos) < 2)
+		return (-1);
+	buffer_ptr = &buffer[name_end_pos + 2];
+
+	fields_len = strsplit (buffer_ptr, fields, STATIC_ARRAY_SIZE (fields));
+	if (fields_len < 22)
 	{
 		DEBUG ("processes plugin: ps_read_process (pid = %i):"
 				" `%s' has only %i fields..",
@@ -909,19 +978,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (-1);
 	}
 
-	/* copy the name, strip brackets in the process */
-	name_len = strlen (fields[1]) - 2;
-	if ((fields[1][0] != '(') || (fields[1][name_len + 1] != ')'))
-	{
-		DEBUG ("No brackets found in process name: `%s'", fields[1]);
-		return (-1);
-	}
-	fields[1] = fields[1] + 1;
-	fields[1][name_len] = '\0';
-	strncpy (ps->name, fields[1], PROCSTAT_NAME_LEN);
-
-
-	*state = fields[2][0];
+	*state = fields[0][0];
 
 	if (*state == 'Z')
 	{
@@ -946,16 +1003,16 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		return (0);
 	}
 
-	cpu_user_counter   = atoll (fields[13]);
-	cpu_system_counter = atoll (fields[14]);
-	vmem_size          = atoll (fields[22]);
-	vmem_rss           = atoll (fields[23]);
-	ps->vmem_minflt_counter = atoll (fields[9]);
-	ps->vmem_majflt_counter = atoll (fields[11]);
+	cpu_user_counter   = atoll (fields[11]);
+	cpu_system_counter = atoll (fields[12]);
+	vmem_size          = atoll (fields[20]);
+	vmem_rss           = atoll (fields[21]);
+	ps->vmem_minflt_counter = atol (fields[7]);
+	ps->vmem_majflt_counter = atol (fields[9]);
 
 	{
-		unsigned long long stack_start = atoll (fields[27]);
-		unsigned long long stack_ptr   = atoll (fields[28]);
+		unsigned long long stack_start = atoll (fields[25]);
+		unsigned long long stack_ptr   = atoll (fields[26]);
 
 		stack_size = (stack_start > stack_ptr)
 			? stack_start - stack_ptr
@@ -1091,70 +1148,233 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	return buf;
 } /* char *ps_get_cmdline (...) */
 
-static unsigned long read_fork_rate ()
+static int read_fork_rate ()
 {
 	FILE *proc_stat;
-	char buf[1024];
-	unsigned long result = 0;
-	int numfields;
-	char *fields[3];
+	char buffer[1024];
+	value_t value;
+	_Bool value_valid = 0;
 
-	proc_stat = fopen("/proc/stat", "r");
-	if (proc_stat == NULL) {
+	proc_stat = fopen ("/proc/stat", "r");
+	if (proc_stat == NULL)
+	{
 		char errbuf[1024];
 		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return ULONG_MAX;
+		return (-1);
 	}
 
-	while (fgets (buf, sizeof(buf), proc_stat) != NULL)
+	while (fgets (buffer, sizeof (buffer), proc_stat) != NULL)
 	{
-		char *endptr;
+		int status;
+		char *fields[3];
+		int fields_num;
 
-		numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields != 2)
+		fields_num = strsplit (buffer, fields,
+				STATIC_ARRAY_SIZE (fields));
+		if (fields_num != 2)
 			continue;
 
 		if (strcmp ("processes", fields[0]) != 0)
 			continue;
 
-		errno = 0;
-		endptr = NULL;
-		result = strtoul(fields[1], &endptr, /* base = */ 10);
-		if ((endptr == fields[1]) || (errno != 0)) {
-			ERROR ("processes plugin: Cannot parse fork rate: %s",
-					fields[1]);
-			result = ULONG_MAX;
-			break;
-		}
+		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
+		if (status == 0)
+			value_valid = 1;
 
 		break;
 	}
-
 	fclose(proc_stat);
 
-	return result;
-}
+	if (!value_valid)
+		return (-1);
 
-static void ps_submit_fork_rate (unsigned long value)
+	ps_submit_fork_rate (value.derive);
+	return (0);
+}
+#endif /*KERNEL_LINUX */
+
+#if KERNEL_SOLARIS
+static const char *ps_get_cmdline (pid_t pid, /* {{{ */
+		char *buffer, size_t buffer_size)
 {
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+	char path[PATH_MAX];
+	psinfo_t info;
+	int status;
 
-	values[0].derive = (derive_t) value;
+	snprintf(path, sizeof (path), "/proc/%i/psinfo", pid);
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "fork_rate", sizeof (vl.type));
-	sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
+        /*
+         * Under Solaris, the file is binary. Therefore all the psinfo
+         * files will be the same size. The actual process name and its arguments 
+         * is stored in pr_psargs, which has a maximum size of 80.
+         */
+	status = read_file_contents (path, (void *) &info, sizeof (info));         
+	if (status != sizeof(info))
+	{
+		ERROR ("processes plugin: Unexpected return value "
+				"while reading \"%s\": "
+				"Returned %i but expected %zu.",
+				path, status, sizeof(info));
+		return (NULL);
+	}
+        
+	info.pr_psargs[sizeof (info.pr_psargs) - 1] = 0;
+	sstrncpy (buffer, info.pr_psargs, buffer_size);
+        
+	return (strtok(buffer, " "));
+} /* }}} int ps_get_cmdline */
 
-	plugin_dispatch_values (&vl);
+/*
+ * Reads process information on the Solaris OS. The information comes mainly from
+ * /proc/PID/status, /proc/PID/psinfo and /proc/PID/usage
+ * The values for input and ouput chars are calculated "by hand"
+ * Added a few "solaris" specific process states as well
+ */
+static int ps_read_process(int pid, procstat_t *ps, char *state)
+{
+	char filename[64];
+	char f_psinfo[64], f_usage[64];
+	int i;
+	char *buffer;
+
+
+	pstatus_t *myStatus;
+	psinfo_t *myInfo;
+	prusage_t *myUsage;
+
+	snprintf(filename, sizeof (filename), "/proc/%i/status", pid);
+	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%i/psinfo", pid);
+	snprintf(f_usage, sizeof (f_usage), "/proc/%i/usage", pid);
+
+
+	buffer = malloc(sizeof (pstatus_t));
+	memset(buffer, 0, sizeof (pstatus_t));
+	read_file_contents(filename, buffer, sizeof (pstatus_t));
+	myStatus = (pstatus_t *) buffer;
+
+	buffer = malloc(sizeof (psinfo_t));
+	memset(buffer, 0, sizeof(psinfo_t));
+	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
+	myInfo = (psinfo_t *) buffer;
+
+	buffer = malloc(sizeof (prusage_t));
+	memset(buffer, 0, sizeof(prusage_t));
+	read_file_contents(f_usage, buffer, sizeof (prusage_t));
+	myUsage = (prusage_t *) buffer;
+
+	sstrncpy(ps->name, myInfo->pr_fname, sizeof (myInfo->pr_fname));
+	ps->num_lwp = myStatus->pr_nlwp;
+	if (myInfo->pr_wstat != 0) {
+		ps->num_proc = 0;
+		ps->num_lwp = 0;
+		*state = (char) 'Z';
+		return (0);
+	} else {
+		ps->num_proc = 1;
+		ps->num_lwp = myInfo->pr_nlwp;
+	}
+
+	/*
+	 * Convert system time and user time from nanoseconds to microseconds
+	 * for compatibility with the linux module
+	 */
+	ps->cpu_system_counter = myStatus -> pr_stime.tv_nsec / 1000;
+	ps->cpu_user_counter = myStatus -> pr_utime.tv_nsec / 1000;
+
+	/*
+	 * Convert rssize from KB to bytes to be consistent w/ the linux module
+	 */
+	ps->vmem_rss = myInfo->pr_rssize * 1024;
+	ps->vmem_size = myInfo->pr_size * 1024;
+	ps->vmem_minflt_counter = myUsage->pr_minf;
+	ps->vmem_majflt_counter = myUsage->pr_majf;
+
+	/*
+	 * TODO: Data and code segment calculations for Solaris
+	 */
+
+	ps->vmem_data = -1;
+	ps->vmem_code = -1;
+	ps->stack_size = myStatus->pr_stksize;
+
+	/*
+	 * Calculating input/ouput chars
+	 * Formula used is total chars / total blocks => chars/block
+	 * then convert input/output blocks to chars
+	 */
+	ulong_t tot_chars = myUsage->pr_ioch;
+	ulong_t tot_blocks = myUsage->pr_inblk + myUsage->pr_oublk;
+	ulong_t chars_per_block = 1;
+	if (tot_blocks != 0)
+		chars_per_block = tot_chars / tot_blocks;
+	ps->io_rchar = myUsage->pr_inblk * chars_per_block;
+	ps->io_wchar = myUsage->pr_oublk * chars_per_block;
+	ps->io_syscr = myUsage->pr_sysc;
+	ps->io_syscw = myUsage->pr_sysc;
+
+
+	/*
+	 * TODO: Find way of setting BLOCKED and PAGING status
+	 */
+
+	*state = (char) 'R';
+	if (myStatus->pr_flags & PR_ASLEEP)
+		*state = (char) 'S';
+	else if (myStatus->pr_flags & PR_STOPPED)
+		*state = (char) 'T';
+	else if (myStatus->pr_flags & PR_DETACH)
+		*state = (char) 'E';
+	else if (myStatus->pr_flags & PR_DAEMON)
+		*state = (char) 'A';
+	else if (myStatus->pr_flags & PR_ISSYS)
+		*state = (char) 'Y';
+	else if (myStatus->pr_flags & PR_ORPHAN)
+		*state = (char) 'O';
+
+	sfree(myStatus);
+	sfree(myInfo);
+	sfree(myUsage);
+
+	return (0);
 }
 
-#endif /* KERNEL_LINUX */
+/*
+ * Reads the number of threads created since the last reboot. On Solaris these
+ * are retrieved from kstat (module cpu, name sys, class misc, stat nthreads).
+ * The result is the sum for all the threads created on each cpu
+ */
+static int read_fork_rate()
+{
+	extern kstat_ctl_t *kc;
+	kstat_t *ksp_chain = NULL;
+	derive_t result = 0;
+
+	if (kc == NULL)
+		return (-1);
+
+	for (ksp_chain = kc->kc_chain;
+			ksp_chain != NULL;
+			ksp_chain = ksp_chain->ks_next)
+	{
+		if ((strcmp (ksp_chain->ks_module, "cpu") == 0)
+				&& (strcmp (ksp_chain->ks_name, "sys") == 0)
+				&& (strcmp (ksp_chain->ks_class, "misc") == 0))
+		{
+			long long tmp;
+
+			kstat_read (kc, ksp_chain, NULL);
+
+			tmp = get_kstat_value(ksp_chain, "nthreads");
+			if (tmp != -1LL)
+				result += tmp;
+		}
+	}        
+
+	ps_submit_fork_rate (result);
+	return (0);
+}
+#endif /* KERNEL_SOLARIS */
 
 #if HAVE_THREAD_INFO
 static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_len)
@@ -1480,8 +1700,6 @@ static int ps_read (void)
 	procstat_entry_t pse;
 	char       state;
 
-	unsigned long fork_rate;
-
 	procstat_t *ps_ptr;
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
@@ -1563,9 +1781,7 @@ static int ps_read (void)
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
-	fork_rate = read_fork_rate();
-	if (fork_rate != ULONG_MAX)
-		ps_submit_fork_rate(fork_rate);
+	read_fork_rate();
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
@@ -1579,10 +1795,8 @@ static int ps_read (void)
 
 	kvm_t *kd;
 	char errbuf[1024];
-	char cmdline[ARG_MAX];
-	char *cmdline_ptr;
   	struct kinfo_proc *procs;          /* array of processes */
-  	char **argv;
+	struct kinfo_proc *proc_ptr = NULL;
   	int count;                         /* returns number of processes */
 	int i;
 
@@ -1613,64 +1827,80 @@ static int ps_read (void)
 	/* Iterate through the processes in kinfo_proc */
 	for (i = 0; i < count; i++)
 	{
-		/* retrieve the arguments */
-		cmdline[0] = 0;
-		cmdline_ptr = NULL;
-
-		argv = kvm_getargv (kd, (const struct kinfo_proc *) &(procs[i]), 0);
-		if (argv != NULL)
+		/* Create only one process list entry per _process_, i.e.
+		 * filter out threads (duplicate PID entries). */
+		if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid))
 		{
-			int status;
-			int argc;
+			char cmdline[ARG_MAX] = "";
+			_Bool have_cmdline = 0;
 
-			argc = 0;
-			while (argv[argc] != NULL)
-				argc++;
-
-			status = strjoin (cmdline, sizeof (cmdline),
-					argv, argc, " ");
-
-			if (status < 0)
+			proc_ptr = &(procs[i]);
+			/* Don't probe system processes and processes without arguments */
+			if (((procs[i].ki_flag & P_SYSTEM) == 0)
+					&& (procs[i].ki_args != NULL))
 			{
-				WARNING ("processes plugin: Command line did "
-						"not fit into buffer.");
-			}
-			else
+				char **argv;
+				int argc;
+				int status;
+
+				/* retrieve the arguments */
+				argv = kvm_getargv (kd, proc_ptr, /* nchr = */ 0);
+				argc = 0;
+				if ((argv != NULL) && (argv[0] != NULL))
+				{
+					while (argv[argc] != NULL)
+						argc++;
+
+					status = strjoin (cmdline, sizeof (cmdline), argv, argc, " ");
+					if (status < 0)
+						WARNING ("processes plugin: Command line did not fit into buffer.");
+					else
+						have_cmdline = 1;
+				}
+			} /* if (process has argument list) */
+
+			pse.id       = procs[i].ki_pid;
+			pse.age      = 0;
+
+			pse.num_proc = 1;
+			pse.num_lwp  = procs[i].ki_numthreads;
+
+			pse.vmem_size = procs[i].ki_size;
+			pse.vmem_rss = procs[i].ki_rssize * pagesize;
+			pse.vmem_data = procs[i].ki_dsize * pagesize;
+			pse.vmem_code = procs[i].ki_tsize * pagesize;
+			pse.stack_size = procs[i].ki_ssize * pagesize;
+			pse.vmem_minflt = 0;
+			pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
+			pse.vmem_majflt = 0;
+			pse.vmem_majflt_counter = procs[i].ki_rusage.ru_majflt;
+
+			pse.cpu_user = 0;
+			pse.cpu_system = 0;
+			pse.cpu_user_counter = 0;
+			pse.cpu_system_counter = 0;
+			/*
+			 * The u-area might be swapped out, and we can't get
+			 * at it because we have a crashdump and no swap.
+			 * If it's here fill in these fields, otherwise, just
+			 * leave them 0.
+			 */
+			if (procs[i].ki_flag & P_INMEM)
 			{
-				cmdline_ptr = &cmdline[0];
+				pse.cpu_user_counter = procs[i].ki_rusage.ru_utime.tv_usec
+				       	+ (1000000lu * procs[i].ki_rusage.ru_utime.tv_sec);
+				pse.cpu_system_counter = procs[i].ki_rusage.ru_stime.tv_usec
+					+ (1000000lu * procs[i].ki_rusage.ru_stime.tv_sec);
 			}
-		}
 
-		pse.id       = procs[i].ki_pid;
-		pse.age      = 0;
+			/* no I/O data */
+			pse.io_rchar = -1;
+			pse.io_wchar = -1;
+			pse.io_syscr = -1;
+			pse.io_syscw = -1;
 
-		pse.num_proc = 1;
-		pse.num_lwp  = procs[i].ki_numthreads;
-
-		pse.vmem_size = procs[i].ki_size;
-		pse.vmem_rss = procs[i].ki_rssize * getpagesize();
-		pse.vmem_data = procs[i].ki_dsize * getpagesize();
-		pse.vmem_code = procs[i].ki_tsize * getpagesize();
-		pse.stack_size = procs[i].ki_ssize * getpagesize();
-		pse.vmem_minflt = 0;
-		pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
-		pse.vmem_majflt = 0;
-		pse.vmem_majflt_counter = procs[i].ki_rusage.ru_majflt;
-
-		pse.cpu_user = 0;
-		pse.cpu_user_counter = procs[i].ki_rusage.ru_utime.tv_sec
-			* 1000
-			+ procs[i].ki_rusage.ru_utime.tv_usec;
-		pse.cpu_system = 0;
-		pse.cpu_system_counter = procs[i].ki_rusage.ru_stime.tv_sec
-			* 1000
-			+ procs[i].ki_rusage.ru_stime.tv_usec;
-
-		/* no io data */
-		pse.io_rchar = -1;
-		pse.io_wchar = -1;
-		pse.io_syscr = -1;
-		pse.io_syscw = -1;
+			ps_list_add (procs[i].ki_comm, have_cmdline ? cmdline : NULL, &pse);
+		} /* if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid)) */
 
 		switch (procs[i].ki_stat)
 		{
@@ -1682,8 +1912,6 @@ static int ps_read (void)
 			case SLOCK:	blocked++;	break;
 			case SZOMB:	zombies++;	break;
 		}
-
-		ps_list_add (procs[i].ki_comm, cmdline_ptr, &pse);
 	}
 
 	kvm_close(kd);
@@ -1740,7 +1968,7 @@ static int ps_read (void)
 				if (procentry[i].pi_pid == 0)
 					cmdline = "swapper";
 				cargs = cmdline;
- 			}
+			}
 			else
 			{
 				if (getargs(&procentry[i], sizeof(struct procentry64), arglist, MAXARGLN) >= 0)
@@ -1832,7 +2060,122 @@ static int ps_read (void)
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 		ps_submit_proc_list (ps);
-#endif /* HAVE_PROCINFO_H */
+/* #endif HAVE_PROCINFO_H */
+
+#elif KERNEL_SOLARIS
+	/*
+	 * The Solaris section adds a few more process states and removes some
+	 * process states compared to linux. Most notably there is no "PAGING"
+	 * and "BLOCKED" state for a process.  The rest is similar to the linux
+	 * code.
+	 */
+	int running = 0;
+	int sleeping = 0;
+	int zombies = 0;
+	int stopped = 0;
+	int detached = 0;
+	int daemon = 0;
+	int system = 0;
+	int orphan = 0;
+
+	struct dirent *ent;
+	DIR *proc;
+
+	int status;
+	procstat_t *ps_ptr;
+	char state;
+
+        /*
+         * The Solaris psinfo command line has a fixed length, fixed by the
+         * PRARGSZ in procfs.h. 
+         */       
+	char cmdline[PRARGSZ]; 
+        
+	ps_list_reset ();
+
+	proc = opendir ("/proc");       
+	if (proc == NULL)
+		return (-1);
+
+	while ((ent = readdir(proc)) != NULL)
+	{
+		int pid;
+		struct procstat ps;
+		procstat_entry_t pse;
+
+		if (!isdigit ((int) ent->d_name[0]))
+			continue;
+
+		if ((pid = atoi (ent->d_name)) < 1)
+			continue;
+                
+		status = ps_read_process (pid, &ps, &state);
+		if (status != 0)
+		{
+			DEBUG("ps_read_process failed: %i", status);
+			continue;
+		}
+
+		pse.id = pid;
+		pse.age = 0;
+
+		pse.num_proc   = ps.num_proc;
+		pse.num_lwp    = ps.num_lwp;
+		pse.vmem_size  = ps.vmem_size;
+		pse.vmem_rss   = ps.vmem_rss;
+		pse.vmem_data  = ps.vmem_data;
+		pse.vmem_code  = ps.vmem_code;
+		pse.stack_size = ps.stack_size;
+
+		pse.vmem_minflt = 0;
+		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
+		pse.vmem_majflt = 0;
+		pse.vmem_majflt_counter = ps.vmem_majflt_counter;
+
+		pse.cpu_user = 0;
+		pse.cpu_user_counter = ps.cpu_user_counter;
+		pse.cpu_system = 0;
+		pse.cpu_system_counter = ps.cpu_system_counter;
+
+		pse.io_rchar = ps.io_rchar;
+		pse.io_wchar = ps.io_wchar;
+		pse.io_syscr = ps.io_syscr;
+		pse.io_syscw = ps.io_syscw;
+
+		switch (state)
+		{
+			case 'R': running++;  break;
+			case 'S': sleeping++; break;
+			case 'E': detached++; break;
+			case 'Z': zombies++;  break;
+			case 'T': stopped++;  break;
+			case 'A': daemon++;   break;
+			case 'Y': system++;   break;
+			case 'O': orphan++;   break;
+		}
+
+               
+		ps_list_add (ps.name,
+				ps_get_cmdline ((pid_t) pid,
+					cmdline, sizeof (cmdline)),
+				&pse);
+	} /* while(readdir) */
+	closedir (proc);
+        
+	ps_submit_state ("running",  running);
+	ps_submit_state ("sleeping", sleeping);
+	ps_submit_state ("zombies",  zombies);
+	ps_submit_state ("stopped",  stopped);
+	ps_submit_state ("detached", detached);
+	ps_submit_state ("daemon",   daemon);
+	ps_submit_state ("system",   system);
+	ps_submit_state ("orphan",   orphan);
+	
+        for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+		ps_submit_proc_list (ps_ptr);
+        
+	read_fork_rate();
+#endif /* KERNEL_SOLARIS */
 
 	return (0);
 } /* int ps_read */

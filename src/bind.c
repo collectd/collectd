@@ -98,6 +98,10 @@ struct list_info_ptr_s
 };
 typedef struct list_info_ptr_s list_info_ptr_t;
 
+/* FIXME: Enabled by default for backwards compatibility. */
+/* TODO: Remove time parsing code. */
+static _Bool config_parse_time = 1;
+
 static char *url                   = NULL;
 static int global_opcodes          = 1;
 static int global_qtypes           = 1;
@@ -249,7 +253,8 @@ static void submit (time_t ts, const char *plugin_instance, /* {{{ */
 
   vl.values = values;
   vl.values_len = 1;
-  vl.time = TIME_T_TO_CDTIME_T (ts);
+  if (config_parse_time)
+    vl.time = TIME_T_TO_CDTIME_T (ts);
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "bind", sizeof(vl.plugin));
   if (plugin_instance) {
@@ -794,7 +799,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info =
     {
       plugin_instance,
-      /* type = */ "dns_qtype_gauge"
+      /* type = */ "dns_qtype"
     };
 
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-qtypes",
@@ -825,13 +830,14 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
         doc, path_ctx, current_time, DS_TYPE_COUNTER);
   } /* }}} */
 
+  /* Record types in the cache */
   if (view->cacherrsets != 0) /* {{{ */
   {
     char plugin_instance[DATA_MAX_NAME_LEN];
     list_info_ptr_t list_info =
     {
       plugin_instance,
-      /* type = */ "dns_qtype_gauge"
+      /* type = */ "dns_qtype_cached"
     };
 
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-cache_rr_sets",
@@ -1363,6 +1369,8 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
       bind_config_set_bool ("MemoryStats", &global_memory_stats, child);
     else if (strcasecmp ("View", child->key) == 0)
       bind_config_add_view (child);
+    else if (strcasecmp ("ParseTime", child->key) == 0)
+      cf_util_get_boolean (child, &config_parse_time);
     else
     {
       WARNING ("bind plugin: Unknown configuration option "

@@ -31,14 +31,11 @@
 
 #define CONNTRACK_FILE "/proc/sys/net/netfilter/nf_conntrack_count"
 
-static void conntrack_submit (double conntrack)
+static void conntrack_submit (value_t conntrack)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = conntrack;
-
-	vl.values = values;
+	vl.values = &conntrack;
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "conntrack", sizeof (vl.plugin));
@@ -49,14 +46,16 @@ static void conntrack_submit (double conntrack)
 
 static int conntrack_read (void)
 {
-	double conntrack;
+	value_t conntrack;
 	FILE *fh;
 	char buffer[64];
+	size_t buffer_len;
 
 	fh = fopen (CONNTRACK_FILE, "r");
 	if (fh == NULL)
 		return (-1);
 
+	memset (buffer, 0, sizeof (buffer));
 	if (fgets (buffer, sizeof (buffer), fh) == NULL)
 	{
 		fclose (fh);
@@ -64,10 +63,18 @@ static int conntrack_read (void)
 	}
 	fclose (fh);
 
-	conntrack = atof (buffer);
+	/* strip trailing newline. */
+	buffer_len = strlen (buffer);
+	while ((buffer_len > 0) && isspace ((int) buffer[buffer_len - 1]))
+	{
+		buffer[buffer_len - 1] = 0;
+		buffer_len--;
+	}
 
-	if (conntrack > 0.0)
-		conntrack_submit (conntrack);
+	if (parse_value (buffer, &conntrack, DS_TYPE_GAUGE) != 0)
+		return (-1);
+
+	conntrack_submit (conntrack);
 
 	return (0);
 } /* static int conntrack_read */

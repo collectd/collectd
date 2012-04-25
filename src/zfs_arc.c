@@ -1,6 +1,7 @@
 /**
  * collectd - src/zfs_arc.c
  * Copyright (C) 2009  Anthony Dewhurst
+ * Copyright (C) 2012  Aurelien Rougemont
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Anthony Dewhurst <dewhurst at gmail>
+ *   Aurelien Rougemont <beorn at gandi.net>
  **/
 
 #include "collectd.h"
@@ -52,12 +54,38 @@ static void za_submit_gauge (const char* type, const char* type_instance, gauge_
 	za_submit (type, type_instance, &vv, 1);
 }
 
-static void za_submit_derive (const char* type, const char* type_instance, derive_t dv)
+static int za_read_derive (kstat_t *ksp, const char *kstat_value,
+    const char *type, const char *type_instance)
 {
-	value_t vv;
+  long long tmp;
+  value_t v;
 
-	vv.derive = dv;
-	za_submit (type, type_instance, &vv, 1);
+  tmp = get_kstat_value (ksp, kstat_value);
+  if (tmp == -1LL)
+  {
+    ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    return (-1);
+  }
+
+  v.derive = (derive_t) tmp;
+  za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+}
+
+static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
+    const char *type, const char *type_instance)
+{
+  long long tmp;
+  value_t v;
+
+  tmp = get_kstat_value (ksp, kstat_value);
+  if (tmp == -1LL)
+  {
+    ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    return (-1);
+  }
+
+  v.gauge = (gauge_t) tmp;
+  za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
 }
 
 static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t misses)
@@ -77,15 +105,6 @@ static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t mi
 
 static int za_read (void)
 {
-	gauge_t  arc_size, l2_size;
-	derive_t demand_data_hits,
-		 demand_metadata_hits,
-		 prefetch_data_hits,
-		 prefetch_metadata_hits,
-		 demand_data_misses,
-		 demand_metadata_misses,
-		 prefetch_data_misses,
-		 prefetch_metadata_misses;
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
 	value_t  l2_io[2];
 
@@ -97,32 +116,32 @@ static int za_read (void)
 	}
 
 	/* Sizes */
-	arc_size   = get_kstat_value(ksp, "size");
-	l2_size    = get_kstat_value(ksp, "l2_size");
+	za_read_gauge (ksp, "size",    "cache_size", "arc");
+	za_read_gauge (ksp, "l2_size", "cache_size", "L2");
 
-	za_submit_gauge ("cache_size", "arc", arc_size);
-	za_submit_gauge ("cache_size", "L2", l2_size);
+        /* Operations */
+	za_read_derive (ksp, "allocated","cache_operation", "allocated");
+	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
+	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
+
+        /* Issue indicators */
+        za_read_derive (ksp, "mutex_miss", "mutex_operation", "miss");
+	za_read_derive (ksp, "hash_collisions", "hash_collisions", "");
+	
+        /* Evictions */
+	za_read_derive (ksp, "evict_l2_cached",     "cache_eviction", "cached");
+	za_read_derive (ksp, "evict_l2_eligible",   "cache_eviction", "eligible");
+	za_read_derive (ksp, "evict_l2_ineligible", "cache_eviction", "ineligible");
 
 	/* Hits / misses */
-	demand_data_hits       = get_kstat_value(ksp, "demand_data_hits");
-	demand_metadata_hits   = get_kstat_value(ksp, "demand_metadata_hits");
-	prefetch_data_hits     = get_kstat_value(ksp, "prefetch_data_hits");
-	prefetch_metadata_hits = get_kstat_value(ksp, "prefetch_metadata_hits");
-
-	demand_data_misses       = get_kstat_value(ksp, "demand_data_misses");
-	demand_metadata_misses   = get_kstat_value(ksp, "demand_metadata_misses");
-	prefetch_data_misses     = get_kstat_value(ksp, "prefetch_data_misses");
-	prefetch_metadata_misses = get_kstat_value(ksp, "prefetch_metadata_misses");
-
-	za_submit_derive ("cache_result", "demand_data-hit",       demand_data_hits);
-	za_submit_derive ("cache_result", "demand_metadata-hit",   demand_metadata_hits);
-	za_submit_derive ("cache_result", "prefetch_data-hit",     prefetch_data_hits);
-	za_submit_derive ("cache_result", "prefetch_metadata-hit", prefetch_metadata_hits);
-
-	za_submit_derive ("cache_result", "demand_data-miss",       demand_data_misses);
-	za_submit_derive ("cache_result", "demand_metadata-miss",   demand_metadata_misses);
-	za_submit_derive ("cache_result", "prefetch_data-miss",     prefetch_data_misses);
-	za_submit_derive ("cache_result", "prefetch_metadata-miss", prefetch_metadata_misses);
+	za_read_derive (ksp, "demand_data_hits",         "cache_result", "demand_data-hit");
+	za_read_derive (ksp, "demand_metadata_hits",     "cache_result", "demand_metadata-hit");
+	za_read_derive (ksp, "prefetch_data_hits",       "cache_result", "prefetch_data-hit");
+	za_read_derive (ksp, "prefetch_metadata_hits",   "cache_result", "prefetch_metadata-hit");
+	za_read_derive (ksp, "demand_data_misses",       "cache_result", "demand_data-miss");
+	za_read_derive (ksp, "demand_metadata_misses",   "cache_result", "demand_metadata-miss");
+	za_read_derive (ksp, "prefetch_data_misses",     "cache_result", "prefetch_data-miss");
+	za_read_derive (ksp, "prefetch_metadata_misses", "cache_result", "prefetch_metadata-miss");
 
 	/* Ratios */
 	arc_hits   = (gauge_t) get_kstat_value(ksp, "hits");

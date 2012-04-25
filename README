@@ -83,6 +83,9 @@ Features
     - entropy
       Amount of entropy available to the system.
 
+    - ethstat
+      Network interface card statistics.
+
     - exec
       Values gathered by a custom program or script.
       See collectd-exec(5).
@@ -140,6 +143,10 @@ Features
       Motherboard sensors: temperature, fanspeed and voltage information,
       using mbmon(1).
 
+    - md
+      Linux software-RAID device information (number of active, failed, spare
+      and missing disks).
+
     - memcachec
       Query and parse data from a memcache daemon (memcached).
 
@@ -191,6 +198,9 @@ Features
     - nut
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
+
+    - numa
+      Information about Non-Uniform Memory Access (NUMA).
 
     - olsrd
       Queries routing information from the “Optimized Link State Routing”

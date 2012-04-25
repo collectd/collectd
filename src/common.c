@@ -668,6 +668,40 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 		 
 	return (retval);
 }
+
+int get_kstat_value_to_string (kstat_named_t *kn, char *ret_name, char *ret_value)
+{
+  char tmp_val[16];
+
+  if (kn == NULL)
+    return (-1);
+  sstrncpy (ret_name, kn->name, sizeof (kn->name));
+
+  switch (kn->data_type)
+    {
+    case KSTAT_DATA_CHAR:
+      sprintf (tmp_val, "%.16s", kn->value.c);
+      break;
+    case KSTAT_DATA_INT32:
+      sprintf (tmp_val, "%" PRId32, kn->value.i32);
+      break;
+    case KSTAT_DATA_UINT32:
+      sprintf (tmp_val, "%" PRIu32, kn->value.ui32);
+      break;
+    case KSTAT_DATA_INT64:
+      sprintf (tmp_val, "%" PRId64, kn->value.i64);
+      break;
+    case KSTAT_DATA_UINT64:
+      sprintf (tmp_val, "%" PRIu64, kn->value.ui64);
+      break;
+    default:
+      sstrncpy (tmp_val, "-1", 2);
+      break;
+    }
+
+  sstrncpy (ret_value, tmp_val, sizeof (tmp_val));
+  return 0;
+}
 #endif /* HAVE_LIBKSTAT */
 
 #ifndef HAVE_HTONLL
@@ -953,9 +987,25 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 	return (0);
 } /* }}} int parse_identifier_vl */
 
-int parse_value (const char *value, value_t *ret_value, int ds_type)
+int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
 {
+  char *value;
   char *endptr = NULL;
+  size_t value_len;
+
+  if (value_orig == NULL)
+    return (EINVAL);
+
+  value = strdup (value_orig);
+  if (value == NULL)
+    return (ENOMEM);
+  value_len = strlen (value);
+
+  while ((value_len > 0) && isspace ((int) value[value_len - 1]))
+  {
+    value[value_len - 1] = 0;
+    value_len--;
+  }
 
   switch (ds_type)
   {
@@ -976,11 +1026,13 @@ int parse_value (const char *value, value_t *ret_value, int ds_type)
       break;
 
     default:
+      sfree (value);
       ERROR ("parse_value: Invalid data source type: %i.", ds_type);
       return -1;
   }
 
   if (value == endptr) {
+    sfree (value);
     ERROR ("parse_value: Failed to parse string as %s: %s.",
         DS_TYPE_TO_STRING (ds_type), value);
     return -1;
@@ -988,8 +1040,9 @@ int parse_value (const char *value, value_t *ret_value, int ds_type)
   else if ((NULL != endptr) && ('\0' != *endptr))
     INFO ("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
         "Input string was \"%s\".",
-        endptr, DS_TYPE_TO_STRING (ds_type), value);
+        endptr, DS_TYPE_TO_STRING (ds_type), value_orig);
 
+  sfree (value);
   return 0;
 } /* int parse_value */
 
