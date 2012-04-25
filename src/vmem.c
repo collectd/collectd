@@ -17,13 +17,17 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Cosmin Ioiart <cioiart at gmail.com>
  **/
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#if HAVE_LIBKSTAT
+#include <kstat.h>
+#endif
 
-#if KERNEL_LINUX
+#if KERNEL_LINUX || KERNEL_SOLARIS
 static const char *config_keys[] =
 {
   "Verbose"
@@ -36,6 +40,10 @@ static int verbose_output = 0;
 #else
 # error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
+
+#if HAVE_LIBKSTAT
+extern kstat_ctl_t *kc;
+#endif
 
 static void submit (const char *plugin_instance, const char *type,
     const char *type_instance, value_t *values, int values_len)
@@ -66,6 +74,16 @@ static void submit_two (const char *plugin_instance, const char *type,
 
   submit (plugin_instance, type, type_instance, values, 2);
 } /* void submit_one */
+
+static void submit_three (const char *plugin_instance, const char *type, 
+                          const char *type_instance, derive_t c0, derive_t c1, derive_t c2)
+{
+  value_t values[3];
+  
+  values[0].derive = c0;
+  values[2].derive = c1;
+  values[3].derive = c2;
+}
 
 static void submit_one (const char *plugin_instance, const char *type,
     const char *type_instance, value_t value)
@@ -268,6 +286,122 @@ static int vmem_read (void)
   if (pswpvalid == 0x03)
     submit_two (NULL, "vmpage_io", "swap", pswpin, pswpout);
 #endif /* KERNEL_LINUX */
+  
+#if KERNEL_SOLARIS
+  /*
+   * The virtual memory model in Solaris is different from the virtual memory
+   * model under Linux and the stats tracked will be different as well. In order 
+   * to access the virtual memory statistics we will employ the user of the kstat
+   * library and we will look into the following kstats:
+   * 
+   * - misc/cpu/vm (for each cpu)
+   *    - pgpin = Probe that fires whenever a page is paged in from the backing 
+   *            store or from a swap device. The only difference between pgpgin 
+   *            and pgin is that pgpgin contains the number of pages paged in as
+   *            arg0. pgin always contains 1 in arg0.
+   *    - pgpgout = Probe that fires whenever a page is paged out to the backing 
+   *            store or to a swap device. The only difference between pgpgout 
+   *            and pgout is that pgpgout contains the number of pages paged out 
+   *            as arg0. (pgout always contains 1 in arg0.)
+   *    - execpgin = Probe that fires whenever an executable page is paged in 
+   *            from the backing store. 
+   *    - execfree = Probe that fires whenever an unmodified executable page is 
+   *            freed as a result of paging activity. 
+   *    - anonfree = Probe that fires whenever an unmodified anonymous page is 
+   *            freed as part of paging activity. Anonymous pages are those that 
+   *            are not associated with a file. Memory containing such pages 
+   *            includes heap memory, stack memory, or memory obtained by 
+   *            explicitly mapping zero(7D).
+   *    - anonpgin = Probe that fires whenever an anonymous page is paged in 
+   *            from a swap device. 
+   *    - anonpgout = Probe that fires whenever a modified anonymous page is 
+   *            paged out to a swap device. 
+   *    - fsfree =  Probe that fires whenever an unmodified file system data 
+   *            page is freed as part of paging activity.
+   *    - fspgin = Probe that fires whenever a file system page is paged in 
+   *            from the backing store. 
+   *    - fspgout = Probe that fires whenever a modified file system page is 
+   *            paged out to the backing store. 
+   *    - pgswapin = Probe that fires whenever pages from a swapped-out process 
+   *            are swapped in. The number of pages swapped in is contained in arg0.
+   *    - pgswapout = Probe that fires whenever pages are swapped out as part 
+   *            of swapping out a process. The number of pages swapped out is 
+   *            contained in arg0.
+   *    - rev = Probe that fires whenever the page daemon begins a new 
+   *            revolution through all pages.
+   *    - scan = Probe that fires whenever the page daemon examines a page. 
+   * 
+   * The swap-related information is already available from the swap plugin. 
+   * There's no real use of duplicating things here.
+   */
+  kstat_t *ksp_chain = NULL;
+  value_t value;
+  /*
+   * Holding values for stats
+   */
+  derive_t pgpin = 0;
+  derive_t pgpgout = 0;
+  derive_t execpgin = 0;
+  derive_t execfree = 0;
+  derive_t anonfree = 0;
+  derive_t anonpgin = 0;
+  derive_t anonpgout = 0;
+  derive_t fsfree = 0;
+  derive_t fspgin = 0;
+  derive_t fspgout = 0;
+  derive_t pgswapin = 0;
+  derive_t pgswapout = 0;
+  derive_t rev = 0;
+  derive_t scan = 0;
+  
+  if(kc == NULL)
+    return (-1);  
+  
+  for(ksp_chain = kc->kc_chain; ksp_chain != NULL; ksp_chain = ksp_chain->ks_next)
+    {
+      if(strncmp(ksp_chain->ks_name, "vm", 2) != 0 || 
+         strncmp(ksp_chain->ks_module, "cpu", 3) != 0 ||
+         strncmp(ksp_chain->ks_class, "misc", 4) != 0)
+        {
+          continue;
+        }
+      /*
+       * Storing total values (sum for each cpu instance)
+       */
+      kstat_read(kc, ksp_chain, NULL);
+      
+      pgpin += get_kstat_value (ksp_chain, "pgpin");      
+      pgpgout += get_kstat_value (ksp_chain, "pgpgout");       
+      submit_two(NULL, "vmpage_io", "memory", pgpin, pgpgout);      
+      
+      execpgin += get_kstat_value (ksp_chain, "execpgin"); 
+      execfree += get_kstat_value (ksp_chain, "execfree");
+      submit_two(NULL, "vmpage_io", "exec", execpgin, execfree);      
+      
+      anonfree += get_kstat_value (ksp_chain, "anonfree");
+      anonpgin += get_kstat_value (ksp_chain, "anonpgin");
+      anonpgout += get_kstat_value (ksp_chain, "anonpgout");
+      submit_three(NULL, "vmpage_io", "anon", anonpgin, anonpgout, anonfree);      
+      
+      fsfree += get_kstat_value (ksp_chain, "fsfree");
+      fspgin += get_kstat_value (ksp_chain, "fspgin");
+      fspgout += get_kstat_value (ksp_chain, "fspgout");
+      submit_three (NULL, "vmpage_io", "fs", fspgin, fspgout, fsfree);      
+     
+      pgswapin += get_kstat_value (ksp_chain, "pgswapin");
+      pgswapout += get_kstat_value  (ksp_chain, "pgswapout");
+      submit_two (NULL, "vmpage_io", "swap", pgswapin, pgswapout);      
+      
+      rev += get_kstat_value (ksp_chain, "rev");
+      value.derive = rev;
+      submit_one (NULL, "vmpage_action", "rec", value);      
+      
+      scan += get_kstat_value (ksp_chain, "scan");
+      value.derive = scan;
+      submit_one(NULL, "vmpage_action", "scan", value);                    
+    }
+  
+#endif /* KERNEL_SOLARIS */
 
   return (0);
 } /* int vmem_read */
