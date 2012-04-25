@@ -76,6 +76,22 @@ case $host_os in
 esac
 AC_MSG_RESULT([$ac_system])
 
+if test "x$ac_system" = "xSolaris"
+then    
+        AC_MSG_CHECKING([for Solaris platform type ($host_cpu)])
+        case $host_cpu in
+            *sparc*)
+            AC_DEFINE([PLATFORM_SPARC], 1, [True if SPARC platform])
+            ac_platform="sparc"
+            ;;
+            *86*)
+            AC_DEFINE([PLATFORM_X86], 1, [True if x86 platform])
+            ac_platform="x86"
+            ;;
+        esac
+        AC_MSG_RESULT([$ac_platform])
+fi
+
 if test "x$ac_system" = "xLinux"
 then
 	AC_ARG_VAR([KERNEL_DIR], [path to Linux kernel sources])
@@ -1368,7 +1384,7 @@ fi
 if test "x$ac_system" = "xSolaris"
 then
 	with_kstat="yes"
-	with_devinfo="yes"
+	with_devinfo="yes"        
 else
 	with_kstat="no (Solaris only)"
 	with_devinfo="no (Solaris only)"
@@ -4570,14 +4586,18 @@ fi
 if test "x$with_procinfo" = "xyes"
 then
 	plugin_processes="yes"
+        plugin_top="yes"
 fi
 
 # Solaris
 if test "x$with_kstat" = "xyes"
-then
-	plugin_nfs="yes"
+then	
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
+        plugin_vmem="yes"
+        plugin_processes="yes"
+        plugin_protocols="yes"
+        plugin_nfs="yes"
 fi
 
 if test "x$with_devinfo$with_kstat" = "xyesyes"
@@ -4856,6 +4876,7 @@ AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
+AC_PLUGIN([sysconfig],   [yes],                [Sysconfig plugin])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
 AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
@@ -4870,6 +4891,7 @@ AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
+AC_PLUGIN([top],         [yes],                [Top notification])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
@@ -4881,6 +4903,7 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
+AC_PLUGIN([write_mysql], [$with_libmysql],     [MySQL output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
@@ -5187,6 +5210,7 @@ Configuration:
     serial  . . . . . . . $enable_serial
     snmp  . . . . . . . . $enable_snmp
     swap  . . . . . . . . $enable_swap
+    sysconfig . . . . . . $enable_sysconfig
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table
     tail  . . . . . . . . $enable_tail
@@ -5201,6 +5225,7 @@ Configuration:
     ted . . . . . . . . . $enable_ted
     thermal . . . . . . . $enable_thermal
     threshold . . . . . . $enable_threshold
+    top . . . . . . . . . $enable_top
     tokyotyrant . . . . . $enable_tokyotyrant
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
@@ -5212,6 +5237,7 @@ Configuration:
     wireless  . . . . . . $enable_wireless
     write_graphite  . . . $enable_write_graphite
     write_http  . . . . . $enable_write_http
+    write_mysql . . . . . $enable_write_mysql
     write_redis . . . . . $enable_write_redis
     write_mongodb . . . . $enable_write_mongodb
     xmms  . . . . . . . . $enable_xmms

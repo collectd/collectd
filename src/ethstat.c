@@ -21,7 +21,7 @@
  *   Cyril Feraudet <cyril at feraudet.com>
  *   Florian "octo" Forster <octo@collectd.org>
  **/
-
+#if KERNEL_LINUX
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -332,5 +332,5 @@ void module_register (void)
   plugin_register_complex_config ("ethstat", ethstat_config);
   plugin_register_read ("ethstat", ethstat_read);
 }
-
+#endif
 /* vim: set sw=2 sts=2 et fdm=marker : */

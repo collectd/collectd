@@ -35,6 +35,7 @@ src/collectd
 src/collectd-nagios
 src/collectdctl
 src/collectdmon
+src/collectdproxy
 src/*.1
 src/*.5
 src/libcollectdclient/lcc_features.h
@@ -72,3 +73,10 @@ src/tags
 
 # backup stuff
 *~
+/nbproject/private/
+collectd.conf
+configure.in.new
+configure.in.newvi
+nbproject/
+src/python_la-python.loT
+

@@ -10,8 +10,9 @@ fi
 
 VERSION="`echo \"$VERSION\" | sed -e 's/-/./g'`"
 
+
 if test "x`uname -s`" = "xAIX" ; then
 	echo "$VERSION\c"
-else 
+else
 	echo -n "$VERSION"
 fi
