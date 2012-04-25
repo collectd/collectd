@@ -987,9 +987,25 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 	return (0);
 } /* }}} int parse_identifier_vl */
 
-int parse_value (const char *value, value_t *ret_value, int ds_type)
+int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
 {
+  char *value;
   char *endptr = NULL;
+  size_t value_len;
+
+  if (value_orig == NULL)
+    return (EINVAL);
+
+  value = strdup (value_orig);
+  if (value == NULL)
+    return (ENOMEM);
+  value_len = strlen (value);
+
+  while ((value_len > 0) && isspace ((int) value[value_len - 1]))
+  {
+    value[value_len - 1] = 0;
+    value_len--;
+  }
 
   switch (ds_type)
   {
@@ -1010,11 +1026,13 @@ int parse_value (const char *value, value_t *ret_value, int ds_type)
       break;
 
     default:
+      sfree (value);
       ERROR ("parse_value: Invalid data source type: %i.", ds_type);
       return -1;
   }
 
   if (value == endptr) {
+    sfree (value);
     ERROR ("parse_value: Failed to parse string as %s: %s.",
         DS_TYPE_TO_STRING (ds_type), value);
     return -1;
@@ -1022,8 +1040,9 @@ int parse_value (const char *value, value_t *ret_value, int ds_type)
   else if ((NULL != endptr) && ('\0' != *endptr))
     INFO ("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
         "Input string was \"%s\".",
-        endptr, DS_TYPE_TO_STRING (ds_type), value);
+        endptr, DS_TYPE_TO_STRING (ds_type), value_orig);
 
+  sfree (value);
   return 0;
 } /* int parse_value */
 

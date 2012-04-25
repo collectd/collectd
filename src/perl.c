@@ -1929,6 +1929,11 @@ static int perl_read (void)
 		aTHX = t->interp;
 	}
 
+	/* Assert that we're not running as the base thread. Otherwise, we might
+	 * run into concurrency issues with c_ithread_create(). See
+	 * https://github.com/collectd/collectd/issues/9 for details. */
+	assert (aTHX != perl_threads->head->interp);
+
 	log_debug ("perl_read: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 	return pplugin_call_all (aTHX_ PLUGIN_READ);
@@ -1937,6 +1942,7 @@ static int perl_read (void)
 static int perl_write (const data_set_t *ds, const value_list_t *vl,
 		user_data_t __attribute__((unused)) *user_data)
 {
+	int status;
 	dTHX;
 
 	if (NULL == perl_threads)
@@ -1952,9 +1958,20 @@ static int perl_write (const data_set_t *ds, const value_list_t *vl,
 		aTHX = t->interp;
 	}
 
+	/* Lock the base thread if this is not called from one of the read threads
+	 * to avoid race conditions with c_ithread_create(). See
+	 * https://github.com/collectd/collectd/issues/9 for details. */
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_lock (&perl_threads->mutex);
+
 	log_debug ("perl_write: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
-	return pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
+	status = pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
+
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_unlock (&perl_threads->mutex);
+
+	return status;
 } /* static int perl_write (const data_set_t *, const value_list_t *) */
 
 static void perl_log (int level, const char *msg,
@@ -1975,7 +1992,17 @@ static void perl_log (int level, const char *msg,
 		aTHX = t->interp;
 	}
 
+	/* Lock the base thread if this is not called from one of the read threads
+	 * to avoid race conditions with c_ithread_create(). See
+	 * https://github.com/collectd/collectd/issues/9 for details. */
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_lock (&perl_threads->mutex);
+
 	pplugin_call_all (aTHX_ PLUGIN_LOG, level, msg);
+
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_unlock (&perl_threads->mutex);
+
 	return;
 } /* static void perl_log (int, const char *) */
 

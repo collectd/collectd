@@ -1,3 +1,86 @@
+2012-04-01, Version 5.1.0
+	* Build system, iptables plugin: The shipped version of libiptc has
+	  been removed.
+	* collectd-nagios: A list of value lists can now be queried using
+	  "-n LIST". Thanks to Sebastian Harl for his patches.
+	* bind plugin: The "ParseTime" option has been added. It allows to use
+	  the system time rather than the time reported by BIND.
+	* curl, memcachec, tail plugins: The "ExcludeRegexp" option has been
+	  added. Thanks to Peter Warasin for his initial patch.
+	* ethstat plugin: The new "ethstat" plugin reads performance statistics
+	  directly from ethernet cards. Thanks to Cyril Feraudet for his patch.
+	* GenericJMX plugin: Support for querying MBean "Operations" (in
+	  addition to "Attributes") has been added. Thanks to Pierre-Yves
+	  Ritschard for his patch.
+	* irq plugin: The selection / ignore code now uses the default
+	  ignorelist infrastructure, providing the standard feature set, e.g.
+	  regex matching.
+	* md plugin: The new "md" plugin reports the number of disks in various
+	  states in Linux software RAID devices. Thanks to Michael Hanselmann
+	  for his patch.
+	* modbus plugin: Support for signed integer register types has been
+	  added.
+	* nfs plugin: Support for Solaris has been added. Thanks to Cosmin
+	  Ioiart for his patch.
+	* numa plugin: The new "numa" plugin reports statistics of the
+	  Non-Uniform Memory Access (NUMA) subsystem of Linux.
+	* processes plugin: Various fixes for the FreeBSD implementation.
+	  Thanks to Phil Kulin for his patch.
+	* rrdcached plugin: Passing flushes to the caching daemon has been
+	  added.
+	* sensors plugin: The initialization code has been improved. Thanks to
+	  Henrique de Moraes Holschuh for his patch.
+	* swap plugin: The "ReportByDevice" option has been added.
+	* syslog plugin: Support for writing notifications has been added.
+	  Thanks to Fabien Wernli for his patch.
+	* tcpconns plugin: Support for AIX has been added. Thanks to Manuel
+	  Luis Sanmartín Rozada for his patch.
+	* threshold plugin: The "PersistOK" option has been added. Thanks to
+	  Aaron Brady for his patch.
+	* varnish plugin: Support for Varnish 3.0 has been added. Thanks to
+	  Jérôme Renard for his patches.
+	* write_mongodb plugin: The new "write_mongodb" plugin writes value
+	  lists to MongoDB, a shema-less database. Thanks to Akkarit Sangpetch
+	  and Chris Lundquist for their work.
+	* write_graphite plugin: The new "write_graphite" plugin writes value
+	  lists to Carbon, the storage layer of the Graphite time-series
+	  database. Thanks to Scott Sanders and Pierre-Yves Ritschard for their
+	  work.
+	* zfs_arc plugin: Several new statistics have been added. Thanks to
+	  Aurelien Rougemont for his patches.
+	* scale target: Support for scaling specific data sources only has been
+	  added. Thanks to Gerrie Roos for his patch.
+
+
+2012-04-01, Version 5.0.4
+	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
+	  for fixing this. Adresses some issues with building the iptables
+	  plugin under Gentoo.
+	* libcollectdclient: A memory leak in the lcc_getval() function has
+	  been fixed. Thanks to Jason Schmidlapp for finding and fixing this
+	  issue.
+	* bind plugin: The use of 'QType" types has been fixed.
+	* df plugin: Fixed compiler issue under Mac OS X 10.7.
+	* conntrack plugin: Support zero as legitimate value. Thanks to Louis
+	  Opter for his patch.
+	* memcached plugin: Increased the size of a static buffer, which was
+	  truncating status messages form memcached. Thanks to Timon for the
+	  patch.
+	* network plugin: Forwarding of notifications has been disabled. This
+	  was a contition not checked for before, which may retult in an
+	  endless loop.
+	* processes plugin: Support for process names with spaces has been
+	  added to the Linux implementation. Thanks to Darrell Bishop for his
+	  patch.
+	* perl plugin: A race condition in several callbacks, including log and
+	  write callbacks, has been fixed. Thanks to "Rrpv" for reporting this
+	  bug.
+	* snmp plugin: A bug when casting unsigned integers to gauge values has
+	  been fixed: Unsigned integers would be cast to a signed integer and
+	  then to a gauge, possibly resulting in a negative value.
+	* tcpconns plugin: Compilation with newer versions of the FreeBSD
+	  runtime has been fixed.
+
 2012-02-19, Version 5.0.3
 	* Build system: Fix problems when building the ipvs and iptables
 	  plugins. Thanks to Sebastian Harl for his patch. A bashism in the
@@ -139,6 +222,35 @@
 	  alternatives.
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
+
+2012-04-01, Version 4.10.7
+	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
+	  for fixing this. Adresses some issues with building the iptables
+	  plugin under Gentoo.
+	* libcollectdclient: A memory leak in the lcc_getval() function has
+	  been fixed. Thanks to Jason Schmidlapp for finding and fixing this
+	  issue.
+	* bind plugin: The use of 'QType" types has been fixed.
+	* df plugin: Fixed compiler issue under Mac OS X 10.7.
+	* conntrack plugin: Support zero as legitimate value. Thanks to Louis
+	  Opter for his patch.
+	* memcached plugin: Increased the size of a static buffer, which was
+	  truncating status messages form memcached. Thanks to Timon for the
+	  patch.
+	* network plugin: Forwarding of notifications has been disabled. This
+	  was a contition not checked for before, which may retult in an
+	  endless loop.
+	* processes plugin: Support for process names with spaces has been
+	  added to the Linux implementation. Thanks to Darrell Bishop for his
+	  patch.
+	* perl plugin: A race condition in several callbacks, including log and
+	  write callbacks, has been fixed. Thanks to "Rrpv" for reporting this
+	  bug.
+	* snmp plugin: A bug when casting unsigned integers to gauge values has
+	  been fixed: Unsigned integers would be cast to a signed integer and
+	  then to a gauge, possibly resulting in a negative value.
+	* tcpconns plugin: Compilation with newer versions of the FreeBSD
+	  runtime has been fixed.
 
 2012-02-19, Version 4.10.6
 	* Build system: Fix problems when building the ipvs and iptables
