@@ -406,9 +406,9 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   argv[ds_num + rra_num] = NULL;
 
   last_up = CDTIME_T_TO_TIME_T (vl->time);
-  if (last_up <= 10)
+  if (last_up <= 0)
     last_up = time (NULL);
-  last_up -= 10;
+  last_up -= 1;
 
   if (cfg->stepsize > 0)
     stepsize = cfg->stepsize;
