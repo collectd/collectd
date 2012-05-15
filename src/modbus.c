@@ -466,8 +466,15 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
         /* num_registers = */ values_num, /* buffer = */ values);
   if (status != values_num)
   {
-    ERROR ("Modbus plugin: modbus_read_registers (%s) failed. "
-        "Giving up.", host->host);
+    ERROR ("Modbus plugin: modbus_read_registers (%s/%s) failed. status = %i, values_num = %i "
+        "Giving up.", host->host, host->node, status, values_num);
+#if LEGACY_LIBMODBUS
+    modbus_close (&host->connection);
+#else
+    modbus_close (host->connection);
+    modbus_free (host->connection);
+#endif
+    host->connection = NULL;
     return (-1);
   }
 
