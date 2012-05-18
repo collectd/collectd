@@ -1225,6 +1225,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc.ki_pid, struct kinfo_proc.ki_rssize, struct 
 		have_struct_kinfo_proc_freebsd="no"
 	],
 	[
+AC_INCLUDES_DEFAULT
 #include <kvm.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -1241,6 +1242,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc.kp_proc, struct kinfo_proc.kp_eproc],
 		have_struct_kinfo_proc_openbsd="no"
 	],
 	[
+AC_INCLUDES_DEFAULT
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <kvm.h>
