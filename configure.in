@@ -2502,6 +2502,72 @@ then
 fi
 if test "x$with_libnetlink" = "xyes"
 then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $with_libnetlink_cflags"
+
+	AC_CACHE_CHECK(
+		[if function 'rtnl_dump_filter' expects five arguments],
+		[c_cv_rtnl_dump_filter_five_args],
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+				[
+AC_INCLUDES_DEFAULT
+#if HAVE_LIBNETLINK_H
+# include <libnetlink.h>
+#elif HAVE_IPROUTE_LIBNETLINK_H
+# include <iproute/libnetlink.h>
+#elif HAVE_LINUX_LIBNETLINK_H
+# include <linux/libnetlink.h>
+#endif
+				],
+				[
+if (rtnl_dump_filter(NULL, NULL, NULL, NULL, NULL))
+	return 1;
+return 0;
+				]
+			)],
+			[c_cv_rtnl_dump_filter_five_args="yes"],
+			[c_cv_rtnl_dump_filter_five_args="no"]
+		)
+	)
+
+	AC_CACHE_CHECK(
+		[if function 'rtnl_dump_filter' expects three arguments],
+		[c_cv_rtnl_dump_filter_three_args],
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+				[
+AC_INCLUDES_DEFAULT
+#if HAVE_LIBNETLINK_H
+# include <libnetlink.h>
+#elif HAVE_IPROUTE_LIBNETLINK_H
+# include <iproute/libnetlink.h>
+#elif HAVE_LINUX_LIBNETLINK_H
+# include <linux/libnetlink.h>
+#endif
+				],
+				[
+if (rtnl_dump_filter(NULL, NULL, NULL))
+	return 1;
+return 0;
+				]
+			)],
+			[c_cv_rtnl_dump_filter_three_args="yes"],
+			[c_cv_rtnl_dump_filter_three_args="no"]
+		)
+	)
+
+	CFLAGS="$SAVE_CFLAGS"
+
+	if test "x$c_cv_rtnl_dump_filter_five_args" = "xyes"
+	then
+		AC_DEFINE(RTNL_DUMP_FILTER_FIVE_ARGS, 1,
+				[Define to 1 if function 'rtnl_dump_filter' expects five arguments.])
+	fi
+	if test "x$c_cv_rtnl_dump_filter_three_args" = "xyes"
+	then
+		AC_DEFINE(RTNL_DUMP_FILTER_THREE_ARGS, 1,
+				[Define to 1 if function 'rtnl_dump_filter' expects three arguments.])
+	fi
+
 	BUILD_WITH_LIBNETLINK_CFLAGS="$with_libnetlink_cflags"
 	BUILD_WITH_LIBNETLINK_LIBS="$with_libnetlink_libs"
 	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
