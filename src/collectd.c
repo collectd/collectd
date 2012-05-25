@@ -77,6 +77,7 @@ static void sig_usr1_handler (int __attribute__((unused)) signal)
 	pthread_attr_init (&attr);
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create (&thread, &attr, do_flush, NULL);
+	pthread_attr_destroy (&attr);
 }
 
 static int init_hostname (void)

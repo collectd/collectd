@@ -824,6 +824,7 @@ static int exec_read (void) /* {{{ */
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
     pthread_create (&t, &attr, exec_read_one, (void *) pl);
+    pthread_attr_destroy (&attr);
   } /* for (pl) */
 
   return (0);
@@ -867,6 +868,7 @@ static int exec_notification (const notification_t *n, /* {{{ */
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
     pthread_create (&t, &attr, exec_notification_one, (void *) pln);
+    pthread_attr_destroy (&attr);
   } /* for (pl) */
 
   return (0);
