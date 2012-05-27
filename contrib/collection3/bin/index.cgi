@@ -161,6 +161,28 @@ sub end_html
 HTML
 }
 
+sub contains_invalid_chars
+{
+  my $str = shift;
+
+  for (split (m//, $str))
+  {
+    my $n = ord ($_);
+
+    # Whitespace is allowed.
+    if (($n >= 9) && ($n <= 13))
+    {
+      next;
+    }
+    elsif ($n < 32)
+    {
+      return (1);
+    }
+  }
+
+  return;
+}
+
 sub show_selector
 {
   my $timespan_selection = get_timespan_selection ();
@@ -175,6 +197,7 @@ sub show_selector
 HTML
   for (sort (keys %$host_selection))
   {
+    next if contains_invalid_chars ($_);
     my $host = encode_entities ($_);
     my $selected = $host_selection->{$_}
     ? ' selected="selected"'
@@ -187,6 +210,7 @@ HTML
 HTML
   for (sort (keys %$plugin_selection))
   {
+    next if contains_invalid_chars ($_);
     my $plugin = encode_entities ($_);
     my $selected = $plugin_selection->{$_}
     ? ' selected="selected"'
@@ -199,6 +223,7 @@ HTML
 HTML
   for (sort { $TimeSpans->{$a} <=> $TimeSpans->{$b} } (keys (%$TimeSpans)))
   {
+    next if contains_invalid_chars ($_);
     my $name = encode_entities ($_);
     my $value = $TimeSpans->{$_};
     my $selected = ($value == $timespan_selection)
@@ -225,6 +250,7 @@ sub action_list_hosts
   for (sort @hosts)
   {
     my $url = encode_entities (script_name () . "?action=show_selection;hostname=$_");
+    next if contains_invalid_chars ($_);
     my $name = encode_entities ($_);
     print qq#      <li><a href="$url">$name</a></li>\n#;
   }
