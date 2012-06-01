@@ -451,7 +451,6 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
 	    || (IPPROTO_HOPOPTS == nexthdr) /* Hop-by-Hop options. */
 	    || (IPPROTO_FRAGMENT == nexthdr) /* fragmentation header. */
 	    || (IPPROTO_DSTOPTS == nexthdr) /* destination options. */
-	    || (IPPROTO_DSTOPTS == nexthdr) /* destination options. */
 	    || (IPPROTO_AH == nexthdr) /* destination options. */
 	    || (IPPROTO_ESP == nexthdr)) /* encapsulating security payload. */
     {
