@@ -23,7 +23,7 @@ perl: perl/Makefile
 
 perl/Makefile: .perl-directory-stamp perl/Makefile.PL \
 	$(top_builddir)/config.status
-	cd perl && @PERL@ Makefile.PL PREFIX=$(prefix) @PERL_BINDINGS_OPTIONS@
+	cd perl && @PERL@ Makefile.PL INSTALL_BASE=$(prefix) @PERL_BINDINGS_OPTIONS@
 
 .perl-directory-stamp:
 	if test ! -d perl; then \
