@@ -1857,10 +1857,12 @@ fi
 # This could be in iptc or ip4tc
 if test "x$with_libiptc" = "xpkgconfig"
 then
+	SAVE_LIBS="$LIBS"
 	AC_SEARCH_LIBS(iptc_init, [iptc ip4tc],
 			[with_libiptc="pkgconfig"],
 			[with_libiptc="no"],
 			[$with_libiptc_libs])
+	LIBS="$SAVE_LIBS"
 fi
 if test "x$with_libiptc" = "xpkgconfig"
 then
