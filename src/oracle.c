@@ -59,6 +59,7 @@
 struct o_database_s
 {
   char *name;
+  char *host;
   char *connect_id;
   char *username;
   char *password;
@@ -223,6 +224,11 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
   memset (db, 0, sizeof (*db));
+  db->name = NULL;
+  db->host = NULL;
+  db->connect_id = NULL;
+  db->username = NULL;
+  db->password = NULL;
 
   status = o_config_set_string (&db->name, ci);
   if (status != 0)
@@ -238,6 +244,8 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp ("ConnectID", child->key) == 0)
       status = o_config_set_string (&db->connect_id, child);
+    else if (strcasecmp ("Host", child->key) == 0)
+      status = o_config_set_string (&db->host, child);
     else if (strcasecmp ("Username", child->key) == 0)
       status = o_config_set_string (&db->username, child);
     else if (strcasecmp ("Password", child->key) == 0)
@@ -601,7 +609,8 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   } /* for (j = 1; j <= param_counter; j++) */
   /* }}} End of the ``define'' stuff. */
 
-  status = udb_query_prepare_result (q, prep_area, hostname_g,
+  status = udb_query_prepare_result (q, prep_area,
+      (db->host != NULL) ? db->host : hostname_g,
       /* plugin = */ "oracle", db->name, column_names, column_num,
       /* interval = */ 0);
   if (status != 0)

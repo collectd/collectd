@@ -3268,6 +3268,11 @@ values submitted to the daemon. Other than that, that name is not used.
 Defines the "database alias" or "service name" to connect to. Usually, these
 names are defined in the file named C<$ORACLE_HOME/network/admin/tnsnames.ora>.
 
+=item B<Host> I<Host>
+
+Hostname to use when dispatching values for this database. Defaults to using
+the global hostname of the I<collectd> instance.
+
 =item B<Username> I<Username>
 
 Username used for authentication.
