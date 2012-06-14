@@ -326,6 +326,9 @@ Features
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
 
+    - zservertracelog
+      Total and in thread request diration from zservertracelog log file.
+
   * Output can be written or sent to various destinations by the following
     plugins:
 
