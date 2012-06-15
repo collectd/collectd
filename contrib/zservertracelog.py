@@ -90,8 +90,15 @@ import sys
 import time
 
 
-# Code bellow are taken from zservertracelog/zc/tracereport.py
-# ------------------------8<----------------------------------
+# Code below are taken from zc.zservertracelog tracereport:
+#
+#     zc/zservertracelog/tracereport.py
+#
+# zc.zservertracelog home page:
+#
+#     http://pypi.python.org/pypi/zc.zservertracelog
+#
+# ------------------------8<---------------------------------
 def seconds_difference(dt1, dt2):
     delta = dt1 - dt2
     return delta.seconds + delta.microseconds * 1e-6
