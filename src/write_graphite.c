@@ -54,6 +54,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#if HAVE_CTYPE_H
+#  include <ctype.h>
+#endif
+
 #ifndef WG_DEFAULT_NODE
 # define WG_DEFAULT_NODE "localhost"
 #endif
@@ -87,6 +91,7 @@ struct wg_callback
     _Bool    store_rates;
     _Bool    separate_instances;
     _Bool    always_append_ds;
+    _Bool    lowercase_identifier;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -433,6 +438,19 @@ static int wg_format_name (char *ret, int ret_len,
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
             prefix, n_host, postfix, tmp_plugin, tmp_type);
 
+
+    if (cb->lowercase_identifier)
+    {
+        int i;
+        for (i = 0; i < ret_len; i++)
+        {
+            if (ret[i] == '\0')
+                break;
+            else if (isalnum (ret[i]))
+                ret[i] = (char) tolower (ret[i]);
+        }
+    }
+
     return (0);
 }
 
@@ -645,6 +663,8 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_boolean (child, &cb->always_append_ds);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
+        else if (strcasecmp ("LowercaseIdentifier", child->key) == 0)
+            cf_util_get_boolean (child, &cb->lowercase_identifier);
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
