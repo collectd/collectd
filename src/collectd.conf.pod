@@ -4923,6 +4923,12 @@ If set the B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
 
+=item B<LowercaseIdentifier> B<false>|B<true>
+
+If set the B<true>, all identifiers will be lower cased before sending them off 
+to carbon/graphite. If set to B<false>(the default), the identifier is left
+untouched.
+
 =back
 
 =head2 Plugin C<write_mongodb>
