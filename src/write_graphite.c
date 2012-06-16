@@ -54,6 +54,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#if HAVE_CTYPE_H
+#  include <ctype.h>
+#endif
+
 #ifndef WG_DEFAULT_NODE
 # define WG_DEFAULT_NODE "localhost"
 #endif
@@ -87,6 +91,8 @@ struct wg_callback
     _Bool    store_rates;
     _Bool    separate_instances;
     _Bool    always_append_ds;
+    _Bool    include_type;
+    _Bool    lowercase_identifier;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -418,13 +424,23 @@ static int wg_format_name (char *ret, int ret_len,
     else
         sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
-    if (n_type_instance[0] != '\0')
-        ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
-            n_type,
-            cb->separate_instances ? '.' : '-',
-            n_type_instance);
+    if (cb->include_type)
+    {
+        if (n_type_instance[0] != '\0')
+            ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
+                n_type,
+                cb->separate_instances ? '.' : '-',
+                n_type_instance);
+        else
+            sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    }
     else
-        sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    {
+        if (n_type_instance[0] != '\0')
+            sstrncpy (tmp_type, n_type_instance, sizeof (tmp_type));
+        else
+            sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+    }
 
     if (ds_name != NULL)
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
@@ -432,6 +448,19 @@ static int wg_format_name (char *ret, int ret_len,
     else
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
             prefix, n_host, postfix, tmp_plugin, tmp_type);
+
+
+    if (cb->lowercase_identifier)
+    {
+        int i;
+        for (i = 0; i < ret_len; i++)
+        {
+            if (ret[i] == '\0')
+                break;
+            else if (isalnum (ret[i]))
+                ret[i] = (char) tolower (ret[i]);
+        }
+    }
 
     return (0);
 }
@@ -622,6 +651,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->postfix = NULL;
     cb->escape_char = WG_DEFAULT_ESCAPE;
     cb->store_rates = 1;
+    cb->include_type = 1;
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -643,8 +673,12 @@ static int wg_config_carbon (oconfig_item_t *ci)
             cf_util_get_boolean (child, &cb->separate_instances);
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
             cf_util_get_boolean (child, &cb->always_append_ds);
+        else if (strcasecmp ("IncludeType", child->key) == 0)
+            cf_util_get_boolean (child, &cb->include_type);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
+        else if (strcasecmp ("LowercaseIdentifier", child->key) == 0)
+            cf_util_get_boolean (child, &cb->lowercase_identifier);
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
