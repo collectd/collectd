@@ -702,7 +702,11 @@ static int o_read_database (o_database_t *db) /* {{{ */
         (OraText *) db->connect_id, (ub4) strlen (db->connect_id));
     if ((status != OCI_SUCCESS) && (status != OCI_SUCCESS_WITH_INFO))
     {
-      o_report_error ("o_read_database", "OCILogon", oci_error);
+      char errfunc[256];
+
+      ssnprintf (errfunc, sizeof (errfunc), "OCILogon(\"%s\")", db->connect_id);
+
+      o_report_error ("o_read_database", errfunc, oci_error);
       DEBUG ("oracle plugin: OCILogon (%s): db->oci_service_context = %p;",
           db->connect_id, db->oci_service_context);
       db->oci_service_context = NULL;
