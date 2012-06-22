@@ -185,7 +185,7 @@ static int srrd_update (char *filename, char *template,
 	if (status != 0)
 	{
 		WARNING ("rrdtool plugin: rrd_update_r failed: %s: %s",
-				argv[1], rrd_get_error ());
+				filename, rrd_get_error ());
 	}
 
 	sfree (new_argv);
