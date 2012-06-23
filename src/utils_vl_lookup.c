@@ -203,7 +203,8 @@ static int lu_handle_user_class (lookup_t *obj, /* {{{ */
       return (-1);
   }
 
-  status = obj->cb_user_obj (ds, vl, user_class, user_obj);
+  status = obj->cb_user_obj (ds, vl,
+      user_class->user_class, user_obj->user_obj);
   if (status != 0)
   {
     ERROR ("utils_vl_lookup: The user object callback failed with status %i.",
