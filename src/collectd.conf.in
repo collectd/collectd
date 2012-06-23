@@ -52,6 +52,7 @@
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
+#@BUILD_PLUGIN_AGGREGATION_TRUE@LoadPlugin aggregation
 #@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
@@ -160,6 +161,23 @@
 # In this section configuration stubs for each plugin are provided. A desc-  #
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
+
+#<Plugin "aggregation">
+#  <Aggregation>
+#    Host "/any/"
+#    Plugin "example"
+#    PluginInstance "/all/"
+#    Type "gauge"
+#    TypeInstance "/any/"
+#
+#    CalculateNum false
+#    CalculateSum false
+#    CalculateAverage true
+#    CalculateMinimum false
+#    CalculateMaximum false
+#    CalculateStddev false
+#  </Aggregation>
+#</Plugin>
 
 #<Plugin "amqp">
 #  <Publish "name">

@@ -4774,6 +4774,7 @@ AC_ARG_ENABLE([all-plugins],
 
 m4_divert_once([HELP_ENABLE], [])
 
+AC_PLUGIN([aggregation], [yes],                [Aggregation plugin])
 AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
@@ -5106,6 +5107,7 @@ Configuration:
     perl  . . . . . . . . $with_perl_bindings
 
   Modules:
+    aggregation . . . . . $enable_aggregation
     amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
