@@ -63,6 +63,13 @@ struct identifier_s
 };
 typedef struct identifier_s identifier_t;
 
+#define LU_ANY "/any/"
+#define LU_ALL "/all/"
+
+#define LU_IS_ANY(str) (strcmp (str, LU_ANY) == 0)
+#define LU_IS_ALL(str) (strcmp (str, LU_ALL) == 0)
+#define LU_IS_WILDCARD(str) (LU_IS_ANY(str) || LU_IS_ALL(str))
+
 /*
  * Functions
  */

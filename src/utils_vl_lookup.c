@@ -84,10 +84,6 @@ struct by_type_entry_s
 };
 typedef struct by_type_entry_s by_type_entry_t;
 
-#define LU_IS_ANY(str) (strcmp (str, "/any/") == 0)
-#define LU_IS_ALL(str) (strcmp (str, "/all/") == 0)
-#define LU_IS_WILDCARD(str) (LU_IS_ANY(str) || LU_IS_ALL(str))
-
 /*
  * Private functions
  */
