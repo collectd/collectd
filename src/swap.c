@@ -239,7 +239,7 @@ static int swap_read (void) /* {{{ */
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	if ((swap_total == 0LL) || ((swap_free + swap_cached) > swap_total))
+	if ((swap_free + swap_cached) > swap_total)
 		return (-1);
 
 	swap_used = swap_total - (swap_free + swap_cached);
