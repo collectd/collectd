@@ -282,7 +282,7 @@ static int agg_instance_read (agg_instance_t *inst, cdtime_t t) /* {{{ */
   else
     sstrncpy (vl.host, inst->ident.host, sizeof (vl.host));
 
-  sstrncpy (vl.plugin, "aggregate", sizeof (vl.plugin));
+  sstrncpy (vl.plugin, "aggregation", sizeof (vl.plugin));
 
   if (LU_IS_ALL (inst->ident.plugin))
   {
