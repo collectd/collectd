@@ -1236,7 +1236,7 @@ int rate_to_value (value_t *ret_value, gauge_t rate, /* {{{ */
 		rate_to_value_state_t *state,
 		int ds_type, cdtime_t t)
 {
-	derive_t delta_gauge;
+	gauge_t delta_gauge;
 	cdtime_t delta_t;
 
 	if (ds_type == DS_TYPE_GAUGE)
@@ -1322,6 +1322,7 @@ int rate_to_value (value_t *ret_value, gauge_t rate, /* {{{ */
 		assert (23 == 42);
 	}
 
+        state->last_time = t;
 	*ret_value = state->last_value;
 	return (0);
 } /* }}} value_t rate_to_value */
