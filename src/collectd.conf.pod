@@ -183,11 +183,102 @@ C<Plugin>-Section. Which options exist depends on the plugin used. Some plugins
 require external configuration, too. The C<apache plugin>, for example,
 required C<mod_status> to be configured in the webserver you're going to
 collect data from. These plugins are listed below as well, even if they don't
-require any configuration within collectd's configfile.
+require any configuration within collectd's configuration file.
 
 A list of all plugins and a short summary for each plugin can be found in the
 F<README> file shipped with the sourcecode and hopefully binary packets as
 well.
+
+=head2 Plugin C<aggregation>
+
+The I<Aggregation plugin> makes it possible to aggregate several values into
+one using aggregation functions such as I<sum>, I<average>, I<min> and I<max>.
+This can be put to a wide variety of uses, e.g. average and total CPU
+statistics for your entire fleet.
+
+The grouping is powerful but, as with many powerful tools, may be a bit
+difficult to wrap your head around. The grouping will therefore be
+demonstrated using an example: The average and sum of the CPU usage across
+CPUs of each client is to be calculated.
+
+To select all the affected values for our example, set C<plugin=cpu> and
+C<type=cpu>. The other values, we set to a wildcard. There are two different
+wildcard tokens: C</all/> and C</any/>. C</any/> works like a
+C<GROUPE<nbsp>BY> clause in SQL, i.e. if host is set to C</any/>, a separate
+aggregation will be calculated for each host. In the example, we need to group
+by I<Host> and I<Type Instance> (user, system, idle, ...) but we don't group
+by I<Plugin Instance> (CPU number).
+
+The full example configuration looks like this:
+
+ <Plugin "aggregation">
+   <Aggregation>
+     Host "/any/"
+     Plugin "cpu"
+     PluginInstance "/all/"
+     Type "cpu"
+     TypeInstance "/any/"
+     CalculateSum true
+     CalculateAverage true
+   </Aggregation>
+ </Plugin>
+
+There are a couple of limitations you should be aware of:
+
+=over 4
+
+=item
+
+The I<Type> cannot be a wildcard, because it is not reasonable to add apples
+to oranges. Also, the internal lookup structure won't work if you set it to
+C</any/> or C</all/>.
+
+=item
+
+There must be at least one C</all/> wildcard, otherwise nothing will be
+aggregated.
+
+=back
+
+As you can see in the example above, each aggregation has its own
+B<Aggregation> block. You can have multiple aggregation blocks and aggregation
+blocks may match the same values, i.e. one value list can update multiple
+aggregations. The following options are valid inside B<Aggregation> blocks:
+
+=over 4
+
+=item B<Host> I<Host>
+
+=item B<Plugin> I<Plugin>
+
+=item B<PluginInstance> I<PluginInstance>
+
+=item B<Type> I<Type>
+
+=item B<TypeInstance> I<TypeInstance>
+
+Selects the value lists to be added to this aggregation. Each field, with the
+exception of B<Type>, can hold either a fixed string, or one of the wildcard
+tokens C</all/> and C</any/>. B<Type> must be a valid data set name, see
+L<types.db(5)> for details.
+
+=item B<CalculateNum> B<true>|B<false>
+
+=item B<CalculateSum> B<true>|B<false>
+
+=item B<CalculateAverage> B<true>|B<false>
+
+=item B<CalculateMinimum> B<true>|B<false>
+
+=item B<CalculateMaximum> B<true>|B<false>
+
+=item B<CalculateStddev> B<true>|B<false>
+
+Boolean options for enabling calculation of the number of value lists, their
+sum, average, minimum, maximum andE<nbsp>/ or standard deviation. All options
+are disabled by default.
+
+=back
 
 =head2 Plugin C<amqp>
 
