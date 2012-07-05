@@ -394,6 +394,7 @@ static void agg_lookup_free_obj_callback (void *user_obj) /* {{{ */
 static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
 {
   aggregation_t *agg;
+  _Bool is_valid;
   int status;
   int i;
 
@@ -441,10 +442,47 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
           "<Aggregation /> blocks and will be ignored.", child->key);
   }
 
-  /* TODO(octo): Check identifier:
-   * - At least one wildcard.
-   * - Type is set.
-   */
+  /* Sanity checking */
+  is_valid = 1;
+  if (strchr (agg->ident.type, '/') != NULL) /* {{{ */
+  {
+    ERROR ("aggregation plugin: The \"Type\" may not contain the '/' "
+        "character. Especially, it may not be a wildcard. The current "
+        "value is \"%s\".", agg->ident.type);
+    is_valid = 0;
+  } /* }}} */
+
+  if (!LU_IS_ALL (agg->ident.host) /* {{{ */
+      && !LU_IS_ALL (agg->ident.plugin)
+      && !LU_IS_ALL (agg->ident.plugin_instance)
+      && !LU_IS_ALL (agg->ident.type_instance))
+  {
+    ERROR ("aggregation plugin: An aggregation must contain at least one "
+        "\"/all/\" wildcard. Otherwise, nothing will be aggregated. "
+        "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
+        "Type \"%s\", TypeInstance \"%s\")",
+        agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
+        agg->ident.type, agg->ident.type_instance);
+    is_valid = 0;
+  } /* }}} */
+
+  if (!agg->calc_num && !agg->calc_sum && !agg->calc_average /* {{{ */
+      && !agg->calc_min && !agg->calc_max && !agg->calc_stddev)
+  {
+    ERROR ("aggregation plugin: No aggregation function has been specified. "
+        "Without this, I don't know what I should be calculating. "
+        "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
+        "Type \"%s\", TypeInstance \"%s\")",
+        agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
+        agg->ident.type, agg->ident.type_instance);
+    is_valid = 0;
+  } /* }}} */
+
+  if (!is_valid) /* {{{ */
+  {
+    sfree (agg);
+    return (-1);
+  } /* }}} */
 
   status = lookup_add (lookup, &agg->ident, agg);
   if (status != 0)
