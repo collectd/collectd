@@ -70,7 +70,7 @@ static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* }}} int buffer_add_string */
+} /* }}} int escape_string */
 
 static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
@@ -225,6 +225,86 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
   return (0);
 } /* }}} int dsnames_to_json */
 
+static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
+    meta_data_t *meta)
+{
+  size_t offset = 0;
+  char **keys = NULL;
+  int keys_num;
+  int status;
+  int i;
+
+  memset (buffer, 0, buffer_size);
+
+#define BUFFER_ADD(...) do { \
+  status = ssnprintf (buffer + offset, buffer_size - offset, \
+      __VA_ARGS__); \
+  if (status < 1) \
+    return (-1); \
+  else if (((size_t) status) >= (buffer_size - offset)) \
+    return (-ENOMEM); \
+  else \
+    offset += ((size_t) status); \
+} while (0)
+
+  keys_num = meta_data_toc (meta, &keys);
+  for (i = 0; i < keys_num; ++i)
+  {
+    int type;
+    char *key = keys[i];
+
+    type = meta_data_type (meta, key);
+    if (type == MD_TYPE_STRING)
+    {
+      char *value = NULL;
+      if (meta_data_get_string (meta, key, &value) == 0)
+      {
+        char temp[512] = "";
+        escape_string (temp, sizeof (temp), value);
+        sfree (value);
+        BUFFER_ADD (",\"%s\":%s", key, temp);
+      }
+    }
+    else if (type == MD_TYPE_SIGNED_INT)
+    {
+      int64_t value = 0;
+      if (meta_data_get_signed_int (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%"PRIi64, key, value);
+    }
+    else if (type == MD_TYPE_UNSIGNED_INT)
+    {
+      uint64_t value = 0;
+      if (meta_data_get_unsigned_int (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%"PRIu64, key, value);
+    }
+    else if (type == MD_TYPE_DOUBLE)
+    {
+      double value = 0.0;
+      if (meta_data_get_double (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%f", key, value);
+    }
+    else if (type == MD_TYPE_BOOLEAN)
+    {
+      _Bool value = 0;
+      if (meta_data_get_boolean (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%s", key, value ? "true" : "false");
+    }
+
+    free (key);
+  } /* for (keys) */
+  free (keys);
+
+  if (offset <= 0)
+    return (ENOENT);
+
+  buffer[0] = '{'; /* replace leading ',' */
+  BUFFER_ADD ("}");
+
+#undef BUFFER_ADD
+
+  return (0);
+} /* int meta_data_to_json */
+
 static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
 {
@@ -267,51 +347,6 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD (",\"time\":%.3f", CDTIME_T_TO_DOUBLE (vl->time));
   BUFFER_ADD (",\"interval\":%.3f", CDTIME_T_TO_DOUBLE (vl->interval));
 
-  if (vl->meta) {
-    int i, num;
-    char **table;
-    meta_data_t *meta = vl->meta;
-
-    num = meta_data_toc(meta, &table);
-    for (i = 0; i < num; ++i) {
-      int type;
-      char *string;
-      int64_t si;
-      uint64_t ui;
-      double d;
-      _Bool b;
-
-      type = meta_data_type(meta, table[i]);
-      if (type == MD_TYPE_STRING) {
-        if (meta_data_get_string(meta, table[i], &string))
-          continue;
-        BUFFER_ADD(",\"%s\":\"%s\"", table[i], string);
-        free(string);
-      } else if (type == MD_TYPE_SIGNED_INT) {
-        if (meta_data_get_signed_int(meta, table[i], &si))
-          continue;
-        BUFFER_ADD(",\"%s\":%ld", table[i], si);
-      } else if (type == MD_TYPE_UNSIGNED_INT) {
-        if (meta_data_get_unsigned_int(meta, table[i], &ui))
-          continue;
-        BUFFER_ADD(",\"%s\":%lu", table[i], ui);
-      } else if (type == MD_TYPE_DOUBLE) {
-        if (meta_data_get_double(meta, table[i], &d))
-          continue;
-        BUFFER_ADD(",\"%s\":%f", table[i], d);
-      } else if (type == MD_TYPE_BOOLEAN) {
-        if (meta_data_get_boolean(meta, table[i], &b))
-          continue;
-        if (b)
-          BUFFER_ADD(",\"%s\":%u", table[i], b);
-        else
-          BUFFER_ADD(",\"%s\":%u", table[i], b);
-      }
-      free(table[i]);
-    }
-    free(table);
-  }
-
 #define BUFFER_ADD_KEYVAL(key, value) do { \
   status = escape_string (temp, sizeof (temp), (value)); \
   if (status != 0) \
@@ -324,6 +359,17 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD_KEYVAL ("plugin_instance", vl->plugin_instance);
   BUFFER_ADD_KEYVAL ("type", vl->type);
   BUFFER_ADD_KEYVAL ("type_instance", vl->type_instance);
+
+  if (vl->meta != NULL)
+  {
+    char meta_buffer[buffer_size];
+    memset (meta_buffer, 0, sizeof (meta_buffer));
+    status = meta_data_to_json (meta_buffer, sizeof (meta_buffer), vl->meta);
+    if (status != 0)
+      return (status);
+
+    BUFFER_ADD (",\"meta\":%s", meta_buffer);
+  } /* if (vl->meta != NULL) */
 
   BUFFER_ADD ("}");
 
