@@ -347,6 +347,51 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD (",\"time\":%.3f", CDTIME_T_TO_DOUBLE (vl->time));
   BUFFER_ADD (",\"interval\":%.3f", CDTIME_T_TO_DOUBLE (vl->interval));
 
+  if (vl->meta) {
+    int i, num;
+    char **table;
+    meta_data_t *meta = vl->meta;
+
+    num = meta_data_toc(meta, &table);
+    for (i = 0; i < num; ++i) {
+      int type;
+      char *string;
+      int64_t si;
+      uint64_t ui;
+      double d;
+      _Bool b;
+
+      type = meta_data_type(meta, table[i]);
+      if (type == MD_TYPE_STRING) {
+        if (meta_data_get_string(meta, table[i], &string))
+          continue;
+        BUFFER_ADD(",\"%s\":\"%s\"", table[i], string);
+        free(string);
+      } else if (type == MD_TYPE_SIGNED_INT) {
+        if (meta_data_get_signed_int(meta, table[i], &si))
+          continue;
+        BUFFER_ADD(",\"%s\":%ld", table[i], si);
+      } else if (type == MD_TYPE_UNSIGNED_INT) {
+        if (meta_data_get_unsigned_int(meta, table[i], &ui))
+          continue;
+        BUFFER_ADD(",\"%s\":%lu", table[i], ui);
+      } else if (type == MD_TYPE_DOUBLE) {
+        if (meta_data_get_double(meta, table[i], &d))
+          continue;
+        BUFFER_ADD(",\"%s\":%f", table[i], d);
+      } else if (type == MD_TYPE_BOOLEAN) {
+        if (meta_data_get_boolean(meta, table[i], &b))
+          continue;
+        if (b)
+          BUFFER_ADD(",\"%s\":%u", table[i], b);
+        else
+          BUFFER_ADD(",\"%s\":%u", table[i], b);
+      }
+      free(table[i]);
+    }
+    free(table);
+  }
+
 #define BUFFER_ADD_KEYVAL(key, value) do { \
   status = escape_string (temp, sizeof (temp), (value)); \
   if (status != 0) \
