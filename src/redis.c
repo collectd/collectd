@@ -50,6 +50,7 @@ struct redis_node_s
 {
   char name[MAX_REDIS_NODE_NAME];
   char host[HOST_NAME_MAX];
+  char passwd[HOST_NAME_MAX];
   int port;
   int timeout;
 
@@ -132,6 +133,8 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("Timeout", option->key) == 0)
       status = cf_util_get_int (option, &rn.timeout);
+    else if (strcasecmp ("Passwd", option->key) == 0)
+      status = cf_util_get_string_buffer (option, rn.passwd, sizeof (rn.passwd));
     else
       WARNING ("redis plugin: Option `%s' not allowed inside a `Node' "
           "block. I'll ignore this option.", option->key);
@@ -249,6 +252,16 @@ static int redis_read (void) /* {{{ */
     {
       ERROR ("redis plugin: unable to connect to node `%s' (%s:%d).", rn->name, rn->host, rn->port);
       continue;
+    }
+
+    if ( strlen(rn->passwd) > 0 ) {
+      DEBUG ("redis plugin: authenticanting node `%s' passwd(%s).", rn->name, rn->passwd);
+      if ( credis_auth(rh, rn->passwd) != 0 )
+      {
+        WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
+        credis_close (rh);
+        continue;
+      }
     }
 
     memset (&info, 0, sizeof (info));
