@@ -133,7 +133,7 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("Timeout", option->key) == 0)
       status = cf_util_get_int (option, &rn.timeout);
-    else if (strcasecmp ("Passwd", option->key) == 0)
+    else if (strcasecmp ("Password", option->key) == 0)
       status = cf_util_get_string_buffer (option, rn.passwd, sizeof (rn.passwd));
     else
       WARNING ("redis plugin: Option `%s' not allowed inside a `Node' "
@@ -254,9 +254,11 @@ static int redis_read (void) /* {{{ */
       continue;
     }
 
-    if ( strlen(rn->passwd) > 0 ) {
+    if (strlen (rn->passwd) > 0)
+    {
       DEBUG ("redis plugin: authenticanting node `%s' passwd(%s).", rn->name, rn->passwd);
-      if ( credis_auth(rh, rn->passwd) != 0 )
+      status = credis_auth(rh, rn->passwd);
+      if (status != 0)
       {
         WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
         credis_close (rh);
