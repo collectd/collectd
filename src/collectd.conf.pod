@@ -4061,6 +4061,10 @@ The B<Port> option is the TCP port on which the Redis instance accepts
 connections. Either a service name of a port number may be given. Please note
 that numerical port numbers must be given as a string, too.
 
+=item B<Password> I<Password>
+
+Use I<Password> to authenticate when connecting to I<Redis>.
+
 =item B<Timeout> I<Timeout in miliseconds>
 
 The B<Timeout> option set the socket timeout for node response. Since the Redis
