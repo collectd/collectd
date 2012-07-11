@@ -118,7 +118,7 @@
 
 #if HAVE_STRUCT_UDPHDR_UH_DPORT && HAVE_STRUCT_UDPHDR_UH_SPORT
 # define UDP_DEST uh_dport
-# define UDP_SRC  uh_dport
+# define UDP_SRC  uh_sport
 #elif HAVE_STRUCT_UDPHDR_DEST && HAVE_STRUCT_UDPHDR_SOURCE
 # define UDP_DEST dest
 # define UDP_SRC  source
