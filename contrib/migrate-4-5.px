@@ -187,8 +187,8 @@ sub handle_file # {{{
     print "mkdir -p \"$dir/$plugin-$type_inst\"\n";
     if (($plugin eq 'df') and ($type eq 'df'))
     {
-      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-free.rrd --map free:value\n";
-      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-used.rrd --map used:value\n";
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-free.rrd\" --map free:value\n";
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-used.rrd\" --map used:value\n";
     }
     else
     {
