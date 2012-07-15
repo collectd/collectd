@@ -59,6 +59,7 @@
 struct o_database_s
 {
   char *name;
+  char *host;
   char *connect_id;
   char *username;
   char *password;
@@ -175,33 +176,6 @@ static void o_database_free (o_database_t *db) /* {{{ */
  * </Plugin>
  */
 
-static int o_config_set_string (char **ret_string, /* {{{ */
-    oconfig_item_t *ci)
-{
-  char *string;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("oracle plugin: The `%s' config option "
-        "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
-
-  string = strdup (ci->values[0].value.string);
-  if (string == NULL)
-  {
-    ERROR ("oracle plugin: strdup failed.");
-    return (-1);
-  }
-
-  if (*ret_string != NULL)
-    free (*ret_string);
-  *ret_string = string;
-
-  return (0);
-} /* }}} int o_config_set_string */
-
 static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 {
   o_database_t *db;
@@ -223,8 +197,13 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
   memset (db, 0, sizeof (*db));
+  db->name = NULL;
+  db->host = NULL;
+  db->connect_id = NULL;
+  db->username = NULL;
+  db->password = NULL;
 
-  status = o_config_set_string (&db->name, ci);
+  status = cf_util_get_string (ci, &db->name);
   if (status != 0)
   {
     sfree (db);
@@ -237,11 +216,13 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("ConnectID", child->key) == 0)
-      status = o_config_set_string (&db->connect_id, child);
+      status = cf_util_get_string (child, &db->connect_id);
+    else if (strcasecmp ("Host", child->key) == 0)
+      status = cf_util_get_string (child, &db->host);
     else if (strcasecmp ("Username", child->key) == 0)
-      status = o_config_set_string (&db->username, child);
+      status = cf_util_get_string (child, &db->username);
     else if (strcasecmp ("Password", child->key) == 0)
-      status = o_config_set_string (&db->password, child);
+      status = cf_util_get_string (child, &db->password);
     else if (strcasecmp ("Query", child->key) == 0)
       status = udb_query_pick_from_list (child, queries, queries_num,
           &db->queries, &db->queries_num);
@@ -601,7 +582,8 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   } /* for (j = 1; j <= param_counter; j++) */
   /* }}} End of the ``define'' stuff. */
 
-  status = udb_query_prepare_result (q, prep_area, hostname_g,
+  status = udb_query_prepare_result (q, prep_area,
+      (db->host != NULL) ? db->host : hostname_g,
       /* plugin = */ "oracle", db->name, column_names, column_num,
       /* interval = */ 0);
   if (status != 0)

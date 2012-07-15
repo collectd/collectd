@@ -70,7 +70,7 @@ static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* }}} int buffer_add_string */
+} /* }}} int escape_string */
 
 static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
@@ -225,6 +225,86 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
   return (0);
 } /* }}} int dsnames_to_json */
 
+static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
+    meta_data_t *meta)
+{
+  size_t offset = 0;
+  char **keys = NULL;
+  int keys_num;
+  int status;
+  int i;
+
+  memset (buffer, 0, buffer_size);
+
+#define BUFFER_ADD(...) do { \
+  status = ssnprintf (buffer + offset, buffer_size - offset, \
+      __VA_ARGS__); \
+  if (status < 1) \
+    return (-1); \
+  else if (((size_t) status) >= (buffer_size - offset)) \
+    return (-ENOMEM); \
+  else \
+    offset += ((size_t) status); \
+} while (0)
+
+  keys_num = meta_data_toc (meta, &keys);
+  for (i = 0; i < keys_num; ++i)
+  {
+    int type;
+    char *key = keys[i];
+
+    type = meta_data_type (meta, key);
+    if (type == MD_TYPE_STRING)
+    {
+      char *value = NULL;
+      if (meta_data_get_string (meta, key, &value) == 0)
+      {
+        char temp[512] = "";
+        escape_string (temp, sizeof (temp), value);
+        sfree (value);
+        BUFFER_ADD (",\"%s\":%s", key, temp);
+      }
+    }
+    else if (type == MD_TYPE_SIGNED_INT)
+    {
+      int64_t value = 0;
+      if (meta_data_get_signed_int (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%"PRIi64, key, value);
+    }
+    else if (type == MD_TYPE_UNSIGNED_INT)
+    {
+      uint64_t value = 0;
+      if (meta_data_get_unsigned_int (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%"PRIu64, key, value);
+    }
+    else if (type == MD_TYPE_DOUBLE)
+    {
+      double value = 0.0;
+      if (meta_data_get_double (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%f", key, value);
+    }
+    else if (type == MD_TYPE_BOOLEAN)
+    {
+      _Bool value = 0;
+      if (meta_data_get_boolean (meta, key, &value) == 0)
+        BUFFER_ADD (",\"%s\":%s", key, value ? "true" : "false");
+    }
+
+    free (key);
+  } /* for (keys) */
+  free (keys);
+
+  if (offset <= 0)
+    return (ENOENT);
+
+  buffer[0] = '{'; /* replace leading ',' */
+  BUFFER_ADD ("}");
+
+#undef BUFFER_ADD
+
+  return (0);
+} /* int meta_data_to_json */
+
 static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
 {
@@ -279,6 +359,17 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD_KEYVAL ("plugin_instance", vl->plugin_instance);
   BUFFER_ADD_KEYVAL ("type", vl->type);
   BUFFER_ADD_KEYVAL ("type_instance", vl->type_instance);
+
+  if (vl->meta != NULL)
+  {
+    char meta_buffer[buffer_size];
+    memset (meta_buffer, 0, sizeof (meta_buffer));
+    status = meta_data_to_json (meta_buffer, sizeof (meta_buffer), vl->meta);
+    if (status != 0)
+      return (status);
+
+    BUFFER_ADD (",\"meta\":%s", meta_buffer);
+  } /* if (vl->meta != NULL) */
 
   BUFFER_ADD ("}");
 
