@@ -2306,6 +2306,17 @@ libmbus documentation.
 It is recommended to scan your MBus using libmbus utilities and also do one read of the devices
 so that you get the full information and know how to configure this plugin (what records you
 actually need to read/collect).
+I.e. do something like:
+ for TCP
+    mbus-tcp-scan 192.168.0.100 10001
+
+ for serial
+    mbus-serial-scan /dev/ttyS0
+
+Note that some devices on the serial bus might be picky about the speed. If you cannot find
+your device try setting the supported speed - e.g.
+
+    mbus-serial-scan -d 2400 /dev/ttyS0
 
 For the plugin configuration you have to setup the MBus gateway - either serial device or TCP
 (host, port).
@@ -2348,6 +2359,7 @@ Synopsis of the configuration is:
  <Plugin mbus>
      IsSerial     true
      SerialDevice "/dev/ttyUSB0"
+     BaudRate     2400
      Host         "none"
      Port         "256"
      <Slave 59>
@@ -2371,6 +2383,14 @@ Are we using serial gateway (B<true>) or network (B<false>). See the explanation
 =item B<SerialDevice> I<Serial device>
 
 Name of the serial device - like I</dev/ttyS0> or I</dev/ttyUSB0>, etc (when using serial gateway).
+
+=item B<BaudRate> I<rate>
+
+Baud rate of the serial device. The plugin does not support automatic baud rate selection.
+Typical rates are 300, 2400 or 9600 (the standard defines rates 300, 600, 1200, 2400, 4800,
+9600, 19200 and 38400. Where 600, 1200, 4800 and 19200 are not recommended and rates above
+9600 are for future use).
+Default value (when not configured) is 2400.
 
 =item B<Host> I<Hostname>
 

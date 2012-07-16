@@ -506,6 +506,7 @@
 #<Plugin mbus>
 #    IsSerial     true
 #    SerialDevice "/dev/ttyUSB0"
+#    BaudRate     2400
 #    Host         "none"
 #    Port         "1256"
 #    <Slave 59>
