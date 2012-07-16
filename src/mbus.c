@@ -75,6 +75,7 @@ static pthread_mutex_t plugin_lock; /**< Global lock fof the MBus access */
 
 static _Bool conf_is_serial;
 static char *conf_device    = NULL;
+static int   conf_baudrate  = 2400;
 static char *conf_host      = NULL;
 static int   conf_port      = 0;
 
@@ -341,30 +342,37 @@ static int collectd_mbus_config (oconfig_item_t *ci)
             }
             else 
             {
-                if (strcasecmp ("Host", child->key) == 0)
+                if (strcasecmp ("BaudRate", child->key) == 0)
                 {
-                    conf_res = cf_util_get_string (child, &conf_host);
+                    conf_res = cf_util_get_int (child, &conf_baudrate);
                 }
                 else
                 {
-                    if (strcasecmp ("Port", child->key) == 0)
+                    if (strcasecmp ("Host", child->key) == 0)
                     {
-                        conf_res = cf_util_get_port_number (child);
-                        if (conf_res > 0)
-                        {
-                            conf_port = conf_res;
-                            conf_res = 0;
-                        }
+                        conf_res = cf_util_get_string (child, &conf_host);
                     }
                     else
-                    { 
-                        if (strcasecmp ("Slave", child->key) == 0)
+                    {
+                        if (strcasecmp ("Port", child->key) == 0)
                         {
-                            conf_res = collectd_mbus_config_slave (child);
+                            conf_res = cf_util_get_port_number (child);
+                            if (conf_res > 0)
+                            {
+                                conf_port = conf_res;
+                                conf_res = 0;
+                            }
                         }
                         else
-                            WARNING ("mbus: collectd_mbus_config - unknown config option or unsupported config value: %s", 
-                                     child->key);
+                        { 
+                            if (strcasecmp ("Slave", child->key) == 0)
+                            {
+                                conf_res = collectd_mbus_config_slave (child);
+                            }
+                            else
+                                WARNING ("mbus: collectd_mbus_config - unknown config option or unsupported config value: %s", 
+                                         child->key);
+                        }
                     }
                 }
             }
@@ -439,6 +447,19 @@ static int collectd_mbus_init (void)
             ERROR("mbus: collectd_mbus_init - Failed to setup serial connection to M-bus gateway");
             pthread_mutex_unlock (&plugin_lock);
             return -1;
+        }
+
+        if (mbus_serial_set_baudrate(handle->m_serial_handle, conf_baudrate) == -1)
+        {
+            ERROR("mbus: collectd_mbus_init - Failed to setup serial connection baudrate to %d",
+                  conf_baudrate);
+            pthread_mutex_unlock (&plugin_lock);
+            return -1;
+        }
+        else
+        {
+            DEBUG("mbus: collectd_mbus_init - set serial connection baudrate to %d",
+                  conf_baudrate);
         }
     }
     else
