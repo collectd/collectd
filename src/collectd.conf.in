@@ -199,7 +199,9 @@
 
 #<Plugin "barometer">
 #   Device            "/dev/i2c-0";
-#   Averaging         512
+#   Oversampling      512
+#   PressureOffset    0.0
+#   TemperatureOffset 0.0
 #   Normalization     2
 #   Altitude          238.0
 #   TemperatureSensor "myserver/onewire-F10FCA000800/temperature"

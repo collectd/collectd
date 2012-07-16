@@ -463,18 +463,22 @@ and are checked by default depends on the distribution you use.
 =head2 Plugin C<barometer>
 
 This plugin reads absolute air pressure using digital barometer sensor MPL115A2
-from Freescale (sensor attached to any I2C bus available in the computer, for HW
-details 
-see I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A>).
-
-It was developed and tested under Linux only. The only platform dependency is
-the standard Linux i2c-dev interface (the and the particular bus driver has to
-support the SM Bus command subset).
+or MPL3115 from Freescale (sensor attached to any I2C bus available in
+the computer, for HW details see 
+I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A> or
+I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL3115A2>).
+The sensor type - one fo these two - is detected automatically by the plugin
+and indicated in the plugin_instance (typically you will see subdirectory
+"barometer-mpl115" or "barometer-mpl3115").
 
 The plugin provides absolute barometric pressure, air pressure reduced to sea
 level (several possible approximations) and as an auxiliary value also internal
 sensor temperature. It uses (expects/provides) typical metric units - pressure
 in [hPa], temperature in [C], altitude in [m].
+
+It was developed and tested under Linux only. The only platform dependency is
+the standard Linux i2c-dev interface (the particular bus driver has to
+support the SM Bus command subset).
 
 The reduction or normalization to mean sea level pressure requires (depedning on
 selected method/approximation) also altitude and reference to temperature sensor(s).
@@ -482,18 +486,17 @@ When multiple temperature sensors are configured the minumum of their values is
 always used (expecting that the warmer ones are affected by e.g. direct sun light
 at that moment).
 
-To filter out sensor noise a simple averaging using floating window of configurable
-size is used.
-
 Synopsis:
 
- <Plugin "barometer">
-    Device            "/dev/i2c-0";
-    Averaging         512
-    Normalization     2
-    Altitude          238.0
-    TemperatureSensor "myserver/onewire-F10FCA000800/temperature"
- </Plugin>
+  <Plugin "barometer">
+     Device            "/dev/i2c-0";
+     Oversampling      512
+     PressureOffset    0.0
+     TemperatureOffset 0.0
+     Normalization     2
+     Altitude          238.0
+     TemperatureSensor "myserver/onewire-F10FCA000800/temperature"
+  </Plugin>
 
 =over 4
 
@@ -501,11 +504,43 @@ Synopsis:
 
 Device name of the I2C bus to which the sensor is connected. Note that typically
 you need to have loaded the i2c-dev module.
+Using i2c-tools you can check/list i2c buses available on your system by:
 
-=item B<Averaging> I<window_size>
+  i2cdetect -l
 
-Size of the averaging window. The plugin will use average of the last C<window_size>
-measurements (value of 1 means no averaging). Minimal size is 1, maximal 1024.
+Then you can scan for devices on given bus. E.g. to scan the whole bus 0 use:
+
+  i2cdetect -y -a 0
+
+This way you should be able to verify that the pressure sensor (either type) is
+connected and detected on address 0x60.
+
+=item B<Oversampling> I<value>
+
+For MPL115 this is the size of the averaging window. To filter out sensor noise
+a simple averaging using floating window of configurable size is used. The plugin
+will use average of the last C<value> measurements (value of 1 means no averaging).
+Minimal size is 1, maximal 1024.
+
+For MPL3115 this is the oversampling value. The actual oversampling is performed
+by the sensor and the higher value the higher accuracy and longer conversion time
+(although nothing to worry about in the collectd context). Supported values are:
+1, 2, 4, 8, 16, 32, 64 and 128. Any other value is adjusted by the plugin to
+the closest supported one. Default is 128.
+
+=item B<PressureOffset> I<offset>
+
+You can further calibrate the sensor by supplying pressure and/or temperature offsets.
+This is added to the measured/caclulated value (i.e. if the measured value is too high
+then use negative offset).
+In hPa, default is 0.0.
+
+=item B<TemperatureOffset> I<offset>
+
+You can further calibrate the sensor by supplying pressure and/or temperature offsets.
+This is added to the measured/caclulated value (i.e. if the measured value is too high
+then use negative offset).
+In C, default is 0.0.
 
 =item B<Normalization> I<method>
 
@@ -530,6 +565,7 @@ See I<http://de.wikipedia.org/wiki/Barometrische_H%C3%B6henformel#Theorie>
 For this method you have to configure both  C<Altitude> and C<TemperatureSensor>.
 
 =back
+
 
 =item B<Altitude> I<altitude>
 
