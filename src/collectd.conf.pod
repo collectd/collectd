@@ -2298,7 +2298,10 @@ galvanic isolation). It is connected to a serial port (either a "real" one like 
 or using some USB converter - /dev/ttyUSB0 or anything else with the characteristics of
 a serial interface).
 
-Network gateway provides the MBus data remotely over TCP/IP.
+The network gateway (TCP) provides the MBus data remotely over TCP/IP.
+
+For the plugin configuration you have to setup the MBus gateway - either serial device or TCP
+(host, port).
 
 In both cases the data and message format are the same. For more details please refer to the
 libmbus documentation.
@@ -2313,13 +2316,10 @@ I.e. do something like:
  for serial
     mbus-serial-scan /dev/ttyS0
 
-Note that some devices on the serial bus might be picky about the speed. If you cannot find
-your device try setting the supported speed - e.g.
-
-    mbus-serial-scan -d 2400 /dev/ttyS0
-
-For the plugin configuration you have to setup the MBus gateway - either serial device or TCP
-(host, port).
+Note that for serial connection not all MBus device support speed autoselection.
+Then you have to match the speed of the device and the plugin. You can either try to change
+the device speed manually using the utility "mbus-serial-switch-baudrate" or use the current
+device speed (see the option "BaudRate" below and libmbus package documentation).
 
 Then you have to list all MBus slaves you want to query using either primary address (integer 1 
 to 250) or secondary address (16 digits). For each slave you define the record selection logic
