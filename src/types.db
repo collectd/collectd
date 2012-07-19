@@ -6,7 +6,10 @@ apache_requests		value:DERIVE:0:U
 apache_scoreboard	value:GAUGE:0:65535
 ath_nodes		value:GAUGE:0:65535
 ath_stat		value:DERIVE:0:U
-beancounter		held:GAUGE:0:9223372036854775807, maxheld:GAUGE:0:9223372036854775807, barrier:GAUGE:0:9223372036854775807, limit:GAUGE:0:9223372036854775807, failcnt:DERIVE:0:9223372036854775807
+beancounter_held	value:GAUGE:0:9223372036854775807
+beancounter_barrier	value:GAUGE:0:9223372036854775807
+beancounter_limit	value:GAUGE:0:9223372036854775807
+beancounter_failcnt	value:DERIVE:0:9223372036854775807
 bitrate			value:GAUGE:0:4294967295
 bytes			value:GAUGE:0:U
 cache_operation		value:DERIVE:0:U

@@ -1,6 +1,6 @@
 /**
  * Collectd - src/beancounter.c
- * Copyright (C) 2011  Stefan Möding
+ * Copyright (C) 2011, 2012  Stefan Möding
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -113,25 +113,6 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
 
-/*
- * The name of the plugin. This must be the same name that is used
- * in the type.db or we won't be able to submit values.
- */
-static const char plugin_name[] = "beancounter";
-
-/*
- * Where the beancounters are kept
- */
-static const char *bc_files[] = {
-  "/proc/bc/resources",
-  "/proc/user_beancounters"
-};
-
-static int bc_files_num = STATIC_ARRAY_SIZE (bc_files);
-
-/* The name of the beancounter file we are using */
-static char *bc_filename = NULL;
-
 
 /*
  * Types of counters we monitor in the same order that they appear in
@@ -139,31 +120,27 @@ static char *bc_filename = NULL;
  * the last entry so we can use it for array size calculations.
  */
 enum BEANCOUNTER_TYPE {
-  HELD = 0, MAXHELD, BARRIER, LIMIT, FAILCNT, BEANCOUNTER_TYPE_SIZE
+  HELD = 0, BARRIER, LIMIT, FAILCNT, BEANCOUNTER_TYPE_SIZE
 };
 
 
 /*
- * Global structure to store the values and submit them to collectd.
+ * Structure to store the values and submit them to collectd.
  */
-static struct {
-  char    resource[DATA_MAX_NAME_LEN];
+struct beancounter_s {
   value_t values[BEANCOUNTER_TYPE_SIZE];
-} beancounter;
+};
 
-
-/*
- * Global variable to keep the page size of the local architecture
- */
-static int pagesize;
+typedef struct beancounter_s beancounter_t;
 
 
 /*
  * Plugin configuration
  */
 static int beancounter_config (const char *key, const char *value) {
-  if (ignorelist == NULL)
+  if (ignorelist == NULL) {
     ignorelist = ignorelist_create (/* invert = */ 1);
+  }
 
   if (strcasecmp (key, "Beancounter") == 0) {
     ignorelist_add (ignorelist, value);
@@ -184,63 +161,42 @@ static int beancounter_config (const char *key, const char *value) {
 /*
  * Submit beancounter to the collectd daemon.
  */
-static void beancounter_submit (void) {
+static void beancounter_submit (const char *type_instance,
+                                beancounter_t beancounter) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  if (ignorelist_match (ignorelist, beancounter.resource) != 0) return;
+  if (ignorelist_match (ignorelist, type_instance) != 0)
+    return;
 
-  vl.values = beancounter.values;
-  vl.values_len = STATIC_ARRAY_SIZE (beancounter.values);
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, plugin_name, sizeof (vl.plugin));
-  sstrncpy (vl.type, plugin_name, sizeof (vl.type));
-  sstrncpy (vl.type_instance, beancounter.resource, sizeof (vl.type_instance));
+  /* Define common fields */
+  sstrncpy (vl.host,          hostname_g,    sizeof (vl.host));
+  sstrncpy (vl.plugin,        "beancounter", sizeof (vl.plugin));
+  sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
+  vl.values_len = 1;
+
+  vl.values = &beancounter.values[HELD];
+  sstrncpy (vl.type, "beancounter_held", sizeof (vl.type));
+  plugin_dispatch_values (&vl);
+
+  vl.values = &beancounter.values[BARRIER];
+  sstrncpy (vl.type, "beancounter_barrier", sizeof (vl.type));
+  plugin_dispatch_values (&vl);
+
+  vl.values = &beancounter.values[LIMIT];
+  sstrncpy (vl.type, "beancounter_limit", sizeof (vl.type));
+  plugin_dispatch_values (&vl);
+
+  vl.values = &beancounter.values[FAILCNT];
+  sstrncpy (vl.type, "beancounter_failcnt", sizeof (vl.type));
   plugin_dispatch_values (&vl);
 } /* beancounter_submit */
-
-
-/*
- *
- */
-static void beancounter_scale (void) {
-  const gauge_t nan = (gauge_t)strtod("NAN", NULL);
-  const char pages[] = "pages";
-  const char size0[] = "size\000";
-  size_t idx;
-  int i;
-
-  /* Values larger than LONG_MAX represent unlimited.
-   * Use NaN (Not a Number) to indicate we have no sensible value.
-   */
-  for (i=HELD; i<=LIMIT; i++) {
-    if (beancounter.values[i].gauge >= (gauge_t)LONG_MAX) {
-      beancounter.values[i].gauge = nan;
-    }
-  }
-
-  /* Check if the resource name ends with "pages" */
-  idx = strlen (beancounter.resource) - strlen (pages);
-
-  if ((idx >= 0) && (strcmp (&beancounter.resource[idx], pages) == 0)) {
-
-    /* Overwrite "pages" with "size" */
-    memcpy(&beancounter.resource[idx], size0, sizeof(size0));
-
-    /* scale value according to the pagesize */
-    for (i=HELD; i<=LIMIT; i++) {
-      beancounter.values[i].gauge *= (gauge_t)pagesize;
-    }
-  }
-}
 
 
 /*
  * Initialize plugin
  */
 static int beancounter_init (void) {
-  struct stat sb;
-  int i;
 
   /* This plugin must run as root as the beancounter files are only
    * readable for root. Therefore we fail early.
@@ -250,107 +206,111 @@ static int beancounter_init (void) {
     return (-1);
   }
 
-  /* Set filename to use for reading beancounters */
-  if (!bc_filename) {
-    for (i=0; i<bc_files_num; i++) {
-      if (stat(bc_files[i], &sb) == 0) {
-        /* remeber the name of the file and terminate loop */
-        bc_filename = (char*)bc_files[i];
-        break;
-      }
-    }
-  }
-
-  /* flag error if no beancounter file has been found */
-  if (!bc_filename) {
-    ERROR("beancounter plugin: no beancounter file found");
-    return (-1);
-  }
-
-  pagesize = getpagesize();
-
   return (0);
-}
+} /* beancounter_init */
 
 
 /*
  * Read beancounters
  */
 static int beancounter_read (void) {
+  int  pagesize = getpagesize();
   char buffer[1024];
   FILE *fd;
 
-  if ((fd = fopen (bc_filename, "r")) == NULL) {
-    char errbuf[1024];
-    ERROR ("beancounter plugin: fopen (%s) failed: %s",
-           bc_filename, sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
+  /* Try to open one of the beancounter files in /proc */
+  if ((fd = fopen ("/proc/bc/resources", "r")) == NULL) {
+    if ((fd = fopen ("/proc/user_beancounters", "r")) == NULL) {
+      char errbuf[1024];
+      ERROR ("beancounter plugin: fopen beancounters failed: %s",
+             sstrerror (errno, errbuf, sizeof (errbuf)));
+      return (-1);
+    }
   }
 
   /* read line by line from the file */
   while (fgets (buffer, sizeof (buffer), fd) != NULL) {
-    int valid_entry = 0;
-    int token_count = 0;
-    char *saveptr = NULL;
-    char *strptr = buffer;
-    char *token;
+    beancounter_t beancounter;
+    char *resource;
+    size_t pos;
+    char *token[7];
+    int token_idx, i;
 
     /* Start with a clean beancounter structure for every new line */
     memset (&beancounter, 0, sizeof (beancounter));
 
-    /* Tokenize the line on word boundaries and loop over every word */
-    while ((token = strtok_r (strptr, " \t\n", &saveptr)) != NULL) {
-      token_count++;
-      strptr = NULL;
+    /* Tokenize the line on word boundaries and return no more than
+     * the allocated number of tokens. Continue with the next line
+     * if buffer doesn't look like beancounters.
+     * With 7 tokens, token[0] holds the uid which is ignored. Therefore
+     * the first token to look at has the index 1.
+     */
+    switch(strsplit(buffer, token, STATIC_ARRAY_SIZE(token))) {
+    case 6:
+      token_idx = 0;
+      break;
+    case 7:
+      token_idx = 1;
+      break;
+    default:
+      continue; /* next line from file */
+      break;
+    }
 
-      switch (token_count) {
-      case 1:
-        /* Ignore first token if it starts with a digit, as that is the uid.
-         * In this case continue to read the rest of the line.
-         */
-        if (isdigit (token[0])) {
-          token_count = 0;
-          continue;
-        }
+    /* Ignore dummy beancounter and the heading */
+    if ((strcmp (token[token_idx], "dummy") == 0) ||
+        (strcmp (token[token_idx], "resource") == 0)) {
+      continue;
+    }
 
-        /* Store the resource name unless it is a dummy entry or a line not
-         * containing any beancounters. Remember that we have a valid entry.
-         */
-        if ((strcmp (token, "dummy") != 0) &&
-            (strcmp (token, "Version:") != 0) &&
-            (strcmp (token, "uid") != 0)) {
-          sstrncpy (beancounter.resource, token, sizeof (beancounter.resource));
-          valid_entry = 1;
-        }
+    /* Store the resource name */
+    resource = token[token_idx];
 
-        break;
+    /* Next field: held */
+    token_idx++;
+    parse_value(token[token_idx], &beancounter.values[HELD], DS_TYPE_GAUGE);
 
-      case 2:
-        beancounter.values[HELD].gauge = strtod (token, NULL);
-        break;
+    /* Next field: maxheld (ignored) */
+    token_idx++;
 
-      case 3:
-        beancounter.values[MAXHELD].gauge = strtod (token, NULL);
-        break;
+    /* Next field: barrier */
+    token_idx++;
+    parse_value(token[token_idx], &beancounter.values[BARRIER], DS_TYPE_GAUGE);
 
-      case 4:
-        beancounter.values[BARRIER].gauge = strtod (token, NULL);
-        break;
+    /* Next field: limit */
+    token_idx++;
+    parse_value(token[token_idx], &beancounter.values[LIMIT], DS_TYPE_GAUGE);
 
-      case 5:
-        beancounter.values[LIMIT].gauge = strtod (token, NULL);
-        break;
+    /* Next field: failcnt */
+    token_idx++;
+    parse_value(token[token_idx], &beancounter.values[FAILCNT], DS_TYPE_DERIVE);
 
-      case 6:
-        beancounter.values[FAILCNT].derive = strtoll (token, NULL, 10);
-        break;
+    /* Only values smaller than LONG_MAX are valid; everything is unlimited.
+     * Use NaN (Not a Number) to indicate we have no sensible value.
+     */
+    for (i=HELD; i<=LIMIT; i++) {
+      if (beancounter.values[i].gauge >= (gauge_t)LONG_MAX) {
+        beancounter.values[i].gauge = (gauge_t)NAN;
       }
     }
 
-    if (valid_entry) {
-      beancounter_scale();
-      beancounter_submit();
+    /* Check if the resource name ends with "pages".
+     * In this case it is scaled to bytes.
+     */
+    pos = strlen (resource) - strlen ("pages");
+
+    if ((pos >= 0) && (strcmp (&resource[pos], "pages") == 0)) {
+
+      /* Overwrite "pages" with "size" */
+      memcpy(&resource[pos], "size\000", 5);
+
+      /* Scale value according to the pagesize */
+      for (i=HELD; i<=LIMIT; i++) {
+        beancounter.values[i].gauge *= (gauge_t)pagesize;
+      }
     }
+
+    beancounter_submit(resource, beancounter);
   }
   fclose (fd);
 
