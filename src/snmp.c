@@ -852,12 +852,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       status = parse_value (string, &ret, type);
       if (status != 0)
       {
-	tmp_unsigned = (uint32_t) vl->val.counter64->high;
-        tmp_unsigned = tmp_unsigned << 32;
-	tmp_unsigned += (uint32_t) vl->val.counter64->low;
-        tmp_signed = (int64_t) tmp_unsigned;
 
-	ERROR ("snmp plugin: frogmaster special int64 value is %"PRIu64".", tmp_unsigned);
+	ERROR ("snmp plugin: frogmaster special int64 value is %s.", vl->val.bitstring);
 	ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
 	    DS_TYPE_TO_STRING (type), string);
       }
