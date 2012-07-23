@@ -853,7 +853,7 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       if (status != 0)
       {
 
-	ERROR ("snmp plugin: frogmaster special int64 value is %s.", vl->val.bitstring);
+	ERROR ("snmp plugin: frogmaster special int64 value is %llx.", (long long int) vl->val.string);
 	ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
 	    DS_TYPE_TO_STRING (type), string);
       }
