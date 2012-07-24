@@ -998,8 +998,8 @@ int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
   }
 
   if (value == endptr) {
-    ERROR ("parse_value: Failed to parse string as %s: %lld (%llx).",
-        DS_TYPE_TO_STRING (ds_type), (long long int) &value, (long long int) &value);
+    ERROR ("parse_value: Failed to parse string as %s: %s.",
+        DS_TYPE_TO_STRING (ds_type), value);
     sfree (value);
     return -1;
   }

@@ -847,19 +847,11 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
        * `string_length' is set to `vl->val_len' which holds the length of the
        * string.  -octo */
       memcpy (string, vl->val.string, string_length);
-
       string[string_length] = 0;
 
       status = parse_value (string, &ret, type);
       if (status != 0)
       {
-	char tmpstr[1024];
-
-	int n;
-	for(n=0; string[n] != '\0'; n++)
-	  sprintf(tmpstr, "%02x", string[n]);
-
-	ERROR ("snmp plugin: frogmaster special int64 value is long long hex: %s", tmpstr);
 	ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
 	    DS_TYPE_TO_STRING (type), string);
       }
