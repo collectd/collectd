@@ -850,6 +850,17 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       string[string_length] = 0;
 
       status = parse_value (string, &ret, type);
+
+      /* modify and retry if string length is 8 and we failed the first parse
+       * this is needed for alcatel ISAM series, where some counters are 
+       * Hex-Strings. -frogmaster */
+      if (status != 0 && string_length == 8)
+      {
+        char buf[64];
+        sprintf (buf, "0x%02X%02X%02X%02X%02X%02X%02X%02X", vl->val.string[0], vl->val.string[1], vl->val.string[2], vl->val.string[3], vl->val.string[4], vl->val.string[5], vl->val.string[6], vl->val.string[7]);
+        status = parse_value (buf, &ret, type);
+      }
+
       if (status != 0)
       {
 	ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
