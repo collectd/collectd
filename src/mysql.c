@@ -192,9 +192,9 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 		ud.data = (void *) db;
 		ud.free_func = mysql_database_free;
 
-		if (db->database != NULL)
+		if (db->instance != NULL)
 			ssnprintf (cb_name, sizeof (cb_name), "mysql-%s",
-					db->database);
+					db->instance);
 		else
 			sstrncpy (cb_name, "mysql", sizeof (cb_name));
 
