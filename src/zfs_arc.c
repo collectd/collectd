@@ -69,6 +69,7 @@ static int za_read_derive (kstat_t *ksp, const char *kstat_value,
 
   v.derive = (derive_t) tmp;
   za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  return (0);
 }
 
 static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
@@ -86,6 +87,7 @@ static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
 
   v.gauge = (gauge_t) tmp;
   za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  return (0);
 }
 
 static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t misses)

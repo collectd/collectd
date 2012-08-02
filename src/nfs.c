@@ -337,6 +337,7 @@ static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst,
 
 	nfs_procedures_submit (plugin_instance, proc_names, values,
 			proc_names_num);
+	return (0);
 }
 #endif
 
