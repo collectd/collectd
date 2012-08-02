@@ -45,6 +45,12 @@
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+#if HAVE_NETINET_IP_COMPAT_H
+# include <netinet/ip_compat.h>
+#endif
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif

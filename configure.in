@@ -490,6 +490,8 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 #endif
 ])
 
+AC_CHECK_HEADERS(netinet/ip_compat.h)
+
 # For the multimeter plugin
 have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
