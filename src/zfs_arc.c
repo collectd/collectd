@@ -60,7 +60,7 @@ static int za_read_derive (kstat_t *ksp, const char *kstat_value,
   long long tmp;
   value_t v;
 
-  tmp = get_kstat_value (ksp, kstat_value);
+  tmp = get_kstat_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
@@ -77,7 +77,7 @@ static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
   long long tmp;
   value_t v;
 
-  tmp = get_kstat_value (ksp, kstat_value);
+  tmp = get_kstat_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
