@@ -45,6 +45,10 @@
 #include "utils_db_query.h"
 #include "utils_complain.h"
 
+#if HAVE_PTHREAD_H
+# include <pthread.h>
+#endif
+
 #include <pg_config_manual.h>
 #include <libpq-fe.h>
 
@@ -104,6 +108,11 @@ typedef struct {
 } c_psql_user_data_t;
 
 typedef struct {
+	char *name;
+	char *statement;
+} c_psql_writer_t;
+
+typedef struct {
 	PGconn      *conn;
 	c_complain_t conn_complaint;
 
@@ -116,6 +125,12 @@ typedef struct {
 	udb_query_preparation_area_t **q_prep_areas;
 	udb_query_t    **queries;
 	size_t           queries_num;
+
+	c_psql_writer_t **writers;
+	size_t            writers_num;
+
+	/* make sure we don't access the database object in parallel */
+	pthread_mutex_t   db_lock;
 
 	cdtime_t interval;
 
@@ -146,6 +161,9 @@ static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
 static udb_query_t      **queries       = NULL;
 static size_t             queries_num   = 0;
 
+static c_psql_writer_t   *writers       = NULL;
+static size_t             writers_num   = 0;
+
 static c_psql_database_t *c_psql_database_new (const char *name)
 {
 	c_psql_database_t *db;
@@ -168,6 +186,11 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	db->q_prep_areas   = NULL;
 	db->queries        = NULL;
 	db->queries_num    = 0;
+
+	db->writers        = NULL;
+	db->writers_num    = 0;
+
+	pthread_mutex_init (&db->db_lock, /* attrs = */ NULL);
 
 	db->interval   = 0;
 
@@ -201,6 +224,11 @@ static void c_psql_database_delete (void *data)
 
 	sfree (db->queries);
 	db->queries_num = 0;
+
+	sfree (db->writers);
+	db->writers_num = 0;
+
+	pthread_mutex_destroy (&db->db_lock);
 
 	sfree (db->database);
 	sfree (db->host);
@@ -351,6 +379,7 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 			NULL, NULL, /* return text data */ 0);
 } /* c_psql_exec_query_params */
 
+/* db->db_lock must be locked when calling this function */
 static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		udb_query_preparation_area_t *prep_area)
 {
@@ -384,22 +413,31 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		return -1;
 	}
 
+	/* give c_psql_write() a chance to acquire the lock if called recursively
+	 * through dispatch_values(); this will happen if, both, queries and
+	 * writers are configured for a single connection */
+	pthread_mutex_unlock (&db->db_lock);
+
 	column_names = NULL;
 	column_values = NULL;
+
+	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
+		pthread_mutex_lock (&db->db_lock);
+
+		log_err ("Failed to execute SQL query: %s",
+				PQerrorMessage (db->conn));
+		log_info ("SQL query was: %s",
+				udb_query_get_statement (q));
+		PQclear (res);
+		return -1;
+	}
 
 #define BAIL_OUT(status) \
 	sfree (column_names); \
 	sfree (column_values); \
 	PQclear (res); \
+	pthread_mutex_lock (&db->db_lock); \
 	return status
-
-	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
-		log_err ("Failed to execute SQL query: %s",
-				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s",
-				udb_query_get_statement (q));
-		BAIL_OUT (-1);
-	}
 
 	rows_num = PQntuples (res);
 	if (1 > rows_num) {
@@ -487,9 +525,14 @@ static int c_psql_read (user_data_t *ud)
 	db = ud->data;
 
 	assert (NULL != db->database);
+	assert (NULL != db->queries);
 
-	if (0 != c_psql_check_connection (db))
+	pthread_mutex_lock (&db->db_lock);
+
+	if (0 != c_psql_check_connection (db)) {
+		pthread_mutex_unlock (&db->db_lock);
 		return -1;
+	}
 
 	for (i = 0; i < db->queries_num; ++i)
 	{
@@ -507,10 +550,211 @@ static int c_psql_read (user_data_t *ud)
 			success = 1;
 	}
 
+	pthread_mutex_unlock (&db->db_lock);
+
 	if (! success)
 		return -1;
 	return 0;
 } /* c_psql_read */
+
+static char *values_name_to_sqlarray (const data_set_t *ds,
+		char *string, size_t string_len)
+{
+	char  *str_ptr;
+	size_t str_len;
+
+	int i;
+
+	str_ptr = string;
+	str_len = string_len;
+
+	for (i = 0; i < ds->ds_num; ++i) {
+		int status = ssnprintf (str_ptr, str_len, ",'%s'", ds->ds[i].name);
+
+		if (status < 1)
+			return NULL;
+		else if ((size_t)status >= str_len) {
+			str_len = 0;
+			break;
+		}
+		else {
+			str_ptr += status;
+			str_len -= (size_t)status;
+		}
+	}
+
+	if (str_len <= 2) {
+		log_err ("c_psql_write: Failed to stringify value names");
+		return NULL;
+	}
+
+	/* overwrite the first comma */
+	string[0] = '{';
+	str_ptr[0] = '}';
+	str_ptr[1] = '\0';
+
+	return string;
+} /* values_name_to_sqlarray */
+
+static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
+		char *string, size_t string_len)
+{
+	char  *str_ptr;
+	size_t str_len;
+
+	int i;
+
+	str_ptr = string;
+	str_len = string_len;
+
+	for (i = 0; i < vl->values_len; ++i) {
+		int status;
+
+		if (ds->ds[i].type == DS_TYPE_GAUGE)
+			status = ssnprintf (str_ptr, str_len,
+					",%f", vl->values[i].gauge);
+		else if (ds->ds[i].type == DS_TYPE_COUNTER)
+			status = ssnprintf (str_ptr, str_len,
+					",%llu", vl->values[i].counter);
+		else if (ds->ds[i].type == DS_TYPE_DERIVE)
+			status = ssnprintf (str_ptr, str_len,
+					",%"PRIi64, vl->values[i].derive);
+		else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+			status = ssnprintf (str_ptr, str_len,
+					",%"PRIu64, vl->values[i].absolute);
+		else {
+			log_err ("c_psql_write: Unknown data source type: %i",
+					ds->ds[i].type);
+			return NULL;
+		}
+
+		if (status < 1)
+			return NULL;
+		else if ((size_t)status >= str_len) {
+			str_len = 0;
+			break;
+		}
+		else {
+			str_ptr += status;
+			str_len -= (size_t)status;
+		}
+	}
+
+	if (str_len <= 2) {
+		log_err ("c_psql_write: Failed to stringify value list");
+		return NULL;
+	}
+
+	/* overwrite the first comma */
+	string[0] = '{';
+	str_ptr[0] = '}';
+	str_ptr[1] = '\0';
+
+	return string;
+} /* values_to_sqlarray */
+
+static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
+		user_data_t *ud)
+{
+	c_psql_database_t *db;
+
+	char time_str[1024];
+	char values_name_str[1024];
+	char values_str[1024];
+
+	const char *params[8];
+
+	int success = 0;
+	int i;
+
+	if ((ud == NULL) || (ud->data == NULL)) {
+		log_err ("c_psql_write: Invalid user data.");
+		return -1;
+	}
+
+	db = ud->data;
+	assert (db->database != NULL);
+	assert (db->writers != NULL);
+
+	ssnprintf (time_str, sizeof (time_str),
+			"%f", CDTIME_T_TO_DOUBLE (vl->time));
+
+	if (values_name_to_sqlarray (ds,
+				values_name_str, sizeof (values_name_str)) == NULL)
+		return -1;
+
+	if (values_to_sqlarray (ds, vl, values_str, sizeof (values_str)) == NULL)
+		return -1;
+
+#define VALUE_OR_NULL(v) ((((v) == NULL) || (*(v) == '\0')) ? NULL : (v))
+
+	params[0] = time_str;
+	params[1] = vl->host;
+	params[2] = vl->plugin;
+	params[3] = VALUE_OR_NULL(vl->plugin_instance);
+	params[4] = vl->type;
+	params[5] = VALUE_OR_NULL(vl->type_instance);
+	params[6] = values_name_str;
+	params[7] = values_str;
+
+#undef VALUE_OR_NULL
+
+	pthread_mutex_lock (&db->db_lock);
+
+	if (0 != c_psql_check_connection (db)) {
+		pthread_mutex_unlock (&db->db_lock);
+		return -1;
+	}
+
+	for (i = 0; i < db->writers_num; ++i) {
+		c_psql_writer_t *writer;
+		PGresult *res;
+
+		writer = db->writers[i];
+
+		res = PQexecParams (db->conn, writer->statement,
+				STATIC_ARRAY_SIZE (params), NULL,
+				(const char *const *)params,
+				NULL, NULL, /* return text data */ 0);
+
+		if ((PGRES_COMMAND_OK != PQresultStatus (res))
+				&& (PGRES_TUPLES_OK != PQresultStatus (res))) {
+			if ((CONNECTION_OK != PQstatus (db->conn))
+					&& (0 == c_psql_check_connection (db))) {
+				PQclear (res);
+
+				/* try again */
+				res = PQexecParams (db->conn, writer->statement,
+						STATIC_ARRAY_SIZE (params), NULL,
+						(const char *const *)params,
+						NULL, NULL, /* return text data */ 0);
+
+				if ((PGRES_COMMAND_OK == PQresultStatus (res))
+						|| (PGRES_TUPLES_OK == PQresultStatus (res))) {
+					success = 1;
+					continue;
+				}
+			}
+
+			log_err ("Failed to execute SQL query: %s",
+					PQerrorMessage (db->conn));
+			log_info ("SQL query was: '%s', "
+					"params: %s, %s, %s, %s, %s, %s, %s, %s",
+					writer->statement,
+					params[0], params[1], params[2], params[3],
+					params[4], params[5], params[6], params[7]);
+			pthread_mutex_unlock (&db->db_lock);
+			return -1;
+		}
+		success = 1;
+	}
+
+	pthread_mutex_unlock (&db->db_lock);
+
+	if (! success)
+		return -1;
+	return 0;
+} /* c_psql_write */
 
 static int c_psql_shutdown (void)
 {
@@ -519,6 +763,10 @@ static int c_psql_shutdown (void)
 	udb_query_free (queries, queries_num);
 	queries = NULL;
 	queries_num = 0;
+
+	sfree (writers);
+	writers = NULL;
+	writers_num = 0;
 
 	return 0;
 } /* c_psql_shutdown */
@@ -579,6 +827,100 @@ static int config_query_callback (udb_query_t *q, oconfig_item_t *ci)
 	return (-1);
 } /* config_query_callback */
 
+static int config_add_writer (oconfig_item_t *ci,
+		c_psql_writer_t *src_writers, size_t src_writers_num,
+		c_psql_writer_t ***dst_writers, size_t *dst_writers_num)
+{
+	char *name;
+
+	size_t i;
+
+	if ((ci == NULL) || (dst_writers == NULL) || (dst_writers_num == NULL))
+		return -1;
+
+	if ((ci->values_num != 1)
+			|| (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+		log_err ("`Writer' expects a single string argument.");
+		return 1;
+	}
+
+	name = ci->values[0].value.string;
+
+	for (i = 0; i < src_writers_num; ++i) {
+		c_psql_writer_t **tmp;
+
+		if (strcasecmp (name, src_writers[i].name) != 0)
+			continue;
+
+		tmp = (c_psql_writer_t **)realloc (*dst_writers,
+				sizeof (**dst_writers) * (*dst_writers_num + 1));
+		if (tmp == NULL) {
+			log_err ("Out of memory.");
+			return -1;
+		}
+
+		tmp[*dst_writers_num] = src_writers + i;
+
+		*dst_writers = tmp;
+		++(*dst_writers_num);
+		break;
+	}
+
+	if (i >= src_writers_num) {
+		log_err ("No such writer: `%s'", name);
+		return -1;
+	}
+
+	return 0;
+} /* config_add_writer */
+
+static int c_psql_config_writer (oconfig_item_t *ci)
+{
+	c_psql_writer_t *writer;
+	c_psql_writer_t *tmp;
+
+	int status = 0;
+	int i;
+
+	if ((ci->values_num != 1)
+			|| (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+		log_err ("<Writer> expects a single string argument.");
+		return 1;
+	}
+
+	tmp = (c_psql_writer_t *)realloc (writers,
+			sizeof (*writers) * (writers_num + 1));
+	if (tmp == NULL) {
+		log_err ("Out of memory.");
+		return -1;
+	}
+
+	writers = tmp;
+	writer  = writers + writers_num;
+	++writers_num;
+
+	writer->name = sstrdup (ci->values[0].value.string);
+	writer->statement = NULL;
+
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *c = ci->children + i;
+
+		if (strcasecmp ("Statement", c->key) == 0)
+			status = cf_util_get_string (c, &writer->statement);
+		else
+			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+	}
+
+	if (status != 0) {
+		sfree (writer->statement);
+		sfree (writer->name);
+		sfree (writer);
+		return status;
+	}
+
+	return 0;
+} /* c_psql_config_writer */
+
 static int c_psql_config_database (oconfig_item_t *ci)
 {
 	c_psql_database_t *db;
@@ -621,6 +963,9 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		else if (0 == strcasecmp (c->key, "Query"))
 			udb_query_pick_from_list (c, queries, queries_num,
 					&db->queries, &db->queries_num);
+		else if (0 == strcasecmp (c->key, "Writer"))
+			config_add_writer (c, writers, writers_num,
+					&db->writers, &db->writers_num);
 		else if (0 == strcasecmp (c->key, "Interval"))
 			cf_util_get_cdtime (c, &db->interval);
 		else
@@ -628,7 +973,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	}
 
 	/* If no `Query' options were given, add the default queries.. */
-	if (db->queries_num == 0) {
+	if ((db->queries_num == 0) && (db->writers_num == 0)){
 		for (i = 0; i < def_queries_num; i++)
 			udb_query_pick_from_list_by_name (def_queries[i],
 					queries, queries_num,
@@ -667,11 +1012,16 @@ static int c_psql_config_database (oconfig_item_t *ci)
 
 	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->database);
 
-	CDTIME_T_TO_TIMESPEC (db->interval, &cb_interval);
+	if (db->queries_num > 0) {
+		CDTIME_T_TO_TIMESPEC (db->interval, &cb_interval);
 
-	plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
-			/* interval = */ (db->interval > 0) ? &cb_interval : NULL,
-			&ud);
+		plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
+				/* interval = */ (db->interval > 0) ? &cb_interval : NULL,
+				&ud);
+	}
+	if (db->writers_num > 0) {
+		plugin_register_write (cb_name, c_psql_write, &ud);
+	}
 	return 0;
 } /* c_psql_config_database */
 
@@ -703,6 +1053,8 @@ static int c_psql_config (oconfig_item_t *ci)
 		if (0 == strcasecmp (c->key, "Query"))
 			udb_query_create (&queries, &queries_num, c,
 					/* callback = */ config_query_callback);
+		else if (0 == strcasecmp (c->key, "Writer"))
+			c_psql_config_writer (c);
 		else if (0 == strcasecmp (c->key, "Database"))
 			c_psql_config_database (c);
 		else

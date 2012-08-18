@@ -3450,6 +3450,13 @@ which are available in a PostgreSQL database or use future or special
 statistics provided by PostgreSQL without the need to upgrade your collectd
 installation.
 
+Starting with version 5.2, the C<postgresql> plugin supports writing data to
+PostgreSQL databases as well. This has been implemented in a generic way. You
+need to specify an SQL statement which will then be executed by collectd in
+order to write the data (see below for details). The benefit of that approach
+is that there is no fixed database layout. Rather, the layout may be optimized
+for the current setup.
+
 The B<PostgreSQL Documentation> manual can be found at
 L<http://www.postgresql.org/docs/manuals/>.
 
@@ -3479,6 +3486,10 @@ L<http://www.postgresql.org/docs/manuals/>.
       </Result>
     </Query>
 
+    <Writer sqlstore>
+      Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8);"
+    </Writer>
+
     <Database foo>
       Host "hostname"
       Port "5432"
@@ -3494,6 +3505,11 @@ L<http://www.postgresql.org/docs/manuals/>.
       Service "service_name"
       Query backend # predefined
       Query rt36_tickets
+    </Database>
+
+    <Database qux>
+      # ...
+      Writer sqlstore
     </Database>
   </Plugin>
 
@@ -3653,6 +3669,71 @@ This query collects disk block access counts for user tables.
 =item B<disk_usage>
 
 This query collects the on-disk size of the database in bytes.
+
+=back
+
+The B<Writer> block defines a PostgreSQL writer backend. It accepts a single
+mandatory argument specifying the name of the writer. This will then be used
+in the B<Database> specification in order to activate the writer instance. The
+names of all writers have to be unique. The following options may be
+specified:
+
+=over 4
+
+=item B<Statement> I<sql statement>
+
+This mandatory option specifies the SQL statement that will be executed for
+each submitted value. A single SQL statement is allowed only. Anything after
+the first semicolon will be ignored.
+
+Eight parameters will be passed to the statement and should be specified as
+tokens B<$1>, B<$2>, through B<$8> in the statement string. The following
+values are made available through those parameters:
+
+=over 4
+
+=item B<$1>
+
+The timestamp of the queried value as a floating point number.
+
+=item B<$2>
+
+The hostname of the queried value.
+
+=item B<$3>
+
+The plugin name of the queried value.
+
+=item B<$4>
+
+The plugin instance of the queried value. This value may be B<NULL> if there
+is no plugin instance.
+
+=item B<$5>
+
+The type of the queried value (cf. L<types.db(5)>).
+
+=item B<$6>
+
+The type instance of the queried value. This value may be B<NULL> if there is
+no type instance.
+
+=item B<$7>
+
+An array of names for the submitted values (i.E<nbsp>e., the name of the data
+sources of the submitted value-list).
+
+=item B<$8>
+
+An array of the submitted values. The dimensions of the value name and value
+arrays match.
+
+=back
+
+In general, it is advisable to create and call a custom function in the
+PostgreSQL database for this purpose. Any procedural language supported by
+PostgreSQL will do (see chapter "Server Programming" in the PostgreSQL manual
+for details).
 
 =back
 
