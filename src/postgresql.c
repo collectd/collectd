@@ -1,7 +1,7 @@
 /**
  * collectd - src/postgresql.c
- * Copyright (C) 2008, 2009  Sebastian Harl
- * Copyright (C) 2009        Florian Forster
+ * Copyright (C) 2008-2012  Sebastian Harl
+ * Copyright (C) 2009       Florian Forster
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
