@@ -91,27 +91,61 @@ CREATE TABLE "values" (
 );
 
 -- partition "values" by day (or week, month, ...)
--- make sure the CHECKs don't overlap!
-CREATE TABLE "values$2012-08-19" (
-    CHECK (tstamp >= TIMESTAMP '2012-08-19' AND tstamp < TIMESTAMP '2012-08-20')
-) INHERITS (values);
-CREATE TABLE "values$2012-08-20" (
-    CHECK (tstamp >= TIMESTAMP '2012-08-20' AND tstamp < TIMESTAMP '2012-08-21')
-) INHERITS (values);
--- ...
--- set up a daily (weekly, monthly, ...) cron-job (or similar) to create the
--- tables for the next day (week, month, ...)
 
-ALTER TABLE ONLY "values$2012-08-19"
-    ADD CONSTRAINT "values_2012-08-19_pkey" PRIMARY KEY (id, tstamp, name, value);
-ALTER TABLE ONLY "values$2012-08-19"
-    ADD CONSTRAINT "values_2012-08-19_id_fkey" FOREIGN KEY (id) REFERENCES identifiers(id);
+-- create the child tables for today and the next 'days' days:
+-- this may, for example, be used in a daily cron-job (or similar) to create
+-- the tables for the next couple of days
+CREATE OR REPLACE FUNCTION values_update_childs(
+        integer
+    ) RETURNS integer
+    LANGUAGE plpgsql
+    AS $_$
+DECLARE
+    days alias for $1;
+    cur_day date;
+    next_day date;
+    i integer;
+    n integer;
+BEGIN
+    IF days < 1 THEN
+        RAISE EXCEPTION 'Cannot have negative number of days';
+    END IF;
 
-ALTER TABLE ONLY "values$2012-08-20"
-    ADD CONSTRAINT "values_2012-08-20_pkey" PRIMARY KEY (id, tstamp, name, value);
-ALTER TABLE ONLY "values$2012-08-20"
-    ADD CONSTRAINT "values_2012-08-20_id_fkey" FOREIGN KEY (id) REFERENCES identifiers(id);
--- ...
+    i := 0;
+    n := 0;
+    LOOP
+        EXIT WHEN i > days;
+
+        SELECT CAST ('now'::date + i * '1day'::interval AS date) INTO cur_day;
+        SELECT CAST ('now'::date + (i + 1) * '1day'::interval AS date) INTO next_day;
+
+        i := i + 1;
+
+        BEGIN
+            EXECUTE 'CREATE TABLE "values$' || cur_day || '" (
+                CHECK (tstamp >= TIMESTAMP ''' || cur_day || ''' '
+                    || 'AND tstamp < TIMESTAMP ''' || next_day || ''')
+            ) INHERITS (values)';
+        EXCEPTION WHEN duplicate_table THEN
+            CONTINUE;
+        END;
+
+        RAISE INFO 'Created table "values$%"', cur_day;
+        n := n + 1;
+
+        EXECUTE 'ALTER TABLE ONLY "values$' || cur_day || '"
+            ADD CONSTRAINT "values_' || cur_day || '_pkey"
+                PRIMARY KEY (id, tstamp, name, value)';
+        EXECUTE 'ALTER TABLE ONLY "values$' || cur_day || '"
+            ADD CONSTRAINT "values_' || cur_day || '_id_fkey"
+                FOREIGN KEY (id) REFERENCES identifiers(id)';
+    END LOOP;
+    RETURN n;
+END;
+$_$;
+
+-- create initial child tables
+SELECT values_update_childs(2);
 
 CREATE OR REPLACE FUNCTION values_insert_trigger()
     RETURNS trigger
@@ -180,3 +214,4 @@ BEGIN
 END;
 $_$;
 
+-- vim: set expandtab :
