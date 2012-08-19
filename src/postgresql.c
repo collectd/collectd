@@ -659,7 +659,7 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 	str_len = string_len;
 
 	for (i = 0; i < vl->values_len; ++i) {
-		int status;
+		int status = 0;
 
 		if ((ds->ds[i].type != DS_TYPE_GAUGE)
 				&& (ds->ds[i].type != DS_TYPE_COUNTER)
