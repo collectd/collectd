@@ -42,6 +42,7 @@
 #include "configfile.h"
 #include "plugin.h"
 
+#include "utils_cache.h"
 #include "utils_db_query.h"
 #include "utils_complain.h"
 
@@ -110,6 +111,7 @@ typedef struct {
 typedef struct {
 	char *name;
 	char *statement;
+	_Bool store_rates;
 } c_psql_writer_t;
 
 typedef struct {
@@ -597,10 +599,12 @@ static char *values_name_to_sqlarray (const data_set_t *ds,
 } /* values_name_to_sqlarray */
 
 static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
-		char *string, size_t string_len)
+		char *string, size_t string_len, _Bool store_rates)
 {
 	char  *str_ptr;
 	size_t str_len;
+
+	gauge_t *rates = NULL;
 
 	int i;
 
@@ -610,9 +614,31 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 	for (i = 0; i < vl->values_len; ++i) {
 		int status;
 
+		if ((ds->ds[i].type != DS_TYPE_GAUGE)
+				&& (ds->ds[i].type != DS_TYPE_COUNTER)
+				&& (ds->ds[i].type != DS_TYPE_DERIVE)
+				&& (ds->ds[i].type != DS_TYPE_ABSOLUTE)) {
+			log_err ("c_psql_write: Unknown data source type: %i",
+					ds->ds[i].type);
+			sfree (rates);
+			return NULL;
+		}
+
 		if (ds->ds[i].type == DS_TYPE_GAUGE)
 			status = ssnprintf (str_ptr, str_len,
 					",%f", vl->values[i].gauge);
+		else if (store_rates) {
+			if (rates == NULL)
+				rates = uc_get_rate (ds, vl);
+
+			if (rates == NULL) {
+				log_err ("c_psql_write: Failed to determine rate");
+				return NULL;
+			}
+
+			status = ssnprintf (str_ptr, str_len,
+					",%lf", rates[i]);
+		}
 		else if (ds->ds[i].type == DS_TYPE_COUNTER)
 			status = ssnprintf (str_ptr, str_len,
 					",%llu", vl->values[i].counter);
@@ -622,14 +648,11 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 		else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
 			status = ssnprintf (str_ptr, str_len,
 					",%"PRIu64, vl->values[i].absolute);
-		else {
-			log_err ("c_psql_write: Unknown data source type: %i",
-					ds->ds[i].type);
-			return NULL;
-		}
 
-		if (status < 1)
-			return NULL;
+		if (status < 1) {
+			str_len = 0;
+			break;
+		}
 		else if ((size_t)status >= str_len) {
 			str_len = 0;
 			break;
@@ -639,6 +662,8 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 			str_len -= (size_t)status;
 		}
 	}
+
+	sfree (rates);
 
 	if (str_len <= 2) {
 		log_err ("c_psql_write: Failed to stringify value list");
@@ -685,9 +710,6 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 				values_name_str, sizeof (values_name_str)) == NULL)
 		return -1;
 
-	if (values_to_sqlarray (ds, vl, values_str, sizeof (values_str)) == NULL)
-		return -1;
-
 #define VALUE_OR_NULL(v) ((((v) == NULL) || (*(v) == '\0')) ? NULL : (v))
 
 	params[0] = time_str;
@@ -697,7 +719,6 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	params[4] = vl->type;
 	params[5] = VALUE_OR_NULL(vl->type_instance);
 	params[6] = values_name_str;
-	params[7] = values_str;
 
 #undef VALUE_OR_NULL
 
@@ -713,6 +734,13 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 		PGresult *res;
 
 		writer = db->writers[i];
+
+		if (values_to_sqlarray (ds, vl,
+					values_str, sizeof (values_str),
+					writer->store_rates) == NULL)
+			return -1;
+
+		params[7] = values_str;
 
 		res = PQexecParams (db->conn, writer->statement,
 				STATIC_ARRAY_SIZE (params), NULL,
@@ -903,12 +931,15 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 
 	writer->name = sstrdup (ci->values[0].value.string);
 	writer->statement = NULL;
+	writer->store_rates = 1;
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (strcasecmp ("Statement", c->key) == 0)
 			status = cf_util_get_string (c, &writer->statement);
+		if (strcasecmp ("StoreRates", c->key) == 0)
+			status = cf_util_get_boolean (c, &writer->store_rates);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}

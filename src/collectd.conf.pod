@@ -3735,6 +3735,12 @@ PostgreSQL database for this purpose. Any procedural language supported by
 PostgreSQL will do (see chapter "Server Programming" in the PostgreSQL manual
 for details).
 
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
+
 =back
 
 The B<Database> block defines one PostgreSQL database for which to collect
