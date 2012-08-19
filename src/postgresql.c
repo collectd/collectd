@@ -598,6 +598,53 @@ static char *values_name_to_sqlarray (const data_set_t *ds,
 	return string;
 } /* values_name_to_sqlarray */
 
+static char *values_type_to_sqlarray (const data_set_t *ds,
+		char *string, size_t string_len, _Bool store_rates)
+{
+	char  *str_ptr;
+	size_t str_len;
+
+	int i;
+
+	str_ptr = string;
+	str_len = string_len;
+
+	for (i = 0; i < ds->ds_num; ++i) {
+		int status;
+
+		if (store_rates)
+			status = ssnprintf(str_ptr, str_len, ",'gauge'");
+		else
+			status = ssnprintf(str_ptr, str_len, ",'%s'",
+					DS_TYPE_TO_STRING (ds->ds[i].type));
+
+		if (status < 1) {
+			str_len = 0;
+			break;
+		}
+		else if ((size_t)status >= str_len) {
+			str_len = 0;
+			break;
+		}
+		else {
+			str_ptr += status;
+			str_len -= (size_t)status;
+		}
+	}
+
+	if (str_len <= 2) {
+		log_err ("c_psql_write: Failed to stringify value types");
+		return NULL;
+	}
+
+	/* overwrite the first comma */
+	string[0] = '{';
+	str_ptr[0] = '}';
+	str_ptr[1] = '\0';
+
+	return string;
+} /* values_type_to_sqlarray */
+
 static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 		char *string, size_t string_len, _Bool store_rates)
 {
@@ -685,9 +732,10 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 	char time_str[32];
 	char values_name_str[1024];
+	char values_type_str[1024];
 	char values_str[1024];
 
-	const char *params[8];
+	const char *params[9];
 
 	int success = 0;
 	int i;
@@ -735,12 +783,18 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 		writer = db->writers[i];
 
+		if (values_type_to_sqlarray (ds,
+					values_type_str, sizeof (values_type_str),
+					writer->store_rates) == NULL)
+			return -1;
+
 		if (values_to_sqlarray (ds, vl,
 					values_str, sizeof (values_str),
 					writer->store_rates) == NULL)
 			return -1;
 
-		params[7] = values_str;
+		params[7] = values_type_str;
+		params[8] = values_str;
 
 		res = PQexecParams (db->conn, writer->statement,
 				STATIC_ARRAY_SIZE (params), NULL,

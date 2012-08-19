@@ -3487,7 +3487,8 @@ L<http://www.postgresql.org/docs/manuals/>.
     </Query>
 
     <Writer sqlstore>
-      Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8);"
+      Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+      StoreRates true
     </Writer>
 
     <Database foo>
@@ -3686,8 +3687,8 @@ This mandatory option specifies the SQL statement that will be executed for
 each submitted value. A single SQL statement is allowed only. Anything after
 the first semicolon will be ignored.
 
-Eight parameters will be passed to the statement and should be specified as
-tokens B<$1>, B<$2>, through B<$8> in the statement string. The following
+Nine parameters will be passed to the statement and should be specified as
+tokens B<$1>, B<$2>, through B<$9> in the statement string. The following
 values are made available through those parameters:
 
 =over 4
@@ -3724,6 +3725,13 @@ An array of names for the submitted values (i.E<nbsp>e., the name of the data
 sources of the submitted value-list).
 
 =item B<$8>
+
+An array of types for the submitted values (i.E<nbsp>e., the type of the data
+sources of the submitted value-list; C<counter>, C<gauge>, ...). Note, that if
+B<StoreRates> is enabled (which is the default, see below), all types will be
+C<gauge>.
+
+=item B<$9>
 
 An array of the submitted values. The dimensions of the value name and value
 arrays match.
