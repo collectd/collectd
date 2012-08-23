@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_format_graphite.c
  * Copyright (C) 2012  Thomas Meson
+ * Copyright (C) 2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -15,8 +16,9 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
- * Author:
+ * Authors:
  *   Thomas Meson <zllak at hycik.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -75,7 +77,7 @@ static int gr_format_values (char *ret, size_t ret_len,
     return (0);
 }
 
-static void copy_escape_part (char *dst, const char *src, size_t dst_len,
+static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
     char escape_char)
 {
     size_t i;
@@ -124,15 +126,15 @@ static int gr_format_name (char *ret, int ret_len,
     if (postfix == NULL)
         postfix = "";
 
-    copy_escape_part (n_host, vl->host,
+    gr_copy_escape_part (n_host, vl->host,
             sizeof (n_host), escape_char);
-    copy_escape_part (n_plugin, vl->plugin,
+    gr_copy_escape_part (n_plugin, vl->plugin,
             sizeof (n_plugin), escape_char);
-    copy_escape_part (n_plugin_instance, vl->plugin_instance,
+    gr_copy_escape_part (n_plugin_instance, vl->plugin_instance,
             sizeof (n_plugin_instance), escape_char);
-    copy_escape_part (n_type, vl->type,
+    gr_copy_escape_part (n_type, vl->type,
             sizeof (n_type), escape_char);
-    copy_escape_part (n_type_instance, vl->type_instance,
+    gr_copy_escape_part (n_type_instance, vl->type_instance,
             sizeof (n_type_instance), escape_char);
 
     if (n_plugin_instance[0] != '\0')
