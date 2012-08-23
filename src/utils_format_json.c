@@ -152,7 +152,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } /* }}} int values_to_json */
 
 static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
-                const data_set_t *ds, const value_list_t *vl)
+                const data_set_t *ds)
 {
   size_t offset = 0;
   int i;
@@ -189,7 +189,7 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } /* }}} int dstypes_to_json */
 
 static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
-                const data_set_t *ds, const value_list_t *vl)
+                const data_set_t *ds)
 {
   size_t offset = 0;
   int i;
@@ -334,12 +334,12 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
     return (status);
   BUFFER_ADD ("\"values\":%s", temp);
 
-  status = dstypes_to_json (temp, sizeof (temp), ds, vl);
+  status = dstypes_to_json (temp, sizeof (temp), ds);
   if (status != 0)
     return (status);
   BUFFER_ADD (",\"dstypes\":%s", temp);
 
-  status = dsnames_to_json (temp, sizeof (temp), ds, vl);
+  status = dsnames_to_json (temp, sizeof (temp), ds);
   if (status != 0)
     return (status);
   BUFFER_ADD (",\"dsnames\":%s", temp);
