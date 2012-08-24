@@ -137,6 +137,11 @@
 #endif /* KERNEL_AIX */
 
 #if KERNEL_LINUX
+struct nlreq {
+  struct nlmsghdr nlh;
+  struct inet_diag_req r;
+};
+
 static const char *tcp_state[] =
 {
   "", /* 0 */
@@ -430,50 +435,50 @@ static int conn_read_netlink (void)
 {
   int fd;
   struct sockaddr_nl nladdr;
-  struct {
-    struct nlmsghdr nlh;
-    struct inet_diag_req r;
-  } req;
+  struct nlreq req;
   struct msghdr msg;
   struct iovec iov;
   struct inet_diag_msg *r;
   char buf[8192];
   static uint32_t sequence_number = 0;
 
-  if ((fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_INET_DIAG)) < 0)
-    return (0);
+  fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_INET_DIAG);
+  if (fd < 0)
+    return (1);
 
   memset(&nladdr, 0, sizeof(nladdr));
   nladdr.nl_family = AF_NETLINK;
 
+  memset(&req, 0, sizeof(req));
   req.nlh.nlmsg_len = sizeof(req);
   req.nlh.nlmsg_type = TCPDIAG_GETSOCK;
-  /* NLM_F_ROOT: return the complete table instead of a single entry. */
+  /* NLM_F_ROOT: return the complete table instead of a single entry.
+   * NLM_F_MATCH: return all entries matching criteria (not implemented)
+   * NLM_F_REQUEST: must be set on all request messages */
   req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
   req.nlh.nlmsg_pid = 0;
   /* The sequence_number is used to track our messages. Since netlink is not
    * reliable, we don't want to end up with a corrupt or incomplete old
    * message in case the system is/was out of memory. */
   req.nlh.nlmsg_seq = ++sequence_number;
-  memset(&req.r, 0, sizeof(req.r));
   req.r.idiag_family = AF_INET;
   req.r.idiag_states = 0xfff;
   req.r.idiag_ext = 0;
 
+  memset(&iov, 0, sizeof(iov));
   iov.iov_base = &req;
   iov.iov_len = sizeof(req);
 
-  msg = (struct msghdr) {
-    .msg_name = (void*)&nladdr,
-    .msg_namelen = sizeof(nladdr),
-    .msg_iov = &iov,
-    .msg_iovlen = 1,
-  };
+  memset(&msg, 0, sizeof(msg));
+  msg.msg_name = (void*)&nladdr;
+  msg.msg_namelen = sizeof(nladdr);
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
 
   if (sendmsg (fd, &msg, 0) < 0)
   {
     close (fd);
-    return (0);
+    return (1);
   }
 
   iov.iov_base = buf;
@@ -484,26 +489,25 @@ static int conn_read_netlink (void)
     int status;
     struct nlmsghdr *h;
 
-    msg = (struct msghdr) {
-      (void*)&nladdr, sizeof(nladdr),
-      &iov, 1,
-      NULL, 0,
-      0
-    };
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_name = (void*)&nladdr;
+    msg.msg_namelen = sizeof(nladdr);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
 
-    status = recvmsg(fd, &msg, 0);
+    status = recvmsg(fd, (void *) &msg, /* flags = */ 0);
     if (status < 0)
     {
       if (errno == EINTR)
-	continue;
+        continue;
       close (fd);
-      return (0);
+      return (1);
     }
 
     if (status == 0)
     {
       close (fd);
-      return (1);
+      return (0);
     }
 
     h = (struct nlmsghdr*)buf;
@@ -514,12 +518,12 @@ static int conn_read_netlink (void)
         if (h->nlmsg_type == NLMSG_DONE)
         {
           close (fd);
-          return (1);
+          return (0);
         }
         else if (h->nlmsg_type == NLMSG_ERROR)
         {
           close (fd);
-          return (0);
+          return (1);
         }
 
         r = NLMSG_DATA(h);
@@ -533,7 +537,8 @@ static int conn_read_netlink (void)
     }
   }
 
-  return (1);
+  /* Not reached because the while() loop above handles the exit condition. */
+  return (0);
 } /* int conn_read_netlink */
 
 static int conn_handle_line (char *buffer)
@@ -676,7 +681,7 @@ static int conn_read (void)
 
   /* Try to use netlink for getting this data, it is _much_ faster on systems
    * with a large amount of connections. */
-  if (!conn_read_netlink ())
+  if (conn_read_netlink () != 0)
   {
     if (conn_read_file ("/proc/net/tcp") != 0)
       errors_num++;
