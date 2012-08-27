@@ -332,10 +332,12 @@ static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst,
 
 	kstat_read(kc, ksp, NULL);
 	for (i = 0; i < proc_names_num; i++)
-		values[i].counter = (derive_t) get_kstat_value (ksp, proc_names[i]);
+		values[i].counter = (derive_t) get_kstat_value (ksp,
+				(char *)proc_names[i]);
 
 	nfs_procedures_submit (plugin_instance, proc_names, values,
 			proc_names_num);
+	return (0);
 }
 #endif
 
