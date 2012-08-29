@@ -49,9 +49,17 @@ static const char *config_keys[] = {
 };
 #define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
 
-/* Connection. */
-static virConnectPtr conn = 0;
-static char *conn_string = NULL;
+/* Connections. */
+struct connection_t {
+	virConnectPtr conn;
+	char *conn_string;
+};
+static struct connection_t *connections = NULL;
+static int nr_connections = 0;
+
+static void free_connections (void);
+static int add_connection (const char *conn_string);
+
 static c_complain_t conn_complain = C_COMPLAIN_INIT_STATIC;
 
 /* Seconds between list refreshes, 0 disables completely. */
@@ -258,13 +266,7 @@ lv_config (const char *key, const char *value)
         il_interface_devices = ignorelist_create (1);
 
     if (strcasecmp (key, "Connection") == 0) {
-        char *tmp = strdup (value);
-        if (tmp == NULL) {
-            ERROR ("libvirt plugin: Connection strdup failed.");
-            return 1;
-        }
-        sfree (conn_string);
-        conn_string = tmp;
+		if (add_connection(value)) return 1;
         return 0;
     }
 
@@ -363,32 +365,29 @@ static int
 lv_read (void)
 {
     time_t t;
-    int i;
+    int i,k;
 
-    if (conn == NULL) {
-        /* `conn_string == NULL' is acceptable. */
-        conn = virConnectOpenReadOnly (conn_string);
-        if (conn == NULL) {
-            c_complain (LOG_ERR, &conn_complain,
-                    "libvirt plugin: Unable to connect: "
-                    "virConnectOpenReadOnly failed.");
-            return -1;
-        }
-    }
-    c_release (LOG_NOTICE, &conn_complain,
-            "libvirt plugin: Connection established.");
+	for (k=0; k < nr_connections; k++) {
+	    if (connections[k].conn == NULL) {
+	        /* `connections[k].conn_string == NULL' is acceptable. */
+	        connections[k].conn = virConnectOpenReadOnly (connections[k].conn_string);
+	        if (connections[k].conn == NULL) {
+	            c_complain (LOG_ERR, &conn_complain,
+	                    "libvirt plugin: Unable to connect: "
+	                    "virConnectOpenReadOnly failed.");
+	            return -1;
+	        }
+	    }
+	    c_release (LOG_NOTICE, &conn_complain,
+	            "libvirt plugin: Connection established with %s.", connections[k].conn_string);
+	}
 
     time (&t);
 
     /* Need to refresh domain or device lists? */
     if ((last_refresh == (time_t) 0) ||
             ((interval > 0) && ((last_refresh + interval) <= t))) {
-        if (refresh_lists () != 0) {
-            if (conn != NULL)
-                virConnectClose (conn);
-            conn = NULL;
-            return -1;
-        }
+        refresh_lists ();
         last_refresh = t;
     }
 
@@ -504,163 +503,211 @@ lv_read (void)
 static int
 refresh_lists (void)
 {
-    int n;
+    int n,k;
 
-    n = virConnectNumOfDomains (conn);
-    if (n < 0) {
-        VIRT_ERROR (conn, "reading number of domains");
-        return -1;
-    }
+    free_block_devices ();
+    free_interface_devices ();
+    free_domains ();
 
-    if (n > 0) {
-        int i;
-        int *domids;
+	for (k=0; k < nr_connections; k++) {
+	    n = virConnectNumOfDomains (connections[k].conn);
+	    if (n < 0) {
+	        VIRT_ERROR (connections[k].conn, "reading number of domains");
+	        continue;
+	    }
 
-        /* Get list of domains. */
-        domids = malloc (sizeof (int) * n);
-        if (domids == 0) {
-            ERROR ("libvirt plugin: malloc failed.");
-            return -1;
-        }
+	    if (n > 0) {
+	        int i;
+	        int *domids;
 
-        n = virConnectListDomains (conn, domids, n);
-        if (n < 0) {
-            VIRT_ERROR (conn, "reading list of domains");
-            sfree (domids);
-            return -1;
-        }
+	        /* Get list of domains. */
+	        domids = malloc (sizeof (int) * n);
+	        if (domids == 0) {
+	            ERROR ("libvirt plugin: malloc failed.");
+	            continue;
+	        }
 
-        free_block_devices ();
-        free_interface_devices ();
-        free_domains ();
+	        n = virConnectListDomains (connections[k].conn, domids, n);
+	        if (n < 0) {
+	            VIRT_ERROR (connections[k].conn, "reading list of domains");
+	            sfree (domids);
+	            continue;
+	        }
 
-        /* Fetch each domain and add it to the list, unless ignore. */
-        for (i = 0; i < n; ++i) {
-            virDomainPtr dom = NULL;
-            const char *name;
-            char *xml = NULL;
-            xmlDocPtr xml_doc = NULL;
-            xmlXPathContextPtr xpath_ctx = NULL;
-            xmlXPathObjectPtr xpath_obj = NULL;
-            int j;
+	        /* Fetch each domain and add it to the list, unless ignore. */
+	        for (i = 0; i < n; ++i) {
+	            virDomainPtr dom = NULL;
+	            const char *name;
+	            char *xml = NULL;
+	            xmlDocPtr xml_doc = NULL;
+	            xmlXPathContextPtr xpath_ctx = NULL;
+	            xmlXPathObjectPtr xpath_obj = NULL;
+	            int j;
 
-            dom = virDomainLookupByID (conn, domids[i]);
-            if (dom == NULL) {
-                VIRT_ERROR (conn, "virDomainLookupByID");
-                /* Could be that the domain went away -- ignore it anyway. */
-                continue;
-            }
+	            dom = virDomainLookupByID (connections[k].conn, domids[i]);
+	            if (dom == NULL) {
+	                VIRT_ERROR (connections[k].conn, "virDomainLookupByID");
+	                /* Could be that the domain went away -- ignore it anyway. */
+	                continue;
+	            }
 
-            name = virDomainGetName (dom);
-            if (name == NULL) {
-                VIRT_ERROR (conn, "virDomainGetName");
-                goto cont;
-            }
+	            name = virDomainGetName (dom);
+	            if (name == NULL) {
+	                VIRT_ERROR (connections[k].conn, "virDomainGetName");
+	                goto cont;
+	            }
 
-            if (il_domains && ignorelist_match (il_domains, name) != 0)
-                goto cont;
+	            if (il_domains && ignorelist_match (il_domains, name) != 0)
+	                goto cont;
 
-            if (add_domain (dom) < 0) {
-                ERROR ("libvirt plugin: malloc failed.");
-                goto cont;
-            }
+	            if (add_domain (dom) < 0) {
+	                ERROR ("libvirt plugin: malloc failed.");
+	                goto cont;
+	            }
 
-            /* Get a list of devices for this domain. */
-            xml = virDomainGetXMLDesc (dom, 0);
-            if (!xml) {
-                VIRT_ERROR (conn, "virDomainGetXMLDesc");
-                goto cont;
-            }
+	            /* Get a list of devices for this domain. */
+	            xml = virDomainGetXMLDesc (dom, 0);
+	            if (!xml) {
+	                VIRT_ERROR (connections[k].conn, "virDomainGetXMLDesc");
+	                goto cont;
+	            }
 
-            /* Yuck, XML.  Parse out the devices. */
-            xml_doc = xmlReadDoc ((xmlChar *) xml, NULL, NULL, XML_PARSE_NONET);
-            if (xml_doc == NULL) {
-                VIRT_ERROR (conn, "xmlReadDoc");
-                goto cont;
-            }
+	            /* Yuck, XML.  Parse out the devices. */
+	            xml_doc = xmlReadDoc ((xmlChar *) xml, NULL, NULL, XML_PARSE_NONET);
+	            if (xml_doc == NULL) {
+	                VIRT_ERROR (connections[k].conn, "xmlReadDoc");
+	                goto cont;
+	            }
 
-            xpath_ctx = xmlXPathNewContext (xml_doc);
+	            xpath_ctx = xmlXPathNewContext (xml_doc);
 
-            /* Block devices. */
-            xpath_obj = xmlXPathEval
-                ((xmlChar *) "/domain/devices/disk/target[@dev]",
-                 xpath_ctx);
-            if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-                xpath_obj->nodesetval == NULL)
-                goto cont;
+	            /* Block devices. */
+	            xpath_obj = xmlXPathEval
+	                ((xmlChar *) "/domain/devices/disk/target[@dev]",
+	                 xpath_ctx);
+	            if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
+	                xpath_obj->nodesetval == NULL)
+	                goto cont;
 
-            for (j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
-                xmlNodePtr node;
-                char *path = NULL;
+	            for (j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
+	                xmlNodePtr node;
+	                char *path = NULL;
 
-                node = xpath_obj->nodesetval->nodeTab[j];
-                if (!node) continue;
-                path = (char *) xmlGetProp (node, (xmlChar *) "dev");
-                if (!path) continue;
+	                node = xpath_obj->nodesetval->nodeTab[j];
+	                if (!node) continue;
+	                path = (char *) xmlGetProp (node, (xmlChar *) "dev");
+	                if (!path) continue;
 
-                if (il_block_devices &&
-                    ignore_device_match (il_block_devices, name, path) != 0)
-                    goto cont2;
+	                if (il_block_devices &&
+	                    ignore_device_match (il_block_devices, name, path) != 0)
+	                    goto cont2;
 
-                add_block_device (dom, path);
-            cont2:
-                if (path) xmlFree (path);
-            }
-            xmlXPathFreeObject (xpath_obj);
+	                add_block_device (dom, path);
+	            cont2:
+	                if (path) xmlFree (path);
+	            }
+	            xmlXPathFreeObject (xpath_obj);
 
-            /* Network interfaces. */
-            xpath_obj = xmlXPathEval
-                ((xmlChar *) "/domain/devices/interface[target[@dev]]",
-                 xpath_ctx);
-            if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-                xpath_obj->nodesetval == NULL)
-                goto cont;
+	            /* Network interfaces. */
+	            xpath_obj = xmlXPathEval
+	                ((xmlChar *) "/domain/devices/interface[target[@dev]]",
+	                 xpath_ctx);
+	            if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
+	                xpath_obj->nodesetval == NULL)
+	                goto cont;
 
-            xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
+	            xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
 
-            for (j = 0; j < xml_interfaces->nodeNr; ++j) {
-                char *path = NULL;
-                char *address = NULL;
-                xmlNodePtr xml_interface;
+	            for (j = 0; j < xml_interfaces->nodeNr; ++j) {
+	                char *path = NULL;
+	                char *address = NULL;
+	                xmlNodePtr xml_interface;
 
-                xml_interface = xml_interfaces->nodeTab[j];
-                if (!xml_interface) continue;
-                xmlNodePtr child = NULL;
+	                xml_interface = xml_interfaces->nodeTab[j];
+	                if (!xml_interface) continue;
+	                xmlNodePtr child = NULL;
 
-                for (child = xml_interface->children; child; child = child->next) {
-                    if (child->type != XML_ELEMENT_NODE) continue;
+	                for (child = xml_interface->children; child; child = child->next) {
+	                    if (child->type != XML_ELEMENT_NODE) continue;
 
-                    if (xmlStrEqual(child->name, (const xmlChar *) "target")) {
-                        path = (char *) xmlGetProp (child, (const xmlChar *) "dev");
-                        if (!path) continue;
-                    } else if (xmlStrEqual(child->name, (const xmlChar *) "mac")) {
-                        address = (char *) xmlGetProp (child, (const xmlChar *) "address");
-                        if (!address) continue;
-                    }
-                }
+	                    if (xmlStrEqual(child->name, (const xmlChar *) "target")) {
+	                        path = (char *) xmlGetProp (child, (const xmlChar *) "dev");
+	                        if (!path) continue;
+	                    } else if (xmlStrEqual(child->name, (const xmlChar *) "mac")) {
+	                        address = (char *) xmlGetProp (child, (const xmlChar *) "address");
+	                        if (!address) continue;
+	                    }
+	                }
 
-                if (il_interface_devices &&
-                    (ignore_device_match (il_interface_devices, name, path) != 0 ||
-                     ignore_device_match (il_interface_devices, name, address) != 0))
-                    goto cont3;
+	                if (il_interface_devices &&
+	                    (ignore_device_match (il_interface_devices, name, path) != 0 ||
+	                     ignore_device_match (il_interface_devices, name, address) != 0))
+	                    goto cont3;
 
-                add_interface_device (dom, path, address);
-                cont3:
-                    if (path) xmlFree (path);
-                    if (address) xmlFree (address);
-            }
+	                add_interface_device (dom, path, address);
+	                cont3:
+	                    if (path) xmlFree (path);
+	                    if (address) xmlFree (address);
+	            }
 
-        cont:
-            if (xpath_obj) xmlXPathFreeObject (xpath_obj);
-            if (xpath_ctx) xmlXPathFreeContext (xpath_ctx);
-            if (xml_doc) xmlFreeDoc (xml_doc);
-            sfree (xml);
-        }
+	        cont:
+	            if (xpath_obj) xmlXPathFreeObject (xpath_obj);
+	            if (xpath_ctx) xmlXPathFreeContext (xpath_ctx);
+	            if (xml_doc) xmlFreeDoc (xml_doc);
+	            sfree (xml);
+	        }
 
-        sfree (domids);
-    }
+	        sfree (domids);
+	    }
+	}
 
     return 0;
+}
+
+static void
+free_connections ()
+{
+    int i;
+
+    if (connections) {
+        for (i = 0; i < nr_connections; ++i) {
+			if (connections[i].conn != NULL)
+				virConnectClose(connections[i].conn);
+            sfree (connections[i].conn_string);
+		}
+        sfree (connections);
+    }
+    connections = NULL;
+    nr_connections = 0;
+}
+
+static int
+add_connection (const char *conn_string)
+{
+    struct connection_t *new_ptr;
+    int new_size = sizeof (connections[0]) * (nr_connections+1);
+    char *conn_string_copy;
+
+    conn_string_copy = strdup (conn_string);
+    if (!conn_string_copy) {
+        ERROR ("libvirt plugin: Connection strdup failed.");
+		return -1;
+	}
+
+    if (connections)
+        new_ptr = realloc (connections, new_size);
+    else
+        new_ptr = malloc (new_size);
+
+    if (new_ptr == NULL) {
+        sfree (conn_string_copy);
+		ERROR ("libvirt plugin: Connection allocation failed.");
+        return -1;
+    }
+    connections = new_ptr;
+    connections[nr_connections].conn = NULL;
+    connections[nr_connections].conn_string = conn_string_copy;
+    return nr_connections++;
 }
 
 static void
@@ -806,10 +853,7 @@ lv_shutdown (void)
     free_block_devices ();
     free_interface_devices ();
     free_domains ();
-
-    if (conn != NULL)
-	virConnectClose (conn);
-    conn = NULL;
+	free_connections();
 
     ignorelist_free (il_domains);
     il_domains = NULL;
