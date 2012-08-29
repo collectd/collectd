@@ -91,13 +91,14 @@ struct interface_device {
     virDomainPtr dom;           /* domain */
     char *path;                 /* name of interface device */
     char *address;              /* mac address of interface device */
+    char *number;               /* interface device number */
 };
 
 static struct interface_device *interface_devices = NULL;
 static int nr_interface_devices = 0;
 
 static void free_interface_devices (void);
-static int add_interface_device (virDomainPtr dom, const char *path, const char *address);
+static int add_interface_device (virDomainPtr dom, const char *path, const char *address, unsigned int number);
 
 /* HostnameFormat. */
 #define HF_MAX_FIELDS 3
@@ -115,7 +116,8 @@ static enum hf_field hostname_format[HF_MAX_FIELDS] =
 /* InterfaceFormat. */
 enum if_field {
     if_address,
-    if_name
+    if_name,
+    if_number
 };
 
 static enum if_field interface_format = if_name;
@@ -348,6 +350,8 @@ lv_config (const char *key, const char *value)
             interface_format = if_name;
         else if (strcasecmp (value, "address") == 0)
             interface_format = if_address;
+        else if (strcasecmp (value, "number") == 0)
+            interface_format = if_number;
         else {
             ERROR ("unknown InterfaceFormat: %s", value);
             return -1;
@@ -467,10 +471,20 @@ lv_read (void)
     /* Get interface stats for each domain. */
     for (i = 0; i < nr_interface_devices; ++i) {
         struct _virDomainInterfaceStats stats;
-        char *display_name = interface_devices[i].path;
+        char *display_name = NULL;
 
-        if (interface_format == if_address)
-            display_name = interface_devices[i].address;
+
+        switch (interface_format) {
+            case if_address:
+                display_name = interface_devices[i].address;
+                break;
+            case if_number:
+                display_name = interface_devices[i].number;
+                break;
+            case if_name:
+            default:
+                display_name = interface_devices[i].path;
+        }
 
         if (virDomainInterfaceStats (interface_devices[i].dom,
                     interface_devices[i].path,
@@ -644,7 +658,7 @@ refresh_lists (void)
                      ignore_device_match (il_interface_devices, name, address) != 0))
                     goto cont3;
 
-                add_interface_device (dom, path, address);
+		add_interface_device (dom, path, address, j+1);
                 cont3:
                     if (path) xmlFree (path);
                     if (address) xmlFree (address);
@@ -745,6 +759,7 @@ free_interface_devices ()
         for (i = 0; i < nr_interface_devices; ++i) {
             sfree (interface_devices[i].path);
             sfree (interface_devices[i].address);
+            sfree (interface_devices[i].number);
         }
         sfree (interface_devices);
     }
@@ -753,17 +768,21 @@ free_interface_devices ()
 }
 
 static int
-add_interface_device (virDomainPtr dom, const char *path, const char *address)
+add_interface_device (virDomainPtr dom, const char *path, const char *address, unsigned int number)
 {
     struct interface_device *new_ptr;
     int new_size = sizeof (interface_devices[0]) * (nr_interface_devices+1);
-    char *path_copy, *address_copy;
+    char *path_copy, *address_copy, *number_string;
 
     path_copy = strdup (path);
     if (!path_copy) return -1;
 
     address_copy = strdup (address);
     if (!address_copy) return -1;
+
+    number_string = (char*) malloc (15);
+    if (!number_string) return -1;
+    snprintf(number_string, 15, "interface-%u", number);
 
     if (interface_devices)
         new_ptr = realloc (interface_devices, new_size);
@@ -779,6 +798,7 @@ add_interface_device (virDomainPtr dom, const char *path, const char *address)
     interface_devices[nr_interface_devices].dom = dom;
     interface_devices[nr_interface_devices].path = path_copy;
     interface_devices[nr_interface_devices].address = address_copy;
+    interface_devices[nr_interface_devices].number = number_string;
     return nr_interface_devices++;
 }
 
