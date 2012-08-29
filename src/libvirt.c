@@ -772,17 +772,18 @@ add_interface_device (virDomainPtr dom, const char *path, const char *address, u
 {
     struct interface_device *new_ptr;
     int new_size = sizeof (interface_devices[0]) * (nr_interface_devices+1);
-    char *path_copy, *address_copy, *number_string;
+    char *path_copy, *address_copy, number_string[15];
 
     path_copy = strdup (path);
     if (!path_copy) return -1;
 
     address_copy = strdup (address);
-    if (!address_copy) return -1;
-
-    number_string = (char*) malloc (15);
-    if (!number_string) return -1;
-    snprintf(number_string, 15, "interface-%u", number);
+    if (!address_copy) {
+		sfree(path_copy)
+		return -1;
+	}
+	
+    snprintf(number_string, sizeof (number_string), "interface-%u", number);
 
     if (interface_devices)
         new_ptr = realloc (interface_devices, new_size);
@@ -798,7 +799,7 @@ add_interface_device (virDomainPtr dom, const char *path, const char *address, u
     interface_devices[nr_interface_devices].dom = dom;
     interface_devices[nr_interface_devices].path = path_copy;
     interface_devices[nr_interface_devices].address = address_copy;
-    interface_devices[nr_interface_devices].number = number_string;
+    interface_devices[nr_interface_devices].number = strdup(number_string);
     return nr_interface_devices++;
 }
 
