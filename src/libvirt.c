@@ -658,7 +658,7 @@ refresh_lists (void)
                      ignore_device_match (il_interface_devices, name, address) != 0))
                     goto cont3;
 
-		add_interface_device (dom, path, address, j+1);
+                add_interface_device (dom, path, address, j+1);
                 cont3:
                     if (path) xmlFree (path);
                     if (address) xmlFree (address);
@@ -779,10 +779,10 @@ add_interface_device (virDomainPtr dom, const char *path, const char *address, u
 
     address_copy = strdup (address);
     if (!address_copy) {
-		sfree(path_copy)
-		return -1;
-	}
-	
+        sfree(path_copy);
+        return -1;
+    }
+
     snprintf(number_string, sizeof (number_string), "interface-%u", number);
 
     if (interface_devices)
@@ -829,7 +829,7 @@ lv_shutdown (void)
     free_domains ();
 
     if (conn != NULL)
-	virConnectClose (conn);
+        virConnectClose (conn);
     conn = NULL;
 
     ignorelist_free (il_domains);
@@ -846,8 +846,8 @@ void
 module_register (void)
 {
     plugin_register_config ("libvirt",
-	    lv_config,
-	    config_keys, NR_CONFIG_KEYS);
+    lv_config,
+    config_keys, NR_CONFIG_KEYS);
     plugin_register_init ("libvirt", lv_init);
     plugin_register_read ("libvirt", lv_read);
     plugin_register_shutdown ("libvirt", lv_shutdown);
