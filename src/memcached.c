@@ -348,7 +348,7 @@ static int config_add_instance(oconfig_item_t *ci)
   return (0);
 }
 
-static int config (oconfig_item_t *ci)
+static int memcached_config (oconfig_item_t *ci)
 {
   int status = 0;
   int i;
@@ -619,5 +619,5 @@ static int memcached_read (user_data_t *user_data)
 
 void module_register (void)
 {
-  plugin_register_complex_config ("memcached", config);
+  plugin_register_complex_config ("memcached", memcached_config);
 }
