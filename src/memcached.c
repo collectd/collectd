@@ -75,7 +75,7 @@ static void memcached_free (memcached_t *st)
 
 static int memcached_query_daemon (char *buffer, int buffer_size, user_data_t *user_data)
 {
-  int fd=-1;
+  int fd;
   ssize_t status;
   int buffer_fill;
   int i = 0;
@@ -100,69 +100,59 @@ static int memcached_query_daemon (char *buffer, int buffer_size, user_data_t *u
      }
   }
   else {
-    if (st->port != NULL) {
-      const char *host;
-      const char *port;
+    const char *host;
+    const char *port;
 
-      struct addrinfo  ai_hints;
-      struct addrinfo *ai_list, *ai_ptr;
-      int              ai_return = 0;
+    struct addrinfo  ai_hints;
+    struct addrinfo *ai_list, *ai_ptr;
+    int              ai_return = 0;
 
-      memset (&ai_hints, '\0', sizeof (ai_hints));
-      ai_hints.ai_flags    = 0;
+    memset (&ai_hints, '\0', sizeof (ai_hints));
+    ai_hints.ai_flags    = 0;
 #ifdef AI_ADDRCONFIG
-    /*  ai_hints.ai_flags   |= AI_ADDRCONFIG; */
+    ai_hints.ai_flags   |= AI_ADDRCONFIG;
 #endif
-      ai_hints.ai_family   = AF_INET;
-      ai_hints.ai_socktype = SOCK_STREAM;
-      ai_hints.ai_protocol = 0;
+    ai_hints.ai_family   = AF_UNSPEC;
+    ai_hints.ai_socktype = SOCK_STREAM;
+    ai_hints.ai_protocol = 0;
 
-      host = st->host;
-      if (host == NULL) {
-        host = MEMCACHED_DEF_HOST;
-      }
+    host = (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST;
+    port = (st->port != NULL) ? st->port : MEMCACHED_DEF_PORT;
 
-      port = st->port;
-      if (strlen (port) == 0) {
-        port = MEMCACHED_DEF_PORT;
-      }
-
-      if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0) {
-        char errbuf[1024];
-        ERROR ("memcached: getaddrinfo (%s, %s): %s",
+    if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0) {
+      char errbuf[1024];
+      ERROR ("memcached: getaddrinfo (%s, %s): %s",
           host, port,
           (ai_return == EAI_SYSTEM)
           ? sstrerror (errno, errbuf, sizeof (errbuf))
           : gai_strerror (ai_return));
-        return -1;
-      }
-
-      fd = -1;
-      for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
-        /* create our socket descriptor */
-        fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
-        if (fd < 0) {
-          char errbuf[1024];
-          ERROR ("memcached: socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
-          continue;
-        }
-
-        /* connect to the memcached daemon */
-        status = (ssize_t) connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen);
-        if (status != 0) {
-          shutdown (fd, SHUT_RDWR);
-          close (fd);
-          fd = -1;
-          continue;
-        }
-
-        /* A socket could be opened and connecting succeeded. We're
-         * done. */
-        break;
-      }
-
-      freeaddrinfo (ai_list);
+      return -1;
     }
+
+    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
+      /* create our socket descriptor */
+      fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+      if (fd < 0) {
+        char errbuf[1024];
+        ERROR ("memcached: socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
+        continue;
+      }
+
+      /* connect to the memcached daemon */
+      status = (ssize_t) connect (fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+      if (status != 0) {
+        shutdown (fd, SHUT_RDWR);
+        close (fd);
+        fd = -1;
+        continue;
+      }
+
+      /* A socket could be opened and connecting succeeded. We're
+       * done. */
+      break;
+    }
+
+    freeaddrinfo (ai_list);
   }
 
   if (fd < 0) {
@@ -329,8 +319,8 @@ static int config_add_instance(oconfig_item_t *ci)
     memset (callback_name, 0, sizeof (callback_name));
     ssnprintf (callback_name, sizeof (callback_name),
         "memcached/%s/%s",
-        (st->host != NULL) ? st->host : hostname_g,
-        (st->port != NULL) ? st->port : "default"),
+        (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
+        (st->port != NULL) ? st->port : MEMCACHED_DEF_PORT)
 
     status = plugin_register_complex_read (/* group = */ "memcached",
         /* name      = */ callback_name,
