@@ -261,32 +261,6 @@ static int memcached_query_daemon (char *buffer, int buffer_size, user_data_t *u
  *   </Instance>
  * </Plugin>
  */
-static int config_set_string (char **ret_string, oconfig_item_t *ci)
-{
-  char *string;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("memcached plugin: The `%s' config option "
-        "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
-
-  string = strdup (ci->values[0].value.string);
-  if (string == NULL)
-  {
-    ERROR ("memcached plugin: strdup failed.");
-    return (-1);
-  }
-
-  if (*ret_string != NULL)
-    free (*ret_string);
-  *ret_string = string;
-
-  return (0);
-}
-
 static int config_add_instance(oconfig_item_t *ci)
 {
   memcached_t *st;
@@ -314,7 +288,7 @@ static int config_add_instance(oconfig_item_t *ci)
   st->port = NULL;
   memset (st, 0, sizeof (*st));
 
-  status = config_set_string (&st->name, ci);
+  status = cf_util_get_string (ci, &st->name);
   if (status != 0)
   {
     sfree (st);
@@ -327,11 +301,11 @@ static int config_add_instance(oconfig_item_t *ci)
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Socket", child->key) == 0)
-      status = config_set_string (&st->socket, child);
+      status = cf_util_get_string (child, &st->socket);
     else if (strcasecmp ("Host", child->key) == 0)
-      status = config_set_string (&st->host, child);
+      status = cf_util_get_string (child, &st->host);
     else if (strcasecmp ("Port", child->key) == 0)
-      status = config_set_string (&st->port, child);
+      status = cf_util_get_service (child, &st->port);
     else
     {
       WARNING ("memcached plugin: Option `%s' not allowed here.",
