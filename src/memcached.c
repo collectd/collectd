@@ -332,7 +332,7 @@ static int config_add_instance(oconfig_item_t *ci)
         (st->host != NULL) ? st->host : hostname_g,
         (st->port != NULL) ? st->port : "default"),
 
-    status = plugin_register_complex_read (/* group = */ NULL,
+    status = plugin_register_complex_read (/* group = */ "memcached",
         /* name      = */ callback_name,
         /* callback  = */ memcached_read,
         /* interval  = */ NULL,
