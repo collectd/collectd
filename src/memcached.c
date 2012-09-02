@@ -57,8 +57,9 @@ struct memcached_s
   char *host;
   char *port;
 };
-
 typedef struct memcached_s memcached_t;
+
+static _Bool memcached_have_instances = 0;
 
 static int memcached_read (user_data_t *user_data);
 
@@ -75,14 +76,15 @@ static void memcached_free (memcached_t *st)
 
 static int memcached_query_daemon (char *buffer, int buffer_size, user_data_t *user_data)
 {
-  int fd;
+  int fd = -1;
   ssize_t status;
   int buffer_fill;
   int i = 0;
 
   memcached_t *st;
   st = user_data->data;
-  if (st->socket != NULL) {
+  if (st->socket != NULL)
+  {
     struct sockaddr_un serv_addr;
 
      memset (&serv_addr, 0, sizeof (serv_addr));
@@ -99,7 +101,8 @@ static int memcached_query_daemon (char *buffer, int buffer_size, user_data_t *u
        return -1;
      }
   }
-  else {
+  else
+  {
     const char *host;
     const char *port;
 
@@ -243,6 +246,27 @@ static int memcached_query_daemon (char *buffer, int buffer_size, user_data_t *u
   return 0;
 }
 
+static int memcached_add_read_callback (memcached_t *st)
+{
+  user_data_t ud;
+  char callback_name[3*DATA_MAX_NAME_LEN];
+  int status;
+
+  memset (&ud, 0, sizeof (ud));
+  ud.data = st;
+  ud.free_func = (void *) memcached_free;
+
+  assert (st->name != NULL);
+  ssnprintf (callback_name, sizeof (callback_name), "memcached/%s", st->name);
+
+  status = plugin_register_complex_read (/* group = */ "memcached",
+      /* name      = */ callback_name,
+      /* callback  = */ memcached_read,
+      /* interval  = */ NULL,
+      /* user_data = */ &ud);
+  return (status);
+} /* int memcached_add_read_callback */
+
 /* Configuration handling functiions
  * <Plugin memcached>
  *   <Instance "instance_name">
@@ -255,30 +279,28 @@ static int config_add_instance(oconfig_item_t *ci)
 {
   memcached_t *st;
   int i;
-  int status;
+  int status = 0;
 
-  if ((ci->values_num != 1)
-    || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("memcached plugin: The `%s' config option "
-      "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
+  /* Disable automatic generation of default instance in the init callback. */
+  memcached_have_instances = 1;
 
-  st = (memcached_t *) malloc (sizeof (*st));
+  st = malloc (sizeof (*st));
   if (st == NULL)
   {
     ERROR ("memcached plugin: malloc failed.");
     return (-1);
   }
 
+  memset (st, 0, sizeof (*st));
   st->name = NULL;
   st->socket = NULL;
   st->host = NULL;
   st->port = NULL;
-  memset (st, 0, sizeof (*st));
 
-  status = cf_util_get_string (ci, &st->name);
+  if (strcasecmp (ci->key, "Plugin") == 0) /* default instance */
+    st->name = sstrdup ("default");
+  else /* <Instance /> block */
+    status = cf_util_get_string (ci, &st->name);
   if (status != 0)
   {
     sfree (st);
@@ -308,26 +330,7 @@ static int config_add_instance(oconfig_item_t *ci)
   }
 
   if (status == 0)
-  {
-    user_data_t ud;
-    char callback_name[3*DATA_MAX_NAME_LEN];
-
-    memset (&ud, 0, sizeof (ud));
-    ud.data = st;
-    ud.free_func = (void *) memcached_free;
-
-    memset (callback_name, 0, sizeof (callback_name));
-    ssnprintf (callback_name, sizeof (callback_name),
-        "memcached/%s/%s",
-        (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
-        (st->port != NULL) ? st->port : MEMCACHED_DEF_PORT)
-
-    status = plugin_register_complex_read (/* group = */ "memcached",
-        /* name      = */ callback_name,
-        /* callback  = */ memcached_read,
-        /* interval  = */ NULL,
-        /* user_data = */ &ud);
-  }
+    status = memcached_add_read_callback (st);
 
   if (status != 0)
   {
@@ -341,6 +344,7 @@ static int config_add_instance(oconfig_item_t *ci)
 static int memcached_config (oconfig_item_t *ci)
 {
   int status = 0;
+  _Bool have_instance_block = 0;
   int i;
 
   for (i = 0; i < ci->children_num; i++)
@@ -348,7 +352,16 @@ static int memcached_config (oconfig_item_t *ci)
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Instance", child->key) == 0)
+    {
       config_add_instance (child);
+      have_instance_block = 1;
+    }
+    else if (!have_instance_block)
+    {
+      /* Non-instance option: Assume legacy configuration (without <Instance />
+       * blocks) and call config_add_instance() with the <Plugin /> block. */
+      return (config_add_instance (ci));
+    }
     else
       WARNING ("memcached plugin: The configuration option "
           "\"%s\" is not allowed here. Did you "
@@ -359,6 +372,33 @@ static int memcached_config (oconfig_item_t *ci)
 
   return (status);
 }
+
+static int memcached_init (void)
+{
+  memcached_t *st;
+  int status;
+
+  if (memcached_have_instances)
+    return (0);
+
+  /* No instances were configured, lets start a default instance. */
+  st = malloc (sizeof (*st));
+  if (st == NULL)
+    return (ENOMEM);
+  memset (st, 0, sizeof (*st));
+  st->name = sstrdup ("default");
+  st->socket = NULL;
+  st->host = NULL;
+  st->port = NULL;
+
+  status = memcached_add_read_callback (st);
+  if (status == 0)
+    memcached_have_instances = 1;
+  else
+    memcached_free (st);
+
+  return (status);
+} /* int memcached_init */
 
 static void submit_derive (const char *type, const char *type_inst,
     derive_t value, memcached_t *st)
@@ -610,4 +650,5 @@ static int memcached_read (user_data_t *user_data)
 void module_register (void)
 {
   plugin_register_complex_config ("memcached", memcached_config);
+  plugin_register_init ("memcached", memcached_init);
 }
