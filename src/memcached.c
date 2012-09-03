@@ -231,20 +231,36 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
   return (status);
 } /* int memcached_query_daemon */
 
+static void memcached_init_vl (value_list_t *vl, memcached_t const *st)
+{
+  sstrncpy (vl->plugin, "memcached", sizeof (vl->plugin));
+  if (strcmp (st->name, "__legacy__") == 0) /* legacy mode */
+  {
+    sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+  }
+  else
+  {
+    if (st->socket != NULL)
+      sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+    else
+      sstrncpy (vl->host,
+          (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
+          sizeof (vl->host));
+    sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
+  }
+}
+
 static void submit_derive (const char *type, const char *type_inst,
     derive_t value, memcached_t *st)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
+  memcached_init_vl (&vl, st);
 
   values[0].derive = value;
 
   vl.values = values;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
-  if (st->name != NULL)
-    sstrncpy (vl.plugin_instance, st->name,  sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
     sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -257,16 +273,13 @@ static void submit_derive2 (const char *type, const char *type_inst,
 {
   value_t values[2];
   value_list_t vl = VALUE_LIST_INIT;
+  memcached_init_vl (&vl, st);
 
   values[0].derive = value0;
   values[1].derive = value1;
 
   vl.values = values;
   vl.values_len = 2;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
-  if (st->name != NULL)
-    sstrncpy (vl.plugin_instance, st->name,  sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
     sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -279,15 +292,12 @@ static void submit_gauge (const char *type, const char *type_inst,
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
+  memcached_init_vl (&vl, st);
 
   values[0].gauge = value;
 
   vl.values = values;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
-  if (st->name != NULL)
-    sstrncpy (vl.plugin_instance, st->name,  sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
     sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -300,16 +310,13 @@ static void submit_gauge2 (const char *type, const char *type_inst,
 {
   value_t values[2];
   value_list_t vl = VALUE_LIST_INIT;
+  memcached_init_vl (&vl, st);
 
   values[0].gauge = value0;
   values[1].gauge = value1;
 
   vl.values = values;
   vl.values_len = 2;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "memcached", sizeof (vl.plugin));
-  if (st->name != NULL)
-    sstrncpy (vl.plugin_instance, st->name,  sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
     sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -530,7 +537,7 @@ static int config_add_instance(oconfig_item_t *ci)
   st->port = NULL;
 
   if (strcasecmp (ci->key, "Plugin") == 0) /* default instance */
-    st->name = sstrdup ("default");
+    st->name = sstrdup ("__legacy__");
   else /* <Instance /> block */
     status = cf_util_get_string (ci, &st->name);
   if (status != 0)
@@ -618,7 +625,7 @@ static int memcached_init (void)
   if (st == NULL)
     return (ENOMEM);
   memset (st, 0, sizeof (*st));
-  st->name = sstrdup ("default");
+  st->name = sstrdup ("__legacy__");
   st->socket = NULL;
   st->host = NULL;
   st->port = NULL;
