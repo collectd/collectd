@@ -79,7 +79,7 @@ static int memcached_connect_unix (memcached_t *st)
   if (fd < 0)
   {
     char errbuf[1024];
-    ERROR ("memcached: memcached_connect_unix: socket(2) failed: %s",
+    ERROR ("memcached plugin: memcached_connect_unix: socket(2) failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
@@ -114,7 +114,8 @@ static int memcached_connect_inet (memcached_t *st)
   if (status != 0)
   {
     char errbuf[1024];
-    ERROR ("memcached: memcached_connect_inet: getaddrinfo(%s,%s) failed: %s",
+    ERROR ("memcached plugin: memcached_connect_inet: "
+        "getaddrinfo(%s,%s) failed: %s",
         host, port,
         (status == EAI_SYSTEM)
         ? sstrerror (errno, errbuf, sizeof (errbuf))
@@ -129,7 +130,8 @@ static int memcached_connect_inet (memcached_t *st)
     if (fd < 0)
     {
       char errbuf[1024];
-      WARNING ("memcached: memcached_connect_inet: socket(2) failed: %s",
+      WARNING ("memcached plugin: memcached_connect_inet: "
+          "socket(2) failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       continue;
     }
@@ -168,7 +170,8 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
 
   fd = memcached_connect (st);
   if (fd < 0) {
-    ERROR ("memcached: Could not connect to daemon.");
+    ERROR ("memcached plugin: Instance \"%s\" could not connect to daemon.",
+        st->name);
     return -1;
   }
 
