@@ -4637,6 +4637,7 @@ fi
 if test "x$with_perfstat" = "xyes"
 then
 	plugin_cpu="yes"
+	plugin_contextswitch="yes"
 	plugin_disk="yes"
 	plugin_memory="yes"
 	plugin_swap="yes"
