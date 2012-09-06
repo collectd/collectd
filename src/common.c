@@ -637,7 +637,7 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 
 	if (ksp == NULL)
 	{
-		ERROR ("get_kstat_value (\"%s\"): ksp is NULL.", name)
+		ERROR ("get_kstat_value (\"%s\"): ksp is NULL.", name);
 		return (-1LL);
 	}
 	else if (ksp->ks_type != KSTAT_TYPE_NAMED)
