@@ -6,17 +6,17 @@
 #
 # Distributed under terms of the GPLv2 license.
 # 
-# Frank Marien (frank@apsu.be) 4 Sep 2012
+# Frank Marien (frank@apsu.be) 6 Sep 2012
 # - quick fixes for 5.1 binary protocol
-# - updated for python 3
+# - updated to python 3
 # - fixed for larger packet sizes (possible on lo interface)
+# - fixed comment typo (decode_network_string decodes a string)
 
 """
 Collectd network protocol implementation.
 """
 
-import socket
-import struct
+import socket,struct,sys
 try:
   from io import StringIO
 except ImportError:
@@ -35,7 +35,7 @@ DEFAULT_IPv4_GROUP = "239.192.74.66"
 DEFAULT_IPv6_GROUP = "ff18::efc0:4a42"
 """Default IPv6 multicast group"""
 
-
+HR_TIME_DIV = (2.0**30)
 
 # Message kinds
 TYPE_HOST            = 0x0000
@@ -59,12 +59,10 @@ DS_TYPE_GAUGE        = 1
 DS_TYPE_DERIVE       = 2
 DS_TYPE_ABSOLUTE     = 3
 
-
 header = struct.Struct("!2H")
 number = struct.Struct("!Q")
 short  = struct.Struct("!H")
 double = struct.Struct("<d")
-
 
 def decode_network_values(ptype, plen, buf):
     """Decodes a list of DS values in collectd network format
@@ -98,13 +96,13 @@ def decode_network_values(ptype, plen, buf):
 
 
 def decode_network_number(ptype, plen, buf):
-    """Decodes a number (64-bit unsigned) in collectd network format.
+    """Decodes a number (64-bit unsigned) from collectd network format.
     """
     return number.unpack_from(buf, header.size)[0]
 
 
 def decode_network_string(msgtype, plen, buf):
-    """Decodes a floating point number (64-bit) in collectd network format.
+    """Decodes a string from collectd network format.
     """
     return buf[header.size:plen-1]
 
@@ -230,11 +228,11 @@ def interpret_opcodes(iterable):
         if kind == TYPE_TIME:
             vl.time = nt.time = data
         elif kind == TYPE_TIME_HR:
-            vl.time = nt.time = data
+            vl.time = nt.time = data / HR_TIME_DIV
         elif kind == TYPE_INTERVAL:
             vl.interval = data
         elif kind == TYPE_INTERVAL_HR:
-            vl.interval = data
+            vl.interval = data / HR_TIME_DIV
         elif kind == TYPE_HOST:
             vl.host = nt.host = data
         elif kind == TYPE_PLUGIN:
