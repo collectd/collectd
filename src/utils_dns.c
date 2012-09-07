@@ -45,6 +45,12 @@
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+#if HAVE_NETINET_IP_COMPAT_H
+# include <netinet/ip_compat.h>
+#endif
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif
@@ -449,7 +455,7 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
     unsigned int offset;
     int nexthdr;
 
-    struct in6_addr s_addr;
+    struct in6_addr c_src_addr;
     uint16_t payload_len;
 
     if (0 > len)
@@ -457,10 +463,10 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
 
     offset = sizeof (struct ip6_hdr);
     nexthdr = ipv6->ip6_nxt;
-    s_addr = ipv6->ip6_src;
+    c_src_addr = ipv6->ip6_src;
     payload_len = ntohs (ipv6->ip6_plen);
 
-    if (ignore_list_match (&s_addr))
+    if (ignore_list_match (&c_src_addr))
 	    return (0);
 
     /* Parse extension headers. This only handles the standard headers, as
@@ -468,7 +474,6 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
     while ((IPPROTO_ROUTING == nexthdr) /* routing header */
 	    || (IPPROTO_HOPOPTS == nexthdr) /* Hop-by-Hop options. */
 	    || (IPPROTO_FRAGMENT == nexthdr) /* fragmentation header. */
-	    || (IPPROTO_DSTOPTS == nexthdr) /* destination options. */
 	    || (IPPROTO_DSTOPTS == nexthdr) /* destination options. */
 	    || (IPPROTO_AH == nexthdr) /* destination options. */
 	    || (IPPROTO_ESP == nexthdr)) /* encapsulating security payload. */
@@ -527,15 +532,15 @@ handle_ip(const struct ip *ip, int len)
 {
     char buf[PCAP_SNAPLEN];
     int offset = ip->ip_hl << 2;
-    struct in6_addr s_addr;
-    struct in6_addr d_addr;
+    struct in6_addr c_src_addr;
+    struct in6_addr c_dst_addr;
 
     if (ip->ip_v == 6)
 	return (handle_ipv6 ((void *) ip, len));
 
-    in6_addr_from_buffer (&s_addr, &ip->ip_src.s_addr, sizeof (ip->ip_src.s_addr), AF_INET);
-    in6_addr_from_buffer (&d_addr, &ip->ip_dst.s_addr, sizeof (ip->ip_dst.s_addr), AF_INET);
-    if (ignore_list_match (&s_addr))
+    in6_addr_from_buffer (&c_src_addr, &ip->ip_src.s_addr, sizeof (ip->ip_src.s_addr), AF_INET);
+    in6_addr_from_buffer (&c_dst_addr, &ip->ip_dst.s_addr, sizeof (ip->ip_dst.s_addr), AF_INET);
+    if (ignore_list_match (&c_src_addr))
 	    return (0);
     if (IPPROTO_UDP != ip->ip_p)
 	return 0;

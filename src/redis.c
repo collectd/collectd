@@ -28,6 +28,10 @@
 #include <pthread.h>
 #include <credis.h>
 
+#ifndef HOST_NAME_MAX
+# define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+#endif
+
 #define REDIS_DEF_HOST   "localhost"
 #define REDIS_DEF_PORT    6379
 #define REDIS_DEF_TIMEOUT 2000

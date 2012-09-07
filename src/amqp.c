@@ -650,6 +650,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
 
     camqp_config_free (conf);
     pthread_exit (NULL);
+    return (NULL);
 } /* }}} void *camqp_subscribe_thread */
 
 static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
