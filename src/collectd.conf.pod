@@ -25,22 +25,32 @@ controls which plugins to load. These plugins ultimately define collectd's
 behavior.
 
 The syntax of this config file is similar to the config file of the famous
-B<Apache Webserver>. Each line contains either a key-value-pair or a
-section-start or -end. Empty lines and everything after the hash-symbol `#' is
-ignored. Values are either string, enclosed in double-quotes,
-(floating-point-)numbers or a boolean expression, i.E<nbsp>e. either B<true> or
-B<false>. String containing of only alphanumeric characters and underscores do
-not need to be quoted. Lines may be wrapped by using `\' as the last character
-before the newline. This allows long lines to be split into multiple lines.
-Quoted strings may be wrapped as well. However, those are treated special in
-that whitespace at the beginning of the following lines will be ignored, which
-allows for nicely indenting the wrapped lines.
+I<Apache> webserver. Each line contains either an option (a key and a list of
+one or more values) or a section-start or -end. Empty lines and everything
+after a non-quoted hash-symbol (C<#>) is ignored. I<Keys> are unquoted
+strings, consisting only of alphanumeric characters and the underscore (C<_>)
+character. Keys are handled case insensitive by I<collectd> itself and all
+plugins included with it. I<Values> can either be an I<unquoted string>, a
+I<quoted string> (enclosed in double-quotes) a I<number> or a I<boolean>
+expression. I<Unquoted strings> consist of only alphanumeric characters and
+underscores (C<_>) and do not need to be quoted. I<Quoted strings> are
+enclosed in double quotes (C<">). You can use the backslash character (C<\>)
+to include double quotes as part of the string. I<Numbers> can be specified in
+decimal and floating point format (using a dot C<.> as decimal separator),
+hexadecimal when using the C<0x> prefix and octal with a leading zero (C<0>).
+I<Boolean> values are either B<true> or B<false>.
 
-The configuration is read and processed in order, i.E<nbsp>e. from top to
-bottom. So the plugins are loaded in the order listed in this config file. It
-is a good idea to load any logging plugins first in order to catch messages
-from plugins during configuration. Also, the C<LoadPlugin> option B<must> occur
-B<before> the C<E<lt>Plugin ...E<gt>> block.
+Lines may be wrapped by using C<\> as the last character before the newline.
+This allows long lines to be split into multiple lines. Quoted strings may be
+wrapped as well. However, those are treated special in that whitespace at the
+beginning of the following lines will be ignored, which allows for nicely
+indenting the wrapped lines.
+
+The configuration is read and processed in order, i.e. from top to bottom. So
+the plugins are loaded in the order listed in this config file. It is a good
+idea to load any logging plugins first in order to catch messages from plugins
+during configuration. Also, the C<LoadPlugin> option B<must> occur B<before>
+the appropriate C<E<lt>Plugin ...E<gt>> block.
 
 =head1 GLOBAL OPTIONS
 

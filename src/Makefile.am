@@ -46,7 +46,7 @@ collectd_SOURCES = collectd.c collectd.h \
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD =
+collectd_LDADD = -lm
 collectd_DEPENDENCIES =
 
 # Link to these libraries..
@@ -73,7 +73,6 @@ collectd_LDADD += -ldevinfo
 endif
 if BUILD_AIX
 collectd_LDFLAGS += -Wl,-bexpall,-brtllib
-collectd_LDADD += -lm
 endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
