@@ -886,10 +886,12 @@ static int csnmp_check_res_left_subtree (const host_definition_t *host,
       vb = vb->next_variable, i++)
   {
     num_checked++;
-    if (snmp_oid_ncompare (data->values[i].oid,
-	  data->values[i].oid_len,
-	  vb->name, vb->name_length,
-	  data->values[i].oid_len) != 0)
+
+    if ((vb->type == SNMP_ENDOFMIBVIEW)
+	|| (snmp_oid_ncompare (data->values[i].oid,
+	    data->values[i].oid_len,
+	    vb->name, vb->name_length,
+	    data->values[i].oid_len) != 0))
       num_left_subtree++;
   }
 
