@@ -228,6 +228,8 @@ static int df_read (void)
 		{
 			if (strcmp (mnt_ptr->dir, "/") == 0)
 			{
+				if (strcmp (mnt_ptr->type, "rootfs") == 0)
+					continue;
 				sstrncpy (disk_name, "root", sizeof (disk_name));
 			}
 			else

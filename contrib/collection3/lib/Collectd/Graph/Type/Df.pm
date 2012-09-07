@@ -34,7 +34,7 @@ sub new
   my $obj = Collectd::Graph::Type->new (@_);
   $obj->{'data_sources'} = [qw(free used)];
   $obj->{'rrd_opts'} = ['-v', 'Bytes'];
-  $obj->{'rrd_title'} = 'Disk space ({type_instance})';
+  $obj->{'rrd_title'} = 'Disk space ({instance})';
   $obj->{'rrd_format'} = '%5.1lf%sB';
   $obj->{'colors'} = [qw(00b000 ff0000)];
 
@@ -58,7 +58,7 @@ sub getRRDArgs
   my $faded_green = get_faded_color ('00ff00');
   my $faded_red = get_faded_color ('ff0000');
 
-  return (['-t', 'Diskspace (' . $ident->{'type_instance'} . ')', '-v', 'Bytes', '-l', '0',
+  return (['-t', $obj->getTitle ($ident), '-v', 'Bytes', '-l', '0',
     "DEF:free_min=${filename}:free:MIN",
     "DEF:free_avg=${filename}:free:AVERAGE",
     "DEF:free_max=${filename}:free:MAX",

@@ -301,7 +301,7 @@ static int csnmp_config_add_data_shift (data_definition_t *dd, oconfig_item_t *c
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
   {
-    WARNING ("snmp plugin: The `Scale' config option needs exactly one number argument.");
+    WARNING ("snmp plugin: The `Shift' config option needs exactly one number argument.");
     return (-1);
   }
 
@@ -871,10 +871,12 @@ static int csnmp_check_res_left_subtree (const host_definition_t *host,
       vb = vb->next_variable, i++)
   {
     num_checked++;
-    if (snmp_oid_ncompare (data->values[i].oid,
-	  data->values[i].oid_len,
-	  vb->name, vb->name_length,
-	  data->values[i].oid_len) != 0)
+
+    if ((vb->type == SNMP_ENDOFMIBVIEW)
+	|| (snmp_oid_ncompare (data->values[i].oid,
+	    data->values[i].oid_len,
+	    vb->name, vb->name_length,
+	    data->values[i].oid_len) != 0))
       num_left_subtree++;
   }
 
