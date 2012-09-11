@@ -2201,6 +2201,8 @@ then
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 				[
 AC_INCLUDES_DEFAULT
+#include <asm/types.h>
+#include <sys/socket.h>
 #if HAVE_LIBNETLINK_H
 # include <libnetlink.h>
 #elif HAVE_IPROUTE_LIBNETLINK_H
@@ -2226,6 +2228,8 @@ return 0;
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 				[
 AC_INCLUDES_DEFAULT
+#include <asm/types.h>
+#include <sys/socket.h>
 #if HAVE_LIBNETLINK_H
 # include <libnetlink.h>
 #elif HAVE_IPROUTE_LIBNETLINK_H
