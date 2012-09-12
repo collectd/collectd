@@ -4345,6 +4345,11 @@ and available space of each device will be reported separately.
 This option is only available if the I<Swap plugin> can read C</proc/swaps>
 (under Linux) or use the L<swapctl(2)> mechanism (under I<Solaris>).
 
+=item B<ReportBytes> B<false>|B<true>
+
+When enabled, the I<swap I/O> is reported in bytes. When disabled, the default,
+I<swap I/O> is reported in pages. This option is available under Linux only.
+
 =back
 
 =head2 Plugin C<syslog>

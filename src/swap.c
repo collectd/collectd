@@ -1,6 +1,6 @@
 /**
  * collectd - src/swap.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2012  Florian octo Forster
  * Copyright (C) 2009       Stefan Völkel
  * Copyright (C) 2009       Manuel Sanmartin
  * Copyright (C) 2010       Aurélien Reynaud
@@ -70,13 +70,16 @@
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
 #if KERNEL_LINUX
-# define SWAP_HAVE_CONFIG 1
-/* No global variables */
+# define SWAP_HAVE_REPORT_BY_DEVICE 1
+static derive_t pagesize;
+static _Bool report_bytes = 0;
+static _Bool report_by_device = 0;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
-# define SWAP_HAVE_CONFIG 1
+# define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
+static _Bool report_by_device = 0;
 /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif defined(VM_SWAPUSAGE)
@@ -101,23 +104,37 @@ static perfstat_memory_total_t pmemory;
 # error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
-#if SWAP_HAVE_CONFIG
 static const char *config_keys[] =
 {
+	"ReportBytes",
 	"ReportByDevice"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static _Bool report_by_device = 0;
-
 static int swap_config (const char *key, const char *value) /* {{{ */
 {
-	if (strcasecmp ("ReportByDevice", key) == 0)
+	if (strcasecmp ("ReportBytes", key) == 0)
 	{
+#if KERNEL_LINUX
+		report_bytes = IS_TRUE (value) ? 1 : 0;
+#else
+		WARNING ("swap plugin: The \"ReportBytes\" option is only "
+				"valid under Linux. "
+				"The option is going to be ignored.");
+#endif
+	}
+	else if (strcasecmp ("ReportByDevice", key) == 0)
+	{
+#if SWAP_HAVE_REPORT_BY_DEVICE
 		if (IS_TRUE (value))
 			report_by_device = 1;
 		else
 			report_by_device = 0;
+#else
+		WARNING ("swap plugin: The \"ReportByDevice\" option is not "
+				"supported on this platform. "
+				"The option is going to be ignored.");
+#endif /* SWAP_HAVE_REPORT_BY_DEVICE */
 	}
 	else
 	{
@@ -126,12 +143,11 @@ static int swap_config (const char *key, const char *value) /* {{{ */
 
 	return (0);
 } /* }}} int swap_config */
-#endif /* SWAP_HAVE_CONFIG */
 
 static int swap_init (void) /* {{{ */
 {
 #if KERNEL_LINUX
-	/* No init stuff */
+	pagesize = (derive_t) sysconf (_SC_PAGESIZE);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
@@ -405,6 +421,12 @@ static int swap_read_io (void) /* {{{ */
 
 	if (have_data != 0x03)
 		return (ENOENT);
+
+	if (report_bytes)
+	{
+		swap_in = swap_in * pagesize;
+		swap_out = swap_out * pagesize;
+	}
 
 	swap_submit_derive (NULL, "in",  swap_in);
 	swap_submit_derive (NULL, "out", swap_out);
@@ -773,9 +795,8 @@ static int swap_read (void) /* {{{ */
 
 void module_register (void)
 {
-#if SWAP_HAVE_CONFIG
-	plugin_register_config ("swap", swap_config, config_keys, config_keys_num);
-#endif
+	plugin_register_config ("swap", swap_config,
+			config_keys, config_keys_num);
 	plugin_register_init ("swap", swap_init);
 	plugin_register_read ("swap", swap_read);
 } /* void module_register */
