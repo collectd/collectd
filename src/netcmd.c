@@ -1146,8 +1146,8 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
       pthread_attr_init (&th_attr);
       pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
 
-      status = pthread_create (&th, &th_attr, nc_handle_client,
-          conn);
+      status = pthread_create (&th, &th_attr, nc_handle_client, conn);
+      pthread_attr_destroy (&th_attr);
       if (status != 0)
       {
         WARNING ("netcmd plugin: pthread_create failed: %s",
