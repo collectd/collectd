@@ -818,10 +818,6 @@ FQDNLookup   true
 #   </Host>
 #</Plugin>
 
-#<Plugin "swap">
-#	ReportBytes true
-#</Plugin>
-
 #<Plugin "table">
 #	<Table "/proc/slabinfo">
 #		Instance "slabinfo"

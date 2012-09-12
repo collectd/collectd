@@ -4031,23 +4031,6 @@ Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
 
-=head2 Plugin C<swap>
-
-The C<swap plugin> reports the number of bytes currently swapped out and the
-amount of swap space available. The precise metrics being exported depends on
-your operating system.
-
-Options:
-
-=over 4
-
-=item B<ReportBytes> B<false>|B<true>
-
-When enabled, the I<swap I/O> is reported in bytes. When disabled, the default,
-I<swap I/O> is reported in pages. This option is available under Linux only.
-
-=back
-
 =head2 Plugin C<syslog>
 
 =over 4
