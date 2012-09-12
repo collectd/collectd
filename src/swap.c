@@ -1,6 +1,6 @@
 /**
  * collectd - src/swap.c
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2012  Florian octo Forster
  * Copyright (C) 2009       Stefan Völkel
  * Copyright (C) 2009       Manuel Sanmartin
  *
@@ -68,7 +68,8 @@
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
 #if KERNEL_LINUX
-/* No global variables */
+static derive_t pagesize;
+static _Bool report_bytes = 0;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -102,10 +103,16 @@ static perfstat_memory_total_t pmemory;
 # error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
+static const char *config_keys[] =
+{
+	"ReportBytes"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
 static int swap_init (void)
 {
 #if KERNEL_LINUX
-	/* No init stuff */
+	pagesize = (derive_t) sysconf (_SC_PAGESIZE);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -282,6 +289,12 @@ static int swap_read (void)
 		char errbuf[1024];
 		WARNING ("swap: fclose: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
+
+	if (report_bytes)
+	{
+		swap_in  *= pagesize;
+		swap_out *= pagesize;
 	}
 
 	swap_submit ("used",   1024 * swap_used,   DS_TYPE_GAUGE);
@@ -490,8 +503,30 @@ static int swap_read (void)
 	return (0);
 } /* int swap_read */
 
+static int swap_config (const char *key, const char *value)
+{
+	if (strcasecmp ("ReportBytes", key) == 0)
+	{
+#if KERNEL_LINUX
+		report_bytes = IS_TRUE (value) ? 1 : 0;
+#else
+		WARNING ("swap plugin: The \"ReportBytes\" option is only "
+				"valid under Linux. The option is going to "
+				"be ignored.");
+#endif
+	}
+	else
+	{
+		return (-1);
+	}
+
+	return (0);
+} /* int swap_config */
+
 void module_register (void)
 {
+	plugin_register_config ("swap", swap_config,
+			config_keys, config_keys_num);
 	plugin_register_init ("swap", swap_init);
 	plugin_register_read ("swap", swap_read);
 } /* void module_register */
