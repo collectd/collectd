@@ -235,7 +235,7 @@ static int udb_legacy_result_handle_result (udb_result_t *r, /* {{{ */
 
   sstrncpy (vl.host, q_area->host, sizeof (vl.host));
   sstrncpy (vl.plugin, q_area->plugin, sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.type_instance));
+  sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, r->type, sizeof (vl.type));
 
   if (r->instance_prefix != NULL)
@@ -398,7 +398,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
 
   sstrncpy (vl.host, q_area->host, sizeof (vl.host));
   sstrncpy (vl.plugin, q_area->plugin, sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.type_instance));
+  sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, r->type, sizeof (vl.type));
 
   /* Set vl.type_instance {{{ */
