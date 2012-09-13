@@ -18,69 +18,99 @@
 #include "collectd.h"
 #include "plugin.h"
 
-static char *pf_device = "/dev/pf";
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/pfvar.h>
+#include <paths.h>
+#include <err.h>
+#include <pwd.h>
 
-static void submit_counter (char const *type, char const *inst,
-		counter_t val, _Bool usegauge)
+static char const *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
+static char const *pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
+static char const *pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
+static char const *pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
+
+static char const *pf_device = "/dev/pf";
+
+static void pf_submit (char const *type, char const *type_instance,
+		uint64_t val, _Bool is_gauge)
 {
 	value_t		values[1];
 	value_list_t	vl = VALUE_LIST_INIT;
 
-	if (usegauge)
-		values[0].gauge = val;
+	if (is_gauge)
+		values[0].gauge = (gauge_t) val;
 	else
-		values[0].counter = val;
+		values[0].derive = (derive_t) val;
 
 	vl.values = values;
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "pf", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof(vl.type));
-	sstrncpy (vl.type_instance, inst, sizeof(vl.type_instance));
+	sstrncpy (vl.type_instance, type_instance, sizeof(vl.type_instance));
+
 	plugin_dispatch_values(&vl);
-}
+} /* void pf_submit */
 
 static int pf_read (void)
 {
-	struct pf_status	status;
-	int			pfdev = -1;
-	int			i;
+	struct pf_status state;
+	int fd;
+	int status;
+	int i;
 
-	char		*cnames[] = PFRES_NAMES;
-	char		*lnames[] = LCNT_NAMES;
-	char		*names[] = { "searches", "inserts", "removals" };
-
-	if ((pfdev = open(pf_device, O_RDONLY)) == -1) {
-		ERROR("unable to open %s", pf_device);
+	fd = open (pf_device, O_RDONLY);
+	if (fd < 0)
+	{
+		char errbuf[1024];
+		ERROR("pf plugin: Unable to open %s: %s",
+				pf_device,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
-	if (ioctl(pfdev, DIOCGETSTATUS, &status) == -1) {
-		ERROR("DIOCGETSTATUS: %i", pfdev);
-		close(pfdev);
+	memset (&state, 0, sizeof (state));
+	status = ioctl (fd, DIOCGETSTATUS, &state);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		ERROR("pf plugin: ioctl(DIOCGETSTATUS) failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		close(fd);
 		return (-1);
 	}
 
-	close(pfdev);
+	close (fd);
+	fd = -1;
 
 	if (!status.running)
+	{
+		WARNING ("pf plugin: PF is not running.");
 		return (-1);
+	}
 
 	for (i = 0; i < PFRES_MAX; i++)
-		submit_counter("pf_counters", cnames[i], status.counters[i], 0);
+		pf_submit ("pf_counters", pf_reasons[i], state.counters[i],
+				/* is gauge = */ 0);
 	for (i = 0; i < LCNT_MAX; i++)
-		submit_counter("pf_limits", lnames[i], status.lcounters[i], 0);
+		pf_submit ("pf_limits", pf_lcounters[i], state.lcounters[i],
+				/* is gauge = */ 0);
 	for (i = 0; i < FCNT_MAX; i++)
-		submit_counter("pf_state", names[i], status.fcounters[i], 0);
+		pf_submit ("pf_state", pf_fcounters[i], state.fcounters[i],
+				/* is gauge = */ 0);
 	for (i = 0; i < SCNT_MAX; i++)
-		submit_counter("pf_source", names[i], status.scounters[i], 0);
+		pf_submit ("pf_source", pf_scounters[i], state.scounters[i],
+				/* is gauge = */ 0);
 
-	submit_counter("pf_states", "current", status.states, 1);
+	pf_submit ("pf_states", "current", (uint32_t) state.states,
+			/* is gauge = */ 1);
 
 	return (0);
-}
+} /* int pf_read */
 
 void module_register (void)
 {
-	plugin_register_read("pf", pf_read);
+	plugin_register_read ("pf", pf_read);
 }
