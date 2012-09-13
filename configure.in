@@ -4060,7 +4060,7 @@ AC_ARG_WITH(libvarnish, [AS_HELP_STRING([--with-libvarnish@<:@=PREFIX@:>@], [Pat
 	then
 		AC_MSG_NOTICE([Not checking for libvarnish: Manually configured])
 		with_libvarnish_cflags="-I$withval/include"
-		with_libvarnish_libs="-L$withval/lib -lvarnish -lvarnishcompat -lvarnishapi"
+		with_libvarnish_libs="-L$withval/lib -lvarnishapi"
 		with_libvarnish="yes"
 	fi; fi; fi
 ],
