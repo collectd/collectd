@@ -81,26 +81,31 @@ static const char *config_keys[] =
 };
 static int config_keys_num = 2;
 
-/* Close the network connection */
-static int apcups_shutdown (void)
+static int net_shutdown (int *fd)
 {
 	uint16_t packet_size = 0;
 
+	if ((fd == NULL) || (*fd < 0))
+		return (EINVAL);
+
+	swrite (*fd, (void *) &packet_size, sizeof (packet_size));
+	close (*fd);
+	*fd = -1;
+
+	return (0);
+} /* int net_shutdown */
+
+/* Close the network connection */
+static int apcups_shutdown (void)
+{
 	if (global_sockfd < 0)
 		return (0);
 
-	DEBUG ("Gracefully shutting down socket %i.", global_sockfd);
-
-	/* send EOF sentinel */
-	swrite (global_sockfd, (void *) &packet_size, sizeof (packet_size));
-
-	close (global_sockfd);
-	global_sockfd = -1;
-
+	net_shutdown (&global_sockfd);
 	return (0);
 } /* int apcups_shutdown */
 
-/*     
+/*
  * Open a TCP connection to the UPS network server
  * Returns -1 on error
  * Returns socket file descriptor otherwise
