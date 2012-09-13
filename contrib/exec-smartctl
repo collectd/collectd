@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Sample script for the exec plugin (collectd-exec(5))
+#
+# This script uses smartctl(8) to read HDD temperatures. The drives are
+# attached to a 3ware RAID controller which hddtempd can't handle.
+# Unfortunately the smartmontools don't have a library so we can't write a
+# C-plugin, at least not easily.
+# Please note that only root can read the SMART attributes from harddrives,
+# because special ``capabilities'' are necessary. However, the exec plugin will
+# refuse to run scripts as root, which is why `sudo' is used here for
+# fine-grained root privileges for the user `smart'. This isn't as straigt
+# forward as one might hope, but we think that the gained security is worth it.
+
+# The sudo configuration looks something like this:
+# -- 8< --
+# Cmnd_Alias      SMARTCTL = /usr/sbin/smartctl -d 3ware\,0 -A /dev/twe0, /usr/sbin/smartctl -d 3ware\,1 -A /dev/twe0, /usr/sbin/smartctl -d ata -A /dev/sda
+# smart   ALL = (root) NOPASSWD: SMARTCTL
+# -- >8 --
+
+HOSTNAME="${COLLECTD_HOSTNAME:-`hostname -f`}"
+INTERVAL="${COLLECTD_INTERVAL:-60}"
+
+while sleep "$INTERVAL"
+do
+	TEMP=$((sudo smartctl -d 3ware,0 -A /dev/twe0 | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
+	if [ $? -ne 0 ]
+	then
+		TEMP="U"
+	fi
+	echo "PUTVAL $HOSTNAME/exec-smart/temperature-3ware_0 interval=$INTERVAL N:$TEMP"
+
+	TEMP=$((sudo smartctl -d 3ware,1 -A /dev/twe0 | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
+	if [ $? -ne 0 ]
+	then
+		TEMP="U"
+	fi
+	echo "PUTVAL $HOSTNAME/exec-smart/temperature-3ware_1 interval=$INTERVAL N:$TEMP"
+
+	TEMP=$((sudo smartctl -d ata -A /dev/sda | grep Temperature_Celsius | awk '{ print $10; }') 2>/dev/null);
+	if [ $? -ne 0 ]
+	then
+		TEMP="U"
+	fi
+	echo "PUTVAL $HOSTNAME/exec-smart/temperature-sata_0 interval=$INTERVAL N:$TEMP"
+done

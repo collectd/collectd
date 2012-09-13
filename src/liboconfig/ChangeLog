@@ -1,0 +1,5 @@
+2007-02-15, Version 0.1.1
+	* src/parser.y: Fixes a memory leak.
+
+2007-02-11, Version 0.1.0
+	* Initial release.

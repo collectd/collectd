@@ -1,0 +1,108 @@
+The files in this directory may be used to perform common tasks that aren't
+exactly `collectd's job. They may or may not require in-depth knowledge of RRD
+files and/or `collectd's inner workings. Use at your own risk.
+
+add_rra.sh
+----------
+  Before version 3.9.0 collectd used to create a different set of RRAs. The
+most detailed of these old RRAs had a one minute resolution. This script can
+be used to add three more RRAs: minimum, maximum and average with a ten second
+resolution and 2200 rows (~6 hours). This will make hourly statistics much more
+interesting. Please note that no sanity- checking whatsoever is performed. You
+can seriously fuck up your RRD files if you don't know what you're doing.
+
+collectd-network.py
+-------------------
+  This Python module by Adrian Perez implements the collectd network protocol
+in pure Python. It currently supports to receive data and notifications from
+collectd.
+
+collectd-unixsock.py
+--------------------
+  This Python module by Clay Loveless provides an interface to collect's
+unixsock plugin.
+
+collectd2html.pl
+----------------
+  This script by Vincent Stehlé will search for RRD files in
+`/var/lib/collectd/' and generate an HTML file and a directory containing
+several PNG files which are graphs of the RRD files found.
+
+collection.cgi
+--------------
+  Sample CGI script that creates graphs on the fly. The Perl modules `RRDs'
+(Debian package `librrds-perl'), `URI:Escape' (package liburi-perl),
+`HTML::Entities' (package libhtml-parser-perl) and a CGI capable web server
+(e.g. apache2 or boa) are needed. Simply install the script to a place where
+the webserver will treat it as a CGI script (/usr/lib/cgi-bin/ by default) and
+visit that page in a browser (http://localhost/cgi-bin/collection.cgi by
+default). Please refer to your webserver's documentation for more details.
+
+  Starting with version 4, collection.cgi requires a small config file, which
+should look something like this:
+
+  datadir: "/var/lib/collectd/rrd/"
+  libdir: "/usr/lib/collectd/"
+
+exec-munin.px
+-------------
+  Script to be used with the exec-plugin (see collectd-exec(5) for details)
+which executes munin plugins, parses the output and translates it to a format
+the exec-plugin understands. The features are limited - changing the munin
+plugins to use the output format understood by the exec-plugin is recommended.
+See the embedded POD documentation for more details:
+ $ perldoc contrib/exec-munin.px
+
+exec-smartctl
+-------------
+  Sample script for the exec plugin. Please refer to the documentation in the
+file - you will have to adapt it to your needs anyway.
+
+extractDS.px
+------------
+  Creates a new RRD-file with only one data-source (DS) of the source-RRD-
+file. That is very handy when you realise that you have bundled up DSes in one
+RRD-file that should have been in multiple RRD-files instead. Is is used by
+`migrate-3-4.px' to split up the cpu-, nfs-, swap-files and possibly others.
+
+fedora/
+-------
+  Init-script and Spec-file that can be used when creating RPM-packages for
+Fedora.
+
+GenericJMX.conf
+---------------
+  Example configuration file for the ‘GenericJMX’ Java plugin. Please read the
+documentation at the beginning of the file for more details.
+
+migrate-3-4.px
+--------------
+  Migration-script to ease the switch from version 3 to version 4. Many
+RRD-files are expected in a different place, some have been changed (DSes have
+been renamed) and others have bee split up into multiple files. This script
+prints a bash-script to STDOUT which should do most of the work for you. You
+may still need to do some things by hand, read `README.migration' for more
+details.
+
+redhat/
+-------
+  Spec-file and affiliated files to build an RedHat RPM package of collectd.
+
+snmp-data.conf
+--------------
+  Sample configuration for the SNMP plugin. This config includes a few standard
+<Data ..> definitions that you can include in your own config using the
+`Include' statement (available since version 4.2.0). The config includes some
+data that is defined in the IF-MIB, e. g. octet or packet counters, UPS-MIB and
+whatever people have send in. If you have some more definitions please send
+them in, so others can profit from it.
+
+solaris-smf
+-----------
+  Manifest file for the Solaris SMF system and detailed information on how to
+register collectd as a service with this system.
+
+collectd.service
+----------------
+  Service file for systemd. Please ship this file as
+  /lib/systemd/system/collectd.service in any linux package of collectd.

@@ -1,0 +1,43 @@
+ collection3 - Web frontend for collectd
+=========================================
+http://collectd.org/
+
+About
+-----
+
+  collection3 is a graphing front-end for the RRD files created by and filled
+  with collectd. It is written in Perl and should be run as an CGI-script.
+  Graphs are generated on-the-fly, so no cron job or similar is necessary.
+
+Layout
+------
+
+  The files used by collection3 are organized in a typical UNIX fashion: The
+  configuration resides in etc/, executable scripts are in bin/, supplementary
+  Perl modules are in lib/ and static data for displaying the web page are in
+  share/.
+
+  All files in all subdirectories except bin/ should NOT be executable.
+  Ideally, the webserver should not serve them either. Consider using
+  `.htaccess' files or other means to configure the web server to deny access
+  to these directories.
+
+Dependencies
+------------
+
+  collection3 depends on the following Perl modules not included in the Perl
+  distribution itself:
+
+  * Config::General
+  * Regexp::Common
+  * HTML::Entities
+  * RRDs
+
+Copyright and License
+---------------------
+
+  Copyright (C) 2008  Florian octo Forster <octo at verplant.org>
+
+  collection3 is provided under the terms of the GNU General Public License,
+  version 2 (GPLv2).
+

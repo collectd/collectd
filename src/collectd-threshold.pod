@@ -1,0 +1,201 @@
+=head1 NAME
+
+collectd-threshold - Documentation of collectd's I<Threshold plugin>
+
+=head1 SYNOPSIS
+
+ LoadPlugin "threshold"
+ <Plugin "threshold">
+   <Type "foo">
+     WarningMin    0.00
+     WarningMax 1000.00
+     FailureMin    0.00
+     FailureMax 1200.00
+     Invert false
+     Instance "bar"
+   </Type>
+ </Plugin>
+
+=head1 DESCRIPTION
+
+Starting with version C<4.3.0> I<collectd> has support for B<monitoring>. By
+that we mean that the values are not only stored or sent somewhere, but that
+they are judged and, if a problem is recognized, acted upon. The only action
+the I<Threshold plugin> takes itself is to generate and dispatch a
+I<notification>. Other plugins can register to receive notifications and
+perform appropriate further actions.
+
+Since systems and what you expect them to do differ a lot, you can configure
+I<thresholds> for your values freely. This gives you a lot of flexibility but
+also a lot of responsibility.
+
+Every time a value is out of range, a notification is dispatched. This means
+that the idle percentage of your CPU needs to be less then the configured
+threshold only once for a notification to be generated. There's no such thing
+as a moving average or similar - at least not now.
+
+Also, all values that match a threshold are considered to be relevant or
+"interesting". As a consequence collectd will issue a notification if they are
+not received for B<Timeout> iterations. The B<Timeout> configuration option is
+explained in section L<collectd.conf(5)/"GLOBAL OPTIONS">. If, for example,
+B<Timeout> is set to "2" (the default) and some hosts sends it's CPU statistics
+to the server every 60 seconds, a notification will be dispatched after about
+120 seconds. It may take a little longer because the timeout is checked only
+once each B<Interval> on the server.
+
+When a value comes within range again or is received after it was missing, an
+"OKAY-notification" is dispatched.
+
+=head1 CONFIGURATION
+
+Here is a configuration example to get you started. Read below for more
+information.
+
+ LoadPlugin "threshold"
+ <Plugin "threshold">
+   <Type "foo">
+     WarningMin    0.00
+     WarningMax 1000.00
+     FailureMin    0.00
+     FailureMax 1200.00
+     Invert false
+     Instance "bar"
+   </Type>
+   
+   <Plugin "interface">
+     Instance "eth0"
+     <Type "if_octets">
+       FailureMax 10000000
+       DataSource "rx"
+     </Type>
+   </Plugin>
+   
+   <Host "hostname">
+     <Type "cpu">
+       Instance "idle"
+       FailureMin 10
+     </Type>
+   
+     <Plugin "memory">
+       <Type "memory">
+         Instance "cached"
+         WarningMin 100000000
+       </Type>
+     </Plugin>
+   
+     <Type "load">
+     	DataSource "midterm"
+     	FailureMax 4
+     	Hits 3
+     	Hysteresis 3
+     </Type>
+   </Host>
+ </Plugin>
+
+There are basically two types of configuration statements: The C<Host>,
+C<Plugin>, and C<Type> blocks select the value for which a threshold should be
+configured. The C<Plugin> and C<Type> blocks may be specified further using the
+C<Instance> option. You can combine the block by nesting the blocks, though
+they must be nested in the above order, i.e. C<Host> may contain either
+C<Plugin> and C<Type> blocks, C<Plugin> may only contain C<Type> blocks and
+C<Type> may not contain other blocks. If multiple blocks apply to the same
+value the most specific block is used.
+
+The other statements specify the threshold to configure. They B<must> be
+included in a C<Type> block. Currently the following statements are recognized:
+
+=over 4
+
+=item B<FailureMax> I<Value>
+
+=item B<WarningMax> I<Value>
+
+Sets the upper bound of acceptable values. If unset defaults to positive
+infinity. If a value is greater than B<FailureMax> a B<FAILURE> notification
+will be created. If the value is greater than B<WarningMax> but less than (or
+equal to) B<FailureMax> a B<WARNING> notification will be created.
+
+=item B<FailureMin> I<Value>
+
+=item B<WarningMin> I<Value>
+
+Sets the lower bound of acceptable values. If unset defaults to negative
+infinity. If a value is less than B<FailureMin> a B<FAILURE> notification will
+be created. If the value is less than B<WarningMin> but greater than (or equal
+to) B<FailureMin> a B<WARNING> notification will be created.
+
+=item B<DataSource> I<DSName>
+
+Some data sets have more than one "data source". Interesting examples are the
+C<if_octets> data set, which has received (C<rx>) and sent (C<tx>) bytes and
+the C<disk_ops> data set, which holds C<read> and C<write> operations. The
+system load data set, C<load>, even has three data sources: C<shortterm>,
+C<midterm>, and C<longterm>.
+
+Normally, all data sources are checked against a configured threshold. If this
+is undesirable, or if you want to specify different limits for each data
+source, you can use the B<DataSource> option to have a threshold apply only to
+one data source.
+
+=item B<Invert> B<true>|B<false>
+
+If set to B<true> the range of acceptable values is inverted, i.e. values
+between B<FailureMin> and B<FailureMax> (B<WarningMin> and B<WarningMax>) are
+not okay. Defaults to B<false>.
+
+=item B<Persist> B<true>|B<false>
+
+Sets how often notifications are generated. If set to B<true> one notification
+will be generated for each value that is out of the acceptable range. If set to
+B<false> (the default) then a notification is only generated if a value is out
+of range but the previous value was okay.
+
+This applies to missing values, too: If set to B<true> a notification about a
+missing value is generated once every B<Interval> seconds. If set to B<false>
+only one such notification is generated until the value appears again.
+
+=item B<PersistOK> B<true>|B<false>
+
+Sets how OKAY notifications act. If set to B<true> one notification will be
+generated for each value that is in the acceptable range. If set to B<false>
+(the default) then a notification is only generated if a value is in range but
+the previous value was not.
+
+=item B<Percentage> B<true>|B<false>
+
+If set to B<true>, the minimum and maximum values given are interpreted as
+percentage value, relative to the other data sources. This is helpful for
+example for the "df" type, where you may want to issue a warning when less than
+5E<nbsp>% of the total space is available. Defaults to B<false>.
+
+=item B<Hits> I<Value>
+
+Sets the number of occurrences which the threshold must be raised before to
+dispatch any notification or, in other words, the number of B<Interval>s
+that the threshold must be match before dispatch any notification.
+
+=item B<Hysteresis> I<Value>
+
+Sets the hysteresis value for threshold. The hysteresis is a method to prevent
+flapping between states, until a new received value for a previously matched
+threshold down below the threshold condition (B<WarningMax>, B<FailureMin> or
+everything else) minus the hysteresis value, the failure (respectively warning)
+state will be keep.
+
+=item B<Interesting> B<true>|B<false>
+
+If set to B<true> (the default), the threshold must be treated as interesting
+and, when a number of B<Timeout> values will lost, then a missing notification
+will be dispatched. On the other hand, if set to B<false>, the missing
+notification will never dispatched for this threshold.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>

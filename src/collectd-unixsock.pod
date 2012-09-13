@@ -1,0 +1,245 @@
+=head1 NAME
+
+collectd-unixsock - Documentation of collectd's C<unixsock plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin unixsock
+  # ...
+  <Plugin unixsock>
+    SocketFile "/path/to/socket"
+    SocketGroup "collectd"
+    SocketPerms "0770"
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<unixsock plugin> opens an UNIX-socket over which one can interact with
+the daemon. This can be used to use the values collected by collectd in other
+applications, such as monitoring solutions, or submit externally collected
+values to collectd.
+
+For example, this plugin is used by L<collectd-nagios(1)> to check if some
+value is in a certain range and exit with a Nagios-compatible exit code.
+
+=head1 COMMANDS
+
+Upon start the C<unixsock plugin> opens a UNIX-socket and waits for
+connections. Once a connection is established the client can send commands to
+the daemon which it will answer, if it understand them.
+
+In general the plugin answers with a status line of the following form:
+
+I<Status> I<Message>
+
+If I<Status> is greater than or equal to zero the message indicates success,
+if I<Status> is less than zero the message indicates failure. I<Message> is a
+human-readable string that further describes the return value.
+
+On success, I<Status> furthermore indicates the number of subsequent lines of
+output (not including the status line). Each such lines usually contains a
+single return value. See the description of each command for details.
+
+The following commands are implemented:
+
+=over 4
+
+=item B<GETVAL> I<Identifier>
+
+If the value identified by I<Identifier> (see below) is found the complete
+value-list is returned. The response is a list of name-value-pairs, each pair
+on its own line (the number of lines is indicated by the status line - see
+above). Each name-value-pair is of the form I<name>B<=>I<value>.
+Counter-values are converted to a rate, e.E<nbsp>g. bytes per second.
+Undefined values are returned as B<NaN>.
+
+Example:
+  -> | GETVAL myhost/cpu-0/cpu-user
+  <- | 1 Value found
+  <- | value=1.260000e+00
+
+=item B<LISTVAL>
+
+Returns a list of the values available in the value cache together with the
+time of the last update, so that querying applications can issue a B<GETVAL>
+command for the values that have changed. Each return value consists of the
+update time as an epoch value and the identifier, separated by a space. The
+update time is the time of the last value, as provided by the collecting
+instance and may be very different from the time the server considers to be
+"now".
+
+Example:
+  -> | LISTVAL
+  <- | 69 Values found
+  <- | 1182204284 myhost/cpu-0/cpu-idle
+  <- | 1182204284 myhost/cpu-0/cpu-nice
+  <- | 1182204284 myhost/cpu-0/cpu-system
+  <- | 1182204284 myhost/cpu-0/cpu-user
+  ...
+
+=item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
+
+Submits one or more values (identified by I<Identifier>, see below) to the
+daemon which will dispatch it to all it's write-plugins.
+
+An I<Identifier> is of the form
+C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
+I<instance>-parts being optional. If they're omitted the hyphen must be
+omitted, too. I<plugin> and each I<instance>-part may be chosen freely as long
+as the tuple (plugin, plugin instance, type instance) uniquely identifies the
+plugin within collectd. I<type> identifies the type and number of values
+(i.E<nbsp>e. data-set) passed to collectd. A large list of predefined
+data-sets is available in the B<types.db> file.
+
+The I<OptionList> is an optional list of I<Options>, where each option is a
+key-value-pair. A list of currently understood options can be found below, all
+other options will be ignored. Values that contain spaces must be quoted with
+double quotes.
+
+I<Valuelist> is a colon-separated list of the time and the values, each either
+an integer if the data-source is a counter, or a double if the data-source is
+of type "gauge". You can submit an undefined gauge-value by using B<U>. When
+submitting B<U> to a counter the behavior is undefined. The time is given as
+epoch (i.E<nbsp>e. standard UNIX time).
+
+You can mix options and values, but the order is important: Options only
+effect following values, so specifying an option as last field is allowed, but
+useless. Also, an option applies to B<all> following values, so you don't need
+to re-set an option over and over again.
+
+The currently defined B<Options> are:
+
+=over 4
+
+=item B<interval=>I<seconds>
+
+Gives the interval in which the data identified by I<Identifier> is being
+collected.
+
+=back
+
+Please note that this is the same format as used in the B<exec plugin>, see
+L<collectd-exec(5)>.
+
+Example:
+  -> | PUTVAL testhost/interface/if_octets-test0 interval=10 1179574444:123:456
+  <- | 0 Success
+
+=item B<PUTNOTIF> [I<OptionList>] B<message=>I<Message>
+
+Submits a notification to the daemon which will then dispatch it to all plugins
+which have registered for receiving notifications. 
+
+The B<PUTNOTIF> command is followed by a list of options which further describe
+the notification. The B<message> option is special in that it will consume the
+rest of the line as its value. The B<message>, B<severity>, and B<time> options
+are mandatory.
+
+Valid options are:
+
+=over 4
+
+=item B<message=>I<Message> (B<REQUIRED>)
+
+Sets the message of the notification. This is the message that will be made
+accessible to the user, so it should contain some useful information. As with
+all options: If the message includes spaces, it must be quoted with double
+quotes. This option is mandatory.
+
+=item B<severity=failure>|B<warning>|B<okay> (B<REQUIRED>)
+
+Sets the severity of the notification. This option is mandatory.
+
+=item B<time=>I<Time> (B<REQUIRED>)
+
+Sets the time of the notification. The time is given as "epoch", i.E<nbsp>e. as
+seconds since January 1st, 1970, 00:00:00. This option is mandatory.
+
+=item B<host=>I<Hostname>
+
+=item B<plugin=>I<Plugin>
+
+=item B<plugin_instance=>I<Plugin-Instance>
+
+=item B<type=>I<Type>
+
+=item B<type_instance=>I<Type-Instance>
+
+These "associative" options establish a relation between this notification and
+collected performance data. This connection is purely informal, i.E<nbsp>e. the
+daemon itself doesn't do anything with this information. However, websites or
+GUIs may use this information to place notifications near the affected graph or
+table. All the options are optional, but B<plugin_instance> without B<plugin>
+or B<type_instance> without B<type> doesn't make much sense and should be
+avoided.
+
+Please note that this is the same format as used in the B<exec plugin>, see
+L<collectd-exec(5)>.
+
+=back
+
+Example:
+  -> | PUTNOTIF type=temperature severity=warning time=1201094702 message=The roof is on fire!
+  <- | 0 Success
+
+=item B<FLUSH> [B<timeout=>I<Timeout>] [B<plugin=>I<Plugin> [...]] [B<identifier=>I<Ident> [...]]
+
+Flushes all cached data older than I<Timeout> seconds. If no timeout has been
+specified, it defaults to -1 which causes all data to be flushed.
+
+If the B<plugin> option has been specified, only the I<Plugin> plugin will be
+flushed. You can have multiple B<plugin> options to flush multiple plugins in
+one go. If the B<plugin> option is not given all plugins providing a flush
+callback will be flushed.
+
+If the B<identifier> option is given only the specified values will be flushed.
+This is meant to be used by graphing or displaying frontends which want to have
+the latest values for a specific graph. Again, you can specify the
+B<identifier> option multiple times to flush several values. If this option is
+not specified at all, all values will be flushed.
+
+Example:
+  -> | FLUSH plugin=rrdtool identifier=localhost/df/df-root identifier=localhost/df/df-var
+  <- | 0 Done: 2 successful, 0 errors
+
+=back
+
+=head2 Identifiers
+
+Value or value-lists are identified in a uniform fashion:
+
+I<Hostname>/I<Plugin>/I<Type>
+
+Where I<Plugin> and I<Type> are both either of type "I<Name>" or
+"I<Name>-I<Instance>". If the identifier includes spaces, it must be quoted
+using double quotes. This sounds more complicated than it is, so here are
+some examples:
+
+  myhost/cpu-0/cpu-user
+  myhost/load/load
+  myhost/memory/memory-used
+  myhost/disk-sda/disk_octets
+  "myups/snmp/temperature-Outlet 1"
+
+=head1 ABSTRACTION LAYER
+
+B<collectd> ships the Perl-Module L<Collectd::Unixsock> which
+provides an abstraction layer over the actual socket connection. It can be
+found in the directory F<bindings/perl/> in the source distribution or
+(usually) somewhere near F</usr/share/perl5/> if you're using a package. If
+you want to use Perl to communicate with the daemon, you're encouraged to use
+and expand this module.
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-nagios(1)>,
+L<unix(7)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut

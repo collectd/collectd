@@ -1,0 +1,141 @@
+=head1 NAME
+
+collectd - System statistics collection daemon
+
+=head1 SYNOPSIS
+
+collectd I<[options]>
+
+=head1 DESCRIPTION
+
+collectd is a daemon that receives system statistics and makes them available
+in a number of ways. The main daemon itself doesn't have any real functionality
+apart from loading, querying and submitting to plugins. For a description of
+available plugins please see L</PLUGINS> below.
+
+=head1 OPTIONS
+
+Most of collectd's configuration is done using using a configfile. See
+L<collectd.conf(5)> for an in-depth description of all options.
+
+=over 4
+
+=item B<-C> I<E<lt>config-fileE<gt>>
+
+Specify an alternative config file. This is the place to go when you wish to
+change B<collectd>'s behavior. The path may be relative to the current working
+directory.
+
+=item B<-t>
+
+Test the configuration only. The program immediately exits after parsing the
+config file. A return code not equal to zero indicates an error.
+
+=item B<-T>
+
+Test the plugin read callbacks only. The program immediately exits after invoking
+the read callbacks once. A return code not equal to zero indicates an error.
+
+=item B<-P> I<E<lt>pid-fileE<gt>>
+
+Specify an alternative pid file. This overwrites any settings in the config 
+file. This is thought for init-scripts that require the PID-file in a certain
+directory to work correctly. For everyday-usage use the B<PIDFile>
+config-option.
+
+=item B<-f>
+
+Don't fork to the background. I<collectd> will also B<not> close standard file
+descriptors, detach from the session nor write a pid file. This is mainly
+thought for 'supervising' init replacements such as I<runit>.
+
+=item B<-h>
+
+Output usage information and exit.
+
+=back
+
+=head1 PLUGINS
+
+As noted above, the real power of collectd lies within it's plugins. A
+(hopefully complete) list of plugins and short descriptions can be found in the
+F<README> file that is distributed with the sourcecode. If you're using a
+package it's a good bet to search somewhere near F</usr/share/doc/collectd>.
+
+There are two big groups of plugins, B<input> and B<output> plugins:
+
+=over 4
+
+=item
+
+Input plugins are queried periodically. They somehow acquire the current value
+of whatever they where designed to work with and submit these values back to
+the daemon, i. e. they "dispatch" the values. As an example, the C<cpu plugin>
+reads the current cpu-counters of time spent in the various modes (user,
+system, nice, ...) and dispatches these counters to the daemon.
+
+=item
+
+Output plugins get the dispatched values from the daemon and does something
+with them. Common applications are writing to RRD-files, CSV-files or sending
+the data over a network link to a remote box.
+
+=back
+
+Of course not all plugins fit neatly into one of the two above categories. The
+C<network plugin>, for example, is able to send (i.E<nbsp>e. "write") B<and>
+receive (i.E<nbsp>e. "dispatch") values. Also, it opens a socket upon
+initialization and dispatches the values when it receives them and isn't
+triggered at the same time the input plugins are being read. You can think of
+the network receive part as working asynchronous if it helps.
+
+In addition to the above, there are "logging plugins". Right now those are the
+C<logfile plugin> and the C<syslog plugin>. With these plugins collectd can
+provide information about issues and significant situations to the user.
+Several loglevels let you suppress uninteresting messages.
+
+Starting with version C<4.3.0> collectd has support for B<monitoring>. This is
+done by checking thresholds defined by the user. If a value is out of range, a
+notification will be dispatched to "notification plugins". See
+L<collectd.conf(5)> for more detailed information about threshold checking.
+
+Please note that some plugins, that provide other means of communicating with
+the daemon, have manpages of their own to describe their functionality in more
+detail. In particular those are L<collectd-email(5)>, L<collectd-exec(5)>,
+L<collectd-perl(5)>, L<collectd-snmp(5)>, and L<collectd-unixsock(5)>
+
+=head1 SIGNALS
+
+B<collectd> accepts the following signals:
+
+=over 4
+
+=item B<SIGINT>, B<SIGTERM>
+
+These signals cause B<collectd> to shut down all plugins and terminate.
+
+=item B<SIGUSR1>
+
+This signal causes B<collectd> to signal all plugins to flush data from
+internal caches. E.E<nbsp>g. the C<rrdtool plugin> will write all pending data
+to the RRD files. This is the same as using the C<FLUSH -1> command of the
+C<unixsock plugin>.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd.conf(5)>,
+L<collectd-email(5)>,
+L<collectd-exec(5)>,
+L<collectd-perl(5)>,
+L<collectd-snmp(5)>,
+L<collectd-unixsock(5)>,
+L<types.db(5)>,
+L<http://collectd.org/>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut

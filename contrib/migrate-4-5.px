@@ -1,0 +1,255 @@
+#!/usr/bin/perl
+
+# collectd - contrib/migrate-4-5.px
+# Copyright (C) 2010  Florian Forster
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+# Authors:
+#   Florian Forster <octo at collectd.org>
+
+use strict;
+use warnings;
+
+use Getopt::Long ('GetOptions');
+use Data::Dumper ();
+use File::Basename ('dirname');
+
+our $InDir = '/var/lib/collectd';
+our $RRDtool = 'rrdtool';
+our $RRDFilter = 'rrd_filter.px';
+
+our %TypesCounterToDerive = # {{{
+(
+  apache_bytes => ["count"],
+  apache_requests => ["count"],
+  arc_counts => ["demand_data", "demand_metadata", "prefetch_data", "prefetch_metadata"],
+  arc_l2_bytes => ["read", "write"],
+  ath_stat => ["value"],
+  compression => ["uncompressed", "compressed"],
+  connections => ["value"],
+  cpu => ["value"],
+  current => ["value"],
+  disk_merged => ["read", "write"],
+  disk_octets => ["read", "write"],
+  disk_ops => ["read", "write"],
+  disk_ops_complex => ["value"],
+  disk_time => ["read", "write"],
+  dns_answer => ["value"],
+  dns_notify => ["value"],
+  dns_octets => ["queries", "responses"],
+  dns_opcode => ["value"],
+  dns_qtype => ["value"],
+  dns_query => ["value"],
+  dns_question => ["value"],
+  dns_rcode => ["value"],
+  dns_reject => ["value"],
+  dns_request => ["value"],
+  dns_resolver => ["value"],
+  dns_response => ["value"],
+  dns_transfer => ["value"],
+  dns_update => ["value"],
+  dns_zops => ["value"],
+  fscache_stat => ["value"],
+  fork_rate => ["value"],
+  http_request_methods => ["count"],
+  http_requests => ["count"],
+  http_response_codes => ["count"],
+  if_collisions => ["value"],
+  if_dropped => ["rx", "tx"],
+  if_errors => ["rx", "tx"],
+  if_multicast => ["value"],
+  if_octets => ["rx", "tx"],
+  if_packets => ["rx", "tx"],
+  if_rx_errors => ["value"],
+  if_tx_errors => ["value"],
+  io_octets => ["rx", "tx"],
+  io_packets => ["rx", "tx"],
+  ipt_bytes => ["value"],
+  ipt_packets => ["value"],
+  irq => ["value"],
+  memcached_command => ["value"],
+  memcached_octets => ["rx", "tx"],
+  memcached_ops => ["value"],
+  mysql_commands => ["value"],
+  mysql_handler => ["value"],
+  mysql_locks => ["value"],
+  mysql_log_position => ["value"],
+  mysql_octets => ["rx", "tx"],
+  nfs_procedure => ["value"],
+  nginx_requests => ["value"],
+  node_octets => ["rx", "tx"],
+  node_stat => ["value"],
+  operations => ["value"],
+  pg_blks => ["value"],
+  pg_n_tup_c => ["value"],
+  pg_scan => ["value"],
+  pg_xact => ["value"],
+  protocol_counter => ["value"],
+  ps_cputime => ["user", "syst"],
+  ps_pagefaults => ["minflt", "majflt"],
+  ps_code => ["value"],
+  ps_data => ["value"],
+  serial_octets => ["rx", "tx"],
+  swap_io => ["value"],
+  virt_cpu_total => ["ns"],
+  virt_vcpu => ["ns"],
+  vmpage_action => ["value"],
+  vmpage_faults => ["minflt", "majflt"],
+  vmpage_io => ["in", "out"],
+); # }}} %TypesCounterToDerive
+
+our %TypesRenameDataSource = # {{{
+(
+  absolute => "count",
+  apache_bytes => "count",
+  apache_connections => "count",
+  apache_idle_workers => "count",
+  apache_requests => "count",
+  apache_scoreboard => "count",
+  conntrack => "entropy",
+  contextswitch => "contextswitches",
+  delay => "seconds",
+  entropy => "entropy",
+  file_size => "bytes",
+  frequency => "frequency",
+  frequency_offset => "ppm",
+  http_request_methods => "count",
+  http_requests => "count",
+  http_response_codes => "count",
+  percent => "percent",
+  ping => "ping",
+  records => "count",
+  time_dispersion => "seconds",
+  timeleft => "timeleft",
+  time_offset => "seconds",
+  users => "users",
+  virt_cpu_total => "ns",
+  virt_vcpu => "ns",
+); # }}} %TypesRenameDataSource
+
+sub handle_file # {{{
+{
+  my @path = @_;
+  my $path = join ('/', @path);
+
+  if (!($path =~ m/\.rrd$/))
+  {
+    return;
+  }
+
+  my $tmp = pop (@path);
+  $tmp =~ s/\.rrd$//;
+  my ($type, $type_inst) = split (m/-/, $tmp, 2);
+  $type_inst ||= '';
+
+  $tmp = pop (@path);
+  my ($plugin, $plugin_inst) = split (m/-/, $tmp, 2);
+  $plugin_inst ||= '';
+
+  if ($TypesRenameDataSource{$type})
+  {
+    my $old_ds = $TypesRenameDataSource{$type};
+    print "$RRDtool tune \"$path\" --data-source-rename ${old_ds}:value\n";
+  }
+
+  if ($TypesCounterToDerive{$type})
+  {
+    my $ds_names = $TypesCounterToDerive{$type};
+    
+    for (@$ds_names)
+    {
+      my $name = $_;
+      print "$RRDtool tune \"$path\" --data-source-type ${name}:DERIVE --minimum ${name}:0 --maximum ${name}:U\n";
+    }
+  }
+
+  if ((($plugin eq 'df') || ($plugin eq 'interface'))
+    && (!$plugin_inst) && ($type_inst))
+  {
+    my $dir = join ('/', @path);
+    print "mkdir -p \"$dir/$plugin-$type_inst\"\n";
+    if (($plugin eq 'df') and ($type eq 'df'))
+    {
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-free.rrd\" --map free:value\n";
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-used.rrd\" --map used:value\n";
+    }
+    else
+    {
+      print "mv \"$path\" \"$dir/$plugin-$type_inst/$type.rrd\"\n";
+    }
+  }
+} # }}} sub handle_file
+
+sub scan_dir # {{{
+{
+  my @dir_parts = @_;
+  my $dir_str = join ('/', @dir_parts);
+  my $dh;
+
+  opendir ($dh, $dir_str) || die;
+  while (my $entry = readdir ($dh))
+  {
+    my $entry_path = "$dir_str/$entry";
+
+    if ($entry =~ m/^\./)
+    {
+      next;
+    }
+
+    if (-d $entry_path)
+    {
+      scan_dir (@dir_parts, $entry);
+    }
+    elsif (-f $entry_path)
+    {
+      handle_file (@dir_parts, $entry);
+    }
+  }
+  closedir ($dh);
+} # }}} sub scan_dir
+
+sub exit_usage # {{{
+{
+  print STDERR <<EOF;
+migrate-4-5.px [OPTIONS]
+
+Valid options are:
+
+  --indir <dir>         Source directory
+                        Default: $InDir
+  --rrdtool <path>      Path to the RRDtool binary
+                        Default: $RRDtool
+  --rrdfilter <path>    Path to the rrd_filter.px script
+                        Default: $RRDFilter
+
+EOF
+  exit (1);
+} # }}} sub exit_usage
+
+GetOptions ("indir|i=s" => \$InDir,
+        "rrdtool=s" => \$RRDtool,
+        "rrdfilter=s" => \$RRDFilter,
+        "help|h" => \&exit_usage) or exit_usage ();
+
+print "#!/bin/bash\n\n";
+
+scan_dir ($InDir);
+
+# vim: set sw=2 sts=2 et fdm=marker :

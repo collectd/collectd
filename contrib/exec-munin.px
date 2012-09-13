@@ -1,0 +1,272 @@
+#!/usr/bin/perl
+
+#
+# collectd - contrib/exec-munin.px
+# Copyright (C) 2007,2008  Florian Forster
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; only version 2 of the License is applicable.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
+# Authors:
+#   Florian octo Forster <octo at verplant.org>
+#
+
+use strict;
+use warnings;
+
+=head1 NAME
+
+exec-munin.px
+
+=head1 DESCRIPTION
+
+This script allows you to use plugins that were written for Munin with
+collectd's C<exec-plugin>. Since the data models of Munin and collectd are
+quite different rewriting the plugins should be preferred over using this
+transition layer. Having more than one "data source" for one "data set" doesn't
+work with this script, for example.
+
+=cut
+
+use Sys::Hostname ('hostname');
+use File::Basename ('basename');
+use Config::General ('ParseConfig');
+use Regexp::Common ('number');
+
+our $ConfigFile = '/etc/exec-munin.conf';
+our $TypeMap = {};
+our $Scripts = [];
+our $Interval = defined ($ENV{'COLLECTD_INTERVAL'}) ? (0 + $ENV{'COLLECTD_INTERVAL'}) : 300;
+our $Hostname = defined ($ENV{'COLLECTD_HOSTNAME'}) ? $ENV{'COLLECTD_HOSTNAME'} : '';
+
+main ();
+exit (0);
+
+# Configuration {{{
+
+=head1 CONFIGURATION
+
+This script reads it's configuration from F</etc/exec-munin.conf>. The
+configuration is read using C<Config::General> which understands a Apache-like
+config syntax, so it's very similar to the F<collectd.conf> syntax, too.
+
+Here's a short sample config:
+
+  AddType voltage-in in
+  AddType voltage-out out
+  Interval 300
+  Script /usr/lib/munin/plugins/nut
+
+The options have the following semantic (i.E<nbsp>e. meaning):
+
+=over 4
+
+=item B<AddType> I<to> I<from> [I<from> ...]
+
+collectd uses B<types> to specify how data is structured. In Munin all data is
+structured the same way, so some way of telling collectd how to handle the data
+is needed. This option translates the so called "field names" of Munin to the
+"types" of collectd. If more than one field are of the same type, e.E<nbsp>g.
+the C<nut> plugin above provides C<in> and C<out> which are both voltages, you
+can use a hyphen to add a "type instance" to the type.
+
+For a list of already defined "types" look at the F<types.db> file in
+collectd's shared data directory, e.E<nbsp>g. F</usr/share/collectd/>.
+
+=item B<Interval> I<Seconds>
+
+Sets the interval in which the plugins are executed. This doesn't need to match
+the interval setting of the collectd daemon. Usually, you want to execute the
+Munin plugins much less often, e.E<nbsp>g. every 300 seconds versus every 10
+seconds.
+
+=item B<Script> I<File>
+
+Adds a script to the list of scripts to be executed once per I<Interval>
+seconds.
+
+=back
+
+=cut
+
+sub handle_config_addtype
+{
+  my $list = shift;
+
+  for (my $i = 0; $i < @$list; $i++)
+  {
+    my ($to, @from) = split (' ', $list->[$i]);
+    for (my $j = 0; $j < @from; $j++)
+    {
+      $TypeMap->{$from[$j]} = $to;
+    }
+  }
+} # handle_config_addtype
+
+sub handle_config_script
+{
+  my $scripts = shift;
+
+  for (my $i = 0; $i < @$scripts; $i++)
+  {
+    my $script = $scripts->[$i];
+    if (!-e $script)
+    {
+      print STDERR "Script `$script' doesn't exist.\n";
+    }
+    elsif (!-x $script)
+    {
+      print STDERR "Script `$script' exists but is not executable.\n";
+    }
+    else
+    {
+      push (@$Scripts, $script);
+    }
+  } # for $i
+} # handle_config_script
+
+sub handle_config
+{
+  my $config = shift;
+
+  if (defined ($config->{'addtype'}))
+  {
+    if (ref ($config->{'addtype'}) eq 'ARRAY')
+    {
+      handle_config_addtype ($config->{'addtype'});
+    }
+    elsif (ref ($config->{'addtype'}) eq '')
+    {
+      handle_config_addtype ([$config->{'addtype'}]);
+    }
+    else
+    {
+      print STDERR "Cannot handle ref type '"
+      . ref ($config->{'addtype'}) . "' for option 'AddType'.\n";
+    }
+  }
+
+  if (defined ($config->{'script'}))
+  {
+    if (ref ($config->{'script'}) eq 'ARRAY')
+    {
+      handle_config_script ($config->{'script'});
+    }
+    elsif (ref ($config->{'script'}) eq '')
+    {
+      handle_config_script ([$config->{'script'}]);
+    }
+    else
+    {
+      print STDERR "Cannot handle ref type '"
+      . ref ($config->{'script'}) . "' for option 'Script'.\n";
+    }
+  }
+
+  if (defined ($config->{'interval'})
+    && (ref ($config->{'interval'}) eq ''))
+  {
+    my $num = int ($config->{'interval'});
+    if ($num > 0)
+    {
+      $Interval = $num;
+    }
+  }
+} # handle_config }}}
+
+sub execute_script
+{
+  my $fh;
+  my $pinst;
+  my $time = time ();
+  my $script = shift;
+  my $host = $Hostname || hostname () || 'localhost';
+  if (!open ($fh, '-|', $script))
+  {
+    print STDERR "Cannot execute $script: $!";
+    return;
+  }
+
+  $pinst = basename ($script);
+
+  while (my $line = <$fh>)
+  {
+    chomp ($line);
+    if ($line =~ m#^([^\.\-/]+)\.value\s+($RE{num}{real})#)
+    {
+      my $field = $1;
+      my $value = $2;
+      my $type = (defined ($TypeMap->{$field})) ? $TypeMap->{$field} : $field;
+      my $ident = "$host/munin-$pinst/$type";
+
+      $ident =~ s/"/\\"/g;
+
+      print qq(PUTVAL "$ident" interval=$Interval $time:$value\n);
+    }
+  }
+
+  close ($fh);
+} # execute_script
+
+sub main
+{
+  my $last_run;
+  my $next_run;
+
+  my %config = ParseConfig (-ConfigFile => $ConfigFile,
+    -AutoTrue => 1,
+    -LowerCaseNames => 1);
+  handle_config (\%config);
+
+  while (42)
+  {
+    $last_run = time ();
+    $next_run = $last_run + $Interval;
+
+    for (@$Scripts)
+    {
+      execute_script ($_);
+    }
+
+    while ((my $timeleft = ($next_run - time ())) > 0)
+    {
+      sleep ($timeleft);
+    }
+  }
+} # main
+
+=head1 REQUIREMENTS
+
+This script requires the following Perl modules to be installed:
+
+=over 4
+
+=item C<Config::General>
+
+=item C<Regexp::Common>
+
+=back
+
+=head1 SEE ALSO
+
+L<http://munin.projects.linpro.no/>,
+L<http://collectd.org/>,
+L<collectd-exec(5)>
+
+=head1 AUTHOR
+
+Florian octo Forster E<lt>octo at verplant.orgE<gt>
+
+=cut
+
+# vim: set sw=2 sts=2 ts=8 fdm=marker :

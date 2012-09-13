@@ -1,0 +1,72 @@
+=head1 NAME
+
+collectd-email - Documentation of collectd's C<email plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin email
+  # ...
+  <Plugin email>
+    SocketGroup "collectd"
+    SocketPerms "0770"
+    MaxConns 5
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<email plugin> opens an UNIX-socket over which one can submit email
+statistics, such as the number of "ham", "spam", "virus", etc. mails
+received/handled, spam scores and matched spam checks.
+
+This plugin is intended to be used with the
+L<Mail::SpamAssassin::Plugin::Collectd> SpamAssassin-plugin which is included
+in F<contrib/>, but is of course not limited to that use.
+
+=head1 OPERATION
+
+This plugin collects data indirectly by providing a UNIX-socket that external
+programs can connect to. A simple line based protocol is used to communicate
+with the plugin:
+
+=over 4
+
+=item
+
+E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
+
+  e:<type>:<size>
+
+If C<size> is less than or equal to zero, C<size> is ignored.
+
+=item
+
+Spam score:
+
+  s:<value>
+
+=item
+
+Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
+
+  c:<type1>[,<type2>,...]
+
+Each line is limited to 256 characters (including the newline character). 
+Longer lines will be ignored.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>
+
+=head1 AUTHOR
+
+The C<email plugin> has been written by Sebastian Harl E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
+
+The SpamAssassin-plugin has been written by Alexander Wirt E<lt>formorerE<nbsp>atE<nbsp>formorer.deE<gt>.
+
+This manpage has been written by Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>.
+
+=cut

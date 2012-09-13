@@ -1,0 +1,529 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+=head1 NAME
+
+exec-nagios.px
+
+=head1 DESCRIPTION
+
+This script allows you to use plugins that were written for Nagios with
+collectd's C<exec-plugin>. If the plugin checks some kind of threshold, please
+consider configuring the threshold using collectd's own facilities instead of
+using this transition layer.
+
+=cut
+
+use Sys::Hostname ('hostname');
+use File::Basename ('basename');
+use Config::General ('ParseConfig');
+use Regexp::Common ('number');
+
+our $ConfigFile = '/etc/exec-nagios.conf';
+our $TypeMap = {};
+our $NRPEMap = {};
+our $Scripts = [];
+our $Interval = defined ($ENV{'COLLECTD_INTERVAL'}) ? (0 + $ENV{'COLLECTD_INTERVAL'}) : 300;
+our $Hostname = defined ($ENV{'COLLECTD_HOSTNAME'}) ? $ENV{'COLLECTD_HOSTNAME'} : '';
+
+main ();
+exit (0);
+
+# Configuration
+# {{{
+
+=head1 CONFIGURATION
+
+This script reads it's configuration from F</etc/exec-nagios.conf>. The
+configuration is read using C<Config::General> which understands a Apache-like
+config syntax, so it's very similar to the F<collectd.conf> syntax, too.
+
+Here's a short sample config:
+
+  NRPEConfig "/etc/nrpe.cfg"
+  Interval 300
+  <Script /usr/lib/nagios/check_tcp>
+    Arguments -H alice -p 22
+    Type delay
+  </Script>
+  <Script /usr/lib/nagios/check_dns>
+    Arguments -H alice
+    Type delay
+  </Script>
+
+The options have the following semantic (i.E<nbsp>e. meaning):
+
+=over 4
+
+=item B<NRPEConfig> I<File>
+
+Read the NRPE config and add the command definitions to an alias table. After
+reading the file you can use the NRPE command name rather than the script's
+filename within B<Script> blocks (see below). If both, the NRPE config and the
+B<Script> block, define arguments they will be merged by concatenating the
+arguments together in the order "NRPE-args Script-args".
+
+Please note that this option is rather dumb. It does not support "command
+argument processing" (i.e. replacing C<$ARG1$> and friends), inclusion of other
+NRPE config files, include directories etc.
+
+=item B<Interval> I<Seconds>
+
+Sets the interval in which the plugins are executed. This doesn't need to match
+the interval setting of the collectd daemon. Usually, you want to execute the
+Nagios plugins much less often, e.E<nbsp>g. every 300 seconds versus every 10
+seconds.
+
+=item E<lt>B<Script> I<File>E<gt>
+
+Adds a script to the list of scripts to be executed once per I<Interval>
+seconds. If the B<NRPEConfig> is given above the B<Script> block, you may use
+the NRPE command name rather than the script's filename. You can use the
+following optional arguments to specify the operation further:
+
+=over 4
+
+=item B<Arguments> I<Arguments>
+
+Pass the arguments I<Arguments> to the script. This is often needed with Nagios
+plugins, because much of the logic is implemented in the plugins, not in the
+daemon. If you need to specify a warning and/or critical range here, please
+consider using collectd's own threshold mechanism, which is by far the more
+elegant solution than this transition layer.
+
+=item B<Type> I<Type>
+
+If the plugin provides "performance data" the performance data is dispatched to
+collectd with this type. If no type is configured the data is ignored. Please
+note that this is limited to types that take exactly one value, such as the
+type C<delay> in the example above. If you need more complex performance data,
+rewrite the plugin as a collectd plugin (or at least port it do run directly
+with the C<exec-plugin>).
+
+=back
+
+=back
+
+=cut
+
+sub parse_nrpe_conf
+{
+  my $file = shift;
+  my $fh;
+  my $status;
+
+  $status = open ($fh, '<', $file);
+  if (!$status)
+  {
+    print STDERR "Reading NRPE config from \"$file\" failed: $!\n";
+    return;
+  }
+
+  while (<$fh>)
+  {
+    my $line = $_;
+    chomp ($line);
+
+    if ($line =~ m/^\s*command\[([^\]]+)\]\s*=\s*(.+)$/)
+    {
+      my $alias = $1;
+      my $script;
+      my $arguments;
+
+      ($script, $arguments) = split (' ', $2, 2);
+
+      if ($NRPEMap->{$alias})
+      {
+        print STDERR "Warning: NRPE command \"$alias\" redefined.\n";
+      }
+
+      $NRPEMap->{$alias} = { script => $script };
+      if ($arguments)
+      {
+        $NRPEMap->{$alias}{'arguments'} = $arguments;
+      }
+    }
+  } # while (<$fh>)
+
+  close ($fh);
+} # parse_nrpe_conf
+
+sub handle_config_addtype
+{
+  my $list = shift;
+
+  for (my $i = 0; $i < @$list; $i++)
+  {
+    my ($to, @from) = split (' ', $list->[$i]);
+    for (my $j = 0; $j < @from; $j++)
+    {
+      $TypeMap->{$from[$j]} = $to;
+    }
+  }
+} # handle_config_addtype
+
+# Update the script record. This function adds the name of the script /
+# executable to the hash and merges the configured and NRPE arguments if
+# required.
+sub update_script_opts
+{
+  my $opts = shift;
+  my $script = shift;
+  my $nrpe_args = shift;
+
+  $opts->{'script'} = $script;
+
+  if ($nrpe_args)
+  {
+    if ($opts->{'arguments'})
+    {
+      $opts->{'arguments'} = $nrpe_args . ' ' . $opts->{'arguments'};
+    }
+    else
+    {
+      $opts->{'arguments'} = $nrpe_args;
+    }
+  }
+} # update_script_opts
+
+sub handle_config_script
+{
+  my $scripts = shift;
+
+  for (keys %$scripts)
+  {
+    my $script = $_;
+    my $opts = $scripts->{$script};
+
+    my $nrpe_args = '';
+
+    # Check if the script exists in the NRPE map. If so, replace the alias name
+    # with the actual script name.
+    if ($NRPEMap->{$script})
+    {
+      if ($NRPEMap->{$script}{'arguments'})
+      {
+        $nrpe_args = $NRPEMap->{$script}{'arguments'};
+      }
+      $script = $NRPEMap->{$script}{'script'};
+    }
+
+    # Check if the script exists and is executable.
+    if (!-e $script)
+    {
+      print STDERR "Script `$script' doesn't exist.\n";
+    }
+    elsif (!-x $script)
+    {
+      print STDERR "Script `$script' exists but is not executable.\n";
+    }
+    else
+    {
+      # Add the script to the global @$Script array.
+      if (ref ($opts) eq 'ARRAY')
+      {
+        for (@$opts)
+        {
+          my $opt = $_;
+          update_script_opts ($opt, $script, $nrpe_args);
+          push (@$Scripts, $opt);
+        }
+      }
+      else
+      {
+        update_script_opts ($opts, $script, $nrpe_args);
+        push (@$Scripts, $opts);
+      }
+    }
+  } # for (keys %$scripts)
+} # handle_config_script
+
+sub handle_config
+{
+  my $config = shift;
+
+  if (defined ($config->{'nrpeconfig'}))
+  {
+    if (ref ($config->{'nrpeconfig'}) eq 'ARRAY')
+    {
+      for (@{$config->{'nrpeconfig'}})
+      {
+        parse_nrpe_conf ($_);
+      }
+    }
+    elsif (ref ($config->{'nrpeconfig'}) eq '')
+    {
+      parse_nrpe_conf ($config->{'nrpeconfig'});
+    }
+    else
+    {
+      print STDERR "Cannot handle ref type '"
+      . ref ($config->{'nrpeconfig'}) . "' for option 'NRPEConfig'.\n";
+    }
+  }
+
+  if (defined ($config->{'addtype'}))
+  {
+    if (ref ($config->{'addtype'}) eq 'ARRAY')
+    {
+      handle_config_addtype ($config->{'addtype'});
+    }
+    elsif (ref ($config->{'addtype'}) eq '')
+    {
+      handle_config_addtype ([$config->{'addtype'}]);
+    }
+    else
+    {
+      print STDERR "Cannot handle ref type '"
+      . ref ($config->{'addtype'}) . "' for option 'AddType'.\n";
+    }
+  }
+
+  if (defined ($config->{'script'}))
+  {
+    if (ref ($config->{'script'}) eq 'HASH')
+    {
+      handle_config_script ($config->{'script'});
+    }
+    else
+    {
+      print STDERR "Cannot handle ref type '"
+      . ref ($config->{'script'}) . "' for option 'Script'.\n";
+    }
+  }
+
+  if (defined ($config->{'interval'})
+    && (ref ($config->{'interval'}) eq ''))
+  {
+    my $num = int ($config->{'interval'});
+    if ($num > 0)
+    {
+      $Interval = $num;
+    }
+  }
+} # handle_config }}}
+
+sub scale_value
+{
+  my $value = shift;
+  my $unit = shift;
+
+  if (!$unit)
+  {
+    return ($value);
+  }
+
+  if (($unit =~ m/^mb(yte)?$/i) || ($unit eq 'M'))
+  {
+    return ($value * 1000000);
+  }
+  elsif ($unit =~ m/^k(b(yte)?)?$/i)
+  {
+    return ($value * 1000);
+  }
+
+  return ($value);
+}
+
+sub sanitize_instance
+{
+  my $inst = shift;
+
+  if ($inst eq '/')
+  {
+    return ('root');
+  }
+
+  $inst =~ s/[^A-Za-z_-]/_/g;
+  $inst =~ s/__+/_/g;
+  $inst =~ s/^_//;
+  $inst =~ s/_$//;
+
+  return ($inst);
+}
+
+sub handle_performance_data
+{
+  my $host = shift;
+  my $plugin = shift;
+  my $pinst = shift;
+  my $type = shift;
+  my $time = shift;
+  my $line = shift;
+  my $ident = "$host/$plugin-$pinst/$type-$tinst";
+
+  my $tinst;
+  my $value;
+  my $unit;
+
+  if ($line =~ m/^([^=]+)=($RE{num}{real})([^;]*)/)
+  {
+    $tinst = sanitize_instance ($1);
+    $value = scale_value ($2, $3);
+  }
+  else
+  {
+    return;
+  }
+
+  $ident =~ s/"/\\"/g;
+
+  print qq(PUTVAL "$ident" interval=$Interval ${time}:$value\n);
+}
+
+sub execute_script
+{
+  my $fh;
+  my $pinst;
+  my $time = time ();
+  my $script = shift;
+  my @args = ();
+  my $host = $Hostname || hostname () || 'localhost';
+
+  my $state = 0;
+  my $serviceoutput;
+  my @serviceperfdata;
+  my @longserviceoutput;
+
+  my $script_name = $script->{'script'};
+  
+  if ($script->{'arguments'})
+  {
+    @args = split (' ', $script->{'arguments'});
+  }
+
+  if (!open ($fh, '-|', $script_name, @args))
+  {
+    print STDERR "Cannot execute $script_name: $!";
+    return;
+  }
+
+  $pinst = sanitize_instance (basename ($script_name));
+
+  # Parse the output of the plugin. The format is seriously fucked up, because
+  # it got extended way beyond what it could handle.
+  while (my $line = <$fh>)
+  {
+    chomp ($line);
+
+    if ($state == 0)
+    {
+      my $perfdata;
+      ($serviceoutput, $perfdata) = split (m/\s*\|\s*/, $line, 2);
+      
+      if ($perfdata)
+      {
+        push (@serviceperfdata, split (' ', $perfdata));
+      }
+
+      $state = 1;
+    }
+    elsif ($state == 1)
+    {
+      my $longoutput;
+      my $perfdata;
+      ($longoutput, $perfdata) = split (m/\s*\|\s*/, $line, 2);
+
+      push (@longserviceoutput, $longoutput);
+
+      if ($perfdata)
+      {
+        push (@serviceperfdata, split (' ', $perfdata));
+        $state = 2;
+      }
+    }
+    else # ($state == 2)
+    {
+      push (@serviceperfdata, split (' ', $line));
+    }
+  }
+
+  close ($fh);
+  # Save the exit status of the check in $state
+  $state = $?;
+
+  if ($state == 0)
+  {
+    $state = 'okay';
+  }
+  elsif ($state == 1)
+  {
+    $state = 'warning';
+  }
+  else
+  {
+    $state = 'failure';
+  }
+
+  {
+    my $type = $script->{'type'} || 'nagios_check';
+
+    print "PUTNOTIF time=$time severity=$state host=$host plugin=nagios "
+    . "plugin_instance=$pinst type=$type message=$serviceoutput\n";
+  }
+
+  if ($script->{'type'})
+  {
+    for (@serviceperfdata)
+    {
+      handle_performance_data ($host, 'nagios', $pinst, $script->{'type'},
+        $time, $_);
+    }
+  }
+} # execute_script
+
+sub main
+{
+  my $last_run;
+  my $next_run;
+
+  my %config = ParseConfig (-ConfigFile => $ConfigFile,
+    -AutoTrue => 1,
+    -LowerCaseNames => 1);
+  handle_config (\%config);
+
+  while (42)
+  {
+    $last_run = time ();
+    $next_run = $last_run + $Interval;
+
+    for (@$Scripts)
+    {
+      execute_script ($_);
+    }
+
+    while ((my $timeleft = ($next_run - time ())) > 0)
+    {
+      sleep ($timeleft);
+    }
+  }
+} # main
+
+=head1 REQUIREMENTS
+
+This script requires the following Perl modules to be installed:
+
+=over 4
+
+=item C<Config::General>
+
+=item C<Regexp::Common>
+
+=back
+
+=head1 SEE ALSO
+
+L<http://www.nagios.org/>,
+L<http://nagiosplugins.org/>,
+L<http://collectd.org/>,
+L<collectd-exec(5)>
+
+=head1 AUTHOR
+
+Florian octo Forster E<lt>octo at verplant.orgE<gt>
+
+=cut
+
+# vim: set sw=2 sts=2 ts=8 fdm=marker :

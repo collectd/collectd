@@ -1,0 +1,79 @@
+div.graph
+{
+}
+
+div.graph_canvas div.graph_float
+{
+  float: left;
+  position: relative;
+}
+
+div.graph_float div.controls
+{
+  display: none;
+  position: absolute;
+}
+
+div.graph_float:hover div.controls
+{
+  display: block;
+}
+
+div.graph_float div.controls.zoom
+{
+  right: 5px;
+  bottom: 10px;
+}
+
+div.graph_float div.controls.preset
+{
+  right: 5px;
+  top: 5px;
+}
+
+div.graph_float div.controls div
+{
+  display: block;
+
+  color: gray;
+  background: white;
+
+  text-decoration: none;
+  text-align: center;
+  font-size: small;
+
+  cursor: pointer;
+
+  border: 1px solid gray;
+  width: 1em;
+  height: 1em;
+  padding: 1px;
+  margin: 0px;
+}
+
+div.graph_float div.controls div:hover
+{
+  color: black;
+  border-color: black;
+}
+
+div.graph_float div.controls.preset div
+{
+  margin: 1px 0px 1px 0px;
+}
+
+div.graph_float div.controls.zoom div
+{
+  float: left;
+  margin: 0px 1px 0px 1px;
+}
+
+table
+{
+  border-collapse: collapse;
+}
+td, th
+{
+  border: 1px solid gray;
+}
+/* vim: set sw=2 sts=2 et : */

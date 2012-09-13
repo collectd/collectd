@@ -1,0 +1,695 @@
+=head1 NAME
+
+collectd-java - Documentation of collectd's "java plugin"
+
+=head1 SYNOPSIS
+
+ LoadPlugin "java"
+ <Plugin "java">
+   JVMArg "-verbose:jni"
+   JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
+   
+   LoadPlugin "org.collectd.java.Foobar"
+   <Plugin "org.collectd.java.Foobar">
+     # To be parsed by the plugin
+   </Plugin>
+ </Plugin>
+
+=head1 DESCRIPTION
+
+The I<Java> plugin embeds a I<Java Virtual Machine> (JVM) into I<collectd> and
+provides a Java interface to part of collectd's API. This makes it possible to
+write additions to the daemon in Java.
+
+This plugin is similar in nature to, but shares no code with, the I<Perl>
+plugin by Sebastian Harl, see L<collectd-perl(5)> for details.
+
+=head1 CONFIGURATION
+
+A short outline of this plugin's configuration can be seen in L<"SYNOPSIS">
+above. For a complete list of all configuration options and their semantics
+please read L<collectd.conf(5)/Plugin C<java>>.
+
+=head1 OVERVIEW
+
+When writing additions for collectd in Java, the underlying C base is mostly
+hidden from you. All complex data types are converted to their Java counterparts
+before they're passed to your functions. These Java classes reside in the
+I<org.collectd.api> namespace.
+
+The I<Java> plugin will create one object of each class configured with the
+B<LoadPlugin> option. The constructor of this class can then register "callback
+methods", i.E<nbsp>e. methods that will be called by the daemon when
+appropriate.
+
+The available classes are:
+
+=over 4
+
+=item B<org.collectd.api.Collectd>
+
+All API functions exported to Java are implemented as static functions of this
+class. See L<"EXPORTED API FUNCTIONS"> below.
+
+=item B<org.collectd.api.OConfigValue>
+
+Corresponds to C<oconfig_value_t>, defined in F<src/liboconfig/oconfig.h>.
+
+=item B<org.collectd.api.OConfigItem>
+
+Corresponds to C<oconfig_item_t>, defined in F<src/liboconfig/oconfig.h>.
+
+=item B<org.collectd.api.DataSource>
+
+Corresponds to C<data_source_t>, defined in F<src/plugin.h>.
+
+=item B<org.collectd.api.DataSet>
+
+Corresponds to C<data_set_t>, defined in F<src/plugin.h>.
+
+=item B<org.collectd.api.ValueList>
+
+Corresponds to C<value_list_t>, defined in F<src/plugin.h>.
+
+=item B<org.collectd.api.Notification>
+
+Corresponds to C<notification_t>, defined in F<src/plugin.h>.
+
+=back
+
+In the remainder of this document, we'll use the short form of these names, for
+example B<ValueList>. In order to be able to use these abbreviated names, you
+need to B<import> the classes.
+
+=head1 EXPORTED API FUNCTIONS
+
+All collectd API functions that are available to Java plugins are implemented
+as I<publicE<nbsp>static> functions of the B<Collectd> class. This makes
+calling these functions pretty straight forward. For example, to send an error
+message to the daemon, you'd do something like this:
+
+  Collectd.logError ("That wasn't chicken!");
+
+The following are the currently exported functions.
+
+=head2 registerConfig
+
+Signature: I<int> B<registerConfig> (I<String> name,
+I<CollectdConfigInterface> object);
+
+Registers the B<config> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"config callback"> below.
+
+=head2 registerInit
+
+Signature: I<int> B<registerInit> (I<String> name,
+I<CollectdInitInterface> object);
+
+Registers the B<init> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"init callback"> below.
+
+=head2 registerRead
+
+Signature: I<int> B<registerRead> (I<String> name,
+I<CollectdReadInterface> object)
+
+Registers the B<read> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"read callback"> below.
+
+=head2 registerWrite
+
+Signature: I<int> B<registerWrite> (I<String> name,
+I<CollectdWriteInterface> object)
+
+Registers the B<write> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"write callback"> below.
+
+=head2 registerFlush
+
+Signature: I<int> B<registerFlush> (I<String> name,
+I<CollectdFlushInterface> object)
+
+Registers the B<flush> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"flush callback"> below.
+
+=head2 registerShutdown
+
+Signature: I<int> B<registerShutdown> (I<String> name,
+I<CollectdShutdownInterface> object);
+
+Registers the B<shutdown> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"shutdown callback"> below.
+
+=head2 registerLog
+
+Signature: I<int> B<registerLog> (I<String> name,
+I<CollectdLogInterface> object);
+
+Registers the B<log> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"log callback"> below.
+
+=head2 registerNotification
+
+Signature: I<int> B<registerNotification> (I<String> name,
+I<CollectdNotificationInterface> object);
+
+Registers the B<notification> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"notification callback"> below.
+
+=head2 registerMatch
+
+Signature: I<int> B<registerMatch> (I<String> name,
+I<CollectdMatchFactoryInterface> object);
+
+Registers the B<createMatch> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"match callback"> below.
+
+=head2 registerTarget
+
+Signature: I<int> B<registerTarget> (I<String> name,
+I<CollectdTargetFactoryInterface> object);
+
+Registers the B<createTarget> function of I<object> with the daemon.
+
+Returns zero upon success and non-zero when an error occurred.
+
+See L<"target callback"> below.
+
+=head2 dispatchValues
+
+Signature: I<int> B<dispatchValues> (I<ValueList>)
+
+Passes the values represented by the B<ValueList> object to the
+C<plugin_dispatch_values> function of the daemon. The "data set" (or list of
+"data sources") associated with the object are ignored, because
+C<plugin_dispatch_values> will automatically lookup the required data set. It
+is therefore absolutely okay to leave this blank.
+
+Returns zero upon success or non-zero upon failure.
+
+=head2 getDS
+
+Signature: I<DataSet> B<getDS> (I<String>)
+
+Returns the appropriate I<type> or B<null> if the type is not defined.
+
+=head2 logError
+
+Signature: I<void> B<logError> (I<String>)
+
+Sends a log message with severity B<ERROR> to the daemon.
+
+=head2 logWarning
+
+Signature: I<void> B<logWarning> (I<String>)
+
+Sends a log message with severity B<WARNING> to the daemon.
+
+=head2 logNotice
+
+Signature: I<void> B<logNotice> (I<String>)
+
+Sends a log message with severity B<NOTICE> to the daemon.
+
+=head2 logInfo
+
+Signature: I<void> B<logInfo> (I<String>)
+
+Sends a log message with severity B<INFO> to the daemon.
+
+=head2 logDebug
+
+Signature: I<void> B<logDebug> (I<String>)
+
+Sends a log message with severity B<DEBUG> to the daemon.
+
+=head1 REGISTERING CALLBACKS
+
+When starting up, collectd creates an object of each configured class. The
+constructor of this class should then register "callbacks" with the daemon,
+using the appropriate static functions in B<Collectd>,
+see L<"EXPORTED API FUNCTIONS"> above. To register a callback, the object being
+passed to one of the register functions must implement an appropriate
+interface, which are all in the B<org.collectd.api> namespace.
+
+A constructor may register any number of these callbacks, even none. An object
+without callback methods is never actively called by collectd, but may still
+call the exported API functions. One could, for example, start a new thread in
+the constructor and dispatch (submit to the daemon) values asynchronously,
+whenever one is available.
+
+Each callback method is now explained in more detail:
+
+=head2 config callback
+
+Interface: B<org.collectd.api.CollectdConfigInterface>
+
+Signature: I<int> B<config> (I<OConfigItem> ci)
+
+This method is passed a B<OConfigItem> object, if both, method and
+configuration, are available. B<OConfigItem> is the root of a tree representing
+the configuration for this plugin. The root itself is the representation of the
+B<E<lt>PluginE<nbsp>/E<gt>> block, so in next to all cases the children of the
+root are the first interesting objects.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and the plugin will be disabled entirely.
+
+See L<"registerConfig"> above.
+
+=head2 init callback
+
+Interface: B<org.collectd.api.CollectdInitInterface>
+
+Signature: I<int> B<init> ()
+
+This method is called after the configuration has been handled. It is
+supposed to set up the plugin. e.E<nbsp>g. start threads, open connections, or
+check if can do anything useful at all.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and the plugin will be disabled entirely.
+
+See L<"registerInit"> above.
+
+=head2 read callback
+
+Interface: B<org.collectd.api.CollectdReadInterface>
+
+Signature: I<int> B<read> ()
+
+This method is called periodically and is supposed to gather statistics in
+whatever fashion. These statistics are represented as a B<ValueList> object and
+sent to the daemon using L<dispatchValues|"dispatchValues">.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+Currently, returning non-zero does not have any other effects. In particular,
+Java "read"-methods are not suspended for increasing intervals like C
+"read"-functions.
+
+See L<"registerRead"> above.
+
+=head2 write callback
+
+Interface: B<org.collectd.api.CollectdWriteInterface>
+
+Signature: I<int> B<write> (I<ValueList> vl)
+
+This method is called whenever a value is dispatched to the daemon. The
+corresponding C "write"-functions are passed a C<data_set_t>, so they can
+decide which values are absolute values (gauge) and which are counter values.
+To get the corresponding C<ListE<lt>DataSourceE<gt>>, call the B<getDataSource>
+method of the B<ValueList> object.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
+See L<"registerWrite"> above.
+
+=head2 flush callback
+
+Interface: B<org.collectd.api.CollectdFlushInterface>
+
+Signature: I<int> B<flush> (I<int> timeout, I<String> identifier)
+
+This method is called when the daemon received a flush command. This can either
+be done using the C<USR1> signal (see L<collectd(1)>) or using the I<unixsock>
+plugin (see L<collectd-unixsock(5)>).
+
+If I<timeout> is greater than zero, only values older than this number of
+seconds should be flushed. To signal that all values should be flushed
+regardless of age, this argument is set to a negative number.
+
+The I<identifier> specifies which value should be flushed. If it is not
+possible to flush one specific value, flush all values. To signal that all
+values should be flushed, this argument is set to I<null>.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
+See L<"registerFlush"> above.
+
+=head2 shutdown callback
+
+Interface: B<org.collectd.api.CollectdShutdownInterface>
+
+Signature: I<int> B<shutdown> ()
+
+This method is called when the daemon is shutting down. You should not rely on
+the destructor to clean up behind the object but use this function instead.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
+See L<"registerShutdown"> above.
+
+=head2 log callback
+
+Interface: B<org.collectd.api.CollectdLogInterface>
+
+Signature: I<void> B<log> (I<int> severity, I<String> message)
+
+This callback can be used to receive log messages from the daemon.
+
+The argument I<severity> is one of:
+
+=over 4
+
+=item *
+
+org.collectd.api.Collectd.LOG_ERR
+
+=item *
+
+org.collectd.api.Collectd.LOG_WARNING
+
+=item *
+
+org.collectd.api.Collectd.LOG_NOTICE
+
+=item *
+
+org.collectd.api.Collectd.LOG_INFO
+
+=item *
+
+org.collectd.api.Collectd.LOG_DEBUG
+
+=back
+
+The function does not return any value.
+
+See L<"registerLog"> above.
+
+=head2 notification callback
+
+Interface: B<org.collectd.api.CollectdNotificationInterface>
+
+Signature: I<int> B<notification> (I<Notification> n)
+
+This callback can be used to receive notifications from the daemon.
+
+To signal success, this method has to return zero. Anything else will be
+considered an error condition and cause an appropriate message to be logged.
+
+See L<"registerNotification"> above.
+
+=head2 match callback
+
+The match (and target, see L<"target callback"> below) callbacks work a bit
+different from the other callbacks above: You don't register a match callback
+with the daemon directly, but you register a function which, when called,
+creates an appropriate object. The object creating the "match" objects is
+called "match factory".
+
+See L<"registerMatch"> above.
+
+=head3 Factory object
+
+Interface: B<org.collectd.api.CollectdMatchFactoryInterface>
+
+Signature: I<CollectdMatchInterface> B<createMatch>
+(I<OConfigItem> ci);
+
+Called by the daemon to create "match" objects.
+
+Returns: A new object which implements the B<CollectdMatchInterface> interface.
+
+=head3 Match object
+
+Interface: B<org.collectd.api.CollectdMatchInterface>
+
+Signature: I<int> B<match> (I<DataSet> ds, I<ValueList> vl);
+
+Called when processing a chain to determine whether or not a I<ValueList>
+matches. How values are matches is up to the implementing class.
+
+Has to return one of:
+
+=over 4
+
+=item *
+
+B<Collectd.FC_MATCH_NO_MATCH>
+
+=item *
+
+B<Collectd.FC_MATCH_MATCHES>
+
+=back
+
+=head2 target callback
+
+The target (and match, see L<"match callback"> above) callbacks work a bit
+different from the other callbacks above: You don't register a target callback
+with the daemon directly, but you register a function which, when called,
+creates an appropriate object. The object creating the "target" objects is
+called "target factory".
+
+See L<"registerTarget"> above.
+
+=head3 Factory object
+
+Interface: B<org.collectd.api.CollectdTargetFactoryInterface>
+
+Signature: I<CollectdTargetInterface> B<createTarget>
+(I<OConfigItem> ci);
+
+Called by the daemon to create "target" objects.
+
+Returns: A new object which implements the B<CollectdTargetInterface>
+interface.
+
+=head3 Target object
+
+Interface: B<org.collectd.api.CollectdTargetInterface>
+
+Signature: I<int> B<invoke> (I<DataSet> ds, I<ValueList> vl);
+
+Called when processing a chain to perform some action. The action performed is
+up to the implementing class.
+
+Has to return one of:
+
+=over 4
+
+=item *
+
+B<Collectd.FC_TARGET_CONTINUE>
+
+=item *
+
+B<Collectd.FC_TARGET_STOP>
+
+=item *
+
+B<Collectd.FC_TARGET_RETURN>
+
+=back
+
+=head1 EXAMPLE
+
+This short example demonstrates how to register a read callback with the
+daemon:
+
+  import org.collectd.api.Collectd;
+  import org.collectd.api.ValueList;
+  
+  import org.collectd.api.CollectdReadInterface;
+  
+  public class Foobar implements CollectdReadInterface
+  {
+    public Foobar ()
+    {
+      Collectd.registerRead ("Foobar", this);
+    }
+    
+    public int read ()
+    {
+      ValueList vl;
+      
+      /* Do something... */
+      
+      Collectd.dispatchValues (vl);
+    }
+  }
+
+=head1 PLUGINS
+
+The following plugins are implemented in I<Java>. Both, the B<LoadPlugin>
+option and the B<Plugin> block must be inside the
+B<E<lt>PluginE<nbsp>javaE<gt>> block (see above).
+
+=head2 GenericJMX plugin
+
+The GenericJMX plugin reads I<Managed Beans> (MBeans) from an I<MBeanServer>
+using JMX. JMX is a generic framework to provide and query various management
+information. The interface is used by Java processes to provide internal
+statistics as well as by the I<Java Virtual Machine> (JVM) to provide
+information about the memory used, threads and so on. 
+
+The configuration of the I<GenericJMX plugin> consists of two blocks: I<MBean>
+blocks that define a mapping of MBean attributes to the “types” used by
+I<collectd>, and I<Connection> blocks which define the parameters needed to
+connect to an I<MBeanServer> and what data to collect. The configuration of the
+I<SNMP plugin> is similar in nature, in case you know it.
+
+=head3   MBean blocks
+
+I<MBean> blocks specify what data is retrieved from I<MBeans> and how that data
+is mapped on the I<collectd> data types. The block requires one string
+argument, a name. This name is used in the I<Connection> blocks (see below) to
+refer to a specific I<MBean> block. Therefore, the names must be unique.
+
+The following options are recognized within I<MBean> blocks: 
+
+=over 4
+
+=item B<ObjectName> I<pattern>
+
+Sets the pattern which is used to retrieve I<MBeans> from the I<MBeanServer>.
+If more than one MBean is returned you should use the B<InstanceFrom> option
+(see below) to make the identifiers unique.
+
+See also:
+L<http://java.sun.com/javase/6/docs/api/javax/management/ObjectName.html>
+
+=item B<InstancePrefix> I<prefix>
+
+Prefixes the generated I<plugin instance> with I<prefix>. I<(optional)>
+
+=item B<InstanceFrom> I<property>
+
+The I<object names> used by JMX to identify I<MBeans> include so called
+I<“properties”> which are basically key-value-pairs. If the given object name
+is not unique and multiple MBeans are returned, the values of those properties
+usually differ. You can use this option to build the I<plugin instance> from
+the appropriate property values. This option is optional and may be repeated to
+generate the I<plugin instance> from multiple property values. 
+
+=item B<E<lt>value /E<gt>> blocks
+
+The I<value> blocks map one or more attributes of an I<MBean> to a value list
+in I<collectd>. There must be at least one Value block within each I<MBean>
+block.
+
+=over 4
+
+=item B<Type> type
+
+Sets the data set used within I<collectd> to handle the values of the I<MBean>
+attribute.
+
+=item B<InstancePrefix> I<prefix>
+
+Works like the option of the same name directly beneath the I<MBean> block, but
+sets the type instance instead. I<(optional)>
+
+=item B<InstanceFrom> I<prefix>
+
+Works like the option of the same name directly beneath the I<MBean> block, but
+sets the type instance instead. I<(optional)>
+
+=item B<Table> B<true>|B<false>
+
+Set this to true if the returned attribute is a I<composite type>. If set to
+true, the keys within the I<composite type> is appended to the
+I<type instance>.
+
+=item B<Attribute> I<path>
+
+Sets the name of the attribute from which to read the value. You can access the
+keys of composite types by using a dot to concatenate the key name to the
+attribute name. For example: “attrib0.key42”. If B<Table> is set to B<true>
+I<path> must point to a I<composite type>, otherwise it must point to a numeric
+type. 
+
+=back
+
+=back
+
+=head3 Connection blocks
+
+Connection blocks specify I<how> to connect to an I<MBeanServer> and what data
+to retrieve. The following configuration options are available:
+
+=over 4
+
+=item B<Host> I<name>
+
+Host name used when dispatching the values to I<collectd>. The option sets this
+field only, it is I<not> used to connect to anything and doesn't need to be a
+real, resolvable name.
+
+=item B<ServiceURL> I<URL>
+
+Specifies how the I<MBeanServer> can be reached. Any string accepted by the
+I<JMXServiceURL> is valid.
+
+See also:
+L<http://java.sun.com/javase/6/docs/api/javax/management/remote/JMXServiceURL.html>
+
+=item B<User> I<name>
+
+Use I<name> to authenticate to the server. If not configured, “monitorRole”
+will be used.
+
+=item B<Password> I<password>
+
+Use I<password> to authenticate to the server. If not given, unauthenticated
+access is used.
+
+=item B<InstancePrefix> I<prefix>
+
+Prefixes the generated I<plugin instance> with I<prefix>. If a second
+I<InstancePrefix> is specified in a referenced I<MBean> block, the prefix
+specified in the I<Connection> block will appear at the beginning of the
+I<plugin instance>, the prefix specified in the I<MBean> block will be appended
+to it.
+
+=item B<Collect> I<mbean_block_name>
+
+Configures which of the I<MBean> blocks to use with this connection. May be
+repeated to collect multiple I<MBeans> from this server. 
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-perl(5)>,
+L<types.db(5)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>
+

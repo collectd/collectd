@@ -1,0 +1,75 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:			collectd
+# Required-Start:		$local_fs $remote_fs $network 
+# X-UnitedLinux-Should-Start:	$named $time apache mysql
+# Required-Stop:		$local_fs $remote_fs $network
+# X-UnitedLinux-Should-Stop:	
+# Default-Start:		3 5
+# Default-Stop:			0 1 2 6
+# Short-Description:		Statistics daemon collectd
+# Description:			Start the statistics daemon collectd
+### END INIT INFO
+
+
+#
+# load the configuration
+#
+test -s /etc/rc.status && . /etc/rc.status && rc_reset
+
+RETVAL=0
+ARGS=""
+prog="collectd"
+CONFIG=/etc/collectd.conf
+
+if [ -r /etc/default/$prog ]; then
+	. /etc/default/$prog
+fi
+
+start () {
+	echo -n $"Starting $prog: "
+	RETVAL=1
+	if [ -r "$CONFIG" ]
+	then
+		eval startproc /usr/sbin/collectd -C "$CONFIG"
+		RETVAL=$?
+		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+	fi
+	rc_failed $RETVAL
+	rc_status -v
+}
+stop () {
+	echo -n $"Stopping $prog: "
+	killproc $prog
+	RETVAL=$?
+	rc_failed $RETVAL
+	rc_status -v
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+}
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	status $prog
+	;;
+  restart|reload)
+	stop
+	sleep 1
+	start
+	;;
+  condrestart)
+	[ -f /var/lock/subsys/$prog ] && restart || :
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|status|restart|reload|condrestart}"
+	exit 1
+esac
+
+rc_exit
+# vim:syntax=sh

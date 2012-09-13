@@ -1,0 +1,731 @@
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+=head1 NAME
+
+collectd-python - Documentation of collectd's C<python plugin>
+
+=head1 SYNOPSIS
+
+  <LoadPlugin python>
+    Globals true
+  </LoadPlugin>
+  # ...
+  <Plugin python>
+    ModulePath "/path/to/your/python/modules"
+    LogTraces true
+    Interactive false
+    Import "spam"
+
+    <Module spam>
+      spam "wonderful" "lovely"
+    </Module>
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<python plugin> embeds a Python-interpreter into collectd and provides an
+interface to collectd's plugin system. This makes it possible to write plugins
+for collectd in Python. This is a lot more efficient than executing a
+Python-script every time you want to read a value with the C<exec plugin> (see
+L<collectd-exec(5)>) and provides a lot more functionality, too.
+
+At least python I<version 2.3> is required.
+
+=head1 CONFIGURATION
+
+=over 4
+
+=item B<LoadPlugin> I<Plugin>
+
+Loads the Python plugin I<Plugin>. Unlike most other LoadPlugin lines, this one
+should be a block containing the line "Globals true". This will cause collectd
+to export the name of all objects in the python interpreter for all plugins to
+see. If you don't do this or your platform does not support it, the embedded
+interpreter will start anyway but you won't be able to load certain python
+modules, e.g. "time".
+
+=item B<Encoding> I<Name>
+
+The default encoding for Unicode objects you pass to collectd. If you omit this
+option it will default to B<ascii> on I<Python 2> and B<utf-8> on I<Python 3>.
+This is hardcoded in Python and will ignore everything else, including your
+locale.
+
+=item B<ModulePath> I<Name>
+
+Appends I<Name> to B<sys.path>. You won't be able to import any scripts you
+wrote unless they are located in one of the directories in this list. Please
+note that it only has effect on plugins loaded after this option. You can
+use multiple B<ModulePath> lines to add more than one directory.
+
+=item B<LogTraces> I<bool>
+
+If a python script throws an exception it will be logged by collectd with the
+name of the exception and the message. If you set this option to true it will
+also log the full stacktrace just like the default output of an interactive
+python interpreter. This should probably be set to false most of the time but
+is very useful for development and debugging of new modules.
+
+=item B<Interactive> I<bool>
+
+This option will cause the module to launch an interactive python interpreter
+that reads from and writes to the terminal. Note that collectd will terminate
+right after starting up if you try to run it as a daemon while this option is
+enabled to make sure to start collectd with the B<-f> option.
+
+The B<collectd> module is I<not> imported into the interpreter's globals. You
+have to do it manually. Be sure to read the help text of the module, it can be
+used as a reference guide during coding.
+
+This interactive session will behave slightly differently from a daemonized
+collectd script as well as from a normal python interpreter:
+
+=over 4
+
+=item
+
+B<1.> collectd will try to import the B<readline> module to give you a decent
+way of entering your commands. The daemonized collectd won't do that.
+
+=item
+
+B<2.> collectd will block I<SIGINT>. Pressing I<Ctrl+C> will usually cause
+collectd to shut down. This would be problematic in an interactive session,
+therefore this signal will be blocked. You can still use it to interrupt
+syscalls like sleep and pause but it won't generate a I<KeyboardInterrupt>
+exception either.
+
+To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
+
+=item
+
+B<3.> collectd handles I<SIGCHLD>. This means that python won't be able to
+determine the return code of spawned processes with system(), popen() and
+subprocess. This will result in python not using external programs like less
+to display help texts. You can override this behavior with the B<PAGER>
+environment variable, e.g. I<export PAGER=less> before starting collectd.
+Depending on your version of python this might or might not result in an
+B<OSError> exception which can be ignored.
+
+If you really need to spawn new processes from python you can register an init
+callback and reset the action for SIGCHLD to the default behavior. Please note
+that this I<will> break the exec plugin. Do not even load the exec plugin if
+you intend to do this!
+
+There is an example script located in B<contrib/python/getsigchld.py>  to do
+this. If you import this from I<collectd.conf> SIGCHLD will be handled
+normally and spawning processes from python will work as intended.
+
+=back
+
+=item E<lt>B<Module> I<Name>E<gt> block
+
+This block may be used to pass on configuration settings to a Python module.
+The configuration is converted into an instance of the B<Config> class which is
+passed to the registered configuration callback. See below for details about
+the B<Config> class and how to register callbacks.
+
+The I<name> identifies the callback.
+
+=back
+
+=head1 STRINGS
+
+There are a lot of places where strings are send from collectd to python and
+from python to collectd. How exactly this works depends on wheather byte or
+unicode strings or python2 or python3 are used.
+
+Python2 has I<str>, which is just bytes, and I<unicode>. Python3 has I<str>,
+which is a unicode object, and I<bytes>.
+
+When passing strings from python to collectd all of these object are supported
+in all places, however I<str> should be used if possible. These strings must
+not contain a NUL byte. Ignoring this will result in a I<TypeError> exception.
+If a byte string was used it will be used as is by collectd. If a unicode
+object was used it will be encoded using the default encoding (see above). If
+this is not possible python will raise a I<UnicodeEncodeError> exception.
+
+Wenn passing strings from collectd to python the behavior depends on the
+python version used. Python2 will always receive a I<str> object. Python3 will
+usually receive a I<str> object as well, however the original string will be
+decoded to unicode using the default encoding. If this fails because the
+string is not a valid sequence for this encoding a I<bytes> object will be
+returned instead.
+
+=head1 WRITING YOUR OWN PLUGINS
+
+Writing your own plugins is quite simple. collectd manages plugins by means of
+B<dispatch functions> which call the appropriate B<callback functions>
+registered by the plugins. Any plugin basically consists of the implementation
+of these callback functions and initializing code which registers the
+functions with collectd. See the section "EXAMPLES" below for a really basic
+example. The following types of B<callback functions> are known to collectd
+(all of them are optional):
+
+=over 4
+
+=item configuration functions
+
+This type of functions is called during configuration if an appropriate
+B<Module> block has been encountered. It is called once for each B<Module>
+block which matches the name of the callback as provided with the
+B<register_config> method - see below.
+
+Python thread support has not been initialized at this point so do not use any
+threading functions here!
+
+=item init functions
+
+This type of functions is called once after loading the module and before any
+calls to the read and write functions. It should be used to initialize the
+internal state of the plugin (e.E<nbsp>g. open sockets, ...). This is the
+earliest point where you may use threads.
+
+=item read functions
+
+This type of function is used to collect the actual data. It is called once
+per interval (see the B<Interval> configuration option of collectd). Usually
+it will call B<plugin_dispatch_values> to dispatch the values to collectd
+which will pass them on to all registered B<write functions>. If this function
+throws any kind of exception the plugin will be skipped for an increasing
+amount of time until it returns normally again.
+
+=item write functions
+
+This type of function is used to write the dispatched values. It is called
+once for every value that was dispatched by any plugin.
+
+=item flush functions
+
+This type of function is used to flush internal caches of plugins. It is
+usually triggered by the user only. Any plugin which caches data before
+writing it to disk should provide this kind of callback function.
+
+=item log functions
+
+This type of function is used to pass messages of plugins or the daemon itself
+to the user.
+
+=item notification function
+
+This type of function is used to act upon notifications. In general, a
+notification is a status message that may be associated with a data instance.
+Usually, a notification is generated by the daemon if a configured threshold
+has been exceeded (see the section "THRESHOLD CONFIGURATION" in
+L<collectd.conf(5)> for more details), but any plugin may dispatch
+notifications as well.
+
+=item shutdown functions
+
+This type of function is called once before the daemon shuts down. It should
+be used to clean up the plugin (e.g. close sockets, ...).
+
+=back
+
+Any function (except log functions) may set throw an exception in case of any
+errors. The exception will be passed on to the user using collectd's logging
+mechanism. If a log callback throws an exception it will be printed to standard
+error instead.
+
+See the documentation of the various B<register_> methods in the section
+"FUNCTIONS" below for the number and types of arguments passed to each
+B<callback function>. This section also explains how to register B<callback
+functions> with collectd.
+
+To enable a module, copy it to a place where Python can find it (i.E<nbsp>e. a
+directory listed in B<sys.path>) just as any other Python plugin and add
+an appropriate B<Import> option to the configuration file. After restarting
+collectd you're done.
+
+=head1 CLASSES
+
+The following complex types are used to pass values between the Python plugin
+and collectd:
+
+=head2 Signed
+
+The Signed class is just a long. It has all its methods and behaves exactly
+like any other long object. It is used to indicate if an integer was or should
+be stored as a signed or unsigned integer object.
+
+ class Signed(long)
+
+This is a long by another name. Use it in meta data dicts
+to choose the way it is stored in the meta data.
+
+=head2 Unsigned
+
+The Unsigned class is just a long. It has all its methods and behaves exactly
+like any other long object. It is used to indicate if an integer was or should
+be stored as a signed or unsigned integer object.
+
+ class Unsigned(long)
+
+This is a long by another name. Use it in meta data dicts
+to choose the way it is stored in the meta data.
+
+=head2 Config
+
+The Config class is an object which keeps the information provided in the
+configuration file. The sequence of children keeps one entry for each
+configuration option. Each such entry is another Config instance, which
+may nest further if nested blocks are used.
+
+ class Config(object)
+
+This represents a piece of collectd's config file. It is passed to scripts with
+config callbacks (see B<register_config>) and is of little use if created
+somewhere else.
+
+It has no methods beyond the bare minimum and only exists for its data members.
+
+Data descriptors defined here:
+
+=over 4
+
+=item parent
+
+This represents the parent of this node. On the root node
+of the config tree it will be None.
+
+=item key
+
+This is the keyword of this item, i.e. the first word of any given line in the
+config file. It will always be a string.
+
+=item values
+
+This is a tuple (which might be empty) of all value, i.e. words following the
+keyword in any given line in the config file.
+
+Every item in this tuple will be either a string or a float or a boolean,
+depending on the contents of the configuration file.
+
+=item children
+
+This is a tuple of child nodes. For most nodes this will be empty. If this node
+represents a block instead of a single line of the config file it will contain
+all nodes in this block.
+
+=back
+
+=head2 PluginData
+
+This should not be used directly but it is the base class for both Values and
+Notification. It is used to identify the source of a value or notification.
+
+ class PluginData(object)
+
+This is an internal class that is the base for Values and Notification. It is
+pretty useless by itself and was therefore not exported to the collectd module.
+
+Data descriptors defined here:
+
+=over 4
+
+=item host
+
+The hostname of the host this value was read from. For dispatching this can be
+set to an empty string which means the local hostname as defined in
+collectd.conf.
+
+=item plugin
+
+The name of the plugin that read the data. Setting this member to an empty
+string will insert "python" upon dispatching.
+
+=item plugin_instance
+
+Plugin instance string. May be empty.
+
+=item time
+
+This is the Unix timestamp of the time this value was read. For dispatching
+values this can be set to zero which means "now". This means the time the value
+is actually dispatched, not the time it was set to 0.
+
+=item type
+
+The type of this value. This type has to be defined in your I<types.db>.
+Attempting to set it to any other value will raise a I<TypeError> exception.
+Assigning a type is mandatory, calling dispatch without doing so will raise a
+I<RuntimeError> exception.
+
+=item type_instance
+
+Type instance string. May be empty.
+
+=back
+
+=head2 Values
+
+A Value is an object which features a sequence of values. It is based on then
+I<PluginData> type and uses its members to identify the values.
+
+ class Values(PluginData)
+
+A Values object used for dispatching values to collectd and receiving values
+from write callbacks.
+
+Method resolution order:
+
+=over 4
+
+=item Values
+
+=item PluginData
+
+=item object
+
+=back
+
+Methods defined here:
+
+=over 4
+
+=item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.
+
+Dispatch this instance to the collectd process. The object has members for each
+of the possible arguments for this method. For a detailed explanation of these
+parameters see the member of the same same.
+
+If you do not submit a parameter the value saved in its member will be
+submitted. If you do provide a parameter it will be used instead, without
+altering the member.
+
+=item B<write>([destination][, type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.
+
+Write this instance to a single plugin or all plugins if "destination" is
+omitted. This will bypass the main collectd process and all filtering and
+caching. Other than that it works similar to "dispatch". In most cases
+"dispatch" should be used instead of "write".
+
+=back
+
+Data descriptors defined here:
+
+=over 4
+
+=item interval
+
+The interval is the timespan in seconds between two submits for the same data
+source. This value has to be a positive integer, so you can't submit more than
+one value per second. If this member is set to a non-positive value, the
+default value as specified in the config file will be used (default: 10).
+
+If you submit values more often than the specified interval, the average will
+be used. If you submit less values, your graphs will have gaps.
+
+=item values
+
+These are the actual values that get dispatched to collectd. It has to be a
+sequence (a tuple or list) of numbers. The size of the sequence and the type of
+its content depend on the type member your I<types.db> file. For more
+information on this read the L<types.db(5)> manual page.
+
+If the sequence does not have the correct size upon dispatch a I<RuntimeError>
+exception will be raised. If the content of the sequence is not a number, a
+I<TypeError> exception will be raised.
+
+=item meta
+
+These are the meta data for this Value object.
+It has to be a dictionary of numbers, strings or bools. All keys must be
+strings. I<int> and <long> objects will be dispatched as signed integers unless
+they are between 2**63 and 2**64-1, which will result in a unsigned integer.
+You can force one of these storage classes by using the classes
+B<collectd.Signed> and B<collectd.Unsigned>. A meta object received by a write
+callback will always contain B<Signed> or B<Unsigned> objects.
+
+=back
+
+=head2 Notification
+
+A notification is an object defining the severity and message of the status
+message as well as an identification of a data instance by means of the members
+of I<PluginData> on which it is based.
+
+class Notification(PluginData)
+The Notification class is a wrapper around the collectd notification.
+It can be used to notify other plugins about bad stuff happening. It works
+similar to Values but has a severity and a message instead of interval
+and time.
+Notifications can be dispatched at any time and can be received with
+register_notification.
+
+Method resolution order:
+
+=over 4
+
+=item Notification
+
+=item PluginData
+
+=item object
+
+=back
+
+Methods defined here:
+
+=over 4
+
+=item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.
+
+Dispatch this instance to the collectd process. The object has members for each
+of the possible arguments for this method. For a detailed explanation of these
+parameters see the member of the same same.
+
+If you do not submit a parameter the value saved in its member will be
+submitted. If you do provide a parameter it will be used instead, without
+altering the member.
+
+=back
+
+Data descriptors defined here:
+
+=over 4
+
+=item message
+
+Some kind of description what's going on and why this Notification was
+generated.
+
+=item severity
+
+The severity of this notification. Assign or compare to I<NOTIF_FAILURE>,
+I<NOTIF_WARNING> or I<NOTIF_OKAY>.
+
+=back
+
+=head1 FUNCTIONS
+
+The following functions provide the C-interface to Python-modules.
+
+=over 4
+
+=item B<register_*>(I<callback>[, I<data>][, I<name>]) -> identifier
+
+There are eight different register functions to get callback for eight
+different events. With one exception all of them are called as shown above.
+
+=over 4
+
+=item
+
+I<callback> is a callable object that will be called every time the event is
+triggered.
+
+=item
+
+I<data> is an optional object that will be passed back to the callback function
+every time it is called. If you omit this parameter no object is passed back to
+your callback, not even None.
+
+=item
+
+I<name> is an optional identifier for this callback. The default name is
+B<python>.I<module>. I<module> is taken from the B<__module__> attribute of
+your callback function. Every callback needs a unique identifier, so if you
+want to register the same callback multiple time in the same module you need to
+specify a name here. Otherwise it's save to ignore this parameter I<identifier>
+is the full identifier assigned to this callback.
+
+=back
+
+These functions are called in the various stages of the daemon (see the section
+L<"WRITING YOUR OWN PLUGINS"> above) and are passed the following arguments:
+
+=over 4
+
+=item register_config
+
+The only argument passed is a I<Config> object. See above for the layout of this
+data type.
+Note that you can not receive the whole config files this way, only B<Module>
+blocks inside the Python configuration block. Additionally you will only
+receive blocks where your callback identifier matches B<python.>I<blockname>.
+
+=item register_init
+
+The callback will be called without arguments.
+
+=item register_read(callback[, interval][, data][, name]) -> identifier
+
+This function takes an additional parameter: I<interval>. It specifies the
+time between calls to the callback function.
+
+The callback will be called without arguments.
+
+=item register_shutdown
+
+The callback will be called without arguments.
+
+=item register_write
+
+The callback function will be called with one arguments passed, which will be a
+I<Values> object. For the layout of I<Values> see above.
+If this callback function throws an exception the next call will be delayed by
+an increasing interval.
+
+=item register_flush
+
+Like B<register_config> is important for this callback because it determines
+what flush requests the plugin will receive.
+
+The arguments passed are I<timeout> and I<identifier>. I<timeout> indicates
+that only data older than I<timeout> seconds is to be flushed. I<identifier>
+specifies which values are to be flushed.
+
+=item register_log
+
+The arguments are I<severity> and I<message>. The severity is an integer and
+small for important messages and high for less important messages. The least
+important level is B<LOG_DEBUG>, the most important level is B<LOG_ERR>. In
+between there are (from least to most important): B<LOG_INFO>, B<LOG_NOTICE>,
+and B<LOG_WARNING>. I<message> is simply a string B<without> a newline at the
+end.
+
+If this callback throws an exception it will B<not> be logged. It will just be
+printed to B<sys.stderr> which usually means silently ignored.
+
+=item register_notification
+
+The only argument passed is a I<Notification> object. See above for the layout of this
+data type.
+
+=back
+
+=item B<unregister_*>(I<identifier>) -> None
+
+Removes a callback or data-set from collectd's internal list of callback
+functions. Every I<register_*> function has an I<unregister_*> function.
+I<identifier> is either the string that was returned by the register function
+or a callback function. The identifier will be constructed in the same way as
+for the register functions.
+
+=item B<flush>(I<plugin[, I<timeout>][, I<identifier>]) -> None
+
+Flush one or all plugins. I<timeout> and the specified I<identifiers> are
+passed on to the registered flush-callbacks. If omitted, the timeout defaults
+to C<-1>. The identifier defaults to None. If the B<plugin> argument has been
+specified, only named plugin will be flushed.
+
+=item B<error>, B<warning>, B<notice>, B<info>, B<debug>(I<message>)
+
+Log a message with the specified severity.
+
+=back
+
+=head1 EXAMPLES
+
+Any Python module will start similar to:
+
+  import collectd
+
+A very simple read function might look like:
+
+  def read(data=None):
+    vl = collectd.Values(type='gauge')
+    vl.plugin='python.spam'
+    vl.dispatch(values=[random.random() * 100])
+
+A very simple write function might look like:
+
+  def write(vl, data=None):
+    for i in vl.values:
+      print "%s (%s): %f" % (vl.plugin, vl.type, i)
+
+To register those functions with collectd:
+
+  collectd.register_read(read);
+  collectd.register_write(write);
+
+See the section L<"CLASSES"> above for a complete documentation of the data
+types used by the read, write and match functions.
+
+=head1 NOTES
+
+=over 4
+
+=item
+
+Please feel free to send in new plugins to collectd's mailinglist at
+E<lt>collectdE<nbsp>atE<nbsp>verplant.orgE<gt> for review and, possibly,
+inclusion in the main distribution. In the latter case, we will take care of
+keeping the plugin up to date and adapting it to new versions of collectd.
+
+Before submitting your plugin, please take a look at
+L<http://collectd.org/dev-info.shtml>.
+
+=back
+
+=head1 CAVEATS
+
+=over 4
+
+=item
+
+collectd is heavily multi-threaded. Each collectd thread accessing the python
+plugin will be mapped to a Python interpreter thread. Any such thread will be
+created and destroyed transparently and on-the-fly.
+
+Hence, any plugin has to be thread-safe if it provides several entry points
+from collectd (i.E<nbsp>e. if it registers more than one callback or if a
+registered callback may be called more than once in parallel).
+
+=item
+
+The Python thread module is initialized just before calling the init callbacks.
+This means you must not use Python's threading module prior to this point. This
+includes all config and possibly other callback as well.
+
+=item
+
+The python plugin exports the internal API of collectd which is considered
+unstable and subject to change at any time. We try hard to not break backwards
+compatibility in the Python API during the life cycle of one major release.
+However, this cannot be guaranteed at all times. Watch out for warnings
+dispatched by the python plugin after upgrades.
+
+=back
+
+=head1 KNOWN BUGS
+
+=over 4
+
+=item
+
+Not all aspects of the collectd API are accessible from python. This includes
+but is not limited to filters and data sets.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-perl(5)>,
+L<collectd-exec(5)>,
+L<types.db(5)>,
+L<python(1)>,
+
+=head1 AUTHOR
+
+The C<python plugin> has been written by
+Sven Trenkel E<lt>collectdE<nbsp>atE<nbsp>semidefinite.deE<gt>.
+
+This manpage has been written by Sven Trenkel
+E<lt>collectdE<nbsp>atE<nbsp>semidefinite.deE<gt>.
+It is based on the L<collectd-perl(5)> manual page by
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt> and
+Sebastian Harl E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
+
+=cut

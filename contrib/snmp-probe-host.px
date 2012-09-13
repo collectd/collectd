@@ -1,0 +1,439 @@
+#!/usr/bin/perl
+#
+# collectd - snmp-probe-host.px
+# Copyright (C) 2008,2009  Florian octo Forster
+# Copyright (C) 2009       noris network AG
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; only version 2 of the License is applicable.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
+# Author:
+#   Florian octo Forster <octo at noris.net>
+#
+
+use strict;
+use warnings;
+use SNMP;
+use Config::General ('ParseConfig');
+use Getopt::Long ('GetOptions');
+use Socket6;
+
+our %ExcludeOptions =
+(
+  'IF-MIB64' => qr/^\.?1\.3\.6\.1\.2\.1\.31/,
+  'IF-MIB32' => qr/^\.?1\.3\.6\.1\.2\.1\.2/
+);
+
+sub get_config
+{
+  my %conf;
+  my $file = shift;
+
+  %conf = ParseConfig (-ConfigFile => $file,
+    -LowerCaseNames => 1,
+    -UseApacheInclude => 1,
+    -IncludeDirectories => 1,
+    ($Config::General::VERSION >= 2.38) ? (-IncludeAgain => 0) : (),
+    -MergeDuplicateBlocks => 1,
+    -CComments => 0);
+  if (!%conf)
+  {
+    return;
+  }
+  return (\%conf);
+} # get_config
+
+sub probe_one
+{
+  my $sess = shift;
+  my $conf = shift;
+  my $excludes = @_ ? shift : [];
+  my @oids;
+  my $cmd = 'GET';
+  my $vl;
+
+  if (!$conf->{'table'} || !$conf->{'values'})
+  {
+    warn "No 'table' or 'values' setting";
+    return;
+  }
+
+  @oids = split (/"\s*"/, $conf->{'values'});
+  if ($conf->{'table'} =~ m/^(true|yes|on)$/i)
+  {
+    $cmd = 'GETNEXT';
+    if (defined ($conf->{'instance'}))
+    {
+      push (@oids, $conf->{'instance'});
+    }
+  }
+
+  require Data::Dumper;
+
+  #print "probe_one: \@oids = (" . join (', ', @oids) . ");\n";
+  for (@oids)
+  {
+    my $oid_orig = $_;
+    my $vb;
+    my $status;
+
+    if ($oid_orig =~ m/[^0-9\.]/)
+    {
+      my $tmp = SNMP::translateObj ($oid_orig);
+      if (!defined ($tmp))
+      {
+        warn ("Cannot translate OID $oid_orig");
+        return;
+      }
+      $oid_orig = $tmp;
+    }
+
+    for (@$excludes)
+    {
+      if ($oid_orig =~ $_)
+      {
+        return;
+      }
+    }
+
+    $vb = SNMP::Varbind->new ([$oid_orig]);
+
+    if ($cmd eq 'GET')
+    {
+      $status = $sess->get ($vb);
+      if ($sess->{'ErrorNum'} != 0)
+      {
+        return;
+      }
+      if (!defined ($status))
+      {
+        return;
+      }
+      if ("$status" eq 'NOSUCHOBJECT')
+      {
+        return;
+      }
+    }
+    else
+    {
+      my $oid_copy;
+
+      $status = $sess->getnext ($vb);
+      if ($sess->{'ErrorNum'} != 0)
+      {
+        return;
+      }
+
+      $oid_copy = $vb->[0];
+      if ($oid_copy =~ m/[^0-9\.]/)
+      {
+        my $tmp = SNMP::translateObj ($oid_copy);
+        if (!defined ($tmp))
+        {
+          warn ("Cannot translate OID $oid_copy");
+          return;
+        }
+        $oid_copy = $tmp;
+      }
+
+      #print "$oid_orig > $oid_copy ?\n";
+      if (substr ($oid_copy, 0, length ($oid_orig)) ne $oid_orig)
+      {
+        return;
+      }
+    }
+
+    #print STDOUT Data::Dumper->Dump ([$oid_orig, $status], [qw(oid_orig status)]);
+  } # for (@oids)
+
+  return (1);
+} # probe_one
+
+sub probe_all
+{
+  my $host = shift;
+  my $community = shift;
+  my $data = shift;
+  my $excludes = @_ ? shift : [];
+  my $version = 2;
+  my @valid_data = ();
+  my $begin;
+  my $address;
+
+  {
+    my @status;
+
+    @status = getaddrinfo ($host, 'snmp');
+    while (@status >= 5)
+    {
+      my $family    = shift (@status);
+      my $socktype  = shift (@status);
+      my $proto     = shift (@status);
+      my $saddr     = shift (@status);
+      my $canonname = shift (@status);
+      my $host;
+      my $port;
+
+      ($host, $port) = getnameinfo ($saddr, NI_NUMERICHOST);
+      if (defined ($port))
+      {
+        $address = $host;
+      }
+      else
+      {
+        warn ("getnameinfo failed: $host");
+      }
+    }
+  }
+  if (!$address)
+  {
+    return;
+  }
+
+  while ($version > 0)
+  {
+    my $sess;
+
+    $sess = new SNMP::Session (DestHost => $host,
+      Community => $community,
+      Version => $version,
+      Timeout => 1000000,
+      UseNumeric => 1);
+    if (!$sess)
+    {
+      $version--;
+      next;
+    }
+
+    $begin = time ();
+
+    for (keys %$data)
+    {
+      my $name = $_;
+      if (probe_one ($sess, $data->{$name}, $excludes))
+      {
+        push (@valid_data, $name);
+      }
+
+      if ((@valid_data == 0) && ((time () - $begin) > 10))
+      {
+        # break for loop
+        last;
+      }
+    }
+
+    if (@valid_data)
+    {
+      # break while loop
+      last;
+    }
+
+    $version--;
+  } # while ($version > 0)
+
+  print <<EOF;
+  <Host "$host">
+    Address "$address"
+    Version $version
+    Community "$community"
+EOF
+  for (sort (@valid_data))
+  {
+    print "    Collect \"$_\"\n";
+  }
+  if (!@valid_data)
+  {
+    print <<EOF;
+# WARNING: Autoconfiguration failed.
+# TODO: Add one or more `Collect' statements here:
+#   Collect "foo"
+EOF
+  }
+  print <<EOF;
+    Interval 60
+  </Host>
+EOF
+} # probe_all
+
+sub exit_usage
+{
+  print <<USAGE;
+Usage: snmp-probe-host.px --host <host> [options]
+
+Options are:
+  -H | --host          Hostname of the device to probe.
+  -C | --config        Path to config file holding the SNMP data blocks.
+  -c | --community     SNMP community to use. Default: `public'.
+  -h | --help          Print this information and exit.
+  -x | --exclude       Exclude a specific MIB. Call with "help" for more
+                       information.
+
+USAGE
+  exit (1);
+}
+
+sub exit_usage_exclude
+{
+  print "Available exclude MIBs:\n\n";
+  for (sort (keys %ExcludeOptions))
+  {
+    print "  $_\n";
+  }
+  print "\n";
+  exit (1);
+}
+
+=head1 NAME
+
+snmp-probe-host.px - Find out what information an SNMP device provides.
+
+=head1 SYNOPSIS
+
+  ./snmp-probe-host.px --host switch01.mycompany.com --community ei2Acoum
+
+=head1 DESCRIPTION
+
+The C<snmp-probe-host.px> script can be used to automatically generate SNMP
+configuration snippets for collectd's snmp plugin (see L<collectd-snmp(5)>).
+
+This script parses the collectd configuration and detecs all "data" blocks that
+are defined for the SNMP plugin. It then queries the device specified on the
+command line for all OIDs and registeres which OIDs could be answered correctly
+and which resulted in an error. With that information the script figures out
+which "data" blocks can be used with this hosts and prints an appropriate
+"host" block to standard output.
+
+The script first tries to contact the device via SNMPv2. If after ten seconds
+no working "data" block has been found, it will try to downgrade to SNMPv1.
+This is a bit a hack, but works for now.
+
+=cut
+
+my $host;
+my $file = '/etc/collectd/collectd.conf';
+my $community = 'public';
+my $conf;
+my $working_data;
+my @excludes = ();
+
+=head1 OPTIONS
+
+The following command line options are accepted:
+
+=over 4
+
+=item B<--host> I<hostname>
+
+Hostname of the device. This B<should> be a fully qualified domain name (FQDN),
+but anything the system can resolve to an IP address will word. B<Required
+argument>.
+
+=item B<--config> I<config file>
+
+Sets the name of the collectd config file which defined the SNMP "data" blocks.
+Due to limitations of the config parser used in this script
+(C<Config::General>), C<Include> statements cannot be parsed correctly.
+Defaults to F</etc/collectd/collectd.conf>.
+
+=item B<--community> I<community>
+
+SNMP community to use. Should be pretty straight forward.
+
+=item B<--exclude> I<MIB>
+
+This option can be used to exclude specific data from being enabled in the
+generated config. Currently the following MIBs are understood:
+
+=over 4
+
+=item B<IF-MIB>
+
+Exclude interface information, such as I<ifOctets> and I<ifPackets>.
+
+=back
+
+=back
+
+=cut
+
+GetOptions ('H|host|hostname=s' => \$host,
+  'C|conf|config=s' => \$file,
+  'c|community=s' => \$community,
+  'x|exclude=s' => \@excludes,
+  'h|help' => \&exit_usage) or die;
+
+if (!$host)
+{
+  print STDERR "No hostname given. Please use `--host'.\n";
+  exit (1);
+}
+
+if (@excludes)
+{
+  my $tmp = join (',', @excludes);
+  my @tmp = split (/\s*,\s*/, $tmp);
+
+  @excludes = ();
+  for (@tmp)
+  {
+    my $mib = uc ($_);
+    if ($mib eq 'HELP')
+    {
+      exit_usage_exclude ();
+    }
+    elsif (!exists ($ExcludeOptions{$mib}))
+    {
+      print STDERR "No such MIB: $mib\n";
+      exit_usage_exclude ();
+    }
+    push (@excludes, $ExcludeOptions{$mib});
+  }
+}
+
+$conf = get_config ($file) or die ("Cannot read config");
+
+if (!defined ($conf->{'plugin'})
+  || !defined ($conf->{'plugin'}{'snmp'})
+  || !defined ($conf->{'plugin'}{'snmp'}{'data'}))
+{
+  print STDERR "Error: No <plugin>, <snmp>, or <data> block found.\n";
+  exit (1);
+}
+
+probe_all ($host, $community, $conf->{'plugin'}{'snmp'}{'data'}, \@excludes);
+
+exit (0);
+
+=head1 BUGS
+
+=over 4
+
+=item
+
+C<Include> statements in the config file are not handled correctly.
+
+=item
+
+SNMPv2 / SNMPv1 detection is a hack.
+
+=back
+
+=head1 AUTHOR
+
+Copyright (c) 2008 by Florian octo Forster
+E<lt>octoE<nbsp>atE<nbsp>noris.netE<gt>. Licensed under the terms of the GPLv2.
+Written for the norisE<nbsp>networkE<nbsp>AG L<http://noris.net/>.
+
+=cut
+
+# vim: set sw=2 sts=2 ts=8 et :

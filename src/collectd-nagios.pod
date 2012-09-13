@@ -1,0 +1,124 @@
+=head1 NAME
+
+collectd-nagios - Nagios plugin for querying collectd
+
+=head1 SYNOPSIS
+
+collectd-nagios B<-s> I<socket> B<-n> I<value_spec> B<-H> I<hostname> I<[options]>
+
+=head1 DESCRIPTION
+
+This small program is the glue between collectd and nagios. collectd collects
+various performance statistics which it provides via the C<unixsock plugin>,
+see L<collectd-unixsock(5)>. This program is called by Nagios, connects to the
+UNIX socket and reads the values from collectd. It then returns B<OKAY>,
+B<WARNING> or B<CRITICAL> depending on the values and the ranges provided by
+Nagios.
+
+=head1 ARGUMENTS AND OPTIONS
+
+The following arguments and options are required and understood by
+collectd-nagios. The order of the arguments generally doesn't matter, as long
+as no argument is passed more than once.
+
+=over 4
+
+=item B<-s> I<socket>
+
+Path of the UNIX socket opened by collectd's C<unixsock plugin>.
+
+=item B<-n> I<value_spec>
+
+The value to read from collectd. The argument is in the form
+C<plugin[-instance]/type[-instance]>.
+
+=item B<-H> I<hostname>
+
+Hostname to query the values for.
+
+=item B<-d> I<data_source>
+
+Each I<value_spec> may be made of multiple "data sources". With this option you
+can select one or more data sources. To select multiple data sources simply
+specify this option again. If multiple data sources are examined they are
+handled according to the consolidation function given with the B<-g> option.
+
+=item B<-g> B<none>I<|>B<average>I<|>B<sum>
+
+When multiple data sources are selected from a value spec, they can be handled
+differently depending on this option. The values of the following meaning:
+
+=over 4
+
+=item B<none>
+
+No consolidation if done and the warning and critical regions are applied to
+each value independently.
+
+=item B<average>
+
+The warning and critical ranges are applied to the average of all values.
+
+=item B<sum>
+
+The warning and critical ranges are applied to the sum of all values.
+
+=item B<percentage>
+
+The warning and critical ranges are applied to the ratio (in percent) of the
+first value and the sum of all values. A warning is returned if the first
+value is not defined or if all values sum up to zero.
+
+=back
+
+=item B<-c> I<range>
+
+=item B<-w> I<range>
+
+Set the critical (B<-c>) and warning (B<-w>) ranges. These options mostly
+follow the normal syntax of Nagios plugins. The general format is
+"I<min>B<:>I<max>". If a value is smaller than I<min> or bigger than I<max>, a
+I<warning> or I<critical> status is returned, otherwise the status is
+I<success>.
+
+The tilde sign (B<~>) can be used to explicitly specify infinity. If B<~> is
+used as a I<min> value, negative infinity is used. In case of I<max>, it is
+interpreted as positive infinity.
+
+If the first character of the I<range> is the atE<nbsp>sign (B<@>), the meaning
+of the range will be inverted. I.E<nbsp>e. all values I<within> the range will
+yield a I<warning> or I<critical> status, while all values I<outside> the range
+will result in a I<success> status.
+
+I<min> (and the colon) may be omitted,
+I<min> is then assumed to be zero. If I<max> (but not the trailing colon) is
+omitted, I<max> is assumed to be positive infinity.
+
+=item B<-m>
+
+If this option is given, "Not a Number" (NaN) is treated as I<critical>. By
+default, the I<none> consolidation reports NaNs as I<warning>. Other
+consolidations simply ignore NaN values.
+
+=back
+
+=head1 RETURN VALUE
+
+As usual for Nagios plugins, this program writes a short, one line status
+message to STDOUT and signals success or failure with it's return value. It
+exits with a return value of B<0> for I<success>, B<1> for I<warning> and B<2>
+for I<critical>. If the values are not available or some other error occurred,
+it returns B<3> for I<unknown>.
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-unixsock(5)>,
+L<http://nagios.org/>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>
+
+=cut

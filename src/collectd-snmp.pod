@@ -1,0 +1,246 @@
+=head1 NAME
+
+collectd-snmp - Documentation of collectd's C<snmp plugin>
+
+=head1 SYNOPSIS
+
+  LoadPlugin snmp
+  # ...
+  <Plugin snmp>
+    <Data "powerplus_voltge_input">
+      Type "voltage"
+      Table false
+      Instance "input_line1"
+      Scale 0.1
+      Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
+    </Data>
+    <Data "hr_users">
+      Type "users"
+      Table false
+      Instance ""
+      Shift -1
+      Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
+    </Data>
+    <Data "std_traffic">
+      Type "if_octets"
+      Table true
+      Instance "IF-MIB::ifDescr"
+      Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+    </Data>
+
+    <Host "some.switch.mydomain.org">
+      Address "192.168.0.2"
+      Version 1
+      Community "community_string"
+      Collect "std_traffic"
+      Interval 120
+    </Host>
+    <Host "some.server.mydomain.org">
+      Address "192.168.0.42"
+      Version 2
+      Community "another_string"
+      Collect "std_traffic" "hr_users"
+    </Host>
+    <Host "some.ups.mydomain.org">
+      Address "192.168.0.3"
+      Version 1
+      Community "more_communities"
+      Collect "powerplus_voltge_input"
+      Interval 300
+    </Host>
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<snmp plugin> queries other hosts using SNMP, the simple network
+management protocol, and translates the value it receives to collectd's
+internal format and dispatches them. Depending on the write plugins you have
+loaded they may be written to disk or submitted to another instance or
+whatever you configured.
+
+Because querying a host via SNMP may produce a timeout multiple threads are
+used to query hosts in parallel. Depending on the number of hosts between one
+and ten threads are used.
+
+=head1 CONFIGURATION
+
+Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
+it's configuration is not trivial and may take some time.
+
+Since the C<Net-SNMP> library is used you can use all the environment variables
+that are interpreted by that package. See L<snmpcmd(1)> for more details.
+
+There are two types of blocks that can be contained in the
+C<E<lt>PluginE<nbsp>snmpE<gt>> block: B<Data> and B<Host>:
+
+=head2 The B<Data> block
+
+The B<Data> block defines a list of values or a table of values that are to be
+queried. The following options can be set:
+
+=over 4
+
+=item B<Type> I<type>
+
+collectd's type that is to be used, e.E<nbsp>g. "if_octets" for interface
+traffic or "users" for a user count. The types are read from the B<TypesDB>
+(see L<collectd.conf(5)>), so you may want to check for which types are
+defined. See L<types.db(5)> for a description of the format of this file.
+
+=item B<Table> I<true|false>
+
+Define if this is a single list of values or a table of values. The difference
+is the following:
+
+When B<Table> is set to B<false>, the OIDs given to B<Values> (see below) are
+queried using the C<GET> SNMP command (see L<snmpget(1)>) and transmitted to
+collectd. B<One> value list is dispatched and, eventually, one file will be
+written.
+
+When B<Table> is set to B<true>, the OIDs given to B<Values> (see below) are
+queried using the C<GETNEXT> SNMP command until the subtree is left. After all
+the lists (think: all columns of the table) have been read B<several> values
+sets will be dispatches and, eventually, several files will be written. If you
+configure a B<Type> (see above) which needs more than one data source (for
+example C<if_octets> which needs C<rx> and C<tx>) you will need to specify more
+than one (two, in the example case) OIDs with the B<Values> option. This has
+nothing to do with the B<Table> setting.
+
+For example, if you want to query the number of users on a system, you can use
+C<HOST-RESOURCES-MIB::hrSystemNumUsers.0>. This is one value and belongs to one
+value list, therefore B<Table> must be set to B<false>. Please note that, in
+this case, you have to include the sequence number (zero in this case) in the
+OID.
+
+Counter example: If you want to query the interface table provided by the
+C<IF-MIB>, e.E<nbsp>g. the bytes transmitted. There are potentially many
+interfaces, so you will want to set B<Table> to B<true>. Because the
+C<if_octets> type needs two values, received and transmitted bytes, you need to
+specify two OIDs in the B<Values> setting, in this case likely
+C<IF-MIB::ifHCInOctets> and C<IF-MIB::ifHCOutOctets>. But, this is because of
+the B<Type> setting, not the B<Table> setting.
+
+Since the semantic of B<Instance> and B<Values> depends on this setting you
+need to set it before setting them. Doing vice verse will result in undefined
+behavior.
+
+=item B<Instance> I<Instance>
+
+Sets the type-instance of the values that are dispatched. The meaning of this
+setting depends on whether B<Table> is set to I<true> or I<false>:
+
+If B<Table> is set to I<true>, I<Instance> is interpreted as an SNMP-prefix
+that will return a list of values. Those values are then used as the actual
+type-instance. An example would be the C<IF-MIB::ifDescr> subtree.
+L<variables(5)> from the SNMP distribution describes the format of OIDs.
+
+If B<Table> is set to I<true> and B<Instance> is omitted, then "SUBID" will be
+used as the instance.
+
+If B<Table> is set to I<false> the actual string configured for I<Instance> is
+copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
+"".
+
+=item B<InstancePrefix> I<String>
+
+If B<Table> is set to I<true>, you may feel the need to add something to the
+instance of the files. If set, I<String> is prepended to the instance as
+determined by querying the agent. When B<Table> is set to I<false> this option
+has no effect.
+
+The C<UPS-MIB> is an example where you need this setting: It has voltages of
+the inlets, outlets and the battery of an UPS. However, it doesn't provide a
+descriptive column for these voltages. In this case having 1, 2,E<nbsp>... as
+instances is not enough, because the inlet voltages and outlet voltages may
+both have the subids 1, 2,E<nbsp>... You can use this setting to distinguish
+between the different voltages.
+
+=item B<Values> I<OID> [I<OID> ...]
+
+Configures the values to be queried from the SNMP host. The meaning slightly
+changes with the B<Table> setting. L<variables(5)> from the SNMP distribution
+describes the format of OIDs.
+
+If B<Table> is set to I<true>, each I<OID> must be the prefix of all the
+values to query, e.E<nbsp>g. C<IF-MIB::ifInOctets> for all the counters of
+incoming traffic. This subtree is walked (using C<GETNEXT>) until a value from
+outside the subtree is returned.
+
+If B<Table> is set to I<false>, each I<OID> must be the OID of exactly one
+value, e.E<nbsp>g. C<IF-MIB::ifInOctets.3> for the third counter of incoming
+traffic.
+
+=item B<Scale> I<Value>
+
+The gauge-values returned by the SNMP-agent are multiplied by I<Value>.  This
+is useful when values are transfered as a fixed point real number. For example,
+thermometers may transfer B<243> but actually mean B<24.3>, so you can specify
+a scale value of B<0.1> to correct this. The default value is, of course,
+B<1.0>.
+
+This value is not applied to counter-values.
+
+=item B<Shift> I<Value>
+
+I<Value> is added to gauge-values returned by the SNMP-agent after they have
+been multiplied by any B<Scale> value. If, for example, a thermometer returns
+degrees Kelvin you could specify a shift of B<273.15> here to store values in
+degrees Celsius. The default value is, of course, B<0.0>.
+
+This value is not applied to counter-values.
+
+=back
+
+=head2 The Host block
+
+The B<Host> block defines which hosts to query, which SNMP community and
+version to use and which of the defined B<Data> to query.
+
+The argument passed to the B<Host> block is used as the hostname in the data
+stored by collectd.
+
+=over 4
+
+=item B<Address> I<IP-Address>|I<Hostname>
+
+Set the address to connect to.
+
+=item B<Version> B<1>|B<2>
+
+Set the SNMP version to use. When giving B<2> version C<2c> is actually used.
+Version 3 is not supported by this plugin.
+
+=item B<Community> I<Community>
+
+Pass I<Community> to the host.
+
+=item B<Collect> I<Data> [I<Data> ...]
+
+Defines which values to collect. I<Data> refers to one of the B<Data> block
+above. Since the config file is read top-down you need to define the data
+before using it here.
+
+=item B<Interval> I<Seconds>
+
+Collect data from this host every I<Seconds> seconds. This option is meant for
+devices with not much CPU power, e.E<nbsp>g. network equipment such as
+switches, embedded devices, rack monitoring systems and so on. Since the
+B<Step> of generated RRD files depends on this setting it's wise to select a
+reasonable value once and never change it.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<snmpget(1)>,
+L<snmpgetnext(1)>,
+L<variables(5)>,
+L<unix(7)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut

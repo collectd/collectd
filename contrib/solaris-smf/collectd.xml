@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+
+<service_bundle type='manifest' name='collectd'>
+<service
+        name='application/collectd'
+        type='service'
+        version='1'>
+
+	<create_default_instance enabled='true' />
+	
+	<single_instance/>
+
+        <dependency
+                name='network'
+                grouping='require_all'
+                restart_on='none'
+                type='service'>
+                <service_fmri value='svc:/milestone/network:default' />
+        </dependency> 
+
+        <dependency
+                name='filesystem-local'
+                grouping='require_all'
+                restart_on='none'
+                type='service'>
+                <service_fmri value='svc:/system/filesystem/local:default' />
+        </dependency> 
+
+        <exec_method
+                type='method'
+                name='start'
+                exec='/lib/svc/method/collectd start'
+                timeout_seconds='60'>
+	    <method_context>
+            	<method_credential user='root' group='root' />
+    	    </method_context>
+	</exec_method>
+
+
+        <exec_method
+                type='method'
+                name='stop'
+                exec='/lib/svc/method/collectd stop'
+                timeout_seconds='60'>
+	    <method_context>
+            	<method_credential user='root' group='root' />
+    	    </method_context>
+	</exec_method>
+
+        <stability value='Evolving' />
+
+</service>
+
+</service_bundle>
+

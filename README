@@ -1,0 +1,824 @@
+ collectd - System information collection daemon
+=================================================
+http://collectd.org/
+
+About
+-----
+
+  collectd is a small daemon which collects system information periodically
+  and provides mechanisms to store and monitor the values in a variety of
+  ways.
+
+
+Features
+--------
+
+  * collectd is able to collect the following data:
+
+    - apache
+      Apache server utilization: Number of bytes transfered, number of
+      requests handled and detailed scoreboard statistics
+
+    - apcups
+      APC UPS Daemon: UPS charge, load, input/output/battery voltage, etc.
+
+    - apple_sensors
+      Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
+      voltage sensors.
+
+    - ascent
+      Statistics about Ascent, a free server for the game `World of Warcraft'.
+
+    - battery
+      Batterycharge, -current and voltage of ACPI and PMU based laptop
+      batteries.
+
+    - bind
+      Name server and resolver statistics from the `statistics-channel'
+      interface of BIND 9.5, 9,6 and later.
+
+    - conntrack
+      Number of nf_conntrack entries.
+
+    - contextswitch
+      Number of context switches done by the operating system.
+
+    - cpu
+      CPU utilization: Time spent in the system, user, nice, idle, and related
+      states.
+
+    - cpufreq
+      CPU frequency (For laptops with speed step or a similar technology)
+
+    - curl
+      Parse statistics from websites using regular expressions.
+
+    - curl_json
+      Retrieves JSON data via cURL and parses it according to user
+      configuration.
+
+    - curl_xml
+      Retrieves XML data via cURL and parses it according to user
+      configuration.
+
+    - dbi
+      Executes SQL statements on various databases and interprets the returned
+      data.
+
+    - df
+      Mountpoint usage (Basically the values `df(1)' delivers)
+
+    - disk
+      Disk utilization: Sectors read/written, number of read/write actions,
+      average time an IO-operation took to complete.
+
+    - dns
+      DNS traffic: Query types, response codes, opcodes and traffic/octets
+      transfered.
+
+    - email
+      Email statistics: Count, traffic, spam scores and checks.
+      See collectd-email(5).
+
+    - entropy
+      Amount of entropy available to the system.
+
+    - ethstat
+      Network interface card statistics.
+
+    - exec
+      Values gathered by a custom program or script.
+      See collectd-exec(5).
+
+    - filecount
+      Count the number of files in directories.
+
+    - fscache
+      Linux file-system based caching framework statistics.
+
+    - gmond
+      Receive multicast traffic from Ganglia instances.
+
+    - hddtemp
+      Harddisk temperatures using hddtempd.
+
+    - interface
+      Interface traffic: Number of octets, packets and errors for each
+      interface.
+
+    - iptables
+      Iptables' counters: Number of bytes that were matched by a certain
+      iptables rule.
+
+    - ipmi
+      IPMI (Intelligent Platform Management Interface) sensors information.
+
+    - ipvs
+      IPVS connection statistics (number of connections, octets and packets
+      for each service and destination).
+      See http://www.linuxvirtualserver.org/software/index.html.
+
+    - irq
+      IRQ counters: Frequency in which certain interrupts occur.
+
+    - java
+      Integrates a `Java Virtual Machine' (JVM) to execute plugins in Java
+      bytecode. See “Configuring with libjvm” below.
+
+    - load
+      System load average over the last 1, 5 and 15 minutes.
+
+    - lpar
+      Detailed CPU statistics of the “Logical Partitions” virtualization
+      technique built into IBM's POWER processors.
+
+    - libvirt
+      CPU, disk and network I/O statistics from virtual machines.
+
+    - madwifi
+      Queries very detailed usage statistics from wireless LAN adapters and
+      interfaces that use the Atheros chipset and the MadWifi driver.
+
+    - mbmon
+      Motherboard sensors: temperature, fanspeed and voltage information,
+      using mbmon(1).
+
+    - md
+      Linux software-RAID device information (number of active, failed, spare
+      and missing disks).
+
+    - memcachec
+      Query and parse data from a memcache daemon (memcached).
+
+    - memcached
+      Statistics of the memcached distributed caching system.
+      <http://www.danga.com/memcached/>
+
+    - memory
+      Memory utilization: Memory occupied by running processes, page cache,
+      buffer cache and free.
+
+    - modbus
+      Reads values from Modbus/TCP enabled devices. Supports reading values
+      from multiple "slaves" so gateway devices can be used.
+
+    - multimeter
+      Information provided by serial multimeters, such as the `Metex
+      M-4650CR'.
+
+    - mysql
+      MySQL server statistics: Commands issued, handlers triggered, thread
+      usage, query cache utilization and traffic/octets sent and received.
+
+    - netapp
+      Plugin to query performance values from a NetApp storage system using the
+      “Manage ONTAP” SDK provided by NetApp.
+
+    - netlink
+      Very detailed Linux network interface and routing statistics. You can get
+      (detailed) information on interfaces, qdiscs, classes, and, if you can
+      make use of it, filters.
+
+    - network
+      Receive values that were collected by other hosts. Large setups will
+      want to collect the data on one dedicated machine, and this is the
+      plugin of choice for that.
+
+    - nfs
+      NFS Procedures: Which NFS command were called how often. Only NFSv2 and
+      NFSv3 right now.
+
+    - nginx
+      Collects statistics from `nginx' (speak: engine X), a HTTP and mail
+      server/proxy.
+
+    - ntpd
+      NTP daemon statistics: Local clock drift, offset to peers, etc.
+
+    - nut
+      Network UPS tools: UPS current, voltage, power, charge, utilisation,
+      temperature, etc. See upsd(8).
+
+    - numa
+      Information about Non-Uniform Memory Access (NUMA).
+
+    - olsrd
+      Queries routing information from the “Optimized Link State Routing”
+      daemon.
+
+    - onewire (EXPERIMENTAL!)
+      Read onewire sensors using the owcapu library of the owfs project.
+      Please read in collectd.conf(5) why this plugin is experimental.
+
+    - openvpn
+      RX and TX of each client in openvpn-status.log (status-version 2).
+      <http://openvpn.net/index.php/documentation/howto.html>
+
+    - oracle
+      Query data from an Oracle database.
+
+    - perl
+      The perl plugin implements a Perl-interpreter into collectd. You can
+      write your own plugins in Perl and return arbitrary values using this
+      API. See collectd-perl(5).
+
+    - pinba
+      Receive and dispatch timing values from Pinba, a profiling extension for
+      PHP.
+
+    - ping
+      Network latency: Time to reach the default gateway or another given
+      host.
+
+    - postgresql
+      PostgreSQL database statistics: active server connections, transaction
+      numbers, block IO, table row manipulations.
+
+    - powerdns
+      PowerDNS name server statistics.
+
+    - processes
+      Process counts: Number of running, sleeping, zombie, ... processes.
+
+    - protocols
+      Counts various aspects of network protocols such as IP, TCP, UDP, etc.
+
+    - python
+      The python plugin implements a Python interpreter into collectd. This
+      makes it possible to write plugins in Python which are executed by
+      collectd without the need to start a heavy interpreter every interval.
+      See collectd-python(5) for details.
+
+    - redis
+      The redis plugin gathers information from a redis server, including:
+      uptime, used memory, total connections etc.
+
+    - routeros
+      Query interface and wireless registration statistics from RouterOS.
+
+    - rrdcached
+      RRDtool caching daemon (RRDcacheD) statistics.
+
+    - sensors
+      System sensors, accessed using lm_sensors: Voltages, temperatures and
+      fan rotation speeds.
+
+    - serial
+      RX and TX of serial interfaces. Linux only; needs root privileges.
+
+    - snmp
+      Read values from SNMP (Simple Network Management Protocol) enabled
+      network devices such as switches, routers, thermometers, rack monitoring
+      servers, etc. See collectd-snmp(5).
+
+    - swap
+      Pages swapped out onto harddisk or whatever is called `swap' by the OS..
+
+    - table
+      Parse table-like structured files.
+
+    - tail
+      Follows (tails) logfiles, parses them by lines and submits matched
+      values.
+
+    - tape
+      Bytes and operations read and written on tape devices. Solaris only.
+
+    - tcpconns
+      Number of TCP connections to specific local and remote ports.
+
+    - teamspeak2
+      TeamSpeak2 server statistics.
+
+    - ted
+      Plugin to read values from `The Energy Detective' (TED).
+
+    - thermal
+      Linux ACPI thermal zone information.
+
+    - tokyotyrant
+      Reads the number of records and file size from a running Tokyo Tyrant
+      server.
+
+    - uptime
+      System uptime statistics.
+
+    - users
+      Users currently logged in.
+
+    - varnish
+      Various statistics from Varnish, an HTTP accelerator.
+
+    - vmem
+      Virtual memory statistics, e. g. the number of page-ins/-outs or the
+      number of pagefaults.
+
+    - vserver
+      System resources used by Linux VServers.
+      See <http://linux-vserver.org/>.
+
+    - wireless
+      Link quality of wireless cards. Linux only.
+
+    - xmms
+      Bitrate and frequency of music played with XMMS.
+
+    - zfs_arc
+      Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
+
+  * Output can be written or sent to various destinations by the following
+    plugins:
+
+    - amqp
+      Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
+      server, such as RabbitMQ.
+
+    - csv
+      Write to comma separated values (CSV) files. This needs lots of
+      diskspace but is extremely portable and can be analysed with almost
+      every program that can analyse anything. Even Microsoft's Excel..
+
+    - network
+      Send the data to a remote host to save the data somehow. This is useful
+      for large setups where the data should be saved by a dedicated machine.
+
+    - perl
+      Of course the values are propagated to plugins written in Perl, too, so
+      you can easily do weird stuff with the plugins we didn't dare think of
+      ;) See collectd-perl(5).
+
+    - python
+      It's possible to implement write plugins in Python using the python
+      plugin. See collectd-python(5) for details.
+
+    - rrdcached
+      Output to round-robin-database (RRD) files using the RRDtool caching
+      daemon (RRDcacheD) - see rrdcached(1). That daemon provides a general
+      implementation of the caching done by the `rrdtool' plugin.
+
+    - rrdtool
+      Output to round-robin-database (RRD) files using librrd. See rrdtool(1).
+      This is likely the most popular destination for such values. Since
+      updates to RRD-files are somewhat expensive this plugin can cache
+      updates to the files and write a bunch of updates at once, which lessens
+      system load a lot.
+
+    - unixsock
+      One can query the values from the unixsock plugin whenever they're
+      needed. Please read collectd-unixsock(5) for a description on how that's
+      done.
+
+    - write_graphite
+      Sends data to Carbon, the storage layer of Graphite.
+
+    - write_http
+      Sends the values collected by collectd to a web-server using HTTP POST
+      requests. The transmitted data is either in a form understood by the
+      Exec plugin or formatted in JSON.
+
+    - write_redis
+      Sends the values to a Redis key-value database server.
+
+  * Logging is, as everything in collectd, provided by plugins. The following
+    plugins keep up informed about what's going on:
+
+    - logfile
+      Writes logmessages to a file or STDOUT/STDERR.
+
+    - perl
+      Log messages are propagated to plugins written in Perl as well.
+      See collectd-perl(5).
+
+    - python
+      It's possible to implement log plugins in Python using the python plugin.
+      See collectd-python(5) for details.
+
+    - syslog
+      Logs to the standard UNIX logging mechanism, syslog.
+
+  * Notifications can be handled by the following plugins:
+
+    - notify_desktop
+      Send a desktop notification to a notification daemon, as defined in
+      the Desktop Notification Specification. To actually display the
+      notifications, notification-daemon is required.
+      See http://www.galago-project.org/specs/notification/.
+
+    - notify_email
+      Send an E-mail with the notification message to the configured
+      recipients.
+
+    - exec
+      Execute a program or script to handle the notification.
+      See collectd-exec(5).
+
+    - logfile
+      Writes the notification message to a file or STDOUT/STDERR.
+
+    - network
+      Send the notification to a remote host to handle it somehow.
+
+    - perl
+      Notifications are propagated to plugins written in Perl as well.
+      See collectd-perl(5).
+
+    - python
+      It's possible to implement notification plugins in Python using the
+      python plugin. See collectd-python(5) for details.
+
+  * Value processing can be controlled using the "filter chain" infrastructure
+    and "matches" and "targets". The following plugins are available:
+
+    - match_empty_counter
+      Match counter values which are currently zero.
+
+    - match_hashed
+      Match values using a hash function of the hostname.
+
+    - match_regex
+      Match values by their identifier based on regular expressions.
+
+    - match_timediff
+      Match values with an invalid timestamp.
+
+    - match_value
+      Select values by their data sources' values.
+
+    - target_notification
+      Create and dispatch a notification.
+
+    - target_replace
+      Replace parts of an identifier using regular expressions.
+
+    - target_scale
+      Scale (multiply) values by an arbitrary value.
+
+    - target_set
+      Set (overwrite) entire parts of an identifier.
+
+  * Miscellaneous plugins:
+
+    - threshold
+      Checks values against configured thresholds and creates notifications if
+      values are out of bounds. See collectd-threshold(5) for details.
+
+    - uuid
+      Sets the hostname to an unique identifier. This is meant for setups
+      where each client may migrate to another physical host, possibly going
+      through one or more name changes in the process.
+
+  * Performance: Since collectd is running as a daemon it doesn't spend much
+    time starting up again and again. With the exception of the exec plugin no
+    processes are forked. Caching in output plugins, such as the rrdtool and
+    network plugins, makes sure your resources are used efficiently. Also,
+    since collectd is programmed multithreaded it benefits from hyperthreading
+    and multicore processors and makes sure that the daemon isn't idle if only
+    one plugin waits for an IO-operation to complete.
+
+  * Once set up, hardly any maintenance is necessary. Setup is kept as easy
+    as possible and the default values should be okay for most users.
+
+
+Operation
+---------
+
+  * collectd's configuration file can be found at `sysconfdir'/collectd.conf.
+    Run `collectd -h' for a list of builtin defaults. See `collectd.conf(5)'
+    for a list of options and a syntax description.
+
+  * When the `csv' or `rrdtool' plugins are loaded they'll write the values to
+    files. The usual place for these files is beneath `/var/lib/collectd'.
+
+  * When using some of the plugins, collectd needs to run as user root, since
+    only root can do certain things, such as craft ICMP packages needed to ping
+    other hosts. collectd should NOT be installed setuid root since it can be
+    used to overwrite valuable files!
+
+  * Sample scripts to generate graphs reside in `contrib/' in the source
+    package or somewhere near `/usr/share/doc/collectd' in most distributions.
+    Please be aware that those script are meant as a starting point for your
+    own experiments.. Some of them require the `RRDs' Perl module.
+    (`librrds-perl' on Debian) If you have written a more sophisticated
+    solution please share it with us.
+
+  * The RRAs of the automatically created RRD files depend on the `step'
+    and `heartbeat' settings given. If change these settings you may need to
+    re-create the files, losing all data. Please be aware of that when changing
+    the values and read the rrdtool(1) manpage thoroughly.
+
+
+collectd and chkrootkit
+-----------------------
+
+  If you are using the `dns' plugin chkrootkit(1) will report collectd as a
+  packet sniffer ("<iface>: PACKET SNIFFER(/usr/sbin/collectd[<pid>])"). The
+  plugin captures all UDP packets on port 53 to analyze the DNS traffic. In
+  this case, collectd is a legitimate sniffer and the report should be
+  considered to be a false positive. However, you might want to check that
+  this really is collectd and not some other, illegitimate sniffer.
+
+
+Prerequisites
+-------------
+
+  To compile collectd from source you will need:
+
+  * Usual suspects: C compiler, linker, preprocessor, make, ...
+
+  * A POSIX-threads (pthread) implementation.
+    Since gathering some statistics is slow (network connections, slow devices,
+    etc) the collectd is parallelized. The POSIX threads interface is being
+    used and should be found in various implementations for hopefully all
+    platforms.
+
+  * CoreFoundation.framework and IOKit.framework (optional)
+    For compiling on Darwin in general and the `apple_sensors' plugin in
+    particular.
+    <http://developer.apple.com/corefoundation/>
+
+  * libclntsh (optional)
+    Used by the `oracle' plugin.
+
+  * libcredis (optional)
+    Used by the redis plugin. Please note that you require a 0.2.2 version
+    or higher. <http://code.google.com/p/credis/>
+
+  * libcurl (optional)
+    If you want to use the `apache', `ascent', `curl', `nginx', or `write_http'
+    plugin.
+    <http://curl.haxx.se/>
+
+  * libdbi (optional)
+    Used by the `dbi' plugin to connect to various databases.
+    <http://libdbi.sourceforge.net/>
+
+  * libesmtp (optional)
+    For the `notify_email' plugin.
+    <http://www.stafford.uklinux.net/libesmtp/>
+
+  * libganglia (optional)
+    Used by the `gmond' plugin to process data received from Ganglia.
+    <http://ganglia.info/>
+
+  * libgcrypt (optional)
+    Used by the `network' plugin for encryption and authentication.
+    <http://www.gnupg.org/>
+
+  * libhal (optional)
+    If present, the uuid plugin will check for UUID from HAL.
+    <http://hal.freedesktop.org/>
+
+  * libiptc (optional)
+    For querying iptables counters.
+    <http://netfilter.org/>
+
+    If not found on the system, a version shipped with this distribution can
+    be used. It requires some Linux headers in /usr/include/linux. You can
+    force the build system to use the shipped version by specifying
+      --with-libiptc=shipped
+    when running the configure script.
+
+  * libjvm (optional)
+    Library that encapsulates the `Java Virtual Machine' (JVM). This library is
+    used by the Java plugin to execute Java bytecode. See “Configuring with
+    libjvm” below.
+    <http://openjdk.java.net/> (and others)
+
+  * libmemcached (optional)
+    Used by the `memcachec' plugin to connect to a memcache daemon.
+    <http://tangent.org/552/libmemcached.html>
+
+  * libmodbus (optional)
+    Used by the “modbus” plugin to communicate with Modbus/TCP devices. The
+    “modbus” plugin works with version 2.0.3 of the library – due to frequent
+    API changes other versions may or may not compile cleanly.
+    <http://www.libmodbus.org/>
+
+  * libmysqlclient (optional)
+    Unsurprisingly used by the `mysql' plugin.
+    <http://dev.mysql.com/>
+
+  * libnetapp (optional)
+    Required for the “netapp” plugin.
+    This library is part of the “Manage ONTAP SDK” published by NetApp.
+
+  * libnetlink (optional)
+    Used, obviously, for the `netlink' plugin.
+    <http://www.linuxfoundation.org/en/Net:Iproute2>
+
+  * libnetsnmp (optional)
+    For the `snmp' plugin.
+    <http://www.net-snmp.org/>
+
+  * libnotify (optional)
+    For the `notify_desktop' plugin.
+    <http://www.galago-project.org/>
+
+  * liboping (optional)
+    Used by the `ping' plugin to send and receive ICMP packets.
+    <http://verplant.org/liboping/>
+
+  * libowcapi (optional)
+    Used by the `onewire' plugin to read values from onewire sensors (or the
+    owserver(1) daemon).
+    <http://www.owfs.org/>
+
+  * libpcap (optional)
+    Used to capture packets by the `dns' plugin.
+    <http://www.tcpdump.org/>
+
+  * libperfstat (optional)
+    Used by various plugins to gather statistics under AIX.
+
+  * libperl (optional)
+    Obviously used by the `perl' plugin. The library has to be compiled with
+    ithread support (introduced in Perl 5.6.0).
+    <http://www.perl.org/>
+
+  * libpq (optional)
+    The PostgreSQL C client library used by the `postgresql' plugin.
+    <http://www.postgresql.org/>
+
+  * libprotobuf-c, protoc-c (optional)
+    Used by the `pinba' plugin to generate a parser for the network packets
+    sent by the Pinba PHP extension.
+    <http://code.google.com/p/protobuf-c/>
+
+  * libpython (optional)
+    Used by the `python' plugin. Currently, Python 2.3 and later and Python 3
+    are supported.
+    <http://www.python.org/>
+
+  * librabbitmq (optional; also called “rabbitmq-c”)
+    Used by the AMQP plugin for AMQP connections, for example to RabbitMQ.
+    <http://hg.rabbitmq.com/rabbitmq-c/>
+
+  * librouteros (optional)
+    Used by the `routeros' plugin to connect to a device running `RouterOS'.
+    <http://verplant.org/librouteros/>
+
+  * librrd (optional)
+    Used by the `rrdtool' and `rrdcached' plugins. The latter requires RRDtool
+    client support which was added after version 1.3 of RRDtool. Versions 1.0,
+    1.2 and 1.3 are known to work with the `rrdtool' plugin.
+    <http://oss.oetiker.ch/rrdtool/>
+
+  * librt, libsocket, libkstat, libdevinfo (optional)
+    Various standard Solaris libraries which provide system functions.
+    <http://developers.sun.com/solaris/>
+
+  * libsensors (optional)
+    To read from `lm_sensors', see the `sensors' plugin.
+    <http://www.lm-sensors.org/>
+
+  * libstatgrab (optional)
+    Used by various plugins to collect statistics on systems other than Linux
+    and/or Solaris.
+    <http://www.i-scream.org/libstatgrab/>
+
+  * libtokyotyrant (optional)
+    Used by the tokyotyrant plugin.
+    <http://1978th.net/tokyotyrant/>
+
+  * libupsclient/nut (optional)
+    For the `nut' plugin which queries nut's `upsd'.
+    <http://networkupstools.org/>
+
+  * libvirt (optional)
+    Collect statistics from virtual machines.
+    <http://libvirt.org/>
+
+  * libxml2 (optional)
+    Parse XML data. This is needed for the `ascent' and `libvirt' plugins.
+    <http://xmlsoft.org/>
+
+  * libxmms (optional)
+    <http://www.xmms.org/>
+
+  * libyajl (optional)
+    Parse JSON data. This is needed for the `curl_json' plugin.
+    <http://github.com/lloyd/yajl>
+
+  * libvarnish (optional)
+     Fetches statistics from a Varnish instance. This is needed for the Varnish plugin
+     <http://varnish-cache.org>
+
+Configuring / Compiling / Installing
+------------------------------------
+
+  To configure, build and install collectd with the default settings, run
+  `./configure && make && make install'.  For detailed, generic instructions
+  see INSTALL. For a complete list of configure options and their description,
+  run `./configure --help'.
+
+  By default, the configure script will check for all build dependencies and
+  disable all plugins whose requirements cannot be fulfilled (any other plugin
+  will be enabled). To enable a plugin, install missing dependencies (see
+  section `Prerequisites' above) and rerun `configure'. If you specify the
+  `--enable-<plugin>' configure option, the script will fail if the depen-
+  dencies for the specified plugin are not met. In that case you can force the
+  plugin to be built using the `--enable-<plugin>=force' configure option.
+  This will most likely fail though unless you're working in a very unusual
+  setup and you really know what you're doing. If you specify the
+  `--disable-<plugin>' configure option, the plugin will not be built. If you
+  specify the `--enable-all-plugins' or `--disable-all-plugins' configure
+  options, all plugins will be enabled or disabled respectively by default.
+  Explicitly enabling or disabling a plugin overwrites the default for the
+  specified plugin. These options are meant for package maintainers and should
+  not be used in everyday situations.
+
+  By default, collectd will be installed into `/opt/collectd'. You can adjust
+  this setting by specifying the `--prefix' configure option - see INSTALL for
+  details. If you pass DESTDIR=<path> to `make install', <path> will be
+  prefixed to all installation directories. This might be useful when creating
+  packages for collectd.
+
+Configuring with libjvm
+-----------------------
+
+  To determine the location of the required files of a Java installation is not
+  an easy task, because the locations vary with your kernel (Linux, SunOS, …)
+  and with your architecture (x86, SPARC, …) and there is no ‘java-config’
+  script we could use. Configuration of the JVM library is therefore a bit
+  tricky.
+
+  The easiest way to use the `--with-java=$JAVA_HOME' option, where
+  `$JAVA_HOME' is usually something like:
+    /usr/lib/jvm/java-1.5.0-sun-1.5.0.14
+
+  The configure script will then use find(1) to look for the following files:
+
+    - jni.h
+    - jni_md.h
+    - libjvm.so
+
+  If found, appropriate CPP-flags and LD-flags are set and the following
+  library checks succeed.
+
+  If this doesn't work for you, you have the possibility to specify CPP-flags,
+  C-flags and LD-flags for the ‘Java’ plugin by hand, using the following three
+  (environment) variables:
+
+    - JAVA_CPPFLAGS
+    - JAVA_CFLAGS
+    - JAVA_LDFLAGS
+
+  For example (shortened for demonstration purposes):
+
+    ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
+
+  Adding "-ljvm" to the JAVA_LDFLAGS is done automatically, you don't have to
+  do that.
+
+Crosscompiling
+--------------
+
+  To compile correctly collectd needs to be able to initialize static
+  variables to NAN (Not A Number). Some C libraries, especially the GNU
+  libc, have a problem with that.
+
+  Luckily, with GCC it's possible to work around that problem: One can define
+  NAN as being (0.0 / 0.0) and `isnan' as `f != f'. However, to test this
+  ``implementation'' the configure script needs to compile and run a short
+  test program. Obviously running a test program when doing a cross-
+  compilation is, well, challenging.
+
+  If you run into this problem, you can use the `--with-nan-emulation'
+  configure option to force the use of this implementation. We can't promise
+  that the compiled binary actually behaves as it should, but since NANs
+  are likely never passed to the libm you have a good chance to be lucky.
+
+  Likewise, collectd needs to know the layout of doubles in memory, in order
+  to craft uniform network packets over different architectures. For this, it
+  needs to know how to convert doubles into the memory layout used by x86. The
+  configure script tries to figure this out by compiling and running a few
+  small test programs. This is of course not possible when cross-compiling.
+  You can use the `--with-fp-layout' option to tell the configure script which
+  conversion method to assume. Valid arguments are:
+
+    * `nothing'    (12345678 -> 12345678)
+    * `endianflip' (12345678 -> 87654321)
+    * `intswap'    (12345678 -> 56781234)
+
+
+Contact
+-------
+
+  For questions, bug reports, development information and basically all other
+  concerns please send an email to collectd's mailing list at
+  <collectd at verplant.org>.
+
+  For live discussion and more personal contact visit us in IRC, we're in
+  channel #collectd on freenode.
+
+
+Author
+------
+
+  Florian octo Forster <octo at verplant.org>,
+  Sebastian tokkee Harl <sh at tokkee.org>,
+  and many contributors (see `AUTHORS').
+
+  Please send bug reports and patches to the mailing list, see `Contact'
+  above.
+

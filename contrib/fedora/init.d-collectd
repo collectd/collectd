@@ -1,0 +1,66 @@
+#!/bin/bash
+#
+# collectd    Startup script for the Collectd statistics gathering daemon
+# chkconfig: - 86 15
+# description: Collectd is a statistics gathering daemon used to collect \
+#   system information ie. cpu, memory, disk, network
+# processname: collectd
+# config: /etc/collectd.conf
+# config: /etc/sysconfig/collectd
+# pidfile: /var/run/collectd.pid
+
+# Source function library.
+. /etc/init.d/functions
+
+RETVAL=0
+ARGS=""
+prog="collectd"
+CONFIG=/etc/collectd.conf
+
+if [ -r /etc/default/$prog ]; then
+	. /etc/default/$prog
+fi
+
+start () {
+	echo -n $"Starting $prog: "
+	if [ -r "$CONFIG" ]
+	then
+		daemon /usr/sbin/collectd -C "$CONFIG"
+		RETVAL=$?
+		echo
+		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+	fi
+}
+stop () {
+	echo -n $"Stopping $prog: "
+	killproc $prog
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+}
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	status $prog
+	;;
+  restart|reload)
+	stop
+	start
+	;;
+  condrestart)
+	[ -f /var/lock/subsys/$prog ] && stop && start || :
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|status|restart|reload|condrestart}"
+	exit 1
+esac
+
+exit $?
+
+# vim:syntax=sh

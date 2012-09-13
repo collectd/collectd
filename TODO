@@ -1,0 +1,21 @@
+* Finalize the onewire plugin.
+* Custom notification messages?
+* Implement moving-average calculation for the threshold stuff.
+
+src/battery.c: commend not working code.
+
+Wishlist:
+* Port nfs module to solaris
+* Port tape module to Linux
+* Port the apple_sensors plugin to Linux/PPC.
+* Maybe look into porting the serial module
+* Build Darwin package
+* Maybe let the network plugin configure whether or not notifications should be
+  sent/received.
+* Maybe find a way for processes connected to the unixsock plugin to receive
+  notifications, too.
+
+http://developer.apple.com/documentation/DeviceDrivers/Conceptual/AccessingHardware/AH_IOKitLib_API/chapter_5_section_1.html
+http://developer.apple.com/documentation/DeviceDrivers/Conceptual/IOKitFundamentals/index.html#//apple_ref/doc/uid/TP0000011
+http://www.gauchosoft.com/Software/X%20Resource%20Graph/
+http://johannes.sipsolutions.net/PowerBook/Apple_Motion_Sensor_Specification/

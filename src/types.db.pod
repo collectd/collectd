@@ -1,0 +1,66 @@
+=head1 NAME
+
+types.db - Data-set specifications for the system statistics collection daemon
+B<collectd>
+
+=head1 SYNOPSIS
+
+  bitrate    value:GAUGE:0:4294967295
+  counter    value:COUNTER:U:U
+  if_octets  rx:COUNTER:0:4294967295, tx:COUNTER:0:4294967295
+
+=head1 DESCRIPTION
+
+The types.db file contains one line for each data-set specification. Each line
+consists of two fields delimited by spaces and/or horizontal tabs. The first
+field defines the name of the data-set, while the second field defines a list
+of data-source specifications, delimited by spaces and, optionally, a comma
+(",") right after each list-entry.
+
+The format of the data-source specification has been inspired by RRDtool's
+data-source specification. Each data-source is defined by a quadruple made up
+of the data-source name, type, minimal and maximal values, delimited by colons
+(":"): I<ds-name>:I<ds-type>:I<min>:I<max>. I<ds-type> may be either
+B<ABSOLUTE>, B<COUNTER>, B<DERIVE>, or B<GAUGE>. I<min> and I<max> define the
+range of valid values for
+data stored for this data-source. If B<U> is specified for either the min or
+max value, it will be set to unknown, meaning that no range checks will
+happen. See L<rrdcreate(1)> for more details.
+
+=head1 FILES
+
+The location of the types.db file is defined by the B<TypesDB> configuration
+option (see L<collectd.conf(5)>). It defaults to collectd's shared data
+directory, i.E<nbsp>e. F<I<prefix>/share/collectd/>.
+
+=head1 CUSTOM TYPES
+
+If you want to specify custom types, you should do so by specifying a custom
+file in addition to the default one (see L<FILES>) above. You can do that by
+having multiple B<TypesDB> statements in your configuration file or by
+specifying more than one file in one line.
+
+For example:
+
+ TypesDB "/opt/collectd/share/collectd/types.db"
+ TypesDB "/opt/collectd/etc/types.db.custom"
+
+B<Note>: Make sure to make this file available on all systems if you're
+sending values over the network.
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<rrdcreate(1)>
+
+=head1 AUTHOR
+
+B<collectd> has been written by Florian Forster
+E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>.
+
+This manpage has been written by Sebastian Harl
+E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
+
+=cut
+

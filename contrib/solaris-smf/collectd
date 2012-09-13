@@ -1,0 +1,42 @@
+#!/sbin/sh
+
+PIDFILE=/opt/collectd/var/run/collectd.pid
+DAEMON=/opt/collectd/sbin/collectd
+
+. /lib/svc/share/smf_include.sh
+
+case "$1" in
+  start)
+    if [ -f $PIDFILE ] ; then
+      echo "Already running. Stale PID file?"
+      PID=`cat $PIDFILE`
+      echo "$PIDFILE contains $PID"
+      ps -p $PID
+      exit $SMF_EXIT_ERR_FATAL
+    fi
+    $DAEMON
+    if [ $? -ne 0 ] ; then
+      echo $DAEMON faild to start
+      exit $SMF_EXIT_ERR_FATAL
+    fi
+  ;;
+  stop)
+    PID=`cat $PIDFILE 2>/dev/null`
+    kill -15 $PID 2>/dev/null
+    pwait $PID 1> /dev/null 2>/dev/null
+  ;;
+  restart)
+    $0 stop
+    $0 start
+  ;;
+  status)
+    ps -ef | grep collectd | grep -v status | grep -v grep
+  ;;
+  *)
+    echo "Usage: $0 [ start | stop | restart | status ]"
+    exit 1
+  ;;
+esac
+
+
+exit $SMF_EXIT_OK

@@ -1,0 +1,74 @@
+# build.sh stuff:
+Makefile.in
+/INSTALL
+/aclocal.m4
+/autom4te.cache
+/autom4te.cache
+/compile
+/config.guess
+/config.sub
+/configure
+/depcomp
+/install-sh
+/libltdl/
+/ltmain.sh
+/missing
+src/config.h.in
+
+# configure stuff:
+Makefile
+config.log
+config.status
+libtool
+src/.deps
+src/collectd.conf
+src/config.h
+src/libcollectdclient/libcollectdclient.pc
+src/stamp-h1
+
+# make stuff:
+*.la
+*.lo
+*.o
+.libs/
+src/collectd
+src/collectd-nagios
+src/collectdctl
+src/collectdmon
+src/*.1
+src/*.5
+src/libcollectdclient/lcc_features.h
+
+# patch stuff
+*.rej
+*.orig
+
+# lex / yacc stuff:
+ylwrap
+src/liboconfig/parser.c
+src/liboconfig/parser.h
+src/liboconfig/scanner.c
+
+# make dist stuff:
+/collectd-*.tar.gz
+/collectd-*.tar.bz2
+
+# perl stuff:
+bindings/.perl-directory-stamp
+bindings/perl/Collectd/pm_to_blib
+bindings/perl/blib/
+bindings/perl/pm_to_blib
+
+# java stuff
+bindings/java/java-build-stamp
+bindings/java/org/collectd/api/*.class
+bindings/java/org/collectd/java/*.class
+
+# python stuff
+*.pyc
+
+# tag stuff
+src/tags
+
+# backup stuff
+*~

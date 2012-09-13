@@ -1,0 +1,73 @@
+=head1 NAME
+
+collectdmon - Monitoring daemon for collectd
+
+=head1 SYNOPSIS
+
+collectdmon I<[options]> [-- I<collectd options>]
+
+=head1 DESCRIPTION
+
+collectdmon is a small "wrapper" daemon which starts and monitors the collectd
+daemon. If collectd terminates it will automatically be restarted, unless
+collectdmon was told to shut it down.
+
+=head1 OPTIONS
+
+collectdmon supports the following options:
+
+=over 4
+
+=item B<-c> I<E<lt>pathE<gt>>
+
+Specify the pathname of the collectd binary. You may either specify an
+absolute path or simply the name of the binary in which case the B<PATH>
+variable will be searched for it. The default is "B<collectd>".
+
+=item B<-P> I<E<lt>pid-fileE<gt>>
+
+Specify the pid file. The default is "I</var/run/collectdmon.pid>".
+
+=item B<-h>
+
+Output usage information and exit.
+
+=item I<collectd options>
+
+Specify options that are passed on to collectd. If it is not already included,
+B<-f> will be added to these options. See L<collectd(1)>.
+
+=back
+
+=head1 SIGNALS
+
+B<collectdmon> accepts the following signals:
+
+=over 4
+
+=item B<SIGINT>, B<SIGTERM>
+
+These signals cause B<collectdmon> to terminate B<collectd>, wait for its
+termination and then shut down.
+
+=item B<SIGHUP>
+
+This signal causes B<collectdmon> to terminate B<collectd>, wait for its
+termination and then restart it.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<http://collectd.org/>
+
+=head1 AUTHOR
+
+collectd has been written by Florian Forster E<lt>octo at verplant.orgE<gt>
+and many contributors (see `AUTHORS').
+
+collectdmon has been written by Sebastian Harl E<lt>sh@tokkee.orgE<gt>.
+
+=cut

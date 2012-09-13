@@ -1,0 +1,331 @@
+SMF is the way Solaris 10 and later preferably manages services. It is intended
+to replace the old init.d process and provides advances features, such as
+automatic restarting of failing services.
+
+The following blog entry by Piotr Hosowicz describes the process in more
+detail. The original entry can be found at
+<http://phosowicz.jogger.pl/2008/12/21/smf-izing-collectd/>.
+
+The files in this directory are:
+
+  README          This file
+  collectd        Start / stop script
+  collectd.xml    SMF manifest for collectd.
+
+------------------------------------------------------------------------
+
+      SMF-izing collectd <#>
+
+Wpis na 0. poziomie, wysłany 21 grudnia 2008 o 16:30:49.
+
+My two previous blog entries were about building and running collectd
+<http://collectd.org/> on Sun Solaris 10. After the first one Octo
+contacted me and was so kind as to release a packaged version for x86_64
+<http://collectd.org/download.shtml#solaris>. I have put aside the build
+I rolled on my own and decided to install and run the packaged one on
+the production servers. This blog entry is about SMF-izing the collectd
+daemon.
+
+A few words about the SMF – the Solaris'es Service Management Facility.
+I think it appeared in Solaris 10. From then on the good old |/etc/rcN.d
+|| /etc/init.d| services are called /legacy services/. They still can be
+run, but are not fully supported by SMF. SMF enables you to start and
+stop services in the unified way, can direct you to man pages in case a
+service enters maintenance mode, resolves dependencies between services,
+can store properties of services and so on. A nice feature is that SMF
+will take care of restarting services in case they terminate
+unexpectedly, we will use it at the end to check that things are working
+as they should.
+
+The 3V|L thing about SMF is that each service needs so called SMF
+manifest written in XML and a script or scripts that are executed, when
+the service needs to be stopped or started. It can be one script, which
+should accept respective parameters. Even more 3V|L is the fact that the
+manifest is imported into the SMF database and kept there in SQLite format.
+
+Below you will find collectd manifest and the script. I will post them
+to collectd mailing list in matter of minutes with this blog entry
+serving as a README. Please read all down to the bottom, including the
+remarks.
+
+Manifest (based on the work of Kangurek, thanks!), see the "collectd.xml"
+file:
+ 
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+ 
+<service_bundle type='manifest' name='collectd'>
+<service
+        name='application/collectd'
+        type='service'
+        version='1'>
+ 
+	<create_default_instance enabled='true' />
+ 
+	<single_instance/>
+ 
+        <dependency
+                name='network'
+                grouping='require_all'
+                restart_on='none'
+                type='service'>
+                <service_fmri value='svc:/milestone/network:default' />
+        </dependency> 
+ 
+        <dependency
+                name='filesystem-local'
+                grouping='require_all'
+                restart_on='none'
+                type='service'>
+                <service_fmri value='svc:/system/filesystem/local:default' />
+        </dependency> 
+ 
+        <exec_method
+                type='method'
+                name='start'
+                exec='/lib/svc/method/collectd start'
+                timeout_seconds='60'>
+	    <method_context>
+            	<method_credential user='root' group='root' />
+    	    </method_context>
+	</exec_method>
+ 
+ 
+        <exec_method
+                type='method'
+                name='stop'
+                exec='/lib/svc/method/collectd stop'
+                timeout_seconds='60'>
+	    <method_context>
+            	<method_credential user='root' group='root' />
+    	    </method_context>
+	</exec_method>
+ 
+        <stability value='Evolving' />
+ 
+</service>
+ 
+</service_bundle>
+ 
+ 
+
+Script, see the "collectd" file:
+
+ 
+#!/sbin/sh
+ 
+PIDFILE=/opt/collectd/var/run/collectd.pid
+DAEMON=/opt/collectd/sbin/collectd
+ 
+. /lib/svc/share/smf_include.sh
+ 
+case "$1" in
+  start)
+    if [ -f $PIDFILE ] ; then
+      echo "Already running. Stale PID file?"
+      PID=`cat $PIDFILE`
+      echo "$PIDFILE contains $PID"
+      ps -p $PID
+      exit $SMF_EXIT_ERR_FATAL
+    fi
+    $DAEMON
+    if [ $? -ne 0 ] ; then
+      echo $DAEMON faild to start
+      exit $SMF_EXIT_ERR_FATAL
+    fi
+  ;;
+  stop)
+    PID=`cat $PIDFILE 2>/dev/null`
+    kill -15 $PID 2>/dev/null
+    pwait $PID 1> /dev/null 2>/dev/null
+  ;;
+  restart)
+    $0 stop
+    $0 start
+  ;;
+  status)
+    ps -ef | grep collectd | grep -v status | grep -v grep
+  ;;
+  *)
+    echo "Usage: $0 [ start | stop | restart | status ]"
+    exit 1
+  ;;
+esac
+ 
+ 
+exit $SMF_EXIT_OK
+ 
+ 
+
+So you have two files: |collectd| script and |collectd.xml| manifest.
+What do you do with these files?
+
+First – before you begin – make sure that collectd is not running, close
+it down. My script above assumes that you are using the default place
+for PID file. Second: remove / move away collectd's |/etc/rcN.d| and
+|/etc/init.d| stuff, you won't need it from now on, because collectd
+will be SMF-ized. Tada!
+
+Next – install the script in place. It took me a minute or two to figure
+out why Solaris'es |install| tool does not work as expected. It turned
+out that the switches and parameters must be in exactly same order as in
+man page, especially the -c parameter must be first:
+
+|# install -c /lib/svc/method/ -m 755 -u root -g bin collectd|
+
+Now is the moment to test once again that the script is working OK. Try
+running:
+
+|# /lib/svc/method/collectd start
+# /lib/svc/method/collectd stop
+# /lib/svc/method/collectd restart
+|
+
+|pgrep| and |kill| are your friends here, also collectd logs. At last
+stop the collectd service and continue.
+
+Now is the time to /slurp/ attached XML manifest into the SMF database.
+This is done using the |svccfg| tool. Transcript follows:
+
+|# svccfg
+svc:> validate collectd.xml
+svc:> import collectd.xml
+svc:>
+|
+
+It is good to run |validate| command first, especially if you copied and
+pasted the XML manifest from this HTML document opened in your
+browser!!! Second thing worth noting is that |svccfg| starts the service
+immediately upon importing the manifest. It might be not what you want.
+For example it will start collecting data on remote collectd server if
+you use network plugin and it will do it under the hostname, that is not
+right. So be sure to configure collectd prior to running it from SMF.
+
+Now a few words about SMF tools. To see the state of all services issue
+|svcs -a| command. To see state of collectd service issue |svcs
+collectd| command. Quite normal states are enabled and disabled. If you
+see maintenance state then something is wrong. Be sure that you stopped
+all non-SMF collectd processes before you follow the procedure described
+here. To stop collectd the SMF way issue the |svcadm disable
+collectd|command. To start collectd the SMF way issue the |svcadm enable
+collectd|command. Be aware that setting it this way makes the change
+persistent across OS reboots, if you want to enable / disable the
+service only temporarily then add |-t| switch after the |enable| /
+|disable| keywords.
+
+And now is time for a grand finale – seeing if SMF can take care of
+collectd in case it crashes. See PID of collectd either using |pgrep| or
+seeing the contents of the PID file and kill it using |kill|. Then check
+with |svcs collectd| command that SMF has restarted collectd soon
+afterwards. You should see that the service is once again enabled in the
+first column, without your intervention.
+
+Things that could or should be clarified:
+
+    * How hard is it to correct mistakes in manifests? Does svccfg just
+      overwrite entries for specified service FMRI or does it require to
+      delete bad entry (and how to do it?!) and import the correct one?
+    * How does SMF know that a service has crashed / terminated? I
+      attended Sun's trainings and the trainer didn't know how to
+      explain this, we formed a hypothesis that it watches new PIDs
+      after starting a service or something like that. I think it is a
+      bad hypothesis, because SMF can watch PID for the startup script
+      itself but I think not the processes launched inside the script. I
+      have a slight idea that it is done based on so called contracts.
+
+------------------------------------------------------------------------
+
+
+        Komentarze do notki “SMF-izing collectd” <#comments>
+
+
+        Zostaw odpowiedź
+
+Nick
+
+------------------------------------------------------------------------
+
+
+    Archiwum
+
+    * Grudzień 2008 (5) </2008/12/>
+    * Październik 2008 (4) </2008/10/>
+    * Wrzesień 2008 (7) </2008/09/>
+    * Sierpień 2008 (5) </2008/08/>
+    * Lipiec 2008 (12) </2008/07/>
+    * Czerwiec 2008 (11) </2008/06/>
+    * Maj 2008 (3) </2008/05/>
+    * Kwiecień 2008 (10) </2008/04/>
+    * Marzec 2008 (3) </2008/03/>
+    * Luty 2008 (1) </2008/02/>
+    * Styczeń 2008 (1) </2008/01/>
+    * Listopad 2007 (4) </2007/11/>
+    * Październik 2007 (6) </2007/10/>
+    * Wrzesień 2007 (10) </2007/09/>
+    * Sierpień 2007 (3) </2007/08/>
+    * Lipiec 2007 (8) </2007/07/>
+    * Czerwiec 2007 (10) </2007/06/>
+    * Maj 2007 (12) </2007/05/>
+    * Kwiecień 2007 (17) </2007/04/>
+
+
+    Kategorie
+
+    * Film (8) <http://phosowicz.jogger.pl/kategoria/film/>
+    * Książki (35) <http://phosowicz.jogger.pl/kategoria/ksiazki/>
+    * Muzyka (15) <http://phosowicz.jogger.pl/kategoria/muzyka/>
+    * Ogólne (20) <http://phosowicz.jogger.pl/kategoria/ogolne/>
+    * Polityka (59) <http://phosowicz.jogger.pl/kategoria/polityka/>
+    * Sprzedam (5) <http://phosowicz.jogger.pl/kategoria/sprzedam/>
+    * Techblog (20) <http://phosowicz.jogger.pl/kategoria/techblog/>
+    * Technikalia (34) <http://phosowicz.jogger.pl/kategoria/technikalia/>
+    * Wystawy (3) <http://phosowicz.jogger.pl/kategoria/wystawy/>
+
+
+    Czytuję
+
+    * ArsTechnica.com <http://arstechnica.com/>
+    * Fund. Orientacja <http://www.abcnet.com.pl/>
+    * Techblog Jogger'a <http://techblog.pl/>
+    * The Register <http://www.theregister.co.uk/>
+
+
+    Inne blogi
+
+    * Bloody.Users <http://bloody.users.jogger.pl/>
+    * Dandys <http://dandys.jogger.pl/>
+    * Derin <http://derin.jogger.pl>
+    * Kefir87 <http://kefir87.jogger.pl/>
+    * Klisu <http://klisu.jogger.pl/>
+    * Kwantowe Krajobrazy <http://kwantowekrajobrazy.jogger.pl/>
+    * Paczor <http://paczor.fubar.pl/>
+    * Prestidigitator <http://prestidigitator.jogger.pl>
+    * Remiq <http://remiq.jogger.pl>
+    * Torero <http://torero.jogger.pl/>
+    * Zdzichubg <http://zdzichubg.jogger.pl/>
+
+
+    Inne moje strony
+
+    * www.delphi.org.pl <http://www.delphi.org.pl>
+    * www.hosowicz.com <http://www.hosowicz.com>
+
+
+    Pajacyk.pl
+
+    * Nakarm dzieci! <http://pajacyk.pl/>
+
+
+    Meta
+
+    * Panel administracyjny <https://login.jogger.pl/>
+
+
+------------------------------------------------------------------------
+
+phosowicz is powered by Jogger <http://jogger.pl> and K2
+<http://binarybonsai.com/k2/> by Michael <http://binarybonsai.com> and
+Chris <http://chrisjdavis.org>, ported by Patryk Zawadzki.
+<http://patrys.jogger.pl/>
+Notki w RSS <http://phosowicz.jogger.pl/rss/content/html/20>
+

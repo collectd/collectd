@@ -1,0 +1,298 @@
+=head1 NAME
+
+collectd-exec - Documentation of collectd's C<exec plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin exec
+  # ...
+  <Plugin exec>
+    Exec "myuser:mygroup" "myprog"
+    Exec "otheruser" "/path/to/another/binary" "arg0" "arg1"
+    NotificationExec "user" "/usr/lib/collectd/exec/handle_notification"
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<exec plugin> forks of an executable either to receive values or to
+dispatch notifications to the outside world. The syntax of the configuration is
+explained in L<collectd.conf(5)> but summarized in the above synopsis.
+
+If you want/need better performance or more functionality you should take a
+long look at the C<perl plugin>, L<collectd-perl(5)>.
+
+=head1 EXECUTABLE TYPES
+
+There are currently two types of executables that can be executed by the
+C<exec plugin>:
+
+=over 4
+
+=item C<Exec>
+
+These programs are forked and values that it writes to C<STDOUT> are read back.
+The executable is forked in a fashion similar to L<init>: It is forked once and
+not again until it exits. If it exited, it will be forked again after at most
+I<Interval> seconds. It is perfectly legal for the executable to run for a long
+time and continuously write values to C<STDOUT>.
+
+See L<EXEC DATA FORMAT> below for a description of the output format expected
+from these programs.
+
+B<Warning:> If the executable only writes one value and then exits I will be
+executed every I<Interval> seconds. If I<Interval> is short (the default is 10
+seconds) this may result in serious system load.
+
+=item C<NotificationExec>
+
+The program is forked once for each notification that is handled by the daemon.
+The notification is passed to the program on C<STDIN> in a fashion similar to
+HTTP-headers. In contrast to programs specified with C<Exec> the execution of
+this program is not serialized, so that several instances of this program may
+run at once if multiple notifications are received.
+
+See L<NOTIFICATION DATA FORMAT> below for a description of the data passed to
+these programs.
+
+=back
+
+=head1 EXEC DATA FORMAT
+
+The forked executable is expected to print values to C<STDOUT>. The expected
+format is as follows:
+
+=over 4
+
+=item Comments
+
+Each line beginning with a C<#> (hash mark) is ignored.
+
+=item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
+
+Submits one or more values (identified by I<Identifier>, see below) to the
+daemon which will dispatch it to all it's write-plugins.
+
+An I<Identifier> is of the form
+C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
+I<instance>-parts being optional. If they're omitted the hyphen must be
+omitted, too. I<plugin> and each I<instance>-part may be chosen freely as long
+as the tuple (plugin, plugin instance, type instance) uniquely identifies the
+plugin within collectd. I<type> identifies the type and number of values
+(i.E<nbsp>e. data-set) passed to collectd. A large list of predefined
+data-sets is available in the B<types.db> file. See L<types.db(5)> for a
+description of the format of this file.
+
+The I<OptionList> is an optional list of I<Options>, where each option is a
+key-value-pair. A list of currently understood options can be found below, all
+other options will be ignored. Values that contain spaces must be quoted with
+double quotes.
+
+I<Valuelist> is a colon-separated list of the time and the values, each either
+an integer if the data-source is a counter, or a double if the data-source is
+of type "gauge". You can submit an undefined gauge-value by using B<U>. When
+submitting B<U> to a counter the behavior is undefined. The time is given as
+epoch (i.E<nbsp>e. standard UNIX time).
+
+You can mix options and values, but the order is important: Options only
+effect following values, so specifying an option as last field is allowed, but
+useless. Also, an option applies to B<all> following values, so you don't need
+to re-set an option over and over again.
+
+The currently defined B<Options> are:
+
+=over 4
+
+=item B<interval=>I<seconds>
+
+Gives the interval in which the data identified by I<Identifier> is being
+collected.
+
+=back
+
+Please note that this is the same format as used in the B<unixsock plugin>, see
+L<collectd-unixsock(5)>. There's also a bit more information on identifiers in
+case you're confused.
+
+Since examples usually let one understand a lot better, here are some:
+
+  leeloo/cpu-0/cpu-idle N:2299366
+  alice/interface/if_octets-eth0 interval=10 1180647081:421465:479194
+
+Since this action was the only one supported with older versions of the C<exec
+plugin> all lines were treated as if they were prefixed with B<PUTVAL>. This is
+still the case to maintain backwards compatibility but deprecated.
+
+=item B<PUTNOTIF> [I<OptionList>] B<message=>I<Message>
+
+Submits a notification to the daemon which will then dispatch it to all plugins
+which have registered for receiving notifications. 
+
+The B<PUTNOTIF> if followed by a list of options which further describe the
+notification. The B<message> option is special in that it will consume the rest
+of the line as its value. The B<message>, B<severity>, and B<time> options are
+mandatory.
+
+Valid options are:
+
+=over 4
+
+=item B<message=>I<Message> (B<REQUIRED>)
+
+Sets the message of the notification. This is the message that will be made
+accessible to the user, so it should contain some useful information. As with
+all options: If the message includes spaces, it must be quoted with double
+quotes. This option is mandatory.
+
+=item B<severity=failure>|B<warning>|B<okay> (B<REQUIRED>)
+
+Sets the severity of the notification. This option is mandatory.
+
+=item B<time=>I<Time> (B<REQUIRED>)
+
+Sets the time of the notification. The time is given as "epoch", i.E<nbsp>e. as
+seconds since January 1st, 1970, 00:00:00. This option is mandatory.
+
+=item B<host=>I<Hostname>
+
+=item B<plugin=>I<Plugin>
+
+=item B<plugin_instance=>I<Plugin-Instance>
+
+=item B<type=>I<Type>
+
+=item B<type_instance=>I<Type-Instance>
+
+These "associative" options establish a relation between this notification and
+collected performance data. This connection is purely informal, i.E<nbsp>e. the
+daemon itself doesn't do anything with this information. However, websites or
+GUIs may use this information to place notifications near the affected graph or
+table. All the options are optional, but B<plugin_instance> without B<plugin>
+or B<type_instance> without B<type> doesn't make much sense and should be
+avoided.
+
+=back
+
+=back
+
+Please note that this is the same format as used in the B<unixsock plugin>, see
+L<collectd-unixsock(5)>.
+
+When collectd exits it sends a B<SIGTERM> to all still running
+child-processes upon which they have to quit.
+
+=head1 NOTIFICATION DATA FORMAT
+
+The notification executables receive values rather than providing them. In
+fact, after the program is started C<STDOUT> is connected to C</dev/null>.
+
+The data is passed to the executables over C<STDIN> in a format very similar to
+HTTP: At first there is a "header" with one line per field. Every line consists
+of a field name, ended by a colon, and the associated value until end-of-line.
+The "header" is ended by two newlines immediately following another,
+i.E<nbsp>e. an empty line. The rest, basically the "body", is the message of
+the notification.
+
+The following is an example notification passed to a program:
+
+  Severity: FAILURE
+  Time: 1200928930
+  Host: myhost.mydomain.org
+  \n
+  This is a test notification to demonstrate the format
+
+The following header files are currently used. Please note, however, that you
+should ignore unknown header files to be as forward-compatible as possible.
+
+=over 4
+
+=item B<Severity>
+
+Severity of the notification. May either be B<FAILURE>, B<WARNING>, or B<OKAY>.
+
+=item B<Time>
+
+The time in epoch, i.E<nbsp>e. as seconds since 1970-01-01 00:00:00 UTC.
+
+=item B<Host>
+
+=item B<Plugin>
+
+=item B<PluginInstance>
+
+=item B<Type>
+
+=item B<TypeInstance>
+
+Identification of the performance data this notification is associated with.
+All of these fields are optional because notifications do not B<need> to be
+associated with a certain value.
+
+=back
+
+=head1 ENVIRONMENT
+
+The following environment variables are set by the plugin before calling
+I<exec>:
+
+=over 4
+
+=item COLLECTD_INTERVAL
+
+Value of the global interval setting.
+
+=item COLLECTD_HOSTNAME
+
+Hostname used by I<collectd> to dispatch local values.
+
+=back
+
+=head1 USING NAGIOS PLUGINS
+
+Though the interface is far from perfect, there are tons of plugins for Nagios.
+You can use these plugins with collectd by using a simple transition layer,
+C<exec-nagios.px>, which is shipped with the collectd distribution in the
+C<contrib/> directory. It is a simple Perl script that comes with embedded
+documentation. To see it, run the following command:
+
+  perldoc exec-nagios.px
+
+This script expects a configuration file, C<exec-nagios.conf>. You can find an
+example in the C<contrib/> directory, too.
+
+Even a simple mechanism to submit "performance data" to collectd is
+implemented. If you need a more sophisticated setup, please rewrite the plugin
+to make use of collectd's more powerful interface.
+
+=head1 CAVEATS
+
+=over 4
+
+=item
+
+The user, the binary is executed as, may not have root privileges, i.E<nbsp>e.
+must have an UID that is non-zero. This is for your own good.
+
+=item
+
+Early versions of the plugin did not use a command but treated all lines as if
+they were arguments to the I<PUTVAL> command. When the I<PUTNOTIF> command was
+implemented, this behavior was kept for lines which start with an unknown
+command for backwards compatibility. This compatibility code has been removed
+in I<collectdE<nbsp>5>.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-perl(5)>,
+L<collectd-unixsock(5)>,
+L<fork(2)>, L<exec(3)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octo@verplant.orgE<gt>
+
+=cut

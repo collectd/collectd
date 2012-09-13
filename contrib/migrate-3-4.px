@@ -1,0 +1,387 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Getopt::Long ('GetOptions');
+use Data::Dumper ();
+use File::Basename ('dirname');
+
+our $InDir = '/var/lib/collectd';
+our $OutDir = '/tmp/collectd-4';
+our $Hostname = 'localhost';
+
+# Types:
+# +------------+----------------------+----+----+----+
+# ! Subdir     ! Type                 ! ti ! pi ! ex !
+# +------------+----------------------+----+----+----+
+# ! apache     ! apache_bytes         !    !    !    !
+# ! apache     ! apache_requests      !    !    !    !
+# ! apache     ! apache_scoreboard    ! x  !    !    !
+# ! battery    ! charge               !    ! x  !    !
+# ! apcups     ! charge_percent       !    !    !    !
+# !            ! cpu                  ! x  !    ! x  !
+# !            ! cpufreq              ! x  !    !    !
+# ! battery    ! current              !    ! x  !    !
+# ! ntpd       ! delay                ! x  !    !    !
+# !            ! df                   ! x  !    !    !
+# !            ! disk                 ! x  !    !    !
+# ! dns        ! dns_traffic          !    !    !    !
+# ! apple_se.. ! fanspeed             ! x  !    !    !
+# ! mbmon      ! fanspeed             ! x  !    !    !
+# ! apcups     ! frequency            ! x  !    !    !
+# ! ntpd       ! frequency_offset     ! x  !    !    !
+# !            ! hddtemp              ! x  !    !    !
+# ! interface  ! if_errors            !    ! x  !    !
+# ! interface  ! if_packets           !    ! x  !    !
+# !            ! lm_sensors           !    !    !    !
+# !            ! load                 !    !    !    !
+# ! apcups     ! load_percent         !    !    !    !
+# !            ! memory               !    !    !    !
+# !            ! multimeter           !    !    !    !
+# ! mysql      ! mysql_commands       ! x  !    !    !
+# ! mysql      ! mysql_handler        ! x  !    !    !
+# ! mysql      ! mysql_qcache         !    !    !    !
+# ! mysql      ! mysql_threads        !    !    !    !
+# !            ! nfs2_procedures      ! x  !    ! x  !
+# !            ! nfs3_procedures      ! x  !    ! x  !
+# ! dns        ! opcode               ! x  !    !    !
+# !            ! partition            ! x  !    !    !
+# !            ! ping                 ! x  !    !    !
+# !            ! processes            !    !    !    !
+# ! processes  ! ps_count             ! x  !    !    !
+# ! processes  ! ps_cputime           ! x  !    !    !
+# ! processes  ! ps_pagefaults        ! x  !    !    !
+# ! processes  ! ps_rss               ! x  !    !    !
+# ! dns        ! qtype                ! x  !    !    !
+# ! dns        ! rcode                ! x  !    !    !
+# ! (*)        ! sensors              ! x  !    !    !
+# !            ! serial               ! x  !    !    !
+# !            ! swap                 !    !    !    !
+# !            ! tape                 ! x  !    !    !
+# ! apple_se.. ! temperature          ! x  !    !    !
+# ! mbmon      ! temperature          ! x  !    !    !
+# ! ntpd       ! time_dispersion      ! x  !    !    !
+# ! ntpd       ! time_offset          ! x  !    !    !
+# ! apcups     ! timeleft             !    !    !    !
+# !            ! traffic              ! x  !    !    ! ->rx,tx
+# ! vserver    ! traffic              ! x  ! x  !    ! ->rx.tx
+# !            ! users                !    !    !    !
+# ! apucups    ! voltage              ! x  !    !    !
+# ! battery    ! voltage              !    ! x  !    !
+# ! mbmon      ! voltage              ! x  !    !    !
+# ! vserver    ! vs_memory            !    ! x  !    !
+# ! vserver    ! vs_processes         !    ! x  !    !
+# ! vserver    ! vs_threads           !    ! x  !    !
+# !            ! wireless             ! x  !    !    !
+# +------------+----------------------+----+----+----+
+
+our %Subdirs =
+(
+	apache => 0,
+	apcups => 0,
+	apple_sensors => 0,
+	battery => 1,
+	dns => 0,
+	interface => 1,
+	mbmon => 0,
+	mysql => 0,
+	ntpd => 0,
+	processes => 0,
+	sensors => 1,
+	vserver => 1
+);
+
+our %TypeTranslate =
+(
+	cpu => sub { $_ = shift; $_->{'plugin_instance'} = $_->{'type_instance'}; $_->{'type_instance'} = undef; $_; },
+	hddtemp => sub { $_ = shift; $_->{'plugin'} = 'hddtemp'; $_->{'type'} = 'temperature'; $_->{'type_instance'} = $_->{'type_instance'}; $_; },
+	if_errors => sub { $_ = shift; $_->{'type_instance'} = $_->{'plugin_instance'}; $_->{'plugin_instance'} = undef; $_; },
+	if_packets => sub { $_ = shift; $_->{'type_instance'} = $_->{'plugin_instance'}; $_->{'plugin_instance'} = undef; $_; },
+	nfs2_procedures => sub { $_ = shift; @$_{qw(plugin plugin_instance type type_instance)} = ('nfs', 'v2' . $_->{'type_instance'}, 'nfs_procedure', undef); $_; },
+	nfs3_procedures => sub { $_ = shift; @$_{qw(plugin plugin_instance type type_instance)} = ('nfs', 'v3' . $_->{'type_instance'}, 'nfs_procedure', undef); $_; },
+	partition => sub { $_ = shift; $_->{'plugin'} = 'disk'; $_; },
+	processes => sub { $_ = shift; $_->{'type'} = 'ps_state'; $_; },
+	traffic => sub { $_ = shift; $_->{'plugin'} =~ s/^traffic$/interface/; @$_{qw(plugin_instance type)} = (undef, 'if_octets'); $_; }
+);
+
+our %TypeSplit =
+(
+	cpu => { from => [qw(user nice syst idle wait)], to => 'value', type_instance => [qw(user nice system idle wait)] },
+	memory => { from => [qw(used free buffers cached)], to => 'value', type_instance => [qw(used free buffered cached)] },
+	nfs3_procedures => { from => [qw(null getattr lookup access readlink
+		read write create mkdir symlink mknod remove rmdir rename link
+		readdir readdirplus fsstat fsinfo pathconf commit)], to => 'value' },
+	nfs2_procedures => { from => [qw(create fsstat getattr link lookup
+		mkdir null read readdir readlink remove rename rmdir root
+		setattr symlink wrcache write)], to => 'value' },
+	processes => { from => [qw(running sleeping zombies stopped paging blocked)], to => 'value' },
+	swap => { from => [qw(cached free used resv)], to => 'value', type_instance => [qw(cached free used reserved)] }
+);
+
+our %TypeRename =
+(
+	traffic => { from => [qw(incoming outgoing)], to => [qw(rx tx)] },
+	vs_processes => { from => [qw(total)], to => [qw(value)] },
+);
+
+GetOptions ("indir|i=s" => \$InDir,
+	"outdir|o=s" => \$OutDir,
+	"hostname=s" => \$Hostname) or exit_usage ();
+
+die "No such directory: $InDir" if (!-d $InDir);
+
+our @Files = ();
+our %OutDirs = ();
+
+@Files = find_files ();
+
+for (@Files)
+{
+	my $orig_filename = $_;
+	my $orig = parse_file ($orig_filename);
+	my $dest = translate_file ($orig);
+	my $dest_filename = get_filename ($dest);
+
+	my $dest_directory = dirname ($dest_filename);
+	if (!exists ($OutDirs{$dest_directory}))
+	{
+		print "[ -d '$OutDir/$dest_directory' ] || mkdir -p '$OutDir/$dest_directory'\n";
+		$OutDirs{$dest_directory} = 1;
+	}
+
+	if (($orig->{'type'} eq 'disk') || ($orig->{'type'} eq 'partition'))
+	{
+		special_disk ($orig_filename, $orig, $dest_filename, $dest);
+	}
+	elsif (exists ($TypeSplit{$orig->{'type'}}))
+	{
+		my $src_dses = $TypeSplit{$orig->{'type'}}->{'from'};
+		my $dst_ds = $TypeSplit{$orig->{'type'}}->{'to'};
+		my $type_instances = exists ($TypeSplit{$orig->{'type'}}->{'type_instance'})
+			? $TypeSplit{$orig->{'type'}}->{'type_instance'}
+			: $TypeSplit{$orig->{'type'}}->{'from'};
+
+		for (my $i = 0; $i < @$src_dses; $i++)
+		{
+			my $src_ds = $src_dses->[$i];
+			$dest->{'type_instance'} = $type_instances->[$i];
+			$dest_filename = get_filename ($dest);
+			print "./rrd_filter.px -i '$InDir/$orig_filename' -m '${src_ds}:${dst_ds}' -o '$OutDir/$dest_filename'\n";
+		}
+	}
+	else
+	{
+		print "cp '$InDir/$orig_filename' '$OutDir/$dest_filename'\n";
+	}
+
+	if (exists ($TypeRename{$orig->{'type'}}))
+	{
+		my $src_dses = $TypeRename{$orig->{'type'}}->{'from'};
+		my $dst_dses = $TypeRename{$orig->{'type'}}->{'to'};
+
+		print "rrdtool tune '$OutDir/$dest_filename'";
+		for (my $i = 0; $i < @$src_dses; $i++)
+		{
+			print " --data-source-rename "
+				. $src_dses->[$i] . ':' . $dst_dses->[$i];
+		}
+		print "\n";
+	}
+}
+
+exit (0);
+
+sub translate_file
+{
+	my $orig = shift;
+	my $dest = {};
+	%$dest = %$orig;
+
+	if (defined ($TypeTranslate{$orig->{'type'}}))
+	{
+		$TypeTranslate{$orig->{'type'}}->($dest);
+	}
+
+	return ($dest);
+} # translate_file
+
+sub get_filename
+{
+	my $args = shift;
+	my $filename = $args->{'host'}
+	. '/' . $args->{'plugin'} . (defined ($args->{'plugin_instance'}) ? '-'.$args->{'plugin_instance'} : '')
+	. '/' . $args->{'type'} . (defined ($args->{'type_instance'}) ? '-'.$args->{'type_instance'} : '') . '.rrd';
+
+	return ($filename);
+}
+
+sub parse_file
+{
+	my $fullname = shift;
+	my @parts = split ('/', $fullname);
+
+	my $filename;
+
+	my $host;
+	my $plugin;
+	my $plugin_instance;
+	my $type;
+	my $type_instance;
+
+	$filename = pop (@parts);
+
+	if ($filename =~ m/^([^-]+)(?:-(.*))?\.rrd$/)
+	{
+		$type = $1;
+		$type_instance = $2;
+	}
+	else
+	{
+		return;
+	}
+
+	if (@parts)
+	{
+		my $dirname = pop (@parts);
+		my $regex_str = join ('|', keys (%Subdirs));
+		if ($dirname =~ m/^($regex_str)(?:-(.*))?$/)
+		{
+			$plugin = $1;
+			$plugin_instance = $2;
+		}
+		else
+		{
+			push (@parts, $dirname);
+		}
+	}
+	if (!$plugin)
+	{
+		$plugin = $type;
+	}
+
+	if (@parts)
+	{
+		$host = pop (@parts);
+	}
+	else
+	{
+		$host = $Hostname;
+	}
+
+	return
+	({
+		host => $host,
+		plugin => $plugin,
+		plugin_instance => $plugin_instance,
+		type => $type,
+		type_instance => $type_instance
+	});
+} # parse_file
+
+sub find_files
+{
+	my $reldir = @_ ? shift : '';
+	my $absdir = $InDir . ($reldir ? "/$reldir" : '');
+
+	my $dh;
+
+	my @files = ();
+	my @dirs = ();
+
+	opendir ($dh, $absdir) or die ("opendir ($absdir): $!");
+	while (my $file = readdir ($dh))
+	{
+		next if ($file =~ m/^\./);
+		next if (-l "$absdir/$file");
+		if (-d "$absdir/$file")
+		{
+			push (@dirs, ($reldir ? "$reldir/" : '') . $file);
+		}
+		elsif ($file =~ m/\.rrd$/)
+		{
+			push (@files, ($reldir ? "$reldir/" : '') . $file);
+		}
+	}
+	closedir ($dh);
+
+	for (my $i = 0; $i < @dirs; $i++)
+	{
+		push (@files, find_files ($dirs[$i]));
+	}
+
+	return (@files);
+} # find_files
+
+{my $cache;
+sub _special_disk_instance
+{
+	my $orig_instance = shift;
+
+	if (!defined ($cache))
+	{
+		my $fh;
+		open ($fh, "< /proc/diskstats") or die ("open (/proc/diststats): $!");
+
+		$cache = {};
+		while (my $line = <$fh>)
+		{
+			chomp ($line);
+			my @fields = split (' ', $line);
+			$cache->{$fields[0] . '-' . $fields[1]} = $fields[2];
+		}
+		close ($fh);
+	}
+
+	return (defined ($cache->{$orig_instance})
+		? $cache->{$orig_instance}
+		: $orig_instance);
+}}
+
+sub special_disk
+{
+	my $orig_filename = shift;
+	my $orig = shift;
+	my $dest_filename = shift;
+	my $dest = shift;
+	my $dest_directory;
+
+	$dest->{'type_instance'} = undef;
+	$dest->{'plugin_instance'} = _special_disk_instance ($orig->{'type_instance'});
+	if ($dest->{'plugin_instance'} eq $orig->{'type_instance'})
+	{
+		print qq(echo "You may need to rename these files" >&2\n);
+	}
+
+	$dest->{'type'} = 'disk_merged';
+	$dest_filename = get_filename ($dest);
+
+	$dest_directory = dirname ($dest_filename);
+	if (!exists ($OutDirs{$dest_directory}))
+	{
+		print "[ -d '$OutDir/$dest_directory' ] || mkdir -p '$OutDir/$dest_directory'\n";
+		$OutDirs{$dest_directory} = 1;
+	}
+
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rmerged:read' -m 'wmerged:write' -o '$OutDir/$dest_filename'\n";
+
+	$dest->{'type'} = 'disk_octets';
+	$dest_filename = get_filename ($dest);
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rbytes:read' -m 'wbytes:write' -o '$OutDir/$dest_filename'\n";
+
+	$dest->{'type'} = 'disk_ops';
+	$dest_filename = get_filename ($dest);
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rcount:read' -m 'wcount:write' -o '$OutDir/$dest_filename'\n";
+
+	$dest->{'type'} = 'disk_time';
+	$dest_filename = get_filename ($dest);
+	print "./rrd_filter.px -i '$InDir/$orig_filename' -m 'rtime:read' -m 'wtime:write' -o '$OutDir/$dest_filename'\n";
+}
+
+sub exit_usage
+{
+	print <<EOF;
+Usage: $0 [-i indir] [-o outdir] [--hostname myhostname]
+EOF
+	exit (1);
+}

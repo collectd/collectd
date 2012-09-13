@@ -1,0 +1,5 @@
+collectd_buffersize 256
+collectd_socket /var/run/collectd-email
+collectd_timeout 2
+collectd_retries 3 
+

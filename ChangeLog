@@ -1,0 +1,1978 @@
+2012-04-01, Version 5.1.0
+	* Build system, iptables plugin: The shipped version of libiptc has
+	  been removed.
+	* collectd-nagios: A list of value lists can now be queried using
+	  "-n LIST". Thanks to Sebastian Harl for his patches.
+	* bind plugin: The "ParseTime" option has been added. It allows to use
+	  the system time rather than the time reported by BIND.
+	* curl, memcachec, tail plugins: The "ExcludeRegexp" option has been
+	  added. Thanks to Peter Warasin for his initial patch.
+	* ethstat plugin: The new "ethstat" plugin reads performance statistics
+	  directly from ethernet cards. Thanks to Cyril Feraudet for his patch.
+	* GenericJMX plugin: Support for querying MBean "Operations" (in
+	  addition to "Attributes") has been added. Thanks to Pierre-Yves
+	  Ritschard for his patch.
+	* irq plugin: The selection / ignore code now uses the default
+	  ignorelist infrastructure, providing the standard feature set, e.g.
+	  regex matching.
+	* md plugin: The new "md" plugin reports the number of disks in various
+	  states in Linux software RAID devices. Thanks to Michael Hanselmann
+	  for his patch.
+	* modbus plugin: Support for signed integer register types has been
+	  added.
+	* nfs plugin: Support for Solaris has been added. Thanks to Cosmin
+	  Ioiart for his patch.
+	* numa plugin: The new "numa" plugin reports statistics of the
+	  Non-Uniform Memory Access (NUMA) subsystem of Linux.
+	* processes plugin: Various fixes for the FreeBSD implementation.
+	  Thanks to Phil Kulin for his patch.
+	* rrdcached plugin: Passing flushes to the caching daemon has been
+	  added.
+	* sensors plugin: The initialization code has been improved. Thanks to
+	  Henrique de Moraes Holschuh for his patch.
+	* swap plugin: The "ReportByDevice" option has been added.
+	* syslog plugin: Support for writing notifications has been added.
+	  Thanks to Fabien Wernli for his patch.
+	* tcpconns plugin: Support for AIX has been added. Thanks to Manuel
+	  Luis Sanmartín Rozada for his patch.
+	* threshold plugin: The "PersistOK" option has been added. Thanks to
+	  Aaron Brady for his patch.
+	* varnish plugin: Support for Varnish 3.0 has been added. Thanks to
+	  Jérôme Renard for his patches.
+	* write_mongodb plugin: The new "write_mongodb" plugin writes value
+	  lists to MongoDB, a shema-less database. Thanks to Akkarit Sangpetch
+	  and Chris Lundquist for their work.
+	* write_graphite plugin: The new "write_graphite" plugin writes value
+	  lists to Carbon, the storage layer of the Graphite time-series
+	  database. Thanks to Scott Sanders and Pierre-Yves Ritschard for their
+	  work.
+	* zfs_arc plugin: Several new statistics have been added. Thanks to
+	  Aurelien Rougemont for his patches.
+	* scale target: Support for scaling specific data sources only has been
+	  added. Thanks to Gerrie Roos for his patch.
+
+
+2012-04-01, Version 5.0.4
+	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
+	  for fixing this. Adresses some issues with building the iptables
+	  plugin under Gentoo.
+	* libcollectdclient: A memory leak in the lcc_getval() function has
+	  been fixed. Thanks to Jason Schmidlapp for finding and fixing this
+	  issue.
+	* bind plugin: The use of 'QType" types has been fixed.
+	* df plugin: Fixed compiler issue under Mac OS X 10.7.
+	* conntrack plugin: Support zero as legitimate value. Thanks to Louis
+	  Opter for his patch.
+	* memcached plugin: Increased the size of a static buffer, which was
+	  truncating status messages form memcached. Thanks to Timon for the
+	  patch.
+	* network plugin: Forwarding of notifications has been disabled. This
+	  was a contition not checked for before, which may retult in an
+	  endless loop.
+	* processes plugin: Support for process names with spaces has been
+	  added to the Linux implementation. Thanks to Darrell Bishop for his
+	  patch.
+	* perl plugin: A race condition in several callbacks, including log and
+	  write callbacks, has been fixed. Thanks to "Rrpv" for reporting this
+	  bug.
+	* snmp plugin: A bug when casting unsigned integers to gauge values has
+	  been fixed: Unsigned integers would be cast to a signed integer and
+	  then to a gauge, possibly resulting in a negative value.
+	* tcpconns plugin: Compilation with newer versions of the FreeBSD
+	  runtime has been fixed.
+
+2012-02-19, Version 5.0.3
+	* Build system: Fix problems when building the ipvs and iptables
+	  plugins. Thanks to Sebastian Harl for his patch. A bashism in the
+	  version-gen.sh script has been fixed. Thanks to Jo-Philipp Wich for
+	  his patch.
+	* csv and rrdtool plugins: Print a more helpful error message when the
+	  DataDir is a symlink pointing to a non-existing location. Thanks to
+	  Jonathan Nieder for his patch.
+	* exec plugin: Fix a problem when using select(2) to read from file
+	  handles. Thanks to Gerrie Roos for his patch.
+	* network plugin: An incorrect error message in the handling of the
+	  "Interface" configuration option has been fixed. Thanks to Gerrie
+	  Roos for his patch.
+	* oracle plugin: A potential endless loop in the error handling has
+	  been fixed.
+	* python plugin: A crash bug in the configuration handling has been
+	  fixed. Thanks to Sven Trenkel for his patch.
+	* interfaces plugin: The change which was supposed to ignore "bogus"
+	  interfaces has been reverted, since it ignored legit interfaces, such
+	  as bonding pseudo-devices as well.
+
+2012-01-21, Version 5.0.2
+	* curl_xml plugin: Fix handling of file:// and other URLs (which don't
+	  follow HTTP status codes). Thanks to Fabien Wernli for his patch!
+	* df plugin: Fix handling of negative "available" counts. This can
+	  occur with some file systems, for example UFS. Thanks to Toni Ylenius
+	  for his patch.
+	* interface plugin: "mac" interfaces are now ignored on Solaris. These
+	  pseudo-interfaces occur multiple times, causing warnings. Also switch
+	  to 64-bit counters on Solaris, improving overflow behavior for
+	  high-speed interfaces. Thanks to Eddy Geez and Fabien Wernli for
+	  their patches.
+	* memory plugin: Account kernel and unused memory under Solaris. Thanks
+	  to Fabien Wernli for his patch.
+	* network plugin: A bug in the interaction between the Network plugin
+	  and filter chains has been fixed: When a filter modified a field such
+	  as the hostname, subsequent values in the same network packets could
+	  have ended up using the modified name rather than the original name.
+	  Thanks to Sebastian Harl for identifying the problem.
+	* oracle plugin: A memory leak has been fixed in the parameter handling.
+	* python plugin: A memory leak has been fixed. Thanks to Sven Trenkel
+	  for fixing this bug!
+
+2011-10-07, Version 5.0.1
+	* collectd: A mutex leak has been fixed in the meta data code. Thanks
+	  to Rafal Lesniak for his patch.
+	* collectd: Compatibility fixes for GCC 4.6 have been applied. Thanks
+	  to Peter Green for his patch.
+	* csv plugin: The line buffer size has been increased. Thanks to Colin
+	  McCabe for the patch.
+	* curl_json plugin: Don't use the "parent" node to build the type
+	  instance, if it is empty. Compatibility with libyajl 2 has been
+	  added. Thanks to "spupykin" of the Arch Linux project for the initial
+	  code. Formatting of time has been fixed in the JSON module.
+	* exec plugin: Fix the timestamp value passed to notification scripts.
+	  Thanks to Alexander Kovalenko for fixing this.
+	* iptables plugin: Fix linking with some versions of libiptc.
+	* irq plugin: Fix support for interrupts under Linux. The old code
+	  assumed that interrupts have a numeric value -- this is no longer
+	  true for Linux. Thanks to Bostjan Skufca for implementing this.
+	* notify_desktop plugin: Compatibility with libnotify 0.7 has been
+	  added. Thanks to Samuli Suominen for his patch.
+	* processes plugin: Fix handling of regular expressions containing
+	  spaces. Thanks for Sebastian Harl for fixing this.
+	* rrdtool, rrdcached plugins: Improve precision of the XFF parameter.
+	  Previously, values like 0.999 would have been rounded to 1.0. Thanks
+	  to Francois-Xavier Bourlet for fixing this.
+	* varnish plugin: Fix data type handling of some metrics. Some values
+	  were submitted as gauge even though they were derives.
+	* Various plugin: Set a multi-threading flag in libcurl. Thanks to Mike
+	  Flisher for the fix.
+
+2011-03-28, Version 5.0.0
+	* collectd: The "FQDNLookup" option is now enabled by default.
+	* collectd: The internal representation of time has been changed to
+	  allow a higher accuracy than one second.
+	* collectdcmd: This new command line utility can send various commands
+	  to collectd using the UnixSock plugin. Thanks to Håkon Dugstad
+	  Johnsen and Sebastian Harl for their code.
+	* collectd-nagios: The "-m" option has been implemented (treat NaNs as
+	  critical).
+	* collectd-tg: Traffic generator creating bogus network traffic
+	  compatible to the Network plugin. This utility can be used to
+	  stress-test new write plugins and collectd in general.
+	* libcollectdclient: Creating and sending network packets has been
+	  added to the collectd client library.
+	* All data sets: The data source name of all data sets with exactly
+	  one data source has been changed to "value".
+	* All plugins: All "counter" data sources have been converted to
+	  "derive" data sources. All plugins now use "derive" by default, but
+	  plugins such as the network plugin can still handle "counter", of
+	  course. The minimum value of all derive data sources is zero, the
+	  maximum value is unspecified.
+	* amqp plugin: The new AMQP plugin can send data to and receive data
+	  from an AMQP broker. Thanks to Sebastien Pahl for his code.
+	* apache plugin: Backwards compatibility code has been removed.
+	  Support for the IBM HTTP Server has been added. Thanks to Manuel
+	  Luis Sanmartín Rozada for his patch.
+	* contextswitch plugin: Support for sysctlbyname(3) has been added.
+	  Thanks to Kimo Rosenbaum for his patch.
+	* df plugin: The default behavior has been changed to be equivalent to
+	  the "ReportReserved" behavior of v4.
+	* dns plugin: Improved RFC 1035 name parsing has been imported from
+	  "dnstop".
+	* exec plugin: Backwards compatibility code has been removed.
+	* GenericJMX plugin: The "InstancePrefix" option has been added to
+	  "Connection" blocks.
+	* hddtemp plugin: The "TranslateDevicename" config option has been
+	  removed.
+	* interface plugin: Use the "plugin instance" to store the interface
+	  value.
+	* libvirt plugin: The "InterfaceFormat" option has been added. Thanks
+	  to Ruben Kerkhof for his patch.
+	* lpar plugin: New plugins for "logical partitions", a virtualization
+	  technique of POWER CPUs. Thanks to Aurélien Reynaud for his code and
+	  patience.
+	* modbus plugin: Support for libmodbus 2.9.2 has been added and the
+	  license has been changed to LGPLv2.1.
+	* mysql plugin: Backwards compatibility code has been removed. The
+	  data sets used have been improved.
+	* network plugin: The default buffer size has been increased to
+	  1452 bytes.
+	* perl plugin: Backwards compatibility code has been removed.
+	* postgresql plugin: Backwards compatibility code has been removed.
+	* redis plugin: Plugin for collecting statistics from Redis, a key-
+	  value store, has been added. Thanks to Andres J. Diaz for his code.
+	* swap plugin: Implement collection of physical and virtual memory
+	  statistics under Solaris. The new default is collecting physical
+	  memory. Thanks to Aurélien Reynaud for his patches.
+	* threshold plugin: The threshold configuration has been moved into
+	  this separate plugin.
+	* unixsock plugin: The "DeleteSocket" option has been added.
+	* varnish plugin: The new Varnish plugin reads statistics from
+	  Varnish, a web accelerator. Thanks to Jérôme Renard and Marc
+	  Fournier for their contributions.
+	* write_redis: New plugin for writing data to Redis, a key-value
+	  store.
+	* zfs_arc plugin: The data sets have been replaced by more elegant
+	  alternatives.
+	* v5upgrade target: Target for converting v4 data sets to the v5
+	  schema.
+
+2012-04-01, Version 4.10.7
+	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
+	  for fixing this. Adresses some issues with building the iptables
+	  plugin under Gentoo.
+	* libcollectdclient: A memory leak in the lcc_getval() function has
+	  been fixed. Thanks to Jason Schmidlapp for finding and fixing this
+	  issue.
+	* bind plugin: The use of 'QType" types has been fixed.
+	* df plugin: Fixed compiler issue under Mac OS X 10.7.
+	* conntrack plugin: Support zero as legitimate value. Thanks to Louis
+	  Opter for his patch.
+	* memcached plugin: Increased the size of a static buffer, which was
+	  truncating status messages form memcached. Thanks to Timon for the
+	  patch.
+	* network plugin: Forwarding of notifications has been disabled. This
+	  was a contition not checked for before, which may retult in an
+	  endless loop.
+	* processes plugin: Support for process names with spaces has been
+	  added to the Linux implementation. Thanks to Darrell Bishop for his
+	  patch.
+	* perl plugin: A race condition in several callbacks, including log and
+	  write callbacks, has been fixed. Thanks to "Rrpv" for reporting this
+	  bug.
+	* snmp plugin: A bug when casting unsigned integers to gauge values has
+	  been fixed: Unsigned integers would be cast to a signed integer and
+	  then to a gauge, possibly resulting in a negative value.
+	* tcpconns plugin: Compilation with newer versions of the FreeBSD
+	  runtime has been fixed.
+
+2012-02-19, Version 4.10.6
+	* Build system: Fix problems when building the ipvs and iptables
+	  plugins. Thanks to Sebastian Harl for his patch. A bashism in the
+	  version-gen.sh script has been fixed. Thanks to Jo-Philipp Wich for
+	  his patch.
+	* csv and rrdtool plugins: Print a more helpful error message when the
+	  DataDir is a symlink pointing to a non-existing location. Thanks to
+	  Jonathan Nieder for his patch.
+	* exec plugin: Fix a problem when using select(2) to read from file
+	  handles. Thanks to Gerrie Roos for his patch.
+	* network plugin: An incorrect error message in the handling of the
+	  "Interface" configuration option has been fixed. Thanks to Gerrie
+	  Roos for his patch.
+	* oracle plugin: A potential endless loop in the error handling has
+	  been fixed.
+	* python plugin: A crash bug in the configuration handling has been
+	  fixed. Thanks to Sven Trenkel for his patch.
+	* interfaces plugin: The change which was supposed to ignore "bogus"
+	  interfaces has been reverted, since it ignored legit interfaces, such
+	  as bonding pseudo-devices as well.
+
+2012-01-21, Version 4.10.5
+	* curl_xml plugin: Fix handling of file:// and other URLs (which don't
+	  follow HTTP status codes). Thanks to Fabien Wernli for his patch!
+	* df plugin: Fix handling of negative "available" counts. This can
+	  occur with some file systems, for example UFS. Thanks to Toni Ylenius
+	  for his patch.
+	* interface plugin: "mac" interfaces are now ignored on Solaris. These
+	  pseudo-interfaces occur multiple times, causing warnings. Also switch
+	  to 64-bit counters on Solaris, improving overflow behavior for
+	  high-speed interfaces. Thanks to Eddy Geez and Fabien Wernli for
+	  their patches.
+	* memory plugin: Account kernel and unused memory under Solaris. Thanks
+	  to Fabien Wernli for his patch.
+	* network plugin: A bug in the interaction between the Network plugin
+	  and filter chains has been fixed: When a filter modified a field such
+	  as the hostname, subsequent values in the same network packets could
+	  have ended up using the modified name rather than the original name.
+	  Thanks to Sebastian Harl for identifying the problem.
+	* oracle plugin: A memory leak has been fixed in the parameter handling.
+	* python plugin: A memory leak has been fixed. Thanks to Sven Trenkel
+	  for fixing this bug!
+
+2011-10-14, Version 4.10.4
+	* collectd: A mutex leak has been fixed in the meta data code. Thanks
+	  to Rafal Lesniak for his patch.
+	* collectd: Compatibility fixes for GCC 4.6 have been applied. Thanks
+	  to Peter Green for his patch.
+	* csv plugin: The line buffer size has been increased. Thanks to Colin
+	  McCabe for the patch.
+	* curl_json plugin: Don't use the "parent" node to build the type
+	  instance, if it is empty. Compatibility with libyajl 2 has been
+	  added. Thanks to "spupykin" of the Arch Linux project for the initial
+	  code.
+	* iptables plugin: Fix linking with some versions of libiptc.
+	* irq plugin: Fix support for interrupts under Linux. The old code
+	  assumed that interrupts have a numeric value -- this is no longer
+	  true for Linux. Thanks to Bostjan Skufca for implementing this.
+	* notify_desktop plugin: Compatibility with libnotify 0.7 has been
+	  added. Thanks to Samuli Suominen for his patch.
+	* processes plugin: Fix handling of regular expressions containing
+	  spaces. Thanks for Sebastian Harl for fixing this.
+	* rrdtool, rrdcached plugins: Improve precision of the XFF parameter.
+	  Previously, values like 0.999 would have been rounded to 1.0. Thanks
+	  to Francois-Xavier Bourlet for fixing this.
+	* Various plugin: Set a multi-threading flag in libcurl. Thanks to Mike
+	  Flisher for the fix.
+
+2011-03-26, Version 4.10.3
+	* Documentation: Several updates and additions. Thanks to Sebastian Harl.
+	* collectd: Build issues (compiler warnings) have been fixed. Thanks to
+	  Bruno Prémont.
+	* collectd: Threshold subsection: Handling of NAN values in the
+	  percentage calculation has been fixed.
+	* collectd, java plugin, ntpd plugin: Several diagnostic messages have
+	  been improved.
+	* curl_json plugin: Handling of arrays has been fixed.
+	* libvirt plugin: A bug in reading the virtual CPU statistics has been
+	  fixed. Thanks to “JLPC” for reporting this problem.
+	* modbus plugin: Compatibility with libmodbus 2.0.3 has been restored.
+	* processes plugin: Potentially erroneous behavior has been fixed in an
+	  error handling case.
+	* python plugin: Fix dispatching of values from Python scripts to
+	  collectd. Thanks to Gregory Szorc for finding and fixing this
+	  problem.
+
+2010-11-27, Version 4.10.2
+	* Documentation: Various documentation fixes.
+	* collectd: If including one configuration file fails, continue with
+	  the rest of the configuration if possible.
+	* collectd: Fix a bug in the read function scheduling. In rare cases
+	  read functions may not have been called as often as requested.
+	* collectd: Concurrency issues with errno(3) under AIX have been
+	  fixed: A thread-safe version of errno has to be requested under AIX.
+	  Thanks to Aurélien Reynaud for his patch.
+	* collectd: A left-over hard-coded 2 has been replaced by the
+	  configurable timeout value.
+	* curl, memcachec, tail plugins: Fix handling of "DERIVE" data
+	  sources. Matching the end of a string has been improved; thanks to
+	  Sebastian Harl for the patch.
+	* curl_json plugin: Fix a problem when parsing 64bit integers. Reading
+	  JSON data from non-HTTP sources has been fixed.
+	* netapp plugin: Pass the interval setting to the dispatch function.
+	  Restore compatibility to NetApp Release 7.3. Thanks to Sven Trenkel
+	  for the patch.
+	* network plugin: Be less verbose about unchecked signatures, in order
+	  to prevent spamming the logs.
+	* notify_email plugin: Concurrency problems have been fixed.
+	* python plugin: Set "sys.argv", since many scripts don't expect that
+	  it may not be set. Thanks to Sven Trenkel for the patch.
+	* rrdtool, rrdcached plugin: Fix a too strict assertion when creating
+	  RRD files.
+	* swap plugin: A bug which lead to incorrect I/O values has been
+	  fixed.
+	* value match: A minor memory leak has been fixed. Thanks to Sven
+	  Trenkel for the patch.
+
+2010-07-09, Version 4.10.1
+	* Build system: Checking for "strtok_r" under Solaris has been fixed.
+	* Portability: Fixes for Solaris 8 have been applied. Thanks to
+	  Alexander Wuerstlein for his patch.
+	* collectd: The shutdown speed when terminating the read threads has
+	  been improved.
+	* libcollectdclient: A format error in the PUTVAL command has been
+	  removed. Thanks to Johan Van den Brande for fixing this.
+	* df plugin: An error message shown when "cu_mount_getlist" fails has
+	  been added.
+	* processes plugin: Missing initialization code for IO members of a
+	  struct has been added. Thanks to Aurélien Reynaud for fixing this.
+	* python plugin: Memory leaks in the write and notification callbacks
+	  have been fixed. A possible crash when the plugin was loaded but not
+	  configured has been fixed. Thanks to Sven Trenkel for his patches.
+	* snmp plugin: Verbosity with regard to unknown ASN types has been
+	  increased. A build problem on PowerPC and ARM processors has been
+	  fixed by Aurélien Reynaud; thanks!
+	* powerdns plugin: Compatibility changes for PowerDNS 2.9.22 and above
+	  have been applied. Thanks to Luke Heberling for his changes.
+
+2010-05-01, Version 4.10.0
+	* collectd: JSON output now includes the "dstypes" and "dsnames"
+	  fields. This makes it easier for external applications to interpret
+	  the data. Thanks to Chris Buben for his work.
+	* collectd: The new "Timeout" option can be used to specify a
+	  "timeout" for missing values. This is used in the threshold checking
+	  code to detect missing values. Thanks to Andrés J. Díaz for the
+	  patch.
+	* apache plugin: Support for "IdleWorkers" (Apache 1.*: "IdleServers")
+	  has been added.
+	* curl plugin: The new "ExcludeRegex" allows to easily exclude certain
+	  lines from the match.
+	* curl_xml plugin: This new plugin allows to read XML files using cURL
+	  and extract metrics included in the files. Thanks to Amit Gupta for
+	  his work.
+	* filecount plugin: The new "IncludeHidden" option allows to include
+	  "hidden" files and directories in the statistics. Thanks to Vaclav
+	  Malek for the patch.
+	* logfile plugin: The new "PrintSeverity" option allows to include the
+	  severity of a message in the output. Thanks to Clément Stenac for
+	  his patch.
+	* memcachec plugin: The new "ExcludeRegex" allows to easily exclude
+	  certain lines from the match.
+	* modbus plugin: This new plugin allows to read registers from
+	  Modbus-TCP enabled devices.
+	* network plugin: The new "Interface" option allows to set the
+	  interface to be used for multicast and, if supported, unicast
+	  traffic. Thanks to Max Henkel for his work.
+	* openvpn plugin: The "CollectUserCount" and "CollectIndividualUsers"
+	  options allow more detailed control over how to report sessions of
+	  multiple users. Thanks to Fabian Schuh for his work.
+	* pinba plugin: This new plugin receives timing information from the
+	  Pinba PHP extension, which can be used for profiling PHP code and
+	  webserver performance. Thanks to Phoenix Kayo for his work.
+	* ping plugin: The new "MaxMissed" allows to re-resolve a hosts
+	  address when it doesn't reply to a number of ping requests. Thanks
+	  to Stefan Völkel for the patch.
+	* postgresql plugin: The "Interval" config option has been added. The
+	  plugin has been relicensed under the 2-clause BSD license. Thanks to
+	  Sebastian Harl for his work.
+	* processes plugin: Support for "code" and "data" virtual memory sizes
+	  has been added. Thanks to Clément Stenac for his patch.
+	* python plugin: Support for Python 3 has been implemented. Thanks to
+	  Sven Trenkel for his work.
+	* routeros plugin: Support for collecting CPU load, memory usage, used
+	  and free disk space, sectors written and number of bad blocks from
+	  MikroTik devices has been added.
+	* swap plugin: Support for Linux < 2.6 has been added. Thanks to Lorin
+	  Scraba for his patch.
+	* tail plugin: The new "ExcludeRegex" allows to easily exclude certain
+	  lines from the match. Thanks to Peter Warasin for his patch.
+	* write_http plugin: The "StoreRates" option has been added. Thanks to
+	  Paul Sadauskas for his patch.
+	* regex match: The "Invert" option has been added. Thanks to Julien
+	  Ammous for his patch.
+
+2011-03-26, Version 4.9.5
+	* Documentation: Several updates and additions. Thanks to Sebastian Harl.
+	* collectd: Build issues (compiler warnings) have been fixed. Thanks to
+	  Bruno Prémont.
+	* collectd: Threshold subsection: Handling of NAN values in the
+	  percentage calculation has been fixed.
+	* collectd, java plugin, ntpd plugin: Several diagnostic messages have
+	  been improved.
+	* libvirt plugin: A bug in reading the virtual CPU statistics has been
+	  fixed. Thanks to “JLPC” for reporting this problem.
+	* processes plugin: Potentially erroneous behavior has been fixed in an
+	  error handling case.
+	* python plugin: Fix dispatching of values from Python scripts to
+	  collectd. Thanks to Gregory Szorc for finding and fixing this
+	  problem.
+
+2010-11-27, Version 4.9.4
+	* Documentation: Various documentation fixes.
+	* collectd: If including one configuration file fails, continue with
+	  the rest of the configuration if possible.
+	* collectd: Fix a bug in the read function scheduling. In rare cases
+	  read functions may not have been called as often as requested.
+	* collectd: Concurrency issues with errno(3) under AIX have been
+	  fixed: A thread-safe version of errno has to be requested under AIX.
+	  Thanks to Aurélien Reynaud for his patch.
+	* curl, memcachec, tail plugins: Fix handling of "DERIVE" data
+	  sources. Matching the end of a string has been improved; thanks to
+	  Sebastian Harl for the patch.
+	* curl_json plugin: Fix a problem when parsing 64bit integers. Reading
+	  JSON data from non-HTTP sources has been fixed.
+	* netapp plugin: Pass the interval setting to the dispatch function.
+	  Restore compatibility to NetApp Release 7.3. Thanks to Sven Trenkel
+	  for the patch.
+	* network plugin: Be less verbose about unchecked signatures, in order
+	  to prevent spamming the logs.
+	* notify_email plugin: Concurrency problems have been fixed.
+	* python plugin: Set "sys.argv", since many scripts don't expect that
+	  it may not be set. Thanks to Sven Trenkel for the patch.
+	* rrdtool, rrdcached plugin: Fix a too strict assertion when creating
+	  RRD files.
+	* value match: A minor memory leak has been fixed. Thanks to Sven
+	  Trenkel for the patch.
+
+2010-07-09, Version 4.9.3
+	* Build system: Checking for "strtok_r" under Solaris has been fixed.
+	* Portability: Fixes for Solaris 8 have been applied. Thanks to
+	  Aurélien Reynaud and Alexander Wuerstlein for their patches.
+	* collectd: The shutdown speed when terminating the read threads has
+	  been improved.
+	* collectd-nagios: The format of the performance data has been fixed.
+	* libcollectdclient: A format error in the PUTVAL command has been
+	  removed. Thanks to Johan Van den Brande for fixing this.
+	* df plugin: An error message shown when "cu_mount_getlist" fails has
+	  been added.
+	* processes plugin: Missing initialization code for IO members of a
+	  struct has been added. Thanks to Aurélien Reynaud for fixing this.
+	* python plugin: Memory leaks in the write and notification callbacks
+	  have been fixed. A possible crash when the plugin was loaded but not
+	  configured has been fixed. Thanks to Sven Trenkel for his patches.
+	* rrdcached plugin: A build issue has been resolved. Thanks to
+	  Thorsten von Eicken for the patch.
+	* snmp plugin: Verbosity with regard to unknown ASN types has been
+	  increased. A build problem on PowerPC and ARM processors has been
+	  fixed by Aurélien Reynaud; thanks!
+	* powerdns plugin: Compatibility changes for PowerDNS 2.9.22 and above
+	  have been applied. Thanks to Luke Heberling for his changes.
+
+2010-04-22, Version 4.9.2
+	* Build system, various plugins: Fixes for AIX compatibility have been
+	  added. Thanks to Manuel Sanmartin for his patches.
+	* Build system: Checking for "nanosleep" on old Solaris machines has
+	  been fixed. Thanks to Vincent McIntyre and Sebastian Harl for
+	  figuring out a way to make this work.
+	* collectd: Append a newline to messages written to STDERR.
+	* collectd: Serialization of NANs in JSON format has been fixed.
+	  Thanks to Chris Buben for pointing out the resulting syntax error.
+	* collectd: Checks whether a "sleep" returned early have been added;
+	  the cases are now handled correctly. Thanks to Michael Stapelberg
+	  for the patch.
+	* collectd: Continue reading files in a directory when parsing one
+	  file fails.
+	* apache plugin: Collection of the number of active connections has
+	  been fixed for Apache 2.*.
+	* contextswitch plugin: Handle large counter/derive values correctly.
+	  Thanks to Martin Merkel for reporting the bug.
+	* exec plugin: Error messages have been improved. The "running" flag
+	  is now cleared correctly when forking a child fails.
+	* iptables plugin: Fix a violation of aliasing rules. This resolves a
+	  warning / error with new GCC versions. Thanks to Jan Engelhardt for
+	  the work-around.
+	* java plugin: The Java API files are now packaged into a .jar file.
+	  Thanks to Amit Gupta for his patch.
+	* network plugin: Fix a segmentation fault when receiving packets with
+	  an unknown data source type.
+	* network plugin: A memory leak when receiving encrypted network
+	  packets has been fixed.
+	* openvpn plugin: Fix naming schema when reading "MULTI1" type status
+	  files.
+	* oracle plugin: Fix checking for lost connections and reconnect in
+	  this case. Thanks to Sven Trenkel for pointing out the problem.
+	* unixsock plugin: A memory leak in the "LISTVAL" command has been
+	  fixed. Thanks to Peter Warasin for pointing it out.
+	* write_http plugin: Use the "any" authentication schema. This used to
+	  be "digest". Thanks to Paul Sadauskas for the patch.
+
+2010-01-14, Version 4.9.1
+	* Documentation: Some manpage fixes.
+	* Default config: Added sample configuration for missing plugins.
+	* apache plugin: Fix a segmentation fault in the config handling of
+	  VerifyPeer / VerifyHost. Thanks to "plazmus" for his or her patch.
+	* processes plugin: Fix handling of derive data sources.
+	* rrdtool plugin: Fix a bug with random write timeouts. Due to an
+	  incorrect initialization some files may be suspended basically
+	  indefinitely. After flushing the files they were written regularly
+	  again.
+	* routeros plugin: Use the node name for the "host" field.
+	* Monitorus.pm: Put the plugin into the "Collectd::Plugins" namespace.
+	* Perl bindings: Fix a warning that was printed when building
+	  debugging output.
+
+2009-12-21, Version 4.9.0
+	* contextswitch plugin: The new ContextSwitch plugin gathers the
+	  number of context switches done by the CPU. Thanks to Patrik
+	  Weiskircher for the patch.
+	* cpu plugin: Support for SMP (multiple processors) under FreeBSD has
+	  been added. Thanks to Doug MacEachern for the patch.
+	* curl plugin: The “MeasureResponseTime” option has been added. Thanks
+	  to Aman Gupta for the patch.
+	* df plugin: Collecting the inode count and reserved space has been
+	  added. Thanks to Patrik Weiskircher for the patch.
+	* exec plugin: The environment variables “COLLECTD_INTERVAL” and
+	  “COLLECTD_HOSTNAME” are now set before executing the application.
+	* Monitorus plugin: This Perl-based plugin to query statistics from
+	  mon.itor.us has been added. Thanks to Jeff Green for the patch.
+	* netapp plugin: New plugin to collect statistics from NetApp filers.
+	  Thanks to Sven Trenkel of the noris network AG for the patch.
+	* network plugin: Statistics collection about the plugin itself has
+	  been implemented.
+	* openvpn plugin: Add support for more versions of the “status file”.
+	  Thanks to Marco Chiappero for the patch.
+	* OpenVZ plugin: This Perl-based plugin to gather OpenVZ statistics
+	  has been added. Thanks to Jonathan Kolb for the patch.
+	* ping plugin: The config options "SourceAddress" and "Device"
+	  have been added. Thanks to Sebastian Harl for the patch.
+	* processes plugin: Collection of IO-metrics has been added. Thanks to
+	  Andrés J. Díaz for the patch.
+	* python plugin: The new Python plugin integrates a Python interpreter
+	  into collectd and allows to execute plugins written in the scripting
+	  language. Thanks to Sven Trenkel for his work.
+	* routeros plugin: The new RouterOS plugin queries interface and
+	  wireless registration statistics from RouterOS.
+	* Various plugins: AIX support has been added to the cpu, disk,
+	  interface, load, memory, processes, and swap plugins. Thanks to
+	  Manuel Sanmartin for his patches.
+	* hashed match: This match for simple load balancing and redundant
+	  storage has been added.
+	* scale target: This target to scale (multiply) values by an arbitrary
+	  value has been added.
+
+2010-04-22, Version 4.8.5
+	* collectd: Append a newline to messages written to STDERR.
+	* network plugin: Fix a segmentation fault when receiving packets with
+	  an unknown data source type.
+
+2010-04-07, Version 4.8.4
+	* Build system, various plugins: Fixes for AIX compatibility have been
+	  added. Thanks to Manuel Sanmartin for his patches.
+	* Build system: Checking for "nanosleep" on old Solaris machines has
+	  been fixed. Thanks to Vincent McIntyre and Sebastian Harl for
+	  figuring out a way to make this work.
+	* collectd: Serialization of NANs in JSON format has been fixed.
+	  Thanks to Chris Buben for pointing out the resulting syntax error.
+	* collectd: Checks whether a "sleep" returned early have been added;
+	  the cases are now handled correctly. Thanks to Michael Stapelberg
+	  for the patch.
+	* collectd: Continue reading files in a directory when parsing one
+	  file fails.
+	* apache plugin: Collection of the number of active connections has
+	  been fixed for Apache 2.*.
+	* exec plugin: Error messages have been improved. The "running" flag
+	  is now cleared correctly when forking a child fails.
+	* iptables plugin: Fix a violation of aliasing rules. This resolves a
+	  warning / error with new GCC versions. Thanks to Jan Engelhardt for
+	  the work-around.
+	* java plugin: The Java API files are now packaged into a .jar file.
+	  Thanks to Amit Gupta for his patch.
+	* network plugin: A memory leak when receiving encrypted network
+	  packets has been fixed.
+	* oracle plugin: Fix checking for lost connections and reconnect in
+	  this case. Thanks to Sven Trenkel for pointing out the problem.
+	* unixsock plugin: A memory leak in the "LISTVAL" command has been
+	  fixed. Thanks to Peter Warasin for pointing it out.
+	* write_http plugin: Use the "any" authentication schema. This used to
+	  be "digest". Thanks to Paul Sadauskas for the patch.
+
+2010-01-14, Version 4.8.3
+	* Documentation: Some manpage fixes.
+	* rrdtool plugin: Fix a bug with random write timeouts. Due to an
+	  incorrect initialization some files may be suspended basically
+	  indefinitely. After flushing the files they were written regularly
+	  again.
+
+2009-12-18, Version 4.8.2
+	* Build system, java plugin: Don't use “find -L” to search for Java
+	  headers, because it's a GNU extension.
+	* Build system: Support for parallel builds has been improved. Thanks
+	  Sebastian Harl and Stefan Völkel for looking into this.
+	* collectd: Print error messages to STDERR if no log plugin has been
+	  loaded.
+	* genericjmx plugin: Close and re-open the connection upon I/O-errors.
+	* gmond plugin: Fix typos which caused syntax errors.
+	* memory plugin: Handling of >4 Gbyte of memory has been fixed.
+	* network plugin: The license has been changed to LGPL 2.1.
+	* oracle plugin: Reconnect to the database if the connection dies.
+	* rrdcached plugin: Work-around for a bug in RRDtool 1.4rc2 has been
+	  added.
+	* snmp plugin: Handling of negative values has been fixed. Strings
+	  containing control characters are now interpreted as hex-strings.
+	* unixsock plugin: A memory leak in the LISTVAL command has been
+	  fixed. Thanks to Ben Knight for his patch.
+
+2009-10-04, Version 4.8.1
+	* Build system: Issues when building the iptables plugin have been
+	  fixed.
+	* exec plugin: Clear the signal block mask before calling exec(2).
+	* perl plugin: Declare the “environ” variable. This solves build
+	  issues on some platforms.
+	* processes plugin: Remove unnecessary call of realloc(3). Thanks to
+	  Andrés J. Díaz for the patch.
+	* unixsock plugin: Fix a (well hidden) race condition related to file
+	  descriptor handling.
+
+2009-09-13, Version 4.8.0
+	* collectd: Two new data source types, “DERIVE” and “ABSOLUTE”, have
+	  been added. “DERIVE” can be used for counters that are reset
+	  occasionally. Thanks to Mariusz Gronczewski for implementing this.
+	* thresholds: The advanced threshold options “Percentage”, “Hits”, and
+	  “Hysteresis” have been added. Thanks to Andrés J. Díaz for his
+	  patches.
+	* curl_json plugin: The new cURL-JSON plugin reads JSON files using
+	  the cURL library and parses the contents according to user
+	  specification. Among other things, this allows to read statistics
+	  from a CouchDB instance. Thanks to Doug MacEachern for the patch.
+	* df plugin: Using the new “ReportByDevice” option the device rather
+	  than the mount point can be used to identify partitions. Thanks to
+	  Paul Sadauskas for the patch.
+	* dns plugin: The possibility to ignore numeric QTypes has been added.
+	  Thanks to Mirko Buffoni for the patch.
+	* GenericJMX plugin: The new, Java-based GenericJMX plugin allows to
+	  query arbitrary data from a Java process using the “Java Management
+	  Extensions” (JMX).
+	* madwifi plugin: The new MadWifi plugin collects information about
+	  Atheros wireless LAN chipsets from the MadWifi driver. Thanks to
+	  Ondrej Zajicek for his patches.
+	* network plugin: The receive- and send-buffer-sizes have been made
+	  configurable, allowing for bigger and smaller packets. Thanks to
+	  Aman Gupta for the patch.
+	* olsrd plugin: The new OLSRd plugin queries routing information from
+	  the “Optimized Link State Routing” daemon.
+	* rrdtool plugin: A new configuration option allows to define a random
+	  write delay when writing RRD files. This spreads the load created by
+	  writing RRD files more evenly. Thanks to Mariusz Gronczewski for the
+	  patch.
+	* swap plugin: The possibility to collect swapped in/out pages has
+	  been added to the Swap plugin. Thanks to Stefan Völkel for the
+	  patch.
+	* tokyotyrant plugin: The new TokyoTyrant plugin reads the number of
+	  records and file size from a running Tokyo Tyrant server. Thanks to
+	  Paul Sadauskas for the patch.
+	* unixsock plugin: Add the “GETTHRESHOLD” command. This command can be
+	  used to query the thresholds configured for a particular identifier.
+	* write_http plugin: The new Write HTTP plugin sends the values
+	  collected by collectd to a web-server using HTTP POST requests.
+	  Thanks to Paul Sadauskas for the patch.
+	* zfs_arc plugin: The new ZFS ARC plugin collects information about
+	  the “Adaptive Replacement Cache” (ARC) of the “Zeta File-System”
+	  (ZFS). Thanks to Anthony Dewhurst for the patch.
+	* empty_counter match: The new Empty Counter match matches value
+	  lists, where at least one data source is of type COUNTER and the
+	  counter value of all counter data sources is zero.
+
+2009-12-18, Version 4.7.5
+	* Build system, java plugin: Don't use “find -L” to search for Java
+	  headers, because it's a GNU extension.
+	* Build system: Support for parallel builds has been improved. Thanks
+	  Sebastian Harl and Stefan Völkel for looking into this.
+	* collectd: Print error messages to STDERR if no log plugin has been
+	  loaded.
+	* memory plugin: Handling of >4 Gbyte of memory has been fixed.
+	* network plugin: The license has been changed to LGPL 2.1.
+	* oracle plugin: Reconnect to the database if the connection dies.
+	* rrdcached plugin: Work-around for a bug in RRDtool 1.4rc2 has been
+	  added.
+	* snmp plugin: Handling of negative values has been fixed. Strings
+	  containing control characters are now interpreted as hex-strings.
+	* unixsock plugin: A memory leak in the LISTVAL command has been
+	  fixed. Thanks to Ben Knight for his patch.
+
+2009-10-03, Version 4.7.4
+	* Build system: Issues when building the iptables plugin have been
+	  fixed.
+	* exec plugin: Clear the signal block mask before calling exec(2).
+	* perl plugin: Declare the “environ” variable. This solves build
+	  issues on some platforms.
+	* processes plugin: Remove unnecessary call of realloc(3). Thanks to
+	  Andrés J. Díaz for the patch.
+	* unixsock plugin: Fix a (well hidden) race condition related to file
+	  descriptor handling.
+
+2009-09-13, Version 4.7.3
+	* collectd: Fix a possible but very rare invalid “free” in the caching
+	  code. Thanks to Sebastian Harl for the patch.
+	* collectd: Remove old values when a cache entry is marked as missing.
+	  This way the “GETVAL” command of the UnixSock plugin doesn't return
+	  old, no longer valid values when this happens. Thanks to Andrés J.
+	  Díaz for the patch.
+	* collectd: The “plugin_unregister_read” function has been fixed.
+	* apache, ascent, bind, curl, nginx plugins: Advise the cURL library
+	  to follow redirects. Thanks to Joey Hess for reporting this bug.
+	* df plugin: Check the ignorelist before stating the file system,
+	  possibly reducing the number of stats considerably. Thanks to Joey
+	  Hess for reporting this bug.
+	* iptables plugin: Support for the new libiptc API has been added.
+	  Thanks to Sebastian Harl for the patch. The build system has been
+	  updated to the plugin only includes the shipped header files when it
+	  is linked with the shipped library, too.
+	* java plugin: Delay creating the JVM until after the daemon has
+	  forked. The JVM internally creates threads that are lost when
+	  forking. This means that Java-based plugins are now configured
+	  during the init-phase, i. e. later than other plugins.
+	* libvirt plugin: Re-connect to libvirtd if connecting fails. Thanks
+	  to Alan Pevec for the patch.
+	* network plugin: Fix the handling of the “CacheFlush” option: The
+	  value was assigned to a wrong variable. The initialization of the
+	  gcrypt library, which is used for signing / encrypting traffic, has
+	  been fixed. Thanks to Luke Heberling for the patch.
+	* powerdns plugin: Set a timeout when reading data from the datagram
+	  socket. Handling of the “LocalSocket” option has been fixed.  An
+	  incorrectly used “type” has been corrected. Thanks to Luke Heberling
+	  for his patches.
+
+2009-07-19, Version 4.7.2
+	* Build system: Support for `DESTDIR' has been fixed in the Java
+	  bindings.
+	* collectd: Okay-notifications have been fixed. Thanks to Andrés J.
+	  Díaz for fixing this bug.
+	* collectd: A programming error has been fixed in the notification
+	  code. The bug may result in an assertion failure.
+	* memcached plugin: Portability fix for Solaris. Thanks to Amit Gupta
+	  for reporting the bug.
+	* ping plugin: Link the plugin with libm.
+
+2009-06-02, Version 4.7.1
+	* Build system: Detection of Java has been improved and missing
+	  details have been added to the configuration summary. Support for
+	  libtool 2.2 has been added.
+	* collectd: Two bugs with the threshold checking have been fixed. The
+	  first one prevented thresholds to be checked at all, the second one
+	  caused wrong behavior with the persistency option. Thanks to Andrés
+	  J. Díaz for fixing these problems.
+	* collectd: Handling of the `Include' configuration option has been
+	  fixed.
+	* rrdtool plugin: Make sure initialization is run only once. This
+	  resolves problems under Solaris and potentially other systems.
+	  Thanks to Amit Gupta for reporting this bug.
+	* java plugin: Make it possible to use dots ('.') instead of slashes
+	  ('/') as the class separator. Thanks to Randy Rizun for pointing
+	  this out.
+	* swap plugin: A work-around for 32-bit Solaris has been added. Thanks
+	  to Doug MacEachern for the patch.
+
+2009-05-11, Version 4.7.0
+	* apache plugin: Support to query multiple servers has been added.
+	  Thanks to Amit Gupta for the patch.
+	* apache plugin: Handling of lighttpd's scoreboard statistics has been
+	  improved. Thanks to Amit Gupta for the patch.
+	* conntrack plugin: The new conntrack plugin collects the connection
+	  tracking table size. Thanks to Tomasz Pala for the patch.
+	* fscache plugin: The new fscache plugin collects statistics about
+	  Linux' file-system based caching framework. Thanks to Edward
+	  Konetzko for the patch.
+	* gmond plugin: The new gmond plugin can receive and interpret
+	  multicast traffic from Ganglia's gmond daemon.
+	* java plugin: The new java plugin exports the collectd API to Java,
+	  making it possible to write extensions to collectd in Java.
+	* memcachec plugin: The new memcachec plugin queries data from a
+	  memcached daemon and parses it similar to the cURL plugin. Thanks to
+	  Doug MacEachern for the initial code.
+	* memcached plugin: Support for connections over UNIX domain sockets
+	  has been added. Thanks to Franck Lombardi for the patch.
+	* memory plugin: Support for OpenBSD and possibly other *BSDs has been
+	  added. Thanks to Simon Kuhnle for the patch.
+	* mysql plugin: Support to query multiple databases has been added.
+	  Thanks to Doug MacEachern for the patch.
+	* mysql plugin: Master/slave statistics have been added.
+	* mysql plugin: Lock statistics have been added. Thanks to Rodolphe
+	  Quiédeville for the patch.
+	* network plugin: The possibility to sign or encrypt network traffic
+	  has been added.
+	* protocols plugin: The new protocols plugin provides information
+	  about network protocols, such as IP, TCP and UDP.
+	* snmp plugin: The intervals given in the configuration of the SNMP
+	  plugin must no longer be a multiple of the global interval.
+	* table plugin: The new Table plugin provides parsing for table-like
+	  structured files, such as many files beneath /proc.
+	* ted plugin: The new TED plugin reads power consumption measurements
+	  from “The Energy Detective” (TED). Thanks to Eric Reed for this
+	  plugin.
+	* onewire plugin: The new `Interval' option allows collecting
+	  information from OneWire sensors at arbitrary intervals.
+	* ping plugin: Support for collecting the drop rate and standard
+	  deviation of round-trip times has been added.
+	* uptime plugin: The new uptime plugin can collect the server's
+	  uptime. Thanks to Marco Chiappero for the patch.
+
+2009-09-10, Version 4.6.5
+	* collectd: Remove old values when a cache entry is marked as missing.
+	  This way the “GETVAL” command of the UnixSock plugin doesn't return
+	  old, no longer valid values when this happens. Thanks to Andrés J.
+	  Díaz for the patch.
+	* apache, ascent, bind, curl, nginx plugins: Advise the cURL library
+	  to follow redirects. Thanks to Joey Hess for reporting this bug.
+	* df plugin: Check the ignorelist before stating the file system,
+	  possibly reducing the number of stats considerably. Thanks to Joey
+	  Hess for reporting this bug.
+	* iptables plugin: Support for the new libiptc API has been added.
+	  Thanks to Sebastian Harl for the patch. The build system has been
+	  updated to the plugin only includes the shipped header files when it
+	  is linked with the shipped library, too.
+	* libvirt plugin: Re-connect to libvirtd if connecting fails. Thanks
+	  to Alan Pevec for the patch.
+	* powerdns plugin: Set a timeout when reading data from the datagram
+	  socket. Handling of the “LocalSocket” option has been fixed.  An
+	  incorrectly used “type” has been corrected. Thanks to Luke Heberling
+	  for his patches.
+
+2009-07-18, Version 4.6.4
+	* collectd: Okay-notifications have been fixed. Thanks to Andrés J.
+	  Díaz for fixing this bug.
+	* collectd: A programming error has been fixed in the notification
+	  code. The bug may result in an assertion failure.
+	* memcached plugin: Portability fix for Solaris. Thanks to Amit Gupta
+	  for reporting the bug.
+
+2009-06-02, Version 4.6.3
+	* Build system, various plugins: Many build fixes for FreeBSD,
+	  OpenBSD, NetBSD, Solaris and Mac OS X. Big thanks to Doug MacEachern
+	  for many fixes and providing a build system for many platforms,
+	  Ulf Zimmermann for providing a FreeBSD system and Simon Kuhnle for
+	  providing an OpenBSD system.
+	* collectd: Two bugs with the threshold checking have been fixed. The
+	  first one prevented thresholds to be checked at all, the second one
+	  caused wrong behavior with the persistency option. Thanks to Andrés
+	  J. Díaz for fixing these problems.
+	* collectd: Handling of the `Include' configuration option has been
+	  fixed.
+	* battery plugin: Don't complain about a missing directory every
+	  interval.
+	* exec plugin: Allow executed programs to close STDERR. Thanks to
+	  Thorsten von Eicken for reporting this problem.
+	* irq plugin: Fix handling of overflowing 32-bit counters. Thanks to
+	  Tomasz Pala for the patch.
+	* perl plugin: Portability build-fixes. Thanks to Doug MacEachern for
+	  the patch.
+	* memory plugin: Fix a potential problem under Solaris.
+	* swap plugin: A work-around for 32-bit Solaris has been added. Thanks
+	  to Doug MacEachern for the patch.
+
+2009-03-18, Version 4.6.2
+	* collectd: Some Solaris utility code has been improved.
+	* filter subsystem: Allow `Chains' without default targets.
+	* liboping: A patch to comply with strict aliasing rules has been
+	  added.
+	* timediff match: Fix a typo: The match was registered with a wrong
+	  name which prevented this match to be used as documented. Thanks to
+	  Bruno Prémont for finding this problem.
+	* bind plugin: Fix collection of the cached RR sets. The number of RR
+	  sets currently in the cache was collected as a counter value, which
+	  is nonsense. Thanks to Bruno Prémont for implementing this.
+	* dns plugin: Don't pass NULL to `pcap_open_live': Some systems,
+	  primarily BSDs, don't take it well and crash.
+	* oracle plugin: Portability to 64 bit systems has been improved.
+	* postgresql plugin: The default configuration has been improved.
+	* rrdtool plugin: Fix a possible race condition: If the network plugin
+	  is brought and dispatches a value before the rrdtool plugin is
+	  initialized, the daemon may crash.
+
+2009-02-22, Version 4.6.1
+	* collectd: Many documentation fixes.
+	* Collectd::Unixsock: Error handling has been improved.
+	* regex match: Don't link with the PCRE library.
+	* bind plugin: Various bugs have been fixed. Thanks to Bruno Prémont
+	  for finding and fixing most of them.
+	* ipmi plugin: Fix an off-by-one error which could cause segmentation
+	  faults. Thanks to Peter Holik for his patch.
+
+2009-02-16, Version 4.6.0
+	* collectd: Added the `filter chain' infrastructure, which allows the
+	  user to use `matches' and `targets' to control value processing.
+	* collectd: The new `-T' command line argument allows more in-depth
+	  testing of a configuration. Thanks to Doug MacEachern for the patch.
+	* collectd-nagios: The Nagios integration command has been updated to
+	  use libcollectdclient. The `percentage' aggregation function has
+	  been added. Thanks to Fabian Linzberger for the patch.
+	* libcollectdclient: A library which abstracts communication with the
+	  unixsock plugin for clients has been added.
+	* regex match: Match values by their identifies using regular
+	  expressions.
+	* timediff match: Match for values with an invalid timestamp.
+	* value match: Select values by their data sources' values.
+	* notification target: Create and dispatch a notification.
+	* replace target: Replace parts of an identifier using regular
+	  expressions.
+	* set target: Set (overwrite) entire parts of an identifier.
+	* bind plugin: This new plugin uses the new HTTP/XML interface to BIND
+	  statistics, allowing very detailed name server statistics. Thanks to
+	  Bruno Prémont for this plugin.
+	* cpu plugin: Report `interrupt' separately when using
+	  sysctlbyname(3) (used under *BSD). Support for sysctl(3), for
+	  example for native OpenBSD support, has been added. Thanks to Simon
+	  Kuhnle for the patch.
+	* csv plugin: Make it possible to write values to STDOUT instead of
+	  files. This is meant for testing purposes mostly. The output written
+	  to STDOUT is compatible with the exec plugin. Thanks to Doug
+	  MacEachern for the patch.
+	* curl plugin: This new plugin can be used to read web pages and parse
+	  them using the same mechanism that's used in the tail plugin.
+	* dbi plugin: This new plugin allows you to connect to a variety of
+	  relational databases and use SQL to gather custom statistics from
+	  it. It is similar to the already existing PostgreSQL plugin but uses
+	  libdbi to communicate with the database(s).
+	* interface plugin: Use the ignorelist framework when selecting /
+	  ignoring interfaces. This allows one to use regular expressions to
+	  select interfaces, too.
+	* ipmi plugin: Handle temporary IPMI error conditions more gracefully.
+	  Thanks to Bruno Prémont for this patch.
+	* memcached plugin: Add hit-ratio metric. Thanks to Doug MacEachern
+	  for the patch.
+	* mysql plugin: Allow connecting to a database via the UNIX domain
+	  socket, too. Thanks to Mirko Buffoni for the patch.
+	* network plugin: Further performance improvements for the receive
+	  code. This hopefully will help very large setups.
+	* openvpn plugin: This new plugin collects statistics provided by the
+	  OpenVPN daemon. Thanks to Doug MacEachern for the patch.
+	* oracle plugin: This new plugin allows you to connect to an Oracle
+	  database and use SQL to gather custom statistics from it. It is
+	  similar to the already existing PostgreSQL plugin.
+	* perl plugin: Compatibility fixes for broken versions of Perl 5.10
+	  have been added.
+	* perl plugin: Export the newly added plugin_write() to Perl plugins.
+	* perl plugin: Added support for `notification meta data'.
+	* perl plugin: Added support for the `filter chain' infrastructure by
+	  allowing plugins to register `matches' and `targets'.
+	* postgresql plugin: The preferred configuration syntax has been
+	  updated to be in line with the syntax used by the new dbi and oracle
+	  plugins. The compatibility code for the old syntax is present.
+	  Support for the new `Result' blocks and the interval parameter has
+	  been added.
+	* processes plugin: Stacksize and virtual memory usage statistics have
+	  been added. Portability fixes.
+	* rrdcached plugin: This new plugin uses the (still in development)
+	  RRD accelerator daemon, rrdcached. This daemon works very similar to
+	  the original rrdtool plugin of collectd, but adds some more nice
+	  features.
+	* swap plugin: Code for OpenBSD (and possibly other *BSDs) has been
+	  added.
+
+2009-05-09, Version 4.5.4
+	* Build system, various plugins: Many build fixes for FreeBSD,
+	  OpenBSD, NetBSD, Solaris and Mac OS X. Big thanks to Doug MacEachern
+	  for many fixes and providing a build system for many platforms,
+	  Ulf Zimmermann for providing a FreeBSD system and Simon Kuhnle for
+	  providing an OpenBSD system.
+	* collectd: Fix a potential race condition when creating directories.
+	* battery plugin: Don't complain about a missing directory every
+	  interval.
+	* dns plugin: Slight portability fixes.
+	* exec plugin: Allow executed programs to close STDERR. Thanks to
+	  Thorsten von Eicken for reporting this problem.
+	* irq plugin: Fix handling of overflowing 32-bit counters. Thanks to
+	  Tomasz Pala for the patch.
+	* perl plugin: Portability build-fixes. Thanks to Doug MacEachern for
+	  the patch.
+	* rrdtool plugin: Fix a possible race condition: If the network plugin
+	  is initialized and dispatches a value before the rrdtool plugin is
+	  initialized, the daemon may crash.
+	* memory plugin: Fix a potential problem under Solaris.
+
+2009-02-22, Version 4.5.3
+	* build system: The check for libupsclient even when `pkg-config' is
+	  not available.
+	* collectd: Fix error handling in the global cache.
+	* Collectd::Unixsock: Error handling has been improved.
+	* ascent plugin: Fix a memory leak. Thanks to Bruno Prémont for his
+	  patch.
+	* ipmi plugin: Fix an off-by-one error which could cause segmentation
+	  faults. Thanks to Peter Holik for his patch.
+	* tcpconns plugin: An endianness problem has been fixed in the *BSD
+	  code. Thanks to "thated" for reporting this.
+
+2009-01-02, Version 4.5.2
+	* build system: Check for `mysql.h' and `mysql/mysql.h', since the
+	  file may be in both locations, especially when the database was
+	  installed in a non-standard path. Thanks to Dusty Doris for
+	  reporting this.
+	* build system: Handle the _POSIX_PTHREAD_SEMANTICS defined, needed by
+	  Solaris, in the configure script automatically.
+	* build system, tcpconns plugin: Check for `kvm_nlist' and
+	  `kvm_openfiles' before enabling the plugin: Solaris provides a KVM
+	  library with similar functions to the BSD variant, but doesn't
+	  provide these necessary functions.
+	* collectd.conf(5): Various fixes and clarifications.
+	* collectd: Remove a GNUism (unnamed unions), thus improving
+	  portability.
+	* collectd, apcups plugin: Include "collectd.h" before <stdlib.h>.
+	  This solves portability problems, especially for Solaris.
+	* dns plugin: Fix a portability problem with NetBSD.
+	* filecount plugin: Fix an off-by-one error. This error may cause a
+	  segmentation fault.
+	* network plugin: Fix the handling of `type' in the network protocol.
+	  Due to a programming mistake, only 4 or 8 bytes would be copied to a
+	  much larger buffer. This caused the `type' to be transferred much
+	  more often than necessary. In some cases, e. g. the `cpu' and
+	  `cpufreq' plugins being used at the same time, data may be corrupted
+	  in those files. Thanks to Bruno Prémont for debugging and reporting
+	  this issue.
+	* processes plugin: Fix a possible segmentation fault when specifying
+	  invalid configuration options.
+	* unixsock plugin: Make sure the initialization function is run only
+	  once. This resolves a file descriptor leak under systems which run
+	  the initialization more than once, such as Solaris.
+
+2008-10-16, Version 4.5.1
+	* build system: Change `--enable-<plugin>' to abort with an error if
+	  dependencies are not met. Thanks to Bruno Prémont for the patch.
+	  Also, the poisoning of various string functions has been restricted
+	  to debug builds.
+	* collectd: Fix a memory leak in the global value cache. With every
+	  *missing* value a couple of bytes would be leaked. Another memory
+	  leak in the configuration handling code has been fixed. Thanks to
+	  Niraj Tolia for reporting these issues.
+	* collectd: Fix an off-by-one error in the ignorelist functionality.
+	  When using regular expressions, the last character would be missing,
+	  possibly matching differently from what one would expect.
+	* collectdmon: Don't block SIGCHLD. This fixes a potential portability
+	  problem.
+	* collectd-nagios: Fix handling of the `-d' option. Thanks to Fabian
+	  Linzberger for reporting the bug.
+	* iptables plugin: Fix an off-by-one error. If a string was just one
+	  character too long, it was truncated instead of reporting an error.
+	* network plugin: Fix a memory leak in the configuration handling
+	  code. Thanks to Niraj Tolia for reporting this issue.
+	* perl plugin: Log an error message if bootstrapping `Collectd' fails.
+	* postgresql plugin: Don't reopen connection during reinitialization.
+	  This fixes a bug under Solaris and potentially other platforms.
+	  Missing calls to `PQclear' have been added, too. This fixes memory
+	  leaks. Thanks to ``Admin'' for reporting these bugs.
+	* snmp plugin: Don't expect null-terminated strings from the Net-SNMP
+	  library.
+	* tail plugin: Call `clearerr(3)' after reading an EOF. This fixes
+	  problems with some `libc's. Thanks to Matthias Lay for reporting the
+	  bug.
+
+2008-09-04, Version 4.5.0
+	* collectd: Added the ability to flush certain identifiers.
+	* collectd: The concept of `notification meta data' has been
+	  introduced.
+	* filecount plugin: The new filecount plugin counts the number of
+	  files in a directory and its subdirectories.
+	* ipmi plugin: Sensor names have been changed to ensure unique names.
+	  Notifications upon added and removed sensors can now be generated.
+	* notify_desktop plugin: This new plugin sends notifications to the
+	  X desktop using the structure defined in the `Desktop Notification
+	  Specification'.
+	* notify_email plugin: This new plugin sends out notifications via
+	  email, using the `esmtp' library.
+	* onewire plugin: The new experimental(!) onewire plugin reads values,
+	  such as temperatures, from sensors connected to the computer via the
+	  onewire bus.
+	* perl plugin: Improved synchronized access to internal data structures
+	  and fixed a possible dead-lock.
+	* perl plugin: Added the ability to flush certain identifiers and marked
+	  plugin_flush_all() and plugin_flush_one() as deprecated in favor of
+	  plugin_flush().
+	* perl plugin: Added the ability to configure Perl plugins.
+	* postgresql plugin: The new postgresql plugin collects statistics
+	  about or from a PostgreSQL database.
+	* processes plugin: The `ProcessMatch' option has been added.
+	* rrdtool plugin: Implement throttling of the `update queue' to lessen
+	  IO load.
+	* tcpconns plugin: This plugin has been ported to OpenBSD.
+	* thermal plugin: The new thermal plugin collects system temperatures
+	  using Linux ACPI thermal zone data.
+
+2009-01-02, Version 4.4.5
+	* build system: Check for `mysql.h' and `mysql/mysql.h', since the
+	  file may be in both locations, especially when the database was
+	  installed in a non-standard path. Thanks to Dusty Doris for
+	  reporting this.
+	* build system: Handle the _POSIX_PTHREAD_SEMANTICS defined, needed by
+	  Solaris, in the configure script automatically.
+	* collectd.conf(5): Various fixes and clarifications.
+	* apcups plugin: Include "collectd.h" before <stdlib.h>. This solves
+	  portability problems, especially for Solaris.
+	* dns plugin: Fix a portability problem with NetBSD.
+	* network plugin: Fix the handling of `type' in the network protocol.
+	  Due to a programming mistake, only 4 or 8 bytes would be copied to a
+	  much larger buffer. This caused the `type' to be transferred much
+	  more often than necessary. In some cases, e. g. the `cpu' and
+	  `cpufreq' plugins being used at the same time, data may be corrupted
+	  in those files. Thanks to Bruno Prémont for debugging and reporting
+	  this issue.
+	* unixsock plugin: Make sure the initialization function is run only
+	  once. This resolves a file descriptor leak under systems which run
+	  the initialization more than once, such as Solaris.
+
+2008-10-16, Version 4.4.4
+	* build system: Change `--enable-<plugin>' to abort with an error if
+	  dependencies are not met. Thanks to Bruno Prémont for the patch.
+	  Also, the poisoning of various string functions has been restricted
+	  to debug builds.
+	* collectd: Fix a memory leak in the global value cache. With every
+	  *missing* value a couple of bytes would be leaked. Another memory
+	  leak in the configuration handling code has been fixed. Thanks to
+	  Niraj Tolia for reporting these issues.
+	* collectd: Fix an off-by-one error in the ignorelist functionality.
+	  When using regular expressions, the last character would be missing,
+	  possibly matching differently from what one would expect.
+	* collectdmon: Don't block SIGCHLD. This fixes a potential portability
+	  problem.
+	* collectd-nagios: Fix handling of the `-d' option. Thanks to Fabian
+	  Linzberger for reporting the bug.
+	* network plugin: Fix a memory leak in the configuration handling
+	  code. Thanks to Niraj Tolia for reporting this issue.
+	* perl plugin: Log an error message if bootstrapping `Collectd' fails.
+	* tail plugin: Call `clearerr(3)' after reading an EOF. This fixes
+	  problems with some `libc's. Thanks to Matthias Lay for reporting the
+	  bug.
+
+2008-09-01, Version 4.4.3
+	* collectd: Fix a memory leak in the threshold checking code.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* snmp plugin: Fix a possible memory leak.
+
+2008-07-15, Version 4.4.2
+	* build system: Use pkg-config to detect the upsclient library.
+	* collectd: Try even harder to determine the endianess of the
+	  architecture collectd is being built on.
+	* disk plugin: Fix for Linux 2.4: A wrong field was used as the name
+	  of disks.
+	* dns plugin: Fix compilation errors with BIND versions 19991001
+	  through 19991005.
+	* network plugin: Bugfix in the init routine: The init function
+	  cleared a buffer regardless of its contents. This could lead to lost
+	  values under Solaris.
+	* nginx plugin: Remove usage of the thread-unsafe `strtok' function.
+	* vserver plugin: Remove usage of the thread-unsafe `readdir'
+	  function.
+	* wireless plugin: Work around incorrect noise and power values
+	  returned by some broken drivers.
+
+2008-06-03, Version 4.4.1
+	* collectd: Fix the `DataSource' option within `Type' blocks. Thanks
+	  to kyrone for reporting this.
+	* collectd: Fixed min/max output in notifications generated by
+	  threshold checking.
+	* collectd-nagios: Fix the protocol used to communicate with the
+	  daemon.
+	* perl plugin: Fail noisily, but don't shutdown the daemon, if
+	  initialization has errors. An issue with Perl 5.10 has been fixed.
+	* teamspeak2 plugin: Fixed an out of bound array access. Thanks to
+	  René Rebe and Siegmund Gorr for reporting this.
+
+2008-05-06, Version 4.4.0
+	* collectd: Internal code cleanups.
+	* collectd: Added support for a `Flush' command in the unixsock and
+	  exec plugins. This command can be used to force a plugin (or all) to
+	  flush its values to disk.
+	* collectd: Thresholds can now be configured to apply to one data
+	  source only, making it possible to configure different thresholds
+	  for each data source.
+	* apache, nginx plugins: Added the possibility to disable host and/or
+	  peer verification.
+	* ascent plugin: The new ascent plugin reads and parses the statistics
+	  page of an Ascent server.
+	* cpu plugin: Support for the statgrab library has been added.
+	* disk plugin: The possibility to ignore certain disks or collect only
+	  specific disks has been added.
+	* disk plugin: Support for the statgrab library has been added.
+	* ipmi plugin: The new ipmi plugin uses the OpenIPMI library to read
+	  sensor values via IPMI, the intelligent platform management
+	  interface.
+	* iptables plugin: The iptc library that is used by the iptables
+	  plugin has been added to the distribution, because it is not
+	  provided by all distributions and removed from at least one.
+	* powerdns plugin: The new powerdns plugin reads statistics from an
+	  authoritative or a recursing PowerDNS name server.
+	* rrdtool plugin: The size of the files generated with the default
+	  configuration has been decreased.
+	* tail plugin: The new tail plugin can be used to gather statistics by
+	  continuously reading from log files.
+	* teamspeak2 plugin: The new teamspeak2 plugin connects to a
+	  TeamSpeak2 server and collects statistics about the number of users
+	  and number of channels.
+	* users plugin: Support for the statgrab library has been added.
+	* vmem plugin: The new vmem plugin collects very detailed statistics
+	  about the virtual memory subsystem of Linux.
+
+2008-08-30, Version 4.3.4
+	* Build system: Improved detection of and linking with the statgrab
+	  library.
+	* collectd: Portability fixes, especially to determine endianess more
+	  reliable.
+	* Various plugins: Fix format strings.
+	* disk plugin: A fix for giving disks under Linux 2.4 the right names
+	  again has been applied.
+	* memcached plugin: Fix a too short timeout and a related file
+	  descriptor leak.
+	* memory plugin: A typo in the libstatgrab code has been fixed.
+	* network plugin: A fix in the initialization function solves problems
+	  under Solaris.
+	* nginx plugin: A thread-unsafe function has been replaced.
+	* vserver plugin: A thread-unsafe function has been replaced.
+	* wireless plugin: A work-around for broken wireless drivers has been
+	  added.
+
+2008-04-22, Version 4.3.3
+	* build system: Improved detection of several libraries, especially if
+	  they are in non-standard paths.
+	* build system: Portability fixes: Automatically define "_REENTRANT"
+	  if the libc expects it.
+	* collectd: Error and warning messages have been improved.
+	* collectd: Check for the BYTE_ORDER and BIG_ENDIAN defines before
+	  using them.
+	* apache plugin: Allocate new memory when reading a webpage instead of
+	  using a buffer of static size.
+	* exec plugin: Close (almost) all filedescriptors before exec(2)ing
+	  the program.
+	* hddtemp plugin: Error and warning messages have been improved.
+	* sensors plugin: Fix sensor collection for some chip types.
+
+2008-03-29, Version 4.3.2
+	* collectd: Fix configuration of the `FailureMax', `WarningMax', and
+	  `Persist' threshold options.
+	* collectd: Fix handling of missing values in the global value cache.
+	* collectd: Improved error messages when parsing the configuration.
+	* sensors plugin: Fix temperature collection with libsensors4.
+	* unixsock plugin: Fix mixed input and output operation on streams.
+	* wireless plugin: Fix reading noise value.
+
+2008-03-05, Version 4.3.1
+	* exec plugin: Set supplementary group IDs.
+	* network plugin:
+	  + Use `memcpy' when constructing/parsing a package to avoid
+	    alignment problems on weird architectures, such as Sparc.
+	  + Translate doubles to/from the x86 byte representation to ensure
+	    cross-platform compatibility.
+	* ping plugin: Correct the handling of the `TTL' setting.
+	* swap plugin: Reapply a patch for Solaris.
+	* tcpconns plugin: Portability improvements.
+
+2008-02-18, Version 4.3.0
+	* collectd: Notifications have been added to the daemon. Notifications
+	  are status messages that may be associated with a data instance.
+	* collectd: Threshold checking has been added to the daemon. This
+	  means that you can configure threshold values for each data
+	  instance. If this threshold is exceeded a notification will be
+	  created.
+	* collectd: The new `FQDNLookup' option tells the daemon to use the
+	  full qualified domain name as the hostname, not just the host part
+	  es returned by `gethostname(2)'.
+	* collectd: Support for more than one `TypesDB' file has been added.
+	  This is useful when one such file is included in a package but one
+	  wants to add custom type definitions.
+	* collectd: The `Include' config option has been expanded to handle
+	  entire directories and shell wildcards.
+	* collectdmon: The new `collectdmon' binary detects when collectd
+	  terminates and automatically restarts it again.
+	* csv plugin: The CSV plugin is now able to store counter values as a
+	  rate, using the `StoreRates' configuration option.
+	* exec plugin: Handling of notifications has been added and the
+	  ability to pass arguments to the executed programs has been added.
+	* hddtemp plugin: The new `TranslateDevicename' option lets you
+	  disable the translation from device names to major-minor-numbers.
+	* logfile plugin: Handling of notifications has been added.
+	* ntpd plugin: The new `ReverseLookups' can be used to disable reverse
+	  domain name lookups in this plugin.
+	* perl plugin: Many internal changes added support for handling multiple
+	  threads making the plugin reasonably usable inside collectd. The API has
+	  been extended to support notifications and export global variables to
+	  Perl plugins; callbacks now have to be identified by name rather than a
+	  pointer to a subroutine. The plugin is no longer experimental.
+	* uuid plugin: The new UUID plugin sets the hostname to an unique
+	  identifier for this host. This is meant for setups where each client
+	  may migrate to another physical host, possibly going through one or
+	  more name changes in the process. Thanks to Richard Jones from
+	  Red Hat's Emerging Technology group for this plugin.
+	* libvirt: The new libvirt plugin uses the `libvirt' library to query
+	  CPU, disk and network statistics about guest systems on the same
+	  physical server. Thanks to Richard Jones from Red Hat's Emerging
+	  Technology group for this plugin.
+
+2008-04-22, Version 4.2.7
+	* build system: Improved detection of several libraries, especially if
+	  they are in non-standard paths.
+	* build system: Portability fixes: Automatically define "_REENTRANT"
+	  if the libc expects it.
+	* collectd: Error and warning messages have been improved.
+	* collectd: Check for the BYTE_ORDER and BIG_ENDIAN defines before
+	  using them.
+	* apache plugin: Allocate new memory when reading a webpage instead of
+	  using a buffer of static size.
+	* exec plugin: Close (almost) all filedescriptors before exec(2)ing
+	  the program.
+	* hddtemp plugin: Error and warning messages have been improved.
+	* sensors plugin: Fix sensor collection for some chip types.
+
+2008-03-29, Version 4.2.6
+	* collectd: Improved error messages when parsing the configuration.
+	* sensors plugin: Fix temperature collection with libsensors4.
+	* unixsock plugin: Fix mixed input and output operation on streams.
+	* wireless plugin: Fix reading noise value.
+
+2008-03-04, Version 4.2.5
+	* apache plugin: Improved initialization and error messages.
+	* exec plugin: Set supplementary group IDs.
+	* network plugin:
+	  + Create separate threads for reading from the socket and parsing
+	    and dispatching incoming packets. Versions prior to this may have
+	    problems in high-load situations, where the socket receive buffers
+	    overflows, resulting in gaps in the data.
+	  + Use `memcpy' when constructing/parsing a package to avoid
+	    alignment problems on weird architectures, such as Sparc.
+	  + Translate doubles to/from the x86 byte representation to ensure
+	    cross-platform compatibility.
+	* ping plugin: Correct the handling of the `TTL' setting.
+	* rrdtool plugin: Ensure correct handling of the `RRATimespan' option.
+	* swap plugin: Reapply a patch for Solaris.
+	* tcpconns plugin: Portability improvements.
+
+2008-01-21, Version 4.2.4
+	* unixsock plugin: A bug in the unixsock plugin caused it not to set
+	  the permission on the socket as documented in the manpage. Thanks to
+	  Evgeny Chukreev for fixing this issue.
+	* collectd: The documentation has been improved.
+
+2007-12-28, Version 4.2.3
+	* sensors plugin: Updated the plugin to build and work with version 3
+	  of the libsensors library.
+
+2007-12-15, Version 4.2.2
+	* nginx plugin: Incorrect comparison of strings lead to a segfault
+	  when using the plugin. Thanks to Saulius Grigaliunas for fixing
+	  this.
+	* logfile plugin: The config option `Timestamp' was handled
+	  incorrectly and basically always active. Thanks to Luke Heberling
+	  for fixing this.
+
+2007-11-08, Version 4.2.1
+	* tcpconns plugin: Don't complain about a missing file if IPv6 is not
+	  enabled on the host.
+	* snmp plugin: Fix a memory leak.
+
+2007-10-27, Version 4.2.0
+	* collectd: The new config option `Include' lets you include other
+	  configfiles and thus split up your config into smaller parts. This
+	  may be especially interesting for the snmp plugin to keep the data
+	  definitions separate from the host definitions.
+	* ipvs plugin: The new `ipvs' plugin collects IPVS connection statistics
+	  (number of connections, octets and packets for each service and
+	  destination). Thanks to Sebastian Harl for this plugin.
+	* memcached plugin: The new `memcached' plugin connects to a memcached
+	  daemon process and collects statistics of this distributed caching
+	  system. Thanks to Antony Dovgal for contributing this plugin.
+	* nginx plugin: The new `nginx' plugin reads the status page of an
+	  nginx daemon and saves the handled connections and requests.
+	* perl plugin: Many changes, including the added `EnableDebugger'
+	  config option which lets you debug your Perl plugins more easily.
+	* rrdtool plugin: Use the thread-safe RRD-library if available. Try to
+	  be more thread-safe otherwise by locking calls to the library.
+	* snmp plugin: Added the options `Scale' and `Shift' to Data-blocks to
+	  correct the values returned by SNMP-agents. If a <data> block is
+	  defined as `table' the instance is now optional. The sequence number
+	  is used as the type-instance in this case. The new `InstancePrefix'
+	  option allows to add arbitrary prefixes to the type-instance.
+	* tcpconns plugin: The new `tcpconns' plugin collects the number of
+	  certain TCP connections and what state they're in. This can be used
+	  to see how many connections your FTP server has to handle or how
+	  many outgoing connections your mailserver has open.
+
+2008-01-11, Version 4.1.6
+	* unixsock plugin: A bug in the unixsock plugin caused it not to set
+	  the permission on the socket as documented in the manpage. Thanks to
+	  Evgeny Chukreev for fixing this issue.
+	* collectd: The documentation has been improved.
+
+2007-12-27, Version 4.1.5
+	* rrdtool plugin: Fix a memory leak that only occurred in very-low-
+	  memory situations.
+	* sensors plugin: Updated the plugin to build and work with version 3
+	  of the libsensors library.
+
+2007-11-08, Version 4.1.4
+	* Build system: Improve detection of the rrd library, especially if
+	  it's in a non-standard location.
+	* Build system: A bug when parsing the argument for
+	  `--with-libnetsnmp' has been fixed.
+	* collectd: Implement `strerror_r' if the libc doesn't provide it.
+	* rrdtool plugin: Fix a bug in the shutdown sequence that might cause
+	  a deadlock or delay when shutting down the daemon.
+	* snmp plugin: Fix a memory leak.
+
+2007-10-24, Version 4.1.3
+	* collectd: A build issue under Solaris has been resolved by renaming
+	  data types.
+	* rrdtool plugin: Use the thread-safe RRD-library if available. Try to
+	  be more thread-safe otherwise by locking calls to the library.
+
+2007-09-28, Version 4.1.2
+	* apcups plugin: Fix reporting of the `load percent' data.
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+	* perl plugin: Fix a possible buffer overflow in get_module_name().
+	* build system: Further improve the detection of libraries.
+	* netlink plugin: Build issues under some older versions of the Linux
+	  includes (i. e. Debian Sarge) have been fixed.
+	* snmp plugin: Fix a potential segfault when a host times out. Add
+	  support for the `timeticks' type. 
+
+2007-09-12, Version 4.1.1
+	* Build system: The detection of `libnetlink' has been improved.
+	* collectd: The documentation has been fixed in numerous places.
+	* exec plugin: Setting the group under which to run a program has been
+	  fixed.
+	* collectd: The `sstrerror' function was improved to work correctly
+	  with the broken GNU version of `strerror_r'.
+	* collectd: Write an error message to STDERR when loading of a plugin
+	  fails.
+	* apcups plugin: Fix the `types' used to submit the values: They still
+	  has an `apcups_' prefix which doesn't work anymore.
+	* rrdtool plugin: Create new RRD-files with the `begin' time set to
+	  whatever the client thinks is `now'..
+
+2007-09-01, Version 4.1.0
+	* Build system: The build system has been changed to automatically
+	  disable all plugins, which are missing dependencies. The dependency
+	  checking has been removed from the plugins themselves to remove
+	  redundancy.
+	* Flexible interval: The interval of collected data is now sent along
+	  with the data itself over the network, so that the interval-settings
+	  of server and clients no longer needs to match.
+	* netlink plugin: The new `netlink' plugin connects to the Linux
+	  kernel using a netlink socket and uses it to query information about
+	  interfaces, qdiscs and classes.
+	* rrdtool plugin: The cache is now dumped to disk in an extra thread
+	  to not block data collection.
+	* snmp plugin: The new `snmp' plugin can read values from SNMP enabled
+	  network devices, such as switches, routers, thermometers, rack
+	  monitoring servers, etc. The collectd-snmp(5) manpage documents this
+	  plugin.
+	* unixsock plugin: Added the `LISTVAL' command.
+	* xmms plugin: The new `xmms' plugin graphs the bitrate and frequency
+	  of music played with xmms.
+
+2007-09-28, Version 4.0.9
+	* apcups plugin: Fix reporting of the `load percent' data.
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+	* perl plugin: Fix a possible buffer overflow in get_module_name().
+
+2007-09-12, Version 4.0.8
+	* collectd: The `sstrerror' function was improved to work correctly
+	  with the broken GNU version of `strerror_r'.
+	* collectd: Write an error message to STDERR when loading of a plugin
+	  fails.
+	* apcups plugin: Fix the `types' used to submit the values: They still
+	  has an `apcups_' prefix which doesn't work anymore.
+	* rrdtool plugin: Create new RRD-files with the `begin' time set to
+	  whatever the client thinks is `now'..
+
+2007-08-26, Version 4.0.7
+	* documentation: Some typos have been fixed and some information has
+	  been improved.
+	* build system: Many fixes for detecting libraries in unusual places,
+	  such as on RedHat systems. The affected libraries are `libcurl',
+	  `libmysql', and `libupsclient'.
+	* network plugin: Allow the `Port' option to be specified as a number
+	  (i. e. without quotes).
+	* nut plugin: A fix allows linking the nut plugin against
+	  libupsclient, version >= 2.2.0.
+	* processes plugin: Fix a potential segmentation fault.
+
+2007-07-30, Version 4.0.6
+	* sensors plugin: Fix the ignorelist functionality: Only the `type
+	  instance' was used to match against the list, but the documentation
+	  told otherwise. This release fixes the code, so it complies with the
+	  documentation.
+	* syslog plugin: Call `openlog' right when the plugin is loaded, so
+	  configuration messages will end up in the logging facility.
+	* conrtib/fedora: The contributed specfile for Fedora has been
+	  updated.
+
+2007-07-05, Version 4.0.5
+	* Portability: More fixes for OpenBSD have been included.
+
+2007-06-24, Version 4.0.4
+	* cpu plugin: Fixed the Solaris code.
+	* dns plugin: Fixed a build issue for OpenBSD.
+	* interface plugin: Fixed the Solaris code.
+	* load plugin: Fixed the alternative `/proc' Linux code.
+	* memory plugin: Fixed the Solaris code.
+	* oconfig: Don't require `-lfl' anymore.
+
+2007-06-19, Version 4.0.3
+	* cpu plugin: Fix the Darwin / Mac OS X code.
+	* ping plugin: Use the return value of `getpid', not its address.
+	* csv, rrdtool plugin: Fixed a bug that prevented an buffer to be
+	  initialized correctly.
+	* configure: Added `--with-nan-emulation' to aid cross compilation.
+
+2007-06-12, Version 4.0.2
+	* hddtemp and ntpd plugin: Corrected the parsing of port numbers when
+	  they're given in numerically form.
+
+2007-06-07, Version 4.0.1
+	* iptables plugin: A bug in the configuration routine has been fixed.
+	  Setting a comment in the configfile will no longer cause a
+	  segmentation fault.
+
+2007-06-03, Version 4.0.0
+	* collectd: The plugin-infrastructure has been changed to allow for
+	  more types of plugins, namely `write' and `log' plugins.
+	* collectd: The read-function has been changed to read many plugins in
+	  parallel, using threads. Thus, plugins generally need to use
+	  thread-safe functions from now on.
+	* collectd: The '-t' command line options allows to perform syntax tests
+	  of the configuration file and exit immediately.
+	* csv plugin: The new `csv' plugin handles output to `comma separated
+	  values'-files.
+	* rrdtool plugin: The new `rrdtool' plugin handles output to
+	  RRD-files. Data can be cached to combine multiple updates into one
+	  write to increase IO-performance.
+	* network plugin: The new `network' plugin handles IO via the network.
+	  It implements a different, much more extensible protocol which can
+	  combine many values in one packet, decreasing the number of UDP-
+	  packets being sent. It can read from and send to the network and
+	  with the appropriate configuration even forward packets to other
+	  networks.
+	* unixsock plugin: The new `unixsock' plugin provides an interface to
+	  communicate with the daemon while it is running. Right now the
+	  commands `GETVAL' and `PUTVAL' are implemented, but more are to
+	  come.
+	* perl plugin: The new `perl' plugin allows you to write extensions
+	  for collectd in the scripting-language Perl.
+	* logfile plugin: The new `logfile' plugin writes logmessages to files
+	  or STDOUT or STDERR.
+	* syslog plugin: The new `syslog' plugin sends logmessages to the
+	  system's syslog daemon.
+	* entropy plugin: The new `entropy' plugin collects the amount of
+	  entropy currently being available to the system.
+	* exec plugin: The new `exec' plugin forks child processes and reads
+	  back values provided by the forked processes.
+	* iptables plugin: The new `iptables' plugin reads counters from
+	  iptables rules. Thanks to Sjoerd van der Berg for contributing this
+	  plugin.
+	* irq plugin: The new `irq' plugin collects the IRQ-counters. Thanks
+	  to Peter Holik for contributing this plugin.
+	* nut plugin: The new `nut' plugin connects the upsd of the `network
+	  ups tools' and reads information about the connected UPS.
+	* apache plugin: Support for lighttpd's `BusyServers' (aka.
+	  connections) field was added by Florent Monbillard.
+	* collectd-nagios: The new `collectd-nagios' binary queries values
+	  from collectd, parses them and exits according to Nagios-standards.
+	* manpages: The manpages have been improved a lot.
+
+2007-09-28, Version 3.11.7
+	* wireless plugin: Correct the handling of cards returning signal and
+	  noise quality as percentage.
+
+2007-08-31, Version 3.11.6
+	* processes plugin: Fix a potential segmentation fault.
+
+2007-05-29, Version 3.11.5
+	* configure: Added `AC_SYS_LARGEFILE' for LFS.
+	* ntpd plugin: Fix a potential buffer overflow.
+	* processes plugin: Fix a bug when run under Linux 2.4. All processes
+	  were accounted as `zombies'.
+
+2007-04-10, Version 3.11.4
+	* dns plugin: Change the order of includes to make the plugin compile
+	  under FreeBSD.
+
+2007-03-30, Version 3.11.3
+	* configure: Have the configure-script define `HAVE_LIBKSTAT' instead
+	  of the unused `COLLECT_KSTAT'.
+
+2007-02-11, Version 3.11.2
+	* plugin: Catch NULL-pointer and try to fix them. Otherwise the
+	  NULL-pointer may have been passed to `printf' which causes a
+	  segfault with some libcs.
+
+2007-02-10, Version 3.11.1
+	* df plugin: Some wrong defines have been fixed so the plugin works
+	  under Solaris again.
+	* dns plugin: The usage of a struct has been fixed to work with
+	  non-GNU libcs.
+	* processes plugin: Some missing defines have been added so the plugin
+	  compiles cleanly under FreeBSD and presumably other UNIXes.
+
+2006-12-22, Version 3.11.0
+	* collectd: The new command line option `-P' makes it easier for
+	  distributors to change the location of PID-files.
+	* collectd: The daemon shuts down faster now which makes it easier to
+	  write init.d-scripts for it.
+	* apache plugin: Increase the buffersize to 16k, because the 4k buffer
+	  caused problems every now and then.
+	* df plugin: New config options allow to ignore certain mountpoints,
+	  filesystem types or devices.
+	* dns plugin: The new dns plugin uses `libpcap' to capture DNS traffic
+	  and interprets it. It collects traffic as well as qtype, opcode and
+	  rcode counts.
+	* email plugin: Sebastian Harl has contributed this plugin which
+	  counts received mails in categories (e. g. ham, spam, virus), spam
+	  score (as given by SpamAssassin) and check types.
+	* mbmon plugin: Flavio Stanchina has contributed this plugin which
+	  uses `mbmon' to gather information from sensors on the motherboard.
+	* processes plugin: Collect detailed statistics for configured
+	  processes, that's process and thread count, CPU usage, resident
+	  segment size and pagefaults.
+	* multimeter plugin: Peter Holik contributed a new plugin which
+	  queries multimeters.
+	* sensors plugin: Lubos Stanek has put much effort into improving this
+	  plugin, including `extended naming', collection of voltage values
+	  and the possibility to ignore certain values.
+
+2006-12-21, Version 3.10.4
+	* Max Kellermann has identified a bug in the server routine: When
+	  opening a socket fails the daemon will (re)try opening the socket in
+	  an endless loop, ultimately leading to a `EMFILE' error.
+
+2006-11-04, Version 3.10.3
+	* Lubos Stanek has identified a bug in the ntpd-plugin: When the
+	  ntpd's reply was sent in more than one packet, the buffer size was
+	  calculated incorrectly, resulting in the reading of uninitialized or
+	  freed memory.
+
+2006-11-01, Version 3.10.2
+	* The sample config file has been improved.
+	* Errors in the manpages have been corrected.
+	* The ping-plugin now adds hosts during initialization, not during
+	  startup. This speeds up startup when no network connectivity is
+	  available. Also, the hosts are being added later when the network is
+	  available.
+	* Improved BSD-support for the df-plugin.
+	* Fixed syntax errors in the swap-plugin for Mac OS X.
+	* Fix a wrong structure being passed to `getnameinfo' in the ntpd-
+	  plugin.
+	* Don't disable the mysql-plugin if connecting to the database fails
+	  during initialization. Instead, try again in increasing intervals.
+
+2006-07-19, Version 3.10.1
+	* A bug in the apcups plugin was fixed: Is the plugin is loaded, but
+	  the apcups cannot be reached, unconnected sockets will pile up and
+	  eventually lead to `Too many open files' errors.
+
+2006-07-09, Version 3.10.0
+	* The `disk' plugin has been ported to Darwin.
+	* The `battery' plugin should work on many Apple computers now.
+	* The `traffic' plugin can now ignore certain interfaces. Also,
+	  statistics for sent/received packets and errors have been added.
+	* A plugin to monitor APC UPSes using `apcupsd' has been added. Thanks
+	  to Anthony Gialluca for contributing this plugin and providing me
+	  with a test environment :)
+	* A plugin for monitoring an NTP instance and the local clock drift
+	  has been added.
+
+2006-06-25, Version 3.9.4
+	* The Solaris code in the `swap' plugin has been changed to reflect
+	  the numbers returned by `swap -s'. Thanks to Christophe Kalt for
+	  working this out.
+	* The debugging system has been fixed to work with the Sun libc.
+	* When built without librrd the variable `operating_mode' could be
+	  uninitialized. Thanks to David Elliot for reporting the bug.
+
+2006-06-01, Version 3.9.3
+	* Fixed the ping-plugin under FreeBSD and Mac OS X. Potentially other
+	  operating systems also profit from the changes, but I wasn't able to
+	  check that.
+	* Changed the build system to find the netinet-includes under FreeBSD
+	  and therefore successfully build the `liboping' library there.
+
+2006-05-09, Version 3.9.2
+	* Applied a patch to the `liboping' library. Due to a bug in the
+	  sequence checking the `ping' plugin stopped working after
+	  approximately 7.6 days.
+
+2006-05-09, Version 3.8.5
+	* Applied a patch to the `liboping' library. Due to a bug in the
+	  sequence checking the `ping' plugin stopped working after
+	  approximately 7.6 days.
+
+2006-04-21, Version 3.9.1
+	* Build issues with Solaris and possible other architectures have been
+	  resolved.
+	* Problems when building the `apache'-plugin without `libcurl' have
+	  been resolved.
+	* A bug in the `ping' plugin has been fixed. Sorry folks.
+
+2006-04-02, Version 3.9.0
+	* A plugin to monitor the Apache webserver has been added.
+	  <http://httpd.apache.org/>
+	* A plugin to collect statistics about virtual servers using VServer.
+	  <http://linux-vserver.org/> Thanks to Sebastian Harl for writing
+	  this plugin :)
+	* A plugin for wireless LAN cards has been added. It monitors signal
+	  strength, link quality and noise ratio..
+	* A plugin for Apple hardware sensors has been added.
+	* An option to compile collectd with different `step' and `heartbeat'
+	  settings has been added. The size of RRAs is no longer static but
+	  calculated based on the settings for `step' and `width'.
+	* The `ping' plugin can now be configured to use a certain TTL.
+	* A plugin to monitor the hardware sensors of Apple computers has been
+	  added.
+	* The plugins `cpu', `memory', `processes' and `traffic' have been
+	  ported to Mach/Darwin (Mac OS X).
+	* The `log mode' has been contributed by Christophe Kalt. It writes
+	  the data into text files rather than RRD files.
+
+2006-04-09, Version 3.8.4
+	* Applied patch by Vincent Stehlé which improves the disk-name
+	  resolution in the `hddtemp' plugin for Linux systems.
+
+2006-04-02, Version 3.8.3
+	* Applied a patch by James Byers: The MySQL plugin was not working
+	  with MySQL 5.0.2 or later.
+
+2006-03-14, Version 3.8.2
+	* `utils_mount.c' has been changed to not use the `MNTTAB' defined by
+	  the GNU libc, because it points to `/etc/fstab' rather than
+	  `/etc/mtab'.
+
+2006-03-13, Version 3.8.1
+	* Fixes for building collectd under FreeBSD, Mac OS X and Solaris.
+	* Fixes in the debian `postinst' and `init.d' scripts.
+
+2006-03-09, Version 3.8.0
+	* The `ping' plugin no longer uses `libping' but a self written
+	  library named `liboping'. With this library it's possible to ping
+	  multiple IPv4 and IPv6 addresses and hostnames - in parallel.
+
+2006-02-18, Version 3.7.2
+	* A simple bug in the `battery' plugin has been fixed. It should now
+	  work with ACPI based batteries as well. Thanks to Sebastian for
+	  fixing this.
+	* Fixing a bug that prevented collectd to be built without librrd.
+	  Thanks to Werner Heuser for reporting it.
+
+2006-02-04, Version 3.7.1
+	* The new network code has been improved to build with older versions
+	  of glibc.
+	* Fix in `libping' sets the ICMP sequence on outgoing packets. Thanks
+	  to Tommie Gannert for this patch.
+
+2006-01-30, Version 3.7.0
+	* The `battery' plugin has been added. It collects information about
+	  laptop batteries..
+	* The MySQL plugin has been improved: It now writes two more RRD
+	  files, `mysql_qcache.rrd' and `mysql_threads.rrd'.
+	* The `cpufreq' plugin now reads another file since the file it did
+	  read so far causes much overhead in the kernel. Also, you need root
+	  to read the old file, but not to read the new one.
+	* The `hddtemp' plugin can now be configured to connect to another
+	  address and/or port than localhost.
+	* The `df' plugin now prefers `statvfs' over `statfs'.
+	* The network code has been rewritten. collectd now supports unicast
+	  and multicast, and IPv4 and IPv6. Also, the TTL of sent packages can
+	  be set in the configfile.
+
+2006-01-24, Version 3.6.2
+	* Due to a bug in the configfile handling collectd wouldn't start in
+	  client mode. This released fixes this.
+
+2006-01-20, Version 3.6.1
+	* Due to a bug in `configure.in' all modules and the binary were
+	  linked against `libmysqlclient'. This issue is solved by this
+	  release.
+
+2006-01-17, Version 3.6.0
+	* A config file has been added. This allows for loading only specific
+	  plugins.
+	* A `df' plugin has been added.
+	* A `mysql' plugin has been added.
+	* The `ping' plugin doesn't entirely give up hope when a socket error
+	  occurred, but will back of and increase the intervals between tries.
+
+2006-01-21, Version 3.5.2
+	* Fixed yet another bug in the signal handling.. Stupid typo..
+	* Improved the ping plugin to not give up on socket errors (backport
+	  from 3.6.0).
+
+2005-12-18, Version 3.5.1
+	* The PID-file is now deleted correctly when shutting down the daemon.
+	* SIGINT and SIGTERM are now handled correctly.
+
+2005-12-16, Version 3.5.0 (Revision 326)
+	* A bug in the `load' module under Solaris has been fixed.
+	* The `users' module has been contributed by Sebastian Harl. It counts
+	  currently logged in users.
+	* The CPU module now works under FreeBSD without the use of
+	  `libstatgrab', however SMP support is missing.
+	* The default directories for the RRD files and the PID file now
+	  depend on the compile time setting of `localstatedir'.
+
+2005-11-15, Version 3.4.0 (Revision 236)
+	* A PID-file is written to /var/run upon startup. Thanks to `Tommie'
+	  from gentoo's bugzilla for writing the patch.
+	* The build dependency for librrd has been removed. Binaries built
+	  without librrd are client-only and will multicast their value as
+	  with the `-c' argument.
+	* A patch by Peter Holik adds a module for monitoring CPU frequencies.
+	* The newly introduced `-f' switch prevents daemon initialization
+	  (forking, closing standard filehandles, etc.) Thanks to Alvaro
+	  Barcellos for this patch.
+
+2005-11-04, Version 3.3.0 (Revision 216)
+	* New modules have been added:
+	  - `serial', for monitoring traffic on the serial interfaces
+	  - `nfs', for graphing NFS procedure calls
+	  - `tape', traffic from/to tape devices
+	* The memory.rrd now accepts more than 4Gig of memory.
+
+2005-10-26, Version 3.2.0 (Revision 200)
+	* Support for graphing the processes has been added (thanks to Lyonel
+	  Vincent)
+	* If reading from hddtemp fails collectd will increase the time
+	  between polls up to one day.
+	* The init.d files have been improved.
+	* Problems with the spec file have been fixed.
+
+2005-10-16, Version 3.1.0 (Revision 194)
+	* Added the `setsid' syscall to the startup code.
+	* Support for hddtemp has been added (thanks to Vincent Stehlé)
+
+2005-09-30, Version 3.0.0 (Revision 184)
+	* The ability to send/receive data to/from the network (think
+	  multicast) has been added.
+	* Modules have been split up into shared libraries can be loaded at
+	  runtime. The biggest advantage is that the core program doesn't need
+	  to be linked against an external library.
+	* A patch by George Kargiotakis has been applied: It fixes the sensors
+	  behaviour then more than one sensor is being queried.
+
+2005-09-16, Version 2.1.0 (Revision 172)
+	* A module for swap statistics has been added.
+
+2005-09-09, Version 2.0.0 (Revision 135)
+	* Filenames can no longer be configured at program startup. The only
+	  options as of this version are the directory and ping hosts.
+	* CPU statistics now include Wait-IO. If provided under Linux IRQ and
+	  Soft-IRQ statistics are added to `System'. 
+	* Diskstats now collect read and write bytes, not sectors.
+	* Ping statistics can now be collected for more than one host. There
+	  is no default any more: If no host is given no host will be pinged.
+	* A self-written patch for libping has been applied so it builds
+	  cleanly.
+
+2005-09-01, Version 1.8.1 (Revision 123)
+	* Much improved configure-script: libraries and features may now be
+	  disabled.
+	* More detailed warnings/error messages when RRD update fails.
+
+2005-08-29, Version 1.8.0:
+	* Support for collecting disk statistics under Solaris.
+
+2005-08-25, Version 1.7.0:
+	* Support for libstatgrab[1] for load, memory usage and network
+	  traffic. CPU- and disk-usage are not (yet) supported, since
+	  libstatgrab returns insufficient information. I will contact the
+	  authors.
+	* Improved the CPU-initialization code for Solaris. Apparently CPUs
+	  aren't necessarily counted linear which is now handled correctly.
+	[1]: http://www.i-scream.org/libstatgrab/
+
+2005-08-21, Version 1.6.0:
+	* Basic support for Solaris: System load and cpu-usage can be
+	  collected under Solaris, too. Other stats will follow later.
+	* Many fixes in the autoconf-script
+	* Collection/Museum scripts have been added under contrib/museum
+	* collectd may now be started in unprivileged mode, though ping
+	  statistics will not work.
+
+2005-07-17, Version 1.5.1:
+	* Diskstats-RRDs now use major/minor for naming. Some systems have
+	  weird strings as disk-names..
+
+2005-07-17, Version 1.5:
+	* A new module, diskstats, has been added. It collects information
+	  about the disks and partitions.
+
+2005-07-11, Version 1.4.2:
+	* The meminfo module has been changed to work with more platforms
+	  and/or kernel versions.
+
+2005-07-10, Version 1.4.1: Correct traffic stats
+	* The traffic rrd-file is now created with DS-type `COUNTER' which I
+	  forgot to correct when I changed that module.
+
+2005-07-09, Version 1.4: More traffic stats
+	* Traffic is now collected for all interfaces that can be found
+	* Temperature-statistics are read from lm-sensors if available
+
+2005-07-08, Version 1.3: CPU stats
+	* Collecting CPU statistics now
+
+2005-07-12, Version 1.2: Using syslog
+	* collectd is now using the syslog facility to report errors, warnings
+	  and the like..
+	* The default directory is now /var/db/collectd
+
+2005-07-10, Version 1.1: Minor changes
+	* Nothing really useful to say ;)
+
+2005-07-09, Version 1.0: Initial Version
+	* The following modules are provided:
+	  * Load average
+	  * Ping time
+	  * Traffic
+	  * Memory info

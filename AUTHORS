@@ -1,0 +1,218 @@
+Permanent project members
+=========================
+
+Florian "octo" Forster <octo at verplant.org>
+ - Initial author.
+
+Sebastian "tokkee" Harl <sh at tokkee.org>
+ - Bugfixes and enhancments in many places all around the project.
+ - perl plugin.
+ - users plugin.
+ - vserver plugin.
+ - Debian package.
+
+
+Contributors (sorted alphabetically)
+====================================
+
+Akkarit Sangpetch <asangpet at andrew.cmu.edu>
+ - write_mongodb plugin.
+
+Alessandro Iurlano <alessandro.iurlano at gmail.com>
+ - Initial filecount plugin.
+
+Alvaro Barcellos <alvaro.barcellos at gmail.com>
+ - Don't-fork patch.
+
+Amit Gupta <amit.gupta221 at gmail.com>
+ - Multiple servers in the apache plugin.
+ - curl_xml plugin.
+
+Anthony Dewhurst <dewhurst at gmail.com>
+ - zfs_arc plugin.
+
+Anthony Gialluca <tonyabg at charter.net>
+ - apcups plugin.
+
+Antony Dovgal <tony at daylessday.org>
+ - memcached plugin.
+
+Aurélien Reynaud <collectd at wattapower.net>
+ - LPAR plugin.
+ - Various fixes for AIX, HP-UX and Solaris.
+
+Bruno Prémont <bonbons at linux-vserver.org>
+ - BIND plugin.
+ - Many bugreports and -fixes in various plugins,
+   especially a nasty bug in the network plugin.
+ - Wireshark dissector.
+
+Chris Lundquist <clundquist at bluebox.net>
+ - Improvements to the write_mongodb plugin.
+
+Christophe Kalt <collectd at klb.taranis.org>
+ - The version 3 `log' mode.
+ - Many Solaris related hints and fixes.
+
+Cyril Feraudet <cyril at feraudet.com>
+ - ethstat plugin.
+
+Dan Berrange <berrange at redhat.com>
+ - uuid plugin.
+
+David Bacher <drbacher at gmail.com>
+ - serial plugin.
+
+Doug MacEachern <dougm at hyperic.com>
+ - The `-T' option (config testing mode).
+ - OpenVPN plugin.
+ - jcollectd (two-way JMX integration).
+ - A few other patches to various plugins.
+ - curl_json plugin.
+
+Edward “Koko” Konetzko <konetzed at quixoticagony.com>
+ - fscache plugin.
+
+Fabian Linzberger <e at lefant.net>
+ - Percentage aggregation for `collectd-nagios'.
+
+Fabien Wernli <cpan at faxm0dem.org>
+ - Solaris improvements in the memory and interfaces plugin.
+
+Flavio Stanchina <flavio at stanchina.net>
+ - mbmon plugin.
+
+Franck Lombardi
+ - UNIX socket code for the memcached plugin.
+
+Jason Pepas <cell at ices.utexas.edu>
+ - nfs plugin.
+
+Jérôme Renard <jerome.renard at gmail.com>
+ - varnish plugin.
+
+Luboš Staněk <kolektor at atlas.cz>
+ - sensors plugin improvements.
+ - Time and effort to find a nasty bug in the ntpd-plugin.
+
+Luke Herberling <collectd at c-ware.com>
+ - powerdns plugin.
+ - Initial `tail' subsystem by:
+
+Lyonel Vincent <lyonel at ezix.org>
+ - processes plugin.
+
+Manuel Sanmartin
+ - AIX port of the following plugins:
+   + cpu
+   + disk
+   + interface
+   + load
+   + memory
+   + processes
+   + swap
+ - Various AIX-related fixes and hacks.
+
+Marco Chiappero <marco at absence.it>
+ - uptime plugin.
+ - ip6tables support in the iptables plugin.
+ - openvpn plugin (support for more status file formats)
+
+Michael Hanselmann <public at hansmi.ch>
+ - md plugin.
+
+Michael Stapelberg <michael+git at stapelberg.de>
+ - OpenBSD port of the tcpconns plugin.
+
+Michał Mirosław <mirq-linux at rere.qmqm.pl>
+ - thermal plugin.
+ - Streamlines recursive directory traversion.
+
+Mirko Buffoni <briareos at eswat.org>
+ - Port/Socket selection in the MySQL plugin.
+
+Niki W. Waibel <niki.waibel at newlogic.com>
+ - Initial autotools fixes.
+ - libltdl code.
+ - getmnt-wizardry.
+
+Oleg King <king2 at kaluga.ru>
+ - Added support for the statgrab library to
+   + the cpu plugin,
+   + the disk plugin, and
+   + the users plugin.
+
+Ondrej Zajicek <santiago at crfreenet.org>
+ - madwifi plugin.
+
+Patrik Weiskircher <weiskircher at inqnet.at>
+ - Contextswitch plugin.
+ - Forkrate counter in the processes plugin.
+ - INode count in the DF plugin.
+
+Paul Sadauskas <psadauskas at gmail.com>
+ - tokyotyrant plugin.
+ - `ReportByDevice' option of the df plugin.
+ - write_http plugin.
+
+Peter Holik <peter at holik.at>
+ - cpufreq plugin.
+ - multimeter plugin.
+ - irq plugin.
+ - Some bugfixes in the exec plugin.
+ - Notifications in the ipmi plugin.
+
+Phoenix Kayo <kayo.k11.4 at gmail.com>
+ - pinba plugin.
+
+Piotr Hosowicz <the55 at wp.pl>
+ - SMF manifest for collectd.
+
+Richard W. M. Jones <rjones at redhat.com>
+ - libvirt plugin.
+ - uuid plugin.
+
+Roman Klesel <roman.klesel at noris.de>
+ - Oracle schema and sample SQL statements to be used with the Oracle plugin.
+
+Rodolphe Quiédeville <rquiedeville at bearstech.com>
+ - Lock statistics in the mysql plugin.
+
+Scott Garrett <sgarrett at technomancer.com>
+ - tape plugin.
+
+Scott Sanders <scott at jssjr.com>
+ - Write-Graphite plugin.
+
+Sebastien Pahl <sebastien.pahl at dotcloud.com>
+ - AMQP plugin.
+
+Simon Kuhnle <simon at blarzwurst.de>
+ - OpenBSD code for the cpu and memory plugins.
+
+Sjoerd van der Berg <harekiet at gmail.com>
+ - iptables plugin.
+
+Stefan Hacker <stefan.hacker at web.de>
+ - teamspeak2 plugin.
+
+Sven Trenkel <collectd at semidefinite.de>
+ - netapp plugin.
+ - python plugin.
+
+Thomas Meson <zllak at hycik.org>
+ - Graphite support for the AMQP plugin.
+
+Tomasz Pala <gotar at pld-linux.org>
+ - conntrack plugin.
+
+Tommie Gannert <d00-tga at d.kth.se>
+ - PID-file patch.
+
+Vincent Stehlé <vincent.stehle at free.fr>
+ - hddtemp plugin.
+
+collectd is available at:
+  <http://collectd.org/>
+
+Enjoy :)
