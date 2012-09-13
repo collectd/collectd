@@ -31,6 +31,7 @@
 #include "plugin.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_json.h"
+#include "utils_format_graphite.h"
 
 #include <pthread.h>
 
@@ -42,8 +43,9 @@
 #define CAMQP_DM_VOLATILE   1
 #define CAMQP_DM_PERSISTENT 2
 
-#define CAMQP_FORMAT_COMMAND 1
-#define CAMQP_FORMAT_JSON    2
+#define CAMQP_FORMAT_COMMAND    1
+#define CAMQP_FORMAT_JSON       2
+#define CAMQP_FORMAT_GRAPHITE   3
 
 #define CAMQP_CHANNEL 1
 
@@ -68,6 +70,10 @@ struct camqp_config_s
     uint8_t delivery_mode;
     _Bool   store_rates;
     int     format;
+    /* publish & graphite format only */
+    char    *prefix;
+    char    *postfix;
+    char    escape_char;
 
     /* subscribe only */
     char   *exchange_type;
@@ -129,6 +135,9 @@ static void camqp_config_free (void *ptr) /* {{{ */
     sfree (conf->exchange_type);
     sfree (conf->queue);
     sfree (conf->routing_key);
+    sfree (conf->prefix);
+    sfree (conf->postfix);
+
 
     sfree (conf);
 } /* }}} void camqp_config_free */
@@ -641,6 +650,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
 
     camqp_config_free (conf);
     pthread_exit (NULL);
+    return (NULL);
 } /* }}} void *camqp_subscribe_thread */
 
 static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
@@ -698,6 +708,8 @@ static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
         props.content_type = amqp_cstring_bytes("text/collectd");
     else if (conf->format == CAMQP_FORMAT_JSON)
         props.content_type = amqp_cstring_bytes("application/json");
+    else if (conf->format == CAMQP_FORMAT_GRAPHITE)
+        props.content_type = amqp_cstring_bytes("text/graphite");
     else
         assert (23 == 42);
     props.delivery_mode = conf->delivery_mode;
@@ -776,6 +788,17 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         format_json_value_list (buffer, &bfill, &bfree, ds, vl, conf->store_rates);
         format_json_finalize (buffer, &bfill, &bfree);
     }
+    else if (conf->format == CAMQP_FORMAT_GRAPHITE)
+    {
+        status = format_graphite (buffer, sizeof (buffer), ds, vl,
+                    conf->prefix, conf->postfix, conf->escape_char);
+        if (status != 0)
+        {
+            ERROR ("amqp plugin: format_graphite failed with status %i.",
+                    status);
+            return (status);
+        }
+    }
     else
     {
         ERROR ("amqp plugin: Invalid format (%i).", conf->format);
@@ -808,6 +831,8 @@ static int camqp_config_set_format (oconfig_item_t *ci, /* {{{ */
         conf->format = CAMQP_FORMAT_COMMAND;
     else if (strcasecmp ("JSON", string) == 0)
         conf->format = CAMQP_FORMAT_JSON;
+    else if (strcasecmp ("Graphite", string) == 0)
+        conf->format = CAMQP_FORMAT_GRAPHITE;
     else
     {
         WARNING ("amqp plugin: Invalid format string: %s",
@@ -848,6 +873,10 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
     conf->store_rates = 0;
+    /* publish & graphite only */
+    conf->prefix = NULL;
+    conf->postfix = NULL;
+    conf->escape_char = '_';
     /* subscribe only */
     conf->exchange_type = NULL;
     conf->queue = NULL;
@@ -905,6 +934,20 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             status = cf_util_get_boolean (child, &conf->store_rates);
         else if ((strcasecmp ("Format", child->key) == 0) && publish)
             status = camqp_config_set_format (child, conf);
+        else if ((strcasecmp ("GraphitePrefix", child->key) == 0) && publish)
+            status = cf_util_get_string (child, &conf->prefix);
+        else if ((strcasecmp ("GraphitePostfix", child->key) == 0) && publish)
+            status = cf_util_get_string (child, &conf->postfix);
+        else if ((strcasecmp ("GraphiteEscapeChar", child->key) == 0) && publish)
+        {
+            char *tmp_buff = NULL;
+            status = cf_util_get_string (child, &tmp_buff);
+            if (strlen (tmp_buff) > 1)
+                WARNING ("amqp plugin: The option \"GraphiteEscapeChar\" handles "
+                        "only one character. Others will be ignored.");
+            conf->escape_char = tmp_buff[0];
+            sfree (tmp_buff);
+        }
         else
             WARNING ("amqp plugin: Ignoring unknown "
                     "configuration option \"%s\".", child->key);

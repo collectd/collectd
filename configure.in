@@ -91,6 +91,7 @@ fi
 if test "x$ac_system" = "xSolaris"
 then
 	AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1, [Define to enforce POSIX thread semantics under Solaris.])
+	AC_DEFINE(_REENTRANT,               1, [Define to enable reentrancy interfaces.])
 fi
 if test "x$ac_system" = "xAIX"
 then
@@ -531,6 +532,8 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 # include <netinet/in.h>
 #endif
 ])
+
+AC_CHECK_HEADERS(netinet/ip_compat.h)
 
 # For the multimeter plugin
 have_termios_h="no"

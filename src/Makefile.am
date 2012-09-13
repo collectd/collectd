@@ -43,7 +43,7 @@ collectd_SOURCES = collectd.c collectd.h \
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD =
+collectd_LDADD = -lm
 collectd_DEPENDENCIES =
 
 # Link to these libraries..
@@ -70,7 +70,6 @@ collectd_LDADD += -ldevinfo
 endif
 if BUILD_AIX
 collectd_LDFLAGS += -Wl,-bexpall,-brtllib
-collectd_LDADD += -lm
 endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
@@ -124,6 +123,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
+		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
@@ -1257,7 +1257,8 @@ endif
 if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = write_graphite.c \
-			utils_format_json.c utils_format_json.h
+                        utils_format_graphite.c utils_format_graphite.h \
+                        utils_format_json.c utils_format_json.h
 write_graphite_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" write_graphite.la
 collectd_DEPENDENCIES += write_graphite.la
@@ -1370,7 +1371,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 	fi
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	protoc-c --c_out $(builddir) pinba.proto
+	protoc-c --c_out . pinba.proto
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)

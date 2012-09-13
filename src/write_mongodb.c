@@ -195,7 +195,14 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /* Assert if the connection has been established */
   assert (mongo_is_connected (node->conn));
 
-  status = mongo_insert (node->conn, collection_name, bson_record);
+  #if MONGO_MINOR >= 6
+    /* There was an API change in 0.6.0 as linked below */
+    /* https://github.com/mongodb/mongo-c-driver/blob/master/HISTORY.md */
+    status = mongo_insert (node->conn, collection_name, bson_record, NULL);
+  #else
+    status = mongo_insert (node->conn, collection_name, bson_record);
+  #endif
+
   if(status != MONGO_OK)
   {
     ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err);
