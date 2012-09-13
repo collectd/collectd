@@ -56,7 +56,6 @@ email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U
 entropy			value:GAUGE:0:4294967295
-evaluations	value:COUNTER:0:U
 fanspeed		value:GAUGE:0:U
 file_size		value:GAUGE:0:U
 files			value:GAUGE:0:U
@@ -110,15 +109,11 @@ node_stat		value:DERIVE:0:U
 node_tx_rate		value:GAUGE:0:127
 operations		value:DERIVE:0:U
 percent			value:GAUGE:0:100.1
-pf_bytes_in	value:COUNTER:0:U
-pf_bytes_out	value:COUNTER:0:U
-pf_counters	value:COUNTER:0:U
-pf_limits	value:COUNTER:0:U
-pf_packets_in	value:COUNTER:0:U
-pf_packets_out	value:COUNTER:0:U
-pf_source	value:COUNTER:0:U
-pf_states	value:GAUGE:0:U
-pf_state	value:COUNTER:0:U
+pf_counters		value:DERIVE:0:U
+pf_limits		value:DERIVE:0:U
+pf_source		value:DERIVE:0:U
+pf_states		value:GAUGE:0:U
+pf_state		value:DERIVE:0:U
 pg_blks			value:DERIVE:0:U
 pg_db_size		value:GAUGE:0:U
 pg_n_tup_c		value:DERIVE:0:U
@@ -157,8 +152,6 @@ signal_quality		value:GAUGE:0:U
 snr			value:GAUGE:0:U
 spam_check		value:GAUGE:0:U
 spam_score		value:GAUGE:U:U
-states_cur	value:GAUGE:0:U
-states_tot	value:COUNTER:0:U
 swap_io			value:DERIVE:0:U
 swap			value:GAUGE:0:1099511627776
 tcp_connections		value:GAUGE:0:4294967295
@@ -201,4 +194,3 @@ arc_ratio		value:GAUGE:0:U
 arc_size		current:GAUGE:0:U, target:GAUGE:0:U, minlimit:GAUGE:0:U, maxlimit:GAUGE:0:U
 mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
 mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U
->>>>>>> master
