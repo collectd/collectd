@@ -170,7 +170,7 @@ static int net_open (char *host, int port)
 	return (sd);
 } /* int net_open (char *host, char *service, int port) */
 
-/* 
+/*
  * Receive a message from the other end. Each message consists of
  * two packets. The first is a header that contains the size
  * of the data that follows in the second packet.
@@ -186,6 +186,7 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	/* get data size -- in short */
 	if (sread (*sockfd, (void *) &packet_size, sizeof (packet_size)) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-1);
 	}
@@ -193,7 +194,11 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	packet_size = ntohs (packet_size);
 	if (packet_size > buflen)
 	{
-		DEBUG ("record length too large");
+		ERROR ("apcups plugin: Received %"PRIu16" bytes of payload "
+				"but have only %i bytes of buffer available.",
+				packet_size, buflen);
+		close (*sockfd);
+		*sockfd = -1;
 		return (-2);
 	}
 
@@ -203,6 +208,7 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	/* now read the actual data */
 	if (sread (*sockfd, (void *) buf, packet_size) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-1);
 	}
@@ -229,6 +235,7 @@ static int net_send (int *sockfd, char *buff, int len)
 
 	if (swrite (*sockfd, (void *) &packet_size, sizeof (packet_size)) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-1);
 	}
@@ -236,6 +243,7 @@ static int net_send (int *sockfd, char *buff, int len)
 	/* send data packet */
 	if (swrite (*sockfd, (void *) buff, len) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-2);
 	}
@@ -398,12 +406,12 @@ static int apcups_read (void)
 	apcups_detail.timeleft =   -1.0;
 	apcups_detail.itemp    = -300.0;
 	apcups_detail.linefreq =   -1.0;
-  
+
 	status = apc_query_server (conf_host == NULL
 			? APCUPS_DEFAULT_HOST
 			: conf_host,
 			conf_port, &apcups_detail);
- 
+
 	/*
 	 * if we did not connect then do not bother submitting
 	 * zeros. We want rrd files to have NAN.
