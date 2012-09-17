@@ -1,0 +1,90 @@
+=head1 NAME
+
+collectd-basic_aggregator - Documentation of collectd's C<basic_aggregator plugin>
+
+=head1 SYNOPSIS
+
+  LoadPlugin basic_aggregator
+  <Plugin basic_aggregator>
+	<aggregator>
+		resultvalue "aggregator_0/load/load"
+		operation "AVG"
+		operation "SUM"
+		<valuelist manual>
+			type	"host1/load/load"
+			type	"host2/load/load"
+		</valuelist>
+	</aggregator>
+	<aggregator>
+		resultvalue "aggregator_1/cpu-total/cpug"
+		operation "AVG"
+		operation "SUM"
+		<valuelist manual>
+			alltypesof	"host10/cpu-total/cpu"
+			alltypesof	"host20/cpu-total/cpu"
+		</valuelist>
+	</aggregator>
+    ...
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<basic_aggregator plugin> aggregates DS of types or types instances and
+reinject the result as a new value.
+
+=head1 CONFIGURATION
+
+The configuration file contains B<aggregator> blocks to define each aggregator.
+
+=head2 The B<aggregator> block
+
+The B<aggregator> block defines an aggregator
+queried. The following options can be set:
+
+=over 4
+
+=item B<resultvalue> I<type>
+
+This is the type of the aggregator. The result values will be aggregated into this
+type.
+
+Note : if specified, the instance will be ignored. The instances will be computed
+from the aggregated type instances (see the I<valuelist> block).
+
+=item B<operation> I<AVG|SUM>
+
+Define the aggregator operations to be done.
+More than one operation can be defined.
+
+=back
+
+=head2 The B<valuelist> block
+
+=over 4
+
+=item B<valuelist> I<manual>
+
+When specified as I<manual>, you need to specify what types to aggregate.
+
+=item B<type> I<type|type-instance>
+
+Specify a type (litteral) for which all the DS will be aggregated.
+
+=item B<alltypesof> I<type>
+
+Specify a type (no instances) for which all the instances will be retreived.
+All the DS of all the instances will be aggregated.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+
+=head1 AUTHOR
+
+Yves Mettier E<lt>ymettier at free.frE<gt>
+Cyril Feraudet E<lt>cyril at feraudet.comE<gt>
+
+=cut
