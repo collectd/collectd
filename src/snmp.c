@@ -1201,13 +1201,13 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   int status;
   int i;
 
-  /* `value_table' and `value_table_ptr' implement a linked list for each
-   * value. `instance_list' and `instance_list_ptr' implement a linked list of
+  /* `value_list_head' and `value_list_tail' implement a linked list for each
+   * value. `instance_list_head' and `instance_list_tail' implement a linked list of
    * instance names. This is used to jump gaps in the table. */
-  csnmp_list_instances_t *instance_list;
-  csnmp_list_instances_t *instance_list_ptr;
-  csnmp_table_values_t **value_table;
-  csnmp_table_values_t **value_table_ptr;
+  csnmp_list_instances_t *instance_list_head;
+  csnmp_list_instances_t *instance_list_tail;
+  csnmp_table_values_t **value_list_head;
+  csnmp_table_values_t **value_list_tail;
 
   DEBUG ("snmp plugin: csnmp_read_table (host = %s, data = %s)",
       host->name, data->name);
@@ -1246,20 +1246,22 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   else
     oid_list_len--;
 
-  /* Allocate the `value_table' */
-  value_table = (csnmp_table_values_t **) malloc (sizeof (csnmp_table_values_t *)
-      * 2 * data->values_len);
-  if (value_table == NULL)
+  /* We're going to construct n linked lists, one for each "value".
+   * value_list_head will contain pointers to the heads of these linked lists,
+   * value_list_tail will contain pointers to the tail of the lists. */
+  value_list_head = calloc (data->values_len, sizeof (*value_list_head));
+  value_list_tail = calloc (data->values_len, sizeof (*value_list_tail));
+  if ((value_list_head == NULL) || (value_list_tail == NULL))
   {
-    ERROR ("snmp plugin: csnmp_read_table: malloc failed.");
+    ERROR ("snmp plugin: csnmp_read_table: calloc failed.");
     sfree (oid_list);
+    sfree (value_list_head);
+    sfree (value_list_tail);
     return (-1);
   }
-  memset (value_table, '\0', sizeof (csnmp_table_values_t *) * 2 * data->values_len);
-  value_table_ptr = value_table + data->values_len;
   
-  instance_list = NULL;
-  instance_list_ptr = NULL;
+  instance_list_head = NULL;
+  instance_list_tail = NULL;
 
   status = 0;
   while (status == 0)
@@ -1325,7 +1327,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     {
       /* Allocate a new `csnmp_list_instances_t', insert the instance name and
        * add it to the list */
-      if (csnmp_instance_list_add (&instance_list, &instance_list_ptr,
+      if (csnmp_instance_list_add (&instance_list_head, &instance_list_tail,
 	    res) != 0)
       {
 	ERROR ("snmp plugin: csnmp_instance_list_add failed.");
@@ -1368,8 +1370,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 	continue;
       }
 
-      if ((value_table_ptr[i] != NULL)
-	  && (vb->name[vb->name_length - 1] <= value_table_ptr[i]->subid))
+      if ((value_list_tail[i] != NULL)
+	  && (vb->name[vb->name_length - 1] <= value_list_tail[i]->subid))
       {
 	DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
 	    "SUBID is not increasing.",
@@ -1390,11 +1392,11 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 	  data->scale, data->shift);
       vt->next = NULL;
 
-      if (value_table_ptr[i] == NULL)
-	value_table[i] = vt;
+      if (value_list_tail[i] == NULL)
+	value_list_head[i] = vt;
       else
-	value_table_ptr[i]->next = vt;
-      value_table_ptr[i] = vt;
+	value_list_tail[i]->next = vt;
+      value_list_tail[i] = vt;
 
       /* Copy OID to oid_list[i + 1] */
       memcpy (oid_list[i].oid, vb->name, sizeof (oid) * vb->name_length);
@@ -1411,28 +1413,28 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   res = NULL;
 
   if (status == 0)
-    csnmp_dispatch_table (host, data, instance_list, value_table);
+    csnmp_dispatch_table (host, data, instance_list_head, value_list_head);
 
   /* Free all allocated variables here */
-  while (instance_list != NULL)
+  while (instance_list_head != NULL)
   {
-    instance_list_ptr = instance_list->next;
-    sfree (instance_list);
-    instance_list = instance_list_ptr;
+    csnmp_list_instances_t *next = instance_list_head->next;
+    sfree (instance_list_head);
+    instance_list_head = next;
   }
 
   for (i = 0; i < data->values_len; i++)
   {
-    csnmp_table_values_t *tmp;
-    while (value_table[i] != NULL)
+    while (value_list_head[i] != NULL)
     {
-      tmp = value_table[i]->next;
-      sfree (value_table[i]);
-      value_table[i] = tmp;
+      csnmp_table_values_t *next = value_list_head[i]->next;
+      sfree (value_list_head[i]);
+      value_list_head[i] = next;
     }
   }
 
-  sfree (value_table);
+  sfree (value_list_head);
+  sfree (value_list_tail);
   sfree (oid_list);
 
   return (0);
