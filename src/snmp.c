@@ -1009,12 +1009,13 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   if (vb == NULL)
     return (-1);
 
-  il = (csnmp_list_instances_t *) malloc (sizeof (csnmp_list_instances_t));
+  il = malloc (sizeof (*il));
   if (il == NULL)
   {
     ERROR ("snmp plugin: malloc failed.");
     return (-1);
   }
+  /* XXX copy entire OID */
   il->subid = vb->name[vb->name_length - 1];
   il->next = NULL;
 
@@ -1318,7 +1319,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       break;
     }
 
-    /* if an instance-OID is configured.. */
+    /* Copy the OID of the value used as instance to oid_list, if an instance
+     * is configured. */
     if (data->instance.oid.oid_len > 0)
     {
       /* Allocate a new `csnmp_list_instances_t', insert the instance name and
@@ -1331,19 +1333,24 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 	break;
       }
 
-      /* Set vb on the last variable */
+      /* The instance OID is added to the list of OIDs to GET from the
+       * snmp agent last, so set vb on the last variable returned and copy
+       * that OID. */
       for (vb = res->variables;
 	  (vb != NULL) && (vb->next_variable != NULL);
 	  vb = vb->next_variable)
 	/* do nothing */;
       assert (vb != NULL);
 
-      /* Copy OID to oid_list[data->values_len] */
+      /* Copy the OID of the instance value to oid_list[data->values_len] */
       memcpy (oid_list[data->values_len].oid, vb->name,
 	  sizeof (oid) * vb->name_length);
       oid_list[data->values_len].oid_len = vb->name_length;
     }
 
+    /* Iterate over all the (non-instance) values returned by the agent. The
+     * (i < value_len) check will make sure we're not handling the instance OID
+     * twice. */
     for (vb = res->variables, i = 0;
 	(vb != NULL) && (i < data->values_len);
 	vb = vb->next_variable, i++)
