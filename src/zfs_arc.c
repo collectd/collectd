@@ -28,7 +28,7 @@
 /*
  * Global variables
  */
-static kstat_t *ksp;
+
 extern kstat_ctl_t *kc;
 
 static void za_submit (const char* type, const char* type_instance, value_t* values, int values_len)
@@ -109,6 +109,7 @@ static int za_read (void)
 {
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
 	value_t  l2_io[2];
+	kstat_t	 *ksp	= NULL;
 
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
@@ -165,8 +166,6 @@ static int za_read (void)
 
 static int za_init (void) /* {{{ */
 {
-	ksp = NULL;
-
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{
