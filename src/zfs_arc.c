@@ -26,7 +26,7 @@
 /*
  * Global variables
  */
-static kstat_t *ksp;
+
 extern kstat_ctl_t *kc;
 
 static void za_submit (const char* type, const char* type_instance, value_t* values, int values_len)
@@ -94,6 +94,7 @@ static int za_read (void)
 	counter_t demand_data_hits, demand_metadata_hits, prefetch_data_hits, prefetch_metadata_hits;
 	counter_t demand_data_misses, demand_metadata_misses, prefetch_data_misses, prefetch_metadata_misses;
 	counter_t l2_read_bytes, l2_write_bytes;
+	kstat_t	 *ksp	= NULL;
 
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
@@ -145,8 +146,6 @@ static int za_read (void)
 
 static int za_init (void) /* {{{ */
 {
-	ksp = NULL;
-
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{
