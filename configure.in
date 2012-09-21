@@ -1368,6 +1368,124 @@ then
 	 AC_DEFINE(HAVE_PROCINFO_H, 1, [Define to 1 if you have the procinfo.h])
 fi
 
+# --with-libjson {{{
+AC_ARG_WITH(libjson, [AS_HELP_STRING([--with-libjson@<:@=PREFIX@:>@], [Path to libjson.])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_libjson="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libjson="no"
+ else
+	 with_libjson="yes"
+	 LIBJSON_CPPFLAGS="$LIBJSON_CPPFLAGS -I$withval/include"
+	 LIBJSON_LDFLAGS="$LIBJSON_LDFLAGS -L$withval/lib"
+ fi; fi
+],
+[with_libjson="yes"])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBJSON_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBJSON_LDFLAGS"
+
+if test "x$with_libjson" = "xyes"
+then
+	if test "x$LIBJSON_CPPFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libjson CPPFLAGS: $LIBJSON_CPPFLAGS])
+	fi
+	AC_CHECK_HEADERS(json/json.h,
+	[with_libjson="yes"],
+	[with_libjson="no (json.h not found)"])
+fi
+if test "x$with_libjson" = "xyes"
+then
+	if test "x$LIBJSON_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libjson LDFLAGS: $LIBJSON_LDFLAGS])
+	fi
+	AC_CHECK_LIB(json, json_object_new_object,
+	[with_libjson="yes"],
+	[with_libjson="no (symbol 'json_object_new_object' not found)"])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libjson" = "xyes"
+then
+	BUILD_WITH_LIBJSON_CPPFLAGS="$LIBJSON_CPPFLAGS"
+	BUILD_WITH_LIBJSON_LDFLAGS="$LIBJSON_LDFLAGS"
+	BUILD_WITH_LIBJSON_LIBS="-ljson"
+	AC_SUBST(BUILD_WITH_LIBJSON_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBJSON_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBJSON_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBJSON, test "x$with_libjson" = "xyes")
+# }}}
+
+# --with-libmicrohttpd {{{
+AC_ARG_WITH(libmicrohttpd, [AS_HELP_STRING([--with-libmicrohttpd@<:@=PREFIX@:>@], [Path to libmicrohttpd.])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_libmicrohttpd="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libmicrohttpd="no"
+ else
+	 with_libmicrohttpd="yes"
+	 LIBMICROHTTPD_CPPFLAGS="$LIBMICROHTTPD_CPPFLAGS -I$withval/include"
+	 LIBMICROHTTPD_LDFLAGS="$LIBMICROHTTPD_LDFLAGS -L$withval/lib"
+ fi; fi
+],
+[with_libmicrohttpd="yes"])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBMICROHTTPD_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBMICROHTTPD_LDFLAGS"
+
+if test "x$with_libmicrohttpd" = "xyes"
+then
+	if test "x$LIBMICROHTTPD_CPPFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libmicrohttpd CPPFLAGS: $LIBMICROHTTPD_CPPFLAGS])
+	fi
+	AC_CHECK_HEADERS(microhttpd.h,
+	[with_libmicrohttpd="yes"],
+	[with_libmicrohttpd="no (microhttpd.h not found)"])
+fi
+if test "x$with_libmicrohttpd" = "xyes"
+then
+	if test "x$LIBMICROHTTPD_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libmicrohttpd LDFLAGS: $LIBMICROHTTPD_LDFLAGS])
+	fi
+	AC_CHECK_LIB(microhttpd, MHD_get_version,
+	[with_libmicrohttpd="yes"],
+	[with_libmicrohttpd="no (symbol 'microhttpd_info' not found)"])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libmicrohttpd" = "xyes"
+then
+	BUILD_WITH_LIBMICROHTTPD_CPPFLAGS="$LIBMICROHTTPD_CPPFLAGS"
+	BUILD_WITH_LIBMICROHTTPD_LDFLAGS="$LIBMICROHTTPD_LDFLAGS"
+	BUILD_WITH_LIBMICROHTTPD_LIBS="-lmicrohttpd"
+	AC_SUBST(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMICROHTTPD_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBMICROHTTPD, test "x$with_libmicrohttpd" = "xyes")
+# }}}
+
 if test "x$ac_system" = "xSolaris"
 then
 	with_kstat="yes"
@@ -4485,6 +4603,7 @@ plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
 plugin_irq="no"
+plugin_jsonrpc="no"
 plugin_libvirt="no"
 plugin_load="no"
 plugin_memory="no"
@@ -4650,6 +4769,12 @@ then
 	plugin_tcpconns="yes"
 fi
 
+if test "x$with_libmicrohttpd" = "xyes" && test "x$with_libjson" = "xyes"
+then
+	plugin_jsonrpc="yes"
+fi
+
+
 # Df plugin: Check if we know how to determine mount points first.
 #if test "x$have_listmntent" = "xyes"; then
 #	plugin_df="yes"
@@ -4810,6 +4935,7 @@ AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
+AC_PLUGIN([jsonrpc],     [$plugin_jsonrpc],    [Json-RPC communication plugin])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
@@ -5066,10 +5192,12 @@ Configuration:
     libgcrypt . . . . . . $with_libgcrypt
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
+    libjson . . . . . . . $with_libjson
     libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
+    libmicrohttpd . . . . $with_libmicrohttpd
     libmodbus . . . . . . $with_libmodbus
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
@@ -5142,6 +5270,7 @@ Configuration:
     ipvs  . . . . . . . . $enable_ipvs
     irq . . . . . . . . . $enable_irq
     java  . . . . . . . . $enable_java
+    jsonrpc . . . . . . . $enable_jsonrpc
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
