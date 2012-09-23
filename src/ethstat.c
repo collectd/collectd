@@ -104,7 +104,7 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
   memset (map, 0, sizeof (*map));
 
   sstrncpy (map->type, ci->values[1].value.string, sizeof (map->type));
-  if (ci->values_num == 2)
+  if (ci->values_num == 3)
     sstrncpy (map->type_instance, ci->values[2].value.string,
         sizeof (map->type_instance));
 
