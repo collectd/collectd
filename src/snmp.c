@@ -1,6 +1,6 @@
 /**
  * collectd - src/snmp.c
- * Copyright (C) 2007  Florian octo Forster
+ * Copyright (C) 2007-2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -79,7 +79,7 @@ typedef struct host_definition_s host_definition_t;
  * gaps in tables. */
 struct csnmp_list_instances_s
 {
-  oid subid;
+  oid_t suffix;
   char instance[DATA_MAX_NAME_LEN];
   struct csnmp_list_instances_s *next;
 };
@@ -87,7 +87,7 @@ typedef struct csnmp_list_instances_s csnmp_list_instances_t;
 
 struct csnmp_table_values_s
 {
-  oid subid;
+  oid_t suffix;
   value_t value;
   struct csnmp_table_values_s *next;
 };
@@ -106,6 +106,54 @@ static int csnmp_read_host (user_data_t *ud);
 /*
  * Private functions
  */
+static void csnmp_oid_init (oid_t *dst, oid const *src, size_t n)
+{
+  assert (n <= STATIC_ARRAY_LEN (dst->oid));
+  memcpy (dst->oid, src, sizeof (*src) * n);
+  dst->oid_len = n;
+}
+
+static int csnmp_oid_compare (oid_t const *left, oid_t const *right)
+{
+  return (snmp_oid_compare (left->oid, left->oid_len,
+        right->oid, right->oid_len));
+}
+
+static int csnmp_oid_suffix (oid_t *dst, oid_t const *src,
+    oid_t const *root)
+{
+  /* Make sure "src" is in "root"s subtree. */
+  if (src->oid_len >= root->oid_len)
+    return (EINVAL);
+  if (snmp_oid_ncompare (root->oid, root->oid_len,
+        src->oid, src->oid_len,
+        /* n = */ root->oid_len) != 0)
+    return (EINVAL);
+
+  memset (dst, 0, sizeof (*dst));
+  dst->oid_len = src->oid_len - root->oid_len;
+  memcpy (dst->oid, &src->oid[root->oid_len],
+      dst->oid_len * sizeof (dst->oid[0]));
+  return (0);
+}
+
+static int csnmp_oid_to_string (char *buffer, size_t buffer_size,
+    oid_t const *o)
+{
+  char oid_str[MAX_OID_LEN][16];
+  char *oid_str_ptr[MAX_OID_LEN];
+  size_t i;
+
+  for (i = 0; i < o->oid_len; i++)
+  {
+    ssnprintf (oid_str[i], sizeof (oid_str[i]), "%lu", (unsigned long) o->oid[i]);
+    oid_str_ptr[i] = oid_str[i];
+  }
+
+  return (strjoin (buffer, buffer_size,
+        oid_str_ptr, o->oid_len, /* separator = */ "."));
+}
+
 static void csnmp_host_close_session (host_definition_t *host) /* {{{ */
 {
   if (host->sess_handle == NULL)
@@ -996,10 +1044,12 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
 
 static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     csnmp_list_instances_t **tail,
-    const struct snmp_pdu *res)
+    struct snmp_pdu const *res,
+    oid_t const *root)
 {
   csnmp_list_instances_t *il;
   struct variable_list *vb;
+  oid_t vb_name;
 
   /* Set vb on the last variable */
   for (vb = res->variables;
@@ -1009,14 +1059,15 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   if (vb == NULL)
     return (-1);
 
+  csnmp_oid_init (&vb_name, vb->name, vb->name_length);
+
   il = malloc (sizeof (*il));
   if (il == NULL)
   {
     ERROR ("snmp plugin: malloc failed.");
     return (-1);
   }
-  /* XXX copy entire OID */
-  il->subid = vb->name[vb->name_length - 1];
+  csnmp_oid_suffix (&il->suffix, &vb_name, root);
   il->next = NULL;
 
   /* Get instance name */
@@ -1064,8 +1115,8 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   csnmp_table_values_t **value_table_ptr;
 
   int i;
-  oid subid;
-  int have_more;
+  _Bool have_more;
+  oid_t current_suffix;
 
   ds = plugin_get_ds (data->type);
   if (!ds)
@@ -1098,49 +1149,61 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 
   vl.interval = host->interval;
 
-  subid = 0;
   have_more = 1;
-
-  while (have_more != 0)
+  memset (&current_suffix, 0, sizeof (current_suffix));
+  while (have_more)
   {
+    _Bool suffix_skipped = 0;
+
+    /* Determine next suffix to handle. */
     if (instance_list != NULL)
     {
-      while ((instance_list_ptr != NULL)
-	  && (instance_list_ptr->subid < subid))
-	instance_list_ptr = instance_list_ptr->next;
-
+      instance_list_ptr = instance_list_ptr->next;
       if (instance_list_ptr == NULL)
       {
         have_more = 0;
         continue;
       }
-      else if (instance_list_ptr->subid > subid)
+
+      memcpy (&current_suffix, &instance_list_ptr->suffix, sizeof (current_suffix));
+    }
+    else /* no instance configured */
+    {
+      csnmp_table_values_t *ptr = value_table_ptr[0];
+      ptr = ptr->next;
+      if (ptr == NULL)
       {
-	subid = instance_list_ptr->subid;
+        have_more = 0;
         continue;
       }
-    } /* if (instance_list != NULL) */
 
+      memcpy (&current_suffix, &ptr->suffix, sizeof (current_suffix));
+    }
+
+    /* Update all the value_table_ptr to point at the entry with the same
+     * trailing partial OID */
     for (i = 0; i < data->values_len; i++)
     {
       while ((value_table_ptr[i] != NULL)
-	  && (value_table_ptr[i]->subid < subid))
-	value_table_ptr[i] = value_table_ptr[i]->next;
+          && (csnmp_oid_compare (&value_table_ptr[i]->suffix, &current_suffix) < 0))
+        value_table_ptr[i] = value_table_ptr[i]->next;
 
       if (value_table_ptr[i] == NULL)
       {
         have_more = 0;
         break;
       }
-      else if (value_table_ptr[i]->subid > subid)
+      else if (csnmp_oid_compare (&value_table_ptr[i]->suffix, &current_suffix) > 0)
       {
-	subid = value_table_ptr[i]->subid;
+        /* This suffix is missing in the subtree. Indicate this with the
+         * "suffix_skipped" flag and try the next instance / suffix. */
+        suffix_skipped = 1;
         break;
       }
     } /* for (i = 0; i < columns; i++) */
-    /* The subid has been increased - start scanning from the beginning
-     * again.. */
-    if (i < data->values_len)
+
+    /* Matching the values failed. Start from the beginning again. */
+    if (!have_more || suffix_skipped)
       continue;
 
     /* if we reach this line, all value_table_ptr[i] are non-NULL and are set
@@ -1150,10 +1213,12 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     for (i = 1; i < data->values_len; i++)
     {
       assert (value_table_ptr[i] != NULL);
-      assert (value_table_ptr[i-1]->subid == value_table_ptr[i]->subid);
+      assert (csnmp_oid_compare (&value_table_ptr[i-1]->suffix,
+            &value_table_ptr[i]->suffix) == 0);
     }
     assert ((instance_list_ptr == NULL)
-	|| (instance_list_ptr->subid == value_table_ptr[0]->subid));
+        || (csnmp_oid_compare (&instance_list_ptr->suffix,
+            &value_table_ptr[0]->suffix) == 0));
 #endif
 
     sstrncpy (vl.type, data->type, sizeof (vl.type));
@@ -1162,7 +1227,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
       char temp[DATA_MAX_NAME_LEN];
 
       if (instance_list_ptr == NULL)
-	ssnprintf (temp, sizeof (temp), "%"PRIu32, (uint32_t) subid);
+        csnmp_oid_to_string (temp, sizeof (temp), &current_suffix);
       else
         sstrncpy (temp, instance_list_ptr->instance, sizeof (temp));
 
@@ -1178,9 +1243,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 
     /* If we get here `vl.type_instance' and all `vl.values' have been set */
     plugin_dispatch_values (&vl);
-
-    subid++;
-  } /* while (have_more != 0) */
+  } /* while (have_more) */
 
   sfree (vl.values);
   sfree (value_table_ptr);
@@ -1344,7 +1407,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         /* do nothing */;
       assert (vb != NULL);
 
-      /* Copy the OID of the instance value to oid_list[data->values_len] */
+      /* Copy the OID of the instance value to oid_list[data->values_len].
+       * "oid_list" is used for the next GETNEXT request. */
       memcpy (oid_list[data->values_len].oid, vb->name,
           sizeof (oid) * vb->name_length);
       oid_list[data->values_len].oid_len = vb->name_length;
@@ -1358,6 +1422,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         vb = vb->next_variable, i++)
     {
       csnmp_table_values_t *vt;
+      oid_t vb_name;
+
+      csnmp_oid_init (&vb_name, vb->name, vb->name_length);
 
       /* Check if we left the subtree */
       if (snmp_oid_ncompare (data->values[i].oid,
@@ -1370,8 +1437,10 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         continue;
       }
 
+      /* Make sure the OIDs returned by the agent are increasing. Otherwise our
+       * table matching algorithm will get confused. */
       if ((value_list_tail[i] != NULL)
-	  && (vb->name[vb->name_length - 1] <= value_list_tail[i]->subid))
+          && (csnmp_oid_compare (&vb_name, &value_list_tail[i]->suffix) <= 0))
       {
         DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
             "SUBID is not increasing.",
@@ -1379,15 +1448,16 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         continue;
       }
 
-      vt = (csnmp_table_values_t *) malloc (sizeof (csnmp_table_values_t));
+      vt = malloc (sizeof (*vt));
       if (vt == NULL)
       {
         ERROR ("snmp plugin: malloc failed.");
         status = -1;
         break;
       }
+      memset (vt, 0, sizeof (*vt));
 
-      vt->subid = vb->name[vb->name_length - 1];
+      csnmp_oid_suffix (&vt->suffix, &vb_name, data->values + i);
       vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
           data->scale, data->shift);
       vt->next = NULL;
