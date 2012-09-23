@@ -127,7 +127,7 @@ static void csnmp_host_definition_destroy (void *arg) /* {{{ */
   if (hd->name != NULL)
   {
     DEBUG ("snmp plugin: Destroying host definition for host `%s'.",
-	hd->name);
+        hd->name);
   }
 
   csnmp_host_close_session (hd);
@@ -213,10 +213,10 @@ static int csnmp_config_add_data_instance (data_definition_t *dd, oconfig_item_t
     dd->instance.oid.oid_len = MAX_OID_LEN;
 
     if (!read_objid (ci->values[0].value.string,
-	  dd->instance.oid.oid, &dd->instance.oid.oid_len))
+          dd->instance.oid.oid, &dd->instance.oid.oid_len))
     {
       ERROR ("snmp plugin: read_objid (%s) failed.",
-	  ci->values[0].value.string);
+          ci->values[0].value.string);
       return (-1);
     }
   }
@@ -224,7 +224,7 @@ static int csnmp_config_add_data_instance (data_definition_t *dd, oconfig_item_t
   {
     /* Instance is a simple string */
     sstrncpy (dd->instance.string, ci->values[0].value.string,
-	sizeof (dd->instance.string));
+        sizeof (dd->instance.string));
   }
 
   return (0);
@@ -242,7 +242,7 @@ static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
   if (!dd->is_table)
   {
     WARNING ("snmp plugin: data %s: InstancePrefix is ignored when `Table' "
-	"is set to `false'.", dd->name);
+        "is set to `false'.", dd->name);
     return (-1);
   }
 
@@ -283,10 +283,10 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
     dd->values[i].oid_len = MAX_OID_LEN;
 
     if (NULL == snmp_parse_oid (ci->values[i].value.string,
-	  dd->values[i].oid, &dd->values[i].oid_len))
+          dd->values[i].oid, &dd->values[i].oid_len))
     {
       ERROR ("snmp plugin: snmp_parse_oid (%s) failed.",
-	  ci->values[i].value.string);
+          ci->values[i].value.string);
       free (dd->values);
       dd->values = NULL;
       dd->values_len = 0;
@@ -524,17 +524,17 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   {
     for (data = data_head; data != NULL; data = data->next)
       if (strcasecmp (ci->values[i].value.string, data->name) == 0)
-	break;
+        break;
 
     if (data == NULL)
     {
       WARNING ("snmp plugin: No such data configured: `%s'",
-	  ci->values[i].value.string);
+          ci->values[i].value.string);
       continue;
     }
 
     DEBUG ("snmp plugin: Collect: host = %s, data[%i] = %s;",
-	host->name, host->data_list_len, data->name);
+        host->name, host->data_list_len, data->name);
 
     host->data_list[host->data_list_len] = data;
     host->data_list_len++;
@@ -715,7 +715,7 @@ static void csnmp_host_open_session (host_definition_t *host)
     snmp_error (&sess, NULL, NULL, &errstr);
 
     ERROR ("snmp plugin: host %s: snmp_sess_open failed: %s",
-	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
+        host->name, (errstr == NULL) ? "Unknown problem" : errstr);
     sfree (errstr);
   }
 } /* void csnmp_host_open_session */
@@ -766,16 +766,16 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
 
     memset (oid_buffer, 0, sizeof (oid_buffer));
     snprint_objid (oid_buffer, sizeof (oid_buffer) - 1,
-	vl->name, vl->name_length);
+        vl->name, vl->name_length);
 
 #ifdef ASN_NULL
     if (vl->type == ASN_NULL)
       INFO ("snmp plugin: OID \"%s\" is undefined (type ASN_NULL)",
-	  oid_buffer);
+          oid_buffer);
     else
 #endif
       WARNING ("snmp plugin: I don't know the ASN type \"%i\" (OID: %s)",
-	  (int) vl->type, oid_buffer);
+          (int) vl->type, oid_buffer);
 
     defined = 0;
   }
@@ -791,7 +791,7 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
 
       string_length = sizeof (string) - 1;
       if (vl->val_len < string_length)
-	string_length = vl->val_len;
+        string_length = vl->val_len;
 
       /* The strings we get from the Net-SNMP library may not be null
        * terminated. That is why we're using `memcpy' here and not `strcpy'.
@@ -803,8 +803,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       status = parse_value (string, &ret, type);
       if (status != 0)
       {
-	ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
-	    DS_TYPE_TO_STRING (type), string);
+        ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
+            DS_TYPE_TO_STRING (type), string);
       }
     }
 
@@ -812,20 +812,20 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
     {
       switch (type)
       {
-	case DS_TYPE_COUNTER:
-	case DS_TYPE_DERIVE:
-	case DS_TYPE_ABSOLUTE:
-	  memset (&ret, 0, sizeof (ret));
-	  break;
+        case DS_TYPE_COUNTER:
+        case DS_TYPE_DERIVE:
+        case DS_TYPE_ABSOLUTE:
+          memset (&ret, 0, sizeof (ret));
+          break;
 
-	case DS_TYPE_GAUGE:
-	  ret.gauge = NAN;
-	  break;
+        case DS_TYPE_GAUGE:
+          ret.gauge = NAN;
+          break;
 
-	default:
-	  ERROR ("snmp plugin: csnmp_value_list_to_value: Unknown "
-	      "data source type: %i.", type);
-	  ret.gauge = NAN;
+        default:
+          ERROR ("snmp plugin: csnmp_value_list_to_value: Unknown "
+              "data source type: %i.", type);
+          ret.gauge = NAN;
       }
     }
   } /* if (vl->type == ASN_OCTET_STR) */
@@ -856,7 +856,7 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   else
   {
     ERROR ("snmp plugin: csnmp_value_list_to_value: Unknown data source "
-	"type: %i.", type);
+        "type: %i.", type);
     ret.gauge = NAN;
   }
 
@@ -888,10 +888,10 @@ static int csnmp_check_res_left_subtree (const host_definition_t *host,
     num_checked++;
 
     if ((vb->type == SNMP_ENDOFMIBVIEW)
-	|| (snmp_oid_ncompare (data->values[i].oid,
-	    data->values[i].oid_len,
-	    vb->name, vb->name_length,
-	    data->values[i].oid_len) != 0))
+        || (snmp_oid_ncompare (data->values[i].oid,
+            data->values[i].oid_len,
+            vb->name, vb->name_length,
+            data->values[i].oid_len) != 0))
       num_left_subtree++;
   }
 
@@ -899,7 +899,7 @@ static int csnmp_check_res_left_subtree (const host_definition_t *host,
   if (i < data->values_len)
   {
     ERROR ("snmp plugin: host %s: Expected %i variables, but got only %i",
-	host->name, data->values_len, i);
+        host->name, data->values_len, i);
     return (-1);
   }
 
@@ -908,15 +908,15 @@ static int csnmp_check_res_left_subtree (const host_definition_t *host,
     if (vb == NULL)
     {
       ERROR ("snmp plugin: host %s: Expected one more variable for "
-	  "the instance..", host->name);
+          "the instance..", host->name);
       return (-1);
     }
 
     num_checked++;
     if (snmp_oid_ncompare (data->instance.oid.oid,
-	  data->instance.oid.oid_len,
-	  vb->name, vb->name_length,
-	  data->instance.oid.oid_len) != 0)
+          data->instance.oid.oid_len,
+          vb->name, vb->name_length,
+          data->instance.oid.oid_len) != 0)
       num_left_subtree++;
   }
 
@@ -943,7 +943,7 @@ static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
     int status;
 
     status = snprintf (buffer_ptr, buffer_free,
-	(i == 0) ? "%02x" : ":%02x", (unsigned int) vb->val.bitstring[i]);
+        (i == 0) ? "%02x" : ":%02x", (unsigned int) vb->val.bitstring[i]);
 
     if (status >= buffer_free)
     {
@@ -1029,9 +1029,9 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     for (ptr = il->instance; *ptr != '\0'; ptr++)
     {
       if ((*ptr > 0) && (*ptr < 32))
-	*ptr = ' ';
+        *ptr = ' ';
       else if (*ptr == '/')
-	*ptr = '_';
+        *ptr = '_';
     }
     DEBUG ("snmp plugin: il->instance = `%s';", il->instance);
   }
@@ -1039,7 +1039,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   {
     value_t val = csnmp_value_list_to_value (vb, DS_TYPE_COUNTER, 1.0, 0.0);
     ssnprintf (il->instance, sizeof (il->instance),
-	"%llu", val.counter);
+        "%llu", val.counter);
   }
 
   /* TODO: Debugging output */
@@ -1111,13 +1111,13 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 
       if (instance_list_ptr == NULL)
       {
-	have_more = 0;
-	continue;
+        have_more = 0;
+        continue;
       }
       else if (instance_list_ptr->subid > subid)
       {
 	subid = instance_list_ptr->subid;
-	continue;
+        continue;
       }
     } /* if (instance_list != NULL) */
 
@@ -1129,13 +1129,13 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 
       if (value_table_ptr[i] == NULL)
       {
-	have_more = 0;
-	break;
+        have_more = 0;
+        break;
       }
       else if (value_table_ptr[i]->subid > subid)
       {
 	subid = value_table_ptr[i]->subid;
-	break;
+        break;
       }
     } /* for (i = 0; i < columns; i++) */
     /* The subid has been increased - start scanning from the beginning
@@ -1164,13 +1164,13 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
       if (instance_list_ptr == NULL)
 	ssnprintf (temp, sizeof (temp), "%"PRIu32, (uint32_t) subid);
       else
-	sstrncpy (temp, instance_list_ptr->instance, sizeof (temp));
+        sstrncpy (temp, instance_list_ptr->instance, sizeof (temp));
 
       if (data->instance_prefix == NULL)
-	sstrncpy (vl.type_instance, temp, sizeof (vl.type_instance));
+        sstrncpy (vl.type_instance, temp, sizeof (vl.type_instance));
       else
-	ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s%s",
-	    data->instance_prefix, temp);
+        ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s%s",
+            data->instance_prefix, temp);
     }
 
     for (i = 0; i < data->values_len; i++)
@@ -1228,7 +1228,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   if (ds->ds_num != data->values_len)
   {
     ERROR ("snmp plugin: DataSet `%s' requires %i values, but config talks about %i",
-	data->type, ds->ds_num, data->values_len);
+        data->type, ds->ds_num, data->values_len);
     return (-1);
   }
 
@@ -1259,7 +1259,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     sfree (value_list_tail);
     return (-1);
   }
-  
+
   instance_list_head = NULL;
   instance_list_tail = NULL;
 
@@ -1287,11 +1287,11 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
 
       c_complain (LOG_ERR, &host->complaint,
-	  "snmp plugin: host %s: snmp_sess_synch_response failed: %s",
-	  host->name, (errstr == NULL) ? "Unknown problem" : errstr);
+          "snmp plugin: host %s: snmp_sess_synch_response failed: %s",
+          host->name, (errstr == NULL) ? "Unknown problem" : errstr);
 
       if (res != NULL)
-	snmp_free_pdu (res);
+        snmp_free_pdu (res);
       res = NULL;
 
       sfree (errstr);
@@ -1303,8 +1303,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     status = 0;
     assert (res != NULL);
     c_release (LOG_INFO, &host->complaint,
-	"snmp plugin: host %s: snmp_sess_synch_response successful.",
-	host->name);
+        "snmp plugin: host %s: snmp_sess_synch_response successful.",
+        host->name);
 
     vb = res->variables;
     if (vb == NULL)
@@ -1328,25 +1328,25 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       /* Allocate a new `csnmp_list_instances_t', insert the instance name and
        * add it to the list */
       if (csnmp_instance_list_add (&instance_list_head, &instance_list_tail,
-	    res) != 0)
+            res, &data->instance.oid) != 0)
       {
-	ERROR ("snmp plugin: csnmp_instance_list_add failed.");
-	status = -1;
-	break;
+        ERROR ("snmp plugin: csnmp_instance_list_add failed.");
+        status = -1;
+        break;
       }
 
       /* The instance OID is added to the list of OIDs to GET from the
        * snmp agent last, so set vb on the last variable returned and copy
        * that OID. */
       for (vb = res->variables;
-	  (vb != NULL) && (vb->next_variable != NULL);
-	  vb = vb->next_variable)
-	/* do nothing */;
+          (vb != NULL) && (vb->next_variable != NULL);
+          vb = vb->next_variable)
+        /* do nothing */;
       assert (vb != NULL);
 
       /* Copy the OID of the instance value to oid_list[data->values_len] */
       memcpy (oid_list[data->values_len].oid, vb->name,
-	  sizeof (oid) * vb->name_length);
+          sizeof (oid) * vb->name_length);
       oid_list[data->values_len].oid_len = vb->name_length;
     }
 
@@ -1354,48 +1354,48 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
      * (i < value_len) check will make sure we're not handling the instance OID
      * twice. */
     for (vb = res->variables, i = 0;
-	(vb != NULL) && (i < data->values_len);
-	vb = vb->next_variable, i++)
+        (vb != NULL) && (i < data->values_len);
+        vb = vb->next_variable, i++)
     {
       csnmp_table_values_t *vt;
 
       /* Check if we left the subtree */
       if (snmp_oid_ncompare (data->values[i].oid,
-	    data->values[i].oid_len,
-	    vb->name, vb->name_length,
-	    data->values[i].oid_len) != 0)
+            data->values[i].oid_len,
+            vb->name, vb->name_length,
+            data->values[i].oid_len) != 0)
       {
-	DEBUG ("snmp plugin: host = %s; data = %s; Value %i left its subtree.",
-	    host->name, data->name, i);
-	continue;
+        DEBUG ("snmp plugin: host = %s; data = %s; Value %i left its subtree.",
+            host->name, data->name, i);
+        continue;
       }
 
       if ((value_list_tail[i] != NULL)
 	  && (vb->name[vb->name_length - 1] <= value_list_tail[i]->subid))
       {
-	DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
-	    "SUBID is not increasing.",
-	    host->name, data->name, i);
-	continue;
+        DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+            "SUBID is not increasing.",
+            host->name, data->name, i);
+        continue;
       }
 
       vt = (csnmp_table_values_t *) malloc (sizeof (csnmp_table_values_t));
       if (vt == NULL)
       {
-	ERROR ("snmp plugin: malloc failed.");
-	status = -1;
-	break;
+        ERROR ("snmp plugin: malloc failed.");
+        status = -1;
+        break;
       }
 
       vt->subid = vb->name[vb->name_length - 1];
       vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
-	  data->scale, data->shift);
+          data->scale, data->shift);
       vt->next = NULL;
 
       if (value_list_tail[i] == NULL)
-	value_list_head[i] = vt;
+        value_list_head[i] = vt;
       else
-	value_list_tail[i]->next = vt;
+        value_list_tail[i]->next = vt;
       value_list_tail[i] = vt;
 
       /* Copy OID to oid_list[i + 1] */
@@ -1471,7 +1471,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   if (ds->ds_num != data->values_len)
   {
     ERROR ("snmp plugin: DataSet `%s' requires %i values, but config talks about %i",
-	data->type, ds->ds_num, data->values_len);
+        data->type, ds->ds_num, data->values_len);
     return (-1);
   }
 
@@ -1514,7 +1514,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
     snmp_sess_error (host->sess_handle, NULL, NULL, &errstr);
     ERROR ("snmp plugin: host %s: snmp_sess_synch_response failed: %s",
-	host->name, (errstr == NULL) ? "Unknown problem" : errstr);
+        host->name, (errstr == NULL) ? "Unknown problem" : errstr);
 
     if (res != NULL)
       snmp_free_pdu (res);
@@ -1532,15 +1532,15 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 #if COLLECT_DEBUG
     char buffer[1024];
     snprint_variable (buffer, sizeof (buffer),
-	vb->name, vb->name_length, vb);
+        vb->name, vb->name_length, vb);
     DEBUG ("snmp plugin: Got this variable: %s", buffer);
 #endif /* COLLECT_DEBUG */
 
     for (i = 0; i < data->values_len; i++)
       if (snmp_oid_compare (data->values[i].oid, data->values[i].oid_len,
-	    vb->name, vb->name_length) == 0)
-	vl.values[i] = csnmp_value_list_to_value (vb, ds->ds[i].type,
-	    data->scale, data->shift);
+            vb->name, vb->name_length) == 0)
+        vl.values[i] = csnmp_value_list_to_value (vb, ds->ds[i].type,
+            data->scale, data->shift);
   } /* for (res->variables) */
 
   if (res != NULL)
@@ -1598,8 +1598,8 @@ static int csnmp_read_host (user_data_t *ud)
   if ((uint32_t) (time_end - time_start) > host->interval)
   {
     WARNING ("snmp plugin: Host `%s' should be queried every %"PRIu32
-	" seconds, but reading all values takes %u seconds.",
-	host->name, host->interval, (unsigned int) (time_end - time_start));
+        " seconds, but reading all values takes %u seconds.",
+        host->name, host->interval, (unsigned int) (time_end - time_start));
   }
 
   if (success == 0)
