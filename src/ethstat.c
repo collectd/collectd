@@ -66,6 +66,7 @@ static int ethstat_add_interface (const oconfig_item_t *ci) /* {{{ */
   if (tmp == NULL)
     return (-1);
   interfaces = tmp;
+  interfaces[interfaces_num] = NULL;
 
   status = cf_util_get_string (ci, interfaces + interfaces_num);
   if (status != 0)
