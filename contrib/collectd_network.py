@@ -4,7 +4,7 @@
 #
 # Copyright © 2009 Adrian Perez <aperez@igalia.com>
 #
-# Distributed under terms of the GPLv2 license.
+# Distributed under terms of the GPLv2 license or newer.
 # 
 # Frank Marien (frank@apsu.be) 6 Sep 2012
 # - quick fixes for 5.1 binary protocol

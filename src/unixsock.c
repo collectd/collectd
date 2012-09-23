@@ -205,6 +205,7 @@ static void *us_handle_client (void *arg)
 		close (fdin);
 		close (fdout);
 		pthread_exit ((void *) 1);
+		return ((void *) 1);
 	}
 
 	fhout = fdopen (fdout, "w");
@@ -216,6 +217,7 @@ static void *us_handle_client (void *arg)
 		fclose (fhin); /* this closes fdin as well */
 		close (fdout);
 		pthread_exit ((void *) 1);
+		return ((void *) 1);
 	}
 
 	/* change output buffer to line buffered mode */
@@ -227,6 +229,7 @@ static void *us_handle_client (void *arg)
 		fclose (fhin);
 		fclose (fhout);
 		pthread_exit ((void *) 1);
+		return ((void *) 0);
 	}
 
 	while (42)
@@ -240,6 +243,9 @@ static void *us_handle_client (void *arg)
 		errno = 0;
 		if (fgets (buffer, sizeof (buffer), fhin) == NULL)
 		{
+			if ((errno == EINTR) || (errno == EAGAIN))
+				continue;
+
 			if (errno != 0)
 			{
 				char errbuf[1024];
@@ -268,6 +274,7 @@ static void *us_handle_client (void *arg)
 			fclose (fhin);
 			fclose (fhout);
 			pthread_exit ((void *) 1);
+			return ((void *) 1);
 		}
 
 		if (strcasecmp (fields[0], "getval") == 0)
@@ -318,6 +325,9 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 	pthread_t th;
 	pthread_attr_t th_attr;
 
+	pthread_attr_init (&th_attr);
+	pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
+
 	if (us_open_socket () != 0)
 		pthread_exit ((void *) 1);
 
@@ -336,6 +346,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (sock_fd);
 			sock_fd = -1;
+			pthread_attr_destroy (&th_attr);
 			pthread_exit ((void *) 1);
 		}
 
@@ -352,9 +363,6 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 
 		DEBUG ("Spawning child to handle connection on fd #%i", *remote_fd);
 
-		pthread_attr_init (&th_attr);
-		pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
-
 		status = pthread_create (&th, &th_attr, us_handle_client, (void *) remote_fd);
 		if (status != 0)
 		{
@@ -369,6 +377,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 
 	close (sock_fd);
 	sock_fd = -1;
+	pthread_attr_destroy (&th_attr);
 
 	status = unlink ((sock_file != NULL) ? sock_file : US_DEFAULT_PATH);
 	if (status != 0)
