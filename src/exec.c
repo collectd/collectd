@@ -635,17 +635,22 @@ static void *exec_read_one (void *arg) /* {{{ */
 
       if (len < 0)
       {
-        if (errno == EAGAIN || errno == EINTR)  continue;
+        if (errno == EAGAIN || errno == EINTR)
+          continue;
         break;
       }
       else if (len == 0)
       {
         /* We've reached EOF */
-        NOTICE ("exec plugin: Program `%s' has closed STDERR.",
-            pl->exec);
-        close (fd_err);
+        NOTICE ("exec plugin: Program `%s' has closed STDERR.", pl->exec);
+
+        /* Remove file descriptor form select() set. */
         FD_CLR (fd_err, &fdset);
+        copy = fdset;
         highest_fd = fd;
+
+        /* Clean up file descriptor */
+        close (fd_err);
         fd_err = -1;
         continue;
       }
@@ -822,6 +827,7 @@ static int exec_read (void) /* {{{ */
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
     pthread_create (&t, &attr, exec_read_one, (void *) pl);
+    pthread_attr_destroy (&attr);
   } /* for (pl) */
 
   return (0);
@@ -865,6 +871,7 @@ static int exec_notification (const notification_t *n, /* {{{ */
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
     pthread_create (&t, &attr, exec_notification_one, (void *) pln);
+    pthread_attr_destroy (&attr);
   } /* for (pl) */
 
   return (0);

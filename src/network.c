@@ -58,6 +58,7 @@
 #endif
 
 #if HAVE_LIBGCRYPT
+# include <pthread.h>
 # include <gcrypt.h>
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
@@ -1665,7 +1666,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt (ipv4-ttl): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -1686,7 +1687,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt(ipv6-ttl): %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			return (-1);
@@ -1733,7 +1734,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 						&mreq, sizeof (mreq)) != 0)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv4-multicast-if): %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				return (-1);
 			}
@@ -1752,7 +1753,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 						sizeof (se->interface)) != 0)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv6-multicast-if): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1778,7 +1779,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 					sizeof(interface_name)) == -1 )
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt (bind-if): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -1802,14 +1803,18 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 
 static int network_bind_socket (int fd, const struct addrinfo *ai, const int interface_idx)
 {
+#if KERNEL_SOLARIS
+	char loop   = 0;
+#else
 	int loop = 0;
+#endif
 	int yes  = 1;
 
 	/* allow multiple sockets to use the same PORT number */
 	if (setsockopt (fd, SOL_SOCKET, SO_REUSEADDR,
 				&yes, sizeof(yes)) == -1) {
                 char errbuf[1024];
-                ERROR ("setsockopt: %s", 
+                ERROR ("network plugin: setsockopt (reuseaddr): %s",
                                 sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -1852,7 +1857,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&loop, sizeof (loop)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (multicast-loop): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1862,7 +1867,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&mreq, sizeof (mreq)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (add-membership): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1900,7 +1905,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&loop, sizeof (loop)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv6-multicast-loop): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1910,7 +1915,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&mreq, sizeof (mreq)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv6-add-membership): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1938,7 +1943,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 					sizeof(interface_name)) == -1 )
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt (bind-if): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
