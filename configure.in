@@ -1374,6 +1374,8 @@ AC_ARG_WITH(libjson, [AS_HELP_STRING([--with-libjson@<:@=PREFIX@:>@], [Path to l
  if test "x$withval" = "xyes"
  then
 	 with_libjson="yes"
+	 LIBJSON_CPPFLAGS="$LIBJSON_CPPFLAGS -I$withval/include"
+	 LIBJSON_LDFLAGS="$LIBJSON_LDFLAGS -L$withval/lib"
  else if test "x$withval" = "xno"
  then
 	 with_libjson="no"
@@ -1427,12 +1429,60 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBJSON, test "x$with_libjson" = "xyes")
 # }}}
 
+# --with-jsonrpc_base {{{
+# Enable or not the base jsonrpc callbacks
+AC_ARG_WITH(jsonrpc_base,
+	      [AS_HELP_STRING([--with-jsonrpc_base], [Enable base callbacks for jsonrpc plugin (default=yes)])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_jsonrpc_base="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_jsonrpc_base="no"
+ else
+	 with_jsonrpc_base="yes"
+ fi; fi
+],
+[with_jsonrpc_base="yes"])
+if test "x$with_jsonrpc_base" = "xyes"
+then
+	AC_DEFINE(JSONRPC_USE_BASE,        1, [Define to enable jsonrpc base callbacks.])
+	AM_CONDITIONAL(BUILD_JSONRPC_USE_BASE, test "x$enable_jsonrpc_base" = "xyes")
+fi
+# }}}
+
+# --with-jsonrpc_perfwatcher {{{
+# Enable or not the perfwatcher jsonrpc callbacks
+AC_ARG_WITH(jsonrpc_perfwatcher,
+	      [AS_HELP_STRING([--with-jsonrpc_perfwatcher], [Enable perfwatcher callbacks for jsonrpc plugin (default=yes)])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_jsonrpc_perfwatcher="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_jsonrpc_perfwatcher="no"
+ else
+	 with_jsonrpc_perfwatcher="yes"
+ fi; fi
+],
+[with_jsonrpc_perfwatcher="yes"])
+if test "x$with_jsonrpc_perfwatcher" = "xyes"
+then
+	AC_DEFINE(JSONRPC_USE_PERFWATCHER,        1, [Define to enable jsonrpc perfwatcher callbacks.])
+	AM_CONDITIONAL(BUILD_JSONRPC_USE_PERFWATCHER, test "x$enable_jsonrpc_perfwatcher" = "xyes")
+fi
+# }}}
+
 # --with-libmicrohttpd {{{
 AC_ARG_WITH(libmicrohttpd, [AS_HELP_STRING([--with-libmicrohttpd@<:@=PREFIX@:>@], [Path to libmicrohttpd.])],
 [
  if test "x$withval" = "xyes"
  then
 	 with_libmicrohttpd="yes"
+	 LIBMICROHTTPD_CPPFLAGS="$LIBMICROHTTPD_CPPFLAGS -I$withval/include"
+	 LIBMICROHTTPD_LDFLAGS="$LIBMICROHTTPD_LDFLAGS -L$withval/lib"
  else if test "x$withval" = "xno"
  then
 	 with_libmicrohttpd="no"
@@ -4936,6 +4986,8 @@ AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([jsonrpc],     [$plugin_jsonrpc],    [Json-RPC communication plugin])
+AC_PLUGIN([jsonrpc_base],         [$with_jsonrpc_base],         [Json-RPC : base])
+AC_PLUGIN([jsonrpc_perfwatcher],  [$with_jsonrpc_perfwatcher],  [Json-RPC : perfwatcher helpers])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
@@ -5271,6 +5323,8 @@ Configuration:
     irq . . . . . . . . . $enable_irq
     java  . . . . . . . . $enable_java
     jsonrpc . . . . . . . $enable_jsonrpc
+    jsonrpc_base  . . . . $enable_jsonrpc_base
+    jsonrpc_perfwatcher . $enable_jsonrpc_perfwatcher
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile

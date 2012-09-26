@@ -24,9 +24,14 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+
 #include <microhttpd.h>
 
 #include <json/json.h>
+
+#ifdef JSONRPC_USE_BASE
+#include "jsonrpc_cb_base.h"
+#endif
 
 #define OUTPUT_PREFIX_JSONRPC "JSONRPC plugin : "
 
@@ -57,6 +62,19 @@ typedef enum {
  * Private variables
  */
 
+typedef struct jsonrpc_method_cb_definition_s {
+	const char method[128];
+	int (*cb) (struct json_object *, struct json_object *, const char **);
+} jsonrpc_method_cb_definition_t;
+
+static jsonrpc_method_cb_definition_t jsonrpc_methods_table [] = 
+	{
+#ifdef JSONRPC_USE_BASE
+		JSONRPC_CB_TABLE_BASE
+#endif
+		{ "", NULL }
+	};
+
 static struct MHD_Daemon * jsonrpc_daemon = NULL;
 static unsigned int nb_clients = 0;
 
@@ -79,14 +97,13 @@ const char *parseerrorpage =
 const char *servererrorpage =
   "<html><body>An internal server error has occured.</body></html>";
 
-const char *askpage = "<html><body>\n\
-                       <h1>Welcome</h1>\n\
-                       <p>There are %u connected clients.</p>\n\
-                       <form action=\"/pwet\" method=\"post\" enctype=\"application/json-rpc\">\n\
-                       <input name=\"key\" type=\"hidden\" value='{\"method\": \"sum\", \"params\": {\"a\":3, \"b\":4}, \"id\":0}'>\n\
-                       <input type=\"submit\" value=\" Send \"></form>\n\
-                       </body></html>";
+const char *jsonerrorstringformat =
+	"{\"jsonrpc\": \"2.0\", \"error\": {\"code\": %d, \"message\": \"%s\"}, \"id\": %d}";
 
+#define JSONRPC_ERROR_32600 "Invalid Request."
+#define JSONRPC_ERROR_32601 "Method not found."
+#define JSONRPC_ERROR_32602 "Invalid params."
+#define JSONRPC_ERROR_32603 "Internal error."
 
 typedef struct connection_info_struct_s
 {
@@ -181,14 +198,42 @@ static int decode_from_www_urlencoded(char *s, int l)
 	return o - dest;
 }
 
+char *
+jsonrpc_build_error_object_string(int id, int code, const char *message) {
+	char *result;
+	int lmessage;
+	const char *defined_message = NULL;
+	
+	switch(code) {
+		case -32600 : defined_message = JSONRPC_ERROR_32600; break;
+		case -32601 : defined_message = JSONRPC_ERROR_32601; break;
+		case -32602 : defined_message = JSONRPC_ERROR_32602; break;
+		case -32603 : defined_message = JSONRPC_ERROR_32603; break;
+		default: defined_message = message;
+	}
+	assert(defined_message != NULL);
+
+	lmessage = strlen(defined_message);
+	if(NULL == (result = malloc(strlen(jsonerrorstringformat)+lmessage+30))) 
+		return(NULL);
+	sprintf(result, jsonerrorstringformat, code, defined_message, id);
+	return(result);
+}
+
 static int
 jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
-	*jsonanswer = NULL;
+	const char *errorstring = NULL;
+	int errorcode;
 	struct json_object *v;
 	const char *str;
 	int id;
 	const char *method;
 	struct json_object *params;
+	struct json_object *result;
+	struct json_object *obj;
+	int i;
+
+	*jsonanswer = NULL;
 
 	if(NULL == (v = json_object_object_get(node, "jsonrpc"))) return(-1);
 	if(NULL == (str = json_object_get_string(v)))             return(-1);
@@ -200,16 +245,68 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 		if(errno) return(-1);
 	}
 
-	if(NULL == (v = json_object_object_get(node, "method")))  return(-1);
-	if(NULL == (method = json_object_get_string(v)))             return(-1);
+	if(
+			(NULL == (v = json_object_object_get(node, "method"))) ||
+			(NULL == (method = json_object_get_string(v)))
+	  ) {
+		*jsonanswer = jsonrpc_build_error_object_string(id, -32600, NULL);
+		return(*jsonanswer?0:-1);
+	}
 
 	params = json_object_object_get(node, "params"); /* May be NULL. NULL means no params */
 
+/* Find the callback */
+	for(i=0; jsonrpc_methods_table[i].cb; i++) {
+		if(!strcmp(jsonrpc_methods_table[i].method, method)) break;
+	}
+	if(! jsonrpc_methods_table[i].cb) {
+		*jsonanswer = jsonrpc_build_error_object_string(id, -32601, NULL);
+		return(*jsonanswer?0:-1);
+	}
+/* Create the result object */
+	if(NULL == (result = json_object_new_object())) {
+		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		return(*jsonanswer?0:-1);
+	}
+	if(NULL == (obj = json_object_new_string("2.0"))) {
+		json_object_put(result);
+		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		return(*jsonanswer?0:-1);
+	}
+	json_object_object_add(result, "jsonrpc", obj);
+/* Execute the callback */
+	if(0 != (errorcode = jsonrpc_methods_table[i].cb(params, result, &errorstring)))  {
+		json_object_put(result);
+		if(errorcode > 0) {
+			*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		} else {
+			*jsonanswer = jsonrpc_build_error_object_string(id, errorcode, errorstring);
+		}
+		return(*jsonanswer?0:-1);
+	}
 
-#define JSONSTRING "{\"jsonrpc\": \"2.0\", \"method\": \"%s\", \"params\": %s, \"id\": %d}"
-	if(NULL == (*jsonanswer = malloc(strlen(JSONSTRING)+strlen(method)+40))) return(-1);
-	sprintf(*jsonanswer, JSONSTRING, method, params?"(yes)":"(none)", id);
-	
+/* Finish the result object and convert to string */
+	if(NULL == (obj = json_object_new_int(id))) {
+		json_object_put(result);
+		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		return(*jsonanswer?0:-1);
+	}
+	json_object_object_add(result, "id", obj);
+
+	if(NULL == (str = json_object_to_json_string(result))) {
+		json_object_put(result);
+		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		return(*jsonanswer?0:-1);
+	}
+
+	if(NULL == (*jsonanswer = strdup(str))) {
+		json_object_put(result);
+		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		return(*jsonanswer?0:-1);
+	}
+
+	json_object_put(result);
+
 	return(0);
 }
 
@@ -389,10 +486,7 @@ static int jsonrpc_proceed_request_cb(void * cls,
 
 	if (0 == strcmp (method, "GET"))
 	{
-		static char buffer[1024];
-
-		sprintf (buffer, askpage, nb_clients);
-		return send_page (connection, buffer, MHD_HTTP_OK, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML);
+		return send_page (connection, errorpage, MHD_HTTP_BAD_REQUEST, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML);
 	}
 
 	if (0 == strcmp (method, "POST"))
