@@ -1448,7 +1448,7 @@ AC_ARG_WITH(jsonrpc_base,
 if test "x$with_jsonrpc_base" = "xyes"
 then
 	AC_DEFINE(JSONRPC_USE_BASE,        1, [Define to enable jsonrpc base callbacks.])
-	AM_CONDITIONAL(BUILD_JSONRPC_USE_BASE, test "x$enable_jsonrpc_base" = "xyes")
+	AM_CONDITIONAL(BUILD_JSONRPC_USE_BASE, test "x$with_jsonrpc_base" = "xyes")
 fi
 # }}}
 
@@ -1471,7 +1471,7 @@ AC_ARG_WITH(jsonrpc_perfwatcher,
 if test "x$with_jsonrpc_perfwatcher" = "xyes"
 then
 	AC_DEFINE(JSONRPC_USE_PERFWATCHER,        1, [Define to enable jsonrpc perfwatcher callbacks.])
-	AM_CONDITIONAL(BUILD_JSONRPC_USE_PERFWATCHER, test "x$enable_jsonrpc_perfwatcher" = "xyes")
+	AM_CONDITIONAL(BUILD_JSONRPC_USE_PERFWATCHER, test "x$with_jsonrpc_perfwatcher" = "xyes")
 fi
 # }}}
 

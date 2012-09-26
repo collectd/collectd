@@ -32,6 +32,9 @@
 #ifdef JSONRPC_USE_BASE
 #include "jsonrpc_cb_base.h"
 #endif
+#ifdef JSONRPC_USE_PERFWATCHER
+#include "jsonrpc_cb_perfwatcher.h"
+#endif
 
 #define OUTPUT_PREFIX_JSONRPC "JSONRPC plugin : "
 
@@ -71,6 +74,9 @@ static jsonrpc_method_cb_definition_t jsonrpc_methods_table [] =
 	{
 #ifdef JSONRPC_USE_BASE
 		JSONRPC_CB_TABLE_BASE
+#endif
+#ifdef JSONRPC_USE_PERFWATCHER
+		JSONRPC_CB_TABLE_PERFWATCHER
 #endif
 		{ "", NULL }
 	};

@@ -24,8 +24,8 @@
 #define JSONRPC_CB_PERFWATCHER_H
 
 #define JSONRPC_CB_TABLE_PERFWATCHER \
-	{ "todo",   jsonrpc_cb_todo  },
+	{ "pw_get_status",   jsonrpc_cb_pw_get_status  },
 
-int jsonrpc_cb_todo (struct json_object *params, struct json_object *result, const char **errorstring);
+int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *result, const char **errorstring);
 
 #endif /* JSONRPC_CB_PERFWATCHER_H */
