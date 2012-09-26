@@ -92,6 +92,10 @@ if test "x$ac_system" = "xSolaris"
 then
 	AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1, [Define to enforce POSIX thread semantics under Solaris.])
 	AC_DEFINE(_REENTRANT,               1, [Define to enable reentrancy interfaces.])
+	
+	solaris_version=`uname -r | cut -f2 -d.`
+
+	CFLAGS="$CFLAGS -DSOLARIS2=$solaris_version"
 fi
 if test "x$ac_system" = "xAIX"
 then
@@ -369,7 +373,7 @@ fi
 # For load module
 # For the processes plugin
 # For users module
-AC_CHECK_HEADERS(sys/loadavg.h linux/config.h utmp.h utmpx.h)
+AC_CHECK_HEADERS(sys/loadavg.h kvm.h utmp.h utmpx.h)
 
 # For interface plugin
 AC_CHECK_HEADERS(ifaddrs.h)
@@ -2363,6 +2367,7 @@ then
 	else
 		SAVE_CPPFLAGS="$CPPFLAGS"
 		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
+		SAVE_LIBS="$LIBS"
 
 		have_mysql_h="no"
 		have_mysql_mysql_h="no"
@@ -2379,6 +2384,7 @@ then
 		fi
 
 		CPPFLAGS="$SAVE_CPPFLAGS"
+		LIBS="$SAVE_LIBS"
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
@@ -3555,7 +3561,8 @@ if test "x$with_librrd" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
-
+	SAVE_LIBS="$LIBS"
+	
 	CPPFLAGS="$CPPFLAGS $librrd_cflags"
 	LDFLAGS="$LDFLAGS $librrd_ldflags"
 
@@ -3563,14 +3570,17 @@ then
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
 fi
 if test "x$with_librrd" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_LIBS="$LIBS"
 
 	CPPFLAGS="$CPPFLAGS $librrd_cflags"
 	LDFLAGS="$LDFLAGS $librrd_ldflags"
+	LIBS=""
 
 	AC_CHECK_LIB(rrd_th, rrd_update_r,
 	[with_librrd="yes"
@@ -3595,6 +3605,7 @@ then
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
 fi
 if test "x$with_librrd" = "xyes"
 then
@@ -4653,6 +4664,7 @@ fi
 if test "x$with_kstat" = "xyes"
 then
 	plugin_nfs="yes"
+	plugin_processes="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
 fi
@@ -4909,6 +4921,7 @@ AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
+AC_PLUGIN([notify_file], [yes],                [File notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([numa],        [$plugin_numa],       [NUMA virtual memory statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
@@ -4959,6 +4972,7 @@ AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
+AC_PLUGIN([write_mysql], [$with_libmysql],     [MySQL output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
@@ -5241,6 +5255,7 @@ Configuration:
     nginx . . . . . . . . $enable_nginx
     notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
+    notify_file . . . . . $enable_notify_file
     ntpd  . . . . . . . . $enable_ntpd
     numa  . . . . . . . . $enable_numa
     nut . . . . . . . . . $enable_nut
@@ -5290,6 +5305,7 @@ Configuration:
     write_graphite  . . . $enable_write_graphite
     write_http  . . . . . $enable_write_http
     write_redis . . . . . $enable_write_redis
+    write_mysql . . . . . $enable_write_mysql
     write_mongodb . . . . $enable_write_mongodb
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
